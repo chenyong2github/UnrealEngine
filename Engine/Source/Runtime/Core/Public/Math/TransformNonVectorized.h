@@ -54,7 +54,7 @@ public:
 	/**
 	* The identity transformation (Rotation = TQuat<T>::Identity, Translation = TVector<T>::ZeroVector, Scale3D = (1,1,1)).
 	*/
-	static const TTransform<T> Identity;
+	CORE_API static const TTransform<T> Identity;
 
 #if ENABLE_NAN_DIAGNOSTIC
 	FORCEINLINE void DiagnosticCheckNaN_Scale3D() const
@@ -1202,9 +1202,10 @@ public:
 	explicit TTransform(const TTransform<FArg>& From) : TTransform<T>((TQuat<T>)From.GetRotation(), (TVector<T>)From.GetTranslation(), (TVector<T>)From.GetScale3D()) {}
 };
 
-template<> inline const TTransform<float> TTransform<float>::Identity(FQuat4f(0.f, 0.f, 0.f, 1.f), FVector3f(0.f), FVector3f(1.f));
-template<> inline const TTransform<double> TTransform<double>::Identity(FQuat4d(0.0, 0.0, 0.0, 1.0), FVector3d(0.0), FVector3d(1.0));
-
+#ifndef _MSC_VER // MSVC can't forward declare explicit specializations
+template<> const FTransform3f FTransform3f::Identity;
+template<> const FTransform3d FTransform3d::Identity;
+#endif
 template<typename T>
 FORCEINLINE bool TTransform<T>::AnyHasNegativeScale(const TVector<T>& InScale3D, const  TVector<T>& InOtherScale3D) 
 {

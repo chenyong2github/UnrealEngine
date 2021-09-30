@@ -113,6 +113,11 @@ struct alignas(UE_SSE_DOUBLE_ALIGNMENT) VectorRegister4Double
 #endif
 	}
 
+	FORCEINLINE constexpr VectorRegister4Double(VectorRegister2Double InXY, VectorRegister2Double InZW, VectorRegisterConstInit)
+	: XY(InXY)
+	, ZW(InZW)
+	{}
+
 	// Construct from a vector of 4 floats
 	FORCEINLINE VectorRegister4Double(const VectorRegister4Float& FloatVector)
 	{
@@ -371,6 +376,28 @@ FORCEINLINE VectorRegister4Int MakeVectorRegisterInt(int32 X, int32 Y, int32 Z, 
 	return _mm_setr_epi32(X, Y, Z, W);
 }
 
+/**
+* constexpr 4xint32 vector constant creation that bypasses SIMD intrinsic setter.
+*
+* Added new function instead of constexprifying MakeVectorRegisterInt to avoid small risk of impacting codegen.
+* Long-term we should have a single constexpr MakeVectorRegisterInt.
+*/
+FORCEINLINE constexpr VectorRegister4Int MakeVectorRegisterIntConstant(int32 X, int32 Y, int32 Z, int32 W)
+{
+#if !PLATFORM_LITTLE_ENDIAN
+#error Big-endian unimplemented
+#elif defined(_MSC_VER)
+    return {static_cast<char>(X >> 0), static_cast<char>(X >> 8), static_cast<char>(X >> 16), static_cast<char>(X >> 24),
+            static_cast<char>(Y >> 0), static_cast<char>(Y >> 8), static_cast<char>(Y >> 16), static_cast<char>(Y >> 24), 
+            static_cast<char>(Z >> 0), static_cast<char>(Z >> 8), static_cast<char>(Z >> 16), static_cast<char>(Z >> 24), 
+            static_cast<char>(W >> 0), static_cast<char>(W >> 8), static_cast<char>(W >> 16), static_cast<char>(W >> 24)};
+#else
+	uint64 XY = uint64(uint32(X)) | (uint64(uint32(Y)) << 32);
+	uint64 ZW = uint64(uint32(Z)) | (uint64(uint32(W)) << 32);
+    return VectorRegister4Int { (long long)XY, (long long)ZW };
+#endif
+}
+
 /*=============================================================================
  *	Constants:
  *============================================================================*/
@@ -508,7 +535,7 @@ FORCEINLINE VectorRegister4Double VectorLoadFloat3(const double* Ptr)
 	Result.ZW = _mm_load_sd((double*)(Ptr+2));
 	return Result;
 #else
-	return _mm256_maskload_pd(Ptr, _mm256_castpd_si256(GlobalVectorConstants::DoubleXYZMask));
+	return _mm256_maskload_pd(Ptr, _mm256_castpd_si256(GlobalVectorConstants::DoubleXYZMask()));
 #endif	
 }
 
@@ -528,7 +555,7 @@ FORCEINLINE VectorRegister4Double VectorLoadFloat3_W1(const double* Ptr)
 #else
 	//return MakeVectorRegisterDouble(Ptr[0], Ptr[1], Ptr[2], 1.0);
 	VectorRegister4Double Result;
-	Result = _mm256_maskload_pd(Ptr, _mm256_castpd_si256(GlobalVectorConstants::DoubleXYZMask));
+	Result = _mm256_maskload_pd(Ptr, _mm256_castpd_si256(GlobalVectorConstants::DoubleXYZMask()));
 	Result = _mm256_blend_pd(Result, VectorOneDouble(), 0b1000);
 	return Result;
 #endif	
@@ -1190,24 +1217,18 @@ namespace SSEPermuteHelpers
  */
 FORCEINLINE VectorRegister4Float VectorAbs(const VectorRegister4Float& Vec)
 {
-	return _mm_and_ps(Vec, GlobalVectorConstants::SignMask);
-}
-
-namespace SSEVectorConstants
-{
-#define DOUBLE_SIGN_BIT (uint64(1) << uint64(63))
-	static const VectorRegister2Double DoubleSignMask2d = MakeVectorRegister2DoubleMask((uint64)(~DOUBLE_SIGN_BIT), (uint64)(~DOUBLE_SIGN_BIT));
-#undef DOUBLE_SIGN_BIT
+	return _mm_and_ps(Vec, GlobalVectorConstants::SignMask());
 }
 
 FORCEINLINE VectorRegister4Double VectorAbs(const VectorRegister4Double& Vec)
 {
 	VectorRegister4Double Result;
 #if !UE_PLATFORM_MATH_USE_AVX
-	Result.XY = _mm_and_pd(Vec.XY, SSEVectorConstants::DoubleSignMask2d);
-	Result.ZW = _mm_and_pd(Vec.ZW, SSEVectorConstants::DoubleSignMask2d);
+	VectorRegister2Double DoubleSignMask2d = MakeVectorRegister2DoubleMask(~(uint64(1) << 63), ~(uint64(1) << 63));
+	Result.XY = _mm_and_pd(Vec.XY, DoubleSignMask2d);
+	Result.ZW = _mm_and_pd(Vec.ZW, DoubleSignMask2d);
 #else
-	Result = _mm256_and_pd(Vec, GlobalVectorConstants::DoubleSignMask);
+	Result = _mm256_and_pd(Vec, GlobalVectorConstants::DoubleSignMask());
 #endif
 	return Result;
 }
@@ -2034,7 +2055,7 @@ FORCEINLINE VectorRegister4Double VectorReciprocalAccurate(const VectorRegister4
 */
 FORCEINLINE VectorRegister4Float VectorSet_W0(const VectorRegister4Float& Vec)
 {
-	return _mm_and_ps(Vec, GlobalVectorConstants::XYZMask);
+	return _mm_and_ps(Vec, GlobalVectorConstants::XYZMask());
 }
 
 FORCEINLINE VectorRegister4Double VectorSet_W0(const VectorRegister4Double& Vec)
@@ -2593,12 +2614,12 @@ FORCEINLINE int VectorMaskBits(const VectorRegister4Double& VecMask)
  */
 FORCEINLINE VectorRegister4Float VectorMergeVecXYZ_VecW(const VectorRegister4Float& VecXYZ, const VectorRegister4Float& VecW)
 {
-	return VectorSelect(GlobalVectorConstants::XYZMask, VecXYZ, VecW);
+	return VectorSelect(GlobalVectorConstants::XYZMask(), VecXYZ, VecW);
 }
 
 FORCEINLINE VectorRegister4Double VectorMergeVecXYZ_VecW(const VectorRegister4Double& VecXYZ, const VectorRegister4Double& VecW)
 {
-	//return VectorSelect(GlobalVectorConstants::DoubleXYZMask, VecXYZ, VecW);
+	//return VectorSelect(GlobalVectorConstants::DoubleXYZMask(), VecXYZ, VecW);
 	return VectorRegister4Double(VecXYZ.XY, _mm_move_sd(VecW.ZW, VecXYZ.ZW));
 }
 
@@ -3178,10 +3199,10 @@ FORCEINLINE VectorRegister4Double VectorLog2(const VectorRegister4Double& X)
 namespace VectorSinConstantsSSE
 {
 	static const float p = 0.225f;
-	static const float a = (16 * sqrtf(p));
-	static const float b = ((1 - p) / sqrtf(p));
-	static const VectorRegister4Float A = MakeVectorRegisterFloat(a, a, a, a);
-	static const VectorRegister4Float B = MakeVectorRegisterFloat(b, b, b, b);
+	static const float a = 7.58946609f; // 16 * sqrtf(p)
+	static const float b = 1.63384342f; // (1 - p) / sqrtf(p)
+	static const VectorRegister4Float A = MakeVectorRegisterFloatConstant(a, a, a, a);
+	static const VectorRegister4Float B = MakeVectorRegisterFloatConstant(b, b, b, b);
 }
 
 FORCEINLINE VectorRegister4Float VectorSin(const VectorRegister4Float& V)
@@ -3275,7 +3296,7 @@ FORCEINLINE void VectorSinCos(VectorRegister4Float* RESTRICT VSinAngles, VectorR
 	VectorRegister4Float X = VectorNegateMultiplyAdd(GlobalVectorConstants::TwoPi, Quotient, *VAngles);
 
 	// Map in [-pi/2,pi/2]
-	VectorRegister4Float sign = VectorBitwiseAnd(X, GlobalVectorConstants::SignBit);
+	VectorRegister4Float sign = VectorBitwiseAnd(X, GlobalVectorConstants::SignBit());
 	VectorRegister4Float c = VectorBitwiseOr(GlobalVectorConstants::Pi, sign);  // pi when x >= 0, -pi when x < 0
 	VectorRegister4Float absx = VectorAbs(X);
 	VectorRegister4Float rflx = VectorSubtract(c, X);

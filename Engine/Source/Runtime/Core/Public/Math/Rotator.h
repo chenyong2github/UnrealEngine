@@ -30,7 +30,7 @@ public:
 public:
 
 	/** A rotator of zero degrees on each axis. */
-	static const FRotator ZeroRotator;
+	CORE_API static const FRotator ZeroRotator;
 
 public:
 
@@ -445,9 +445,6 @@ public:
 		return true;
 	}
 };
-
-
-inline const FRotator FRotator::ZeroRotator(0.f, 0.f, 0.f);
 
 
 /* FRotator inline functions

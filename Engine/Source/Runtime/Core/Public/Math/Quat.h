@@ -57,7 +57,7 @@ public:
 public:
 
 	/** Identity quaternion. */
-	static const TQuat<T> Identity;
+	CORE_API static const TQuat<T> Identity;
 
 public:
 
@@ -653,8 +653,10 @@ inline FArchive& operator<<(FArchive& Ar, TQuat<double>& F)
 	return Ar;
 }
 
-template<typename T> inline const TQuat<T> TQuat<T>::Identity = TQuat<T>(0.f, 0.f, 0.f, 1.f);
-
+#ifndef _MSC_VER // MSVC can't forward declare explicit specializations
+template<> const FQuat4f FQuat4f::Identity;
+template<> const FQuat4d FQuat4d::Identity;
+#endif
 /* TQuat inline functions
  *****************************************************************************/
 template<typename T>
@@ -706,7 +708,7 @@ inline TQuat<T>::TQuat(const UE::Math::TMatrix<T>& M)
 		if (M.M[2][2] > M.M[i][i])
 			i = 2;
 
-		static const int32 nxt[3] = { 1, 2, 0 };
+		static constexpr int32 nxt[3] = { 1, 2, 0 };
 		const int32 j = nxt[i];
 		const int32 k = nxt[j];
  

@@ -1063,7 +1063,7 @@ struct FVectorKernelRound : public TUnaryVectorKernel<FVectorKernelRound>
 	{
 		//TODO: >SSE4 has direct ops for this.		
 		VectorRegister4Float Trunc = VectorTruncate(Src0);
-		*Dst = VectorAdd(Trunc, VectorTruncate(VectorMultiply(VectorSubtract(Src0, Trunc), GlobalVectorConstants::FloatAlmostTwo)));
+		*Dst = VectorAdd(Trunc, VectorTruncate(VectorMultiply(VectorSubtract(Src0, Trunc), GlobalVectorConstants::FloatAlmostTwo())));
 	}
 };
 

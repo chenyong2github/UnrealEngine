@@ -555,7 +555,7 @@ public:
 	static FORCEINLINE float Log2(float Value)
 	{
 		// Cached value for fast conversions
-		static const float LogToLog2 = 1.f / Loge(2.f);
+		const float LogToLog2 = 1.44269502f; // 1.f / Loge(2.f)
 		// Do the platform specific log and convert using the cached value
 		return Loge(Value) * LogToLog2;
 	}
@@ -570,7 +570,7 @@ public:
 	static FORCEINLINE double Log2(double Value)
 	{
 		// Cached value for fast conversions
-		static const double LogToLog2 = 1.0 / Loge(2.0);
+		const double LogToLog2 = 1.4426950408889634; // 1.0 / Loge(2.0);
 		// Do the platform specific log and convert using the cached value
 		return Loge(Value) * LogToLog2;
 	}

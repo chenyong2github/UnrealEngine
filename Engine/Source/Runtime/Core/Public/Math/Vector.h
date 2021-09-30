@@ -61,37 +61,37 @@ public:
     T Z;
 
 	/** A zero vector (0,0,0) */
-	static const TVector<T> ZeroVector;
+	CORE_API static const TVector<T> ZeroVector;
 	
 	/** One vector (1,1,1) */
-	static const TVector<T> OneVector;
+	CORE_API static const TVector<T> OneVector;
 	
 	/** Unreal up vector (0,0,1) */
-	static const TVector<T> UpVector;
+	CORE_API static const TVector<T> UpVector;
 	
 	/** Unreal down vector (0,0,-1) */
-	static const TVector<T> DownVector;
+	CORE_API static const TVector<T> DownVector;
 	
 	/** Unreal forward vector (1,0,0) */
-	static const TVector<T> ForwardVector;
+	CORE_API static const TVector<T> ForwardVector;
 	
 	/** Unreal backward vector (-1,0,0) */
-	static const TVector<T> BackwardVector;
+	CORE_API static const TVector<T> BackwardVector;
 	
 	/** Unreal right vector (0,1,0) */
-	static const TVector<T> RightVector;
+	CORE_API static const TVector<T> RightVector;
 	
 	/** Unreal left vector (0,-1,0) */
-	static const TVector<T> LeftVector;
+	CORE_API static const TVector<T> LeftVector;
 	
 	/** Unit X axis vector (1,0,0) */
-	static const TVector<T> XAxisVector;
+	CORE_API static const TVector<T> XAxisVector;
 	
 	/** Unit Y axis vector (0,1,0) */
-	static const TVector<T> YAxisVector;
+	CORE_API static const TVector<T> YAxisVector;
 	
 	/** Unit Z axis vector (0,0,1) */
-	static const TVector<T> ZAxisVector;
+	CORE_API static const TVector<T> ZAxisVector;
 
 	/** @return Zero Vector (0,0,0) */
 	static inline TVector<T> Zero() { return ZeroVector; }
@@ -2373,17 +2373,30 @@ FORCEINLINE TVector<T> TVector<T>::Max3(const TVector<T>& A, const TVector<T>& B
         ); 
 }
 
-template<typename T> inline const TVector<T> TVector<T>::ZeroVector(0, 0, 0);
-template<typename T> inline const TVector<T> TVector<T>::OneVector(1, 1, 1);
-template<typename T> inline const TVector<T> TVector<T>::UpVector(0, 0, 1);
-template<typename T> inline const TVector<T> TVector<T>::DownVector(0, 0, -1);
-template<typename T> inline const TVector<T> TVector<T>::ForwardVector(1, 0, 0);
-template<typename T> inline const TVector<T> TVector<T>::BackwardVector(-1, 0, 0);
-template<typename T> inline const TVector<T> TVector<T>::RightVector(0, 1, 0);
-template<typename T> inline const TVector<T> TVector<T>::LeftVector(0, -1, 0);
-template<typename T> inline const TVector<T> TVector<T>::XAxisVector(1, 0, 0);
-template<typename T> inline const TVector<T> TVector<T>::YAxisVector(0, 1, 0);
-template<typename T> inline const TVector<T> TVector<T>::ZAxisVector(0, 0, 1);
+#ifndef _MSC_VER // MSVC can't forward declare explicit specializations
+template<> const FVector3f FVector3f::ZeroVector;
+template<> const FVector3f FVector3f::OneVector;
+template<> const FVector3f FVector3f::UpVector;
+template<> const FVector3f FVector3f::DownVector;
+template<> const FVector3f FVector3f::ForwardVector;
+template<> const FVector3f FVector3f::BackwardVector;
+template<> const FVector3f FVector3f::RightVector;
+template<> const FVector3f FVector3f::LeftVector;
+template<> const FVector3f FVector3f::XAxisVector;
+template<> const FVector3f FVector3f::YAxisVector;
+template<> const FVector3f FVector3f::ZAxisVector;
+template<> const FVector3d FVector3d::ZeroVector;
+template<> const FVector3d FVector3d::OneVector;
+template<> const FVector3d FVector3d::UpVector;
+template<> const FVector3d FVector3d::DownVector;
+template<> const FVector3d FVector3d::ForwardVector;
+template<> const FVector3d FVector3d::BackwardVector;
+template<> const FVector3d FVector3d::RightVector;
+template<> const FVector3d FVector3d::LeftVector;
+template<> const FVector3d FVector3d::XAxisVector;
+template<> const FVector3d FVector3d::YAxisVector;
+template<> const FVector3d FVector3d::ZAxisVector;
+#endif
 
 /**
  * Multiplies a vector by a scaling factor.

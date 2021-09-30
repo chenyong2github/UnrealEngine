@@ -72,7 +72,7 @@ public:
 
 FORCEINLINE void FOrientedBox::CalcVertices( FVector* Verts ) const
 {
-	static const float Signs[] = { -1.0f, 1.0f };
+	const float Signs[] = { -1.0f, 1.0f };
 
 	for (int32 i = 0; i < 2; i++)
 	{
@@ -89,7 +89,7 @@ FORCEINLINE void FOrientedBox::CalcVertices( FVector* Verts ) const
 
 FORCEINLINE FFloatInterval FOrientedBox::Project( const FVector& Axis ) const
 {
-	static const FVector::FReal Signs[] = {-1.0f, 1.0f};
+	const FVector::FReal Signs[] = {-1.0f, 1.0f};
 
 	// calculate the projections of the box center and the extent-scaled axes.
 	FVector::FReal ProjectedCenter = Axis | Center;

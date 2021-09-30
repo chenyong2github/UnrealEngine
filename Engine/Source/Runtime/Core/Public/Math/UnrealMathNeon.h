@@ -94,6 +94,7 @@ struct alignas(16) VectorRegister4Double
 
 	FORCEINLINE VectorRegister4Double() = default;
 	FORCEINLINE VectorRegister4Double(const VectorRegister2Double& xy, const VectorRegister2Double& zw) : XY(xy), ZW(zw) {}
+	FORCEINLINE constexpr VectorRegister4Double(VectorRegister2Double xy, VectorRegister2Double zw, VectorRegisterConstInit) : XY(xy), ZW(zw) {}
 
 	FORCEINLINE VectorRegister4Double(const VectorRegister4Float& From)
 	{
@@ -333,6 +334,11 @@ FORCEINLINE VectorRegister4Int MakeVectorRegisterInt(int32 X, int32 Y, int32 Z, 
 	Tmp.I[2] = Z;
 	Tmp.I[3] = W;
 	return Tmp.V;
+}
+
+FORCEINLINE constexpr VectorRegister4Int MakeVectorRegisterIntConstant(int32 X, int32 Y, int32 Z, int32 W)
+{
+    return VectorRegister4Int {X, Y, Z, W};
 }
 
 FORCEINLINE VectorRegister2Int64 MakeVectorRegisterInt64(int64 X, int64 Y)
@@ -1195,7 +1201,7 @@ FORCEINLINE VectorRegister4Float VectorSwizzle
 )
 {
 	check((E0 < 4) && (E1 < 4) && (E2 < 4) && (E3 < 4));
-	static const uint32_t ControlElement[4] =
+	static constexpr uint32_t ControlElement[4] =
 	{
 		0x03020100, // XM_SWIZZLE_X
 		0x07060504, // XM_SWIZZLE_Y
@@ -1226,7 +1232,7 @@ FORCEINLINE VectorRegister4Double VectorSwizzle
 )
 {
 	check((E0 < 4) && (E1 < 4) && (E2 < 4) && (E3 < 4));
-	static const uint64_t ControlElement[4] =
+	static constexpr uint64_t ControlElement[4] =
 	{
 		0x0706050403020100ULL, // XM_SWIZZLE_X
 		0x0F0E0D0C0B0A0908ULL, // XM_SWIZZLE_Y
@@ -1315,7 +1321,7 @@ FORCEINLINE VectorRegister4Float VectorShuffle
 {
 	check(PermuteX <= 3 && PermuteY <= 3 && PermuteZ <= 3 && PermuteW <= 3);
 
-	static const uint32 ControlElement[8] =
+	static constexpr uint32 ControlElement[8] =
 	{
 		0x03020100, // XM_PERMUTE_0X
 		0x07060504, // XM_PERMUTE_0Y
@@ -1354,7 +1360,7 @@ FORCEINLINE VectorRegister4Double VectorShuffle
 {
 	check(PermuteX <= 3 && PermuteY <= 3 && PermuteZ <= 3 && PermuteW <= 3);
 
-	static const uint64 ControlElement[8] =
+	static constexpr uint64 ControlElement[8] =
 	{
 		0x0706050403020100ULL, // XM_PERMUTE_0X
 		0x0F0E0D0C0B0A0908ULL, // XM_PERMUTE_0Y
@@ -1410,7 +1416,7 @@ FORCEINLINE VectorRegister4Double VectorShuffleImpl(VectorRegister4Double Vec1, 
  */
 FORCEINLINE uint32 VectorMaskBits(VectorRegister4Float VecMask)
 {
-	uint32x4_t mmA = vtstq_u32(vreinterpretq_u32_f32(VecMask), GlobalVectorConstants::SignBit); // mask with 1s every bit for vector element if it's sign is negative
+	uint32x4_t mmA = vtstq_u32(vreinterpretq_u32_f32(VecMask), GlobalVectorConstants::SignBit()); // mask with 1s every bit for vector element if it's sign is negative
 	uint32x4_t mmB = vandq_u32(mmA, MakeVectorRegisterInt(0x1, 0x2, 0x4, 0x8)); // pick only one bit on it's corresponding position
 	uint32x2_t mmC = vorr_u32(vget_low_u32(mmB), vget_high_u32(mmB));           // now combine the result
 	return vget_lane_u32(mmC, 0) | vget_lane_u32(mmC, 1);                       // reduce the result from 2 elements to one
@@ -1418,8 +1424,8 @@ FORCEINLINE uint32 VectorMaskBits(VectorRegister4Float VecMask)
 
 FORCEINLINE uint32 VectorMaskBits(VectorRegister4Double VecMask)
 {
-	uint64x2_t mmA = vtstq_u64(vreinterpretq_u64_f64(VecMask.XY), GlobalVectorConstants::DoubleSignBit.XY); // mask with 1s every bit for vector element if it's sign is negative
-	uint64x2_t mmA1 = vtstq_u64(vreinterpretq_u64_f64(VecMask.ZW), GlobalVectorConstants::DoubleSignBit.XY);
+	uint64x2_t mmA = vtstq_u64(vreinterpretq_u64_f64(VecMask.XY), GlobalVectorConstants::DoubleSignBit().XY); // mask with 1s every bit for vector element if it's sign is negative
+	uint64x2_t mmA1 = vtstq_u64(vreinterpretq_u64_f64(VecMask.ZW), GlobalVectorConstants::DoubleSignBit().XY);
 	uint64x2_t mmB = vandq_u64(mmA, MakeVectorRegisterInt64(0x1, 0x2)); // pick only one bit on it's corresponding position
 	uint64x2_t mmB1 = vandq_u64(mmA1, MakeVectorRegisterInt64(0x4, 0x8));
 	uint64x2_t mmC = vorrq_u64(mmB, mmB1);								// now combine the result
@@ -2406,7 +2412,7 @@ FORCEINLINE void VectorSinCos(  VectorRegister4Float* RESTRICT VSinAngles, Vecto
 	VectorRegister4Float X = VectorNegateMultiplyAdd(GlobalVectorConstants::TwoPi, Quotient, *VAngles);
 
 	// Map in [-pi/2,pi/2]
-	VectorRegister4Float sign = VectorBitwiseAnd(X, GlobalVectorConstants::SignBit);
+	VectorRegister4Float sign = VectorBitwiseAnd(X, GlobalVectorConstants::SignBit());
 	VectorRegister4Float c = VectorBitwiseOr(GlobalVectorConstants::Pi, sign);  // pi when x >= 0, -pi when x < 0
 	VectorRegister4Float absx = VectorAbs(X);
 	VectorRegister4Float rflx = VectorSubtract(c, X);
@@ -2465,13 +2471,13 @@ inline bool VectorContainsNaNOrInfinite(const VectorRegister4Float& Vec)
 #ifdef _MSC_VER
 	// msvc can only initialize using the first union type which is: n128_u64[2];
 #  if PLATFORM_LITTLE_ENDIAN
-	static const int32x4_t Table = MakeVectorRegisterInt(0x0C080400, 0, 0, 0);
+	static constexpr int32x4_t Table = MakeVectorRegisterIntConstant(0x0C080400, 0, 0, 0);
 #  else
-	static const int32x4_t Table = MakeVectorRegisterInt(0, 0, 0, 0x0004080C);
+	static constexpr int32x4_t Table = MakeVectorRegisterIntConstant(0, 0, 0, 0x0004080C);
 #  endif
 #else
 	// clang can initialize with this syntax, but not the msvc one
-	static const int8x16_t Table = { 0,4,8,12, 0,0,0,0, 0,0,0,0, 0,0,0,0 };
+	static constexpr int8x16_t Table = { 0,4,8,12, 0,0,0,0, 0,0,0,0, 0,0,0,0 };
 #endif
 
 	uint8x16_t res = (uint8x16_t)VectorCompareEQ(ExpTest, FloatInfinity);
@@ -2499,13 +2505,13 @@ inline bool VectorContainsNaNOrInfinite(const VectorRegister4Double& Vec)
 	// msvc can only initialize using the first union type which is: n128_u64[2];
 	//TODO: Update MSVC Tables
 #  if PLATFORM_LITTLE_ENDIAN
-	static const int32x4_t Table = MakeVectorRegisterInt(0x18100800, 0, 0, 0);
+	static constexpr int32x4_t Table = MakeVectorRegisterIntConstant(0x18100800, 0, 0, 0);
 #  else
-	static const int32x4_t Table = MakeVectorRegisterInt(0, 0, 0, 0x00081018);
+	static constexpr int32x4_t Table = MakeVectorRegisterIntConstant(0, 0, 0, 0x00081018);
 #  endif
 #else
 	// clang can initialize with this syntax, but not the msvc one
-	static const int8x16_t Table = {0,8,16,24, 0,0,0,0, 0,0,0,0, 0,0,0,0};
+	static constexpr int8x16_t Table = {0,8,16,24, 0,0,0,0, 0,0,0,0, 0,0,0,0};
 #endif
 
 	VectorRegister4Double InfTestRes = VectorCompareEQ(ExpTest, DoubleInfinity);
@@ -2742,10 +2748,10 @@ FORCEINLINE VectorRegister4Double VectorStep(const VectorRegister4Double& X)
 namespace VectorSinConstantsNEON
 {
 	static const float p = 0.225f;
-	static const float a = (16 * sqrtf(p));
-	static const float b = ((1 - p) / sqrtf(p));
-	static const VectorRegister4Float A = MakeVectorRegister(a, a, a, a);
-	static const VectorRegister4Float B = MakeVectorRegister(b, b, b, b);
+	static const float a = 7.58946609f; // 16 * sqrtf(p)
+	static const float b = 1.63384342f; // (1 - p) / sqrtf(p)
+	static const VectorRegister4Float A = MakeVectorRegisterConstant(a, a, a, a);
+	static const VectorRegister4Float B = MakeVectorRegisterConstant(b, b, b, b);
 }
 
 FORCEINLINE VectorRegister4Float VectorSin(const VectorRegister4Float& X)
