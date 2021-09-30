@@ -25,7 +25,7 @@ PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UDrawPolygonToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLS_API UDrawPolygonToolBuilder : public UInteractiveToolBuilder
 {
 	GENERATED_BODY()
 
@@ -80,7 +80,7 @@ enum class EDrawPolygonOutputMode : uint8
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UDrawPolygonToolStandardProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UDrawPolygonToolStandardProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -116,7 +116,7 @@ public:
 };
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UDrawPolygonToolSnapProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UDrawPolygonToolSnapProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -159,7 +159,7 @@ public:
  * This tool allows the user to draw and extrude 2D polygons
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UDrawPolygonTool : public UInteractiveTool, public IClickSequenceBehaviorTarget
+class MESHMODELINGTOOLS_API UDrawPolygonTool : public UInteractiveTool, public IClickSequenceBehaviorTarget
 {
 	GENERATED_BODY()
 public:
@@ -329,7 +329,7 @@ protected:
 
 // Change event used by DrawPolygonTool to undo draw state.
 // Currently does not redo.
-class MESHMODELINGTOOLSEXP_API FDrawPolygonStateChange : public FToolCommandChange
+class MESHMODELINGTOOLS_API FDrawPolygonStateChange : public FToolCommandChange
 {
 public:
 	bool bHaveDoneUndo = false;

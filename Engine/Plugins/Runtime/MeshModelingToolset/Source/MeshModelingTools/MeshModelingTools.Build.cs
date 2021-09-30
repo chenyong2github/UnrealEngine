@@ -25,17 +25,18 @@ public class MeshModelingTools : ModuleRules
 			{
 				"Core",
 				// "Eigen",
+				"InputCore",
                 "InteractiveToolsFramework",
 				"GeometryCore",
 				// "GeometryFramework",
-				// "GeometryAlgorithms",
+				"GeometryAlgorithms",
 				"DynamicMesh",
-				// "MeshConversion",
+				"MeshConversion",
 				// "MeshDescription",
 				// "StaticMeshDescription",
 				// "SkeletalMeshDescription",
 				"ModelingComponents",
-				// "ModelingOperators",
+				"ModelingOperators",
 
 				// ... add other public dependencies that you statically link with here ...
 			}
