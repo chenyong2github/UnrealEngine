@@ -247,10 +247,10 @@ enum class ELLMTag : LLM_TAG_TYPE
 };
 static_assert( ELLMTag::GenericTagCount <= ELLMTag::PlatformTagStart, "too many LLM tags defined"); 
 
-static const uint32 LLM_TAG_COUNT = 256;
-static const uint32 LLM_CUSTOM_TAG_START = (int32)ELLMTag::PlatformTagStart;
-static const uint32 LLM_CUSTOM_TAG_END = (int32)ELLMTag::ProjectTagEnd;
-static const uint32 LLM_CUSTOM_TAG_COUNT = LLM_CUSTOM_TAG_END + 1 - LLM_CUSTOM_TAG_START;
+static constexpr uint32 LLM_TAG_COUNT = 256;
+static constexpr uint32 LLM_CUSTOM_TAG_START = (int32)ELLMTag::PlatformTagStart;
+static constexpr uint32 LLM_CUSTOM_TAG_END = (int32)ELLMTag::ProjectTagEnd;
+static constexpr uint32 LLM_CUSTOM_TAG_COUNT = LLM_CUSTOM_TAG_END + 1 - LLM_CUSTOM_TAG_START;
 
 
 /**

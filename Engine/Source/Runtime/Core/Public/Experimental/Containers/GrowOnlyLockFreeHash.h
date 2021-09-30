@@ -226,7 +226,7 @@ private:
 	std::atomic<FHashHeader*> HashTable;
 	FCriticalSection	WriteCriticalSection;
 
-	static const int32 DEFAULT_INITIAL_SIZE = 1024;
+	static constexpr int32 DEFAULT_INITIAL_SIZE = 1024;
 
 	static void HashInsertInternal(FHashHeader* HashTableLocal, KeyType Key, ValueType Value)
 	{

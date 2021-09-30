@@ -209,7 +209,7 @@ public:
 private:
 
 	/** The maximum size of type we will allow allocation on the stack (for efficiency). Anything larger will be allocated on the heap. */
-	static const uint32 MaxStackAllocationSize = 64 - sizeof(FGuid);
+	static constexpr uint32 MaxStackAllocationSize = 64 - sizeof(FGuid);
 
 	/** Helper accessor to the data interface. Returns null for empty containers. */
 	Impl::IExpressionNodeStorage* GetData();

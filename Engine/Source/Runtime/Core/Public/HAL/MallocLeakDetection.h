@@ -70,7 +70,7 @@ class CORE_API FMallocLeakDetection
 		{
 			FMemory::Memzero(this, sizeof(FCallstackTrack));
 		}
-		static const int32 Depth = 32;
+		static constexpr int32 Depth = 32;
 		uint64 CallStack[Depth];
 		uint32 FirstFrame;
 		uint32 LastFrame;

@@ -48,8 +48,8 @@
 	struct NEnumRangePrivate::TEnumRangeTraits<EnumType> \
 	{ \
 		enum { RangeType = 0 }; \
-		static const __underlying_type(EnumType) Begin = (__underlying_type(EnumType))(First); \
-		static const __underlying_type(EnumType) End   = (__underlying_type(EnumType))(Last) + 1; \
+		static constexpr __underlying_type(EnumType) Begin = (__underlying_type(EnumType))(First); \
+		static constexpr __underlying_type(EnumType) End   = (__underlying_type(EnumType))(Last) + 1; \
 	};
 
 
@@ -78,7 +78,7 @@
 		template <typename Dummy> \
 		static const EnumType* GetPointer(bool bLast) \
 		{ \
-			static const EnumType Values[] = { __VA_ARGS__ }; \
+			static constexpr EnumType Values[] = { __VA_ARGS__ }; \
 			return bLast ? Values + sizeof(Values) / sizeof(EnumType) : Values; \
 		} \
 	};

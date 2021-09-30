@@ -882,7 +882,7 @@ template< typename TEnum >
 struct TStatMessage
 {
 	typedef TEnum TStructEnum;
-	static const int32 EnumCount = TEnum::Num;
+	static constexpr int32 EnumCount = TEnum::Num;
 
 	/**
 	* Generic payload

@@ -10,5 +10,5 @@
 template <typename T, T Val>
 struct TIntegralConstant
 {
-	static const T Value = Val;
+	static constexpr T Value = Val;
 };

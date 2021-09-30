@@ -44,7 +44,7 @@ private:
 	/** Total size of allocation overhead */
 	SIZE_T		TotalWasteSize;
 
-	static const uint32 AllocatorOverhead = sizeof(FMemDebug) + sizeof(FMemDebug*) + sizeof(int32) + ALLOCATION_ALIGNMENT + sizeof(int32);
+	static constexpr uint32 AllocatorOverhead = sizeof(FMemDebug) + sizeof(FMemDebug*) + sizeof(int32) + ALLOCATION_ALIGNMENT + sizeof(int32);
 
 public:
 	// FMalloc interface.

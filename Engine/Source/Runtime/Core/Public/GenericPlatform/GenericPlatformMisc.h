@@ -75,22 +75,22 @@ namespace EBuildConfigurations
 	typedef EBuildConfiguration Type;
 
 	UE_DEPRECATED(4.24, "EBuildConfigurations::Unknown is deprecated. Use EBuildConfiguration::Unknown instead.")
-	static const EBuildConfiguration Unknown = EBuildConfiguration::Unknown;
+	static constexpr EBuildConfiguration Unknown = EBuildConfiguration::Unknown;
 
 	UE_DEPRECATED(4.24, "EBuildConfigurations::Debug is deprecated. Use EBuildConfiguration::Debug instead.")
-	static const EBuildConfiguration Debug = EBuildConfiguration::Debug;
+	static constexpr EBuildConfiguration Debug = EBuildConfiguration::Debug;
 
 	UE_DEPRECATED(4.24, "EBuildConfigurations::DebugGame is deprecated. Use EBuildConfiguration::DebugGame instead.")
-	static const EBuildConfiguration DebugGame = EBuildConfiguration::DebugGame;
+	static constexpr EBuildConfiguration DebugGame = EBuildConfiguration::DebugGame;
 
 	UE_DEPRECATED(4.24, "EBuildConfigurations::Development is deprecated. Use EBuildConfiguration::Development instead.")
-	static const EBuildConfiguration Development = EBuildConfiguration::Development;
+	static constexpr EBuildConfiguration Development = EBuildConfiguration::Development;
 
 	UE_DEPRECATED(4.24, "EBuildConfigurations::Test is deprecated. Use EBuildConfiguration::Test instead.")
-	static const EBuildConfiguration Test = EBuildConfiguration::Test;
+	static constexpr EBuildConfiguration Test = EBuildConfiguration::Test;
 
 	UE_DEPRECATED(4.24, "EBuildConfigurations::Shipping is deprecated. Use EBuildConfiguration::Shipping instead.")
-	static const EBuildConfiguration Shipping = EBuildConfiguration::Shipping;
+	static constexpr EBuildConfiguration Shipping = EBuildConfiguration::Shipping;
 
 	/**
 	 * Returns the string representation of the specified EBuildConfiguration value.
@@ -166,16 +166,16 @@ namespace EBuildTargets
 	typedef EBuildTargetType Type;
 
 	UE_DEPRECATED(4.24, "EBuildTargets::Unknown is deprecated. Use EBuildTargetType::Unknown instead.")
-	static const EBuildTargetType Unknown = EBuildTargetType::Unknown;
+	static constexpr EBuildTargetType Unknown = EBuildTargetType::Unknown;
 
 	UE_DEPRECATED(4.24, "EBuildTargets::Editor is deprecated. Use EBuildTargetType::Unknown instead.")
-	static const EBuildTargetType Editor = EBuildTargetType::Editor;
+	static constexpr EBuildTargetType Editor = EBuildTargetType::Editor;
 
 	UE_DEPRECATED(4.24, "EBuildTargets::Game is deprecated. Use EBuildTargetType::Unknown instead.")
-	static const EBuildTargetType Game = EBuildTargetType::Game;
+	static constexpr EBuildTargetType Game = EBuildTargetType::Game;
 
 	UE_DEPRECATED(4.24, "EBuildTargets::Server is deprecated. Use EBuildTargetType::Unknown instead.")
-	static const EBuildTargetType Server = EBuildTargetType::Server;
+	static constexpr EBuildTargetType Server = EBuildTargetType::Server;
 
 	UE_DEPRECATED(4.24, "EBuildTargets::FromString is deprecated. Use LexFromString() instead.")
 	CORE_API EBuildTargetType FromString( const FString& Target );

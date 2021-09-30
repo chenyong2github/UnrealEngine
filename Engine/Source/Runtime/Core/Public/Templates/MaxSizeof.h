@@ -11,7 +11,7 @@ struct TMaxSizeof;
 template <>
 struct TMaxSizeof<>
 {
-	static const uint32 Value = 0;
+	static constexpr uint32 Value = 0;
 };
 
 template <typename T, typename... TRest>

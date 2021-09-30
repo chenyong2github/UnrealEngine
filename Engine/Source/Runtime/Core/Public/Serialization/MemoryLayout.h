@@ -180,7 +180,7 @@ const T* GetDefault();
 template<typename T>
 struct THasCustomDefaultObject
 {
-	static const bool Value = TModels<CProvidesDefaultUObject, T>::Value;
+	static constexpr bool Value = TModels<CProvidesDefaultUObject, T>::Value;
 };
 
 template<typename T>
@@ -217,19 +217,19 @@ struct TValidateInterfaceHelper;
 template<typename T> struct TValidateInterfaceHelper<T, ETypeLayoutInterface::NonVirtual>
 {
 	UE_STATIC_ONLY(TValidateInterfaceHelper);
-	static const bool Value = !TIsPolymorphic<T>::Value;
+	static constexpr bool Value = !TIsPolymorphic<T>::Value;
 };
 
 template<typename T> struct TValidateInterfaceHelper<T, ETypeLayoutInterface::Virtual>
 {
 	UE_STATIC_ONLY(TValidateInterfaceHelper);
-	static const bool Value = !TIsAbstract<T>::Value;
+	static constexpr bool Value = !TIsAbstract<T>::Value;
 };
 
 template<typename T> struct TValidateInterfaceHelper<T, ETypeLayoutInterface::Abstract>
 {
 	UE_STATIC_ONLY(TValidateInterfaceHelper);
-	static const bool Value = true;
+	static constexpr bool Value = true;
 };
 
 namespace Freeze
@@ -339,13 +339,13 @@ struct CProvidesStaticStruct
 template<typename T>
 struct TUsePropertyFreezing
 {
-	static const bool Value = (TModels<CProvidesStaticClass, T>::Value || TModels<CProvidesStaticStruct, T>::Value);
+	static constexpr bool Value = (TModels<CProvidesStaticClass, T>::Value || TModels<CProvidesStaticStruct, T>::Value);
 };
 
 template<typename T>
 struct TProvidesStaticStruct
 {
-	static const bool Value = TModels<CProvidesStaticStruct, T>::Value;
+	static constexpr bool Value = TModels<CProvidesStaticStruct, T>::Value;
 };
 
 template <typename T, bool bUsePropertyFreezing=TUsePropertyFreezing<T>::Value>
@@ -535,9 +535,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #define INTERNAL_LAYOUT_INTERFACE_INLINE_IMPL(Type) PREPROCESSOR_JOIN(INTERNAL_LAYOUT_INTERFACE_INLINE_IMPL_, Type)
 
 #define INTERNAL_DECLARE_TYPE_LAYOUT_COMMON(T, InInterface) \
-	static const int CounterBase = __COUNTER__; \
+	static constexpr int CounterBase = __COUNTER__; \
 	public: using DerivedType = PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T); \
-	static const ETypeLayoutInterface::Type InterfaceType = ETypeLayoutInterface::InInterface; \
+	static constexpr ETypeLayoutInterface::Type InterfaceType = ETypeLayoutInterface::InInterface; \
 	UE_DECLARE_INTERNAL_LINK_BASE(InternalLinkType) { UE_STATIC_ONLY(InternalLinkType); static FORCEINLINE void Initialize(FTypeLayoutDesc& TypeDesc) {} }
 
 #define INTERNAL_DECLARE_INLINE_TYPE_LAYOUT(T, InInterface) \
@@ -654,7 +654,7 @@ template<typename T>
 struct THasTypeLayout
 {
 	UE_STATIC_ONLY(THasTypeLayout);
-	static const bool Value = TModels<CTypeLayout, T>::Value;
+	static constexpr bool Value = TModels<CTypeLayout, T>::Value;
 };
 
 template<typename T>

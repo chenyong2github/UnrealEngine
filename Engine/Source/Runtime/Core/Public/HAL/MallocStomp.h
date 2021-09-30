@@ -27,10 +27,10 @@ class FMallocStomp final : public FMalloc
 private:
 #if PLATFORM_64BITS
 	/** Expected value to be found in the sentinel. */
-	static const SIZE_T SentinelExpectedValue = 0xdeadbeefdeadbeef;
+	static constexpr SIZE_T SentinelExpectedValue = 0xdeadbeefdeadbeef;
 #else
 	/** Expected value to be found in the sentinel. */
-	static const SIZE_T SentinelExpectedValue = 0xdeadbeef;
+	static constexpr SIZE_T SentinelExpectedValue = 0xdeadbeef;
 #endif
 
 	const SIZE_T PageSize;
@@ -52,7 +52,7 @@ private:
 
 	UPTRINT VirtualAddressCursor = 0;
 	SIZE_T VirtualAddressMax = 0;
-	static const SIZE_T VirtualAddressBlockSize = 1 * 1024 * 1024 * 1024; // 1 GB blocks
+	static constexpr SIZE_T VirtualAddressBlockSize = 1 * 1024 * 1024 * 1024; // 1 GB blocks
 
 public:
 	// FMalloc interface.

@@ -82,7 +82,7 @@ namespace UE { namespace Tasks
 
 			// a special internal task priority for "inline" task execution - a task is executed as soon as it's launched and has no 
 			// pending dependencies, "inline", w/o scheduling
-			static const ETaskPriority InlineTaskPriority{ ETaskPriority::Count };
+			static constexpr ETaskPriority InlineTaskPriority{ ETaskPriority::Count };
 
 			// initialises the task but doesn't launches it
 			template<typename TaskBodyType>
@@ -601,7 +601,7 @@ namespace UE { namespace Tasks
 			// reaches 0 the task is scheduled for execution.
 			// NumLocks's the most significant bit (see `ExecutionFlag`) is set on task execution start, and indicates that now NumLocks is about 
 			// how many times the task must be unlocked to be completed
-			static const uint32 NumInitialLocks = 1 + 1;
+			static constexpr uint32 NumInitialLocks = 1 + 1;
 			std::atomic<uint32> NumLocks{ NumInitialLocks };
 
 			// A single-producer/single-consumer container to store back links to "prerequsites" (either execution prerequisites or nested tasks 

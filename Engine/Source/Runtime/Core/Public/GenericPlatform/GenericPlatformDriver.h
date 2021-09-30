@@ -138,7 +138,7 @@ public:
 		return (*this == rhs) || (*this < rhs);
 	}
 
-	static const uint32 Size = TSize;
+	static constexpr uint32 Size = TSize;
 
 	// [0]:left .. [Size-1]:right
 	uint32 Value[Size];

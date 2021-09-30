@@ -320,10 +320,10 @@ class CORE_API FGameThreadHitchHeartBeatThreaded : public FRunnable
 
 #if WALK_STACK_ON_HITCH_DETECTED
 #if LOOKUP_SYMBOLS_IN_HITCH_STACK_WALK
-	static const SIZE_T StackTraceSize = 65535;
+	static constexpr SIZE_T StackTraceSize = 65535;
 	ANSICHAR StackTrace[StackTraceSize];
 #else
-	static const uint32 MaxStackDepth = 128;
+	static constexpr uint32 MaxStackDepth = 128;
 	uint64 StackTrace[MaxStackDepth]; 
 #endif // LOOKUP_SYMBOLS_IN_HITCH_STACK_WALK
 #endif // WALK_STACK_ON_HITCH_DETECTED

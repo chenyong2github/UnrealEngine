@@ -251,7 +251,7 @@ public:
 	static const TCHAR* const EnabledPluginsTag;
 	static const TCHAR* const UEMinidumpName;
 	static const TCHAR* const NewLineTag;
-	static const int32 CrashGUIDLength = 128;
+	static constexpr int32 CrashGUIDLength = 128;
 
 	static const TCHAR* const CrashTypeCrash;
 	static const TCHAR* const CrashTypeAssert;

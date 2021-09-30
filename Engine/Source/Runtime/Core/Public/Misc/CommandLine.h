@@ -17,7 +17,7 @@
 struct CORE_API FCommandLine
 {
 	/** maximum size of the command line */
-	static const uint32 MaxCommandLineSize = 16384;
+	static constexpr uint32 MaxCommandLineSize = 16384;
 
 	/** 
 	 * Resets FCommandLine to an uninitialised state as if Set() has never been called

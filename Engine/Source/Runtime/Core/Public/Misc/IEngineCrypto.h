@@ -7,7 +7,7 @@
 #include "Containers/ArrayView.h"
 
 typedef void* FRSAKeyHandle;
-static const FRSAKeyHandle InvalidRSAKeyHandle = nullptr;
+static constexpr FRSAKeyHandle InvalidRSAKeyHandle = nullptr;
 
 struct IEngineCrypto : public IModularFeature
 {

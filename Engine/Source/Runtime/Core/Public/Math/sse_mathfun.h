@@ -39,20 +39,11 @@
      and we have no need for the MMX Version so all those are being replace with #if 1.
   2. It looks like some linked object files have conflicting names (log_ps, exp_ps, etc). So adding the 
      prefix SseMath_ to all the functions.
+  3. constexpr and alignas transition
 */
 #pragma once
 
 #include <xmmintrin.h>
-
-/* yes I know, the top of this file is quite ugly */
-
-#ifdef _MSC_VER /* visual c++ */
-# define ALIGN16_BEG __declspec(align(16))
-# define ALIGN16_END 
-#else /* gcc or icc */
-# define ALIGN16_BEG
-# define ALIGN16_END __attribute__((aligned(16)))
-#endif
 
 /* __m128 is ugly to write */
 typedef __m128 v4sf;  // vector of 4 float (sse1)
@@ -67,11 +58,11 @@ typedef __m64 v2si;   // vector of 2 int (mmx)
 
 /* declare some SSE constants -- why can't I figure a better way to do that? */
 #define _PS_CONST(Name, Val)                                            \
-  static const ALIGN16_BEG float _ps_##Name[4] ALIGN16_END = { Val, Val, Val, Val }
+  alignas(16) static constexpr float _ps_##Name[4] = { Val, Val, Val, Val }
 #define _PI32_CONST(Name, Val)                                            \
-  static const ALIGN16_BEG int _pi32_##Name[4] ALIGN16_END = { Val, Val, Val, Val }
+  alignas(16) static constexpr int _pi32_##Name[4] = { Val, Val, Val, Val }
 #define _PS_CONST_TYPE(Name, Type, Val)                                 \
-  static const ALIGN16_BEG Type _ps_##Name[4] ALIGN16_END = { Val, Val, Val, Val }
+  alignas(16) static constexpr Type _ps_##Name[4] = { Val, Val, Val, Val }
 
 _PS_CONST(1  , 1.0f);
 _PS_CONST(0p5, 0.5f);

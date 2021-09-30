@@ -10,8 +10,8 @@
 namespace TextNamespaceUtil
 {
 
-static const TCHAR PackageNamespaceStartMarker = TEXT('[');
-static const TCHAR PackageNamespaceEndMarker = TEXT(']');
+static constexpr TCHAR PackageNamespaceStartMarker = TEXT('[');
+static constexpr TCHAR PackageNamespaceEndMarker = TEXT(']');
 
 /**
  * Given a text and package namespace, build the full version that should be used by the localization system.
