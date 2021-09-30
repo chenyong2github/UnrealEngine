@@ -23,6 +23,7 @@
 #include "InterchangeTextureLightProfileNode.h"
 #include "InterchangeTextureLightProfileNode.h"
 #include "InterchangeTextureNode.h"
+#include "Misc/Paths.h"
 
 #if WITH_EDITOR
 #include "NormalMapIdentification.h"
@@ -102,7 +103,23 @@ namespace UE::Interchange::Private
 
 UInterchangeTextureFactoryNode* UInterchangeGenericAssetsPipeline::HandleCreationOfTextureFactoryNode(const UInterchangeTextureNode* TextureNode)
 {
-	return CreateTextureFactoryNode(TextureNode, UE::Interchange::Private::GetDefaultFactoryClassFromTextureNodeClass(TextureNode->GetClass()));
+	UClass* FactoryClass = UE::Interchange::Private::GetDefaultFactoryClassFromTextureNodeClass(TextureNode->GetClass());
+
+#if WITH_EDITORONLY_DATA
+	if (FactoryClass == UInterchangeTextureFactoryNode::StaticClass())
+	{ 
+		if (TOptional<FString> SourceFile = TextureNode->GetPayLoadKey())
+		{
+			const FString Extension = FPaths::GetExtension(SourceFile.GetValue()).ToLower();
+			if (FileExtensionsToImportAsLongLatCubemap.Contains(Extension))
+			{
+				FactoryClass = UInterchangeTextureCubeFactoryNode::StaticClass();
+			}
+		}
+	}
+#endif
+
+	return CreateTextureFactoryNode(TextureNode, FactoryClass);
 }
 
 UInterchangeTextureFactoryNode* UInterchangeGenericAssetsPipeline::CreateTextureFactoryNode(const UInterchangeTextureNode* TextureNode, const TSubclassOf<UInterchangeTextureFactoryNode>& FactorySubclass)

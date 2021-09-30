@@ -189,6 +189,10 @@ public:
 	/** If enabled, the texture's green channel will be inverted for normal maps. */
 	UPROPERTY(EditAnywhere, Category = TEXTURES_CATEGORY)
 	bool bFlipNormalMapGreenChannel = false;
+
+	/** Specify the files type that should be imported as long/lat cubemap */
+	UPROPERTY(EditAnywhere, Category = TEXTURES_CATEGORY)
+	TSet<FString> FileExtensionsToImportAsLongLatCubemap = {"hdr"};
 #endif
 
 	// END Pre import pipeline properties
