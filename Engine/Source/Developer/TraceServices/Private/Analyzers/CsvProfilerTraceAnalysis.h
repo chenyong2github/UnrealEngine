@@ -4,7 +4,7 @@
 
 #include "Trace/Analyzer.h"
 #include "Containers/Map.h"
-#include "Model/CsvProfilerPrivate.h"
+#include "Model/CsvProfilerProviderPrivate.h"
 #include "ProfilingDebugging/MiscTrace.h"
 
 namespace TraceServices

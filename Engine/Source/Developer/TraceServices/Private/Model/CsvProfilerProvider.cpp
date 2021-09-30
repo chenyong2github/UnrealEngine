@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "TraceServices/Model/CsvProfiler.h"
-#include "CsvProfilerPrivate.h"
+#include "TraceServices/Model/CsvProfilerProvider.h"
+#include "CsvProfilerProviderPrivate.h"
 
 namespace TraceServices
 {
