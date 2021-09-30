@@ -1375,62 +1375,7 @@ TArray<FString> URigHierarchyController::GetAddControlPythonCommands(FRigControl
 		SettingsStr = FString::Printf(TEXT("control_settings_%s"),
 			*ControlNamePythonized);
 			
-		Commands.Add(FString::Printf(TEXT("control_settings_%s = unreal.RigControlSettings()"),
-			*ControlNamePythonized));
-		FString TypeStr;
-		switch (Settings.ControlType)
-		{
-			case ERigControlType::Bool: TypeStr = TEXT("BOOL"); break;							
-			case ERigControlType::Float: TypeStr = TEXT("FLOAT"); break;
-			case ERigControlType::Integer: TypeStr = TEXT("INTEGER"); break;
-			case ERigControlType::Position: TypeStr = TEXT("POSITION"); break;
-			case ERigControlType::Rotator: TypeStr = TEXT("POSITION"); break;
-			case ERigControlType::Scale: TypeStr = TEXT("SCALE"); break;
-			case ERigControlType::Transform: TypeStr = TEXT("EULER_TRANSFORM"); break;
-			case ERigControlType::EulerTransform: TypeStr = TEXT("EULER_TRANSFORM"); break;
-			case ERigControlType::Vector2D: TypeStr = TEXT("VECTOR2D"); break;
-			case ERigControlType::TransformNoScale: TypeStr = TEXT("EULER_TRANSFORM"); break;
-			default: ensure(false);
-		}
-		Commands.Add(FString::Printf(TEXT("control_settings_%s.control_type = unreal.RigControlType.%s"),
-										*ControlNamePythonized,
-										*TypeStr));
-		Commands.Add(FString::Printf(TEXT("control_settings_%s.animatable = %s"),
-			*ControlNamePythonized,
-			Settings.bAnimatable ? TEXT("True") : TEXT("False")));
-		Commands.Add(FString::Printf(TEXT("control_settings_%s.display_name = '%s'"),
-			*ControlNamePythonized,
-			*Settings.DisplayName.ToString()));
-		Commands.Add(FString::Printf(TEXT("control_settings_%s.draw_limits = %s"),
-			*ControlNamePythonized,
-			Settings.bDrawLimits ? TEXT("True") : TEXT("False")));
-		Commands.Add(FString::Printf(TEXT("control_settings_%s.gizmo_color = %s"),
-			*ControlNamePythonized,
-			*RigVMPythonUtils::LinearColorToPythonString(Settings.GizmoColor)));
-		Commands.Add(FString::Printf(TEXT("control_settings_%s.gizmo_enabled = %s"),
-			*ControlNamePythonized,
-			Settings.bGizmoEnabled ? TEXT("True") : TEXT("False")));
-		Commands.Add(FString::Printf(TEXT("control_settings_%s.gizmo_name = '%s'"),
-			*ControlNamePythonized,
-			*Settings.GizmoName.ToString()));
-		Commands.Add(FString::Printf(TEXT("control_settings_%s.gizmo_visible = %s"),
-			*ControlNamePythonized,
-			Settings.bGizmoVisible ? TEXT("True") : TEXT("False")));
-		Commands.Add(FString::Printf(TEXT("control_settings_%s.is_transient_control = %s"),
-			*ControlNamePythonized,
-			Settings.bIsTransientControl ? TEXT("True") : TEXT("False")));
-		Commands.Add(FString::Printf(TEXT("control_settings_%s.limit_rotation = %s"),
-				*ControlNamePythonized,
-				Settings.bLimitRotation ? TEXT("True") : TEXT("False")));
-		Commands.Add(FString::Printf(TEXT("control_settings_%s.limit_translation = %s"),
-				*ControlNamePythonized,
-				Settings.bLimitTranslation ? TEXT("True") : TEXT("False")));
-		Commands.Add(FString::Printf(TEXT("control_settings_%s.limit_scale = %s"),
-				*ControlNamePythonized,
-				Settings.bLimitScale ? TEXT("True") : TEXT("False")));
-		Commands.Add(FString::Printf(TEXT("control_settings_%s.primary_axis = unreal.RigControlAxis.%s"),
-			*ControlNamePythonized,
-			Settings.PrimaryAxis == ERigControlAxis::X ? TEXT("X") : Settings.PrimaryAxis == ERigControlAxis::Y ? TEXT("Y") : TEXT("Z")));				
+		Commands.Append(URigHierarchy::ControlSettingsToPythonCommands(Settings, SettingsStr));	
 	}
 		
 	FRigControlValue Value = Hierarchy->GetControlValue(Control->GetKey(), ERigControlValueType::Initial);

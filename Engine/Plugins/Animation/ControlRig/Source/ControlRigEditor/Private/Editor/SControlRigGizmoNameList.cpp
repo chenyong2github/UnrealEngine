@@ -113,7 +113,7 @@ void SControlRigGizmoNameList::SetNameListText(const FText& NewTypeInValue, ETex
 
 				FRigControlSettings Settings = ControlElement->Settings;
 				Settings.GizmoName = NewName;
-				Hierarchy->SetControlSettings(ControlElement, Settings, true, true);
+				Hierarchy->SetControlSettings(ControlElement, Settings, true, true, true);
 			}
 		}
 	}

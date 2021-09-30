@@ -4439,7 +4439,7 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 			}
 			else
 			{
-				Hierarchy->SetTransform(TransformElement, Transform, TransformType, true, true, false);
+				Hierarchy->SetTransform(TransformElement, Transform, TransformType, true, true, false, true);
 			}
 		}
 		else if(PropertyPath.RemoveFromStart(OffsetString))
@@ -4454,7 +4454,7 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 			bIsInitial = bIsInitial || ERigTransformType::IsInitial(TransformType);
 			const FTransform Transform = CastChecked<FRigControlElement>(FirstWrappedElement)->Offset.Get(TransformType);
 			
-			ControlRigBP->Hierarchy->SetControlOffsetTransform(ControlElement, Transform, ERigTransformType::MakeInitial(TransformType), true, true, false);
+			ControlRigBP->Hierarchy->SetControlOffsetTransform(ControlElement, Transform, ERigTransformType::MakeInitial(TransformType), true, true, false, true);
 		}
 		else if(PropertyPath.RemoveFromStart(GizmoString))
 		{
@@ -4468,7 +4468,7 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 			bIsInitial = bIsInitial || ERigTransformType::IsInitial(TransformType);
 			const FTransform Transform = CastChecked<FRigControlElement>(FirstWrappedElement)->Gizmo.Get(TransformType);
 			
-			ControlRigBP->Hierarchy->SetControlGizmoTransform(ControlElement, Transform, ERigTransformType::MakeInitial(TransformType), true, false);
+			ControlRigBP->Hierarchy->SetControlGizmoTransform(ControlElement, Transform, ERigTransformType::MakeInitial(TransformType), true, false, true);
 		}
 		else if(PropertyPath.RemoveFromStart(SettingsString))
 		{
@@ -4480,7 +4480,7 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 				return;
 			}
 
-			ControlRigBP->Hierarchy->SetControlSettings(ControlElement, Settings, true, false);
+			ControlRigBP->Hierarchy->SetControlSettings(ControlElement, Settings, true, false, true);
 		}
 
 		if(bSetupModeEnabled || bIsInitial)
