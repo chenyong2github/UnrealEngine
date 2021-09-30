@@ -334,6 +334,24 @@ FArchive& FLinkerSave::operator<<( FName& InName )
 		}
 	}
 
+	if (!CurrentlySavingExport.IsNull())
+	{
+		if (Save >= Summary.NamesReferencedFromExportDataCount)
+		{
+			SetCriticalError();
+			FString ErrorMessage = FString::Printf(TEXT("Name \"%s\" is referenced from an export but not mapped in the export data names region when saving %s (object: %s, property: %s)."),
+				*InName.ToString(),
+				*GetArchiveName(),
+				*GetSerializeContext()->SerializedObject->GetFullName(),
+				*GetFullNameSafe(GetSerializedProperty()));
+			ensureMsgf(false, TEXT("%s"), *ErrorMessage);
+			if (LogOutput)
+			{
+				LogOutput->Logf(ELogVerbosity::Error, TEXT("%s"), *ErrorMessage);
+			}
+		}
+	}
+
 	int32 Number = InName.GetNumber();
 	FArchive& Ar = *this;
 	return Ar << Save << Number;

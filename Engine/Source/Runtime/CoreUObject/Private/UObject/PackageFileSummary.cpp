@@ -395,6 +395,15 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 			Sum.PreloadDependencyCount = -1;
 			Sum.PreloadDependencyOffset = 0;
 		}
+
+		if (BaseArchive.IsSaving() || Sum.FileVersionUE >= EUnrealEngineObjectUE5Version::NAMES_REFERENCED_FROM_EXPORT_DATA)
+		{
+			Record << SA_VALUE(TEXT("NamesReferencedFromExportDataCount"), Sum.NamesReferencedFromExportDataCount);
+		}
+		else
+		{
+			Sum.NamesReferencedFromExportDataCount = Sum.NameCount;
+		}
 	}
 }
 

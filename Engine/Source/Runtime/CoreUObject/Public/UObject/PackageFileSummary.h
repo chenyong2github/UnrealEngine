@@ -215,6 +215,11 @@ public:
 	*/
 	int32		PreloadDependencyOffset;
 
+	/**
+	* Number of names that are referenced from serialized export data (sorted first in the name map)
+	*/
+	int32		NamesReferencedFromExportDataCount;
+
 	/** Constructor */
 	COREUOBJECT_API FPackageFileSummary();
 

@@ -724,6 +724,7 @@ void FPackageNameMapSaver::UpdateLinker(FLinkerSave& Linker, FLinkerLoad* Confor
 	if (BinarySaver)
 	{
 		Linker.Summary.NameCount = Linker.NameMap.Num();
+		Linker.Summary.NamesReferencedFromExportDataCount = Linker.Summary.NameCount; // Only supported with SavePackage2
 		for (int32 i = 0; i < Linker.NameMap.Num(); i++)
 		{
 			FName::GetEntry(Linker.NameMap[i])->Write(Linker);
