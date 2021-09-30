@@ -104,12 +104,6 @@ public:
 	TSharedPtr<FUICommandInfo> BeginSkinWeightsPaintTool;
 	TSharedPtr<FUICommandInfo> BeginSkinWeightsBindingTool;
 	
-	TSharedPtr<FUICommandInfo> BeginGroomToMeshTool;
-	TSharedPtr<FUICommandInfo> BeginGenerateLODMeshesTool;
-	TSharedPtr<FUICommandInfo> BeginGroomCardsToMeshTool;
-	TSharedPtr<FUICommandInfo> BeginGroomMeshToCardsTool;
-	TSharedPtr<FUICommandInfo> BeginGroomCardsEditorTool;
-
 	TSharedPtr<FUICommandInfo> BeginLODManagerTool;
 	TSharedPtr<FUICommandInfo> BeginGenerateStaticMeshLODAssetTool;
 
