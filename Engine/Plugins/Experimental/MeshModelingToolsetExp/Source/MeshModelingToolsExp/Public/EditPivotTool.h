@@ -14,7 +14,7 @@
 class UDragAlignmentMechanic;
 class UBaseAxisTranslationGizmo;
 class UAxisAngleGizmo;
-class UTransformGizmo;
+class UCombinedTransformGizmo;
 class UTransformProxy;
 
 /**
@@ -82,7 +82,7 @@ struct FEditPivotTarget
 	TObjectPtr<UTransformProxy> TransformProxy = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UTransformGizmo> TransformGizmo = nullptr;
+	TObjectPtr<UCombinedTransformGizmo> TransformGizmo = nullptr;
 };
 
 

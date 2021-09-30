@@ -296,7 +296,7 @@ void UInteractiveGizmoManager::RegisterDefaultGizmos()
 	UAxisAngleGizmoBuilder* AxisRotationBuilder = NewObject<UAxisAngleGizmoBuilder>();
 	RegisterGizmoType(DefaultAxisAngleBuilderIdentifier, AxisRotationBuilder);
 
-	UTransformGizmoBuilder* TransformBuilder = NewObject<UTransformGizmoBuilder>();
+	UCombinedTransformGizmoBuilder* TransformBuilder = NewObject<UCombinedTransformGizmoBuilder>();
 	TransformBuilder->AxisPositionBuilderIdentifier = DefaultAxisPositionBuilderIdentifier;
 	TransformBuilder->PlanePositionBuilderIdentifier = DefaultPlanePositionBuilderIdentifier;
 	TransformBuilder->AxisAngleBuilderIdentifier = DefaultAxisAngleBuilderIdentifier;
@@ -308,9 +308,9 @@ void UInteractiveGizmoManager::RegisterDefaultGizmos()
 		GizmoViewContext = NewObject<UGizmoViewContext>();
 		GetContextObjectStore()->AddContextObject(GizmoViewContext);
 	}
-	GizmoActorBuilder = MakeShared<FTransformGizmoActorFactory>(GizmoViewContext);
+	GizmoActorBuilder = MakeShared<FCombinedTransformGizmoActorFactory>(GizmoViewContext);
 
-	UTransformGizmoBuilder* CustomThreeAxisBuilder = NewObject<UTransformGizmoBuilder>();
+	UCombinedTransformGizmoBuilder* CustomThreeAxisBuilder = NewObject<UCombinedTransformGizmoBuilder>();
 	CustomThreeAxisBuilder->AxisPositionBuilderIdentifier = DefaultAxisPositionBuilderIdentifier;
 	CustomThreeAxisBuilder->PlanePositionBuilderIdentifier = DefaultPlanePositionBuilderIdentifier;
 	CustomThreeAxisBuilder->AxisAngleBuilderIdentifier = DefaultAxisAngleBuilderIdentifier;
@@ -330,30 +330,30 @@ void UInteractiveGizmoManager::RegisterDefaultGizmos()
 	bDefaultGizmosRegistered = true;
 }
 
-UTransformGizmo* UInteractiveGizmoManager::Create3AxisTransformGizmo(void* Owner, const FString& InstanceIdentifier)
+UCombinedTransformGizmo* UInteractiveGizmoManager::Create3AxisTransformGizmo(void* Owner, const FString& InstanceIdentifier)
 {
 	check(bDefaultGizmosRegistered);
 	UInteractiveGizmo* NewGizmo = CreateGizmo(DefaultThreeAxisTransformBuilderIdentifier, InstanceIdentifier, Owner);
 	check(NewGizmo);
-	return Cast<UTransformGizmo>(NewGizmo);
+	return Cast<UCombinedTransformGizmo>(NewGizmo);
 }
 
-UTransformGizmo* UInteractiveGizmoManager::CreateCustomTransformGizmo(ETransformGizmoSubElements Elements, void* Owner, const FString& InstanceIdentifier)
+UCombinedTransformGizmo* UInteractiveGizmoManager::CreateCustomTransformGizmo(ETransformGizmoSubElements Elements, void* Owner, const FString& InstanceIdentifier)
 {
 	check(bDefaultGizmosRegistered);
 	GizmoActorBuilder->EnableElements = Elements;
 	UInteractiveGizmo* NewGizmo = CreateGizmo(CustomThreeAxisTransformBuilderIdentifier, InstanceIdentifier, Owner);
 	check(NewGizmo);
-	return Cast<UTransformGizmo>(NewGizmo);
+	return Cast<UCombinedTransformGizmo>(NewGizmo);
 }
 
-UTransformGizmo* UInteractiveGizmoManager::CreateCustomRepositionableTransformGizmo(ETransformGizmoSubElements Elements, void* Owner, const FString& InstanceIdentifier)
+UCombinedTransformGizmo* UInteractiveGizmoManager::CreateCustomRepositionableTransformGizmo(ETransformGizmoSubElements Elements, void* Owner, const FString& InstanceIdentifier)
 {
 	check(bDefaultGizmosRegistered);
 	GizmoActorBuilder->EnableElements = Elements;
 	UInteractiveGizmo* NewGizmo = CreateGizmo(CustomRepositionableThreeAxisTransformBuilderIdentifier, InstanceIdentifier, Owner);
 	check(NewGizmo);
-	return Cast<UTransformGizmo>(NewGizmo);
+	return Cast<UCombinedTransformGizmo>(NewGizmo);
 }
 
 

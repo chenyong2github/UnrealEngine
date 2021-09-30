@@ -19,7 +19,7 @@
 // predeclarations
 struct FMeshDescription;
 class UDynamicMeshComponent;
-class UTransformGizmo;
+class UCombinedTransformGizmo;
 class UTransformProxy;
 class USingleClickInputBehavior;
 
@@ -273,7 +273,7 @@ protected:
 	TObjectPtr<UMaterialInstanceDynamic> CheckerMaterial = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UTransformGizmo> TransformGizmo = nullptr;
+	TObjectPtr<UCombinedTransformGizmo> TransformGizmo = nullptr;
 	
 	UPROPERTY()
 	TObjectPtr<UTransformProxy> TransformProxy = nullptr;

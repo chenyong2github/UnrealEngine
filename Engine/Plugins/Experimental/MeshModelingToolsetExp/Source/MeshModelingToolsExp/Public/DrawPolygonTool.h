@@ -17,7 +17,7 @@
 #include "DrawPolygonTool.generated.h"
 
 
-class UTransformGizmo;
+class UCombinedTransformGizmo;
 class UTransformProxy;
 PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
@@ -254,7 +254,7 @@ protected:
 	// drawing plane gizmo
 
 	UPROPERTY()
-	TObjectPtr<UTransformGizmo> PlaneTransformGizmo;
+	TObjectPtr<UCombinedTransformGizmo> PlaneTransformGizmo;
 
 	UPROPERTY()
 	TObjectPtr<UTransformProxy> PlaneTransformProxy;

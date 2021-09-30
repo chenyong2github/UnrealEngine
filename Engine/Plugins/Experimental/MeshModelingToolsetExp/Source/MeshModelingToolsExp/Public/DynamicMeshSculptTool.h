@@ -23,7 +23,7 @@
 #include "Util/UniqueIndexSet.h"
 #include "DynamicMeshSculptTool.generated.h"
 
-class UTransformGizmo;
+class UCombinedTransformGizmo;
 class UTransformProxy;
 class UMaterialInstanceDynamic;
 
@@ -473,7 +473,7 @@ private:
 
 	// plane gizmo
 	UPROPERTY()
-	TObjectPtr<UTransformGizmo> PlaneTransformGizmo;
+	TObjectPtr<UCombinedTransformGizmo> PlaneTransformGizmo;
 
 	UPROPERTY()
 	TObjectPtr<UTransformProxy> PlaneTransformProxy;

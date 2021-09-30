@@ -10,7 +10,7 @@
 
 #include "GizmoEdMode.generated.h"
 
-class UTransformGizmo;
+class UCombinedTransformGizmo;
 class UInteractiveGizmo;
 class UInteractiveGizmoManager;
 

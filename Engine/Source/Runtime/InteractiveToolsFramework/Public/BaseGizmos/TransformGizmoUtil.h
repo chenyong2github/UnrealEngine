@@ -11,7 +11,7 @@
 class UInteractiveToolsContext;
 class UInteractiveToolManager;
 class UInteractiveGizmoManager;
-class FTransformGizmoActorFactory;
+class FCombinedTransformGizmoActorFactory;
 
 
 namespace UE
@@ -19,73 +19,73 @@ namespace UE
 namespace TransformGizmoUtil
 {
 	//
-	// The functions below are helper functions that simplify usage of a UTransformGizmoContextObject 
+	// The functions below are helper functions that simplify usage of a UCombinedTransformGizmoContextObject 
 	// that is registered as a ContextStoreObject in an InteractiveToolsContext
 	//
 
 	/**
-	 * If one does not already exist, create a new instance of UTransformGizmoContextObject and add it to the
+	 * If one does not already exist, create a new instance of UCombinedTransformGizmoContextObject and add it to the
 	 * ToolsContext's ContextObjectStore
-	 * @return true if the ContextObjectStore now has a UTransformGizmoContextObject (whether it already existed, or was created)
+	 * @return true if the ContextObjectStore now has a UCombinedTransformGizmoContextObject (whether it already existed, or was created)
 	 */
 	INTERACTIVETOOLSFRAMEWORK_API bool RegisterTransformGizmoContextObject(UInteractiveToolsContext* ToolsContext);
 
 	/**
-	 * Remove any existing UTransformGizmoContextObject from the ToolsContext's ContextObjectStore
-	 * @return true if the ContextObjectStore no longer has a UTransformGizmoContextObject (whether it was removed, or did not exist)
+	 * Remove any existing UCombinedTransformGizmoContextObject from the ToolsContext's ContextObjectStore
+	 * @return true if the ContextObjectStore no longer has a UCombinedTransformGizmoContextObject (whether it was removed, or did not exist)
 	 */
 	INTERACTIVETOOLSFRAMEWORK_API bool DeregisterTransformGizmoContextObject(UInteractiveToolsContext* ToolsContext);
 
 
 	/**
-	 * Spawn a new standard 3-axis Transform gizmo (see UTransformGizmoContextObject::Create3AxisTransformGizmo for details)
-	 * GizmoManager's ToolsContext must have a UTransformGizmoContextObject registered (see UTransformGizmoContextObject for details)
+	 * Spawn a new standard 3-axis Transform gizmo (see UCombinedTransformGizmoContextObject::Create3AxisTransformGizmo for details)
+	 * GizmoManager's ToolsContext must have a UCombinedTransformGizmoContextObject registered (see UCombinedTransformGizmoContextObject for details)
 	 */
-	INTERACTIVETOOLSFRAMEWORK_API UTransformGizmo* Create3AxisTransformGizmo(UInteractiveGizmoManager* GizmoManager, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
+	INTERACTIVETOOLSFRAMEWORK_API UCombinedTransformGizmo* Create3AxisTransformGizmo(UInteractiveGizmoManager* GizmoManager, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
 	/**
-	 * Spawn a new standard 3-axis Transform gizmo (see UTransformGizmoContextObject::Create3AxisTransformGizmo for details)
-	 * ToolManager's ToolsContext must have a UTransformGizmoContextObject registered (see UTransformGizmoContextObject for details)
+	 * Spawn a new standard 3-axis Transform gizmo (see UCombinedTransformGizmoContextObject::Create3AxisTransformGizmo for details)
+	 * ToolManager's ToolsContext must have a UCombinedTransformGizmoContextObject registered (see UCombinedTransformGizmoContextObject for details)
 	 */
-	INTERACTIVETOOLSFRAMEWORK_API UTransformGizmo* Create3AxisTransformGizmo(UInteractiveToolManager* ToolManager, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
+	INTERACTIVETOOLSFRAMEWORK_API UCombinedTransformGizmo* Create3AxisTransformGizmo(UInteractiveToolManager* ToolManager, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
 
 
 	/**
-	 * Spawn a new custom Transform gizmo (see UTransformGizmoContextObject::CreateCustomTransformGizmo for details)
-	 * GizmoManager's ToolsContext must have a UTransformGizmoContextObject registered (see UTransformGizmoContextObject for details)
+	 * Spawn a new custom Transform gizmo (see UCombinedTransformGizmoContextObject::CreateCustomTransformGizmo for details)
+	 * GizmoManager's ToolsContext must have a UCombinedTransformGizmoContextObject registered (see UCombinedTransformGizmoContextObject for details)
 	 */
-	INTERACTIVETOOLSFRAMEWORK_API UTransformGizmo* CreateCustomTransformGizmo(UInteractiveGizmoManager* GizmoManager, ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
+	INTERACTIVETOOLSFRAMEWORK_API UCombinedTransformGizmo* CreateCustomTransformGizmo(UInteractiveGizmoManager* GizmoManager, ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
 	/**
-	 * Spawn a new custom Transform gizmo (see UTransformGizmoContextObject::CreateCustomTransformGizmo for details)
-	 * ToolManager's ToolsContext must have a UTransformGizmoContextObject registered (see UTransformGizmoContextObject for details)
+	 * Spawn a new custom Transform gizmo (see UCombinedTransformGizmoContextObject::CreateCustomTransformGizmo for details)
+	 * ToolManager's ToolsContext must have a UCombinedTransformGizmoContextObject registered (see UCombinedTransformGizmoContextObject for details)
 	 */
-	INTERACTIVETOOLSFRAMEWORK_API UTransformGizmo* CreateCustomTransformGizmo(UInteractiveToolManager* ToolManager, ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
+	INTERACTIVETOOLSFRAMEWORK_API UCombinedTransformGizmo* CreateCustomTransformGizmo(UInteractiveToolManager* ToolManager, ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
 
 
 	/**
-	 * Spawn a new custom Transform gizmo (see UTransformGizmoContextObject::CreateCustomTransformGizmo for details)
-	 * GizmoManager's ToolsContext must have a UTransformGizmoContextObject registered (see UTransformGizmoContextObject for details)
+	 * Spawn a new custom Transform gizmo (see UCombinedTransformGizmoContextObject::CreateCustomTransformGizmo for details)
+	 * GizmoManager's ToolsContext must have a UCombinedTransformGizmoContextObject registered (see UCombinedTransformGizmoContextObject for details)
 	 */
-	INTERACTIVETOOLSFRAMEWORK_API UTransformGizmo* CreateCustomRepositionableTransformGizmo(UInteractiveGizmoManager* GizmoManager, ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
+	INTERACTIVETOOLSFRAMEWORK_API UCombinedTransformGizmo* CreateCustomRepositionableTransformGizmo(UInteractiveGizmoManager* GizmoManager, ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
 	/**
-	 * Spawn a new custom Transform gizmo (see UTransformGizmoContextObject::CreateCustomRepositionableTransformGizmo for details)
-	 * ToolManager's ToolsContext must have a UTransformGizmoContextObject registered (see UTransformGizmoContextObject for details)
+	 * Spawn a new custom Transform gizmo (see UCombinedTransformGizmoContextObject::CreateCustomRepositionableTransformGizmo for details)
+	 * ToolManager's ToolsContext must have a UCombinedTransformGizmoContextObject registered (see UCombinedTransformGizmoContextObject for details)
 	 */
-	INTERACTIVETOOLSFRAMEWORK_API UTransformGizmo* CreateCustomRepositionableTransformGizmo(UInteractiveToolManager* ToolManager, ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
+	INTERACTIVETOOLSFRAMEWORK_API UCombinedTransformGizmo* CreateCustomRepositionableTransformGizmo(UInteractiveToolManager* ToolManager, ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
 }
 }
 
 
 /**
- * UTransformGizmoContextObject is a utility object that registers a set of Gizmo Builders
- * for UTransformGizmo and variants. The intended usage is to call RegisterGizmosWithManager(),
- * and then the UTransformGizmoContextObject will register itself as a ContextObject in the
+ * UCombinedTransformGizmoContextObject is a utility object that registers a set of Gizmo Builders
+ * for UCombinedTransformGizmo and variants. The intended usage is to call RegisterGizmosWithManager(),
+ * and then the UCombinedTransformGizmoContextObject will register itself as a ContextObject in the
  * InteractiveToolsContext's ContextObjectStore. Then the Create3AxisTransformGizmo()/etc functions
- * will spawn different variants of UTransformGizmo. The above UE::TransformGizmoUtil:: functions
- * will look up the UTransformGizmoContextObject instance in the ContextObjectStore and then
+ * will spawn different variants of UCombinedTransformGizmo. The above UE::TransformGizmoUtil:: functions
+ * will look up the UCombinedTransformGizmoContextObject instance in the ContextObjectStore and then
  * call the associated function below.
  */
 UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UTransformGizmoContextObject : public UObject
+class INTERACTIVETOOLSFRAMEWORK_API UCombinedTransformGizmoContextObject : public UObject
 {
 	GENERATED_BODY()
 public:
@@ -108,7 +108,7 @@ public:
 	 * @param InstanceIdentifier optional client-defined *unique* string that can be used to locate this instance
 	 * @return new Gizmo instance that has been created and initialized
 	 */
-	virtual UTransformGizmo* Create3AxisTransformGizmo(UInteractiveGizmoManager* GizmoManager, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
+	virtual UCombinedTransformGizmo* Create3AxisTransformGizmo(UInteractiveGizmoManager* GizmoManager, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
 
 	/**
 	 * Activate a new customized instance of the default 3-axis transformation Gizmo, with only certain elements included. RegisterDefaultGizmos() must have been called first.
@@ -117,15 +117,15 @@ public:
 	 * @param InstanceIdentifier optional client-defined *unique* string that can be used to locate this instance
 	 * @return new Gizmo instance that has been created and initialized
 	 */
-	virtual UTransformGizmo* CreateCustomTransformGizmo(UInteractiveGizmoManager* GizmoManager, ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
+	virtual UCombinedTransformGizmo* CreateCustomTransformGizmo(UInteractiveGizmoManager* GizmoManager, ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
 
 	/**
-	 * Variant of CreateCustomTransformGizmo that creates a URepositionableTransformGizmo, which is an extension to UTransformGizmo that 
+	 * Variant of CreateCustomTransformGizmo that creates a URepositionableTransformGizmo, which is an extension to UCombinedTransformGizmo that 
 	 * supports various snapping interactions
 	 */
-	virtual UTransformGizmo* CreateCustomRepositionableTransformGizmo(UInteractiveGizmoManager* GizmoManager, ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
+	virtual UCombinedTransformGizmo* CreateCustomRepositionableTransformGizmo(UInteractiveGizmoManager* GizmoManager, ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
 
 protected:
-	TSharedPtr<FTransformGizmoActorFactory> GizmoActorBuilder;
+	TSharedPtr<FCombinedTransformGizmoActorFactory> GizmoActorBuilder;
 	bool bDefaultGizmosRegistered = false;
 };

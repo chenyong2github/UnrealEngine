@@ -14,7 +14,7 @@
 #include "MultiTransformer.generated.h"
 
 
-class UTransformGizmo;
+class UCombinedTransformGizmo;
 class UTransformProxy;
 
 UENUM()
@@ -112,7 +112,7 @@ protected:
 	bool bDisallowNegativeScaling = false;
 
 	UPROPERTY()
-	TObjectPtr<UTransformGizmo> TransformGizmo;
+	TObjectPtr<UCombinedTransformGizmo> TransformGizmo;
 
 	UPROPERTY()
 	TObjectPtr<UTransformProxy> TransformProxy;

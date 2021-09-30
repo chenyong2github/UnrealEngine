@@ -15,9 +15,6 @@
 
 #include "MirrorTool.generated.h"
 
-class UTransformGizmo;
-class UTransformProxy;
-
 UCLASS()
 class MESHMODELINGTOOLSEXP_API UMirrorToolBuilder : public UInteractiveToolBuilder
 {

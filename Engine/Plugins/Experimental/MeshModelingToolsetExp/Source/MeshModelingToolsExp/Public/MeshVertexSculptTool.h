@@ -18,8 +18,6 @@
 #include "Polygroups/PolygroupSet.h"
 #include "MeshVertexSculptTool.generated.h"
 
-class UTransformGizmo;
-class UTransformProxy;
 class UMaterialInstanceDynamic;
 class FMeshVertexChangeBuilder;
 class UPreviewMesh;

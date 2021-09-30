@@ -101,13 +101,13 @@ public:
 
 private:
 
-	void UpdateGizmoActorComponents(FKeyInfo* KeyInfo, class UTransformGizmo* TransformGizmo);
+	void UpdateGizmoActorComponents(FKeyInfo* KeyInfo, class UCombinedTransformGizmo* TransformGizmo);
 
 	static UMSTrailKeyProperties* KeyProps;
 
 	TMap<FFrameNumber, TUniquePtr<FKeyInfo>> Keys;
 	FKeyInfo* CachedSelected;
-	TWeakObjectPtr<class UTransformGizmo> ActiveTransformGizmo;
+	TWeakObjectPtr<class UCombinedTransformGizmo> ActiveTransformGizmo;
 	FMovieSceneTransformTrail* OwningTrail;
 
 	friend class ::UMSTrailTransformProxy;

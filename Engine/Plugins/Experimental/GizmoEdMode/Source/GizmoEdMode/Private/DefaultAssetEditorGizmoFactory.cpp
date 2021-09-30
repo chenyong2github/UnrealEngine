@@ -36,7 +36,7 @@ TArray<UInteractiveGizmo*> UDefaultAssetEditorGizmoFactory::BuildGizmoForSelecti
 		Elements = ETransformGizmoSubElements::FullTranslateRotateScale;
 		break;
 	}
-	UTransformGizmo* TransformGizmo = GizmoManager->CreateCustomTransformGizmo(Elements);
+	UCombinedTransformGizmo* TransformGizmo = GizmoManager->CreateCustomTransformGizmo(Elements);
 	TransformGizmo->bUseContextCoordinateSystem = bUseContextCoordinateSystem;
 
 	TArray<AActor*> SelectedActors;
@@ -62,7 +62,7 @@ void UDefaultAssetEditorGizmoFactory::ConfigureGridSnapping(bool bGridEnabled, b
 {
 	for (auto& Gizmo : Gizmos)
 	{
-		UTransformGizmo* TransformGizmo = Cast<UTransformGizmo>(Gizmo);
+		UCombinedTransformGizmo* TransformGizmo = Cast<UCombinedTransformGizmo>(Gizmo);
 
 		if (TransformGizmo)
 		{

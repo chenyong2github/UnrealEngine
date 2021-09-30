@@ -15,7 +15,6 @@
 #include "DrawPolyPathTool.generated.h"
 
 class FMeshVertexChangeBuilder;
-class UTransformGizmo;
 class UTransformProxy;
 
 /**
