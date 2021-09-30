@@ -368,7 +368,7 @@ struct CONTROLRIG_API FRigUnit_FitChainToCurvePerItem : public FRigUnit_Highleve
  * Fits a given chain to a four point bezier curve.
  * Additionally provides rotational control matching the features of the Distribute Rotation node.
  */
-USTRUCT(meta=(DisplayName="Fit Chain on Curve", Category="Hierarchy", Keywords="Fit,Resample,Bezier"))
+USTRUCT(meta=(DisplayName="Fit Chain on Curve", Category="Hierarchy", Keywords="Fit,Resample,Bezier", Deprecated = "5.0"))
 struct CONTROLRIG_API FRigUnit_FitChainToCurveItemArray : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
