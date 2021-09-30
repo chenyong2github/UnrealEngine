@@ -42,10 +42,10 @@ protected:
 	void PostReplicatedChangeEntity(const FEntityView& EntityView, const FReplicatedCrowdAgent& Item) const;
 #endif //UE_REPLICATION_COMPILE_CLIENT_CODE
 
-#if WITH_MASS_DEBUG && WITH_EDITOR
+#if WITH_MASSGAMEPLAY_DEBUG && WITH_EDITOR
 	virtual void DebugValidateBubbleOnServer() override;
 	virtual void DebugValidateBubbleOnClient() override;
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 
 	FMassClientBubblePathHandler PathHandler;
 	FMassClientBubbleTransformHandler TransformHandler;

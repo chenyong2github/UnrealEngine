@@ -769,7 +769,7 @@ SIZE_T FArchetypeData::GetAllocatedSize() const
 
 FString FArchetypeData::DebugGetDescription() const
 {
-#if WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG
 	TStringBuilder<256> ArchetypeDebugName;
 	
 	ArchetypeDebugName.Append(TEXT("<"));
@@ -792,7 +792,7 @@ FString FArchetypeData::DebugGetDescription() const
 #endif
 }
 
-#if WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG
 void FArchetypeData::DebugPrintArchetype(FOutputDevice& Ar)
 {
 	FStringOutputDevice TagsDecription;
@@ -874,7 +874,7 @@ void FArchetypeData::DebugPrintEntity(FLWEntity Entity, FOutputDevice& Ar, const
 	}
 }
 
-#endif // WITH_AGGREGATETICKING_DEBUG
+#endif // WITH_MASSENTITY_DEBUG
 
 void FArchetypeData::REMOVEME_GetArrayViewForComponentInChunk(int32 ChunkIndex, const UScriptStruct* ComponentType, void*& OutChunkBase, int32& OutNumEntities)
 {

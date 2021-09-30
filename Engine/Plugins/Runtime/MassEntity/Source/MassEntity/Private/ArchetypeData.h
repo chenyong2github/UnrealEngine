@@ -92,9 +92,9 @@ public:
 		ChunkComponentData = InChunkComponentsTemplate;
 	}
 
-#if WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG
 	int32 DebugGetChunkComponentCount() const { return ChunkComponentData.Num(); }
-#endif // WITH_AGGREGATETICKING_DEBUG
+#endif // WITH_MASSENTITY_DEBUG
 };
 
 // Information for a single component type in an archetype
@@ -224,7 +224,7 @@ public:
 	// Converts the list of components into a user-readable debug string
 	FString DebugGetDescription() const;
 
-#if WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG
 	/**
 	 * Prints out debug information about the archetype
 	 */
@@ -237,7 +237,7 @@ public:
 	 * @param InPrefix Optional prefix to remove from component names
 	 */
 	void DebugPrintEntity(FLWEntity Entity, FOutputDevice& Ar, const TCHAR* InPrefix = TEXT("")) const;
-#endif // WITH_AGGREGATETICKING_DEBUG
+#endif // WITH_MASSENTITY_DEBUG
 
 	void REMOVEME_GetArrayViewForComponentInChunk(int32 ChunkIndex, const UScriptStruct* ComponentType, void*& OutChunkBase, int32& OutNumEntities);
 

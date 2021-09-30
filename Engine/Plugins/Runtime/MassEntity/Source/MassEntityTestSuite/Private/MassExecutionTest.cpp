@@ -81,7 +81,7 @@ struct FExecution_InvalidPipeContext : FExecutionTestBase
 IMPLEMENT_AI_INSTANT_TEST(FExecution_InvalidPipeContext, "System.Pipe.Execution.InvalidPipeContext");
 
 
-#if WITH_PIPE_DEBUG
+#if WITH_MASSENTITY_DEBUG
 struct FExecution_SingleNullProcessor : FExecutionTestBase
 {
 	virtual bool InstantTest() override
@@ -141,7 +141,7 @@ struct FExecution_MultipleNullProcessors : FExecutionTestBase
 	}
 };
 IMPLEMENT_AI_INSTANT_TEST(FExecution_MultipleNullProcessors, "System.Pipe.Execution.MultipleNullProcessors");
-#endif // WITH_PIPE_DEBUG
+#endif // WITH_MASSENTITY_DEBUG
 
 
 struct FExecution_Sparse : FEntityTestBase

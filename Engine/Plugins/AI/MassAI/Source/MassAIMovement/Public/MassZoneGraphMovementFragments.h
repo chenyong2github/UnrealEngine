@@ -178,7 +178,7 @@ struct MASSAIMOVEMENT_API FMassZoneGraphShortPathFragment : public FLWComponentD
 
 	void Reset()
 	{
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 		DebugLaneHandle.Reset();
 #endif
 		NextLaneHandle.Reset();
@@ -203,7 +203,7 @@ struct MASSAIMOVEMENT_API FMassZoneGraphShortPathFragment : public FLWComponentD
 		return NumPoints == 0 || bDone;
 	}
 
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 	/** Current lane handle, for debug */
 	FZoneGraphLaneHandle DebugLaneHandle;
 #endif

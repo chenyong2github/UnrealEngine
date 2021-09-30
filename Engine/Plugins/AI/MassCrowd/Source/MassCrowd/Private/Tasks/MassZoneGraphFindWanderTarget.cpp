@@ -27,9 +27,9 @@ EStateTreeRunStatus FMassZoneGraphFindWanderTarget::EnterState(FStateTreeExecuti
 	const UMassCrowdSubsystem& MassCrowdSubsystem = Context.GetExternalItem(MassCrowdSubsystemHandle).Get<UMassCrowdSubsystem>();
 
 	bool bDisplayDebug = false;
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 	bDisplayDebug = UE::MassDebug::IsDebuggingEntity(MassContext.GetEntity());
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 
 	if (!LaneLocation.LaneHandle.IsValid())
 	{

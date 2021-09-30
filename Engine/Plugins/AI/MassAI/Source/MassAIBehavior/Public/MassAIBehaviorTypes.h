@@ -19,15 +19,15 @@ namespace UE::Mass::ProcessorGroupNames
  * These macros should be used to standardize the output format and simplify code at call site.
  * They could also easily be changed from UE_(C)VLOG to UE_(C)VLOG_UELOG (or any other implementation) in one go.
  *  e.g. the following:
- *		#if WITH_MASS_DEBUG
+ *		#if WITH_MASSGAMEPLAY_DEBUG
  *			const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
  *			UE_VLOG(MassContext.GetOwner(), LogMassBehavior, Log, TEXT("Entity [%s]: Starting action: %s"), *MassContext.GetEntity().DebugGetDescription(), *StaticEnum<ESomeActionEnum>()->GetValueAsString(SomeActionEnumValue));
- *		#endif // WITH_MASS_DEBUG
+ *		#endif // WITH_MASSGAMEPLAY_DEBUG
  *
  *	could be replaced by:
  *		MASSBEHAVIOR_CLOG(bDisplayDebug, Log, TEXT("Starting action: %s"), *StaticEnum<ESomeActionEnum>()->GetValueAsString(SomeActionEnumValue));
  */
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 #define MASSBEHAVIOR_LOG(Verbosity, Format, ...) UE_VLOG(static_cast<FMassStateTreeExecutionContext&>(Context).GetOwner(), LogMassBehavior, Verbosity, \
 	TEXT("Entity [%s][%s] ") Format, *static_cast<FMassStateTreeExecutionContext&>(Context).GetEntity().DebugGetDescription(), *StaticStruct()->GetName(), ##__VA_ARGS__)
 #define MASSBEHAVIOR_CLOG(Condition, Verbosity, Format, ...) UE_CVLOG((Condition), static_cast<FMassStateTreeExecutionContext&>(Context).GetOwner(), LogMassBehavior, Verbosity, \
@@ -35,4 +35,4 @@ namespace UE::Mass::ProcessorGroupNames
 #else
 #define MASSBEHAVIOR_LOG(Verbosity, Format, ...)
 #define MASSBEHAVIOR_CLOG(Condition, Verbosity, Format, ...)
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG

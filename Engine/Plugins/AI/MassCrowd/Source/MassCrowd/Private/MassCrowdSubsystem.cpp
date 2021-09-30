@@ -15,7 +15,7 @@
 #include "ZoneGraphSubsystem.h"
 #include "VisualLogger/VisualLogger.h"
 
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 namespace UE::MassCrowdDebug
 {
 bool bForceFillIntersectionLanes = false;
@@ -39,7 +39,7 @@ static FAutoConsoleCommandWithWorld RebuildCmd(
 	}));
 #endif // WITH_EDITOR
 }// namespace UE::MassCrowdDebug
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 
 //----------------------------------------------------------------------//
 // UMassCrowdSubsystem

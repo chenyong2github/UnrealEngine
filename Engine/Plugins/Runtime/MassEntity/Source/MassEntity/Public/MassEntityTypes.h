@@ -2,11 +2,11 @@
 
 #pragma once
 
+#include "StructUtilsTypes.h"
 #include "InstancedStruct.h"
-#include "LWComponentTypes.h"
 #include "MassEntityTypes.generated.h"
 
-#define WITH_PIPE_DEBUG (!(UE_BUILD_SHIPPING || UE_BUILD_SHIPPING_WITH_EDITOR || UE_BUILD_TEST) && WITH_AGGREGATETICKING_DEBUG && 1)
+#define WITH_MASSENTITY_DEBUG (!(UE_BUILD_SHIPPING || UE_BUILD_SHIPPING_WITH_EDITOR || UE_BUILD_TEST) && WITH_STRUCTUTILS_DEBUG && 1)
 
 MASSENTITY_API DECLARE_LOG_CATEGORY_EXTERN(LogPipe, Warning, All);
 

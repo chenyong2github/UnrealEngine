@@ -85,9 +85,9 @@ void UMassProcessor_SmartObjectCandidatesFinder::Execute(UMassEntitySubsystem& E
 		}
 		Result.bProcessed = true;
 
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 		UE_VLOG(LogOwner, LogSmartObject, Verbose, TEXT("[%s] search completed: found %d"), *Entity.DebugGetDescription(), Result.NumCandidates);
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 	};
 
 	// Process world location based requests
@@ -114,9 +114,9 @@ void UMassProcessor_SmartObjectCandidatesFinder::Execute(UMassEntitySubsystem& E
 			bool bDisplayDebug = false;
 			FColor DebugColor(FColor::White);
 
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 			bDisplayDebug = UE::MassDebug::IsDebuggingEntity(Entity, &DebugColor);
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 
 			BeginRequestProcessing(Entity, Context, Result);
 			ON_SCOPE_EXIT{ EndRequestProcessing(SmartObjectSubsystem, Entity, Result);	};
@@ -133,14 +133,14 @@ void UMassProcessor_SmartObjectCandidatesFinder::Execute(UMassEntitySubsystem& E
 						const FVector ObjectLocation = Element.Bounds.Center;
 						Result.Candidates[Result.NumCandidates++] = FSmartObjectCandidate(ID, FVector::DistSquared(SearchOrigin, ObjectLocation));
 
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 						if (bDisplayDebug)
 						{
 							constexpr float DebugRadius = 10.f;
 							UE_VLOG_LOCATION(SmartObjectSubsystem, LogSmartObject, Display, ObjectLocation, DebugRadius, DebugColor, TEXT("%s"), *ID.Describe());
 							UE_VLOG_SEGMENT(SmartObjectSubsystem, LogSmartObject, Display, SearchOrigin, ObjectLocation, DebugColor, TEXT(""));
 						}
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 					}
 				}
 			});
@@ -175,10 +175,10 @@ void UMassProcessor_SmartObjectCandidatesFinder::Execute(UMassEntitySubsystem& E
 
 				const FLWEntity Entity = Context.GetEntity(i);
 				bool bDisplayDebug = false;
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 				FColor DebugColor(FColor::White);
 				bDisplayDebug = UE::MassDebug::IsDebuggingEntity(Entity, &DebugColor);
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 
 				BeginRequestProcessing(Entity, Context, Result);
 				ON_SCOPE_EXIT{ EndRequestProcessing(SmartObjectSubsystem, Entity, Result); };
@@ -239,7 +239,7 @@ void UMassProcessor_SmartObjectCandidatesFinder::Execute(UMassEntitySubsystem& E
 
 					Result.Candidates[Result.NumCandidates++] = FSmartObjectCandidate(ID, Cost);
 
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 					if (bDisplayDebug)
 					{
 						FZoneGraphLaneLocation RequestLaneLocation, EntryPointLaneLocation;
@@ -250,7 +250,7 @@ void UMassProcessor_SmartObjectCandidatesFinder::Execute(UMassEntitySubsystem& E
 						UE_VLOG_LOCATION(SmartObjectSubsystem, LogSmartObject, Display, EntryPointLaneLocation.Position, DebugRadius, DebugColor, TEXT("%s"), *ID.Describe());
 						UE_VLOG_SEGMENT(SmartObjectSubsystem, LogSmartObject, Display, RequestLaneLocation.Position, EntryPointLaneLocation.Position, DebugColor, TEXT(""));
 					}
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 				}
 			}
 		});
@@ -305,7 +305,7 @@ void UMassProcessor_SmartObjectTimedBehavior::Execute(UMassEntitySubsystem& Enti
 			SOUser.SetUseTime(FMath::Max(SOUser.GetUseTime() - DT, 0.0f));
 			const bool bMustRelease = SOUser.GetUseTime() <= 0.f;
 
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 			const FLWEntity Entity = Context.GetEntity(i);
 			FColor DebugColor(FColor::White);
 			const bool bIsDebuggingEntity = UE::MassDebug::IsDebuggingEntity(Entity, &DebugColor);
@@ -325,7 +325,7 @@ void UMassProcessor_SmartObjectTimedBehavior::Execute(UMassEntitySubsystem& Enti
 					UE_VLOG_ARROW(SmartObjectSubsystem, LogSmartObject, Display, Pos, Pos + Dir * 2.0f * Radius, DebugColor, TEXT(""));
 				}
 			}
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 
 			if (bMustRelease)
 			{

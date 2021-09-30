@@ -14,7 +14,7 @@
 
 #define UNSAFE_FOR_MT 1
 
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 
 namespace UE::MassMovement::Debug
 {
@@ -28,7 +28,7 @@ namespace UE::MassMovement::Debug
 	}
 }
 
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 
 namespace UE::MassMovement
 {
@@ -125,7 +125,7 @@ void UMassZoneGraphLocationInitializer::Execute(UMassEntitySubsystem& EntitySubs
 			}
 			if (!CurrentMovementConfig)
 			{
-#if WITH_MASS_DEBUG && UNSAFE_FOR_MT
+#if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
 				const FLWEntity Entity = Context.GetEntity(EntityIndex);
 				UE_VLOG(this, LogMassNavigation, Log, TEXT("Entity [%s] Invalid movement config."), *Entity.DebugGetDescription());
 #endif
@@ -223,13 +223,13 @@ void UMassZoneGraphPathFollowProcessor::Execute(UMassEntitySubsystem& EntitySubs
 			const float DeltaTime = SimLOD.DeltaTime;
 
 			bool bDisplayDebug = false;
-#if WITH_MASS_DEBUG && UNSAFE_FOR_MT // this will result in bDisplayDebug == false and disabling of all the vlogs below
+#if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT // this will result in bDisplayDebug == false and disabling of all the vlogs below
 			bDisplayDebug = UE::MassDebug::IsDebuggingEntity(Entity);
 			if (bDisplayDebug)
 			{
 				UE_VLOG(this, LogMassNavigation, Log, TEXT("Entity [%s] Updating path following"), *Entity.DebugGetDescription());
 			}
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 
 			// Must have at least two points to interpolate.
 			if (MoveTarget.GetCurrentAction() == EMassMovementAction::Move && ShortPath.NumPoints >= 2)
@@ -251,9 +251,9 @@ void UMassZoneGraphPathFollowProcessor::Execute(UMassEntitySubsystem& EntitySubs
 				if (!bWasDone)
 				{
 					const uint8 LastPointIndex = ShortPath.NumPoints - 1;
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 					ensureMsgf(LaneLocation.LaneHandle == ShortPath.DebugLaneHandle, TEXT("Short path lane should match current lane location."));
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 
 					if (ShortPath.ProgressDistance <= 0.0f)
 					{
@@ -408,7 +408,7 @@ void UMassZoneGraphPathFollowProcessor::Execute(UMassEntitySubsystem& EntitySubs
 					EntitiesToSignalPathDone.Add(Entity);
 				}
 
-#if WITH_MASS_DEBUG && UNSAFE_FOR_MT
+#if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
 				if (bDisplayDebug)
 				{
 					const FColor EntityColor = UE::MassDebug::GetEntityDebugColor(Entity);
@@ -440,7 +440,7 @@ void UMassZoneGraphPathFollowProcessor::Execute(UMassEntitySubsystem& EntitySubs
 						UE_VLOG_SEGMENT_THICK(this, LogMassNavigation, Display, CurrBase, CurrBase + FVector(0,0,100), FColor::Red, /*Thickness*/3.0f, TEXT("Next: %s"), *ShortPath.NextLaneHandle.ToString());
 					}
 				}
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 			}
 		}
 	});
@@ -532,7 +532,7 @@ void UMassZoneGraphSteeringProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 			}
 			if (!CurrentMovementConfig)
 			{
-#if WITH_MASS_DEBUG && UNSAFE_FOR_MT
+#if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
 				UE_VLOG(this, LogMassNavigation, Log, TEXT("Entity [%s] Invalid movement config."), *Entity.DebugGetDescription());
 #endif
 				continue;
@@ -707,7 +707,7 @@ void UMassZoneGraphSteeringProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 				MoveTarget.bSteeringFallingBehind = false;
 			}
 
-#if WITH_MASS_DEBUG && UNSAFE_FOR_MT
+#if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
 			FColor EntityColor = FColor::White;
 			const bool bDisplayDebug = UE::MassDebug::IsDebuggingEntity(Entity, &EntityColor);
 			if (bDisplayDebug)
@@ -740,7 +740,7 @@ void UMassZoneGraphSteeringProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 				UE_VLOG_SEGMENT_THICK(this, LogMassNavigation, Log, CurrentLocation + ZOffset, CurrentLocation + Steering.DesiredVelocity + ZOffset, LightEntityColor, 2.0f,
 					TEXT("%s Steer %.1f"), *Entity.DebugGetDescription(), Steering.DesiredVelocity.Length());
 			}
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 			
 		}
 	});

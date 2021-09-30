@@ -20,7 +20,7 @@ IMPLEMENT_MODULE(FMassAIDebug, MassAIDebug)
 
 void FMassAIDebug::StartupModule()
 {
-#if WITH_GAMEPLAY_DEBUGGER && WITH_MASS_DEBUG
+#if WITH_GAMEPLAY_DEBUGGER && WITH_MASSGAMEPLAY_DEBUG
 	IGameplayDebugger& GameplayDebuggerModule = IGameplayDebugger::Get();
 	GameplayDebuggerModule.RegisterCategory("Mass", IGameplayDebugger::FOnGetCategory::CreateStatic(&FGameplayDebuggerCategory_Mass::MakeInstance), EGameplayDebuggerCategoryState::EnabledInGameAndSimulate);
 	GameplayDebuggerModule.NotifyCategoriesChanged();
@@ -29,7 +29,7 @@ void FMassAIDebug::StartupModule()
 
 void FMassAIDebug::ShutdownModule()
 {
-#if WITH_GAMEPLAY_DEBUGGER && WITH_MASS_DEBUG
+#if WITH_GAMEPLAY_DEBUGGER && WITH_MASSGAMEPLAY_DEBUG
 	if (IGameplayDebugger::IsAvailable())
 	{
 		IGameplayDebugger& GameplayDebuggerModule = IGameplayDebugger::Get();

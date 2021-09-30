@@ -13,7 +13,7 @@ namespace UE::Mass::Crowd
 	bool bDebugReplicationPositions = false;
 	FAutoConsoleVariableRef CVarbDebugReplication(TEXT("ai.debug.CrowdReplicationPositions"), bDebugReplicationPositions, TEXT("Crowd debug replication positions on server and client"), ECVF_Cheat);
 
-#if WITH_MASS_DEBUG && WITH_EDITOR
+#if WITH_MASSGAMEPLAY_DEBUG && WITH_EDITOR
 	// @todo provide a better way of selecting agents to debug
 	constexpr int32 MaxAgentsDraw = 300;
 
@@ -60,10 +60,10 @@ namespace UE::Mass::Crowd
 			DrawDebugCylinder(World, Pos + 0.5f * DebugCylinderHeight, Pos + DebugCylinderHeight, DebugCylinderRadius, /*segments = */24, DebugCylinderColor);
 		}
 	}
-#endif // WITH_MASS_DEBUG && WITH_EDITOR
+#endif // WITH_MASSGAMEPLAY_DEBUG && WITH_EDITOR
 }
 
-#if WITH_MASS_DEBUG && WITH_EDITOR
+#if WITH_MASSGAMEPLAY_DEBUG && WITH_EDITOR
 void FMassCrowdClientBubbleHandler::DebugValidateBubbleOnServer()
 {
 	Super::DebugValidateBubbleOnServer();
@@ -88,9 +88,9 @@ void FMassCrowdClientBubbleHandler::DebugValidateBubbleOnServer()
 		}
 	}
 }
-#endif // WITH_MASS_DEBUG && WITH_EDITOR
+#endif // WITH_MASSGAMEPLAY_DEBUG && WITH_EDITOR
 
-#if WITH_MASS_DEBUG && WITH_EDITOR
+#if WITH_MASSGAMEPLAY_DEBUG && WITH_EDITOR
 void FMassCrowdClientBubbleHandler::DebugValidateBubbleOnClient()
 {
 	Super::DebugValidateBubbleOnClient();
@@ -118,7 +118,7 @@ void FMassCrowdClientBubbleHandler::DebugValidateBubbleOnClient()
 		}
 	}
 }
-#endif // WITH_MASS_DEBUG && WITH_EDITOR
+#endif // WITH_MASSGAMEPLAY_DEBUG && WITH_EDITOR
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
 void FMassCrowdClientBubbleHandler::PostReplicatedAdd(const TArrayView<int32> AddedIndices, int32 FinalSize)

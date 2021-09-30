@@ -4,6 +4,7 @@
 
 #include "Subsystems/WorldSubsystem.h"
 #include "LWComponentTypes.h"
+#include "MassEntityTypes.h"
 #include "InstancedStruct.h"
 #include "EntityQuery.h"
 #include "MassEntitySubsystem.generated.h"
@@ -256,7 +257,7 @@ public:
 	bool IsProcessing() const { return ProcessingScopeCount > 0; }
 	FLWCCommandBuffer& Defer() { return *DeferredCommandBuffer.Get(); }
 
-#if WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG
 	void DebugPrintEntity(int32 Index, FOutputDevice& Ar, const TCHAR* InPrefix = TEXT("")) const;
 	void DebugPrintEntity(FLWEntity Entity, FOutputDevice& Ar, const TCHAR* InPrefix = TEXT("")) const;
 	void DebugPrintArchetypes(FOutputDevice& Ar) const;
@@ -269,7 +270,7 @@ public:
 	void DebugRemoveAllEntities();
 	void DebugForceArchetypeDataVersionBump() { ++ArchetypeDataVersion; }
 	void DebugGetArchetypeStrings(const FArchetypeHandle& Archetype, TArray<FName>& OutComponentNames, TArray<FName>& OutTagNames);
-#endif // WITH_AGGREGATETICKING_DEBUG
+#endif // WITH_MASSENTITY_DEBUG
 
 protected:
 	void GetValidArchetypes(const FLWComponentQuery& Query, TArray<FArchetypeHandle>& OutValidArchetypes);
@@ -376,7 +377,7 @@ private:
 	int32 ChunkSerialModificationNumber = -1;
 	FLWTagBitSet CurrentArchetypesTagBitSet;
 
-#if WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG
 	FString DebugExecutionDescription;
 #endif
 	
@@ -398,7 +399,7 @@ public:
 		, bFlushDeferredCommands(bInFlushDeferredCommands)
 	{}
 
-#if WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG
 	const FString& DebugGetExecutionDesc() const { return DebugExecutionDescription; }
 	void DebugSetExecutionDesc(const FString& Description) { DebugExecutionDescription = Description; }
 #endif

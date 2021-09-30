@@ -127,7 +127,7 @@ EMassSmartObjectClaimResult FMassSmartObjectHandler::ClaimCandidate(const FLWEnt
 	{
 		if (ClaimSmartObject(Entity, User, Candidate.ID))
 		{
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 			UE_CVLOG(UE::MassDebug::IsDebuggingEntity(Entity),
 				&SmartObjectSubsystem,
 				LogSmartObject,
@@ -135,7 +135,7 @@ EMassSmartObjectClaimResult FMassSmartObjectHandler::ClaimCandidate(const FLWEnt
 				TEXT("[%s] claimed [%s]"),
 				*Entity.DebugGetDescription(),
 				*Candidate.ID.Describe());
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 			break;
 		}
 	}
@@ -164,7 +164,7 @@ bool FMassSmartObjectHandler::ClaimSmartObject(const FLWEntity Entity, FDataFrag
 		SmartObjectSubsystem.RegisterSlotInvalidationCallback(ClaimHandle, FOnSlotInvalidated::CreateStatic(&UE::Mass::SmartObject::OnSlotInvalidated, Payload));
 	}
 
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 	UE_CVLOG(UE::MassDebug::IsDebuggingEntity(Entity),
 		&SmartObjectSubsystem,
 		LogSmartObject,
@@ -173,7 +173,7 @@ bool FMassSmartObjectHandler::ClaimSmartObject(const FLWEntity Entity, FDataFrag
 		*Entity.DebugGetDescription(),
 		*ObjectID.Describe(),
 		bSuccess ? TEXT("Succeeded") : TEXT("Failed"));
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 
 	return bSuccess;
 }
@@ -183,7 +183,7 @@ bool FMassSmartObjectHandler::UseSmartObject(
 	FDataFragment_SmartObjectUser& User,
 	const FDataFragment_Transform& Transform) const
 {
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 	UE_CVLOG(UE::MassDebug::IsDebuggingEntity(Entity),
 		&SmartObjectSubsystem,
 		LogSmartObject,
@@ -191,7 +191,7 @@ bool FMassSmartObjectHandler::UseSmartObject(
 		TEXT("[%s] starts using [%s]"),
 		*Entity.DebugGetDescription(),
 		*User.ClaimHandle.Describe());
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 
 	const USmartObjectMassBehaviorConfig* Config = SmartObjectSubsystem.Use<USmartObjectMassBehaviorConfig>(User.ClaimHandle);
 	if (Config == nullptr)
@@ -209,7 +209,7 @@ bool FMassSmartObjectHandler::UseSmartObject(
 
 void FMassSmartObjectHandler::ReleaseSmartObject(const FLWEntity Entity, FDataFragment_SmartObjectUser& User, const EMassSmartObjectInteractionStatus NewStatus) const
 {
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 	UE_CVLOG(UE::MassDebug::IsDebuggingEntity(Entity),
 		&SmartObjectSubsystem,
 		LogSmartObject,
@@ -217,7 +217,7 @@ void FMassSmartObjectHandler::ReleaseSmartObject(const FLWEntity Entity, FDataFr
 		TEXT("[%s] releases handle [%s]"),
 		*Entity.DebugGetDescription(),
 		*User.ClaimHandle.Describe());
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 
 #if DO_ENSURE
 	const EMassSmartObjectInteractionStatus CurrentStatus = User.InteractionStatus;

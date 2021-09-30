@@ -153,7 +153,7 @@ void UPipeProcessingPhaseManager::InitializePhases(UObject& InProcessorOwner)
 		PhaseProcessor->Initialize(InProcessorOwner);
 	}
 
-#if WITH_PIPE_DEBUG
+#if WITH_MASSENTITY_DEBUG
 	// print it all out to vislog
 	UE_VLOG_UELOG(this, LogPipe, Verbose, TEXT("Phases initialization done. Current composition:"));
 
@@ -167,7 +167,7 @@ void UPipeProcessingPhaseManager::InitializePhases(UObject& InProcessorOwner)
 			OutDescription.Reset();
 		}
 	}	
-#endif // WITH_PIPE_DEBUG
+#endif // WITH_MASSENTITY_DEBUG
 }
 
 void UPipeProcessingPhaseManager::Start(UWorld& World)

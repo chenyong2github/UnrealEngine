@@ -72,10 +72,10 @@ inline bool IsLODTagSet(const FLWComponentSystemExecutionContext& Context, EMass
 	}
 }
 
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 namespace Debug 
 {
 	MASSLOD_API extern bool bLODCalculationsPaused;
 } // UE::MassLOD::Debug
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 } // UE::MassLOD
