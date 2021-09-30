@@ -40,8 +40,11 @@ class DMXRUNTIME_API UDMXEntityFixturePatch
 public:
 	UDMXEntityFixturePatch();
 
-protected:
 	// ~Begin UObject Interface
+#if WITH_EDITOR
+	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
+#endif
+protected:
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 
@@ -124,6 +127,14 @@ public:
 
 	/** Returns the manual starting channel. Used only when bAutoAssignAdress is false.  In most cases, you'll want GetStartingChannel instead. */
 	FORCEINLINE int32 GetManualStartingAddress() const { return ManualStartingAddress; }
+
+	/** 
+	 * Sets the starting channel of the Fixture Patch.
+	 * 
+	 * If Auto Assign Address was set to true, turns off Auto Assign Address.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "DMX|Fixture Patch")
+	void SetStartingChannel(int32 NewStartingChannel);
 
 	/** Return the starting channel */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
@@ -380,6 +391,9 @@ public:
 	bool GetAllMatrixCells(TArray<FDMXCell>& Cells);
 
 private:
+	/** Called when a Fixture Type changed */
+	void OnFixtureTypeChanged(const UDMXEntityFixtureType* FixtureType);
+
 	/** Tries to access the FixtureMatrix config of this patch and logs issues. Returns the matrix of nullptr if it isn't valid. */
 	const FDMXFixtureMatrix* GetFixtureMatrix() const;
 

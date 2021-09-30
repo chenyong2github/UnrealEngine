@@ -6,12 +6,6 @@
 #include "DMXEditorLog.h"
 #include "DMXProtocolConstants.h"
 
-#include "Customizations/DMXEntityFixtureTypeFixtureSettingsDetails.h"
-#include "Customizations/DMXEntityFixtureTypeModesDetails.h"
-#include "Customizations/DMXEntityFixtureTypeModePropertiesDetails.h"
-#include "Customizations/DMXEntityFixtureTypeFunctionsDetails.h"
-#include "Customizations/DMXEntityFixtureTypeFunctionPropertiesDetails.h"
-
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXEntityFixturePatch.h"
 
@@ -125,39 +119,6 @@ TSharedRef<SWidget> SDMXEntityInspector::MakeEditingWidget(const TArray<UObject*
 	];
 
 	return InnerEditingWidget;
-}
-
-void SDMXEntityInspectorFixtureTypes::Construct(const FArguments& InArgs, EDMXFixtureTypeLayout Layout)
-{
-	SDMXEntityInspector::Construct(SDMXEntityInspector::FArguments()
-		.DMXEditor(InArgs._DMXEditor)
-		.OnFinishedChangingProperties(InArgs._OnFinishedChangingProperties)
-	);
-
-	// Register details customizations Fixture Type UOBJECT
-	FOnGetDetailCustomizationInstance FixtureTypeDetails;
-	switch (Layout)
-	{
-	case EDMXFixtureTypeLayout::FixtureSettings:
-		FixtureTypeDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXEntityFixtureTypeFixtureSettingsDetails::MakeInstance, InArgs._DMXEditor);
-		break;
-	case EDMXFixtureTypeLayout::Modes:
-		FixtureTypeDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXEntityFixtureTypeModesDetails::MakeInstance, InArgs._DMXEditor);
-		break;
-	case EDMXFixtureTypeLayout::ModeProperties:
-		FixtureTypeDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXEntityFixtureTypeModePropertiesDetails::MakeInstance, InArgs._DMXEditor);
-		break;
-	case EDMXFixtureTypeLayout::Functions:
-		FixtureTypeDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXEntityFixtureTypeFunctionsDetails::MakeInstance, InArgs._DMXEditor);
-		break;
-	case EDMXFixtureTypeLayout::FunctionProperties:
-		FixtureTypeDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXEntityFixtureTypeFunctionPropertiesDetails::MakeInstance, InArgs._DMXEditor);
-		break;
-	default:
-		check(0); // Unhandled layout
-		return;
-	}
-	GetPropertyView()->RegisterInstancedCustomPropertyLayout(UDMXEntityFixtureType::StaticClass(), FixtureTypeDetails);
 }
 
 #undef LOCTEXT_NAMESPACE

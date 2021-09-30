@@ -60,11 +60,6 @@ public:
 	virtual FString GetUserFriendlyName() const override;
 	// ~End UDMXPixelMappingBaseComponent interface
 
-	// ~Begin FTickableGameObject interface
-	virtual void Tick(float DeltaTime) override;
-	virtual bool IsTickable() const { return true; }
-	// ~End FTickableGameObject interface
-
 	// ~Begin UDMXPixelMappingOutputComponent interface
 #if WITH_EDITOR
 	virtual const FText GetPaletteCategory() override;
@@ -85,6 +80,9 @@ public:
 	void HandleMatrixChanged();
 
 protected:
+	/** Called when the fixture type in use changed */
+	void OnFixtureTypeChanged(const UDMXEntityFixtureType* FixtureType);
+
 #if WITH_EDITORONLY_DATA
 	/** Children available PreEditUndo, useful to hide all removed ones in post edit undo */
 	TArray<UDMXPixelMappingBaseComponent*> PreEditUndoMatrixCellChildren;

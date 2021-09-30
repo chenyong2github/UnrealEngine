@@ -20,9 +20,6 @@ public:
 		/** The DMX Editor that owns this widget */
 		SLATE_ARGUMENT(TWeakPtr<FDMXEditor>, DMXEditor)
 
-		/** Exectued when the list changed its selection */
-		SLATE_EVENT(FDMXOnSelectionChanged, OnSelectionChanged)
-
 		/** Exectued when entites were added to the DMXEditor's library */
 		SLATE_EVENT(FSimpleDelegate, OnEntitiesAdded)
 
@@ -35,7 +32,7 @@ public:
 	SLATE_END_ARGS()
 
 	/** Constructs the widget */
-	void Construct(const FArguments& InArgs, const TSubclassOf<UDMXEntity> InListType);
+	void Construct(const FArguments& InArgs);
 
 	/** Destructor */
 	virtual ~SDMXFixtureTypeTree() {}
@@ -64,6 +61,9 @@ protected:
 	//~ End SDMXEntityTreeViewBase interface
 
 private:
+	/** Called when the selection changed */
+	void OnEntitySelected(const TArray<UDMXEntity*>& NewSelection);
+
 	/** Called when the Add button was clicked */
 	FReply OnAddNewFixtureTypeClicked();
 

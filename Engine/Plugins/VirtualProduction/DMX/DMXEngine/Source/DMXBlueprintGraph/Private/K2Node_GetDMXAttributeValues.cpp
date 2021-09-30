@@ -552,7 +552,7 @@ UDMXEntityFixtureType* UK2Node_GetDMXAttributeValues::GetParentFixtureType() con
 	return nullptr;
 }
 
-void UK2Node_GetDMXAttributeValues::OnDataTypeChanged(const UDMXEntityFixtureType* InFixtureType, const FDMXFixtureMode& InMode)
+void UK2Node_GetDMXAttributeValues::OnFixtureTypeChanged(const UDMXEntityFixtureType* InFixtureType)
 {
 	// Check if there are any pins exists
 	if (Pins.Num() == 0)
@@ -564,8 +564,8 @@ void UK2Node_GetDMXAttributeValues::OnDataTypeChanged(const UDMXEntityFixtureTyp
 	{
 		if (const FDMXFixtureMode* ActiveFixtureMode = GetActiveFixtureMode())
 		{
-			// Reset Attributes if there is a match in fixture types objects and name of the modes
-			if (InFixtureType && (InFixtureType == ParentFixtureType) && (InMode.ModeName == ActiveFixtureMode->ModeName))
+			// Reset Attributes if there is a match in fixture types objects
+			if (InFixtureType && (InFixtureType == ParentFixtureType))
 			{
 				ResetAttributes();
 
@@ -577,6 +577,12 @@ void UK2Node_GetDMXAttributeValues::OnDataTypeChanged(const UDMXEntityFixtureTyp
 			}
 		}
 	}
+}
+
+void UK2Node_GetDMXAttributeValues::OnDataTypeChanged(const UDMXEntityFixtureType* InFixtureType, const FDMXFixtureMode& InMode)
+{
+	// DEPRECATED 5.0
+	OnFixtureTypeChanged(InFixtureType);
 }
 
 #undef LOCTEXT_NAMESPACE

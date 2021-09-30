@@ -26,13 +26,12 @@ void FDMXBlueprintGraphModule::StartupModule()
 
 	RegisterObjectCustomizations();
 
-	DataTypeChangeDelegate = UDMXEntityFixtureType::GetDataTypeChangeDelegate().AddRaw(this, &FDMXBlueprintGraphModule::OnDataTypeChanged);
+	UDMXEntityFixtureType::GetOnFixtureTypeChanged().AddRaw(this, &FDMXBlueprintGraphModule::OnFixtureTypeChanged);
 }
 
 void FDMXBlueprintGraphModule::ShutdownModule()
 {
 	FEdGraphUtilities::UnregisterVisualPinFactory(DMXGraphPanelPinFactory);
-
 
 	if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
 	{
@@ -47,11 +46,7 @@ void FDMXBlueprintGraphModule::ShutdownModule()
 		PropertyModule.NotifyCustomizationModuleChanged();
 	}
 
-	// Remove the delegate
-	if (DataTypeChangeDelegate.IsValid())
-	{
-		DataTypeChangeDelegate.Reset();
-	}
+	UDMXEntityFixtureType::GetOnFixtureTypeChanged().RemoveAll(this);
 }
 
 void FDMXBlueprintGraphModule::RegisterObjectCustomizations()
@@ -73,13 +68,13 @@ void FDMXBlueprintGraphModule::RegisterCustomClassLayout(FName ClassName, FOnGet
 	PropertyModule.RegisterCustomClassLayout(ClassName, DetailLayoutDelegate);
 }
 
-void FDMXBlueprintGraphModule::OnDataTypeChanged(const UDMXEntityFixtureType* InFixtureType, const FDMXFixtureMode& InMode)
+void FDMXBlueprintGraphModule::OnFixtureTypeChanged(const UDMXEntityFixtureType* InFixtureType)
 {
 	for (TObjectIterator<UK2Node_GetDMXAttributeValues> It(RF_Transient | RF_ClassDefaultObject, /** bIncludeDerivedClasses */ true, /** InternalExcludeFlags */ EInternalObjectFlags::PendingKill); It; ++It)
 	{
 		if (It->HasValidBlueprint())
 		{
-			It->OnDataTypeChanged(InFixtureType, InMode);
+			It->OnFixtureTypeChanged(InFixtureType);
 		}
 	}
 }

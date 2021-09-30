@@ -35,7 +35,7 @@ void FDMXEntityFixturePatchDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 	AutoAssignAddressHandle->SetOnPropertyValueChanged(OnAutoAssignAddressChangedDelegate);
 
 	// Handle mode changes of the parent fixture type
-	UDMXEntityFixtureType::GetDataTypeChangeDelegate().AddSP(this, &FDMXEntityFixturePatchDetails::OnModeChanged);
+	UDMXEntityFixtureType::GetOnFixtureTypeChanged().AddSP(this, &FDMXEntityFixturePatchDetails::OnFixtureTypeChanged);
 
 	// Make a Fixture Types dropdown for the Fixture Type template property
 	DetailBuilder.EditDefaultProperty(ParentFixtureTypeHandle)->CustomWidget(false)
@@ -121,7 +121,7 @@ void FDMXEntityFixturePatchDetails::OnParentFixtureTypeChanged(UDMXEntity* NewTe
 	ParentFixtureTypeHandle->SetValue(Cast<UDMXEntityFixtureType>(NewTemplate));
 }
 
-void FDMXEntityFixturePatchDetails::OnModeChanged(const UDMXEntityFixtureType* FixtureType, const FDMXFixtureMode& Mode)
+void FDMXEntityFixturePatchDetails::OnFixtureTypeChanged(const UDMXEntityFixtureType* FixtureType)
 {
 	PropertyUtilities->ForceRefresh();
 }

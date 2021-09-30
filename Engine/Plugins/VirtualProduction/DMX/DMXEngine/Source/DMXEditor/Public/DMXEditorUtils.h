@@ -11,16 +11,20 @@ class UDMXEntityFixtureType;
 class UDMXEntityFader;
 class UDMXEntityFixturePatch;
 
-
+/** 
+ * Generic Editor Utilities.
+ * for Fixture Type, refer to DMXFixtureTypeSharedData instead.
+ */
 class DMXEDITOR_API FDMXEditorUtils
 {
 public:
 	typedef TArray<UDMXEntityFixturePatch*> FUnassignedPatchesArray;
-		
+
 	/**
 	 * Generates a unique name given a base one and a list of existing ones, by appending an index to
 	 * existing names. If InBaseName is an empty String, it returns "Default name".
 	 */
+	UE_DEPRECATED(5.0, "Moved to DMXRuntimeUtils to allow using it at runtime.")
 	static FString GenerateUniqueNameFromExisting(const TSet<FString>& InExistingNames, const FString& InBaseName);
 
 	/**
@@ -90,8 +94,7 @@ public:
 	/**  Returns the Entity class type name (e.g: Fixture Type for UDMXEntityFixtureType) in singular or plural */
 	static FText GetEntityTypeNameText(TSubclassOf<UDMXEntity> EntityClass, bool bPlural = false);
 
-	
-	
+
 // Auto Assign:
 	
 	/**

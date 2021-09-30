@@ -7,7 +7,6 @@
 #include "DMXStats.h"
 #include "DMXSubsystem.h"
 #include "DMXTypes.h"
-#include "DMXUtils.h"
 #include "IO/DMXInputPort.h"
 #include "IO/DMXOutputPort.h"
 #include "IO/DMXRawListener.h"

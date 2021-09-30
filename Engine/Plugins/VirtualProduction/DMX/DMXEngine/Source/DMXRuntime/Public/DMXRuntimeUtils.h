@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Library/DMXEntityFixtureType.h"
+
+#include "CoreMinimal.h"
+#include "JsonObjectConverter.h"
 
 class UDMXEntityFixturePatch;
 
@@ -11,6 +13,12 @@ class UDMXEntityFixturePatch;
 class DMXRUNTIME_API FDMXRuntimeUtils
 {
 public:
+	/**
+	 * Generates a unique name given a base one and a list of existing ones, by appending an index to
+	 * existing names. If InBaseName is an empty String, it returns "Default name".
+	 */
+	static FString GenerateUniqueNameFromExisting(const TSet<FString>& InExistingNames, const FString& InBaseName);
+
 	/**
 	 * Utility to separate a name from an index at the end.
 	 * @param InString	The string to be separated.
@@ -315,6 +323,9 @@ public:
 			}
 		}
 	}
+
+	/** Serializes a struct to a Sting */
+	static TOptional<FString> SerializeStructToString(const UStruct* StructClass, const void* StructData);
 
 	// can't instantiate this class
 	FDMXRuntimeUtils() = delete;

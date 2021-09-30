@@ -46,9 +46,11 @@ void SDMXPixelMappingFixturePatchDetailRow::Construct(const FArguments& InArgs)
 				SAssignNew(FixturePatchNameTextBlock, STextBlock)
 				.Text_Lambda([FixturePatch]()
 					{
-						if (FixturePatch.IsValid())
+						const UDMXEntityFixtureType* FixtureType = FixturePatch.IsValid() ? FixturePatch->GetFixtureType() : nullptr;
+						const FDMXFixtureMode* FixtureModePtr = FixturePatch.IsValid() ? FixturePatch->GetActiveMode() : nullptr;
+						if (FixtureType && FixtureModePtr)
 						{
-							if (FixturePatch->GetFixtureType() && FixturePatch->GetFixtureType()->bFixtureMatrixEnabled)
+							if (FixtureModePtr->bFixtureMatrixEnabled)
 							{
 								return FText::Format(LOCTEXT("MatrixFixturePatchName", "Matrix: {0}"), FText::FromString(FixturePatch->Name));
 							}

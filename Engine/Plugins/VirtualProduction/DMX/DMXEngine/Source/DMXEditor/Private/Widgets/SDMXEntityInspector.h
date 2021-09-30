@@ -106,23 +106,6 @@ enum class EDMXFixtureTypeLayout : uint8
 	FunctionProperties
 };
 
-/** DMX fixture types inspector */
-class SDMXEntityInspectorFixtureTypes
-	: public SDMXEntityInspector
-{
-public:
-	SLATE_BEGIN_ARGS(SDMXEntityInspectorFixtureTypes)
-	{}
-
-	SLATE_ARGUMENT(TWeakPtr<FDMXEditor>, DMXEditor)
-	SLATE_EVENT(FOnFinishedChangingProperties::FDelegate, OnFinishedChangingProperties)
-
-	SLATE_END_ARGS()
-
-	/** Constructs the widget */
-	void Construct(const FArguments& InArgs, EDMXFixtureTypeLayout DetailsView);
-};
-
 /** DMX Component inspector */
 class SDMXComponentInspector
 	: public SDMXEntityInspector

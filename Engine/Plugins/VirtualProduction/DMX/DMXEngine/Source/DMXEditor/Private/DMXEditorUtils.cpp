@@ -89,6 +89,7 @@ protected:
 
 FString FDMXEditorUtils::GenerateUniqueNameFromExisting(const TSet<FString>& InExistingNames, const FString& InBaseName)
 {
+	// DEPRECATED UE5 (now in FDMXRuntimeUtils)
 	if (!InBaseName.IsEmpty() && !InExistingNames.Contains(InBaseName))
 	{
 		return InBaseName;
@@ -148,7 +149,7 @@ FString FDMXEditorUtils::FindUniqueEntityName(const UDMXLibrary* InLibrary, TSub
 		BaseName = InEntityClass->GetDisplayNameText().ToString();
 	}
 
-	return GenerateUniqueNameFromExisting(EntityNames, BaseName);
+	return FDMXRuntimeUtils::GenerateUniqueNameFromExisting(EntityNames, BaseName);
 }
 
 void FDMXEditorUtils::SetNewFixtureFunctionsNames(UDMXEntityFixtureType* InFixtureType)
@@ -179,7 +180,7 @@ void FDMXEditorUtils::SetNewFixtureFunctionsNames(UDMXEntityFixtureType* InFixtu
 				}
 			}
 
-			Mode.ModeName = GenerateUniqueNameFromExisting(ModesNames, TEXT("Mode"));
+			Mode.ModeName = FDMXRuntimeUtils::GenerateUniqueNameFromExisting(ModesNames, TEXT("Mode"));
 			ModesNames.Add(Mode.ModeName);
 		}
 
@@ -201,7 +202,7 @@ void FDMXEditorUtils::SetNewFixtureFunctionsNames(UDMXEntityFixtureType* InFixtu
 					}
 				}
 
-				Function.FunctionName = GenerateUniqueNameFromExisting(FunctionsNames, TEXT("Function"));
+				Function.FunctionName = FDMXRuntimeUtils::GenerateUniqueNameFromExisting(FunctionsNames, TEXT("Function"));
 				FunctionsNames.Add(Function.FunctionName);
 			}
 		}

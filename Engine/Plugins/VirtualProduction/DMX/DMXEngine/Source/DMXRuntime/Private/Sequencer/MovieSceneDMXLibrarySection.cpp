@@ -2,6 +2,7 @@
 
 #include "Sequencer/MovieSceneDMXLibrarySection.h"
 
+#include "DMXConversions.h"
 #include "DMXProtocolCommon.h"
 #include "DMXRuntimeLog.h"
 #include "DMXRuntimeObjectVersion.h"
@@ -71,7 +72,7 @@ void FDMXFixturePatchChannel::UpdateNumberOfChannels(bool bResetDefaultValues /*
 	{
 		// Add channels for functions that are in mode range and have an Attribute set
 
-		if (UDMXEntityFixtureType::IsFunctionInModeRange(Function, Mode, PatchChannelOffset) &&
+		if (Function.GetLastChannel() <= Patch->GetChannelSpan() &&
 			FDMXAttributeName::IsValid(Function.Attribute.GetName()))
 		{
 			bool bNewChannel = false;
@@ -95,7 +96,7 @@ void FDMXFixturePatchChannel::UpdateNumberOfChannels(bool bResetDefaultValues /*
 		}
 	}
 
-	if (UDMXEntityFixtureType::IsFixtureMatrixInModeRange(Mode.FixtureMatrixConfig, Mode, PatchChannelOffset))
+	if (Mode.FixtureMatrixConfig.GetLastChannel() <= Patch->GetChannelSpan())
 	{
 		int32 NumXCells = Mode.FixtureMatrixConfig.XCells;
 		int32 NumYCells = Mode.FixtureMatrixConfig.YCells;
@@ -199,7 +200,7 @@ FDMXCachedFunctionChannelInfo::FDMXCachedFunctionChannelInfo(const TArray<FDMXFi
 			});
 
 		const bool bMissingFunction = !AttributeNameChannelMap.Contains(FunctionChannel.AttributeName) || !CellAttributePtr;
-		if (!CellAttributePtr && bMissingFunction)
+		if (!CellAttributePtr || bMissingFunction)
 		{
 			UE_LOG(MovieSceneDMXLibrarySectionLog, Warning, TEXT("%S: Function with attribute %s from %s doesn't have a counterpart Fixture Function."), __FUNCTION__, *FunctionChannel.AttributeName.ToString(), *FixturePatch->GetDisplayName());
 			UE_LOG(MovieSceneDMXLibrarySectionLog, Warning, TEXT("%S: Further attributes may be missing. Warnings ommited to avoid overflowing the log."), __FUNCTION__);
@@ -268,42 +269,35 @@ const FDMXFixtureFunctionChannel* FDMXCachedFunctionChannelInfo::TryGetFunctionC
 
 void FDMXCachedFunctionChannelInfo::GetMatrixCellChannelsAbsoluteNoSorting(UDMXEntityFixturePatch* FixturePatch, const FIntPoint& CellCoordinate, TMap<FName, int32>& OutAttributeToAbsoluteChannelMap) const
 {
-	if (FixturePatch)
+	UDMXEntityFixtureType* FixtureType = FixturePatch ? FixturePatch->GetFixtureType() : nullptr;
+	const FDMXFixtureMode* FixtureModePtr = FixturePatch ? FixturePatch->GetActiveMode() : nullptr;
+	if (FixturePatch && FixtureType && FixtureModePtr && FixtureModePtr->bFixtureMatrixEnabled)
 	{
-		if (UDMXEntityFixtureType* FixtureType = FixturePatch->GetFixtureType())
+		const FDMXFixtureMatrix& FixtureMatrix = FixtureModePtr->FixtureMatrixConfig;
+
+		TMap<const FDMXFixtureCellAttribute*, int32> AttributeToRelativeChannelOffsetMap;
+		int32 CellDataSize = 0;
+		int32 AttributeChannelOffset = 0;
+		for (const FDMXFixtureCellAttribute& CellAttribute : FixtureMatrix.CellAttributes)
 		{
-			if (FixtureType->bFixtureMatrixEnabled)
-			{
-				if (const FDMXFixtureMode* FixtureModePtr = FixturePatch->GetActiveMode())
-				{
-					const FDMXFixtureMatrix& FixtureMatrix = FixtureModePtr->FixtureMatrixConfig;
+			AttributeToRelativeChannelOffsetMap.Add(&CellAttribute, AttributeChannelOffset);
+			const int32 AttributeSize = FDMXConversions::GetSizeOfSignalFormat(CellAttribute.DataType);
 
-					TMap<const FDMXFixtureCellAttribute*, int32> AttributeToRelativeChannelOffsetMap;
-					int32 CellDataSize = 0;
-					int32 AttributeChannelOffset = 0;
-					for (const FDMXFixtureCellAttribute& CellAttribute : FixtureMatrix.CellAttributes)
-					{
-						AttributeToRelativeChannelOffsetMap.Add(&CellAttribute, AttributeChannelOffset);
-						const int32 AttributeSize = UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType);
+			CellDataSize += AttributeSize;
+			AttributeChannelOffset += FDMXConversions::GetSizeOfSignalFormat(CellAttribute.DataType);
+		}
 
-						CellDataSize += AttributeSize;
-						AttributeChannelOffset += UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType);
-					}
+		const int32 FixtureMatrixAbsoluteStartingChannel = FixturePatch->GetStartingChannel() + FixtureMatrix.FirstCellChannel - 1;
+		const int32 CellChannelOffset = (CellCoordinate.Y * FixtureMatrix.XCells + CellCoordinate.X) * CellDataSize;
+		const int32 AbsoluteCellStartingChannel = FixtureMatrixAbsoluteStartingChannel + CellChannelOffset;
 
-					const int32 FixtureMatrixAbsoluteStartingChannel = FixturePatch->GetStartingChannel() + FixtureMatrix.FirstCellChannel - 1;
-					const int32 CellChannelOffset = (CellCoordinate.Y * FixtureMatrix.XCells + CellCoordinate.X) * CellDataSize;
-					const int32 AbsoluteCellStartingChannel = FixtureMatrixAbsoluteStartingChannel + CellChannelOffset;
+		for (const TTuple<const FDMXFixtureCellAttribute*, int32>& AttributeToRelativeChannelOffsetKvp : AttributeToRelativeChannelOffsetMap)
+		{
+			const FName FunctionAttributeName = AttributeToRelativeChannelOffsetKvp.Key->Attribute.GetName();
+			const int32 AbsoluteChannel = AbsoluteCellStartingChannel + AttributeToRelativeChannelOffsetKvp.Value;
 
-					for (const TTuple<const FDMXFixtureCellAttribute*, int32>& AttributeToRelativeChannelOffsetKvp : AttributeToRelativeChannelOffsetMap)
-					{
-						const FName FunctionAttributeName = AttributeToRelativeChannelOffsetKvp.Key->Attribute.GetName();
-						const int32 AbsoluteChannel = AbsoluteCellStartingChannel + AttributeToRelativeChannelOffsetKvp.Value;
-
-						check(AbsoluteChannel > 0 && AbsoluteChannel <= DMX_UNIVERSE_SIZE);
-						OutAttributeToAbsoluteChannelMap.Add(FunctionAttributeName, AbsoluteChannel);
-					}
-				}
-			}
+			check(AbsoluteChannel > 0 && AbsoluteChannel <= DMX_UNIVERSE_SIZE);
+			OutAttributeToAbsoluteChannelMap.Add(FunctionAttributeName, AbsoluteChannel);
 		}
 	}
 }

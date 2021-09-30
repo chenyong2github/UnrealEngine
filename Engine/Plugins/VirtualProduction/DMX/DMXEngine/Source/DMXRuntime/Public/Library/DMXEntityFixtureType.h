@@ -40,6 +40,24 @@ struct DMXRUNTIME_API FDMXFixtureFunction
 {
 	GENERATED_BODY()
 
+	/** Constructor */
+	FDMXFixtureFunction()
+		: Attribute(FDMXNameListItem::None)
+		, FunctionName()
+		, Description()
+		, DefaultValue(0)
+		, Channel(1)
+		, ChannelOffset_DEPRECATED(0)
+		, DataType(EDMXFixtureSignalFormat::E8Bit)
+		, bUseLSBMode(false)
+	{}
+
+	/** Returns the number of channels the function spans, according to its data type */
+	FORCEINLINE uint8 GetNumChannels() const { return static_cast<uint8>(DataType) + 1; }
+
+	/** Returns the last channel of the Function */
+	uint8 GetLastChannel() const;
+
 	/**
 	 * The Attribute name to map this Function to.
 	 * This is used to easily find the Function in Blueprints, using an Attribute
@@ -47,34 +65,29 @@ struct DMXRUNTIME_API FDMXFixtureFunction
 	 * The list of Attributes can be edited on
 	 * Project Settings->Plugins->DMX Protocol->Fixture Settings->Fixture Function Attributes
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "Attribute Mapping", DisplayPriority = "11"), Category = "DMX")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "Attribute Mapping", DisplayPriority = "11"), Category = "Function Settings")
 	FDMXAttributeName Attribute;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "10"), Category = "DMX")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "10"), Category = "Function Settings")
 	FString FunctionName;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "20"), Category = "DMX")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "20"), Category = "Function Settings")
 	FString Description;
 
 	/** The Default Value of the function, imported from GDTF. The plugin doesn't make use of this value, but it can be used in blueprints */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "30"), Category = "DMX")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "30"), Category = "Function Settings")
 	int64 DefaultValue;
 
 	/** This function's starting channel */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (DisplayName = "Channel Assignment", ClampMin = "1", ClampMax = "512", DisplayPriority = "2"), Category = "DMX")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "Channel Assignment", DisplayPriority = "2"), Category = "Function Settings")
 	int32 Channel;
 
-	/**
-	 * This function's channel offset.
-	 * E.g.: if the function's starting channel is supposed to be 10
-	 * and ChannelOffset = 5, the function's starting channel becomes 15
-	 * and all following functions follow it accordingly.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "Channel Offset", ClampMin = "0", ClampMax = "511", DisplayPriority = "1"), Category = "DMX")
-	int32 ChannelOffset;
+	/** DEPRECATED 5.0. Instead the 'Channel' property is EditAnywhere so any function can be assigned freely */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Deprecated since the Channel property can be set in the DMX Library Editor."))
+	int32 ChannelOffset_DEPRECATED;
 
 	/** This function's data type. Defines the used number of channels (bytes) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "5"), Category = "DMX")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "5"), Category = "Function Settings")
 	EDMXFixtureSignalFormat DataType;
 
 	/**
@@ -89,28 +102,26 @@ struct DMXRUNTIME_API FDMXFixtureFunction
 	 * In MSB mode, the example above would be interpreted in binary as 0x00 0x01, which means 1.
 	 * The first byte (0) became the highest part in binary form and the following byte (1), the lowest.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "Use LSB Mode", DisplayPriority = "29"), Category = "DMX")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "Use LSB Mode", DisplayPriority = "29"), Category = "Function Settings")
 	bool bUseLSBMode = false;
-
-	/** Returns the number of channels the function spans, according to its data type */
-	FORCEINLINE uint8 GetNumChannels() const { return static_cast<uint8>(DataType) + 1;	}
-
-	FDMXFixtureFunction()
-		: Attribute(FDMXNameListItem::None)
-		, FunctionName()
-		, Description()
-		, DefaultValue(0)
-		, Channel(1)
-		, ChannelOffset(0)
-		, DataType(EDMXFixtureSignalFormat::E8Bit)
-		, bUseLSBMode(false)
-	{}
 };
 
 USTRUCT(BlueprintType)
 struct DMXRUNTIME_API FDMXFixtureCellAttribute
 {
 	GENERATED_BODY()
+
+	/** Constructor */
+	FDMXFixtureCellAttribute()
+		: Attribute(FDMXNameListItem::None)
+		, Description()
+		, DefaultValue(0)
+		, DataType(EDMXFixtureSignalFormat::E8Bit)
+		, bUseLSBMode(false)
+	{}
+
+	/** Returns the number of channels of the attribute */
+	uint8 GetNumChannels() const { return static_cast<uint8>(DataType) + 1; }
 
 	/**
 	 * The Attribute name to map this Function to.
@@ -134,6 +145,7 @@ struct DMXRUNTIME_API FDMXFixtureCellAttribute
 	EDMXFixtureSignalFormat DataType;
 
 	/**
+	 * The Endianess of the Attribute:
 	 * Least Significant Byte mode makes the individual bytes (channels) of the function be
 	 * interpreted with the first bytes being the lowest part of the number.
 	 *
@@ -147,17 +159,6 @@ struct DMXRUNTIME_API FDMXFixtureCellAttribute
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "Use LSB Mode", DisplayPriority = "29"), Category = "DMX")
 	bool bUseLSBMode;
-
-	FDMXFixtureCellAttribute()
-		: Attribute(FDMXNameListItem::None)
-		, Description()
-		, DefaultValue(0)
-		, DataType(EDMXFixtureSignalFormat::E8Bit)
-		, bUseLSBMode(false)
-	{}
-
-	/** Returns the number of channels of the attribute */
-	uint8 GetNumChannels() const { return static_cast<uint8>(DataType) + 1; }
 };
 
 USTRUCT(BlueprintType)
@@ -165,30 +166,35 @@ struct DMXRUNTIME_API FDMXFixtureMatrix
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "60", DisplayName = "Cell Attributes"), Category = "DMX")
+	/** Constructor */
+	FDMXFixtureMatrix();
+
+	/** Returns the number of channels of the Matrix */
+	int32 GetNumChannels() const;
+
+	/** Returns the last channel of the Matrix */
+	int32 GetLastChannel() const;
+
+	UE_DEPRECATED(5.0, "Deprecated for more consistent naming. Instead use FDMXFixtureMatrix::GetLastChannel")
+	int32 GetFixtureMatrixLastChannel() const;
+
+	UE_DEPRECATED(5.0, "Deprecated to reduce redundant code. Instead use UDMXFixturePatch::GetMatrixCellChannelsRelative")
+	bool GetChannelsFromCell(FIntPoint CellCoordinate, FDMXAttributeName Attribute, TArray<int32>& Channels) const;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "60", DisplayName = "Cell Attributes"), Category = "Mode Settings")
 	TArray<FDMXFixtureCellAttribute> CellAttributes;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "20", DisplayName = "First Cell Channel", ClampMin = "1", ClampMax = "512"), Category = "DMX")
-	int32 FirstCellChannel;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "20", DisplayName = "First Cell Channel", ClampMin = "1", ClampMax = "512"), Category = "Mode Settings")
+	int32 FirstCellChannel = 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "30", DisplayName = "X Cells", ClampMin = "0"), Category = "DMX")
-	int32 XCells;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "30", DisplayName = "X Cells", ClampMin = "1"), Category = "Mode Settings")
+	int32 XCells = 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "40", DisplayName = "Y Cells", ClampMin = "0"), Category = "DMX")
-	int32 YCells;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "40", DisplayName = "Y Cells", ClampMin = "1"), Category = "Mode Settings")
+	int32 YCells = 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "50", DisplayName = "PixelMapping Distribution"), Category = "DMX")
-	EDMXPixelMappingDistribution PixelMappingDistribution;
-
-	FDMXFixtureMatrix()
-		: FirstCellChannel(1)
-		, XCells(1)
-		, YCells(1)
-		, PixelMappingDistribution(EDMXPixelMappingDistribution::TopLeftToRight)
-	{}
-
-	bool GetChannelsFromCell(FIntPoint CellCoordinate, FDMXAttributeName Attribute, TArray<int32>& Channels) const;
-	int32 GetFixtureMatrixLastChannel() const;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "50", DisplayName = "PixelMapping Distribution"), Category = "Mode Settings")
+	EDMXPixelMappingDistribution PixelMappingDistribution = EDMXPixelMappingDistribution::TopLeftToRight;
 };
 
 USTRUCT(BlueprintType)
@@ -215,105 +221,249 @@ struct DMXRUNTIME_API FDMXFixtureMode
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "1"), Category = "DMX")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "10"), Category = "Mode Settings")
 	FString ModeName;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "15"), Category = "DMX")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "20"), Category = "Mode Settings")
 	TArray<FDMXFixtureFunction> Functions;
-
-	/** Number of channels (bytes) used by this mode's functions */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (ClampMin = "0", ClampMax = "512", DisplayPriority = "10", EditCondition = "!bAutoChannelSpan"), Category = "DMX")
-	int32 ChannelSpan;
 
 	/**
 	 * When enabled, ChannelSpan is automatically set based on the created functions and their data types.
 	 * If disabled, ChannelSpan can be manually set and functions and functions' channels beyond the
 	 * specified span will be ignored.
 	 */
-	UPROPERTY(EditAnywhere, meta = (DisplayPriority = "5"), Category = "DMX")
-	bool bAutoChannelSpan;
+	UPROPERTY(EditAnywhere, Category = "Mode Settings", meta = (DisplayPriority = "30"))
+	bool bAutoChannelSpan = true;
 
-	UPROPERTY(EditAnywhere, Category = "DMX")
+	/** Number of channels (bytes) used by this mode's functions */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mode Settings", meta = (ClampMin = "4", ClampMax = "512", DisplayPriority = "40", EditCondition = "!bAutoChannelSpan"))
+	int32 ChannelSpan = 0;
+
+	/** 
+	 * Modulators applied right before a patch of this type is received. 
+	 * NOTE: Modulators only affect the patch's normalized values! Untouched values are still available when accesing raw values. 
+	 */
+	UPROPERTY(EditAnywhere, Instanced, Category = "Mode Settings", meta = (DisplayPriority = "50"))
+	TArray<UDMXModulator*> InputModulators;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mode Settings", meta = (DisplayPriority = "60"))
+	bool bFixtureMatrixEnabled = false;
+
+	UPROPERTY(EditAnywhere, Category = "Mode Settings", meta = (DisplayPriority = "70"))
 	FDMXFixtureMatrix FixtureMatrixConfig;
 
-	FDMXFixtureMode()
-		: ChannelSpan(0)
-		, bAutoChannelSpan(true)
-	{}
-
 #if WITH_EDITOR
-	/**
-	 * Adding the function into the mode, checking the channel offset
-	 */
-	int32 AddOrInsertFunction(int32 IndexOfFunction, const FDMXFixtureFunction& InFunction);
+	/** DEPRECATED 5.0 */
+	UE_DEPRECATED(5.0, "Removed in favor of UDMXEntityFixtureType::AddFunction and UDMXEntityFixtureType::InsertFunction")
+	int32 AddOrInsertFunction(int32 IndexOfFunction, FDMXFixtureFunction InFunction);
 #endif
 };
 
+
 #if WITH_EDITOR
-	/** Notification when data type changed */
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FDataTypeChangeDelegate, const UDMXEntityFixtureType*, const FDMXFixtureMode&);
+/** Notification when data type changed */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FDataTypeChangeDelegate, const UDMXEntityFixtureType*, const FDMXFixtureMode&);
 #endif
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FDMXOnFixtureTypeChangedDelegate, const UDMXEntityFixtureType* /** ChangedFixtureType */);
 
+
+/** 
+ * Class to describe a type of Fixture. Fixture Patches can be created from Fixture Types (see UDMXEntityFixturePatch::ParentFixtureTypeTemplate).
+ */
 UCLASS(BlueprintType, Blueprintable, meta = (DisplayName = "DMX Fixture Type"))
 class DMXRUNTIME_API UDMXEntityFixtureType
 	: public UDMXEntity
 {
 	GENERATED_BODY()
 
+	//~ Begin UObject interface
+protected:
+	virtual void Serialize(FArchive& Ar) override;
 public:
-	UDMXEntityFixtureType()
-		: bFixtureMatrixEnabled(false)
-	{}
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Settings")
-	UDMXImport* DMXImport;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Settings", meta = (DisplayName = "DMX Category"))
-	FDMXFixtureCategory DMXCategory;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Settings", meta = (DisplayName = "Matrix Fixture"))
-	bool bFixtureMatrixEnabled;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Settings")
-	TArray<FDMXFixtureMode> Modes;
-
-	/** 
-	 * Modulators applied right before a patch of this type is received. 
-	 * NOTE: Modulators only affect the patch's normalized values! Untouched values are still available when accesing raw values. 
-	 */
-	UPROPERTY(EditAnywhere, Instanced, Category = "Fixture Settings")
-	TArray<UDMXModulator*> InputModulators;
+#if WITH_EDITOR
+	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent) override;
+	virtual void PostEditUndo() override;
+#endif
+	//~ End UObject interface
 
 public:
 #if WITH_EDITOR
 	UFUNCTION(BlueprintCallable, Category = "Fixture Settings")
 	void SetModesFromDMXImport(UDMXImport* DMXImportAsset);
-
-	static void SetFunctionSize(FDMXFixtureFunction& InFunction, uint8 Size);
-
-	static FDataTypeChangeDelegate& GetDataTypeChangeDelegate() { return DataTypeChangeDelegate; }
 #endif // WITH_EDITOR
+	
+	/** Returns a delegate that is and should be broadcast whenever a Fixture Type changed */
+	static FDMXOnFixtureTypeChangedDelegate& GetOnFixtureTypeChanged();
 
-	/** Gets the last channel occupied by the Function */
-	static uint8 GetFunctionLastChannel(const FDMXFixtureFunction& Function);
+	/** The GDTF file from which the Fixture Type was setup */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Settings")
+	UDMXImport* DMXImport;
+	
+	/** The Category of the Fixture, useful for Filtering */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Settings", meta = (DisplayName = "DMX Category"))
+	FDMXFixtureCategory DMXCategory;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Settings")
+	TArray<FDMXFixtureMode> Modes;
+
+private:
+	/** Delegate that should be broadcast whenever a fixture type changed */
+	static FDMXOnFixtureTypeChangedDelegate OnFixtureTypeChangedDelegate;
+
+
+	//////////////////////////////////////////////////
+	// Helpers to edit the Fixture Type
+
+	// Fixture Mode related
+public:
+	/**
+	 * Adds a Mode to the Modes Array
+	 *
+	 * @return								The Index of the newly added Mode.
+	 */	
+	int32 AddMode();
+
+	/** 
+	 * Duplicates the Modes at specified Indices 
+	 *
+	 * @param InModeIndices					The indicies of the Modes to duplicate
+	 * @param OutNewModeIndices				The indices of the newly created Modes.
+	 */
+	void DuplicateModes(TArray<int32> InModeIndicesToDuplicate, TArray<int32>& OutNewModeIndices);
+
+	/** Deletes the Modes at specified Indices */
+	void RemoveModes(const TArray<int32>& ModeIndicesToDelete);
+
+	/** Sets a Mode Name for specified Mode 
+	 * 
+	 * @param InModeIndex					The index of the Mode in the Modes array
+	 * @param InDesiredModeName				The desired Name that should be set
+	 * @param OutUniqueModeName				The unique Name that was set
+	*/
+	void SetModeName(int32 InModeIndex, const FString& InDesiredModeName, FString& OutUniqueModeName);
+
+	/** Enables or disables the Matrix, reorders Function channels accordingly
+	 *
+	 * @param ModeIndex						The index of the Mode for which the Matrix should be enabled or disabled.
+	 * @param bEnableMatrix					Whether to enable or disable the Matrix
+	*/
+	void SetFixtureMatrixEnabled(int32 ModeIndex, bool bEnableMatrix);
 
 	/**
-	 * Return true if a Function's occupied channels are within the Mode's Channel Span.
-	 * Optionally add an offset to the function address
+	 * Updates the channel span of the Mode.
+	 *
+	 * @param ModeIndex						The Index of the Mode for which the Channel Span should be updated.
 	 */
-	static bool IsFunctionInModeRange(const FDMXFixtureFunction& InFunction, const FDMXFixtureMode& InMode, int32 ChannelOffset = 0);
+	void UpdateChannelSpan(int32 ModeIndex);
 
-	static bool IsFixtureMatrixInModeRange(const FDMXFixtureMatrix& InFixtureMatrix, const FDMXFixtureMode& InMode, int32 ChannelOffset = 0);
 
-	static void ClampDefaultValue(FDMXFixtureFunction& InFunction);
+	// Fixture Function related
+public:
+	/** 
+	 * Adds a new Function to the Mode's Functions array
+	 *
+	 * @param InModeIndex					The index of the Mode, that will have the Function added to its Functions array.
+	 * @return								The Index of the newly added Function.
+	 */
+	int32 AddFunction(int32 InModeIndex);
 
-	static uint8 NumChannelsToOccupy(EDMXFixtureSignalFormat DataType);
+	/** 
+	 * Inserts a Function to the Mode's Function Array
+	 *
+	 * @param InModeIndex					The index of the Mode, that will have the Function added to its Functions array.
+	 * @param InInsertAtIndex				If a valid Index, the Function will be inserted at this Index, and subsequent Function's Channels will be reodered after it.
+	 * @param InOutNewFunction				The function that will be inserted.
+	 * @return								The Index of the newly added Function.
+	 */
+	int32 InsertFunction(int32 InModeIndex, int32 InInsertAtIndex, FDMXFixtureFunction& InOutNewFunction);
 
-	static uint32 ClampValueToDataType(EDMXFixtureSignalFormat DataType, uint32 InValue);
+	/**
+	 * Adds a Function to the Mode's Function Array
+	 *
+	 * @param InModeIndex					The index of the Mode in which the Functions to duplicate reside.
+	 * @param InFunctionIndicesToDuplicate	The indices of the Functions to duplicate.
+	 * @param OutNewFunctionIndices			The Function indices where the newly added Functions reside
+	 */
+	void DuplicateFunctions(int32 InModeIndex, const TArray<int32>& InFunctionIndicesToDuplicate, TArray<int32>& OutNewFunctionIndices);
 
-	static uint32 GetDataTypeMaxValue(EDMXFixtureSignalFormat DataType);
+	/**
+	 * Removes Functions from the Mode's Function Array
+	 *
+	 * @param InModeIndex					The index of the Mode in which the Functions to remove reside
+	 * @param FunctionIndicesToDelete		The indices of the Functions to remove.
+	 */
+	void RemoveFunctions(int32 ModeIndex, TArray<int32> FunctionIndicesToDelete);
 
+	/**
+	 * Reorders a function to reside at the Insert At Index, subsequently reorders other affected Functions
+	 *
+	 * @param ModeIndex						The Index of the Mode in which the Functions reside
+	 * @param FunctionIndex					The Index of the Function that is reorderd
+	 * @param InsertAtIndex					The Index of the Function where the function is inserted.
+	 */
+	void ReorderFunction(int32 ModeIndex, int32 FunctionToReorderIndex, int32 InsertAtIndex);
+
+	/** Sets a Mode Name for specified Mode
+	 *
+	 * @param InModeIndex					The index of the Mode in the Modes array
+	 * @param InFunctionIndex				The index of the Function in the Mode's Function array
+	 * @param DesiredFunctionName			The desired Name that should be set
+	 * @param OutUniqueFunctionName			The unique Name that was set
+	*/
+	void SetFunctionName(int32 InModeIndex, int32 InFunctionIndex, const FString& InDesiredFunctionName, FString& OutUniqueFunctionName);
+
+	/** Sets a Starting Channel for the Function, aligns it to other functions
+	 *
+	 * @param InModeIndex					The index of the Mode in the Modes array
+	 * @param InFunctionIndex				The index of the Function in the Mode's Function array
+	 * @param InDesiredStartingChannel		The desired Starting Channel that should be set
+	 * @param OutStartingChannel			The resulting Starting Channel that was set
+	*/
+	void SetFunctionStartingChannel(int32 InModeIndex, int32 InFunctionIndex, int32 InDesiredStartingChannel, int32& OutStartingChannel);
+
+	/**
+	 * Clamps the Default Value of the Function by its Data Type
+	 *
+	 * @param ModeIndex						The Index of the Mode in which the Functions reside
+	 * @param FunctionToRemoveIndex			The Index of the Function for which the Default Value is clamped
+	 */
+	void ClampFunctionDefautValueByDataType(int32 ModeIndex, int32 FunctionToRemoveIndex);
+
+
+	// Fixture Matrix related
+public:
+	/** Adds a new cell attribute to the selected Mode */
+	void AddCellAttribute(int32 ModeIndex);
+
+	/**
+	 * Reorders the Fixture Matrix to reside after a function, subsequently reorders other affected Functions
+	 *
+	 * @param FixtureType					The Fixture Type in which the Functions reside
+	 * @param ModeIndex						The Index of the Mode in which the Functions reside
+	 * @param InsertAfterFunctionIndex		The Index of the Function after which the Matrix is inserted. If an invalid index is specified, the Matrix will added after the last Function Channel.
+	 */
+	void ReorderMatrix(int32 ModeIndex, int32 InsertAtFunctionIndex);
+
+	/**
+	 * Updates the channel span of the Mode.
+	 *
+	 * @param ModeIndex						The Index of the Mode for which the YCells should be updated
+	 */
+	void UpdateYCellsFromXCells(int32 ModeIndex);
+
+	/**
+	 * Updates the channel span of the Mode.
+	 *
+	 * @param ModeIndex						The Index of the Mode for which the XCells should be updated
+	 */
+	void UpdateXCellsFromYCells(int32 ModeIndex);
+
+
+	// Conversions. @TODO, move to FDMXConversions
+public:
 	//~ Conversions to/from Bytes, Int and Normalized Float values.
 	static void FunctionValueToBytes(const FDMXFixtureFunction& InFunction, uint32 InValue, uint8* OutBytes);
 	static void IntToBytes(EDMXFixtureSignalFormat InSignalFormat, bool bUseLSB, uint32 InValue, uint8* OutBytes);
@@ -327,32 +477,62 @@ public:
 	static float BytesToFunctionNormalizedValue(const FDMXFixtureFunction& InFunction, const uint8* InBytes);
 	static float BytesToNormalizedValue(EDMXFixtureSignalFormat InSignalFormat, bool bUseLSB, const uint8* InBytes);
 
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
-	virtual void PostEditUndo() override;
 
-	/** DEPRECATED 4.27 */
-	UE_DEPRECATED(4.27, "Use UpdateChannelSpan instead.")
+
+	//////////////////////////////////////////////////
+	// Deprecated Members
+	
+public:
+	UE_DEPRECATED(5.0, "Deprecated in favor of FDMXConversions::GetSignalFormatMaxValue.")
+	static uint32 GetDataTypeMaxValue(EDMXFixtureSignalFormat DataType);
+
+	UE_DEPRECATED(5.0, "Deprecated in favor of FDMXConversions::SizeOfSignalFormat.")
+	static uint8 NumChannelsToOccupy(EDMXFixtureSignalFormat DataType);
+
+	UE_DEPRECATED(5.0, "Deprecated in favor of FDMXFixtureFunction::GetLastChannel.")
+	static uint8 GetFunctionLastChannel(const FDMXFixtureFunction& Function);
+
+	UE_DEPRECATED(5.0, "Deprecated to reduce redundant code. Instead use FDMXFixtureFunction::GetNumChannels() and FDMXFixtureMode::ChannelSpan")
+	static bool IsFunctionInModeRange(const FDMXFixtureFunction& InFunction, const FDMXFixtureMode& InMode, int32 ChannelOffset = 0);
+
+	UE_DEPRECATED(5.0, "Deprecated since the use of the function and its name were not clear, leading to hard to read, complicated code.")
+	static bool IsFixtureMatrixInModeRange(const FDMXFixtureMatrix& InFixtureMatrix, const FDMXFixtureMode& InMode, int32 ChannelOffset = 0);
+
+	UE_DEPRECATED(5.0, "Deprecated to reduce redundant code. Use FDMXConversions::ClampValueBySignalFormat locally where clamping is required.")
+	static void ClampDefaultValue(FDMXFixtureFunction& InFunction);
+
+	UE_DEPRECATED(5.0, "Deprecated in favor of FDMXConversions now holding all conversions. Use FDMXConversions::ClampValueBySignalFormat instead.")
+	static uint32 ClampValueToDataType(EDMXFixtureSignalFormat DataType, uint32 InValue);
+
+#if WITH_EDITOR
+	UE_DEPRECATED(5.0, "Deprecated because of unclear use. Set via FDMXFixtureFunction::DataType directly instead.")
+	static void SetFunctionSize(FDMXFixtureFunction& InFunction, uint8 Size);
+
+	UE_DEPRECATED(5.0, "Deprecated in favor of the more generic GetOnFixtureTypeChanged which is supported in non-editor builds as well.")
+	static FDataTypeChangeDelegate& GetDataTypeChangeDelegate() { return DataTypeChangeDelegate_DEPRECATED; }
+
+	UE_DEPRECATED(4.27, "Use MakeValid instead.")
 	void UpdateModeChannelProperties(FDMXFixtureMode& Mode);
 
-	/** Updates the channel span of the Mode */
+	UE_DEPRECATED(5.0, "Deprecated in favor of UDMXEntityFixtureType::UpdateChannelSpan.")
 	void UpdateChannelSpan(FDMXFixtureMode& Mode);
 
-	/** Updates the FixtureMatrixConfig's YCells property given num XCells for the specified Mode */
+	UE_DEPRECATED(5.0, "Deprecated  in favor of UDMXEntityFixtureType::UpdateYCellsFromXCells.")
 	void UpdateYCellsFromXCells(FDMXFixtureMode& Mode);
 
-	/** Updates the FixtureMatrixConfig's XCells property given num YCells for the specified Mode */
+	UE_DEPRECATED(5.0, "Deprecated to in favor of UDMXEntityFixtureType::UpdateXCellsFromYCells.")
 	void UpdateXCellsFromYCells(FDMXFixtureMode& Mode);
-
 #endif // WITH_EDITOR
 
-private:
-	/** Rebuilds the cache of fixture patches that use this fixture type */
-	void RebuildFixturePatchCaches();
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "FixtureMatrixEnabled is deprecated. Instead now each Mode has a FixtureMatrixEnabled property."))
+	bool bFixtureMatrixEnabled = false;
+	
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Fixture Type's 'Input Modulators' property is deprecated. Instead now each Mode has its own Input Modulators."))
+	TArray<UDMXModulator*> InputModulators;
 
+private:
 #if WITH_EDITOR
 	/** Editor only data type change delagate */
-	static FDataTypeChangeDelegate DataTypeChangeDelegate;
+	static FDataTypeChangeDelegate DataTypeChangeDelegate_DEPRECATED;
 #endif
 };

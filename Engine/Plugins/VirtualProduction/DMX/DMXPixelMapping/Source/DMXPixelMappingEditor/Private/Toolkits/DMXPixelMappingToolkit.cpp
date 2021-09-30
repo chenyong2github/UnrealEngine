@@ -27,7 +27,6 @@
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXLibrary.h"
-#include "DMXUtils.h"
 #include "DMXPixelMappingComponentWidget.h"
 
 #include "ScopedTransaction.h"

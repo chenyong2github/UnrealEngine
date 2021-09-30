@@ -105,8 +105,8 @@ void FDMXProtocolModule::StartupModule()
 	// Register DMX Protocol global settings
 	if (SettingsModule != nullptr)
 	{
-		SettingsModule->RegisterSettings("Project", "Plugins", "DMX Plugin",
-			LOCTEXT("ProjectSettings_Label", "DMX Plugin"),
+		SettingsModule->RegisterSettings("Project", "Plugins", "DMX",
+			LOCTEXT("ProjectSettings_Label", "DMX"),
 			LOCTEXT("ProjectSettings_Description", "Configure DMX plugin global settings"),
 			GetMutableDefault<UDMXProtocolSettings>()
 		);

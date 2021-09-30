@@ -44,7 +44,7 @@ private:
 	void OnActiveModeChanged(const TSharedPtr<uint32> InSelectedMode, ESelectInfo::Type SelectInfo);
 
 	/** Called when a Mode in the Modes Array property changed */
-	void OnModeChanged(const UDMXEntityFixtureType* FixtureType, const FDMXFixtureMode& Mode);
+	void OnFixtureTypeChanged(const UDMXEntityFixtureType* FixtureType);
 
 	/** Called when the bAutoAssignAddress property changed */
 	void OnAutoAssignAddressChanged();

@@ -259,20 +259,20 @@ FReply FDMXPixelMappingDetailCustomization_FixtureGroup::OnFixturePatchesDragged
 		TArray<TSharedPtr<FDMXPixelMappingComponentTemplate>> Templates;
 		for (const FDMXEntityFixturePatchRef& FixturePatchRef : SelectedFixturePatches)
 		{
-			if (UDMXEntityFixturePatch* FixturePatch = FixturePatchRef.GetFixturePatch())
+			const UDMXEntityFixturePatch* FixturePatch = FixturePatchRef.GetFixturePatch();
+			const UDMXEntityFixtureType* FixtureType = FixturePatch ? FixturePatch->GetFixtureType() : nullptr;
+			const FDMXFixtureMode* ActiveModePtr = FixturePatch ? FixturePatch->GetActiveMode() : nullptr;
+			if (FixturePatch && FixtureType && ActiveModePtr)
 			{
-				if (UDMXEntityFixtureType* FixtureType = FixturePatch->GetFixtureType())
+				if (ActiveModePtr->bFixtureMatrixEnabled)
 				{
-					if (FixtureType->bFixtureMatrixEnabled)
-					{
-						TSharedRef<FDMXPixelMappingComponentTemplate> FixturePatchMatrixTemplate = MakeShared<FDMXPixelMappingComponentTemplate>(UDMXPixelMappingMatrixComponent::StaticClass(), FixturePatchRef);
-						Templates.Add(FixturePatchMatrixTemplate);
-					}
-					else
-					{
-						TSharedRef<FDMXPixelMappingComponentTemplate> FixturePatchItemTemplate = MakeShared<FDMXPixelMappingComponentTemplate>(UDMXPixelMappingFixtureGroupItemComponent::StaticClass(), FixturePatchRef);
-						Templates.Add(FixturePatchItemTemplate);
-					}
+					TSharedRef<FDMXPixelMappingComponentTemplate> FixturePatchMatrixTemplate = MakeShared<FDMXPixelMappingComponentTemplate>(UDMXPixelMappingMatrixComponent::StaticClass(), FixturePatchRef);
+					Templates.Add(FixturePatchMatrixTemplate);
+				}
+				else
+				{
+					TSharedRef<FDMXPixelMappingComponentTemplate> FixturePatchItemTemplate = MakeShared<FDMXPixelMappingComponentTemplate>(UDMXPixelMappingFixtureGroupItemComponent::StaticClass(), FixturePatchRef);
+					Templates.Add(FixturePatchItemTemplate);
 				}
 			}
 		}
