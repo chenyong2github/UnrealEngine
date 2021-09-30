@@ -35,6 +35,8 @@ bool FIterationOpenAssets::RunTest(const FString& LongAssetPath)
 {
 	static uint64 FrameNumber = 0;
 
+	check(LongAssetPath.Len());
+
 	// Setup
 	AddCommand(new FCloseAllAssetEditorsCommand());
 	AddCommand(new FFunctionLatentCommand([LongAssetPath] {
