@@ -36,7 +36,7 @@ namespace Geometry
 * The API of FIntrinsicEdgeFlipMesh is similar to FDynamicMesh3, but only has a minimal subset of methods and some
 * such as ::FlipEdge() and ::GetEdgeOpposingV() have very different implementations
 */
-class GEOMETRYCORE_API FIntrinsicEdgeFlipMesh
+class DYNAMICMESH_API FIntrinsicEdgeFlipMesh
 {
 public:
 	
@@ -352,7 +352,7 @@ protected:
 * NB: The lifetime of this structure should not exceed that of the original
 * FDynamicMesh as this class holds a pointer to that mesh to reference locations on its surface.
 */
-class GEOMETRYCORE_API FIntrinsicTriangulation : public FIntrinsicEdgeFlipMesh
+class DYNAMICMESH_API FIntrinsicTriangulation : public FIntrinsicEdgeFlipMesh
 {
 
 public:
@@ -578,8 +578,8 @@ protected:
 * 
 * @return  the number of flips.
 */
-int32 GEOMETRYCORE_API FlipToDelaunay(FIntrinsicEdgeFlipMesh& IntrinsicMesh, TSet<int>& Uncorrected, const int32 MaxFlipCount = TMathUtilConstants<int>::MaxReal);
-int32 GEOMETRYCORE_API FlipToDelaunay(FIntrinsicTriangulation& IntrinsicMesh, TSet<int>& Uncorrected, const int32 MaxFlipCount = TMathUtilConstants<int>::MaxReal);
+int32 DYNAMICMESH_API FlipToDelaunay(FIntrinsicEdgeFlipMesh& IntrinsicMesh, TSet<int>& Uncorrected, const int32 MaxFlipCount = TMathUtilConstants<int>::MaxReal);
+int32 DYNAMICMESH_API FlipToDelaunay(FIntrinsicTriangulation& IntrinsicMesh, TSet<int>& Uncorrected, const int32 MaxFlipCount = TMathUtilConstants<int>::MaxReal);
 
 }; // end namespace Geometry
 }; // end namespace UE

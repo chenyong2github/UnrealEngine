@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Spatial/MeshGeodesicSurfaceTracer.h"
+#include "Operations/MeshGeodesicSurfaceTracer.h"
 
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Intersection/IntrLine2Line2.h"
