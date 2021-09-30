@@ -212,6 +212,8 @@ FNiagaraStackFunctionMergeAdapter::FNiagaraStackFunctionMergeAdapter(const UNiag
 
 	FString UniqueEmitterName = InOwningEmitter.GetUniqueEmitterName();
 
+	FCompileConstantResolver ConstantResolver(&InOwningEmitter, FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*FunctionCallNode)->GetUsage());
+
 	// Collect explicit overrides set via parameter map set nodes.
 	TSet<FName> AliasedInputsAdded;
 	UNiagaraNodeParameterMapSet* OverrideNode = FNiagaraStackGraphUtilities::GetStackFunctionOverrideNode(*FunctionCallNode);
@@ -235,13 +237,12 @@ FNiagaraStackFunctionMergeAdapter::FNiagaraStackFunctionMergeAdapter(const UNiag
 		FCompileConstantResolver Resolver(&InOwningEmitter, ENiagaraScriptUsage::Function);
 		TArray<const UEdGraphPin*> FunctionInputPins;
 		FNiagaraStackGraphUtilities::GetStackFunctionInputPins(*FunctionCallNode, FunctionInputPins, HiddenPins, Resolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly, false);
-
+		
 		for (const UEdGraphPin* FunctionInputPin : FunctionInputPins)
 		{
 			FNiagaraVariable FunctionInputVariable = NiagaraSchema->PinToNiagaraVariable(FunctionInputPin);
 			if (FunctionInputVariable.IsValid() && FNiagaraStackGraphUtilities::IsRapidIterationType(FunctionInputVariable.GetType()))
 			{
-				FCompileConstantResolver ConstantResolver(&InOwningEmitter, FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*FunctionCallNode)->GetUsage());
 				UEdGraphPin* FunctionInputDefaultPin = FunctionCallNode->FindParameterMapDefaultValuePin(FunctionInputPin->PinName, OwningScript->GetUsage(), ConstantResolver);
 				if (FunctionInputDefaultPin != nullptr)
 				{
@@ -318,7 +319,8 @@ FNiagaraStackFunctionMergeAdapter::FNiagaraStackFunctionMergeAdapter(const UNiag
 
 	TArray<UEdGraphPin*> StaticSwitchPins;
 	TSet<UEdGraphPin*> StaticSwitchPinsHidden;
-	FNiagaraStackGraphUtilities::GetStackFunctionStaticSwitchPins(*FunctionCallNode.Get(), StaticSwitchPins, StaticSwitchPinsHidden);
+	FNiagaraStackGraphUtilities::GetStackFunctionStaticSwitchPins(*FunctionCallNode.Get(), StaticSwitchPins, StaticSwitchPinsHidden, ConstantResolver);
+
 	for (UEdGraphPin* StaticSwitchPin : StaticSwitchPins)
 	{
 		// TODO: Only add static switch overrides when the current value is different from the default.  This requires a 
@@ -2745,7 +2747,8 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::AddInp
 		{
 			TArray<UEdGraphPin*> StaticSwitchPins;
 			TSet<UEdGraphPin*> StaticSwitchPinsHidden;
-			FNiagaraStackGraphUtilities::GetStackFunctionStaticSwitchPins(TargetFunctionCall, StaticSwitchPins, StaticSwitchPinsHidden);
+			FCompileConstantResolver ConstantResolver(BaseEmitterAdapter->GetEditableEmitter(), OwningScript.GetUsage());
+			FNiagaraStackGraphUtilities::GetStackFunctionStaticSwitchPins(TargetFunctionCall, StaticSwitchPins, StaticSwitchPinsHidden, ConstantResolver);
 			UEdGraphPin** MatchingStaticSwitchPinPtr = StaticSwitchPins.FindByPredicate([&OverrideToAdd](UEdGraphPin* StaticSwitchPin) { return StaticSwitchPin->PinName == *OverrideToAdd->GetInputName(); });
 			if (MatchingStaticSwitchPinPtr != nullptr)
 			{
