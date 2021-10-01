@@ -40,7 +40,7 @@ namespace Chaos
 			{
 				if(FSingleParticlePhysicsProxy* Proxy = RigidInterp.Prev.GetProxy())
 				{
-					if (Proxy->PullFromPhysicsState(RigidInterp.Prev, SolverTimestamp, &RigidInterp.Next, &Results.Alpha, &RigidInterp.LeashAlpha))
+					if (Proxy->PullFromPhysicsState(RigidInterp.Prev, SolverTimestamp, &RigidInterp.Next, &Results.Alpha))
 					{
 						RigidFunc(Proxy);
 					}

@@ -55,6 +55,8 @@ private:
 class FRigidBodyHandle_External;
 class FRigidBodyHandle_Internal;
 
+extern CHAOS_API FRealSingle ResimInterpStrength;
+
 class CHAOS_API FSingleParticlePhysicsProxy : public IPhysicsProxyBase
 {
 public:
@@ -72,6 +74,9 @@ public:
 	{
 		PullDataInterpIdx_External = Idx;
 	}
+
+	void SetResimSmoothing(bool ResimSmoothing) { bResimSmoothing = ResimSmoothing; }
+	bool IsResimSmoothing() const { return bResimSmoothing; }
 
 	int32 GetPullDataInterpIdx_External() const { return PullDataInterpIdx_External; }
 
@@ -133,7 +138,7 @@ public:
 	void BufferPhysicsResults_External(FDirtyRigidParticleData&);
 
 	/**/
-	bool PullFromPhysicsState(const FDirtyRigidParticleData& PullData, int32 SolverSyncTimestamp, const FDirtyRigidParticleData* NextPullData = nullptr, const FRealSingle* Alpha = nullptr, const FRealSingle* LeashAlpha = nullptr);
+	bool PullFromPhysicsState(const FDirtyRigidParticleData& PullData, int32 SolverSyncTimestamp, const FDirtyRigidParticleData* NextPullData = nullptr, const FRealSingle* Alpha = nullptr);
 
 	/**/
 	bool IsDirty();
@@ -175,6 +180,8 @@ private:
 
 	//Used by interpolation code
 	int32 PullDataInterpIdx_External;
+
+	bool bResimSmoothing = false;
 
 	//use static Create
 	FSingleParticlePhysicsProxy(TUniquePtr<PARTICLE_TYPE>&& InParticle, FParticleHandle* InHandle, UObject* InOwner = nullptr);

@@ -244,7 +244,16 @@ void FSingleParticlePhysicsProxy::BufferPhysicsResults_External(Chaos::FDirtyRig
 	}
 }
 
-bool FSingleParticlePhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData,int32 SolverSyncTimestamp, const Chaos::FDirtyRigidParticleData* NextPullData, const Chaos::FRealSingle* Alpha, const Chaos::FRealSingle* LeashAlpha)
+FRealSingle ResimInterpStrength = 0.2f;
+FAutoConsoleVariableRef CVarResimInterpStrength(TEXT("p.ResimInterpStrength"), ResimInterpStrength, TEXT("How strong the resim interp leash is. 1 means immediately snap to new target, 0 means do not interpolate at all"));
+
+FRealSingle MinLinError2ForResimInterp = 1.f;
+FAutoConsoleVariableRef CVarMinLinError2ForResimInterp(TEXT("p.MinLinError2ForResimInterp"), MinLinError2ForResimInterp, TEXT("The minimum squared error needed to continue interpolation during a resim"));
+
+FRealSingle MinRotErrorForResimInterp = 0.1f;
+FAutoConsoleVariableRef CVarMinRotErrorForResimInterp(TEXT("p.MinRotErrorForResimInterp"), MinRotErrorForResimInterp, TEXT("The minimum rotation error needed to continue interpolation during a resim"));
+
+bool FSingleParticlePhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData,int32 SolverSyncTimestamp, const Chaos::FDirtyRigidParticleData* NextPullData, const Chaos::FRealSingle* Alpha)
 {
 	using namespace Chaos;
 	// Move buffered data into the TPBDRigidParticle without triggering invalidation of the physics state.
@@ -269,12 +278,19 @@ bool FSingleParticlePhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyRigidP
 
 			if (bSyncXR)
 			{
+				bool bKeepSmoothing = false;
 				if (const FVec3* Prev = LerpHelper(ProxyTimestamp->XTimestamp, PullData.X, ProxyTimestamp->OverWriteX))
 				{
 					FVec3 Target = FMath::Lerp(*Prev, NextPullData->X, *Alpha);
-					if (LeashAlpha)
+					if (IsResimSmoothing())
 					{
-						Target = FMath::Lerp(Rigid->X(), Target, *LeashAlpha);
+						const FVec3 SmoothedTarget = FMath::Lerp(Rigid->X(), Target, ResimInterpStrength);
+						if((SmoothedTarget - Target).SizeSquared() > MinLinError2ForResimInterp)
+						{
+							bKeepSmoothing = true;
+							Target = SmoothedTarget;
+						}
+
 					}
 					Rigid->SetX(Target, false);
 				}
@@ -282,31 +298,30 @@ bool FSingleParticlePhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyRigidP
 				if (const FQuat* Prev = LerpHelper(ProxyTimestamp->RTimestamp, PullData.R, ProxyTimestamp->OverWriteR))
 				{
 					FQuat Target = FMath::Lerp(*Prev, NextPullData->R, *Alpha);
-					if (LeashAlpha)
+					if (IsResimSmoothing())
 					{
-						Target = FMath::Lerp<FQuat>(Rigid->R(), Target, *LeashAlpha);
+						const FQuat SmoothedTarget = FMath::Lerp<FQuat>(Rigid->R(), Target, ResimInterpStrength);
+						if(FQuat::ErrorAutoNormalize(SmoothedTarget, Target) > MinRotErrorForResimInterp)
+						{
+							bKeepSmoothing = true;
+							Target = SmoothedTarget;
+						}
 					}
 					Rigid->SetR(Target, false);
 				}
+
+				SetResimSmoothing(bKeepSmoothing);
 			}
 
 			if (const FVec3* Prev = LerpHelper(ProxyTimestamp->VTimestamp, PullData.V, ProxyTimestamp->OverWriteV))
 			{
 				FVec3 Target = FMath::Lerp(*Prev, NextPullData->V, *Alpha);
-				if (LeashAlpha)
-				{
-					Target = FMath::Lerp(Rigid->V(), Target, *LeashAlpha);
-				}
 				Rigid->SetV(Target, false);
 			}
 
 			if (const FVec3* Prev = LerpHelper(ProxyTimestamp->WTimestamp, PullData.W, ProxyTimestamp->OverWriteW))
 			{
 				FVec3 Target = FMath::Lerp(*Prev, NextPullData->W, *Alpha);
-				if (LeashAlpha)
-				{
-					Target = FMath::Lerp(Rigid->W(), Target, *LeashAlpha);
-				}
 				Rigid->SetW(Target, false);
 			}
 
