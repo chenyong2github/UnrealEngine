@@ -26,12 +26,14 @@ public class GeometryScriptingEditor : ModuleRules
 			new string[]
 			{
 				"Core",
+				"CoreUObject",
 				"PhysicsCore",
 				"RenderCore",
 				"GeometryCore",
 				"GeometryFramework",
 				"DynamicMesh",
-				"GeometryScriptingCore"
+				"GeometryScriptingCore",
+				"EditorSubsystem"
 			}
 			);
 
@@ -39,7 +41,6 @@ public class GeometryScriptingEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"CoreUObject",
 				"Engine",
 				"MeshDescription",
 				"StaticMeshDescription",
