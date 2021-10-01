@@ -707,15 +707,9 @@ void FFractureEditorModeToolkit::HandleMapChanged(class UWorld* NewWorld, EMapCh
 {
 	if ((MapChangeType == EMapChangeType::LoadMap || MapChangeType == EMapChangeType::NewMap || MapChangeType == EMapChangeType::TearDownWorld))
 	{
-		if (UEdMode* EditorMode = OwningEditorMode.Get())
-		{ 
-			EditorMode->Exit();
-		}
-		else
-		{
-			TArray<UGeometryCollectionComponent*> EmptySelection;
-			SetOutlinerComponents(EmptySelection);
-		}
+		ShutdownActiveTool();
+		TArray<UGeometryCollectionComponent*> EmptySelection;
+		SetOutlinerComponents(EmptySelection);
 	}
 }
 
