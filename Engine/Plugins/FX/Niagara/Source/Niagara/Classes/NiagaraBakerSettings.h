@@ -64,10 +64,12 @@ struct FNiagaraBakerTextureSettings
 	UPROPERTY(EditAnywhere, Category = "Texture")
 	TObjectPtr<UTexture2D> GeneratedTexture = nullptr;
 
+	bool IsValidForBake() const { return FrameSize.X > 0 && FrameSize.Y > 0; }
+
 	bool Equals(const FNiagaraBakerTextureSettings& Other) const;
 
-	FNiagaraBakerTextureSettings() :
-		bUseFrameSize(false)
+	FNiagaraBakerTextureSettings()
+		: bUseFrameSize(false)
 	{}
 };
 
