@@ -72,6 +72,19 @@ public:
 	static void DrawBox(UPARAM(ref) FPaintContext& Context, FVector2D Position, FVector2D Size, USlateBrushAsset* Brush, FLinearColor Tint = FLinearColor::White);
 
 	/**
+	 * Draws a hermite spline.
+	 *
+	 * @param Start			Starting position of the spline in local space.
+	 * @param StartDir		The direction of the spline from the start point.
+	 * @param End			Ending position of the spline in local space.
+	 * @param EndDir		The direction of the spline to the end point.
+	 * @param Tint			Color to render the spline.
+	 * @param Thickness		How many pixels thick this spline should be.
+	 */
+	UFUNCTION(BlueprintCallable, meta = (AdvancedDisplay = "6"), Category = "Painting")
+	static void DrawSpline(UPARAM(ref) FPaintContext& Context, FVector2D Start, FVector2D StartDir, FVector2D End, FVector2D EndDir, FLinearColor Tint = FLinearColor::White, float Thickness = 1.0f);
+
+	/**
 	 * Draws a line.
 	 *
 	 * @param PositionA		Starting position of the line in local space.

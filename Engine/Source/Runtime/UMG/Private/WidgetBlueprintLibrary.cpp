@@ -166,6 +166,23 @@ void UWidgetBlueprintLibrary::DrawBox(FPaintContext& Context, FVector2D Position
 	}
 }
 
+void UWidgetBlueprintLibrary::DrawSpline(FPaintContext& Context, FVector2D Start, FVector2D StartDir, FVector2D End, FVector2D EndDir, FLinearColor Tint, float Thickness)
+{
+	Context.MaxLayer++;
+
+	FSlateDrawElement::MakeSpline(
+		Context.OutDrawElements,
+		Context.MaxLayer,
+		Context.AllottedGeometry.ToPaintGeometry(),
+		Start,
+		StartDir,
+		End,
+		EndDir,
+		Thickness,
+		ESlateDrawEffect::None,
+		Tint);
+}
+
 void UWidgetBlueprintLibrary::DrawLine(FPaintContext& Context, FVector2D PositionA, FVector2D PositionB, FLinearColor Tint, bool bAntiAlias, float Thickness)
 {
 	Context.MaxLayer++;
