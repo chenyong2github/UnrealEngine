@@ -3000,7 +3000,7 @@ void USkeletalMesh::PostLoadVerifyAndFixBadTangent()
 			continue;
 		}
 
-		auto ComputeTriangleTangent = [&MeshUtilities](const FSoftSkinVertex& VertexA, const FSoftSkinVertex& VertexB, const FSoftSkinVertex& VertexC, TArray<FVector>& OutTangents)
+		auto ComputeTriangleTangent = [&MeshUtilities](const FSoftSkinVertex& VertexA, const FSoftSkinVertex& VertexB, const FSoftSkinVertex& VertexC, TArray<FVector3f>& OutTangents)
 		{
 			MeshUtilities.CalculateTriangleTangent(VertexA, VertexB, VertexC, OutTangents, FLT_MIN);
 		};
@@ -3008,7 +3008,7 @@ void USkeletalMesh::PostLoadVerifyAndFixBadTangent()
 		FSkeletalMeshLODModel& ThisLODModel = GetImportedModel()->LODModels[LodIndex];
 		const int32 SectionNum = ThisLODModel.Sections.Num();
 		TArray<FSoftSkinVertex> Vertices;
-		TMap<int32, TArray<FVector>> TriangleTangents;
+		TMap<int32, TArray<FVector3f>> TriangleTangents;
 
 		for (int32 SectionIndex = 0; SectionIndex < SectionNum; ++SectionIndex)
 		{
@@ -3064,13 +3064,13 @@ void USkeletalMesh::PostLoadVerifyAndFixBadTangent()
 						//If the two other axis are valid, fix the tangent with a cross product and normalize the answer.
 						if (TangentB.IsNormalized() && TangentC.IsNormalized())
 						{
-							TangentA = FVector::CrossProduct(TangentB, TangentC);
+							TangentA = FVector3f::CrossProduct(TangentB, TangentC);
 							TangentA.Normalize();
 							return true;
 						}
 
 						//We do not have any valid data to help us for fixing this normal so apply the triangle normals, this will create a faceted mesh but this is better then a black not shade mesh.
-						TArray<FVector>& Tangents = TriangleTangents.FindOrAdd(BaseFaceIndexBufferIndex);
+						TArray<FVector3f>& Tangents = TriangleTangents.FindOrAdd(BaseFaceIndexBufferIndex);
 						if (Tangents.Num() == 0)
 						{
 							const int32 VertexIndex0 = IndexBuffer[BaseFaceIndexBufferIndex] - Section.BaseVertexIndex;
@@ -3085,7 +3085,7 @@ void USkeletalMesh::PostLoadVerifyAndFixBadTangent()
 								return false;
 							}
 							ComputeTriangleTangent(Section.SoftVertices[VertexIndex0], Section.SoftVertices[VertexIndex1], Section.SoftVertices[VertexIndex2], Tangents);
-							const FVector Axis[3] = { {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f} };
+							const FVector3f Axis[3] = { {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f} };
 							if (!ensure(Tangents.Num() == 3))
 							{
 								Tangents.Empty(3);
