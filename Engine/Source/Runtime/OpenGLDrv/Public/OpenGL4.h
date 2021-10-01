@@ -107,7 +107,7 @@ struct FOpenGL4 : public FOpenGL3
 	static FORCEINLINE GLint GetFirstComputeUAVUnit()			{ return 0; }
 	static FORCEINLINE GLint GetMaxComputeUAVUnits()			{ check(MaxComputeUAVUnits != -1); return MaxComputeUAVUnits; }
 	static FORCEINLINE GLint GetFirstVertexUAVUnit()			{ return 0; }
-	static FORCEINLINE GLint GetFirstPixelUAVUnit()				{ return 4; }
+	static FORCEINLINE GLint GetFirstPixelUAVUnit()				{ return 0; }
 	static FORCEINLINE GLint GetMaxPixelUAVUnits()				{ check(MaxPixelUAVUnits != -1); return MaxPixelUAVUnits; }
 	static FORCEINLINE GLint GetMaxCombinedUAVUnits()			{ return MaxCombinedUAVUnits; }
 		

@@ -855,11 +855,11 @@ void OPENGLDRV_API GLSLToDeviceCompatibleGLSL(FAnsiCharArray& GlslCodeOriginal, 
 	
 	if (Capabilities.TargetPlatform == EOpenGLShaderTargetPlatform::OGLSTP_Android)
 	{
-		const ANSICHAR* ES310Version = "#version 310 es";
+		const ANSICHAR* ES320Version = "#version 320 es";
 
-		AppendCString(GlslCode, ES310Version);
+		AppendCString(GlslCode, ES320Version);
 		AppendCString(GlslCode, "\n");
-		ReplaceCString(GlslCodeOriginal, ES310Version, "");
+		ReplaceCString(GlslCodeOriginal, ES320Version, "");
 	}
 
 	if (TypeEnum == GL_FRAGMENT_SHADER && Capabilities.bRequiresDisabledEarlyFragmentTests)
