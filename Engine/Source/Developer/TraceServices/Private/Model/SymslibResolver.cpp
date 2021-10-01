@@ -3,13 +3,16 @@
 #if PLATFORM_WINDOWS
 
 #include "SymslibResolver.h"
+#include "Algo/ForEach.h"
 #include "Algo/Sort.h"
 #include "Async/MappedFileHandle.h"
 #include "Async/ParallelFor.h"
 #include "Containers/StringView.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/PlatformFileManager.h"
+#include "HAL/PlatformTLS.h"
 #include "Logging/LogMacros.h"
+#include "Misc/CString.h"
 #include "Misc/Paths.h"
 #include "Misc/PathViews.h"
 #include "Misc/ScopeLock.h"
@@ -17,8 +20,6 @@
 #include "Misc/StringBuilder.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include <atomic>
-
-#include "symslib.h"
 
 /////////////////////////////////////////////////////////////////////
 DEFINE_LOG_CATEGORY_STATIC(LogSymslib, Log, All);
@@ -29,6 +30,144 @@ namespace TraceServices {
 /////////////////////////////////////////////////////////////////////
 
 static const TCHAR* GUnknownModuleTextSymsLib = TEXT("Unknown");
+
+/////////////////////////////////////////////////////////////////////
+
+
+namespace
+{
+	struct FAutoMappedFile
+	{
+		FString FilePath;
+
+		TUniquePtr<IMappedFileHandle> Handle;
+		TUniquePtr<IMappedFileRegion> Region;
+
+		bool Load(const TCHAR* FileName)
+		{
+			Handle.Reset(FPlatformFileManager::Get().GetPlatformFile().OpenMapped(FileName));
+			Region.Reset(Handle.IsValid() ? Handle->MapRegion(0, Handle->GetFileSize()) : nullptr);
+			return Region.IsValid();
+		}
+
+		inline void* GetData() const
+		{
+			return Region.IsValid() ? (void*)Region->GetMappedPtr() : nullptr;
+		}
+
+		inline uint64 Num() const
+		{
+			return Region.IsValid() ? Region->GetMappedSize() : 0;
+		}
+	};
+
+	static FString FindSymbolFile(const FString& Path)
+	{
+		IPlatformFile* PlatformFile = &FPlatformFileManager::Get().GetPlatformFile();
+
+		// Extract only filename part in case Path is absolute path
+		FString FileName = FPaths::GetCleanFilename(Path);
+
+		FString SymbolPath = FPlatformMisc::GetEnvironmentVariable(L"UE_INSIGHTS_SYMBOL_PATH");
+
+		FString SymbolPathPart;
+		while (SymbolPath.Split(TEXT(";"), &SymbolPathPart, &SymbolPath))
+		{
+			FString Result = FPaths::Combine(SymbolPathPart, FileName);
+			if (PlatformFile->FileExists(*Result))
+			{
+				// File found in one of symbol paths
+				return Result;
+			}
+		}
+
+		FString Result = FPaths::Combine(SymbolPath, FileName);
+		if (PlatformFile->FileExists(*Result))
+		{
+			// File found in symbol path
+			return Result;
+		}
+
+		if (PlatformFile->FileExists(*Path))
+		{
+			// File found by absolute path
+			return Path;
+		}
+
+		// File not found
+		return FString();
+	}
+
+	static SYMS_String8 SymsLoader(void* User, SYMS_Arena* Arena, SYMS_String8 FileName)
+	{
+		IPlatformFile* PlatformFile = &FPlatformFileManager::Get().GetPlatformFile();
+
+		FString FilePath = ANSI_TO_TCHAR(reinterpret_cast<char*>(FileName.str));
+
+		TArray<FAutoMappedFile>* Files = static_cast<TArray<FAutoMappedFile>*>(User);
+		FAutoMappedFile& File = Files->AddDefaulted_GetRef();
+
+		if (Files->Num() == 1)
+		{
+			// we're loading main executable file
+			FString SymbolFilePath = FindSymbolFile(FilePath);
+			if (SymbolFilePath.IsEmpty())
+			{
+				UE_LOG(LogSymslib, Warning, TEXT("File '%s' not found"), *FilePath);
+				return syms_str8(nullptr, 0);
+			}
+
+			if (!File.Load(*SymbolFilePath))
+			{
+				UE_LOG(LogSymslib, Warning, TEXT("Failed to open '%s'"), *SymbolFilePath);
+			}
+
+			File.FilePath = SymbolFilePath;
+		}
+		else
+		{
+			// we're loading secondary file, like .pdb for .exe
+
+			// main .exe file folder, so we can lookup relative paths
+			FString ModuleBasePath = FPaths::GetPath((*Files)[0].FilePath);
+
+			bool bDebugFilePathFound = false;
+
+			// First try path itself if it is absolute
+			FString DebugFilePath = FilePath;
+			if (!FPathViews::IsRelativePath(*DebugFilePath))
+			{
+				if (PlatformFile->FileExists(*DebugFilePath))
+				{
+					bDebugFilePathFound = true;
+				}
+			}
+
+			// Otherwise try relative path to module file
+			if (!bDebugFilePathFound)
+			{
+				DebugFilePath = FPaths::Combine(ModuleBasePath, FPaths::GetCleanFilename(DebugFilePath));
+				if (PlatformFile->FileExists(*DebugFilePath))
+				{
+					bDebugFilePathFound = true;
+				}
+			}
+
+			// Use path if file was found
+			if (bDebugFilePathFound)
+			{
+				if (!File.Load(*DebugFilePath))
+				{
+					UE_LOG(LogSymslib, Warning, TEXT("Failed to open '%s'"), *DebugFilePath);
+				}
+
+				File.FilePath = DebugFilePath;
+			}
+		}
+
+		return syms_str8(reinterpret_cast<SYMS_U8*>(File.GetData()), File.Num());
+	}
+}
 
 /////////////////////////////////////////////////////////////////////
 
@@ -100,7 +239,6 @@ void FSymslibResolver::QueueModuleLoad(const FStringView& ModulePath, uint64 Bas
 	Entry->Name = Session.StoreString(ModuleName); //Allows safe sharing to UI
 	Entry->Path = Session.StoreString(ModulePath);
 	Entry->Status = EModuleStatus::Pending;
-	Entry->Instance = nullptr;
 	Entry->ImageId = TArrayView<const uint8>(ImageId, ImageIdSize);
 
 	++ModulesDiscovered;
@@ -149,27 +287,14 @@ void FSymslibResolver::OnAnalysisComplete()
 		}
 		while (OutstandingTasks > 0);
 
-		// No tasks can be in running at this point.
-		{
-			FReadScopeLock _(FileHandlesAndRegionsLock);
-			for (FMappedFileAndRegion& File : FileHandlesAndRegions)
-			{
-				// Release file region before releasing the file handle.
-				delete File.Region;
-				delete File.Handle;
-			}
-		}
-
 		// Release memory used by syms library
 		{
 			FReadScopeLock _(ModulesLock);
 			for (uint32 ModuleIndex = 0; ModuleIndex < Modules.Num(); ++ModuleIndex)
 			{
 				FModuleEntry& Module = Modules[ModuleIndex];
-				if (Module.Instance)
-				{
-					syms_quit(Module.Instance);
-				}
+				Algo::ForEach(Module.Instance.Arenas, syms_arena_release);
+				Module.Instance.Arenas.Empty();
 			}
 		}
 		
@@ -300,188 +425,162 @@ void FSymslibResolver::LoadModuleTracked(FModuleEntry* Module)
 	}
 }
 
-FString FSymslibResolver::FindSymbolFile(const FString& Path)
-{
-	IPlatformFile* PlatformFile = &FPlatformFileManager::Get().GetPlatformFile();
-
-	// Extract only filename part in case Path is absolute path
-	FString FileName = FPaths::GetCleanFilename(Path);
-
-	FString SymbolPath = FPlatformMisc::GetEnvironmentVariable(L"UE_INSIGHTS_SYMBOL_PATH");
-
-	FString SymbolPathPart;
-	while (SymbolPath.Split(TEXT(";"), &SymbolPathPart, &SymbolPath))
-	{
-		FString Result = FPaths::Combine(SymbolPathPart, FileName);
-		if (PlatformFile->FileExists(*Result))
-		{
-			// File found in one of symbol paths
-			return Result;
-		}
-	}
-
-	FString Result = FPaths::Combine(SymbolPath, FileName);
-	if (PlatformFile->FileExists(*Result))
-	{
-		// File found in symbol path
-		return Result;
-	}
-
-	if (PlatformFile->FileExists(*Path))
-	{
-		// File found by absolute path
-		return Path;
-	}
-
-	// File not found
-	return FString();
-}
-
 FSymslibResolver::EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Module)
 {
 	IPlatformFile* PlatformFile = &FPlatformFileManager::Get().GetPlatformFile();
 
-	// Initialize the instance
-	Module->Instance = syms_init_ex(Module->Base);
-	SymsInstance* ModuleInstance = Module->Instance;
+	// temporary memory used for loading
+	SYMS_Group* Group = syms_group_alloc();
 
-	if (!ModuleInstance)
+	SYMS_FileInfOptions opts = { 0 };
+	opts.disable_fallback = 1;
+
+	TArray<FAutoMappedFile> Files;
+	SYMS_FileLoadCtx Context = { &SymsLoader, &Files };
+	SYMS_FileInfResult FileInf = syms_group_infer_from_file(Group->arena, Context, syms_str8_cstring(TCHAR_TO_ANSI(Module->Path)), &opts);
+
+	SYMS_DbgAccel* Dbg = FileInf.data_parsed.dbg;
+	if (Dbg == nullptr || Dbg->format == SYMS_FileFormat_Null)
 	{
-		UE_LOG(LogSymslib, Error, TEXT("Failed to initialize '%s'"), Module->Name);
+		syms_group_release(Group);
+		UE_LOG(LogSymslib, Display, TEXT("No debug information loaded for '%s'"), Module->Name);
 		return EModuleStatus::Failed;
 	}
 
-	FString SymbolFilePath = FindSymbolFile(Module->Path);
-	if (SymbolFilePath.IsEmpty())
+	// check debug data mismatch to captured module
+	if (!Module->ImageId.IsEmpty() && Dbg->format == SYMS_FileFormat_PDB)
 	{
-		UE_LOG(LogSymslib, Warning, TEXT("File '%s' does not exist"), Module->Path);
-		return EModuleStatus::Failed;
-	}
-
-	// Map the image file to memory
-	IMappedFileHandle* ImageFileHandle = PlatformFile->OpenMapped(*SymbolFilePath);
-	if (ImageFileHandle == nullptr)
-	{
-		UE_LOG(LogSymslib, Warning, TEXT("Failed to open '%s'"), *SymbolFilePath);
-		return EModuleStatus::Failed;
-	}
-	IMappedFileRegion* ImageFileRegion = ImageFileHandle->MapRegion(0, ImageFileHandle->GetFileSize());
-	check(ImageFileRegion != nullptr);
-
-	// Track all open handles
-	TrackFileHandlesAndRegions(ImageFileHandle, ImageFileRegion);
-
-	// Load the image
-	SymsErrorCode Result = syms_load_image(ModuleInstance, (void*)ImageFileRegion->GetMappedPtr(), ImageFileRegion->GetMappedSize(), 0);
-
-	if (SYMS_RESULT_FAIL(Result))
-	{
-		UE_LOG(LogSymslib, Warning, TEXT("Failed to load '%s'"), *SymbolFilePath);
-		return EModuleStatus::Failed;
-	}
-
-	// Iterate and map all the debug files
-	const FString ModuleBasePath = FPaths::GetPath(SymbolFilePath);
-	TArray<SymsFile> Files;
-
-	SymsDebugFileIter DebugFiles;
-	if (syms_debug_file_iter_init(&DebugFiles, ModuleInstance))
-	{
-		SymsString Path;
-		while (syms_debug_file_iter_next(&DebugFiles, &Path))
-		{
-			// Map the debug file
-
-			bool bDebugFilePathFound = false;
-
-			// First try path itself if it is absolute
-			FString DebugFilePath = ANSI_TO_TCHAR(Path.data);
-			if (!FPathViews::IsRelativePath(DebugFilePath))
-			{
-				if (PlatformFile->FileExists(*DebugFilePath))
-				{
-					bDebugFilePathFound = true;
-				}
-			}
-
-			// Otherwise try relative path to symbol file path
-			if (!bDebugFilePathFound)
-			{
-				DebugFilePath = FPaths::Combine(ModuleBasePath, FPaths::GetCleanFilename(DebugFilePath));
-				if (PlatformFile->FileExists(*DebugFilePath))
-				{
-					bDebugFilePathFound = true;
-				}
-			}
-
-			// Use path if file was found
-			if (bDebugFilePathFound)
-			{
-				IMappedFileHandle* FileHandle = PlatformFile->OpenMapped(*DebugFilePath);
-				if (FileHandle != nullptr)
-				{
-					IMappedFileRegion* FileRegion = FileHandle->MapRegion(0, FileHandle->GetFileSize());
-					check(FileRegion != nullptr);
-
-					Files.Push(SymsFile{
-						Path.data,
-						(void*)FileRegion->GetMappedPtr(),
-						(uint64)FileRegion->GetMappedSize()
-					});
-
-					TrackFileHandlesAndRegions(FileHandle, FileRegion);
-				}
-				else
-				{
-					UE_LOG(LogSymslib, Warning, TEXT("Could not open the debug file '%s'"), *DebugFilePath);
-				}
-			}
-		}
-	}
-
-	// Prepare to load the debug files
-	Result = syms_load_debug_info_ex(ModuleInstance, Files.GetData(), Files.Num(), SYMS_LOAD_DEBUG_INFO_FLAGS_DEFER_BUILD_MODULE);
-
-	if (SYMS_RESULT_FAIL(Result))
-	{
-		UE_LOG(LogSymslib, Display, TEXT("No debug information for '%s'"), *SymbolFilePath);
-		return EModuleStatus::Failed;
-	}
-
-	// Split up the work of actually loading debug info
-	const uint32 Count = syms_get_module_build_count(ModuleInstance);
-	// Each work item needs some memory
-	TArray<SymsArena*> Arenas;
-	for (uint32 Index = 0; Index < Count; ++Index)
-	{
-		Arenas.Add(syms_borrow_memory(ModuleInstance));
-	}
-	ParallelFor(Count, [ModuleInstance, &Arenas](uint32 Index)
-	{
-		syms_build_module(ModuleInstance, (SymsModID)Index, Arenas[Index]);
-	});
-
-	// Check age of debug data
-	if (!Module->ImageId.IsEmpty() && ModuleInstance->img.type == SYMS_IMAGE_NT)
-	{
-		// For Pdbs checksum is a 16 byte guid and 8 byte unsigned integer for age
+		// for Pdbs checksum is a 16 byte guid and 4 byte unsigned integer for age, but usually age is not used for matching debug file to exe
 		static_assert(sizeof(FGuid) == 16, "Expected 16 byte FGuid");
 		check(Module->ImageId.Num() == 20);
-		FGuid* ModuleGuid = (FGuid*) Module->ImageId.GetData();
-		uint32* ModuleAge = ((uint32*) Module->ImageId.GetData()) + 4;
-		SymsDebugInfoPdb* PdbInfo = (SymsDebugInfoPdb*)ModuleInstance->debug_info.impl;
-		FGuid* PdbGuid = (FGuid*)&PdbInfo->context.auth_guid;
-		const uint32 PdbAge = PdbInfo->context.age;
-		if (*ModuleGuid != *PdbGuid || *ModuleAge != PdbAge)
+		FGuid* ModuleGuid = (FGuid*)Module->ImageId.GetData();
+
+		SYMS_ExtMatchKey MatchKey = syms_ext_match_key_from_dbg(FileInf.data_parsed.dbg_data, Dbg);
+		FGuid* PdbGuid = (FGuid*)MatchKey.v;
+
+		if (*ModuleGuid != *PdbGuid)
 		{
+			syms_group_release(Group);
 			UE_LOG(LogSymslib, Warning, TEXT("Symbols for '%s' does not match traced binary."), Module->Name);
 			return EModuleStatus::VersionMismatch;
 		}
 	}
 
-	const uint32 SymbolCount = syms_get_proc_count(ModuleInstance); // get symbol count
-	const uint32 LineCount = syms_get_line_count(ModuleInstance); // get line count
-	UE_LOG(LogSymslib, Display, TEXT("Loaded symbols for '%s' at base 0x%016llx, %u symbols and %u lines."), Module->Name, Module->Base, SymbolCount, LineCount);
+	FSymsInstance* Instance = &Module->Instance;
+
+	// initialize group
+	SYMS_GroupInitParams GroupInit = {};
+	GroupInit.dbg_data = FileInf.data_parsed.dbg_data;
+	GroupInit.dbg = FileInf.data_parsed.dbg;
+
+	syms_set_lane(0);
+	syms_group_init(Group, &GroupInit);
+
+	// unit storage
+	SYMS_U64 UnitCount = syms_group_unit_count(Group);
+	Instance->Units.SetNum(UnitCount);
+
+	// per-thread arena storage (at least one)
+	int32 WorkerThreadCount = FMath::Max(1, FTaskGraphInterface::Get().GetNumWorkerThreads());
+	Instance->Arenas.SetNum(WorkerThreadCount);
+
+	// how many symbols are loaded
+	std::atomic<uint32> SymbolCount = 0;
+
+	// parse debug info in multiple threads
+	{
+		uint32 LaneSlot = FPlatformTLS::AllocTlsSlot();
+
+		std::atomic<uint32> LaneCount = 0;
+		syms_group_begin_multilane(Group, WorkerThreadCount);
+		ParallelFor(UnitCount, [Instance, Group, LaneSlot, &LaneCount, &SymbolCount](uint32 Index)
+		{
+			SYMS_Arena* Arena;
+			uint32 LaneValue = uint32(reinterpret_cast<intptr_t>(FPlatformTLS::GetTlsValue(LaneSlot)));
+			if (LaneValue == 0)
+			{
+				// first time we are on this thread
+				LaneValue = ++LaneCount;
+				FPlatformTLS::SetTlsValue(LaneSlot, reinterpret_cast<void*>(intptr_t(LaneValue)));
+
+				// syms lane index is 0-based
+				uint32 LaneIndex = LaneValue - 1;
+				syms_set_lane(LaneIndex);
+				Arena = Instance->Arenas[LaneIndex] = syms_arena_alloc();
+			}
+			else
+			{
+				uint32 LaneIndex = LaneValue - 1;
+				syms_set_lane(LaneIndex);
+				Arena = Instance->Arenas[LaneIndex];
+			}
+
+			SYMS_ArenaTemp Scratch = syms_get_scratch(0, 0);
+
+			SYMS_UnitID UnitID = static_cast<SYMS_UnitID>(Index + 1); // syms unit id's are 1-based
+			FSymsUnit* Unit = &Instance->Units[Index];
+
+			SYMS_SpatialMap1D* ProcSpatialMap = syms_group_proc_map_from_uid(Group, UnitID);
+			Unit->ProcMap = syms_spatial_map_1d_copy(Arena, ProcSpatialMap);
+
+			SYMS_String8Array* FileTable = syms_group_file_table_from_uid_with_fallbacks(Group, UnitID);
+			Unit->FileTable = syms_string_array_copy(Arena, 0, FileTable);
+
+			SYMS_LineParseOut* LineParse = syms_group_line_parse_from_uid(Group, UnitID);
+			Unit->LineTable = syms_line_table_with_indexes_from_parse(Arena, LineParse);
+
+			SYMS_SpatialMap1D* LineSpatialMap = syms_group_line_sequence_map_from_uid(Group, UnitID);
+			Unit->LineMap = syms_spatial_map_1d_copy(Arena, LineSpatialMap);
+
+			SYMS_UnitAccel* UnitAccel = syms_group_unit_from_uid(Group, UnitID);
+
+			SYMS_IDMap ProcIdMap = syms_id_map_alloc(Scratch.arena, 4093);
+
+			SYMS_SymbolIDArray* ProcArray = syms_group_proc_sid_array_from_uid(Group, UnitID);
+			SYMS_U64 ProcCount = ProcArray->count;
+
+			uint32 UnitSymbolCount = 0;
+
+			FSymsSymbol* Symbols = syms_push_array(Arena, FSymsSymbol, ProcCount);
+			for (SYMS_U64 ProcIndex = 0; ProcIndex < ProcCount; ProcIndex++)
+			{
+				SYMS_SymbolID SymbolID = ProcArray->ids[ProcIndex];
+
+				SYMS_SymbolKind Kind = syms_group_symbol_kind_from_sid(Group, UnitAccel, SymbolID);
+				if (Kind == SYMS_SymbolKind_Procedure)
+				{
+					UnitSymbolCount++;
+				}
+
+				SYMS_String8 Name = syms_group_symbol_name_from_sid(Arena, Group, UnitAccel, SymbolID);
+				Symbols[ProcIndex].Name = reinterpret_cast<char*>(Name.str);
+
+				syms_id_map_insert(Scratch.arena, &ProcIdMap, SymbolID, &Symbols[ProcIndex]);
+			}
+
+			SYMS_SpatialMap1D* ProcMap = &Unit->ProcMap;
+			for (SYMS_SpatialMap1DRange* Range = ProcMap->ranges, *EndRange = ProcMap->ranges + ProcMap->count; Range < EndRange; Range++)
+			{
+				void* SymbolPtr = syms_id_map_ptr_from_u64(&ProcIdMap, Range->val);
+				Range->val = SYMS_U64(reinterpret_cast<intptr_t>(SymbolPtr));
+			}
+
+			syms_release_scratch(Scratch);
+
+			SymbolCount += UnitSymbolCount;
+		});
+		syms_group_end_multilane(Group);
+
+		FPlatformTLS::FreeTlsSlot(LaneSlot);
+	}
+
+	Instance->UnitMap = syms_spatial_map_1d_copy(Instance->Arenas[0], syms_group_unit_map(Group));
+	Instance->DefaultBase = syms_group_default_vbase(Group);
+
+	syms_group_release(Group);
+	Instance->Arenas.RemoveAll([](SYMS_Arena* arena) { return arena == nullptr; });
+
+	UE_LOG(LogSymslib, Display, TEXT("Loaded symbols for '%s' at base 0x%016llx, %u symbols."), Module->Name, Module->Base, SymbolCount.load());
 
 	return EModuleStatus::Loaded;
 }
@@ -527,29 +626,56 @@ bool FSymslibResolver::ResolveSymbol(uint64 Address, FResolvedSymbol* Target, FS
 		break;
 	}
 
-	SymsProc Proc;
-	SymsSourceFileMap File;
-
 	// Find procedure and source file for address
-	if (!syms_proc_from_va(Module->Instance, Address, &Proc) || !syms_va_to_src(Module->Instance, Address, &File))
+
+	FSymsInstance* Instance = &Module->Instance;
+	SYMS_U64 VirtualOffset = Address + Instance->DefaultBase - Module->Base;
+
+	FSymsSymbol* SymsSymbol = nullptr;
+	bool bFileValid = false;
+	SYMS_String8 FileName = {};
+	uint32 FileLine = 0;
+
+	SYMS_UnitID UnitID = syms_spatial_map_1d_value_from_point(&Instance->UnitMap, VirtualOffset);
+	if (UnitID > 0 && UnitID <= Instance->Units.Num())
 	{
-		UpdateResolvedSymbol(Target, ESymbolQueryResult::NotFound, Module->Name, GUnknownModuleTextSymsLib, GUnknownModuleTextSymsLib, 0); 
+		FSymsUnit* Unit = &Instance->Units[UnitID - 1];
+
+		SYMS_U64 Value = syms_spatial_map_1d_value_from_point(&Unit->ProcMap, VirtualOffset);
+		if (Value)
+		{
+			SymsSymbol = reinterpret_cast<FSymsSymbol*>(Value);
+
+			SYMS_U64 SeqNumber = syms_spatial_map_1d_value_from_point(&Unit->LineMap, VirtualOffset);
+			if (SeqNumber)
+			{
+				SYMS_Line Line = syms_line_from_sequence_voff(&Unit->LineTable, SeqNumber, VirtualOffset);
+				if (Line.src_coord.file_id > 0 && Line.src_coord.file_id <= Unit->FileTable.count)
+				{
+					FileName = Unit->FileTable.strings[Line.src_coord.file_id - 1];
+					FileLine = Line.src_coord.line;
+					bFileValid = true;
+				}
+			}
+		}
+	}
+
+	// this includes skipping symbols without name (empty string)
+	if (!SymsSymbol || !bFileValid || SymsSymbol && SymsSymbol->Name[0] == 0)
+	{
+		UpdateResolvedSymbol(Target, ESymbolQueryResult::NotFound, Module->Name, GUnknownModuleTextSymsLib, GUnknownModuleTextSymsLib, 0);
 		return false;
 	}
 
 	constexpr uint32 MaxStringSize = 1024;
 
-	// Read the symbol name
 	ANSICHAR SymbolName[MaxStringSize];
+	FCStringAnsi::Strncpy(SymbolName, SymsSymbol->Name, MaxStringSize);
 	SymbolName[MaxStringSize - 1] = 0;
-	syms_read_strref(Module->Instance, &Proc.name_ref, SymbolName, sizeof(SymbolName) - 1);
-	check(SymbolName[MaxStringSize - 1] == 0);
 
-	// Read the source location
 	ANSICHAR SourceFile[MaxStringSize];
+	FCStringAnsi::Strncpy(SourceFile, reinterpret_cast<char*>(FileName.str), MaxStringSize);
 	SourceFile[MaxStringSize - 1] = 0;
-	syms_read_strref(Module->Instance, &File.file.name, SourceFile, sizeof(SourceFile) - 1);
-	check(SourceFile[MaxStringSize - 1] == 0);
 
 	const TCHAR* SymbolNamePersistent =  StringAllocator.Store(ANSI_TO_TCHAR(SymbolName));
 	const TCHAR* SourceFilePersistent = StringAllocator.Store(ANSI_TO_TCHAR(SourceFile));
@@ -561,16 +687,10 @@ bool FSymslibResolver::ResolveSymbol(uint64 Address, FResolvedSymbol* Target, FS
 		Module->Name,
 		SymbolNamePersistent,
 		SourceFilePersistent,
-		File.line.ln
+		FileLine
 	);
 
 	return true;
-}
-
-void FSymslibResolver::TrackFileHandlesAndRegions(IMappedFileHandle* FileHandle, IMappedFileRegion* FileRegion)
-{
-	FWriteScopeLock _(FileHandlesAndRegionsLock);
-	FileHandlesAndRegions.Add(FMappedFileAndRegion{ FileHandle, FileRegion });
 }
 
 /////////////////////////////////////////////////////////////////////

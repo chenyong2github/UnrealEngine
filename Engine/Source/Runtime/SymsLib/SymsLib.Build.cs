@@ -9,9 +9,9 @@ public class SymsLib : ModuleRules
 		Type = ModuleType.External;
 		
 		string LibPathBase =  ModuleDirectory + "/lib";
-		string IncludePath = ModuleDirectory + "/include";
 
-		PublicSystemIncludePaths.Add(IncludePath);
+		PublicSystemIncludePaths.Add(ModuleDirectory);
+		PublicSystemIncludePaths.Add(ModuleDirectory + "/syms");
 
 		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{

@@ -1,0 +1,1275 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+// generated
+#ifndef _SYMS_META_SERIAL_EXT_H
+#define _SYMS_META_SERIAL_EXT_H
+
+////////////////////////////////
+#if defined(SYMS_ENABLE_BASE_SERIAL_INFO)
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:869
+SYMS_C_LINKAGE_BEGIN
+// syms_enum_index_from_arch - skipped identity mapping
+// syms_enum_index_from_operating_system - skipped identity mapping
+// syms_enum_index_from_language - skipped identity mapping
+// syms_enum_index_from_fileformat - skipped identity mapping
+// syms_enum_index_from_checksum_algorithm - skipped identity mapping
+SYMS_C_LINKAGE_END
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1109
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_S8;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_S16;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_S32;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_S64;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_U8;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_U16;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_U32;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_U64;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvSectionIndex;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvModIndex;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvTypeIndex;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvTypeId;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvItemId;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvReg;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_PdbBinaryAnnotation;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_PdbNumeric;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_Arch;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_OperatingSystem;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_Language;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_FileFormat;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ChecksumAlgorithm;
+
+#endif // defined(SYMS_ENABLE_BASE_SERIAL_INFO)
+
+
+////////////////////////////////
+#if defined(SYMS_ENABLE_DEBUG_INFO_SERIAL_INFO)
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:869
+SYMS_C_LINKAGE_BEGIN
+// syms_enum_index_from_symbol_kind - skipped identity mapping
+// syms_enum_index_from_mem_visibility - skipped identity mapping
+SYMS_C_LINKAGE_END
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1109
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_UnitFeatures;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_SymbolKind;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_TypeModifiers;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MemVisibility;
+
+#endif // defined(SYMS_ENABLE_DEBUG_INFO_SERIAL_INFO)
+
+
+////////////////////////////////
+#if defined(SYMS_ENABLE_CV_SERIAL_INFO)
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:849
+typedef enum SYMS_CvGuidMember{
+SYMS_CvGuidMember_data1,
+SYMS_CvGuidMember_data2,
+SYMS_CvGuidMember_data3,
+SYMS_CvGuidMember_data4,
+SYMS_CvGuidMember_data5,
+SYMS_CvGuidMember_COUNT
+} SYMS_CvGuidMember;
+typedef enum SYMS_CvAnnotationMember{
+SYMS_CvAnnotationMember_off,
+SYMS_CvAnnotationMember_seg,
+SYMS_CvAnnotationMember_count,
+SYMS_CvAnnotationMember_COUNT
+} SYMS_CvAnnotationMember;
+typedef enum SYMS_CvRegisterMember{
+SYMS_CvRegisterMember_type,
+SYMS_CvRegisterMember_reg,
+SYMS_CvRegisterMember_COUNT
+} SYMS_CvRegisterMember;
+typedef enum SYMS_CvBPRelSym32Member{
+SYMS_CvBPRelSym32Member_off,
+SYMS_CvBPRelSym32Member_itype,
+SYMS_CvBPRelSym32Member_COUNT
+} SYMS_CvBPRelSym32Member;
+typedef enum SYMS_CvVPathSym32Member{
+SYMS_CvVPathSym32Member_root,
+SYMS_CvVPathSym32Member_path,
+SYMS_CvVPathSym32Member_off,
+SYMS_CvVPathSym32Member_seg,
+SYMS_CvVPathSym32Member_COUNT
+} SYMS_CvVPathSym32Member;
+typedef enum SYMS_CvOEMMember{
+SYMS_CvOEMMember_id,
+SYMS_CvOEMMember_itype,
+SYMS_CvOEMMember_COUNT
+} SYMS_CvOEMMember;
+typedef enum SYMS_CvSLink32Member{
+SYMS_CvSLink32Member_frame_size,
+SYMS_CvSLink32Member_offset,
+SYMS_CvSLink32Member_reg,
+SYMS_CvSLink32Member_COUNT
+} SYMS_CvSLink32Member;
+typedef enum SYMS_CvReturnMember{
+SYMS_CvReturnMember_flags,
+SYMS_CvReturnMember_style,
+SYMS_CvReturnMember_COUNT
+} SYMS_CvReturnMember;
+typedef enum SYMS_CvStartSearchMember{
+SYMS_CvStartSearchMember_start_symbol,
+SYMS_CvStartSearchMember_segment,
+SYMS_CvStartSearchMember_COUNT
+} SYMS_CvStartSearchMember;
+typedef enum SYMS_CvThread32Member{
+SYMS_CvThread32Member_itype,
+SYMS_CvThread32Member_tls_seg,
+SYMS_CvThread32Member_tls_off,
+SYMS_CvThread32Member_name,
+SYMS_CvThread32Member_COUNT
+} SYMS_CvThread32Member;
+typedef enum SYMS_CvCompileMember{
+SYMS_CvCompileMember_machine,
+SYMS_CvCompileMember_flags,
+SYMS_CvCompileMember_ver_str,
+SYMS_CvCompileMember_COUNT
+} SYMS_CvCompileMember;
+typedef enum SYMS_CvEndMember{
+SYMS_CvEndMember_COUNT
+} SYMS_CvEndMember;
+typedef enum SYMS_CvCompile2Member{
+SYMS_CvCompile2Member_flags,
+SYMS_CvCompile2Member_machine,
+SYMS_CvCompile2Member_ver_fe_major,
+SYMS_CvCompile2Member_ver_fe_minor,
+SYMS_CvCompile2Member_ver_fe_build,
+SYMS_CvCompile2Member_ver_major,
+SYMS_CvCompile2Member_ver_minor,
+SYMS_CvCompile2Member_ver_build,
+SYMS_CvCompile2Member_ver_str,
+SYMS_CvCompile2Member_COUNT
+} SYMS_CvCompile2Member;
+typedef enum SYMS_CvCompile3Member{
+SYMS_CvCompile3Member_flags,
+SYMS_CvCompile3Member_machine,
+SYMS_CvCompile3Member_ver_fe_major,
+SYMS_CvCompile3Member_ver_fe_minor,
+SYMS_CvCompile3Member_ver_fe_build,
+SYMS_CvCompile3Member_ver_feqfe,
+SYMS_CvCompile3Member_ver_major,
+SYMS_CvCompile3Member_ver_minor,
+SYMS_CvCompile3Member_ver_build,
+SYMS_CvCompile3Member_ver_qfe,
+SYMS_CvCompile3Member_version,
+SYMS_CvCompile3Member_COUNT
+} SYMS_CvCompile3Member;
+typedef enum SYMS_CvObjnameMember{
+SYMS_CvObjnameMember_sig,
+SYMS_CvObjnameMember_name,
+SYMS_CvObjnameMember_COUNT
+} SYMS_CvObjnameMember;
+typedef enum SYMS_CvUNamespaceMember{
+SYMS_CvUNamespaceMember_name,
+SYMS_CvUNamespaceMember_COUNT
+} SYMS_CvUNamespaceMember;
+typedef enum SYMS_CvRef2Member{
+SYMS_CvRef2Member_sum_name,
+SYMS_CvRef2Member_sym_off,
+SYMS_CvRef2Member_imod,
+SYMS_CvRef2Member_name,
+SYMS_CvRef2Member_COUNT
+} SYMS_CvRef2Member;
+typedef enum SYMS_CvSepcodeMember{
+SYMS_CvSepcodeMember_parent,
+SYMS_CvSepcodeMember_end,
+SYMS_CvSepcodeMember_len,
+SYMS_CvSepcodeMember_flags,
+SYMS_CvSepcodeMember_sec_off,
+SYMS_CvSepcodeMember_sec_parent_off,
+SYMS_CvSepcodeMember_sec,
+SYMS_CvSepcodeMember_sec_parent,
+SYMS_CvSepcodeMember_COUNT
+} SYMS_CvSepcodeMember;
+typedef enum SYMS_CvSlotsym32Member{
+SYMS_CvSlotsym32Member_slot_index,
+SYMS_CvSlotsym32Member_type,
+SYMS_CvSlotsym32Member_COUNT
+} SYMS_CvSlotsym32Member;
+typedef enum SYMS_CvPogoInfoMember{
+SYMS_CvPogoInfoMember_invocations,
+SYMS_CvPogoInfoMember_dynamic_inst_count,
+SYMS_CvPogoInfoMember_static_inst_count,
+SYMS_CvPogoInfoMember_post_inline_static_inst_count,
+SYMS_CvPogoInfoMember_COUNT
+} SYMS_CvPogoInfoMember;
+typedef enum SYMS_CvManyregMember{
+SYMS_CvManyregMember_type,
+SYMS_CvManyregMember_count,
+SYMS_CvManyregMember_COUNT
+} SYMS_CvManyregMember;
+typedef enum SYMS_CvManyreg2Member{
+SYMS_CvManyreg2Member_type,
+SYMS_CvManyreg2Member_count,
+SYMS_CvManyreg2Member_COUNT
+} SYMS_CvManyreg2Member;
+typedef enum SYMS_CvFrameprocMember{
+SYMS_CvFrameprocMember_frame_size,
+SYMS_CvFrameprocMember_pad_size,
+SYMS_CvFrameprocMember_pad_off,
+SYMS_CvFrameprocMember_save_reg_size,
+SYMS_CvFrameprocMember_eh_off,
+SYMS_CvFrameprocMember_eh_sec,
+SYMS_CvFrameprocMember_flags,
+SYMS_CvFrameprocMember_COUNT
+} SYMS_CvFrameprocMember;
+typedef enum SYMS_CvThunk32Member{
+SYMS_CvThunk32Member_parent,
+SYMS_CvThunk32Member_end,
+SYMS_CvThunk32Member_next,
+SYMS_CvThunk32Member_off,
+SYMS_CvThunk32Member_sec,
+SYMS_CvThunk32Member_len,
+SYMS_CvThunk32Member_ord,
+SYMS_CvThunk32Member_name,
+SYMS_CvThunk32Member_COUNT
+} SYMS_CvThunk32Member;
+typedef enum SYMS_CvBlock32Member{
+SYMS_CvBlock32Member_par,
+SYMS_CvBlock32Member_end,
+SYMS_CvBlock32Member_len,
+SYMS_CvBlock32Member_off,
+SYMS_CvBlock32Member_sec,
+SYMS_CvBlock32Member_name,
+SYMS_CvBlock32Member_COUNT
+} SYMS_CvBlock32Member;
+typedef enum SYMS_CvLabel32Member{
+SYMS_CvLabel32Member_off,
+SYMS_CvLabel32Member_sec,
+SYMS_CvLabel32Member_flags,
+SYMS_CvLabel32Member_name,
+SYMS_CvLabel32Member_COUNT
+} SYMS_CvLabel32Member;
+typedef enum SYMS_CvConstantMember{
+SYMS_CvConstantMember_itype,
+SYMS_CvConstantMember_num,
+SYMS_CvConstantMember_name,
+SYMS_CvConstantMember_COUNT
+} SYMS_CvConstantMember;
+typedef enum SYMS_CvUDTMember{
+SYMS_CvUDTMember_itype,
+SYMS_CvUDTMember_name,
+SYMS_CvUDTMember_COUNT
+} SYMS_CvUDTMember;
+typedef enum SYMS_CvTrampolineMember{
+SYMS_CvTrampolineMember_type,
+SYMS_CvTrampolineMember_thunk_size,
+SYMS_CvTrampolineMember_thunk_sec_off,
+SYMS_CvTrampolineMember_target_sec_off,
+SYMS_CvTrampolineMember_thunk_sec,
+SYMS_CvTrampolineMember_target_sec,
+SYMS_CvTrampolineMember_COUNT
+} SYMS_CvTrampolineMember;
+typedef enum SYMS_CvSectionMember{
+SYMS_CvSectionMember_sec_index,
+SYMS_CvSectionMember_align,
+SYMS_CvSectionMember_pad,
+SYMS_CvSectionMember_rva,
+SYMS_CvSectionMember_size,
+SYMS_CvSectionMember_characteristics,
+SYMS_CvSectionMember_name,
+SYMS_CvSectionMember_COUNT
+} SYMS_CvSectionMember;
+typedef enum SYMS_CvCoffGroupMember{
+SYMS_CvCoffGroupMember_size,
+SYMS_CvCoffGroupMember_characteristics,
+SYMS_CvCoffGroupMember_off,
+SYMS_CvCoffGroupMember_sec,
+SYMS_CvCoffGroupMember_name,
+SYMS_CvCoffGroupMember_COUNT
+} SYMS_CvCoffGroupMember;
+typedef enum SYMS_CvExportMember{
+SYMS_CvExportMember_ordinal,
+SYMS_CvExportMember_flags,
+SYMS_CvExportMember_name,
+SYMS_CvExportMember_COUNT
+} SYMS_CvExportMember;
+typedef enum SYMS_CvCallSiteInfoMember{
+SYMS_CvCallSiteInfoMember_off,
+SYMS_CvCallSiteInfoMember_sec,
+SYMS_CvCallSiteInfoMember_pad,
+SYMS_CvCallSiteInfoMember_itype,
+SYMS_CvCallSiteInfoMember_COUNT
+} SYMS_CvCallSiteInfoMember;
+typedef enum SYMS_CvFrameCookieMember{
+SYMS_CvFrameCookieMember_off,
+SYMS_CvFrameCookieMember_reg,
+SYMS_CvFrameCookieMember_kind,
+SYMS_CvFrameCookieMember_flags,
+SYMS_CvFrameCookieMember_COUNT
+} SYMS_CvFrameCookieMember;
+typedef enum SYMS_CvEnvblockMember{
+SYMS_CvEnvblockMember_flags,
+SYMS_CvEnvblockMember_rgsz,
+SYMS_CvEnvblockMember_COUNT
+} SYMS_CvEnvblockMember;
+typedef enum SYMS_CvLocalVarAttrMember{
+SYMS_CvLocalVarAttrMember_off,
+SYMS_CvLocalVarAttrMember_seg,
+SYMS_CvLocalVarAttrMember_flags,
+SYMS_CvLocalVarAttrMember_COUNT
+} SYMS_CvLocalVarAttrMember;
+typedef enum SYMS_CvLocalMember{
+SYMS_CvLocalMember_itype,
+SYMS_CvLocalMember_flags,
+SYMS_CvLocalMember_name,
+SYMS_CvLocalMember_COUNT
+} SYMS_CvLocalMember;
+typedef enum SYMS_CvLvarAddrRangeMember{
+SYMS_CvLvarAddrRangeMember_off,
+SYMS_CvLvarAddrRangeMember_sec,
+SYMS_CvLvarAddrRangeMember_len,
+SYMS_CvLvarAddrRangeMember_COUNT
+} SYMS_CvLvarAddrRangeMember;
+typedef enum SYMS_CvLvarAddrGapMember{
+SYMS_CvLvarAddrGapMember_off,
+SYMS_CvLvarAddrGapMember_len,
+SYMS_CvLvarAddrGapMember_COUNT
+} SYMS_CvLvarAddrGapMember;
+typedef enum SYMS_CvDefrangeMember{
+SYMS_CvDefrangeMember_program,
+SYMS_CvDefrangeMember_range,
+SYMS_CvDefrangeMember_gaps,
+SYMS_CvDefrangeMember_COUNT
+} SYMS_CvDefrangeMember;
+typedef enum SYMS_CvDefrangeSubfieldMember{
+SYMS_CvDefrangeSubfieldMember_program,
+SYMS_CvDefrangeSubfieldMember_off_in_parent,
+SYMS_CvDefrangeSubfieldMember_range,
+SYMS_CvDefrangeSubfieldMember_gaps,
+SYMS_CvDefrangeSubfieldMember_COUNT
+} SYMS_CvDefrangeSubfieldMember;
+typedef enum SYMS_CvDefrangeRegisterMember{
+SYMS_CvDefrangeRegisterMember_reg,
+SYMS_CvDefrangeRegisterMember_attribs,
+SYMS_CvDefrangeRegisterMember_range,
+SYMS_CvDefrangeRegisterMember_gaps,
+SYMS_CvDefrangeRegisterMember_COUNT
+} SYMS_CvDefrangeRegisterMember;
+typedef enum SYMS_CvDefrangeFramepointerRelMember{
+SYMS_CvDefrangeFramepointerRelMember_off,
+SYMS_CvDefrangeFramepointerRelMember_range,
+SYMS_CvDefrangeFramepointerRelMember_gaps,
+SYMS_CvDefrangeFramepointerRelMember_COUNT
+} SYMS_CvDefrangeFramepointerRelMember;
+typedef enum SYMS_CvDefrangeSubfieldRegisterMember{
+SYMS_CvDefrangeSubfieldRegisterMember_reg,
+SYMS_CvDefrangeSubfieldRegisterMember_attribs,
+SYMS_CvDefrangeSubfieldRegisterMember_off_parent,
+SYMS_CvDefrangeSubfieldRegisterMember_range,
+SYMS_CvDefrangeSubfieldRegisterMember_gaps,
+SYMS_CvDefrangeSubfieldRegisterMember_COUNT
+} SYMS_CvDefrangeSubfieldRegisterMember;
+typedef enum SYMS_CvDefrangeFramepointerRelFullScopeMember{
+SYMS_CvDefrangeFramepointerRelFullScopeMember_off,
+SYMS_CvDefrangeFramepointerRelFullScopeMember_COUNT
+} SYMS_CvDefrangeFramepointerRelFullScopeMember;
+typedef enum SYMS_CvDefrangeRegisterRelMember{
+SYMS_CvDefrangeRegisterRelMember_reg,
+SYMS_CvDefrangeRegisterRelMember_flags,
+SYMS_CvDefrangeRegisterRelMember_reg_off,
+SYMS_CvDefrangeRegisterRelMember_range,
+SYMS_CvDefrangeRegisterRelMember_gaps,
+SYMS_CvDefrangeRegisterRelMember_COUNT
+} SYMS_CvDefrangeRegisterRelMember;
+typedef enum SYMS_CvData32Member{
+SYMS_CvData32Member_itype,
+SYMS_CvData32Member_sec_off,
+SYMS_CvData32Member_sec,
+SYMS_CvData32Member_name,
+SYMS_CvData32Member_COUNT
+} SYMS_CvData32Member;
+typedef enum SYMS_CvPubsym32Member{
+SYMS_CvPubsym32Member_flags,
+SYMS_CvPubsym32Member_off,
+SYMS_CvPubsym32Member_seg,
+SYMS_CvPubsym32Member_name,
+SYMS_CvPubsym32Member_COUNT
+} SYMS_CvPubsym32Member;
+typedef enum SYMS_CvGProc16Member{
+SYMS_CvGProc16Member_COUNT
+} SYMS_CvGProc16Member;
+typedef enum SYMS_CvGProc3216tMember{
+SYMS_CvGProc3216tMember_COUNT
+} SYMS_CvGProc3216tMember;
+typedef enum SYMS_CvProc32Member{
+SYMS_CvProc32Member_parent,
+SYMS_CvProc32Member_end,
+SYMS_CvProc32Member_next,
+SYMS_CvProc32Member_len,
+SYMS_CvProc32Member_dbg_start,
+SYMS_CvProc32Member_dbg_end,
+SYMS_CvProc32Member_itype,
+SYMS_CvProc32Member_off,
+SYMS_CvProc32Member_sec,
+SYMS_CvProc32Member_flags,
+SYMS_CvProc32Member_name,
+SYMS_CvProc32Member_COUNT
+} SYMS_CvProc32Member;
+typedef enum SYMS_CvRegrel32Member{
+SYMS_CvRegrel32Member_reg_off,
+SYMS_CvRegrel32Member_itype,
+SYMS_CvRegrel32Member_reg,
+SYMS_CvRegrel32Member_name,
+SYMS_CvRegrel32Member_COUNT
+} SYMS_CvRegrel32Member;
+typedef enum SYMS_CvBuildInfoMember{
+SYMS_CvBuildInfoMember_id,
+SYMS_CvBuildInfoMember_COUNT
+} SYMS_CvBuildInfoMember;
+typedef enum SYMS_CvFunctionListMember{
+SYMS_CvFunctionListMember_count,
+SYMS_CvFunctionListMember_func,
+SYMS_CvFunctionListMember_invocations,
+SYMS_CvFunctionListMember_COUNT
+} SYMS_CvFunctionListMember;
+typedef enum SYMS_CvInlineSiteMember{
+SYMS_CvInlineSiteMember_parent_offset,
+SYMS_CvInlineSiteMember_end_offset,
+SYMS_CvInlineSiteMember_inlinee,
+SYMS_CvInlineSiteMember_binaryAnnotations,
+SYMS_CvInlineSiteMember_COUNT
+} SYMS_CvInlineSiteMember;
+typedef enum SYMS_CvInlineSite2Member{
+SYMS_CvInlineSite2Member_parent_offset,
+SYMS_CvInlineSite2Member_end_offset,
+SYMS_CvInlineSite2Member_inlinee,
+SYMS_CvInlineSite2Member_invocations,
+SYMS_CvInlineSite2Member_binaryAnnotations,
+SYMS_CvInlineSite2Member_COUNT
+} SYMS_CvInlineSite2Member;
+typedef enum SYMS_CvInlineSiteEndMember{
+SYMS_CvInlineSiteEndMember_COUNT
+} SYMS_CvInlineSiteEndMember;
+typedef enum SYMS_CvInlineesMember{
+SYMS_CvInlineesMember_count,
+SYMS_CvInlineesMember_desc,
+SYMS_CvInlineesMember_COUNT
+} SYMS_CvInlineesMember;
+typedef enum SYMS_CvFileStaticMember{
+SYMS_CvFileStaticMember_itype,
+SYMS_CvFileStaticMember_mod_offset,
+SYMS_CvFileStaticMember_flags,
+SYMS_CvFileStaticMember_name,
+SYMS_CvFileStaticMember_COUNT
+} SYMS_CvFileStaticMember;
+typedef enum SYMS_CvHeapAllocSiteMember{
+SYMS_CvHeapAllocSiteMember_off,
+SYMS_CvHeapAllocSiteMember_sec,
+SYMS_CvHeapAllocSiteMember_call_inst_len,
+SYMS_CvHeapAllocSiteMember_itype,
+SYMS_CvHeapAllocSiteMember_COUNT
+} SYMS_CvHeapAllocSiteMember;
+typedef enum SYMS_CvFramerelMember{
+SYMS_CvFramerelMember_off,
+SYMS_CvFramerelMember_itype,
+SYMS_CvFramerelMember_attr,
+SYMS_CvFramerelMember_COUNT
+} SYMS_CvFramerelMember;
+typedef enum SYMS_CvAttrRegMember{
+SYMS_CvAttrRegMember_itype,
+SYMS_CvAttrRegMember_attr,
+SYMS_CvAttrRegMember_reg,
+SYMS_CvAttrRegMember_COUNT
+} SYMS_CvAttrRegMember;
+typedef enum SYMS_CvAttrRegrelMember{
+SYMS_CvAttrRegrelMember_off,
+SYMS_CvAttrRegrelMember_itype,
+SYMS_CvAttrRegrelMember_reg,
+SYMS_CvAttrRegrelMember_attr,
+SYMS_CvAttrRegrelMember_COUNT
+} SYMS_CvAttrRegrelMember;
+typedef enum SYMS_CvAttrManyregMember{
+SYMS_CvAttrManyregMember_itype,
+SYMS_CvAttrManyregMember_attr,
+SYMS_CvAttrManyregMember_reg_count,
+SYMS_CvAttrManyregMember_COUNT
+} SYMS_CvAttrManyregMember;
+typedef enum SYMS_CvFastLinkMember{
+SYMS_CvFastLinkMember_itype,
+SYMS_CvFastLinkMember_flags,
+SYMS_CvFastLinkMember_name,
+SYMS_CvFastLinkMember_padding,
+SYMS_CvFastLinkMember_COUNT
+} SYMS_CvFastLinkMember;
+typedef enum SYMS_CvArmSwitchTableMember{
+SYMS_CvArmSwitchTableMember_off_base,
+SYMS_CvArmSwitchTableMember_sec_base,
+SYMS_CvArmSwitchTableMember_switch_type,
+SYMS_CvArmSwitchTableMember_off_branch,
+SYMS_CvArmSwitchTableMember_off_table,
+SYMS_CvArmSwitchTableMember_sec_branch,
+SYMS_CvArmSwitchTableMember_sec_table,
+SYMS_CvArmSwitchTableMember_entry_count,
+SYMS_CvArmSwitchTableMember_COUNT
+} SYMS_CvArmSwitchTableMember;
+typedef enum SYMS_CvRefMiniPdbMember{
+SYMS_CvRefMiniPdbMember_data,
+SYMS_CvRefMiniPdbMember_imod,
+SYMS_CvRefMiniPdbMember_flags,
+SYMS_CvRefMiniPdbMember_COUNT
+} SYMS_CvRefMiniPdbMember;
+typedef enum SYMS_CvModTypeRefMember{
+SYMS_CvModTypeRefMember_flags,
+SYMS_CvModTypeRefMember_word0,
+SYMS_CvModTypeRefMember_word1,
+SYMS_CvModTypeRefMember_COUNT
+} SYMS_CvModTypeRefMember;
+typedef enum SYMS_CvDiscardedMember{
+SYMS_CvDiscardedMember_flags,
+SYMS_CvDiscardedMember_file_id,
+SYMS_CvDiscardedMember_file_ln,
+SYMS_CvDiscardedMember_COUNT
+} SYMS_CvDiscardedMember;
+typedef enum SYMS_CvLeafPreCompMember{
+SYMS_CvLeafPreCompMember_start_index,
+SYMS_CvLeafPreCompMember_count,
+SYMS_CvLeafPreCompMember_signature,
+SYMS_CvLeafPreCompMember_name,
+SYMS_CvLeafPreCompMember_COUNT
+} SYMS_CvLeafPreCompMember;
+typedef enum SYMS_CvLeafTypeServer2Member{
+SYMS_CvLeafTypeServer2Member_sig70,
+SYMS_CvLeafTypeServer2Member_age,
+SYMS_CvLeafTypeServer2Member_name,
+SYMS_CvLeafTypeServer2Member_COUNT
+} SYMS_CvLeafTypeServer2Member;
+typedef enum SYMS_CvLeafBuildInfoMember{
+SYMS_CvLeafBuildInfoMember_count,
+SYMS_CvLeafBuildInfoMember_arg,
+SYMS_CvLeafBuildInfoMember_COUNT
+} SYMS_CvLeafBuildInfoMember;
+typedef enum SYMS_CvLeafSkip_16tMember{
+SYMS_CvLeafSkip_16tMember_type,
+SYMS_CvLeafSkip_16tMember_COUNT
+} SYMS_CvLeafSkip_16tMember;
+typedef enum SYMS_CvLeafSkipMember{
+SYMS_CvLeafSkipMember_type,
+SYMS_CvLeafSkipMember_COUNT
+} SYMS_CvLeafSkipMember;
+typedef enum SYMS_CvLeafVTShapeMember{
+SYMS_CvLeafVTShapeMember_count,
+SYMS_CvLeafVTShapeMember_COUNT
+} SYMS_CvLeafVTShapeMember;
+typedef enum SYMS_CvLeafLabelMember{
+SYMS_CvLeafLabelMember_mode,
+SYMS_CvLeafLabelMember_COUNT
+} SYMS_CvLeafLabelMember;
+typedef enum SYMS_CvLeafModifierMember{
+SYMS_CvLeafModifierMember_itype,
+SYMS_CvLeafModifierMember_flags,
+SYMS_CvLeafModifierMember_COUNT
+} SYMS_CvLeafModifierMember;
+typedef enum SYMS_CvLeafPointerMember{
+SYMS_CvLeafPointerMember_itype,
+SYMS_CvLeafPointerMember_attr,
+SYMS_CvLeafPointerMember_COUNT
+} SYMS_CvLeafPointerMember;
+typedef enum SYMS_CvLeafProcedureMember{
+SYMS_CvLeafProcedureMember_ret_itype,
+SYMS_CvLeafProcedureMember_call_kind,
+SYMS_CvLeafProcedureMember_funcattr,
+SYMS_CvLeafProcedureMember_arg_count,
+SYMS_CvLeafProcedureMember_arg_itype,
+SYMS_CvLeafProcedureMember_COUNT
+} SYMS_CvLeafProcedureMember;
+typedef enum SYMS_CvLeafMFunctionMember{
+SYMS_CvLeafMFunctionMember_ret_itype,
+SYMS_CvLeafMFunctionMember_class_itype,
+SYMS_CvLeafMFunctionMember_this_itype,
+SYMS_CvLeafMFunctionMember_call_kind,
+SYMS_CvLeafMFunctionMember_funcattr,
+SYMS_CvLeafMFunctionMember_arg_count,
+SYMS_CvLeafMFunctionMember_arg_itype,
+SYMS_CvLeafMFunctionMember_thisadjust,
+SYMS_CvLeafMFunctionMember_COUNT
+} SYMS_CvLeafMFunctionMember;
+typedef enum SYMS_CvLeafArgListMember{
+SYMS_CvLeafArgListMember_count,
+SYMS_CvLeafArgListMember_itypes,
+SYMS_CvLeafArgListMember_COUNT
+} SYMS_CvLeafArgListMember;
+typedef enum SYMS_CvLeafBitFieldMember{
+SYMS_CvLeafBitFieldMember_itype,
+SYMS_CvLeafBitFieldMember_len,
+SYMS_CvLeafBitFieldMember_pos,
+SYMS_CvLeafBitFieldMember_COUNT
+} SYMS_CvLeafBitFieldMember;
+typedef enum SYMS_CvLeafIndexMember{
+SYMS_CvLeafIndexMember_pad,
+SYMS_CvLeafIndexMember_itype,
+SYMS_CvLeafIndexMember_COUNT
+} SYMS_CvLeafIndexMember;
+typedef enum SYMS_CvLeafArrayMember{
+SYMS_CvLeafArrayMember_entry_itype,
+SYMS_CvLeafArrayMember_index_itype,
+SYMS_CvLeafArrayMember_val,
+SYMS_CvLeafArrayMember_COUNT
+} SYMS_CvLeafArrayMember;
+typedef enum SYMS_CvLeafStructMember{
+SYMS_CvLeafStructMember_count,
+SYMS_CvLeafStructMember_props,
+SYMS_CvLeafStructMember_field,
+SYMS_CvLeafStructMember_derived,
+SYMS_CvLeafStructMember_vshape,
+SYMS_CvLeafStructMember_size,
+SYMS_CvLeafStructMember_name,
+SYMS_CvLeafStructMember_COUNT
+} SYMS_CvLeafStructMember;
+typedef enum SYMS_CvLeafUnionMember{
+SYMS_CvLeafUnionMember_count,
+SYMS_CvLeafUnionMember_props,
+SYMS_CvLeafUnionMember_field,
+SYMS_CvLeafUnionMember_size,
+SYMS_CvLeafUnionMember_name,
+SYMS_CvLeafUnionMember_COUNT
+} SYMS_CvLeafUnionMember;
+typedef enum SYMS_CvLeafEnumMember{
+SYMS_CvLeafEnumMember_count,
+SYMS_CvLeafEnumMember_props,
+SYMS_CvLeafEnumMember_itype,
+SYMS_CvLeafEnumMember_field,
+SYMS_CvLeafEnumMember_name,
+SYMS_CvLeafEnumMember_COUNT
+} SYMS_CvLeafEnumMember;
+typedef enum SYMS_CvLeafAliasMember{
+SYMS_CvLeafAliasMember_itype,
+SYMS_CvLeafAliasMember_name,
+SYMS_CvLeafAliasMember_COUNT
+} SYMS_CvLeafAliasMember;
+typedef enum SYMS_CvLeafMemberMember{
+SYMS_CvLeafMemberMember_attribs,
+SYMS_CvLeafMemberMember_itype,
+SYMS_CvLeafMemberMember_offset,
+SYMS_CvLeafMemberMember_name,
+SYMS_CvLeafMemberMember_COUNT
+} SYMS_CvLeafMemberMember;
+typedef enum SYMS_CvLeafStMemberMember{
+SYMS_CvLeafStMemberMember_attribs,
+SYMS_CvLeafStMemberMember_itype,
+SYMS_CvLeafStMemberMember_name,
+SYMS_CvLeafStMemberMember_COUNT
+} SYMS_CvLeafStMemberMember;
+typedef enum SYMS_CvLeafMethodMember{
+SYMS_CvLeafMethodMember_count,
+SYMS_CvLeafMethodMember_itype_list,
+SYMS_CvLeafMethodMember_name,
+SYMS_CvLeafMethodMember_COUNT
+} SYMS_CvLeafMethodMember;
+typedef enum SYMS_CvLeafOneMethodMember{
+SYMS_CvLeafOneMethodMember_attribs,
+SYMS_CvLeafOneMethodMember_itype,
+SYMS_CvLeafOneMethodMember_COUNT
+} SYMS_CvLeafOneMethodMember;
+typedef enum SYMS_CvLeafEnumerateMember{
+SYMS_CvLeafEnumerateMember_attribs,
+SYMS_CvLeafEnumerateMember_val,
+SYMS_CvLeafEnumerateMember_name,
+SYMS_CvLeafEnumerateMember_COUNT
+} SYMS_CvLeafEnumerateMember;
+typedef enum SYMS_CvLeafNestTypeMember{
+SYMS_CvLeafNestTypeMember_pad,
+SYMS_CvLeafNestTypeMember_index,
+SYMS_CvLeafNestTypeMember_name,
+SYMS_CvLeafNestTypeMember_COUNT
+} SYMS_CvLeafNestTypeMember;
+typedef enum SYMS_CvLeafNestTypeExMember{
+SYMS_CvLeafNestTypeExMember_attribs,
+SYMS_CvLeafNestTypeExMember_itype,
+SYMS_CvLeafNestTypeExMember_name,
+SYMS_CvLeafNestTypeExMember_COUNT
+} SYMS_CvLeafNestTypeExMember;
+typedef enum SYMS_CvLeafBClassMember{
+SYMS_CvLeafBClassMember_attribs,
+SYMS_CvLeafBClassMember_itype,
+SYMS_CvLeafBClassMember_offset,
+SYMS_CvLeafBClassMember_COUNT
+} SYMS_CvLeafBClassMember;
+typedef enum SYMS_CvLeafVBClassMember{
+SYMS_CvLeafVBClassMember_attribs,
+SYMS_CvLeafVBClassMember_itype,
+SYMS_CvLeafVBClassMember_vbptr_itype,
+SYMS_CvLeafVBClassMember_vbptr_off,
+SYMS_CvLeafVBClassMember_COUNT
+} SYMS_CvLeafVBClassMember;
+typedef enum SYMS_CvLeafVFuncTabMember{
+SYMS_CvLeafVFuncTabMember_pad,
+SYMS_CvLeafVFuncTabMember_itype,
+SYMS_CvLeafVFuncTabMember_COUNT
+} SYMS_CvLeafVFuncTabMember;
+typedef enum SYMS_CvLeafVFuncOffMember{
+SYMS_CvLeafVFuncOffMember_pad,
+SYMS_CvLeafVFuncOffMember_itype,
+SYMS_CvLeafVFuncOffMember_off,
+SYMS_CvLeafVFuncOffMember_COUNT
+} SYMS_CvLeafVFuncOffMember;
+typedef enum SYMS_CvLeafVFTableMember{
+SYMS_CvLeafVFTableMember_owner_itype,
+SYMS_CvLeafVFTableMember_base_table_itype,
+SYMS_CvLeafVFTableMember_offset_in_object_layout,
+SYMS_CvLeafVFTableMember_names_len,
+SYMS_CvLeafVFTableMember_name,
+SYMS_CvLeafVFTableMember_COUNT
+} SYMS_CvLeafVFTableMember;
+typedef enum SYMS_CvLeafFuncIdMember{
+SYMS_CvLeafFuncIdMember_scope_id,
+SYMS_CvLeafFuncIdMember_itype,
+SYMS_CvLeafFuncIdMember_name,
+SYMS_CvLeafFuncIdMember_COUNT
+} SYMS_CvLeafFuncIdMember;
+typedef enum SYMS_CvLeafMFuncIdMember{
+SYMS_CvLeafMFuncIdMember_parent_itype,
+SYMS_CvLeafMFuncIdMember_itype,
+SYMS_CvLeafMFuncIdMember_name,
+SYMS_CvLeafMFuncIdMember_COUNT
+} SYMS_CvLeafMFuncIdMember;
+typedef enum SYMS_CvLeafStringIdMember{
+SYMS_CvLeafStringIdMember_id,
+SYMS_CvLeafStringIdMember_name,
+SYMS_CvLeafStringIdMember_COUNT
+} SYMS_CvLeafStringIdMember;
+typedef enum SYMS_CvLeafUDTSrcLineMember{
+SYMS_CvLeafUDTSrcLineMember_udt_itype,
+SYMS_CvLeafUDTSrcLineMember_src,
+SYMS_CvLeafUDTSrcLineMember_ln,
+SYMS_CvLeafUDTSrcLineMember_COUNT
+} SYMS_CvLeafUDTSrcLineMember;
+typedef enum SYMS_CvLeafModSrcLineMember{
+SYMS_CvLeafModSrcLineMember_udt_itype,
+SYMS_CvLeafModSrcLineMember_src,
+SYMS_CvLeafModSrcLineMember_ln,
+SYMS_CvLeafModSrcLineMember_comp_unit,
+SYMS_CvLeafModSrcLineMember_COUNT
+} SYMS_CvLeafModSrcLineMember;
+typedef enum SYMS_CvLeafClassPtrMember{
+SYMS_CvLeafClassPtrMember_props,
+SYMS_CvLeafClassPtrMember_padding,
+SYMS_CvLeafClassPtrMember_arglist_itype,
+SYMS_CvLeafClassPtrMember_unknown2,
+SYMS_CvLeafClassPtrMember_unknown3,
+SYMS_CvLeafClassPtrMember_unknown4,
+SYMS_CvLeafClassPtrMember_COUNT
+} SYMS_CvLeafClassPtrMember;
+typedef enum SYMS_CvSubSectionHeaderMember{
+SYMS_CvSubSectionHeaderMember_kind,
+SYMS_CvSubSectionHeaderMember_size,
+SYMS_CvSubSectionHeaderMember_COUNT
+} SYMS_CvSubSectionHeaderMember;
+typedef enum SYMS_CvInlineeSourceLineMember{
+SYMS_CvInlineeSourceLineMember_inlinee,
+SYMS_CvInlineeSourceLineMember_file_id,
+SYMS_CvInlineeSourceLineMember_base_line_number,
+SYMS_CvInlineeSourceLineMember_COUNT
+} SYMS_CvInlineeSourceLineMember;
+typedef enum SYMS_CvInlineeSourceLineExMember{
+SYMS_CvInlineeSourceLineExMember_inlinee,
+SYMS_CvInlineeSourceLineExMember_file_id,
+SYMS_CvInlineeSourceLineExMember_base_line_number,
+SYMS_CvInlineeSourceLineExMember_extra_file_count,
+SYMS_CvInlineeSourceLineExMember_extra_file_id,
+SYMS_CvInlineeSourceLineExMember_COUNT
+} SYMS_CvInlineeSourceLineExMember;
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:869
+SYMS_C_LINKAGE_BEGIN
+// syms_enum_index_from_cvbasicpointerkind - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_cvarch(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_cv_all_reg(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_cvregx86(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_cvregx64(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_cvsignature(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_cvsymkind(SYMS_U64 v);
+// syms_enum_index_from_cv_generic_style - skipped identity mapping
+// syms_enum_index_from_cvlanguage - skipped identity mapping
+// syms_enum_index_from_cv_thunk_ordinal - skipped identity mapping
+// syms_enum_index_from_cvtrampolinekind - skipped identity mapping
+// syms_enum_index_from_cvframecookiekind - skipped identity mapping
+// syms_enum_index_from_cv_b_a_opcode - skipped identity mapping
+// syms_enum_index_from_cv_arm_switch_type - skipped identity mapping
+// syms_enum_index_from_cv_discarded_type - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_cvleaf(SYMS_U64 v);
+// syms_enum_index_from_cvhfakind - skipped identity mapping
+// syms_enum_index_from_cvmocomudtkind - skipped identity mapping
+// syms_enum_index_from_cvpointerkind - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_cvpointermode(SYMS_U64 v);
+// syms_enum_index_from_cv_member_pointer_kind - skipped identity mapping
+// syms_enum_index_from_cvvirtualtableshape - skipped identity mapping
+// syms_enum_index_from_cvmethodprop - skipped identity mapping
+// syms_enum_index_from_cvmemberaccess - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_cvlabelkind(SYMS_U64 v);
+// syms_enum_index_from_cvcallkind - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_cvsubsectionkind(SYMS_U64 v);
+// syms_enum_index_from_cv_checksum_kind - skipped identity mapping
+// syms_enum_index_from_cv_inlinee_source_line_sig - skipped identity mapping
+SYMS_C_LINKAGE_END
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:934
+SYMS_C_LINKAGE_BEGIN
+SYMS_API SYMS_SerialType* syms_reg_type_from_arch(SYMS_CvArch v);
+SYMS_API SYMS_SerialType* syms_type_info_from_sym_kind(SYMS_CvSymKind v);
+SYMS_API SYMS_SerialType* syms_type_info_from_cv_leaf(SYMS_CvLeaf v);
+SYMS_C_LINKAGE_END
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1109
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvGuid;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvBasicPointerKind;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvArch;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvAllReg;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvRegx86;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvRegx64;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvSignature;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvSymKind;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvAnnotation;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvRegister;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvBPRelSym32;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvVPathSym32;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvOEM;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvSLink32;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvGenericStyle;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvGenericFlags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvReturn;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvStartSearch;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLanguage;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvThread32;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvCompileFlags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvCompile;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvEnd;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvCompile2Flags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvCompile2;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvCompile3Flags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvCompile3;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvObjname;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvUNamespace;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvRef2;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvSepcodeFlags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvSepcode;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvSlotsym32;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvPogoInfo;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvManyreg;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvManyreg2;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvFrameprocFlags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvFrameproc;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvThunkOrdinal;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvThunk32;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvBlock32;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvProcFlags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLabel32;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvConstant;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvUDT;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvTrampolineKind;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvTrampoline;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvSection;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvCoffGroup;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvExportFlags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvExport;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvCallSiteInfo;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvFrameCookieKind;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvFrameCookie;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvEnvblock;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLocalFlags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLocalVarAttr;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLocal;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLvarAddrRange;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLvarAddrGap;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvRangeAttribs;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvDefrange;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvDefrangeSubfield;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvDefrangeRegister;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvDefrangeFramepointerRel;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvDefrangeSubfieldRegister;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvDefrangeFramepointerRelFullScope;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvDefrangeRegisterRelFlags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvDefrangeRegisterRel;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvData32;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvPubsymFlags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvPubsym32;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvGProc16;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvGProc3216t;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvProc32;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvRegrel32;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvBuildInfo;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvFunctionList;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvBAOpcode;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvInlineSite;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvInlineSite2;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvInlineSiteEnd;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvInlinees;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvFileStatic;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvHeapAllocSite;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvFramerel;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvAttrReg;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvAttrRegrel;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvAttrManyreg;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvFastLinkFlags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvFastLink;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvArmSwitchType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvArmSwitchTable;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvRefMiniPdbFlags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvRefMiniPdb;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvModTypeRefFlags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvModTypeRef;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvDiscardedType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvDiscardedFlags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvDiscarded;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeaf;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvModifierFlags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvHFAKind;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvMoComUDTKind;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvTypeProps;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvPointerKind;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvPointerMode;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvPointerAttribs;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvMemberPointerKind;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvVirtualTableShape;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvMethodProp;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvMemberAccess;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvFieldAttribs;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLabelKind;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvFunctionAttribs;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvCallKind;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafPreComp;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafTypeServer2;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafBuildInfo;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafSkip_16t;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafSkip;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafVTShape;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafLabel;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafModifier;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafPointer;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafProcedure;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafMFunction;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafArgList;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafBitField;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafIndex;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafArray;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafStruct;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafUnion;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafEnum;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafAlias;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafMember;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafStMember;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafMethod;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafOneMethod;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafEnumerate;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafNestType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafNestTypeEx;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafBClass;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafVBClass;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafVFuncTab;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafVFuncOff;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafVFTable;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafFuncId;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafMFuncId;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafStringId;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafUDTSrcLine;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafModSrcLine;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvLeafClassPtr;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvSubSectionKind;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvSubSectionHeader;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvChecksumKind;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvInlineeSourceLineSig;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvInlineeSourceLine;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvInlineeSourceLineEx;
+
+#endif // defined(SYMS_ENABLE_CV_SERIAL_INFO)
+
+
+////////////////////////////////
+#if defined(SYMS_ENABLE_DWARF_SERIAL_INFO)
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:869
+SYMS_C_LINKAGE_BEGIN
+// syms_enum_index_from_dw_mode - skipped identity mapping
+// syms_enum_index_from_dw_version - skipped identity mapping
+// syms_enum_index_from_dw_section_kind - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_dwregx86(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_dwregx64(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_dwregarm(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_dwlanguage(SYMS_U64 v);
+// syms_enum_index_from_dwstdopcode - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_dwextopcode(SYMS_U64 v);
+// syms_enum_index_from_dw_name_case - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_dwtagkind(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_dwformkind(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_dwattribkind(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_dw_attrib_type_encoding(SYMS_U64 v);
+// syms_enum_index_from_dw_calling_convention - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_dw_op_code(SYMS_U64 v);
+// syms_enum_index_from_dw_access - skipped identity mapping
+// syms_enum_index_from_dw_virtuality - skipped identity mapping
+// syms_enum_index_from_dw_rng_list_entry_kind - skipped identity mapping
+SYMS_C_LINKAGE_END
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1109
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwMode;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwVersion;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwSectionKind;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwRegX86;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwRegX64;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwRegARM;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwLanguage;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwStdOpcode;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwExtOpcode;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwNameCase;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwTagKind;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwAttribClass;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwFormKind;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwAttribKind;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwAttribTypeEncoding;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwCallingConvention;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwOpCode;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwAccess;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwVirtuality;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwRngListEntryKind;
+
+#endif // defined(SYMS_ENABLE_DWARF_SERIAL_INFO)
+
+
+////////////////////////////////
+#if defined(SYMS_ENABLE_COFF_SERIAL_INFO)
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:849
+typedef enum SYMS_CoffHeaderMember{
+SYMS_CoffHeaderMember_machine,
+SYMS_CoffHeaderMember_section_count,
+SYMS_CoffHeaderMember_time_date_stamp,
+SYMS_CoffHeaderMember_pointer_to_symbol_table,
+SYMS_CoffHeaderMember_number_of_symbols,
+SYMS_CoffHeaderMember_size_of_optional_header,
+SYMS_CoffHeaderMember_flags,
+SYMS_CoffHeaderMember_COUNT
+} SYMS_CoffHeaderMember;
+typedef enum SYMS_CoffSectionMember{
+SYMS_CoffSectionMember_name,
+SYMS_CoffSectionMember_virt_size,
+SYMS_CoffSectionMember_virt_off,
+SYMS_CoffSectionMember_file_size,
+SYMS_CoffSectionMember_file_off,
+SYMS_CoffSectionMember_relocs_file_offset,
+SYMS_CoffSectionMember_line_nums_file_offset,
+SYMS_CoffSectionMember_relocs_count,
+SYMS_CoffSectionMember_line_nums_count,
+SYMS_CoffSectionMember_flags,
+SYMS_CoffSectionMember_COUNT
+} SYMS_CoffSectionMember;
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:869
+SYMS_C_LINKAGE_BEGIN
+SYMS_API SYMS_U64 syms_enum_index_from_coffmachinetype(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_coffsectionalign(SYMS_U64 v);
+// syms_enum_index_from_coffreloctypex64 - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_coffreloctypex86(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_coffreloctypearm(SYMS_U64 v);
+// syms_enum_index_from_coffreloctypearm64 - skipped identity mapping
+// syms_enum_index_from_coffsymtype - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_coffsymstorageclass(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_coffsymsecnumber(SYMS_U64 v);
+// syms_enum_index_from_coffsymdtype - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_coffweakextflags(SYMS_U64 v);
+// syms_enum_index_from_coff_import_header_type - skipped identity mapping
+// syms_enum_index_from_coff_import_header_name_type - skipped identity mapping
+SYMS_C_LINKAGE_END
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1109
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffFlags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffMachineType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffHeader;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffSectionAlign;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffSectionFlags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffSection;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffRelocTypeX64;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffRelocTypeX86;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffRelocTypeARM;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffRelocTypeARM64;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffSymType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffSymStorageClass;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffSymSecNumber;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffSymDType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffWeakExtFlags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffImportHeaderType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffImportHeaderNameType;
+
+#endif // defined(SYMS_ENABLE_COFF_SERIAL_INFO)
+
+
+////////////////////////////////
+#if defined(SYMS_ENABLE_PE_SERIAL_INFO)
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:849
+typedef enum SYMS_DosHeaderMember{
+SYMS_DosHeaderMember_magic,
+SYMS_DosHeaderMember_last_page_size,
+SYMS_DosHeaderMember_page_count,
+SYMS_DosHeaderMember_reloc_count,
+SYMS_DosHeaderMember_paragraph_header_size,
+SYMS_DosHeaderMember_min_paragraph,
+SYMS_DosHeaderMember_max_paragraph,
+SYMS_DosHeaderMember_init_ss,
+SYMS_DosHeaderMember_init_sp,
+SYMS_DosHeaderMember_checksum,
+SYMS_DosHeaderMember_init_ip,
+SYMS_DosHeaderMember_init_cs,
+SYMS_DosHeaderMember_reloc_table_file_off,
+SYMS_DosHeaderMember_overlay_number,
+SYMS_DosHeaderMember_reserved,
+SYMS_DosHeaderMember_oem_id,
+SYMS_DosHeaderMember_oem_info,
+SYMS_DosHeaderMember_reserved2,
+SYMS_DosHeaderMember_coff_file_offset,
+SYMS_DosHeaderMember_COUNT
+} SYMS_DosHeaderMember;
+typedef enum SYMS_PeOptionalPe32Member{
+SYMS_PeOptionalPe32Member_magic,
+SYMS_PeOptionalPe32Member_major_linker_version,
+SYMS_PeOptionalPe32Member_minor_linker_version,
+SYMS_PeOptionalPe32Member_sizeof_code,
+SYMS_PeOptionalPe32Member_sizeof_inited_data,
+SYMS_PeOptionalPe32Member_sizeof_uninited_data,
+SYMS_PeOptionalPe32Member_entry_point_va,
+SYMS_PeOptionalPe32Member_code_base,
+SYMS_PeOptionalPe32Member_data_base,
+SYMS_PeOptionalPe32Member_image_base,
+SYMS_PeOptionalPe32Member_section_alignment,
+SYMS_PeOptionalPe32Member_file_alignment,
+SYMS_PeOptionalPe32Member_major_os_ver,
+SYMS_PeOptionalPe32Member_minor_os_ver,
+SYMS_PeOptionalPe32Member_major_img_ver,
+SYMS_PeOptionalPe32Member_minor_img_ver,
+SYMS_PeOptionalPe32Member_major_subsystem_ver,
+SYMS_PeOptionalPe32Member_minor_subsystem_ver,
+SYMS_PeOptionalPe32Member_win32_version_value,
+SYMS_PeOptionalPe32Member_sizeof_image,
+SYMS_PeOptionalPe32Member_sizeof_headers,
+SYMS_PeOptionalPe32Member_check_sum,
+SYMS_PeOptionalPe32Member_subsystem,
+SYMS_PeOptionalPe32Member_dll_characteristics,
+SYMS_PeOptionalPe32Member_sizeof_stack_reserve,
+SYMS_PeOptionalPe32Member_sizeof_stack_commit,
+SYMS_PeOptionalPe32Member_sizeof_heap_reserve,
+SYMS_PeOptionalPe32Member_sizeof_heap_commit,
+SYMS_PeOptionalPe32Member_loader_flags,
+SYMS_PeOptionalPe32Member_data_dir_count,
+SYMS_PeOptionalPe32Member_COUNT
+} SYMS_PeOptionalPe32Member;
+typedef enum SYMS_PeOptionalPe32PlusMember{
+SYMS_PeOptionalPe32PlusMember_magic,
+SYMS_PeOptionalPe32PlusMember_major_linker_version,
+SYMS_PeOptionalPe32PlusMember_minor_linker_version,
+SYMS_PeOptionalPe32PlusMember_sizeof_code,
+SYMS_PeOptionalPe32PlusMember_sizeof_inited_data,
+SYMS_PeOptionalPe32PlusMember_sizeof_uninited_data,
+SYMS_PeOptionalPe32PlusMember_entry_point_va,
+SYMS_PeOptionalPe32PlusMember_code_base,
+SYMS_PeOptionalPe32PlusMember_image_base,
+SYMS_PeOptionalPe32PlusMember_section_alignment,
+SYMS_PeOptionalPe32PlusMember_file_alignment,
+SYMS_PeOptionalPe32PlusMember_major_os_ver,
+SYMS_PeOptionalPe32PlusMember_minor_os_ver,
+SYMS_PeOptionalPe32PlusMember_major_img_ver,
+SYMS_PeOptionalPe32PlusMember_minor_img_ver,
+SYMS_PeOptionalPe32PlusMember_major_subsystem_ver,
+SYMS_PeOptionalPe32PlusMember_minor_subsystem_ver,
+SYMS_PeOptionalPe32PlusMember_win32_version_value,
+SYMS_PeOptionalPe32PlusMember_sizeof_image,
+SYMS_PeOptionalPe32PlusMember_sizeof_headers,
+SYMS_PeOptionalPe32PlusMember_check_sum,
+SYMS_PeOptionalPe32PlusMember_subsystem,
+SYMS_PeOptionalPe32PlusMember_dll_characteristics,
+SYMS_PeOptionalPe32PlusMember_sizeof_stack_reserve,
+SYMS_PeOptionalPe32PlusMember_sizeof_stack_commit,
+SYMS_PeOptionalPe32PlusMember_sizeof_heap_reserve,
+SYMS_PeOptionalPe32PlusMember_sizeof_heap_commit,
+SYMS_PeOptionalPe32PlusMember_loader_flags,
+SYMS_PeOptionalPe32PlusMember_data_dir_count,
+SYMS_PeOptionalPe32PlusMember_COUNT
+} SYMS_PeOptionalPe32PlusMember;
+typedef enum SYMS_PeDataDirectoryMember{
+SYMS_PeDataDirectoryMember_virt_off,
+SYMS_PeDataDirectoryMember_virt_size,
+SYMS_PeDataDirectoryMember_COUNT
+} SYMS_PeDataDirectoryMember;
+typedef enum SYMS_PeDebugDirectoryMember{
+SYMS_PeDebugDirectoryMember_characteristics,
+SYMS_PeDebugDirectoryMember_time_stamp,
+SYMS_PeDebugDirectoryMember_major_ver,
+SYMS_PeDebugDirectoryMember_minor_ver,
+SYMS_PeDebugDirectoryMember_type,
+SYMS_PeDebugDirectoryMember_size,
+SYMS_PeDebugDirectoryMember_virtual_offset,
+SYMS_PeDebugDirectoryMember_file_offset,
+SYMS_PeDebugDirectoryMember_COUNT
+} SYMS_PeDebugDirectoryMember;
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:869
+SYMS_C_LINKAGE_BEGIN
+SYMS_API SYMS_U64 syms_enum_index_from_pe_windows_subsystem(SYMS_U64 v);
+// syms_enum_index_from_pe_data_directory_index - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_pe_debug_directory_type(SYMS_U64 v);
+SYMS_C_LINKAGE_END
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1109
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DosHeader;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_PeWindowsSubsystem;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ImageFileCharacteristics;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DllCharacteristics;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_PeOptionalPe32;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_PeOptionalPe32Plus;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_PeDataDirectoryIndex;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_PeDataDirectory;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_PeDebugDirectoryType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_PeDebugDirectory;
+
+#endif // defined(SYMS_ENABLE_PE_SERIAL_INFO)
+
+
+////////////////////////////////
+#if defined(SYMS_ENABLE_MACH_SERIAL_INFO)
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:869
+SYMS_C_LINKAGE_BEGIN
+SYMS_API SYMS_U64 syms_enum_index_from_mach_cpu_type(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_mach_cpu_family(SYMS_U64 v);
+// syms_enum_index_from_mach_cpu_subtype - skipped identity mapping
+// syms_enum_index_from_mach_cpu_subtype_v_ax - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_mach_cpu_subtype_x86(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_mach_cpu_subtype_intel(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_mach_cpu_subtype_a_rm(SYMS_U64 v);
+// syms_enum_index_from_mach_cpu_subtype_a_r_m64 - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_mach_filetype(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_mach_flags(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_mach_load_command_type(SYMS_U64 v);
+// syms_enum_index_from_mach_section_type - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_m_ach_section_attr(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_mach_platform_type(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_mach_tool_type(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_mach_n_list_type(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_mach_stab_type(SYMS_U64 v);
+SYMS_C_LINKAGE_END
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1109
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuFamily;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuSubtype;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuSubtypeVAX;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuSubtypeX86;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuSubtypeIntel;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuSubtypeARM;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuSubtypeARM64;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachFiletype;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachFlags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachLoadCommandType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachSectionType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MAchSectionAttr;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachPlatformType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachToolType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachNListType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachStabType;
+
+#endif // defined(SYMS_ENABLE_MACH_SERIAL_INFO)
+
+#endif
+
+
