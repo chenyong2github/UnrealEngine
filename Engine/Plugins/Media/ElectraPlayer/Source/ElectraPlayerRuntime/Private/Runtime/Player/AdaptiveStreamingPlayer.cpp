@@ -425,17 +425,6 @@ void FAdaptiveStreamingPlayer::DispatchEvent(TSharedPtrTS<FMetricEvent> Event)
 	}
 }
 
-void FAdaptiveStreamingPlayer::DispatchEventAndWait(TSharedPtrTS<FMetricEvent> Event)
-{
-	if (EventDispatcher.IsValid())
-	{
-		Event->Player = SharedThis(this);
-		EventDispatcher->DispatchEventAndWait(Event);
-	}
-}
-
-
-
 
 //-----------------------------------------------------------------------------
 /**
@@ -469,11 +458,7 @@ void FAdaptiveStreamingPlayer::StopWorkerThread()
 		SharedWorkerThread->RemovePlayerInstance(this);
 		SharedWorkerThread.Reset();
 	}
-	if (EventDispatcher.IsValid())
-	{
-		EventDispatcher->DispatchEventAndWait(TSharedPtrTS<FMetricEvent>());
-		EventDispatcher.Reset();
-	}
+	EventDispatcher.Reset();
 }
 
 
@@ -1278,11 +1263,7 @@ bool FAdaptiveStreamingPlayer::InternalHandleThreadMessages()
 					bIsClosing = true;
 					InternalStop(false);
 					InternalClose();
-					// This is the end of the rope anyway so let's terminate the event dispatcher.
-					// This ensures that the client will not get out of the Stop() call without having
-					// received the stop message.
-					DispatchEventAndWait(FMetricEvent::ReportPlaybackStopped());
-					EventDispatcher.Reset();
+					DispatchEvent(FMetricEvent::ReportPlaybackStopped());
 				}
 				if (msg.Data.MediaEvent.Event)
 				{
@@ -3910,14 +3891,6 @@ TSharedPtrTS<FAdaptiveStreamingPlayerEventHandler> FAdaptiveStreamingPlayerEvent
 void FAdaptiveStreamingPlayerEventHandler::DispatchEvent(TSharedPtrTS<FMetricEvent> InEvent)
 {
 	EventQueue.SendMessage(InEvent);
-}
-
-void FAdaptiveStreamingPlayerEventHandler::DispatchEventAndWait(TSharedPtrTS<FMetricEvent> InEvent)
-{
-	FMediaEvent Sig;
-	InEvent->EventSignal = &Sig;
-	EventQueue.SendMessage(InEvent);
-	Sig.Wait();
 }
 
 FAdaptiveStreamingPlayerEventHandler::~FAdaptiveStreamingPlayerEventHandler()
