@@ -7,8 +7,6 @@
 #include "ModelingToolsEditorModeStyle.h"
 #include "ModelingToolsEditorModeSettings.h"
 
-#include "ISettingsModule.h"
-#include "ISettingsSection.h"
 #include "Misc/CoreDelegates.h"
 
 #include "Modules/ModuleManager.h"
@@ -25,11 +23,6 @@ void FModelingToolsEditorModeModule::StartupModule()
 void FModelingToolsEditorModeModule::ShutdownModule()
 {
 	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
-
-	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
-	{
-		SettingsModule->UnregisterSettings("Project", "Plugins", "ModelingMode");
-	}
 
 	FModelingToolActionCommands::UnregisterAllToolActions();
 	FModelingToolsManagerCommands::Unregister();
@@ -48,17 +41,6 @@ void FModelingToolsEditorModeModule::OnPostEngineInit()
 	FModelingToolActionCommands::RegisterAllToolActions();
 	FModelingToolsManagerCommands::Register();
 	FModelingModeActionCommands::Register();
-
-	// register settings
-	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
-	if (SettingsModule != nullptr)
-	{
-		ISettingsSectionPtr SettingsSection = SettingsModule->RegisterSettings("Project", "Plugins", "ModelingMode",
-			LOCTEXT("ModelingModeSettingsName", "Modeling Mode"),
-			LOCTEXT("ModelingModeSettingsDescription", "Configure the Modeling Tools Editor Mode plugin"),
-			GetMutableDefault<UModelingToolsEditorModeSettings>()
-		);
-	}
 
 	// Register details view customizations
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");

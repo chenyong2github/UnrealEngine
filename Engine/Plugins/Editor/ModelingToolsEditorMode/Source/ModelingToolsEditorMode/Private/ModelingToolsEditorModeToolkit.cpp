@@ -17,6 +17,7 @@
 #include "Toolkits/AssetEditorModeUILayer.h"
 
 #include "Widgets/Input/SButton.h"
+#include "SSimpleButton.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Images/SImage.h"
@@ -304,7 +305,7 @@ TSharedPtr<SWidget> FModelingToolsEditorModeToolkit::MakeAssetConfigPanel()
 	AssetLODModeLabel = SNew(STextBlock).Text(LOCTEXT("ActiveLODLabel", "Editing LOD"));
 
 	TSharedPtr<SVerticalBox> Content = SNew(SVerticalBox)
-	+ SVerticalBox::Slot().MaxHeight(20).HAlign(HAlign_Fill)
+	+ SVerticalBox::Slot().HAlign(HAlign_Fill)
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot().Padding(0, 2, 2, 2).HAlign(HAlign_Right).VAlign(VAlign_Center).AutoWidth()
@@ -313,7 +314,7 @@ TSharedPtr<SWidget> FModelingToolsEditorModeToolkit::MakeAssetConfigPanel()
 				[ AssetLODMode->AsShared() ]
 		]
 
-	+ SVerticalBox::Slot().MaxHeight(20).HAlign(HAlign_Fill).Padding(0, 3, 0, 0)
+	+ SVerticalBox::Slot().HAlign(HAlign_Fill).Padding(0, 3, 0, 0)
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot().Padding(0, 2, 2, 2).HAlign(HAlign_Right).VAlign(VAlign_Center).AutoWidth()
@@ -321,23 +322,15 @@ TSharedPtr<SWidget> FModelingToolsEditorModeToolkit::MakeAssetConfigPanel()
 					SNew(STextBlock)
 					.Text(LOCTEXT("AssetLocationLabel", "New Asset Location"))
 				]
-			+ SHorizontalBox::Slot().Padding(0).FillWidth(4.0f)
+			+ SHorizontalBox::Slot().HAlign(HAlign_Fill).Padding(0).FillWidth(1.0f)
 				[
 					AssetLocationMode->AsShared()
 				]
-
-			+ SHorizontalBox::Slot().HAlign(HAlign_Right).Padding(5, 0, 0, 0).FillWidth(1.0f)
+			+ SHorizontalBox::Slot().HAlign(HAlign_Right).Padding(0, 0, 0, 0).AutoWidth()
 				[
-					SNew(SBox).MaxDesiredHeight(16).MaxDesiredWidth(17)
-					[
-						SNew(SButton)
-						.ContentPadding(0)
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
-						.OnClicked_Lambda( [this]() {OnShowAssetSettings(); return FReply::Handled(); } )
-						[
-							SNew(SImage).Image(FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.Settings").GetIcon())
-						]
-					]
+					SNew(SSimpleButton)
+					.OnClicked_Lambda( [this]() { OnShowAssetSettings(); return FReply::Handled(); } )
+					.Icon(FAppStyle::Get().GetBrush("Icons.Settings"))
 				]
 		];
 

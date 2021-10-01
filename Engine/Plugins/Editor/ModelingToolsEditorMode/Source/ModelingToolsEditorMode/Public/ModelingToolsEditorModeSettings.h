@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
+#include "Engine/DeveloperSettings.h"
 #include "ModelingToolsEditorModeSettings.generated.h"
 
 
@@ -54,10 +53,21 @@ enum class EModelingModeAssetGenerationLocation
  * Settings for the Modeling Tools Editor Mode plug-in.
  */
 UCLASS(config=Editor)
-class MODELINGTOOLSEDITORMODE_API UModelingToolsEditorModeSettings
-	: public UObject
+class MODELINGTOOLSEDITORMODE_API UModelingToolsEditorModeSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
+
+public:
+
+	// UDeveloperSettings overrides
+
+	virtual FName GetContainerName() const { return FName("Project"); }
+	virtual FName GetCategoryName() const { return FName("Plugins"); }
+	virtual FName GetSectionName() const { return FName("ModelingMode"); }
+
+	virtual FText GetSectionText() const override;
+	virtual FText GetSectionDescription() const override;
+
 public:
 
 	/** Enable/Disable the options to emit Dynamic Mesh Actors in Modeling Mode Tools */
@@ -107,9 +117,11 @@ public:
 	DECLARE_MULTICAST_DELEGATE_TwoParams(UModelingToolsEditorModeSettingsModified, UObject*, FProperty*);
 	UModelingToolsEditorModeSettingsModified OnModified;
 
-	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override
 	{
 		OnModified.Broadcast(this, PropertyChangedEvent.Property);
+
+		Super::PostEditChangeProperty(PropertyChangedEvent);
 	}
 
 };

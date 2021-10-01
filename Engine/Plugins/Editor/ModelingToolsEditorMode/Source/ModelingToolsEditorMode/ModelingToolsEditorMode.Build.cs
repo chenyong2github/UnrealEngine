@@ -63,14 +63,13 @@ public class ModelingToolsEditorMode : ModuleRules
 				"MeshModelingToolsEditorOnly",
 				"MeshLODToolset",
 				"ToolWidgets",
-
-                "ViewportInteraction",
-
-				"StylusInput"
+				"EditorWidgets",
+				"StylusInput",
+				"DeveloperSettings"
 
 				// ... add private dependencies that you statically link with here ...	
 			}
-            );
+			);
 		
 		
 		DynamicallyLoadedModuleNames.AddRange(
