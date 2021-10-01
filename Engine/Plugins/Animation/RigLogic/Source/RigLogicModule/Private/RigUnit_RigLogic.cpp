@@ -240,6 +240,7 @@ void FRigUnit_RigLogic_Data::CalculateRigLogic(const URigHierarchy* InHierarchy)
 
 void FRigUnit_RigLogic_Data::UpdateJoints(URigHierarchy* Hierarchy, const FRigUnit_RigLogic_JointUpdateParams& JointUpdateParams)
 {
+	FRigHierarchyValidityBracket ValidityBracket(Hierarchy);
 	for (const uint16 JointIndex : SharedRigRuntimeContext->VariableJointIndices[CurrentLOD].Values)
 	{
 		const int32 BoneIndex = HierarchyBoneIndices[JointIndex];

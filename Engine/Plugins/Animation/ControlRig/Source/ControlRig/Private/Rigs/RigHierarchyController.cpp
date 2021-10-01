@@ -160,21 +160,24 @@ FRigElementKey URigHierarchyController::AddBone(FName InName, FRigElementKey InP
 #endif
 
 	FRigBoneElement* NewElement = new FRigBoneElement();
-	NewElement->Key.Type = ERigElementType::Bone;
-	NewElement->Key.Name = Hierarchy->GetSafeNewName(InName.ToString(), NewElement->Key.Type);
-	NewElement->BoneType = InBoneType;
-	AddElement(NewElement, Hierarchy->Get(Hierarchy->GetIndex(InParent)), true);
-
-	if(bTransformInGlobal)
 	{
-		Hierarchy->SetTransform(NewElement, InTransform, ERigTransformType::InitialGlobal, true, false);
-	}
-	else
-	{
-		Hierarchy->SetTransform(NewElement, InTransform, ERigTransformType::InitialLocal, true, false);
-	}
+		TGuardValue<bool> DisableCacheValidityChecks(Hierarchy->bEnableCacheValidityCheck, false);
+		NewElement->Key.Type = ERigElementType::Bone;
+		NewElement->Key.Name = Hierarchy->GetSafeNewName(InName.ToString(), NewElement->Key.Type);
+		NewElement->BoneType = InBoneType;
+		AddElement(NewElement, Hierarchy->Get(Hierarchy->GetIndex(InParent)), true);
 
-	NewElement->Pose.Current = NewElement->Pose.Initial;
+		if(bTransformInGlobal)
+		{
+			Hierarchy->SetTransform(NewElement, InTransform, ERigTransformType::InitialGlobal, true, false);
+		}
+		else
+		{
+			Hierarchy->SetTransform(NewElement, InTransform, ERigTransformType::InitialLocal, true, false);
+		}
+
+		NewElement->Pose.Current = NewElement->Pose.Initial;
+	}
 
 #if WITH_EDITOR
 	TransactionPtr.Reset();
@@ -194,6 +197,8 @@ FRigElementKey URigHierarchyController::AddBone(FName InName, FRigElementKey InP
 	}
 #endif
 
+	Hierarchy->EnsureCacheValidity();
+		
 	return NewElement->Key;
 }
 
@@ -215,22 +220,25 @@ FRigElementKey URigHierarchyController::AddNull(FName InName, FRigElementKey InP
 #endif
 
 	FRigNullElement* NewElement = new FRigNullElement();
-	NewElement->Key.Type = ERigElementType::Null;
-	NewElement->Key.Name = Hierarchy->GetSafeNewName(InName.ToString(), NewElement->Key.Type);
-	AddElement(NewElement, Hierarchy->Get(Hierarchy->GetIndex(InParent)), false);
-
-	if(bTransformInGlobal)
 	{
-		Hierarchy->SetTransform(NewElement, InTransform, ERigTransformType::InitialGlobal, true, false);
-	}
-	else
-	{
-		Hierarchy->SetTransform(NewElement, InTransform, ERigTransformType::InitialLocal, true, false);
-	}
+		TGuardValue<bool> DisableCacheValidityChecks(Hierarchy->bEnableCacheValidityCheck, false);		
+		NewElement->Key.Type = ERigElementType::Null;
+		NewElement->Key.Name = Hierarchy->GetSafeNewName(InName.ToString(), NewElement->Key.Type);
+		AddElement(NewElement, Hierarchy->Get(Hierarchy->GetIndex(InParent)), false);
 
-	NewElement->Parent.MarkDirty(ERigTransformType::InitialGlobal);
-	NewElement->Parent.Current = NewElement->Parent.Initial;
-	NewElement->Pose.Current = NewElement->Pose.Initial;
+		if(bTransformInGlobal)
+		{
+			Hierarchy->SetTransform(NewElement, InTransform, ERigTransformType::InitialGlobal, true, false);
+		}
+		else
+		{
+			Hierarchy->SetTransform(NewElement, InTransform, ERigTransformType::InitialLocal, true, false);
+		}
+
+		NewElement->Parent.MarkDirty(ERigTransformType::InitialGlobal);
+		NewElement->Parent.Current = NewElement->Parent.Initial;
+		NewElement->Pose.Current = NewElement->Pose.Initial;
+	}
 
 #if WITH_EDITOR
 	TransactionPtr.Reset();
@@ -249,6 +257,8 @@ FRigElementKey URigHierarchyController::AddNull(FName InName, FRigElementKey InP
 		}
 	}
 #endif
+
+	Hierarchy->EnsureCacheValidity();
 
 	return NewElement->Key;
 }
@@ -277,23 +287,26 @@ FRigElementKey URigHierarchyController::AddControl(
 #endif
 
 	FRigControlElement* NewElement = new FRigControlElement();
-	NewElement->Key.Type = ERigElementType::Control;
-	NewElement->Key.Name = Hierarchy->GetSafeNewName(InName.ToString(), NewElement->Key.Type);
-	NewElement->Settings = InSettings;
-	AddElement(NewElement, Hierarchy->Get(Hierarchy->GetIndex(InParent)), false);
-	
-	NewElement->Offset.Set(ERigTransformType::InitialLocal, InOffsetTransform);  
-	NewElement->Gizmo.Set(ERigTransformType::InitialLocal, InGizmoTransform);  
-	Hierarchy->SetControlValue(NewElement, InValue, ERigControlValueType::Initial, false);
+	{
+		TGuardValue<bool> DisableCacheValidityChecks(Hierarchy->bEnableCacheValidityCheck, false);		
+		NewElement->Key.Type = ERigElementType::Control;
+		NewElement->Key.Name = Hierarchy->GetSafeNewName(InName.ToString(), NewElement->Key.Type);
+		NewElement->Settings = InSettings;
+		AddElement(NewElement, Hierarchy->Get(Hierarchy->GetIndex(InParent)), false);
+		
+		NewElement->Offset.Set(ERigTransformType::InitialLocal, InOffsetTransform);  
+		NewElement->Gizmo.Set(ERigTransformType::InitialLocal, InGizmoTransform);  
+		Hierarchy->SetControlValue(NewElement, InValue, ERigControlValueType::Initial, false);
 
-	NewElement->Parent.MarkDirty(ERigTransformType::InitialGlobal);
-	NewElement->Offset.MarkDirty(ERigTransformType::InitialGlobal);
-	NewElement->Pose.MarkDirty(ERigTransformType::InitialGlobal);
-	NewElement->Gizmo.MarkDirty(ERigTransformType::InitialGlobal);
-	NewElement->Parent.Current = NewElement->Parent.Initial;
-	NewElement->Offset.Current = NewElement->Offset.Initial;
-	NewElement->Pose.Current = NewElement->Pose.Initial;
-	NewElement->Gizmo.Current = NewElement->Gizmo.Initial;
+		NewElement->Parent.MarkDirty(ERigTransformType::InitialGlobal);
+		NewElement->Offset.MarkDirty(ERigTransformType::InitialGlobal);
+		NewElement->Pose.MarkDirty(ERigTransformType::InitialGlobal);
+		NewElement->Gizmo.MarkDirty(ERigTransformType::InitialGlobal);
+		NewElement->Parent.Current = NewElement->Parent.Initial;
+		NewElement->Offset.Current = NewElement->Offset.Initial;
+		NewElement->Pose.Current = NewElement->Pose.Initial;
+		NewElement->Gizmo.Current = NewElement->Gizmo.Initial;
+	}
 
 #if WITH_EDITOR
 	TransactionPtr.Reset();
@@ -312,6 +325,8 @@ FRigElementKey URigHierarchyController::AddControl(
 		}
 	}
 #endif
+
+	Hierarchy->EnsureCacheValidity();
 
 	return NewElement->Key;
 }
@@ -333,10 +348,13 @@ FRigElementKey URigHierarchyController::AddCurve(FName InName, float InValue, bo
 #endif
 
 	FRigCurveElement* NewElement = new FRigCurveElement();
-	NewElement->Key.Type = ERigElementType::Curve;
-	NewElement->Key.Name = Hierarchy->GetSafeNewName(InName.ToString(), NewElement->Key.Type);
-	NewElement->Value = InValue;
-	AddElement(NewElement, nullptr, false);
+	{
+		TGuardValue<bool> DisableCacheValidityChecks(Hierarchy->bEnableCacheValidityCheck, false);		
+		NewElement->Key.Type = ERigElementType::Curve;
+		NewElement->Key.Name = Hierarchy->GetSafeNewName(InName.ToString(), NewElement->Key.Type);
+		NewElement->Value = InValue;
+		AddElement(NewElement, nullptr, false);
+	}
 
 #if WITH_EDITOR
 	TransactionPtr.Reset();
@@ -355,6 +373,8 @@ FRigElementKey URigHierarchyController::AddCurve(FName InName, float InValue, bo
 		}
 	}
 #endif
+
+	Hierarchy->EnsureCacheValidity();
 
 	return NewElement->Key;
 }
@@ -377,14 +397,17 @@ FRigElementKey URigHierarchyController::AddRigidBody(FName InName, FRigElementKe
 #endif
 
 	FRigRigidBodyElement* NewElement = new FRigRigidBodyElement();
-	NewElement->Key.Type = ERigElementType::RigidBody;
-	NewElement->Key.Name = Hierarchy->GetSafeNewName(InName.ToString(), NewElement->Key.Type);
-	NewElement->Settings = InSettings;
-	AddElement(NewElement, Hierarchy->Get(Hierarchy->GetIndex(InParent)), true);
+	{
+		TGuardValue<bool> DisableCacheValidityChecks(Hierarchy->bEnableCacheValidityCheck, false);		
+		NewElement->Key.Type = ERigElementType::RigidBody;
+		NewElement->Key.Name = Hierarchy->GetSafeNewName(InName.ToString(), NewElement->Key.Type);
+		NewElement->Settings = InSettings;
+		AddElement(NewElement, Hierarchy->Get(Hierarchy->GetIndex(InParent)), true);
 
-	Hierarchy->SetTransform(NewElement, InLocalTransform, ERigTransformType::InitialLocal, true, false);
-	NewElement->Pose.Current = NewElement->Pose.Initial;
-
+		Hierarchy->SetTransform(NewElement, InLocalTransform, ERigTransformType::InitialLocal, true, false);
+		NewElement->Pose.Current = NewElement->Pose.Initial;
+	}
+	
 #if WITH_EDITOR
 	TransactionPtr.Reset();
 
@@ -402,6 +425,8 @@ FRigElementKey URigHierarchyController::AddRigidBody(FName InName, FRigElementKe
 		}
 	}
 #endif
+
+	Hierarchy->EnsureCacheValidity();
 
 	return NewElement->Key;
 }
@@ -424,17 +449,22 @@ FRigElementKey URigHierarchyController::AddSocket(FName InName, FRigElementKey I
 #endif
 
 	FRigSocketElement* NewElement = new FRigSocketElement();
-	NewElement->Key.Type = ERigElementType::Socket;
-	NewElement->Key.Name = Hierarchy->GetSafeNewName(InName.ToString(), NewElement->Key.Type);
-	NewElement->GetWorldTransformDelegate = InDelegate;
-	AddElement(NewElement, Hierarchy->Get(Hierarchy->GetIndex(InParent)), true);
+	{
+		TGuardValue<bool> DisableCacheValidityChecks(Hierarchy->bEnableCacheValidityCheck, false);		
+		NewElement->Key.Type = ERigElementType::Socket;
+		NewElement->Key.Name = Hierarchy->GetSafeNewName(InName.ToString(), NewElement->Key.Type);
+		NewElement->GetWorldTransformDelegate = InDelegate;
+		AddElement(NewElement, Hierarchy->Get(Hierarchy->GetIndex(InParent)), true);
 
-	Hierarchy->SetTransform(NewElement, FTransform::Identity, ERigTransformType::InitialLocal, true, false);
-	NewElement->Pose.Current = NewElement->Pose.Initial;
+		Hierarchy->SetTransform(NewElement, FTransform::Identity, ERigTransformType::InitialLocal, true, false);
+		NewElement->Pose.Current = NewElement->Pose.Initial;
+	}
 
 #if WITH_EDITOR
 	TransactionPtr.Reset();
 #endif
+
+	Hierarchy->EnsureCacheValidity();
 
 	return NewElement->Key;
 }
@@ -494,6 +524,8 @@ bool URigHierarchyController::SetControlSettings(FRigElementKey InKey, FRigContr
     TransactionPtr.Reset();
 #endif
 
+	Hierarchy->EnsureCacheValidity();
+	
 	return true;
 }
 
@@ -661,6 +693,8 @@ TArray<FRigElementKey> URigHierarchyController::ImportBones(const FReferenceSkel
 		SetSelection(BonesToSelect);
 	}
 
+	Hierarchy->EnsureCacheValidity();
+
 	return AddedBones;
 }
 
@@ -804,6 +838,8 @@ TArray<FRigElementKey> URigHierarchyController::ImportCurves(USkeleton* InSkelet
 		}
 	}
 #endif
+
+	Hierarchy->EnsureCacheValidity();
 
 	return Keys;
 }
@@ -1148,6 +1184,8 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromText(FString InContent
 	}
 #endif
 
+	Hierarchy->EnsureCacheValidity();
+
 	return PastedKeys;
 }
 
@@ -1266,6 +1304,8 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromHierarchyContainer(con
 		}
 	}
 #endif
+
+	Hierarchy->EnsureCacheValidity();
 
 	TArray<FRigElementKey> AddedKeys;
 	KeyMap.GenerateValueArray(AddedKeys);
@@ -1570,7 +1610,7 @@ bool URigHierarchyController::RemoveElement(FRigElementKey InElement, bool bSetu
 		}
 	}
 #endif
-	
+
 	return bRemoved;
 }
 
@@ -1683,6 +1723,8 @@ bool URigHierarchyController::RemoveElement(FRigBaseElement* InElement)
 	}
 
 	delete InElement;
+
+	Hierarchy->EnsureCacheValidity();
 
 	return NumElementsRemoved == 1;
 }
@@ -1942,6 +1984,9 @@ bool URigHierarchyController::AddParent(FRigBaseElement* InChild, FRigBaseElemen
 		}
 
 		Notify(ERigHierarchyNotification::ParentChanged, SingleParentElement);
+		
+		Hierarchy->EnsureCacheValidity();
+		
 		return true;
 	}
 	else if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InChild))
@@ -1977,6 +2022,9 @@ bool URigHierarchyController::AddParent(FRigBaseElement* InChild, FRigBaseElemen
 		}
 
 		Notify(ERigHierarchyNotification::ParentChanged, MultiParentElement);
+
+		Hierarchy->EnsureCacheValidity();
+		
 		return true;
 	}
 	
@@ -2088,6 +2136,8 @@ bool URigHierarchyController::RemoveParent(FRigBaseElement* InChild, FRigBaseEle
 
 			Notify(ERigHierarchyNotification::ParentChanged, SingleParentElement);
 
+			Hierarchy->EnsureCacheValidity();
+			
 			return true;
 		}
 	}
@@ -2159,6 +2209,8 @@ bool URigHierarchyController::RemoveParent(FRigBaseElement* InChild, FRigBaseEle
 
 			Notify(ERigHierarchyNotification::ParentChanged, MultiParentElement);
 
+			Hierarchy->EnsureCacheValidity();
+			
 			return true;
 		}
 	}
@@ -2324,6 +2376,8 @@ TArray<FRigElementKey> URigHierarchyController::DuplicateElements(TArray<FRigEle
 	}
 #endif
 
+	Hierarchy->EnsureCacheValidity();
+	
 	return Result;
 }
 
@@ -2447,6 +2501,8 @@ TArray<FRigElementKey> URigHierarchyController::MirrorElements(TArray<FRigElemen
 		}
 	}
 #endif
+
+	Hierarchy->EnsureCacheValidity();
 	
 	return DuplicatedKeys;
 }
