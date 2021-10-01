@@ -15,7 +15,7 @@ class AMassVisualizer;
 class UHierarchicalInstancedStaticMeshComponent;
 struct FStaticMeshInstanceVisualizationDesc;
 struct FMassInstancedStaticMeshInfo;
-struct FMassHandle_ActorSpawnRequest;
+struct FMassActorSpawnRequestHandle;
 class UMassActorSpawnerSubsystem;
 class UMassAgentComponent;
 class UMassEntitySubsystem;
@@ -66,7 +66,7 @@ public:
 	 * @param ActorPostSpawnDelegate is an optional delegate called once the actor is spawned
 	 * @return The spawned actor from the template actor type if ready
 	 */
-	AActor* GetOrSpawnActorFromTemplate(const FMassHandle MassAgent, const FTransform& Transform, const int16 TemplateActorIndex, FMassHandle_ActorSpawnRequest& SpawnRequestHandle, float Priority = MAX_FLT,
+	AActor* GetOrSpawnActorFromTemplate(const FMassEntityHandle MassAgent, const FTransform& Transform, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, float Priority = MAX_FLT,
 		FMassActorPreSpawnDelegate ActorPreSpawnDelegate = FMassActorPreSpawnDelegate(), FMassActorPostSpawnDelegate ActorPostSpawnDelegate = FMassActorPostSpawnDelegate());
 
 	/**
@@ -76,7 +76,7 @@ public:
 	 * @param SpawnRequestHandle [IN/OUT] previously requested spawn, gets invalidated as a result of this call.
 	 * @return True if spawning request was canceled
 	 */
-	bool CancelSpawning(const FMassHandle MassAgent, const int16 TemplateActorIndex, FMassHandle_ActorSpawnRequest & SpawnRequestHandle);
+	bool CancelSpawning(const FMassEntityHandle MassAgent, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle & SpawnRequestHandle);
 
 	/**
 	 * Release an actor that is matching the TemplateActorIndex
@@ -86,7 +86,7 @@ public:
 	 * @param bImmediate means it needs to be done immediately and not queue for later
 	 * @return True if actor was released
 	 */
-	bool ReleaseTemplateActor(const FMassHandle MassAgent, const int16 TemplateActorIndex, AActor* ActorToRelease, bool bImmediate);
+	bool ReleaseTemplateActor(const FMassEntityHandle MassAgent, const int16 TemplateActorIndex, AActor* ActorToRelease, bool bImmediate);
 
 	/**
 	 * Release an actor or cancel its spawning if it is matching the TemplateActorIndex
@@ -96,7 +96,7 @@ public:
 	 * @param SpawnRequestHandle [IN/OUT] previously requested spawn, gets invalidated as a result of this call.
 	 * @return True if actor was released or spawning request was canceled
 	 */
-	bool ReleaseTemplateActorOrCancelSpawning(const FMassHandle MassAgent, const int16 TemplateActorIndex, AActor* ActorToRelease, FMassHandle_ActorSpawnRequest& SpawnRequestHandle);
+	bool ReleaseTemplateActorOrCancelSpawning(const FMassEntityHandle MassAgent, const int16 TemplateActorIndex, AActor* ActorToRelease, FMassActorSpawnRequestHandle& SpawnRequestHandle);
 
 
 	/**
@@ -129,7 +129,7 @@ protected:
 	void OnMassAgentComponentEntityDetaching(const UMassAgentComponent& AgentComponent);
 
 	bool ReleaseTemplateActorInternal(const int16 TemplateActorIndex, AActor* ActorToRelease, bool bImmediate);
-	bool CancelSpawningInternal(const int16 TemplateActorIndex, FMassHandle_ActorSpawnRequest& SpawnRequestHandle);
+	bool CancelSpawningInternal(const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle);
 
 protected:
 
@@ -162,6 +162,6 @@ protected:
 	float RetryTimeInterval = 10.0f;
 
 	/** Keeping track of all the mass agent this subsystem is responsible for spawning actors */
-	TMap<FMassHandle, int32> HandledMassAgents;
+	TMap<FMassEntityHandle, int32> HandledMassAgents;
 };
 

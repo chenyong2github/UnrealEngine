@@ -22,7 +22,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectRequestID
 	GENERATED_BODY()
 
 	FMassSmartObjectRequestID() = default;
-	FMassSmartObjectRequestID(const FMassEntityHandle& InEntity) : Entity(InEntity) {}
+	FMassSmartObjectRequestID(const FMassEntityHandle InEntity) : Entity(InEntity) {}
 	
 	bool IsSet() const { return Entity.IsSet(); }
 	void Reset() { Entity.Reset(); }

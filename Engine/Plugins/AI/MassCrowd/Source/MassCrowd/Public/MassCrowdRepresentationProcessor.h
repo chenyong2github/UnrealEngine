@@ -49,7 +49,7 @@ protected:
 	 * @param Context of the execution from the entity sub system
 	 * @return the actor spawned
 	 */
-	virtual AActor* GetOrSpawnActor(const FMassHandle MassAgent, FDataFragment_Actor& ActorInfo, const FTransform& Transform, const int16 TemplateActorIndex, FMassHandle_ActorSpawnRequest& SpawnRequestHandle, const float Priority) override;
+	virtual AActor* GetOrSpawnActor(const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, const FTransform& Transform, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, const float Priority) override;
 
 	/**
 	 * Teleports the actor at the specified transform by preserving its velocity and without collision.

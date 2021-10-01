@@ -47,7 +47,7 @@ struct MASSREPRESENTATION_API FMassRepresentationFragment : public FMassFragment
 
 	int16 StaticMeshDescIndex = INDEX_NONE;
 
-	FMassHandle_ActorSpawnRequest ActorSpawnRequestHandle;
+	FMassActorSpawnRequestHandle ActorSpawnRequestHandle;
 
 	FTransform PrevTransform;
 

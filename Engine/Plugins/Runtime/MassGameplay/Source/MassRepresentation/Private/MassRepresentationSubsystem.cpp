@@ -49,7 +49,7 @@ int16 UMassRepresentationSubsystem::FindOrAddTemplateActor(const TSubclassOf<AAc
 	return (int16)VisualIndex;
 }
 
-AActor* UMassRepresentationSubsystem::GetOrSpawnActorFromTemplate(const FMassHandle MassAgent, const FTransform& Transform, const int16 TemplateActorIndex, FMassHandle_ActorSpawnRequest& SpawnRequestHandle, float Priority /*= MAX_FLT*/, 
+AActor* UMassRepresentationSubsystem::GetOrSpawnActorFromTemplate(const FMassEntityHandle MassAgent, const FTransform& Transform, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, float Priority /*= MAX_FLT*/, 
 	FMassActorPreSpawnDelegate ActorPreSpawnDelegate /*= FMassActorPreSpawnDelegate()*/, FMassActorPostSpawnDelegate ActorPostSpawnDelegate /*= FMassActorPostSpawnDelegate()*/)
 {
 	UE_MT_SCOPED_READ_ACCESS(TemplateActorsMTAccessDetector);
@@ -176,7 +176,7 @@ void UMassRepresentationSubsystem::ReleaseAllResources()
 	VisualizationComponent->ClearAllVisualInstances();
 }
 
-bool UMassRepresentationSubsystem::ReleaseTemplateActorOrCancelSpawning(const FMassHandle MassAgent, const int16 TemplateActorIndex, AActor* ActorToRelease, FMassHandle_ActorSpawnRequest& SpawnRequestHandle)
+bool UMassRepresentationSubsystem::ReleaseTemplateActorOrCancelSpawning(const FMassEntityHandle MassAgent, const int16 TemplateActorIndex, AActor* ActorToRelease, FMassActorSpawnRequestHandle& SpawnRequestHandle)
 {
 	// First try to cancel the spawning request, then try to release the actor
 	if( CancelSpawningInternal(TemplateActorIndex, SpawnRequestHandle) ||
@@ -194,7 +194,7 @@ bool UMassRepresentationSubsystem::ReleaseTemplateActorOrCancelSpawning(const FM
 	return false;
 }
 
-bool UMassRepresentationSubsystem::ReleaseTemplateActor(const FMassHandle MassAgent, const int16 TemplateActorIndex, AActor* ActorToRelease, bool bImmediate)
+bool UMassRepresentationSubsystem::ReleaseTemplateActor(const FMassEntityHandle MassAgent, const int16 TemplateActorIndex, AActor* ActorToRelease, bool bImmediate)
 {
 	if (ReleaseTemplateActorInternal(TemplateActorIndex, ActorToRelease, bImmediate))
 	{
@@ -210,7 +210,7 @@ bool UMassRepresentationSubsystem::ReleaseTemplateActor(const FMassHandle MassAg
 	return false;
 }
 
-bool UMassRepresentationSubsystem::CancelSpawning(const FMassHandle MassAgent, const int16 TemplateActorIndex, FMassHandle_ActorSpawnRequest& SpawnRequestHandle)
+bool UMassRepresentationSubsystem::CancelSpawning(const FMassEntityHandle MassAgent, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle)
 {
 	if (CancelSpawningInternal(TemplateActorIndex, SpawnRequestHandle))
 	{
@@ -244,7 +244,7 @@ bool UMassRepresentationSubsystem::ReleaseTemplateActorInternal(const int16 Temp
 	return true;
 }
 
-bool UMassRepresentationSubsystem::CancelSpawningInternal(const int16 TemplateActorIndex, FMassHandle_ActorSpawnRequest& SpawnRequestHandle)
+bool UMassRepresentationSubsystem::CancelSpawningInternal(const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle)
 {
 	UE_MT_SCOPED_READ_ACCESS(TemplateActorsMTAccessDetector);
 	if (!TemplateActors.IsValidIndex(TemplateActorIndex))
@@ -372,9 +372,9 @@ void UMassRepresentationSubsystem::OnMassAgentComponentEntityAssociated(const UM
 {
 	check(EntitySubsystem);
 
-	const FMassHandle MassAgent = AgentComponent.GetEntityHandle();
-	checkf(EntitySubsystem->IsEntityValid(MassAgent.GetLWEntity()), TEXT("Expecting a valid mass entity"));
-	if (EntitySubsystem->IsEntityValid(MassAgent.GetLWEntity()) && AgentComponent.IsNetSimulating())
+	const FMassEntityHandle MassAgent = AgentComponent.GetEntityHandle();
+	checkf(EntitySubsystem->IsEntityValid(MassAgent), TEXT("Expecting a valid mass entity"));
+	if (EntitySubsystem->IsEntityValid(MassAgent) && AgentComponent.IsNetSimulating())
 	{
 		// Check if this mass agent already handled by this sub system, if yes than release any local spawned actor or cancel any spawn requests
 		if (HandledMassAgents.Find(MassAgent))
@@ -391,11 +391,11 @@ void UMassRepresentationSubsystem::OnMassAgentComponentEntityDetaching(const UMa
 	AActor* ComponentOwner = AgentComponent.GetOwner();
 	check(ComponentOwner);
 
-	const FMassHandle MassAgent = AgentComponent.GetEntityHandle();
-	checkf(EntitySubsystem->IsEntityValid(MassAgent.GetLWEntity()), TEXT("Expecting a valid mass entity"));
-	if (EntitySubsystem->IsEntityValid(MassAgent.GetLWEntity()) && AgentComponent.IsNetSimulating())
+	const FMassEntityHandle MassAgent = AgentComponent.GetEntityHandle();
+	checkf(EntitySubsystem->IsEntityValid(MassAgent), TEXT("Expecting a valid mass entity"));
+	if (EntitySubsystem->IsEntityValid(MassAgent) && AgentComponent.IsNetSimulating())
 	{
-		const FMassEntityView EntityView(*EntitySubsystem, MassAgent.GetLWEntity());
+		const FMassEntityView EntityView(*EntitySubsystem, MassAgent);
 		if (FMassRepresentationFragment* Representation = EntityView.GetComponentDataPtr<FMassRepresentationFragment>())
 		{
 			// Force a reevaluate of the current representation

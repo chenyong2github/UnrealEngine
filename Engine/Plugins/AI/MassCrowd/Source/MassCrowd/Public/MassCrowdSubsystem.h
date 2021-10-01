@@ -155,7 +155,7 @@ public:
 	 * @param PreviousLaneHandle Last frame lane handle (can be invalid)
 	 * @param CurrentLaneHandle Current frame lane handle (can be invalid)
 	 */
-	void OnEntityLaneChanged(const FMassEntityHandle& Entity, const FZoneGraphLaneHandle PreviousLaneHandle, const FZoneGraphLaneHandle CurrentLaneHandle);
+	void OnEntityLaneChanged(const FMassEntityHandle Entity, const FZoneGraphLaneHandle PreviousLaneHandle, const FZoneGraphLaneHandle CurrentLaneHandle);
 
 	/** Returns the weight for lane selection that is associated to the given lane based on its density tag. */
 	float GetDensityWeight(const FZoneGraphLaneHandle LaneHandle, const FZoneGraphTagMask LaneTagMask) const;
@@ -193,7 +193,7 @@ protected:
 	 * @param LaneIndex Index of the lane
 	 * @param TrackingData Runtime state associated to the lane
 	 */
-	void OnEnterTrackedLane(const FMassEntityHandle& Entity, const int32 LaneIndex, FCrowdTrackingLaneData& TrackingData);
+	void OnEnterTrackedLane(const FMassEntityHandle Entity, const int32 LaneIndex, FCrowdTrackingLaneData& TrackingData);
 
 	/**
 	 * Callback to keep count of entities currently on a given lane.
@@ -201,7 +201,7 @@ protected:
 	 * @param LaneIndex Index of the lane
 	 * @param TrackingData Runtime state associated to the lane
 	 */
-	void OnExitTrackedLane(const FMassEntityHandle& Entity, const int32 LaneIndex, FCrowdTrackingLaneData& TrackingData);
+	void OnExitTrackedLane(const FMassEntityHandle Entity, const int32 LaneIndex, FCrowdTrackingLaneData& TrackingData);
 
 	/**
 	 * Creates and initializes the occupancy data of a lane.

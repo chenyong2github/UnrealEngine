@@ -54,7 +54,7 @@ protected:
 	 * @param Priority of this spawn request in comparison with the others, lower value means higher priority
 	 * @return the actor spawned
 	 */
-	virtual AActor* GetOrSpawnActor(const FMassHandle MassAgent, FDataFragment_Actor& ActorInfo, const FTransform& Transform, const int16 TemplateActorIndex, FMassHandle_ActorSpawnRequest& SpawnRequestHandle, const float Priority);
+	virtual AActor* GetOrSpawnActor(const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, const FTransform& Transform, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, const float Priority);
 
 	/**
 	 * Release the actor to the subsystem, will only release it the actor or spawn request matches the template actor
@@ -66,7 +66,7 @@ protected:
 	 * @param bCancelSpawningOnly tell to only cancel the existing spawning request and to not release the associated actor it any.
 	 * @return if the actor was release or the spawning was canceled.
 	 */
-	virtual bool ReleaseActorOrCancelSpawning(const FMassHandle MassAgent, FDataFragment_Actor& ActorInfo, const int16 TemplateActorIndex, FMassHandle_ActorSpawnRequest& SpawnRequestHandle, FMassExecutionContext& Context, const bool bCancelSpawningOnly = false);
+	virtual bool ReleaseActorOrCancelSpawning(const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, FMassExecutionContext& Context, const bool bCancelSpawningOnly = false);
 
 	/** 
 	 * Enable/disable a spawned actor
@@ -91,7 +91,7 @@ protected:
 	 * @param SpawnRequestHandle the handle of the spawn request that is about to spawn
 	 * @param SpawnRequest of the actor that is about to spawn
 	 */
-	void OnActorPreSpawn(const FMassHandle_ActorSpawnRequest& SpawnRequestHandle, const FStructView& SpawnRequest);
+	void OnActorPreSpawn(const FMassActorSpawnRequestHandle& SpawnRequestHandle, const FStructView& SpawnRequest);
 
 	/**
 	 * Method that will be bound to a delegate used post-spawn to notify and let the requester configure the actor
@@ -99,14 +99,14 @@ protected:
 	 * @param SpawnRequest of the actor that just spawned
 	 * @return The action to take on the spawn request, either keep it there or remove it.
 	 */
-	EMassActorSpawnRequestAction OnActorPostSpawn(const FMassHandle_ActorSpawnRequest& SpawnRequestHandle, const FStructView& SpawnRequest);
+	EMassActorSpawnRequestAction OnActorPostSpawn(const FMassActorSpawnRequestHandle& SpawnRequestHandle, const FStructView& SpawnRequest);
 
 	/**
 	 * Method called once the spawning of an actor just occurred, give the processors a chance to configure the actor during the spawn time slicing
 	 * @param MassAgent mass entity to the spawn actor
 	 * @param SpawnedActor that was just spawned
 	 */
-	virtual void PostActorSpawned(const FMassHandle MassAgent, AActor& SpawnedActor) {}
+	virtual void PostActorSpawned(const FMassEntityHandle MassAgent, AActor& SpawnedActor) {}
 
 	/**
 	 * Updates chunk visibility info for later chunk logic optimization
@@ -134,7 +134,7 @@ public:
 	 * @param MassAgent is the handle to the associated mass agent
 	 * @return True if actor was release or spawning request was canceled
 	 */
-	static void ReleaseAnyActorOrCancelAnySpawning(UMassRepresentationSubsystem& RepresentationSubsystem, const FMassHandle MassAgent);
+	static void ReleaseAnyActorOrCancelAnySpawning(UMassRepresentationSubsystem& RepresentationSubsystem, const FMassEntityHandle MassAgent);
 
 	/**
 	 * Release an actor or cancel its spawning
@@ -145,7 +145,7 @@ public:
 	 * @param ActorInfo is the fragment where we are going to store the actor pointer
 	 * @param Representation fragment containing the current and previous visual state
 	 */
-	static void ReleaseAnyActorOrCancelAnySpawning(UMassRepresentationSubsystem& RepresentationSubsystem, const FMassHandle MassAgent, FDataFragment_Actor& ActorInfo, FMassRepresentationFragment& Representation);
+	static void ReleaseAnyActorOrCancelAnySpawning(UMassRepresentationSubsystem& RepresentationSubsystem, const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, FMassRepresentationFragment& Representation);
 
 protected:
 

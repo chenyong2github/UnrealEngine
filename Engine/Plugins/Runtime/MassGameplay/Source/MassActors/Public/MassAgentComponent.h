@@ -64,15 +64,15 @@ public:
 	/** @todo to enforce encapsulation we could make this protected and have a UMassAgentSubsystem friend. I'm not sure I like it though. */
 
 	/** Methods handling the state for actors that needs mass entity creation*/
-	FMassHandle GetEntityHandle() const { return AgentHandle; }
-	void SetEntityHandle(FMassHandle NewHandle);
+	FMassEntityHandle GetEntityHandle() const { return AgentHandle; }
+	void SetEntityHandle(const FMassEntityHandle NewHandle);
 	void ClearEntityHandle();
 	void EntityCreationPending();
 	void EntityCreationAborted();
 	bool IsEntityPendingCreation() const { return (State == EAgentComponentState::EntityPendingCreation); }
 
 	/** Methods handling the state of puppet actors that needs fragments initialization */
-	void SetPuppetHandle(FMassHandle NewHandle);
+	void SetPuppetHandle(const FMassEntityHandle NewHandle);
 	void PuppetInitializationPending();
 	void PuppetInitializationDone();
 	void PuppetInitializationAborted();
@@ -91,7 +91,7 @@ public:
 
 	/** Methods handling the state of a server replicated puppet */
 	void PuppetReplicationPending();
-	void SetReplicatedPuppetHandle(FMassHandle NewHandle);
+	void SetReplicatedPuppetHandle(FMassEntityHandle NewHandle);
 	void ClearReplicatedPuppetHandle();
 	void MakePuppetAReplicatedOrphan();
 
@@ -129,7 +129,7 @@ public:
 protected:
 
 	void SwitchToState(EAgentComponentState NewState);
-	void SetEntityHandleInternal(FMassHandle NewHandle);
+	void SetEntityHandleInternal(const FMassEntityHandle NewHandle);
 	void ClearEntityHandleInternal();
 	void DebugCheckStateConsistency();
 
@@ -141,14 +141,8 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Mass")
 	FMassEntityConfig EntityConfig;
-
-#if WITH_EDITORONLY_DATA
-	/** for debugging purposes only. The Entity used at runtime is stored in AgentHandle */
-	UPROPERTY(VisibleAnywhere, Category = "Mass")
-	FMassEntityHandle DebugEntity;
-#endif // WITH_EDITORONLY_DATA
-
-	FMassHandle AgentHandle;
+	
+	FMassEntityHandle AgentHandle;
 	FMassEntityTemplateID TemplateID;
 
 	EAgentComponentState State;

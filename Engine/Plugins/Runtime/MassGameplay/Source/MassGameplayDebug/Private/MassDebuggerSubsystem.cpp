@@ -43,7 +43,7 @@ void UMassDebuggerSubsystem::OnProcessingPhaseStarted(const float DeltaSeconds)
 	PreTickProcessors();
 }
 
-void UMassDebuggerSubsystem::SetSelectedEntity(const FMassEntityHandle& InSelectedEntity)
+void UMassDebuggerSubsystem::SetSelectedEntity(const FMassEntityHandle InSelectedEntity)
 {
 	SelectedEntity = InSelectedEntity;
 	SelectedEntityDetails.Empty();

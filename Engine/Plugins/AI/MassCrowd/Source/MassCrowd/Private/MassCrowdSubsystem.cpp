@@ -364,7 +364,7 @@ const FRegisteredCrowdLaneData* UMassCrowdSubsystem::GetCrowdData(const FZoneGra
 	return &LanesData;
 }
 
-void UMassCrowdSubsystem::OnEntityLaneChanged(const FMassEntityHandle& Entity, const FZoneGraphLaneHandle PreviousLaneHandle, const FZoneGraphLaneHandle CurrentLaneHandle)
+void UMassCrowdSubsystem::OnEntityLaneChanged(const FMassEntityHandle Entity, const FZoneGraphLaneHandle PreviousLaneHandle, const FZoneGraphLaneHandle CurrentLaneHandle)
 {
 	const bool bPreviousLocationValid = PreviousLaneHandle.IsValid();
 	const bool bCurrentLocationValid = CurrentLaneHandle.IsValid();
@@ -544,14 +544,14 @@ void UMassCrowdSubsystem::UpdateDensityMask()
 	}
 }
 
-void UMassCrowdSubsystem::OnEnterTrackedLane(const FMassEntityHandle& Entity, const int32 LaneIndex, FCrowdTrackingLaneData& TrackingData)
+void UMassCrowdSubsystem::OnEnterTrackedLane(const FMassEntityHandle Entity, const int32 LaneIndex, FCrowdTrackingLaneData& TrackingData)
 {
 	++TrackingData.NumEntitiesOnLane;
 
 	UE_VLOG_UELOG(this, LogMassNavigation, Verbose, TEXT("[%s] enters lane %d. Num entities on lane: %d"), *Entity.DebugGetDescription(), LaneIndex, TrackingData.NumEntitiesOnLane);
 }
 
-void UMassCrowdSubsystem::OnExitTrackedLane(const FMassEntityHandle& Entity, const int32 LaneIndex, FCrowdTrackingLaneData& TrackingData)
+void UMassCrowdSubsystem::OnExitTrackedLane(const FMassEntityHandle Entity, const int32 LaneIndex, FCrowdTrackingLaneData& TrackingData)
 {
 	ensureMsgf(TrackingData.NumEntitiesOnLane >= 1, TEXT("OnExitTrackedLane should not be called more often than OnEnterTrackedLane"));
 	--TrackingData.NumEntitiesOnLane;

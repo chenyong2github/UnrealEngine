@@ -136,7 +136,7 @@ void UMassAgentSubsystem::UpdateAgentComponent(const UMassAgentComponent& AgentC
 		return;
 	}
 
-	const FMassEntityHandle Entity = AgentComp.GetEntityHandle().GetLWEntity();
+	const FMassEntityHandle Entity = AgentComp.GetEntityHandle();
 	const FArchetypeHandle CurrentArchetypeHandle = EntitySystem->GetArchetypeForEntity(Entity);
 	if (CurrentArchetypeHandle == EntityTemplate->GetArchetype())
 	{
@@ -178,7 +178,7 @@ void UMassAgentSubsystem::UnregisterAgentComponent(UMassAgentComponent& AgentCom
 		{
 			if (AgentComp.GetPuppetSpecificAddition().IsEmpty() == false)
 			{
-				const FMassEntityHandle Entity = AgentComp.GetEntityHandle().GetLWEntity();
+				const FMassEntityHandle Entity = AgentComp.GetEntityHandle();
 
 			    // remove fragments that have been added for the puppet agent
 			    if (EntitySystem->IsProcessing())
@@ -207,7 +207,7 @@ void UMassAgentSubsystem::UnregisterAgentComponent(UMassAgentComponent& AgentCom
 				EntityTemplate = &EntityConfig.GetEntityTemplateChecked(*AgentActor, AgentComp);
 			}
 
-			FMassEntityHandle Entity = AgentComp.GetEntityHandle().GetLWEntity();
+			FMassEntityHandle Entity = AgentComp.GetEntityHandle();
 			// Clearing the entity before it become invalid as the clear contains notifications
 			AgentComp.ClearEntityHandle();
 
@@ -320,7 +320,7 @@ void UMassAgentSubsystem::HandlePendingInitialization()
 
 		for (int AgentIndex = 0; AgentIndex < Entities.Num(); ++AgentIndex)
 		{		
-			AgentComponents[AgentIndex]->SetEntityHandle(FMassHandle(Entities[AgentIndex]));
+			AgentComponents[AgentIndex]->SetEntityHandle(Entities[AgentIndex]);
 		}
 	}
 
@@ -342,7 +342,7 @@ void UMassAgentSubsystem::HandlePendingInitialization()
 
 		for (UMassAgentComponent* AgentComp : AgentComponents)
 		{
-			const FMassEntityHandle PuppetEntity = AgentComp->GetEntityHandle().GetLWEntity();
+			const FMassEntityHandle PuppetEntity = AgentComp->GetEntityHandle();
 			if (!ensureMsgf(PuppetEntity.IsSet(), TEXT("Trying to initialize puppet's fragments while the pupped doesn't have a corresponding Entity identifier set. This should not happen.")))
 			{
 				continue;
@@ -381,7 +381,7 @@ void UMassAgentSubsystem::NotifyMassAgentComponentReplicated(UMassAgentComponent
 		// If not found, the NotifyMassAgentAddedToReplication will link it later once replicated.
 		if (Entity.IsSet())
 		{
-			AgentComp.SetReplicatedPuppetHandle(FMassHandle(Entity));
+			AgentComp.SetReplicatedPuppetHandle(FMassEntityHandle(Entity));
 			MakePuppet(AgentComp);
 		}
 		else
@@ -410,7 +410,7 @@ void UMassAgentSubsystem::OnMassAgentAddedToReplication(FMassNetworkID NetID, FM
 	{
 		if (UMassAgentComponent** AgentComp = ReplicatedAgentComponents.Find(NetID))
 		{
-			(*AgentComp)->SetReplicatedPuppetHandle(FMassHandle(Entity));
+			(*AgentComp)->SetReplicatedPuppetHandle(FMassEntityHandle(Entity));
 			MakePuppet(**AgentComp);
 		}
 	}

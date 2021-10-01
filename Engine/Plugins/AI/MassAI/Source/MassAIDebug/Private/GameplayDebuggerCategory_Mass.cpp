@@ -101,7 +101,7 @@ void FGameplayDebuggerCategory_Mass::PickEntity(const APlayerController& OwnerPC
 		UMassActorSubsystem* ActorManager = World.GetSubsystem<UMassActorSubsystem>();
 		if (ActorManager != nullptr)
 		{
-			BestActor = ActorManager->GetActorFromHandle(FMassHandle(CachedEntity));
+			BestActor = ActorManager->GetActorFromHandle(FMassEntityHandle(CachedEntity));
 			CachedDebugActor = BestActor;
 		}
 	}
@@ -139,7 +139,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 		UMassAgentComponent* AgentComp = Actor.FindComponentByClass<UMassAgentComponent>();
 		if (AgentComp)
 		{
-			LWEntity = AgentComp->GetEntityHandle().GetLWEntity();
+			LWEntity = AgentComp->GetEntityHandle();
 			if (OutMassAgentComponent)
 			{
 				*OutMassAgentComponent = AgentComp;
@@ -150,7 +150,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 			UMassActorSubsystem* ActorManager = UWorld::GetSubsystem<UMassActorSubsystem>(Actor.GetWorld());
 			if (ActorManager != nullptr)
 			{
-				LWEntity = ActorManager->GetHandleFromActor(&Actor).GetLWEntity();
+				LWEntity = ActorManager->GetEntityHandleFromActor(&Actor);
 			}
 		}
 		return LWEntity;

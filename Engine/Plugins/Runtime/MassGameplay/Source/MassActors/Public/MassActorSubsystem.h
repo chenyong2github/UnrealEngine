@@ -10,7 +10,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "MassActorSubsystem.generated.h"
 
-struct FMassHandle;
+struct FMassEntityHandle;
 class AActor;
 class UMassEntitySubsystem;
 
@@ -28,7 +28,7 @@ struct MASSACTORS_API FDataFragment_Actor : public FDataFragment_ObjectWrapper
 	 * @param InActor the actor associated with the mass agent
 	 * @param bInIsOwnedByMass tell whether the actors was spawned by mass(MassVisualization) or externally(ReplicatedActors)
 	 */
-	void SetAndUpdateHandleMap(const FMassHandle MassAgent, AActor* InActor, const bool bInIsOwnedByMass);
+	void SetAndUpdateHandleMap(const FMassEntityHandle MassAgent, AActor* InActor, const bool bInIsOwnedByMass);
 
 	/** Resets the actor pointed by this fragment, will also keep the map back in MassActorSubsystem up to date */
 	void ResetAndUpdateHandleMap();
@@ -41,7 +41,7 @@ struct MASSACTORS_API FDataFragment_Actor : public FDataFragment_ObjectWrapper
 	 * @param InActor the actor associated with the mass agent
 	 * @param bInIsOwnedByMass tell whether the actors was spawned by mass(MassVisualization) or externally(ReplicatedActors)
 	 */
-	void SetNoHandleMapUpdate(const FMassHandle MassAgent, AActor* InActor, const bool bInIsOwnedByMass);
+	void SetNoHandleMapUpdate(const FMassEntityHandle MassAgent, AActor* InActor, const bool bInIsOwnedByMass);
 
 	/** Resets the actor pointed by this fragment, will NOT keep map back in MassActorSubsystem up to date.
 	 * The user needs to do the map update by hand.
@@ -82,22 +82,22 @@ class MASSACTORS_API UMassActorSubsystem : public UWorldSubsystem
 
 public:
 	/** Get mass handle from an actor */
-	FMassHandle GetHandleFromActor(const TObjectKey<const AActor> Actor);
+	FMassEntityHandle GetEntityHandleFromActor(const TObjectKey<const AActor> Actor);
 
 	/** Set the mass handle associated to an actor */
-	void SetHandleForActor(const TObjectKey<const AActor> Actor, const FMassHandle Handle);
+	void SetHandleForActor(const TObjectKey<const AActor> Actor, const FMassEntityHandle Handle);
 
 	/** Remove entry associated to an actor */
 	void RemoveHandleForActor(const TObjectKey<const AActor> Actor);
 
 	/** Get an actor pointer from a mass handle */
-	AActor* GetActorFromHandle(const FMassHandle Handle) const;
+	AActor* GetActorFromHandle(const FMassEntityHandle Handle) const;
 
 	/** 
 	 *  Removes the connection between Actor and the given entity. Does all the required book keeping 
 	 *  (as opposed to straight up RemoveHandleForActor call). If the Handle doesn't match Actor no action is taken.
 	 */
-	void DisconnectActor(const TObjectKey<const AActor> Actor, const FMassHandle Handle);
+	void DisconnectActor(const TObjectKey<const AActor> Actor, const FMassEntityHandle Handle);
 
 protected:
 	// USubsystem BEGIN
