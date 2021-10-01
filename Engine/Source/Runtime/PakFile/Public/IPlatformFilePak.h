@@ -737,6 +737,8 @@ private:
 	TUniquePtr<class FChunkCacheWorker> Decryptor;
 	/** List of readers and when they were last used. */
 	TArray<FArchiveAndLastAccessTime> Readers;
+	/** How many readers have been loaned out and not yet returned. If this is >0 we should not destroy the decryptor. */
+	int32 CurrentlyUsedReaders = 0;
 	/** Critical section for accessing Readers. */
 	FCriticalSection CriticalSection;
 	/** Pak file info (trailer). */
