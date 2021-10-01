@@ -16,8 +16,8 @@ void FAssetTypeActions_MassSchematic::OpenAssetEditor(const TArray<UObject*>& In
 	{
 		if (UMassSchematic* Pipe = Cast<UMassSchematic>(*ObjIt))
 		{
-			FPipeEditorModule& EditorModule = FModuleManager::LoadModuleChecked<FPipeEditorModule>("PipeEditor");
-			TSharedRef<IPipeEditor> NewEditor = EditorModule.CreatePipeEditor(Mode, EditWithinLevelEditor, Pipe);
+			FMassEntityEditorModule& EditorModule = FModuleManager::LoadModuleChecked<FMassEntityEditorModule>("MassEntityEditor");
+			TSharedRef<IMassEntityEditor> NewEditor = EditorModule.CreateMassEntityEditor(Mode, EditWithinLevelEditor, Pipe);
 		}
 	}
 }

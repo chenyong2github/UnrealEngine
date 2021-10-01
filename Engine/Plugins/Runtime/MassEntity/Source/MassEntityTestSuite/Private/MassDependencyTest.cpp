@@ -6,7 +6,7 @@
 #include "MassProcessorDependencySolver.h"
 #include "MassEntityTestTypes.h"
 
-#define LOCTEXT_NAMESPACE "PipeTest"
+#define LOCTEXT_NAMESPACE "MassTest"
 
 PRAGMA_DISABLE_OPTIMIZATION
 
@@ -68,7 +68,7 @@ struct FTrivialDependency : FDependencySolverBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FTrivialDependency, "System.Pipe.Dependencies.Trivial");
+IMPLEMENT_AI_INSTANT_TEST(FTrivialDependency, "System.Mass.Dependencies.Trivial");
 
 
 struct FDeepGroup : FDependencySolverBase
@@ -108,7 +108,7 @@ struct FDeepGroup : FDependencySolverBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FDeepGroup, "System.Pipe.Dependencies.DeepGroup");
+IMPLEMENT_AI_INSTANT_TEST(FDeepGroup, "System.Mass.Dependencies.DeepGroup");
 
 struct FComplexScenario : FDependencySolverBase
 {
@@ -170,7 +170,7 @@ struct FComplexScenario : FDependencySolverBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FComplexScenario, "System.Pipe.Dependencies.Complex");
+IMPLEMENT_AI_INSTANT_TEST(FComplexScenario, "System.Mass.Dependencies.Complex");
 
 
 struct FBadInput_Empty : FDependencySolverBase
@@ -182,7 +182,7 @@ struct FBadInput_Empty : FDependencySolverBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FBadInput_Empty, "System.Pipe.Dependencies.BadInput.Empty");
+IMPLEMENT_AI_INSTANT_TEST(FBadInput_Empty, "System.Mass.Dependencies.BadInput.Empty");
 
 struct FBadInput_Null : FDependencySolverBase
 {
@@ -196,7 +196,7 @@ struct FBadInput_Null : FDependencySolverBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FBadInput_Null, "System.Pipe.Dependencies.BadInput.SingleNull");
+IMPLEMENT_AI_INSTANT_TEST(FBadInput_Null, "System.Mass.Dependencies.BadInput.SingleNull");
 
 struct FBadInput_MultipleNulls : FDependencySolverBase
 {
@@ -212,7 +212,7 @@ struct FBadInput_MultipleNulls : FDependencySolverBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FBadInput_MultipleNulls, "System.Pipe.Dependencies.BadInput.MultipleNulls");
+IMPLEMENT_AI_INSTANT_TEST(FBadInput_MultipleNulls, "System.Mass.Dependencies.BadInput.MultipleNulls");
 
 struct FBadInput_MixedNulls : FDependencySolverBase
 {
@@ -229,7 +229,7 @@ struct FBadInput_MixedNulls : FDependencySolverBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FBadInput_MixedNulls, "System.Pipe.Dependencies.BadInput.NullsMixedIn");
+IMPLEMENT_AI_INSTANT_TEST(FBadInput_MixedNulls, "System.Mass.Dependencies.BadInput.NullsMixedIn");
 
 struct FBadInput_Duplicates : FDependencySolverBase
 {
@@ -245,7 +245,7 @@ struct FBadInput_Duplicates : FDependencySolverBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FBadInput_Duplicates, "System.Pipe.Dependencies.BadInput.Duplicates");
+IMPLEMENT_AI_INSTANT_TEST(FBadInput_Duplicates, "System.Mass.Dependencies.BadInput.Duplicates");
 
 struct FGroupNamesGeneration : FAITestBase
 {
@@ -275,7 +275,7 @@ struct FGroupNamesGeneration : FAITestBase
 	}
 };
 
-IMPLEMENT_AI_INSTANT_TEST(FGroupNamesGeneration, "System.Pipe.Dependencies.SubgroupNames");
+IMPLEMENT_AI_INSTANT_TEST(FGroupNamesGeneration, "System.Mass.Dependencies.SubgroupNames");
 
 // tests to add:
 // * handling missing dependencies

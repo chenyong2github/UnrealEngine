@@ -12,16 +12,16 @@
 #include "MassProcessor.h"
 
 
-#define LOCTEXT_NAMESPACE "PipeEditor"
+#define LOCTEXT_NAMESPACE "MassEntityEditor"
 
-IMPLEMENT_MODULE(FPipeEditorModule, PipeEditor)
+IMPLEMENT_MODULE(FMassEntityEditorModule, MassEntityEditor)
 
-void FPipeEditorModule::StartupModule()
+void FMassEntityEditorModule::StartupModule()
 {
 	MenuExtensibilityManager = MakeShareable(new FExtensibilityManager);
 	ToolBarExtensibilityManager = MakeShareable(new FExtensibilityManager);
 
-	FPipeEditorStyle::Initialize();
+	FMassEntityEditorStyle::Initialize();
 
 	// Register asset types
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
@@ -36,13 +36,13 @@ void FPipeEditorModule::StartupModule()
 	PropertyModule.NotifyCustomizationModuleChanged();
 }
 
-void FPipeEditorModule::ShutdownModule()
+void FMassEntityEditorModule::ShutdownModule()
 {
 	ProcessorClassCache.Reset();
 	MenuExtensibilityManager.Reset();
 	ToolBarExtensibilityManager.Reset();
 
-	FPipeEditorStyle::Shutdown();
+	FMassEntityEditorStyle::Shutdown();
 
 	// Unregister the data asset type actions
 	if (FModuleManager::Get().IsModuleLoaded("AssetTools"))
@@ -67,7 +67,7 @@ void FPipeEditorModule::ShutdownModule()
 	}
 }
 
-TSharedRef<IPipeEditor> FPipeEditorModule::CreatePipeEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UMassSchematic* MassSchematic)
+TSharedRef<IMassEntityEditor> FMassEntityEditorModule::CreateMassEntityEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UMassSchematic* MassSchematic)
 {
 	if (!ProcessorClassCache.IsValid())
 	{
@@ -75,7 +75,7 @@ TSharedRef<IPipeEditor> FPipeEditorModule::CreatePipeEditor(const EToolkitMode::
 		ProcessorClassCache->UpdateAvailableBlueprintClasses();
 	}
 
-	TSharedRef<FPipeEditor> NewEditor(new FPipeEditor());
+	TSharedRef<FMassEntityEditor> NewEditor(new FMassEntityEditor());
 	if (ensure(MassSchematic))
 	{
 		NewEditor->InitEditor(Mode, InitToolkitHost, *MassSchematic);

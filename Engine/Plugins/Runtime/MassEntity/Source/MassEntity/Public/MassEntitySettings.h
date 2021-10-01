@@ -46,7 +46,7 @@ struct FMassProcessingPhaseConfig
 /**
  * Implements the settings for MassSimulation
  */
-UCLASS(config = Game, defaultconfig, DisplayName = "Pipe")
+UCLASS(config = Game, defaultconfig, DisplayName = "Mass")
 class MASSENTITY_API UMassSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()

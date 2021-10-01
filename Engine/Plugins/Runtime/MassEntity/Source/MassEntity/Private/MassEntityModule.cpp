@@ -8,9 +8,9 @@
 #include "Logging/MessageLog.h"
 #endif // WITH_UNREAL_DEVELOPER_TOOLS
 
-#define LOCTEXT_NAMESPACE "Pipe"
+#define LOCTEXT_NAMESPACE "Mass"
 
-class FPipeModuleModule : public IPipeModule
+class FMassEntityModuleModule : public IMassEntityModule
 {
 	/** IModuleInterface implementation */
 	virtual void StartupModule() override;
@@ -21,10 +21,10 @@ class FPipeModuleModule : public IPipeModule
 #endif // WITH_UNREAL_DEVELOPER_TOOLS
 };
 
-IMPLEMENT_MODULE(FPipeModuleModule, Pipe)
+IMPLEMENT_MODULE(FMassEntityModuleModule, MassEntity)
 
 
-void FPipeModuleModule::StartupModule()
+void FMassEntityModuleModule::StartupModule()
 {
 	// This code will execute after your module is loaded into memory (but after global variables are initialized, of course.)
 
@@ -34,15 +34,15 @@ void FPipeModuleModule::StartupModule()
 		FMessageLogInitializationOptions InitOptions;
 		InitOptions.bShowPages = true;
 		InitOptions.bShowFilters = true;
-		MessageLogModule.RegisterLogListing("Pipe", LOCTEXT("Pipe", "Pipe"), InitOptions);
+		MessageLogModule.RegisterLogListing("MassEntity", LOCTEXT("MassEntity", "MassEntity"), InitOptions);
 
-		OnWorldCleanupHandle = FWorldDelegates::OnWorldCleanup.AddStatic(&FPipeModuleModule::OnWorldCleanup);
+		OnWorldCleanupHandle = FWorldDelegates::OnWorldCleanup.AddStatic(&FMassEntityModuleModule::OnWorldCleanup);
 	}
 #endif // WITH_UNREAL_DEVELOPER_TOOLS
 }
 
 
-void FPipeModuleModule::ShutdownModule()
+void FMassEntityModuleModule::ShutdownModule()
 {
 	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
 	// we call this function before unloading the module.
@@ -52,10 +52,10 @@ void FPipeModuleModule::ShutdownModule()
 }
 
 #if WITH_UNREAL_DEVELOPER_TOOLS
-void FPipeModuleModule::OnWorldCleanup(UWorld* /*World*/, bool /*bSessionEnded*/, bool /*bCleanupResources*/)
+void FMassEntityModuleModule::OnWorldCleanup(UWorld* /*World*/, bool /*bSessionEnded*/, bool /*bCleanupResources*/)
 {
 	// clearing out messages from the world being cleaned up
-	FMessageLog("Pipe").NewPage(FText::FromString(TEXT("Pipe")));
+	FMessageLog("MassEntity").NewPage(FText::FromString(TEXT("MassEntity")));
 }
 #endif // WITH_UNREAL_DEVELOPER_TOOLS
 

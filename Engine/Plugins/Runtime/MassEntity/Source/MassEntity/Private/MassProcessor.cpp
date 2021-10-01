@@ -30,7 +30,7 @@ namespace UE::Mass::Debug
 
 // change to && 1 to enable more detailed processing tasks logging
 #if WITH_MASSENTITY_DEBUG && 0
-#define PROCESSOR_LOG(Fmt, ...) UE_LOG(LogPipe, Log, Fmt, ##__VA_ARGS__)
+#define PROCESSOR_LOG(Fmt, ...) UE_LOG(LogMass, Log, Fmt, ##__VA_ARGS__)
 #else // WITH_MASSENTITY_DEBUG
 #define PROCESSOR_LOG(...) 
 #endif // WITH_MASSENTITY_DEBUG

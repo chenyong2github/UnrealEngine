@@ -5,6 +5,9 @@
 #include "ScriptStructTypeBitSet.h"
 #include "MassEntityTypes.generated.h"
 
+
+MASSENTITY_API DECLARE_LOG_CATEGORY_EXTERN(LogMass, Warning, All);
+
 // This is the base class for all lightweight components
 USTRUCT()
 struct FMassFragment
@@ -41,10 +44,10 @@ struct FMassEntityHandle
 
 	FMassEntityHandle() {}
 	
-	UPROPERTY(VisibleAnywhere, Category = "AggregateTicking|Debug", Transient)
+	UPROPERTY(VisibleAnywhere, Category = "Mass|Debug", Transient)
 	int32 Index = 0;
 	
-	UPROPERTY(VisibleAnywhere, Category = "AggregateTicking|Debug", Transient)
+	UPROPERTY(VisibleAnywhere, Category = "Mass|Debug", Transient)
 	int32 SerialNumber = 0;
 
 	bool operator==(const FMassEntityHandle Other) const

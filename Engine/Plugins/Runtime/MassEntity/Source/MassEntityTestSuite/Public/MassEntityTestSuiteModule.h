@@ -8,7 +8,7 @@
 /**
 * The public interface to this module
 */
-class IPipeTestSuiteModule : public IModuleInterface
+class IMassEntityTestSuiteModule : public IModuleInterface
 {
 
 public:
@@ -19,9 +19,9 @@ public:
 	*
 	* @return Returns singleton instance, loading the module on demand if needed
 	*/
-	static inline IPipeTestSuiteModule& Get()
+	static inline IMassEntityTestSuiteModule& Get()
 	{
-		return FModuleManager::LoadModuleChecked<IPipeTestSuiteModule>("PipeTestSuite");
+		return FModuleManager::LoadModuleChecked<IMassEntityTestSuiteModule>("MassEntityTestSuite");
 	}
 
 	/**
@@ -31,7 +31,7 @@ public:
 	*/
 	static inline bool IsAvailable()
 	{
-		return FModuleManager::Get().IsModuleLoaded("PipeTestSuite");
+		return FModuleManager::Get().IsModuleLoaded("MassEntityTestSuite");
 	}
 };
 

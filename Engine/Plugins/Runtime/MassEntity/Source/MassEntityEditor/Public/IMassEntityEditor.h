@@ -7,7 +7,7 @@
 
 
 /** Pipe Editor public interface */
-class MASSENTITYEDITOR_API IPipeEditor : public FAssetEditorToolkit
+class MASSENTITYEDITOR_API IMassEntityEditor : public FAssetEditorToolkit
 {
 public:
 };

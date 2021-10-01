@@ -5,8 +5,6 @@
 #include "MassCommonTypes.h"
 
 
-DEFINE_LOG_CATEGORY(LogMass);
-
 class FMassCommonModule : public IMassCommonModule
 {
 	/** IModuleInterface implementation */

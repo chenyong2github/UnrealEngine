@@ -2,12 +2,12 @@
 
 #include "MassEntityTestSuiteModule.h"
 
-#define LOCTEXT_NAMESPACE "PipeTestSuite"
+#define LOCTEXT_NAMESPACE "MassTest"
 
-class FPipeTestSuiteModule : public IPipeTestSuiteModule
+class FMassEntityTestSuiteModule : public IMassEntityTestSuiteModule
 {
 };
 
-IMPLEMENT_MODULE(FPipeTestSuiteModule, PipeTestSuite)
+IMPLEMENT_MODULE(FMassEntityTestSuiteModule, MassEntityTestSuite)
 
 #undef LOCTEXT_NAMESPACE

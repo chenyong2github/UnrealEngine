@@ -9,7 +9,7 @@
 #include "MassEntityTestTypes.h"
 #include "MassExecutor.h"
 
-#define LOCTEXT_NAMESPACE "PipeTest"
+#define LOCTEXT_NAMESPACE "MassTest"
 
 PRAGMA_DISABLE_OPTIMIZATION
 

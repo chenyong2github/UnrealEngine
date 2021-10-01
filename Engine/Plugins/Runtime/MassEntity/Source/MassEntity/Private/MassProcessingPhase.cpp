@@ -155,7 +155,7 @@ void UMassProcessingPhaseManager::InitializePhases(UObject& InProcessorOwner)
 
 #if WITH_MASSENTITY_DEBUG
 	// print it all out to vislog
-	UE_VLOG_UELOG(this, LogPipe, Verbose, TEXT("Phases initialization done. Current composition:"));
+	UE_VLOG_UELOG(this, LogMass, Verbose, TEXT("Phases initialization done. Current composition:"));
 
 	FStringOutputDevice OutDescription;
 	for (int i = 0; i < int(EMassProcessingPhase::MAX); ++i)
@@ -163,7 +163,7 @@ void UMassProcessingPhaseManager::InitializePhases(UObject& InProcessorOwner)
 		if (ProcessingPhases[i].PhaseProcessor)
 		{
 			ProcessingPhases[i].PhaseProcessor->DebugOutputDescription(OutDescription);
-			UE_VLOG_UELOG(this, LogPipe, Verbose, TEXT("--- %s"), *OutDescription);
+			UE_VLOG_UELOG(this, LogMass, Verbose, TEXT("--- %s"), *OutDescription);
 			OutDescription.Reset();
 		}
 	}	
@@ -180,7 +180,7 @@ void UMassProcessingPhaseManager::Start(UWorld& World)
 	}
 	else
 	{
-		UE_VLOG_UELOG(this, LogPipe, Error, TEXT("Called %s while missing the EntitySubsystem"), ANSI_TO_TCHAR(__FUNCTION__));
+		UE_VLOG_UELOG(this, LogMass, Error, TEXT("Called %s while missing the EntitySubsystem"), ANSI_TO_TCHAR(__FUNCTION__));
 	}
 }
 
@@ -201,7 +201,7 @@ void UMassProcessingPhaseManager::EnableTickFunctions(const UWorld& World)
 		Phase.RegisterTickFunction(World.PersistentLevel);
 		Phase.SetTickFunctionEnable(true);
 	}
-	UE_VLOG_UELOG(this, LogPipe, Log, TEXT("UPipeTickManager %s.%s has been started")
+	UE_VLOG_UELOG(this, LogMass, Log, TEXT("UPipeTickManager %s.%s has been started")
 		, *GetNameSafe(GetOuter()), *GetName());
 }
 
@@ -214,7 +214,7 @@ void UMassProcessingPhaseManager::Stop()
 		Phase.SetTickFunctionEnable(false);
 	}
 
-	UE_VLOG_UELOG(this, LogPipe, Log, TEXT("UPipeTickManager %s.%s has been stopped")
+	UE_VLOG_UELOG(this, LogMass, Log, TEXT("UPipeTickManager %s.%s has been stopped")
 		, *GetNameSafe(GetOuter()), *GetName());
 }
 

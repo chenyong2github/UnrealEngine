@@ -10,10 +10,10 @@ void UMassSimulationSettings::PostInitProperties()
 {
 	Super::PostInitProperties();
 
-	FPipeEditorModule* PipeEditorModule = FModuleManager::GetModulePtr<FPipeEditorModule>("MassEntityEditor");
-	if (PipeEditorModule)
+	FMassEntityEditorModule* MassEntityEditorModule = FModuleManager::GetModulePtr<FMassEntityEditorModule>("MassEntityEditor");
+	if (MassEntityEditorModule)
 	{
-		PipeEditorModule->GetOnAssetPropertiesChanged().AddUObject(this, &UMassSimulationSettings::OnAssetPropertiesChanged);
+		MassEntityEditorModule->GetOnAssetPropertiesChanged().AddUObject(this, &UMassSimulationSettings::OnAssetPropertiesChanged);
 	}
 }
 

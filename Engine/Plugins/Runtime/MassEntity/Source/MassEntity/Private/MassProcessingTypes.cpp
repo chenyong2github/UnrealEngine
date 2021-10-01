@@ -8,7 +8,7 @@
 #include "VisualLogger/VisualLogger.h"
 #include "MassEntityDebug.h"
 
-DEFINE_LOG_CATEGORY(LogPipe);
+DEFINE_LOG_CATEGORY(LogMass);
 
 //----------------------------------------------------------------------//
 //  FMassProcessingContext
@@ -58,7 +58,7 @@ void FMassRuntimePipeline::InitializeFromSchematics(TConstArrayView<TSoftObjectP
 		}
 		else
 		{
-			UE_LOG(LogPipe, Error, TEXT("Unable to resolve MassSchematic %s while creating FMassRuntimePipeline"), *Schematic.GetLongPackageName());
+			UE_LOG(LogMass, Error, TEXT("Unable to resolve MassSchematic %s while creating FMassRuntimePipeline"), *Schematic.GetLongPackageName());
 		}
 	}
 
@@ -96,7 +96,7 @@ void FMassRuntimePipeline::InitializeFromClassArray(TConstArrayView<TSubclassOf<
 			}
 			else
 			{
-				UE_CVLOG(CDO, &InOwner, LogPipe, Log, TEXT("Skipping %s due to ExecutionFlags"), *CDO->GetName());
+				UE_CVLOG(CDO, &InOwner, LogMass, Log, TEXT("Skipping %s due to ExecutionFlags"), *CDO->GetName());
 			}
 		}
 	}
@@ -130,11 +130,11 @@ void FMassRuntimePipeline::AppendUniqueRuntimeProcessorCopies(TConstArrayView<co
 		{
 			if (Proc->ShouldExecute(WorldExecutionFlags) == false)
 			{
-				UE_VLOG(&InOwner, LogPipe, Log, TEXT("Skipping %s due to ExecutionFlags"), *Proc->GetName());
+				UE_VLOG(&InOwner, LogMass, Log, TEXT("Skipping %s due to ExecutionFlags"), *Proc->GetName());
 			}
 			else if (Proc->AllowDuplicates() == false)
 			{
-				UE_VLOG(&InOwner, LogPipe, Log, TEXT("Skipping %s due to it being a duplicate"), *Proc->GetName());
+				UE_VLOG(&InOwner, LogMass, Log, TEXT("Skipping %s due to it being a duplicate"), *Proc->GetName());
 			}
 		}
 #endif // WITH_MASSENTITY_DEBUG
@@ -186,7 +186,7 @@ void FMassRuntimePipeline::AppendOrOverrideRuntimeProcessorCopies(TConstArrayVie
 		}
 		else
 		{
-			UE_CVLOG(Proc, &InOwner, LogPipe, Log, TEXT("Skipping %s due to ExecutionFlags"), *Proc->GetName());
+			UE_CVLOG(Proc, &InOwner, LogMass, Log, TEXT("Skipping %s due to ExecutionFlags"), *Proc->GetName());
 		}
 	}
 }
