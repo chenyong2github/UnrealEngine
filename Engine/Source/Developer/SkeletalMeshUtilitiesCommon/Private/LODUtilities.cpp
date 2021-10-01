@@ -1858,6 +1858,19 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	TSortedMap<uint32, VertexMatchNameSpace::FVertexMatchResult> VertexIndexSrcToVertexIndexDestMatches;
 	VertexIndexSrcToVertexIndexDestMatches.Reserve(VertexNumberSrc);
 	TArray<uint32> VertexIndexToMatchWithPositions;
+
+	auto FindWedgeIndexesUsingVertexIndex = [](const FSkeletalMeshImportData& ImportData, const int32 VertexIndex, TArray<int32>& OutWedgeIndexes)
+	{
+		for (int32 WedgeIndex = 0; WedgeIndex < ImportData.Wedges.Num(); ++WedgeIndex)
+		{
+			const SkeletalMeshImportData::FVertex& Wedge = ImportData.Wedges[WedgeIndex];
+			if (Wedge.VertexIndex == VertexIndex)
+			{
+				OutWedgeIndexes.Add(WedgeIndex);
+			}
+		}
+	};
+
 	// Match all source vertex with destination vertex
 	for (int32 VertexIndexSrc = 0; VertexIndexSrc < PointNumberSrc; ++VertexIndexSrc)
 	{
@@ -1875,10 +1888,46 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 		{
 			//We have a direct match
 			VertexMatchNameSpace::FVertexMatchResult& VertexMatchDest = VertexIndexSrcToVertexIndexDestMatches.Add(VertexIndexSrc);
+
+			TArray<int32> SrcWedgeIndexes;
+			FindWedgeIndexesUsingVertexIndex(ImportDataSrc, VertexIndexSrc, SrcWedgeIndexes);
+
+			//Check if we have a point that is perfectly matching (position, UV, material and vertex color). Because normals and tangent are on the triangles we do not test those.
 			for (int32 MatchDestinationIndex = 0; MatchDestinationIndex < SimilarDestinationVertex.Num(); ++MatchDestinationIndex)
 			{
-				VertexMatchDest.VertexIndexes.Add(SimilarDestinationVertex[MatchDestinationIndex]);
-				VertexMatchDest.Ratios.Add(1.0f);
+				int32 VertexIndexDest = SimilarDestinationVertex[MatchDestinationIndex];
+				TArray<int32> DestWedgeIndexes;
+				FindWedgeIndexesUsingVertexIndex(ImportDataDest, VertexIndexDest, DestWedgeIndexes);
+				for (int32 IndexDest = 0; IndexDest < DestWedgeIndexes.Num(); ++IndexDest)
+				{
+					int32 DestWedgeIndex = DestWedgeIndexes[IndexDest];
+					const SkeletalMeshImportData::FVertex& WedgeDest = ImportDataDest.Wedges[DestWedgeIndex];
+					for (int32 IndexSrc = 0; IndexSrc < SrcWedgeIndexes.Num(); ++IndexSrc)
+					{
+						int32 SrcWedgeIndex = SrcWedgeIndexes[IndexSrc];
+						const SkeletalMeshImportData::FVertex& WedgeSrc = ImportDataSrc.Wedges[SrcWedgeIndex];
+						//Wedge == operator test: material, vertex color and UVs
+						if (WedgeDest == WedgeSrc)
+						{
+							VertexMatchDest.VertexIndexes.Add(SimilarDestinationVertex[MatchDestinationIndex]);
+							VertexMatchDest.Ratios.Add(1.0f);
+							break;
+						}
+					}
+					if (VertexMatchDest.VertexIndexes.Num() > 0)
+					{
+						break;
+					}
+				}
+			}
+			//If there is no direct match, simply put everything
+			if (VertexMatchDest.VertexIndexes.Num() == 0)
+			{
+				for (int32 MatchDestinationIndex = 0; MatchDestinationIndex < SimilarDestinationVertex.Num(); ++MatchDestinationIndex)
+				{
+					VertexMatchDest.VertexIndexes.Add(SimilarDestinationVertex[MatchDestinationIndex]);
+					VertexMatchDest.Ratios.Add(1.0f);
+				}
 			}
 		}
 	}
