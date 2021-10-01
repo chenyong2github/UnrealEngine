@@ -522,9 +522,7 @@ function setupWebRtcPlayer(htmlElement, config) {
             if (shouldShowPlayOverlay) {
                 showPlayOverlay();
                 resizePlayerStyle();
-            } else {
-                playVideoStream();
-            }
+            } 
         }
     };
 
