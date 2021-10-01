@@ -181,7 +181,7 @@ void FVTUploadTileAllocator::FStagingBuffer::Init(uint32 InBufferStrideBytes, ui
 		TileFreeList[Index] = NumTiles - Index - 1;
 	}
 
-	if (GRHISupportsDirectGPUMemoryLock)
+	if (GRHISupportsDirectGPUMemoryLock && GRHISupportsUpdateFromBufferTexture)
 	{
 		// Allocate staging buffer directly in GPU memory.
 		checkSlow(IsInRenderingThread());
