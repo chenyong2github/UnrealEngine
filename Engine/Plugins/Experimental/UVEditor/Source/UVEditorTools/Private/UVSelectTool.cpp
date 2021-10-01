@@ -739,6 +739,11 @@ void UUVSelectTool::Render(IToolsContextRenderAPI* RenderAPI)
 	SelectionMechanic->Render(RenderAPI);
 }
 
+void UUVSelectTool::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
+{
+	SelectionMechanic->DrawHUD(Canvas, RenderAPI);
+}
+
 void UUVSelectTool::OnTick(float DeltaTime)
 {
 	ApplyGizmoTransform();
