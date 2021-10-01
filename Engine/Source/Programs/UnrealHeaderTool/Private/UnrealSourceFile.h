@@ -8,6 +8,7 @@
 #include "HeaderProvider.h"
 #include "UnrealTypeDefinitionInfo.h"
 #include "GeneratedCodeVersion.h"
+#include <atomic>
 
 class UPackage;
 class FArchive;
@@ -476,6 +477,22 @@ public:
 		return bIsNoExportTypes;
 	}
 
+	/**
+	 * Return true if the source has completed parsing 
+	 */
+	bool IsParsed() const
+	{
+		return bParsed.load();
+	}
+
+	/**
+	 * Mark the source as completed parsing
+	 */
+	void MarkParsed() 
+	{
+		bParsed.store(false);
+	}
+
 private:
 
 	// File scope.
@@ -531,6 +548,9 @@ private:
 
 	// True if this is the NoExportTypes.h file
 	bool bIsNoExportTypes = false;
+
+	// True if this source file has completed parsing
+	std::atomic<bool> bParsed = false;
 
 	// Current topological sort state
 	ETopologicalState TopologicalState = ETopologicalState::Unmarked;

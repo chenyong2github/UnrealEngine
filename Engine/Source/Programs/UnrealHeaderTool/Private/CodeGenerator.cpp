@@ -64,6 +64,7 @@
 
 #include "UObject/WeakFieldPtr.h"
 #include "Templates/SubclassOf.h"
+#include <atomic>
 
 /////////////////////////////////////////////////////
 // Globals
@@ -87,6 +88,13 @@ static FGraphEventArray GAsyncFileTasks;
 FUnrealClassDefinitionInfo* GUObjectDef = nullptr;
 FUnrealClassDefinitionInfo* GUClassDef = nullptr;
 FUnrealClassDefinitionInfo* GUInterfaceDef = nullptr;
+
+// Busy wait support for holes in the include graph issues
+std::atomic<bool> GSourcesConcurrent = false;
+std::atomic<int> GSourcesToParse = 0;
+std::atomic<int> GSourcesParsing = 0;
+std::atomic<int> GSourcesCompleted = 0;
+std::atomic<int> GSourcesStalled = 0;
 
 struct FFindDelcarationResults
 {
@@ -6861,7 +6869,10 @@ void ParseSourceFiles(TArray<FUnrealSourceFile*>& OrderedSourceFiles)
 	// Disable loading of objects outside of this package (or more exactly, objects which aren't UFields, CDO, or templates)
 	TGuardValue<bool> AutoRestoreVerifyObjectRefsFlag(GVerifyObjectReferencesOnly, true);
 
+	GSourcesToParse = (int)OrderedSourceFiles.Num();
+	GSourcesConcurrent = UHT_ENABLE_CONCURRENT_PARSING != 0;
 #if UHT_ENABLE_CONCURRENT_PARSING
+
 	/**
 	 * For every FUnrealSourceFile being processed, an instance of this class represents the data associated with generating the new output.
 	 */
@@ -6911,10 +6922,12 @@ void ParseSourceFiles(TArray<FUnrealSourceFile*>& OrderedSourceFiles)
 
 		auto ParseSource = [&ParsedCPP]()
 		{
+			++GSourcesParsing;
 			FResults::TryAlways([&ParsedCPP]()
 			{
 				FHeaderParser::Parse(ParsedCPP.PackageDef, ParsedCPP.SourceFile);
 			});
+			++GSourcesCompleted;
 		};
 
 		Includes.Reset();
@@ -6946,8 +6959,10 @@ void ParseSourceFiles(TArray<FUnrealSourceFile*>& OrderedSourceFiles)
 	{
 		FUnrealPackageDefinitionInfo& PackageDef = SourceFile->GetPackageDef();
 		FScopedDurationTimer SourceTimer(SourceFile->GetTime(ESourceFileTime::Parse));
+		++GSourcesParsing;
 		FResults::TryAlways([&PackageDef, SourceFile]() { FHeaderParser::Parse(PackageDef, *SourceFile); });
-	}
+		++GSourcesCompleted;
+}
 #endif
 }
 
