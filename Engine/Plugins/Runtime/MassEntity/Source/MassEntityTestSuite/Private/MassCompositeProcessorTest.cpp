@@ -26,7 +26,7 @@ struct FCompositeProcessorTest_Empty : FEntityTestBase
 		check(CompositeProcessor);
 		FMassProcessingContext ProcessingContext(*EntitySubsystem, /*DeltaSeconds=*/0.f);
 		// it should just run, no warnings
-		UE::Pipe::Executor::Run(*CompositeProcessor, ProcessingContext);
+		UE::Mass::Executor::Run(*CompositeProcessor, ProcessingContext);
 		return true;
 	}
 };
@@ -59,7 +59,7 @@ struct FCompositeProcessorTest_MultipleSubProcessors : FEntityTestBase
 		}
 
 		FMassProcessingContext ProcessingContext(*EntitySubsystem, /*DeltaSeconds=*/0.f);
-		UE::Pipe::Executor::Run(*CompositeProcessor, ProcessingContext);
+		UE::Mass::Executor::Run(*CompositeProcessor, ProcessingContext);
 		AITEST_EQUAL("All of the child processors should get run", Result, 111);
 		return true;
 	}

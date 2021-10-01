@@ -128,7 +128,7 @@ EMassSmartObjectClaimResult FMassSmartObjectHandler::ClaimCandidate(const FMassE
 		if (ClaimSmartObject(Entity, User, Candidate.ID))
 		{
 #if WITH_MASSGAMEPLAY_DEBUG
-			UE_CVLOG(UE::MassDebug::IsDebuggingEntity(Entity),
+			UE_CVLOG(UE::Mass::Debug::IsDebuggingEntity(Entity),
 				&SmartObjectSubsystem,
 				LogSmartObject,
 				Log,
@@ -165,7 +165,7 @@ bool FMassSmartObjectHandler::ClaimSmartObject(const FMassEntityHandle Entity, F
 	}
 
 #if WITH_MASSGAMEPLAY_DEBUG
-	UE_CVLOG(UE::MassDebug::IsDebuggingEntity(Entity),
+	UE_CVLOG(UE::Mass::Debug::IsDebuggingEntity(Entity),
 		&SmartObjectSubsystem,
 		LogSmartObject,
 		Log,
@@ -184,7 +184,7 @@ bool FMassSmartObjectHandler::UseSmartObject(
 	const FDataFragment_Transform& Transform) const
 {
 #if WITH_MASSGAMEPLAY_DEBUG
-	UE_CVLOG(UE::MassDebug::IsDebuggingEntity(Entity),
+	UE_CVLOG(UE::Mass::Debug::IsDebuggingEntity(Entity),
 		&SmartObjectSubsystem,
 		LogSmartObject,
 		Log,
@@ -210,7 +210,7 @@ bool FMassSmartObjectHandler::UseSmartObject(
 void FMassSmartObjectHandler::ReleaseSmartObject(const FMassEntityHandle Entity, FDataFragment_SmartObjectUser& User, const EMassSmartObjectInteractionStatus NewStatus) const
 {
 #if WITH_MASSGAMEPLAY_DEBUG
-	UE_CVLOG(UE::MassDebug::IsDebuggingEntity(Entity),
+	UE_CVLOG(UE::Mass::Debug::IsDebuggingEntity(Entity),
 		&SmartObjectSubsystem,
 		LogSmartObject,
 		Log,

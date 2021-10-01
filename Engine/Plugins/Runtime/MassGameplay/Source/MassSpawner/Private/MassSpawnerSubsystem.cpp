@@ -50,7 +50,7 @@ namespace UE::Mass::SpawnerSubsystem
 
 			FMassProcessingContext PipeContext(EntitySystem, /*TimeDelta=*/0.0f);
 
-			UE::Pipe::Executor::RunSparse(DestructionPipeline, PipeContext, Chunks);
+			UE::Mass::Executor::RunSparse(DestructionPipeline, PipeContext, Chunks);
 		}
 
 		return Destructors.Num() > 0;
@@ -145,7 +145,7 @@ bool UMassSpawnerSubsystem::SpawnEntities(const FMassEntityTemplate& EntityTempl
 			FMassEntityTemplate& MutableEntityTemplate = const_cast<FMassEntityTemplate&>(EntityTemplate);
 
 			FMassProcessingContext PipeContext(*EntitySystem, /*TimeDelta=*/0.0f);
-			UE::Pipe::Executor::RunSparse(MutableEntityTemplate.GetMutableInitializationPipeline(), PipeContext, ChunkCollection);
+			UE::Mass::Executor::RunSparse(MutableEntityTemplate.GetMutableInitializationPipeline(), PipeContext, ChunkCollection);
 		}
 		return true;
 	}
@@ -260,7 +260,7 @@ void UMassSpawnerSubsystem::DestroyEntities(const FMassEntityTemplateID Template
 			{
 				if (Chunks.GetArchetype().IsValid())
 				{
-					UE::Pipe::Executor::RunSparse(MutableEntityTemplate.GetMutableDeinitializationPipeline(), PipeContext, Chunks);
+					UE::Mass::Executor::RunSparse(MutableEntityTemplate.GetMutableDeinitializationPipeline(), PipeContext, Chunks);
 				}
 			}
 		}
@@ -311,7 +311,7 @@ void UMassSpawnerSubsystem::DoSpawning(const FMassEntityTemplate& EntityTemplate
 
 		FMassProcessingContext PipeContext(*EntitySystem, /*TimeDelta=*/0.0f);
 		PipeContext.AuxData = AuxData;
-		UE::Pipe::Executor::RunSparse(MutableEntityTemplate.GetMutableInitializationPipeline(), PipeContext, ChunkCollection);
+		UE::Mass::Executor::RunSparse(MutableEntityTemplate.GetMutableInitializationPipeline(), PipeContext, ChunkCollection);
 	}
 
 	OutEntities.Append(MoveTemp(SpawnedEntities));

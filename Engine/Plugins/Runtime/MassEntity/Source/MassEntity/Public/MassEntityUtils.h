@@ -4,10 +4,10 @@
 
 #include "MassProcessingTypes.h"
 
-namespace UE { namespace Pipe { namespace Utils
+namespace UE::Mass::Utils
 {
 
 /** returns the current execution mode for the processors calculated from the world network mode */
 MASSENTITY_API extern EProcessorExecutionFlags GetProcessorExecutionFlagsForWold(const UWorld& World);
 
-} } }// namespace UE::Pipe::Utils
+} // namespace UE::Mass::Utils

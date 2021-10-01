@@ -53,7 +53,7 @@ void FMassProcessingPhase::ExecuteTick(float DeltaTime, ELevelTick TickType, ENa
 	if (bRunInParallelMode)
 	{
 		bIsDuringPipeProcessing = true;
-		const FGraphEventRef PipelineCompletionEvent = UE::Pipe::Executor::TriggerParallelTasks(*PhaseProcessor, Context, [this, DeltaTime]()
+		const FGraphEventRef PipelineCompletionEvent = UE::Mass::Executor::TriggerParallelTasks(*PhaseProcessor, Context, [this, DeltaTime]()
 			{
 				OnParallelExecutionDone(DeltaTime);
 			});
@@ -70,7 +70,7 @@ void FMassProcessingPhase::ExecuteTick(float DeltaTime, ELevelTick TickType, ENa
 	else
 	{
 		TGuardValue<bool> PipeRunningGuard(bIsDuringPipeProcessing, true);
-		UE::Pipe::Executor::Run(*PhaseProcessor, Context);
+		UE::Mass::Executor::Run(*PhaseProcessor, Context);
 
 		OnPhaseEnd.Broadcast(DeltaTime);
 		Manager->OnPhaseEnd(*this);

@@ -11,26 +11,6 @@ const FMassEntityHandle UMassEntitySubsystem::InvalidEntity;
 
 DEFINE_LOG_CATEGORY(LogAggregateTicking);
 
-namespace UE { namespace AggregateTicking {
-
-FString DebugGetComponentAccessString(EMassFragmentAccess Access)
-{
-#if WITH_MASSENTITY_DEBUG
-	switch (Access)
-	{
-	case EMassFragmentAccess::None:	return TEXT("--");
-	case EMassFragmentAccess::ReadOnly:	return TEXT("RO");
-	case EMassFragmentAccess::ReadWrite:	return TEXT("RW");
-	default:
-		ensureMsgf(false, TEXT("Missing string conversion for EMassFragmentAccess=%d"), Access);
-		break;
-	}
-#endif // WITH_MASSENTITY_DEBUG
-	return TEXT("Missing string conversion");
-}
-
-}} // UE::AggregateTicking
-
 //@TODO: Everything still alive leaks at shutdown
 //@TODO: No re-entrance safety while running a system (e.g., preventing someone from adding/removing entities or altering archetypes, etc...)
 //@TODO: Do we allow GCable types?  If so, need to implement AddReferencedObjects

@@ -34,7 +34,7 @@ bool FMassZoneGraphPathFollowTask::RequestPath(FMassStateTreeExecutionContext& C
 
 	bool bDisplayDebug = false;
 #if WITH_MASSGAMEPLAY_DEBUG
-	bDisplayDebug = UE::MassDebug::IsDebuggingEntity(Context.GetEntity());
+	bDisplayDebug = UE::Mass::Debug::IsDebuggingEntity(Context.GetEntity());
 #endif // WITH_MASSGAMEPLAY_DEBUG
 
 	if (RequestedTargetLocation.LaneHandle != LaneLocation.LaneHandle)
@@ -88,7 +88,7 @@ EStateTreeRunStatus FMassZoneGraphPathFollowTask::EnterState(FStateTreeExecution
 
 	bool bDisplayDebug = false;
 #if WITH_MASSGAMEPLAY_DEBUG
-	bDisplayDebug = UE::MassDebug::IsDebuggingEntity(MassContext.GetEntity());
+	bDisplayDebug = UE::Mass::Debug::IsDebuggingEntity(MassContext.GetEntity());
 #endif // WITH_MASSGAMEPLAY_DEBUG
 	if (bDisplayDebug)
 	{
@@ -130,7 +130,7 @@ EStateTreeRunStatus FMassZoneGraphPathFollowTask::Tick(FStateTreeExecutionContex
 
 	bool bDisplayDebug = false;
 #if WITH_MASSGAMEPLAY_DEBUG
-	bDisplayDebug = UE::MassDebug::IsDebuggingEntity(MassContext.GetEntity());
+	bDisplayDebug = UE::Mass::Debug::IsDebuggingEntity(MassContext.GetEntity());
 #endif // WITH_MASSGAMEPLAY_DEBUG
 	if (bDisplayDebug)
 	{

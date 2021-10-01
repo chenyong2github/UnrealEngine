@@ -8,9 +8,25 @@
 
 DEFINE_ENUM_TO_STRING(EMassProcessingPhase);
 
-namespace UE::Pipe::Debug
+namespace UE::Mass::Debug
 {
 
+FString DebugGetComponentAccessString(EMassFragmentAccess Access)
+{
+#if WITH_MASSENTITY_DEBUG
+	switch (Access)
+	{
+	case EMassFragmentAccess::None:	return TEXT("--");
+	case EMassFragmentAccess::ReadOnly:	return TEXT("RO");
+	case EMassFragmentAccess::ReadWrite:	return TEXT("RW");
+	default:
+		ensureMsgf(false, TEXT("Missing string conversion for EMassFragmentAccess=%d"), Access);
+		break;
+	}
+#endif // WITH_MASSENTITY_DEBUG
+	return TEXT("Missing string conversion");
+}
+	
 void DebugOutputDescription(TConstArrayView<UMassProcessor*> Processors, FOutputDevice& Ar)
 {
 #if WITH_MASSENTITY_DEBUG
@@ -129,5 +145,5 @@ FAutoConsoleCommandWithWorldArgsAndOutputDevice LogFragmentSizes(
 	);
 #endif // WITH_MASSENTITY_DEBUG && WITH_MASSENTITY_DEBUG
 
-} // namespace UE::Pipe::Debug
+} // namespace UE::Mass::Debug
 

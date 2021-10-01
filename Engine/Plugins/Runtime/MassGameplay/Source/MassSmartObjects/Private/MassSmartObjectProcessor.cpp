@@ -115,7 +115,7 @@ void UMassProcessor_SmartObjectCandidatesFinder::Execute(UMassEntitySubsystem& E
 			FColor DebugColor(FColor::White);
 
 #if WITH_MASSGAMEPLAY_DEBUG
-			bDisplayDebug = UE::MassDebug::IsDebuggingEntity(Entity, &DebugColor);
+			bDisplayDebug = UE::Mass::Debug::IsDebuggingEntity(Entity, &DebugColor);
 #endif // WITH_MASSGAMEPLAY_DEBUG
 
 			BeginRequestProcessing(Entity, Context, Result);
@@ -177,7 +177,7 @@ void UMassProcessor_SmartObjectCandidatesFinder::Execute(UMassEntitySubsystem& E
 				bool bDisplayDebug = false;
 #if WITH_MASSGAMEPLAY_DEBUG
 				FColor DebugColor(FColor::White);
-				bDisplayDebug = UE::MassDebug::IsDebuggingEntity(Entity, &DebugColor);
+				bDisplayDebug = UE::Mass::Debug::IsDebuggingEntity(Entity, &DebugColor);
 #endif // WITH_MASSGAMEPLAY_DEBUG
 
 				BeginRequestProcessing(Entity, Context, Result);
@@ -308,7 +308,7 @@ void UMassProcessor_SmartObjectTimedBehavior::Execute(UMassEntitySubsystem& Enti
 #if WITH_MASSGAMEPLAY_DEBUG
 			const FMassEntityHandle Entity = Context.GetEntity(i);
 			FColor DebugColor(FColor::White);
-			const bool bIsDebuggingEntity = UE::MassDebug::IsDebuggingEntity(Entity, &DebugColor);
+			const bool bIsDebuggingEntity = UE::Mass::Debug::IsDebuggingEntity(Entity, &DebugColor);
 			if (bIsDebuggingEntity)
 			{
 				UE_CVLOG(bMustRelease, SmartObjectSubsystem, LogSmartObject, Log, TEXT("[%s] stops using [%s]"), *Entity.DebugGetDescription(), *SOUser.GetClaimHandle().Describe());

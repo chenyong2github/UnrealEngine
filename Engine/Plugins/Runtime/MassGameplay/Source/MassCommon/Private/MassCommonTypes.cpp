@@ -5,7 +5,9 @@
 #include "Math/ColorList.h"
 
 #if WITH_MASSGAMEPLAY_DEBUG
-namespace UE { namespace MassDebug {
+
+namespace UE::Mass::Debug
+{
 
 // First Id of a range of lightweight entity for which we want to activate debug information
 int32 DebugEntityBegin = INDEX_NONE;
@@ -100,7 +102,7 @@ FColor GetEntityDebugColor(FMassEntityHandle Entity)
 	return EntityIdx != INDEX_NONE ? GColorList.GetFColorByIndex(EntityIdx % GColorList.GetColorsNum()) : FColor::Black;
 }
 
-}} // namespace UE::MassDebug
+} // namespace UE::Mass::Debug
 #endif // WITH_MASSGAMEPLAY_DEBUG
 
 //----------------------------------------------------------------------//

@@ -6,7 +6,7 @@
 #include "MassCommandBuffer.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
-namespace UE::Pipe::Executor
+namespace UE::Mass::Executor
 {
 void Run(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& PipeContext)
 {
@@ -26,7 +26,7 @@ void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& Pi
 	if (!ensure(PipeContext.EntitySubsystem) ||
 		!ensure(RuntimePipeline.Processors.Find(nullptr) == INDEX_NONE) ||
 		RuntimePipeline.Processors.Num() == 0 ||
-		!ensureMsgf(Archetype.IsValid(), TEXT("The Archetype passed in to UE::Pipe::Executor::RunSparse is invalid")))
+		!ensureMsgf(Archetype.IsValid(), TEXT("The Archetype passed in to UE::Mass::Executor::RunSparse is invalid")))
 	{
 		return;
 	}
@@ -42,7 +42,7 @@ void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& Pi
 	if (!ensure(PipeContext.EntitySubsystem) ||
 		!ensure(RuntimePipeline.Processors.Find(nullptr) == INDEX_NONE) ||
 		RuntimePipeline.Processors.Num() == 0 ||
-		!ensureMsgf(ChunkCollection.GetArchetype().IsValid(), TEXT("The Archetype of ChunkCollection passed in to UE::Pipe::Executor::RunSparse is invalid")))
+		!ensureMsgf(ChunkCollection.GetArchetype().IsValid(), TEXT("The Archetype of ChunkCollection passed in to UE::Mass::Executor::RunSparse is invalid")))
 	{
 		return;
 	}
@@ -187,4 +187,4 @@ FGraphEventRef TriggerParallelTasks(UMassProcessor& Processor, FMassProcessingCo
 	return CompletionEvent;
 }
 
-} // namespace UE::Pipe::Executor
+} // namespace UE::Mass::Executor

@@ -21,10 +21,6 @@ struct FMassArchetypeChunk;
 class FOutputDevice;
 enum class EMassFragmentAccess : uint8;
 
-namespace UE { namespace AggregateTicking {
-FString DebugGetComponentAccessString(EMassFragmentAccess Access);
-}}
-
 //@TODO: Comment this guy
 UCLASS()
 class MASSENTITY_API UMassEntitySubsystem : public UWorldSubsystem

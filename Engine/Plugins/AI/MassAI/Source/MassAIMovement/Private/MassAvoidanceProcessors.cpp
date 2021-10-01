@@ -228,7 +228,7 @@ namespace UE::MassAvoidance
 	static bool DebugIsSelected(const FMassEntityHandle Entity)
 	{
 		FColor Color;
-		return UE::MassDebug::IsDebuggingEntity(Entity, &Color);
+		return UE::Mass::Debug::IsDebuggingEntity(Entity, &Color);
 	}
 
 	static void DebugDrawLine(const FDebugContext& Context, const FVector& Start, const FVector& End, const FColor& Color, const float Thickness = 0.f, const bool bPersistent = false)

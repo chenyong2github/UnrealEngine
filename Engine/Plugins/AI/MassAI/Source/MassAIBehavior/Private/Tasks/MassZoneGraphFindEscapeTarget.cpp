@@ -23,7 +23,7 @@ EStateTreeRunStatus FMassZoneGraphFindEscapeTarget::EnterState(FStateTreeExecuti
 	EscapeTargetLocation = nullptr;
 
 #if WITH_MASSGAMEPLAY_DEBUG
-	bDisplayDebug = UE::MassDebug::IsDebuggingEntity(MassContext.GetEntity());
+	bDisplayDebug = UE::Mass::Debug::IsDebuggingEntity(MassContext.GetEntity());
 #endif // WITH_MASSGAMEPLAY_DEBUG
 
 	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalItem(LocationHandle).Get<FMassZoneGraphLaneLocationFragment>();

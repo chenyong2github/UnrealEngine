@@ -30,7 +30,7 @@ int32 SimpleProcessorRun(UMassEntitySubsystem& EntitySubsystem)
 	};
 
 	FMassProcessingContext PipeContext(EntitySubsystem, /*DeltaSeconds=*/0.f);
-	UE::Pipe::Executor::Run(*Processor, PipeContext);
+	UE::Mass::Executor::Run(*Processor, PipeContext);
 
 	return EntityProcessedCount;
 }

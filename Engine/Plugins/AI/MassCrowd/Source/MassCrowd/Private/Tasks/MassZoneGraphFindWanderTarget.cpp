@@ -28,7 +28,7 @@ EStateTreeRunStatus FMassZoneGraphFindWanderTarget::EnterState(FStateTreeExecuti
 
 	bool bDisplayDebug = false;
 #if WITH_MASSGAMEPLAY_DEBUG
-	bDisplayDebug = UE::MassDebug::IsDebuggingEntity(MassContext.GetEntity());
+	bDisplayDebug = UE::Mass::Debug::IsDebuggingEntity(MassContext.GetEntity());
 #endif // WITH_MASSGAMEPLAY_DEBUG
 
 	if (!LaneLocation.LaneHandle.IsValid())

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassEntityQuery.h"
+#include "MassEntityDebug.h"
 #include "MassEntitySubsystem.h"
 #include "MassArchetypeData.h"
 #include "MassCommandBuffer.h"
@@ -301,7 +302,7 @@ FString FMassFragmentRequirement::DebugGetDescription() const
 {
 #if WITH_MASSENTITY_DEBUG
 	return FString::Printf(TEXT("%s%s[%s]"), IsOptional() ? TEXT("?") : (Presence == EMassFragmentPresence::None ? TEXT("-") : TEXT("+"))
-		, *GetNameSafe(StructType), *UE::AggregateTicking::DebugGetComponentAccessString(AccessMode));
+		, *GetNameSafe(StructType), *UE::Mass::Debug::DebugGetComponentAccessString(AccessMode));
 #else
 	return {};
 #endif

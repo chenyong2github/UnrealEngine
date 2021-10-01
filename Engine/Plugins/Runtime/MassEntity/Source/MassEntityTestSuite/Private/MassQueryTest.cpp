@@ -92,7 +92,7 @@ struct FQueryTest_FragmentViewBinding : FEntityTestBase
 		};
 
 		FMassProcessingContext PipeContext(*EntitySubsystem, /*DeltaSeconds=*/0.f);
-		UE::Pipe::Executor::Run(*Processor, PipeContext);
+		UE::Mass::Executor::Run(*Processor, PipeContext);
 
 		AITEST_EQUAL("Fragment value should have changed to the expected value", TestedFragment.Value, 13.f);
 

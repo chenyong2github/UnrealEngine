@@ -51,7 +51,7 @@ namespace UE::MassMovement
 			MoveTarget.IntentAtGoal = ShortPath.EndOfPathIntent;
 			MoveTarget.DistanceToGoal = (ShortPath.NumPoints > 0) ? ShortPath.Points[ShortPath.NumPoints - 1].DistanceAlongLane.Get() : 0.0f;
 #if WITH_MASSGAMEPLAY_DEBUG
-			UE_CVLOG(UE::MassDebug::IsDebuggingEntity(Entity),
+			UE_CVLOG(UE::Mass::Debug::IsDebuggingEntity(Entity),
 				Requester,
 				LogMassNavigation,
 				Log,
