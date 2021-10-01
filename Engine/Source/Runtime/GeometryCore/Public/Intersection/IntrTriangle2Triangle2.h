@@ -74,9 +74,9 @@ public:
 		for (i0 = 0, i1 = 2; i0 < 3; i1 = i0++)
 		{
 			// Test axis V0[i1] + t*perp(V0[i0]-V0[i1]), perp(x,y) = (y,-x).
-			dir.X = Triangle0[i0].Y - Triangle0[i1].Y;
-			dir.Y = Triangle0[i1].X - Triangle0[i0].X;
-			if (WhichSide(Triangle1, Triangle0[i1], dir) > 0)
+			dir.X = Triangle0.V[i0].Y - Triangle0.V[i1].Y;
+			dir.Y = Triangle0.V[i1].X - Triangle0.V[i0].X;
+			if (WhichSide(Triangle1, Triangle0.V[i1], dir) > 0)
 			{
 				// Triangle1 is entirely on positive side of Triangle0 edge.
 				return false;
@@ -87,9 +87,9 @@ public:
 		for (i0 = 0, i1 = 2; i0 < 3; i1 = i0++)
 		{
 			// Test axis V1[i1] + t*perp(V1[i0]-V1[i1]), perp(x,y) = (y,-x).
-			dir.X = Triangle1[i0].Y - Triangle1[i1].Y;
-			dir.Y = Triangle1[i1].X - Triangle1[i0].X;
-			if (WhichSide(Triangle0, Triangle1[i1], dir) > 0) {
+			dir.X = Triangle1.V[i0].Y - Triangle1.V[i1].Y;
+			dir.Y = Triangle1.V[i1].X - Triangle1.V[i0].X;
+			if (WhichSide(Triangle0, Triangle1.V[i1], dir) > 0) {
 				// Triangle0 is entirely on positive side of Triangle1 edge.
 				return false;
 			}
@@ -168,7 +168,7 @@ public:
 		int positive = 0, negative = 0, zero = 0;
 		for (int i = 0; i < 3; ++i)
 		{
-			double t = D.Dot(V[i] - P);
+			double t = D.Dot(V.V[i] - P);
 			if (t > (double)0)
 			{
 				++positive;
