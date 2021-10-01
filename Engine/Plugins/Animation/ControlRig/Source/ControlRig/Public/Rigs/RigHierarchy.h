@@ -15,7 +15,14 @@
 class URigHierarchy;
 class URigHierarchyController;
 
+// Define to switch between recursive calls for dirty propagation or flat iteration.
+// Based on this each element will either contains only the next tier of elements to dirty (recursive)
+// or a full flattened list of elements to dirty (no need to recurse)
 #define URIGHIERARCHY_RECURSIVE_DIRTY_PROPAGATION 1
+
+// Debug define which performs a full check on the cache validity for all elements of the hierarchy.
+// This can be useful for debugging cache validity bugs.
+#define URIGHIERARCHY_ENSURE_CACHE_VALIDITY 1
 
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FRigHierarchyModifiedEvent, ERigHierarchyNotification /* type */, URigHierarchy* /* hierarchy */, const FRigBaseElement* /* element */);
 DECLARE_EVENT_FiveParams(URigHierarchy, FRigHierarchyUndoRedoTransformEvent, URigHierarchy*, const FRigElementKey&, ERigTransformType::Type, const FTransform&, bool /* bUndo */);
@@ -2498,6 +2505,20 @@ private:
 #endif
 
 	/**
+	* Performs validation of the cache within the hierarchy on any mutation.
+	*/
+	FORCEINLINE void EnsureCacheValidity() const
+	{
+#if WITH_EDITOR
+		if(bEnableCacheValidityCheck)
+		{
+			URigHierarchy* MutableThis = (URigHierarchy*)this; 
+			MutableThis->EnsureCacheValidityImpl();
+		}
+#endif
+	}
+	
+	/**
 	 * The topology version of the hierarchy changes when elements are
 	 * added, removed, re-parented or renamed.
 	 */
@@ -2614,7 +2635,7 @@ private:
 	TMap<FRigElementKey, FRigElementKey> PreviousNameMap;
 
 	int32 ResetPoseHash;
-	TArray<bool> ResetPoseHasFilteredChildren;
+	TArray<bool> ResetPoseIsFilteredOut;
 
 #if WITH_EDITOR
 
@@ -2843,9 +2864,52 @@ protected:
 	static TArray<FString> ControlSettingsToPythonCommands(const FRigControlSettings& Settings, const FString& NameSettings);
 #endif
 	
+protected:
+	
+	bool bEnableCacheValidityCheck;
+
+	UPROPERTY(transient)
+	TObjectPtr<URigHierarchy> HierarchyForCacheValidation;
+	
+private:
+	
+	void EnsureCacheValidityImpl();
+	
 	friend class URigHierarchyController;
 	friend class UControlRig;
 	friend class FControlRigEditor;
+	friend struct FRigHierarchyValidityBracket;
+};
+
+struct CONTROLRIG_API FRigHierarchyValidityBracket
+{
+	public:
+	FRigHierarchyValidityBracket(URigHierarchy* InHierarchy)
+		: bPreviousValue(false)
+		, HierarchyPtr() 
+	{
+		if(InHierarchy)
+		{
+			bPreviousValue = InHierarchy->bEnableCacheValidityCheck;
+			InHierarchy->bEnableCacheValidityCheck = false;
+			HierarchyPtr = InHierarchy;
+		}
+	}
+
+	~FRigHierarchyValidityBracket()
+	{
+		if(HierarchyPtr.IsValid())
+		{
+			URigHierarchy* Hierarchy = HierarchyPtr.Get();
+			Hierarchy->bEnableCacheValidityCheck = bPreviousValue;
+			Hierarchy->EnsureCacheValidity();
+		}
+	}
+
+	private:
+
+	bool bPreviousValue;
+	TWeakObjectPtr<URigHierarchy> HierarchyPtr;
 };
 
 #if !UE_LARGE_WORLD_COORDINATES_DISABLED

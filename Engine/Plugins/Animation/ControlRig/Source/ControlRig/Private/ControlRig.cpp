@@ -201,6 +201,9 @@ void UControlRig::InitializeFromCDO()
 		// copy hierarchy
 		{
 			PostInitInstanceIfRequired();
+
+			FRigHierarchyValidityBracket ValidityBracketA(GetHierarchy());
+			FRigHierarchyValidityBracket ValidityBracketB(CDO->GetHierarchy());
 			
 			TGuardValue<bool> Guard(GetHierarchy()->GetSuspendNotificationsFlag(), true);
 			GetHierarchy()->CopyHierarchy(CDO->GetHierarchy());
@@ -860,6 +863,8 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	{
 		Context.DrawInterface->Instructions.Append(Context.DrawContainer->Instructions);
 
+		FRigHierarchyValidityBracket ValidityBracket(GetHierarchy());
+		
 		GetHierarchy()->ForEach<FRigControlElement>([this](FRigControlElement* ControlElement) -> bool
 		{
 			const FRigControlSettings& Settings = ControlElement->Settings;

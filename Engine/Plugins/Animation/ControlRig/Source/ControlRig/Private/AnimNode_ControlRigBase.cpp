@@ -138,6 +138,10 @@ void FAnimNode_ControlRigBase::UpdateInput(UControlRig* ControlRig, const FPoseC
 		// so the reset here ensures excluded bones are also reset
 		if(!ControlRigBoneInputMappingByName.IsEmpty() || bResetInputPoseToInitial)
 		{
+			{
+				FRigHierarchyValidityBracket ValidityBracket(ControlRig->GetHierarchy());
+			}
+			FRigHierarchyValidityBracket ValidityBracket(ControlRig->GetHierarchy());
 			ControlRig->GetHierarchy()->ResetPoseToInitial(ERigElementType::Bone);
 		}
 
