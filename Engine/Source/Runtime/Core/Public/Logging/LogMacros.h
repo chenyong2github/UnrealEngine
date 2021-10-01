@@ -178,6 +178,12 @@ private:
 	#define UE_SET_LOG_VERBOSITY(CategoryName, Verbosity) \
 		CategoryName.SetVerbosity(ELogVerbosity::Verbosity);
 
+	#if UE_VALIDATE_FORMAT_STRINGS && defined(_MSC_VER)
+		#define UE_VALIDATE_FORMAT_STRING(Format, ...) do { if (false) { wprintf(Format, ##__VA_ARGS__); } } while(false)
+	#else
+		#define UE_VALIDATE_FORMAT_STRING(Format, ...)
+	#endif
+
 	/** 
 	 * INTERNAL IMPLEMENTATION. DO NOT CALL DIRECTLY!
 	**/
@@ -186,6 +192,7 @@ private:
 		static_assert((ELogVerbosity::Verbosity & ELogVerbosity::VerbosityMask) < ELogVerbosity::NumVerbosity && ELogVerbosity::Verbosity > 0, "Verbosity must be constant and in range."); \
 		UE_LOG_EXPAND_IS_FATAL(Verbosity, PREPROCESSOR_NOTHING, if (!CategoryName.IsSuppressed(ELogVerbosity::Verbosity))) \
 			{ \
+				UE_VALIDATE_FORMAT_STRING(Format, ##__VA_ARGS__); \
 				DispatchCheckVerify([] (const auto& LCategoryName, const auto& LFormat, const auto&... UE_LOG_Args) FORCENOINLINE \
 				{ \
 					TRACE_LOG_MESSAGE(LCategoryName, Verbosity, LFormat, UE_LOG_Args...) \
