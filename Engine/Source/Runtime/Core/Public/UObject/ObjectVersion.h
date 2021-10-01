@@ -48,6 +48,9 @@ enum class EUnrealEngineObjectUE5Version : uint32
 	// Support stripping names that are not referenced from export data
 	NAMES_REFERENCED_FROM_EXPORT_DATA,
 
+	// Added a payload table of contents to the package summary 
+	PAYLOAD_TOC,
+	
 	// -----<new versions can be added before this line>-------------------------------------------------
 	// - this needs to be the last line (see note below)
 	AUTOMATIC_VERSION_PLUS_ONE,

@@ -14,6 +14,7 @@
 
 class FObjectPostSaveContext;
 struct FUntypedBulkData;
+namespace UE::Virtualization { class FVirtualizedUntypedBulkData; }
 
 /*----------------------------------------------------------------------------
 	FLinkerSave.
@@ -103,14 +104,18 @@ public:
 	 * This is used e.g. to decide whether to update the in-memory file offsets for BulkData.
 	 */
 	bool bUpdatingLoadedPath = false;
-
-	/** Used by FVirtualizedUntypedBulkData to add payloads to be added to the payload sidecar file */
+	
 	struct FSidecarStorageInfo
 	{
 		UE::Virtualization::FPayloadId Identifier;
 		FCompressedBuffer Payload;
 	};
+
+	/** Used by FVirtualizedUntypedBulkData to add payloads to be added to the payload sidecar file (currently an experimental feature) */
 	TArray<FSidecarStorageInfo> SidecarDataToAppend;
+
+	/** A list of all virtualized bulkdata objects that serialized while saving the package. Note that we do not expect nullptr values to be added! */
+	TArray<UE::Virtualization::FVirtualizedUntypedBulkData*> BulkDataInPackage;
 
 	/** 
 	 * Array of callbacks that will be invoked when the package has successfully saved to disk.

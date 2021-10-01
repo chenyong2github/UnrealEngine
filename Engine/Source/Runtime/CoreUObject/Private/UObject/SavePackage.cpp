@@ -69,6 +69,7 @@
 #include "Misc/ScopeExit.h"
 #include "Misc/PackageAccessTracking.h"
 #include "Misc/PackageAccessTrackingOps.h"
+#include "Virtualization/VirtualizedBulkData.h"
 
 #if ENABLE_COOK_STATS
 #include "ProfilingDebugging/ScopedTimers.h"
@@ -1881,6 +1882,79 @@ static bool ValidateConformCompatibility(UPackage* NewPackage, FLinkerLoad* OldL
 	return !bHadCompatibilityErrors;
 }
 
+/**
+ * Writes out the initial state of the payload table of contents.
+ *
+ * However because we store the table of contents before the payloads in the package
+ * format the data will not be correct as we cannot know the correct payload offsets.
+ * The correct data will be written out by a subsequent call to 'UpdatePayloadToC'.
+ *
+ * Because of this we only write out the table of contents if we are currently writing
+ * to a binary format package. This will reserve the space in the file that we need
+ * to later write the correct data too.
+ * If the package is in text format then we do not need to write anything as we can
+ * simple write out the correct data later when we know it.
+ */
+static ESavePackageResult WritePayloadToC(FLinkerSave* Linker, bool bTextFormat)
+{
+	if (!bTextFormat)
+	{
+		Linker->Summary.PayloadTocOffset = Linker->Tell();
+
+		UE::Virtualization::FPayloadToc PayloadTableOfContents;
+		for (const UE::Virtualization::FVirtualizedUntypedBulkData* BulkData : Linker->BulkDataInPackage)
+		{
+			if (BulkData != nullptr)
+			{
+				PayloadTableOfContents.AddEntry(*BulkData);
+			}
+		}
+
+		*Linker << PayloadTableOfContents;
+	}
+
+	return ESavePackageResult::Success;
+}
+
+/**
+ * Either update the existing table of contents (if writing out in binary format) or write the table
+ * of contents (if writing out in text format).
+ *
+ * @see WritePayloadToC
+ */
+ESavePackageResult UpdatePayloadToC(FLinkerSave* Linker,  FStructuredArchive::FRecord& StructuredArchiveRoot, bool bTextFormat, int64 OffsetAfterPayloadToc)
+{
+	UE::Virtualization::FPayloadToc PayloadTableOfContents;
+	for (const UE::Virtualization::FVirtualizedUntypedBulkData* BulkData : Linker->BulkDataInPackage)
+	{
+		if (BulkData != nullptr)
+		{
+			PayloadTableOfContents.AddEntry(*BulkData);
+		}
+	}
+
+	if (bTextFormat)
+	{
+		FStructuredArchive::FStream Stream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("PayloadTableOfContents")));
+		Stream.EnterElement() << PayloadTableOfContents;
+	}
+	else
+	{
+		check(Linker->Summary.PayloadTocOffset != INDEX_NONE);
+
+		int64 CurrentPos = Linker->Tell();
+		Linker->Seek(Linker->Summary.PayloadTocOffset);
+
+		*Linker << PayloadTableOfContents;
+
+		checkf(OffsetAfterPayloadToc == Linker->Tell(), TEXT("Mismatch between ::WritePayloadToC and ::UpdatePayloadToC, the package will be corrupt"));
+
+		Linker->Seek(CurrentPos);
+	}
+
+	return ESavePackageResult::Success;
+}
+
 #if WITH_EDITOR
 /**
  * Helper function to sort export objects by fully qualified names.
@@ -2244,7 +2318,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 		FText StatusMessage = FText::Format(NSLOCTEXT("Core", "SavingFile", "Saving file: {CleanFilename}..."), Args);
 
-		const int32 TotalSaveSteps = 33;
+		const int32 TotalSaveSteps = 35;
 		FScopedSlowTask SlowTask(TotalSaveSteps, StatusMessage, bSlowTask);
 		SlowTask.MakeDialogDelayed(3.0f, SaveFlags & SAVE_FromAutosave ? true : false);
 
@@ -4161,6 +4235,15 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					return ESavePackageResult::Canceled;
 				}
 
+				SlowTask.EnterProgressFrame();
+				ESavePackageResult WritePayloadTocResult = WritePayloadToC(Linker.Get(), bTextFormat);
+				if (WritePayloadTocResult != ESavePackageResult::Success)
+				{
+					return WritePayloadTocResult;
+				}
+
+				const int64 OffsetAfterPayloadToc = Linker->Tell();
+
 				SlowTask.EnterProgressFrame(1, NSLOCTEXT("Core", "SerializingBulkData", "Serializing bulk data"));
 
 				IPackageWriter* PackageWriter = SavePackageContext ? SavePackageContext->PackageWriter : nullptr;
@@ -4227,6 +4310,13 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					{
 						return AdditionalFilesResult;
 					}
+				}
+
+				SlowTask.EnterProgressFrame();
+				ESavePackageResult UpdatePayloadTocResult = UpdatePayloadToC(Linker.Get(), StructuredArchiveRoot, bTextFormat, OffsetAfterPayloadToc);
+				if (UpdatePayloadTocResult != ESavePackageResult::Success)
+				{
+					return UpdatePayloadTocResult;
 				}
 
 				// write the package post tag
