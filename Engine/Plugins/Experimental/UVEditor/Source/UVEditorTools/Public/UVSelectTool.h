@@ -52,10 +52,10 @@ protected:
 UENUM()
 enum class EUVSelectToolSelectionMode : uint8
 {
-	Island,
-	Edge,
 	Vertex,
+	Edge,
 	Triangle,
+	Island,
 	Mesh
 };
 
@@ -136,6 +136,7 @@ public:
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
+	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI) override;
 	virtual void OnTick(float DeltaTime) override;
 	virtual bool HasCancel() const override { return false; }
 	virtual bool HasAccept() const override { return false; }

@@ -3,7 +3,7 @@
 #include "Selection/MeshSelectionMechanic.h"
 
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
-#include "BaseBehaviors/SingleClickBehavior.h"
+#include "BaseBehaviors/SingleClickOrDragBehavior.h"
 #include "Drawing/LineSetComponent.h"
 #include "Drawing/PointSetComponent.h"
 #include "Drawing/PreviewGeometryActor.h"
@@ -73,17 +73,44 @@ namespace MeshSelectionMechanicLocals
 			Set.Add(Item);
 		}
 	}
-}
+	
+	UE::Geometry::FDynamicMeshSelection::EType ToCompatibleDynamicMeshSelectionType(const EMeshSelectionMechanicMode& Mode)
+	{
+		switch (Mode)
+		{
+			case EMeshSelectionMechanicMode::Mesh:
+			case EMeshSelectionMechanicMode::Component:
+			case EMeshSelectionMechanicMode::Triangle:
+				return UE::Geometry::FDynamicMeshSelection::EType::Triangle;
+			case EMeshSelectionMechanicMode::Edge:
+				return UE::Geometry::FDynamicMeshSelection::EType::Edge;
+			case EMeshSelectionMechanicMode::Vertex:
+				return UE::Geometry::FDynamicMeshSelection::EType::Vertex;
+		}
+		checkNoEntry();
+		return UE::Geometry::FDynamicMeshSelection::EType::Vertex;
+	}
+} // namespace MeshSelectionMechanicLocals
 
 void UMeshSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 {
 	UInteractionMechanic::Setup(ParentToolIn);
 
-	USingleClickInputBehavior* ClickBehavior = NewObject<USingleClickInputBehavior>();
-	ClickBehavior->Modifiers.RegisterModifier(CtrlModifierID, FInputDeviceState::IsCtrlKeyDown);
-	ClickBehavior->Modifiers.RegisterModifier(ShiftModifierID, FInputDeviceState::IsShiftKeyDown);
-	ClickBehavior->Initialize(this);
-	ParentTool->AddInputBehavior(ClickBehavior);
+	// This will be the target for the click drag behavior below
+	MarqueeMechanic = NewObject<URectangleMarqueeMechanic>();
+	MarqueeMechanic->bUseExternalClickDragBehavior = true;
+	MarqueeMechanic->Setup(ParentToolIn);
+	MarqueeMechanic->OnDragRectangleStarted.AddUObject(this, &UMeshSelectionMechanic::OnDragRectangleStarted);
+	MarqueeMechanic->OnDragRectangleChanged.AddUObject(this, &UMeshSelectionMechanic::OnDragRectangleChanged);
+	MarqueeMechanic->OnDragRectangleFinished.AddUObject(this, &UMeshSelectionMechanic::OnDragRectangleFinished);
+
+	USingleClickOrDragInputBehavior* ClickOrDragBehavior = NewObject<USingleClickOrDragInputBehavior>();
+	ClickOrDragBehavior->Initialize(this, MarqueeMechanic);
+	ClickOrDragBehavior->Modifiers.RegisterModifier(ShiftModifierID, FInputDeviceState::IsShiftKeyDown);
+	ClickOrDragBehavior->Modifiers.RegisterModifier(CtrlModifierID, FInputDeviceState::IsCtrlKeyDown);
+	ParentTool->AddInputBehavior(ClickOrDragBehavior);
+
+	ClearCurrentSelection();
 
 	LineSet = NewObject<ULineSetComponent>();
 	LineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(
@@ -326,206 +353,302 @@ void UMeshSelectionMechanic::SetDrawnElementsTransform(const FTransform& Transfo
 
 void UMeshSelectionMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 {
-	// TODO:We do this in other places, but should CameraState be cached somewhere else?
+	// Cache the camera state
+	MarqueeMechanic->Render(RenderAPI);
 	GetParentTool()->GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
+}
 
-	if (CurrentSelection.IsEmpty())
-	{
-		return;
-	}
-
-
+void UMeshSelectionMechanic::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
+{
+	MarqueeMechanic->DrawHUD(Canvas, RenderAPI);
 }
 
 FInputRayHit UMeshSelectionMechanic::IsHitByClick(const FInputDeviceRay& ClickPos)
 {
-	// We grab any clicks we are offered because even if we miss the mesh, we want to be able to clear selection.
+	// TODO We could account for what modifiers would do and return an accurate depth here but for now this simple code works fine
+
+	// Return a hit so we always capture and can clear the selection
 	FInputRayHit Hit; 
 	Hit.bHit = true;
-	return Hit;
+	return Hit;	
+}
+
+void UMeshSelectionMechanic::ClearCurrentSelection()
+{
+	CurrentSelection.SelectedIDs.Empty();
+	CurrentSelection.Mesh = nullptr;
+	CurrentSelection.Type = MeshSelectionMechanicLocals::ToCompatibleDynamicMeshSelectionType(SelectionMode);
+	CurrentSelectionIndex = IndexConstants::InvalidID;
+}
+
+void UMeshSelectionMechanic::UpdateCurrentSelection(const TSet<int32>& NewSelection, bool CalledFromOnDragRectangleChanged)
+{
+	if (!ShouldRestartSelection() && CalledFromOnDragRectangleChanged)
+	{
+		// If we're modifying (adding/removing/toggling, but not restarting) the selection, we should start with the
+		// selection cached in OnDragRectangleStarted, otherwise multiple changes get accumulated as the rectangle is
+		// swept around
+		CurrentSelection.SelectedIDs = PreDragSelection.SelectedIDs;
+	}
+	
+	if (ShouldRestartSelection())
+	{
+		CurrentSelection.SelectedIDs = NewSelection;
+	}
+	else if (ShouldAddToSelection())
+	{
+		CurrentSelection.SelectedIDs.Append(NewSelection);
+	}
+	else if (ShouldToggleFromSelection())
+	{
+		for (int32 Index : NewSelection)
+		{
+			MeshSelectionMechanicLocals::ToggleItem(CurrentSelection.SelectedIDs, Index);
+		}
+	}
+	else if (ShouldRemoveFromSelection())
+	{
+		CurrentSelection.SelectedIDs = CurrentSelection.SelectedIDs.Difference(NewSelection);
+	}
+	else
+	{
+		checkNoEntry();
+	}
+
+	if (CurrentSelection.SelectedIDs.IsEmpty())
+	{
+		ClearCurrentSelection();
+	}
+	
+	CurrentSelection.Type = MeshSelectionMechanicLocals::ToCompatibleDynamicMeshSelectionType(SelectionMode);
 }
 
 void UMeshSelectionMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 {
 	FDynamicMeshSelection OriginalSelection = CurrentSelection;
-
-	const bool bIncompatibleSelectionMode =
-		(SelectionMode == EMeshSelectionMechanicMode::Component && CurrentSelection.Type != FDynamicMeshSelection::EType::Triangle) ||
-		(SelectionMode == EMeshSelectionMechanicMode::Edge && CurrentSelection.Type != FDynamicMeshSelection::EType::Edge) ||
-		(SelectionMode == EMeshSelectionMechanicMode::Vertex && CurrentSelection.Type != FDynamicMeshSelection::EType::Vertex) || 
-		(SelectionMode == EMeshSelectionMechanicMode::Triangle && CurrentSelection.Type != FDynamicMeshSelection::EType::Triangle) || 
-		(SelectionMode == EMeshSelectionMechanicMode::Mesh && CurrentSelection.Type != FDynamicMeshSelection::EType::Triangle);
-	if (bIncompatibleSelectionMode || ShouldRestartSelection())
+	
+	if (CurrentSelection.Type != MeshSelectionMechanicLocals::ToCompatibleDynamicMeshSelectionType(SelectionMode))
 	{
-		CurrentSelection.SelectedIDs.Empty();
-		CurrentSelection.Mesh = nullptr;
+		ClearCurrentSelection();
 	}
 
-	int32 HitTid = IndexConstants::InvalidID;
-	double RayT = 0; 
-	for (int32 i = 0; i < MeshSpatials.Num(); ++i)
+	TSet<int32> ClickSelectedIDs; // TODO Maybe using a TVariant would have been better here...
 	{
-		// We only add/toggle/remove from selections in the currently selected mesh. If this isn't the case or if we're
-		// removing from a selection but there is nothing to remove, then we can break early.
-		if ((!ShouldRestartSelection() && i != CurrentSelectionIndex) ||
-			(ShouldRemoveFromSelection() && CurrentSelection.IsEmpty()))
+		int32 HitTid = IndexConstants::InvalidID;
+		for (int32 MeshIndex = 0; MeshIndex < MeshSpatials.Num(); ++MeshIndex)
 		{
-			continue;
+			FRay LocalRay(
+				MeshTransforms[MeshIndex].InverseTransformPosition(ClickPos.WorldRay.Origin),
+				MeshTransforms[MeshIndex].InverseTransformVector(ClickPos.WorldRay.Direction));
+
+			double RayT = 0; 
+			if (MeshSpatials[MeshIndex]->FindNearestHitTriangle(LocalRay, RayT, HitTid))
+			{
+				CurrentSelection.Mesh = MeshSpatials[MeshIndex]->GetMesh();
+				CurrentSelection.TopologyTimestamp = CurrentSelection.Mesh->GetTopologyChangeStamp();
+				CurrentSelectionIndex = MeshIndex;
+				break;
+			}
 		}
 
-		// Minor note: Using FRay3d in this statement instead of FRay causes an internal compiler error in VS
-		// in Development Editor builds, for no good reason.
-		FRay LocalRay(
-			MeshTransforms[i].InverseTransformPosition(ClickPos.WorldRay.Origin),
-			MeshTransforms[i].InverseTransformVector(ClickPos.WorldRay.Direction));
-
-		if (MeshSpatials[i]->FindNearestHitTriangle(LocalRay, RayT, HitTid))
+		if (HitTid != IndexConstants::InvalidID)
 		{
-			// It should be okay to reassign this. If we're in multiselect, and it misses a hit, this just won't happen and selection won't be altered.
-			CurrentSelection.Mesh = MeshSpatials[i]->GetMesh();
-			CurrentSelection.TopologyTimestamp = CurrentSelection.Mesh->GetTopologyChangeStamp();
-			CurrentSelectionIndex = i;
-			break;
+			if (SelectionMode == EMeshSelectionMechanicMode::Component)
+			{
+				FMeshConnectedComponents MeshSelectedComponent(CurrentSelection.Mesh);
+				TArray<int32> SeedTriangles;
+				SeedTriangles.Add(HitTid);
+				MeshSelectedComponent.FindTrianglesConnectedToSeeds(SeedTriangles);
+				ClickSelectedIDs = TSet<int32>(SeedTriangles);	
+			}
+			else if (SelectionMode == EMeshSelectionMechanicMode::Edge)
+			{
+				// TODO: We'll need the ability to hit occluded triangles to see if there is a better edge to snap to.
+
+				// Try to snap to one of the edges.
+				FIndex3i Eids = CurrentSelection.Mesh->GetTriEdges(HitTid);
+
+				FGeometrySet3 GeometrySet;
+				for (int i = 0; i < 3; ++i)
+				{
+					FIndex2i Vids = CurrentSelection.Mesh->GetEdgeV(Eids[i]);
+					FPolyline3d Polyline(CurrentSelection.Mesh->GetVertex(Vids.A), CurrentSelection.Mesh->GetVertex(Vids.B));
+					GeometrySet.AddCurve(Eids[i], Polyline);
+				}
+				FGeometrySet3::FNearest Result;
+				if (GeometrySet.FindNearestCurveToRay(ClickPos.WorldRay, Result, 
+					[this](const FVector3d& Position1, const FVector3d& Position2) {
+						return ToolSceneQueriesUtil::PointSnapQuery(CameraState,
+							Position1, Position2,
+							ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD()); }))
+				{
+					ClickSelectedIDs = TSet<int32>{Result.ID};
+				}
+			}
+			else if (SelectionMode == EMeshSelectionMechanicMode::Vertex)
+			{
+				// TODO: Improve this to handle super narrow, sliver triangles better, where testing near vertices can be difficult.
+
+				// Try to snap to one of the vertices
+				FIndex3i Vids = CurrentSelection.Mesh->GetTriangle(HitTid);
+
+				FGeometrySet3 GeometrySet;
+				for (int i = 0; i < 3; ++i)
+				{
+					GeometrySet.AddPoint(Vids[i], CurrentSelection.Mesh->GetTriVertex(HitTid, i));
+				}
+				FGeometrySet3::FNearest Result;
+				if (GeometrySet.FindNearestPointToRay(ClickPos.WorldRay, Result,
+					[this](const FVector3d& Position1, const FVector3d& Position2) {
+						return ToolSceneQueriesUtil::PointSnapQuery(CameraState,
+							Position1, Position2,
+							ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD()); }))
+				{
+					ClickSelectedIDs = TSet<int32>{Result.ID};
+				}
+			}
+			else if (SelectionMode == EMeshSelectionMechanicMode::Triangle)
+			{
+				ClickSelectedIDs = TSet<int32>{HitTid};
+			}
+			else if (SelectionMode == EMeshSelectionMechanicMode::Mesh)
+			{
+				for (int32 Tid : CurrentSelection.Mesh->TriangleIndicesItr())
+				{
+					ClickSelectedIDs.Add(Tid);
+				}
+			}
+			else
+			{
+				checkNoEntry();
+			}
 		}
 	}
 
-	if (HitTid != IndexConstants::InvalidID)
-	{
-		if (SelectionMode == EMeshSelectionMechanicMode::Component)
-		{
-			FMeshConnectedComponents MeshSelectedComponent(CurrentSelection.Mesh);
-			TArray<int32> SeedTriangles;
-			SeedTriangles.Add(HitTid);
-			MeshSelectedComponent.FindTrianglesConnectedToSeeds(SeedTriangles);
-			
-			if (ShouldAddToSelection() || ShouldRestartSelection())
-			{
-				CurrentSelection.SelectedIDs.Append(TSet<int>(MeshSelectedComponent.Components[0].Indices));
-			}
-			else if (ShouldRemoveFromSelection())
-			{
-				CurrentSelection.SelectedIDs = CurrentSelection.SelectedIDs.Difference(TSet<int>(MeshSelectedComponent.Components[0].Indices));
-			}
-			else if (ShouldToggleFromSelection())
-			{
-				for (int I : MeshSelectedComponent.Components[0].Indices) {
-					MeshSelectionMechanicLocals::ToggleItem(CurrentSelection.SelectedIDs, I);
-				}
-			}
-			CurrentSelection.Type = FDynamicMeshSelection::EType::Triangle;
-		}
-		// TODO: We'll need the ability to hit occluded triangles to see if there is a better edge
-		// to snap to.
-		else if (SelectionMode == EMeshSelectionMechanicMode::Edge)
-		{
-			// Try to snap to one of the edges.
-			FIndex3i Eids = CurrentSelection.Mesh->GetTriEdges(HitTid);
-
-			FGeometrySet3 GeometrySet;
-			for (int i = 0; i < 3; ++i)
-			{
-				FIndex2i Vids = CurrentSelection.Mesh->GetEdgeV(Eids[i]);
-				FPolyline3d Polyline(CurrentSelection.Mesh->GetVertex(Vids.A), CurrentSelection.Mesh->GetVertex(Vids.B));
-				GeometrySet.AddCurve(Eids[i], Polyline);
-			}
-			FGeometrySet3::FNearest Result;
-			if (GeometrySet.FindNearestCurveToRay(ClickPos.WorldRay, Result, 
-				[this](const FVector3d& Position1, const FVector3d& Position2) {
-					return ToolSceneQueriesUtil::PointSnapQuery(CameraState,
-						Position1, Position2,
-						ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD()); }))
-			{
-				if (ShouldAddToSelection() || ShouldRestartSelection())
-				{
-					CurrentSelection.SelectedIDs.Add(Result.ID);
-				}
-				else if (ShouldRemoveFromSelection())
-				{
-					CurrentSelection.SelectedIDs.Remove(Result.ID);
-				}
-				else if (ShouldToggleFromSelection())
-				{
-					MeshSelectionMechanicLocals::ToggleItem(CurrentSelection.SelectedIDs, Result.ID);
-				}
-				CurrentSelection.Type = FDynamicMeshSelection::EType::Edge;
-			}
-		}
-		else if (SelectionMode == EMeshSelectionMechanicMode::Vertex)
-		{
-			// TODO: Improve this to handle super narrow, sliver triangles better, where testing near vertices can be difficult.
-
-			// Try to snap to one of the vertices
-			FIndex3i Vids = CurrentSelection.Mesh->GetTriangle(HitTid);
-
-			FGeometrySet3 GeometrySet;
-			for (int i = 0; i < 3; ++i)
-			{
-				GeometrySet.AddPoint(Vids[i], CurrentSelection.Mesh->GetTriVertex(HitTid, i));
-			}
-			FGeometrySet3::FNearest Result;
-			if (GeometrySet.FindNearestPointToRay(ClickPos.WorldRay, Result,
-				[this](const FVector3d& Position1, const FVector3d& Position2) {
-					return ToolSceneQueriesUtil::PointSnapQuery(CameraState,
-						Position1, Position2,
-						ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD()); }))
-			{
-				if (ShouldAddToSelection() || ShouldRestartSelection())
-				{
-					CurrentSelection.SelectedIDs.Add(Result.ID);
-				}
-				else if (ShouldRemoveFromSelection())
-				{
-					CurrentSelection.SelectedIDs.Remove(Result.ID);
-				}
-				else if (ShouldToggleFromSelection())
-				{
-					MeshSelectionMechanicLocals::ToggleItem(CurrentSelection.SelectedIDs, Result.ID);
-				}
-				CurrentSelection.Type = FDynamicMeshSelection::EType::Vertex;
-			}
-		}
-		else if (SelectionMode == EMeshSelectionMechanicMode::Triangle)
-		{
-			if (ShouldAddToSelection() || ShouldRestartSelection())
-			{
-				CurrentSelection.SelectedIDs.Add(HitTid);
-			}
-			else if (ShouldRemoveFromSelection())
-			{
-				CurrentSelection.SelectedIDs.Remove(HitTid);
-			}
-			else if (ShouldToggleFromSelection())
-			{
-				MeshSelectionMechanicLocals::ToggleItem(CurrentSelection.SelectedIDs, HitTid);
-			}
-			CurrentSelection.Type = FDynamicMeshSelection::EType::Triangle;
-		}
-		else if (SelectionMode == EMeshSelectionMechanicMode::Mesh)
-		{
-			for (int32 Tid : CurrentSelection.Mesh->TriangleIndicesItr())
-			{
-				if (ShouldAddToSelection() || ShouldRestartSelection())
-				{
-					CurrentSelection.SelectedIDs.Add(Tid);
-				}
-				else if (ShouldRemoveFromSelection())
-				{
-					CurrentSelection.SelectedIDs.Remove(Tid);
-				}
-				else if (ShouldToggleFromSelection())
-				{
-					MeshSelectionMechanicLocals::ToggleItem(CurrentSelection.SelectedIDs, Tid);
-				}
-			}
-			CurrentSelection.Type = FDynamicMeshSelection::EType::Triangle;
-		}
-	}
+	// TODO Perhaps selection clearing should happen only if the click occurs further than some threshold from the meshes
+	UpdateCurrentSelection(ClickSelectedIDs);
 
 	if (OriginalSelection != CurrentSelection)
 	{
 		UpdateCentroid();
 		RebuildDrawnElements(FTransform(GetCurrentSelectionCentroid()));
 		EmitSelectionChange(OriginalSelection, CurrentSelection, true);
+		OnSelectionChanged.Broadcast();
+	}
+}
+
+void UMeshSelectionMechanic::OnDragRectangleStarted()
+{
+	if (CurrentSelection.Type != MeshSelectionMechanicLocals::ToCompatibleDynamicMeshSelectionType(SelectionMode))
+	{
+		ClearCurrentSelection();	
+	}
+	
+	PreDragSelection = CurrentSelection;
+}
+
+void UMeshSelectionMechanic::OnDragRectangleChanged(const FCameraRectangle& CurrentRectangle)
+{
+	auto FindIDsInsideCurrentRectangle = [this](auto&& AddIDsToSelection)
+	{
+		TSet<int32> RectangleSelectedIDs;
+		
+		if (CurrentSelectionIndex == IndexConstants::InvalidID)
+		{
+			for (int32 MeshIndex = 0; MeshIndex < MeshSpatials.Num(); ++MeshIndex)
+			{
+				const FDynamicMesh3& Mesh = *(MeshSpatials[MeshIndex]->GetMesh());
+				AddIDsToSelection(Mesh, MeshTransforms[MeshIndex], RectangleSelectedIDs);
+	
+				if (!RectangleSelectedIDs.IsEmpty())
+				{
+					// Pick the first selectable mesh for now, maybe we should try to be smarter
+					CurrentSelectionIndex = MeshIndex;
+					CurrentSelection.Mesh = MeshSpatials[CurrentSelectionIndex]->GetMesh();
+					break;
+				}
+			}
+		}
+		else
+		{
+			ensure(CurrentSelectionIndex != IndexConstants::InvalidID);
+			ensure(CurrentSelection.Mesh == MeshSpatials[CurrentSelectionIndex]->GetMesh());
+			
+			const FDynamicMesh3& Mesh = *(MeshSpatials[CurrentSelectionIndex]->GetMesh());
+			AddIDsToSelection(Mesh, MeshTransforms[CurrentSelectionIndex], RectangleSelectedIDs);
+		}
+
+		return RectangleSelectedIDs;
+	};
+	
+	TSet<int32> RectangleSelectedIDs;
+	if (SelectionMode == EMeshSelectionMechanicMode::Vertex)
+	{
+		auto AddVertexIDsToSelection = [this, &CurrentRectangle]
+			(const FDynamicMesh3& Mesh, const FTransform& Transform, TSet<int32>& OutSelectedIDs)
+		{
+			for (int32 VertexIndex : Mesh.VertexIndicesItr())
+			{
+				FVector3d Point = Transform.InverseTransformPosition(Mesh.GetVertex(VertexIndex));
+				if (CurrentRectangle.IsProjectedPointInRectangle(Point))
+				{
+					OutSelectedIDs.Add(VertexIndex);
+				}
+			}
+		};
+	
+		RectangleSelectedIDs = FindIDsInsideCurrentRectangle(AddVertexIDsToSelection);
+	}
+	else if (SelectionMode == EMeshSelectionMechanicMode::Edge)
+	{
+		auto AddEdgeIDsToSelection = [this, &CurrentRectangle]
+			(const FDynamicMesh3& Mesh, const FTransform& Transform, TSet<int32>& OutSelectedIDs)
+		{
+			for (int32 EdgeIndex : Mesh.EdgeIndicesItr())
+			{
+				const FDynamicMesh3::FEdge& Edge = Mesh.GetEdgeRef(EdgeIndex);
+				FVector3d StartPoint = Transform.InverseTransformPosition(Mesh.GetVertex(Edge.Vert.A));
+				FVector3d EndPoint = Transform.InverseTransformPosition(Mesh.GetVertex(Edge.Vert.B));
+   				
+				if (CurrentRectangle.IsProjectedSegmentIntersectingRectangle(StartPoint, EndPoint))
+				{
+					OutSelectedIDs.Add(EdgeIndex);
+				}
+			}
+		};
+
+		RectangleSelectedIDs = FindIDsInsideCurrentRectangle(AddEdgeIDsToSelection);
+	}
+	else if (SelectionMode == EMeshSelectionMechanicMode::Triangle)
+	{
+		// TODO Implement me
+	}
+	else if (SelectionMode == EMeshSelectionMechanicMode::Component)
+	{
+		// TODO Implement me
+	}
+	else if (SelectionMode == EMeshSelectionMechanicMode::Mesh)
+	{
+		// TODO Implement me
+	}
+	else
+	{
+		checkNoEntry();
+	}
+
+	UpdateCurrentSelection(RectangleSelectedIDs, true);
+	
+	UpdateCentroid();
+	RebuildDrawnElements(FTransform(GetCurrentSelectionCentroid()));
+}
+
+void UMeshSelectionMechanic::OnDragRectangleFinished(const FCameraRectangle& Rectangle, bool bCancelled)
+{
+	if (PreDragSelection != CurrentSelection)
+	{
+		UpdateCentroid();
+		RebuildDrawnElements(FTransform(GetCurrentSelectionCentroid()));
+		EmitSelectionChange(PreDragSelection, CurrentSelection, true);
 		OnSelectionChanged.Broadcast();
 	}
 }

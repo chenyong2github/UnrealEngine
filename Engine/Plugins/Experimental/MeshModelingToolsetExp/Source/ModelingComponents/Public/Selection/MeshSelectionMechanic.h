@@ -10,6 +10,7 @@
 #include "InteractionMechanic.h"
 #include "InteractiveTool.h"
 #include "Selection/DynamicMeshSelection.h"
+#include "Mechanics/RectangleMarqueeMechanic.h"
 #include "ToolContextInterfaces.h" //FViewCameraState
 
 #include "MeshSelectionMechanic.generated.h"
@@ -17,6 +18,7 @@
 class ULineSetComponent;
 class UPointSetComponent;
 class APreviewGeometryActor;
+struct FCameraRectangle;
 
 enum class EMeshSelectionMechanicMode
 {
@@ -78,7 +80,11 @@ public:
 	virtual void SetSelection(const FDynamicMeshSelection& Selection, bool bBroadcast = false, bool bEmitChange = false);
 
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
-	//virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI); // Will need once we have marquee
+	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI);
+
+	void OnDragRectangleStarted();
+	void OnDragRectangleChanged(const FCameraRectangle& CurrentRectangle);
+	void OnDragRectangleFinished(const FCameraRectangle& Rectangle, bool bCancelled);
 
 	// IClickBehaviorTarget implementation
 	virtual FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos) override;
@@ -110,6 +116,9 @@ protected:
 	bool ShouldRestartSelection() const { return !bCtrlToggle && !bShiftToggle; }
 
 	UPROPERTY()
+	TObjectPtr<URectangleMarqueeMechanic> MarqueeMechanic;
+
+	UPROPERTY()
 	TObjectPtr<APreviewGeometryActor> PreviewGeometryActor = nullptr;
 
 	UPROPERTY()
@@ -122,6 +131,7 @@ protected:
 	TArray<TSharedPtr<FDynamicMeshAABBTree3>> MeshSpatials;
 	TArray<FTransform> MeshTransforms;
 	FDynamicMeshSelection CurrentSelection;
+	FDynamicMeshSelection PreDragSelection;
 	int32 CurrentSelectionIndex = IndexConstants::InvalidID;
 	FViewCameraState CameraState;
 
@@ -140,5 +150,9 @@ protected:
 	FVector3d CurrentSelectionCentroid;
 	int32 CentroidTimestamp = -1;
 	void UpdateCentroid();
+
+private:
+	void ClearCurrentSelection();
+	void UpdateCurrentSelection(const TSet<int32>& NewSelection, bool CalledFromOnRectangleChanged = false);
 };
 
