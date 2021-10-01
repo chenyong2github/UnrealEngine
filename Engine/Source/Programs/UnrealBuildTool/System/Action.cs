@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -482,6 +483,7 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Information about an action queued to be executed
 	/// </summary>
+	[DebuggerDisplay("{StatusDescription}")]
 	class LinkedAction : IExternalAction
 	{
 		/// <summary>
