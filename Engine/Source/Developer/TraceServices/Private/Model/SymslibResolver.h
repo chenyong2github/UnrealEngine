@@ -36,13 +36,34 @@ private:
 		Failed
 	};
 
+	struct FSymsSymbol
+	{
+		const char* Name;
+	};
+
+	struct FSymsUnit
+	{
+		SYMS_SpatialMap1D ProcMap;
+		SYMS_String8Array FileTable;
+		SYMS_LineTable    LineTable;
+		SYMS_SpatialMap1D LineMap;
+	};
+
+	struct FSymsInstance
+	{
+		TArray<SYMS_Arena*> Arenas;
+		TArray<FSymsUnit>   Units;
+		SYMS_SpatialMap1D   UnitMap;
+		uint64              DefaultBase;
+	};
+
 	struct FModuleEntry
 	{
 		uint64 Base;
 		uint32 Size;
 		const TCHAR* Name;
 		const TCHAR* Path;
-		SymsInstance* Instance;
+		FSymsInstance Instance;
 		std::atomic<EModuleStatus> Status;
 		TArray<uint8> ImageId;
 	};
@@ -79,11 +100,9 @@ private:
 	FModuleEntry* GetModuleForAddress(uint64 Address);
 	static void UpdateResolvedSymbol(FResolvedSymbol* Symbol, ESymbolQueryResult Result, const TCHAR* Module, const TCHAR* Name, const TCHAR* File, uint16 Line);
 	void LoadModuleTracked(FModuleEntry* Module);
-	FString FindSymbolFile(const FString& Path);
 	EModuleStatus LoadModule(FModuleEntry* Module);
 	void ResolveSymbolTracked(uint64 Address, FResolvedSymbol* Target, class FSymbolStringAllocator& StringAllocator);
 	bool ResolveSymbol(uint64 Address, FResolvedSymbol* Target, class FSymbolStringAllocator& StringAllocator);
-	void TrackFileHandlesAndRegions(IMappedFileHandle* FileHandle, IMappedFileRegion* FileRegion);
 
 	FRWLock ModulesLock;
 	TPagedArray<FModuleEntry> Modules;
@@ -93,14 +112,6 @@ private:
 	std::atomic<uint32> TasksInFlight;
 	FGraphEventRef CleanupTask;
 	std::atomic<bool> CancelTasks;
-	
-	struct FMappedFileAndRegion
-	{
-		IMappedFileHandle* Handle;
-		IMappedFileRegion* Region;
-	};
-	TArray<FMappedFileAndRegion> FileHandlesAndRegions;
-	FRWLock FileHandlesAndRegionsLock;
 
 	std::atomic<uint32> ModulesDiscovered;
 	std::atomic<uint32> ModulesFailed;

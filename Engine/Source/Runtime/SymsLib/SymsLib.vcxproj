@@ -18,6 +18,9 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="syms\symslib.c" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
@@ -128,12 +131,12 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
-      <SDLCheck>true</SDLCheck>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <ProgramDataBaseFileName>$(OutDir)$(ProjectName).pdb</ProgramDataBaseFileName>
+      <AdditionalIncludeDirectories>.</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -145,14 +148,14 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <ProgramDataBaseFileName>$(OutDir)$(ProjectName).pdb</ProgramDataBaseFileName>
+      <AdditionalIncludeDirectories>.</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -164,36 +167,6 @@
       <LinkTimeCodeGeneration>false</LinkTimeCodeGeneration>
     </Lib>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClCompile Include="src\symslib.c" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="src\dwarf\syms_dwarf.h" />
-    <ClInclude Include="src\dwarf\syms_dwarf_api.h" />
-    <ClInclude Include="src\dwarf\syms_dwarf_unwind.h" />
-    <ClInclude Include="src\elf\syms_elf.h" />
-    <ClInclude Include="src\pdb\syms_codeview.h" />
-    <ClInclude Include="src\pdb\syms_dbi.h" />
-    <ClInclude Include="src\pdb\syms_msf.h" />
-    <ClInclude Include="src\pdb\syms_pdb.h" />
-    <ClInclude Include="src\pdb\syms_pdb_api.h" />
-    <ClInclude Include="src\regs\syms_regs.h" />
-    <ClInclude Include="src\regs\syms_regs_data.h" />
-    <ClInclude Include="src\regs\syms_regs_intel.h" />
-    <ClInclude Include="src\syms.h" />
-    <ClInclude Include="src\syms_core.h" />
-    <ClInclude Include="src\syms_image.h" />
-    <ClInclude Include="src\syms_internal.h" />
-    <ClInclude Include="src\syms_line_table.h" />
-    <ClInclude Include="src\syms_virtual_unwind.h" />
-    <ClInclude Include="src\tools\radrtl\radtypes.h" />
-    <ClInclude Include="src\tools\radrtl\rrCore.h" />
-    <ClInclude Include="src\tools\radrtl\rrstring.h" />
-    <ClInclude Include="src\tools\tools.h" />
-    <ClInclude Include="src\tools\tools_cvar.h" />
-    <ClInclude Include="src\win\syms_nt.h" />
-    <ClInclude Include="src\win\syms_nt_unwind.h" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

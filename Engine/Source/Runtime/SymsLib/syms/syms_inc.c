@@ -1,0 +1,44 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+#ifndef SYMS_INC_C
+#define SYMS_INC_C
+
+////////////////////////////////
+//~ NOTE(allen): Include the whole core Syms library
+
+// base & common type definitions
+#include "syms/core/base/syms_base.c"
+#include "syms/core/syms_debug_info.c"
+
+// "windows related" formats
+#include "syms/core/pe/syms_pe.c"
+#include "syms/core/pdb/syms_pdb.c"
+
+// "linux related" foramts
+#include "syms/core/elf/syms_elf.c"
+#include "syms/core/dwarf/syms_dwarf.c"
+
+// "mach-o related" formats
+#include "syms/core/mach/syms_mach.c"
+
+// "windows related" parsers
+#include "syms/core/pe/syms_pe_parser.c"
+#include "syms/core/pdb/syms_pdb_parser.c"
+
+// "mach-o related" parsers
+#include "syms/core/mach/syms_mach_parser.c"
+
+// "linux related" parsers
+#include "syms/core/elf/syms_elf_parser.c"
+#include "syms/core/dwarf/syms_dwarf_parser.c"
+
+// parser abstraction
+#include "syms/core/syms_parser.c"
+#include "syms/core/syms_parser_invariants.c"
+#include "syms/core/data_structures/syms_data_structures.c"
+#include "syms/core/group/syms_group.c"
+#include "syms/core/file_inf/syms_file_inf.c"
+
+// serialized type information
+#include "syms/syms_serial_inc.c"
+
+#endif // SYMS_INC_C

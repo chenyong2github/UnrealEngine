@@ -1,0 +1,63 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+/* date = June 7th 2021 1:06 pm */
+
+#ifndef SYMS_PE_PARSER_H
+#define SYMS_PE_PARSER_H
+
+////////////////////////////////
+// NOTE(allen): PE Parser Types
+
+typedef struct SYMS_PeFileAccel{
+  SYMS_FileFormat format;
+  SYMS_U32 coff_off;
+} SYMS_PeFileAccel;
+
+typedef struct SYMS_PeBinAccel{
+  SYMS_FileFormat format;
+  SYMS_U64 section_array_off;
+  SYMS_U64 section_count;
+  SYMS_U64 dbg_path_off;
+  SYMS_U64 dbg_path_size;
+  SYMS_PeGuid dbg_guid;
+  SYMS_Arch arch;
+  
+  // TODO(allen): refine this part
+  SYMS_U64 pdata_off;
+  SYMS_U64 pdata_count;
+} SYMS_PeBinAccel;
+
+////////////////////////////////
+// NOTE(allen): PE Parser Functions
+
+// accelerators
+SYMS_API SYMS_PeFileAccel* syms_pe_file_accel_from_data(SYMS_Arena *arena, SYMS_String8 data);
+SYMS_API SYMS_PeBinAccel*  syms_pe_bin_accel_from_file(SYMS_Arena *arena, SYMS_String8 data,
+                                                       SYMS_PeFileAccel *file);
+
+// arch
+SYMS_API SYMS_Arch syms_pe_arch_from_bin(SYMS_PeBinAccel *bin);
+
+// external info
+SYMS_API SYMS_ExtFileList syms_pe_ext_file_list_from_bin(SYMS_Arena *arena, SYMS_String8 data,
+                                                         SYMS_PeBinAccel *bin);
+
+// binary secs
+//  pe specific
+SYMS_API SYMS_CoffSection syms_pe_coff_section(SYMS_String8 data, SYMS_PeBinAccel *bin, SYMS_U64 n);
+
+//  main api
+SYMS_API SYMS_SecInfoArray syms_pe_sec_info_array_from_bin(SYMS_Arena *arena, SYMS_String8 data,
+                                                           SYMS_PeBinAccel *bin);
+
+////////////////////////////////
+// NOTE(allen): PE Specific Helpers
+
+SYMS_API SYMS_U64 syms_pe_binary_search_intel_pdata(SYMS_String8 data, SYMS_PeBinAccel *bin, SYMS_U64 voff);
+
+SYMS_API SYMS_U64 syms_pe_sec_number_from_voff(SYMS_String8 data, SYMS_PeBinAccel *bin, SYMS_U64 voff);
+
+SYMS_API void*    syms_pe_ptr_from_sec_number(SYMS_String8 data, SYMS_PeBinAccel *bin, SYMS_U64 n);
+SYMS_API void*    syms_pe_ptr_from_foff(SYMS_String8 data, SYMS_PeBinAccel *bin, SYMS_U64 foff);
+SYMS_API void*    syms_pe_ptr_from_voff(SYMS_String8 data, SYMS_PeBinAccel *bin, SYMS_U64 voff);
+
+#endif //SYMS_PE_PARSER_H
