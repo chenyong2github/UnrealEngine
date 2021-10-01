@@ -672,6 +672,17 @@ bool TDynamicMeshOverlay<RealType, ElementSize>::HasInteriorSeamEdges() const
 		FIndex2i et = ParentMesh->GetEdgeT(eid);
 		if (et.B != FDynamicMesh3::InvalidID)
 		{
+			bool bASet = IsSetTriangle(et.A), bBSet = IsSetTriangle(et.B);
+			if (bASet != bBSet)
+			{
+				// seam between triangles with elements and triangles without
+				return true;
+			}
+			else if (!bASet)
+			{
+				// neither triangle has set elements
+				continue;
+			}
 			FIndex2i ev = ParentMesh->GetEdgeV(eid);
 			int base_a = ev.A, base_b = ev.B;
 
