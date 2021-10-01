@@ -178,8 +178,6 @@ namespace Chaos
 
 	FPhysicsSolverBase::~FPhysicsSolverBase()
 	{
-		//free pull results before MarshallingManager is destroyed (technically should be safe because constructed after, but this makes it more explicit)
-		PullResultsManager->SetHistoryLength_External(0);	//ok to use _External because solver going away means external thread released it
 		//reset history buffer before freeing any unremoved callback objects
 		MarshallingManager.SetHistoryLength_Internal(0);
 

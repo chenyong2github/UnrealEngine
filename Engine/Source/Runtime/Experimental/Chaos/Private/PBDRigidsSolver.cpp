@@ -354,11 +354,6 @@ namespace Chaos
 				MSolver->GetEvolution()->EndFrame(MDeltaTime);
 			}
 
-			if(FRewindData* RewindData = MSolver->GetRewindData())
-			{
-				RewindData->FinishFrame();
-			}
-
 			MSolver->FinalizeCallbackData_Internal();
 
 			MSolver->GetSolverTime() += MDeltaTime;
@@ -372,6 +367,11 @@ namespace Chaos
 			if(MDeltaTime > 0)
 			{
 				MSolver->CompleteSceneSimulation();
+			}
+
+			if (FRewindData* RewindData = MSolver->GetRewindData())
+			{
+				RewindData->FinishFrame();
 			}
 		}
 
@@ -663,7 +663,6 @@ namespace Chaos
 		bUseCollisionResimCache = InUseCollisionResimCache;
 		MRewindCallback = MoveTemp(RewindCallback);
 		MarshallingManager.SetHistoryLength_Internal(NumFrames);
-		PullResultsManager->SetHistoryLength_External(NumFrames);
 		MEvolution->SetRewindData(GetRewindData());
 	}
 
@@ -1212,6 +1211,7 @@ namespace Chaos
 		FPullPhysicsData* PullData = MarshallingManager.GetCurrentPullData_Internal();
 
 		TParticleView<FPBDRigidParticles>& DirtyParticles = GetParticles().GetDirtyParticlesView();
+		const bool bIsResim = GetEvolution()->IsResimming();
 
 		//todo: should be able to go wide just add defaulted etc...
 		{
@@ -1221,25 +1221,27 @@ namespace Chaos
 
 			for (Chaos::TPBDRigidParticleHandleImp<FReal, 3, false>& DirtyParticle : DirtyParticles)
 			{
-				IPhysicsProxyBase* Proxy = DirtyParticle.Handle()->PhysicsProxy();
-							if(Proxy != nullptr)
+				if(IPhysicsProxyBase* Proxy = DirtyParticle.Handle()->PhysicsProxy())
+				{
+					switch(DirtyParticle.GetParticleType())
+					{
+						case Chaos::EParticleType::Rigid:
 						{
-								switch(DirtyParticle.GetParticleType())
+							if(!bIsResim || DirtyParticle.SyncState() == ESyncState::HardDesync)
 							{
-							case Chaos::EParticleType::Rigid:
-								{
-									PullData->DirtyRigids.AddDefaulted();
-									((FSingleParticlePhysicsProxy*)(Proxy))->BufferPhysicsResults(PullData->DirtyRigids.Last());
-									break;
-								}
-							case Chaos::EParticleType::Kinematic:
-							case Chaos::EParticleType::Static:
-								ensure(false);
-								break;
-							case Chaos::EParticleType::GeometryCollection:
-								ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(Proxy));
-								break;
-							case Chaos::EParticleType::Clustered:
+								PullData->DirtyRigids.AddDefaulted();
+								((FSingleParticlePhysicsProxy*)(Proxy))->BufferPhysicsResults(PullData->DirtyRigids.Last());
+							}
+							break;
+						}
+						case Chaos::EParticleType::Kinematic:
+						case Chaos::EParticleType::Static:
+							ensure(false);
+							break;
+						case Chaos::EParticleType::GeometryCollection:
+							ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(Proxy));
+							break;
+						case Chaos::EParticleType::Clustered:
 							if (auto ClusterParticle = DirtyParticle.CastToClustered())
 							{
 								if (ClusterParticle->InternalCluster())
@@ -1252,13 +1254,13 @@ namespace Chaos
 								}
 								else
 								{
-								ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(Proxy));
+									ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(Proxy));
 								}
 							}
-								break;
-							default:
-								check(false);
-							}
+							break;
+						default:
+							check(false);
+					}
 				}	
 			}
 		}

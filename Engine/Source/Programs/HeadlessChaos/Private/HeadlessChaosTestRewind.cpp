@@ -645,10 +645,6 @@ namespace ChaosTest {
 
 				auto FloorGeom = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-100, -100, -1), FVec3(100, 100, 0)));
 
-				const FReal LeashTime = 3;
-
-				Solver->GetResultsManager().SetResimInterpTime(LeashTime);
-
 				auto& Particle = Proxy->GetGameThreadAPI();
 				Particle.SetGravityEnabled(false);
 				Particle.SetV(FVec3(0, 0, 0));
@@ -659,7 +655,6 @@ namespace ChaosTest {
 				const FReal StartMovingTimeDiscrete = FMath::FloorToInt(StartMovingTime / SimDt) * SimDt;
 				const FReal GTDt = 1;
 				const FReal InterpStartTime = ResimTime + SimDt;
-				const FReal InterpEndTime = ResimTime + LeashTime + SimDt;
 				const FReal SleepLocation = SleepTime - StartMovingTimeDiscrete;
 				const FReal CorrectedLocation = SimDt <= 1 ? 0 : 4;
 				FReal PrevZDuringInterp = SleepLocation;	//shouldn't be further then this because already interpolating back to 0
@@ -700,18 +695,10 @@ namespace ChaosTest {
 					}
 					else
 					{
-						if (InterpolatedTime >= InterpEndTime)
-						{
-							//not moving and no longer in leash mode
-							EXPECT_NEAR(Particle.X()[2], CorrectedLocation, 1e-2);
-						}
-						else
-						{
-							//leash mode
-							EXPECT_GT(Particle.X()[2], CorrectedLocation);
-							EXPECT_LT(Particle.X()[2], PrevZDuringInterp);
-							PrevZDuringInterp = Particle.X()[2];
-						}
+						//leash mode
+						EXPECT_GE(Particle.X()[2], CorrectedLocation);
+						EXPECT_LE(Particle.X()[2], PrevZDuringInterp);
+						PrevZDuringInterp = Particle.X()[2];
 					}
 				}
 
@@ -1961,11 +1948,6 @@ namespace ChaosTest {
 					}
 				};
 
-				const FReal InterpTime = 10;
-				const FReal InterpStrength = 0.25;
-				Solver->GetResultsManager().SetResimInterpTime(InterpTime);
-				Solver->GetResultsManager().SetResimInterpStrength(InterpStrength);
-
 				const int32 LastGameStep = 20;
 				const int32 NumPhysSteps = FMath::TruncToInt(LastGameStep / SimDt);
 
@@ -2021,11 +2003,10 @@ namespace ChaosTest {
 						//expected interpolation from pt to gt
 						const int32 NextSimStep = FMath::CeilToInt(InterpolatedTime / SimDt);
 						const FReal NextSimStepTime = NextSimStep * SimDt;
-						const FReal InterpEndTime = 20 + InterpTime;
 						const FReal ExpectedValue = ZStart + ZVel * InterpolatedTime;
 						const FReal TargetValue = ZStart + ZVel * NextSimStepTime;
 
-						if(InterpolatedTime >= InterpEndTime || InterpolatedTime <= 20)
+						if(!Proxy->IsResimSmoothing())
 						{
 							//no resim interpolation, just simple value interpolation
 							EXPECT_NEAR(Particle.X()[2], ExpectedValue, 1e-2);
@@ -2033,7 +2014,7 @@ namespace ChaosTest {
 						else
 						{
 							//exponential decay from current state to target
-							EXPECT_NEAR(Particle.X()[2], FMath::Lerp(PrevZ, ExpectedValue, InterpStrength), 1e-2);
+							EXPECT_NEAR(Particle.X()[2], FMath::Lerp(PrevZ, ExpectedValue, Chaos::ResimInterpStrength), 1e-2);
 						}
 					}
 				}
