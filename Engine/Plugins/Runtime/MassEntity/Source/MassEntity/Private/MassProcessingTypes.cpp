@@ -82,7 +82,7 @@ void FMassRuntimePipeline::InitializeFromClassArray(TConstArrayView<TSubclassOf<
 	Reset();
 
 	const UWorld* World = InOwner.GetWorld();
-	const EProcessorExecutionFlags WorldExecutionFlags = World ? UE::Pipe::Utils::GetProcessorExecutionFlagsForWold(*World) : EProcessorExecutionFlags::All;
+	const EProcessorExecutionFlags WorldExecutionFlags = World ? UE::Mass::Utils::GetProcessorExecutionFlagsForWold(*World) : EProcessorExecutionFlags::All;
 
 	for (const TSubclassOf<UMassProcessor>& ProcessorClass : InProcessorClasses)
 	{
@@ -113,7 +113,7 @@ bool FMassRuntimePipeline::HasProcessorOfExactClass(TSubclassOf<UMassProcessor> 
 void FMassRuntimePipeline::AppendUniqueRuntimeProcessorCopies(TConstArrayView<const UMassProcessor*> InProcessors, UObject& InOwner)
 {
 	const UWorld* World = InOwner.GetWorld();
-	const EProcessorExecutionFlags WorldExecutionFlags = World ? UE::Pipe::Utils::GetProcessorExecutionFlagsForWold(*World) : EProcessorExecutionFlags::All;
+	const EProcessorExecutionFlags WorldExecutionFlags = World ? UE::Mass::Utils::GetProcessorExecutionFlagsForWold(*World) : EProcessorExecutionFlags::All;
 	const int32 StartingCount = Processors.Num();
 		
 	for (const UMassProcessor* Proc : InProcessors)
@@ -152,7 +152,7 @@ void FMassRuntimePipeline::AppendUniqueRuntimeProcessorCopies(TConstArrayView<co
 void FMassRuntimePipeline::AppendOrOverrideRuntimeProcessorCopies(TConstArrayView<const UMassProcessor*> InProcessors, UObject& InOwner)
 {
 	const UWorld* World = InOwner.GetWorld();
-	const EProcessorExecutionFlags WorldExecutionFlags = World ? UE::Pipe::Utils::GetProcessorExecutionFlagsForWold(*World) : EProcessorExecutionFlags::All;
+	const EProcessorExecutionFlags WorldExecutionFlags = World ? UE::Mass::Utils::GetProcessorExecutionFlagsForWold(*World) : EProcessorExecutionFlags::All;
 	
 	for (const UMassProcessor* Proc : InProcessors)
 	{
@@ -211,7 +211,7 @@ UMassCompositeProcessor* FMassRuntimePipeline::FindTopLevelGroupByName(FName Gro
 
 void FMassRuntimePipeline::DebugOutputDescription(FOutputDevice& Ar) const
 {
-	UE::Pipe::Debug::DebugOutputDescription(Processors, Ar);
+	UE::Mass::Debug::DebugOutputDescription(Processors, Ar);
 }
 
 uint32 GetTypeHash(const FMassRuntimePipeline& Instance)

@@ -16,12 +16,12 @@ class UMaterialInterface;
 MASSCOMMON_API DECLARE_LOG_CATEGORY_EXTERN(LogMass, Warning, All);
 
 #if WITH_MASSGAMEPLAY_DEBUG
-namespace UE::MassDebug
+namespace UE::Mass::Debug
 {
 	MASSCOMMON_API extern bool HasDebugEntities();
 	MASSCOMMON_API extern bool IsDebuggingEntity(FMassEntityHandle Entity, FColor* OutEntityColor = nullptr);
 	MASSCOMMON_API extern FColor GetEntityDebugColor(FMassEntityHandle Entity);
-} // namespace UE::MassDebug
+} // namespace UE::Mass::Debug
 #endif // WITH_MASSGAMEPLAY_DEBUG
 
 namespace UE::Mass::ProcessorGroupNames

@@ -224,7 +224,7 @@ void UMassZoneGraphPathFollowProcessor::Execute(UMassEntitySubsystem& EntitySubs
 
 			bool bDisplayDebug = false;
 #if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT // this will result in bDisplayDebug == false and disabling of all the vlogs below
-			bDisplayDebug = UE::MassDebug::IsDebuggingEntity(Entity);
+			bDisplayDebug = UE::Mass::Debug::IsDebuggingEntity(Entity);
 			if (bDisplayDebug)
 			{
 				UE_VLOG(this, LogMassNavigation, Log, TEXT("Entity [%s] Updating path following"), *Entity.DebugGetDescription());
@@ -411,7 +411,7 @@ void UMassZoneGraphPathFollowProcessor::Execute(UMassEntitySubsystem& EntitySubs
 #if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
 				if (bDisplayDebug)
 				{
-					const FColor EntityColor = UE::MassDebug::GetEntityDebugColor(Entity);
+					const FColor EntityColor = UE::Mass::Debug::GetEntityDebugColor(Entity);
 
 					const FVector ZOffset(0,0,25);
 					const FColor LightEntityColor = UE::MassMovement::Debug::MixColors(EntityColor, FColor::White);
@@ -709,7 +709,7 @@ void UMassZoneGraphSteeringProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 
 #if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
 			FColor EntityColor = FColor::White;
-			const bool bDisplayDebug = UE::MassDebug::IsDebuggingEntity(Entity, &EntityColor);
+			const bool bDisplayDebug = UE::Mass::Debug::IsDebuggingEntity(Entity, &EntityColor);
 			if (bDisplayDebug)
 			{
 				const FVector ZOffset(0,0,25);

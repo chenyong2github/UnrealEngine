@@ -44,7 +44,7 @@ void UMassDebugStateTreeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem
 		return;
 	}
 
-	if (!Debugger->GetSelectedEntity().IsSet() && !UE::MassDebug::HasDebugEntities())
+	if (!Debugger->GetSelectedEntity().IsSet() && !UE::Mass::Debug::HasDebugEntities())
 	{
 		return;
 	}
@@ -80,7 +80,7 @@ void UMassDebugStateTreeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem
 				}
 					
 				FColor EntityColor = FColor::White;
-				const bool bDisplayDebug = UE::MassDebug::IsDebuggingEntity(Entity, &EntityColor);
+				const bool bDisplayDebug = UE::Mass::Debug::IsDebuggingEntity(Entity, &EntityColor);
 				if (bDisplayDebug)
 				{
 					const FDataFragment_Transform& Transform = TransformList[i];

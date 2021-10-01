@@ -14,7 +14,7 @@ struct FArchetypeChunkCollection;
 class UMassProcessor;
 
 
-namespace UE::Pipe::Executor
+namespace UE::Mass::Executor
 {
 	/** Executes processors in a given RuntimePipeline */
 	MASSENTITY_API void Run(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& PipeContext);

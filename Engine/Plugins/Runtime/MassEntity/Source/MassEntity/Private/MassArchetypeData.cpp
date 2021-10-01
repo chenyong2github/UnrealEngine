@@ -7,10 +7,10 @@
 
 //////////////////////////////////////////////////////////////////////
 // FMassArchetypeData
-namespace UE { namespace AggregateTicking 
+namespace UE::Mass::Core 
 {
 	constexpr static bool bBitwiseRelocateComponents = true;
-}} // UE::AggregateTicking
+}// UE::Mass::Core
 
 void FMassArchetypeData::ForEachComponentType(TFunction< void(const UScriptStruct* /*Component*/)> Function) const
 {
@@ -218,7 +218,7 @@ void FMassArchetypeData::RemoveEntityInternal(const int32 AbsoluteIndex, const b
 	Chunk.RemoveInstance();
 	const int32 IndexToSwapFrom = Chunk.GetNumInstances();
 
-	checkf(bDestroyComponents || UE::AggregateTicking::bBitwiseRelocateComponents, TEXT("We allow not to destroy components only in bit wise relocation mode."));
+	checkf(bDestroyComponents || UE::Mass::Core::bBitwiseRelocateComponents, TEXT("We allow not to destroy components only in bit wise relocation mode."));
 
 	// Remove and swap the last entry in the chunk to the location of the removed item (if it's not the same as the dying entry)
 	if (IndexToSwapFrom != IndexWithinChunk)
@@ -228,7 +228,7 @@ void FMassArchetypeData::RemoveEntityInternal(const int32 AbsoluteIndex, const b
 			void* DyingComponentPtr = ComponentConfig.GetComponentData(Chunk.GetRawMemory(), IndexWithinChunk);
 			void* MovingComponentPtr = ComponentConfig.GetComponentData(Chunk.GetRawMemory(), IndexToSwapFrom);
 
-			if (UE::AggregateTicking::bBitwiseRelocateComponents)
+			if (UE::Mass::Core::bBitwiseRelocateComponents)
 			{
 				// Destroy component data
 				if (bDestroyComponents)
@@ -257,7 +257,7 @@ void FMassArchetypeData::RemoveEntityInternal(const int32 AbsoluteIndex, const b
 		Chunk.GetEntityArrayElementRef(EntityListOffsetWithinChunk, IndexWithinChunk) = EntityBeingSwapped;
 		EntityMap.FindChecked(EntityBeingSwapped.Index) = AbsoluteIndex;
 	}
-	else if (!UE::AggregateTicking::bBitwiseRelocateComponents || bDestroyComponents)
+	else if (!UE::Mass::Core::bBitwiseRelocateComponents || bDestroyComponents)
 	{
 		for (const FMassArchetypeFragmentConfig& ComponentConfig : ComponentConfigs)
 		{
@@ -309,7 +309,7 @@ void FMassArchetypeData::BatchDestroyEntityChunks(const FArchetypeChunkCollectio
 				void* DyingComponentPtr = ComponentConfig.GetComponentData(Chunk.GetRawMemory(), SubchunkInfo.SubchunkStart);
 				void* MovingComponentPtr = ComponentConfig.GetComponentData(Chunk.GetRawMemory(), SwapStartIndex);
 
-				if (UE::AggregateTicking::bBitwiseRelocateComponents)
+				if (UE::Mass::Core::bBitwiseRelocateComponents)
 				{
 					// Destroy the components we'll replace by the following copy
 					ComponentConfig.ComponentType->DestroyStruct(DyingComponentPtr, NumberToMove);
@@ -405,7 +405,7 @@ void FMassArchetypeData::SetComponentsData(const FMassEntityHandle Entity, TArra
 		check(ComponentType);
 		const int32 ComponentIndex = ComponentIndexMap.FindChecked(ComponentType);
 		void* ComponentMemory = GetComponentData(ComponentIndex, InternalIndex);
-		// No UE::AggregateTicking::bBitwiseRelocateComponents, this isn't a move component
+		// No UE::Mass::Core::bBitwiseRelocateComponents, this isn't a move component
 		ComponentType->CopyScriptStruct(ComponentMemory, Instance.GetMemory());
 	}
 }
@@ -425,7 +425,7 @@ void FMassArchetypeData::SetComponentData(const FArchetypeChunkCollection& Chunk
 		uint8* ComponentMemory = (uint8*)ComponentConfigs[ComponentIndex].GetComponentData(Chunks[ChunkIterator->ChunkIndex].GetRawMemory(), ChunkIterator->SubchunkStart);
 		for (int i = ChunkIterator->Length; i; --i, ComponentMemory += ComponentTypeSize)
 		{
-			// No UE::AggregateTicking::bBitwiseRelocateComponents, this isn't a move of a component
+			// No UE::Mass::Core::bBitwiseRelocateComponents, this isn't a move of a component
 			ComponentType->CopyScriptStruct(ComponentMemory, ComponentSourceMemory);
 		}
 	}
@@ -451,7 +451,7 @@ void FMassArchetypeData::MoveEntityToAnotherArchetype(const FMassEntityHandle En
 	const int32 IndexWithinChunk = AbsoluteIndex % NumEntitiesPerChunk;
 	FMassArchetypeChunk& Chunk = Chunks[ChunkIndex];
 
-	constexpr bool bInitializeComponentsDuringCreation = !UE::AggregateTicking::bBitwiseRelocateComponents;
+	constexpr bool bInitializeComponentsDuringCreation = !UE::Mass::Core::bBitwiseRelocateComponents;
 	const int32 NewAbsoluteIndex = NewArchetype.AddEntityInternal(Entity, bInitializeComponentsDuringCreation);
 	const int32 NewChunkIndex = NewAbsoluteIndex / NewArchetype.NumEntitiesPerChunk;
 	const int32 NewIndexWithinChunk = NewAbsoluteIndex % NewArchetype.NumEntitiesPerChunk;
@@ -469,7 +469,7 @@ void FMassArchetypeData::MoveEntityToAnotherArchetype(const FMassEntityHandle En
 		if (OldComponentIndex)
 		{
 			const void* Src = ComponentConfigs[*OldComponentIndex].GetComponentData(Chunk.GetRawMemory(), IndexWithinChunk);
-			if (UE::AggregateTicking::bBitwiseRelocateComponents)
+			if (UE::Mass::Core::bBitwiseRelocateComponents)
 			{
 				FMemory::Memcpy(Dst, Src, NewComponentConfig.ComponentType->GetStructureSize());
 			}
@@ -487,7 +487,7 @@ void FMassArchetypeData::MoveEntityToAnotherArchetype(const FMassEntityHandle En
 		}
 	}
 
-	constexpr bool bDestroyComponents = !UE::AggregateTicking::bBitwiseRelocateComponents;
+	constexpr bool bDestroyComponents = !UE::Mass::Core::bBitwiseRelocateComponents;
 	RemoveEntityInternal(AbsoluteIndex, bDestroyComponents);
 }
 
@@ -609,7 +609,7 @@ void FMassArchetypeData::CompactEntities(const double TimeAllowed)
 			void* FromComponentPtr = ComponentConfig.GetComponentData(ChunkToEmpty->GetRawMemory(), FromIndex);
 			void* ToComponentPtr = ComponentConfig.GetComponentData(ChunkToFill->GetRawMemory(), ToIndex);
 
-			if (UE::AggregateTicking::bBitwiseRelocateComponents)
+			if (UE::Mass::Core::bBitwiseRelocateComponents)
 			{
 				// Move all entries
 				FMemory::Memcpy(ToComponentPtr, FromComponentPtr, ComponentConfig.ComponentType->GetStructureSize() * NumberOfEntitiesToMove);

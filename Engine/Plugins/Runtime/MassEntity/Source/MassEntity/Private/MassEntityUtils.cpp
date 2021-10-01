@@ -4,7 +4,7 @@
 #include "Engine/EngineBaseTypes.h"
 #include "Engine/World.h"
 
-namespace UE { namespace Pipe { namespace Utils
+namespace UE::Mass::Utils
 {
 
 EProcessorExecutionFlags GetProcessorExecutionFlagsForWold(const UWorld& World)
@@ -31,4 +31,4 @@ EProcessorExecutionFlags GetProcessorExecutionFlagsForWold(const UWorld& World)
 	return ExecutionFlags;
 }
 
-} } }// namespace UE::Pipe::Utils
+} // namespace UE::Mass::Utils

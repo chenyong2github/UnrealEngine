@@ -61,7 +61,7 @@ namespace UE::MassMovement
  	static bool DebugIsSelected(const FMassEntityHandle Entity)
  	{
  #if WITH_MASSGAMEPLAY_DEBUG
- 		return UE::MassDebug::IsDebuggingEntity(Entity);
+ 		return UE::Mass::Debug::IsDebuggingEntity(Entity);
  #else
  	return false;
  #endif // WITH_MASSGAMEPLAY_DEBUG

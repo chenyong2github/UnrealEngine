@@ -145,7 +145,7 @@ void UMassLookAtProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassE
 				const FMassEntityHandle Entity = Context.GetEntity(i);
 	#if WITH_MASSGAMEPLAY_DEBUG
 				FColor EntityColor = FColor::White;
-				bDisplayDebug = UE::MassDebug::IsDebuggingEntity(Entity, &EntityColor);
+				bDisplayDebug = UE::Mass::Debug::IsDebuggingEntity(Entity, &EntityColor);
 	#endif // WITH_MASSGAMEPLAY_DEBUG
 
 				// Update gaze target when current cycle is finished.
