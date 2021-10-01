@@ -9,7 +9,6 @@
 #include "MassEntityQuery.h"
 #include "MassEntitySubsystem.generated.h"
 
-MASSENTITY_API DECLARE_LOG_CATEGORY_EXTERN(LogAggregateTicking, Warning, All);
 
 class UMassEntitySubsystem;
 struct FMassEntityQuery;

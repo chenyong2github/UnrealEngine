@@ -13,8 +13,6 @@
 class UStaticMesh;
 class UMaterialInterface;
 
-MASSCOMMON_API DECLARE_LOG_CATEGORY_EXTERN(LogMass, Warning, All);
-
 #if WITH_MASSGAMEPLAY_DEBUG
 namespace UE::Mass::Debug
 {

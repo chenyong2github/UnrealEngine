@@ -9,7 +9,7 @@
 #include "MassEntityTestTypes.h"
 #include "MassExecutor.h"
 
-#define LOCTEXT_NAMESPACE "PipeTest"
+#define LOCTEXT_NAMESPACE "MassTest"
 
 PRAGMA_DISABLE_OPTIMIZATION
 
@@ -42,7 +42,7 @@ struct FEntityTest_ArchetypeCreation : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FEntityTest_ArchetypeCreation, "System.Pipe.Entity.AchetypesCreation");
+IMPLEMENT_AI_INSTANT_TEST(FEntityTest_ArchetypeCreation, "System.Mass.Entity.AchetypesCreation");
 
 
 struct FEntityTest_ArchetypeEquivalence : FEntityTestBase
@@ -59,7 +59,7 @@ struct FEntityTest_ArchetypeEquivalence : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FEntityTest_ArchetypeEquivalence, "System.Pipe.Entity.AchetypeEquivalance");
+IMPLEMENT_AI_INSTANT_TEST(FEntityTest_ArchetypeEquivalence, "System.Mass.Entity.AchetypeEquivalance");
 
 
 struct FEntityTest_MultipleEntitiesCreation : FEntityTestBase
@@ -87,7 +87,7 @@ struct FEntityTest_MultipleEntitiesCreation : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FEntityTest_MultipleEntitiesCreation, "System.Pipe.Entity.MultipleEntitiesCreation");
+IMPLEMENT_AI_INSTANT_TEST(FEntityTest_MultipleEntitiesCreation, "System.Mass.Entity.MultipleEntitiesCreation");
 
 
 struct FEntityTest_EntityBatchCreation : FEntityTestBase
@@ -104,7 +104,7 @@ struct FEntityTest_EntityBatchCreation : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FEntityTest_EntityBatchCreation, "System.Pipe.Entity.BatchCreation");
+IMPLEMENT_AI_INSTANT_TEST(FEntityTest_EntityBatchCreation, "System.Mass.Entity.BatchCreation");
 
 struct FEntityTest_BatchCreatingSingleEntity : FEntityTestBase
 {
@@ -119,7 +119,7 @@ struct FEntityTest_BatchCreatingSingleEntity : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FEntityTest_BatchCreatingSingleEntity, "System.Pipe.Entity.BatchCreatingSingleEntity");
+IMPLEMENT_AI_INSTANT_TEST(FEntityTest_BatchCreatingSingleEntity, "System.Mass.Entity.BatchCreatingSingleEntity");
 
 
 struct FEntityTest_EntityCreation : FEntityTestBase
@@ -136,7 +136,7 @@ struct FEntityTest_EntityCreation : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FEntityTest_EntityCreation, "System.Pipe.Entity.EntityCreation");
+IMPLEMENT_AI_INSTANT_TEST(FEntityTest_EntityCreation, "System.Mass.Entity.EntityCreation");
 
 
 struct FEntityTest_EntityCreationFromInstances : FEntityTestBase
@@ -153,7 +153,7 @@ struct FEntityTest_EntityCreationFromInstances : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FEntityTest_EntityCreationFromInstances, "System.Pipe.Entity.EntityCreationFromInstances");
+IMPLEMENT_AI_INSTANT_TEST(FEntityTest_EntityCreationFromInstances, "System.Mass.Entity.EntityCreationFromInstances");
 
 #if 0 // this test is compiled out since AddComponentToEntity will fails an ensure if a redundant fragment gets added
 struct FEntityTest_AddingRedundantFragment : FEntityTestBase
@@ -168,7 +168,7 @@ struct FEntityTest_AddingRedundantFragment : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FEntityTest_AddingRedundantFragment, "System.Pipe.Entity.AddingRedundantFragment");
+IMPLEMENT_AI_INSTANT_TEST(FEntityTest_AddingRedundantFragment, "System.Mass.Entity.AddingRedundantFragment");
 #endif //0
 
 
@@ -189,7 +189,7 @@ struct FEntityTest_AddingFragmentType : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FEntityTest_AddingFragmentType, "System.Pipe.Entity.AddingFragmentType");
+IMPLEMENT_AI_INSTANT_TEST(FEntityTest_AddingFragmentType, "System.Mass.Entity.AddingFragmentType");
 
 struct FEntityTest_AddingFragmentInstance : FEntityTestBase
 {
@@ -209,7 +209,7 @@ struct FEntityTest_AddingFragmentInstance : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FEntityTest_AddingFragmentInstance, "System.Pipe.Entity.AddingFragmentType");
+IMPLEMENT_AI_INSTANT_TEST(FEntityTest_AddingFragmentInstance, "System.Mass.Entity.AddingFragmentType");
 
 
 struct FEntityTest_RemovingFragment : FEntityTestBase
@@ -229,7 +229,7 @@ struct FEntityTest_RemovingFragment : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FEntityTest_RemovingFragment, "System.Pipe.Entity.RemovingFragment");
+IMPLEMENT_AI_INSTANT_TEST(FEntityTest_RemovingFragment, "System.Mass.Entity.RemovingFragment");
 
 struct FEntityTest_RemovingLastFragment : FEntityTestBase
 {
@@ -246,7 +246,7 @@ struct FEntityTest_RemovingLastFragment : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FEntityTest_RemovingLastFragment, "System.Pipe.Entity.RemovingLastFragment");
+IMPLEMENT_AI_INSTANT_TEST(FEntityTest_RemovingLastFragment, "System.Mass.Entity.RemovingLastFragment");
 
 struct FEntityTest_DestroyEntity : FEntityTestBase
 {
@@ -261,7 +261,7 @@ struct FEntityTest_DestroyEntity : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FEntityTest_DestroyEntity, "System.Pipe.Entity.DestroyEntity");
+IMPLEMENT_AI_INSTANT_TEST(FEntityTest_DestroyEntity, "System.Mass.Entity.DestroyEntity");
 
 struct FEntityTest_EntityReservationAndBuilding : FEntityTestBase
 {
@@ -284,7 +284,7 @@ struct FEntityTest_EntityReservationAndBuilding : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FEntityTest_EntityReservationAndBuilding, "System.Pipe.Entity.EntityReservationAndBuilding");
+IMPLEMENT_AI_INSTANT_TEST(FEntityTest_EntityReservationAndBuilding, "System.Mass.Entity.EntityReservationAndBuilding");
 
 struct FEntityTest_EntityReservationAndBuildingFromInstances : FEntityTestBase
 {
@@ -307,7 +307,7 @@ struct FEntityTest_EntityReservationAndBuildingFromInstances : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FEntityTest_EntityReservationAndBuildingFromInstances, "System.Pipe.Entity.EntityReservationAndBuildingFromInstances");
+IMPLEMENT_AI_INSTANT_TEST(FEntityTest_EntityReservationAndBuildingFromInstances, "System.Mass.Entity.EntityReservationAndBuildingFromInstances");
 
 struct FEntityTest_ReleaseEntity : FEntityTestBase
 {
@@ -324,7 +324,7 @@ struct FEntityTest_ReleaseEntity : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FEntityTest_ReleaseEntity, "System.Pipe.Entity.ReleaseEntity");
+IMPLEMENT_AI_INSTANT_TEST(FEntityTest_ReleaseEntity, "System.Mass.Entity.ReleaseEntity");
 
 struct FEntityTest_ReserveAPreviouslyBuiltEntity : FEntityTestBase
 {
@@ -353,7 +353,7 @@ struct FEntityTest_ReserveAPreviouslyBuiltEntity : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FEntityTest_ReserveAPreviouslyBuiltEntity, "System.Pipe.Entity.ReserveAPreviouslyBuiltEntity");
+IMPLEMENT_AI_INSTANT_TEST(FEntityTest_ReserveAPreviouslyBuiltEntity, "System.Mass.Entity.ReserveAPreviouslyBuiltEntity");
 
 #endif // WITH_MASSENTITY_DEBUG
 

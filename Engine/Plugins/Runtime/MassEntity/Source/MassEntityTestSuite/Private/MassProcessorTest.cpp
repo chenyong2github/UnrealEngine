@@ -9,7 +9,7 @@
 #include "MassEntityTestTypes.h"
 #include "MassExecutor.h"
 
-#define LOCTEXT_NAMESPACE "PipeTest"
+#define LOCTEXT_NAMESPACE "MassTest"
 
 PRAGMA_DISABLE_OPTIMIZATION
 
@@ -29,8 +29,8 @@ int32 SimpleProcessorRun(UMassEntitySubsystem& EntitySubsystem)
 			});
 	};
 
-	FMassProcessingContext PipeContext(EntitySubsystem, /*DeltaSeconds=*/0.f);
-	UE::Mass::Executor::Run(*Processor, PipeContext);
+	FMassProcessingContext ProcessingContext(EntitySubsystem, /*DeltaSeconds=*/0.f);
+	UE::Mass::Executor::Run(*Processor, ProcessingContext);
 
 	return EntityProcessedCount;
 }
@@ -47,7 +47,7 @@ struct FProcessorTest_NoEntities : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FProcessorTest_NoEntities, "System.Pipe.Processor.NoEntities");
+IMPLEMENT_AI_INSTANT_TEST(FProcessorTest_NoEntities, "System.Mass.Processor.NoEntities");
 
 
 struct FProcessorTest_NoMatchingEntities : FEntityTestBase
@@ -64,7 +64,7 @@ struct FProcessorTest_NoMatchingEntities : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FProcessorTest_NoMatchingEntities, "System.Pipe.Processor.NoMatchingEntities");
+IMPLEMENT_AI_INSTANT_TEST(FProcessorTest_NoMatchingEntities, "System.Mass.Processor.NoMatchingEntities");
 
 struct FProcessorTest_OneMatchingArchetype : FEntityTestBase
 {
@@ -81,7 +81,7 @@ struct FProcessorTest_OneMatchingArchetype : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FProcessorTest_OneMatchingArchetype, "System.Pipe.Processor.OneMatchingArchetype");
+IMPLEMENT_AI_INSTANT_TEST(FProcessorTest_OneMatchingArchetype, "System.Mass.Processor.OneMatchingArchetype");
 
 
 struct FProcessorTest_MultipleMatchingArchetype : FEntityTestBase
@@ -102,7 +102,7 @@ struct FProcessorTest_MultipleMatchingArchetype : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FProcessorTest_MultipleMatchingArchetype, "System.Pipe.Processor.MultipleMatchingArchetype");
+IMPLEMENT_AI_INSTANT_TEST(FProcessorTest_MultipleMatchingArchetype, "System.Mass.Processor.MultipleMatchingArchetype");
 
 
 struct FProcessorTest_Requirements : FEntityTestBase
@@ -114,7 +114,7 @@ struct FProcessorTest_Requirements : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FProcessorTest_Requirements, "System.Pipe.Processor.Requirements");
+IMPLEMENT_AI_INSTANT_TEST(FProcessorTest_Requirements, "System.Mass.Processor.Requirements");
 
 
 } // FMassProcessorTestTest

@@ -8,7 +8,7 @@
 #include "Misc/Paths.h"
 #include "Engine/World.h"
 
-#define LOCTEXT_NAMESPACE "Pipe"
+#define LOCTEXT_NAMESPACE "Mass"
 
 //----------------------------------------------------------------------//
 //  FProcessorDependencySolver::FNode
@@ -143,7 +143,7 @@ void FProcessorDependencySolver::AddNode(FName InGroupName, UMassProcessor& Proc
 		}
 		else
 		{
-			UE_LOG(LogPipe, Warning, TEXT("%s Processor %s already registered. Duplicates are not supported.")
+			UE_LOG(LogMass, Warning, TEXT("%s Processor %s already registered. Duplicates are not supported.")
 				, ANSI_TO_TCHAR(__FUNCTION__), *ProcName.ToString());
 		}
 	}
@@ -182,7 +182,7 @@ void FProcessorDependencySolver::AddNode(FName InGroupName, UMassProcessor& Proc
 		}
 		else
 		{
-			UE_LOG(LogPipe, Warning, TEXT("%s Processor %s already registered. Duplicates are not supported.")
+			UE_LOG(LogMass, Warning, TEXT("%s Processor %s already registered. Duplicates are not supported.")
 				, ANSI_TO_TCHAR(__FUNCTION__), *ProcName.ToString());
 		}
 	}
@@ -231,7 +231,7 @@ void FProcessorDependencySolver::BuildDependencies(FNode& RootNode)
 				}
 				else
 				{
-					UE_LOG(LogPipe, Warning, TEXT("%s a node (%s) tried to add a circular dependency on itself")
+					UE_LOG(LogMass, Warning, TEXT("%s a node (%s) tried to add a circular dependency on itself")
 						, ANSI_TO_TCHAR(__FUNCTION__), *Node.Name.ToString());
 				}
 			}
@@ -253,7 +253,7 @@ void FProcessorDependencySolver::BuildDependencies(FNode& RootNode)
 				}
 				else
 				{
-					UE_LOG(LogPipe, Warning, TEXT("%s a node (%s) tried to add a circular dependency on itself")
+					UE_LOG(LogMass, Warning, TEXT("%s a node (%s) tried to add a circular dependency on itself")
 						, ANSI_TO_TCHAR(__FUNCTION__), *Node.Name.ToString());
 				}
 			}
@@ -272,12 +272,12 @@ void FProcessorDependencySolver::LogNode(const FNode& RootNode, const FNode* Par
 		}
 	}
 
-	UE_LOG(LogPipe, Log, TEXT("%*s%s %s%s"), Indent, TEXT(""), *RootNode.Name.ToString()
+	UE_LOG(LogMass, Log, TEXT("%*s%s %s%s"), Indent, TEXT(""), *RootNode.Name.ToString()
 		, Dependencies.Len() > 0 ? TEXT("after: ") : TEXT(""), *Dependencies);
 
 	if (RootNode.Processor == nullptr)
 	{
-		UE_LOG(LogPipe, Log, TEXT("%*s%s before:%s after:%s"), Indent, TEXT(""), *RootNode.Name.ToString()
+		UE_LOG(LogMass, Log, TEXT("%*s%s before:%s after:%s"), Indent, TEXT(""), *RootNode.Name.ToString()
 			, *NameViewToString(RootNode.ExecuteBefore)
 			, *NameViewToString(RootNode.ExecuteAfter));
 
@@ -288,7 +288,7 @@ void FProcessorDependencySolver::LogNode(const FNode& RootNode, const FNode* Par
 	}
 	else
 	{
-		UE_LOG(LogPipe, Log, TEXT("%*s%s before:%s after:%s"), Indent, TEXT(""), *RootNode.Name.ToString()
+		UE_LOG(LogMass, Log, TEXT("%*s%s before:%s after:%s"), Indent, TEXT(""), *RootNode.Name.ToString()
 			, *NameViewToString(RootNode.Processor->GetExecutionOrder().ExecuteBefore)
 			, *NameViewToString(RootNode.Processor->GetExecutionOrder().ExecuteAfter));
 	}
@@ -758,13 +758,13 @@ void FProcessorDependencySolver::Solve(FNode& RootNode, TConstArrayView<const FN
 		{
 			bAnyCyclesDetected = true;
 
-			UE_LOG(LogPipe, Error, TEXT("Detected processing dependency cycle:"));
+			UE_LOG(LogMass, Error, TEXT("Detected processing dependency cycle:"));
 			for (const int32 Index : IndicesRemaining)
 			{
 				UMassProcessor* Processor = RootNode.SubNodes[Index].Processor;
 				if (Processor)
 				{
-					UE_LOG(LogPipe, Error, TEXT("\t%s, group: %s, before: %s, after %s")
+					UE_LOG(LogMass, Error, TEXT("\t%s, group: %s, before: %s, after %s")
 						, *Processor->GetName()
 						, *Processor->GetExecutionOrder().ExecuteInGroup.ToString()
 						, *NameViewToString(Processor->GetExecutionOrder().ExecuteBefore)
@@ -773,10 +773,10 @@ void FProcessorDependencySolver::Solve(FNode& RootNode, TConstArrayView<const FN
 				else
 				{
 					// group
-					UE_LOG(LogPipe, Error, TEXT("\tGroup %s"), *RootNode.SubNodes[Index].Name.ToString());
+					UE_LOG(LogMass, Error, TEXT("\tGroup %s"), *RootNode.SubNodes[Index].Name.ToString());
 				}
 			}
-			UE_LOG(LogPipe, Error, TEXT("Cutting the chain at an arbitrary location."));
+			UE_LOG(LogMass, Error, TEXT("Cutting the chain at an arbitrary location."));
 
 			// remove first dependency
 			// note that if we're in a cycle handling scenario every node does have some dependencies left
@@ -815,18 +815,18 @@ void FProcessorDependencySolver::Solve(FNode& RootNode, TConstArrayView<const FN
 
 void FProcessorDependencySolver::ResolveDependencies(TArray<FProcessorDependencySolver::FOrderInfo>& OutResult, TConstArrayView<const FName> PriorityNodes)
 {
-	FScopedCategoryAndVerbosityOverride LogOverride(TEXT("LogPipe"), ELogVerbosity::Log);
+	FScopedCategoryAndVerbosityOverride LogOverride(TEXT("LogMass"), ELogVerbosity::Log);
 
 	bAnyCyclesDetected = false;
 
-	UE_LOG(LogPipe, Log, TEXT("Gathering dependencies data:"));
+	UE_LOG(LogMass, Log, TEXT("Gathering dependencies data:"));
 
 	// gather the processors information first
 	for (UMassProcessor* Processor : Processors)
 	{
 		if (Processor == nullptr)
 		{
-			UE_LOG(LogPipe, Warning, TEXT("%s nullptr found in Processors collection being processed"), ANSI_TO_TCHAR(__FUNCTION__));
+			UE_LOG(LogMass, Warning, TEXT("%s nullptr found in Processors collection being processed"), ANSI_TO_TCHAR(__FUNCTION__));
 			continue;
 		}
 		AddNode(Processor->GetExecutionOrder().ExecuteInGroup, *Processor);
@@ -842,13 +842,13 @@ void FProcessorDependencySolver::ResolveDependencies(TArray<FProcessorDependency
 		const UWorld* World = Processors.IsEmpty() ? nullptr : Processors[0]->GetWorld();
 	    for (const FName& DependencyName : GroupRootNode.ExecuteBefore)
 	    {
-		    UE_LOG(LogPipe, Warning, TEXT("(%s) %s found an unresolved execute before dependency (%s)"),
+		    UE_LOG(LogMass, Warning, TEXT("(%s) %s found an unresolved execute before dependency (%s)"),
 		    	World != nullptr ? *ToString(World->GetNetMode()) : TEXT("unknown"), ANSI_TO_TCHAR(__FUNCTION__), *DependencyName.ToString());
 	    }
     
 	    for (const FName& DependencyName : GroupRootNode.ExecuteAfter)
 	    {
-		    UE_LOG(LogPipe, Warning, TEXT("(%s) %s found an unresolved execute after dependency (%s)"),
+		    UE_LOG(LogMass, Warning, TEXT("(%s) %s found an unresolved execute after dependency (%s)"),
 		    	World != nullptr ? *ToString(World->GetNetMode()) : TEXT("unknown"), ANSI_TO_TCHAR(__FUNCTION__), *DependencyName.ToString());
 	    }
 	}
@@ -867,7 +867,7 @@ void FProcessorDependencySolver::ResolveDependencies(TArray<FProcessorDependency
 		}
 		else
 		{
-			UE_LOG(LogPipe, Error, TEXT("%s Unable to dump dependency graph into filename %s"), ANSI_TO_TCHAR(__FUNCTION__), *DependencyGraphFileName);
+			UE_LOG(LogMass, Error, TEXT("%s Unable to dump dependency graph into filename %s"), ANSI_TO_TCHAR(__FUNCTION__), *DependencyGraphFileName);
 		}
 	}
 
@@ -877,7 +877,7 @@ void FProcessorDependencySolver::ResolveDependencies(TArray<FProcessorDependency
 #if WITH_UNREAL_DEVELOPER_TOOLS
 	if (bAnyCyclesDetected || bAnyUnresolvedDependencies)
 	{
-		FMessageLog EditorErrors("LogPipe");
+		FMessageLog EditorErrors("LogMass");
 		if(bAnyCyclesDetected)
 		{
 		EditorErrors.Error(LOCTEXT("ProcessorDependenciesCycle", "Processor dependencies cycle found!"));
@@ -892,10 +892,10 @@ void FProcessorDependencySolver::ResolveDependencies(TArray<FProcessorDependency
 	}
 #endif // WITH_UNREAL_DEVELOPER_TOOLS
 
-	UE_LOG(LogPipe, Log, TEXT("Dependency order:"));
+	UE_LOG(LogMass, Log, TEXT("Dependency order:"));
 	for (const FProcessorDependencySolver::FOrderInfo& Info : OutResult)
 	{
-		UE_LOG(LogPipe, Log, TEXT("\t%s"), *Info.Name.ToString());
+		UE_LOG(LogMass, Log, TEXT("\t%s"), *Info.Name.ToString());
 	}
 }
 

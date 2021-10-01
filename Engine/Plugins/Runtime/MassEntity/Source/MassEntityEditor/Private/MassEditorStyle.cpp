@@ -14,15 +14,15 @@
 
 #define DEFAULT_FONT(...) FCoreStyle::GetDefaultFontStyle(__VA_ARGS__)
 
-TSharedPtr<FSlateStyleSet> FPipeEditorStyle::StyleSet = nullptr;
+TSharedPtr<FSlateStyleSet> FMassEntityEditorStyle::StyleSet = nullptr;
 
-FString FPipeEditorStyle::InContent(const FString& RelativePath, const ANSICHAR* Extension)
+FString FMassEntityEditorStyle::InContent(const FString& RelativePath, const ANSICHAR* Extension)
 {
-	static FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("PipeEditorModule"))->GetContentDir() / TEXT("Slate");
+	static FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("MassEntityEditorModule"))->GetContentDir() / TEXT("Slate");
 	return (ContentDir / RelativePath) + Extension;
 }
 
-void FPipeEditorStyle::Initialize()
+void FMassEntityEditorStyle::Initialize()
 {
 	if (StyleSet.IsValid())
 	{
@@ -109,7 +109,7 @@ void FPipeEditorStyle::Initialize()
 }
 
 
-void FPipeEditorStyle::Shutdown()
+void FMassEntityEditorStyle::Shutdown()
 {
 	if (StyleSet.IsValid())
 	{
@@ -120,8 +120,8 @@ void FPipeEditorStyle::Shutdown()
 }
 
 
-FName FPipeEditorStyle::GetStyleSetName()
+FName FMassEntityEditorStyle::GetStyleSetName()
 {
-	static FName StyleName("PipeEditorStyle");
+	static FName StyleName("MassEntityEditorStyle");
 	return StyleName;
 }

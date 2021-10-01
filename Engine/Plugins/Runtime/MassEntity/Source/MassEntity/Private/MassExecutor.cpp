@@ -8,22 +8,22 @@
 
 namespace UE::Mass::Executor
 {
-void Run(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& PipeContext)
+void Run(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& ProcessingContext)
 {
-	if (!ensure(PipeContext.EntitySubsystem) || 
-		!ensure(PipeContext.DeltaSeconds >= 0.f) ||
+	if (!ensure(ProcessingContext.EntitySubsystem) || 
+		!ensure(ProcessingContext.DeltaSeconds >= 0.f) ||
 		!ensure(RuntimePipeline.Processors.Find(nullptr) == INDEX_NONE))
 	{
 		return;
 	}
 
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PipeExecutor Run Pipeline")
-	RunProcessorsView(RuntimePipeline.Processors, PipeContext);
+	RunProcessorsView(RuntimePipeline.Processors, ProcessingContext);
 }
 
-void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& PipeContext, FArchetypeHandle Archetype, TConstArrayView<FMassEntityHandle> Entities)
+void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& ProcessingContext, FArchetypeHandle Archetype, TConstArrayView<FMassEntityHandle> Entities)
 {
-	if (!ensure(PipeContext.EntitySubsystem) ||
+	if (!ensure(ProcessingContext.EntitySubsystem) ||
 		!ensure(RuntimePipeline.Processors.Find(nullptr) == INDEX_NONE) ||
 		RuntimePipeline.Processors.Num() == 0 ||
 		!ensureMsgf(Archetype.IsValid(), TEXT("The Archetype passed in to UE::Mass::Executor::RunSparse is invalid")))
@@ -34,12 +34,12 @@ void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& Pi
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PipeExecutor RunSparseEntities");
 
 	const FArchetypeChunkCollection ChunkCollection(Archetype, Entities);
-	RunProcessorsView(RuntimePipeline.Processors, PipeContext, &ChunkCollection);
+	RunProcessorsView(RuntimePipeline.Processors, ProcessingContext, &ChunkCollection);
 }
 
-void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& PipeContext, const FArchetypeChunkCollection& ChunkCollection)
+void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& ProcessingContext, const FArchetypeChunkCollection& ChunkCollection)
 {
-	if (!ensure(PipeContext.EntitySubsystem) ||
+	if (!ensure(ProcessingContext.EntitySubsystem) ||
 		!ensure(RuntimePipeline.Processors.Find(nullptr) == INDEX_NONE) ||
 		RuntimePipeline.Processors.Num() == 0 ||
 		!ensureMsgf(ChunkCollection.GetArchetype().IsValid(), TEXT("The Archetype of ChunkCollection passed in to UE::Mass::Executor::RunSparse is invalid")))
@@ -49,12 +49,12 @@ void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& Pi
 
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PipeExecutor RunSparse");
 
-	RunProcessorsView(RuntimePipeline.Processors, PipeContext, &ChunkCollection);
+	RunProcessorsView(RuntimePipeline.Processors, ProcessingContext, &ChunkCollection);
 }
 
-void Run(UMassProcessor& Processor, FMassProcessingContext& PipeContext)
+void Run(UMassProcessor& Processor, FMassProcessingContext& ProcessingContext)
 {
-	if (!ensure(PipeContext.EntitySubsystem) || !ensure(PipeContext.DeltaSeconds >= 0.f))
+	if (!ensure(ProcessingContext.EntitySubsystem) || !ensure(ProcessingContext.DeltaSeconds >= 0.f))
 	{
 		return;
 	}
@@ -62,29 +62,29 @@ void Run(UMassProcessor& Processor, FMassProcessingContext& PipeContext)
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PipeExecutor Run")
 
 	UMassProcessor* ProcPtr = &Processor;
-	RunProcessorsView(MakeArrayView(&ProcPtr, 1), PipeContext);
+	RunProcessorsView(MakeArrayView(&ProcPtr, 1), ProcessingContext);
 }
 
-void RunProcessorsView(TArrayView<UMassProcessor*> Processors, FMassProcessingContext& PipeContext, const FArchetypeChunkCollection* ChunkCollection)
+void RunProcessorsView(TArrayView<UMassProcessor*> Processors, FMassProcessingContext& ProcessingContext, const FArchetypeChunkCollection* ChunkCollection)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(RunProcessorsView);
 
-	if (PipeContext.EntitySubsystem == nullptr)
+	if (ProcessingContext.EntitySubsystem == nullptr)
 	{
-		UE_LOG(LogPipe, Error, TEXT("%s PipeContext.EntitySubsystem is null. Baling out."), ANSI_TO_TCHAR(__FUNCTION__));
+		UE_LOG(LogMass, Error, TEXT("%s ProcessingContext.EntitySubsystem is null. Baling out."), ANSI_TO_TCHAR(__FUNCTION__));
 		return;
 	}
 #if WITH_MASSENTITY_DEBUG
 	if (Processors.Find(nullptr) != INDEX_NONE)
 	{
-		UE_LOG(LogPipe, Error, TEXT("%s input Processors contains nullptr. Baling out."), ANSI_TO_TCHAR(__FUNCTION__));
+		UE_LOG(LogMass, Error, TEXT("%s input Processors contains nullptr. Baling out."), ANSI_TO_TCHAR(__FUNCTION__));
 		return;
 	}
 #endif // WITH_MASSENTITY_DEBUG
 
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PipeExecutor RunProcessorsView")
 
-	FMassExecutionContext ExecutionContext(PipeContext.DeltaSeconds);
+	FMassExecutionContext ExecutionContext(ProcessingContext.DeltaSeconds);
 	if (ChunkCollection)
 	{
 		ExecutionContext.SetChunkCollection(*ChunkCollection);
@@ -92,16 +92,16 @@ void RunProcessorsView(TArrayView<UMassProcessor*> Processors, FMassProcessingCo
 	// manually creating a new command buffer to let the default one still be used by code unaware of pipe processing
 	ExecutionContext.SetDeferredCommandBuffer(MakeShareable(new FMassCommandBuffer()));
 	ExecutionContext.SetFlushDeferredCommands(false);
-	ExecutionContext.SetAuxData(PipeContext.AuxData);
+	ExecutionContext.SetAuxData(ProcessingContext.AuxData);
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("Execute Processors")
 		
-		UMassEntitySubsystem::FScopedProcessing ProcessingScope = PipeContext.EntitySubsystem->NewProcessingScope();
+		UMassEntitySubsystem::FScopedProcessing ProcessingScope = ProcessingContext.EntitySubsystem->NewProcessingScope();
 
 		for (UMassProcessor* Proc : Processors)
 		{
-			Proc->CallExecute(*PipeContext.EntitySubsystem, ExecutionContext);
+			Proc->CallExecute(*ProcessingContext.EntitySubsystem, ExecutionContext);
 		}
 	}
 	
@@ -110,8 +110,8 @@ void RunProcessorsView(TArrayView<UMassProcessor*> Processors, FMassProcessingCo
 		
 		ExecutionContext.SetFlushDeferredCommands(true);
 		// append the commands added from other, non-processor sources (like MassAgentSubsystem)
-		ExecutionContext.Defer().MoveAppend(PipeContext.EntitySubsystem->Defer());
-		ExecutionContext.FlushDeferred(*PipeContext.EntitySubsystem);
+		ExecutionContext.Defer().MoveAppend(ProcessingContext.EntitySubsystem->Defer());
+		ExecutionContext.FlushDeferred(*ProcessingContext.EntitySubsystem);
 	}
 }
 
@@ -140,7 +140,7 @@ struct FPipeExecutorDoneTask
 			ExecutionContext.Defer().MoveAppend(EntitySubsystem.Defer());
 		}
 
-		UE_LOG(LogPipe, Log, TEXT("PipeExecutor %s tasks DONE"), *DebugName);
+		UE_LOG(LogMass, Log, TEXT("PipeExecutor %s tasks DONE"), *DebugName);
 		ExecutionContext.SetFlushDeferredCommands(true);
 		ExecutionContext.FlushDeferred(EntitySubsystem);
 
@@ -153,35 +153,35 @@ private:
 	FString DebugName;
 };
 
-FGraphEventRef TriggerParallelTasks(UMassProcessor& Processor, FMassProcessingContext& PipeContext, TFunction<void()> OnDoneNotification)
+FGraphEventRef TriggerParallelTasks(UMassProcessor& Processor, FMassProcessingContext& ProcessingContext, TFunction<void()> OnDoneNotification)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(RunProcessorsView);
 
-	if (PipeContext.EntitySubsystem == nullptr)
+	if (ProcessingContext.EntitySubsystem == nullptr)
 	{
-		UE_LOG(LogPipe, Error, TEXT("%s PipeContext.EntitySubsystem is null. Baling out."), ANSI_TO_TCHAR(__FUNCTION__));
+		UE_LOG(LogMass, Error, TEXT("%s ProcessingContext.EntitySubsystem is null. Baling out."), ANSI_TO_TCHAR(__FUNCTION__));
 		return FGraphEventRef();
 	}
 
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PipeExecutor RunParallel")
 
 	// not going through UMassEntitySubsystem::CreateExecutionContext on purpose - we do need a separate command buffer
-	FMassExecutionContext ExecutionContext(PipeContext.DeltaSeconds);
+	FMassExecutionContext ExecutionContext(ProcessingContext.DeltaSeconds);
 	ExecutionContext.SetDeferredCommandBuffer(MakeShareable(new FMassCommandBuffer()));
 	ExecutionContext.SetFlushDeferredCommands(false);
-	ExecutionContext.SetAuxData(PipeContext.AuxData);
+	ExecutionContext.SetAuxData(ProcessingContext.AuxData);
 
 	FGraphEventRef CompletionEvent;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("Dispatch Processors")
-		CompletionEvent = Processor.DispatchProcessorTasks(*PipeContext.EntitySubsystem, ExecutionContext, {});
+		CompletionEvent = Processor.DispatchProcessorTasks(*ProcessingContext.EntitySubsystem, ExecutionContext, {});
 	}
 
 	if (CompletionEvent.IsValid())
 	{
 		const FGraphEventArray Prerequisites = { CompletionEvent };
 		CompletionEvent = TGraphTask<FPipeExecutorDoneTask>::CreateTask(&Prerequisites)
-			.ConstructAndDispatchWhenReady(ExecutionContext, *PipeContext.EntitySubsystem, OnDoneNotification, Processor.GetName());
+			.ConstructAndDispatchWhenReady(ExecutionContext, *ProcessingContext.EntitySubsystem, OnDoneNotification, Processor.GetName());
 	}
 
 	return CompletionEvent;

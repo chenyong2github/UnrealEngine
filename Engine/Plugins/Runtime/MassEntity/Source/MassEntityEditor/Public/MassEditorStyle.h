@@ -4,7 +4,7 @@
 
 #include "Styling/SlateStyle.h"
 
-class MASSENTITYEDITOR_API FPipeEditorStyle
+class MASSENTITYEDITOR_API FMassEntityEditorStyle
 {
 public:
 	static void Initialize();

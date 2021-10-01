@@ -15,12 +15,12 @@
 #include "Widgets/Docking/SDockTab.h"
  
 
-#define LOCTEXT_NAMESPACE "PipeEditor"
+#define LOCTEXT_NAMESPACE "MassEntityEditor"
 
-const FName PipeEditorAppName(TEXT("PipeEditorApp"));
-const FName FPipeEditor::AssetDetailsTabId(TEXT("PipeEditor_AssetDetails"));
+const FName MassEntityEditorAppName(TEXT("MassEntityEditorApp"));
+const FName FMassEntityEditor::AssetDetailsTabId(TEXT("MassEntityEditor_AssetDetails"));
 
-void FPipeEditor::AddReferencedObjects(FReferenceCollector& Collector)
+void FMassEntityEditor::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	if (MassSchematic != nullptr)
 	{
@@ -28,26 +28,26 @@ void FPipeEditor::AddReferencedObjects(FReferenceCollector& Collector)
 	}
 }
 
-void FPipeEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
+void FMassEntityEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
-	WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_PipeEditor", "Pipe Editor"));
+	WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_MassEntityEditor", "Pipe Editor"));
 	TSharedRef<FWorkspaceItem> WorkspaceMenuCategoryRef = WorkspaceMenuCategory.ToSharedRef();
 
 	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
 
-	InTabManager->RegisterTabSpawner(AssetDetailsTabId, FOnSpawnTab::CreateSP(this, &FPipeEditor::SpawnTab_AssetDetails))
-		.SetDisplayName(NSLOCTEXT("PipeEditor", "AssetDetailsTab", "Asset Details"))
+	InTabManager->RegisterTabSpawner(AssetDetailsTabId, FOnSpawnTab::CreateSP(this, &FMassEntityEditor::SpawnTab_AssetDetails))
+		.SetDisplayName(NSLOCTEXT("MassEntityEditor", "AssetDetailsTab", "Asset Details"))
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
 }
 
-void FPipeEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
+void FMassEntityEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
 	FAssetEditorToolkit::UnregisterTabSpawners(InTabManager);
 	InTabManager->UnregisterTabSpawner(AssetDetailsTabId);
 }
 
-void FPipeEditor::InitEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UMassSchematic& InMassSchematic)
+void FMassEntityEditor::InitEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UMassSchematic& InMassSchematic)
 {
 	MassSchematic = &InMassSchematic;
 
@@ -70,30 +70,30 @@ void FPipeEditor::InitEditor(const EToolkitMode::Type Mode, const TSharedPtr< cl
 
 	const bool bCreateDefaultStandaloneMenu = true;
 	const bool bCreateDefaultToolbar = true;
-	FAssetEditorToolkit::InitAssetEditor(Mode, InitToolkitHost, PipeEditorAppName, StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, MassSchematic);
+	FAssetEditorToolkit::InitAssetEditor(Mode, InitToolkitHost, MassEntityEditorAppName, StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, MassSchematic);
 }
 
-FName FPipeEditor::GetToolkitFName() const
+FName FMassEntityEditor::GetToolkitFName() const
 {
-	return FName("PipeEditor");
+	return FName("MassEntityEditor");
 }
 
-FText FPipeEditor::GetBaseToolkitName() const
+FText FMassEntityEditor::GetBaseToolkitName() const
 {
-	return NSLOCTEXT("PipeEditor", "AppLabel", "Pipe");
+	return NSLOCTEXT("MassEntityEditor", "AppLabel", "Mass");
 }
 
-FString FPipeEditor::GetWorldCentricTabPrefix() const
+FString FMassEntityEditor::GetWorldCentricTabPrefix() const
 {
-	return NSLOCTEXT("PipeEditor", "WorldCentricTabPrefix", "Pipe").ToString();
+	return NSLOCTEXT("MassEntityEditor", "WorldCentricTabPrefix", "Mass").ToString();
 }
 
-FLinearColor FPipeEditor::GetWorldCentricTabColorScale() const
+FLinearColor FMassEntityEditor::GetWorldCentricTabColorScale() const
 {
 	return FLinearColor( 0.0f, 0.0f, 0.2f, 0.5f );
 }
 
-TSharedRef<SDockTab> FPipeEditor::SpawnTab_AssetDetails(const FSpawnTabArgs& Args)
+TSharedRef<SDockTab> FMassEntityEditor::SpawnTab_AssetDetails(const FSpawnTabArgs& Args)
 {
 	check(Args.GetTabId() == AssetDetailsTabId);
 
@@ -103,10 +103,10 @@ TSharedRef<SDockTab> FPipeEditor::SpawnTab_AssetDetails(const FSpawnTabArgs& Arg
 
 	AssetDetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 	AssetDetailsView->SetObject(MassSchematic);
-	AssetDetailsView->OnFinishedChangingProperties().AddSP(this, &FPipeEditor::OnAssetFinishedChangingProperties);
+	AssetDetailsView->OnFinishedChangingProperties().AddSP(this, &FMassEntityEditor::OnAssetFinishedChangingProperties);
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Label(NSLOCTEXT("PipeEditor", "AssetDetailsTab", "Pipe"))
+		.Label(NSLOCTEXT("MassEntityEditor", "AssetDetailsTab", "Mass"))
 		[
 			AssetDetailsView.ToSharedRef()
 		];
@@ -114,7 +114,7 @@ TSharedRef<SDockTab> FPipeEditor::SpawnTab_AssetDetails(const FSpawnTabArgs& Arg
 	return SpawnedTab;
 }
 
-void FPipeEditor::SaveAsset_Execute()
+void FMassEntityEditor::SaveAsset_Execute()
 {
 	// @todo pre-save validation
 
@@ -122,10 +122,10 @@ void FPipeEditor::SaveAsset_Execute()
 	FAssetEditorToolkit::SaveAsset_Execute();
 }
 
-void FPipeEditor::OnAssetFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
+void FMassEntityEditor::OnAssetFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 {
-	FPipeEditorModule& PipeEditorModule = FModuleManager::GetModuleChecked<FPipeEditorModule>("PipeEditor");
-	PipeEditorModule.GetOnAssetPropertiesChanged().Broadcast(MassSchematic, PropertyChangedEvent);
+	FMassEntityEditorModule& MassEntityEditorModule = FModuleManager::GetModuleChecked<FMassEntityEditorModule>("MassEntityEditor");
+	MassEntityEditorModule.GetOnAssetPropertiesChanged().Broadcast(MassSchematic, PropertyChangedEvent);
 }
 
 

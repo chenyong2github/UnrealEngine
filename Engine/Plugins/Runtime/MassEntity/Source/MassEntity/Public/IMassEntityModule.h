@@ -11,7 +11,7 @@
  * The public interface to this module.  In most cases, this interface is only public to sibling modules 
  * within this plugin.
  */
-class IPipeModule : public IModuleInterface
+class IMassEntityModule : public IModuleInterface
 {
 
 public:
@@ -22,9 +22,9 @@ public:
 	 *
 	 * @return Returns singleton instance, loading the module on demand if needed
 	 */
-	static inline IPipeModule& Get()
+	static inline IMassEntityModule& Get()
 	{
-		return FModuleManager::LoadModuleChecked<IPipeModule>( "Pipe" );
+		return FModuleManager::LoadModuleChecked<IMassEntityModule>( "MassEntity" );
 	}
 
 	/**
@@ -34,7 +34,7 @@ public:
 	 */
 	static inline bool IsAvailable()
 	{
-		return FModuleManager::Get().IsModuleLoaded( "Pipe" );
+		return FModuleManager::Get().IsModuleLoaded( "MassEntity" );
 	}
 };
 

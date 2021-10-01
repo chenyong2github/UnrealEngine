@@ -107,15 +107,15 @@ void UMassSettings::AddToActiveProcessorsList(TSubclassOf<UMassProcessor> Proces
 	{
 		if (ProcessorClass == UMassCompositeProcessor::StaticClass())
 		{
-			UE_VLOG_UELOG(this, LogPipe, Log, TEXT("%s adding PipeCompositeProcessor to the global processor list is unsupported"), ANSI_TO_TCHAR(__FUNCTION__));
+			UE_VLOG_UELOG(this, LogMass, Log, TEXT("%s adding MassCompositeProcessor to the global processor list is unsupported"), ANSI_TO_TCHAR(__FUNCTION__));
 		}
 		else if (ProcessorClass->HasAnyClassFlags(CLASS_Abstract))
 		{
-			UE_VLOG_UELOG(this, LogPipe, Log, TEXT("%s unable to add %s due to it being an abstract class"), ANSI_TO_TCHAR(__FUNCTION__), *ProcessorClass->GetName());
+			UE_VLOG_UELOG(this, LogMass, Log, TEXT("%s unable to add %s due to it being an abstract class"), ANSI_TO_TCHAR(__FUNCTION__), *ProcessorClass->GetName());
 		}
 		else if (ProcessorCDOs.Find(ProcessorCDO) != INDEX_NONE)
 		{
-			UE_VLOG_UELOG(this, LogPipe, Log, TEXT("%s already in global processor list"), *ProcessorCDO->GetName());
+			UE_VLOG_UELOG(this, LogMass, Log, TEXT("%s already in global processor list"), *ProcessorCDO->GetName());
 		}
 		else 
 		{
@@ -135,9 +135,6 @@ const FMassProcessingPhaseConfig* UMassSettings::GetProcessingPhasesConfig()
 #if WITH_EDITOR
 void UMassSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	// @todo replacing a valid entry in the array is not handled right now. 
-
-	static const FName PipeName = TEXT("Pipe");
 	static const FName ProcessorCDOsName = GET_MEMBER_NAME_CHECKED(UMassSettings, ProcessorCDOs);
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);

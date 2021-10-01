@@ -11,7 +11,7 @@
 class IDetailsView;
 class UMassSchematic;
 
-class FPipeEditor : public IPipeEditor, public FGCObject//, public FSelfRegisteringEditorUndoClient
+class FMassEntityEditor : public IMassEntityEditor, public FGCObject//, public FSelfRegisteringEditorUndoClient
 {
 public:
 	virtual void RegisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
@@ -36,7 +36,7 @@ public:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FString GetReferencerName() const override
 	{
-		return TEXT("FPipeEditor");
+		return TEXT("FMassEntityEditor");
 	}
 
 protected:

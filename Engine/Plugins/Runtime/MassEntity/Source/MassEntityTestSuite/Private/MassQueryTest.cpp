@@ -9,7 +9,7 @@
 #include "MassEntityTestTypes.h"
 #include "MassExecutor.h"
 
-#define LOCTEXT_NAMESPACE "PipeTest"
+#define LOCTEXT_NAMESPACE "MassTest"
 
 PRAGMA_DISABLE_OPTIMIZATION
 
@@ -43,7 +43,7 @@ struct FQueryTest_ProcessorRequirements : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FQueryTest_ProcessorRequirements, "System.Pipe.Query.ProcessorRequiements");
+IMPLEMENT_AI_INSTANT_TEST(FQueryTest_ProcessorRequirements, "System.Mass.Query.ProcessorRequiements");
 
 
 struct FQueryTest_ExplicitRequirements : FEntityTestBase
@@ -62,7 +62,7 @@ struct FQueryTest_ExplicitRequirements : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FQueryTest_ExplicitRequirements, "System.Pipe.Query.ExplicitRequiements");
+IMPLEMENT_AI_INSTANT_TEST(FQueryTest_ExplicitRequirements, "System.Mass.Query.ExplicitRequiements");
 
 
 struct FQueryTest_FragmentViewBinding : FEntityTestBase
@@ -91,15 +91,15 @@ struct FQueryTest_FragmentViewBinding : FEntityTestBase
 				});
 		};
 
-		FMassProcessingContext PipeContext(*EntitySubsystem, /*DeltaSeconds=*/0.f);
-		UE::Mass::Executor::Run(*Processor, PipeContext);
+		FMassProcessingContext ProcessingContext(*EntitySubsystem, /*DeltaSeconds=*/0.f);
+		UE::Mass::Executor::Run(*Processor, ProcessingContext);
 
 		AITEST_EQUAL("Fragment value should have changed to the expected value", TestedFragment.Value, 13.f);
 
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FQueryTest_FragmentViewBinding, "System.Pipe.Query.FragmentViewBinding");
+IMPLEMENT_AI_INSTANT_TEST(FQueryTest_FragmentViewBinding, "System.Mass.Query.FragmentViewBinding");
 
 struct FQueryTest_ExecuteSingleArchetype : FEntityTestBase
 {
@@ -137,7 +137,7 @@ struct FQueryTest_ExecuteSingleArchetype : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FQueryTest_ExecuteSingleArchetype, "System.Pipe.Query.ExecuteSingleArchetype");
+IMPLEMENT_AI_INSTANT_TEST(FQueryTest_ExecuteSingleArchetype, "System.Mass.Query.ExecuteSingleArchetype");
 
 
 struct FQueryTest_ExecuteMultipleArchetypes : FEntityTestBase
@@ -182,7 +182,7 @@ struct FQueryTest_ExecuteMultipleArchetypes : FEntityTestBase
 	}
 };
 
-IMPLEMENT_AI_INSTANT_TEST(FQueryTest_ExecuteMultipleArchetypes, "System.Pipe.Query.ExecuteMultipleArchetypes");
+IMPLEMENT_AI_INSTANT_TEST(FQueryTest_ExecuteMultipleArchetypes, "System.Mass.Query.ExecuteMultipleArchetypes");
 
 
 struct FQueryTest_ExecuteSparse : FEntityTestBase
@@ -243,7 +243,7 @@ struct FQueryTest_ExecuteSparse : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FQueryTest_ExecuteSparse, "System.Pipe.Query.ExecuteSparse");
+IMPLEMENT_AI_INSTANT_TEST(FQueryTest_ExecuteSparse, "System.Mass.Query.ExecuteSparse");
 
 
 struct FQueryTest_TagPresent : FEntityTestBase
@@ -266,7 +266,7 @@ struct FQueryTest_TagPresent : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FQueryTest_TagPresent, "System.Pipe.Query.TagPresent");
+IMPLEMENT_AI_INSTANT_TEST(FQueryTest_TagPresent, "System.Mass.Query.TagPresent");
 
 
 struct FQueryTest_TagAbsent : FEntityTestBase
@@ -290,7 +290,7 @@ struct FQueryTest_TagAbsent : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FQueryTest_TagAbsent, "System.Pipe.Query.TagAbsent");
+IMPLEMENT_AI_INSTANT_TEST(FQueryTest_TagAbsent, "System.Mass.Query.TagAbsent");
 
 
 /** using a fragment as a tag */
@@ -311,7 +311,7 @@ struct FQueryTest_FragmentPresent : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FQueryTest_FragmentPresent, "System.Pipe.Query.FragmentPresent");
+IMPLEMENT_AI_INSTANT_TEST(FQueryTest_FragmentPresent, "System.Mass.Query.FragmentPresent");
 
 
 struct FQueryTest_OnlySingleAbsentFragment : FEntityTestBase
@@ -334,7 +334,7 @@ struct FQueryTest_OnlySingleAbsentFragment : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FQueryTest_OnlySingleAbsentFragment, "System.Pipe.Query.OnlySingleAbsentFragment");
+IMPLEMENT_AI_INSTANT_TEST(FQueryTest_OnlySingleAbsentFragment, "System.Mass.Query.OnlySingleAbsentFragment");
 
 
 struct FQueryTest_OnlyMultipleAbsentFragments : FEntityTestBase
@@ -358,7 +358,7 @@ struct FQueryTest_OnlyMultipleAbsentFragments : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FQueryTest_OnlyMultipleAbsentFragments, "System.Pipe.Query.OnlyMultipleAbsentFragments");
+IMPLEMENT_AI_INSTANT_TEST(FQueryTest_OnlyMultipleAbsentFragments, "System.Mass.Query.OnlyMultipleAbsentFragments");
 
 
 struct FQueryTest_AbsentAndPresentFragments : FEntityTestBase
@@ -379,7 +379,7 @@ struct FQueryTest_AbsentAndPresentFragments : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FQueryTest_AbsentAndPresentFragments, "System.Pipe.Query.AbsentAndPresentFragments");
+IMPLEMENT_AI_INSTANT_TEST(FQueryTest_AbsentAndPresentFragments, "System.Mass.Query.AbsentAndPresentFragments");
 
 
 struct FQueryTest_SingleOptionalFragment : FEntityTestBase
@@ -399,7 +399,7 @@ struct FQueryTest_SingleOptionalFragment : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FQueryTest_SingleOptionalFragment, "System.Pipe.Query.SingleOptionalFragment");
+IMPLEMENT_AI_INSTANT_TEST(FQueryTest_SingleOptionalFragment, "System.Mass.Query.SingleOptionalFragment");
 
 
 struct FQueryTest_MultipleOptionalFragment : FEntityTestBase
@@ -417,7 +417,7 @@ struct FQueryTest_MultipleOptionalFragment : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FQueryTest_MultipleOptionalFragment, "System.Pipe.Query.MultipleOptionalFragment");
+IMPLEMENT_AI_INSTANT_TEST(FQueryTest_MultipleOptionalFragment, "System.Mass.Query.MultipleOptionalFragment");
 
 
 /** This test configures a query to fetch archetypes that have a Float fragment (we have two of these) with an optional 
@@ -465,7 +465,7 @@ struct FQueryTest_UsingOptionalFragment : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FQueryTest_UsingOptionalFragment, "System.Pipe.Query.UsingOptionalFragment");
+IMPLEMENT_AI_INSTANT_TEST(FQueryTest_UsingOptionalFragment, "System.Mass.Query.UsingOptionalFragment");
 
 
 struct FQueryTest_AnyFragment : FEntityTestBase
@@ -508,7 +508,7 @@ struct FQueryTest_AnyFragment : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FQueryTest_AnyFragment, "System.Pipe.Query.AnyFragment");
+IMPLEMENT_AI_INSTANT_TEST(FQueryTest_AnyFragment, "System.Mass.Query.AnyFragment");
 
 
 struct FQueryTest_AnyTag : FEntityTestBase
@@ -540,7 +540,7 @@ struct FQueryTest_AnyTag : FEntityTestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FQueryTest_AnyTag, "System.Pipe.Query.AnyTag");
+IMPLEMENT_AI_INSTANT_TEST(FQueryTest_AnyTag, "System.Mass.Query.AnyTag");
 
 } // FPipeQueryTest
 

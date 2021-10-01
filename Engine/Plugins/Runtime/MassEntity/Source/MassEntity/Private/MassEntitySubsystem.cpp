@@ -9,8 +9,6 @@
 
 const FMassEntityHandle UMassEntitySubsystem::InvalidEntity;
 
-DEFINE_LOG_CATEGORY(LogAggregateTicking);
-
 //@TODO: Everything still alive leaks at shutdown
 //@TODO: No re-entrance safety while running a system (e.g., preventing someone from adding/removing entities or altering archetypes, etc...)
 //@TODO: Do we allow GCable types?  If so, need to implement AddReferencedObjects
@@ -103,7 +101,7 @@ FArchetypeHandle UMassEntitySubsystem::CreateArchetype(TConstArrayView<const USc
 		}
 		else
 		{
-			UE_LOG(LogAggregateTicking, Warning, TEXT("%s: %s is not a valid component nor tag type. Ignoring.")
+			UE_LOG(LogMass, Warning, TEXT("%s: %s is not a valid component nor tag type. Ignoring.")
 				, ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(Type));
 		}
 	}
@@ -758,7 +756,7 @@ void UMassEntitySubsystem::GetValidArchetypes(const FMassEntityQuery& Query, TAr
 			const FMassTagBitSet UnsatisfiedTags = Query.GetRequiredAllTags() - Archetype.GetTagBitSet();
 			FStringOutputDevice Description;
 			UnsatisfiedTags.DebugGetStringDesc(Description);
-			UE_LOG(LogAggregateTicking, VeryVerbose, TEXT("Archetype did not match due to missing tags: %s")
+			UE_LOG(LogMass, VeryVerbose, TEXT("Archetype did not match due to missing tags: %s")
 				, *Description);
 #endif // WITH_MASSENTITY_DEBUG
 			continue;
@@ -771,7 +769,7 @@ void UMassEntitySubsystem::GetValidArchetypes(const FMassEntityQuery& Query, TAr
 			const FMassTagBitSet UnwantedTags = Query.GetRequiredAllTags().GetOverlap(Archetype.GetTagBitSet());
 			FStringOutputDevice Description;
 			UnwantedTags.DebugGetStringDesc(Description);
-			UE_LOG(LogAggregateTicking, VeryVerbose, TEXT("Archetype has tags required absent: %s")
+			UE_LOG(LogMass, VeryVerbose, TEXT("Archetype has tags required absent: %s")
 				, *Description);
 #endif // WITH_MASSENTITY_DEBUG
 			continue;
@@ -783,7 +781,7 @@ void UMassEntitySubsystem::GetValidArchetypes(const FMassEntityQuery& Query, TAr
 #if WITH_MASSENTITY_DEBUG
 			FStringOutputDevice Description;
 			Query.GetRequiredAnyTags().DebugGetStringDesc(Description);
-			UE_LOG(LogAggregateTicking, VeryVerbose, TEXT("Archetype did not match due to missing \'any\' tags: %s")
+			UE_LOG(LogMass, VeryVerbose, TEXT("Archetype did not match due to missing \'any\' tags: %s")
 				, *Description);
 #endif // WITH_MASSENTITY_DEBUG
 			continue;
@@ -796,7 +794,7 @@ void UMassEntitySubsystem::GetValidArchetypes(const FMassEntityQuery& Query, TAr
 			const FMassFragmentBitSet UnsatisfiedComponents = Query.GetRequiredAllComponents() - Archetype.GetComponentBitSet();
 			FStringOutputDevice Description;
 			UnsatisfiedComponents.DebugGetStringDesc(Description);
-			UE_LOG(LogAggregateTicking, VeryVerbose, TEXT("Archetype did not match due to missing Components: %s")
+			UE_LOG(LogMass, VeryVerbose, TEXT("Archetype did not match due to missing Components: %s")
 				, *Description);
 #endif // WITH_MASSENTITY_DEBUG
 			continue;
@@ -809,7 +807,7 @@ void UMassEntitySubsystem::GetValidArchetypes(const FMassEntityQuery& Query, TAr
 			const FMassFragmentBitSet UnwantedComponents = Query.GetRequiredAllComponents().GetOverlap(Archetype.GetComponentBitSet());
 			FStringOutputDevice Description;
 			UnwantedComponents.DebugGetStringDesc(Description);
-			UE_LOG(LogAggregateTicking, VeryVerbose, TEXT("Archetype has Components required absent: %s")
+			UE_LOG(LogMass, VeryVerbose, TEXT("Archetype has Components required absent: %s")
 				, *Description);
 #endif // WITH_MASSENTITY_DEBUG
 			continue;
@@ -821,7 +819,7 @@ void UMassEntitySubsystem::GetValidArchetypes(const FMassEntityQuery& Query, TAr
 #if WITH_MASSENTITY_DEBUG
 			FStringOutputDevice Description;
 			Query.GetRequiredAnyComponents().DebugGetStringDesc(Description);
-			UE_LOG(LogAggregateTicking, VeryVerbose, TEXT("Archetype did not match due to missing \'any\' components: %s")
+			UE_LOG(LogMass, VeryVerbose, TEXT("Archetype did not match due to missing \'any\' components: %s")
 				, *Description);
 #endif // WITH_MASSENTITY_DEBUG
 			continue;
@@ -834,7 +832,7 @@ void UMassEntitySubsystem::GetValidArchetypes(const FMassEntityQuery& Query, TAr
 			const FMassChunkFragmentBitSet UnsatisfiedComponents = Query.GetRequiredAllChunkComponents() - Archetype.GetChunkComponentBitSet();
 			FStringOutputDevice Description;
 			UnsatisfiedComponents.DebugGetStringDesc(Description);
-			UE_LOG(LogAggregateTicking, VeryVerbose, TEXT("Archetype did not match due to missing Chunk Components: %s")
+			UE_LOG(LogMass, VeryVerbose, TEXT("Archetype did not match due to missing Chunk Components: %s")
 				, *Description);
 #endif // WITH_MASSENTITY_DEBUG
 			continue;
@@ -847,7 +845,7 @@ void UMassEntitySubsystem::GetValidArchetypes(const FMassEntityQuery& Query, TAr
 			const FMassChunkFragmentBitSet UnwantedComponents = Query.GetRequiredNoneChunkComponents().GetOverlap(Archetype.GetChunkComponentBitSet());
 			FStringOutputDevice Description;
 			UnwantedComponents.DebugGetStringDesc(Description);
-			UE_LOG(LogAggregateTicking, VeryVerbose, TEXT("Archetype has Chunk Components required absent: %s")
+			UE_LOG(LogMass, VeryVerbose, TEXT("Archetype has Chunk Components required absent: %s")
 				, *Description);
 #endif // WITH_MASSENTITY_DEBUG
 			continue;
