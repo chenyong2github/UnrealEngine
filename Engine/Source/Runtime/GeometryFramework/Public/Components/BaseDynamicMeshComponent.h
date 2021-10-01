@@ -190,7 +190,7 @@ public:
 	 * if true, we always show the wireframe on top of the shaded mesh, even when not in wireframe mode
 	 * @todo: this should not be public, access via Set/Get once all usage is cleaned up
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Mesh Component", meta = (DisplayName = "Wireframe Overlay") )
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Mesh Component|Rendering", meta = (DisplayName = "Wireframe Overlay") )
 	bool bExplicitShowWireframe = false;
 
 	/**
@@ -321,6 +321,33 @@ protected:
 
 
 
+	//===============================================================================================================
+	// Raytracing support. Must be enabled for various rendering effects. 
+	// However, note that in actual "dynamic" contexts (ie where the mesh is changing every frame),
+	// enabling Raytracing support has additional renderthread performance costs and does
+	// not currently support partial updates in the SceneProxy.
+public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Mesh Component|Rendering")
+	bool bEnableRaytracing = false;
+
+	/**
+	 * Enable/Disable raytracing support. This is an expensive call as it flushes
+	 * the rendering queue and forces an immediate rebuild of the SceneProxy.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
+	virtual void SetEnableRaytracing(bool bSetEnabled);
+
+	/**
+	 * @return true if raytracing support is currently enabled
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
+	virtual bool GetEnableRaytracing() const;
+
+protected:
+	virtual void OnRaytracingStateChanged();
+
+
 
 	//===============================================================================================================
 	// Standard Component interfaces
@@ -335,6 +362,11 @@ public:
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
 
 	virtual void SetNumMaterials(int32 NumMaterials);
+
+	//~ UObject Interface.
+#if WITH_EDITOR
+	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 
 	UPROPERTY()
 	TArray<TObjectPtr<UMaterialInterface>> BaseMaterials;

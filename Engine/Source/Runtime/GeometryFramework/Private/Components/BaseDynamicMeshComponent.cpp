@@ -12,6 +12,20 @@ UBaseDynamicMeshComponent::UBaseDynamicMeshComponent(const FObjectInitializer& O
 
 
 
+#if WITH_EDITOR
+void UBaseDynamicMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName PropName = PropertyChangedEvent.GetPropertyName();
+	if ( (PropName == GET_MEMBER_NAME_CHECKED(UBaseDynamicMeshComponent, bEnableRaytracing))  )
+	{
+		OnRaytracingStateChanged();
+	}
+}
+#endif
+
+
 void UBaseDynamicMeshComponent::SetShadowsEnabled(bool bEnabled)
 {
 	// finish any drawing so that we can be certain our SceneProxy is no longer in use before we rebuild it below
@@ -87,6 +101,31 @@ bool UBaseDynamicMeshComponent::GetSecondaryBuffersVisibility() const
 }
 
 
+void UBaseDynamicMeshComponent::SetEnableRaytracing(bool bSetEnabled)
+{
+	if (bEnableRaytracing != bSetEnabled)
+	{
+		bEnableRaytracing = bSetEnabled;
+		OnRaytracingStateChanged();
+	}
+}
+
+bool UBaseDynamicMeshComponent::GetEnableRaytracing() const
+{
+	return bEnableRaytracing;
+}
+
+void UBaseDynamicMeshComponent::OnRaytracingStateChanged()
+{
+	// finish any drawing so that we can be certain our SceneProxy is no longer in use before we rebuild it below
+	FlushRenderingCommands();
+
+	// force immediate rebuild of the SceneProxy
+	if (IsRegistered())
+	{
+		ReregisterComponent();
+	}
+}
 
 
 int32 UBaseDynamicMeshComponent::GetNumMaterials() const

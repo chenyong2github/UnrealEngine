@@ -6,9 +6,12 @@ public class GeometryFramework : ModuleRules
 {	
 	public GeometryFramework(ReadOnlyTargetRules Target) : base(Target)
 	{
-        //PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+		//PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
-        PublicDependencyModuleNames.AddRange(
+		// this is required for raytracing suppport?
+		PublicIncludePaths.Add("../Shaders/Shared");
+
+		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
 				"CoreUObject",
