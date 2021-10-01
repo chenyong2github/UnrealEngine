@@ -4,7 +4,7 @@
 	"VersionName": "0.1",
 	"FriendlyName": "Geometry Scripting",
 	"Description": "Geometry Scripting Modules enable procedural generation and manipulation of meshes/geometry via Blueprints",
-	"Category": "Other",
+	"Category": "Geometry",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
 	"DocsURL": "",
