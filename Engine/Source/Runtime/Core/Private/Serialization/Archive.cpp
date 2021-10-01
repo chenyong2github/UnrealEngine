@@ -784,7 +784,7 @@ void FArchive::SerializeCompressedNew(void* V, int64 Length, FName CompressionFo
 				// go ahead and do it but warn :
 				CompressionFormatToDecode = FName(ZlibReplacement);
 
-				UE_LOG(LogSerialization, Warning, TEXT("Archive v2 header with ZLib not ZlibReplacement: %s"), ZlibReplacement);
+				UE_LOG(LogSerialization, Warning, TEXT("Archive v2 header with ZLib not ZlibReplacement: %s"), *CompressionFormatToDecode.ToString());
 			}
 		}
 
