@@ -471,7 +471,7 @@ void SMaterialDynamicParametersOverviewTree::OnExpansionChanged(TSharedPtr<FProp
 		MaterialInstance->ParameterOverviewExpansion.Emplace(Item->NodeKey, bIsExpanded);
 	}
 	// Expand any children that are also expanded
-	for (const TSharedPtr<FPropertySortedParamData> Child : Item->Children)
+	for (TSharedPtr<FPropertySortedParamData> Child : Item->Children)
 	{
 		bool* ChildExpansionValue = MaterialInstance->ParameterOverviewExpansion.Find(Child->NodeKey);
 		if (ChildExpansionValue != nullptr && *ChildExpansionValue == true)
@@ -588,7 +588,7 @@ void SMaterialDynamicParametersOverviewTree::ShowSubParameters()
 		GroupProperty->NodeKey = FString::FromInt(GroupProperty->ParameterInfo.Index) + FString::FromInt(GroupProperty->ParameterInfo.Association) + Property.GroupName.ToString();
 
 		bool bAddNewGroup = true;
-		for (const TSharedPtr<struct FPropertySortedParamData> GroupChild : SortedParameters)
+		for (TSharedPtr<struct FPropertySortedParamData> GroupChild : SortedParameters)
 		{
 			if (GroupChild->NodeKey == GroupProperty->NodeKey)
 			{
