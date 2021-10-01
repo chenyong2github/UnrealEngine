@@ -1678,7 +1678,8 @@ void TDynamicMeshOverlay<RealType, ElementSize>::Serialize(FArchive& Ar, const F
 				{
 					ElementsCompact[EidCompact * ElementSize + i] = Elements[Eid * ElementSize + i];
 				}
-				ParentVerticesCompact[EidCompact] = CompactMaps->GetVertexMapping(ParentVertices[Eid]);
+				ParentVerticesCompact[EidCompact] =
+					(ParentVertices[Eid] >= 0) ? CompactMaps->GetVertexMapping(ParentVertices[Eid]) : FDynamicMesh3::InvalidID;
 				ElementMapping[Eid] = EidCompact;
 				++EidCompact;
 			}
