@@ -779,6 +779,9 @@ public:
 	//~ End UPrimitiveComponent Interface.
 
 	//~ Begin USceneComponent Interface.
+#if WITH_EDITOR
+	virtual bool GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath) override;
+#endif // WITH_EDITOR
 	virtual void DestroyComponent(bool bPromoteChildren = false) override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ End USceneComponent Interface.

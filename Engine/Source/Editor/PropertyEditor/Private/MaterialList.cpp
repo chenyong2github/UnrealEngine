@@ -5,16 +5,21 @@
 #include "Editor.h"
 #include "IDetailChildrenBuilder.h"
 #include "PropertyCustomizationHelpers.h"
+#include "PropertyEditorModule.h"
 #include "PropertyHandle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Modules/ModuleManager.h"
+#include "Styling/SlateIconFinder.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/Images/SImage.h"
-#include "Styling/SlateIconFinder.h"
 
 #define LOCTEXT_NAMESPACE "PropertyCustomizationHelpers"
+
+/** Definition of extra widgets delegate for bottom material value field. */
+FMaterialList::FOnAddMaterialItemViewExtraBottomWidget FMaterialList::OnAddMaterialItemViewExtraBottomWidget;
 
 /**
  * Builds up a list of unique materials while creating some information about the materials
@@ -31,11 +36,11 @@ public:
 	 * @param Material		The material being used
 	 * @param bCanBeReplced	Whether or not the material can be replaced by a user
 	 */
-	virtual void AddMaterial( uint32 SlotIndex, UMaterialInterface* Material, bool bCanBeReplaced ) override
+	virtual void AddMaterial( uint32 SlotIndex, UMaterialInterface* Material, bool bCanBeReplaced, UActorComponent* InCurrentComponent ) override
 	{
 		int32 NumMaterials = MaterialSlots.Num();
 
-		FMaterialListItem MaterialItem( Material, SlotIndex, bCanBeReplaced ); 
+		FMaterialListItem MaterialItem( Material, SlotIndex, bCanBeReplaced, InCurrentComponent ); 
 		if( !UniqueMaterials.Contains( MaterialItem ) ) 
 		{
 			MaterialSlots.Add( MaterialItem );
@@ -95,69 +100,91 @@ private:
 	TArray<uint32> MaterialCount;
 };
 
-/**
- * A view of a single item in an FMaterialList
- */
-class FMaterialItemView : public TSharedFromThis<FMaterialItemView>
+
+TSharedRef<FMaterialItemView> FMaterialItemView::Create(
+	const FMaterialListItem& Material, 
+	FOnMaterialChanged InOnMaterialChanged,
+	FOnGenerateWidgetsForMaterial InOnGenerateNameWidgetsForMaterial, 
+	FOnGenerateWidgetsForMaterial InOnGenerateWidgetsForMaterial, 
+	FOnResetMaterialToDefaultClicked InOnResetToDefaultClicked,
+	int32 InMultipleMaterialCount,
+	bool bShowUsedTextures)
 {
-public:
-	/**
-	 * Creates a new instance of this class
-	 *
-	 * @param Material				The material to view
-	 * @param InOnMaterialChanged	Delegate for when the material changes
-	 */
-	static TSharedRef<FMaterialItemView> Create(
-		const FMaterialListItem& Material, 
-		FOnMaterialChanged InOnMaterialChanged,
-		FOnGenerateWidgetsForMaterial InOnGenerateNameWidgetsForMaterial, 
-		FOnGenerateWidgetsForMaterial InOnGenerateWidgetsForMaterial, 
-		FOnResetMaterialToDefaultClicked InOnResetToDefaultClicked,
-		int32 InMultipleMaterialCount,
-		bool bShowUsedTextures)
-	{
-		return MakeShareable( new FMaterialItemView( Material, InOnMaterialChanged, InOnGenerateNameWidgetsForMaterial, InOnGenerateWidgetsForMaterial, InOnResetToDefaultClicked, InMultipleMaterialCount, bShowUsedTextures) );
-	}
+	// FMaterialItemView has private constructor that is why we need to use MakeShareable 
+	return MakeShareable( new FMaterialItemView( Material, InOnMaterialChanged, InOnGenerateNameWidgetsForMaterial, InOnGenerateWidgetsForMaterial, InOnResetToDefaultClicked, InMultipleMaterialCount, bShowUsedTextures) );
+}
 
-	TSharedRef<SWidget> CreateNameContent()
-	{
-		FFormatNamedArguments Arguments;
-		Arguments.Add(TEXT("ElementIndex"), MaterialItem.SlotIndex);
+TSharedRef<SWidget> FMaterialItemView::CreateNameContent()
+{
+	FFormatNamedArguments Arguments;
+	Arguments.Add(TEXT("ElementIndex"), MaterialItem.SlotIndex);
 
-		return 
-			SNew(SVerticalBox)
-			+SVerticalBox::Slot()
-			.VAlign(VAlign_Center)
+	return 
+		SNew(SVerticalBox)
+		+SVerticalBox::Slot()
+		.VAlign(VAlign_Center)
+		[
+			SNew( STextBlock )
+			.Font( IDetailLayoutBuilder::GetDetailFont() )
+			.Text( FText::Format(LOCTEXT("ElementIndex", "Element {ElementIndex}"), Arguments ) )
+			.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
+		]
+		+SVerticalBox::Slot()
+		.Padding(0.0f,4.0f)
+		.AutoHeight()
+		[
+			OnGenerateCustomNameWidgets.IsBound() ? OnGenerateCustomNameWidgets.Execute( MaterialItem.Material.Get(), MaterialItem.SlotIndex ) : StaticCastSharedRef<SWidget>( SNullWidget::NullWidget )
+		];
+}
+
+FString FMaterialItemView::OnGetObjectPath() const
+{
+	return MaterialItem.Material->GetPathName();
+}
+
+namespace ValueExtender
+{
+	template <typename TContainer, typename TDelegate>
+	TSharedRef<SWidget> MakeWidget(TDelegate& InDelegate, const TSharedRef<FMaterialItemView>& InMaterialItemView, IDetailLayoutBuilder& InDetailBuilder, UActorComponent* InCurrentComponent)
+	{
+		TSharedPtr<TContainer> WidgetContainer = SNew(TContainer);
+		TArray<TSharedPtr<SWidget>> Widgets;
+
+		// Execute all delegates and loop through all results widgets
+		InDelegate.Broadcast(InMaterialItemView, InCurrentComponent, InDetailBuilder, Widgets);
+
+		for (const TSharedPtr<SWidget> Widget : Widgets)
+		{
+			WidgetContainer->AddSlot()
 			[
-				SNew( STextBlock )
-				.Font( IDetailLayoutBuilder::GetDetailFont() )
-				.Text( FText::Format(LOCTEXT("ElementIndex", "Element {ElementIndex}"), Arguments ) )
-				.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
-			]
-			+SVerticalBox::Slot()
-			.Padding(0.0f,4.0f)
-			.AutoHeight()
-			[
-				OnGenerateCustomNameWidgets.IsBound() ? OnGenerateCustomNameWidgets.Execute( MaterialItem.Material.Get(), MaterialItem.SlotIndex ) : StaticCastSharedRef<SWidget>( SNullWidget::NullWidget )
+				Widget.ToSharedRef()
 			];
-	}
+		}
 
-	TSharedRef<SWidget> CreateValueContent( const TSharedPtr<FAssetThumbnailPool>& ThumbnailPool, const TArray<FAssetData>& OwnerAssetDataArray)
-	{
-		return
-			SNew(SVerticalBox)
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding( 0.0f )
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Fill)
+		return WidgetContainer.ToSharedRef();
+	}
+};
+
+TSharedRef<SWidget> FMaterialItemView::CreateValueContent(IDetailLayoutBuilder& InDetailBuilder, const TArray<FAssetData>& OwnerAssetDataArray, UActorComponent* InActorComponent)
+{	
+	return
+		SNew(SVerticalBox)
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding( 0.0f )
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Fill)
+		[
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.AutoWidth()
 			[
 				SNew(SObjectPropertyEntryBox)
 				.ObjectPath(this, &FMaterialItemView::OnGetObjectPath)
 				.AllowClear(false)
 				.AllowedClass(UMaterialInterface::StaticClass())
 				.OnObjectChanged(this, &FMaterialItemView::OnSetObject)
-				.ThumbnailPool(ThumbnailPool)
+				.ThumbnailPool(InDetailBuilder.GetThumbnailPool())
 				.DisplayCompactSize(true)
 				.OwnerAssetDataArray(OwnerAssetDataArray)
 				.CustomContentSlot()
@@ -188,142 +215,251 @@ public:
 						]
 						+SHorizontalBox::Slot()
 						.Padding(3.0f, 0.0f)
-						.FillWidth(1.0f)
+						.AutoWidth()
 						[
 							OnGenerateCustomMaterialWidgets.IsBound() ? OnGenerateCustomMaterialWidgets.Execute(MaterialItem.Material.Get(), MaterialItem.SlotIndex) : SNullWidget::NullWidget
 						]
 					]
 				]
-			];
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				GetGlobalRowExtensionWidget(InDetailBuilder, InActorComponent).ToSharedRef()
+			]
+		]
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			ValueExtender::MakeWidget<SVerticalBox>(FMaterialList::OnAddMaterialItemViewExtraBottomWidget, SharedThis(this), InDetailBuilder, InActorComponent)
+		];
+}
+
+bool FMaterialItemView::GetResetToBaseVisibility() const
+{
+	// Only show the reset to base button if the current material can be replaced
+	return OnMaterialChanged.IsBound() && MaterialItem.bCanBeReplaced;
+}
+
+
+void FMaterialItemView::OnResetToBaseClicked()
+{
+	// Only allow reset to base if the current material can be replaced
+	if( MaterialItem.Material.IsValid() && MaterialItem.bCanBeReplaced )
+	{
+		bool bReplaceAll = false;
+		ReplaceMaterial( nullptr, bReplaceAll );
+		OnResetToDefaultClicked.ExecuteIfBound( MaterialItem.Material.Get(), MaterialItem.SlotIndex );
+	}
+}
+
+FMaterialItemView::FMaterialItemView(	const FMaterialListItem& InMaterial, 
+					FOnMaterialChanged& InOnMaterialChanged, 
+					FOnGenerateWidgetsForMaterial& InOnGenerateNameWidgets, 
+					FOnGenerateWidgetsForMaterial& InOnGenerateMaterialWidgets, 
+					FOnResetMaterialToDefaultClicked& InOnResetToDefaultClicked,
+					int32 InMultipleMaterialCount,
+					bool bInShowUsedTextures)
+					
+	: MaterialItem( InMaterial )
+	, OnMaterialChanged( InOnMaterialChanged )
+	, OnGenerateCustomNameWidgets( InOnGenerateNameWidgets )
+	, OnGenerateCustomMaterialWidgets( InOnGenerateMaterialWidgets )
+	, OnResetToDefaultClicked( InOnResetToDefaultClicked )
+	, MultipleMaterialCount( InMultipleMaterialCount )
+	, bShowUsedTextures( bInShowUsedTextures )
+{
+
+}
+
+void FMaterialItemView::ReplaceMaterial( UMaterialInterface* NewMaterial, bool bReplaceAll )
+{
+	UMaterialInterface* PrevMaterial = NULL;
+	if( MaterialItem.Material.IsValid() )
+	{
+		PrevMaterial = MaterialItem.Material.Get();
 	}
 
-	/**
-	 * Called to get the visibility of the reset to base button
-	 */
-	bool GetResetToBaseVisibility() const
+	if( NewMaterial != PrevMaterial )
 	{
-		// Only show the reset to base button if the current material can be replaced
-		return OnMaterialChanged.IsBound() && MaterialItem.bCanBeReplaced;
+		// Replace the material
+		OnMaterialChanged.ExecuteIfBound( NewMaterial, PrevMaterial, MaterialItem.SlotIndex, bReplaceAll );
 	}
+}
 
-	/**
-	 * Called when reset to base is clicked
-	 */
-	void OnResetToBaseClicked()
+void FMaterialItemView::OnSetObject( const FAssetData& AssetData )
+{
+	const bool bReplaceAll = false;
+
+	UMaterialInterface* NewMaterial = Cast<UMaterialInterface>(AssetData.GetAsset());
+	ReplaceMaterial( NewMaterial, bReplaceAll );
+}
+
+bool FMaterialItemView::IsTexturesMenuEnabled() const
+{
+	return MaterialItem.Material.Get() != NULL;
+}
+
+TSharedRef<SWidget> FMaterialItemView::OnGetTexturesMenuForMaterial()
+{
+	FMenuBuilder MenuBuilder( true, NULL );
+
+	if( MaterialItem.Material.IsValid() )
 	{
-		// Only allow reset to base if the current material can be replaced
-		if( MaterialItem.Material.IsValid() && MaterialItem.bCanBeReplaced )
+		UMaterialInterface* Material = MaterialItem.Material.Get();
+
+		TArray< UTexture* > Textures;
+		Material->GetUsedTextures(Textures, EMaterialQualityLevel::Num, false, ERHIFeatureLevel::Num, true);
+
+		// Add a menu item for each texture.  Clicking on the texture will display it in the content browser
+		// UObject for delegate compatibility
+		for( UObject* Texture : Textures )
 		{
-			bool bReplaceAll = false;
-			ReplaceMaterial( nullptr, bReplaceAll );
-			OnResetToDefaultClicked.ExecuteIfBound( MaterialItem.Material.Get(), MaterialItem.SlotIndex );
+			FUIAction Action( FExecuteAction::CreateSP( this, &FMaterialItemView::GoToAssetInContentBrowser, MakeWeakObjectPtr(Texture) ) );
+
+			MenuBuilder.AddMenuEntry( FText::FromString( Texture->GetName() ), LOCTEXT( "BrowseTexture_ToolTip", "Find this texture in the content browser" ), FSlateIcon(), Action );
 		}
 	}
 
-private:
+	return MenuBuilder.MakeWidget();
+}
 
-	FMaterialItemView(	const FMaterialListItem& InMaterial, 
-						FOnMaterialChanged& InOnMaterialChanged, 
-						FOnGenerateWidgetsForMaterial& InOnGenerateNameWidgets, 
-						FOnGenerateWidgetsForMaterial& InOnGenerateMaterialWidgets, 
-						FOnResetMaterialToDefaultClicked& InOnResetToDefaultClicked,
-						int32 InMultipleMaterialCount,
-						bool bInShowUsedTextures)
-						
-		: MaterialItem( InMaterial )
-		, OnMaterialChanged( InOnMaterialChanged )
-		, OnGenerateCustomNameWidgets( InOnGenerateNameWidgets )
-		, OnGenerateCustomMaterialWidgets( InOnGenerateMaterialWidgets )
-		, OnResetToDefaultClicked( InOnResetToDefaultClicked )
-		, MultipleMaterialCount( InMultipleMaterialCount )
-		, bShowUsedTextures( bInShowUsedTextures )
+
+void FMaterialItemView::GoToAssetInContentBrowser( TWeakObjectPtr<UObject> Object )
+{
+	if( Object.IsValid() )
 	{
+		TArray< UObject* > Objects;
+		Objects.Add( Object.Get() );
+		GEditor->SyncBrowserToObjects( Objects );
+	}
+}
 
+PRAGMA_DISABLE_OPTIMIZATION
+TSharedPtr<IPropertyHandle> FMaterialItemView::GetMaterialHandle(IDetailLayoutBuilder& InDetailBuilder, UActorComponent* InCurrentComponent) const
+{
+	USceneComponent* SceneComponent = Cast<USceneComponent>(InCurrentComponent);
+	if (!SceneComponent)
+	{
+		return nullptr;
 	}
 
-	void ReplaceMaterial( UMaterialInterface* NewMaterial, bool bReplaceAll = false )
+	TSharedPtr<IPropertyHandle> PropertyHandle;
+	UObject* OwnerObject = nullptr;
+	FString PropertyPath;
+	if (SceneComponent->GetMaterialPropertyPath(MaterialItem.SlotIndex, OwnerObject, PropertyPath))
 	{
-		UMaterialInterface* PrevMaterial = NULL;
-		if( MaterialItem.Material.IsValid() )
+		TArray<FString> PathArray;
+		// Split full path to array
+		PropertyPath.ParseIntoArray(PathArray, TEXT("."));
+
+		for (int32 PathArrayIndex = 0; PathArrayIndex < PathArray.Num(); ++PathArrayIndex)
 		{
-			PrevMaterial = MaterialItem.Material.Get();
-		}
+			const FString& PathArrayItem = PathArray[PathArrayIndex];
 
-		if( NewMaterial != PrevMaterial )
-		{
-			// Replace the material
-			OnMaterialChanged.ExecuteIfBound( NewMaterial, PrevMaterial, MaterialItem.SlotIndex, bReplaceAll );
-		}
-	}
+			int32 StartPathArrayIndex = -1;
+			int32 EndPathArrayIndex = -1;
+			PathArrayItem.FindChar('[', StartPathArrayIndex);
+			PathArrayItem.FindChar(']', EndPathArrayIndex);
 
-	void OnSetObject( const FAssetData& AssetData )
-	{
-		const bool bReplaceAll = false;
+			// Get a property name without array 
+			FString PropertyName = (StartPathArrayIndex != -1) ? PathArrayItem.Mid(0, StartPathArrayIndex) : PathArrayItem;
 
-		UMaterialInterface* NewMaterial = Cast<UMaterialInterface>(AssetData.GetAsset());
-		ReplaceMaterial( NewMaterial, bReplaceAll );
-	}
-
-	FString OnGetObjectPath() const
-	{
-		return MaterialItem.Material->GetPathName();
-	}
-
-	/**
-	 * @return Whether or not the textures menu is enabled
-	 */
-	bool IsTexturesMenuEnabled() const
-	{
-		return MaterialItem.Material.Get() != NULL;
-	}
-
-	TSharedRef<SWidget> OnGetTexturesMenuForMaterial()
-	{
-		FMenuBuilder MenuBuilder( true, NULL );
-
-		if( MaterialItem.Material.IsValid() )
-		{
-			UMaterialInterface* Material = MaterialItem.Material.Get();
-
-			TArray< UTexture* > Textures;
-			Material->GetUsedTextures(Textures, EMaterialQualityLevel::Num, false, ERHIFeatureLevel::Num, true);
-
-			// Add a menu item for each texture.  Clicking on the texture will display it in the content browser
-			// UObject for delegate compatibility
-			for( UObject* Texture : Textures )
+			// create a property handle if that is first path element
+			if (PathArrayIndex == 0)
 			{
-				FUIAction Action( FExecuteAction::CreateSP( this, &FMaterialItemView::GoToAssetInContentBrowser, MakeWeakObjectPtr(Texture) ) );
+				UClass* OwnerObjectClass = OwnerObject->GetClass();
 
-				MenuBuilder.AddMenuEntry( FText::FromString( Texture->GetName() ), LOCTEXT( "BrowseTexture_ToolTip", "Find this texture in the content browser" ), FSlateIcon(), Action );
+				// Exception for UStaticMesh
+				// StaticMaterials property does not contain EditAnywhere flag which is required for PropertyHandle generation
+				if (OwnerObjectClass == UStaticMesh::StaticClass())
+				{					
+					FProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(UStaticMesh::GetStaticMaterialsName());
+					check(Property);
+
+					const EPropertyFlags OriginalPropertyFlags = Property->GetPropertyFlags();
+					Property->SetPropertyFlags(CPF_Edit);
+					PropertyHandle = InDetailBuilder.AddObjectPropertyData( { OwnerObject }, *PropertyName);
+					Property->SetPropertyFlags(OriginalPropertyFlags);
+				}
+				else
+				{
+					PropertyHandle = InDetailBuilder.AddObjectPropertyData( { OwnerObject }, *PropertyName);
+				}				
+			}
+
+			if (PropertyHandle.IsValid())
+			{
+				// Then check if property path contain array element like Materials[0]
+				if(const TSharedPtr<IPropertyHandleArray> HandleArray = PropertyHandle->AsArray())
+				{
+					if (StartPathArrayIndex != INDEX_NONE && EndPathArrayIndex != INDEX_NONE)
+					{
+						const FString ArrayIndexStr = PathArrayItem.Mid(StartPathArrayIndex + 1, EndPathArrayIndex - 1 - StartPathArrayIndex);
+
+						int32 ArrayIndex = INDEX_NONE;
+						LexFromString(ArrayIndex, *ArrayIndexStr);
+
+						uint32 HandleArrayElementsNum = 0;
+						HandleArray->GetNumElements(HandleArrayElementsNum);
+						if (ensure(ArrayIndex != INDEX_NONE) && ensure(ArrayIndex < static_cast<int32>(HandleArrayElementsNum)))
+						{
+							PropertyHandle = HandleArray->GetElement(ArrayIndex);
+						}
+					}
+				}
+				// Property Handle is inner struct element if we have more then 1 element in path array PathArray
+				// For example Materials[0].MaterialInterface 
+				if (PathArrayIndex != 0)
+				{
+					// Make sure the property name is valid
+					if (ensure(!PropertyName.IsEmpty()))
+					{
+						PropertyHandle = PropertyHandle->GetChildHandle(*PropertyName);
+					}
+					else
+					{
+						PropertyHandle = nullptr;
+					}
+				}
 			}
 		}
-
-		return MenuBuilder.MakeWidget();
 	}
 
-	/**
-	 * Finds the asset in the content browser
-	 */
-	void GoToAssetInContentBrowser( TWeakObjectPtr<UObject> Object )
+	return PropertyHandle;
+}
+PRAGMA_ENABLE_OPTIMIZATION;
+
+TSharedPtr<SWidget> FMaterialItemView::GetGlobalRowExtensionWidget(IDetailLayoutBuilder& InDetailBuilder, UActorComponent* InCurrentComponent) const
+{
+	const TSharedPtr<IPropertyHandle> MaterialPropertyHandle = GetMaterialHandle(InDetailBuilder, InCurrentComponent);
+
+	if (!MaterialPropertyHandle)
 	{
-		if( Object.IsValid() )
-		{
-			TArray< UObject* > Objects;
-			Objects.Add( Object.Get() );
-			GEditor->SyncBrowserToObjects( Objects );
-		}
+		return SNullWidget::NullWidget;
 	}
+		
+	FSlimHorizontalToolBarBuilder ToolbarBuilder(TSharedPtr<FUICommandList>(), FMultiBoxCustomization::None);
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
-private:
-	FMaterialListItem MaterialItem;
-	FOnMaterialChanged OnMaterialChanged;
-	FOnGenerateWidgetsForMaterial OnGenerateCustomNameWidgets;
-	FOnGenerateWidgetsForMaterial OnGenerateCustomMaterialWidgets;
-	FOnResetMaterialToDefaultClicked OnResetToDefaultClicked;
-	int32 MultipleMaterialCount;
-	bool bShowUsedTextures;
-};
+	// Add Extension buttons to Row Generator
+	TArray<FPropertyRowExtensionButton> ExtensionButtons;
 
+	// Add custom property extensions
+	FOnGenerateGlobalRowExtensionArgs RowExtensionArgs;
+	RowExtensionArgs.PropertyHandle = MaterialPropertyHandle;
+	PropertyEditorModule.GetGlobalRowExtensionDelegate().Broadcast(RowExtensionArgs, ExtensionButtons);
+
+	// Build extension toolbar 
+	ToolbarBuilder.SetLabelVisibility(EVisibility::Collapsed);
+	ToolbarBuilder.SetStyle(&FAppStyle::Get(), "DetailsView.ExtensionToolBar");
+	for (const FPropertyRowExtensionButton& Extension : ExtensionButtons)
+	{
+		ToolbarBuilder.AddToolBarButton(Extension.UIAction, NAME_None, Extension.Label, Extension.ToolTip, Extension.Icon);
+	}
+		
+	return ToolbarBuilder.MakeWidget();
+}
 
 FMaterialList::FMaterialList(IDetailLayoutBuilder& InDetailLayoutBuilder, FMaterialListDelegates& InMaterialListDelegates, const TArray<FAssetData>& InOwnerAssetDataArray, bool bInAllowCollapse, bool bInShowUsedTextures)
 	: MaterialListDelegates( InMaterialListDelegates )
@@ -479,7 +615,7 @@ void FMaterialList::GenerateChildContent( IDetailChildrenBuilder& ChildrenBuilde
 					FDetailWidgetRow& ChildRow = ChildrenBuilder.AddCustomRow( FText::GetEmpty() );
 					ChildRow.RowTag(RowTagName);
 
-					AddMaterialItem( ChildRow, CurrentSlot, FMaterialListItem( NULL, CurrentSlot, true ), !bDisplayAllMaterialsInSlot );
+					AddMaterialItem( ChildRow, CurrentSlot, FMaterialListItem( NULL, CurrentSlot, true ), !bDisplayAllMaterialsInSlot, Material.CurrentComponent.Get() );
 				}
 				else
 				{
@@ -494,7 +630,7 @@ void FMaterialList::GenerateChildContent( IDetailChildrenBuilder& ChildrenBuilde
 				FDetailWidgetRow& ChildRow = ChildrenBuilder.AddCustomRow( Material.Material.IsValid()? FText::FromString(Material.Material->GetName()) : FText::GetEmpty() );
 				ChildRow.RowTag(RowTagName);
 
-				AddMaterialItem( ChildRow, CurrentSlot, Material, !bDisplayAllMaterialsInSlot );
+				AddMaterialItem( ChildRow, CurrentSlot, Material, !bDisplayAllMaterialsInSlot, Material.CurrentComponent.Get() );
 			}
 		}
 	}
@@ -567,7 +703,7 @@ void FMaterialList::OnPasteMaterialItem(int32 CurrentSlot)
 	}
 }
 			
-void FMaterialList::AddMaterialItem( FDetailWidgetRow& Row, int32 CurrentSlot, const FMaterialListItem& Item, bool bDisplayLink )
+void FMaterialList::AddMaterialItem( FDetailWidgetRow& Row, int32 CurrentSlot, const FMaterialListItem& Item, bool bDisplayLink, UActorComponent* InActorComponent)
 {
 	uint32 NumMaterials = MaterialListBuilder->GetNumMaterialsInSlot(CurrentSlot);
 
@@ -593,7 +729,7 @@ void FMaterialList::AddMaterialItem( FDetailWidgetRow& Row, int32 CurrentSlot, c
 	}
 	else
 	{
-		RightSideContent = NewView->CreateValueContent( DetailLayoutBuilder.GetThumbnailPool(), OwnerAssetDataArray );
+		RightSideContent = NewView->CreateValueContent( DetailLayoutBuilder, OwnerAssetDataArray, InActorComponent );
 		ViewedMaterials.Add( NewView );
 	}
 

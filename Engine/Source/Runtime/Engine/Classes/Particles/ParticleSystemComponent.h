@@ -1370,7 +1370,7 @@ public:
 	//~ End UObject Interface.
 
 	//Begin UPrimitiveComponent Interface
-	virtual int32 GetNumMaterials() const override; 
+	virtual int32 GetNumMaterials() const override;
 	virtual UMaterialInterface* GetMaterial(int32 ElementIndex) const override;
 	virtual void SetMaterial(int32 ElementIndex, UMaterialInterface* Material) override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
@@ -1385,6 +1385,9 @@ protected:
 	virtual bool ShouldActivate() const override;
 
 public:
+#if WITH_EDITOR
+	virtual bool GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath) override;
+#endif // WITH_EDITOR
 	virtual void Activate(bool bReset=false) override;
 	virtual void Deactivate() override;
 	virtual void DeactivateImmediate() override;

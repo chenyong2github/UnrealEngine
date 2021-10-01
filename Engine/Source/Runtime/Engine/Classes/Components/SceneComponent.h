@@ -804,6 +804,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Rendering")
 	virtual bool IsVisible() const;
 
+#if WITH_EDITOR
+	/**
+	 * Returns full material property path and UObject owner property object
+	 * Path examples:
+	 * Material property path with array element and inner struct Materials[0].InnerStruct.Material
+	 * Material property path with array element Materials[0]
+	 * Simple material property path Materials
+	 * 
+	 * @param ElementIndex		- The element to access the material of.
+	 * @param OutOwner			- Property UObject owner.
+	 * @param OutPropertyPath	- Full material property path.
+	 * @return true if that was successfully resolved and component has material
+	 */
+	virtual bool GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath);
+#endif // WITH_EDITOR
+
 protected:
 	/**
 	 * Overridable internal function to respond to changes in the visibility of the component.

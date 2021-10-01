@@ -132,6 +132,20 @@ bool UDecalComponent::IsPostLoadThreadSafe() const
 	return true;
 }
 
+#if WITH_EDITOR
+bool UDecalComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath)
+{
+	if(ElementIndex == 0)
+	{
+		OutOwner = this;
+		OutPropertyPath = GET_MEMBER_NAME_STRING_CHECKED(UDecalComponent, DecalMaterial);
+		return true;
+	}
+
+	return false;
+}
+#endif // WITH_EDITOR
+
 void UDecalComponent::SetLifeSpan(const float LifeSpan)
 {
 	if (LifeSpan > 0.f)

@@ -533,6 +533,30 @@ int32 ULandscapeComponent::GetNumMaterials() const
 	return 1;
 }
 
+#if WITH_EDITOR
+bool ULandscapeComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath)
+{
+	if (ElementIndex == 0)
+	{
+		if (OverrideMaterial)
+		{
+			OutOwner = this;
+			OutPropertyPath = GET_MEMBER_NAME_STRING_CHECKED(ULandscapeComponent, OverrideMaterial);
+	
+			return true;
+		}
+		if (ALandscapeProxy* Proxy = GetLandscapeProxy())
+		{
+			OutOwner = Proxy;
+			OutPropertyPath = GET_MEMBER_NAME_STRING_CHECKED(ALandscapeProxy, LandscapeHoleMaterial);
+			return true;
+		}
+	}
+
+	return false;
+}
+#endif // WITH_EDITOR
+
 class UMaterialInterface* ULandscapeComponent::GetMaterial(int32 ElementIndex) const
 {
 	if (ensure(ElementIndex == 0))

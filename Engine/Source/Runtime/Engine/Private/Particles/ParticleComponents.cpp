@@ -4444,6 +4444,34 @@ int32 UParticleSystemComponent::GetNumMaterials() const
 	return 0;
 }
 
+#if WITH_EDITOR
+bool UParticleSystemComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath)
+{
+	if (EmitterMaterials.IsValidIndex(ElementIndex))
+	{
+		OutOwner = this;
+		OutPropertyPath = FString::Printf(TEXT("%s[%d]"), GET_MEMBER_NAME_STRING_CHECKED(UParticleSystemComponent, EmitterMaterials), ElementIndex);
+		return true;
+	}
+	if (Template && Template->Emitters.IsValidIndex(ElementIndex))
+	{
+		UParticleEmitter* Emitter = Template->Emitters[ElementIndex];
+		if (Emitter && Emitter->LODLevels.Num() > 0)
+		{
+			UParticleLODLevel* EmitterLODLevel = Emitter->LODLevels[0];
+			if (EmitterLODLevel && EmitterLODLevel->RequiredModule)
+			{
+				OutOwner = EmitterLODLevel->RequiredModule;
+				OutPropertyPath = GET_MEMBER_NAME_STRING_CHECKED(UParticleModuleRequired, Material);
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+#endif // WITH_EDITOR
+
 UMaterialInterface* UParticleSystemComponent::GetMaterial(int32 ElementIndex) const
 {
 	if (EmitterMaterials.IsValidIndex(ElementIndex) && EmitterMaterials[ElementIndex] != NULL)
