@@ -14,7 +14,7 @@ class UPolyEditPreviewMesh;
 class USpatialCurveDistanceMechanic;
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UPolyEditInsetOutsetProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UPolyEditInsetOutsetProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -51,7 +51,7 @@ public:
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UPolyEditInsetOutsetActivity : public UInteractiveToolActivity,
+class MESHMODELINGTOOLS_API UPolyEditInsetOutsetActivity : public UInteractiveToolActivity,
 	public IClickBehaviorTarget, public IHoverBehaviorTarget
 {
 	GENERATED_BODY()

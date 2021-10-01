@@ -19,7 +19,7 @@ PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
  * Standard properties of the CutMeshWithMesh operation
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UCutMeshWithMeshToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UCutMeshWithMeshToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -52,7 +52,7 @@ public:
  * does it in a single step and with some improved efficiency.
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UCutMeshWithMeshTool : public UBaseCreateFromSelectedTool
+class MESHMODELINGTOOLS_API UCutMeshWithMeshTool : public UBaseCreateFromSelectedTool
 {
 	GENERATED_BODY()
 
@@ -104,7 +104,7 @@ protected:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UCutMeshWithMeshToolBuilder : public UBaseCreateFromSelectedToolBuilder
+class MESHMODELINGTOOLS_API UCutMeshWithMeshToolBuilder : public UBaseCreateFromSelectedToolBuilder
 {
 	GENERATED_BODY()
 

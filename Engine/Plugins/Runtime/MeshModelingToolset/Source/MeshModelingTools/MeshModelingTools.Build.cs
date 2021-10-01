@@ -28,7 +28,7 @@ public class MeshModelingTools : ModuleRules
 				"InputCore",
                 "InteractiveToolsFramework",
 				"GeometryCore",
-				// "GeometryFramework",
+				"GeometryFramework",
 				"GeometryAlgorithms",
 				"DynamicMesh",
 				"MeshConversion",

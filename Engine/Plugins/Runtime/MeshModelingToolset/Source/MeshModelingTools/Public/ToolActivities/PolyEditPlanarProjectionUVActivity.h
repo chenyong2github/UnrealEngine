@@ -17,7 +17,7 @@ class UPolyEditPreviewMesh;
 class UCollectSurfacePathMechanic;
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UPolyEditSetUVProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UPolyEditSetUVProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -31,7 +31,7 @@ public:
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UPolyEditPlanarProjectionUVActivity : public UInteractiveToolActivity,
+class MESHMODELINGTOOLS_API UPolyEditPlanarProjectionUVActivity : public UInteractiveToolActivity,
 	public IClickBehaviorTarget, public IHoverBehaviorTarget
 {
 	GENERATED_BODY()

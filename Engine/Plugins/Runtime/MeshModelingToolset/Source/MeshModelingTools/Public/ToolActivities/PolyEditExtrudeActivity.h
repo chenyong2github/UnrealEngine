@@ -31,7 +31,7 @@ enum class EPolyEditExtrudeDirection
 };
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UPolyEditExtrudeProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UPolyEditExtrudeProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -65,7 +65,7 @@ public:
  * 
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UPolyEditExtrudeActivity : public UInteractiveToolActivity,
+class MESHMODELINGTOOLS_API UPolyEditExtrudeActivity : public UInteractiveToolActivity,
 	public UE::Geometry::IDynamicMeshOperatorFactory,
 	public IClickBehaviorTarget, public IHoverBehaviorTarget
 
