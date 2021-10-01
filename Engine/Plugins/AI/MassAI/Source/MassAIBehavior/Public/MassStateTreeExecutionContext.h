@@ -26,7 +26,7 @@ public:
 	FMassExecutionContext& GetEntitySubsystemExecutionContext() const { return *EntitySubsystemExecutionContext; }
 
 	FMassEntityHandle GetEntity() const { return Entity; }
-	void SetEntity(const FMassEntityHandle& InEntity) { Entity = InEntity; }
+	void SetEntity(const FMassEntityHandle InEntity) { Entity = InEntity; }
 
 	int32 GetEntityIndex() const { return EntityIndex; }
 	void SetEntityIndex(const int32 InIndex) { EntityIndex = InIndex; }

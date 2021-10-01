@@ -50,10 +50,10 @@ void UMassReplicationManager::Deinitialize()
 	EntitySystem = nullptr;
 }
 
-FMassNetworkID UMassReplicationManager::GetNetIDFromHandle(const FMassHandle& Handle) const
+FMassNetworkID UMassReplicationManager::GetNetIDFromHandle(const FMassEntityHandle Handle) const
 {
 	check(EntitySystem);
-	const FMassNetworkIDFragment& Data = EntitySystem->GetComponentDataChecked<FMassNetworkIDFragment>(Handle.GetLWEntity());
+	const FMassNetworkIDFragment& Data = EntitySystem->GetComponentDataChecked<FMassNetworkIDFragment>(Handle);
 	return Data.NetID;
 }
 
@@ -238,9 +238,9 @@ void UMassReplicationManager::SynchronizeClientViewers(const TArray<FViewerInfo>
 {
 	check(MassLODManager);
 
-	struct FMassHandleData
+	struct FMassClientViewerHandle
 	{
-		FMassHandleData(FMassClientHandle InClientHandle, FMassViewerHandle InViewerHandle)
+		FMassClientViewerHandle(FMassClientHandle InClientHandle, FMassViewerHandle InViewerHandle)
 			: ClientHandle(InClientHandle)
 			, ViewerHandle(InViewerHandle)
 		{}
@@ -250,7 +250,7 @@ void UMassReplicationManager::SynchronizeClientViewers(const TArray<FViewerInfo>
 	};
 
 	// go through the ClientsViewerHandles and check validity and store the valid ones into a map
-	typedef TMap<APlayerController*, FMassHandleData> FViewerMap;
+	typedef TMap<APlayerController*, FMassClientViewerHandle> FViewerMap;
 
 	FViewerMap ClientViewerMap;
 	{
@@ -280,7 +280,7 @@ void UMassReplicationManager::SynchronizeClientViewers(const TArray<FViewerInfo>
 						// we don't verify or remove Parent Connections here as that was done when we synchronized the client bubbles
 						if (ConnectionType == UE::Mass::Replication::ENetConnectionType::Child)
 						{
-							ClientViewerMap.Add(Controller, FMassHandleData(ClientHandle, ClientViewer));
+							ClientViewerMap.Add(Controller, FMassClientViewerHandle(ClientHandle, ClientViewer));
 						}
 					}
 					else //remove invalid ClientViewer, but dont increment the ViewerIdx
@@ -331,7 +331,7 @@ void UMassReplicationManager::SynchronizeClientViewers(const TArray<FViewerInfo>
 		// anything left in the map needs to be removed from the list
 		for (FViewerMap::TIterator Itr = ClientViewerMap.CreateIterator(); Itr; ++Itr)
 		{
-			const FMassHandleData& HandleData = Itr->Value;
+			const FMassClientViewerHandle& HandleData = Itr->Value;
 
 			FClientViewerHandles& ClientViewers = ClientsViewerHandles[HandleData.ClientHandle.GetIndex()];
 

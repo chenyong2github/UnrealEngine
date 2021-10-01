@@ -32,58 +32,6 @@ namespace UE::Mass::ProcessorGroupNames
 	const FName Tasks = FName(TEXT("Tasks"));
 }
 
-/**
- * Generic handle on mass agent which is associated to the specific Mass EntitySubsystem 
- */
-struct MASSCOMMON_API FMassHandle
-{
-public:
-	FMassHandle() = default;
-
-	explicit FMassHandle(FMassEntityHandle InLWEntity)
-		: LWEntity{ InLWEntity }
-	{}
-
-	FMassEntityHandle GetLWEntity() const
-	{
-		return LWEntity;
-	}
-
-	bool IsValid() const
-	{
-		return LWEntity.IsSet();
-	}
-
-	FString DebugGetDescription() const 
-	{
-#if WITH_MASSGAMEPLAY_DEBUG
-		return LWEntity.DebugGetDescription();
-#else
-		return FString();
-#endif // WITH_MASSGAMEPLAY_DEBUG
-	}
-
-	const static FMassHandle InvalidHandle;
-
-	bool operator==(const FMassHandle& Other) const
-	{
-		return LWEntity == Other.LWEntity;
-	}
-
-	bool operator!=(const FMassHandle& Other) const
-	{
-		return !operator==(Other);
-	}
-
-	friend uint32 GetTypeHash(const FMassHandle& Handle)
-	{
-		return GetTypeHash(Handle.GetLWEntity());
-	}
-
-private:
-	FMassEntityHandle LWEntity;
-};
-
 USTRUCT()
 struct FMassNetworkID : public FSequentialIDBase
 {

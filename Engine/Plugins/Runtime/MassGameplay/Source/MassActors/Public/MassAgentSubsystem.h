@@ -8,7 +8,6 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "MassAgentSubsystem.generated.h"
 
-struct FMassHandle;
 class AActor;
 class UMassEntitySubsystem;
 class UMassSpawnerSubsystem;

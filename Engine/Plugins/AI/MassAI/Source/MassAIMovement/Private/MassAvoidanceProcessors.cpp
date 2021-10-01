@@ -225,7 +225,7 @@ namespace UE::MassAvoidance
 		const FMassEntityHandle Entity;
 	};
 
-	static bool DebugIsSelected(const FMassEntityHandle& Entity)
+	static bool DebugIsSelected(const FMassEntityHandle Entity)
 	{
 		FColor Color;
 		return UE::MassDebug::IsDebuggingEntity(Entity, &Color);

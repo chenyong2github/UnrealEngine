@@ -89,7 +89,7 @@ public:
 	}
 
 	/** Retrieve network id from Mass handle. */
-	FMassNetworkID GetNetIDFromHandle(const FMassHandle& Handle) const;
+	FMassNetworkID GetNetIDFromHandle(const FMassEntityHandle Handle) const;
 
 	static inline FMassNetworkID GetNextAvailableMassNetID() { return FMassNetworkID(++CurrentNetMassCounter); }
 
@@ -286,6 +286,9 @@ protected:
 	UE::MassReplication::FMassAgentDelegate OnRemovingMassAgent;
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 
-	/** Used to make sure the FMassHandle_ClientReplications are synchronized immediately before they are needed*/
+	/**
+	 * Used to make sure the FMassEntityHandle_ClientReplications are synchronized immediately before they are needed
+	 * @todo this comment is no longer accurate, needs fixing
+	 */
 	uint64 LastSynchronizedFrame = 0;
 };

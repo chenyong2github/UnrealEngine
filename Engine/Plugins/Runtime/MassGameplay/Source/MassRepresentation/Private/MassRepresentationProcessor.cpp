@@ -69,8 +69,7 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 	const int32 NumEntities = Context.GetEntitiesNum();
 	for (int32 EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
 	{
-		const FMassEntityHandle Entity = Context.GetEntity(EntityIdx);
-		const FMassHandle MassAgent(Entity);
+		const FMassEntityHandle MassAgent = Context.GetEntity(EntityIdx);
 		const FDataFragment_Transform& TransformFragment = TransformList[EntityIdx];
 		const FMassRepresentationLODFragment& RepresentationLOD = RepresentationLODList[EntityIdx];
 		FMassRepresentationFragment& Representation = RepresentationList[EntityIdx];
@@ -218,7 +217,7 @@ void UMassRepresentationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem
 	});
 }
 
-AActor* UMassRepresentationProcessor::GetOrSpawnActor(const FMassHandle MassAgent, FDataFragment_Actor& ActorInfo, const FTransform& Transform, const int16 TemplateActorIndex, FMassHandle_ActorSpawnRequest& SpawnRequestHandle, const float Priority)
+AActor* UMassRepresentationProcessor::GetOrSpawnActor(const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, const FTransform& Transform, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, const float Priority)
 {
 	check(RepresentationSubsystem);
 
@@ -227,7 +226,7 @@ AActor* UMassRepresentationProcessor::GetOrSpawnActor(const FMassHandle MassAgen
 		FMassActorPostSpawnDelegate::CreateUObject(this, &UMassRepresentationProcessor::OnActorPostSpawn));
 }
 
-bool UMassRepresentationProcessor::ReleaseActorOrCancelSpawning(const FMassHandle MassAgent, FDataFragment_Actor& ActorInfo, const int16 TemplateActorIndex, FMassHandle_ActorSpawnRequest& SpawnRequestHandle, FMassExecutionContext& Context, bool bCancelSpawningOnly /*= false*/)
+bool UMassRepresentationProcessor::ReleaseActorOrCancelSpawning(const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, FMassExecutionContext& Context, bool bCancelSpawningOnly /*= false*/)
 {
 	check(RepresentationSubsystem);
 	check(!ActorInfo.IsValid() || ActorInfo.IsOwnedByMass());
@@ -286,13 +285,13 @@ void UMassRepresentationProcessor::TeleportActor(const FTransform& Transform, AA
 	}
 }
 
-void UMassRepresentationProcessor::ReleaseAnyActorOrCancelAnySpawning(UMassRepresentationSubsystem& RepresentationSubsystem, const FMassHandle MassAgent)
+void UMassRepresentationProcessor::ReleaseAnyActorOrCancelAnySpawning(UMassRepresentationSubsystem& RepresentationSubsystem, const FMassEntityHandle MassAgent)
 {
 	if (const UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(RepresentationSubsystem.GetWorld()))
 	{
-		if (FDataFragment_Actor* ActorInfo = EntitySubsystem->GetComponentDataPtr<FDataFragment_Actor>(MassAgent.GetLWEntity()))
+		if (FDataFragment_Actor* ActorInfo = EntitySubsystem->GetComponentDataPtr<FDataFragment_Actor>(MassAgent))
 		{
-			if (FMassRepresentationFragment* Representation = EntitySubsystem->GetComponentDataPtr<FMassRepresentationFragment>(MassAgent.GetLWEntity()))
+			if (FMassRepresentationFragment* Representation = EntitySubsystem->GetComponentDataPtr<FMassRepresentationFragment>(MassAgent))
 			{
 				ReleaseAnyActorOrCancelAnySpawning(RepresentationSubsystem, MassAgent, *ActorInfo, *Representation);
 			}
@@ -300,7 +299,7 @@ void UMassRepresentationProcessor::ReleaseAnyActorOrCancelAnySpawning(UMassRepre
 	}
 }
 
-void UMassRepresentationProcessor::ReleaseAnyActorOrCancelAnySpawning(UMassRepresentationSubsystem& RepresentationSubsystem, const FMassHandle MassAgent, FDataFragment_Actor& ActorInfo, FMassRepresentationFragment& Representation)
+void UMassRepresentationProcessor::ReleaseAnyActorOrCancelAnySpawning(UMassRepresentationSubsystem& RepresentationSubsystem, const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, FMassRepresentationFragment& Representation)
 {
 	// This method can only release owned by mass actors
 	AActor* Actor = ActorInfo.GetOwnedByMassMutable();
@@ -387,13 +386,13 @@ void UMassRepresentationProcessor::UpdateEntityVisibility(const FMassEntityHandl
 	}
 }
 
-void UMassRepresentationProcessor::OnActorPreSpawn(const FMassHandle_ActorSpawnRequest& SpawnRequestHandle, const FStructView& SpawnRequest)
+void UMassRepresentationProcessor::OnActorPreSpawn(const FMassActorSpawnRequestHandle& SpawnRequestHandle, const FStructView& SpawnRequest)
 {
 	check(PipeEntitySubsystem);
 	check(RepresentationSubsystem);
 
 	const FMassActorSpawnRequest& MassActorSpawnRequest = SpawnRequest.Get<FMassActorSpawnRequest>();
-	const FMassEntityView View(*PipeEntitySubsystem, MassActorSpawnRequest.MassAgent.GetLWEntity());
+	const FMassEntityView View(*PipeEntitySubsystem, MassActorSpawnRequest.MassAgent);
 
 	if (FDataFragment_Actor* ActorInfo = View.GetComponentDataPtr<FDataFragment_Actor>())
 	{
@@ -421,7 +420,7 @@ void UMassRepresentationProcessor::OnActorPreSpawn(const FMassHandle_ActorSpawnR
 	}
 }
 
-EMassActorSpawnRequestAction UMassRepresentationProcessor::OnActorPostSpawn(const FMassHandle_ActorSpawnRequest& SpawnRequestHandle, const FStructView& SpawnRequest)
+EMassActorSpawnRequestAction UMassRepresentationProcessor::OnActorPostSpawn(const FMassActorSpawnRequestHandle& SpawnRequestHandle, const FStructView& SpawnRequest)
 {
 	check(PipeEntitySubsystem);
 
@@ -429,7 +428,7 @@ EMassActorSpawnRequestAction UMassRepresentationProcessor::OnActorPostSpawn(cons
 	checkf(MassActorSpawnRequest.SpawnedActor, TEXT("Expecting valid spawned actor"));
 
 	// Might be already done if the actor has a MassAgentComponent via the callback OnMassAgentComponentEntityAssociated on the MassRepresentationSubsystem
-	FDataFragment_Actor& ActorInfo = PipeEntitySubsystem->GetComponentDataChecked<FDataFragment_Actor>(MassActorSpawnRequest.MassAgent.GetLWEntity());
+	FDataFragment_Actor& ActorInfo = PipeEntitySubsystem->GetComponentDataChecked<FDataFragment_Actor>(MassActorSpawnRequest.MassAgent);
 	if (ActorInfo.IsValid())
 	{
 		// If already set, make sure it is pointing to the same actor.
@@ -484,8 +483,7 @@ void UMassRepresentationFragmentDestructor::Execute(UMassEntitySubsystem& Entity
 			FMassRepresentationFragment& Representation = RepresentationList[i];
 			FDataFragment_Actor& ActorInfo = ActorList[i];
 
-			const FMassEntityHandle Entity = Context.GetEntity(i);
-			const FMassHandle MassAgent(Entity);
+			const FMassEntityHandle MassAgent = Context.GetEntity(i);
 
 			UMassRepresentationProcessor::ReleaseAnyActorOrCancelAnySpawning(*RepresentationSubsystem, MassAgent, ActorInfo, Representation);
 		}

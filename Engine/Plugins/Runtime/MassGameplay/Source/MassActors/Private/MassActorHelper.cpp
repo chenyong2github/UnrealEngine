@@ -15,10 +15,10 @@ namespace UE::MassActor
 		UMassActorSubsystem* MassActorSubsystem = UWorld::GetSubsystem<UMassActorSubsystem>(World);
 		if (EntitySystem && MassActorSubsystem)
 		{
-			const FMassHandle AgentHandle = MassActorSubsystem->GetHandleFromActor(&Actor);
+			const FMassEntityHandle AgentHandle = MassActorSubsystem->GetEntityHandleFromActor(&Actor);
 			if (AgentHandle.IsValid())
 			{
-				EntitySystem->AddTagToEntity(AgentHandle.GetLWEntity(), &TagType);
+				EntitySystem->AddTagToEntity(AgentHandle, &TagType);
 				return true;
 			}
 			UE_LOG(LogMassActor, Warning, TEXT("Failed to add tag %s to actor %s due to it not having an associated entity")
@@ -40,10 +40,10 @@ namespace UE::MassActor
 		UMassActorSubsystem* MassActorSubsystem = UWorld::GetSubsystem<UMassActorSubsystem>(World);
 		if (EntitySystem && MassActorSubsystem)
 		{
-			const FMassHandle AgentHandle = MassActorSubsystem->GetHandleFromActor(&Actor);
+			const FMassEntityHandle AgentHandle = MassActorSubsystem->GetEntityHandleFromActor(&Actor);
 			if (AgentHandle.IsValid())
 			{
-				EntitySystem->RemoveTagFromEntity(AgentHandle.GetLWEntity(), &TagType);
+				EntitySystem->RemoveTagFromEntity(AgentHandle, &TagType);
 				return true;
 			}
 			UE_LOG(LogMassActor, Warning, TEXT("Failed to remove tag %s from actor %s due to it not having an associated entity")

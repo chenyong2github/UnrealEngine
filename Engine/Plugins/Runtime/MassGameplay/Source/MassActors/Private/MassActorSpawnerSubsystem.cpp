@@ -19,7 +19,7 @@ namespace UE::MassActors
 //----------------------------------------------------------------------//
 // UMassActorSpawnerSubsystem 
 //----------------------------------------------------------------------//
-void UMassActorSpawnerSubsystem::RetryActorSpawnRequest(FMassHandle_ActorSpawnRequest SpawnRequestHandle)
+void UMassActorSpawnerSubsystem::RetryActorSpawnRequest(const FMassActorSpawnRequestHandle SpawnRequestHandle)
 {
 	check(SpawnRequestHandleManager.IsValidHandle(SpawnRequestHandle));
 	const int32 Index = SpawnRequestHandle.GetIndex();
@@ -36,7 +36,7 @@ void UMassActorSpawnerSubsystem::RetryActorSpawnRequest(FMassHandle_ActorSpawnRe
 	}
 }
 
-bool UMassActorSpawnerSubsystem::RemoveActorSpawnRequest(FMassHandle_ActorSpawnRequest& SpawnRequestHandle)
+bool UMassActorSpawnerSubsystem::RemoveActorSpawnRequest(FMassActorSpawnRequestHandle& SpawnRequestHandle)
 {
 	if (!ensureMsgf(SpawnRequestHandleManager.RemoveHandle(SpawnRequestHandle), TEXT("Invalid spawn request handle")))
 	{
@@ -107,10 +107,10 @@ bool UMassActorSpawnerSubsystem::ReleaseActorToPool(AActor* Actor)
 	return false;
 }
 
-FMassHandle_ActorSpawnRequest UMassActorSpawnerSubsystem::RequestActorSpawnInternal(const FConstStructView SpawnRequestView)
+FMassActorSpawnRequestHandle UMassActorSpawnerSubsystem::RequestActorSpawnInternal(const FConstStructView SpawnRequestView)
 {
 	// The handle manager has a freelist of the release indexes, so it can return us a index that we previously used.
-	const FMassHandle_ActorSpawnRequest SpawnRequestHandle = SpawnRequestHandleManager.GetNextHandle();
+	const FMassActorSpawnRequestHandle SpawnRequestHandle = SpawnRequestHandleManager.GetNextHandle();
 	const int32 Index = SpawnRequestHandle.GetIndex();
 
 	// Check if we need to grow the array, otherwise it is a previously released index that was returned.
@@ -136,13 +136,13 @@ FMassHandle_ActorSpawnRequest UMassActorSpawnerSubsystem::RequestActorSpawnInter
 	return SpawnRequestHandle;
 }
 
-FMassHandle_ActorSpawnRequest UMassActorSpawnerSubsystem::GetNextRequestToSpawn() const
+FMassActorSpawnRequestHandle UMassActorSpawnerSubsystem::GetNextRequestToSpawn() const
 {
-	FMassHandle_ActorSpawnRequest BestSpawnRequestHandle;
+	FMassActorSpawnRequestHandle BestSpawnRequestHandle;
 	float BestPriority = MAX_FLT;
 	bool bBestIsPending = false;
 	uint32 BestSerialNumber = MAX_uint32;
-	for (const FMassHandle_ActorSpawnRequest SpawnRequestHandle : SpawnRequestHandleManager.GetHandles())
+	for (const FMassActorSpawnRequestHandle SpawnRequestHandle : SpawnRequestHandleManager.GetHandles())
 	{
 		if (!SpawnRequestHandle.IsValid())
 		{
@@ -234,7 +234,7 @@ AActor* UMassActorSpawnerSubsystem::SpawnActor(const FStructView& SpawnRequestVi
 					SpawnRequest.Template.GetDefaultObject()->GetSimpleCollisionRadius(),
 					SpawnRequest.Transform.GetRotation(),
 					FColor::Red,
-					TEXT("Unable to spawn actor for Mass entity [%s]"), *SpawnRequest.MassAgent.GetLWEntity().DebugGetDescription());
+					TEXT("Unable to spawn actor for Mass entity [%s]"), *SpawnRequest.MassAgent.DebugGetDescription());
 	return nullptr;
 }
 
@@ -247,7 +247,7 @@ void UMassActorSpawnerSubsystem::ProcessPendingSpawningRequest(const double MaxT
 
 	while (FPlatformTime::Seconds() < TimeSliceEnd)
 	{
-		FMassHandle_ActorSpawnRequest SpawnRequestHandle = GetNextRequestToSpawn();
+		FMassActorSpawnRequestHandle SpawnRequestHandle = GetNextRequestToSpawn();
 		if (!SpawnRequestHandle.IsValid() ||
 			!ensureMsgf(SpawnRequestHandleManager.IsValidHandle(SpawnRequestHandle), TEXT("GetNextRequestToSpawn returned an invalid handle, expecting an empty one or a valid one.")))
 		{

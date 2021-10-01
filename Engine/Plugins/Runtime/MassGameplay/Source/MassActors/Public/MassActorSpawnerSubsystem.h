@@ -14,29 +14,29 @@
 
 // Handle for an actor spawning request
 USTRUCT()
-struct MASSACTORS_API FMassHandle_ActorSpawnRequest : public FIndexedHandleBase
+struct MASSACTORS_API FMassActorSpawnRequestHandle : public FIndexedHandleBase
 {
 	GENERATED_BODY()
 
-	FMassHandle_ActorSpawnRequest() = default;
+	FMassActorSpawnRequestHandle() = default;
 
 	/** @note passing INDEX_NONE as index will make this handle Invalid */
-	FMassHandle_ActorSpawnRequest(const int32 InIndex, const uint32 InSerialNumber) : FIndexedHandleBase(InIndex, InSerialNumber)
+	FMassActorSpawnRequestHandle(const int32 InIndex, const uint32 InSerialNumber) : FIndexedHandleBase(InIndex, InSerialNumber)
 	{
 	}
 };
 
 // Managing class of spawning requests handles
-typedef FIndexedHandleManager<FMassHandle_ActorSpawnRequest, true/*bOptimizeHandleReuse*/> FMassHandleManager_ActorSpawnRequest;
+typedef FIndexedHandleManager<FMassActorSpawnRequestHandle, true/*bOptimizeHandleReuse*/> FMassEntityHandleManager_ActorSpawnRequest;
 
 
-DECLARE_DELEGATE_TwoParams(FMassActorPreSpawnDelegate, const FMassHandle_ActorSpawnRequest& SpawnRequestHandle, const FStructView& SpawnRequest);
+DECLARE_DELEGATE_TwoParams(FMassActorPreSpawnDelegate, const FMassActorSpawnRequestHandle& SpawnRequestHandle, const FStructView& SpawnRequest);
 enum EMassActorSpawnRequestAction
 {
 	Keep, // Will leave spawning request in the queue and it will be users job to call RemoveActorSpawnRequest
 	Remove, // Will remove the spawning request from the queue once the callback ends
 };
-DECLARE_DELEGATE_RetVal_TwoParams(EMassActorSpawnRequestAction, FMassActorPostSpawnDelegate, const FMassHandle_ActorSpawnRequest& SpawnRequestHandle, const FStructView& SpawnRequest);
+DECLARE_DELEGATE_RetVal_TwoParams(EMassActorSpawnRequestAction, FMassActorPostSpawnDelegate, const FMassActorSpawnRequestHandle& SpawnRequestHandle, const FStructView& SpawnRequest);
 
 UENUM()
 enum class ESpawnRequestStatus : uint8
@@ -58,7 +58,7 @@ struct MASSACTORS_API FMassActorSpawnRequest
 	GENERATED_BODY()
 public:
 	/** The actual mass agent handle corresponding to the actor to spawn */
-	FMassHandle MassAgent;
+	FMassEntityHandle MassAgent;
 
 	/** The template BP actor to spawn */
 	UPROPERTY(Transient)
@@ -91,7 +91,7 @@ public:
 
 	void Reset()
 	{
-		MassAgent = FMassHandle();
+		MassAgent = FMassEntityHandle();
 		Template = nullptr;
 		Priority = MAX_FLT;
 		ActorPreSpawnDelegate.Unbind();
@@ -124,7 +124,7 @@ public:
 	 * @param InSpawnRequest the spawn request parameters, You can provide any type of UStruct as long at it derives from FMassActorSpawnRequest. This let you add more spawning information.
 	 */
 	template< typename T, typename = typename TEnableIf<TIsDerivedFrom<typename TRemoveReference<T>::Type, FMassActorSpawnRequest>::IsDerived, void>::Type >
-	FMassHandle_ActorSpawnRequest RequestActorSpawn(const T& InSpawnRequest)
+	FMassActorSpawnRequestHandle RequestActorSpawn(const T& InSpawnRequest)
 	{
 		return RequestActorSpawnInternal(FConstStructView::Make(InSpawnRequest));
 	}
@@ -132,7 +132,7 @@ public:
 	/** Retries a failed spawn request
 	 * @param SpawnRequestHandle the spawn request handle to retry
 	 */
-	void RetryActorSpawnRequest(FMassHandle_ActorSpawnRequest SpawnRequestHandle);
+	void RetryActorSpawnRequest(const FMassActorSpawnRequestHandle SpawnRequestHandle);
 
 	/**
 	 * Removes a spawn request
@@ -141,7 +141,7 @@ public:
 	 * @param SpawnRequestHandle [IN/OUT] the spawn request handle to remove
 	 * @return true if successfully removed the request
 	 */
-	 bool RemoveActorSpawnRequest(FMassHandle_ActorSpawnRequest& SpawnRequestHandle);
+	 bool RemoveActorSpawnRequest(FMassActorSpawnRequestHandle& SpawnRequestHandle);
 
 	/**
 	 * Returns the stored spawn request from the handle, useful to update the transform
@@ -149,7 +149,7 @@ public:
 	 * @return The spawn request cast in the provided template argument
 	 */
 	template<typename T>
-	const T& GetSpawnRequest(FMassHandle_ActorSpawnRequest SpawnRequestHandle) const
+	const T& GetSpawnRequest(const FMassActorSpawnRequestHandle SpawnRequestHandle) const
 	{
 		check(SpawnRequestHandleManager.IsValidHandle(SpawnRequestHandle));
 		check(SpawnRequests.IsValidIndex(SpawnRequestHandle.GetIndex()));
@@ -162,7 +162,7 @@ public:
 	 * @return The spawn request cast in the provided template argument
 	 */
 	template<typename T> 
-	T& GetMutableSpawnRequest(FMassHandle_ActorSpawnRequest SpawnRequestHandle)
+	T& GetMutableSpawnRequest(const FMassActorSpawnRequestHandle SpawnRequestHandle)
 	{
 		check(SpawnRequestHandleManager.IsValidHandle(SpawnRequestHandle));
 		check(SpawnRequests.IsValidIndex(SpawnRequestHandle.GetIndex()));
@@ -192,7 +192,7 @@ protected:
 	/** Retrieve what would be the next best spawning request to spawn, can be overridden to have different logic
 	 *  Default implementation is the first valid request in the list, no interesting logic yet
 	 *  @return the next best handle to spawn. */
-	virtual FMassHandle_ActorSpawnRequest GetNextRequestToSpawn() const;
+	virtual FMassActorSpawnRequestHandle GetNextRequestToSpawn() const;
 
 	virtual AActor* SpawnOrRetrieveFromPool(const FStructView& SpawnRequest);
 
@@ -215,7 +215,7 @@ protected:
 
 	/** Internal generic request actor spawn to make sure the request derives from FMassActorSpawnRequest 
 	 *  @param SpawnRequest the spawn request parameters, We are allowing any type of spawn request, let's store it internally as a FInstancedStruct. This parameter is the FStructView over provide user struct */
-	FMassHandle_ActorSpawnRequest RequestActorSpawnInternal(const FConstStructView SpawnRequest);
+	FMassActorSpawnRequestHandle RequestActorSpawnInternal(const FConstStructView SpawnRequest);
 
 protected:
 
@@ -232,7 +232,7 @@ protected:
 
 	TMap<TSubclassOf<AActor>, TArray<AActor*>> PooledActors;
 
-	FMassHandleManager_ActorSpawnRequest SpawnRequestHandleManager;
+	FMassEntityHandleManager_ActorSpawnRequest SpawnRequestHandleManager;
 
 	std::atomic<uint32> RequestSerialNumberCounter;
 };

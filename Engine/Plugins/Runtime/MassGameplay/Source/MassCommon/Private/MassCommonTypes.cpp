@@ -103,8 +103,6 @@ FColor GetEntityDebugColor(FMassEntityHandle Entity)
 }} // namespace UE::MassDebug
 #endif // WITH_MASSGAMEPLAY_DEBUG
 
-const FMassHandle FMassHandle::InvalidHandle(UMassEntitySubsystem::InvalidEntity);
-
 //----------------------------------------------------------------------//
 // FMassUniqueFragmentCollection 
 //----------------------------------------------------------------------//

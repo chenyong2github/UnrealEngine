@@ -146,7 +146,7 @@ void UMassAgentComponent::OnUnregister()
 	Super::OnUnregister();
 }
 
-void UMassAgentComponent::SetEntityHandle(FMassHandle NewHandle)
+void UMassAgentComponent::SetEntityHandle(const FMassEntityHandle NewHandle)
 {
 	MASSAGENT_CHECK(State == EAgentComponentState::EntityPendingCreation,
 		TEXT("%s is expecting to be in state[EntityPendingCreation] but is in %s"), ANSI_TO_TCHAR(__FUNCTION__), *UEnum::GetValueAsString(State));
@@ -155,7 +155,7 @@ void UMassAgentComponent::SetEntityHandle(FMassHandle NewHandle)
 	SwitchToState(EAgentComponentState::EntityCreated);
 }
 
-void UMassAgentComponent::SetEntityHandleInternal(FMassHandle NewHandle)
+void UMassAgentComponent::SetEntityHandleInternal(const FMassEntityHandle NewHandle)
 {
 	ensureMsgf((AgentHandle.IsValid() && NewHandle.IsValid()) == false, TEXT("Overriding an existing entity ID might result in a dangling entity still affecting the simulation"));
 	AgentHandle = NewHandle;
@@ -164,7 +164,7 @@ void UMassAgentComponent::SetEntityHandleInternal(FMassHandle NewHandle)
 	// Fetch NetID if it exist
 	if (const UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld()))
 	{
-		if (const FMassNetworkIDFragment* NetIDFragment = EntitySubsystem->GetComponentDataPtr<FMassNetworkIDFragment>(AgentHandle.GetLWEntity()))
+		if (const FMassNetworkIDFragment* NetIDFragment = EntitySubsystem->GetComponentDataPtr<FMassNetworkIDFragment>(AgentHandle))
 		{
 			if (!IsNetSimulating())
 			{
@@ -178,10 +178,6 @@ void UMassAgentComponent::SetEntityHandleInternal(FMassHandle NewHandle)
 	}
 #endif // UE_REPLICATION_COMPILE_SERVER_CODE
 
-#if WITH_EDITORONLY_DATA
-	DebugEntity = AgentHandle.GetLWEntity();
-#endif // WITH_EDITORONLY_DATA
-
 	if (const UMassAgentSubsystem* AgentSubsystem = UWorld::GetSubsystem<UMassAgentSubsystem>(GetWorld()))
 	{
 		AgentSubsystem->NotifyMassAgentComponentEntityAssociated(*this);
@@ -192,7 +188,7 @@ void UMassAgentComponent::SetEntityHandleInternal(FMassHandle NewHandle)
 	{
 		if (IsNetSimulating())
 		{
-			const FMassEntityView EntityView(*EntitySubsystem, AgentHandle.GetLWEntity());
+			const FMassEntityView EntityView(*EntitySubsystem, AgentHandle);
 
 			// @todo Find a way to add these initialization into either translator initializer or adding new fragments
 			// Make sure to fetch the fragment after any release, as that action can move the entity around into new archetype and 
@@ -221,7 +217,7 @@ void UMassAgentComponent::SetEntityHandleInternal(FMassHandle NewHandle)
 	}
 }
 
-void UMassAgentComponent::SetPuppetHandle(FMassHandle NewHandle)
+void UMassAgentComponent::SetPuppetHandle(const FMassEntityHandle NewHandle)
 {
 	MASSAGENT_CHECK(State == EAgentComponentState::EntityPendingCreation,
 		TEXT("%s is expecting to be in state[EntityPendingCreation] but is in %s"), ANSI_TO_TCHAR(__FUNCTION__), *UEnum::GetValueAsString(State));
@@ -281,7 +277,7 @@ void UMassAgentComponent::ClearEntityHandleInternal()
 	{
 		if (IsNetSimulating())
 		{
-			const FMassEntityView EntityView(*EntitySubsystem, AgentHandle.GetLWEntity());
+			const FMassEntityView EntityView(*EntitySubsystem, AgentHandle);
 			if (FDataFragment_Actor* ActorInfo = EntityView.GetComponentDataPtr<FDataFragment_Actor>())
 			{
 				checkf(!ActorInfo->IsValid() || ActorInfo->Get() == GetOwner(), TEXT("Expecting actor pointer to be the component owner"));
@@ -289,11 +285,8 @@ void UMassAgentComponent::ClearEntityHandleInternal()
 			}
 		}
 	}
-
-#if WITH_EDITORONLY_DATA
-	DebugEntity = UMassEntitySubsystem::InvalidEntity;
-#endif // WITH_EDITORONLY_DATA
-	AgentHandle = FMassHandle::InvalidHandle;
+	
+	AgentHandle = UMassEntitySubsystem::InvalidEntity;
 }
 
 void UMassAgentComponent::PuppetUnregistrationDone()
@@ -327,7 +320,7 @@ void UMassAgentComponent::EntityCreationAborted()
 
 void UMassAgentComponent::SwitchToState(EAgentComponentState NewState)
 {
-	UE_VLOG(GetOwner(), LogMass, Verbose, TEXT("Entity[%s] %s From:%s To:%s"), *AgentHandle.GetLWEntity().DebugGetDescription(), ANSI_TO_TCHAR(__FUNCTION__), *UEnum::GetValueAsString(State), *UEnum::GetValueAsString(NewState));
+	UE_VLOG(GetOwner(), LogMass, Verbose, TEXT("Entity[%s] %s From:%s To:%s"), *AgentHandle.DebugGetDescription(), ANSI_TO_TCHAR(__FUNCTION__), *UEnum::GetValueAsString(State), *UEnum::GetValueAsString(NewState));
 	State = NewState;
 	DebugCheckStateConsistency();
 }
@@ -354,16 +347,16 @@ void UMassAgentComponent::DebugCheckStateConsistency()
 			{
 				if (UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld()))
 				{
-					const bool bIsValidEntity = EntitySubsystem->IsEntityValid(AgentHandle.GetLWEntity());
+					const bool bIsValidEntity = EntitySubsystem->IsEntityValid(AgentHandle);
 					MASSAGENT_CHECK(bIsValidEntity, TEXT("Exepecting a valid entity in state"), *UEnum::GetValueAsString(State))
 						if (bIsValidEntity)
 						{
-							const bool bIsBuiltEntity = EntitySubsystem->IsEntityBuilt(AgentHandle.GetLWEntity());
+							const bool bIsBuiltEntity = EntitySubsystem->IsEntityBuilt(AgentHandle);
 							MASSAGENT_CHECK(bIsBuiltEntity, TEXT("Expecting a fully built entity in state %s"), *UEnum::GetValueAsString(State));
 							if (bIsBuiltEntity)
 							{
 								AActor* Owner = GetOwner();
-								const AActor* Actor = EntitySubsystem->GetComponentDataChecked<FDataFragment_Actor>(AgentHandle.GetLWEntity()).Get();
+								const AActor* Actor = EntitySubsystem->GetComponentDataChecked<FDataFragment_Actor>(AgentHandle).Get();
 								MASSAGENT_CHECK(Actor == nullptr || Actor == Owner, TEXT("Mass Actor and Owner mismatched in state %s"), *UEnum::GetValueAsString(State));
 							}
 						}
@@ -425,7 +418,7 @@ void UMassAgentComponent::KillEntity(const bool bDestroyActor)
 	}
 
 	// Caching the entity and if we have to disconnect actor as the next operation will invalidate that information
-	const FMassHandle EntityHandleToDespawn = AgentHandle;
+	const FMassEntityHandle EntityHandleToDespawn = AgentHandle;
 	const bool bDisconnectActor = IsPuppet() && bDestroyActor == false;
 	if (State != EAgentComponentState::None)
 	{
@@ -458,7 +451,7 @@ void UMassAgentComponent::KillEntity(const bool bDestroyActor)
 	{
 		for (TActorIterator<AMassSpawner> It(World); It; ++It)
 		{
-			(*It)->DespawnEntity(EntityHandleToDespawn.GetLWEntity());
+			(*It)->DespawnEntity(EntityHandleToDespawn);
 		}
 	}
 }
@@ -499,7 +492,7 @@ void UMassAgentComponent::PuppetReplicationPending()
 	SwitchToState(EAgentComponentState::PuppetPendingReplication);
 }
 
-void UMassAgentComponent::SetReplicatedPuppetHandle(FMassHandle NewHandle)
+void UMassAgentComponent::SetReplicatedPuppetHandle(FMassEntityHandle NewHandle)
 {
 	checkf(IsNetSimulating(), TEXT("Expecting a replicated pupet"));
 	MASSAGENT_CHECK(State == EAgentComponentState::PuppetPendingReplication ||

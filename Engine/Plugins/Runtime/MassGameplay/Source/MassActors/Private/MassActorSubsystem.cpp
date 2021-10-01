@@ -11,7 +11,7 @@
 //  FDataFragment_Actor 
 //----------------------------------------------------------------------//
 
-void FDataFragment_Actor::SetAndUpdateHandleMap(const FMassHandle MassAgent, AActor* InActor, const bool bInIsOwnedByMass)
+void FDataFragment_Actor::SetAndUpdateHandleMap(const FMassEntityHandle MassAgent, AActor* InActor, const bool bInIsOwnedByMass)
 {
 	SetNoHandleMapUpdate(MassAgent, InActor, bInIsOwnedByMass);
 
@@ -38,7 +38,7 @@ void FDataFragment_Actor::ResetAndUpdateHandleMap()
 	ResetNoHandleMapUpdate();
 }
 
-void FDataFragment_Actor::SetNoHandleMapUpdate(const FMassHandle MassAgent, AActor* InActor, const bool bInIsOwnedByMass)
+void FDataFragment_Actor::SetNoHandleMapUpdate(const FMassEntityHandle MassAgent, AActor* InActor, const bool bInIsOwnedByMass)
 {
 	check(InActor);
 	check(!Actor.IsValid());
@@ -65,30 +65,30 @@ void UMassActorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	EntitySystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld());
 }
 
-FMassHandle UMassActorSubsystem::GetHandleFromActor(const TObjectKey<const AActor> Actor)
+FMassEntityHandle UMassActorSubsystem::GetEntityHandleFromActor(const TObjectKey<const AActor> Actor)
 {
 	UE_MT_SCOPED_READ_ACCESS(ActorHandleMapDetector);
-	FMassEntityHandle* LWEntity = ActorHandleMap.Find(Actor);
-	if (!LWEntity)
+	FMassEntityHandle* Entity = ActorHandleMap.Find(Actor);
+	if (!Entity)
 	{
-		return FMassHandle::InvalidHandle;
+		return UMassEntitySubsystem::InvalidEntity;
 	}
 
-	check(TObjectKey<const AActor>(GetActorFromHandle(FMassHandle(*LWEntity))) == Actor);
-	return FMassHandle(*LWEntity);
+	check(TObjectKey<const AActor>(GetActorFromHandle(*Entity)) == Actor);
+	return *Entity;
 }
 
-AActor* UMassActorSubsystem::GetActorFromHandle(FMassHandle Handle) const
+AActor* UMassActorSubsystem::GetActorFromHandle(const FMassEntityHandle Handle) const
 {
 	check(EntitySystem);
-	FDataFragment_Actor* Data = EntitySystem->GetComponentDataPtr<FDataFragment_Actor>(Handle.GetLWEntity());
+	FDataFragment_Actor* Data = EntitySystem->GetComponentDataPtr<FDataFragment_Actor>(Handle);
 	return Data != nullptr ? Data->GetMutable() : nullptr;
 }
 
-void UMassActorSubsystem::SetHandleForActor(const TObjectKey<const AActor> Actor, FMassHandle Handle)
+void UMassActorSubsystem::SetHandleForActor(const TObjectKey<const AActor> Actor, const FMassEntityHandle Handle)
 {
 	UE_MT_SCOPED_WRITE_ACCESS(ActorHandleMapDetector);
-	ActorHandleMap.Add(Actor, Handle.GetLWEntity());
+	ActorHandleMap.Add(Actor, Handle);
 }
 
 void UMassActorSubsystem::RemoveHandleForActor(const TObjectKey<const AActor> Actor)
@@ -97,29 +97,29 @@ void UMassActorSubsystem::RemoveHandleForActor(const TObjectKey<const AActor> Ac
 	ActorHandleMap.Remove(Actor);
 }
 
-void UMassActorSubsystem::DisconnectActor(const TObjectKey<const AActor> Actor, FMassHandle Handle)
+void UMassActorSubsystem::DisconnectActor(const TObjectKey<const AActor> Actor, const FMassEntityHandle Handle)
 {
 	if (Handle.IsValid() == false)
 	{
 		return;
 	}
 
-	FMassEntityHandle LWEntity;
+	FMassEntityHandle FoundEntity;
 	{
 		UE_MT_SCOPED_WRITE_ACCESS(ActorHandleMapDetector);
 		// We're assuming the Handle does match Actor, so we're RemoveAndCopyValue. If if doesn't we'll add it back.
 		// The expectation is that this won't happen on a regular basis..
-		if (ActorHandleMap.RemoveAndCopyValue(Actor, LWEntity) == false)
+		if (ActorHandleMap.RemoveAndCopyValue(Actor, FoundEntity) == false)
 		{
 			// the entity doesn't match the actor
 			return;
 		}
 	}
 
-	if (LWEntity == Handle.GetLWEntity())
+	if (FoundEntity == Handle)
 	{
 		check(EntitySystem);
-		if (FDataFragment_Actor* Data = EntitySystem->GetComponentDataPtr<FDataFragment_Actor>(Handle.GetLWEntity()))
+		if (FDataFragment_Actor* Data = EntitySystem->GetComponentDataPtr<FDataFragment_Actor>(Handle))
 		{
 			Data->ResetAndUpdateHandleMap();
 		}

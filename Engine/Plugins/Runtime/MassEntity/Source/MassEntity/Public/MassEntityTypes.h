@@ -47,12 +47,12 @@ struct FMassEntityHandle
 	UPROPERTY(VisibleAnywhere, Category = "AggregateTicking|Debug", Transient)
 	int32 SerialNumber = 0;
 
-	bool operator==(const FMassEntityHandle& Other) const
+	bool operator==(const FMassEntityHandle Other) const
 	{
 		return Index == Other.Index && SerialNumber == Other.SerialNumber;
 	}
 
-	bool operator!=(const FMassEntityHandle& Other) const
+	bool operator!=(const FMassEntityHandle Other) const
 	{
 		return !operator==(Other);
 	}
@@ -64,12 +64,17 @@ struct FMassEntityHandle
 		return Index != 0 && SerialNumber != 0;
 	}
 
+	FORCEINLINE bool IsValid() const
+	{
+		return IsSet();
+	}
+
 	void Reset()
 	{
 		Index = SerialNumber = 0;
 	}
 
-	friend uint32 GetTypeHash(const FMassEntityHandle& Entity)
+	friend uint32 GetTypeHash(const FMassEntityHandle Entity)
 	{
 		return HashCombine(Entity.Index, Entity.SerialNumber);
 	}

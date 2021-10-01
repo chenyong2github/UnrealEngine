@@ -125,7 +125,7 @@ void UMassCrowdRepresentationProcessor::SetActorEnabled(const EActorEnabledType 
 	}
 }
 
-AActor* UMassCrowdRepresentationProcessor::GetOrSpawnActor(const FMassHandle MassAgent, FDataFragment_Actor& ActorInfo, const FTransform& Transform, const int16 TemplateActorIndex, FMassHandle_ActorSpawnRequest& SpawnRequestHandle, const float Priority)
+AActor* UMassCrowdRepresentationProcessor::GetOrSpawnActor(const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, const FTransform& Transform, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, const float Priority)
 {
 	FTransform RootTransform = Transform;
 	

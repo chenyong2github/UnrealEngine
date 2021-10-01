@@ -39,7 +39,7 @@ void UMassComponentHitSubsystem::Initialize(FSubsystemCollectionBase& Collection
 	{
 		if (UCapsuleComponent* CapsuleComponent = AgentComponent.GetOwner()->FindComponentByClass<UCapsuleComponent>())
 		{
-			RegisterForComponentHit(AgentComponent.GetEntityHandle().GetLWEntity(), *CapsuleComponent);
+			RegisterForComponentHit(AgentComponent.GetEntityHandle(), *CapsuleComponent);
 		}
 	});
 
@@ -47,7 +47,7 @@ void UMassComponentHitSubsystem::Initialize(FSubsystemCollectionBase& Collection
 	{
 		if (UCapsuleComponent* CapsuleComponent = AgentComponent.GetOwner()->FindComponentByClass<UCapsuleComponent>())
 		{
-			UnregisterForComponentHit(AgentComponent.GetEntityHandle().GetLWEntity(), *CapsuleComponent);
+			UnregisterForComponentHit(AgentComponent.GetEntityHandle(), *CapsuleComponent);
 		}
 	});
 }
@@ -79,7 +79,7 @@ void UMassComponentHitSubsystem::OnHitCallback(UPrimitiveComponent* HitComp, AAc
 {
 	const UWorld* World = GetWorld();
 	check(World);
-	const FMassEntityHandle& Entity = ComponentToEntityMap.FindChecked(HitComp);
+	const FMassEntityHandle Entity = ComponentToEntityMap.FindChecked(HitComp);
 	FMassEntityHandle* OtherEntity = ComponentToEntityMap.Find(OtherComp);
 
 	bool bProcessHit = (OtherEntity != nullptr && OtherEntity->IsSet());

@@ -58,7 +58,7 @@ namespace UE::MassMovement
 		FAutoConsoleVariableRef(TEXT("ai.mass.AvoidDistance"), Tweakables::AvoidDistanceCutOff, TEXT(""), ECVF_Default), FAutoConsoleVariableRef(TEXT("ai.mass.AvoidRadius"), Tweakables::AvoidAgentRadius, TEXT(""), ECVF_Default), FAutoConsoleVariableRef(TEXT("ai.mass.AvoidMaxForce"), Tweakables::AvoidMaxForce, TEXT(""), ECVF_Default), FAutoConsoleVariableRef(TEXT("ai.mass.AvoidTimeHorizon"), Tweakables::AvoidTimeHorizon, TEXT(""), ECVF_Default)
 	};
 
- 	static bool DebugIsSelected(const FMassEntityHandle& Entity)
+ 	static bool DebugIsSelected(const FMassEntityHandle Entity)
  	{
  #if WITH_MASSGAMEPLAY_DEBUG
  		return UE::MassDebug::IsDebuggingEntity(Entity);

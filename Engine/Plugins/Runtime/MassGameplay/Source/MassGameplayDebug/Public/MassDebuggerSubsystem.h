@@ -35,7 +35,7 @@ public:
 	TConstArrayView<FVector> GetLocations() const { return Locations; }
 
 	FMassEntityHandle GetSelectedEntity() const { return SelectedEntity; }
-	void SetSelectedEntity(const FMassEntityHandle& InSelectedEntity);
+	void SetSelectedEntity(const FMassEntityHandle InSelectedEntity);
 
 	void AppendSelectedEntityInfo(const FString& Info);
 	const FString& GetSelectedEntityInfo() const { return SelectedEntityDetails; }

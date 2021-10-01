@@ -3,11 +3,11 @@
 #pragma once
 
 #include "SmartObjectConfig.h"
+#include "MassEntityTypes.h"
 #include "MassSmartObjectBehaviorConfig.generated.h"
 
 class UMassEntitySubsystem;
 class USmartObjectSubsystem;
-struct FMassEntityHandle;
 struct FMassExecutionContext;
 struct FDataFragment_Transform;
 struct FDataFragment_SmartObjectUser;
@@ -19,11 +19,11 @@ struct MASSSMARTOBJECTS_API FMassBehaviorEntityContext
 {
 	FMassBehaviorEntityContext() = delete;
 
-	FMassBehaviorEntityContext(const FMassEntityHandle& InEntity, const FDataFragment_Transform& InTransformFragment, FDataFragment_SmartObjectUser& InSOUser, USmartObjectSubsystem& InSubsystem)
+	FMassBehaviorEntityContext(const FMassEntityHandle InEntity, const FDataFragment_Transform& InTransformFragment, FDataFragment_SmartObjectUser& InSOUser, USmartObjectSubsystem& InSubsystem)
 		: Entity(InEntity), TransformFragment(InTransformFragment), SOUser(InSOUser), Subsystem(InSubsystem)
 	{}
 
-	const FMassEntityHandle& Entity;
+	const FMassEntityHandle Entity;
 	const FDataFragment_Transform& TransformFragment;
 	FDataFragment_SmartObjectUser& SOUser;
 	USmartObjectSubsystem& Subsystem;
