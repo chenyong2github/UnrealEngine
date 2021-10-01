@@ -719,7 +719,7 @@ extern int32 GNumForegroundWorkers;
 
 namespace TaskGraphTests
 {
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphGraphEventTest, "System.Core.Async.TaskGraph.GraphEventTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphGraphEventTest, "System.Core.Async.TaskGraph.GraphEventTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
 
 	bool FTaskGraphGraphEventTest::RunTest(const FString& Parameters)
 	{
@@ -859,7 +859,7 @@ namespace TaskGraphTests
 		return true;
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphBasicTest, "System.Core.Async.TaskGraph.BasicTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphBasicTest, "System.Core.Async.TaskGraph.BasicTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
 
 	bool FTaskGraphBasicTest::RunTest(const FString& Parameters)
 	{
@@ -1301,7 +1301,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphPerfTest, "System.Core.Async.TaskGraph.PerfTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphPerfTest, "System.Core.Async.TaskGraph.PerfTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
 
 	bool FTaskGraphPerfTest::RunTest(const FString& Parameters)
 	{
@@ -1325,7 +1325,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return true;
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphStatsThreadRedirectionTest, "System.Core.Async.TaskGraph.StatsThreadRedirection", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphStatsThreadRedirectionTest, "System.Core.Async.TaskGraph.StatsThreadRedirection", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
 
 	bool FTaskGraphStatsThreadRedirectionTest::RunTest(const FString& Parameters)
 	{
@@ -1377,7 +1377,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphOversubscriptionTest, "System.Core.Async.TaskGraph.Oversubscription", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphOversubscriptionTest, "System.Core.Async.TaskGraph.Oversubscription", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
 
 	bool FTaskGraphOversubscriptionTest::RunTest(const FString& Parameters)
 	{

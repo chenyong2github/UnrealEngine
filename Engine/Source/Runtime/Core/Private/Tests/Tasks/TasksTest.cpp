@@ -19,7 +19,7 @@ namespace UE { namespace TasksTests
 	{
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksBasicTest, "System.Core.Tasks.Basic", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksBasicTest, "System.Core.Tasks.Basic", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
 
 	template<uint32 SpawnerGroupsNum, uint32 SpawnersPerGroupNum>
 	void BasicStressTest()
@@ -388,7 +388,7 @@ namespace UE { namespace TasksTests
 		return true;
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksPipeTest, "System.Core.Tasks.Pipe", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksPipeTest, "System.Core.Tasks.Pipe", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
 
 	template<uint32 SpawnerGroupsNum, uint32 SpawnersPerGroupNum>
 	void PipeStressTest();
@@ -615,7 +615,7 @@ namespace UE { namespace TasksTests
 		TlsValue = Dummy;
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTlsTest, "System.Core.Tls", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTlsTest, "System.Core.Tls", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
 
 	bool FTlsTest::RunTest(const FString& Parameters)
 	{
@@ -625,7 +625,7 @@ namespace UE { namespace TasksTests
 		return true;
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksDependenciesTest, "System.Core.Tasks.Dependencies", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksDependenciesTest, "System.Core.Tasks.Dependencies", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
 
 	template<uint64 NumBranches, uint64 NumLoops, uint64 NumTasks>
 	void DependenciesPerfTest()
@@ -870,7 +870,7 @@ namespace UE { namespace TasksTests
 			N11.IsCompleted() && N12.IsCompleted() && N21.IsCompleted() && N22.IsCompleted());
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksDeepRetractionTest, "System.Core.Tasks.DeepRetraction", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksDeepRetractionTest, "System.Core.Tasks.DeepRetraction", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
 
 	bool FTasksDeepRetractionTest::RunTest(const FString& Parameters)
 	{
@@ -952,7 +952,7 @@ namespace UE { namespace TasksTests
 		}
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksDeepRetractionStressTest, "System.Core.Tasks.DeepRetraction.Stress", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksDeepRetractionStressTest, "System.Core.Tasks.DeepRetraction.Stress", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
 
 	bool FTasksDeepRetractionStressTest::RunTest(const FString& Parameters)
 	{
@@ -978,7 +978,7 @@ namespace UE { namespace TasksTests
 		}
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksNestedTasksStressTest, "System.Core.Tasks.NestedTasks.Stress", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksNestedTasksStressTest, "System.Core.Tasks.NestedTasks.Stress", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
 
 	bool FTasksNestedTasksStressTest::RunTest(const FString& Parameters)
 	{
@@ -1169,7 +1169,7 @@ namespace UE { namespace TasksTests
 		}
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksPerfTest, "System.Core.Tasks.PerfTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksPerfTest, "System.Core.Tasks.PerfTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
 
 	bool FTasksPerfTest::RunTest(const FString& Parameters)
 	{
