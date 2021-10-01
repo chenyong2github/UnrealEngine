@@ -1148,11 +1148,6 @@ void FControlRigEditor::GetCustomDebugObjects(TArray<FCustomDebugObject>& DebugL
 						continue;
 					}
 
-					if (!World->IsGameWorld() && !World->IsPreviewWorld())
-					{
-						continue;
-					}
-
 					// ensure to only allow preview actors in preview worlds
 					if (World->IsPreviewWorld())
 					{
