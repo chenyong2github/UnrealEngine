@@ -318,6 +318,21 @@ FBoxSphereBounds UMaterialBillboardComponent::CalcBounds(const FTransform& Local
 	return FBoxSphereBounds(LocalToWorld.GetLocation(),FVector(BoundsSize,BoundsSize,BoundsSize),FMath::Sqrt(3.0f * FMath::Square(BoundsSize)));
 }
 
+#if WITH_EDITOR
+bool UMaterialBillboardComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath)
+{
+	if (Elements.IsValidIndex(ElementIndex))
+	{
+		OutOwner = this;
+		OutPropertyPath = FString::Printf(TEXT("%s[%d].%s"), GET_MEMBER_NAME_STRING_CHECKED(UMaterialBillboardComponent, Elements), ElementIndex, GET_MEMBER_NAME_STRING_CHECKED(FMaterialSpriteElement, Material));
+	
+		return true;
+	}
+
+	return false;
+}
+#endif // WITH_EDITOR
+
 void UMaterialBillboardComponent::AddElement(
 	class UMaterialInterface* Material,
 	UCurveFloat* DistanceToOpacityCurve,

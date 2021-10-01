@@ -220,7 +220,7 @@ void FComponentMaterialCategory::OnGetMaterialsForView( IMaterialListBuilder& Ma
 			// Add the material if we allow null materials to be added or we have a valid material
 			if( bAllowNullEntries || Material )
 			{
-				MaterialList.AddMaterial( MaterialIndex, Material, bCanBeReplaced );
+				MaterialList.AddMaterial( MaterialIndex, Material, bCanBeReplaced, CurrentComponent );
 				bAnyMaterialsToDisplay = true;
 			}
 		}

@@ -3030,6 +3030,14 @@ bool USceneComponent::IsVisible() const
 	return (GetVisibleFlag() && (!CachedLevelCollection || CachedLevelCollection->IsVisible())); 
 }
 
+#if WITH_EDITOR
+bool USceneComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath)
+{
+	// Should be overriden in inherited classes
+	return false;
+}
+#endif // WITH_EDITOR
+
 void USceneComponent::OnVisibilityChanged()
 {
 	MarkRenderStateDirty();
@@ -3079,6 +3087,7 @@ void USceneComponent::OnHiddenInGameChanged()
 {
 	MarkRenderStateDirty();
 }
+
 
 void USceneComponent::SetHiddenInGame(const bool bNewHiddenGame, const USceneComponent::EVisibilityPropagation PropagateToChildren)
 {

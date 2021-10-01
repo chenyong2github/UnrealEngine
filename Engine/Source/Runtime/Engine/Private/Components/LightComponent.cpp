@@ -903,6 +903,20 @@ void ULightComponent::DestroyRenderState_Concurrent()
 	bAddedToSceneVisible = false;
 }
 
+#if WITH_EDITOR
+bool ULightComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath)
+{
+	if (ElementIndex == 0)
+	{
+		OutOwner = this;
+		OutPropertyPath = GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, LightFunctionMaterial);
+		return true;
+	}
+
+	return false;
+}
+#endif // WITH_EDITOR
+
 /** Set brightness of the light */
 void ULightComponent::SetIntensity(float NewIntensity)
 {

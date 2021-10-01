@@ -11,6 +11,7 @@ class FMaterialListBuilder;
 class IDetailChildrenBuilder;
 class IDetailLayoutBuilder;
 class IMaterialListBuilder;
+class UActorComponent;
 
 /**
  * Delegate called when we need to get new materials for the list
@@ -90,10 +91,10 @@ public:
 	 * @param SlotIndex The slot (usually mesh element index) where the material is located on the component.
 	 * @param Material The material being used.
 	 * @param bCanBeReplced Whether or not the material can be replaced by a user.
+	 * @param InCurrentComponent The current component using the current material
 	 */
-	virtual void AddMaterial( uint32 SlotIndex, UMaterialInterface* Material, bool bCanBeReplaced ) = 0;
+	virtual void AddMaterial( uint32 SlotIndex, UMaterialInterface* Material, bool bCanBeReplaced, UActorComponent* InCurrentComponent = nullptr) = 0;
 };
-
 
 /**
  * A Material item in a material list slot
@@ -109,10 +110,14 @@ struct FMaterialListItem
 	/** Whether or not this material can be replaced by a new material */
 	bool bCanBeReplaced;
 
-	FMaterialListItem( UMaterialInterface* InMaterial = NULL, uint32 InSlotIndex = 0, bool bInCanBeReplaced = false )
+	/** The current component using the current material */
+	TWeakObjectPtr<UActorComponent> CurrentComponent;
+
+	FMaterialListItem( UMaterialInterface* InMaterial = NULL, uint32 InSlotIndex = 0, bool bInCanBeReplaced = false, UActorComponent* InCurrentComponent = nullptr)
 		: Material( InMaterial )
 		, SlotIndex( InSlotIndex )
 		, bCanBeReplaced( bInCanBeReplaced )
+		, CurrentComponent(InCurrentComponent)
 	{}
 
 	friend uint32 GetTypeHash( const FMaterialListItem& InItem )
@@ -131,21 +136,157 @@ struct FMaterialListItem
 	}
 };
 
+/**
+ * A view of a single item in an FMaterialList
+ */
+class PROPERTYEDITOR_API FMaterialItemView : public TSharedFromThis<FMaterialItemView>
+{
+public:
+	/** Virtual destructor */
+	virtual ~FMaterialItemView() = default;
+	
+	/**
+	* Creates a new instance of this class
+	*
+	* @param Material				The material to view
+	* @param InOnMaterialChanged	Delegate for when the material changes
+	*/
+	static TSharedRef<FMaterialItemView> Create(
+		const FMaterialListItem& Material, 
+		FOnMaterialChanged InOnMaterialChanged,
+		FOnGenerateWidgetsForMaterial InOnGenerateNameWidgetsForMaterial, 
+		FOnGenerateWidgetsForMaterial InOnGenerateWidgetsForMaterial, 
+		FOnResetMaterialToDefaultClicked InOnResetToDefaultClicked,
+		int32 InMultipleMaterialCount,
+		bool bShowUsedTextures);
 
+	/**
+	 * Create a Name Content for Material Item Widget
+	 */
+	virtual TSharedRef<SWidget> CreateNameContent();
+
+	/**
+	 * Create a Value Content for Material Item Widget
+	 */
+	virtual TSharedRef<SWidget> CreateValueContent(IDetailLayoutBuilder& InDetailBuilder, const TArray<FAssetData>& OwnerAssetDataArray, UActorComponent* InActorComponent);
+
+	/**
+	 * Get Material item in a material list slot
+	 */
+	const FMaterialListItem& GetMaterialListItem() const { return MaterialItem; }
+
+	/**
+	 * Replace material in slot
+	 *
+	 * @param NewMaterial			The new material apply to slot
+	 * @param bReplaceAll			Whether it should be applied to all slots
+	 */
+	void ReplaceMaterial( UMaterialInterface* NewMaterial, bool bReplaceAll = false );
+
+	/**
+	 * Called to get the visibility of the reset to base button
+	 */
+	bool GetResetToBaseVisibility() const;
+
+	/**
+	 * Called when reset to base is clicked
+	 */
+	void OnResetToBaseClicked();
+
+private:
+	FMaterialItemView(const FMaterialListItem& InMaterial, 
+					FOnMaterialChanged& InOnMaterialChanged, 
+					FOnGenerateWidgetsForMaterial& InOnGenerateNameWidgets, 
+					FOnGenerateWidgetsForMaterial& InOnGenerateMaterialWidgets, 
+					FOnResetMaterialToDefaultClicked& InOnResetToDefaultClicked,
+					int32 InMultipleMaterialCount,
+					bool bInShowUsedTextures);
+
+	/**
+	 * Handler when the material asset has been changed
+	 */
+	void OnSetObject( const FAssetData& AssetData );
+
+	/**
+	 * @return Whether or not the textures menu is enabled
+	 */
+	bool IsTexturesMenuEnabled() const;
+
+	/**
+	 * Generate list of the textures for material selection list
+	 */
+	TSharedRef<SWidget> OnGetTexturesMenuForMaterial();
+
+	/**
+	 * On Get object path handler
+	 */
+	FString OnGetObjectPath() const;
+
+	/**
+	 * Finds the asset in the content browser
+	 */
+	void GoToAssetInContentBrowser( TWeakObjectPtr<UObject> Object );
+
+	/**
+	 * Get Material handle for given component
+	 *
+	 * @param InDetailBuilder The builder for laying custom details.
+	 * @param InCurrentComponent The current component using the current material.
+	 * @return Property Handle pointer
+	 */
+	TSharedPtr<IPropertyHandle> GetMaterialHandle(IDetailLayoutBuilder& InDetailBuilder, UActorComponent* InCurrentComponent) const;
+
+	/**
+	 * Get row extension widget
+	 *
+	 * @param InDetailBuilder The builder for laying custom details.
+	 * @param InCurrentComponent The current component using the current material.
+	 * @return Pointer to widget
+	 */
+	TSharedPtr<SWidget> GetGlobalRowExtensionWidget(IDetailLayoutBuilder& InDetailBuilder, UActorComponent* InCurrentComponent) const;
+
+private:
+	/** The Material item in a material list slot */
+	FMaterialListItem MaterialItem;
+
+	/** Material Changed delegate */
+	FOnMaterialChanged OnMaterialChanged;
+
+	/** Generate custom name delegate */
+	FOnGenerateWidgetsForMaterial OnGenerateCustomNameWidgets;
+
+	/** Generate custom material widget delegate */
+	FOnGenerateWidgetsForMaterial OnGenerateCustomMaterialWidgets;
+
+	/** Reset to default delegate */
+	FOnResetMaterialToDefaultClicked OnResetToDefaultClicked;
+
+	/** Number of material count */
+	int32 MultipleMaterialCount;
+
+	/** Whether it should show textures */
+	bool bShowUsedTextures;
+};
+
+/**
+ * Custom Node Builder for Material List
+ */
 class FMaterialList
 	: public IDetailCustomNodeBuilder
 	, public TSharedFromThis<FMaterialList>
 {
 public:
+	/** Add Extra widgets for bottom material value field. */
+	DECLARE_MULTICAST_DELEGATE_FourParams(FOnAddMaterialItemViewExtraBottomWidget,
+									const TSharedRef<FMaterialItemView>& /* InMaterialItemView */,
+									UActorComponent* /* InCurrentComponent */,
+									IDetailLayoutBuilder& /*InDetailBuilder*/,
+									TArray<TSharedPtr<SWidget>>& /* OutExtensions */);
+	PROPERTYEDITOR_API static FOnAddMaterialItemViewExtraBottomWidget OnAddMaterialItemViewExtraBottomWidget;
+	
 	PROPERTYEDITOR_API FMaterialList( IDetailLayoutBuilder& InDetailLayoutBuilder, FMaterialListDelegates& MaterialListDelegates, const TArray<FAssetData>& InOwnerAssetDataArray, bool bInAllowCollapse = false, bool bInShowUsedTextures = true);
 
-	/**
-	 * @return true if materials are being displayed.                                                          
-	 */
-	bool IsDisplayingMaterials() const { return true; }
-
 private:
-
 	/**
 	 * Called when a user expands all materials in a slot.
 	 *
@@ -172,12 +313,13 @@ private:
 	/**
 	 * Adds a new material item to the list
 	 *
-	 * @param Row			The row to add the item to
-	 * @param CurrentSlot	The slot id of the material
-	 * @param Item			The material item to add
-	 * @param bDisplayLink	If a link to the material should be displayed instead of the actual item (for multiple materials)
+	 * @param Row					The row to add the item to
+	 * @param CurrentSlot			The slot id of the material
+	 * @param Item					The material item to add
+	 * @param bDisplayLink			If a link to the material should be displayed instead of the actual item (for multiple materials)
+	 * @param InCurrentComponent	The current component using the current material
 	 */
-	void AddMaterialItem(FDetailWidgetRow& Row, int32 CurrentSlot, const FMaterialListItem& Item, bool bDisplayLink);
+	void AddMaterialItem(FDetailWidgetRow& Row, int32 CurrentSlot, const FMaterialListItem& Item, bool bDisplayLink, UActorComponent* InCurrentComponent = nullptr);
 
 private:
 	bool OnCanCopyMaterialList() const;

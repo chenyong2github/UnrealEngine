@@ -167,6 +167,9 @@ class ENGINE_API UTextRenderComponent : public UPrimitiveComponent
 	//~ End UPrimitiveComponent Interface.
 
 	//~ Begin USceneComponent Interface.
+#if WITH_EDITOR
+	virtual bool GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath) override;
+#endif // WITH_EDITOR
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	// Note: this is required because GetRenderMatrix is overridden, and therefore the updated world-space bounds must be based on that (not the component transform)
 	virtual void UpdateBounds() override;
