@@ -147,9 +147,7 @@ void UMeshSculptToolBase::Shutdown(EToolShutdownType ShutdownType)
 			DynamicMeshComponent->ApplyTransform(InitialTargetTransform, true);
 
 			// this block bakes the modified DynamicMeshComponent back into the StaticMeshComponent inside an undo transaction
-			GetToolManager()->BeginUndoTransaction(LOCTEXT("SculptMeshToolTransactionName", "Sculpt Mesh"));
 			CommitResult(DynamicMeshComponent, false);
-			GetToolManager()->EndUndoTransaction();
 		}
 
 		DynamicMeshComponent->UnregisterComponent();
@@ -163,10 +161,12 @@ void UMeshSculptToolBase::Shutdown(EToolShutdownType ShutdownType)
 
 void UMeshSculptToolBase::CommitResult(UBaseDynamicMeshComponent* Component, bool bModifiedTopology)
 {
+	GetToolManager()->BeginUndoTransaction(LOCTEXT("SculptMeshToolTransactionName", "Sculpt Mesh"));
 	Component->ProcessMesh([&](const FDynamicMesh3& CurMesh)
 	{
 		UE::ToolTarget::CommitDynamicMeshUpdate(Target, CurMesh, bModifiedTopology);
 	});
+	GetToolManager()->EndUndoTransaction();
 }
 
 

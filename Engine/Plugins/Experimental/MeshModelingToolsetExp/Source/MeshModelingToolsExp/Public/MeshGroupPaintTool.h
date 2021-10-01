@@ -301,6 +301,9 @@ public:
 
 	bool IsInBrushSubMode() const;
 
+	virtual void CommitResult(UBaseDynamicMeshComponent* Component, bool bModifiedTopology) override;
+
+
 public:
 
 	UPROPERTY()
