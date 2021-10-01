@@ -55,18 +55,13 @@ void APainCausingVolume::PainTimer()
 	if (bPainCausing)
 	{
 		TSet<AActor*> TouchingActors;
-		GetOverlappingActors(TouchingActors, APawn::StaticClass());
+		GetOverlappingActors(TouchingActors);
 
 		for (AActor* const A : TouchingActors)
 		{
-			if (IsValid(A) && A->CanBeDamaged())
+			if (IsValid(A) && A->CanBeDamaged() && A->GetPhysicsVolume() == this)
 			{
-				// @todo physicsVolume This won't work for other actor. Need to fix it properly
-				APawn* PawnA = Cast<APawn>(A);
-				if (PawnA && PawnA->GetPawnPhysicsVolume() == this)
-				{
-					CausePainTo(A);
-				}
+				CausePainTo(A);
 			}
 		}
 

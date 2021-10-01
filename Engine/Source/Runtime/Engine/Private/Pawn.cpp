@@ -823,18 +823,19 @@ void APawn::Restart()
 	RecalculateBaseEyeHeight();
 }
 
-class APhysicsVolume* APawn::GetPawnPhysicsVolume() const
+APhysicsVolume* APawn::GetPawnPhysicsVolume() const
 {
-	const UPawnMovementComponent* MovementComponent = GetMovementComponent();
-	if (MovementComponent)
+	return GetPhysicsVolume();
+}
+
+APhysicsVolume* APawn::GetPhysicsVolume() const
+{
+	if (const UPawnMovementComponent* MovementComponent = GetMovementComponent())
 	{
 		return MovementComponent->GetPhysicsVolume();
 	}
-	else if (GetRootComponent())
-	{
-		return GetRootComponent()->GetPhysicsVolume();
-	}
-	return GetWorld()->GetDefaultPhysicsVolume();
+
+	return Super::GetPhysicsVolume();
 }
 
 

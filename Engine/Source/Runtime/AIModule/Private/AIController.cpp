@@ -1052,7 +1052,7 @@ bool AAIController::ShouldSyncBlackboardWith(const UBlackboardComponent& OtherBl
 bool AAIController::SuggestTossVelocity(FVector& OutTossVelocity, FVector Start, FVector End, float TossSpeed, bool bPreferHighArc, float CollisionRadius, bool bOnlyTraceUp)
 {
 	// pawn's physics volume gets 2nd priority
-	APhysicsVolume const* const PhysicsVolume = GetPawn() ? GetPawn()->GetPawnPhysicsVolume() : NULL;
+	APhysicsVolume const* const PhysicsVolume = GetPawn() ? GetPawn()->GetPhysicsVolume() : nullptr;
 	float const GravityOverride = PhysicsVolume ? PhysicsVolume->GetGravityZ() : 0.f;
 	ESuggestProjVelocityTraceOption::Type const TraceOption = bOnlyTraceUp ? ESuggestProjVelocityTraceOption::OnlyTraceWhileAscending : ESuggestProjVelocityTraceOption::TraceFullPath;
 

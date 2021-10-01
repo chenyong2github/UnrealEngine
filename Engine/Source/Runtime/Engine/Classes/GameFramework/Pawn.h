@@ -202,7 +202,11 @@ public:
 	void SetRemoteViewPitch(float NewRemoteViewPitch);
 
 	/** Return Physics Volume for this Pawn */
-	virtual APhysicsVolume* GetPawnPhysicsVolume() const;
+	UE_DEPRECATED(5.0, "GetPawnPhysicsVolume is deprecated. Please use GetPhysicsVolume instead.")
+	virtual APhysicsVolume* GetPawnPhysicsVolume() const; 
+
+	/** Return Physics Volume for this Pawn */
+	virtual APhysicsVolume* GetPhysicsVolume() const override;
 
 	/** Gets the owning actor of the Movement Base Component on which the pawn is standing. */
 	UFUNCTION(BlueprintPure, Category=Pawn)

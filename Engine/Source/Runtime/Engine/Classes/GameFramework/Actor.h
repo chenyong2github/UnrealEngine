@@ -2501,6 +2501,8 @@ public:
 	/** See if the root component has Mobility of EComponentMobility::Movable */
 	bool IsRootComponentMovable() const;
 
+	/** Get the physics volume that is currently applied to this Actor (there can only ever be one) */
+	virtual APhysicsVolume* GetPhysicsVolume() const;
 
 	//~=============================================================================
 	// Actor ticking

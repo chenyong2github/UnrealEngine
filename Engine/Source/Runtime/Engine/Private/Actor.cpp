@@ -2222,6 +2222,16 @@ bool AActor::IsRootComponentMovable() const
 	return(RootComponent != nullptr && RootComponent->Mobility == EComponentMobility::Movable);
 }
 
+APhysicsVolume* AActor::GetPhysicsVolume() const
+{
+	if (const USceneComponent* ActorRootComponent = GetRootComponent())
+	{
+		return ActorRootComponent->GetPhysicsVolume();
+	}
+
+	return GetWorld()->GetDefaultPhysicsVolume();
+}
+
 FVector AActor::GetTargetLocation(AActor* RequestedBy) const
 {
 	return GetActorLocation();
