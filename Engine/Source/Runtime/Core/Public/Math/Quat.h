@@ -653,7 +653,7 @@ inline FArchive& operator<<(FArchive& Ar, TQuat<double>& F)
 	return Ar;
 }
 
-#ifndef _MSC_VER // MSVC can't forward declare explicit specializations
+#if !defined(_MSC_VER) || defined(__clang__)  // MSVC can't forward declare explicit specializations
 template<> const FQuat4f FQuat4f::Identity;
 template<> const FQuat4d FQuat4d::Identity;
 #endif

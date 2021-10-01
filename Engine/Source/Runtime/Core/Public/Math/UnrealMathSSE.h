@@ -386,7 +386,7 @@ FORCEINLINE constexpr VectorRegister4Int MakeVectorRegisterIntConstant(int32 X, 
 {
 #if !PLATFORM_LITTLE_ENDIAN
 #error Big-endian unimplemented
-#elif defined(_MSC_VER)
+#elif defined(_MSC_VER) && !defined(__clang__)
     return {static_cast<char>(X >> 0), static_cast<char>(X >> 8), static_cast<char>(X >> 16), static_cast<char>(X >> 24),
             static_cast<char>(Y >> 0), static_cast<char>(Y >> 8), static_cast<char>(Y >> 16), static_cast<char>(Y >> 24), 
             static_cast<char>(Z >> 0), static_cast<char>(Z >> 8), static_cast<char>(Z >> 16), static_cast<char>(Z >> 24), 

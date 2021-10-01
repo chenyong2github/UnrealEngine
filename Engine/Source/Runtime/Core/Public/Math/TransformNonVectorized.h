@@ -1202,7 +1202,7 @@ public:
 	explicit TTransform(const TTransform<FArg>& From) : TTransform<T>((TQuat<T>)From.GetRotation(), (TVector<T>)From.GetTranslation(), (TVector<T>)From.GetScale3D()) {}
 };
 
-#ifndef _MSC_VER // MSVC can't forward declare explicit specializations
+#if !defined(_MSC_VER) || defined(__clang__)  // MSVC can't forward declare explicit specializations
 template<> const FTransform3f FTransform3f::Identity;
 template<> const FTransform3d FTransform3d::Identity;
 #endif

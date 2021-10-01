@@ -2373,7 +2373,7 @@ FORCEINLINE TVector<T> TVector<T>::Max3(const TVector<T>& A, const TVector<T>& B
         ); 
 }
 
-#ifndef _MSC_VER // MSVC can't forward declare explicit specializations
+#if !defined(_MSC_VER) || defined(__clang__)  // MSVC can't forward declare explicit specializations
 template<> const FVector3f FVector3f::ZeroVector;
 template<> const FVector3f FVector3f::OneVector;
 template<> const FVector3f FVector3f::UpVector;
