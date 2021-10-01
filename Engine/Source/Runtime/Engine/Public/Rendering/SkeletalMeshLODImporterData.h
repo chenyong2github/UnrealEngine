@@ -269,7 +269,7 @@ namespace SkeletalMeshImportData
 			bool bUVsEqual = true;
 			for (uint32 UVIdx = 0; UVIdx < MAX_TEXCOORDS; ++UVIdx)
 			{
-				if (UVs[UVIdx] != Other.UVs[UVIdx])
+				if (!UVs[UVIdx].Equals(Other.UVs[UVIdx], SMALL_NUMBER))
 				{
 					bUVsEqual = false;
 					break;
