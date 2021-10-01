@@ -553,7 +553,16 @@ void FReductionBaseSkeletalMeshBulkData::LoadReductionData(FSkeletalMeshLODModel
 			//This call will filled missing chunked data for old asset that cannot build normal and chunking (not re import since the new skeletal mesh chunk build refactor)
 			if (!BaseLODModel.bIsBuildDataAvailable)
 			{
-				BaseLODModel.UpdateChunkedSectionInfo(Owner ? Owner->GetName() : FString(TEXT("")));
+				int32 NumberOfClothAssets = 0;
+				if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Owner))
+				{
+					NumberOfClothAssets = SkeletalMesh->GetMeshClothingAssets().Num();
+				}
+				else
+				{
+					UE_LOG(LogSkeletalMeshLODImporterData, Warning, TEXT("In function FReductionBaseSkeletalMeshBulkData::LoadReductionData, the Owner parameter should be a valid skeletalmesh."));
+				}
+				BaseLODModel.UpdateChunkedSectionInfo(Owner ? Owner->GetName() : FString(TEXT("")), NumberOfClothAssets);
 			}
 		}
 		// Unlock the bulk data
