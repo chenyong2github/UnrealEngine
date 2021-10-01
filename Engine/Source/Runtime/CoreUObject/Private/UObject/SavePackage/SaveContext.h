@@ -588,7 +588,8 @@ public:
 	int32 OffsetAfterPackageFileSummary = 0;
 	int32 OffsetAfterImportMap = 0;
 	int32 OffsetAfterExportMap = 0;
-	int32 SerializedPackageFlags = 0;
+	int64 OffsetAfterPayloadToc = 0;
+	int32 SerializedPackageFlags = 0;	
 	TAsyncWorkSequence<FMD5> AsyncWriteAndHashSequence;
 	TArray<FLargeMemoryWriter, TInlineAllocator<4>> AdditionalFilesFromExports;
 	FSavePackageOutputFileArray AdditionalPackageFiles;

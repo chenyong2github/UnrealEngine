@@ -629,8 +629,9 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 
 				// If we have a valid linker then we will defer serialization of the payload so that it will
 				// be placed at the end of the output file so we don't have to seek past the payload on load.
-				// If we do not have a linker then we might as well just serialize right away.
-				if(LinkerSave != nullptr)
+				// If we do not have a linker OR the linker is in text format then we should just serialize
+				// the payload directly to the archive.
+				if(LinkerSave != nullptr && !LinkerSave->IsTextFormat())
 				{
 					auto AdditionalDataCallback = [SerializePayload = MoveTemp(SerializePayload)](FLinkerSave& ExportsArchive, FArchive& DataArchive, int64 DataStartOffset) mutable
 					{
@@ -642,6 +643,11 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 				{
 					SerializePayload(nullptr, Ar, Ar, Ar.Tell());
 				}
+			}
+
+			if (LinkerSave != nullptr)
+			{
+				LinkerSave->BulkDataInPackage.Add(this);
 			}
 
 			if (CanUnloadData())
@@ -1422,6 +1428,138 @@ FString FVirtualizedUntypedBulkData::GetCorruptedPayloadErrorMessage() const
 	}
 
 	return Message.ToString();
+}
+	
+FArchive& operator<<(FArchive& Ar, FTocEntry& Entry)
+{
+	Ar << Entry.Identifier;
+	Ar << Entry.OffsetInFile;
+	Ar << Entry.UncompressedSize;
+
+	return Ar;
+}
+
+ void operator<<(FStructuredArchive::FSlot Slot, FTocEntry& Entry)
+{
+	FStructuredArchive::FRecord Record = Slot.EnterRecord();
+
+	Record << SA_VALUE(TEXT("Identifier"), Entry.Identifier);
+	Record << SA_VALUE(TEXT("OffsetInFile"), Entry.OffsetInFile);
+	Record << SA_VALUE(TEXT("UncompressedSize"), Entry.UncompressedSize);
+}
+
+void FPayloadToc::AddEntry(const FVirtualizedUntypedBulkData& BulkData)
+{
+	if (BulkData.GetPayloadId().IsValid())
+	{
+		Contents.Emplace(BulkData);
+	}
+}
+
+bool FPayloadToc::FindEntry(const FPayloadId& Identifier, FTocEntry& OutEntry)
+{
+	for (const FTocEntry& Entry : Contents)
+	{
+		if (Entry.Identifier == Identifier)
+		{
+			OutEntry = Entry;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+const TArray<UE::Virtualization::FTocEntry>& FPayloadToc::GetContents() const
+{
+	return Contents;
+}
+
+FArchive& operator<<(FArchive& Ar, FPayloadToc& TableOfContents)
+{
+	FPayloadToc::EVersion Version = FPayloadToc::EVersion::AUTOMATIC_VERSION;
+	Ar << Version;
+
+	Ar << TableOfContents.Contents;
+
+	return Ar;
+}
+
+void operator<<(FStructuredArchive::FSlot Slot, FPayloadToc& TableOfContents)
+{
+	FStructuredArchive::FRecord Record = Slot.EnterRecord();
+
+	FPayloadToc::EVersion Version = FPayloadToc::EVersion::AUTOMATIC_VERSION;
+
+	Record << SA_VALUE(TEXT("Version"), Version);
+	Record << SA_VALUE(TEXT("Entries"), TableOfContents.Contents);
+}
+
+bool FindPayloadsInPackageFile(const FPackagePath& PackagePath, EPayloadType Filter, TArray<FPayloadId>& OutPayloadIds)
+{
+	if (FPackageName::IsTextPackageExtension(PackagePath.GetHeaderExtension()))
+	{
+		UE_LOG(LogVirtualization, Warning, TEXT("Attempting to call 'FindPayloadsInPackageFile' on a text based asset '%s' this is not currently supported"), *PackagePath.GetDebugName());
+		return false;
+	}
+
+	TUniquePtr<FArchive> Ar = IPackageResourceManager::Get().OpenReadExternalResource(EPackageExternalResource::WorkspaceDomainFile, PackagePath.GetPackageName());
+
+	if (Ar.IsValid())
+	{
+		FPackageFileSummary PackageFileSummary;
+		*Ar << PackageFileSummary;
+
+		if (Ar->IsError())
+		{
+			UE_LOG(LogVirtualization, Warning, TEXT("Failed to parse the FPackageFileSummary for '%s'"), *PackagePath.GetDebugName());
+			return false;
+		}
+
+		if (PackageFileSummary.Tag == PACKAGE_FILE_TAG)
+		{
+			if (PackageFileSummary.PayloadTocOffset != INDEX_NONE)
+			{
+				Ar->Seek(PackageFileSummary.PayloadTocOffset);
+
+				FPayloadToc PayloadToC;
+				*Ar << PayloadToC;
+
+				for (const UE::Virtualization::FTocEntry& Entry : PayloadToC.GetContents())
+				{
+					switch (Filter)
+					{
+					case EPayloadType::Local:
+						if (Entry.OffsetInFile != INDEX_NONE)
+						{
+							OutPayloadIds.Add(Entry.Identifier);
+						}
+						break;
+					case EPayloadType::Virtualized:
+						if (Entry.OffsetInFile == INDEX_NONE)
+						{
+							OutPayloadIds.Add(Entry.Identifier);
+						}
+						break;
+					case EPayloadType::All:
+						OutPayloadIds.Add(Entry.Identifier);
+						break;
+					}
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogVirtualization, Warning, TEXT("Failed to find PACKAGE_FILE_TAG in '%s', not a valid package!"), *PackagePath.GetDebugName());
+		}
+
+		return true;
+	}
+	else
+	{
+		UE_LOG(LogVirtualization, Warning, TEXT("Unable to open '%s' for reading"), *PackagePath.GetDebugName());
+		return false;
+	}
 }
 
 } // namespace UE::Virtualization

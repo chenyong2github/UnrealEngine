@@ -286,6 +286,8 @@ protected:
 	FVirtualizedUntypedBulkData(const FVirtualizedUntypedBulkData& Other, ETornOff);
 
 private:
+	friend struct FTocEntry;
+
 	/** Flags used to store additional meta information about the bulk data */
 	enum class EFlags : uint32
 	{
@@ -423,26 +425,80 @@ using FFloatVirtualizedBulkData	= TVirtualizedBulkData<float>;
   * This might be moved to it's own header and the table of contents made into a proper class 
   * if we decide that we want to make access of the payload sidecar file a generic feature.
   */
-struct FTocEntry
+struct COREUOBJECT_API FTocEntry
 {
+	FTocEntry() = default;
+	FTocEntry(const FVirtualizedUntypedBulkData& BulkData)
+		: Identifier(BulkData.PayloadContentId)
+		, OffsetInFile(BulkData.OffsetInFile)
+		, UncompressedSize(BulkData.PayloadSize)
+	{
+
+	}
+
+	friend FArchive& operator<<(FArchive& Ar, FTocEntry& Entry);
+	friend void operator<<(FStructuredArchive::FSlot Slot, FTocEntry& Entry);
+
 	static constexpr uint32 PayloadSidecarFileVersion = 1;
 
 	/** Identifier for the payload */
 	FPayloadId Identifier;
-	/** The offset into the file where we can find the payload */
+	/** The offset into the file where we can find the payload, note that a virtualized payload will have an offset of INDEX_NONE */
 	int64 OffsetInFile = INDEX_NONE;
-	/** The size of the payload WHEN uncompressed. */
+	/** The size of the payload when uncompressed. */
 	int64 UncompressedSize = INDEX_NONE;
-
-	friend FArchive& operator<<(FArchive& Ar, FTocEntry& Entry)
-	{
-		Ar << Entry.Identifier;
-		Ar << Entry.OffsetInFile;
-		Ar << Entry.UncompressedSize;
-
-		return Ar;
-	}
 };
+
+/** A table of contents showing the location of all virtualized bulkdata payloads in a file. */
+class COREUOBJECT_API FPayloadToc
+{
+public:
+
+	void AddEntry(const FVirtualizedUntypedBulkData& BulkData);
+	bool FindEntry(const FPayloadId& Identifier, FTocEntry& OutEntry);
+
+	const TArray<UE::Virtualization::FTocEntry>& GetContents() const;
+
+	friend FArchive& operator<<(FArchive& Ar, FPayloadToc& TableOfContents);
+	friend void operator<<(FStructuredArchive::FSlot Slot, FPayloadToc& TableOfContents);
+
+private:
+	enum class EVersion : uint32
+	{
+		INITIAL = 0,
+
+		// -----<new versions can be added before this line>-------------------------------------------------
+		// - this needs to be the last line (see note below)
+		AUTOMATIC_VERSION_PLUS_ONE,
+		AUTOMATIC_VERSION = AUTOMATIC_VERSION_PLUS_ONE - 1
+	};
+
+	TArray<UE::Virtualization::FTocEntry> Contents;
+};
+
+/** Used to filter a request to a specific type of payload */
+enum class EPayloadType
+{
+	/** All payload types. */
+	All,
+	/** All payloads stored locally on disk. */
+	Local,
+	/** All payloads stored in a virtualized backend. */
+	Virtualized
+};
+
+/**
+ * Used to find the identifiers of the payload in a given package. Note that this will return the payloads included in the
+ * package on disk and will not take into account any edits to the package if they are in memory and unsaved.
+ *
+ * @param PackagePath	The package to look in.
+ * @param Filter		What sort of payloads should be returned. @see EPayloadType
+ * @param OutPayloadIds	This array will be filled with the FPayloadId values found in the package that passed the filter.
+ *						Note that existing content in the array will be preserved. It is up to the caller to empty it.
+ *
+ * @return 				True if the package was parsed successfully (although it might not have contained any payloads) and false if opening or parsing the package file failed.
+ */
+COREUOBJECT_API bool FindPayloadsInPackageFile(const FPackagePath& PackagePath, EPayloadType Filter, TArray<FPayloadId>& OutPayloadIds);
 
 } // namespace UE::Virtualization
 

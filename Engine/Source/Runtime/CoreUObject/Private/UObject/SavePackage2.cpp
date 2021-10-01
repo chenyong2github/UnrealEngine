@@ -40,6 +40,7 @@
 #include "UObject/SavePackage/SavePackageUtilities.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectHash.h"
+#include "Virtualization/VirtualizedBulkData.h"
 
 #if ENABLE_COOK_STATS
 #include "ProfilingDebugging/ScopedTimers.h"
@@ -1644,6 +1645,81 @@ ESavePackageResult WriteExports(FStructuredArchive::FRecord& StructuredArchiveRo
 	return Linker->IsError() ? ESavePackageResult::Error : ReturnSuccessOrCancel();
 }
 
+/** 
+ * Writes out the initial state of the payload table of contents.
+ * 
+ * However because we store the table of contents before the payloads in the package
+ * format the data will not be correct as we cannot know the correct payload offsets.
+ * The correct data will be written out by a subsequent call to 'UpdatePayloadToC'.
+ * 
+ * Because of this we only write out the table of contents if we are currently writing
+ * to a binary format package. This will reserve the space in the file that we need 
+ * to later write the correct data too.
+ * If the package is in text format then we do not need to write anything as we can
+ * simple write out the correct data later when we know it.
+ */
+ESavePackageResult WritePayloadToC(FSaveContext& SaveContext)
+{
+	if (!SaveContext.IsTextFormat())
+	{
+		SaveContext.Linker->Summary.PayloadTocOffset = SaveContext.Linker->Tell();
+
+		UE::Virtualization::FPayloadToc PayloadTableOfContents;
+		for (const UE::Virtualization::FVirtualizedUntypedBulkData* BulkData : SaveContext.Linker->BulkDataInPackage)
+		{
+			if (BulkData != nullptr)
+			{
+				PayloadTableOfContents.AddEntry(*BulkData);
+			}
+		}
+
+		*SaveContext.Linker << PayloadTableOfContents;
+
+		SaveContext.OffsetAfterPayloadToc = SaveContext.Linker->Tell();
+	}
+	
+	return ESavePackageResult::Success;
+}
+
+/** 
+ * Either update the existing table of contents (if writing out in binary format) or write the table
+ * of contents (if writing out in text format).
+ * 
+ * @see WritePayloadToC
+ */
+ESavePackageResult UpdatePayloadToC(FStructuredArchive::FRecord& StructuredArchiveRoot, FSaveContext& SaveContext)
+{
+	UE::Virtualization::FPayloadToc PayloadTableOfContents;
+	for (const UE::Virtualization::FVirtualizedUntypedBulkData* BulkData : SaveContext.Linker->BulkDataInPackage)
+	{
+		if (BulkData != nullptr)
+		{
+			PayloadTableOfContents.AddEntry(*BulkData);
+		}
+	}
+
+	if (SaveContext.IsTextFormat())
+	{
+		FStructuredArchive::FStream Stream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("PayloadTableOfContents")));
+		Stream.EnterElement() << PayloadTableOfContents;
+	}
+	else
+	{
+		check(SaveContext.Linker->Summary.PayloadTocOffset != INDEX_NONE);
+
+		int64 CurrentPos = SaveContext.Linker->Tell();
+		SaveContext.Linker->Seek(SaveContext.Linker->Summary.PayloadTocOffset);
+
+		*SaveContext.Linker << PayloadTableOfContents;
+
+		checkf(SaveContext.OffsetAfterPayloadToc == SaveContext.Linker->Tell(), TEXT("Mismatch between ::WritePayloadToC and ::UpdatePayloadToC, the package will be corrupt"));
+
+		SaveContext.Linker->Seek(CurrentPos);
+	}
+
+	return ESavePackageResult::Success;
+}
+
 ESavePackageResult WriteAdditionalExportFiles(FSaveContext& SaveContext)
 {
 	FSavePackageContext* SavePackageContext = SaveContext.GetSavePackageContext();
@@ -2056,7 +2132,7 @@ ESavePackageResult InnerSave(FSaveContext& SaveContext)
 	SaveContext.SetEDLCookChecker(&FEDLCookChecker::Get());
 
 	// Create slow task dialog if needed
-	const int32 TotalSaveSteps = 12;
+	const int32 TotalSaveSteps = 14;
 	FScopedSlowTask SlowTask(TotalSaveSteps, FText(), SaveContext.IsUsingSlowTask());
 	SlowTask.MakeDialogDelayed(3.0f, SaveContext.IsFromAutoSave());
 
@@ -2148,6 +2224,13 @@ ESavePackageResult InnerSave(FSaveContext& SaveContext)
 		}
 	}
 
+	SlowTask.EnterProgressFrame();
+	SaveContext.Result = WritePayloadToC(SaveContext);
+	if (SaveContext.Result != ESavePackageResult::Success)
+	{
+		return SaveContext.Result;
+	}
+
 	bool bAdditionalFilesNeedLinkerSize = SaveContext.IsAdditionalFilesNeedLinkerSize();
 	if (!bAdditionalFilesNeedLinkerSize)
 	{
@@ -2157,7 +2240,14 @@ ESavePackageResult InnerSave(FSaveContext& SaveContext)
 			return SaveContext.Result;
 		}
 	}
-	
+
+	SlowTask.EnterProgressFrame();
+	SaveContext.Result = UpdatePayloadToC(StructuredArchiveRoot, SaveContext);
+	if (SaveContext.Result != ESavePackageResult::Success)
+	{
+		return SaveContext.Result;
+	}
+
 	// Write Package Post Tag
 	if (!SaveContext.IsTextFormat())
 	{

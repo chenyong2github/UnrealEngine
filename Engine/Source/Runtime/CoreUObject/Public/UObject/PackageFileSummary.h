@@ -219,6 +219,11 @@ public:
 	* Number of names that are referenced from serialized export data (sorted first in the name map)
 	*/
 	int32		NamesReferencedFromExportDataCount;
+	
+	/**
+	* Location into the file on disk for the payload table of contents data
+	*/
+	int64		PayloadTocOffset;
 
 	/** Constructor */
 	COREUOBJECT_API FPackageFileSummary();

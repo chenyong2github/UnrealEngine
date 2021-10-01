@@ -404,6 +404,15 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 		{
 			Sum.NamesReferencedFromExportDataCount = Sum.NameCount;
 		}
+
+		if (BaseArchive.IsSaving() || Sum.FileVersionUE >= EUnrealEngineObjectUE5Version::PAYLOAD_TOC)
+		{
+			Record << SA_VALUE(TEXT("PayloadTocOffset"), Sum.PayloadTocOffset);
+		}
+		else
+		{
+			Sum.PayloadTocOffset = INDEX_NONE;
+		}
 	}
 }
 
