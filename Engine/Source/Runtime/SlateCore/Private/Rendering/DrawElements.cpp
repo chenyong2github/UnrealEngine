@@ -580,7 +580,15 @@ void FSlateDrawElement::MakeLines( FSlateWindowElementList& ElementList, uint32 
 	DataPayload.SetThickness(Thickness);
 	DataPayload.SetLines(Points, bAntialias, &PointColors);
 
-	Element.Init(ElementList, EElementType::ET_Line, InLayer, PaintGeometry, InDrawEffects);
+	ESlateDrawEffect DrawEffects = InDrawEffects;
+	if (bAntialias)
+	{
+		// If the line is to be anti-aliased, we cannot reliably snap
+		// the generated vertices.
+		DrawEffects |= ESlateDrawEffect::NoPixelSnapping;
+	}
+
+	Element.Init(ElementList, EElementType::ET_Line, InLayer, PaintGeometry, DrawEffects);
 
 }
 

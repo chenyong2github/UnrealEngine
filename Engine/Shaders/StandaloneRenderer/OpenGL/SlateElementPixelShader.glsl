@@ -286,28 +286,17 @@ vec4 GetRoundedBoxElementColor()
 	return OutColor;
 }
 
-vec4 GetSplineElementColor()
+vec4 GetLineSegmentElementColor()
 {
-	float LineWidth = ShaderParams.x;
-	float FilterWidthScale = ShaderParams.y;
+	vec2 Gradient = TexCoords.xy;
 
-	float Gradient = TexCoords.x;
-	vec2 GradientDerivative = vec2(abs(dFdx(Gradient)), abs(dFdy(Gradient)));
-	float PixelSizeInUV = sqrt(dot(GradientDerivative, GradientDerivative));
-	
-	float HalfLineWidthUV = 0.5f*PixelSizeInUV * LineWidth;	
-	float HalfFilterWidthUV = FilterWidthScale * PixelSizeInUV;
-	float DistanceToLineCenter = abs(0.5 - Gradient);
-	float LineCoverage = smoothstep(HalfLineWidthUV+HalfFilterWidthUV, HalfLineWidthUV-HalfFilterWidthUV, DistanceToLineCenter);
+	vec2 OutsideFilterUV = vec2(1.0, 1.0);
+	vec2 InsideFilterUV = vec2(ShaderParams.x, 0.0);
+	vec2 LineCoverage = smoothstep(OutsideFilterUV, InsideFilterUV, abs(Gradient));
 
-	if (LineCoverage <= 0.0)
-	{
-		discard;
-	}
-
-	vec4 InColor = Color;
-	InColor.a *= LineCoverage;
-	return InColor;
+	vec4 OutColor = Color;
+	OutColor.a *= LineCoverage.x * LineCoverage.y;
+	return OutColor;
 }
 
 void main()
@@ -336,7 +325,7 @@ void main()
 	}
 	else
 	{
-		OutColor = GetSplineElementColor();
+		OutColor = GetLineSegmentElementColor();
 	}
 	
 	// gamma correct

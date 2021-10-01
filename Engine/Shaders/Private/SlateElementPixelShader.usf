@@ -239,32 +239,30 @@ half4 GetRoundedBoxElementColor( VertexToPixelInterpolants InVertex )
 }
 #endif
 
-#if SHADER_TYPE == ST_LineSegment 
-/** 
+#if SHADER_TYPE == ST_LineSegment
+/**
  * Generates an anti-aliased line segment pixel
- * The idea for the anti-alising technique is based on the fast prefiltered lines technique published in GPU Gems 2 
+ * This is based on the fast prefiltered lines technique published in GPU Gems 2
+ *
+ * Instead of passing edge function coefficients as uniform parameters we use
+ * texture coordinates to define the line
+ *
+ * When rasterized, the submitted geometry must contain every pixel that
+ * could have coverage > 0. Failing to do so will create sharp, aliased edges
  */
 half4 GetLineSegmentElementColor( VertexToPixelInterpolants InVertex )
 {
-	float LineWidth = ShaderParams.x;
-	float FilterWidthScale = ShaderParams.y;
-	float Gradient = GetUV(InVertex, 0).x;
-	float2 GradientDerivative = float2(abs(ddx(Gradient)), abs(ddy(Gradient)));
-	float PixelSizeInUV = sqrt(dot(GradientDerivative, GradientDerivative));
-	float HalfLineWidthUV = 0.5f * PixelSizeInUV * LineWidth;
-	float HalfFilterWidthUV = FilterWidthScale * PixelSizeInUV;
-	float DistanceToLineCenter = abs(0.5f - Gradient);
-	float LineCoverage = smoothstep(HalfLineWidthUV + HalfFilterWidthUV, HalfLineWidthUV - HalfFilterWidthUV, DistanceToLineCenter);
+	const float2 Gradient = GetUV(InVertex, 0);
 
-	if (LineCoverage <= 0.0f)
-	{
-		discard;
-	}
+	// Get coverage based on distance from segment sides and ends
+	const float2 OutsideFilterUV = float2(1.0f, 1.0f);
+	const float2 InsideFilterUV = float2(ShaderParams.x, 0.0f);
+	const float2 LineCoverage = smoothstep(OutsideFilterUV, InsideFilterUV, abs(Gradient));
 
 	half4 Color = InVertex.Color;
-	Color.a *= LineCoverage;
+	Color.a *= LineCoverage.x * LineCoverage.y;
 	return Color;
-} 
+}
 #endif
 
 HALF4_TYPE Main( VertexToPixelInterpolants VIn ) : SV_Target0

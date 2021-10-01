@@ -183,27 +183,16 @@ float4 GetRoundedBoxElementColor( VertexOut InVertex )
 	return OutColor;
 }
 
-float4 GetSplineElementColor( VertexOut InVertex )
+float4 GetLineSegmentElementColor( VertexOut InVertex )
 {
-	const float LineWidth = ShaderParams.x;
-	const float FilterWidthScale = ShaderParams.y;
+	const float2 Gradient = InVertex.TextureCoordinates;
 
-	const float Gradient = InVertex.TextureCoordinates.x;
-	const float2 GradientDerivative = float2( abs(ddx(Gradient)), abs(ddy(Gradient)) );
-	const float PixelSizeInUV = sqrt(dot(GradientDerivative, GradientDerivative));
-	
-	const float HalfLineWidthUV = 0.5f * PixelSizeInUV * LineWidth;	
-	const float HalfFilterWidthUV = FilterWidthScale * PixelSizeInUV;
-	const float DistanceToLineCenter = abs(0.5f - Gradient);
-	const float LineCoverage = smoothstep(HalfLineWidthUV + HalfFilterWidthUV, HalfLineWidthUV-HalfFilterWidthUV, DistanceToLineCenter);
-
-	if (LineCoverage <= 0.0f)
-	{
-		discard;
-	}
+	const float2 OutsideFilterUV = float2(1.0f, 1.0f);
+	const float2 InsideFilterUV = float2(ShaderParams.x, 0.0f);
+	const float2 LineCoverage = smoothstep(OutsideFilterUV, InsideFilterUV, abs(Gradient));
 
 	float4 Color = InVertex.Color;
-	Color.a *= LineCoverage;
+	Color.a *= LineCoverage.x * LineCoverage.y;
 	return Color;
 }
 
@@ -233,7 +222,7 @@ float4 Main( VertexOut InVertex ) : SV_Target
 	}
 	else
 	{
-		OutColor = GetSplineElementColor( InVertex );
+		OutColor = GetLineSegmentElementColor( InVertex );
 	}
 
 	// gamma correct

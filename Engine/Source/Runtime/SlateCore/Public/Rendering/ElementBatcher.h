@@ -242,8 +242,6 @@ private:
  */
 class FSlateElementBatcher
 {
-
-	friend struct FLineBuilder;
 public:
 
 	SLATECORE_API FSlateElementBatcher( TSharedRef<FSlateRenderingPolicy> InRenderingPolicy );
