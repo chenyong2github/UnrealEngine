@@ -628,7 +628,7 @@ bool FBasicTokenParser::GetRawTokenRespectingQuotes(FBasicToken& Token, TCHAR St
 
 	while( !BasicTokenParserImpl::IsEOL(c) && ((c != StopChar) || bInQuote) )
 	{
-		if( (c=='/' && PeekChar()=='/') || (c=='/' && PeekChar()=='*') )
+		if( !bInQuote && ( (c=='/' && PeekChar()=='/') || (c=='/' && PeekChar()=='*') ) )
 		{
 			break;
 		}

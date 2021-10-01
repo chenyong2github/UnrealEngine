@@ -631,7 +631,7 @@ bool FBaseParser::GetRawStringRespectingQuotes(FTokenString& String, TCHAR StopC
 
 	while( !IsEOL(c) && ((c != StopChar) || bInQuote) )
 	{
-		if( (c=='/' && PeekChar()=='/') || (c=='/' && PeekChar()=='*') )
+		if( !bInQuote && ( (c=='/' && PeekChar()=='/') || (c=='/' && PeekChar()=='*') ) )
 		{
 			break;
 		}
