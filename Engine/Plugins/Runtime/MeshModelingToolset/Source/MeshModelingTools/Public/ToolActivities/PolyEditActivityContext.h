@@ -19,7 +19,7 @@ class UPolygonSelectionMechanic;
 class UMeshOpPreviewWithBackgroundCompute;
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UPolyEditActivityContext : public UObject
+class MESHMODELINGTOOLS_API UPolyEditActivityContext : public UObject
 {
 	GENERATED_BODY()
 

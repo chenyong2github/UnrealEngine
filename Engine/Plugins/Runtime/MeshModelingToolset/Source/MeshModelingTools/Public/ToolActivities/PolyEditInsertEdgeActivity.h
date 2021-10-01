@@ -33,7 +33,7 @@ enum class EGroupEdgeInsertionMode
 };
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UGroupEdgeInsertionProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UGroupEdgeInsertionProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -49,7 +49,7 @@ public:
 
 /** Interactive activity for inserting a group edge into a mesh. */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UPolyEditInsertEdgeActivity : public UInteractiveToolActivity, 
+class MESHMODELINGTOOLS_API UPolyEditInsertEdgeActivity : public UInteractiveToolActivity, 
 	public UE::Geometry::IDynamicMeshOperatorFactory, 
 	public IHoverBehaviorTarget, public IClickBehaviorTarget
 {
@@ -169,7 +169,7 @@ protected:
 /**
  * This should get emitted when selecting the first point in an edge insertion so that we can undo it.
  */
-class MESHMODELINGTOOLSEXP_API FGroupEdgeInsertionFirstPointChange : public FToolCommandChange
+class MESHMODELINGTOOLS_API FGroupEdgeInsertionFirstPointChange : public FToolCommandChange
 {
 public:
 	FGroupEdgeInsertionFirstPointChange(int32 CurrentChangeStamp)

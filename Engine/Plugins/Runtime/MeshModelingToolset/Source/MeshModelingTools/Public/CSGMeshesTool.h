@@ -20,7 +20,7 @@ PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
  * Standard properties of the CSG operation
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UCSGMeshesToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UCSGMeshesToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -64,7 +64,7 @@ public:
  * Properties of the trim mode
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UTrimMeshesToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UTrimMeshesToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -96,7 +96,7 @@ public:
  * Simple Mesh Plane Cutting Tool
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UCSGMeshesTool : public UBaseCreateFromSelectedTool
+class MESHMODELINGTOOLS_API UCSGMeshesTool : public UBaseCreateFromSelectedTool
 {
 	GENERATED_BODY()
 
@@ -164,7 +164,7 @@ protected:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UCSGMeshesToolBuilder : public UBaseCreateFromSelectedToolBuilder
+class MESHMODELINGTOOLS_API UCSGMeshesToolBuilder : public UBaseCreateFromSelectedToolBuilder
 {
 	GENERATED_BODY()
 

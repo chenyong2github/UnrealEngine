@@ -22,7 +22,7 @@ enum class EPolyEditCutPlaneOrientation
 };
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UPolyEditCutProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UPolyEditCutProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -39,7 +39,7 @@ public:
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UPolyEditCutFacesActivity : public UInteractiveToolActivity,
+class MESHMODELINGTOOLS_API UPolyEditCutFacesActivity : public UInteractiveToolActivity,
 	public IClickBehaviorTarget, public IHoverBehaviorTarget
 {
 	GENERATED_BODY()

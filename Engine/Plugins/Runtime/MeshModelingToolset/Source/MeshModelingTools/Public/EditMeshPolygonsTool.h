@@ -39,7 +39,7 @@ class UTransformProxy;
  * ToolBuilder
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UEditMeshPolygonsToolBuilder : public USingleSelectionMeshEditingToolBuilder
+class MESHMODELINGTOOLS_API UEditMeshPolygonsToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 public:
@@ -64,7 +64,7 @@ enum class ELocalFrameMode
  * These are properties that do not get enabled/disabled based on the action 
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UPolyEditCommonProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UPolyEditCommonProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -129,7 +129,7 @@ enum class EEditMeshPolygonsToolActions
 };
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UEditMeshPolygonsActionModeToolBuilder : public UEditMeshPolygonsToolBuilder
+class MESHMODELINGTOOLS_API UEditMeshPolygonsActionModeToolBuilder : public UEditMeshPolygonsToolBuilder
 {
 	GENERATED_BODY()
 public:
@@ -150,7 +150,7 @@ enum class EEditMeshPolygonsToolSelectionMode
 };
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UEditMeshPolygonsSelectionModeToolBuilder : public UEditMeshPolygonsToolBuilder
+class MESHMODELINGTOOLS_API UEditMeshPolygonsSelectionModeToolBuilder : public UEditMeshPolygonsToolBuilder
 {
 	GENERATED_BODY()
 public:
@@ -162,7 +162,7 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UEditMeshPolygonsToolActionPropertySet : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UEditMeshPolygonsToolActionPropertySet : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -177,7 +177,7 @@ public:
 
 /** PolyEdit Actions */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UEditMeshPolygonsToolActions : public UEditMeshPolygonsToolActionPropertySet
+class MESHMODELINGTOOLS_API UEditMeshPolygonsToolActions : public UEditMeshPolygonsToolActionPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -245,7 +245,7 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UEditMeshPolygonsToolActions_Triangles : public UEditMeshPolygonsToolActionPropertySet
+class MESHMODELINGTOOLS_API UEditMeshPolygonsToolActions_Triangles : public UEditMeshPolygonsToolActionPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -295,7 +295,7 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UEditMeshPolygonsToolUVActions : public UEditMeshPolygonsToolActionPropertySet
+class MESHMODELINGTOOLS_API UEditMeshPolygonsToolUVActions : public UEditMeshPolygonsToolActionPropertySet
 {
 	GENERATED_BODY()
 
@@ -314,7 +314,7 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UEditMeshPolygonsToolEdgeActions : public UEditMeshPolygonsToolActionPropertySet
+class MESHMODELINGTOOLS_API UEditMeshPolygonsToolEdgeActions : public UEditMeshPolygonsToolActionPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -339,7 +339,7 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UEditMeshPolygonsToolEdgeActions_Triangles : public UEditMeshPolygonsToolActionPropertySet
+class MESHMODELINGTOOLS_API UEditMeshPolygonsToolEdgeActions_Triangles : public UEditMeshPolygonsToolActionPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -367,7 +367,7 @@ public:
  * we have an activity running. We should have a cleaner alternative.
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UEditMeshPolygonsToolCancelAction : public UEditMeshPolygonsToolActionPropertySet
+class MESHMODELINGTOOLS_API UEditMeshPolygonsToolCancelAction : public UEditMeshPolygonsToolActionPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -381,7 +381,7 @@ public:
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UEditMeshPolygonsTool : public USingleSelectionMeshEditingTool,
+class MESHMODELINGTOOLS_API UEditMeshPolygonsTool : public USingleSelectionMeshEditingTool,
 	public IToolActivityHost, 
 	public IMeshVertexCommandChangeTarget,
 	public IInteractiveToolNestedAcceptCancelAPI
@@ -625,7 +625,7 @@ protected:
  * Wraps a FDynamicMeshChange so that it can be expired and so that other data
  * structures in the tool can be updated.
  */
-class MESHMODELINGTOOLSEXP_API FEditMeshPolygonsToolMeshChange : public FToolCommandChange
+class MESHMODELINGTOOLS_API FEditMeshPolygonsToolMeshChange : public FToolCommandChange
 {
 public:
 	FEditMeshPolygonsToolMeshChange(TUniquePtr<UE::Geometry::FDynamicMeshChange> MeshChangeIn, bool bGroupTopologyModified)
@@ -648,7 +648,7 @@ protected:
  * FPolyEditActivityStartChange is used to cancel out of an active action on Undo. 
  * No action is taken on Redo, ie we do not re-start the Tool on Redo.
  */
-class MESHMODELINGTOOLSEXP_API FPolyEditActivityStartChange : public FToolCommandChange
+class MESHMODELINGTOOLS_API FPolyEditActivityStartChange : public FToolCommandChange
 {
 public:
 	FPolyEditActivityStartChange(int32 ActivityTimestampIn)

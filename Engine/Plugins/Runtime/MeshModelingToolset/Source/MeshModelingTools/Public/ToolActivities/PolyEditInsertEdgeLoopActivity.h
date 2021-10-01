@@ -46,7 +46,7 @@ enum class EEdgeLoopInsertionMode
 };
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UEdgeLoopInsertionProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UEdgeLoopInsertionProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -93,7 +93,7 @@ public:
 
 /** Interactive activity for inserting (group) edge loops into a mesh. */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UPolyEditInsertEdgeLoopActivity : public UInteractiveToolActivity, 
+class MESHMODELINGTOOLS_API UPolyEditInsertEdgeLoopActivity : public UInteractiveToolActivity, 
 	public UE::Geometry::IDynamicMeshOperatorFactory,
 	public IHoverBehaviorTarget, public IClickBehaviorTarget
 {
