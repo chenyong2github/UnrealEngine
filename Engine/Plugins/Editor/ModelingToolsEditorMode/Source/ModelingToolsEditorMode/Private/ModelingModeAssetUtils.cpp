@@ -161,8 +161,12 @@ FString UE::Modeling::GetNewAssetPathName(const FString& BaseNameIn, const UWorl
 		// append username-specific subfolder
 		if (Settings->bUsePerUserAutogenSubfolder)
 		{
-			FString UsernameString(FPlatformProcess::UserName());
-			if (UsernameString.Len() > 1)
+			FString UsernameString = Settings->AutogenSubfolderUserNameOverride.TrimStartAndEnd();
+			if (UsernameString.IsEmpty())
+			{
+				UsernameString = FPlatformProcess::UserName();
+			}
+			if (!UsernameString.IsEmpty())
 			{
 				PackageFolderPath = FPaths::Combine(PackageFolderPath, UsernameString);
 			}
