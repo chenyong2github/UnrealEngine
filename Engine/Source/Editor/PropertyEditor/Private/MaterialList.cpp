@@ -153,7 +153,7 @@ namespace ValueExtender
 		// Execute all delegates and loop through all results widgets
 		InDelegate.Broadcast(InMaterialItemView, InCurrentComponent, InDetailBuilder, Widgets);
 
-		for (const TSharedPtr<SWidget> Widget : Widgets)
+		for (TSharedPtr<SWidget> Widget : Widgets)
 		{
 			WidgetContainer->AddSlot()
 			[
