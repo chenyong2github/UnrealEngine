@@ -1171,7 +1171,7 @@ FString FSkeletalMeshLODModel::GetLODModelDeriveDataKey() const
 	return KeySuffix;
 }
 
-void FSkeletalMeshLODModel::UpdateChunkedSectionInfo(const FString& SkeletalMeshName)
+void FSkeletalMeshLODModel::UpdateChunkedSectionInfo(const FString& SkeletalMeshName, const int32 NumberOfClothAssets)
 {
 	int32 LODModelSectionNum = Sections.Num();
 	//Fill the ChunkedParentSectionIndex data, we assume that every section using the same material are chunked
@@ -1217,6 +1217,14 @@ void FSkeletalMeshLODModel::UpdateChunkedSectionInfo(const FString& SkeletalMesh
 			SectionUserData.bRecomputeTangent = Section.bRecomputeTangent;
 			SectionUserData.RecomputeTangentsVertexMaskChannel = Section.RecomputeTangentsVertexMaskChannel;
 			SectionUserData.GenerateUpToLodIndex = Section.GenerateUpToLodIndex;
+			//Make sure the CorrespondClothAssetIndex is valid it goes from -1(INDEX_NONE) to the number of cloth asset -1
+			if (Section.CorrespondClothAssetIndex < -1 ||  Section.CorrespondClothAssetIndex >= NumberOfClothAssets)
+			{
+				Section.CorrespondClothAssetIndex = INDEX_NONE;
+				Section.ClothingData.AssetGuid = FGuid();
+				Section.ClothingData.AssetLodIndex = INDEX_NONE;
+			}
+
 			SectionUserData.CorrespondClothAssetIndex = Section.CorrespondClothAssetIndex;
 			SectionUserData.ClothingData.AssetGuid = Section.ClothingData.AssetGuid;
 			SectionUserData.ClothingData.AssetLodIndex = Section.ClothingData.AssetLodIndex;
