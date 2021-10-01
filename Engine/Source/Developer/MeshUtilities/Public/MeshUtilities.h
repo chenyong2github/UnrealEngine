@@ -194,7 +194,7 @@ public:
 		const FOverlappingCorners& OverlappingCorners,
 		const TMap<uint32, uint32>& MaterialToSectionMapping,
 		float ComparisonThreshold,
-		FVector BuildScale,
+		FVector3f BuildScale,
 		int32 ImportVersion
 		) = 0;
 
@@ -309,7 +309,7 @@ public:
 	 *  @param OutTangents - The function allocate the TArray with 3 FVector, to represent the triangle tangent, bi normal and normal.
 	 *  @param CompareThreshold - The threshold use to compare a tangent vector with zero.
 	 */
-	virtual void CalculateTriangleTangent(const FSoftSkinVertex& VertexA, const FSoftSkinVertex& VertexB, const FSoftSkinVertex& VertexC, TArray<FVector>& OutTangents, float CompareThreshold) = 0;
+	virtual void CalculateTriangleTangent(const FSoftSkinVertex& VertexA, const FSoftSkinVertex& VertexB, const FSoftSkinVertex& VertexC, TArray<FVector3f>& OutTangents, float CompareThreshold) = 0;
 
 	/**
 	 *	Calculate the verts associated weighted to each bone of the skeleton.

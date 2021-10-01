@@ -153,16 +153,16 @@ void FMeshUtilities::BuildSkeletalAdjacencyIndexBuffer(
 	BuildOptimizationThirdParty::NvTriStripHelper::BuildSkeletalAdjacencyIndexBuffer(VertexBuffer, TexCoordCount, Indices, OutPnAenIndices);
 }
 
-void CalculateTriangleTangentInternal(const FVector& VertexPosA, const FVector2D& VertexUVA
-									  , const FVector& VertexPosB, const FVector2D& VertexUVB
-									  , const FVector& VertexPosC, const FVector2D& VertexUVC
-									  , TArray<FVector>& OutTangents, float CompareThreshold)
+void CalculateTriangleTangentInternal(const FVector3f& VertexPosA, const FVector2D& VertexUVA
+									  , const FVector3f& VertexPosB, const FVector2D& VertexUVB
+									  , const FVector3f& VertexPosC, const FVector2D& VertexUVC
+									  , TArray<FVector3f>& OutTangents, float CompareThreshold)
 {
-	//We must always allocate the OutTangents to 3 FVector
+	//We must always allocate the OutTangents to 3 FVector3f
 	OutTangents.Reset(3);
 	OutTangents.AddZeroed(3);
-	const FVector Positions[3] = { VertexPosA, VertexPosB, VertexPosC };
-	const FVector Normal = ((Positions[1] - Positions[2]) ^ (Positions[0] - Positions[2])).GetSafeNormal(CompareThreshold);
+	const FVector3f Positions[3] = { VertexPosA, VertexPosB, VertexPosC };
+	const FVector3f Normal = ((Positions[1] - Positions[2]) ^ (Positions[0] - Positions[2])).GetSafeNormal(CompareThreshold);
 	//Avoid doing orthonormal vector from a degenerated triangle.
 	if (!Normal.IsNearlyZero(FLT_MIN))
 	{
@@ -187,11 +187,11 @@ void CalculateTriangleTangentInternal(const FVector& VertexPosA, const FVector2D
 		// Use InverseSlow to catch singular matrices.  Inverse can miss this sometimes.
 		const FMatrix TextureToLocal = ParameterToTexture.Inverse() * ParameterToLocal;
 
-		OutTangents[0] = (TextureToLocal.TransformVector(FVector(1, 0, 0)).GetSafeNormal());
-		OutTangents[1] = (TextureToLocal.TransformVector(FVector(0, 1, 0)).GetSafeNormal());
+		OutTangents[0] = (TextureToLocal.TransformVector(FVector3f(1, 0, 0)).GetSafeNormal());
+		OutTangents[1] = (TextureToLocal.TransformVector(FVector3f(0, 1, 0)).GetSafeNormal());
 		OutTangents[2] = (Normal);
 
-		FVector::CreateOrthonormalBasis(
+		FVector3f::CreateOrthonormalBasis(
 			OutTangents[0],
 			OutTangents[1],
 			OutTangents[2]
@@ -200,26 +200,26 @@ void CalculateTriangleTangentInternal(const FVector& VertexPosA, const FVector2D
 		if (OutTangents[0].IsNearlyZero() || OutTangents[0].ContainsNaN()
 			|| OutTangents[1].IsNearlyZero() || OutTangents[1].ContainsNaN())
 		{
-			OutTangents[0] = FVector::ZeroVector;
-			OutTangents[1] = FVector::ZeroVector;
+			OutTangents[0] = FVector3f::ZeroVector;
+			OutTangents[1] = FVector3f::ZeroVector;
 		}
 
 		if (OutTangents[2].IsNearlyZero() || OutTangents[2].ContainsNaN())
 		{
-			OutTangents[2] = FVector::ZeroVector;
+			OutTangents[2] = FVector3f::ZeroVector;
 		}
 	}
 	else
 	{
 		//Add zero tangents and normal for this triangle, this is like weighting it to zero when we compute the vertex normal
 		//But we need the triangle to correctly connect other neighbourg triangles
-		OutTangents[0] = (FVector::ZeroVector);
-		OutTangents[1] = (FVector::ZeroVector);
-		OutTangents[2] = (FVector::ZeroVector);
+		OutTangents[0] = (FVector3f::ZeroVector);
+		OutTangents[1] = (FVector3f::ZeroVector);
+		OutTangents[2] = (FVector3f::ZeroVector);
 	}
 }
 
-void FMeshUtilities::CalculateTriangleTangent(const FSoftSkinVertex& VertexA, const FSoftSkinVertex& VertexB, const FSoftSkinVertex& VertexC, TArray<FVector>& OutTangents, float CompareThreshold)
+void FMeshUtilities::CalculateTriangleTangent(const FSoftSkinVertex& VertexA, const FSoftSkinVertex& VertexB, const FSoftSkinVertex& VertexC, TArray<FVector3f>& OutTangents, float CompareThreshold)
 {
 	CalculateTriangleTangentInternal(VertexA.Position, VertexA.UVs[0]
 									 , VertexB.Position, VertexB.UVs[0]
@@ -1150,10 +1150,10 @@ static void ComputeTriangleTangents(
 	//Currently GetSafeNormal do not support 0.0f threshold properly
 	float RealComparisonThreshold = FMath::Max(ComparisonThreshold, FLT_MIN);
 	
-	TArray<FVector> TriangleTangents;
+	TArray<FVector3f> TriangleTangents;
 	for (int32 TriangleIndex = 0; TriangleIndex < NumTriangles; TriangleIndex++)
 	{
-		FVector Positions[3];
+		FVector3f Positions[3];
 		FVector2D UVs[3];
 		for (int32 Index = 0; Index < 3; ++Index)
 		{
@@ -2254,7 +2254,7 @@ void FMeshUtilities::BuildStaticMeshVertexAndIndexBuffers(
 	const FOverlappingCorners& OverlappingCorners,
 	const TMap<uint32, uint32>& MaterialToSectionMapping,
 	float ComparisonThreshold,
-	FVector BuildScale,
+	FVector3f BuildScale,
 	int32 ImportVersion
 	)
 {
@@ -3341,11 +3341,11 @@ public:
 
 		//Currently GetSafeNormal do not support 0.0f threshold properly
 		float RealComparisonThreshold = FMath::Max(ComparisonThreshold, FLT_MIN);
-		TArray<FVector> TriangleTangents;
+		TArray<FVector3f> TriangleTangents;
 		for (int32 TriangleIndex = 0; TriangleIndex < NumTriangles; TriangleIndex++)
 		{
 			const int32 UVIndex = 0;
-			FVector Positions[3];
+			FVector3f Positions[3];
 			FVector2D UVs[3];
 			for (int32 Index = 0; Index < 3; ++Index)
 			{
