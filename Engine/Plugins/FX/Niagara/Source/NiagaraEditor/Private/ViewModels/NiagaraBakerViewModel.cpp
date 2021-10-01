@@ -159,13 +159,20 @@ void FNiagaraBakerViewModel::RenderBaker()
 
 	for ( const auto& OutputTexture : BakerSettings->OutputTextures )
 	{
-		UTextureRenderTarget2D* RenderTarget = NewObject<UTextureRenderTarget2D>();
-		RenderTarget->AddToRoot();
-		RenderTarget->ClearColor = FLinearColor::Transparent;
-		RenderTarget->TargetGamma = 1.0f;
-		RenderTarget->InitCustomFormat(OutputTexture.FrameSize.X, OutputTexture.FrameSize.Y, PF_FloatRGBA, false);
+		if (OutputTexture.IsValidForBake())
+		{
+			UTextureRenderTarget2D* RenderTarget = NewObject<UTextureRenderTarget2D>();
+			RenderTarget->AddToRoot();
+			RenderTarget->ClearColor = FLinearColor::Transparent;
+			RenderTarget->TargetGamma = 1.0f;
+			RenderTarget->InitCustomFormat(OutputTexture.FrameSize.X, OutputTexture.FrameSize.Y, PF_FloatRGBA, false);
 
-		RenderTargets.Add(RenderTarget);
+			RenderTargets.Add(RenderTarget);
+		}
+		else
+		{
+			RenderTargets.Add(nullptr);
+		}
 		OutputBakers.AddDefaulted_GetRef().SetNumZeroed(OutputTexture.TextureSize.X * OutputTexture.TextureSize.Y);
 	}
 
@@ -197,6 +204,10 @@ void FNiagaraBakerViewModel::RenderBaker()
 		{
 			const FNiagaraBakerTextureSettings& OutputTexture = BakerSettings->OutputTextures[iOutputTexture];
 			UTextureRenderTarget2D* RenderTarget = RenderTargets[iOutputTexture];
+			if (RenderTarget == nullptr)
+			{
+				continue;
+			}
 			FTextureRenderTargetResource* RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
 
 			BakerRenderer.RenderView(PreviewComponent, BakerSettings, WorldTime, RenderTarget, iOutputTexture);
@@ -265,8 +276,11 @@ void FNiagaraBakerViewModel::RenderBaker()
 	// Clean up render targets
 	for ( UTextureRenderTarget2D* RenderTarget : RenderTargets )
 	{
-		RenderTarget->RemoveFromRoot();
-		RenderTarget = nullptr;
+		if (RenderTarget)
+		{
+			RenderTarget->RemoveFromRoot();
+			RenderTarget = nullptr;
+		}
 	}
 }
 

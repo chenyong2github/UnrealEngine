@@ -291,44 +291,54 @@ public:
 			FVector2D TextPosition(PreviewViewRect.Min.X + TextStartOffset.X, PreviewViewRect.Min.Y + TextStartOffset.Y);
 			if (BakerSettings->OutputTextures.IsValidIndex(PreviewTextureIndex))
 			{
-				// Ensure render target is the correct size
 				const FNiagaraBakerTextureSettings& OutputTexture = BakerSettings->OutputTextures[PreviewTextureIndex];
-				if ( !RealtimeRenderTarget || RealtimeRenderTarget->SizeX != OutputTexture.FrameSize.X || RealtimeRenderTarget->SizeY != OutputTexture.FrameSize.Y )
+				if ( OutputTexture.IsValidForBake() )
 				{
-					if (RealtimeRenderTarget == nullptr)
+					// Ensure render target is the correct size
+					if ( !RealtimeRenderTarget || RealtimeRenderTarget->SizeX != OutputTexture.FrameSize.X || RealtimeRenderTarget->SizeY != OutputTexture.FrameSize.Y )
 					{
-						RealtimeRenderTarget = NewObject<UTextureRenderTarget2D>();
+						if (RealtimeRenderTarget == nullptr)
+						{
+							RealtimeRenderTarget = NewObject<UTextureRenderTarget2D>();
+						}
+						RealtimeRenderTarget->ClearColor = FLinearColor::Transparent;
+						RealtimeRenderTarget->TargetGamma = 1.0f;
+						RealtimeRenderTarget->InitCustomFormat(OutputTexture.FrameSize.X, OutputTexture.FrameSize.Y, PF_FloatRGBA, false);
 					}
-					RealtimeRenderTarget->ClearColor = FLinearColor::Transparent;
-					RealtimeRenderTarget->TargetGamma = 1.0f;
-					RealtimeRenderTarget->InitCustomFormat(OutputTexture.FrameSize.X, OutputTexture.FrameSize.Y, PF_FloatRGBA, false);
+
+					// Seek to correct time and render
+					UNiagaraComponent* PreviewComponent = ViewModel->GetPreviewComponent();
+					PreviewComponent->SetSeekDelta(BakerSettings->GetSeekDelta());
+					PreviewComponent->SeekToDesiredAge(WorldTime);
+					PreviewComponent->TickComponent(BakerSettings->GetSeekDelta(), ELevelTick::LEVELTICK_All, nullptr);
+
+					BakerRenderer.RenderView(PreviewComponent, BakerSettings, WorldTime, RealtimeRenderTarget, PreviewTextureIndex);
+
+					const FVector2D HalfPixel(0.5f / float(OutputTexture.FrameSize.X), 0.5f / float(OutputTexture.FrameSize.Y));
+					Canvas->DrawTile(
+						PreviewViewRect.Min.X, PreviewViewRect.Min.Y, PreviewViewRect.Width(), PreviewViewRect.Height(),
+						HalfPixel.X, HalfPixel.Y, 1.0f - HalfPixel.X, 1.0f - HalfPixel.Y,
+						FLinearColor::White,
+						RealtimeRenderTarget->GetResource(),
+						bAlphaBlend ? SE_BLEND_AlphaComposite : SE_BLEND_Opaque
+					);
+
+					// Display info text
+					if (bShowInfoText)
+					{
+						Canvas->DrawShadowedString(TextPosition.X, TextPosition.Y, TEXT("Live Preview"), DisplayFont, FLinearColor::White);
+						TextPosition.Y += FontHeight;
+
+						Canvas->DrawShadowedString(TextPosition.X + 5.0f, TextPosition.Y, *FString::Printf(TEXT("Texture(%d) FrameSize(%d x %d)"), PreviewTextureIndex, OutputTexture.FrameSize.X, OutputTexture.FrameSize.Y), DisplayFont, FLinearColor::White);
+						TextPosition.Y += FontHeight;
+					}
 				}
-
-				// Seek to correct time and render
-				UNiagaraComponent* PreviewComponent = ViewModel->GetPreviewComponent();
-				PreviewComponent->SetSeekDelta(BakerSettings->GetSeekDelta());
-				PreviewComponent->SeekToDesiredAge(WorldTime);
-				PreviewComponent->TickComponent(BakerSettings->GetSeekDelta(), ELevelTick::LEVELTICK_All, nullptr);
-
-				BakerRenderer.RenderView(PreviewComponent, BakerSettings, WorldTime, RealtimeRenderTarget, PreviewTextureIndex);
-
-				const FVector2D HalfPixel(0.5f / float(OutputTexture.FrameSize.X), 0.5f / float(OutputTexture.FrameSize.Y));
-				Canvas->DrawTile(
-					PreviewViewRect.Min.X, PreviewViewRect.Min.Y, PreviewViewRect.Width(), PreviewViewRect.Height(),
-					HalfPixel.X, HalfPixel.Y, 1.0f - HalfPixel.X, 1.0f - HalfPixel.Y,
-					FLinearColor::White,
-					RealtimeRenderTarget->GetResource(),
-					bAlphaBlend ? SE_BLEND_AlphaComposite : SE_BLEND_Opaque
-				);
-
-				// Display info text
-				if (bShowInfoText)
+				else
 				{
 					Canvas->DrawShadowedString(TextPosition.X, TextPosition.Y, TEXT("Live Preview"), DisplayFont, FLinearColor::White);
 					TextPosition.Y += FontHeight;
 
-					Canvas->DrawShadowedString(TextPosition.X + 5.0f, TextPosition.Y, *FString::Printf(TEXT("Texture(%d) FrameSize(%d x %d)"), PreviewTextureIndex, OutputTexture.FrameSize.X, OutputTexture.FrameSize.Y), DisplayFont, FLinearColor::White);
-					TextPosition.Y += FontHeight;
+					Canvas->DrawShadowedString(TextPosition.X + 5.0f, TextPosition.Y, *FString::Printf(TEXT("Texture(%d) Is Invalid For Baking FrameSize(%d x %d)"), PreviewTextureIndex, OutputTexture.FrameSize.X, OutputTexture.FrameSize.Y), DisplayFont, FLinearColor::White);
 				}
 			}
 			else
