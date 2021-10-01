@@ -3474,7 +3474,7 @@ private:
 	bool bCustomVTableHelperConstructorDeclared = false;
 
 	/** True if the class definition has been parsed */
-	bool bParsed = false;
+	std::atomic<bool> bParsed = false;
 
 	/** True if the class has a custom constructor */
 	bool bCustomConstructor = false;
