@@ -665,7 +665,6 @@ public:
 	static TSharedPtrTS<FAdaptiveStreamingPlayerEventHandler> Create();
 
 	void DispatchEvent(TSharedPtrTS<FMetricEvent> InEvent);
-	void DispatchEventAndWait(TSharedPtrTS<FMetricEvent> InEvent);
 
 	virtual ~FAdaptiveStreamingPlayerEventHandler();
 private:
@@ -1546,7 +1545,6 @@ private:
 	void InternalDeselectStream(EStreamType StreamType);
 
 	void DispatchEvent(TSharedPtrTS<FMetricEvent> Event);
-	void DispatchEventAndWait(TSharedPtrTS<FMetricEvent> Event);
 	void DispatchBufferingEvent(bool bBegin, EPlayerState Reason);
 	void DispatchSegmentDownloadedEvent(TSharedPtrTS<IStreamSegment> Request);
 	void DispatchBufferUtilizationEvent(EStreamType BufferType);
