@@ -60,7 +60,7 @@ namespace Chaos
 		FConstraintContainerHandle* ConstraintHandle = Handles[ConstraintIndex];
 		if (ConstraintHandle != nullptr)
 		{
-			if (ConstraintEnabledStates[ConstraintIndex] && ConstrainedParticles[ConstraintIndex])
+			if (ConstrainedParticles[ConstraintIndex])
 			{				
 				ConstrainedParticles[ConstraintIndex]->RemoveConstraintHandle(ConstraintHandle);
 			}
