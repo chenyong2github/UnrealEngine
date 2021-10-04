@@ -16,9 +16,9 @@
 
 #include "ProxyLODThreadedWrappers.h"
 #include "ProxyLODVertexTypes.h"
+#include "ProxyLODOpenVDB.h"
 
 THIRD_PARTY_INCLUDES_START
-#include <openvdb/openvdb.h>
 #include <vector>
 THIRD_PARTY_INCLUDES_END
 

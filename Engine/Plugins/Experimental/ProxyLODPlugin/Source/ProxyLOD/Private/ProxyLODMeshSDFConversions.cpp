@@ -2,16 +2,9 @@
 
 #include "ProxyLODMeshSDFConversions.h"
 #include "ProxyLODMeshConvertUtils.h"
+#include "ProxyLODOpenVDB.h"
 
 #include "CoreMinimal.h"
-
-THIRD_PARTY_INCLUDES_START
-#pragma warning(push)
-#pragma warning(disable: 4146)
-#include <openvdb/tools/MeshToVolume.h> // for MeshToVolume
-#include <openvdb/tools/Composite.h> // for csgUnion
-#pragma warning(pop)
-THIRD_PARTY_INCLUDES_END
 
 //#include <exception>
 

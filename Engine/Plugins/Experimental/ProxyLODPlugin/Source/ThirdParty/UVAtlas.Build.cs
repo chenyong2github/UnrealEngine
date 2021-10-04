@@ -25,7 +25,7 @@ public class UVAtlas : ModuleRules
 
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
-            string UVAtlasHeaderDir = ModuleDirectory + "/UVAtlasCode/UVAtlas";
+            string UVAtlasHeaderDir = ModuleDirectory + "/UVAtlasCode/UVAtlas/inc";
 
 
             if (bDebugPaths)

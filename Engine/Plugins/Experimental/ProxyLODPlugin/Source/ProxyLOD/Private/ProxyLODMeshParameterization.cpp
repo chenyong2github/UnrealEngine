@@ -4,8 +4,8 @@
 #include "CoreMinimal.h"
 
 THIRD_PARTY_INCLUDES_START
-#include <UVAtlasCode/UVAtlas/inc/UVAtlas.h>
-#include <DirectXMeshCode/DirectXMesh/DirectXMesh.h>
+#include <UVAtlas.h>
+#include <DirectXMesh/DirectXMesh.h>
 THIRD_PARTY_INCLUDES_END
 
 

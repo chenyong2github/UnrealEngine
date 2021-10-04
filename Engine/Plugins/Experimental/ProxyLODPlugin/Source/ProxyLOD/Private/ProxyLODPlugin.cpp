@@ -14,12 +14,6 @@
 #include "Trace/Trace.h"
 #include "HAL/RunnableThread.h"
 
-//#include "ScopedTimers.h"
-THIRD_PARTY_INCLUDES_START
-#include <openvdb/openvdb.h>
-#include <openvdb/tools/Interpolation.h> // for grid sampler
-THIRD_PARTY_INCLUDES_END
-
 #define PROXYLOD_CLOCKWISE_TRIANGLES  1
 
 #define LOCTEXT_NAMESPACE "ProxyLODMeshReduction"
@@ -36,6 +30,7 @@ THIRD_PARTY_INCLUDES_END
 #include "ProxyLODRasterizer.h"
 #include "ProxyLODSimplifier.h"
 
+#include "ProxyLODOpenVDB.h"
 
 #include "ProxyLODkDOPInterface.h"
 #include "ProxyLODThreadedWrappers.h"
