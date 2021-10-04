@@ -112,6 +112,84 @@ struct FStructureDetailsViewArgs
 	bool bShowInterfaces : 1;
 };
 
+/** 
+ * A property section is a group of categories with a name, eg. "Rendering" might contain "Materials" and "Lighting".
+ * Categories may belong to zero or more sections. 
+ */
+class FPropertySection
+{
+public:
+
+	/**
+	 * @param InName		The internal name of this section.
+	 * @param InDisplayName	The localizable display name to show to the user.
+	 */
+	FPropertySection(FName InName, FText InDisplayName) : 
+		Name(InName),
+		DisplayName(InDisplayName)
+	{
+	}
+
+	FPropertySection(const FPropertySection&) = default;
+	virtual ~FPropertySection() = default;
+
+	/** Add a category to this section. */
+	virtual void AddCategory(FName CategoryName);
+
+	/** Does this section contain the given category. */
+	virtual bool ContainsCategory(FName CategoryName) const;
+
+	/** Get the internal name of this property section. */
+	virtual FName GetName() const { return Name; }
+
+	/** Get the display name of this section. */
+	virtual FText GetDisplayName() const { return DisplayName; }
+
+private:
+
+	/** The internal name to use for this section. */
+	FName Name;
+
+	/** The display name to use for this section. */
+	FText DisplayName;
+	
+	/** A mapping of category to the sections that it should be added to. */
+	TSet<FName> Categories;
+};
+
+/** A mapping of categories to section names for a given class. */
+class FClassSectionMapping
+{
+public:
+	FClassSectionMapping() = default;
+	FClassSectionMapping(const FClassSectionMapping&) = default;
+
+	/**
+	 * Find or add a section of the given name.
+	 */
+	TSharedPtr<FPropertySection> FindSection(FName SectionName) const;
+
+	/**
+	 * Find or add a section of the given name.
+	 */
+	TSharedRef<FPropertySection> FindOrAddSection(FName SectionName, FText DisplayName);
+
+	/** 
+	 * Get the sections that the given category belongs to and append them to OutSections. 
+	 * @param CategoryName	The category name to search for.
+	 * @param OutSections	The array to append any found sections. The array will not be cleared.
+	 * @return				true if any sections were found, false otherwise.
+	 */
+	bool GetSectionsForCategory(FName CategoryName, TArray<TSharedPtr<FPropertySection>>& OutSections) const;
+
+private:
+
+	friend class FPropertyEditorModule;
+
+	/** The sections defined for this class. */
+	TMap<FName, TSharedPtr<FPropertySection>> DefinedSections;
+};
+
 
 class FPropertyEditorModule : public IModuleInterface
 {
@@ -193,19 +271,28 @@ public:
 	virtual void UnregisterCustomPropertyTypeLayout( FName PropertyTypeName, TSharedPtr<IPropertyTypeIdentifier> InIdentifier = nullptr);
 
 	/**
-	 * Register a section mapping for a class.
+	 * Find an existing section or create a section for a class.
 	 * 
 	 * @param ClassName		The class to add a section mapping for.
-	 * @param SectionName	The section to add a category to.
-	 * @param CategoryName	The category to add.
+	 * @param SectionName	The section to find or create.
+	 * @param DisplayName	The display name to use for the section. If the section already exists for this class, the display name will not be replaced.
+	 * @return				A new section, or the existing one. 
 	 */
-	virtual void RegisterSectionMapping(FName ClassName, FName SectionName, FName CategoryName);
+	virtual TSharedRef<FPropertySection> FindOrCreateSection(FName ClassName, FName SectionName, FText DisplayName);
 
-	/** Find the section that the given category in the given struct should be a part of. */
-	virtual FName FindSectionForCategory(const UStruct* Struct, FName CategoryName) const;
+	/** 
+	 * Find the section that the given category in the given struct should be a part of. 
+	 * @param Struct		The struct to start searching from. Note: all super-structs of the given struct will also be searched.
+	 * @param CategoryName	The category to search for.
+	 */
+	virtual TArray<TSharedPtr<FPropertySection>> FindSectionsForCategory(const UStruct* Struct, FName CategoryName) const;
 
-	/** Get all registered sections for the given struct (including the default section). */
-	virtual void GetAllSections(const UStruct* Struct, TSet<FName>& OutSectionNames) const;
+	/** 
+	 * Get all registered sections for the given struct (including the default section). 
+	 * @param Struct		The struct to fetch sections for.
+	 * @param OutSections	Sections will be appended to this parameter. The array will not be cleared beforehand.
+	 */
+	virtual void GetAllSections(const UStruct* Struct, TArray<TSharedPtr<FPropertySection>>& OutSections) const;
 
 	/**
 	 * Customization modules should call this when that module has been unloaded, loaded, etc...
@@ -316,8 +403,8 @@ private:
 
 	TSharedPtr<FAssetThumbnailPool> GetThumbnailPool();
 
-	void GetAllSectionsHelper(const UStruct* Struct, TSet<const UStruct*>& ProcessedStructs, TSet<FName>& OutSectionNames) const;
-	FName FindSectionForCategoryHelper(const UStruct* Struct, FName CategoryName, TSet<const UStruct*>& SearchedStructs) const;
+	void GetAllSectionsHelper(const UStruct* Struct, TArray<TSharedPtr<FPropertySection>>& OutSections, TSet<const UStruct*>& ProcessedStructs) const;
+	void FindSectionsForCategoryHelper(const UStruct* Struct, FName CategoryName, TArray<TSharedPtr<FPropertySection>>& OutSections, TSet<const UStruct*>& SearchedStructs) const;
 
 private:
 	/** All created detail views */
@@ -328,16 +415,8 @@ private:
 	FCustomDetailLayoutNameMap ClassNameToDetailLayoutNameMap;
 	/** A mapping of property names to property type layout delegates, called when querying for custom property layouts */
 	FCustomPropertyTypeLayoutMap GlobalPropertyTypeToLayoutMap;
-
-	/** A mapping of categories to section names for a given class. */
-	struct FClassSectionMapping
-	{
-		/** A mapping of category to the section that it should be added to. */
-		TMap<FName, FName> CategoryToSectionMap;
-	};
-
 	/** A mapping of class names to section mappings. */
-	TMap<FName, FClassSectionMapping> ClassSectionMappings;
+	TMap<FName, TSharedPtr<FClassSectionMapping>> ClassSectionMappings;
 	/** Event to be called when a property editor is opened */
 	FPropertyEditorOpenedEvent PropertyEditorOpened;
 	/** Mapping of registered floating UStructs to their struct proxy so they show correctly in the details panel */
