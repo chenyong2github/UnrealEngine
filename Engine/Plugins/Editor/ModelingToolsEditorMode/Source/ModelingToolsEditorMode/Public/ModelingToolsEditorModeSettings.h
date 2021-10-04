@@ -143,11 +143,11 @@ struct FModelingModeCustomSectionColor
 
 	/** Name of Section in Modeling Mode Tool Palette */
 	UPROPERTY(EditAnywhere, Category = "SectionColor")
-	FString SectionName;
+	FString SectionName = TEXT("");
 
 	/** Custom Header Color */
 	UPROPERTY(EditAnywhere, Category = "SectionColor")
-	FLinearColor Color;
+	FLinearColor Color = FLinearColor::Gray;
 };
 
 
