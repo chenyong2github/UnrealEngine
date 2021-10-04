@@ -53,7 +53,7 @@ void UMassUpdateISMProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMa
 			const TArrayView<FMassRepresentationFragment> RepresentationList = Context.GetMutableComponentView<FMassRepresentationFragment>();
 			const TConstArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetComponentView<FMassRepresentationLODFragment>();
 
-			const int32 NumEntities = Context.GetEntitiesNum();
+			const int32 NumEntities = Context.GetNumEntities();
 			for (int32 EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
 			{
 				const FDataFragment_Transform& TransformFragment = TransformList[EntityIdx];

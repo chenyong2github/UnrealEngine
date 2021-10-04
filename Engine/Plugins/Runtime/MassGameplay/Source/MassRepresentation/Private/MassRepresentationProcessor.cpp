@@ -66,7 +66,7 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 	const TConstArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetComponentView<FMassRepresentationLODFragment>();
 	const TArrayView<FDataFragment_Actor> ActorList = Context.GetMutableComponentView<FDataFragment_Actor>();
 
-	const int32 NumEntities = Context.GetEntitiesNum();
+	const int32 NumEntities = Context.GetNumEntities();
 	for (int32 EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
 	{
 		const FMassEntityHandle MassAgent = Context.GetEntity(EntityIdx);
@@ -332,7 +332,7 @@ void UMassRepresentationProcessor::UpdateVisualization(FMassExecutionContext& Co
 	const TArrayView<FMassRepresentationFragment> RepresentationList = Context.GetMutableComponentView<FMassRepresentationFragment>();
 	const TConstArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetComponentView<FMassRepresentationLODFragment>();
 
-	const int32 NumEntities = Context.GetEntitiesNum();
+	const int32 NumEntities = Context.GetNumEntities();
 	for (int32 EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
 	{
 		const FMassEntityHandle Entity = Context.GetEntity(EntityIdx);
@@ -477,7 +477,7 @@ void UMassRepresentationFragmentDestructor::Execute(UMassEntitySubsystem& Entity
 		const TArrayView<FMassRepresentationFragment> RepresentationList = Context.GetMutableComponentView<FMassRepresentationFragment>();
 		const TArrayView<FDataFragment_Actor> ActorList = Context.GetMutableComponentView<FDataFragment_Actor>();
 
-		const int32 NumEntities = Context.GetEntitiesNum();
+		const int32 NumEntities = Context.GetNumEntities();
 		for (int32 i = 0; i < NumEntities; ++i)
 		{
 			FMassRepresentationFragment& Representation = RepresentationList[i];

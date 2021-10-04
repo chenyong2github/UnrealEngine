@@ -46,7 +46,7 @@ void UMassCrowdRepresentationProcessor::InitializeVelocity(UMassEntitySubsystem&
 			const TConstArrayView<FMassVelocityFragment> VelocityList = Context.GetComponentView<FMassVelocityFragment>();
 			const TArrayView<FDataFragment_CharacterMovementComponentWrapper> CharMoveWrapperList = Context.GetMutableComponentView<FDataFragment_CharacterMovementComponentWrapper>();
 
-			const int32 NumEntities = Context.GetEntitiesNum();
+			const int32 NumEntities = Context.GetNumEntities();
 			for (int32 EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
 			{
 				const FMassRepresentationFragment& Visualization = VisualizationList[EntityIdx];

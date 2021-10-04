@@ -84,7 +84,7 @@ struct FQueryTest_FragmentViewBinding : FEntityTestBase
 				{
 					TArrayView<FTestFragment_Float> Floats = Context.GetMutableComponentView<FTestFragment_Float>();
 
-					for (int32 i = 0; i < Context.GetEntitiesNum(); ++i)
+					for (int32 i = 0; i < Context.GetNumEntities(); ++i)
 					{
 						Floats[i].Value = 13.f;
 					}
@@ -117,10 +117,10 @@ struct FQueryTest_ExecuteSingleArchetype : FEntityTestBase
 		FMassEntityQuery Query({ FTestFragment_Float::StaticStruct() });
 		Query.ForEachEntityChunk(*EntitySubsystem, ExecContext, [&TotalProcessed](FMassExecutionContext& Context)
 			{
-				TotalProcessed += Context.GetEntitiesNum();
+				TotalProcessed += Context.GetNumEntities();
 				TArrayView<FTestFragment_Float> Floats = Context.GetMutableComponentView<FTestFragment_Float>();
 				
-				for (int32 i = 0; i < Context.GetEntitiesNum(); ++i)
+				for (int32 i = 0; i < Context.GetNumEntities(); ++i)
 				{
 					Floats[i].Value = 13.f;
 				}
@@ -161,10 +161,10 @@ struct FQueryTest_ExecuteMultipleArchetypes : FEntityTestBase
 		FMassEntityQuery Query({ FTestFragment_Float::StaticStruct() });
 		Query.ForEachEntityChunk(*EntitySubsystem, ExecContext, [&TotalProcessed](FMassExecutionContext& Context)
 			{
-				TotalProcessed += Context.GetEntitiesNum();
+				TotalProcessed += Context.GetNumEntities();
 				TArrayView<FTestFragment_Float> Floats = Context.GetMutableComponentView<FTestFragment_Float>();
 
-				for (int32 i = 0; i < Context.GetEntitiesNum(); ++i)
+				for (int32 i = 0; i < Context.GetNumEntities(); ++i)
 				{
 					Floats[i].Value = 13.f;
 				}
@@ -217,10 +217,10 @@ struct FQueryTest_ExecuteSparse : FEntityTestBase
 		FMassEntityQuery().AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadWrite)
 			.ForEachEntityChunk(FArchetypeChunkCollection(FloatsArchetype, EntitiesToProcess), *EntitySubsystem, ExecContext, [&TotalProcessed](FMassExecutionContext& Context)
 			{
-				TotalProcessed += Context.GetEntitiesNum();
+				TotalProcessed += Context.GetNumEntities();
 				TArrayView<FTestFragment_Float> Floats = Context.GetMutableComponentView<FTestFragment_Float>();
 
-				for (int32 i = 0; i < Context.GetEntitiesNum(); ++i)
+				for (int32 i = 0; i < Context.GetNumEntities(); ++i)
 				{
 					Floats[i].Value = 13.f;
 				}

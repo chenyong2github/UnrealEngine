@@ -126,7 +126,7 @@ void UMassProcessor_Movement::Execute(UMassEntitySubsystem& EntitySubsystem, FMa
 
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, TimeDelta](FMassExecutionContext& Context)
 		{
-			const int32 NumEntities = Context.GetEntitiesNum();
+			const int32 NumEntities = Context.GetNumEntities();
 			const TArrayView<FDataFragment_Transform> LocationList = Context.GetMutableComponentView<FDataFragment_Transform>();
 			const TArrayView<FMassVelocityFragment> VelocityList = Context.GetMutableComponentView<FMassVelocityFragment>();
 			for (int32 i = 0; i < NumEntities; ++i)
@@ -186,7 +186,7 @@ void UMassAvoidanceObstacleRemoverFragmentDestructor::Execute(UMassEntitySubsyst
 
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, MovementSubsystem](FMassExecutionContext& Context)
 		{
-			const int32 NumEntities = Context.GetEntitiesNum();
+			const int32 NumEntities = Context.GetNumEntities();
 			const TArrayView<FMassAvoidanceObstacleGridCellLocationFragment> AvoidanceObstacleCellLocationList = Context.GetMutableComponentView<FMassAvoidanceObstacleGridCellLocationFragment>();
 
 			for (int32 i = 0; i < NumEntities; ++i)

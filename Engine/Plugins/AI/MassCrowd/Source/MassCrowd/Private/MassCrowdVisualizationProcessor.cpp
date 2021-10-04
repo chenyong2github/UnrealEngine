@@ -57,7 +57,7 @@ void UMassCrowdVisualizationProcessor::Execute(UMassEntitySubsystem& EntitySubsy
 			const TConstArrayView<FDataFragment_Actor> ActorList = Context.GetComponentView<FDataFragment_Actor>();
 			const TConstArrayView<FDataFragment_Transform> EntityLocationList = Context.GetComponentView<FDataFragment_Transform>();
 
-			const int32 NumEntities = Context.GetEntitiesNum();
+			const int32 NumEntities = Context.GetNumEntities();
 			for (int EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
 			{
 				const FDataFragment_Transform& EntityLocation = EntityLocationList[EntityIdx];

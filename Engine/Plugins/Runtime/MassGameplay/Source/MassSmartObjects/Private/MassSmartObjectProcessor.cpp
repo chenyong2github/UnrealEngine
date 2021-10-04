@@ -95,7 +95,7 @@ void UMassProcessor_SmartObjectCandidatesFinder::Execute(UMassEntitySubsystem& E
 	{
 		const FSmartObjectOctree& Octree = SmartObjectSubsystem->GetOctree();
 
-		const int32 NumEntities = Context.GetEntitiesNum();
+		const int32 NumEntities = Context.GetNumEntities();
 		EntitiesToSignal.Reserve(EntitiesToSignal.Num() + NumEntities);
 
 		const TConstArrayView<FMassSmartObjectWorldLocationRequestFragment> RequestList = Context.GetComponentView<FMassSmartObjectWorldLocationRequestFragment>();
@@ -154,7 +154,7 @@ void UMassProcessor_SmartObjectCandidatesFinder::Execute(UMassEntitySubsystem& E
 	{
 		LaneRequestQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, SmartObjectBehavior, &Filter, SmartObjectTag, &EntitiesToSignal, &BeginRequestProcessing, &EndRequestProcessing](FMassExecutionContext& Context)
 		{
-			const int32 NumEntities = Context.GetEntitiesNum();
+			const int32 NumEntities = Context.GetNumEntities();
 			EntitiesToSignal.Reserve(EntitiesToSignal.Num() + NumEntities);
 
 			TConstArrayView<FMassSmartObjectLaneLocationRequestFragment> RequestList = Context.GetComponentView<FMassSmartObjectLaneLocationRequestFragment>();
@@ -289,7 +289,7 @@ void UMassProcessor_SmartObjectTimedBehavior::Execute(UMassEntitySubsystem& Enti
 
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, &ToRelease](FMassExecutionContext& Context)
 	{
-		const int32 NumEntities = Context.GetEntitiesNum();
+		const int32 NumEntities = Context.GetNumEntities();
 		const TArrayView<FDataFragment_SmartObjectUser> UserList = Context.GetMutableComponentView<FDataFragment_SmartObjectUser>();
 
 		for (int32 i = 0; i < NumEntities; ++i)

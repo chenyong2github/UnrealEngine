@@ -95,7 +95,7 @@ void UMassReplicationProcessorBase::CalculateClientReplication(FMassExecutionCon
 	check(LODManager);
 	check(World);
 
-	const int32 NumEntities = Context.GetEntitiesNum();
+	const int32 NumEntities = Context.GetNumEntities();
 
 	TConstArrayView<FMassNetworkIDFragment> NetworkIDList = Context.GetComponentView<FMassNetworkIDFragment>();
 	TArrayView<FMassReplicationViewerLODFragment> ViewerLODList = Context.GetMutableComponentView<FMassReplicationViewerLODFragment>();

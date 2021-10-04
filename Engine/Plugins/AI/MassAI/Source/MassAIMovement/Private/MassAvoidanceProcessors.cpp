@@ -495,7 +495,7 @@ void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMa
 
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [=, &EntitySubsystem](FMassExecutionContext& Ctx)
 	{
-		const int32 NumEntities = Ctx.GetEntitiesNum();
+		const int32 NumEntities = Ctx.GetNumEntities();
 		const float DistanceCutOffSquare = FMath::Square(UE::MassAvoidance::Tweakables::AgentDetectionDistance);
 
 		const TArrayView<FMassSteeringFragment> SteeringList = Ctx.GetMutableComponentView<FMassSteeringFragment>();
@@ -1178,7 +1178,7 @@ void UMassStandingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 	// Avoidance while standing
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [&EntitySubsystem, MovementSubsystem, World](FMassExecutionContext& Context)
 	{
-		const int32 NumEntities = Context.GetEntitiesNum();
+		const int32 NumEntities = Context.GetNumEntities();
 		const float DeltaTime = Context.GetDeltaTimeSeconds();
 		const float DistanceCutOffSquare = FMath::Square(UE::MassAvoidance::Tweakables::AgentDetectionDistance);
 
@@ -1436,7 +1436,7 @@ void UMassAvoidanceObstacleProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 	// can't be ParallelFor due to MovementSubsystem->GetGridMutable().Move not being thread-safe
 	AddToGridEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, MovementSubsystem, &EntitySubsystem](FMassExecutionContext& Context)
 		{
-			const int32 NumEntities = Context.GetEntitiesNum();
+			const int32 NumEntities = Context.GetNumEntities();
 
 			TConstArrayView<FDataFragment_Transform> LocationList = Context.GetComponentView<FDataFragment_Transform>();
 			TConstArrayView<FDataFragment_AgentRadius> RadiiList = Context.GetComponentView<FDataFragment_AgentRadius>();
@@ -1466,7 +1466,7 @@ void UMassAvoidanceObstacleProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 
 	UpdateGridEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, MovementSubsystem, &EntitySubsystem](FMassExecutionContext& Context)
 		{
-			const int32 NumEntities = Context.GetEntitiesNum();
+			const int32 NumEntities = Context.GetNumEntities();
 
 			TConstArrayView<FDataFragment_Transform> LocationList = Context.GetComponentView<FDataFragment_Transform>();
 			TConstArrayView<FDataFragment_AgentRadius> RadiiList = Context.GetComponentView<FDataFragment_AgentRadius>();
@@ -1502,7 +1502,7 @@ void UMassAvoidanceObstacleProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 
 	RemoveFromGridEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, MovementSubsystem](FMassExecutionContext& Context)
 	{
-		const int32 NumEntities = Context.GetEntitiesNum();
+		const int32 NumEntities = Context.GetNumEntities();
 
 		TArrayView<FMassAvoidanceObstacleGridCellLocationFragment> AvoidanceObstacleCellLocationList = Context.GetMutableComponentView<FMassAvoidanceObstacleGridCellLocationFragment>();
 		for (int32 EntityIndex = 0; EntityIndex < NumEntities; ++EntityIndex)
@@ -1566,7 +1566,7 @@ void UMassNavigationBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsy
 
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, NavData](FMassExecutionContext& Context)
 		{
-			const int32 NumEntities = Context.GetEntitiesNum();
+			const int32 NumEntities = Context.GetNumEntities();
 			TConstArrayView<FDataFragment_Transform> LocationList = Context.GetComponentView<FDataFragment_Transform>();
 			TConstArrayView<FDataFragment_NavLocation> NavLocationList = Context.GetComponentView<FDataFragment_NavLocation>();
 			TConstArrayView<FMassEdgeDetectionParamsFragment> EdgeDetectionParamsList = Context.GetComponentView<FMassEdgeDetectionParamsFragment>();
@@ -1648,7 +1648,7 @@ void UMassLaneBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, 
 
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, World, ZoneGraphSubsystem](FMassExecutionContext& Context)
 		{
-			const int32 NumEntities = Context.GetEntitiesNum();
+			const int32 NumEntities = Context.GetNumEntities();
 
 			TConstArrayView<FDataFragment_Transform> LocationList = Context.GetComponentView<FDataFragment_Transform>();
 			TArrayView<FMassNavigationEdgesFragment> EdgesList = Context.GetMutableComponentView<FMassNavigationEdgesFragment>();
@@ -1918,7 +1918,7 @@ void UMassLaneCacheBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, World](FMassExecutionContext& Context)
 	{
-		const int32 NumEntities = Context.GetEntitiesNum();
+		const int32 NumEntities = Context.GetNumEntities();
 
 		TConstArrayView<FMassZoneGraphCachedLaneFragment> CachedLaneList = Context.GetComponentView<FMassZoneGraphCachedLaneFragment>();
 		TConstArrayView<FMassZoneGraphLaneLocationFragment> LaneLocationList = Context.GetComponentView<FMassZoneGraphLaneLocationFragment>();

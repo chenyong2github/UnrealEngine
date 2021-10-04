@@ -73,7 +73,7 @@ template <typename FLODLogic>
 template< typename FMassTransform, typename FMassLODSourceInfo >
 void TMassLODCollector<FLODLogic>::CollectLODInfo(FMassExecutionContext& Context, TConstArrayView<FMassTransform> LocationList, TArrayView<FMassLODSourceInfo> ViewersInfoList)
 {
-	const int32 NumEntities = Context.GetEntitiesNum();
+	const int32 NumEntities = Context.GetNumEntities();
 	for (int EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
 	{
 		const FMassTransform& EntityLocation = LocationList[EntityIdx];

@@ -25,7 +25,7 @@ int32 SimpleProcessorRun(UMassEntitySubsystem& EntitySubsystem)
 		check(Processor);
 		Processor->TestGetQuery().ForEachEntityChunk(InEntitySubsystem, Context, [Processor, &EntityProcessedCount](FMassExecutionContext& Context)
 			{
-				EntityProcessedCount += Context.GetEntitiesNum();
+				EntityProcessedCount += Context.GetNumEntities();
 			});
 	};
 

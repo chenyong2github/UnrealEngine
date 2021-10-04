@@ -127,7 +127,7 @@ bool TMassLODTickRateController<FVariableTickChunkFragment, FLODLogic>::UpdateTi
 
 	if (bWasChunkTicked)
 	{
-		const int32 NumEntities = Context.GetEntitiesNum();
+		const int32 NumEntities = Context.GetNumEntities();
 		for (int32 Index = 0; Index < NumEntities; ++Index)
 		{
 			FMassLODResultInfo& EntityLOD = LODList[Index];

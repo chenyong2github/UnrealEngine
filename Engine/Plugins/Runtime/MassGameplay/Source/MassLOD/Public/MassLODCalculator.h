@@ -270,7 +270,7 @@ void TMassLODCalculator<FLODLogic>::CalculateLOD(FMassExecutionContext& Context,
 	}
 #endif // WITH_MASSGAMEPLAY_DEBUG
 
-	const int32 NumEntities = Context.GetEntitiesNum();
+	const int32 NumEntities = Context.GetNumEntities();
 	for (int EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
 	{
 		// Calculate the LOD purely upon distances
@@ -447,7 +447,7 @@ template <typename FLODLogic>
 template< typename FMassLODResultInfo, typename FMassLODSourceInfo >
 void TMassLODCalculator<FLODLogic>::AdjustLODFromCount(FMassExecutionContext& Context, TArrayView<FMassLODResultInfo> LODList, TConstArrayView<FMassLODSourceInfo> ViewersInfoList)
 {
-	const int32 NumEntities = Context.GetEntitiesNum();
+	const int32 NumEntities = Context.GetNumEntities();
 	// Adjust LOD for each viewer and remember the new highest
 	for (int EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
 	{
@@ -518,7 +518,7 @@ template <typename FLODLogic>
 template <typename FMassLODResultInfo>
 void TMassLODCalculator<FLODLogic>::ForceOffLOD(FMassExecutionContext& Context, TArrayView<FMassLODResultInfo> LODList)
 {
-	const int32 NumEntities = Context.GetEntitiesNum();
+	const int32 NumEntities = Context.GetNumEntities();
 	for (int EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
 	{
 		FMassLODResultInfo& EntityLOD = LODList[EntityIdx];
@@ -539,7 +539,7 @@ template <typename FLODLogic>
 template< typename FMassLODResultInfo, typename TFragmentLocation >
 void TMassLODCalculator<FLODLogic>::DebugDisplayLOD(FMassExecutionContext& Context, TConstArrayView<FMassLODResultInfo> LODList, TConstArrayView<TFragmentLocation> LocationList, UWorld* World)
 {
-	const int32 NumEntities = Context.GetEntitiesNum();
+	const int32 NumEntities = Context.GetNumEntities();
 	for (int EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
 	{
 		const TFragmentLocation& EntityLocation = LocationList[EntityIdx];

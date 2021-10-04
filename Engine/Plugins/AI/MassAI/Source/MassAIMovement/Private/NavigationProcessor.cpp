@@ -112,7 +112,7 @@ void UMassApplyVelocityMoveTargetProcessor::Execute(UMassEntitySubsystem& Entity
 
 		HighResEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, Settings, TimeDelta](FMassExecutionContext& Context)
 		{
-			const int32 NumEntities = Context.GetEntitiesNum();
+			const int32 NumEntities = Context.GetNumEntities();
 			constexpr float ZDamperHalfLife = 0.2f;
 
 			const float OrientationEndOfPathHeadingAnticipation = FMath::Max(KINDA_SMALL_NUMBER, Settings->OrientationEndOfPathHeadingAnticipation);
@@ -205,7 +205,7 @@ void UMassApplyVelocityMoveTargetProcessor::Execute(UMassEntitySubsystem& Entity
 
 		LowResEntityQuery_Conditional.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 			{
-				const int32 NumEntities = Context.GetEntitiesNum();
+				const int32 NumEntities = Context.GetNumEntities();
 
 				const TArrayView<FDataFragment_Transform> LocationList = Context.GetMutableComponentView<FDataFragment_Transform>();
 				const TConstArrayView<FMassMoveTargetFragment> MoveTargetList = Context.GetComponentView<FMassMoveTargetFragment>();
@@ -245,7 +245,7 @@ void UMassDynamicObstacleProcessor::Execute(UMassEntitySubsystem& EntitySubsyste
 {
 	EntityQuery_Conditional.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 		{
-			const int32 NumEntities = Context.GetEntitiesNum();
+			const int32 NumEntities = Context.GetNumEntities();
 
 			const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetComponentView<FDataFragment_Transform>();
 			const TConstArrayView<FDataFragment_AgentRadius> RadiusList = Context.GetComponentView<FDataFragment_AgentRadius>();

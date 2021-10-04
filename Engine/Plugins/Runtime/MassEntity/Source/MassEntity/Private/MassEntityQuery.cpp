@@ -145,7 +145,7 @@ void FMassEntityQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem,
 		ExecutionContext.SetRequirements(Requirements, ChunkRequirements);
 		ExecutionContext.GetChunkCollection().GetArchetype().DataPtr->ExecuteFunction(ExecutionContext, ExecuteFunction, {}, ExecutionContext.GetChunkCollection());
 #if WITH_MASSENTITY_DEBUG
-		NumEntitiesToProcess = ExecutionContext.GetChunkCollection().GetArchetype().DataPtr->GetNumEntities();
+		NumEntitiesToProcess = ExecutionContext.GetNumEntities();
 #endif
 	}
 	else
@@ -161,7 +161,7 @@ void FMassEntityQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem,
 			Archetype.DataPtr->ExecuteFunction(ExecutionContext, ExecuteFunction, ArchetypeComponentMapping[i], ChunkCondition);
 			ExecutionContext.ClearComponentViews();
 #if WITH_MASSENTITY_DEBUG
-			NumEntitiesToProcess += Archetype.DataPtr->GetNumEntities();
+			NumEntitiesToProcess += ExecutionContext.GetNumEntities();
 #endif
 		}
 	}
@@ -242,7 +242,7 @@ void FMassEntityQuery::ParallelForEachEntityChunk(UMassEntitySubsystem& EntitySu
 	ExecutionContext.FlushDeferred(EntitySubsystem);
 }
 
-int32 FMassEntityQuery::GetMatchingEntitiesNum(UMassEntitySubsystem& InEntitySubsystem)
+int32 FMassEntityQuery::GetNumMatchingEntities(UMassEntitySubsystem& InEntitySubsystem)
 {
 	CacheArchetypes(InEntitySubsystem);
 	int32 TotalEntities = 0;

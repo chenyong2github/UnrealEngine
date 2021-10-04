@@ -39,7 +39,7 @@ void UDebugVisLocationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, 
 	{
 		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, &VisualDataISMCs](const FMassExecutionContext& Context)
 		{
-			const int32 NumEntities = Context.GetEntitiesNum();
+			const int32 NumEntities = Context.GetNumEntities();
 			const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetComponentView<FDataFragment_Transform>();
 			const TConstArrayView<FSimDebugVisComponent> DebugVisList = Context.GetComponentView<FSimDebugVisComponent>();
 
@@ -104,7 +104,7 @@ void UMassProcessor_UpdateDebugVis::Execute(UMassEntitySubsystem& EntitySubsyste
 
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, Debugger](FMassExecutionContext& Context)
 		{
-			const int32 NumEntities = Context.GetEntitiesNum();
+			const int32 NumEntities = Context.GetNumEntities();
 			const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetComponentView<FDataFragment_Transform>();
 			const TArrayView<FDataFragment_DebugVis> DebugVisList = Context.GetMutableComponentView<FDataFragment_DebugVis>();
 			const TArrayView<FDataFragment_AgentRadius> RadiiList = Context.GetMutableComponentView<FDataFragment_AgentRadius>();

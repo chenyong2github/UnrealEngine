@@ -36,7 +36,7 @@ void UMassCharacterMovementToMassTranslator::Execute(UMassEntitySubsystem& Entit
 		const TArrayView<FDataFragment_Transform> LocationList = Context.GetMutableComponentView<FDataFragment_Transform>();
 		const TArrayView<FMassVelocityFragment> VelocityList = Context.GetMutableComponentView<FMassVelocityFragment>();
 
-		const int32 NumEntities = Context.GetEntitiesNum();
+		const int32 NumEntities = Context.GetNumEntities();
 		
 		for (int32 i = 0; i < NumEntities; ++i)
 		{
@@ -75,7 +75,7 @@ void UMassCharacterMovementToActorTranslator::Execute(UMassEntitySubsystem& Enti
 		const TArrayView<FDataFragment_CharacterMovementComponentWrapper> ComponentList = Context.GetMutableComponentView<FDataFragment_CharacterMovementComponentWrapper>();
 		const TConstArrayView<FMassVelocityFragment> VelocityList = Context.GetComponentView<FMassVelocityFragment>();
 		
-		const int32 NumEntities = Context.GetEntitiesNum();
+		const int32 NumEntities = Context.GetNumEntities();
 
 		for (int32 i = 0; i < NumEntities; ++i)
 		{
@@ -111,7 +111,7 @@ void UMassCharacterOrientationToMassTranslator::Execute(UMassEntitySubsystem& En
 		const TConstArrayView<FDataFragment_CharacterMovementComponentWrapper> ComponentList = Context.GetComponentView<FDataFragment_CharacterMovementComponentWrapper>();
 		const TArrayView<FDataFragment_Transform> LocationList = Context.GetMutableComponentView<FDataFragment_Transform>();
 
-		const int32 NumEntities = Context.GetEntitiesNum();
+		const int32 NumEntities = Context.GetNumEntities();
 		
 		for (int32 i = 0; i < NumEntities; ++i)
 		{
@@ -151,7 +151,7 @@ void UMassCharacterOrientationToActorTranslator::Execute(UMassEntitySubsystem& E
 		const TArrayView<FDataFragment_CharacterMovementComponentWrapper> ComponentList = Context.GetMutableComponentView<FDataFragment_CharacterMovementComponentWrapper>();
 		const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetComponentView<FDataFragment_Transform>();
 		
-		const int32 NumEntities = Context.GetEntitiesNum();
+		const int32 NumEntities = Context.GetNumEntities();
 
 		for (int32 i = 0; i < NumEntities; ++i)
 		{
@@ -186,7 +186,7 @@ void UMassFragmentInitializer_NavLocation::Execute(UMassEntitySubsystem& EntityS
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 		{
 			const TArrayView<FDataFragment_NavLocation> NavLocationList = Context.GetMutableComponentView<FDataFragment_NavLocation>();
-			const int32 NumEntities = Context.GetEntitiesNum();
+			const int32 NumEntities = Context.GetNumEntities();
 			for (int32 i = 0; i < NumEntities; ++i)
 			{
 				NavLocationList[i].NodeRef = INVALID_NAVNODEREF;
@@ -237,7 +237,7 @@ void UMassFragmentInitializer_Transform::Execute(UMassEntitySubsystem& EntitySub
 		int32 NumRequiredSpawnTransforms = 0;
 		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [&NumRequiredSpawnTransforms](const FMassExecutionContext& Context)
 			{
-				NumRequiredSpawnTransforms += Context.GetEntitiesNum();
+				NumRequiredSpawnTransforms += Context.GetNumEntities();
 			});
 
 		const int32 NumToAdd = NumRequiredSpawnTransforms - NumSpawnTransforms;
@@ -257,7 +257,7 @@ void UMassFragmentInitializer_Transform::Execute(UMassEntitySubsystem& EntitySub
 		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [&Transforms, this](FMassExecutionContext& Context)
 			{
 				const TArrayView<FDataFragment_Transform> LocationList = Context.GetMutableComponentView<FDataFragment_Transform>();
-				const int32 NumEntities = Context.GetEntitiesNum();
+				const int32 NumEntities = Context.GetNumEntities();
 				for (int32 i = 0; i < NumEntities; ++i)
 				{
 					const int32 AuxIndex = FMath::RandRange(0, Transforms.Num() - 1);
