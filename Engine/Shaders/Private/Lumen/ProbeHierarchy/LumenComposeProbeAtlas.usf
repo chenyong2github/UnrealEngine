@@ -35,7 +35,7 @@ RWTexture2D<float3> ProbeAtlasColorMipOutput_1;
 
 #ifdef SETUP_PASS
 
-uint GroupPerProbesArray[PROBE_HIERARCHY_MAX_HIERARCHY_DEPTH];
+DECLARE_SCALAR_ARRAY(uint, GroupPerProbesArray, PROBE_HIERARCHY_MAX_HIERARCHY_DEPTH);
 
 RWBuffer<uint> DispatchParametersOutput;
 
@@ -48,7 +48,7 @@ void MainCS(uint GroupThreadIndex : SV_GroupIndex)
 
 		uint ProbeCount = GetProbeHierarchyLevelParameters(HierarchyLevelId).ProbeCount;
 
-		DispatchParametersOutput[3 * HierarchyLevelId + 0] = GroupPerProbesArray[HierarchyLevelId];
+		DispatchParametersOutput[3 * HierarchyLevelId + 0] = GET_SCALAR_ARRAY_ELEMENT(GroupPerProbesArray, HierarchyLevelId);
 		DispatchParametersOutput[3 * HierarchyLevelId + 1] = ProbeCount;
 		DispatchParametersOutput[3 * HierarchyLevelId + 2] = 1;
 	}

@@ -70,8 +70,11 @@ void MarkRadianceProbesUsedByVisualizeCS(
 }
 
 Texture3D<uint> LastFrameRadianceProbeIndirectionTexture;
-float LastFrameRadianceProbeCoordToWorldPositionScale[RADIANCE_PROBE_MAX_CLIPMAPS];
-float3 LastFrameRadianceProbeCoordToWorldPositionBias[RADIANCE_PROBE_MAX_CLIPMAPS];
+
+float4 PackedLastFrameRadianceProbeCoordToWorldPosition[RADIANCE_PROBE_MAX_CLIPMAPS];
+#define LastFrameRadianceProbeCoordToWorldPositionScale(index) PackedLastFrameRadianceProbeCoordToWorldPosition[index].w
+#define LastFrameRadianceProbeCoordToWorldPositionBias(index) PackedLastFrameRadianceProbeCoordToWorldPosition[index].xyz
+
 uint FrameNumber;
 uint NumFramesToKeepCachedProbes;
 
@@ -91,7 +94,7 @@ void UpdateCacheForUsedProbesCS(
 
 		if (LastFrameProbeIndex != INVALID_PROBE_INDEX)
 		{
-			float3 ProbeWorldPosition = LastFrameProbeCoord * LastFrameRadianceProbeCoordToWorldPositionScale[ClipmapIndex] + LastFrameRadianceProbeCoordToWorldPositionBias[ClipmapIndex];
+			float3 ProbeWorldPosition = LastFrameProbeCoord * LastFrameRadianceProbeCoordToWorldPositionScale(ClipmapIndex) + LastFrameRadianceProbeCoordToWorldPositionBias(ClipmapIndex);
 			int3 ProbeCoord = ProbeWorldPosition * GetWorldPositionToRadianceProbeCoordScale(ClipmapIndex) + GetWorldPositionToRadianceProbeCoordBias(ClipmapIndex);
 
 			bool bReused = false;

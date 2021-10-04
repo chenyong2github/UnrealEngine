@@ -1061,6 +1061,8 @@ struct TShaderParameterTypeInfo<T[InNumElements]>
 	using TAlignedType = TStaticArray<T, InNumElements, Alignment>;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return TShaderParameterTypeInfo<T>::GetStructMetadata(); }
+
+	static_assert(((sizeof(T) % 16) == 0), "Array element size does not satisfy 16 byte alignment requirements.  Try packing it with other values in a vector or using SHADER_PARAMETER_SCALAR_ARRAY.");
 };
 	
 template<typename T,size_t InNumElements,uint32 IgnoredAlignment>
@@ -1076,6 +1078,8 @@ struct TShaderParameterTypeInfo<TStaticArray<T,InNumElements,IgnoredAlignment>>
 	using TAlignedType = TStaticArray<T, InNumElements, Alignment>;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return TShaderParameterTypeInfo<T>::GetStructMetadata(); }
+
+	static_assert(((sizeof(T) % 16) == 0), "Array element size does not satisfy 16 byte alignment requirements.  Try packing it with other values in a vector or using SHADER_PARAMETER_SCALAR_ARRAY.");
 };
 
 template<typename ShaderResourceType>
@@ -1744,8 +1748,8 @@ constexpr uint32 CalcPackedComponentIndex(uint32 ElementIndex)	{ return (Element
  * Example:
  *	SHADER_PARAMETER_SCALAR_ARRAY(float, MyScalarArray, 8)
  */
-#define SHADER_PARAMETER_SCALAR_ARRAY(MemberType,MemberName,NumElements) \
-	SHADER_PARAMETER_ARRAY(TShaderParameterScalarArrayTypeInfo<MemberType>::PackedArrayType, MemberName, [CalcPackedArraySize(NumElements)])
+#define SHADER_PARAMETER_SCALAR_ARRAY(MemberType,MemberName,ArrayDecl) \
+	SHADER_PARAMETER_ARRAY(TShaderParameterScalarArrayTypeInfo<MemberType>::PackedArrayType, MemberName, [CalcPackedArraySize(TShaderParameterTypeInfo<TShaderParameterScalarArrayTypeInfo<MemberType>::PackedArrayType ArrayDecl>::NumElements)])
 
 #define GET_SCALAR_ARRAY_ELEMENT(PackedArray, ElementIndex) \
 	PackedArray[CalcPackedArrayIndex(ElementIndex)][CalcPackedComponentIndex(ElementIndex)]

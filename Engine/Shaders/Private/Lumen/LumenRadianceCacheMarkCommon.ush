@@ -18,22 +18,23 @@
 
 #if IS_MATERIAL_SHADER
 
-	#define RadianceProbeClipmapTMinForMark  RadianceCacheMark.RadianceProbeClipmapTMinForMark
-	#define WorldPositionToRadianceProbeCoordScaleForMark  RadianceCacheMark.WorldPositionToRadianceProbeCoordScaleForMark
-	#define WorldPositionToRadianceProbeCoordBiasForMark  RadianceCacheMark.WorldPositionToRadianceProbeCoordBiasForMark
-	#define RadianceProbeCoordToWorldPositionScaleForMark  RadianceCacheMark.RadianceProbeCoordToWorldPositionScaleForMark
-	#define RadianceProbeCoordToWorldPositionBiasForMark  RadianceCacheMark.RadianceProbeCoordToWorldPositionBiasForMark
+	#define WorldPositionToRadianceProbeCoordScaleForMark(index)  RadianceCacheMark.PackedWorldPositionToRadianceProbeCoord[index].w
+	#define WorldPositionToRadianceProbeCoordBiasForMark(index)   RadianceCacheMark.PackedWorldPositionToRadianceProbeCoord[index].xyz
+	#define RadianceProbeCoordToWorldPositionScaleForMark(index)  RadianceCacheMark.PackedRadianceProbeCoordToWorldPosition[index].w
+	#define RadianceProbeCoordToWorldPositionBiasForMark(index)   RadianceCacheMark.PackedRadianceProbeCoordToWorldPosition[index].xyz
 
 	#define NumRadianceProbeClipmapsForMark  RadianceCacheMark.NumRadianceProbeClipmapsForMark
 	#define RadianceProbeClipmapResolutionForMark  RadianceCacheMark.RadianceProbeClipmapResolutionForMark
 
 #else
 
-	float RadianceProbeClipmapTMinForMark[RADIANCE_PROBE_MAX_CLIPMAPS];
-	float WorldPositionToRadianceProbeCoordScaleForMark[RADIANCE_PROBE_MAX_CLIPMAPS];
-	float3 WorldPositionToRadianceProbeCoordBiasForMark[RADIANCE_PROBE_MAX_CLIPMAPS];
-	float RadianceProbeCoordToWorldPositionScaleForMark[RADIANCE_PROBE_MAX_CLIPMAPS];
-	float3 RadianceProbeCoordToWorldPositionBiasForMark[RADIANCE_PROBE_MAX_CLIPMAPS];
+	float4 PackedWorldPositionToRadianceProbeCoord[RADIANCE_PROBE_MAX_CLIPMAPS];
+	float4 PackedRadianceProbeCoordToWorldPosition[RADIANCE_PROBE_MAX_CLIPMAPS];
+
+	#define WorldPositionToRadianceProbeCoordScaleForMark(index)  PackedWorldPositionToRadianceProbeCoord[index].w
+	#define WorldPositionToRadianceProbeCoordBiasForMark(index)   PackedWorldPositionToRadianceProbeCoord[index].xyz
+	#define RadianceProbeCoordToWorldPositionScaleForMark(index)  PackedRadianceProbeCoordToWorldPosition[index].w
+	#define RadianceProbeCoordToWorldPositionBiasForMark(index)   PackedRadianceProbeCoordToWorldPosition[index].xyz
 
 	uint NumRadianceProbeClipmapsForMark;
 	uint RadianceProbeClipmapResolutionForMark;
@@ -60,7 +61,7 @@ FRadianceProbeCoord GetRadianceProbeCoord(float3 WorldSpacePosition)
 	uint ClipmapIndex = 0;
 	for (; ClipmapIndex < NumRadianceProbeClipmapsForMark; ++ClipmapIndex)
 	{
-		float3 ProbeCoordFloat = WorldSpacePosition * WorldPositionToRadianceProbeCoordScaleForMark[ClipmapIndex] + WorldPositionToRadianceProbeCoordBiasForMark[ClipmapIndex];
+		float3 ProbeCoordFloat = WorldSpacePosition * WorldPositionToRadianceProbeCoordScaleForMark(ClipmapIndex) + WorldPositionToRadianceProbeCoordBiasForMark(ClipmapIndex);
 
 		int3 ProbeMinCoord;
 		int3 ProbeMaxCoord;
@@ -97,8 +98,8 @@ FRadianceProbeCoord GetRadianceProbeCoord(float3 WorldSpacePosition, float3 Worl
 	uint ClipmapIndex = 0;
 	for (; ClipmapIndex < NumRadianceProbeClipmapsForMark; ++ClipmapIndex)
 	{
-		float3 ProbeCoordMinFloat = WorldMin * WorldPositionToRadianceProbeCoordScaleForMark[ClipmapIndex] + WorldPositionToRadianceProbeCoordBiasForMark[ClipmapIndex];
-		float3 ProbeCoordMaxFloat = WorldMax * WorldPositionToRadianceProbeCoordScaleForMark[ClipmapIndex] + WorldPositionToRadianceProbeCoordBiasForMark[ClipmapIndex];
+		float3 ProbeCoordMinFloat = WorldMin * WorldPositionToRadianceProbeCoordScaleForMark(ClipmapIndex) + WorldPositionToRadianceProbeCoordBiasForMark(ClipmapIndex);
+		float3 ProbeCoordMaxFloat = WorldMax * WorldPositionToRadianceProbeCoordScaleForMark(ClipmapIndex) + WorldPositionToRadianceProbeCoordBiasForMark(ClipmapIndex);
 
 		int3 ProbeMinCoord;
 		int3 ProbeMaxCoord;
@@ -127,7 +128,7 @@ uint GetRadianceProbeClipmapForMark(float3 WorldSpacePosition, float3 WorldSpace
 
 void MarkPositionUsedInIndirectionTexture(float3 WorldPosition, uint ClipmapIndex)
 {
-	int3 BottomCornerProbeCoord = WorldPosition * WorldPositionToRadianceProbeCoordScaleForMark[ClipmapIndex] + WorldPositionToRadianceProbeCoordBiasForMark[ClipmapIndex] - .5f;
+	int3 BottomCornerProbeCoord = WorldPosition * WorldPositionToRadianceProbeCoordScaleForMark(ClipmapIndex) + WorldPositionToRadianceProbeCoordBiasForMark(ClipmapIndex) - .5f;
 	int3 IndirectionTextureCoord = BottomCornerProbeCoord + int3(ClipmapIndex * RadianceProbeClipmapResolutionForMark, 0, 0);
 
 	RWRadianceProbeIndirectionTexture[IndirectionTextureCoord] = USED_PROBE_INDEX;

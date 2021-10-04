@@ -1287,7 +1287,7 @@ void MainCS(
 
 				// the channel assignment is documented in ShadowRendering.cpp (look for Light Attenuation channel assignment)
 				float4 OutColor;
-				if (LightType[MultiplexId] == LIGHT_TYPE_DIRECTIONAL)
+				if (GET_SCALAR_ARRAY_ELEMENT(LightType, MultiplexId) == LIGHT_TYPE_DIRECTIONAL)
 				{
 					OutColor = EncodeLightAttenuation(half4(FadedShadow, FadedSSSShadow, 1.0, FadedSSSShadow));
 				}

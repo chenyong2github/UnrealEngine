@@ -61,8 +61,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHierarchyParameters, )
 
 	SHADER_PARAMETER(float, CounterParrallaxError)
 
-	SHADER_PARAMETER_ARRAY(int32, LevelResolutionArray, [kProbeMaxHierarchyDepth])
-	SHADER_PARAMETER_ARRAY(int32, LevelSuperSamplingArray, [kProbeMaxHierarchyDepth])
+	SHADER_PARAMETER_SCALAR_ARRAY(int32, LevelResolutionArray, [kProbeMaxHierarchyDepth])
+	SHADER_PARAMETER_SCALAR_ARRAY(int32, LevelSuperSamplingArray, [kProbeMaxHierarchyDepth])
 
 	// Infos about the different hierarchy of probes
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, ProbeHierarchyInfoBuffer)

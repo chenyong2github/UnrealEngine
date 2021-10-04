@@ -822,8 +822,8 @@ END_SHADER_PARAMETER_STRUCT()
 BEGIN_SHADER_PARAMETER_STRUCT(FSSDConvolutionMetaData, )
 	SHADER_PARAMETER_ARRAY(FVector4f, LightPositionAndRadius, [IScreenSpaceDenoiser::kMaxBatchSize])
 	SHADER_PARAMETER_ARRAY(FVector4f, LightDirectionAndLength, [IScreenSpaceDenoiser::kMaxBatchSize])
-	SHADER_PARAMETER_ARRAY(float, HitDistanceToWorldBluringRadius, [IScreenSpaceDenoiser::kMaxBatchSize])
-	SHADER_PARAMETER_ARRAY(uint32, LightType, [IScreenSpaceDenoiser::kMaxBatchSize])
+	SHADER_PARAMETER_SCALAR_ARRAY(float, HitDistanceToWorldBluringRadius, [IScreenSpaceDenoiser::kMaxBatchSize])
+	SHADER_PARAMETER_SCALAR_ARRAY(uint32, LightType, [IScreenSpaceDenoiser::kMaxBatchSize])
 END_SHADER_PARAMETER_STRUCT()
 
 
@@ -1168,7 +1168,7 @@ class FSSDTemporalAccumulationCS : public FGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_ARRAY(int32, bCameraCut, [IScreenSpaceDenoiser::kMaxBatchSize])
+		SHADER_PARAMETER_SCALAR_ARRAY(int32, bCameraCut, [IScreenSpaceDenoiser::kMaxBatchSize])
 		SHADER_PARAMETER(float, HistoryPreExposureCorrection)
 		SHADER_PARAMETER(FVector4f, ScreenPosToHistoryBufferUV)
 		SHADER_PARAMETER(FVector4f, HistoryBufferSizeAndInvSize)
@@ -1588,9 +1588,9 @@ static void DenoiseSignalAtConstantPixelDensity(
 				Parameters.Position, Parameters.SourceRadius);
 			ConvolutionMetaData.LightDirectionAndLength[BatchedSignalId] = FVector4f(
 				Parameters.Direction, Parameters.SourceLength);
-			ConvolutionMetaData.HitDistanceToWorldBluringRadius[BatchedSignalId] =
+			GET_SCALAR_ARRAY_ELEMENT(ConvolutionMetaData.HitDistanceToWorldBluringRadius, BatchedSignalId) = 
 				FMath::Tan(0.5 * FMath::DegreesToRadians(LightSceneProxy->GetLightSourceAngle()) * LightSceneProxy->GetShadowSourceAngleFactor());
-			ConvolutionMetaData.LightType[BatchedSignalId] = LightSceneProxy->GetLightType();
+			GET_SCALAR_ARRAY_ELEMENT(ConvolutionMetaData.LightType, BatchedSignalId) = LightSceneProxy->GetLightType();
 		}
 	}
 
@@ -1982,11 +1982,11 @@ static void DenoiseSignalAtConstantPixelDensity(
 		{
 			FScreenSpaceDenoiserHistory* PrevFrameHistory = PrevFilteringHistory[BatchedSignalId] ? PrevFilteringHistory[BatchedSignalId] : &DummyPrevFrameHistory;
 
-			PassParameters->bCameraCut[BatchedSignalId] = !PrevFrameHistory->IsValid();
+			GET_SCALAR_ARRAY_ELEMENT(PassParameters->bCameraCut, BatchedSignalId) = !PrevFrameHistory->IsValid();
 
 			if (!(View.ViewState && Settings.bUseTemporalAccumulation) || bGlobalCameraCut)
 			{
-				PassParameters->bCameraCut[BatchedSignalId] = true;
+				GET_SCALAR_ARRAY_ELEMENT(PassParameters->bCameraCut, BatchedSignalId) = true;
 			}
 
 			for (int32 BufferId = 0; BufferId < HistoryTextureCountPerSignal; BufferId++)

@@ -27,7 +27,7 @@ SamplerState Samplers_3;
 Texture2D Textures_4;
 SamplerState Samplers_4;
 // 0 is for neutral, 1 for Textures_1, 2 for ...
-float LUTWeights[5];
+DECLARE_SCALAR_ARRAY(float, LUTWeights, 5);
 half3 ColorScale;
 half4 OverlayColor;
 
@@ -300,23 +300,23 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 
 		float3 UVW = GammaColor * (15.0 / 16.0) + (0.5f / 16.0);
 
-		GammaColor = LUTWeights[0] * GammaColor;
+		GammaColor = GET_SCALAR_ARRAY_ELEMENT(LUTWeights, 0) * GammaColor;
 
 		// BLENDCOUNT is the number of LUT that are blended together including the neutral one
 	#if BLENDCOUNT >= 2
-		GammaColor += LUTWeights[1] * UnwrappedTexture3DSample( Textures_1, Samplers_1, UVW, 16 ).rgb;
+		GammaColor += GET_SCALAR_ARRAY_ELEMENT(LUTWeights, 1) * UnwrappedTexture3DSample( Textures_1, Samplers_1, UVW, 16 ).rgb;
 	#endif
 
 	#if BLENDCOUNT >= 3
-		GammaColor += LUTWeights[2] * UnwrappedTexture3DSample( Textures_2, Samplers_2, UVW, 16 ).rgb;
+		GammaColor += GET_SCALAR_ARRAY_ELEMENT(LUTWeights, 2) * UnwrappedTexture3DSample( Textures_2, Samplers_2, UVW, 16 ).rgb;
 	#endif
 
 	#if BLENDCOUNT >= 4
-		GammaColor += LUTWeights[3] * UnwrappedTexture3DSample( Textures_3, Samplers_3, UVW, 16 ).rgb;
+		GammaColor += GET_SCALAR_ARRAY_ELEMENT(LUTWeights, 3) * UnwrappedTexture3DSample( Textures_3, Samplers_3, UVW, 16 ).rgb;
 	#endif
 
 	#if BLENDCOUNT >= 5
-		GammaColor += LUTWeights[4] * UnwrappedTexture3DSample( Textures_4, Samplers_4, UVW, 16 ).rgb;
+		GammaColor += GET_SCALAR_ARRAY_ELEMENT(LUTWeights, 4) * UnwrappedTexture3DSample( Textures_4, Samplers_4, UVW, 16 ).rgb;
 	#endif
 
 		// Back to linear space, AP1 gamut

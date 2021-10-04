@@ -198,7 +198,7 @@ class FBuildHierarchyInfoCS : public FGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_ARRAY(int32, LevelResolutionArray, [LumenProbeHierarchy::kProbeMaxHierarchyDepth])
+		SHADER_PARAMETER_SCALAR_ARRAY(int32, LevelResolutionArray, [LumenProbeHierarchy::kProbeMaxHierarchyDepth])
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ProbeGlobalCounters)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, ProbeHierarchyInfoOutput)
 	END_SHADER_PARAMETER_STRUCT()
@@ -368,7 +368,7 @@ class FSetupComposeProbeAtlasCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenProbeHierarchy::FHierarchyParameters, HierarchyParameters)
-		SHADER_PARAMETER_ARRAY(int32, GroupPerProbesArray, [LumenProbeHierarchy::kProbeMaxHierarchyDepth])
+		SHADER_PARAMETER_SCALAR_ARRAY(int32, GroupPerProbesArray, [LumenProbeHierarchy::kProbeMaxHierarchyDepth])
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, DispatchParametersOutput)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -589,8 +589,8 @@ FHierarchyLevelParameters GetLevelParameters(const FHierarchyParameters& Hierarc
 	check(HierarchyLevelId < HierarchyParameters.HierarchyDepth);
 	FHierarchyLevelParameters LevelParameters;
 	LevelParameters.LevelId = HierarchyLevelId;
-	LevelParameters.LevelSuperSampling = HierarchyParameters.LevelSuperSamplingArray[HierarchyLevelId];
-	LevelParameters.LevelResolution = HierarchyParameters.LevelResolutionArray[HierarchyLevelId];
+	LevelParameters.LevelSuperSampling = GET_SCALAR_ARRAY_ELEMENT(HierarchyParameters.LevelSuperSamplingArray, HierarchyLevelId);
+	LevelParameters.LevelResolution = GET_SCALAR_ARRAY_ELEMENT(HierarchyParameters.LevelResolutionArray, HierarchyLevelId);
 	return LevelParameters;
 }
 
@@ -639,12 +639,11 @@ FRDGTextureRef ComposeFinalProbeAtlas(
 			{
 				FHierarchyLevelParameters LevelParameters = LumenProbeHierarchy::GetLevelParameters(ProbeHierachyParameters, HierarchyLevelId);
 				int32 ResolutionMultiplier = LevelParameters.LevelResolution / LumenProbeHierarchy::kProbeResolution;
-				PassParameters->GroupPerProbesArray[HierarchyLevelId] = ResolutionMultiplier * ResolutionMultiplier;
+				GET_SCALAR_ARRAY_ELEMENT(PassParameters->GroupPerProbesArray, HierarchyLevelId) = ResolutionMultiplier * ResolutionMultiplier;
 			}
 			else
 			{
-
-				PassParameters->GroupPerProbesArray[HierarchyLevelId] = 0;
+				GET_SCALAR_ARRAY_ELEMENT(PassParameters->GroupPerProbesArray, HierarchyLevelId) = 0;
 			}
 		}
 
@@ -868,13 +867,13 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 
 			check(ResolutionMultiplier <= kMinAtlasGridSize);
 
-			ProbeHierachyParameters.LevelResolutionArray[HierarchyLevelId] = FMath::Clamp(kProbeResolution * ResolutionMultiplier, 1, MaxProbeResolution);
-			ProbeHierachyParameters.LevelSuperSamplingArray[HierarchyLevelId] = SuperSampling;
+			GET_SCALAR_ARRAY_ELEMENT(ProbeHierachyParameters.LevelResolutionArray, HierarchyLevelId) = FMath::Clamp(kProbeResolution * ResolutionMultiplier, 1, MaxProbeResolution);
+			GET_SCALAR_ARRAY_ELEMENT(ProbeHierachyParameters.LevelSuperSamplingArray, HierarchyLevelId) = SuperSampling;
 		}
 		else
 		{
-			ProbeHierachyParameters.LevelResolutionArray[HierarchyLevelId] = kProbeResolution;
-			ProbeHierachyParameters.LevelSuperSamplingArray[HierarchyLevelId] = 1;
+			GET_SCALAR_ARRAY_ELEMENT(ProbeHierachyParameters.LevelResolutionArray, HierarchyLevelId) = kProbeResolution;
+			GET_SCALAR_ARRAY_ELEMENT(ProbeHierachyParameters.LevelSuperSamplingArray, HierarchyLevelId) = 1;
 		}
 	}
 	}

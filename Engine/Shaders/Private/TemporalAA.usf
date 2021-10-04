@@ -472,8 +472,8 @@ float HistoryPreExposureCorrection;
 float CurrentFrameWeight;
 int bCameraCut;
 
-float SampleWeights[9];
-float PlusWeights[5];
+DECLARE_SCALAR_ARRAY(float, SampleWeights, 9);
+DECLARE_SCALAR_ARRAY(float, PlusWeights, 5);
 
 float4 ViewportUVToInputBufferUV;
 float4 MaxViewportUVAndSvPositionToViewportUV;
@@ -1548,10 +1548,10 @@ void FilterCurrentFrameInputSamples(
 				float SampleSpatialWeight = ComputeSampleWeigth(IntermediaryResult, dPP);
 
 			#elif AA_SAMPLES == 9
-				float SampleSpatialWeight = SampleWeights[i];
+				float SampleSpatialWeight = GET_SCALAR_ARRAY_ELEMENT(SampleWeights, i);
 
 			#elif AA_SAMPLES == 5
-				float SampleSpatialWeight = PlusWeights[i];
+				float SampleSpatialWeight = GET_SCALAR_ARRAY_ELEMENT(PlusWeights, i);
 
 			#else
 				#error Do not know how to compute filtering sample weight.
@@ -1594,10 +1594,10 @@ void FilterCurrentFrameInputSamples(
 				float SampleWeight = ComputeSampleWeigth(IntermediaryResult, -dKO);
 
 			#elif AA_SAMPLES == 9
-				float SampleWeight = SampleWeights[4];
+				float SampleWeight = GET_SCALAR_ARRAY_ELEMENT(SampleWeights, 4);
 
 			#else
-				float SampleWeight = PlusWeights[2];
+				float SampleWeight = GET_SCALAR_ARRAY_ELEMENT(PlusWeights, 2);
 
 			#endif
 			
