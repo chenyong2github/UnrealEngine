@@ -11,6 +11,9 @@
 #include "CurveEditorScreenSpace.h"
 #include "CurveDataAbstraction.h"
 #include "CurveDrawInfo.h"
+#include "KeyBarCurveModel.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "SCurveEditorPanel.h"
 
 float SCurveEditorKeyBarView::TrackHeight = 24.f;
 
@@ -89,7 +92,7 @@ void SCurveEditorKeyBarView::DrawLabels(const FGeometry& AllottedGeometry, FSlat
 
 	const FVector2D LocalSize = AllottedGeometry.GetLocalSize();
 
-	const FCurveEditorScreenSpaceV ViewSpace = GetViewSpace();
+	const FCurveEditorScreenSpace ViewSpace = GetViewSpace();
 
 	for (auto It = CurveInfoByID.CreateConstIterator(); It; ++It)
 	{
@@ -101,48 +104,99 @@ void SCurveEditorKeyBarView::DrawLabels(const FGeometry& AllottedGeometry, FSlat
 
 		const int32 CurveIndex = static_cast<int32>(It->Value.ViewToCurveTransform.GetTranslation().Y);
 
-		const FCurveEditorScreenSpaceV CurveSpace = ViewSpace.ToCurveSpace(It->Value.ViewToCurveTransform);
+		FCurveEditorScreenSpace CurveSpace = GetCurveSpace(It.Key());
+
 		const float LaneTop = CurveSpace.ValueToScreen(0.0) - TrackHeight*.5f;
 
-		// Draw the curve color as the background. Event curves set their track color as the curve color.
-		FLinearColor CurveColor = Curve->GetColor();
 
-		// Alpha blend the zebra tint
-		if (CurveIndex%2)
+		double InputMin = 0, InputMax = 1;
+		GetInputBounds(InputMin, InputMax);//in Sequencer Seconds
+
+		// Draw the curve label and background
+		FKeyBarCurveModel* KeyBarCurveModel = static_cast<FKeyBarCurveModel*>(Curve);
+		if (KeyBarCurveModel)
 		{
-			static FLinearColor ZebraTint = FLinearColor::White.CopyWithNewOpacity(0.01f);
-			if (CurveColor == FLinearColor::White)
+			TArray<FKeyBarCurveModel::FBarRange> Ranges = KeyBarCurveModel->FindRanges();
+			int32 LastLabelPos = -1;
+			for (int32 Index = 0;Index < Ranges.Num(); ++Index)
 			{
-				CurveColor = ZebraTint;
+				const FKeyBarCurveModel::FBarRange& Range = Ranges[Index];
+				const double LowerSeconds = Range.Range.GetLowerBoundValue();
+				const double UpperSeconds = Range.Range.GetUpperBoundValue();
+				const bool bOutsideUpper = (Index != Ranges.Num() - 1) && UpperSeconds < InputMin;
+				if (LowerSeconds > InputMax || bOutsideUpper) //out of range
+				{
+					continue;
+				}
+				
+				FLinearColor CurveColor = Range.Color;
+
+				// Alpha blend the zebra tint
+				if (CurveIndex % 2)
+				{
+					static FLinearColor ZebraTint = FLinearColor::White.CopyWithNewOpacity(0.01f);
+					if (CurveColor == FLinearColor::White)
+					{
+						CurveColor = ZebraTint;
+					}
+					else
+					{
+						CurveColor = CurveColor * (1.f - ZebraTint.A) + ZebraTint * ZebraTint.A;
+					}
+				}
+
+				if (CurveColor != FLinearColor::White)
+				{
+					const double LowerSecondsForBox =(Index == 0 && LowerSeconds > InputMin )? InputMin : LowerSeconds;
+					const double BoxPos = CurveSpace.SecondsToScreen(LowerSecondsForBox);
+
+					const FPaintGeometry BoxGeometry = AllottedGeometry.ToPaintGeometry(
+						FVector2D(AllottedGeometry.GetLocalSize().X, TrackHeight),
+						FSlateLayoutTransform(FVector2D(BoxPos, LaneTop))
+					);
+
+					FSlateDrawElement::MakeBox(OutDrawElements, BaseLayerId + CurveViewConstants::ELayerOffset::Background, BoxGeometry, WhiteBrush, DrawEffects, CurveColor);
+				}
+				const double LowerSecondsForLabel = (InputMin > LowerSeconds) ? InputMin : LowerSeconds;
+				double LabelPos = CurveSpace.SecondsToScreen(LowerSecondsForLabel) + 10;
+
+				const FText Label = FText::FromName(Range.Name);
+				const FVector2D TextSize = FontMeasure->Measure(Label, FontInfo);
+				if (Index > 0)
+				{
+					LabelPos = (LabelPos < LastLabelPos) ? LastLabelPos + 5 : LabelPos;
+				}
+				LastLabelPos = LabelPos + TextSize.X + 15;
+				const FVector2D Position(LabelPos, LaneTop + (TrackHeight - TextSize.Y) * .5f);
+
+				const FPaintGeometry LabelGeometry = AllottedGeometry.ToPaintGeometry(
+					FSlateLayoutTransform(Position)
+				);
+
+				FSlateDrawElement::MakeText(OutDrawElements, BaseLayerId + CurveViewConstants::ELayerOffset::Labels, LabelGeometry, Label, FontInfo, DrawEffects, FLinearColor::White);
+
 			}
-			else
-			{
-				CurveColor = CurveColor * (1.f - ZebraTint.A) + ZebraTint * ZebraTint.A;
-			}
-		}
-
-		if (CurveColor != FLinearColor::White)
-		{
-			const FPaintGeometry BoxGeometry = AllottedGeometry.ToPaintGeometry(
-				FVector2D(AllottedGeometry.GetLocalSize().X, TrackHeight),
-				FSlateLayoutTransform(FVector2D(0.f, LaneTop))
-			);
-
-			FSlateDrawElement::MakeBox(OutDrawElements, BaseLayerId + CurveViewConstants::ELayerOffset::Background, BoxGeometry, WhiteBrush, DrawEffects, CurveColor);
-		}
-
-		// Draw the curve label
-		{
-			const FText Label = Curve->GetLongDisplayName();
-
-			const FVector2D TextSize = FontMeasure->Measure(Label, FontInfo);
-			const FVector2D Position(LocalSize.X - TextSize.X - CurveViewConstants::CurveLabelOffsetX, LaneTop + (TrackHeight - TextSize.Y)*.5f);
-
-			const FPaintGeometry LabelGeometry = AllottedGeometry.ToPaintGeometry(
-				FSlateLayoutTransform(Position)
-			);
-
-			FSlateDrawElement::MakeText(OutDrawElements, BaseLayerId + CurveViewConstants::ELayerOffset::Labels, LabelGeometry, Label, FontInfo, DrawEffects, FLinearColor::White);
 		}
 	}
 }
+
+void SCurveEditorKeyBarView::BuildContextMenu(FMenuBuilder & MenuBuilder, TOptional<FCurvePointHandle> ClickedPoint, TOptional<FCurveModelID> HoveredCurveID)
+{
+	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
+	if (!CurveEditor)
+	{
+		return;
+	}
+	int32 NumSelectedKeys = CurveEditor->GetSelection().Count();
+
+	FCurveModel* Curve = HoveredCurveID.IsSet() ? CurveEditor->FindCurve(HoveredCurveID.GetValue()) : nullptr;
+	FKeyBarCurveModel* KeyBarCurveModel = static_cast<FKeyBarCurveModel*>(Curve);
+	if (KeyBarCurveModel)
+	{
+		KeyBarCurveModel->BuildContextMenu(*CurveEditor,MenuBuilder, ClickedPoint);
+	}
+}
+
+
+
+

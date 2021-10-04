@@ -435,6 +435,11 @@ public:
 	virtual void RenderMovie(const TArray<UMovieSceneCinematicShotSection*>& InSections) const = 0;
 
 	/*
+	* Recreate any associated Curve Editor 
+	*/
+	virtual void RecreateCurveEditor() {};
+
+	/*
 	 * Puts sequencer in a silent state (whereby it will not redraw viewports, or attempt to update external state besides the sequence itself)
 	 */
 	virtual void EnterSilentMode() = 0;

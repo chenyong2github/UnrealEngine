@@ -217,6 +217,9 @@ public:
 	/** Returns whether any of the currently selected nodes are muted */
 	bool IsSelectedNodesMute() const;
 
+	/**Make sure associated curve editor get's recreated, usually due to an item getting added that needs to be sorted*/
+	void RecreateCurveEditor();
+
 private:
 
 	/** Returns whether this NodeTree should only display selected nodes */

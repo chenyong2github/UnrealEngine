@@ -2694,6 +2694,11 @@ void FSequencer::RefreshTree()
 	}
 }
 
+void FSequencer::RecreateCurveEditor()
+{
+	GetNodeTree()->RecreateCurveEditor();
+}
+
 FAnimatedRange FSequencer::GetViewRange() const
 {
 	FAnimatedRange AnimatedRange(FMath::Lerp(LastViewRange.GetLowerBoundValue(), TargetViewRange.GetLowerBoundValue(), ZoomCurve.GetLerp()),

@@ -773,6 +773,7 @@ public:
 	virtual void SetPerspectiveViewportPossessionEnabled(bool bEnabled) override;
 	virtual void SetPerspectiveViewportCameraCutEnabled(bool bEnabled) override;
 	virtual void RenderMovie(const TArray<UMovieSceneCinematicShotSection*>& InSections) const override;
+	virtual void RecreateCurveEditor() override;
 	virtual void EnterSilentMode() override;
 	virtual void ExitSilentMode() override;
 	virtual bool IsInSilentMode() const override { return SilentModeCount != 0; }

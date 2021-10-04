@@ -125,8 +125,9 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Tools/SMotionTrailOptions.h"
-
-
+#include "ICurveEditorModule.h"
+#include "Channels/SCurveEditorKeyBarView.h"
+#include "ControlRigSpaceChannelCurveModel.h"
 #include "ControlRigSpaceChannelEditors.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditorModule"
@@ -332,6 +333,14 @@ void FControlRigEditorModule::StartupModule()
 	};
 #endif
 
+	ICurveEditorModule& CurveEditorModule = FModuleManager::LoadModuleChecked<ICurveEditorModule>("CurveEditor");
+	FControlRigSpaceChannelCurveModel::ViewID = CurveEditorModule.RegisterView(FOnCreateCurveEditorView::CreateStatic(
+		[](TWeakPtr<FCurveEditor> WeakCurveEditor) -> TSharedRef<SCurveEditorView>
+		{
+			return SNew(SCurveEditorKeyBarView, WeakCurveEditor);
+		}
+	));
+
 	FControlRigBlueprintActions::ExtendSketalMeshToolMenu();
 	ExtendAnimSequenceMenu();
 
@@ -349,6 +358,12 @@ void FControlRigEditorModule::StartupModule()
 
 void FControlRigEditorModule::ShutdownModule()
 {
+
+	if (ICurveEditorModule* CurveEditorModule = FModuleManager::GetModulePtr<ICurveEditorModule>("CurveEditor"))
+	{
+		CurveEditorModule->UnregisterView(FControlRigSpaceChannelCurveModel::ViewID);
+	}
+
 #if WITH_EDITOR
 	if (FSlateApplication::IsInitialized())
 	{
