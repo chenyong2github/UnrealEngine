@@ -25,7 +25,7 @@ public class DirectXMesh : ModuleRules
 
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
-            string HeaderDir = ModuleDirectory + "/DirectXMeshCode/DirectXMesh";
+            string HeaderDir = ModuleDirectory + "/DirectXMeshCode";
 
 
             if (bDebugPaths)
