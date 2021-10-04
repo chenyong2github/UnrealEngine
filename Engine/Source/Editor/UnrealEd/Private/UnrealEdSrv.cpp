@@ -1707,9 +1707,9 @@ TArray<FPoly*> GetSelectedPolygons()
 							Polygon->Init();
 							Polygon->PolyFlags = PF_DefaultFlags;
 
-							new(Polygon->Vertices) FVector(ActorToWorld.TransformPosition( PositionVertexBuffer.VertexPosition(Idx2) ));
-							new(Polygon->Vertices) FVector(ActorToWorld.TransformPosition( PositionVertexBuffer.VertexPosition(Idx1) ));
-							new(Polygon->Vertices) FVector(ActorToWorld.TransformPosition( PositionVertexBuffer.VertexPosition(Idx0) ));
+							new(Polygon->Vertices) FVector3f(ActorToWorld.TransformPosition( PositionVertexBuffer.VertexPosition(Idx2) ));
+							new(Polygon->Vertices) FVector3f(ActorToWorld.TransformPosition( PositionVertexBuffer.VertexPosition(Idx1) ));
+							new(Polygon->Vertices) FVector3f(ActorToWorld.TransformPosition( PositionVertexBuffer.VertexPosition(Idx0) ));
 
 							Polygon->CalcNormal(1);
 							Polygon->Fix();
@@ -1726,9 +1726,9 @@ TArray<FPoly*> GetSelectedPolygons()
 							Polygon->Init();
 							Polygon->PolyFlags = PF_DefaultFlags;
 
-							new(Polygon->Vertices) FVector(ActorToWorld.TransformPosition( PositionVertexBuffer.VertexPosition(Idx2) ));
-							new(Polygon->Vertices) FVector(ActorToWorld.TransformPosition( PositionVertexBuffer.VertexPosition(Idx0) ));
-							new(Polygon->Vertices) FVector(ActorToWorld.TransformPosition( PositionVertexBuffer.VertexPosition(Idx1) ));
+							new(Polygon->Vertices) FVector3f(ActorToWorld.TransformPosition( PositionVertexBuffer.VertexPosition(Idx2) ));
+							new(Polygon->Vertices) FVector3f(ActorToWorld.TransformPosition( PositionVertexBuffer.VertexPosition(Idx0) ));
+							new(Polygon->Vertices) FVector3f(ActorToWorld.TransformPosition( PositionVertexBuffer.VertexPosition(Idx1) ));
 							Polygon->CalcNormal(1);
 							Polygon->Fix();
 							if( Polygon->Vertices.Num() > 2 )
@@ -1834,9 +1834,9 @@ FPoly* CreateHugeTrianglePolygonOnPlane( const FPlane* InPlane )
 	Triangle->Init();
 	Triangle->PolyFlags = PF_DefaultFlags;
 
-	new(Triangle->Vertices) FVector( V0 );
-	new(Triangle->Vertices) FVector( V2 );
-	new(Triangle->Vertices) FVector( V1 );
+	new(Triangle->Vertices) FVector3f( V0 );
+	new(Triangle->Vertices) FVector3f( V2 );
+	new(Triangle->Vertices) FVector3f( V1 );
 
 	Triangle->CalcNormal(1);
 	Triangle->Fix();
