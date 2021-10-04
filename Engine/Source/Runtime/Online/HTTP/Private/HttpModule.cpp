@@ -185,6 +185,35 @@ bool FHttpModule::HandleHTTPCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 		}
 	}
 #endif
+	else if (FParse::Command(&Cmd, TEXT("LAUNCHREQUESTS")))
+	{
+		FString Verb = FParse::Token(Cmd, false);
+		FString Url = FParse::Token(Cmd, false);
+		int32 NumRequests = FCString::Atoi(*FParse::Token(Cmd, false));
+		bool bCancelRequests = FCString::ToBool(*FParse::Token(Cmd, false));
+
+		TArray<TSharedRef<IHttpRequest, ESPMode::ThreadSafe>> Requests;
+
+		for (int32 i = 0; i < NumRequests; ++i)
+		{
+			TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
+			HttpRequest->SetURL(*Url);
+			HttpRequest->SetVerb(*Verb);
+			HttpRequest->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {});
+			HttpRequest->ProcessRequest();
+
+			Requests.Add(HttpRequest);
+		}
+
+		if (bCancelRequests)
+		{
+			for (auto Request : Requests)
+			{
+				Request->CancelRequest();
+			}
+		}
+	}
+
 	return true;
 }
 

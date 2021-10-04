@@ -5,6 +5,7 @@
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/RunnableThread.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Fork.h"
 #include "Misc/Parse.h"
@@ -80,7 +81,7 @@ void FHttpThread::StopThread()
 
 void FHttpThread::AddRequest(IHttpThreadedRequest* Request)
 {
-	PendingThreadedRequests.Enqueue(Request);
+	NewThreadedRequests.Enqueue(Request);
 }
 
 void FHttpThread::CancelRequest(IHttpThreadedRequest* Request)
@@ -102,6 +103,9 @@ bool FHttpThread::Init()
 {
 	LastTime = FPlatformTime::Seconds();
 	ExitRequest.Set(false);
+
+	UpdateConfigs();
+
 	return true;
 }
 
@@ -109,7 +113,6 @@ uint32 FHttpThread::Run()
 {
 	// Arrays declared outside of loop to re-use memory
 	TArray<IHttpThreadedRequest*> RequestsToCancel;
-	TArray<IHttpThreadedRequest*> RequestsToStart;
 	TArray<IHttpThreadedRequest*> RequestsToComplete;
 	while (!ExitRequest.GetValue())
 	{
@@ -122,7 +125,7 @@ uint32 FHttpThread::Run()
 			{
 				const double InnerLoopBegin = FPlatformTime::Seconds();
 			
-				Process(RequestsToCancel, RequestsToStart, RequestsToComplete);
+				Process(RequestsToCancel, RequestsToComplete);
 			
 				if (RunningThreadedRequests.Num() == 0)
 				{
@@ -159,15 +162,24 @@ void FHttpThread::Tick()
 	if (ensure(bIsSingleThread))
 	{
 		TArray<IHttpThreadedRequest*> RequestsToCancel;
-		TArray<IHttpThreadedRequest*> RequestsToStart;
 		TArray<IHttpThreadedRequest*> RequestsToComplete;
-		Process(RequestsToCancel, RequestsToStart, RequestsToComplete);
+		Process(RequestsToCancel, RequestsToComplete);
 	}
 }
 
 bool FHttpThread::NeedsSingleThreadTick() const
 {
 	return bIsSingleThread;
+}
+
+void FHttpThread::UpdateConfigs()
+{
+	GConfig->GetInt(TEXT("HTTP.HttpThread"), TEXT("RunningThreadedRequestLimit"), RunningThreadedRequestLimit, GEngineIni);
+	if (RunningThreadedRequestLimit < 1)
+	{
+		UE_LOG(LogHttp, Warning, TEXT("RunningThreadedRequestLimit must be configured as a number greater than 0. Current value is %d."), RunningThreadedRequestLimit);
+		RunningThreadedRequestLimit = INT_MAX;
+	}
 }
 
 void FHttpThread::HttpThreadTick(float DeltaSeconds)
@@ -185,11 +197,11 @@ void FHttpThread::CompleteThreadedRequest(IHttpThreadedRequest* Request)
 	// empty
 }
 
-void FHttpThread::Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, TArray<IHttpThreadedRequest*>& RequestsToStart, TArray<IHttpThreadedRequest*>& RequestsToComplete)
+void FHttpThread::Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, TArray<IHttpThreadedRequest*>& RequestsToComplete)
 {
 	SCOPE_CYCLE_COUNTER(STAT_HTTPThread_Process);
 
-	// cache all cancelled and pending requests
+	// cache all cancelled and new requests
 	{
 		IHttpThreadedRequest* Request = nullptr;
 
@@ -199,10 +211,9 @@ void FHttpThread::Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, TArra
 			RequestsToCancel.Add(Request);
 		}
 
-		RequestsToStart.Reset();
-		while (PendingThreadedRequests.Dequeue(Request))
+		while (NewThreadedRequests.Dequeue(Request))
 		{
-			RequestsToStart.Add(Request);
+			RateLimitedThreadedRequests.Add(Request);
 		}
 	}
 
@@ -212,6 +223,14 @@ void FHttpThread::Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, TArra
 		if (RunningThreadedRequests.Remove(Request) > 0)
 		{
 			RequestsToComplete.AddUnique(Request);
+		}
+		else if (RateLimitedThreadedRequests.Remove(Request) > 0)
+		{
+			RequestsToComplete.AddUnique(Request);
+		}
+		else
+		{
+			UE_LOG(LogHttp, Warning, TEXT("Unable to find request (%p) in HttpThread"), Request);
 		}
 	}
 
@@ -228,21 +247,30 @@ void FHttpThread::Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, TArra
 		Request->TickThreadedRequest(ElapsedTime);
 	}
 
-	// Start any pending requests
+	// We'll start rate limited requests until we hit the limit
 	// Tick new requests separately from existing RunningThreadedRequests so they get a chance 
 	// to send unaffected by possibly large ElapsedTime above
-	for (IHttpThreadedRequest* Request : RequestsToStart)
+	int32 RunningThreadedRequestsCounter = RunningThreadedRequests.Num();
+	if (RunningThreadedRequestsCounter < RunningThreadedRequestLimit)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_HTTPThread_StartThreadedRequest);
+		for (RunningThreadedRequestsCounter; RunningThreadedRequestsCounter < RunningThreadedRequestLimit && RateLimitedThreadedRequests.Num();)
+		{
+			SCOPE_CYCLE_COUNTER(STAT_HTTPThread_StartThreadedRequest);
 
-		if (StartThreadedRequest(Request))
-		{
-			RunningThreadedRequests.Add(Request);
-			Request->TickThreadedRequest(0.0f);
-		}
-		else
-		{
-			RequestsToComplete.AddUnique(Request);
+			IHttpThreadedRequest* ReadyThreadedRequest = RateLimitedThreadedRequests[0];
+			RateLimitedThreadedRequests.RemoveAt(0);
+
+			if (StartThreadedRequest(ReadyThreadedRequest))
+			{
+				RunningThreadedRequestsCounter++;
+				RunningThreadedRequests.Add(ReadyThreadedRequest);
+				ReadyThreadedRequest->TickThreadedRequest(0.0f);
+				UE_LOG(LogHttp, Verbose, TEXT("Started running threaded request (%p). Running threaded requests (%d) Rate limited threaded requests (%d)"), ReadyThreadedRequest, RunningThreadedRequests.Num(), RateLimitedThreadedRequests.Num());
+			}
+			else
+			{
+				RequestsToComplete.AddUnique(ReadyThreadedRequest);
+			}
 		}
 	}
 
@@ -266,6 +294,7 @@ void FHttpThread::Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, TArra
 			RequestsToComplete.AddUnique(Request);
 			RunningThreadedRequests.RemoveAtSwap(Index);
 			--Index;
+			UE_LOG(LogHttp, Verbose, TEXT("Threaded request (%p) completed. Running threaded requests (%d)"), Request, RunningThreadedRequests.Num());
 		}
 	}
 

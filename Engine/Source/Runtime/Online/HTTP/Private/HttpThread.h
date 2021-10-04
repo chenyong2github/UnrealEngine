@@ -69,6 +69,11 @@ public:
 	 */
 	bool NeedsSingleThreadTick() const;
 
+	/**
+	 * Update configuration. Called when config has been updated and we need to apply any changes.
+	 */
+	virtual void UpdateConfigs();
+
 protected:
 
 	/**
@@ -103,7 +108,7 @@ protected:
 	*/
 	virtual class FSingleThreadRunnable* GetSingleThreadInterface() override { return this; }
 
-	void Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, TArray<IHttpThreadedRequest*>& RequestsToStart, TArray<IHttpThreadedRequest*>& RequestsToComplete);
+	void Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, TArray<IHttpThreadedRequest*>& RequestsToComplete);
 
 	/** signal request to stop and exit thread */
 	FThreadSafeCounter ExitRequest;
@@ -124,13 +129,19 @@ protected:
 	 * Threaded requests that are waiting to be processed on the http thread.
 	 * Added to on (any) non-HTTP thread, processed then cleared on HTTP thread.
 	 */
-	TQueue<IHttpThreadedRequest*, EQueueMode::Mpsc> PendingThreadedRequests;
+	TQueue<IHttpThreadedRequest*, EQueueMode::Mpsc> NewThreadedRequests;
 
 	/**
 	 * Threaded requests that are waiting to be cancelled on the http thread.
 	 * Added to on (any) non-HTTP thread, processed then cleared on HTTP thread.
 	 */
 	TQueue<IHttpThreadedRequest*, EQueueMode::Mpsc> CancelledThreadedRequests;
+
+	/**
+	 * Threaded requests that are ready to run, but waiting due to the running request limit (not in any of the other lists, except potentially CancelledThreadedRequests).
+	 * Only accessed on the HTTP thread.
+	 */
+	TArray<IHttpThreadedRequest*> RateLimitedThreadedRequests;
 
 	/**
 	 * Currently running threaded requests (not in any of the other lists, except potentially CancelledThreadedRequests).
@@ -154,4 +165,7 @@ private:
 
 	/** Tells if the runnable thread is running or stopped */
 	bool bIsStopped;
+
+	/** Limit for threaded http requests running at the same time. If not specified through configuration values, there will be no limit */
+	int32 RunningThreadedRequestLimit = INT_MAX;
 };
