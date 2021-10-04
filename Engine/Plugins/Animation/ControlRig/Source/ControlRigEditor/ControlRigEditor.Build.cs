@@ -22,7 +22,6 @@ namespace UnrealBuildTool.Rules
             PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"CurveEditor",
 					"MainFrame",
 					"AppFramework",
 				}
@@ -33,7 +32,8 @@ namespace UnrealBuildTool.Rules
                 {
                     "Core",
                     "CoreUObject",
-                    "Slate",
+					"CurveEditor",
+					"Slate",
                     "SlateCore",
                     "InputCore",
                     "Engine",

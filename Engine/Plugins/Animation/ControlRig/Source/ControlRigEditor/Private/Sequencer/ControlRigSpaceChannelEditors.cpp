@@ -49,7 +49,7 @@
 #include "MovieSceneObjectBindingID.h"
 #include "ControlRig.h"
 #include "IControlRigObjectBinding.h"
-
+#include "ControlRigSpaceChannelCurveModel.h"
 #define LOCTEXT_NAMESPACE "ControlRigEditMode"
 
 
@@ -196,6 +196,8 @@ FSpaceChannelAndSection FControlRigSpaceChannelHelpers::FindSpaceChannelAndSecti
 		{
 			return SpaceChannelAndSection;
 		}
+		bool bRecreateCurves = false;
+		TArray<TPair<UControlRig*, FName>> ControlRigPairsToReselect;
 		if (FMovieSceneBinding* Binding = MovieScene->FindBinding(ObjectHandle))
 		{
 			for (UMovieSceneTrack* Track : Binding->GetTracks())
@@ -217,15 +219,36 @@ FSpaceChannelAndSection FControlRigSpaceChannelHelpers::FindSpaceChannelAndSecti
 							}
 							else if (bCreateIfNeeded)
 							{
+								if (ControlRig->IsControlSelected(ControlName))
+								{
+									TPair<UControlRig*, FName> Pair;
+									Pair.Key = ControlRig;
+									Pair.Value = ControlName;
+									ControlRigPairsToReselect.Add(Pair);
+								}
 								ActiveSection->AddSpaceChannel(ControlName, true /*ReconstructChannelProxy*/);
 								NameAndChannel = ActiveSection->GetSpaceChannel(ControlName);
 								if (NameAndChannel)
 								{
 									SpaceChannelAndSection.SpaceChannel = &NameAndChannel->SpaceCurve;
+									bRecreateCurves = true;
 								}
 							}
 						}
 					}
+				}
+			}
+			if (bRecreateCurves)
+			{
+				Sequencer->RecreateCurveEditor(); //this will require the curve editor to get recreated so the ordering is correct
+				for (TPair<UControlRig*, FName>& Pair : ControlRigPairsToReselect)
+				{
+
+					GEditor->GetTimerManager()->SetTimerForNextTick([Pair]()
+					{
+						Pair.Key->SelectControl(Pair.Value);
+					});
+					
 				}
 			}
 		}
@@ -250,6 +273,10 @@ FKeyHandle FControlRigSpaceChannelHelpers::SequencerKeyControlRigSpaceChannel(UC
 	if (SpaceKey == RigHierarchy->GetWorldSpaceSocketKey())
 	{
 		Value.SpaceType = EMovieSceneControlRigSpaceType::World;
+	}
+	else if (SpaceKey == RigHierarchy->GetDefaultParentSocketKey())
+	{
+		Value.SpaceType = EMovieSceneControlRigSpaceType::Parent;
 	}
 	else
 	{
@@ -589,6 +616,10 @@ void FControlRigSpaceChannelHelpers::SequencerBakeControlInSpace(UControlRig* Co
 		{
 			Value.SpaceType = EMovieSceneControlRigSpaceType::World;
 		}
+		else if (Settings.TargetSpace == RigHierarchy->GetDefaultParentSocketKey())
+		{
+			Value.SpaceType = EMovieSceneControlRigSpaceType::Parent;
+		}
 		else
 		{
 			FRigElementKey DefaultParent = RigHierarchy->GetFirstParent(ControlKey);
@@ -887,4 +918,137 @@ void FControlRigSpaceChannelHelpers::CompensateIfNeeded(UControlRig* ControlRig,
 	}
 }
 
+//mz todo, we may want to expose these colors in editor user preferences, okay fo rnow
+static FLinearColor GetNextIndexedColor()
+{
+	static TArray<FLinearColor> IndexedColor;
+	static int32 NextIndex = 0;
+	if (IndexedColor.Num() == 0)
+	{
+		IndexedColor.Add(FLinearColor(FColor::Orange));
+		IndexedColor.Add(FLinearColor(FColor::Silver));
+		IndexedColor.Add(FLinearColor(FColor::Purple));
+		IndexedColor.Add(FLinearColor(FColor::Emerald));
+		IndexedColor.Add(FLinearColor(FColor::Red));
+		IndexedColor.Add(FLinearColor(FColor::Green));
+		IndexedColor.Add(FLinearColor(FColor::Blue));
+	}
+	FLinearColor Color = IndexedColor[NextIndex];
+	int32 TheNextIndex = NextIndex + 1;
+	NextIndex = (TheNextIndex) % IndexedColor.Num();
+	return Color;
+
+}
+FLinearColor FControlRigSpaceChannelHelpers::GetColor(const FMovieSceneControlRigSpaceBaseKey& Key)
+{
+	static TMap<FName, FLinearColor> ColorsForSpaces;
+
+	switch (Key.SpaceType)
+	{
+		case EMovieSceneControlRigSpaceType::Parent:
+			return FLinearColor(FColor::Magenta);
+		case EMovieSceneControlRigSpaceType::World:
+			return  FLinearColor(FColor::Turquoise);
+		case EMovieSceneControlRigSpaceType::ControlRig:
+		{
+			if (FLinearColor* Color = ColorsForSpaces.Find(Key.ControlRigElement.Name))
+			{
+				return *Color;
+			}
+			else
+			{
+				FLinearColor RandoColor = GetNextIndexedColor();
+				ColorsForSpaces.Add(Key.ControlRigElement.Name, RandoColor);
+				return RandoColor;
+			}
+		}
+	};
+	return  FLinearColor(FColor::White);
+
+}
+
+FReply FControlRigSpaceChannelHelpers::OpenBakeDialog(ISequencer* Sequencer, FMovieSceneControlRigSpaceChannel* Channel,int32 KeyIndex, UMovieSceneSection* SectionToKey )
+{
+
+	if (!Sequencer || !Sequencer->GetFocusedMovieSceneSequence()|| !Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene())
+	{
+		return FReply::Unhandled();
+	}
+	if (UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(SectionToKey))
+	{
+		if (UControlRig* ControlRig = Section->GetControlRig())
+		{
+			FName ControlName = Section->FindControlNameFromSpaceChannel(Channel);
+
+			if (ControlName == NAME_None)
+			{
+				return FReply::Unhandled();
+			}
+			FRigSpacePickerBakeSettings Settings;
+
+			const FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
+			FMovieSceneControlRigSpaceBaseKey Value;
+
+			URigHierarchy* RigHierarchy = ControlRig->GetHierarchy();
+			Settings.TargetSpace = URigHierarchy::GetDefaultParentSocketKey();
+
+			TRange<FFrameNumber> Range = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange();
+			Settings.StartFrame = Range.GetLowerBoundValue();
+			Settings.EndFrame = Range.GetUpperBoundValue();
+			TMovieSceneChannelData<FMovieSceneControlRigSpaceBaseKey> ChannelData = Channel->GetData();
+			TArrayView<const FFrameNumber> Times = ChannelData.GetTimes();
+			if (KeyIndex >= 0 && KeyIndex < Times.Num())
+			{
+				Settings.StartFrame = Times[KeyIndex];
+				if (KeyIndex + 1 < Times.Num())
+				{
+					Settings.EndFrame = Times[KeyIndex + 1];
+				}
+			}
+			TArray<FRigElementKey> Controls;
+			FRigElementKey Key;
+			Key.Name = ControlName;
+			Key.Type = ERigElementType::Control;
+			Controls.Add(Key);
+			TSharedRef<SRigSpacePickerBakeWidget> BakeWidget =
+				SNew(SRigSpacePickerBakeWidget)
+				.Settings(Settings)
+				.Hierarchy(ControlRig->GetHierarchy())
+				.Controls(Controls)
+				.Sequencer(Sequencer)
+				.GetControlCustomization_Lambda([ControlRig](URigHierarchy*, const FRigElementKey& InControlKey)
+				{
+					return ControlRig->GetControlCustomization(InControlKey);
+				})
+				.OnBake_Lambda([Sequencer, ControlRig, TickResolution](URigHierarchy* InHierarchy, TArray<FRigElementKey> InControls, FRigSpacePickerBakeSettings InSettings)
+				{
+					TArray<FFrameNumber> Frames;
+
+					const FFrameRate& FrameRate = Sequencer->GetFocusedDisplayRate();
+					FFrameNumber FrameRateInFrameNumber = TickResolution.AsFrameNumber(FrameRate.AsInterval());
+					for (FFrameNumber& Frame = InSettings.StartFrame; Frame <= InSettings.EndFrame; Frame += FrameRateInFrameNumber)
+					{
+						Frames.Add(Frame);
+					}
+					FScopedTransaction Transaction(LOCTEXT("BakeControlToSpace", "Bake Control In Space"));
+					for (const FRigElementKey& ControlKey : InControls)
+					{
+						FSpaceChannelAndSection SpaceChannelAndSection = FControlRigSpaceChannelHelpers::FindSpaceChannelAndSectionForControl(ControlRig, ControlKey.Name, Sequencer, false /*bCreateIfNeeded*/);
+
+						FControlRigSpaceChannelHelpers::SequencerBakeControlInSpace(ControlRig, Sequencer, SpaceChannelAndSection.SpaceChannel, SpaceChannelAndSection.SectionToKey,
+							Frames, InHierarchy, ControlKey, InSettings);
+					}
+					return FReply::Handled();
+				});
+
+			return BakeWidget->OpenDialog(true);
+			
+		}
+	}
+	return FReply::Unhandled();
+}
+TUniquePtr<FCurveModel> CreateCurveEditorModel(const TMovieSceneChannelHandle<FMovieSceneControlRigSpaceChannel>& Channel, UMovieSceneSection* OwningSection, TSharedRef<ISequencer> InSequencer)
+{
+	return MakeUnique<FControlRigSpaceChannelCurveModel>(Channel, OwningSection, InSequencer);
+}
 #undef LOCTEXT_NAMESPACE

@@ -1487,11 +1487,25 @@ TArray< TSharedRef<FSequencerDisplayNode> > FSequencerNodeTree::GetAllNodes() co
 	return AllNodes;
 }
 
+// this will just clear out the curve editor, it will be recreated on next tick which is safer
+void FSequencerNodeTree::RecreateCurveEditor()
+{
+	FCurveEditor* CurveEditor = Sequencer.GetCurveEditor().Get();
+	if (CurveEditor)
+	{
+		for (auto It = CurveEditorTreeItemIDs.CreateIterator(); It; ++It)
+		{
+			CurveEditor->RemoveTreeItem(It->Value);
+		}
+
+		CurveEditorTreeItemIDs.Empty();
+	}
+}
+
 void FSequencerNodeTree::UpdateCurveEditorTree()
 {
 	FCurveEditor*     CurveEditor     = Sequencer.GetCurveEditor().Get();
 	FCurveEditorTree* CurveEditorTree = CurveEditor->GetTree();
-
 	// Guard against multiple broadcasts here and defer them until the end of this function
 	FScopedCurveEditorTreeEventGuard ScopedEventGuard = CurveEditorTree->ScopedEventGuard();
 

@@ -514,7 +514,9 @@ FReply SRigSpacePickerWidget::HandleWorldSpaceClicked()
 
 FReply SRigSpacePickerWidget::HandleElementSpaceClicked(FRigElementKey InKey)
 {
-	for(const FRigElementKey& ControlKey : ControlKeys)
+	//need to make copy since array may get shrunk during the event broadcast
+	TArray<FRigElementKey> ControlKeysCopy = ControlKeys;
+	for (const FRigElementKey& ControlKey : ControlKeysCopy)
 	{
 		ActiveSpaceChangedEvent.Broadcast(Hierarchy, ControlKey, InKey);
 	}

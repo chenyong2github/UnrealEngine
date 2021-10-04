@@ -41,6 +41,8 @@ struct CONTROLRIG_API FMovieSceneControlRigSpaceBaseKey
 		return A.SpaceType != B.SpaceType || (A.SpaceType == EMovieSceneControlRigSpaceType::ControlRig && A.ControlRigElement != B.ControlRigElement);
 	}
 
+	FName GetName() const;
+
 	UPROPERTY(EditAnywhere, Category = "Key")
 	EMovieSceneControlRigSpaceType SpaceType = EMovieSceneControlRigSpaceType::Parent;
 	UPROPERTY(EditAnywhere, Category = "Key")

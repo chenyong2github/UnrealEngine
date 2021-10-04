@@ -96,13 +96,13 @@ TArray <FSpaceRange> FMovieSceneControlRigSpaceChannel::FindSpaceIntervals()
 		Range.Key = KeyValues[Index];
 		if (Index == KeyTimes.Num() - 1)
 		{
-			Range.Range.SetLowerBoundValue(KeyTimes[Index]);
-			Range.Range.SetUpperBoundValue(KeyTimes[Index]);
+			Range.Range.SetLowerBound(TRangeBound<FFrameNumber>(FFrameNumber(KeyTimes[Index])));
+			Range.Range.SetUpperBound(TRangeBound<FFrameNumber>(FFrameNumber(KeyTimes[Index])));
 		}
 		else
 		{
 			int32 NextIndex = Index;
-			FFrameNumber UpperBound = KeyTimes[Index];
+			FFrameNumber LowerBound = KeyTimes[Index],UpperBound = KeyTimes[Index];
 			while (NextIndex < KeyTimes.Num() -1)
 			{
 				NextIndex = Index + 1;
@@ -117,6 +117,8 @@ TArray <FSpaceRange> FMovieSceneControlRigSpaceChannel::FindSpaceIntervals()
 					NextIndex = KeyTimes.Num();
 				}
 			}
+			Range.Range.SetLowerBound(TRangeBound<FFrameNumber>(LowerBound));
+			Range.Range.SetUpperBound(TRangeBound<FFrameNumber>(UpperBound));
 		}
 		Ranges.Add(Range);
 	}
@@ -135,6 +137,24 @@ TArray <FSpaceRange> FMovieSceneControlRigSpaceChannel::FindSpaceIntervals()
 	return Ranges;
 }
 
+FName FMovieSceneControlRigSpaceBaseKey::GetName() const
+{
+	switch (SpaceType)
+	{
+	case EMovieSceneControlRigSpaceType::Parent:
+		return FName(TEXT("Parent"));
+		break;
+
+	case EMovieSceneControlRigSpaceType::World:
+		return FName(TEXT("World"));
+		break;
+
+	case EMovieSceneControlRigSpaceType::ControlRig:
+		return ControlRigElement.Name;
+		break;
+	};
+	return NAME_None;
+}
 
 /* Is this needed if not remove mz todoo
 TSharedPtr<FStructOnScope> GetKeyStruct(TMovieSceneChannelHandle<FMovieSceneControlRigSpaceChannel> Channel, FKeyHandle InHandle)
