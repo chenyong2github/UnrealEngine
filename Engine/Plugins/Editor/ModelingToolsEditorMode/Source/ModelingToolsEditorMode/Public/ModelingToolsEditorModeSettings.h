@@ -129,3 +129,56 @@ public:
 	}
 
 };
+
+
+
+
+/**
+ * Defines a color to be used for a particular Tool Palette Section
+ */
+USTRUCT()
+struct FModelingModeCustomSectionColor
+{
+	GENERATED_BODY()
+
+	/** Name of Section in Modeling Mode Tool Palette */
+	UPROPERTY(EditAnywhere, Category = "SectionColor")
+	FString SectionName;
+
+	/** Custom Header Color */
+	UPROPERTY(EditAnywhere, Category = "SectionColor")
+	FLinearColor Color;
+};
+
+
+
+UCLASS(config=Editor)
+class MODELINGTOOLSEDITORMODE_API UModelingToolsModeCustomizationSettings : public UDeveloperSettings
+{
+	GENERATED_BODY()
+
+public:
+	// UDeveloperSettings overrides
+
+	virtual FName GetContainerName() const { return FName("Editor"); }
+	virtual FName GetCategoryName() const { return FName("Plugins"); }
+	virtual FName GetSectionName() const { return FName("ModelingMode"); }
+
+	virtual FText GetSectionText() const override;
+	virtual FText GetSectionDescription() const override;
+
+public:
+
+
+	/** Add the names of Modeling Mode Tool Palette Sections to have them appear at the top of the Tool Palette, in the order listed below. */
+	UPROPERTY(config, EditAnywhere, Category = "Modeling Mode|UI Customization")
+	TArray<FString> ToolSectionOrder;
+
+	/** Tool Names listed in the array below will appear in a Favorites section at the top of the Modeling Mode Tool Palette */
+	UPROPERTY(config, EditAnywhere, Category = "Modeling Mode|UI Customization")
+	TArray<FString> ToolFavorites;
+
+	/** Custom Section Header Colors for listed Sections in the Modeling Mode Tool Palette */
+	UPROPERTY(config, EditAnywhere, Category = "Modeling Mode|UI Customization")
+	TArray<FModelingModeCustomSectionColor> SectionColors;
+};

@@ -53,9 +53,6 @@ public:
 	virtual FText GetActiveToolDisplayName() const override { return ActiveToolName; }
 	virtual FText GetActiveToolMessage() const override { return ActiveToolMessage; }
 
-	virtual void BuildToolPalette_Standard(FName PaletteName, class FToolBarBuilder& ToolbarBuilder);
-	virtual void BuildToolPalette_Experimental(FName PaletteName, class FToolBarBuilder& ToolbarBuilder);
-
 	virtual void EnableShowRealtimeWarning(bool bEnable);
 
 	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
@@ -65,6 +62,9 @@ public:
 
 	void OnActiveViewportChanged(TSharedPtr<IAssetViewport>, TSharedPtr<IAssetViewport> );
 
+
+
+	virtual void InvokeUI() override;
 
 private:
 	const static TArray<FName> PaletteNames_Standard;
