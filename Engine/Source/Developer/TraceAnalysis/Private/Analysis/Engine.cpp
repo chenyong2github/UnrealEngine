@@ -2861,7 +2861,7 @@ int32 FProtocol5Stage::DispatchEvents(
 		{
 			do
 			{
-				NextSerial = (NextSerial + 1) & (ESerial::Range - 1);
+				NextSerial = (NextSerial + 1) & ESerial::Mask;
 
 				do
 				{
