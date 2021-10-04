@@ -52,6 +52,7 @@ public:
 	FWindowsMMNotificationClient()
 		: Ref(1)
 		, DeviceEnumerator(nullptr)
+		, bHasDisconnectSessionHappened(false)
 	{
 		bComInitialized = FWindowsPlatformMisc::CoInitialize();
 		HRESULT Result = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&DeviceEnumerator.Obj));
@@ -82,6 +83,7 @@ public:
 		}
 
 		DeviceListeningToSessionEvents = InDevice;
+		bHasDisconnectSessionHappened = false;
 				
 		// Unregister for any device we're already listening to.
 		if (SessionControls)
@@ -534,11 +536,17 @@ public:
 	{
 		UE_CLOG(Audio::IAudioMixer::ShouldLogDeviceSwaps(), LogAudioMixer, Log, TEXT("Session Disconnect: %s"), GetDisconnectReasonString(InDisconnectReason));
 
-		Audio::IAudioMixerDeviceChangedListener::EDisconnectReason Reason = AudioSessionDisconnectToEDisconnectReason(InDisconnectReason);
 		FScopeLock ScopeLock(&MutationCs);
-		for (Audio::IAudioMixerDeviceChangedListener* i : Listeners)
+		if (!bHasDisconnectSessionHappened)
 		{
-			i->OnSessionDisconnect(Reason);
+			Audio::IAudioMixerDeviceChangedListener::EDisconnectReason Reason = AudioSessionDisconnectToEDisconnectReason(InDisconnectReason);
+			for (Audio::IAudioMixerDeviceChangedListener* i : Listeners)
+			{
+				i->OnSessionDisconnect(Reason);
+			}
+			
+			// Mark this true.
+			bHasDisconnectSessionHappened = true;
 		}
 		return S_OK;
 	}
@@ -591,6 +599,7 @@ private:
 	Audio::TScopeComObject<IAudioSessionControl> SessionControls;
 	Audio::TScopeComObject<IMMDevice> DeviceListeningToSessionEvents;
 	bool bComInitialized;
+	bool bHasDisconnectSessionHappened;
 };
 
 namespace Audio

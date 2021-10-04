@@ -2075,9 +2075,14 @@ namespace Audio
 			// OnFormatChanged, retry again same device.
 			RequestDeviceSwap(GetDeviceId());
 		}
+		else if (InReason == IAudioMixerDeviceChangedListener::EDisconnectReason::DeviceRemoval)
+		{
+			// Ignore Device Removal, as this is handle by the Device Removal logic in the Notification Client.
+		}
 		else
 		{
-			// Device removed entirely, so attempt to switch to default.
+			// ServerShutdown, SessionLogoff, SessionDisconnected, ExclusiveModeOverride
+			// Attempt a default swap, will likely fail, but then we'll switch to a null device.
 			RequestDeviceSwap(TEXT(""));
 		}
 	}
