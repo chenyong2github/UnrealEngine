@@ -51,7 +51,7 @@ public:
 	float WindingThreshold = 0.5;
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)
-	bool bSolidAtBoundaries;
+	bool bSolidAtBoundaries = true;
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)
 	float ExtendBounds = 1.0;

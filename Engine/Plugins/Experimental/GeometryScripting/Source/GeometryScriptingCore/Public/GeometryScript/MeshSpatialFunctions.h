@@ -44,10 +44,10 @@ public:
 	int HitTriangleID = -1;
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)
-	FVector HitPosition;
+	FVector HitPosition = FVector::ZeroVector;
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)
-	FVector HitBaryCoords;
+	FVector HitBaryCoords = FVector::ZeroVector;
 };
 
 
