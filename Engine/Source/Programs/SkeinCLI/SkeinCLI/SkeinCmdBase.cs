@@ -1,4 +1,6 @@
-﻿using McMaster.Extensions.CommandLineUtils;
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+using McMaster.Extensions.CommandLineUtils;
 using Serilog;
 using System;
 using System.Collections.Generic;
