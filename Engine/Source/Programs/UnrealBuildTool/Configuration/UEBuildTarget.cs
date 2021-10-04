@@ -83,6 +83,19 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Return the single instance of the Group with this name
+		/// </summary>
+		/// <param name="Alias"></param>
+		/// /// <param name="Original"></param>
+		/// <returns></returns>
+		static private UnrealTargetPlatform AddAliasByName(string Alias, UnrealTargetPlatform Original)
+		{
+			GetUniqueStringRegistry().FindOrAddAlias(Alias, Original.ToString());
+			return Original;
+		}
+
+
+		/// <summary>
 		/// 
 		/// </summary>
 		/// <param name="A"></param>
@@ -150,6 +163,12 @@ namespace UnrealBuildTool
 				return true;
 			}
 
+			if (GetUniqueStringRegistry().HasAlias(Name))
+			{
+				Platform.Id = GetUniqueStringRegistry().FindExistingAlias(Name);
+				return true;
+			}
+
 			Platform.Id = -1;
 			return false;
 		}
@@ -164,6 +183,12 @@ namespace UnrealBuildTool
 			if (GetUniqueStringRegistry().HasString(Name))
 			{
 				return new UnrealTargetPlatform(Name);
+			}
+
+			if (GetUniqueStringRegistry().HasAlias(Name))
+			{
+				int Id = GetUniqueStringRegistry().FindExistingAlias(Name);
+				return new UnrealTargetPlatform(Id);
 			}
 
 			throw new BuildException(string.Format("The platform name {0} is not a valid platform name. Valid names are ({1})", Name, 
