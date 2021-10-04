@@ -34,7 +34,7 @@ void MainCS()
 		ProbeArrayOffset += ProbeCount;
 		ProbeArrayOffset = OffsetBoundaries * ((ProbeArrayOffset + (OffsetBoundaries - 1)) / OffsetBoundaries);
 
-		uint ResolutionMultiplier = LevelResolutionArray[HierarchyLevelId] / PROBE_HIERARCHY_RESOLUTION;
+		uint ResolutionMultiplier = GET_SCALAR_ARRAY_ELEMENT(LevelResolutionArray, HierarchyLevelId) / PROBE_HIERARCHY_RESOLUTION;
 
 		ProbeAtlasOffset += ResolutionMultiplier * ResolutionMultiplier * ProbeCount;
 		ProbeAtlasOffset = OffsetBoundaries * ((ProbeAtlasOffset + (OffsetBoundaries - 1)) / OffsetBoundaries);

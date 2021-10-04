@@ -175,11 +175,8 @@ namespace LumenRadianceCache
 		{
 			const FRadianceCacheClipmap& Clipmap = RadianceCacheState.Clipmaps[ClipmapIndex];
 
-			MarkParameters.RadianceProbeClipmapTMinForMark[ClipmapIndex] = Clipmap.ProbeTMin;
-			MarkParameters.WorldPositionToRadianceProbeCoordScaleForMark[ClipmapIndex] = Clipmap.WorldPositionToProbeCoordScale;
-			MarkParameters.WorldPositionToRadianceProbeCoordBiasForMark[ClipmapIndex] = Clipmap.WorldPositionToProbeCoordBias;
-			MarkParameters.RadianceProbeCoordToWorldPositionScaleForMark[ClipmapIndex] = Clipmap.ProbeCoordToWorldCenterScale;
-			MarkParameters.RadianceProbeCoordToWorldPositionBiasForMark[ClipmapIndex] = Clipmap.ProbeCoordToWorldCenterBias;
+			SetWorldPositionToRadianceProbeCoord(MarkParameters.PackedWorldPositionToRadianceProbeCoord[ClipmapIndex], Clipmap.WorldPositionToProbeCoordBias, Clipmap.WorldPositionToProbeCoordScale);
+			SetRadianceProbeCoordToWorldPosition(MarkParameters.PackedRadianceProbeCoordToWorldPosition[ClipmapIndex], Clipmap.ProbeCoordToWorldCenterBias, Clipmap.ProbeCoordToWorldCenterScale);
 		}
 
 		MarkParameters.RadianceProbeClipmapResolutionForMark = RadianceCacheInputs.RadianceProbeClipmapResolution;
@@ -266,8 +263,7 @@ class FUpdateCacheForUsedProbesCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWProbeLastUsedFrame)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D<uint>, LastFrameRadianceProbeIndirectionTexture)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
-		SHADER_PARAMETER_ARRAY(float, LastFrameRadianceProbeCoordToWorldPositionScale, [LumenRadianceCache::MaxClipmaps])
-		SHADER_PARAMETER_ARRAY(FVector3f, LastFrameRadianceProbeCoordToWorldPositionBias, [LumenRadianceCache::MaxClipmaps])
+		SHADER_PARAMETER_ARRAY(FVector4f, PackedLastFrameRadianceProbeCoordToWorldPosition, [LumenRadianceCache::MaxClipmaps])
 		SHADER_PARAMETER(uint32, FrameNumber)
 		SHADER_PARAMETER(uint32, NumFramesToKeepCachedProbes)
 	END_SHADER_PARAMETER_STRUCT()
@@ -1148,8 +1144,8 @@ void RenderRadianceCache(
 				for (int32 ClipmapIndex = 0; ClipmapIndex < LastFrameClipmaps.Num(); ++ClipmapIndex)
 				{
 					const FRadianceCacheClipmap& Clipmap = LastFrameClipmaps[ClipmapIndex];
-					PassParameters->LastFrameRadianceProbeCoordToWorldPositionScale[ClipmapIndex] = Clipmap.ProbeCoordToWorldCenterScale;
-					PassParameters->LastFrameRadianceProbeCoordToWorldPositionBias[ClipmapIndex] = Clipmap.ProbeCoordToWorldCenterBias;
+
+					SetRadianceProbeCoordToWorldPosition(PassParameters->PackedLastFrameRadianceProbeCoordToWorldPosition[ClipmapIndex], Clipmap.ProbeCoordToWorldCenterBias, Clipmap.ProbeCoordToWorldCenterScale);
 				}
 
 				auto ComputeShader = View.ShaderMap->GetShader<FUpdateCacheForUsedProbesCS>(0);

@@ -365,7 +365,7 @@
 
 //------------------------------------------------------- PARAMETERS
 
-int bCameraCut[MAX_SIGNAL_BATCH_SIZE];
+DECLARE_SCALAR_ARRAY(int, bCameraCut, MAX_SIGNAL_BATCH_SIZE);
 
 float HistoryPreExposureCorrection;
 
@@ -660,7 +660,7 @@ void TemporallyAccumulate(
 				{
 					HistorySamples.Array[BatchedSignalId] = SignalAccumulators.Array[BatchedSignalId].Moment1;
 					BRANCH
-					if (bCameraCut[BatchedSignalId])
+					if (GET_SCALAR_ARRAY_ELEMENT(bCameraCut, BatchedSignalId))
 					{
 						HistorySamples.Array[BatchedSignalId] = CreateSignalSampleFromScalarValue(0.0);
 					}

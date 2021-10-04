@@ -7,9 +7,12 @@
 
 uint PassSectionCount;
 
-uint SectionVertexCount[MAX_SECTION_COUNT];
-uint SectionVertexOffset[MAX_SECTION_COUNT];
-uint SectionBufferIndex[MAX_SECTION_COUNT];
+// Manual packing for mesh section scalars.  MUST MATCH WITH HairStrandsMeshProjection.cpp
+// PackedSectionScalars: SectionVertexOffset, SectionVertexCount, SectionBufferIndex, *free*
+uint4 PackedSectionScalars[MAX_SECTION_COUNT];
+#define SectionVertexOffset(SectionIndex) PackedSectionScalars[SectionIndex].x
+#define SectionVertexCount(SectionIndex)  PackedSectionScalars[SectionIndex].y
+#define SectionBufferIndex(SectionIndex)  PackedSectionScalars[SectionIndex].z
 
 #if PERMUTATION_POSITION_TYPE == 0
 Buffer<float> VertexPositionsBuffer0;
@@ -60,7 +63,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	uint SectionIndex = 0;
 	for (uint It = 0; It < PassSectionCount; ++It)
 	{
-		if ((VertexIndex >= SectionVertexOffset[It]) && (VertexIndex < (SectionVertexOffset[It] + SectionVertexCount[It])))
+		if ((VertexIndex >= SectionVertexOffset(It)) && (VertexIndex < (SectionVertexOffset(It) + SectionVertexCount(It))))
 		{
 			SectionIndex = It;
 			bValid = true;
@@ -72,7 +75,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		return;
 
 	float3 SamplePosition = float3(0,0,0);
-	const uint BufferIndex = SectionBufferIndex[ SectionIndex];
+	const uint BufferIndex = SectionBufferIndex(SectionIndex);
 	const int LocalIndex = VertexIndex;
 	if (BufferIndex == 0)
 	{

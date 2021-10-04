@@ -1204,7 +1204,7 @@ void ConeTraceLumenDistantScene(
 		{
 			//TraceInput.MinTraceDistance = TraceEndDistance;
 			uint ListIndex = 0;
-			uint CardIndex = LumenCardScene.DistantCardIndices[ListIndex];
+			uint CardIndex = GET_SCALAR_ARRAY_ELEMENT(LumenCardScene.DistantCardIndices, ListIndex);
 
 			ConeTraceSingleLumenCard(
 				TraceInput,

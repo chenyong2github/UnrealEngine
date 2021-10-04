@@ -93,7 +93,7 @@ FColorRemapParameters GetColorRemapParameters()
 BEGIN_SHADER_PARAMETER_STRUCT(FCombineLUTParameters, )
 	SHADER_PARAMETER_TEXTURE_ARRAY(Texture2D, Textures, [GMaxLUTBlendCount])
 	SHADER_PARAMETER_SAMPLER_ARRAY(SamplerState, Samplers, [GMaxLUTBlendCount])
-	SHADER_PARAMETER_ARRAY(float, LUTWeights, [GMaxLUTBlendCount])
+	SHADER_PARAMETER_SCALAR_ARRAY(float, LUTWeights, [GMaxLUTBlendCount])
 	SHADER_PARAMETER(FVector4f, OverlayColor)
 	SHADER_PARAMETER(FVector3f, ColorScale)
 	SHADER_PARAMETER(FVector4f, ColorSaturation)
@@ -164,7 +164,7 @@ void GetCombineLUTParameters(
 			Parameters.Samplers[BlendIndex] = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, 1>::GetRHI();
 		}
 
-		Parameters.LUTWeights[BlendIndex] = Weights[BlendIndex];
+		GET_SCALAR_ARRAY_ELEMENT(Parameters.LUTWeights, BlendIndex) = Weights[BlendIndex];
 	}
 
 	Parameters.ColorScale = FVector4f(View.ColorScale);

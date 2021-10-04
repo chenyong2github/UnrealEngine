@@ -525,13 +525,8 @@ private:
 		SHADER_PARAMETER(uint32, Pass_SectionStart)
 		SHADER_PARAMETER(uint32, Pass_SectionCount)
 		
-		SHADER_PARAMETER_ARRAY(uint32, MeshSectionIndices, [SectionArrayCount])
-		SHADER_PARAMETER_ARRAY(uint32, MeshMaxIndexCount, [SectionArrayCount])
-		SHADER_PARAMETER_ARRAY(uint32, MeshMaxVertexCount, [SectionArrayCount])
-		SHADER_PARAMETER_ARRAY(uint32, MeshIndexOffset, [SectionArrayCount])
-		SHADER_PARAMETER_ARRAY(uint32, MeshUVsChannelOffset, [SectionArrayCount])
-		SHADER_PARAMETER_ARRAY(uint32, MeshUVsChannelCount, [SectionArrayCount])
-		SHADER_PARAMETER_ARRAY(uint32, MeshSectionBufferIndex, [SectionArrayCount])
+		SHADER_PARAMETER_ARRAY(FUintVector4, PackedMeshSectionScalars1, [SectionArrayCount])
+		SHADER_PARAMETER_ARRAY(FUintVector4, PackedMeshSectionScalars2, [SectionArrayCount])
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RDGMeshPositionBuffer0)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RDGMeshPositionBuffer1)
@@ -586,6 +581,18 @@ public:
 };
 
 IMPLEMENT_GLOBAL_SHADER(FHairUpdateMeshTriangleCS, "/Engine/Private/HairStrands/HairStrandsMeshUpdate.usf", "MainCS", SF_Compute);
+
+// Manual packing for mesh section scalars.  MUST MATCH WITH HairStrandsMeshUpdate.usf
+// PackedMeshSectionScalars1: MeshSectionIndices, MeshMaxIndexCount, MeshMaxVertexCount, MeshIndexOffset
+// PackedMeshSectionScalars2: MeshUVsChannelOffset, MeshUVsChannelCount, MeshSectionBufferIndex, *free*
+inline void SetMeshSectionIndices(FHairUpdateMeshTriangleCS::FParameters& Params, uint32 SectionIndex, uint32 MeshSectionIndices)         { Params.PackedMeshSectionScalars1[SectionIndex].X = MeshSectionIndices; }
+inline void SetMeshMaxIndexCount(FHairUpdateMeshTriangleCS::FParameters& Params, uint32 SectionIndex, uint32 MeshMaxIndexCount)           { Params.PackedMeshSectionScalars1[SectionIndex].Y = MeshMaxIndexCount; }
+inline void SetMeshMaxVertexCount(FHairUpdateMeshTriangleCS::FParameters& Params, uint32 SectionIndex, uint32 MeshMaxVertexCount)         { Params.PackedMeshSectionScalars1[SectionIndex].Z = MeshMaxVertexCount; }
+inline void SetMeshIndexOffset(FHairUpdateMeshTriangleCS::FParameters& Params, uint32 SectionIndex, uint32 MeshIndexOffset)               { Params.PackedMeshSectionScalars1[SectionIndex].W = MeshIndexOffset; }
+inline void SetMeshUVsChannelOffset(FHairUpdateMeshTriangleCS::FParameters& Params, uint32 SectionIndex, uint32 MeshUVsChannelOffset)     { Params.PackedMeshSectionScalars2[SectionIndex].X = MeshUVsChannelOffset; }
+inline void SetMeshUVsChannelCount(FHairUpdateMeshTriangleCS::FParameters& Params, uint32 SectionIndex, uint32 MeshUVsChannelCount)       { Params.PackedMeshSectionScalars2[SectionIndex].Y = MeshUVsChannelCount; }
+inline void SetMeshSectionBufferIndex(FHairUpdateMeshTriangleCS::FParameters& Params, uint32 SectionIndex, uint32 MeshSectionBufferIndex) { Params.PackedMeshSectionScalars2[SectionIndex].Z = MeshSectionBufferIndex; }
+
 
 void AddHairStrandUpdateMeshTrianglesPass(
 	FRDGBuilder& GraphBuilder,
@@ -797,7 +804,7 @@ void AddHairStrandUpdateMeshTrianglesPass(
 				check(Buffers->IndexBuffer == MeshSectionData.IndexBuffer);
 				check(Buffers->UVsBuffer == MeshSectionData.UVsBuffer);
 
-				Parameters->MeshSectionBufferIndex[SectionIt] = Buffers->MeshSectionBufferIndex;
+				SetMeshSectionBufferIndex(*Parameters, SectionIt, Buffers->MeshSectionBufferIndex);
 			}
 			else
 			{
@@ -821,16 +828,16 @@ void AddHairStrandUpdateMeshTrianglesPass(
 					UniqueMeshSectionBuffersRDG.Add(MeshSectionData.RDGPositionBuffer, Entry);
 				}
 
-				Parameters->MeshSectionBufferIndex[SectionIt] = UniqueMeshSectionBufferIndex;
+				SetMeshSectionBufferIndex(*Parameters, SectionIt, UniqueMeshSectionBufferIndex);
 				++UniqueMeshSectionBufferIndex;
 			}
 
-			Parameters->MeshSectionIndices[SectionIt] = MeshSectionData.SectionIndex;
-			Parameters->MeshMaxIndexCount[SectionIt] = MeshSectionData.TotalIndexCount;
-			Parameters->MeshMaxVertexCount[SectionIt] = MeshSectionData.TotalVertexCount;
-			Parameters->MeshIndexOffset[SectionIt] = MeshSectionData.IndexBaseIndex;
-			Parameters->MeshUVsChannelOffset[SectionIt] = MeshSectionData.UVsChannelOffset;
-			Parameters->MeshUVsChannelCount[SectionIt] = MeshSectionData.UVsChannelCount;
+			SetMeshSectionIndices(*Parameters, SectionIt, MeshSectionData.SectionIndex);
+			SetMeshMaxIndexCount(*Parameters, SectionIt, MeshSectionData.TotalIndexCount);
+			SetMeshMaxVertexCount(*Parameters, SectionIt, MeshSectionData.TotalVertexCount);
+			SetMeshIndexOffset(*Parameters, SectionIt, MeshSectionData.IndexBaseIndex);
+			SetMeshUVsChannelOffset(*Parameters, SectionIt, MeshSectionData.UVsChannelOffset);
+			SetMeshUVsChannelCount(*Parameters, SectionIt, MeshSectionData.UVsChannelCount);
 
 			// Sanity check
 			// If one of the input is using RDG position, we expect all mesh sections to use RDG input
@@ -1109,9 +1116,7 @@ private:
 		SHADER_PARAMETER(uint32, MaxVertexCount)
 		SHADER_PARAMETER(uint32, PassSectionCount)
 
-		SHADER_PARAMETER_ARRAY(uint32, SectionVertexOffset, [SectionArrayCount])
-		SHADER_PARAMETER_ARRAY(uint32, SectionVertexCount, [SectionArrayCount])
-		SHADER_PARAMETER_ARRAY(uint32, SectionBufferIndex, [SectionArrayCount])
+		SHADER_PARAMETER_ARRAY(FUintVector4, PackedSectionScalars, [SectionArrayCount])
 
 		SHADER_PARAMETER_SRV(Buffer, VertexPositionsBuffer0)
 		SHADER_PARAMETER_SRV(Buffer, VertexPositionsBuffer1)
@@ -1145,6 +1150,14 @@ public:
 };
 
 IMPLEMENT_GLOBAL_SHADER(FHairInitMeshSamplesCS, "/Engine/Private/HairStrands/HairStrandsSamplesInit.usf", "MainCS", SF_Compute);
+
+// Manual packing for mesh section scalars.  MUST MATCH WITH HairStrandsSamplesInit.usf
+// PackedSectionScalars: SectionVertexOffset, SectionVertexCount, SectionBufferIndex, *free*
+inline void SetSectionVertexOffset(FHairInitMeshSamplesCS::FParameters& Params, uint32 SectionIndex, uint32 SectionVertexOffset) { Params.PackedSectionScalars[SectionIndex].X = SectionVertexOffset; }
+inline void SetSectionVertexCount(FHairInitMeshSamplesCS::FParameters& Params, uint32 SectionIndex, uint32 SectionVertexCount)   { Params.PackedSectionScalars[SectionIndex].Y = SectionVertexCount; }
+inline void SetSectionBufferIndex(FHairInitMeshSamplesCS::FParameters& Params, uint32 SectionIndex, uint32 SectionBufferIndex)   { Params.PackedSectionScalars[SectionIndex].Z = SectionBufferIndex; }
+
+
 
 void AddHairStrandInitMeshSamplesPass(
 	FRDGBuilder& GraphBuilder,
@@ -1210,9 +1223,9 @@ void AddHairStrandInitMeshSamplesPass(
 
 			for (uint32 DataIndex = 0; DataIndex < FHairInitMeshSamplesCS::SectionArrayCount; ++DataIndex)
 			{
-				Parameters.SectionBufferIndex[DataIndex] = 0;
-				Parameters.SectionVertexOffset[DataIndex] = 0;
-				Parameters.SectionVertexCount[DataIndex] = 0;
+				SetSectionBufferIndex(Parameters, DataIndex, 0);
+				SetSectionVertexOffset(Parameters, DataIndex, 0);
+				SetSectionVertexCount(Parameters, DataIndex, 0);
 			}
 
 			const int32 PassSectionStart = PassIt * FHairInitMeshSamplesCS::SectionArrayCount;
@@ -1291,8 +1304,8 @@ void AddHairStrandInitMeshSamplesPass(
 
 				const FHairStrandsProjectionMeshData::Section& MeshSectionData = MeshData.Sections[SectionIndex];
 
-				Parameters.SectionVertexOffset[SectionIt] = MeshSectionData.VertexBaseIndex;
-				Parameters.SectionVertexCount[SectionIt] = MeshSectionData.NumVertices;
+				SetSectionVertexOffset(Parameters, SectionIt, MeshSectionData.VertexBaseIndex);
+				SetSectionVertexCount(Parameters, SectionIt, MeshSectionData.NumVertices);
 
 				const FMeshSectionBuffers* Buffers = nullptr;
 				if (MeshSectionData.PositionBuffer)
@@ -1310,7 +1323,7 @@ void AddHairStrandInitMeshSamplesPass(
 				}
 				if (Buffers != nullptr)
 				{
-					Parameters.SectionBufferIndex[SectionIt] = Buffers->SectionBufferIndex;
+					SetSectionBufferIndex(Parameters, SectionIt, Buffers->SectionBufferIndex);
 				}
 				else
 				{
@@ -1332,7 +1345,7 @@ void AddHairStrandInitMeshSamplesPass(
 						UniqueMeshSectionBuffersRDG.Add(MeshSectionData.RDGPositionBuffer, Entry);
 					}
 
-					Parameters.SectionBufferIndex[SectionIt] = UniqueMeshSectionBufferIndex;
+					SetSectionBufferIndex(Parameters, SectionIt, UniqueMeshSectionBufferIndex);
 					++UniqueMeshSectionBufferIndex;
 				}
 

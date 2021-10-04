@@ -106,8 +106,8 @@ class FTemporalAACS : public FGlobalShader
 		SHADER_PARAMETER(float, CurrentFrameWeight)
 		SHADER_PARAMETER(int32, bCameraCut)
 
-		SHADER_PARAMETER_ARRAY(float, SampleWeights, [9])
-		SHADER_PARAMETER_ARRAY(float, PlusWeights, [5])
+		SHADER_PARAMETER_SCALAR_ARRAY(float, SampleWeights, [9])
+		SHADER_PARAMETER_SCALAR_ARRAY(float, PlusWeights, [5])
 
 		SHADER_PARAMETER(FVector4f, InputSceneColorSize)
 		SHADER_PARAMETER(FIntPoint, InputMinPixelCoord)
@@ -284,37 +284,43 @@ void SetupSampleWeightParameters(FTemporalAACS::FParameters* OutTAAParameters, c
 
 			if (bCatmullRom)
 			{
-				OutTAAParameters->SampleWeights[i] = CatmullRom(PixelOffsetX) * CatmullRom(PixelOffsetY);
-				TotalWeight += OutTAAParameters->SampleWeights[i];
+				const float CurrWeight = CatmullRom(PixelOffsetX) * CatmullRom(PixelOffsetY);
+				GET_SCALAR_ARRAY_ELEMENT(OutTAAParameters->SampleWeights, i) = CurrWeight;
+				TotalWeight += CurrWeight;
 			}
 			else
 			{
 				// Normal distribution, Sigma = 0.47
-				OutTAAParameters->SampleWeights[i] = FMath::Exp(-2.29f * (PixelOffsetX * PixelOffsetX + PixelOffsetY * PixelOffsetY));
-				TotalWeight += OutTAAParameters->SampleWeights[i];
+				const float CurrWeight = FMath::Exp(-2.29f * (PixelOffsetX * PixelOffsetX + PixelOffsetY * PixelOffsetY));
+				GET_SCALAR_ARRAY_ELEMENT(OutTAAParameters->SampleWeights, i) = CurrWeight;
+				TotalWeight += CurrWeight;
 			}
 		}
 	
 		for (int32 i = 0; i < 9; i++)
-			OutTAAParameters->SampleWeights[i] /= TotalWeight;
+		{
+			GET_SCALAR_ARRAY_ELEMENT(OutTAAParameters->SampleWeights, i) /= TotalWeight;
+		}
 	}
 
 	// Compute 3x3 + weights.
 	{
-		OutTAAParameters->PlusWeights[0] = OutTAAParameters->SampleWeights[1];
-		OutTAAParameters->PlusWeights[1] = OutTAAParameters->SampleWeights[3];
-		OutTAAParameters->PlusWeights[2] = OutTAAParameters->SampleWeights[4];
-		OutTAAParameters->PlusWeights[3] = OutTAAParameters->SampleWeights[5];
-		OutTAAParameters->PlusWeights[4] = OutTAAParameters->SampleWeights[7];
+		GET_SCALAR_ARRAY_ELEMENT(OutTAAParameters->PlusWeights, 0) = GET_SCALAR_ARRAY_ELEMENT(OutTAAParameters->SampleWeights, 1);
+		GET_SCALAR_ARRAY_ELEMENT(OutTAAParameters->PlusWeights, 1) = GET_SCALAR_ARRAY_ELEMENT(OutTAAParameters->SampleWeights, 3);
+		GET_SCALAR_ARRAY_ELEMENT(OutTAAParameters->PlusWeights, 2) = GET_SCALAR_ARRAY_ELEMENT(OutTAAParameters->SampleWeights, 4);
+		GET_SCALAR_ARRAY_ELEMENT(OutTAAParameters->PlusWeights, 3) = GET_SCALAR_ARRAY_ELEMENT(OutTAAParameters->SampleWeights, 5);
+		GET_SCALAR_ARRAY_ELEMENT(OutTAAParameters->PlusWeights, 4) = GET_SCALAR_ARRAY_ELEMENT(OutTAAParameters->SampleWeights, 7);
 		float TotalWeightPlus = (
-			OutTAAParameters->SampleWeights[1] +
-			OutTAAParameters->SampleWeights[3] +
-			OutTAAParameters->SampleWeights[4] +
-			OutTAAParameters->SampleWeights[5] +
-			OutTAAParameters->SampleWeights[7]);
+			GET_SCALAR_ARRAY_ELEMENT(OutTAAParameters->SampleWeights, 1) +
+			GET_SCALAR_ARRAY_ELEMENT(OutTAAParameters->SampleWeights, 3) +
+			GET_SCALAR_ARRAY_ELEMENT(OutTAAParameters->SampleWeights, 4) +
+			GET_SCALAR_ARRAY_ELEMENT(OutTAAParameters->SampleWeights, 5) +
+			GET_SCALAR_ARRAY_ELEMENT(OutTAAParameters->SampleWeights, 7));
 	
 		for (int32 i = 0; i < 5; i++)
-			OutTAAParameters->PlusWeights[i] /= TotalWeightPlus;
+		{
+			GET_SCALAR_ARRAY_ELEMENT(OutTAAParameters->PlusWeights, i) /= TotalWeightPlus;
+		}
 	}
 }
 

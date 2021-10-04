@@ -112,7 +112,7 @@ struct FVirtualShadowMapHZBMetadata
 };
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualShadowMapUniformParameters, )
-	SHADER_PARAMETER_ARRAY(uint32, HPageFlagLevelOffsets, [FVirtualShadowMap::MaxMipLevels])
+	SHADER_PARAMETER_SCALAR_ARRAY(uint32, HPageFlagLevelOffsets, [FVirtualShadowMap::MaxMipLevels])
 	SHADER_PARAMETER(uint32, HPageTableSize)
 	SHADER_PARAMETER(uint32, NumShadowMaps)
 	SHADER_PARAMETER(uint32, NumDirectionalLights)

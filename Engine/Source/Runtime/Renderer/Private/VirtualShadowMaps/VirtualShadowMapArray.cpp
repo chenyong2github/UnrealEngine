@@ -252,11 +252,11 @@ void FVirtualShadowMapArray::Initialize(FRDGBuilder& GraphBuilder, FVirtualShado
 	uint32 HPageFlagOffset = 0;
 	for (uint32 Level = 0; Level < FVirtualShadowMap::MaxMipLevels - 1; ++Level)
 	{
-		UniformParameters.HPageFlagLevelOffsets[Level] = HPageFlagOffset;
+		GET_SCALAR_ARRAY_ELEMENT(UniformParameters.HPageFlagLevelOffsets, Level) = HPageFlagOffset;
 		HPageFlagOffset += FVirtualShadowMap::PageTableSize - CalcVirtualShadowMapLevelOffsets(Level + 1, FVirtualShadowMap::Log2Level0DimPagesXY);
 	}
 	// The last mip level is 1x1 and thus does not have any H levels possible.
-	UniformParameters.HPageFlagLevelOffsets[FVirtualShadowMap::MaxMipLevels - 1] = 0;
+	GET_SCALAR_ARRAY_ELEMENT(UniformParameters.HPageFlagLevelOffsets, (FVirtualShadowMap::MaxMipLevels - 1)) = 0;
 	UniformParameters.HPageTableSize = HPageFlagOffset;
 
 	// Fixed physical page pool width, we adjust the height to accomodate the requested maximum

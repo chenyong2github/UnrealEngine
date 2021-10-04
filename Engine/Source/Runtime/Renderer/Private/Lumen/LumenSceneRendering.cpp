@@ -1766,7 +1766,7 @@ void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scen
 	
 	for (int32 i = 0; i < LumenSceneData.DistantCardIndices.Num(); i++)
 	{
-		OutParameters.DistantCardIndices[i] = LumenSceneData.DistantCardIndices[i];
+		GET_SCALAR_ARRAY_ELEMENT(OutParameters.DistantCardIndices, i) = LumenSceneData.DistantCardIndices[i];
 	}
 
 	OutParameters.CardData = LumenSceneData.CardBuffer.SRV;

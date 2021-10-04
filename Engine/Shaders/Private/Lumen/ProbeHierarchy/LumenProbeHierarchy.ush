@@ -111,8 +111,8 @@ uint ProbeIndexOrdinateShift;
 uint HierarchyDepth;
 float CounterParrallaxError;
 
-uint LevelResolutionArray[PROBE_HIERARCHY_MAX_HIERARCHY_DEPTH];
-uint LevelSuperSamplingArray[PROBE_HIERARCHY_MAX_HIERARCHY_DEPTH];
+DECLARE_SCALAR_ARRAY(uint, LevelResolutionArray, PROBE_HIERARCHY_MAX_HIERARCHY_DEPTH);
+DECLARE_SCALAR_ARRAY(uint, LevelSuperSamplingArray, PROBE_HIERARCHY_MAX_HIERARCHY_DEPTH);
 
 uint LevelId;
 uint LevelResolution;
@@ -150,8 +150,8 @@ FHierarchyLevelParameters GetProbeHierarchyLevelParameters(const uint HierarchyL
 {
 	FHierarchyLevelParameters HierarchyLevel;
 	HierarchyLevel.Id = HierarchyLevelId;
-	HierarchyLevel.Resolution = LevelResolutionArray[HierarchyLevelId];
-	HierarchyLevel.SuperSampling = LevelSuperSamplingArray[HierarchyLevelId];
+	HierarchyLevel.Resolution = GET_SCALAR_ARRAY_ELEMENT(LevelResolutionArray,HierarchyLevelId);
+	HierarchyLevel.SuperSampling = GET_SCALAR_ARRAY_ELEMENT(LevelSuperSamplingArray,HierarchyLevelId);
 	HierarchyLevel.ProbeCount = ProbeHierarchyInfoBuffer[3 * HierarchyLevel.Id + 0];
 	HierarchyLevel.ProbeArrayOffset = ProbeHierarchyInfoBuffer[3 * HierarchyLevel.Id + 1];
 	HierarchyLevel.ProbeAtlasOffset = ProbeHierarchyInfoBuffer[3 * HierarchyLevel.Id + 2];

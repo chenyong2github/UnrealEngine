@@ -73,7 +73,7 @@ uint CalcLevelOffsets(uint Level)
 
 uint CalcHPageFlagLevelOffsets(uint Level)
 {
-	return VirtualShadowMap.HPageFlagLevelOffsets[Level];
+	return GET_SCALAR_ARRAY_ELEMENT(VirtualShadowMap.HPageFlagLevelOffsets, Level);
 }
 
 /**

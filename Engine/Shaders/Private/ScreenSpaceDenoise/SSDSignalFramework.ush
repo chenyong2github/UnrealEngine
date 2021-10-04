@@ -70,8 +70,8 @@ struct FSSDSignalDomainKnowledge
 
 float4 LightPositionAndRadius[MAX_SIGNAL_BATCH_SIZE];
 float4 LightDirectionAndLength[MAX_SIGNAL_BATCH_SIZE];
-float HitDistanceToWorldBluringRadius[MAX_SIGNAL_BATCH_SIZE];
-uint LightType[MAX_SIGNAL_BATCH_SIZE];
+DECLARE_SCALAR_ARRAY(float, HitDistanceToWorldBluringRadius, MAX_SIGNAL_BATCH_SIZE);
+DECLARE_SCALAR_ARRAY(uint, LightType, MAX_SIGNAL_BATCH_SIZE);
 
 uint FrameIndex;
 
@@ -100,11 +100,11 @@ FSSDSignalDomainKnowledge GetSignalDomainKnowledge(uint BatchedSignalId)
 	SignalDomain.Light.Direction = LightDirectionAndLength[BatchedSignalId].xyz;
 	SignalDomain.Light.SourceRadius = LightPositionAndRadius[BatchedSignalId].w;
 	SignalDomain.Light.SourceLength = LightDirectionAndLength[BatchedSignalId].w;
-	SignalDomain.HitDistanceToWorldBluringRadius = HitDistanceToWorldBluringRadius[BatchedSignalId];
+	SignalDomain.HitDistanceToWorldBluringRadius = GET_SCALAR_ARRAY_ELEMENT(HitDistanceToWorldBluringRadius, BatchedSignalId);
 	
 	#if !defined(DIM_LIGHT_TYPE)
 	{
-		SignalDomain.LightType = LightType[BatchedSignalId];
+		SignalDomain.LightType = GET_SCALAR_ARRAY_ELEMENT(LightType, BatchedSignalId);
 	}
 	#else
 	{

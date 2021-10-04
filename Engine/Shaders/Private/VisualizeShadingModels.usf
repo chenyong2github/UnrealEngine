@@ -6,7 +6,7 @@
 Texture2D SceneColorTexture;
 SamplerState SceneColorSampler;
 
-uint ShadingModelMaskInView[16];
+DECLARE_SCALAR_ARRAY(uint, ShadingModelMaskInView, 16);
 
 void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
 {
@@ -38,7 +38,7 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 
 		if (ShadingModelID < ShadingModelCount)
 		{
-			const bool bValue = ShadingModelMaskInView[ShadingModelID] != 0;
+			const bool bValue = GET_SCALAR_ARRAY_ELEMENT(ShadingModelMaskInView, ShadingModelID) != 0;
 
 			float3 LegendShadingModelColor = GetShadingModelColor(ShadingModelID);
 
