@@ -1,6 +1,7 @@
-﻿using System.Net.Http;
-using System.Threading.Tasks;
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Net.Http;
+using System.Threading.Tasks;
 public class SkeinClient
 {
     private readonly HttpClient _httpClient;
