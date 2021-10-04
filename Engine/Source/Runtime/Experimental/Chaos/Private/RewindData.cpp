@@ -6,6 +6,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Chaos/PBDJointConstraints.h"
 #include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 
 namespace Chaos
 {

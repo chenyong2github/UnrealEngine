@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "EngineUtils.h"
-#include "Editor.h"
+#include "FileHelpers.h"
 #include "StaticMeshCompiler.h"
 #include "Logging/LogMacros.h"
 
@@ -97,7 +97,7 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FBox
 		if (!PackageHelper.Delete(PackagesToDelete))
 		{
 			UE_LOG(LogWorldPartitionNavigationDataBuilder, Error, TEXT("Error deleting packages."));
-			return 1;
+			return true;
 		}
 	}
 
@@ -124,7 +124,7 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FBox
 						if (!IPlatformFile::GetPlatformPhysical().SetReadOnly(*PackageFilename, /*bNewReadOnlyValue*/false))
 						{
 							UE_LOG(LogWorldPartitionNavigationDataBuilder, Error, TEXT("Error setting %s writable"), *PackageFilename);
-							return 1;
+							return true;
 						}
 					}
 				}
@@ -143,7 +143,7 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FBox
 				if (!UPackage::SavePackage(Package, nullptr, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_Async))
 				{
 					UE_LOG(LogWorldPartitionNavigationDataBuilder, Error, TEXT("Error saving package %s."), *Package->GetName());
-					return 1;
+					return true;
 				}
 			}
 		}
@@ -158,7 +158,7 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FBox
 				if (!PackageHelper.AddToSourceControl(Package))
 				{
 					UE_LOG(LogWorldPartitionNavigationDataBuilder, Error, TEXT("Error adding package %s to source control."), *Package->GetName());
-					return 1;
+					return true;
 				}
 			}
 		}
