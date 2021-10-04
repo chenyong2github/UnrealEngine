@@ -3515,30 +3515,35 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 				ViewState->PrevFrameViewInfo.ViewMatrices.GetViewOrigin(),
 				0.18f /*degree*/, 0.1f /*cm*/);
 			const bool bIsProjMatrixDifferent = View.ViewMatrices.GetProjectionNoAAMatrix() != View.ViewState->PrevFrameViewInfo.ViewMatrices.GetProjectionNoAAMatrix();
-			bool bInvalidatePathTracer = false;
 			
 			if (View.bIsOfflineRender)
 			{
 				// In the offline context, we want precise control over when to restart the path tracer's accumulation to allow for motion blur
 				// So we use the camera cut signal only. In particular - we should not use bForceCameraVisibilityReset since this has
 				// interactions with the motion blur post process effect in tiled rendering (see comment below).
-				bInvalidatePathTracer = View.bCameraCut || View.bForcePathTracerReset;
+				if (View.bCameraCut || View.bForcePathTracerReset)
+				{
+					ViewState->PathTracingInvalidate();
+				}
 			}
 			else
 			{
 				// for interactive usage - any movement or scene change should restart the path tracer
-				bInvalidatePathTracer = bResetCamera ||
-					Scene->bPathTracingNeedsInvalidation ||
+
+				// We use an atomic to signal path tracer invalidation easily from other threads (like the game thread). This means
+				// we need to be very careful to read and reset the atomic flag in a single step to avoid missing anything. This is
+				// also why we check this field first before looking at the other conditions.
+				bool bNeedsInvalidation = true;
+				if (Scene->bPathTracingNeedsInvalidation.CompareExchange(bNeedsInvalidation, false) ||
+					bResetCamera ||
 					bIsProjMatrixDifferent ||
 					bIsCameraMove ||
-					View.bForcePathTracerReset;
+					View.bForcePathTracerReset)
+				{
+					ViewState->PathTracingInvalidate();
+				}
 			}
 
-			if (bInvalidatePathTracer)
-			{
-				ViewState->PathTracingInvalidate();
-				Scene->bPathTracingNeedsInvalidation = false;
-			}
 #endif // RHI_RAYTRACING
 
 			if (bResetCamera)

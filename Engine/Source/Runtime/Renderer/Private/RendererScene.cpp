@@ -2685,6 +2685,12 @@ void FScene::InvalidateRuntimeVirtualTexture(class URuntimeVirtualTextureCompone
 	}
 }
 
+void FScene::InvalidatePathTracedOutput()
+{
+	// NOTE: this is an atomic, so this function is ok to call from any thread
+	bPathTracingNeedsInvalidation = true;
+}
+
 void FScene::FlushDirtyRuntimeVirtualTextures()
 {
 	checkSlow(IsInRenderingThread());
@@ -4824,9 +4830,10 @@ void FRendererModule::RemoveScene(FSceneInterface* Scene)
 void FRendererModule::UpdateStaticDrawLists()
 {
 	// Update all static meshes in order to recache cached mesh draw commands.
-	for (TSet<FSceneInterface*>::TConstIterator SceneIt(AllocatedScenes); SceneIt; ++SceneIt)
+	check(IsInGameThread()); // AllocatedScenes is managed by the game thread
+	for (FSceneInterface* Scene : AllocatedScenes)
 	{
-		(*SceneIt)->UpdateStaticDrawLists();
+		Scene->UpdateStaticDrawLists();
 	}
 }
 
@@ -4906,6 +4913,15 @@ void FRendererModule::UpdateStaticDrawListsForMaterials(const TArray<const FMate
 FSceneViewStateInterface* FRendererModule::AllocateViewState()
 {
 	return new FSceneViewState();
+}
+
+void FRendererModule::InvalidatePathTracedOutput()
+{
+	check(IsInGameThread()); // AllocatedScenes is managed by the game thread
+	for (FSceneInterface* Scene : AllocatedScenes)
+	{
+		Scene->InvalidatePathTracedOutput();
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////

@@ -339,6 +339,7 @@ void GameThread_UpdateMIParameter(const UMaterialInstance* Instance, const Param
 {
 	if (FApp::CanEverRender())
 	{
+		GetRendererModule().InvalidatePathTracedOutput();
 		FMaterialInstanceResource* Resource = Instance->Resource;
 		const FMaterialParameterInfo& ParameterInfo = Parameter.ParameterInfo;
 		typename ParameterType::ValueType Value = ParameterType::GetValue(Parameter);

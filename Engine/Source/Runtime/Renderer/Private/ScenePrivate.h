@@ -2707,7 +2707,7 @@ public:
 	bool bScenesPrimitivesNeedStaticMeshElementUpdate;
 
 	/** True if a change to the scene that requires to invalidate the path tracer buffers has happened. */
-	bool bPathTracingNeedsInvalidation;
+	TAtomic<bool> bPathTracingNeedsInvalidation;
 
 #if RHI_RAYTRACING
 	/** What mode where the cached RT commands prepared for last? */
@@ -2988,6 +2988,7 @@ public:
 	virtual void RemoveRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component) override;
 	virtual void GetRuntimeVirtualTextureHidePrimitiveMask(uint8& bHideMaskEditor, uint8& bHideMaskGame) const override;
 	virtual void InvalidateRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component, FBoxSphereBounds const& WorldBounds) override;
+	virtual void InvalidatePathTracedOutput() override;
 	virtual void GetPrimitiveUniformShaderParameters_RenderThread(const FPrimitiveSceneInfo* PrimitiveSceneInfo, bool& bHasPrecomputedVolumetricLightmap, FMatrix& PreviousLocalToWorld, int32& SingleCaptureIndex, bool& bOutputVelocity) const override;
 	virtual void UpdateLightTransform(ULightComponent* Light) override;
 	virtual void UpdateLightColorAndBrightness(ULightComponent* Light) override;
