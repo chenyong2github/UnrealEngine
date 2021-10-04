@@ -296,6 +296,14 @@ bool FMLDeformerEditorToolkit::HandleTrainingResult(ETrainingResult TrainingResu
 		}
 		break;
 
+		// Training aborted but we cannot use the current network.
+		case ETrainingResult::AbortedCantUse:
+		{
+			ShowNotification(LOCTEXT("TrainingAborted", "Training aborted!"), SNotificationItem::ECompletionState::CS_None, true);
+			WindowMessage = LOCTEXT("TrainingAbortedCantUse", "Training aborted by user.");
+		}
+		break;
+
 		// Training data had issues.
 		case ETrainingResult::FailOnData:
 		{

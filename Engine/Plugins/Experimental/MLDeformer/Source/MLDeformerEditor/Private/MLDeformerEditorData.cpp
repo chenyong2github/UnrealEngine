@@ -26,6 +26,7 @@
 #include "GeometryCacheMeshData.h"
 
 #include "Math/NumericLimits.h"
+#include "Misc/SlowTask.h"
 #include "ComputeFramework/ComputeGraphComponent.h"
 #include "ComputeFramework/ComputeGraph.h"
 
@@ -250,6 +251,10 @@ void FMLDeformerEditorData::UpdateDeformerGraph()
 
 void FMLDeformerEditorData::InitAssets()
 {
+	// Force the training sequence to use Step interpolation and sample raw animation data.
+	UAnimSequence* TrainingAnimSequence = MLDeformerAsset->GetAnimSequence();
+	TrainingAnimSequence->bUseRawDataOnly = true;
+
 	USkeletalMeshComponent* SkeletalMeshComponent = GetEditorActor(EMLDeformerEditorActorIndex::Base).SkelMeshComponent;
 	SkeletalMeshComponent->SetSkeletalMesh(MLDeformerAsset->GetSkeletalMesh());
 	if (PersonaToolkit)
@@ -257,7 +262,7 @@ void FMLDeformerEditorData::InitAssets()
 		PersonaToolkit->GetPreviewScene()->SetPreviewMesh(MLDeformerAsset->GetSkeletalMesh());
 	}
 	SkeletalMeshComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
-	SkeletalMeshComponent->SetAnimation(MLDeformerAsset->GetAnimSequence());
+	SkeletalMeshComponent->SetAnimation(TrainingAnimSequence);
 	SkeletalMeshComponent->SetPosition(0.0f);
 	SkeletalMeshComponent->SetPlayRate(0.0f);
 	SkeletalMeshComponent->Play(false);
@@ -597,17 +602,21 @@ bool FMLDeformerEditorData::ComputeVertexDeltaStatistics(uint32 LODIndex, float 
 {
 	if (!IsReadyForTraining() || bIsVertexDeltaNormalized)
 	{
-		return false;
+		return true;
 	}
 
 	// Calculate the number of frames to output.
 	UGeometryCacheComponent* GeometryCacheComponent = GetEditorActor(EMLDeformerEditorActorIndex::Target).GeomCacheComponent;
 	const uint32 AnimNumFrames = static_cast<uint32>(GeometryCacheComponent->GetNumberOfFrames());
 
+	// Show some dialog with progress.
+	FSlowTask Task((float)AnimNumFrames, FText::FromString("Calculating data statistics"));
+	Task.Initialize();
+	Task.MakeDialog(true);
+
 	// Initialize mean vertex delta and vertex delta scale.
-	MLDeformerAsset->VertexDeltaMean = FVector3f::ZeroVector;
-	MLDeformerAsset->VertexDeltaScale = FVector3f::OneVector;
-	FVector3f TempVertexDeltaScale = FVector3f::ZeroVector;
+	FVector3f VertexDeltaMean = FVector3f::ZeroVector;
+	FVector3f VertexDeltaScale = FVector3f::OneVector;
 	float Count = 0.0f;
 	TArray<FTransform> BoneTransforms;
 	for (uint32 FrameIndex = 0; FrameIndex < AnimNumFrames; FrameIndex++)
@@ -626,12 +635,22 @@ bool FMLDeformerEditorData::ComputeVertexDeltaStatistics(uint32 LODIndex, float 
 
 		// Update mean vertex delta.
 		UpdateVertexDeltaMeanAndScale(GeomCachePositions, LinearSkinnedPositions, DeltaCutoffLength,
-			MLDeformerAsset->VertexDeltaMean, TempVertexDeltaScale, Count);
+			VertexDeltaMean, VertexDeltaScale, Count);
+
+		// Forward the progress bar and check if we want to cancel.
+		Task.EnterProgressFrame();
+		if (Task.ShouldCancel())
+		{
+			Task.Destroy();
+			return false;
+		}
 	}
 
+	// Update the asset with calculated statistics.
+	MLDeformerAsset->VertexDeltaMean = VertexDeltaMean;
 	if (Count > 0.0f)
 	{
-		MLDeformerAsset->VertexDeltaScale *= TempVertexDeltaScale.GetMax();
+		MLDeformerAsset->VertexDeltaScale = FVector3f::OneVector * VertexDeltaScale.GetMax();
 		bIsVertexDeltaNormalized = true;
 	}
 

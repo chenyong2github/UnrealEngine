@@ -27,13 +27,12 @@ FMLDeformerApplicationMode::FMLDeformerApplicationMode(
 	TSharedRef<FMLDeformerEditorToolkit> MLDeformerEditor = StaticCastSharedRef<FMLDeformerEditorToolkit>(InHostingApp);
 
 	FPersonaViewportArgs ViewportArgs(InPreviewScene);
-	ViewportArgs.bAlwaysShowTransformToolbar = false;
+	ViewportArgs.bAlwaysShowTransformToolbar = true;
 	ViewportArgs.bShowStats = false;
-	ViewportArgs.bShowTurnTable = false;
 	ViewportArgs.bShowTimeline = false;
-	ViewportArgs.bShowPhysicsMenu = false;
 	ViewportArgs.bShowLODMenu = true;
 	ViewportArgs.bShowPlaySpeedMenu = false;
+	ViewportArgs.bShowPhysicsMenu = false;
 	ViewportArgs.ContextName = TEXT("MLDeformerEditor.Viewport");
 	ViewportArgs.OnViewportCreated = FOnViewportCreated::CreateSP(MLDeformerEditor, &FMLDeformerEditorToolkit::HandleViewportCreated);
 
