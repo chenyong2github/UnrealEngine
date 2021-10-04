@@ -7,13 +7,30 @@
 
 
 /**
- * TInteractiveToolCommands implementation for this module that provides standard Editor hotkey support
+ * TInteractiveToolCommands implementation for Modeling Mode Tools
  */
 class MODELINGTOOLSEDITORMODE_API FModelingToolsManagerCommands : public TCommands<FModelingToolsManagerCommands>
 {
 public:
 	FModelingToolsManagerCommands();
 
+protected:
+	struct FStartToolCommand
+	{
+		FString ToolUIName;
+		TSharedPtr<FUICommandInfo> ToolCommand;
+	};
+	TArray<FStartToolCommand> RegisteredTools;		// Tool start-commands listed below are stored in this list
+
+public:
+	/**
+	 * Find Tool start-command below by registered name (tool icon name in Mode palette)
+	 */
+	TSharedPtr<FUICommandInfo> FindToolByName(FString Name, bool& bFound) const;
+	
+	//
+	// These commands are set up to launch registered Tools via the ToolManager in ModelingToolsEditorMode.cpp
+	//
 
 	TSharedPtr<FUICommandInfo> BeginAddBoxPrimitiveTool;
 	TSharedPtr<FUICommandInfo> BeginAddCylinderPrimitiveTool;
@@ -119,6 +136,9 @@ public:
 	TSharedPtr<FUICommandInfo> BeginPolyModelTool_Outset;
 	TSharedPtr<FUICommandInfo> BeginPolyModelTool_CutFaces;
 
+	//
+	// Accept/Cancel/Complete commands are used to end the active Tool via ToolManager
+	//
 
 	TSharedPtr<FUICommandInfo> AcceptActiveTool;
 	TSharedPtr<FUICommandInfo> CancelActiveTool;
@@ -128,7 +148,7 @@ public:
 	TSharedPtr<FUICommandInfo> CancelOrCompleteActiveTool;
 
 	/**
-	 * Initialize commands
+	 * Initialize above commands
 	 */
 	virtual void RegisterCommands() override;
 };

@@ -453,9 +453,11 @@ static const FName PrototypesTabName(TEXT("Prototypes"));
 static const FName PolyEditTabName(TEXT("PolyEdit"));
 static const FName VoxToolsTabName(TEXT("VoxOps"));
 static const FName LODToolsTabName(TEXT("LODs"));
+static const FName BakingToolsTabName(TEXT("Baking"));
+static const FName ModelingFavoritesTabName(TEXT("Favorites"));
 
 
-const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Standard = { PrimitiveTabName, CreateTabName, PolyModelingTabName, TriModelingTabName, DeformTabName, TransformTabName, MeshProcessingTabName, VoxToolsTabName, AttributesTabName, UVTabName, VolumesTabName, LODToolsTabName };
+const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Standard = { PrimitiveTabName, CreateTabName, PolyModelingTabName, TriModelingTabName, DeformTabName, TransformTabName, MeshProcessingTabName, VoxToolsTabName, AttributesTabName, UVTabName, BakingToolsTabName, VolumesTabName, LODToolsTabName };
 
 
 void FModelingToolsEditorModeToolkit::GetToolPaletteNames(TArray<FName>& PaletteNames) const
@@ -503,6 +505,35 @@ void FModelingToolsEditorModeToolkit::GetToolPaletteNames(TArray<FName>& Palette
 			}
 		}
 	}
+
+	UModelingToolsModeCustomizationSettings* UISettings = GetMutableDefault<UModelingToolsModeCustomizationSettings>();
+
+	// if user has provided custom ordering of tool palettes in the Editor Settings, try to apply them
+	if (UISettings->ToolSectionOrder.Num() > 0)
+	{
+		TArray<FName> NewPaletteNames;
+		for (FString SectionName : UISettings->ToolSectionOrder)
+		{
+			for (int32 k = 0; k < PaletteNames.Num(); ++k)
+			{
+				if (SectionName.Compare(PaletteNames[k].ToString(), ESearchCase::IgnoreCase) == 0)
+				{
+					NewPaletteNames.Add(PaletteNames[k]);
+					PaletteNames.RemoveAt(k);
+					break;
+				}
+			}
+		}
+		NewPaletteNames.Append(PaletteNames);
+		PaletteNames = MoveTemp(NewPaletteNames);
+	}
+
+	// if user has provided a list of favorite tools, add that palette to the list
+	if (UISettings->ToolFavorites.Num() > 0)
+	{
+		PaletteNames.Insert(ModelingFavoritesTabName, 0);
+	}
+
 }
 
 
@@ -514,21 +545,25 @@ FText FModelingToolsEditorModeToolkit::GetToolPaletteDisplayName(FName Palette) 
 void FModelingToolsEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToolBarBuilder& ToolbarBuilder) 
 {
 	const FModelingToolsManagerCommands& Commands = FModelingToolsManagerCommands::Get();
-	BuildToolPalette_Experimental(PaletteIndex, ToolbarBuilder);
-}
+	UModelingToolsModeCustomizationSettings* UISettings = GetMutableDefault<UModelingToolsModeCustomizationSettings>();
 
-
-
-void FModelingToolsEditorModeToolkit::BuildToolPalette_Standard(FName PaletteIndex, class FToolBarBuilder& ToolbarBuilder)
-{
-	check(false);
-}
-
-
-void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName PaletteIndex, class FToolBarBuilder& ToolbarBuilder)
-{
-	const FModelingToolsManagerCommands& Commands = FModelingToolsManagerCommands::Get();
-
+	if (PaletteIndex == ModelingFavoritesTabName)
+	{
+		// build Favorites tool palette
+		for (FString ToolName : UISettings->ToolFavorites)
+		{
+			bool bFound = false;
+			TSharedPtr<FUICommandInfo> FoundToolCommand = Commands.FindToolByName(ToolName, bFound);
+			if ( bFound )
+			{ 
+				ToolbarBuilder.AddToolBarButton(FoundToolCommand);
+			}
+			else
+			{
+				UE_LOG(LogTemp, Display, TEXT("ModelingMode: could not find Favorited Tool %s"), *ToolName);
+			}
+		}
+	}
 	if (PaletteIndex == PrimitiveTabName)
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.BeginAddBoxPrimitiveTool);
@@ -622,6 +657,9 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshGroupPaintTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshAttributePaintTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginEditMeshMaterialsTool);
+	} 
+	else if (PaletteIndex == BakingToolsTabName )
+	{
 		ToolbarBuilder.AddToolBarButton(Commands.BeginBakeMeshAttributeMapsTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginBakeMultiMeshAttributeMapsTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginBakeMeshAttributeVertexTool);
@@ -691,6 +729,64 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 		}
 	}
 }
+
+
+void FModelingToolsEditorModeToolkit::InvokeUI()
+{
+	FModeToolkit::InvokeUI();
+
+	//
+	// Apply custom section header colors.
+	// See comments below, this is done via directly manipulating Slate widgets generated deep inside BaseToolkit.cpp,
+	// and will stop working if the Slate widget structure changes
+	//
+
+	UModelingToolsModeCustomizationSettings* UISettings = GetMutableDefault<UModelingToolsModeCustomizationSettings>();
+
+	// look up default radii for palette toolbar expandable area headers
+	FVector4 HeaderRadii(4, 4, 0, 0);
+	const FSlateBrush* BaseBrush = FAppStyle::Get().GetBrush("PaletteToolbar.ExpandableAreaHeader");
+	if (BaseBrush != nullptr)
+	{
+		HeaderRadii = BaseBrush->OutlineSettings.CornerRadii;
+	}
+
+	for (FEdModeToolbarRow& ToolbarRow : ActiveToolBarRows)
+	{
+		for (FModelingModeCustomSectionColor ToolColor : UISettings->SectionColors)
+		{
+			if (ToolColor.SectionName.Compare(ToolbarRow.PaletteName.ToString(), ESearchCase::IgnoreCase) == 0)
+			{
+				// code below is highly dependent on the structure of the ToolbarRow.ToolbarWidget. Currently this is 
+				// a SMultiBoxWidget, a few levels below a SExpandableArea. The SExpandableArea contains a SVerticalBox
+				// with the header as a SBorder in Slot 0. The code will fail gracefully if this structure changes.
+
+				TSharedPtr<SWidget> ExpanderVBoxWidget = (ToolbarRow.ToolbarWidget.IsValid() && ToolbarRow.ToolbarWidget->GetParentWidget().IsValid()) ?
+					ToolbarRow.ToolbarWidget->GetParentWidget()->GetParentWidget() : TSharedPtr<SWidget>();
+				if (ExpanderVBoxWidget.IsValid() && ExpanderVBoxWidget->GetTypeAsString().Compare(TEXT("SVerticalBox")) == 0)
+				{
+					TSharedPtr<SVerticalBox> ExpanderVBox = StaticCastSharedPtr<SVerticalBox>(ExpanderVBoxWidget);
+					if (ExpanderVBox.IsValid() && ExpanderVBox->NumSlots() > 0)
+					{
+						const TSharedRef<SWidget>& SlotWidgetRef = ExpanderVBox->GetSlot(0).GetWidget();
+						TSharedPtr<SWidget> SlotWidgetPtr(SlotWidgetRef);
+						if (SlotWidgetPtr.IsValid() && SlotWidgetPtr->GetTypeAsString().Compare(TEXT("SBorder")) == 0)
+						{
+							TSharedPtr<SBorder> TopBorder = StaticCastSharedPtr<SBorder>(SlotWidgetPtr);
+							if (TopBorder.IsValid())
+							{
+								TopBorder->SetBorderImage(new FSlateRoundedBoxBrush(FSlateColor(ToolColor.Color), HeaderRadii));
+							}
+						}
+					}
+				}
+				break;
+			}
+		}
+	}
+}
+
+
 
 void FModelingToolsEditorModeToolkit::OnToolPaletteChanged(FName PaletteName) 
 {
