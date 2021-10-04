@@ -1687,7 +1687,7 @@ UObject* UPolysFactory::FactoryCreateText
 					{
 						int32 iPoint = FMath::Abs(FCString::Atoi(*ExtraLine));
 						if( iPoint>0 && iPoint<=NumPoints )
-							new(NewPoly.Vertices) FVector(PointPool[iPoint-1]);
+							new(NewPoly.Vertices) FVector3f(PointPool[iPoint-1]);
 						else UE_LOG(LogEditorFactories, Warning, TEXT("DXF: Invalid point index %i/%i"), iPoint, NumPoints );
 					}
 				}
@@ -1722,9 +1722,9 @@ UObject* UPolysFactory::FactoryCreateText
 				else if( FCString::Strstr(Str,*FaceText) )
 				{
 					Poly.Init();
-					new(Poly.Vertices)FVector(PointPool[FCString::Atoi(FCString::Strstr(Str,TEXT("A:"))+2)]);
-					new(Poly.Vertices)FVector(PointPool[FCString::Atoi(FCString::Strstr(Str,TEXT("B:"))+2)]);
-					new(Poly.Vertices)FVector(PointPool[FCString::Atoi(FCString::Strstr(Str,TEXT("C:"))+2)]);
+					new(Poly.Vertices)FVector3f(PointPool[FCString::Atoi(FCString::Strstr(Str,TEXT("A:"))+2)]);
+					new(Poly.Vertices)FVector3f(PointPool[FCString::Atoi(FCString::Strstr(Str,TEXT("B:"))+2)]);
+					new(Poly.Vertices)FVector3f(PointPool[FCString::Atoi(FCString::Strstr(Str,TEXT("C:"))+2)]);
 					Poly.Base = Poly.Vertices[0];
 					Poly.Finalize(nullptr,0);
 					new(Polys->Element)FPoly(Poly);

@@ -1383,7 +1383,7 @@ void UGeomModifier_Pen::Apply()
 
 		for( int32 v = 0 ; v < ShapeVertices.Num() ; ++v )
 		{
-			new(Poly.Vertices) FVector( ShapeVertices[v] - BaseLocation );
+			new(Poly.Vertices) FVector3f( ShapeVertices[v] - BaseLocation );
 		}
 
 		if( Poly.Finalize( ResultingBrush, 1 ) == 0 )
@@ -2609,7 +2609,7 @@ bool UGeomModifier_Create::OnApply()
 			{
 				FGeomVertex* gv = Verts[x];
 
-				new(NewPoly->Vertices) FVector(*gv);
+				new(NewPoly->Vertices) FVector3f(*gv);
 			}
 
 			NewPoly->Normal = FVector::ZeroVector;
@@ -3326,9 +3326,9 @@ bool UGeomModifier_Turn::OnApply()
 				NewPoly = new( gp->GetParentObject()->GetActualBrush()->Brush->Polys->Element )FPoly();
 
 				NewPoly->Init();
-				new(NewPoly->Vertices) FVector(Quad[2]);
-				new(NewPoly->Vertices) FVector(Quad[1]);
-				new(NewPoly->Vertices) FVector(Quad[3]);
+				new(NewPoly->Vertices) FVector3f(Quad[2]);
+				new(NewPoly->Vertices) FVector3f(Quad[1]);
+				new(NewPoly->Vertices) FVector3f(Quad[3]);
 
 				NewPoly->Base = SavePoly0.Base;
 				NewPoly->Material = SavePoly0.Material;
@@ -3341,9 +3341,9 @@ bool UGeomModifier_Turn::OnApply()
 				NewPoly = new( gp->GetParentObject()->GetActualBrush()->Brush->Polys->Element )FPoly();
 
 				NewPoly->Init();
-				new(NewPoly->Vertices) FVector(Quad[3]);
-				new(NewPoly->Vertices) FVector(Quad[1]);
-				new(NewPoly->Vertices) FVector(Quad[0]);
+				new(NewPoly->Vertices) FVector3f(Quad[3]);
+				new(NewPoly->Vertices) FVector3f(Quad[1]);
+				new(NewPoly->Vertices) FVector3f(Quad[0]);
 
 				NewPoly->Base = SavePoly1.Base;
 				NewPoly->Material = SavePoly1.Material;
