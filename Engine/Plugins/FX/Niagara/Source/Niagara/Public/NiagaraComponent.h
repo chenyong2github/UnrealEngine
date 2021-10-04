@@ -221,6 +221,7 @@ public:
 	//~ Begin USceneComponent Interface
 	virtual void OnChildAttached(USceneComponent* ChildComponent) override;
 	virtual void OnChildDetached(USceneComponent* ChildComponent) override;
+	virtual bool IsVisible() const override;
 	//~ Begin USceneComponent Interface
 
 	UE_DEPRECATED(5.0, "This interface is no longer safe to access directly. Use the interface provided by GetSystemInstanceController instead.")

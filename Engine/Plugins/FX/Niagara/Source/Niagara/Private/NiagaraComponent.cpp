@@ -1921,6 +1921,17 @@ void UNiagaraComponent::OnChildDetached(USceneComponent* ChildComponent)
 
 }
 
+bool UNiagaraComponent::IsVisible() const
+{
+	if (PoolingMethod == ENCPoolMethod::None || GetAttachParent() == nullptr)
+	{
+		return Super::IsVisible();
+	}
+
+	// pooled components are owned by the persistent level, so we need to check their current attached parent visibility, otherwise they ignore sublevel visibility
+	return Super::IsVisible() && GetAttachParent()->IsVisible();
+}
+
 void UNiagaraComponent::SetTickBehavior(ENiagaraTickBehavior NewTickBehavior)
 {
 	TickBehavior = NewTickBehavior;
