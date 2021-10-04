@@ -2560,13 +2560,23 @@ FProtocol5Stage::EStatus FProtocol5Stage::OnData(
 	Transport.SetReader(Reader);
 	Transport.Update();
 
+	bool bNotEnoughData;
+
 	EStatus Ret = OnDataImportant(Context);
-	if (Ret != EStatus::Eof)
+	if (Ret == EStatus::Error)
 	{
 		return Ret;
 	}
+	bNotEnoughData = (Ret != EStatus::Eof);
 
-	return OnDataNormal(Context);
+	Ret = OnDataNormal(Context);
+	if (Ret == EStatus::Error)
+	{
+		return Ret;
+	}
+	bNotEnoughData |= (Ret == EStatus::NotEnoughData);
+
+	return bNotEnoughData ? EStatus::NotEnoughData : EStatus::Eof;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
