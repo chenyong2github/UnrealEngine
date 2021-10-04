@@ -15,6 +15,7 @@
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #include "Kismet/KismetSystemLibrary.h"
+#include "Engine/World.h"
 #endif
 
 TWeakPtr<class SWindow> SHighResScreenshotDialog::CurrentWindow = NULL;
