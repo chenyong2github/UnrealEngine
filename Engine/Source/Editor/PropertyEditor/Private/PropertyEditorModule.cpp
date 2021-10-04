@@ -513,42 +513,105 @@ void FPropertyEditorModule::UnregisterCustomPropertyTypeLayout( FName PropertyTy
 	}
 }
 
-void FPropertyEditorModule::RegisterSectionMapping(FName ClassName, FName SectionName, FName CategoryName)
+void FPropertySection::AddCategory(FName CategoryName)
 {
-	if (!ClassName.IsValid() || ClassName.IsNone())
+	checkf(!CategoryName.ToString().Contains(TEXT("|")), TEXT("Cannnot register a section mapping for a subcategory. Section: '%s', Category: '%s'"), *Name.ToString(), *CategoryName.ToString());
+
+	// Remove all spaces - customization authors will probably write "Static Mesh", but internally it's stored as "StaticMesh"
+	FString CategoryString = CategoryName.ToString();
+	CategoryString.RemoveSpacesInline();
+	CategoryName = FName(*CategoryString);
+
+	Categories.Add(CategoryName);
+}
+
+bool FPropertySection::ContainsCategory(FName CategoryName) const
+{
+	return Categories.Contains(CategoryName);
+}
+
+TSharedPtr<FPropertySection> FClassSectionMapping::FindSection(FName SectionName) const
+{
+	const TSharedPtr<FPropertySection>* Section = DefinedSections.Find(SectionName);
+	if (Section == nullptr)
+	{
+		return TSharedPtr<FPropertySection>();
+	}
+
+	return *Section;
+}
+
+TSharedRef<FPropertySection> FClassSectionMapping::FindOrAddSection(FName SectionName, FText DisplayName)
+{
+	TSharedPtr<FPropertySection> Section = FindSection(SectionName);
+	if (!Section.IsValid())
+	{
+		Section = MakeShared<FPropertySection>(SectionName, DisplayName);
+		DefinedSections.Add(SectionName, Section);
+	}
+
+	return Section.ToSharedRef();
+}
+
+bool FClassSectionMapping::GetSectionsForCategory(FName CategoryName, TArray<TSharedPtr<FPropertySection>>& OutSections) const 
+{
+	bool bAnyAdded = false;
+
+	for (const TPair<FName, TSharedPtr<FPropertySection>>& Pair : DefinedSections)
+	{
+		if (Pair.Value->ContainsCategory(CategoryName))
+		{
+			OutSections.Add(Pair.Value);
+			bAnyAdded = true;
+		}
+	}
+
+	return bAnyAdded;
+}
+
+TSharedRef<FPropertySection> FPropertyEditorModule::FindOrCreateSection(FName ClassName, FName SectionName, FText DisplayName)
+{
+	checkf(!ClassName.IsNone(), TEXT("Invalid class name given."));
+	checkf(!SectionName.IsNone(), TEXT("Invalid section name given."));
+
+	TSharedPtr<FClassSectionMapping> ClassMapping;
+
+	TSharedPtr<FClassSectionMapping>* ExistingMapping = ClassSectionMappings.Find(ClassName);
+	if (ExistingMapping == nullptr)
+	{
+		ClassMapping = ClassSectionMappings.Add(ClassName, MakeShared<FClassSectionMapping>());
+	}
+	else
+	{
+		ClassMapping = *ExistingMapping;
+	}
+
+	return ClassMapping->FindOrAddSection(SectionName, DisplayName);
+}
+
+TArray<TSharedPtr<FPropertySection>> FPropertyEditorModule::FindSectionsForCategory(const UStruct* Struct, FName CategoryName) const
+{
+	TArray<TSharedPtr<FPropertySection>> Sections;
+	
+	// remove all spaces - customization authors will probably write "Static Mesh", but internally it's stored as "StaticMesh"
+	FString CategoryString = CategoryName.ToString();
+	CategoryString.RemoveSpacesInline();
+	CategoryName = FName(*CategoryString);
+
+	if (Struct != nullptr)
+	{
+		TSet<const UStruct*> SearchedStructs;
+		FindSectionsForCategoryHelper(Struct, CategoryName, Sections, SearchedStructs);
+	}
+
+	return MoveTemp(Sections);
+}
+
+void FPropertyEditorModule::FindSectionsForCategoryHelper(const UStruct* Struct, FName CategoryName, TArray<TSharedPtr<FPropertySection>>& OutSections, TSet<const UStruct*>& SearchedStructs) const
+{
+	if (Struct == nullptr)
 	{
 		return;
-	}
-
-	checkf(!CategoryName.ToString().Contains(TEXT("|")), TEXT("Cannnot register a section mapping for a subcategory. Class: '%s', Section: '%s', Category: '%s'"), *ClassName.ToString(), *SectionName.ToString(), *CategoryName.ToString());
-
-	FClassSectionMapping& SectionMapping = ClassSectionMappings.FindOrAdd(ClassName);
-
-	const FName* ExistingSection = SectionMapping.CategoryToSectionMap.Find(CategoryName);
-	if (ExistingSection != nullptr)
-	{
-		checkf(!ExistingSection, TEXT("This category has already been mapped to a section for this class. Class: '%s', Category: '%s', Existing Section: '%s', New Section: '%s'"), *ClassName.ToString(), *CategoryName.ToString(), *ExistingSection->ToString(), *SectionName.ToString());
-	}
-
-	SectionMapping.CategoryToSectionMap.Add(CategoryName, SectionName);
-}
-
-FName FPropertyEditorModule::FindSectionForCategory(const UStruct* Struct, FName CategoryName) const
-{
-	if (Struct == nullptr)
-	{
-		return NAME_None;
-	}
-
-	TSet<const UStruct*> SearchedStructs;
-	return FindSectionForCategoryHelper(Struct, CategoryName, SearchedStructs);
-}
-
-FName FPropertyEditorModule::FindSectionForCategoryHelper(const UStruct* Struct, FName CategoryName, TSet<const UStruct*>& SearchedStructs) const
-{
-	if (Struct == nullptr)
-	{
-		return NAME_None;
 	}
 
 	bool bAlreadySearched = false;
@@ -556,55 +619,38 @@ FName FPropertyEditorModule::FindSectionForCategoryHelper(const UStruct* Struct,
 
 	if (bAlreadySearched)
 	{
-		return NAME_None;
+		return;
 	}
-
-	const UStruct* CurrentStruct = Struct;
-	while (CurrentStruct != nullptr)
+	
+	// check this class' sections
+	const TSharedPtr<FClassSectionMapping>* SectionMapping = ClassSectionMappings.Find(Struct->GetFName());
+	if (SectionMapping != nullptr)
 	{
-		// check this class' sections
-		const FClassSectionMapping* SectionMapping = ClassSectionMappings.Find(Struct->GetFName());
-		if (SectionMapping != nullptr)
-		{
-			const FName* SectionName = SectionMapping->CategoryToSectionMap.Find(CategoryName);
-			if (SectionName != nullptr)
-			{
-				return *SectionName;
-			}
-		}
-
-		// check all struct properties' sections
-		for (TFieldIterator<FStructProperty> It(CurrentStruct); It; ++It)
-		{
-			const FStructProperty* Property = *It;
-			const FName SectionName = FindSectionForCategoryHelper(Property->Struct, CategoryName, SearchedStructs);
-			if (!SectionName.IsNone())
-			{
-				return SectionName;
-			}
-		}
-
-		// check all object properties' sections
-		for (TFieldIterator<FObjectPropertyBase> It(CurrentStruct); It; ++It)
-		{
-			const FObjectPropertyBase* Property = *It;
-			if (Property->HasAnyPropertyFlags(CPF_InstancedReference | CPF_ContainsInstancedReference))
-			{
-				const FName SectionName = FindSectionForCategoryHelper(Property->PropertyClass, CategoryName, SearchedStructs);
-				if (!SectionName.IsNone())
-				{
-					return SectionName;
-				}
-			}
-		}
-
-		CurrentStruct = CurrentStruct->GetSuperStruct();
+		(*SectionMapping)->GetSectionsForCategory(CategoryName, OutSections);
 	}
 
-	return NAME_None;
+	// check this struct's super
+	FindSectionsForCategoryHelper(Struct->GetSuperStruct(), CategoryName, OutSections, SearchedStructs);
+
+	// check all struct properties' sections
+	for (TFieldIterator<FStructProperty> It(Struct); It; ++It)
+	{
+		const FStructProperty* Property = *It;
+		FindSectionsForCategoryHelper(Property->Struct, CategoryName, OutSections, SearchedStructs);
+	}
+
+	// check all inline object properties' sections
+	for (TFieldIterator<FObjectPropertyBase> It(Struct); It; ++It)
+	{
+		const FObjectPropertyBase* Property = *It;
+		if (Property->HasAnyPropertyFlags(CPF_InstancedReference | CPF_ContainsInstancedReference))
+		{
+			FindSectionsForCategoryHelper(Property->PropertyClass, CategoryName, OutSections, SearchedStructs);
+		}
+	}
 }
 
-void FPropertyEditorModule::GetAllSections(const UStruct* Struct, TSet<FName>& OutSectionNames) const
+void FPropertyEditorModule::GetAllSections(const UStruct* Struct, TArray<TSharedPtr<FPropertySection>>& OutSections) const
 {
 	if (Struct == nullptr)
 	{
@@ -612,10 +658,10 @@ void FPropertyEditorModule::GetAllSections(const UStruct* Struct, TSet<FName>& O
 	}
 
 	TSet<const UStruct*> ProcessedStructs;
-	GetAllSectionsHelper(Struct, ProcessedStructs, OutSectionNames);
+	GetAllSectionsHelper(Struct, OutSections, ProcessedStructs);
 }
 
-void FPropertyEditorModule::GetAllSectionsHelper(const UStruct* Struct, TSet<const UStruct*>& ProcessedStructs, TSet<FName>& OutSectionNames) const
+void FPropertyEditorModule::GetAllSectionsHelper(const UStruct* Struct, TArray<TSharedPtr<FPropertySection>>& OutSections, TSet<const UStruct*>& ProcessedStructs) const
 {
 	if (Struct == nullptr)
 	{
@@ -630,37 +676,34 @@ void FPropertyEditorModule::GetAllSectionsHelper(const UStruct* Struct, TSet<con
 		return;
 	}
 
-	const UStruct* CurrentStruct = Struct;
-	while (CurrentStruct != nullptr)
+	// add all sections defined for this class
+	const TSharedPtr<FClassSectionMapping>* SectionMapping = ClassSectionMappings.Find(Struct->GetFName());
+	if (SectionMapping != nullptr)
 	{
-		// add all sections defined for this class
-		const FClassSectionMapping* SectionMapping = ClassSectionMappings.Find(Struct->GetFName());
-		if (SectionMapping != nullptr)
+		for (const TPair<FName, TSharedPtr<FPropertySection>>& Pair : (*SectionMapping)->DefinedSections)
 		{
-			for (const TPair<FName, FName>& Pair : SectionMapping->CategoryToSectionMap)
-			{
-				OutSectionNames.Add(Pair.Value);
-			}
+			OutSections.Add(Pair.Value);
 		}
+	}
+	
+	// add all sections for this class' super-struct
+	GetAllSectionsHelper(Struct->GetSuperStruct(), OutSections, ProcessedStructs);
 
-		// check all struct properties and add their sections
-		for (TFieldIterator<FStructProperty> It(CurrentStruct); It; ++It)
+	// add all sections from struct properties
+	for (TFieldIterator<FStructProperty> It(Struct); It; ++It)
+	{
+		const FStructProperty* Property = *It;
+		GetAllSectionsHelper(Property->Struct, OutSections, ProcessedStructs);
+	}
+
+	// add all sections from inline object properties
+	for (TFieldIterator<FObjectPropertyBase> It(Struct); It; ++It)
+	{
+		const FObjectPropertyBase* Property = *It;
+		if (Property->HasAnyPropertyFlags(CPF_InstancedReference | CPF_ContainsInstancedReference))
 		{
-			const FStructProperty* Property = *It;
-			GetAllSectionsHelper(Property->Struct, ProcessedStructs, OutSectionNames);
+			GetAllSectionsHelper(Property->PropertyClass, OutSections, ProcessedStructs);
 		}
-
-		// check all object properties and add their sections
-		for (TFieldIterator<FObjectPropertyBase> It(CurrentStruct); It; ++It)
-		{
-			const FObjectPropertyBase* Property = *It;
-			if (Property->HasAnyPropertyFlags(CPF_InstancedReference | CPF_ContainsInstancedReference))
-			{
-				GetAllSectionsHelper(Property->PropertyClass, ProcessedStructs, OutSectionNames);
-			}
-		}
-
-		CurrentStruct = CurrentStruct->GetSuperStruct();
 	}
 }
 

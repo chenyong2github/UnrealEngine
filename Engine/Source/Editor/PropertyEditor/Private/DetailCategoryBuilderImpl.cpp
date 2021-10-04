@@ -999,8 +999,25 @@ void FDetailCategoryImpl::FilterNode(const FDetailFilter& InFilter)
 			static FName PropertyEditor("PropertyEditor");
 			const FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>(PropertyEditor);
 
-			const FName SectionName = PropertyModule.FindSectionForCategory(BaseStruct, CategoryName);
-			if (SectionName.IsNone() || !InFilter.VisibleSections.Contains(SectionName))
+			TArray<TSharedPtr<FPropertySection>> PropertySections = PropertyModule.FindSectionsForCategory(BaseStruct, CategoryName);
+			if (PropertySections.IsEmpty())
+			{
+				// property has no sections, must be filtered
+				return;
+			}
+
+			// if this property is not in any visible section, hide it
+			bool bFound = false;
+			for (const TSharedPtr<FPropertySection>& Section : PropertySections)
+			{
+				if (InFilter.VisibleSections.Contains(Section->GetName()))
+				{
+					bFound = true; 
+					break;
+				}
+			}
+
+			if (!bFound)
 			{
 				return;
 			}

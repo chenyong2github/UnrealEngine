@@ -181,9 +181,6 @@ private:
 	/** Get all section names and display names for the objects currently selected in the view. */
 	TMap<FName, FText> GetAllSections() const;
 
-	/** Get the display name for the given section. */
-	FText GetSectionDisplayName(FName SectionName) const;
-
 	/** Rebuild the section selector widget after a selection has been changed. */
 	void RebuildSectionSelector();
 
