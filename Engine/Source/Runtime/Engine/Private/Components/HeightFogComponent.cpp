@@ -52,6 +52,9 @@ UExponentialHeightFogComponent::UExponentialHeightFogComponent(const FObjectInit
 
 void UExponentialHeightFogComponent::AddFogIfNeeded()
 {
+	// For safety, clamp the values for SecondFogData here.
+	SecondFogData.ClampToValidRanges();
+	
 	if (ShouldComponentAddToScene() && ShouldRender() && IsRegistered() && ((FogDensity + SecondFogData.FogDensity) * 1000) > DELTA && FogMaxOpacity > DELTA
 		&& (GetOuter() == NULL || !GetOuter()->HasAnyFlags(RF_ClassDefaultObject)))
 	{
@@ -138,6 +141,15 @@ void UExponentialHeightFogComponent::SetFogDensity(float Value)
 	}
 }
 
+void UExponentialHeightFogComponent::SetSecondFogDensity(float Value)
+{
+	if(SecondFogData.FogDensity != Value)
+	{
+		SecondFogData.FogDensity = Value;
+		MarkRenderStateDirty();
+	}
+}
+
 void UExponentialHeightFogComponent::SetFogInscatteringColor(FLinearColor Value)
 {
 	if(FogInscatteringLuminance != Value)
@@ -219,11 +231,29 @@ void UExponentialHeightFogComponent::SetDirectionalInscatteringColor(FLinearColo
 	}
 }
 
+void UExponentialHeightFogComponent::SetSecondFogHeightOffset(float Value)
+{
+	if(SecondFogData.FogHeightOffset != Value)
+	{
+		SecondFogData.FogHeightOffset = Value;
+		MarkRenderStateDirty();
+	}
+}
+
 void UExponentialHeightFogComponent::SetFogHeightFalloff(float Value)
 {
 	if(FogHeightFalloff != Value)
 	{
 		FogHeightFalloff = Value;
+		MarkRenderStateDirty();
+	}
+}
+
+void UExponentialHeightFogComponent::SetSecondFogHeightFalloff(float Value)
+{
+	if(SecondFogData.FogHeightFalloff != Value)
+	{
+		SecondFogData.FogHeightFalloff = Value;
 		MarkRenderStateDirty();
 	}
 }
@@ -305,6 +335,17 @@ void UExponentialHeightFogComponent::SetVolumetricFogDistance(float NewValue)
 	if(VolumetricFogDistance != NewValue)
 	{
 		VolumetricFogDistance = NewValue;
+		MarkRenderStateDirty();
+	}
+}
+
+void UExponentialHeightFogComponent::SetSecondFogData(FExponentialHeightFogData NewValue)
+{
+	if(SecondFogData.FogDensity != NewValue.FogDensity ||
+	   SecondFogData.FogHeightOffset != NewValue.FogHeightOffset ||
+	   SecondFogData.FogHeightFalloff != NewValue.FogHeightFalloff)
+	{
+		SecondFogData = NewValue;
 		MarkRenderStateDirty();
 	}
 }
