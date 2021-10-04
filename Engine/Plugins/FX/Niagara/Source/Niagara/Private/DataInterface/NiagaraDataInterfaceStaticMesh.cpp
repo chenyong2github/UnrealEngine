@@ -15,6 +15,11 @@
 #include "GPUSkinCache.h"
 #include "ShaderCompilerCore.h"
 
+#if WITH_EDITOR
+#include "Subsystems/ImportSubsystem.h"
+#include "Editor.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceStaticMesh"
 
 //-OPT: We should be able to share data between data interfaces where possible

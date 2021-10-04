@@ -8,6 +8,7 @@
 	#include "SourceControlOperations.h"
 	#include "ISourceControlProvider.h"
 	#include "ISourceControlModule.h"
+	#include "GenericPlatform/GenericPlatformFile.h"
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogAutomationTestExcludelist, Log, All);

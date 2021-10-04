@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
 #include "IDetailChildrenBuilder.h"
+#include "Materials/Material.h"
 #include "Materials/MaterialLayersFunctions.h"
 
 class UMaterialExpressionVectorParameter;
