@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "NiagaraSimStageData.h"
 #include "NiagaraScriptExecutionContext.h"
+#include "NiagaraSimStageData.h"
 #include "RHIGPUReadback.h"
 
 class FNiagaraGPUInstanceCountManager;
