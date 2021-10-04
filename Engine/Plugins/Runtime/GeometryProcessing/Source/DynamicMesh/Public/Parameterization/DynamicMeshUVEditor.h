@@ -28,6 +28,8 @@ private:
 	FDynamicMesh3* Mesh = nullptr;
 	/** The UV Overlay we will be editing */
 	FDynamicMeshUVOverlay* UVOverlay = nullptr;
+	/** The index of the UV Overlay we will be editing */
+	int32 UVOverlayIndex = -1;
 
 public:
 	/**
@@ -53,6 +55,21 @@ public:
 	 * Create specified UVLayer if it does not exist
 	 */
 	void CreateUVLayer(int32 UVLayerIndex);
+
+	/**
+	 * Append new UV layer to the end of the array, returning the newly added index, or -1 if at max layers already
+	 */
+	int32 AddUVLayer();
+
+	/**
+	 * Switch to new layer
+	 */
+	void SwitchActiveLayer(int32 UVLayerIndex);
+
+	/**
+	 * Remove active layer, setting active layer to highest, preceeding layer. Will not remove the final layer from the mesh. Returns the resulting active layer index.
+	 */
+	int32 RemoveUVLayer();
 
 	/**
 	 * Clear UVs for all triangles on active layer

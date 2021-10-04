@@ -149,6 +149,48 @@ protected:
 	EGizmoMode GizmoMode = EGizmoMode::Select;
 };
 
+
+/**
+ * Allows tools to interact with the assets and their UV layers
+*/
+UCLASS()
+class UVEDITORTOOLS_API UUVToolAssetAndChannelAPI : public UUVToolContextObject
+{
+	GENERATED_BODY()
+public:
+
+	TArray<int32> GetCurrentChannelVisibility()
+	{
+		if (GetCurrentChannelVisibilityFunc)
+		{
+			return GetCurrentChannelVisibilityFunc();
+		}
+		return TArray<int32>();
+	}
+
+	void RequestChannelVisibilityChange(const TArray<int32>& ChannelPerAsset, bool bForceRebuildUnwrap=false, bool bEmitUndoTransaction=true)
+	{
+		if (RequestChannelVisibilityChangeFunc)
+		{
+			RequestChannelVisibilityChangeFunc(ChannelPerAsset, bForceRebuildUnwrap, bEmitUndoTransaction);
+		}
+	}
+
+	void NotifyOfAssetChannelCountChange(int32 AssetID)
+	{
+		if (NotifyOfAssetChannelCountChangeFunc)
+		{
+			NotifyOfAssetChannelCountChangeFunc(AssetID);
+		}
+	}
+
+
+	TUniqueFunction<TArray<int32>()> GetCurrentChannelVisibilityFunc;
+	TUniqueFunction<void(const TArray<int32>&, bool, bool)> RequestChannelVisibilityChangeFunc;
+	TUniqueFunction<void(int32 AssetID)> NotifyOfAssetChannelCountChangeFunc;
+
+};
+
 /** Stores UV mesh AABB trees */
 UCLASS()
 class UVEDITORTOOLS_API UUVToolAABBTreeStorage : public UUVToolContextObject

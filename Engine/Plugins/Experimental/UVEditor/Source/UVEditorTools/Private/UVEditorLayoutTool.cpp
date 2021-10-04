@@ -14,7 +14,7 @@
 
 using namespace UE::Geometry;
 
-#define LOCTEXT_NAMESPACE "UUVSelectTool"
+#define LOCTEXT_NAMESPACE "UUVEditorLayoutTool"
 
 // Tool builder
 // TODO: Could consider sharing some of the tool builder boilerplate for UV editor tools in a common base class.
