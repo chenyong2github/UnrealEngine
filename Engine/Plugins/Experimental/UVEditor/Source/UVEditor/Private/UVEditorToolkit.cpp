@@ -332,6 +332,9 @@ void FUVEditorToolkit::PostInitAssetEditor()
 	EmitChangeAPI->Initialize(EditorModeManager->GetInteractiveToolsContext()->ToolManager);
 	ContextStore->AddContextObject(EmitChangeAPI);
 
+	UUVToolAssetAndChannelAPI* AssetAndLayerAPI = NewObject<UUVToolAssetAndChannelAPI>();
+	ContextStore->AddContextObject(AssetAndLayerAPI);
+
 	// Initialize mode state.
 	TArray<TObjectPtr<UObject>> ObjectsToEdit;
 	OwningAssetEditor->GetObjectsToEdit(ObjectsToEdit);

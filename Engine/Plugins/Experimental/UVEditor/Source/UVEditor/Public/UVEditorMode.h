@@ -57,7 +57,7 @@ public:
 	void InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsIn, const TArray<FTransform>& TransformsIn);
 
 	// public for use by undo/redo
-	void ChangeInputObjectLayer(int32 AssetID, int32 NewLayerIndex);
+	void ChangeInputObjectLayer(int32 AssetID, int32 NewLayerIndex, bool bForceRebuild=false);
 	void UpdateSelectedLayer();
 
 	bool IsActive() { return bIsActive; }
@@ -177,11 +177,16 @@ protected:
 	void SwitchActiveAsset(const FString& UVAsset);
 	void SwitchActiveChannel(const FString& UVChannel);
 
+	// Used with the ToolAssetAndLayerAPI to process tool layer change requests
+	void ForceUpdateDisplayChannel(const TArray<int32>& LayerPerAsset, bool bForceRebuildUnwrap, bool bEmitUndoTransaction);
+
 	// Used to change layers with our current picker approach (we need to remember the previous
 	// layer value so we know which one to remove). Likely to change if we start adding/removing
 	// using some different UI.
-	int32 PreviousUVLayerIndex = -1;
-	int32 PendingUVLayerIndex = PreviousUVLayerIndex;
+	TArray<int32> PreviousUVLayerIndex;
+	TArray<int32> PendingUVLayerIndex;
+	bool  bPendingUVLayerChangeDestroyTool = true;
+	bool  bForceRebuildUVLayer = false;
 
 
 	// Wireframe Display Properties

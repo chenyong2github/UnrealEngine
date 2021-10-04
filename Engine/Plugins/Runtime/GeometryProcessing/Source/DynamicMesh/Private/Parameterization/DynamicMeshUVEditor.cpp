@@ -24,19 +24,25 @@
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
-FDynamicMeshUVEditor::FDynamicMeshUVEditor(FDynamicMesh3* MeshIn, int32 UVLayerIndex, bool bCreateIfMissing)
+namespace FDynamicMeshUVEditorLocals
+{
+	enum { MAX_TEXCOORDS = 4, MAX_STATIC_TEXCOORDS = 8 };
+}
+
+FDynamicMeshUVEditor::FDynamicMeshUVEditor(FDynamicMesh3* MeshIn, int32 UVLayerIndexIn, bool bCreateIfMissing)
 {
 	Mesh = MeshIn;
+	UVOverlayIndex = UVLayerIndexIn;
 
-	if (Mesh->HasAttributes() && Mesh->Attributes()->NumUVLayers() > UVLayerIndex)
+	if (Mesh->HasAttributes() && Mesh->Attributes()->NumUVLayers() > UVOverlayIndex)
 	{
-		UVOverlay = Mesh->Attributes()->GetUVLayer(UVLayerIndex);
+		UVOverlay = Mesh->Attributes()->GetUVLayer(UVOverlayIndex);
 	}
 
 	if (UVOverlay == nullptr && bCreateIfMissing)
 	{
-		CreateUVLayer(UVLayerIndex);
-		UVOverlay = Mesh->Attributes()->GetUVLayer(UVLayerIndex);
+		CreateUVLayer(UVOverlayIndex);
+		UVOverlay = Mesh->Attributes()->GetUVLayer(UVOverlayIndex);
 		check(UVOverlay);
 	}
 }
@@ -46,12 +52,27 @@ FDynamicMeshUVEditor::FDynamicMeshUVEditor(FDynamicMesh3* MeshIn, FDynamicMeshUV
 {
 	Mesh = MeshIn;
 	UVOverlay = UVOverlayIn;
+	UVOverlayIndex = -1;
+
+	if (Mesh->HasAttributes())
+	{
+		for (int32 UVIndex = 0; UVIndex < Mesh->Attributes()->NumUVLayers(); ++UVIndex) {
+			if (Mesh->Attributes()->GetUVLayer(UVIndex) == UVOverlay)
+			{
+				UVOverlayIndex = UVIndex;
+				break;
+			}
+		}
+	}
+	check(UVOverlayIndex != -1);
 	ensure(UVOverlay->GetParentMesh() == Mesh);
 }
 
 
 void FDynamicMeshUVEditor::CreateUVLayer(int32 LayerIndex)
 {
+	check(LayerIndex < FDynamicMeshUVEditorLocals::MAX_STATIC_TEXCOORDS)
+
 	if (Mesh->HasAttributes() == false)
 	{
 		Mesh->EnableAttributes();
@@ -63,6 +84,52 @@ void FDynamicMeshUVEditor::CreateUVLayer(int32 LayerIndex)
 	}
 }
 
+
+int32 FDynamicMeshUVEditor::AddUVLayer()
+{
+	int32 OldUVOverlayIndex = UVOverlayIndex;
+	int32 TotalLayerCount = Mesh->Attributes()->NumUVLayers();
+	if (TotalLayerCount < FDynamicMeshUVEditorLocals::MAX_STATIC_TEXCOORDS) {
+		CreateUVLayer(TotalLayerCount); // The passed in value is an index, not count
+		SwitchActiveLayer(TotalLayerCount);
+		SetPerTriangleUVs(0.0, nullptr);
+		SwitchActiveLayer(OldUVOverlayIndex);
+		return TotalLayerCount;
+	}
+	else
+	{
+		return -1;
+	}
+}
+
+void FDynamicMeshUVEditor::SwitchActiveLayer(int32 UVOverlayIndexIn)
+{
+	UVOverlay = Mesh->Attributes()->GetUVLayer(UVOverlayIndexIn);
+	UVOverlayIndex = UVOverlayIndexIn;
+	check(UVOverlay);
+}
+
+int32 FDynamicMeshUVEditor::RemoveUVLayer()
+{
+	int32 TotalLayerCount = Mesh->Attributes()->NumUVLayers();
+	if (TotalLayerCount == 1)
+	{
+		return 0; // Don't remove the last layer, if there's only one.
+	}
+
+	for (int32 LayerID = UVOverlayIndex + 1; LayerID < TotalLayerCount; ++LayerID)
+	{
+		FDynamicMeshUVOverlay* SourceOverlay = Mesh->Attributes()->GetUVLayer(LayerID);
+		UVOverlay = Mesh->Attributes()->GetUVLayer(LayerID - 1);
+		CopyUVLayer(SourceOverlay);
+	}
+
+	Mesh->Attributes()->SetNumUVLayers(TotalLayerCount-1);	
+	int32 NewLayerIndex = UVOverlayIndex - 1 < 0 ? 0 : UVOverlayIndex - 1;
+	SwitchActiveLayer(NewLayerIndex);
+
+	return NewLayerIndex;
+}
 
 void FDynamicMeshUVEditor::ResetUVs()
 {

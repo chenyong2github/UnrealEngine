@@ -21,6 +21,7 @@ public:
 	TSharedPtr<FUICommandInfo> BeginSelectTool;
 	TSharedPtr<FUICommandInfo> BeginLayoutTool;
 	TSharedPtr<FUICommandInfo> BeginParameterizeMeshTool;
+	TSharedPtr<FUICommandInfo> BeginChannelEditTool;
 
 	TSharedPtr<FUICommandInfo> AcceptActiveTool;
 	TSharedPtr<FUICommandInfo> CancelActiveTool;
