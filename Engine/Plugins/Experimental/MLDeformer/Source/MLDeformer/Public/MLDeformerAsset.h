@@ -198,7 +198,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Target Mesh")
 	TObjectPtr<UGeometryCache> GeometryCache = nullptr;
 
-	/** The animation sequence to apply to the base mesh. This has to match the animation of the target mesh's geometry cache. */
+	/**
+	 * The animation sequence to apply to the base mesh. This has to match the animation of the target mesh's geometry cache. 
+	 * Internally we force the Interpolation property for this motion to be "Step".
+	 */
 	UPROPERTY(EditAnywhere, Category = "Base Mesh")
 	TObjectPtr<UAnimSequence> AnimSequence = nullptr;
 

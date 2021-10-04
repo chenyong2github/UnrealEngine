@@ -47,7 +47,7 @@ public:
 private:
 	/** The deformer asset to use. */
 	UPROPERTY(EditAnywhere, Category = "ML Deformer")
-	UMLDeformerAsset* DeformerAsset = nullptr;
+	TObjectPtr<UMLDeformerAsset> DeformerAsset = nullptr;
 
 	/** The scale factor of the vertex deltas that are being applied. */
 	UPROPERTY(EditAnywhere, Category = "ML Deformer")
@@ -58,7 +58,7 @@ private:
 	 * This can be a nullptr. When it is a nullptr then it will internally try to find the first skeletal mesh component on the actor.
 	 * You can see this as an override. You can specify this override through the SetupComponent function.
 	 */
-	USkeletalMeshComponent* SkelMeshComponent = nullptr;
+	TObjectPtr<USkeletalMeshComponent> SkelMeshComponent = nullptr;
 
 	/** The mesh deformer instance. This is used to perform the runtime updates and run the inference. */
 	FMLDeformerInstance DeformerInstance;

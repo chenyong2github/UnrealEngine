@@ -16,6 +16,7 @@ enum class ETrainingResult : uint8
 {
 	Success = 0,	/** The training successfully finished. */
 	Aborted,		/** The user has aborted the training process. */
+	AbortedCantUse,	/** The user has aborted the training process and we can't use the resulting network. */
 	FailOnData,		/** The input or output data to the network has issues, which means we cannot train. */
 	FailUnknown		/** There is an unknown error (see output log). */
 };
