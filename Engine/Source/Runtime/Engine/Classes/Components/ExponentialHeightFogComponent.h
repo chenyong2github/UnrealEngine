@@ -189,6 +189,9 @@ public:
 	void SetFogDensity(float Value);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
+	void SetSecondFogDensity(float Value);
+
+	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
 	void SetFogInscatteringColor(FLinearColor Value);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
@@ -214,9 +217,15 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
 	void SetDirectionalInscatteringColor(FLinearColor Value);
+
+	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
+	void SetSecondFogHeightOffset(float Value);
 	
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
 	void SetFogHeightFalloff(float Value);
+
+	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
+	void SetSecondFogHeightFalloff(float Value);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
 	void SetFogMaxOpacity(float Value);
@@ -226,7 +235,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
 	void SetFogCutoffDistance(float Value);
-
+	
 	UFUNCTION(BlueprintCallable, Category="Rendering|VolumetricFog")
 	void SetVolumetricFog(bool bNewValue);
 
@@ -244,6 +253,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|VolumetricFog")
 	void SetVolumetricFogDistance(float NewValue);
+
+	UFUNCTION(BlueprintCallable, Category="Rendering|VolumetricFog")
+	void SetSecondFogData(FExponentialHeightFogData NewValue);
 
 protected:
 	//~ Begin UActorComponent Interface.
