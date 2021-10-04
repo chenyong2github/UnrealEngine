@@ -118,7 +118,10 @@ void FHttpManager::OnEndFramePostFork()
 
 void FHttpManager::UpdateConfigs()
 {
-	// empty
+	if (Thread)
+	{
+		Thread->UpdateConfigs();
+	}
 }
 
 void FHttpManager::AddGameThreadTask(TFunction<void()>&& Task)
