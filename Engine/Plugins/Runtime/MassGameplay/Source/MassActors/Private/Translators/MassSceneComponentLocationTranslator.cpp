@@ -29,7 +29,7 @@ void UMassSceneComponentLocationToMassTranslator::Execute(UMassEntitySubsystem& 
 		const TConstArrayView<FMassSceneComponentWrapperFragment> ComponentList = Context.GetComponentView<FMassSceneComponentWrapperFragment>();
 		const TArrayView<FDataFragment_Transform> LocationList = Context.GetMutableComponentView<FDataFragment_Transform>();
 
-		const int32 NumEntities = Context.GetEntitiesNum();
+		const int32 NumEntities = Context.GetNumEntities();
 		for (int32 i = 0; i < NumEntities; ++i)
 		{
 			if (const USceneComponent* AsComponent = ComponentList[i].Component.Get())
@@ -65,7 +65,7 @@ void UMassSceneComponentLocationToActorTranslator::Execute(UMassEntitySubsystem&
 			const TConstArrayView<FMassSceneComponentWrapperFragment> ComponentList = Context.GetComponentView<FMassSceneComponentWrapperFragment>();
 			const TArrayView<FDataFragment_Transform> LocationList = Context.GetMutableComponentView<FDataFragment_Transform>();
 
-			const int32 NumEntities = Context.GetEntitiesNum();
+			const int32 NumEntities = Context.GetNumEntities();
 			for (int32 i = 0; i < NumEntities; ++i)
 			{
 				if (USceneComponent* AsComponent = ComponentList[i].Component.Get())

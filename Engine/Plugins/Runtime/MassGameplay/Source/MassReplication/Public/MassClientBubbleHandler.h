@@ -560,7 +560,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddEntitiesHelper(c
 
 				const TArrayView<FMassNetworkIDFragment> NetworkIDList = Context.GetMutableComponentView<FMassNetworkIDFragment>();
 
-				for (int32 i = 0; i < Context.GetEntitiesNum(); ++i)
+				for (int32 i = 0; i < Context.GetNumEntities(); ++i)
 				{
 					const typename AgentArrayItem::FReplicatedAgentType& AgentSpawn = *AgentsSpawn[AgentsSpawnIdx];
 					const FMassEntityHandle Entity = Context.GetEntity(i);

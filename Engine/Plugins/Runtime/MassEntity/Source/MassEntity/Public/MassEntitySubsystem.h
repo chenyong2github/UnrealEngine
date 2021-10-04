@@ -250,7 +250,7 @@ public:
 
 	FScopedProcessing NewProcessingScope() { return FScopedProcessing(ProcessingScopeCount); }
 	bool IsProcessing() const { return ProcessingScopeCount > 0; }
-	FMassCommandBuffer& Defer() { return *DeferredCommandBuffer.Get(); }
+	FMassCommandBuffer& Defer() const { return *DeferredCommandBuffer.Get(); }
 
 #if WITH_MASSENTITY_DEBUG
 	void DebugPrintEntity(int32 Index, FOutputDevice& Ar, const TCHAR* InPrefix = TEXT("")) const;
@@ -393,10 +393,10 @@ public:
 	}
 
 	TSharedPtr<FMassCommandBuffer> GetSharedDeferredCommandBuffer() const { return DeferredCommandBuffer; }
-	FMassCommandBuffer& Defer() { checkSlow(DeferredCommandBuffer.IsValid()); return *DeferredCommandBuffer.Get(); }
+	FMassCommandBuffer& Defer() const { checkSlow(DeferredCommandBuffer.IsValid()); return *DeferredCommandBuffer.Get(); }
 
 	TConstArrayView<FMassEntityHandle> GetEntities() const { return EntityListView; }
-	int32 GetEntitiesNum() const { return EntityListView.Num(); }
+	int32 GetNumEntities() const { return EntityListView.Num(); }
 
 	FMassEntityHandle GetEntity(const int32 Index) const
 	{
@@ -415,14 +415,14 @@ public:
 	int32 GetChunkSerialModificationNumber() const { return ChunkSerialModificationNumber; }
 
 	template<typename T>
-	T& GetMutableChunkComponent()
+	T& GetMutableChunkComponent() const
 	{
 		static_assert(TIsDerivedFrom<T, FMassChunkFragment>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FMassChunkFragment or one of its child-types.");
 
 		const UScriptStruct* Type = T::StaticStruct();
 		const FChunkFragmentView* FoundChunkComponentData = ChunkComponents.FindByPredicate([Type](const FChunkFragmentView& Element) { return Element.Requirement.StructType == Type; });
 		checkf(FoundChunkComponentData, TEXT("Chunk Component requirement not found: %s"), *T::StaticStruct()->GetName());
-		return FoundChunkComponentData->ChunkComponentView.template GetMutable<T>();
+		return FoundChunkComponentData->ChunkComponentView.GetMutable<T>();
 	}
 
 	template<typename T>
@@ -433,7 +433,7 @@ public:
 		const UScriptStruct* Type = T::StaticStruct();
 		const FChunkFragmentView* FoundChunkComponentData = ChunkComponents.FindByPredicate([Type](const FChunkFragmentView& Element) { return Element.Requirement.StructType == Type; } );
 		checkf(FoundChunkComponentData, TEXT("Chunk Component requirement not found: %s"), *T::StaticStruct()->GetName());
-		return FoundChunkComponentData->ChunkComponentView.template Get<T>();
+		return FoundChunkComponentData->ChunkComponentView.Get<T>();
 	}
 
 	template<typename TFragment>

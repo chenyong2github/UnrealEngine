@@ -32,7 +32,7 @@ void UAssignRandomNavLocationProcessor::Execute(UMassEntitySubsystem& EntitySubs
 		{
 			TArrayView<FDataFragment_Transform> LocationList = Context.GetMutableComponentView<FDataFragment_Transform>();
 			TArrayView<FDataFragment_NavLocation> NavLocationList = Context.GetMutableComponentView<FDataFragment_NavLocation>();
-			const int32 NumEntities = Context.GetEntitiesNum();
+			const int32 NumEntities = Context.GetNumEntities();
 			TArray<FNavLocation> Locations;
 			Locations.AddDefaulted(NumEntities);
 			for (FNavLocation& Location : Locations)

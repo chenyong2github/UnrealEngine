@@ -293,7 +293,7 @@ public:
 	 * Note that the function is not const because calling it can result in re-caching of ValidArchetypes 
 	 * @return the number of entities this given query would process if called "now"
 	 */
-	int32 GetMatchingEntitiesNum(UMassEntitySubsystem& InEntitySubsystem);
+	int32 GetNumMatchingEntities(UMassEntitySubsystem& InEntitySubsystem);
 
 	/**
 	 * Checks if any of ValidArchetypes has any entities.
