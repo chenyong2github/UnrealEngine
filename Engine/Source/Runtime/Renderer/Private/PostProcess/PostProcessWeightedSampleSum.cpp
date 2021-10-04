@@ -355,7 +355,7 @@ FScreenPassTexture AddGaussianBlurPass(
 
 	const bool bCombineAdditive = Additive.IsValid();
 
-	const bool bManualUVBorder = !OutputViewport.IsFullscreen();
+	const bool bManualUVBorder = Filter.ViewRect.Min != FIntPoint::ZeroValue || Filter.ViewRect.Max != Filter.Texture->Desc.Extent;
 
 	const uint32 SampleCount = SampleOffsets.Num();
 
