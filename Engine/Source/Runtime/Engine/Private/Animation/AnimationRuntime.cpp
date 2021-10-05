@@ -1389,7 +1389,7 @@ void FAnimationRuntime::ApplyWeightToTransform(const FBoneContainer& RequiredBon
 }
 
 /* from % from OutKeyIndex1, meaning (CurrentKeyIndex(double)-OutKeyIndex1)/(OutKeyIndex2-OutKeyIndex1) */
-void FAnimationRuntime::GetKeyIndicesFromTime(int32& OutKeyIndex1, int32& OutKeyIndex2, float& OutAlpha, const double Time, const int32 NumKeys, const double SequenceLength)
+void FAnimationRuntime::GetKeyIndicesFromTime(int32& OutKeyIndex1, int32& OutKeyIndex2, float& OutAlpha, const double Time, const int32 NumKeys, const double SequenceLength, double FramesPerSecond)
 {
 	// Check for 1-frame, before-first-frame and after-last-frame cases.
 	if (Time <= 0.0 || NumKeys == 1)
@@ -1409,8 +1409,14 @@ void FAnimationRuntime::GetKeyIndicesFromTime(int32& OutKeyIndex1, int32& OutKey
 		return;
 	}
 
-	const int32 NumFrames = NumKeys - 1;
-	const double KeyPos = (Time / SequenceLength) * (double)NumFrames;
+	// Calulate the frames per second if we didn't provide any.
+	if (FramesPerSecond <= 0.0)
+	{
+		const int32 NumFrames = NumKeys - 1;
+		FramesPerSecond = NumFrames / SequenceLength;
+	}
+
+	const double KeyPos = Time * FramesPerSecond;
 
 	// Find the integer part (ensuring within range) and that gives us the 'starting' key index.
 	const int32 KeyIndex1 = FMath::Clamp<int32>( FMath::FloorToInt(KeyPos), 0, NumKeys - 1 );  // @todo should be changed to FMath::TruncToInt

@@ -521,8 +521,11 @@ public:
 	 * Get Key Indices (start/end with alpha from start) with input parameter Time, NumKeys
 	 * from % from StartKeyIndex, meaning (CurrentKeyIndex(float)-StartKeyIndex)/(EndKeyIndex-StartKeyIndex)
 	 * by this Start-End, it will be between 0-(NumKeys-1), not number of Pos/Rot key tracks 
+	 * The FramesPerSecond parameter must be the sample rate of the animation data, for example 30.
+	 * If the FramesPerSecond parameter is set to 0 or negative, it will automatically calculate the FramesPerSecond based on the sequence length and number of frames.
+	 * The reason why you can provide a FramesPerSecond value is because this can be slightly more accurate than calculating it, in case super high precision is needed.
 	 **/
-	static void GetKeyIndicesFromTime(int32& OutKeyIndex1, int32& OutKeyIndex2, float& OutAlpha, const double Time, const int32 NumKeys, const double SequenceLength);
+	static void GetKeyIndicesFromTime(int32& OutKeyIndex1, int32& OutKeyIndex2, float& OutAlpha, const double Time, const int32 NumKeys, const double SequenceLength, double FramesPerSecond=-1.0);
 
 	/** 
 	 *	Utility for taking an array of bone indices and ensuring that all parents are present 

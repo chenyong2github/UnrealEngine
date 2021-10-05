@@ -192,11 +192,12 @@ void BuildPoseFromModel(const UAnimDataModel* Model, FCompactPose& OutPose, cons
 
 	const int32 NumberOfKeys = Model->GetNumberOfKeys();
 	const float SequenceLength = Model->GetPlayLength();
+	const double FramesPerSecond = Model->GetFrameRate().AsDecimal();
 
 	// Generate keys to interpolate between
 	int32 KeyIndex1, KeyIndex2;
 	float Alpha;
-	FAnimationRuntime::GetKeyIndicesFromTime(KeyIndex1, KeyIndex2, Alpha, Time, NumberOfKeys, SequenceLength);
+	FAnimationRuntime::GetKeyIndicesFromTime(KeyIndex1, KeyIndex2, Alpha, Time, NumberOfKeys, SequenceLength, FramesPerSecond);
 
 	if (InterpolationType == EAnimInterpolationType::Step)
 	{
