@@ -629,6 +629,7 @@ private:
 	void ValidateMappingData();
 	void TransferInputs();
 	void TransferOutputs();
+	static FName GetComponentNameWithinActor(UActorComponent* InComponent);
 
 	void HandleControlRigInitializedEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName);
 	void HandleControlRigPreSetupEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName);
