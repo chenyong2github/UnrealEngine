@@ -66,6 +66,16 @@ namespace InterchangePrivateNodeBase
 		}
 		return true;
 	}
+
+	/**
+	 * Finds a property by name in Outer and supports looking into FStructProperties (embedded structs) with a '.' separating the property names.
+	 * 
+	 * @param Container - The container for the property values. If the final property is inside a UScriptStruct, the container will be set to the UScriptStruct instance address.
+	 * @param Outer - The UStruct containing the top level property.
+	 * @param PropertyPath - A dot separated chain of properties. Doesn't support going through external objects.
+	 * @return The Property matching the last name in the PropertyPath.
+	 */
+	INTERCHANGECORE_API FProperty* FindPropertyByPathChecked(TVariant<UObject*, uint8*>& Container, UStruct* Outer, FStringView PropertyPath);
 }
 
 /**
@@ -82,52 +92,82 @@ namespace InterchangePrivateNodeBase
  * @param AssetType - This is the asset you want to apply the storage value"
  * @param EnumType - Optional, specify it only if the AssetType member is an enum so we can type cast it in the apply function (we use uint8 to store the enum value)"
  */
-#define IMPLEMENT_NODE_ATTRIBUTE_KEY(AttributeName)																		\
+#define IMPLEMENT_NODE_ATTRIBUTE_KEY(AttributeName)																\
 const UE::Interchange::FAttributeKey Macro_Custom##AttributeName##Key = UE::Interchange::FAttributeKey(TEXT(#AttributeName));
 
 #if WITH_ENGINE
-#define IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(AttributeName, AttributeType, AssetType, EnumType)	\
-bool ApplyCustom##AttributeName##ToAsset(UObject* Asset) const										\
-{																									\
-	if (!Asset)																						\
-	{																								\
-		return false;																				\
-	}																								\
-	AssetType* TypedObject = Cast<AssetType>(Asset);												\
-	if (!TypedObject)																				\
-	{																								\
-		return false;																				\
-	}																								\
-	AttributeType ValueData;																		\
-	if (GetCustom##AttributeName(ValueData))														\
-	{																								\
-		TypedObject->AttributeName = EnumType(ValueData);											\
-		return true;																				\
-	}																								\
-	return false;																					\
-}																									\
-																									\
-bool FillCustom##AttributeName##FromAsset(UObject* Asset)											\
-{																									\
-	if (!Asset)																						\
-	{																								\
-		return false;																				\
-	}																								\
-	AssetType* TypedObject = Cast<AssetType>(Asset);												\
-	if (!TypedObject)																				\
-	{																								\
-		return false;																				\
-	}																								\
-	if (SetCustom##AttributeName((AttributeType)TypedObject->AttributeName, false))					\
-	{																								\
-		return true;																				\
-	}																								\
-	return false;																					\
+#define IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT_BYNAME(AttributeName, AttributeType, ObjectType, PropertyName)	\
+bool ApplyCustom##AttributeName##ToAsset(UObject* Asset) const													\
+{																												\
+	if (!Asset)																									\
+	{																											\
+		return false;																							\
+	}																											\
+	ObjectType* TypedObject = Cast<ObjectType>(Asset);															\
+	if (!TypedObject)																							\
+	{																											\
+		return false;																							\
+	}																											\
+	AttributeType ValueData;																					\
+	if (GetCustom##AttributeName(ValueData))																	\
+	{																											\
+		TVariant<UObject*, uint8*> Container;																	\
+		Container.Set<UObject*>(Asset);																			\
+		if(FProperty* Property = InterchangePrivateNodeBase::FindPropertyByPathChecked(Container, Asset->GetClass(), PropertyName))\
+		{																										\
+			if (Container.IsType<UObject*>())																	\
+			{																									\
+				*(Property->ContainerPtrToValuePtr<AttributeType>(Container.Get<UObject*>())) = ValueData;		\
+			}																									\
+			else																								\
+			{																									\
+				*(Property->ContainerPtrToValuePtr<AttributeType>(Container.Get<uint8*>())) = ValueData;		\
+			}																									\
+		}																										\
+		return true;																							\
+	}																											\
+	return false;																								\
+}																												\
+																												\
+bool FillCustom##AttributeName##FromAsset(UObject* Asset)														\
+{																												\
+	if (!Asset)																									\
+	{																											\
+		return false;																							\
+	}																											\
+	ObjectType* TypedObject = Cast<ObjectType>(Asset);															\
+	if (!TypedObject)																							\
+	{																											\
+		return false;																							\
+	}																											\
+	TVariant<UObject*, uint8*> Container;																		\
+	Container.Set<UObject*>(Asset);																				\
+	if(FProperty* Property = InterchangePrivateNodeBase::FindPropertyByPathChecked(Container, Asset->GetClass(), PropertyName))\
+	{																											\
+		AttributeType ValueData;																				\
+		if (Container.IsType<UObject*>())																		\
+		{																										\
+			ValueData = *(Property->ContainerPtrToValuePtr<AttributeType>(Container.Get<UObject*>()));			\
+		}																										\
+		else																									\
+		{																										\
+			ValueData = *(Property->ContainerPtrToValuePtr<AttributeType>(Container.Get<uint8*>()));			\
+		}																										\
+		if (SetCustom##AttributeName(ValueData, false))															\
+		{																										\
+			return true;																						\
+		}																										\
+	}																											\
+																												\
+	return false;																								\
 }
+#define IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(AttributeName, AttributeType, ObjectType)						\
+	IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT_BYNAME(AttributeName, AttributeType, ObjectType, TEXT(#AttributeName))
 
 #else //#if WITH_ENGINE
 
-#define IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(AttributeName, AttributeType, AssetType, EnumType)
+#define IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(AttributeName, AttributeType, AssetType)
+#define IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT_BYNAME(AttributeName, AttributeType, AssetType, PropertyName)
 
 #endif //#if WITH_ENGINE
 
@@ -1201,9 +1241,9 @@ public:
 	 * See the macros IMPLEMENT_NODE_ATTRIBUTE_SETTER at the top of the file to know how delegates are setup for property.
 	 *
 	 */
-	void ApplyAllCustomAttributeToAsset(UObject* Object) const;
+	void ApplyAllCustomAttributeToObject(UObject* Object) const;
 
-	void FillAllCustomAttributeFromAsset(UObject* Object) const;
+	void FillAllCustomAttributeFromObject(UObject* Object) const;
 
 	virtual void Serialize(FArchive& Ar) override;
 

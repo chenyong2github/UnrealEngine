@@ -281,7 +281,7 @@ UObject* UInterchangeMaterialFactory::CreateAsset(const FCreateAssetParams& Argu
 			}
 
 			/** Apply all MaterialNode custom attributes to the material asset */
-			MaterialFactoryNode->ApplyAllCustomAttributeToAsset(Material);
+			MaterialFactoryNode->ApplyAllCustomAttributeToObject(Material);
 
 			//TODO support material instance
 		}

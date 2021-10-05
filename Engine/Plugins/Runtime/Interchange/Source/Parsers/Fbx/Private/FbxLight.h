@@ -30,7 +30,7 @@ namespace UE
 				void AddAllLights(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer);
 
 			protected:
-				UInterchangeLightNode* CreateLightNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUID, const FString& NodeName);
+				UInterchangeLightNode* CreateLightNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUID, const FString& NodeName, const FbxLight& LightAttribute);
 				void AddLightsRecursively(FbxNode* Node, UInterchangeBaseNodeContainer& NodeContainer);
 
 			private:

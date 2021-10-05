@@ -18,9 +18,31 @@ namespace UE
 	{
 		namespace Private
 		{
-			UInterchangeLightNode* FFbxLight::CreateLightNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUid, const FString& NodeName)
+			UInterchangeLightNode* FFbxLight::CreateLightNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUid, const FString& NodeName, const FbxLight& LightAttribute)
 			{
-				UInterchangeLightNode* LightNode = NewObject<UInterchangeLightNode>(&NodeContainer, NAME_None);
+				UClass* LightClass;
+
+				switch(LightAttribute.LightType.Get())
+				{
+				case FbxLight::ePoint:
+				case FbxLight::eVolume:
+					LightClass = UInterchangePointLightNode::StaticClass();
+					break;
+				case FbxLight::eDirectional:
+					LightClass = UInterchangeDirectionalLightNode::StaticClass();
+					break;
+				case FbxLight::eSpot:
+					LightClass = UInterchangeSpotLightNode::StaticClass();
+					break;
+				case FbxLight::eArea:
+					LightClass = UInterchangeRectLightNode::StaticClass();
+					break;
+				default:
+					LightClass = UInterchangePointLightNode::StaticClass();
+					break;
+				}
+
+				UInterchangeLightNode* LightNode = NewObject<UInterchangeLightNode>(&NodeContainer, LightClass, NAME_None);
 				if (!ensure(LightNode))
 				{
 					UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
@@ -41,7 +63,7 @@ namespace UE
 				{
 					FbxNodeAttribute* NodeAttribute = Node->GetNodeAttributeByIndex(AttributeIndex);
 
-					if (NodeAttribute->GetAttributeType() == FbxNodeAttribute::eLight)
+					if (NodeAttribute && NodeAttribute->GetAttributeType() == FbxNodeAttribute::eLight)
 					{
 						FString NodeName = FFbxHelper::GetNodeAttributeName(NodeAttribute, UInterchangeLightNode::StaticAssetTypeName());
 						FString NodeUid = FFbxHelper::GetNodeAttributeUniqueID(NodeAttribute, UInterchangeLightNode::StaticAssetTypeName());
@@ -50,7 +72,7 @@ namespace UE
 
 						if (!LightNode)
 						{
-							CreateLightNode(NodeContainer, NodeUid, NodeName);
+							CreateLightNode(NodeContainer, NodeUid, NodeName, static_cast<FbxLight&>(*NodeAttribute));
 						}
 					}
 				}

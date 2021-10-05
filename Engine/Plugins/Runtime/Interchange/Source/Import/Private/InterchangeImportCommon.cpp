@@ -199,7 +199,7 @@ namespace UE
 				case EReimportStrategyFlags::ApplyPipelineProperties:
 				{
 					//Directly apply pipeline node attribute to the asset
-					PipelineAssetNode->ApplyAllCustomAttributeToAsset(Asset);
+					PipelineAssetNode->ApplyAllCustomAttributeToObject(Asset);
 					break;
 				}
 				
@@ -213,7 +213,7 @@ namespace UE
 					//set all ModifedAttributes from the CurrentAssetNode to the pipeline node. This will put back all user changes
 					UInterchangeBaseNode::CopyStorageAttributes(CurrentAssetNode, PipelineAssetNode, ModifiedAttributes);
 					//Now apply the pipeline node attribute to the asset
-					PipelineAssetNode->ApplyAllCustomAttributeToAsset(Asset);
+					PipelineAssetNode->ApplyAllCustomAttributeToObject(Asset);
 					break;
 				}
 			}

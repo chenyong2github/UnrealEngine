@@ -241,7 +241,7 @@ FString UInterchangeBaseNode::InvalidNodeUid()
 	return FString();
 }
 
-void UInterchangeBaseNode::ApplyAllCustomAttributeToAsset(UObject* Object) const
+void UInterchangeBaseNode::ApplyAllCustomAttributeToObject(UObject* Object) const
 {
 	UClass* ObjectClass = Object->GetClass();
 	for (const TPair<UClass*, TArray<UE::Interchange::FApplyAttributeToAsset>>& ClassDelegatePair : ApplyCustomAttributeDelegates)
@@ -259,7 +259,7 @@ void UInterchangeBaseNode::ApplyAllCustomAttributeToAsset(UObject* Object) const
 	}
 }
 
-void UInterchangeBaseNode::FillAllCustomAttributeFromAsset(UObject* Object) const
+void UInterchangeBaseNode::FillAllCustomAttributeFromObject(UObject* Object) const
 {
 	UClass* ObjectClass = Object->GetClass();
 	for (const TPair<UClass*, TArray<UE::Interchange::FFillAttributeToAsset>>& ClassDelegatePair : FillCustomAttributeDelegates)
@@ -288,4 +288,43 @@ void UInterchangeBaseNode::Serialize(FArchive& Ar)
 						  Attributes->GetAttributeHandle<FString>(UE::Interchange::FBaseNodeStaticData::DisplayLabelKey()).IsValid());
 
 	}
+}
+
+FProperty* InterchangePrivateNodeBase::FindPropertyByPathChecked(TVariant<UObject*, uint8*>& Container, UStruct* Outer, FStringView PropertyPath)
+{
+	int32 SeparatorIndex;
+	FStringView PropertyName;
+	FStringView RestOfPropertyPath(PropertyPath);
+	FProperty* Property = nullptr;
+
+	do
+	{
+		if (!RestOfPropertyPath.FindChar(TEXT('.'), SeparatorIndex))
+		{
+			SeparatorIndex = RestOfPropertyPath.Len();
+		}
+
+		PropertyName = FStringView(RestOfPropertyPath.GetData(), SeparatorIndex);
+		RestOfPropertyPath = FStringView(RestOfPropertyPath.GetData() + SeparatorIndex + 1);
+
+		Property = FindFieldChecked<FProperty>(Outer, FName(PropertyName.Len(), PropertyName.GetData()));
+
+		if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+		{
+			Outer = StructProperty->Struct;
+
+			if (Container.IsType<UObject*>())
+			{
+				Container.Set<uint8*>(Property->ContainerPtrToValuePtr<uint8>(Container.Get<UObject*>()));
+			}
+			else
+			{
+				Container.Set<uint8*>(Property->ContainerPtrToValuePtr<uint8>(Container.Get<uint8*>()));
+			}
+		}
+		
+	} while (RestOfPropertyPath.Len() > 0);
+
+	check(Property);
+	return Property;
 }

@@ -28,3 +28,39 @@ public:
 	}
 
 };
+
+UCLASS(BlueprintType)
+class INTERCHANGENODES_API UInterchangePointLightNode : public UInterchangeLightNode
+{
+	GENERATED_BODY()
+
+public:
+
+};
+
+UCLASS(BlueprintType)
+class INTERCHANGENODES_API UInterchangeSpotLightNode : public UInterchangePointLightNode
+{
+	GENERATED_BODY()
+
+public:
+
+};
+
+UCLASS(BlueprintType)
+class INTERCHANGENODES_API UInterchangeRectLightNode : public UInterchangeLightNode
+{
+	GENERATED_BODY()
+
+public:
+
+};
+
+UCLASS(BlueprintType)
+class INTERCHANGENODES_API UInterchangeDirectionalLightNode : public UInterchangeLightNode
+{
+	GENERATED_BODY()
+
+public:
+
+};

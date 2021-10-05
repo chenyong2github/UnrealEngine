@@ -81,26 +81,13 @@ void UE::Interchange::FTaskPreCompletion::DoTask(ENamedThreads::Type CurrentThre
 				Message->DestinationAssetName = ImportedObject->GetPathName();
 				Message->AssetType = ImportedObject->GetClass();
 
-				if (bIsAsset)
-				{
-					//Clear any async flag from the created asset
-					const EInternalObjectFlags AsyncFlags = EInternalObjectFlags::Async | EInternalObjectFlags::AsyncLoading;
-					ImportedObject->ClearInternalFlags(AsyncFlags);
-					//Make sure the package is dirty
-					ImportedObject->MarkPackageDirty();
-#if WITH_EDITOR
-					//Make sure the asset is built correctly
-					ImportedObject->PostEditChange();
-#endif
-					//Post import broadcast
-					if (!AsyncHelper->TaskData.ReimportObject)
-					{
-						//Notify the asset registry, only when we have created the asset
-						FAssetRegistryModule::AssetCreated(ImportedObject);
-					}
-					AsyncHelper->AssetImportResult->AddImportedObject(ImportedObject);
-				}
-				else
+				//Clear any async flag from the created asset
+				const EInternalObjectFlags AsyncFlags = EInternalObjectFlags::Async | EInternalObjectFlags::AsyncLoading;
+				ImportedObject->ClearInternalFlags(AsyncFlags);
+				//Make sure the package is dirty
+				ImportedObject->MarkPackageDirty();
+
+				if (!bIsAsset)
 				{
 					if (AActor* Actor = Cast<AActor>(ImportedObject))
 					{
@@ -110,7 +97,25 @@ void UE::Interchange::FTaskPreCompletion::DoTask(ENamedThreads::Type CurrentThre
 					{
 						Component->RegisterComponent();
 					}
+				}
 
+#if WITH_EDITOR
+				ImportedObject->PostEditChange();
+#endif
+
+				//Post import broadcast
+				if (bIsAsset)
+				{
+					AsyncHelper->AssetImportResult->AddImportedObject(ImportedObject);
+
+					if (!AsyncHelper->TaskData.ReimportObject)
+					{
+						//Notify the asset registry, only when we have created the asset
+						FAssetRegistryModule::AssetCreated(ImportedObject);
+					}
+				}
+				else
+				{
 					AsyncHelper->SceneImportResult->AddImportedObject(ImportedObject);
 				}
 

@@ -364,8 +364,8 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 				CurrentLodIndex++;
 			}
 
-			// Apply all SkeletalMeshFactoryNode custom attributes to the material asset
-			StaticMeshFactoryNode->ApplyAllCustomAttributeToAsset(StaticMesh);
+			// Apply all StaticMeshFactoryNode custom attributes to the static mesh asset
+			StaticMeshFactoryNode->ApplyAllCustomAttributeToObject(StaticMesh);
 		}
 		
 		// Getting the file Hash will cache it into the source data

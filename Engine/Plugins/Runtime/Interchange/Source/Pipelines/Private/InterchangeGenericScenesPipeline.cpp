@@ -4,6 +4,7 @@
 
 #include "InterchangeActorFactoryNode.h"
 #include "InterchangeCameraNode.h"
+#include "InterchangeCineCameraFactoryNode.h"
 #include "InterchangeLightNode.h"
 #include "InterchangeMeshNode.h"
 #include "InterchangePipelineLog.h"
@@ -11,7 +12,10 @@
 
 #include "Animation/SkeletalMeshActor.h"
 #include "CineCameraActor.h"
+#include "Engine/DirectionalLight.h"
 #include "Engine/PointLight.h"
+#include "Engine/RectLight.h"
+#include "Engine/SpotLight.h"
 #include "Engine/StaticMeshActor.h"
 
 bool UInterchangeGenericLevelPipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
@@ -59,7 +63,23 @@ void UInterchangeGenericLevelPipeline::CreateActorFactoryNode(const UInterchange
 		return;
 	}
 
-	UInterchangeActorFactoryNode* ActorFactoryNode = NewObject<UInterchangeActorFactoryNode>(FactoryNodeContainer, NAME_None);
+	UInterchangeActorFactoryNode* ActorFactoryNode = nullptr;
+	const UInterchangeBaseNode* TranslatedAssetNode = nullptr;
+
+	FString AssetInstanceUid;
+	if (SceneNode->GetCustomAssetInstanceUid(AssetInstanceUid))
+	{
+		TranslatedAssetNode = FactoryNodeContainer->GetNode(AssetInstanceUid);
+	}
+
+	if (TranslatedAssetNode && TranslatedAssetNode->IsA<UInterchangeCameraNode>())
+	{
+		ActorFactoryNode = NewObject<UInterchangeCineCameraFactoryNode>(FactoryNodeContainer, NAME_None);
+	}
+	else
+	{
+		ActorFactoryNode = NewObject<UInterchangeActorFactoryNode>(FactoryNodeContainer, NAME_None);
+	}
 
 	if (!ensure(ActorFactoryNode))
 	{
@@ -81,29 +101,71 @@ void UInterchangeGenericLevelPipeline::CreateActorFactoryNode(const UInterchange
 		ActorFactoryNode->SetCustomGlobalTransform(GlobalTransform);
 	}
 	
-	FString AssetInstanceUid;
-	if (SceneNode->GetCustomAssetInstanceUid(AssetInstanceUid))
-	{
-		UInterchangeBaseNode* TranslatedAssetNode = FactoryNodeContainer->GetNode(AssetInstanceUid);
+	ActorFactoryNode->SetCustomMobility(EComponentMobility::Static);
 
-		if (UInterchangeMeshNode* MeshNode = Cast<UInterchangeMeshNode>(TranslatedAssetNode))
+	if (TranslatedAssetNode)
+	{
+		if (const UInterchangeMeshNode* MeshNode = Cast<UInterchangeMeshNode>(TranslatedAssetNode))
 		{
 			if (MeshNode->IsSkinnedMesh())
 			{
 				ActorFactoryNode->SetCustomActorClassName(ASkeletalMeshActor::StaticClass()->GetPathName());
+				ActorFactoryNode->SetCustomMobility(EComponentMobility::Movable);
 			}
 			else
 			{
 				ActorFactoryNode->SetCustomActorClassName(AStaticMeshActor::StaticClass()->GetPathName());
 			}
 		}
-		else if (UInterchangeLightNode* LightNode = Cast<UInterchangeLightNode>(TranslatedAssetNode))
+		else if (const UInterchangeLightNode* LightNode = Cast<UInterchangeLightNode>(TranslatedAssetNode))
 		{
-			ActorFactoryNode->SetCustomActorClassName(APointLight::StaticClass()->GetPathName());
+			//Test for spot before point since a spot light is a point light
+			if (LightNode->IsA<UInterchangeSpotLightNode>())
+			{
+				ActorFactoryNode->SetCustomActorClassName(ASpotLight::StaticClass()->GetPathName());
+			}
+			else if (LightNode->IsA<UInterchangePointLightNode>())
+			{
+				ActorFactoryNode->SetCustomActorClassName(APointLight::StaticClass()->GetPathName());
+			} 
+			else if (LightNode->IsA<UInterchangeRectLightNode>())
+			{
+				ActorFactoryNode->SetCustomActorClassName(ARectLight::StaticClass()->GetPathName());
+			}
+			else if (LightNode->IsA<UInterchangeDirectionalLightNode>())
+			{
+				ActorFactoryNode->SetCustomActorClassName(ADirectionalLight::StaticClass()->GetPathName());
+			}
+			else
+			{
+				ActorFactoryNode->SetCustomActorClassName(APointLight::StaticClass()->GetPathName());
+			}
 		}
-		else if (UInterchangeCameraNode* CameraNode = Cast<UInterchangeCameraNode>(TranslatedAssetNode))
+		else if (const UInterchangeCameraNode* CameraNode = Cast<UInterchangeCameraNode>(TranslatedAssetNode))
 		{
 			ActorFactoryNode->SetCustomActorClassName(ACineCameraActor::StaticClass()->GetPathName());
+			ActorFactoryNode->SetCustomMobility(EComponentMobility::Movable);
+
+			if (UInterchangeCineCameraFactoryNode* CineCameraFactoryNode = Cast<UInterchangeCineCameraFactoryNode>(ActorFactoryNode))
+			{
+				float FocalLength;
+				if (CameraNode->GetCustomFocalLength(FocalLength))
+				{
+					CineCameraFactoryNode->SetCustomFocalLength(FocalLength);
+				}
+				
+				float SensorHeight;
+				if (CameraNode->GetCustomSensorHeight(SensorHeight))
+				{
+					CineCameraFactoryNode->SetCustomSensorHeight(SensorHeight);
+				}
+
+				float SensorWidth;
+				if (CameraNode->GetCustomSensorWidth(SensorWidth))
+				{
+					CineCameraFactoryNode->SetCustomSensorWidth(SensorWidth);
+				}
+			}
 		}
 	}
 
