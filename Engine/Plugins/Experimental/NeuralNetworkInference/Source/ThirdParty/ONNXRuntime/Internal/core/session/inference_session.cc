@@ -615,22 +615,14 @@ common::Status InferenceSession::Load(const std::basic_string<T>& model_uri) {
 
 #endif  // !defined(ORT_MINIMAL_BUILD)
 
-common::Status InferenceSession::Load(const std::string& model_uri
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-	, std::vector<uint8_t>* InOutORTFormatModelBytesVector
-#endif // WITH_UE_ONNX_ORT_LOADER
-) {
+common::Status InferenceSession::Load(const std::string& model_uri) {
   std::string model_type = session_options_.GetConfigOrDefault(kOrtSessionOptionsConfigLoadModelFormat, "");
   bool has_explicit_type = !model_type.empty();
 
   if ((has_explicit_type && model_type == "ORT") ||
       (!has_explicit_type && experimental::utils::IsOrtFormatModel(model_uri))) {
 #if defined(ENABLE_ORT_FORMAT_LOAD)
-    return LoadOrtModel(model_uri
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-		, InOutORTFormatModelBytesVector
-#endif // WITH_UE_ONNX_ORT_LOADER
-	);
+    return LoadOrtModel(model_uri);
 #else
     return ORT_MAKE_STATUS(ONNXRUNTIME, INVALID_ARGUMENT, "ORT format model is not supported in this build.");
 #endif
@@ -650,22 +642,14 @@ common::Status InferenceSession::Load(const std::string& model_uri
 }
 
 #ifdef _WIN32
-common::Status InferenceSession::Load(const std::wstring& model_uri
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-	, std::vector<uint8_t>* InOutORTFormatModelBytesVector
-#endif // WITH_UE_ONNX_ORT_LOADER
-) {
+common::Status InferenceSession::Load(const std::wstring& model_uri) {
   std::string model_type = session_options_.GetConfigOrDefault(kOrtSessionOptionsConfigLoadModelFormat, "");
   bool has_explicit_type = !model_type.empty();
 
   if ((has_explicit_type && model_type == "ORT") ||
       (!has_explicit_type && experimental::utils::IsOrtFormatModel(model_uri))) {
 #if defined(ENABLE_ORT_FORMAT_LOAD)
-    return LoadOrtModel(model_uri
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-		, InOutORTFormatModelBytesVector
-#endif // WITH_UE_ONNX_ORT_LOADER
-	);
+    return LoadOrtModel(model_uri);
 #else
     return ORT_MAKE_STATUS(ONNXRUNTIME, INVALID_ARGUMENT, "ORT format model is not supported in this build.");
 #endif
@@ -959,20 +943,9 @@ Status InferenceSession::PartitionOrtFormatModel(onnxruntime::Graph& graph,
 template <typename T>
 static Status LoadOrtModelBytes(const std::basic_string<T>& model_uri,
                                 std::basic_string<ORTCHAR_T>& model_location,
-                                std::vector<uint8_t>& bytes
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-	                            , std::vector<uint8_t>* InOutORTFormatModelBytesVector = nullptr
-#endif // WITH_UE_ONNX_ORT_LOADER
-  ) {
+                                std::vector<uint8_t>& bytes) {
   size_t num_bytes = 0;
   model_location = ToWideString(model_uri);
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-  if (InOutORTFormatModelBytesVector && InOutORTFormatModelBytesVector->size() > 0)
-  {
-	  bytes = *InOutORTFormatModelBytesVector;
-	  return Status::OK();
-  }
-#endif // WITH_UE_ONNX_ORT_LOADER
   ORT_RETURN_IF_ERROR(Env::Default().GetFileLength(model_location.c_str(), num_bytes));
 
   bytes.resize(num_bytes);
@@ -989,35 +962,19 @@ static Status LoadOrtModelBytes(const std::basic_string<T>& model_uri,
   return Status::OK();
 }
 
-Status InferenceSession::LoadOrtModel(const std::string& model_uri
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-	, std::vector<uint8_t>* InOutORTFormatModelBytesVector
-#endif // WITH_UE_ONNX_ORT_LOADER
-) {
+Status InferenceSession::LoadOrtModel(const std::string& model_uri) {
   return LoadOrtModel(
       [&]() {
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-        ORT_RETURN_IF_ERROR(LoadOrtModelBytes(model_uri, model_location_, ort_format_model_bytes_, InOutORTFormatModelBytesVector));
-#else // WITH_UE_ONNX_ORT_LOADER
         ORT_RETURN_IF_ERROR(LoadOrtModelBytes(model_uri, model_location_, ort_format_model_bytes_));
-#endif // WITH_UE_ONNX_ORT_LOADER
         return Status::OK();
       });
 }
 
 #ifdef WIN32
-Status InferenceSession::LoadOrtModel(const std::wstring& model_uri
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-	, std::vector<uint8_t>* InOutORTFormatModelBytesVector
-#endif // WITH_UE_ONNX_ORT_LOADER
-) {
+Status InferenceSession::LoadOrtModel(const std::wstring& model_uri) {
   return LoadOrtModel(
       [&]() {
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-        ORT_RETURN_IF_ERROR(LoadOrtModelBytes(model_uri, model_location_, ort_format_model_bytes_, InOutORTFormatModelBytesVector));
-#else // WITH_UE_ONNX_ORT_LOADER
         ORT_RETURN_IF_ERROR(LoadOrtModelBytes(model_uri, model_location_, ort_format_model_bytes_));
-#endif // WITH_UE_ONNX_ORT_LOADER
         return Status::OK();
       });
 }
@@ -1141,11 +1098,7 @@ static bool ModelHasFP16Inputs(const Graph& graph) {
   return false;
 }
 
-common::Status InferenceSession::Initialize(
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-std::vector<uint8_t>* InOutORTFormatModelBytesVector
-#endif // WITH_UE_ONNX_ORT_LOADER
-	) {
+common::Status InferenceSession::Initialize() {
   Status status = Status::OK();
   TimePoint tp;
   if (session_profiler_.IsEnabled()) {
@@ -1320,12 +1273,6 @@ std::vector<uint8_t>* InOutORTFormatModelBytesVector
     is_inited_ = true;
 
     // we don't directly use the ORT format bytes currently, so free those now
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-	if (InOutORTFormatModelBytesVector)
-	{
-		*InOutORTFormatModelBytesVector = ort_format_model_bytes_;
-	}
-#endif // WITH_UE_ONNX_ORT_LOADER
     std::vector<uint8_t>().swap(ort_format_model_bytes_);
 
     // and log telemetry

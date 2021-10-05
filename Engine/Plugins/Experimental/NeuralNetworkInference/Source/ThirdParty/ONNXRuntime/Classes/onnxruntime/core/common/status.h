@@ -17,13 +17,13 @@ limitations under the License.
 #include <ostream>
 #include <string>
 
-#include "ThirdPartyWarningDisabler.h"
+#include "ThirdPartyWarningDisabler.h" // #ifdef WITH_UE
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
 #ifdef _WIN32
 #include <winerror.h>
 #endif
-NNI_THIRD_PARTY_INCLUDES_END
+NNI_THIRD_PARTY_INCLUDES_END // #endif //WITH_UE
 
 namespace onnxruntime {
 namespace common {

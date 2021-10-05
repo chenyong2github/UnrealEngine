@@ -3,17 +3,17 @@
 
 #pragma once
 
-#if defined(WITH_UE)
+#ifdef WITH_UE
 #include "ThirdPartyWarningDisabler.h"
 NNI_THIRD_PARTY_INCLUDES_START
 #undef TEXT
 #undef check
-#include <Windows.h>
+#include <windows.h>
 #include <TraceLoggingProvider.h>
 NNI_THIRD_PARTY_INCLUDES_END
-#else
-#include <Windows.h>
+#else //WITH_UE
+#include <windows.h>
 #include <TraceLoggingProvider.h>
-#endif
+#endif //WITH_UE
 
 TRACELOGGING_DECLARE_PROVIDER(telemetry_provider_handle);

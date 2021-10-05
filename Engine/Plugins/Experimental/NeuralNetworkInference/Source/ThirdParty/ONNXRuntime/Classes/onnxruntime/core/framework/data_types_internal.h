@@ -10,17 +10,15 @@
 #include <type_traits>
 #include <vector>
 
-#include "ThirdPartyWarningDisabler.h"
+#include "ThirdPartyWarningDisabler.h" // #ifdef WITH_UE
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
 #include "boost/mp11.hpp"
-
 
 #include "core/common/common.h"
 #include "core/common/type_list.h"
 #include "core/framework/data_types.h"
 #include "core/graph/onnx_protobuf.h"
-
 
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
@@ -580,4 +578,4 @@ bool IsOpaqueType(MLDataType ml_type, const char* domain, const char* name);
 
 }  // namespace utils
 }  // namespace onnxruntime
-NNI_THIRD_PARTY_INCLUDES_END
+NNI_THIRD_PARTY_INCLUDES_END // #endif //WITH_UE

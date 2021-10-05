@@ -40,14 +40,8 @@ ORT_ALL_ARGS_NONNULL;
 ORT_API_STATUS_IMPL(EnableTelemetryEvents, _In_ const OrtEnv* env);
 ORT_API_STATUS_IMPL(DisableTelemetryEvents, _In_ const OrtEnv* env);
 
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-ORT_API_STATUS_IMPL(CreateSession, _In_ const OrtEnv* env, _In_ const ORTCHAR_T* model_path,
-                    _In_ const OrtSessionOptions* options, _Outptr_ OrtSession** out
-					, std::vector<uint8_t>* InOutORTFormatModelBytesVector);
-#else // WITH_UE_ONNX_ORT_LOADER
 ORT_API_STATUS_IMPL(CreateSession, _In_ const OrtEnv* env, _In_ const ORTCHAR_T* model_path,
                     _In_ const OrtSessionOptions* options, _Outptr_ OrtSession** out);
-#endif // WITH_UE_ONNX_ORT_LOADER
 
 ORT_API_STATUS_IMPL(CreateSessionFromArray, _In_ const OrtEnv* env, _In_ const void* model_data, size_t model_data_length,
                     _In_ const OrtSessionOptions* options, _Outptr_ OrtSession** out);

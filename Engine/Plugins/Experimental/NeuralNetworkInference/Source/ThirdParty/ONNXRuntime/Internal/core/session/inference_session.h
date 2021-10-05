@@ -217,17 +217,9 @@ class InferenceSession {
     * @param model_uri absolute path of the model file.
     * @return OK if success.
     */
-  common::Status Load(const std::string& model_uri
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-	  , std::vector<uint8_t>* InOutORTFormatModelBytesVector = nullptr
-#endif // WITH_UE_ONNX_ORT_LOADER
-  ) ORT_MUST_USE_RESULT;
+  common::Status Load(const std::string& model_uri) ORT_MUST_USE_RESULT;
 #ifdef _WIN32
-  common::Status Load(const std::wstring& model_uri
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-	  , std::vector<uint8_t>* InOutORTFormatModelBytesVector = nullptr
-#endif // WITH_UE_ONNX_ORT_LOADER
-  ) ORT_MUST_USE_RESULT;
+  common::Status Load(const std::wstring& model_uri) ORT_MUST_USE_RESULT;
 #endif
   /**
     * Load an ONNX or ORT format model.
@@ -266,11 +258,7 @@ class InferenceSession {
     * This API is thread-safe.
     * @return OK if success
     */
-  common::Status Initialize(
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-	  std::vector<uint8_t>* InOutORTFormatModelBytesVector = nullptr
-#endif // WITH_UE_ONNX_ORT_LOADER
-  ) ORT_MUST_USE_RESULT;
+  common::Status Initialize() ORT_MUST_USE_RESULT;
 
   common::Status Run(const RunOptions& run_options, const std::vector<std::string>& feed_names,
                      const std::vector<OrtValue>& feeds, const std::vector<std::string>& output_names,
@@ -494,17 +482,9 @@ class InferenceSession {
     * @param model_uri absolute path of the model file.
     * @return OK if success.
     */
-  common::Status LoadOrtModel(const std::string& model_uri
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-	  , std::vector<uint8_t>* InOutORTFormatModelBytesVector = nullptr
-#endif // WITH_UE_ONNX_ORT_LOADER
-  ) ORT_MUST_USE_RESULT;
+  common::Status LoadOrtModel(const std::string& model_uri) ORT_MUST_USE_RESULT;
 #ifdef _WIN32
-  common::Status LoadOrtModel(const std::wstring& model_uri
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-	  , std::vector<uint8_t>* InOutORTFormatModelBytesVector = nullptr
-#endif // WITH_UE_ONNX_ORT_LOADER
-  ) ORT_MUST_USE_RESULT;
+  common::Status LoadOrtModel(const std::wstring& model_uri) ORT_MUST_USE_RESULT;
 #endif
 
   /**

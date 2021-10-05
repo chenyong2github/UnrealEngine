@@ -5,11 +5,11 @@
 
 #pragma warning(push)
 #pragma warning(disable : 4201) // nonstandard extension used: nameless struct/union
-#include "ThirdPartyWarningDisabler.h"
+#include "ThirdPartyWarningDisabler.h" // #ifdef WITH_UE
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
 #include <d3d12.h>
-NNI_THIRD_PARTY_INCLUDES_END
+NNI_THIRD_PARTY_INCLUDES_END // #endif //WITH_UE
 #pragma warning(pop)
 
 #ifdef __cplusplus
@@ -29,7 +29,6 @@ extern "C" {
 #endif
 
 #ifdef WITH_UE
-
 /**
  * OrtDMLGPUResourceAllocator allows wrapping of a ID312Resource to DML allocation
  */
@@ -51,8 +50,7 @@ typedef struct OrtDMLProviderOptions {
 	// Output
 	OrtDMLGPUResourceAllocator** resource_allocator;
 } OrtDMLProviderOptions;
-
-#endif
+#endif //WITH_UE
 
 /**
  * Creates a DirectML Execution Provider which executes on the hardware adapter with the given device_id, also known as
@@ -60,11 +58,8 @@ typedef struct OrtDMLProviderOptions {
  * IDXGIFactory::EnumAdapters. A device_id of 0 always corresponds to the default adapter, which is typically the 
  * primary display GPU installed on the system. A negative device_id is invalid.
 */
-#ifndef WITH_UE
 ORT_API_STATUS(OrtSessionOptionsAppendExecutionProvider_DML, _In_ OrtSessionOptions* options, int device_id);
-#else
-UE_ORT_API_STATUS(OrtSessionOptionsAppendExecutionProvider_DML, _In_ OrtSessionOptions* options, int device_id);
-#endif
+
 /**
  * Creates a DirectML Execution Provider using the given DirectML device, and which executes work on the supplied D3D12
  * command queue. The DirectML device and D3D12 command queue must have the same parent ID3D12Device, or an error will
@@ -74,27 +69,21 @@ UE_ORT_API_STATUS(OrtSessionOptionsAppendExecutionProvider_DML, _In_ OrtSessionO
  * See also: DMLCreateDevice
  * See also: ID3D12Device::CreateCommandQueue
  */
-#ifndef WITH_UE
 ORT_API_STATUS(OrtSessionOptionsAppendExecutionProviderEx_DML, _In_ OrtSessionOptions* options,
                _In_ IDMLDevice* dml_device, _In_ ID3D12CommandQueue* cmd_queue);
-#else
-UE_ORT_API_STATUS(OrtSessionOptionsAppendExecutionProviderEx_DML, _In_ OrtSessionOptions* options,
-	_In_ IDMLDevice* dml_device, _In_ ID3D12CommandQueue* cmd_queue);
-#endif
 
 /**
  * Create DirectML Execution Provider with specified options
  */
 
 #ifdef WITH_UE
-UE_ORT_API_STATUS(OrtSessionOptionsAppendExecutionProviderWithOptions_DML, _In_ OrtSessionOptions* options,
+ORT_API_STATUS(OrtSessionOptionsAppendExecutionProviderWithOptions_DML, _In_ OrtSessionOptions* options,
 	_In_ OrtDMLProviderOptions* provider_options);
-#endif
+#endif //WITH_UE
 
 #ifdef __cplusplus
 
 #ifdef WITH_UE
-
 namespace Ort
 {
 /**
@@ -151,7 +140,7 @@ private:
 };
 
 } // namspace Ort
-#endif
+#endif // WITH_UE
 
 }
 
