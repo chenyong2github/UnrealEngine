@@ -245,6 +245,11 @@ void SScaleBox::OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedCh
 		LastFinalOffset = FVector2D(0, 0);
 		float FinalScale = TempComputedContentScale;
 
+		if (FMath::IsNearlyZero(FinalScale))
+		{
+			return;
+		}
+
 		// If we're just filling, there's no scale applied, we're just filling the area.
 		if (CurrentStretch != EStretch::Fill)
 		{
