@@ -181,8 +181,17 @@ void FWidget::Render( const FSceneView* View,FPrimitiveDrawInterface* PDI, FEdit
 	const bool bShowFlagsSupportsWidgetDrawing = View->Family->EngineShowFlags.ModeWidgets;
 	const bool bEditorModeToolsSupportsWidgetDrawing = EditorModeTools ? EditorModeTools->GetShowWidget() : true;
 
-	static const auto UseLegacyWidgetCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("Gizmos.UseLegacyWidget"));
-	const bool bUseLegacyWidget = UseLegacyWidgetCVar->GetInt() > 0;
+	// Use legacy widget for TranslateRotateZ or 2D modes or when UseLegacyWidget cvar is true
+	UE::Widget::EWidgetMode WidgetMode = ViewportClient->GetWidgetMode();
+	bool bUseLegacyWidget = (WidgetMode == UE::Widget::EWidgetMode::WM_TranslateRotateZ || WidgetMode == UE::Widget::EWidgetMode::WM_2D);
+	if (!bUseLegacyWidget)
+	{
+		static IConsoleVariable* const UseLegacyWidgetCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("Gizmos.UseLegacyWidget"));
+		if (ensure(UseLegacyWidgetCVar))
+		{
+			bUseLegacyWidget = UseLegacyWidgetCVar->GetInt() > 0;
+		}
+	}
 
 	bool bDrawWidget;
 
@@ -219,7 +228,7 @@ void FWidget::Render( const FSceneView* View,FPrimitiveDrawInterface* PDI, FEdit
 		Origin = NewOrigin;
 	}
 
-	switch( ViewportClient->GetWidgetMode() )
+	switch( WidgetMode )
 	{
 		case UE::Widget::EWidgetMode::WM_Translate:
 			Render_Translate(View, PDI, ViewportClient, WidgetLocation, bDrawWidget);

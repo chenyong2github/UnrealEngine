@@ -120,6 +120,32 @@ namespace EAxis
 	};
 }
 
+/** Generic axis list enum (mirrored for native use in Axis.h). */
+UENUM()
+namespace EAxisList
+{
+	enum Type
+	{
+		None = 0,
+		X = 1,
+		Y = 2,
+		Z = 4,
+
+		Screen = 8,
+		XY = X | Y,
+		XZ = X | Z,
+		YZ = Y | Z,
+		XYZ = X | Y | Z,
+		All = XYZ | Screen,
+
+		/** alias over Axis YZ since it isn't used when the z-rotation widget is being used */
+		ZRotation = YZ,
+
+		/** alias over Screen since it isn't used when the 2d translate rotate widget is being used */
+		Rotate2D = Screen,
+	};
+}
+
 /** Describes shape of an interpolation curve (mirrored from InterpCurvePoint.h). */
 UENUM()
 enum EInterpCurveMode

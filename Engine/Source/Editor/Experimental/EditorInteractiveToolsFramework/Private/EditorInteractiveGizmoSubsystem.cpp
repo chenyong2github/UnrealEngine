@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorInteractiveGizmoSubsystem.h"
-#include "EditorGizmos/EditorTransformGizmo.h"
+#include "EditorGizmos/EditorTransformGizmoBuilder.h"
 
 #define LOCTEXT_NAMESPACE "UEditorInteractiveGizmoSubsystem"
 

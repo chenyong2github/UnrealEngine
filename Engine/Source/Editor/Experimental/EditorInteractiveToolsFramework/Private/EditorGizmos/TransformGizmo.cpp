@@ -1,15 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "EditorGizmos/EditorTransformGizmo.h"
+#include "EditorGizmos/TransformGizmo.h"
 #include "BaseGizmos/AxisPositionGizmo.h"
+#include "BaseGizmos/TransformSources.h"
+#include "EditorGizmos/EditorAxisSources.h"
+#include "EditorGizmos/EditorTransformGizmoSource.h"
+#include "EditorGizmos/EditorTransformProxy.h"
+#include "EditorGizmos/EditorParameterToTransformAdapters.h"
 #include "EditorGizmos/GizmoArrowObject.h"
 #include "EditorGizmos/GizmoBoxObject.h"
 #include "EditorGizmos/GizmoConeObject.h"
 #include "EditorGizmos/GizmoCylinderObject.h"
 #include "EditorGizmos/GizmoGroupObject.h"
-#include "BaseGizmos/TransformSources.h"
-#include "EditorGizmos/EditorAxisSources.h"
-#include "EditorGizmos/EditorParameterToTransformAdapters.h"
 #include "Elements/Interfaces/TypedElementObjectInterface.h"
 #include "Elements/Interfaces/TypedElementWorldInterface.h"
 #include "Engine/CollisionProfile.h"
@@ -19,76 +21,35 @@
 #include "UnrealEdGlobals.h"
 #include "UnrealEngine.h"
 
-#define LOCTEXT_NAMESPACE "UEditorTransformGizmo"
+#define LOCTEXT_NAMESPACE "UTransformGizmo"
 
-constexpr float UEditorTransformGizmo::AXIS_LENGTH;
-constexpr float UEditorTransformGizmo::AXIS_RADIUS;
-constexpr float UEditorTransformGizmo::AXIS_CONE_ANGLE;
-constexpr float UEditorTransformGizmo::AXIS_CONE_HEIGHT;
-constexpr float UEditorTransformGizmo::AXIS_CONE_HEAD_OFFSET;
-constexpr float UEditorTransformGizmo::AXIS_CUBE_SIZE;
-constexpr float UEditorTransformGizmo::AXIS_CUBE_HEAD_OFFSET;
-constexpr float UEditorTransformGizmo::TRANSLATE_ROTATE_AXIS_CIRCLE_RADIUS;
-constexpr float UEditorTransformGizmo::TWOD_AXIS_CIRCLE_RADIUS;
-constexpr float UEditorTransformGizmo::INNER_AXIS_CIRCLE_RADIUS;
-constexpr float UEditorTransformGizmo::OUTER_AXIS_CIRCLE_RADIUS;
-constexpr float UEditorTransformGizmo::ROTATION_TEXT_RADIUS;
-constexpr int32 UEditorTransformGizmo::AXIS_CIRCLE_SIDES;
-constexpr float UEditorTransformGizmo::ARCALL_RELATIVE_INNER_SIZE;
-constexpr float UEditorTransformGizmo::AXIS_LENGTH_SCALE;
-constexpr float UEditorTransformGizmo::AXIS_LENGTH_SCALE_OFFSET;
+constexpr float UTransformGizmo::AXIS_LENGTH;
+constexpr float UTransformGizmo::AXIS_RADIUS;
+constexpr float UTransformGizmo::AXIS_CONE_ANGLE;
+constexpr float UTransformGizmo::AXIS_CONE_HEIGHT;
+constexpr float UTransformGizmo::AXIS_CONE_HEAD_OFFSET;
+constexpr float UTransformGizmo::AXIS_CUBE_SIZE;
+constexpr float UTransformGizmo::AXIS_CUBE_HEAD_OFFSET;
+constexpr float UTransformGizmo::TRANSLATE_ROTATE_AXIS_CIRCLE_RADIUS;
+constexpr float UTransformGizmo::TWOD_AXIS_CIRCLE_RADIUS;
+constexpr float UTransformGizmo::INNER_AXIS_CIRCLE_RADIUS;
+constexpr float UTransformGizmo::OUTER_AXIS_CIRCLE_RADIUS;
+constexpr float UTransformGizmo::ROTATION_TEXT_RADIUS;
+constexpr int32 UTransformGizmo::AXIS_CIRCLE_SIDES;
+constexpr float UTransformGizmo::ARCALL_RELATIVE_INNER_SIZE;
+constexpr float UTransformGizmo::AXIS_LENGTH_SCALE;
+constexpr float UTransformGizmo::AXIS_LENGTH_SCALE_OFFSET;
 
-constexpr FLinearColor UEditorTransformGizmo::AxisColorX;
-constexpr FLinearColor UEditorTransformGizmo::AxisColorY;
-constexpr FLinearColor UEditorTransformGizmo::AxisColorZ;
-constexpr FLinearColor UEditorTransformGizmo::ScreenAxisColor;
-constexpr FColor UEditorTransformGizmo::PlaneColorXY;
-constexpr FColor UEditorTransformGizmo::ArcBallColor;
-constexpr FColor UEditorTransformGizmo::ScreenSpaceColor;
-constexpr FColor UEditorTransformGizmo::CurrentColor;
+constexpr FLinearColor UTransformGizmo::AxisColorX;
+constexpr FLinearColor UTransformGizmo::AxisColorY;
+constexpr FLinearColor UTransformGizmo::AxisColorZ;
+constexpr FLinearColor UTransformGizmo::ScreenAxisColor;
+constexpr FColor UTransformGizmo::PlaneColorXY;
+constexpr FColor UTransformGizmo::ArcBallColor;
+constexpr FColor UTransformGizmo::ScreenSpaceColor;
+constexpr FColor UTransformGizmo::CurrentColor;
 
-UInteractiveGizmo* UEditorTransformGizmoBuilder::BuildGizmo(const FToolBuilderState& SceneState) const
-{
-	UEditorTransformGizmo* TransformGizmo = NewObject<UEditorTransformGizmo>(SceneState.GizmoManager);
-	TransformGizmo->Setup();
-
-	TransformGizmo->SetWorld(SceneState.World);
-
-	// @todo - remove this once transform is updated to take widget mode as a source
-	TransformGizmo->SetElements(ETransformGizmoSubElements::TranslateAllAxes | ETransformGizmoSubElements::TranslateAllPlanes);
-	TransformGizmo->bUseContextCoordinateSystem = false;
-
-	return TransformGizmo;
-}
-
-void UEditorTransformGizmoBuilder::UpdateGizmoForSelection(UInteractiveGizmo* Gizmo, const FToolBuilderState& SceneState)
-{
-	if (UEditorTransformGizmo* TransformGizmo = Cast<UEditorTransformGizmo>(Gizmo))
-	{
-		if (UTransformProxy* TransformProxy = FEditorGizmoSelectionBuilderHelper::CreateTransformProxyForSelection(SceneState))
-		{
-			TransformGizmo->SetActiveTarget(TransformProxy);
-			TransformGizmo->SetVisibility(true);
-		}
-		else
-		{
-			TransformGizmo->SetActiveTarget(nullptr);
-			TransformGizmo->SetVisibility(false);
-		}
-	}
-}
-
-void UEditorTransformGizmo::SetWorld(UWorld* WorldIn)
-{
-	this->World = WorldIn;
-}
-
-void UEditorTransformGizmo::SetElements(ETransformGizmoSubElements InEnableElements)
-{
-	EnableElements = InEnableElements;
-}
-
-void UEditorTransformGizmo::SetDisallowNegativeScaling(bool bDisallow)
+void UTransformGizmo::SetDisallowNegativeScaling(bool bDisallow)
 {
 	if (bDisallowNegativeScaling != bDisallow)
 	{
@@ -115,13 +76,7 @@ void UEditorTransformGizmo::SetDisallowNegativeScaling(bool bDisallow)
 	}
 }
 
-void UEditorTransformGizmo::SetIsNonUniformScaleAllowedFunction(TUniqueFunction<bool()>&& IsNonUniformScaleAllowedIn)
-{
-	IsNonUniformScaleAllowed = MoveTemp(IsNonUniformScaleAllowedIn);
-}
-
-
-void UEditorTransformGizmo::Setup()
+void UTransformGizmo::Setup()
 {
 	UInteractiveGizmo::Setup();
 
@@ -157,21 +112,140 @@ void UEditorTransformGizmo::Setup()
 }
 
 
-void UEditorTransformGizmo::Shutdown()
+void UTransformGizmo::Shutdown()
 {
 	ClearActiveTarget();
 }
 
+void UTransformGizmo::Render(IToolsContextRenderAPI* RenderAPI)
+{
+	if (bVisible && GizmoGroupObject)
+	{
+		GizmoGroupObject->Render(RenderAPI);
+	}
+}
 
-void UEditorTransformGizmo::UpdateCameraAxisSource()
+void UTransformGizmo::UpdateMode()
+{
+	if (TransformSource && TransformSource->GetVisible())
+	{
+		EGizmoTransformMode NewMode = TransformSource->GetGizmoMode();
+		EAxisList::Type NewAxisToDraw = TransformSource->GetGizmoAxisToDraw(NewMode);
+
+		if (NewMode != CurrentMode)
+		{
+			ActiveObjects.Empty();
+			EnableMode(CurrentMode, EAxisList::None);
+			EnableMode(NewMode, NewAxisToDraw);
+
+			CurrentMode = NewMode;
+			CurrentAxisToDraw = NewAxisToDraw;
+		}
+		else if (NewAxisToDraw != CurrentAxisToDraw)
+		{
+			ActiveObjects.Empty();
+			EnableMode(CurrentMode, NewAxisToDraw);
+			CurrentAxisToDraw = NewAxisToDraw;
+		}
+	}
+	else
+	{
+		ActiveObjects.Empty();
+		EnableMode(CurrentMode, EAxisList::None);
+		CurrentMode = EGizmoTransformMode::None;
+	}
+}
+
+void UTransformGizmo::UpdateCoordSystem()
+{
+	// Note: the following will change with upcoming changes to gizmo objects
+	if (ActiveTarget && ActiveObjects.Num() > 0)
+	{
+		EToolContextCoordinateSystem Space = EToolContextCoordinateSystem::World;
+		float Scale = 1.0f;
+
+		if (TransformSource)
+		{
+			Space = TransformSource->GetGizmoCoordSystemSpace();
+			Scale = TransformSource->GetGizmoScale();
+		}
+
+		FTransform LocalToWorldTransform = ActiveTarget->GetTransform();
+		if (Space == EToolContextCoordinateSystem::World)
+		{
+			LocalToWorldTransform.SetRotation(FQuat::Identity);
+		}
+
+		for (UGizmoBaseObject* Object : ActiveObjects)
+		{
+			Object->SetWorldLocalState(Space == EToolContextCoordinateSystem::World);
+			Object->SetLocalToWorldTransform(LocalToWorldTransform);
+			Object->SetGizmoScale(Scale);
+		}
+	}
+}
+
+void UTransformGizmo::EnableMode(EGizmoTransformMode InMode, EAxisList::Type InAxisListToDraw)
+{
+	if (InMode == EGizmoTransformMode::Translate)
+	{
+		EnableTranslate(InAxisListToDraw);
+	}
+	else if (InMode == EGizmoTransformMode::Rotate)
+	{
+		EnableRotate(InAxisListToDraw);
+	}
+	else if (InMode == EGizmoTransformMode::Scale)
+	{
+		EnableScale(InAxisListToDraw);
+	}
+}
+
+void UTransformGizmo::EnableObject(UGizmoBaseObject* InGizmoObject, EAxisList::Type InGizmoAxis, EAxisList::Type InAxisListToDraw)
+{
+	if (static_cast<uint8>(InAxisListToDraw) & static_cast<uint8>(InGizmoAxis))
+	{
+		InGizmoObject->SetVisibility(true);
+		ActiveObjects.Add(InGizmoObject);
+	}
+	else
+	{
+		InGizmoObject->SetVisibility(false);
+	}
+}
+
+void UTransformGizmo::EnableTranslate(EAxisList::Type InAxisListToDraw)
+{
+	if (ensure(AxisXObject && AxisYObject && AxisZObject))
+	{
+		EnableObject(AxisXObject, EAxisList::X, InAxisListToDraw);
+		EnableObject(AxisYObject, EAxisList::Y, InAxisListToDraw);
+		EnableObject(AxisZObject, EAxisList::Z, InAxisListToDraw);
+	}
+}
+
+void UTransformGizmo::EnableRotate(EAxisList::Type InAxisListToDraw)
+{
+	// @todo
+}
+
+void UTransformGizmo::EnableScale(EAxisList::Type InAxisListToDraw)
+{
+	if (ensure(ScaleAxisXObject && ScaleAxisYObject && ScaleAxisZObject))
+	{
+		EnableObject(ScaleAxisXObject, EAxisList::X, InAxisListToDraw);
+		EnableObject(ScaleAxisYObject, EAxisList::Y, InAxisListToDraw);
+		EnableObject(ScaleAxisZObject, EAxisList::Z, InAxisListToDraw);
+	}
+}
+
+void UTransformGizmo::UpdateCameraAxisSource()
 {
 	FViewCameraState CameraState;
 	GetGizmoManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
-	if (CameraAxisSource != nullptr) // && GizmoActor != nullptr)
+	if (CameraAxisSource != nullptr)
 	{
-		// @todo get this from the UTransformProxy instead of global?
-		FEditorModeTools& EditorModeTools = GLevelEditorModeTools();
-		CameraAxisSource->Origin = EditorModeTools.GetWidgetLocation();// GizmoActor->GetTransform().GetLocation();
+		CameraAxisSource->Origin = ActiveTarget ? ActiveTarget->GetTransform().GetLocation() : FVector::ZeroVector;
 		CameraAxisSource->Direction = -CameraState.Forward();
 		CameraAxisSource->TangentX = CameraState.Right();
 		CameraAxisSource->TangentY = CameraState.Up();
@@ -179,43 +253,16 @@ void UEditorTransformGizmo::UpdateCameraAxisSource()
 }
 
 
-void UEditorTransformGizmo::Tick(float DeltaTime)
-{	
-	if (bUseContextCoordinateSystem)
-	{
-		CurrentCoordinateSystem = GetGizmoManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem();
-	}
-	
-	check(CurrentCoordinateSystem == EToolContextCoordinateSystem::World || CurrentCoordinateSystem == EToolContextCoordinateSystem::Local)
-	bool bUseLocalAxes = (CurrentCoordinateSystem == EToolContextCoordinateSystem::Local);
+void UTransformGizmo::Tick(float DeltaTime)
+{
+	UpdateMode();
 
-	if (AxisXSource != nullptr && AxisYSource != nullptr && AxisZSource != nullptr)
-	{
-		AxisXSource->bLocalAxes = bUseLocalAxes;
-		AxisYSource->bLocalAxes = bUseLocalAxes;
-		AxisZSource->bLocalAxes = bUseLocalAxes;
-	}
-
-	for (UGizmoBaseObject* Object : ActiveObjects)
-	{
-		Object->SetWorldLocalState(CurrentCoordinateSystem == EToolContextCoordinateSystem::World);
-
-		float Scale = GLevelEditorModeTools().GetWidgetScale();
-		Object->SetGizmoScale(Scale);
-	}
-
-	bool bShouldShowNonUniformScale = IsNonUniformScaleAllowed();
-
-	for (UGizmoBaseObject* Object : NonuniformScaleObjects)
-	{
-		Object->SetVisibility(bShouldShowNonUniformScale);
-	}
+	UpdateCoordSystem();
 
 	UpdateCameraAxisSource();
 }
 
-
-void UEditorTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContextTransactionProvider* TransactionProvider)
+void UTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContextTransactionProvider* TransactionProvider)
 {
 	if (ActiveTarget != nullptr)
 	{
@@ -224,16 +271,10 @@ void UEditorTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContex
 
 	ActiveTarget = Target;
 
-	// move gizmo to target location
-
-	FTransform TargetTransform = Target->GetTransform();
-	FTransform GizmoTransform = TargetTransform;
-
-	// @todo this needs to be queried and updated in the TransformProxy
-	float GizmoScale = GLevelEditorModeTools().GetWidgetScale();
-	FMatrix GizmoLocalToWorld = GizmoTransform.ToMatrixNoScale();
-	FTransform GizmoLocalToWorldTransform = GizmoTransform;
-	GizmoLocalToWorldTransform.SetScale3D(FVector(GizmoScale));
+	if (!ActiveTarget)
+	{
+		return;
+	}
 
 	// create group object to which all active objects will be added
 	GizmoGroupObject = NewObject<UGizmoGroupObject>();
@@ -243,23 +284,21 @@ void UEditorTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContex
 	AxisYSource = UGizmoEditorAxisSource::Construct(1, true, this);
 	AxisZSource = UGizmoEditorAxisSource::Construct(2, true, this);
 
-	auto MakeArrowObjectFunc = [](FVector Axis, UMaterialInterface* Material, UMaterialInterface* CurrentMaterial, FMatrix LocalToWorld, float GizmoScale, FTransform LocalToWorldTransform)
+	auto MakeArrowObjectFunc = [](FVector Axis, UMaterialInterface* Material, UMaterialInterface* CurrentMaterial)
 	{
 		UGizmoArrowObject* ArrowObject = NewObject<UGizmoArrowObject>();
 		ArrowObject->CylinderObject->Direction = Axis;
 		ArrowObject->ConeObject->Direction = -Axis;
 		ArrowObject->SetMaterial(Material);
 		ArrowObject->SetCurrentMaterial(CurrentMaterial);
-		ArrowObject->SetGizmoScale(GizmoScale);
-		ArrowObject->SetLocalToWorldTransform(LocalToWorldTransform);
 		return ArrowObject;
 	};
 
-	UGizmoArrowObject* ArrowXObject = MakeArrowObjectFunc(FVector(1.0f, 0.0f, 0.0f), AxisMaterialX, CurrentAxisMaterial, GizmoLocalToWorld, GizmoScale, GizmoLocalToWorldTransform);
-	UGizmoArrowObject* ArrowYObject = MakeArrowObjectFunc(FVector(0.0f, 1.0f, 0.0f), AxisMaterialY, CurrentAxisMaterial, GizmoLocalToWorld, GizmoScale, GizmoLocalToWorldTransform);
-	UGizmoArrowObject* ArrowZObject = MakeArrowObjectFunc(FVector(0.0f, 0.0f, 1.0f), AxisMaterialZ, CurrentAxisMaterial, GizmoLocalToWorld, GizmoScale, GizmoLocalToWorldTransform);
+	AxisXObject = MakeArrowObjectFunc(FVector(1.0f, 0.0f, 0.0f), AxisMaterialX, CurrentAxisMaterial);
+	AxisYObject = MakeArrowObjectFunc(FVector(0.0f, 1.0f, 0.0f), AxisMaterialY, CurrentAxisMaterial);
+	AxisZObject = MakeArrowObjectFunc(FVector(0.0f, 0.0f, 1.0f), AxisMaterialZ, CurrentAxisMaterial);
 
-	UGizmoScaledAndUnscaledTransformSources* TransformSource = UGizmoScaledAndUnscaledTransformSources::Construct(
+	UGizmoScaledAndUnscaledTransformSources* AxisTransformSource = UGizmoScaledAndUnscaledTransformSources::Construct(
 		UGizmoTransformProxyTransformSource::Construct(ActiveTarget, this),
 		UGizmoObjectWorldTransformSource::Construct(GizmoGroupObject, this));
 	// This state target emits an explicit FChange that moves the GizmoActor root component during undo/redo.
@@ -269,30 +308,24 @@ void UEditorTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContex
 		TransactionProvider = GetGizmoManager();
 	}
 	StateTarget = UGizmoObjectTransformChangeStateTarget::Construct(GizmoGroupObject,
-		LOCTEXT("UEditorTransformGizmoTransaction", "Transform"), TransactionProvider, this);
+		LOCTEXT("UTransformGizmoTransaction", "Transform"), TransactionProvider, this);
 	StateTarget->DependentChangeSources.Add(MakeUnique<FTransformProxyChangeSource>(Target));
 
 	CameraAxisSource = NewObject<UGizmoConstantFrameAxisSource>(this);
 
-	FVector TargetWorldOrigin = TargetTransform.GetLocation();
+	{
+		AddAxisTranslationGizmo(AxisXObject, AxisXSource, AxisTransformSource, StateTarget, EAxisList::X, AxisColorX);
+		GizmoGroupObject->Add(AxisXObject);
+	}
 
-	if ((EnableElements & ETransformGizmoSubElements::TranslateAxisX) != ETransformGizmoSubElements::None)
 	{
-		AddAxisTranslationGizmo(ArrowXObject, AxisXSource, TransformSource, StateTarget, EAxisList::X, AxisColorX);
-		ActiveObjects.Add(ArrowXObject);
-		GizmoGroupObject->Add(ArrowXObject);
+		AddAxisTranslationGizmo(AxisYObject, AxisYSource, AxisTransformSource, StateTarget, EAxisList::Y, AxisColorY);
+		GizmoGroupObject->Add(AxisYObject);
 	}
-	if ((EnableElements & ETransformGizmoSubElements::TranslateAxisY) != ETransformGizmoSubElements::None)
+
 	{
-		AddAxisTranslationGizmo(ArrowYObject, AxisYSource, TransformSource, StateTarget, EAxisList::Y, AxisColorY);
-		ActiveObjects.Add(ArrowYObject);
-		GizmoGroupObject->Add(ArrowYObject);
-	}
-	if ((EnableElements & ETransformGizmoSubElements::TranslateAxisZ) != ETransformGizmoSubElements::None)
-	{
-		AddAxisTranslationGizmo(ArrowZObject,  AxisZSource, TransformSource, StateTarget, EAxisList::Z, AxisColorZ);
-		ActiveObjects.Add(ArrowZObject);
-		GizmoGroupObject->Add(ArrowZObject);
+		AddAxisTranslationGizmo(AxisZObject,  AxisZSource, AxisTransformSource, StateTarget, EAxisList::Z, AxisColorZ);
+		GizmoGroupObject->Add(AxisZObject);
 	}
 
 /*
@@ -332,9 +365,9 @@ void UEditorTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContex
 */
 
 	// Create objects for scale gizmo
-	UGizmoArrowObject* ScaleArrowXObject = MakeArrowObjectFunc(FVector(1.0f, 0.0f, 0.0f), AxisMaterialX, CurrentAxisMaterial, GizmoLocalToWorld, GizmoScale, GizmoLocalToWorldTransform);
-	UGizmoArrowObject* ScaleArrowYObject = MakeArrowObjectFunc(FVector(0.0f, 1.0f, 0.0f), AxisMaterialY, CurrentAxisMaterial, GizmoLocalToWorld, GizmoScale, GizmoLocalToWorldTransform);
-	UGizmoArrowObject* ScaleArrowZObject = MakeArrowObjectFunc(FVector(0.0f, 0.0f, 1.0f), AxisMaterialZ, CurrentAxisMaterial, GizmoLocalToWorld, GizmoScale, GizmoLocalToWorldTransform);
+	ScaleAxisXObject = MakeArrowObjectFunc(FVector(1.0f, 0.0f, 0.0f), AxisMaterialX, CurrentAxisMaterial); 
+	ScaleAxisYObject = MakeArrowObjectFunc(FVector(0.0f, 1.0f, 0.0f), AxisMaterialY, CurrentAxisMaterial); 
+	ScaleAxisZObject = MakeArrowObjectFunc(FVector(0.0f, 0.0f, 1.0f), AxisMaterialZ, CurrentAxisMaterial); 
 
 	// only need these if scaling enabled. Essentially these are just the unit axes, regardless
 	// of what 3D axis is in use, we will tell the ParameterSource-to-3D-Scale mapper to
@@ -352,26 +385,19 @@ void UEditorTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContex
 	}
 */
 
-	if ((EnableElements & ETransformGizmoSubElements::ScaleAxisX) != ETransformGizmoSubElements::None)
 	{
-		AddAxisScaleGizmo(ScaleArrowXObject, AxisXSource, UnitAxisXSource, TransformSource, StateTarget, EAxisList::X, AxisColorX);
-		ActiveObjects.Add(ScaleArrowXObject);
-		NonuniformScaleObjects.Add(ScaleArrowXObject);
-		GizmoGroupObject->Add(ScaleArrowXObject);
+		AddAxisScaleGizmo(ScaleAxisXObject, AxisXSource, UnitAxisXSource, AxisTransformSource, StateTarget, EAxisList::X, AxisColorX);
+		GizmoGroupObject->Add(ScaleAxisXObject);
 	}
-	if ((EnableElements & ETransformGizmoSubElements::ScaleAxisY) != ETransformGizmoSubElements::None)
+
 	{
-		AddAxisScaleGizmo(ScaleArrowYObject, AxisYSource, UnitAxisYSource, TransformSource, StateTarget, EAxisList::Y, AxisColorY);
-		ActiveObjects.Add(ScaleArrowYObject);
-		NonuniformScaleObjects.Add(ScaleArrowYObject);
-		GizmoGroupObject->Add(ScaleArrowYObject);
+		AddAxisScaleGizmo(ScaleAxisYObject, AxisYSource, UnitAxisYSource, AxisTransformSource, StateTarget, EAxisList::Y, AxisColorY);
+		GizmoGroupObject->Add(ScaleAxisYObject);
 	}
-	if ((EnableElements & ETransformGizmoSubElements::ScaleAxisZ) != ETransformGizmoSubElements::None)
+
 	{
-		AddAxisScaleGizmo(ScaleArrowZObject, AxisZSource, UnitAxisZSource, TransformSource, StateTarget, EAxisList::Z, AxisColorZ);
-		ActiveObjects.Add(ScaleArrowZObject);
-		NonuniformScaleObjects.Add(ScaleArrowZObject);
-		GizmoGroupObject->Add(ScaleArrowZObject);
+		AddAxisScaleGizmo(ScaleAxisZObject, AxisZSource, UnitAxisZSource, AxisTransformSource, StateTarget, EAxisList::Z, AxisColorZ);
+		GizmoGroupObject->Add(ScaleAxisZObject);
 	}
 
 /*
@@ -395,10 +421,13 @@ void UEditorTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContex
 		NonuniformScaleComponents.Add(GizmoActor->PlaneScaleXY);
 	}
 */ 
+
+	GizmoGroupObject->SetVisibility(false);
+	CurrentMode = EGizmoTransformMode::None;
 }
 
 
-void UEditorTransformGizmo::ReinitializeGizmoTransform(const FTransform& NewTransform)
+void UTransformGizmo::ReinitializeGizmoTransform(const FTransform& NewTransform)
 {
 	// @todo update gizmo objects here?
 
@@ -408,7 +437,7 @@ void UEditorTransformGizmo::ReinitializeGizmoTransform(const FTransform& NewTran
 }
 
 
-void UEditorTransformGizmo::SetNewGizmoTransform(const FTransform& NewTransform)
+void UTransformGizmo::SetNewGizmoTransform(const FTransform& NewTransform)
 {
 	// @todo update gizmo objects here?
 
@@ -423,7 +452,7 @@ void UEditorTransformGizmo::SetNewGizmoTransform(const FTransform& NewTransform)
 
 
 // @todo: This should either be named to "SetScale" or removed, since it can be done with ReinitializeGizmoTransform
-void UEditorTransformGizmo::SetNewChildScale(const FVector& NewChildScale)
+void UTransformGizmo::SetNewChildScale(const FVector& NewChildScale)
 {
 	FTransform NewTransform = ActiveTarget->GetTransform();
 	NewTransform.SetScale3D(NewChildScale);
@@ -433,15 +462,12 @@ void UEditorTransformGizmo::SetNewChildScale(const FVector& NewChildScale)
 }
 
 
-void UEditorTransformGizmo::SetVisibility(bool bVisible)
+void UTransformGizmo::SetVisibility(bool bVisibleIn)
 {
-	for (UGizmoBaseObject* Object : ActiveObjects)
-	{
-		Object->SetVisibility(bVisible);
-	}
+	bVisible = bVisibleIn;
 }
 
-UInteractiveGizmo* UEditorTransformGizmo::AddAxisTranslationGizmo(
+UInteractiveGizmo* UTransformGizmo::AddAxisTranslationGizmo(
 	UGizmoArrowObject * InArrowObject,
 	IGizmoAxisSource * InAxisSource,
 	IGizmoTransformSource * InTransformSource,
@@ -465,9 +491,6 @@ UInteractiveGizmo* UEditorTransformGizmo::AddAxisTranslationGizmo(
 	InArrowObject->ConeObject->Angle = FMath::DegreesToRadians(AXIS_CONE_ANGLE);
 	InArrowObject->ConeObject->Height = AXIS_CONE_HEIGHT;
 	InArrowObject->ConeObject->Offset = -(AXIS_LENGTH + AXIS_CONE_HEAD_OFFSET);
-
-	// arrow object provides the render capability
-	// TranslateGizmo->GizmoObject = InArrowObject;
 
 	// axis source provides the translation axis
 	TranslateGizmo->AxisSource = Cast<UObject>(InAxisSource);
@@ -493,7 +516,7 @@ UInteractiveGizmo* UEditorTransformGizmo::AddAxisTranslationGizmo(
 	return TranslateGizmo;
 }
 
-UInteractiveGizmo* UEditorTransformGizmo::AddPlaneTranslationGizmo(
+UInteractiveGizmo* UTransformGizmo::AddPlaneTranslationGizmo(
 	IGizmoAxisSource* InAxisSource,
 	IGizmoTransformSource* InTransformSource,
 	IGizmoStateTarget* InStateTarget)
@@ -534,7 +557,7 @@ UInteractiveGizmo* UEditorTransformGizmo::AddPlaneTranslationGizmo(
 	return nullptr;
 }
 
-UInteractiveGizmo* UEditorTransformGizmo::AddAxisRotationGizmo(
+UInteractiveGizmo* UTransformGizmo::AddAxisRotationGizmo(
 	IGizmoAxisSource* InAxisSource,
 	IGizmoTransformSource* InTransformSource,
 	IGizmoStateTarget* InStateTarget,
@@ -585,7 +608,7 @@ UInteractiveGizmo* UEditorTransformGizmo::AddAxisRotationGizmo(
 }
 
 
-UInteractiveGizmo* UEditorTransformGizmo::AddAxisScaleGizmo(
+UInteractiveGizmo* UTransformGizmo::AddAxisScaleGizmo(
 	UGizmoArrowObject* InArrowObject,
 	IGizmoAxisSource* InGizmoAxisSource, IGizmoAxisSource* InParameterAxisSource,
 	IGizmoTransformSource* InTransformSource,
@@ -626,9 +649,6 @@ UInteractiveGizmo* UEditorTransformGizmo::AddAxisScaleGizmo(
 	ScaleGizmo->bEnableSignedAxis = true;
 	check(ScaleGizmo);
 
-	// arrow object provides the render capability
-	// ScaleGizmo->GizmoObject = InArrowObject;
-
 	// axis source provides the translation axis
 	ScaleGizmo->AxisSource = Cast<UObject>(InGizmoAxisSource);
 
@@ -647,7 +667,7 @@ UInteractiveGizmo* UEditorTransformGizmo::AddAxisScaleGizmo(
 }
 
 
-UInteractiveGizmo* UEditorTransformGizmo::AddPlaneScaleGizmo(
+UInteractiveGizmo* UTransformGizmo::AddPlaneScaleGizmo(
 	IGizmoAxisSource* InGizmoAxisSource, IGizmoAxisSource* InParameterAxisSource,
 	IGizmoTransformSource* InTransformSource,
 	IGizmoStateTarget* InStateTarget)
@@ -685,7 +705,7 @@ UInteractiveGizmo* UEditorTransformGizmo::AddPlaneScaleGizmo(
 }
 
 
-UInteractiveGizmo* UEditorTransformGizmo::AddUniformScaleGizmo(
+UInteractiveGizmo* UTransformGizmo::AddUniformScaleGizmo(
 	IGizmoAxisSource* InGizmoAxisSource, IGizmoAxisSource* InParameterAxisSource,
 	IGizmoTransformSource* InTransformSource,
 	IGizmoStateTarget* InStateTarget)
@@ -721,7 +741,7 @@ UInteractiveGizmo* UEditorTransformGizmo::AddUniformScaleGizmo(
 }
 
 
-void UEditorTransformGizmo::ClearActiveTarget()
+void UTransformGizmo::ClearActiveTarget()
 {
 	for (UInteractiveGizmo* Gizmo : ActiveGizmos)
 	{
@@ -729,7 +749,6 @@ void UEditorTransformGizmo::ClearActiveTarget()
 	}
 	ActiveGizmos.SetNum(0);
 	ActiveObjects.SetNum(0);
-	NonuniformScaleObjects.SetNum(0);
 
 	CameraAxisSource = nullptr;
 	GizmoGroupObject = nullptr;
@@ -748,7 +767,7 @@ void UEditorTransformGizmo::ClearActiveTarget()
 }
 
 
-bool UEditorTransformGizmo::PositionSnapFunction(const FVector& WorldPosition, FVector& SnappedPositionOut) const
+bool UTransformGizmo::PositionSnapFunction(const FVector& WorldPosition, FVector& SnappedPositionOut) const
 {
 	SnappedPositionOut = WorldPosition;
 
@@ -783,7 +802,7 @@ bool UEditorTransformGizmo::PositionSnapFunction(const FVector& WorldPosition, F
 }
 
 
-FQuat UEditorTransformGizmo::RotationSnapFunction(const FQuat& DeltaRotation) const
+FQuat UTransformGizmo::RotationSnapFunction(const FQuat& DeltaRotation) const
 {
 	FQuat SnappedDeltaRotation = DeltaRotation;
 
