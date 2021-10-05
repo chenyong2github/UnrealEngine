@@ -2259,7 +2259,7 @@ namespace AutomationTool
 						CommandUtils.LogInformation(FilePath);
 						if (File.Exists(FilePath) && !OutputFileNames.Contains(FilePath) && FilePath != ZipFileName)
 						{
-							if (CommandUtils.IsProbablyAMacOrIOSExe(FilePath))
+							if (CommandUtils.IsProbablyAMacOrIOSExe(FilePath) || CommandUtils.IsProbablyALinuxExe(FilePath))
 							{
 								FixUnixFilePermissions(FilePath);
 							}
