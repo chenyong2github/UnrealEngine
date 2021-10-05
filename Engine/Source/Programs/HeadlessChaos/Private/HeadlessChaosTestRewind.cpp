@@ -1765,6 +1765,51 @@ namespace ChaosTest {
 			});
 	}
 
+	struct FSimCallbackHelperInput2 : FSimCallbackInput
+	{
+		void Reset() { StepToCounter.Reset(); }
+		TMap<int32, int32> StepToCounter;
+	};
+
+	GTEST_TEST(AllTraits, RewindTest_SimCallbackProcessExternalInputs)
+	{
+		//If inputs are not set until external callback, make sure they are associated with the right frame
+		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
+			{
+				struct FSimCallbackHelper : TSimCallbackObject<FSimCallbackHelperInput2>
+				{
+					FPBDRigidsSolver* Solver = nullptr;
+					virtual void OnPreSimulate_Internal() override
+					{
+						EXPECT_EQ(GetConsumerInput_Internal()->StepToCounter[Solver->GetCurrentFrame()], Solver->GetCurrentFrame());
+					}
+				};
+
+				struct FRewindCallback : public IRewindCallback
+				{
+					FSimCallbackHelper* SimCallback;
+					FRewindCallback(FSimCallbackHelper* Callback) : SimCallback(Callback){}
+					virtual void InjectInputs_External(int32 PhysicsStep, int32 NumSteps) override
+					{
+						for(int32 Idx = 0; Idx < NumSteps; ++Idx)
+						{
+							const int32 Step = Idx + PhysicsStep;
+							SimCallback->GetProducerInputData_External()->StepToCounter.Add(Step, Step);
+						}
+					}
+				};
+
+				FSimCallbackHelper* SimCallback = Solver->CreateAndRegisterSimCallbackObject_External<FSimCallbackHelper>();
+				SimCallback->Solver = Solver;
+				Solver->SetRewindCallback(MakeUnique<FRewindCallback>(SimCallback));
+
+				for (int Step = 0; Step < 32; ++Step)
+				{
+					TickSolverHelper(Solver);
+				}
+			});
+	}
+
 	GTEST_TEST(AllTraits, RewindTest_SimCallbackInputsCorrection)
 	{
 		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
