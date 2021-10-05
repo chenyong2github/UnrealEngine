@@ -44,6 +44,10 @@ public:
 		}
 
 		Chaos::FPhysicsSolver* PhysicsSolver = static_cast<Chaos::FPhysicsSolver*>(this->GetSolver());
+		if (PhysicsSolver->IsShuttingDown())
+		{
+			return;
+		}
 
 		const int32 LocalFrame = PhysicsSolver->GetCurrentFrame();
 		const int32 SimulationFrame = LocalFrame - LocalFrameOffset;
@@ -313,17 +317,24 @@ public:
 			if (ControllerInfo && ControllerInfo->InputSource == ENetworkPredictionAsyncInputSource::Buffered)
 			{
 				const int32 SignedFutureDelta = ControllerInfo->LastFrame - GlobalOutput_External.SimulationFrame;
-				if (SignedFutureDelta > 0 && npEnsure(SignedFutureDelta < 16))
+				if (SignedFutureDelta > 0)
 				{
-					FutureDelta = (uint8)SignedFutureDelta;
-					FutureFrame = ControllerInfo->LastFrame;
-					PendingInputFrame = FutureFrame; // This is telling the NetSend call below to send this frame from the PendingInputCmd
+					if (SignedFutureDelta < InputCmdBufferSize)
+					{
+						FutureDelta = (uint8)SignedFutureDelta;
+						FutureFrame = ControllerInfo->LastFrame;
+						PendingInputFrame = FutureFrame; // This is telling the NetSend call below to send this frame from the PendingInputCmd
+					}
+					else
+					{
+						UE_LOG(LogNetworkPrediction, Warning, TEXT("Too many buffered input cmds detected for client. LastFrame: %d SimulationFrame: %d. (Delta: %d)"), ControllerInfo->LastFrame, GlobalOutput_External.SimulationFrame, SignedFutureDelta);
+					}
 				}
 			}
 			else
 			{
 				const int32 SignedFutureDelta = this->NextPhysicsStep - GlobalOutput_External.SimulationFrame;
-				if (npEnsure(SignedFutureDelta > 0) && npEnsure(SignedFutureDelta < 16))
+				if (npEnsure(SignedFutureDelta > 0) && npEnsure(SignedFutureDelta < InputCmdBufferSize))
 				{
 					FutureDelta = (uint8)SignedFutureDelta;
 				}
@@ -404,43 +415,52 @@ public:
 	{
 	}
 
-	void ProcessInputs_External(int32 PhysicsStep, int32 LocalFrameOffset, bool& bOutSendClientInputCmd) override
+	void InjectInputs_External(int32 PhysicsStep, int32 NumSteps, int32 LocalFrameOffset, bool& bOutSendClientInputCmd) override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(NPA_ProcessInputs_External);
 
 		npEnsureMsgf(NextPhysicsStep == 0 || (NextPhysicsStep == PhysicsStep), TEXT("Unexpected PhysicsStep %d (NextPhysicsStep: %d)"), PhysicsStep, NextPhysicsStep);
-
-		NextPhysicsStep = PhysicsStep+1;
+		NextPhysicsStep = PhysicsStep;
 
 		// Prep the next AsyncInput
 		npCheckSlow(AsyncCallback);
 		FNetworkPredictionSimCallbackInput* AsyncInput = AsyncCallback->GetProducerInputData_External();
 		npCheckSlow(AsyncInput);
-		
-		AsyncCallback->PushLatestLocalFrameOffset(LocalFrameOffset);
-		
-		// Sync Networked InputCmds
-		NetSerializePlayerControllerInputCmds(PhysicsStep, [&](FNetworkPredictionAsyncID ID, int32 PendingInputBufferFrame, FArchive& Ar)
-		{
-			FGlobalInstanceData& Data = GlobalInstanceData_External.FindChecked(ID);
-			ForEachSim<INetSerializeService>(Data, NetSerializeServices, [&](INetSerializeService* Service)
-			{
-				Service->NetSerializeInputCmd(ID, PendingInputBufferFrame, Ar);
-				if (Ar.IsSaving())
-				{
-					bOutSendClientInputCmd = true;
-				}
-			});
-		});
 
-		// Marshal data from GT to PT input
-		for (TUniquePtr<IAsyncMarshalService_External>& ServicePtr : MarshalServices.Array)
+		AsyncCallback->PushLatestLocalFrameOffset(LocalFrameOffset);
+
+		for (int32 StepNum=0; StepNum < NumSteps; ++StepNum)
 		{
-			if (IAsyncMarshalService_External* Service = ServicePtr.Get())
+			// Whatever pending data is in the AsyncInput is now assigned to this PhysicsStep
+			AsyncInput->FinalizePendingDataStore_External(PhysicsStep);
+		
+			// Sync Networked InputCmds
+			NetSerializePlayerControllerInputCmds(PhysicsStep, [&](FNetworkPredictionAsyncID ID, int32 PendingInputBufferFrame, FArchive& Ar)
 			{
-				Service->MarshalInput(PhysicsStep, AsyncInput);
+				FGlobalInstanceData& Data = GlobalInstanceData_External.FindChecked(ID);
+				ForEachSim<INetSerializeService>(Data, NetSerializeServices, [&](INetSerializeService* Service)
+				{
+					Service->NetSerializeInputCmd(ID, PendingInputBufferFrame, Ar);
+					if (Ar.IsSaving())
+					{
+						bOutSendClientInputCmd = true;
+					}
+				});
+			});
+
+			// Marshal data from GT to PT input
+			for (TUniquePtr<IAsyncMarshalService_External>& ServicePtr : MarshalServices.Array)
+			{
+				if (IAsyncMarshalService_External* Service = ServicePtr.Get())
+				{
+					Service->MarshalInput(PhysicsStep, AsyncInput);
+				}
 			}
+
+			PhysicsStep++;
 		}
+
+		NextPhysicsStep = PhysicsStep;
 
 		// Consume all output data. Note we are consuming all SimCallback Output objects here even though we really only want the latest -
 		// but there maybe objects that were destroyed and not present in the final output, so this is trying to not miss them.
@@ -462,11 +482,6 @@ public:
 	int32 TriggerRewindIfNeeded_Internal(int32 LastCompletedStep) override
 	{
 		return AsyncCallback->Reconcile_Internal(LastCompletedStep);
-	}
-
-	void ProcessInputs_Internal(int32 PhysicsStep) override
-	{
-
 	}
 
 	void PreResimStep_Internal(int32 PhysicsStep, bool bFirst) override

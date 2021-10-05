@@ -25,6 +25,7 @@
 #include "Misc/FileHelper.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Async/NetworkPredictionAsyncDefines.h"
+#include "PhysicsEngine/PhysicsSettings.h"
 
 DEFINE_LOG_CATEGORY(LogNetworkPhysics);
 
@@ -41,6 +42,8 @@ namespace UE_NETWORK_PHYSICS
 	NP_DEVCVAR_FLOAT(R, 0.00f, "np2.Tolerance.R", "Rotation Tolerance");
 	NP_DEVCVAR_FLOAT(V, 1.0f, "np2.Tolerance.V", "Velocity Tolerance");
 	NP_DEVCVAR_FLOAT(W, 1.0f, "np2.Tolerance.W", "Rotational Velocity Tolerance");
+
+	NP_DEVCVAR_INT(ResimCacheEnabled, 1, "np2.ResimCacheEnabled", "Debug mode for in world drawing");
 
 	NP_DEVCVAR_INT(Debug, 0, "np2.Debug", "Debug mode for in world drawing");
 	NP_DEVCVAR_INT(DebugTolerance, 1, "np2.Debug.Tolerance", "If enabled, only draw large corrections in world.");
@@ -76,6 +79,7 @@ namespace UE_NETWORK_PHYSICS
 	NP_DEVCVAR_FLOAT(MaxTargetNumBufferedCmds, 5.0, "np2.MaxTargetNumBufferedCmds", "");
 	NP_DEVCVAR_FLOAT(MaxTimeDilationMag, 0.01f, "np2.MaxTimeDilationMag", "Maximum time dilation that client will use to slow down / catch up with server");
 	NP_DEVCVAR_FLOAT(TimeDilationAlpha, 0.1f, "np2.TimeDilationAlpha", "");
+	NP_DEVCVAR_FLOAT(TargetNumBufferedCmdsDeltaOnFault, 1.0f, "np2.TargetNumBufferedCmdsDeltaOnFault", "");
 	NP_DEVCVAR_FLOAT(TargetNumBufferedCmds, 1.9f, "np2.TargetNumBufferedCmds", "");
 	NP_DEVCVAR_FLOAT(TargetNumBufferedCmdsAlpha, 0.005f, "np2.TargetNumBufferedCmdsAlpha", "");
 	NP_DEVCVAR_INT(LerpTargetNumBufferedCmdsAggresively, 0, "np2.LerpTargetNumBufferedCmdsAggresively", "Aggresively lerp towards TargetNumBufferedCmds");
@@ -390,6 +394,11 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 
 		return RewindToFrame;
 	}
+
+	void SetResimDebugInfo_Internal(const Chaos::FResimDebugInfo& ResimDebugInfo) override
+	{
+
+	}
 	
 	void ProcessInputs_Internal(int32 PhysicsStep, const TArray<Chaos::FSimCallbackInputAndObject>& SimCallbackInputs) override
 	{
@@ -497,11 +506,6 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 		FNetworkPhysicsThreadContext::Get().Update(PhysicsStep - this->LastLocalOffset, this->bIsServer);
 #endif
 
-		for (auto& SubSys : NetworkPhysicsManager->SubSystems)
-		{
-			SubSys.Value->ProcessInputs_Internal(PhysicsStep);
-		}
-		
 		for (auto CallbacKInput : SimCallbackInputs)
 		{
 			for (Chaos::ISimCallbackObject* Callback : SimObjectCallbacks)
@@ -536,10 +540,10 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 	{
 	}
 
-	void ProcessInputs_External(int32 PhysicsStep, const TArray<Chaos::FSimCallbackInputAndObject>& SimCallbackInputs) override 
+	void InjectInputs_External(int32 PhysicsStep, int32 NumSteps) override
 	{
 		npCheckSlow(NetworkPhysicsManager);
-		NetworkPhysicsManager->ProcessInputs_External(PhysicsStep, SimCallbackInputs);
+		NetworkPhysicsManager->InjectInputs_External(PhysicsStep, NumSteps);
 	}
 
 	void RegisterRewindableSimCallback_Internal(Chaos::ISimCallbackObject* Callback) override
@@ -690,7 +694,23 @@ void UNetworkPhysicsManager::OnWorldPostInit(UWorld* World, const UWorld::Initia
 
 			if (ensure(NumFrames > 0))
 			{
-				Solver->EnableRewindCapture(NumFrames, true, MakeUnique<FNetworkPhysicsRewindCallback>());
+				bool bEnableResimCache = true;
+				if (UE_NETWORK_PHYSICS::ResimCacheEnabled == 0)
+				{
+					bEnableResimCache = false;
+				}
+				else if (UE_NETWORK_PHYSICS::ResimCacheEnabled == 2)
+				{
+					static int32 InitCount = 0;
+					if (World->GetName().Contains(TEXT("Untitled")) == false)
+					{
+						bEnableResimCache = (++InitCount % 2 == 0);
+					}
+				}
+
+				UE_LOG(LogNetworkPhysics, Warning, TEXT("UNetworkPhysicsManager EnablingRewindCapture. bEnableResimCache: %d"), bEnableResimCache);
+				Solver->EnableRewindCapture(NumFrames, bEnableResimCache, MakeUnique<FNetworkPhysicsRewindCallback>());
+				
 				RewindCallback = static_cast<FNetworkPhysicsRewindCallback*>(Solver->GetRewindCallback());
 				RewindCallback->RewindData = Solver->GetRewindData();
 				RewindCallback->Solver = Solver;
@@ -1025,9 +1045,9 @@ void UNetworkPhysicsManager::PreNetSend(float DeltaSeconds)
 #endif
 }
 
-void UNetworkPhysicsManager::ProcessInputs_External(int32 PhysicsStep, const TArray<Chaos::FSimCallbackInputAndObject>& SimCallbackInputs)
+void UNetworkPhysicsManager::InjectInputs_External(int32 PhysicsStep, int32 NumSteps)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(NPA_Physics_ProcessInputs_External);
+	TRACE_CPUPROFILER_EVENT_SCOPE(NPA_Physics_InjectInputs_External);
 
 	UWorld* World = GetWorld();
 	const ENetMode NetMode = World->GetNetMode();
@@ -1049,7 +1069,10 @@ void UNetworkPhysicsManager::ProcessInputs_External(int32 PhysicsStep, const TAr
 	
 	if (NetMode != NM_Client)
 	{
-		ProcessClientInputBuffers_External(PhysicsStep, SimCallbackInputs);
+		for (int32 StepNum=0; StepNum < NumSteps; ++StepNum)
+		{
+			ProcessClientInputBuffers_External(PhysicsStep + StepNum);
+		}
 	}
 
 	// ----------------------------------------------------------------------
@@ -1059,7 +1082,7 @@ void UNetworkPhysicsManager::ProcessInputs_External(int32 PhysicsStep, const TAr
 	bool bOutSentClientInput = false;
 	for (auto& Pair : SubSystems)
 	{
-		Pair.Value->ProcessInputs_External(PhysicsStep, LocalOffset, bOutSentClientInput);
+		Pair.Value->InjectInputs_External(PhysicsStep, NumSteps, LocalOffset, bOutSentClientInput);
 	}
 
 	// ----------------------------------------------------------------------
@@ -1073,40 +1096,12 @@ void UNetworkPhysicsManager::ProcessInputs_External(int32 PhysicsStep, const TAr
 		if (APlayerController* PC = World->GetFirstPlayerController())
 		{
 			TArray<uint8> SendData;
-
-			// ----------------------------------------------------------------------------------------------
-			// REMOVE Once Mock/Hardcoded example is gone
-			// ----------------------------------------------------------------------------------------------
-			{
-				FNetBitWriter Writer(nullptr, 256 << 3);
-
-				for (Chaos::FSimCallbackInputAndObject Pair :  SimCallbackInputs)
-				{
-					if (Pair.Input->NetSendInputCmd(Writer))
-					{
-						break;
-					}
-				}
-
-			
-			
-				if (Writer.IsError() == false)
-				{
-					int32 NumBytes = (int32)Writer.GetNumBytes();
-					SendData = MoveTemp(*const_cast<TArray<uint8>*>(Writer.GetBuffer()));
-					SendData.SetNum(NumBytes);
-				}
-			}
-
-			// ----------------------------------------------------------------------------------------------
-			// ----------------------------------------------------------------------------------------------
-			// ----------------------------------------------------------------------------------------------
 			PC->PushClientInput(PhysicsStep, SendData);
 		}
 	}
 }
 
-void UNetworkPhysicsManager::ProcessClientInputBuffers_External(int32 PhysicsStep, const TArray<Chaos::FSimCallbackInputAndObject>& SimCallbackInputs)
+void UNetworkPhysicsManager::ProcessClientInputBuffers_External(int32 PhysicsStep)
 {
 	UWorld* World = GetWorld();
 	constexpr int32 MaxBufferedCmds = 16;
@@ -1148,7 +1143,7 @@ void UNetworkPhysicsManager::ProcessClientInputBuffers_External(int32 PhysicsSte
 					// No Cmds to process, enter fault state. Increment TargetNumBufferedCmds each time this happens.
 					// TODO: We should have something to bring this back down (which means skipping frames) we don't want temporary poor conditions to cause permanent high input buffering
 					FrameInfo.bFault = true;
-					FrameInfo.TargetNumBufferedCmds = FMath::Min(FrameInfo.TargetNumBufferedCmds+1.f, UE_NETWORK_PHYSICS::MaxTargetNumBufferedCmds);
+					FrameInfo.TargetNumBufferedCmds = FMath::Min(FrameInfo.TargetNumBufferedCmds + UE_NETWORK_PHYSICS::TargetNumBufferedCmdsDeltaOnFault, UE_NETWORK_PHYSICS::MaxTargetNumBufferedCmds);
 
 					UE_CLOG(FrameInfo.LastProcessedInputFrame != INDEX_NONE, LogNetworkPhysics, Warning, TEXT("[Remote.Input] ENTERING fault. New Target: %.2f. (Client) Input: %d. (Server) Local Frame:"), FrameInfo.TargetNumBufferedCmds, FrameInfo.LastProcessedInputFrame, FrameInfo.LastLocalFrame);
 					return;
@@ -1184,31 +1179,6 @@ void UNetworkPhysicsManager::ProcessClientInputBuffers_External(int32 PhysicsSte
 			};
 
 			UpdateLastProcessedInputFrame();
-
-
-			// ----------------------------------------------------------------------------------------------
-			// REMOVE Once Mock/Hardcoded example is gone
-			// ----------------------------------------------------------------------------------------------
-			if (FrameInfo.LastProcessedInputFrame != INDEX_NONE)
-			{
-				const TArray<uint8>& Data = InputBuffer.Get(FrameInfo.LastProcessedInputFrame);
-				if (Data.Num() > 0)
-				{
-					uint8* RawData = const_cast<uint8*>(Data.GetData());
-					FNetBitReader Ar(nullptr, RawData, ((int64)Data.Num()) << 3);
-						
-					for (Chaos::FSimCallbackInputAndObject Pair :  SimCallbackInputs)
-					{
-						if (Pair.Input->NetRecvInputCmd(PC, Ar))
-						{
-							break;
-						}
-					}
-				}
-			}
-			// ----------------------------------------------------------------------------------------------
-			// ----------------------------------------------------------------------------------------------
-			// ----------------------------------------------------------------------------------------------
 		}
 	}
 }
@@ -1616,4 +1586,24 @@ FAutoConsoleCommandWithWorldAndArgs NpFloatTestCmd(TEXT("np2.FloatTest"), TEXT("
 		UE_LOG(LogTemp, Log, TEXT("%.4f -> %d -> %.4f (%.4f error"), F, Compressed, UnCompressed, UnCompressed - F);
 	}
 
+}));
+
+
+FAutoConsoleCommandWithWorldAndArgs NpSetMaxSubStepsCmd(TEXT("np2.SetMaxSubsteps"), TEXT(""),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray< FString >& Args, UWorld* InWorld) 
+{
+	int32 NewMaxSubSteps = 0;
+	if (Args.Num() > 0)
+	{
+		LexFromString(NewMaxSubSteps, *Args[0]);
+	}
+
+	if (NewMaxSubSteps <= 0)
+	{
+		return;
+	}
+
+	UE_LOG(LogNetworkPhysics, Log, TEXT("NewMaxSubSteps: %d"), NewMaxSubSteps);
+	GetMutableDefault<UPhysicsSettings>()->MaxSubsteps = NewMaxSubSteps;
+	
 }));
