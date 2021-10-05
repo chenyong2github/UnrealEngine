@@ -5087,22 +5087,22 @@ void UWorld::RemoveNetworkActor( AActor* Actor ) const
 	}
 }
 
-FDelegateHandle UWorld::AddOnActorSpawnedHandler( const FOnActorSpawned::FDelegate& InHandler )
+FDelegateHandle UWorld::AddOnActorSpawnedHandler(const FOnActorSpawned::FDelegate& InHandler) const
 {
 	return OnActorSpawned.Add(InHandler);
 }
 
-void UWorld::RemoveOnActorSpawnedHandler( FDelegateHandle InHandle )
+void UWorld::RemoveOnActorSpawnedHandler(FDelegateHandle InHandle) const
 {
 	OnActorSpawned.Remove(InHandle);
 }
 
-FDelegateHandle UWorld::AddOnActorPreSpawnInitialization(const FOnActorSpawned::FDelegate& InHandler)
+FDelegateHandle UWorld::AddOnActorPreSpawnInitialization(const FOnActorSpawned::FDelegate& InHandler) const
 {
 	return OnActorPreSpawnInitialization.Add(InHandler);
 }
 
-void UWorld::RemoveOnActorPreSpawnInitialization(FDelegateHandle InHandle)
+void UWorld::RemoveOnActorPreSpawnInitialization(FDelegateHandle InHandle) const
 {
 	OnActorPreSpawnInitialization.Remove(InHandle);
 }
