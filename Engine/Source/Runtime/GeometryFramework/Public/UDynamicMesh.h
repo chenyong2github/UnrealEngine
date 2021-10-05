@@ -110,7 +110,7 @@ public:
 	 * This *does not* allocate a new mesh, so any existing mesh pointers/refs are still valid
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh")
-	UPARAM(DisplayName = "Self") UDynamicMesh* 
+	UPARAM(DisplayName = "Target") UDynamicMesh* 
 	Reset();
 
 	/**
@@ -118,7 +118,7 @@ public:
 	 * This this instead of Reset() if an initially-empty mesh is undesirable (eg for a Component)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh")
-	UPARAM(DisplayName = "Self") UDynamicMesh* 
+	UPARAM(DisplayName = "Target") UDynamicMesh* 
 	ResetToCube();
 
 	//
@@ -140,7 +140,7 @@ public:
 	 * @return number of triangles in the mesh
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh")
-	int32 GetTriangleCount() const;
+	UPARAM(DisplayName = "Triangle Count") int32 GetTriangleCount() const;
 
 
 	/** 
