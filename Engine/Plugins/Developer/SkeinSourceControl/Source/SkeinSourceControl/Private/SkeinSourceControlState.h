@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+#include "ISourceControlState.h"
+
 namespace ESkeinState
 {
 	// SKEIN_TODO: Re-evaluate each of the possible states used here. Some of them might not be applicable to Skein.
