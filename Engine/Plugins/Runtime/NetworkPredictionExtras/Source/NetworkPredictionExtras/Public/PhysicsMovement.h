@@ -11,7 +11,7 @@
 
 namespace UE_NP
 {
-	NETSIM_DEVCVAR_SHIPCONST_INT(ForceReconcilePhysicsInputCmd, 0, "np2.PhysicsInputCmdForceReconcile", "");
+	
 	NETSIM_DEVCVAR_SHIPCONST_INT(ForceReconcilePhysicsMovementState, 0, "np2.ForceReconcilePhysicsMovementState", "");
 };
 
@@ -78,23 +78,11 @@ struct FPhysicsInputCmd
 		}
 	}
 
-	bool ShouldReconcile(const FPhysicsInputCmd& AuthState) const
-	{
-		return FVector::DistSquared(Force, AuthState.Force) > 0.1f
-			|| FVector::DistSquared(Torque, AuthState.Torque) > 0.1f
-			|| FVector::DistSquared(Acceleration, AuthState.Acceleration) > 0.1f
-			|| FVector::DistSquared(AngularAcceleration, AuthState.AngularAcceleration) > 0.1f
-			|| !FMath::IsNearlyEqual(TargetYaw, AuthState.TargetYaw, 1.0f)
-			|| bJumpedPressed != AuthState.bJumpedPressed
-			//|| Counter != AuthState.Counter // this will cause constant corrections with multiple clients but useful in testing single client
-			|| bBrakesPressed != AuthState.bBrakesPressed
-			|| (UE_NP::ForceReconcilePhysicsInputCmd() > 0);
-			
-	}
+	bool ShouldReconcile(const FPhysicsInputCmd& AuthState) const;
 
 	FString ToString() const
 	{
-		return FString(TEXT(""));
+		return FString::Printf(TEXT("{Count: %d}"), Counter);
 	}
 };
 
