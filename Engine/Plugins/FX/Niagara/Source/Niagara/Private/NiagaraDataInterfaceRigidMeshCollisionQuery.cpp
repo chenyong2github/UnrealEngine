@@ -41,6 +41,10 @@ static const FName GetClosestPointMeshDistanceFieldName(TEXT("GetClosestPointMes
 
 //------------------------------------------------------------------------------------------------------------
 
+const FString UNiagaraDataInterfaceRigidMeshCollisionQuery::MaxTransformsName(TEXT("MaxTransforms_"));
+const FString UNiagaraDataInterfaceRigidMeshCollisionQuery::CurrentOffsetName(TEXT("CurrentOffset_"));
+const FString UNiagaraDataInterfaceRigidMeshCollisionQuery::PreviousOffsetName(TEXT("PreviousOffset_"));
+
 const FString UNiagaraDataInterfaceRigidMeshCollisionQuery::ElementOffsetsName(TEXT("ElementOffsets_"));
 
 const FString UNiagaraDataInterfaceRigidMeshCollisionQuery::WorldTransformBufferName(TEXT("WorldTransformBuffer_"));
@@ -61,6 +65,10 @@ struct FNDIRigidMeshCollisionParametersName
 {
 	FNDIRigidMeshCollisionParametersName(const FString& Suffix)
 	{
+		MaxTransformsName = UNiagaraDataInterfaceRigidMeshCollisionQuery::MaxTransformsName + Suffix;
+		CurrentOffsetName = UNiagaraDataInterfaceRigidMeshCollisionQuery::CurrentOffsetName + Suffix;
+		PreviousOffsetName = UNiagaraDataInterfaceRigidMeshCollisionQuery::PreviousOffsetName + Suffix;
+
 		ElementOffsetsName = UNiagaraDataInterfaceRigidMeshCollisionQuery::ElementOffsetsName + Suffix;
 
 		WorldTransformBufferName = UNiagaraDataInterfaceRigidMeshCollisionQuery::WorldTransformBufferName + Suffix;
@@ -69,6 +77,10 @@ struct FNDIRigidMeshCollisionParametersName
 		PhysicsTypeBufferName = UNiagaraDataInterfaceRigidMeshCollisionQuery::PhysicsTypeBufferName + Suffix;		
 		DFIndexBufferName = UNiagaraDataInterfaceRigidMeshCollisionQuery::DFIndexBufferName + Suffix;
 	}
+
+	FString MaxTransformsName;
+	FString CurrentOffsetName;
+	FString PreviousOffsetName;
 
 	FString ElementOffsetsName;
 
@@ -81,21 +93,22 @@ struct FNDIRigidMeshCollisionParametersName
 
 //------------------------------------------------------------------------------------------------------------
 
-template<typename BufferType, EPixelFormat PixelFormat, uint32 ElementCount, uint32 BufferCount = 1>
-void CreateInternalBuffer(FRWBuffer& OutputBuffer)
+template<typename BufferType, EPixelFormat PixelFormat>
+void CreateInternalBuffer(FRWBuffer& OutputBuffer, uint32 ElementCount)
 {
 	if (ElementCount > 0)
 	{
-		OutputBuffer.Initialize(TEXT("FNDIRigidMeshCollisionBuffer"), sizeof(BufferType), ElementCount * BufferCount, PixelFormat, BUF_Static);
+		OutputBuffer.Initialize(TEXT("FNDIRigidMeshCollisionBuffer"), sizeof(BufferType), ElementCount, PixelFormat, BUF_Static);
 	}
 }
 
-template<typename BufferType, EPixelFormat PixelFormat, uint32 ElementCount, uint32 BufferCount = 1>
-void UpdateInternalBuffer(const TStaticArray<BufferType,ElementCount*BufferCount>& InputData, FRWBuffer& OutputBuffer)
+template<typename BufferType, EPixelFormat PixelFormat>
+void UpdateInternalBuffer(const TArray<BufferType>& InputData, FRWBuffer& OutputBuffer)
 {
+	uint32 ElementCount = InputData.Num();
 	if (ElementCount > 0 && OutputBuffer.Buffer.IsValid())
 	{
-		const uint32 BufferBytes = sizeof(BufferType) * ElementCount * BufferCount;
+		const uint32 BufferBytes = sizeof(BufferType) * ElementCount;
 
 		void* OutputData = RHILockBuffer(OutputBuffer.Buffer, 0, BufferBytes, RLM_WriteOnly);
 
@@ -105,7 +118,7 @@ void UpdateInternalBuffer(const TStaticArray<BufferType,ElementCount*BufferCount
 }
 
 void FillCurrentTransforms(const FTransform& ElementTransform, uint32& ElementCount,
-	TStaticArray<FVector4f,RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS>& OutCurrentTransform, TStaticArray<FVector4f, RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS>& OutCurrentInverse)
+	TArray<FVector4f>& OutCurrentTransform, TArray<FVector4f>& OutCurrentInverse)
 {
 	// LWC_TODO: precision loss
 	const uint32 ElementOffset = 3 * ElementCount;
@@ -158,13 +171,13 @@ void GetNumPrimitives(TArray<AStaticMeshActor*> StaticMeshActors, uint32& NumBox
 
 void CompactInternalArrays(FNDIRigidMeshCollisionArrays* OutAssetArrays)
 {
-	for (uint32 TransformIndex = 0; TransformIndex < RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS; ++TransformIndex)
+	for (uint32 TransformIndex = 0; TransformIndex < OutAssetArrays->MaxTransforms; ++TransformIndex)
 	{
 		uint32 OffsetIndex = TransformIndex;
 		OutAssetArrays->WorldTransform[OffsetIndex] = OutAssetArrays->CurrentTransform[TransformIndex];
 		OutAssetArrays->InverseTransform[OffsetIndex] = OutAssetArrays->CurrentInverse[TransformIndex];
 
-		OffsetIndex += RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS;
+		OffsetIndex += OutAssetArrays->MaxTransforms;
 		OutAssetArrays->WorldTransform[OffsetIndex] = OutAssetArrays->PreviousTransform[TransformIndex];
 		OutAssetArrays->InverseTransform[OffsetIndex] = OutAssetArrays->PreviousInverse[TransformIndex];		
 	}
@@ -186,7 +199,7 @@ void CreateInternalArrays(TArray<AStaticMeshActor*> StaticMeshActors,
 
 		GetNumPrimitives(StaticMeshActors, NumBoxes, NumSpheres, NumCapsules);
 		
-		if ((NumBoxes + NumSpheres + NumCapsules) < RIGID_MESH_COLLISION_QUERY_MAX_PRIMITIVES)
+		if ((NumBoxes + NumSpheres + NumCapsules) < OutAssetArrays->MaxPrimitives)
 		{
 			OutAssetArrays->ElementOffsets.BoxOffset = 0;
 			OutAssetArrays->ElementOffsets.SphereOffset = OutAssetArrays->ElementOffsets.BoxOffset + NumBoxes;
@@ -264,18 +277,18 @@ void CreateInternalArrays(TArray<AStaticMeshActor*> StaticMeshActors,
 		}
 		else
 		{
-			UE_LOG(LogRigidMeshCollision, Warning, TEXT("Number of Collision DI primitives is higher than the niagara %d limit"), RIGID_MESH_COLLISION_QUERY_MAX_PRIMITIVES);
+			UE_LOG(LogRigidMeshCollision, Warning, TEXT("Number of Collision DI primitives is higher than the %d limit.  Please increase it."), OutAssetArrays->MaxPrimitives);
 		}
 	}
 }
 
 void UpdateInternalArrays(const TArray<AStaticMeshActor*> &StaticMeshActors, FNDIRigidMeshCollisionArrays* OutAssetArrays)
 {
-	if (OutAssetArrays != nullptr && OutAssetArrays->ElementOffsets.NumElements < RIGID_MESH_COLLISION_QUERY_MAX_PRIMITIVES)
+	if (OutAssetArrays != nullptr && OutAssetArrays->ElementOffsets.NumElements < OutAssetArrays->MaxPrimitives)
 	{
 		uint32 NumBoxes = 0;
 		uint32 NumSpheres = 0;
-		uint32 NumCapsules = 0;
+		uint32 NumCapsules = 0;		
 
 		GetNumPrimitives(StaticMeshActors, NumBoxes, NumSpheres, NumCapsules);
 
@@ -342,12 +355,12 @@ void UpdateInternalArrays(const TArray<AStaticMeshActor*> &StaticMeshActors, FND
 
 void FNDIRigidMeshCollisionBuffer::InitRHI()
 {
-	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F, RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS, 2>(WorldTransformBuffer);
-	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F, RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS, 2>(InverseTransformBuffer);
+	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(WorldTransformBuffer, 3 * MaxNumTransforms);
+	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(InverseTransformBuffer, 3 * MaxNumTransforms);
 
-	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F, RIGID_MESH_COLLISION_QUERY_MAX_PRIMITIVES>(ElementExtentBuffer);
-	CreateInternalBuffer<uint32, EPixelFormat::PF_R32_UINT, RIGID_MESH_COLLISION_QUERY_MAX_PRIMITIVES>(PhysicsTypeBuffer);
-	CreateInternalBuffer<uint32, EPixelFormat::PF_R32_UINT, RIGID_MESH_COLLISION_QUERY_MAX_PRIMITIVES>(DFIndexBuffer);
+	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(ElementExtentBuffer, MaxNumPrimitives);
+	CreateInternalBuffer<uint32, EPixelFormat::PF_R32_UINT>(PhysicsTypeBuffer, MaxNumPrimitives);
+	CreateInternalBuffer<uint32, EPixelFormat::PF_R32_UINT>(DFIndexBuffer, MaxNumPrimitives);
 }
 
 void FNDIRigidMeshCollisionBuffer::ReleaseRHI()
@@ -406,8 +419,11 @@ void FNDIRigidMeshCollisionData::Init(UNiagaraDataInterfaceRigidMeshCollisionQue
 			// @note: we are not creating internal arrays here and letting it happen on the call to update
 			 //CreateInternalArrays(StaticMeshActors, &AssetArrays);
 		}
+		AssetArrays = new FNDIRigidMeshCollisionArrays();
+		AssetArrays->Resize(Interface->MaxNumPrimitives);
 
 		AssetBuffer = new FNDIRigidMeshCollisionBuffer();
+		AssetBuffer->SetMaxNumPrimitives(Interface->MaxNumPrimitives);		
 		BeginInitResource(AssetBuffer);
 	}
 }
@@ -420,7 +436,7 @@ void FNDIRigidMeshCollisionData::Update(UNiagaraDataInterfaceRigidMeshCollisionQ
 
 		if (0 < StaticMeshActors.Num() && StaticMeshActors[0] != nullptr)
 		{
-			UpdateInternalArrays(StaticMeshActors, &AssetArrays);
+			UpdateInternalArrays(StaticMeshActors, AssetArrays);
 		}
 	}
 }
@@ -559,6 +575,10 @@ public:
 	{
 		FNDIRigidMeshCollisionParametersName ParamNames(*ParameterInfo.DataInterfaceHLSLSymbol);
 
+		MaxTransforms.Bind(ParameterMap, *ParamNames.MaxTransformsName);
+		CurrentOffset.Bind(ParameterMap, *ParamNames.CurrentOffsetName);
+		PreviousOffset.Bind(ParameterMap, *ParamNames.PreviousOffsetName);
+
 		ElementOffsets.Bind(ParameterMap, *ParamNames.ElementOffsetsName);
 
 		WorldTransformBuffer.Bind(ParameterMap, *ParamNames.WorldTransformBufferName);
@@ -600,7 +620,12 @@ public:
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, PhysicsTypeBuffer, AssetBuffer->PhysicsTypeBuffer.SRV);
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, DFIndexBuffer, AssetBuffer->DFIndexBuffer.SRV);
 
-			SetShaderValue(RHICmdList, ComputeShaderRHI, ElementOffsets, ProxyData->AssetArrays.ElementOffsets);
+
+			SetShaderValue(RHICmdList, ComputeShaderRHI, MaxTransforms, ProxyData->AssetArrays->MaxTransforms);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, CurrentOffset, 0);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, PreviousOffset, ProxyData->AssetArrays->MaxTransforms);
+
+			SetShaderValue(RHICmdList, ComputeShaderRHI, ElementOffsets, ProxyData->AssetArrays->ElementOffsets);
 
 			if (DistanceFieldParameters.IsBound())
 			{
@@ -629,6 +654,9 @@ public:
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, DFIndexBuffer, FNiagaraRenderer::GetDummyIntBuffer());
 
 			static const FElementOffset DummyOffsets(0, 0, 0, 0);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, MaxTransforms, 0);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, CurrentOffset, 0);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, PreviousOffset, 0);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ElementOffsets, DummyOffsets);	
 		}
 	}
@@ -638,6 +666,10 @@ public:
 	}
 
 private:
+
+	LAYOUT_FIELD(FShaderParameter, MaxTransforms);
+	LAYOUT_FIELD(FShaderParameter, CurrentOffset);
+	LAYOUT_FIELD(FShaderParameter, PreviousOffset);
 
 	LAYOUT_FIELD(FShaderParameter, ElementOffsets);
 
@@ -674,18 +706,18 @@ void FNDIRigidMeshCollisionProxy::ConsumePerInstanceDataFromGameThread(void* Per
 		// loop over proxies and compute df indices on the RT only on new data
 		// @todo(dmp): for now we do this every frame because it seems like sometimes DFindices are not set
 
-		for (uint32 i = 0; i < SourceData->AssetArrays.ElementOffsets.NumElements; ++i)
+		for (uint32 i = 0; i < SourceData->AssetArrays->ElementOffsets.NumElements; ++i)
 		{
-			FPrimitiveSceneProxy* Proxy = SourceData->AssetArrays.SourceSceneProxy[i];
+			FPrimitiveSceneProxy* Proxy = SourceData->AssetArrays->SourceSceneProxy[i];
 								
 			if (Proxy != nullptr && Proxy->GetPrimitiveSceneInfo() != nullptr)
 			{
 				const TArray<int32, TInlineAllocator<1>>& DFIndices = Proxy->GetPrimitiveSceneInfo()->DistanceFieldInstanceIndices;				
-				TargetData->AssetArrays.DFIndex[i] = DFIndices.Num() > 0 ? DFIndices[0] : -1;
+				TargetData->AssetArrays->DFIndex[i] = DFIndices.Num() > 0 ? DFIndices[0] : -1;
 			}
 			else
 			{
-				TargetData->AssetArrays.DFIndex[i] = -1;
+				TargetData->AssetArrays->DFIndex[i] = -1;
 			}
 		}	
 	}
@@ -705,7 +737,8 @@ void FNDIRigidMeshCollisionProxy::InitializePerInstanceData(const FNiagaraSystem
 
 void FNDIRigidMeshCollisionProxy::DestroyPerInstanceData(const FNiagaraSystemInstanceID& SystemInstance)
 {
-	check(IsInRenderingThread());
+	check(IsInRenderingThread());	
+
 	SystemInstancesToProxyData.Remove(SystemInstance);
 }
 
@@ -729,11 +762,11 @@ void FNDIRigidMeshCollisionProxy::PreStage(FRHICommandList& RHICmdList, const FN
 			};
 			RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
 
-			UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F, RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS, 2>(ProxyData->AssetArrays.WorldTransform, ProxyData->AssetBuffer->WorldTransformBuffer);
-			UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F, RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS, 2>(ProxyData->AssetArrays.InverseTransform, ProxyData->AssetBuffer->InverseTransformBuffer);
-			UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F, RIGID_MESH_COLLISION_QUERY_MAX_PRIMITIVES>(ProxyData->AssetArrays.ElementExtent, ProxyData->AssetBuffer->ElementExtentBuffer);
-			UpdateInternalBuffer<uint32, EPixelFormat::PF_R32_UINT, RIGID_MESH_COLLISION_QUERY_MAX_PRIMITIVES>(ProxyData->AssetArrays.PhysicsType, ProxyData->AssetBuffer->PhysicsTypeBuffer);
-			UpdateInternalBuffer<uint32, EPixelFormat::PF_R32_UINT, RIGID_MESH_COLLISION_QUERY_MAX_PRIMITIVES>(ProxyData->AssetArrays.DFIndex, ProxyData->AssetBuffer->DFIndexBuffer);
+			UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(ProxyData->AssetArrays->WorldTransform, ProxyData->AssetBuffer->WorldTransformBuffer);
+			UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(ProxyData->AssetArrays->InverseTransform, ProxyData->AssetBuffer->InverseTransformBuffer);
+			UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(ProxyData->AssetArrays->ElementExtent, ProxyData->AssetBuffer->ElementExtentBuffer);
+			UpdateInternalBuffer<uint32, EPixelFormat::PF_R32_UINT>(ProxyData->AssetArrays->PhysicsType, ProxyData->AssetBuffer->PhysicsTypeBuffer);
+			UpdateInternalBuffer<uint32, EPixelFormat::PF_R32_UINT>(ProxyData->AssetArrays->DFIndex, ProxyData->AssetBuffer->DFIndexBuffer);
 		}
 	}
 }
@@ -774,14 +807,21 @@ void UNiagaraDataInterfaceRigidMeshCollisionQuery::DestroyPerInstanceData(void* 
 {
 	FNDIRigidMeshCollisionData* InstanceData = static_cast<FNDIRigidMeshCollisionData*>(PerInstanceData);
 
-	InstanceData->Release();
+	InstanceData->Release();	
 	InstanceData->~FNDIRigidMeshCollisionData();
 
 	FNDIRigidMeshCollisionProxy* ThisProxy = GetProxyAs<FNDIRigidMeshCollisionProxy>();
 	ENQUEUE_RENDER_COMMAND(FNiagaraDIDestroyInstanceData) (
 		[ThisProxy, InstanceID = SystemInstance->GetId()](FRHICommandListImmediate& CmdList)
 	{
-		ThisProxy->SystemInstancesToProxyData.Remove(InstanceID);
+		FNDIRigidMeshCollisionData* ProxyData =
+			ThisProxy->SystemInstancesToProxyData.Find(InstanceID);
+
+		if (ProxyData != nullptr && ProxyData->AssetArrays)
+		{			
+			ThisProxy->SystemInstancesToProxyData.Remove(InstanceID);
+			delete ProxyData->AssetArrays;
+		}		
 	}
 	);
 }
@@ -983,6 +1023,9 @@ bool UNiagaraDataInterfaceRigidMeshCollisionQuery::GetFunctionHLSL(const FNiagar
 
 	TMap<FString, FStringFormatArg> ArgsSample = {
 		{TEXT("InstanceFunctionName"), FunctionInfo.InstanceName},
+		{TEXT("MaxTransformsName"), ParamNames.MaxTransformsName},
+		{TEXT("CurrentOffsetName"), ParamNames.CurrentOffsetName},
+		{TEXT("PreviousOffsetName"), ParamNames.PreviousOffsetName},
 		{TEXT("ElementOffsetsName"), ParamNames.ElementOffsetsName},
 		{TEXT("WorldTransformBufferName"), ParamNames.WorldTransformBufferName},
 		{TEXT("InverseTransformBufferName"), ParamNames.InverseTransformBufferName},
@@ -1138,8 +1181,10 @@ void UNiagaraDataInterfaceRigidMeshCollisionQuery::ProvidePerInstanceDataForRend
 
 	if (GameThreadData != nullptr && RenderThreadData != nullptr)
 	{		
-		RenderThreadData->AssetBuffer = GameThreadData->AssetBuffer;		
-		RenderThreadData->AssetArrays = GameThreadData->AssetArrays;
+		RenderThreadData->AssetBuffer = GameThreadData->AssetBuffer;				
+
+		RenderThreadData->AssetArrays = new FNDIRigidMeshCollisionArrays();
+		RenderThreadData->AssetArrays->CopyFrom(GameThreadData->AssetArrays);		
 		RenderThreadData->TickingGroup = GameThreadData->TickingGroup;
 	}
 	check(Proxy);

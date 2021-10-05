@@ -11,12 +11,7 @@ NiagaraDataInterfaceRigidMeshCollisionQuery.ush
  * -----------------------------------------------------------------
  */
 
- #define RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS 200
- #define SMALL_NUMBER 1e-8
-
- #define CURRENT_OFFSET 0
- #define PREVIOUS_OFFSET RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS
-
+#define SMALL_NUMBER 1e-8
 #define MAX_DISTANCE 1e+38
 #define BOX_INDEX 0
 #define SPHERE_INDEX 1
@@ -24,6 +19,9 @@ NiagaraDataInterfaceRigidMeshCollisionQuery.ush
 
 struct FDIRigidMeshCollisionContext
 {
+	uint MaxTransforms;
+	uint CurrentOffset;
+	uint PreviousOffset;
 	uint4 ElementOffsets;
 	Buffer<float4>		WorldTransformBuffer;
 	Buffer<float4>		InverseTransformBuffer;
@@ -33,6 +31,9 @@ struct FDIRigidMeshCollisionContext
 }; 
 
 #define DIRIGIDMESHCOLLISIONQUERY_DECLARE_CONSTANTS(NAME)\
+uint MaxTransforms_##NAME;\
+uint CurrentOffset_##NAME;\
+uint PreviousOffset_##NAME;\
 uint4 ElementOffsets_##NAME;\
 Buffer<float4>		WorldTransformBuffer_##NAME;\
 Buffer<float4>		InverseTransformBuffer_##NAME;\
@@ -43,6 +44,9 @@ Buffer<uint>		DFIndexBuffer_##NAME;\
 
 #define DIRIGIDMESHCOLLISIONQUERY_MAKE_CONTEXT(NAME)\
 FDIRigidMeshCollisionContext DIContext; \
+DIContext.MaxTransforms = MaxTransforms_##NAME;\
+DIContext.CurrentOffset =  CurrentOffset_##NAME;\
+DIContext.PreviousOffset = PreviousOffset_##NAME;\
 DIContext.ElementOffsets = ElementOffsets_##NAME;\
 DIContext.WorldTransformBuffer = WorldTransformBuffer_##NAME;\
 DIContext.InverseTransformBuffer = InverseTransformBuffer_##NAME;\
@@ -79,37 +83,37 @@ int DIRigidMeshCollision_GetNumCapsules(in FDIRigidMeshCollisionContext DIContex
 
 float3 DIRigidMeshCollision_GetCurrentPosition(in FDIRigidMeshCollisionContext DIContext, in int ElementIndex)
 {
-	const int BufferOffset = 3 * ElementIndex + CURRENT_OFFSET;
+	const int BufferOffset = 3 * ElementIndex + DIContext.CurrentOffset;
     return float3(DIContext.WorldTransformBuffer[BufferOffset].w, DIContext.WorldTransformBuffer[BufferOffset+1].w, DIContext.WorldTransformBuffer[BufferOffset+2].w);
 }
 
 float3 DIRigidMeshCollision_GetPreviousPosition(in FDIRigidMeshCollisionContext DIContext, in int ElementIndex)
 {
-	const int BufferOffset = 3 * ElementIndex + PREVIOUS_OFFSET;
+	const int BufferOffset = 3 * ElementIndex + DIContext.PreviousOffset;
     return float3(DIContext.WorldTransformBuffer[BufferOffset].w, DIContext.WorldTransformBuffer[BufferOffset+1].w, DIContext.WorldTransformBuffer[BufferOffset+2].w);
 }
 
 float3x4 DIRigidMeshCollision_GetCurrentTransform(in FDIRigidMeshCollisionContext DIContext, in int ElementIndex)
 {
-	const int BufferOffset = 3 * ElementIndex + CURRENT_OFFSET;
+	const int BufferOffset = 3 * ElementIndex + DIContext.CurrentOffset;
     return float3x4(DIContext.WorldTransformBuffer[BufferOffset], DIContext.WorldTransformBuffer[BufferOffset+1], DIContext.WorldTransformBuffer[BufferOffset+2]);
 }
 
 float3x4 DIRigidMeshCollision_GetInverseTransform(in FDIRigidMeshCollisionContext DIContext, in int ElementIndex)
 {
-	const int BufferOffset = 3 * ElementIndex + CURRENT_OFFSET;
+	const int BufferOffset = 3 * ElementIndex + DIContext.CurrentOffset;
     return float3x4(DIContext.InverseTransformBuffer[BufferOffset], DIContext.InverseTransformBuffer[BufferOffset+1], DIContext.InverseTransformBuffer[BufferOffset+2]);
 }
 
 float3x4 DIRigidMeshCollision_GetPreviousTransform(in FDIRigidMeshCollisionContext DIContext, in int ElementIndex)
 {
-	const int BufferOffset = 3 * ElementIndex + PREVIOUS_OFFSET;
+	const int BufferOffset = 3 * ElementIndex + DIContext.PreviousOffset;
     return float3x4(DIContext.WorldTransformBuffer[BufferOffset], DIContext.WorldTransformBuffer[BufferOffset+1], DIContext.WorldTransformBuffer[BufferOffset+2]);
 }
 
 float3x4 DIRigidMeshCollision_GetPreviousInverse(in FDIRigidMeshCollisionContext DIContext, in int ElementIndex)
 {
-	const int BufferOffset = 3 * ElementIndex + PREVIOUS_OFFSET;
+	const int BufferOffset = 3 * ElementIndex + DIContext.PreviousOffset;
     return float3x4(DIContext.InverseTransformBuffer[BufferOffset], DIContext.InverseTransformBuffer[BufferOffset+1], DIContext.InverseTransformBuffer[BufferOffset+2]);
 }
 
