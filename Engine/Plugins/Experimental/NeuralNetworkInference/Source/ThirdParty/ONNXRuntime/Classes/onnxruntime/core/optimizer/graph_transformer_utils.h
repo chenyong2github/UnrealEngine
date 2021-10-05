@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include "ThirdPartyWarningDisabler.h"
+#include "ThirdPartyWarningDisabler.h" // #ifdef WITH_UE
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
 #include <gsl/gsl>
-NNI_THIRD_PARTY_INCLUDES_END
+NNI_THIRD_PARTY_INCLUDES_END // #endif //WITH_UE
 
 #include "core/optimizer/graph_transformer.h"
 #include "core/optimizer/rule_based_graph_transformer.h"

@@ -6,11 +6,11 @@
 #include "core/common/status.h"
 #include "core/graph/graph_viewer.h"
 
-#include "ThirdPartyWarningDisabler.h"
+#include "ThirdPartyWarningDisabler.h" // #ifdef WITH_UE
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
 #include "gsl/gsl"
-NNI_THIRD_PARTY_INCLUDES_END
+NNI_THIRD_PARTY_INCLUDES_END // #endif //WITH_UE
 
 #ifdef __has_attribute
 #define ORT_HAVE_ATTRIBUTE(x) __has_attribute(x)

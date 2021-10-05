@@ -253,8 +253,7 @@ void LogRuntimeError(uint32_t session_id, const common::Status& status, const ch
   } while (0)
 
 // C++ Core Guideline check suppression.
-// TODO - UE Temporary Hack (it avoids the compiling error, but not sure if it works!) - Clang on Windows defines _MSC_VER (stackoverflow.com/questions/38499462/how-to-tell-clang-to-stop-pretending-to-be-other-compilers), so `!defined(__clang__)` required
-#if defined(_MSC_VER) && !defined(__NVCC__) && !defined(__clang__)
+#if defined(_MSC_VER) && !defined(__NVCC__) && !defined(__clang__) // #ifdef WITH_UE: Clang define
 #define GSL_SUPPRESS(tag) [[gsl::suppress(tag)]]
 #else
 #define GSL_SUPPRESS(tag)

@@ -363,11 +363,7 @@ struct ModelMetadata : Base<OrtModelMetadata> {
 
 struct Session : Base<OrtSession> {
   explicit Session(std::nullptr_t) {}
-  Session(Env& env, const ORTCHAR_T* model_path, const SessionOptions& options
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-	 , std::vector<uint8_t>* InOutORTFormatModelBytesVector = nullptr
-#endif // WITH_UE_ONNX_ORT_LOADER
-	  );
+  Session(Env& env, const ORTCHAR_T* model_path, const SessionOptions& options);
   Session(Env& env, const void* model_data, size_t model_data_length, const SessionOptions& options);
 
   // Run that will allocate the output values
@@ -653,4 +649,4 @@ struct CustomOpBase : OrtCustomOp {
 
 }  // namespace Ort
 
-#include "onnxruntime_cxx_inline.imp"
+#include "onnxruntime_cxx_inline.imp" // #ifdef WITH_UE: .h replaced by .imp

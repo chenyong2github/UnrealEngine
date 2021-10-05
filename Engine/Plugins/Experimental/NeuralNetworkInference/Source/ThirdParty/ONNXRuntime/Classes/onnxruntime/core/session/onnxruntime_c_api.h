@@ -8,11 +8,7 @@
 
 #ifdef WITH_UE
 #include "GenericPlatform/GenericPlatformAffinity.h"
-#endif
-
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-#include <vector>
-#endif // WITH_UE_ONNX_ORT_LOADER
+#endif //WITH_UE
 
 // This value is used in structures passed to ORT so that a newer version of ORT will still work with them
 #define ORT_API_VERSION 7
@@ -69,25 +65,22 @@ extern "C" {
 #define ORTCHAR_T char
 #endif
 
-#else 
-
-#ifdef _WIN32
+#else //WITH_UE
 
 #define ORT_EXPORT ONNXRUNTIME_API
+
+#ifdef _WIN32
 #define ORT_API_CALL _stdcall
 #define ORT_MUST_USE_RESULT
 #define ORTCHAR_T wchar_t
 
-#else
-
-#define ORT_EXPORT ONNXRUNTIME_API
+#else //_WIN32
 #define ORT_API_CALL
 #define ORT_MUST_USE_RESULT __attribute__((warn_unused_result))
 #define ORTCHAR_T char
+#endif //_WIN32
 
-#endif
-
-#endif
+#endif //WITH_UE
 
 #ifndef ORT_TSTR
 #ifdef _WIN32
@@ -206,12 +199,13 @@ typedef OrtStatus* OrtStatusPtr;
 #define ORT_API(RETURN_TYPE, NAME, ...) RETURN_TYPE ORT_API_CALL NAME(__VA_ARGS__) NO_EXCEPTION
 
 #ifdef WITH_UE
-#define UE_ORT_API_STATUS(NAME, ...) \
+#define ORT_API_STATUS(NAME, ...) \
   _Success_(return == 0) _Check_return_ _Ret_maybenull_ ORT_EXPORT OrtStatusPtr ORT_API_CALL NAME(__VA_ARGS__) NO_EXCEPTION ORT_MUST_USE_RESULT
-#endif
 
+#else //WITH_UE
 #define ORT_API_STATUS(NAME, ...) \
   _Success_(return == 0) _Check_return_ _Ret_maybenull_ OrtStatusPtr ORT_API_CALL NAME(__VA_ARGS__) NO_EXCEPTION ORT_MUST_USE_RESULT
+#endif //WITH_UE
 
 // XXX: Unfortunately, SAL annotations are known to not work with function pointers
 #define ORT_API2_STATUS(NAME, ...) \
@@ -374,14 +368,8 @@ struct OrtApi {
   // execution of CreateSession, or does the OrtSession retain a handle to the file/directory
   // and continue to access throughout the OrtSession lifetime?
   //  What sort of access is needed to model_path : read or read/write?
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-  ORT_API2_STATUS(CreateSession, _In_ const OrtEnv* env, _In_ const ORTCHAR_T* model_path,
-                  _In_ const OrtSessionOptions* options, _Outptr_ OrtSession** out
-                  , std::vector<uint8_t>* InOutORTFormatModelBytesVector);
-#else // WITH_UE_ONNX_ORT_LOADER
   ORT_API2_STATUS(CreateSession, _In_ const OrtEnv* env, _In_ const ORTCHAR_T* model_path,
                   _In_ const OrtSessionOptions* options, _Outptr_ OrtSession** out);
-#endif // WITH_UE_ONNX_ORT_LOADER
 
   ORT_API2_STATUS(CreateSessionFromArray, _In_ const OrtEnv* env, _In_ const void* model_data, size_t model_data_length,
                   _In_ const OrtSessionOptions* options, _Outptr_ OrtSession** out);
@@ -449,8 +437,8 @@ struct OrtApi {
   // A value of 0 means ORT will pick a default
   ORT_API2_STATUS(SetInterOpNumThreads, _Inout_ OrtSessionOptions* options, int inter_op_num_threads);
 
-  //Set the priority level of the threads used to compute 
 #ifdef WITH_UE
+  //Set the priority level of the threads used to compute
   ORT_API2_STATUS(SetPriorityOpThreads, _Inout_ OrtSessionOptions* options, EThreadPriority ThreadPri);
 #endif
 

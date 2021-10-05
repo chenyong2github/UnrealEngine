@@ -410,11 +410,7 @@ static ORT_STATUS_PTR CreateSessionAndLoadModel(_In_ const OrtSessionOptions* op
                                                 _In_opt_z_ const ORTCHAR_T* model_path,
                                                 _In_opt_ const void* model_data,
                                                 size_t model_data_length,
-                                                std::unique_ptr<onnxruntime::InferenceSession>& sess
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-                                                , std::vector<uint8_t>* InOutORTFormatModelBytesVector = nullptr
-#endif // WITH_UE_ONNX_ORT_LOADER
-) {
+                                                std::unique_ptr<onnxruntime::InferenceSession>& sess) {
   // quick check here to decide load path. InferenceSession will provide error message for invalid values.
   // TODO: Could move to a helper
   const Env& os_env = Env::Default();  // OS environment (!= ORT environment)
@@ -457,11 +453,7 @@ static ORT_STATUS_PTR CreateSessionAndLoadModel(_In_ const OrtSessionOptions* op
 #endif
   } else {
     if (model_path != nullptr) {
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-      ORT_API_RETURN_IF_STATUS_NOT_OK(sess->Load(model_path, InOutORTFormatModelBytesVector));
-#else // WITH_UE_ONNX_ORT_LOADER
       ORT_API_RETURN_IF_STATUS_NOT_OK(sess->Load(model_path));
-#endif // WITH_UE_ONNX_ORT_LOADER
     } else {
       ORT_API_RETURN_IF_STATUS_NOT_OK(sess->Load(model_data, static_cast<int>(model_data_length)));
     }
@@ -471,11 +463,7 @@ static ORT_STATUS_PTR CreateSessionAndLoadModel(_In_ const OrtSessionOptions* op
 }
 
 static ORT_STATUS_PTR InitializeSession(_In_ const OrtSessionOptions* options,
-                                        _In_ std::unique_ptr<::onnxruntime::InferenceSession>& sess
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-										, std::vector<uint8_t>* InOutORTFormatModelBytesVector = nullptr
-#endif // WITH_UE_ONNX_ORT_LOADER
-	) {
+                                        _In_ std::unique_ptr<::onnxruntime::InferenceSession>& sess) {
 
   // we need to disable mem pattern if DML is one of the providers since DML doesn't have the concept of
   // byte addressable memory
@@ -494,37 +482,22 @@ static ORT_STATUS_PTR InitializeSession(_In_ const OrtSessionOptions* options,
     }
   }
 
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-  ORT_API_RETURN_IF_STATUS_NOT_OK(sess->Initialize(InOutORTFormatModelBytesVector));
-#else // WITH_UE_ONNX_ORT_LOADER
   ORT_API_RETURN_IF_STATUS_NOT_OK(sess->Initialize());
-#endif  // WITH_UE_ONNX_ORT_LOADER
   return nullptr;
 }
 
 }  // namespace
 
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-ORT_API_STATUS_IMPL(OrtApis::CreateSession, _In_ const OrtEnv* env, _In_ const ORTCHAR_T* model_path,
-                    _In_ const OrtSessionOptions* options, _Outptr_ OrtSession** out
-					, std::vector<uint8_t>* InOutORTFormatModelBytesVector) {
-#else // WITH_UE_ONNX_ORT_LOADER
 ORT_API_STATUS_IMPL(OrtApis::CreateSession, _In_ const OrtEnv* env, _In_ const ORTCHAR_T* model_path,
                     _In_ const OrtSessionOptions* options, _Outptr_ OrtSession** out) {
-#endif // WITH_UE_ONNX_ORT_LOADER
   API_IMPL_BEGIN
   std::unique_ptr<onnxruntime::InferenceSession> sess;
   OrtStatus* status = nullptr;
   *out = nullptr;
 
   ORT_TRY {
-#ifdef WITH_UE // WITH_UE_ONNX_ORT_LOADER
-    ORT_API_RETURN_IF_ERROR(CreateSessionAndLoadModel(options, env, model_path, nullptr, 0, sess, InOutORTFormatModelBytesVector));
-    ORT_API_RETURN_IF_ERROR(InitializeSession(options, sess, InOutORTFormatModelBytesVector));
-#else // WITH_UE_ONNX_ORT_LOADER
     ORT_API_RETURN_IF_ERROR(CreateSessionAndLoadModel(options, env, model_path, nullptr, 0, sess));
     ORT_API_RETURN_IF_ERROR(InitializeSession(options, sess));
-#endif // WITH_UE_ONNX_ORT_LOADER
 
     *out = reinterpret_cast<OrtSession*>(sess.release());
   }
