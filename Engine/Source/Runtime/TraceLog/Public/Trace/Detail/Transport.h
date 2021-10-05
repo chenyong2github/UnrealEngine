@@ -8,11 +8,12 @@ namespace Trace {
 ////////////////////////////////////////////////////////////////////////////////
 enum ETransport : uint8
 {
-	_Unused		= 0,
-	Raw			= 1,
-	Packet		= 2,
-	TidPacket	= 3,
-	Active		= TidPacket,
+	_Unused			= 0,
+	Raw				= 1,
+	Packet			= 2,
+	TidPacket		= 3,
+	TidPacketSync	= 4,
+	Active			= TidPacketSync,
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -21,7 +22,10 @@ enum ETransportTid : uint32
 	Events		= 0,			// used to describe events
 	Internal	= 1,			// events to make the trace stream function
 	Importants	= Internal,		// important/cached events
-	Bias,
+	Bias,						// [Bias,End] = threads. Note bias can't be..
+	/* ... */					// ..changed as it breaks backwards compat :(
+	End			= 0x3ffe,		// two msbs are user for packet markers
+	Sync		= 0x3fff,		// see Writer_SendSync()
 };
 
 

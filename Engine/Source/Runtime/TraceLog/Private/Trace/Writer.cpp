@@ -257,7 +257,7 @@ void Writer_SendDataRaw(const void* Data, uint32 Size)
 ////////////////////////////////////////////////////////////////////////////////
 void Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Size)
 {
-	static_assert(ETransport::Active == ETransport::TidPacket, "Active should be set to what the compiled code uses. It is used to track places that assume transport packet format");
+	static_assert(ETransport::Active == ETransport::TidPacketSync, "Active should be set to what the compiled code uses. It is used to track places that assume transport packet format");
 
 #if TRACE_PRIVATE_STATISTICS
 	GTraceStatistics.BytesTraced += Size;
@@ -345,8 +345,30 @@ static void Writer_DescribeAnnounce()
 
 
 ////////////////////////////////////////////////////////////////////////////////
-static void Writer_LogHeader()
+static int8			GSyncPacketCountdown;	// = 0
+static const int8	GNumSyncPackets			= 3;
+
+////////////////////////////////////////////////////////////////////////////////
+static void Writer_SendSync()
 {
+	if (GSyncPacketCountdown <= 0)
+	{
+		return;
+	}
+
+	// It is possible that some events get collected and discarded by a previous
+	// update that are newer than events sent it the following update where IO
+	// is established. This will result in holes in serial numbering. A few sync
+	// points are sent to aid analysis in determining what are holes and what is
+	// just a requirement for more data. Holws will only occurr at the start.
+
+	// Note that Sync is alias as Important/Internal as changing Bias would
+	// break backwards compatibility.
+
+	FTidPacketBase SyncPacket = { sizeof(SyncPacket), ETransportTid::Sync };
+	Writer_SendDataImpl(&SyncPacket, sizeof(SyncPacket));
+
+	--GSyncPacketCountdown;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -407,7 +429,7 @@ static bool Writer_UpdateConnection()
 
 	// Stream header
 	const struct {
-		uint8 TransportVersion	= ETransport::TidPacket;
+		uint8 TransportVersion	= ETransport::TidPacketSync;
 		uint8 ProtocolVersion	= EProtocol::Id;
 	} TransportHeader;
 	bOk &= IoWrite(GDataHandle, &TransportHeader, sizeof(TransportHeader));
@@ -431,6 +453,9 @@ static bool Writer_UpdateConnection()
 	Writer_CacheOnConnect();
 	Writer_TailOnConnect();
 
+	// See Writer_SendSync() for details.
+	GSyncPacketCountdown = GNumSyncPackets;
+
 	return true;
 }
 
@@ -448,6 +473,7 @@ static void Writer_WorkerUpdate()
 	Writer_DescribeAnnounce();
 	Writer_UpdateSharedBuffers();
 	Writer_DrainBuffers();
+	Writer_SendSync();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

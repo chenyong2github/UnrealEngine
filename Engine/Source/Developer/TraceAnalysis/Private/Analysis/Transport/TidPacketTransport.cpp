@@ -39,6 +39,14 @@ bool FTidPacketTransport::ReadPacket()
 	FTransport::Advance(PacketBase->PacketSize);
 
 	uint32 ThreadId = PacketBase->ThreadId & FTidPacketBase::ThreadIdMask;
+
+	if (ThreadId == ETransportTid::Sync)
+	{
+		++Synced;
+		return false;	// Do not read any more packets. Gives consumers a
+						// chance to sample the world at each known sync point.
+	}
+
 	bool bIsPartial = !!(PacketBase->ThreadId & FTidPacketBase::PartialMarker);
 	FThreadStream* Thread = FindOrAddThread(ThreadId, !bIsPartial);
 	if (Thread == nullptr)
