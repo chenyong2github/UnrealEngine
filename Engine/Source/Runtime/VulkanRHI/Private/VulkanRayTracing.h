@@ -84,6 +84,8 @@ public:
 	FVulkanRayTracingGeometry(const FRayTracingGeometryInitializer& Initializer, const FVulkanDevice* InDevice);
 	~FVulkanRayTracingGeometry();
 
+	virtual uint32 GetNumSegments() const final override { return Segments.Num(); }
+
 	void BuildAccelerationStructure(FVulkanCommandListContext& CommandContext, EAccelerationStructureBuildMode BuildMode);
 	
 	VkDeviceAddress GetAccelerationStructureAddress() const

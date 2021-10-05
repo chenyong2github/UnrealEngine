@@ -26,6 +26,8 @@ public:
 	FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const FRayTracingGeometryInitializer& Initializer);
 	~FD3D12RayTracingGeometry();
 
+	virtual uint32 GetNumSegments() const final override { return Segments.Num(); }
+
 	void SetupHitGroupSystemParameters(uint32 InGPUIndex);
 	void TransitionBuffers(FD3D12CommandContext& CommandContext);
 	void UpdateResidency(FD3D12CommandContext& CommandContext);
@@ -91,8 +93,10 @@ public:
 	// Scaling beyond 5 total threads does not yield any speedup in practice.
 	static constexpr uint32 MaxBindingWorkers = 5; // RHI thread + 4 parallel workers.
 
-	FD3D12RayTracingScene(FD3D12Adapter* Adapter, const FRayTracingSceneInitializer& Initializer);
+	FD3D12RayTracingScene(FD3D12Adapter* Adapter, FRayTracingSceneInitializer2 Initializer);
 	~FD3D12RayTracingScene();
+
+	const FRayTracingSceneInitializer2& GetInitializer() const override final { return Initializer; }
 
 	void BindBuffer(FRHIBuffer* Buffer, uint32 BufferOffset);
 	void ReleaseBuffer();
@@ -120,14 +124,8 @@ public:
 		int32 Num = 0;
 	};
 	TArray<FInstanceCopyCommand> CopyCommands;
-	
-	// One entry per instance in the Initializer
-	TArray<FD3D12RayTracingGeometry*> PerInstanceGeometries;
-	TArray<uint32> PerInstanceNumTransforms;
 
-	// Unique list of geometries referenced by all instances in this scene.
-	// Any referenced geometry is kept alive while the scene is alive.
-	TArray<TRefCountPtr<FD3D12RayTracingGeometry>> ReferencedGeometries;
+	const FRayTracingSceneInitializer2 Initializer;
 
 	// Scene keeps track of child acceleration structure buffers to ensure
 	// they are resident when any ray tracing work is dispatched.
@@ -135,20 +133,7 @@ public:
 
 	void UpdateResidency(FD3D12CommandContext& CommandContext);
 
-	uint32 ShaderSlotsPerGeometrySegment = 1;
-
-	// Exclusive prefix sum of `Instance.NumTransforms` for all instances in this scene. Used to emulate SV_InstanceID in hit shaders.
-	TArray<uint32> BaseInstancePrefixSum;
-
-	// Exclusive prefix sum of instance geometry segments is used to calculate SBT record address from instance and segment indices.
-	TArray<uint32> SegmentPrefixSum;
-	uint32 NumTotalSegments = 0;
-	uint32 GetHitRecordBaseIndex(uint32 InstanceIndex, uint32 SegmentIndex) const { return (SegmentPrefixSum[InstanceIndex] + SegmentIndex) * ShaderSlotsPerGeometrySegment; }
-
-	uint64 TotalPrimitiveCount = 0; // Combined number of primitives in all geometry instances
-
-	uint32 NumCallableShaderSlots = 0;
-	uint32 NumMissShaderSlots = 1; // always at least the default
+	uint32 GetHitRecordBaseIndex(uint32 InstanceIndex, uint32 SegmentIndex) const { return (Initializer.SegmentPrefixSum[InstanceIndex] + SegmentIndex) * Initializer.ShaderSlotsPerGeometrySegment; }
 
 	// Array of hit group parameters per geometry segment across all scene instance geometries.
 	// Accessed as HitGroupSystemParametersCache[SegmentPrefixSum[InstanceIndex] + SegmentIndex].
@@ -161,12 +146,7 @@ public:
 
 	TMap<const FD3D12RayTracingPipelineState*, FD3D12RayTracingShaderTable*> ShaderTables[MAX_NUM_GPUS];
 
-	ERayTracingSceneLifetime Lifetime = RTSL_SingleFrame;
-	uint64 CreatedFrameFenceValue = 0;
-
 	uint64 LastCommandListID = 0;
-
-	FName DebugName;
 };
 
 // Manages all the pending BLAS compaction requests

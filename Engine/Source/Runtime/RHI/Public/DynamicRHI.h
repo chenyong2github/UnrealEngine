@@ -252,6 +252,50 @@ struct FRayTracingSceneInitializer
 	// Currently only single-frame lifetime is supported.
 	ERayTracingSceneLifetime Lifetime = RTSL_SingleFrame;
 
+	FName DebugName;
+};
+
+struct FRayTracingSceneInitializer2
+{
+	// WIP - need these arrays until building instance buffer is moved to higher level code
+	// will be removed before 5.0 release
+	TArrayView<FRayTracingGeometryInstance> Instances;
+	TArray<uint32> PerInstanceNumTransforms;
+
+	// Unique list of geometries referenced by all instances in this scene.
+	// Any referenced geometry is kept alive while the scene is alive.
+	TArray<FRayTracingGeometryRHIRef> ReferencedGeometries;
+	// One entry per instance
+	TArray<FRHIRayTracingGeometry*> PerInstanceGeometries;
+	// Exclusive prefix sum of `Instance.NumTransforms` for all instances in this scene. Used to emulate SV_InstanceID in hit shaders.
+	TArray<uint32> BaseInstancePrefixSum;
+	// Exclusive prefix sum of instance geometry segments is used to calculate SBT record address from instance and segment indices.
+	TArray<uint32> SegmentPrefixSum;
+
+	// Total flattened number of ray tracing geometry instances (a single FRayTracingGeometryInstance may represent many).
+	uint32 NumNativeInstances = 0;
+
+	uint32 NumTotalSegments = 0;
+
+	// This value controls how many elements will be allocated in the shader binding table per geometry segment.
+	// Changing this value allows different hit shaders to be used for different effects.
+	// For example, setting this to 2 allows one hit shader for regular material evaluation and a different one for shadows.
+	// Desired hit shader can be selected by providing appropriate RayContributionToHitGroupIndex to TraceRay() function.
+	// Use ShaderSlot argument in SetRayTracingHitGroup() to assign shaders and resources for specific part of the shder binding table record.
+	uint32 ShaderSlotsPerGeometrySegment = 1;
+
+	// Defines how many different callable shaders with unique resource bindings can be bound to this scene.
+	// Shaders and resources are assigned to slots in the scene using SetRayTracingCallableShader().
+	uint32 NumCallableShaderSlots = 0;
+
+	// At least one miss shader must be present in a ray tracing scene.
+	// Default miss shader is always in slot 0. Default shader must not use local resources.
+	// Custom miss shaders can be bound to other slots using SetRayTracingMissShader().
+	uint32 NumMissShaderSlots = 1;
+
+	// Defines whether data in this scene should persist between frames.
+	// Currently only single-frame lifetime is supported.
+	ERayTracingSceneLifetime Lifetime = RTSL_SingleFrame;
 
 	FName DebugName;
 };
@@ -1454,6 +1498,12 @@ public:
 		checkNoEntry();
 		return nullptr;
 	}
+	
+	virtual FRayTracingSceneRHIRef RHICreateRayTracingScene(FRayTracingSceneInitializer2 Initializer)
+	{
+		checkNoEntry();
+		return nullptr;
+	}
 
 	virtual FRayTracingShaderRHIRef RHICreateRayTracingShader(TArrayView<const uint8> Code, const FSHAHash& Hash, EShaderFrequency ShaderFrequency)
 	{
@@ -1761,9 +1811,15 @@ FORCEINLINE FRayTracingGeometryRHIRef RHICreateRayTracingGeometry(const FRayTrac
 	return GDynamicRHI->RHICreateRayTracingGeometry(Initializer);
 }
 
+UE_DEPRECATED(5.0, "This version of RHICreateRayTracingScene is deprecated. FRayTracingSceneInitializer2 should be used instead.")
 FORCEINLINE FRayTracingSceneRHIRef RHICreateRayTracingScene(const FRayTracingSceneInitializer& Initializer)
 {
 	return GDynamicRHI->RHICreateRayTracingScene(Initializer);
+}
+
+FORCEINLINE FRayTracingSceneRHIRef RHICreateRayTracingScene(FRayTracingSceneInitializer2 Initializer)
+{
+	return GDynamicRHI->RHICreateRayTracingScene(MoveTemp(Initializer));
 }
 
 FORCEINLINE FRayTracingShaderRHIRef RHICreateRayTracingShader(TArrayView<const uint8> Code, const FSHAHash& Hash, EShaderFrequency ShaderFrequency)
