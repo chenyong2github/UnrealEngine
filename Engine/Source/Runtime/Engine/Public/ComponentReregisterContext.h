@@ -6,10 +6,7 @@
 #include "Containers/IndirectArray.h"
 #include "RenderingThread.h"
 #include "UObject/UObjectIterator.h"
-#include "Components/PrimitiveComponent.h"
 #include "Engine/World.h"
-#include "AI/NavigationSystemBase.h"
-#include "ContentStreaming.h"
 
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogActorComponent, Log, All);
 
@@ -23,60 +20,10 @@ protected:
 	TSet<FSceneInterface*>* ScenesToUpdateAllPrimitiveSceneInfos = nullptr;
 
 	//Unregisters the Component and returns the world it was registered to.
-	UWorld* UnRegister(UActorComponent* InComponent)
-	{
-		UWorld* World = nullptr;
-
-		check(InComponent);
-		checkf(!InComponent->IsUnreachable(), TEXT("%s"), *InComponent->GetFullName());
-
-		if(InComponent->IsRegistered() && InComponent->GetWorld())
-		{
-			if (InComponent->IsRenderStateCreated())
-			{
-				UpdateAllPrimitiveSceneInfosForSingleComponent(InComponent, ScenesToUpdateAllPrimitiveSceneInfos);
-			}
-
-			// Save the world and set the component's world to NULL to prevent a nested FComponentReregisterContext from reregistering this component.
-			World = InComponent->GetWorld();
-			FNavigationLockContext NavUpdateLock(World);
-
-			// Will set bRegistered to false
-			InComponent->ExecuteUnregisterEvents();
-
-			InComponent->WorldPrivate = nullptr;
-		}
-		return World;
-	}
+	ENGINE_API UWorld* UnRegister(UActorComponent* InComponent);
 
 	//Reregisters the given component on the given scene
-	void ReRegister(UActorComponent* InComponent, UWorld* InWorld)
-	{
-		check(InComponent);
-		
-		if( IsValid(InComponent) )
-		{
-			// Set scene pointer back
-			check(InWorld != NULL); // If Component is set, World should be too (see logic in constructor)
-
-			if( InComponent->IsRegistered() )
-			{
-				// The component has been registered already but external code is
-				// going to expect the reregister to happen now. So unregister and
-				// re-register.
-				UE_LOG(LogActorComponent, Log, TEXT("~FComponentReregisterContext: (%s) Component already registered."), *InComponent->GetPathName());
-				InComponent->ExecuteUnregisterEvents();
-			}
-
-			InComponent->WorldPrivate = InWorld;
-			FNavigationLockContext NavUpdateLock(InWorld);
-
-			// Will set bRegistered to true
-			InComponent->ExecuteRegisterEvents();
-
-			UpdateAllPrimitiveSceneInfosForSingleComponent(InComponent, ScenesToUpdateAllPrimitiveSceneInfos);
-		}
-	}
+	ENGINE_API void ReRegister(UActorComponent* InComponent, UWorld* InWorld);
 };
 
 /**
