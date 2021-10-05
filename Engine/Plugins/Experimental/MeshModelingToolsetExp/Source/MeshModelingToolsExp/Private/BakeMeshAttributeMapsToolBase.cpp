@@ -231,9 +231,11 @@ void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry
 
 		auto UpdateCachedMap = [this, &NewResult, &EvalIdx, &BakeDimensions](const EBakeMapType BakeMapType, const FTexture2DBuilder::ETextureType TexType, const int32 ResultIdx) -> void
 		{
+			// For 8-bit color textures, ensure that the source data is in sRGB.
+			const bool bConvertToSRGB = TexType == FTexture2DBuilder::ETextureType::Color;
 			FTexture2DBuilder TextureBuilder;
 			TextureBuilder.Initialize(TexType, BakeDimensions);
-			TextureBuilder.Copy(*NewResult->GetBakeResults(EvalIdx)[ResultIdx]);
+			TextureBuilder.Copy(*NewResult->GetBakeResults(EvalIdx)[ResultIdx], bConvertToSRGB);
 			TextureBuilder.Commit(false);
 
 			// The CachedMap & CachedMapIndices can be thrown out of sync if updated during
@@ -248,7 +250,8 @@ void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry
 		{
 		case EMeshMapEvaluatorType::Normal:
 		{
-			UpdateCachedMap(EBakeMapType::TangentSpaceNormalMap, FTexture2DBuilder::ETextureType::NormalMap, 0);
+			constexpr EBakeMapType MapType = EBakeMapType::TangentSpaceNormalMap;
+			UpdateCachedMap(MapType, GetTextureType(MapType), 0);
 			break;
 		}
 		case EMeshMapEvaluatorType::Occlusion:
@@ -258,17 +261,20 @@ void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry
 			int32 OcclusionIdx = 0;
 			if ((bool)(OcclusionEval->OcclusionType & EMeshOcclusionMapType::AmbientOcclusion))
 			{
-				UpdateCachedMap(EBakeMapType::AmbientOcclusion, FTexture2DBuilder::ETextureType::AmbientOcclusion, OcclusionIdx++);
+				constexpr EBakeMapType MapType = EBakeMapType::AmbientOcclusion;
+				UpdateCachedMap(MapType, GetTextureType(MapType), OcclusionIdx++);
 			}
 			if ((bool)(OcclusionEval->OcclusionType & EMeshOcclusionMapType::BentNormal))
 			{
-				UpdateCachedMap(EBakeMapType::BentNormal, FTexture2DBuilder::ETextureType::NormalMap, OcclusionIdx++);
+				constexpr EBakeMapType MapType = EBakeMapType::BentNormal;
+				UpdateCachedMap(MapType, GetTextureType(MapType), OcclusionIdx++);
 			}
 			break;
 		}
 		case EMeshMapEvaluatorType::Curvature:
 		{
-			UpdateCachedMap(EBakeMapType::Curvature, FTexture2DBuilder::ETextureType::ColorLinear, 0);
+			constexpr EBakeMapType MapType = EBakeMapType::Curvature;
+			UpdateCachedMap(MapType, GetTextureType(MapType), 0);
 			break;
 		}
 		case EMeshMapEvaluatorType::Property:
@@ -297,19 +303,19 @@ void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry
 				break;
 			}
 
-			UpdateCachedMap(MapType, FTexture2DBuilder::ETextureType::ColorLinear, 0);
+			UpdateCachedMap(MapType, GetTextureType(MapType), 0);
 			break;
 		}
 		case EMeshMapEvaluatorType::ResampleImage:
 		{
-			constexpr FTexture2DBuilder::ETextureType TexType = FTexture2DBuilder::ETextureType::ColorLinear;
-			UpdateCachedMap(EBakeMapType::Texture2DImage, TexType, 0);
+			constexpr EBakeMapType MapType = EBakeMapType::Texture2DImage;
+			UpdateCachedMap(EBakeMapType::Texture2DImage, GetTextureType(MapType), 0);
 			break;
 		}
 		case EMeshMapEvaluatorType::MultiResampleImage:
 		{
-			constexpr FTexture2DBuilder::ETextureType TexType = FTexture2DBuilder::ETextureType::ColorLinear;
-			UpdateCachedMap(EBakeMapType::MultiTexture, TexType, 0);
+			constexpr EBakeMapType MapType = EBakeMapType::MultiTexture;
+			UpdateCachedMap(MapType, GetTextureType(MapType), 0);
 			break;
 		}
 		default:
@@ -351,7 +357,7 @@ TArray<EBakeMapType> UBakeMeshAttributeMapsToolBase::GetMapTypesArray(const int3
 
 FTexture2DBuilder::ETextureType UBakeMeshAttributeMapsToolBase::GetTextureType(EBakeMapType MapType)
 {
-	FTexture2DBuilder::ETextureType TexType = FTexture2DBuilder::ETextureType::ColorLinear;
+	FTexture2DBuilder::ETextureType TexType = FTexture2DBuilder::ETextureType::Color;
 	switch (MapType)
 	{
 	default:
@@ -369,9 +375,11 @@ FTexture2DBuilder::ETextureType UBakeMeshAttributeMapsToolBase::GetTextureType(E
 	case EBakeMapType::Curvature:
 	case EBakeMapType::NormalImage:
 	case EBakeMapType::FaceNormalImage:
+	case EBakeMapType::PositionImage:
+		TexType = FTexture2DBuilder::ETextureType::ColorLinear;
+		break;
 	case EBakeMapType::MaterialID:
 	case EBakeMapType::VertexColorImage:
-	case EBakeMapType::PositionImage:
 	case EBakeMapType::Texture2DImage:
 	case EBakeMapType::MultiTexture:
 		break;
@@ -380,7 +388,7 @@ FTexture2DBuilder::ETextureType UBakeMeshAttributeMapsToolBase::GetTextureType(E
 }
 
 
-void UBakeMeshAttributeMapsToolBase::GetTextureName(EBakeMapType MapType, const FString& BaseName, FString& TexName)
+void UBakeMeshAttributeMapsToolBase::GetTextureName(const EBakeMapType MapType, const FString& BaseName, FString& TexName)
 {
 	switch (MapType)
 	{
