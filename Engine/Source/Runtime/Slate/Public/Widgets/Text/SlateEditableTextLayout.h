@@ -49,6 +49,9 @@ public:
 	void SetTextStyle(const FTextBlockStyle& InTextStyle);
 	const FTextBlockStyle& GetTextStyle() const;
 
+	/** Get the number of Text Lines */
+	int32 GetTextLineCount();
+
 	/** Set the brush to use when drawing the cursor */
 	void SetCursorBrush(const TAttribute<const FSlateBrush*>& InCursorBrush);
 

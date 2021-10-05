@@ -302,6 +302,9 @@ public:
 	/** Sets the ReadOnly attribute */
 	void SetIsReadOnly(const TAttribute< bool >& InIsReadOnly);
 
+	/** Get the number of Text Lines */
+	int32 GetTextLineCount();
+
 	/**
 	 * Sets whether to select all text when the user clicks to give focus on the widget
 	 *

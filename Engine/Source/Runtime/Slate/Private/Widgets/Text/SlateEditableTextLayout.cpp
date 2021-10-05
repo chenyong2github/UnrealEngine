@@ -255,6 +255,11 @@ void FSlateEditableTextLayout::SetText(const TAttribute<FText>& InText)
 	}
 }
 
+int32 FSlateEditableTextLayout::GetTextLineCount()
+{
+	return TextLayout->GetLineCount();
+}
+
 FText FSlateEditableTextLayout::GetText() const
 {
 	SLATE_CROSS_THREAD_CHECK();
