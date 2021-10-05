@@ -43,6 +43,8 @@ class MESHLODTOOLSET_API UGenerateStaticMeshLODAssetToolBuilder : public UIntera
 	GENERATED_BODY()
 
 public:
+	bool bUseAssetEditorMode = false;
+
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 
@@ -58,7 +60,7 @@ class MESHLODTOOLSET_API UGenerateStaticMeshLODAssetToolOutputProperties : publi
 	GENERATED_BODY()
 public:
 	/** Whether to modify the static mesh in place or create a new one. */
-	UPROPERTY(EditAnywhere, Category = "Output Options", meta = (TransientToolProperty))
+	UPROPERTY(EditAnywhere, Category = "Output Options", meta = (TransientToolProperty, EditConditionHides, EditCondition = "bShowOutputMode"))
 	EGenerateLODAssetOutputMode OutputMode = EGenerateLODAssetOutputMode::CreateNewAsset;
 
 	/** Base name for newly-generated asset */
@@ -72,6 +74,10 @@ public:
 	/** Suffix to append to newly-generated Asset (Meshes, Textures, Materials, etc) */
 	UPROPERTY(EditAnywhere, Category = "Output Options", meta = (TransientToolProperty))
 	FString GeneratedSuffix;
+
+	/** If false, then OutputMode will not be shown in DetailsView panels (otherwise no effect) */
+	UPROPERTY(meta = (TransientToolProperty))
+	bool bShowOutputMode = true;
 };
 
 
@@ -259,6 +265,10 @@ class MESHLODTOOLSET_API UGenerateStaticMeshLODAssetTool : public UMultiSelectio
 	GENERATED_BODY()
 
 public:
+
+	// Enable UI Customization for running this Tool in the Static Mesh Asset Editor. Must call before Setup.
+	virtual void SetUseAssetEditorMode(bool bEnable);
+
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
@@ -317,6 +327,7 @@ protected:
 	TObjectPtr<UPreviewGeometry> CollisionPreview;
 
 protected:
+	bool bIsInAssetEditorMode = false;
 	UWorld* TargetWorld;
 
 	UPROPERTY()
@@ -334,6 +345,5 @@ protected:
 	void UpdateExistingAsset();
 
 	void OnPresetSelectionChanged();
-
 
 };

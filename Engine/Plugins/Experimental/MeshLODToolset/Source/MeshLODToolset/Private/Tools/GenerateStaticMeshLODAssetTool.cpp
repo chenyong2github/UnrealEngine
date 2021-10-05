@@ -224,6 +224,7 @@ bool UGenerateStaticMeshLODAssetToolBuilder::CanBuildTool(const FToolBuilderStat
 UInteractiveTool* UGenerateStaticMeshLODAssetToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
 	UGenerateStaticMeshLODAssetTool* NewTool = NewObject<UGenerateStaticMeshLODAssetTool>(SceneState.ToolManager);
+	NewTool->SetUseAssetEditorMode(bUseAssetEditorMode);
 
 	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
 	NewTool->SetTargets(MoveTemp(Targets));
@@ -252,6 +253,12 @@ void UGenerateStaticMeshLODAssetToolPresetProperties::PostAction(EGenerateLODAss
 void UGenerateStaticMeshLODAssetTool::SetWorld(UWorld* World)
 {
 	this->TargetWorld = World;
+}
+
+
+void UGenerateStaticMeshLODAssetTool::SetUseAssetEditorMode(bool bEnable)
+{
+	bIsInAssetEditorMode = bEnable;
 }
 
 
@@ -310,6 +317,8 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 	OutputProperties->NewAssetName = FPaths::GetBaseFilename(FullPathWithExtension, true);
 	OutputProperties->GeneratedSuffix = TEXT("_AutoLOD");
 	OutputProperties->RestoreProperties(this);
+	OutputProperties->OutputMode = (bIsInAssetEditorMode) ? EGenerateLODAssetOutputMode::UpdateExistingAsset : EGenerateLODAssetOutputMode::CreateNewAsset;
+	OutputProperties->bShowOutputMode = !bIsInAssetEditorMode;
 
 	PresetProperties = NewObject<UGenerateStaticMeshLODAssetToolPresetProperties>(this);
 	PresetProperties->RestoreProperties(this);
