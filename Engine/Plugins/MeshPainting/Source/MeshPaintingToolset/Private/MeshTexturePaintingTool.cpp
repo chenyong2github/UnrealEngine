@@ -15,6 +15,7 @@
 #include "Engine/Texture2D.h"
 #include "MeshPaintingToolsetTypes.h"
 #include "CanvasItem.h"
+#include "CanvasTypes.h"
 #include "ScopedTransaction.h"
 #include "BaseGizmos/BrushStampIndicator.h"
 #include "MeshPaintAdapterFactory.h"
