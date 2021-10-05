@@ -74,10 +74,10 @@ public:
 	void CachePreviewMesh();
 
 	/** Accessor for mesh view mode, allows access for simulation and non-simulation modes */
-	EPhysicsAssetEditorRenderMode GetCurrentMeshViewMode(bool bSimulation);
+	EPhysicsAssetEditorMeshViewMode GetCurrentMeshViewMode(bool bSimulation);
 
 	/** Accessor for collision view mode, allows access for simulation and non-simulation modes */
-	EPhysicsAssetEditorRenderMode GetCurrentCollisionViewMode(bool bSimulation);
+	EPhysicsAssetEditorCollisionViewMode GetCurrentCollisionViewMode(bool bSimulation);
 
 	/** Accessor for constraint view mode, allows access for simulation and non-simulation modes */
 	EPhysicsAssetEditorConstraintViewMode GetCurrentConstraintViewMode(bool bSimulation);

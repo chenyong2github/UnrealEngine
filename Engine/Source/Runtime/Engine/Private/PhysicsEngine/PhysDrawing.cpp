@@ -49,6 +49,16 @@ static const FColor JointLockedColor(255,128,10);
 // FKSphereElem
 /////////////////////////////////////////////////////////////////////////////////////
 
+void FKSphereElem::DrawElemWire(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, float Scale, const FColor Color) const
+{
+	DrawElemWire(PDI, ElemTM, FVector(Scale), Color);
+}
+
+void FKSphereElem::DrawElemSolid(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, float Scale, const FMaterialRenderProxy* MaterialRenderProxy) const
+{
+	DrawElemSolid(PDI, ElemTM, FVector(Scale), MaterialRenderProxy);
+}
+
 void FKSphereElem::DrawElemWire(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, const FVector& Scale3D, const FColor Color) const
 {
 	FVector ElemCenter = ElemTM.GetLocation();
@@ -74,14 +84,28 @@ void FKSphereElem::GetElemSolid(const FTransform& ElemTM, const FVector& Scale3D
 	GetSphereMesh(ElemTM.GetLocation(), FVector(this->Radius * Scale3D.GetAbsMin()), DrawCollisionSides, DrawCollisionSides / 2, MaterialRenderProxy, SDPG_World, false, ViewIndex, Collector);
 }
 
+/////////////////////////////////////////////////////////////////////////////////////
+// FKBoxElem
+/////////////////////////////////////////////////////////////////////////////////////
+
+void FKBoxElem::DrawElemWire(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, float Scale, const FColor Color) const
+{
+	DrawElemWire(PDI, ElemTM, FVector(Scale), Color);
+}
+
+void FKBoxElem::DrawElemSolid(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, float Scale, const FMaterialRenderProxy* MaterialRenderProxy) const
+{
+	DrawElemSolid(PDI, ElemTM, FVector(Scale), MaterialRenderProxy);
+}
+
 void FKBoxElem::DrawElemWire(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, const FVector& Scale3D, const FColor Color) const
 {
 	FVector	B[2], P, Q, Radii;
 
 	// X,Y,Z member variables are LENGTH not RADIUS
-	Radii.X = Scale3D.X*0.5f*X;
-	Radii.Y = Scale3D.Y*0.5f*Y;
-	Radii.Z = Scale3D.Z*0.5f*Z;
+	Radii.X = Scale3D.X * 0.5f * X;
+	Radii.Y = Scale3D.Y * 0.5f * Y;
+	Radii.Z = Scale3D.Z * 0.5f * Z;
 
 	B[0] = Radii; // max
 	B[1] = -1.0f * Radii; // min
@@ -108,10 +132,6 @@ void FKBoxElem::DrawElemWire(class FPrimitiveDrawInterface* PDI, const FTransfor
 	}
 }
 
-/////////////////////////////////////////////////////////////////////////////////////
-// FKBoxElem
-/////////////////////////////////////////////////////////////////////////////////////
-
 void FKBoxElem::DrawElemSolid(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, const FVector& Scale3D, const FMaterialRenderProxy* MaterialRenderProxy) const
 {
 	DrawBox(PDI, ElemTM.ToMatrixWithScale(), Scale3D * 0.5f * FVector(X, Y, Z), MaterialRenderProxy, SDPG_World);
@@ -137,6 +157,16 @@ static void DrawHalfCircle(FPrimitiveDrawInterface* PDI, const FVector& Base, co
 		PDI->DrawLine(LastVertex, Vertex, Color, SDPG_World);
 		LastVertex = Vertex;
 	}	
+}
+
+void FKSphylElem::DrawElemWire(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, float Scale, const FColor Color) const
+{
+	DrawElemWire(PDI, ElemTM, FVector(Scale), Color);
+}
+
+void FKSphylElem::DrawElemSolid(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, float Scale, const FMaterialRenderProxy* MaterialRenderProxy) const
+{
+	DrawElemSolid(PDI, ElemTM, FVector(Scale), MaterialRenderProxy);
 }
 
 void FKSphylElem::DrawElemWire(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, const FVector& Scale3D, const FColor Color) const
@@ -371,7 +401,7 @@ void FKSphylElem::DrawElemSolid(FPrimitiveDrawInterface* PDI, const FTransform& 
 		}
 
 	}
-	MeshBuilder.Draw(PDI, ElemTM.ToMatrixWithScale(), MaterialRenderProxy, SDPG_World,0.f);
+	MeshBuilder.Draw(PDI, ElemTM.ToMatrixWithScale(), MaterialRenderProxy, SDPG_World);
 
 
 	FMemory::Free(Verts);
@@ -415,6 +445,16 @@ void FKTaperedCapsuleElem::DrawTaperedCapsuleSides(FPrimitiveDrawInterface* PDI,
 		PDI->DrawLine(InCenter0 + VertexCurrent  * InRadius0, InCenter1 + VertexCurrent * InRadius1, Color, SDPG_World);  // capsule side segment between spheres
 		VertexPrevious = VertexCurrent;
 	}
+}
+
+void FKTaperedCapsuleElem::DrawElemWire(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, float Scale, const FColor Color) const
+{
+	DrawElemWire(PDI, ElemTM, FVector(Scale), Color);
+}
+
+void FKTaperedCapsuleElem::DrawElemSolid(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, float Scale, const FMaterialRenderProxy* MaterialRenderProxy) const
+{
+	DrawElemSolid(PDI, ElemTM, FVector(Scale), MaterialRenderProxy);
 }
 
 void FKTaperedCapsuleElem::DrawElemWire(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, const FVector& Scale3D, const FColor Color) const
@@ -627,7 +667,7 @@ void FKTaperedCapsuleElem::GetElemSolid(const FTransform& ElemTM, const FVector&
 void FKTaperedCapsuleElem::DrawElemSolid(FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, const FVector& Scale3D, const FMaterialRenderProxy* MaterialRenderProxy) const
 {
 	FScopedTaperedCapsuleBuilder TaperedCapsuleBuilder(*this, Scale3D, PDI->View->GetFeatureLevel());
-	TaperedCapsuleBuilder.MeshBuilder.Draw(PDI, ElemTM.ToMatrixWithScale(), MaterialRenderProxy, SDPG_World, 0.f);
+	TaperedCapsuleBuilder.MeshBuilder.Draw(PDI, ElemTM.ToMatrixWithScale(), MaterialRenderProxy, SDPG_World);
 }
 
 
@@ -752,7 +792,7 @@ void FKConvexElem::DrawElemSolid(FPrimitiveDrawInterface* PDI, const FTransform&
 			}
 			MeshBuilder.AddTriangle(IndexData[Base], IndexData[Base + 1], IndexData[Base + 2]);
 		}
-		MeshBuilder.Draw(PDI, FMatrix::Identity, MaterialRenderProxy, SDPG_World, 0.f);
+		MeshBuilder.Draw(PDI, FMatrix::Identity, MaterialRenderProxy, SDPG_World);
 	}
 	else
 	{
@@ -953,7 +993,7 @@ void FKAggregateGeom::GetAggGeom(const FTransform& Transform, const FColor Color
 			// Cache collision vertex/index buffer
 			if(!RenderInfo)
 			{
-				//@todo - parallelrendering, remove const cast
+				//@todo - parallel rendering, remove const cast
 				FKAggregateGeom& ThisGeom = const_cast<FKAggregateGeom&>(*this);
 				ThisGeom.RenderInfo = new FKConvexGeomRenderInfo();
 				ThisGeom.RenderInfo->VertexBuffers = new FStaticMeshVertexBuffers();

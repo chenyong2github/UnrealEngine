@@ -94,6 +94,7 @@ FPhysicsAssetEditorMode::FPhysicsAssetEditorMode(TSharedRef<FWorkflowCentricAppl
 					{
 						InSubMenuBuilder.AddMenuEntry(Commands.CollisionRenderingMode_Solid);
 						InSubMenuBuilder.AddMenuEntry(Commands.CollisionRenderingMode_Wireframe);
+						InSubMenuBuilder.AddMenuEntry(Commands.CollisionRenderingMode_SolidWireframe);
 						InSubMenuBuilder.AddMenuEntry(Commands.CollisionRenderingMode_None);
 					}
 					InSubMenuBuilder.EndSection();
@@ -102,6 +103,7 @@ FPhysicsAssetEditorMode::FPhysicsAssetEditorMode(TSharedRef<FWorkflowCentricAppl
 					{
 						InSubMenuBuilder.AddMenuEntry(Commands.CollisionRenderingMode_Simulation_Solid);
 						InSubMenuBuilder.AddMenuEntry(Commands.CollisionRenderingMode_Simulation_Wireframe);
+						InSubMenuBuilder.AddMenuEntry(Commands.CollisionRenderingMode_Simulation_SolidWireframe);
 						InSubMenuBuilder.AddMenuEntry(Commands.CollisionRenderingMode_Simulation_None);
 					}
 					InSubMenuBuilder.EndSection();

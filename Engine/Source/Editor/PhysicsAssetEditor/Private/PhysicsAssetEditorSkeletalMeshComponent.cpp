@@ -50,10 +50,6 @@ UPhysicsAssetEditorSkeletalMeshComponent::UPhysicsAssetEditorSkeletalMeshCompone
 		ElemSelectedMaterial = UMaterialInstanceDynamic::Create(BaseElemSelectedMaterial, GetTransientPackage());
 		check(ElemSelectedMaterial);
 
-		UMaterialInterface* BaseBoneSelectedMaterial = LoadObject<UMaterialInterface>(NULL, TEXT("/Engine/EditorMaterials/PhAT_BoneSelectedMaterial.PhAT_BoneSelectedMaterial"), NULL, LOAD_None, NULL);
-		BoneSelectedMaterial = UMaterialInstanceDynamic::Create(BaseBoneSelectedMaterial, GetTransientPackage());
-		check(BoneSelectedMaterial);
-
 		BoneMaterialHit = UMaterial::GetDefaultMaterial(MD_Surface);
 		check(BoneMaterialHit);
 
@@ -89,7 +85,7 @@ void UPhysicsAssetEditorSkeletalMeshComponent::RenderAssetTools(const FSceneView
 		return;
 	}
 
-	EPhysicsAssetEditorRenderMode CollisionViewMode = SharedData->GetCurrentCollisionViewMode(SharedData->bRunningSimulation);
+	EPhysicsAssetEditorCollisionViewMode CollisionViewMode = SharedData->GetCurrentCollisionViewMode(SharedData->bRunningSimulation);
 
 	if (bDebugViewportClicks)
 	{
@@ -102,7 +98,6 @@ void UPhysicsAssetEditorSkeletalMeshComponent::RenderAssetTools(const FSceneView
 	// set opacity of our materials
 	static FName OpacityName(TEXT("Opacity"));
 	ElemSelectedMaterial->SetScalarParameterValue(OpacityName, SharedData->EditorOptions->CollisionOpacity);
-	BoneSelectedMaterial->SetScalarParameterValue(OpacityName, SharedData->EditorOptions->CollisionOpacity);
 	BoneUnselectedMaterial->SetScalarParameterValue(OpacityName, SharedData->EditorOptions->bSolidRenderingForSelectedOnly ? 0.0f : SharedData->EditorOptions->CollisionOpacity);
 	BoneNoCollisionMaterial->SetScalarParameterValue(OpacityName, SharedData->EditorOptions->bSolidRenderingForSelectedOnly ? 0.0f : SharedData->EditorOptions->CollisionOpacity);
 
@@ -111,7 +106,43 @@ void UPhysicsAssetEditorSkeletalMeshComponent::RenderAssetTools(const FSceneView
 	const FLinearColor LinearSelectionColor(SelectionColor.IsColorSpecified() ? SelectionColor.GetSpecifiedColor() : FLinearColor::White);
 
 	ElemSelectedMaterial->SetVectorParameterValue(SelectionColorName, LinearSelectionColor);
-	BoneSelectedMaterial->SetVectorParameterValue(SelectionColorName, LinearSelectionColor);
+
+	// Contains info needed for drawing, in a form that can be sorted by distance.
+	struct DrawElement
+	{
+		DrawElement(
+			FTransform        InTM, 
+			HHitProxy*        InHitProxy, 
+			float             InScale, 
+			const FSceneView* InView,
+			FKShapeElem*      InShapeElem,
+			const FName&      InBoneName
+		)
+			: TM(InTM), HitProxy(InHitProxy), Scale(InScale), ShapeElem(InShapeElem) 
+#ifdef UE_BUILD_DEBUG
+			, BoneName(InBoneName)
+#endif
+		{
+			// The TM position is at the center of the objects, so can be used directly for sorting.
+			// Sorting by distance (rather than along the view direction) reduces flickering when
+			// the camera is rotated without moving it.
+			FVector ViewDir = InView->GetViewDirection();
+			//Distance = TM.GetTranslation() | ViewDir; // Would sort along the view direction
+			SortingMetric = (TM.GetTranslation() - InView->ViewLocation).SquaredLength(); // Sorts by Distance
+		}
+
+		UMaterialInterface*   Material = 0;
+		FColor                Color = FColor(ForceInitToZero);
+		FTransform            TM;
+		HHitProxy*            HitProxy = nullptr;
+		float                 Scale;
+		FKShapeElem*          ShapeElem = nullptr;
+		float                 SortingMetric;
+#ifdef UE_BUILD_DEBUG
+		FName                 BoneName;
+#endif
+	};
+	TArray<DrawElement> DrawElements;
 
 	// Draw bodies
 	for (int32 i = 0; i <PhysicsAsset->SkeletalBodySetups.Num(); ++i)
@@ -140,119 +171,147 @@ void UPhysicsAssetEditorSkeletalMeshComponent::RenderAssetTools(const FSceneView
 		{
 			FTransform BoneTM = GetBoneTransform(BoneIndex);
 			float Scale = BoneTM.GetScale3D().GetAbsMax();
-			FVector VectorScale(Scale);
 			BoneTM.RemoveScaling();
 
 			FKAggregateGeom* AggGeom = &PhysicsAsset->SkeletalBodySetups[i]->AggGeom;
 
 			for (int32 j = 0; j <AggGeom->SphereElems.Num(); ++j)
 			{
-				PDI->SetHitProxy(new HPhysicsAssetEditorEdBoneProxy(i, EAggCollisionShape::Sphere, j));
-
-				FTransform ElemTM = GetPrimitiveTransform(BoneTM, i, EAggCollisionShape::Sphere, j, Scale);
-
+				DrawElement DE(
+					GetPrimitiveTransform(BoneTM, i, EAggCollisionShape::Sphere, j, Scale), 
+					new HPhysicsAssetEditorEdBoneProxy(i, EAggCollisionShape::Sphere, j),
+					Scale, View, &AggGeom->SphereElems[j], GetBoneName(BoneIndex)
+				);
 
 				//solids are drawn if it's the ViewMode and we're not doing a hit, or if it's hitAndBodyMode
-				if (CollisionViewMode == EPhysicsAssetEditorRenderMode::Solid)
+				if (CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::Solid || CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::SolidWireframe)
 				{
-					UMaterialInterface*	PrimMaterial = GetPrimitiveMaterial(i, EAggCollisionShape::Sphere, j);
-					AggGeom->SphereElems[j].DrawElemSolid(PDI, ElemTM, VectorScale, PrimMaterial->GetRenderProxy());
+					DE.Material = GetPrimitiveMaterial(i, EAggCollisionShape::Sphere, j);
 				}
-
-				if (CollisionViewMode == EPhysicsAssetEditorRenderMode::Solid || CollisionViewMode == EPhysicsAssetEditorRenderMode::Wireframe)
+				if (CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::SolidWireframe || CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::Wireframe)
 				{
-					AggGeom->SphereElems[j].DrawElemWire(PDI, ElemTM, VectorScale, GetPrimitiveColor(i, EAggCollisionShape::Sphere, j));
+					DE.Color = GetPrimitiveColor(i, EAggCollisionShape::Sphere, j);
 				}
-
-				PDI->SetHitProxy(NULL);
+				if (DE.Material || DE.Color.A)
+				{
+					DrawElements.Add(DE);
+				}
 			}
 
 			for (int32 j = 0; j <AggGeom->BoxElems.Num(); ++j)
 			{
-				PDI->SetHitProxy(new HPhysicsAssetEditorEdBoneProxy(i, EAggCollisionShape::Box, j));
+				DrawElement DE(
+					GetPrimitiveTransform(BoneTM, i, EAggCollisionShape::Box, j, Scale),
+					new HPhysicsAssetEditorEdBoneProxy(i, EAggCollisionShape::Box, j),
+					Scale, View, &AggGeom->BoxElems[j], GetBoneName(BoneIndex)
+				);
 
-				FTransform ElemTM = GetPrimitiveTransform(BoneTM, i, EAggCollisionShape::Box, j, Scale);
-
-				if (CollisionViewMode == EPhysicsAssetEditorRenderMode::Solid)
+				if (CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::Solid || CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::SolidWireframe)
 				{
-					UMaterialInterface*	PrimMaterial = GetPrimitiveMaterial(i, EAggCollisionShape::Box, j);
-					AggGeom->BoxElems[j].DrawElemSolid(PDI, ElemTM, VectorScale, PrimMaterial->GetRenderProxy());
+					DE.Material = GetPrimitiveMaterial(i, EAggCollisionShape::Box, j);
 				}
-
-				if (CollisionViewMode == EPhysicsAssetEditorRenderMode::Solid || CollisionViewMode == EPhysicsAssetEditorRenderMode::Wireframe)
+				if (CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::SolidWireframe || CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::Wireframe)
 				{
-					AggGeom->BoxElems[j].DrawElemWire(PDI, ElemTM, VectorScale, GetPrimitiveColor(i, EAggCollisionShape::Box, j));
+					DE.Color = GetPrimitiveColor(i, EAggCollisionShape::Box, j);
 				}
-
-				PDI->SetHitProxy(NULL);
+				if (DE.Material || DE.Color.A)
+				{
+					DrawElements.Add(DE);
+				}
 			}
 
 			for (int32 j = 0; j <AggGeom->SphylElems.Num(); ++j)
 			{
-				PDI->SetHitProxy(new HPhysicsAssetEditorEdBoneProxy(i, EAggCollisionShape::Sphyl, j));
+				DrawElement DE(
+					GetPrimitiveTransform(BoneTM, i, EAggCollisionShape::Sphyl, j, Scale),
+					new HPhysicsAssetEditorEdBoneProxy(i, EAggCollisionShape::Sphyl, j),
+					Scale, View, &AggGeom->SphylElems[j], GetBoneName(BoneIndex)
+				);
 
-				FTransform ElemTM = GetPrimitiveTransform(BoneTM, i, EAggCollisionShape::Sphyl, j, Scale);
-
-				if (CollisionViewMode == EPhysicsAssetEditorRenderMode::Solid)
+				if (CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::Solid || CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::SolidWireframe)
 				{
-					UMaterialInterface*	PrimMaterial = GetPrimitiveMaterial(i, EAggCollisionShape::Sphyl, j);
-					AggGeom->SphylElems[j].DrawElemSolid(PDI, ElemTM, VectorScale, PrimMaterial->GetRenderProxy());
+					DE.Material = GetPrimitiveMaterial(i, EAggCollisionShape::Sphyl, j);
 				}
-
-				if (CollisionViewMode == EPhysicsAssetEditorRenderMode::Solid || CollisionViewMode == EPhysicsAssetEditorRenderMode::Wireframe)
+				if (CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::SolidWireframe || CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::Wireframe)
 				{
-					AggGeom->SphylElems[j].DrawElemWire(PDI, ElemTM, VectorScale, GetPrimitiveColor(i, EAggCollisionShape::Sphyl, j));
+					DE.Color = GetPrimitiveColor(i, EAggCollisionShape::Sphyl, j);
 				}
-
-				PDI->SetHitProxy(NULL);
+				if (DE.Material || DE.Color.A)
+				{
+					DrawElements.Add(DE);
+				}
 			}
 
 			for (int32 j = 0; j <AggGeom->ConvexElems.Num(); ++j)
 			{
-				PDI->SetHitProxy(new HPhysicsAssetEditorEdBoneProxy(i, EAggCollisionShape::Convex, j));
+				DrawElement DE(
+					GetPrimitiveTransform(BoneTM, i, EAggCollisionShape::Convex, j, Scale),
+					new HPhysicsAssetEditorEdBoneProxy(i, EAggCollisionShape::Convex, j),
+					Scale, View, &AggGeom->ConvexElems[j], GetBoneName(BoneIndex)
+				);
 
-				FTransform ElemTM = GetPrimitiveTransform(BoneTM, i, EAggCollisionShape::Convex, j, Scale);
-
-				if (CollisionViewMode == EPhysicsAssetEditorRenderMode::Solid)
+				if (CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::Solid || CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::SolidWireframe)
 				{
-					UMaterialInterface* PrimMaterial = GetPrimitiveMaterial(i, EAggCollisionShape::Sphyl, j);
-					AggGeom->ConvexElems[j].DrawElemSolid(PDI, ElemTM, Scale, PrimMaterial->GetRenderProxy());
+					DE.Material = GetPrimitiveMaterial(i, EAggCollisionShape::Convex, j);
 				}
-
-				if (CollisionViewMode == EPhysicsAssetEditorRenderMode::Solid || CollisionViewMode == EPhysicsAssetEditorRenderMode::Wireframe)
+				if (CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::SolidWireframe || CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::Wireframe)
 				{
-					AggGeom->ConvexElems[j].DrawElemWire(PDI, ElemTM, Scale, GetPrimitiveColor(i, EAggCollisionShape::Convex, j));
+					DE.Color = GetPrimitiveColor(i, EAggCollisionShape::Convex, j);
 				}
-
-				PDI->SetHitProxy(NULL);
+				if (DE.Material || DE.Color.A)
+				{
+					DrawElements.Add(DE);
+				}
 			}
 
 			for (int32 j = 0; j <AggGeom->TaperedCapsuleElems.Num(); ++j)
 			{
-				PDI->SetHitProxy(new HPhysicsAssetEditorEdBoneProxy(i, EAggCollisionShape::TaperedCapsule, j));
+				DrawElement DE(
+					GetPrimitiveTransform(BoneTM, i, EAggCollisionShape::TaperedCapsule, j, Scale),
+					new HPhysicsAssetEditorEdBoneProxy(i, EAggCollisionShape::TaperedCapsule, j),
+					Scale, View, &AggGeom->TaperedCapsuleElems[j], GetBoneName(BoneIndex)
+				);
 
-				FTransform ElemTM = GetPrimitiveTransform(BoneTM, i, EAggCollisionShape::TaperedCapsule, j, Scale);
-
-				if (CollisionViewMode == EPhysicsAssetEditorRenderMode::Solid)
+				if (CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::Solid || CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::SolidWireframe)
 				{
-					UMaterialInterface*	PrimMaterial = GetPrimitiveMaterial(i, EAggCollisionShape::TaperedCapsule, j);
-					AggGeom->TaperedCapsuleElems[j].DrawElemSolid(PDI, ElemTM, VectorScale, PrimMaterial->GetRenderProxy());
+					DE.Material = GetPrimitiveMaterial(i, EAggCollisionShape::TaperedCapsule, j);
 				}
-
-				if (CollisionViewMode == EPhysicsAssetEditorRenderMode::Solid || CollisionViewMode == EPhysicsAssetEditorRenderMode::Wireframe)
+				if (CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::SolidWireframe || CollisionViewMode == EPhysicsAssetEditorCollisionViewMode::Wireframe)
 				{
-					AggGeom->TaperedCapsuleElems[j].DrawElemWire(PDI, ElemTM, VectorScale, GetPrimitiveColor(i, EAggCollisionShape::TaperedCapsule, j));
+					DE.Color = GetPrimitiveColor(i, EAggCollisionShape::TaperedCapsule, j);
 				}
-					
-				PDI->SetHitProxy(NULL);
+				if (DE.Material || DE.Color.A)
+				{
+					DrawElements.Add(DE);
+				}
 			}
 
 			if (SharedData->bShowCOM && Bodies.IsValidIndex(i))
 			{
 				Bodies[i]->DrawCOMPosition(PDI, COMRenderSize, SharedData->COMRenderColor);
 			}
-
 		}
+	}
+
+	// Sort elements
+	DrawElements.Sort([this](const DrawElement& DE1, const DrawElement& DE2) {
+		return DE1.SortingMetric > DE2.SortingMetric; 
+		});
+
+
+	// Render sorted elements.
+	for (const DrawElement& DE : DrawElements)
+	{
+		PDI->SetHitProxy(DE.HitProxy);
+		if (DE.Material)
+		{
+			DE.ShapeElem->DrawElemSolid(PDI, DE.TM, DE.Scale, DE.Material->GetRenderProxy());
+		}
+		if (DE.Color.A)
+		{
+			DE.ShapeElem->DrawElemWire(PDI, DE.TM, DE.Scale, DE.Color);
+		}
+		PDI->SetHitProxy(NULL);
 	}
 
 	// Draw Constraints
@@ -288,8 +347,8 @@ void UPhysicsAssetEditorSkeletalMeshComponent::DebugDraw(const FSceneView* View,
 FPrimitiveSceneProxy* UPhysicsAssetEditorSkeletalMeshComponent::CreateSceneProxy()
 {
 	FPrimitiveSceneProxy* Proxy = NULL;
-	EPhysicsAssetEditorRenderMode MeshViewMode = SharedData->GetCurrentMeshViewMode(SharedData->bRunningSimulation);
-	if (MeshViewMode != EPhysicsAssetEditorRenderMode::None)
+	EPhysicsAssetEditorMeshViewMode MeshViewMode = SharedData->GetCurrentMeshViewMode(SharedData->bRunningSimulation);
+	if (MeshViewMode != EPhysicsAssetEditorMeshViewMode::None)
 	{
 		Proxy = UDebugSkelMeshComponent::CreateSceneProxy();
 	}
@@ -476,7 +535,7 @@ UMaterialInterface* UPhysicsAssetEditorSkeletalMeshComponent::GetPrimitiveMateri
 
 	FPhysicsAssetEditorSharedData::FSelection Body(BodyIndex, PrimitiveType, PrimitiveIndex);
 
-	for (int32 i = 0; i< SharedData->SelectedBodies.Num(); ++i)
+	for (int32 i = 0; i < SharedData->SelectedBodies.Num(); ++i)
 	{
 		if (Body == SharedData->SelectedBodies[i] && !SharedData->bRunningSimulation)
 		{
@@ -484,7 +543,7 @@ UMaterialInterface* UPhysicsAssetEditorSkeletalMeshComponent::GetPrimitiveMateri
 		}
 	}
 
-	if(PrimitiveType == EAggCollisionShape::TaperedCapsule)
+	if (PrimitiveType == EAggCollisionShape::TaperedCapsule)
 	{
 		return BoneNoCollisionMaterial;
 	}
@@ -498,7 +557,6 @@ UMaterialInterface* UPhysicsAssetEditorSkeletalMeshComponent::GetPrimitiveMateri
 	{
 		return BoneUnselectedMaterial;
 	}
-
 }
 
 void UPhysicsAssetEditorSkeletalMeshComponent::RefreshBoneTransforms(FActorComponentTickFunction* TickFunction)

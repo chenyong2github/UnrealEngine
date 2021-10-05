@@ -227,10 +227,10 @@ private:
 	bool IsFullSimulation() const;
 	bool IsSelectedSimulation() const;
 	bool IsToggleSimulation() const;
-	void OnMeshRenderingMode(EPhysicsAssetEditorRenderMode Mode, bool bSimulation);
-	bool IsMeshRenderingMode(EPhysicsAssetEditorRenderMode Mode, bool bSimulation) const;
-	void OnCollisionRenderingMode(EPhysicsAssetEditorRenderMode Mode, bool bSimulation);
-	bool IsCollisionRenderingMode(EPhysicsAssetEditorRenderMode Mode, bool bSimulation) const;
+	void OnMeshRenderingMode(EPhysicsAssetEditorMeshViewMode Mode, bool bSimulation);
+	bool IsMeshRenderingMode(EPhysicsAssetEditorMeshViewMode Mode, bool bSimulation) const;
+	void OnCollisionRenderingMode(EPhysicsAssetEditorCollisionViewMode Mode, bool bSimulation);
+	bool IsCollisionRenderingMode(EPhysicsAssetEditorCollisionViewMode Mode, bool bSimulation) const;
 	void OnConstraintRenderingMode(EPhysicsAssetEditorConstraintViewMode Mode, bool bSimulation);
 	bool IsConstraintRenderingMode(EPhysicsAssetEditorConstraintViewMode Mode, bool bSimulation) const;
 	void ToggleDrawConstraintsAsPoints();

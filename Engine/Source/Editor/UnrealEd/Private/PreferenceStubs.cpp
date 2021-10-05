@@ -43,11 +43,11 @@ UPhysicsAssetEditorOptions::UPhysicsAssetEditorOptions(const FObjectInitializer&
 	ConstraintDrawSize = 1.0f;
 
 	// view options
-	MeshViewMode = EPhysicsAssetEditorRenderMode::Solid;
-	CollisionViewMode = EPhysicsAssetEditorRenderMode::Solid;
+	MeshViewMode = EPhysicsAssetEditorMeshViewMode::Solid;
+	CollisionViewMode = EPhysicsAssetEditorCollisionViewMode::Solid;
 	ConstraintViewMode = EPhysicsAssetEditorConstraintViewMode::AllLimits;
-	SimulationMeshViewMode = EPhysicsAssetEditorRenderMode::Solid;
-	SimulationCollisionViewMode = EPhysicsAssetEditorRenderMode::Solid;
+	SimulationMeshViewMode = EPhysicsAssetEditorMeshViewMode::Solid;
+	SimulationCollisionViewMode = EPhysicsAssetEditorCollisionViewMode::Solid;
 	SimulationConstraintViewMode = EPhysicsAssetEditorConstraintViewMode::None;
 
 	CollisionOpacity = 0.3f;
