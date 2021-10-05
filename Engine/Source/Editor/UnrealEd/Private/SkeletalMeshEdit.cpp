@@ -725,21 +725,21 @@ int32 GetAnimationCurveRate(FbxAnimCurve* CurrentCurve)
 			//    least common multiplier to get a sample rate that go through all keys.
 
 			SampleRate = 1;
-			float OldKeyTime = 0.0f;
+			double OldKeyTime = 0.0f;
 			TSet<int32> DeltaComputed;
 			//Reserve some space
 			DeltaComputed.Reserve(30);
-			const float KeyMultiplier = (1.0f / KINDA_SMALL_NUMBER);
+			const double KeyMultiplier = (1.0f / KINDA_SMALL_NUMBER);
 			//Find also the smallest delta time between keys
 			for (int32 KeyIndex = 0; KeyIndex < KeyCount; ++KeyIndex)
 			{
-				float KeyTime = (float)(CurrentCurve->KeyGet(KeyIndex).GetTime().GetSecondDouble());
+				double KeyTime = (CurrentCurve->KeyGet(KeyIndex).GetTime().GetSecondDouble());
 				//Collect the smallest delta time, there is no delta in case the first animation key time is negative
-				float Delta = (KeyTime < 0 && KeyIndex == 0) ? 0.0f : KeyTime - OldKeyTime;
+				double Delta = (KeyTime < 0 && KeyIndex == 0) ? 0.0 : KeyTime - OldKeyTime;
 				//use the fractional part of the delta to have the delta between 0.0f and 1.0f
 				Delta = FPlatformMath::Fractional(Delta);
 				int32 DeltaKey = FPlatformMath::RoundToInt(Delta*KeyMultiplier);
-				if (!FMath::IsNearlyZero(Delta, KINDA_SMALL_NUMBER) && !DeltaComputed.Contains(DeltaKey))
+				if (!FMath::IsNearlyZero((float)Delta, KINDA_SMALL_NUMBER) && !DeltaComputed.Contains(DeltaKey))
 				{
 					int32 ComputeSampleRate = GetTimeSampleRate(Delta);
 					DeltaComputed.Add(DeltaKey);
