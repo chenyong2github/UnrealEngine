@@ -358,7 +358,7 @@ bool FPolygroupsGenerator::FindPolygroupsFromFurthestPointSampling(
 	}
 
 
-	for (int32 k = 0; k < NumPoints; ++k)
+	for (int32 k = 0; k < TriSets.Num(); ++k)
 	{
 		if (TriSets[k].Num() > 0)
 		{
