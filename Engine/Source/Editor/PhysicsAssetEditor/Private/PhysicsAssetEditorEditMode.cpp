@@ -31,7 +31,6 @@ FPhysicsAssetEditorEditMode::FPhysicsAssetEditorEditMode()
 	, PhysicsAssetEditor_TranslateSpeed(0.25f)
 	, PhysicsAssetEditor_RotateSpeed(1.0f * (PI / 180.0f))
 	, PhysicsAssetEditor_LightRotSpeed(0.22f)
-	, SimGrabCheckDistance(500.0f)
 	, SimHoldDistanceChangeDelta(20.0f)
 	, SimMinHoldDistance(10.0f)
 	, SimGrabMoveSpeed(1.0f)
@@ -503,13 +502,13 @@ void FPhysicsAssetEditorEditMode::Tick(FEditorViewportClient* ViewportClient, fl
 
 void FPhysicsAssetEditorEditMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
-	EPhysicsAssetEditorRenderMode MeshViewMode = SharedData->GetCurrentMeshViewMode(SharedData->bRunningSimulation);
+	EPhysicsAssetEditorMeshViewMode MeshViewMode = SharedData->GetCurrentMeshViewMode(SharedData->bRunningSimulation);
 
-	if (MeshViewMode != EPhysicsAssetEditorRenderMode::None)
+	if (MeshViewMode != EPhysicsAssetEditorMeshViewMode::None)
 	{
 		SharedData->EditorSkelComp->SetVisibility(true);
 
-		if (MeshViewMode == EPhysicsAssetEditorRenderMode::Wireframe)
+		if (MeshViewMode == EPhysicsAssetEditorMeshViewMode::Wireframe)
 		{
 			SharedData->EditorSkelComp->SetForceWireframe(true);
 		}
@@ -829,7 +828,7 @@ bool FPhysicsAssetEditorEditMode::SimMousePress(FEditorViewportClient* InViewpor
 
 	const FViewportClick Click(View, InViewportClient, EKeys::Invalid, IE_Released, Viewport->GetMouseX(), Viewport->GetMouseY());
 	FHitResult Result(1.f);
-	bool bHit = SharedData->EditorSkelComp->LineTraceComponent(Result, Click.GetOrigin(), Click.GetOrigin() + Click.GetDirection() * SimGrabCheckDistance, FCollisionQueryParams(NAME_None, true));
+	bool bHit = SharedData->EditorSkelComp->LineTraceComponent(Result, Click.GetOrigin(), Click.GetOrigin() + Click.GetDirection() * SharedData->EditorOptions->InteractionDistance, FCollisionQueryParams(NAME_None, true));
 
 	SharedData->LastClickPos = Click.GetClickPos();
 	SharedData->LastClickOrigin = Click.GetOrigin();
@@ -870,7 +869,7 @@ bool FPhysicsAssetEditorEditMode::SimMousePress(FEditorViewportClient* InViewpor
 
 				FMatrix	InvViewMatrix = View->ViewMatrices.GetInvViewMatrix();
 
-				SimGrabMinPush = SimMinHoldDistance - (Result.Time * SimGrabCheckDistance);
+				SimGrabMinPush = SimMinHoldDistance - (Result.Time * SharedData->EditorOptions->InteractionDistance);
 
 				SimGrabLocation = Result.Location;
 				SimGrabX = InvViewMatrix.GetUnitAxis(EAxis::X);

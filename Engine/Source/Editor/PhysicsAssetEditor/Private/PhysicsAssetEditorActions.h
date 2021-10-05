@@ -38,6 +38,7 @@ public:
 	TSharedPtr<FUICommandInfo> MeshRenderingMode_None;
 	TSharedPtr<FUICommandInfo> CollisionRenderingMode_Solid;
 	TSharedPtr<FUICommandInfo> CollisionRenderingMode_Wireframe;
+	TSharedPtr<FUICommandInfo> CollisionRenderingMode_SolidWireframe;
 	TSharedPtr<FUICommandInfo> CollisionRenderingMode_None;
 	TSharedPtr<FUICommandInfo> ConstraintRenderingMode_None;
 	TSharedPtr<FUICommandInfo> ConstraintRenderingMode_AllPositions;
@@ -47,6 +48,7 @@ public:
 	TSharedPtr<FUICommandInfo> MeshRenderingMode_Simulation_None;
 	TSharedPtr<FUICommandInfo> CollisionRenderingMode_Simulation_Solid;
 	TSharedPtr<FUICommandInfo> CollisionRenderingMode_Simulation_Wireframe;
+	TSharedPtr<FUICommandInfo> CollisionRenderingMode_Simulation_SolidWireframe;
 	TSharedPtr<FUICommandInfo> CollisionRenderingMode_Simulation_None;
 	TSharedPtr<FUICommandInfo> ConstraintRenderingMode_Simulation_None;
 	TSharedPtr<FUICommandInfo> ConstraintRenderingMode_Simulation_AllPositions;

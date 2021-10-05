@@ -104,6 +104,9 @@ struct FKShapeElem
 	/** Get whether this shape should be considered for query or sim collision */
 	ENGINE_API ECollisionEnabled::Type GetCollisionEnabled() const { return CollisionEnabled; }
 
+	ENGINE_API virtual void DrawElemWire(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, const float Scale, const FColor Color) const {}
+	ENGINE_API virtual void DrawElemSolid(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, const float Scale, const class FMaterialRenderProxy* MaterialRenderProxy) const {}
+
 	/** Offset used when generating contact points. This allows you to smooth out
 		the Minkowski sum by radius R. Useful for making objects slide smoothly
 		on top of irregularities  */

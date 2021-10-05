@@ -88,7 +88,6 @@ private:
 	const float PhysicsAssetEditor_TranslateSpeed;
 	const float PhysicsAssetEditor_RotateSpeed;
 	const float PhysicsAssetEditor_LightRotSpeed;
-	const float	SimGrabCheckDistance;
 	const float	SimHoldDistanceChangeDelta;
 	const float	SimMinHoldDistance;
 	const float SimGrabMoveSpeed;

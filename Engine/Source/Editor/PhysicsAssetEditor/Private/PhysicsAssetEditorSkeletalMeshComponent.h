@@ -38,17 +38,15 @@ class UPhysicsAssetEditorSkeletalMeshComponent : public UDebugSkelMeshComponent
 	UPROPERTY(transient)
 	TObjectPtr<UMaterialInstanceDynamic> ElemSelectedMaterial;
 	UPROPERTY(transient)
-	TObjectPtr<UMaterialInstanceDynamic> BoneSelectedMaterial;
-	UPROPERTY(transient)
 	TObjectPtr<UMaterialInstanceDynamic> BoneUnselectedMaterial;
-	UPROPERTY(transient)
-	TObjectPtr<UMaterialInterface> BoneMaterialHit;
 	UPROPERTY(transient)
 	TObjectPtr<UMaterialInstanceDynamic> BoneNoCollisionMaterial;
 
+	UPROPERTY(transient)
+	TObjectPtr<UMaterialInterface> BoneMaterialHit;
+
 	/** Mesh-space matrices showing state of just animation (ie before physics) - useful for debugging! */
 	TArray<FTransform> AnimationSpaceBases;
-
 
 	/** UPrimitiveComponent interface */
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
