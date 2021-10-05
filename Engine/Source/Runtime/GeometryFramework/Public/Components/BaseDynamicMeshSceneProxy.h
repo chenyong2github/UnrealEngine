@@ -1095,7 +1095,7 @@ public:
 			{
 				continue;
 			}
-			if (ensure(BufferSet->bIsRayTracingDataValid) == false)
+			if (BufferSet->bIsRayTracingDataValid == false)
 			{
 				continue;
 			}
