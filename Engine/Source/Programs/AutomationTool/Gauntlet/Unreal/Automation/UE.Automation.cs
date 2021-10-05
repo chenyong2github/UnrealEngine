@@ -19,10 +19,26 @@ namespace UE
 	public class AutomationTestConfig : UnrealTestConfiguration
 	{
 		/// <summary>
-		/// Run with d3d12 RHI
+		/// Run with specify RHI
 		/// </summary>
 		[AutoParam]
-		public bool D3D12 = false;
+		public string RHI = "";
+		/// <summary>
+		/// Valid RHI names based on Platform
+		/// </summary>
+		private static class ValidRHI
+		{
+			public enum Win64
+			{
+				d3d11,
+				d3d12,
+				vulkan
+			}
+			public enum Linux
+			{
+				vulkan
+			}
+		}
 
 		/// <summary>
 		/// Run with Nvidia cards for raytracing support
@@ -222,9 +238,16 @@ namespace UE
 						AppConfig.CommandLine += " -preferNvidia";
 					}
 
-					if (D3D12)
+					if (!string.IsNullOrEmpty(RHI))
 					{
-						AppConfig.CommandLine += " -d3d12";
+						if (Enum.IsDefined(typeof(ValidRHI.Win64), RHI.ToLower()))
+						{
+							AppConfig.CommandLine += string.Format(" -{0}", RHI);
+						}
+						else
+						{
+							throw new AutomationException(string.Format("Unknown RHI target '{0}' for Win64", RHI));
+						}
 					}
 
 					if (D3DDebug)
@@ -567,6 +590,11 @@ namespace UE
 						if (!string.IsNullOrEmpty(ReportPath))
 						{
 							Report = CreateUnrealEngineTestPassReport(ReportPath, Config.ReportURL);
+							if (Report != null)
+							{
+								var MainRolePlatform = Context.GetRoleContext(Config.GetMainRequiredRole().Type).Platform;
+								Report.SetMetadata("RHI", string.IsNullOrEmpty(Config.RHI) || MainRolePlatform != UnrealTargetPlatform.Win64 ? "default" : Config.RHI.ToLower());
+							}
 						}
 					}
 				}
