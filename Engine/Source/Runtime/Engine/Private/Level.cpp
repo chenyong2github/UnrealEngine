@@ -3089,7 +3089,7 @@ void ULevel::RepairLevelScript()
 	// Catch the edge case where we have a level blueprint but have never created the LevelScriptActor based on it.
 	//    This could happen if a new level is saved before the level blueprint is compiled.
 	if (!LevelScriptActor && LevelScriptBlueprint && !LevelScriptBlueprint->bIsRegeneratingOnLoad &&
-		OwningWorld && OwningWorld->IsEditorWorld())
+		OwningWorld && OwningWorld->IsEditorWorld() && !OwningWorld->IsGameWorld())
 	{
 		RegenerateLevelScriptActor();
 	}
