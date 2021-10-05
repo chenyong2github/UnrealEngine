@@ -78,6 +78,8 @@ public:
 	// Total flattened number of ray tracing geometry instances (a single FRayTracingGeometryInstance may represent many).
 	uint32 NumNativeInstances = 0;
 
+	uint32 NumTotalSegments = 0;
+
 	// Geometries which still have a pending build request but are used this frame and require a force build.
 	TArray<const FRayTracingGeometry*> GeometriesToBuild;
 

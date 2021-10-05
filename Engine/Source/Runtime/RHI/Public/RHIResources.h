@@ -1906,12 +1906,22 @@ public:
 };
 
 /** Bottom level ray tracing acceleration structure (contains triangles). */
-class FRHIRayTracingGeometry : public FRHIRayTracingAccelerationStructure {};
+class FRHIRayTracingGeometry : public FRHIRayTracingAccelerationStructure
+{
+public:
+	virtual uint32 GetNumSegments() const = 0;
+};
 
 typedef TRefCountPtr<FRHIRayTracingGeometry>     FRayTracingGeometryRHIRef;
 
+struct FRayTracingSceneInitializer2;
+
 /** Top level ray tracing acceleration structure (contains instances of meshes). */
-class FRHIRayTracingScene : public FRHIRayTracingAccelerationStructure {};
+class FRHIRayTracingScene : public FRHIRayTracingAccelerationStructure
+{
+public:
+	virtual const FRayTracingSceneInitializer2& GetInitializer() const = 0;
+};
 
 typedef TRefCountPtr<FRHIRayTracingScene>        FRayTracingSceneRHIRef;
 

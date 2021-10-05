@@ -1736,6 +1736,14 @@ public:
 		return Result;
 	}
 
+	virtual FRayTracingSceneRHIRef RHICreateRayTracingScene(FRayTracingSceneInitializer2 Initializer) override final
+	{
+		FName DebugName = Initializer.DebugName;
+		FRayTracingSceneRHIRef Result = RHI->RHICreateRayTracingScene(MoveTemp(Initializer));
+		Result->InitBarrierTracking(ERHIAccess::BVHWrite, *DebugName.ToString()); // BVHs are always created in BVHWrite state
+		return Result;
+	}
+
 	virtual FRayTracingShaderRHIRef RHICreateRayTracingShader(TArrayView<const uint8> Code, const FSHAHash& Hash, EShaderFrequency ShaderFrequency) override final
 	{
 		return RHI->RHICreateRayTracingShader(Code, Hash, ShaderFrequency);

@@ -7,6 +7,7 @@
 #include "RenderCore.h"
 #include "RayTracingDefinitions.h"
 #include "RenderGraphBuilder.h"
+#include "Experimental/Containers/SherwoodHashTable.h"
 
 FRayTracingScene::FRayTracingScene()
 {
@@ -23,17 +24,57 @@ FGraphEventRef FRayTracingScene::BeginCreate(FRDGBuilder& GraphBuilder)
 	WaitForTasks();
 
 	NumNativeInstances = 0;
+	NumTotalSegments = 0;
 
-	for (const FRayTracingGeometryInstance& InstanceDesc : Instances)
+	const uint32 NumSceneInstances = Instances.Num();
+
+	FRayTracingSceneInitializer2 SceneInitializer;
+	SceneInitializer.DebugName = FName(TEXT("FRayTracingScene"));
+	SceneInitializer.ShaderSlotsPerGeometrySegment = RAY_TRACING_NUM_SHADER_SLOTS;
+	SceneInitializer.NumMissShaderSlots = RAY_TRACING_NUM_MISS_SHADER_SLOTS;
+	SceneInitializer.Instances = Instances;
+	SceneInitializer.PerInstanceGeometries.SetNumUninitialized(NumSceneInstances);
+	SceneInitializer.PerInstanceNumTransforms.SetNumUninitialized(NumSceneInstances);
+	SceneInitializer.BaseInstancePrefixSum.SetNumUninitialized(NumSceneInstances);
+	SceneInitializer.SegmentPrefixSum.SetNumUninitialized(NumSceneInstances);
+
+	Experimental::TSherwoodSet<FRHIRayTracingGeometry*> UniqueGeometries;
+
+	// Compute geometry segment and instance count prefix sums.
+	// These are later used by GetHitRecordBaseIndex() during resource binding
+	// and by GetBaseInstanceIndex() in shaders to emulate SV_InstanceIndex.
+
+	for (uint32 InstanceIndex = 0; InstanceIndex < NumSceneInstances; ++InstanceIndex)
 	{
+		const FRayTracingGeometryInstance& InstanceDesc = Instances[InstanceIndex];
+
 		checkf(InstanceDesc.GPUTransformsSRV || InstanceDesc.NumTransforms <= uint32(InstanceDesc.Transforms.Num()),
 			TEXT("Expected at most %d ray tracing geometry instance transforms, but got %d."),
 			InstanceDesc.NumTransforms, InstanceDesc.Transforms.Num());
 
 		checkf(InstanceDesc.GeometryRHI, TEXT("Ray tracing instance must have a valid geometry."));
 
+		SceneInitializer.PerInstanceGeometries[InstanceIndex] = InstanceDesc.GeometryRHI;
+
+		// Compute geometry segment count prefix sum to be later used in GetHitRecordBaseIndex()
+		SceneInitializer.SegmentPrefixSum[InstanceIndex] = NumTotalSegments;
+		NumTotalSegments += InstanceDesc.GeometryRHI->GetNumSegments();
+
+		bool bIsAlreadyInSet = false;
+		UniqueGeometries.Add(InstanceDesc.GeometryRHI, &bIsAlreadyInSet);
+		if (!bIsAlreadyInSet)
+		{
+			SceneInitializer.ReferencedGeometries.Add(InstanceDesc.GeometryRHI);
+		}
+
+		SceneInitializer.BaseInstancePrefixSum[InstanceIndex] = NumNativeInstances;
 		NumNativeInstances += InstanceDesc.NumTransforms;
+
+		SceneInitializer.PerInstanceNumTransforms[InstanceIndex] = InstanceDesc.NumTransforms;
 	}
+
+	SceneInitializer.NumNativeInstances = NumNativeInstances;
+	SceneInitializer.NumTotalSegments = NumTotalSegments;
 
 	// Round up number of instances to some multiple to avoid pathological growth reallocations.
 	static constexpr uint32 AllocationGranularity = 8 * 1024;
@@ -63,17 +104,11 @@ FGraphEventRef FRayTracingScene::BeginCreate(FRDGBuilder& GraphBuilder)
 
 	CreateRayTracingSceneTask = FFunctionGraphTask::CreateAndDispatchWhenReady([
 			&ResultScene = RayTracingSceneRHI,
-			Instances = MakeArrayView(Instances)]()
+			SceneInitializer = MoveTemp(SceneInitializer)]() mutable
 		{
 			FTaskTagScope TaskTagScope(ETaskTag::EParallelRenderingThread);
 
-			FRayTracingSceneInitializer SceneInitializer;
-			SceneInitializer.DebugName = FName(TEXT("FRayTracingScene"));
-			SceneInitializer.Instances = Instances;
-			SceneInitializer.ShaderSlotsPerGeometrySegment = RAY_TRACING_NUM_SHADER_SLOTS;
-			SceneInitializer.NumMissShaderSlots = RAY_TRACING_NUM_MISS_SHADER_SLOTS;
-
-			ResultScene = RHICreateRayTracingScene(SceneInitializer);
+			ResultScene = RHICreateRayTracingScene(MoveTemp(SceneInitializer));
 
 		}, TStatId(), nullptr, ENamedThreads::AnyThread);
 

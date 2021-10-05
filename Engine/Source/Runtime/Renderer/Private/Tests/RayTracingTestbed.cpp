@@ -114,10 +114,6 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 	Instances[0].NumTransforms = NumTransforms;
 	Instances[0].Transforms = MakeArrayView(&FMatrix::Identity, 1);
 
-	FRayTracingSceneInitializer Initializer;
-	Initializer.Instances = Instances;
-	Initializer.ShaderSlotsPerGeometrySegment = RAY_TRACING_NUM_SHADER_SLOTS;
-
 	ERayTracingAccelerationStructureFlags SceneBuildFlags = ERayTracingAccelerationStructureFlags::FastTrace;
 	FRayTracingAccelerationStructureSize SceneSizeInfo = RHICalcRayTracingSceneSize(1, SceneBuildFlags);
 	FRHIResourceCreateInfo SceneBufferCreateInfo(TEXT("RayTracingTestBedSceneBuffer"));
@@ -128,7 +124,23 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
-	FRayTracingSceneRHIRef Scene = RHICreateRayTracingScene(Initializer);
+	FRayTracingSceneRHIRef Scene;
+
+	{
+		FRayTracingSceneInitializer2 Initializer;
+		Initializer.DebugName = FName(TEXT("FRayTracingScene"));
+		Initializer.ShaderSlotsPerGeometrySegment = RAY_TRACING_NUM_SHADER_SLOTS;
+		Initializer.Instances = Instances;
+		Initializer.PerInstanceGeometries.Add(Geometry);
+		Initializer.PerInstanceNumTransforms.Add(NumTransforms);
+		Initializer.BaseInstancePrefixSum.Add(0);
+		Initializer.SegmentPrefixSum.Add(0);
+		Initializer.NumNativeInstances = NumInstances * NumTransforms;
+		Initializer.NumTotalSegments = Geometry->GetNumSegments();
+
+		Scene = RHICreateRayTracingScene(MoveTemp(Initializer));
+	}
+
 	RHICmdList.BindAccelerationStructureMemory(Scene, SceneBuffer, 0);
 
 	RHICmdList.BuildAccelerationStructure(Geometry);
