@@ -30,10 +30,9 @@ struct OrtThreadPoolParams {
   bool set_denormal_as_zero = false;
 
 #ifdef WITH_UE
-  // Unreal Engine thread priority leve;
+  // Unreal Engine thread priority level
   EThreadPriority ThreadPri = EThreadPriority::TPri_Normal;
-#endif
-
+#endif //WITH_UE
 };
 
 struct OrtThreadingOptions {

@@ -3,14 +3,14 @@
 
 #include <core/common/make_unique.h>
 
-#include "ThirdPartyWarningDisabler.h"
+#include "ThirdPartyWarningDisabler.h" // WITH_UE
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
 #ifdef _WIN32
 #include <Windows.h>
 #endif
-NNI_THIRD_PARTY_INCLUDES_END
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
 
 #include <thread>
 #include "core/session/ort_apis.h"
@@ -38,7 +38,7 @@ CreateThreadPoolHelper(Env* env, OrtThreadPoolParams options) {
 
 #ifdef WITH_UE
   to.ThreadPri = options.ThreadPri;
-#endif  
+#endif //WITH_UE
 
   return onnxruntime::make_unique<ThreadPool>(env, to, options.name, options.thread_pool_size,
                                               options.allow_spinning);
@@ -77,14 +77,14 @@ ORT_API(void, ReleaseThreadingOptions, _Frees_ptr_opt_ OrtThreadingOptions* p) {
 
 ORT_API_STATUS_IMPL(SetGlobalIntraOpNumThreads, _Inout_ OrtThreadingOptions* tp_options, int intra_op_num_threads) {
   if (!tp_options) {
-	  return OrtApis::CreateStatus(ORT_INVALID_ARGUMENT, "Received null OrtThreadingOptions");
+    return OrtApis::CreateStatus(ORT_INVALID_ARGUMENT, "Received null OrtThreadingOptions");
   }
   tp_options->intra_op_thread_pool_params.thread_pool_size = intra_op_num_threads;
   return nullptr;
 }
 ORT_API_STATUS_IMPL(SetGlobalInterOpNumThreads, _Inout_ OrtThreadingOptions* tp_options, int inter_op_num_threads) {
   if (!tp_options) {
-	  return OrtApis::CreateStatus(ORT_INVALID_ARGUMENT, "Received null OrtThreadingOptions");
+    return OrtApis::CreateStatus(ORT_INVALID_ARGUMENT, "Received null OrtThreadingOptions");
   }
   tp_options->inter_op_thread_pool_params.thread_pool_size = inter_op_num_threads;
   return nullptr;
@@ -97,13 +97,13 @@ ORT_API_STATUS_IMPL(SetGlobalSpinControl, _Inout_ OrtThreadingOptions* tp_option
   if (!(allow_spinning == 1 || allow_spinning == 0)) {
     return OrtApis::CreateStatus(ORT_INVALID_ARGUMENT, "Received invalid value for allow_spinning. Valid values are 0 or 1");
   }
-  #ifndef WITH_UE
+#ifndef WITH_UE
   tp_options->intra_op_thread_pool_params.allow_spinning = allow_spinning;
   tp_options->inter_op_thread_pool_params.allow_spinning = allow_spinning;
-  #else 
+#else //WITH_UE
   tp_options->intra_op_thread_pool_params.allow_spinning = static_cast<bool>(allow_spinning);
   tp_options->inter_op_thread_pool_params.allow_spinning = static_cast<bool>(allow_spinning);
-  #endif
+#endif //WITH_UE
   return nullptr;
 }
 

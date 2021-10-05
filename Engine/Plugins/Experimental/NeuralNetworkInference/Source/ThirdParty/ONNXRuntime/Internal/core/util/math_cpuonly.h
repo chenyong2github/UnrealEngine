@@ -49,7 +49,7 @@
 #pragma warning(disable : 6255)
 #pragma warning(disable : 6294)
 #endif
-PRAGMA_DEFAULT_VISIBILITY_START
+PRAGMA_DEFAULT_VISIBILITY_START // WITH_UE
 #include "Eigen/Core"
 #include "Eigen/Dense"
 PRAGMA_DEFAULT_VISIBILITY_END

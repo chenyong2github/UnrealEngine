@@ -29,7 +29,7 @@
 #pragma warning(disable : 4805)
 #pragma warning(disable : 6255)
 #endif
-PRAGMA_DEFAULT_VISIBILITY_START
+PRAGMA_DEFAULT_VISIBILITY_START // WITH_UE
 #include "Eigen/src/Core/arch/Default/Half.h"
 PRAGMA_DEFAULT_VISIBILITY_END
 #if defined(__GNUC__)
