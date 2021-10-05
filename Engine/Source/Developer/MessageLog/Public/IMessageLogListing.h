@@ -73,14 +73,14 @@ public:
 	 *
 	 * @returns the selected messages as a string
 	 */
-	virtual FText GetSelectedMessagesAsText() const = 0;
+	virtual FString GetSelectedMessagesAsString() const = 0;
 
 	/** 
 	 * Gets all the unfiltered messages as a single piece of text
 	 *
 	 * @returns all the messages as a string
 	 */
-	virtual FText GetAllMessagesAsText() const = 0;
+	virtual FString GetAllMessagesAsString() const = 0;
 
 	/** 
 	 * Gets the message log listing unique name 

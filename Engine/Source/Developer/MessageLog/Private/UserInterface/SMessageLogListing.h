@@ -60,10 +60,10 @@ public:
 	void InvertSelectedMessages() const;
 
 	/** Compiles the selected messages into a single string. */
-	FText GetSelectedMessagesAsText() const;
+	FString GetSelectedMessagesAsString() const;
 
 	/** Compiles all the messages into a single string. */
-	FText GetAllMessagesAsText() const;
+	FString GetAllMessagesAsString() const;
 
 	/** Gets the message log listing unique name */
 	const FName& GetName() const { return MessageLogListingViewModel->GetName(); }
@@ -86,9 +86,9 @@ public:
 	void CopySelectedToClipboard() const;
 
 	/**
-	 * Copies text (selected/all), optionally to the clipboard
+	 * Copies log output (selected/all), optionally to the clipboard
 	 */
-	FText CopyText( bool bSelected, bool bClipboard ) const;
+	FString CopyLogOutput( bool bSelected, bool bClipboard ) const;
 
 	/** @return	The UICommandList supported by the MessageLogView */
 	const TSharedRef< const FUICommandList > GetCommandList() const;

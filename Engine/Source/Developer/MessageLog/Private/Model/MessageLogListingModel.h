@@ -55,7 +55,7 @@ public:
 	const TSharedPtr<FTokenizedMessage> GetMessageAtIndex( const uint32 PageIndex, const int32 MessageIndex ) const;
 
 	/** Gets all messages as a string */
-	FText GetAllMessagesAsText(const uint32 PageIndex) const;
+	FString GetAllMessagesAsString(const uint32 PageIndex) const;
 
 	/** Obtains a const iterator to the message data structure */
 	MessageContainer::TConstIterator GetMessageIterator(uint32 PageIndex) const;

@@ -273,15 +273,15 @@ void SMessageLogListing::InvertSelectedMessages() const
 }
 
 
-FText SMessageLogListing::GetSelectedMessagesAsText() const
+FString SMessageLogListing::GetSelectedMessagesAsString() const
 {
-	return MessageLogListingViewModel->GetSelectedMessagesAsText();
+	return MessageLogListingViewModel->GetSelectedMessagesAsString();
 }
 
 
-FText SMessageLogListing::GetAllMessagesAsText() const
+FString SMessageLogListing::GetAllMessagesAsString() const
 {
-	return MessageLogListingViewModel->GetAllMessagesAsText();
+	return MessageLogListingViewModel->GetAllMessagesAsString();
 }
 
 
@@ -312,28 +312,28 @@ void SMessageLogListing::OnLineSelectionChanged( TSharedPtr< FTokenizedMessage >
 
 void SMessageLogListing::CopySelectedToClipboard() const
 {
-	CopyText( true, true );
+	CopyLogOutput( true, true );
 }
 
 
-FText SMessageLogListing::CopyText( bool bSelected, bool bClipboard ) const
+FString SMessageLogListing::CopyLogOutput( bool bSelected, bool bClipboard ) const
 {
-	FText CombinedString;
+	FString CombinedString;
 
 	if( bSelected )
 	{
 		// Get the selected item and then get the selected messages as a string.
-		CombinedString = GetSelectedMessagesAsText();
+		CombinedString = GetSelectedMessagesAsString();
 	}
 	else
 	{
 		// Get the selected item and then get all the messages as a string.
-		CombinedString = GetAllMessagesAsText();
+		CombinedString = GetAllMessagesAsString();
 	}
 	if( bClipboard )
 	{
 		// Pass that to the clipboard.
-		FPlatformApplicationMisc::ClipboardCopy( *CombinedString.ToString() );
+		FPlatformApplicationMisc::ClipboardCopy( *CombinedString );
 	}
 
 	return CombinedString;
