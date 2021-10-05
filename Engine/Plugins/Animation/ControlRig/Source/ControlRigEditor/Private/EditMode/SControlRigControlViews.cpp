@@ -531,23 +531,10 @@ FReply SControlRigPoseView::OnPastePose()
 }
 
 FReply SControlRigPoseView::OnSelectControls()
-{
+{	
 	if (PoseAsset.IsValid())
 	{
-		UControlRig* ControlRig = GetControlRig();
-		if (ControlRig == nullptr)
-		{
-			ULevelSequence* LevelSequence = ULevelSequenceEditorBlueprintLibrary::GetCurrentLevelSequence();
-			if (LevelSequence)
-			{
-				TArray<FControlRigSequencerBindingProxy> Proxies = UControlRigSequencerEditorLibrary::GetControlRigs(LevelSequence);
-				if (Proxies.Num() > 0)
-				{
-					//MZ TODO when we have Mutliple Control Rig's active select more than one.
-					ControlRig = Proxies[0].ControlRig;
-				}
-			}
-		}
+		UControlRig* ControlRig = GetFirstControlRigInLevelSequence(GetControlRig());
 		if (ControlRig)
 		{
 			PoseAsset->SelectControls(ControlRig, bIsMirror);
@@ -636,6 +623,24 @@ TSharedRef<SWidget> SControlRigPoseView::GetThumbnailWidget()
 			ItemContentsOverlay
 
 		];
+}
+
+UControlRig* SControlRigPoseView::GetFirstControlRigInLevelSequence(UControlRig* ControlRig)
+{
+	if (ControlRig == nullptr)
+	{
+		ULevelSequence* LevelSequence = ULevelSequenceEditorBlueprintLibrary::GetCurrentLevelSequence();
+		if (LevelSequence)
+		{
+			TArray<FControlRigSequencerBindingProxy> Proxies = UControlRigSequencerEditorLibrary::GetControlRigs(LevelSequence);
+			if (Proxies.Num() > 0)
+			{
+				//MZ TODO when we have Mutliple Control Rig's active select more than one.
+				ControlRig = Proxies[0].ControlRig;
+			}
+		}
+	}
+	return ControlRig;
 }
 
 UControlRig* SControlRigPoseView::GetControlRig()
