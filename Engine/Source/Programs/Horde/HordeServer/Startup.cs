@@ -342,7 +342,7 @@ namespace HordeServer
 			Services.AddSingleton<IDeviceCollection, DeviceCollection>();
 
 			// Storage
-			Services.AddSingleton<IBlobCollection, BlobCollection>();
+			Services.AddSingleton<IBlobCollection>(SP => new CachingBlobCollection(new BlobCollection(SP.GetRequiredService<IStorageBackend<BlobCollection>>()), 256 * 1024 * 1024));
 			Services.AddSingleton<IBucketCollection, BucketCollection>();
 			Services.AddSingleton<INamespaceCollection, NamespaceCollection>();
 			Services.AddSingleton<IObjectCollection, ObjectCollection>();
@@ -666,7 +666,13 @@ namespace HordeServer
 			public Task<Stream?> ReadAsync(string Path) => Inner.ReadAsync(Path);
 
 			/// <inheritdoc/>
+			public Task<ReadOnlyMemory<byte>?> ReadBytesAsync(string Path) => Inner.ReadBytesAsync(Path);
+
+			/// <inheritdoc/>
 			public Task WriteAsync(string Path, Stream Stream) => Inner.WriteAsync(Path, Stream);
+
+			/// <inheritdoc/>
+			public Task WriteBytesAsync(string Path, ReadOnlyMemory<byte> Data) => Inner.WriteBytesAsync(Path, Data);
 
 			/// <inheritdoc/>
 			public Task DeleteAsync(string Path) => Inner.DeleteAsync(Path);

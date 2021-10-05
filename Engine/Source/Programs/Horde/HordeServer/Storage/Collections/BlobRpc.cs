@@ -43,7 +43,7 @@ namespace HordeServer.Storage.Collections
 			NamespaceId NamespaceId = new NamespaceId(Request.NamespaceId);
 			IoHash Hash = new IoHash(Request.Hash.ToByteArray());
 
-			Stream? Stream = await BlobCollection.ReadAsync(NamespaceId, Hash);
+			Stream? Stream = await BlobCollection.TryReadStreamAsync(NamespaceId, Hash);
 			if(Stream == null)
 			{
 				throw new RpcException(new Status(StatusCode.NotFound, "Blob not found"));

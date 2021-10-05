@@ -46,21 +46,21 @@ namespace HordeServer.Storage.Collections
 		{
 			NamespaceId NamespaceId = new NamespaceId(Request.NamespaceId);
 
-			List<Task<byte[]?>> Tasks = new List<Task<byte[]?>>();
+			List<Task<ReadOnlyMemory<byte>?>> Tasks = new List<Task<ReadOnlyMemory<byte>?>>();
 			foreach (IoHash Hash in Request.Blobs)
 			{
-				Tasks.Add(Task.Run(() => BlobCollection.ReadBytesAsync(NamespaceId, Hash)));
+				Tasks.Add(Task.Run(() => BlobCollection.TryReadBytesAsync(NamespaceId, Hash)));
 			}
 
 			GetBlobsResponse Response = new GetBlobsResponse();
 			for (int Idx = 0; Idx < Request.Blobs.Count; Idx++)
 			{
-				byte[]? Data = await Tasks[Idx];
+				ReadOnlyMemory<byte>? Data = await Tasks[Idx];
 
 				GetBlobResponse Blob = new GetBlobResponse();
 				if (Data != null)
 				{
-					Blob.Data = ByteString.CopyFrom(Data);
+					Blob.Data = ByteString.CopyFrom(Data.Value.Span);
 				}
 				Blob.Exists = Data != null;
 				Response.Blobs.Add(Blob);

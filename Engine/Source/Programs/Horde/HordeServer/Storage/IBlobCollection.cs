@@ -32,7 +32,15 @@ namespace HordeServer.Storage
 		/// <param name="NamespaceId">Namespace to operate on</param>
 		/// <param name="Hash">Hash of the blob</param>
 		/// <returns>Stream for the blob, or null if it does not exist</returns>
-		Task<Stream?> ReadAsync(NamespaceId NamespaceId, IoHash Hash);
+		Task<Stream?> TryReadStreamAsync(NamespaceId NamespaceId, IoHash Hash);
+
+		/// <summary>
+		/// Reads a blob as an array of bytes. Throws an exception if the blob is too large.
+		/// </summary>
+		/// <param name="NamespaceId">Namespace to operate on</param>
+		/// <param name="Hash">Hash of the blob</param>
+		/// <returns>Stream for the blob, or null if it does not exist</returns>
+		Task<ReadOnlyMemory<byte>?> TryReadBytesAsync(NamespaceId NamespaceId, IoHash Hash);
 
 		/// <summary>
 		/// Adds an item to storage
@@ -40,7 +48,16 @@ namespace HordeServer.Storage
 		/// <param name="NamespaceId">Namespace to operate on</param>
 		/// <param name="Hash">Hash of the blob</param>
 		/// <param name="Stream">The stream to write</param>
-		Task WriteAsync(NamespaceId NamespaceId, IoHash Hash, Stream Stream);
+		Task WriteStreamAsync(NamespaceId NamespaceId, IoHash Hash, Stream Stream);
+
+		/// <summary>
+		/// Gets a blob as a byte array
+		/// </summary>
+		/// <param name="NamespaceId"></param>
+		/// <param name="Hash">Expected hash of the data</param>
+		/// <param name="Data">The data to be written</param>
+		/// <returns></returns>
+		Task WriteBytesAsync(NamespaceId NamespaceId, IoHash Hash, ReadOnlyMemory<byte> Data);
 
 		/// <summary>
 		/// Determines which of a set of blobs exist
@@ -49,6 +66,26 @@ namespace HordeServer.Storage
 		/// <param name="Hashes"></param>
 		/// <returns></returns>
 		Task<List<IoHash>> ExistsAsync(NamespaceId NamespaceId, IEnumerable<IoHash> Hashes);
+	}
+
+	/// <summary>
+	/// Exception thrown for missing blobs
+	/// </summary>
+	public sealed class BlobNotFoundException : Exception
+	{
+		/// <summary>
+		/// Hash of the missing blob
+		/// </summary>
+		public IoHash Hash { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Hash">Hash of the missing blob</param>
+		public BlobNotFoundException(IoHash Hash) : base($"Unable to find blob {Hash}")
+		{
+			this.Hash = Hash;
+		}
 	}
 
 	/// <summary>
@@ -63,21 +100,14 @@ namespace HordeServer.Storage
 		/// <param name="NamespaceId"></param>
 		/// <param name="Hash"></param>
 		/// <returns></returns>
-		public static async Task<byte[]?> ReadBytesAsync(this IBlobCollection Collection, NamespaceId NamespaceId, IoHash Hash)
+		public static async Task<ReadOnlyMemory<byte>> ReadBytesAsync(this IBlobCollection Collection, NamespaceId NamespaceId, IoHash Hash)
 		{
-			using (MemoryStream OutputStream = new MemoryStream())
+			ReadOnlyMemory<byte>? Result = await Collection.TryReadBytesAsync(NamespaceId, Hash);
+			if (Result == null)
 			{
-				using (Stream? InputStream = await Collection.ReadAsync(NamespaceId, Hash))
-				{
-					if(InputStream == null)
-					{
-						return null;
-					}
-
-					await InputStream.CopyToAsync(OutputStream);
-					return OutputStream.ToArray();
-				}
+				throw new BlobNotFoundException(Hash);
 			}
+			return Result.Value;
 		}
 
 		/// <summary>
@@ -90,24 +120,8 @@ namespace HordeServer.Storage
 		public static async Task<IoHash> WriteBytesAsync(this IBlobCollection Collection, NamespaceId NamespaceId, ReadOnlyMemory<byte> Data)
 		{
 			IoHash Hash = IoHash.Compute(Data.Span);
-			await WriteBytesAsync(Collection, NamespaceId, Hash, Data);
+			await Collection.WriteBytesAsync(NamespaceId, Hash, Data);
 			return Hash;
-		}
-
-		/// <summary>
-		/// Gets a blob as a byte array
-		/// </summary>
-		/// <param name="Collection"></param>
-		/// <param name="NamespaceId"></param>
-		/// <param name="Hash">Expected hash of the data</param>
-		/// <param name="Data">The data to be written</param>
-		/// <returns></returns>
-		public static async Task WriteBytesAsync(this IBlobCollection Collection, NamespaceId NamespaceId, IoHash Hash, ReadOnlyMemory<byte> Data)
-		{
-			using (ReadOnlyMemoryStream Stream = new ReadOnlyMemoryStream(Data))
-			{
-				await Collection.WriteAsync(NamespaceId, Hash, Stream);
-			}
 		}
 
 		/// <summary>

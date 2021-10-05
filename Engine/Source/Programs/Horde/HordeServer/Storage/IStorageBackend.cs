@@ -100,16 +100,18 @@ namespace HordeServer.Storage
 		/// <param name="StorageBackend"></param>
 		/// <param name="Path"></param>
 		/// <returns></returns>
-		public static async Task<ReadOnlyMemory<byte>> ReadBytesAsync(this IStorageBackend StorageBackend, string Path)
+		public static async Task<ReadOnlyMemory<byte>?> ReadBytesAsync(this IStorageBackend StorageBackend, string Path)
 		{
 			using (Stream? InputStream = await StorageBackend.ReadAsync(Path))
 			{
+				if (InputStream == null)
+				{
+					return null;
+				}
+
 				using (MemoryStream OutputStream = new MemoryStream())
 				{
-					if (InputStream != null)
-					{
-						await InputStream.CopyToAsync(OutputStream);
-					}
+					await InputStream.CopyToAsync(OutputStream);
 					return OutputStream.ToArray();
 				}
 			}
