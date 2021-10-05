@@ -932,6 +932,16 @@ void SControlRigBaseListWidget::OnAssetsActivated(const TArray<FAssetData>& Sele
 			if (PoseAsset)
 			{
 				ExecutePastePose(PoseAsset);
+
+				// If alt is down, select controls
+				if (FSlateApplication::Get().GetModifierKeys().IsAltDown())
+				{
+					UControlRig* ControlRig = SControlRigPoseView::GetFirstControlRigInLevelSequence(GetControlRig());
+					if (ControlRig)
+					{
+						PoseAsset->SelectControls(ControlRig, SControlRigPoseView::IsMirror());
+					}
+				}
 			}
 		}
 		SelectThisAsset(Asset);

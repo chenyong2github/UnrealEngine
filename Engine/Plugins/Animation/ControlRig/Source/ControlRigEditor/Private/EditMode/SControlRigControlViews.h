@@ -97,5 +97,9 @@ private:
 			]
 			];
 	}
+
+public:
+	static bool IsMirror() { return bIsMirror; }
+	static UControlRig* GetFirstControlRigInLevelSequence(UControlRig* ControlRig);
 };
 
