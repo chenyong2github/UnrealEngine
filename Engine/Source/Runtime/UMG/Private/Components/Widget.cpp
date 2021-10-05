@@ -282,6 +282,17 @@ void UWidget::ResetCursor()
 	}
 }
 
+bool UWidget::IsRendered() const
+{
+	TSharedPtr<SWidget> SafeWidget = GetCachedWidget();
+	if ( SafeWidget.IsValid() )
+	{
+		return SafeWidget->GetVisibility().IsVisible() && SafeWidget->GetRenderOpacity() > 0.0f;
+	}
+
+	return false;
+}
+
 bool UWidget::IsVisible() const
 {
 	TSharedPtr<SWidget> SafeWidget = GetCachedWidget();

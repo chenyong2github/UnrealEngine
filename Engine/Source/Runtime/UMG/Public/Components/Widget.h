@@ -511,6 +511,10 @@ public:
 	/** Resets the cursor to use on the widget, removing any customization for it. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
 	void ResetCursor();
+	
+	/** Returns true if the widget is Visible, HitTestInvisible or SelfHitTestInvisible and the Render Opacity is greater than 0. */
+	UFUNCTION(BlueprintCallable, Category="Widget")
+	bool IsRendered() const;
 
 	/** Returns true if the widget is Visible, HitTestInvisible or SelfHitTestInvisible. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
