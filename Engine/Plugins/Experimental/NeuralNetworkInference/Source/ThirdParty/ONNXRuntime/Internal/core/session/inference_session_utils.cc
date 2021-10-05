@@ -43,7 +43,6 @@ static Status SetInterOpNumThreads(SessionOptions& session_options,
 }
 
 #ifdef WITH_UE
-
 static Status SetPriorityOpThreads(SessionOptions& session_options,
 	EThreadPriority ThreadPri,
 	const logging::Logger& logger) {
@@ -59,8 +58,7 @@ static Status SetPriorityOpThreads(SessionOptions& session_options,
 
 	return Status::OK();
 }
-
-#endif 
+#endif //WITH_UE
 
 static Status SetExecutionMode(SessionOptions& session_options,
                                int value,
