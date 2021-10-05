@@ -265,7 +265,7 @@ namespace EpicGames.Horde.Common
 
 		static bool IsIdentifierTail(char Character)
 		{
-			return IsIdentifier(Character) || IsNumber(Character) || Character == '.';
+			return IsIdentifier(Character) || IsNumber(Character) || Character == '-' || Character == '.';
 		}
 	}
 
