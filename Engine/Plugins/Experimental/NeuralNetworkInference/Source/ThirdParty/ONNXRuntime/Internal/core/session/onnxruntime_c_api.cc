@@ -464,7 +464,6 @@ static ORT_STATUS_PTR CreateSessionAndLoadModel(_In_ const OrtSessionOptions* op
 
 static ORT_STATUS_PTR InitializeSession(_In_ const OrtSessionOptions* options,
                                         _In_ std::unique_ptr<::onnxruntime::InferenceSession>& sess) {
-
   // we need to disable mem pattern if DML is one of the providers since DML doesn't have the concept of
   // byte addressable memory
   std::vector<std::unique_ptr<IExecutionProvider>> provider_list;
@@ -483,6 +482,7 @@ static ORT_STATUS_PTR InitializeSession(_In_ const OrtSessionOptions* options,
   }
 
   ORT_API_RETURN_IF_STATUS_NOT_OK(sess->Initialize());
+
   return nullptr;
 }
 
@@ -1950,9 +1950,9 @@ static constexpr OrtApi ort_api_1_to_7 = {
     &OrtApis::SetIntraOpNumThreads,
     &OrtApis::SetInterOpNumThreads,
 
-	#ifdef WITH_UE
-	&OrtApis::SetPriorityOpThreads,
-	#endif
+    #ifdef WITH_UE
+    &OrtApis::SetPriorityOpThreads,
+    #endif //WITH_UE
 
     &OrtApis::CreateCustomOpDomain,
     &OrtApis::CustomOpDomain_Add,
@@ -2119,9 +2119,9 @@ static constexpr OrtApi ort_api_1_to_7 = {
 // If this assert hits, read the above 'Rules on how to add a new Ort API version'
 #ifndef WITH_UE
 static_assert(offsetof(OrtApi, ReleaseCustomOpDomain) / sizeof(void*) == 101, "Size of version 1 API cannot change");
-#else
+#else //WITH_UE
 static_assert(offsetof(OrtApi, ReleaseCustomOpDomain) / sizeof(void*) == 102, "Size of version 1 API cannot change");
-#endif
+#endif //WITH_UE
 
 ORT_API(const OrtApi*, OrtApis::GetApi, uint32_t version) {
   if (version >= 1 && version <= ORT_API_VERSION)

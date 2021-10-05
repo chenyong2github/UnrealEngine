@@ -157,7 +157,6 @@ ORT_API_STATUS_IMPL(OrtApis::SetIntraOpNumThreads, _Inout_ OrtSessionOptions* op
 }
 
 #ifdef WITH_UE
-
 ORT_API_STATUS_IMPL(OrtApis::SetPriorityOpThreads, _Inout_ OrtSessionOptions* options, EThreadPriority ThreadPri) {
 #ifdef _OPENMP
 	ORT_UNUSED_PARAMETER(options);
@@ -174,9 +173,7 @@ ORT_API_STATUS_IMPL(OrtApis::SetPriorityOpThreads, _Inout_ OrtSessionOptions* op
 #endif
 	return nullptr;
 }
-
-#endif
-
+#endif //WITH_UE
 
 ORT_API_STATUS_IMPL(OrtApis::SetInterOpNumThreads, _Inout_ OrtSessionOptions* options, int inter_op_num_threads) {
   options->value.inter_op_param.thread_pool_size = inter_op_num_threads;
