@@ -931,6 +931,11 @@ namespace Chaos
 
 		GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager().PushProducerStorageData_External(MarshallingManager.GetExternalTimestamp_External());
 
+		if (MRewindCallback && !IsShuttingDown())
+		{
+			MRewindCallback->InjectInputs_External(MarshallingManager.GetInternalStep_External(), NumSteps);
+		}
+
 		MarshallingManager.Step_External(DeltaTime, NumSteps, GetSolverSubstep_External());
 	}
 

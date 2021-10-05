@@ -1168,6 +1168,13 @@ public:
 	*/
 	virtual void ProcessInputs_External(int32 PhysicsStep, const TArray<FSimCallbackInputAndObject>& SimCallbackInputs) {}
 
+	/** Called before inputs are split into potential sub-steps and marshalled over to the physics thread.
+	*	The physics state has not been applied yet, and cannot be inspected anyway because this is triggered from the external thread (game thread)
+	*	Gives user the ability to call GetProducerInputData_External one last time.
+	*	Input data is shared amongst sub-steps. If NumSteps > 1 it means any input data injected will be shared for all sub-steps generated
+	*/
+	virtual void InjectInputs_External(int32 PhysicsStep, int32 NumSteps){}
+
 	/** Called after sim step to give the option to rewind. Any pending inputs for the next frame will remain in the queue
 	*   Return the PhysicsStep to start resimulating from. Resim will run up until latest step passed into RecordInputs (i.e. latest physics sim simulated so far)
 	*   Return INDEX_NONE to indicate no rewind
