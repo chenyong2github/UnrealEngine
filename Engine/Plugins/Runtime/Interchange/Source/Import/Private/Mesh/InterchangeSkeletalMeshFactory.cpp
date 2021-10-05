@@ -1019,8 +1019,8 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 
 			SkeletalMesh->CalculateInvRefMatrices();
 
-			/** Apply all SkeletalMeshFactoryNode custom attributes to the material asset */
-			SkeletalMeshFactoryNode->ApplyAllCustomAttributeToAsset(SkeletalMesh);
+			/** Apply all SkeletalMeshFactoryNode custom attributes to the skeletal mesh asset */
+			SkeletalMeshFactoryNode->ApplyAllCustomAttributeToObject(SkeletalMesh);
 
 			bool bCreatePhysicsAsset = false;
 			SkeletalMeshFactoryNode->GetCustomCreatePhysicsAsset(bCreatePhysicsAsset);

@@ -968,7 +968,7 @@ void UInterchangeTextureFactory::PreImportPreCompletedCallback(const FImportPreC
 		if (!Arguments.bIsReimport)
 		{
 			/** Apply all TextureNode custom attributes to the texture asset */
-			TextureFactoryNode->ApplyAllCustomAttributeToAsset(Texture);
+			TextureFactoryNode->ApplyAllCustomAttributeToObject(Texture);
 		}
 		else
 		{
@@ -981,7 +981,7 @@ void UInterchangeTextureFactory::PreImportPreCompletedCallback(const FImportPreC
 
 			UInterchangeBaseNode* CurrentNode = NewObject<UInterchangeBaseNode>(GetTransientPackage(), GetSupportedFactoryNodeClass(TextureFactoryNode));
 			UInterchangeBaseNode::CopyStorage(TextureFactoryNode, CurrentNode);
-			CurrentNode->FillAllCustomAttributeFromAsset(Texture);
+			CurrentNode->FillAllCustomAttributeFromObject(Texture);
 			//Apply reimport strategy
 			UE::Interchange::FFactoryCommon::ApplyReimportStrategyToAsset(Arguments.ReimportStrategyFlags, Texture, PreviousNode, CurrentNode, TextureFactoryNode);
 		}

@@ -6,6 +6,8 @@
 #include "InterchangeImportLog.h"
 #include "InterchangeSourceData.h"
 
+#include "CineCameraActor.h"
+#include "CineCameraComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/Engine.h"
@@ -140,7 +142,6 @@ namespace UE
 					if (!SpawnedActor->GetRootComponent())
 					{
 						USceneComponent* RootComponent = NewObject<USceneComponent>(SpawnedActor, USceneComponent::GetDefaultSceneRootVariableName(), RF_Transactional);
-						RootComponent->Mobility = EComponentMobility::Static; //todo: this should be an attribute on a factory node
 #if WITH_EDITORONLY_DATA
 						RootComponent->bVisualizeComponent = true;
 #endif
@@ -148,8 +149,23 @@ namespace UE
 
 						SpawnedActor->SetRootComponent(RootComponent);
 						SpawnedActor->AddInstanceComponent(RootComponent);
+					}
 
-						RootComponent->RegisterComponent();
+					if (USceneComponent* RootComponent = SpawnedActor->GetRootComponent())
+					{
+						uint8 Mobility;
+						if (ActorFactoryNode->GetCustomMobility(Mobility))
+						{
+							//Make sure we don't have a mobility that's more restrictive than our parent mobility, as that wouldn't be a valid setup.
+							EComponentMobility::Type TargetMobility = (EComponentMobility::Type)Mobility;
+
+							if (ParentActor && ParentActor->GetRootComponent())
+							{
+								TargetMobility = (EComponentMobility::Type)FMath::Max((uint8)Mobility, (uint8)ParentActor->GetRootComponent()->Mobility);
+							}
+
+							RootComponent->SetMobility(TargetMobility);
+						}
 					}
 				}
 
@@ -186,6 +202,15 @@ namespace UE
 				else if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(SpawnedActor->GetRootComponent()))
 				{
 					SetupSkeletalMeshComponent(NodeContainer, ActorNode, *SkeletalMeshComponent);
+				}
+
+				if (ACineCameraActor* CineCameraActor = Cast<ACineCameraActor>(SpawnedActor))
+				{
+					ActorNode->ApplyAllCustomAttributeToObject(CineCameraActor->GetCineCameraComponent());
+				}
+				else
+				{
+					ActorNode->ApplyAllCustomAttributeToObject(SpawnedActor->GetRootComponent());
 				}
 
 				OutSpawnedActors.Add(ActorNodeUniqueID, SpawnedActor);

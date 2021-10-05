@@ -71,7 +71,7 @@ private:
 	IMPLEMENT_NODE_ATTRIBUTE_KEY(Brightness);
 	IMPLEMENT_NODE_ATTRIBUTE_KEY(TextureMultiplier);
 
-	IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(Brightness, float, UTextureLightProfile,);
-	IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(TextureMultiplier, float, UTextureLightProfile,);
+	IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(Brightness, float, UTextureLightProfile);
+	IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(TextureMultiplier, float, UTextureLightProfile);
 
 };

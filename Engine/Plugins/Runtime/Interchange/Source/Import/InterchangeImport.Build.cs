@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"AssetRegistry",
+					"CinematicCamera",
 					"IESFile",
 					"ImageWrapper",
 					"InterchangeDispatcher",

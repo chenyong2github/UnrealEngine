@@ -17,7 +17,13 @@ namespace UnrealBuildTool.Rules
 
 			if(Target.bCompileAgainstEngine)
 			{
-				PublicDependencyModuleNames.Add("Engine");
+				PublicDependencyModuleNames.AddRange(
+					new string[]
+					{
+						"CinematicCamera",
+						"Engine"
+					}
+				);
 			}
 		}
 	}

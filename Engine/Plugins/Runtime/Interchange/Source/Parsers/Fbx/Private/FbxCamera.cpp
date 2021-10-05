@@ -8,6 +8,7 @@
 #include "FbxInclude.h"
 #include "InterchangeCameraNode.h"
 #include "InterchangeResultsContainer.h"
+#include "Math/UnitConversion.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 
 #define LOCTEXT_NAMESPACE "InterchangeFbxCamera"
@@ -18,6 +19,28 @@ namespace UE
 	{
 		namespace Private
 		{
+			void FillCameraNode(UInterchangeCameraNode* CameraNode, FbxCamera& SourceCamera)
+			{
+				if (!CameraNode)
+				{
+					return;
+				}
+
+				float FocalLength;
+				if (SourceCamera.GetApertureMode() == FbxCamera::eFocalLength)
+				{
+					FocalLength = SourceCamera.FocalLength.Get();
+				}
+				else
+				{
+					FocalLength = SourceCamera.ComputeFocalLength(SourceCamera.FieldOfView.Get());
+				}
+
+				CameraNode->SetCustomFocalLength(FocalLength); //Both FBX and UE have their focal length in mm
+				CameraNode->SetCustomSensorHeight(FUnitConversion::Convert(SourceCamera.GetApertureHeight(), EUnit::Inches, EUnit::Millimeters));
+				CameraNode->SetCustomSensorWidth(FUnitConversion::Convert(SourceCamera.GetApertureWidth(), EUnit::Inches, EUnit::Millimeters));
+			}
+
 			UInterchangeCameraNode* FFbxCamera::CreateCameraNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUid, const FString& NodeName)
 			{
 				UInterchangeCameraNode* CameraNode = NewObject<UInterchangeCameraNode>(&NodeContainer, NAME_None);
@@ -41,7 +64,7 @@ namespace UE
 				{
 					FbxNodeAttribute* NodeAttribute = Node->GetNodeAttributeByIndex(AttributeIndex);
 
-					if (NodeAttribute->GetAttributeType() == FbxNodeAttribute::eCamera)
+					if (NodeAttribute && NodeAttribute->GetAttributeType() == FbxNodeAttribute::eCamera)
 					{
 						FString NodeName = FFbxHelper::GetNodeAttributeName(NodeAttribute, UInterchangeCameraNode::StaticAssetTypeName());
 						FString NodeUid = FFbxHelper::GetNodeAttributeUniqueID(NodeAttribute, UInterchangeCameraNode::StaticAssetTypeName());
@@ -50,7 +73,8 @@ namespace UE
 
 						if (!CameraNode)
 						{
-							CreateCameraNode(NodeContainer, NodeUid, NodeName);
+							CameraNode = CreateCameraNode(NodeContainer, NodeUid, NodeName);
+							FillCameraNode(CameraNode, static_cast<FbxCamera&>(*NodeAttribute));
 						}
 					}
 				}
