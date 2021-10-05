@@ -382,6 +382,11 @@ namespace HordeServer.Models
 	static class KnownPropertyNames
 	{
 		/// <summary>
+		/// The agent id
+		/// </summary>
+		public const string Id = "Id";
+
+		/// <summary>
 		/// The operating system (Linux, MacOS, Windows)
 		/// </summary>
 		public const string OSFamily = "OSFamily";
@@ -594,7 +599,11 @@ namespace HordeServer.Models
 		/// <returns>Property values</returns>
 		public static IEnumerable<string> GetPropertyValues(this IAgent Agent, string Name)
 		{
-			if (Name.Equals(KnownPropertyNames.Pool, StringComparison.OrdinalIgnoreCase))
+			if (Name.Equals(KnownPropertyNames.Id, StringComparison.OrdinalIgnoreCase))
+			{
+				yield return Agent.Id.ToString();
+			}
+			else if (Name.Equals(KnownPropertyNames.Pool, StringComparison.OrdinalIgnoreCase))
 			{
 				foreach (PoolId PoolId in Agent.GetPools())
 				{
