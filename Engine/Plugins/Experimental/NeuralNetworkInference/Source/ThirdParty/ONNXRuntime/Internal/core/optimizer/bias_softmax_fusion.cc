@@ -1,4 +1,3 @@
-#ifndef ORT_MINIMAL_BUILD 
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
@@ -259,5 +258,3 @@ Status BiasSoftmaxFusion::ApplyImpl(Graph& graph, bool& modified, int graph_leve
 }
 
 }  // namespace onnxruntime
-
-#endif // ORT_MINIMAL_BUILD

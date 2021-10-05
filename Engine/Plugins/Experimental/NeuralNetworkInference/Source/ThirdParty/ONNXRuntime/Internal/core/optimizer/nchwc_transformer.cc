@@ -1,4 +1,3 @@
-#ifndef ORT_MINIMAL_BUILD 
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
@@ -1018,5 +1017,3 @@ Status NchwcTransformer::ApplyImpl(Graph& graph, bool& modified, int graph_level
 }
 
 }  // namespace onnxruntime
-
-#endif // ORT_MINIMAL_BUILD
