@@ -486,7 +486,7 @@ public:
 	* This function will update the chunked information for each section. Only old data before the 
 	* skeletal mesh build refactor should need to call this function.
 	*/
-	ENGINE_API void UpdateChunkedSectionInfo(const FString& SkeletalMeshName, const int32 NumberOfClothAssets);
+	ENGINE_API void UpdateChunkedSectionInfo(const FString& SkeletalMeshName);
 
 	/**
 	* Copy one structure to the other, make sure all bulk data is unlock and the data can be read before copying.

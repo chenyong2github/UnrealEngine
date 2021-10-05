@@ -2489,6 +2489,13 @@ void USkeletalMesh::RemoveLegacyClothingSections()
 						// Remove the reference index
 						Section.CorrespondClothSectionIndex_DEPRECATED = INDEX_NONE;
 
+						//Make sure the UserSectionsData is up to date
+						if (FSkelMeshSourceSectionUserData* SectionUserData = LodModel.UserSectionsData.Find(Section.OriginalDataSectionIndex))
+						{
+							SectionUserData->CorrespondClothAssetIndex = Section.CorrespondClothAssetIndex;
+							SectionUserData->ClothingData = Section.ClothingData;
+						}
+
 						ClothingSectionCount++;
 					}
 					else
@@ -2701,8 +2708,7 @@ void USkeletalMesh::CreateUserSectionsDataForLegacyAssets()
 			bMustUseReductionSourceData = false;
 		}
 
-		const int32 NumberOfClothAssets = GetMeshClothingAssets().Num();
-		ThisLODModel.UpdateChunkedSectionInfo(GetName(), NumberOfClothAssets);
+		ThisLODModel.UpdateChunkedSectionInfo(GetName());
 
 		if (bMustUseReductionSourceData)
 		{
