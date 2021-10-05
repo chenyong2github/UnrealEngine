@@ -50,7 +50,7 @@ public:
 
 	/** Camera image size, in pixels */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens Info")
-	FIntPoint ImageDimensions;
+	FIntPoint ImageDimensions = FIntPoint(0, 1);
 
 };
 
