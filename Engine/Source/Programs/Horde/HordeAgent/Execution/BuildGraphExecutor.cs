@@ -656,6 +656,7 @@ namespace HordeAgent.Execution
 				FileReference IgnorePatternFile = FileReference.Combine(BaseDir, "Build", "Horde", "IgnorePatterns.txt");
 				if (FileReference.Exists(IgnorePatternFile))
 				{
+					Log.TraceInformation("Reading ignore patterns from {0}...", IgnorePatternFile);
 					IgnorePatternLines.AddRange(await FileReference.ReadAllLinesAsync(IgnorePatternFile));
 				}
 			}
