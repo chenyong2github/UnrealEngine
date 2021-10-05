@@ -127,11 +127,6 @@ int32 UGeometryScriptLibrary_MeshQueryFunctions::GetNumConnectedComponents( UDyn
 
 
 
-int32 UGeometryScriptLibrary_MeshQueryFunctions::GetTriangleCount( UDynamicMesh* TargetMesh )
-{
-	return SimpleMeshQuery<int32>(TargetMesh, 0, [&](const FDynamicMesh3& Mesh) { return Mesh.TriangleCount(); });
-}
-
 int32 UGeometryScriptLibrary_MeshQueryFunctions::GetNumTriangleIDs( UDynamicMesh* TargetMesh )
 {
 	return SimpleMeshQuery<int32>(TargetMesh, 0, [&](const FDynamicMesh3& Mesh) { return Mesh.MaxTriangleID(); });
