@@ -1452,10 +1452,10 @@ private:
 #endif
 
 	/** a delegate that broadcasts a notification whenever an actor is spawned */
-	FOnActorSpawned OnActorSpawned;
+	mutable FOnActorSpawned OnActorSpawned;
 
 	/** a delegate that broadcasts a notification before a newly spawned actor is initialized */
-	FOnActorSpawned OnActorPreSpawnInitialization;
+	mutable FOnActorSpawned OnActorPreSpawnInitialization;
 
 	/** Reset Async Trace Buffer **/
 	void ResetAsyncTrace();
@@ -2601,16 +2601,16 @@ public:
 	void RemoveNetworkActor( AActor* Actor ) const;
 
 	/** Add a listener for OnActorSpawned events */
-	FDelegateHandle AddOnActorSpawnedHandler( const FOnActorSpawned::FDelegate& InHandler );
+	FDelegateHandle AddOnActorSpawnedHandler( const FOnActorSpawned::FDelegate& InHandler ) const;
 
 	/** Remove a listener for OnActorSpawned events */
-	void RemoveOnActorSpawnedHandler( FDelegateHandle InHandle );
+	void RemoveOnActorSpawnedHandler( FDelegateHandle InHandle ) const;
 
 	/** Add a listener for OnActorPreSpawnInitialization events */
-	FDelegateHandle AddOnActorPreSpawnInitialization(const FOnActorSpawned::FDelegate& InHandler);
+	FDelegateHandle AddOnActorPreSpawnInitialization(const FOnActorSpawned::FDelegate& InHandler) const;
 
 	/** Remove a listener for OnActorPreSpawnInitialization events */
-	void RemoveOnActorPreSpawnInitialization(FDelegateHandle InHandle);	
+	void RemoveOnActorPreSpawnInitialization(FDelegateHandle InHandle) const;
 
 	/**
 	 * Returns whether the passed in actor is part of any of the loaded levels actors array.
