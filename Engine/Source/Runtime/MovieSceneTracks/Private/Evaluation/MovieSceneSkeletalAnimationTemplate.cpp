@@ -30,9 +30,9 @@ bool CanPlayAnimation(USkeletalMeshComponent* SkeletalMeshComponent, UAnimSequen
 		(!AnimAssetBase || SkeletalMeshComponent->SkeletalMesh->GetSkeleton()->IsCompatible(AnimAssetBase->GetSkeleton())));
 }
 
-void ResetAnimSequencerInstance(UObject& ObjectToRestore, IMovieScenePlayer& Player)
+void ResetAnimSequencerInstance(UObject& InObject, const UE::MovieScene::FRestoreStateParams& Params)
 {
-	CastChecked<ISequencerAnimationSupport>(&ObjectToRestore)->ResetNodes();
+	CastChecked<ISequencerAnimationSupport>(&InObject)->ResetNodes();
 }
 
 UAnimSequencerInstance* GetAnimSequencerInstance(USkeletalMeshComponent* SkeletalMeshComponent) 
@@ -78,7 +78,7 @@ struct FStopPlayingMontageTokenProducer : IMovieScenePreAnimatedTokenProducer
 			: WeakInstance(InWeakInstance)
 			, MontageInstanceId(InMontageInstanceId) {}
 
-			virtual void RestoreState(UObject& ObjectToRestore, IMovieScenePlayer& Player) override
+			virtual void RestoreState(UObject& InObject, const UE::MovieScene::FRestoreStateParams& Params) override
 			{
 				UAnimInstance* AnimInstance = WeakInstance.Get();
 				if (AnimInstance)
@@ -111,7 +111,7 @@ struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 				SkeletalMeshRestoreState.SaveState(InComponent);
 			}
 
-			virtual void RestoreState(UObject& ObjectToRestore, IMovieScenePlayer& Player)
+			virtual void RestoreState(UObject& ObjectToRestore, const UE::MovieScene::FRestoreStateParams& Params)
 			{
 				USkeletalMeshComponent* Component = CastChecked<USkeletalMeshComponent>(&ObjectToRestore);
 
@@ -359,8 +359,6 @@ namespace MovieScene
 				SkeletalMeshComponent->MarkRenderTransformDirty();
 				SkeletalMeshComponent->MarkRenderDynamicDataDirty();
 			}
-
-			Player.PreAnimatedState.SetCaptureEntity(FMovieSceneEvaluationKey(), EMovieSceneCompletionMode::KeepState);
 		}
 
 	private:
@@ -411,7 +409,7 @@ namespace MovieScene
 
 			for (const FMinimalAnimParameters& AnimParams : Parameters)
 			{
-				Player.PreAnimatedState.SetCaptureEntity(AnimParams.EvaluationScope.Key, AnimParams.EvaluationScope.CompletionMode);
+				FScopedPreAnimatedCaptureSource CaptureSource(&Player.PreAnimatedState, AnimParams.EvaluationScope.Key, AnimParams.EvaluationScope.CompletionMode == EMovieSceneCompletionMode::RestoreState);
 
 				if (bPreviewPlayback)
 				{

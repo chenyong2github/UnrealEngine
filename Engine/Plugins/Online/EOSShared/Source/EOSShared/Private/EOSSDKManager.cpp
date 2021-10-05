@@ -4,9 +4,12 @@
 
 #if WITH_EOS_SDK
 
+#include "Containers/Ticker.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/NetworkVersion.h"
+#include "Stats/Stats.h"
 
 #include "CoreGlobals.h"
 #include "EOSSharedUtils.h"
@@ -20,19 +23,19 @@ DEFINE_LOG_CATEGORY_STATIC(LogEOSSDK, Log, All);
 
 namespace
 {
-	static void* EosMalloc(size_t Bytes, size_t Alignment)
+	static void* EOS_MEMORY_CALL EosMalloc(size_t Bytes, size_t Alignment)
 	{
 		LLM_SCOPE(ELLMTag::RealTimeCommunications);
 		return FMemory::Malloc(Bytes, Alignment);
 	}
 
-	static void* EosRealloc(void* Ptr, size_t Bytes, size_t Alignment)
+	static void* EOS_MEMORY_CALL EosRealloc(void* Ptr, size_t Bytes, size_t Alignment)
 	{
 		LLM_SCOPE(ELLMTag::RealTimeCommunications);
 		return FMemory::Realloc(Ptr, Bytes, Alignment);
 	}
 
-	static void EosFree(void* Ptr)
+	static void EOS_MEMORY_CALL EosFree(void* Ptr)
 	{
 		LLM_SCOPE(ELLMTag::RealTimeCommunications);
 		FMemory::Free(Ptr);

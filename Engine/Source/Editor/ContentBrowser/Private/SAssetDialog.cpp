@@ -641,7 +641,7 @@ FText SAssetDialog::GetAssetNameText() const
 
 FText SAssetDialog::GetPathNameText() const
 {
-	return FText::FromString(CurrentlySelectedPath);
+	return FText::FromName(GetCurrentSelectedVirtualPath());
 }
 
 void SAssetDialog::OnAssetNameTextCommited(const FText& InText, ETextCommit::Type InCommitType)
@@ -672,7 +672,7 @@ FText SAssetDialog::GetNameErrorLabelText() const
 void SAssetDialog::HandlePathSelected(const FString& NewPath)
 {
 	FName ConvertedPath;
-	const EContentBrowserPathType ConvertedPathType = IContentBrowserDataModule::Get().GetSubsystem()->TryConvertVirtualPath(*NewPath, ConvertedPath);
+	const EContentBrowserPathType ConvertedPathType = IContentBrowserDataModule::Get().GetSubsystem()->TryConvertVirtualPath(NewPath, ConvertedPath);
 
 	FARFilter NewFilter;
 
@@ -825,7 +825,7 @@ void SAssetDialog::UpdateInputValidity()
 		else if (CurrentlySelectedPathType == EContentBrowserPathType::Virtual)
 		{
 			FName ConvertedPath;
-			const EContentBrowserPathType ConvertedType = IContentBrowserDataModule::Get().GetSubsystem()->TryConvertVirtualPath(*CurrentlySelectedPath, ConvertedPath);
+			const EContentBrowserPathType ConvertedType = IContentBrowserDataModule::Get().GetSubsystem()->TryConvertVirtualPath(CurrentlySelectedPath, ConvertedPath);
 
 			bool bIsMountedInternalPath = false;
 			if (ConvertedType == EContentBrowserPathType::Internal)
@@ -883,7 +883,14 @@ void SAssetDialog::UpdateInputValidity()
 
 FName SAssetDialog::GetCurrentSelectedVirtualPath() const
 {
-	return IContentBrowserDataModule::Get().GetSubsystem()->ConvertInternalPathToVirtual(*CurrentlySelectedPath);
+	if (CurrentlySelectedPathType == EContentBrowserPathType::Virtual)
+	{
+		return *CurrentlySelectedPath;
+	}
+	else
+	{
+		return IContentBrowserDataModule::Get().GetSubsystem()->ConvertInternalPathToVirtual(*CurrentlySelectedPath);
+	}
 }
 
 void SAssetDialog::ChooseAssetsForOpen(const TArray<FAssetData>& SelectedAssets)
@@ -906,7 +913,7 @@ FString SAssetDialog::GetObjectPathForSave() const
 	if (CurrentlySelectedPathType == EContentBrowserPathType::Virtual)
 	{
 		FName ConvertedPath;
-		const EContentBrowserPathType ConvertedType = IContentBrowserDataModule::Get().GetSubsystem()->TryConvertVirtualPath(*CurrentlySelectedPath, ConvertedPath);
+		const EContentBrowserPathType ConvertedType = IContentBrowserDataModule::Get().GetSubsystem()->TryConvertVirtualPath(CurrentlySelectedPath, ConvertedPath);
 		if (ConvertedType == EContentBrowserPathType::Internal)
 		{
 			Base = ConvertedPath.ToString();

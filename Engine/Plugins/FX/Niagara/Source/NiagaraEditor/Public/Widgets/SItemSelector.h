@@ -53,7 +53,7 @@ public:
 	DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnCompareSectionsForEquality, const SectionType& /* SectionA */, const SectionType& /* SectionB */);
 	DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnCompareSectionsForSorting, const SectionType& /* SectionA */, const SectionType& /* SectionB */);
 	DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnCompareCategoriesForEquality, const CategoryType& /* CategoryA */, const CategoryType& /* CategoryB */);
-	DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnCompareCategoriesForSorting, const CategoryType& /* CategoryA */, const CategoryType& /* CateogoryB */);
+	DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnCompareCategoriesForSorting, const CategoryType& /* CategoryA */, const CategoryType& /* CategoryB */);
 	DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnCompareItemsForEquality, const ItemType& /* ItemA */, const ItemType& /* ItemB */);
 	DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnCompareItemsForSorting, const ItemType& /* ItemA */, const ItemType& /* ItemB */);
 	DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnDoesItemMatchFilterText, const FText& /* Filter text */, const ItemType& /* Item */);
@@ -63,8 +63,12 @@ public:
 	DECLARE_DELEGATE(FOnSelectionChanged);
 	DECLARE_DELEGATE_RetVal_OneParam(FSectionData, FOnGetSectionData, const SectionType& /* Section */);
 	DECLARE_DELEGATE_OneParam(FOnItemActivated, const ItemType& /* Item */);
+	DECLARE_DELEGATE_OneParam(FOnCategoryActivated, const CategoryType& /* Category */);
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnDoesItemPassCustomFilter, const ItemType& /*Item */);
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnDoesSectionPassCustomFilter, const SectionType& /* Section */);
+	DECLARE_DELEGATE_RetVal_TwoParams(const FSlateBrush*, FOnGetCategoryBackgroundImage, bool /* bIsHovered */, bool /* bIsExpanded */)
+	DECLARE_DELEGATE_TwoParams(FOnItemSelected, const ItemType& /* SelectedItem */, ESelectInfo::Type /* SelectInfo */);
+	DECLARE_DELEGATE_RetVal_TwoParams(FReply, FOnItemsDragged, const TArray<ItemType>& /* DraggedItems */, const FPointerEvent& /* MouseEvent */);
 
 public:
 	SLATE_BEGIN_ARGS(SItemSelector)
@@ -93,7 +97,7 @@ public:
 		/** Whether or not a single click activates an item. */
 		SLATE_ARGUMENT(EItemSelectorClickActivateMode, ClickActivateMode)
 
-		/** The style to use for category rows. */
+		/** Optional style override to use for category rows. */
 		SLATE_STYLE_ARGUMENT(FTableRowStyle, CategoryRowStyle)
 
 		/** The style to use for section rows. */
@@ -102,9 +106,21 @@ public:
 		/** The style to use for category rows. */
         SLATE_STYLE_ARGUMENT(FTableRowStyle, ItemRowStyle)
 
+		/** Optional border image override to use for category rows. */
+		SLATE_EVENT(FOnGetCategoryBackgroundImage, OnGetCategoryBackgroundImage)
+
+		/** Optional border background color override to use for category rows. */
+		SLATE_ARGUMENT(FLinearColor, CategoryBorderBackgroundColor)
+
+		/** Optional padding override to use for category child slots. */
+		SLATE_ARGUMENT(FMargin, CategoryChildSlotPadding)
+
+		/** Optional padding override to use for category backgrounds. */
+		SLATE_ARGUMENT(FMargin, CategoryBorderBackgroundPadding)
+
 		/** Whether or not the selection should be cleared when an empty area is clicked. */
 		SLATE_ARGUMENT(bool, ClearSelectionOnClick)
-	
+
 		/** An optional delegate to get an array of categories for the specified item. Each category in the returned array represents one level of nested categories. 
 		NOTE: The OnCompareCategoriesForEquality, and OnGenerateWidgetForCategory delegates must be bound if this delegate is bound. */
 		SLATE_EVENT(FOnGetCategoriesForItem, OnGetCategoriesForItem)
@@ -145,6 +161,9 @@ public:
 		/** A delegate which is called when an item is activated by either double clicking on it or by pressing enter while it's selected. */
 		SLATE_EVENT(FOnItemActivated, OnItemActivated)
 
+		/** A delegate which is called when a category is activated by either double clicking on it or by pressing enter while it's selected. */
+		SLATE_EVENT(FOnCategoryActivated, OnCategoryActivated)
+
 		/** A delegate which is called when the selection changes. */
 		SLATE_EVENT(FOnSelectionChanged, OnSelectionChanged)
 
@@ -163,11 +182,23 @@ public:
 		/** An optional attribute to determine whether we should hide a single section. Used to reparent all children of our sole section to the root. */
 		SLATE_ATTRIBUTE(bool, HideSingleSection)
 	
+		/** An optional delegate called when a context menu would open for an item. The user returns the menu content to display or null if a context menu should not be opened. */
+		SLATE_EVENT(FOnContextMenuOpening, OnContextMenuOpening)
+
+			/** An optional delegate called when one or more items are selected. */
+		SLATE_EVENT(FOnItemSelected, OnItemSelected)
+
+		/** An optional delegate called when one or more items are dragged. */
+		SLATE_EVENT(FOnItemsDragged, OnItemsDragged)
+
 		/** An optional array of delegates to refresh the item selector view when executed. */
 		SLATE_ARGUMENT(TArray<FRefreshItemSelectorDelegate*>, RefreshItemSelectorDelegates)
 	
-		/** Whether we want to expand the tree initially or not */
+		/** Whether we want to expand the tree initially or not. */
 		SLATE_ARGUMENT(bool, ExpandInitially)
+
+		/** Slot for additional widget content to go adjacent to right of the search box. */
+		SLATE_NAMED_SLOT(FArguments, SearchBoxAdjacentContent)
 	SLATE_END_ARGS();
 
 private:
@@ -514,7 +545,7 @@ private:
 		void SortChildren()
 		{
 			TSharedRef<IItemSelectorItemViewModelUtilities> Utilities = this->GetItemUtilities();
-			if (ChildCategoryViewModels.Num() > 0 && Utilities->GetOnCompareSectionsForSorting().IsBound())
+			if (ChildCategoryViewModels.Num() > 0 && Utilities->GetOnCompareCategoriesForSorting().IsBound())
 			{
 				ChildCategoryViewModels.Sort([Utilities](const TSharedRef<FItemSelectorItemCategoryViewModel>& CategoryViewModelA, const TSharedRef<FItemSelectorItemCategoryViewModel>& CategoryViewModelB)
 				{
@@ -583,9 +614,13 @@ private:
 
 		void GetItemViewModelsForItems(const TArray<ItemType>& InItems, TArray<TSharedRef<FItemSelectorItemViewModel>>& OutItemViewModelsForItems)
 		{
-			for (TSharedRef<FSectionViewModel> ChildSectionViewModel : ChildSectionViewModels)
+			for (const TSharedRef<FSectionViewModel>& ChildSectionViewModel : ChildSectionViewModels)
 			{
 				ChildSectionViewModel->GetItemViewModelsForItems(InItems, OutItemViewModelsForItems);
+			}
+			for (const TSharedRef<FItemSelectorItemCategoryViewModel>& ChildCategoryViewModel : ChildCategoryViewModels)
+			{
+				ChildCategoryViewModel->GetItemViewModelsForItems(InItems, OutItemViewModelsForItems);
 			}
 		}
 
@@ -677,7 +712,7 @@ private:
 				});
 			}
 
-			if (ChildCategoryViewModels.Num() > 0 && Utilities->GetOnCompareSectionsForSorting().IsBound())
+			if (ChildCategoryViewModels.Num() > 0 && Utilities->GetOnCompareCategoriesForSorting().IsBound())
 			{
 				ChildCategoryViewModels.Sort([Utilities](const TSharedRef<FItemSelectorItemCategoryViewModel>& CategoryViewModelA, const TSharedRef<FItemSelectorItemCategoryViewModel>& CategoryViewModelB)
 				{
@@ -1252,25 +1287,103 @@ private:
 
 	typedef STableRow<TSharedRef<FItemSelectorItemViewModel>> SItemSelectorTableRow;
 
-	class SItemSelectorItemContainerTableRow : public SItemSelectorTableRow
+	class SItemSelectorItemTableRow : public SItemSelectorTableRow
 	{
 	public:
-		SLATE_BEGIN_ARGS(SItemSelectorItemContainerTableRow)
-		{}
-			SLATE_DEFAULT_SLOT(typename SItemSelectorItemContainerTableRow::FArguments, Content)
+		SLATE_BEGIN_ARGS(SItemSelectorItemTableRow)
+			: _Style(&FCoreStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row"))
+			, _ShowSelection(true)
+			{}
+			SLATE_DEFAULT_SLOT(typename SItemSelectorItemTableRow::FArguments, Content)
+			SLATE_STYLE_ARGUMENT(FTableRowStyle, Style)
+			SLATE_ARGUMENT(bool, ShowSelection)
+			SLATE_ARGUMENT(FMargin, Padding)
+			SLATE_EVENT(FOnDragDetected, OnDragDetected)
 		SLATE_END_ARGS();
 
 		void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTree)
 		{
 			typename SItemSelectorTableRow::FArguments Arguments;
 			Arguments = Arguments[InArgs._Content.Widget];
-			SItemSelectorTableRow::Construct(Arguments,	OwnerTree);
+			Arguments._Style = InArgs._Style;
+			Arguments._ShowSelection = InArgs._ShowSelection;
+			Arguments._Padding = InArgs._Padding;
+			Arguments._OnDragDetected = InArgs._OnDragDetected;
+			SItemSelectorTableRow::Construct(Arguments, OwnerTree);
+		}
+	};
+
+	class SItemSelectorItemCategoryTableRow : public SItemSelectorItemTableRow
+	{
+	public:
+		SLATE_BEGIN_ARGS(SItemSelectorItemCategoryTableRow)
+			: _Style(&FCoreStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row"))
+			, _ShowSelection(true)
+			, _BorderBackgroundColor(FLinearColor::White)
+			{}
+			SLATE_DEFAULT_SLOT(typename SItemSelectorItemCategoryTableRow::FArguments, Content)
+			SLATE_STYLE_ARGUMENT(FTableRowStyle, Style)
+			SLATE_ARGUMENT(bool, ShowSelection)
+			SLATE_ARGUMENT(FMargin, Padding)
+			SLATE_ARGUMENT(FLinearColor, BorderBackgroundColor)
+			SLATE_ARGUMENT(FMargin, ChildSlotPadding)
+			SLATE_ARGUMENT(FMargin, BorderBackgroundPadding)
+			SLATE_EVENT(FOnGetCategoryBackgroundImage, OnGetCategoryBackgroundImage)
+		SLATE_END_ARGS();
+
+		void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTree)
+		{
+			OnGetCategoryBackgroundImage = InArgs._OnGetCategoryBackgroundImage;
+
+			typename SItemSelectorItemTableRow::FArguments Arguments;
+			Arguments = Arguments[InArgs._Content.Widget];
+			Arguments._Style = InArgs._Style;
+			Arguments._ShowSelection = InArgs._ShowSelection;
+			Arguments._Padding = InArgs._Padding;
+			SItemSelectorItemTableRow::Construct(Arguments, OwnerTree);
+
+			// If category background images are used, construct a border to display them.
+			if (OnGetCategoryBackgroundImage.IsBound())
+			{
+				SItemSelectorItemTableRow::ChildSlot
+				.Padding(InArgs._ChildSlotPadding)
+				[
+					SAssignNew(ContentBorder, SBorder)
+					.BorderImage(this, &SItemSelectorItemCategoryTableRow::GetBackgroundImage)
+					.Padding(InArgs._BorderBackgroundPadding)
+					.BorderBackgroundColor(InArgs._BorderBackgroundColor)
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.Padding(2.0f, 2.0f, 2.0f, 2.0f)
+						.AutoWidth()
+						[
+							// Overwriting the ChildSlot of the STableRow removes the existing SExpanderArrow, so construct a new one.
+							SNew(SExpanderArrow, SItemSelectorItemCategoryTableRow::SharedThis(this))
+						]
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						[
+							InArgs._Content.Widget
+						]
+					]
+				];
+			}
 		}
 
-		// virtual int32 GetIndentLevel() const override
-		// {
-		// 	return 0;
-		// }
+		const FSlateBrush* GetBackgroundImage() const
+		{
+			if (OnGetCategoryBackgroundImage.IsBound())
+			{
+				return OnGetCategoryBackgroundImage.Execute(SItemSelectorTableRow::IsHovered(), SItemSelectorTableRow::IsItemExpanded());
+			}
+			return nullptr;
+		}
+
+	private:
+		FOnGetCategoryBackgroundImage OnGetCategoryBackgroundImage;
+		TSharedPtr<SBorder> ContentBorder;
 	};
 
 public:
@@ -1288,6 +1401,10 @@ public:
 		SectionRowStyle = InArgs._SectionRowStyle;
 		CategoryRowStyle = InArgs._CategoryRowStyle;
 		ItemRowStyle = InArgs._ItemRowStyle;
+		OnGetCategoryBackgroundImage = InArgs._OnGetCategoryBackgroundImage;
+		CategoryBorderBackgroundColor = InArgs._CategoryBorderBackgroundColor;
+		CategoryChildSlotPadding = InArgs._CategoryChildSlotPadding;
+		CategoryBorderBackgroundPadding = InArgs._CategoryBorderBackgroundPadding;
 		OnGetCategoriesForItem = InArgs._OnGetCategoriesForItem;
 		OnGetSectionsForItem = InArgs._OnGetSectionsForItem;
 		OnCompareSectionsForEquality = InArgs._OnCompareSectionsForEquality;
@@ -1302,11 +1419,15 @@ public:
 		OnGenerateWidgetForCategory = InArgs._OnGenerateWidgetForCategory;
 		OnGenerateWidgetForItem = InArgs._OnGenerateWidgetForItem;
 		OnItemActivated = InArgs._OnItemActivated;
+		OnCategoryActivated = InArgs._OnCategoryActivated;
 		OnSelectionChanged = InArgs._OnSelectionChanged;
 		OnDoesItemPassCustomFilter = InArgs._OnDoesItemPassCustomFilter;
 		OnDoesSectionPassCustomFilter = InArgs._OnDoesSectionPassCustomFilter;
 		OnGetSectionData = InArgs._OnGetSectionData;
 		HideSingleSection = InArgs._HideSingleSection;
+		OnItemSelected = InArgs._OnItemSelected;
+		OnItemsDragged = InArgs._OnItemsDragged;
+		SearchBoxAdjacentContentWidget = InArgs._SearchBoxAdjacentContent.Widget;
 		bIsSettingSelection = false;
 
 		// Bind the on refresh delegates.
@@ -1314,7 +1435,7 @@ public:
 		{
 			if ((*DelegateIt) != nullptr)
 			{
-				(**DelegateIt) = FRefreshItemSelectorDelegate::CreateSP(this, &SItemSelector::RefreshAllItems, false);
+				(**DelegateIt) = FRefreshItemSelectorDelegate::CreateSP(this, &SItemSelector::RefreshAllCurrentItems, false);
 			}
 		}
 
@@ -1336,18 +1457,35 @@ public:
             OnDoesItemMatchFilterText, OnGetItemWeight, 
             OnDoesItemPassCustomFilter, OnDoesSectionPassCustomFilter,
             OnGetSectionData, HideSingleSection);
-		
+
+		// Search Box
+		SAssignNew(SearchBox, SSearchBox)
+		.Visibility(this, &SItemSelector::GetSearchBoxVisibility)
+		.OnTextChanged(this, &SItemSelector::OnSearchTextChanged)
+		.DelayChangeNotificationsWhileTyping(false);
+
 		ChildSlot
-		[
+		[	
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			.Padding(0, 0, 0, 5)
-			[	
-				SAssignNew(SearchBox, SSearchBox)
-				.Visibility(this, &SItemSelector::GetSearchBoxVisibility)
-				.OnTextChanged(this, &SItemSelector::OnSearchTextChanged)
-				.DelayChangeNotificationsWhileTyping(false)
+			[
+				SNew(SHorizontalBox)
+				// Wrapped Search Box
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.VAlign(VAlign_Center)
+				[
+					SearchBox.ToSharedRef()
+				]
+				// Search Box Adjacent Content
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(4, 0, 0, 0)
+				[
+					SearchBoxAdjacentContentWidget.ToSharedRef()
+				]
 			]
 			+ SVerticalBox::Slot()
 			.Padding(0)
@@ -1358,6 +1496,7 @@ public:
 				.OnGetChildren(this, &SItemSelector::OnGetChildren)
 				.OnMouseButtonClick(this, &SItemSelector::OnMouseClick)
 				.OnMouseButtonDoubleClick(this, &SItemSelector::OnMouseDoubleClick)
+				.OnContextMenuOpening(InArgs._OnContextMenuOpening)
 				.OnSelectionChanged(this, &SItemSelector::OnTreeSelectionChanged)
 				.TreeItemsSource(ViewModelUtilities->GetRootItems())
 				.ClearSelectionOnClick(InArgs._ClearSelectionOnClick)
@@ -1391,7 +1530,24 @@ public:
 		}
 		return SelectedItems;
 	}
-	
+
+	TArray<CategoryType> GetSelectedCategories()
+	{
+		TArray<TSharedRef<FItemSelectorItemViewModel>> SelectedItemViewModels;
+		ItemTree->GetSelectedItems(SelectedItemViewModels);
+
+		TArray<CategoryType> SelectedCategories;
+		for (TSharedRef<FItemSelectorItemViewModel> SelectedItemViewModel : SelectedItemViewModels)
+		{
+			if (SelectedItemViewModel->GetType() == EItemSelectorItemViewModelType::Category)
+			{
+				TSharedRef<FItemSelectorItemCategoryViewModel> SelectedItemCategoryViewModel = StaticCastSharedRef<FItemSelectorItemCategoryViewModel>(SelectedItemViewModel);
+				SelectedCategories.Add(SelectedItemCategoryViewModel->GetCategory());
+			}
+		}
+		return SelectedCategories;
+	}
+
 	void SetSelectedItems(const TArray<ItemType>& NewSelectedItems)
 	{
 		checkf(OnCompareItemsForEquality.IsBound(), TEXT("OnCompareItemsForEquality event must be handled to use the SetSelectedItems function."));
@@ -1412,6 +1568,16 @@ public:
 		OnSelectionChanged.ExecuteIfBound();
 	}
 
+	void RequestScrollIntoView(const ItemType& Item)
+	{
+		TArray<TSharedRef<FItemSelectorItemViewModel>> ItemViewModels;
+		ViewModelUtilities->GetItemViewModelsForItems({Item}, ItemViewModels);
+		if(ItemViewModels.Num() == 1)
+		{
+			ItemTree->RequestScrollIntoView(ItemViewModels[0]);
+		}
+	}
+
 	void ClearSelectedItems()
 	{
 		ItemTree->ClearSelection();
@@ -1421,21 +1587,30 @@ public:
 	{
 		// @Todo Currently keys are hardcoded, change that in the future
 		
-		// Escape dismisses the menu without placing a node
+		// Escape dismisses all menus.
 		if (InKeyEvent.GetKey() == EKeys::Escape)
 		{
 			FSlateApplication::Get().DismissAllMenus();
 			return FReply::Handled();
 		}
-		else if (InKeyEvent.GetKey() == EKeys::Enter && OnItemActivated.IsBound())
+		else if (InKeyEvent.GetKey() == EKeys::Enter && (OnItemActivated.IsBound() || OnCategoryActivated.IsBound()) )
 		{
 			TArray<TSharedRef<FItemSelectorItemViewModel>> SelectedItemViewModels;
 			ItemTree->GetSelectedItems(SelectedItemViewModels);
-			if (SelectedItemViewModels.Num() == 1 && SelectedItemViewModels[0]->GetType() == EItemSelectorItemViewModelType::Item)
+			if (SelectedItemViewModels.Num() == 1)
 			{
-				TSharedRef<FItemSelectorItemContainerViewModel> ItemContainer = StaticCastSharedRef<FItemSelectorItemContainerViewModel>(SelectedItemViewModels[0]);
-				OnItemActivated.Execute(ItemContainer->GetItem());
-				return FReply::Handled();
+				if(SelectedItemViewModels[0]->GetType() == EItemSelectorItemViewModelType::Item)
+				{
+					TSharedRef<FItemSelectorItemContainerViewModel> ItemContainer = StaticCastSharedRef<FItemSelectorItemContainerViewModel>(SelectedItemViewModels[0]);
+					OnItemActivated.Execute(ItemContainer->GetItem());
+					return FReply::Handled();
+				}
+				else if(SelectedItemViewModels[0]->GetType() == EItemSelectorItemViewModelType::Category)
+				{
+					TSharedRef<FItemSelectorItemCategoryViewModel> CategoryViewModel = StaticCastSharedRef<FItemSelectorItemCategoryViewModel>(SelectedItemViewModels[0]);
+					OnCategoryActivated.Execute(CategoryViewModel->GetCategory());
+					return FReply::Handled();
+				}
 			}
 		}
 		else if (!SearchBox->GetText().IsEmpty())
@@ -1515,7 +1690,7 @@ public:
 		RefreshItemsAndDefaultCategories(InItems, UnusedDefaultCategoryPaths);
 	}
 
-	void RefreshAllItems(bool bForceExpansion = false)
+	void RefreshAllCurrentItems(bool bForceExpansion = false)
 	{
 		ViewModelUtilities->Refresh(Items, DefaultCategoryPaths);
 		// let's manually expand the tree here if we are still searching, as refreshing wipes the tree expansion state
@@ -1542,6 +1717,11 @@ public:
 		return ViewModelUtilities->GetFilterText();
 	}
 
+	FText GetFilterTextNoRef() const
+	{
+		return ViewModelUtilities->GetFilterText();
+	}
+
 	TSharedRef<SWidget> GetSearchBox() const
 	{
 		return SearchBox.ToSharedRef();
@@ -1558,6 +1738,23 @@ public:
 			ItemTree->SetItemExpansion(ItemToProcess, true);
 			ItemToProcess->GetChildren(ItemsToProcess);
 		}
+	}
+
+	bool IsItemSelected(const ItemType Item)
+	{
+		const TArray<ItemType> ItemArr = {Item};
+		TArray<TSharedRef<FItemSelectorItemViewModel>> ItemViewModelArr;
+		ViewModelUtilities->GetItemViewModelsForItems(ItemArr, ItemViewModelArr);
+		if(ItemViewModelArr.Num() > 0)
+		{
+			return ItemTree->IsItemSelected(ItemViewModelArr[0]);
+		}
+		return false;
+	}
+
+	bool IsPendingRefresh() const
+	{
+		return ItemTree->IsPendingRefresh();
 	}
 
 private:
@@ -1609,10 +1806,14 @@ private:
 		case EItemSelectorItemViewModelType::Category:
 		{
 			TSharedRef<FItemSelectorItemCategoryViewModel> ItemCategoryViewModel = StaticCastSharedRef<FItemSelectorItemCategoryViewModel>(Item);
-			return SNew(STableRow<TSharedRef<FItemSelectorItemViewModel>>, OwnerTable)
+			return SNew(SItemSelectorItemCategoryTableRow, OwnerTable)
 				.Style(CategoryRowStyle)
 				.ShowSelection(true)
 				.Padding(Margin)
+				.BorderBackgroundColor(CategoryBorderBackgroundColor)
+				.ChildSlotPadding(CategoryChildSlotPadding)
+				.BorderBackgroundPadding(CategoryBorderBackgroundPadding)
+				.OnGetCategoryBackgroundImage(OnGetCategoryBackgroundImage)
 				[
 					OnGenerateWidgetForCategory.Execute(ItemCategoryViewModel->GetCategory())
 				];
@@ -1620,10 +1821,11 @@ private:
 		case EItemSelectorItemViewModelType::Item:
 		{
 			TSharedRef<FItemSelectorItemContainerViewModel> ItemViewModel = StaticCastSharedRef<FItemSelectorItemContainerViewModel>(Item);
-				return SNew(STableRow<TSharedRef<FItemSelectorItemViewModel>>, OwnerTable)
+				return SNew(SItemSelectorItemTableRow, OwnerTable)
 				.Style(ItemRowStyle)
 				.ShowSelection(true)
 				.Padding(Margin)
+				.OnDragDetected(this, &SItemSelector::OnItemDragDetected)
 				[
 					OnGenerateWidgetForItem.Execute(ItemViewModel->GetItem())
 				];
@@ -1631,7 +1833,7 @@ private:
 		case EItemSelectorItemViewModelType::Section:
 		{
 			TSharedRef<FSectionViewModel> SectionViewModel = StaticCastSharedRef<FSectionViewModel>(Item);
-			return SNew(STableRow<TSharedRef<FItemSelectorItemViewModel>>, OwnerTable)
+			return SNew(SItemSelectorItemTableRow, OwnerTable)
 				.Style(SectionRowStyle)
 				.ShowSelection(false)
 				.Padding(Margin)
@@ -1681,11 +1883,25 @@ private:
 		}
 	}
 
-	void OnTreeSelectionChanged(TSharedPtr<FItemSelectorItemViewModel> SelectedItem, ESelectInfo::Type)
+	FReply OnItemDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+	{
+		if (OnItemsDragged.IsBound() && MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
+		{
+			return OnItemsDragged.Execute(GetSelectedItems(), MouseEvent);
+		}
+		return FReply::Unhandled();
+	}
+
+	void OnTreeSelectionChanged(TSharedPtr<FItemSelectorItemViewModel> SelectedItem, ESelectInfo::Type SelectInfo)
 	{
 		if (bIsSettingSelection == false)
 		{
 			OnSelectionChanged.ExecuteIfBound();
+			if(OnItemSelected.IsBound() && SelectedItem.IsValid() && SelectedItem->GetType() == EItemSelectorItemViewModelType::Item)
+			{
+				TSharedPtr<FItemSelectorItemContainerViewModel> SelectedItemContainer = StaticCastSharedPtr<FItemSelectorItemContainerViewModel>(SelectedItem);
+				OnItemSelected.Execute(SelectedItemContainer->GetItem(), SelectInfo);
+			}
 		}
 	}
 	
@@ -1707,6 +1923,10 @@ private:
 	const FTableRowStyle* SectionRowStyle;
 	const FTableRowStyle* CategoryRowStyle;
 	const FTableRowStyle* ItemRowStyle;
+	FOnGetCategoryBackgroundImage OnGetCategoryBackgroundImage;
+	FLinearColor CategoryBorderBackgroundColor;
+	FMargin CategoryChildSlotPadding;
+	FMargin CategoryBorderBackgroundPadding;
 
 	FOnGetCategoriesForItem OnGetCategoriesForItem;
 	FOnGetSectionsForItem OnGetSectionsForItem;
@@ -1722,15 +1942,20 @@ private:
 	FOnGenerateWidgetForCategory OnGenerateWidgetForCategory;
 	FOnGenerateWidgetForItem OnGenerateWidgetForItem;
 	FOnItemActivated OnItemActivated;
+	FOnCategoryActivated OnCategoryActivated;
 	FOnSelectionChanged OnSelectionChanged;
 	FOnDoesItemPassCustomFilter OnDoesItemPassCustomFilter;
 	FOnDoesSectionPassCustomFilter OnDoesSectionPassCustomFilter;
 	FOnGetSectionData OnGetSectionData;
 	TAttribute<bool> HideSingleSection;
+	FOnItemSelected OnItemSelected;
+	FOnItemsDragged OnItemsDragged;
 
 	TSharedPtr<FItemSelectorViewModel> ViewModelUtilities;
-	TSharedPtr<SSearchBox> SearchBox;
 	TSharedPtr<STreeView<TSharedRef<FItemSelectorItemViewModel>>> ItemTree;
 
 	bool bIsSettingSelection;
+
+	TSharedPtr<SSearchBox> SearchBox;
+	TSharedPtr<SWidget> SearchBoxAdjacentContentWidget;
 };

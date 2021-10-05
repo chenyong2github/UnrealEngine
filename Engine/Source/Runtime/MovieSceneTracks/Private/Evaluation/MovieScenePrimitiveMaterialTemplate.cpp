@@ -17,7 +17,7 @@ struct FSetMaterialToken : IMovieScenePreAnimatedToken
 		: MaterialIndex(InMaterialIndex), Material(InMaterial)
 	{}
 
-	virtual void RestoreState(UObject& Object, IMovieScenePlayer& Player) override
+	virtual void RestoreState(UObject& Object, const UE::MovieScene::FRestoreStateParams& Params) override
 	{
 		CastChecked<UPrimitiveComponent>(&Object)->SetMaterial(MaterialIndex, Material.Get());
 	}

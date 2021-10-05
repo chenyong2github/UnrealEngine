@@ -16,58 +16,105 @@ namespace Chaos
 	 * @param    LocalProxy Physics proxy from which to extract the particle handles
 	 * @param    RigidSolver Rigid solver owning the particles
 	 * @param    FieldCommand Field command used to extract the resolution and filter meta data
-	 * @param    ParticleHandles List of particle handles extracted from the field command meta data
-	 * @param    SamplePositions Positions of the extracted sample points
-	 * @param    SampleIndices Indices of the extracted sample points
+	 * @param    ExecutionDatas Field Datas stored during evaluation 
 	 * @param    PrevResolutionType Resolution of the previous command
 	 * @param    PrevFilterType Filter of the previous command
+	 * @param    PrevObjectType Object Type of the previous command
+	 * @param    PrevPositionType Position type of the previous command
 	 */
 	template <typename PhysicsProxy>
-	FORCEINLINE bool BuildFieldSamplePoints(
+    static bool BuildFieldSamplePoints(
 		PhysicsProxy* LocalProxy,
 		Chaos::FPBDRigidsSolver* RigidSolver,
 		const FFieldSystemCommand& FieldCommand, 
-		TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles,
-		TArray<FVector>& SamplePositions,
-		TArray<FFieldContextIndex>& SampleIndices,
-		EFieldResolutionType& PrevResolutionType, EFieldFilterType& PrevFilterType)
+		FFieldExecutionDatas& ExecutionDatas,
+		EFieldResolutionType& PrevResolutionType, 
+		EFieldFilterType& PrevFilterType, 
+		EFieldObjectType& PrevObjectType,
+		EFieldPositionType& PrevPositionType)
 	{
 		const EFieldResolutionType ResolutionType =
 			FieldCommand.HasMetaData(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution) ?
-			FieldCommand.GetMetaDataAs<FFieldSystemMetaDataProcessingResolution>(
+			FieldCommand.GetMetaDataAs<FFieldSystemMetaDataProcessingResolution>( 
 				FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution)->ProcessingResolution :
 			EFieldResolutionType::Field_Resolution_Minimal;
 
-		const EFieldFilterType FilterType =
-			FieldCommand.HasMetaData(FFieldSystemMetaData::EMetaType::ECommandData_Filter) ?
-			FieldCommand.GetMetaDataAs<FFieldSystemMetaDataFilter>(
-				FFieldSystemMetaData::EMetaType::ECommandData_Filter)->FilterType :
-			EFieldFilterType::Field_Filter_Max;
+		EFieldFilterType FilterType = EFieldFilterType::Field_Filter_Max;
+		EFieldObjectType ObjectType = EFieldObjectType::Field_Object_Max;
+		EFieldPositionType PositionType = EFieldPositionType::Field_Position_Max;
 
-		if (LocalProxy && ( (PrevResolutionType != ResolutionType) || (PrevFilterType != FilterType) || ParticleHandles.Num() == 0))
+		if (FieldCommand.HasMetaData(FFieldSystemMetaData::EMetaType::ECommandData_Filter))
+		{
+			const FFieldSystemMetaDataFilter* MetaDataFilter = FieldCommand.GetMetaDataAs<FFieldSystemMetaDataFilter>(FFieldSystemMetaData::EMetaType::ECommandData_Filter);
+			FilterType = MetaDataFilter->FilterType;
+			ObjectType = MetaDataFilter->ObjectType;
+			PositionType = MetaDataFilter->PositionType;
+		}
+
+		TArray<Chaos::FGeometryParticleHandle*>& FilteredHandles = ExecutionDatas.ParticleHandles[(uint8)EFieldCommandHandlesType::FilteredHandles];
+		TArray<Chaos::FGeometryParticleHandle*>& InsideHandles = ExecutionDatas.ParticleHandles[(uint8)EFieldCommandHandlesType::InsideHandles];
+
+		if (LocalProxy && ( (PrevResolutionType != ResolutionType) || (PrevFilterType != FilterType) || (PrevObjectType != ObjectType) || (PrevPositionType != PositionType) || FilteredHandles.Num() == 0))
 		{
 			if (FilterType != EFieldFilterType::Field_Filter_Max)
 			{
-				LocalProxy->GetFilteredParticleHandles(ParticleHandles, RigidSolver, FilterType);
+				LocalProxy->GetFilteredParticleHandles(FilteredHandles, RigidSolver, FilterType, ObjectType);
 			}
 			else
 			{
-				LocalProxy->GetRelevantParticleHandles(ParticleHandles, RigidSolver, ResolutionType);
+				LocalProxy->GetRelevantParticleHandles(FilteredHandles, RigidSolver, ResolutionType);
 			}
 
 			PrevResolutionType = ResolutionType;
 			PrevFilterType = FilterType;
+			PrevObjectType = ObjectType;
+			PrevPositionType = PositionType;
 
-			SamplePositions.SetNum(ParticleHandles.Num());
-			SampleIndices.SetNum(ParticleHandles.Num());
+			ExecutionDatas.SamplePositions.SetNum(FilteredHandles.Num(),false);
+			ExecutionDatas.SampleIndices.SetNum(FilteredHandles.Num(),false);
+			InsideHandles.SetNum(FilteredHandles.Num(),false);
 
-			for (int32 Idx = 0; Idx < ParticleHandles.Num(); ++Idx)
+			auto FillExecutionDatas = [&ExecutionDatas,&FieldCommand,&InsideHandles](const FVec3& SamplePosition, Chaos::FGeometryParticleHandle* ParticleHandle, int32& HandleIndex)
 			{
-				SamplePositions[Idx] = ParticleHandles[Idx]->X();
-				SampleIndices[Idx] = FFieldContextIndex(Idx, Idx);
+				if (FieldCommand.BoundingBox.IsInside(SamplePosition))
+				{
+					ExecutionDatas.SamplePositions[HandleIndex] = SamplePosition;
+					ExecutionDatas.SampleIndices[HandleIndex] = FFieldContextIndex(HandleIndex, HandleIndex);
+					InsideHandles[HandleIndex] = ParticleHandle;
+					++HandleIndex;
+				}
+			};
+
+			int32 HandleIndex = 0;
+			if (PositionType == EFieldPositionType::Field_Position_CenterOfMass)
+			{
+				for (int32 Idx = 0; Idx < FilteredHandles.Num(); ++Idx)
+				{
+					Chaos::FPBDRigidParticleHandle* RigidHandle = FilteredHandles[Idx]->CastToRigidParticle();
+					if (RigidHandle)
+					{
+						const FVec3 SamplePosition = FParticleUtilities::GetCoMWorldPosition(RigidHandle);
+						FillExecutionDatas(SamplePosition, RigidHandle, HandleIndex);
+					}
+				}
 			}
+			else
+			{
+				for (int32 Idx = 0; Idx < FilteredHandles.Num(); ++Idx)
+				{
+					Chaos::FGeometryParticleHandle* FilteredHandle = FilteredHandles[Idx];
+					if (FilteredHandle)
+					{
+						const FVec3& SamplePosition = FilteredHandle->X();
+						FillExecutionDatas(SamplePosition, FilteredHandle, HandleIndex);
+					}
+				}
+			}
+			ExecutionDatas.SamplePositions.SetNum(HandleIndex,false);
+			ExecutionDatas.SampleIndices.SetNum(HandleIndex,false);
+			InsideHandles.SetNum(HandleIndex,false);
 		}
-		return ParticleHandles.Num() > 0;
+		return InsideHandles.Num() > 0;
 	}
 
 	/**
@@ -145,7 +192,7 @@ namespace Chaos
 
 		// Do we need to be sure the mass > 0 only for the dynamic state
 		const bool bHasStateChanged = ((FieldState != Chaos::EObjectStateType::Dynamic) ||
-			(FieldState == Chaos::EObjectStateType::Dynamic && RigidHandle->M() > FLT_EPSILON)) && (HandleState != FieldState);
+			(FieldState == Chaos::EObjectStateType::Dynamic && RigidHandle->M() > FLT_EPSILON)) && (HandleState != FieldState);  
 
 		if (bHasStateChanged)
 		{
@@ -293,24 +340,23 @@ namespace Chaos
 	 * @param	 FieldContext Field context that will be used for field evaluation
 	 * @param    CommandsToRemove List of commands that will be removed after evaluation
 	 * @param    PositionTarget Chaos position contraint in which each target will be added
-	 * @param    TargetedParticles List of particles (source/target) that will be filled by the PositionTarget/Static parameter 
+	 * @param    TargetedParticles List of particles (source/target) that will be filled by the PositionTarget/static parameter 
 	 * @param    CommandIndex Command index that we are evaluating
+	 * @param    FinalResults Array in which will be stored the field nodes evaulation
 	 */
 	FORCEINLINE void FieldIntegerParameterUpdate(Chaos::FPBDRigidsSolver* RigidSolver, const FFieldSystemCommand& FieldCommand,
 		TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles, FFieldContext& FieldContext, TArray<int32>& CommandsToRemove,
 		Chaos::FPBDPositionConstraints& PositionTarget,
-		TMap<int32, int32>& TargetedParticles, const int32 CommandIndex)
+		TMap<int32, int32>& TargetedParticles, const int32 CommandIndex, TArray<int32>& FinalResults)
 	{
-		TArray<int32> LocalResults;
-		LocalResults.AddZeroed(ParticleHandles.Num());
-		TArrayView<int32> ResultsView(&(LocalResults[0]), LocalResults.Num());
+		TArrayView<int32> ResultsView(&(FinalResults[0]), FinalResults.Num());
 
-		if (FieldCommand.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_DynamicState))
+		if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_DynamicState)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_DynamicState);
 			{
 				bool bHasStateChanged = false;
-				InitDynamicStateResults(ParticleHandles, FieldContext, LocalResults);
+				InitDynamicStateResults(ParticleHandles, FieldContext, FinalResults);
 
 				static_cast<const FFieldNode<int32>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
 				for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
@@ -327,11 +373,11 @@ namespace Chaos
 			}
 			CommandsToRemove.Add(CommandIndex);
 		}
-		else if (FieldCommand.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_ActivateDisabled))
+		else if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_ActivateDisabled)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_ActivateDisabled);
 			{
-				InitActivateDisabledResults(ParticleHandles, FieldContext, LocalResults);
+				InitActivateDisabledResults(ParticleHandles, FieldContext, FinalResults);
 
 				static_cast<const FFieldNode<int32>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
 				for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
@@ -346,7 +392,7 @@ namespace Chaos
 			}
 			CommandsToRemove.Add(CommandIndex);
 		}
-		else if (FieldCommand.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_CollisionGroup))
+		else if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_CollisionGroup)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_CollisionGroup);
 			{
@@ -362,7 +408,7 @@ namespace Chaos
 			}
 			CommandsToRemove.Add(CommandIndex);
 		}
-		else if (FieldCommand.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_PositionStatic))
+		else if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_PositionStatic)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_PositionStatic);
 			{
@@ -388,9 +434,9 @@ namespace Chaos
 			}
 			CommandsToRemove.Add(CommandIndex);
 		}
-		else if (FieldCommand.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_DynamicConstraint))
+		else if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_DynamicConstraint)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_PositionStatic);
+			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_DynamicConstraint);
 			{
 				UE_LOG(LogChaos, Error, TEXT("Dynamic constraint target currently not supported by chaos"));
 			}
@@ -408,17 +454,16 @@ namespace Chaos
 	 * @param    PositionTarget Chaos position contraint in which each target will be added
 	 * @param    TargetedParticles List of particles (source/target) that will be filled by the PositionTarget/Static parameter
 	 * @param    CommandIndex Command index that we are evaluating
+	 * @param    FinalResults Array in which will be stored the field nodes evaulation
 	 */
 	FORCEINLINE void FieldScalarParameterUpdate(Chaos::FPBDRigidsSolver* RigidSolver, const FFieldSystemCommand& FieldCommand,
 		TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles, FFieldContext& FieldContext, TArray<int32>& CommandsToRemove,
 		Chaos::FPBDPositionConstraints& PositionTarget,
-		TMap<int32, int32>& TargetedParticles, const int32 CommandIndex)
+		TMap<int32, int32>& TargetedParticles, const int32 CommandIndex, TArray<float>& FinalResults)
 	{
-		TArray<float> LocalResults;
-		LocalResults.AddZeroed(ParticleHandles.Num());
-		TArrayView<float> ResultsView(&(LocalResults[0]), LocalResults.Num());
+		TArrayView<float> ResultsView(&(FinalResults[0]), FinalResults.Num());
 
-		if (FieldCommand.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_ExternalClusterStrain))
+		if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_ExternalClusterStrain)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_ExternalClusterStrain);
 			{
@@ -436,7 +481,7 @@ namespace Chaos
 			}
 			CommandsToRemove.Add(CommandIndex);
 		}
-		else if (FieldCommand.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_Kill))
+		else if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_Kill)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_Kill);
 			{
@@ -452,7 +497,7 @@ namespace Chaos
 			}
 			CommandsToRemove.Add(CommandIndex);
 		}
-		else if (FieldCommand.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_SleepingThreshold))
+		else if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_SleepingThreshold)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_SleepingThreshold);
 			{
@@ -468,7 +513,7 @@ namespace Chaos
 			}
 			CommandsToRemove.Add(CommandIndex);
 		}
-		else if (FieldCommand.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_DisableThreshold))
+		else if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_DisableThreshold)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_DisableThreshold);
 			{
@@ -485,7 +530,7 @@ namespace Chaos
 			}
 			CommandsToRemove.Add(CommandIndex);
 		}
-		else if (FieldCommand.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_InternalClusterStrain))
+		else if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_InternalClusterStrain)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_InternalClusterStrain);
 			{
@@ -513,17 +558,16 @@ namespace Chaos
 	 * @param    PositionTarget Chaos position contraint in which each target will be added
 	 * @param    TargetedParticles List of particles (source/target) that will be filled by the PositionTarget/Static parameter
 	 * @param    CommandIndex Command index that we are evaluating
+	 * @param    FinalResults Array in which will be stored the field nodes evaulation
 	 */
 	FORCEINLINE void FieldVectorParameterUpdate(Chaos::FPBDRigidsSolver* RigidSolver, const FFieldSystemCommand& FieldCommand,
 		TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles, FFieldContext& FieldContext, TArray<int32>& CommandsToRemove,
 		Chaos::FPBDPositionConstraints& PositionTarget,
-		TMap<int32, int32>& TargetedParticles, const int32 CommandIndex)
+		TMap<int32, int32>& TargetedParticles, const int32 CommandIndex, TArray<FVector>& FinalResults)
 	{
-		TArray<FVector> LocalResults;
-		LocalResults.AddZeroed(ParticleHandles.Num());
-		TArrayView<FVector> ResultsView(&(LocalResults[0]), LocalResults.Num());
+		TArrayView<FVector> ResultsView(&(FinalResults[0]), FinalResults.Num());
 
-		if (FieldCommand.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_LinearVelocity))
+		if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_LinearVelocity)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_LinearVelocity);
 			{
@@ -539,7 +583,7 @@ namespace Chaos
 			}
 			CommandsToRemove.Add(CommandIndex);
 		}
-		else if (FieldCommand.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_AngularVelociy))
+		else if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_AngularVelociy)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_AngularVelocity);
 			{
@@ -556,7 +600,7 @@ namespace Chaos
 			}
 			CommandsToRemove.Add(CommandIndex);
 		}
-		else if (FieldCommand.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_PositionTarget))
+		else if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_PositionTarget)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_PositionTarget);
 			{
@@ -582,7 +626,7 @@ namespace Chaos
 			}
 			CommandsToRemove.Add(CommandIndex);
 		}
-		else if (FieldCommand.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_PositionAnimated))
+		else if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_PositionAnimated)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_PositionAnimated);
 			{
@@ -595,15 +639,13 @@ namespace Chaos
 
 	FORCEINLINE void FieldVectorForceUpdate(Chaos::FPBDRigidsSolver* RigidSolver, const FFieldSystemCommand& FieldCommand,
 		TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles, FFieldContext& FieldContext, TArray<int32>& CommandsToRemove,
-		const int32 CommandIndex)
+		const int32 CommandIndex, TArray<FVector>& FinalResults)
 	{
-		TArray<FVector> LocalResults;
-		LocalResults.AddZeroed(ParticleHandles.Num());
-		TArrayView<FVector> ResultsView(&(LocalResults[0]), LocalResults.Num());
+		TArrayView<FVector> ResultsView(&(FinalResults[0]), FinalResults.Num());
 
 		static_cast<const FFieldNode<FVector>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
 
-		if (FieldCommand.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_LinearForce))
+		if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_LinearForce)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ForceUpdateField_LinearForce);
 			{
@@ -622,7 +664,7 @@ namespace Chaos
 			}
 			CommandsToRemove.Add(CommandIndex);
 		}
-		else if (FieldCommand.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_AngularTorque))
+		else if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_AngularTorque)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ForceUpdateField_AngularTorque);
 			{

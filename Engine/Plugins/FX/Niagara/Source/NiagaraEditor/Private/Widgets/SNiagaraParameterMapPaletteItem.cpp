@@ -59,15 +59,12 @@ void SNiagaraParameterMapPalleteItem::Construct(const FArguments& InArgs, FCreat
 	bool bForceReadOnly = NamespaceMetadata.IsValid() == false || NamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingName);
 
 	ParameterNameTextBlock = SNew(SNiagaraParameterNameTextBlock)
-		.EditableTextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterInlineEditableText")
-		.ReadOnlyTextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
-		.ParameterText(FText::FromName(ParameterAction->Parameter.GetName()))
+		.ParameterText(FText::FromName(ParameterAction->GetParameter().GetName()))
 		.HighlightText(InCreateData->HighlightText)
 		.OnTextCommitted(this, &SNiagaraParameterMapPalleteItem::OnNameTextCommitted)
 		.OnVerifyTextChanged(this, &SNiagaraParameterMapPalleteItem::OnNameTextVerifyChanged)
 		.IsSelected(InCreateData->IsRowSelectedDelegate)
-		.IsReadOnly(InCreateData->bIsReadOnly || bForceReadOnly || ParameterAction->bIsExternallyReferenced)
-		.DecoratorHAlign(HAlign_Fill)
+		.IsReadOnly(InCreateData->bIsReadOnly || bForceReadOnly || ParameterAction->GetIsExternallyReferenced())
 		.Decorator()
 		[
 			SNew(SHorizontalBox)
@@ -81,7 +78,7 @@ void SNiagaraParameterMapPalleteItem::Construct(const FArguments& InArgs, FCreat
 			.Padding(0, 0, 2, 0)
 			[
 				SNew(SImage)
-				.Visibility(ParameterAction->bIsExternallyReferenced ? EVisibility::Visible : EVisibility::Collapsed)
+				.Visibility(ParameterAction->GetIsExternallyReferenced() ? EVisibility::Visible : EVisibility::Collapsed)
 				.Image(FAppStyle::Get().GetBrush("Icons.Lock"))
 				.ToolTipText(LOCTEXT("LockedToolTip", "This parameter is used in a referenced external graph and can't be edited directly."))
 				.ColorAndOpacity(FSlateColor::UseForeground())
@@ -92,7 +89,7 @@ void SNiagaraParameterMapPalleteItem::Construct(const FArguments& InArgs, FCreat
 			[
 				SNew(STextBlock)
 				.ColorAndOpacity(FSlateColor::UseForeground())
-				.Visibility(ParameterAction->bIsSourcedFromCustomStackContext ? EVisibility::Visible : EVisibility::Collapsed)
+				.Visibility(ParameterAction->GetIsSourcedFromCustomStackContext() ? EVisibility::Visible : EVisibility::Collapsed)
 				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
 				.Text(FEditorFontGlyphs::Database)
 				.ToolTipText(LOCTEXT("DataInterfaceSourceToolTip", "This parameter is a child variable of an existing Data Interface, meant to be used in Simulation Stage based stacks where the parent Data Interface is the Iteration Source.") )
@@ -175,7 +172,7 @@ FText SNiagaraParameterMapPalleteItem::GetReferenceCount() const
 	if (ParameterAction.IsValid())
 	{
 		int32 TotalCount = 0;
-		for (const FNiagaraGraphParameterReferenceCollection& ReferenceCollection : ParameterAction->ReferenceCollection)
+		for (const FNiagaraGraphParameterReferenceCollection& ReferenceCollection : ParameterAction->GetReferenceCollection())
 		{
 			for (const FNiagaraGraphParameterReference& ParamReference : ReferenceCollection.ParameterReferences)
 			{

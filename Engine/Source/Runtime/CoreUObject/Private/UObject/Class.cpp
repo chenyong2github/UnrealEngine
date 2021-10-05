@@ -1078,7 +1078,9 @@ void UStruct::SerializeBin( FStructuredArchive::FSlot Slot, void* Data ) const
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 
 	FStructuredArchive::FStream PropertyStream = Slot.EnterStream();
-
+	
+	// @fixme Disabled until this is fixed: https://jira.it.epicgames.com/browse/FORT-370824
+	// if (UnderlyingArchive.IsObjectReferenceCollector() && !UnderlyingArchive.IsModifyingWeakAndStrongReferences())
 	if( UnderlyingArchive.IsObjectReferenceCollector() )
 	{
 		for( FProperty* RefLinkProperty=RefLink; RefLinkProperty!=NULL; RefLinkProperty=RefLinkProperty->NextRef )

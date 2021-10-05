@@ -131,6 +131,8 @@ void FMovieSceneRootEvaluationTemplateInstance::Initialize(UMovieSceneSequence& 
 		EntitySystemLinker = ConstructEntityLinker(Player);
 		EntitySystemRunner.AttachToLinker(EntitySystemLinker);
 		RootInstanceHandle = EntitySystemLinker->GetInstanceRegistry()->AllocateRootInstance(&Player);
+
+		Player.PreAnimatedState.Initialize(EntitySystemLinker, RootInstanceHandle);
 	}
 }
 
@@ -154,6 +156,14 @@ void FMovieSceneRootEvaluationTemplateInstance::Finish(IMovieScenePlayer& Player
 	}
 
 	DirectorInstances.Reset();
+}
+
+void FMovieSceneRootEvaluationTemplateInstance::EnableGlobalPreAnimatedStateCapture()
+{
+	if (ensure(EntitySystemLinker))
+	{
+		EntitySystemLinker->GetInstanceRegistry()->MutateInstance(RootInstanceHandle).EnableGlobalPreAnimatedStateCapture(EntitySystemLinker);
+	}
 }
 
 UMovieSceneSequence* FMovieSceneRootEvaluationTemplateInstance::GetSequence(FMovieSceneSequenceIDRef SequenceID) const

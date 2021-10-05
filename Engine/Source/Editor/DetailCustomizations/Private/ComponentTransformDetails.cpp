@@ -354,6 +354,7 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 		}
 
 		ChildrenBuilder.AddCustomRow( LOCTEXT("LocationFilter", "Location") )
+		.RowTag("Location")
 		.CopyAction( CreateCopyAction( ETransformField::Location ) )
 		.PasteAction( CreatePasteAction( ETransformField::Location ) )
 		.OverrideResetToDefault(FResetToDefaultOverride::Create(TAttribute<bool>(this, &FComponentTransformDetails::GetLocationResetVisibility), FSimpleDelegate::CreateSP(this, &FComponentTransformDetails::OnLocationResetClicked)))
@@ -399,6 +400,7 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 		}
 
 		ChildrenBuilder.AddCustomRow( LOCTEXT("RotationFilter", "Rotation") )
+		.RowTag("Rotation")
 		.CopyAction( CreateCopyAction(ETransformField::Rotation) )
 		.PasteAction( CreatePasteAction(ETransformField::Rotation) )
 		.OverrideResetToDefault(FResetToDefaultOverride::Create(TAttribute<bool>(this, &FComponentTransformDetails::GetRotationResetVisibility), FSimpleDelegate::CreateSP(this, &FComponentTransformDetails::OnRotationResetClicked)))
@@ -437,6 +439,7 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 	if(!bHideScaleField)
 	{
 		ChildrenBuilder.AddCustomRow( LOCTEXT("ScaleFilter", "Scale") )
+		.RowTag("Scale")
 		.CopyAction( CreateCopyAction(ETransformField::Scale) )
 		.PasteAction( CreatePasteAction(ETransformField::Scale) )
 		.OverrideResetToDefault(FResetToDefaultOverride::Create(TAttribute<bool>(this, &FComponentTransformDetails::GetScaleResetVisibility), FSimpleDelegate::CreateSP(this, &FComponentTransformDetails::OnScaleResetClicked)))

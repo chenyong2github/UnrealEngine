@@ -44,7 +44,7 @@ struct FActivePreAnimatedToken : IMovieScenePreAnimatedToken
 		}
 	}
 
-	virtual void RestoreState(UObject& InObject, IMovieScenePlayer& Player) override
+	virtual void RestoreState(UObject& InObject, const UE::MovieScene::FRestoreStateParams& Params) override
 	{
 		UFXSystemComponent* FXSystemComponent = GetFXSystemComponentFromObject(&InObject);
 		if (FXSystemComponent)

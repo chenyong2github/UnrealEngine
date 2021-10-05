@@ -2442,7 +2442,7 @@ bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::U
 			EditContext.Emplace( VariantSet.GetVariantEditContext() );
 		}
 
-		pxr::SdfPath MeshPrimPath = ParentPrimPath.AppendPath( pxr::SdfPath( bExportMultipleLODs ? VariantName : UnrealToUsd::ConvertString( *SkeletalMesh->GetName() ).Get() ) );
+		pxr::SdfPath MeshPrimPath = ParentPrimPath.AppendPath( pxr::SdfPath( bExportMultipleLODs ? VariantName : UnrealToUsd::ConvertString( *UsdUtils::SanitizeUsdIdentifier( *SkeletalMesh->GetName() ) ).Get() ) );
 		pxr::UsdPrim UsdLODPrim = Stage->DefinePrim( MeshPrimPath, UnrealToUsd::ConvertToken( TEXT( "Mesh" ) ).Get() );
 		pxr::UsdGeomMesh UsdLODPrimGeomMesh{ UsdLODPrim };
 
@@ -2486,7 +2486,7 @@ bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::U
 
 			pxr::SdfPath ParentPath = bExportMultipleLODs ? SkelRootPrim.GetPath() : UsdLODPrim.GetPath();
 
-			pxr::SdfPath BlendShapePath = ParentPath.AppendPath( UnrealToUsd::ConvertPath( *MorphTarget->GetName() ).Get() );
+			pxr::SdfPath BlendShapePath = ParentPath.AppendPath( UnrealToUsd::ConvertPath( *UsdUtils::SanitizeUsdIdentifier( *MorphTarget->GetName() ) ).Get() );
 			pxr::UsdPrim BlendShapePrim = UsdLODPrim.GetStage()->DefinePrim( BlendShapePath, UnrealToUsd::ConvertToken( TEXT( "BlendShape" ) ).Get() );
 			pxr::UsdSkelBlendShape BlendShape{ BlendShapePrim };
 
@@ -2496,7 +2496,7 @@ bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::U
 				continue;
 			}
 
-			AddedBlendShapes.push_back( UnrealToUsd::ConvertToken( *MorphTarget->GetName() ).Get() );
+			AddedBlendShapes.push_back( UnrealToUsd::ConvertToken( *UsdUtils::SanitizeUsdIdentifier( *MorphTarget->GetName() ) ).Get() );
 			AddedBlendShapeTargets.push_back( BlendShapePath );
 		}
 

@@ -84,6 +84,7 @@ namespace UnrealBuildTool
 		private bool FacebookPluginEnabled = false;
 		private bool OculusMobilePluginEnabled = false;
 		private bool GoogleVRPluginEnabled = false;
+		private bool EOSSDKPluginEnabled = false;
 
 		public void SetAndroidPluginData(List<string> Architectures, List<string> inPluginExtraData)
 		{
@@ -99,8 +100,9 @@ namespace UnrealBuildTool
 			// check if certain plugins are enabled
 			ARCorePluginEnabled = false;
 			FacebookPluginEnabled = false;
-			GoogleVRPluginEnabled = false;
 			OculusMobilePluginEnabled = false;
+			GoogleVRPluginEnabled = false;
+			EOSSDKPluginEnabled = false;
 			ActiveUPLFiles = "";
 			foreach (string Plugin in inPluginExtraData)
 			{
@@ -133,6 +135,13 @@ namespace UnrealBuildTool
 					GoogleVRPluginEnabled = true;
 					continue;
 				}
+
+				// check if the EOSShared plugin was enabled
+				if (Plugin.Contains("EOSSDK"))
+				{
+					EOSSDKPluginEnabled = true;
+					continue;
+				}
 			}
 
 			UPL = new UnrealPluginLanguage(ProjectFile, inPluginExtraData, NDKArches, "http://schemas.android.com/apk/res/android", "xmlns:android=\"http://schemas.android.com/apk/res/android\"", UnrealTargetPlatform.Android);
@@ -149,6 +158,10 @@ namespace UnrealBuildTool
 			if (ARCorePluginEnabled)
 			{
 				MinimumSDKLevelForGradle = Math.Max(MinimumSDKLevelForGradle, 19);
+			}
+			if(EOSSDKPluginEnabled)
+			{
+				MinimumSDKLevelForGradle = Math.Max(MinimumSDKLevelForGradle, 23);
 			}
 		}
 
@@ -1476,12 +1489,31 @@ namespace UnrealBuildTool
 				case AndroidToolChain.ClangSanitizer.UndefinedBehaviorMinimal:
 					LibName = "ubsan_minimal";
 					break;
+				case AndroidToolChain.ClangSanitizer.Thread:
+					LibName = "thread";
+					break;
 			}
 			
 			string SanitizerFullLibName = "libclang_rt." + LibName + Architecture + "-android.so";
 
 			string WrapSh = Path.Combine(UnrealBuildTool.EngineDirectory.ToString(), "Build", "Android", "ClangSanitizers", "wrap.sh");
-			string SanitizerLib = Path.Combine(Environment.ExpandEnvironmentVariables("%NDKROOT%"), "toolchains", "llvm", "prebuilt", "windows-x86_64", "lib64", "clang", "9.0.8", "lib", "linux", SanitizerFullLibName);
+			string PlatformName = "windows-x86_64";
+			int PlatformId = (int)Environment.OSVersion.Platform;
+			if ((PlatformId == 4) || (PlatformId == 128))
+			{
+				PlatformName = "linux-x86_64";
+			}
+			else if (PlatformId == 6)
+			{
+				PlatformName = "darwin-x86_64";
+			}
+
+			string VersionFileName = Path.Combine(Environment.ExpandEnvironmentVariables("%NDKROOT%"), "toolchains", "llvm", "prebuilt", PlatformName, "AndroidVersion.txt");
+			System.IO.StreamReader VersionFile = new System.IO.StreamReader(VersionFileName);
+			string LibsVersion = VersionFile.ReadLine();
+			VersionFile.Close();
+
+			string SanitizerLib = Path.Combine(Environment.ExpandEnvironmentVariables("%NDKROOT%"), "toolchains", "llvm", "prebuilt", PlatformName, "lib64", "clang", LibsVersion, "lib", "linux", SanitizerFullLibName);
 			if (File.Exists(SanitizerLib) && File.Exists(WrapSh))
 			{
 				string LibDestDir = Path.Combine(UnrealBuildPath, "libs", NDKArch);
@@ -2601,7 +2633,7 @@ namespace UnrealBuildTool
 			Text.AppendLine("\t<application android:label=\"@string/app_name\"");
 			Text.AppendLine("\t             android:icon=\"@drawable/icon\"");
 
-			AndroidToolChain.ClangSanitizer Sanitizer = AndroidToolChain.BuildWithSanitizer(ProjectFile);
+			AndroidToolChain.ClangSanitizer Sanitizer = ToolChain.BuildWithSanitizer();
 			if (Sanitizer != AndroidToolChain.ClangSanitizer.None && Sanitizer != AndroidToolChain.ClangSanitizer.HwAddress)
 			{
 				Text.AppendLine("\t             android:extractNativeLibs=\"true\"");
@@ -3276,7 +3308,7 @@ namespace UnrealBuildTool
 				}
 			}
 
-			if ((AndroidToolChain.BuildWithSanitizer(ProjectFile) != AndroidToolChain.ClangSanitizer.None) && (MinSDKVersion < 27))
+			if ((ToolChain.BuildWithSanitizer() != AndroidToolChain.ClangSanitizer.None) && (MinSDKVersion < 27))
 			{
 				MinSDKVersion = 27;
 				Log.TraceInformation("Fixing minSdkVersion; requires minSdkVersion of {0} for Clang's Sanitizers", 27);
@@ -4099,7 +4131,7 @@ namespace UnrealBuildTool
 				CopySTL(ToolChain, UnrealBuildPath, Arch, NDKArch, bForDistribution);
 				CopyGfxDebugger(UnrealBuildPath, Arch, NDKArch);
 				CopyVulkanValidationLayers(UnrealBuildPath, Arch, NDKArch, Configuration.ToString());
-				AndroidToolChain.ClangSanitizer Sanitizer = AndroidToolChain.BuildWithSanitizer(ProjectFile);
+				AndroidToolChain.ClangSanitizer Sanitizer = ToolChain.BuildWithSanitizer();
 				if (Sanitizer != AndroidToolChain.ClangSanitizer.None && Sanitizer != AndroidToolChain.ClangSanitizer.HwAddress)
 				{
 					CopyClangSanitizerLib(UnrealBuildPath, Arch, NDKArch, Sanitizer);

@@ -26,6 +26,36 @@ namespace UnrealBuildTool
 		/// </summary>
 		[CommandLine("-GPUArchitectures=", ListSeparator = '+')]
 		public List<string> GPUArchitectures = new List<string>();
+
+		/// <summary>
+		/// Enables address sanitizer (ASan)
+		/// </summary>
+		[CommandLine("-EnableASan")]
+		public bool bEnableAddressSanitizer = false;
+
+		/// <summary>
+		/// Enables HW address sanitizer (HWASan)
+		/// </summary>
+		[CommandLine("-EnableHWASan")]
+		public bool bEnableHWAddressSanitizer = false;
+
+		/// <summary>
+		/// Enables thread sanitizer (TSan)
+		/// </summary>
+		//[CommandLine("-EnableTSan")]
+		public bool bEnableThreadSanitizer = false;
+
+		/// <summary>
+		/// Enables undefined behavior sanitizer (UBSan)
+		/// </summary>
+		[CommandLine("-EnableUBSan")]
+		public bool bEnableUndefinedBehaviorSanitizer = false;
+
+		/// <summary>
+		/// Enables minimal undefined behavior sanitizer (UBSan)
+		/// </summary>
+		[CommandLine("-EnableMinUBSan")]
+		public bool bEnableMinimalUndefinedBehaviorSanitizer = false;
 	}
 
 	/// <summary>
@@ -61,6 +91,36 @@ namespace UnrealBuildTool
 		public IReadOnlyList<string> GPUArchitectures
 		{
 			get { return Inner.GPUArchitectures.AsReadOnly(); }
+		}
+
+		public bool bEnableAddressSanitizer
+		{
+			get { return Inner.bEnableAddressSanitizer; }
+		}
+
+		public bool bEnableHWAddressSanitizer
+		{
+			get { return Inner.bEnableHWAddressSanitizer; }
+		}
+
+		public bool bEnableThreadSanitizer
+		{
+			get { return Inner.bEnableThreadSanitizer; }
+		}
+
+		public bool bEnableUndefinedBehaviorSanitizer
+		{
+			get { return Inner.bEnableUndefinedBehaviorSanitizer; }
+		}
+
+		public bool bEnableMinimalUndefinedBehaviorSanitizer
+		{
+			get { return Inner.bEnableMinimalUndefinedBehaviorSanitizer; }
+		}
+
+		public AndroidTargetRules TargetRules
+		{
+			get { return Inner; }
 		}
 
 		#pragma warning restore CS1591
@@ -430,14 +490,45 @@ namespace UnrealBuildTool
 			};
 		}
 
+		private AndroidToolChainOptions CreateToolChainOptions(AndroidTargetRules TargetRules)
+		{
+			AndroidToolChainOptions Options = AndroidToolChainOptions.None;
+			if (TargetRules.bEnableAddressSanitizer)
+			{
+				Options |= AndroidToolChainOptions.EnableAddressSanitizer;
+			}
+			else if (TargetRules.bEnableHWAddressSanitizer)
+			{
+				Options |= AndroidToolChainOptions.EnableHWAddressSanitizer;
+			}
+			if (TargetRules.bEnableThreadSanitizer)
+			{
+				Options |= AndroidToolChainOptions.EnableThreadSanitizer;
+			}
+			if (TargetRules.bEnableUndefinedBehaviorSanitizer)
+			{
+				Options |= AndroidToolChainOptions.EnableUndefinedBehaviorSanitizer;
+			}
+			else if (TargetRules.bEnableMinimalUndefinedBehaviorSanitizer)
+			{
+				Options |= AndroidToolChainOptions.EnableMinimalUndefinedBehaviorSanitizer;
+			}
+
+			return Options;
+		}
+
 		public override UEToolChain CreateToolChain(ReadOnlyTargetRules Target)
 		{
 			bool bUseLdGold = Target.bUseUnityBuild;
-			return new AndroidToolChain(Target.ProjectFile, bUseLdGold, Target.AndroidPlatform.Architectures, Target.AndroidPlatform.GPUArchitectures);
+			AndroidToolChainOptions Options = CreateToolChainOptions(Target.AndroidPlatform.TargetRules);
+			return new AndroidToolChain(Target.ProjectFile, bUseLdGold, Target.AndroidPlatform.Architectures, Target.AndroidPlatform.GPUArchitectures, Options);
 		}
 		public virtual UEToolChain CreateTempToolChainForProject(FileReference ProjectFile)
 		{
-			return new AndroidToolChain(ProjectFile, true, null, null);
+			AndroidTargetRules TargetRules = new AndroidTargetRules();
+			CommandLine.ParseArguments(Environment.GetCommandLineArgs(), TargetRules);
+			AndroidToolChainOptions Options = CreateToolChainOptions(TargetRules);
+			return new AndroidToolChain(ProjectFile, true, null, null, Options);
 		}
 
 		/// <summary>

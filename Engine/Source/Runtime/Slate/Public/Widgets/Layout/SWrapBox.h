@@ -106,6 +106,7 @@ public:
 	SLATE_BEGIN_ARGS(SWrapBox)
 		: _PreferredWidth(100.f)
 		, _PreferredSize(100.f)
+		, _HAlign(HAlign_Left)
 		, _InnerSlotPadding(FVector2D::ZeroVector)
 		, _UseAllottedWidth(false)
 		, _UseAllottedSize(false)
@@ -122,6 +123,9 @@ public:
 
 		/** The preferred size, if not set will fill the space */
 		SLATE_ATTRIBUTE( float, PreferredSize )
+
+		/** How to distribute the elements among any extra space in a given row */
+		SLATE_ATTRIBUTE(EHorizontalAlignment, HAlign)
 
 		/** The inner slot padding goes between slots sharing borders */
 		SLATE_ARGUMENT( FVector2D, InnerSlotPadding )
@@ -181,6 +185,9 @@ public:
 	/** Set the Orientation to determine if the wrap box needs to arrange the slots left-to-right or top-to-bottom */
 	void SetOrientation(EOrientation InOrientation);
 
+	/** How to distribute the elements among any extra space in a given row */
+	void SetHorizontalAlignment(TAttribute<EHorizontalAlignment> InHAlignment);
+
 private:
 
 	/** How wide this panel should appear to be. Any widgets past this line will be wrapped onto the next line. */
@@ -189,6 +196,9 @@ private:
 
 	/** How wide or long, dependently of the orientation, this panel should appear to be. Any widgets past this line will be wrapped onto the next line. */
 	TAttribute<float> PreferredSize;
+
+	/** How to distribute the elements among any extra space in a given row */
+	TAttribute< EHorizontalAlignment > HAlign;
 
 	/** The slots that contain this panel's children. */
 	TPanelChildren<FSlot> Slots;

@@ -31,6 +31,8 @@ protected:
 	void CreateTexture() final override;
 	void CreatePartiallyResidentTexture() final override;
 
+	void GetData(uint32 SliceIndex, uint32 MipIndex, void* Dest, uint32 DestPitch);
+
 	/** The initial data for all mips of a single slice. */
 	typedef TArray<TArrayView<uint8>, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > FSingleSliceMipDataView;
 	/** All slices initial data. */

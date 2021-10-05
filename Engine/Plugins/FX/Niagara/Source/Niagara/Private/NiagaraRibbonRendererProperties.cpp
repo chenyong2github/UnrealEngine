@@ -21,9 +21,9 @@ TArray<TWeakObjectPtr<UNiagaraRibbonRendererProperties>> UNiagaraRibbonRendererP
 
 
 FNiagaraRibbonShapeCustomVertex::FNiagaraRibbonShapeCustomVertex()
-	: Position(0, 0)
-	, Normal(0, 0)
-	, TextureV(0)
+	: Position(0.0f)
+	, Normal(0.0f)
+	, TextureV(0.0f)
 {
 }
 

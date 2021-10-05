@@ -46,7 +46,7 @@ void UConversationParticipantComponent::ServerNotifyConversationStarted(UConvers
 
 		ConversationsActive++;
 		OnServerConversationStarted(Conversation, AsParticipant);
-		ClientStartConversation(Conversation, AsParticipant);
+		ClientStartConversation(AsParticipant);
 
 		if (Owner->GetRemoteRole() == ROLE_AutonomousProxy)
 		{
@@ -206,7 +206,7 @@ void UConversationParticipantComponent::ClientUpdateConversation_Implementation(
 	ConversationUpdated.Broadcast(LastMessage);
 }
 
-void UConversationParticipantComponent::ClientStartConversation_Implementation(const UConversationInstance* Conversation, const FGameplayTag AsParticipant)
+void UConversationParticipantComponent::ClientStartConversation_Implementation(const FGameplayTag AsParticipant)
 {
 	bIsFirstConversationUpdateBroadcasted = false;
 	ConversationStarted.Broadcast();

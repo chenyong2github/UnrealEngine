@@ -17,6 +17,7 @@
 #include "Settings/EditorLoadingSavingSettings.h"
 #include "Editor.h"
 #include "GenericPlatform/GenericPlatformProcess.h"
+#include "SequencerUtilities.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelineEditorBlueprintLibrary"
 
@@ -152,8 +153,24 @@ UMoviePipelineExecutorJob* UMoviePipelineEditorBlueprintLibrary::CreateJobFromSe
 
 	NewJob->Modify();
 
-	// We'll assume they went to render from the current world - they can always override it later.
-	FSoftObjectPath CurrentWorld = GEditor ? FSoftObjectPath(GEditor->GetEditorWorldContext().World()) : FSoftObjectPath();
+	TArray<FString> AssociatedMaps = FSequencerUtilities::GetAssociatedMapPackages(InSequence);
+	FSoftObjectPath CurrentWorld;
+	if (AssociatedMaps.Num() > 0)
+	{
+		// So associated maps are only packages and not assets, but FSoftObjectPath needs assets.
+		// We know that they are map packages, and map packages should be /Game/Foo.Foo, so we can
+		// just do some string manipulation here as there isn't a generic way to go from Package->Object.
+		FString MapPackage = AssociatedMaps[0];
+		MapPackage = FString::Printf(TEXT("%s.%s"), *MapPackage, *FPackageName::GetShortName(MapPackage));
+
+		CurrentWorld = FSoftObjectPath(MapPackage);
+	}
+	else
+	{
+		// We'll assume they went to render from the current world - they can always override it later.
+		CurrentWorld = GEditor ? FSoftObjectPath(GEditor->GetEditorWorldContext().World()) : FSoftObjectPath();
+	}
+
 	FSoftObjectPath Sequence(InSequence);
 	NewJob->Map = CurrentWorld;
 	NewJob->Author = FPlatformProcess::UserName(false);

@@ -2200,6 +2200,11 @@ namespace PerfSummaries
 			{
 				rowSortList.AddRange(rowSortAt.Value.Split(','));
 			}
+			XAttribute weightByColumnAt = tableElement.Attribute("weightByColumn");
+			if (weightByColumnAt != null)
+			{
+				weightByColumn = weightByColumnAt.Value.ToLower();
+			}
 
 			XElement filterEl = tableElement.Element("filter");
 			if (filterEl != null)
@@ -2225,6 +2230,7 @@ namespace PerfSummaries
 		public List<string> rowSortList = new List<string>();
 		public List<string> columnFilterList = new List<string>();
 		public SummarySectionBoundaryInfo sectionBoundary = null;
+		public string weightByColumn = null;
 	}
 
 
@@ -2233,21 +2239,23 @@ namespace PerfSummaries
 		public string name;
 		public bool isNumeric = false;
 		public string displayName;
+		public bool isRowWeightColumn = false;
 		List<double> doubleValues = new List<double>();
 		List<string> stringValues = new List<string>();
 		List<string> toolTips = new List<string>();
 
 		List<ColourThresholdList> colourThresholds = new List<ColourThresholdList>();
 		ColourThresholdList colourThresholdOverride = null;
-		public SummaryTableColumn(string inName, bool inIsNumeric, string inDisplayName = null)
+		public SummaryTableColumn(string inName, bool inIsNumeric, string inDisplayName = null, bool inIsRowWeightColumn=false)
 		{
 			name = inName;
 			isNumeric = inIsNumeric;
 			displayName = inDisplayName;
+			isRowWeightColumn = inIsRowWeightColumn;
 		}
 		public SummaryTableColumn Clone()
 		{
-			SummaryTableColumn newColumn = new SummaryTableColumn(name, isNumeric, displayName);
+			SummaryTableColumn newColumn = new SummaryTableColumn(name, isNumeric, displayName, isRowWeightColumn);
 			newColumn.doubleValues.AddRange(doubleValues);
 			newColumn.stringValues.AddRange(stringValues);
 			newColumn.colourThresholds.AddRange(colourThresholds);
@@ -2529,6 +2537,7 @@ namespace PerfSummaries
 			List<double> RowTotals = new List<double>();
 			List<double> RowMinValues = new List<double>();
 			List<int> RowCounts = new List<int>();
+			List<double> RowWeights = new List<double>();
 			List<ColourThresholdList> RowColourThresholds = new List<ColourThresholdList>();
 
 			// Set the initial sort key
@@ -2549,6 +2558,7 @@ namespace PerfSummaries
 					RowMinValues.Clear();
 					RowTotals.Clear();
 					RowCounts.Clear();
+					RowWeights.Clear();
 					RowColourThresholds.Clear();
 					for (int j = 0; j < columns.Count; j++)
 					{
@@ -2559,6 +2569,7 @@ namespace PerfSummaries
 						}
 						RowTotals.Add(0.0f);
 						RowCounts.Add(0);
+						RowWeights.Add(0.0);
 						RowColourThresholds.Add(null);
 					}
 					mergedRowsCount = 0;
@@ -2579,9 +2590,11 @@ namespace PerfSummaries
 								RowMaxValues[j] = Math.Max(RowMaxValues[j], value);
 								RowMinValues[j] = Math.Min(RowMinValues[j], value);
 							}
-							RowTotals[j] += value;
 							RowColourThresholds[j] = column.GetColourThresholds(i);
 							RowCounts[j]++;
+							double rowWeight = (rowWeightings != null) ? rowWeightings[i] : 1.0;
+							RowWeights[j] += rowWeight;
+							RowTotals[j] += value * rowWeight;
 						}
 					}
 				}
@@ -2612,7 +2625,7 @@ namespace PerfSummaries
 						int destColumnBaseIndex = srcToDestBaseColumnIndex[j];
 						if (destColumnBaseIndex != -1 && RowCounts[j]>0)
 						{
-							newColumns[destColumnBaseIndex].SetValue(destRowIndex, RowTotals[j] / (double)RowCounts[j]);
+							newColumns[destColumnBaseIndex].SetValue(destRowIndex, RowTotals[j] / RowWeights[j]);
 							if (addMinMaxColumns)
 							{
 								newColumns[destColumnBaseIndex + 1].SetValue(destRowIndex, RowMinValues[j]);
@@ -2643,12 +2656,12 @@ namespace PerfSummaries
 			return newTable;
 		}
 
-		public SummaryTable SortAndFilter(string customFilter, string customRowSort = "buildversion,deviceprofile", bool bReverseSort=false)
+		public SummaryTable SortAndFilter(string customFilter, string customRowSort = "buildversion,deviceprofile", bool bReverseSort=false, string weightByColumnName=null)
 		{
-			return SortAndFilter(customFilter.Split(',').ToList(), customRowSort.Split(',').ToList(), bReverseSort);
+			return SortAndFilter(customFilter.Split(',').ToList(), customRowSort.Split(',').ToList(), bReverseSort, weightByColumnName);
 		}
 
-		public SummaryTable SortAndFilter(List<string> columnFilterList, List<string> rowSortList, bool bReverseSort)
+		public SummaryTable SortAndFilter(List<string> columnFilterList, List<string> rowSortList, bool bReverseSort, string weightByColumnName)
 		{
 			SummaryTable newTable = SortRows(rowSortList, bReverseSort);
 
@@ -2700,6 +2713,17 @@ namespace PerfSummaries
 				}
 			}
 
+			// Compute row weights
+			if (weightByColumnName != null && nameLookup.ContainsKey(weightByColumnName))
+			{
+				SummaryTableColumn rowWeightColumn = nameLookup[weightByColumnName];
+				newTable.rowWeightings = new List<double>(rowWeightColumn.GetCount());
+				for ( int i=0; i<rowWeightColumn.GetCount(); i++)
+				{
+					newTable.rowWeightings.Add(rowWeightColumn.GetValue(i));
+				}
+			}
+
 			List<SummaryTableColumn> newColumnList = new List<SummaryTableColumn>();
 			// Add all the ordered keys that exist, ignoring duplicates
 			foreach (string key in orderedKeysWithDupes)
@@ -2713,10 +2737,10 @@ namespace PerfSummaries
 			}
 
 
-
 			newTable.columns = newColumnList;
 			newTable.rowCount = rowCount;
 			newTable.InitColumnLookup();
+
 			return newTable;
 		}
 
@@ -2832,7 +2856,7 @@ namespace PerfSummaries
 			}
 		}
 
-		public void WriteToHTML(string htmlFilename, string VersionString, bool bSpreadsheetFriendlyStrings, SummarySectionBoundaryInfo sectionBoundaryInfo, bool bScrollableTable, bool bAddMinMaxColumns, int maxColumnStringLength, string [] summaryTableLowIsBadStatList)
+		public void WriteToHTML(string htmlFilename, string VersionString, bool bSpreadsheetFriendlyStrings, SummarySectionBoundaryInfo sectionBoundaryInfo, bool bScrollableTable, bool bAddMinMaxColumns, int maxColumnStringLength, string [] summaryTableLowIsBadStatList, string weightByColumnName)
 		{
 			System.IO.StreamWriter htmlFile = new System.IO.StreamWriter(htmlFilename, false);
 			int statColSpan = hasMinMaxColumns ? 3 : 1;
@@ -3113,7 +3137,14 @@ namespace PerfSummaries
 				htmlFile.WriteLine("</tr>");
 			}
 			htmlFile.WriteLine("</table>");
-			htmlFile.WriteLine("<p style='font-size:8'>Created with PerfReportTool " + VersionString + "</p>");
+			string extraString = "";
+			if (isCollated && weightByColumnName != null )
+			{
+				extraString += " - weighted avg";
+				//htmlFile.WriteLine("<p style='font-size:8'>Weighted by " + weightByColumnName +"</p>");
+			}
+
+			htmlFile.WriteLine("<p style='font-size:8'>Created with PerfReportTool " + VersionString + extraString+ "</p>");
 			htmlFile.WriteLine("</font></body></html>");
 
 			htmlFile.Close();
@@ -3232,6 +3263,7 @@ namespace PerfSummaries
 
 		Dictionary<string, SummaryTableColumn> columnLookup = new Dictionary<string, SummaryTableColumn>();
 		List<SummaryTableColumn> columns = new List<SummaryTableColumn>();
+		List<double> rowWeightings = null;
 		int rowCount = 0;
 		int firstStatColumnIndex = 0;
 		bool isCollated = false;

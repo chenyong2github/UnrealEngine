@@ -8,13 +8,15 @@
 #include "EntitySystem/MovieScenePartialProperties.inl"
 #include "EntitySystem/MovieSceneDecompositionQuery.h"
 #include "EntitySystem/MovieSceneBlenderSystem.h"
-#include "EntitySystem/MovieScenePreAnimatedPropertyHelper.h"
 #include "EntitySystem/MovieSceneInitialValueCache.h"
 #include "EntitySystem/MovieScenePropertySystemTypes.inl"
 #include "EntitySystem/MovieSceneOperationalTypeConversions.h"
 #include "EntitySystem/Interrogation/MovieSceneInterrogationExtension.h"
 #include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateExtension.h"
 
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateStorage.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedPropertyStorage.h"
 
 
 namespace UE
@@ -301,14 +303,34 @@ struct TInitialValueProcessor : TInitialValueProcessorImpl<PropertyTraits, typen
 {};
 
 
-
-
 template<typename PropertyTraits, typename ...MetaDataTypes, int ...MetaDataIndices, typename ...CompositeTypes, int ...CompositeIndices>
 struct TPropertyComponentHandlerImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>, TIntegerSequence<int, MetaDataIndices...>, TIntegerSequence<int, CompositeIndices...>, CompositeTypes...> : IPropertyComponentHandler
 {
 	using StorageType        = typename PropertyTraits::StorageType;
 	using CompleteSetterTask = TSetCompositePropertyValues<PropertyTraits, CompositeTypes...>;
 	using PartialSetterTask  = TSetPartialPropertyValues<PropertyTraits, CompositeTypes...>;
+
+	using PreAnimatedStorageType = TPreAnimatedPropertyStorage<PropertyTraits>;
+
+	TPreAnimatedStorageID<PreAnimatedStorageType> StorageID;
+
+	TPropertyComponentHandlerImpl()
+	{
+		StorageID = FPreAnimatedStateExtension::RegisterStorage<PreAnimatedStorageType>();
+	}
+
+	virtual TSharedPtr<IPreAnimatedStorage> GetPreAnimatedStateStorage(const FPropertyDefinition& Definition, FPreAnimatedStateExtension* Container) override
+	{
+		TSharedPtr<PreAnimatedStorageType> Existing = Container->FindStorage(StorageID);
+		if (!Existing)
+		{
+			Existing = MakeShared<PreAnimatedStorageType>(Definition);
+			Existing->Initialize(StorageID, Container);
+			Container->AddStorage(StorageID, Existing);
+		}
+
+		return Existing;
+	}
 
 	virtual void DispatchSetterTasks(const FPropertyDefinition& Definition, TArrayView<const FPropertyCompositeDefinition> Composites, const FPropertyStats& Stats, FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents, UMovieSceneEntitySystemLinker* Linker)
 	{
@@ -346,48 +368,10 @@ struct TPropertyComponentHandlerImpl<PropertyTraits, TPropertyMetaData<MetaDataT
 		}
 	}
 
-	virtual void DispatchCachePreAnimatedTasks(const FPropertyDefinition& Definition, FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents, UMovieSceneEntitySystemLinker* Linker) override
-	{
-		FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
-
-		TGetPropertyValues<PropertyTraits> GetProperties(Definition.CustomPropertyRegistration);
-
-		FEntityTaskBuilder()
-		.Read(BuiltInComponents->BoundObject)
-		.ReadOneOf(BuiltInComponents->CustomPropertyIndex, BuiltInComponents->FastPropertyOffset, BuiltInComponents->SlowProperty)
-		.ReadAllOf(Definition.GetMetaDataComponent<MetaDataTypes>(MetaDataIndices)...)
-		.Write(Definition.PreAnimatedValue.ReinterpretCast<StorageType>())
-		.FilterAll({ BuiltInComponents->Tags.CachePreAnimatedValue, Definition.PropertyType })
-		.SetDesiredThread(Linker->EntityManager.GetGatherThread())
-		.RunInline_PerAllocation(&Linker->EntityManager, GetProperties);
-	}
-
-	virtual void DispatchRestorePreAnimatedStateTasks(const FPropertyDefinition& Definition, FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents, UMovieSceneEntitySystemLinker* Linker) override
-	{
-		FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
-
-		TSetPropertyValues<PropertyTraits> SetProperties(Definition.CustomPropertyRegistration);
-
-		FEntityTaskBuilder()
-		.Read(BuiltInComponents->BoundObject)
-		.ReadOneOf(BuiltInComponents->CustomPropertyIndex, BuiltInComponents->FastPropertyOffset, BuiltInComponents->SlowProperty)
-		.ReadAllOf(Definition.GetMetaDataComponent<MetaDataTypes>(MetaDataIndices)...)
-		.Read(Definition.PreAnimatedValue.ReinterpretCast<StorageType>())
-		.FilterAll({ Definition.PropertyType, BuiltInComponents->Tags.Finished })
-		.SetDesiredThread(Linker->EntityManager.GetGatherThread())
-		.RunInline_PerAllocation(&Linker->EntityManager, SetProperties);
-	}
-
 	virtual IInitialValueProcessor* GetInitialValueProcessor() override
 	{
 		static TInitialValueProcessor<PropertyTraits> Processor;
 		return &Processor;
-	}
-
-	virtual void SaveGlobalPreAnimatedState(const FPropertyDefinition& Definition, UMovieSceneEntitySystemLinker* Linker) override
-	{
-		TPreAnimatedPropertyHelper<PropertyTraits> Helper(&Definition, Linker);
-		Helper.SavePreAnimatedState();
 	}
 
 	virtual void RecomposeBlendOperational(const FPropertyDefinition& PropertyDefinition, TArrayView<const FPropertyCompositeDefinition> Composites, const FFloatDecompositionParams& InParams, UMovieSceneBlenderSystem* Blender, FConstPropertyComponentView InCurrentValue, FPropertyComponentArrayView OutResult) override

@@ -52,37 +52,4 @@ void ShowAlert(const utf8_t* InWhat, const utf8_t* InFct)
 	DGResAlert(ACAPI_GetOwnResModule(), LocalizeResId(kAlertPlugInError));
 }
 
-GSErrCode TryFunction(const utf8_t* InFctName, GSErrCode (*InFct)(void* IOArg, void* IOArg2), void* IOArg1,
-					  void* IOArg2)
-{
-	GSErrCode GSErr = APIERR_GENERAL;
-
-	try
-	{
-		GSErr = InFct(IOArg1, IOArg2);
-	}
-	catch (UE_AC_Error& e)
-	{
-		ShowAlert(e, InFctName);
-		if (e.GetErrorCode() == UE_AC_Error::kUserCancelled)
-		{
-			GSErr = APIERR_CANCEL;
-		}
-	}
-	catch (std::exception& e)
-	{
-		ShowAlert(e.what(), InFctName);
-	}
-	catch (GS::GSException& gs)
-	{
-		ShowAlert(gs, InFctName);
-	}
-	catch (...)
-	{
-		ShowAlert(GetStdName(kName_Unknown), InFctName);
-	}
-
-	return GSErr;
-}
-
 END_NAMESPACE_UE_AC

@@ -106,7 +106,8 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 
 			if(auto NewData = ParticleData.FindDynamicMisc(Manager,DataIdx))
 			{
-				Evolution.SetParticleObjectState(RigidHandle,NewData->ObjectState());
+				Evolution.SetParticleObjectState(RigidHandle, NewData->ObjectState());
+				Evolution.SetParticleSleepType(RigidHandle, NewData->SleepType());
 
 				if (RigidHandle->Disabled() != NewData->Disabled())
 				{
@@ -133,17 +134,53 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 		}
 
 		//shape properties
+		bool bUpdateCollisionData = false;
+		bool bHasCollision = false;
 		for(int32 ShapeDataIdx : Dirty.ShapeDataIndices)
 		{
 			const FShapeDirtyData& ShapeData = ShapesData[ShapeDataIdx];
 			const int32 ShapeIdx = ShapeData.GetShapeIdx();
+
 			if(auto NewData = ShapeData.FindCollisionData(Manager, ShapeDataIdx))
 			{
+				bUpdateCollisionData = true;
 				Handle->ShapesArray()[ShapeIdx]->SetCollisionData(*NewData);
+
+				const FCollisionData& CollisionData = Handle->ShapesArray()[ShapeIdx]->GetCollisionData();
+				bHasCollision |= CollisionData.HasCollisionData();
 			}
 			if(auto NewData = ShapeData.FindMaterials(Manager, ShapeDataIdx))
 			{
 				Handle->ShapesArray()[ShapeIdx]->SetMaterialData(*NewData);
+			}
+
+		}
+		
+
+		if(bUpdateCollisionData)
+		{
+			//Some shapes were not dirty and may have collision - so have to iterate them all. TODO: find a better way to handle this case
+			if(!bHasCollision && Dirty.ShapeDataIndices.Num() != Handle->ShapesArray().Num())
+			{
+				for (const TUniquePtr<FPerShapeData>& Shape : Handle->ShapesArray())
+				{
+					const FCollisionData& CollisionData = Shape->GetCollisionData();
+					bHasCollision |= CollisionData.HasCollisionData();
+
+					if (bHasCollision) { break; }
+				}
+			}
+
+			Handle->SetHasCollision(bHasCollision);
+
+			if(bHasCollision)
+			{
+				//make sure it's in acceleration structure
+				Evolution.DirtyParticle(*Handle);
+			}
+			else
+			{
+				Evolution.RemoveParticleFromAccelerationStructure(*Handle);
 			}
 		}
 	}

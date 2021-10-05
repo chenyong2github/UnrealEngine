@@ -8,6 +8,25 @@
 
 #define LOCTEXT_NAMESPACE "EdGraph"
 
+namespace FEdGraphNode_Comment_Utils
+{
+	template<typename T>
+	void SyncPropertyToValue(UEdGraphNode_Comment* InNode, FProperty* InProperty, const T& InValue)
+	{
+		if (InNode && InProperty)
+		{
+			T* CurrentValuePtr = InProperty->ContainerPtrToValuePtr<T>(InNode);
+			if (*CurrentValuePtr != InValue)
+			{
+				*CurrentValuePtr = InValue;
+
+				FPropertyChangedEvent PropertyChangedEvent(InProperty, EPropertyChangeType::Unspecified);
+				InNode->PostEditChangeProperty(PropertyChangedEvent);
+			}
+		}
+	}
+}
+
 /////////////////////////////////////////////////////
 // UEdGraphNode_Comment
 
@@ -42,20 +61,25 @@ void UEdGraphNode_Comment::AddReferencedObjects(UObject* InThis, FReferenceColle
 
 void UEdGraphNode_Comment::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	bCommentBubbleVisible = bCommentBubbleVisible_InDetailsPanel;
-	bCommentBubblePinned = bCommentBubbleVisible_InDetailsPanel;
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UEdGraphNode_Comment, bCommentBubbleVisible_InDetailsPanel))
+	{
+		bCommentBubbleVisible = bCommentBubbleVisible_InDetailsPanel;
+		bCommentBubblePinned = bCommentBubbleVisible_InDetailsPanel;
+	}
+	
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
 void UEdGraphNode_Comment::PostPlacedNewNode()
 {
+	const UClass* NodeClass = GetClass();
 	const UGraphEditorSettings* GraphEditorSettings = GetDefault<UGraphEditorSettings>();
 
 	// This is done here instead of in the constructor so we can later change the default for newly placed
 	// instances without changing all of the existing ones (due to delta serialization)
-	MoveMode = GraphEditorSettings->DefaultCommentNodeMoveMode;
-	CommentColor = GraphEditorSettings->DefaultCommentNodeTitleColor;
-	bCommentBubbleVisible_InDetailsPanel = GraphEditorSettings->bShowCommentBubbleWhenZoomedOut;
+	FEdGraphNode_Comment_Utils::SyncPropertyToValue(this, NodeClass->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UEdGraphNode_Comment, MoveMode)), GraphEditorSettings->DefaultCommentNodeMoveMode);
+	FEdGraphNode_Comment_Utils::SyncPropertyToValue(this, NodeClass->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UEdGraphNode_Comment, CommentColor)), GraphEditorSettings->DefaultCommentNodeTitleColor);
+	FEdGraphNode_Comment_Utils::SyncPropertyToValue(this, NodeClass->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UEdGraphNode_Comment, bCommentBubbleVisible_InDetailsPanel)), GraphEditorSettings->bShowCommentBubbleWhenZoomedOut);
 
 	NodeComment = NSLOCTEXT("K2Node", "CommentBlock_NewEmptyComment", "Comment").ToString();
 }

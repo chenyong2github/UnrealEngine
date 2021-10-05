@@ -183,14 +183,23 @@ FReply SDetailCategoryTableRow::OnMouseButtonDoubleClick(const FGeometry& InMyGe
 	return OnMouseButtonDown(InMyGeometry, InMouseEvent);
 }
 
-FDetailCategoryGroupNode::FDetailCategoryGroupNode( const FDetailNodeList& InChildNodes, FName InGroupName, FDetailCategoryImpl& InParentCategory )
-	: ChildNodes( InChildNodes )
-	, ParentCategory( InParentCategory )
+FDetailCategoryGroupNode::FDetailCategoryGroupNode(FName InGroupName, TSharedRef<FDetailCategoryImpl> InParentCategory)
+	: ParentCategory(InParentCategory.Get())
 	, GroupName( InGroupName )
 	, bShouldBeVisible( false )
 	, bShowBorder(true)
 	, bHasSplitter(false)
 {
+	SetParentNode(InParentCategory);
+}
+
+void FDetailCategoryGroupNode::SetChildren(const FDetailNodeList& InChildNodes)
+{
+	ChildNodes = InChildNodes;
+	for (TSharedRef<FDetailTreeNode> Child : ChildNodes)
+	{
+		Child->SetParentNode(AsShared());
+	}
 }
 
 TSharedRef< ITableRow > FDetailCategoryGroupNode::GenerateWidgetForTableView( const TSharedRef<STableViewBase>& OwnerTable, bool bAllowFavoriteSystem)

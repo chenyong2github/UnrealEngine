@@ -34,10 +34,6 @@ struct LIVELINKLENS_API FLiveLinkLensFrameData : public FLiveLinkCameraFrameData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LiveLink", Interp)
 	FDistortionInfo DistortionInfo;
 
-	/** Normalized distance from the center of projection to the image plane */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LiveLink", Interp)
-	FVector2D FxFy = FVector2D(1.0f, (16.0f / 9.0f));
-
 	/** Normalized center of the image, in the range [0.0f, 1.0f] */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LiveLink", Interp, meta = (DisplayName = "Image Center"))
 	FVector2D PrincipalPoint = FVector2D(0.5f, 0.5f);

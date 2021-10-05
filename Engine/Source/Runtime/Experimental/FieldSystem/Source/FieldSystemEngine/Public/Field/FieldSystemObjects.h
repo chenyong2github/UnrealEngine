@@ -11,6 +11,7 @@
 #include "Field/FieldSystemNodes.h"
 #include "Math/Vector.h"
 #include "Components/PrimitiveComponent.h"
+#include "PhysicsField/PhysicsFieldComponent.h"
 
 #include "FieldSystemObjects.generated.h"
 
@@ -30,9 +31,9 @@ public:
 };
 
 /*
-* UFieldSystemMetaDataIteration
+* UFieldSystemMetaDataIteration : Not used anymore, just hiding it right now but will probably be deprecated if not used in the future
 */
-UCLASS(ClassGroup = "Field", meta = (BlueprintSpawnableComponent, ToolTip = "Disabled for now (WIP)"), ShowCategories = ("Field"), DisplayName = "MetaDataIteration")
+UCLASS()
 class FIELDSYSTEMENGINE_API UFieldSystemMetaDataIteration : public UFieldSystemMetaData
 {
 	GENERATED_BODY()
@@ -95,16 +96,27 @@ public:
 
 	/**
 	 * Set the particles filter type
-	 * @param    FilterType Type of filter used to select the particles on whidh the field will be applied
+	 * @param    FilterType State type used to select the state particles on which the field will be applied
+	 * @param    ObjectType Object type used to select the type of objects(rigid, cloth...) on which the field will be applied
+	 * @param    PositionType Position type used to compute the samples positions
 	 */
 	UFUNCTION(BlueprintPure, Category = "Field", DisplayName = "Set Meta Data Filter")
-	UFieldSystemMetaDataFilter* SetMetaDataFilterType(EFieldFilterType FilterType);
+	UFieldSystemMetaDataFilter* SetMetaDataFilterType(UPARAM(DisplayName = "State Type") EFieldFilterType FilterType, 
+													  UPARAM(DisplayName = "Object Type") EFieldObjectType ObjectType,
+													  UPARAM(DisplayName = "Position Type") EFieldPositionType PositionType );
 
-	/** Filter type used to select the particles on which the field will be applied */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field")
+	/** Filter state type used to select the particles on which the field will be applied */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field", DisplayName = "State Type")
 	TEnumAsByte<EFieldFilterType> FilterType;
-};
 
+	/** Filter object type used to select the particles on which the field will be applied */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field", DisplayName = "Object Type")
+	TEnumAsByte<EFieldObjectType> ObjectType;
+
+	/** Specify which position type will be used for the field evaluation*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field", DisplayName = "Position Type")
+	TEnumAsByte<EFieldPositionType> PositionType;
+};
 
 /**
 * Field Evaluation
@@ -764,11 +776,11 @@ public:
 	float Magnitude;
 
 	/** Right field to be processed */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field", DisplayName = "Input Field A")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field", DisplayName = "Right Field")
 	TObjectPtr<const UFieldNodeBase> RightField;
 
 	/** Left field to be processed */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field", DisplayName = "Input Field B")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field", DisplayName = "Left Field")
 	TObjectPtr<const UFieldNodeBase> LeftField;
 
 	/** Type of operation you want to perform between the 2 fields */
@@ -943,13 +955,13 @@ struct FIELDSYSTEMENGINE_API FFieldObjectCommands
 		return TargetNames.Num();
 	}
 
-	/** Create a FFieldCommand from a given target + node + metadata + transform */
-	static FFieldSystemCommand CreateFieldCommand(const FName& TargetName, UFieldNodeBase* RootNode, UFieldSystemMetaData* MetaData)
+	/** Create a FFieldCommand from a given target + Unode + metadata  */
+	static FFieldSystemCommand CreateFieldCommand(const EFieldPhysicsType PhysicsType, UFieldNodeBase* RootNode, UFieldSystemMetaData* MetaData)
 	{
 		if (RootNode)
 		{
 			TArray<const UFieldNodeBase*> Nodes;
-			FFieldSystemCommand Command = { TargetName, RootNode->NewEvaluationGraph(Nodes) };
+			FFieldSystemCommand Command = { PhysicsType, RootNode->NewEvaluationGraph(Nodes) };
 			if (ensureMsgf(Command.RootNode,
 				TEXT("Failed to generate physics field command for target attribute.")))
 			{
@@ -964,12 +976,30 @@ struct FIELDSYSTEMENGINE_API FFieldObjectCommands
 						Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_Iteration).Reset(new FFieldSystemMetaDataIteration(static_cast<UFieldSystemMetaDataIteration*>(MetaData)->Iterations));
 						break;
 					case FFieldSystemMetaData::EMetaType::ECommandData_Filter:
-						Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_Filter).Reset(new FFieldSystemMetaDataFilter(static_cast<UFieldSystemMetaDataFilter*>(MetaData)->FilterType));
+						Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_Filter).Reset(new FFieldSystemMetaDataFilter(static_cast<UFieldSystemMetaDataFilter*>(MetaData)->FilterType, 
+							static_cast<UFieldSystemMetaDataFilter*>(MetaData)->ObjectType, static_cast<UFieldSystemMetaDataFilter*>(MetaData)->PositionType));
 						break;
 					}
 				}
-				ensure(!Command.TargetAttribute.IsEqual("None"));
+				ensure(Command.PhysicsType != EFieldPhysicsType::Field_None);
 			}
+			UPhysicsFieldComponent::BuildCommandBounds(Command);
+			return Command;
+		}
+		else
+		{
+			return FFieldSystemCommand();
+		}
+	}
+
+	/** Create a FFieldCommand from a given target + Fnode */
+	static FFieldSystemCommand CreateFieldCommand(const EFieldPhysicsType PhysicsType, FFieldNodeBase* RootNode)
+	{
+		if (RootNode)
+		{
+			FFieldSystemCommand Command = { PhysicsType, RootNode };
+			ensure(Command.PhysicsType != EFieldPhysicsType::Field_None);
+			UPhysicsFieldComponent::BuildCommandBounds(Command);
 			return Command;
 		}
 		else
@@ -981,7 +1011,7 @@ struct FIELDSYSTEMENGINE_API FFieldObjectCommands
 	/** Build the FFieldCommand from one item in the container */
 	FFieldSystemCommand BuildFieldCommand(const int32 CommandIndex) const
 	{
-		return (CommandIndex < GetNumCommands()) ? CreateFieldCommand(TargetNames[CommandIndex], RootNodes[CommandIndex], MetaDatas[CommandIndex]) : FFieldSystemCommand();
+		return (CommandIndex < GetNumCommands()) ? CreateFieldCommand(GetFieldPhysicsType(TargetNames[CommandIndex]), RootNodes[CommandIndex], MetaDatas[CommandIndex]) : FFieldSystemCommand();
 	}
 
 	/**Commands Target Name */

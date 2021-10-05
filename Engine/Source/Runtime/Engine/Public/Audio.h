@@ -383,6 +383,9 @@ public:
 	/** Constructor, initializing all member variables. */
 	FWaveInstance(const UPTRINT InWaveInstanceHash, FActiveSound& ActiveSound);
 
+	FWaveInstance(FWaveInstance&&);
+	FWaveInstance& operator=(FWaveInstance&&);
+
 	/** Stops the wave instance without notifying NotifyWaveInstanceFinishedHook. */
 	void StopWithoutNotification();
 

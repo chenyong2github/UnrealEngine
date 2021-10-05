@@ -56,6 +56,7 @@ enum class ESocialRelationship : uint8
 	BlockedPlayer,
 	SuggestedFriend,
 	RecentPlayer,
+	JoinRequest,
 	// Follower, (?)
 };
 
@@ -79,6 +80,8 @@ inline const TCHAR* LexToString(ESocialRelationship Relationship)
 		return TEXT("SuggestedFriend");
 	case ESocialRelationship::RecentPlayer:
 		return TEXT("RecentPlayer");
+	case ESocialRelationship::JoinRequest:
+		return TEXT("JoinRequest");
 	}
 
 	return TEXT("Unknown");
@@ -203,6 +206,7 @@ inline const TCHAR* ToString(ESocialRelationship Type)
 	case ESocialRelationship::BlockedPlayer: return TEXT("BlockedPlayer");
 	case ESocialRelationship::SuggestedFriend: return TEXT("SuggestedFriend");
 	case ESocialRelationship::RecentPlayer: return TEXT("RecentPlayer");
+	case ESocialRelationship::JoinRequest: return TEXT("JoinRequest");
 	}
 	return TEXT("Unknown");
 }

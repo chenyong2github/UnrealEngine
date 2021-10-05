@@ -497,22 +497,22 @@ bool UNiagaraStackEntry::HasBaseEmitter() const
 
 bool UNiagaraStackEntry::HasIssuesOrAnyChildHasIssues() const
 {
-	return TotalNumberOfErrorIssues > 0 || TotalNumberOfWarningIssues > 0 || TotalNumberOfInfoIssues > 0;
+	return GetCollectedIssueData().HasAnyIssues();
 }
 
 int32 UNiagaraStackEntry::GetTotalNumberOfInfoIssues() const
 {
-	return TotalNumberOfInfoIssues;
+	return GetCollectedIssueData().TotalNumberOfInfoIssues;
 }
 
 int32 UNiagaraStackEntry::GetTotalNumberOfWarningIssues() const
 {
-	return TotalNumberOfWarningIssues;
+	return GetCollectedIssueData().TotalNumberOfWarningIssues;
 }
 
 int32 UNiagaraStackEntry::GetTotalNumberOfErrorIssues() const
 {
-	return TotalNumberOfErrorIssues;
+	return GetCollectedIssueData().TotalNumberOfErrorIssues;
 }
 
 const TArray<UNiagaraStackEntry::FStackIssue>& UNiagaraStackEntry::GetIssues() const
@@ -522,7 +522,7 @@ const TArray<UNiagaraStackEntry::FStackIssue>& UNiagaraStackEntry::GetIssues() c
 
 const TArray<UNiagaraStackEntry*>& UNiagaraStackEntry::GetAllChildrenWithIssues() const
 {
-	return ChildrenWithIssues;
+	return GetCollectedIssueData().ChildrenWithIssues;
 }
 
 TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackEntry::CanDropInternal(const FDropRequest& DropRequest)
@@ -602,11 +602,6 @@ void UNiagaraStackEntry::RefreshChildren()
 	Children.Empty();
 	Children.Append(NewChildren);
 
-	TotalNumberOfInfoIssues = 0;
-	TotalNumberOfWarningIssues = 0;
-	TotalNumberOfErrorIssues = 0;
-	ChildrenWithIssues.Empty();
-
 	for (UNiagaraStackEntry* Child : Children)
 	{
 		UNiagaraStackEntry* OuterOwner = Cast<UNiagaraStackEntry>(Child->GetOuter());
@@ -622,36 +617,10 @@ void UNiagaraStackEntry::RefreshChildren()
 			Child->SetOnRequestCanDrop(FOnRequestDrop::CreateUObject(this, &UNiagaraStackEntry::ChildRequestCanDrop));
 			Child->SetOnRequestDrop(FOnRequestDrop::CreateUObject(this, &UNiagaraStackEntry::ChildRequestDrop));
 		}
-
-		TotalNumberOfInfoIssues += Child->GetTotalNumberOfInfoIssues();
-		TotalNumberOfWarningIssues += Child->GetTotalNumberOfWarningIssues();
-		TotalNumberOfErrorIssues += Child->GetTotalNumberOfErrorIssues();
-
-		if (Child->GetIssues().Num() > 0)
-		{
-			ChildrenWithIssues.Add(Child);
-		}
-		ChildrenWithIssues.Append(Child->GetAllChildrenWithIssues());
 	}
 	
 	// Stack issues refresh
 	NewStackIssues.RemoveAll([=](const FStackIssue& Issue) { return Issue.GetCanBeDismissed() && GetStackEditorData().GetDismissedStackIssueIds().Contains(Issue.GetUniqueIdentifier()); }); 
-
-	for (const FStackIssue& Issue : NewStackIssues)
-	{
-		if (Issue.GetSeverity() == EStackIssueSeverity::Info)
-		{
-			TotalNumberOfInfoIssues++;
-		}
-		else if (Issue.GetSeverity() == EStackIssueSeverity::Warning)
-		{
-			TotalNumberOfWarningIssues++;
-		}
-		else if (Issue.GetSeverity() == EStackIssueSeverity::Error)
-		{
-			TotalNumberOfErrorIssues++;
-		}
-	}
 
 	StackIssues.Empty();
 	StackIssues.Append(NewStackIssues);
@@ -760,7 +729,51 @@ void UNiagaraStackEntry::IssueModified()
 void UNiagaraStackEntry::InvalidateFilteredChildren()
 {
 	FilteredChildren.Empty();
+	CachedCollectedIssueData.Reset();
 	bFilterChildrenPending = true;
+}
+
+const UNiagaraStackEntry::FCollectedIssueData& UNiagaraStackEntry::GetCollectedIssueData() const
+{
+	if(CachedCollectedIssueData.IsSet() == false)
+	{
+		CachedCollectedIssueData = FCollectedIssueData();
+	
+		TArray<UNiagaraStackEntry*> RefreshedFilteredChildren;
+		GetFilteredChildren(RefreshedFilteredChildren);
+
+		for (UNiagaraStackEntry* ChildStackEntry : RefreshedFilteredChildren)
+		{
+			CachedCollectedIssueData->TotalNumberOfInfoIssues += ChildStackEntry->GetTotalNumberOfInfoIssues();
+			CachedCollectedIssueData->TotalNumberOfWarningIssues += ChildStackEntry->GetTotalNumberOfWarningIssues();
+			CachedCollectedIssueData->TotalNumberOfErrorIssues += ChildStackEntry->GetTotalNumberOfErrorIssues();
+			
+			if (ChildStackEntry->GetIssues().Num() > 0)
+			{
+				CachedCollectedIssueData->ChildrenWithIssues.Add(ChildStackEntry);
+			}
+			CachedCollectedIssueData->ChildrenWithIssues.Append(ChildStackEntry->GetAllChildrenWithIssues());
+
+		}
+
+		for (const FStackIssue& Issue : StackIssues)
+		{
+			if (Issue.GetSeverity() == EStackIssueSeverity::Info)
+			{
+				CachedCollectedIssueData->TotalNumberOfInfoIssues++;
+			}
+			else if (Issue.GetSeverity() == EStackIssueSeverity::Warning)
+			{
+				CachedCollectedIssueData->TotalNumberOfWarningIssues++;
+			}
+			else if (Issue.GetSeverity() == EStackIssueSeverity::Error)
+			{
+				CachedCollectedIssueData->TotalNumberOfErrorIssues++;
+			}
+		}
+	}
+
+	return CachedCollectedIssueData.GetValue();
 }
 
 void UNiagaraStackEntry::BeginDestroy()

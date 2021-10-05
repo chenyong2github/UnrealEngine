@@ -16,13 +16,14 @@
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanelActor"
 
-void SRCPanelExposedActor::Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlActor> InWeakActor, URemoteControlPreset* InPreset)
+void SRCPanelExposedActor::Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlActor> InWeakActor, URemoteControlPreset* InPreset, FRCColumnSizeData InColumnSizeData)
 {
 	FString ActorPath;
 
 	TSharedPtr<FRemoteControlActor> Actor = InWeakActor.Pin();
 	if (ensure(Actor))
 	{
+		ColumnSizeData = MoveTemp(InColumnSizeData);
 		ExposedActorId = Actor->GetId();
 		WeakPreset = InPreset;
 		bEditMode = InArgs._EditMode;
@@ -107,7 +108,7 @@ TSharedRef<SWidget> SRCPanelExposedActor::RecreateWidget(const FString& Path)
 	float MinWidth = 0.f, MaxWidth = 0.f;
 	EntryBox->GetDesiredWidth(MinWidth, MaxWidth);
 
-	PanelTreeNode::FMakeNodeWidgetArgs Args;
+	FMakeNodeWidgetArgs Args;
 	Args.NameWidget = SAssignNew(NameTextBox, SInlineEditableTextBlock)
 		.Text(FText::FromName(CachedLabel))
 		.OnTextCommitted(this, &SRCPanelExposedActor::OnLabelCommitted)
@@ -155,7 +156,7 @@ TSharedRef<SWidget> SRCPanelExposedActor::RecreateWidget(const FString& Path)
 		];
 
 
-	return PanelTreeNode::MakeNodeWidget(Args);
+	return MakeNodeWidget(Args);
 }
 
 void SRCPanelExposedActor::OnChangeActor(const FAssetData& AssetData)

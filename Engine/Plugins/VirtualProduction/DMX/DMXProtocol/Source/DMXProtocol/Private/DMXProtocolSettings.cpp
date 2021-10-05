@@ -148,9 +148,28 @@ void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEven
 		(InputPortConfigStruct == PropertyOwnerStruct || OutputPortConfigStruct || PropertyOwnerStruct)
 		)
 	{
-		FDMXPortManager::Get().UpdateFromProtocolSettings();
+		// if a new config was added, create a guid for that. We cannot do that in the ctor because 
+		// the engine expects clearly defined default values, FGuid::NewGuid doesn't work with that.
+		if (PropertyChangedChainEvent.ChangeType == EPropertyChangeType::ArrayAdd)
+		{
+			for (FDMXInputPortConfig& Config : InputPortConfigs)
+			{
+				if (!Config.GetPortGuid().IsValid())
+				{
+					Config = FDMXInputPortConfig(FGuid::NewGuid());
+				}
+			}
 
-		OnPortConfigsChanged.Broadcast();
+			for (FDMXOutputPortConfig& Config : OutputPortConfigs)
+			{
+				if (!Config.GetPortGuid().IsValid())
+				{
+					Config = FDMXOutputPortConfig(FGuid::NewGuid());
+				}
+			}
+		}
+
+		FDMXPortManager::Get().UpdateFromProtocolSettings();
 	}
 	
 	Super::PostEditChangeChainProperty(PropertyChangedChainEvent);

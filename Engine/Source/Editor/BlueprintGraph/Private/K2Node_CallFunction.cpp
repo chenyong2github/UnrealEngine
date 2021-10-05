@@ -3457,15 +3457,27 @@ bool UK2Node_CallFunction::IsConnectionDisallowed(const UEdGraphPin* MyPin, cons
 
 					if (!ConnectResponse)
 					{
-						// Display the necessary tooltip on the pin hover, and log it if we are compiling
-						FFormatNamedArguments MessageArgs;
-						MessageArgs.Add(TEXT("PinAType"), UEdGraphSchema_K2::TypeToText(Pin->PinType));
-						MessageArgs.Add(TEXT("PinBType"), UEdGraphSchema_K2::TypeToText(OtherPin->PinType));
-						UBlueprint* BP = GetBlueprint();
-						UEdGraph* OwningGraph = GetGraph();
+						// For sets, we have to check if the other pin is a valid child that can actually 
+						// be connected in cases like the "Union" function
+						UStruct const* OutputObject = (OtherPin->PinType.PinSubCategory == UEdGraphSchema_K2::PSC_Self) ? Context : Cast<UStruct>(OtherPin->PinType.PinSubCategoryObject.Get());
+						UStruct const* InputObject = (Pin->PinType.PinSubCategory == UEdGraphSchema_K2::PSC_Self) ? Context : Cast<UStruct>(Pin->PinType.PinSubCategoryObject.Get());
 
-						OutReason = FText::Format(LOCTEXT("DefaultPinIncompatibilityMessage", "{PinAType} is not compatible with {PinBType}."), MessageArgs).ToString();
-						return true;
+						if (OtherPin->PinType.IsSet() && OutputObject && InputObject && OutputObject->IsChildOf(InputObject))
+						{
+							bIsDisallowed = false;
+						}
+						else
+						{
+							// Display the necessary tooltip on the pin hover, and log it if we are compiling
+							FFormatNamedArguments MessageArgs;
+							MessageArgs.Add(TEXT("PinAType"), UEdGraphSchema_K2::TypeToText(Pin->PinType));
+							MessageArgs.Add(TEXT("PinBType"), UEdGraphSchema_K2::TypeToText(OtherPin->PinType));
+							UBlueprint* BP = GetBlueprint();
+							UEdGraph* OwningGraph = GetGraph();
+
+							OutReason = FText::Format(LOCTEXT("DefaultPinIncompatibilityMessage", "{PinAType} is not compatible with {PinBType}."), MessageArgs).ToString();
+							return true;
+						}
 					}
 				}
 			}

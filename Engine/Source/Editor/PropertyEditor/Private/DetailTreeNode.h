@@ -67,6 +67,34 @@ public:
 	virtual void GetChildren(FDetailNodeList& OutChildren) = 0;
 
 	/**
+	 * @ The parent DetailTreeNode of this node, or nullptr if this is a root node (or not yet added to a tree)
+	 */
+	TWeakPtr<FDetailTreeNode> GetParentNode() const { return ParentNode; }
+
+	/**
+	 * Sets the parent node. The parent node's GetChildren() call should include this node.
+	 *
+	 * @param The new parent for this node
+	 */
+	void SetParentNode(TWeakPtr<FDetailTreeNode> InParentNode) { ParentNode = InParentNode; }
+
+	/**
+	 * Finds the immediate UScriptStruct or UClass containing this node, which is found through a series of checks:
+	 * 1. Get the corresponding property node and find the nearest object or struct property containing the property
+	 * 2. If that fails, each parent node is checked with the same criteria as above
+	 * 3. If that fails, the base structure of the detail layout containing this node is used
+	 * 4. If that fails, the class of the first selected object in the details view is used
+	 *
+	 * @return The best matching UStruct that was responsible for creating this node
+	 */
+	const UStruct* GetParentBaseStructure() const;
+
+	/**
+	 * A helper function for GetParentBaseStructure that gets the parent specifically for a property node instead of a detail node
+	 */
+	static const UStruct* GetPropertyNodeBaseStructure(const FPropertyNode* PropertyNode);
+
+	/**
 	 * Called when the item is expanded in the tree
 	 */
 	virtual void OnItemExpansionChanged(bool bIsExpanded, bool bShouldSaveState) = 0;
@@ -135,5 +163,10 @@ public:
 	 * Gets the external property node associated with this node.  This will return nullptr for all rows expect property rows which were generated from an external root.
 	 */
 	virtual TSharedPtr<FComplexPropertyNode> GetExternalRootPropertyNode() const { return nullptr; }
+
+private:
+
+	/** The parent whose GetChildren() call will return this node. This can be null for root nodes or nodes not added to the tree yet. */
+	TWeakPtr<FDetailTreeNode> ParentNode = nullptr;
 };
 

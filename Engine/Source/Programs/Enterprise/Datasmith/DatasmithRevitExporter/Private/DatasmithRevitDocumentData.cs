@@ -19,6 +19,68 @@ namespace DatasmithRevitExporter
 {
 	public class FDocumentData
 	{
+		// This class reflects the child -> super component relationship in Revit into the exported hierarchy (children under super components actors).
+		class FSuperComponentOptimizer
+		{
+			private Dictionary<FBaseElementData, Element> ElementDataToElementMap = new Dictionary<FBaseElementData, Element>();
+			private Dictionary<ElementId, FBaseElementData> ElementIdToElementDataMap = new Dictionary<ElementId, FBaseElementData>();
+
+			public void UpdateCache(FBaseElementData ParentElement, FBaseElementData ChildElement)
+			{
+				if (!ElementDataToElementMap.ContainsKey(ParentElement))
+				{
+					Element Elem = null;
+
+					if (ParentElement.GetType() == typeof(FElementData))
+					{
+						Elem = ((FElementData)ParentElement).CurrentElement;
+					}
+					else if (ChildElement.GetType() == typeof(FElementData))
+					{
+						Elem = ((FElementData)ChildElement).CurrentElement;
+					}
+
+					if (Elem != null)
+					{
+						ElementDataToElementMap[ParentElement] = Elem;
+						ElementIdToElementDataMap[Elem.Id] = ParentElement;
+					}
+				}
+			}
+
+			public void Optimize()
+			{
+				foreach (var KV in ElementDataToElementMap)
+				{
+					FBaseElementData ElemData = KV.Key;
+					Element Elem = KV.Value;
+
+					if ((Elem as FamilyInstance) != null)
+					{
+						Element Parent = (Elem as FamilyInstance).SuperComponent;
+
+						if (Parent != null)
+						{
+							FBaseElementData SuperParent = null;
+							bool bGot = ElementIdToElementDataMap.TryGetValue(Parent.Id, out SuperParent);
+
+							if (bGot && SuperParent != ElemData.Parent)
+							{
+								if (ElemData.Parent != null)
+								{
+									ElemData.Parent.ElementActor.RemoveChild(ElemData.ElementActor);
+									ElemData.Parent.ChildElements.Remove(ElemData);
+								}
+
+								SuperParent.ChildElements.Add(ElemData);
+								SuperParent.ElementActor.AddChild(ElemData.ElementActor);
+							}
+						}
+					}
+				}
+			}
+		};
+
 		public struct FPolymeshFace
 		{
 			public int V1;
@@ -235,7 +297,11 @@ namespace DatasmithRevitExporter
 					if (CurrentElement.GetType() == typeof(Wall)
 						|| CurrentElement.GetType() == typeof(ModelText)
 						|| CurrentElement.GetType().IsSubclassOf(typeof(MEPCurve))
-						|| CurrentElement.GetType() == typeof(StructuralConnectionHandler))
+						|| CurrentElement.GetType() == typeof(StructuralConnectionHandler)
+						|| CurrentElement.GetType() == typeof(Floor)
+						|| CurrentElement.GetType() == typeof(Ceiling)
+						|| CurrentElement.GetType() == typeof(RoofBase)
+						|| CurrentElement.GetType().IsSubclassOf(typeof(RoofBase)))
 					{
 						MeshPointsTransform = PivotTransform.Inverse;
 					}
@@ -285,6 +351,17 @@ namespace DatasmithRevitExporter
 				else if (InElement.GetType() == typeof(StructuralConnectionHandler))
 				{
 					Translation = (InElement as StructuralConnectionHandler).GetOrigin();
+				}
+				else if (InElement.GetType() == typeof(Floor) 
+					|| InElement.GetType() == typeof(Ceiling) 
+					|| InElement.GetType() == typeof(RoofBase)
+					|| InElement.GetType().IsSubclassOf(typeof(RoofBase)))
+				{
+					BoundingBoxXYZ BoundingBox = InElement.get_BoundingBox(InElement.Document.ActiveView);
+					if (BoundingBox != null)
+					{
+						Translation = BoundingBox.Min;
+					}
 				}
 				else if (InElement.Location != null)
 				{
@@ -389,6 +466,15 @@ namespace DatasmithRevitExporter
 				{
 					BasisX = (InElement as FlexPipe).StartTangent;
 					ComputeBasis(BasisX, ref BasisY, ref BasisZ);
+				}
+				else if (InElement.GetType() == typeof(Floor) 
+					|| InElement.GetType() == typeof(Ceiling)
+					|| InElement.GetType() == typeof(RoofBase)
+					|| InElement.GetType().IsSubclassOf(typeof(RoofBase)))
+				{
+					BasisX = XYZ.BasisX;
+					BasisY = XYZ.BasisY;
+					BasisZ = XYZ.BasisZ;
 				}
 				else if (InElement.Location.GetType() == typeof(LocationCurve))
 				{
@@ -1353,36 +1439,42 @@ namespace DatasmithRevitExporter
 			return ElementDataStack.Count > 0 ? ElementDataStack.Peek().CurrentElement : null;
 		}
 
-		private FBaseElementData OptimizeElementRecursive(FBaseElementData InElementData, FDatasmithFacadeScene InDatasmithScene)
+		private FBaseElementData OptimizeElementRecursive(FBaseElementData InElementData, FDatasmithFacadeScene InDatasmithScene, FSuperComponentOptimizer SuperComponentOptimizer)
 		{
-			List<FDatasmithFacadeActor> RemoveChildren = new List<FDatasmithFacadeActor>();
-			List<FDatasmithFacadeActor> AddChildren = new List<FDatasmithFacadeActor>();
+			List<FBaseElementData> RemoveChildren = new List<FBaseElementData>();
+			List<FBaseElementData> AddChildren = new List<FBaseElementData>();
 
 			for (int ChildIndex = 0; ChildIndex < InElementData.ChildElements.Count; ChildIndex++)
 			{
 				FBaseElementData ChildElement = InElementData.ChildElements[ChildIndex];
 
 				// Optimize the Datasmith child actor.
-				FBaseElementData ResultElement = OptimizeElementRecursive(ChildElement, InDatasmithScene);
+				FBaseElementData ResultElement = OptimizeElementRecursive(ChildElement, InDatasmithScene, SuperComponentOptimizer);
 
 				if (ChildElement != ResultElement)
 				{
-					RemoveChildren.Add(ChildElement.ElementActor);
+					RemoveChildren.Add(ChildElement);
 
 					if (ResultElement != null)
 					{
-						AddChildren.Add(ResultElement.ElementActor);
+						AddChildren.Add(ResultElement);
+
+						SuperComponentOptimizer.UpdateCache(ResultElement, ChildElement);
 					}
 				}
 			}
 
-			foreach (FDatasmithFacadeActor Child in RemoveChildren)
+			foreach (FBaseElementData Child in RemoveChildren)
 			{
-				InElementData.ElementActor.RemoveChild(Child);
+				Child.Parent = null;
+				InElementData.ChildElements.Remove(Child);
+				InElementData.ElementActor.RemoveChild(Child.ElementActor);
 			}
-			foreach (FDatasmithFacadeActor Child in AddChildren)
+			foreach (FBaseElementData Child in AddChildren)
 			{
-				InElementData.ElementActor.AddChild(Child);
+				Child.Parent = InElementData;
+				InElementData.ChildElements.Add(Child);
+				InElementData.ElementActor.AddChild(Child.ElementActor);
 			}
 
 			if (InElementData.bOptimizeHierarchy)
@@ -1417,10 +1509,12 @@ namespace DatasmithRevitExporter
 
 		public void OptimizeActorHierarchy(FDatasmithFacadeScene InDatasmithScene)
 		{
+			FSuperComponentOptimizer SuperComponentOptimizer = new FSuperComponentOptimizer();
+
 			foreach (var ElementEntry in ActorMap)
 			{
 				FBaseElementData ElementData = ElementEntry.Value;
-				FBaseElementData ResultElementData = OptimizeElementRecursive(ElementData, InDatasmithScene);
+				FBaseElementData ResultElementData = OptimizeElementRecursive(ElementData, InDatasmithScene, SuperComponentOptimizer);
 
 				if (ResultElementData != ElementData)
 				{
@@ -1431,9 +1525,16 @@ namespace DatasmithRevitExporter
 					else
 					{
 						InDatasmithScene.RemoveActor(ElementData.ElementActor, FDatasmithFacadeScene.EActorRemovalRule.KeepChildrenAndKeepRelativeTransform);
+
+						if (ElementData.ChildElements.Count == 1)
+						{
+							SuperComponentOptimizer.UpdateCache(ElementData.ChildElements[0], ElementData);
+						}
 					}
 				}
 			}
+
+			SuperComponentOptimizer.Optimize();
 		}
 
 		public void WrapupLink(

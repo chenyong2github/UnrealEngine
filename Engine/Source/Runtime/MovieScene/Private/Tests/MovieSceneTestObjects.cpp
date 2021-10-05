@@ -48,3 +48,45 @@ void UTestMovieSceneTrack::RemoveSectionAt(int32 SectionIndex)
 {
 	SectionArray.RemoveAt(SectionIndex);
 }
+
+
+
+void UTestMovieSceneEvalHookTrack::AddSection(UMovieSceneSection& Section)
+{
+	if (UTestMovieSceneEvalHookSection* TestSection = Cast<UTestMovieSceneEvalHookSection>(&Section))
+	{
+		SectionArray.Add(TestSection);
+	}
+}
+
+bool UTestMovieSceneEvalHookTrack::SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const
+{
+	return SectionClass == UTestMovieSceneEvalHookSection::StaticClass();
+}
+
+UMovieSceneSection* UTestMovieSceneEvalHookTrack::CreateNewSection()
+{
+	return NewObject<UTestMovieSceneEvalHookSection>(this, NAME_None, RF_Transactional);
+}
+
+
+bool UTestMovieSceneEvalHookTrack::HasSection(const UMovieSceneSection& Section) const
+{
+	return SectionArray.Contains(&Section);
+}
+
+
+bool UTestMovieSceneEvalHookTrack::IsEmpty() const
+{
+	return SectionArray.Num() == 0;
+}
+
+void UTestMovieSceneEvalHookTrack::RemoveSection(UMovieSceneSection& Section)
+{
+	SectionArray.Remove(&Section);
+}
+
+void UTestMovieSceneEvalHookTrack::RemoveSectionAt(int32 SectionIndex)
+{
+	SectionArray.RemoveAt(SectionIndex);
+}

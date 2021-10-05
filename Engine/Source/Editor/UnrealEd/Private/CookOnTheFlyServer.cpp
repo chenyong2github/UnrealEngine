@@ -3374,6 +3374,13 @@ bool UCookOnTheFlyServer::HasExceededMaxMemory() const
 	if (GUObjectArray.GetObjectArrayEstimatedAvailable() < MinFreeUObjectIndicesBeforeGC)
 	{
 		UE_LOG(LogCook, Display, TEXT("Running out of available UObject indices (%d remaining)"), GUObjectArray.GetObjectArrayEstimatedAvailable());
+		static bool bPerformedObjListWhenNearMaxObjects = false;
+		if (GEngine && !bPerformedObjListWhenNearMaxObjects)
+		{
+			UE_LOG(LogCook, Display, TEXT("Performing 'obj list' to show counts of types of objects due to low availability of UObject indices."));
+			GEngine->Exec(nullptr, TEXT("OBJ LIST -COUNTSORT"));
+			bPerformedObjListWhenNearMaxObjects = true;
+		}
 		return true;
 	}
 #endif // UE_GC_TRACK_OBJ_AVAILABLE

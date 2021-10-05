@@ -233,6 +233,9 @@ public:
 	/**
 	 * Converts virtual path back into an internal or invariant path
 	 */
+	EContentBrowserPathType TryConvertVirtualPath(const FStringView InPath, FStringBuilderBase& OutPath) const;
+	EContentBrowserPathType TryConvertVirtualPath(const FStringView InPath, FString& OutPath) const;
+	EContentBrowserPathType TryConvertVirtualPath(const FStringView InPath, FName& OutPath) const;
 	EContentBrowserPathType TryConvertVirtualPath(const FName InPath, FName& OutPath) const;
 
 	/**

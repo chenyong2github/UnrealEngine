@@ -257,17 +257,6 @@ public:
 	}
 };
 
-/**
- * HACK Fix for previewing camera blends in editor without touching the header for the next 4.26 patch release.
- */
-struct FSequencerViewModifierInfo
-{
-	bool bApplyViewModifier = false;
-	float BlendFactor = 1.f;
-	TWeakObjectPtr<AActor> PreviousCamera;
-	TWeakObjectPtr<AActor> NextCamera;
-};
-
 void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSharedRef<ISequencerObjectChangeListener>& InObjectChangeListener, const TArray<FOnCreateTrackEditor>& TrackEditorDelegates, const TArray<FOnCreateEditorObjectBinding>& EditorObjectBindingDelegates)
 {
 	bIsEditingWithinLevelEditor = InitParams.bEditWithinLevelEditor;
@@ -282,8 +271,6 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 	const int32 IndexOfOne = GetPlaybackSpeeds.Execute().Find(1.f);
 	check(IndexOfOne != INDEX_NONE);
 	CurrentSpeedIndex = IndexOfOne;
-
-	PreAnimatedState.EnableGlobalCapture();
 
 	if (InitParams.SpawnRegister.IsValid())
 	{
@@ -348,7 +335,7 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 			// Restore pre animate state since objects will be reinstanced and current cached state will no longer be valid.
 			if (InBlueprint && InBlueprint->GeneratedClass.Get())
 			{
-				RestorePreAnimatedState(InBlueprint->GeneratedClass.Get());
+				PreAnimatedState.RestorePreAnimatedState(InBlueprint->GeneratedClass.Get());
 			}
 		});
 		AcquiredResources.Add([=] { GEditor->OnBlueprintPreCompile().Remove(OnBlueprintPreCompileHandle); });
@@ -434,6 +421,8 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 	ActiveTemplateStates.Add(true);
 	RootTemplateInstance.Initialize(*InitParams.RootSequence, *this, CompiledDataManager);
 
+	RootTemplateInstance.EnableGlobalPreAnimatedStateCapture();
+
 	InitialValueCache = UE::MovieScene::FInitialValueCache::GetGlobalInitialValues();
 	RootTemplateInstance.GetEntitySystemLinker()->AddExtension(InitialValueCache.Get());
 
@@ -441,17 +430,6 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 
 	UpdateTimeBases();
 	PlayPosition.Reset(GetPlaybackRange().GetLowerBoundValue());
-
-	{
-		static_assert(sizeof(FSequencerViewModifierInfo) <= sizeof(FSequencer::FViewModifierInfo),
-			"We need to stomp the FViewModifierInfo objects with something new as a patch fix");
-
-		FSequencerViewModifierInfo& VMI = reinterpret_cast<FSequencerViewModifierInfo&>(ViewModifierInfo);
-		VMI = FSequencerViewModifierInfo();
-
-		FSequencerViewModifierInfo& CachedVMI = reinterpret_cast<FSequencerViewModifierInfo&>(CachedViewModifierInfo);
-		CachedVMI = FSequencerViewModifierInfo();
-	}
 
 	// Make internal widgets
 	SequencerWidget = SNew( SSequencer, SharedThis( this ) )
@@ -2666,7 +2644,7 @@ void FSequencer::SetSelectionRangeEnd()
 
 	if (GetSelectionRange().GetLowerBoundValue() >= LocalTime)
 	{
-		SetSelectionRange(TRange<FFrameNumber>(LocalTime));
+		SetSelectionRange(TRange<FFrameNumber>(LocalTime - 1, LocalTime));
 	}
 	else
 	{
@@ -2681,7 +2659,7 @@ void FSequencer::SetSelectionRangeStart()
 
 	if (GetSelectionRange().GetUpperBoundValue() <= LocalTime)
 	{
-		SetSelectionRange(TRange<FFrameNumber>(LocalTime));
+		SetSelectionRange(TRange<FFrameNumber>(LocalTime, LocalTime + 1));
 	}
 	else
 	{
@@ -2824,8 +2802,25 @@ void FSequencer::SetPlaybackRange(TRange<FFrameNumber> Range)
 			UMovieScene* FocusedMovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
 			if (FocusedMovieScene)
 			{
+				TRange<FFrameNumber> CurrentRange = FocusedMovieScene->GetPlaybackRange();
+
 				const FScopedTransaction Transaction(LOCTEXT("SetPlaybackRange_Transaction", "Set Playback Range"));
+
 				FocusedMovieScene->SetPlaybackRange(Range);
+
+				// If we're in a subsequence, compensate the start offset, so that it appears decoupled from the 
+				// playback range (ie. the cut in frame remains the same)
+				if (ActiveTemplateIDs.Num() > 1)
+				{
+					if (UMovieSceneSubSection* SubSection = FindSubSection(ActiveTemplateIDs.Last()))
+					{
+						FFrameNumber LowerBoundDiff = Range.GetLowerBoundValue() - CurrentRange.GetLowerBoundValue();
+						FFrameNumber StartFrameOffset = SubSection->Parameters.StartFrameOffset - LowerBoundDiff;
+
+						SubSection->Modify();
+						SubSection->Parameters.StartFrameOffset = StartFrameOffset;
+					}
+				}
 
 				bNeedsEvaluate = true;
 				NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
@@ -3565,16 +3560,14 @@ void FSequencer::SetPerspectiveViewportCameraCutEnabled(bool bEnabled)
 
 void FSequencer::ModifyViewportClientView(FEditorViewportViewModifierParams& Params)
 {
-	const FSequencerViewModifierInfo& VMI = reinterpret_cast<FSequencerViewModifierInfo&>(ViewModifierInfo);
-
-	if (!VMI.bApplyViewModifier)
+	if (!ViewModifierInfo.bApplyViewModifier)
 	{
 		return;
 	}
 
-	const float BlendFactor = VMI.BlendFactor;
-	AActor* CameraActor = VMI.NextCamera.Get();
-	AActor* PreviousCameraActor = VMI.PreviousCamera.Get();
+	const float BlendFactor = ViewModifierInfo.BlendFactor;
+	AActor* CameraActor = ViewModifierInfo.NextCamera.Get();
+	AActor* PreviousCameraActor = ViewModifierInfo.PreviousCamera.Get();
 	
 	UCameraComponent* CameraComponent = MovieSceneHelpers::CameraComponentFromRuntimeObject(CameraActor);
 	UCameraComponent* PreviousCameraComponent = MovieSceneHelpers::CameraComponentFromRuntimeObject(PreviousCameraActor);
@@ -3781,9 +3774,7 @@ void FSequencer::EnterSilentMode()
 {
 	if (SilentModeCount == 0)
 	{
-		FSequencerViewModifierInfo& VMI = reinterpret_cast<FSequencerViewModifierInfo&>(ViewModifierInfo);
-		FSequencerViewModifierInfo& CachedVMI = reinterpret_cast<FSequencerViewModifierInfo&>(CachedViewModifierInfo);
-		CachedVMI = VMI;
+		CachedViewModifierInfo = ViewModifierInfo;
 	}
 	++SilentModeCount;
 }
@@ -3794,9 +3785,7 @@ void FSequencer::ExitSilentMode()
 	ensure(SilentModeCount >= 0);
 	if (SilentModeCount == 0)
 	{
-		FSequencerViewModifierInfo& VMI = reinterpret_cast<FSequencerViewModifierInfo&>(ViewModifierInfo);
-		FSequencerViewModifierInfo& CachedVMI = reinterpret_cast<FSequencerViewModifierInfo&>(CachedViewModifierInfo);
-		VMI = CachedVMI;
+		ViewModifierInfo = CachedViewModifierInfo;
 	}
 }
 
@@ -4448,8 +4437,8 @@ TSharedRef<SWidget> FSequencer::MakeTransportControls(bool bExtended)
 		}
 		TransportControlArgs.WidgetsToCreate.Add(FTransportControlWidget(ETransportControlWidgetType::BackwardStep));
 		TransportControlArgs.WidgetsToCreate.Add(FTransportControlWidget(ETransportControlWidgetType::BackwardPlay));
-		TransportControlArgs.WidgetsToCreate.Add(FTransportControlWidget(ETransportControlWidgetType::ForwardPlay));
 		TransportControlArgs.WidgetsToCreate.Add(FTransportControlWidget(FOnMakeTransportWidget::CreateSP(this, &FSequencer::OnCreateTransportRecord)));
+		TransportControlArgs.WidgetsToCreate.Add(FTransportControlWidget(ETransportControlWidgetType::ForwardPlay));
 		TransportControlArgs.WidgetsToCreate.Add(FTransportControlWidget(ETransportControlWidgetType::ForwardStep));
 		if(bExtended)
 		{
@@ -5469,7 +5458,7 @@ FGuid FSequencer::AddSpawnable(UObject& Object, UActorFactory* ActorFactory)
 	// MovieScene asset.
 	UMovieScene* OwnerMovieScene = Sequence->GetMovieScene();
 
-	TValueOrError<FNewSpawnable, FText> Result = SpawnRegister->CreateNewSpawnableType(Object, *OwnerMovieScene, ActorFactory);
+	TValueOrError<FNewSpawnable, FText> Result = SpawnRegister->CreateNewSpawnableType(Object, *OwnerMovieScene, nullptr);
 	if (!Result.IsValid())
 	{
 		FNotificationInfo Info(Result.GetError());
@@ -5683,28 +5672,18 @@ bool FSequencer::OnRequestNodeDeleted( TSharedRef<const FSequencerDisplayNode> N
 			UMovieSceneEntitySystemLinker* EntitySystemLinker = RootTemplateInstance.GetEntitySystemLinker();
 			check(EntitySystemLinker);
 
-			UMovieSceneRestorePreAnimatedStateSystem* RestorePreAnimatedStateSystem = EntitySystemLinker->FindSystem<UMovieSceneRestorePreAnimatedStateSystem>();
-
 			for (TWeakObjectPtr<> WeakObject : FindBoundObjects(BindingToRemove, ActiveTemplateIDs.Top()))
 			{
 				TArray<UObject*> SubObjects;
 				GetObjectsWithOuter(WeakObject.Get(), SubObjects);
 
 				PreAnimatedState.DiscardAndRemoveEntityTokensForObject(*WeakObject.Get());
-				if (RestorePreAnimatedStateSystem)
-				{
-					RestorePreAnimatedStateSystem->DiscardPreAnimatedStateForObject(*WeakObject.Get());
-				}
 
 				for (UObject* SubObject : SubObjects)
 				{
 					if (SubObject)
 					{
 						PreAnimatedState.DiscardAndRemoveEntityTokensForObject(*SubObject);
-						if (RestorePreAnimatedStateSystem)
-						{
-							RestorePreAnimatedStateSystem->DiscardPreAnimatedStateForObject(*SubObject);
-						}
 					}
 				}
 			}
@@ -6032,11 +6011,10 @@ void FSequencer::UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewp
 			(CameraActor != nullptr || PreviousCameraActor != nullptr));
 
 	// To preview blending we'll have to offset the viewport camera using the view modifiers API.
-	FSequencerViewModifierInfo& VMI = reinterpret_cast<FSequencerViewModifierInfo&>(ViewModifierInfo);
-	VMI.bApplyViewModifier = bIsBlending && !IsInSilentMode();
-	VMI.BlendFactor = BlendFactor;
-	VMI.NextCamera = CameraActor;
-	VMI.PreviousCamera = PreviousCameraActor;
+	ViewModifierInfo.bApplyViewModifier = bIsBlending && !IsInSilentMode();
+	ViewModifierInfo.BlendFactor = BlendFactor;
+	ViewModifierInfo.NextCamera = CameraActor;
+	ViewModifierInfo.PreviousCamera = PreviousCameraActor;
 
 	bool bCameraHasBeenCut = CameraCutParams.bJumpCut;
 
@@ -7912,12 +7890,12 @@ void FSequencer::RemoveActorsFromBinding(FGuid InObjectBinding, const TArray<AAc
 		{
 			if (Component)
 			{
-				RestorePreAnimatedState(*Component);
+				PreAnimatedState.RestorePreAnimatedState(*Component);
 			}
 		}
 
 		// Restore state on the object itself
-		RestorePreAnimatedState(*ActorToRemove);
+		PreAnimatedState.RestorePreAnimatedState(*ActorToRemove);
 
 		ActorToRemove->Modify();
 
@@ -13443,8 +13421,7 @@ void FSequencer::BindCommands()
 
 	SequencerCommandBindings->MapAction(
 		Commands.SetStartPlaybackRange,
-		FExecuteAction::CreateLambda([this] { SetPlaybackStart(); }),
-		FCanExecuteAction::CreateSP( this, &FSequencer::IsViewingMasterSequence ) );
+		FExecuteAction::CreateLambda([this] { SetPlaybackStart(); }) );
 
 	SequencerCommandBindings->MapAction(
 		Commands.ResetViewRange,
@@ -13468,8 +13445,7 @@ void FSequencer::BindCommands()
 
 	SequencerCommandBindings->MapAction(
 		Commands.SetEndPlaybackRange,
-		FExecuteAction::CreateLambda([this] { SetPlaybackEnd(); }),
-		FCanExecuteAction::CreateSP( this, &FSequencer::IsViewingMasterSequence ) );
+		FExecuteAction::CreateLambda([this] { SetPlaybackEnd(); }) );
 
 	SequencerCommandBindings->MapAction(
 		Commands.SetSelectionRangeToNextShot,

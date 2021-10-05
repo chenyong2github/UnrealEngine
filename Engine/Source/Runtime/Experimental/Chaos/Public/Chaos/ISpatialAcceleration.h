@@ -263,6 +263,11 @@ public:
 	virtual void Sweep(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T Length, const TVector<T, d> QueryHalfExtents, ISpatialVisitor<TPayloadType, T>& Visitor) const { check(false);}
 	virtual void Overlap(const TAABB<T, d>& QueryBounds, ISpatialVisitor<TPayloadType, T>& Visitor) const { check(false); }
 
+	virtual void Reset()
+	{
+		check(false);
+	}
+
 	virtual void RemoveElement(const TPayloadType& Payload)
 	{
 		check(false);	//not implemented

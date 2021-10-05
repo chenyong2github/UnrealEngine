@@ -91,11 +91,11 @@ namespace Chaos
 			// Convert the weight maps into an array of lookup indices to the stiffness table
 			Indices.AddUninitialized(ParticleCount);
 
-			const FReal TableScale = (FReal)(TableSize - 1);
+			const FRealSingle TableScale = (FRealSingle)(TableSize - 1);
 
 			for (int32 Index = 0; Index < ParticleCount; ++Index)
 			{
-				Indices[Index] = (uint8)(FMath::Clamp(Multipliers[Index], (FReal)0., (FReal)1.) * TableScale);
+				Indices[Index] = (uint8)(FMath::Clamp(Multipliers[Index], (FRealSingle)0., (FRealSingle)1.) * TableScale);
 			}
 
 			// Initialize empty table until ApplyValues is called

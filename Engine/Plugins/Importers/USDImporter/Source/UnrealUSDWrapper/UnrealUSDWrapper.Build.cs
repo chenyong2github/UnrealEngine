@@ -50,9 +50,23 @@ namespace UnrealBuildTool.Rules
 					PublicSystemLibraryPaths.Add(Path.Combine(PythonSourceTPSDir, "libs"));
 					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "python37.dll"), Path.Combine(PythonBinaryTPSDir, "python37.dll"));
 
+					string USDLibsDir = Path.Combine(ModuleDirectory, "..", "ThirdParty", "USD", "lib");
+
+					// Boost
+
+					// Stops Boost from using pragma link to choose which lib to link against.
+					// We explicitly link against the boost libs here to choose the correct CRT flavor.
+					PublicDefinitions.Add("BOOST_ALL_NO_LIB");
+
+					string BoostLibSearchPattern = "boost_*-mt-x64-*.lib";
+
+					foreach (string BoostLib in Directory.EnumerateFiles(USDLibsDir, BoostLibSearchPattern, SearchOption.AllDirectories))
+					{
+						PublicAdditionalLibraries.Add(BoostLib);
+					}
+
 					// USD
 					PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "..", "ThirdParty", "USD", "include"));
-					var USDLibsDir = Path.Combine(ModuleDirectory, "..", "ThirdParty", "USD", "lib");
 					PublicSystemLibraryPaths.Add(USDLibsDir);
 					foreach (string UsdLib in Directory.EnumerateFiles(USDLibsDir, "*.lib", SearchOption.AllDirectories))
 					{
@@ -144,7 +158,7 @@ namespace UnrealBuildTool.Rules
 				{
 					// The multiple nested folders make sure that the USD plugin plugInfo.json files can reference their library dlls in the engine folder or in the packaged game folder with the same relative path
 					RuntimeDependencies.Add(
-						Path.Combine("$(ProjectDir)", "Resources", "RequiredNestedFolder", "RequiredNestedFolder", "RequiredNestedFolder", "UsdResources", Target.Platform.ToString()),
+						Path.Combine("$(ProjectDir)", "Resources", "F", "F", "F", "UsdResources", Target.Platform.ToString()),
 						Path.Combine("$(PluginDir)", "Resources", "UsdResources", Target.Platform.ToString(), "...") // Moves everything that's inside the Windows folder
 					);
 				}

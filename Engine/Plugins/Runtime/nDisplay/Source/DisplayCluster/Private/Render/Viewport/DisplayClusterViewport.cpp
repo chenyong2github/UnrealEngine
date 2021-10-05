@@ -180,6 +180,31 @@ inline void AdjustRect(FIntRect& InOutRect, const float multX, const float multY
 	InOutRect.Max.Y *= multY;
 }
 
+FIntRect FDisplayClusterViewport::GetValidRect(const FIntRect& InRect, const TCHAR* DbgSourceName)
+{
+	// The target always needs be within GMaxTextureDimensions, larger dimensions are not supported by the engine
+	static const int32 MaxTextureSize = 1 << (GMaxTextureMipCount - 1);
+
+	float RectScale = 1;
+
+	// Make sure the rect doesn't exceed the maximum resolution, and preserve its aspect ratio if it needs to be clamped
+	int RectMaxSize = InRect.Max.GetMax();
+	if (RectMaxSize > MaxTextureSize)
+	{
+		RectScale = float(MaxTextureSize) / RectMaxSize;
+		UE_LOG(LogDisplayClusterViewport, Error, TEXT("The viewport '%s' rect '%s' size %dx%d clamped: max texture dimensions is %d"), *GetId(), (DbgSourceName==nullptr) ? TEXT("none") : DbgSourceName, InRect.Max.X, InRect.Max.Y, MaxTextureSize);
+	}
+
+	FIntRect OutRect = InRect;
+	OutRect.Min.X = FMath::Min(OutRect.Min.X, MaxTextureSize);
+	OutRect.Min.Y = FMath::Min(OutRect.Min.Y, MaxTextureSize);
+
+	OutRect.Max.X = FMath::Clamp(int(OutRect.Max.X * RectScale), OutRect.Min.X, MaxTextureSize);
+	OutRect.Max.Y = FMath::Clamp(int(OutRect.Max.Y * RectScale), OutRect.Min.Y, MaxTextureSize);
+
+	return OutRect;
+}
+
 bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InViewPassNum, const FDisplayClusterRenderFrameSettings& InFrameSettings)
 {
 	check(IsInGameThread());
@@ -215,10 +240,8 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InViewPassNum, co
 		}
 	}
 
-	float RTTSizeMult = RenderSettings.RenderTargetRatio * InFrameSettings.ClusterRenderTargetRatioMult;
-
 	uint32 FrameTargetsAmmount = 2;
-	FIntRect     FrameTargetRect = RenderSettings.Rect;
+	FIntRect     DesiredFrameTargetRect = RenderSettings.Rect;
 	{
 		switch (InFrameSettings.RenderMode)
 		{
@@ -226,20 +249,19 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InViewPassNum, co
 			FrameTargetsAmmount = 1;
 			break;
 		case EDisplayClusterRenderFrameMode::SideBySide:
-			AdjustRect(FrameTargetRect, 0.5f, 1.f);
+			AdjustRect(DesiredFrameTargetRect, 0.5f, 1.f);
 			break;
 		case EDisplayClusterRenderFrameMode::TopBottom:
-			AdjustRect(FrameTargetRect, 1.f, 0.5f);
+			AdjustRect(DesiredFrameTargetRect, 1.f, 0.5f);
 			break;
 		case EDisplayClusterRenderFrameMode::PreviewMono:
 		{
-			// Apply preview scale
-			RTTSizeMult *= InFrameSettings.PreviewRenderTargetRatioMult;
-			float MultXY = InFrameSettings.PreviewRenderTargetRatioMult;
-			AdjustRect(FrameTargetRect, MultXY, MultXY);
+			// Preview downscale in range 0..1
+			float MultXY = FMath::Clamp(InFrameSettings.PreviewRenderTargetRatioMult, 0.f, 1.f);
+			AdjustRect(DesiredFrameTargetRect, MultXY, MultXY);
 
 			// Align each frame to zero
-			FrameTargetRect = FIntRect(FIntPoint(0, 0), FrameTargetRect.Size());
+			DesiredFrameTargetRect = FIntRect(FIntPoint(0, 0), DesiredFrameTargetRect.Size());
 
 			// Mono
 			FrameTargetsAmmount = 1;
@@ -250,55 +272,43 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InViewPassNum, co
 		}
 	}
 
-	static int MaximumSupportedResolution = 1 << (GMaxTextureMipCount - 1);
-
-	// Make sure the frame target rect doesn't exceed the maximum resolution, and preserve its aspect ratio if it needs to be clamped
-	if (FrameTargetRect.Max.X > MaximumSupportedResolution)
-	{
-		FrameTargetRect.Max.Y = FrameTargetRect.Max.Y * MaximumSupportedResolution / (float)FrameTargetRect.Max.X;
-		FrameTargetRect.Max.X = MaximumSupportedResolution;
-	}
-
-	if (FrameTargetRect.Max.Y > MaximumSupportedResolution)
-	{
-		FrameTargetRect.Max.X = FrameTargetRect.Max.X * MaximumSupportedResolution / (float)FrameTargetRect.Max.Y;
-		FrameTargetRect.Max.Y = MaximumSupportedResolution;
-	}
-
 	// Special case mono->stereo
 	uint32 ViewportContextAmmount = RenderSettings.bForceMono ? 1 : FrameTargetsAmmount;
 
+	// Make sure the frame target rect doesn't exceed the maximum resolution, and preserve its aspect ratio if it needs to be clamped
+	FIntRect FrameTargetRect = GetValidRect(DesiredFrameTargetRect, TEXT("Context Frame"));
 
-	FIntPoint ContextSize = FrameTargetRect.Size();
-
-
-	// Get valid viewport size for render:
+	// Exclude zero-size viewports from render
+	if (FrameTargetRect.Size().GetMin() <= 0)
 	{
-		int ViewportResolution = ContextSize.GetMax() * RTTSizeMult;
-
-		// In UE, the maximum texture resolution is computed as:
-		if (ViewportResolution > MaximumSupportedResolution)
-		{
-			RTTSizeMult *= float(ViewportResolution) / MaximumSupportedResolution;
-	}
-
-		ContextSize.X = FMath::Min(int(RTTSizeMult * ContextSize.X), MaximumSupportedResolution);
-		ContextSize.Y = FMath::Min(int(RTTSizeMult * ContextSize.Y), MaximumSupportedResolution);
-	}
-
-	FIntRect RenderTargetRect(FIntPoint(0, 0), ContextSize);
-
-	// Test vs zero size rects
-	if (FrameTargetRect.Width() <= 0 || FrameTargetRect.Height() <= 0 || RenderTargetRect.Width() <= 0 || RenderTargetRect.Height() <= 0)
-	{
+		UE_LOG(LogDisplayClusterViewport, Error, TEXT("The viewport '%s' FrameTarget rect has zero size %dx%d: Disabled"), *GetId(), FrameTargetRect.Size().X, FrameTargetRect.Size().Y);
 		return false;
 	}
 
-	// Support overscan rendering feature
-	OverscanRendering.Update(RenderTargetRect);
 
-	check(FrameTargetRect.Max.X <= MaximumSupportedResolution);
-	check(FrameTargetRect.Max.Y <= MaximumSupportedResolution);
+	FIntPoint DesiredContextSize = FrameTargetRect.Size();
+
+	// Cluster mult downscale in range 0..1
+	float ClusterRTTMult = FMath::Clamp(InFrameSettings.ClusterRenderTargetRatioMult, 0.f, 1.f);
+
+	// Scale context for rendering
+	float ViewportContextSizeMult = FMath::Max(RenderSettings.RenderTargetRatio * ClusterRTTMult, 0.f);
+	DesiredContextSize.X *= ViewportContextSizeMult;
+	DesiredContextSize.Y *= ViewportContextSizeMult;
+
+	FIntRect RenderTargetRect = GetValidRect(FIntRect(FIntPoint(0, 0), DesiredContextSize), TEXT("Context RenderTarget"));
+
+	// Exclude zero-size viewports from render
+	if (RenderTargetRect.Size().GetMin()<=0)
+	{
+		UE_LOG(LogDisplayClusterViewport, Error, TEXT("The viewport '%s' RenderTarget rect has zero size %dx%d: Disabled"), *GetId(), RenderTargetRect.Size().X, RenderTargetRect.Size().Y);
+		return false;
+	}
+
+	FIntPoint ContextSize = RenderTargetRect.Size();
+
+	// Support overscan rendering feature
+	OverscanRendering.Update(*this, RenderTargetRect);
 
 	// Support override feature
 	bool bDisableRender = PostRenderSettings.Override.IsEnabled();

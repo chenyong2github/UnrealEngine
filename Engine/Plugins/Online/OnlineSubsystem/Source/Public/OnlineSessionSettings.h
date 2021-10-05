@@ -302,6 +302,8 @@ public:
 	bool bAllowJoinViaPresenceFriendsOnly;
 	/** Whether the server employs anti-cheat (punkbuster, vac, etc) */
 	bool bAntiCheatProtected;
+	/** Whether to prefer lobbies APIs if the platform supports them */
+	bool bUseLobbiesIfAvailable;
 	/** Used to keep different builds from seeing each other during searches */
 	int32 BuildUniqueId;
 	/** Array of custom session settings */
@@ -325,6 +327,7 @@ public:
 		, bAllowJoinViaPresence(false)
 		, bAllowJoinViaPresenceFriendsOnly(false)
 		, bAntiCheatProtected(false)
+		, bUseLobbiesIfAvailable(false)
 		, BuildUniqueId(0)
 	{
 		// Example usage of settings

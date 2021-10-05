@@ -36,6 +36,21 @@ namespace MeshTranslationImpl
 		float Time,
 		EObjectFlags Flags
 	);
+
+	/**
+	 * Sets the material overrides on MeshComponent according to the material assignments of the UsdGeomMesh Prim.
+	 * Warning: This function will temporarily switch the active LOD variant if one exists, so it's *not* thread safe!
+	 */
+	void SetMaterialOverrides(
+		const pxr::UsdPrim& Prim,
+		const TArray<UMaterialInterface*>& ExistingAssignments,
+		UMeshComponent& MeshComponent,
+		UUsdAssetCache& AssetCache,
+		float Time,
+		EObjectFlags Flags,
+		bool bInterpretLODs,
+		const FName& RenderContext
+	);
 }
 
 #endif // #if USE_USD_SDK

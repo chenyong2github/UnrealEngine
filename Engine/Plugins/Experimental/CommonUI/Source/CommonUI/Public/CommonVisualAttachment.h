@@ -9,6 +9,9 @@
 
 #include "CommonVisualAttachment.generated.h"
 
+/**
+ * Adds a widget as a zero-size attachment to another. Think icons to the left of labels, without changing the computed size of the label.
+ */
 UCLASS(ClassGroup = UI, meta = (Category = "Common UI"))
 class COMMONUI_API UCommonVisualAttachment : public USizeBox
 {

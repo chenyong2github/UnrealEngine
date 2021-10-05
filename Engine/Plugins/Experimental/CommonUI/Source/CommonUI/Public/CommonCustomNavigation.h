@@ -6,6 +6,9 @@
 #include "Components/Border.h"
 #include "CommonCustomNavigation.generated.h"
 
+/**
+ * Exposes a bindable event that can be used to stomp default border navigation with custom behaviors.
+ */
 UCLASS(Config = CommonUI, DefaultConfig, ClassGroup = UI, meta = (Category = "Common UI", DisplayName = "Common Custom Navigation"))
 class COMMONUI_API UCommonCustomNavigation : public UBorder
 {

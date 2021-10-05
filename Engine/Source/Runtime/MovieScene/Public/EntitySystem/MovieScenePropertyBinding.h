@@ -27,6 +27,22 @@ struct FMovieScenePropertyBinding
 		bCanUseClassLookup = !(InPropertyPath.Contains(TEXT(".")) || InPropertyPath.Contains(TEXT("/")) || InPropertyPath.Contains(TEXT("\\")) || InPropertyPath.Contains(TEXT("[")));
 	}
 
+	static FMovieScenePropertyBinding FromPath(const FString& InPropertyPath)
+	{
+		FName PropertyName;
+
+		int32 NamePos = INDEX_NONE;
+		if (InPropertyPath.FindLastChar('.', NamePos) || InPropertyPath.FindLastChar('/', NamePos) || InPropertyPath.FindLastChar('\\', NamePos))
+		{
+			PropertyName = FName(FStringView(*InPropertyPath + NamePos, InPropertyPath.Len() - NamePos));
+		}
+		else
+		{
+			PropertyName = *InPropertyPath;
+		}
+		return FMovieScenePropertyBinding(PropertyName, InPropertyPath);
+	}
+
 	friend bool operator==(FMovieScenePropertyBinding A, FMovieScenePropertyBinding B)
 	{
 		return A.PropertyName == B.PropertyName && A.PropertyPath == B.PropertyPath;

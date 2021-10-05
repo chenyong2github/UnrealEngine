@@ -22,10 +22,10 @@ protected:
 	virtual void OnExecution_Implementation(const TArray<UObject*>& InObjects, TArray<UObject*>& OutObjects) override;
 
 	/** Accuracy of the distance field approximation, in cm. */
-	UPROPERTY(EditAnywhere, Category = JacketingFilter, meta = (UIMin = "1", UIMax = "100"))
-	float Accuracy;
+	UPROPERTY(EditAnywhere, Category = JacketingFilter, meta = (UIMin = "0.1", UIMax = "100", ClampMin = "0"))
+	float Accuracy = 2.0f;
 
 	/** Merge distance used to fill gap, in cm. */
-	UPROPERTY(EditAnywhere, Category = JacketingFilter)
-	float MergeDistance;
+	UPROPERTY(EditAnywhere, Category = JacketingFilter, meta = (UIMin = "0.1", UIMax = "100", ClampMin = "0"))
+	float MergeDistance = 3.0f;
 };

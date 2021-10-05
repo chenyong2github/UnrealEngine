@@ -4,6 +4,11 @@
 
 #include "CoreMinimal.h"
 
+struct FFileRegion;
+struct FKeyChain;
+struct FPakEntryPair;
+struct FPakInfo;
+
 /**
 * Defines the order mapping for files within a pak.
 * When read from the files present in the pak, Indexes will be [0,NumFiles).  This is important for detecting gaps in the order between adjacent files in a patch .pak.
@@ -79,3 +84,41 @@ private:
 
 PAKFILEUTILITIES_API bool ExecuteUnrealPak(const TCHAR* CmdLine);
 
+/** Input and output data for WritePakFooter */
+struct FPakFooterInfo
+{
+	FPakFooterInfo(const TCHAR* InFilename, const FString& InMountPoint, FPakInfo& InInfo, TArray<FPakEntryPair>& InIndex)
+		: Filename(InFilename)
+		, MountPoint(InMountPoint)
+		, Info(InInfo)
+		, Index(InIndex)
+	{
+	}
+	void SetEncryptionInfo(const FKeyChain& InKeyChain, uint64* InTotalEncryptedDataSize)
+	{
+		KeyChain = &InKeyChain;
+		TotalEncryptedDataSize = InTotalEncryptedDataSize;
+	}
+	void SetFileRegionInfo(bool bInFileRegions, TArray<FFileRegion>& InAllFileRegions)
+	{
+		bFileRegions = bInFileRegions;
+		AllFileRegions = &InAllFileRegions;
+	}
+
+	const TCHAR* Filename;
+	const FString& MountPoint;
+	FPakInfo& Info;
+	TArray<FPakEntryPair>& Index;
+
+	const FKeyChain* KeyChain = nullptr;
+	uint64* TotalEncryptedDataSize = nullptr;
+	bool bFileRegions = false;
+	TArray<FFileRegion>* AllFileRegions = nullptr;
+
+	int64 PrimaryIndexSize = 0;
+	int64 PathHashIndexSize = 0;
+	int64 FullDirectoryIndexSize = 0;
+};
+
+/** Write the index and other data at the end of a pak file after all the entries */
+PAKFILEUTILITIES_API void WritePakFooter(FArchive& PakHandle, FPakFooterInfo& FooterInfo);

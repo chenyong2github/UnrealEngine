@@ -11,6 +11,8 @@
 #include "EntitySystem/MovieSceneInstanceRegistry.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/MovieSceneEntityFactoryTemplates.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateExtension.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedCaptureSources.h"
 #include "MovieSceneSection.h"
 
 DECLARE_CYCLE_STAT(TEXT("Generic Track Instances"), MovieSceneEval_GenericTrackInstances, STATGROUP_MovieSceneECS);
@@ -196,6 +198,9 @@ void UMovieSceneTrackInstanceInstantiator::OnRun(FSystemTaskPrerequisites& InPre
 		return;
 	}
 
+	FPreAnimatedStateExtension*              PreAnimatedStateExtension = Linker->FindExtension<FPreAnimatedStateExtension>();
+	FPreAnimatedTrackInstanceCaptureSources* TrackInstanceMetaData     = PreAnimatedStateExtension ? PreAnimatedStateExtension->GetTrackInstanceMetaData() : nullptr;
+
 	// Gather all the inputs for any invalidated output indices
 	TSortedMap<int32, TArray<FMovieSceneTrackInstanceInput> > NewInputs;
 	{
@@ -230,6 +235,11 @@ void UMovieSceneTrackInstanceInstantiator::OnRun(FSystemTaskPrerequisites& InPre
 
 		FMovieSceneTrackInstanceEntry& Entry = TrackInstances[DestroyIndex];
 		Entry.TrackInstance->Destroy();
+
+		if (TrackInstanceMetaData)
+		{
+			TrackInstanceMetaData->StopTrackingCaptureSource(Entry.TrackInstance);
+		}
 
 		// Remove the entry from our LUTs
 		BoundObjectToInstances.Remove(Entry.BoundObject, DestroyIndex);

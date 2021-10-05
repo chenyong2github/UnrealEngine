@@ -57,7 +57,6 @@ private:
 		virtual TSharedRef<SWidget> CreateScriptScratchPad(UNiagaraScratchPadViewModel& ScriptScratchPadViewModel) const override;
 		virtual TSharedRef<SWidget> CreateCurveOverview(TSharedRef<FNiagaraSystemViewModel> SystemViewModel) const override;
 		virtual FLinearColor GetColorForExecutionCategory(FName ExecutionCategory) const override;
-		virtual FLinearColor GetColorForParameterScope(ENiagaraParameterScope ParameterScope) const override;
 	};
 
 public:

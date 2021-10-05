@@ -89,9 +89,6 @@ protected:
 	virtual void DestroyRenderState_Concurrent() override;
 	//~ End UActorComponent Interface.
 
-private:
-	void UpdateSceneData_Concurrent();
-
 public:
 	/**
 	 * Creates a proxy to represent the primitive to the scene manager in the rendering thread.

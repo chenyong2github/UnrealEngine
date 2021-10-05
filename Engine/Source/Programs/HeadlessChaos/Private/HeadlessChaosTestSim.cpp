@@ -297,5 +297,88 @@ namespace ChaosTest {
 
 		Module->DestroySolver(Solver);
 	}
+
+	GTEST_TEST(AllEvolutions, SimTests_SleepAndWakeSimTest3)
+	{
+		FPBDRigidsSOAs Particles;
+		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
+		FPBDRigidsEvolutionGBF Evolution(Particles, PhysicalMaterials);
+		InitEvolutionSettings(Evolution);
+
+		// This lambda assumes two freshly awakened dynamics, ticked over 100 frames.
+		// The sleepy one has a material sleep type and will fall asleep after 5 frames.
+		const auto AdvanceSleepStates = [&](auto& SleepyDynamic, auto& AwakeDynamic)
+		{
+			for (int i = 0; i < 10; ++i)
+			{
+				Evolution.AdvanceOneTimeStep(1 / 60.f);
+				Evolution.EndFrame(1 / 60.f);
+
+				// Dynamic1 should fall asleep after 5 frames of sitting still
+				if (i < 5)
+				{
+					EXPECT_EQ(SleepyDynamic->ObjectState(), EObjectStateType::Dynamic);
+				}
+				else
+				{
+					EXPECT_EQ(SleepyDynamic->ObjectState(), EObjectStateType::Sleeping);
+				}
+
+				// Dynamic2 should never fall asleep
+				EXPECT_EQ(AwakeDynamic->ObjectState(), EObjectStateType::Dynamic);
+			}
+		};
+
+		auto Dynamic1 = Evolution.CreateDynamicParticles(1)[0];
+		auto Dynamic2 = Evolution.CreateDynamicParticles(1)[0];
+		TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>> PhysicsMaterials;
+		Particles.GetParticleHandles().AddArray(&PhysicsMaterials);
+		TUniquePtr<FChaosPhysicsMaterial> PhysicsMaterial = MakeUnique<FChaosPhysicsMaterial>();
+		PhysicsMaterial->SleepingLinearThreshold = 20;
+		PhysicsMaterial->SleepingAngularThreshold = 20;
+		PhysicsMaterial->SleepCounterThreshold = 5;
+
+		Dynamic1->X() = FVec3(-200, 0, 0);
+		Dynamic2->X() = FVec3(200, 0, 0);
+
+		TUniquePtr<FImplicitObject> DynamicBox(new TBox<FReal, 3>(FVec3(-50, -50, -50), FVec3(50, 50, 50)));
+		Dynamic1->SetGeometry(MakeSerializable(DynamicBox));
+		Dynamic2->SetGeometry(MakeSerializable(DynamicBox));
+
+		Dynamic1->SetGravityEnabled(false);
+		Dynamic2->SetGravityEnabled(false);
+
+		Dynamic1->SetSleepType(ESleepType::MaterialSleep);
+		Dynamic2->SetSleepType(ESleepType::NeverSleep);
+
+		Evolution.SetPhysicsMaterial(Dynamic1, MakeSerializable(PhysicsMaterial));
+		Evolution.SetPhysicsMaterial(Dynamic2, MakeSerializable(PhysicsMaterial));
+
+		const auto& SleepData = Evolution.GetParticles().GetDynamicParticles().GetSleepData();
+		EXPECT_EQ(SleepData.Num(), 0);
+
+		AdvanceSleepStates(Dynamic1, Dynamic2);
+
+		// Particle 1 should have fallen asleep
+		EXPECT_EQ(SleepData.Num(), 1);
+		EXPECT_EQ(SleepData[0].Particle, Dynamic1);
+		EXPECT_TRUE(SleepData[0].Sleeping);
+
+		// Switch the sleep types and observe state changes and sleep events
+		Dynamic1->SetSleepType(ESleepType::NeverSleep);
+		Dynamic2->SetSleepType(ESleepType::MaterialSleep);
+
+		// Particle 1 should have woken up due to the sleep type change
+		EXPECT_EQ(SleepData.Num(), 2);
+		EXPECT_EQ(SleepData[1].Particle, Dynamic1);
+		EXPECT_FALSE(SleepData[1].Sleeping);
+
+		AdvanceSleepStates(Dynamic2, Dynamic1);
+
+		// Particle 2 should have fallen asleep
+		EXPECT_EQ(SleepData.Num(), 3);
+		EXPECT_EQ(SleepData[2].Particle, Dynamic2);
+		EXPECT_TRUE(SleepData[2].Sleeping);
+	}
 }
 

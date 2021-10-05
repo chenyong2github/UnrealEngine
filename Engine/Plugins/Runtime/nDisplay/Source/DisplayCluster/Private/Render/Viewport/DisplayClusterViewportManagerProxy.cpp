@@ -136,10 +136,10 @@ void FDisplayClusterViewportManagerProxy::ImplUpdateViewports(const TArray<FDisp
 
 DECLARE_GPU_STAT_NAMED(nDisplay_ViewportManager_RenderFrame, TEXT("nDisplay ViewportManager::RenderFrame"));
 
-void FDisplayClusterViewportManagerProxy::ImplRenderFrame(const bool bWarpBlendEnabled, FRHITexture2D* FrameOutputRTT)
+void FDisplayClusterViewportManagerProxy::ImplRenderFrame(const bool bWarpBlendEnabled, FViewport* InViewport)
 {
 	ENQUEUE_RENDER_COMMAND(DeleteDisplayClusterViewportProxy)(
-		[ViewportManagerProxy = this, bWarpBlendEnabled, FrameOutputRTT](FRHICommandListImmediate& RHICmdList)
+		[ViewportManagerProxy = this, bWarpBlendEnabled, InViewport](FRHICommandListImmediate& RHICmdList)
 	{
 		SCOPED_GPU_STAT(RHICmdList, nDisplay_ViewportManager_RenderFrame);
 		SCOPED_DRAW_EVENT(RHICmdList, nDisplay_ViewportManager_RenderFrame);
@@ -158,22 +158,25 @@ void FDisplayClusterViewportManagerProxy::ImplRenderFrame(const bool bWarpBlendE
 		// Update the frame resources: post-processing, warping, and finally resolving everything to the frame resource
 		ViewportManagerProxy->UpdateFrameResources_RenderThread(RHICmdList, bWarpBlendEnabled);
 
-		if (FrameOutputRTT)
+		if (InViewport)
 		{
-			// For quadbuf stereo copy only left eye, right copy from OutputFrameTarget
-			//@todo Copy QuadBuf_LeftEye/(mono,sbs,tp) to separate rtt, before UI and debug rendering
-			//@todo QuadBuf_LeftEye copied latter, before present
-			switch(ViewportManagerProxy->RenderFrameSettings.RenderMode)
-			{ 
-			case EDisplayClusterRenderFrameMode::SideBySide:
-			case EDisplayClusterRenderFrameMode::TopBottom:
-				ViewportManagerProxy->ResolveFrameTargetToBackBuffer_RenderThread(RHICmdList, 1, 0, FrameOutputRTT, FrameOutputRTT->GetSizeXY());
-				break;
-			default:
-				break;
-			}
+			if (FRHITexture2D* FrameOutputRTT = InViewport->GetRenderTargetTexture())
+			{
+				// For quadbuf stereo copy only left eye, right copy from OutputFrameTarget
+				//@todo Copy QuadBuf_LeftEye/(mono,sbs,tp) to separate rtt, before UI and debug rendering
+				//@todo QuadBuf_LeftEye copied latter, before present
+				switch (ViewportManagerProxy->RenderFrameSettings.RenderMode)
+				{
+				case EDisplayClusterRenderFrameMode::SideBySide:
+				case EDisplayClusterRenderFrameMode::TopBottom:
+					ViewportManagerProxy->ResolveFrameTargetToBackBuffer_RenderThread(RHICmdList, 1, 0, FrameOutputRTT, FrameOutputRTT->GetSizeXY());
+					break;
+				default:
+					break;
+				}
 
-			ViewportManagerProxy->ResolveFrameTargetToBackBuffer_RenderThread(RHICmdList, 0, 0, FrameOutputRTT, FrameOutputRTT->GetSizeXY());
+				ViewportManagerProxy->ResolveFrameTargetToBackBuffer_RenderThread(RHICmdList, 0, 0, FrameOutputRTT, FrameOutputRTT->GetSizeXY());
+			}
 		}
 	});
 }

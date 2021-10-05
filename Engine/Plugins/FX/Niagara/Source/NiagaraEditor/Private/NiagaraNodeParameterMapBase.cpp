@@ -144,6 +144,13 @@ void UNiagaraNodeParameterMapBase::CollectAddPinActions(FGraphActionListBuilderB
 
 void UNiagaraNodeParameterMapBase::GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const
 {
+	FText Text;
+	if (GetTooltipTextForKnownPin(Pin, Text))
+	{
+		HoverTextOut = Text.ToString();
+		return;
+	}
+	
 	// Get hover text from metadata description.
 	const UNiagaraGraph* NiagaraGraph = GetNiagaraGraph();
 	if (NiagaraGraph)
@@ -180,21 +187,15 @@ void UNiagaraNodeParameterMapBase::GetPinHoverText(const UEdGraphPin& Pin, FStri
 			FNiagaraVariable Var = FNiagaraVariable(TypeDef, Pin.PinName);
 			const FText Name = FText::FromName(Var.GetName());
 
-			FText Description, ScopeText, UsageText, UserEditableText;
+			FText Description;
 			TOptional<FNiagaraVariableMetaData> Metadata = NiagaraGraph->GetMetaData(Var);
 			if (Metadata.IsSet())
 			{
-				FName CachedParamName;
-				Metadata->GetParameterName(CachedParamName);
-				UserEditableText = FText::FromName(CachedParamName);
-
 				Description = Metadata->Description;
-				ScopeText = FText::FromName(Metadata->GetScopeName());
-				UsageText = StaticEnum<ENiagaraScriptParameterUsage>()->GetDisplayNameTextByValue((int64) Metadata->GetUsage());
 			}
 
-			const FText TooltipFormat = LOCTEXT("Parameters", "Name: {0} \nType: {1}\nDescription: {2}\nScope: {3}\nUser Editable: {4}\nUsage: {5}");
-			const FText ToolTipText = FText::Format(TooltipFormat, FText::FromName(Var.GetName()), Var.GetType().GetNameText(), Description, ScopeText, UserEditableText, UsageText);
+			const FText TooltipFormat = LOCTEXT("Parameters", "Name: {0} \nType: {1}\nDescription: {2}");
+			const FText ToolTipText = FText::Format(TooltipFormat, FText::FromName(Var.GetName()), Var.GetType().GetNameText(), Description);
 			HoverTextOut = ToolTipText.ToString();
 		}
 	}
@@ -303,7 +304,7 @@ void UNiagaraNodeParameterMapBase::OnPinRenamed(UEdGraphPin* RenamedPin, const F
 			Names.Add(Pin->GetFName());
 		}
 	}
-	const FName NewUniqueName = FNiagaraUtilities::GetUniqueName(*RenamedPin->GetName(), Names); //@todo(ng) remove
+	const FName NewUniqueName = FNiagaraUtilities::GetUniqueName(*RenamedPin->GetName(), Names);
 
 	FNiagaraTypeDefinition VarType = CastChecked<UEdGraphSchema_Niagara>(GetSchema())->PinToTypeDefinition(RenamedPin);
 	FNiagaraVariable Var(VarType, *OldName);

@@ -4,16 +4,19 @@
 
 #include "CoreMinimal.h"
 
+
 #include "SRCProtocolShared.h"
+#include "UObject/StrongObjectPtr.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SListView.h"
 
-class FProtocolEntityViewModel;
 class FProtocolBindingViewModel;
+class FProtocolEntityViewModel;
 class ITableRow;
-class SRCProtocolList;
 class SRCProtocolBinding;
+class SRCProtocolList;
 class STableViewBase;
+class URemoteControlProtocolWidgetsSettings;
 template <typename ItemType> class SListView;
 
 /** The root view for a given entity. A (vertical) list of bindings, where each binding has a protocol. */
@@ -50,11 +53,17 @@ private:
 	float OnGetSecondaryRightColumnWidth() const { return SecondaryColumnWidth; }
 	void OnSetSecondaryColumnWidth(float InWidth) { SecondaryColumnWidth = InWidth; }
 
+	/** Get (mutable) module settings */
+	URemoteControlProtocolWidgetsSettings* GetSettings();
+
 private:
 	TSharedPtr<FProtocolEntityViewModel> ViewModel;
 
 	/** Current status message, if any */
 	FText StatusMessage;
+
+	/** List of all available protocol names */
+	TArray<FName> ProtocolNames;
 
 	/** Dropdown list of available protocol names to add */
 	TSharedPtr<SRCProtocolList> ProtocolList;
@@ -62,15 +71,21 @@ private:
 	/** ListView widget for each protocol binding */
 	TSharedPtr<SListView<TSharedPtr<FProtocolBindingViewModel>>> BindingList;
 
+	/** Binding view models, filtered by the current HiddenProtocolTypeNames list */
+	TArray<TSharedPtr<FProtocolBindingViewModel>> FilteredBindings;
+
 	/** Container used by all primary splitters in the details view, so that they move in sync */
 	TSharedPtr<RemoteControlProtocolWidgetUtils::FPropertyViewColumnSizeData> PrimaryColumnSizeData;
 
 	/** Relative width to control primary splitters */
-	float PrimaryColumnWidth;
+	float PrimaryColumnWidth = 0.5f;
 
 	/** Container used by all primary splitters in the details view, so that they move in sync */
 	TSharedPtr<RemoteControlProtocolWidgetUtils::FPropertyViewColumnSizeData> SecondaryColumnSizeData;
 
 	/** Relative width to control secondary splitters */
-	float SecondaryColumnWidth;
+	float SecondaryColumnWidth = 0.5f;
+
+	/** Reference to (mutable) settings class for this module */
+	TWeakObjectPtr<URemoteControlProtocolWidgetsSettings> Settings;
 };

@@ -8,6 +8,8 @@
 #include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
 #include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorTreeItem.h"
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorBaseNode.h"
+#include "Views/OutputMapping/Widgets/SDisplayClusterConfiguratorResizer.h"
+#include "Views/OutputMapping/Widgets/SDisplayClusterConfiguratorLayeringBox.h"
 
 #include "Widgets/Images/SImage.h"
 #include "SGraphPanel.h"
@@ -87,6 +89,8 @@ void SAlignmentRuler::SetThickness(TAttribute<FOptionalSize> InThickness)
 	}
 }
 
+const float SDisplayClusterConfiguratorBaseNode::ResizeHandleSize = 20;
+
 void SDisplayClusterConfiguratorBaseNode::Construct(const FArguments& InArgs, UDisplayClusterConfiguratorBaseNode* InBaseNode, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit)
 {
 	SGraphNode::Construct();
@@ -95,8 +99,6 @@ void SDisplayClusterConfiguratorBaseNode::Construct(const FArguments& InArgs, UD
 
 	GraphNode = InBaseNode;
 	check(GraphNode);
-
-	ZIndex = 0;
 
 	SetCursor(TAttribute<TOptional<EMouseCursor::Type>>(this, &SDisplayClusterConfiguratorBaseNode::GetCursor));
 }
@@ -126,6 +128,22 @@ void SDisplayClusterConfiguratorBaseNode::UpdateGraphNode()
 
 	SetVisibility(MakeAttributeSP(this, &SDisplayClusterConfiguratorBaseNode::GetNodeVisibility));
 	SetEnabled(MakeAttributeSP(this, &SDisplayClusterConfiguratorBaseNode::IsNodeEnabled));
+
+	GetOrAddSlot(ENodeZone::BottomRight)
+		.SlotSize(FVector2D(ResizeHandleSize))
+		.SlotOffset(TAttribute<FVector2D>(this, &SDisplayClusterConfiguratorBaseNode::GetReizeHandleOffset))
+		.VAlign(VAlign_Top)
+		.HAlign(HAlign_Left)
+		.AllowScaling(false)
+		[
+			SNew(SDisplayClusterConfiguratorLayeringBox)
+			.LayerOffset(DisplayClusterConfiguratorGraphLayers::OrnamentLayerIndex)
+			.Visibility(this, &SDisplayClusterConfiguratorBaseNode::GetResizeHandleVisibility)
+			[
+				SNew(SDisplayClusterConfiguratorResizer, ToolkitPtr.Pin().ToSharedRef(), SharedThis(this))
+				.IsFixedAspectRatio(this, &SDisplayClusterConfiguratorBaseNode::IsAspectRatioFixed)
+			]
+		];
 
 	// The rest of widgets should be created by child classes
 }
@@ -241,15 +259,7 @@ bool SDisplayClusterConfiguratorBaseNode::ShouldAllowCulling() const
 
 int32 SDisplayClusterConfiguratorBaseNode::GetSortDepth() const
 {
-	int32 Depth = GetNodeLayerIndex() + ZIndex;
-
-	// If this node is selected, add 1 to its depth to ensure it is drawn an top of other nodes in its layer.
-	if (GetOwnerPanel()->SelectionManager.SelectedNodes.Contains(GraphNode))
-	{
-		Depth++;
-	}
-
-	return Depth;
+	return GetNodeLogicalLayer();
 }
 
 TArray<FOverlayWidgetInfo> SDisplayClusterConfiguratorBaseNode::GetOverlayWidgets(bool bSelected, const FVector2D& WidgetSize) const
@@ -378,6 +388,35 @@ TOptional<EMouseCursor::Type> SDisplayClusterConfiguratorBaseNode::GetCursor() c
 	}
 
 	return EMouseCursor::Default;
+}
+
+int32 SDisplayClusterConfiguratorBaseNode::GetNodeLogicalLayer() const
+{
+	UDisplayClusterConfiguratorBaseNode* EdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorBaseNode>();
+	return EdNode->GetNodeLayer(GetOwnerPanel()->SelectionManager.SelectedNodes);
+}
+
+int32 SDisplayClusterConfiguratorBaseNode::GetNodeVisualLayer() const
+{
+	UDisplayClusterConfiguratorBaseNode* EdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorBaseNode>();
+	return EdNode->GetNodeLayer(GetOwnerPanel()->SelectionManager.SelectedNodes);
+}
+
+FVector2D SDisplayClusterConfiguratorBaseNode::GetReizeHandleOffset() const
+{
+	const FVector2D NodeSize = ComputeDesiredSize(FSlateApplication::Get().GetApplicationScale());
+	const float GraphZoom = GetOwnerPanel()->GetZoomAmount();
+	return FVector2D(NodeSize.X, NodeSize.Y) * GraphZoom;
+}
+
+EVisibility SDisplayClusterConfiguratorBaseNode::GetResizeHandleVisibility() const
+{
+	if (!CanNodeBeResized())
+	{
+		return EVisibility::Collapsed;
+	}
+
+	return GetSelectionVisibility();
 }
 
 bool SDisplayClusterConfiguratorBaseNode::CanSnapAlign() const

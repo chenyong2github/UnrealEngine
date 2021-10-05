@@ -223,7 +223,8 @@ public:
 	void GetFilteredParticleHandles(
 		TArray<Chaos::TGeometryParticleHandle<Chaos::FReal, 3>*>& Handles,
 		const Chaos::FPBDRigidsSolver* RigidSolver,
-		const EFieldFilterType FilterType);
+		const EFieldFilterType FilterType,
+		const EFieldObjectType ObjectType);
 		
 	/* Implemented so we can construct TAccelerationStructureHandle. */
 	virtual void* GetHandleUnsafe() const override { return nullptr; }
@@ -270,6 +271,9 @@ private:
 
 	FSimulationParameters Parameters;
 	TArray<FFieldSystemCommand> Commands;
+
+	/** Field Datas stored during evaluation */
+	FFieldExecutionDatas ExecutionDatas;
 
 	//
 	//  Proxy State Information

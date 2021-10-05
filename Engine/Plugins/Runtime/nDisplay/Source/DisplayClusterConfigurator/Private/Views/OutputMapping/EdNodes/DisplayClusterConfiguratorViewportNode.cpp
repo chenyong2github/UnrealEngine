@@ -3,6 +3,7 @@
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorViewportNode.h"
 
 #include "ClusterConfiguration/DisplayClusterConfiguratorClusterUtils.h"
+#include "ClusterConfiguration/ViewModels/DisplayClusterConfiguratorViewportViewModel.h"
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorWindowNode.h"
 #include "Views/OutputMapping/GraphNodes/SDisplayClusterConfiguratorViewportNode.h"
 #include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
@@ -13,12 +14,23 @@
 #include "DisplayClusterRootActor.h"
 #include "Components/DisplayClusterPreviewComponent.h"
 
-void UDisplayClusterConfiguratorViewportNode::Initialize(const FString& InNodeName, UObject* InObject, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit)
+void UDisplayClusterConfiguratorViewportNode::Initialize(const FString& InNodeName, int32 InNodeZIndex, UObject* InObject, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit)
 {
-	UDisplayClusterConfiguratorBaseNode::Initialize(InNodeName, InObject, InToolkit);
+	UDisplayClusterConfiguratorBaseNode::Initialize(InNodeName, InNodeZIndex, InObject, InToolkit);
 
 	UDisplayClusterConfigurationViewport* CfgViewport = GetObjectChecked<UDisplayClusterConfigurationViewport>();
 	CfgViewport->OnPostEditChangeChainProperty.Add(UDisplayClusterConfigurationViewport::FOnPostEditChangeChainProperty::FDelegate::CreateUObject(this, &UDisplayClusterConfiguratorViewportNode::OnPostEditChangeChainProperty));
+
+	ViewportVM = MakeShareable(new FDisplayClusterConfiguratorViewportViewModel(CfgViewport));
+}
+
+void UDisplayClusterConfiguratorViewportNode::Cleanup()
+{
+	if (ObjectToEdit.IsValid())
+	{
+		UDisplayClusterConfigurationViewport* CfgViewport = GetObjectChecked<UDisplayClusterConfigurationViewport>();
+		CfgViewport->OnPostEditChangeChainProperty.RemoveAll(this);
+	}
 }
 
 TSharedPtr<SGraphNode> UDisplayClusterConfiguratorViewportNode::CreateVisualWidget()
@@ -50,10 +62,8 @@ void UDisplayClusterConfiguratorViewportNode::WriteNodeStateToObject()
 	const FVector2D LocalPosition = GetNodeLocalPosition();
 	const FVector2D LocalSize = TransformSizeToLocal(GetNodeSize());
 
-	CfgViewport->Region.X = LocalPosition.X;
-	CfgViewport->Region.Y = LocalPosition.Y;
-	CfgViewport->Region.W = LocalSize.X;
-	CfgViewport->Region.H = LocalSize.Y;
+	FDisplayClusterConfigurationRectangle NewRegion(LocalPosition.X, LocalPosition.Y, LocalSize.X, LocalSize.Y);
+	ViewportVM->SetRegion(NewRegion);
 }
 
 void UDisplayClusterConfiguratorViewportNode::ReadNodeStateFromObject()
@@ -102,6 +112,13 @@ UTexture* UDisplayClusterConfiguratorViewportNode::GetPreviewTexture() const
 
 void UDisplayClusterConfiguratorViewportNode::OnPostEditChangeChainProperty(const FPropertyChangedChainEvent& PropertyChangedEvent)
 {
+	// If the pointer to the blueprint editor is no longer valid, its likely that the editor this node was created for was closed,
+	// and this node is orphaned and will eventually be GCed.
+	if (!ToolkitPtr.IsValid())
+	{
+		return;
+	}
+
 	const UDisplayClusterConfigurationViewport* CfgViewport = GetObjectChecked<UDisplayClusterConfigurationViewport>();
 
 	const FName& PropertyName = PropertyChangedEvent.GetPropertyName();

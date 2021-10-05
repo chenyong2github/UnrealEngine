@@ -41,9 +41,9 @@ struct FPreAnimatedCameraShakeSourceShakeTokenProducer : IMovieScenePreAnimatedG
 
 			FRestoreToken(FMovieSceneEvaluationOperand InOperand) : Operand(InOperand) {}
 
-			virtual void RestoreState(IMovieScenePlayer& Player) override
+			virtual void RestoreState(const UE::MovieScene::FRestoreStateParams& Params) override
 			{
-				for (TWeakObjectPtr<> BoundObject : Player.FindBoundObjects(Operand))
+				for (TWeakObjectPtr<> BoundObject : Params.GetTerminalPlayer()->FindBoundObjects(Operand))
 				{
 					if (BoundObject.IsValid())
 					{

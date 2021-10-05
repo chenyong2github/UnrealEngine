@@ -235,8 +235,6 @@ void FDMXPortManager::UpdateFromProtocolSettings()
 		{
 			InputPorts.Remove(InputPort);
 			PortGuidsFromProtocolSettings.Remove(PortGuid);
-
-			OnPortsChanged.Broadcast();
 		}
 	}
 
@@ -253,8 +251,6 @@ void FDMXPortManager::UpdateFromProtocolSettings()
 		{
 			OutputPorts.Remove(OutputPort);
 			PortGuidsFromProtocolSettings.Remove(PortGuid);
-
-			OnPortsChanged.Broadcast();
 		}
 	}
 
@@ -276,6 +272,8 @@ void FDMXPortManager::UpdateFromProtocolSettings()
 
 		PortGuidsFromProtocolSettings.AddUnique(OutputPort->GetPortGuid());
 	}
+
+	OnPortsChanged.Broadcast();
 }
 
 void FDMXPortManager::StartupManager()

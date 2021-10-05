@@ -70,7 +70,7 @@ void FDownloadServiceSpec::Define()
 			MockInstallerAnalytics.Get()));
 	});
 
-	Describe("DownloadService", [this]()
+	xDescribe("DownloadService", [this]()
 	{
 		Describe("RequestFile", [this]()
 		{

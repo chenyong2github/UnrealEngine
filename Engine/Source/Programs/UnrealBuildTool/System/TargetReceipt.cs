@@ -725,7 +725,7 @@ namespace UnrealBuildTool
 				Writer.WriteObjectEnd();
 
 				Writer.WriteArrayStart("BuildProducts");
-				foreach (BuildProduct BuildProduct in BuildProducts)
+				foreach (BuildProduct BuildProduct in BuildProducts.OrderBy(x => x.Path.FullName))
 				{
 					Writer.WriteObjectStart();
 					Writer.WriteValue("Path", InsertPathVariables(BuildProduct.Path, EngineDir, ProjectDir));
@@ -735,7 +735,7 @@ namespace UnrealBuildTool
 				Writer.WriteArrayEnd();
 
 				Writer.WriteArrayStart("RuntimeDependencies");
-				foreach (RuntimeDependency RuntimeDependency in RuntimeDependencies)
+				foreach (RuntimeDependency RuntimeDependency in RuntimeDependencies.OrderBy(x => x.Path.FullName))
 				{
 					Writer.WriteObjectStart();
 					Writer.WriteValue("Path", InsertPathVariables(RuntimeDependency.Path, EngineDir, ProjectDir));

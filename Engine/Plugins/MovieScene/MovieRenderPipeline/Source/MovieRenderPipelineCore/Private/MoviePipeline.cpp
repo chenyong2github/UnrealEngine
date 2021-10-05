@@ -1110,9 +1110,44 @@ void UMoviePipeline::ExpandShot(UMoviePipelineExecutorShot* InShot, const int32 
 				Node->MovieScene->SetPlaybackRange(UE::MovieScene::DilateRange(Node->MovieScene->GetPlaybackRange(), -LeftDeltaTicks, RightDeltaTicks));
 				Node->MovieScene->MarkAsChanged();
 			}
+
+			FFrameNumber LowerCheckBound = InShot->ShotInfo.TotalOutputRangeMaster.GetLowerBoundValue() - LeftDeltaTicksUserPoV;
+			FFrameNumber UpperCheckBound = InShot->ShotInfo.TotalOutputRangeMaster.GetLowerBoundValue();
+
+			TRange<FFrameNumber> CheckRange = TRange<FFrameNumber>(TRangeBound<FFrameNumber>::Exclusive(LowerCheckBound), TRangeBound<FFrameNumber>::Inclusive(UpperCheckBound));
+
+			for (const TTuple<UMovieSceneSection*, TRange<FFrameNumber>>& Pair : Node->AdditionalSectionsToExpand)
+			{
+				// Expand the section. Because it's an infinite range, we know the contents won't get shifted.
+				TRange<FFrameNumber> NewRange = TRange<FFrameNumber>::Hull(Pair.Key->GetRange(), CheckRange);
+				Pair.Key->SetRange(NewRange);
+				Pair.Key->MarkAsChanged();
+			}
 		}
 		else
 		{
+			if (Node->MovieScene.IsValid())
+			{
+				for (UMovieSceneSection* Section : Node->MovieScene->GetAllSections())
+				{
+					if (!Section)
+					{
+						continue;
+					}
+
+					// Their data is already cached for restore elsewhere.
+					if (Section == Node->Section || Section == Node->CameraCutSection)
+					{
+						continue;
+					}
+
+					if (Section->GetSupportsInfiniteRange())
+					{
+						Node->AdditionalSectionsToExpand.Add(MakeTuple(Section, Section->GetRange()));
+					}
+				}
+			}
+
 			// We only do our warnings during the pre-pass
 			// Check for sections that start in the expanded evaluation range and warn user. Only check the frames user expects to (handle + temporal, no need for warm up frames to get checked as well)
 			MoviePipeline::CheckPartialSectionEvaluationAndWarn(LeftDeltaTicksUserPoV, Node, InShot, MasterDisplayRate);

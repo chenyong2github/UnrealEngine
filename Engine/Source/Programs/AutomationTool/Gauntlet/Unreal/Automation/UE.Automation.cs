@@ -243,7 +243,7 @@ namespace UE
 	/// Implements a node that runs Unreal automation tests using the editor. The primary argument is "RunTest". E.g
 	/// RunUnreal -test=UE.EditorAutomation -RunTest="Group:Animation"
 	/// </summary>
-	public class EditorAutomation : AutomationNodeBase
+	public class EditorAutomation : AutomationNodeBase<AutomationTestConfig>
 	{
 		public EditorAutomation(Gauntlet.UnrealTestContext InContext)
 			: base(InContext)
@@ -271,7 +271,7 @@ namespace UE
 	/// Implements a node that runs Unreal automation tests on a target, monitored by an editor. The primary argument is "RunTest". E.g
 	/// RunUnreal -test=UE.EditorAutomation -RunTest="Group:Animation"
 	/// </summary>
-	public class TargetAutomation : AutomationNodeBase
+	public class TargetAutomation : AutomationNodeBase<AutomationTestConfig>
 	{
 		public TargetAutomation(Gauntlet.UnrealTestContext InContext)
 			: base(InContext)
@@ -305,7 +305,8 @@ namespace UE
 	/// <summary>
 	/// Base class for automation tests. Most of the magic is in here with the Editor/Target forms simply defining the roles
 	/// </summary>
-	public abstract class AutomationNodeBase : UnrealTestNode<AutomationTestConfig>
+	public abstract class AutomationNodeBase<TConfigClass> : UnrealTestNode<TConfigClass>
+		where TConfigClass : UnrealTestConfiguration, new()
 	{
 		// used to track stdout from the processes 
 		private int LastAutomationEntryCount = 0;
@@ -328,10 +329,13 @@ namespace UE
 				string BaseName = base.Name;
 
 				var Config = GetConfiguration();
-
-				if (!string.IsNullOrEmpty(Config.RunTest))
+				if (Config is AutomationTestConfig)
 				{
-					BaseName += string.Format("(RunTest={0})", Config.RunTest);
+					var AutomationConfig = Config as AutomationTestConfig;
+					if (!string.IsNullOrEmpty(AutomationConfig.RunTest))
+					{
+						BaseName += string.Format("(RunTest={0})", AutomationConfig.RunTest);
+					}
 				}
 
 				return BaseName;
@@ -432,34 +436,38 @@ namespace UE
 		public override ITestReport CreateReport(TestResult Result)
 		{
 			ITestReport Report = null;
-			// Save test result data for Horde build system
-			bool WriteTestResultsForHorde = GetConfiguration().WriteTestResultsForHorde;
-			if (WriteTestResultsForHorde)
+			if (GetConfiguration() is AutomationTestConfig)
 			{
-				if (GetConfiguration().SimpleHordeReport)
+				var Config = GetConfiguration() as AutomationTestConfig;
+				// Save test result data for Horde build system
+				bool WriteTestResultsForHorde = Config.WriteTestResultsForHorde;
+				if (WriteTestResultsForHorde)
 				{
-					Report = base.CreateReport(Result);
-				}
-				else
-				{
-					string ReportPath = GetConfiguration().ReportExportPath;
-					if (!string.IsNullOrEmpty(ReportPath))
+					if (Config.SimpleHordeReport)
 					{
-						Report = CreateUnrealEngineTestPassReport(ReportPath, GetConfiguration().ReportURL);
+						Report = base.CreateReport(Result);
+					}
+					else
+					{
+						string ReportPath = Config.ReportExportPath;
+						if (!string.IsNullOrEmpty(ReportPath))
+						{
+							Report = CreateUnrealEngineTestPassReport(ReportPath, Config.ReportURL);
+						}
 					}
 				}
-			}
 
-			string TelemetryDirectory = GetConfiguration().TelemetryDirectory;
-			if (Report != null && !string.IsNullOrEmpty(TelemetryDirectory) && Directory.Exists(TelemetryDirectory))
-			{
-				if (Report is ITelemetryReport Telemetry)
+				string TelemetryDirectory = Config.TelemetryDirectory;
+				if (Report != null && !string.IsNullOrEmpty(TelemetryDirectory) && Directory.Exists(TelemetryDirectory))
 				{
-					UnrealAutomationTelemetry.LoadOutputsIntoReport(TelemetryDirectory, Telemetry);
-				}
-				else
-				{
-					Log.Warning("Publishing Telemetry is requested but '{0}' does not support telemetry input.", Report.GetType().FullName);
+					if (Report is ITelemetryReport Telemetry)
+					{
+						UnrealAutomationTelemetry.LoadOutputsIntoReport(TelemetryDirectory, Telemetry);
+					}
+					else
+					{
+						Log.Warning("Publishing Telemetry is requested but '{0}' does not support telemetry input.", Report.GetType().FullName);
+					}
 				}
 			}
 

@@ -364,25 +364,24 @@ namespace Chaos
 		if (Handles.Num())
 		{
 			for(ISimCallbackObject* Modifier : CollisionModifiers)
-		{
-			TArray<FPBDCollisionConstraintHandleModification> ModificationResults;
-			ModificationResults.Reserve(Handles.Num());
-				for (FPBDCollisionConstraintHandle* Handle : Handles)
 			{
-				ModificationResults.Emplace(Handle);
-			}
+				TArray<FPBDCollisionConstraintHandleModification> ModificationResults;
+				ModificationResults.Reserve(Handles.Num());
+				for (FPBDCollisionConstraintHandle* Handle : Handles)
+				{
+					ModificationResults.Emplace(Handle);
+				}
 
 				Modifier->ContactModification_Internal(TArrayView<FPBDCollisionConstraintHandleModification>(ModificationResults.GetData(), ModificationResults.Num()));
-				
-			for (const FPBDCollisionConstraintHandleModification& Modification : ModificationResults)
-			{
-					if (Modification.GetResult() == ECollisionModifierResult::Disabled)
+
+				for (const FPBDCollisionConstraintHandleModification& Modification : ModificationResults)
 				{
-					RemoveConstraint(Modification.GetHandle());
+						if (Modification.GetResult() == ECollisionModifierResult::Disabled)
+					{
+						RemoveConstraint(Modification.GetHandle());
+					}
 				}
 			}
-		}
-			
 		}
 	}
 

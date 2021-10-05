@@ -90,7 +90,7 @@ bool USkeletalMeshExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type,
 		UsdUtils::SetUsdStageUpAxis( UsdStage, Options->Inner.StageOptions.UpAxis );
 	}
 
-	FString RootPrimPath = ( TEXT( "/" ) + SkeletalMesh->GetName() );
+	FString RootPrimPath = ( TEXT( "/" ) + UsdUtils::SanitizeUsdIdentifier( *SkeletalMesh->GetName() ) );
 
 	FScopedUsdAllocs Allocs;
 

@@ -15,21 +15,25 @@
 class FAdvancedDropdownNode : public FDetailTreeNode, public TSharedFromThis<FAdvancedDropdownNode>
 {
 public:
-	FAdvancedDropdownNode( FDetailCategoryImpl& InParentCategory, const TAttribute<bool>& InExpanded, const TAttribute<bool>& InEnabled, bool bInShouldShowAdvancedButton, bool bInDisplayShowAdvancedMessage )
-		: ParentCategory( InParentCategory )
+	FAdvancedDropdownNode( TSharedRef<FDetailCategoryImpl> InParentCategory, const TAttribute<bool>& InExpanded, const TAttribute<bool>& InEnabled, bool bInShouldShowAdvancedButton, bool bInDisplayShowAdvancedMessage )
+		: ParentCategory( InParentCategory.Get() )
 		, IsEnabled( InEnabled )
 		, IsExpanded( InExpanded )
 		, bShouldShowAdvancedButton( bInShouldShowAdvancedButton )
 		, bIsTopNode( false )
 		, bDisplayShowAdvancedMessage( bInDisplayShowAdvancedMessage )
-	{}
+	{
+		SetParentNode(InParentCategory);
+	}
 
-	FAdvancedDropdownNode( FDetailCategoryImpl& InParentCategory, bool bInIsTopNode )
-		: ParentCategory( InParentCategory )
+	FAdvancedDropdownNode( TSharedRef<FDetailCategoryImpl> InParentCategory, bool bInIsTopNode )
+		: ParentCategory( InParentCategory.Get() )
 		, bShouldShowAdvancedButton( false )
 		, bIsTopNode( bInIsTopNode )
 		, bDisplayShowAdvancedMessage( false  )
-	{}
+	{
+		SetParentNode(InParentCategory);
+	}
 private:
 	/** IDetailTreeNode Interface */
 	virtual IDetailsView* GetNodeDetailsView() const override { return ParentCategory.GetNodeDetailsView(); }

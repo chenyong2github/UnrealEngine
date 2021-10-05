@@ -10,12 +10,11 @@
 
 struct FBodyInstance;
 struct FConstraintInstance;
+class FEvent;
 
 extern ANIMGRAPHRUNTIME_API TAutoConsoleVariable<int32> CVarEnableRigidBodyNode;
 extern ANIMGRAPHRUNTIME_API TAutoConsoleVariable<int32> CVarEnableRigidBodyNodeSimulation;
 extern ANIMGRAPHRUNTIME_API TAutoConsoleVariable<int32> CVarRigidBodyLODThreshold;
-
-#define ENABLE_RBAN_PERF_LOGGING (1 && !NO_LOGGING && !UE_BUILD_SHIPPING)
 
 /** Determines in what space the simulation should run */
 UENUM()
@@ -319,49 +318,19 @@ private:
 	// Update sim-space transforms of world objects
 	void UpdateWorldObjects(const FTransform& SpaceTransform);
 
-	struct FSimulationTask
-	{
-		FSimulationTask(FAnimNode_RigidBody* InRigidBodyNode, const float InDeltaSeconds, const float InMaxDeltaSeconds, const int32 InMaxSteps, const FVector& InSimSpaceGravity)
-			: RigidBodyNode(InRigidBodyNode)
-			, DeltaSeconds(InDeltaSeconds)
-			, MaxDeltaSeconds(InMaxDeltaSeconds)
-			, MaxSteps(InMaxSteps)
-			, SimSpaceGravity(InSimSpaceGravity)
-		{
-		}
+	// Advances the simulation by a given timestep
+	void RunPhysicsSimulation(float DeltaSeconds, const FVector& SimSpaceGravity);
 
-		static FORCEINLINE TStatId GetStatId()
-		{
-			RETURN_QUICK_DECLARE_CYCLE_STAT(FRigidBodyNodeSimulationTask, STATGROUP_TaskGraphTasks);
-		}
-
-		static FORCEINLINE ENamedThreads::Type GetDesiredThread();
-
-		static FORCEINLINE ESubsequentsMode::Type GetSubsequentsMode()
-		{
-			return ESubsequentsMode::TrackSubsequents;
-		}
-
-		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& CompletionGraphEvent);
-
-		FAnimNode_RigidBody* const RigidBodyNode;
-		const float DeltaSeconds;
-		const float MaxDeltaSeconds;
-		const int32 MaxSteps;
-		const FVector SimSpaceGravity;
-	};
-
-	// Wait for the simulation task to complete, which clears the reference
+	// Waits for the deferred simulation task to complete if it's not already finished
 	void FlushDeferredSimulationTask();
+
+	// Destroy the simulation and free related structures
+	void DestroyPhysicsSimulation();
 
 private:
 
 	float WorldTimeSeconds;
 	float LastEvalTimeSeconds;
-
-#if ENABLE_RBAN_PERF_LOGGING
-	float LastPerfWarningTimeSeconds;
-#endif
 
 	float AccumulatedDeltaTime;
 	float AnimPhysicsMinDeltaTime;
@@ -371,7 +340,27 @@ private:
 
 	ImmediatePhysics::FSimulation* PhysicsSimulation;
 	FSolverIterations SolverIterations;
-	FGraphEventRef PhysicsSimulationTask;
+
+	friend class FRigidBodyNodeSimulationTask;
+	struct FSimulationTaskState
+	{
+		FSimulationTaskState()
+			: SimulationCompletionEvent(nullptr)
+			, bSimulationPending(false)
+		{
+		}
+
+		// We must explicitly declare the assignment operator due to the atomic, but we must never assign to or from a state with a live simulation
+		FORCEINLINE FSimulationTaskState& operator=(const FSimulationTaskState& Other)
+		{
+			check((SimulationCompletionEvent == nullptr) && (Other.SimulationCompletionEvent == nullptr));
+			return(*this);
+		}
+
+		FEvent* SimulationCompletionEvent;
+		std::atomic<bool> bSimulationPending;
+	};
+	FSimulationTaskState SimulationTaskState;
 
 	struct FOutputBoneData
 	{
@@ -481,7 +470,8 @@ struct TStructOpsTypeTraits<FAnimNode_RigidBody> : public TStructOpsTypeTraitsBa
 {
 	enum
 	{
-		WithPostSerialize = true
+		WithPostSerialize = true,
 	};
 };
 #endif
+

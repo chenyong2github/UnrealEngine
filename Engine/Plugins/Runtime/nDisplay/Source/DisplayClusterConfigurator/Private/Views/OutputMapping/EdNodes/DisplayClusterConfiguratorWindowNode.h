@@ -7,6 +7,7 @@
 #include "DisplayClusterConfiguratorWindowNode.generated.h"
 
 class UDisplayClusterConfigurationClusterNode;
+class FDisplayClusterConfiguratorClusterNodeViewModel;
 struct FDisplayClusterConfigurationRectangle;
 
 UCLASS()
@@ -20,7 +21,8 @@ public:
 	using FOnPreviewImageChangedDelegate = FOnPreviewImageChanged::FDelegate;
 
 public:
-	virtual void Initialize(const FString& InNodeName, UObject* InObject, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit) override;
+	virtual void Initialize(const FString& InNodeName, int32 InNodeZIndex, UObject* InObject, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit) override;
+	virtual void Cleanup() override;
 
 	//~ Begin EdGraphNode Interface
 	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
@@ -52,6 +54,7 @@ private:
 	void OnPostEditChangeChainProperty(const FPropertyChangedChainEvent& PropertyChangedEvent);
 
 private:
+	TSharedPtr<FDisplayClusterConfiguratorClusterNodeViewModel> ClusterNodeVM;
 	FOnPreviewImageChanged PreviewImageChanged;
 };
 

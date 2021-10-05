@@ -124,6 +124,7 @@ FString UAnimNotifyState_TimedNiagaraEffect::GetNotifyName_Implementation() cons
 UAnimNotifyState_TimedNiagaraEffectAdvanced::UAnimNotifyState_TimedNiagaraEffectAdvanced(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	NotifyProgressUserParameter = FName("NormalizedNotifyProgress");
 }
 
 void UAnimNotifyState_TimedNiagaraEffectAdvanced::NotifyBegin(USkeletalMeshComponent* MeshComp, class UAnimSequenceBase* Animation, float TotalDuration)
@@ -162,6 +163,15 @@ void UAnimNotifyState_TimedNiagaraEffectAdvanced::NotifyTick(USkeletalMeshCompon
 	if (FInstanceProgressInfo* ProgressInfo = ProgressInfoMap.Find(MeshComp))
 	{
 		ProgressInfo->Elapsed += FrameDeltaTime;
+	}
+
+	//send the progress to the FX Component
+	if (bEnableNormalizedNotifyProgress && !NotifyProgressUserParameter.IsNone())
+	{ 
+		if (UFXSystemComponent* FXComponent = GetSpawnedEffect(MeshComp))
+		{
+			FXComponent->SetFloatParameter(NotifyProgressUserParameter, GetNotifyProgress(MeshComp));
+		}
 	}
 }
 

@@ -3,7 +3,7 @@
 #include "SDMXFixturePatcher.h"
 
 #include "DMXEditor.h"
-#include "DMXEditorTabs.h"
+#include "DMXEditorTabNames.h"
 #include "DMXFixturePatchSharedData.h"
 #include "DMXFixturePatchNode.h"
 #include "SDMXPatchedUniverse.h"
@@ -12,16 +12,17 @@
 #include "IO/DMXPortManager.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXLibrary.h"
-#include "Widgets/Layout/SSeparator.h"
-#include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/SNullWidget.h"
 
 #include "EditorStyleSet.h"
 #include "ScopedTransaction.h"
 #include "SlateOptMacros.h"
+#include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
-#include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Layout/SSeparator.h"
+
 
 #define LOCTEXT_NAMESPACE "SDMXFixturePatcher"
 
@@ -255,7 +256,7 @@ void SDMXFixturePatcher::SelectUniverseThatContainsSelectedPatches()
 void SDMXFixturePatcher::OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated)
 {
 	if (!NewlyActivated.IsValid() ||
-		NewlyActivated->GetLayoutIdentifier().TabType == FDMXEditorTabs::DMXFixturePatchEditorTabId)
+		NewlyActivated->GetLayoutIdentifier().TabType == FDMXEditorTabNames::DMXFixturePatchEditor)
 	{
 		RefreshFromLibrary();
 	}

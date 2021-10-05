@@ -289,7 +289,7 @@ public:
 	 */
 	FORCEINLINE void SavePreAnimatedState(UObject& InObject, FMovieSceneAnimTypeID InTokenType, const IMovieScenePreAnimatedTokenProducer& InProducer)
 	{
-		PreAnimatedState.SavePreAnimatedState(InTokenType, InProducer, InObject);
+		PreAnimatedState.SavePreAnimatedState(InObject, InTokenType, InProducer);
 	}
 
 	/**
@@ -305,102 +305,12 @@ public:
 	}
 
 	/**
-	 * Attempt to save specific state for the specified token state before it animates an object.
-	 * @note: Will only call IMovieSceneExecutionToken::CacheExistingState if no state has been previously cached for the specified token type
-	 *
-	 * @param InObject			The object to cache state for
-	 * @param InTokenType		Unique marker that identifies the originating token type
-	 * @param InProducer		Producer implementation that defines how to create the preanimated token, if it doesn't already exist
-	 * @param CaptureEntity		The entity key to associate this animated state with
-	 */
-	FORCEINLINE void SavePreAnimatedState(UObject& InObject, FMovieSceneAnimTypeID InTokenType, const IMovieScenePreAnimatedTokenProducer& InProducer, FMovieSceneEvaluationKey CaptureEntity)
-	{
-		PreAnimatedState.SavePreAnimatedState(InTokenType, InProducer, InObject, ECapturePreAnimatedState::Entity, CaptureEntity);
-	}
-
-	/**
-	 * Attempt to save specific state for the specified token state before it mutates state.
-	 * @note: Will only call IMovieSceneExecutionToken::CacheExistingState if no state has been previously cached for the specified token type
-	 *
-	 * @param InTokenType		Unique marker that identifies the originating token type
-	 * @param InProducer		Producer implementation that defines how to create the preanimated token, if it doesn't already exist
-	 * @param CaptureEntity		The entity key to associate this animated state with
-	 */
-	FORCEINLINE void SavePreAnimatedState(FMovieSceneAnimTypeID InTokenType, const IMovieScenePreAnimatedGlobalTokenProducer& InProducer, FMovieSceneEvaluationKey CaptureEntity)
-	{
-		PreAnimatedState.SavePreAnimatedState(InTokenType, InProducer, ECapturePreAnimatedState::Entity, CaptureEntity);
-	}
-
-	/**
-	 * Attempt to save specific global state for the specified token state before it animates an object.
-	 * @note: Will only call IMovieSceneExecutionToken::CacheExistingState if no state has been previously cached for the specified token type
-	 *
-	 * @param InObject			The object to cache state for
-	 * @param InTokenType		Unique marker that identifies the originating token type
-	 * @param InProducer		Producer implementation that defines how to create the preanimated token, if it doesn't already exist
-	 */
-	FORCEINLINE void SaveGlobalPreAnimatedState(UObject& InObject, FMovieSceneAnimTypeID InTokenType, const IMovieScenePreAnimatedTokenProducer& InProducer)
-	{
-		PreAnimatedState.SavePreAnimatedState(InTokenType, InProducer, InObject, ECapturePreAnimatedState::Global, FMovieSceneEvaluationKey());
-	}
-
-	/**
 	 * Restore all pre-animated state
 	 */
 	void RestorePreAnimatedState()
 	{
-		PreAnimatedState.RestorePreAnimatedState(*this);
+		PreAnimatedState.RestorePreAnimatedState();
 		State.ClearObjectCaches(*this);
-	}
-
-	/**
-	 * Restore any pre-animated state that has been cached for the specified object
-	 *
-	 * @param Object			The object to restore
-	 */
-	void RestorePreAnimatedState(UObject& Object)
-	{
-		PreAnimatedState.RestorePreAnimatedState(*this, Object);
-	}
-
-	/**
-	 * Restore any pre-animated state that has been cached for the specified class
-	 *
-	 * @param GeneratedClass			The class of the object to restore
-	 */
-	void RestorePreAnimatedState(UClass* GeneratedClass)
-	{
-		PreAnimatedState.RestorePreAnimatedState(*this, GeneratedClass);
-	}
-
-	/**
-	 * Restore any pre-animated state that has been cached for the specified object
-	 *
-	 * @param Object			The object to restore
-	 * @param InFilter			Filter that defines whether specific anim types should be restored
-	 */
-	void RestorePreAnimatedState(UObject& Object, TFunctionRef<bool(FMovieSceneAnimTypeID)> InFilter)
-	{
-		PreAnimatedState.RestorePreAnimatedState(*this, Object, InFilter);
-	}
-
-	/**
-	 * Restore any pre-animated state that has been cached from the specified entity (a section or, less commonly, a track)
-	 *
-	 * @param EntityKey			The key to the entity that we want to restore state for (typically retrieved from PersistentData.GetSectionKey())
-	 */
-	FORCEINLINE void RestorePreAnimatedState(const FMovieSceneEvaluationKey& EntityKey)
-	{
-		PreAnimatedState.RestorePreAnimatedState(*this, EntityKey);
-	}
-
-	/**
-	 * Discard any tokens that relate to entity animation (ie sections or tracks) without restoring the values.
-	 * Any global pre-animated state tokens (that reset the animation when saving a map, for instance) will remain.
-	 */
-	void DiscardEntityTokens()
-	{
-		PreAnimatedState.DiscardEntityTokens();
 	}
 
 

@@ -65,7 +65,7 @@ public:
 	~FDefaultGameMoviePlayer();
 
 	/** IGameMoviePlayer Interface */
-	virtual void RegisterMovieStreamer(TSharedPtr<IMovieStreamer> InMovieStreamer) override;
+	virtual void RegisterMovieStreamer(TSharedPtr<IMovieStreamer, ESPMode::ThreadSafe> InMovieStreamer) override;
 	virtual void Initialize(FSlateRenderer& InSlateRenderer, TSharedPtr<SWindow> TargetRenderWindow = nullptr) override;
 	virtual void Shutdown() override;
 	virtual void PassLoadingScreenWindowBackToGame() const override;
@@ -144,8 +144,8 @@ private:
 	FReply OnAnyDown();
 	
 	/** The movie streaming systems that will be used by us */
-	TArray<TSharedPtr<IMovieStreamer>> MovieStreamers;
-	TSharedPtr<IMovieStreamer> ActiveMovieStreamer;
+	TArray<TSharedPtr<IMovieStreamer, ESPMode::ThreadSafe>> MovieStreamers;
+	TSharedPtr<IMovieStreamer, ESPMode::ThreadSafe> ActiveMovieStreamer;
 
 	/** The window that the loading screen resides in */
 	TWeakPtr<class SWindow> MainWindow;

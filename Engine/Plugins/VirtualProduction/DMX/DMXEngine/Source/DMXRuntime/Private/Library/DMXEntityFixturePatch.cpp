@@ -18,7 +18,6 @@ DECLARE_LOG_CATEGORY_CLASS(DMXEntityFixturePatchLog, Log, All);
 
 DECLARE_CYCLE_STAT(TEXT("FixturePatch receive DMX"), STAT_DMXFixturePatchReceiveDMX, STATGROUP_DMX);
 DECLARE_CYCLE_STAT(TEXT("FixturePatch cache values"), STAT_DMXFixturePatchCacheValues, STATGROUP_DMX);
-DECLARE_CYCLE_STAT(TEXT("Fixture Patch Tick"), STAT_DMXFixturePatchTick, STATGROUP_DMX);
 
 
 #define LOCTEXT_NAMESPACE "DMXEntityFixturePatch"

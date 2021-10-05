@@ -979,6 +979,25 @@ namespace Audio
 	{
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
+		// Handle channel count change.
+		if (NumChannels != MixerDevice->GetNumDeviceChannels())
+		{
+			// Device format may change channels if device is hot swapped
+			NumChannels = MixerDevice->GetNumDeviceChannels();
+
+			if (IsSoundfieldSubmix())
+			{
+				// Update decoder to match parent stream format.
+				SetupSoundfieldStreamForParent();
+			}
+		}
+
+		// If we hit this, it means that platform info gave us an invalid NumChannel count.
+		if (!ensure(NumChannels != 0 && NumChannels <= AUDIO_MIXER_MAX_OUTPUT_CHANNELS))
+		{
+			return;
+		}
+
 		// If this is a Soundfield Submix, process our soundfield and decode it to a OutAudioBuffer.
 		if (IsSoundfieldSubmix())
 		{
@@ -1023,14 +1042,7 @@ namespace Audio
 			PumpCommandQueue();
 		}
 
-		// Device format may change channels if device is hot swapped
-		NumChannels = MixerDevice->GetNumDeviceChannels();
-
-		// If we hit this, it means that platform info gave us an invalid NumChannel count.
-		if (!ensure(NumChannels != 0 && NumChannels <= AUDIO_MIXER_MAX_OUTPUT_CHANNELS))
-		{
-			return;
-		}
+		
 
 		const int32 NumOutputFrames = OutAudioBuffer.Num() / NumChannels;
 		NumSamples = NumChannels * NumOutputFrames;

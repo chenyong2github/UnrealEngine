@@ -8,6 +8,8 @@
 
 BEGIN_NAMESPACE_UE_AC
 
+class FPaletteWindow;
+
 class FPalette
 {
   public:
@@ -23,14 +25,11 @@ class FPalette
 	// Toggle visibility of palette
 	static void ShowFromUser();
 
-	// Return true if 3d window is the current
-	static bool Is3DCurrenWindow();
-
 	// Switch to another window
 	static void WindowChanged();
 
-	// LiveLink status changed
-	static void LiveLinkChanged();
+	// AutoSync status changed
+	static void AutoSyncChanged();
 
 	// Delete palette
 	static void Delete();
@@ -38,6 +37,10 @@ class FPalette
 	static void Register();
 
 	static void Unregister();
+
+	static Int32 PaletteRefId();
+
+	static GS::Guid PaletteGuid;
 
   private:
 	// Constructor
@@ -66,12 +69,8 @@ class FPalette
 	static short DGCALLBACK CntlDlgCallBack(short message, short dialID, short item, DGUserData userData,
 											DGMessageData MsgData);
 
-	static GS::Guid PaletteGuid;
-
 	static FPalette* CurrentPalette;
-	short			 DialId;
-	SPrefs			 State;
-	short			 LastItemHelp;
+	FPaletteWindow*	 Window = nullptr;
 };
 
 END_NAMESPACE_UE_AC

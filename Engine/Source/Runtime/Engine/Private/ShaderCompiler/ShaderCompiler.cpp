@@ -2800,6 +2800,7 @@ FShaderCompilingManager::FShaderCompilingManager() :
 	ShaderCompileWorkerName(FPaths::EngineDir() / TEXT("Binaries/Win64/ShaderCompileWorker.exe")),
 #endif
 	SuppressedShaderPlatforms(0),
+	BuildDistributionController(nullptr),
 	bNoShaderCompilation(false)
 {
 	// don't perform any initialization if compiling is not allowed
@@ -2812,8 +2813,7 @@ FShaderCompilingManager::FShaderCompilingManager() :
 
 	bool bForceUseSCWMemoryPressureLimits = false;
 	
-	BuildDistributionController = nullptr;
-	
+
 	WorkersBusyTime = 0;
 
 	// Threads must use absolute paths on Windows in case the current directory is changed on another thread!

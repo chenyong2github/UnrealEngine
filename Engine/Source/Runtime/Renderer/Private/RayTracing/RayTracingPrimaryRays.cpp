@@ -72,7 +72,7 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingTranslucency(const FViewInf
 {
 	// Declare all RayGen shaders that require material closest hit shaders to be bound.
 	// NOTE: Translucency shader may be used for primary ray debug view mode.
-	if (GetRayTracingTranslucencyOptions().bEnabled || View.Family->EngineShowFlags.RayTracingDebug)
+	if (GetRayTracingTranslucencyOptions(View).bEnabled || View.Family->EngineShowFlags.RayTracingDebug)
 	{
 		FRayTracingPrimaryRaysRGS::FPermutationDomain PermutationVector;
 
@@ -123,7 +123,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingPrimaryRaysView(
 
 	FRayTracingPrimaryRaysRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRayTracingPrimaryRaysRGS::FParameters>();
 
-	FRayTracingPrimaryRaysOptions TranslucencyOptions = GetRayTracingTranslucencyOptions();
+	FRayTracingPrimaryRaysOptions TranslucencyOptions = GetRayTracingTranslucencyOptions(View);
 	PassParameters->SamplesPerPixel = SamplePerPixel;
 	PassParameters->MaxRefractionRays = TranslucencyOptions.MaxRefractionRays > -1 ? TranslucencyOptions.MaxRefractionRays : View.FinalPostProcessSettings.RayTracingTranslucencyRefractionRays;
 	PassParameters->HeightFog = HeightFog;

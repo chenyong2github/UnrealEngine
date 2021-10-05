@@ -23,6 +23,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "IAssetRegistry.h"
 #include "Async/Async.h"
+#include "AudioDeviceNotificationSubsystem.h"
 
 #if WITH_EDITOR
 #include "AudioEditorModule.h"
@@ -560,6 +561,19 @@ namespace Audio
 
 			// Update the channel device count in case it changed
 			SourceManager->UpdateDeviceChannelCount(PlatformInfo.NumChannels);
+
+			// Reset rendering thread ID to this thread ID so that commands can
+			// be flushed. Audio Rendering Thread ID will be reset again in call
+			// to FMixerDevice::OnProcessAudio
+			ResetAudioRenderingThreadId();
+
+			// Force source manager to incorporate device channel count change.
+			FlushAudioRenderingCommands(true /* bPumpSynchronously */);
+
+			if (UAudioDeviceNotificationSubsystem* AudioDeviceNotifSubsystem = UAudioDeviceNotificationSubsystem::Get())
+			{
+				AudioDeviceNotifSubsystem->OnDeviceSwitched(PlatformInfo.DeviceId);
+			}
 
 			// Audio rendering was suspended in CheckAudioDeviceChange if it changed.
 			AudioMixerPlatform->ResumePlaybackOnNewDevice();

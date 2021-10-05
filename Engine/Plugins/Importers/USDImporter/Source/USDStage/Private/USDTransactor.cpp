@@ -1022,6 +1022,11 @@ void UUsdTransactor::Update( const UsdUtils::FObjectChangesByPath& NewInfoChange
 	Modify();
 
 	const UE::FUsdStage& Stage = StageActorPtr->GetOrLoadUsdStage();
+	if ( !Stage )
+	{
+		return;
+	}
+
 	const UE::FSdfLayer& EditTarget = Stage.GetEditTarget();
 
 	UsdUtils::FTransactorRecordedEdits NewEdits;

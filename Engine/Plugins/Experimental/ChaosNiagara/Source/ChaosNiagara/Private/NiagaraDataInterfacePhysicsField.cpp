@@ -533,37 +533,31 @@ void UNiagaraDataInterfacePhysicsField::SamplePhysicsVectorField(FVectorVMContex
 	// Outputs...
 	FNDIOutputParam<FVector> OutVectorFieldParam(Context);
 
-	TArray<FVector> SamplePositions; 
-	SamplePositions.Init(FVector(0,0,0),Context.NumInstances);
-
-	EFieldVectorType VectorTarget = EFieldVectorType::Vector_TargetMax;
-
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
-	{
-		SamplePositions[InstanceIdx] = SamplePositionParam.GetAndAdvance();
-		VectorTarget = VectorTargetParam.GetAndAdvance();
-	}
-	TArrayView<FVector> PositionsView(&(SamplePositions.operator[](0)), Context.NumInstances);
-
-	TArray<FFieldContextIndex> IndicesArray;
-	FFieldContextIndex::ContiguousIndices(IndicesArray, Context.NumInstances);
-
-	TArrayView<FFieldContextIndex> IndicesView(&(IndicesArray[0]), IndicesArray.Num());
-
 	if (InstData)
 	{
-		FFieldContext FieldContext{
-			IndicesView,
-			PositionsView,
-			FFieldContext::UniquePointerMap(),
-			InstData->TimeSeconds
-		};
+		FFieldExecutionDatas ExecutionDatas;
+		ExecutionDatas.SamplePositions.Init(FVector(0, 0, 0), Context.NumInstances);
 
-		TArray<FVector> SampleResults;
-		SampleResults.Init(FVector(0, 0, 0), Context.NumInstances);
+		EFieldVectorType VectorTarget = EFieldVectorType::Vector_TargetMax;
+
+		for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+		{
+			ExecutionDatas.SamplePositions[InstanceIdx] = SamplePositionParam.GetAndAdvance();
+			VectorTarget = VectorTargetParam.GetAndAdvance();
+		}
+		FFieldContextIndex::ContiguousIndices(ExecutionDatas.SampleIndices, Context.NumInstances);
+
+		TArray<FVector>& SampleResults = ExecutionDatas.VectorResults[(uint8)EFieldCommandResultType::FinalResult];
+		SampleResults.Init(FVector::ZeroVector, Context.NumInstances);
 
 		TArray<FVector> SampleMax;
 		SampleMax.Init(FVector::ZeroVector, Context.NumInstances);
+
+		FFieldContext FieldContext{
+			ExecutionDatas,
+			FFieldContext::UniquePointerMap(),
+			InstData->TimeSeconds
+		};
 
 		const EFieldPhysicsType PhysicsType = GetFieldTargetTypes(EFieldOutputType::Field_Output_Vector)[VectorTarget];
 		EvaluateFieldNodes<FVector, FVectorFieldOperator>(InstData->FieldCommands, PhysicsType, FieldContext, SampleResults, SampleMax);
@@ -593,37 +587,31 @@ void UNiagaraDataInterfacePhysicsField::SamplePhysicsIntegerField(FVectorVMConte
 	// Outputs...
 	FNDIOutputParam<int32> OutIntegerFieldParam(Context);
 
-	TArray<FVector> SamplePositions;
-	SamplePositions.Init(FVector(0, 0, 0), Context.NumInstances);
-
-	EFieldIntegerType IntegerTarget = EFieldIntegerType::Integer_TargetMax;
-
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
-	{
-		SamplePositions[InstanceIdx] = SamplePositionParam.GetAndAdvance();
-		IntegerTarget = IntegerTargetParam.GetAndAdvance();
-	}
-	TArrayView<FVector> PositionsView(&(SamplePositions.operator[](0)), Context.NumInstances);
-
-	TArray<FFieldContextIndex> IndicesArray;
-	FFieldContextIndex::ContiguousIndices(IndicesArray, Context.NumInstances);
-
-	TArrayView<FFieldContextIndex> IndicesView(&(IndicesArray[0]), IndicesArray.Num());
-
 	if (InstData)
 	{
-		FFieldContext FieldContext{
-			IndicesView,
-			PositionsView,
-			FFieldContext::UniquePointerMap(),
-			InstData->TimeSeconds
-		};
+		FFieldExecutionDatas ExecutionDatas;
+		ExecutionDatas.SamplePositions.Init(FVector(0, 0, 0), Context.NumInstances);
 
-		TArray<int32> SampleResults;
+		EFieldIntegerType IntegerTarget = EFieldIntegerType::Integer_TargetMax;
+
+		for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+		{
+			ExecutionDatas.SamplePositions[InstanceIdx] = SamplePositionParam.GetAndAdvance();
+			IntegerTarget = IntegerTargetParam.GetAndAdvance();
+		}
+		FFieldContextIndex::ContiguousIndices(ExecutionDatas.SampleIndices, Context.NumInstances);
+
+		TArray<int32>& SampleResults = ExecutionDatas.IntegerResults[(uint8)EFieldCommandResultType::FinalResult];
 		SampleResults.Init(0, Context.NumInstances);
 
 		TArray<int32> SampleMax;
 		SampleMax.Init(0, Context.NumInstances);
+
+		FFieldContext FieldContext{
+			ExecutionDatas,
+			FFieldContext::UniquePointerMap(),
+			InstData->TimeSeconds
+		};
 
 		const EFieldPhysicsType PhysicsType = GetFieldTargetTypes(EFieldOutputType::Field_Output_Integer)[IntegerTarget];
 		EvaluateFieldNodes<int32, FIntegerFieldOperator>(InstData->FieldCommands, PhysicsType, FieldContext, SampleResults, SampleMax);
@@ -654,37 +642,31 @@ void UNiagaraDataInterfacePhysicsField::SamplePhysicsScalarField(FVectorVMContex
 	// Outputs...
 	FNDIOutputParam<float> OutScalarFieldParam(Context);
 
-	TArray<FVector> SamplePositions;
-	SamplePositions.Init(FVector(0, 0, 0), Context.NumInstances);
-
-	EFieldScalarType ScalarTarget = EFieldScalarType::Scalar_TargetMax;
-
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
-	{
-		SamplePositions[InstanceIdx] = SamplePositionParam.GetAndAdvance();
-		ScalarTarget = ScalarTargetParam.GetAndAdvance();
-	}
-	TArrayView<FVector> PositionsView(&(SamplePositions.operator[](0)), Context.NumInstances);
-
-	TArray<FFieldContextIndex> IndicesArray;
-	FFieldContextIndex::ContiguousIndices(IndicesArray, Context.NumInstances);
-
-	TArrayView<FFieldContextIndex> IndicesView(&(IndicesArray[0]), IndicesArray.Num());
-
 	if (InstData)
 	{
-		FFieldContext FieldContext{
-			IndicesView,
-			PositionsView,
-			FFieldContext::UniquePointerMap(),
-			InstData->TimeSeconds
-		};
+		FFieldExecutionDatas ExecutionDatas;
+		ExecutionDatas.SamplePositions.Init(FVector(0, 0, 0), Context.NumInstances);
 
-		TArray<float> SampleResults;
-		SampleResults.Init(0, Context.NumInstances);
+		EFieldScalarType ScalarTarget = EFieldScalarType::Scalar_TargetMax;
+
+		for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+		{
+			ExecutionDatas.SamplePositions[InstanceIdx] = SamplePositionParam.GetAndAdvance();
+			ScalarTarget = ScalarTargetParam.GetAndAdvance();
+		}
+		FFieldContextIndex::ContiguousIndices(ExecutionDatas.SampleIndices, Context.NumInstances);
+
+		TArray<float>& SampleResults = ExecutionDatas.ScalarResults[(uint8)EFieldCommandResultType::FinalResult];
+		SampleResults.Init(0.0, Context.NumInstances);
 
 		TArray<float> SampleMax;
 		SampleMax.Init(0, Context.NumInstances);
+
+		FFieldContext FieldContext{
+			ExecutionDatas,
+			FFieldContext::UniquePointerMap(),
+			InstData->TimeSeconds
+		};
 
 		const EFieldPhysicsType PhysicsType = GetFieldTargetTypes(EFieldOutputType::Field_Output_Scalar)[ScalarTarget];
 		EvaluateFieldNodes<float, FScalarFieldOperator>(InstData->FieldCommands, PhysicsType, FieldContext, SampleResults, SampleMax);

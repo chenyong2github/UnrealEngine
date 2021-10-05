@@ -650,9 +650,9 @@ void SUsdPrimPropertyRow::OnCheckBoxCheckStateChanged( ECheckBoxState NewState )
 	UsdPrimAttribute->SetAttributeValue( NewValue );
 }
 
-void SUsdPrimPropertiesList::Construct( const FArguments& InArgs, const TCHAR* InPrimPath )
+void SUsdPrimPropertiesList::Construct( const FArguments& InArgs, const UE::FUsdStage& UsdStage, const TCHAR* InPrimPath )
 {
-	GeneratePropertiesList( InPrimPath );
+	GeneratePropertiesList( UsdStage, InPrimPath );
 
 	// Clear map as usd file may have additional Kinds now
 	UsdPrimPropertiesListImpl::ResetOptions(TEXT("Kind"));
@@ -681,29 +681,16 @@ TSharedRef< ITableRow > SUsdPrimPropertiesList::OnGenerateRow( TSharedPtr< FUsdP
 	return SNew( SUsdPrimPropertyRow, InDisplayNode, OwnerTable );
 }
 
-void SUsdPrimPropertiesList::GeneratePropertiesList( const TCHAR* InPrimPath )
+void SUsdPrimPropertiesList::GeneratePropertiesList( const UE::FUsdStage& UsdStage, const TCHAR* InPrimPath )
 {
 	float TimeCode = 0.f;
-
-	IUsdStageModule& UsdStageModule = FModuleManager::Get().LoadModuleChecked< IUsdStageModule >( "UsdStage" );
-
-	if ( AUsdStageActor* UsdStageActor = UsdStageModule.FindUsdStageActor( GWorld ) )
-	{
-		TimeCode = UsdStageActor->GetTime();
-		ViewModel.UsdStage = const_cast< const AUsdStageActor* >( UsdStageActor )->GetUsdStage();
-	}
-	else
-	{
-		// If we have no actor, reset our stage. Or else we may keep a reference to the existing stage even if all actors are gone
-		ViewModel.UsdStage = UE::FUsdStage();
-	}
-
+	ViewModel.UsdStage = UsdStage;
 	ViewModel.Refresh( InPrimPath, TimeCode );
 }
 
-void SUsdPrimPropertiesList::SetPrimPath( const TCHAR* InPrimPath )
+void SUsdPrimPropertiesList::SetPrimPath( const UE::FUsdStage& UsdStage, const TCHAR* InPrimPath )
 {
-	GeneratePropertiesList( InPrimPath );
+	GeneratePropertiesList( UsdStage, InPrimPath );
 	RequestListRefresh();
 }
 

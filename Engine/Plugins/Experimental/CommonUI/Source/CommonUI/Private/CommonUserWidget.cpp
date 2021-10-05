@@ -82,7 +82,12 @@ FUIActionBindingHandle UCommonUserWidget::RegisterUIActionBinding(const FBindUIA
 {
 	if (UCommonUIActionRouterBase* ActionRouter = UCommonUIActionRouterBase::Get(*this))
 	{
-		FUIActionBindingHandle BindingHandle = ActionRouter->RegisterUIActionBinding(*this, BindActionArgs);
+		FBindUIActionArgs FinalBindActionArgs = BindActionArgs;
+		if (bDisplayInActionBar && !BindActionArgs.bDisplayInActionBar)
+		{
+			FinalBindActionArgs.bDisplayInActionBar = true;
+		}
+		FUIActionBindingHandle BindingHandle = ActionRouter->RegisterUIActionBinding(*this, FinalBindActionArgs);
 		ActionBindings.Add(BindingHandle);
 		return BindingHandle;
 	}

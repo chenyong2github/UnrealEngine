@@ -47,7 +47,7 @@ struct FRayTracingPrimaryRaysOptions
 extern bool ShouldRenderRayTracingEffect(bool bEffectEnabled);
 
 extern bool AnyRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
-extern FRayTracingPrimaryRaysOptions GetRayTracingTranslucencyOptions();
+extern FRayTracingPrimaryRaysOptions GetRayTracingTranslucencyOptions(const FViewInfo& View);
 
 extern bool ShouldRenderRayTracingSkyLight(const FSkyLightSceneProxy* SkyLightSceneProxy);
 extern bool ShouldRenderRayTracingAmbientOcclusion(const FViewInfo& View);

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Input/CursorReply.h"
+#include "Styling/SlateBrush.h"
 #include "Misc/FrameTime.h"
 
 class FMenuBuilder;
@@ -36,6 +37,7 @@ struct ISequencerHotspot
 	virtual TSharedPtr<ISequencerEditToolDragOperation> InitiateDrag(ISequencer&) { return nullptr; }
 	virtual bool PopulateContextMenu(FMenuBuilder& MenuBuilder, ISequencer& Sequencer, FFrameTime MouseDownTime){ return false; }
 	virtual FCursorReply GetCursor() const { return FCursorReply::Unhandled(); }
+	virtual const FSlateBrush* GetCursorDecorator(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const { return nullptr; }
 
 public:
 

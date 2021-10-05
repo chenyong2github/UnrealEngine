@@ -236,7 +236,7 @@ void SPropertyEditorEditInline::OnClassPicked(UClass* InClass)
 		if (InClass)
 		{
 			FString DefaultValue = PropertyNode->GetDefaultValueAsString(/*bUseDisplayName=*/false);
-			if (DefaultValue != FName(NAME_None).ToString())
+			if (!DefaultValue.IsEmpty() && DefaultValue != FName(NAME_None).ToString())
 			{
 				FStringView ClassName, ObjectName;
 				ExtractClassAndObjectNames(DefaultValue, ClassName, ObjectName);

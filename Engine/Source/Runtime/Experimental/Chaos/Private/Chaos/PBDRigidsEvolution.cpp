@@ -225,13 +225,15 @@ namespace Chaos
 		, FAccelerationStructure* InInternalAccelerationStructure
 		, FAccelerationStructure* InExternalAccelerationStructure
 		, bool InForceFullBuild
-		, bool InIsSingleThreaded)
+		, bool InIsSingleThreaded
+		, bool InNeedsReset)
 		: SpatialCollectionFactory(InSpatialCollectionFactory)
 		, SpatialAccelerationCache(InSpatialAccelerationCache)
 		, InternalStructure(InInternalAccelerationStructure)
 		, ExternalStructure(InExternalAccelerationStructure)
 		, IsForceFullBuild(InForceFullBuild)
 		, bIsSingleThreaded(InIsSingleThreaded)
+		, bNeedsReset(InNeedsReset)
 	{
 
 	}
@@ -287,8 +289,13 @@ namespace Chaos
 	{
 		LLM_SCOPE(ELLMTag::ChaosAcceleration);
 
+		if (bNeedsReset)
+		{
+			AccelerationStructure->Reset();
+		}
+
 		uint8 ActiveBucketsMask = SpatialCollectionFactory.GetActiveBucketsMask();
-		TArray<TSOAView<FSpatialAccelerationCache>> ViewsPerBucket[8];
+		TArray<TSOAView<FSpatialAccelerationCache>> ViewsPerBucket[FSpatialAccelerationIdx::MaxBuckets];
 		TArray<uint8> TimeSlicedBucketsToCreate;
 		TArray<uint8> NonTimeSlicedBucketsToCreate;
 
@@ -569,12 +576,16 @@ namespace Chaos
 
 		if (AsyncComplete)
 		{
+			bool bNeedsReset = false;
+
 			// only copy when the acceleration structures have completed time-slicing
 			if (AccelerationStructureTaskComplete && AsyncInternalAcceleration->IsAllAsyncTasksComplete())
 			{
 				SCOPE_CYCLE_COUNTER(STAT_SwapAccelerationStructures);
 
 				check(AsyncInternalAcceleration->IsAllAsyncTasksComplete());
+
+				bNeedsReset = true;
 
 				FlushAsyncAccelerationQueue();
 
@@ -595,7 +606,7 @@ namespace Chaos
 			if (bCanStartAsyncTasks)
 			{
 				// we run the task for both starting a new accel structure as well as for the time-slicing
-				AccelerationStructureTaskComplete = TGraphTask<FChaosAccelerationStructureTask>::CreateTask().ConstructAndDispatchWhenReady(*SpatialCollectionFactory, SpatialAccelerationCache, AsyncInternalAcceleration, AsyncExternalAcceleration, ForceFullBuild, bIsSingleThreaded);
+			AccelerationStructureTaskComplete = TGraphTask<FChaosAccelerationStructureTask>::CreateTask().ConstructAndDispatchWhenReady(*SpatialCollectionFactory, SpatialAccelerationCache, AsyncInternalAcceleration, AsyncExternalAcceleration, ForceFullBuild, bIsSingleThreaded, bNeedsReset);
 			}
 		}
 		else
@@ -740,4 +751,75 @@ namespace Chaos
 
 		ConfigSettings.BroadphaseType = DefaultBroadphaseType;
 	}
+
+	void FPBDRigidsEvolutionBase::SetParticleObjectState(FPBDRigidParticleHandle* Particle, EObjectStateType ObjectState)
+	{
+		EObjectStateType InitialState = Particle->ObjectState();
+
+		Particle->SetObjectStateLowLevel(ObjectState);
+
+		if (auto ClusteredParticle = Particle->CastToClustered())
+		{
+			Particles.SetClusteredParticleSOA(ClusteredParticle);
+		}
+		else
+		{
+			Particles.SetDynamicParticleSOA(Particle);
+		}
+
+		if (InitialState != ObjectState && !Particle->Disabled())
+		{
+			if (InitialState == EObjectStateType::Sleeping)
+			{
+				if (Particle->Island() != INDEX_NONE)
+				{
+					// GT has forced a wake so have to wake everything in the island
+					IslandsToWake.Enqueue(Particle->Island());
+				}
+			}
+			else if (ObjectState != EObjectStateType::Dynamic)
+			{
+				// even though we went to sleep, we should still report info back to GT
+				Particles.MarkTransientDirtyParticle(Particle);
+			}
+		}
+	}
+
+	void FPBDRigidsEvolutionBase::SetParticleSleepType(FPBDRigidParticleHandle* Particle, ESleepType InSleepType)
+	{
+		//ESleepType InitialSleepType = Particle->SleepType();
+		const EObjectStateType InitialState = Particle->ObjectState();
+		Particle->SetSleepType(InSleepType);
+		const EObjectStateType ObjectState = Particle->ObjectState();
+		Particles.SetDynamicParticleSOA(Particle);
+		if (InitialState != ObjectState)
+		{
+			if (InitialState == EObjectStateType::Sleeping)
+			{
+				if (Particle->Island() != INDEX_NONE)
+				{
+					// GT has forced a wake so have to wake everything in the island
+					IslandsToWake.Enqueue(Particle->Island());
+				}
+			}
+			else if(ObjectState != EObjectStateType::Dynamic)
+			{
+				// even though we went to sleep, we should still report info back to GT
+				Particles.MarkTransientDirtyParticle(Particle);
+			}
+		}
+	}
+
+	void FPBDRigidsEvolutionBase::DisableParticles(const TSet<FGeometryParticleHandle*>& InParticles)
+	{
+		for (FGeometryParticleHandle* Particle : InParticles)
+		{
+			Particles.DisableParticle(Particle);
+			RemoveParticleFromAccelerationStructure(*Particle);
+		}
+
+		ConstraintGraph.DisableParticles(InParticles);
+		DisableConstraints(InParticles);
+	}
+
 }

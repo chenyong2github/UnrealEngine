@@ -5,6 +5,7 @@
 #include "Algo/Transform.h"
 #include "Components/ActorComponent.h"
 #include "Engine/Brush.h"
+#include "Engine/Engine.h"
 #include "EngineUtils.h"
 #include "Misc/Char.h"
 #include "RemoteControlBinding.h"
@@ -30,7 +31,21 @@ namespace RCPresetRebindingManager
 			World = GEditor->GetEditorWorldContext(false).World();
 		}
 #endif
-		return World ? World : GEngine->GetCurrentPlayWorld(); 
+
+		if (World)
+		{
+			return World;
+		}
+
+		for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
+		{
+			if (WorldContext.WorldType == EWorldType::Game)
+			{
+				return World;
+			}
+		}
+		
+		return nullptr;
 	}
 
 	bool IsValidObjectForRebinding(UObject* InObject)

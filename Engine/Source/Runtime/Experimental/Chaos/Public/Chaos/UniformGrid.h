@@ -23,7 +23,38 @@ class CHAOS_API TUniformGridBase
 			check(MCells[Axis] != 0);
 		}
 
-		MDx = TVector<T, d>(MMaxCorner - MMinCorner) / MCells;
+
+		// Are corners valid?
+		bool bValidBounds = true;
+		if (MMaxCorner == TVector<T, d>(-TNumericLimits<T>::Max()) && MMinCorner == TVector<T, d>(TNumericLimits<T>::Max()))
+		{
+			// This is an Empty AABB
+			bValidBounds = false;
+		}
+		else
+		{
+			for (int32 i = 0; i < d; ++i)
+			{
+				// This is invalid
+				if (!ensure(MMaxCorner[i] >= MMinCorner[i]))
+				{
+					bValidBounds = false;
+					break;
+				}
+			}
+		}
+
+		if(bValidBounds)
+		{
+			MDx = TVector<T, d>(MMaxCorner - MMinCorner) / MCells;
+		}
+		else
+		{
+			MDx = TVector<T,d>(0);
+			MMaxCorner = TVector<T, d>(0);
+			MMinCorner = TVector<T, d>(0);
+		}
+
 		if (GhostCells > 0)
 		{
 			MMinCorner -= MDx * GhostCells;
@@ -70,6 +101,14 @@ class CHAOS_API TUniformGridBase
 	TVector<T, d> Location(const Pair<int32, TVector<int32, 3>>& Face) const
 	{
 		return MDx * Face.Second + MMinCorner + (TVector<T, d>(1) - TVector<T, d>::AxisVector(Face.First)) * (MDx / 2);
+	}
+
+	void Reset()
+	{
+		MMinCorner = TVector<T, d>(0);
+		MMaxCorner = TVector<T, d>(0);
+		MCells = TVector<int32, d>(0);
+		MDx = TVector<T, d>(0);
 	}
 
 #ifdef PLATFORM_COMPILER_CLANG

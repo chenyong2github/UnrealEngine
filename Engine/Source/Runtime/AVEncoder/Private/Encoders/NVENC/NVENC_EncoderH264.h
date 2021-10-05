@@ -31,6 +31,9 @@ namespace AVEncoder
 		void UpdateFrameRate(uint32 InMaxFramerate) override;
 		void UpdateLayerBitrate(uint32 InLayerIndex, uint32 InMaxBitRate, uint32 InTargetBitRate) override;
 		void UpdateLayerResolution(uint32 InLayerIndex, uint32 InWidth, uint32 InHeight) override;
+		void UpdateMinQP(int32 minqp) override;
+		void UpdateRateControl(RateControlMode mode) override;
+		void UpdateFillData(bool enable) override;
 
 	protected:
 		FLayerInfo *CreateLayer(uint32 InLayerIndex, const FLayerInfo &InLayerInfo) override;
@@ -128,6 +131,9 @@ namespace AVEncoder
 #endif
 
 		uint32 MaxFramerate = 0;
+		int32 MinQP = -1;
+		RateControlMode RateMode = RateControlMode::CBR;
+		bool FillData = false;
 
 		// event thread for nvenc async (windows only)
 		void OnEvent(void *InEvent, TUniqueFunction<void()> &&InCallback);

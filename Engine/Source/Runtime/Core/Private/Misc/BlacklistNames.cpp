@@ -55,6 +55,44 @@ bool FBlacklistNames::AddWhitelistItem(const FName OwnerName, const FName Item)
 	return bFilterChanged;
 }
 
+bool FBlacklistNames::RemoveBlacklistItem(const FName OwnerName, const FName Item)
+{
+	FBlacklistOwners* Owners = Blacklist.Find(Item);
+	if (Owners && Owners->Remove(OwnerName) == 1)
+	{
+		if (Owners->Num() == 0)
+		{
+			Blacklist.Remove(Item);
+		}
+		if (!bSuppressOnFilterChanged)
+		{
+			OnFilterChanged().Broadcast();
+		}
+		return true;
+	}
+
+	return false;
+}
+
+bool FBlacklistNames::RemoveWhitelistItem(const FName OwnerName, const FName Item)
+{
+	FBlacklistOwners* Owners = Whitelist.Find(Item);
+	if (Owners && Owners->Remove(OwnerName) == 1)
+	{
+		if (Owners->Num() == 0)
+		{
+			Whitelist.Remove(Item);
+		}
+		if (!bSuppressOnFilterChanged)
+		{
+			OnFilterChanged().Broadcast();
+		}
+		return true;
+	}
+
+	return false;
+}
+
 bool FBlacklistNames::AddBlacklistAll(const FName OwnerName)
 {
 	const int32 OldNum = BlacklistAll.Num();

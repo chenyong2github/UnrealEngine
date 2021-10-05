@@ -8,6 +8,7 @@
 #include "MovieSceneSequence.h"
 #include "Evaluation/MovieSceneEvalTemplate.h"
 #include "Sections/MovieSceneSubSection.h"
+#include "Sections/MovieSceneHookSection.h"
 #include "Tracks/MovieSceneSubTrack.h"
 #include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneTestObjects.generated.h"
@@ -103,3 +104,55 @@ class UTestMovieSceneSubSection : public UMovieSceneSubSection
 	GENERATED_BODY()
 };
 
+UCLASS(MinimalAPI)
+class UTestMovieSceneEvalHookTrack : public UMovieSceneTrack
+{
+public:
+	GENERATED_BODY()
+
+	virtual const TArray<UMovieSceneSection*>& GetAllSections() const override { return SectionArray; }
+
+	virtual bool IsEmpty() const override;
+	virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
+	virtual void AddSection(UMovieSceneSection& Section) override;
+	virtual UMovieSceneSection* CreateNewSection() override;
+	virtual bool HasSection(const UMovieSceneSection& Section) const override;
+	virtual void RemoveSection(UMovieSceneSection& Section) override;
+	virtual void RemoveSectionAt(int32 SectionIndex) override;
+#if WITH_EDITORONLY_DATA
+	virtual FText GetDisplayName() const override { return FText(); }
+#endif
+
+	UPROPERTY()
+	TArray<UMovieSceneSection*> SectionArray;
+};
+
+UCLASS(MinimalAPI)
+class UTestMovieSceneEvalHookSection : public UMovieSceneHookSection
+{
+public:
+	GENERATED_BODY()
+
+	UTestMovieSceneEvalHookSection(const FObjectInitializer& ObjInit)
+		: Super(ObjInit)
+	{
+		bRequiresRangedHook = true;
+		bRequiresTriggerHooks = true;
+		EvalOptions.CompletionMode = EMovieSceneCompletionMode::RestoreState;
+	}
+
+	int32 StartValue = 1000;
+	int32 EndValue   = 2000;
+
+	TArray<FFrameNumber> TriggerTimes;
+
+	virtual void Begin(IMovieScenePlayer* Player, const UE::MovieScene::FEvaluationHookParams& Params) const override;
+	virtual void Update(IMovieScenePlayer* Player, const UE::MovieScene::FEvaluationHookParams& Params) const override;
+	virtual void End(IMovieScenePlayer* Player, const UE::MovieScene::FEvaluationHookParams& Params) const override;
+	virtual void Trigger(IMovieScenePlayer* Player, const UE::MovieScene::FEvaluationHookParams& Params) const override;
+
+	virtual TArrayView<const FFrameNumber> GetTriggerTimes() const
+	{
+		return TriggerTimes;
+	}
+};

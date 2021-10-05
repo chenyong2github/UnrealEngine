@@ -9,14 +9,6 @@ NiagaraSortingGPU.cpp: Niagara sorting shaders
 #include "ShaderParameterUtils.h"
 #include "ShaderCompilerCore.h"
 
-int32 GNiagaraGPUCulling = 1;
-static FAutoConsoleVariableRef CVarNiagaraGPUCulling(
-	TEXT("Niagara.GPUCulling"),
-	GNiagaraGPUCulling,
-	TEXT("Whether to frustum and camera distance cull particles on the GPU"),
-	ECVF_Default
-);
-
 int32 GNiagaraGPUSortingUseMaxPrecision = 0;
 static FAutoConsoleVariableRef CVarNiagaraGPUSortinUseMaxPrecision(
 	TEXT("Niagara.GPUSorting.UseMaxPrecision"),

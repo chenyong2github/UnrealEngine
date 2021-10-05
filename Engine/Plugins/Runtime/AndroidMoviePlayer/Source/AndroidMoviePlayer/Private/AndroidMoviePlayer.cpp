@@ -5,7 +5,7 @@
 
 #include "Misc/CoreDelegates.h"
 
-TSharedPtr<FAndroidMediaPlayerStreamer> AndroidMovieStreamer;
+TSharedPtr<FAndroidMediaPlayerStreamer, ESPMode::ThreadSafe> AndroidMovieStreamer;
 
 class FAndroidMoviePlayerModule : public IModuleInterface
 {

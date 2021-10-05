@@ -55,11 +55,11 @@ public:
 
 	virtual void ConfigureViewFamily(const FDisplayClusterRenderFrame::FFrameRenderTarget& InFrameTarget, const FDisplayClusterRenderFrame::FFrameViewFamily& InFrameViewFamily, FSceneViewFamilyContext& InOutViewFamily) override;
 	
-	virtual void RenderFrame(const bool bWarpBlendEnabled, FRHITexture2D* FrameOutputRTT) override;
+	virtual void RenderFrame(const bool bWarpBlendEnabled, FViewport* InViewport) override;
 
 #if WITH_EDITOR
 	virtual bool UpdatePreviewConfiguration(class UDisplayClusterConfigurationViewportPreview* PreviewConfiguration, class ADisplayClusterRootActor* InRootActorPtr) override;
-	virtual bool RenderInEditor(class FDisplayClusterRenderFrame& InRenderFrame, FRHITexture2D* FrameOutputRTT) override;
+	virtual bool RenderInEditor(class FDisplayClusterRenderFrame& InRenderFrame, FViewport* InViewport) override;
 	
 	void ImplUpdatePreviewRTTResources();
 #endif

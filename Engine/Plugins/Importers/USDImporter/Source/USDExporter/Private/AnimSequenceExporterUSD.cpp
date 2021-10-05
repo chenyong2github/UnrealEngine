@@ -103,7 +103,7 @@ bool UAnimSequenceExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type,
 
 		if ( SkeletalMesh )
 		{
-			PrimPath = TEXT( "/" ) + SkeletalMesh->GetName();
+			PrimPath = TEXT( "/" ) + UsdUtils::SanitizeUsdIdentifier( *SkeletalMesh->GetName() );
 			SkelRootPrim = AssetStage.DefinePrim( UE::FSdfPath( *PrimPath ), TEXT( "SkelRoot" ) );
 
 			// Using payload: Convert mesh data through the asset stage (that references the payload) so that we can
@@ -144,7 +144,7 @@ bool UAnimSequenceExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type,
 		}
 	}
 
-	PrimPath += TEXT( "/" ) + AnimSequence->GetName();
+	PrimPath += TEXT( "/" ) + UsdUtils::SanitizeUsdIdentifier( *AnimSequence->GetName() );
 	UE::FUsdPrim SkelAnimPrim = AssetStage.DefinePrim( UE::FSdfPath( *PrimPath ), TEXT("SkelAnimation") );
 	if ( !SkelAnimPrim )
 	{

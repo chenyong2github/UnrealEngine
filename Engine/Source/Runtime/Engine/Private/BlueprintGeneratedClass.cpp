@@ -30,6 +30,8 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "BlueprintCompilationManager.h"
 #include "Engine/LevelScriptBlueprint.h"
+#include "Editor/EditorEngine.h"
+extern UNREALED_API UEditorEngine* GEditor;
 #endif //WITH_EDITOR
 
 DEFINE_STAT(STAT_PersistentUberGraphFrameMemory);
@@ -78,10 +80,19 @@ void UBlueprintGeneratedClass::PostInitProperties()
 
 void UBlueprintGeneratedClass::PostLoad()
 {
-	Super::PostLoad();	
+	Super::PostLoad();
 
 #if WITH_EDITORONLY_DATA
 	UPackage* Package = GetOutermost();
+
+#if WITH_EDITOR
+	// Make BPGC from a cooked package standalone so it doesn't get GCed
+	if (GEditor && Package && Package->HasAnyPackageFlags(PKG_FilterEditorOnly))
+	{
+		SetFlags(RF_Standalone);
+	}
+#endif //if WITH_EDITOR
+
 	if (Package == nullptr || !Package->bIsCookedForEditor)
 	{
 		if (GetAuthoritativeClass() != this)

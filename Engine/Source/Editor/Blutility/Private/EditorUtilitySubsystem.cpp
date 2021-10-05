@@ -64,6 +64,15 @@ void UEditorUtilitySubsystem::Deinitialize()
 	IConsoleManager::Get().UnregisterConsoleObject(RunTaskCommandObject);
 }
 
+void UEditorUtilitySubsystem::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	UEditorUtilitySubsystem* This = static_cast<UEditorUtilitySubsystem*>(InThis);
+	for (auto& KVP : This->PendingTasks)
+	{
+		Collector.AddReferencedObjects(KVP.Value);
+	}
+}
+
 void UEditorUtilitySubsystem::MainFrameCreationFinished(TSharedPtr<SWindow> InRootWindow, bool bIsNewProjectWindow)
 {
 	HandleStartup();
@@ -244,24 +253,40 @@ UEditorUtilityWidget* UEditorUtilitySubsystem::FindUtilityWidgetFromBlueprint(cl
 
 bool UEditorUtilitySubsystem::Tick(float DeltaTime)
 {
-	// Will run until we have a task that doesn't immediately complete upon calling StartExecutingTask().
-	while (ActiveTask == nullptr && PendingTasks.Num() > 0)
+	UEditorUtilityTask* CurrentOrParentTask = GetActiveTask();
+	TArray<TObjectPtr<UEditorUtilityTask>>* PendingChildTasks = PendingTasks.Find(CurrentOrParentTask);
+	if (PendingChildTasks && PendingChildTasks->Num())
 	{
-		ActiveTask = PendingTasks[0];
-		PendingTasks.RemoveAt(0);
+		UEditorUtilityTask* PendingChildTask = (*PendingChildTasks)[0];
+		PendingChildTasks->RemoveAt(0);
 
-		UE_LOG(LogEditorUtilityBlueprint, Log, TEXT("Running task %s"), *GetPathNameSafe(ActiveTask));
-
-		// And start executing it
-		ActiveTask->StartExecutingTask();
+		StartTask(PendingChildTask);
 	}
 
-	if (ActiveTask && ActiveTask->WasCancelRequested())
+	// Canceling happens without an event in the notification it's based on checking it during tick,
+	// so as we evaluate it, we check if cancel was requested, and if so, we manually trigger
+	// RequestCancel, to ensure an event is fired letting the task know we want to stop.
+	if (GetActiveTask() && GetActiveTask()->WasCancelRequested())
 	{
-		ActiveTask->FinishExecutingTask();
+		GetActiveTask()->RequestCancel();
 	}
 
 	return true;
+}
+
+void UEditorUtilitySubsystem::StartTask(UEditorUtilityTask* Task)
+{
+	if (!Task)
+	{
+		return;
+	}
+
+	ActiveTaskStack.Add(Task);
+
+	UE_LOG(LogEditorUtilityBlueprint, Log, TEXT("Running task %s"), *GetPathNameSafe(Task));
+
+	// And start executing it
+	Task->StartExecutingTask();
 }
 
 void UEditorUtilitySubsystem::RunTaskCommand(const TArray<FString>& Params, UWorld* InWorld, FOutputDevice& Ar)
@@ -301,15 +326,13 @@ void UEditorUtilitySubsystem::CancelAllTasksCommand(const TArray<FString>& Param
 {
 	PendingTasks.Reset();
 
-	if (ActiveTask)
+	for (UEditorUtilityTask* ActiveTask : ActiveTaskStack)
 	{
 		ActiveTask->RequestCancel();
-		ActiveTask->FinishExecutingTask();
-		ActiveTask = nullptr;
 	}
 }
 
-void UEditorUtilitySubsystem::RegisterAndExecuteTask(UEditorUtilityTask* NewTask)
+void UEditorUtilitySubsystem::RegisterAndExecuteTask(UEditorUtilityTask* NewTask, UEditorUtilityTask* OptionalParentTask)
 {
 	if (NewTask != nullptr)
 	{
@@ -321,9 +344,13 @@ void UEditorUtilitySubsystem::RegisterAndExecuteTask(UEditorUtilityTask* NewTask
 		}
 
 		// Register it
-		check(!(PendingTasks.Contains(NewTask) || ActiveTask == NewTask));
-		PendingTasks.Add(NewTask);
+		check(!(PendingTasks.Contains(NewTask) || ActiveTaskStack.Contains(NewTask)));
 		NewTask->MyTaskManager = this;
+		NewTask->MyParentTask = OptionalParentTask;
+
+		// Always append the task to the set array of tasks associated with the parent - which may be null.
+		TArray<UEditorUtilityTask*>& PendingChildTasks = PendingTasks.FindOrAdd(OptionalParentTask);
+		PendingChildTasks.Add(NewTask);
 	}
 }
 
@@ -333,17 +360,19 @@ void UEditorUtilitySubsystem::RemoveTaskFromActiveList(UEditorUtilityTask* Task)
 	{
 		if (ensure(Task->MyTaskManager == this))
 		{
-			check(PendingTasks.Contains(Task) || ActiveTask == Task);
+			check(PendingTasks.Contains(Task) || ActiveTaskStack.Contains(Task));
 			PendingTasks.Remove(Task);
+			ActiveTaskStack.Remove(Task);
 
-			if (ActiveTask == Task)
+			// Remove from any child set.
+			for (auto& KVP : PendingTasks)
 			{
-				ActiveTask = nullptr;
+				KVP.Value.Remove(Task);
 			}
 
 			Task->MyTaskManager = nullptr;
 
-			UE_LOG(LogEditorUtilityBlueprint, Log, TEXT("Task %s completed"), *GetPathNameSafe(Task));
+			UE_LOG(LogEditorUtilityBlueprint, Log, TEXT("Task %s removed"), *GetPathNameSafe(Task));
 		}
 	}
 }

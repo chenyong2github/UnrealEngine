@@ -18,6 +18,14 @@ struct REMOTECONTROL_API FRCFieldResolvedData
 
 	/** Index resolved from the key of the segment. */
 	int32 MapIndex = INDEX_NONE;
+
+	/** Returns validity of the resolved data */
+	bool IsValid() const
+	{
+		return Field != nullptr
+			&& ContainerAddress != nullptr
+			&& Struct != nullptr; 
+	}
 };
 
 /** RemoteControl Path segment holding a property layer */

@@ -40,7 +40,7 @@ ULevelExporterUSD::ULevelExporterUSD()
 bool ULevelExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type, FArchive& Ar, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags )
 {
 #if USE_USD_SDK
-	UWorld* World = CastChecked< UWorld >( Object );
+	UWorld* World = Cast< UWorld >( Object );
 	if ( !World )
 	{
 		return false;

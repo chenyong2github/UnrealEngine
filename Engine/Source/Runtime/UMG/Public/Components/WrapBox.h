@@ -28,21 +28,29 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Content Layout")
 	FVector2D InnerSlotPadding;
 
+#if WITH_EDITORONLY_DATA
 	/** DEPRECATED value replaced by WrapSize, When this width is exceeded, elements will start appearing on the next line. */
 	UPROPERTY()
 	float WrapWidth_DEPRECATED;
+#endif
 
 	/** When this size is exceeded, elements will start appearing on the next line. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Content Layout", meta=(EditCondition = "bExplicitWrapSize"))
 	float WrapSize;
 
+#if WITH_EDITORONLY_DATA
 	/** DEPRECATED value replaced by bExplicitWrapSize, Use explicit wrap width whenever possible. It greatly simplifies layout calculations and reduces likelihood of "wiggling UI" */
 	UPROPERTY()
 	bool bExplicitWrapWidth_DEPRECATED;
+#endif
 
 	/** Use explicit wrap size whenever possible. It greatly simplifies layout calculations and reduces likelihood of "wiggling UI" */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Content Layout")
 	bool bExplicitWrapSize;
+
+	/** The alignment of each line of wrapped content. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Content Layout")
+	TEnumAsByte<EHorizontalAlignment> HorizontalAlignment;
 
 	/** Determines if the Wrap Box should arranges the widgets left-to-right or top-to-bottom */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Content Layout")
@@ -51,6 +59,9 @@ public:
 	/** Sets the inner slot padding goes between slots sharing borders */
 	UFUNCTION(BlueprintCallable, Category="Content Layout")
 	void SetInnerSlotPadding(FVector2D InPadding);
+
+	UFUNCTION(BlueprintCallable, Category="Content Layout")
+	void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
 
 public:
 

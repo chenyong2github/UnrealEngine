@@ -15,6 +15,7 @@
 #include "CollectionManagerTypes.h"
 #include "IContentBrowserSingleton.h"
 #include "Editor/ContentBrowser/Private/HistoryManager.h"
+#include "ContentBrowserDataSubsystem.h"
 #include "Textures/SlateIcon.h"
 
 class FAssetContextMenu;
@@ -162,7 +163,7 @@ public:
 	void SetSelectedPaths(const TArray<FString>& FolderPaths, bool bNeedsRefresh = false);
 
 	/** Gets the current path if one exists, otherwise returns empty string. */
-	FString GetCurrentPath() const;
+	FString GetCurrentPath(const EContentBrowserPathType PathType) const;
 
 	/**
 	 * Forces the content browser to show plugin content

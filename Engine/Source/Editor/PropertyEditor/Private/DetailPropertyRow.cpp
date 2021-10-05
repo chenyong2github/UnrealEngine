@@ -427,7 +427,8 @@ void FDetailPropertyRow::GenerateChildrenForPropertyNode( TSharedPtr<FPropertyNo
 						static FText KeyValueGroupNameFormat = LOCTEXT("KeyValueGroupName", "Element {0}");
 						FText KeyValueGroupName = FText::Format(KeyValueGroupNameFormat, ChildIndex);
 
-						TSharedRef<FDetailCategoryGroupNode> KeyValueGroupNode = MakeShareable(new FDetailCategoryGroupNode(PropNodes, FName(*KeyValueGroupName.ToString()), ParentCategoryRef.Get()));
+						TSharedRef<FDetailCategoryGroupNode> KeyValueGroupNode = MakeShared<FDetailCategoryGroupNode>(FName(*KeyValueGroupName.ToString()), ParentCategoryRef);
+						KeyValueGroupNode->SetChildren(PropNodes);
 						KeyValueGroupNode->SetShowBorder(false);
 						KeyValueGroupNode->SetHasSplitter(true);
 
@@ -443,6 +444,28 @@ void FDetailPropertyRow::GenerateChildrenForPropertyNode( TSharedPtr<FPropertyNo
 	}
 }
 
+FName FDetailPropertyRow::GetRowName() const
+{
+	if (HasExternalProperty())
+	{
+		if (GetCustomExpansionId() != NAME_None)
+		{
+			return GetCustomExpansionId();
+		}
+		else if (FProperty* ExternalRootProperty = ExternalRootNode->GetProperty())
+		{
+			return ExternalRootProperty->GetFName();
+		}
+	}
+	if (GetPropertyNode())
+	{
+		if (FProperty* Property = GetPropertyNode()->GetProperty())
+		{
+			return Property->GetFName();
+		}
+	}
+	return NAME_None;
+}
 
 TSharedRef<FPropertyEditor> FDetailPropertyRow::MakePropertyEditor(const TSharedRef<FPropertyNode>& InPropertyNode, const TSharedRef<IPropertyUtilities>& PropertyUtilities, TSharedPtr<FPropertyEditor>& InEditor )
 {

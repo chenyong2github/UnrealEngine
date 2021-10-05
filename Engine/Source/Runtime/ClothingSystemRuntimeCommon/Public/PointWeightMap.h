@@ -13,7 +13,7 @@ enum class EWeightMapTargetCommon : uint8
 	BackstopDistance,    // Distance along the plane of the surface that the particles can travel (separation constraint)
 	BackstopRadius,      // Radius of movement to allow for backstop movement
 	AnimDriveStiffness,  // Strength of anim drive per-particle (spring driving particle back to skinned location
-	AnimDriveDamping     // Damping of anim drive springs
+	AnimDriveDamping_DEPRECATED UMETA(Hidden)  // Chaos onlyweightmap, deprecated from the common declaration
 };
 
 /** 

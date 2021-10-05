@@ -16,12 +16,21 @@ const float UDisplayClusterConfiguratorHostNode::DefaultSpaceBetweenHosts = 40.0
 const float UDisplayClusterConfiguratorHostNode::HorizontalSpanBetweenHosts = VisualMargin.Left + VisualMargin.Right + DefaultSpaceBetweenHosts;
 const float UDisplayClusterConfiguratorHostNode::VerticalSpanBetweenHosts = VisualMargin.Top + VisualMargin.Bottom + DefaultSpaceBetweenHosts;
 
-void UDisplayClusterConfiguratorHostNode::Initialize(const FString& InNodeName, UObject* InObject, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit)
+void UDisplayClusterConfiguratorHostNode::Initialize(const FString& InNodeName, int32 InNodeZIndex, UObject* InObject, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit)
 {
-	UDisplayClusterConfiguratorBaseNode::Initialize(InNodeName, InObject, InToolkit);
+	UDisplayClusterConfiguratorBaseNode::Initialize(InNodeName, InNodeZIndex, InObject, InToolkit);
 
 	UDisplayClusterConfigurationHostDisplayData* HostDisplayData = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
 	HostDisplayData->OnPostEditChangeChainProperty.Add(UDisplayClusterConfigurationHostDisplayData::FOnPostEditChangeChainProperty::FDelegate::CreateUObject(this, &UDisplayClusterConfiguratorHostNode::OnPostEditChangeChainProperty));
+}
+
+void UDisplayClusterConfiguratorHostNode::Cleanup()
+{
+	if (ObjectToEdit.IsValid())
+	{
+		UDisplayClusterConfigurationHostDisplayData* HostDisplayData = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
+		HostDisplayData->OnPostEditChangeChainProperty.RemoveAll(this);
+	}
 }
 
 TSharedPtr<SGraphNode> UDisplayClusterConfiguratorHostNode::CreateVisualWidget()
@@ -202,6 +211,13 @@ void UDisplayClusterConfiguratorHostNode::ReadNodeStateFromObject()
 
 void UDisplayClusterConfiguratorHostNode::OnPostEditChangeChainProperty(const FPropertyChangedChainEvent& PropertyChangedEvent)
 {
+	// If the pointer to the blueprint editor is no longer valid, its likely that the editor this node was created for was closed,
+	// and this node is orphaned and will eventually be GCed.
+	if (!ToolkitPtr.IsValid())
+	{
+		return;
+	}
+
 	UDisplayClusterConfigurationHostDisplayData* HostDisplayData = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
 
 	const FName& PropertyName = PropertyChangedEvent.PropertyChain.GetActiveMemberNode()->GetValue()->GetFName();

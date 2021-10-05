@@ -141,10 +141,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Patch Settings", meta = (DisplayPriority = "1"))
 	bool bIgnoreAlphaChannel;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Patch Settings", meta = (ClampMin = "0", ClampMax = "255", UIMin = "0", UIMax = "255", DisplayPriority = "2"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Patch Settings", meta = (ClampMin = "0", ClampMax = "1", UIMin = "0", UIMax = "1", DisplayPriority = "2"))
 	float PixelIntensity;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Patch Settings", meta = (ClampMin = "0", ClampMax = "255", UIMin = "0", UIMax = "255", DisplayPriority = "2"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Patch Settings", meta = (ClampMin = "0", ClampMax = "1", UIMin = "0", UIMax = "1", DisplayPriority = "2"))
 	float AlphaIntensity;
 
 #if WITH_EDITORONLY_DATA

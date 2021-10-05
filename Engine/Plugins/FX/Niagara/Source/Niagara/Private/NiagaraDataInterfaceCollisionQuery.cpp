@@ -666,8 +666,8 @@ void UNiagaraDataInterfaceCollisionQuery::GetVMExternalFunction(const FVMExterna
 	}
 	else
 	{
-		UE_LOG(LogNiagara, Error, TEXT("Could not find data interface external function. %s\n"),
-			*BindingInfo.Name.ToString());
+		UE_LOG(LogNiagara, Display, TEXT("Could not find data interface external function in %s. %s\n"),
+			*GetPathNameSafe(this), *BindingInfo.Name.ToString());
 	}
 }
 

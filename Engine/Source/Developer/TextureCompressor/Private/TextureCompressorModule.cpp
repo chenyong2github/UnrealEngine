@@ -2148,7 +2148,7 @@ static bool CompressMipChain(
 		FCompressedImage2D& DestMip = OutMips[MipIndex];
 		DestMip.SizeX = FMath::Max(1, PrevMip.SizeX >> 1);
 		DestMip.SizeY = FMath::Max(1, PrevMip.SizeY >> 1);
-		DestMip.SizeZ = FMath::Max(1, PrevMip.SizeZ >> 1);
+		DestMip.SizeZ = Settings.bVolume ? FMath::Max(1, PrevMip.SizeZ >> 1) : PrevMip.SizeZ;
 		DestMip.PixelFormat = PrevMip.PixelFormat;
 	}
 

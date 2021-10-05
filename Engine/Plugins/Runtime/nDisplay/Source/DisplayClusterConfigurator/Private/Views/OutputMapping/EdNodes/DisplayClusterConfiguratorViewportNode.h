@@ -9,8 +9,9 @@
 #include "DisplayClusterConfiguratorViewportNode.generated.h"
 
 class UDisplayClusterConfigurationViewport;
-struct FDisplayClusterConfigurationRectangle;
 class FDisplayClusterConfiguratorBlueprintEditor;
+class FDisplayClusterConfiguratorViewportViewModel;
+struct FDisplayClusterConfigurationRectangle;
 
 UCLASS(MinimalAPI)
 class UDisplayClusterConfiguratorViewportNode final
@@ -19,7 +20,8 @@ class UDisplayClusterConfiguratorViewportNode final
 	GENERATED_BODY()
 
 public:
-	virtual void Initialize(const FString& InNodeName, UObject* InObject, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit) override;
+	virtual void Initialize(const FString& InNodeName, int32 InNodeZIndex, UObject* InObject, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit) override;
+	virtual void Cleanup() override;
 
 	//~ Begin EdGraphNode Interface
 	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
@@ -46,4 +48,7 @@ public:
 
 private:
 	void OnPostEditChangeChainProperty(const FPropertyChangedChainEvent& PropertyChangedEvent);
+
+private:
+	TSharedPtr<FDisplayClusterConfiguratorViewportViewModel> ViewportVM;
 };

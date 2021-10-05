@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 import { AlreadyIntegrated, Blockage, ChangeInfo, ForcedCl, PendingChange } from './branch-interfaces';
+import { BeginIntegratingToGateEvent, EndIntegratingToGateEvent } from './branch-interfaces';
 import { BotConfig } from './branchdefs';
 import { PersistentConflict } from './conflict-interfaces';
 
@@ -13,6 +14,8 @@ type OnForcedLastCl = (arg: ForcedCl) => void
 type OnNonSkipLastClChange = (arg: ForcedCl) => void
 type OnBranchUnblocked = (arg: PersistentConflict) => void
 type OnConflictStatus = (arg: boolean) => void
+type OnBeginIntegratingToGate = (arg: BeginIntegratingToGateEvent) => void
+type OnEndIntegratingToGate = (arg: EndIntegratingToGateEvent) => void
 
 export interface BotEventHandler {
 	onChangeParsed?: OnChangeParsed
@@ -24,6 +27,9 @@ export interface BotEventHandler {
 	onNonSkipLastClChange?: OnNonSkipLastClChange
 	onBranchUnblocked?: OnBranchUnblocked
 	onConflictStatus?: OnConflictStatus
+
+	onBeginIntegratingToGate?: OnBeginIntegratingToGate
+	onEndIntegratingToGate?: OnEndIntegratingToGate
 }
 
 /** Bindings for bot events */
@@ -76,6 +82,14 @@ export class BotEvents {
 		this.conflictStatusListeners.push(listener)
 	}
 
+	onBeginIntegratingToGate(listener: OnBeginIntegratingToGate) {
+		this.beginIntegratingToGateListeners.push(listener)
+	}
+
+	onEndIntegratingToGate(listener: OnEndIntegratingToGate) {
+		this.endIntegratingToGateListeners.push(listener)
+	}
+
 	// register an object to handle some or all of the above
 	registerHandler(handler: BotEventHandler) {
 		const proto = handler.constructor.prototype
@@ -91,6 +105,8 @@ export class BotEvents {
 				case 'onNonSkipLastClChange': this.nonSkipLastClChangeListeners.push(arg => prop.call(handler, arg)); break
 				case 'onBranchUnblocked': this.branchUnblockedListeners.push(arg => prop.call(handler, arg)); break
 				case 'onConflictStatus': this.conflictStatusListeners.push(arg => prop.call(handler, arg)); break
+				case 'onBeginIntegratingToGate': this.beginIntegratingToGateListeners.push(arg => prop.call(handler, arg)); break
+				case 'onEndIntegratingToGate': this.endIntegratingToGateListeners.push(arg => prop.call(handler, arg)); break
 			}
 		}
 	}
@@ -104,6 +120,8 @@ export class BotEvents {
 	protected readonly nonSkipLastClChangeListeners: OnNonSkipLastClChange[] = []
 	protected readonly branchUnblockedListeners: OnBranchUnblocked[] = []
 	protected readonly conflictStatusListeners: OnConflictStatus[] = []
+	protected readonly beginIntegratingToGateListeners: OnBeginIntegratingToGate[] = []
+	protected readonly endIntegratingToGateListeners: OnEndIntegratingToGate[] = []
 }
 
 /** API for firing bot events */
@@ -158,6 +176,18 @@ export class BotEventTriggers extends BotEvents {
 
 	reportConflictStatus(arg: boolean) {
 		for (const listener of this.conflictStatusListeners) {
+			listener(arg)
+		}
+	}
+
+	reportBeginIntegratingToGate(arg: BeginIntegratingToGateEvent) {
+		for (const listener of this.beginIntegratingToGateListeners) {
+			listener(arg)
+		}
+	}
+
+	reportEndIntegratingToGate(arg: EndIntegratingToGateEvent) {
+		for (const listener of this.endIntegratingToGateListeners) {
 			listener(arg)
 		}
 	}

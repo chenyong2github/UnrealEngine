@@ -451,18 +451,23 @@ void FPartyPlatformSessionMonitor::EvaluateCurrentSession()
 		{
 			// Verify that there's actually someone in the party in this session
 			// Potentially saves a bit on traffic in edge cases where we're joining just after the former sole session owner has left
-			for (UPartyMember* Member : MonitoredParty->GetPartyMembers())
+			bool bAnyMemberInParty = MonitoredParty->GetPartyMembers().ContainsByPredicate([this, ExistingSessionInfo](const UPartyMember* Member)
 			{
 				if (Member->GetRepData().GetPlatformDataSessionId() == ExistingSessionInfo->SessionId)
 				{
 					if (LastAttemptedFindSessionId.IsSet() && LastAttemptedFindSessionId.GetValue() == ExistingSessionInfo->SessionId)
 					{
-						continue;
+						return false;
 					}
 					// Someone else is claiming to be in the session already, so go find it now
-					FindSession(*ExistingSessionInfo);
-					break;
+					return true;
 				}
+				return false;
+			});
+
+			if (bAnyMemberInParty || MonitoredParty->ShouldAlwaysJoinPlatformSession(ExistingSessionInfo->SessionId))
+			{
+				FindSession(*ExistingSessionInfo);
 			}
 		}
 		else
@@ -963,6 +968,10 @@ void FPartyPlatformSessionMonitor::HandleJoinSessionComplete(FName SessionName, 
 				AddLocalPlayerToSession(PartyMember);
 			}
 		}
+		if (DoesLocalUserOwnPlatformSession())
+		{
+			QueuePlatformSessionUpdate();
+		}
 
 		// For all players only for Tencent
 		if (IsTencentPlatform())
@@ -982,6 +991,8 @@ void FPartyPlatformSessionMonitor::HandleJoinSessionComplete(FName SessionName, 
 	{
 		ProcessJoinFailure();
 	}
+
+	MonitoredParty->JoinSessionCompleteAnalytics(*TargetSessionId, LexToString(JoinSessionResult));
 }
 
 void FPartyPlatformSessionMonitor::HandleDestroySessionComplete(FName SessionName, bool bWasSuccessful)

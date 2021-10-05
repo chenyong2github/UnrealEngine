@@ -19,8 +19,6 @@
 
 #define LOCTEXT_NAMESPACE "SDisplayClusterConfiguratorCanvasNode"
 
-int32 const SDisplayClusterConfiguratorHostNode::DefaultZOrder = 100;
-
 class SCrosshair : public SBox
 {
 public:
@@ -250,7 +248,7 @@ void SDisplayClusterConfiguratorHostNode::UpdateGraphNode()
 	.VAlign(VAlign_Fill)
 	[
 		SNew(SDisplayClusterConfiguratorLayeringBox)
-		.LayerOffset(DefaultZOrder)
+		.LayerOffset(this, &SDisplayClusterConfiguratorHostNode::GetNodeVisualLayer)
 		[
 			SNew(SConstraintCanvas)
 
@@ -371,21 +369,11 @@ void SDisplayClusterConfiguratorHostNode::UpdateGraphNode()
 			.Alignment(FVector2D::ZeroVector)
 			[
 				SNew(SDisplayClusterConfiguratorLayeringBox)
-				.LayerOffset(DefaultZOrder + 200)
+				.LayerOffset(this, &SDisplayClusterConfiguratorHostNode::GetNodeOriginLayerOffset)
 				[
 					SNew(SNodeOrigin, SharedThis(this))
 					.Visibility(this, &SDisplayClusterConfiguratorHostNode::GetSelectionVisibility)
 				]
-			]
-
-			+ SConstraintCanvas::Slot()
-			.Offset(TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SDisplayClusterConfiguratorHostNode::GetAreaResizeHandlePosition)))
-			.AutoSize(true)
-			.Alignment(FVector2D::ZeroVector)
-			[
-				SNew(SDisplayClusterConfiguratorResizer, ToolkitPtr.Pin().ToSharedRef(), SharedThis(this))
-				.Visibility(this, &SDisplayClusterConfiguratorHostNode::GetAreaResizeHandleVisibility)
-				.IsFixedAspectRatio(false)
 			]
 		]
 	];
@@ -419,27 +407,16 @@ void SDisplayClusterConfiguratorHostNode::SetNodeSize(const FVector2D InLocalSiz
 	SDisplayClusterConfiguratorBaseNode::SetNodeSize(AdjustedSize, bFixedAspectRatio);
 }
 
+bool SDisplayClusterConfiguratorHostNode::CanNodeBeResized() const
+{
+	UDisplayClusterConfiguratorHostNode* HostEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorHostNode>();
+	return HostEdNode->CanUserResizeNode();
+}
+
 FMargin SDisplayClusterConfiguratorHostNode::GetBackgroundPosition() const
 {
 	FVector2D NodeSize = ComputeDesiredSize(FSlateApplication::Get().GetApplicationScale());
 	return FMargin(0.f, 0.f, NodeSize.X, NodeSize.Y);
-}
-
-FMargin SDisplayClusterConfiguratorHostNode::GetAreaResizeHandlePosition() const
-{
-	FVector2D NodeSize = ComputeDesiredSize(FSlateApplication::Get().GetApplicationScale());
-	return FMargin(NodeSize.X, NodeSize.Y, 0.f, 0.f);
-}
-
-EVisibility SDisplayClusterConfiguratorHostNode::GetAreaResizeHandleVisibility() const
-{
-	UDisplayClusterConfiguratorHostNode* HostEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorHostNode>();
-	if (!HostEdNode->CanUserResizeNode())
-	{
-		return EVisibility::Collapsed;
-	}
-
-	return GetSelectionVisibility();
 }
 
 FMargin SDisplayClusterConfiguratorHostNode::GetNodeOriginPosition() const
@@ -448,6 +425,15 @@ FMargin SDisplayClusterConfiguratorHostNode::GetNodeOriginPosition() const
 	const FVector2D GlobalOrigin = HostEdNode->GetHostOrigin(true);
 	
 	return FMargin(GlobalOrigin.X + UDisplayClusterConfiguratorHostNode::VisualMargin.Left, GlobalOrigin.Y + UDisplayClusterConfiguratorHostNode::VisualMargin.Top, 0.0f, 0.0f);
+}
+
+int32 SDisplayClusterConfiguratorHostNode::GetNodeOriginLayerOffset() const
+{
+	UDisplayClusterConfiguratorHostNode* HostEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorHostNode>();
+	int32 NodeLayerIndex = HostEdNode->GetNodeLayer(GetOwnerPanel()->SelectionManager.SelectedNodes);
+	int32 OrnamentLayerIndex = DisplayClusterConfiguratorGraphLayers::OrnamentLayerIndex;
+
+	return OrnamentLayerIndex - NodeLayerIndex;
 }
 
 EVisibility SDisplayClusterConfiguratorHostNode::GetHostNameVisibility() const

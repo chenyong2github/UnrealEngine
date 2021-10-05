@@ -39,8 +39,6 @@ public:
 	TSharedPtr<FUICommandInfo> ToggleAdjacentEdgeSnapping;
 	TSharedPtr<FUICommandInfo> ToggleSameEdgeSnapping;
 
-	TSharedPtr<FUICommandInfo> ToggleZoomToSelectedItems;
-
 	TSharedPtr<FUICommandInfo> FillParentNode;
 	TSharedPtr<FUICommandInfo> SizeToChildNodes;
 
@@ -53,6 +51,7 @@ public:
 	TSharedPtr<FUICommandInfo> ShowFloor;
 	TSharedPtr<FUICommandInfo> ShowGrid;
 	TSharedPtr<FUICommandInfo> ShowOrigin;
+	TSharedPtr<FUICommandInfo> EnableAA;
 	TSharedPtr<FUICommandInfo> ShowPreview;
 	TSharedPtr<FUICommandInfo> Show3DViewportNames;
 	TSharedPtr<FUICommandInfo> ToggleShowXformGizmos;

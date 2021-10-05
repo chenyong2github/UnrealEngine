@@ -2035,18 +2035,11 @@ FObjectDuplicationParameters::FObjectDuplicationParameters( UObject* InSourceObj
 	DestClass = SourceObject->GetClass();
 }
 
-
-UObject* StaticDuplicateObject(UObject const* SourceObject, UObject* DestOuter, const FName DestName, EObjectFlags FlagMask, UClass* DestClass, EDuplicateMode::Type DuplicateMode, EInternalObjectFlags InternalFlagsMask)
+FObjectDuplicationParameters InitStaticDuplicateObjectParams(UObject const* SourceObject, UObject* DestOuter, const FName DestName, EObjectFlags FlagMask, UClass* DestClass, EDuplicateMode::Type DuplicateMode, EInternalObjectFlags InternalFlagsMask)
 {
-	if (!IsAsyncLoading() && /*!IsLoading() &&*/ SourceObject->HasAnyFlags(RF_ClassDefaultObject))
-	{
-		// Detach linker for the outer if it already exists, to avoid problems with PostLoad checking the Linker version
-		ResetLoaders(DestOuter);
-	}
-
 	// @todo: handle const down the callstack.  for now, let higher level code use it and just cast it off
 	FObjectDuplicationParameters Parameters(const_cast<UObject*>(SourceObject), DestOuter);
-	if ( !DestName.IsNone() )
+	if (!DestName.IsNone())
 	{
 		Parameters.DestName = DestName;
 	}
@@ -2059,7 +2052,7 @@ UObject* StaticDuplicateObject(UObject const* SourceObject, UObject* DestOuter, 
 		}
 	}
 
-	if ( DestClass == NULL )
+	if (DestClass == NULL)
 	{
 		Parameters.DestClass = SourceObject->GetClass();
 	}
@@ -2072,11 +2065,17 @@ UObject* StaticDuplicateObject(UObject const* SourceObject, UObject* DestOuter, 
 	Parameters.InternalFlagMask = InternalFlagsMask;
 	Parameters.DuplicateMode = DuplicateMode;
 
-	if( DuplicateMode == EDuplicateMode::PIE)
+	if (DuplicateMode == EDuplicateMode::PIE)
 	{
 		Parameters.PortFlags = PPF_DuplicateForPIE;
 	}
 
+	return Parameters;
+}
+
+UObject* StaticDuplicateObject(UObject const* SourceObject, UObject* DestOuter, const FName DestName, EObjectFlags FlagMask, UClass* DestClass, EDuplicateMode::Type DuplicateMode, EInternalObjectFlags InternalFlagsMask)
+{
+	FObjectDuplicationParameters Parameters = InitStaticDuplicateObjectParams(SourceObject, DestOuter, DestName, FlagMask, DestClass, DuplicateMode, InternalFlagsMask);
 	return StaticDuplicateObjectEx(Parameters);
 }
 
@@ -2089,6 +2088,13 @@ UObject* StaticDuplicateObjectEx( FObjectDuplicationParameters& Parameters )
 		TEXT("Source and destination class sizes differ.  Source: %s (%i)   Destination: %s (%i)"),
 		*Parameters.SourceObject->GetClass()->GetName(), Parameters.SourceObject->GetClass()->GetPropertiesSize(),
 		*Parameters.DestClass->GetName(), Parameters.DestClass->GetPropertiesSize());
+
+	if (!IsAsyncLoading() && Parameters.SourceObject->HasAnyFlags(RF_ClassDefaultObject))
+	{
+		// Detach linker for the outer if it already exists, to avoid problems with PostLoad checking the Linker version
+		ResetLoaders(Parameters.DestOuter);
+	}
+
 	FObjectInstancingGraph InstanceGraph;
 
 	if( !GIsDuplicatingClassForReinstancing )

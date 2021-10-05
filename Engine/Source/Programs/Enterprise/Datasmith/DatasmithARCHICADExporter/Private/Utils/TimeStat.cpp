@@ -16,14 +16,28 @@ void FTimeStat::ReStart()
 	RealTime = RealTimeClock();
 }
 
+// Cumulate time from the other
+void FTimeStat::AddDiff(const FTimeStat& InOther)
+{
+	CpuTime += CpuTimeClock() - InOther.CpuTime;
+	double RealSeconds = RealTimeClock() - InOther.RealTime;
+	if (RealSeconds < 0) // Before and after midnight ?
+	{
+		RealSeconds += 24 * 60 * 60;
+	}
+	RealTime += RealSeconds;
+}
+
 // Print time differences
 void FTimeStat::PrintDiff(const char* InStatLabel, const FTimeStat& InStart)
 {
 	double CpuSeconds = CpuTime - InStart.CpuTime;
 	double RealSeconds = RealTime - InStart.RealTime;
 	if (RealSeconds < 0) // Before and after midnight ?
+	{
 		RealSeconds += 24 * 60 * 60;
-	UE_AC_TraceF("Seconds for %s cpu=%lg, real=%lg\n", InStatLabel, CpuSeconds, RealSeconds);
+	}
+	UE_AC_ReportF("Seconds for %s cpu=%.2lgs, real=%.2lgs\n", InStatLabel, CpuSeconds, RealSeconds);
 }
 
 // Tool get current real time clock
@@ -32,11 +46,15 @@ double FTimeStat::RealTimeClock()
 #ifdef WIN32
 	LARGE_INTEGER Time, Freq;
 	if (QueryPerformanceFrequency(&Freq) && QueryPerformanceCounter(&Time))
+	{
 		return double(Time.QuadPart) / Freq.QuadPart;
+	}
 #else
 	struct timeval Time;
 	if (gettimeofday(&Time, NULL) == 0)
+	{
 		return Time.tv_sec + double(Time.tv_usec) * .000001;
+	}
 #endif
 	return 0;
 }
@@ -47,7 +65,9 @@ double FTimeStat::CpuTimeClock()
 #ifdef WIN32
 	FILETIME A, B, C, D;
 	if (GetProcessTimes(GetCurrentProcess(), &A, &B, &C, &D) != 0)
+	{
 		return double(D.dwLowDateTime | ((unsigned long long)D.dwHighDateTime << 32)) * 0.0000001;
+	}
 	return 0;
 #else
 	static double spc = 1.0 / sysconf(_SC_CLK_TCK);

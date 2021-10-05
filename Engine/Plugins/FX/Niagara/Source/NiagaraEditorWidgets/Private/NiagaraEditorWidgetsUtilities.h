@@ -21,8 +21,6 @@ namespace FNiagaraStackEditorWidgetsUtilities
 	FName GetIconNameForExecutionSubcategory(FName ExecutionSubcategoryName, bool bIsHighlighted);
 
 	FName GetIconColorNameForExecutionCategory(FName ExecutionCategoryName);
-	
-	FName GetColorNameForParameterScope(ENiagaraParameterScope ParameterScope);
 
 	FText GetIconTextForInputMode(UNiagaraStackFunctionInput::EValueMode InputValueMode);
 

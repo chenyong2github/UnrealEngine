@@ -3,6 +3,7 @@
 
 #include "NiagaraEmitter.h"
 
+#include "INiagaraEditorOnlyDataUtlities.h"
 #include "NiagaraCustomVersion.h"
 #include "NiagaraEditorDataBase.h"
 #include "NiagaraModule.h"
@@ -132,8 +133,6 @@ UNiagaraEmitter::UNiagaraEmitter(const FObjectInitializer& Initializer)
 , bRequiresPersistentIDs(false)
 , bCombineEventSpawn(false)
 , MaxDeltaTimePerTick(0.125)
-, DefaultShaderStageIndex(0)
-, MaxUpdateIterations(1)
 , bLimitDeltaTime(true)
 #if WITH_EDITORONLY_DATA
 , bBakeOutRapidIteration(true)
@@ -165,6 +164,13 @@ void UNiagaraEmitter::PostInitProperties()
 		GPUComputeScript = NewObject<UNiagaraScript>(this, "GPUComputeScript", EObjectFlags::RF_Transactional);
 		GPUComputeScript->SetUsage(ENiagaraScriptUsage::ParticleGPUComputeScript);
 
+#if WITH_EDITORONLY_DATA && WITH_EDITOR
+		if (EditorParameters == nullptr)
+		{
+			INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
+			EditorParameters = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorParameters(this);
+		}
+#endif
 	}
 
 #if WITH_EDITORONLY_DATA
@@ -429,6 +435,14 @@ void UNiagaraEmitter::PostLoad()
 	}
 
 #if WITH_EDITORONLY_DATA
+	if (EditorParameters == nullptr)
+	{
+		INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
+		EditorParameters = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorParameters(this);
+	}
+#endif
+
+#if WITH_EDITORONLY_DATA
 	if (!GPUComputeScript)
 	{
 		GPUComputeScript = NewObject<UNiagaraScript>(this, "GPUComputeScript", EObjectFlags::RF_Transactional);
@@ -523,6 +537,24 @@ void UNiagaraEmitter::PostLoad()
 			}
 		}
 
+		// Synchronize with definitions before merging.
+		const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+		check(Settings);
+		TArray<FGuid> DefaultDefinitionsUniqueIds;
+		for (const FSoftObjectPath& DefaultLinkedParameterDefinitionObjPath : Settings->DefaultLinkedParameterDefinitions)
+		{
+			UNiagaraParameterDefinitionsBase* DefaultLinkedParameterDefinitions = CastChecked<UNiagaraParameterDefinitionsBase>(DefaultLinkedParameterDefinitionObjPath.TryLoad());
+			DefaultDefinitionsUniqueIds.Add(DefaultLinkedParameterDefinitions->GetDefinitionsUniqueId());
+			const bool bDoNotAssertIfAlreadySubscribed = true;
+			SubscribeToParameterDefinitions(DefaultLinkedParameterDefinitions, bDoNotAssertIfAlreadySubscribed);
+		}
+		FSynchronizeWithParameterDefinitionsArgs Args;
+		Args.SpecificDefinitionsUniqueIds = DefaultDefinitionsUniqueIds;
+		Args.bForceSynchronizeDefinitions = true;
+		Args.bSubscribeAllNameMatchParameters = true;
+		SynchronizeWithParameterDefinitions(Args);
+		InitParameterDefinitionsSubscriptions();
+
 		if (IsSynchronizedWithParent() == false)
 		{
 			// Modify here so that the asset will be marked dirty when using the resave commandlet.  This will be ignored during regular post load.
@@ -607,6 +639,13 @@ void UNiagaraEmitter::PostLoad()
 			EditorData->OnPersistentDataChanged().AddUObject(this, &UNiagaraEmitter::PersistentEditorDataChanged);
 		}
 	}
+
+	// this can only ever be true for old assets that haven't been loaded yet, so this won't overwrite subsequent changes to the template specification
+	if(bIsTemplateAsset_DEPRECATED)
+	{
+		TemplateSpecification = ENiagaraScriptTemplateSpecification::Template;
+	}
+	
 #endif
 
 	ResolveScalabilitySettings();
@@ -767,6 +806,12 @@ void UNiagaraEmitter::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) c
 		OutTags.Add(FAssetRegistryTag(StringIter.Key(), LexToString(StringIter.Value()), FAssetRegistryTag::TT_Alphabetical));
 		++StringIter;
 	}
+
+	// TemplateSpecialization
+	FName TemplateSpecificationName = GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, TemplateSpecification);
+	FText TemplateSpecializationValueString = StaticEnum<ENiagaraScriptTemplateSpecification>()->GetDisplayNameTextByValue((int64) TemplateSpecification);
+	OutTags.Add(FAssetRegistryTag(TemplateSpecificationName, TemplateSpecializationValueString.ToString(), FAssetRegistryTag::TT_Alphabetical));
+	
 #endif
 	Super::GetAssetRegistryTags(OutTags);
 }
@@ -927,12 +972,12 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bDeprecatedShaderStagesEnabled))
 	{
-		if (GraphSource != nullptr)
-		{
-			GraphSource->MarkNotSynchronized(TEXT("DeprecatedShaderStagesEnabled changed."));
-		}
-		bNeedsRecompile = true;
-
+		//ERROR
+		//if (GraphSource != nullptr)
+		//{
+		//	GraphSource->MarkNotSynchronized(TEXT("DeprecatedShaderStagesEnabled changed."));
+		//}
+		//bNeedsRecompile = true;
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FNiagaraEventScriptProperties, SourceEmitterID))
 	{
@@ -1006,6 +1051,30 @@ void UNiagaraEmitter::HandleVariableRemoved(const FNiagaraVariable& InOldVariabl
 	}
 }
 #endif
+
+#if WITH_EDITORONLY_DATA
+TArray<UNiagaraScriptSourceBase*> UNiagaraEmitter::GetAllSourceScripts()
+{
+	TArray<UNiagaraScriptSourceBase*> OutScriptSources;
+	TArray<UNiagaraScript*> Scripts;
+	GetScripts(Scripts, false);
+	for (UNiagaraScript* Script : Scripts)
+	{
+		OutScriptSources.Add(Script->GetLatestSource());
+	}
+	return OutScriptSources;
+}
+
+FString UNiagaraEmitter::GetSourceObjectPathName() const
+{
+	return GetPathName();
+}
+
+TArray<UNiagaraEditorParametersAdapterBase*> UNiagaraEmitter::GetEditorOnlyParametersAdapters()
+{
+	return { GetEditorParameters() };
+}
+#endif // WITH_EDITORONLY_DATA
 
 bool UNiagaraEmitter::IsEnabledOnPlatform(const FString& PlatformName)const
 {
@@ -1267,6 +1336,11 @@ FGuid UNiagaraEmitter::GetChangeId() const
 UNiagaraEditorDataBase* UNiagaraEmitter::GetEditorData() const
 {
 	return EditorData;
+}
+
+UNiagaraEditorParametersAdapterBase* UNiagaraEmitter::GetEditorParameters()
+{
+	return EditorParameters;
 }
 
 void UNiagaraEmitter::SetEditorData(UNiagaraEditorDataBase* InEditorData)
@@ -1842,6 +1916,8 @@ void UNiagaraEmitter::BeginDestroy()
 	{
 		GPUComputeScript->OnGPUScriptCompiled().RemoveAll(this);
 	}
+
+	CleanupParameterDefinitionsSubscriptions();
 #endif
 	Super::BeginDestroy();
 }

@@ -10,13 +10,18 @@
 #include "Utility/DatasmithMeshHelper.h"
 
 #include "Algo/AnyOf.h"
+#include "Async/Async.h"
+#include "Engine/Polys.h"
 #include "Engine/StaticMesh.h"
 #include "HAL/FileManager.h"
+#include "Math/Plane.h"
 #include "MeshDescription.h"
 #include "MeshUtilitiesCommon.h"
+#include "Model.h"
 #include "OverlappingCorners.h"
 #include "PhysicsEngine/AggregateGeom.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "PhysicsEngine/PhysicsSettings.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
 
@@ -428,4 +433,193 @@ namespace DatasmithRuntime
 		return EntriesToDelete.Num() > 0;
 	}
 
+	// k-DOP (k-Discrete Oriented Polytopes) Direction Vectors
+	#define RCP_SQRT2 (0.70710678118654752440084436210485f)
+	#define RCP_SQRT3 (0.57735026918962576450914878050196f)
+
+	const FVector KDopDir26[26] = 
+	{
+		FVector( 1.f, 0.f, 0.f),
+		FVector(-1.f, 0.f, 0.f),
+		FVector( 0.f, 1.f, 0.f),
+		FVector( 0.f,-1.f, 0.f),
+		FVector( 0.f, 0.f, 1.f),
+		FVector( 0.f, 0.f,-1.f),
+		FVector( 0.f, RCP_SQRT2,  RCP_SQRT2),
+		FVector( 0.f,-RCP_SQRT2, -RCP_SQRT2),
+		FVector( 0.f, RCP_SQRT2, -RCP_SQRT2),
+		FVector( 0.f,-RCP_SQRT2,  RCP_SQRT2),
+		FVector( RCP_SQRT2, 0.f,  RCP_SQRT2),
+		FVector(-RCP_SQRT2, 0.f, -RCP_SQRT2),
+		FVector( RCP_SQRT2, 0.f, -RCP_SQRT2),
+		FVector(-RCP_SQRT2, 0.f,  RCP_SQRT2),
+		FVector( RCP_SQRT2,  RCP_SQRT2, 0.f),
+		FVector(-RCP_SQRT2, -RCP_SQRT2, 0.f),
+		FVector( RCP_SQRT2, -RCP_SQRT2, 0.f),
+		FVector(-RCP_SQRT2,  RCP_SQRT2, 0.f),
+		FVector( RCP_SQRT3,  RCP_SQRT3,  RCP_SQRT3),
+		FVector( RCP_SQRT3,  RCP_SQRT3, -RCP_SQRT3),
+		FVector( RCP_SQRT3, -RCP_SQRT3,  RCP_SQRT3),
+		FVector( RCP_SQRT3, -RCP_SQRT3, -RCP_SQRT3),
+		FVector(-RCP_SQRT3,  RCP_SQRT3,  RCP_SQRT3),
+		FVector(-RCP_SQRT3,  RCP_SQRT3, -RCP_SQRT3),
+		FVector(-RCP_SQRT3, -RCP_SQRT3,  RCP_SQRT3),
+		FVector(-RCP_SQRT3, -RCP_SQRT3, -RCP_SQRT3),
+	};
+	// THIS FUNCTION REPLACES EXISTING SIMPLE COLLISION MODEL WITH KDOP
+#define MY_FLTMAX (3.402823466e+38F)
+	constexpr float HalfWorldMax = HALF_WORLD_MAX;
+
+
+	void GenerateKDopAsSimpleCollision(UBodySetup* BodySetup, const FStaticMeshLODResources& Resources, const FVector* Directions, int32 DirectionCount)
+	{
+		TArray<float> MaxDistances;
+		MaxDistances.Reserve(DirectionCount);
+
+		for (int32 Index = 0; Index < DirectionCount; ++Index)
+		{
+			MaxDistances.Add(-MY_FLTMAX);
+		}
+
+		// For each vertex, project along each kdop direction, to find the max in that direction.
+		const FPositionVertexBuffer& PositionVertexBuffer = Resources.VertexBuffers.PositionVertexBuffer;
+		for(int32 Index = 0; Index < Resources.GetNumVertices(); ++Index)
+		{
+			for(int32 DirIndex = 0; DirIndex < DirectionCount; ++DirIndex)
+			{
+				const float Dist = PositionVertexBuffer.VertexPosition(Index) | Directions[DirIndex];
+				MaxDistances[DirIndex] = FMath::Max(Dist, MaxDistances[DirIndex]);
+			}
+		}
+
+		// Inflate MaxDistances to ensure it is no degenerate
+		const float MinSize = 0.1f;
+		for (int32 Index = 0; Index < DirectionCount; ++Index)
+		{
+			MaxDistances[Index] += MinSize;
+		}
+
+		// Now we have the Planes of the kdop, we work out the face polygons.
+		TArray<FPlane> Planes;
+		Planes.Reserve(DirectionCount);
+		for (int32 Index = 0; Index < DirectionCount; ++Index)
+		{
+			Planes.Add( FPlane(Directions[Index], MaxDistances[Index]) );
+		}
+
+		TArray<FPoly> Element;
+		Element.Reserve(DirectionCount);
+		for (int32 Index = 0; Index < DirectionCount; ++Index)
+		{
+			FPoly&	Polygon = Element.AddZeroed_GetRef();
+			FVector Base, AxisX, AxisY;
+
+			Polygon.Init();
+			Polygon.Normal = Planes[Index];
+			Polygon.Normal.FindBestAxisVectors(AxisX, AxisY);
+
+			Base = Planes[Index] * Planes[Index].W;
+
+			Polygon.Vertices.Reserve(4);
+			new(Polygon.Vertices) FVector(Base + AxisX * HalfWorldMax + AxisY * HalfWorldMax);
+			new(Polygon.Vertices) FVector(Base + AxisX * HalfWorldMax - AxisY * HalfWorldMax);
+			new(Polygon.Vertices) FVector(Base - AxisX * HalfWorldMax - AxisY * HalfWorldMax);
+			new(Polygon.Vertices) FVector(Base - AxisX * HalfWorldMax + AxisY * HalfWorldMax);
+
+			for (int32 Jndex = 0; Jndex < DirectionCount; ++Jndex)
+			{
+				if(Index != Jndex)
+				{
+					if(!Polygon.Split(-FVector(Planes[Jndex]), Planes[Jndex] * Planes[Jndex].W))
+					{
+						Polygon.Vertices.Empty();
+						break;
+					}
+				}
+			}
+
+			if(Polygon.Vertices.Num() < 3)
+			{
+				// If poly resulted in no verts, remove from array
+				Element.Pop(false);
+			}
+			else
+			{
+				// Other stuff...
+				Polygon.iLink = Index;
+				Polygon.CalcNormal(1);
+			}
+		}
+
+		if(Element.Num() < 4)
+		{
+			return;
+		}
+
+		FKConvexElem& ConvexElem = BodySetup->AggGeom.ConvexElems.AddDefaulted_GetRef();
+
+		for (FPoly& Poly : Element)
+		{
+			for (FVector& Position : Poly.Vertices)
+			{
+				ConvexElem.VertexData.Add(Position);
+			}
+		}
+
+		ConvexElem.UpdateElemBox();
+	}
+
+	void BuildCollision(UBodySetup* BodySetup, ECollisionTraceFlag CollisionFlag, const FStaticMeshLODResources& Resources)
+	{
+		BodySetup->CollisionTraceFlag = CollisionFlag;
+
+		if (BodySetup->CollisionTraceFlag == ECollisionTraceFlag::CTF_UseDefault)
+		{
+			BodySetup->CollisionTraceFlag = UPhysicsSettings::Get()->DefaultShapeComplexity;
+		}
+
+		BodySetup->AggGeom.EmptyElements();
+
+		// Use the bounding box as the collision mesh if simple collision is required and no aggregate geometry is provided
+		// #ue_dsruntime - TODO Choose the best shape according to dimension of bounding box
+		if (BodySetup->CollisionTraceFlag != ECollisionTraceFlag::CTF_UseComplexAsSimple)
+		{
+			GenerateKDopAsSimpleCollision(BodySetup, Resources, KDopDir26, 26);
+		}
+
+#if WITH_EDITOR
+		BodySetup->CreatePhysicsMeshes();
+#else
+		// Create a convex hull element from the mesh description of the static mesh if complex as simple is required
+		if (BodySetup->CollisionTraceFlag != ECollisionTraceFlag::CTF_UseSimpleAsComplex)
+		{
+			FKConvexElem& ConvexElem = BodySetup->AggGeom.ConvexElems.AddDefaulted_GetRef();
+
+			const FPositionVertexBuffer& PositionVertexBuffer = Resources.VertexBuffers.PositionVertexBuffer;
+			ConvexElem.VertexData.Reserve(Resources.GetNumVertices());
+
+			for(int32 Index = 0; Index < Resources.GetNumVertices(); ++Index)
+			{
+				ConvexElem.VertexData.Add(PositionVertexBuffer.VertexPosition(Index));
+			}
+
+			ConvexElem.UpdateElemBox();
+		}
+
+		BodySetup->CollisionTraceFlag = ECollisionTraceFlag::CTF_UseSimpleAsComplex;
+
+		AsyncTask(ENamedThreads::GameThread, [BodySetup] {
+
+			BodySetup->InvalidatePhysicsData();
+
+			BodySetup->CreatePhysicsMeshesAsync(FOnAsyncPhysicsCookFinished::CreateLambda([](bool bSuccess, UBodySetup* BodySetup) -> void
+				{
+					FString Message(bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"));
+					//UE_LOG(LogDatasmithRuntime, Log, TEXT("CreateStaticMesh: CreatePhysicsMeshesAsync %s."), *Message);
+				}
+				, BodySetup)
+			);
+		});
+#endif
+	}
 } // End of namespace DatasmithRuntime

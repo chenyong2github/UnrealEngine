@@ -91,7 +91,7 @@ protected:
 	void ClientUpdateConversations(int32 InConversationsActive);
 
 	UFUNCTION(Client, Reliable)
-	void ClientStartConversation(const UConversationInstance* Conversation, const FGameplayTag AsParticipant);
+	void ClientStartConversation(const FGameplayTag AsParticipant);
 
 protected:
 	UFUNCTION()

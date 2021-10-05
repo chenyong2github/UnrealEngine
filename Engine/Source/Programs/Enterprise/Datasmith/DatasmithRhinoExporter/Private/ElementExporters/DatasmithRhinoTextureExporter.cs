@@ -64,6 +64,7 @@ namespace DatasmithRhino.ElementExporters
 			TextureElement.SetFile(TextureInfo.FilePath);
 			TextureElement.SetTextureFilter(FDatasmithFacadeTexture.ETextureFilter.Default);
 			TextureElement.SetRGBCurve(1);
+			TextureElement.SetSRGB(RhinoTexture.TextureType == TextureType.Bitmap ? FDatasmithFacadeTexture.EColorSpace.sRGB : FDatasmithFacadeTexture.EColorSpace.Linear);
 			TextureElement.SetTextureAddressX(RhinoTexture.WrapU == TextureUvwWrapping.Clamp ? FDatasmithFacadeTexture.ETextureAddress.Clamp : FDatasmithFacadeTexture.ETextureAddress.Wrap);
 			TextureElement.SetTextureAddressY(RhinoTexture.WrapV == TextureUvwWrapping.Clamp ? FDatasmithFacadeTexture.ETextureAddress.Clamp : FDatasmithFacadeTexture.ETextureAddress.Wrap);
 

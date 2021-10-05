@@ -8,7 +8,8 @@
 #include "GameplayTagsManager.h"
 #include "Engine/AssetManager.h"
 #include "IPlatformFilePak.h"
-#include "InstallBundleManager/Public/InstallBundleManagerInterface.h"
+#include "InstallBundleManagerInterface.h"
+#include "BundlePrereqCombinedStatusHelper.h"
 #include "Interfaces/IPluginManager.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/FileHelper.h"
@@ -89,11 +90,26 @@ const TCHAR* GameFeaturePluginProtocolPrefix(EGameFeaturePluginProtocol Protocol
 }
 #undef GAME_FEATURE_PLUGIN_PROTOCOL_PREFIX
 
+FGameFeaturePluginState::~FGameFeaturePluginState()
+{
+	if (TickHandle.IsValid())
+	{
+		FTicker::GetCoreTicker().RemoveTicker(TickHandle);
+		TickHandle.Reset();
+	}
+}
+
 void FGameFeaturePluginState::UpdateStateMachineDeferred(float Delay /*= 0.0f*/) const
 {
-	FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](float dts)
+	if (TickHandle.IsValid())
+	{
+		FTicker::GetCoreTicker().RemoveTicker(TickHandle);
+	}
+
+	TickHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](float dts) mutable
 	{
 		StateProperties.OnRequestUpdateStateMachine.ExecuteIfBound();
+		TickHandle.Reset();
 		return false;
 	}), Delay);
 }
@@ -101,6 +117,11 @@ void FGameFeaturePluginState::UpdateStateMachineDeferred(float Delay /*= 0.0f*/)
 void FGameFeaturePluginState::UpdateStateMachineImmediate() const
 {
 	StateProperties.OnRequestUpdateStateMachine.ExecuteIfBound();
+}
+
+void FGameFeaturePluginState::UpdateProgress(float Progress) const
+{
+	StateProperties.OnFeatureStateProgressUpdate.ExecuteIfBound(Progress);
 }
 
 /*
@@ -352,6 +373,14 @@ struct FGameFeaturePluginState_Uninstalling : public FGameFeaturePluginState
 		}
 
 		FInstallBundleRequestInfo RequestInfo = MaybeRequestInfo.StealValue();
+
+		if (EnumHasAnyFlags(RequestInfo.InfoFlags, EInstallBundleRequestInfoFlags::SkippedUnknownBundles))
+		{
+			ensureMsgf(false, TEXT("Unable to enqueue uninstall for the PluginURL(%s) because failed to resolve install bundles!"), *StateProperties.PluginURL);
+			Result = MakeError(UE::GameFeatures::StateMachineErrorNamespace + TEXT("BundleManager_CannotResolveInstallBundles"));
+			return;
+		}
+
 		if (RequestInfo.BundlesEnqueued.Num() == 0)
 		{
 			bWasDeleted = true;
@@ -392,9 +421,91 @@ struct FGameFeaturePluginState_Downloading : public FGameFeaturePluginState
 		, Result(MakeValue())
 	{}
 
+	~FGameFeaturePluginState_Downloading()
+	{
+		Cleanup();
+	}
+
 	UE::GameFeatures::FResult Result;
 	bool bPluginDownloaded = false;
 	TArray<FName> PendingBundleDownloads;
+	TUniquePtr<FInstallBundleCombinedProgressTracker> ProgressTracker;
+	FDelegateHandle ProgressUpdateHandle;
+	FDelegateHandle GotContentStateHandle;
+
+	void Cleanup()
+	{
+		if (ProgressUpdateHandle.IsValid())
+		{
+			FTicker::GetCoreTicker().RemoveTicker(ProgressUpdateHandle);
+			ProgressUpdateHandle.Reset();
+		}
+
+		if (GotContentStateHandle.IsValid())
+		{
+			TSharedPtr<IInstallBundleManager> BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
+			if (BundleManager)
+			{
+				BundleManager->CancelAllGetContentStateRequests(GotContentStateHandle);
+			}
+			GotContentStateHandle.Reset();
+		}
+
+		IInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(this);
+
+		Result = MakeValue();
+		bPluginDownloaded = false;
+		PendingBundleDownloads.Empty();
+		ProgressTracker = nullptr;
+	}
+
+	void OnGotContentState(FInstallBundleCombinedContentState BundleContentState)
+	{
+		GotContentStateHandle.Reset();
+
+		TSharedPtr<IInstallBundleManager> BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
+		const TArray<FName>& InstallBundles = StateProperties.ProtocolMetadata.GetSubtype<FInstallBundlePluginProtocolMetaData>().InstallBundles;
+
+		EInstallBundleRequestFlags InstallFlags = EInstallBundleRequestFlags::None;
+		InstallFlags |= EInstallBundleRequestFlags::SkipMount;
+		TValueOrError<FInstallBundleRequestInfo, EInstallBundleResult> MaybeRequestInfo = BundleManager->RequestUpdateContent(InstallBundles, InstallFlags);
+
+		if (!MaybeRequestInfo.IsValid())
+		{
+			ensureMsgf(false, TEXT("Unable to enqueue download for the PluginURL(%s) because %s"), *StateProperties.PluginURL, LexToString(MaybeRequestInfo.GetError()));
+			Result = MakeError(UE::GameFeatures::StateMachineErrorNamespace + TEXT("BundleManager_CannotStartDownload"));
+			UpdateStateMachineImmediate();
+			return;
+		}
+
+		FInstallBundleRequestInfo RequestInfo = MaybeRequestInfo.StealValue();
+
+		if (EnumHasAnyFlags(RequestInfo.InfoFlags, EInstallBundleRequestInfoFlags::SkippedUnknownBundles))
+		{
+			ensureMsgf(false, TEXT("Unable to enqueue download for the PluginURL(%s) because failed to resolve install bundles!"), *StateProperties.PluginURL);
+			Result = MakeError(UE::GameFeatures::StateMachineErrorNamespace + TEXT("BundleManager_CannotResolveInstallBundles"));
+			UpdateStateMachineImmediate();
+			return;
+		}
+
+		if (RequestInfo.BundlesEnqueued.Num() == 0)
+		{
+			bPluginDownloaded = true;
+			UpdateProgress(1.0f);
+			UpdateStateMachineImmediate();
+		}
+		else
+		{
+			PendingBundleDownloads = MoveTemp(RequestInfo.BundlesEnqueued);
+			IInstallBundleManager::InstallBundleCompleteDelegate.AddRaw(this, &FGameFeaturePluginState_Downloading::OnInstallBundleCompleted);
+
+			ProgressTracker = MakeUnique<FInstallBundleCombinedProgressTracker>(false);
+			ProgressTracker->SetBundlesToTrackFromContentState(BundleContentState, PendingBundleDownloads);
+
+			ProgressUpdateHandle = FTicker::GetCoreTicker().AddTicker(
+				FTickerDelegate::CreateRaw(this, &FGameFeaturePluginState_Downloading::OnUpdateProgress), 0.1f);
+		}
+	}
 
 	void OnInstallBundleCompleted(FInstallBundleRequestResultInfo BundleResult)
 	{
@@ -427,42 +538,36 @@ struct FGameFeaturePluginState_Downloading : public FGameFeaturePluginState
 			bPluginDownloaded = true;
 		}
 
+		OnUpdateProgress(0.0f);
+
 		UpdateStateMachineImmediate();
+	}
+
+	bool OnUpdateProgress(float dts)
+	{
+		if (ProgressTracker)
+		{
+			ProgressTracker->ForceTick();
+
+			float Progress = ProgressTracker->GetCurrentCombinedProgress().ProgressPercent;
+			UpdateProgress(Progress);
+
+			UE_LOG(LogGameFeatures, Verbose, TEXT("Download Progress: %f for PluginURL(%s)"), Progress, *StateProperties.PluginURL);
+		}
+
+		return true;
 	}
 
 	virtual void BeginState() override
 	{
-		Result = MakeValue();
-		bPluginDownloaded = false;
-		PendingBundleDownloads.Empty();
+		Cleanup();
 
 		check(StateProperties.GetPluginProtocol() == EGameFeaturePluginProtocol::InstallBundle);
 
 		TSharedPtr<IInstallBundleManager> BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
-
 		const TArray<FName>& InstallBundles = StateProperties.ProtocolMetadata.GetSubtype<FInstallBundlePluginProtocolMetaData>().InstallBundles;
 
-		EInstallBundleRequestFlags InstallFlags = EInstallBundleRequestFlags::None;
-		InstallFlags |= EInstallBundleRequestFlags::SkipMount;
-		TValueOrError<FInstallBundleRequestInfo, EInstallBundleResult> MaybeRequestInfo = BundleManager->RequestUpdateContent(InstallBundles, InstallFlags);
-
-		if (!MaybeRequestInfo.IsValid())
-		{
-			ensureMsgf(false, TEXT("Unable to enqueue downloadload for the PluginURL(%s) because %s"), *StateProperties.PluginURL, LexToString(MaybeRequestInfo.GetError()));
-			Result = MakeError(UE::GameFeatures::StateMachineErrorNamespace + TEXT("BundleManager_CannotStartDownload"));
-			return;
-		}
-
-		FInstallBundleRequestInfo RequestInfo = MaybeRequestInfo.StealValue();
-		if (RequestInfo.BundlesEnqueued.Num() == 0)
-		{
-			bPluginDownloaded = true;
-		}
-		else
-		{
-			PendingBundleDownloads = MoveTemp(RequestInfo.BundlesEnqueued);
-			IInstallBundleManager::InstallBundleCompleteDelegate.AddRaw(this, &FGameFeaturePluginState_Downloading::OnInstallBundleCompleted);
-		}
+		GotContentStateHandle = BundleManager->GetContentState(InstallBundles, EInstallBundleGetContentStateFlags::None, true, FInstallBundleGetContentStateDelegate::CreateRaw(this, &FGameFeaturePluginState_Downloading::OnGotContentState));
 	}
 
 	virtual void UpdateState(FGameFeaturePluginStateStatus& StateStatus) override
@@ -483,7 +588,7 @@ struct FGameFeaturePluginState_Downloading : public FGameFeaturePluginState
 
 	virtual void EndState() override
 	{
-		IInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(this);
+		Cleanup();
 	}
 };
 
@@ -624,6 +729,14 @@ struct FGameFeaturePluginState_Unmounting : public FGameFeaturePluginState
 		}
 
 		FInstallBundleRequestInfo RequestInfo = MaybeRequestInfo.StealValue();
+
+		if (EnumHasAnyFlags(RequestInfo.InfoFlags, EInstallBundleRequestInfoFlags::SkippedUnknownBundles))
+		{
+			ensureMsgf(false, TEXT("Unable to enqueue unmount for the PluginURL(%s) because failed to resolve install bundles!"), *StateProperties.PluginURL);
+			Result = MakeError(UE::GameFeatures::StateMachineErrorNamespace + TEXT("BundleManager_CannotResolveInstallBundles"));
+			return;
+		}
+
 		if (RequestInfo.BundlesEnqueued.Num() == 0)
 		{
 			bUnmounted = true;
@@ -744,6 +857,14 @@ struct FGameFeaturePluginState_Mounting : public FGameFeaturePluginState
 		}
 
 		FInstallBundleRequestInfo RequestInfo = MaybeRequestInfo.StealValue();
+
+		if (EnumHasAnyFlags(RequestInfo.InfoFlags, EInstallBundleRequestInfoFlags::SkippedUnknownBundles))
+		{
+			ensureMsgf(false, TEXT("Unable to enqueue mount for the PluginURL(%s) because failed to resolve install bundles!"), *StateProperties.PluginURL);
+			Result = MakeError(UE::GameFeatures::StateMachineErrorNamespace + TEXT("BundleManager_CannotResolveInstallBundles"));
+			return;
+		}
+
 		if (RequestInfo.BundlesEnqueued.Num() == 0)
 		{
 			bMounted = true;
@@ -1201,7 +1322,8 @@ void UGameFeaturePluginStateMachine::InitStateMachine(const FString& InPluginURL
 		InPluginURL,
 		CurrentStateInfo.State,
 		OnRequestStateMachineDependencies,
-		FGameFeaturePluginRequestUpdateStateMachine::CreateUObject(this, &ThisClass::UpdateStateMachine));
+		FGameFeaturePluginRequestUpdateStateMachine::CreateUObject(this, &ThisClass::UpdateStateMachine),
+		FGameFeatureStateProgressUpdate::CreateUObject(this, &ThisClass::UpdateCurrentStateProgress));
 
 	AllStates[(int32)EGameFeaturePluginState::Uninitialized] = MakeUnique<FGameFeaturePluginState_Uninitialized>(StateProperties);
 	AllStates[(int32)EGameFeaturePluginState::UnknownStatus] = MakeUnique<FGameFeaturePluginState_UnknownStatus>(StateProperties);
@@ -1382,17 +1504,23 @@ void UGameFeaturePluginStateMachine::UpdateStateMachine()
 	}
 }
 
+void UGameFeaturePluginStateMachine::UpdateCurrentStateProgress(float Progress)
+{
+	CurrentStateInfo.Progress = Progress;
+}
+
 FGameFeaturePluginStateMachineProperties::FGameFeaturePluginStateMachineProperties(
 	const FString& InPluginURL,
 	EGameFeaturePluginState DesiredDestination,
 	const FGameFeaturePluginRequestStateMachineDependencies& RequestStateMachineDependenciesDelegate,
-	const TDelegate<void()>& RequestUpdateStateMachineDelegate)
-	: FGameFeaturePluginStateMachineProperties()
+	const FGameFeaturePluginRequestUpdateStateMachine& RequestUpdateStateMachineDelegate,
+	const FGameFeatureStateProgressUpdate& FeatureStateProgressUpdateDelegate)
+	: PluginURL(InPluginURL)
+	, DestinationState(DesiredDestination)
+	, OnRequestStateMachineDependencies(RequestStateMachineDependenciesDelegate)
+	, OnRequestUpdateStateMachine(RequestUpdateStateMachineDelegate)
+	, OnFeatureStateProgressUpdate(FeatureStateProgressUpdateDelegate)
 {
-	PluginURL = InPluginURL;
-	DestinationState = DesiredDestination;
-	OnRequestStateMachineDependencies = RequestStateMachineDependenciesDelegate;
-	OnRequestUpdateStateMachine = RequestUpdateStateMachineDelegate;
 }
 
 EGameFeaturePluginProtocol FGameFeaturePluginStateMachineProperties::GetPluginProtocol() const
@@ -1431,8 +1559,7 @@ bool FGameFeaturePluginStateMachineProperties::ParseURL()
 			return false;
 		}
 		
-		FString ParsedPluginName = PluginURL.Mid(CursorIdx, QueryIdx - CursorIdx);
-		PluginInstalledFilename = FPaths::Combine(FPaths::ProjectPluginsDir(), TEXT("GameFeatures"), ParsedPluginName, ParsedPluginName + TEXT(".uplugin"));
+		PluginInstalledFilename = PluginURL.Mid(CursorIdx, QueryIdx - CursorIdx);
 		CursorIdx = QueryIdx + 1;
 		
 		FString BundleNamesString = PluginURL.Mid(CursorIdx);

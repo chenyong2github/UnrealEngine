@@ -91,16 +91,16 @@ int32 ChaosImmediate_Joint_EnableSwingLimits = 1;
 int32 ChaosImmediate_Joint_EnableDrives = 1;
 Chaos::FRealSingle ChaosImmediate_Joint_LinearProjection = -1.0f;
 Chaos::FRealSingle ChaosImmediate_Joint_AngularProjection = -1.0f;
-Chaos::FRealSingle ChaosImmediate_Joint_Stiffness = 1.0f;
-Chaos::FRealSingle ChaosImmediate_Joint_SoftLinearStiffness = 0.0f;
-Chaos::FRealSingle ChaosImmediate_Joint_SoftTwistStiffness = 0.0f;
-Chaos::FRealSingle ChaosImmediate_Joint_SoftTwistDamping = 0.0f;
-Chaos::FRealSingle ChaosImmediate_Joint_SoftSwingStiffness = 0.0f;
-Chaos::FRealSingle ChaosImmediate_Joint_SoftSwingDamping = 0.0f;
-Chaos::FRealSingle ChaosImmediate_Joint_LinearDriveStiffness = 0.0f;
-Chaos::FRealSingle ChaosImmediate_Joint_LinearDriveDamping = 0.0f;
-Chaos::FRealSingle ChaosImmediate_Joint_AngularDriveStiffness = 0.0f;
-Chaos::FRealSingle ChaosImmediate_Joint_AngularDriveDamping = 0.0f;
+Chaos::FRealSingle ChaosImmediate_Joint_Stiffness = -1.0f;
+Chaos::FRealSingle ChaosImmediate_Joint_SoftLinearStiffness = -1.0f;
+Chaos::FRealSingle ChaosImmediate_Joint_SoftTwistStiffness = -1.0f;
+Chaos::FRealSingle ChaosImmediate_Joint_SoftTwistDamping = -1.0f;
+Chaos::FRealSingle ChaosImmediate_Joint_SoftSwingStiffness = -1.0f;
+Chaos::FRealSingle ChaosImmediate_Joint_SoftSwingDamping = -1.0f;
+Chaos::FRealSingle ChaosImmediate_Joint_LinearDriveStiffness = -1.0f;
+Chaos::FRealSingle ChaosImmediate_Joint_LinearDriveDamping = -1.0f;
+Chaos::FRealSingle ChaosImmediate_Joint_AngularDriveStiffness = -1.0f;
+Chaos::FRealSingle ChaosImmediate_Joint_AngularDriveDamping = -1.0f;
 Chaos::FRealSingle ChaosImmediate_Joint_MinParentMassRatio = 0.2f;
 Chaos::FRealSingle ChaosImmediate_Joint_MaxInertiaRatio = 5.0f;
 FAutoConsoleVariableRef CVarChaosImmPhysJointPairIterations(TEXT("p.Chaos.ImmPhys.Joint.PairIterations"), ChaosImmediate_Joint_PairIterations, TEXT("Override joint pair iterations (if >= 0)"));
@@ -126,6 +126,7 @@ FAutoConsoleVariableRef CVarChaosImmPhysJointAngularDriveDamping(TEXT("p.Chaos.I
 FAutoConsoleVariableRef CVarChaosImmPhysJointMinParentMassRatio(TEXT("p.Chaos.ImmPhys.Joint.MinParentMassRatio"), ChaosImmediate_Joint_MinParentMassRatio, TEXT("6Dof joint MinParentMassRatio (if > 0)"));
 FAutoConsoleVariableRef CVarChaosImmPhysJointMaxInertiaRatio(TEXT("p.Chaos.ImmPhys.Joint.MaxInertiaRatio"), ChaosImmediate_Joint_MaxInertiaRatio, TEXT("6Dof joint MaxInertiaRatio (if > 0)"));
 
+
 //
 // Even more temp that the above...
 //
@@ -148,7 +149,7 @@ int32 ChaosImmediate_DebugDrawShowDynamics = 1;
 int32 ChaosImmediate_DebugDrawBounds = 0;
 int32 ChaosImmediate_DebugDrawCollisions = 0;
 int32 ChaosImmediate_DebugDrawJoints = 0;
-int32 ChaosImmediate_DebugDrawJointFeatures = (int32)Chaos::DebugDraw::EDebugDrawJointFeature::Default;
+Chaos::DebugDraw::FChaosDebugDrawJointFeatures ChaosImmediate_DebugDrawJointFeatures = Chaos::DebugDraw::FChaosDebugDrawJointFeatures::MakeDefault();
 int32 ChaosImmediate_DebugDrawSimulationSpace = 0;
 FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawParticles(TEXT("p.Chaos.ImmPhys.DebugDrawParticles"), ChaosImmediate_DebugDrawParticles, TEXT("Draw Particle Transforms (0 = never; 1 = end of frame; 2 = begin and end of frame; 3 = post-integate, post-apply and post-applypushout;)."));
 FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawShapes(TEXT("p.Chaos.ImmPhys.DebugDrawShapes"), ChaosImmediate_DebugDrawShapes, TEXT("Draw Shapes (0 = never; 1 = end of frame; 2 = begin and end of frame; 3 = post-integate, post-apply and post-applypushout;"));
@@ -158,7 +159,15 @@ FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawShowDynamics(TEXT("p.Chaos.ImmP
 FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawBounds(TEXT("p.Chaos.ImmPhys.DebugDrawBounds"), ChaosImmediate_DebugDrawBounds, TEXT("Draw Particle Bounds (0 = never; 1 = end of frame; 2 = begin and end of frame; 3 = post-integate, post-apply and post-applypushout;)."));
 FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawCollisions(TEXT("p.Chaos.ImmPhys.DebugDrawCollisions"), ChaosImmediate_DebugDrawCollisions, TEXT("Draw Collisions (0 = never; 1 = end of frame; 2 = begin and end of frame; 3 = post-integate, post-apply and post-applypushout;)"));
 FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawJoints(TEXT("p.Chaos.ImmPhys.DebugDrawJoints"), ChaosImmediate_DebugDrawJoints, TEXT("Draw Joints. (0 = never; 1 = end of frame; 2 = begin and end of frame; 3 = post-integate, post-apply and post-applypushout; 4 = each Apply step)."));
-FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawJointFeatures(TEXT("p.Chaos.ImmPhys.DebugDrawJointFeatures"), ChaosImmediate_DebugDrawJointFeatures, TEXT("Joint features mask (see EDebugDrawJointFeature)."));
+FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawJointFeaturesCoMConnector(TEXT("p.Chaos.ImmPhys.DebugDraw.JointFeatures.CoMConnector"), ChaosImmediate_DebugDrawJointFeatures.bCoMConnector, TEXT("Joint features mask (see FDebugDrawJointFeatures)."));
+FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawJointFeaturesActorConnector(TEXT("p.Chaos.ImmPhys.DebugDraw.JointFeatures.ActorConnector"), ChaosImmediate_DebugDrawJointFeatures.bActorConnector, TEXT("Joint features mask (see FDebugDrawJointFeatures)."));
+FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawJointFeaturesStretch(TEXT("p.Chaos.ImmPhys.DebugDraw.JointFeatures.Stretch"), ChaosImmediate_DebugDrawJointFeatures.bStretch, TEXT("Joint features mask (see FDebugDrawJointFeatures)."));
+FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawJointFeaturesAxes(TEXT("p.Chaos.ImmPhys.DebugDraw.JointFeatures.Axes"), ChaosImmediate_DebugDrawJointFeatures.bAxes, TEXT("Joint features mask (see FDebugDrawJointFeatures)."));
+FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawJointFeaturesLevel(TEXT("p.Chaos.ImmPhys.DebugDraw.JointFeatures.Level"), ChaosImmediate_DebugDrawJointFeatures.bLevel, TEXT("Joint features mask (see FDebugDrawJointFeatures)."));
+FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawJointFeaturesIndex(TEXT("p.Chaos.ImmPhys.DebugDraw.JointFeatures.Index"), ChaosImmediate_DebugDrawJointFeatures.bIndex, TEXT("Joint features mask (see FDebugDrawJointFeatures)."));
+FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawJointFeaturesColor(TEXT("p.Chaos.ImmPhys.DebugDraw.JointFeatures.Color"), ChaosImmediate_DebugDrawJointFeatures.bColor, TEXT("Joint features mask (see FDebugDrawJointFeatures)."));
+FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawJointFeaturesBatch(TEXT("p.Chaos.ImmPhys.DebugDraw.JointFeatures.Batch"), ChaosImmediate_DebugDrawJointFeatures.bBatch, TEXT("Joint features mask (see FDebugDrawJointFeatures)."));
+FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawJointFeaturesIsland(TEXT("p.Chaos.ImmPhys.DebugDraw.JointFeatures.Island"), ChaosImmediate_DebugDrawJointFeatures.bIsland, TEXT("Joint features mask (see FDebugDrawJointFeatures)."));
 FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawSimulationSpace(TEXT("p.Chaos.ImmPhys.DebugDrawSimulationSpace"), ChaosImmediate_DebugDrawSimulationSpace, TEXT("Draw the simulation frame of reference, acceleration and velocity."));
 
 Chaos::DebugDraw::FChaosDebugDrawSettings ChaosImmPhysDebugDebugDrawSettings(
@@ -345,7 +354,7 @@ namespace ImmediatePhysics_Chaos
 			{
 				if (ChaosImmediate_DebugDrawJoints == 4)
 				{
-					DebugDraw::DrawJointConstraints(Implementation->SimulationSpace.Transform, InConstraintHandles, 0.3f, (uint32)DebugDraw::EDebugDrawJointFeature::Default, &ChaosImmPhysDebugDebugDrawSettings);
+					DebugDraw::DrawJointConstraints(Implementation->SimulationSpace.Transform, InConstraintHandles, 0.3f, DebugDraw::FChaosDebugDrawJointFeatures::MakeDefault(), &ChaosImmPhysDebugDebugDrawSettings);
 				}
 			});
 		Implementation->Joints.SetPostApplyCallback(
@@ -353,7 +362,7 @@ namespace ImmediatePhysics_Chaos
 			{
 				if (ChaosImmediate_DebugDrawJoints == 4)
 				{
-					DebugDraw::DrawJointConstraints(Implementation->SimulationSpace.Transform, InConstraintHandles, 0.6f, (uint32)DebugDraw::EDebugDrawJointFeature::Default, &ChaosImmPhysDebugDebugDrawSettings);
+					DebugDraw::DrawJointConstraints(Implementation->SimulationSpace.Transform, InConstraintHandles, 0.6f, DebugDraw::FChaosDebugDrawJointFeatures::MakeDefault(), &ChaosImmPhysDebugDebugDrawSettings);
 				}
 				DebugDrawDynamicParticles(4, 4, FColor(0, 128, 0));
 			});
@@ -362,7 +371,7 @@ namespace ImmediatePhysics_Chaos
 			{
 				if (ChaosImmediate_DebugDrawJoints == 4)
 				{
-					DebugDraw::DrawJointConstraints(Implementation->SimulationSpace.Transform, InConstraintHandles, 0.6f, (uint32)DebugDraw::EDebugDrawJointFeature::Default, &ChaosImmPhysDebugDebugDrawSettings);
+					DebugDraw::DrawJointConstraints(Implementation->SimulationSpace.Transform, InConstraintHandles, 0.6f, DebugDraw::FChaosDebugDrawJointFeatures::MakeDefault(), &ChaosImmPhysDebugDebugDrawSettings);
 				}
 			});
 #endif
@@ -770,18 +779,20 @@ namespace ImmediatePhysics_Chaos
 			JointsSettings.bEnableTwistLimits = ChaosImmediate_Joint_EnableTwistLimits != 0;
 			JointsSettings.bEnableSwingLimits = ChaosImmediate_Joint_EnableSwingLimits != 0;
 			JointsSettings.bEnableDrives = ChaosImmediate_Joint_EnableDrives != 0;
-			JointsSettings.LinearProjection = ChaosImmediate_Joint_LinearProjection;
-			JointsSettings.AngularProjection = ChaosImmediate_Joint_AngularProjection;
-			JointsSettings.Stiffness = ChaosImmediate_Joint_Stiffness;
-			JointsSettings.SoftLinearStiffness = ChaosImmediate_Joint_SoftLinearStiffness;
-			JointsSettings.SoftTwistStiffness = ChaosImmediate_Joint_SoftTwistStiffness;
-			JointsSettings.SoftTwistDamping = ChaosImmediate_Joint_SoftTwistDamping;
-			JointsSettings.SoftSwingStiffness = ChaosImmediate_Joint_SoftSwingStiffness;
-			JointsSettings.SoftSwingDamping = ChaosImmediate_Joint_SoftSwingDamping;
-			JointsSettings.LinearDriveStiffness = ChaosImmediate_Joint_LinearDriveStiffness;
-			JointsSettings.LinearDriveDamping = ChaosImmediate_Joint_LinearDriveDamping;
-			JointsSettings.AngularDriveStiffness = ChaosImmediate_Joint_AngularDriveStiffness;
-			JointsSettings.AngularDriveDamping = ChaosImmediate_Joint_AngularDriveDamping;
+			JointsSettings.LinearStiffnessOverride = ChaosImmediate_Joint_Stiffness;
+			JointsSettings.TwistStiffnessOverride = ChaosImmediate_Joint_Stiffness;
+			JointsSettings.SwingStiffnessOverride = ChaosImmediate_Joint_Stiffness;
+			JointsSettings.LinearProjectionOverride = ChaosImmediate_Joint_LinearProjection;
+			JointsSettings.AngularProjectionOverride = ChaosImmediate_Joint_AngularProjection;
+			JointsSettings.SoftLinearStiffnessOverride = ChaosImmediate_Joint_SoftLinearStiffness;
+			JointsSettings.SoftTwistStiffnessOverride = ChaosImmediate_Joint_SoftTwistStiffness;
+			JointsSettings.SoftTwistDampingOverride = ChaosImmediate_Joint_SoftTwistDamping;
+			JointsSettings.SoftSwingStiffnessOverride = ChaosImmediate_Joint_SoftSwingStiffness;
+			JointsSettings.SoftSwingDampingOverride = ChaosImmediate_Joint_SoftSwingDamping;
+			JointsSettings.LinearDriveStiffnessOverride = ChaosImmediate_Joint_LinearDriveStiffness;
+			JointsSettings.LinearDriveDampingOverride = ChaosImmediate_Joint_LinearDriveDamping;
+			JointsSettings.AngularDriveStiffnessOverride = ChaosImmediate_Joint_AngularDriveStiffness;
+			JointsSettings.AngularDriveDampingOverride = ChaosImmediate_Joint_AngularDriveDamping;
 			Implementation->Joints.SetSettings(JointsSettings);
 
 			Implementation->Collisions.SetRestitutionEnabled(ChaosImmediate_Collision_RestitutionEnabled != 0);
@@ -962,7 +973,7 @@ namespace ImmediatePhysics_Chaos
 			}
 			if ((ChaosImmediate_DebugDrawJoints >= MinDebugLevel) && (ChaosImmediate_DebugDrawJoints <= MaxDebugLevel))
 			{
-				DebugDraw::DrawJointConstraints(Implementation->SimulationSpace.Transform, Implementation->Joints, ColorScale, (uint32)ChaosImmediate_DebugDrawJointFeatures, &ChaosImmPhysDebugDebugDrawSettings);
+				DebugDraw::DrawJointConstraints(Implementation->SimulationSpace.Transform, Implementation->Joints, ColorScale, ChaosImmediate_DebugDrawJointFeatures, &ChaosImmPhysDebugDebugDrawSettings);
 			}
 		}
 #endif

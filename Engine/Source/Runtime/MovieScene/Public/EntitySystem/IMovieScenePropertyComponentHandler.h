@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Templates/SharedPointer.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
 
 class UMovieSceneBlenderSystem;
@@ -16,9 +17,11 @@ struct FPropertyStats;
 struct FEntityAllocation;
 struct FInitialValueCache;
 struct FPropertyDefinition;
+struct IPreAnimatedStorage;
 struct FSystemSubsequentTasks;
 struct FSystemTaskPrerequisites;
 struct FFloatDecompositionParams;
+struct FPreAnimatedStateExtension;
 struct FPropertyCompositeDefinition;
 
 /** Type-erased view of a component. Used for passing typed data through the IPropertyComponentHandler interface */
@@ -167,24 +170,12 @@ struct IPropertyComponentHandler
 	virtual void DispatchInitializePropertyMetaDataTasks(const FPropertyDefinition& Definition, FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents, UMovieSceneEntitySystemLinker* Linker) {}
 
 	/**
-	 * Dispatch tasks that cache a pre-animated value for any entities that have the CachePreAnimatedState tag
+	 * Retrieve the pre-animated storage for the property that this handler represents
 	 *
 	 * @param Definition       The property definition this handler was registered for
-	 * @param InPrerequisites  Task prerequisites for any entity system tasks that are dispatched
-	 * @param Subsequents      Subsequents to add any dispatched tasks to
-	 * @param Linker           The linker that owns the entity manager to dispatch tasks for
+	 * @param Container        The Pre-Animated state container extension that owns all pre-anim state for this evaluation
 	 */
-	virtual void DispatchCachePreAnimatedTasks(const FPropertyDefinition& Definition, FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents, UMovieSceneEntitySystemLinker* Linker) = 0;
-
-	/**
-	 * Dispatch tasks that restore a pre-animated value for any entities that have the NeedsUnlink tag
-	 *
-	 * @param Definition       The property definition this handler was registered for
-	 * @param InPrerequisites  Task prerequisites for any entity system tasks that are dispatched
-	 * @param Subsequents      Subsequents to add any dispatched tasks to
-	 * @param Linker           The linker that owns the entity manager to dispatch tasks for
-	 */
-	virtual void DispatchRestorePreAnimatedStateTasks(const FPropertyDefinition& Definition, FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents, UMovieSceneEntitySystemLinker* Linker) = 0;
+	virtual TSharedPtr<IPreAnimatedStorage> GetPreAnimatedStateStorage(const FPropertyDefinition& Definition, FPreAnimatedStateExtension* Container) { return nullptr; }
 
 	/**
 	 * Run a recomposition using the specified params and values. The current value and result views must be of type StorageType
@@ -220,25 +211,6 @@ struct IPropertyComponentHandler
 	 * @param OutResult			The result to receieve rebuilt values, one for every entitiy in EntityIDs. Must be of type StorageType.
 	 */
 	virtual void RebuildOperational(const FPropertyDefinition& Definition, TArrayView<const FPropertyCompositeDefinition> Composites, const TArrayView<FMovieSceneEntityID>& EntityIDs, UMovieSceneEntitySystemLinker* Linker, FPropertyComponentArrayView OutResult) = 0;
-
-	/**
-	 * Rebuild final values from the given entities. These entities are expected to store the value type's composite values.
-	 *
-	 * @param Definition		The property definition this handler was registered for
-	 * @param Composites		The composite channels that this property type comproses
-	 * @param EntityIDs			The entities on which the composite values will be found
-	 * @param Linker			The linker that owns the entity manager where the entities live
-	 * @param OutResult			The result to receieve rebuilt values, one for every entitiy in EntityIDs. Must be of type PropertyType.
-	 */
-	//virtual void RebuildFinal(const FPropertyDefinition& Definition, TArrayView<const FPropertyCompositeDefinition> Composites, const TArrayView<FMovieSceneEntityID>& EntityIDs, UMovieSceneEntitySystemLinker* Linker, FPropertyComponentArrayView OutResult) = 0;
-
-	/**
-	 * Dispatch tasks that apply any entity that matches this property type to their final values
-	 *
-	 * @param Definition       The property definition this handler was registered for
-	 * @param Linker           The linker that owns the entity manager to dispatch tasks for
-	 */
-	virtual void SaveGlobalPreAnimatedState(const FPropertyDefinition& Definition, UMovieSceneEntitySystemLinker* Linker) = 0;
 
 	/**
 	 * Retrieve an initial value processor interface for this property type

@@ -588,7 +588,7 @@ void ContentBrowserUtils::AppendAssetFilterToContentBrowserFilter(const FARFilte
 	}
 }
 
-bool ContentBrowserUtils::CanDeleteFromAssetView(TWeakPtr<SAssetView> AssetView)
+bool ContentBrowserUtils::CanDeleteFromAssetView(TWeakPtr<SAssetView> AssetView, FText* OutErrorMsg)
 {
 	if (TSharedPtr<SAssetView> AssetViewPin = AssetView.Pin())
 	{
@@ -597,24 +597,24 @@ bool ContentBrowserUtils::CanDeleteFromAssetView(TWeakPtr<SAssetView> AssetView)
 		bool bCanDelete = false;
 		for (const FContentBrowserItem& SelectedItem : SelectedItems)
 		{
-			bCanDelete |= SelectedItem.CanDelete();
+			bCanDelete |= SelectedItem.CanDelete(OutErrorMsg);
 		}
 		return bCanDelete;
 	}
 	return false;
 }
 
-bool ContentBrowserUtils::CanRenameFromAssetView(TWeakPtr<SAssetView> AssetView)
+bool ContentBrowserUtils::CanRenameFromAssetView(TWeakPtr<SAssetView> AssetView, FText* OutErrorMsg)
 {
 	if (TSharedPtr<SAssetView> AssetViewPin = AssetView.Pin())
 	{
 		const TArray<FContentBrowserItem> SelectedItems = AssetViewPin->GetSelectedItems();
-		return SelectedItems.Num() == 1 && SelectedItems[0].CanRename(nullptr) && !AssetViewPin->IsThumbnailEditMode();
+		return SelectedItems.Num() == 1 && SelectedItems[0].CanRename(nullptr, OutErrorMsg) && !AssetViewPin->IsThumbnailEditMode();
 	}
 	return false;
 }
 
-bool ContentBrowserUtils::CanDeleteFromPathView(TWeakPtr<SPathView> PathView)
+bool ContentBrowserUtils::CanDeleteFromPathView(TWeakPtr<SPathView> PathView, FText* OutErrorMsg)
 {
 	if (TSharedPtr<SPathView> PathViewPin = PathView.Pin())
 	{
@@ -623,19 +623,19 @@ bool ContentBrowserUtils::CanDeleteFromPathView(TWeakPtr<SPathView> PathView)
 		bool bCanDelete = false;
 		for (const FContentBrowserItem& SelectedItem : SelectedItems)
 		{
-			bCanDelete |= SelectedItem.CanDelete();
+			bCanDelete |= SelectedItem.CanDelete(OutErrorMsg);
 		}
 		return bCanDelete;
 	}
 	return false;
 }
 
-bool ContentBrowserUtils::CanRenameFromPathView(TWeakPtr<SPathView> PathView)
+bool ContentBrowserUtils::CanRenameFromPathView(TWeakPtr<SPathView> PathView, FText* OutErrorMsg)
 {
 	if (TSharedPtr<SPathView> PathViewPin = PathView.Pin())
 	{
 		const TArray<FContentBrowserItem> SelectedItems = PathViewPin->GetSelectedFolderItems();
-		return SelectedItems.Num() == 1 && SelectedItems[0].CanRename(nullptr);
+		return SelectedItems.Num() == 1 && SelectedItems[0].CanRename(nullptr, OutErrorMsg);
 	}
 	return false;
 }

@@ -468,6 +468,28 @@ FTimerHandle UKismetSystemLibrary::K2_SetTimer(UObject* Object, FString Function
 	return K2_SetTimerDelegate(Delegate, Time, bLooping, InitialStartDelay);
 }
 
+FTimerHandle UKismetSystemLibrary::K2_SetTimerForNextTick(UObject* Object, FString FunctionName)
+{
+	FName const FunctionFName(*FunctionName);
+
+	if (Object)
+	{
+		UFunction* const Func = Object->FindFunction(FunctionFName);
+		if (Func && (Func->ParmsSize > 0))
+		{
+			// User passed in a valid function, but one that takes parameters
+			// FTimerDynamicDelegate expects zero parameters and will choke on execution if it tries
+			// to execute a mismatched function
+			UE_LOG(LogBlueprintUserMessages, Warning, TEXT("SetTimerForNextTick passed a function (%s) that expects parameters."), *FunctionName);
+			return FTimerHandle();
+		}
+	}
+
+	FTimerDynamicDelegate Delegate;
+	Delegate.BindUFunction(Object, FunctionFName);
+	return K2_SetTimerForNextTickDelegate(Delegate);
+}
+
 FTimerHandle UKismetSystemLibrary::K2_SetTimerDelegate(FTimerDynamicDelegate Delegate, float Time, bool bLooping, float InitialStartDelay, float InitialStartDelayVariance)
 {
 	FTimerHandle Handle;
@@ -493,6 +515,28 @@ FTimerHandle UKismetSystemLibrary::K2_SetTimerDelegate(FTimerDynamicDelegate Del
 	{
 		UE_LOG(LogBlueprintUserMessages, Warning, 
 			TEXT("SetTimer passed a bad function (%s) or object (%s)"),
+			*Delegate.GetFunctionName().ToString(), *GetNameSafe(Delegate.GetUObject()));
+	}
+
+	return Handle;
+}
+
+FTimerHandle UKismetSystemLibrary::K2_SetTimerForNextTickDelegate(FTimerDynamicDelegate Delegate)
+{
+	FTimerHandle Handle;
+	if (Delegate.IsBound())
+	{
+		const UWorld* const World = GEngine->GetWorldFromContextObject(Delegate.GetUObject(), EGetWorldErrorMode::LogAndReturnNull);
+		if (World)
+		{
+			FTimerManager& TimerManager = World->GetTimerManager();
+			Handle = TimerManager.SetTimerForNextTick(Delegate);
+		}
+	}
+	else
+	{
+		UE_LOG(LogBlueprintUserMessages, Warning,
+			TEXT("SetTimerForNextTick passed a bad function (%s) or object (%s)"),
 			*Delegate.GetFunctionName().ToString(), *GetNameSafe(Delegate.GetUObject()));
 	}
 
@@ -2181,6 +2225,18 @@ void UKismetSystemLibrary::Delay(const UObject* WorldContextObject, float Durati
 		if (LatentActionManager.FindExistingAction<FDelayAction>(LatentInfo.CallbackTarget, LatentInfo.UUID) == NULL)
 		{
 			LatentActionManager.AddNewAction(LatentInfo.CallbackTarget, LatentInfo.UUID, new FDelayAction(Duration, LatentInfo));
+		}
+	}
+}
+
+void UKismetSystemLibrary::DelayUntilNextTick(const UObject* WorldContextObject, FLatentActionInfo LatentInfo)
+{
+	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		FLatentActionManager& LatentActionManager = World->GetLatentActionManager();
+		if (LatentActionManager.FindExistingAction<FDelayAction>(LatentInfo.CallbackTarget, LatentInfo.UUID) == NULL)
+		{
+			LatentActionManager.AddNewAction(LatentInfo.CallbackTarget, LatentInfo.UUID, new FDelayUntilNextTickAction(LatentInfo));
 		}
 	}
 }

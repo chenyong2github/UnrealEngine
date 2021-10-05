@@ -23,7 +23,7 @@ void SNiagaraSourceFilterButton::Construct(const FArguments& Args, EScriptSource
 	
 	UEnum* ScriptSourceEnum = StaticEnum<EScriptSource>();
 	FText DisplayName = ScriptSourceEnum->GetDisplayNameTextByValue((int64) Source);
-	FText ToolTipText = LOCTEXT("SourceFilterToolTip", "Display actions from source: {0}.\n Use Shift+Click to exclusively select this filter.");
+	FText ToolTipText = LOCTEXT("SourceFilterToolTip", "Display actions from source: {0}.\nUse Shift+Click to exclusively select this filter.");
 	ToolTipText = FText::Format(ToolTipText, DisplayName);
 	
 	SCheckBox::FArguments ParentArgs;
@@ -47,7 +47,6 @@ void SNiagaraSourceFilterButton::Construct(const FArguments& Args, EScriptSource
 	        SNew(STextBlock)
 	        .Text(DisplayName)
 	        .ColorAndOpacity_Raw(this, &SNiagaraSourceFilterButton::GetColor)
-	        .ShadowOffset(1.f)
 	        .TextStyle(FNiagaraEditorStyle::Get(), "GraphActionMenu.ActionFilterTextBlock")
 	    ]
     );
@@ -127,12 +126,26 @@ void SNiagaraSourceFilterBox::Construct(const FArguments& Args)
             })
             .OnCheckStateChanged(FOnCheckStateChanged::CreateLambda([=](ECheckBoxState NewState)
             {
-                for(int32 SourceIndex = 0; SourceIndex < (int32) EScriptSource::Unknown; SourceIndex++)
-                {
-                    SourceState.Add((EScriptSource) ScriptSourceEnum->GetValueByIndex(SourceIndex), NewState == ECheckBoxState::Checked ? true : false);
-                }
-                
-                BroadcastFiltersChanged();
+            	bool bAnyChange = false;
+            	// we always want to "Show all" so we always set the source filters to true
+            	for(int32 SourceIndex = 0; SourceIndex < (int32) EScriptSource::Unknown; SourceIndex++)
+            	{
+            		// we are assuming the map has a key value pair for every enum entry (aside from Unknown) 
+					if(SourceState[(EScriptSource) ScriptSourceEnum->GetValueByIndex(SourceIndex)] == false)
+					{
+						bAnyChange = true;
+					}
+				}
+
+            	if(bAnyChange)
+            	{
+	                for(int32 SourceIndex = 0; SourceIndex < (int32) EScriptSource::Unknown; SourceIndex++)
+	                {
+	                    SourceState.Add((EScriptSource) ScriptSourceEnum->GetValueByIndex(SourceIndex), true);
+	                }
+	                
+	                BroadcastFiltersChanged();
+            	}
             }))
             [
                 SNew(SHorizontalBox)
@@ -142,6 +155,7 @@ void SNiagaraSourceFilterBox::Construct(const FArguments& Args)
                 [
                     SNew(STextBlock)
                     .Text(LOCTEXT("ShowAll", "Show all"))
+                    .ShadowOffset(0.0f)
                     .ColorAndOpacity_Lambda([=]() -> FSlateColor
                     {
                         bool bChecked = true;
@@ -149,7 +163,7 @@ void SNiagaraSourceFilterBox::Construct(const FArguments& Args)
                         {
                             bChecked &= SourceState[(EScriptSource) ScriptSourceEnum->GetValueByIndex(SourceIndex)];
                         }
-                        return bChecked ? FLinearColor::Black : FLinearColor::White;
+                        return bChecked ? FLinearColor::Black : FLinearColor::Gray;
                     })
                     .TextStyle(FNiagaraEditorStyle::Get(), "GraphActionMenu.ActionFilterTextBlock")
                 ]
@@ -165,7 +179,6 @@ void SNiagaraSourceFilterBox::Construct(const FArguments& Args)
     	[
     		SNew(SBorder)
     		.BorderImage(FEditorStyle::GetBrush(TEXT("NoBorder")))
-			//.ToolTipText(LOCTEXT("ShowAllToolTip", "Show all"))
 			.Padding(3.f)
     		[
     			SNew(SNiagaraSourceFilterButton, (EScriptSource) ScriptSourceEnum->GetValueByIndex(SourceIndex))

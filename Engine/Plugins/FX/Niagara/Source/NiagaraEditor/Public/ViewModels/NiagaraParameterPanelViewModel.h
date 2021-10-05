@@ -3,149 +3,327 @@
 #pragma once
 
 #include "NiagaraEditorCommon.h"
+#include "NiagaraParameterPanelTypes.h"
+#include "NiagaraToolkitCommon.h"
 #include "Types/SlateEnums.h"
 #include "EditorUndoClient.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "Input/Events.h"
 #include "Input/Reply.h"
 #include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class UNiagaraSystem;
 class FNiagaraSystemViewModel;
-class UNiagaraSystemSelectionViewModel;
+class FNiagaraSystemGraphSelectionViewModel;
 class UNiagaraGraph;
 class FNiagaraScriptViewModel;
 class FDelegateHandle;
 struct FCreateWidgetForActionData;
 class FNiagaraObjectSelection;
 class UNiagaraScriptVariable;
+struct FNiagaraGraphParameterReference;
+class UNiagaraParameterDefinitions;
+class SEditableTextBox;
 
-/** Interface for view models to the parameter panel. */
-class INiagaraParameterPanelViewModel : public TSharedFromThis<INiagaraParameterPanelViewModel>
+namespace FNiagaraParameterUtilities
 {
+	enum class EParameterContext : uint8;
+}
 
-public:
-	/** Delegate to signal the view model's state has changed. */
-	DECLARE_DELEGATE(FOnParameterPanelViewModelRefreshed);
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnParameterPanelViewModelExternalSelectionChanged, const UObject*);
+// NOTE: These utilities are not defined in the view model directly as they are shared between ParameterPanelViewModel and ParameterDefinitionsPanelViewModel.
+namespace FNiagaraSystemToolkitParameterPanelUtilities
+{
+	TArray<UNiagaraGraph*> GetEditableGraphs(const TSharedPtr<FNiagaraSystemViewModel>& SystemViewModel, const TWeakPtr<FNiagaraSystemGraphSelectionViewModel>& SystemGraphSelectionViewModelWeak);
+	FReply CreateDragEventForParameterItem(
+		const FNiagaraParameterPanelItemBase& DraggedItem,
+		const FPointerEvent& MouseEvent,
+		const TArray<FNiagaraGraphParameterReference>& GraphParameterReferencesForItem,
+		const TSharedPtr<TArray<FName>>& ParametersWithNamespaceModifierRenamePending
+	);
+}
 
-	virtual ~INiagaraParameterPanelViewModel() { }
+namespace FNiagaraScriptToolkitParameterPanelUtilities
+{
+	TArray<UNiagaraGraph*> GetEditableGraphs(const TSharedPtr<FNiagaraScriptViewModel>& ScriptViewModel);
+	FReply CreateDragEventForParameterItem(
+		const FNiagaraParameterPanelItemBase& DraggedItem,
+		const FPointerEvent& MouseEvent,
+		const TArray<FNiagaraGraphParameterReference>& GraphParameterReferencesForItem,
+		const TSharedPtr<TArray<FName>>& ParametersWithNamespaceModifierRenamePending
+	);
+}
 
-	/** Separate method to call after ctor to create delegate bindings as we must be fully constructed to do so. */
-	virtual void InitBindings() = 0;
-
-	virtual void Refresh() const = 0;
-
-	virtual const UNiagaraScriptVariable* AddParameter(FNiagaraVariable& InVariableToAdd, const FNiagaraVariableMetaData& InVariableMetaDataToAssign) = 0;
-
-	virtual void DeleteParameter(const FNiagaraVariable& TargetVariableToRemove, const FNiagaraVariableMetaData& TargetVariableMetaData) = 0;
-
-	virtual bool GetCanDeleteParameterAndToolTip(const FNiagaraVariable& TargetVariableToRemove, const FNiagaraVariableMetaData& TargetVariableMetaData, FText& OutCanDeleteParameterToolTip) const = 0;
-
-	virtual void RenameParameter(const FNiagaraVariable& TargetVariableToRename, const FNiagaraVariableMetaData& TargetVariableMetaData, const FText& NewVariableNameText) const = 0;
-
-	virtual void ChangeParameterScope(const FNiagaraVariable& TargetVariableToModify, const FNiagaraVariableMetaData& TargetVariableMetaData, const ENiagaraParameterScope NewVariableScope) const = 0;
-
-	virtual bool CanModifyParameter(const FNiagaraVariable& TargetVariableToModify, const FNiagaraVariableMetaData& TargetVariableMetaData) const = 0;
-
-	virtual bool GetCanRenameParameterAndToolTip(const FNiagaraVariable& TargetVariableToRename, const FNiagaraVariableMetaData& TargetVariableMetaData, TOptional<const FText> NewVariableNameText, FText& OutCanRenameParameterToolTip) const = 0;
-
-	virtual void HandleActionSelected(const TSharedPtr<FEdGraphSchemaAction>& InAction, ESelectInfo::Type InSelectionType) {};
-
-	virtual FReply HandleActionDragged(const TSharedPtr<FEdGraphSchemaAction>& InAction, const FPointerEvent& MouseEvent) const = 0;
-
-	virtual const TArray<TArray<ENiagaraParameterPanelCategory>>& GetDefaultCategoryPaths() const = 0;
-
-	virtual TArray<ENiagaraParameterPanelCategory> GetCategoriesForParameter(const FNiagaraScriptVariableAndViewInfo& ScriptVar) const = 0;
-
-	virtual bool CanDropParameter(const FNiagaraVariable& InTargetScriptVariableToDrop) const { return false; };
-
-	virtual bool CanDropParameters(const TArray<FNiagaraVariable>& InTargetScriptVariablesToDrop) const { return false; };
-
-	virtual bool CanDragParameter(const FNiagaraVariable& InTargetScriptVariableToDrag) const { return false; };
-
-	virtual bool CanDragParameters(const TArray<FNiagaraVariable>& InTargetScriptVariablesToDrag) const { return false; };
-
-	/** Returns a list of Graphs that are valid for operations to edit their variables and/or metadata. 
-	 *Should collect all Graphs that are currently selected, but also Graphs that are implicitly selected, e.g. the node graph for the script toolkit.
-	 */
-	virtual TArray<TWeakObjectPtr<UNiagaraGraph>> GetEditableGraphs() const = 0;
-
-	virtual const TArray<FNiagaraScriptVariableAndViewInfo> GetViewedParameters() = 0;
-
-	TSharedRef<class SWidget> GetScriptParameterVisualWidget(const FNiagaraScriptVariableAndViewInfo& ScriptVarAndViewInfo) const;
-
-	FOnParameterPanelViewModelRefreshed& GetOnRefreshed() { return OnParameterPanelViewModelRefreshed; };
-
-	FOnParameterPanelViewModelExternalSelectionChanged& GetExternalSelectionChanged() { return OnParameterPanelViewModelExternalSelectionChanged; }
-protected:
-	FOnParameterPanelViewModelRefreshed OnParameterPanelViewModelRefreshed;
-	FOnParameterPanelViewModelExternalSelectionChanged OnParameterPanelViewModelExternalSelectionChanged;
-	/** Cached list of parameters sent to SNiagarParameterPanel, updated whenever GetViewedParameters is called. */
-	TArray<FNiagaraScriptVariableAndViewInfo> CachedViewedParameters;
+struct FMenuAndSearchBoxWidgets
+{
+	TSharedPtr<SWidget> MenuWidget;
+	TSharedPtr<SEditableTextBox> MenuSearchBoxWidget;
 };
 
-class FNiagaraSystemToolkitParameterPanelViewModel : public INiagaraParameterPanelViewModel, public FEditorUndoClient
+/** Base Interface for view models to SiagaraParameterPanel and SNiagaraParameterDefinitionsPanel. */
+class INiagaraImmutableParameterPanelViewModel : public TSharedFromThis<INiagaraImmutableParameterPanelViewModel>, public FSelfRegisteringEditorUndoClient
 {
 public:
-	/** Construct a SystemToolkit Parameter Panel View Model from a System View Model. */
-	FNiagaraSystemToolkitParameterPanelViewModel(TSharedPtr<FNiagaraSystemViewModel> InSystemViewModel);
+	/** Delegate to signal the view model's state has changed. */
+	DECLARE_DELEGATE(FOnRequestRefresh);
+	DECLARE_DELEGATE(FOnRequestRefreshNextTick);
 
-	~FNiagaraSystemToolkitParameterPanelViewModel();
+	virtual ~INiagaraImmutableParameterPanelViewModel() { }
 
-	/** Begin INiagaraParameterPanelViewModel interface. */
-	virtual void InitBindings() override;
+	//~ Begin Pure Virtual Methods
+	/** Returns a list of Graphs that are valid for operations to edit their variables and/or metadata.
+	 *Should collect all Graphs that are currently selected, but also Graphs that are implicitly selected, e.g. the node graph for the script toolkit.
+	*/
+	virtual const TArray<UNiagaraGraph*> GetEditableGraphsConst() const = 0;
 
-	virtual void Refresh() const override;
+	virtual const TArray<UNiagaraScriptVariable*> GetEditableScriptVariablesWithName(const FName ParameterName) const = 0;
 
-	virtual const UNiagaraScriptVariable* AddParameter(FNiagaraVariable& VariableToAdd, const FNiagaraVariableMetaData& VariableMetaDataToAssign) override;
+	virtual const TArray<FNiagaraGraphParameterReference> GetGraphParameterReferencesForItem(const FNiagaraParameterPanelItemBase& Item) const = 0;
+	//~ End Pure Virtual Methods
 
-	virtual void DeleteParameter(const FNiagaraVariable& TargetVariableToRemove, const FNiagaraVariableMetaData& TargetVariableMetaData) override;
-
-	virtual bool GetCanDeleteParameterAndToolTip(const FNiagaraVariable& TargetVariableToRemove, const FNiagaraVariableMetaData& TargetVariableMetaData, FText& OutCanDeleteParameterToolTip) const override;
-
-	virtual void RenameParameter(const FNiagaraVariable& TargetVariableToRename, const FNiagaraVariableMetaData& TargetVariableMetaData, const FText& NewVariableNameText) const override;
-
-	virtual void ChangeParameterScope(const FNiagaraVariable& TargetVariableToModify, const FNiagaraVariableMetaData& TargetVariableMetaData, const ENiagaraParameterScope NewVariableScope) const override;
-
-	virtual bool CanModifyParameter(const FNiagaraVariable& TargetVariableToModify, const FNiagaraVariableMetaData& TargetVariableMetaData) const override;
-
-	virtual bool GetCanRenameParameterAndToolTip(const FNiagaraVariable& TargetVariableToRename, const FNiagaraVariableMetaData& TargetVariableMetaData, TOptional<const FText> NewVariableNameText, FText& OutCanRenameParameterToolTip) const override;
-
-	virtual FReply HandleActionDragged(const TSharedPtr<FEdGraphSchemaAction>& InAction, const FPointerEvent& MouseEvent) const override;
-
-	virtual const TArray<TArray<ENiagaraParameterPanelCategory>>& GetDefaultCategoryPaths() const override;
-
-	virtual TArray<ENiagaraParameterPanelCategory> GetCategoriesForParameter(const FNiagaraScriptVariableAndViewInfo& ScriptVar) const override;
-
-	virtual TArray<TWeakObjectPtr<UNiagaraGraph>> GetEditableGraphs() const override;
-
-	virtual const TArray<FNiagaraScriptVariableAndViewInfo> GetViewedParameters() override;
-	/** End INiagaraParameterPanelViewModel interface. */
-
-	/** Begin FEditorUndoClient Interface */
+	//~ Begin FEditorUndoClient Interface 
 	virtual void PostUndo(bool bSuccess) override;
-	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
-	/** End FEditorUndoClient Interface */
+	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); };
+	//~ End FEditorUndoClient Interface 
+
+	virtual void CopyParameterReference(const FNiagaraParameterPanelItemBase& ItemToCopy) const;
+
+	virtual bool GetCanCopyParameterReferenceAndToolTip(const FNiagaraParameterPanelItemBase& ItemToCopy, FText& OutCanCopyParameterToolTip) const;
+
+	virtual void CopyParameterMetaData(const FNiagaraParameterPanelItemBase ItemToCopy) const;
+
+	virtual bool GetCanCopyParameterMetaDataAndToolTip(const FNiagaraParameterPanelItemBase& ItemToCopy, FText& OutCanCopyToolTip) const;
+
+	virtual void Refresh() const;
+
+	virtual void RefreshNextTick() const;
+
+	FOnRequestRefresh& GetOnRequestRefreshDelegate() { return OnRequestRefreshDelegate; };
+	FOnRequestRefreshNextTick& GetOnRequestRefreshNextTickDelegate() { return OnRequestRefreshNextTickDelegate; };
+
+protected:
+	FOnRequestRefresh OnRequestRefreshDelegate;
+	FOnRequestRefreshNextTick OnRequestRefreshNextTickDelegate;
+};
+
+/** Interface for view models to SiagaraParameterPanel. */
+class INiagaraParameterPanelViewModel : public INiagaraImmutableParameterPanelViewModel
+{
+public:
+	/** Delegate to handle responses to external selection changes (e.g. TNiagaraSelection changes.) */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnParameterPanelViewModelExternalSelectionChanged, const UObject*);
+
+	/** Delegate to signal the ParameterPanel to select a parameter Item by name. */
+	DECLARE_DELEGATE_OneParam(FOnSelectParameterItemByName, const FName /* ParameterName */);
+
+	/** Delegate to signal the ParameterPanel to trigger pending parameter renames. */
+	DECLARE_DELEGATE_OneParam(FOnNotifyParameterPendingRename, const FName /* ParameterName */);
+	DECLARE_DELEGATE_OneParam(FOnNotifyParameterPendingNamespaceModifierRename, const FName /* ParameterName */);
+
+	/** Delegate to get the name array representing parameters pending namespace modification. */
+	DECLARE_DELEGATE_RetVal(TSharedPtr<TArray<FName>>, FOnGetParametersWithNamespaceModifierRenamePending);
+
+	/** Delegate to get the names of all selected parameter items. */
+	DECLARE_DELEGATE_RetVal(TArray<FName>, FOnGetSelectedParameterNames);
+
+	~INiagaraParameterPanelViewModel();
+
+	//~ Begin INiagaraImmutableParameterPanelViewModel interface
+	virtual const TArray<UNiagaraGraph*> GetEditableGraphsConst() const = 0;
+
+	//~ Begin Pure Virtual Methods
+	virtual const TArray<UNiagaraScriptVariable*> GetEditableScriptVariablesWithName(const FName ParameterName) const = 0;
+
+	virtual const TArray<FNiagaraGraphParameterReference> GetGraphParameterReferencesForItem(const FNiagaraParameterPanelItemBase& Item) const = 0;
+
+	virtual const TArray<UNiagaraParameterDefinitions*> GetAvailableParameterDefinitions(bool bSkipSubscribedParameterDefinitions) const = 0;
+	//~ End INiagaraImmutableParameterPanelViewModel interface
+
+	virtual void AddParameter(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename) const = 0;
+
+	virtual bool GetCanAddParametersToCategory(FNiagaraParameterPanelCategory Category) const = 0;
+
+	virtual void DeleteParameter(const FNiagaraParameterPanelItem& ItemToDelete) const = 0;
+
+	virtual void RenameParameter(const FNiagaraParameterPanelItem& ItemToRename, const FName NewName) const = 0;
+
+	virtual void SetParameterIsSubscribedToLibrary(const FNiagaraParameterPanelItem ItemToModify, const bool bSubscribed) const = 0;
+
+	virtual TSharedPtr<SWidget> CreateContextMenuForItems(const TArray<FNiagaraParameterPanelItem>& Items, const TSharedPtr<FUICommandList>& ToolkitCommands) = 0;
+
+	virtual FNiagaraParameterUtilities::EParameterContext GetParameterContext() const = 0;
+
+	virtual TArray<FNiagaraVariable> GetEditableStaticSwitchParameters() const = 0;
+
+	virtual TArray<FNiagaraParameterPanelItem> GetViewedParameterItems() const = 0;
+
+	virtual const TArray<FNiagaraParameterPanelCategory>& GetDefaultCategories() const = 0;
+
+	virtual FMenuAndSearchBoxWidgets GetParameterMenu(FNiagaraParameterPanelCategory Category) const = 0;
+
+	virtual FReply HandleDragDropOperation(TSharedPtr<FDragDropOperation> DropOperation) const = 0;
+
+	virtual bool GetCanHandleDragDropOperation(TSharedPtr<FDragDropOperation> DragDropOperation) const = 0;
+	//~ End Pure Virtual Methods
+
+	virtual bool GetCanDeleteParameterAndToolTip(const FNiagaraParameterPanelItem& ItemToDelete, FText& OutCanDeleteParameterToolTip) const;
+
+	virtual bool GetCanPasteParameterMetaDataAndToolTip(FText& OutCanPasteToolTip);
+
+	virtual void PasteParameterMetaData(const TArray<FNiagaraParameterPanelItem> SelectedItems);
+
+	virtual void DuplicateParameter(const FNiagaraParameterPanelItem ItemToDuplicate) const;
+
+	virtual bool GetCanDuplicateParameterAndToolTip(const FNiagaraParameterPanelItem& ItemToDuplicate, FText& OutCanDuplicateParameterToolTip) const;
+
+	virtual bool GetCanRenameParameterAndToolTip(const FNiagaraParameterPanelItem& ItemToRename, const FText& NewVariableNameText, bool bCheckEmptyNameText, FText& OutCanRenameParameterToolTip) const;
+
+	virtual bool GetCanSubscribeParameterToLibraryAndToolTip(const FNiagaraParameterPanelItem& ItemToModify, const bool bSubscribing, FText& OutCanSubscribeParameterToolTip) const;
+
+	virtual void SetParameterNamespace(const FNiagaraParameterPanelItem ItemToModify, FNiagaraNamespaceMetadata NewNamespaceMetaData, bool bDuplicateParameter) const;
+
+	virtual bool GetCanSetParameterNamespaceAndToolTip(const FNiagaraParameterPanelItem& ItemToModify, const FName NewNamespace, FText& OutCanSetParameterNamespaceToolTip) const;
+
+	virtual void SetParameterNamespaceModifier(const FNiagaraParameterPanelItem ItemToModify, const FName NewNamespaceModifier, bool bDuplicateParameter) const;
+
+	virtual bool GetCanSetParameterNamespaceModifierAndToolTip(const FNiagaraParameterPanelItem& ItemToModify, const FName NamespaceModifier, bool bDuplicateParameter, FText& OutCanSetParameterNamespaceModifierToolTip) const;
+
+	virtual void SetParameterCustomNamespaceModifier(const FNiagaraParameterPanelItem ItemToModify, bool bDuplicateParameter) const;
+
+	virtual bool GetCanSetParameterCustomNamespaceModifierAndToolTip(const FNiagaraParameterPanelItem& ItemToModify, bool bDuplicateParameter, FText& OutCanSetParameterNamespaceModifierToolTip) const;
+
+	virtual void GetChangeNamespaceSubMenu(FMenuBuilder& MenuBuilder, bool bDuplicateParameter, FNiagaraParameterPanelItem Item) const;
+
+	virtual void GetChangeNamespaceModifierSubMenu(FMenuBuilder& MenuBuilder, bool bDuplicateParameter, FNiagaraParameterPanelItem Item) const;
+
+	virtual void OnParameterItemSelected(const FNiagaraParameterPanelItem& SelectedItem, ESelectInfo::Type SelectInfo) const {};
+
+	virtual FReply OnParameterItemsDragged(const TArray<FNiagaraParameterPanelItem>& DraggedItems, const FPointerEvent& MouseEvent) const { return FReply::Handled(); };
+
+	virtual void OnParameterItemActivated(const FNiagaraParameterPanelItem& ActivatedItem) const;
+
+	const TArray<FNiagaraParameterPanelItem>& GetCachedViewedParameterItems() const;
+
+	void SelectParameterItemByName(const FName ParameterName, const bool bRequestRename) const;
+
+
+	FOnParameterPanelViewModelExternalSelectionChanged& GetOnExternalSelectionChangedDelegate() { return OnParameterPanelViewModelExternalSelectionChangedDelegate; };
+
+	FOnSelectParameterItemByName& GetOnSelectParameterItemByNameDelegate() { return OnSelectParameterItemByNameDelegate; };
+
+	FOnNotifyParameterPendingRename& GetOnNotifyParameterPendingRenameDelegate() { return OnNotifyParameterPendingRenameDelegate; };
+	FOnNotifyParameterPendingNamespaceModifierRename& GetOnNotifyParameterPendingNamespaceModifierRenameDelegate() { return OnNotifyParameterPendingNamespaceModifierRenameDelegate; };
+	FOnGetParametersWithNamespaceModifierRenamePending& GetParametersWithNamespaceModifierRenamePendingDelegate() { return OnGetParametersWithNamespaceModifierRenamePendingDelegate; };
+
+protected:
+	static bool CanMakeNewParameterOfType(const FNiagaraTypeDefinition& InType);
+
+
+protected:
+	FOnParameterPanelViewModelExternalSelectionChanged OnParameterPanelViewModelExternalSelectionChangedDelegate;
+	FOnSelectParameterItemByName OnSelectParameterItemByNameDelegate;
+	FOnNotifyParameterPendingRename OnNotifyParameterPendingRenameDelegate;
+	FOnNotifyParameterPendingNamespaceModifierRename OnNotifyParameterPendingNamespaceModifierRenameDelegate;
+	FOnGetParametersWithNamespaceModifierRenamePending OnGetParametersWithNamespaceModifierRenamePendingDelegate;
+
+	/** SharedPtr to menu and searchbox widget retained to prevent the shared ref returned by GetParameterMenu from being invalidated. */
+	mutable TSharedPtr<SWidget> ParameterMenuWidget;
+	mutable TSharedPtr<SEditableTextBox> ParameterMenuSearchBoxWidget;
+
+	/** Cached maps of parameters sent to SNiagaraParameterPanel, updated whenever GetViewedParameters is called. */
+	mutable TArray<FNiagaraParameterPanelItem> CachedViewedItems; //@todo(ng) consider moving to tset in future
+
+	/** Re-entrancy guard for adding parameters. */
+	mutable bool bIsAddingParameter;
+
+	/** Transient UNiagaraScriptVariables used to pass to new FNiagaraParameterPanelItems when the source FNiagaraVariable is not associated with a UNiagaraScriptVariable in a graph. */
+	mutable TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>> TransientParameterToScriptVarMap;
+};
+
+class FNiagaraSystemToolkitParameterPanelViewModel : public INiagaraParameterPanelViewModel
+{
+public:
+	/** Construct a SystemToolkit Parameter Panel View Model from a System View Model and an optional SystemGraphSelectionViewModel. */
+	FNiagaraSystemToolkitParameterPanelViewModel(const TSharedPtr<FNiagaraSystemViewModel>& InSystemViewModel);
+	FNiagaraSystemToolkitParameterPanelViewModel(const TSharedPtr<FNiagaraSystemViewModel>& InSystemViewModel, const TWeakPtr<FNiagaraSystemGraphSelectionViewModel>& InSystemGraphSelectionViewModelWeak);
+
+	void Init(const FSystemToolkitUIContext& InUIContext);
+
+	void Cleanup();
+
+	//~ Begin INiagaraImmutableParameterPanelViewModel interface
+	virtual const TArray<UNiagaraGraph*> GetEditableGraphsConst() const override { return GetEditableGraphs(); };
+
+	virtual const TArray<UNiagaraScriptVariable*> GetEditableScriptVariablesWithName(const FName ParameterName) const override;
+
+	virtual const TArray<FNiagaraGraphParameterReference> GetGraphParameterReferencesForItem(const FNiagaraParameterPanelItemBase& Item) const override;
+
+	virtual const TArray<UNiagaraParameterDefinitions*> GetAvailableParameterDefinitions(bool bSkipSubscribedParameterDefinitions) const override;
+	//~ End INiagaraImmutableParameterPanelViewModel interface
+
+	//~ Begin INiagaraParameterPanelViewModel interface
+	virtual void AddParameter(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename) const override;
+
+	virtual bool GetCanAddParametersToCategory(FNiagaraParameterPanelCategory Category) const override;
+
+	virtual void DeleteParameter(const FNiagaraParameterPanelItem& ItemToDelete) const override;
+
+	virtual void RenameParameter(const FNiagaraParameterPanelItem& ItemToRename, const FName NewName) const override;
+
+	virtual void SetParameterIsSubscribedToLibrary(const FNiagaraParameterPanelItem ItemToModify, const bool bSubscribed) const override;
+
+	virtual FReply OnParameterItemsDragged(const TArray<FNiagaraParameterPanelItem>& DraggedItems, const FPointerEvent& MouseEvent) const override;
+
+	virtual TSharedPtr<SWidget> CreateContextMenuForItems(const TArray<FNiagaraParameterPanelItem>& Items, const TSharedPtr<FUICommandList>& ToolkitCommands) override;
+
+	virtual FNiagaraParameterUtilities::EParameterContext GetParameterContext() const override;
+
+	virtual TArray<FNiagaraVariable> GetEditableStaticSwitchParameters() const override;
+
+	virtual TArray<FNiagaraParameterPanelItem> GetViewedParameterItems() const override;
+
+	virtual const TArray<FNiagaraParameterPanelCategory>& GetDefaultCategories() const override;
+
+	virtual FMenuAndSearchBoxWidgets GetParameterMenu(FNiagaraParameterPanelCategory Category) const override;
+
+	virtual FReply HandleDragDropOperation(TSharedPtr<FDragDropOperation> DragDropOperation) const override;
+
+	virtual bool GetCanHandleDragDropOperation(TSharedPtr<FDragDropOperation> DragDropOperation) const override;
+	//~ End INiagaraParameterPanelViewModel interface
 
 private:
-	//** Updates the SelectedEmitterScriptGraphs array and then calls Refresh(). Use if the Emitter Script graphs change (e.g. Emitter deleted from System). */
-	void RefreshSelectedEmitterScriptGraphs();
+	TArray<UNiagaraGraph*> GetEditableGraphs() const;
 
 	TArray<TWeakObjectPtr<UNiagaraGraph>> GetEditableEmitterScriptGraphs() const;
 
-	// Graphs viewed to gather UNiagaraScriptVariables that are displayed by the Parameter Panel.
-	TWeakObjectPtr<UNiagaraGraph> SystemScriptGraph;
-	TArray<TWeakObjectPtr<UNiagaraGraph>>  SelectedEmitterScriptGraphs;
+	TArray<FNiagaraEmitterHandle*> GetEditableEmitterHandles() const;
 
-	TSharedPtr<FNiagaraSystemViewModel> SystemViewModel;
-	UNiagaraSystemSelectionViewModel* OverviewSelectionViewModel;
+	void AddScriptVariable(const UNiagaraScriptVariable* NewScriptVar) const;
 
-	static const TArray<TArray<ENiagaraParameterPanelCategory>> DefaultCategoryPaths;
+	void AddParameterDefinitions(UNiagaraParameterDefinitions* NewParameterDefinitions) const;
+
+	void RemoveParameterDefinitions(const FGuid& ParameterDefinitionsToRemoveId) const;
+
+	void OnGraphChanged(const struct FEdGraphEditAction& InAction) const;
 
 	void OnParameterRenamedExternally(const FNiagaraVariableBase& InOldVar, const FNiagaraVariableBase& InNewVar, UNiagaraEmitter* InOptionalEmitter);
-	void OnParameterRemovedExternally(const FNiagaraVariableBase& InOldVar, UNiagaraEmitter* InOptionalEmitter);
+	void OnParameterRemovedExternally(const FNiagaraVariableBase& InOldVar, UNiagaraEmitter* InOptionalEmitter); 
 
+private:
+	// Graphs viewed to gather UNiagaraScriptVariables that are displayed by the Parameter Panel.
+	TWeakObjectPtr<UNiagaraGraph> SystemScriptGraph;
+
+	TSharedPtr<FNiagaraSystemViewModel> SystemViewModel;
+	TWeakPtr<FNiagaraSystemGraphSelectionViewModel> SystemGraphSelectionViewModelWeak;
+
+	FDelegateHandle UserParameterStoreChangedHandle;
+
+	mutable FSystemToolkitUIContext UIContext;
+
+	mutable TArray<FNiagaraParameterPanelCategory> CachedCurrentCategories;
+
+	static TArray<FNiagaraParameterPanelCategory> DefaultCategories;
+	static TArray<FNiagaraParameterPanelCategory> DefaultAdvancedCategories;
 };
 
 class FNiagaraScriptToolkitParameterPanelViewModel : public INiagaraParameterPanelViewModel
@@ -154,60 +332,145 @@ public:
 	/** Construct a ScriptToolkit Parameter Panel View Model from a Script View Model. */
 	FNiagaraScriptToolkitParameterPanelViewModel(TSharedPtr<FNiagaraScriptViewModel> InScriptViewModel);
 
-	~FNiagaraScriptToolkitParameterPanelViewModel();
+	void Init(const FScriptToolkitUIContext& InUIContext);
 
-	/** Begin INiagaraParameterPanelViewModel interface. */
-	virtual void InitBindings() override;
+	void Cleanup();
 
-	virtual void Refresh() const override;
+	//~ Begin INiagaraImmutableParameterPanelViewModel interface
+	virtual const TArray<UNiagaraGraph*> GetEditableGraphsConst() const override { return GetEditableGraphs(); };
 
-	virtual const UNiagaraScriptVariable* AddParameter(FNiagaraVariable& VariableToAdd, const FNiagaraVariableMetaData& VariableMetaDataToAssign) override;
+	virtual const TArray<UNiagaraScriptVariable*> GetEditableScriptVariablesWithName(const FName ParameterName) const override;
 
-	virtual void DeleteParameter(const FNiagaraVariable& TargetVariableToRemove, const FNiagaraVariableMetaData& TargetVariableMetaData) override;
+	virtual const TArray<FNiagaraGraphParameterReference> GetGraphParameterReferencesForItem(const FNiagaraParameterPanelItemBase& Item) const override;
 
-	virtual bool GetCanDeleteParameterAndToolTip(const FNiagaraVariable& TargetVariableToRemove, const FNiagaraVariableMetaData& TargetVariableMetaData, FText& OutCanDeleteParameterToolTip) const override;
+	virtual const TArray<UNiagaraParameterDefinitions*> GetAvailableParameterDefinitions(bool bSkipSubscribedParameterDefinitions) const override;
+	//~ End INiagaraImmutableParameterPanelViewModel interface
 
-	virtual void RenameParameter(const FNiagaraVariable& TargetVariableToRename, const FNiagaraVariableMetaData& TargetVariableMetaData, const FText& NewVariableNameText) const override;
+	//~ Begin INiagaraParameterPanelViewModel interface
+	virtual void AddParameter(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename) const override;
 
-	virtual void ChangeParameterScope(const FNiagaraVariable& TargetVariableToModify, const FNiagaraVariableMetaData& TargetVariableMetaData, const ENiagaraParameterScope NewVariableScope) const override;
+	virtual bool GetCanAddParametersToCategory(FNiagaraParameterPanelCategory Category) const override;
 
-	virtual bool CanModifyParameter(const FNiagaraVariable& TargetVariableToModify, const FNiagaraVariableMetaData& TargetVariableMetaData) const override;
+	virtual void DeleteParameter(const FNiagaraParameterPanelItem& ItemToDelete) const override;
 
-	virtual bool GetCanRenameParameterAndToolTip(const FNiagaraVariable& TargetVariableToRename, const FNiagaraVariableMetaData& TargetVariableMetaData, TOptional<const FText> NewVariableNameText, FText& OutCanRenameParameterToolTip) const override;
+	virtual void RenameParameter(const FNiagaraParameterPanelItem& ItemToRename, const FName NewName) const override;
 
-	virtual void HandleActionSelected(const TSharedPtr<FEdGraphSchemaAction>& InAction, ESelectInfo::Type InSelectionType) override;
-	
-	void HandleGraphSubObjectSelectionChanged(const UObject* Obj);
+	virtual void SetParameterIsSubscribedToLibrary(const FNiagaraParameterPanelItem ItemToModify, const bool bSubscribed) const override;
 
-	virtual FReply HandleActionDragged(const TSharedPtr<FEdGraphSchemaAction>& InAction, const FPointerEvent& MouseEvent) const override;
+	virtual void OnParameterItemSelected(const FNiagaraParameterPanelItem& SelectedItem, ESelectInfo::Type SelectInfo) const override;
 
-	virtual const TArray<TArray<ENiagaraParameterPanelCategory>>& GetDefaultCategoryPaths() const override;
+	virtual FReply OnParameterItemsDragged(const TArray<FNiagaraParameterPanelItem>& DraggedItems, const FPointerEvent& MouseEvent) const override;
 
-	virtual TArray<ENiagaraParameterPanelCategory> GetCategoriesForParameter(const FNiagaraScriptVariableAndViewInfo& ScriptVar) const override;
+	virtual TSharedPtr<SWidget> CreateContextMenuForItems(const TArray<FNiagaraParameterPanelItem>& Items, const TSharedPtr<FUICommandList>& ToolkitCommands) override;
 
-	virtual TArray<TWeakObjectPtr<UNiagaraGraph>> GetEditableGraphs() const override;
+	virtual FNiagaraParameterUtilities::EParameterContext GetParameterContext() const override;
 
-	virtual const TArray<FNiagaraScriptVariableAndViewInfo> GetViewedParameters() override;
-	/** End INiagaraParameterPanelViewModel interface. */
+	virtual TArray<FNiagaraVariable> GetEditableStaticSwitchParameters() const override;
 
-	void RenamePin(const UEdGraphPin* TargetPinToRename, const FText& NewNameText) const;
-	void ChangePinScope(const UEdGraphPin* TargetPin, const ENiagaraParameterScope NewScope) const;
+	virtual TArray<FNiagaraParameterPanelItem> GetViewedParameterItems() const override;
+
+	virtual const TArray<FNiagaraParameterPanelCategory>& GetDefaultCategories() const override;
+
+	virtual FMenuAndSearchBoxWidgets GetParameterMenu(FNiagaraParameterPanelCategory Category) const override;
+
+	virtual FReply HandleDragDropOperation(TSharedPtr<FDragDropOperation> DragDropOperation) const override;
+
+	virtual bool GetCanHandleDragDropOperation(TSharedPtr<FDragDropOperation> DragDropOperation) const override;
+	//~ End INiagaraParameterPanelViewModel interface
+
+private:
+	void SetParameterIsOverridingLibraryDefaultValue(const FNiagaraParameterPanelItem ItemToModify, const bool bOverriding) const;
+
+	TArray<UNiagaraGraph*> GetEditableGraphs() const;
+
+	void AddScriptVariable(const UNiagaraScriptVariable* NewScriptVar) const;
+
+	void AddParameterDefinitions(UNiagaraParameterDefinitions* NewParameterDefinitions) const;
+
+	void RemoveParameterDefinitions(const FGuid& ParameterDefinitionsToRemoveId) const;
+
+	void OnGraphChanged(const struct FEdGraphEditAction& InAction) const;
+
+	void OnGraphSubObjectSelectionChanged(const UObject* Obj) const;
 
 private:
 	TSharedPtr<FNiagaraScriptViewModel> ScriptViewModel;
+	mutable FScriptToolkitUIContext UIContext;
 
 	FDelegateHandle OnGraphChangedHandle;
 	FDelegateHandle OnGraphNeedsRecompileHandle;
-	FDelegateHandle ScriptVisualPinHandle;
 	FDelegateHandle OnSubObjectSelectionHandle;
-
-	void HandleOnGraphChanged(const struct FEdGraphEditAction& InAction);
-
-	TStaticArray<FScopeIsEnabledAndTooltip, (int32)ENiagaraParameterScope::Num> GetParameterScopesEnabledAndTooltips(const FNiagaraVariable& InVar, const FNiagaraVariableMetaData& InVarMetaData) const;
-
-	TSharedRef<class SWidget> GetScriptParameterVisualWidget(const UEdGraphPin* Pin) const;
 
 	TSharedPtr<FNiagaraObjectSelection> VariableObjectSelection;
 
-	static const TArray<TArray<ENiagaraParameterPanelCategory>> DefaultCategoryPaths;
+	mutable TArray<FNiagaraParameterPanelCategory> CachedCurrentCategories;
+
+	static TArray<FNiagaraParameterPanelCategory> DefaultCategories;
+	static TArray<FNiagaraParameterPanelCategory> DefaultAdvancedCategories;
+};
+
+class FNiagaraParameterDefinitionsToolkitParameterPanelViewModel : public INiagaraParameterPanelViewModel
+{
+public:
+	/** Construct a ParameterDefinitionsToolkit Parameter Panel View Model from a Parameter Definitions. */
+	FNiagaraParameterDefinitionsToolkitParameterPanelViewModel(UNiagaraParameterDefinitions* InParameterDefinitions, const TSharedPtr<FNiagaraObjectSelection>& InObjectSelection);
+
+	~FNiagaraParameterDefinitionsToolkitParameterPanelViewModel();
+
+	void Init(const FParameterDefinitionsToolkitUIContext& InUIContext);
+
+	//~ Begin INiagaraImmutableParameterPanelViewModel interface
+	//NOTE: The ParameterDefinitionsToolkitParameterPanelViewModel does not edit any graphs, so return an empty array.
+	virtual const TArray<UNiagaraGraph*> GetEditableGraphsConst() const override { return TArray<UNiagaraGraph*>(); };
+
+	virtual const TArray<UNiagaraScriptVariable*> GetEditableScriptVariablesWithName(const FName ParameterName) const override;
+
+	virtual const TArray<FNiagaraGraphParameterReference> GetGraphParameterReferencesForItem(const FNiagaraParameterPanelItemBase& Item) const override;
+
+	virtual const TArray<UNiagaraParameterDefinitions*> GetAvailableParameterDefinitions(bool bSkipSubscribedParameterDefinitions) const override;
+	//~ End INiagaraImmutableParameterPanelViewModel interface
+
+	//~ Begin INiagaraParameterPanelViewModel interface
+	virtual void AddParameter(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename) const override;
+
+	virtual bool GetCanAddParametersToCategory(FNiagaraParameterPanelCategory Category) const override;
+
+	virtual void DeleteParameter(const FNiagaraParameterPanelItem& ItemToDelete) const override;
+
+	virtual void RenameParameter(const FNiagaraParameterPanelItem& ItemToRename, const FName NewName) const override;
+
+	virtual void SetParameterIsSubscribedToLibrary(const FNiagaraParameterPanelItem ItemToModify, const bool bSubscribed) const override;
+
+	virtual TSharedPtr<SWidget> CreateContextMenuForItems(const TArray<FNiagaraParameterPanelItem>& Items, const TSharedPtr<FUICommandList>& ToolkitCommands) override;
+
+	virtual FNiagaraParameterUtilities::EParameterContext GetParameterContext() const override;
+
+	virtual TArray<FNiagaraVariable> GetEditableStaticSwitchParameters() const override;
+
+	virtual TArray<FNiagaraParameterPanelItem> GetViewedParameterItems() const override;
+
+	virtual const TArray<FNiagaraParameterPanelCategory>& GetDefaultCategories() const override;
+
+	virtual FMenuAndSearchBoxWidgets GetParameterMenu(FNiagaraParameterPanelCategory Category) const override;
+
+	virtual FReply HandleDragDropOperation(TSharedPtr<FDragDropOperation> DropOperation) const override;
+
+	virtual bool GetCanHandleDragDropOperation(TSharedPtr<FDragDropOperation> DragDropOperation) const override;
+
+	virtual void OnParameterItemSelected(const FNiagaraParameterPanelItem& SelectedItem, ESelectInfo::Type SelectInfo) const override;
+
+	virtual bool GetCanRenameParameterAndToolTip(const FNiagaraParameterPanelItem& ItemToRename, const FText& NewVariableNameText, bool bCheckEmptyNameText, FText& OutCanRenameParameterToolTip) const override;
+	
+	//~ End INiagaraParameterPanelViewModel interface
+
+	// Handle setting namespace to the variable name when adding parameters from menu.
+	void AddParameterFromMenu(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename) const;
+
+private:
+	UNiagaraParameterDefinitions* ParameterDefinitions;
+	mutable FParameterDefinitionsToolkitUIContext UIContext;
+
+	TSharedPtr<FNiagaraObjectSelection> VariableObjectSelection;
+
+	static TArray<FNiagaraParameterPanelCategory> DefaultCategories;
 };

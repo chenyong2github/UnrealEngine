@@ -1353,6 +1353,27 @@ TSharedPtr<class FAssetThumbnailPool> SMaterialLayersFunctionsInstanceTree::GetT
 	return UThumbnailManager::Get().GetSharedThumbnailPool();
 }
 
+TSharedPtr<IDetailTreeNode> FindParameterGroupsNode(TSharedPtr<IPropertyRowGenerator> PropertyRowGenerator)
+{
+	const TArray<TSharedRef<IDetailTreeNode>> RootNodes = PropertyRowGenerator->GetRootTreeNodes();
+	if (RootNodes.Num() > 0)
+	{
+		TSharedPtr<IDetailTreeNode> Category = RootNodes[0];
+		TArray<TSharedRef<IDetailTreeNode>> Children;
+		Category->GetChildren(Children);
+
+		for (int32 ChildIdx = 0; ChildIdx < Children.Num(); ChildIdx++)
+		{
+			TSharedPtr<IPropertyHandle> PropertyHandle = Children[ChildIdx]->CreatePropertyHandle();
+			if (PropertyHandle.IsValid() && PropertyHandle->GetProperty() && PropertyHandle->GetProperty()->GetName() == "ParameterGroups")
+			{
+				return Children[ChildIdx];
+			}
+		}
+	}
+	return nullptr;
+}
+
 void SMaterialLayersFunctionsInstanceTree::CreateGroupsWidget()
 {
 	check(MaterialEditorInstance);
@@ -1376,207 +1397,196 @@ void SMaterialLayersFunctionsInstanceTree::CreateGroupsWidget()
 		Objects.Add(MaterialEditorInstance);
 		Generator->SetObjects(Objects);
 	}
-	const TArray<TSharedRef<IDetailTreeNode>> TestData = Generator->GetRootTreeNodes();
-	TSharedPtr<IDetailTreeNode> Category = TestData[0];
-	TSharedPtr<IDetailTreeNode> ParameterGroups;
-	TArray<TSharedRef<IDetailTreeNode>> Children;
-	Category->GetChildren(Children);
 
-	for (int32 ChildIdx = 0; ChildIdx < Children.Num(); ChildIdx++)
+	TSharedPtr<IDetailTreeNode> ParameterGroups = FindParameterGroupsNode(Generator);
+	if (ParameterGroups.IsValid())
 	{
-		if (Children[ChildIdx]->CreatePropertyHandle().IsValid() &&
-			Children[ChildIdx]->CreatePropertyHandle()->GetProperty()->GetName() == "ParameterGroups")
+		TArray<TSharedRef<IDetailTreeNode>> Children;
+		ParameterGroups->GetChildren(Children);
+		// the order of DeferredSearches should correspond to NonLayerProperties exactly
+		TArray<TSharedPtr<IPropertyHandle>> DeferredSearches;
+		for (int32 GroupIdx = 0; GroupIdx < Children.Num(); ++GroupIdx)
 		{
-			ParameterGroups = Children[ChildIdx];
-			break;
-		}
-	}
+			TArray<void*> GroupPtrs;
+			TSharedPtr<IPropertyHandle> ChildHandle = Children[GroupIdx]->CreatePropertyHandle();
+			ChildHandle->AccessRawData(GroupPtrs);
+			auto GroupIt = GroupPtrs.CreateConstIterator();
+			const FEditorParameterGroup* ParameterGroupPtr = reinterpret_cast<FEditorParameterGroup*>(*GroupIt);
+			const FEditorParameterGroup& ParameterGroup = *ParameterGroupPtr;
 
-	Children.Empty();
-	ParameterGroups->GetChildren(Children);
-	// the order of DeferredSearches should correspond to NonLayerProperties exactly
-	TArray<TSharedPtr<IPropertyHandle>> DeferredSearches;
-	for (int32 GroupIdx = 0; GroupIdx < Children.Num(); ++GroupIdx)
-	{
-		TArray<void*> GroupPtrs;
-		TSharedPtr<IPropertyHandle> ChildHandle = Children[GroupIdx]->CreatePropertyHandle();
-		ChildHandle->AccessRawData(GroupPtrs);
-		auto GroupIt = GroupPtrs.CreateConstIterator();
-		const FEditorParameterGroup* ParameterGroupPtr = reinterpret_cast<FEditorParameterGroup*>(*GroupIt);
-		const FEditorParameterGroup& ParameterGroup = *ParameterGroupPtr;
-		
-		for (int32 ParamIdx = 0; ParamIdx < ParameterGroup.Parameters.Num(); ParamIdx++)
-		{
-			UDEditorParameterValue* Parameter = ParameterGroup.Parameters[ParamIdx];
-
-			TSharedPtr<IPropertyHandle> ParametersArrayProperty = ChildHandle->GetChildHandle("Parameters");
-			TSharedPtr<IPropertyHandle> ParameterProperty = ParametersArrayProperty->GetChildHandle(ParamIdx);
-			TSharedPtr<IPropertyHandle> ParameterValueProperty = ParameterProperty->GetChildHandle("ParameterValue");
-				
-			if (Cast<UDEditorMaterialLayersParameterValue>(Parameter))
+			for (int32 ParamIdx = 0; ParamIdx < ParameterGroup.Parameters.Num(); ParamIdx++)
 			{
-				if (FunctionParameter == nullptr)
-				{
-					FunctionParameter = Parameter;
-				}
-				TArray<void*> StructPtrs;
-				ParameterValueProperty->AccessRawData(StructPtrs);
-				auto It = StructPtrs.CreateConstIterator();
-				FunctionInstance = reinterpret_cast<FMaterialLayersFunctions*>(*It);
-				FunctionInstanceHandle = ParameterValueProperty;
-				LayersFunctionsParameterName = FName(Parameter->ParameterInfo.Name);
+				UDEditorParameterValue* Parameter = ParameterGroup.Parameters[ParamIdx];
 
-				TSharedPtr<IPropertyHandle>	LayerHandle = ChildHandle->GetChildHandle("Layers").ToSharedRef();
-				TSharedPtr<IPropertyHandle> BlendHandle = ChildHandle->GetChildHandle("Blends").ToSharedRef();
-				uint32 LayerChildren;
-				LayerHandle->GetNumChildren(LayerChildren);
-				uint32 BlendChildren;
-				BlendHandle->GetNumChildren(BlendChildren);
-				if (MaterialEditorInstance->StoredLayerPreviews.Num() != LayerChildren)
-				{
-					MaterialEditorInstance->StoredLayerPreviews.Empty();
-					MaterialEditorInstance->StoredLayerPreviews.AddDefaulted(LayerChildren);
-				}
-				if (MaterialEditorInstance->StoredBlendPreviews.Num() != BlendChildren)
-				{
-					MaterialEditorInstance->StoredBlendPreviews.Empty();
-					MaterialEditorInstance->StoredBlendPreviews.AddDefaulted(BlendChildren);
-				}
-					
-				TSharedRef<FSortedParamData> StackProperty = MakeShared<FSortedParamData>();
-				StackProperty->StackDataType = EStackDataType::Stack;
-				StackProperty->Parameter = Parameter;
-				StackProperty->ParameterInfo.Index = LayerChildren - 1;
-				StackProperty->NodeKey = FString::FromInt(StackProperty->ParameterInfo.Index);
+				TSharedPtr<IPropertyHandle> ParametersArrayProperty = ChildHandle->GetChildHandle("Parameters");
+				TSharedPtr<IPropertyHandle> ParameterProperty = ParametersArrayProperty->GetChildHandle(ParamIdx);
+				TSharedPtr<IPropertyHandle> ParameterValueProperty = ParameterProperty->GetChildHandle("ParameterValue");
 
-
-				TSharedRef<FSortedParamData> ChildProperty = MakeShared<FSortedParamData>();
-				ChildProperty->StackDataType = EStackDataType::Asset;
-				ChildProperty->Parameter = Parameter;
-				ChildProperty->ParameterHandle = LayerHandle->AsArray()->GetElement(LayerChildren - 1);
-				ChildProperty->ParameterNode = Generator->FindTreeNode(ChildProperty->ParameterHandle);
-				ChildProperty->ParameterInfo.Index = LayerChildren - 1;
-				ChildProperty->ParameterInfo.Association = EMaterialParameterAssociation::LayerParameter;
-				ChildProperty->NodeKey = FString::FromInt(ChildProperty->ParameterInfo.Index) + FString::FromInt(ChildProperty->ParameterInfo.Association);
-				
-				UObject* AssetObject;
-				ChildProperty->ParameterHandle->GetValue(AssetObject);
-				if (AssetObject)
+				if (Cast<UDEditorMaterialLayersParameterValue>(Parameter))
 				{
-					if (MaterialEditorInstance->StoredLayerPreviews[LayerChildren - 1] == nullptr)
+					if (FunctionParameter == nullptr)
 					{
-						MaterialEditorInstance->StoredLayerPreviews[LayerChildren - 1] = (NewObject<UMaterialInstanceConstant>(MaterialEditorInstance, NAME_None));
+						FunctionParameter = Parameter;
 					}
-					UMaterialInterface* EditedMaterial = Cast<UMaterialFunctionInterface>(AssetObject)->GetPreviewMaterial();
-					if (MaterialEditorInstance->StoredLayerPreviews[LayerChildren - 1] && MaterialEditorInstance->StoredLayerPreviews[LayerChildren - 1]->Parent != EditedMaterial)
-					{
-						MaterialEditorInstance->StoredLayerPreviews[LayerChildren - 1]->SetParentEditorOnly(EditedMaterial);
-					}
-				}
+					TArray<void*> StructPtrs;
+					ParameterValueProperty->AccessRawData(StructPtrs);
+					auto It = StructPtrs.CreateConstIterator();
+					FunctionInstance = reinterpret_cast<FMaterialLayersFunctions*>(*It);
+					FunctionInstanceHandle = ParameterValueProperty;
+					LayersFunctionsParameterName = FName(Parameter->ParameterInfo.Name);
 
-				StackProperty->Children.Add(ChildProperty);
-				LayerProperties.Add(StackProperty);
-					
-				if (BlendChildren > 0 && LayerChildren > BlendChildren)
-				{
-					for (int32 Counter = BlendChildren - 1; Counter >= 0; Counter--)
+					TSharedPtr<IPropertyHandle>	LayerHandle = ChildHandle->GetChildHandle("Layers").ToSharedRef();
+					TSharedPtr<IPropertyHandle> BlendHandle = ChildHandle->GetChildHandle("Blends").ToSharedRef();
+					uint32 LayerChildren;
+					LayerHandle->GetNumChildren(LayerChildren);
+					uint32 BlendChildren;
+					BlendHandle->GetNumChildren(BlendChildren);
+					if (MaterialEditorInstance->StoredLayerPreviews.Num() != LayerChildren)
 					{
-						ChildProperty = MakeShared<FSortedParamData>();
-						ChildProperty->StackDataType = EStackDataType::Asset;
-						ChildProperty->Parameter = Parameter;
-						ChildProperty->ParameterHandle = BlendHandle->AsArray()->GetElement(Counter);	
-						ChildProperty->ParameterNode = Generator->FindTreeNode(ChildProperty->ParameterHandle);
-						ChildProperty->ParameterInfo.Index = Counter;
-						ChildProperty->ParameterInfo.Association = EMaterialParameterAssociation::BlendParameter;
-						ChildProperty->NodeKey = FString::FromInt(ChildProperty->ParameterInfo.Index) + FString::FromInt(ChildProperty->ParameterInfo.Association);
-						ChildProperty->ParameterHandle->GetValue(AssetObject);
-						if (AssetObject)
+						MaterialEditorInstance->StoredLayerPreviews.Empty();
+						MaterialEditorInstance->StoredLayerPreviews.AddDefaulted(LayerChildren);
+					}
+					if (MaterialEditorInstance->StoredBlendPreviews.Num() != BlendChildren)
+					{
+						MaterialEditorInstance->StoredBlendPreviews.Empty();
+						MaterialEditorInstance->StoredBlendPreviews.AddDefaulted(BlendChildren);
+					}
+
+					TSharedRef<FSortedParamData> StackProperty = MakeShared<FSortedParamData>();
+					StackProperty->StackDataType = EStackDataType::Stack;
+					StackProperty->Parameter = Parameter;
+					StackProperty->ParameterInfo.Index = LayerChildren - 1;
+					StackProperty->NodeKey = FString::FromInt(StackProperty->ParameterInfo.Index);
+
+
+					TSharedRef<FSortedParamData> ChildProperty = MakeShared<FSortedParamData>();
+					ChildProperty->StackDataType = EStackDataType::Asset;
+					ChildProperty->Parameter = Parameter;
+					ChildProperty->ParameterHandle = LayerHandle->AsArray()->GetElement(LayerChildren - 1);
+					ChildProperty->ParameterNode = Generator->FindTreeNode(ChildProperty->ParameterHandle);
+					ChildProperty->ParameterInfo.Index = LayerChildren - 1;
+					ChildProperty->ParameterInfo.Association = EMaterialParameterAssociation::LayerParameter;
+					ChildProperty->NodeKey = FString::FromInt(ChildProperty->ParameterInfo.Index) + FString::FromInt(ChildProperty->ParameterInfo.Association);
+
+					UObject* AssetObject;
+					ChildProperty->ParameterHandle->GetValue(AssetObject);
+					if (AssetObject)
+					{
+						if (MaterialEditorInstance->StoredLayerPreviews[LayerChildren - 1] == nullptr)
 						{
-							if (MaterialEditorInstance->StoredBlendPreviews[Counter] == nullptr)
-							{
-								MaterialEditorInstance->StoredBlendPreviews[Counter] = (NewObject<UMaterialInstanceConstant>(MaterialEditorInstance, NAME_None));
-							}
-							UMaterialInterface* EditedMaterial = Cast<UMaterialFunctionInterface>(AssetObject)->GetPreviewMaterial();
-							if (MaterialEditorInstance->StoredBlendPreviews[Counter] && MaterialEditorInstance->StoredBlendPreviews[Counter]->Parent != EditedMaterial)
-							{
-								MaterialEditorInstance->StoredBlendPreviews[Counter]->SetParentEditorOnly(EditedMaterial);
-							}
+							MaterialEditorInstance->StoredLayerPreviews[LayerChildren - 1] = (NewObject<UMaterialInstanceConstant>(MaterialEditorInstance, NAME_None));
 						}
-						LayerProperties.Last()->Children.Add(ChildProperty);
-							
-						StackProperty = MakeShared<FSortedParamData>();
-						StackProperty->StackDataType = EStackDataType::Stack;
-						StackProperty->Parameter = Parameter;
-						StackProperty->ParameterInfo.Index = Counter;
-						StackProperty->NodeKey = FString::FromInt(StackProperty->ParameterInfo.Index);
-						LayerProperties.Add(StackProperty);
-
-						ChildProperty = MakeShared<FSortedParamData>();
-						ChildProperty->StackDataType = EStackDataType::Asset;
-						ChildProperty->Parameter = Parameter;
-						ChildProperty->ParameterHandle = LayerHandle->AsArray()->GetElement(Counter);
-						ChildProperty->ParameterNode = Generator->FindTreeNode(ChildProperty->ParameterHandle);
-						ChildProperty->ParameterInfo.Index = Counter;
-						ChildProperty->ParameterInfo.Association = EMaterialParameterAssociation::LayerParameter;
-						ChildProperty->NodeKey = FString::FromInt(ChildProperty->ParameterInfo.Index) + FString::FromInt(ChildProperty->ParameterInfo.Association);
-						ChildProperty->ParameterHandle->GetValue(AssetObject);
-						if (AssetObject)
+						UMaterialInterface* EditedMaterial = Cast<UMaterialFunctionInterface>(AssetObject)->GetPreviewMaterial();
+						if (MaterialEditorInstance->StoredLayerPreviews[LayerChildren - 1] && MaterialEditorInstance->StoredLayerPreviews[LayerChildren - 1]->Parent != EditedMaterial)
 						{
-							if (MaterialEditorInstance->StoredLayerPreviews[Counter] == nullptr)
-							{
-								MaterialEditorInstance->StoredLayerPreviews[Counter] = (NewObject<UMaterialInstanceConstant>(MaterialEditorInstance, NAME_None));
-							}
-							UMaterialInterface* EditedMaterial = Cast<UMaterialFunctionInterface>(AssetObject)->GetPreviewMaterial();
-							if (MaterialEditorInstance->StoredLayerPreviews[Counter] && MaterialEditorInstance->StoredLayerPreviews[Counter]->Parent != EditedMaterial)
-							{
-								MaterialEditorInstance->StoredLayerPreviews[Counter]->SetParentEditorOnly(EditedMaterial);
-							}
+							MaterialEditorInstance->StoredLayerPreviews[LayerChildren - 1]->SetParentEditorOnly(EditedMaterial);
 						}
-						LayerProperties.Last()->Children.Add(ChildProperty);
 					}
+
+					StackProperty->Children.Add(ChildProperty);
+					LayerProperties.Add(StackProperty);
+
+					if (BlendChildren > 0 && LayerChildren > BlendChildren)
+					{
+						for (int32 Counter = BlendChildren - 1; Counter >= 0; Counter--)
+						{
+							ChildProperty = MakeShared<FSortedParamData>();
+							ChildProperty->StackDataType = EStackDataType::Asset;
+							ChildProperty->Parameter = Parameter;
+							ChildProperty->ParameterHandle = BlendHandle->AsArray()->GetElement(Counter);
+							ChildProperty->ParameterNode = Generator->FindTreeNode(ChildProperty->ParameterHandle);
+							ChildProperty->ParameterInfo.Index = Counter;
+							ChildProperty->ParameterInfo.Association = EMaterialParameterAssociation::BlendParameter;
+							ChildProperty->NodeKey = FString::FromInt(ChildProperty->ParameterInfo.Index) + FString::FromInt(ChildProperty->ParameterInfo.Association);
+							ChildProperty->ParameterHandle->GetValue(AssetObject);
+							if (AssetObject)
+							{
+								if (MaterialEditorInstance->StoredBlendPreviews[Counter] == nullptr)
+								{
+									MaterialEditorInstance->StoredBlendPreviews[Counter] = (NewObject<UMaterialInstanceConstant>(MaterialEditorInstance, NAME_None));
+								}
+								UMaterialInterface* EditedMaterial = Cast<UMaterialFunctionInterface>(AssetObject)->GetPreviewMaterial();
+								if (MaterialEditorInstance->StoredBlendPreviews[Counter] && MaterialEditorInstance->StoredBlendPreviews[Counter]->Parent != EditedMaterial)
+								{
+									MaterialEditorInstance->StoredBlendPreviews[Counter]->SetParentEditorOnly(EditedMaterial);
+								}
+							}
+							LayerProperties.Last()->Children.Add(ChildProperty);
+
+							StackProperty = MakeShared<FSortedParamData>();
+							StackProperty->StackDataType = EStackDataType::Stack;
+							StackProperty->Parameter = Parameter;
+							StackProperty->ParameterInfo.Index = Counter;
+							StackProperty->NodeKey = FString::FromInt(StackProperty->ParameterInfo.Index);
+							LayerProperties.Add(StackProperty);
+
+							ChildProperty = MakeShared<FSortedParamData>();
+							ChildProperty->StackDataType = EStackDataType::Asset;
+							ChildProperty->Parameter = Parameter;
+							ChildProperty->ParameterHandle = LayerHandle->AsArray()->GetElement(Counter);
+							ChildProperty->ParameterNode = Generator->FindTreeNode(ChildProperty->ParameterHandle);
+							ChildProperty->ParameterInfo.Index = Counter;
+							ChildProperty->ParameterInfo.Association = EMaterialParameterAssociation::LayerParameter;
+							ChildProperty->NodeKey = FString::FromInt(ChildProperty->ParameterInfo.Index) + FString::FromInt(ChildProperty->ParameterInfo.Association);
+							ChildProperty->ParameterHandle->GetValue(AssetObject);
+							if (AssetObject)
+							{
+								if (MaterialEditorInstance->StoredLayerPreviews[Counter] == nullptr)
+								{
+									MaterialEditorInstance->StoredLayerPreviews[Counter] = (NewObject<UMaterialInstanceConstant>(MaterialEditorInstance, NAME_None));
+								}
+								UMaterialInterface* EditedMaterial = Cast<UMaterialFunctionInterface>(AssetObject)->GetPreviewMaterial();
+								if (MaterialEditorInstance->StoredLayerPreviews[Counter] && MaterialEditorInstance->StoredLayerPreviews[Counter]->Parent != EditedMaterial)
+								{
+									MaterialEditorInstance->StoredLayerPreviews[Counter]->SetParentEditorOnly(EditedMaterial);
+								}
+							}
+							LayerProperties.Last()->Children.Add(ChildProperty);
+						}
+					}
+				}
+				else
+				{
+					FUnsortedParamData NonLayerProperty;
+					UDEditorScalarParameterValue* ScalarParam = Cast<UDEditorScalarParameterValue>(Parameter);
+
+					if (ScalarParam && ScalarParam->SliderMax > ScalarParam->SliderMin)
+					{
+						ParameterValueProperty->SetInstanceMetaData("UIMin", FString::Printf(TEXT("%f"), ScalarParam->SliderMin));
+						ParameterValueProperty->SetInstanceMetaData("UIMax", FString::Printf(TEXT("%f"), ScalarParam->SliderMax));
+					}
+
+					NonLayerProperty.Parameter = Parameter;
+					NonLayerProperty.ParameterGroup = ParameterGroup;
+
+					DeferredSearches.Add(ParameterValueProperty);
+					NonLayerProperty.UnsortedName = Parameter->ParameterInfo.Name;
+
+					NonLayerProperties.Add(NonLayerProperty);
 				}
 			}
-			else
-			{
-				FUnsortedParamData NonLayerProperty;
-				UDEditorScalarParameterValue* ScalarParam = Cast<UDEditorScalarParameterValue>(Parameter);
-
-				if (ScalarParam && ScalarParam->SliderMax > ScalarParam->SliderMin)
-				{
-					ParameterValueProperty->SetInstanceMetaData("UIMin", FString::Printf(TEXT("%f"), ScalarParam->SliderMin));
-					ParameterValueProperty->SetInstanceMetaData("UIMax", FString::Printf(TEXT("%f"), ScalarParam->SliderMax));
-				}
-					
-				NonLayerProperty.Parameter = Parameter;
-				NonLayerProperty.ParameterGroup = ParameterGroup;
-
-				DeferredSearches.Add(ParameterValueProperty);
-				NonLayerProperty.UnsortedName = Parameter->ParameterInfo.Name;
-
-				NonLayerProperties.Add(NonLayerProperty);
-			}
 		}
-	}
 
-	checkf(NonLayerProperties.Num() == DeferredSearches.Num(), TEXT("Internal inconsistency: number of node searches does not match the number of properties"));
-	TArray<TSharedPtr<IDetailTreeNode>> DeferredResults = Generator->FindTreeNodes(DeferredSearches);
-	checkf(NonLayerProperties.Num() == DeferredResults.Num(), TEXT("Internal inconsistency: number of node search results does not match the number of properties"));
+		checkf(NonLayerProperties.Num() == DeferredSearches.Num(), TEXT("Internal inconsistency: number of node searches does not match the number of properties"));
+		TArray<TSharedPtr<IDetailTreeNode>> DeferredResults = Generator->FindTreeNodes(DeferredSearches);
+		checkf(NonLayerProperties.Num() == DeferredResults.Num(), TEXT("Internal inconsistency: number of node search results does not match the number of properties"));
 
-	for (int Idx = 0, NumUnsorted = NonLayerProperties.Num(); Idx < NumUnsorted; ++Idx)
-	{
-		FUnsortedParamData& NonLayerProperty = NonLayerProperties[Idx];
-		NonLayerProperty.ParameterNode = DeferredResults[Idx];
-		NonLayerProperty.ParameterHandle = NonLayerProperty.ParameterNode->CreatePropertyHandle();
-	}
-
-	DeferredResults.Empty();
-	DeferredSearches.Empty();
-
-	for (int32 LayerIdx = 0; LayerIdx < LayerProperties.Num(); LayerIdx++)
-	{
-		for (int32 ChildIdx = 0; ChildIdx < LayerProperties[LayerIdx]->Children.Num(); ChildIdx++)
+		for (int Idx = 0, NumUnsorted = NonLayerProperties.Num(); Idx < NumUnsorted; ++Idx)
 		{
-			ShowSubParameters(LayerProperties[LayerIdx]->Children[ChildIdx]);
+			FUnsortedParamData& NonLayerProperty = NonLayerProperties[Idx];
+			NonLayerProperty.ParameterNode = DeferredResults[Idx];
+			NonLayerProperty.ParameterHandle = NonLayerProperty.ParameterNode->CreatePropertyHandle();
+		}
+
+		DeferredResults.Empty();
+		DeferredSearches.Empty();
+
+		for (int32 LayerIdx = 0; LayerIdx < LayerProperties.Num(); LayerIdx++)
+		{
+			for (int32 ChildIdx = 0; ChildIdx < LayerProperties[LayerIdx]->Children.Num(); ChildIdx++)
+			{
+				ShowSubParameters(LayerProperties[LayerIdx]->Children[ChildIdx]);
+			}
 		}
 	}
 

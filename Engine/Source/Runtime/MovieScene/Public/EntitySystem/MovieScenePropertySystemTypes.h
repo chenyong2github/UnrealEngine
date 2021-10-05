@@ -213,7 +213,6 @@ template<typename PropertyTraits>
 struct TPropertyComponents
 {
 	FComponentTypeID PropertyTag;
-	TComponentTypeID<typename PropertyTraits::StorageType> PreAnimatedValue;
 	TComponentTypeID<typename PropertyTraits::StorageType> InitialValue;
 
 	TPropertyMetaDataComponents<typename PropertyTraits::MetaDataType> MetaDataComponents;

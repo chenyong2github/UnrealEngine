@@ -6,6 +6,8 @@
 
 #include "Render/Viewport/Containers/DisplayClusterViewport_OverscanSettings.h"
 
+class FDisplayClusterViewport;
+
 enum class EDisplayClusterViewport_OverscanMode: uint8
 {
 	None,
@@ -28,7 +30,7 @@ struct FImplDisplayClusterViewport_OverscanSettings
 class FImplDisplayClusterViewport_Overscan
 {
 public:
-	void Update(FIntRect& InOutRenderTargetRect);
+	void Update(FDisplayClusterViewport& Viewport, FIntRect& InOutRenderTargetRect);
 	bool UpdateProjectionAngles(float& InOutLeft, float& InOutRight, float& InOutTop, float& InOutBottom);
 
 	bool IsEnabled() const

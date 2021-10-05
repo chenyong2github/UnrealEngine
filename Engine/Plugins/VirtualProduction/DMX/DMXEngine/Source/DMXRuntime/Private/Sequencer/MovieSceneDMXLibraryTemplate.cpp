@@ -32,7 +32,7 @@ namespace
 		{}
 
 		// Sends the default value for the patch, to reset changes in the buffers that happened during playback
-		virtual void RestoreState(UObject& Object, IMovieScenePlayer& Player) override
+		virtual void RestoreState(UObject& Object, const UE::MovieScene::FRestoreStateParams& Params) override
 		{
 			UDMXLibrary* DMXLibrary = CastChecked<UDMXLibrary>(&Object);
 

@@ -2178,7 +2178,13 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 		// update mass if required
 		if (bUpdateMassWhenScaleChanges)
 		{
-			UpdateMassProperties();
+			bDirtyMassProps = true;
+
+			//if already simulated compute mass immediately
+			if (ShouldInstanceSimulatingPhysics())
+			{
+				UpdateMassProperties();
+			}
 		}
 	}
 
@@ -2400,7 +2406,13 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 		// update mass if required
 		if (bUpdateMassWhenScaleChanges)
 		{
-			UpdateMassProperties();
+			bDirtyMassProps = true;
+
+			//if already simulated compute mass immediately
+			if(ShouldInstanceSimulatingPhysics())
+			{
+				UpdateMassProperties();
+			}
 		}
 	}
 #endif
@@ -2421,9 +2433,17 @@ void FBodyInstance::UpdateInstanceSimulatePhysics()
 		FPhysicsInterface::SetIsKinematic_AssumesLocked(Actor, !bUseSimulate);
 		FPhysicsInterface::SetCcdEnabled_AssumesLocked(Actor, bUseCCD);
 
-		if(bSimulatePhysics && bStartAwake)
+		if(bSimulatePhysics)
 		{
-			FPhysicsInterface::WakeUp_AssumesLocked(Actor);
+			if(bDirtyMassProps)
+			{
+				UpdateMassProperties();
+			}
+
+			if(bStartAwake)
+			{
+				FPhysicsInterface::WakeUp_AssumesLocked(Actor);
+			}
 		}
 	});
 
@@ -3062,6 +3082,8 @@ int32 GetNumSimShapes_AssumesLocked(const FPhysicsActorHandle& ActorRef)
 
 void FBodyInstance::UpdateMassProperties()
 {
+	bDirtyMassProps = false;
+
 	UPhysicalMaterial* PhysMat = GetSimplePhysicalMaterial();
 
 #if WITH_PHYSX

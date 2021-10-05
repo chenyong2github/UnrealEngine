@@ -10,6 +10,7 @@
 #include "ARFilter.h"
 #include "ContentBrowserItem.h"
 #include "ContentBrowserDelegates.h"
+#include "ContentBrowserDataSubsystem.h"
 #include "Developer/CollectionManager/Public/CollectionManagerTypes.h"
 #include "Misc/FilterCollection.h"
 #include "Framework/Views/ITypedTableView.h"
@@ -622,7 +623,7 @@ public:
 	virtual void GetSelectedPathViewFolders(TArray<FString>& SelectedFolders) = 0;
 
 	/** Gets the current path if one exists, otherwise returns empty string. */
-	virtual FString GetCurrentPath() = 0;
+	virtual FString GetCurrentPath(const EContentBrowserPathType PathType) = 0;
 
 	/**
 	 * Capture active viewport to thumbnail and assigns that thumbnail to incoming assets

@@ -346,7 +346,7 @@ void FSceneRenderer::InitFogConstants()
 				View.DirectionalInscatteringExponent = FogInfo.DirectionalInscatteringExponent;
 				View.DirectionalInscatteringStartDistance = FogInfo.DirectionalInscatteringStartDistance;
 				View.InscatteringLightDirection = FVector(0);
-				FLightSceneInfo* SunLight = Scene->AtmosphereLights[0];	// Fog only takes into account a single atmosphere light with index 0.
+				FLightSceneInfo* SunLight = Scene->AtmosphereLights[0] ? Scene->AtmosphereLights[0] : Scene->SimpleDirectionalLight;	// Fog only takes into account a single atmosphere light with index 0, or the default scene directional light.
 				if (SunLight)
 				{
 					View.InscatteringLightDirection = -SunLight->Proxy->GetDirection();

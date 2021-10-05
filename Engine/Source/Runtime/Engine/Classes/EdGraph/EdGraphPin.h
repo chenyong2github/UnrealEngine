@@ -153,61 +153,6 @@ public:
 	{
 	}
 
-	//UE_DEPRECATED(4.19, "Remove this helper when removing deprecation as it will no longer be needed")
-	struct FNameParameterHelper
-	{
-		FNameParameterHelper(const FName InNameParameter) : NameParameter(InNameParameter) { }
-		FNameParameterHelper(const FString& InNameParameter) : NameParameter(*InNameParameter) { }
-		FNameParameterHelper(const TCHAR* InNameParameter) : NameParameter(InNameParameter) { }
-
-		FName operator*() const { return NameParameter; }
-
-	private:
-		FName NameParameter;
-	};
-
-	UE_DEPRECATED(4.17, "Use version that supplies PinCategory and SubCategory as FName, and takes PinContainerType instead of separate booleans for array, set, and map")
-	FEdGraphPinType(const FNameParameterHelper InPinCategory, const FNameParameterHelper InPinSubCategory, UObject* InPinSubCategoryObject, bool bInIsArray, bool bInIsReference, bool bInIsSet, bool bInIsMap, const FEdGraphTerminalType& InValueTerminalType )
-		: PinCategory(*InPinCategory)
-		, PinSubCategory(*InPinSubCategory)
-		, PinSubCategoryObject(InPinSubCategoryObject)
-		, PinValueType(InValueTerminalType)
-		, ContainerType(ToPinContainerType(bInIsArray, bInIsSet, bInIsMap))
-		, bIsArray_DEPRECATED(false)
-		, bIsReference(bInIsReference)
-		, bIsConst(false)
-		, bIsWeakPointer(false)
-	{
-	}
-
-	UE_DEPRECATED(4.19, "Use version that supplies SubCategory as FName")
-	FEdGraphPinType(FName InPinCategory, const FString& InPinSubCategory, UObject* InPinSubCategoryObject, EPinContainerType InPinContainerType, bool bInIsReference, const FEdGraphTerminalType& InValueTerminalType)
-		: PinCategory(InPinCategory)
-		, PinSubCategory(*InPinSubCategory)
-		, PinSubCategoryObject(InPinSubCategoryObject)
-		, PinValueType(InValueTerminalType)
-		, ContainerType(InPinContainerType)
-		, bIsArray_DEPRECATED(false)
-		, bIsReference(bInIsReference)
-		, bIsConst(false)
-		, bIsWeakPointer(false)
-	{
-	}
-
-	//UE_DEPRECATED(4.19, "Remove this constructor when removing FString version, exists only to resolve ambiguity between FName/FString constructors when TCHAR* supplied")
-	FEdGraphPinType(FName InPinCategory, const TCHAR* InPinSubCategory, UObject* InPinSubCategoryObject, EPinContainerType InPinContainerType, bool bInIsReference, const FEdGraphTerminalType& InValueTerminalType)
-		: PinCategory(InPinCategory)
-		, PinSubCategory(InPinSubCategory)
-		, PinSubCategoryObject(InPinSubCategoryObject)
-		, PinValueType(InValueTerminalType)
-		, ContainerType(InPinContainerType)
-		, bIsArray_DEPRECATED(false)
-		, bIsReference(bInIsReference)
-		, bIsConst(false)
-		, bIsWeakPointer(false)
-	{
-	}
-
 	FEdGraphPinType(FName InPinCategory, FName InPinSubCategory, UObject* InPinSubCategoryObject, EPinContainerType InPinContainerType, bool bInIsReference, const FEdGraphTerminalType& InValueTerminalType )
 		: PinCategory(InPinCategory)
 		, PinSubCategory(InPinSubCategory)
@@ -218,6 +163,7 @@ public:
 		, bIsReference(bInIsReference)
 		, bIsConst(false)
 		, bIsWeakPointer(false)
+		, bIsUObjectWrapper(false)
 	{
 	}
 
@@ -230,6 +176,7 @@ public:
 			&& (ContainerType == Other.ContainerType)
 			&& (bIsReference == Other.bIsReference)
 			&& (bIsWeakPointer == Other.bIsWeakPointer)
+			//&& (bIsUObjectWrapper == Other.bIsUObjectWrapper)
 			&& (PinSubCategoryMemberReference == Other.PinSubCategoryMemberReference)
 			&& (bIsConst == Other.bIsConst);
 	}
@@ -248,6 +195,7 @@ public:
 		ContainerType = EPinContainerType::None;
 		bIsReference = false;
 		bIsWeakPointer = false;
+		bIsUObjectWrapper = false;
 		bIsConst = false;
 	}
 

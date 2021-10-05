@@ -179,6 +179,9 @@ void FMallocLeakDetection::GetOpenCallstacks(TArray<uint32>& OutCallstacks, SIZE
 	{
 		FScopeLock Lock(&AllocatedPointersCritical);
 
+		// UniqueCallstacks is modified on HashesToAllocRate.Add which will assert
+		bRecursive = true;
+
 		const int kRequiredRateCheckpoints = 3;
 
 		for (const auto& Pair : UniqueCallstacks)
@@ -241,6 +244,8 @@ void FMallocLeakDetection::GetOpenCallstacks(TArray<uint32>& OutCallstacks, SIZE
 			// else sort by Ascending size
 			return Left.Size >= Right.Size;
 		});
+
+		bRecursive = false;
 	}
 }
 
@@ -382,6 +387,9 @@ int32 FMallocLeakDetection::DumpOpenCallstacks(const TCHAR* FileName, const FMal
 
 		TArray<FString> SortedContexts;
 
+		FScopeLock Lock(&AllocatedPointersCritical);
+		bRecursive = true;
+
 		for (const TPair<void*, FCallstackTrack>& Pair : CopyTemp(OpenPointers))
 		{
 			if (Pair.Value.CachedHash == Key)
@@ -392,6 +400,7 @@ int32 FMallocLeakDetection::DumpOpenCallstacks(const TCHAR* FileName, const FMal
 				}
 			}
 		}
+		bRecursive = false;
 
 		if (SortedContexts.Num())
 		{

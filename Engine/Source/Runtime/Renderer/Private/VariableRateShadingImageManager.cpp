@@ -30,18 +30,6 @@ ENUM_CLASS_FLAGS(EVRSGenerationFlags);
 
 const int32 kMaxCombinedSources = 4;
 
-static TAutoConsoleVariable<bool> CVarEnableVariableRateShading(
-	TEXT("r.VRS.Enable"),
-	true,
-	TEXT("Toggle to enable Variable Rate Shading."),
-	ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<bool> CVarEnableAttachmentVariableRateShading(
-	TEXT("r.VRS.EnableImage"),
-	false,
-	TEXT("Toggle to enable image-based Variable Rate Shading."),
-	ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<int> CVarHMDFixedFoveationLevel(
 	TEXT("vr.VRS.HMDFixedFoveationLevel"),
 	0,
@@ -172,7 +160,7 @@ void FVariableRateShadingImageManager::ReleaseDynamicRHI()
 FRDGTextureRef FVariableRateShadingImageManager::GetVariableRateShadingImage(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily, const TArray<TRefCountPtr<IPooledRenderTarget>>* ExternalVRSSources, EVRSType VRSTypesToExclude)
 {
 	// If the RHI doesn't support VRS, we should always bail immediately.
-	if (!GRHISupportsAttachmentVariableRateShading || !CVarEnableAttachmentVariableRateShading.GetValueOnAnyThread() || !CVarEnableVariableRateShading.GetValueOnAnyThread())
+	if (!GRHISupportsAttachmentVariableRateShading || !GRHIVariableRateShadingEnabled || !GRHIAttachmentVariableRateShadingEnabled)
 	{
 		return nullptr;
 	}

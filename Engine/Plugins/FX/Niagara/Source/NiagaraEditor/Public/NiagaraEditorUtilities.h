@@ -40,8 +40,16 @@ enum class ECheckBoxState : uint8;
 enum class EScriptSource : uint8;
 struct FNiagaraNamespaceMetadata;
 class FNiagaraParameterHandle;
+class INiagaraParameterDefinitionsSubscriberViewModel;
 
 enum class ENiagaraFunctionDebugState : uint8;
+
+struct FRefreshAllScriptsFromExternalChangesArgs
+{
+	UNiagaraScript* OriginatingScript = nullptr;
+	UNiagaraGraph* OriginatingGraph = nullptr;
+	UNiagaraParameterDefinitions* OriginatingParameterDefinitions = nullptr;
+};
 
 namespace FNiagaraEditorUtilities
 {
@@ -218,6 +226,10 @@ namespace FNiagaraEditorUtilities
 
 	NIAGARAEDITOR_API ENiagaraScriptLibraryVisibility GetScriptAssetVisibility(const FAssetData& ScriptAssetData);
 
+	/** Used instead of reading the template tag directly for backwards compatibility reasons when changing from a bool template specifier to an enum */
+	NIAGARAEDITOR_API bool GetTemplateSpecificationFromTag(const FAssetData& Data, ENiagaraScriptTemplateSpecification&
+	                                                       OutTemplateSpecification);
+
 	NIAGARAEDITOR_API bool IsScriptAssetInLibrary(const FAssetData& ScriptAssetData);
 
 	NIAGARAEDITOR_API int32 GetWeightForItem(const TSharedPtr<FNiagaraMenuAction_Generic>& Item, const TArray<FString>& FilterTerms);
@@ -276,8 +288,6 @@ namespace FNiagaraEditorUtilities
 	NIAGARAEDITOR_API void WarnWithToastAndLog(FText WarningMessage);
 	NIAGARAEDITOR_API void InfoWithToastAndLog(FText WarningMessage, float ToastDuration = 5.0f);
 
-	void GetScriptRunAndExecutionIndexFromUsage(const ENiagaraScriptUsage& InUsage, int32& OutRunIndex, int32&OutExecutionIndex);
-
 	NIAGARAEDITOR_API FName GetUniqueObjectName(UObject* Outer, UClass* ObjectClass, const FString& CandidateName);
 
 	template<typename T>
@@ -286,38 +296,9 @@ namespace FNiagaraEditorUtilities
 		return GetUniqueObjectName(Outer, T::StaticClass(), CandidateName);
 	}
 
-	/** Gets the Scope and notifies if it does not apply due to an override being set.
-	 * @params MetaData				The MetaData to get the namespace string for.
-	 * @params OutScope		The Scope to return.
-	 * @return bool			Whether the returned scope is not overridden. Is false if bUseLegacyNameString is set.
-	 */
-	bool GetVariableMetaDataScope(const FNiagaraVariableMetaData& MetaData, ENiagaraParameterScope& OutScope);
-
-	/** Gets the Namespace string and notifies if it does not apply due to an override being set.
-	 * @params MetaData				The MetaData to get the namespace string for.
-	 * @params OutNamespaceString	The Namespace string to return.
-	 * @return bool					Whether the returned Namespace string is valid. Is false if bUseLegacyNameString is set.
-	 */
-	bool GetVariableMetaDataNamespaceString(const FNiagaraVariableMetaData& MetaData, FString& OutNamespaceString);
-
-	/** Gets the Namespace string and notifies if it does not apply due to an override being set.
-	 * @params MetaData				The MetaData to get the namespace string for.
-	 * @params NewScopeName			The NewScopeName to consider when getting the namespace string.
-	 * @params OutNamespaceString	The Namespace string to return.
-	 * @return bool					Whether the returned Namespace string is valid. Is false if bUseLegacyNameString is set.
-	 */
-	bool GetVariableMetaDataNamespaceStringForNewScope(const FNiagaraVariableMetaData& MetaData, const FName& NewScopeName, FString& OutNamespaceString);
-
-	FName GetScopeNameForParameterScope(ENiagaraParameterScope InScope);
-
-	bool IsScopeEditable(const FName& InScopeName);
-	bool IsScopeUserAssignable(const FName& InScopeName);
-
 	TArray<FName> DecomposeVariableNamespace(const FName& InVarNameToken, FName& OutName);
 
 	void  RecomposeVariableNamespace(const FName& InVarNameToken, const TArray<FName>& InParentNamespaces, FName& OutName);
-
-	void GetParameterMetaDataFromName(const FName& InVarNameToken, FNiagaraVariableMetaData& OutMetaData);
 
 	FString NIAGARAEDITOR_API GetNamespacelessVariableNameString(const FName& InVarName);
 
@@ -334,11 +315,18 @@ namespace FNiagaraEditorUtilities
 
 	const FNiagaraNamespaceMetadata GetNamespaceMetaDataForVariableName(const FName& VarName);
 
-	/** Used to gather the actions for . */
-	void CollectPinTypeChangeActions(FGraphActionListBuilderBase& OutActions, bool& bOutCreateRemainingActions, UEdGraphPin* Pin);
+	const FNiagaraNamespaceMetadata GetNamespaceMetaDataForId(const FGuid& NamespaceId);
+
+	bool GetAvailableParameterDefinitions(const TArray<FString>& ExternalPackagePaths, TArray<FAssetData>& OutParameterDefinitionsAssetData);
+
+	TSharedPtr<INiagaraParameterDefinitionsSubscriberViewModel> GetOwningLibrarySubscriberViewModelForGraph(const UNiagaraGraph* Graph);
+
+	TArray<UNiagaraParameterDefinitions*> DowncastParameterDefinitionsBaseArray(const TArray<UNiagaraParameterDefinitionsBase*> BaseArray);
 
 	// Executes python upgrade scripts on the given source node for all the given in-between versions
 	void RunPythonUpgradeScripts(UNiagaraNodeFunctionCall* SourceNode, const TArray<FVersionedNiagaraScriptData*>& UpgradeVersionData, const FNiagaraScriptVersionUpgradeContext& UpgradeContext, FString& OutWarnings);
+
+	void RefreshAllScriptsFromExternalChanges(FRefreshAllScriptsFromExternalChangesArgs Args);
 };
 
 namespace FNiagaraParameterUtilities
@@ -359,7 +347,7 @@ namespace FNiagaraParameterUtilities
 		FNiagaraNamespaceMetadata& OutNamespaceMetadata,
 		FText& OutErrorMessage);
 
-	enum class EParameterContext
+	enum class EParameterContext : uint8
 	{
 		Script,
 		System

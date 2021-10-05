@@ -21,6 +21,7 @@ void FDMXEditorCommands::RegisterCommands()
 	UI_COMMAND(OpenChannelsMonitor, "Open Channel Monitor", "Open the Monitor for all DMX Channels in a Universe", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(OpenActivityMonitor, "Open Activity Monitor", "Open the Monitor for all DMX activity in a range of Universes", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(OpenOutputConsole, "Open Output Console", "Open the Console to generate and output DMX Signals", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(OpenPatchTool, "Open Patch Tool", "Open the patch tool - Useful to patch many fixtures at once.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ToggleReceiveDMX, "Receive DMX", "Sets whether DMX is received in editor", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Alt, EKeys::M));
 	UI_COMMAND(ToggleSendDMX, "Send DMX", "Sets whether DMX is sent from editor", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Alt, EKeys::N));
 }

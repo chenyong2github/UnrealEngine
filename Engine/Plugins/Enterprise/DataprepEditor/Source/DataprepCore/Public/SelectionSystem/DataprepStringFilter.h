@@ -21,13 +21,17 @@ enum class EDataprepStringMatchType : uint8
 };
 
 UCLASS()
-class UDataprepStringFilterMatchingArray : public UDataprepParameterizableObject
+class DATAPREPCORE_API UDataprepStringFilterMatchingArray : public UDataprepParameterizableObject
 {
 	GENERATED_BODY()
 
 public:
 	UPROPERTY(EditAnywhere, Category = Filter)
 	TArray<FString> Strings;
+
+	// UI state that needs to be serialized along with string values
+	UPROPERTY()
+	bool bExpanded = true;
 };
 
 UCLASS()

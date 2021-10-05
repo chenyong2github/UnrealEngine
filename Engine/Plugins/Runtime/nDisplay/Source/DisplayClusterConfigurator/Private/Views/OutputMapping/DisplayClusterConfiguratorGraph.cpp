@@ -27,6 +27,17 @@ void UDisplayClusterConfiguratorGraph::PostEditUndo()
 	NotifyGraphChanged();
 }
 
+void UDisplayClusterConfiguratorGraph::Cleanup()
+{
+	for (UEdGraphNode* Node : Nodes)
+	{
+		if (UDisplayClusterConfiguratorBaseNode* BaseNode = Cast<UDisplayClusterConfiguratorBaseNode>(Node))
+		{
+			BaseNode->Cleanup();
+		}
+	}
+}
+
 void UDisplayClusterConfiguratorGraph::Empty()
 {
 	// Manually remove nodes here instead of using built in RemoveNode method to avoid invoking any GraphChanged delegates for node removal.
@@ -53,17 +64,26 @@ void UDisplayClusterConfiguratorGraph::RebuildGraph()
 		TMap<FString, TMap<FString, UDisplayClusterConfigurationClusterNode*>> SortedClusterNodes;
 		FDisplayClusterConfiguratorClusterUtils::SortClusterNodesByHost(Config->Cluster->Nodes, SortedClusterNodes);
 
+		// Keep track of the count of each cluster item to use as a z-index for the node.
+		int HostIndex = 0;
+		int WindowIndex = 0;
+		int ViewportIndex = 0;
+
 		for (const TPair<FString, TMap<FString, UDisplayClusterConfigurationClusterNode*>>& SortedPair : SortedClusterNodes)
 		{
 			UDisplayClusterConfigurationHostDisplayData* DisplayData = FDisplayClusterConfiguratorClusterUtils::FindOrCreateHostDisplayData(Config->Cluster, SortedPair.Key);
-			UDisplayClusterConfiguratorHostNode* HostNode = BuildHostNode(CanvasNode, DisplayData, SortedPair.Key);
+			UDisplayClusterConfiguratorHostNode* HostNode = BuildHostNode(CanvasNode, SortedPair.Key, HostIndex, DisplayData);
+			++HostIndex;
 
 			for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& ClusterNodePair : SortedPair.Value)
 			{
-				UDisplayClusterConfiguratorWindowNode* WindowNode = BuildWindowNode(HostNode, ClusterNodePair.Key, ClusterNodePair.Value);
+				UDisplayClusterConfiguratorWindowNode* WindowNode = BuildWindowNode(HostNode, ClusterNodePair.Key, WindowIndex, ClusterNodePair.Value);
+				++WindowIndex;
+
 				for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportPair : ClusterNodePair.Value->Viewports)
 				{
-					BuildViewportNode(WindowNode, ViewportPair.Key, ViewportPair.Value);
+					BuildViewportNode(WindowNode, ViewportPair.Key, ViewportIndex, ViewportPair.Value);
+					++ViewportIndex;
 				}
 			}
 		}
@@ -89,6 +109,22 @@ void UDisplayClusterConfiguratorGraph::RefreshNodePositions()
 	{
 		Node->UpdateNode();
 	});
+}
+
+UDisplayClusterConfiguratorBaseNode* UDisplayClusterConfiguratorGraph::GetNodeFromObject(UObject* InObject)
+{
+	for (UEdGraphNode* Node : Nodes)
+	{
+		if (UDisplayClusterConfiguratorBaseNode* BaseNode = Cast<UDisplayClusterConfiguratorBaseNode>(Node))
+		{
+			if (BaseNode->GetObject() == InObject)
+			{
+				return BaseNode;
+			}
+		}
+	}
+
+	return nullptr;
 }
 
 UDisplayClusterConfiguratorCanvasNode* UDisplayClusterConfiguratorGraph::GetRootNode() const
@@ -126,18 +162,18 @@ UDisplayClusterConfiguratorCanvasNode* UDisplayClusterConfiguratorGraph::BuildCa
 {
 	FGraphNodeCreator<UDisplayClusterConfiguratorCanvasNode> NodeCreator(*this);
 	UDisplayClusterConfiguratorCanvasNode* NewNode = NodeCreator.CreateNode(false);
-	NewNode->Initialize(FString(), ClusterConfig, ToolkitPtr.Pin().ToSharedRef());
+	NewNode->Initialize(FString(), 0, ClusterConfig, ToolkitPtr.Pin().ToSharedRef());
 
 	NodeCreator.Finalize();
 
 	return NewNode;
 }
 
-UDisplayClusterConfiguratorHostNode* UDisplayClusterConfiguratorGraph::BuildHostNode(UDisplayClusterConfiguratorBaseNode* ParentNode, UDisplayClusterConfigurationHostDisplayData* HostDisplayData, FString NodeName)
+UDisplayClusterConfiguratorHostNode* UDisplayClusterConfiguratorGraph::BuildHostNode(UDisplayClusterConfiguratorBaseNode* ParentNode, FString NodeName, int32 NodeIndex, UDisplayClusterConfigurationHostDisplayData* HostDisplayData)
 {
 	FGraphNodeCreator<UDisplayClusterConfiguratorHostNode> NodeCreator(*this);
 	UDisplayClusterConfiguratorHostNode* NewNode = NodeCreator.CreateNode(false);
-	NewNode->Initialize(NodeName, HostDisplayData, ToolkitPtr.Pin().ToSharedRef());
+	NewNode->Initialize(NodeName, NodeIndex, HostDisplayData, ToolkitPtr.Pin().ToSharedRef());
 
 	ParentNode->AddChild(NewNode);
 
@@ -146,11 +182,11 @@ UDisplayClusterConfiguratorHostNode* UDisplayClusterConfiguratorGraph::BuildHost
 	return NewNode;
 }
 
-UDisplayClusterConfiguratorWindowNode* UDisplayClusterConfiguratorGraph::BuildWindowNode(UDisplayClusterConfiguratorBaseNode* ParentNode, FString NodeName, UDisplayClusterConfigurationClusterNode* ClusterNodeConfig)
+UDisplayClusterConfiguratorWindowNode* UDisplayClusterConfiguratorGraph::BuildWindowNode(UDisplayClusterConfiguratorBaseNode* ParentNode, FString NodeName, int32 NodeIndex, UDisplayClusterConfigurationClusterNode* ClusterNodeConfig)
 {
 	FGraphNodeCreator<UDisplayClusterConfiguratorWindowNode> NodeCreator(*this);
 	UDisplayClusterConfiguratorWindowNode* NewNode = NodeCreator.CreateNode(false);
-	NewNode->Initialize(NodeName, ClusterNodeConfig, ToolkitPtr.Pin().ToSharedRef());
+	NewNode->Initialize(NodeName, NodeIndex, ClusterNodeConfig, ToolkitPtr.Pin().ToSharedRef());
 
 	ParentNode->AddChild(NewNode);
 
@@ -159,7 +195,7 @@ UDisplayClusterConfiguratorWindowNode* UDisplayClusterConfiguratorGraph::BuildWi
 	return NewNode;
 }
 
-UDisplayClusterConfiguratorViewportNode* UDisplayClusterConfiguratorGraph::BuildViewportNode(UDisplayClusterConfiguratorBaseNode* ParentNode, FString NodeName, UDisplayClusterConfigurationViewport* ViewportConfig)
+UDisplayClusterConfiguratorViewportNode* UDisplayClusterConfiguratorGraph::BuildViewportNode(UDisplayClusterConfiguratorBaseNode* ParentNode, FString NodeName, int32 NodeIndex, UDisplayClusterConfigurationViewport* ViewportConfig)
 {
 	if (!ensure(ViewportConfig))
 	{
@@ -169,7 +205,7 @@ UDisplayClusterConfiguratorViewportNode* UDisplayClusterConfiguratorGraph::Build
 	
 	FGraphNodeCreator<UDisplayClusterConfiguratorViewportNode> NodeCreator(*this);
 	UDisplayClusterConfiguratorViewportNode* NewNode = NodeCreator.CreateNode(false);
-	NewNode->Initialize(NodeName, ViewportConfig, ToolkitPtr.Pin().ToSharedRef());
+	NewNode->Initialize(NodeName, NodeIndex, ViewportConfig, ToolkitPtr.Pin().ToSharedRef());
 
 	ParentNode->AddChild(NewNode);
 

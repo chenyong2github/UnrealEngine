@@ -30,11 +30,8 @@ TArray<TSharedPtr<FDataprepSchemaAction>> FDataprepAllMenuActionCollector::Colle
 	Actions.Append( FilterCollector.CollectActions() );
 	Actions.Append( SelectionTransformCollector.CollectActions() );
 
-	FDataprepAllMenuActionCollectorUtils::AddRootCategoryToActions( Actions, FDataprepFilterMenuActionCollector::FilterCategory );
-
 	FDataprepOperationMenuActionCollector OperationCollector;
 	TArray< TSharedPtr< FDataprepSchemaAction > > OperationActions = OperationCollector.CollectActions();
-	FDataprepAllMenuActionCollectorUtils::AddRootCategoryToActions( OperationActions, FDataprepOperationMenuActionCollector::OperationCategory );
 	Actions.Append( MoveTemp( OperationActions ) );
 
 	return Actions;

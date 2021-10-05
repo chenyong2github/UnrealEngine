@@ -13,6 +13,7 @@
 
 #include "NiagaraScript.h"
 #include "Widgets/SItemSelector.h"
+#include "ViewModels/NiagaraSystemGraphSelectionViewModel.h"
 
 class FNiagaraSystemInstance;
 class FNiagaraSystemViewModel;
@@ -29,6 +30,7 @@ class FMenuBuilder;
 class ISequencer;
 class FNiagaraMessageLogViewModel;
 class FNiagaraSystemToolkitParameterPanelViewModel;
+class FNiagaraSystemToolkitParameterDefinitionsPanelViewModel;
 class FNiagaraScriptStatsViewModel;
 class FNiagaraBakerViewModel;
 
@@ -119,7 +121,8 @@ private:
 	TSharedRef<SDockTab> SpawnTab_Sequencer(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_SystemScript(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_SystemParameters(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnTab_SystemParameters2(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_SystemParameters2(const FSpawnTabArgs& Args); //@todo(ng) cleanup
+	TSharedRef<SDockTab> SpawnTab_SystemParameterDefinitions(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_SelectedEmitterStack(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_SelectedEmitterGraph(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_DebugSpreadsheet(const FSpawnTabArgs& Args);
@@ -139,11 +142,6 @@ private:
 
 	void GetSequencerAddMenuContent(FMenuBuilder& MenuBuilder, TSharedRef<ISequencer> Sequencer);
 	TSharedRef<SWidget> CreateAddEmitterMenuContent();
-	void LibraryCheckBoxStateChanged(ECheckBoxState InCheckbox);
-	ECheckBoxState GetLibraryCheckBoxState() const;
-	void TemplateCheckBoxStateChanged(ECheckBoxState InCheckbox);
-	ECheckBoxState GetTemplateCheckBoxState() const;
-	bool ShouldFilterEmitter(const FAssetData& AssetData);
 	TSharedRef<SWidget> GenerateCompileMenuContent();
 
 	void EmitterAssetSelected(const FAssetData& AssetData);
@@ -189,6 +187,9 @@ private:
 	/* The view model for the System being edited */
 	TSharedPtr<FNiagaraSystemViewModel> SystemViewModel;
 
+	/* The view model for the selected Emitter Script graphs of the System being edited. */
+	TSharedPtr<FNiagaraSystemGraphSelectionViewModel> SystemGraphSelectionViewModel;
+
 	/** Message log, with the log listing that it reflects */
 	TSharedPtr<FNiagaraMessageLogViewModel> NiagaraMessageLogViewModel;
 	TSharedPtr<class SWidget> NiagaraMessageLog;
@@ -202,9 +203,10 @@ private:
 	/** The command list for this editor */
 	TSharedPtr<FUICommandList> EditorCommands;
 
-	TSharedPtr<class SNiagaraParameterMapView> ParameterMapView; //@todo(ng) cleanup
+	TSharedPtr<class SNiagaraParameterMapView> ParameterMapView;
 
 	TSharedPtr<FNiagaraSystemToolkitParameterPanelViewModel> ParameterPanelViewModel;
+	TSharedPtr<FNiagaraSystemToolkitParameterDefinitionsPanelViewModel> ParameterDefinitionsPanelViewModel;
 	TSharedPtr<class SNiagaraParameterPanel> ParameterPanel;
 
 	TSharedPtr<FNiagaraObjectSelection> ObjectSelectionForParameterMapView;
@@ -224,6 +226,7 @@ public:
 	static const FName SystemDetailsTabID;
 	static const FName SystemParametersTabID;
 	static const FName SystemParametersTabID2;
+	static const FName SystemParameterDefinitionsTabID;
 	static const FName SelectedEmitterStackTabID;
 	static const FName SelectedEmitterGraphTabID;
 	static const FName DebugSpreadsheetTabID;
@@ -234,8 +237,4 @@ public:
 	static const FName ScratchPadTabID;
 	static const FName ScriptStatsTabID;
 	static const FName BakerTabID;
-
-private:
-	static bool bShowLibraryOnly;
-	static bool bShowTemplateOnly;
 };

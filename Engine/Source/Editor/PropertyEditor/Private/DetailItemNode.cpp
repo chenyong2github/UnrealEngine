@@ -9,6 +9,8 @@
 #include "IDetailKeyframeHandler.h"
 #include "ObjectPropertyNode.h"
 #include "PropertyCustomizationHelpers.h"
+#include "PropertyEditorWhitelist.h"
+#include "CategoryPropertyNode.h"
 
 FDetailItemNode::FDetailItemNode(const FDetailLayoutCustomization& InCustomization, TSharedRef<FDetailCategoryImpl> InParentCategory, TAttribute<bool> InIsParentEnabled, TSharedPtr<IDetailGroup> InParentGroup)
 	: Customization( InCustomization )
@@ -22,7 +24,7 @@ FDetailItemNode::FDetailItemNode(const FDetailLayoutCustomization& InCustomizati
 	, bIsExpanded( InCustomization.HasCustomBuilder() ? !InCustomization.CustomBuilderRow->IsInitiallyCollapsed() : false )
 	, bIsHighlighted( false )
 {
-	
+	SetParentNode(InParentCategory);
 }
 
 void FDetailItemNode::Initialize()
@@ -380,6 +382,31 @@ void FDetailItemNode::GenerateChildren( bool bUpdateFilteredNodes )
 	{
 		Customization.DetailGroup->OnGenerateChildren( Children );
 	}
+
+	// Discard generated nodes that don't pass the property whitelist, as well as generated categories who no longer contain any children
+	// Searching backwards guarantees that a category's children will be culled before the category itself.
+	for (int32 i = Children.Num() - 1; i >= 0; --i)
+	{
+		Children[i]->SetParentNode(AsShared());
+		if (Children[i]->GetNodeType() == EDetailNodeType::Object || Children[i]->GetNodeType() == EDetailNodeType::Item)
+		{
+			if (!FPropertyEditorWhitelist::Get().DoesPropertyPassFilter(Children[i]->GetParentBaseStructure(), Children[i]->GetNodeName()))
+			{
+				Children.RemoveAt(i);
+			}
+		}
+		else if (Children[i]->GetNodeType() == EDetailNodeType::Category)
+		{
+			// Nodes default to hidden until the filter runs the first time - categories return no children if they're hidden, so force an empty filter to initialize properly
+			Children[i]->FilterNode(FDetailFilter());
+			FDetailNodeList Subchildren;
+			Children[i]->GetChildren(Subchildren);
+			if (Subchildren.Num() == 0)
+			{
+				Children.RemoveAt(i);
+			}
+		}
+	}
 }
 
 
@@ -699,34 +726,6 @@ bool FDetailItemNode::ShouldShowOnlyChildren() const
 		 || (Customization.HasPropertyNode() && Customization.PropertyRow->ShowOnlyChildren() );
 }
 
-FName FDetailItemNode::GetNodeName() const
-{
-	if( Customization.HasCustomBuilder() )
-	{
-		return Customization.CustomBuilderRow->GetCustomBuilderName();
-	}
-	else if( Customization.HasGroup() )
-	{
-		return Customization.DetailGroup->GetGroupName();
-	}
-	else if (Customization.HasExternalPropertyRow())
-	{
-		FName CustomName = Customization.PropertyRow->GetCustomExpansionId();
-
-		return CustomName;
-	}
-	else if (Customization.HasPropertyNode())
-	{
-		TSharedPtr<FPropertyNode> PropertyNode = Customization.GetPropertyNode();
-		if (PropertyNode.IsValid())
-		{
-			FName PropertyName = PropertyNode->GetProperty()->GetFName();
-			return PropertyName;
-		}
-	}
-	return NAME_None;
-}
-
 FPropertyPath FDetailItemNode::GetPropertyPath() const
 {
 	FPropertyPath Ret;
@@ -784,11 +783,10 @@ TSharedPtr<FComplexPropertyNode> FDetailItemNode::GetExternalRootPropertyNode() 
 
 void FDetailItemNode::FilterNode(const FDetailFilter& InFilter)
 {
-	bShouldBeVisibleDueToFiltering = PassesAllFilters( this, Customization, InFilter, ParentCategory.Pin()->GetDisplayName().ToString() );
-
+	bShouldBeVisibleDueToFiltering = PassesAllFilters(this, Customization, InFilter, ParentCategory.Pin()->GetDisplayName().ToString());
 	if (!bShouldBeVisibleDueToFiltering && ParentGroup.IsValid() && !ParentGroup.Pin()->GetGroupName().IsNone())
 	{
-		bShouldBeVisibleDueToFiltering = PassesAllFilters( this, Customization, InFilter, ParentGroup.Pin()->GetGroupName().ToString() );
+		bShouldBeVisibleDueToFiltering = PassesAllFilters(this, Customization, InFilter, ParentGroup.Pin()->GetGroupName().ToString());
 	}
 
 	bShouldBeVisibleDueToChildFiltering = false;

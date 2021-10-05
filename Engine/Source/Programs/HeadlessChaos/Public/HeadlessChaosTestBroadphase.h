@@ -17,5 +17,7 @@ namespace ChaosTest {
 
 	void BroadphaseCollectionTest();
 
+	void BoundingVolumeNoBoundsTest();
+
 	void SpatialAccelerationDirtyAndGlobalQueryStrestTest();
 }

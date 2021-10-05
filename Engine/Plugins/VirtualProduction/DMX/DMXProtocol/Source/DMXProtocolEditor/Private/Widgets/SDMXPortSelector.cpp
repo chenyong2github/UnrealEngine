@@ -55,7 +55,7 @@ void SDMXPortSelector::Construct(const FArguments& InArgs)
 	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
 	check(ProtocolSettings);
 
-	ProtocolSettings->OnPortConfigsChanged.AddSP(this, &SDMXPortSelector::OnPortConfigsChanged);
+	FDMXPortManager::Get().OnPortsChanged.AddSP(this, &SDMXPortSelector::OnPortConfigsChanged);
 
 	ChildSlot
 		[
@@ -71,6 +71,8 @@ void SDMXPortSelector::Construct(const FArguments& InArgs)
 		check(PortNameComboBox.IsValid());
 		PortNameComboBox->SetSelectedItem(InitialSelection);
 	}
+
+	bIsUnderConstruction = false;
 }
 
 bool SDMXPortSelector::IsInputPortSelected() const
@@ -196,9 +198,6 @@ void SDMXPortSelector::OnPortItemSelectionChanged(TSharedPtr<FDMXPortSelectorIte
 		}
 		else
 		{
-			// Only broadcast changes, but not the initial selection
-			bool bInitialSelection = !RestoreItem.IsValid();
-
 			if (Item.IsValid())
 			{
 				RestoreItem = Item;
@@ -209,7 +208,8 @@ void SDMXPortSelector::OnPortItemSelectionChanged(TSharedPtr<FDMXPortSelectorIte
 				PortNameTextBlock->SetText(LOCTEXT("SelectPortPrompt", "Please select a port"));
 			}
 
-			if (!bInitialSelection)
+			// Only broadcast changes after construction
+			if (!bIsUnderConstruction)
 			{
 				OnPortSelected.ExecuteIfBound();
 			}

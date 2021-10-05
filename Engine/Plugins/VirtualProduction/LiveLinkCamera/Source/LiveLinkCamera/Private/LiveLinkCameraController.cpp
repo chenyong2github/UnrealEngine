@@ -6,6 +6,8 @@
 #include "CameraCalibrationSubsystem.h"
 #include "CineCameraComponent.h"
 #include "Controllers/LiveLinkTransformController.h"
+#include "Engine/Engine.h"
+#include "Engine/World.h"
 #include "Features/IModularFeatures.h"
 #include "GameFramework/Actor.h"
 #include "ILiveLinkClient.h"
@@ -44,20 +46,49 @@ void ULiveLinkCameraController::Tick(float DeltaTime, const FLiveLinkSubjectFram
 		{
 			bIsEncoderMappingNeeded = (StaticData->FIZDataMode == ECameraFIZMode::EncoderData);
 			
-			if (StaticData->bIsFieldOfViewSupported) { CameraComponent->SetFieldOfView(FrameData->FieldOfView); }
-			if (StaticData->bIsAspectRatioSupported) { CameraComponent->SetAspectRatio(FrameData->AspectRatio); }
-			if (StaticData->bIsProjectionModeSupported) { CameraComponent->SetProjectionMode(FrameData->ProjectionMode == ELiveLinkCameraProjectionMode::Perspective ? ECameraProjectionMode::Perspective : ECameraProjectionMode::Orthographic); }
+			//Stamp previous values that have an impact on frustum visual representation
+			const float PreviousFOV = CameraComponent->FieldOfView;
+			const float PreviousAspectRatio = CameraComponent->AspectRatio;
+			const ECameraProjectionMode::Type PreviousProjectionMode = CameraComponent->ProjectionMode;
+
+			if (StaticData->bIsFieldOfViewSupported && UpdateFlags.bApplyFieldOfView) { CameraComponent->SetFieldOfView(FrameData->FieldOfView); }
+			if (StaticData->bIsAspectRatioSupported && UpdateFlags.bApplyAspectRatio) { CameraComponent->SetAspectRatio(FrameData->AspectRatio); }
+			if (StaticData->bIsProjectionModeSupported && UpdateFlags.bApplyProjectionMode) { CameraComponent->SetProjectionMode(FrameData->ProjectionMode == ELiveLinkCameraProjectionMode::Perspective ? ECameraProjectionMode::Perspective : ECameraProjectionMode::Orthographic); }
 
 			if (UCineCameraComponent* CineCameraComponent = Cast<UCineCameraComponent>(CameraComponent))
 			{
-				if (StaticData->FilmBackWidth > 0.0f) { CineCameraComponent->Filmback.SensorWidth = StaticData->FilmBackWidth; }
-				if (StaticData->FilmBackHeight > 0.0f) { CineCameraComponent->Filmback.SensorHeight = StaticData->FilmBackHeight; }
+				if (StaticData->FilmBackWidth > 0.0f && UpdateFlags.bApplyFilmBack) { CineCameraComponent->Filmback.SensorWidth = StaticData->FilmBackWidth; }
+				if (StaticData->FilmBackHeight > 0.0f && UpdateFlags.bApplyFilmBack) { CineCameraComponent->Filmback.SensorHeight = StaticData->FilmBackHeight; }
 				
 				ULensFile* SelectedLensFile = LensFilePicker.GetLensFile();
+
+				if (LastFilmback != CineCameraComponent->Filmback)
+				{
+					if (SelectedLensFile && SelectedLensFile->IsCineCameraCompatible(CineCameraComponent) == false)
+					{
+						UE_LOG(LogLiveLinkCameraController, Warning, TEXT("LensFile '%s' has a smaller sensor size than the CameraComponent of '%s' (driven by LiveLinkCameraController '%s')")
+							, *SelectedLensFile->GetName()
+							, *CineCameraComponent->GetOwner()->GetName()
+							, *this->GetName());
+					}
+				}
+				LastFilmback = CineCameraComponent->Filmback;
 
 				ApplyFIZ(SelectedLensFile, CineCameraComponent, StaticData, FrameData);
 				ApplyDistortion(SelectedLensFile, CineCameraComponent);
 			}
+
+#if WITH_EDITORONLY_DATA
+
+			const bool bIsVisualImpacted = (FMath::IsNearlyEqual(PreviousFOV, CameraComponent->FieldOfView) == false)
+			|| (FMath::IsNearlyEqual(PreviousAspectRatio, CameraComponent->AspectRatio) == false)
+			|| (PreviousProjectionMode != CameraComponent->ProjectionMode);
+
+			if (bShouldUpdateVisualComponentOnChange && bIsVisualImpacted)
+			{
+				CameraComponent->RefreshVisualRepresentation();
+			}
+#endif
 		}
 	}
 }
@@ -97,6 +128,9 @@ void ULiveLinkCameraController::SetAttachedComponent(UActorComponent* ActorCompo
 		// Initialize the most recent focal length to the current focal length of the camera to properly detect changes to this property
 		LastFocalLength = CineCameraComponent->CurrentFocalLength;
 
+		// Initialize the most recent filmback to the current filmback of the camera to properly detect changes to this property
+		LastFilmback = CineCameraComponent->Filmback;
+
 		//When our component has changed, make sure we update our 
 		//cached/original filmback to restore it correctly
 		//PIE case is odd because the camera is duplicated from editor and its filmback will already be distorted
@@ -107,6 +141,15 @@ void ULiveLinkCameraController::SetAttachedComponent(UActorComponent* ActorCompo
 		}
 
 		UpdateDistortionHandler(CineCameraComponent);
+
+		ULensFile* SelectedLensFile = LensFilePicker.GetLensFile();
+		if (SelectedLensFile && SelectedLensFile->IsCineCameraCompatible(CineCameraComponent) == false)
+		{
+			UE_LOG(LogLiveLinkCameraController, Warning, TEXT("LensFile '%s' has a smaller sensor size than the CameraComponent of '%s' (driven by LiveLinkCameraController '%s')")
+				, *SelectedLensFile->GetName()
+				, *CineCameraComponent->GetOwner()->GetName()
+				, *this->GetName());
+		}
 	}
 }
 
@@ -177,6 +220,20 @@ void ULiveLinkCameraController::PostEditChangeProperty(struct FPropertyChangedEv
 			}
 		}
 	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FLensFilePicker, LensFile))
+	{
+		if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(AttachedComponent))
+		{
+			ULensFile* SelectedLensFile = LensFilePicker.GetLensFile();
+			if (SelectedLensFile && SelectedLensFile->IsCineCameraCompatible(CineCameraComponent) == false)
+			{
+				UE_LOG(LogLiveLinkCameraController, Warning, TEXT("LensFile '%s' has a smaller sensor size than the CameraComponent of '%s' (driven by LiveLinkCameraController '%s')")
+					, *SelectedLensFile->GetName()
+					, *CineCameraComponent->GetName()
+					, *this->GetName());
+			}
+		}
+	}
 }
 
 #endif
@@ -186,9 +243,10 @@ void ULiveLinkCameraController::ApplyFIZ(ULensFile* LensFile, UCineCameraCompone
 	//When FIZ data comes from encoder, we need to map incoming values to actual FIZ
 	if (bIsEncoderMappingNeeded)
 	{
+		bool bUseRange = !bUseLensFileForEncoderMapping;
 		if (LensFile)
 		{
-			if (StaticData->bIsFocusDistanceSupported)
+			if (StaticData->bIsFocusDistanceSupported && UpdateFlags.bApplyFocusDistance)
 			{
 				float NewFocusDistance;
 				if (LensFile->EvaluateNormalizedFocus(FrameData->FocusDistance, NewFocusDistance))
@@ -201,7 +259,7 @@ void ULiveLinkCameraController::ApplyFIZ(ULensFile* LensFile, UCineCameraCompone
 				}
 			}
 
-			if (StaticData->bIsApertureSupported)
+			if (StaticData->bIsApertureSupported && UpdateFlags.bApplyAperture)
 			{
 				float NewAperture;
 				if (LensFile->EvaluateNormalizedIris(FrameData->Aperture, NewAperture))
@@ -214,7 +272,7 @@ void ULiveLinkCameraController::ApplyFIZ(ULensFile* LensFile, UCineCameraCompone
 				}
 			}
 
-			if (StaticData->bIsFocalLengthSupported)
+			if (StaticData->bIsFocalLengthSupported && UpdateFlags.bApplyFocalLength)
 			{
 				float NewZoom;
 				if (LensFile->EvaluateNormalizedZoom(FrameData->FocalLength, NewZoom))
@@ -233,22 +291,28 @@ void ULiveLinkCameraController::ApplyFIZ(ULensFile* LensFile, UCineCameraCompone
 			if ((CurrentTime - LastInvalidLoggingLoggedTimestamp) > TimeBetweenLoggingSeconds)
 			{
 				LastInvalidLoggingLoggedTimestamp = CurrentTime;
-				FLiveLinkLog::Warning(TEXT("'%s' needs encoder mapping but lens file is invalid. Falling back to default CineCamera parameters - is this intentional?"), *GetName());
+				FLiveLinkLog::Warning(TEXT("'%s' needs encoder mapping and wants to use LensFile to remap but it's invalid. Falling back to default CineCamera parameters?"), *GetName());
 			}
+			
+			//Fallback to camera component range
+			bUseRange = true;
+		}
 
-			// If no LensFile is found, then use the existing min/max parameters in the current camera
-			if (StaticData->bIsFocusDistanceSupported)
+		//Use Min/Max values of each component to remap normalized incoming values
+		if(bUseRange)
+		{
+			if (StaticData->bIsFocusDistanceSupported && UpdateFlags.bApplyFocusDistance)
 			{
-				const float MinFocusDistInWorldUnits = CineCameraComponent->LensSettings.MinimumFocusDistance * (CineCameraComponent->GetWorldToMetersScale() / 1000.f);	// convert mm to uu
-				float NewFocusDistance = FMath::Lerp(MinFocusDistInWorldUnits, 100000.0f, FrameData->FocusDistance);
+				const float MinFocusDistanceInWorldUnits = CineCameraComponent->LensSettings.MinimumFocusDistance * (CineCameraComponent->GetWorldToMetersScale() / 1000.f);	// convert mm to uu
+				float NewFocusDistance = FMath::Lerp(MinFocusDistanceInWorldUnits, 100000.0f, FrameData->FocusDistance);
 				CineCameraComponent->FocusSettings.ManualFocusDistance = NewFocusDistance;
 			}
-			if (StaticData->bIsApertureSupported)
+			if (StaticData->bIsApertureSupported && UpdateFlags.bApplyAperture)
 			{
 				float NewAperture = FMath::Lerp(CineCameraComponent->LensSettings.MinFStop, CineCameraComponent->LensSettings.MaxFStop, FrameData->Aperture);
 				CineCameraComponent->CurrentAperture = NewAperture;
 			}
-			if (StaticData->bIsFocalLengthSupported)
+			if (StaticData->bIsFocalLengthSupported && UpdateFlags.bApplyFocalLength)
 			{
 				float NewZoom = FMath::Lerp(CineCameraComponent->LensSettings.MinFocalLength, CineCameraComponent->LensSettings.MaxFocalLength, FrameData->FocalLength);
 				CineCameraComponent->SetCurrentFocalLength(NewZoom);
@@ -257,9 +321,9 @@ void ULiveLinkCameraController::ApplyFIZ(ULensFile* LensFile, UCineCameraCompone
 	}
 	else
 	{
-		if (StaticData->bIsFocusDistanceSupported) { CineCameraComponent->FocusSettings.ManualFocusDistance = FrameData->FocusDistance; }
-		if (StaticData->bIsApertureSupported) { CineCameraComponent->CurrentAperture = FrameData->Aperture; }
-		if (StaticData->bIsFocalLengthSupported) { CineCameraComponent->SetCurrentFocalLength(FrameData->FocalLength); }
+		if (StaticData->bIsFocusDistanceSupported && UpdateFlags.bApplyFocusDistance) { CineCameraComponent->FocusSettings.ManualFocusDistance = FrameData->FocusDistance; }
+		if (StaticData->bIsApertureSupported && UpdateFlags.bApplyAperture) { CineCameraComponent->CurrentAperture = FrameData->Aperture; }
+		if (StaticData->bIsFocalLengthSupported && UpdateFlags.bApplyFocalLength) { CineCameraComponent->SetCurrentFocalLength(FrameData->FocalLength); }
 	}
 }
 
@@ -346,7 +410,8 @@ void ULiveLinkCameraController::ApplyDistortion(ULensFile* LensFile, UCineCamera
 			//Go through the lens file to get distortion data based on FIZ
 			//Our handler's displacement map will get updated
 			FDistortionData DistortionData;
-			LensFile->EvaluateDistortionData(CineCameraComponent->CurrentFocusDistance, UndistortedFocalLength, LensDistortionHandler, DistortionData);
+			const FVector2D CurrentSensorDimensions = FVector2D(CineCameraComponent->Filmback.SensorWidth, CineCameraComponent->Filmback.SensorHeight);
+			LensFile->EvaluateDistortionData(CineCameraComponent->CurrentFocusDistance, UndistortedFocalLength, CurrentSensorDimensions, LensDistortionHandler, DistortionData);
 		}
 
 		NewDistortionMID = LensDistortionHandler->GetDistortionMID();

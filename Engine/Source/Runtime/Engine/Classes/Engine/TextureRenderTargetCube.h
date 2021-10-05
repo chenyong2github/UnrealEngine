@@ -54,6 +54,8 @@ class UTextureRenderTargetCube : public UTextureRenderTarget
 	/** Initializes the render target, the format will be derived from the value of bHDR. */
 	ENGINE_API void InitAutoFormat(uint32 InSizeX);
 
+	ENGINE_API void UpdateResourceImmediate(bool bClearRenderTarget=true);
+
 	/**
 	* Utility for creating a new UTextureCube from a TextureRenderTargetCube.
 	* TextureRenderTargetCube must be square and a power of two size.

@@ -142,6 +142,6 @@ private:
 	TAttribute<float> MaxDesiredSlotWidth;
 	TAttribute<float> MaxDesiredSlotHeight;
 
-	TAttribute< EHorizontalAlignment > HAlign; 
-	TAttribute<bool> EvenRowDistribution; 
+	TAttribute< EHorizontalAlignment > HAlign;
+	TAttribute<bool> EvenRowDistribution;
 };

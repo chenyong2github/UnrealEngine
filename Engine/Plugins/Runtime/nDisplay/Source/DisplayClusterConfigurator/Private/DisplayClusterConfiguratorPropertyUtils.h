@@ -18,11 +18,27 @@ namespace DisplayClusterConfiguratorPropertyUtils
 	 * The property handle will be valid as long as the property view is valid.
 	 *
 	 * @param Owner UObject owning the property.
-	 * @param FieldName field name of the property.
+	 * @param FieldName The field name of the property.
 	 *
 	 * @return A property handle created for this property.
 	 */
 	TSharedPtr<ISinglePropertyView> GetPropertyView(UObject* Owner, const FName& FieldName);
+
+	/**
+	 * Set the value of a property handle for an object by the field name.
+	 *
+	 * @param Owner UObject owning the property.
+	 * @param FieldName The field name of the property.
+	 * @param Value The value to the set the property.
+	 */
+	template<typename T>
+	void SetPropertyHandleValue(UObject* Owner, const FName& FieldName, T Value)
+	{
+		const TSharedPtr<ISinglePropertyView> PropertyView = GetPropertyView(
+					Owner, FieldName);
+		check(PropertyView.IsValid());
+		PropertyView->GetPropertyHandle()->SetValue(Value);
+	}
 
 	/**
 	 * Add an instanced object value to a map when the property handle is not available.
@@ -74,6 +90,14 @@ namespace DisplayClusterConfiguratorPropertyUtils
 	 * @return True if successfully removed. False otherwise.
 	 */
 	bool RemoveKeyFromMap(uint8* MapOwner, TSharedPtr<IPropertyHandle> PropertyHandle, const FString& Key);
+
+	/**
+	 * Empties a map.
+	 * @param MapOwner Address owning the map.
+	 * @param PropertyHandle The map property handle.
+	 * @return true if successfully emptied; false otherwise.
+	 */
+	bool EmptyMap(uint8* MapOwner, TSharedPtr<IPropertyHandle> PropertyHandle);
 
 	/**
 	 * Find the index to use with the handle or INDEX_NONE. O(n)

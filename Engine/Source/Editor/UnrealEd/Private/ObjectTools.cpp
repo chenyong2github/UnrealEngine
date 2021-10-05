@@ -545,7 +545,7 @@ namespace ObjectTools
 		}
 	}
 
-	UObject* DuplicateSingleObject(UObject* Object, const FPackageGroupName& PGN, TSet<UPackage*>& InOutPackagesUserRefusedToFullyLoad, bool bPromptToOverwrite)
+	UObject* DuplicateSingleObject(UObject* Object, const FPackageGroupName& PGN, TSet<UPackage*>& InOutPackagesUserRefusedToFullyLoad, bool bPromptToOverwrite, TMap<TSoftObjectPtr<UObject>, TSoftObjectPtr<UObject>>* DuplicatedObjects /*= nullptr*/)
 	{
 		UObject* ReturnObject = NULL;
 
@@ -749,7 +749,26 @@ namespace ObjectTools
 		if ( ensure(ExistingObject == NULL) )
 		{
 			EDuplicateMode::Type DuplicateMode = Object->IsA(UWorld::StaticClass()) ? EDuplicateMode::World : EDuplicateMode::Normal;
-			DupObject = StaticDuplicateObject( Object, CreatePackage(*PkgName), *ObjName, RF_AllFlags, nullptr, DuplicateMode );
+
+			FObjectDuplicationParameters Params = InitStaticDuplicateObjectParams(Object, CreatePackage(*PkgName), *ObjName, RF_AllFlags, nullptr, DuplicateMode);
+
+			TMap<UObject*, UObject*> CreatedObjects;
+			if (DuplicatedObjects)
+			{
+				Params.CreatedObjects = &CreatedObjects;
+			}
+
+			DupObject = StaticDuplicateObjectEx(Params);
+
+			if (DuplicatedObjects)
+			{
+				// Convert DuplicatedObjects map into an object paths map
+				DuplicatedObjects->Reserve(CreatedObjects.Num());
+				for (const auto& DuplicatedObjectPair : CreatedObjects)
+				{
+					DuplicatedObjects->Add(DuplicatedObjectPair.Key, DuplicatedObjectPair.Value);
+				}
+			}
 		}
 
 		if( DupObject )
@@ -1627,7 +1646,7 @@ namespace ObjectTools
 		return ConsolidationResults;
 	}
 
-	void CompileBlueprintsAfterRefUpdate(TArray<UObject*>& ObjectsConsolidatedWithin)
+	void CompileBlueprintsAfterRefUpdate(const TArray<UObject*>& ObjectsConsolidatedWithin)
 	{
 		for (UObject* CurObject : ObjectsConsolidatedWithin)
 		{

@@ -251,6 +251,15 @@ export interface ClientSpec {
 	Stream?: string
 }
 
+export type StreamSpec = {
+	stream: string
+	name: string
+	parent: string
+	desc: string
+}
+
+export type StreamSpecs = Map<string, StreamSpec>
+
 export function isExecP4Error(err: any): err is [Error, string] {
 	return Array.isArray(err) && err.length === 2 && err[0] instanceof Error && typeof err[1] === "string"
 }
@@ -506,6 +515,25 @@ export class PerforceContext {
 	changesBetween(path: string, from: number, to: number) {
 		const args = ['changes', '-l', '-ssubmitted', `${path}@${from},${to}`]
 		return this.execAndParse(null, args, {quiet: true}, changeResultExpectedShape) as Promise<unknown> as Promise<Change[]>
+	}
+
+	async streams() {
+		const rawStreams = await this.execAndParse(null, ['streams'], {quiet: true}, {
+			expected: {Stream: 'string', Update: 'integer', Access: 'integer', Owner: 'string', Name: 'string', Parent: 'string', Type: 'string', desc: 'string',
+				Options: 'string', firmerThanParent: 'string', changeFlowsToParent: 'boolean', changeFlowsFromParent: 'boolean', baseParent: 'string'}
+		})
+
+		const streams = new Map<string, StreamSpec>()
+		for (const raw of rawStreams) {
+			const stream: StreamSpec = {
+				stream: raw.Stream as string,
+				name: raw.Name as string,
+				parent: raw.Parent as string,
+				desc: raw.desc as string,
+			}
+			streams.set(stream.stream, stream)
+		}
+		return streams
 	}
 
 	// find a workspace for the given user

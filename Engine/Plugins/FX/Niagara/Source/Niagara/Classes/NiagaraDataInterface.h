@@ -223,15 +223,6 @@ struct FNiagaraDataInterfaceProxy : TSharedFromThis<FNiagaraDataInterfaceProxy, 
 	// #todo(dmp): move all of this stuff to the RW interface to keep it out of here?
 	FName SourceDIName;
 	
-	// a set of the shader stages that require the data interface for data output
-	TSet<int> OutputSimulationStages_DEPRECATED;
-
-	// a set of the shader stages that require the data interface for setting number of output elements
-	TSet<int> IterationSimulationStages_DEPRECATED;
-	
-	virtual bool IsOutputStage_DEPRECATED(uint32 CurrentStage) const { return OutputSimulationStages_DEPRECATED.Contains(CurrentStage); }
-	virtual bool IsIterationStage_DEPRECATED(uint32 CurrentStage) const { return IterationSimulationStages_DEPRECATED.Contains(CurrentStage); }
-
 	virtual void ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) { }
 
 	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) {}

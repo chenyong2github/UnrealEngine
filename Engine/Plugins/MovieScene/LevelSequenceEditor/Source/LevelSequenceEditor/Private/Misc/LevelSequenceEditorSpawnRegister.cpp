@@ -183,13 +183,13 @@ void FLevelSequenceEditorSpawnRegister::SaveDefaultSpawnableStateImpl(FMovieScen
 		{
 			if (Component)
 			{
-				Player.RestorePreAnimatedState(*Component, RestorePredicate);
+				Player.PreAnimatedState.RestorePreAnimatedState(*Component, RestorePredicate);
 			}
 		}
 	}
 
 	// Restore state on the object itself
-	Player.RestorePreAnimatedState(*SpawnedObject, RestorePredicate);
+	Player.PreAnimatedState.RestorePreAnimatedState(*SpawnedObject, RestorePredicate);
 
 	// Copy the template
 	Spawnable.CopyObjectTemplate(*SpawnedObject, *Sequence);

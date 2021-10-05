@@ -11,7 +11,6 @@ struct FEncoderContext;
 class FPixelStreamingVideoEncoder : public webrtc::VideoEncoder
 {
 public:
-
 	FPixelStreamingVideoEncoder(FPlayerSession* OwnerSession, FEncoderContext* context);
 	virtual ~FPixelStreamingVideoEncoder() override;
 

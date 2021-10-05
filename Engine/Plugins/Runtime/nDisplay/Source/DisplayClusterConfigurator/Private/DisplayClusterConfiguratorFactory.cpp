@@ -168,13 +168,15 @@ void UDisplayClusterConfiguratorFactory::SetupNewBlueprint(UDisplayClusterBluepr
 	// Setup default components.
 	{
 		{
-			USCS_Node* NewNode = NewBlueprint->SimpleConstructionScript->CreateNode(UDisplayClusterCameraComponent::StaticClass());
+			USCS_Node* NewNode = NewBlueprint->SimpleConstructionScript->CreateNode(UDisplayClusterCameraComponent::StaticClass(),
+				*FDisplayClusterConfiguratorUtils::FormatNDisplayComponentName(UDisplayClusterCameraComponent::StaticClass()));
 			UDisplayClusterCameraComponent* ComponentTemplate = CastChecked<UDisplayClusterCameraComponent>(NewNode->GetActualComponentTemplate(NewBlueprint->GetGeneratedClass()));
 			ComponentTemplate->SetRelativeLocation(FVector(-200.f, 0.f, 50.f));
 			NewBlueprint->SimpleConstructionScript->AddNode(NewNode);
 		}
 		{
-			USCS_Node* NewNode = NewBlueprint->SimpleConstructionScript->CreateNode(UDisplayClusterScreenComponent::StaticClass());
+			USCS_Node* NewNode = NewBlueprint->SimpleConstructionScript->CreateNode(UDisplayClusterScreenComponent::StaticClass(),
+				*FDisplayClusterConfiguratorUtils::FormatNDisplayComponentName(UDisplayClusterScreenComponent::StaticClass()));
 			UDisplayClusterScreenComponent* ComponentTemplate = CastChecked<UDisplayClusterScreenComponent>(NewNode->GetActualComponentTemplate(NewBlueprint->GetGeneratedClass()));
 			ComponentTemplate->SetRelativeLocation(FVector(0.f, 0.f, 50.f));
 			NewBlueprint->SimpleConstructionScript->AddNode(NewNode);

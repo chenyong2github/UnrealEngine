@@ -119,7 +119,7 @@ namespace UnrealBuildTool
 		public static void StripSymbols(UnrealTargetPlatform PlatformType, FileReference SourceFile, FileReference TargetFile)
 		{
 			IOSProjectSettings ProjectSettings = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(PlatformType)).ReadProjectSettings(null);
-			IOSToolChain ToolChain = new IOSToolChain(null, ProjectSettings);
+			IOSToolChain ToolChain = new IOSToolChain(null, ProjectSettings, IOSToolChainOptions.None);
 			ToolChain.StripSymbols(SourceFile, TargetFile);
 		}
 

@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+import { StreamSpecs } from '../common/perforce'
+
 const jsonlint: any = require('jsonlint')
 
 const RESERVED_BRANCH_NAMES = ['NONE', 'DEFAULT', 'IGNORE', 'DEADEND', ''];
@@ -55,10 +57,19 @@ export class IntegrationMethod {
 	}
 }
 
-// probably not right to extend BranchBase, because so much is optional
+export const DAYS_OF_THE_WEEK = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+type DayOfTheWeek = 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat'
+
+type IntegrationWindowPane = {
+	// if day not specified, daily
+	dayOfTheWeek?: DayOfTheWeek
+	startHourUTC: number
+	durationHours: number
+}
 
 type CommonOptionFields = {
 	lastGoodCLPath: string | number
+	pauseCISUnlessAtGate: boolean
 
 	initialCL: number
 	forcePause: boolean
@@ -68,7 +79,9 @@ type CommonOptionFields = {
 
 	excludeAuthors: string[] // if present, completely overrides BotConfig
 
-	p4MaxRowsOverride: number // use with care and check with p4 admins
+	// by default, specify when gate catch ups are allowed; can be inverted to disallow
+	integrationWindow: IntegrationWindowPane[]
+	invertIntegrationWindow: boolean
 }
 
 type NodeOptionFields = BranchBase & CommonOptionFields & {
@@ -126,11 +139,51 @@ export interface BranchGraphDefinition {
 // eventually, switch branch map to using a separate class defined here for the branch definitions
 
 
-// return branchGraph and errors?
+function validateCommonOptions(options: Partial<CommonOptionFields>) {
+	if (options.integrationWindow) {
+		for (const pane of options.integrationWindow) {
+			if (pane.dayOfTheWeek) {
+				const day = pane.dayOfTheWeek.slice(0, 3).toLowerCase()
+				if (DAYS_OF_THE_WEEK.indexOf(day) < 0) {
+					throw new Error(`Unknown day of the week ${pane.dayOfTheWeek}`)
+				}
+				pane.dayOfTheWeek = day as DayOfTheWeek
+			}
+		}
+	}
+}
+
 
 interface ParseResult {
 	branchGraphDef: BranchGraphDefinition | null
 	config: BotConfig
+}
+
+export type StreamResult = {
+	depot: string
+	rootPath?: string
+	stream?: string
+}
+
+/** expects either rootPath or all the other optional arguments */
+export function calculateStream(nodeOrStreamName: string, rootPath?: string | null, depot?: string | null, streamSubpath?: string | null) {
+	if (!rootPath) {
+		if (!depot) {
+			throw new Error(`Missing rootPath and no streamDepot defined for branch ${nodeOrStreamName}.`)
+		}
+		const stream = `//${depot}/${nodeOrStreamName}`
+		return {depot, stream, rootPath: stream + (streamSubpath || '/...')}
+	}
+
+	if (!rootPath.startsWith('//') || !rootPath.endsWith('/...')) {
+		throw new Error(`Branch rootPath not in '//<something>/...'' format: ${rootPath}`)
+	}
+
+	const depotMatch = rootPath.match(new RegExp('//([^/]+)/'))
+	if (!depotMatch || !depotMatch[1]) {
+		throw new Error(`Cannot find depotname in ${rootPath}`)
+	}
+	return {depot: depotMatch[1]}
 }
 
 export class BranchDefs {
@@ -152,7 +205,7 @@ export class BranchDefs {
 		}
 	}
 
-	static parseAndValidate(outErrors: string[], branchSpecsText: string): ParseResult {
+	static parseAndValidate(outErrors: string[], branchSpecsText: string, allStreamSpecs: StreamSpecs): ParseResult {
 		const defaultConfigForWholeBot: BotConfig = {
 			defaultStreamDepot: null,
 			defaultIntegrationMethod: null,
@@ -246,6 +299,17 @@ export class BranchDefs {
 			else {
 				names.set(upperName, upperName)
 			}
+
+			const streamResult = calculateStream(
+				def.streamName || def.name,
+				def.rootPath,
+				def.streamDepot || defaultConfigForWholeBot.defaultStreamDepot,
+				def.streamSubpath
+			)
+
+			if (streamResult.stream && !allStreamSpecs.has(streamResult.stream)) {
+				outErrors.push(`Stream ${streamResult.stream} not found`)
+			}
 		}
 
 		// Check for duplicate aliases (and that branches/aliases are not in the ignore list)
@@ -294,6 +358,8 @@ export class BranchDefs {
 			if (def.integrationMethod) {
 				BranchDefs.checkValidIntegrationMethod(outErrors, def.integrationMethod!, def.name!)
 			}
+
+			validateCommonOptions(def)
 		}
 
 		// Check edge properties
@@ -305,6 +371,8 @@ export class BranchDefs {
 				if (!names.get(edge.to.toUpperCase())) {
 					outErrors.push('Unrecognised target node in edge property ' + edge.to)
 				}
+
+				validateCommonOptions(edge)
 			}
 		}
 

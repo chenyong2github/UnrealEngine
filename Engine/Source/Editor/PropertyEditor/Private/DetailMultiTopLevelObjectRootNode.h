@@ -45,7 +45,8 @@ private:
 class FDetailMultiTopLevelObjectRootNode : public FDetailTreeNode, public TSharedFromThis<FDetailMultiTopLevelObjectRootNode>
 {
 public:
-	FDetailMultiTopLevelObjectRootNode(const FDetailNodeList& InChildNodes, const TSharedPtr<IDetailRootObjectCustomization>& RootObjectCustomization, IDetailsViewPrivate* InDetailsView, const FObjectPropertyNode* RootNode);
+	FDetailMultiTopLevelObjectRootNode(const TSharedPtr<IDetailRootObjectCustomization>& RootObjectCustomization, IDetailsViewPrivate* InDetailsView, const FObjectPropertyNode* RootNode);
+	void SetChildren(const FDetailNodeList& InChildNodes);
 private:
 	virtual IDetailsView* GetNodeDetailsView() const override { return DetailsView; }
 	virtual IDetailsViewPrivate* GetDetailsView() const override { return DetailsView; }

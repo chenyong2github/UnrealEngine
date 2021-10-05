@@ -32,6 +32,18 @@ public:
 	bool AddWhitelistItem(const FName OwnerName, const FName Item);
 
 	/**
+	 * Removes a previously-added item from the blacklist.
+	 * @return whether the filters changed.
+	 */
+	bool RemoveBlacklistItem(const FName OwnerName, const FName Item);
+
+	/**
+	 * Removes a previously-added item from the whitelist.
+	 * @return whether the filters changed.
+	 */
+	bool RemoveWhitelistItem(const FName OwnerName, const FName Item);
+
+	/**
 	 * Set to filter out all items.
 	 * @return whether the filters changed.
 	 */

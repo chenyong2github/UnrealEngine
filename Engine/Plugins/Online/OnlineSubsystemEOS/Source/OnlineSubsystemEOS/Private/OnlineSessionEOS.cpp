@@ -840,7 +840,7 @@ bool FOnlineSessionEOS::CreateSession(int32 HostingPlayerNum, FName SessionName,
 				// Create Internet or LAN match
 				if (!NewSessionSettings.bIsLANMatch)
 				{
-					if (Session->SessionSettings.bUsesPresence)
+					if (Session->SessionSettings.bUseLobbiesIfAvailable)
 					{
 						Result = CreateLobbySession(HostingPlayerNum, Session);
 					}
@@ -1831,7 +1831,7 @@ void FOnlineSessionEOS::CopyAttributes(EOS_HSessionDetails SessionHandle, FOnlin
 					}
 					case EOS_ESessionAttributeType::EOS_SAT_Int64:
 					{
-						Setting.Data.SetValue(Attribute->Data->Value.AsInt64);
+						Setting.Data.SetValue(int64(Attribute->Data->Value.AsInt64));
 						break;
 					}
 					case EOS_ESessionAttributeType::EOS_SAT_Double:
@@ -3714,7 +3714,7 @@ void FOnlineSessionEOS::CopyLobbyAttributes(EOS_HLobbyDetails LobbyDetailsHandle
 				}
 				case EOS_ESessionAttributeType::EOS_SAT_Int64:
 				{
-					Setting.Data.SetValue(Attribute->Data->Value.AsInt64);
+					Setting.Data.SetValue(int64(Attribute->Data->Value.AsInt64));
 					break;
 				}
 				case EOS_ESessionAttributeType::EOS_SAT_Double:
@@ -3768,7 +3768,7 @@ void FOnlineSessionEOS::CopyLobbyMemberAttributes(EOS_HLobbyDetails LobbyDetails
 			}
 			case EOS_ESessionAttributeType::EOS_SAT_Int64:
 			{
-				Setting.Data.SetValue(Attribute->Data->Value.AsInt64);
+				Setting.Data.SetValue(int64(Attribute->Data->Value.AsInt64));
 				break;
 			}
 			case EOS_ESessionAttributeType::EOS_SAT_Double:

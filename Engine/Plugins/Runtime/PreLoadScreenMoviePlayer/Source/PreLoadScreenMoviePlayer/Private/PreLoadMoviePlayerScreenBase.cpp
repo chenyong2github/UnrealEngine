@@ -316,7 +316,7 @@ void FPreLoadMoviePlayerScreenBase::InitSettingsFromConfig(const FString& Config
     }
 }
 
-void FPreLoadMoviePlayerScreenBase::RegisterMovieStreamer(TSharedPtr<IMovieStreamer> MovieStreamerIn)
+void FPreLoadMoviePlayerScreenBase::RegisterMovieStreamer(TSharedPtr<IMovieStreamer, ESPMode::ThreadSafe> MovieStreamerIn)
 {
     MovieStreamer = MovieStreamerIn;
 }

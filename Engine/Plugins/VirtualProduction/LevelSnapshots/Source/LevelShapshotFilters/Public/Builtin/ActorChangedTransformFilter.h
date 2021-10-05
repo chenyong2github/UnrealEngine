@@ -20,7 +20,7 @@ namespace ETransformReturnType
 
 /* Allows an actor depending on whether the actors' transforms have changed. */
 UCLASS(meta = (CommonSnapshotFilter))
-class UActorChangedTransformFilter : public ULevelSnapshotFilter
+class LEVELSNAPSHOTFILTERS_API UActorChangedTransformFilter : public ULevelSnapshotFilter
 {
 	GENERATED_BODY()
 public:

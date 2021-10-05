@@ -12,7 +12,7 @@ class UStaticMeshComponent;
 /**
  * Display cluster origin component (for in-Editor visualization)
  */
-UCLASS(ClassGroup = (DisplayCluster), meta = (BlueprintSpawnableComponent))
+UCLASS(ClassGroup = (DisplayCluster), meta = (BlueprintSpawnableComponent, DisplayName="NDisplay Origin"))
 class DISPLAYCLUSTER_API UDisplayClusterOriginComponent
 	: public UDisplayClusterSceneComponent
 {

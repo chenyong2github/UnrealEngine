@@ -380,7 +380,7 @@ void FCompactFullName::ParseFromString(const FStringView& InSrc)
 		[&Fields](FStringView Field) { if (!Field.IsEmpty()) { Fields.Add(Field); } });
 	if (Fields.Num() == 1 && Fields[0] == TEXT("empty"_SV))
 	{
-		Fields.Empty();
+		ObjectClassAndPath.Empty();
 	}
 	// fix up old format that removed the leading '/'
 	else if (Fields.Num() == 3 && Fields[1][0] != TEXT('/'))

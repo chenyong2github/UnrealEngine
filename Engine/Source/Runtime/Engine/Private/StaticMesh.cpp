@@ -3812,8 +3812,14 @@ bool UStaticMesh::IsReadyForFinishDestroy()
 	}
 #endif
 
+	// Tick base class to make progress on the streaming before calling HasPendingInitOrStreaming().
+	if (!Super::IsReadyForFinishDestroy())
+	{
+		return false;
+	}
+
 	// Match BeginDestroy() by checking for HasPendingInitOrStreaming().
-	if (!Super::IsReadyForFinishDestroy() || HasPendingInitOrStreaming())
+	if (HasPendingInitOrStreaming())
 	{
 		return false;
 	}

@@ -35,8 +35,10 @@ struct NIAGARA_API FNiagaraVariant
 	UNiagaraDataInterface* GetDataInterface() const;
 	void SetDataInterface(UNiagaraDataInterface* InDataInterface);
 
-	void SetBytes(uint8* InBytes, int32 InCount);
+	void AllocateBytes(int32 InCount);
+	void SetBytes(const uint8* InBytes, int32 InCount);
 	uint8* GetBytes() const;
+	int32 GetNumBytes() const;
 
 	bool IsValid() const { return CurrentMode != ENiagaraVariantMode::None; }
 	ENiagaraVariantMode GetMode() const { return CurrentMode; }

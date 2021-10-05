@@ -11,6 +11,10 @@
 #include "Templates/AndOrNot.h"
 #include "Templates/IsArrayOrRefOfType.h"
 
+#ifndef USE_DEBUG_LOGGING
+#define USE_DEBUG_LOGGING 1
+#endif
+
 #if !PLATFORM_SUPPORTS_COLORIZED_OUTPUT_DEVICE
 	// don't support colorized text on consoles
 	#define SET_WARN_COLOR(Color)

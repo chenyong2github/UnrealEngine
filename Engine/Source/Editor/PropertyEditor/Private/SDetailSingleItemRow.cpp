@@ -26,6 +26,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
+#include "PropertyEditorWhitelist.h"
 
 namespace DetailWidgetConstants
 {
@@ -722,6 +723,39 @@ bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
 			FavoriteAction);
 	}
 
+	if (FPropertyEditorWhitelist::Get().ShouldShowMenuEntries())
+	{
+		// Hide separator line if it only contains the SearchWidget, making the next 2 elements the top of the list
+		if (MenuBuilder.GetMultiBox()->GetBlocks().Num() > 1)
+		{
+			MenuBuilder.AddMenuSeparator();
+		}
+		
+		MenuBuilder.AddMenuEntry(
+        	NSLOCTEXT("PropertyView", "CopyWhitelist", "Copy internal row name"),
+        	NSLOCTEXT("PropertyView", "CopyWhitelist_ToolTip", "Copy the row's parent struct and internal name to use in the property editor's whitelist"),
+        	FSlateIcon(),
+        	FUIAction(FExecuteAction::CreateSP(this, &SDetailSingleItemRow::CopyWhitelistText)));
+
+		MenuBuilder.AddMenuEntry(
+			NSLOCTEXT("PropertyView", "AddWhitelist", "Add to whitelist"),
+			NSLOCTEXT("PropertyView", "AddWhitelist_ToolTip", "Add this row to the property editor's whitelist"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SDetailSingleItemRow::OnToggleWhitelist), FCanExecuteAction(),
+					  FIsActionChecked::CreateSP(this, &SDetailSingleItemRow::IsWhitelistChecked)),
+			NAME_None,
+			EUserInterfaceActionType::Check);
+
+		MenuBuilder.AddMenuEntry(
+			NSLOCTEXT("PropertyView", "AddBlacklist", "Add to blacklist"),
+			NSLOCTEXT("PropertyView", "AddBlacklist_ToolTip", "Add this row to the property editor's blacklist"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SDetailSingleItemRow::OnToggleBlacklist), FCanExecuteAction(),
+					  FIsActionChecked::CreateSP(this, &SDetailSingleItemRow::IsBlacklistChecked)),
+			NAME_None,
+			EUserInterfaceActionType::Check);
+	}
+
 	if (WidgetRow.CustomMenuItems.Num() > 0)
 	{
 		// Hide separator line if it only contains the SearchWidget, making the next 2 elements the top of the list
@@ -815,6 +849,83 @@ bool SDetailSingleItemRow::CanPasteProperty() const
 	}
 
 	return !ClipboardContent.IsEmpty();
+}
+
+// Helper function to determine which parent Struct a property comes from. If PropertyName is not a real property,
+// it will return the passed-in Struct (eg a DetailsCustomization with a custom name is a "fake" property).
+const UStruct* GetExactStructForProperty(const UStruct* MostDerivedStruct, const FName PropertyName)
+{
+	if (FProperty* Property = MostDerivedStruct->FindPropertyByName(PropertyName))
+	{
+		return Property->GetOwnerStruct();
+	}
+	return MostDerivedStruct;
+}
+
+void SDetailSingleItemRow::CopyWhitelistText() const
+{
+	if (const TSharedPtr<FDetailTreeNode> Owner = OwnerTreeNode.Pin())
+	{
+		const UStruct* BaseStructure = Owner->GetParentBaseStructure();
+		if (BaseStructure)
+		{
+			const UStruct* ExactStruct = GetExactStructForProperty(Owner->GetParentBaseStructure(), Owner->GetNodeName());
+			FPlatformApplicationMisc::ClipboardCopy(*FString::Printf(TEXT("(%s, %s)"), *ExactStruct->GetName(), *Owner->GetNodeName().ToString()));
+		}
+	}
+}
+
+void SDetailSingleItemRow::OnToggleWhitelist() const
+{
+	const TSharedPtr<FDetailTreeNode> Owner = OwnerTreeNode.Pin();
+	if (Owner)
+	{
+		const UStruct* ExactStruct = GetExactStructForProperty(Owner->GetParentBaseStructure(), Owner->GetNodeName());
+		if (IsWhitelistChecked())
+		{
+			FPropertyEditorWhitelist::Get().RemoveFromWhitelist(ExactStruct, Owner->GetNodeName());
+		}
+		else
+		{
+			FPropertyEditorWhitelist::Get().AddToWhitelist(ExactStruct, Owner->GetNodeName());
+		}
+	}
+}
+
+bool SDetailSingleItemRow::IsWhitelistChecked() const
+{
+	if (const TSharedPtr<FDetailTreeNode> Owner = OwnerTreeNode.Pin())
+	{
+		const UStruct* ExactStruct = GetExactStructForProperty(Owner->GetParentBaseStructure(), Owner->GetNodeName());
+		return FPropertyEditorWhitelist::Get().IsSpecificPropertyWhitelisted(ExactStruct, Owner->GetNodeName());
+	}
+	return false;
+}
+
+void SDetailSingleItemRow::OnToggleBlacklist() const
+{
+	const TSharedPtr<FDetailTreeNode> Owner = OwnerTreeNode.Pin();
+	if (Owner)
+	{
+		const UStruct* ExactStruct = GetExactStructForProperty(Owner->GetParentBaseStructure(), Owner->GetNodeName());
+		if (IsBlacklistChecked())
+		{
+			FPropertyEditorWhitelist::Get().RemoveFromBlacklist(ExactStruct, Owner->GetNodeName());
+		}
+		else
+		{
+			FPropertyEditorWhitelist::Get().AddToBlacklist(ExactStruct, Owner->GetNodeName());
+		}
+	}
+}
+
+bool SDetailSingleItemRow::IsBlacklistChecked() const
+{
+	if (const TSharedPtr<FDetailTreeNode> Owner = OwnerTreeNode.Pin())
+    {
+    	return FPropertyEditorWhitelist::Get().IsSpecificPropertyBlacklisted(Owner->GetParentBaseStructure(), Owner->GetNodeName());
+    }
+	return false;
 }
 
 TSharedRef<SWidget> SDetailSingleItemRow::CreateExtensionWidget() const

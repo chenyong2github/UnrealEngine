@@ -466,6 +466,29 @@ public:
 		return true;
 	}
 
+	bool DeleteFileTimeStamp(const FString& FileName)
+	{
+		if (bInitialized == false)
+		{
+			Read();
+			bInitialized = true;
+		}
+
+		FDateTime* Result = ManifestEntries.Find(FileName);
+		if (Result != NULL)
+		{
+			ManifestEntries.Remove(FileName);
+			
+#if LOG_ANDROID_FILE_MANIFEST
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Deleted timestamp for file '%s' in manifest file '%s'"), *FileName, *ManifestFileName);
+#endif
+
+			return true;
+		}
+		
+		return false;
+	}
+
 	// read manifest from disk
 	void Read()
 	{
@@ -1225,6 +1248,16 @@ public:
 		// Only delete if we have a local file.
 		if (IsLocal(LocalPath))
 		{
+#if !USE_UTIME
+			if (NonUFSManifest.DeleteFileTimeStamp(AssetPath))
+			{
+				NonUFSManifest.Write();
+			}
+			else if (UFSManifest.DeleteFileTimeStamp(AssetPath))
+			{
+				UFSManifest.Write();
+			}
+#endif
 			return unlink(TCHAR_TO_UTF8(*LocalPath)) == 0;
 		}
 		return false;

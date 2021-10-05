@@ -22,13 +22,31 @@ static const FName NAME_Open = FName(TEXT("Open"));
 
 UCommonGameViewportClient::UCommonGameViewportClient(FVTableHelper& Helper) : Super(Helper)
 {
-	OnRerouteInput().BindUObject(this, &UCommonGameViewportClient::HandleRerouteInput);
-	OnRerouteAxis().BindUObject(this, &UCommonGameViewportClient::HandleRerouteAxis);
-	OnRerouteTouch().BindUObject(this, &UCommonGameViewportClient::HandleRerouteTouch);
 }
 
 UCommonGameViewportClient::~UCommonGameViewportClient()
 {
+}
+
+void UCommonGameViewportClient::PostInitProperties()
+{
+	if (!IsTemplate())
+	{
+		if (!OnRerouteInput().IsBound())
+		{
+			OnRerouteInput().BindUObject(this, &UCommonGameViewportClient::HandleRerouteInput);
+		}
+		if (!OnRerouteAxis().IsBound())
+		{
+			OnRerouteAxis().BindUObject(this, &UCommonGameViewportClient::HandleRerouteAxis);
+		}
+		if (!OnRerouteTouch().IsBound())
+		{
+			OnRerouteTouch().BindUObject(this, &UCommonGameViewportClient::HandleRerouteTouch);
+		}
+	}
+
+	Super::PostInitProperties();
 }
 
 bool UCommonGameViewportClient::InputKey(const FInputKeyEventArgs& InEventArgs)

@@ -18,12 +18,18 @@ struct FAPIInfoResponse
 	
 	FAPIInfoResponse() = default;
 
-	FAPIInfoResponse(const TArray<FRemoteControlRoute>& InRoutes)
+	FAPIInfoResponse(const TArray<FRemoteControlRoute>& InRoutes, bool bInPackaged)
+		: IsPackaged(bInPackaged)
 	{
 		HttpRoutes.Append(InRoutes);
 	}
 
 private:
+	/**
+	 * Whether this is a packaged build or not.
+	 */
+	bool IsPackaged = false;
+
 	/**
 	 * Descriptions for all the routes that make up the remote control API.
 	 */

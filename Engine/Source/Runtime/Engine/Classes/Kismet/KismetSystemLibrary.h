@@ -487,6 +487,15 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintCallable, Category="Utilities|FlowControl", meta=(Latent, WorldContext="WorldContextObject", LatentInfo="LatentInfo", Duration="0.2", Keywords="sleep"))
 	static void	Delay(const UObject* WorldContextObject, float Duration, struct FLatentActionInfo LatentInfo );
 
+	/**
+	 * Perform a latent action with a delay of one tick.  Calling again while it is counting down will be ignored.
+	 *
+	 * @param WorldContext	World context.
+	 * @param LatentInfo 	The latent action.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Utilities|FlowControl", meta = (Latent, WorldContext = "WorldContextObject", LatentInfo = "LatentInfo", Keywords = "sleep"))
+	static void	DelayUntilNextTick(const UObject* WorldContextObject, struct FLatentActionInfo LatentInfo);
+
 	/** 
 	 * Perform a latent action with a retriggerable delay (specified in seconds).  Calling again while it is counting down will reset the countdown to Duration.
 	 * 
@@ -525,6 +534,14 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	 */
 	UFUNCTION(BlueprintCallable, meta=(DisplayName = "Set Timer by Event", ScriptName = "SetTimerDelegate", AdvancedDisplay="InitialStartDelay, InitialStartDelayVariance"), Category="Utilities|Time")
 	static FTimerHandle K2_SetTimerDelegate(UPARAM(DisplayName="Event") FTimerDynamicDelegate Delegate, float Time, bool bLooping, float InitialStartDelay = 0.f, float InitialStartDelayVariance = 0.f);
+
+	/**
+	 * Set a timer to execute a delegate next tick.
+	 * @param Event						Event. Can be a K2 function or a Custom Event.
+	 * @return							The timer handle to pass to other timer functions to manipulate this timer.
+	 */
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Timer for Next Tick by Event", ScriptName = "SetTimerForNextTickDelegate"), Category = "Utilities|Time")
+	static FTimerHandle K2_SetTimerForNextTickDelegate(UPARAM(DisplayName = "Event") FTimerDynamicDelegate Delegate);
 
 	/**
 	 * Clears a set timer.
@@ -687,6 +704,15 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	 */
 	UFUNCTION(BlueprintCallable, meta=(DisplayName = "Set Timer by Function Name", ScriptName = "SetTimer", DefaultToSelf = "Object", AdvancedDisplay="InitialStartDelay, InitialStartDelayVariance"), Category="Utilities|Time")
 	static FTimerHandle K2_SetTimer(UObject* Object, FString FunctionName, float Time, bool bLooping, float InitialStartDelay = 0.f, float InitialStartDelayVariance = 0.f);
+
+	/**
+	 * Set a timer to execute a delegate on the next tick.
+	 * @param Object					Object that implements the delegate function. Defaults to self (this blueprint)
+	 * @param FunctionName				Delegate function name. Can be a K2 function or a Custom Event.
+	 * @return							The timer handle to pass to other timer functions to manipulate this timer.
+	 */
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Timer for Next Tick by Function Name", ScriptName = "SetTimerForNextTick", DefaultToSelf = "Object"), Category = "Utilities|Time")
+	static FTimerHandle K2_SetTimerForNextTick(UObject* Object, FString FunctionName);
 
 	/**
 	 * Clears a set timer.

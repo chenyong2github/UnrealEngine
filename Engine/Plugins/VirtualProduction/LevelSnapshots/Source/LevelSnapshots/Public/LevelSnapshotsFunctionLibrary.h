@@ -19,9 +19,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "LevelSnapshots", meta = (WorldContext = "WorldContextObject"))
 	static ULevelSnapshot* TakeLevelSnapshot(const UObject* WorldContextObject, const FName NewSnapshotName = "NewLevelSnapshot", const FString Description = "");
+	
 	static ULevelSnapshot* TakeLevelSnapshot_Internal(const UObject* WorldContextObject, const FName NewSnapshotName = "NewLevelSnapshot", UPackage* InPackage = nullptr, const FString Description = "");
 
-	// TODO: Add ApplySnapshotToWorldWithFilter UFUNCTION for Blueprints here
+	/* Applies the snapshot to the world. If no filter is specified, the entire snapshot is applied. */
+	UFUNCTION(BlueprintCallable, Category = "LevelSnapshots", meta = (WorldContext = "WorldContextObject"))
+	static void ApplySnapshotToWorld(const UObject* WorldContextObject, ULevelSnapshot* Snapshot, ULevelSnapshotFilter* OptionalFilter);
 	
 	/**
 	 * Goes through the properties of the actors and their components calling IsPropertyValid on them.

@@ -12,31 +12,44 @@
 #include "Engine/Selection.h"
 #include "Layout/Visibility.h"
 #include "Input/Reply.h"
+#include "IRemoteControlProtocolWidgetsModule.h"
+#include "IStructureDetailsView.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GameFramework/Actor.h"
-#include "RemoteControlPreset.h"
-#include "RemoteControlPanelStyle.h"
-#include "PropertyHandle.h"
+#include "Modules/ModuleManager.h"
 #include "PropertyCustomizationHelpers.h"
-#include "ScopedTransaction.h"
+#include "PropertyHandle.h"
+#include "PropertyEditorModule.h"
 #include "RemoteControlActor.h"
+#include "RemoteControlEntity.h"
 #include "RemoteControlField.h"
+#include "RemoteControlPanelStyle.h"
+#include "RemoteControlPreset.h"
 #include "RemoteControlUIModule.h"
+#include "ScopedTransaction.h"
 #include "SClassViewer.h"
 #include "SRCPanelExposedEntitiesList.h"
 #include "SRCPanelFunctionPicker.h"
+#include "SRCPanelExposedActor.h"
+#include "SRCPanelExposedField.h"
 #include "SRCPanelFieldGroup.h"
 #include "SRCPanelTreeNode.h"
 #include "Subsystems/Subsystem.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/SubclassOf.h"
-
+#include "Templates/UnrealTypeTraits.h"
 #include "UObject/SoftObjectPtr.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SSplitter.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
+#include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
+
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanel"
 
@@ -56,6 +69,17 @@ namespace RemoteControlPanelUtils
 	{
 		return GEditor ? GEditor->GetEditorWorldContext(false).World() : nullptr;
 	}
+
+	template <typename EntityType> 
+	TSharedPtr<FStructOnScope> GetEntityOnScope(const TSharedPtr<EntityType>& Entity)
+	{
+		static_assert(TIsDerivedFrom<EntityType, FRemoteControlEntity>::Value, "EntityType must derive from FRemoteControlEntity.");
+		if (Entity)
+		{
+			return MakeShared<FStructOnScope>(EntityType::StaticStruct(), reinterpret_cast<uint8*>(Entity.Get()));
+		}
+		return nullptr;
+	}
 }
 
 void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPreset* InPreset)
@@ -68,6 +92,14 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 
 	TSharedPtr<SHorizontalBox> TopExtensions;
 
+	EntityProtocolDetails = SNew(SBox);
+	
+	EntityList = SNew(SRCPanelExposedEntitiesList, Preset.Get())
+		.DisplayValues(true)
+		.EditMode_Lambda([this](){ return bIsInEditMode; });
+	
+	EntityList->OnSelectionChange().AddSP(this, &SRemoteControlPanel::UpdateEntityDetailsView);
+	
 	ChildSlot
 	[
 		SNew(SVerticalBox)
@@ -133,8 +165,57 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 		]
 		+ SVerticalBox::Slot()
 		[
-			SAssignNew(EntityList, SRCPanelExposedEntitiesList, Preset.Get())
-			.EditMode_Lambda([this](){ return bIsInEditMode; })
+			SNew(SBorder)
+			.Padding(FMargin(0.f, 5.f, 0.f, 0.f))
+			.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+			[
+				SNew(SWidgetSwitcher)
+				.WidgetIndex_Lambda([this](){ return !bIsInEditMode ? 0 : 1; })
+				+ SWidgetSwitcher::Slot()
+				[
+					// Exposed entities List
+					SNew(SBorder)
+					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					[
+						EntityList.ToSharedRef()
+					]
+				]
+				+ SWidgetSwitcher::Slot()
+				[
+					SNew(SSplitter)
+					+ SSplitter::Slot()
+					.Value(0.7f)
+					[
+						// Exposed entities List
+						SNew(SBorder)
+						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						[
+							EntityList.ToSharedRef()
+						]
+					]
+					+ SSplitter::Slot()
+					.Value(0.3f)
+					[
+						SNew(SBorder)
+						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						.Padding(5.f)
+						[
+							SNew(SSplitter)
+							.Orientation(Orient_Vertical)
+							+ SSplitter::Slot()
+							.Value(0.4f)
+							[
+								CreateEntityDetailsView()
+							]
+							+ SSplitter::Slot()
+							.Value(0.6f)
+							[
+								EntityProtocolDetails.ToSharedRef()
+							]
+						]
+					]
+				]
+			]
 		]
 	];
 
@@ -633,6 +714,76 @@ void SRemoteControlPanel::ExposeActor(AActor* Actor)
 		Args.GroupId = GetSelectedGroup();
 		
 		Preset->ExposeActor(Actor, Args);
+	}
+}
+
+TSharedRef<SWidget> SRemoteControlPanel::CreateEntityDetailsView()
+{
+	FDetailsViewArgs Args;
+	Args.bShowOptions = false;
+	Args.bAllowFavoriteSystem = false;
+	Args.bAllowSearch = false;
+	Args.bShowScrollBar = false;
+
+	EntityDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateStructureDetailView(MoveTemp(Args), FStructureDetailsViewArgs(), nullptr);
+
+	UpdateEntityDetailsView(EntityList->GetSelection());
+	if (ensure(EntityDetailsView && EntityDetailsView->GetWidget()))
+	{
+		return EntityDetailsView->GetWidget().ToSharedRef();
+	}
+	return SNullWidget::NullWidget;
+}
+
+void SRemoteControlPanel::UpdateEntityDetailsView(const TSharedPtr<SRCPanelTreeNode>& SelectedNode)
+{
+	TSharedPtr<FStructOnScope> SelectedEntityPtr;
+	EExposedFieldType FieldType = EExposedFieldType::Invalid;
+	if (SelectedNode)
+	{
+		if (const TSharedPtr<SRCPanelExposedField> FieldWidget = SelectedNode->AsField())
+		{
+			if (const TSharedPtr<FRemoteControlField> Field = FieldWidget->GetRemoteControlField().Pin())
+			{
+				if(Field->FieldType == (FieldType = EExposedFieldType::Property))
+				{
+					SelectedEntityPtr = RemoteControlPanelUtils::GetEntityOnScope(StaticCastSharedPtr<FRemoteControlProperty>(Field));
+				}
+				else if(Field->FieldType == (FieldType = EExposedFieldType::Function))
+				{
+					SelectedEntityPtr = RemoteControlPanelUtils::GetEntityOnScope(StaticCastSharedPtr<FRemoteControlField>(Field));
+				}
+				else
+				{
+					checkNoEntry();
+				}
+				
+				SelectedEntity = Field;			
+			}
+		}
+		else if (const TSharedPtr<SRCPanelExposedActor> ActorWidget = SelectedNode->AsActor())
+		{
+			if (const TSharedPtr<FRemoteControlActor> Actor = ActorWidget->GetRemoteControlActor().Pin())
+			{
+				SelectedEntity = Actor;
+				SelectedEntityPtr = RemoteControlPanelUtils::GetEntityOnScope<FRemoteControlActor>(Actor);
+			}
+		}
+	}
+	if (ensure(EntityDetailsView))
+	{
+		EntityDetailsView->SetStructureData(SelectedEntityPtr);
+	}
+
+	static const FName ProtocolWidgetsModuleName = "RemoteControlProtocolWidgets";	
+	if(SelectedEntity && SelectedNode.IsValid() && FModuleManager::Get().IsModuleLoaded(ProtocolWidgetsModuleName))
+	{
+		// If the SelectedNode is valid, the Preset should be too.
+		if(ensure(Preset.IsValid()))
+		{
+			IRemoteControlProtocolWidgetsModule& ProtocolWidgetsModule = FModuleManager::LoadModuleChecked<IRemoteControlProtocolWidgetsModule>(ProtocolWidgetsModuleName);
+			EntityProtocolDetails->SetContent(ProtocolWidgetsModule.GenerateDetailsForEntity(Preset.Get(), SelectedEntity->GetId(), FieldType));	
+		}
 	}
 }
 

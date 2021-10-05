@@ -20,7 +20,6 @@ struct FNiagaraComputeInstanceData
 		bResetData = false;
 		bStartNewOverlapGroup = false;
 		bUsesSimStages = false;
-		bUsesOldShaderStages = false;
 	}
 
 	FNiagaraGpuSpawnInfo SpawnInfo;
@@ -33,7 +32,6 @@ struct FNiagaraComputeInstanceData
 	uint32 bResetData : 1;
 	uint32 bStartNewOverlapGroup : 1;
 	uint32 bUsesSimStages : 1;
-	uint32 bUsesOldShaderStages : 1;
 
 	bool IsOutputStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 CurrentStage) const;
 	bool IsIterationStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 CurrentStage) const;

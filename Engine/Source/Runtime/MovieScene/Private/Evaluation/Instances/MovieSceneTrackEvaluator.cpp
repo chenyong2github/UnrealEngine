@@ -7,6 +7,7 @@
 #include "MovieSceneSequence.h"
 #include "Sections/MovieSceneSubSection.h"
 #include "Compilation/MovieSceneCompiledDataManager.h"
+#include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 
 #include "IMovieSceneModule.h"
 #include "Algo/Sort.h"
@@ -39,7 +40,7 @@ struct FDelayedPreAnimatedStateRestore
 	{
 		for (FMovieSceneEvaluationKey Key : KeysToRestore)
 		{
-			Player.PreAnimatedState.RestorePreAnimatedState(Player, Key);
+			Player.PreAnimatedState.OnFinishedEvaluating(Key);
 		}
 		KeysToRestore.Reset();
 	}
@@ -81,7 +82,6 @@ void FMovieSceneTrackEvaluator::Finish(IMovieScenePlayer& Player)
 	ThisFrameMetaData.Reset();
 
 	ConstructEvaluationPtrCache();
-
 	CallSetupTearDown(Player);
 }
 
@@ -249,7 +249,7 @@ void FMovieSceneTrackEvaluator::EvaluateGroup(const FMovieSceneEvaluationGroup& 
 				FMovieSceneEvaluationKey TrackKey(TrackPtr.SequenceID, TrackPtr.TrackIdentifier);
 
 				PersistentDataProxy.SetTrackKey(TrackKey);
-				Player.PreAnimatedState.SetCaptureEntity(TrackKey, EMovieSceneCompletionMode::KeepState);
+				FScopedPreAnimatedCaptureSource CaptureSource(&Player.PreAnimatedState, TrackKey, false);
 
 				SubContext = Context;
 				if (EvalPtrs.SubData)
@@ -323,6 +323,8 @@ void FMovieSceneTrackEvaluator::CallSetupTearDown(IMovieScenePlayer& Player, FDe
 {
 	MOVIESCENE_DETAILED_SCOPE_CYCLE_COUNTER(MovieSceneEval_CallSetupTearDown);
 
+	UMovieSceneEntitySystemLinker* Linker = Player.GetEvaluationTemplate().GetEntitySystemLinker();
+
 	FPersistentEvaluationData PersistentDataProxy(Player);
 
 	TArray<FMovieSceneOrderedEvaluationKey> ExpiredEntities;
@@ -368,7 +370,7 @@ void FMovieSceneTrackEvaluator::CallSetupTearDown(IMovieScenePlayer& Player, FDe
 			}
 			else
 			{
-				Player.PreAnimatedState.RestorePreAnimatedState(Player, Key);
+				Player.PreAnimatedState.OnFinishedEvaluating(Key);
 			}
 		}
 		else
@@ -376,7 +378,7 @@ void FMovieSceneTrackEvaluator::CallSetupTearDown(IMovieScenePlayer& Player, FDe
 			// If the track has been destroyed since it was last evaluated, we can still restore state for anything it made
 			// In particular this is needed for movie renders, where it will enable/disable shots between cuts in order
 			// to render handle frames
-			Player.PreAnimatedState.RestorePreAnimatedState(Player, Key);
+			Player.PreAnimatedState.OnFinishedEvaluating(Key);
 		}
 	}
 

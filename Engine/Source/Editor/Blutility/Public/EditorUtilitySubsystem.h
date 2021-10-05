@@ -26,6 +26,8 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection);
 	virtual void Deinitialize();
 
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+
 	void MainFrameCreationFinished(TSharedPtr<SWindow> InRootWindow, bool bIsNewProjectWindow);
 	void HandleStartup();
 
@@ -70,8 +72,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
 	UEditorUtilityWidget* FindUtilityWidgetFromBlueprint(class UEditorUtilityWidgetBlueprint* InBlueprint);
 
+	/**  */
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
-	void RegisterAndExecuteTask(UEditorUtilityTask* NewTask);
+	void RegisterAndExecuteTask(UEditorUtilityTask* NewTask, UEditorUtilityTask* OptionalParentTask = nullptr);
 
 	void RemoveTaskFromActiveList(UEditorUtilityTask* Task);
 
@@ -79,6 +82,10 @@ public:
 	void UnregisterReferencedObject(UObject* ObjectToReference);
 
 protected:
+	UEditorUtilityTask* GetActiveTask() { return ActiveTaskStack.Num() > 0 ? ActiveTaskStack[ActiveTaskStack.Num() - 1] : nullptr; };
+
+	void StartTask(UEditorUtilityTask* Task);
+
 	bool Tick(float DeltaTime);
 
 	void ProcessRunTaskCommands();
@@ -98,11 +105,11 @@ private:
 
 	TQueue< TArray<FString> > RunTaskCommandBuffer;
 
-	UPROPERTY(Transient)
-	TArray<TObjectPtr<UEditorUtilityTask>> PendingTasks;
+	/** AddReferencedObjects is used to report these references to GC. */
+	TMap<TObjectPtr<UEditorUtilityTask>, TArray<TObjectPtr<UEditorUtilityTask>>> PendingTasks;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UEditorUtilityTask> ActiveTask;
+	TArray<TObjectPtr<UEditorUtilityTask>> ActiveTaskStack;
 
 	FDelegateHandle TickerHandle;
 

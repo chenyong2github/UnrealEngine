@@ -22,6 +22,7 @@
 #include "Widgets/DataprepGraph/SDataprepSelectionTransform.h"
 
 // Engine Includes
+#include "DragAndDrop/AssetDragDropOp.h"
 #include "Editor.h"
 #include "Framework/Application/SlateApplication.h"
 #include "SGraphPanel.h"
@@ -161,6 +162,7 @@ void SDataprepGraphActionStepNode::UpdateGraphNode()
 	}
 
 	TAttribute<FMargin> OverlayPadding = TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SDataprepGraphActionStepNode::GetBlockPadding));
+	TAttribute<FMargin> ArrowOverlayPadding = TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SDataprepGraphActionStepNode::GetArrowPadding));
 	TAttribute<FSlateColor> BlockColorAndOpacity = TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateSP(this, &SDataprepGraphActionStepNode::GetBlockOverlayColor));
 
 	this->ContentScale.Bind( this, &SGraphNode::GetContentScale );
@@ -218,26 +220,115 @@ void SDataprepGraphActionStepNode::UpdateGraphNode()
 				SNew(SImage)
 				.ColorAndOpacity(FLinearColor(0.25f, 0.25f, 0.25f, 0.5f))
 				.Image(FDataprepEditorStyle::GetBrush("DataprepEditor.Node.Body"))
-				.Visibility_Lambda([&]() 
-				{ 
-					if ( UDataprepGraphActionStepNode* StepNode = Cast<UDataprepGraphActionStepNode>(GraphNode) )
-					{
-						if ( const UDataprepActionAsset* ActionAsset = StepNode->GetDataprepActionAsset() )
-						{
-							const UDataprepActionStep* ActionStep = ActionAsset->GetStep(StepIndex).Get();
+				.Visibility_Raw( this, &SDataprepGraphActionStepNode::GetDisabledOverlayVisbility )
+			]
+		]
 
-							// Don't overlay if whole action is also disabled - it will take care of that
-							if ( ActionAsset->bIsEnabled && ActionStep && !ActionStep->bIsEnabled )
-							{
-								return EVisibility::Visible;
-							}
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.HAlign(HAlign_Center)
+		.Padding(0.0f, -3.0f)
+		[
+			SNew(SOverlay)
+			+ SOverlay::Slot()
+			.VAlign(VAlign_Fill)
+			.HAlign(HAlign_Fill)
+			[
+				SNew(SOverlay)
+				+ SOverlay::Slot()
+				[
+					SNew(SImage)
+					.ColorAndOpacity(SDataprepGraphActionStepNode::GetBlockOverlayColor())
+					.Image(FDataprepEditorStyle::GetBrush("DataprepEditor.ActionStepNode.ArrowNext"))
+					.Visibility_Lambda([this]() 
+					{
+						if ( IsSelected() && !IsLastStep() )
+						{
+							return EVisibility::Visible;
 						}
-					}
-					return EVisibility::Collapsed;
-				})
+						return EVisibility::Hidden;
+					})
+				]
+			]
+
+			+ SOverlay::Slot()
+			.Padding(4, 0, 4, 3)
+			.VAlign(VAlign_Fill)
+			.HAlign(HAlign_Fill)
+			[
+				SNew(SOverlay)
+				+ SOverlay::Slot()
+				[
+					SNew(SImage)
+					.ColorAndOpacity(FDataprepEditorStyle::GetColor( "DataprepActionStep.BackgroundColor" ))
+					.Image(FDataprepEditorStyle::GetBrush("DataprepEditor.ActionStepNode.ArrowNext"))
+					.Visibility_Lambda([this]() 
+					{
+						return IsLastStep() ? EVisibility::Collapsed : EVisibility::Visible;
+					})
+				]
+			]
+
+			+ SOverlay::Slot()
+			.Padding(ArrowOverlayPadding)
+			.VAlign(VAlign_Fill)
+			.HAlign(HAlign_Fill)
+			[
+				SNew(SOverlay)
+				+ SOverlay::Slot()
+				[
+					SNew(SImage)
+					.ColorAndOpacity(FLinearColor(0.25f, 0.25f, 0.25f, 0.5f))
+					.Image(FDataprepEditorStyle::GetBrush("DataprepEditor.ActionStepNode.ArrowNext"))
+					.Visibility_Lambda([&]() 
+					{
+						if ( !IsLastStep() )
+						{
+							return GetDisabledOverlayVisbility();
+						}
+						return EVisibility::Collapsed;
+					})
+				]
 			]
 		]
 	];
+}
+
+bool SDataprepGraphActionStepNode::IsLastStep() const
+{
+	if ( UDataprepGraphActionStepNode* StepNode = Cast<UDataprepGraphActionStepNode>(GraphNode) )
+	{
+		if ( const UDataprepActionAsset* ActionAsset = StepNode->GetDataprepActionAsset() )
+		{
+			return ( ( ActionAsset->GetStepsCount() - 1 ) == StepIndex );
+		}
+	}
+	return true;
+}
+
+bool SDataprepGraphActionStepNode::IsSelected() const
+{
+	TSharedPtr<SGraphPanel> OwnerPanel = GetOwnerPanel();
+	return OwnerPanel.IsValid() ? OwnerPanel->SelectionManager.SelectedNodes.Contains(GraphNode) : false;
+}
+
+EVisibility SDataprepGraphActionStepNode::GetDisabledOverlayVisbility() const
+{
+	if ( UDataprepGraphActionStepNode* StepNode = Cast<UDataprepGraphActionStepNode>(GraphNode) )
+	{
+		if ( const UDataprepActionAsset* ActionAsset = StepNode->GetDataprepActionAsset() )
+		{
+			const UDataprepActionStep* ActionStep = ActionAsset->GetStep(StepIndex).Get();
+
+			// Don't overlay if whole action is also disabled - it will take care of that
+			if ( ActionAsset->bIsEnabled && ActionStep && !ActionStep->bIsEnabled )
+			{
+				return EVisibility::Visible;
+			}
+		}
+	}
+
+	return EVisibility::Collapsed;
 }
 
 FSlateColor SDataprepGraphActionStepNode::GetBlockOverlayColor() const
@@ -252,10 +343,12 @@ FMargin SDataprepGraphActionStepNode::GetBlockPadding()
 	static const FMargin Selected = FDataprepEditorStyle::GetMargin( "DataprepActionStep.Outter.Selected.Padding" );
 	static const FMargin Regular = FDataprepEditorStyle::GetMargin( "DataprepActionStep.Outter.Regular.Padding" );
 
-	TSharedPtr<SGraphPanel> OwnerPanel = GetOwnerPanel();
-	const bool bIsSelected = OwnerPanel.IsValid() ? OwnerPanel->SelectionManager.SelectedNodes.Contains(GraphNode) : false;
+	return IsSelected() ? Selected : Regular;
+}
 
-	return bIsSelected ? Selected : Regular;
+FMargin SDataprepGraphActionStepNode::GetArrowPadding()
+{
+	return IsSelected() ? FMargin(3, 3, 3, 0) : FMargin(3, 0, 3, 3);
 }
 
 FSlateColor SDataprepGraphActionStepNode::GetDragAndDropColor() const
@@ -268,9 +361,7 @@ FSlateColor SDataprepGraphActionStepNode::GetBorderBackgroundColor() const
 	static const FLinearColor Selected = FDataprepEditorStyle::GetColor( "DataprepActionStep.DragAndDrop" );
 	static const FLinearColor BackgroundColor = FDataprepEditorStyle::GetColor("DataprepActionStep.BackgroundColor");
 
-	const bool bIsSelected = GetOwnerPanel()->SelectionManager.SelectedNodes.Contains(GraphNode);
-
-	return bIsSelected ? Selected : BackgroundColor;
+	return IsSelected() ? Selected : BackgroundColor;
 }
 
 FReply SDataprepGraphActionStepNode::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -372,6 +463,12 @@ void SDataprepGraphActionStepNode::OnDragEnter(const FGeometry& MyGeometry, cons
 
 FReply SDataprepGraphActionStepNode::OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
+	TSharedPtr<FAssetDragDropOp> AssetOp = DragDropEvent.GetOperationAs<FAssetDragDropOp>();
+	if (AssetOp.IsValid())
+	{
+		return FReply::Handled();
+	}
+
 	// Is someone dragging a node?
 	TSharedPtr<FDataprepDragDropOp> DragNodeOp = DragDropEvent.GetOperationAs<FDataprepDragDropOp>();
 	if (DragNodeOp.IsValid())

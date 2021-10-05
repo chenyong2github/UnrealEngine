@@ -39,42 +39,6 @@ utf8_string Utf8StringFormat(const utf8_t* InFmt, ...) __printflike(1, 2);
 // Short way to get TCHAR pointer of a GS::UniString
 #define GSStringToUE(InGSString) UTF16_TO_TCHAR(InGSString.ToUStr().Get())
 
-// Convert Unreal string to Archicad string
-inline GS::UniString FStringToGSString(const FString& InString)
-{
-	return TCHAR_TO_UTF16(*InString);
-}
-
-// Convert Unreal TCHAR string pointer to Archicad string
-inline GS::UniString TCHARToGSString(const TCHAR* InString)
-{
-	return TCHAR_TO_UTF16(InString);
-}
-
-// Convert utf8 string pointer to Unreal string
-inline FString Utf8ToFString(const utf8_t* InUtf8String)
-{
-	return FString(UTF8_TO_TCHAR(InUtf8String));
-}
-
-// Convert utf8 string to Unreal string
-inline FString Utf8ToFString(const utf8_string& InUtf8String)
-{
-	return FString(UTF8_TO_TCHAR(InUtf8String.c_str()));
-}
-
-// Convert Unreal string to utf8 string
-inline utf8_string FString2Utf8(const FString& InUEString)
-{
-	return TCHAR_TO_UTF8(*InUEString);
-}
-
-// return true if string is empty
-inline bool IsStringEmpty(const TCHAR* InUEString)
-{
-	return InUEString == nullptr || *InUEString == 0;
-}
-
 // Convert an Archicad fingerprint to an API_Guid
 inline const API_Guid& Fingerprint2API_Guid(const MD5::FingerPrint& inFP)
 {
@@ -91,17 +55,8 @@ template < class T > inline API_Guid GuidFromMD5(const T& inV)
 	return Fingerprint2API_Guid(FingerPrint);
 }
 
-// Compute Guid of the string
-API_Guid String2API_Guid(const GS::UniString& InString);
-
 // Combine 2 guid in one
 API_Guid CombineGuid(const API_Guid& InGuid1, const API_Guid& InGuid2);
-
-// Class for mapping by name
-struct FCompareName
-{
-	bool operator()(const TCHAR* InName1, const TCHAR* InName2) const { return FCString::Strcmp(InName1, InName2) < 0; }
-};
 
 // Convert StandardRGB component to LinearRGB component
 inline float StandardRGBToLinear(double InRgbComponent)
@@ -120,21 +75,23 @@ inline FLinearColor ACRGBColorToUELinearColor(const ModelerAPI::Color& InColor)
 // Stack class to auto dispose memo handles
 class FAutoMemo
 {
-	API_ElementMemo* Memo;
-
   public:
-	FAutoMemo(API_ElementMemo* InMemoToDispose)
-		: Memo(InMemoToDispose)
+	FAutoMemo(const API_Guid& Guid, UInt64 Mask = APIMemoMask_All)
 	{
+		Zap(&Memo);
+		GSErr = ACAPI_Element_GetMemo(Guid, &Memo, Mask);
 	}
 
 	~FAutoMemo()
 	{
-		if (Memo)
+		if (GSErr != NoError)
 		{
-			ACAPI_DisposeElemMemoHdls(Memo);
+			ACAPI_DisposeElemMemoHdls(&Memo);
 		}
 	}
+
+	API_ElementMemo Memo;
+	GS::GSErrCode	GSErr = NoError;
 };
 
 // Stack class to auto dispose handles

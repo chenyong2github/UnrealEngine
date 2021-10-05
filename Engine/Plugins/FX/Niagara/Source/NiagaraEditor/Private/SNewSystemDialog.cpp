@@ -3,7 +3,7 @@
 #include "SNewSystemDialog.h"
 #include "NiagaraSystem.h"
 #include "NiagaraEditorStyle.h"
-#include "SNiagaraAssetPickerList.h"
+#include "NiagaraEditor/Private/SNiagaraAssetPickerList.h"
 
 #include "AssetData.h"
 
@@ -23,23 +23,40 @@ typedef SItemSelector<FText, FAssetData> SNiagaraAssetItemSelector;
 void SNewSystemDialog::Construct(const FArguments& InArgs)
 {
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
-	
-	FNiagaraAssetPickerListViewOptions TemplateOnlyViewOptions;
-	TemplateOnlyViewOptions.SetOnlyShowTemplatesAndCategorizeByAssetPath(true);
-	TemplateOnlyViewOptions.SetExpandTemplateAndLibraryAssets(true);
-	TemplateOnlyViewOptions.SetCategorizeTemplateAssets(true);
-	TemplateOnlyViewOptions.SetCategorizeLibraryAssets(true);
 
 	FNiagaraAssetPickerListViewOptions DisplayAllViewOptions;
 	DisplayAllViewOptions.SetExpandTemplateAndLibraryAssets(true);
-	DisplayAllViewOptions.SetCategorizeTemplateAssets(true);
 	DisplayAllViewOptions.SetCategorizeLibraryAssets(true);
+	DisplayAllViewOptions.SetCategorizeUserDefinedCategory(true);
+	DisplayAllViewOptions.SetAddLibraryOnlyCheckbox(true);
+	
+	FNiagaraAssetPickerTabOptions AllTabOptions;
+	AllTabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Template, true);
+	AllTabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::None, true);
+	AllTabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Behavior, true);
 
+	FNiagaraAssetPickerTabOptions TemplateAndBehaviorsOnlyTabOptions;
+	TemplateAndBehaviorsOnlyTabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Template, true);
+	TemplateAndBehaviorsOnlyTabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Behavior, true);
+
+	SAssignNew(EmitterAssetPicker, SNiagaraAssetPickerList, UNiagaraEmitter::StaticClass())
+		.OnTemplateAssetActivated(this, &SNewSystemDialog::OnEmitterAssetsActivated)
+		.ViewOptions(DisplayAllViewOptions)
+		.TabOptions(AllTabOptions)
+		.bAllowMultiSelect(true);
+
+	SAssignNew(TemplateBehaviorAssetPicker, SNiagaraAssetPickerList, UNiagaraSystem::StaticClass())
+		.ViewOptions(DisplayAllViewOptions)
+		.TabOptions(TemplateAndBehaviorsOnlyTabOptions);
+
+	SAssignNew(SystemAssetPicker, SNiagaraAssetPickerList, UNiagaraSystem::StaticClass())
+		.ViewOptions(DisplayAllViewOptions);
+	
 	SNiagaraNewAssetDialog::Construct(SNiagaraNewAssetDialog::FArguments(), UNiagaraSystem::StaticClass()->GetFName(), LOCTEXT("AssetTypeName", "system"),
 		{
 			SNiagaraNewAssetDialog::FNiagaraNewAssetDialogOption(
 				LOCTEXT("CreateFromSelectedEmittersLabel", "New system from selected emitter(s)"),
-				LOCTEXT("CreateFromSelectedEmittersDescription", "Choose a mix of emitters (inherited) and emitter templates (no inheritance)"),
+				LOCTEXT("CreateFromSelectedEmittersDescription", "Choose a mix of emitters (inherited) and emitter templates/behavior examples (no inheritance)"),
 				LOCTEXT("ProjectEmittersLabel", "Select Emitters to Add"),
 				SNiagaraNewAssetDialog::FOnGetSelectedAssetsFromPicker::CreateSP(this, &SNewSystemDialog::GetSelectedProjectEmiterAssets),
 				SNiagaraNewAssetDialog::FOnSelectionConfirmed(),
@@ -47,10 +64,7 @@ void SNewSystemDialog::Construct(const FArguments& InArgs)
 				+ SVerticalBox::Slot()
 				.Padding(0, 0, 0, 10)
 				[
-					SAssignNew(EmitterAssetPicker, SNiagaraAssetPickerList, UNiagaraEmitter::StaticClass())
-					.OnTemplateAssetActivated(this, &SNewSystemDialog::OnEmitterAssetsActivated)
-					.ViewOptions(DisplayAllViewOptions)
-					.bAllowMultiSelect(true)
+					EmitterAssetPicker.ToSharedRef()
 				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
@@ -95,23 +109,25 @@ void SNewSystemDialog::Construct(const FArguments& InArgs)
 				[
 					SAssignNew(SelectedEmitterBox, SWrapBox)
 					.UseAllottedSize(true)
-				]),
+				],
+				EmitterAssetPicker->GetSearchBox()
+				),
 			SNiagaraNewAssetDialog::FNiagaraNewAssetDialogOption(
-				LOCTEXT("CreateFromTemplateLabel", "New system from a template"),
-				LOCTEXT("CreateFromTemplateDescription", "The new system will be derived from a system template"),
+				LOCTEXT("CreateFromTemplateLabel", "New system from a template or behavior example"),
+				LOCTEXT("CreateFromTemplateDescription", "The new system will be derived from a system template or behavior example"),
 				LOCTEXT("TemplateLabel", "Select a System Template"),
 				SNiagaraNewAssetDialog::FOnGetSelectedAssetsFromPicker::CreateSP(this, &SNewSystemDialog::GetSelectedSystemTemplateAssets),
 				SNiagaraNewAssetDialog::FOnSelectionConfirmed(),
-				SAssignNew(TemplateAssetPicker, SNiagaraAssetPickerList, UNiagaraSystem::StaticClass())
-				.ViewOptions(TemplateOnlyViewOptions)),
+				TemplateBehaviorAssetPicker.ToSharedRef(), TemplateBehaviorAssetPicker->GetSearchBox()
+				),
 			SNiagaraNewAssetDialog::FNiagaraNewAssetDialogOption(
 				LOCTEXT("CreateFromOtherSystemLabel", "Copy existing system"),
 				LOCTEXT("CreateFromOtherSystemDescription", "Copies an existing system from your project content and maintains any inheritance of the included emitters"),
 				LOCTEXT("ProjectSystemsLabel", "Select a Project System"),
 				SNiagaraNewAssetDialog::FOnGetSelectedAssetsFromPicker::CreateSP(this, &SNewSystemDialog::GetSelectedProjectSystemAssets),
 				SNiagaraNewAssetDialog::FOnSelectionConfirmed(),
-				SAssignNew(SystemAssetPicker, SNiagaraAssetPickerList, UNiagaraSystem::StaticClass())
-				.ViewOptions(DisplayAllViewOptions)),
+				SystemAssetPicker.ToSharedRef(), SystemAssetPicker->GetSearchBox()
+				),
 			SNiagaraNewAssetDialog::FNiagaraNewAssetDialogOption(
 				LOCTEXT("CreateEmptyLabel", "Create empty system"),
 				LOCTEXT("CreateEmptyDescription", "Create an empty system with no emitters or emitter templates"),
@@ -169,7 +185,7 @@ void SNewSystemDialog::OnEmitterAssetsActivated(const FAssetData& ActivatedTempl
 
 void SNewSystemDialog::GetSelectedSystemTemplateAssets(TArray<FAssetData>& OutSelectedAssets)
 {
-	OutSelectedAssets.Append(TemplateAssetPicker->GetSelectedAssets());
+	OutSelectedAssets.Append(TemplateBehaviorAssetPicker->GetSelectedAssets());
 }
 
 void SNewSystemDialog::GetSelectedProjectSystemAssets(TArray<FAssetData>& OutSelectedAssets)

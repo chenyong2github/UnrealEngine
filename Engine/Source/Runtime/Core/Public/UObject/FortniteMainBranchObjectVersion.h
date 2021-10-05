@@ -152,6 +152,15 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Remove the WaterVelocityHeightTexture dependency on MPC_Landscape and LandscapeWaterIndo 
 		RemoveLandscapeWaterInfo,
 
+		// Added the weighted value property type to store the cloths weight maps' low/high ranges
+		ChaosClothAddWeightedValue,
+
+		// Added the Long Range Attachment stiffness weight map
+		ChaosClothAddTetherStiffnessWeightMap,
+
+		// Fix corrupted LOD transition maps
+		ChaosClothFixLODTransitionMaps,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

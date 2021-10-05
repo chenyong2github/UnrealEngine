@@ -97,7 +97,7 @@ TSharedPtr<FDataprepSchemaAction> FDataprepFilterMenuActionCollector::CreateMenu
 
 		return MakeShared< FDataprepSchemaAction >( Filter.GetFilterCategoryText()
 			, Fetcher->GetDisplayFetcherName(), Fetcher->GetTooltipText()
-			, GroupingPriority, Fetcher->GetAdditionalKeyword(), OnExcuteMenuAction
+			, GroupingPriority, Fetcher->GetAdditionalKeyword(), OnExcuteMenuAction, DataprepMenuActionCollectorUtils::EDataprepMenuActionCategory::Filter
 			);
 	}
 	
@@ -123,6 +123,5 @@ TSharedPtr<FDataprepSchemaAction> FDataprepFilterMenuActionCollector::CreateMenu
 
 	return MakeShared< FDataprepSchemaAction >(Filter.GetFilterCategoryText()
 		, Filter.GetDisplayFilterName(), Filter.GetTooltipText()
-		, GroupingPriority, Filter.GetAdditionalKeyword(), OnExcuteMenuAction
-		);
+		, GroupingPriority, Filter.GetAdditionalKeyword(), OnExcuteMenuAction, DataprepMenuActionCollectorUtils::EDataprepMenuActionCategory::Filter);
 }

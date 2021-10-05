@@ -58,3 +58,27 @@ float4x4 NiagaraComposeInvTransformMatrix(float3 S, float3x3 R, float3 T)
 
 	return mul(InvTransMat, InvRotScale44);
 }
+
+float3x3 NiagaraFindRotationBetweenNormals(float3 A, float3 B)
+{
+	float W = dot(A, B);
+
+	float4 Quat;
+
+	if (W >= 1e-6f)
+	{
+		Quat = float4(A.y * B.z - A.z * B.y,
+					   A.z * B.x - A.x * B.z,
+					   A.x * B.y - A.y * B.x,
+					   W);
+	}
+	else
+	{
+		W = 0.f;
+		Quat = abs(A.x) > abs(A.y)
+				? float4(-A.z, 0.f, A.x, W)
+				: float4(0.f, -A.z, A.y, W);
+	}
+
+	return NiagaraQuatTo3x3(Quat);
+}

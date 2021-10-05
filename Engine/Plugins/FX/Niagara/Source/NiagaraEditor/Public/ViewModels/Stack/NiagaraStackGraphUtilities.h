@@ -15,6 +15,7 @@ class UNiagaraGraph;
 class UNiagaraNode;
 class UNiagaraNodeInput;
 class UNiagaraNodeOutput;
+class UNiagaraNodeParameterMapBase;
 class UNiagaraNodeFunctionCall;
 class UNiagaraNodeCustomHlsl;
 class UNiagaraNodeAssignment;
@@ -22,6 +23,7 @@ class UNiagaraNodeParameterMapSet;
 class FNiagaraSystemViewModel;
 class UNiagaraEmitter;
 class FNiagaraEmitterViewModel;
+class UNiagaraScriptVariable;
 class UNiagaraStackEditorData;
 class UNiagaraStackErrorItem;
 class FCompileConstantResolver;
@@ -127,7 +129,7 @@ namespace FNiagaraStackGraphUtilities
 
 	void SetDataValueObjectForFunctionInput(UEdGraphPin& OverridePin, UClass* DataObjectType, FString InputNodeInputName, UNiagaraDataInterface*& OutDataObject, const FGuid& NewNodePersistentId = FGuid());
 
-	void SetDynamicInputForFunctionInput(UEdGraphPin& OverridePin, UNiagaraScript* DynamicInput, UNiagaraNodeFunctionCall*& OutDynamicInputFunctionCall, const FGuid& NewNodePersistentId = FGuid(), FString SuggestedName = FString());
+	void SetDynamicInputForFunctionInput(UEdGraphPin& OverridePin, UNiagaraScript* DynamicInput, UNiagaraNodeFunctionCall*& OutDynamicInputFunctionCall, const FGuid& NewNodePersistentId = FGuid(), FString SuggestedName = FString(), const FGuid& InScriptVersion = FGuid());
 
 	void SetCustomExpressionForFunctionInput(UEdGraphPin& OverridePin, const FString& CustomExpression, UNiagaraNodeCustomHlsl*& OutDynamicInputFunctionCall, const FGuid& NewNodePersistentId = FGuid());
 
@@ -171,8 +173,6 @@ namespace FNiagaraStackGraphUtilities
 
 	TOptional<FName> GetNamespaceForScriptUsage(ENiagaraScriptUsage ScriptUsage);
 	TOptional<FName> GetNamespaceForOutputNode(const UNiagaraNodeOutput* OutputNode);
-	
-	ENiagaraParameterScope GetScopeForScriptUsage(ENiagaraScriptUsage ScriptUsage);
 	
 	bool IsValidDefaultDynamicInput(UNiagaraScript& OwningScript, UEdGraphPin& DefaultPin);
 
@@ -236,4 +236,10 @@ namespace FNiagaraStackGraphUtilities
 		UNiagaraNodeAssignment& OwningAssignmentNode,
 		FNiagaraVariable CurrentAssignmentTarget,
 		FName NewAssignmentTargetName);
+
+	/** Helper to add a new pin to a ParameterMapBaseNode, and conditionally add a new parameter to the underlying UNiagaraGraph if it does not yet exist. */
+	void AddNewVariableToParameterMapNode(UNiagaraNodeParameterMapBase* MapBaseNode, bool bCreateInputPin, const FNiagaraVariable& NewVariable);
+	void AddNewVariableToParameterMapNode(UNiagaraNodeParameterMapBase* MapBaseNode, bool bCreateInputPin, const UNiagaraScriptVariable* NewScriptVar);
+
+	void SynchronizeVariableToLibraryAndApplyToGraph(UNiagaraScriptVariable* ScriptVarToSync);
 }

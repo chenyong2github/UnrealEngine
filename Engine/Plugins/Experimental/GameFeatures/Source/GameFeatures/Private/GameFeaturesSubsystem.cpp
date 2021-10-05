@@ -16,7 +16,6 @@
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "Engine/AssetManagerSettings.h"
-#include "InstallBundleManagerInterface.h"
 
 DEFINE_LOG_CATEGORY(LogGameFeatures);
 
@@ -437,18 +436,21 @@ bool UGameFeaturesSubsystem::GetGameFeaturePluginInstallPercent(const FString& P
 {
 	if (UGameFeaturePluginStateMachine* StateMachine = GetGameFeaturePluginStateMachine(PluginURL, false))
 	{
-		// JMarcus TODO: The download state should track progress and this should just return that.
-		// This shouldn't be calling InstallBundleManager directly :(
-
-		TSharedPtr<IInstallBundleManager> InstallBundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
-
-		const FName BundleName = FName(PluginURL);
-		TOptional<FInstallBundleProgress> BundleProgress = InstallBundleManager ?
-			InstallBundleManager->GetBundleProgress(BundleName) : TOptional<FInstallBundleProgress>();
-		if (BundleProgress.IsSet())
+		if (StateMachine->IsStatusKnown() && StateMachine->IsAvailable())
 		{
-			Install_Percent = BundleProgress->Install_Percent;
-			return true;
+			const FGameFeaturePluginStateInfo& StateInfo = StateMachine->GetCurrentStateInfo();
+			if (StateInfo.State == EGameFeaturePluginState::Downloading)
+			{
+				Install_Percent = StateInfo.Progress;
+			}
+			else if (StateMachine->GetDestinationState() >= EGameFeaturePluginState::Installed && StateInfo.State >= EGameFeaturePluginState::Installed)
+			{
+				Install_Percent = 1.0f;
+			}
+			else
+			{
+				Install_Percent = 0.0f;
+			}
 		}
 	}
 	return false;
@@ -474,20 +476,28 @@ void UGameFeaturesSubsystem::DeactivateGameFeaturePlugin(const FString& PluginUR
 {
 	if (UGameFeaturePluginStateMachine* StateMachine = GetGameFeaturePluginStateMachine(PluginURL, false))
 	{
+		ensureAlwaysMsgf(StateMachine->GetCurrentState() == StateMachine->GetDestinationState(), TEXT("Setting a new destination state while state machine is running!"));
+
 		if (StateMachine->GetCurrentState() > EGameFeaturePluginState::Loaded)
 		{
 			StateMachine->SetDestinationState(EGameFeaturePluginState::Loaded, FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::DeactivateGameFeaturePluginComplete, CompleteDelegate));
 		}
-		else if (StateMachine->GetCurrentState() == EGameFeaturePluginState::Loaded)
+		else if (StateMachine->GetCurrentState() <= EGameFeaturePluginState::Loaded)
 		{
 			FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this, CompleteDelegate](float dts)
 				{
-					QUICK_SCOPE_CYCLE_COUNTER(STAT_AContentBeaconHostObject_UnloadResolvedContent_FinishedUnloadingContent);
-
 					CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeValue()));
 					return false;
 				}));
 		}
+	}
+	else
+	{
+		FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this, CompleteDelegate](float dts)
+		{
+			CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeError(TEXT("GameFeaturePlugin.BadURL"))));
+			return false;
+		}));
 	}
 }
 
@@ -501,21 +511,29 @@ void UGameFeaturesSubsystem::UnloadGameFeaturePlugin(const FString& PluginURL, c
 {
 	if (UGameFeaturePluginStateMachine* StateMachine = GetGameFeaturePluginStateMachine(PluginURL, false))
 	{
+		ensureAlwaysMsgf(StateMachine->GetCurrentState() == StateMachine->GetDestinationState(), TEXT("Setting a new destination state while state machine is running!"));
+
 		EGameFeaturePluginState DestinationState = bKeepRegistered ? EGameFeaturePluginState::Registered : EGameFeaturePluginState::Installed;
 		if (StateMachine->GetCurrentState() > DestinationState)
 		{
 			StateMachine->SetDestinationState(DestinationState, FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::UnloadGameFeaturePluginComplete, CompleteDelegate));
 		}
-		else if (StateMachine->GetCurrentState() == DestinationState)
+		else if (StateMachine->GetCurrentState() <= DestinationState)
 		{
 			FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this, CompleteDelegate](float dts)
 				{
-					QUICK_SCOPE_CYCLE_COUNTER(STAT_AContentBeaconHostObject_UnloadResolvedContent_FinishedUnloadingContent);
-
 					CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeValue()));
 					return false;
 				}));
 		}
+	}
+	else
+	{
+		FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this, CompleteDelegate](float dts)
+		{
+			CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeError(TEXT("GameFeaturePlugin.BadURL"))));
+			return false;
+		}));
 	}
 }
 
@@ -529,10 +547,28 @@ void UGameFeaturesSubsystem::UninstallGameFeaturePlugin(const FString& PluginURL
 {
 	if (UGameFeaturePluginStateMachine* StateMachine = GetGameFeaturePluginStateMachine(PluginURL, false))
 	{
+		ensureAlwaysMsgf(StateMachine->GetCurrentState() == StateMachine->GetDestinationState(), TEXT("Setting a new destination state while state machine is running!"));
+
 		if (StateMachine->GetCurrentState() > EGameFeaturePluginState::StatusKnown)
 		{
 			StateMachine->SetDestinationState(EGameFeaturePluginState::StatusKnown, FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::UninstallGameFeaturePluginComplete, CompleteDelegate));
 		}
+		else if (StateMachine->GetCurrentState() <= EGameFeaturePluginState::StatusKnown)
+		{
+			FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this, CompleteDelegate](float dts)
+			{
+				CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeValue()));
+				return false;
+			}));
+		}
+	}
+	else
+	{
+		FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this, CompleteDelegate](float dts)
+		{
+			CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeError(TEXT("GameFeaturePlugin.BadURL"))));
+			return false;
+		}));
 	}
 }
 

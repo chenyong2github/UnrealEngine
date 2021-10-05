@@ -15,11 +15,13 @@
 #include "Misc/QualifiedFrameTime.h"
 #include "Widgets/Input/NumericTypeInterface.h"
 #include "Editor/SequencerWidgets/Public/ITimeSlider.h"
+#include "KeyParams.h"
 
 struct FFrameTime;
 struct FQualifiedFrameTime;
 struct FMovieSceneChannelHandle;
 
+class UMovieSceneSection;
 class UMovieSceneTrack;
 class AActor;
 class FSequencerSelection;

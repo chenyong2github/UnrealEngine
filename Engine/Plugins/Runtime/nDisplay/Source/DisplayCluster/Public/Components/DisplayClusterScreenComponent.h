@@ -12,7 +12,7 @@ class UStaticMeshComponent;
 /**
  * Simple projection screen component
  */
-UCLASS(ClassGroup = (DisplayCluster), meta = (BlueprintSpawnableComponent))
+UCLASS(ClassGroup = (DisplayCluster), meta = (BlueprintSpawnableComponent, DisplayName = "NDisplay Screen"))
 class DISPLAYCLUSTER_API UDisplayClusterScreenComponent
 	: public UDisplayClusterSceneComponent
 {
@@ -30,13 +30,13 @@ public:
 	
 public:
 	/** Return the screen size adjusted by its transform scale. */
-	UFUNCTION(BlueprintCallable, Category = "DisplayCluster")
+	UFUNCTION(BlueprintCallable, Category = "NDisplay")
 	FVector2D GetScreenSizeScaled() const;
 	
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get screen size"), Category = "DisplayCluster")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get screen size"), Category = "NDisplay")
 	FVector2D GetScreenSize() const;
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set screen size"), Category = "DisplayCluster")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set screen size"), Category = "NDisplay")
 	void SetScreenSize(const FVector2D& Size);
 
 protected:
@@ -47,7 +47,7 @@ protected:
 	friend class FDisplayClusterConfiguratorScreenDetailCustomization;
 
 	/** Adjust the size of the screen. */
-	UPROPERTY(EditAnywhere, Category = "DisplayCluster", meta = (DisplayName = "Size", AllowPreserveRatio))
+	UPROPERTY(EditAnywhere, Category = "NDisplay", meta = (DisplayName = "Size", AllowPreserveRatio))
 	FVector2D SizeCm;
 #endif
 

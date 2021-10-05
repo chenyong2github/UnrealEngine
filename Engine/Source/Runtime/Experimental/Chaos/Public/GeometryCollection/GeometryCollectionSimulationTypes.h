@@ -2,6 +2,7 @@
 #pragma once
 
 #include "UObject/ObjectMacros.h"
+#include "Field/FieldSystemTypes.h"
 
 #include "GeometryCollectionSimulationTypes.generated.h"
 
@@ -54,32 +55,14 @@ enum class EGeometryCollectionPhysicsTypeEnum : uint8
 	Chaos_Max						UMETA(Hidden)
 };
 
-inline
-FName CHAOS_API 
-GetGeometryCollectionPhysicsTypeName(EGeometryCollectionPhysicsTypeEnum Attribute)
+inline CHAOS_API EFieldPhysicsType GetGeometryCollectionPhysicsType(const EGeometryCollectionPhysicsTypeEnum GeoCollectionType)
 {
-	switch (Attribute)
-	{
-	case EGeometryCollectionPhysicsTypeEnum::Chaos_AngularVelocity:
-		return "AngularVelocity";
-	case EGeometryCollectionPhysicsTypeEnum::Chaos_DynamicState:
-		return "DynamicState";
-	case EGeometryCollectionPhysicsTypeEnum::Chaos_LinearVelocity:
-		return "LinearVelocity";
-	case EGeometryCollectionPhysicsTypeEnum::Chaos_InitialLinearVelocity:
-		return "InitialLinearVelocity";
-	case EGeometryCollectionPhysicsTypeEnum::Chaos_InitialAngularVelocity:
-		return "InitialAngularVelocity";
-	case EGeometryCollectionPhysicsTypeEnum::Chaos_CollisionGroup:
-		return "CollisionGroup";
-	case EGeometryCollectionPhysicsTypeEnum::Chaos_LinearForce:
-		return "LinearForce";
-	case EGeometryCollectionPhysicsTypeEnum::Chaos_AngularTorque:
-		return "AngularTorque";
-	}
-	return "None";
-}
+	static const TArray<EFieldPhysicsType> PhysicsTypes = { EFieldPhysicsType::Field_AngularVelociy , EFieldPhysicsType::Field_DynamicState, EFieldPhysicsType::Field_LinearVelocity, 
+		EFieldPhysicsType::Field_InitialAngularVelocity, EFieldPhysicsType::Field_InitialLinearVelocity, EFieldPhysicsType::Field_CollisionGroup, 
+		EFieldPhysicsType::Field_LinearForce, EFieldPhysicsType::Field_AngularTorque, EFieldPhysicsType::Field_PhysicsType_Max };
 
+	return PhysicsTypes[(uint8)GeoCollectionType];
+}
 
 UENUM(BlueprintType)
 enum class EInitialVelocityTypeEnum : uint8

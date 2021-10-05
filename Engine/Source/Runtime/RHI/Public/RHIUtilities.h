@@ -343,13 +343,14 @@ struct FTextureReadBuffer2D
 
 	// @param AdditionalUsage passed down to RHICreateVertexBuffer(), get combined with "BUF_UnorderedAccess | BUF_ShaderResource" e.g. BUF_Static
 	const static ETextureCreateFlags DefaultTextureInitFlag = TexCreate_ShaderResource;
-	void Initialize(const TCHAR* InDebugName, const uint32 BytesPerElement, const uint32 SizeX, const uint32 SizeY, const EPixelFormat Format, ETextureCreateFlags Flags = DefaultTextureInitFlag)
+	void Initialize(const TCHAR* InDebugName, const uint32 BytesPerElement, const uint32 SizeX, const uint32 SizeY, const EPixelFormat Format, ETextureCreateFlags Flags = DefaultTextureInitFlag, FResourceBulkDataInterface* InBulkData = nullptr)
 	{
 		check(RHISupportsTextureBuffers(GMaxRHIShaderPlatform));
 
 		NumBytes = SizeX * SizeY * BytesPerElement;
 
 		FRHIResourceCreateInfo CreateInfo(InDebugName);
+		CreateInfo.BulkData = InBulkData;
 		Buffer = RHICreateTexture2D(
 			SizeX, SizeY, Format, //PF_R32_FLOAT,
 			/*NumMips=*/ 1,

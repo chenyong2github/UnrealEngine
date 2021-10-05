@@ -64,6 +64,14 @@ void FDisplayClusterConfiguratorViewOutputMapping::SetEnabled(bool bInEnabled)
 	}
 }
 
+void FDisplayClusterConfiguratorViewOutputMapping::Cleanup()
+{
+	if (GraphObj.IsValid())
+	{
+		GraphObj->Cleanup();
+	}
+}
+
 FDelegateHandle FDisplayClusterConfiguratorViewOutputMapping::RegisterOnOutputMappingBuilt(const FOnOutputMappingBuiltDelegate& Delegate)
 {
 	return OnOutputMappingBuilt.Add(Delegate);
@@ -79,6 +87,14 @@ void FDisplayClusterConfiguratorViewOutputMapping::FindAndSelectObjects(const TA
 	if (GraphEditor.IsValid())
 	{
 		GraphEditor->FindAndSelectObjects(ObjectsToSelect);
+	}
+}
+
+void FDisplayClusterConfiguratorViewOutputMapping::JumpToObject(UObject* InObject)
+{
+	if (GraphEditor.IsValid())
+	{
+		GraphEditor->JumpToObject(InObject);
 	}
 }
 
@@ -104,7 +120,6 @@ void FDisplayClusterConfiguratorViewOutputMapping::BindCommands()
 	MAP_TOGGLE_COMMAND(Commands.ToggleLockViewports, OutputMappingSettings.bLockViewports);
 	MAP_TOGGLE_COMMAND(Commands.ToggleLockClusterNodes, OutputMappingSettings.bLockClusterNodes);
 	MAP_TOGGLE_COMMAND(Commands.ToggleTintViewports, OutputMappingSettings.bTintSelectedViewports);
-	MAP_TOGGLE_COMMAND(Commands.ToggleZoomToSelectedItems, OutputMappingSettings.bZoomToSelectedClusterItems);
 
 	MAP_TOGGLE_COMMAND(Commands.ToggleAdjacentEdgeSnapping, NodeAlignmentSettings.bSnapAdjacentEdges);
 	MAP_TOGGLE_COMMAND(Commands.ToggleSameEdgeSnapping, NodeAlignmentSettings.bSnapSameEdges);
@@ -116,7 +131,6 @@ void FDisplayClusterConfiguratorViewOutputMapping::LoadSettings()
 	LOAD_SETTING(Bool, OutputMappingSettings.bShowWindowInfo);
 	LOAD_SETTING(Bool, OutputMappingSettings.bShowWindowCornerImage);
 	LOAD_SETTING(Bool, OutputMappingSettings.bShowOutsideViewports);
-	LOAD_SETTING(Bool, OutputMappingSettings.bZoomToSelectedClusterItems);
 	LOAD_SETTING(Bool, OutputMappingSettings.bAllowClusterItemOverlap);
 	LOAD_SETTING(Bool, OutputMappingSettings.bKeepClusterNodesInHosts);
 	LOAD_SETTING(Bool, OutputMappingSettings.bLockViewports);
@@ -142,7 +156,6 @@ void FDisplayClusterConfiguratorViewOutputMapping::SaveSettings()
 	SAVE_SETTING(Bool, OutputMappingSettings.bShowWindowInfo);
 	SAVE_SETTING(Bool, OutputMappingSettings.bShowWindowCornerImage);
 	SAVE_SETTING(Bool, OutputMappingSettings.bShowOutsideViewports);
-	SAVE_SETTING(Bool, OutputMappingSettings.bZoomToSelectedClusterItems);
 	SAVE_SETTING(Bool, OutputMappingSettings.bAllowClusterItemOverlap);
 	SAVE_SETTING(Bool, OutputMappingSettings.bKeepClusterNodesInHosts);
 	SAVE_SETTING(Bool, OutputMappingSettings.bLockViewports);

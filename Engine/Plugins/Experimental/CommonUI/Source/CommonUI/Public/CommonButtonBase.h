@@ -271,6 +271,9 @@ protected:
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FCommonSelectedStateChangedBase, class UCommonButtonBase*, Button, bool, Selected);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCommonButtonBaseClicked, class UCommonButtonBase*, Button);
 
+/**
+ * Button that disables itself when not active. Also updates actions for CommonActionWidget if bound to display platform-specific icons.
+ */
 UCLASS(Abstract, Blueprintable, ClassGroup = UI, meta = (Category = "Common UI", DisableNativeTick))
 class COMMONUI_API UCommonButtonBase : public UCommonUserWidget
 {

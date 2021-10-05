@@ -3,10 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+
+#include "MIDIDeviceControllerBase.h"
 #include "UObject/Object.h"
 #include "UObject/WeakObjectPtr.h"
-#include "MIDIDeviceController.h"
+
 #include "MIDIDeviceInputController.generated.h"
 
 
@@ -36,7 +37,7 @@ DECLARE_MULTICAST_DELEGATE_SixParams(FOnMIDIRawEvent, class UMIDIDeviceInputCont
 
 
 UCLASS(BlueprintType)
-class MIDIDEVICE_API UMIDIDeviceInputController : public UObject
+class MIDIDEVICE_API UMIDIDeviceInputController : public UMIDIDeviceControllerBase
 {
 	GENERATED_BODY()
 
@@ -77,17 +78,21 @@ public:
 	FOnMIDIRawEvent OnMIDIRawEvent;
 
 	/** Called from UMIDIDeviceManager after the controller is created to get it ready to use.  Don't call this directly. */
-	void StartupDevice(const int32 InitDeviceID, const int32 InitMIDIBufferSize, bool& bOutWasSuccessful);
+	virtual void StartupDevice(const int32 InitDeviceID, const int32 InitMIDIBufferSize, bool& bOutWasSuccessful) override;
 
 	/** Called every frame by UMIDIDeviceManager to poll for new MIDI events and broadcast them out to subscribers of OnMIDIEvent.  Don't call this directly. */
-	void ProcessIncomingMIDIEvents();
+	virtual void ProcessIncomingMIDIEvents() override;
 
 	/** Called during destruction to clean up this device.  Don't call this directly. */
-	void ShutdownDevice();
+	virtual void ShutdownDevice() override;
 
+	/** The name of this device.  This name comes from the MIDI hardware, any might not be unique */
+	virtual FString GetDeviceName() const override { return DeviceName; }
+
+	/** Size of the MIDI buffer in bytes */
+	virtual int32 GetMIDIBufferSize() const override { return MIDIBufferSize; }
 
 protected:
-
 	/** The unique ID of this device */
 	UPROPERTY(BlueprintReadOnly, Category="MIDI Device Input Controller")
 	int32 DeviceID;

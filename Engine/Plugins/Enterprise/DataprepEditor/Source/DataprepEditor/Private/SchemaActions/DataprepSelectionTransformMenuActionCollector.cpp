@@ -54,7 +54,7 @@ TSharedPtr<FDataprepSchemaAction> FDataprepSelectionTransformMenuActionCollector
 
 		return MakeShared< FDataprepSchemaAction >(SelectionTransform->GetCategory()
 												   , SelectionTransform->GetDisplayTransformName(), SelectionTransform->GetTooltip()
-												   , 0, SelectionTransform->GetAdditionalKeyword(), OnExcuteMenuAction
+												   , 0, SelectionTransform->GetAdditionalKeyword(), OnExcuteMenuAction, DataprepMenuActionCollectorUtils::EDataprepMenuActionCategory::SelectionTransform
 												   );
 	}
 

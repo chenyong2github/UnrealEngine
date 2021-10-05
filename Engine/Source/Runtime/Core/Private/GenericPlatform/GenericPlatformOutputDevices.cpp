@@ -45,14 +45,14 @@ void FGenericPlatformOutputDevices::SetupOutputDevices()
 		GLog->AddOutputDevice(GLogConsole);
 	}
 	
-#if !(PLATFORM_DESKTOP && UE_BUILD_SHIPPING)
+#if USE_DEBUG_LOGGING
 	// If the platform has a separate debug output channel (e.g. OutputDebugString) then add an output device
 	// unless logging is turned off
 	if (FPlatformMisc::HasSeparateChannelForDebugOutput())
 	{
 		GLog->AddOutputDevice(new FOutputDeviceDebug());
 	}
-#endif // !(PLATFORM_DESKTOP && UE_BUILD_SHIPPING)
+#endif // USE_DEBUG_LOGGING
 #endif
 
 	GLog->AddOutputDevice(FPlatformOutputDevices::GetEventLog());

@@ -5,6 +5,60 @@
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "IMovieScenePlayer.h"
 
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateExtension.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateStorage.h"
+
+
+namespace UE
+{
+namespace MovieScene
+{
+
+TSharedPtr<FPreAnimatedStateExtension> FPreAnimatedStateExtensionReference::Get() const
+{
+	return WeakPreAnimatedStateExtension.Pin();
+}
+
+TSharedPtr<FPreAnimatedStateExtension> FPreAnimatedStateExtensionReference::Update(UMovieSceneEntitySystemLinker* Linker)
+{
+	FPreAnimatedStateExtension* ExistingExtension = Linker->FindExtension<FPreAnimatedStateExtension>();
+
+	const bool bHasRestoreStateEntities = Linker->EntityManager.ContainsComponent(FBuiltInComponentTypes::Get()->Tags.RestoreState);
+	const bool bIsCapturingGlobalState  = ExistingExtension && ExistingExtension->IsCapturingGlobalState();
+
+	if (bIsCapturingGlobalState && WeakPreAnimatedStateExtension.Pin() == nullptr)
+	{
+		WeakPreAnimatedStateExtension = ExistingExtension->AsShared();
+	}
+
+	if (bHasRestoreStateEntities && !PreAnimatedStateExtensionRef)
+	{
+		if (ExistingExtension)
+		{
+			PreAnimatedStateExtensionRef = ExistingExtension->AsShared();
+		}
+		else
+		{
+			// FPreAnimatedStateExtension automatically adds itself to the linker
+			PreAnimatedStateExtensionRef = MakeShared<FPreAnimatedStateExtension>(Linker);
+			WeakPreAnimatedStateExtension = PreAnimatedStateExtensionRef;
+		}
+	}
+	else if (!bHasRestoreStateEntities && PreAnimatedStateExtensionRef)
+	{
+		PreAnimatedStateExtensionRef = nullptr;
+		if (!bIsCapturingGlobalState)
+		{
+			WeakPreAnimatedStateExtension = nullptr;
+		}
+	}
+
+	return WeakPreAnimatedStateExtension.Pin();
+}
+
+
+} // namespace MovieScene
+} // namespace UE
 
 
 UMovieSceneCachePreAnimatedStateSystem::UMovieSceneCachePreAnimatedStateSystem(const FObjectInitializer& ObjInit)
@@ -21,21 +75,34 @@ UMovieSceneCachePreAnimatedStateSystem::UMovieSceneCachePreAnimatedStateSystem(c
 
 bool UMovieSceneCachePreAnimatedStateSystem::IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const
 {
-	using namespace UE::MovieScene;
-
-	// Always relevant if we're capturing global state
-	return InLinker->ShouldCaptureGlobalState() || InLinker->EntityManager.ContainsComponent(FBuiltInComponentTypes::Get()->Tags.RestoreState);
+	// This function can be called on the CDO and instances, so care is taken to do the right thing
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		return UE::MovieScene::FPreAnimatedStateExtensionReference(InLinker).Get().IsValid();
+	}
+	return PreAnimatedStateRef.Get().IsValid();
 }
 
 void UMovieSceneCachePreAnimatedStateSystem::OnLink()
 {
-	UMovieSceneRestorePreAnimatedStateSystem* RestoreSystem = Linker->LinkSystem<UMovieSceneRestorePreAnimatedStateSystem>();
-	Linker->SystemGraph.AddReference(this, RestoreSystem);
+	using namespace UE::MovieScene;
+
+	PreAnimatedStateRef.Update(Linker);
+}
+
+void UMovieSceneCachePreAnimatedStateSystem::OnUnlink()
+{
+	PreAnimatedStateRef = UE::MovieScene::FPreAnimatedStateExtensionReference();
 }
 
 void UMovieSceneCachePreAnimatedStateSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
 {
 	using namespace UE::MovieScene;
+	TSharedPtr<UE::MovieScene::FPreAnimatedStateExtension> Extension = PreAnimatedStateRef.Update(Linker);
+	if (!Extension)
+	{
+		return;
+	}
 
 	TArray<IMovieScenePreAnimatedStateSystemInterface*, TInlineAllocator<16>> Interfaces;
 	auto ForEachSystem = [&Interfaces](UMovieSceneEntitySystem* InSystem)
@@ -47,18 +114,12 @@ void UMovieSceneCachePreAnimatedStateSystem::OnRun(FSystemTaskPrerequisites& InP
 	};
 	Linker->SystemGraph.IteratePhase(ESystemPhase::Spawn, ForEachSystem);
 	Linker->SystemGraph.IteratePhase(ESystemPhase::Instantiation, ForEachSystem);
+	Linker->SystemGraph.IteratePhase(ESystemPhase::Evaluation, ForEachSystem);
 
-	if (Linker->ShouldCaptureGlobalState())
-	{
-		for (IMovieScenePreAnimatedStateSystemInterface* Interface : Interfaces)
-		{
-			Interface->SaveGlobalPreAnimatedState(InPrerequisites, Subsequents);
-		}
-	}
-
+	IMovieScenePreAnimatedStateSystemInterface::FPreAnimationParameters Params{ &InPrerequisites, &Subsequents, Extension.Get() };
 	for (IMovieScenePreAnimatedStateSystemInterface* Interface : Interfaces)
 	{
-		Interface->SavePreAnimatedState(InPrerequisites, Subsequents);
+		Interface->SavePreAnimatedState(Params);
 	}
 }
 
@@ -74,27 +135,31 @@ UMovieSceneRestorePreAnimatedStateSystem::UMovieSceneRestorePreAnimatedStateSyst
 	}
 }
 
-void UMovieSceneRestorePreAnimatedStateSystem::DiscardPreAnimatedStateForObject(UObject& Object)
+bool UMovieSceneRestorePreAnimatedStateSystem::IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const
 {
 	using namespace UE::MovieScene;
 
-	TArray<IMovieScenePreAnimatedStateSystemInterface*, TInlineAllocator<16>> Interfaces;
+	return InLinker->EntityManager.ContainsComponent(FBuiltInComponentTypes::Get()->Tags.RestoreState);
+}
 
-	auto ForEachSystem = [&Interfaces](UMovieSceneEntitySystem* InSystem)
+void UMovieSceneRestorePreAnimatedStateSystem::OnLink()
+{
+	using namespace UE::MovieScene;
+	FPreAnimatedStateExtension* ExistingExtension = Linker->FindExtension<FPreAnimatedStateExtension>();
+	if (ExistingExtension)
 	{
-		IMovieScenePreAnimatedStateSystemInterface* PreAnimInterface = Cast<IMovieScenePreAnimatedStateSystemInterface>(InSystem);
-		if (PreAnimInterface)
-		{
-			Interfaces.Add(PreAnimInterface);
-		}
-	};
-	Linker->SystemGraph.IteratePhase(ESystemPhase::Spawn, ForEachSystem);
-	Linker->SystemGraph.IteratePhase(ESystemPhase::Instantiation, ForEachSystem);
-
-	for (IMovieScenePreAnimatedStateSystemInterface* Interface : Interfaces)
-	{
-		Interface->DiscardPreAnimatedStateForObject(Object);
+		PreAnimatedStateRef = ExistingExtension->AsShared();
 	}
+	else
+	{
+		// FPreAnimatedStateExtension automatically adds itself to the linker
+		PreAnimatedStateRef = MakeShared<FPreAnimatedStateExtension>(Linker);
+	}
+}
+
+void UMovieSceneRestorePreAnimatedStateSystem::OnUnlink()
+{
+	PreAnimatedStateRef = nullptr;
 }
 
 void UMovieSceneRestorePreAnimatedStateSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
@@ -113,10 +178,15 @@ void UMovieSceneRestorePreAnimatedStateSystem::OnRun(FSystemTaskPrerequisites& I
 	};
 	Linker->SystemGraph.IteratePhase(ESystemPhase::Spawn, ForEachSystem);
 	Linker->SystemGraph.IteratePhase(ESystemPhase::Instantiation, ForEachSystem);
+	Linker->SystemGraph.IteratePhase(ESystemPhase::Evaluation, ForEachSystem);
+
+	IMovieScenePreAnimatedStateSystemInterface::FPreAnimationParameters Params{ &InPrerequisites, &Subsequents, PreAnimatedStateRef.Get() };
 
 	// Iterate backwards restoring stale state
 	for (int32 Index = Interfaces.Num()-1; Index >= 0; --Index)
 	{
-		Interfaces[Index]->RestorePreAnimatedState(InPrerequisites, Subsequents);
+		Interfaces[Index]->RestorePreAnimatedState(Params);
 	}
+
+	Params.CacheExtension->ResetEntryInvalidation();
 }

@@ -240,7 +240,7 @@ bool FOnlineSessionSteam::CreateSession(int32 HostingPlayerNum, FName SessionNam
 		// Create Internet or LAN match
 		if (!NewSessionSettings.bIsLANMatch)
 		{
-			if (Session->SessionSettings.bUsesPresence)
+			if (Session->SessionSettings.bUseLobbiesIfAvailable)
 			{
 				Result = CreateLobbySession(HostingPlayerNum, Session);
 			}

@@ -42,10 +42,7 @@ namespace Gauntlet
 		public override void ApplyToConfig(UnrealAppConfig AppConfig)
 		{
 			// add our credentials to the command line
-			if (AppConfig.ProcessType.IsClient())
-			{
-				AppConfig.CommandLine += string.Format(" -AUTH_TYPE=Epic -AUTH_LOGIN={0} -AUTH_PASSWORD={1}", Username, Password);
-			}
+			AppConfig.CommandLine += string.Format(" -AUTH_TYPE=Epic -AUTH_LOGIN={0} -AUTH_PASSWORD={1}", Username, Password);
 		}
 	}
 }

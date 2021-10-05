@@ -17,15 +17,18 @@ DECLARE_LOG_CATEGORY_EXTERN(LogContentBrowserAliasDataSource, Log, All);
 class IAssetTools;
 struct FContentBrowserCompiledAssetDataFilter;
 
+/** A unique alias is a pair of SourceObjectPath:AliasPath, eg /Game/MyAsset.MyAsset:/Game/SomeFolder/MyAlias */
+typedef TPair<FName, FName> FContentBrowserUniqueAlias;
+
 class CONTENTBROWSERALIASDATASOURCE_API FContentBrowserAliasItemDataPayload : public FContentBrowserAssetFileItemDataPayload
 {
 public:
-	FContentBrowserAliasItemDataPayload(const FAssetData& InAssetData, const FName InAlias)
+	FContentBrowserAliasItemDataPayload(const FAssetData& InAssetData, const FContentBrowserUniqueAlias& InAlias)
 		: FContentBrowserAssetFileItemDataPayload(InAssetData), Alias(InAlias)
 	{
 	}
 
-	FName Alias;
+	FContentBrowserUniqueAlias Alias;
 };
 
 /**
@@ -87,13 +90,11 @@ public:
 	/** Add an alias for a given asset. bInIsFromMetaData should only be true if the alias came from the AliasTagName metadata. */
 	void AddAlias(const FAssetData& Asset, const FName Alias, bool bInIsFromMetaData = false);
 	/** Remove the given alias from the data source */
-	void RemoveAlias(const FName Alias);
+	void RemoveAlias(const FName ObjectPath, const FName Alias);
 	/** Remove all aliases for the given object */
 	void RemoveAliases(const FName ObjectPath);
 	/** Remove all aliases for the given asset */
 	void RemoveAliases(const FAssetData& Asset) { RemoveAliases(Asset.ObjectPath); }
-	/** Remove a list of aliases from the data source */
-	void RemoveAliases(const TArray<FName>& Aliases);
 
 	/** Get all aliases from metadata for the given asset, then calls AddAlias or RemoveAlias for every alias that doesn't match the stored data. */
 	void ReconcileAliasesFromMetaData(const FAssetData& Asset);
@@ -115,7 +116,7 @@ private:
 	void MakeItemModifiedUpdate(UObject* Object);
 
 	FContentBrowserItemData CreateAssetFolderItem(const FName InFolderPath);
-	FContentBrowserItemData CreateAssetFileItem(const FName Alias);
+	FContentBrowserItemData CreateAssetFileItem(const FContentBrowserUniqueAlias& Alias);
 
 	IAssetRegistry* AssetRegistry = nullptr;
 	IAssetTools* AssetTools = nullptr;
@@ -124,25 +125,33 @@ private:
 	{
 		FAliasData() {}
 		FAliasData(const FAssetData& InAssetData, const FName InPackagePath, const FName InName, const bool bInIsFromMetaData = false)
-			: AssetData(InAssetData), PackagePath(InPackagePath), Name(InName), bIsFromMetaData(bInIsFromMetaData)
+			: AssetData(InAssetData), PackagePath(InPackagePath), AliasName(InName), bIsFromMetaData(bInIsFromMetaData)
 		{
+			AliasID = *(InPackagePath.ToString() / InAssetData.AssetName.ToString());
 		}
 
+		/** The source asset for this alias */
 		FAssetData AssetData;
+		/** The package path of the alias */
 		FName PackagePath;
-		FName Name;
+		/** A unique path for this alias, which is PackagePath/SourceAssetName */
+		FName AliasID;
+		/** A non-unique display name for this alias */
+		FName AliasName;
+		/** Whether this alias was generated from package metadata or manually through the C++ interface */
 		bool bIsFromMetaData = false;
 	};
 	bool DoesAliasPassFilter(const FAliasData& AliasData, const FContentBrowserCompiledAssetDataFilter& Filter) const;
 
 	/** The full folder hierarchy for all alias paths */
 	FPathTree PathTree;
+	TMap<FContentBrowserUniqueAlias, FAliasData> Test;
 	/** Alias data keyed by their full alias path, ie /Game/MyData/Aliases/SourceMesh */
-	TMap<FName, FAliasData> AllAliases;
+	TMap<FContentBrowserUniqueAlias, FAliasData> AllAliases;
 	/** A list of alias paths to display for each asset, ie /Game/Meshes/SourceMesh.SourceMesh */
 	TMap<FName, TArray<FName>> AliasesForObjectPath;
 	/** A list of alias paths to display for each folder, ie /Game/MyData/Aliases */
-	TMap<FName, TArray<FName>> AliasesInPackagePath;
+	TMap<FName, TArray<FContentBrowserUniqueAlias>> AliasesInPackagePath;
 	/** A set used for removing duplicate aliases in the same query, stored here to avoid constant reallocation */
 	TSet<FName> AlreadyAddedOriginalAssets;
 };

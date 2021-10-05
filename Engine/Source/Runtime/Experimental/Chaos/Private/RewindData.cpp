@@ -2,6 +2,7 @@
 
 #include "RewindData.h"
 #include "PBDRigidsSolver.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
 namespace Chaos
 {
@@ -79,6 +80,7 @@ void FGeometryParticleStateBase::SyncSimWritablePropsFromSim(FDirtyPropData Mana
 	FParticleDirtyData Dirty;
 	Dirty.SetFlags(Flags);
 
+#if 0
 	ParticlePositionRotation.SyncRemoteData(Manager,Dirty,[&Rigid](auto& Data)
 	{
 		Data.CopyFrom(Rigid);
@@ -100,10 +102,12 @@ void FGeometryParticleStateBase::SyncSimWritablePropsFromSim(FDirtyPropData Mana
 		Data.CopyFrom(Rigid);
 		Data.SetObjectState(Rigid.PreObjectState());	//everything else is not writable by sim so must be the same
 	});
+#endif
 }
 
 void FGeometryParticleStateBase::SyncDirtyDynamics(FDirtyPropData& DestManager,const FParticleDirtyData& Dirty,const FConstDirtyPropData& SrcManager)
 {
+#if 0
 	FParticleDirtyData DirtyFlags;
 	DirtyFlags.SetFlags(Dirty.GetFlags());
 
@@ -111,10 +115,12 @@ void FGeometryParticleStateBase::SyncDirtyDynamics(FDirtyPropData& DestManager,c
 	{
 		Data = Dirty.GetDynamics(*SrcManager.Ptr,SrcManager.DataIdx);
 	});
+#endif
 }
 
 bool FGeometryParticleStateBase::IsSimWritableDesynced(TPBDRigidParticleHandle<FReal,3>& Particle) const
 {
+#if 0
 	if(ParticlePositionRotation.IsSet())
 	{
 		const FParticlePositionRotation& XR = ParticlePositionRotation.Read();
@@ -151,23 +157,23 @@ bool FGeometryParticleStateBase::IsSimWritableDesynced(TPBDRigidParticleHandle<F
 			return true;
 		}
 	}
-
+#endif
 	return false;
 }
 
 template <typename TParticle>
-void FGeometryParticleStateBase::SyncToParticle(TParticle& Particle) const
+void FGeometryParticleStateBase::SyncToParticle(TParticle& Particle, const FDirtyPropertiesPool& Manager) const
 {
-	ParticlePositionRotation.SyncToParticle([&Particle](const auto& Data)
+	if(const auto* Data = ParticlePositionRotation.Read(Manager))
 	{
-		Particle.SetXR(Data);
-	});
+		Particle.SetXR(*Data);
+	}
 
 	if(auto Kinematic = Particle.CastToKinematicParticle())
 	{
-		Velocities.SyncToParticle([Kinematic](const auto& Data)
+		if(const auto* Data = Velocities.Read(Manager))
 		{
-			Kinematic->SetVelocities(Data);
+			Kinematic->SetVelocities(*Data);
 
 			// If we changed the velocity, reset the smoothed velocity.
 			// This is not strictly correct but should be close. Worst case would 
@@ -176,38 +182,38 @@ void FGeometryParticleStateBase::SyncToParticle(TParticle& Particle) const
 			{
 				Rigid->ResetSmoothedVelocities();
 			}
-		});
+		}
 
-		KinematicTarget.SyncToParticle([Kinematic](const auto& Data)
+		if(const auto* Data = KinematicTarget.Read(Manager))
 		{
-			Kinematic->SetKinematicTarget(Data);
-		});
+			Kinematic->SetKinematicTarget(*Data);
+		}
 	}
 
-	NonFrequentData.SyncToParticle([&Particle](const auto& Data)
+	if(const auto* Data = NonFrequentData.Read(Manager))
 	{
-		Particle.SetNonFrequentData(Data);
-	});
+		Particle.SetNonFrequentData(*Data);
+	}
 
 	if(auto Rigid = Particle.CastToRigidParticle())
 	{
-		DynamicsMisc.SyncToParticle([Rigid](const auto& Data)
+		if(const auto* Data = DynamicsMisc.Read(Manager))
 		{
-			Rigid->SetDynamicMisc(Data);
-		});
+			Rigid->SetDynamicMisc(*Data);
+		}
 
-		MassProps.SyncToParticle([Rigid](const auto& Data)
+		if(const auto* Data = MassProps.Read(Manager))
 		{
-			Rigid->SetMassProps(Data);
-		});
+			Rigid->SetMassProps(*Data);
+		}
 
 		if(Rigid->ResimType() != EResimType::FullResim)
 		{
 			//Not full resim so apply dynamics automatically
-			Dynamics.SyncToParticle([Rigid](const auto& Data)
+			if(const auto* Data = Dynamics.Read(Manager))
 			{
-				Rigid->SetDynamics(Data);
-			});
+				Rigid->SetDynamics(*Data);
+			}
 		}
 	}
 }
@@ -218,55 +224,63 @@ bool SimWritablePropsMayChange(const TGeometryParticleHandle<FReal,3>& Handle)
 	return ObjectState == EObjectStateType::Dynamic || ObjectState == EObjectStateType::Sleeping;
 }
 
-void FGeometryParticleStateBase::SyncPrevFrame(FDirtyPropData& Manager,const FDirtyProxy& Dirty, const FShapeDirtyData* ShapeDirtyData)
+void FGeometryParticleStateBase::RecordDynamics(const FParticleDynamics& NewDynamics, FDirtyPropertiesPool& Manager)
+{
+	ensure(!Dynamics.IsSet());	//Only record dynamics once per phase
+	Dynamics.Write(Manager, NewDynamics);
+}
+
+void FGeometryParticleStateBase::RecordPreDirtyData(const FDirtyProxy& Dirty, const FShapeDirtyData* ShapeDirtyData, FDirtyPropertiesPool& Manager)
 {
 	//syncs the data before it was made dirty
-	//for sim-writable props this is only possible if those props are immutable from the sim side (sleeping, not simulated, etc...)
-
+	ensure(IsClean());
 	const auto Proxy = static_cast<const FSingleParticlePhysicsProxy*>(Dirty.Proxy);
-	const auto Handle = Proxy->GetHandle_LowLevel();
+	const FGeometryParticleHandle* Handle = Proxy->GetHandle_LowLevel();
 
-	const bool bSyncSimWritable = !SimWritablePropsMayChange(*Handle);
-
-	//note: there is a potential bug here if in one frame we put an object to sleep and change its position
-	//not sure if that's a valid operation, we probably need to catch sleep/awake and handle it in a special way
-	if(bSyncSimWritable)
+	if(Dirty.ParticleData.IsDirty(EParticleFlags::XR))
 	{
-		ParticlePositionRotation.SyncRemoteData(Manager,Dirty.ParticleData,[Handle](FParticlePositionRotation& Data)
-		{
-			Data.CopyFrom(*Handle);
-		});
-
-		if(auto Kinematic = Handle->CastToKinematicParticle())
-		{
-			Velocities.SyncRemoteData(Manager,Dirty.ParticleData,[Kinematic](auto& Data)
-			{
-				Data.CopyFrom(*Kinematic);
-			});
-
-			KinematicTarget.SyncRemoteData(Manager, Dirty.ParticleData, [Kinematic](auto& Data)
-			{
-				Data = Kinematic->KinematicTarget();
-			});
-		}
+		FParticlePositionRotation Data;
+		Data.CopyFrom(*Handle);
+		ParticlePositionRotation.Write(Manager, Data);
 	}
 
-	NonFrequentData.SyncRemoteData(Manager,Dirty.ParticleData,[Handle](FParticleNonFrequentData& Data)
+	if(Dirty.ParticleData.IsDirty(EParticleFlags::NonFrequentData))
 	{
+		FParticleNonFrequentData Data;
 		Data.CopyFrom(*Handle);
-	});
+		NonFrequentData.Write(Manager, Data);
+	}
 
-	if(auto Rigid = Handle->CastToRigidParticle())
+	if (auto Kinematic = Handle->CastToKinematicParticle())
 	{
-		DynamicsMisc.SyncRemoteData(Manager,Dirty.ParticleData,[Rigid](FParticleDynamicMisc& Data)
+		if (Dirty.ParticleData.IsDirty(EParticleFlags::Velocities))
 		{
-			Data.CopyFrom(*Rigid);
-		});
+			FParticleVelocities Data;
+			Data.CopyFrom(*Kinematic);
+			Velocities.Write(Manager, Data);
+		}
 
-		MassProps.SyncRemoteData(Manager,Dirty.ParticleData,[Rigid](FParticleMassProps& Data)
+		if(Dirty.ParticleData.IsDirty(EParticleFlags::KinematicTarget))
 		{
-			Data.CopyFrom(*Rigid);
-		});
+			KinematicTarget.Write(Manager, Kinematic->KinematicTarget());
+		}
+
+		if (auto Rigid = Handle->CastToRigidParticle())
+		{
+			if(Dirty.ParticleData.IsDirty(EParticleFlags::DynamicMisc))
+			{
+				FParticleDynamicMisc Data;
+				Data.CopyFrom(*Rigid);
+				DynamicsMisc.Write(Manager, Data);
+			}
+
+			if (Dirty.ParticleData.IsDirty(EParticleFlags::MassProps))
+			{
+				FParticleMassProps Data;
+				Data.CopyFrom(*Rigid);
+				MassProps.Write(Manager, Data);
+			}
+		}
 	}
 
 	//shape properties
@@ -276,6 +290,9 @@ void FGeometryParticleStateBase::SyncPrevFrame(FDirtyPropData& Manager,const FDi
 		const int32 ShapeIdx = ShapeData.GetShapeIdx();
 		
 		FPerShapeDataStateBase& ShapeState = ShapesArrayState.FindOrAdd(ShapeIdx);
+
+		//TODO: why is this needed?
+		if (Handle->ShapesArray()[ShapeIdx] == nullptr) { continue; }
 
 		if (ShapeData.IsDirty<EShapeProperty::CollisionData>())
 		{
@@ -288,94 +305,198 @@ void FGeometryParticleStateBase::SyncPrevFrame(FDirtyPropData& Manager,const FDi
 	}
 }
 
-void FGeometryParticleStateBase::SyncIfDirty(const FDirtyPropData& Manager,const FGeometryParticleHandle& InHandle,const FGeometryParticleStateBase& RewindState)
+void FGeometryParticleStateBase::RecordAnyDirty(const FGeometryParticleHandle& Handle, FDirtyPropertiesPool& Manager, const FGeometryParticleStateBase& OldState)
 {
-	ensure(IsInPhysicsThreadContext());
-	const auto Handle = &InHandle;
-
-	if(RewindState.ParticlePositionRotation.IsSet())
+	if (!ParticlePositionRotation.IsSet() && OldState.ParticlePositionRotation.IsSet())
 	{
-		ParticlePositionRotation.SyncRemoteDataForced(Manager,[Handle](FParticlePositionRotation& Data)
-		{
-			Data.CopyFrom(*Handle);
-		});
+		FParticlePositionRotation Data;
+		Data.CopyFrom(Handle);
+		ParticlePositionRotation.Write(Manager, Data);
 	}
 
-	if(const auto Kinematic = Handle->CastToKinematicParticle())
+	if (!NonFrequentData.IsSet() && OldState.NonFrequentData.IsSet())
 	{
-		if(RewindState.Velocities.IsSet())
+		FParticleNonFrequentData Data;
+		Data.CopyFrom(Handle);
+		NonFrequentData.Write(Manager, Data);
+	}
+
+	if (auto Kinematic = Handle.CastToKinematicParticle())
+	{
+		if (!Velocities.IsSet() && OldState.Velocities.IsSet())
 		{
-			Velocities.SyncRemoteDataForced(Manager,[Kinematic](auto& Data)
-			{
-				Data.CopyFrom(*Kinematic);
-			});
+			FParticleVelocities Data;
+			Data.CopyFrom(*Kinematic);
+			Velocities.Write(Manager, Data);
 		}
 
-		if (RewindState.KinematicTarget.IsSet())
+		if (!KinematicTarget.IsSet() && OldState.KinematicTarget.IsSet())
 		{
-			KinematicTarget.SyncRemoteDataForced(Manager, [Kinematic](auto& Data)
+			KinematicTarget.Write(Manager, Kinematic->KinematicTarget());
+		}
+
+		if (auto Rigid = Kinematic->CastToRigidParticle())
+		{
+			if (!DynamicsMisc.IsSet() && OldState.DynamicsMisc.IsSet())
 			{
-				Data = Kinematic->KinematicTarget();
-			});
+				FParticleDynamicMisc Data;
+				Data.CopyFrom(*Rigid);
+				DynamicsMisc.Write(Manager, Data);
+			}
+
+			if (!MassProps.IsSet() && OldState.MassProps.IsSet())
+			{
+				FParticleMassProps Data;
+				Data.CopyFrom(*Rigid);
+				MassProps.Write(Manager, Data);
+			}
 		}
 	}
 
-	if(auto Rigid = Handle->CastToRigidParticle())
+	//question: do we need to do this for shapes?
+}
+
+void FGeometryParticleStateBase::MarkAllDirty(const FGeometryParticleHandle& Handle, FDirtyPropertiesPool& Manager)
+{
+	//TODO: this function should be removed and we should use the property system instead
+	//For now it just dirties all PT properties that we typically use
+	//This means sim callback can't modify mass, geometry, etc... (only properties touched by this function)
+	//Note these same properties are sent back to GT, so it's not just this function that needs updating
+
+	if (!ParticlePositionRotation.IsSet())
 	{
-		if(RewindState.DynamicsMisc.IsSet())
+		FParticlePositionRotation Data;
+		Data.CopyFrom(Handle);
+		ParticlePositionRotation.Write(Manager, Data);
+	}
+
+	if (auto Kinematic = Handle.CastToKinematicParticle())
+	{
+		if (!Velocities.IsSet())
 		{
-			DynamicsMisc.SyncRemoteDataForced(Manager,[Rigid](FParticleDynamicMisc& Data)
-			{
-				Data.CopyFrom(*Rigid);
-			});
+			FParticleVelocities Data;
+			Data.CopyFrom(*Kinematic);
+			Velocities.Write(Manager, Data);
 		}
 
-		if(RewindState.MassProps.IsSet())
+		if (auto Rigid = Kinematic->CastToRigidParticle())
 		{
-			MassProps.SyncRemoteDataForced(Manager,[Rigid](FParticleMassProps& Data)
+			if (!DynamicsMisc.IsSet())
 			{
+				FParticleDynamicMisc Data;
 				Data.CopyFrom(*Rigid);
-			});
+				DynamicsMisc.Write(Manager, Data);
+			}
 		}
 	}
 }
 
-bool FGeometryParticleStateBase::CoalesceState(const FGeometryParticleStateBase& LatestState)
+void FGeometryParticleStateBase::RecordSimResults(const FPBDRigidParticleHandle& Handle, FDirtyPropertiesPool& Manager)
+{
+	//todo: return desync info
+	{
+		FParticlePositionRotation Data;
+		Data.CopyFrom(Handle);
+		ParticlePositionRotation.Write(Manager, Data);	//X/R still the same as input, so we can use them directly
+	}
+
+	{
+		FParticleVelocities Data;
+		Data.SetV(Handle.PreV());
+		Data.SetW(Handle.PreW());
+		Velocities.Write(Manager, Data);
+	}
+
+	{
+		FParticleDynamicMisc Data;
+		Data.CopyFrom(Handle);	//everything is immutable except object state
+		Data.SetObjectState(Handle.PreObjectState());
+		DynamicsMisc.Write(Manager, Data);
+	}
+}
+
+void FGeometryParticleStateBase::CopyToParticle(FGeometryParticleHandle& Handle, FDirtyPropertiesPool& Manager)
+{
+	ensure(IsInPhysicsThreadContext());
+
+	if(const auto* Data = ParticlePositionRotation.Read(Manager))
+	{
+		Handle.SetXR(*Data);
+	}
+
+	if(const auto* Data = NonFrequentData.Read(Manager))
+	{
+		Handle.SetNonFrequentData(*Data);
+	}
+
+	if (const auto Kinematic = Handle.CastToKinematicParticle())
+	{
+		if (const auto* Data = Velocities.Read(Manager))
+		{
+			Kinematic->SetVelocities(*Data);
+		}
+
+		if (const auto* Data = KinematicTarget.Read(Manager))
+		{
+			Kinematic->SetKinematicTarget(*Data);
+		}
+
+		if (auto Rigid = Kinematic->CastToRigidParticle())
+		{
+			if (const auto* Data = DynamicsMisc.Read(Manager))
+			{
+				Rigid->SetDynamicMisc(*Data);
+			}
+
+			if (const auto* Data = Dynamics.Read(Manager))
+			{
+				Rigid->SetDynamics(*Data);
+			}
+
+			if (const auto* Data = MassProps.Read(Manager))
+			{
+				Rigid->SetMassProps(*Data);
+			}
+		}
+	}
+}
+
+bool FGeometryParticleStateBase::CoalesceState(const FGeometryParticleStateBase& LatestState, FDirtyPropertiesPool& Manager)
 {
 	bool bCoalesced = false;
 	if(!ParticlePositionRotation.IsSet() && LatestState.ParticlePositionRotation.IsSet())
 	{
-		ParticlePositionRotation = LatestState.ParticlePositionRotation;
+		ParticlePositionRotation.SetRefFrom(LatestState.ParticlePositionRotation, Manager);
 		bCoalesced = true;
 	}
 
 	if(!NonFrequentData.IsSet() && LatestState.NonFrequentData.IsSet())
 	{
-		NonFrequentData = LatestState.NonFrequentData;
+		NonFrequentData.SetRefFrom(LatestState.NonFrequentData, Manager);
 		bCoalesced = true;
 	}
 
 	if(!Velocities.IsSet() && LatestState.Velocities.IsSet())
 	{
-		Velocities = LatestState.Velocities;
+		Velocities.SetRefFrom(LatestState.Velocities, Manager);
 		bCoalesced = true;
 	}
 
 	if (!KinematicTarget.IsSet() && LatestState.KinematicTarget.IsSet())
 	{
-		KinematicTarget = LatestState.KinematicTarget;
+		KinematicTarget.SetRefFrom(LatestState.KinematicTarget, Manager);
 		bCoalesced = true;
 	}
 
 	if(!MassProps.IsSet() && LatestState.MassProps.IsSet())
 	{
-		MassProps = LatestState.MassProps;
+		MassProps.SetRefFrom(LatestState.MassProps, Manager);
 		bCoalesced = true;
 	}
 
 	if(!DynamicsMisc.IsSet() && LatestState.DynamicsMisc.IsSet())
 	{
-		DynamicsMisc = LatestState.DynamicsMisc;
+		DynamicsMisc.SetRefFrom(LatestState.DynamicsMisc, Manager);
 		bCoalesced = true;
 	}
 
@@ -418,6 +539,7 @@ bool FGeometryParticleStateBase::IsDesynced(const FConstDirtyPropData& SrcManage
 {
 	bool Desynced = false;
 	{
+#if 0
 		if(!ParticlePositionRotation.IsInSync(SrcManager,Flags,Handle))
 		{
 			return true;
@@ -458,8 +580,9 @@ bool FGeometryParticleStateBase::IsDesynced(const FConstDirtyPropData& SrcManage
 				return true;
 			}
 		}
-	}
+#endif
 
+	}
 	return false;
 }
 
@@ -479,47 +602,26 @@ bool FRewindData::RewindToFrame(int32 Frame)
 		return false;
 	}
 
-	FDirtyPropertiesManager* DestManager = nullptr;
-	if(bNeedsSave)
-	{
-		PrepareFrame(AllDirtyParticles.Num());
-		DestManager = Managers[CurFrame].Manager.Get();
-	}
 
-	//todo: parallel for
 	int32 DataIdx = 0;
 	for(FDirtyParticleInfo& DirtyParticleInfo : AllDirtyParticles)
 	{
 		DirtyParticleInfo.bDesync = false;	//after rewind particle is pristine
 		DirtyParticleInfo.MostDesynced = ESyncState::InSync;
 
-		const auto ObjectState = DirtyParticleInfo.GetPTParticle()->ObjectState();
-		//don't sync kinematics
-		const bool bAllowSync = ObjectState == EObjectStateType::Sleeping || ObjectState == EObjectStateType::Dynamic;
-		if(bNeedsSave)
+		//Note: it's debatable if we should rewind to PrePushData or PostPushData
+		//If you rewind to PrePushData and resim the data will be reapplied automatically
+		//The downside with this is that for unit testing it makes it harder to see that the GT data is being properly aligned as an input for the solver step
+		if (FGeometryParticleStateBase* RewindState = DirtyParticleInfo.Frames[Frame].GetState(FParticleHistoryEntry::PostPushData, Frame, Buffer))
 		{
-			//GetStateAtFrameImp returns a pointer from the TArray that holds state data
-			//But it's possible that we'll need to save state from head, which would grow that TArray
-			//So preallocate just in case
-			FGeometryParticleStateBase& LatestState = DirtyParticleInfo.AddFrame(CurFrame);
+			//at least one property will change between Frame and CurFrame, so make sure that property is saved (needed for quick resim to snap to future)
+			FParticleHistoryEntry& LatestEntry = DirtyParticleInfo.AddFrame(CurFrame, Buffer, PropertiesPool);
+			FGeometryParticleStateBase& LatestState = LatestEntry.GetStateChecked(FParticleHistoryEntry::PostPushData, CurFrame, Buffer);
+			LatestState.RecordAnyDirty(*DirtyParticleInfo.GetPTParticle(), PropertiesPool, *RewindState);
 
-			if(const FGeometryParticleStateBase* RewindState = GetStateAtFrameImp(DirtyParticleInfo,Frame))
-			{
-
-				LatestState.SyncIfDirty(FDirtyPropData(DestManager,DataIdx++),*DirtyParticleInfo.GetPTParticle(),*RewindState);
-				CoalesceBack(DirtyParticleInfo.Frames,CurFrame);
-
-				if(bAllowSync)
-				{
-					RewindState->SyncToParticle(*DirtyParticleInfo.GetPTParticle());
-				}
-			}
-		} else if(bAllowSync)
-		{
-			if(const FGeometryParticleStateBase* RewindState = GetStateAtFrameImp(DirtyParticleInfo,Frame))
-			{
-				RewindState->SyncToParticle(*DirtyParticleInfo.GetPTParticle());
-			}
+			//since at least one property changed, update the particle as needed
+			RewindState->CopyToParticle(*DirtyParticleInfo.GetPTParticle(), PropertiesPool);
+			
 		}
 
 		if(DirtyParticleInfo.InitializedOnStep > Frame)
@@ -527,18 +629,26 @@ bool FRewindData::RewindToFrame(int32 Frame)
 			//hasn't initialized yet, so disable
 			Solver->GetEvolution()->DisableParticle(DirtyParticleInfo.GetPTParticle());
 		}
+
+		//reset old buffer (we'll be using it for resim now)
+		for(uint32 BufferFrame = 0; BufferFrame < DirtyParticleInfo.Frames.Capacity(); ++BufferFrame)
+		{
+			DirtyParticleInfo.Frames[BufferFrame].Reset(PropertiesPool, !Buffer);
+		}
 	}
+
 
 	CurFrame = Frame;
 	bNeedsSave = false;
 	FramesSaved = 0; //can't rewind before this point. This simplifies saving the state at head
+	bNeedBufferFlip = true;
+
 	++CurWave;
 	if(CurWave == 0)
 	{
 		//0 indicates nothing written so skip it
 		CurWave = 1;
 	}
-
 	return true;
 }
 
@@ -562,16 +672,9 @@ void FRewindData::RemoveParticle(const FUniqueIdx UniqueIdx)
 FGeometryParticleState FRewindData::GetPastStateAtFrame(const FGeometryParticleHandle& Handle,int32 Frame) const
 {
 	ensure(!IsResim());
-	if(const FDirtyParticleInfo* Info = FindParticle(Handle.UniqueIdx()))
-	{
-		if(const FGeometryParticleStateBase* State = GetStateAtFrameImp(*Info,Frame))
-		{
-			return FGeometryParticleState(State,Handle);
-		}
-	}
-
-	//If no data, or past capture, just use head
-	return FGeometryParticleState(Handle);
+	const FDirtyParticleInfo* Info = FindParticle(Handle.UniqueIdx());
+	const FGeometryParticleStateBase* State = Info ? GetStateAtFrameImp(*Info, Frame) : nullptr;
+	return FGeometryParticleState(State,Handle, PropertiesPool);
 }
 
 /* Query the state of particles in the future. This operation can fail for particles that are desynced or that we have not been tracking */
@@ -603,6 +706,7 @@ void FRewindData::FinishFrame()
 
 	if(IsResim())
 	{
+#if 0
 		const bool bLastResim = IsFinalResim();
 		ensure(IsInPhysicsThreadContext());
 		//snap particles forward that are not desynced or  do not have resim enabled
@@ -634,6 +738,7 @@ void FRewindData::FinishFrame()
 				Info.GetPTParticle()->SetSyncState(ESyncState::InSync);
 			}
 		}
+#endif
 	}
 
 	++CurFrame;
@@ -642,7 +747,9 @@ void FRewindData::FinishFrame()
 
 void FRewindData::AdvanceFrameImp(IResimCacheBase* ResimCache)
 {
-	FramesSaved = FMath::Min(FramesSaved+1,static_cast<int32>(Managers.Capacity()));
+	FlipBufferIfNeeded();
+
+	FramesSaved = FMath::Min(FramesSaved+1,static_cast<int32>(Managers.Capacity()-1));
 
 	const int32 EarliestFrame = CurFrame - 1 - FramesSaved;
 
@@ -655,6 +762,11 @@ void FRewindData::AdvanceFrameImp(IResimCacheBase* ResimCache)
 	for(int32 DirtyIdx = AllDirtyParticles.Num() - 1; DirtyIdx >= 0; --DirtyIdx)
 	{
 		FDirtyParticleInfo& Info = AllDirtyParticles[DirtyIdx];
+
+		//Sim hasn't run yet so PostCallbacks (sim results) should be clean
+		ensure(Info.Frames[CurFrame].GetState(FParticleHistoryEntry::PostCallbacks, CurFrame, Buffer) == nullptr ||
+			Info.Frames[CurFrame].GetState(FParticleHistoryEntry::PostCallbacks, CurFrame, Buffer)->IsClean());
+
 		//if hasn't changed in a while stop tracking
 		if(Info.LastDirtyFrame < EarliestFrame)
 		{
@@ -693,6 +805,7 @@ void FRewindData::AdvanceFrameImp(IResimCacheBase* ResimCache)
 					}
 				}
 			}
+#if 0
 			else if(ResimType == EResimType::ResimAsSlave)
 			{
 				//Resim as slave means we snap everything as it was regardless of divergence
@@ -703,9 +816,10 @@ void FRewindData::AdvanceFrameImp(IResimCacheBase* ResimCache)
 				ensure(Info.MostDesynced == ESyncState::InSync);
 				if(ensure(ExpectedState != nullptr))
 				{
-					ExpectedState->SyncToParticle(*Rigid);
+					ExpectedState->SyncToParticle(*Rigid, PropertiesPool);
 				}
 			}
+#endif
 
 			if(Info.bDesync)
 			{
@@ -731,128 +845,107 @@ void FRewindData::AdvanceFrameImp(IResimCacheBase* ResimCache)
 	}
 }
 
-void FRewindData::CoalesceBack(TCircularBuffer<FFrameInfo>& Frames,int32 LatestIdx)
+void FRewindData::CoalesceBack(TCircularBuffer<FParticleHistoryEntry>& Frames, const FParticleHistoryEntry::EParticleHistoryPhase LatestPhase)
 {
-	const FGeometryParticleStateBase& LatestState = Frames[LatestIdx].GetStateChecked(LatestIdx);
-	const int32 EarliestFrame = LatestIdx - FramesSaved;
-	for(int32 FrameIdx = LatestIdx - 1; FrameIdx >= EarliestFrame; --FrameIdx)
+	//CoalesceBack should be called after writing state to latest, so CurFrame should always have a state
+	const FGeometryParticleStateBase& LatestState = Frames[CurFrame].GetStateChecked(LatestPhase, CurFrame, Buffer);
+
+	bool bContinueToCoalesce = true;
+	if(LatestPhase > FParticleHistoryEntry::PrePushData)
 	{
-		if(FGeometryParticleStateBase* State = Frames[FrameIdx].GetState(FrameIdx))
-		{
-			if(State->CoalesceState(LatestState) == false)
-			{
-				//nothing to coalesce so no need to check earlier frames
-				break;
-			}
-		}
+		//make sure state is coalesced back CurFrame first (all phases must know about it)
+		bContinueToCoalesce = Frames[CurFrame].CoalesceState(LatestState, PropertiesPool, static_cast<FParticleHistoryEntry::EParticleHistoryPhase>(LatestPhase-1), Buffer);
+	}
+
+	//coalesce state back to earlier frames
+	const int32 EarliestFrame = FMath::Max(CurFrame - FramesSaved, 0);
+	for(int32 FrameIdx = CurFrame - 1; bContinueToCoalesce && FrameIdx >= EarliestFrame; --FrameIdx)
+	{
+		Frames[FrameIdx].NewFrameIfNeeded(FrameIdx, Buffer, PropertiesPool);
+		bContinueToCoalesce = Frames[FrameIdx].CoalesceState(LatestState, PropertiesPool, FParticleHistoryEntry::PostCallbacks, Buffer);	//make sure to fill all phases
 	}
 }
 
-void FRewindData::PrepareFrame(int32 NumDirtyParticles)
+#ifndef REWIND_DESYNC
+#define REWIND_DESYNC 0
+#endif
+
+void FRewindData::FlipBufferIfNeeded()
 {
-	FFrameManagerInfo& Info = Managers[CurFrame];
-	if(Info.Manager == nullptr || Info.FrameCreatedFor != CurFrame)
+	if(bNeedBufferFlip)
 	{
-		Info.Manager = MakeUnique<FDirtyPropertiesManager>();
+		bNeedBufferFlip = false;
+		Buffer = !Buffer;
 	}
-
-	DataIdxOffset = Info.Manager->GetNumParticles();
-	Info.Manager->SetNumParticles(DataIdxOffset + NumDirtyParticles);
-	Info.FrameCreatedFor = CurFrame;
-}
-
-void FRewindData::PrepareFrameForPTDirty(int32 NumActiveParticles)
-{
-	bNeedsSave = true;
-
-	//If manager already exists for previous frame, use it
-	FFrameManagerInfo& Info = Managers[CurFrame];
-	ensure(Info.Manager && Info.FrameCreatedFor == (CurFrame));
-
-	DataIdxOffset = Info.Manager->GetNumParticles();
-	Info.Manager->SetNumParticles(DataIdxOffset + NumActiveParticles);
 }
 
 template <bool bResim>
 void FRewindData::PushGTDirtyData(const FDirtyPropertiesManager& SrcManager,const int32 SrcDataIdx,const FDirtyProxy& Dirty, const FShapeDirtyData* ShapeDirtyData)
 {
-	const int32 DestDataIdx = SrcDataIdx + DataIdxOffset;
+	FlipBufferIfNeeded();
 	//This records changes enqueued by GT.
-	//Most new particles do not change, so to avoid useless writes we wait until the next frame's dirty flag
-	//This is possible because most properties are const on the physics thread
-	//For sim-writable properties (forces, position, velocities, etc...) we must immediately write the data because there is no way to know what the previous data was next frame
-	//Some sim-writable properties can change without the GT knowing about it, see PushPTDirtyData
-
-	//User called PrepareManagerForFrame for this frame so use it
-	FConstDirtyPropData SrcManagerWrapper(&SrcManager,SrcDataIdx);
-	FDirtyPropData DestManagerWrapper(Managers[CurFrame].Manager.Get(),DestDataIdx);
 	bNeedsSave = true;
-
-	auto ProcessProxy = [this,&SrcManagerWrapper,SrcDataIdx,Dirty,&DestManagerWrapper, ShapeDirtyData](const auto Proxy)
-	{
-		const auto PTParticle = Proxy->GetHandle_LowLevel();
-		FDirtyParticleInfo& Info = FindOrAddParticle(*PTParticle, Proxy->IsInitialized() ? INDEX_NONE : CurFrame);
-		Info.LastDirtyFrame = CurFrame;
-		Info.GTDirtyOnFrame[CurFrame].SetWave(CurFrame,CurWave);
-
-		//check if particle has desynced
-		if(bResim)
-		{
-			EResimType ResimType = EResimType::FullResim;
-			if(const auto* Rigid = PTParticle->CastToRigidParticle())
-			{
-				ResimType = Rigid->ResimType();
-			}
-
-			//Only desync if full resim - might be nice to give a log warning for other cases
-			if(ResimType == EResimType::FullResim)
-			{
-				//TODO: should not be passing GTParticle in here, it's not used so ok but not safe if someone decides to use it by mistake
-				FGeometryParticleState FutureState(*Proxy->GetHandle_LowLevel());
-				if(GetFutureStateAtFrame(FutureState,CurFrame) == EFutureQueryResult::Ok)
-				{
-					if(FutureState.IsDesynced(SrcManagerWrapper,*PTParticle,Dirty.ParticleData.GetFlags()))
-					{
-						Info.Desync(CurFrame-1,LatestFrame);
-					}
-				} else if(!Info.bDesync)
-				{
-					Info.Desync(CurFrame-1,LatestFrame);
-				}
-			}
-		}
-
-		//Most properties are always a frame behind
-		if(Proxy->IsInitialized())	//Frame delay so proxy must be initialized
-		{
-			//If we're in a resim and this is the first frame or the resim, no need to save prev frame
-			//In fact, since we have a circular buffer the prev state could end up overwriting head which we need for fast forward
-			if(!bResim || FramesSaved > 0)
-			{
-				FGeometryParticleStateBase& LatestState = Info.AddFrame(CurFrame-1);
-				LatestState.SyncPrevFrame(DestManagerWrapper,Dirty, ShapeDirtyData);
-				CoalesceBack(Info.Frames,CurFrame-1);
-			}
-		}
-
-		//If dynamics are dirty we must record them immediately because the sim resets them to 0
-		if(Dirty.ParticleData.IsDirty(EParticleFlags::Dynamics))
-		{
-			FGeometryParticleStateBase& LatestState = Info.AddFrame(CurFrame);
-			LatestState.SyncDirtyDynamics(DestManagerWrapper,Dirty.ParticleData,SrcManagerWrapper);
-		}
-	};
 
 	if(ensure(Dirty.Proxy->GetType() == EPhysicsProxyType::SingleParticleProxy))
 	{
 		auto Proxy = static_cast<FSingleParticlePhysicsProxy*>(Dirty.Proxy);
-		ProcessProxy(Proxy);
+		
+		FGeometryParticleHandle* PTParticle = Proxy->GetHandle_LowLevel();
+
+		FDirtyParticleInfo& Info = FindOrAddParticle(*PTParticle, Proxy->IsInitialized() ? INDEX_NONE : CurFrame);
+		Info.LastDirtyFrame = CurFrame;
+
+		FParticleHistoryEntry& Latest = Info.AddFrame(CurFrame, Buffer, PropertiesPool);
+
+		//At this point all phases should be clean
+		ensure(Latest.GetStateChecked(FParticleHistoryEntry::PrePushData, CurFrame, Buffer).IsClean());
+		ensure(Latest.GetStateChecked(FParticleHistoryEntry::PostPushData, CurFrame, Buffer).IsClean());
+		ensure(Latest.GetStateChecked(FParticleHistoryEntry::PostCallbacks, CurFrame, Buffer).IsClean());
+
+
+		//Most particles never change but may be created/destroyed often due to streaming
+		//To avoid useless writes we call this function before PushData is processed.
+		//This means we will skip particles that are streamed in since they never change
+		//So if Proxy->IsInitialized() == true it means the particle isn't just streaming in, it's actually changing
+		if (Proxy->IsInitialized())
+		{
+			Latest.GetStateChecked(FParticleHistoryEntry::PrePushData, CurFrame, Buffer).RecordPreDirtyData(Dirty, ShapeDirtyData, PropertiesPool);
+			CoalesceBack(Info.Frames, FParticleHistoryEntry::PrePushData);
+		}
+
+		//Dynamics are not available at head (sim zeroes them out), so we have to record them as PostPushData (since they're applied as part of PushData)
+		if (auto NewData = Dirty.ParticleData.FindDynamics(SrcManager, SrcDataIdx))
+		{
+			Latest.GetStateChecked(FParticleHistoryEntry::PostPushData, CurFrame, Buffer).RecordDynamics(*NewData, PropertiesPool);
+			//No need to coalesce because Dynamics are always zero in PrePushData (Solver zeros out dynamics every frame)
+		}
+
+		ensure(Latest.GetStateChecked(FParticleHistoryEntry::PostCallbacks, CurFrame, Buffer).IsClean());	//PostCallbacks must be untouched
 	}
 }
 
-template <bool bResim>
-void FRewindData::PushPTDirtyData(TPBDRigidParticleHandle<FReal,3>& Rigid,const int32 SrcDataIdx)
+void FRewindData::MarkDirtyFromPT(FGeometryParticleHandle& Handle)
 {
+	FDirtyParticleInfo& Info = FindOrAddParticle(Handle);
+	Info.LastDirtyFrame = CurFrame;
+	FParticleHistoryEntry& Latest = Info.AddFrame(CurFrame, Buffer, PropertiesPool);
+	ensure(Latest.GetStateChecked(FParticleHistoryEntry::PostCallbacks, CurFrame, Buffer).IsClean());	//PostCallbacks must be untouched
+	Latest.GetStateChecked(FParticleHistoryEntry::PostPushData, CurFrame, Buffer).MarkAllDirty(Handle, PropertiesPool);
+	CoalesceBack(Info.Frames, FParticleHistoryEntry::PostPushData);
+	ensure(Latest.GetStateChecked(FParticleHistoryEntry::PostCallbacks, CurFrame, Buffer).IsClean());	//PostCallbacks must be untouched
+}
+
+template <bool bResim>
+void FRewindData::PushPTDirtyData(TPBDRigidParticleHandle<FReal,3>& Handle,const int32 SrcDataIdx)
+{
+	FDirtyParticleInfo& Info = FindOrAddParticle(Handle);
+	Info.LastDirtyFrame = CurFrame;
+	FParticleHistoryEntry& Latest = Info.AddFrame(CurFrame, Buffer, PropertiesPool);
+	//TODO: bring this ensure back one duplicate dirty particles are fixed
+	//ensure(Latest.GetStateChecked(FParticleHistoryEntry::PostCallbacks, CurFrame, Buffer).IsClean());	//PostCallbacks should be clean before we write sim results
+	Latest.GetStateChecked(FParticleHistoryEntry::PostCallbacks, CurFrame, Buffer).RecordSimResults(Handle, PropertiesPool);
+	CoalesceBack(Info.Frames, FParticleHistoryEntry::PostCallbacks);
+#if 0
 	const int32 DestDataIdx = SrcDataIdx + DataIdxOffset;
 
 	//during resim only full resim objects should modify future
@@ -886,7 +979,7 @@ void FRewindData::PushPTDirtyData(TPBDRigidParticleHandle<FReal,3>& Rigid,const 
 		FDirtyPropData DestManagerWrapper(Managers[CurFrame].Manager.Get(),DestDataIdx);
 
 		//sim-writable properties changed at head, so we must write down what they were
-		FGeometryParticleStateBase& LatestState = Info.AddFrame(CurFrame);
+		FGeometryParticleStateBase& LatestState = Info.AddFrame(CurFrame, Buffer, PropertiesPool);
 		LatestState.SyncSimWritablePropsFromSim(DestManagerWrapper,Rigid);
 
 		//copy results of end of frame in case user changes inputs of next frame (for example they can teleport at start frame)
@@ -907,29 +1000,14 @@ void FRewindData::PushPTDirtyData(TPBDRigidParticleHandle<FReal,3>& Rigid,const 
 		//update any previous frames that were pointing at head
 		CoalesceBack(Info.Frames,CurFrame);
 	}
+#endif
 }
 
 const FGeometryParticleStateBase* FRewindData::GetStateAtFrameImp(const FDirtyParticleInfo& Info,int32 Frame) const
 {
-	const TCircularBuffer<FFrameInfo>& Frames = Info.Frames;
-	if(const FGeometryParticleStateBase* FrameState = Frames[Frame].GetState(Frame))
-	{
-		return FrameState;
-	}
-
-	//If frame is between two captures, use later capture. We always store the last data before a change
-	//We can never use an earlier capture because the fact that we captured at all implies _something_ is different from proceeding frames
-
-	for(int32 FrameIdx = Frame + 1; FrameIdx <= LatestFrame; ++FrameIdx)
-	{
-		if(const FGeometryParticleStateBase* FrameState = Frames[FrameIdx].GetState(FrameIdx))
-		{
-			return FrameState;
-		}
-	}
-
-	//If no data, or past capture, just use head
-	return nullptr;
+	//User wants state including PushData
+	//Maybe we should make the function more explicit?
+	return Info.Frames[Frame].GetState(FParticleHistoryEntry::PostPushData, Frame, Buffer);
 }
 
 FRewindData::FDirtyParticleInfo& FRewindData::FindOrAddParticle(TGeometryParticleHandle<FReal,3>& PTParticle, const int32 InitializedOnFrame)
@@ -940,9 +1018,7 @@ FRewindData::FDirtyParticleInfo& FRewindData::FindOrAddParticle(TGeometryParticl
 		return *Info;
 	}
 
-	auto* GTUnsafeParticle = PTParticle.GTGeometryParticle();
-	UE_ASSUME(GTUnsafeParticle != nullptr);
-	const int32 DirtyIdx = AllDirtyParticles.Add(FDirtyParticleInfo(*GTUnsafeParticle,PTParticle,UniqueIdx,CurFrame,Managers.Capacity()));
+	const int32 DirtyIdx = AllDirtyParticles.Add(FDirtyParticleInfo(PropertiesPool,PTParticle,UniqueIdx,CurFrame,Managers.Capacity()));
 	ParticleToAllDirtyIdx.Add(UniqueIdx,DirtyIdx);
 	if(InitializedOnFrame != INDEX_NONE)
 	{
@@ -982,25 +1058,35 @@ void FRewindData::FSimWritableState::SyncToParticle(TPBDRigidParticleHandle<FRea
 	Rigid.SetW(MW);
 }
 
-FGeometryParticleStateBase& FRewindData::FDirtyParticleInfo::AddFrame(int32 FrameIdx)
+FRewindData::FDirtyParticleInfo::~FDirtyParticleInfo()
 {
-	FFrameInfo& Info = Frames[FrameIdx];
-	if(FGeometryParticleStateBase* State = Info.GetState(FrameIdx))
+	if(PropertiesPool)
 	{
-		return *State;
+		for (uint32 Frame = 0; Frame < Frames.Capacity(); ++Frame)
+		{
+			Frames[Frame].ResetAll(*PropertiesPool);
+		}
 	}
+}
 
-	return Info.NewState(FrameIdx);
+FParticleHistoryEntry& FRewindData::FDirtyParticleInfo::AddFrame(int32 FrameIdx, int32 InBuffer, FDirtyPropertiesPool& Manager)
+{
+	FParticleHistoryEntry& Info = Frames[FrameIdx];
+	Info.NewFrameIfNeeded(FrameIdx, InBuffer, Manager);
+	return Info;
 }
 
 void FRewindData::FDirtyParticleInfo::Desync(int32 StartDesync,int32 LastFrame)
 {
+	check(false);
+#if 0
 	bDesync = true;
 	MostDesynced = ESyncState::HardDesync;
 	for(int32 Frame = StartDesync; Frame <= LastFrame; ++Frame)
 	{
 		Frames[Frame].ClearState();
 	}
+#endif
 }
 
 TArray<FDesyncedParticleInfo> FRewindData::ComputeDesyncInfo() const

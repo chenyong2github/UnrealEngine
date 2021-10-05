@@ -66,7 +66,7 @@ void FSocialInteraction_JoinParty::ExecuteInteraction(USocialUser& User)
 
 FText FSocialInteraction_RequestToJoinParty::GetDisplayName(const USocialUser& User)
 {
-	return LOCTEXT("RequestToJoinParty", "Request To Join Party");
+	return LOCTEXT("RequestToJoinParty", "Request to Join");
 }
 
 FString FSocialInteraction_RequestToJoinParty::GetSlashCommandToken()
@@ -90,7 +90,7 @@ void FSocialInteraction_RequestToJoinParty::ExecuteInteraction(USocialUser& User
 
 FText FSocialInteraction_AcceptJoinRequest::GetDisplayName(const USocialUser& User)
 {
-	return LOCTEXT("AcceptJoinRequest", "Accept Join Request");
+	return LOCTEXT("AcceptJoinRequest", "Accept Request");
 }
 
 FString FSocialInteraction_AcceptJoinRequest::GetSlashCommandToken()
@@ -114,7 +114,7 @@ void FSocialInteraction_AcceptJoinRequest::ExecuteInteraction(USocialUser& User)
 
 FText FSocialInteraction_DismissJoinRequest::GetDisplayName(const USocialUser& User)
 {
-	return LOCTEXT("DismissJoinRequest", "Dismiss Join Request");
+	return LOCTEXT("DismissJoinRequest", "Dismiss Request");
 }
 
 FString FSocialInteraction_DismissJoinRequest::GetSlashCommandToken()
@@ -138,7 +138,7 @@ void FSocialInteraction_DismissJoinRequest::ExecuteInteraction(USocialUser& User
 
 FText FSocialInteraction_AcceptPartyInvite::GetDisplayName(const USocialUser& User)
 {
-	return LOCTEXT("AcceptPartyInvite", "Accept");
+	return LOCTEXT("AcceptPartyInvite", "Accept Invite");
 }
 
 FString FSocialInteraction_AcceptPartyInvite::GetSlashCommandToken()
@@ -163,7 +163,7 @@ void FSocialInteraction_AcceptPartyInvite::ExecuteInteraction(USocialUser& User)
 
 FText FSocialInteraction_RejectPartyInvite::GetDisplayName(const USocialUser& User)
 {
-	return LOCTEXT("RejectPartyInvite", "Reject");
+	return LOCTEXT("RejectPartyInvite", "Reject Invite");
 }
 
 FString FSocialInteraction_RejectPartyInvite::GetSlashCommandToken()

@@ -13,6 +13,14 @@ namespace AVEncoder
 	public:
 		virtual ~FVideoEncoder();
 
+		enum class RateControlMode
+		{
+			UNKNOWN,
+			CONSTQP,
+			VBR,
+			CBR,
+		};
+
 		struct FLayerConfig
 		{
 			uint32			Width = 0;
@@ -20,6 +28,9 @@ namespace AVEncoder
 			uint32			MaxBitrate = 0;
 			uint32			TargetBitrate = 0;
 			uint32			QPMax = 0;
+			int32			QPMin = -1;
+			RateControlMode RateControlMode = RateControlMode::CBR;
+			bool			FillData = false;
 		};
 
 		struct FInit : public FLayerConfig
@@ -51,6 +62,9 @@ namespace AVEncoder
 		virtual void UpdateFrameRate(uint32 InMaxFramerate) {}
 		virtual void UpdateLayerBitrate(uint32 InLayerIndex, uint32 InMaxBitRate, uint32 InTargetBitRate) {}
 		virtual void UpdateLayerResolution(uint32 InLayerIndex, uint32 InWidth, uint32 InHeight) {}
+		virtual void UpdateMinQP(int32 minqp) {}
+		virtual void UpdateRateControl(RateControlMode mode) {}
+		virtual void UpdateFillData(bool enable) {}
 
 		// --- input
 
@@ -87,6 +101,9 @@ namespace AVEncoder
 			uint32			MaxBitrate;
 			uint32			TargetBitrate;
 			uint32			QPMax;
+			int32			QPMin;
+			RateControlMode RateControlMode;
+			bool			FillData;
 		};
 
 		TArray<FLayerInfo*>		LayerInfos;

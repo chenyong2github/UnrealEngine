@@ -9,12 +9,16 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraEditorModule.h"
+#include "NiagaraObjectSelection.h"
+#include "NiagaraParameterDefinitions.h"
 #include "ViewModels/NiagaraScratchPadUtilities.h"
 
 #include "ScopedTransaction.h"
 #include "Framework/Commands/UICommandList.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScratchPadScriptViewModel"
+
+
 
 FNiagaraScratchPadScriptViewModel::FNiagaraScratchPadScriptViewModel()
 	: FNiagaraScriptViewModel(TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &FNiagaraScratchPadScriptViewModel::GetDisplayNameInternal)), ENiagaraParameterEditMode::EditAll)
@@ -44,15 +48,19 @@ void FNiagaraScratchPadScriptViewModel::Initialize(UNiagaraScript* Script)
 	OriginalScript = Script;
 	EditScript.Script = CastChecked<UNiagaraScript>(StaticDuplicateObject(Script, GetTransientPackage()));
 	SetScript(EditScript);
+	EditScript.InitParameterDefinitionsSubscriptions();
 	UNiagaraScriptSource* EditScriptSource = CastChecked<UNiagaraScriptSource>(EditScript.Script->GetLatestSource());
 	OnGraphNeedsRecompileHandle = EditScriptSource->NodeGraph->AddOnGraphNeedsRecompileHandler(FOnGraphChanged::FDelegate::CreateSP(this, &FNiagaraScratchPadScriptViewModel::OnScriptGraphChanged));
 	EditScript.Script->OnPropertyChanged().AddSP(this, &FNiagaraScratchPadScriptViewModel::OnScriptPropertyChanged);
 	ParameterPanelCommands = MakeShared<FUICommandList>();
-	if (GbShowNiagaraDeveloperWindows)
-	{
-		ParameterPaneViewModel = MakeShared<FNiagaraScriptToolkitParameterPanelViewModel>(this->AsShared());
-		ParameterPaneViewModel->InitBindings();
-	}
+
+	ParameterPaneViewModel = MakeShared<FNiagaraScriptToolkitParameterPanelViewModel>(this->AsShared());
+	FScriptToolkitUIContext UIContext = FScriptToolkitUIContext(
+		FSimpleDelegate::CreateSP(ParameterPaneViewModel.ToSharedRef(), &INiagaraImmutableParameterPanelViewModel::Refresh),
+		FSimpleDelegate(), //@todo(ng) skip binding refresh parameter definitions panel as scratchpad does not have a parameter definitions panel currently
+		FSimpleDelegate::CreateSP(GetVariableSelection(), &FNiagaraObjectSelection::Refresh)
+	);
+	ParameterPaneViewModel->Init(UIContext);
 }
 
 void FNiagaraScratchPadScriptViewModel::Finalize()
@@ -171,29 +179,10 @@ void FNiagaraScratchPadScriptViewModel::ApplyChanges()
 	TArray<UNiagaraNodeFunctionCall*> FunctionCallNodesToRefresh;
 	FNiagaraEditorUtilities::GetReferencingFunctionCallNodes(OriginalScript, FunctionCallNodesToRefresh);
 
-	TArray<UNiagaraStackFunctionInputCollection*> InputCollectionsToRefresh;
-	if (FunctionCallNodesToRefresh.Num())
-	{
-		for (TObjectIterator<UNiagaraStackFunctionInputCollection> It; It; ++It)
-		{
-			UNiagaraStackFunctionInputCollection* StackFunctionInputCollection = *It;
-			if (StackFunctionInputCollection->IsFinalized() == false && FunctionCallNodesToRefresh.Contains(StackFunctionInputCollection->GetInputFunctionCallNode()))
-			{
-				InputCollectionsToRefresh.Add(StackFunctionInputCollection);
-			}
-		}
-	}
-
 	for (UNiagaraNodeFunctionCall* FunctionCallNodeToRefresh : FunctionCallNodesToRefresh)
 	{
 		FunctionCallNodeToRefresh->RefreshFromExternalChanges();
 		FunctionCallNodeToRefresh->MarkNodeRequiresSynchronization(TEXT("ScratchPadChangesApplied"), true);
-	}
-
-	for (UNiagaraStackFunctionInputCollection* InputCollectionToRefresh : InputCollectionsToRefresh)
-	{
-		InputCollectionToRefresh->RefreshChildren();
-		InputCollectionToRefresh->ApplyModuleChanges();
 	}
 
 	OnChangesAppliedDelegate.Broadcast();

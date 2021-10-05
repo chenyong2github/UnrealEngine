@@ -720,6 +720,12 @@ bool FPBDConstraintGraph::SleepInactive(const int32 Island, const TArrayCollecti
 			{
 				NumDynamicParticles++;
 
+				if (PBDRigid->SleepType() == ESleepType::NeverSleep)
+				{
+					IslandSleepCount = 0;
+					return false;
+				}
+
 				const FReal LinearSpeed2 = PBDRigid->VSmooth().SizeSquared();
 				MaxLinearSpeed2 = FMath::Max(LinearSpeed2,MaxLinearSpeed2);
 

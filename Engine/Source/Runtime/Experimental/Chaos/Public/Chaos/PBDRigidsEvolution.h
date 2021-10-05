@@ -373,16 +373,20 @@ public:
 			}
 		}
 
-		//TODO: distinguish between new particles and dirty particles
-		const FUniqueIdx UniqueIdx = Particle.UniqueIdx();
-		FPendingSpatialData& SpatialData = InternalAccelerationQueue.FindOrAdd(UniqueIdx);
-		ensure(SpatialData.bDelete == false);
-		SpatialData.AccelerationHandle = FAccelerationStructureHandle(Particle);
-		SpatialData.SpatialIdx = Particle.SpatialIdx();
+		//only add to acceleration structure if it has collision
+		if (Particle.HasCollision())
+		{
+			//TODO: distinguish between new particles and dirty particles
+			const FUniqueIdx UniqueIdx = Particle.UniqueIdx();
+			FPendingSpatialData& SpatialData = InternalAccelerationQueue.FindOrAdd(UniqueIdx);
+			ensure(SpatialData.bDelete == false);
+			SpatialData.AccelerationHandle = FAccelerationStructureHandle(Particle);
+			SpatialData.SpatialIdx = Particle.SpatialIdx();
 
-		auto& AsyncSpatialData = AsyncAccelerationQueue.FindOrAdd(UniqueIdx);
-		ensure(SpatialData.bDelete == false);
-		AsyncSpatialData = SpatialData;
+			auto& AsyncSpatialData = AsyncAccelerationQueue.FindOrAdd(UniqueIdx);
+			ensure(SpatialData.bDelete == false);
+			AsyncSpatialData = SpatialData;
+		}
 	}
 
 	CHAOS_API void DestroyParticle(FGeometryParticleHandle* Particle)
@@ -412,38 +416,11 @@ public:
 		DirtyParticle(*ParticleAdded);
 	}
 
-	CHAOS_API void SetParticleObjectState(FPBDRigidParticleHandle* Particle, EObjectStateType ObjectState)
-	{
-		EObjectStateType InitialState = Particle->ObjectState();
+	CHAOS_API void SetParticleObjectState(FPBDRigidParticleHandle* Particle, EObjectStateType ObjectState);
 
-		Particle->SetObjectStateLowLevel(ObjectState);
+	CHAOS_API void SetParticleSleepType(FPBDRigidParticleHandle* Particle, ESleepType InSleepType);
 
-		if (auto ClusteredParticle = Particle->CastToClustered())
-		{
-			Particles.SetClusteredParticleSOA(ClusteredParticle);
-		}
-		else
-		{
-			Particles.SetDynamicParticleSOA(Particle);
-		}
-
-		if (InitialState != ObjectState && !Particle->Disabled())
-		{
-			if (InitialState == EObjectStateType::Sleeping)
-			{
-				if (Particle->Island() != INDEX_NONE)
-				{
-					// GT has forced a wake so have to wake everything in the island
-					IslandsToWake.Enqueue(Particle->Island());
-				}
-			}
-			else if (ObjectState != EObjectStateType::Dynamic)
-			{
-				// even though we went to sleep, we should still report info back to GT
-				Particles.MarkTransientDirtyParticle(Particle);
-			}
-		}
-	}
+	CHAOS_API void DisableParticles(const TSet<FGeometryParticleHandle*>& InParticles);
 
 	CHAOS_API void WakeIslands()
 	{
@@ -781,6 +758,7 @@ protected:
 		return NumConstraints;
 	}
 
+public:
 	template <bool bPersistent>
 	FORCEINLINE_DEBUGGABLE void RemoveParticleFromAccelerationStructure(TGeometryParticleHandleImp<FReal, 3, bPersistent>& ParticleHandle)
 	{
@@ -800,6 +778,8 @@ protected:
 		//TODO: if we distinguished between first time adds we could avoid this. We could also make the RemoveElementFrom more strict and ensure when it fails
 		InternalAcceleration->RemoveElementFrom(SpatialData.AccelerationHandle, SpatialData.SpatialIdx);
 	}
+
+protected:
 
 	void UpdateConstraintPositionBasedState(FReal Dt)
 	{
@@ -941,7 +921,8 @@ protected:
 			, FAccelerationStructure* InInternalAccelerationStructure
 			, FAccelerationStructure* InExternalAccelerationStructure
 			, bool InForceFullBuild
-			, bool InIsSingleThreaded);
+			, bool InIsSingleThreaded
+			, bool bNeedsReset);
 		static FORCEINLINE TStatId GetStatId();
 		static FORCEINLINE ENamedThreads::Type GetDesiredThread();
 		static FORCEINLINE ESubsequentsMode::Type GetSubsequentsMode();
@@ -953,6 +934,7 @@ protected:
 		FAccelerationStructure* ExternalStructure;
 		bool IsForceFullBuild;
 		bool bIsSingleThreaded;
+		bool bNeedsReset;
 
 	private:
 		void UpdateStructure(FAccelerationStructure* AccelerationStructure);

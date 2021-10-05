@@ -9,7 +9,7 @@ struct FMovieSceneRemoveInitialValueToken : IMovieScenePreAnimatedToken
 		: WeakActuator(InWeakActuator)
 	{}
 
-	virtual void RestoreState(UObject& Object, IMovieScenePlayer& Player) override
+	virtual void RestoreState(UObject& Object, const UE::MovieScene::FRestoreStateParams& Params) override
 	{
 		TSharedPtr<IMovieSceneBlendingActuator> Store = WeakActuator.Pin();
 		if (Store.IsValid())
@@ -29,7 +29,7 @@ struct FMovieSceneRemoveInitialGlobalValueToken : IMovieScenePreAnimatedGlobalTo
 		: WeakActuator(InWeakActuator)
 	{}
 
-	virtual void RestoreState(IMovieScenePlayer& Player) override
+	virtual void RestoreState(const UE::MovieScene::FRestoreStateParams& Params) override
 	{
 		TSharedPtr<IMovieSceneBlendingActuator> Store = WeakActuator.Pin();
 		if (Store.IsValid())

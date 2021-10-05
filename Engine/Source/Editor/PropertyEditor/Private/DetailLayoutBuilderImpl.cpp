@@ -434,7 +434,10 @@ void FDetailLayoutBuilderImpl::GenerateDetailLayout()
 		TSharedPtr<IDetailRootObjectCustomization> RootObjectCustomization = DetailsView->GetRootObjectCustomization();
 
 		// there are multiple objects in the details panel.  Separate each one with a unique object name node to differentiate them
-		AllRootTreeNodes.Add(MakeShared<FDetailMultiTopLevelObjectRootNode>(CategoryNodes, RootObjectCustomization, DetailsView, ObjectNode));
+		TSharedRef<FDetailMultiTopLevelObjectRootNode> NewRootNode = MakeShared<FDetailMultiTopLevelObjectRootNode>(RootObjectCustomization, DetailsView, ObjectNode);
+		NewRootNode->SetChildren(CategoryNodes);
+
+		AllRootTreeNodes.Add(NewRootNode);
 	}
 	else
 	{

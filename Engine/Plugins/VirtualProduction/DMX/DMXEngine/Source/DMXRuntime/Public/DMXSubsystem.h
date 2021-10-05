@@ -20,6 +20,8 @@ class UDMXEntityFixturePatch;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FProtocolReceivedDelegate, FDMXProtocolName, Protocol, int32, RemoteUniverse, const TArray<uint8>&, DMXBuffer);
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FDMXOnDMXLibraryAssetDelegate, UDMXLibrary*);
+
 /**
  * UDMXSubsystem
  * Collections of DMX context blueprint subsystem functions and internal functions for DMX K2Nodes
@@ -273,6 +275,16 @@ private:
 	 * That way we can unbind them when this subsystem is being destroyed and prevent crashes.
 	 */
 	TMap<FName, FDelegateHandle> UniverseInputBufferUpdatedHandles;
+
+public:
+	/** Delegate broadcast when all dmx library assets were loaded */
+	FSimpleMulticastDelegate OnAllDMXLibraryAssetsLoaded;
+
+	/** Delegate broadcast when a dmx library asset was added */
+	FDMXOnDMXLibraryAssetDelegate OnDMXLibraryAssetAdded;
+
+	/** Delegate broadcast when a dmx library asset was removed */
+	FDMXOnDMXLibraryAssetDelegate OnDMXLibraryAssetRemoved;
 
 private:
 	/** Called when asset registry finished loading files */

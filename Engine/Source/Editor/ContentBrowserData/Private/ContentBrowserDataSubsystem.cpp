@@ -732,9 +732,9 @@ const FString& UContentBrowserDataSubsystem::GetAllFolderPrefix() const
 	return AllFolderPrefix;
 }
 
-EContentBrowserPathType UContentBrowserDataSubsystem::TryConvertVirtualPath(const FName InPath, FName& OutPath) const
+EContentBrowserPathType UContentBrowserDataSubsystem::TryConvertVirtualPath(const FStringView InPath, FStringBuilderBase& OutPath) const
 {
-	FName FoundVirtualPath;
+	FNameBuilder FoundVirtualPath;
 	for (const auto& ActiveDataSourcePair : ActiveDataSources)
 	{
 		UContentBrowserDataSource* DataSource = ActiveDataSourcePair.Value;
@@ -750,14 +750,16 @@ EContentBrowserPathType UContentBrowserDataSubsystem::TryConvertVirtualPath(cons
 				// Another data source may be able to convert this to internal so keep checking
 				// Only after all data sources had a chance to claim ownership (internal) do we return 
 				// Example: /Classes_Game is known to classes data source but not to asset data source
-				FoundVirtualPath = OutPath;
+				FoundVirtualPath.Reset();
+				FoundVirtualPath.Append(OutPath);
 			}
 		}
 	}
 
-	if (!FoundVirtualPath.IsNone())
+	if (FoundVirtualPath.Len() > 0)
 	{
-		OutPath = FoundVirtualPath;
+		OutPath.Reset();
+		OutPath.Append(FoundVirtualPath);
 		return EContentBrowserPathType::Virtual;
 	}
 	else
@@ -766,18 +768,41 @@ EContentBrowserPathType UContentBrowserDataSubsystem::TryConvertVirtualPath(cons
 	}
 }
 
+EContentBrowserPathType UContentBrowserDataSubsystem::TryConvertVirtualPath(FStringView InPath, FString& OutPath) const
+{
+	FNameBuilder OutPathBuilder;
+	const EContentBrowserPathType ConvertedType = TryConvertVirtualPath(InPath, OutPathBuilder);
+	OutPath = FString(FStringView(OutPathBuilder));
+	return ConvertedType;
+}
+
+EContentBrowserPathType UContentBrowserDataSubsystem::TryConvertVirtualPath(FStringView InPath, FName& OutPath) const
+{
+	FNameBuilder OutPathBuilder;
+	const EContentBrowserPathType ConvertedType = TryConvertVirtualPath(InPath, OutPathBuilder);
+	OutPath = FName(FStringView(OutPathBuilder));
+	return ConvertedType;
+}
+
+EContentBrowserPathType UContentBrowserDataSubsystem::TryConvertVirtualPath(FName InPath, FName& OutPath) const
+{
+	FNameBuilder OutPathBuilder;
+	const EContentBrowserPathType ConvertedType = TryConvertVirtualPath(FNameBuilder(InPath), OutPathBuilder);
+	OutPath = FName(FStringView(OutPathBuilder));
+	return ConvertedType;
+}
+
 TArray<FString> UContentBrowserDataSubsystem::TryConvertVirtualPathsToInternal(const TArray<FString>& InPaths) const
 {
 	TArray<FString> InternalPaths;
 	InternalPaths.Reserve(InPaths.Num());
 
-	FNameBuilder Builder;
-	for (const FString& It : InPaths)
+	for (const FString& VirtualPath : InPaths)
 	{
-		FName ConvertedPath;
-		if (TryConvertVirtualPath(*It, ConvertedPath) == EContentBrowserPathType::Internal)
+		FString ConvertedPath;
+		if (TryConvertVirtualPath(VirtualPath, ConvertedPath) == EContentBrowserPathType::Internal)
 		{
-			InternalPaths.Add(ConvertedPath.ToString());
+			InternalPaths.Add(MoveTemp(ConvertedPath));
 		}
 	}
 
