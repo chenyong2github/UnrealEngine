@@ -516,7 +516,8 @@ void FModelingToolsEditorModeToolkit::GetToolPaletteNames(TArray<FName>& Palette
 		{
 			for (int32 k = 0; k < PaletteNames.Num(); ++k)
 			{
-				if (SectionName.Compare(PaletteNames[k].ToString(), ESearchCase::IgnoreCase) == 0)
+				if (SectionName.Equals(PaletteNames[k].ToString(), ESearchCase::IgnoreCase)
+				 || SectionName.Equals(GetToolPaletteDisplayName(PaletteNames[k]).ToString(), ESearchCase::IgnoreCase))
 				{
 					NewPaletteNames.Add(PaletteNames[k]);
 					PaletteNames.RemoveAt(k);
@@ -755,7 +756,8 @@ void FModelingToolsEditorModeToolkit::InvokeUI()
 	{
 		for (FModelingModeCustomSectionColor ToolColor : UISettings->SectionColors)
 		{
-			if (ToolColor.SectionName.Compare(ToolbarRow.PaletteName.ToString(), ESearchCase::IgnoreCase) == 0)
+			if (ToolColor.SectionName.Equals(ToolbarRow.PaletteName.ToString(), ESearchCase::IgnoreCase)
+			 || ToolColor.SectionName.Equals(ToolbarRow.DisplayName.ToString(), ESearchCase::IgnoreCase))
 			{
 				// code below is highly dependent on the structure of the ToolbarRow.ToolbarWidget. Currently this is 
 				// a SMultiBoxWidget, a few levels below a SExpandableArea. The SExpandableArea contains a SVerticalBox
