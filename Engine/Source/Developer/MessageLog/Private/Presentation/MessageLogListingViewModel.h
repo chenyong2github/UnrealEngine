@@ -48,8 +48,8 @@ public:
 	virtual bool IsMessageSelected(const TSharedRef<class FTokenizedMessage>& Message) const override;
 	virtual void ClearSelectedMessages() override;
 	virtual void InvertSelectedMessages() override;
-	virtual FText GetSelectedMessagesAsText() const override;
-	virtual FText GetAllMessagesAsText() const override;
+	virtual FString GetSelectedMessagesAsString() const override;
+	virtual FString GetAllMessagesAsString() const override;
 	virtual const FName& GetName() const override;
 	virtual void SetLabel( const FText& InLogLabel ) override;
 	virtual const FText& GetLabel() const override;

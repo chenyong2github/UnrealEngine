@@ -223,27 +223,22 @@ void FMessageLogListingViewModel::InvertSelectedMessages()
 	SelectionChangedEvent.Broadcast();
 }
 
-FText FMessageLogListingViewModel::GetSelectedMessagesAsText() const
+FString FMessageLogListingViewModel::GetSelectedMessagesAsString() const
 {
-	FText CompiledText;
-
 	// Go through each selected message and add it to the compiled one.
 	TArray< TSharedRef< FTokenizedMessage > > Selection = GetSelectedMessages();
+	TArray<FString> SelectedLines;
 	for( int32 MessageID = 0; MessageID < Selection.Num(); MessageID++ )
 	{
-		const TSharedPtr< FTokenizedMessage > Message = Selection[MessageID];
-		FFormatNamedArguments Args;
-		Args.Add( TEXT("PreviousMessage"), CompiledText );
-		Args.Add( TEXT("NewMessage"), Message.Get()->ToText() );
-		CompiledText = FText::Format( LOCTEXT("AggregateMessagesFormatter", "{PreviousMessage}{NewMessage}\n"), Args );
+		SelectedLines.Add(Selection[MessageID]->ToText().ToString());
 	}
 
-	return CompiledText;
+	return FString::Join(SelectedLines, TEXT("\n"));
 }
 
-FText FMessageLogListingViewModel::GetAllMessagesAsText() const
+FString FMessageLogListingViewModel::GetAllMessagesAsString() const
 {
-	return MessageLogListingModel->GetAllMessagesAsText(CurrentPageIndex);
+	return MessageLogListingModel->GetAllMessagesAsString(CurrentPageIndex);
 }
 
 const FName& FMessageLogListingViewModel::GetName() const
