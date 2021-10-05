@@ -17,6 +17,11 @@ namespace EpicGames.Perforce
 		public static FileSpecList Empty { get; } = new FileSpecList(new List<string>());
 
 		/// <summary>
+		/// Matches any files in the depot
+		/// </summary>
+		public static FileSpecList Any { get; } = new FileSpecList(new List<string> { "//..." });
+
+		/// <summary>
 		/// The list of filespecs
 		/// </summary>
 		public IReadOnlyList<string> List { get; }

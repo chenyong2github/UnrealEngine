@@ -22,12 +22,13 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using Microsoft.Extensions.Hosting;
 using EpicGames.Perforce.Managed;
-using Microsoft.Extensions.Caching.Memory;
 using System.Threading.Channels;
 using StackExchange.Redis;
 using EpicGames.Perforce;
 using EpicGames.Redis;
 using System.Diagnostics;
+using System.IO.Compression;
+using System.IO;
 
 namespace HordeServer.Commits.Impl
 {
@@ -66,6 +67,7 @@ namespace HordeServer.Commits.Impl
 
 		// Collections
 		ICommitCollection CommitCollection;
+		IBlobCollection BlobCollection;
 		IObjectCollection ObjectCollection;
 		IRefCollection RefCollection;
 		IStreamCollection StreamCollection;
@@ -80,13 +82,14 @@ namespace HordeServer.Commits.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public CommitService(IDatabase Redis, ICommitCollection CommitCollection, IObjectCollection ObjectCollection, IRefCollection RefCollection, IStreamCollection StreamCollection, IPerforceService PerforceService, IUserCollection UserCollection, DatabaseService DatabaseService, ILogger<CommitService> Logger)
+		public CommitService(IDatabase Redis, ICommitCollection CommitCollection, IBlobCollection BlobCollection, IObjectCollection ObjectCollection, IRefCollection RefCollection, IStreamCollection StreamCollection, IPerforceService PerforceService, IUserCollection UserCollection, DatabaseService DatabaseService, ILogger<CommitService> Logger)
 		{
 			this.Redis = Redis;
 			this.RedisDirtyStreams = new RedisSet<StreamId>(Redis, RedisBaseKey.Append("streams"));
 			this.RedisReservations = new RedisSortedSet<StreamId>(Redis, RedisBaseKey.Append("reservations"));
 
 			this.CommitCollection = CommitCollection;
+			this.BlobCollection = BlobCollection;
 			this.ObjectCollection = ObjectCollection;
 			this.RefCollection = RefCollection;
 			this.StreamCollection = StreamCollection;
@@ -436,7 +439,7 @@ namespace HordeServer.Commits.Impl
 			{
 				try
 				{
-					await UpdateStreamsInternalAsync(BackgroundTasks);
+					await UpdateTreesInternalAsync(BackgroundTasks);
 				}
 				catch (Exception Ex)
 				{
@@ -445,7 +448,7 @@ namespace HordeServer.Commits.Impl
 			}
 		}
 
-		async Task UpdateStreamsInternalAsync(List<(StreamId, Task)> BackgroundTasks)
+		async Task UpdateTreesInternalAsync(List<(StreamId, Task)> BackgroundTasks)
 		{
 			// Remove any complete background tasks
 			for (int Idx = BackgroundTasks.Count - 1; Idx >= 0; Idx--)
@@ -483,7 +486,7 @@ namespace HordeServer.Commits.Impl
 						{
 							if (await RedisReservations.AddAsync(CheckStream, NewScore, When.NotExists))
 							{
-								Task NewTask = Task.Run(() => UpdateStreamAsync(CheckStream));
+								Task NewTask = Task.Run(() => UpdateStreamTreesAsync(CheckStream));
 								BackgroundTasks.Add((CheckStream, NewTask));
 
 								if (BackgroundTasks.Count == MaxBackgroundTasks)
@@ -521,7 +524,7 @@ namespace HordeServer.Commits.Impl
 			}
 		}
 
-		async Task UpdateStreamAsync(StreamId StreamId)
+		async Task UpdateStreamTreesAsync(StreamId StreamId)
 		{
 			Stopwatch Timer = Stopwatch.StartNew();
 
@@ -529,7 +532,7 @@ namespace HordeServer.Commits.Impl
 			for (; ; )
 			{
 				// Update the stream, updating the reservation every 30 seconds
-				Task InternalTask = Task.Run(() => UpdateStreamInternalAsync(StreamId, StreamChanges));
+				Task InternalTask = Task.Run(() => UpdateStreamTreesInternalAsync(StreamId, StreamChanges));
 				while (!InternalTask.IsCompleted)
 				{
 					Task DelayTask = Task.Delay(TimeSpan.FromSeconds(15.0));
@@ -554,7 +557,7 @@ namespace HordeServer.Commits.Impl
 			await RedisReservations.RemoveAsync(StreamId);
 		}
 
-		async Task UpdateStreamInternalAsync(StreamId StreamId, RedisList<int> Changes)
+		async Task UpdateStreamTreesInternalAsync(StreamId StreamId, RedisList<int> Changes)
 		{
 			IStream? Stream = await StreamCollection.GetAsync(StreamId);
 			if (Stream == null)
@@ -570,10 +573,13 @@ namespace HordeServer.Commits.Impl
 
 			InfoRecord ServerInfo = await Perforce.GetInfoAsync(InfoOptions.ShortOutput);
 
-			ViewMap View = await GetStreamViewAsync(Perforce, "//UE5/Dev-Main-Minimal");// Stream.Name);
+			ViewMap View = await GetStreamViewAsync(Perforce, Stream.Name);
 
-			ICommit? Commit = null;
-			StreamTreeRef? TreeRef = null;
+#if ENABLE_TREE_MIRRORING
+			ICommit? PrevCommit = null;
+			StreamTreeRef? PrevRoot = null;
+#endif
+			ObjectSet ObjectSet = new ObjectSet(BlobCollection, NamespaceId, 256 * 1024, DateTime.UtcNow);
 			for (; ; )
 			{
 				// Get the first two changelists to update
@@ -582,46 +588,66 @@ namespace HordeServer.Commits.Impl
 				{
 					break;
 				}
+#if ENABLE_TREE_MIRRORING
+				// Clear the previous commit if it no longer matches
+				if (PrevCommit != null && PrevCommit.Change != Values[0])
+				{
+					PrevCommit = null;
+				}
 
 				// Get the previous tree if we don't have it from the previous iteration
-				if (Commit == null || Commit.Change != Values[0])
+				if (PrevCommit == null)
 				{
-					Commit = await CommitCollection.GetCommitAsync(Stream.Id, Values[0]);
-					if (Commit == null)
+					PrevCommit = await CommitCollection.GetCommitAsync(Stream.Id, Values[0]);
+					if (PrevCommit == null)
 					{
-						TreeRef = null;
+						await Changes.LeftPopAsync();
+						continue;
 					}
-					else if (Commit.TreeRef == null)
+
+					bool HasTree = false;
+					if (PrevCommit.TreeRef != null)
 					{
-						TreeRef = await AddTreeRefAsync(Perforce, Stream, View, null, null, Commit, ServerInfo.Utf8PathComparer);
+						CommitTree? PrevCommitTree = await ReadCommitTreeAsync(PrevCommit);
+						if (PrevCommitTree != null)
+						{
+							try
+							{
+								throw new NotImplementedException();
+//								await Builder.ResetAsync(PrevCommitTree);
+//								HasTree = true;
+							}
+							catch (Exception Ex)
+							{
+								Logger.LogError(Ex, "Unable to read commit tree for {StreamId} CL {Change}", Stream.Id, PrevCommit.Change);
+							}
+						}
 					}
-					else
+
+					if (!HasTree)
 					{
-						TreeRef = await GetTreeRefAsync(Commit);
+						PrevRoot = await AddTreeRefAsync(Perforce, Stream, View, null, null, PrevCommit, ObjectSet, ServerInfo.Utf8PathComparer);
 					}
 				}
-
-				// Copy the previous commit and tree ref
-				ICommit? PrevCommit = Commit;
-				StreamTreeRef? PrevTreeRef = TreeRef;
 
 				// Move to the next commit
-				Commit = await CommitCollection.GetCommitAsync(StreamId, Values[1]);
-				if (Commit == null)
+				ICommit? Commit = await CommitCollection.GetCommitAsync(StreamId, Values[1]);
+				StreamTreeRef? Root = null;
+				if (Commit != null)
 				{
-					TreeRef = null;
-				}
-				else
-				{
-					TreeRef = await AddTreeRefAsync(Perforce, Stream, View, PrevCommit, PrevTreeRef, Commit, ServerInfo.Utf8PathComparer);
+					Root = await AddTreeRefAsync(Perforce, Stream, View, PrevCommit, PrevRoot, Commit, ObjectSet, ServerInfo.Utf8PathComparer);
 				}
 
+				// Move to the next commit
+				PrevCommit = Commit;
+				PrevRoot = Root;
+#endif
 				// Remove the first change number from this queue
 				await Changes.LeftPopAsync();
 			}
 		}
 
-		async Task<StreamTreeRef?> GetTreeRefAsync(ICommit Commit)
+		async Task<CommitTree?> GetCommitTreeAsync(ICommit Commit)
 		{
 			if (Commit.TreeRef == null)
 			{
@@ -634,53 +660,42 @@ namespace HordeServer.Commits.Impl
 				return null;
 			}
 
-			return CbSerializer.Deserialize<StreamTreeRef>(Ref.Value.AsField());
+			return CbSerializer.Deserialize<CommitTree>(Ref.Value.AsField());
 		}
 
-		async Task<StreamTreeRef?> AddTreeRefAsync(IPerforceConnection Perforce, IStream Stream, ViewMap View, ICommit? PrevCommit, StreamTreeRef? PrevTreeRef, ICommit Commit, Utf8StringComparer PathComparer)
+		async Task<StreamTreeRef> AddTreeRefAsync(IPerforceConnection Perforce, IStream Stream, ViewMap View, ICommit? PrevCommit, StreamTreeRef? PrevRoot, ICommit Commit, ObjectSet ObjectSet, Utf8StringComparer PathComparer)
 		{
-			StreamTree Tree;
-			if (PrevCommit == null || PrevTreeRef == null)
+			StreamTreeRef Root;
+			if (PrevCommit == null || PrevRoot == null)
 			{
 				Logger.LogInformation("Performing snapshot of {StreamId} at CL {Change}", Commit.StreamId, Commit.Change);
-				Tree = await CreateTreeAsync(Perforce, View, Commit.Change, PathComparer);
+				Root = await CreateTreeAsync(Perforce, View, Commit.Change, ObjectSet, PathComparer);
 			}
 			else
 			{
 				Logger.LogInformation("Performing incremental update of {StreamId} from CL {PrevChange} to CL {Change}", Commit.StreamId, PrevCommit.Change, Commit.Change);
-				Tree = await UpdateTreeAsync(PrevTreeRef, Perforce, View, Commit.Change, PathComparer);
+				Root = await UpdateTreeAsync(PrevRoot, Perforce, View, Commit.Change, ObjectSet, PathComparer);
 			}
 
+			CommitTree Tree = await FlushAsync(ObjectSet, Root);
 			string RefName = $"tree_{Commit.StreamId}_{Commit.Change}";
 
-			StreamTreeRef TreeRef = new StreamTreeRef(Tree.Path, Tree.ToCbObject().GetHash());
-
-			CbWriter Writer = new CbWriter();
-			Writer.BeginObject();
-			if (TreeRef.Path != Stream.Name)
-			{
-				Writer.WriteString("path", TreeRef.Path);
-			}
-			TreeRef.Write(Writer);
-			Writer.EndObject();
-
-			List<IoHash> MissingHashes = await RefCollection.SetAsync(NamespaceId, BucketId, RefName, Writer.ToObject());
+			List<IoHash> MissingHashes = await RefCollection.SetAsync(NamespaceId, BucketId, RefName, Tree.Serialize(Stream.Name));
 			if (MissingHashes.Count > 0)
 			{
-				Logger.LogWarning("Missing hashes when attempting to add ref: {MissingHashes}", String.Join(", ", MissingHashes.Select(x => x.ToString())));
-				return null;
+				throw new Exception($"Missing hashes when attempting to add ref: {String.Join(", ", MissingHashes.Select(x => x.ToString()))}");
 			}
 
 			NewCommit NewCommit = new NewCommit(Commit);
 			NewCommit.TreeRef = RefName;
 			await CommitCollection.AddOrReplaceAsync(NewCommit);
 
-			return TreeRef;
+			return Tree.Root;
 		}
 
-		#endregion
+#endregion
 
-		#region Snapshot generation
+#region Tree Snapshots
 
 		/// <summary>
 		/// Creates a snapshot of a stream at a particular changelist
@@ -688,9 +703,12 @@ namespace HordeServer.Commits.Impl
 		/// <param name="Connection">The Perforce repository to mirror</param>
 		/// <param name="View">View for the stream</param>
 		/// <param name="Change">Changelist to replicate</param>
+		/// <param name="ObjectSet"></param>
 		/// <param name="PathComparer">Comparison type for paths</param>
-		async Task<StreamTree> CreateTreeAsync(IPerforceConnection Connection, ViewMap View, int Change, Utf8StringComparer PathComparer)
+		async Task<StreamTreeRef> CreateTreeAsync(IPerforceConnection Connection, ViewMap View, int Change, ObjectSet ObjectSet, Utf8StringComparer PathComparer)
 		{
+			StreamTreeBuilder Root = new StreamTreeBuilder();
+
 			// Optimize the view by removing unnecessary inclusions of the same path
 			View = new ViewMap(View);
 			for (int Idx = 0; Idx < View.Entries.Count; Idx++)
@@ -705,13 +723,9 @@ namespace HordeServer.Commits.Impl
 				}
 			}
 
-			// Delegate to write an object
-			Func<StreamTree, IoHash> WriteObject = x => x.ToCbObject().GetHash();
-
 			// In order to optimize for the common case where we're adding multiple files to the same directory, we keep an open list of
 			// StreamTreeBuilder objects down to the last modified node. Whenever we need to move to a different node, we write the 
 			// previous path to the object store.
-			StreamTreeBuilder RootNode = new StreamTreeBuilder();
 			for(int Idx = 0; Idx < View.Entries.Count; Idx++)
 			{
 				ViewMapEntry Entry = View.Entries[Idx];
@@ -733,12 +747,11 @@ namespace HordeServer.Commits.Impl
 					}
 
 					Logger.LogInformation("Adding {Source}@{Change}", Entry.Source, Change);
-					await AddDepotFilesToSnapshotAsync(Connection, $"{Entry.Source}@{Change}", View, PathComparer, RootNode, WriteObject);
-
-					GC.Collect();
+					await AddDepotFilesToSnapshotAsync(Root, Connection, $"{Entry.Source}@{Change}", View, PathComparer, ObjectSet);
 				}
 			}
-			return RootNode.Encode(WriteObject);
+
+			return Root.EncodeRef(x => WriteTree(ObjectSet, x));
 		}
 
 		/// <summary>
@@ -768,13 +781,13 @@ namespace HordeServer.Commits.Impl
 		/// <summary>
 		/// Adds a set of files in the depot to a snapshot
 		/// </summary>
+		/// <param name="Root"></param>
 		/// <param name="Connection"></param>
 		/// <param name="FileSpec">The files to add</param>
 		/// <param name="View">View for the stream</param>
 		/// <param name="Comparer">Comparison type to use for names</param>
-		/// <param name="RootNode">The root node of the tree</param>
-		/// <param name="WriteObject">Delegate to write an object to the store</param>
-		async Task AddDepotFilesToSnapshotAsync(IPerforceConnection Connection, string FileSpec, ViewMap View, Utf8StringComparer Comparer, StreamTreeBuilder RootNode, Func<StreamTree, IoHash> WriteObject)
+		/// <param name="ObjectSet"></param>
+		static async Task AddDepotFilesToSnapshotAsync(StreamTreeBuilder Root, IPerforceConnection Connection, string FileSpec, ViewMap View, Utf8StringComparer Comparer, ObjectSet ObjectSet)
 		{
 			const string Filter = "^headAction=delete ^headAction=move/delete";
 			const string Fields = "depotFile,fileSize,digest,headType,headRev";
@@ -800,7 +813,7 @@ namespace HordeServer.Commits.Impl
 					Utf8String TargetFile;
 					if (File.DepotFile != Utf8String.Empty && View.TryMapFile(File.DepotFile, Comparer, out TargetFile))
 					{
-						await AddFileAsync(TargetFile, File, RootNode, Segments, WriteObject);
+						await AddFileAsync(Root, TargetFile, File, Segments, ObjectSet);
 					}
 				}
 			}
@@ -809,14 +822,14 @@ namespace HordeServer.Commits.Impl
 		/// <summary>
 		/// Adds a single depot file to a snapshot
 		/// </summary>
+		/// <param name="Root">The root tree builder</param>
 		/// <param name="Path">The stream path for the file</param>
 		/// <param name="MetaData">The file metadata</param>
-		/// <param name="RootNode">The last computed path through the tree</param>
 		/// <param name="Segments"></param>
-		/// <param name="WriteObject"></param>
-		async Task AddFileAsync(Utf8String Path, Utf8FStatRecord MetaData, StreamTreeBuilder RootNode, List<Utf8String> Segments, Func<StreamTree, IoHash> WriteObject)
+		/// <param name="ObjectSet"></param>
+		static async Task AddFileAsync(StreamTreeBuilder Root, Utf8String Path, Utf8FStatRecord MetaData, List<Utf8String> Segments, ObjectSet ObjectSet)
 		{
-			StreamTreeBuilder Node = RootNode;
+			StreamTreeBuilder Node = Root;
 
 			// Split the path into segments
 			Segments.Clear();
@@ -848,13 +861,13 @@ namespace HordeServer.Commits.Impl
 			}
 
 			// Collapse the rest of the current path
-			Node.EncodeChildren(WriteObject);
+			await CollapseChildrenAsync(ObjectSet, Node);
 
 			// Expand the rest of the path
 			for(; SegmentIdx < Segments.Count - 1; SegmentIdx++)
 			{
 				Utf8String Segment = Segments[SegmentIdx];
-				Node = await FindOrAddTreeAsync(Node, Segment);
+				Node = await ExpandChildAsync(ObjectSet, Node, Segment);
 			}
 
 			// Add the filename
@@ -862,36 +875,39 @@ namespace HordeServer.Commits.Impl
 			Node.NameToFile[FileName] = CreateStreamFile(MetaData);
 		}
 
-		#endregion
+#endregion
 
-		#region Incremental snapshot generation
+#region Tree Incremental Updates
 
 		/// <summary>
 		/// Creates a snapshot for the given stream, given an initial state and list of modified files
 		/// </summary>
-		/// <param name="PrevTreeRef"></param>
+		/// <param name="RootRef"></param>
 		/// <param name="Perforce"></param>
 		/// <param name="Change"></param>
 		/// <param name="View"></param>
+		/// <param name="ObjectSet"></param>
 		/// <param name="PathComparer"></param>
 		/// <returns></returns>
-		async Task<StreamTree> UpdateTreeAsync(StreamTreeRef PrevTreeRef, IPerforceConnection Perforce, ViewMap View, int Change, Utf8StringComparer PathComparer)
+		static async Task<StreamTreeRef> UpdateTreeAsync(StreamTreeRef RootRef, IPerforceConnection Perforce, ViewMap View, int Change, ObjectSet ObjectSet, Utf8StringComparer PathComparer)
 		{
-			List<FStatRecord> Records = await Perforce.FStatAsync(-1, Change, null, null, -1, FStatOptions.IncludeFileSizes, FileSpecList.Empty);
-			return await UpdateTreeAsync(PrevTreeRef, Records, View, PathComparer);
+			List<FStatRecord> Records = await Perforce.FStatAsync(-1, Change, null, null, -1, FStatOptions.IncludeFileSizes, FileSpecList.Any);
+			return await UpdateTreeAsync(RootRef, Records, View, ObjectSet, PathComparer);
 		}
 
 		/// <summary>
 		/// Creates a snapshot for the given stream, given an initial state and list of modified files
 		/// </summary>
-		/// <param name="PrevTreeRef"></param>
+		/// <param name="RootRef"></param>
 		/// <param name="Files"></param>
 		/// <param name="View"></param>
+		/// <param name="ObjectSet"></param>
 		/// <param name="PathComparer"></param>
 		/// <returns></returns>
-		async Task<StreamTree> UpdateTreeAsync(StreamTreeRef PrevTreeRef, IList<FStatRecord> Files, ViewMap View, Utf8StringComparer PathComparer)
+		static async Task<StreamTreeRef> UpdateTreeAsync(StreamTreeRef RootRef, IList<FStatRecord> Files, ViewMap View, ObjectSet ObjectSet, Utf8StringComparer PathComparer)
 		{
-			StreamTreeBuilder Tree = await ReadTreeAsync(PrevTreeRef);
+			// Read the root tree
+			StreamTreeBuilder Root = new StreamTreeBuilder(await ReadTreeAsync(ObjectSet, RootRef));
 
 			// Update the tree
 			foreach (FStatRecord File in Files)
@@ -901,7 +917,7 @@ namespace HordeServer.Commits.Impl
 				{
 					Utf8String LocalPath = LocalPathStr;
 
-					StreamTreeBuilder Node = Tree;
+					StreamTreeBuilder Node = Root;
 					for (; ; )
 					{
 						int NextIdx = LocalPath.IndexOf('/');
@@ -911,13 +927,23 @@ namespace HordeServer.Commits.Impl
 						}
 
 						Utf8String Name = LocalPath[0..NextIdx];
-						Node = await FindOrAddTreeAsync(Node, Name);
+						Node = await ExpandChildAsync(ObjectSet, Node, Name);
 
 						LocalPath = LocalPath[(NextIdx + 1)..];
 					}
 
+					FileAction Action = File.Action;
+					if (Action == FileAction.None)
+					{
+						Action = File.HeadAction;
+						if (Action == FileAction.None)
+						{
+							throw new NotImplementedException();
+						}
+					}
+
 					Utf8String FileName = LocalPath;
-					if (File.Action != FileAction.Delete && File.Action != FileAction.MoveDelete)
+					if (Action != FileAction.Delete && Action != FileAction.MoveDelete)
 					{
 						Node.NameToFile[FileName] = CreateStreamFile(File);
 					}
@@ -932,12 +958,158 @@ namespace HordeServer.Commits.Impl
 				}
 			}
 
-			return Tree.Encode(SubTree => SubTree.ToCbObject().GetHash());
+			return Root.EncodeRef(x => WriteTree(ObjectSet, x));
 		}
 
 #endregion
 
-		#region Misc tree manipulation
+#region Tree Builder
+
+		/// <summary>
+		/// Adds or expands a tree under the given node
+		/// </summary>
+		/// <param name="ObjectSet"></param>
+		/// <param name="Tree"></param>
+		/// <param name="Name"></param>
+		/// <returns></returns>
+		static async Task<StreamTreeBuilder> ExpandChildAsync(ObjectSet ObjectSet, StreamTreeBuilder Tree, Utf8String Name)
+		{
+			StreamTreeBuilder? Result;
+			if (Tree.NameToTreeBuilder.TryGetValue(Name, out Result))
+			{
+				return Result;
+			}
+
+			StreamTreeRef? TreeRef;
+			if (Tree.NameToTree.TryGetValue(Name, out TreeRef))
+			{
+				Result = new StreamTreeBuilder(await ReadTreeAsync(ObjectSet, TreeRef));
+
+				Tree.NameToTree.Remove(Name);
+				Tree.NameToTreeBuilder.Add(Name, Result);
+
+				return Result;
+			}
+
+			Result = new StreamTreeBuilder();
+			Tree.NameToTreeBuilder[Name] = Result;
+
+			return Result;
+		}
+
+		/// <summary>
+		/// Collapse children underneath the given tree builder, allowing data to be purged from memory and pushed
+		/// into persistent storage.
+		/// </summary>
+		/// <param name="ObjectSet"></param>
+		/// <param name="Tree"></param>
+		/// <returns></returns>
+		static async Task CollapseChildrenAsync(ObjectSet ObjectSet, StreamTreeBuilder Tree)
+		{
+			foreach ((Utf8String ChildName, StreamTreeBuilder ChildBuilder) in Tree.NameToTreeBuilder)
+			{
+				await CollapseChildrenAsync(ObjectSet, ChildBuilder);
+				if (ChildBuilder.NameToFile.Count > 0 || ChildBuilder.NameToTree.Count > 0)
+				{
+					StreamTreeRef ChildTreeRef = ChildBuilder.EncodeRef(x => WriteTree(ObjectSet, x));
+					Tree.NameToTree[ChildName] = ChildTreeRef;
+				}
+			}
+			Tree.NameToTreeBuilder.Clear();
+		}
+
+		/// <summary>
+		/// Flush all the current data to storage, optimizing the underlying blobs if necessary
+		/// </summary>
+		/// <returns>The new tree object</returns>
+		static async Task<CommitTree> FlushAsync(ObjectSet ObjectSet, StreamTreeRef RootRef)
+		{
+			// Find the live set of objects
+			ObjectSet.RootSet.Clear();
+			ObjectSet.RootSet.Add(RootRef.Hash);
+
+			// Flush all the remaining objects
+			await ObjectSet.FlushAsync();
+
+			// Wait for all the blobs to finish writing and write the new tree
+			return new CommitTree(RootRef, new List<CbBinaryAttachment>(), ObjectSet.PackIndexes.ConvertAll(x => (CbBinaryAttachment)x.DataHash));
+		}
+
+		/// <summary>
+		/// Reads a referenced tree from storage
+		/// </summary>
+		/// <param name="ObjectSet">The object packer</param>
+		/// <param name="TreeRef">The tree reference</param>
+		/// <returns></returns>
+		static async Task<StreamTree> ReadTreeAsync(ObjectSet ObjectSet, StreamTreeRef TreeRef)
+		{
+			ReadOnlyMemory<byte> Data = await ObjectSet.GetObjectDataAsync(TreeRef.Hash);
+			if (Data.Length == 0)
+			{
+				throw new Exception($"Unable to find tree with hash {TreeRef.Hash} for {TreeRef.Path}");
+			}
+			return new StreamTree(TreeRef.Path, new CbObject(Data));
+		}
+
+		/// <summary>
+		/// Serializes a tree to an object packer
+		/// </summary>
+		/// <param name="ObjectSet"></param>
+		/// <param name="Tree"></param>
+		/// <returns></returns>
+		static IoHash WriteTree(ObjectSet ObjectSet, StreamTree Tree)
+		{
+			CbObject Object = Tree.ToCbObject();
+			ReadOnlyMemory<byte> Data = Object.GetView();
+
+			List<IoHash> Refs = new List<IoHash>();
+			Object.IterateAttachments(Field => Refs.Add(Field.AsHash()));
+
+			IoHash Hash = IoHash.Compute(Data.Span);
+			ObjectSet.Add(Hash, Data.Span, Refs.ToArray());
+			return Hash;
+		}
+
+		/// <summary>
+		/// Prints the state of the tree
+		/// </summary>
+		/// <param name="ObjectSet"></param>
+		/// <param name="TreeRef"></param>
+		/// <param name="Logger"></param>
+		/// <returns></returns>
+		public Task PrintAsync(ObjectSet ObjectSet, StreamTreeRef TreeRef, ILogger Logger) => PrintInternalAsync(ObjectSet, TreeRef, String.Empty, Logger);
+
+		async Task PrintInternalAsync(ObjectSet ObjectSet, StreamTreeRef TreeRef, string Prefix, ILogger Logger)
+		{
+			StreamTree Tree = await ReadTreeAsync(ObjectSet, TreeRef);
+
+			foreach ((Utf8String Name, StreamFile File) in Tree.NameToFile)
+			{
+				Logger.LogInformation($"{Prefix}/{Name} = {File.Path}#{File.Revision}");
+			}
+			foreach ((Utf8String Name, StreamTreeRef ChildTreeRef) in Tree.NameToTree)
+			{
+				await PrintInternalAsync(ObjectSet, ChildTreeRef, $"{Prefix}/{Name}", Logger);
+			}
+		}
+
+#endregion
+
+#region Tree Storage
+
+		/// <summary>
+		/// Reads the tree for a given commit
+		/// </summary>
+		/// <param name="Commit"></param>
+		async Task<CommitTree> ReadCommitTreeAsync(ICommit Commit)
+		{
+			IRef? Ref = await RefCollection.GetAsync(NamespaceId, BucketId, Commit.TreeRef!);
+			return CbSerializer.Deserialize<CommitTree>(Ref!.Value.AsField());
+		}
+
+#endregion
+
+#region Misc tree manipulation
 
 		/// <summary>
 		/// Gets the view for a stream
@@ -960,52 +1132,6 @@ namespace HordeServer.Commits.Impl
 			}
 
 			return View;
-		}
-
-		/// <summary>
-		/// Gets a <see cref="StreamTreeBuilder"/> for a subtree with the given name
-		/// </summary>
-		/// <param name="Tree"></param>
-		/// <param name="Name"></param>
-		/// <returns></returns>
-		async Task<StreamTreeBuilder> FindOrAddTreeAsync(StreamTreeBuilder Tree, Utf8String Name)
-		{
-			StreamTreeBuilder? Result;
-			if (Tree.NameToTreeBuilder.TryGetValue(Name, out Result))
-			{
-				return Result;
-			}
-
-			StreamTreeRef? TreeRef;
-			if (Tree.NameToTree.TryGetValue(Name, out TreeRef))
-			{
-				Result = await ReadTreeAsync(TreeRef);
-
-				Tree.NameToTree.Remove(Name);
-				Tree.NameToTreeBuilder.Add(Name, Result);
-
-				return Result;
-			}
-
-			Result = new StreamTreeBuilder();
-			Tree.NameToTreeBuilder[Name] = Result;
-
-			return Result;
-		}
-
-		/// <summary>
-		/// Reads a tree builder for the given tree reference
-		/// </summary>
-		/// <param name="TreeRef"></param>
-		/// <returns></returns>
-		async Task<StreamTreeBuilder> ReadTreeAsync(StreamTreeRef TreeRef)
-		{
-			CbObject? Object = await ObjectCollection.GetAsync(NamespaceId, TreeRef.Hash);
-			if (Object == null)
-			{
-				throw new Exception($"Missing object {TreeRef.Hash} referenced by tree for {TreeRef.Path}");
-			}
-			return new StreamTreeBuilder(new StreamTree(TreeRef.Path, Object));
 		}
 
 		/// <summary>
@@ -1037,37 +1163,6 @@ namespace HordeServer.Commits.Impl
 			string FileType = MetaData.Type ?? MetaData.HeadType ?? String.Empty;
 			return new StreamFile(MetaData.DepotFile!, MetaData.FileSize, new FileContentId(Md5Hash.Parse(MetaData.Digest!), FileType.ToString()), MetaData.HeadRevision);
 		}
-
-		/// <summary>
-		/// Print the contents of a snapshot
-		/// </summary>
-		/// <param name="TreeRef"></param>
-		/// <returns></returns>
-		Task PrintSnapshotAsync(StreamTreeRef TreeRef)
-		{
-			return PrintSnapshotInternalAsync(TreeRef, "/");
-		}
-
-		/// <summary>
-		/// Print the contents of a snapshot
-		/// </summary>
-		/// <param name="TreeRef"></param>
-		/// <param name="Prefix"></param>
-		/// <returns></returns>
-		async Task PrintSnapshotInternalAsync(StreamTreeRef TreeRef, string Prefix)
-		{
-			StreamTree Tree = new StreamTree(TreeRef.Path, await ObjectCollection.GetRequiredObjectAsync(NamespaceId, TreeRef.Hash));
-
-			foreach ((Utf8String Name, StreamFile File) in Tree.NameToFile)
-			{
-				Logger.LogInformation($"{Prefix}/{Name} = {File.Path}#{File.Revision}");
-			}
-			foreach ((Utf8String Name, StreamTreeRef ChildTreeRef) in Tree.NameToTree)
-			{
-				await PrintSnapshotInternalAsync(ChildTreeRef, $"{Prefix}/{Name}");
-			}
-		}
-
-		#endregion
+#endregion
 	}
 }
