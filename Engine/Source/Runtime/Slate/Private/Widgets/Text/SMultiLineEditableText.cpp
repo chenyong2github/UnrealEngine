@@ -104,6 +104,11 @@ void SMultiLineEditableText::SetText(const TAttribute< FText >& InText)
 	EditableTextLayout->SetText(InText);
 }
 
+int32 SMultiLineEditableText::GetTextLineCount()
+{
+	return EditableTextLayout->GetTextLineCount();
+}
+
 FText SMultiLineEditableText::GetText() const
 {
 	return EditableTextLayout->GetText();
