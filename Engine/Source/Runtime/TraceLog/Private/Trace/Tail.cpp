@@ -16,7 +16,7 @@ namespace Trace {
 namespace Private {
 
 // This here to aid future maintenance of a trace's transport packets.
-static_assert(ETransport::Active == ETransport::TidPacket, "Tail-tracing is transport aware");
+static_assert(ETransport::Active == ETransport::TidPacketSync, "Tail-tracing is transport aware");
 
 ////////////////////////////////////////////////////////////////////////////////
 static void	StressRingPacket();

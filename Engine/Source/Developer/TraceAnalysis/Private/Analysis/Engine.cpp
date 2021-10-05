@@ -3239,10 +3239,11 @@ FEstablishTransportStage::EStatus FEstablishTransportStage::OnData(
 	FTransport* Transport = nullptr;
 	switch (Header->TransportVersion)
 	{
-	case ETransport::Raw:		Transport = new FTransport(); break;
-	case ETransport::Packet:	Transport = new FPacketTransport(); break;
-	case ETransport::TidPacket:	Transport = new FTidPacketTransport(); break;
-	default:					return EStatus::Error;
+	case ETransport::Raw:			Transport = new FTransport(); break;
+	case ETransport::Packet:		Transport = new FPacketTransport(); break;
+	case ETransport::TidPacket:		Transport = new FTidPacketTransport(); break;
+	case ETransport::TidPacketSync:	Transport = new FTidPacketTransportSync(); break;
+	default:						return EStatus::Error;
 	}
 
 	uint32 ProtocolVersion = Header->ProtocolVersion;

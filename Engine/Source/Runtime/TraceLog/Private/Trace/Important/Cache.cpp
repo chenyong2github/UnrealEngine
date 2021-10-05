@@ -153,7 +153,7 @@ void Writer_InitializeCache()
 	GCacheActiveBuffer = Writer_CacheCreateBuffer(GCacheBufferSize);
 	GCacheActiveBuffer->TailNext = &GCacheHeadBuffer;
 
-	static_assert(ETransport::Active == ETransport::TidPacket, "The important cache is transport aware");
+	static_assert(ETransport::Active == ETransport::TidPacketSync, "The important cache is transport aware");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
