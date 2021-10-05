@@ -1,5 +1,3 @@
-#ifndef ORT_MINIMAL_BUILD 
-
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
@@ -446,5 +444,3 @@ std::unique_ptr<Function> MakeFunction(const onnxruntime::Graph& graph,
   return onnxruntime::make_unique<FunctionImpl>(graph, nodes_to_fuse, logger);
 }
 }  // namespace onnxruntime
-
-#endif // ORT_MINIMAL_BUILD

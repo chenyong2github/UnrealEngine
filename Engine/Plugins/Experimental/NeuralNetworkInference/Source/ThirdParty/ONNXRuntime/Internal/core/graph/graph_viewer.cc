@@ -262,4 +262,3 @@ bool GraphViewer::IsConstantInitializer(const std::string& name, bool check_oute
 }
 
 }  // namespace onnxruntime
-

@@ -1,5 +1,3 @@
-#ifndef ORT_MINIMAL_BUILD 
-
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
@@ -160,5 +158,3 @@ OpSchema& RegisterRangeOpSchema(OpSchema&& op_schema){
 
 }  // namespace contrib
 }  // namespace onnxruntime
-
-#endif // ORT_MINIMAL_BUILD

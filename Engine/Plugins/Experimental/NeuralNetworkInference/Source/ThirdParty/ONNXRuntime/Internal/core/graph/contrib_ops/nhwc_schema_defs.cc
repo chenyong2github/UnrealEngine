@@ -1,5 +1,3 @@
-#ifndef ORT_MINIMAL_BUILD 
-
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
@@ -269,5 +267,3 @@ equal to the spatial dimension of input tensor. Input is of type uint8_t or int8
 
 }  // namespace contrib
 }  // namespace onnxruntime
-
-#endif // ORT_MINIMAL_BUILD
