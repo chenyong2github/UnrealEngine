@@ -1,5 +1,3 @@
-#ifndef ORT_MINIMAL_BUILD 
-
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
@@ -933,5 +931,3 @@ Wwhere the function `Sigmoid(x) = 1 / (1 + exp(-x))` )DOC";
 
 }  // namespace contrib
 }  // namespace onnxruntime
-
-#endif // ORT_MINIMAL_BUILD

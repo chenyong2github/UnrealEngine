@@ -1,5 +1,3 @@
-#ifndef ORT_MINIMAL_BUILD 
-
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
@@ -194,5 +192,3 @@ void RegisterNchwcSchemas() {
 
 }  // namespace contrib
 }  // namespace onnxruntime
-
-#endif // ORT_MINIMAL_BUILD
