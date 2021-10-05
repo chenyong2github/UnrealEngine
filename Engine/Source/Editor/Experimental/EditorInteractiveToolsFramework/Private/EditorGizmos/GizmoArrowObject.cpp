@@ -124,11 +124,11 @@ void UGizmoArrowObject::SetVisibility(bool bVisibleIn)
 	}
 	if (ConeObject)
 	{
-		ConeObject->SetVisibility(bVisibleIn);
+		ConeObject->SetVisibility(bVisibleIn && bHasConeHead);
 	}
 	if (BoxObject)
 	{
-		BoxObject->SetVisibility(bVisibleIn);
+		BoxObject->SetVisibility(bVisibleIn && !bHasConeHead);
 	}
 }
 

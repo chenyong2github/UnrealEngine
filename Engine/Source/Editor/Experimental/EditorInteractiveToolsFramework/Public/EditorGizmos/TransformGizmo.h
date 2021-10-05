@@ -11,13 +11,13 @@
 #include "EditorGizmos/GizmoObjectHitTargets.h"
 #include "EditorGizmos/GizmoObjectStateTargets.h"
 #include "EditorGizmos/GizmoObjectTransformSources.h"
-#include "EditorInteractiveGizmoSelectionBuilder.h"
+#include "EditorGizmos/TransformGizmoInterfaces.h"
 #include "InteractiveGizmo.h"
 #include "InteractiveToolObjects.h"
 #include "InteractiveToolChange.h"
 #include "Materials/MaterialInstanceDynamic.h"
-
-#include "EditorTransformGizmo.generated.h"
+#include "Math/Axis.h"
+#include "TransformGizmo.generated.h"
 
 class UInteractiveGizmoManager;
 class IGizmoAxisSource;
@@ -27,26 +27,14 @@ class UGizmoConstantFrameAxisSource;
 class UGizmoTransformChangeStateTarget;
 class FEditorTransformGizmoTransformChange;
 
-UCLASS()
-class EDITORINTERACTIVETOOLSFRAMEWORK_API UEditorTransformGizmoBuilder : public UInteractiveGizmoBuilder, public IEditorInteractiveGizmoSelectionBuilder
-{
-	GENERATED_BODY()
-
-public:
-
-	// UEditorInteractiveGizmoSelectionBuilder interface 
-	virtual UInteractiveGizmo* BuildGizmo(const FToolBuilderState& SceneState) const override;
-	virtual void UpdateGizmoForSelection(UInteractiveGizmo* Gizmo, const FToolBuilderState& SceneState) override;
-};
-
 
 /**
- * UEditorTransformGizmo provides standard Transformation Gizmo interactions,
+ * UTransformGizmo provides standard Transformation Gizmo interactions,
  * applied to a UTransformProxy target object. By default the Gizmo will be
  * a standard XYZ translate/rotate Gizmo (axis and plane translation).
  */
 UCLASS()
-class EDITORINTERACTIVETOOLSFRAMEWORK_API UEditorTransformGizmo : public UInteractiveGizmo
+class EDITORINTERACTIVETOOLSFRAMEWORK_API UTransformGizmo : public UInteractiveGizmo
 {
 	GENERATED_BODY()
 
@@ -79,19 +67,6 @@ public:
 
 public:
 
-	virtual void SetWorld(UWorld* World);
-	virtual void SetElements(ETransformGizmoSubElements InEnableElements);
-
-	/**
-	 * By default, non-uniform scaling handles appear (assuming they exist in the gizmo to begin with), 
-	 * when CurrentCoordinateSystem == EToolContextCoordinateSystem::Local, since components can only be
-	 * locally scaled. However, this can be changed to a custom check here, perhaps to hide them in extra
-	 * conditions or to always show them (if the gizmo is not scaling a component).
-	 */
-	virtual void SetIsNonUniformScaleAllowedFunction(
-		TUniqueFunction<bool()>&& IsNonUniformScaleAllowed
-	);
-
 	/**
 	 * By default, the nonuniform scale components can scale negatively. However, they can be made to clamp
 	 * to zero instead by passing true here. This is useful for using the gizmo to flatten geometry.
@@ -103,6 +78,7 @@ public:
 	// UInteractiveGizmo overrides
 	virtual void Setup() override;
 	virtual void Shutdown() override;
+	virtual void Render(IToolsContextRenderAPI* RenderAPI);
 	virtual void Tick(float DeltaTime) override;
 
 
@@ -147,6 +123,12 @@ public:
 	virtual void SetVisibility(bool bVisible);
 
 	/**
+	 * Whether gizmo is visible.
+	 */
+	UPROPERTY()
+	bool bVisible = false;
+
+	/**
 	 * If true, then when using world frame, Axis and Plane translation snap to the world grid via the ContextQueriesAPI (in PositionSnapFunction)
 	 */
 	UPROPERTY()
@@ -174,49 +156,21 @@ public:
 	UPROPERTY()
 	bool bSnapToWorldRotGrid = false;
 
-	/**
-	 * Whether to use the World/Local coordinate system provided by the context via the ContextyQueriesAPI.
-	 */
+	//
+	// Transform Source
+	//
 	UPROPERTY()
-	bool bUseContextCoordinateSystem = true;
-
-	/**
-	 * Current coordinate system in use. If bUseContextCoordinateSystem is true, this value will be updated internally every Tick()
-	 * by querying the ContextyQueriesAPI, otherwise the default is Local and the client can change it as necessary
-	 */
-	UPROPERTY()
-	EToolContextCoordinateSystem CurrentCoordinateSystem = EToolContextCoordinateSystem::Local;
-
+	TScriptInterface<ITransformGizmoSource> TransformSource;
 
 protected:
-	// TSharedPtr<FEditorTransformGizmoActorFactory> GizmoEditorActorBuilder;
-	/** Only these parts of the UEditorTransformGizmo will be initialized */
-	ETransformGizmoSubElements EnableElements =
-		ETransformGizmoSubElements::TranslateAllAxes |
-		ETransformGizmoSubElements::TranslateAllPlanes |
-		ETransformGizmoSubElements::RotateAllAxes |
-		ETransformGizmoSubElements::ScaleAllAxes |
-		ETransformGizmoSubElements::ScaleAllPlanes |
-		ETransformGizmoSubElements::ScaleUniform;
 
 	/** List of current-active gizmo objects */
 	UPROPERTY()
 	TArray<TObjectPtr<UGizmoBaseObject>> ActiveObjects;
 
-	/**
-	 * List of nonuniform scale objects. Subset of of ActiveObjects. These are tracked separately so they can
-	 * be hidden when Gizmo is not configured to use local axes, because UE only supports local nonuniform scaling
-	 * on Components
-	 */
-	UPROPERTY()
-	TArray<TObjectPtr<UGizmoBaseObject>> NonuniformScaleObjects;
-
 	/** list of currently-active child gizmos */
 	UPROPERTY()
 	TArray<TObjectPtr<UInteractiveGizmo>> ActiveGizmos;
-
-	/** GizmoActors will be spawned in this World */
-	UWorld* World;
 
 	//
 	// Axis Sources
@@ -273,9 +227,21 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UGizmoEditorAxisSource> UnitAxisZSource;
 
+	/** X-axis arrow object is shared across Gizmos, and created internally during SetActiveTarget() */
+	UPROPERTY()
+	TObjectPtr<UGizmoArrowObject> ScaleAxisXObject;
+
+	/** Y-axis arrow object is shared across Gizmos, and created internally during SetActiveTarget() */
+	UPROPERTY()
+	TObjectPtr<UGizmoArrowObject> ScaleAxisYObject;
+
+	/** Z-axis arrow object is shared across Gizmos, and created internally during SetActiveTarget() */
+	UPROPERTY()
+	TObjectPtr<UGizmoArrowObject> ScaleAxisZObject;
+
 	/** 
 	 * State target is shared across gizmos, and created internally during SetActiveTarget(). 
-	 * Several FChange providers are registered with this StateTarget, including the UEditorTransformGizmo
+	 * Several FChange providers are registered with this StateTarget, including the UTransformGizmo
 	 * itself (IToolCommandChangeSource implementation above is called)
 	 */
 	UPROPERTY()
@@ -288,11 +254,35 @@ protected:
 	TUniqueFunction<bool()> ShouldAlignDestination = []() { return false; };
 	TUniqueFunction<bool(const FRay&, FVector&)> DestinationAlignmentRayCaster = [](const FRay&, FVector&) {return false; };
 
-	TUniqueFunction<bool()> IsNonUniformScaleAllowed = [this]() { return CurrentCoordinateSystem == EToolContextCoordinateSystem::Local; };
-
 	bool bDisallowNegativeScaling = false;
 protected:
 
+	/** Update current gizmo mode based on transform source */
+	void UpdateMode();
+
+	/** Update current coord system based on the active target and transform source */
+	void UpdateCoordSystem();
+
+	/** Enable the given mode with the specified axes, EAxisList::Type::None will hide objects associated with mode */
+	void EnableMode(EGizmoTransformMode InGizmoMode, EAxisList::Type InAxisListToDraw);
+
+	/** Enable object if the specified InGizmoAxis is enabled in InAxisListToDraw*/
+	void EnableObject(UGizmoBaseObject* InGizmoObject, EAxisList::Type InGizmoAxis, EAxisList::Type InAxisListToDraw);
+
+	/** Enable translate using specified axis list */
+	void EnableTranslate(EAxisList::Type InAxisListToDraw);
+
+	/** Enable rotate using specified axis list */
+	void EnableRotate(EAxisList::Type InAxisListToDraw);
+
+	/** Enable scale using specified axis list */
+	void EnableScale(EAxisList::Type InAxisListToDraw);
+
+	UPROPERTY()
+	EGizmoTransformMode CurrentMode = EGizmoTransformMode::None;
+
+	UPROPERTY()
+	TEnumAsByte<EAxisList::Type> CurrentAxisToDraw = EAxisList::None;
 
 	/** @return a new instance of the standard axis-translation Gizmo */
 	virtual UInteractiveGizmo* AddAxisTranslationGizmo(
