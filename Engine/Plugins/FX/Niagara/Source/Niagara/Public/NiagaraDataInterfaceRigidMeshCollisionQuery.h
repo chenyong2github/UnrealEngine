@@ -7,9 +7,6 @@
 #include "VectorVM.h"
 #include "NiagaraDataInterfaceRigidMeshCollisionQuery.generated.h"
 
-#define RIGID_MESH_COLLISION_QUERY_MAX_PRIMITIVES 100
-#define RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS RIGID_MESH_COLLISION_QUERY_MAX_PRIMITIVES * 2
-
 // Forward declaration
 class AStaticMeshActor;
 
@@ -33,16 +30,63 @@ struct FElementOffset
 struct FNDIRigidMeshCollisionArrays
 {
 	FElementOffset ElementOffsets;
-	TStaticArray<FVector4f, 2 * RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS> WorldTransform;
-	TStaticArray<FVector4f, 2 * RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS> InverseTransform;
-	TStaticArray<FVector4f, RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS> CurrentTransform;
-	TStaticArray<FVector4f, RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS> CurrentInverse;
-	TStaticArray<FVector4f, RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS> PreviousTransform;
-	TStaticArray<FVector4f, RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS> PreviousInverse;
-	TStaticArray<FVector4f, RIGID_MESH_COLLISION_QUERY_MAX_PRIMITIVES> ElementExtent;
-	TStaticArray<uint32, RIGID_MESH_COLLISION_QUERY_MAX_PRIMITIVES> PhysicsType;
-	TStaticArray<uint32, RIGID_MESH_COLLISION_QUERY_MAX_PRIMITIVES> DFIndex;
-	TStaticArray<FPrimitiveSceneProxy*, RIGID_MESH_COLLISION_QUERY_MAX_PRIMITIVES> SourceSceneProxy;
+	TArray<FVector4f> WorldTransform;
+	TArray<FVector4f> InverseTransform;
+	TArray<FVector4f> CurrentTransform;
+	TArray<FVector4f> CurrentInverse;
+	TArray<FVector4f> PreviousTransform;
+	TArray<FVector4f> PreviousInverse;
+	TArray<FVector4f> ElementExtent;
+	TArray<uint32> PhysicsType;
+	TArray<uint32> DFIndex;
+	TArray<FPrimitiveSceneProxy*> SourceSceneProxy;
+
+	FNDIRigidMeshCollisionArrays()
+	{
+		Resize(100);
+	}
+
+	FNDIRigidMeshCollisionArrays(uint32 Num)
+	{
+		Resize(Num);
+	}
+
+	void CopyFrom(const FNDIRigidMeshCollisionArrays* Other)
+	{
+		Resize(Other->MaxPrimitives);
+
+		ElementOffsets = Other->ElementOffsets;
+		WorldTransform = Other->WorldTransform;
+		InverseTransform = Other->InverseTransform;
+		CurrentTransform = Other->CurrentTransform;
+		CurrentInverse = Other->CurrentInverse;
+		PreviousTransform = Other->PreviousTransform;
+		PreviousInverse = Other->PreviousInverse;
+		ElementExtent = Other->ElementExtent;
+		PhysicsType = Other->PhysicsType;
+		DFIndex = Other->DFIndex;
+		SourceSceneProxy = Other->SourceSceneProxy;
+	}
+
+	void Resize(uint32 Num)
+	{
+		MaxPrimitives = Num;
+		MaxTransforms = MaxPrimitives * 2;				
+
+		WorldTransform.Init(FVector4f(0, 0, 0, 0), 3 * MaxTransforms);
+		InverseTransform.Init(FVector4f(0, 0, 0, 0), 3 * MaxTransforms);
+		CurrentTransform.Init(FVector4f(0, 0, 0, 0), 3 * MaxPrimitives);
+		CurrentInverse.Init(FVector4f(0, 0, 0, 0), 3 * MaxPrimitives);
+		PreviousTransform.Init(FVector4f(0, 0, 0, 0), 3 * MaxPrimitives);
+		PreviousInverse.Init(FVector4f(0, 0, 0, 0), 3 * MaxPrimitives);
+		ElementExtent.Init(FVector4f(0, 0, 0, 0), MaxPrimitives);
+		PhysicsType.Init(0, MaxPrimitives);
+		DFIndex.Init(0, MaxPrimitives);
+		SourceSceneProxy.Init(nullptr, MaxPrimitives);
+	}
+
+	uint32 MaxPrimitives = 100;
+	uint32 MaxTransforms = MaxPrimitives * 2;
 };
 
 /** Render buffers that will be used in hlsl functions */
@@ -71,6 +115,18 @@ struct FNDIRigidMeshCollisionBuffer : public FRenderResource
 
 	/** Distance field index buffer */
 	FRWBuffer DFIndexBuffer;
+
+	/** Max number of primitives */
+	uint32 MaxNumPrimitives;
+
+	/** Max number of transforms (prev and next needed) */
+	uint32 MaxNumTransforms;
+
+	void SetMaxNumPrimitives(uint32 Num)
+	{
+		MaxNumPrimitives = Num;
+		MaxNumTransforms = 2 * Num;
+	}
 };
 
 /** Data stored per physics asset instance*/
@@ -91,10 +147,10 @@ struct FNDIRigidMeshCollisionData
 	ETickingGroup TickingGroup;
 
 	/** Physics asset Gpu buffer */
-	FNDIRigidMeshCollisionBuffer* AssetBuffer;
+	FNDIRigidMeshCollisionBuffer* AssetBuffer = nullptr;
 
 	/** Physics asset Cpu arrays */
-	FNDIRigidMeshCollisionArrays AssetArrays;  
+	FNDIRigidMeshCollisionArrays *AssetArrays = nullptr;
 
 	/** Static Mesh Components **/
 	TArray<AStaticMeshActor*> StaticMeshActors;
@@ -118,6 +174,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Static Mesh", meta = (EditCondition = "UseStaticMeshes"))
 	bool OnlyUseMoveable = true;
+
+	UPROPERTY(EditAnywhere, Category = "General")
+	int MaxNumPrimitives = 100;
 
 	/** UObject Interface */
 	virtual void PostInitProperties() override;
@@ -146,6 +205,15 @@ public:
 	virtual void ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors) override;
 #endif
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
+
+	/** Name of element offsets */
+	static const FString MaxTransformsName;
+
+	/** Name of element offsets */
+	static const FString CurrentOffsetName;
+
+	/** Name of element offsets */
+	static const FString PreviousOffsetName;
 
 	/** Name of element offsets */
 	static const FString ElementOffsetsName;
