@@ -27,17 +27,28 @@ UENUM(meta=(Bitflags, UseEnumValuesAsMaskValuesInEditor="true"))
 enum class EBakeMapType
 {
 	None                   = 0 UMETA(Hidden),
-	TangentSpaceNormalMap  = 1 << 0,
-	AmbientOcclusion       = 1 << 1,
-	BentNormal             = 1 << 2,
-	Curvature              = 1 << 3,
-	Texture2DImage         = 1 << 4,
-	NormalImage            = 1 << 5,
-	FaceNormalImage        = 1 << 6,
-	PositionImage          = 1 << 7,
-	MaterialID             = 1 << 8,
-	MultiTexture           = 1 << 9,
-	VertexColorImage       = 1 << 10,
+	/* Sample normals from the detail mesh in tangent space */
+	TangentSpaceNormalMap  = 1 << 0 UMETA(DisplayName="Tangent Space Normals"),
+	/* Sample ambient occlusion from the detail mesh */
+	AmbientOcclusion       = 1 << 1 UMETA(DisplayName="Ambient Occlusion"),
+	/* Sample normals skewed towards the least occluded direction from the detail mesh */
+	BentNormal             = 1 << 2 UMETA(DisplayName="Bent Normals"),
+	/* Sample mesh curvatures from the detail mesh */
+	Curvature              = 1 << 3 UMETA(DisplayName="Curvature"),
+	/* Sample a source texture from the detail mesh UVs */
+	Texture2DImage         = 1 << 4 UMETA(DisplayName="Texture"),
+	/* Sample object space normals from the detail mesh */
+	NormalImage            = 1 << 5 UMETA(DisplayName="Object Space Normals"),
+	/* Sample object space face normals from the detail mesh */
+	FaceNormalImage        = 1 << 6 UMETA(DisplayName="Face Normals"),
+	/* Sample bounding box relative positions from the detail mesh */
+	PositionImage          = 1 << 7 UMETA(DisplayName="Position"),
+	/* Sample material IDs as unique colors from the detail mesh */
+	MaterialID             = 1 << 8 UMETA(DisplayName="Material ID"),
+	/* Sample a source texture per material ID on the detail mesh */
+	MultiTexture           = 1 << 9 UMETA(DisplayName="MultiTexture"),
+	/* Sample the interpolated vertex colors from the detail mesh */
+	VertexColorImage       = 1 << 10 UMETA(DisplayName="Vertex Colors"),
 	Occlusion              = (AmbientOcclusion | BentNormal) UMETA(Hidden),
 	All                    = 0x7FF UMETA(Hidden)
 };

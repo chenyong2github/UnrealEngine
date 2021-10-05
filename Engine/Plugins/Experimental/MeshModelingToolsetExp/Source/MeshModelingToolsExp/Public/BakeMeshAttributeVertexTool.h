@@ -48,16 +48,26 @@ enum class EBakeVertexMode
 UENUM()
 enum class EBakeVertexTypeColor
 {
-	TangentSpaceNormal,
-	AmbientOcclusion,
-	BentNormal,
-	Curvature,
-	Texture2DImage,
-	NormalImage,
-	FaceNormalImage,
-	PositionImage,
-	MaterialID,
-	MultiTexture
+	/* Sample tangent space normals from the detail mesh */
+	TangentSpaceNormal UMETA(DisplayName="Tangent Space Normals"),
+	/* Sample ambient occlusion from the detail mesh */
+	AmbientOcclusion UMETA(DisplayName="Ambient Occlusion"),
+	/* Sample normals skewed towards the least occluded direction from the detail mesh */
+	BentNormal UMETA(DisplayName="Bent Normals"),
+	/* Sample mesh curvatures from the detail mesh */
+	Curvature UMETA(DisplayName="Curvature"),
+	/* Sample a source texture from the detail mesh UVs */
+	Texture2DImage UMETA(DisplayName="Texture"),
+	/* Sample object space normals from the detail mesh */
+	NormalImage UMETA(DisplayName="Object Space Normals"),
+	/* Sample object space face normals from the detail mesh */
+	FaceNormalImage UMETA(DisplayName="Face Normals"),
+	/* Sample bounding box relative positions from the detail mesh */
+	PositionImage UMETA(DisplayName="Position"),
+	/* Sample material IDs as unique colors from the detail mesh */
+	MaterialID UMETA(DisplayName="Material ID"),
+	/* Sample a source texture per material ID on the detail mesh */
+	MultiTexture UMETA(DisplayName="MultiTexture")
 };
 
 
@@ -65,8 +75,10 @@ UENUM()
 enum class EBakeVertexTypeChannel
 {
 	None,
-	AmbientOcclusion,
-	Curvature
+	/* Sample ambient occlusion from the detail mesh */
+	AmbientOcclusion UMETA(DisplayName="Ambient Occlusion"),
+	/* Sample mesh curvatures from the detail mesh */
+	Curvature UMETA(DisplayName="Curvature"),
 };
 
 

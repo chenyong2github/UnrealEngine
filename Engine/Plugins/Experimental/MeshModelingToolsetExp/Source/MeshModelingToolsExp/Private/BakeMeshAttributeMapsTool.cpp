@@ -334,8 +334,6 @@ void UBakeMeshAttributeMapsTool::Setup()
 	OcclusionMapProps->WatchProperty(OcclusionMapProps->MaxDistance, [this](float) { bInputsDirty = true; });
 	OcclusionMapProps->WatchProperty(OcclusionMapProps->SpreadAngle, [this](float) { bInputsDirty = true; });
 	OcclusionMapProps->WatchProperty(OcclusionMapProps->Distribution, [this](EOcclusionMapDistribution) { bInputsDirty = true; });
-	OcclusionMapProps->WatchProperty(OcclusionMapProps->BlurRadius, [this](float) { bInputsDirty = true; });
-	OcclusionMapProps->WatchProperty(OcclusionMapProps->bGaussianBlur, [this](float) { bInputsDirty = true; });
 	OcclusionMapProps->WatchProperty(OcclusionMapProps->BiasAngle, [this](float) { bInputsDirty = true; });
 	OcclusionMapProps->WatchProperty(OcclusionMapProps->NormalSpace, [this](ENormalMapSpace) { bInputsDirty = true; });
 
@@ -349,8 +347,6 @@ void UBakeMeshAttributeMapsTool::Setup()
 	CurvatureMapProps->WatchProperty(CurvatureMapProps->CurvatureType, [this](EBakedCurvatureTypeMode) { bInputsDirty = true; });
 	CurvatureMapProps->WatchProperty(CurvatureMapProps->ColorMode, [this](EBakedCurvatureColorMode) { bInputsDirty = true; });
 	CurvatureMapProps->WatchProperty(CurvatureMapProps->Clamping, [this](EBakedCurvatureClampMode) { bInputsDirty = true; });
-	CurvatureMapProps->WatchProperty(CurvatureMapProps->BlurRadius, [this](float) { bInputsDirty = true; });
-	CurvatureMapProps->WatchProperty(CurvatureMapProps->bGaussianBlur, [this](float) { bInputsDirty = true; });
 
 
 	Texture2DProps = NewObject<UBakedTexture2DImageProperties>(this);
@@ -739,7 +735,6 @@ EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_Occlusion()
 	OcclusionMapSettings.OcclusionRays = OcclusionMapProps->OcclusionRays;
 	OcclusionMapSettings.SpreadAngle = OcclusionMapProps->SpreadAngle;
 	OcclusionMapSettings.Distribution = OcclusionMapProps->Distribution;
-	OcclusionMapSettings.BlurRadius = (OcclusionMapProps->bGaussianBlur) ? OcclusionMapProps->BlurRadius : 0.0;
 	OcclusionMapSettings.BiasAngle = OcclusionMapProps->BiasAngle;
 	OcclusionMapSettings.NormalSpace = OcclusionMapProps->NormalSpace;
 
@@ -805,7 +800,6 @@ EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_Curvature()
 		CurvatureMapSettings.ClampMode = (int32)FMeshCurvatureMapEvaluator::EClampMode::Negative;
 		break;
 	}
-	CurvatureMapSettings.BlurRadius = (CurvatureMapProps->bGaussianBlur) ? CurvatureMapProps->BlurRadius : 0.0;
 
 	if (!(CachedCurvatureMapSettings == CurvatureMapSettings))
 	{

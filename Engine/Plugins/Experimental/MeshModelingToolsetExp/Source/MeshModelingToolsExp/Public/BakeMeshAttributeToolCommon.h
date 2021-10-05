@@ -88,14 +88,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = OcclusionMap)
 	EOcclusionMapDistribution Distribution = EOcclusionMapDistribution::Cosine;
 
-	/** Whether or not to apply Gaussian Blur to computed AO Map (recommended) */
-	UPROPERTY(EditAnywhere, Category = "OcclusionMap|Ambient Occlusion")
-	bool bGaussianBlur = true;
-
-	/** Pixel Radius of Gaussian Blur Kernel */
-	UPROPERTY(EditAnywhere, Category = "OcclusionMap|Ambient Occlusion", meta = (UIMin = "0", UIMax = "10.0", ClampMin = "0", ClampMax = "100.0"))
-	float BlurRadius = 2.25;
-
 	/** Contribution of AO rays that are within this angle (degrees) from horizontal are attenuated. This reduces faceting artifacts. */
 	UPROPERTY(EditAnywhere, Category = "OcclusionMap|Ambient Occlusion", meta = (UIMin = "0", UIMax = "45.0", ClampMin = "0", ClampMax = "89.9"))
 	float BiasAngle = 15.0;
@@ -182,14 +174,6 @@ public:
 	/** Clamping to apply to curvature values before scaling to color range */
 	UPROPERTY(EditAnywhere, Category = CurvatureMap)
 	EBakedCurvatureClampMode Clamping = EBakedCurvatureClampMode::None;
-
-	/** Whether or not to apply Gaussian Blur to computed Map */
-	UPROPERTY(EditAnywhere, Category = CurvatureMap)
-	bool bGaussianBlur = false;
-
-	/** Pixel Radius of Gaussian Blur Kernel */
-	UPROPERTY(EditAnywhere, Category = CurvatureMap, meta = (UIMin = "0", UIMax = "10.0", ClampMin = "0", ClampMax = "100.0"))
-	float BlurRadius = 2.25;
 };
 
 
@@ -260,7 +244,6 @@ struct FOcclusionMapSettings
 	float MaxDistance;
 	float SpreadAngle;
 	EOcclusionMapDistribution Distribution;
-	float BlurRadius;
 	float BiasAngle;
 	ENormalMapSpace NormalSpace;
 
@@ -271,7 +254,6 @@ struct FOcclusionMapSettings
 			MaxDistance == Other.MaxDistance &&
 			SpreadAngle == Other.SpreadAngle &&
 			Distribution == Other.Distribution &&
-			BlurRadius == Other.BlurRadius &&
 			BiasAngle == Other.BiasAngle &&
 			NormalSpace == Other.NormalSpace;
 	}
@@ -287,11 +269,10 @@ struct FCurvatureMapSettings
 	int32 ColorMode = 0;
 	int32 ClampMode = 0;
 	float MaxDistance = 1.0;
-	float BlurRadius = 1.0;
 
 	bool operator==(const FCurvatureMapSettings& Other) const
 	{
-		return Dimensions == Other.Dimensions && RayCount == Other.RayCount && CurvatureType == Other.CurvatureType && RangeMultiplier == Other.RangeMultiplier && MinRangeMultiplier == Other.MinRangeMultiplier && ColorMode == Other.ColorMode && ClampMode == Other.ClampMode && MaxDistance == Other.MaxDistance && BlurRadius == Other.BlurRadius;
+		return Dimensions == Other.Dimensions && RayCount == Other.RayCount && CurvatureType == Other.CurvatureType && RangeMultiplier == Other.RangeMultiplier && MinRangeMultiplier == Other.MinRangeMultiplier && ColorMode == Other.ColorMode && ClampMode == Other.ClampMode && MaxDistance == Other.MaxDistance;
 	}
 };
 
