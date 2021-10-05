@@ -1,4 +1,3 @@
-#ifndef ORT_MINIMAL_BUILD 
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 #include "core/common/make_unique.h"
@@ -305,5 +304,3 @@ bool IsOperationDeterministic(const std::string& domain, const std::string& op) 
 
 }  // namespace optimizer_utils
 }  // namespace onnxruntime
-
-#endif // ORT_MINIMAL_BUILD

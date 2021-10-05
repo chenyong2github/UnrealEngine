@@ -1,4 +1,3 @@
-#ifndef ORT_MINIMAL_BUILD 
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
@@ -109,5 +108,3 @@ Status FreeDimensionOverrideTransformer::ApplyImpl(Graph& graph, bool& modified,
 }
 
 }  // namespace onnxruntime
-
-#endif // ORT_MINIMAL_BUILD
