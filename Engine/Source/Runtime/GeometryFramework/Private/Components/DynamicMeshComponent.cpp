@@ -280,7 +280,10 @@ void UDynamicMeshComponent::UpdateLocalBounds()
 	LocalBounds = GetMesh()->GetBounds(true);
 	if (LocalBounds.MaxDim() <= 0)
 	{
-		LocalBounds = FAxisAlignedBox3d(FVector3d::Zero(), FMathf::ZeroTolerance);
+		// If bbox is empty, set a very small bbox to avoid log spam/etc in other engine systems.
+		// The check used is generally IsNearlyZero(), which defaults to KINDA_SMALL_NUMBER, so set 
+		// a slightly larger box here to be above that threshold
+		LocalBounds = FAxisAlignedBox3d(FVector3d::Zero(), (double)(KINDA_SMALL_NUMBER + SMALL_NUMBER) );
 	}
 }
 

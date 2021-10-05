@@ -68,6 +68,11 @@ void AGeneratedDynamicMeshActor::ExecuteRebuildGeneratedMeshIfPending()
 {
 	if (bGeneratedMeshRebuildPending)
 	{
+		if (bResetOnRebuild && DynamicMeshComponent && DynamicMeshComponent->GetDynamicMesh())
+		{
+			DynamicMeshComponent->GetDynamicMesh()->Reset();
+		}
+
 		FEditorScriptExecutionGuard Guard;
 		OnRebuildGeneratedMesh();
 		bGeneratedMeshRebuildPending = false;
