@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-#include "ThirdPartyWarningDisabler.h"
+#include "ThirdPartyWarningDisabler.h" // WITH_UE
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
@@ -18,7 +18,7 @@ NNI_THIRD_PARTY_INCLUDES_START
 #include <Windows.h>
 #else
 #include <unistd.h>
-#if defined(__MACH__) || defined(__PROSPERO__)
+#if defined(__MACH__) || defined(__PROSPERO__) // WITH_UE: Added __PROSPERO__
 #include <pthread.h>
 #else
 #include <sys/syscall.h>
@@ -26,15 +26,15 @@ NNI_THIRD_PARTY_INCLUDES_START
 #endif
 #include "core/platform/ort_mutex.h"
 
-#ifdef __PROSPERO__
+#ifdef __PROSPERO__ // WITH_UE
 #include <kernel.h>
-#endif
+#endif //__PROSPERO__
 
-#if __FreeBSD__ && !defined(__PROSPERO__)
+#if __FreeBSD__ && !defined(__PROSPERO__) // WITH_UE: Added !__PROSPERO__
 #include <sys/thr.h>  // Use thr_self() syscall under FreeBSD to get thread id
 #endif
 
-NNI_THIRD_PARTY_INCLUDES_END
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
 
 namespace onnxruntime {
 namespace logging {
@@ -181,7 +181,7 @@ static minutes InitLocaltimeOffset(const time_point<system_clock>& epoch) noexce
 #ifdef _WIN32
   localtime_s(&local_tm, &system_time_t);
   gmtime_s(&utc_tm, &system_time_t);
-#elif defined(__PROSPERO__)
+#elif defined(__PROSPERO__) // WITH_UE
   localtime_s(&system_time_t, &local_tm);
   gmtime_s(&system_time_t, &utc_tm);
 #else
@@ -224,7 +224,7 @@ unsigned int GetThreadId() {
   uint64_t tid64;
   pthread_threadid_np(NULL, &tid64);
   return static_cast<unsigned int>(tid64);
-#elif __PROSPERO__
+#elif __PROSPERO__ // WITH_UE
   uint64_t tid64;
   tid64 = scePthreadGetthreadid();
   return static_cast<unsigned int>(tid64);
@@ -245,7 +245,7 @@ unsigned int GetProcessId() {
   return static_cast<unsigned int>(GetCurrentProcessId());
 #elif defined(__MACH__)
   return static_cast<unsigned int>(getpid());
-#elif __PROSPERO__
+#elif __PROSPERO__ // WITH_UE
   return static_cast<unsigned int>(getpid());
 #else
   return static_cast<unsigned int>(syscall(SYS_getpid));
