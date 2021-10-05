@@ -1158,7 +1158,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 				{
 					0, //vertex_shader, must match FOpenGL::GetFirstVertexUAVUnit()
 					0,
-					4, //fragment_shader, must match FOpenGL::GetFirstPixelUAVUnit()
+					0, //fragment_shader, must match FOpenGL::GetFirstPixelUAVUnit()
 					0,
 					0,
 					0, //compute_shader
