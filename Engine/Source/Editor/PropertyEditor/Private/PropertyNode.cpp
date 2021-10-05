@@ -858,19 +858,20 @@ bool FPropertyNode::GetChildNode(const int32 ChildArrayIndex, TSharedPtr<FProper
 TSharedPtr<FPropertyNode> FPropertyNode::FindChildPropertyNode( const FName InPropertyName, bool bRecurse )
 {
 	// Search Children
-	for(int32 ChildIndex=0; ChildIndex<ChildNodes.Num(); ChildIndex++)
+	for (const TSharedPtr<FPropertyNode>& ChildNode : ChildNodes)
 	{
-		TSharedPtr<FPropertyNode>& ChildNode = ChildNodes[ChildIndex];
-
 		if( ChildNode->GetProperty() && ChildNode->GetProperty()->GetFName() == InPropertyName )
 		{
 			return ChildNode;
 		}
-		else if( bRecurse )
-		{
-			TSharedPtr<FPropertyNode> PropertyNode = ChildNode->FindChildPropertyNode(InPropertyName, bRecurse );
+	}
 
-			if( PropertyNode.IsValid() )
+	if (bRecurse)
+	{
+		for (const TSharedPtr<FPropertyNode>& ChildNode : ChildNodes)
+		{
+			TSharedPtr<FPropertyNode> PropertyNode = ChildNode->FindChildPropertyNode(InPropertyName, bRecurse);
+			if (PropertyNode.IsValid())
 			{
 				return PropertyNode;
 			}
