@@ -216,7 +216,8 @@ protected:
 	TObjectPtr<UMaterialInstanceDynamic> WorkingPreviewMaterial;
 	float SecondsBeforeWorkingMaterial = 0.75;
 
-	UWorld* TargetWorld = nullptr;
+	UPROPERTY()
+	TObjectPtr<UWorld> TargetWorld = nullptr;
 
 	TUniquePtr<TGenericDataBackgroundCompute<UE::Geometry::FMeshVertexBaker>> Compute = nullptr;
 	void OnResultUpdated(const TUniquePtr<UE::Geometry::FMeshVertexBaker>& NewResult);
@@ -237,6 +238,8 @@ protected:
 	void UpdateVisualization();
 	void UpdateColorTopology();
 	void UpdateResult();
+
+	const bool bPreferPlatformData = false;
 
 	EBakeOpState OpState = EBakeOpState::Evaluate;
 

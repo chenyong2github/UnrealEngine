@@ -879,12 +879,10 @@ EBakeOpState UBakeMeshAttributeVertexTool::UpdateResult_Texture2DImage()
 		return EBakeOpState::Invalid;
 	}
 
-	// The read texture data is always in linear space.
-	NewSettings.bSRGB = false;
 
 	{
 		CachedTextureImage = MakeShared<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>();
-		if (!UE::AssetUtils::ReadTexture(TextureSettings->SourceTexture, *CachedTextureImage, /*bPreferPlatformData*/ false))
+		if (!UE::AssetUtils::ReadTexture(TextureSettings->SourceTexture, *CachedTextureImage, bPreferPlatformData))
 		{
 			GetToolManager()->DisplayMessage(LOCTEXT("CannotReadTextureWarning", "Cannot read from the source texture"), EToolMessageLevel::UserWarning);
 			return EBakeOpState::Invalid;
@@ -924,9 +922,6 @@ EBakeOpState UBakeMeshAttributeVertexTool::UpdateResult_MultiTexture()
 
 	CachedMultiTextures.Reset();
 
-	// The read texture data is always in linear space.
-	NewSettings.bSRGB = false;
-	
 	for (auto& InputTexture : MultiTextureSettings->MaterialIDSourceTextureMap)
 	{
 		UTexture2D* Texture = InputTexture.Value;
@@ -938,7 +933,7 @@ EBakeOpState UBakeMeshAttributeVertexTool::UpdateResult_MultiTexture()
 
 		int32 MaterialID = InputTexture.Key;
 		CachedMultiTextures.Add(MaterialID, MakeShared<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>());
-		if (!UE::AssetUtils::ReadTexture(Texture, *CachedMultiTextures[MaterialID], /*bPreferPlatformData*/ false))
+		if (!UE::AssetUtils::ReadTexture(Texture, *CachedMultiTextures[MaterialID], bPreferPlatformData))
 		{
 			GetToolManager()->DisplayMessage(LOCTEXT("CannotReadTextureWarning", "Cannot read from the source texture"), EToolMessageLevel::UserWarning);
 			return EBakeOpState::Invalid;

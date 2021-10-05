@@ -231,7 +231,7 @@ protected:
 	//
 	// Utilities
 	//
-	const bool bPreferPlatformData = true;
+	const bool bPreferPlatformData = false;
 	
 	/** @return An enumerated map type from a bitfield */
 	static EBakeMapType GetMapTypes(const int32& MapTypes);

@@ -309,11 +309,10 @@ struct FTexture2DImageSettings
 {
 	FImageDimensions Dimensions;
 	int32 UVLayer = 0;
-	bool bSRGB = true;
 
 	bool operator==(const FTexture2DImageSettings& Other) const
 	{
-		return Dimensions == Other.Dimensions && UVLayer == Other.UVLayer && bSRGB == Other.bSRGB;
+		return Dimensions == Other.Dimensions && UVLayer == Other.UVLayer;
 	}
 };
 

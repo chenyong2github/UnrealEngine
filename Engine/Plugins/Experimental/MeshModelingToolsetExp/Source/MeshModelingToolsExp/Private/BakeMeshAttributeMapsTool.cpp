@@ -866,9 +866,6 @@ EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_Texture2DImage()
 			GetToolManager()->DisplayMessage(LOCTEXT("CannotReadTextureWarning", "Cannot read from the source texture"), EToolMessageLevel::UserWarning);
 			return EBakeOpState::Invalid;
 		}
-
-		// The read texture data is always in linear space.
-		NewSettings.bSRGB = false; 
 	}
 
 	if (!(CachedTexture2DImageSettings == NewSettings))
@@ -908,9 +905,6 @@ EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_MultiTexture()
 	}
 
 	CachedMultiTextures.Reset();
-
-	// The read texture data is always in linear space.
-	NewSettings.bSRGB = false;
 	
 	for ( auto& InputTexture : MultiTextureProps->MaterialIDSourceTextureMap)
 	{
