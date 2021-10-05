@@ -26,6 +26,13 @@ public:
 
 	virtual ~AGeneratedDynamicMeshActor();
 
+
+public:
+	/** If true, the internal UDynamicMesh will be cleared before the OnRebuildGeneratedMesh event is fired. */
+	UPROPERTY(Category = DynamicMeshActor, EditAnywhere, BlueprintReadWrite)
+	bool bResetOnRebuild = true;
+
+
 	/**
 	 * This event will be fired to notify the BP that the generated Mesh should
 	 * be rebuilt. GeneratedDynamicMeshActor BP subclasses should rebuild their 

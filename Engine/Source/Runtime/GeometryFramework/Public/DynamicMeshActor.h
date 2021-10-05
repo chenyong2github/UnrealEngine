@@ -17,7 +17,7 @@ class GEOMETRYFRAMEWORK_API ADynamicMeshActor : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
-private:
+protected:
 	UPROPERTY(Category = DynamicMeshActor, VisibleAnywhere, BlueprintReadOnly, meta = (ExposeFunctionCategories = "Mesh,Rendering,Physics,Components|StaticMesh", AllowPrivateAccess = "true"))
 	TObjectPtr<class UDynamicMeshComponent> DynamicMeshComponent;
 
@@ -36,9 +36,9 @@ public:
 
 public:
 	/** Control whether the DynamicMeshPool will be created when requested via GetComputeMeshPool() */
-	UPROPERTY(Category = DynamicMeshActor, VisibleAnywhere, BlueprintReadWrite)
+	UPROPERTY(Category = DynamicMeshActor, EditAnywhere, BlueprintReadWrite)
 	bool bEnableComputeMeshPool = true;
-private:
+protected:
 	/** The internal Mesh Pool, for use in DynamicMeshActor BPs. Use GetComputeMeshPool() to access this, as it will only be created on-demand if bEnableComputeMeshPool = true */
 	UPROPERTY(Transient)
 	TObjectPtr<UDynamicMeshPool> DynamicMeshPool;
