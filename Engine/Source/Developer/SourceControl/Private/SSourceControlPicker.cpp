@@ -117,10 +117,14 @@ FText SSourceControlPicker::GetProviderText(const FName& InName) const
 		return LOCTEXT("NoProviderDescription", "None  (source control disabled)");
 	}
 
-	// @todo: Remove this block after the Git plugin has been exhaustively tested (also remember to change the Git plugin's "IsBetaVersion" setting to false.)
-	if(InName == "Git" )
+	// @todo: Remove this block after the Git/Skein plugins have been exhaustively tested (also remember to change the Git plugin's "IsBetaVersion" setting to false.)
+	if(InName == "Git")
 	{
 		return LOCTEXT( "GitBetaProviderName", "Git  (beta version)" );
+	}
+	if(InName == "Skein")
+	{
+		return LOCTEXT("SkeinBetaProviderName", "Skein  (beta version)");
 	}
 
 	return FText::FromName(InName);
