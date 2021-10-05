@@ -36,12 +36,12 @@ namespace HordeServer.Storage.Collections
 		/// <inheritdoc/>
 		public async Task<CbObject?> GetAsync(NamespaceId NsId, IoHash Hash)
 		{
-			byte[]? Data = await BlobCollection.ReadBytesAsync(NsId, Hash);
+			ReadOnlyMemory<byte>? Data = await BlobCollection.ReadBytesAsync(NsId, Hash);
 			if(Data == null)
 			{
 				return null;
 			}
-			return new CbObject(Data);
+			return new CbObject(Data.Value);
 		}
 
 		/// <inheritdoc/>

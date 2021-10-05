@@ -2,6 +2,7 @@
 
 using EpicGames.Core;
 using HordeServer.Utilities;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
@@ -30,17 +31,44 @@ namespace HordeServer.Storage.Collections
 		}
 
 		/// <inheritdoc/>
-		public Task<Stream?> ReadAsync(NamespaceId NamespaceId, IoHash Hash)
+		public Task<Stream?> TryReadStreamAsync(NamespaceId NamespaceId, IoHash Hash)
 		{
 			string Path = GetPath(NamespaceId, Hash);
 			return StorageBackend.ReadAsync(Path);
 		}
 
 		/// <inheritdoc/>
-		public Task WriteAsync(NamespaceId NamespaceId, IoHash Hash, Stream Stream)
+		public async Task<ReadOnlyMemory<byte>?> TryReadBytesAsync(NamespaceId NamespaceId, IoHash Hash)
+		{
+			using (MemoryStream OutputStream = new MemoryStream())
+			{
+				using (Stream? InputStream = await TryReadStreamAsync(NamespaceId, Hash))
+				{
+					if (InputStream == null)
+					{
+						return null;
+					}
+
+					await InputStream.CopyToAsync(OutputStream);
+					return OutputStream.ToArray();
+				}
+			}
+		}
+
+		/// <inheritdoc/>
+		public Task WriteStreamAsync(NamespaceId NamespaceId, IoHash Hash, Stream Stream)
 		{
 			string Path = GetPath(NamespaceId, Hash);
 			return StorageBackend.WriteAsync(Path, Stream);
+		}
+
+		/// <inheritdoc/>
+		public async Task WriteBytesAsync(NamespaceId NamespaceId, IoHash Hash, ReadOnlyMemory<byte> Data)
+		{
+			using (ReadOnlyMemoryStream Stream = new ReadOnlyMemoryStream(Data))
+			{
+				await WriteStreamAsync(NamespaceId, Hash, Stream);
+			}
 		}
 
 		/// <inheritdoc/>
