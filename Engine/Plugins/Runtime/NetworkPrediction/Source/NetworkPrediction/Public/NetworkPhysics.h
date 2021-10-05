@@ -133,11 +133,10 @@ public:
 	virtual void PostNetRecv(UWorld* World, int32 LocalOffset, int32 LastProcessedFrame) = 0;
 	virtual void PreNetSend(UWorld* World, float DeltaSeconds) = 0;
 
-	// Finalizes InputCmds, marshalls them to PT and Network.
-	virtual void ProcessInputs_External(int32 PhysicsStep, int32 LocalFrameOffset, bool& bOutSendClientInputCmd) { }
-	
-	// Records "Final" Inputs for a frame and marshalls them back to GT for networking
-	virtual void ProcessInputs_Internal(int32 PhysicsStep) { }
+	// Finalizes InputCmds, marshalls them to PT and Network. TODO: Remove
+	virtual void ProcessInputs_External(int32 PhysicsStep, int32 LocalFrameOffset, bool& bOutSendClientInputCmd) { }	
+
+	virtual void InjectInputs_External(int32 PhysicsStep, int32 NumSteps, int32 LocalFrameOffset, bool& bOutSendClientInputCmd) { }
 
 	// ShouldReconcile
 	virtual int32 TriggerRewindIfNeeded_Internal(int32 LastCompletedStep) { return INDEX_NONE; }
@@ -215,9 +214,9 @@ private:
 	TArray<TPair<FName, TUniquePtr<INetworkPhysicsSubsystem>>> SubSystems;
 
 	friend struct FNetworkPhysicsRewindCallback;
-	void ProcessInputs_External(int32 PhysicsStep, const TArray<Chaos::FSimCallbackInputAndObject>& SimCallbackInputs);
+	void InjectInputs_External(int32 PhysicsStep, int32 NumSteps);
 
-	void ProcessClientInputBuffers_External(int32 PhysicsStep, const TArray<Chaos::FSimCallbackInputAndObject>& SimCallbackInputs);
+	void ProcessClientInputBuffers_External(int32 PhysicsStep);
 
 	// Historic GT recording for GT only (compiled out. probably temp until Insights integration is back)
 	struct FDebugSnapshot

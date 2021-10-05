@@ -28,4 +28,10 @@ const int32 FrameStorageGrowth = NP_FRAME_STORAGE_GROWTH;
 
 const int32 InputCmdBufferSize = NP_FRAME_INPUTCMD_BUFFER_SIZE;
 
+#ifndef NP_INLINE_SIMOBJ_INPUTS
+	#define NP_INLINE_SIMOBJ_INPUTS 3
+#endif
+
+const int32 InlineSimObjInputs = NP_INLINE_SIMOBJ_INPUTS;
+
 };

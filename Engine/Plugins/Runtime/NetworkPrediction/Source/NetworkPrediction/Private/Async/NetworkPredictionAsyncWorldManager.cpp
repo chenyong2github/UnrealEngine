@@ -108,9 +108,14 @@ void FNetworkPredictionAsyncWorldManager::NetSerializePlayerControllerInputCmds(
 
 					for (int32 Frame = WriteStart; Frame <= WriteEnd; ++Frame)
 					{
-						//UE_LOG(LogTemp, Log, TEXT("[S] De-NetSerialize Cmd %d Frame %d. NumBytes: %d"), Frame + CmdOffset, Frame, PCInputBuffer.Get(Frame + CmdOffset).Num());
+						//UE_LOG(LogTemp, Log, TEXT("[S] De-NetSerialize Cmd %d Frame %d. NumBytes: %d."), Frame + CmdOffset, Frame, PCInputBuffer.Get(Frame + CmdOffset).Num());
 						NetSerializeCmd(Frame + CmdOffset, Frame);
 					}
+				}
+
+				if (Info.LastFrame < PhysicsStep)
+				{
+					UE_LOG(LogNetworkPrediction, Warning, TEXT("Server does not have valid InputCmd for remote player on PhysicsStep %d (LastFrame: %d)"), PhysicsStep, Info.LastFrame);
 				}
 			}
 		}

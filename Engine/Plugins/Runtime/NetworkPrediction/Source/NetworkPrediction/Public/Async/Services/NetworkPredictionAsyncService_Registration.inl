@@ -65,7 +65,7 @@ public:
 				DataStore->InActivePendingInputCmds.RemoveAtSwap(idx, 1, false);
 			}
 
-			TAsyncModelDataStore_Input<AsyncModelDef>* InputDataStore = Input->GetDataStore<AsyncModelDef>();
+			TAsyncModelDataStore_Input<AsyncModelDef>* InputDataStore = Input->GetPendingDataStore_External<AsyncModelDef>();
 			InputDataStore->DeletedInstances.Add(ID);
 		}
 	}
@@ -95,7 +95,7 @@ public:
 		}
 
 		// Remap any deferred local state mods
-		TAsyncModelDataStore_Input<AsyncModelDef>* InputData = AsyncInput->GetDataStore<AsyncModelDef>();
+		TAsyncModelDataStore_Input<AsyncModelDef>* InputData = AsyncInput->GetPendingDataStore_External<AsyncModelDef>();
 		npCheckSlow(InputData);
 
 		// note: going in reverse would be better since we could use RemoveAtSwap but preserving order that mods are applied is important and that would reverse them
@@ -150,7 +150,7 @@ private:
 		NpResizeForIndex(DataStore->LatestSnapshot.InputCmds, FreeIndice);
 
 		// Marshal via Input
-		TAsyncModelDataStore_Input<AsyncModelDef>* InputDataStore = Input->GetDataStore<AsyncModelDef>();
+		TAsyncModelDataStore_Input<AsyncModelDef>* InputDataStore = Input->GetPendingDataStore_External<AsyncModelDef>();
 		npCheckSlow(InputDataStore);
 
 		InputDataStore->NewInstances.Add({ID, InstanceData, MoveTemp(InitialValueNet)});

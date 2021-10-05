@@ -80,7 +80,7 @@ public:
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(NPA_MarshalPreSimulate);
 
-		const TAsyncModelDataStore_Input<AsyncModelDef>* InputData = SimInput->GetDataStore<AsyncModelDef>();
+		const TAsyncModelDataStore_Input<AsyncModelDef>* InputData = SimInput->GetDataStoreChecked<AsyncModelDef>(LocalFrame);
 		TAsncFrameSnapshot<AsyncModelDef>& Snapshot = DataStore->Frames[LocalFrame];
 
 		/*
@@ -98,39 +98,44 @@ public:
 		}
 		*/
 
-		// New instances
-		for (const typename TAsyncModelDataStore_Input<AsyncModelDef>::FNewInstance& NewInstance : InputData->NewInstances)
+		if (InputData)
 		{
-			DataStore->Instances.FindOrAdd(NewInstance.ID) = NewInstance.StaticData;
+			// New instances
+			for (const typename TAsyncModelDataStore_Input<AsyncModelDef>::FNewInstance& NewInstance : InputData->NewInstances)
+			{
+				DataStore->Instances.FindOrAdd(NewInstance.ID) = NewInstance.StaticData;
 
-			NpResizeForIndex(Snapshot.InputCmds, NewInstance.StaticData.Index);
-			NpResizeForIndex(Snapshot.NetStates, NewInstance.StaticData.Index);
+				NpResizeForIndex(Snapshot.InputCmds, NewInstance.StaticData.Index);
+				NpResizeForIndex(Snapshot.NetStates, NewInstance.StaticData.Index);
 
-			Snapshot.NetStates[NewInstance.StaticData.Index] = NewInstance.NetState;
-		}
+				Snapshot.NetStates[NewInstance.StaticData.Index] = NewInstance.NetState;
+			}
 
-		// State Mods
-		for (const TAsyncLocalStateMod<AsyncModelDef>& LocalMod : InputData->LocalStateMods)
-		{
-			LocalMod.Func(DataStore->Instances.FindChecked(LocalMod.ID).LocalState);
-		}
+			// State Mods
+			for (const TAsyncLocalStateMod<AsyncModelDef>& LocalMod : InputData->LocalStateMods)
+			{
+				LocalMod.Func(DataStore->Instances.FindChecked(LocalMod.ID).LocalState);
+			}
 
-		for (const TAsyncNetStateMod<AsyncModelDef>& NetMod : InputData->NetStateMods)
-		{
-			NetMod.Func(Snapshot.NetStates[NetMod.Index]);
-		}
+			for (const TAsyncNetStateMod<AsyncModelDef>& NetMod : InputData->NetStateMods)
+			{
+				NetMod.Func(Snapshot.NetStates[NetMod.Index]);
+			}
 
-		// New Local InputCmds
-		for (const typename TAsyncModelDataStore_Input<AsyncModelDef>::FLocalInputCmd& LocalInput : InputData->LocalInputCmds)
-		{
-			Snapshot.InputCmds[LocalInput.Index] = LocalInput.InputCmd;
-		}
+			// New Local InputCmds
+			for (const typename TAsyncModelDataStore_Input<AsyncModelDef>::FLocalInputCmd& LocalInput : InputData->LocalInputCmds)
+			{
+				//UE_LOG(LogTemp, Warning, TEXT("[%d] Presimulate localInputcmd %s. SimInput: 0x%X"), LocalFrame, *LocalInput.InputCmd.ToString(), (int64)SimInput);
 
-		// Deletes
-		for (const FNetworkPredictionAsyncID& ID : InputData->DeletedInstances)
-		{
-			// I'm not sure if this is enough. Maybe we should track the 'kill frame' on the PT rather than removing anything from data structures
-			DataStore->Instances.Remove(ID);
+				Snapshot.InputCmds[LocalInput.Index] = LocalInput.InputCmd;
+			}
+
+			// Deletes
+			for (const FNetworkPredictionAsyncID& ID : InputData->DeletedInstances)
+			{
+				// I'm not sure if this is enough. Maybe we should track the 'kill frame' on the PT rather than removing anything from data structures
+				DataStore->Instances.Remove(ID);
+			}
 		}
 
 		// Apply Corrections
@@ -155,12 +160,15 @@ public:
 			// But even in resim we have to copy the AP input cmds forward due to how we are synchronizing with the GT and correction above.
 			// Using the Input's LocalInputCmds is a bit abusive but is the simplest approach since the data is right there. See notes at 
 			// the top of this header
-			for (const typename TAsyncModelDataStore_Input<AsyncModelDef>::FLocalInputCmd& LocalInput : InputData->LocalInputCmds)
+			if (InputData)
 			{
-				const int32 idx = LocalInput.Index;
-				if (Snapshot.InputCmds.IsValidIndex(idx) && NextSnapshot.InputCmds.IsValidIndex(idx))
+				for (const typename TAsyncModelDataStore_Input<AsyncModelDef>::FLocalInputCmd& LocalInput : InputData->LocalInputCmds)
 				{
-					NextSnapshot.InputCmds[idx] = Snapshot.InputCmds[idx];
+					const int32 idx = LocalInput.Index;
+					if (Snapshot.InputCmds.IsValidIndex(idx) && NextSnapshot.InputCmds.IsValidIndex(idx))
+					{
+						NextSnapshot.InputCmds[idx] = Snapshot.InputCmds[idx];
+					}
 				}
 			}
 		}
@@ -223,22 +231,25 @@ public:
 	// Marshal external data to SimInput
 	void MarshalInput(const int32 Frame, FNetworkPredictionSimCallbackInput* SimInput) final override
 	{
-		TAsyncModelDataStore_Input<AsyncModelDef>* InputData = SimInput->GetDataStore<AsyncModelDef>();
+		TAsyncModelDataStore_Input<AsyncModelDef>* InputData = SimInput->GetDataStoreChecked<AsyncModelDef>(Frame);
 
 		// ---------------------------------------------------------------------
 		//	InputCmds
 		// ---------------------------------------------------------------------
 
-		for (TAsyncPendingInputCmdPtr<AsyncModelDef>& Info : DataStore_External->ActivePendingInputCmds)
+		if (InputData)
 		{
-			npCheckSlow(Info.PendingInputCmd != nullptr);
-			InputData->LocalInputCmds.Emplace(Info.Index, *Info.PendingInputCmd);
-		}
+			for (TAsyncPendingInputCmdPtr<AsyncModelDef>& Info : DataStore_External->ActivePendingInputCmds)
+			{
+				npCheckSlow(Info.PendingInputCmd != nullptr);
+				InputData->LocalInputCmds.Emplace(Info.Index, *Info.PendingInputCmd);
+			}
 
-		for (auto& MapIt : DataStore_External->PendingInputCmdBuffers)
-		{
-			TAsyncPendingInputCmdBuffer<AsyncModelDef>& PendingInputs = MapIt.Value.Get();
-			InputData->LocalInputCmds.Emplace(PendingInputs.Index, PendingInputs.Buffer[Frame % PendingInputs.Buffer.Num()]);
+			for (auto& MapIt : DataStore_External->PendingInputCmdBuffers)
+			{
+				TAsyncPendingInputCmdBuffer<AsyncModelDef>& PendingInputs = MapIt.Value.Get();
+				InputData->LocalInputCmds.Emplace(PendingInputs.Index, PendingInputs.Buffer[Frame % PendingInputs.Buffer.Num()]);
+			}
 		}
 
 		// ---------------------------------------------------------------------
@@ -284,7 +295,7 @@ public:
 		}
 		else
 		{
-			AsyncInput->GetDataStore<AsyncModelDef>()->LocalStateMods.Emplace(ID, MoveTemp(Func));
+			AsyncInput->GetPendingDataStore_External<AsyncModelDef>()->LocalStateMods.Emplace(ID, MoveTemp(Func));
 		}
 	}
 	
@@ -300,7 +311,7 @@ public:
 
 		npCheckSlow(AsyncInput);
 		const int32 idx = DataStore_External->Instances.FindChecked(ID).Index;
-		AsyncInput->GetDataStore<AsyncModelDef>()->NetStateMods.Emplace(idx, MoveTemp(Func));
+		AsyncInput->GetPendingDataStore_External<AsyncModelDef>()->NetStateMods.Emplace(idx, MoveTemp(Func));
 	}
 
 private:
