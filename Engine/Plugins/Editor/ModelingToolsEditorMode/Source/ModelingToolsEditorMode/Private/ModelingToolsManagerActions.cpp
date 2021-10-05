@@ -26,7 +26,8 @@ TSharedPtr<FUICommandInfo> FModelingToolsManagerCommands::FindToolByName(FString
 	bFound = false;
 	for (const FStartToolCommand& Command : RegisteredTools)
 	{
-		if (Command.ToolUIName.Compare(Name, ESearchCase::IgnoreCase) == 0)
+		if (Command.ToolUIName.Equals(Name, ESearchCase::IgnoreCase)
+		 || (Command.ToolCommand.IsValid() && Command.ToolCommand->GetLabel().ToString().Equals(Name, ESearchCase::IgnoreCase)))
 		{
 			bFound = true;
 			return Command.ToolCommand;

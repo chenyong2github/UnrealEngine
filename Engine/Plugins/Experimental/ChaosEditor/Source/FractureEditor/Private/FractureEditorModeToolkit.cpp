@@ -337,6 +337,58 @@ void FFractureEditorModeToolkit::InvokeUI()
 		HierarchyTab = ModeUILayerPtr->GetTabManager()->TryInvokeTab(FAssetEditorModeUILayer::TopRightTabID);
 		StatisticsTab = ModeUILayerPtr->GetTabManager()->TryInvokeTab(FAssetEditorModeUILayer::BottomLeftTabID);
 	}
+
+
+	//
+	// Apply custom section header colors.
+	// See comments below, this is done via directly manipulating Slate widgets generated deep inside BaseToolkit.cpp,
+	// and will stop working if the Slate widget structure changes
+	//
+
+	UFractureModeCustomizationSettings* UISettings = GetMutableDefault<UFractureModeCustomizationSettings>();
+
+	// look up default radii for palette toolbar expandable area headers
+	FVector4 HeaderRadii(4, 4, 0, 0);
+	const FSlateBrush* BaseBrush = FAppStyle::Get().GetBrush("PaletteToolbar.ExpandableAreaHeader");
+	if (BaseBrush != nullptr)
+	{
+		HeaderRadii = BaseBrush->OutlineSettings.CornerRadii;
+	}
+
+	for (FEdModeToolbarRow& ToolbarRow : ActiveToolBarRows)
+	{
+		for (FFractureModeCustomSectionColor ToolColor : UISettings->SectionColors)
+		{
+			if (ToolColor.SectionName.Equals(ToolbarRow.DisplayName.ToString(), ESearchCase::IgnoreCase)
+			 || ToolColor.SectionName.Equals(ToolbarRow.PaletteName.ToString(), ESearchCase::IgnoreCase))
+			{
+				// code below is highly dependent on the structure of the ToolbarRow.ToolbarWidget. Currently this is 
+				// a SMultiBoxWidget, a few levels below a SExpandableArea. The SExpandableArea contains a SVerticalBox
+				// with the header as a SBorder in Slot 0. The code will fail gracefully if this structure changes.
+
+				TSharedPtr<SWidget> ExpanderVBoxWidget = (ToolbarRow.ToolbarWidget.IsValid() && ToolbarRow.ToolbarWidget->GetParentWidget().IsValid()) ?
+					ToolbarRow.ToolbarWidget->GetParentWidget()->GetParentWidget() : TSharedPtr<SWidget>();
+				if (ExpanderVBoxWidget.IsValid() && ExpanderVBoxWidget->GetTypeAsString().Compare(TEXT("SVerticalBox")) == 0)
+				{
+					TSharedPtr<SVerticalBox> ExpanderVBox = StaticCastSharedPtr<SVerticalBox>(ExpanderVBoxWidget);
+					if (ExpanderVBox.IsValid() && ExpanderVBox->NumSlots() > 0)
+					{
+						const TSharedRef<SWidget>& SlotWidgetRef = ExpanderVBox->GetSlot(0).GetWidget();
+						TSharedPtr<SWidget> SlotWidgetPtr(SlotWidgetRef);
+						if (SlotWidgetPtr.IsValid() && SlotWidgetPtr->GetTypeAsString().Compare(TEXT("SBorder")) == 0)
+						{
+							TSharedPtr<SBorder> TopBorder = StaticCastSharedPtr<SBorder>(SlotWidgetPtr);
+							if (TopBorder.IsValid())
+							{
+								TopBorder->SetBorderImage(new FSlateRoundedBoxBrush(FSlateColor(ToolColor.Color), HeaderRadii));
+							}
+						}
+					}
+				}
+				break;
+			}
+		}
+	}
 }
 
 TSharedRef<SDockTab> FFractureEditorModeToolkit::CreateHierarchyTab(const FSpawnTabArgs& Args)
@@ -517,11 +569,64 @@ void FFractureEditorModeToolkit::SetInitialPalette()
 	}
 }
 
+void FFractureEditorModeToolkit::GetToolPaletteNames(TArray<FName>& PaletteNamesOut) const
+{
+	PaletteNamesOut = PaletteNames;
+
+	UFractureModeCustomizationSettings* UISettings = GetMutableDefault<UFractureModeCustomizationSettings>();
+
+	// if user has provided custom ordering of tool palettes in the Editor Settings, try to apply them
+	if (UISettings->ToolSectionOrder.Num() > 0)
+	{
+		TArray<FName> NewPaletteNames;
+		for (FString SectionName : UISettings->ToolSectionOrder)
+		{
+			for (int32 k = 0; k < PaletteNamesOut.Num(); ++k)
+			{
+				if (SectionName.Equals(GetToolPaletteDisplayName(PaletteNamesOut[k]).ToString(), ESearchCase::IgnoreCase)
+				 || SectionName.Equals(PaletteNamesOut[k].ToString(), ESearchCase::IgnoreCase))
+				{
+					NewPaletteNames.Add(PaletteNamesOut[k]);
+					PaletteNamesOut.RemoveAt(k);
+					break;
+				}
+			}
+		}
+		NewPaletteNames.Append(PaletteNamesOut);
+		PaletteNamesOut = MoveTemp(NewPaletteNames);
+	}
+
+	// if user has provided a list of favorite tools, add that palette to the list
+	if (UISettings->ToolFavorites.Num() > 0)
+	{
+		PaletteNamesOut.Insert(FName(TEXT("Favorites")), 0);
+	}
+}
+
 void FFractureEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToolBarBuilder& ToolbarBuilder) 
 {
 	const FFractureEditorCommands& Commands = FFractureEditorCommands::Get();
 
-	if (PaletteIndex == TEXT("Generate"))
+	if (PaletteIndex == TEXT("Favorites"))
+	{
+		UFractureModeCustomizationSettings* UISettings = GetMutableDefault<UFractureModeCustomizationSettings>();
+
+		// build Favorites tool palette
+		for (FString ToolName : UISettings->ToolFavorites)
+		{
+			bool bFound = false;
+			TSharedPtr<FUICommandInfo> FoundToolCommand = Commands.FindToolByName(ToolName, bFound);
+			if (bFound)
+			{
+				ToolbarBuilder.AddToolBarButton(FoundToolCommand);
+			}
+			else
+			{
+				UE_LOG(LogFractureTool, Display, TEXT("FractureMode: could not find Favorited Tool %s"), *ToolName);
+			}
+		}
+	}
+	else if (PaletteIndex == TEXT("Generate"))
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.GenerateAsset);
 		ToolbarBuilder.AddToolBarButton(Commands.ResetAsset);

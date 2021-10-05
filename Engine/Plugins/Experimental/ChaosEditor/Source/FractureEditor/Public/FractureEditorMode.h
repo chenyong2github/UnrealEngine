@@ -6,6 +6,7 @@
 #include "Tools/LegacyEdModeWidgetHelpers.h"
 #include "EditorUndoClient.h"
 #include "GeometryCollection/GeometryCollectionActor.h"
+#include "Engine/DeveloperSettings.h"
 
 #include "FractureEditorMode.generated.h"
 
@@ -71,3 +72,64 @@ private:
 	// Hack: We have to set this to work around the editor defaulting to orbit around selection and breaking our custom per-bone orbiting
 	mutable TOptional<FVector> CustomOrbitPivot;
 };
+
+
+
+
+/**
+ * Defines a color to be used for a particular Tool Palette Section
+ */
+USTRUCT()
+struct FFractureModeCustomSectionColor
+{
+	GENERATED_BODY()
+
+	/** Name of Section in Fracture Mode Tool Palette */
+	UPROPERTY(EditAnywhere, Category = "SectionColor")
+	FString SectionName = TEXT("");
+
+	/** Custom Header Color */
+	UPROPERTY(EditAnywhere, Category = "SectionColor")
+	FLinearColor Color = FLinearColor::Gray;
+};
+
+
+
+UCLASS(config = Editor)
+class FRACTUREEDITOR_API UFractureModeCustomizationSettings : public UDeveloperSettings
+{
+	GENERATED_BODY()
+
+public:
+	// UDeveloperSettings overrides
+
+	virtual FName GetContainerName() const { return FName("Editor"); }
+	virtual FName GetCategoryName() const { return FName("Plugins"); }
+	virtual FName GetSectionName() const { return FName("FractureEditor"); }
+
+	virtual FText GetSectionText() const override
+	{
+		return NSLOCTEXT("FractureEditorMode", "FractureModeSettingsName", "Fracture Mode");
+	}
+
+	virtual FText GetSectionDescription() const override
+	{
+		return NSLOCTEXT("FractureEditorMode", "FractureModeSettingsDescription", "Configure the Fracture Editor Mode plugin");
+	}
+
+public:
+
+
+	/** Add the names of Fracture Mode Tool Palette Sections to have them appear at the top of the Tool Palette, in the order listed below. */
+	UPROPERTY(config, EditAnywhere, Category = "Fracture Mode|UI Customization")
+	TArray<FString> ToolSectionOrder;
+
+	/** Tool Names listed in the array below will appear in a Favorites section at the top of the Fracture Mode Tool Palette */
+	UPROPERTY(config, EditAnywhere, Category = "Fracture Mode|UI Customization")
+	TArray<FString> ToolFavorites;
+
+	/** Custom Section Header Colors for listed Sections in the Fracture Mode Tool Palette */
+	UPROPERTY(config, EditAnywhere, Category = "Fracture Mode|UI Customization")
+	TArray<FFractureModeCustomSectionColor> SectionColors;
+};
+

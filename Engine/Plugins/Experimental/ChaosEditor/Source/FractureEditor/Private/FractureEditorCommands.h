@@ -10,7 +10,19 @@ class FFractureEditorCommands : public TCommands<FFractureEditorCommands>
 
 		virtual void RegisterCommands() override;
 
+	protected:
+		struct FToolCommandInfo
+		{
+			FText ToolUIName;
+			TSharedPtr<FUICommandInfo> ToolCommand;
+		};
+		TArray<FToolCommandInfo> RegisteredTools;		// Tool commands listed below are stored in this list
+
 	public:
+		/**
+		 * Find Tool start-command below by registered name (tool icon name in Mode palette)
+		 */
+		TSharedPtr<FUICommandInfo> FindToolByName(const FString& Name, bool& bFound) const;
 		
 		// Selection Commands
 		TSharedPtr< FUICommandInfo > SelectAll;
