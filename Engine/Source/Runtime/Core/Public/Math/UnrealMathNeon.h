@@ -34,7 +34,7 @@ template<typename T, typename BASE_TYPE>
 struct alignas(alignof(T)) VectorRegisterWrapper
 {
 	FORCEINLINE VectorRegisterWrapper() {}
-	FORCEINLINE VectorRegisterWrapper(const T& vec) : m_vec(vec) {}
+	FORCEINLINE constexpr VectorRegisterWrapper(T vec) : m_vec(vec) {}
 
 	FORCEINLINE operator T&() { return m_vec; }
 	FORCEINLINE operator const T&() const { return m_vec; }
@@ -73,6 +73,35 @@ typedef VectorRegisterWrapper<float32x4_t, float> VectorRegister4Float;
 typedef VectorRegisterWrapper<float64x2_t, double> VectorRegister2Double;
 typedef VectorRegisterWrapper<int32x4_t, int> VectorRegister4Int;
 typedef VectorRegisterWrapper<int64x2_t, int64> VectorRegister2Int64;
+
+FORCEINLINE constexpr VectorRegister4Int MakeVectorRegisterIntConstant(int32 X, int32 Y, int32 Z, int32 W)
+{
+    int32x4_t Out = {};
+	Out.n128_i32[0] = X;
+    Out.n128_i32[1] = Y;
+    Out.n128_i32[2] = Z;
+    Out.n128_i32[3] = W;
+    return Out;
+}
+
+FORCEINLINE constexpr VectorRegister4Float MakeVectorRegisterFloatConstant(float X, float Y, float Z, float W)
+{
+    float32x4_t Out = {};
+    Out.n128_f32[0] = X;
+    Out.n128_f32[1] = Y;
+    Out.n128_f32[2] = Z;
+    Out.n128_f32[3] = W;
+	return Out;
+}
+
+FORCEINLINE constexpr VectorRegister2Double MakeVectorRegister2DoubleConstant(double X, double Y)
+{
+    float64x2_t Out = {};
+    Out.n128_f64[0] = X;
+    Out.n128_f64[1] = Y;
+	return Out;
+}
+
 #else
 
 /** 16-byte vector register type */
@@ -80,6 +109,22 @@ typedef float32x4_t GCC_ALIGN(16) VectorRegister4Float;
 typedef float64x2_t GCC_ALIGN(16) VectorRegister2Double;
 typedef int32x4_t  GCC_ALIGN(16) VectorRegister4Int;
 typedef int64x2_t GCC_ALIGN(16) VectorRegister2Int64;
+
+FORCEINLINE constexpr VectorRegister4Int MakeVectorRegisterIntConstant(int32 X, int32 Y, int32 Z, int32 W)
+{
+    return VectorRegister4Int { X, Y, Z, W };
+}
+
+FORCEINLINE constexpr VectorRegister4Float MakeVectorRegisterFloatConstant(float X, float Y, float Z, float W)
+{
+    return VectorRegister4Float { X, Y, Z, W };
+}
+
+FORCEINLINE constexpr VectorRegister2Double MakeVectorRegister2DoubleConstant(double X, double Y)
+{
+    return VectorRegister2Double { X, Y };
+}
+
 #endif
 
 #define DECLARE_VECTOR_REGISTER(X, Y, Z, W) MakeVectorRegister( X, Y, Z, W )
@@ -334,11 +379,6 @@ FORCEINLINE VectorRegister4Int MakeVectorRegisterInt(int32 X, int32 Y, int32 Z, 
 	Tmp.I[2] = Z;
 	Tmp.I[3] = W;
 	return Tmp.V;
-}
-
-FORCEINLINE constexpr VectorRegister4Int MakeVectorRegisterIntConstant(int32 X, int32 Y, int32 Z, int32 W)
-{
-    return VectorRegister4Int {X, Y, Z, W};
 }
 
 FORCEINLINE VectorRegister2Int64 MakeVectorRegisterInt64(int64 X, int64 Y)
@@ -2468,17 +2508,7 @@ inline bool VectorContainsNaNOrInfinite(const VectorRegister4Float& Vec)
 	VectorRegister4Float ExpTest = VectorBitwiseAnd(Vec, FloatInfinity);
 
 	// Compare to full exponent & combine resulting flags into lane 0
-#ifdef _MSC_VER
-	// msvc can only initialize using the first union type which is: n128_u64[2];
-#  if PLATFORM_LITTLE_ENDIAN
-	static constexpr int32x4_t Table = MakeVectorRegisterIntConstant(0x0C080400, 0, 0, 0);
-#  else
-	static constexpr int32x4_t Table = MakeVectorRegisterIntConstant(0, 0, 0, 0x0004080C);
-#  endif
-#else
-	// clang can initialize with this syntax, but not the msvc one
-	static constexpr int8x16_t Table = { 0,4,8,12, 0,0,0,0, 0,0,0,0, 0,0,0,0 };
-#endif
+	const int32x4_t Table = MakeVectorRegisterIntConstant(0x0C080400, 0, 0, 0);
 
 	uint8x16_t res = (uint8x16_t)VectorCompareEQ(ExpTest, FloatInfinity);
 	// If we have all zeros, all elements are finite
@@ -2501,18 +2531,7 @@ inline bool VectorContainsNaNOrInfinite(const VectorRegister4Double& Vec)
 	VectorRegister4Double ExpTest = VectorBitwiseAnd(Vec, DoubleInfinity);
 
 	// Compare to full exponent & combine resulting flags into lane 0
-#ifdef _MSC_VER
-	// msvc can only initialize using the first union type which is: n128_u64[2];
-	//TODO: Update MSVC Tables
-#  if PLATFORM_LITTLE_ENDIAN
-	static constexpr int32x4_t Table = MakeVectorRegisterIntConstant(0x18100800, 0, 0, 0);
-#  else
-	static constexpr int32x4_t Table = MakeVectorRegisterIntConstant(0, 0, 0, 0x00081018);
-#  endif
-#else
-	// clang can initialize with this syntax, but not the msvc one
-	static constexpr int8x16_t Table = {0,8,16,24, 0,0,0,0, 0,0,0,0, 0,0,0,0};
-#endif
+	const int32x4_t Table = MakeVectorRegisterIntConstant(0x18100800, 0, 0, 0);
 
 	VectorRegister4Double InfTestRes = VectorCompareEQ(ExpTest, DoubleInfinity);
 

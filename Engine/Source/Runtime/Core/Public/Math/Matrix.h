@@ -447,8 +447,8 @@ private:
 };
 
 #if !defined(_MSC_VER) || defined(__clang__) // MSVC can't forward declare explicit specializations
-template<> const FMatrix44f FMatrix44f::Identity;
-template<> const FMatrix44d FMatrix44d::Identity;
+template<> CORE_API const FMatrix44f FMatrix44f::Identity;
+template<> CORE_API const FMatrix44d FMatrix44d::Identity;
 #endif
 
 

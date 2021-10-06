@@ -398,6 +398,16 @@ FORCEINLINE constexpr VectorRegister4Int MakeVectorRegisterIntConstant(int32 X, 
 #endif
 }
 
+FORCEINLINE constexpr VectorRegister4Float MakeVectorRegisterFloatConstant(float X, float Y, float Z, float W)
+{
+	return VectorRegister4Float { X, Y, Z, W };
+}
+
+FORCEINLINE constexpr VectorRegister2Double MakeVectorRegister2DoubleConstant(double X, double Y)
+{
+	return VectorRegister2Double { X, Y };
+}
+
 /*=============================================================================
  *	Constants:
  *============================================================================*/
