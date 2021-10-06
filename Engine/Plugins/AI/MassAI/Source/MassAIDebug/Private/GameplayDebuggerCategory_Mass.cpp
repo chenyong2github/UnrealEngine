@@ -135,11 +135,11 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 
 	auto GetEntityFromActorFunc = [](const AActor& Actor, const UMassAgentComponent** OutMassAgentComponent = nullptr)
 	{
-		FMassEntityHandle LWEntity;
+		FMassEntityHandle EntityHandle;
 		UMassAgentComponent* AgentComp = Actor.FindComponentByClass<UMassAgentComponent>();
 		if (AgentComp)
 		{
-			LWEntity = AgentComp->GetEntityHandle();
+			EntityHandle = AgentComp->GetEntityHandle();
 			if (OutMassAgentComponent)
 			{
 				*OutMassAgentComponent = AgentComp;
@@ -150,10 +150,10 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 			UMassActorSubsystem* ActorManager = UWorld::GetSubsystem<UMassActorSubsystem>(Actor.GetWorld());
 			if (ActorManager != nullptr)
 			{
-				LWEntity = ActorManager->GetEntityHandleFromActor(&Actor);
+				EntityHandle = ActorManager->GetEntityHandleFromActor(&Actor);
 			}
 		}
-		return LWEntity;
+		return EntityHandle;
 	};
 
 	if (CachedDebugActor != DebugActor)

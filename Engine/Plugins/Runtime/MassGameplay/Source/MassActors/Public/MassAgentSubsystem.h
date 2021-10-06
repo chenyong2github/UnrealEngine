@@ -45,7 +45,7 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	// USubsystem END
 
-	/** Registers given AgentComp with the Mass Simulation, including creation of a LWEntity using 
+	/** Registers given AgentComp with the Mass Simulation, including creation of a FMassEntityHandle using 
 	 *  UMassAgentComponent.LWComponentList to determine the Archetype to use. */
 	FMassEntityTemplateID RegisterAgentComponent(UMassAgentComponent& AgentComp);
 

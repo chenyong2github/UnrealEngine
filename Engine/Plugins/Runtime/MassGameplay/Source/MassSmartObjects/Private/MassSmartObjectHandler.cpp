@@ -156,7 +156,7 @@ bool FMassSmartObjectHandler::ClaimSmartObject(const FMassEntityHandle Entity, F
 		User.InteractionStatus = EMassSmartObjectInteractionStatus::Unset;
 		User.TargetLocation = SmartObjectSubsystem.GetSlotLocation(User.ClaimHandle).Get(FVector::ZeroVector);
 
-		// @todo SO: need to unregister callback if entity or fragment gets removed. Or at least support getting called with a no longer valid LWEntity.
+		// @todo SO: need to unregister callback if entity or fragment gets removed. Or at least support getting called with a no longer valid FMassEntityHandle.
 		UE::Mass::SmartObject::FPayload Payload;
 		Payload.Entity = Entity;
 		Payload.EntitySubsystem = &EntitySubsystem;

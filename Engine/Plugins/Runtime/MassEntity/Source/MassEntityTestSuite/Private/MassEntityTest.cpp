@@ -161,7 +161,7 @@ struct FEntityTest_AddingRedundantFragment : FEntityTestBase
 	virtual bool InstantTest() override
 	{
 		CA_ASSUME(EntitySubsystem);
-		const FLWEntity Entity = EntitySubsystem->CreateEntity(FloatsArchetype);
+		const FMassEntityHandle Entity = EntitySubsystem->CreateEntity(FloatsArchetype);
 		EntitySubsystem->AddFragmentToEntity(Entity, FTestFragment_Float::StaticStruct());		
 		AITEST_EQUAL("Adding a fragment that a given entity\s archetype already has should do nothing", EntitySubsystem->GetArchetypeForEntity(Entity), FloatsArchetype);
 
