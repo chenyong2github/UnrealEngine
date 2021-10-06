@@ -146,6 +146,7 @@
 #include "SSequencerGroupManager.h"
 #include "ActorTreeItem.h"
 #include "Widgets/Layout/SSpacer.h"
+#include "CurveEditorCommands.h"
 
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/MovieScenePreAnimatedStateSystem.h"
@@ -570,6 +571,10 @@ FSequencer::FSequencer()
 	Selection.GetOnOutlinerNodeSelectionChanged().AddRaw(this, &FSequencer::OnSelectedOutlinerNodesChanged);
 	Selection.GetOnNodesWithSelectedKeysOrSectionsChanged().AddRaw(this, &FSequencer::OnSelectedOutlinerNodesChanged);
 	Selection.GetOnOutlinerNodeSelectionChangedObjectGuids().AddRaw(this, &FSequencer::OnSelectedOutlinerNodesChanged);
+
+	// Exposes the sequencer and curve editor command lists to subscribers from other systems
+	FInputBindingManager::Get().RegisterCommandList(FSequencerCommands::Get().GetContextName(), SequencerCommandBindings);
+	FInputBindingManager::Get().RegisterCommandList(FCurveEditorCommands::Get().GetContextName(), CurveEditorSharedBindings);
 }
 
 

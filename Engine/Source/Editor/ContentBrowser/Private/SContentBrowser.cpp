@@ -571,6 +571,8 @@ void SContentBrowser::BindCommands()
 			CommmandExtenderDelegates[i].Execute(Commands.ToSharedRef(), FOnContentBrowserGetSelection::CreateSP(this, &SContentBrowser::GetSelectionState));
 		}
 	}
+
+	FInputBindingManager::Get().RegisterCommandList(FContentBrowserCommands::Get().GetContextName(), Commands.ToSharedRef());
 }
 
 EVisibility SContentBrowser::GetFavoriteFolderVisibility() const

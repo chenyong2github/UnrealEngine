@@ -540,6 +540,9 @@ void FMainFrameModule::StartupModule( )
 	FGenericCommands::Register();
 	FMainFrameCommands::Register();
 
+	// Exposes the main frame command list to subscribers from other systems
+	FInputBindingManager::Get().RegisterCommandList(FMainFrameCommands::Get().GetContextName(), FMainFrameCommands::ActionList);
+
 	SetLevelNameForWindowTitle(TEXT(""));
 
 	// Register to find out about when hot reload completes, so we can show a notification
@@ -612,6 +615,7 @@ void FMainFrameModule::HandleResizeMainFrameCommand(const TArray<FString>& Args)
 	}
 	
 }
+
 
 /* FMainFrameModule implementation
  *****************************************************************************/

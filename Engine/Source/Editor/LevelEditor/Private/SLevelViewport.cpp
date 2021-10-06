@@ -1324,6 +1324,9 @@ void SLevelViewport::BindCommands()
 	}
 
 	UICommandListRef.SetCanProduceActionForCommand( FUICommandList::FCanProduceActionForCommand::CreateSP(this, &SLevelViewport::CanProduceActionForCommand) );
+
+	// Exposes the current level viewport command list to subscribers from other systems
+	FInputBindingManager::Get().RegisterCommandList(FLevelViewportCommands::Get().GetContextName(), CommandList.ToSharedRef());
 }
 	
 void SLevelViewport::BindOptionCommands( FUICommandList& OutCommandList )
