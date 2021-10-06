@@ -14,7 +14,7 @@ namespace UE::Mass::Signals
 
 /**
  * Identifier associated to a request for smart object candidates. We use a 1:1 match
- * with an LWEntity since all requests are batched together using the EntitySubsystem.
+ * with an FMassEntityHandle since all requests are batched together using the EntitySubsystem.
  */
 USTRUCT()
 struct MASSSMARTOBJECTS_API FMassSmartObjectRequestID

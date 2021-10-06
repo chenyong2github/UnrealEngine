@@ -114,13 +114,13 @@ public:
 	/**
 	 * Creates fully built entity ready to be used by the subsystem
 	 * @param Archetype you want this entity to be
-	 * @return FLWEntity id of the newly created entity */
+	 * @return FMassEntityHandle id of the newly created entity */
 	FMassEntityHandle CreateEntity(const FArchetypeHandle Archetype);
 
 	/**
 	 * Creates fully built entity ready to be used by the subsystem
 	 * @param FragmentInstanceList is the fragments to create the entity from and initialize values
-	 * @return FLWEntity id of the newly created entity */
+	 * @return FMassEntityHandle id of the newly created entity */
 	FMassEntityHandle CreateEntity(TConstArrayView<FInstancedStruct> FragmentInstanceList);
 
 	/** A version of CreateEntity that's creating a number of entities (Count) at one go
@@ -137,7 +137,7 @@ public:
 
 	/**
 	 * Reserves an entity in the subsystem, the entity is still not ready to be used by the subsystem, need to call BuildEntity()
-	 * @return FLWEntity id of the reserved entity */
+	 * @return FMassEntityHandle id of the reserved entity */
 	FMassEntityHandle ReserveEntity();
 
 	/**
