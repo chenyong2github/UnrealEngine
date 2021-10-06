@@ -1910,7 +1910,7 @@ void FGPUScene::AddUpdatePrimitiveIdsPass(FRDGBuilder& GraphBuilder, FInstanceGP
 
 void FGPUSceneCompactInstanceData::Init(const FGPUScenePrimitiveCollector* PrimitiveCollector, int32 PrimitiveId)
 {
-	FMatrix LocalToWorld = FMatrix::Identity;
+	FMatrix44f LocalToWorld = FMatrix44f::Identity;
 	int32 DynamicPrimitiveId = PrimitiveId;
 	if (PrimitiveCollector && PrimitiveCollector->UploadData && !PrimitiveCollector->GetPrimitiveIdRange().IsEmpty())
 	{
@@ -1931,7 +1931,7 @@ void FGPUSceneCompactInstanceData::Init(const FGPUScenePrimitiveCollector* Primi
 
 void FGPUSceneCompactInstanceData::Init(const FScene* Scene, int32 PrimitiveId)
 {
-	FMatrix LocalToWorld = FMatrix::Identity;
+	FMatrix44f LocalToWorld = FMatrix44f::Identity;
 	if (Scene && PrimitiveId >= 0 && PrimitiveId < Scene->PrimitiveTransforms.Num())
 	{
 		LocalToWorld = Scene->PrimitiveTransforms[PrimitiveId];

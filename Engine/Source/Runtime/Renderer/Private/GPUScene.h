@@ -396,11 +396,11 @@ private:
 
 struct FGPUSceneCompactInstanceData
 {
-	FVector4 InstanceOriginAndId;
-	FVector4 InstanceTransform1;
-	FVector4 InstanceTransform2;
-	FVector4 InstanceTransform3;
-	FVector4 InstanceAuxData;
+	FVector4f InstanceOriginAndId;
+	FVector4f InstanceTransform1;
+	FVector4f InstanceTransform2;
+	FVector4f InstanceTransform3;
+	FVector4f InstanceAuxData;
 
 	void Init(const FGPUScenePrimitiveCollector* PrimitiveCollector, int32 PrimitiveId);
 	void Init(const FScene* Scene, int32 PrimitiveId);
