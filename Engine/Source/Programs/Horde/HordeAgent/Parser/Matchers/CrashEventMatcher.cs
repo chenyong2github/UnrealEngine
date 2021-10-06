@@ -43,7 +43,7 @@ namespace HordeAgent.Parser.Matchers
 			}
 
 			Match? Match;
-			if (Cursor.TryMatch("ExitCode=(3|139|255)", out Match))
+			if (Cursor.TryMatch(@"ExitCode=(3|139|255)(?!\d)", out Match))
 			{
 				LogEventBuilder Builder = new LogEventBuilder(Cursor);
 				Builder.Lines[0].AddSpan(Match.Groups[1], "exitCode");
