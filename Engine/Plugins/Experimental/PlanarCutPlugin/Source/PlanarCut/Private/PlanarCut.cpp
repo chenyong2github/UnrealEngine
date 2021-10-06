@@ -1168,7 +1168,7 @@ int32 MergeBones(
 	for (int32 UpMeshIdx = 0; UpMeshIdx < UpdateCollection.Meshes.Num(); UpMeshIdx++)
 	{
 		FMeshData& UpMeshData = UpdateCollection.Meshes[UpMeshIdx];
-		FTransform3d UpMeshXF = (FTransform3d)UpMeshData.ToCollection;
+		FTransform3d UpMeshXF = (FTransform3d)UpMeshData.FromCollection;
 		int32 UpGeoIdx = Collection.TransformToGeometryIndex[UpMeshData.TransformIndex];
 		FRemoveGroup& Group = RemoveGroups[GeomIdxToRemoveGroupIdx[UpGeoIdx]];
 		if (!ensure(Group.IsValid()))
@@ -1179,7 +1179,7 @@ int32 MergeBones(
 		for (int32 RmGeoIdx : Group.ToRemove)
 		{
 			FMeshData& RmMeshData = RemoveCollection.Meshes[GeoIdxToRmMeshIdx[RmGeoIdx]];
-			FTransform3d RmMeshXF = (FTransform3d)RmMeshData.ToCollection;
+			FTransform3d RmMeshXF = (FTransform3d)RmMeshData.FromCollection;
 			if (bUnionJoinedPieces)
 			{
 				FMeshBoolean Boolean(&UpMeshData.AugMesh, &RmMeshData.AugMesh, &UpMeshData.AugMesh, FMeshBoolean::EBooleanOp::Union);
@@ -1193,11 +1193,11 @@ int32 MergeBones(
 				MeshEditor.AppendMesh(&RmMeshData.AugMesh, IndexMaps_Unused,
 					[&UpMeshXF, &RmMeshXF](int32 Unused, const FVector3d& Pos)
 					{
-						return UpMeshXF.InverseTransformPosition(RmMeshXF.TransformPosition(Pos));
+						return UpMeshXF.TransformPosition(RmMeshXF.InverseTransformPosition(Pos));
 					},
 					[&UpMeshXF, &RmMeshXF](int32 Unused, const FVector3d& Normal)
 					{
-						return UpMeshXF.InverseTransformNormal(RmMeshXF.TransformNormal(Normal));
+						return UpMeshXF.TransformNormal(RmMeshXF.InverseTransformNormal(Normal));
 					});
 			}
 		}
@@ -1296,13 +1296,13 @@ void ConvertToMeshDescription(
 	for (int32 MeshIdx = 0; MeshIdx < NumMeshes; MeshIdx++)
 	{
 		FDynamicMesh3& Mesh = MeshCollection.Meshes[MeshIdx].AugMesh;
-		const FTransform& ToCollection = MeshCollection.Meshes[MeshIdx].ToCollection;
+		const FTransform& FromCollection = MeshCollection.Meshes[MeshIdx].FromCollection;
 
 		// transform from the local geometry to the collection space
 		// unless it's just one mesh that we're going to center later anyway
 		if (!bCenterPivot || NumMeshes > 1)
 		{
-			MeshTransforms::ApplyTransform(Mesh, (UE::Geometry::FTransform3d)ToCollection);
+			MeshTransforms::ApplyTransformInverse(Mesh, (UE::Geometry::FTransform3d)FromCollection);
 		}
 
 		FMeshNormals::InitializeOverlayToPerVertexNormals(Mesh.Attributes()->PrimaryNormals(), true);
