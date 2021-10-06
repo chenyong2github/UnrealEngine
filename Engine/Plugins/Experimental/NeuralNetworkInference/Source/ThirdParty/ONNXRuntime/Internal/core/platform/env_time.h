@@ -22,18 +22,14 @@ limitations under the License.
 namespace onnxruntime {
 
 #ifndef WITH_UE
-
 #ifdef _WIN32
 using TIME_SPEC = int64_t;
 #else
 using TIME_SPEC = timespec;
 #endif
-
-#else
-
+#else //WITH_UE
 using TIME_SPEC = int64_t;
-
-#endif
+#endif //WITH_UE
 
 //Get a time stamp counter
 //If the function succeeds, return true. If the function fails, return false
