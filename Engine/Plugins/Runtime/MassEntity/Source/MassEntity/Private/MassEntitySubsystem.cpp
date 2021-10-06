@@ -13,7 +13,6 @@ const FMassEntityHandle UMassEntitySubsystem::InvalidEntity;
 //@TODO: No re-entrance safety while running a system (e.g., preventing someone from adding/removing entities or altering archetypes, etc...)
 //@TODO: Do we allow GCable types?  If so, need to implement AddReferencedObjects
 //@TODO: Do a UObject stat scope around the system Run call
-//@TODO: Tag components end up taking up space per-entity when they shouldn't
 
 //////////////////////////////////////////////////////////////////////
 // UMassEntitySubsystem
@@ -29,11 +28,11 @@ void UMassEntitySubsystem::GetResourceSizeEx(FResourceSizeEx& CumulativeResource
 	const SIZE_T MyExtraSize = Entities.GetAllocatedSize() + 
 		EntityFreeIndexList.GetAllocatedSize() +
 		DeferredCommandBuffer->GetAllocatedSize() +
-		ComponentHashToArchetypeMap.GetAllocatedSize() +
-		ComponentTypeToArchetypeMap.GetAllocatedSize();
+		FragmentHashToArchetypeMap.GetAllocatedSize() +
+		FragmentTypeToArchetypeMap.GetAllocatedSize();
 	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(MyExtraSize);
 
-	for (const auto& KVP : ComponentHashToArchetypeMap)
+	for (const auto& KVP : FragmentHashToArchetypeMap)
 	{
 		for (const TSharedPtr<FMassArchetypeData>& ArchetypePtr : KVP.Value)
 		{
@@ -52,15 +51,15 @@ void UMassEntitySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	// initialize the bitsets
 
-	FMassFragmentBitSet Components;
+	FMassFragmentBitSet Fragments;
 	FMassTagBitSet Tags;
-	FMassChunkFragmentBitSet ChunkComponents;
+	FMassChunkFragmentBitSet ChunkFragments;
 
 	for (TObjectIterator<UStruct> StructIt; StructIt; ++StructIt)
 	{
 		if (StructIt->IsChildOf(FMassFragment::StaticStruct()))
 		{
-			Components.Add(*CastChecked<UScriptStruct>(*StructIt));
+			Fragments.Add(*CastChecked<UScriptStruct>(*StructIt));
 		}
 		else if (StructIt->IsChildOf(FMassTag::StaticStruct()))
 		{
@@ -68,7 +67,7 @@ void UMassEntitySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		}
 		else if (StructIt->IsChildOf(FMassChunkFragment::StaticStruct()))
 		{
-			ChunkComponents.Add(*CastChecked<UScriptStruct>(*StructIt));
+			ChunkFragments.Add(*CastChecked<UScriptStruct>(*StructIt));
 		}
 	}
 }
@@ -78,18 +77,18 @@ void UMassEntitySubsystem::Deinitialize()
 	//@TODO: Should actually do this...
 }
 
-FArchetypeHandle UMassEntitySubsystem::CreateArchetype(TConstArrayView<const UScriptStruct*> ComponentsAngTagsList)
+FArchetypeHandle UMassEntitySubsystem::CreateArchetype(TConstArrayView<const UScriptStruct*> FragmentsAngTagsList)
 {
-	FMassChunkFragmentBitSet ChunkComponents;
+	FMassChunkFragmentBitSet ChunkFragments;
 	FMassTagBitSet Tags;
-	TArray<const UScriptStruct*, TInlineAllocator<16>> ComponentList;
-	ComponentList.Reserve(ComponentsAngTagsList.Num());
+	TArray<const UScriptStruct*, TInlineAllocator<16>> FragmentList;
+	FragmentList.Reserve(FragmentsAngTagsList.Num());
 
-	for (const UScriptStruct* Type : ComponentsAngTagsList)
+	for (const UScriptStruct* Type : FragmentsAngTagsList)
 	{
 		if (Type->IsChildOf(FMassFragment::StaticStruct()))
 		{
-			ComponentList.Add(Type);
+			FragmentList.Add(Type);
 		}
 		else if (Type->IsChildOf(FMassTag::StaticStruct()))
 		{
@@ -97,36 +96,36 @@ FArchetypeHandle UMassEntitySubsystem::CreateArchetype(TConstArrayView<const USc
 		}
 		else if (Type->IsChildOf(FMassChunkFragment::StaticStruct()))
 		{
-			ChunkComponents.Add(*Type);
+			ChunkFragments.Add(*Type);
 		}
 		else
 		{
-			UE_LOG(LogMass, Warning, TEXT("%s: %s is not a valid component nor tag type. Ignoring.")
+			UE_LOG(LogMass, Warning, TEXT("%s: %s is not a valid fragment nor tag type. Ignoring.")
 				, ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(Type));
 		}
 	}
 
-	return CreateArchetype(FMassCompositionDescriptor(FMassFragmentBitSet(ComponentList), Tags, ChunkComponents));
+	return CreateArchetype(FMassCompositionDescriptor(FMassFragmentBitSet(FragmentList), Tags, ChunkFragments));
 }
 
-FArchetypeHandle UMassEntitySubsystem::CreateArchetype(TConstArrayView<const UScriptStruct*> ComponentList, const FMassTagBitSet& Tags, const FMassChunkFragmentBitSet& ChunkComponents)
+FArchetypeHandle UMassEntitySubsystem::CreateArchetype(TConstArrayView<const UScriptStruct*> FragmentList, const FMassTagBitSet& Tags, const FMassChunkFragmentBitSet& ChunkFragments)
 {
-	return CreateArchetype(FMassCompositionDescriptor(ComponentList, Tags, ChunkComponents));
+	return CreateArchetype(FMassCompositionDescriptor(FragmentList, Tags, ChunkFragments));
 }
 
-FArchetypeHandle UMassEntitySubsystem::CreateArchetype(const TSharedPtr<FMassArchetypeData>& SourceArchetype, const FMassFragmentBitSet& NewComponents)
+FArchetypeHandle UMassEntitySubsystem::CreateArchetype(const TSharedPtr<FMassArchetypeData>& SourceArchetype, const FMassFragmentBitSet& NewFragments)
 {
 	check(SourceArchetype.IsValid());
-	checkf(NewComponents.IsEmpty() == false, TEXT("%s Adding an empty component list to an archetype is not supported."), ANSI_TO_TCHAR(__FUNCTION__));
+	checkf(NewFragments.IsEmpty() == false, TEXT("%s Adding an empty fragment list to an archetype is not supported."), ANSI_TO_TCHAR(__FUNCTION__));
 
-	return CreateArchetype(FMassCompositionDescriptor(NewComponents + SourceArchetype->GetComponentBitSet(), SourceArchetype->GetTagBitSet(), SourceArchetype->GetChunkComponentBitSet()));
+	return CreateArchetype(FMassCompositionDescriptor(NewFragments + SourceArchetype->GetFragmentBitSet(), SourceArchetype->GetTagBitSet(), SourceArchetype->GetChunkFragmentBitSet()));
 }
 
 FArchetypeHandle UMassEntitySubsystem::CreateArchetype(const FMassCompositionDescriptor& Composition)
 {
 	const uint32 TypeHash = Composition.CalculateHash();
 
-	TArray<TSharedPtr<FMassArchetypeData>>& HashRow = ComponentHashToArchetypeMap.FindOrAdd(TypeHash);
+	TArray<TSharedPtr<FMassArchetypeData>>& HashRow = FragmentHashToArchetypeMap.FindOrAdd(TypeHash);
 
 	FArchetypeHandle Result;
 	for (TSharedPtr<FMassArchetypeData>& Ptr : HashRow)
@@ -142,13 +141,13 @@ FArchetypeHandle UMassEntitySubsystem::CreateArchetype(const FMassCompositionDes
 	{
 		// Create a new archetype
 		TSharedPtr<FMassArchetypeData> NewArchetype = MakeShareable(new FMassArchetypeData);
-		NewArchetype->Initialize(Composition.Components, Composition.Tags, Composition.ChunkComponents);
+		NewArchetype->Initialize(Composition.Fragments, Composition.Tags, Composition.ChunkFragments);
 		HashRow.Add(NewArchetype);
 
-		for (const FMassArchetypeFragmentConfig& ComponentConfig : NewArchetype->GetComponentConfigs())
+		for (const FMassArchetypeFragmentConfig& FragmentConfig : NewArchetype->GetFragmentConfigs())
 		{
-			checkSlow(ComponentConfig.ComponentType)
-			ComponentTypeToArchetypeMap.FindOrAdd(ComponentConfig.ComponentType).Add(NewArchetype);
+			checkSlow(FragmentConfig.FragmentType)
+			FragmentTypeToArchetypeMap.FindOrAdd(FragmentConfig.FragmentType).Add(NewArchetype);
 		}
 
 		Result.DataPtr = NewArchetype;
@@ -163,14 +162,14 @@ FArchetypeHandle UMassEntitySubsystem::InternalCreateSiblingArchetype(const TSha
 {
 	checkSlow(SourceArchetype.IsValid());
 	const FMassArchetypeData& SourceArchetypeRef = *SourceArchetype.Get();
-	const uint32 TypeHash = FMassCompositionDescriptor::CalculateHash(SourceArchetypeRef.GetComponentBitSet(), OverrideTags, SourceArchetypeRef.GetChunkComponentBitSet());
+	const uint32 TypeHash = FMassCompositionDescriptor::CalculateHash(SourceArchetypeRef.GetFragmentBitSet(), OverrideTags, SourceArchetypeRef.GetChunkFragmentBitSet());
 
-	TArray<TSharedPtr<FMassArchetypeData>>& HashRow = ComponentHashToArchetypeMap.FindOrAdd(TypeHash);
+	TArray<TSharedPtr<FMassArchetypeData>>& HashRow = FragmentHashToArchetypeMap.FindOrAdd(TypeHash);
 
 	FArchetypeHandle Result;
 	for (TSharedPtr<FMassArchetypeData>& Ptr : HashRow)
 	{
-		if (Ptr->IsEquivalent(SourceArchetypeRef.GetComponentBitSet(), OverrideTags, SourceArchetypeRef.GetChunkComponentBitSet()))
+		if (Ptr->IsEquivalent(SourceArchetypeRef.GetFragmentBitSet(), OverrideTags, SourceArchetypeRef.GetChunkFragmentBitSet()))
 		{
 			Result.DataPtr = Ptr;
 			break;
@@ -184,10 +183,10 @@ FArchetypeHandle UMassEntitySubsystem::InternalCreateSiblingArchetype(const TSha
 		NewArchetype->InitializeWithSibling(SourceArchetypeRef, OverrideTags);
 		HashRow.Add(NewArchetype);
 
-		for (const FMassArchetypeFragmentConfig& ComponentConfig : NewArchetype->GetComponentConfigs())
+		for (const FMassArchetypeFragmentConfig& FragmentConfig : NewArchetype->GetFragmentConfigs())
 		{
-			checkSlow(ComponentConfig.ComponentType)
-			ComponentTypeToArchetypeMap.FindOrAdd(ComponentConfig.ComponentType).Add(NewArchetype);
+			checkSlow(FragmentConfig.FragmentType)
+			FragmentTypeToArchetypeMap.FindOrAdd(FragmentConfig.FragmentType).Add(NewArchetype);
 		}
 
 		Result.DataPtr = NewArchetype;
@@ -208,18 +207,18 @@ FArchetypeHandle UMassEntitySubsystem::GetArchetypeForEntity(FMassEntityHandle E
 	return Result;
 }
 
-void UMassEntitySubsystem::ForEachArchetypeComponentType(const FArchetypeHandle Archetype, TFunction< void(const UScriptStruct* /*ComponentType*/)> Function)
+void UMassEntitySubsystem::ForEachArchetypeFragmentType(const FArchetypeHandle Archetype, TFunction< void(const UScriptStruct* /*FragmentType*/)> Function)
 {
 	check(Archetype.DataPtr.IsValid());
 	const FMassArchetypeData& ArchetypeData = *Archetype.DataPtr.Get();
-	ArchetypeData.ForEachComponentType(Function);
+	ArchetypeData.ForEachFragmentType(Function);
 }
 
-void UMassEntitySubsystem::SetDefaultChunkComponentValue(const FArchetypeHandle Archetype, FConstStructView InstancedStruct)
+void UMassEntitySubsystem::SetDefaultChunkFragmentValue(const FArchetypeHandle Archetype, FConstStructView InstancedStruct)
 {
 	check(Archetype.DataPtr.IsValid());
 	FMassArchetypeData& ArchetypeData = *Archetype.DataPtr.Get();
-	ArchetypeData.SetDefaultChunkComponentValue(InstancedStruct);
+	ArchetypeData.SetDefaultChunkFragmentValue(InstancedStruct);
 }
 
 void UMassEntitySubsystem::DoEntityCompaction(const double TimeAllowed)
@@ -227,7 +226,7 @@ void UMassEntitySubsystem::DoEntityCompaction(const double TimeAllowed)
 	const double TimeAllowedEnd = FPlatformTime::Seconds() + TimeAllowed;
 
 	bool bReachedTimeLimit = false;
-	for (const auto& KVP : ComponentHashToArchetypeMap)
+	for (const auto& KVP : FragmentHashToArchetypeMap)
 	{
 		for (const TSharedPtr<FMassArchetypeData>& ArchetypePtr : KVP.Value)
 		{
@@ -255,18 +254,18 @@ FMassEntityHandle UMassEntitySubsystem::CreateEntity(const FArchetypeHandle Arch
 	return Entity;
 }
 
-FMassEntityHandle UMassEntitySubsystem::CreateEntity(TConstArrayView<FInstancedStruct> ComponentInstanceList)
+FMassEntityHandle UMassEntitySubsystem::CreateEntity(TConstArrayView<FInstancedStruct> FragmentInstanceList)
 {
-	check(ComponentInstanceList.Num() > 0);
+	check(FragmentInstanceList.Num() > 0);
 
-	FArchetypeHandle Archetype = CreateArchetype(FMassCompositionDescriptor(ComponentInstanceList, FMassTagBitSet(), FMassChunkFragmentBitSet()));
+	FArchetypeHandle Archetype = CreateArchetype(FMassCompositionDescriptor(FragmentInstanceList, FMassTagBitSet(), FMassChunkFragmentBitSet()));
 	check(Archetype.DataPtr.IsValid());
 
 	FMassEntityHandle Entity = ReserveEntity();
 	InternalBuildEntity(Entity, Archetype);
 
 	FEntityData& EntityData = Entities[Entity.Index];
-	EntityData.CurrentArchetype->SetComponentsData(Entity, ComponentInstanceList);
+	EntityData.CurrentArchetype->SetFragmentsData(Entity, FragmentInstanceList);
 
 	return Entity;
 }
@@ -297,18 +296,18 @@ void UMassEntitySubsystem::BuildEntity(FMassEntityHandle Entity, FArchetypeHandl
 	InternalBuildEntity(Entity, Archetype);
 }
 
-void UMassEntitySubsystem::BuildEntity(FMassEntityHandle Entity, TConstArrayView<FInstancedStruct> ComponentInstanceList)
+void UMassEntitySubsystem::BuildEntity(FMassEntityHandle Entity, TConstArrayView<FInstancedStruct> FragmentInstanceList)
 {
-	check(ComponentInstanceList.Num() > 0);
+	check(FragmentInstanceList.Num() > 0);
 	checkf(!IsEntityBuilt(Entity), TEXT("Expecting an entity that is not already built"));
 
-	FArchetypeHandle Archetype = CreateArchetype(FMassCompositionDescriptor(ComponentInstanceList, FMassTagBitSet(), FMassChunkFragmentBitSet()));
+	FArchetypeHandle Archetype = CreateArchetype(FMassCompositionDescriptor(FragmentInstanceList, FMassTagBitSet(), FMassChunkFragmentBitSet()));
 	check(Archetype.DataPtr.IsValid());
 
 	InternalBuildEntity(Entity, Archetype);
 
 	FEntityData& EntityData = Entities[Entity.Index];
-	EntityData.CurrentArchetype->SetComponentsData(Entity, ComponentInstanceList);
+	EntityData.CurrentArchetype->SetFragmentsData(Entity, FragmentInstanceList);
 }
 
 int32 UMassEntitySubsystem::BatchCreateEntities(const FArchetypeHandle Archetype, const int32 Count, TArray<FMassEntityHandle>& OutEntities)
@@ -412,21 +411,21 @@ void UMassEntitySubsystem::BatchDestroyEntityChunks(const FArchetypeChunkCollect
 	}
 }
 
-void UMassEntitySubsystem::AddComponentToEntity(FMassEntityHandle Entity, const UScriptStruct* ComponentType)
+void UMassEntitySubsystem::AddFragmentToEntity(FMassEntityHandle Entity, const UScriptStruct* FragmentType)
 {
-	checkf(ComponentType, TEXT("Null component type passed in to %s"), ANSI_TO_TCHAR(__FUNCTION__));
+	checkf(FragmentType, TEXT("Null fragment type passed in to %s"), ANSI_TO_TCHAR(__FUNCTION__));
 	checkf(IsProcessing() == false, TEXT("Synchronous API function %s called during mass processing. Use asynchronous API instead."), ANSI_TO_TCHAR(__FUNCTION__));
 
 	CheckIfEntityIsActive(Entity);
 
-	InternalAddComponentListToEntityChecked(Entity, FMassFragmentBitSet(*ComponentType));
+	InternalAddFragmentListToEntityChecked(Entity, FMassFragmentBitSet(*FragmentType));
 }
 
-void UMassEntitySubsystem::AddComponentListToEntity(FMassEntityHandle Entity, TConstArrayView<const UScriptStruct*> ComponentList)
+void UMassEntitySubsystem::AddFragmentListToEntity(FMassEntityHandle Entity, TConstArrayView<const UScriptStruct*> FragmentList)
 {
 	CheckIfEntityIsActive(Entity);
 
-	InternalAddComponentListToEntityChecked(Entity, FMassFragmentBitSet(ComponentList));
+	InternalAddFragmentListToEntityChecked(Entity, FMassFragmentBitSet(FragmentList));
 }
 
 void UMassEntitySubsystem::AddCompositionToEntity_GetDelta(FMassEntityHandle Entity, FMassCompositionDescriptor& Composition)
@@ -437,13 +436,13 @@ void UMassEntitySubsystem::AddCompositionToEntity_GetDelta(FMassEntityHandle Ent
 	FMassArchetypeData* OldArchetype = EntityData.CurrentArchetype.Get();
 	check(OldArchetype);
 
-	Composition.Components -= OldArchetype->GetCompositionDescriptor().Components;
+	Composition.Fragments -= OldArchetype->GetCompositionDescriptor().Fragments;
 	Composition.Tags -= OldArchetype->GetCompositionDescriptor().Tags;
 
 	if (Composition.IsEmpty() == false)
 	{
 		FMassCompositionDescriptor NewDescriptor = OldArchetype->GetCompositionDescriptor();
-		NewDescriptor.Components += Composition.Components;
+		NewDescriptor.Fragments += Composition.Fragments;
 		NewDescriptor.Tags+= Composition.Tags;
 
 		const FArchetypeHandle NewArchetypeHandle = CreateArchetype(NewDescriptor);
@@ -468,7 +467,7 @@ void UMassEntitySubsystem::RemoveCompositionFromEntity(FMassEntityHandle Entity,
 	check(OldArchetype);
 
 	FMassCompositionDescriptor NewDescriptor = OldArchetype->GetCompositionDescriptor();
-	NewDescriptor.Components -= InDescriptor.Components;
+	NewDescriptor.Fragments -= InDescriptor.Fragments;
 	NewDescriptor.Tags -= InDescriptor.Tags;
 
 	if (NewDescriptor.IsEmpty() == false)
@@ -500,30 +499,30 @@ void UMassEntitySubsystem::InternalReleaseEntity(FMassEntityHandle Entity)
 	EntityFreeIndexList.Add(Entity.Index);
 }
 
-void UMassEntitySubsystem::InternalAddComponentListToEntityChecked(FMassEntityHandle Entity, const FMassFragmentBitSet& InComponents)
+void UMassEntitySubsystem::InternalAddFragmentListToEntityChecked(FMassEntityHandle Entity, const FMassFragmentBitSet& InFragments)
 {
 	FEntityData& EntityData = Entities[Entity.Index];
 	FMassArchetypeData* OldArchetype = EntityData.CurrentArchetype.Get();
 	check(OldArchetype);
 	
-	ensureMsgf(OldArchetype->GetComponentBitSet().HasAny(InComponents) == false, TEXT("Trying to add a new component type to an entity, but it already has some of them."));
+	ensureMsgf(OldArchetype->GetFragmentBitSet().HasAny(InFragments) == false, TEXT("Trying to add a new fragment type to an entity, but it already has some of them."));
 
-	const FMassFragmentBitSet NewComponents = InComponents - OldArchetype->GetComponentBitSet();
-	if (NewComponents.IsEmpty() == false)
+	const FMassFragmentBitSet NewFragments = InFragments - OldArchetype->GetFragmentBitSet();
+	if (NewFragments.IsEmpty() == false)
 	{
-		InternalAddComponentListToEntity(Entity, NewComponents);
+		InternalAddFragmentListToEntity(Entity, NewFragments);
 	}
 }
 
-void UMassEntitySubsystem::InternalAddComponentListToEntity(FMassEntityHandle Entity, const FMassFragmentBitSet& NewComponents)
+void UMassEntitySubsystem::InternalAddFragmentListToEntity(FMassEntityHandle Entity, const FMassFragmentBitSet& NewFragments)
 {
-	checkf(NewComponents.IsEmpty() == false, TEXT("%s is intended for internal calls with non empty NewComponents parameter"), ANSI_TO_TCHAR(__FUNCTION__));
+	checkf(NewFragments.IsEmpty() == false, TEXT("%s is intended for internal calls with non empty NewFragments parameter"), ANSI_TO_TCHAR(__FUNCTION__));
 	check(Entities.IsValidIndex(Entity.Index));
 	FEntityData& EntityData = Entities[Entity.Index];
 	check(EntityData.CurrentArchetype.IsValid());
 
 	// fetch or create the new archetype
-	const FArchetypeHandle NewArchetypeHandle = CreateArchetype(EntityData.CurrentArchetype, NewComponents);
+	const FArchetypeHandle NewArchetypeHandle = CreateArchetype(EntityData.CurrentArchetype, NewFragments);
 
 	if (NewArchetypeHandle.DataPtr != EntityData.CurrentArchetype)
 	{
@@ -535,25 +534,25 @@ void UMassEntitySubsystem::InternalAddComponentListToEntity(FMassEntityHandle En
 	}
 }
 
-void UMassEntitySubsystem::AddComponentInstanceListToEntity(FMassEntityHandle Entity, TConstArrayView<FInstancedStruct> ComponentInstanceList)
+void UMassEntitySubsystem::AddFragmentInstanceListToEntity(FMassEntityHandle Entity, TConstArrayView<FInstancedStruct> FragmentInstanceList)
 {
 	checkf(IsProcessing() == false, TEXT("Synchronous API function %s called during mass processing. Use asynchronous API instead."), ANSI_TO_TCHAR(__FUNCTION__));
 
 	CheckIfEntityIsActive(Entity);
-	checkf(ComponentInstanceList.Num() > 0, TEXT("Need to specify at least one component instances for this operation"));
+	checkf(FragmentInstanceList.Num() > 0, TEXT("Need to specify at least one fragment instances for this operation"));
 
-	InternalAddComponentListToEntityChecked(Entity, FMassFragmentBitSet(ComponentInstanceList));
+	InternalAddFragmentListToEntityChecked(Entity, FMassFragmentBitSet(FragmentInstanceList));
 
 	FEntityData& EntityData = Entities[Entity.Index];
-	EntityData.CurrentArchetype->SetComponentsData(Entity, ComponentInstanceList);
+	EntityData.CurrentArchetype->SetFragmentsData(Entity, FragmentInstanceList);
 }
 
-void UMassEntitySubsystem::RemoveComponentFromEntity(FMassEntityHandle Entity, const UScriptStruct* ComponentType)
+void UMassEntitySubsystem::RemoveFragmentFromEntity(FMassEntityHandle Entity, const UScriptStruct* FragmentType)
 {
-	RemoveComponentListFromEntity(Entity, MakeArrayView(&ComponentType, 1));
+	RemoveFragmentListFromEntity(Entity, MakeArrayView(&FragmentType, 1));
 }
 
-void UMassEntitySubsystem::RemoveComponentListFromEntity(FMassEntityHandle Entity, TConstArrayView<const UScriptStruct*> ComponentList)
+void UMassEntitySubsystem::RemoveFragmentListFromEntity(FMassEntityHandle Entity, TConstArrayView<const UScriptStruct*> FragmentList)
 {
 	checkf(IsProcessing() == false, TEXT("Synchronous API function %s called during mass processing. Use asynchronous API instead."), ANSI_TO_TCHAR(__FUNCTION__));
 
@@ -563,12 +562,12 @@ void UMassEntitySubsystem::RemoveComponentListFromEntity(FMassEntityHandle Entit
 	FMassArchetypeData* OldArchetype = EntityData.CurrentArchetype.Get();
 	check(OldArchetype);
 
-	const FMassFragmentBitSet ComponentsToRemove(ComponentList);
+	const FMassFragmentBitSet FragmentsToRemove(FragmentList);
 
-	if (ensureMsgf(OldArchetype->GetComponentBitSet().HasAny(ComponentsToRemove), TEXT("Trying to remove a list of components from an entity but none of the components given was found.")))
+	if (ensureMsgf(OldArchetype->GetFragmentBitSet().HasAny(FragmentsToRemove), TEXT("Trying to remove a list of fragments from an entity but none of the fragments given was found.")))
 	{
-		// If all the components got removed this will result in fetching of the empty archetype
-		const FArchetypeHandle NewArchetypeHandle = CreateArchetype(FMassCompositionDescriptor(OldArchetype->GetComponentBitSet() - ComponentsToRemove, OldArchetype->GetTagBitSet(), OldArchetype->GetChunkComponentBitSet()));
+		// If all the fragments got removed this will result in fetching of the empty archetype
+		const FArchetypeHandle NewArchetypeHandle = CreateArchetype(FMassCompositionDescriptor(OldArchetype->GetFragmentBitSet() - FragmentsToRemove, OldArchetype->GetTagBitSet(), OldArchetype->GetChunkFragmentBitSet()));
 
 		// Move the entity over
 		FMassArchetypeData* NewArchetype = NewArchetypeHandle.DataPtr.Get();
@@ -668,40 +667,40 @@ void UMassEntitySubsystem::MoveEntityToAnotherArchetype(FMassEntityHandle Entity
 	EntityData.CurrentArchetype = NewArchetypeHandle.DataPtr;
 }
 
-void UMassEntitySubsystem::SetEntityComponentsValues(FMassEntityHandle Entity, TArrayView<const FInstancedStruct> ComponentInstanceList)
+void UMassEntitySubsystem::SetEntityFragmentsValues(FMassEntityHandle Entity, TArrayView<const FInstancedStruct> FragmentInstanceList)
 {
 	CheckIfEntityIsActive(Entity);
 
 	FEntityData& EntityData = Entities[Entity.Index];
-	EntityData.CurrentArchetype->SetComponentsData(Entity, ComponentInstanceList);
+	EntityData.CurrentArchetype->SetFragmentsData(Entity, FragmentInstanceList);
 }
 
-void UMassEntitySubsystem::BatchSetEntityComponentsValues(const FArchetypeChunkCollection& SparseEntities, TArrayView<const FInstancedStruct> ComponentInstanceList)
+void UMassEntitySubsystem::BatchSetEntityFragmentsValues(const FArchetypeChunkCollection& SparseEntities, TArrayView<const FInstancedStruct> FragmentInstanceList)
 {
 	FMassArchetypeData* Archetype = SparseEntities.GetArchetype().DataPtr.Get();
 	check(Archetype);
 
-	for (const FInstancedStruct& ComponentTemplate : ComponentInstanceList)
+	for (const FInstancedStruct& FragmentTemplate : FragmentInstanceList)
 	{
-		Archetype->SetComponentData(SparseEntities, ComponentTemplate);
+		Archetype->SetFragmentData(SparseEntities, FragmentTemplate);
 	}
 }
 
-void* UMassEntitySubsystem::InternalGetComponentDataChecked(FMassEntityHandle Entity, const UScriptStruct* ComponentType) const
+void* UMassEntitySubsystem::InternalGetFragmentDataChecked(FMassEntityHandle Entity, const UScriptStruct* FragmentType) const
 {
 	CheckIfEntityIsActive(Entity);
 
-	checkf((ComponentType != nullptr) && ComponentType->IsChildOf(FMassFragment::StaticStruct()), TEXT("InternalGetComponentDataChecked called with an invalid component type '%s'"), *GetPathNameSafe(ComponentType));
+	checkf((FragmentType != nullptr) && FragmentType->IsChildOf(FMassFragment::StaticStruct()), TEXT("InternalGetFragmentDataChecked called with an invalid fragment type '%s'"), *GetPathNameSafe(FragmentType));
 	const FEntityData& EntityData = Entities[Entity.Index];
-	return EntityData.CurrentArchetype->GetComponentDataForEntityChecked(ComponentType, Entity.Index);
+	return EntityData.CurrentArchetype->GetFragmentDataForEntityChecked(FragmentType, Entity.Index);
 }
 
-void* UMassEntitySubsystem::InternalGetComponentDataPtr(FMassEntityHandle Entity, const UScriptStruct* ComponentType) const
+void* UMassEntitySubsystem::InternalGetFragmentDataPtr(FMassEntityHandle Entity, const UScriptStruct* FragmentType) const
 {
 	CheckIfEntityIsActive(Entity);
-	checkf((ComponentType != nullptr) && ComponentType->IsChildOf(FMassFragment::StaticStruct()), TEXT("InternalGetComponentData called with an invalid component type '%s'"), *GetPathNameSafe(ComponentType));
+	checkf((FragmentType != nullptr) && FragmentType->IsChildOf(FMassFragment::StaticStruct()), TEXT("InternalGetFragmentData called with an invalid fragment type '%s'"), *GetPathNameSafe(FragmentType));
 	const FEntityData& EntityData = Entities[Entity.Index];
-	return EntityData.CurrentArchetype->GetComponentDataForEntity(ComponentType, Entity.Index);
+	return EntityData.CurrentArchetype->GetFragmentDataForEntity(FragmentType, Entity.Index);
 }
 
 bool UMassEntitySubsystem::IsEntityValid(FMassEntityHandle Entity) const
@@ -730,21 +729,21 @@ void UMassEntitySubsystem::GetValidArchetypes(const FMassEntityQuery& Query, TAr
 {
 	//@TODO: Not optimized yet, but we call this rarely now, so not a big deal.
 
-	// First get set of all archetypes that contain *any* component
+	// First get set of all archetypes that contain *any* fragment
 	TSet<TSharedPtr<FMassArchetypeData>> AnyArchetypes;
 	for (const FMassFragmentRequirement& Requirement : Query.GetRequirements())
 	{
 		check(Requirement.StructType);
 		if (Requirement.Presence != EMassFragmentPresence::None)
 		{
-			if (TArray<TSharedPtr<FMassArchetypeData>>* pData = ComponentTypeToArchetypeMap.Find(Requirement.StructType))
+			if (TArray<TSharedPtr<FMassArchetypeData>>* pData = FragmentTypeToArchetypeMap.Find(Requirement.StructType))
 			{
 				AnyArchetypes.Append(*pData);
 			}
 		}
 	}
 
-	// Then verify that they contain *all* required components
+	// Then verify that they contain *all* required fragments
 	for (TSharedPtr<FMassArchetypeData>& ArchetypePtr : AnyArchetypes)
 	{
 		FMassArchetypeData& Archetype = *(ArchetypePtr.Get());
@@ -787,65 +786,65 @@ void UMassEntitySubsystem::GetValidArchetypes(const FMassEntityQuery& Query, TAr
 			continue;
 		}
 		
-		if (Archetype.GetComponentBitSet().HasAll(Query.GetRequiredAllComponents()) == false)
+		if (Archetype.GetFragmentBitSet().HasAll(Query.GetRequiredAllFragments()) == false)
 		{
-			// missing some required components, skip.
+			// missing some required fragments, skip.
 #if WITH_MASSENTITY_DEBUG
-			const FMassFragmentBitSet UnsatisfiedComponents = Query.GetRequiredAllComponents() - Archetype.GetComponentBitSet();
+			const FMassFragmentBitSet UnsatisfiedFragments = Query.GetRequiredAllFragments() - Archetype.GetFragmentBitSet();
 			FStringOutputDevice Description;
-			UnsatisfiedComponents.DebugGetStringDesc(Description);
-			UE_LOG(LogMass, VeryVerbose, TEXT("Archetype did not match due to missing Components: %s")
+			UnsatisfiedFragments.DebugGetStringDesc(Description);
+			UE_LOG(LogMass, VeryVerbose, TEXT("Archetype did not match due to missing Fragments: %s")
 				, *Description);
 #endif // WITH_MASSENTITY_DEBUG
 			continue;
 		}
 
-		if (Archetype.GetComponentBitSet().HasNone(Query.GetRequiredNoneComponents()) == false)
+		if (Archetype.GetFragmentBitSet().HasNone(Query.GetRequiredNoneFragments()) == false)
 		{
-			// has some Components required to be absent
+			// has some Fragments required to be absent
 #if WITH_MASSENTITY_DEBUG
-			const FMassFragmentBitSet UnwantedComponents = Query.GetRequiredAllComponents().GetOverlap(Archetype.GetComponentBitSet());
+			const FMassFragmentBitSet UnwantedFragments = Query.GetRequiredAllFragments().GetOverlap(Archetype.GetFragmentBitSet());
 			FStringOutputDevice Description;
-			UnwantedComponents.DebugGetStringDesc(Description);
-			UE_LOG(LogMass, VeryVerbose, TEXT("Archetype has Components required absent: %s")
+			UnwantedFragments.DebugGetStringDesc(Description);
+			UE_LOG(LogMass, VeryVerbose, TEXT("Archetype has Fragments required absent: %s")
 				, *Description);
 #endif // WITH_MASSENTITY_DEBUG
 			continue;
 		}
 
-		if (Query.GetRequiredAnyComponents().IsEmpty() == false 
-			&& Archetype.GetComponentBitSet().HasAny(Query.GetRequiredAnyComponents()) == false)
+		if (Query.GetRequiredAnyFragments().IsEmpty() == false 
+			&& Archetype.GetFragmentBitSet().HasAny(Query.GetRequiredAnyFragments()) == false)
 		{
 #if WITH_MASSENTITY_DEBUG
 			FStringOutputDevice Description;
-			Query.GetRequiredAnyComponents().DebugGetStringDesc(Description);
-			UE_LOG(LogMass, VeryVerbose, TEXT("Archetype did not match due to missing \'any\' components: %s")
+			Query.GetRequiredAnyFragments().DebugGetStringDesc(Description);
+			UE_LOG(LogMass, VeryVerbose, TEXT("Archetype did not match due to missing \'any\' fragments: %s")
 				, *Description);
 #endif // WITH_MASSENTITY_DEBUG
 			continue;
 		}
 
-		if (Archetype.GetChunkComponentBitSet().HasAll(Query.GetRequiredAllChunkComponents()) == false)
+		if (Archetype.GetChunkFragmentBitSet().HasAll(Query.GetRequiredAllChunkFragments()) == false)
 		{
-			// missing some required components, skip.
+			// missing some required fragments, skip.
 #if WITH_MASSENTITY_DEBUG
-			const FMassChunkFragmentBitSet UnsatisfiedComponents = Query.GetRequiredAllChunkComponents() - Archetype.GetChunkComponentBitSet();
+			const FMassChunkFragmentBitSet UnsatisfiedFragments = Query.GetRequiredAllChunkFragments() - Archetype.GetChunkFragmentBitSet();
 			FStringOutputDevice Description;
-			UnsatisfiedComponents.DebugGetStringDesc(Description);
-			UE_LOG(LogMass, VeryVerbose, TEXT("Archetype did not match due to missing Chunk Components: %s")
+			UnsatisfiedFragments.DebugGetStringDesc(Description);
+			UE_LOG(LogMass, VeryVerbose, TEXT("Archetype did not match due to missing Chunk Fragments: %s")
 				, *Description);
 #endif // WITH_MASSENTITY_DEBUG
 			continue;
 		}
 
-		if (Archetype.GetChunkComponentBitSet().HasNone(Query.GetRequiredNoneChunkComponents()) == false)
+		if (Archetype.GetChunkFragmentBitSet().HasNone(Query.GetRequiredNoneChunkFragments()) == false)
 		{
-			// has some Components required to be absent
+			// has some Fragments required to be absent
 #if WITH_MASSENTITY_DEBUG
-			const FMassChunkFragmentBitSet UnwantedComponents = Query.GetRequiredNoneChunkComponents().GetOverlap(Archetype.GetChunkComponentBitSet());
+			const FMassChunkFragmentBitSet UnwantedFragments = Query.GetRequiredNoneChunkFragments().GetOverlap(Archetype.GetChunkFragmentBitSet());
 			FStringOutputDevice Description;
-			UnwantedComponents.DebugGetStringDesc(Description);
-			UE_LOG(LogMass, VeryVerbose, TEXT("Archetype has Chunk Components required absent: %s")
+			UnwantedFragments.DebugGetStringDesc(Description);
+			UE_LOG(LogMass, VeryVerbose, TEXT("Archetype has Chunk Fragments required absent: %s")
 				, *Description);
 #endif // WITH_MASSENTITY_DEBUG
 			continue;
@@ -870,7 +869,7 @@ void UMassEntitySubsystem::DebugPrintArchetypes(FOutputDevice& Ar) const
 	int32 NumBuckets = 0;
 	int32 NumArchetypes = 0;
 	int32 LongestArchetypeBucket = 0;
-	for (const auto& KVP : ComponentHashToArchetypeMap)
+	for (const auto& KVP : FragmentHashToArchetypeMap)
 	{
 		for (const TSharedPtr<FMassArchetypeData>& ArchetypePtr : KVP.Value)
 		{
@@ -883,7 +882,7 @@ void UMassEntitySubsystem::DebugPrintArchetypes(FOutputDevice& Ar) const
 		++NumBuckets;
 	}
 
-	Ar.Logf(ELogVerbosity::Log, TEXT("ComponentHashToArchetypeMap: %d archetypes across %d buckets, longest bucket is %d"),
+	Ar.Logf(ELogVerbosity::Log, TEXT("FragmentHashToArchetypeMap: %d archetypes across %d buckets, longest bucket is %d"),
 		NumArchetypes, NumBuckets, LongestArchetypeBucket);
 }
 
@@ -891,14 +890,14 @@ void UMassEntitySubsystem::DebugPrintEntity(int32 Index, FOutputDevice& Ar, cons
 {
 	if (Index >= Entities.Num())
 	{
-		Ar.Logf(ELogVerbosity::Log, TEXT("Unable to list components values for out of range index in %s"), *GetPathNameSafe(this));
+		Ar.Logf(ELogVerbosity::Log, TEXT("Unable to list fragments values for out of range index in %s"), *GetPathNameSafe(this));
 		return;
 	}
 
 	const FEntityData& EntityData = Entities[Index];
 	if (!EntityData.IsValid())
 	{
-		Ar.Logf(ELogVerbosity::Log, TEXT("Unable to list components values for invalid entity in %s"), *GetPathNameSafe(this));
+		Ar.Logf(ELogVerbosity::Log, TEXT("Unable to list fragments values for invalid entity in %s"), *GetPathNameSafe(this));
 	}
 
 	FMassEntityHandle Entity;
@@ -911,16 +910,16 @@ void UMassEntitySubsystem::DebugPrintEntity(FMassEntityHandle Entity, FOutputDev
 {
 	if (!IsEntityActive(Entity))
 	{
-		Ar.Logf(ELogVerbosity::Log, TEXT("Unable to list components values for invalid entity in %s"), *GetPathNameSafe(this));
+		Ar.Logf(ELogVerbosity::Log, TEXT("Unable to list fragments values for invalid entity in %s"), *GetPathNameSafe(this));
 	}
 
-	Ar.Logf(ELogVerbosity::Log, TEXT("Listing components values for Entity[%s] in %s"), *Entity.DebugGetDescription(), *GetPathNameSafe(this));
+	Ar.Logf(ELogVerbosity::Log, TEXT("Listing fragments values for Entity[%s] in %s"), *Entity.DebugGetDescription(), *GetPathNameSafe(this));
 
 	const FEntityData& EntityData = Entities[Entity.Index];
 	FMassArchetypeData* Archetype = EntityData.CurrentArchetype.Get();
 	if (Archetype == nullptr)
 	{
-		Ar.Logf(ELogVerbosity::Log, TEXT("Unable to list components values for invalid entity in %s"), *GetPathNameSafe(this));
+		Ar.Logf(ELogVerbosity::Log, TEXT("Unable to list fragments values for invalid entity in %s"), *GetPathNameSafe(this));
 	}
 	else
 	{
@@ -937,7 +936,7 @@ void UMassEntitySubsystem::DebugGetArchetypesStringDetails(FOutputDevice& Ar, co
 {
 #if WITH_MASSENTITY_DEBUG
 	Ar.SetAutoEmitLineTerminator(true);
-	for (auto Pair : ComponentHashToArchetypeMap)
+	for (auto Pair : FragmentHashToArchetypeMap)
 	{
 		Ar.Logf(ELogVerbosity::Log, TEXT("\n-----------------------------------\nHash: %u"), Pair.Key);
 		for (TSharedPtr<FMassArchetypeData> Archetype : Pair.Value)
@@ -952,11 +951,11 @@ void UMassEntitySubsystem::DebugGetArchetypesStringDetails(FOutputDevice& Ar, co
 #endif // WITH_MASSENTITY_DEBUG
 }
 
-void UMassEntitySubsystem::DebugGetArchetypeComponentTypes(const FArchetypeHandle& Archetype, TArray<const UScriptStruct*>& InOutComponentList) const
+void UMassEntitySubsystem::DebugGetArchetypeFragmentTypes(const FArchetypeHandle& Archetype, TArray<const UScriptStruct*>& InOutFragmentList) const
 {
 	if (Archetype.DataPtr.IsValid())
 	{
-		Archetype.DataPtr->GetCompositionDescriptor().Components.DebugGetStructTypes(InOutComponentList);
+		Archetype.DataPtr->GetCompositionDescriptor().Fragments.DebugGetStructTypes(InOutFragmentList);
 	}
 }
 
@@ -986,7 +985,7 @@ void UMassEntitySubsystem::DebugRemoveAllEntities()
 	}
 }
 
-void UMassEntitySubsystem::DebugGetArchetypeStrings(const FArchetypeHandle& Archetype, TArray<FName>& OutComponentNames, TArray<FName>& OutTagNames)
+void UMassEntitySubsystem::DebugGetArchetypeStrings(const FArchetypeHandle& Archetype, TArray<FName>& OutFragmentNames, TArray<FName>& OutTagNames)
 {
 	if (Archetype.IsValid() == false)
 	{
@@ -995,11 +994,11 @@ void UMassEntitySubsystem::DebugGetArchetypeStrings(const FArchetypeHandle& Arch
 
 	FMassArchetypeData& ArchetypeRef = *Archetype.DataPtr.Get();
 	
-	OutComponentNames.Reserve(ArchetypeRef.GetComponentConfigs().Num());
-	for (const FMassArchetypeFragmentConfig& ComponentConfig : ArchetypeRef.GetComponentConfigs())
+	OutFragmentNames.Reserve(ArchetypeRef.GetFragmentConfigs().Num());
+	for (const FMassArchetypeFragmentConfig& FragmentConfig : ArchetypeRef.GetFragmentConfigs())
 	{
-		checkSlow(ComponentConfig.ComponentType);
-		OutComponentNames.Add(ComponentConfig.ComponentType->GetFName());
+		checkSlow(FragmentConfig.FragmentType);
+		OutFragmentNames.Add(FragmentConfig.FragmentType->GetFName());
 	}
 
 	ArchetypeRef.GetTagBitSet().DebugGetIndividualNames(OutTagNames);
@@ -1038,7 +1037,7 @@ void FMassExecutionContext::FlushDeferred(UMassEntitySubsystem& EntitySystem) co
 
 void FMassExecutionContext::ClearExecutionData()
 {
-	ComponentViews.Reset();
+	FragmentViews.Reset();
 	CurrentArchetypesTagBitSet.Reset();
 	ChunkSerialModificationNumber = -1;
 }
@@ -1062,21 +1061,21 @@ void FMassExecutionContext::SetChunkCollection(FArchetypeChunkCollection&& InChu
 
 void FMassExecutionContext::SetRequirements(TConstArrayView<FMassFragmentRequirement> InRequirements, TConstArrayView<FMassFragmentRequirement> InChunkRequirements)
 { 
-	ComponentViews.Reset();
+	FragmentViews.Reset();
 	for (const FMassFragmentRequirement& Requirement : InRequirements)
 	{
 		if (Requirement.RequiresBinding())
 		{
-			ComponentViews.Add(FFragmentView(Requirement));
+			FragmentViews.Add(FFragmentView(Requirement));
 		}
 	}
 
-	ChunkComponents.Reset();
+	ChunkFragments.Reset();
 	for (const FMassFragmentRequirement& Requirement : InChunkRequirements)
 	{
 		if (Requirement.RequiresBinding())
 		{
-			ChunkComponents.Add(FChunkFragmentView(Requirement));
+			ChunkFragments.Add(FChunkFragmentView(Requirement));
 		}
 	}
 }

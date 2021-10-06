@@ -95,8 +95,8 @@ public:
 	 * The following functions are used to configure the query and then set that data for path following.
 	 */
 	static void AddRequirementsForSpawnQuery(FMassEntityQuery& InQuery);
-	void CacheComponentViewsForSpawnQuery(FMassExecutionContext& InExecContext);
-	void ClearComponentViewsForSpawnQuery();
+	void CacheFragmentViewsForSpawnQuery(FMassExecutionContext& InExecContext);
+	void ClearFragmentViewsForSpawnQuery();
 
 	void SetSpawnedEntityData(const FMassEntityView& EntityView, const FReplicatedAgentPathData& ReplicatedPathData, const int32 EntityIdx) const;
 
@@ -150,17 +150,17 @@ void TMassClientBubblePathHandler<AgentArrayItem>::AddRequirementsForSpawnQuery(
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
 template<typename AgentArrayItem>
-void TMassClientBubblePathHandler<AgentArrayItem>::CacheComponentViewsForSpawnQuery(FMassExecutionContext& InExecContext)
+void TMassClientBubblePathHandler<AgentArrayItem>::CacheFragmentViewsForSpawnQuery(FMassExecutionContext& InExecContext)
 {
-	PathRequestList = InExecContext.GetMutableComponentView<FMassZoneGraphPathRequestFragment>();
-	MoveTargetList = InExecContext.GetMutableComponentView<FMassMoveTargetFragment>();
-	LaneLocationList = InExecContext.GetMutableComponentView<FMassZoneGraphLaneLocationFragment>();
+	PathRequestList = InExecContext.GetMutableFragmentView<FMassZoneGraphPathRequestFragment>();
+	MoveTargetList = InExecContext.GetMutableFragmentView<FMassMoveTargetFragment>();
+	LaneLocationList = InExecContext.GetMutableFragmentView<FMassZoneGraphLaneLocationFragment>();
 }
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
 template<typename AgentArrayItem>
-void TMassClientBubblePathHandler<AgentArrayItem>::ClearComponentViewsForSpawnQuery()
+void TMassClientBubblePathHandler<AgentArrayItem>::ClearFragmentViewsForSpawnQuery()
 {
 	LaneLocationList = TArrayView<FMassZoneGraphLaneLocationFragment>();
 	MoveTargetList = TArrayView<FMassMoveTargetFragment>();
@@ -200,11 +200,11 @@ public:
 	static void AddRequirements(FMassEntityQuery& InQuery);
 
 	/** Cache any component views you want to, this will get called before we iterate through entities. */
-	void CacheComponentViews(FMassExecutionContext& ExecContext);
+	void CacheFragmentViews(FMassExecutionContext& ExecContext);
 
 	/**
 	 * Set the replicated path data when we are adding an entity to the client bubble.
-	 * @param EntityIdx the index of the entity in component views that have been cached.
+	 * @param EntityIdx the index of the entity in fragment views that have been cached.
 	 * @param InOUtReplicatedPathData the data to set.
 	 */
 	void AddEntity(const int32 EntityIdx, FReplicatedAgentPathData& InOUtReplicatedPathData) const;
@@ -212,7 +212,7 @@ public:
 	/**
 	 * Set the replicated path data when we are modifying an entity that already exists in the client bubble.
 	 * @param Handle to the agent in the TMassClientBubbleHandler (that TMassClientBubblePathHandler is a member variable of).
-	 * @param EntityIdx the index of the entity in component views that have been cached.
+	 * @param EntityIdx the index of the entity in fragment views that have been cached.
 	 * @param BubblePathHandler handler to actually set the data in the client bubble
 	 */
 	template<typename AgentArrayItem>

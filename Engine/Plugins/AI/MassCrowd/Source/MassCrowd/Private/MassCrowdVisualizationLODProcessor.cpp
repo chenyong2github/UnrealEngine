@@ -82,8 +82,8 @@ void UMassCrowdVisualizationLODProcessor::Execute(UMassEntitySubsystem& EntitySu
 
 		auto DebugDisplayLOD = [this](FMassExecutionContext& Context)
 		{
-			const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetComponentView<FDataFragment_Transform>();
-			const TConstArrayView<FMassRepresentationLODFragment> VisualizationLODList = Context.GetComponentView<FMassRepresentationLODFragment>();
+			const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
+			const TConstArrayView<FMassRepresentationLODFragment> VisualizationLODList = Context.GetFragmentView<FMassRepresentationLODFragment>();
 			LODCalculator.DebugDisplayLOD(Context, VisualizationLODList, LocationList, World);
 		};
 
@@ -97,9 +97,9 @@ void UMassCrowdVisualizationLODProcessor::Execute(UMassEntitySubsystem& EntitySu
 
 		auto ShowISMUnderSpecifiedRange = [this](const FMassExecutionContext& Context)
 		{
-			const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetComponentView<FDataFragment_Transform>();
-			const TConstArrayView<FMassRepresentationFragment> RepresentationFragmentList = Context.GetComponentView<FMassRepresentationFragment>();
-			const TConstArrayView<FMassRepresentationLODFragment> RepresentationLODFragmentList = Context.GetComponentView<FMassRepresentationLODFragment>();
+			const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
+			const TConstArrayView<FMassRepresentationFragment> RepresentationFragmentList = Context.GetFragmentView<FMassRepresentationFragment>();
+			const TConstArrayView<FMassRepresentationLODFragment> RepresentationLODFragmentList = Context.GetFragmentView<FMassRepresentationLODFragment>();
 			const int32 NumEntities = Context.GetNumEntities();
 			const float SpecifiedRangeSquaredCentimeters = FMath::Square(UE::MassCrowd::bDebugShowISMUnderSpecifiedRange * 100);
 			for (int EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)

@@ -69,8 +69,8 @@ void UMassLODCollectorProcessor::ConfigureQueries()
 		LODConfig.FarAndOffLODEntityQuery_Conditional.AddChunkRequirement<FMassVisualizationChunkFragment>(EMassFragmentAccess::ReadOnly);
 		LODConfig.FarAndOffLODEntityQuery_Conditional.SetChunkFilter([](const FMassExecutionContext& Context)
 			{
-				return Context.GetChunkComponent<FMassVisualizationChunkFragment>().ShouldUpdateVisualization()
-					|| Context.GetChunkComponent<FMassSimulationVariableTickChunkFragment>().ShouldTickThisFrame();
+				return Context.GetChunkFragment<FMassVisualizationChunkFragment>().ShouldUpdateVisualization()
+					|| Context.GetChunkFragment<FMassSimulationVariableTickChunkFragment>().ShouldTickThisFrame();
 			});
 	}
 }
@@ -82,8 +82,8 @@ void CollectLOD(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Co
 
 	auto CollectLODInfo = [&Collector](FMassExecutionContext& Context)
 	{
-		TConstArrayView<FDataFragment_Transform> LocationList = Context.GetComponentView<FDataFragment_Transform>();
-		TArrayView<FMassLODInfoFragment> ViewerInfoList = Context.GetMutableComponentView<FMassLODInfoFragment>();
+		TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
+		TArrayView<FMassLODInfoFragment> ViewerInfoList = Context.GetMutableFragmentView<FMassLODInfoFragment>();
 
 		Collector.CollectLODInfo(Context, LocationList, ViewerInfoList);
 	};

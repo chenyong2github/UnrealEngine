@@ -27,7 +27,7 @@ bool SetExternalFragments(FMassStateTreeExecutionContext& Context, const UMassEn
 		if (ItemDesc.Struct && ItemDesc.Struct->IsChildOf(FMassFragment::StaticStruct()))
 		{
 			const UScriptStruct* ScriptStruct = Cast<const UScriptStruct>(ItemDesc.Struct);
-			FStructView Fragment = EntityView.GetComponentDataStruct(ScriptStruct);
+			FStructView Fragment = EntityView.GetFragmentDataStruct(ScriptStruct);
 			if (Fragment.IsValid())
 			{
 				Context.SetExternalItem(ItemDesc.Handle, FStateTreeItemView(Fragment));
@@ -83,7 +83,7 @@ void ForEachEntityInChunk(
 	const TFunctionRef<void(FMassStateTreeExecutionContext&, FStateTreeItemView)> ForEachEntityCallback)
 {
 	const FMassExecutionContext& Context = StateTreeContext.GetEntitySubsystemExecutionContext();
-	const TConstArrayView<FMassStateTreeFragment> StateTreeList = Context.GetComponentView<FMassStateTreeFragment>();
+	const TConstArrayView<FMassStateTreeFragment> StateTreeList = Context.GetFragmentView<FMassStateTreeFragment>();
 
 	// Assuming that all the entities share same StateTree, because they all should have the same storage fragment.
 	const int32 NumEntities = Context.GetNumEntities();
@@ -131,7 +131,7 @@ void ForEachEntityInChunk(
 			}
 		}
 
-		ForEachEntityCallback(StateTreeContext, StateTreeContext.GetEntitySubsystem().GetComponentDataStruct(Entity, StorageScriptStruct));
+		ForEachEntityCallback(StateTreeContext, StateTreeContext.GetEntitySubsystem().GetFragmentDataStruct(Entity, StorageScriptStruct));
 	}
 }
 
@@ -296,7 +296,7 @@ void UMassStateTreeProcessor::SignalEntities(UMassEntitySubsystem& EntitySubsyst
 			// Keep stats regarding the amount of tree instances ticked per frame
 			CSV_CUSTOM_STAT(StateTreeProcessor, NumTickedStateTree, Context.GetNumEntities(), ECsvCustomStatOp::Accumulate);
 
-			TArrayView<FMassStateTreeFragment> StateTreeList = Context.GetMutableComponentView<FMassStateTreeFragment>();
+			TArrayView<FMassStateTreeFragment> StateTreeList = Context.GetMutableFragmentView<FMassStateTreeFragment>();
 
 			UE::MassBehavior::ForEachEntityInChunk(
 				StateTreeContext,

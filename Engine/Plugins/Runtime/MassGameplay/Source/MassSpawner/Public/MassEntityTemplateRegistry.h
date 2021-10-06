@@ -188,7 +188,7 @@ protected:
 
 /** @todo document 
  *  Note: the Object-Instance entity templates do not support having multiple instances of the same class that differ in
- *  composition (like with dynamically added components). The first registered instance will determine the composition 
+ *  composition (like with dynamically added fragments). The first registered instance will determine the composition 
  *  of the entity template.
  */
 UCLASS()

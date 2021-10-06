@@ -9,7 +9,7 @@
 
 /** 
  *  An experimental processor that can be configured to work on any Fragment type as long as it's size matches
- *  FVectorComponent (effectively the size of FVector). Meant mostly for prototyping.
+ *  FVectorFragment (effectively the size of FVector). Meant mostly for prototyping.
  *  @todo currently the processor is randomizing it as if it was a fixed-max-length 2d velocity vector. If we keep this
  *  idea around we can add more properties to the processor that would configure the behavior.
  */

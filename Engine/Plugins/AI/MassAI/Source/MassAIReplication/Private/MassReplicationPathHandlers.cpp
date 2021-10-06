@@ -18,11 +18,11 @@ void FMassReplicationProcessorPathHandler::AddRequirements(FMassEntityQuery& InQ
 	InQuery.AddRequirement<FMassZoneGraphLaneLocationFragment>(EMassFragmentAccess::ReadOnly);
 }
 
-void FMassReplicationProcessorPathHandler::CacheComponentViews(FMassExecutionContext& ExecContext)
+void FMassReplicationProcessorPathHandler::CacheFragmentViews(FMassExecutionContext& ExecContext)
 {
-	PathRequestList = ExecContext.GetMutableComponentView<FMassZoneGraphPathRequestFragment>();
-	MoveTargetList = ExecContext.GetMutableComponentView<FMassMoveTargetFragment>();
-	LaneLocationList = ExecContext.GetMutableComponentView<FMassZoneGraphLaneLocationFragment>();
+	PathRequestList = ExecContext.GetMutableFragmentView<FMassZoneGraphPathRequestFragment>();
+	MoveTargetList = ExecContext.GetMutableFragmentView<FMassMoveTargetFragment>();
+	LaneLocationList = ExecContext.GetMutableFragmentView<FMassZoneGraphLaneLocationFragment>();
 }
 
 void FMassReplicationProcessorPathHandler::AddEntity(const int32 EntityIdx, FReplicatedAgentPathData& InOutReplicatedPathData) const
@@ -97,7 +97,7 @@ void FReplicatedAgentPathData::InitEntity(const UWorld& InWorld,
 void FReplicatedAgentPathData::ApplyToEntity(const UWorld& InWorld, const FMassEntityView& InEntityView) const
 {
 	const FMassEntityHandle Entity = InEntityView.GetEntity();
-	FMassMoveTargetFragment& MoveTarget = InEntityView.GetComponentData<FMassMoveTargetFragment>();
+	FMassMoveTargetFragment& MoveTarget = InEntityView.GetFragmentData<FMassMoveTargetFragment>();
 	if (MoveTarget.GetCurrentActionID() == ActionID)
 	{
 		return;
@@ -116,10 +116,10 @@ void FReplicatedAgentPathData::ApplyToEntity(const UWorld& InWorld, const FMassE
 
 	UE_VLOG(SimulationSubsystem, LogMassNavigation, Log, TEXT("Entity [%s] apply replicated data to entity"), *Entity.DebugGetDescription());
 
-	FMassZoneGraphShortPathFragment& ShortPath = InEntityView.GetComponentData<FMassZoneGraphShortPathFragment>();
-	FMassZoneGraphCachedLaneFragment& CachedLane = InEntityView.GetComponentData<FMassZoneGraphCachedLaneFragment>();
-	FMassZoneGraphLaneLocationFragment& LaneLocation = InEntityView.GetComponentData<FMassZoneGraphLaneLocationFragment>();
-	const FDataFragment_AgentRadius& AgentRadius = InEntityView.GetComponentData<FDataFragment_AgentRadius>();
+	FMassZoneGraphShortPathFragment& ShortPath = InEntityView.GetFragmentData<FMassZoneGraphShortPathFragment>();
+	FMassZoneGraphCachedLaneFragment& CachedLane = InEntityView.GetFragmentData<FMassZoneGraphCachedLaneFragment>();
+	FMassZoneGraphLaneLocationFragment& LaneLocation = InEntityView.GetFragmentData<FMassZoneGraphLaneLocationFragment>();
+	const FDataFragment_AgentRadius& AgentRadius = InEntityView.GetFragmentData<FDataFragment_AgentRadius>();
 
 	MoveTarget.CreateReplicatedAction(Action, ActionID, InWorld.GetTimeSeconds(), ActionServerStartTime);
 	MoveTarget.DesiredSpeed = DesiredSpeed;

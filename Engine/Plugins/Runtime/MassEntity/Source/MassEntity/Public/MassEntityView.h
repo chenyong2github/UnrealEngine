@@ -39,34 +39,34 @@ struct MASSENTITY_API FMassEntityView
 
 	FMassEntityHandle GetEntity() const	{ return Entity; }
 
-	/** will fail a check if the viewed entity doesn't have the given component */	
+	/** will fail a check if the viewed entity doesn't have the given fragment */	
 	template<typename T>
-	T& GetComponentData() const
+	T& GetFragmentData() const
 	{
 		static_assert(!TIsDerivedFrom<T, FMassTag>::IsDerived,
 			"Given struct doesn't represent a valid fragment type but a tag. Use HasTag instead.");
 		static_assert(TIsDerivedFrom<T, FMassTag>::IsDerived || TIsDerivedFrom<T, FMassFragment>::IsDerived,
 			"Given struct doesn't represent a valid fragment type. Make sure to inherit from FMassFragment or one of its child-types.");
 
-		return *((T*)GetComponentPtrChecked(*T::StaticStruct()));
+		return *((T*)GetFragmentPtrChecked(*T::StaticStruct()));
 	}
 		
-	/** if the viewed entity doesn't have the given component the function will return null */
+	/** if the viewed entity doesn't have the given fragment the function will return null */
 	template<typename T>
-	T* GetComponentDataPtr() const
+	T* GetFragmentDataPtr() const
 	{
 		static_assert(!TIsDerivedFrom<T, FMassTag>::IsDerived,
 			"Given struct doesn't represent a valid fragment type but a tag. Use HasTag instead.");
 		static_assert(TIsDerivedFrom<T, FMassTag>::IsDerived || TIsDerivedFrom<T, FMassFragment>::IsDerived,
 			"Given struct doesn't represent a valid fragment type. Make sure to inherit from FMassFragment or one of its child-types.");
 
-		return (T*)GetComponentPtr(*T::StaticStruct());
+		return (T*)GetFragmentPtr(*T::StaticStruct());
 	}
 
-	FStructView GetComponentDataStruct(const UScriptStruct* ComponentType) const
+	FStructView GetFragmentDataStruct(const UScriptStruct* FragmentType) const
 	{
-		check(ComponentType);
-		return FStructView(ComponentType, static_cast<uint8*>(GetComponentPtr(*ComponentType)));
+		check(FragmentType);
+		return FStructView(FragmentType, static_cast<uint8*>(GetFragmentPtr(*FragmentType)));
 	}
 
 	template<typename T>
@@ -80,8 +80,8 @@ struct MASSENTITY_API FMassEntityView
 	bool operator==(const FMassEntityView& Other) const { return Archetype == Other.Archetype && EntityHandle == Other.EntityHandle; }
 
 protected:
-	void* GetComponentPtr(const UScriptStruct& ComponentType) const;
-	void* GetComponentPtrChecked(const UScriptStruct& ComponentType) const;
+	void* GetFragmentPtr(const UScriptStruct& FragmentType) const;
+	void* GetFragmentPtrChecked(const UScriptStruct& FragmentType) const;
 	bool HasTag(const UScriptStruct& TagType) const;
 
 private:

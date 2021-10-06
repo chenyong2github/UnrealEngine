@@ -75,13 +75,13 @@ struct FMassSimulationVariableTickChunkFragment : public FMassVariableTickChunkF
 
 	static bool ShouldTickChunkThisFrame(const FMassExecutionContext& Context)
 	{
-		const FMassSimulationVariableTickChunkFragment& ChunkFragment = Context.GetChunkComponent<FMassSimulationVariableTickChunkFragment>();
+		const FMassSimulationVariableTickChunkFragment& ChunkFragment = Context.GetChunkFragment<FMassSimulationVariableTickChunkFragment>();
 		return ChunkFragment.ShouldTickThisFrame();
 	}
 
 	static EMassLOD::Type GetChunkLOD(const FMassExecutionContext& Context)
 	{
-		const FMassSimulationVariableTickChunkFragment& ChunkFragment = Context.GetChunkComponent<FMassSimulationVariableTickChunkFragment>();
+		const FMassSimulationVariableTickChunkFragment& ChunkFragment = Context.GetChunkFragment<FMassSimulationVariableTickChunkFragment>();
 		return ChunkFragment.GetLOD();
 	}
 

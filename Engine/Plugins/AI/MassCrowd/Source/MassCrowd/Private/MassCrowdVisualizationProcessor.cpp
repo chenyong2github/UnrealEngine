@@ -53,9 +53,9 @@ void UMassCrowdVisualizationProcessor::Execute(UMassEntitySubsystem& EntitySubsy
 
 		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](const FMassExecutionContext& Context)
 		{
-			const TConstArrayView<FMassRepresentationFragment> VisualizationList = Context.GetComponentView<FMassRepresentationFragment>();
-			const TConstArrayView<FDataFragment_Actor> ActorList = Context.GetComponentView<FDataFragment_Actor>();
-			const TConstArrayView<FDataFragment_Transform> EntityLocationList = Context.GetComponentView<FDataFragment_Transform>();
+			const TConstArrayView<FMassRepresentationFragment> VisualizationList = Context.GetFragmentView<FMassRepresentationFragment>();
+			const TConstArrayView<FDataFragment_Actor> ActorList = Context.GetFragmentView<FDataFragment_Actor>();
+			const TConstArrayView<FDataFragment_Transform> EntityLocationList = Context.GetFragmentView<FDataFragment_Transform>();
 
 			const int32 NumEntities = Context.GetNumEntities();
 			for (int EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)

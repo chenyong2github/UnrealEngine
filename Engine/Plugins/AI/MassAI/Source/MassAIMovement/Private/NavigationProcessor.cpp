@@ -120,10 +120,10 @@ void UMassApplyVelocityMoveTargetProcessor::Execute(UMassEntitySubsystem& Entity
 			constexpr float OrientationBlendWhileMoving = 0.4f;
 			constexpr float OrientationBlendWhileStanding = 0.95f;
 
-			const TConstArrayView<FMassMoveTargetFragment> MoveTargetList = Context.GetComponentView<FMassMoveTargetFragment>();
-			const TArrayView<FDataFragment_Transform> LocationList = Context.GetMutableComponentView<FDataFragment_Transform>();
-			const TArrayView<FMassSteeringFragment> SteeringList = Context.GetMutableComponentView<FMassSteeringFragment>();
-			const TArrayView<FMassVelocityFragment> VelocityList = Context.GetMutableComponentView<FMassVelocityFragment>();
+			const TConstArrayView<FMassMoveTargetFragment> MoveTargetList = Context.GetFragmentView<FMassMoveTargetFragment>();
+			const TArrayView<FDataFragment_Transform> LocationList = Context.GetMutableFragmentView<FDataFragment_Transform>();
+			const TArrayView<FMassSteeringFragment> SteeringList = Context.GetMutableFragmentView<FMassSteeringFragment>();
+			const TArrayView<FMassVelocityFragment> VelocityList = Context.GetMutableFragmentView<FMassVelocityFragment>();
 
 			for (int32 EntityIndex = 0; EntityIndex < NumEntities; ++EntityIndex)
 			{
@@ -207,8 +207,8 @@ void UMassApplyVelocityMoveTargetProcessor::Execute(UMassEntitySubsystem& Entity
 			{
 				const int32 NumEntities = Context.GetNumEntities();
 
-				const TArrayView<FDataFragment_Transform> LocationList = Context.GetMutableComponentView<FDataFragment_Transform>();
-				const TConstArrayView<FMassMoveTargetFragment> MoveTargetList = Context.GetComponentView<FMassMoveTargetFragment>();
+				const TArrayView<FDataFragment_Transform> LocationList = Context.GetMutableFragmentView<FDataFragment_Transform>();
+				const TConstArrayView<FMassMoveTargetFragment> MoveTargetList = Context.GetFragmentView<FMassMoveTargetFragment>();
 
 				for (int32 EntityIndex = 0; EntityIndex < NumEntities; ++EntityIndex)
 				{
@@ -247,9 +247,9 @@ void UMassDynamicObstacleProcessor::Execute(UMassEntitySubsystem& EntitySubsyste
 		{
 			const int32 NumEntities = Context.GetNumEntities();
 
-			const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetComponentView<FDataFragment_Transform>();
-			const TConstArrayView<FDataFragment_AgentRadius> RadiusList = Context.GetComponentView<FDataFragment_AgentRadius>();
-			const TArrayView<FMassDynamicObstacleFragment> ObstacleDataList = Context.GetMutableComponentView<FMassDynamicObstacleFragment>();
+			const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
+			const TConstArrayView<FDataFragment_AgentRadius> RadiusList = Context.GetFragmentView<FDataFragment_AgentRadius>();
+			const TArrayView<FMassDynamicObstacleFragment> ObstacleDataList = Context.GetMutableFragmentView<FMassDynamicObstacleFragment>();
 
 			const FDateTime Now = FDateTime::UtcNow();
 

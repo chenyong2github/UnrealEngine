@@ -164,7 +164,7 @@ void UMassAgentComponent::SetEntityHandleInternal(const FMassEntityHandle NewHan
 	// Fetch NetID if it exist
 	if (const UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld()))
 	{
-		if (const FMassNetworkIDFragment* NetIDFragment = EntitySubsystem->GetComponentDataPtr<FMassNetworkIDFragment>(AgentHandle))
+		if (const FMassNetworkIDFragment* NetIDFragment = EntitySubsystem->GetFragmentDataPtr<FMassNetworkIDFragment>(AgentHandle))
 		{
 			if (!IsNetSimulating())
 			{
@@ -193,20 +193,20 @@ void UMassAgentComponent::SetEntityHandleInternal(const FMassEntityHandle NewHan
 			// @todo Find a way to add these initialization into either translator initializer or adding new fragments
 			// Make sure to fetch the fragment after any release, as that action can move the entity around into new archetype and 
 			// by the same fact change the references to the fragments.
-			if (FDataFragment_Actor* ActorInfo = EntityView.GetComponentDataPtr<FDataFragment_Actor>())
+			if (FDataFragment_Actor* ActorInfo = EntityView.GetFragmentDataPtr<FDataFragment_Actor>())
 			{
 				checkf(!ActorInfo->IsValid(), TEXT("Expecting ActorInfo fragment to be null"));
 				ActorInfo->SetAndUpdateHandleMap(AgentHandle, GetOwner(), !IsNetSimulating()/*bIsOwnedByMass*/);
 			}
 
 			// Initialize location of the replicated actor to match the mass replicated one
-			if (const FDataFragment_Transform* TransformFragment = EntityView.GetComponentDataPtr<FDataFragment_Transform>())
+			if (const FDataFragment_Transform* TransformFragment = EntityView.GetFragmentDataPtr<FDataFragment_Transform>())
 			{
 				GetOwner()->SetActorTransform(TransformFragment->GetTransform(), /*bSweep*/false, /*OutSweepHitResult*/nullptr, ETeleportType::TeleportPhysics);
 			}
 
 			// Initialize velocity of the replicated actor to match the mass replicated one
-			if (const FMassVelocityFragment* Velocity = EntityView.GetComponentDataPtr<FMassVelocityFragment>())
+			if (const FMassVelocityFragment* Velocity = EntityView.GetFragmentDataPtr<FMassVelocityFragment>())
 			{
 				if (UCharacterMovementComponent* MovementComp = GetOwner()->FindComponentByClass<UCharacterMovementComponent>())
 				{
@@ -278,9 +278,9 @@ void UMassAgentComponent::ClearEntityHandleInternal()
 		if (IsNetSimulating())
 		{
 			const FMassEntityView EntityView(*EntitySubsystem, AgentHandle);
-			if (FDataFragment_Actor* ActorInfo = EntityView.GetComponentDataPtr<FDataFragment_Actor>())
+			if (FDataFragment_Actor* ActorInfo = EntityView.GetFragmentDataPtr<FDataFragment_Actor>())
 			{
-				checkf(!ActorInfo->IsValid() || ActorInfo->Get() == GetOwner(), TEXT("Expecting actor pointer to be the component owner"));
+				checkf(!ActorInfo->IsValid() || ActorInfo->Get() == GetOwner(), TEXT("Expecting actor pointer to be the Component\'s owner"));
 				ActorInfo->ResetAndUpdateHandleMap();
 			}
 		}
@@ -356,7 +356,7 @@ void UMassAgentComponent::DebugCheckStateConsistency()
 							if (bIsBuiltEntity)
 							{
 								AActor* Owner = GetOwner();
-								const AActor* Actor = EntitySubsystem->GetComponentDataChecked<FDataFragment_Actor>(AgentHandle).Get();
+								const AActor* Actor = EntitySubsystem->GetFragmentDataChecked<FDataFragment_Actor>(AgentHandle).Get();
 								MASSAGENT_CHECK(Actor == nullptr || Actor == Owner, TEXT("Mass Actor and Owner mismatched in state %s"), *UEnum::GetValueAsString(State));
 							}
 						}

@@ -18,7 +18,7 @@ struct FPayload
 
 void OnSlotInvalidated(const FSmartObjectClaimHandle& ClaimHandle, const ESmartObjectSlotState State, FPayload Payload)
 {
-	FDataFragment_SmartObjectUser& User = Payload.EntitySubsystem->GetComponentDataChecked<FDataFragment_SmartObjectUser>(Payload.Entity);
+	FDataFragment_SmartObjectUser& User = Payload.EntitySubsystem->GetFragmentDataChecked<FDataFragment_SmartObjectUser>(Payload.Entity);
 	if (USmartObjectSubsystem* SmartObjectSubsystem = Payload.SmartObjectSubsystem.Get())
 	{
 		SmartObjectSubsystem->Release(User.ClaimHandle);
@@ -43,7 +43,7 @@ FMassSmartObjectRequestID FMassSmartObjectHandler::FindCandidatesAsync(const FMa
 	FMassSmartObjectRequestResultFragment ResultFragment;
 
 	ExecutionContext.Defer().PushCommand(
-		FBuildEntityFromComponentInstances(ReservedEntity,
+		FBuildEntityFromFragmentInstances(ReservedEntity,
 			{
 				FStructView::Make(RequestFragment),
 				FStructView::Make(ResultFragment)
@@ -63,7 +63,7 @@ FMassSmartObjectRequestID FMassSmartObjectHandler::FindCandidatesAsync(const FMa
 	FMassSmartObjectRequestResultFragment ResultFragment;
 
 	ExecutionContext.Defer().PushCommand(
-		FBuildEntityFromComponentInstances(ReservedEntity,
+		FBuildEntityFromFragmentInstances(ReservedEntity,
 			{
 				FStructView::Make(RequestFragment),
 				FStructView::Make(ResultFragment)
@@ -86,7 +86,7 @@ FMassSmartObjectRequestResult FMassSmartObjectHandler::GetRequestResult(const FM
 		return {};
 	}
 
-	const FMassSmartObjectRequestResultFragment& RequestFragment = EntitySubsystem.GetComponentDataChecked<FMassSmartObjectRequestResultFragment>(RequestEntity);
+	const FMassSmartObjectRequestResultFragment& RequestFragment = EntitySubsystem.GetFragmentDataChecked<FMassSmartObjectRequestResultFragment>(RequestEntity);
 	return RequestFragment.Result;
 }
 
@@ -104,7 +104,7 @@ EMassSmartObjectClaimResult FMassSmartObjectHandler::ClaimCandidate(const FMassE
 	}
 
 	const FMassEntityHandle RequestEntity = static_cast<FMassEntityHandle>(RequestID);
-	const FMassSmartObjectRequestResultFragment& RequestFragment = EntitySubsystem.GetComponentDataChecked<FMassSmartObjectRequestResultFragment>(RequestEntity);
+	const FMassSmartObjectRequestResultFragment& RequestFragment = EntitySubsystem.GetFragmentDataChecked<FMassSmartObjectRequestResultFragment>(RequestEntity);
 	if (!ensureMsgf(RequestFragment.Result.bProcessed, TEXT("Trying to claim using a request that is not processed.")))
 	{
 		return EMassSmartObjectClaimResult::Failed_UnprocessedRequest;
@@ -156,7 +156,7 @@ bool FMassSmartObjectHandler::ClaimSmartObject(const FMassEntityHandle Entity, F
 		User.InteractionStatus = EMassSmartObjectInteractionStatus::Unset;
 		User.TargetLocation = SmartObjectSubsystem.GetSlotLocation(User.ClaimHandle).Get(FVector::ZeroVector);
 
-		// @todo SO: need to unregister callback if entity or component gets removed. Or at least support getting called with a no longer valid LWEntity.
+		// @todo SO: need to unregister callback if entity or fragment gets removed. Or at least support getting called with a no longer valid LWEntity.
 		UE::Mass::SmartObject::FPayload Payload;
 		Payload.Entity = Entity;
 		Payload.EntitySubsystem = &EntitySubsystem;

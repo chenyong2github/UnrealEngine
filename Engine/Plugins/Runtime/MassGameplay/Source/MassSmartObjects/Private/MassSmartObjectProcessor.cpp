@@ -98,8 +98,8 @@ void UMassProcessor_SmartObjectCandidatesFinder::Execute(UMassEntitySubsystem& E
 		const int32 NumEntities = Context.GetNumEntities();
 		EntitiesToSignal.Reserve(EntitiesToSignal.Num() + NumEntities);
 
-		const TConstArrayView<FMassSmartObjectWorldLocationRequestFragment> RequestList = Context.GetComponentView<FMassSmartObjectWorldLocationRequestFragment>();
-		const TArrayView<FMassSmartObjectRequestResultFragment> ResultList = Context.GetMutableComponentView<FMassSmartObjectRequestResultFragment>();
+		const TConstArrayView<FMassSmartObjectWorldLocationRequestFragment> RequestList = Context.GetFragmentView<FMassSmartObjectWorldLocationRequestFragment>();
+		const TArrayView<FMassSmartObjectRequestResultFragment> ResultList = Context.GetMutableFragmentView<FMassSmartObjectRequestResultFragment>();
 
 		for (int32 i = 0; i < NumEntities; ++i)
 		{
@@ -157,8 +157,8 @@ void UMassProcessor_SmartObjectCandidatesFinder::Execute(UMassEntitySubsystem& E
 			const int32 NumEntities = Context.GetNumEntities();
 			EntitiesToSignal.Reserve(EntitiesToSignal.Num() + NumEntities);
 
-			TConstArrayView<FMassSmartObjectLaneLocationRequestFragment> RequestList = Context.GetComponentView<FMassSmartObjectLaneLocationRequestFragment>();
-			TArrayView<FMassSmartObjectRequestResultFragment> ResultList = Context.GetMutableComponentView<FMassSmartObjectRequestResultFragment>();
+			TConstArrayView<FMassSmartObjectLaneLocationRequestFragment> RequestList = Context.GetFragmentView<FMassSmartObjectLaneLocationRequestFragment>();
+			TArrayView<FMassSmartObjectRequestResultFragment> ResultList = Context.GetMutableFragmentView<FMassSmartObjectRequestResultFragment>();
 
 			// Cache latest used data since request are most of the time on the same zone graph
 			FZoneGraphDataHandle LastUsedDataHandle;
@@ -290,7 +290,7 @@ void UMassProcessor_SmartObjectTimedBehavior::Execute(UMassEntitySubsystem& Enti
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, &ToRelease](FMassExecutionContext& Context)
 	{
 		const int32 NumEntities = Context.GetNumEntities();
-		const TArrayView<FDataFragment_SmartObjectUser> UserList = Context.GetMutableComponentView<FDataFragment_SmartObjectUser>();
+		const TArrayView<FDataFragment_SmartObjectUser> UserList = Context.GetMutableFragmentView<FDataFragment_SmartObjectUser>();
 
 		for (int32 i = 0; i < NumEntities; ++i)
 		{

@@ -8,7 +8,7 @@
 //----------------------------------------------------------------------//
 URandomizeVectorProcessor::URandomizeVectorProcessor()
 {
-	ComponentType = FVectorComponent::StaticStruct();
+	ComponentType = FVectorFragment::StaticStruct();
 	bAutoRegisterWithProcessingPhases = false;
 }
 
@@ -30,7 +30,7 @@ void URandomizeVectorProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, F
 void URandomizeVectorProcessor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	static const FName ComponentTypeName = GET_MEMBER_NAME_CHECKED(URandomizeVectorProcessor, ComponentType);
-	static const int32 SupportedSize = FVectorComponent::StaticStruct()->GetStructureSize();
+	static const int32 SupportedSize = FVectorFragment::StaticStruct()->GetStructureSize();
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
@@ -43,7 +43,7 @@ void URandomizeVectorProcessor::PostEditChangeProperty(FPropertyChangedEvent& Pr
 				|| ComponentType->IsChildOf(FMassFragment::StaticStruct()) == false
 				|| ComponentType->GetStructureSize() != SupportedSize)
 			{
-				ComponentType = FVectorComponent::StaticStruct();
+				ComponentType = FVectorFragment::StaticStruct();
 			}
 		}
 	}

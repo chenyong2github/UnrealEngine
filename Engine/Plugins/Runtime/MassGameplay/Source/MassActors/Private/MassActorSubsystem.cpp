@@ -81,7 +81,7 @@ FMassEntityHandle UMassActorSubsystem::GetEntityHandleFromActor(const TObjectKey
 AActor* UMassActorSubsystem::GetActorFromHandle(const FMassEntityHandle Handle) const
 {
 	check(EntitySystem);
-	FDataFragment_Actor* Data = EntitySystem->GetComponentDataPtr<FDataFragment_Actor>(Handle);
+	FDataFragment_Actor* Data = EntitySystem->GetFragmentDataPtr<FDataFragment_Actor>(Handle);
 	return Data != nullptr ? Data->GetMutable() : nullptr;
 }
 
@@ -119,7 +119,7 @@ void UMassActorSubsystem::DisconnectActor(const TObjectKey<const AActor> Actor, 
 	if (FoundEntity == Handle)
 	{
 		check(EntitySystem);
-		if (FDataFragment_Actor* Data = EntitySystem->GetComponentDataPtr<FDataFragment_Actor>(Handle))
+		if (FDataFragment_Actor* Data = EntitySystem->GetFragmentDataPtr<FDataFragment_Actor>(Handle))
 		{
 			Data->ResetAndUpdateHandleMap();
 		}

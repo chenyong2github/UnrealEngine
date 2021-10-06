@@ -77,33 +77,33 @@ public:
 	//~End of USubsystem interface
 	
 	/** 
-	 * A special, relaxed but slower version of CreateArchetype functions that allows ComponentAngTagsList to contain 
-	 * both components and tags. 
+	 * A special, relaxed but slower version of CreateArchetype functions that allows FragmentAngTagsList to contain 
+	 * both fragments and tags. 
 	 */
-	FArchetypeHandle CreateArchetype(TConstArrayView<const UScriptStruct*> ComponentsAngTagsList);
+	FArchetypeHandle CreateArchetype(TConstArrayView<const UScriptStruct*> FragmentsAngTagsList);
 
-	FArchetypeHandle CreateArchetype(TConstArrayView<const UScriptStruct*> ComponentList, const FMassTagBitSet& Tags, const FMassChunkFragmentBitSet& ChunkComponents);
+	FArchetypeHandle CreateArchetype(TConstArrayView<const UScriptStruct*> FragmentList, const FMassTagBitSet& Tags, const FMassChunkFragmentBitSet& ChunkFragments);
 
 	/** 
-	 *  Creates an archetype like SourceArchetype + NewComponentList. 
-	 *  @param SourceArchetype the archetype used to initially populate the list of components of the archetype being created. 
-	 *  @param NewComponentList list of unique components to add to components fetched from SourceArchetype. Note that 
+	 *  Creates an archetype like SourceArchetype + NewFragmentList. 
+	 *  @param SourceArchetype the archetype used to initially populate the list of fragments of the archetype being created. 
+	 *  @param NewFragmentList list of unique fragments to add to fragments fetched from SourceArchetype. Note that 
 	 *   adding an empty list is not supported and doing so will result in failing a `check`
 	 *  @return a handle of a new archetype
-	 *  @note it's caller's responsibility to ensure that NewComponentList is not empty and contains only component
-	 *   types that SourceArchetype doesn't already have. If the caller cannot guarantee it use of AddComponent functions
+	 *  @note it's caller's responsibility to ensure that NewFragmentList is not empty and contains only fragment
+	 *   types that SourceArchetype doesn't already have. If the caller cannot guarantee it use of AddFragment functions
 	 *   family is recommended.
 	 */
-	FArchetypeHandle CreateArchetype(const TSharedPtr<FMassArchetypeData>& SourceArchetype, const FMassFragmentBitSet& NewComponentList);
+	FArchetypeHandle CreateArchetype(const TSharedPtr<FMassArchetypeData>& SourceArchetype, const FMassFragmentBitSet& NewFragmentList);
 
 	FArchetypeHandle CreateArchetype(const FMassCompositionDescriptor& Descriptor);
 
 
 	FArchetypeHandle GetArchetypeForEntity(FMassEntityHandle Entity) const;
-	/** Method to iterate on all the component types of an archetype */
-	static void ForEachArchetypeComponentType(const FArchetypeHandle Archetype, TFunction< void(const UScriptStruct* /*ComponentType*/)> Function);
+	/** Method to iterate on all the fragment types of an archetype */
+	static void ForEachArchetypeFragmentType(const FArchetypeHandle Archetype, TFunction< void(const UScriptStruct* /*FragmentType*/)> Function);
 
-	void SetDefaultChunkComponentValue(const FArchetypeHandle Archetype, FConstStructView InstancedStruct);
+	void SetDefaultChunkFragmentValue(const FArchetypeHandle Archetype, FConstStructView InstancedStruct);
 
 	/**
 	 * Go through all archetypes and compact entities
@@ -119,9 +119,9 @@ public:
 
 	/**
 	 * Creates fully built entity ready to be used by the subsystem
-	 * @param ComponentInstanceList is the components to create the entity from and initialize values
+	 * @param FragmentInstanceList is the fragments to create the entity from and initialize values
 	 * @return FLWEntity id of the newly created entity */
-	FMassEntityHandle CreateEntity(TConstArrayView<FInstancedStruct> ComponentInstanceList);
+	FMassEntityHandle CreateEntity(TConstArrayView<FInstancedStruct> FragmentInstanceList);
 
 	/** A version of CreateEntity that's creating a number of entities (Count) at one go
 	 *  @param Archetype you want this entity to be
@@ -149,8 +149,8 @@ public:
 	/**
 	 * Builds an entity for it to be ready to be used by the subsystem
 	 * @param Entity to build which was retrieved with ReserveEntity() method
-	 * @param ComponentInstanceList is the components to create the entity from and initialize values*/
-	void BuildEntity(FMassEntityHandle Entity, TConstArrayView<FInstancedStruct> ComponentInstanceList);
+	 * @param FragmentInstanceList is the fragments to create the entity from and initialize values*/
+	void BuildEntity(FMassEntityHandle Entity, TConstArrayView<FInstancedStruct> FragmentInstanceList);
 
 	/*
 	 * Releases a previously reserved entity that was not yet built, otherwise call DestroyEntity
@@ -165,21 +165,21 @@ public:
 
 	void BatchDestroyEntityChunks(const FArchetypeChunkCollection& Chunks);
 
-	void AddComponentToEntity(FMassEntityHandle Entity, const UScriptStruct* ComponentType);
+	void AddFragmentToEntity(FMassEntityHandle Entity, const UScriptStruct* FragmentType);
 
 	/** 
-	 *  Ensures that only unique components are added. 
-	 *  @note It's caller's responsibility to ensure Entity's and ComponentList's validity. 
+	 *  Ensures that only unique fragments are added. 
+	 *  @note It's caller's responsibility to ensure Entity's and FragmentList's validity. 
 	 */
-	void AddComponentListToEntity(FMassEntityHandle Entity, TConstArrayView<const UScriptStruct*> ComponentList);
+	void AddFragmentListToEntity(FMassEntityHandle Entity, TConstArrayView<const UScriptStruct*> FragmentList);
 
-	void AddComponentInstanceListToEntity(FMassEntityHandle Entity, TConstArrayView<FInstancedStruct> ComponentInstanceList);
-	void RemoveComponentFromEntity(FMassEntityHandle Entity, const UScriptStruct* ComponentType);
-	void RemoveComponentListFromEntity(FMassEntityHandle Entity, TConstArrayView<const UScriptStruct*> ComponentList);
+	void AddFragmentInstanceListToEntity(FMassEntityHandle Entity, TConstArrayView<FInstancedStruct> FragmentInstanceList);
+	void RemoveFragmentFromEntity(FMassEntityHandle Entity, const UScriptStruct* FragmentType);
+	void RemoveFragmentListFromEntity(FMassEntityHandle Entity, TConstArrayView<const UScriptStruct*> FragmentList);
 
 	void AddTagToEntity(FMassEntityHandle Entity, const UScriptStruct* TagType);
 	void RemoveTagFromEntity(FMassEntityHandle Entity, const UScriptStruct* TagType);
-	void SwapTagsForEntity(FMassEntityHandle Entity, const UScriptStruct* FromComponentType, const UScriptStruct* ToComponentType);
+	void SwapTagsForEntity(FMassEntityHandle Entity, const UScriptStruct* FromFragmentType, const UScriptStruct* ToFragmentType);
 
 
 	/**
@@ -191,20 +191,20 @@ public:
 	void RemoveCompositionFromEntity(FMassEntityHandle Entity, const FMassCompositionDescriptor& InDescriptor);
 
 	/** 
-	 * Moves an entity over to a new archetype by copying over components common to both archetypes
+	 * Moves an entity over to a new archetype by copying over fragments common to both archetypes
 	 * @param Entity is the entity to move 
 	 * @param NewArchetypeHandle the handle to the new archetype
 	 */
 	void MoveEntityToAnotherArchetype(FMassEntityHandle Entity, FArchetypeHandle NewArchetypeHandle);
 
-	/** Copies values from ComponentInstanceList over to Entity's component. Caller is responsible for ensuring that 
-	 *  the given entity does have given components. Failing this assumption will cause a check-fail.*/
-	void SetEntityComponentsValues(FMassEntityHandle Entity, TArrayView<const FInstancedStruct> ComponentInstanceList);
+	/** Copies values from FragmentInstanceList over to Entity's fragment. Caller is responsible for ensuring that 
+	 *  the given entity does have given fragments. Failing this assumption will cause a check-fail.*/
+	void SetEntityFragmentsValues(FMassEntityHandle Entity, TArrayView<const FInstancedStruct> FragmentInstanceList);
 
-	/** Copies values from ComponentInstanceList over to components of given entities collection. The caller is responsible 
-	 *  for ensuring that the given entity archetype (FArchetypeChunkCollection.Archetype) does have given components. 
+	/** Copies values from FragmentInstanceList over to fragments of given entities collection. The caller is responsible 
+	 *  for ensuring that the given entity archetype (FArchetypeChunkCollection.Archetype) does have given fragments. 
 	 *  Failing this assumption will cause a check-fail. */
-	static void BatchSetEntityComponentsValues(const FArchetypeChunkCollection& SparseEntities, TArrayView<const FInstancedStruct> ComponentInstanceList);
+	static void BatchSetEntityFragmentsValues(const FArchetypeChunkCollection& SparseEntities, TArrayView<const FInstancedStruct> FragmentInstanceList);
 
 	// Return true if it is an valid built entity
 	bool IsEntityActive(FMassEntityHandle Entity) const 
@@ -224,21 +224,21 @@ public:
 	// Asserts that IsEntityBuilt
 	void CheckIfEntityIsActive(FMassEntityHandle Entity) const;
 
-	template <typename ComponentType>
-	ComponentType& GetComponentDataChecked(FMassEntityHandle Entity) const
+	template <typename FragmentType>
+	FragmentType& GetFragmentDataChecked(FMassEntityHandle Entity) const
 	{
-		return *((ComponentType*)InternalGetComponentDataChecked(Entity, ComponentType::StaticStruct()));
+		return *((FragmentType*)InternalGetFragmentDataChecked(Entity, FragmentType::StaticStruct()));
 	}
 
-	template <typename ComponentType>
-	ComponentType* GetComponentDataPtr(FMassEntityHandle Entity) const
+	template <typename FragmentType>
+	FragmentType* GetFragmentDataPtr(FMassEntityHandle Entity) const
 	{
-		return (ComponentType*)InternalGetComponentDataPtr(Entity, ComponentType::StaticStruct());
+		return (FragmentType*)InternalGetFragmentDataPtr(Entity, FragmentType::StaticStruct());
 	}
 
-	FStructView GetComponentDataStruct(FMassEntityHandle Entity, const UScriptStruct* ComponentType) const
+	FStructView GetFragmentDataStruct(FMassEntityHandle Entity, const UScriptStruct* FragmentType) const
 	{
-		return FStructView(ComponentType, static_cast<uint8*>(InternalGetComponentDataPtr(Entity, ComponentType)));
+		return FStructView(FragmentType, static_cast<uint8*>(InternalGetFragmentDataPtr(Entity, FragmentType)));
 	}
 
 	uint32 GetArchetypeDataVersion() const { return ArchetypeDataVersion; }
@@ -258,13 +258,13 @@ public:
 	void DebugPrintArchetypes(FOutputDevice& Ar) const;
 	static void DebugGetStringDesc(const FArchetypeHandle& Archetype, FOutputDevice& Ar);
 	void DebugGetArchetypesStringDetails(FOutputDevice& Ar, const bool bIncludeEmpty = true);
-	void DebugGetArchetypeComponentTypes(const FArchetypeHandle& Archetype, TArray<const UScriptStruct*>& InOutComponentList) const;
+	void DebugGetArchetypeFragmentTypes(const FArchetypeHandle& Archetype, TArray<const UScriptStruct*>& InOutFragmentList) const;
 	int32 DebugGetArchetypeEntitiesCount(const FArchetypeHandle& Archetype) const;	
 	int32 DebugGetEntityCount() const { return Entities.Num() - NumReservedEntities - EntityFreeIndexList.Num(); }
-	int32 DebugGetArchetypesCount() const { return ComponentHashToArchetypeMap.Num(); }
+	int32 DebugGetArchetypesCount() const { return FragmentHashToArchetypeMap.Num(); }
 	void DebugRemoveAllEntities();
 	void DebugForceArchetypeDataVersionBump() { ++ArchetypeDataVersion; }
-	void DebugGetArchetypeStrings(const FArchetypeHandle& Archetype, TArray<FName>& OutComponentNames, TArray<FName>& OutTagNames);
+	void DebugGetArchetypeStrings(const FArchetypeHandle& Archetype, TArray<FName>& OutFragmentNames, TArray<FName>& OutTagNames);
 #endif // WITH_MASSENTITY_DEBUG
 
 protected:
@@ -277,17 +277,17 @@ private:
 	void InternalReleaseEntity(FMassEntityHandle Entity);
 
 	/** 
-	 *  Adds components in ComponentList to Entity. Only the unique components will be added.
+	 *  Adds fragments in FragmentList to Entity. Only the unique fragments will be added.
 	 */
-	void InternalAddComponentListToEntityChecked(FMassEntityHandle Entity, const FMassFragmentBitSet& InComponents);
+	void InternalAddFragmentListToEntityChecked(FMassEntityHandle Entity, const FMassFragmentBitSet& InFragments);
 
 	/** 
-	 *  Similar to InternalAddComponentListToEntity but expects NewComponentList not overlapping with current entity's
-	 *  component list. It's callers responsibility to ensure that's true. Failing this will cause a `check` fail.
+	 *  Similar to InternalAddFragmentListToEntity but expects NewFragmentList not overlapping with current entity's
+	 *  fragment list. It's callers responsibility to ensure that's true. Failing this will cause a `check` fail.
 	 */
-	void InternalAddComponentListToEntity(FMassEntityHandle Entity, const FMassFragmentBitSet& NewComponents);
-	void* InternalGetComponentDataChecked(FMassEntityHandle Entity, const UScriptStruct* ComponentType) const;
-	void* InternalGetComponentDataPtr(FMassEntityHandle Entity, const UScriptStruct* ComponentType) const;
+	void InternalAddFragmentListToEntity(FMassEntityHandle Entity, const FMassFragmentBitSet& NewFragments);
+	void* InternalGetFragmentDataChecked(FMassEntityHandle Entity, const UScriptStruct* FragmentType) const;
+	void* InternalGetFragmentDataPtr(FMassEntityHandle Entity, const UScriptStruct* FragmentType) const;
 
 private:
 	TChunkedArray<FEntityData> Entities;
@@ -300,11 +300,11 @@ private:
 	// the "version" number increased every time an archetype gets added
 	uint32 ArchetypeDataVersion = 0;
 
-	// Map of hash of sorted component list to archetypes with that hash
-	TMap<uint32, TArray<TSharedPtr<FMassArchetypeData>>> ComponentHashToArchetypeMap;
+	// Map of hash of sorted fragment list to archetypes with that hash
+	TMap<uint32, TArray<TSharedPtr<FMassArchetypeData>>> FragmentHashToArchetypeMap;
 
-	// Map to list of archetypes that contain the specified component type
-	TMap<const UScriptStruct*, TArray<TSharedPtr<FMassArchetypeData>>> ComponentTypeToArchetypeMap;
+	// Map to list of archetypes that contain the specified fragment type
+	TMap<const UScriptStruct*, TArray<TSharedPtr<FMassArchetypeData>>> FragmentTypeToArchetypeMap;
 };
 
 
@@ -317,26 +317,26 @@ private:
 	struct FFragmentView 
 	{
 		FMassFragmentRequirement Requirement;
-		TArrayView<FMassFragment> ComponentView;
+		TArrayView<FMassFragment> FragmentView;
 
 		FFragmentView() {}
 		explicit FFragmentView(const FMassFragmentRequirement& InRequirement) : Requirement(InRequirement) {}
 
-		bool operator==(const UScriptStruct* ComponentType) const { return Requirement.StructType == ComponentType; }
+		bool operator==(const UScriptStruct* FragmentType) const { return Requirement.StructType == FragmentType; }
 	};
-	TArray<FFragmentView, TInlineAllocator<8>> ComponentViews;
+	TArray<FFragmentView, TInlineAllocator<8>> FragmentViews;
 
 	struct FChunkFragmentView
 	{
 		FMassFragmentRequirement Requirement;
-		FStructView ChunkComponentView;
+		FStructView ChunkFragmentView;
 
 		FChunkFragmentView() {}
 		explicit FChunkFragmentView(const FMassFragmentRequirement& InRequirement) : Requirement(InRequirement)	{}
 
-		bool operator==(const UScriptStruct* ComponentType) const { return Requirement.StructType == ComponentType; }
+		bool operator==(const UScriptStruct* FragmentType) const { return Requirement.StructType == FragmentType; }
 	};
-	TArray<FChunkFragmentView, TInlineAllocator<4>> ChunkComponents;
+	TArray<FChunkFragmentView, TInlineAllocator<4>> ChunkFragments;
 
 	// mz@todo make this shared ptr thread-safe and never auto-flush in MT environment. 
 	TSharedPtr<FMassCommandBuffer> DeferredCommandBuffer;
@@ -360,8 +360,8 @@ private:
 	 *  calling FLWCCommandBuffer.ReplayBufferAgainstSystem() */
 	bool bFlushDeferredCommands = true;
 
-	TArrayView<FFragmentView> GetMutableRequirements() { return ComponentViews; }
-	TArrayView<FChunkFragmentView> GetMutableChunkRequirements() { return ChunkComponents; }
+	TArrayView<FFragmentView> GetMutableRequirements() { return FragmentViews; }
+	TArrayView<FChunkFragmentView> GetMutableChunkRequirements() { return ChunkFragments; }
 	
 	friend FMassArchetypeData;
 	friend FMassEntityQuery;
@@ -415,58 +415,58 @@ public:
 	int32 GetChunkSerialModificationNumber() const { return ChunkSerialModificationNumber; }
 
 	template<typename T>
-	T& GetMutableChunkComponent() const
+	T& GetMutableChunkFragment() const
 	{
 		static_assert(TIsDerivedFrom<T, FMassChunkFragment>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FMassChunkFragment or one of its child-types.");
 
 		const UScriptStruct* Type = T::StaticStruct();
-		const FChunkFragmentView* FoundChunkComponentData = ChunkComponents.FindByPredicate([Type](const FChunkFragmentView& Element) { return Element.Requirement.StructType == Type; });
-		checkf(FoundChunkComponentData, TEXT("Chunk Component requirement not found: %s"), *T::StaticStruct()->GetName());
-		return FoundChunkComponentData->ChunkComponentView.GetMutable<T>();
+		const FChunkFragmentView* FoundChunkFragmentData = ChunkFragments.FindByPredicate([Type](const FChunkFragmentView& Element) { return Element.Requirement.StructType == Type; });
+		checkf(FoundChunkFragmentData, TEXT("Chunk Fragment requirement not found: %s"), *T::StaticStruct()->GetName());
+		return FoundChunkFragmentData->ChunkFragmentView.GetMutable<T>();
 	}
 
 	template<typename T>
-	const T& GetChunkComponent() const
+	const T& GetChunkFragment() const
 	{
 		static_assert(TIsDerivedFrom<T, FMassChunkFragment>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FMassChunkFragment or one of its child-types.");
 
 		const UScriptStruct* Type = T::StaticStruct();
-		const FChunkFragmentView* FoundChunkComponentData = ChunkComponents.FindByPredicate([Type](const FChunkFragmentView& Element) { return Element.Requirement.StructType == Type; } );
-		checkf(FoundChunkComponentData, TEXT("Chunk Component requirement not found: %s"), *T::StaticStruct()->GetName());
-		return FoundChunkComponentData->ChunkComponentView.Get<T>();
+		const FChunkFragmentView* FoundChunkFragmentData = ChunkFragments.FindByPredicate([Type](const FChunkFragmentView& Element) { return Element.Requirement.StructType == Type; } );
+		checkf(FoundChunkFragmentData, TEXT("Chunk Fragment requirement not found: %s"), *T::StaticStruct()->GetName());
+		return FoundChunkFragmentData->ChunkFragmentView.Get<T>();
 	}
 
 	template<typename TFragment>
-	TArrayView<TFragment> GetMutableComponentView()
+	TArrayView<TFragment> GetMutableFragmentView()
 	{
-		const UScriptStruct* ComponentType = TFragment::StaticStruct();
-		const FFragmentView* View = ComponentViews.FindByPredicate([ComponentType](const FFragmentView& Element) { return Element.Requirement.StructType == ComponentType; });
-		//checkfSlow(View != nullptr, TEXT("Requested component type not bound"));
-		//checkfSlow(View->Requirement.AccessMode == EMassFragmentAccess::ReadWrite, TEXT("Requested component has not been bound for writing"));
-		return MakeArrayView<TFragment>((TFragment*)View->ComponentView.GetData(), View->ComponentView.Num());
+		const UScriptStruct* FragmentType = TFragment::StaticStruct();
+		const FFragmentView* View = FragmentViews.FindByPredicate([FragmentType](const FFragmentView& Element) { return Element.Requirement.StructType == FragmentType; });
+		//checkfSlow(View != nullptr, TEXT("Requested fragment type not bound"));
+		//checkfSlow(View->Requirement.AccessMode == EMassFragmentAccess::ReadWrite, TEXT("Requested fragment has not been bound for writing"));
+		return MakeArrayView<TFragment>((TFragment*)View->FragmentView.GetData(), View->FragmentView.Num());
 	}
 
 	template<typename TFragment>
-	TConstArrayView<TFragment> GetComponentView() const
+	TConstArrayView<TFragment> GetFragmentView() const
 	{
-		const UScriptStruct* ComponentType = TFragment::StaticStruct();
-		const FFragmentView* View = ComponentViews.FindByPredicate([ComponentType](const FFragmentView& Element) { return Element.Requirement.StructType == ComponentType; });
-		//checkfSlow(View != nullptr, TEXT("Requested component type not bound"));
-		return TConstArrayView<TFragment>((const TFragment*)View->ComponentView.GetData(), View->ComponentView.Num());
+		const UScriptStruct* FragmentType = TFragment::StaticStruct();
+		const FFragmentView* View = FragmentViews.FindByPredicate([FragmentType](const FFragmentView& Element) { return Element.Requirement.StructType == FragmentType; });
+		//checkfSlow(View != nullptr, TEXT("Requested fragment type not bound"));
+		return TConstArrayView<TFragment>((const TFragment*)View->FragmentView.GetData(), View->FragmentView.Num());
 	}
 
-	TConstArrayView<FMassFragment> GetComponentComponentView(const UScriptStruct* ComponentType) const
+	TConstArrayView<FMassFragment> GetFragmentFragmentView(const UScriptStruct* FragmentType) const
 	{
-		const FFragmentView* View = ComponentViews.FindByPredicate([ComponentType](const FFragmentView& Element) { return Element.Requirement.StructType == ComponentType; });
+		const FFragmentView* View = FragmentViews.FindByPredicate([FragmentType](const FFragmentView& Element) { return Element.Requirement.StructType == FragmentType; });
 		checkSlow(View);
-		return TConstArrayView<FMassFragment>((const FMassFragment*)View->ComponentView.GetData(), View->ComponentView.Num());;
+		return TConstArrayView<FMassFragment>((const FMassFragment*)View->FragmentView.GetData(), View->FragmentView.Num());;
 	}
 
-	TArrayView<FMassFragment> GetMutableComponentView(const UScriptStruct* ComponentType) 
+	TArrayView<FMassFragment> GetMutableFragmentView(const UScriptStruct* FragmentType) 
 	{
-		const FFragmentView* View = ComponentViews.FindByPredicate([ComponentType](const FFragmentView& Element) { return Element.Requirement.StructType == ComponentType; });
+		const FFragmentView* View = FragmentViews.FindByPredicate([FragmentType](const FFragmentView& Element) { return Element.Requirement.StructType == FragmentType; });
 		checkSlow(View);
-		return View->ComponentView;
+		return View->FragmentView;
 	}
 
 	/** Sparse chunk related operation */
@@ -482,15 +482,15 @@ public:
 
 protected:
 	void SetRequirements(TConstArrayView<FMassFragmentRequirement> InRequirements, TConstArrayView<FMassFragmentRequirement> InChunkRequirements);
-	void ClearComponentViews()
+	void ClearFragmentViews()
 	{
-		for (FFragmentView& View : ComponentViews)
+		for (FFragmentView& View : FragmentViews)
 		{
-			View.ComponentView = TArrayView<FMassFragment>();
+			View.FragmentView = TArrayView<FMassFragment>();
 		}
-		for (FChunkFragmentView& View : ChunkComponents)
+		for (FChunkFragmentView& View : ChunkFragments)
 		{
-			View.ChunkComponentView.Reset();
+			View.ChunkFragmentView.Reset();
 		}
 	}
 };

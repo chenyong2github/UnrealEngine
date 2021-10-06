@@ -28,11 +28,11 @@ struct MASSCOMMON_API FDataFragment_NavLocation : public FMassFragment
 	NavNodeRef NodeRef = INVALID_NAVNODEREF;
 };
 
-/** this component is a kind of an experiment. I've made FMassVelocityFragment and FMassAvoidanceFragment extend it and 
+/** this fragment is a kind of an experiment. I've made FMassVelocityFragment and FMassAvoidanceFragment extend it and 
  *  use URandomizeVectorProcessor to initialize it to random variables at spawn time.
  */
 USTRUCT()
-struct MASSCOMMON_API FVectorComponent : public FMassFragment
+struct MASSCOMMON_API FVectorFragment : public FMassFragment
 {
 	GENERATED_BODY()
 	UPROPERTY(EditAnywhere, Category = "")

@@ -126,12 +126,12 @@ void UMassLookAtProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassE
 	EntityQuery_Conditional.ForEachEntityChunk(EntitySubsystem, Context, [this, &EntitySubsystem, CurrentTime](FMassExecutionContext& Context)
 		{
 			const int32 NumEntities = Context.GetNumEntities();
-			const TArrayView<FMassLookAtFragment> LookAtList = Context.GetMutableComponentView<FMassLookAtFragment>();
-			const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetComponentView<FDataFragment_Transform>();
-			const TConstArrayView<FMassMoveTargetFragment> MoveTargetList = Context.GetComponentView<FMassMoveTargetFragment>();
-			const TConstArrayView<FMassZoneGraphLaneLocationFragment> ZoneGraphLocationList = Context.GetComponentView<FMassZoneGraphLaneLocationFragment>();
-			const TConstArrayView<FMassZoneGraphShortPathFragment> ShortPathList = Context.GetComponentView<FMassZoneGraphShortPathFragment>();
-			const TArrayView<FMassLookAtTrajectoryFragment> LookAtTrajectoryList = Context.GetMutableComponentView<FMassLookAtTrajectoryFragment>();
+			const TArrayView<FMassLookAtFragment> LookAtList = Context.GetMutableFragmentView<FMassLookAtFragment>();
+			const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetFragmentView<FDataFragment_Transform>();
+			const TConstArrayView<FMassMoveTargetFragment> MoveTargetList = Context.GetFragmentView<FMassMoveTargetFragment>();
+			const TConstArrayView<FMassZoneGraphLaneLocationFragment> ZoneGraphLocationList = Context.GetFragmentView<FMassZoneGraphLaneLocationFragment>();
+			const TConstArrayView<FMassZoneGraphShortPathFragment> ShortPathList = Context.GetFragmentView<FMassZoneGraphShortPathFragment>();
+			const TArrayView<FMassLookAtTrajectoryFragment> LookAtTrajectoryList = Context.GetMutableFragmentView<FMassLookAtTrajectoryFragment>();
 
 			for (int32 i = 0; i < NumEntities; ++i)
 			{
@@ -280,7 +280,7 @@ void UMassLookAtProcessor::FindNewGazeTarget(const UMassEntitySubsystem& EntityS
 			}
 
 			// TargetTag is added through the LookAtTargetTrait and Transform was added with it
-			const FDataFragment_Transform& TargetTransform = EntityView.GetComponentData<FDataFragment_Transform>();
+			const FDataFragment_Transform& TargetTransform = EntityView.GetFragmentData<FDataFragment_Transform>();
 			const FVector TargetLocation = TargetTransform.GetTransform().GetLocation();
 			FVector Direction = (TargetLocation - Location).GetSafeNormal();
 			Direction = Transform.InverseTransformVector(Direction);
@@ -295,7 +295,7 @@ void UMassLookAtProcessor::FindNewGazeTarget(const UMassEntitySubsystem& EntityS
 			}
 
 			// Allow to pick entities out of view if they are moving towards us.
-			if (const FMassVelocityFragment* Velocity = EntityView.GetComponentDataPtr<FMassVelocityFragment>())
+			if (const FMassVelocityFragment* Velocity = EntityView.GetFragmentDataPtr<FMassVelocityFragment>())
 			{
 				const FVector MoveDirection = Transform.InverseTransformVector(Velocity->Value.GetSafeNormal());
 				
@@ -354,7 +354,7 @@ void UMassLookAtProcessor::UpdateLookAtTrackedEntity(const UMassEntitySubsystem&
 	// Update direction toward target
 	if (EntitySubsystem.IsEntityValid(LookAt.TrackedEntity))
 	{
-		if (const FDataFragment_Transform* TargetTransform = EntitySubsystem.GetComponentDataPtr<FDataFragment_Transform>(LookAt.TrackedEntity))
+		if (const FDataFragment_Transform* TargetTransform = EntitySubsystem.GetFragmentDataPtr<FDataFragment_Transform>(LookAt.TrackedEntity))
 		{
 			const FVector AgentPosition = Transform.GetLocation();
 			const FVector NewGlobalDirection = (TargetTransform->GetTransform().GetLocation() - AgentPosition).GetSafeNormal();
@@ -378,7 +378,7 @@ bool UMassLookAtProcessor::UpdateGazeTrackedEntity(const UMassEntitySubsystem& E
 	// Update direction toward gaze target
 	if (LookAt.GazeTrackedEntity.IsSet() && EntitySubsystem.IsEntityValid(LookAt.GazeTrackedEntity))
 	{
-		if (const FDataFragment_Transform* TargetTransform = EntitySubsystem.GetComponentDataPtr<FDataFragment_Transform>(LookAt.GazeTrackedEntity))
+		if (const FDataFragment_Transform* TargetTransform = EntitySubsystem.GetFragmentDataPtr<FDataFragment_Transform>(LookAt.GazeTrackedEntity))
 		{
 			const FVector AgentPosition = Transform.GetLocation();
 			const FVector NewGlobalDirection = (TargetTransform->GetTransform().GetLocation() - AgentPosition).GetSafeNormal();

@@ -101,10 +101,10 @@ void UMassZoneGraphLocationInitializer::Execute(UMassEntitySubsystem& EntitySubs
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, Settings](FMassExecutionContext& Context)
 	{
 		const int32 NumEntities = Context.GetNumEntities();
-		const TArrayView<FMassZoneGraphLaneLocationFragment> LaneLocationList = Context.GetMutableComponentView<FMassZoneGraphLaneLocationFragment>();
-		const TArrayView<FMassMoveTargetFragment> MoveTargetList = Context.GetMutableComponentView<FMassMoveTargetFragment>();
-		const TConstArrayView<FMassMovementConfigFragment> MovementConfigList = Context.GetComponentView<FMassMovementConfigFragment>();
-		const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetComponentView<FDataFragment_Transform>();
+		const TArrayView<FMassZoneGraphLaneLocationFragment> LaneLocationList = Context.GetMutableFragmentView<FMassZoneGraphLaneLocationFragment>();
+		const TArrayView<FMassMoveTargetFragment> MoveTargetList = Context.GetMutableFragmentView<FMassMoveTargetFragment>();
+		const TConstArrayView<FMassMovementConfigFragment> MovementConfigList = Context.GetFragmentView<FMassMovementConfigFragment>();
+		const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetFragmentView<FDataFragment_Transform>();
 
 		// Get the default movement config.
 		FMassMovementConfigHandle CurrentConfigHandle;
@@ -208,10 +208,10 @@ void UMassZoneGraphPathFollowProcessor::Execute(UMassEntitySubsystem& EntitySubs
 	EntityQuery_Conditional.ForEachEntityChunk(EntitySubsystem, Context, [this, &EntitiesToSignalPathDone, &EntitiesToSignalLaneChanged](FMassExecutionContext& Context)
 		{
 		const int32 NumEntities = Context.GetNumEntities();
-		const TArrayView<FMassZoneGraphShortPathFragment> ShortPathList = Context.GetMutableComponentView<FMassZoneGraphShortPathFragment>();
-		const TArrayView<FMassZoneGraphLaneLocationFragment> LaneLocationList = Context.GetMutableComponentView<FMassZoneGraphLaneLocationFragment>();
-		const TArrayView<FMassMoveTargetFragment> MoveTargetList = Context.GetMutableComponentView<FMassMoveTargetFragment>();
-		const TConstArrayView<FMassSimulationLODFragment> SimLODList = Context.GetComponentView<FMassSimulationLODFragment>();
+		const TArrayView<FMassZoneGraphShortPathFragment> ShortPathList = Context.GetMutableFragmentView<FMassZoneGraphShortPathFragment>();
+		const TArrayView<FMassZoneGraphLaneLocationFragment> LaneLocationList = Context.GetMutableFragmentView<FMassZoneGraphLaneLocationFragment>();
+		const TArrayView<FMassMoveTargetFragment> MoveTargetList = Context.GetMutableFragmentView<FMassMoveTargetFragment>();
+		const TConstArrayView<FMassSimulationLODFragment> SimLODList = Context.GetFragmentView<FMassSimulationLODFragment>();
 
 		for (int32 EntityIndex = 0; EntityIndex < NumEntities; ++EntityIndex)
 		{
@@ -498,12 +498,12 @@ void UMassZoneGraphSteeringProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, Settings](FMassExecutionContext& Context)
 	{
 		const int32 NumEntities = Context.GetNumEntities();
-		const TArrayView<FMassMoveTargetFragment> MoveTargetList = Context.GetMutableComponentView<FMassMoveTargetFragment>();
-		const TConstArrayView<FMassMovementConfigFragment> MovementConfigList = Context.GetComponentView<FMassMovementConfigFragment>();
-		const TConstArrayView<FMassVelocityFragment> VelocityList = Context.GetComponentView<FMassVelocityFragment>();
-		const TArrayView<FDataFragment_Transform> TransformList = Context.GetMutableComponentView<FDataFragment_Transform>();
-		const TArrayView<FMassSteeringFragment> SteeringList = Context.GetMutableComponentView<FMassSteeringFragment>();
-		const TArrayView<FMassSteeringGhostFragment> GhostList = Context.GetMutableComponentView<FMassSteeringGhostFragment>();
+		const TArrayView<FMassMoveTargetFragment> MoveTargetList = Context.GetMutableFragmentView<FMassMoveTargetFragment>();
+		const TConstArrayView<FMassMovementConfigFragment> MovementConfigList = Context.GetFragmentView<FMassMovementConfigFragment>();
+		const TConstArrayView<FMassVelocityFragment> VelocityList = Context.GetFragmentView<FMassVelocityFragment>();
+		const TArrayView<FDataFragment_Transform> TransformList = Context.GetMutableFragmentView<FDataFragment_Transform>();
+		const TArrayView<FMassSteeringFragment> SteeringList = Context.GetMutableFragmentView<FMassSteeringFragment>();
+		const TArrayView<FMassSteeringGhostFragment> GhostList = Context.GetMutableFragmentView<FMassSteeringGhostFragment>();
 
 		// @todo: make configurable
 		constexpr float StandDeadZoneRadius = 5.0f;

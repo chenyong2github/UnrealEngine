@@ -20,18 +20,18 @@ FMassEntityQuery::FMassEntityQuery()
 FMassEntityQuery::FMassEntityQuery(std::initializer_list<UScriptStruct*> InitList)
 	: FMassEntityQuery()
 {
-	for (const UScriptStruct* ComponentType : InitList)
+	for (const UScriptStruct* FragmentType : InitList)
 	{
-		AddRequirement(ComponentType, EMassFragmentAccess::ReadWrite, EMassFragmentPresence::All);
+		AddRequirement(FragmentType, EMassFragmentAccess::ReadWrite, EMassFragmentPresence::All);
 	}
 }
 
 FMassEntityQuery::FMassEntityQuery(TConstArrayView<const UScriptStruct*> InitList)
 	: FMassEntityQuery()
 {
-	for (const UScriptStruct* ComponentType : InitList)
+	for (const UScriptStruct* FragmentType : InitList)
 	{
-		AddRequirement(ComponentType, EMassFragmentAccess::ReadWrite, EMassFragmentPresence::All);
+		AddRequirement(FragmentType, EMassFragmentAccess::ReadWrite, EMassFragmentPresence::All);
 	}
 }
 
@@ -46,10 +46,10 @@ void FMassEntityQuery::ReadCommandlineParams()
 
 void FMassEntityQuery::SortRequirements()
 {
-	// we're sorting the Requirements the same way ArchetypeData's ComponentConfig is sorted (see FMassArchetypeData::Initialize)
-	// so that when we access ArchetypeData.ComponentConfigs in FMassArchetypeData::BindRequirementsWithMapping
-	// (via GetComponentData call) the access is sequential (i.e. not random) and there's a higher chance the memory
-	// ComponentConfigs we want to access have already been fetched and are available in processor cache.
+	// we're sorting the Requirements the same way ArchetypeData's FragmentConfig is sorted (see FMassArchetypeData::Initialize)
+	// so that when we access ArchetypeData.FragmentConfigs in FMassArchetypeData::BindRequirementsWithMapping
+	// (via GetFragmentData call) the access is sequential (i.e. not random) and there's a higher chance the memory
+	// FragmentConfigs we want to access have already been fetched and are available in processor cache.
 	Requirements.Sort(FMassSorterOperator<FMassFragmentRequirement>());
 	ChunkRequirements.Sort(FMassSorterOperator<FMassFragmentRequirement>());
 }
@@ -70,14 +70,14 @@ void FMassEntityQuery::CacheArchetypes(UMassEntitySubsystem& InEntitySubsystem)
 
 			TRACE_CPUPROFILER_EVENT_SCOPE_STR("Pipe RequirementsBinding")
 			const TConstArrayView<FMassFragmentRequirement> LocalRequirements = GetRequirements();
-			ArchetypeComponentMapping.Reset(ValidArchetypes.Num());
-			ArchetypeComponentMapping.AddDefaulted(ValidArchetypes.Num());
+			ArchetypeFragmentMapping.Reset(ValidArchetypes.Num());
+			ArchetypeFragmentMapping.AddDefaulted(ValidArchetypes.Num());
 			for (int i = 0; i < ValidArchetypes.Num(); ++i)
 			{
-				ValidArchetypes[i].DataPtr->GetRequirementsComponentMapping(LocalRequirements, ArchetypeComponentMapping[i].EntityComponents);
+				ValidArchetypes[i].DataPtr->GetRequirementsFragmentMapping(LocalRequirements, ArchetypeFragmentMapping[i].EntityFragments);
 				if (ChunkRequirements.Num())
 				{
-					ValidArchetypes[i].DataPtr->GetRequirementsChunkComponentMapping(ChunkRequirements, ArchetypeComponentMapping[i].ChunkComponents);
+					ValidArchetypes[i].DataPtr->GetRequirementsChunkFragmentMapping(ChunkRequirements, ArchetypeFragmentMapping[i].ChunkFragments);
 				}
 			}
 		}
@@ -90,7 +90,7 @@ void FMassEntityQuery::CacheArchetypes(UMassEntitySubsystem& InEntitySubsystem)
 
 bool FMassEntityQuery::CheckValidity() const
 {
-	return RequiredAllComponents.IsEmpty() == false || RequiredAnyComponents.IsEmpty() == false || RequiredOptionalComponents.IsEmpty() == false;
+	return RequiredAllFragments.IsEmpty() == false || RequiredAnyFragments.IsEmpty() == false || RequiredOptionalFragments.IsEmpty() == false;
 }
 
 bool FMassEntityQuery::DoesArchetypeMatchRequirements(const FArchetypeHandle& ArchetypeHandle) const
@@ -108,9 +108,9 @@ bool FMassEntityQuery::DoesArchetypeMatchRequirements(const FArchetypeHandle& Ar
 			continue;
 		}
 
-		const bool bNeedsComponent = (Requirement.Presence == EMassFragmentPresence::All);
-		const bool bHasComponent = Archetype->HasComponentType(Requirement.StructType);
-		if (bNeedsComponent != bHasComponent)
+		const bool bNeedsFragment = (Requirement.Presence == EMassFragmentPresence::All);
+		const bool bHasFragment = Archetype->HasFragmentType(Requirement.StructType);
+		if (bNeedsFragment != bHasFragment)
 		{
 			return false;
 		}
@@ -158,8 +158,8 @@ void FMassEntityQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem,
 		{
 			FArchetypeHandle& Archetype = ValidArchetypes[i];
 			check(Archetype.IsValid());
-			Archetype.DataPtr->ExecuteFunction(ExecutionContext, ExecuteFunction, ArchetypeComponentMapping[i], ChunkCondition);
-			ExecutionContext.ClearComponentViews();
+			Archetype.DataPtr->ExecuteFunction(ExecutionContext, ExecuteFunction, ArchetypeFragmentMapping[i], ChunkCondition);
+			ExecutionContext.ClearFragmentViews();
 #if WITH_MASSENTITY_DEBUG
 			NumEntitiesToProcess += ExecutionContext.GetNumEntities();
 #endif
@@ -233,7 +233,7 @@ void FMassEntityQuery::ParallelForEachEntityChunk(UMassEntitySubsystem& EntitySu
 	ParallelFor(Jobs.Num(), [this, ExecutionContext, &ExecuteFunction, Jobs](const int32 JobIndex)
 	{
 		Jobs[JobIndex].Archetype.ExecutionFunctionForChunk(ExecutionContext, ExecuteFunction
-			, Jobs[JobIndex].ArchetypeIndex != INDEX_NONE ? ArchetypeComponentMapping[Jobs[JobIndex].ArchetypeIndex] : FMassQueryRequirementIndicesMapping()
+			, Jobs[JobIndex].ArchetypeIndex != INDEX_NONE ? ArchetypeFragmentMapping[Jobs[JobIndex].ArchetypeIndex] : FMassQueryRequirementIndicesMapping()
 			, Jobs[JobIndex].ChunkInfo
 			, ChunkCondition);
 	});
@@ -302,7 +302,7 @@ FString FMassFragmentRequirement::DebugGetDescription() const
 {
 #if WITH_MASSENTITY_DEBUG
 	return FString::Printf(TEXT("%s%s[%s]"), IsOptional() ? TEXT("?") : (Presence == EMassFragmentPresence::None ? TEXT("-") : TEXT("+"))
-		, *GetNameSafe(StructType), *UE::Mass::Debug::DebugGetComponentAccessString(AccessMode));
+		, *GetNameSafe(StructType), *UE::Mass::Debug::DebugGetFragmentAccessString(AccessMode));
 #else
 	return {};
 #endif

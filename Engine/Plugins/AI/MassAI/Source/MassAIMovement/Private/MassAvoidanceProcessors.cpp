@@ -498,14 +498,14 @@ void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMa
 		const int32 NumEntities = Ctx.GetNumEntities();
 		const float DistanceCutOffSquare = FMath::Square(UE::MassAvoidance::Tweakables::AgentDetectionDistance);
 
-		const TArrayView<FMassSteeringFragment> SteeringList = Ctx.GetMutableComponentView<FMassSteeringFragment>();
-		const TConstArrayView<FMassNavigationEdgesFragment> NavEdgesList = Ctx.GetComponentView<FMassNavigationEdgesFragment>();
-		const TConstArrayView<FDataFragment_Transform> LocationList = Ctx.GetComponentView<FDataFragment_Transform>();
-		const TConstArrayView<FMassVelocityFragment> VelocityList = Ctx.GetComponentView<FMassVelocityFragment>();
-		const TConstArrayView<FDataFragment_AgentRadius> RadiusList = Ctx.GetComponentView<FDataFragment_AgentRadius>();
-		const TConstArrayView<FMassSimulationLODFragment> SimLODList = Ctx.GetComponentView<FMassSimulationLODFragment>();
-		const TConstArrayView<FMassMoveTargetFragment> MoveTargetList = Ctx.GetComponentView<FMassMoveTargetFragment>();
-		const TConstArrayView<FMassMovementConfigFragment> MovementConfigList = Ctx.GetComponentView<FMassMovementConfigFragment>();
+		const TArrayView<FMassSteeringFragment> SteeringList = Ctx.GetMutableFragmentView<FMassSteeringFragment>();
+		const TConstArrayView<FMassNavigationEdgesFragment> NavEdgesList = Ctx.GetFragmentView<FMassNavigationEdgesFragment>();
+		const TConstArrayView<FDataFragment_Transform> LocationList = Ctx.GetFragmentView<FDataFragment_Transform>();
+		const TConstArrayView<FMassVelocityFragment> VelocityList = Ctx.GetFragmentView<FMassVelocityFragment>();
+		const TConstArrayView<FDataFragment_AgentRadius> RadiusList = Ctx.GetFragmentView<FDataFragment_AgentRadius>();
+		const TConstArrayView<FMassSimulationLODFragment> SimLODList = Ctx.GetFragmentView<FMassSimulationLODFragment>();
+		const TConstArrayView<FMassMoveTargetFragment> MoveTargetList = Ctx.GetFragmentView<FMassMoveTargetFragment>();
+		const TConstArrayView<FMassMovementConfigFragment> MovementConfigList = Ctx.GetFragmentView<FMassMovementConfigFragment>();
 
 		// Arrays used to store close agents
 		TArray<FMassAvoidanceObstacleItem, TFixedAllocator<UE::MassAvoidance::MaxAgentResults>> CloseEntities;
@@ -848,7 +848,7 @@ void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMa
 				}
 				
 				// Skip too far
-				const FTransform& Transform = EntitySubsystem.GetComponentDataChecked<FDataFragment_Transform>(OtherEntity.Entity).GetTransform();
+				const FTransform& Transform = EntitySubsystem.GetFragmentDataChecked<FDataFragment_Transform>(OtherEntity.Entity).GetTransform();
 				const FVector OtherLocation = Transform.GetLocation();
 				
 				const float SqDist = FVector::DistSquared(AgentLocation, OtherLocation);
@@ -883,18 +883,18 @@ void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMa
 				FSortingAgent& OtherAgent = ClosestAgents[Index];
 				FMassEntityView OtherEntityView(EntitySubsystem, OtherAgent.ObstacleItem.Entity);
 
-				const FMassVelocityFragment* OtherVelocityFragment = OtherEntityView.GetComponentDataPtr<FMassVelocityFragment>();
+				const FMassVelocityFragment* OtherVelocityFragment = OtherEntityView.GetFragmentDataPtr<FMassVelocityFragment>();
 				const FVector OtherVelocity = OtherVelocityFragment != nullptr ? OtherVelocityFragment->Value : FVector::ZeroVector; // Get velocity from FAvoidanceComponent
 				const bool bExtendToEdge = OtherEntityView.HasTag<FMassAvoidanceExtendToEdgeObstacleTag>();
 
 				// @todo: this is heavy fragment to access, see if we could handle this differently.
-				const FMassMoveTargetFragment* OtherMoveTarget = OtherEntityView.GetComponentDataPtr<FMassMoveTargetFragment>();
+				const FMassMoveTargetFragment* OtherMoveTarget = OtherEntityView.GetFragmentDataPtr<FMassMoveTargetFragment>();
 				const bool bOtherIsMoving = OtherMoveTarget ? OtherMoveTarget->GetCurrentAction() == EMassMovementAction::Move : true; // Assume moving if other does not have move target.
 				
 				// Check for colliders data
 				if (EnumHasAnyFlags(OtherAgent.ObstacleItem.ItemFlags, EMassAvoidanceObstacleItemFlags::HasColliderData))
 				{
-					const FMassAvoidanceColliderFragment* ColliderFragment = OtherEntityView.GetComponentDataPtr<FMassAvoidanceColliderFragment>();
+					const FMassAvoidanceColliderFragment* ColliderFragment = OtherEntityView.GetFragmentDataPtr<FMassAvoidanceColliderFragment>();
 					if (ColliderFragment)
 					{
 						if (ColliderFragment->Type == EMassColliderType::Circle)
@@ -934,7 +934,7 @@ void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMa
 					FCollider Collider;
 					Collider.Location = OtherAgent.LocationCached;
 					Collider.Velocity = OtherVelocity;
-					Collider.Radius = OtherEntityView.GetComponentData<FDataFragment_AgentRadius>().Radius;
+					Collider.Radius = OtherEntityView.GetFragmentData<FDataFragment_AgentRadius>().Radius;
 					Collider.bExtendToEdge = bExtendToEdge;
 					Collider.bIsMoving = bOtherIsMoving;
 					Colliders.Add(Collider);
@@ -1182,10 +1182,10 @@ void UMassStandingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 		const float DeltaTime = Context.GetDeltaTimeSeconds();
 		const float DistanceCutOffSquare = FMath::Square(UE::MassAvoidance::Tweakables::AgentDetectionDistance);
 
-		const TArrayView<FMassSteeringGhostFragment> GhostList = Context.GetMutableComponentView<FMassSteeringGhostFragment>();
-		const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetComponentView<FDataFragment_Transform>();
-		const TConstArrayView<FDataFragment_AgentRadius> RadiusList = Context.GetComponentView<FDataFragment_AgentRadius>();
-		const TConstArrayView<FMassMoveTargetFragment> MoveTargetList = Context.GetComponentView<FMassMoveTargetFragment>();
+		const TArrayView<FMassSteeringGhostFragment> GhostList = Context.GetMutableFragmentView<FMassSteeringGhostFragment>();
+		const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
+		const TConstArrayView<FDataFragment_AgentRadius> RadiusList = Context.GetFragmentView<FDataFragment_AgentRadius>();
+		const TConstArrayView<FMassMoveTargetFragment> MoveTargetList = Context.GetFragmentView<FMassMoveTargetFragment>();
 
 		// Arrays used to store close agents
 		TArray<FMassAvoidanceObstacleItem, TFixedAllocator<UE::MassAvoidance::MaxAgentResults>> CloseEntities;
@@ -1270,7 +1270,7 @@ void UMassStandingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 				}
 
 				// Skip too far
-				const FDataFragment_Transform& OtherTransform = EntitySubsystem.GetComponentDataChecked<FDataFragment_Transform>(OtherEntity.Entity);
+				const FDataFragment_Transform& OtherTransform = EntitySubsystem.GetFragmentDataChecked<FDataFragment_Transform>(OtherEntity.Entity);
 				const FVector OtherLocation = OtherTransform.GetTransform().GetLocation();
 				const float DistSq = FVector::DistSquared(AgentLocation, OtherLocation);
 				if (DistSq > DistanceCutOffSquare)
@@ -1290,8 +1290,8 @@ void UMassStandingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 				FSortingAgent& OtherAgent = ClosestAgents[Index];
 				FMassEntityView OtherEntityView(EntitySubsystem, OtherAgent.Entity);
 
-				const FMassVelocityFragment* OtherVelocityFragment = OtherEntityView.GetComponentDataPtr<FMassVelocityFragment>();
-				const float OtherRadius = OtherEntityView.GetComponentData<FDataFragment_AgentRadius>().Radius;
+				const FMassVelocityFragment* OtherVelocityFragment = OtherEntityView.GetFragmentDataPtr<FMassVelocityFragment>();
+				const float OtherRadius = OtherEntityView.GetFragmentData<FDataFragment_AgentRadius>().Radius;
 
 				const float TotalRadius = AgentRadius + OtherRadius;
 
@@ -1306,8 +1306,8 @@ void UMassStandingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 				constexpr float DirectionScaleStrength = 0.9f; // How strongly the direction scaling affects [0..1]
 
 				// @todo: this is heavy fragment to access, see if we could handle this differently.
-				const FMassMoveTargetFragment* OtherMoveTarget = OtherEntityView.GetComponentDataPtr<FMassMoveTargetFragment>();
-				const FMassSteeringGhostFragment* OtherGhost = OtherEntityView.GetComponentDataPtr<FMassSteeringGhostFragment>();
+				const FMassMoveTargetFragment* OtherMoveTarget = OtherEntityView.GetFragmentDataPtr<FMassMoveTargetFragment>();
+				const FMassSteeringGhostFragment* OtherGhost = OtherEntityView.GetFragmentDataPtr<FMassSteeringGhostFragment>();
 
 				const bool bOtherHasGhost = OtherMoveTarget != nullptr && OtherGhost != nullptr
 											&& OtherMoveTarget->GetCurrentAction() == EMassMovementAction::Stand
@@ -1438,9 +1438,9 @@ void UMassAvoidanceObstacleProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 		{
 			const int32 NumEntities = Context.GetNumEntities();
 
-			TConstArrayView<FDataFragment_Transform> LocationList = Context.GetComponentView<FDataFragment_Transform>();
-			TConstArrayView<FDataFragment_AgentRadius> RadiiList = Context.GetComponentView<FDataFragment_AgentRadius>();
-			TArrayView<FMassAvoidanceObstacleGridCellLocationFragment> AvoidanceObstacleCellLocationList = Context.GetMutableComponentView<FMassAvoidanceObstacleGridCellLocationFragment>();
+			TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
+			TConstArrayView<FDataFragment_AgentRadius> RadiiList = Context.GetFragmentView<FDataFragment_AgentRadius>();
+			TArrayView<FMassAvoidanceObstacleGridCellLocationFragment> AvoidanceObstacleCellLocationList = Context.GetMutableFragmentView<FMassAvoidanceObstacleGridCellLocationFragment>();
 
 			for (int32 EntityIndex = 0; EntityIndex < NumEntities; ++EntityIndex)
 			{
@@ -1451,7 +1451,7 @@ void UMassAvoidanceObstacleProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 				FMassAvoidanceObstacleItem ObstacleItem;
 				ObstacleItem.Entity = Context.GetEntity(EntityIndex);
 				FMassEntityView EntityView(EntitySubsystem, ObstacleItem.Entity);
-				const FMassAvoidanceColliderFragment* Collider = EntityView.GetComponentDataPtr<FMassAvoidanceColliderFragment>();
+				const FMassAvoidanceColliderFragment* Collider = EntityView.GetFragmentDataPtr<FMassAvoidanceColliderFragment>();
 				if (Collider)
 				{
 					ObstacleItem.ItemFlags |= EMassAvoidanceObstacleItemFlags::HasColliderData;
@@ -1468,9 +1468,9 @@ void UMassAvoidanceObstacleProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 		{
 			const int32 NumEntities = Context.GetNumEntities();
 
-			TConstArrayView<FDataFragment_Transform> LocationList = Context.GetComponentView<FDataFragment_Transform>();
-			TConstArrayView<FDataFragment_AgentRadius> RadiiList = Context.GetComponentView<FDataFragment_AgentRadius>();
-			TArrayView<FMassAvoidanceObstacleGridCellLocationFragment> AvoidanceObstacleCellLocationList = Context.GetMutableComponentView<FMassAvoidanceObstacleGridCellLocationFragment>();
+			TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
+			TConstArrayView<FDataFragment_AgentRadius> RadiiList = Context.GetFragmentView<FDataFragment_AgentRadius>();
+			TArrayView<FMassAvoidanceObstacleGridCellLocationFragment> AvoidanceObstacleCellLocationList = Context.GetMutableFragmentView<FMassAvoidanceObstacleGridCellLocationFragment>();
 
 			for (int32 EntityIndex = 0; EntityIndex < NumEntities; ++EntityIndex)
 			{
@@ -1480,7 +1480,7 @@ void UMassAvoidanceObstacleProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 				FMassAvoidanceObstacleItem ObstacleItem;
 				ObstacleItem.Entity = Context.GetEntity(EntityIndex);
 				FMassEntityView EntityView(EntitySubsystem, ObstacleItem.Entity);
-				const FMassAvoidanceColliderFragment* Collider = EntityView.GetComponentDataPtr<FMassAvoidanceColliderFragment>();
+				const FMassAvoidanceColliderFragment* Collider = EntityView.GetFragmentDataPtr<FMassAvoidanceColliderFragment>();
 				if (Collider)
 				{
 					ObstacleItem.ItemFlags |= EMassAvoidanceObstacleItemFlags::HasColliderData;
@@ -1504,7 +1504,7 @@ void UMassAvoidanceObstacleProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 	{
 		const int32 NumEntities = Context.GetNumEntities();
 
-		TArrayView<FMassAvoidanceObstacleGridCellLocationFragment> AvoidanceObstacleCellLocationList = Context.GetMutableComponentView<FMassAvoidanceObstacleGridCellLocationFragment>();
+		TArrayView<FMassAvoidanceObstacleGridCellLocationFragment> AvoidanceObstacleCellLocationList = Context.GetMutableFragmentView<FMassAvoidanceObstacleGridCellLocationFragment>();
 		for (int32 EntityIndex = 0; EntityIndex < NumEntities; ++EntityIndex)
 		{
 			FMassAvoidanceObstacleItem ObstacleItem;
@@ -1567,10 +1567,10 @@ void UMassNavigationBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsy
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, NavData](FMassExecutionContext& Context)
 		{
 			const int32 NumEntities = Context.GetNumEntities();
-			TConstArrayView<FDataFragment_Transform> LocationList = Context.GetComponentView<FDataFragment_Transform>();
-			TConstArrayView<FDataFragment_NavLocation> NavLocationList = Context.GetComponentView<FDataFragment_NavLocation>();
-			TConstArrayView<FMassEdgeDetectionParamsFragment> EdgeDetectionParamsList = Context.GetComponentView<FMassEdgeDetectionParamsFragment>();
-			TArrayView<FMassNavigationEdgesFragment> EdgesList = Context.GetMutableComponentView<FMassNavigationEdgesFragment>();
+			TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
+			TConstArrayView<FDataFragment_NavLocation> NavLocationList = Context.GetFragmentView<FDataFragment_NavLocation>();
+			TConstArrayView<FMassEdgeDetectionParamsFragment> EdgeDetectionParamsList = Context.GetFragmentView<FMassEdgeDetectionParamsFragment>();
+			TArrayView<FMassNavigationEdgesFragment> EdgesList = Context.GetMutableFragmentView<FMassNavigationEdgesFragment>();
 
 			const ARecastNavMesh* RecastNavMesh = Cast<const ARecastNavMesh>(NavData);
 			if (!RecastNavMesh)
@@ -1650,11 +1650,11 @@ void UMassLaneBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, 
 		{
 			const int32 NumEntities = Context.GetNumEntities();
 
-			TConstArrayView<FDataFragment_Transform> LocationList = Context.GetComponentView<FDataFragment_Transform>();
-			TArrayView<FMassNavigationEdgesFragment> EdgesList = Context.GetMutableComponentView<FMassNavigationEdgesFragment>();
-			TArrayView<FMassLastUpdatePositionFragment> LastUpdatePositionList = Context.GetMutableComponentView<FMassLastUpdatePositionFragment>();
-			TConstArrayView<FMassZoneGraphLaneLocationFragment> LaneLocationList = Context.GetComponentView<FMassZoneGraphLaneLocationFragment>();
-			TArrayView<FMassAvoidanceBoundaryLastLaneHandleFragment> LastLaneHandleList = Context.GetMutableComponentView<FMassAvoidanceBoundaryLastLaneHandleFragment>();
+			TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
+			TArrayView<FMassNavigationEdgesFragment> EdgesList = Context.GetMutableFragmentView<FMassNavigationEdgesFragment>();
+			TArrayView<FMassLastUpdatePositionFragment> LastUpdatePositionList = Context.GetMutableFragmentView<FMassLastUpdatePositionFragment>();
+			TConstArrayView<FMassZoneGraphLaneLocationFragment> LaneLocationList = Context.GetFragmentView<FMassZoneGraphLaneLocationFragment>();
+			TArrayView<FMassAvoidanceBoundaryLastLaneHandleFragment> LastLaneHandleList = Context.GetMutableFragmentView<FMassAvoidanceBoundaryLastLaneHandleFragment>();
 
 			TArray<FZoneGraphLinkedLane> LinkedLanes;
 			LinkedLanes.Reserve(4);
@@ -1920,11 +1920,11 @@ void UMassLaneCacheBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 	{
 		const int32 NumEntities = Context.GetNumEntities();
 
-		TConstArrayView<FMassZoneGraphCachedLaneFragment> CachedLaneList = Context.GetComponentView<FMassZoneGraphCachedLaneFragment>();
-		TConstArrayView<FMassZoneGraphLaneLocationFragment> LaneLocationList = Context.GetComponentView<FMassZoneGraphLaneLocationFragment>();
-		TConstArrayView<FMassMoveTargetFragment> MovementTargetList = Context.GetComponentView<FMassMoveTargetFragment>();
-		TArrayView<FMassLaneCacheBoundaryFragment> LaneCacheBoundaryList = Context.GetMutableComponentView<FMassLaneCacheBoundaryFragment>();
-		TArrayView<FMassNavigationEdgesFragment> EdgesList = Context.GetMutableComponentView<FMassNavigationEdgesFragment>();
+		TConstArrayView<FMassZoneGraphCachedLaneFragment> CachedLaneList = Context.GetFragmentView<FMassZoneGraphCachedLaneFragment>();
+		TConstArrayView<FMassZoneGraphLaneLocationFragment> LaneLocationList = Context.GetFragmentView<FMassZoneGraphLaneLocationFragment>();
+		TConstArrayView<FMassMoveTargetFragment> MovementTargetList = Context.GetFragmentView<FMassMoveTargetFragment>();
+		TArrayView<FMassLaneCacheBoundaryFragment> LaneCacheBoundaryList = Context.GetMutableFragmentView<FMassLaneCacheBoundaryFragment>();
+		TArrayView<FMassNavigationEdgesFragment> EdgesList = Context.GetMutableFragmentView<FMassNavigationEdgesFragment>();
 
 		TArray<FZoneGraphLinkedLane> LinkedLanes;
 		LinkedLanes.Reserve(4);	

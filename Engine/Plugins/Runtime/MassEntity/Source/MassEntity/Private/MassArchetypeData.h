@@ -17,11 +17,11 @@ private:
 	uint8* RawMemory = nullptr;
 	int32 NumInstances = 0;
 	int32 SerialModificationNumber = 0;
-	TArray<FInstancedStruct> ChunkComponentData;
+	TArray<FInstancedStruct> ChunkFragmentData;
 
 public:
-	explicit FMassArchetypeChunk(int32 AllocSize, TConstArrayView<FInstancedStruct> InChunkComponentTemplates)
-		: ChunkComponentData(InChunkComponentTemplates)
+	explicit FMassArchetypeChunk(int32 AllocSize, TConstArrayView<FInstancedStruct> InChunkFragmentTemplates)
+		: ChunkFragmentData(InChunkFragmentTemplates)
 	{
 		RawMemory = (uint8*)FMemory::Malloc(AllocSize);
 	}
@@ -75,51 +75,51 @@ public:
 		return SerialModificationNumber;
 	}
 
-	FStructView GetMutableChunkComponentViewChecked(const int32 Index) { return FStructView(ChunkComponentData[Index]); }
+	FStructView GetMutableChunkFragmentViewChecked(const int32 Index) { return FStructView(ChunkFragmentData[Index]); }
 
-	FInstancedStruct* FindMutableChunkComponent(const UScriptStruct* Type)
+	FInstancedStruct* FindMutableChunkFragment(const UScriptStruct* Type)
 	{
-		return ChunkComponentData.FindByPredicate([Type](const FInstancedStruct& Element)
+		return ChunkFragmentData.FindByPredicate([Type](const FInstancedStruct& Element)
 			{
 				return Element.GetScriptStruct()->IsChildOf(Type);
 			});
 	}
 
-	void Recycle(TConstArrayView<FInstancedStruct> InChunkComponentsTemplate)
+	void Recycle(TConstArrayView<FInstancedStruct> InChunkFragmentsTemplate)
 	{
 		checkf(NumInstances == 0, TEXT("Recycling a chunk that is not empty."));
 		SerialModificationNumber++;
-		ChunkComponentData = InChunkComponentsTemplate;
+		ChunkFragmentData = InChunkFragmentsTemplate;
 	}
 
 #if WITH_MASSENTITY_DEBUG
-	int32 DebugGetChunkComponentCount() const { return ChunkComponentData.Num(); }
+	int32 DebugGetChunkFragmentCount() const { return ChunkFragmentData.Num(); }
 #endif // WITH_MASSENTITY_DEBUG
 };
 
-// Information for a single component type in an archetype
+// Information for a single fragment type in an archetype
 struct FMassArchetypeFragmentConfig
 {
-	const UScriptStruct* ComponentType = nullptr;
+	const UScriptStruct* FragmentType = nullptr;
 	int32 ArrayOffsetWithinChunk = 0;
 
-	void* GetComponentData(uint8* ChunkBase, int32 IndexWithinChunk) const
+	void* GetFragmentData(uint8* ChunkBase, int32 IndexWithinChunk) const
 	{
-		return ChunkBase + ArrayOffsetWithinChunk + (IndexWithinChunk * ComponentType->GetStructureSize());
+		return ChunkBase + ArrayOffsetWithinChunk + (IndexWithinChunk * FragmentType->GetStructureSize());
 	}
 };
 
-// An archetype is defined by a collection of unique component types (no duplicates).
-// Order doesn't matter, there will only ever be one FMassArchetypeData per unique set of component types per entity manager subsystem
+// An archetype is defined by a collection of unique fragment types (no duplicates).
+// Order doesn't matter, there will only ever be one FMassArchetypeData per unique set of fragment types per entity manager subsystem
 struct FMassArchetypeData
 {
 private:
-	// One-stop-shop variable describing the archetype's component and tag composition 
+	// One-stop-shop variable describing the archetype's fragment and tag composition 
 	FMassCompositionDescriptor CompositionDescriptor;
 
-	TArray<FInstancedStruct> ChunkComponentTemplates;
+	TArray<FInstancedStruct> ChunkFragmentTemplates;
 
-	TArray<FMassArchetypeFragmentConfig, TInlineAllocator<16>> ComponentConfigs;
+	TArray<FMassArchetypeFragmentConfig, TInlineAllocator<16>> FragmentConfigs;
 	
 	TArray<FMassArchetypeChunk> Chunks;
 
@@ -128,7 +128,7 @@ private:
 	// of loss of encapsulation and extra complexity during archetype changes
 	TMap<int32, int32> EntityMap;
 	
-	TMap<const UScriptStruct*, int32> ComponentIndexMap;
+	TMap<const UScriptStruct*, int32> FragmentIndexMap;
 
 	int32 NumEntitiesPerChunk;
 	int32 TotalBytesPerEntity;
@@ -138,27 +138,27 @@ private:
 	friend FArchetypeChunkCollection;
 
 public:
-	TConstArrayView<FMassArchetypeFragmentConfig> GetComponentConfigs() const { return ComponentConfigs; }
-	const FMassFragmentBitSet& GetComponentBitSet() const { return CompositionDescriptor.Components; }
+	TConstArrayView<FMassArchetypeFragmentConfig> GetFragmentConfigs() const { return FragmentConfigs; }
+	const FMassFragmentBitSet& GetFragmentBitSet() const { return CompositionDescriptor.Fragments; }
 	const FMassTagBitSet& GetTagBitSet() const { return CompositionDescriptor.Tags; }
-	const FMassChunkFragmentBitSet& GetChunkComponentBitSet() const { return CompositionDescriptor.ChunkComponents; }
+	const FMassChunkFragmentBitSet& GetChunkFragmentBitSet() const { return CompositionDescriptor.ChunkFragments; }
 	const FMassCompositionDescriptor& GetCompositionDescriptor() const { return CompositionDescriptor; }
 
-	/** Method to iterate on all the component types */
-	void ForEachComponentType(TFunction< void(const UScriptStruct* /*ComponentType*/)> Function) const;
-	bool HasComponentType(const UScriptStruct* ComponentType) const;
-	bool HasTagType(const UScriptStruct* ComponentType) const { check(ComponentType); return CompositionDescriptor.Tags.Contains(*ComponentType); }
+	/** Method to iterate on all the fragment types */
+	void ForEachFragmentType(TFunction< void(const UScriptStruct* /*FragmentType*/)> Function) const;
+	bool HasFragmentType(const UScriptStruct* FragmentType) const;
+	bool HasTagType(const UScriptStruct* FragmentType) const { check(FragmentType); return CompositionDescriptor.Tags.Contains(*FragmentType); }
 	bool IsEquivalent(TConstArrayView<const UScriptStruct*> OtherList) const;
-	bool IsEquivalent(const FMassFragmentBitSet& InComponentBitSet, const FMassTagBitSet& InTagBitSet, const FMassChunkFragmentBitSet& InChunkComponentsBitSet) const
+	bool IsEquivalent(const FMassFragmentBitSet& InFragmentBitSet, const FMassTagBitSet& InTagBitSet, const FMassChunkFragmentBitSet& InChunkFragmentsBitSet) const
 	{ 
-		return CompositionDescriptor.IsEquivalent(InComponentBitSet, InTagBitSet, InChunkComponentsBitSet);
+		return CompositionDescriptor.IsEquivalent(InFragmentBitSet, InTagBitSet, InChunkFragmentsBitSet);
 	}
 	bool IsEquivalent(const FMassCompositionDescriptor& OtherCompositionDescriptor) const
 	{
 		return CompositionDescriptor.IsEquivalent(OtherCompositionDescriptor);
 	}
 
-	void Initialize(const FMassFragmentBitSet& Components, const FMassTagBitSet& Tags, const FMassChunkFragmentBitSet& ChunkComponents);
+	void Initialize(const FMassFragmentBitSet& Fragments, const FMassTagBitSet& Tags, const FMassChunkFragmentBitSet& ChunkFragments);
 
 	/** 
 	 * A special way of initializing an archetype resulting in a copy of SiblingArchetype's setup with OverrideTags
@@ -170,9 +170,9 @@ public:
 	void RemoveEntity(FMassEntityHandle Entity);
 	void BatchDestroyEntityChunks(const FArchetypeChunkCollection& ChunkCollection, TArray<FMassEntityHandle>& OutEntitiesRemoved);
 
-	bool HasComponentDataForEntity(const UScriptStruct* ComponentType, int32 EntityIndex) const;
-	void* GetComponentDataForEntityChecked(const UScriptStruct* ComponentType, int32 EntityIndex) const;
-	void* GetComponentDataForEntity(const UScriptStruct* ComponentType, int32 EntityIndex) const;
+	bool HasFragmentDataForEntity(const UScriptStruct* FragmentType, int32 EntityIndex) const;
+	void* GetFragmentDataForEntityChecked(const UScriptStruct* FragmentType, int32 EntityIndex) const;
+	void* GetFragmentDataForEntity(const UScriptStruct* FragmentType, int32 EntityIndex) const;
 
 	FORCEINLINE int32 GetInternalIndexForEntity(const int32 EntityIndex) const { return EntityMap.FindChecked(EntityIndex); }
 	int32 GetNumEntitiesPerChunk() const { return NumEntitiesPerChunk; }
@@ -194,34 +194,34 @@ public:
 	void CompactEntities(const double TimeAllowed);
 
 	/**
-	 * Moves the entity from this archetype to another, will only copy all matching component types
+	 * Moves the entity from this archetype to another, will only copy all matching fragment types
 	 * @param Entity is the entity to move
 	 * @param NewArchetype the archetype to move to
 	 */
 	void MoveEntityToAnotherArchetype(const FMassEntityHandle Entity, FMassArchetypeData& NewArchetype);
 
 	/**
-	 * Set all component sources data on specified entity, will check if there are component sources type that does not exist in the archetype
-	 * @param Entity is the entity to set the data of all components
-	 * @param ComponentSources are the components to copy the data from
+	 * Set all fragment sources data on specified entity, will check if there are fragment sources type that does not exist in the archetype
+	 * @param Entity is the entity to set the data of all fragments
+	 * @param FragmentSources are the fragments to copy the data from
 	 */
-	void SetComponentsData(const FMassEntityHandle Entity, TArrayView<const FInstancedStruct> ComponentSources);
+	void SetFragmentsData(const FMassEntityHandle Entity, TArrayView<const FInstancedStruct> FragmentSources);
 
-	/** For all entities indicated by ChunkCollection the function sets the value of component of type
-	 *  ComponentSource.GetScriptStruct to the value represented by ComponentSource.GetMemory */
-	void SetComponentData(const FArchetypeChunkCollection& ChunkCollection, const FInstancedStruct& ComponentSource);
+	/** For all entities indicated by ChunkCollection the function sets the value of fragment of type
+	 *  FragmentSource.GetScriptStruct to the value represented by FragmentSource.GetMemory */
+	void SetFragmentData(const FArchetypeChunkCollection& ChunkCollection, const FInstancedStruct& FragmentSource);
 
-	void SetDefaultChunkComponentValue(FConstStructView InstancedStruct);
+	void SetDefaultChunkFragmentValue(FConstStructView InstancedStruct);
 
-	/** Returns conversion from given Requirements to archetype's component indices */
-	void GetRequirementsComponentMapping(TConstArrayView<FMassFragmentRequirement> Requirements, FMassFragmentIndicesMapping& OutComponentIndices);
+	/** Returns conversion from given Requirements to archetype's fragment indices */
+	void GetRequirementsFragmentMapping(TConstArrayView<FMassFragmentRequirement> Requirements, FMassFragmentIndicesMapping& OutFragmentIndices);
 
-	/** Returns conversion from given ChunkRequirements to archetype's chunk component indices */
-	void GetRequirementsChunkComponentMapping(TConstArrayView<FMassFragmentRequirement> ChunkRequirements, FMassFragmentIndicesMapping& OutComponentIndices);
+	/** Returns conversion from given ChunkRequirements to archetype's chunk fragment indices */
+	void GetRequirementsChunkFragmentMapping(TConstArrayView<FMassFragmentRequirement> ChunkRequirements, FMassFragmentIndicesMapping& OutFragmentIndices);
 
 	SIZE_T GetAllocatedSize() const;
 
-	// Converts the list of components into a user-readable debug string
+	// Converts the list of fragments into a user-readable debug string
 	FString DebugGetDescription() const;
 
 #if WITH_MASSENTITY_DEBUG
@@ -231,24 +231,24 @@ public:
 	void DebugPrintArchetype(FOutputDevice& Ar);
 
 	/**
-	 * Prints out component's values for the specified entity. 
-	 * @param Entity The entity for which we want to print component values
+	 * Prints out fragment's values for the specified entity. 
+	 * @param Entity The entity for which we want to print fragment values
 	 * @param Ar The output device
-	 * @param InPrefix Optional prefix to remove from component names
+	 * @param InPrefix Optional prefix to remove from fragment names
 	 */
 	void DebugPrintEntity(FMassEntityHandle Entity, FOutputDevice& Ar, const TCHAR* InPrefix = TEXT("")) const;
 #endif // WITH_MASSENTITY_DEBUG
 
-	void REMOVEME_GetArrayViewForComponentInChunk(int32 ChunkIndex, const UScriptStruct* ComponentType, void*& OutChunkBase, int32& OutNumEntities);
+	void REMOVEME_GetArrayViewForFragmentInChunk(int32 ChunkIndex, const UScriptStruct* FragmentType, void*& OutChunkBase, int32& OutNumEntities);
 
 	//////////////////////////////////////////////////////////////////////
 	// low level api
-	FORCEINLINE const int32* GetComponentIndex(const UScriptStruct* ComponentType) const { return ComponentIndexMap.Find(ComponentType); }
-	FORCEINLINE int32 GetComponentIndexChecked(const UScriptStruct* ComponentType) const { return ComponentIndexMap.FindChecked(ComponentType); }
+	FORCEINLINE const int32* GetFragmentIndex(const UScriptStruct* FragmentType) const { return FragmentIndexMap.Find(FragmentType); }
+	FORCEINLINE int32 GetFragmentIndexChecked(const UScriptStruct* FragmentType) const { return FragmentIndexMap.FindChecked(FragmentType); }
 
-	FORCEINLINE void* GetComponentData(const int32 ComponentIndex, const FInternalEntityHandle EntityIndex) const
+	FORCEINLINE void* GetFragmentData(const int32 FragmentIndex, const FInternalEntityHandle EntityIndex) const
 	{
-		return ComponentConfigs[ComponentIndex].GetComponentData(EntityIndex.ChunkRawMemory, EntityIndex.IndexWithinChunk);
+		return FragmentConfigs[FragmentIndex].GetFragmentData(EntityIndex.ChunkRawMemory, EntityIndex.IndexWithinChunk);
 	}
 
 	FORCEINLINE FInternalEntityHandle MakeEntityHandle(int32 EntityIndex) const
@@ -264,18 +264,18 @@ public:
 		return MakeEntityHandle(Entity.Index); 
 	}
 
-	bool IsInitialized() const { return TotalBytesPerEntity > 0 && ComponentConfigs.IsEmpty() == false; }
+	bool IsInitialized() const { return TotalBytesPerEntity > 0 && FragmentConfigs.IsEmpty() == false; }
 
 protected:
-	FORCEINLINE void* GetComponentData(const int32 ComponentIndex, uint8* ChunkRawMemory, const int32 IndexWithinChunk) const
+	FORCEINLINE void* GetFragmentData(const int32 FragmentIndex, uint8* ChunkRawMemory, const int32 IndexWithinChunk) const
 	{
-		return ComponentConfigs[ComponentIndex].GetComponentData(ChunkRawMemory, IndexWithinChunk);
+		return FragmentConfigs[FragmentIndex].GetFragmentData(ChunkRawMemory, IndexWithinChunk);
 	}
 
-	void BindEntityRequirements(FMassExecutionContext& RunContext, const FMassFragmentIndicesMapping& EntityComponentsMapping, FMassArchetypeChunk& Chunk, const int32 SubchunkStart, const int32 SubchunkLength);
-	void BindChunkComponentRequirements(FMassExecutionContext& RunContext, const FMassFragmentIndicesMapping& ChunkComponentsMapping, FMassArchetypeChunk& Chunk);
+	void BindEntityRequirements(FMassExecutionContext& RunContext, const FMassFragmentIndicesMapping& EntityFragmentsMapping, FMassArchetypeChunk& Chunk, const int32 SubchunkStart, const int32 SubchunkLength);
+	void BindChunkFragmentRequirements(FMassExecutionContext& RunContext, const FMassFragmentIndicesMapping& ChunkFragmentsMapping, FMassArchetypeChunk& Chunk);
 
 private:
-	int32 AddEntityInternal(FMassEntityHandle Entity, const bool bInitializeComponents);
-	void RemoveEntityInternal(const int32 AbsoluteIndex, const bool bDestroyComponents);
+	int32 AddEntityInternal(FMassEntityHandle Entity, const bool bInitializeFragments);
+	void RemoveEntityInternal(const int32 AbsoluteIndex, const bool bDestroyFragments);
 };

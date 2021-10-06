@@ -10,9 +10,9 @@ void FMassReplicationProcessorTransformHandlerBase::AddRequirements(FMassEntityQ
 	InQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadWrite);
 }
 
-void FMassReplicationProcessorTransformHandlerBase::CacheComponentViews(FMassExecutionContext& ExecContext)
+void FMassReplicationProcessorTransformHandlerBase::CacheFragmentViews(FMassExecutionContext& ExecContext)
 {
-	TransformList = ExecContext.GetMutableComponentView<FDataFragment_Transform>();
+	TransformList = ExecContext.GetMutableFragmentView<FDataFragment_Transform>();
 }
 
 void FMassReplicationProcessorPositionYawHandler::AddEntity(const int32 EntityIdx, FReplicatedAgentPositionYawData& InOutReplicatedPositionYawData) const

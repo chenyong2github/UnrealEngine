@@ -24,8 +24,8 @@ namespace UE::Mass::Crowd
 
 		const FMassEntityView EntityView(EntitySystem, Entity);
 
-		const FDataFragment_Transform& TransformFragment = EntityView.GetComponentData<FDataFragment_Transform>();
-		const FMassNetworkIDFragment& NetworkIDFragment = EntityView.GetComponentData<FMassNetworkIDFragment>();
+		const FDataFragment_Transform& TransformFragment = EntityView.GetFragmentData<FDataFragment_Transform>();
+		const FMassNetworkIDFragment& NetworkIDFragment = EntityView.GetFragmentData<FMassNetworkIDFragment>();
 
 		const FVector& Pos = TransformFragment.GetTransform().GetLocation();
 		const uint32 NetworkID = NetworkIDFragment.NetID.GetValue();
@@ -129,10 +129,10 @@ void FMassCrowdClientBubbleHandler::PostReplicatedAdd(const TArrayView<int32> Ad
 		TransformHandler.AddRequirementsForSpawnQuery(InQuery);
 	};
 
-	auto CacheComponentViewsForSpawnQuery = [this](FMassExecutionContext& InExecContext)
+	auto CacheFragmentViewsForSpawnQuery = [this](FMassExecutionContext& InExecContext)
 	{
-		PathHandler.CacheComponentViewsForSpawnQuery(InExecContext);
-		TransformHandler.CacheComponentViewsForSpawnQuery(InExecContext);
+		PathHandler.CacheFragmentViewsForSpawnQuery(InExecContext);
+		TransformHandler.CacheFragmentViewsForSpawnQuery(InExecContext);
 	};
 
 	auto SetSpawnedEntityData = [this](const FMassEntityView& EntityView, const FReplicatedCrowdAgent& ReplicatedEntity, const int32 EntityIdx)
@@ -146,10 +146,10 @@ void FMassCrowdClientBubbleHandler::PostReplicatedAdd(const TArrayView<int32> Ad
 		PostReplicatedChangeEntity(EntityView, Item);
 	};
 
-	PostReplicatedAddHelper(AddedIndices, AddRequirementsForSpawnQuery, CacheComponentViewsForSpawnQuery, SetSpawnedEntityData, SetModifiedEntityData);
+	PostReplicatedAddHelper(AddedIndices, AddRequirementsForSpawnQuery, CacheFragmentViewsForSpawnQuery, SetSpawnedEntityData, SetModifiedEntityData);
 
-	PathHandler.ClearComponentViewsForSpawnQuery();
-	TransformHandler.ClearComponentViewsForSpawnQuery();
+	PathHandler.ClearFragmentViewsForSpawnQuery();
+	TransformHandler.ClearFragmentViewsForSpawnQuery();
 }
 #endif //UE_REPLICATION_COMPILE_SERVER_CODE
 

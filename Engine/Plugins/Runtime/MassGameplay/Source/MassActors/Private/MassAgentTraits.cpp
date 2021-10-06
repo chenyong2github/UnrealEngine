@@ -53,15 +53,15 @@ void UMassAgentCapsuleCollisionSyncTrait::BuildTemplate(FMassEntityTemplateBuild
 		{
 			if (UCapsuleComponent* CapsuleComponent = FMassAgentTraitsHelper::AsComponent<UCapsuleComponent>(Owner))
 			{
-				FDataFragment_CapsuleComponentWrapper& CapsuleFragment = EntityView.GetComponentData<FDataFragment_CapsuleComponentWrapper>();
+				FDataFragment_CapsuleComponentWrapper& CapsuleFragment = EntityView.GetFragmentData<FDataFragment_CapsuleComponentWrapper>();
 				CapsuleFragment.Component = CapsuleComponent;
 
-				FDataFragment_AgentRadius& RadiusFragment = EntityView.GetComponentData<FDataFragment_AgentRadius>();
+				FDataFragment_AgentRadius& RadiusFragment = EntityView.GetFragmentData<FDataFragment_AgentRadius>();
 				RadiusFragment.Radius = CapsuleComponent->GetScaledCapsuleRadius();
 
 				if (bSyncTransform)
 				{
-					FDataFragment_Transform& TransformFragment = EntityView.GetComponentData<FDataFragment_Transform>();
+					FDataFragment_Transform& TransformFragment = EntityView.GetFragmentData<FDataFragment_Transform>();
 					TransformFragment.GetMutableTransform() = CapsuleComponent->GetComponentTransform();
 				}
 			}
@@ -93,10 +93,10 @@ void UMassAgentMovementSyncTrait::BuildTemplate(FMassEntityTemplateBuildContext&
 		{
 			if (UCharacterMovementComponent* MovementComp = FMassAgentTraitsHelper::AsComponent<UCharacterMovementComponent>(Owner))
 			{
-				FDataFragment_CharacterMovementComponentWrapper& ComponentFragment = EntityView.GetComponentData<FDataFragment_CharacterMovementComponentWrapper>();
+				FDataFragment_CharacterMovementComponentWrapper& ComponentFragment = EntityView.GetFragmentData<FDataFragment_CharacterMovementComponentWrapper>();
 				ComponentFragment.Component = MovementComp;
 
-				FMassVelocityFragment& VelocityFragment = EntityView.GetComponentData<FMassVelocityFragment>();
+				FMassVelocityFragment& VelocityFragment = EntityView.GetFragmentData<FMassVelocityFragment>();
 
 				// the entity is the authority
 				if (CurrentDirection ==  EMassTranslationDirection::MassToActor)
@@ -157,10 +157,10 @@ void UMassAgentFeetLocationSyncTrait::BuildTemplate(FMassEntityTemplateBuildCont
 			if (AsActor && AsActor->GetRootComponent())
 			{
 				USceneComponent* Component = AsActor->GetRootComponent();
-				FMassSceneComponentWrapperFragment& ComponentFragment = EntityView.GetComponentData<FMassSceneComponentWrapperFragment>();
+				FMassSceneComponentWrapperFragment& ComponentFragment = EntityView.GetFragmentData<FMassSceneComponentWrapperFragment>();
 				ComponentFragment.Component = Component;
 
-				FDataFragment_Transform& TransformFragment = EntityView.GetComponentData<FDataFragment_Transform>();
+				FDataFragment_Transform& TransformFragment = EntityView.GetFragmentData<FDataFragment_Transform>();
 
 				REDIRECT_OBJECT_TO_VLOG(Component, &Owner);
 				UE_VLOG_LOCATION(&Owner, LogMass, Log, Component->GetComponentLocation(), 30, FColor::Yellow, TEXT("Initial component location"));

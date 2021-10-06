@@ -73,7 +73,7 @@ protected:
 	 * @param EnabledType is the type of enabling to do on this actor
 	 * @param Actor is the actual actor to perform enabling type on
 	 * @param EntityIdx is the entity index currently processing
-	 * @param Context is the current light weight component execution context 
+	 * @param Context is the current Mass execution context 
 	 */
 	virtual void SetActorEnabled(const EActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FMassExecutionContext& Context);
 
@@ -82,7 +82,7 @@ protected:
 	 * The destination will be adjusted to fit an existing capsule.
 	 * @param Transform is the new actor's transform 
 	 * @param Actor is the actual actor to teleport
-	 * @param Context is the current light weight component execution context
+	 * @param Context is the current Mass execution context
 	 */
 	virtual void TeleportActor(const FTransform& Transform, AActor& Actor, FMassExecutionContext& Context);
 
