@@ -56,3 +56,4 @@ std::vector<std::string> GetStackTrace() {
   return stack;
 }
 }  // namespace onnxruntime
+#endif //WITH_UE
