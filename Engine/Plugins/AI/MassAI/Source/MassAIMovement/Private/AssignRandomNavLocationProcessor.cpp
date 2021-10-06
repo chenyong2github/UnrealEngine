@@ -30,8 +30,8 @@ void UAssignRandomNavLocationProcessor::Execute(UMassEntitySubsystem& EntitySubs
 
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 		{
-			TArrayView<FDataFragment_Transform> LocationList = Context.GetMutableComponentView<FDataFragment_Transform>();
-			TArrayView<FDataFragment_NavLocation> NavLocationList = Context.GetMutableComponentView<FDataFragment_NavLocation>();
+			TArrayView<FDataFragment_Transform> LocationList = Context.GetMutableFragmentView<FDataFragment_Transform>();
+			TArrayView<FDataFragment_NavLocation> NavLocationList = Context.GetMutableFragmentView<FDataFragment_NavLocation>();
 			const int32 NumEntities = Context.GetNumEntities();
 			TArray<FNavLocation> Locations;
 			Locations.AddDefaulted(NumEntities);

@@ -28,8 +28,8 @@ void UMassCapsuleTransformToMassTranslator::Execute(UMassEntitySubsystem& Entity
 {
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 		{
-			const TConstArrayView<FDataFragment_CapsuleComponentWrapper> CapsuleComponentList = Context.GetComponentView<FDataFragment_CapsuleComponentWrapper>();
-			const TArrayView<FDataFragment_Transform> LocationList = Context.GetMutableComponentView<FDataFragment_Transform>();
+			const TConstArrayView<FDataFragment_CapsuleComponentWrapper> CapsuleComponentList = Context.GetFragmentView<FDataFragment_CapsuleComponentWrapper>();
+			const TArrayView<FDataFragment_Transform> LocationList = Context.GetMutableFragmentView<FDataFragment_Transform>();
 			for (int i = 0; i < CapsuleComponentList.Num(); ++i)
 			{
 				if (const UCapsuleComponent* CapsuleComp = CapsuleComponentList[i].Component.Get())
@@ -62,8 +62,8 @@ void UMassTransformToActorCapsuleTranslator::Execute(UMassEntitySubsystem& Entit
 {
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 		{
-			const TArrayView<FDataFragment_CapsuleComponentWrapper> CapsuleComponentList = Context.GetMutableComponentView<FDataFragment_CapsuleComponentWrapper>();
-			const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetComponentView<FDataFragment_Transform>();
+			const TArrayView<FDataFragment_CapsuleComponentWrapper> CapsuleComponentList = Context.GetMutableFragmentView<FDataFragment_CapsuleComponentWrapper>();
+			const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
 			for (int i = 0; i < CapsuleComponentList.Num(); ++i)
 			{
 				if (UCapsuleComponent* CapsuleComp = CapsuleComponentList[i].Component.Get())

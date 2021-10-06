@@ -172,7 +172,7 @@ struct MASSLOD_API FMassVisualizationChunkFragment : public FMassChunkFragment
 	 */
 	static bool AreAnyEntitiesVisibleInChunk(const FMassExecutionContext& Context)
 	{
-		return Context.GetChunkComponent<FMassVisualizationChunkFragment>().AreAnyEntitiesVisible();
+		return Context.GetChunkFragment<FMassVisualizationChunkFragment>().AreAnyEntitiesVisible();
 	}
 
 	/**
@@ -193,7 +193,7 @@ struct MASSLOD_API FMassVisualizationChunkFragment : public FMassChunkFragment
 	 */
 	static bool ShouldUpdateVisualizationForChunk(const FMassExecutionContext& Context)
 	{
-		return Context.GetChunkComponent<FMassVisualizationChunkFragment>().ShouldUpdateVisualization();
+		return Context.GetChunkFragment<FMassVisualizationChunkFragment>().ShouldUpdateVisualization();
 	}
 
 	/**

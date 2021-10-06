@@ -11,7 +11,7 @@ DEFINE_ENUM_TO_STRING(EMassProcessingPhase);
 namespace UE::Mass::Debug
 {
 
-FString DebugGetComponentAccessString(EMassFragmentAccess Access)
+FString DebugGetFragmentAccessString(EMassFragmentAccess Access)
 {
 #if WITH_MASSENTITY_DEBUG
 	switch (Access)

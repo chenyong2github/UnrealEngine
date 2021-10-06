@@ -138,11 +138,11 @@ struct FMassQueryRequirementIndicesMapping
 {
 	FMassQueryRequirementIndicesMapping() = default;
 
-	FMassFragmentIndicesMapping EntityComponents;
-	FMassFragmentIndicesMapping ChunkComponents;
+	FMassFragmentIndicesMapping EntityFragments;
+	FMassFragmentIndicesMapping ChunkFragments;
 	FORCEINLINE bool IsEmpty() const
 	{
-		return EntityComponents.Num() == 0 || ChunkComponents.Num() == 0;
+		return EntityFragments.Num() == 0 || ChunkFragments.Num() == 0;
 	}
 };
 

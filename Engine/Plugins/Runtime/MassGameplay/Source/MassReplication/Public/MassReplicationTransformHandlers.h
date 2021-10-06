@@ -77,8 +77,8 @@ public:
 	 * The following functions are used to configure the query and then set the position and yaw data.
 	 */
 	static void AddRequirementsForSpawnQuery(FMassEntityQuery& InQuery);
-	void CacheComponentViewsForSpawnQuery(FMassExecutionContext& InExecContext);
-	void ClearComponentViewsForSpawnQuery();
+	void CacheFragmentViewsForSpawnQuery(FMassExecutionContext& InExecContext);
+	void ClearFragmentViewsForSpawnQuery();
 
 	void SetSpawnedEntityData(const int32 EntityIdx, const FReplicatedAgentPositionYawData& ReplicatedPathData) const;
 
@@ -151,15 +151,15 @@ void TMassClientBubbleTransformHandler<AgentArrayItem>::AddRequirementsForSpawnQ
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
 template<typename AgentArrayItem>
-void TMassClientBubbleTransformHandler<AgentArrayItem>::CacheComponentViewsForSpawnQuery(FMassExecutionContext& InExecContext)
+void TMassClientBubbleTransformHandler<AgentArrayItem>::CacheFragmentViewsForSpawnQuery(FMassExecutionContext& InExecContext)
 {
-	TransformList = InExecContext.GetMutableComponentView<FDataFragment_Transform>();
+	TransformList = InExecContext.GetMutableFragmentView<FDataFragment_Transform>();
 }
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
 template<typename AgentArrayItem>
-void TMassClientBubbleTransformHandler<AgentArrayItem>::ClearComponentViewsForSpawnQuery()
+void TMassClientBubbleTransformHandler<AgentArrayItem>::ClearFragmentViewsForSpawnQuery()
 {
 	TransformList = TArrayView<FDataFragment_Transform>();
 }
@@ -179,7 +179,7 @@ void TMassClientBubbleTransformHandler<AgentArrayItem>::SetSpawnedEntityData(con
 template<typename AgentArrayItem>
 void TMassClientBubbleTransformHandler<AgentArrayItem>::SetModifiedEntityData(const FMassEntityView& EntityView, const FReplicatedAgentPositionYawData& ReplicatedPositionYawData)
 {
-	FDataFragment_Transform& TransformFragment = EntityView.GetComponentData<FDataFragment_Transform>();
+	FDataFragment_Transform& TransformFragment = EntityView.GetFragmentData<FDataFragment_Transform>();
 
 	SetEntityData(TransformFragment, ReplicatedPositionYawData);
 }
@@ -200,7 +200,7 @@ class MASSREPLICATION_API FMassReplicationProcessorTransformHandlerBase
 {
 public:
 	static void AddRequirements(FMassEntityQuery& InQuery);
-	void CacheComponentViews(FMassExecutionContext& ExecContext);
+	void CacheFragmentViews(FMassExecutionContext& ExecContext);
 
 protected:
 	TArrayView<FDataFragment_Transform> TransformList;

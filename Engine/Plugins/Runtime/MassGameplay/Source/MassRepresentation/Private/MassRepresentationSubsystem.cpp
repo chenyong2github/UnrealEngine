@@ -396,7 +396,7 @@ void UMassRepresentationSubsystem::OnMassAgentComponentEntityDetaching(const UMa
 	if (EntitySubsystem->IsEntityValid(MassAgent) && AgentComponent.IsNetSimulating())
 	{
 		const FMassEntityView EntityView(*EntitySubsystem, MassAgent);
-		if (FMassRepresentationFragment* Representation = EntityView.GetComponentDataPtr<FMassRepresentationFragment>())
+		if (FMassRepresentationFragment* Representation = EntityView.GetFragmentDataPtr<FMassRepresentationFragment>())
 		{
 			// Force a reevaluate of the current representation
 			Representation->CurrentRepresentation = ERepresentationType::None;

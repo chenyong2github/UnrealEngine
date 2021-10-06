@@ -68,7 +68,7 @@ template <typename FVariableTickChunkFragment, typename FLODLogic>
 bool TMassLODTickRateController<FVariableTickChunkFragment, FLODLogic>::ShouldCalculateLODForChunk(const FMassExecutionContext& Context) const
 {
 	// EMassLOD::Off does not need to handle max count, so we can use ticking rate for them if available
-	const FMassVariableTickChunkFragment& ChunkData = Context.GetChunkComponent<FVariableTickChunkFragment>();
+	const FMassVariableTickChunkFragment& ChunkData = Context.GetChunkFragment<FVariableTickChunkFragment>();
 	return ChunkData.GetLOD() != EMassLOD::Off || ChunkData.ShouldTickThisFrame();
 }
 
@@ -76,7 +76,7 @@ template <typename FVariableTickChunkFragment, typename FLODLogic>
 bool TMassLODTickRateController<FVariableTickChunkFragment, FLODLogic>::ShouldAdjustLODFromCountForChunk(const FMassExecutionContext& Context) const
 {
 	// EMassLOD::Off does not need to handle max count, so we can skip it
-	const FMassVariableTickChunkFragment& ChunkData = Context.GetChunkComponent<FVariableTickChunkFragment>();
+	const FMassVariableTickChunkFragment& ChunkData = Context.GetChunkFragment<FVariableTickChunkFragment>();
 	return ChunkData.GetLOD() != EMassLOD::Off;
 }
 
@@ -89,11 +89,11 @@ bool TMassLODTickRateController<FVariableTickChunkFragment, FLODLogic>::UpdateTi
 	bool bWasChunkTicked = true;
 	const float DeltaTime = Context.GetDeltaTimeSeconds();
 
-	FMassVariableTickChunkFragment& ChunkData = Context.GetMutableChunkComponent<FVariableTickChunkFragment>();
+	FMassVariableTickChunkFragment& ChunkData = Context.GetMutableChunkFragment<FVariableTickChunkFragment>();
 	EMassLOD::Type ChunkLOD = ChunkData.GetLOD();
 	if (ChunkLOD == EMassLOD::Max)
 	{
-		// The LOD on the chunk component data isn't set yet, let see if the Archetype has an LOD tag and set it on the ChunkData
+		// The LOD on the chunk fragment data isn't set yet, let see if the Archetype has an LOD tag and set it on the ChunkData
 		ChunkLOD = UE::MassLOD::GetLODFromArchetype(Context);
 		ChunkData.SetLOD(ChunkLOD);
 	}

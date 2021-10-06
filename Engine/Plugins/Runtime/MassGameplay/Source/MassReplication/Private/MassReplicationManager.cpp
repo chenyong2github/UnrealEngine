@@ -53,7 +53,7 @@ void UMassReplicationManager::Deinitialize()
 FMassNetworkID UMassReplicationManager::GetNetIDFromHandle(const FMassEntityHandle Handle) const
 {
 	check(EntitySystem);
-	const FMassNetworkIDFragment& Data = EntitySystem->GetComponentDataChecked<FMassNetworkIDFragment>(Handle);
+	const FMassNetworkIDFragment& Data = EntitySystem->GetFragmentDataChecked<FMassNetworkIDFragment>(Handle);
 	return Data.NetID;
 }
 

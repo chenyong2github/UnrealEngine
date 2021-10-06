@@ -48,8 +48,8 @@ void CollectLODInfo(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext
 
 	auto InternalCollectLODInfo = [&Collector](FMassExecutionContext& Context)
 	{
-		TConstArrayView<FDataFragment_Transform> LocationList = Context.GetComponentView<FDataFragment_Transform>();
-		TArrayView<FMassLODInfoFragment> ViewerInfoList = Context.GetMutableComponentView<FMassLODInfoFragment>();
+		TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
+		TArrayView<FMassLODInfoFragment> ViewerInfoList = Context.GetMutableFragmentView<FMassLODInfoFragment>();
 
 		Collector.CollectLODInfo(Context, LocationList, ViewerInfoList);
 	};

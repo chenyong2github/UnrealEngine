@@ -33,7 +33,7 @@ namespace UE::Mass::SpawnerSubsystem
 		const UMassTranslatorRegistry& Registry = UMassTranslatorRegistry::Get();
 		TArray<const UMassProcessor*> Destructors;
 
-		EntitySystem.ForEachArchetypeComponentType(ArchetypeHandle, [&Registry, &Destructors](const UScriptStruct* FragmentType)
+		EntitySystem.ForEachArchetypeFragmentType(ArchetypeHandle, [&Registry, &Destructors](const UScriptStruct* FragmentType)
 		{
 			check(FragmentType);
 			const UMassFragmentDestructor* Destructor = Registry.GetFragmentDestructor(*FragmentType);
@@ -138,7 +138,7 @@ bool UMassSpawnerSubsystem::SpawnEntities(const FMassEntityTemplate& EntityTempl
 
 		const TArrayView<const FInstancedStruct> FragmentInstances = EntityTemplate.GetFragments();
 		const FArchetypeChunkCollection ChunkCollection(EntityTemplate.GetArchetype(), OutEntities);
-		EntitySystem->BatchSetEntityComponentsValues(ChunkCollection, FragmentInstances);
+		EntitySystem->BatchSetEntityFragmentsValues(ChunkCollection, FragmentInstances);
 
 		if (EntityTemplate.GetInitializationPipeline().Processors.Num())
 		{
@@ -303,7 +303,7 @@ void UMassSpawnerSubsystem::DoSpawning(const FMassEntityTemplate& EntityTemplate
 
 	const TArrayView<const FInstancedStruct> FragmentInstances = EntityTemplate.GetFragments();
 	const FArchetypeChunkCollection ChunkCollection(EntityTemplate.GetArchetype(), SpawnedEntities);
-	EntitySystem->BatchSetEntityComponentsValues(ChunkCollection, FragmentInstances);
+	EntitySystem->BatchSetEntityFragmentsValues(ChunkCollection, FragmentInstances);
 	
 	if (EntityTemplate.GetInitializationPipeline().Processors.Num())
 	{

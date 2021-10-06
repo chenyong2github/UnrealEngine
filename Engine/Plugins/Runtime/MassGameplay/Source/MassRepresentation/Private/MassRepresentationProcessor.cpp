@@ -61,10 +61,10 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 {
 	check(RepresentationSubsystem);
 
-	const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetComponentView<FDataFragment_Transform>();
-	const TArrayView<FMassRepresentationFragment> RepresentationList = Context.GetMutableComponentView<FMassRepresentationFragment>();
-	const TConstArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetComponentView<FMassRepresentationLODFragment>();
-	const TArrayView<FDataFragment_Actor> ActorList = Context.GetMutableComponentView<FDataFragment_Actor>();
+	const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetFragmentView<FDataFragment_Transform>();
+	const TArrayView<FMassRepresentationFragment> RepresentationList = Context.GetMutableFragmentView<FMassRepresentationFragment>();
+	const TConstArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetFragmentView<FMassRepresentationLODFragment>();
+	const TArrayView<FDataFragment_Actor> ActorList = Context.GetMutableFragmentView<FDataFragment_Actor>();
 
 	const int32 NumEntities = Context.GetNumEntities();
 	for (int32 EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
@@ -289,9 +289,9 @@ void UMassRepresentationProcessor::ReleaseAnyActorOrCancelAnySpawning(UMassRepre
 {
 	if (const UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(RepresentationSubsystem.GetWorld()))
 	{
-		if (FDataFragment_Actor* ActorInfo = EntitySubsystem->GetComponentDataPtr<FDataFragment_Actor>(MassAgent))
+		if (FDataFragment_Actor* ActorInfo = EntitySubsystem->GetFragmentDataPtr<FDataFragment_Actor>(MassAgent))
 		{
-			if (FMassRepresentationFragment* Representation = EntitySubsystem->GetComponentDataPtr<FMassRepresentationFragment>(MassAgent))
+			if (FMassRepresentationFragment* Representation = EntitySubsystem->GetFragmentDataPtr<FMassRepresentationFragment>(MassAgent))
 			{
 				ReleaseAnyActorOrCancelAnySpawning(RepresentationSubsystem, MassAgent, *ActorInfo, *Representation);
 			}
@@ -329,8 +329,8 @@ void UMassRepresentationProcessor::UpdateVisualization(FMassExecutionContext& Co
 	UpdateRepresentation(Context);
 
 	// Update entity visibility
-	const TArrayView<FMassRepresentationFragment> RepresentationList = Context.GetMutableComponentView<FMassRepresentationFragment>();
-	const TConstArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetComponentView<FMassRepresentationLODFragment>();
+	const TArrayView<FMassRepresentationFragment> RepresentationList = Context.GetMutableFragmentView<FMassRepresentationFragment>();
+	const TConstArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetFragmentView<FMassRepresentationLODFragment>();
 
 	const int32 NumEntities = Context.GetNumEntities();
 	for (int32 EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
@@ -344,12 +344,12 @@ void UMassRepresentationProcessor::UpdateVisualization(FMassExecutionContext& Co
 
 FMassVisualizationChunkFragment& UMassRepresentationProcessor::UpdateChunkVisibility(FMassExecutionContext& Context) const
 {
-	// Setup chunk component data about visibility
-	FMassVisualizationChunkFragment& ChunkData = Context.GetMutableChunkComponent<FMassVisualizationChunkFragment>();
+	// Setup chunk fragment data about visibility
+	FMassVisualizationChunkFragment& ChunkData = Context.GetMutableChunkFragment<FMassVisualizationChunkFragment>();
 	EMassVisibility ChunkVisibility = ChunkData.GetVisibility();
 	if (ChunkVisibility == EMassVisibility::Max)
 	{
-		// The visibility on the chunk component data isn't set yet, let see if the Archetype has an visibility tag and set it on the ChunkData
+		// The visibility on the chunk fragment data isn't set yet, let see if the Archetype has an visibility tag and set it on the ChunkData
 		ChunkVisibility = UE::MassRepresentation::GetVisibilityFromArchetype(Context);
 		ChunkData.SetVisibility(ChunkVisibility);
 	}
@@ -394,7 +394,7 @@ void UMassRepresentationProcessor::OnActorPreSpawn(const FMassActorSpawnRequestH
 	const FMassActorSpawnRequest& MassActorSpawnRequest = SpawnRequest.Get<FMassActorSpawnRequest>();
 	const FMassEntityView View(*PipeEntitySubsystem, MassActorSpawnRequest.MassAgent);
 
-	if (FDataFragment_Actor* ActorInfo = View.GetComponentDataPtr<FDataFragment_Actor>())
+	if (FDataFragment_Actor* ActorInfo = View.GetFragmentDataPtr<FDataFragment_Actor>())
 	{
 		// Release any existing actor
 		if (AActor* Actor = ActorInfo->GetMutable())
@@ -406,7 +406,7 @@ void UMassRepresentationProcessor::OnActorPreSpawn(const FMassActorSpawnRequestH
 			// so the Fragment passed in parameters would not be valid anymore.
 			ActorInfo->ResetAndUpdateHandleMap();
 
-			if (const FMassRepresentationFragment* Representation = View.GetComponentDataPtr<FMassRepresentationFragment>())
+			if (const FMassRepresentationFragment* Representation = View.GetFragmentDataPtr<FMassRepresentationFragment>())
 			{
 				if (!RepresentationSubsystem->ReleaseTemplateActor(MassActorSpawnRequest.MassAgent, Representation->HighResTemplateActorIndex, Actor, /*bImmediate*/ true))
 				{
@@ -428,7 +428,7 @@ EMassActorSpawnRequestAction UMassRepresentationProcessor::OnActorPostSpawn(cons
 	checkf(MassActorSpawnRequest.SpawnedActor, TEXT("Expecting valid spawned actor"));
 
 	// Might be already done if the actor has a MassAgentComponent via the callback OnMassAgentComponentEntityAssociated on the MassRepresentationSubsystem
-	FDataFragment_Actor& ActorInfo = PipeEntitySubsystem->GetComponentDataChecked<FDataFragment_Actor>(MassActorSpawnRequest.MassAgent);
+	FDataFragment_Actor& ActorInfo = PipeEntitySubsystem->GetFragmentDataChecked<FDataFragment_Actor>(MassActorSpawnRequest.MassAgent);
 	if (ActorInfo.IsValid())
 	{
 		// If already set, make sure it is pointing to the same actor.
@@ -474,8 +474,8 @@ void UMassRepresentationFragmentDestructor::Execute(UMassEntitySubsystem& Entity
 
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 	{
-		const TArrayView<FMassRepresentationFragment> RepresentationList = Context.GetMutableComponentView<FMassRepresentationFragment>();
-		const TArrayView<FDataFragment_Actor> ActorList = Context.GetMutableComponentView<FDataFragment_Actor>();
+		const TArrayView<FMassRepresentationFragment> RepresentationList = Context.GetMutableFragmentView<FMassRepresentationFragment>();
+		const TArrayView<FDataFragment_Actor> ActorList = Context.GetMutableFragmentView<FDataFragment_Actor>();
 
 		const int32 NumEntities = Context.GetNumEntities();
 		for (int32 i = 0; i < NumEntities; ++i)

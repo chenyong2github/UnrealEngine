@@ -54,8 +54,8 @@ void UMassDebugStateTreeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem
 		{
 			const FMassEntityHandle SelectedEntity = Debugger->GetSelectedEntity();
 			const int32 NumEntities = Context.GetNumEntities();
-			const TConstArrayView<FMassStateTreeFragment> StateTreeList = Context.GetComponentView<FMassStateTreeFragment>();
-			const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetComponentView<FDataFragment_Transform>();
+			const TConstArrayView<FMassStateTreeFragment> StateTreeList = Context.GetFragmentView<FMassStateTreeFragment>();
+			const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetFragmentView<FDataFragment_Transform>();
 			const UStateTree* StateTree = MassStateTreeSubsystem->GetRegisteredStateTreeAsset(StateTreeList[0].StateTreeHandle);
 
 			// Not reporting error since this processor is a debug tool 
@@ -74,7 +74,7 @@ void UMassDebugStateTreeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem
 					StateTreeContext.SetEntity(Entity);
 					
 #if WITH_GAMEPLAY_DEBUGGER
-					const FStructView Storage = EntitySubsystem.GetComponentDataStruct(Entity, StateTree->GetRuntimeStorageStruct());
+					const FStructView Storage = EntitySubsystem.GetFragmentDataStruct(Entity, StateTree->GetRuntimeStorageStruct());
 					Debugger->AppendSelectedEntityInfo(StateTreeContext.GetDebugInfoString(Storage));
 #endif // WITH_GAMEPLAY_DEBUGGER
 				}
@@ -92,7 +92,7 @@ void UMassDebugStateTreeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem
 					StateTreeContext.Init(*this, *StateTree, EStateTreeStorage::External);
 					StateTreeContext.SetEntity(Entity);
 
-					const FStructView Storage = EntitySubsystem.GetComponentDataStruct(Entity, StateTree->GetRuntimeStorageStruct());
+					const FStructView Storage = EntitySubsystem.GetFragmentDataStruct(Entity, StateTree->GetRuntimeStorageStruct());
 
 					// State
 					UE_VLOG_SEGMENT_THICK(this, LogStateTree, Log, Position, Position + FVector(0,0,50), EntityColor, 2.0f, TEXT("%s %s"),

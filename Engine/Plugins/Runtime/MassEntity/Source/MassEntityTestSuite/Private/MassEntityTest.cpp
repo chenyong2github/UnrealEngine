@@ -25,17 +25,17 @@ struct FEntityTest_ArchetypeCreation : FEntityTestBase
 		AITEST_TRUE("Ints archetype should have been created", IntsArchetype.IsValid());
 
 		TArray<const UScriptStruct*> FragmentsList;
-		EntitySubsystem->DebugGetArchetypeComponentTypes(FloatsArchetype, FragmentsList);
+		EntitySubsystem->DebugGetArchetypeFragmentTypes(FloatsArchetype, FragmentsList);
 		AITEST_EQUAL("Floats archetype should contain just a single fragment", FragmentsList.Num(), 1);
 		AITEST_EQUAL("Floats archetype\'s lone fragment should be of Float fragment type", FragmentsList[0], FTestFragment_Float::StaticStruct());
 
 		FragmentsList.Reset();
-		EntitySubsystem->DebugGetArchetypeComponentTypes(IntsArchetype, FragmentsList);
+		EntitySubsystem->DebugGetArchetypeFragmentTypes(IntsArchetype, FragmentsList);
 		AITEST_EQUAL("Ints archetype should contain just a single fragment", FragmentsList.Num(), 1);
 		AITEST_EQUAL("Ints archetype\'s lone fragment should be of Ints fragment type", FragmentsList[0], FTestFragment_Int::StaticStruct());
 
 		FragmentsList.Reset();
-		EntitySubsystem->DebugGetArchetypeComponentTypes(FloatsIntsArchetype, FragmentsList);
+		EntitySubsystem->DebugGetArchetypeFragmentTypes(FloatsIntsArchetype, FragmentsList);
 		AITEST_EQUAL("FloatsInts archetype should contain exactly two fragments", FragmentsList.Num(), 2);
 		AITEST_TRUE("FloatsInts archetype\'s should contain both expected fragment types", FragmentsList.Find(FTestFragment_Int::StaticStruct()) != INDEX_NONE && FragmentsList.Find(FTestFragment_Float::StaticStruct()) != INDEX_NONE);
 		
@@ -148,21 +148,21 @@ struct FEntityTest_EntityCreationFromInstances : FEntityTestBase
 		AITEST_EQUAL("There should be one entity across the whole system", EntitySubsystem->DebugGetEntityCount(), 1);
 		AITEST_EQUAL("Entity\'s archetype should be the Ints one", EntitySubsystem->GetArchetypeForEntity(Entity), IntsArchetype);
 		AITEST_EQUAL("The created entity should have been added to the Ints archetype", EntitySubsystem->DebugGetArchetypeEntitiesCount(IntsArchetype), 1);
-		AITEST_EQUAL("The entity should have the new component with the correct value set", EntitySubsystem->GetComponentDataChecked<FTestFragment_Int>(Entity).Value, TestIntValue);
+		AITEST_EQUAL("The entity should have the new component with the correct value set", EntitySubsystem->GetFragmentDataChecked<FTestFragment_Int>(Entity).Value, TestIntValue);
 
 		return true;
 	}
 };
 IMPLEMENT_AI_INSTANT_TEST(FEntityTest_EntityCreationFromInstances, "System.Mass.Entity.EntityCreationFromInstances");
 
-#if 0 // this test is compiled out since AddComponentToEntity will fails an ensure if a redundant fragment gets added
+#if 0 // this test is compiled out since AddFragmentToEntity will fails an ensure if a redundant fragment gets added
 struct FEntityTest_AddingRedundantFragment : FEntityTestBase
 {
 	virtual bool InstantTest() override
 	{
 		CA_ASSUME(EntitySubsystem);
 		const FLWEntity Entity = EntitySubsystem->CreateEntity(FloatsArchetype);
-		EntitySubsystem->AddComponentToEntity(Entity, FTestFragment_Float::StaticStruct());		
+		EntitySubsystem->AddFragmentToEntity(Entity, FTestFragment_Float::StaticStruct());		
 		AITEST_EQUAL("Adding a fragment that a given entity\s archetype already has should do nothing", EntitySubsystem->GetArchetypeForEntity(Entity), FloatsArchetype);
 
 		return true;
@@ -178,7 +178,7 @@ struct FEntityTest_AddingFragmentType : FEntityTestBase
 	{
 		CA_ASSUME(EntitySubsystem);
 		const FMassEntityHandle Entity = EntitySubsystem->CreateEntity(FloatsArchetype);
-		EntitySubsystem->AddComponentToEntity(Entity, FTestFragment_Int::StaticStruct());
+		EntitySubsystem->AddFragmentToEntity(Entity, FTestFragment_Int::StaticStruct());
 		AITEST_EQUAL("There should be one entity across the whole system", EntitySubsystem->DebugGetEntityCount(), 1);
 		AITEST_EQUAL("The original archetype should now have no entities", EntitySubsystem->DebugGetArchetypeEntitiesCount(FloatsArchetype), 0);
 		AITEST_EQUAL("The destination archetype should now store a single entity", EntitySubsystem->DebugGetArchetypeEntitiesCount(FloatsIntsArchetype), 1);
@@ -197,14 +197,14 @@ struct FEntityTest_AddingFragmentInstance : FEntityTestBase
 	{
 		CA_ASSUME(EntitySubsystem);
 		const FMassEntityHandle Entity = EntitySubsystem->CreateEntity(FloatsArchetype);
-		EntitySubsystem->AddComponentInstanceListToEntity(Entity, MakeArrayView(&InstanceInt, 1));
+		EntitySubsystem->AddFragmentInstanceListToEntity(Entity, MakeArrayView(&InstanceInt, 1));
 		AITEST_EQUAL("There should be one entity across the whole system", EntitySubsystem->DebugGetEntityCount(), 1);
 		AITEST_EQUAL("The original archetype should now have no entities", EntitySubsystem->DebugGetArchetypeEntitiesCount(FloatsArchetype), 0);
 		AITEST_EQUAL("The destination archetype should now store a single entity", EntitySubsystem->DebugGetArchetypeEntitiesCount(FloatsIntsArchetype), 1);
 		AITEST_EQUAL("The archetype containing just the new fragment should not be affected", EntitySubsystem->DebugGetArchetypeEntitiesCount(IntsArchetype), 0);
 		// this test was originally failing due to FEntityData.CurrentArchetype not getting updated during entity moving between archetypes
 		AITEST_EQUAL("The entity should get associated with the new archetype", EntitySubsystem->GetArchetypeForEntity(Entity), FloatsIntsArchetype);
-		AITEST_EQUAL("The entity should have the new component with the correct value set", EntitySubsystem->GetComponentDataChecked<FTestFragment_Int>(Entity).Value, TestIntValue);
+		AITEST_EQUAL("The entity should have the new component with the correct value set", EntitySubsystem->GetFragmentDataChecked<FTestFragment_Int>(Entity).Value, TestIntValue);
 
 		return true;
 	}
@@ -218,7 +218,7 @@ struct FEntityTest_RemovingFragment : FEntityTestBase
 	{
 		CA_ASSUME(EntitySubsystem);
 		const FMassEntityHandle Entity = EntitySubsystem->CreateEntity(FloatsIntsArchetype);
-		EntitySubsystem->RemoveComponentFromEntity(Entity, FTestFragment_Float::StaticStruct());
+		EntitySubsystem->RemoveFragmentFromEntity(Entity, FTestFragment_Float::StaticStruct());
 		AITEST_EQUAL("There should be just one entity across the whole system", EntitySubsystem->DebugGetEntityCount(), 1);
 		AITEST_EQUAL("The original archetype should now have no entities", EntitySubsystem->DebugGetArchetypeEntitiesCount(FloatsIntsArchetype), 0);
 		AITEST_EQUAL("The destination archetype should now store a single entity", EntitySubsystem->DebugGetArchetypeEntitiesCount(IntsArchetype), 1);
@@ -237,7 +237,7 @@ struct FEntityTest_RemovingLastFragment : FEntityTestBase
 	{
 		CA_ASSUME(EntitySubsystem);
 		const FMassEntityHandle Entity = EntitySubsystem->CreateEntity(FloatsArchetype);
-		EntitySubsystem->RemoveComponentFromEntity(Entity, FTestFragment_Float::StaticStruct());
+		EntitySubsystem->RemoveFragmentFromEntity(Entity, FTestFragment_Float::StaticStruct());
 		AITEST_EQUAL("There should be one entity across the whole system", EntitySubsystem->DebugGetEntityCount(), 1);
 		AITEST_EQUAL("The original archetype should now have no entities", EntitySubsystem->DebugGetArchetypeEntitiesCount(FloatsArchetype), 0);
 		// this test was originally failing due to FEntityData.CurrentArchetype not getting updated during entity moving between archetypes
@@ -299,7 +299,7 @@ struct FEntityTest_EntityReservationAndBuildingFromInstances : FEntityTestBase
 		AITEST_EQUAL("There should be one entity across the whole system", EntitySubsystem->DebugGetEntityCount(), 1);
 		AITEST_EQUAL("Entity\'s archetype should be the Ints one", EntitySubsystem->GetArchetypeForEntity(ReservedEntity), IntsArchetype);
 		AITEST_EQUAL("The created entity should have been added to the Ints archetype", EntitySubsystem->DebugGetArchetypeEntitiesCount(IntsArchetype), 1);
-		AITEST_EQUAL("The entity should have the new component with the correct value set", EntitySubsystem->GetComponentDataChecked<FTestFragment_Int>(ReservedEntity).Value, TestIntValue);
+		AITEST_EQUAL("The entity should have the new component with the correct value set", EntitySubsystem->GetFragmentDataChecked<FTestFragment_Int>(ReservedEntity).Value, TestIntValue);
 		EntitySubsystem->DestroyEntity(ReservedEntity);
 		AITEST_EQUAL("There should not be any entity across the whole system", EntitySubsystem->DebugGetEntityCount(), 0);
 		AITEST_EQUAL("The original archetype should now have no entities", EntitySubsystem->DebugGetArchetypeEntitiesCount(FloatsArchetype), 0);

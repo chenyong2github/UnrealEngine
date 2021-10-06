@@ -60,8 +60,8 @@ void UMassCrowdReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsyst
 	{
 		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 			{
-				const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetComponentView<FDataFragment_Transform>();
-				const TConstArrayView<FMassReplicationViewerLODFragment> ViewerLODList = Context.GetComponentView<FMassReplicationViewerLODFragment>();
+				const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetFragmentView<FDataFragment_Transform>();
+				const TConstArrayView<FMassReplicationViewerLODFragment> ViewerLODList = Context.GetFragmentView<FMassReplicationViewerLODFragment>();
 				LODCalculator.DebugDisplayLOD(Context, ViewerLODList, TransformList, World);
 			});
 	}
@@ -77,8 +77,8 @@ void UMassCrowdReplicationProcessor::ProcessClientReplication(UMassEntitySubsyst
 
 	auto CacheViewsCallback = [&Context, &PathHandler, &PositionYawHandler]()
 	{
-		PathHandler.CacheComponentViews(Context);
-		PositionYawHandler.CacheComponentViews(Context);
+		PathHandler.CacheFragmentViews(Context);
+		PositionYawHandler.CacheFragmentViews(Context);
 	};
 
 	auto AddEntityCallback = [this, &Context, &PathHandler, &PositionYawHandler](const int32 EntityIdx, FReplicatedCrowdAgent& InReplicatedAgent, const FMassClientHandle ClientHandle)->FMassReplicatedAgentHandle

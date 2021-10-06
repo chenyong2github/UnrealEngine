@@ -127,8 +127,8 @@ void UMassProcessor_Movement::Execute(UMassEntitySubsystem& EntitySubsystem, FMa
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, TimeDelta](FMassExecutionContext& Context)
 		{
 			const int32 NumEntities = Context.GetNumEntities();
-			const TArrayView<FDataFragment_Transform> LocationList = Context.GetMutableComponentView<FDataFragment_Transform>();
-			const TArrayView<FMassVelocityFragment> VelocityList = Context.GetMutableComponentView<FMassVelocityFragment>();
+			const TArrayView<FDataFragment_Transform> LocationList = Context.GetMutableFragmentView<FDataFragment_Transform>();
+			const TArrayView<FMassVelocityFragment> VelocityList = Context.GetMutableFragmentView<FMassVelocityFragment>();
 			for (int32 i = 0; i < NumEntities; ++i)
 			{
 				LocationList[i].GetMutableTransform().AddToTranslation(VelocityList[i].Value * TimeDelta);
@@ -187,7 +187,7 @@ void UMassAvoidanceObstacleRemoverFragmentDestructor::Execute(UMassEntitySubsyst
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, MovementSubsystem](FMassExecutionContext& Context)
 		{
 			const int32 NumEntities = Context.GetNumEntities();
-			const TArrayView<FMassAvoidanceObstacleGridCellLocationFragment> AvoidanceObstacleCellLocationList = Context.GetMutableComponentView<FMassAvoidanceObstacleGridCellLocationFragment>();
+			const TArrayView<FMassAvoidanceObstacleGridCellLocationFragment> AvoidanceObstacleCellLocationList = Context.GetMutableFragmentView<FMassAvoidanceObstacleGridCellLocationFragment>();
 
 			for (int32 i = 0; i < NumEntities; ++i)
 			{
@@ -216,7 +216,7 @@ void UVelocityFragmentInitializer::Execute(UMassEntitySubsystem& EntitySubsystem
 {
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 		{
-			const TArrayView<FMassVelocityFragment> VelocitiesList = Context.GetMutableComponentView<FMassVelocityFragment>();
+			const TArrayView<FMassVelocityFragment> VelocitiesList = Context.GetMutableFragmentView<FMassVelocityFragment>();
 			for (FMassVelocityFragment& VelocityFragment : VelocitiesList)
 			{
 				VelocityFragment.Value = FVector(FMath::FRandRange(-100.f, 100.f), FMath::FRandRange(-100.f, 100.f), 0);

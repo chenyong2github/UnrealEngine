@@ -118,29 +118,29 @@ public:
 	 *	ArchetypeDataVersion properties). */
 	void CacheArchetypes(UMassEntitySubsystem& InEntitySubsystem);
 
-	FMassEntityQuery& AddRequirement(const UScriptStruct* ComponentType, const EMassFragmentAccess AccessMode, const EMassFragmentPresence Presence = EMassFragmentPresence::All)
+	FMassEntityQuery& AddRequirement(const UScriptStruct* FragmentType, const EMassFragmentAccess AccessMode, const EMassFragmentPresence Presence = EMassFragmentPresence::All)
 	{
-		checkf(Requirements.FindByPredicate([ComponentType](const FMassFragmentRequirement& Item){ return Item.StructType == ComponentType; }) == nullptr
-			, TEXT("Duplicated requirements are not supported. %s already present"), *GetNameSafe(ComponentType));
+		checkf(Requirements.FindByPredicate([FragmentType](const FMassFragmentRequirement& Item){ return Item.StructType == FragmentType; }) == nullptr
+			, TEXT("Duplicated requirements are not supported. %s already present"), *GetNameSafe(FragmentType));
 		
 		if (Presence != EMassFragmentPresence::None)
 		{
-			Requirements.Emplace(ComponentType, AccessMode, Presence);
+			Requirements.Emplace(FragmentType, AccessMode, Presence);
 		}
 
 		switch (Presence)
 		{
 		case EMassFragmentPresence::All:
-			RequiredAllComponents.Add(*ComponentType);
+			RequiredAllFragments.Add(*FragmentType);
 			break;
 		case EMassFragmentPresence::Any:
-			RequiredAnyComponents.Add(*ComponentType);
+			RequiredAnyFragments.Add(*FragmentType);
 			break;
 		case EMassFragmentPresence::Optional:
-			RequiredOptionalComponents.Add(*ComponentType);
+			RequiredOptionalFragments.Add(*FragmentType);
 			break;
 		case EMassFragmentPresence::None:
-			RequiredNoneComponents.Add(*ComponentType);
+			RequiredNoneFragments.Add(*FragmentType);
 			break;
 		}
 		// force recaching the next time this query is used or the following CacheArchetypes call.
@@ -165,16 +165,16 @@ public:
 		switch (Presence)
 		{
 		case EMassFragmentPresence::All:
-			RequiredAllComponents.Add<T>();
+			RequiredAllFragments.Add<T>();
 			break;
 		case EMassFragmentPresence::Any:
-			RequiredAnyComponents.Add<T>();
+			RequiredAnyFragments.Add<T>();
 			break;
 		case EMassFragmentPresence::Optional:
-			RequiredOptionalComponents.Add<T>();
+			RequiredOptionalFragments.Add<T>();
 			break;
 		case EMassFragmentPresence::None:
-			RequiredNoneComponents.Add<T>();
+			RequiredNoneFragments.Add<T>();
 			break;
 		}
 		// force recaching the next time this query is used or the following CacheArchetypes call.
@@ -240,12 +240,12 @@ public:
 		
 		if (Presence == EMassFragmentPresence::All)
 		{
-			RequiredAllChunkComponents.Add<T>();
+			RequiredAllChunkFragments.Add<T>();
 			ChunkRequirements.Emplace(T::StaticStruct(), AccessMode, Presence);
 		}
 		else
 		{
-			RequiredNoneChunkComponents.Add<T>();
+			RequiredNoneChunkFragments.Add<T>();
 		}
 
 		return *this;
@@ -273,15 +273,15 @@ public:
 	FString DebugGetDescription() const;
 
 	TConstArrayView<FMassFragmentRequirement> GetRequirements() const { return Requirements; }
-	const FMassFragmentBitSet& GetRequiredAllComponents() const { return RequiredAllComponents; }
-	const FMassFragmentBitSet& GetRequiredAnyComponents() const { return RequiredAnyComponents; }
-	const FMassFragmentBitSet& GetRequiredOptionalComponents() const { return RequiredOptionalComponents; }
-	const FMassFragmentBitSet& GetRequiredNoneComponents() const { return RequiredNoneComponents; }
+	const FMassFragmentBitSet& GetRequiredAllFragments() const { return RequiredAllFragments; }
+	const FMassFragmentBitSet& GetRequiredAnyFragments() const { return RequiredAnyFragments; }
+	const FMassFragmentBitSet& GetRequiredOptionalFragments() const { return RequiredOptionalFragments; }
+	const FMassFragmentBitSet& GetRequiredNoneFragments() const { return RequiredNoneFragments; }
 	const FMassTagBitSet& GetRequiredAllTags() const { return RequiredAllTags; }
 	const FMassTagBitSet& GetRequiredAnyTags() const { return RequiredAnyTags; }
 	const FMassTagBitSet& GetRequiredNoneTags() const { return RequiredNoneTags; }
-	const FMassChunkFragmentBitSet& GetRequiredAllChunkComponents() const { return RequiredAllChunkComponents; }
-	const FMassChunkFragmentBitSet& GetRequiredNoneChunkComponents() const { return RequiredNoneChunkComponents; }
+	const FMassChunkFragmentBitSet& GetRequiredAllChunkFragments() const { return RequiredAllChunkFragments; }
+	const FMassChunkFragmentBitSet& GetRequiredNoneChunkFragments() const { return RequiredNoneChunkFragments; }
 
 	const TArray<FArchetypeHandle>& GetArchetypes() const
 	{ 
@@ -323,12 +323,12 @@ protected:
 	FMassTagBitSet RequiredAllTags;
 	FMassTagBitSet RequiredAnyTags;
 	FMassTagBitSet RequiredNoneTags;
-	FMassFragmentBitSet RequiredAllComponents;
-	FMassFragmentBitSet RequiredAnyComponents;
-	FMassFragmentBitSet RequiredOptionalComponents;
-	FMassFragmentBitSet RequiredNoneComponents;
-	FMassChunkFragmentBitSet RequiredAllChunkComponents;
-	FMassChunkFragmentBitSet RequiredNoneChunkComponents;
+	FMassFragmentBitSet RequiredAllFragments;
+	FMassFragmentBitSet RequiredAnyFragments;
+	FMassFragmentBitSet RequiredOptionalFragments;
+	FMassFragmentBitSet RequiredNoneFragments;
+	FMassChunkFragmentBitSet RequiredAllChunkFragments;
+	FMassChunkFragmentBitSet RequiredNoneChunkFragments;
 
 private:
 	/** 
@@ -342,7 +342,7 @@ private:
 	uint32 ArchetypeDataVersion = 0;
 
 	TArray<FArchetypeHandle> ValidArchetypes;
-	TArray<FMassQueryRequirementIndicesMapping> ArchetypeComponentMapping;
+	TArray<FMassQueryRequirementIndicesMapping> ArchetypeFragmentMapping;
 
 	bool bAllowParallelExecution = false;
 };

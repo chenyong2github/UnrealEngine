@@ -119,9 +119,9 @@ void FMassCommandBuffer::MoveAppend(FMassCommandBuffer& Other)
 //////////////////////////////////////////////////////////////////////
 // Command implementations
 
-void FCommandAddComponentInstance::Execute(UMassEntitySubsystem& System) const
+void FCommandAddFragmentInstance::Execute(UMassEntitySubsystem& System) const
 {
-	System.AddComponentInstanceListToEntity(TargetEntity, MakeArrayView(&Struct, 1));
+	System.AddFragmentInstanceListToEntity(TargetEntity, MakeArrayView(&Struct, 1));
 }
 
 void FCommandSwapTags::Execute(UMassEntitySubsystem& System) const
@@ -145,34 +145,34 @@ void FCommandSwapTags::Execute(UMassEntitySubsystem& System) const
 	}
 }
 
-void FBuildEntityFromComponentInstance::Execute(UMassEntitySubsystem& System) const
+void FBuildEntityFromFragmentInstance::Execute(UMassEntitySubsystem& System) const
 {
 	System.BuildEntity(TargetEntity, MakeArrayView(&Struct, 1));
 }
 
-void FBuildEntityFromComponentInstances::Execute(UMassEntitySubsystem& System) const
+void FBuildEntityFromFragmentInstances::Execute(UMassEntitySubsystem& System) const
 {
 	System.BuildEntity(TargetEntity, Instances);
 }
 
-void FCommandAddComponent::Execute(UMassEntitySubsystem& System) const
+void FCommandAddFragment::Execute(UMassEntitySubsystem& System) const
 {
-	System.AddComponentToEntity(TargetEntity, StructParam);
+	System.AddFragmentToEntity(TargetEntity, StructParam);
 }
 
-void FCommandRemoveComponent::Execute(UMassEntitySubsystem& System) const
+void FCommandRemoveFragment::Execute(UMassEntitySubsystem& System) const
 {
-	System.RemoveComponentFromEntity(TargetEntity, StructParam);
+	System.RemoveFragmentFromEntity(TargetEntity, StructParam);
 }
 
-void FCommandAddComponentList::Execute(UMassEntitySubsystem& System) const
+void FCommandAddFragmentList::Execute(UMassEntitySubsystem& System) const
 {
-	System.AddComponentListToEntity(TargetEntity, ComponentList);
+	System.AddFragmentListToEntity(TargetEntity, FragmentList);
 }
 
-void FCommandRemoveComponentList::Execute(UMassEntitySubsystem& System) const
+void FCommandRemoveFragmentList::Execute(UMassEntitySubsystem& System) const
 {
-	System.RemoveComponentListFromEntity(TargetEntity, ComponentList);
+	System.RemoveFragmentListFromEntity(TargetEntity, FragmentList);
 }
 
 void FCommandAddTag::Execute(UMassEntitySubsystem & System) const 

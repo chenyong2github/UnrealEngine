@@ -72,8 +72,8 @@ struct FQueryTest_FragmentViewBinding : FEntityTestBase
 		CA_ASSUME(EntitySubsystem);
 
 		FMassEntityHandle Entity = EntitySubsystem->CreateEntity(FloatsArchetype);
-		FTestFragment_Float& TestedFragment = EntitySubsystem->GetComponentDataChecked<FTestFragment_Float>(Entity);
-		AITEST_TRUE("Initial value of the component should match expectations", TestedFragment.Value == 0.f);
+		FTestFragment_Float& TestedFragment = EntitySubsystem->GetFragmentDataChecked<FTestFragment_Float>(Entity);
+		AITEST_TRUE("Initial value of the fragment should match expectations", TestedFragment.Value == 0.f);
 
 		UPipeTestProcessor_Floats* Processor = NewObject<UPipeTestProcessor_Floats>(EntitySubsystem);
 		Processor->ExecutionFunction = [Processor](UMassEntitySubsystem& InEntitySubsystem, FMassExecutionContext& Context) {
@@ -82,7 +82,7 @@ struct FQueryTest_FragmentViewBinding : FEntityTestBase
 
 			Processor->TestGetQuery().ForEachEntityChunk(InEntitySubsystem, Context, [](FMassExecutionContext& Context)
 				{
-					TArrayView<FTestFragment_Float> Floats = Context.GetMutableComponentView<FTestFragment_Float>();
+					TArrayView<FTestFragment_Float> Floats = Context.GetMutableFragmentView<FTestFragment_Float>();
 
 					for (int32 i = 0; i < Context.GetNumEntities(); ++i)
 					{
@@ -118,7 +118,7 @@ struct FQueryTest_ExecuteSingleArchetype : FEntityTestBase
 		Query.ForEachEntityChunk(*EntitySubsystem, ExecContext, [&TotalProcessed](FMassExecutionContext& Context)
 			{
 				TotalProcessed += Context.GetNumEntities();
-				TArrayView<FTestFragment_Float> Floats = Context.GetMutableComponentView<FTestFragment_Float>();
+				TArrayView<FTestFragment_Float> Floats = Context.GetMutableFragmentView<FTestFragment_Float>();
 				
 				for (int32 i = 0; i < Context.GetNumEntities(); ++i)
 				{
@@ -130,7 +130,7 @@ struct FQueryTest_ExecuteSingleArchetype : FEntityTestBase
 
 		for (FMassEntityHandle& Entity : EntitiesCreated)
 		{
-			const FTestFragment_Float& TestedFragment = EntitySubsystem->GetComponentDataChecked<FTestFragment_Float>(Entity);
+			const FTestFragment_Float& TestedFragment = EntitySubsystem->GetFragmentDataChecked<FTestFragment_Float>(Entity);
 			AITEST_EQUAL("Every fragment value should have changed to the expected value", TestedFragment.Value, 13.f);
 		}
 
@@ -162,7 +162,7 @@ struct FQueryTest_ExecuteMultipleArchetypes : FEntityTestBase
 		Query.ForEachEntityChunk(*EntitySubsystem, ExecContext, [&TotalProcessed](FMassExecutionContext& Context)
 			{
 				TotalProcessed += Context.GetNumEntities();
-				TArrayView<FTestFragment_Float> Floats = Context.GetMutableComponentView<FTestFragment_Float>();
+				TArrayView<FTestFragment_Float> Floats = Context.GetMutableFragmentView<FTestFragment_Float>();
 
 				for (int32 i = 0; i < Context.GetNumEntities(); ++i)
 				{
@@ -174,7 +174,7 @@ struct FQueryTest_ExecuteMultipleArchetypes : FEntityTestBase
 
 		for (FMassEntityHandle& Entity : EntitiesCreated)
 		{
-			const FTestFragment_Float& TestedFragment = EntitySubsystem->GetComponentDataChecked<FTestFragment_Float>(Entity);
+			const FTestFragment_Float& TestedFragment = EntitySubsystem->GetFragmentDataChecked<FTestFragment_Float>(Entity);
 			AITEST_EQUAL("Every fragment value should have changed to the expected value", TestedFragment.Value, 13.f);
 		}
 
@@ -218,7 +218,7 @@ struct FQueryTest_ExecuteSparse : FEntityTestBase
 			.ForEachEntityChunk(FArchetypeChunkCollection(FloatsArchetype, EntitiesToProcess), *EntitySubsystem, ExecContext, [&TotalProcessed](FMassExecutionContext& Context)
 			{
 				TotalProcessed += Context.GetNumEntities();
-				TArrayView<FTestFragment_Float> Floats = Context.GetMutableComponentView<FTestFragment_Float>();
+				TArrayView<FTestFragment_Float> Floats = Context.GetMutableFragmentView<FTestFragment_Float>();
 
 				for (int32 i = 0; i < Context.GetNumEntities(); ++i)
 				{
@@ -230,13 +230,13 @@ struct FQueryTest_ExecuteSparse : FEntityTestBase
 
 		for (FMassEntityHandle& Entity : EntitiesToProcess)
 		{
-			const FTestFragment_Float& TestedFragment = EntitySubsystem->GetComponentDataChecked<FTestFragment_Float>(Entity);
+			const FTestFragment_Float& TestedFragment = EntitySubsystem->GetFragmentDataChecked<FTestFragment_Float>(Entity);
 			AITEST_EQUAL("Every fragment value should have changed to the expected value", TestedFragment.Value, 13.f);
 		}
 		
 		for (FMassEntityHandle& Entity : EntitiesToIgnore)
 		{
-			const FTestFragment_Float& TestedFragment = EntitySubsystem->GetComponentDataChecked<FTestFragment_Float>(Entity);
+			const FTestFragment_Float& TestedFragment = EntitySubsystem->GetFragmentDataChecked<FTestFragment_Float>(Entity);
 			AITEST_EQUAL("Untouched entites should retain default fragment value ", TestedFragment.Value, 0.f);
 		}
 
@@ -442,7 +442,7 @@ struct FQueryTest_UsingOptionalFragment : FEntityTestBase
 		FMassExecutionContext ExecContext;
 		Query.ForEachEntityChunk(*EntitySubsystem, ExecContext, [&TotalProcessed, &EmptyIntsViewCount, IntValueSet](FMassExecutionContext& Context) {
 			++TotalProcessed;
-			TArrayView<FTestFragment_Int> Ints = Context.GetMutableComponentView<FTestFragment_Int>();
+			TArrayView<FTestFragment_Int> Ints = Context.GetMutableFragmentView<FTestFragment_Int>();
 			if (Ints.Num() == 0)
 			{
 				++EmptyIntsViewCount;
@@ -459,7 +459,7 @@ struct FQueryTest_UsingOptionalFragment : FEntityTestBase
 		AITEST_EQUAL("Two archetypes total should get processed", TotalProcessed, 2);
 		AITEST_EQUAL("Only one of these archetypes should get an empty Ints array view", EmptyIntsViewCount, 1);
 
-		const FTestFragment_Int& TestFragment = EntitySubsystem->GetComponentDataChecked<FTestFragment_Int>(EntityWithFloatsInts);
+		const FTestFragment_Int& TestFragment = EntitySubsystem->GetFragmentDataChecked<FTestFragment_Int>(EntityWithFloatsInts);
 		AITEST_TRUE("The optional fragment\'s value should get modified where present", TestFragment.Value == IntValueSet);
 
 		return true;
@@ -499,8 +499,8 @@ struct FQueryTest_AnyFragment : FEntityTestBase
 		FMassExecutionContext TestContext;
 		Query.ForEachEntityChunk(*EntitySubsystem, TestContext, [this](FMassExecutionContext& Context)
 			{
-				TArrayView<FTestFragment_Bool> BoolView = Context.GetMutableComponentView<FTestFragment_Bool>();
-				TArrayView<FTestFragment_Int> IntView = Context.GetMutableComponentView<FTestFragment_Int>();
+				TArrayView<FTestFragment_Bool> BoolView = Context.GetMutableFragmentView<FTestFragment_Bool>();
+				TArrayView<FTestFragment_Int> IntView = Context.GetMutableFragmentView<FTestFragment_Int>();
 				
 				GetTestRunner().TestTrue("Every matching archetype needs to host Bool or Int fragments", BoolView.Num() || IntView.Num());
 			});

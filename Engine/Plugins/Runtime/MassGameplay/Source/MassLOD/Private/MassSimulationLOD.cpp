@@ -36,8 +36,8 @@ void UMassProcessor_MassSimulationLODViewersInfo::Execute(UMassEntitySubsystem& 
 
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 	{
-		const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetComponentView<FDataFragment_Transform>();
-		const TArrayView<FDataFragment_MassSimulationLODInfo> ViewersInfoList = Context.GetMutableComponentView<FDataFragment_MassSimulationLODInfo>();
+		const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
+		const TArrayView<FDataFragment_MassSimulationLODInfo> ViewersInfoList = Context.GetMutableFragmentView<FDataFragment_MassSimulationLODInfo>();
 		LODCollector.CollectLODInfo(Context, LocationList, ViewersInfoList);
 	});
 }
@@ -132,8 +132,8 @@ void UMassSimulationLODProcessor::CalculateLODForConfig(UMassEntitySubsystem& En
 				return;
 			}
 
-			const TConstArrayView<FMassLODInfoFragment> ViewersInfoList = Context.GetComponentView<FMassLODInfoFragment>();
-			const TArrayView<FMassSimulationLODFragment> SimulationLODFragments = Context.GetMutableComponentView<FMassSimulationLODFragment>();
+			const TConstArrayView<FMassLODInfoFragment> ViewersInfoList = Context.GetFragmentView<FMassLODInfoFragment>();
+			const TArrayView<FMassSimulationLODFragment> SimulationLODFragments = Context.GetMutableFragmentView<FMassSimulationLODFragment>();
 			LODConfig.LODCalculator.CalculateLOD(Context, SimulationLODFragments, ViewersInfoList);
 		});
 	}
@@ -150,8 +150,8 @@ void UMassSimulationLODProcessor::CalculateLODForConfig(UMassEntitySubsystem& En
 					return;
 				}
 
-				const TConstArrayView<FMassLODInfoFragment> ViewersInfoList = Context.GetComponentView<FMassLODInfoFragment>();
-				const TArrayView<FMassSimulationLODFragment> SimulationLODFragments = Context.GetMutableComponentView<FMassSimulationLODFragment>();
+				const TConstArrayView<FMassLODInfoFragment> ViewersInfoList = Context.GetFragmentView<FMassLODInfoFragment>();
+				const TArrayView<FMassSimulationLODFragment> SimulationLODFragments = Context.GetMutableFragmentView<FMassSimulationLODFragment>();
 				LODConfig.LODCalculator.AdjustLODFromCount(Context, SimulationLODFragments, ViewersInfoList);
 			});
 		}
@@ -163,7 +163,7 @@ void UMassSimulationLODProcessor::CalculateLODForConfig(UMassEntitySubsystem& En
 		const float Time = World->GetTimeSeconds();
 		LODConfig.EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [&LODConfig, Time](FMassExecutionContext& Context)
 		{
-			TArrayView<FMassSimulationLODFragment> SimulationLODFragments = Context.GetMutableComponentView<FMassSimulationLODFragment>();
+			TArrayView<FMassSimulationLODFragment> SimulationLODFragments = Context.GetMutableFragmentView<FMassSimulationLODFragment>();
 			LODConfig.LODTickRateController.UpdateTickRateFromLOD(Context, SimulationLODFragments, Time);
 		});
 	}
@@ -175,8 +175,8 @@ void UMassSimulationLODProcessor::CalculateLODForConfig(UMassEntitySubsystem& En
 
 		LODConfig.EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, &LODConfig](FMassExecutionContext& Context)
 		{
-			const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetComponentView<FDataFragment_Transform>();
-			const TConstArrayView<FMassSimulationLODFragment> SimulationLODList = Context.GetComponentView<FMassSimulationLODFragment>();
+			const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
+			const TConstArrayView<FMassSimulationLODFragment> SimulationLODList = Context.GetFragmentView<FMassSimulationLODFragment>();
 			LODConfig.LODCalculator.DebugDisplayLOD(Context, SimulationLODList, LocationList, World);
 		});
 	}

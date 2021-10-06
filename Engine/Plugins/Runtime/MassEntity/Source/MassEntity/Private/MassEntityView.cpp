@@ -24,22 +24,22 @@ FMassEntityView::FMassEntityView(const UMassEntitySubsystem& EntitySubsystem, FM
 	EntityHandle = Archetype->MakeEntityHandle(Entity);
 }
 
-void* FMassEntityView::GetComponentPtr(const UScriptStruct& ComponentType) const
+void* FMassEntityView::GetFragmentPtr(const UScriptStruct& FragmentType) const
 {
 	checkSlow(Archetype && EntityHandle.IsValid());
-	if (const int32* ComponentIndex = Archetype->GetComponentIndex(&ComponentType))
+	if (const int32* FragmentIndex = Archetype->GetFragmentIndex(&FragmentType))
 	{
-		// failing the below Find means given entity's archetype is missing given ComponentType
-		return Archetype->GetComponentData(*ComponentIndex, EntityHandle);
+		// failing the below Find means given entity's archetype is missing given FragmentType
+		return Archetype->GetFragmentData(*FragmentIndex, EntityHandle);
 	}
 	return nullptr;
 }
 
-void* FMassEntityView::GetComponentPtrChecked(const UScriptStruct& ComponentType) const
+void* FMassEntityView::GetFragmentPtrChecked(const UScriptStruct& FragmentType) const
 {
 	checkSlow(Archetype && EntityHandle.IsValid());
-	const int32 ComponentIndex = Archetype->GetComponentIndexChecked(&ComponentType);
-	return Archetype->GetComponentData(ComponentIndex, EntityHandle);
+	const int32 FragmentIndex = Archetype->GetFragmentIndexChecked(&FragmentType);
+	return Archetype->GetFragmentData(FragmentIndex, EntityHandle);
 }
 
 bool FMassEntityView::HasTag(const UScriptStruct& TagType) const

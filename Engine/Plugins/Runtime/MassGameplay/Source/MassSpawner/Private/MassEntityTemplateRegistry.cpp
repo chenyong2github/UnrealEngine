@@ -260,7 +260,7 @@ void UMassEntityTemplateRegistry::InitializeEntityTemplate(FMassEntityTemplate& 
 	OutTemplate.SetArchetype(ArchetypeHandle);
 	for (const FInstancedStruct& InstancedStruct : OutTemplate.GetChunkFragments())
 	{
-		EntitySys->SetDefaultChunkComponentValue(ArchetypeHandle, InstancedStruct);
+		EntitySys->SetDefaultChunkFragmentValue(ArchetypeHandle, InstancedStruct);
 	}
 }
 

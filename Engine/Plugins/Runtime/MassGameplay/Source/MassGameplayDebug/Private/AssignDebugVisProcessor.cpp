@@ -36,7 +36,7 @@ void UAssignDebugVisProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FM
 
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, Visualizer](FMassExecutionContext& Context)
 	{
-		const TArrayView<FSimDebugVisComponent> DebugVisList = Context.GetMutableComponentView<FSimDebugVisComponent>();
+		const TArrayView<FSimDebugVisComponent> DebugVisList = Context.GetMutableFragmentView<FSimDebugVisComponent>();
 		for (FSimDebugVisComponent& VisualComp : DebugVisList)
 		{
 			// VisualComp.VisualType needs to be assigned by now. Should be performed as part of spawning, copied from the AgentTemplate

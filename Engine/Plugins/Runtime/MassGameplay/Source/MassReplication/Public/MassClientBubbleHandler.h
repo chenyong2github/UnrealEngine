@@ -132,7 +132,7 @@ public:
 	friend class TMassClientBubbleTransformHandler;
 
 	typedef TFunctionRef<void(FMassEntityQuery&)> FAddRequirementsForSpawnQueryFunction;
-	typedef TFunctionRef<void(FMassExecutionContext&)> FCacheComponentViewsForSpawnQueryFunction;
+	typedef TFunctionRef<void(FMassExecutionContext&)> FCacheFragmentViewsForSpawnQueryFunction;
 	typedef TFunctionRef<void(const FMassEntityView&, const typename AgentArrayItem::FReplicatedAgentType&, const int32)> FSetSpawnedEntityDataFunction;
 	typedef TFunctionRef<void(const FMassEntityView&, const typename AgentArrayItem::FReplicatedAgentType&)> FSetModifiedEntityDataFunction;
 
@@ -164,11 +164,11 @@ protected:
 
 	/** Called from TClientBubbleHandlerBase derived classes in PostReplicatedAd() */
 	void PostReplicatedAddHelper(const TArrayView<int32> AddedIndices, FAddRequirementsForSpawnQueryFunction AddRequirementsForSpawnQuery
-		, FCacheComponentViewsForSpawnQueryFunction CacheComponentViewsForSpawnQuery, FSetSpawnedEntityDataFunction SetSpawnedEntityData, FSetModifiedEntityDataFunction SetModifiedEntityData);
+		, FCacheFragmentViewsForSpawnQueryFunction CacheFragmentViewsForSpawnQuery, FSetSpawnedEntityDataFunction SetSpawnedEntityData, FSetModifiedEntityDataFunction SetModifiedEntityData);
 
 	/** used by PostReplicatedAddHelper */
 	void PostReplicatedAddEntitiesHelper(const TArrayView<int32> AddedIndices, FAddRequirementsForSpawnQueryFunction AddRequirementsForSpawnQuery
-		, FCacheComponentViewsForSpawnQueryFunction CacheComponentViewsForSpawnQuery, FSetSpawnedEntityDataFunction SetSpawnedEntityData);
+		, FCacheFragmentViewsForSpawnQueryFunction CacheFragmentViewsForSpawnQuery, FSetSpawnedEntityDataFunction SetSpawnedEntityData);
 
 
 	/** Called from TClientBubbleHandlerBase derived classes in PostReplicatedChange() */
@@ -423,7 +423,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PreReplicatedRemove(const TArrayV
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
 template<typename AgentArrayItem>
 void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddHelper(const TArrayView<int32> AddedIndices, FAddRequirementsForSpawnQueryFunction AddRequirementsForSpawnQuery
-	, FCacheComponentViewsForSpawnQueryFunction CacheComponentViewsForSpawnQuery, FSetSpawnedEntityDataFunction SetSpawnedEntityData, FSetModifiedEntityDataFunction SetModifiedEntityData)
+	, FCacheFragmentViewsForSpawnQueryFunction CacheFragmentViewsForSpawnQuery, FSetSpawnedEntityDataFunction SetSpawnedEntityData, FSetModifiedEntityDataFunction SetModifiedEntityData)
 {
 	TArray<FMassEntityHandle> EntitiesDestroy;
 
@@ -495,14 +495,14 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddHelper(const TAr
 		}
 	}
 
-	PostReplicatedAddEntitiesHelper(AgentsToAddArray, AddRequirementsForSpawnQuery, CacheComponentViewsForSpawnQuery, SetSpawnedEntityData);
+	PostReplicatedAddEntitiesHelper(AgentsToAddArray, AddRequirementsForSpawnQuery, CacheFragmentViewsForSpawnQuery, SetSpawnedEntityData);
 }
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
 template<typename AgentArrayItem>
 void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddEntitiesHelper(const TArrayView<int32> AddedIndices, FAddRequirementsForSpawnQueryFunction AddRequirementsForSpawnQuery
-	, FCacheComponentViewsForSpawnQueryFunction CacheComponentViewsForSpawnQuery, FSetSpawnedEntityDataFunction SetSpawnedEntityData)
+	, FCacheFragmentViewsForSpawnQueryFunction CacheFragmentViewsForSpawnQuery, FSetSpawnedEntityDataFunction SetSpawnedEntityData)
 {
 	check(Serializer);
 
@@ -554,11 +554,11 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddEntitiesHelper(c
 
 		int32 AgentsSpawnIdx = 0;
 
-		Query.ForEachEntityChunk(FArchetypeChunkCollection(ArchetypeHandle, Entities), *EntitySystem, ExecContext, [&AgentsSpawn, &AgentsSpawnIdx, this, ReplicationManager, &ExecContext, &CacheComponentViewsForSpawnQuery, &SetSpawnedEntityData, &EntitySystem](FMassExecutionContext& Context)
+		Query.ForEachEntityChunk(FArchetypeChunkCollection(ArchetypeHandle, Entities), *EntitySystem, ExecContext, [&AgentsSpawn, &AgentsSpawnIdx, this, ReplicationManager, &ExecContext, &CacheFragmentViewsForSpawnQuery, &SetSpawnedEntityData, &EntitySystem](FMassExecutionContext& Context)
 			{
-				CacheComponentViewsForSpawnQuery(ExecContext);
+				CacheFragmentViewsForSpawnQuery(ExecContext);
 
-				const TArrayView<FMassNetworkIDFragment> NetworkIDList = Context.GetMutableComponentView<FMassNetworkIDFragment>();
+				const TArrayView<FMassNetworkIDFragment> NetworkIDList = Context.GetMutableFragmentView<FMassNetworkIDFragment>();
 
 				for (int32 i = 0; i < Context.GetNumEntities(); ++i)
 				{
@@ -678,7 +678,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::DebugValidateBubbleOnClient()
 
 				if (bIsEntityValid)
 				{
-					const FMassNetworkIDFragment& FragmentNetID = EntitySystem->GetComponentDataChecked<FMassNetworkIDFragment>(EntityInfo->Entity);
+					const FMassNetworkIDFragment& FragmentNetID = EntitySystem->GetFragmentDataChecked<FMassNetworkIDFragment>(EntityInfo->Entity);
 
 					checkf(FragmentNetID.NetID == Agent.GetNetID(), TEXT("Fragment and Agent NetID do not match!"));
 				}
@@ -741,12 +741,12 @@ void TClientBubbleHandlerBase<AgentArrayItem>::DebugValidateBubbleOnServer()
 		checkf(LookupData.AgentsIdx == OuterIdx, TEXT("Agent index must match lookup data!"));
 		checkf(EntitySystem->IsEntityValid(LookupData.Entity), TEXT("Must be valid entity"));
 
-		const FMassNetworkIDFragment& FragmentNetID = EntitySystem->GetComponentDataChecked<FMassNetworkIDFragment>(LookupData.Entity);
+		const FMassNetworkIDFragment& FragmentNetID = EntitySystem->GetFragmentDataChecked<FMassNetworkIDFragment>(LookupData.Entity);
 
 		checkf(FragmentNetID.NetID == OuterItem.Agent.GetNetID(), TEXT("Fragment and Agent NetID do not match!"));
 		checkf(LookupData.NetID == OuterItem.Agent.GetNetID(), TEXT("LookupData and Agent NetID do not match!"));
 
-		const FDataFragment_ReplicationTemplateID& FragmentTemplateID = EntitySystem->GetComponentDataChecked<FDataFragment_ReplicationTemplateID>(LookupData.Entity);
+		const FDataFragment_ReplicationTemplateID& FragmentTemplateID = EntitySystem->GetFragmentDataChecked<FDataFragment_ReplicationTemplateID>(LookupData.Entity);
 		checkf(FragmentTemplateID.ID == OuterItem.Agent.GetTemplateID(), TEXT("Agent TemplateID different to Fragment!"));
 	}
 

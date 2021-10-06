@@ -13,7 +13,7 @@ MASSENTITY_API DECLARE_ENUM_TO_STRING(EMassProcessingPhase);
 
 namespace UE::Mass::Debug
 {
-	FString DebugGetComponentAccessString(EMassFragmentAccess Access);
+	FString DebugGetFragmentAccessString(EMassFragmentAccess Access);
 	MASSENTITY_API extern void DebugOutputDescription(TConstArrayView<UMassProcessor*> Processors, FOutputDevice& Ar);
 } // namespace UE::Mass::Debug
 

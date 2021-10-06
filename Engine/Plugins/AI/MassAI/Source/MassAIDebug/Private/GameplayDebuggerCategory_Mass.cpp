@@ -274,7 +274,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 
 				}
 
-				FDataFragment_Transform& TransformFragment = EntitySystem->GetComponentDataChecked<FDataFragment_Transform>(CachedEntity);
+				FDataFragment_Transform& TransformFragment = EntitySystem->GetFragmentDataChecked<FDataFragment_Transform>(CachedEntity);
 				const float CapsuleRadius = 50.f;
 				AddShape(FGameplayDebuggerShape::MakeCapsule(TransformFragment.GetTransform().GetLocation() + 2.f * CapsuleRadius * FVector::UpVector, CapsuleRadius, CapsuleRadius * 2.f, FColor::Orange));
 			}
@@ -319,17 +319,17 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 			EntityQuery.ForEachEntityChunk(*EntitySystem, Context, [this, Debugger, MassStateTreeSubsystem, EntitySystem, OwnerPC, ViewLocation, ViewDirection, CurrentTime](FMassExecutionContext& Context)
 			{
 				const int32 NumEntities = Context.GetNumEntities();
-				const TConstArrayView<FMassStateTreeFragment> StateTreeList = Context.GetComponentView<FMassStateTreeFragment>();
-				const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetComponentView<FDataFragment_Transform>();
-				const TConstArrayView<FDataFragment_AgentRadius> RadiusList = Context.GetComponentView<FDataFragment_AgentRadius>();
-				const TConstArrayView<FMassSteeringFragment> SteeringList = Context.GetComponentView<FMassSteeringFragment>();
-				const TConstArrayView<FMassSteeringGhostFragment> GhostList = Context.GetComponentView<FMassSteeringGhostFragment>();
-				const TConstArrayView<FMassVelocityFragment> VelocityList = Context.GetComponentView<FMassVelocityFragment>();
-				const TConstArrayView<FMassMoveTargetFragment> MoveTargetList = Context.GetComponentView<FMassMoveTargetFragment>();
-				const TConstArrayView<FMassLookAtFragment> LookAtList = Context.GetComponentView<FMassLookAtFragment>();
-				const TConstArrayView<FMassLookAtTrajectoryFragment> LookAtTrajectoryList = Context.GetComponentView<FMassLookAtTrajectoryFragment>();
-				const TConstArrayView<FMassSimulationLODFragment> SimLODList = Context.GetComponentView<FMassSimulationLODFragment>();
-				const TConstArrayView<FMassZoneGraphShortPathFragment> ShortPathList = Context.GetComponentView<FMassZoneGraphShortPathFragment>();
+				const TConstArrayView<FMassStateTreeFragment> StateTreeList = Context.GetFragmentView<FMassStateTreeFragment>();
+				const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetFragmentView<FDataFragment_Transform>();
+				const TConstArrayView<FDataFragment_AgentRadius> RadiusList = Context.GetFragmentView<FDataFragment_AgentRadius>();
+				const TConstArrayView<FMassSteeringFragment> SteeringList = Context.GetFragmentView<FMassSteeringFragment>();
+				const TConstArrayView<FMassSteeringGhostFragment> GhostList = Context.GetFragmentView<FMassSteeringGhostFragment>();
+				const TConstArrayView<FMassVelocityFragment> VelocityList = Context.GetFragmentView<FMassVelocityFragment>();
+				const TConstArrayView<FMassMoveTargetFragment> MoveTargetList = Context.GetFragmentView<FMassMoveTargetFragment>();
+				const TConstArrayView<FMassLookAtFragment> LookAtList = Context.GetFragmentView<FMassLookAtFragment>();
+				const TConstArrayView<FMassLookAtTrajectoryFragment> LookAtTrajectoryList = Context.GetFragmentView<FMassLookAtTrajectoryFragment>();
+				const TConstArrayView<FMassSimulationLODFragment> SimLODList = Context.GetFragmentView<FMassSimulationLODFragment>();
+				const TConstArrayView<FMassZoneGraphShortPathFragment> ShortPathList = Context.GetFragmentView<FMassZoneGraphShortPathFragment>();
 
 				constexpr float MaxViewDistance = 25000.0f;
 				constexpr float MinViewDirDot = 0.707f; // 45 degrees
@@ -391,7 +391,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 					bool bLookArrowDrawn = false;
 					if (LookAt.LookAtMode == EMassLookAtMode::LookAtEntity && EntitySystem->IsEntityValid(LookAt.TrackedEntity))
 					{
-						if (const FDataFragment_Transform* TargetTransform = EntitySystem->GetComponentDataPtr<FDataFragment_Transform>(LookAt.TrackedEntity))
+						if (const FDataFragment_Transform* TargetTransform = EntitySystem->GetFragmentDataPtr<FDataFragment_Transform>(LookAt.TrackedEntity))
 						{
 							FVector TargetPosition = TargetTransform->GetTransform().GetLocation();
 							TargetPosition.Z = BasePos.Z;
@@ -405,7 +405,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 					
 					if (LookAt.bRandomGazeEntities && EntitySystem->IsEntityValid(LookAt.GazeTrackedEntity))
 					{
-						if (const FDataFragment_Transform* TargetTransform = EntitySystem->GetComponentDataPtr<FDataFragment_Transform>(LookAt.GazeTrackedEntity))
+						if (const FDataFragment_Transform* TargetTransform = EntitySystem->GetFragmentDataPtr<FDataFragment_Transform>(LookAt.GazeTrackedEntity))
 						{
 							FVector TargetPosition = TargetTransform->GetTransform().GetLocation();
 							TargetPosition.Z = BasePos.Z;
@@ -490,7 +490,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 							StateTreeContext.Init(*OwnerPC, *StateTree, EStateTreeStorage::External);
 							StateTreeContext.SetEntity(Entity);
 							
-							FStructView Storage = EntitySystem->GetComponentDataStruct(Entity, StateTree->GetRuntimeStorageStruct());
+							FStructView Storage = EntitySystem->GetFragmentDataStruct(Entity, StateTree->GetRuntimeStorageStruct());
 							
 							Status += StateTreeContext.GetActiveStateName(Storage);
 							Status += TEXT("\n");
@@ -528,8 +528,8 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 			EntityColliderQuery.ForEachEntityChunk(*EntitySystem, Context, [this, Debugger, EntitySystem, OwnerPC, ViewLocation, ViewDirection](FMassExecutionContext& Context)
 			{
 				const int32 NumEntities = Context.GetNumEntities();
-				const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetComponentView<FDataFragment_Transform>();
-				const TConstArrayView<FMassAvoidanceColliderFragment> CollidersList = Context.GetComponentView<FMassAvoidanceColliderFragment>();
+				const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetFragmentView<FDataFragment_Transform>();
+				const TConstArrayView<FMassAvoidanceColliderFragment> CollidersList = Context.GetFragmentView<FMassAvoidanceColliderFragment>();
 	
 				constexpr float MaxViewDistance = 25000.0f;
 				constexpr float MinViewDirDot = 0.707f; // 45 degrees

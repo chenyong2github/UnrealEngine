@@ -55,15 +55,15 @@ protected:
 };
 
 /**
- * Command dedicated to building an entity from an existing component instance
+ * Command dedicated to building an entity from an existing fragment instance
  */
 USTRUCT()
-struct MASSENTITY_API FBuildEntityFromComponentInstance : public FCommandBufferEntryBase
+struct MASSENTITY_API FBuildEntityFromFragmentInstance : public FCommandBufferEntryBase
 {
 	GENERATED_BODY()
 
-	FBuildEntityFromComponentInstance() = default;
-	FBuildEntityFromComponentInstance(const FMassEntityHandle Entity, FStructView InStruct)
+	FBuildEntityFromFragmentInstance() = default;
+	FBuildEntityFromFragmentInstance(const FMassEntityHandle Entity, FStructView InStruct)
 		: FCommandBufferEntryBase(Entity)
 		, Struct(InStruct)
 	{}
@@ -75,15 +75,15 @@ protected:
 };
 
 /**
-* Command dedicated to building an entity from a list of existing component instances
+* Command dedicated to building an entity from a list of existing fragment instances
 */
 USTRUCT()
-struct MASSENTITY_API FBuildEntityFromComponentInstances : public FCommandBufferEntryBase
+struct MASSENTITY_API FBuildEntityFromFragmentInstances : public FCommandBufferEntryBase
 {
 	GENERATED_BODY()
 
-	FBuildEntityFromComponentInstances() = default;
-	FBuildEntityFromComponentInstances(const FMassEntityHandle Entity, TConstArrayView<FInstancedStruct> InInstances)
+	FBuildEntityFromFragmentInstances() = default;
+	FBuildEntityFromFragmentInstances(const FMassEntityHandle Entity, TConstArrayView<FInstancedStruct> InInstances)
 		: FCommandBufferEntryBase(Entity)
 		, Instances(InInstances)
 	{}
@@ -95,15 +95,15 @@ protected:
 };
 
 /**
- * Command dedicated to add a new component to an existing entity
+ * Command dedicated to add a new fragment to an existing entity
  */
 USTRUCT()
-struct MASSENTITY_API FCommandAddComponent : public FCommandBufferEntryBase
+struct MASSENTITY_API FCommandAddFragment : public FCommandBufferEntryBase
 {
 	GENERATED_BODY()
 
-	FCommandAddComponent() = default;
-	FCommandAddComponent(FMassEntityHandle InEntity, UScriptStruct* InStruct)
+	FCommandAddFragment() = default;
+	FCommandAddFragment(FMassEntityHandle InEntity, UScriptStruct* InStruct)
 		: FCommandBufferEntryBase(InEntity)
 		, StructParam(InStruct)
 	{}
@@ -115,15 +115,15 @@ protected:
 };
 
 /**
- * Command dedicated to add a new component from an existing instance
+ * Command dedicated to add a new fragment from an existing instance
  */
 USTRUCT()
-struct MASSENTITY_API FCommandAddComponentInstance : public FCommandBufferEntryBase
+struct MASSENTITY_API FCommandAddFragmentInstance : public FCommandBufferEntryBase
 {
 	GENERATED_BODY()
 
-	FCommandAddComponentInstance() = default;
-	FCommandAddComponentInstance(const FMassEntityHandle InEntity, FStructView InStruct)
+	FCommandAddFragmentInstance() = default;
+	FCommandAddFragmentInstance(const FMassEntityHandle InEntity, FStructView InStruct)
         : FCommandBufferEntryBase(InEntity)
         , Struct(InStruct)
 	{}
@@ -135,15 +135,15 @@ protected:
 };
 
 /**
- * Command dedicated to remove a component from an existing entity
+ * Command dedicated to remove a fragment from an existing entity
  */
 USTRUCT()
-struct MASSENTITY_API FCommandRemoveComponent : public FCommandBufferEntryBase
+struct MASSENTITY_API FCommandRemoveFragment : public FCommandBufferEntryBase
 {
 	GENERATED_BODY()
 
-	FCommandRemoveComponent() = default;
-	FCommandRemoveComponent(FMassEntityHandle InEntity, UScriptStruct* InStruct)
+	FCommandRemoveFragment() = default;
+	FCommandRemoveFragment(FMassEntityHandle InEntity, UScriptStruct* InStruct)
 		: FCommandBufferEntryBase(InEntity)
 		, StructParam(InStruct)
 	{}
@@ -155,43 +155,43 @@ protected:
 };
 
 /**
- * Command performing addition of a list of components to an existing entity
+ * Command performing addition of a list of fragments to an existing entity
  */
 USTRUCT()
-struct MASSENTITY_API FCommandAddComponentList : public FCommandBufferEntryBase
+struct MASSENTITY_API FCommandAddFragmentList : public FCommandBufferEntryBase
 {
 	GENERATED_BODY()
 
-	FCommandAddComponentList() = default;
-	FCommandAddComponentList(FMassEntityHandle InEntity, TConstArrayView<const UScriptStruct*> InComponentList)
+	FCommandAddFragmentList() = default;
+	FCommandAddFragmentList(FMassEntityHandle InEntity, TConstArrayView<const UScriptStruct*> InFragmentList)
 		: FCommandBufferEntryBase(InEntity)
-		, ComponentList(InComponentList)
+		, FragmentList(InFragmentList)
 	{}
 
 protected:
 	virtual void Execute(UMassEntitySubsystem& System) const override;
 
-	TArray<const UScriptStruct*> ComponentList;
+	TArray<const UScriptStruct*> FragmentList;
 };
 
 /**
- * Command performing a removal of a list of components from an existing entity
+ * Command performing a removal of a list of fragments from an existing entity
  */
 USTRUCT()
-struct MASSENTITY_API FCommandRemoveComponentList : public FCommandBufferEntryBase
+struct MASSENTITY_API FCommandRemoveFragmentList : public FCommandBufferEntryBase
 {
 	GENERATED_BODY()
 
-	FCommandRemoveComponentList() = default;
-	FCommandRemoveComponentList(FMassEntityHandle InEntity, TConstArrayView<const UScriptStruct*> InComponentList)
+	FCommandRemoveFragmentList() = default;
+	FCommandRemoveFragmentList(FMassEntityHandle InEntity, TConstArrayView<const UScriptStruct*> InFragmentList)
 		: FCommandBufferEntryBase(InEntity)
-		, ComponentList(InComponentList)
+		, FragmentList(InFragmentList)
 	{}
 
 protected:
 	virtual void Execute(UMassEntitySubsystem& System) const override;
 
-	TArray<const UScriptStruct*> ComponentList;
+	TArray<const UScriptStruct*> FragmentList;
 };
 
 /**
@@ -262,7 +262,7 @@ protected:
 };
 
 /**
- * Command performing a removal of a collection of components and tags
+ * Command performing a removal of a collection of fragments and tags
  */
 USTRUCT()
 struct MASSENTITY_API FCommandRemoveComposition : public FCommandBufferEntryBase
@@ -309,17 +309,17 @@ public:
 	}
 
 	template<typename T>
-	void AddComponent(FMassEntityHandle Entity)
+	void AddFragment(FMassEntityHandle Entity)
 	{
-		static_assert(TIsDerivedFrom<T, FMassFragment>::IsDerived, "Given struct type is not a valid component type.");
-		EmplaceCommand<FCommandAddComponent>(Entity, T::StaticStruct());
+		static_assert(TIsDerivedFrom<T, FMassFragment>::IsDerived, "Given struct type is not a valid fragment type.");
+		EmplaceCommand<FCommandAddFragment>(Entity, T::StaticStruct());
 	}
 
 	template<typename T>
-	void RemoveComponent(FMassEntityHandle Entity)
+	void RemoveFragment(FMassEntityHandle Entity)
 	{
-		static_assert(TIsDerivedFrom<T, FMassFragment>::IsDerived, "Given struct type is not a valid component type.");
-		EmplaceCommand<FCommandRemoveComponent>(Entity, T::StaticStruct());
+		static_assert(TIsDerivedFrom<T, FMassFragment>::IsDerived, "Given struct type is not a valid fragment type.");
+		EmplaceCommand<FCommandRemoveFragment>(Entity, T::StaticStruct());
 	}
 
 	template<typename T>

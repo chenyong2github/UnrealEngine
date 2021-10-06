@@ -118,7 +118,7 @@ struct MASSREPLICATION_API FMassBubbleInfoClassHandle : public FSimpleIndexedHan
 };
 
 /**
- *  Light weight component data for the mass network id of a light weight entity
+ *  Fragment type for the mass network id of a mass entity
  */
 USTRUCT()
 struct MASSREPLICATION_API FMassNetworkIDFragment : public FMassFragment
