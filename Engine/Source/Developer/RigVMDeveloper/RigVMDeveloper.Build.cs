@@ -12,6 +12,7 @@ public class RigVMDeveloper : ModuleRules
                 "CoreUObject",
                 "Engine",
                 "RigVM",
+                "VisualGraphUtils",
             }
         );
 

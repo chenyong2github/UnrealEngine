@@ -19,6 +19,7 @@
 #include "RigVMCore/RigVMExecuteContext.h"
 #include "Stats/StatsHierarchical.h"
 #include "RigVMDeveloperModule.h"
+#include "VisualGraphUtils.h"
 
 FRigVMExprAST::FRigVMExprAST(EType InType, const FRigVMASTProxy& InProxy)
 	: Name(NAME_None)
@@ -319,198 +320,6 @@ FString FRigVMExprAST::DumpText(const FString& InPrefix) const
 			Result += TEXT("\n") + Child->DumpText(Prefix);
 		}
 	}
-	return Result;
-}
-
-FString FRigVMExprAST::DumpDot(TArray<bool>& OutExpressionDefined, const FString& InPrefix) const
-{
-	FString Prefix = InPrefix;
-
-	FString Result;
-	bool bWasDefined = true;
-	if (!OutExpressionDefined[GetIndex()])
-	{
-		bWasDefined = false;
-
-		FString Label = GetName().ToString();
-		FString AdditionalNodeSettings;
-		switch (GetType())
-		{
-			case EType::Literal:
-			{
-				Label = FString::Printf(TEXT("%s(Literal)"), *To<FRigVMLiteralExprAST>()->GetPin()->GetName());
-				break;
-			}
-			case EType::ExternalVar:
-			{
-				Label = FString::Printf(TEXT("%s(ExternalVar)"), *To<FRigVMExternalVarExprAST>()->GetPin()->GetBoundVariableName());
-				break;
-			}
-			case EType::Var:
-			{
-				if (To<FRigVMVarExprAST>()->IsGraphParameter())
-				{
-					URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(To<FRigVMVarExprAST>()->GetPin()->GetNode());
-					check(ParameterNode);
-					Label = FString::Printf(TEXT("Param %s"), *ParameterNode->GetParameterName().ToString());
-				}
-				else if (To<FRigVMVarExprAST>()->IsGraphVariable())
-				{
-					URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(To<FRigVMVarExprAST>()->GetPin()->GetNode());
-					check(VariableNode);
-					Label = FString::Printf(TEXT("Variable %s"), *VariableNode->GetVariableName().ToString());
-				}
-				else if (To<FRigVMVarExprAST>()->IsEnumValue())
-				{
-					URigVMEnumNode* EnumNode = Cast<URigVMEnumNode>(To<FRigVMVarExprAST>()->GetPin()->GetNode());
-					check(EnumNode);
-					Label = FString::Printf(TEXT("Enum %s"), *EnumNode->GetCPPType());
-				}
-				else
-				{
-					Label = To<FRigVMVarExprAST>()->GetPin()->GetName();
-				}
-				if (To<FRigVMVarExprAST>()->IsExecuteContext())
-				{
-					AdditionalNodeSettings += TEXT(", shape = cds");
-				}
-				break;
-			}
-			case EType::Block:
-			{
-				if (GetParent() == nullptr)
-				{
-					Label = TEXT("Unused");
-					Result += FString::Printf(TEXT("\n%ssubgraph unused_%d {"), *Prefix, GetIndex());
-					Prefix += TEXT("  ");
-				}
-				else
-				{
-					Label = TEXT("Block");
-				}
-				break;
-			}
-			case EType::Assign:
-			{
-				Label = TEXT("=");
-				break;
-			}
-			case EType::Copy:
-			{
-				Label = TEXT("Copy");
-				break;
-			}
-			case EType::CachedValue:
-			{
-				Label = TEXT("Cache");
-				break;
-			}
-			case EType::CallExtern:
-			{
-				if (URigVMUnitNode* Node = Cast<URigVMUnitNode>(To<FRigVMCallExternExprAST>()->GetNode()))
-				{
-					Label = Node->GetScriptStruct()->GetName();
-				}
-				break;
-			}
-			case EType::NoOp:
-			{
-				Label = TEXT("NoOp");
-				break;
-			}
-			case EType::Array:
-			{
-				ERigVMOpCode OpCode = CastChecked<URigVMArrayNode>(To<FRigVMArrayExprAST>()->GetNode())->GetOpCode();
-				Label = StaticEnum<ERigVMOpCode>()->GetDisplayNameTextByValue((int64)OpCode).ToString();
-				break;
-			}
-			case EType::Exit:
-			{
-				Label = TEXT("Exit");
-				break;
-			}
-			case EType::Entry:
-			{
-				Result += FString::Printf(TEXT("\n%ssubgraph %s_%d {"), *Prefix, *GetName().ToString(), GetIndex());
-				Prefix += TEXT("  ");
-				break;
-			}
-			default:
-			{
-				break;
-			}
-		}
-
-		if (!Label.IsEmpty())
-		{
-			Result += FString::Printf(TEXT("\n%snode_%d [label = \"%s\"%s];"), *Prefix, GetIndex(), *Label, *AdditionalNodeSettings);
-		}
-
-		switch (GetType())
-		{
-			case EType::Entry:
-			case EType::Exit:
-			case EType::Branch:
-			case EType::Block:
-			{
-				Result += FString::Printf(TEXT("\n%snode_%d [shape = Mdiamond];"), *Prefix, GetIndex());
-				break;
-			}
-			case EType::Assign:
-			case EType::Copy:
-			case EType::CallExtern:
-			case EType::If:
-			case EType::Select:
-			case EType::NoOp:
-			{
-				Result += FString::Printf(TEXT("\n%snode_%d [shape = box];"), *Prefix, GetIndex());
-				break;
-			}
-			default:
-			{
-				break;
-			}
-		}
-
-	}
-
-	for (FRigVMExprAST* Child : Children)
-	{
-		Result += Child->DumpDot(OutExpressionDefined, Prefix);
-		if(!bWasDefined)
-		{
-			Result += FString::Printf(TEXT("\n%snode_%d -> node_%d;"), *Prefix, GetIndex(), Child->GetIndex());
-		}
-	}
-
-	if (!OutExpressionDefined[GetIndex()])
-	{
-		switch (GetType())
-		{
-			case EType::Block:
-			{
-				if (GetParent() == nullptr)
-				{
-					Prefix = Prefix.LeftChop(2);
-					Result += FString::Printf(TEXT("\n%s}"), *Prefix, *GetName().ToString(), GetIndex());
-				}
-				break;
-			}
-			case EType::Entry:
-			{
-				Prefix = Prefix.LeftChop(2);
-				Result += FString::Printf(TEXT("\n%s}"), *Prefix, *GetName().ToString(), GetIndex());
-				break;
-			}
-			default:
-			{
-				break;
-			}
-		}
-	}
-
-	OutExpressionDefined[GetIndex()] = true;
-
 	return Result;
 }
 
@@ -2573,18 +2382,210 @@ FString FRigVMParserAST::DumpDot() const
 	TArray<bool> OutExpressionDefined;
 	OutExpressionDefined.AddZeroed(Expressions.Num());
 
-	FString Result = TEXT("digraph AST {\n  node [style=filled];\n  rankdir=\"LR\";");
+	FVisualGraph VisualGraph(TEXT("AST"));
 
-	for (FRigVMExprAST* RootExpr : RootExpressions)
+	VisualGraph.AddSubGraph(TEXT("AST"), FName(TEXT("AST")));
+	VisualGraph.AddSubGraph(TEXT("unused"), FName(TEXT("Unused")));
+
+	struct Local
 	{
-		if (RootExpr == GetObsoleteBlock(false /* create */))
+		static TArray<int32> VisitChildren(const FRigVMExprAST* InExpr, int32 InSubGraphIndex, FVisualGraph& OutGraph)
+		{
+			TArray<int32> ChildNodeIndices;
+			for (FRigVMExprAST* Child : InExpr->Children)
+			{
+				ChildNodeIndices.Add(VisitExpr(Child, InSubGraphIndex, OutGraph));
+			}
+			return ChildNodeIndices;
+		}
+		
+		static int32 VisitExpr(const FRigVMExprAST* InExpr, int32 InSubGraphIndex, FVisualGraph& OutGraph)
+		{
+			const FName NodeName = *FString::Printf(TEXT("node_%d"), InExpr->GetIndex());
+
+			int32 NodeIndex = OutGraph.FindNode(NodeName); 
+			if(NodeIndex != INDEX_NONE)
+			{
+				return NodeIndex;
+			}
+
+			FString Label = InExpr->GetName().ToString();
+			TOptional<EVisualGraphShape> Shape = EVisualGraphShape::Ellipse;
+			int32 SubGraphIndex = InSubGraphIndex;
+			
+			switch (InExpr->GetType())
+			{
+				case FRigVMExprAST::EType::Literal:
+				{
+					Label = FString::Printf(TEXT("%s(Literal)"), *InExpr->To<FRigVMLiteralExprAST>()->GetPin()->GetName());
+					break;
+				}
+				case FRigVMExprAST::EType::ExternalVar:
+				{
+					Label = FString::Printf(TEXT("%s(ExternalVar)"), *InExpr->To<FRigVMExternalVarExprAST>()->GetPin()->GetBoundVariableName());
+					break;
+				}
+				case FRigVMExprAST::EType::Var:
+				{
+					if (InExpr->To<FRigVMVarExprAST>()->IsGraphParameter())
+					{
+						URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(InExpr->To<FRigVMVarExprAST>()->GetPin()->GetNode());
+						check(ParameterNode);
+						Label = FString::Printf(TEXT("Param %s"), *ParameterNode->GetParameterName().ToString());
+					}
+					else if (InExpr->To<FRigVMVarExprAST>()->IsGraphVariable())
+					{
+						URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(InExpr->To<FRigVMVarExprAST>()->GetPin()->GetNode());
+						check(VariableNode);
+						Label = FString::Printf(TEXT("Variable %s"), *VariableNode->GetVariableName().ToString());
+					}
+					else if (InExpr->To<FRigVMVarExprAST>()->IsEnumValue())
+					{
+						URigVMEnumNode* EnumNode = Cast<URigVMEnumNode>(InExpr->To<FRigVMVarExprAST>()->GetPin()->GetNode());
+						check(EnumNode);
+						Label = FString::Printf(TEXT("Enum %s"), *EnumNode->GetCPPType());
+					}
+					else
+					{
+						Label = InExpr->To<FRigVMVarExprAST>()->GetPin()->GetName();
+					}
+						
+					if (InExpr->To<FRigVMVarExprAST>()->IsExecuteContext())
+					{
+						Shape = EVisualGraphShape::House;
+					}
+						
+					break;
+				}
+				case FRigVMExprAST::EType::Block:
+				{
+					if (InExpr->GetParent() == nullptr)
+					{
+						Label = TEXT("Unused");
+						SubGraphIndex = OutGraph.FindSubGraph(TEXT("unused"));;
+					}
+					else
+					{
+						Label = TEXT("Block");
+					}
+					break;
+				}
+				case FRigVMExprAST::EType::Assign:
+				{
+					Label = TEXT("=");
+					break;
+				}
+				case FRigVMExprAST::EType::Copy:
+				{
+					Label = TEXT("Copy");
+					break;
+				}
+				case FRigVMExprAST::EType::CachedValue:
+				{
+					Label = TEXT("Cache");
+					break;
+				}
+				case FRigVMExprAST::EType::CallExtern:
+				{
+					if (URigVMUnitNode* Node = Cast<URigVMUnitNode>(InExpr->To<FRigVMCallExternExprAST>()->GetNode()))
+					{
+						Label = Node->GetScriptStruct()->GetName();
+					}
+					break;
+				}
+				case FRigVMExprAST::EType::NoOp:
+				{
+					Label = TEXT("NoOp");
+					break;
+				}
+				case FRigVMExprAST::EType::Array:
+				{
+					ERigVMOpCode OpCode = CastChecked<URigVMArrayNode>(InExpr->To<FRigVMArrayExprAST>()->GetNode())->GetOpCode();
+					Label = StaticEnum<ERigVMOpCode>()->GetDisplayNameTextByValue((int64)OpCode).ToString();
+					break;
+				}
+				case FRigVMExprAST::EType::Exit:
+				{
+					Label = TEXT("Exit");
+					break;
+				}
+				case FRigVMExprAST::EType::Entry:
+				{
+					SubGraphIndex = OutGraph.FindSubGraph(InExpr->GetName());
+					if(SubGraphIndex == INDEX_NONE)
+					{
+						const int32 ASTGraphIndex = OutGraph.FindSubGraph(TEXT("AST"));
+						SubGraphIndex = OutGraph.AddSubGraph(InExpr->GetName(), InExpr->GetName(), ASTGraphIndex);
+					}
+					break;
+				}
+				default:
+				{
+					break;
+				}
+			}
+
+			switch (InExpr->GetType())
+			{
+				case FRigVMExprAST::EType::Entry:
+				case FRigVMExprAST::EType::Exit:
+				case FRigVMExprAST::EType::Branch:
+				case FRigVMExprAST::EType::Block:
+				{
+					Shape = EVisualGraphShape::Diamond;
+					break;
+				}
+				case FRigVMExprAST::EType::Assign:
+				case FRigVMExprAST::EType::Copy:
+				case FRigVMExprAST::EType::CallExtern:
+				case FRigVMExprAST::EType::If:
+				case FRigVMExprAST::EType::Select:
+				case FRigVMExprAST::EType::NoOp:
+				{
+					Shape = EVisualGraphShape::Box;
+					break;
+				}
+				default:
+				{
+					break;
+				}
+			}
+
+			if (!Label.IsEmpty())
+			{
+				const TOptional<FName> DisplayName = FName(*Label);
+				NodeIndex = OutGraph.AddNode(NodeName, DisplayName, TOptional<FLinearColor>(), Shape);
+				OutGraph.AddNodeToSubGraph(NodeIndex, SubGraphIndex);
+			}
+
+			TArray<int32> ChildNodeIndices = VisitChildren(InExpr, SubGraphIndex, OutGraph);
+
+			if(NodeIndex != INDEX_NONE)
+			{
+				for(const int32 ChildNodeIndex : ChildNodeIndices)
+				{
+					if(ChildNodeIndex != INDEX_NONE)
+					{
+						OutGraph.AddEdge(ChildNodeIndex, NodeIndex, EVisualGraphEdgeDirection::SourceToTarget);
+					}
+				}
+			}
+
+			return NodeIndex;
+		}
+	};
+
+	for (FRigVMExprAST* Expr : RootExpressions)
+	{
+		if (Expr == GetObsoleteBlock(false))
 		{
 			continue;
 		}
-		Result += RootExpr->DumpDot(OutExpressionDefined, TEXT("  "));
+
+		Local::VisitExpr(Expr, INDEX_NONE, VisualGraph);
 	}
-	Result += TEXT("\n}");
-	return Result;
+
+	return VisualGraph.DumpDot();
 }
 
 FRigVMBlockExprAST* FRigVMParserAST::GetObsoleteBlock(bool bCreateIfMissing)

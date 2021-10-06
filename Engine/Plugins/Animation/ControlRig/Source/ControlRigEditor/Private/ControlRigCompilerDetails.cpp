@@ -13,6 +13,7 @@
 #include "IPropertyUtilities.h"
 #include "IPythonScriptPlugin.h"
 #include "RigVMPythonUtils.h"
+#include "ControlRigVisualGraphUtils.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigCompilerDetails"
 
@@ -92,11 +93,11 @@ void FRigVMCompileSettingsDetails::CustomizeChildren(TSharedRef<IPropertyHandle>
 			];
 #endif
 
-		StructBuilder.AddCustomRow(LOCTEXT("ASTTools", "AST Tools"))
+		StructBuilder.AddCustomRow(LOCTEXT("DebuggingTools", "Debugging Tools"))
 			.NameContent()
 			[
 				SNew(STextBlock)
-				.Text(FText::FromString(TEXT("AST")))
+				.Text(FText::FromString(TEXT("Debugging")))
 			.Font(IDetailLayoutBuilder::GetDetailFont())
 			]
 			.ValueContent()
@@ -111,7 +112,7 @@ void FRigVMCompileSettingsDetails::CustomizeChildren(TSharedRef<IPropertyHandle>
 					[
 						SNew(STextBlock)
 						.Justification(ETextJustify::Center)
-						.Text(LOCTEXT("CopyASTToClipboard", "Copy AST"))
+						.Text(LOCTEXT("CopyASTToClipboard", "Copy AST Graph"))
 					]
 				]
 				+ SVerticalBox::Slot()
@@ -124,6 +125,18 @@ void FRigVMCompileSettingsDetails::CustomizeChildren(TSharedRef<IPropertyHandle>
 						SNew(STextBlock)
 						.Justification(ETextJustify::Center)
 						.Text(LOCTEXT("CopyByteCodeToClipboard", "Copy ByteCode"))
+					]
+				]
+				+ SVerticalBox::Slot()
+				[
+					SNew(SButton)
+					.OnClicked(this, &FRigVMCompileSettingsDetails::OnCopyHierarchyGraphClicked)
+					.ContentPadding(FMargin(2))
+					.Content()
+					[
+						SNew(STextBlock)
+						.Justification(ETextJustify::Center)
+						.Text(LOCTEXT("CopyHierarchyGraphToClipboard", "Copy Hierarchy Graph"))
 					]
 				]
 			];
@@ -174,6 +187,19 @@ FReply FRigVMCompileSettingsDetails::OnCopyByteCodeClicked()
 				FString ByteCodeContent = ControlRig->GetVM()->DumpByteCodeAsText();
 				FPlatformApplicationMisc::ClipboardCopy(*ByteCodeContent);
 			}
+		}
+	}
+	return FReply::Handled();
+}
+
+FReply FRigVMCompileSettingsDetails::OnCopyHierarchyGraphClicked()
+{
+	if (BlueprintBeingCustomized)
+	{
+		if(UControlRig* ControlRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged()))
+		{
+			FString DotGraphContent = FControlRigVisualGraphUtils::DumpRigHierarchyToDotGraph(ControlRig->GetHierarchy());
+			FPlatformApplicationMisc::ClipboardCopy(*DotGraphContent);
 		}
 	}
 	return FReply::Handled();
