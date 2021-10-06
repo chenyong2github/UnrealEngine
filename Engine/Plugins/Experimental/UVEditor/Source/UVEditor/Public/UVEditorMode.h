@@ -214,5 +214,7 @@ protected:
 	TArray<TObjectPtr<UInteractiveToolPropertySet>> PropertyObjectsToTick;
 
 	bool bIsActive = false;
+
+	static FDateTime AnalyticsLastStartTimestamp;
 };
 
