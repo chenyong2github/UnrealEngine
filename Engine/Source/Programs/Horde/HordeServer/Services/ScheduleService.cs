@@ -195,7 +195,7 @@ namespace HordeServer.Services
 				Logger.LogDebug("Schedule {StreamId}/{TemplateRefId} will next trigger at {NextTriggerTime}", Stream.Id, TemplateRefId, NextTriggerTime.Value);
 				return NextTriggerTime;
 			}
-			Logger.LogInformation("Schedule {StreamId}/{TemplateRefId} is ready to trigger", Stream.Id, TemplateRefId);
+			Logger.LogInformation("Schedule {StreamId}/{TemplateRefId} is ready to trigger (last: {Change} at {Time})", Stream.Id, TemplateRefId, Schedule.LastTriggerChange, Schedule.LastTriggerTime);
 
 			// Get a list of jobs that we need to remove
 			List<ObjectId> RemoveJobIds = new List<ObjectId>();
@@ -291,7 +291,7 @@ namespace HordeServer.Services
 				}
 
 				// Quit if we didn't find anything
-				if (Change <= 0)
+				if (Change < MinChangeNumber)
 				{
 					break;
 				}
