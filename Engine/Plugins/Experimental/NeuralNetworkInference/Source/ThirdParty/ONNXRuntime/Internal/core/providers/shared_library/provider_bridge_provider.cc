@@ -1,3 +1,5 @@
+#ifndef WITH_UE
+
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
@@ -222,3 +224,5 @@ void LogRuntimeError(uint32_t session_id, const common::Status& status,
 }
 
 }  // namespace onnxruntime
+
+#endif //WITH_UE
