@@ -553,6 +553,33 @@ bool FInputBindingManager::CommandPassesFilter(const FName InBindingContext, con
 	return true;
 }
 
+bool FInputBindingManager::RegisterCommandList(const FName InBindingContext, const TSharedRef<FUICommandList> CommandList) const
+{
+	if (ContextMap.Contains(InBindingContext) && OnRegisterCommandList.IsBound())
+	{
+		OnRegisterCommandList.Broadcast(InBindingContext, CommandList);
+		return true;
+	}
+	return false;
+}
+
+TSharedPtr<FUICommandList> FInputBindingManager::RegisterNewCommandList(const FName InBindingContext) const
+{
+	const TSharedPtr<FUICommandList> CommandList = MakeShared<FUICommandList>();
+
+	return RegisterCommandList(InBindingContext, CommandList.ToSharedRef()) ? CommandList : nullptr;
+}
+
+bool FInputBindingManager::UnregisterCommandList(const FName InBindingContext, TSharedRef<FUICommandList> CommandList) const
+{
+	if (ContextMap.Contains(InBindingContext) && OnUnregisterCommandList.IsBound())
+	{
+		OnUnregisterCommandList.Broadcast(InBindingContext, CommandList);
+		return true;
+	}
+	return false;
+}
+
 void FInputBindingManager::AddCommandFilter(const FName InOwnerName, const FName InBindingContext, const FName InCommandName, const ECommandFilterType FilterType)
 {
 	if (FilterType == ECommandFilterType::Blacklist)
