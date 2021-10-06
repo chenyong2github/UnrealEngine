@@ -739,7 +739,7 @@ namespace HordeServer.Services.Impl
 						}
 
 						// Update the span
-						IIssueSpan? NewSpan = await IssueCollection.UpdateSpanAsync(OpenSpan, NewSeverity: NewSeverity, NewFailure: NewFailure, NewModified: bMarkAsModified);
+						IIssueSpan? NewSpan = await IssueCollection.UpdateSpanAsync(OpenSpan, NewSeverity: NewSeverity, NewFailure: NewFailure, NewModified: (bMarkAsModified? (bool?)true : null));
 						if (NewSpan == null)
 						{
 							return false;
@@ -1135,8 +1135,8 @@ namespace HordeServer.Services.Impl
 			IIssue? NewIssue = await IssueCollection.UpdateIssueDerivedDataAsync(Issue);
 			if (NewIssue != null)
 			{
-				string NewSummary = GetSummary(Issue.Fingerprint, Issue.Severity);
-				if (!NewSummary.Equals(Issue.Summary, StringComparison.Ordinal))
+				string NewSummary = GetSummary(NewIssue.Fingerprint, NewIssue.Severity);
+				if (!NewSummary.Equals(NewIssue.Summary, StringComparison.Ordinal))
 				{
 					NewIssue = await IssueCollection.UpdateIssueAsync(NewIssue, NewSummary: NewSummary);
 				}
