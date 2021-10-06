@@ -674,7 +674,7 @@ namespace HordeAgent.Execution
 			foreach (string Line in IgnorePatternLines)
 			{
 				string TrimLine = Line.Trim();
-				Log.TraceVerbose("IgnorePattern: {0}", TrimLine);
+				Log.TraceInformation("IgnorePattern: {0}", TrimLine);
 				if (TrimLine.Length > 0 && TrimLine[0] != '#')
 				{
 					IgnorePatterns.Add(TrimLine);
