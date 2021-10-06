@@ -10,4 +10,4 @@ void FSlateScriptingCommandsModule::ShutdownModule()
 {
 }
 
-IMPLEMENT_MODULE(FSlateScriptingCommandsModule, SlateScriptingCommands);
+IMPLEMENT_MODULE(FSlateScriptingCommandsModule, SlateScriptingCommands)
