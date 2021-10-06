@@ -2658,35 +2658,26 @@ FArchive& operator<<(FArchive& Ar, FNameEntrySerialized& E)
 {
 	if (Ar.IsLoading())
 	{
+		const int64 MaxSerialize = Ar.GetMaxSerializeSize();
+		const int32 MaxSize = MaxSerialize > 0 ? static_cast<int32>(FMath::Min(MaxSerialize, int64(NAME_SIZE))) : NAME_SIZE;
+
 		// for optimization reasons, we want to keep pure Ansi strings as Ansi for initializing the name entry
 		// (and later the FName) to stop copying in and out of TCHARs
 		int32 StringLen;
 		Ar << StringLen;
 
-		// negative stringlen means it's a wide string
-		if (StringLen < 0)
+		if ((StringLen < -MaxSize) | (StringLen > MaxSize))
 		{
-			// If StringLen cannot be negated due to integer overflow, Ar is corrupted.
-			if (StringLen == MIN_int32)
-			{
-				Ar.SetCriticalError();
-				UE_LOG(LogUnrealNames, Error, TEXT("Archive is corrupted"));
-				return Ar;
-			}
-
+			Ar.SetCriticalError();
+			UE_LOG(LogUnrealNames, Error, TEXT("String is too long"));
+			return Ar;
+		}
+		
+		// negative stringlen means it's a wide string
+		E.bIsWide = StringLen < 0;
+		if (E.bIsWide)
+		{
 			StringLen = -StringLen;
-
-			int64 MaxSerializeSize = Ar.GetMaxSerializeSize();
-			// Protect against network packets allocating too much memory
-			if ((MaxSerializeSize > 0) && (StringLen > MaxSerializeSize))
-			{
-				Ar.SetCriticalError();
-				UE_LOG(LogUnrealNames, Error, TEXT("String is too large"));
-				return Ar;
-			}
-
-			// mark the name will be wide
-			E.bIsWide = true;
 
 			// get the pointer to the wide array 
 			WIDECHAR* WideName = const_cast<WIDECHAR*>(E.GetWideName());
@@ -2703,18 +2694,6 @@ FArchive& operator<<(FArchive& Ar, FNameEntrySerialized& E)
 		}
 		else
 		{
-			int64 MaxSerializeSize = Ar.GetMaxSerializeSize();
-			// Protect against network packets allocating too much memory
-			if ((MaxSerializeSize > 0) && (StringLen > MaxSerializeSize))
-			{
-				Ar.SetCriticalError();
-				UE_LOG(LogUnrealNames, Error, TEXT("String is too large"));
-				return Ar;
-			}
-
-			// mark the name will be ansi
-			E.bIsWide = false;
-
 			// ansi strings can go right into the AnsiBuffer
 			ANSICHAR* AnsiName = const_cast<ANSICHAR*>(E.GetAnsiName());
 			Ar.Serialize(AnsiName, StringLen);
