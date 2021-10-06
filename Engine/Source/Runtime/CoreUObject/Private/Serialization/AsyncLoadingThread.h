@@ -189,7 +189,7 @@ class FAsyncLoadingThread final : public FRunnable, public IAsyncPackageLoader
 	TArray<FAsyncPackage*> PackagesToDelete;
 	TMap<FName, FAsyncPackage*> LoadedPackagesToProcessNameLookup;
 #if WITH_EDITOR
-	TArray<FWeakObjectPtr> LoadedAssets;
+	TSet<FWeakObjectPtr> LoadedAssets;
 #endif
 #if THREADSAFE_UOBJECTS
 	/** [ASYNC/GAME THREAD] Critical section for LoadedPackagesToProcess list. 

@@ -4185,12 +4185,9 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessAsyncLoading(int32& OutPack
 	else if (AsyncPackages.Num())
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FAsyncLoadingThread_ProcessAsyncLoading);
-
-		bool bDepthFirst = false;
-
 		// We need to loop as the function has to handle finish loading everything given no time limit
 		// like e.g. when called from FlushAsyncLoading.
-		for (int32 PackageIndex = 0; ((bDepthFirst && LoadingState == EAsyncPackageState::Complete) || (!bDepthFirst && LoadingState != EAsyncPackageState::TimeOut)) && PackageIndex < AsyncPackages.Num(); ++PackageIndex)
+		for (int32 PackageIndex = 0; LoadingState != EAsyncPackageState::TimeOut && PackageIndex < AsyncPackages.Num(); ++PackageIndex)
 		{
 			SCOPED_LOADTIMER(ProcessAsyncLoadingTime);
 			OutPackagesProcessed++;
@@ -4203,17 +4200,9 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessAsyncLoading(int32& OutPack
 			}
 			else if (Package->HasFinishedLoading() == false)
 			{
-				if (GEventDrivenLoaderEnabled)
-				{
-					LoadingState = EAsyncPackageState::PendingImports;
-				}
-				else
-				// @todo: Guard against recursively re-entering?
-				{
-					// Package tick returns EAsyncPackageState::Complete on completion.
-					// We only tick packages that have not yet been loaded.
-					LoadingState = Package->TickAsyncPackage(bUseTimeLimit, bUseFullTimeLimit, TimeLimit, FlushTree);
-				}
+				// Package tick returns EAsyncPackageState::Complete on completion.
+				// We only tick packages that have not yet been loaded.
+				LoadingState = Package->TickAsyncPackage(bUseTimeLimit, bUseFullTimeLimit, TimeLimit, FlushTree);
 			}
 			else
 			{
@@ -4352,8 +4341,8 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTim
 	}
 #endif
 
-		
-	bDidSomething = LoadedPackagesToProcess.Num() > 0;
+
+	bDidSomething = bDidSomething || LoadedPackagesToProcess.Num() > 0;
 
 	TArray<FAsyncPackage*, TInlineAllocator<4>> CompletedPackages;
 	for (int32 PackageIndex = 0; PackageIndex < LoadedPackagesToProcess.Num() && !IsAsyncLoadingSuspendedInternal(); ++PackageIndex)
@@ -4391,9 +4380,9 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTim
 							// This may be slow, hence we only do it in the editor
 							Package->FlushObjectLinkerCache();
 						}
-						// Detach linker in mutex scope to make sure that if something requests this package
-						// before it's been deleted does not try to associate the new async package with the old linker
-						// while this async package is still bound to it.
+						// Detach linker in mutex scope to make sure that if something requests the packagename again
+						// before this old async package has been deleted we do not try to associate the new async package
+						// with the linker while this async package is still bound to it.
 						Package->DetachLinker();
 					}
 
@@ -4430,24 +4419,40 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTim
 		}
 	}
 
-	// Call callbacks in a batch in a stack-local array. This is to ensure that callbacks that trigger
-	// on each package load and call FlushAsyncLoading do not stack overflow by adding one FlushAsyncLoading
-	// call per LoadedPackageToProcess onto the stack
+	// Call callbacks in a batch in a stack-local array. This is to ensure that callbacks that recursively enter this function
+	// via FlushAsyncLoading do not stack overflow by doing one recursive call per LoadedPackageToProcess
+	TSet<UPackage*> CompletedUPackages;
 	for (FAsyncPackage* Package : CompletedPackages)
 	{
 		// Call external callbacks
 		const bool bInternalCallbacks = false;
 		const EAsyncLoadingResult::Type LoadingResult = Package->HasLoadFailed() ? EAsyncLoadingResult::Failed : EAsyncLoadingResult::Succeeded;
 		Package->CallCompletionCallbacks(bInternalCallbacks, LoadingResult);
+		
 #if WITH_EDITOR
-		// In the editor we need to find any assets and add them to list for later callback
-		Package->GetLoadedAssets(LoadedAssets);
+		if (GIsEditor)
+		{
+			// In the editor we need to find any assets and packages and add them to list for later callback
+			Package->GetLoadedAssetsAndPackages(LoadedAssets, CompletedUPackages);
+		}
 #endif
 		// We don't need the package anymore
 		PackagesToDelete.AddUnique(Package);
 		Package->MarkRequestIDsAsComplete();
-
 	}
+#if WITH_EDITOR
+	if (GIsEditor)
+	{
+		// Call the global delegate for package endloads and set the bHasBeenLoaded flag that is used
+		// to check which packages have reached this state
+		for (UPackage* CompletedUPackage : CompletedUPackages)
+		{
+			CompletedUPackage->SetHasBeenEndLoaded(true);
+		}
+		FCoreUObjectDelegates::OnEndLoadPackage.Broadcast(CompletedUPackages.Array());
+	}
+#endif
+
 	bDidSomething = bDidSomething || PackagesToDelete.Num() > 0;
 
 	// Delete packages we're done processing and are no longer dependencies of anything else
@@ -4509,7 +4514,7 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTim
 
 #if WITH_EDITOR
 		// In editor builds, call the asset load callback. This happens in both editor and standalone to match EndLoad
-		TArray<FWeakObjectPtr> TempLoadedAssets = LoadedAssets;
+		TSet<FWeakObjectPtr> TempLoadedAssets = LoadedAssets;
 		LoadedAssets.Reset();
 
 		// Make a copy because LoadedAssets could be modified by one of the OnAssetLoaded callbacks
@@ -4548,7 +4553,7 @@ EAsyncPackageState::Type FAsyncLoadingThread::TickAsyncLoading(bool bUseTimeLimi
 		double TimeLimitUsedForProcessLoaded = 0;
 
 		// First make sure there's no objects pending to be unhashed. This is important in uncooked builds since we don't 
-		// detach linkers immediately there and we may end up in getting unreachable objects from Linkers in CreateImports
+		// detach linkers immediately and we may otherwise end up getting unreachable objects from Linkers in CreateImports
 		if (FPlatformProperties::RequiresCookedData() == false && IsIncrementalUnhashPending() && IsAsyncLoadingPackages())
 		{
 			// Call ConditionalBeginDestroy on all pending objects. CBD is where linkers get detached from objects.
@@ -5395,13 +5400,22 @@ void FAsyncPackage::FlushObjectLinkerCache()
 }
 
 #if WITH_EDITOR 
-void FAsyncPackage::GetLoadedAssets(TArray<FWeakObjectPtr>& AssetList)
+void FAsyncPackage::GetLoadedAssetsAndPackages(TSet<FWeakObjectPtr>& AssetList, TSet<UPackage*>& PackageList)
 {
 	for (UObject* Obj : PackageObjLoaded)
 	{
-		if (IsValid(Obj) && Obj->IsAsset())
+		if (!IsValid(Obj))
 		{
-			AssetList.AddUnique(Obj);
+			continue;
+		}
+		if (Obj->IsAsset())
+		{
+			AssetList.Add(Obj);
+		}
+		UPackage* Package = Obj->GetPackage();
+		if (Package && !Package->HasAnyFlags(RF_Transient) && !Package->HasAnyPackageFlags(PKG_InMemoryOnly))
+		{
+			PackageList.Add(Package);
 		}
 	}
 }
@@ -6088,7 +6102,7 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports(FFlushTree* FlushTree)
 			continue;
 		}
 
-		// Our import package name is the import name or the specified package name when the object isn't a package
+		// Our import package name is the import name itself if import is a package, else the specified package name
 		const FLinkerInstancingContext& InstancingContext = Linker->GetInstancingContext();
 		FName ImportToLoad = !Import->HasPackageName() ? Import->ObjectName : Import->GetPackageName();
 		FName ImportPackageFName = InstancingContext.Remap(ImportToLoad);
@@ -6791,7 +6805,7 @@ EAsyncPackageState::Type FAsyncPackage::FinishObjects()
 
 void FAsyncPackage::CloseDelayedLinkers()
 {
-	// Close any linkers that have been open as a result of blocking load while async loading
+	// Close any linkers that have been opened as a result of blocking loads while async loading
 	for (FLinkerLoad* LinkerToClose : DelayedLinkerClosePackages)
 	{
 		if (LinkerToClose->LinkerRoot != nullptr)
@@ -6832,15 +6846,6 @@ void FAsyncPackage::CallCompletionCallbacks(bool bInternal, EAsyncLoadingResult:
 	checkSlow(bInternal || !IsInAsyncLoadingThread());
 
 	UPackage* LoadedPackage = (!bLoadHasFailed) ? LinkerRoot : nullptr;
-#if WITH_EDITOR
-	if (!bInternal && GIsEditor && LoadedPackage)
-	{
-		// Call the global delegate for package endloads, which is a kind of external completioncallback,
-		// and set the bHasBeenLoaded flag that is used to check which packages have reached this state
-		LoadedPackage->bHasBeenEndLoaded = true;
-		FCoreUObjectDelegates::OnEndLoadPackage.Broadcast(TConstArrayView<UPackage*> { LoadedPackage });
-	}
-#endif
 	for (FCompletionCallback& CompletionCallback : CompletionCallbacks)
 	{
 		if (CompletionCallback.bIsInternal == bInternal && !CompletionCallback.bCalled)
@@ -6883,7 +6888,7 @@ void FAsyncPackage::Cancel()
 
 	FUObjectSerializeContext* LoadContext = GetSerializeContext();
 	if (LoadContext)
-		{			
+	{
 		TArray<UObject*>& ThreadObjLoaded = LoadContext->PRIVATE_GetObjectsLoadedInternalUseOnly();
 		if (ThreadObjLoaded.Num())
 		{
@@ -7012,7 +7017,7 @@ void FAsyncLoadingThread::FlushLoading(int32 PackageID)
 
 		double StartTime = FPlatformTime::Seconds();
 
-		// Flush async loaders by not using a time limit. Needed for e.g. garbage collection.
+		// Flush async loaders without using a time limit. Needed for e.g. garbage collection.
 		{
 			TUniquePtr<FFlushTree> FlushTree;
 			if (PackageID != INDEX_NONE)

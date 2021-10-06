@@ -496,8 +496,8 @@ struct FAsyncPackage : public FGCObject
 	UPackage* GetLoadedPackage();
 
 #if WITH_EDITOR
-	/** Gets all assets loaded by this async package, used in the editor */
-	void GetLoadedAssets(TArray<FWeakObjectPtr>& AssetList);
+	/** Gets all assets and packages loaded by this async package, used in the editor */
+	void GetLoadedAssetsAndPackages(TSet<FWeakObjectPtr>& AssetList, TSet<UPackage*>& PackageList);
 #endif
 
 	/** Checks if all dependencies (imported packages) of this package have been fully loaded */
