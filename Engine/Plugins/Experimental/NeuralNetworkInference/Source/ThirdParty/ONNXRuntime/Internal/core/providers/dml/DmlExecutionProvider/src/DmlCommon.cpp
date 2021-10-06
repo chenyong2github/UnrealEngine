@@ -1,4 +1,4 @@
-#ifdef PLATFORM_WIN64 
+#ifdef PLATFORM_WIN64 // WITH_UE
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
@@ -91,8 +91,7 @@ MLOperatorTensorDataType GetMlDataTypeFromDmlDataType(DML_TENSOR_DATA_TYPE tenso
     default: ML_INVALID_ARGUMENT("Unknown DML_TENSOR_DATA_TYPE.");
 #ifdef WITH_UE
 	return MLOperatorTensorDataType::Float;
-#endif
-
+#endif // WITH_UE
     };
 }
 

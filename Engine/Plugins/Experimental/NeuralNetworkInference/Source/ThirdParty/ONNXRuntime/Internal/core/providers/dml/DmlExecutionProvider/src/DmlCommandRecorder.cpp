@@ -1,12 +1,11 @@
-#ifdef PLATFORM_WIN64 
+#ifdef PLATFORM_WIN64 // WITH_UE
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-#include "ThirdPartyWarningDisabler.h"
+#include "ThirdPartyWarningDisabler.h" // WITH_UE
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
-
 #include "precomp.h"
 #include "DmlCommandRecorder.h"
 #include "CommandQueue.h"
@@ -110,10 +109,10 @@ void DmlCommandRecorder::InitializeOperator(
     {
 #ifndef WITH_UE
         m_currentCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(nullptr));
-#else
-		auto aux1 = CD3DX12_RESOURCE_BARRIER::UAV(nullptr);
-		m_currentCommandList->ResourceBarrier(1, &aux1);
-#endif
+#else //WITH_UE
+        auto aux1 = CD3DX12_RESOURCE_BARRIER::UAV(nullptr);
+        m_currentCommandList->ResourceBarrier(1, &aux1);
+#endif //WITH_UE
     }
 }
 
@@ -179,10 +178,10 @@ void DmlCommandRecorder::ExecuteOperator(
     // Barrier all outputs.
 #ifndef WITH_UE
     m_currentCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(nullptr));
-#else
-	auto aux1 = CD3DX12_RESOURCE_BARRIER::UAV(nullptr);
-	m_currentCommandList->ResourceBarrier(1, &aux1);
-#endif
+#else //WITH_UE
+    auto aux1 = CD3DX12_RESOURCE_BARRIER::UAV(nullptr);
+    m_currentCommandList->ResourceBarrier(1, &aux1);
+#endif //WITH_UE
 }
 
 void DmlCommandRecorder::CopyBufferRegion(
@@ -252,10 +251,10 @@ void DmlCommandRecorder::FillBufferWithPattern(
     // Barrier all outputs.
 #ifndef WITH_UE
     m_currentCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(nullptr));
-#else
-	auto aux1 = CD3DX12_RESOURCE_BARRIER::UAV(nullptr);
-	m_currentCommandList->ResourceBarrier(1, &aux1);
-#endif
+#else //WITH_UE
+    auto aux1 = CD3DX12_RESOURCE_BARRIER::UAV(nullptr);
+    m_currentCommandList->ResourceBarrier(1, &aux1);
+#endif //WITH_UE
 }
 
 void DmlCommandRecorder::ExecuteCommandList(
@@ -403,5 +402,5 @@ void DmlCommandRecorder::SetDescriptorHeap(ID3D12DescriptorHeap* descriptorHeap)
     }
 }
 
-NNI_THIRD_PARTY_INCLUDES_END
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
 #endif // PLATFORM_WIN64

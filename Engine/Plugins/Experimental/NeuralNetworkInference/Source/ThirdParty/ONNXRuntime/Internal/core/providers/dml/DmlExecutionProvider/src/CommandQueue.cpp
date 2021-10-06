@@ -1,23 +1,13 @@
-#ifdef PLATFORM_WIN64 
+#ifdef PLATFORM_WIN64 // WITH_UE
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-#ifndef WITH_UE
-
-#include "precomp.h"
-#include "CommandQueue.h"
-
-#else
-
-#include "ThirdPartyWarningDisabler.h"
+#include "ThirdPartyWarningDisabler.h" // WITH_UE
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
 #include "precomp.h"
 #include "CommandQueue.h"
-
-NNI_THIRD_PARTY_INCLUDES_END
-
-#endif
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
 
 namespace Dml
 {
