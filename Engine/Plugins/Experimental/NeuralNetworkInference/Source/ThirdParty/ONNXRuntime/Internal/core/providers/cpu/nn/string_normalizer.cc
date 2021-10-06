@@ -8,7 +8,7 @@
 #ifdef _MSC_VER
 #include <codecvt>
 #include <locale.h>
-#elif defined(__APPLE__) || defined(__ANDROID__) || (__PROSPERO__)
+#elif defined(__APPLE__) || defined(__ANDROID__) || (__PROSPERO__) // WITH_UE: Added PROSPERO
 #include <codecvt>
 #else
 #include <limits>
@@ -110,7 +110,7 @@ class Locale {
   std::locale loc_;
 };
 
-#if defined(__APPLE__) || defined(__ANDROID__) || (__PROSPERO__)
+#if defined(__APPLE__) || defined(__ANDROID__) || (__PROSPERO__) // WITH_UE: Added PROSPERO
 using Utf8Converter = std::wstring_convert<std::codecvt_utf8<wchar_t>>;
 #else
 

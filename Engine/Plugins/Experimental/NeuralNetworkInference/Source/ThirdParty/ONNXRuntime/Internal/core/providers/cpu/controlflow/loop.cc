@@ -22,7 +22,7 @@
 #include "core/framework/session_options.h"
 #include "core/framework/TensorSeq.h"
 
-#include "ThirdPartyWarningDisabler.h"
+#include "ThirdPartyWarningDisabler.h" // WITH_UE
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
 #include "gsl/gsl"
@@ -409,7 +409,6 @@ Status LoopImpl::Initialize() {
   auto cpu_allocator = session_state_.GetExecutionProviders()
                            .Get(onnxruntime::kCpuExecutionProvider)
                            ->GetAllocator(0, OrtMemTypeDefault);
-
   iter_num_mlvalue_ = MakeScalarMLValue<int64_t>(cpu_allocator, 0, iter_num_rank);
   condition_mlvalue_ = MakeScalarMLValue<bool>(cpu_allocator, condition_, condition_rank);
 
@@ -582,4 +581,4 @@ Status LoopImpl::Execute(const FeedsFetchesManager& ffm) {
   return status;
 }
 }  // namespace onnxruntime
-NNI_THIRD_PARTY_INCLUDES_END
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
