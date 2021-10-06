@@ -599,15 +599,17 @@ bool FGroupTopologySelector::FindSelectedElement(const FSelectionSettings& Setti
 	FDynamicMeshAABBTree3* Spatial = GetSpatial();
 
 	// Needed for occlusion test, which happens in local space.
-	FVector3d LocalCameraOrigin = TargetTransform.InverseTransformPosition((FVector3d)CameraRectangle.CameraOrigin);
+	FVector3d LocalCameraOrigin = TargetTransform.InverseTransformPosition((FVector3d)CameraRectangle.CameraState.Position);
 	
 	// Corner selection takes priority over edges.
 	if (Settings.bEnableCornerHits)
 	{
 		GeometrySet.ParallelFindAllPointsSatisfying(
-			[&CameraRectangle, &TargetTransform, &Settings, &LocalCameraOrigin, Spatial](const FVector3d& PointPosition)
+			[&CameraRectangle, &TargetTransform, &Settings, &LocalCameraOrigin, Spatial]
+			(const FVector3d& PointPosition)
 			{
-				return CameraRectangle.IsProjectedPointInRectangle((FVector)TargetTransform.TransformPosition(PointPosition))
+				FVector TransformedPoint = TargetTransform.TransformPosition(PointPosition);
+				return CameraRectangle.IsProjectedPointInRectangle(TransformedPoint)
 					&& (Settings.bIgnoreOcclusion || !IsOccluded(PointPosition, LocalCameraOrigin, Spatial));
 			},
 			ResultOut.SelectedCornerIDs);

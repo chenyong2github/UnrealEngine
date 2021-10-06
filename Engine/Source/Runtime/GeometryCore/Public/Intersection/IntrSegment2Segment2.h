@@ -138,7 +138,10 @@ public:
 		return *this;
 	}
 
+	// This is implemented in TSegment2::Intersects
+	// bool Test()
 
+	// Note: This implementation is identical to TSegment2::Intersects but also computes the intersection geometry
 	bool Find()
 	{
 		if (Result != EIntersectionResult::NotComputed)
@@ -179,7 +182,7 @@ public:
 		}
 		else if (Type == EIntersectionType::Line)
 		{
-			// Compute the location of Segment1 endpoints relative to segment0.
+			// Compute the location of Segment2 endpoints relative to Segment1.
 			TVector2<RealType> diff = Segment2.Center - Segment1.Center;
 			RealType t1 = Segment1.Direction.Dot(diff);
 			RealType tmin = t1 - Segment2.Extent;

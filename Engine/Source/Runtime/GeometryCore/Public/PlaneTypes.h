@@ -42,6 +42,15 @@ struct TPlane3
 		Normal = VectorUtil::Normal(P0, P1, P2);
 		Constant = Normal.Dot(P0);
 	}
+	
+	explicit TPlane3(const FPlane& Plane) : TPlane3(Plane.GetNormal(), Plane.W)
+	{
+	}
+	
+	explicit operator FPlane() const
+	{
+		return FPlane(Normal.X, Normal.Y, Normal.Z, Constant);
+	}
 
 
 	/**
@@ -106,25 +115,35 @@ struct TPlane3
 	}
 
 
+	enum EClipSegmentType
+	{
+		FullyClipped,
+		FirstClipped,
+		SecondClipped,
+		NotClipped
+	};
 
 	/**
 	 * Clip line segment defined by two points against plane. Region of Segment on positive side of Plane is kept.
-	 * Note that the line may be fully clipped, in that case 0 is returned
+	 * 
 	 * @param Point0 first point of segment
 	 * @param Point1 second point of segment
-	 * @return 0 if line is fully clipped, 1 if line is partially clipped, 2 if line is not clipped
+	 * @return FullyClipped if the segment lies fully behind or exactly in the plane
+	 *         FirstClipped if Point0 became the intersection point on the plane
+	 *         SecondClipped if Point1 became the intersection point on the plane
+	 *         NotClipped if the segment lies fully in front of the plane
 	 */
-	int ClipSegment(UE::Math::TVector<RealType>& Point0, UE::Math::TVector<RealType>& Point1)
+	EClipSegmentType ClipSegment(UE::Math::TVector<RealType>& Point0, UE::Math::TVector<RealType>& Point1) const
 	{
 		RealType Dist0 = DistanceTo(Point0);
 		RealType Dist1 = DistanceTo(Point1);
 		if (Dist0 <= 0 && Dist1 <= 0)
 		{
-			return 0;
+			return EClipSegmentType::FullyClipped;
 		}
-		else if (Dist0 * Dist1 >= 0)
+		else if (Dist0 * Dist1 > 0)
 		{
-			return 2;
+			return EClipSegmentType::NotClipped;
 		}
 
 		TVector<RealType> DirectionVec = Point1 - Point0;
@@ -135,7 +154,7 @@ struct TPlane3
 		RealType NormalDot = Direction.Dot(Normal);
 		if ( TMathUtil<RealType>::Abs(NormalDot) < TMathUtil<RealType>::ZeroTolerance )
 		{
-			return 2;
+			return EClipSegmentType::NotClipped;
 		}
 
 		RealType LineT = -Dist0 / NormalDot;  // calculate line parameter for line/plane intersection
@@ -144,14 +163,15 @@ struct TPlane3
 			if (NormalDot < 0)
 			{
 				Point1 = Point0 + LineT * Direction;
+				return EClipSegmentType::SecondClipped;
 			}
 			else
 			{
 				Point0 += LineT * Direction;
+				return EClipSegmentType::FirstClipped;
 			}
-			return 1;
 		}
-		return 2;
+		return EClipSegmentType::NotClipped;
 	}
 
 };

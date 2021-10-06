@@ -6,46 +6,80 @@
 #include "InputBehavior.h"
 #include "InteractionMechanic.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
-#include "TransformTypes.h"
+#include "GeometryBase.h"
+#include "BoxTypes.h"
+#include "PlaneTypes.h"
+#include "SegmentTypes.h"
 #include "VectorTypes.h"
 
 #include "RectangleMarqueeMechanic.generated.h"
 
 class UClickDragInputBehavior;
 
+PREDECLARE_USE_GEOMETRY_CLASS(FGeometrySet3);
+
 /// Struct containing:
 ///		- camera information, 
-///		- a 3D plane just in front of the camera,
-///		- a 2D basis for coordinates in this plane, and
-///		- the corners of a rectangle contained in this plane, in this 2D basis
+///		- input device rays used to define the corners of a rectangle contained in a selection plane, the device ray
+///		  screen positions could be used to change the selection behavior when dragging from the top right to bottom
+///		  left or vice-versa
 /// 
 struct MODELINGCOMPONENTS_API FCameraRectangle
 {
-	FCameraRectangle() {};
-	FCameraRectangle(const FViewCameraState& CachedCameraState,
-					 const FRay& DragStartWorldRay,
-					 const FRay& DragEndWorldRay);
+	using FGeometrySet3 = UE::Geometry::FGeometrySet3;
+	using FAxisAlignedBox2 = UE::Geometry::TAxisAlignedBox2<FVector::FReal>;
+	using FPlane3 = UE::Geometry::TPlane3<FVector::FReal>;
+	using FSegment2 = UE::Geometry::TSegment2<FVector::FReal>;
+	using FVector2 = UE::Math::TVector2<FVector::FReal>;
 
-	FVector CameraOrigin;
-	bool bCameraIsOrthographic;
-	FPlane CameraPlane;
-	FVector UBasisVector;
-	FVector VBasisVector;
-	FBox2D RectangleCorners;
+	FViewCameraState CameraState;
+	FInputDeviceRay RectangleStartRay = FInputDeviceRay(FRay());
+	FInputDeviceRay RectangleEndRay = FInputDeviceRay(FRay());
+	FPlane3 CameraPlane;
+	FAxisAlignedBox2 RectangleInCameraPlane;
 
-	// Project the given 3D point to the camera plane and test if it's in the rectangle
+	// This function must be called before other member functions whenever camera state or start/end rays are updated
+	void Initialize();
+	
+	bool bIsInitialized = false;
+
+	// Return an axis aligned box (the region of a marquee selection) in the UV-coordinate system of a plane offset from
+	// CameraPlane by the given distance in the CameraPlane normal direction. This function was added in order to
+	// implement optimizations (avoid projecting points) when selecting UV editor meshes, which lie in the XY plane
+	FAxisAlignedBox2 GetSelectionRectangleUV(double OffsetFromCameraPlane = 0.) const;
+
+	// Return true if the given 3D geometry projected to the camera plane is inside or intersecting the rectangle, and
+	// false otherwise
 	bool IsProjectedPointInRectangle(const FVector& Point) const;
-
-	// Project the given segment to the camera plane and test if it intersects the rectangle
 	bool IsProjectedSegmentIntersectingRectangle(const FVector& Endpoint1, const FVector& Endpoint2) const;
+	// bool IsProjectedTriangleIntersectingRectangle(const FVector& A, const FVector& B, const FVector& C) const;
 
-	// TODO: Add a way to test rectangle against triangles.
-
-	FVector2D PlaneCoordinates(const FVector& Point) const
+	// Return the 3D point obtained by projecting the given 3D Point onto the given projection plane
+	// Note: Assumes an orthographic camera
+	static FVector OrthographicProjection(const FPlane3& Plane, const FVector& Point)
 	{
-		float U = FVector::DotProduct(Point - CameraPlane.GetOrigin(), UBasisVector);
-		float V = FVector::DotProduct(Point - CameraPlane.GetOrigin(), VBasisVector);
-		return FVector2D{ U,V };
+		return FVector::PointPlaneProject(Point, (FPlane)Plane);
+	}
+
+	// Return the 3D point obtained by projecting the given 3D Point onto the given projection plane
+	// Note: OrthographicProjection is more efficient if the camera is known to be orthographic
+	FVector PerspectiveProjection(const FPlane3& Plane, const FVector& Point) const
+	{
+		ensure(bIsInitialized);
+		return FMath::RayPlaneIntersection(CameraState.Position, Point - CameraState.Position, (FPlane)Plane);
+	}
+
+	// Given a 3D point lying in the given plane, return the UV coordinates of the point expressed in the following a
+	// two dimensional parameterization of the given plane:
+	// - the 2D origin (0,0) is located at the foot of the projection of cartesian point (0,0,0) onto the plane
+	// - the U basis vector is the camera right vector
+	// - the V basis vector is the camera up vector
+	FVector2 PlaneCoordinates(const FPlane3& Plane, const FVector& PointInPlane) const
+	{
+		ensure(bIsInitialized);
+		FVector::FReal U = FVector::DotProduct(PointInPlane - ((FPlane)Plane).GetOrigin(), CameraState.Right());
+		FVector::FReal V = FVector::DotProduct(PointInPlane - ((FPlane)Plane).GetOrigin(), CameraState.Up());
+		return FVector2{U, V};
 	}
 };
 
@@ -129,7 +163,7 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UClickDragInputBehavior> ClickDragBehavior = nullptr;
 
-	FViewCameraState CachedCameraState;
+	FCameraRectangle CameraRectangle;
 
 	FInputCapturePriority BasePriority = FInputCapturePriority(FInputCapturePriority::DEFAULT_TOOL_PRIORITY);
 
@@ -143,8 +177,4 @@ private:
 
 	bool bIsEnabled;
 	bool bIsDragging;
-	FVector2D DragStartScreenPosition;
-	FRay DragStartWorldRay;
-	FVector2D DragCurrentScreenPosition;
-	FCameraRectangle LastRectangle;
 };

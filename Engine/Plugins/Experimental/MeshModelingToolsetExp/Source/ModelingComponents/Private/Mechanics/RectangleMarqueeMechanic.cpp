@@ -5,127 +5,128 @@
 #include "CanvasTypes.h"
 #include "CanvasItem.h"
 #include "ToolSceneQueriesUtil.h"
-#include "TransformTypes.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+#include "Intersection/IntrSegment2Segment2.h"
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "URectangleMarqueeMechanic"
 
-
-FCameraRectangle::FCameraRectangle(const FViewCameraState& CachedCameraState,
-								   const FRay& DragStartWorldRay,
-								   const FRay& DragEndWorldRay)
+void FCameraRectangle::Initialize()
 {
-	// Create a plane just in front of the camera
-	CameraOrigin = CachedCameraState.Position;
-	CameraPlane = FPlane(CachedCameraState.Position + CachedCameraState.Forward(), CachedCameraState.Forward());
-	bCameraIsOrthographic = CachedCameraState.bIsOrthographic;
+	bIsInitialized = true;
+	CameraPlane = FPlane3(CameraState.Forward(), CameraState.Position + CameraState.Forward());
+	RectangleInCameraPlane = GetSelectionRectangleUV();
+}
 
-	// Intersect the drag rays with the camera plane and compute their coordinates in the camera basis
-	UBasisVector = CachedCameraState.Right();
-	VBasisVector = CachedCameraState.Up();
+FCameraRectangle::FAxisAlignedBox2 FCameraRectangle::GetSelectionRectangleUV(double OffsetFromCameraPlane) const
+{
+	ensure(bIsInitialized);
+	
+	FAxisAlignedBox2 Result;
 
-	FVector StartIntersection = FMath::RayPlaneIntersection(DragStartWorldRay.Origin,
-															DragStartWorldRay.Direction,
-															CameraPlane);
-	FVector2D Start2D = PlaneCoordinates(StartIntersection);
+	FPlane3 SelectionPlane = CameraPlane;
+	SelectionPlane.Constant += OffsetFromCameraPlane;
+	
+	FVector ProjectedStart = FMath::RayPlaneIntersection(RectangleStartRay.WorldRay.Origin, RectangleStartRay.WorldRay.Direction, (FPlane)SelectionPlane);
+	FVector ProjectedEnd = FMath::RayPlaneIntersection(RectangleEndRay.WorldRay.Origin, RectangleEndRay.WorldRay.Direction, (FPlane)SelectionPlane);
+	FVector2 StartUV = PlaneCoordinates(SelectionPlane, ProjectedStart);
+	FVector2 EndUV = PlaneCoordinates(SelectionPlane, ProjectedEnd);
 
-	FVector CurrentIntersection = FMath::RayPlaneIntersection(DragEndWorldRay.Origin,
-															  DragEndWorldRay.Direction,
-															  CameraPlane);
+	// Initialize this way so we don't have to care about min/max
+	Result.Contain(StartUV);
+	Result.Contain(EndUV);
 
-	FVector2D Current2D = PlaneCoordinates(CurrentIntersection);
-
-	RectangleCorners = FBox2D(Start2D, Start2D);
-	RectangleCorners += Current2D;	// Initialize this way so we don't have to care about min/max
+	return Result;
 }
 
 bool FCameraRectangle::IsProjectedPointInRectangle(const FVector& Point) const
 {
+	ensure(bIsInitialized);
+	
 	FVector ProjectedPoint;
-	if (bCameraIsOrthographic)
+	if (CameraState.bIsOrthographic)
 	{
-		// project directly to plane
-		ProjectedPoint = FVector::PointPlaneProject(Point, CameraPlane);
+		ProjectedPoint = OrthographicProjection(CameraPlane, Point);
 	}
 	else
 	{
-		// If it's behind the camera rectangle, then not contained.
-		if (CameraPlane.PlaneDot(Point) < 0)
+		// If it's not in front of the camera plane, its not contained in the camera rectangle
+		if (CameraPlane.DistanceTo(Point) <= 0)
 		{
 			return false;
 		}
-
-		// intersect along the eye-to-point ray
-		ProjectedPoint = FMath::RayPlaneIntersection(CameraOrigin,
-													 Point - CameraOrigin,
-													 CameraPlane);
+		ProjectedPoint = PerspectiveProjection(CameraPlane, Point);
 	}
 
-	FVector2D Point2D = PlaneCoordinates(ProjectedPoint);
-	return RectangleCorners.IsInside(Point2D);
+	FVector2 PointUV = PlaneCoordinates(CameraPlane, ProjectedPoint);
+	return RectangleInCameraPlane.Contains(PointUV);
 }
 
 bool FCameraRectangle::IsProjectedSegmentIntersectingRectangle(const FVector& Endpoint1, const FVector& Endpoint2) const
 {
+	ensure(bIsInitialized);
+	
 	FVector ProjectedEndpoint1;
 	FVector ProjectedEndpoint2;
 
-	if (bCameraIsOrthographic)
+	if (CameraState.bIsOrthographic)
 	{
-		ProjectedEndpoint1 = FVector::PointPlaneProject(Endpoint1, CameraPlane);
-		ProjectedEndpoint2 = FVector::PointPlaneProject(Endpoint2, CameraPlane);
+		ProjectedEndpoint1 = OrthographicProjection(CameraPlane, Endpoint1);
+		ProjectedEndpoint2 = OrthographicProjection(CameraPlane, Endpoint2);
 	}
 	else
 	{
-		// We'll have to crop the segment to the portion in front of the camera plane
-		bool bPoint1InFrontOfCamera = CameraPlane.PlaneDot(Endpoint1) > 0;
-		bool bPoint2InFrontOfCamera = CameraPlane.PlaneDot(Endpoint2) > 0;
+		ProjectedEndpoint1 = Endpoint1;
+		ProjectedEndpoint2 = Endpoint2;
+
+		// We have to crop the segment to the portion in front of the camera plane
+		FPlane3::EClipSegmentType ClipType = CameraPlane.ClipSegment(ProjectedEndpoint1, ProjectedEndpoint2);
 		
-		if (!bPoint1InFrontOfCamera && !bPoint2InFrontOfCamera)
+		// Since the selection plane is identical to the clipping plane there's no need to reproject clipped points
+		switch (ClipType)
 		{
-			return false; // Segment is behind the camera plane
+			case FPlane3::FullyClipped:
+				return false; // Segment is behind the camera plane hence not in the camera rectangle
+			case FPlane3::FirstClipped:
+				ProjectedEndpoint2 = PerspectiveProjection(CameraPlane, ProjectedEndpoint2);
+				break;
+			case FPlane3::SecondClipped:
+				ProjectedEndpoint1 = PerspectiveProjection(CameraPlane, ProjectedEndpoint1);
+				break;
+			case FPlane3::NotClipped:
+			default:
+				ProjectedEndpoint1 = PerspectiveProjection(CameraPlane, ProjectedEndpoint1);
+				ProjectedEndpoint2 = PerspectiveProjection(CameraPlane, ProjectedEndpoint2);
 		}
-
-		FVector IntersectionPoint;
-		if (bPoint1InFrontOfCamera != bPoint2InFrontOfCamera)
-		{
-			// Get the intersection point so we can replace the endpoint that is behind the camera with it.
-			ensure(FMath::SegmentPlaneIntersection(Endpoint1, Endpoint2, CameraPlane, IntersectionPoint));
-		}
-
-		ProjectedEndpoint1 = bPoint1InFrontOfCamera ? FMath::RayPlaneIntersection(CameraOrigin, Endpoint1 - CameraOrigin, CameraPlane)
-			: IntersectionPoint;
-		ProjectedEndpoint2 = bPoint2InFrontOfCamera ? FMath::RayPlaneIntersection(CameraOrigin, Endpoint2 - CameraOrigin, CameraPlane)
-			: IntersectionPoint;
 	}
 
-	FVector2D Endpoint1PlaneCoord = PlaneCoordinates(ProjectedEndpoint1);
-	FVector2D Endpoint2PlaneCoord = PlaneCoordinates(ProjectedEndpoint2);
+	// TODO Port Wild Magic IntrSegment2Box2 (which requires porting IntrLine2Box2) so we can call segment-box intersection here
+
+	FVector2 Endpoint1UV = PlaneCoordinates(CameraPlane, ProjectedEndpoint1);
+	FVector2 Endpoint2UV = PlaneCoordinates(CameraPlane, ProjectedEndpoint2);
+	FSegment2 ProjectedSegmentUV(Endpoint1UV, Endpoint2UV);
 
 	// If either endpoint is inside, then definitely (at least partially) contained
-	if (RectangleCorners.IsInside(Endpoint1PlaneCoord) || RectangleCorners.IsInside(Endpoint2PlaneCoord))
+	if (RectangleInCameraPlane.Contains(ProjectedSegmentUV.StartPoint()) ||
+		RectangleInCameraPlane.Contains(ProjectedSegmentUV.EndPoint()))
 	{
 		return true;
 	}
 
-	// If both outside, have to do some intersections with the box sides. The function we have for this
-	// uses FVectors instead of FVector2Ds.
-	ProjectedEndpoint1 = FVector(Endpoint1PlaneCoord, 0);
-	ProjectedEndpoint2 = FVector(Endpoint2PlaneCoord, 0);
-	FVector Throwaway;
-	return FMath::SegmentIntersection2D(ProjectedEndpoint1, ProjectedEndpoint2, 
-		FVector(RectangleCorners.Min, 0), FVector(RectangleCorners.Max.X, RectangleCorners.Min.Y, 0), 
-		Throwaway)
+	// If both outside, have to do some intersections with the box sides
 
-		|| FMath::SegmentIntersection2D(ProjectedEndpoint1, ProjectedEndpoint2, 
-			FVector(RectangleCorners.Max.X, RectangleCorners.Min.Y, 0), FVector(RectangleCorners.Max, 0), 
-			Throwaway)
+	if (ProjectedSegmentUV.Intersects(FSegment2(RectangleInCameraPlane.GetCorner(0), RectangleInCameraPlane.GetCorner(1))))
+	{
+		return true;
+	}
 
-		|| FMath::SegmentIntersection2D(ProjectedEndpoint1, ProjectedEndpoint2,
-			FVector(RectangleCorners.Max, 0), FVector(RectangleCorners.Min.X, RectangleCorners.Max.Y, 0), 
-			Throwaway);
+	if (ProjectedSegmentUV.Intersects(FSegment2(RectangleInCameraPlane.GetCorner(1), RectangleInCameraPlane.GetCorner(2))))
+	{
+		return true;
+	}
+
+	return ProjectedSegmentUV.Intersects(FSegment2(RectangleInCameraPlane.GetCorner(3), RectangleInCameraPlane.GetCorner(2)));
 
 	// Don't need to intersect with the fourth side because segment would have to intersect two sides
 	// of box if both endpoints are outside the box.
@@ -179,7 +180,7 @@ TPair<FInputCapturePriority, FInputCapturePriority> URectangleMarqueeMechanic::G
 void URectangleMarqueeMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	// Cache the camera state
-	GetParentTool()->GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CachedCameraState);
+	GetParentTool()->GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraRectangle.CameraState);
 }
 
 FInputRayHit URectangleMarqueeMechanic::CanBeginClickDragSequence(const FInputDeviceRay& PressPos)
@@ -197,8 +198,9 @@ void URectangleMarqueeMechanic::OnClickPress(const FInputDeviceRay& PressPos)
 		return;
 	}
 
-	DragStartScreenPosition = PressPos.ScreenPosition;
-	DragStartWorldRay = PressPos.WorldRay;
+	CameraRectangle.RectangleStartRay = PressPos;
+	CameraRectangle.RectangleEndRay = PressPos;
+	CameraRectangle.Initialize();
 
 	OnDragRectangleStarted.Broadcast();
 }
@@ -211,25 +213,22 @@ void URectangleMarqueeMechanic::OnClickDrag(const FInputDeviceRay& DragPos)
 	}
 
 	bIsDragging = true;
-	DragCurrentScreenPosition = DragPos.ScreenPosition;
-	FRay DragCurrentWorldRay = DragPos.WorldRay;
-
-	FCameraRectangle Rectangle(CachedCameraState, DragStartWorldRay, DragCurrentWorldRay);
-	LastRectangle = Rectangle;
-
-	OnDragRectangleChanged.Broadcast(Rectangle);
+	CameraRectangle.RectangleEndRay = DragPos;
+	CameraRectangle.Initialize();
+	
+	OnDragRectangleChanged.Broadcast(CameraRectangle);
 }
 
 void URectangleMarqueeMechanic::OnClickRelease(const FInputDeviceRay& ReleasePos)
 {
 	bIsDragging = false;
-	OnDragRectangleFinished.Broadcast(LastRectangle, false);
+	OnDragRectangleFinished.Broadcast(CameraRectangle, false);
 }
 
 void URectangleMarqueeMechanic::OnTerminateDragSequence()
 {
 	bIsDragging = false;
-	OnDragRectangleFinished.Broadcast(LastRectangle, true);
+	OnDragRectangleFinished.Broadcast(CameraRectangle, true);
 }
 
 
@@ -239,8 +238,8 @@ void URectangleMarqueeMechanic::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI*
 	bool bThisViewHasFocus = !!(State & EViewInteractionState::Focused);
 	if (bThisViewHasFocus && bIsDragging)
 	{
-		FVector2D Start = DragStartScreenPosition;
-		FVector2D Curr = DragCurrentScreenPosition;
+		FVector2D Start = CameraRectangle.RectangleStartRay.ScreenPosition;
+		FVector2D Curr = CameraRectangle.RectangleEndRay.ScreenPosition;
 		FCanvasBoxItem BoxItem(Start / Canvas->GetDPIScale(), (Curr - Start) / Canvas->GetDPIScale());
 		BoxItem.SetColor(FLinearColor::White);
 		Canvas->DrawItem(BoxItem);
