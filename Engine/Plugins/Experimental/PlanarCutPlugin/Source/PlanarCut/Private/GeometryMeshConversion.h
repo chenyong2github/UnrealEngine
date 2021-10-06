@@ -157,14 +157,14 @@ struct PLANARCUT_API FDynamicMeshCollection
 		// FDynamicMeshAABBTree3 Spatial; // TODO: maybe refactor mesh booleans to allow version where caller provides spatial data; it's computed every boolean now
 		// FTransform3d Transform; // TODO: maybe pretransform the data to a space that is good for cutting; refactor mesh boolean so there is an option to have it not transform input
 		int32 TransformIndex; // where the mesh was from in the geometry collection
-		FTransform ToCollection; // transform that need be applied to go back to the local space of the geometry collection
+		FTransform FromCollection; // transform that was used to go from the geometry collection to the local space used for processing
 
 		FMeshData(int32 NumUVLayers)
 		{
 			SetGeometryCollectionAttributes(AugMesh, NumUVLayers);
 		}
 
-		FMeshData(const UE::Geometry::FDynamicMesh3& Mesh, int32 TransformIndex, FTransform ToCollection) : AugMesh(Mesh), TransformIndex(TransformIndex), ToCollection(ToCollection)
+		FMeshData(const UE::Geometry::FDynamicMesh3& Mesh, int32 TransformIndex, FTransform FromCollection) : AugMesh(Mesh), TransformIndex(TransformIndex), FromCollection(FromCollection)
 		{}
 
 		void SetMesh(const UE::Geometry::FDynamicMesh3& NewAugMesh)
@@ -201,7 +201,17 @@ struct PLANARCUT_API FDynamicMeshCollection
 		Init(Collection, TransformIndices, TransformCollection, bSaveIsolatedVertices);
 	}
 
-	void Init(const FGeometryCollection* Collection, const TArrayView<const int32>& TransformIndices, FTransform TransformCollection, bool bSaveIsolatedVertices = false);
+	FDynamicMeshCollection(const FGeometryCollection* Collection, const TManagedArray<FTransform>& Transforms, const TArrayView<const int32>& TransformIndices, FTransform TransformCollection, bool bSaveIsolatedVertices = false)
+	{
+		Init(Collection, Transforms, TransformIndices, TransformCollection, bSaveIsolatedVertices);
+	}
+
+	void Init(const FGeometryCollection* Collection, const TArrayView<const int32>& TransformIndices, FTransform TransformCollection, bool bSaveIsolatedVertices = false)
+	{
+		Init(Collection, Collection->Transform, TransformIndices, TransformCollection, bSaveIsolatedVertices);
+	}
+
+	void Init(const FGeometryCollection* Collection, const TManagedArray<FTransform>& Transforms, const TArrayView<const int32>& TransformIndices, FTransform TransformCollection, bool bSaveIsolatedVertices = false);
 
 	int32 CutWithMultiplePlanes(
 		const TArrayView<const FPlane>& Planes,
@@ -247,12 +257,12 @@ struct PLANARCUT_API FDynamicMeshCollection
 	// Resizes the GeometryCollection as needed
 	bool UpdateAllCollections(FGeometryCollection& Collection);
 
-	static int32 AppendToCollection(const FTransform& ToCollection, UE::Geometry::FDynamicMesh3& Mesh, double CollisionSampleSpacing, int32 TransformParent, FString BoneName, FGeometryCollection& Output, int32 InternalMaterialID);
+	static int32 AppendToCollection(const FTransform& FromCollection, UE::Geometry::FDynamicMesh3& Mesh, double CollisionSampleSpacing, int32 TransformParent, FString BoneName, FGeometryCollection& Output, int32 InternalMaterialID);
 
 private:
 
 	// Update an existing geometry in a collection w/ a new mesh (w/ the same number of faces and vertices!)
-	static bool UpdateCollection(const FTransform& ToCollection, UE::Geometry::FDynamicMesh3& Mesh, int32 GeometryIdx, FGeometryCollection& Output, int32 InternalMaterialID);
+	static bool UpdateCollection(const FTransform& FromCollection, UE::Geometry::FDynamicMesh3& Mesh, int32 GeometryIdx, FGeometryCollection& Output, int32 InternalMaterialID);
 
 	void FillVertexHash(const UE::Geometry::FDynamicMesh3& Mesh, UE::Geometry::TPointHashGrid3d<int>& VertHash);
 
