@@ -1196,6 +1196,43 @@ namespace HordeServerTests
 			}
 		}
 
+		[TestMethod]
+		public async Task AutoResolveTest()
+		{
+			int IssueId;
+
+			// #1
+			// Scenario: Warning in first step
+			// Expected: Default issue is created
+			{
+				IJob Job = CreateJob(MainStreamId, 105, "Test Build", Graph);
+				await AddEvent(Job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
+				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Warnings);
+
+				List<IIssue> Issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, Issues.Count);
+				Assert.AreEqual(IssueSeverity.Warning, Issues[0].Severity);
+
+				Assert.AreEqual("Warnings in Update Version Files", Issues[0].Summary);
+
+				IssueId = Issues[0].Id;
+			}
+
+			// #2
+			// Scenario: Job succeeds
+			// Expected: Issue is marked as resolved
+			{
+				IJob Job = CreateJob(MainStreamId, 115, "Test Build", Graph);
+				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Success);
+
+				IIssue? Issue = await IssueService.GetIssueAsync(IssueId);
+				Assert.IsNotNull(Issue!.ResolvedAt);
+
+				List<IIssueSpan> Spans = await IssueService.GetIssueSpansAsync(Issue);
+				Assert.AreEqual(Spans.Count, 1);
+			}
+		}
+
 		private async Task ParseAsync(ObjectId LogId, string[] Lines)
 		{
 			LogParserContext Context = new LogParserContext();
