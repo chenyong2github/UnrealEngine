@@ -7,7 +7,7 @@
 #include "MassAIMovementTypes.h"
 #include "MassMovementSettings.generated.h"
 
-UCLASS(config = Engine, defaultconfig, meta = (DisplayName = "Mass Movement"))
+UCLASS(config = Mass, defaultconfig, meta = (DisplayName = "Mass Movement"))
 class MASSAIMOVEMENT_API UMassMovementSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()

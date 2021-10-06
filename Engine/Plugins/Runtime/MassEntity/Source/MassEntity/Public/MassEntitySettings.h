@@ -44,9 +44,9 @@ struct FMassProcessingPhaseConfig
 };
 
 /**
- * Implements the settings for MassSimulation
+ * Implements the settings for MassEntity plugin
  */
-UCLASS(config = Game, defaultconfig, DisplayName = "Mass")
+UCLASS(config = Mass, defaultconfig, DisplayName = "Mass")
 class MASSENTITY_API UMassSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()

@@ -24,7 +24,7 @@ struct MASSAIMOVEMENT_API FMassAvoidanceVelocityFilter
 	float HighSpeed = 50.f;
 };
 
-UCLASS(config = Engine, defaultconfig, meta = (DisplayName = "Mass Avoidance"))
+UCLASS(config = Mass, defaultconfig, meta = (DisplayName = "Mass Avoidance"))
 class MASSAIMOVEMENT_API UMassAvoidanceSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()

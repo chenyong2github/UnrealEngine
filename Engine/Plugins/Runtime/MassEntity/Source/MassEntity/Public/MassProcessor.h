@@ -38,7 +38,7 @@ struct FMassProcessorExecutionOrder
 };
 
 
-UCLASS(abstract, EditInlineNew, CollapseCategories, config = Game, defaultconfig)
+UCLASS(abstract, EditInlineNew, CollapseCategories, config = Mass, defaultconfig)
 class MASSENTITY_API UMassProcessor : public UObject
 {
 	GENERATED_BODY()

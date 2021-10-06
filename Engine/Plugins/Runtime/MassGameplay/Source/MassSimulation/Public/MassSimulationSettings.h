@@ -12,7 +12,7 @@ class UMassSchematic;
 /**
  * Implements the settings for MassSimulation
  */
-UCLASS(config = Game, defaultconfig, DisplayName = "Mass")
+UCLASS(config = Mass, defaultconfig, DisplayName = "Mass Simulation")
 class MASSSIMULATION_API UMassSimulationSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
