@@ -2374,28 +2374,28 @@ FORCEINLINE TVector<T> TVector<T>::Max3(const TVector<T>& A, const TVector<T>& B
 }
 
 #if !defined(_MSC_VER) || defined(__clang__)  // MSVC can't forward declare explicit specializations
-template<> const FVector3f FVector3f::ZeroVector;
-template<> const FVector3f FVector3f::OneVector;
-template<> const FVector3f FVector3f::UpVector;
-template<> const FVector3f FVector3f::DownVector;
-template<> const FVector3f FVector3f::ForwardVector;
-template<> const FVector3f FVector3f::BackwardVector;
-template<> const FVector3f FVector3f::RightVector;
-template<> const FVector3f FVector3f::LeftVector;
-template<> const FVector3f FVector3f::XAxisVector;
-template<> const FVector3f FVector3f::YAxisVector;
-template<> const FVector3f FVector3f::ZAxisVector;
-template<> const FVector3d FVector3d::ZeroVector;
-template<> const FVector3d FVector3d::OneVector;
-template<> const FVector3d FVector3d::UpVector;
-template<> const FVector3d FVector3d::DownVector;
-template<> const FVector3d FVector3d::ForwardVector;
-template<> const FVector3d FVector3d::BackwardVector;
-template<> const FVector3d FVector3d::RightVector;
-template<> const FVector3d FVector3d::LeftVector;
-template<> const FVector3d FVector3d::XAxisVector;
-template<> const FVector3d FVector3d::YAxisVector;
-template<> const FVector3d FVector3d::ZAxisVector;
+template<> CORE_API const FVector3f FVector3f::ZeroVector;
+template<> CORE_API const FVector3f FVector3f::OneVector;
+template<> CORE_API const FVector3f FVector3f::UpVector;
+template<> CORE_API const FVector3f FVector3f::DownVector;
+template<> CORE_API const FVector3f FVector3f::ForwardVector;
+template<> CORE_API const FVector3f FVector3f::BackwardVector;
+template<> CORE_API const FVector3f FVector3f::RightVector;
+template<> CORE_API const FVector3f FVector3f::LeftVector;
+template<> CORE_API const FVector3f FVector3f::XAxisVector;
+template<> CORE_API const FVector3f FVector3f::YAxisVector;
+template<> CORE_API const FVector3f FVector3f::ZAxisVector;
+template<> CORE_API const FVector3d FVector3d::ZeroVector;
+template<> CORE_API const FVector3d FVector3d::OneVector;
+template<> CORE_API const FVector3d FVector3d::UpVector;
+template<> CORE_API const FVector3d FVector3d::DownVector;
+template<> CORE_API const FVector3d FVector3d::ForwardVector;
+template<> CORE_API const FVector3d FVector3d::BackwardVector;
+template<> CORE_API const FVector3d FVector3d::RightVector;
+template<> CORE_API const FVector3d FVector3d::LeftVector;
+template<> CORE_API const FVector3d FVector3d::XAxisVector;
+template<> CORE_API const FVector3d FVector3d::YAxisVector;
+template<> CORE_API const FVector3d FVector3d::ZAxisVector;
 #endif
 
 /**

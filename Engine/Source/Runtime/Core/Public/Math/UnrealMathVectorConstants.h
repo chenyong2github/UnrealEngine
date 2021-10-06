@@ -9,24 +9,15 @@
 // Long-term, we should only have one set of constexpr make functions without the Constant suffix.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FORCEINLINE constexpr VectorRegister4Float MakeVectorRegisterFloatConstant(float X, float Y, float Z, float W)
+FORCEINLINE constexpr VectorRegister4Double MakeVectorRegisterDoubleConstant(const VectorRegister2Double& XY, const VectorRegister2Double& ZW)
 {
-	return { X, Y, Z, W };
-}
-
-FORCEINLINE constexpr VectorRegister2Double MakeVectorRegister2DoubleConstant(double X, double Y)
-{
-	return { X, Y };
+	return VectorRegister4Double(XY, ZW, VectorRegisterConstInit{});
 }
 
 FORCEINLINE constexpr VectorRegister4Double MakeVectorRegisterDoubleConstant(double X, double Y, double Z, double W)
 {
-	return VectorRegister4Double(VectorRegister2Double{X, Y}, VectorRegister2Double{Z, W}, VectorRegisterConstInit{});
-}
-
-FORCEINLINE constexpr VectorRegister4Double MakeVectorRegisterDoubleConstant(const VectorRegister2Double& XY, const VectorRegister2Double& ZW)
-{
-	return VectorRegister4Double(XY, ZW, VectorRegisterConstInit{});
+	return MakeVectorRegisterDoubleConstant(MakeVectorRegister2DoubleConstant(X, Y),
+											MakeVectorRegister2DoubleConstant(Z, W));
 }
 
 FORCEINLINE constexpr VectorRegister4Float MakeVectorRegisterConstant(float X, float Y, float Z, float W)

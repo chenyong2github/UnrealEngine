@@ -1203,8 +1203,8 @@ public:
 };
 
 #if !defined(_MSC_VER) || defined(__clang__)  // MSVC can't forward declare explicit specializations
-template<> const FTransform3f FTransform3f::Identity;
-template<> const FTransform3d FTransform3d::Identity;
+template<> CORE_API const FTransform3f FTransform3f::Identity;
+template<> CORE_API const FTransform3d FTransform3d::Identity;
 #endif
 template<typename T>
 FORCEINLINE bool TTransform<T>::AnyHasNegativeScale(const TVector<T>& InScale3D, const  TVector<T>& InOtherScale3D) 

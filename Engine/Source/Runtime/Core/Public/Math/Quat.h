@@ -654,8 +654,8 @@ inline FArchive& operator<<(FArchive& Ar, TQuat<double>& F)
 }
 
 #if !defined(_MSC_VER) || defined(__clang__)  // MSVC can't forward declare explicit specializations
-template<> const FQuat4f FQuat4f::Identity;
-template<> const FQuat4d FQuat4d::Identity;
+template<> CORE_API const FQuat4f FQuat4f::Identity;
+template<> CORE_API const FQuat4d FQuat4d::Identity;
 #endif
 /* TQuat inline functions
  *****************************************************************************/

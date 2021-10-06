@@ -287,7 +287,17 @@ FORCEINLINE VectorRegister4Int MakeVectorRegisterInt(int32 X, int32 Y, int32 Z, 
 
 FORCEINLINE constexpr VectorRegister4Int MakeVectorRegisterIntConstant(int32 X, int32 Y, int32 Z, int32 W)
 {
-    return VectorRegister4Int {X, Y, Z, W};
+    return VectorRegister4Int { X, Y, Z, W };
+}
+
+FORCEINLINE constexpr VectorRegister4Float MakeVectorRegisterFloatConstant(float X, float Y, float Z, float W)
+{
+	return VectorRegister4Float { X, Y, Z, W };
+}
+
+FORCEINLINE constexpr VectorRegister2Double MakeVectorRegister2DoubleConstant(double X, double Y)
+{
+	return VectorRegister2Double { X, Y };
 }
 
 /*=============================================================================
