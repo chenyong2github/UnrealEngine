@@ -3,6 +3,7 @@
 #include "Serialization/CompactBinary.h"
 
 #include "Hash/Blake3.h"
+#include "Hash/xxhash.h"
 #include "Math/UnrealMathUtility.h"
 #include "Memory/CompositeBuffer.h"
 #include "Misc/ByteSwap.h"
@@ -70,6 +71,27 @@ FCbObjectId::FCbObjectId(const FMemoryView ObjectId)
 		TEXT("FCbObjectId cannot be constructed from a view of %" UINT64_FMT " bytes."), ObjectId.GetSize());
 	FMemory::Memcpy(Bytes, ObjectId.GetData(), sizeof(Bytes));
 }
+
+FCbObjectId 
+FCbObjectId::NewObjectId()
+{
+	// This is pretty ad hoc and does not work like the zen-side code
+	// But since this is used very sparingly it does not matter too
+	// much right now, we can fix it up later
+
+	FCbObjectId Oid;
+
+	FGuid Guid = FGuid::NewGuid();
+
+	uint8 HashBytes[16];
+	FXxHash128 Hash = FXxHash128::HashBuffer(&Guid, sizeof Guid);
+	Hash.ToByteArray(HashBytes);
+
+	memcpy(Oid.Bytes, HashBytes, sizeof Oid);
+
+	return Oid;
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
