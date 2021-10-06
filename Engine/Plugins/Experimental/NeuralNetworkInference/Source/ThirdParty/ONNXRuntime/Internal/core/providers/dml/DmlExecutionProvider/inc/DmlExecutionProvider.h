@@ -10,7 +10,7 @@ interface IMLOperatorRegistry;
 
 #ifdef WITH_UE
 struct OrtDMLGPUResourceAllocator;
-#endif
+#endif //WITH_UE
 
 namespace onnxruntime
 {
@@ -34,9 +34,9 @@ namespace Dml
         ID3D12CommandQueue* commandQueue,
         bool enableMetacommands = true
 #ifdef WITH_UE
-		, OrtDMLGPUResourceAllocator** resourceAllocator = nullptr
-#endif
-		);
+        , OrtDMLGPUResourceAllocator** resourceAllocator = nullptr
+#endif //WITH_UE
+        );
 
     ID3D12Resource* GetD3D12ResourceFromAllocation(onnxruntime::IAllocator* allocator, void* ptr);
     void FlushContext(onnxruntime::IExecutionProvider* provider);    

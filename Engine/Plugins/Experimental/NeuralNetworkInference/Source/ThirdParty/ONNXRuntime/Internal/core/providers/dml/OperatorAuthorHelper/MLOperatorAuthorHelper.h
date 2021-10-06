@@ -746,14 +746,14 @@ class MLOperatorKernel : public Microsoft::WRL::RuntimeClass<
 {
 public:
     static HRESULT STDMETHODCALLTYPE CreateInstance(IMLOperatorKernelCreationContext& info, IMLOperatorKernel** opKernel) noexcept {
-    ORT_TRY
+    ORT_TRY // WITH_UE
     {
         Microsoft::WRL::ComPtr<MLOperatorKernel> kernel = wil::MakeOrThrow<MLOperatorKernel>(MLOperatorKernelCreationContext(&info));
 
         *opKernel = kernel.Detach();
         return S_OK;
     }
-    ORT_CATCH_RETURN
+    ORT_CATCH_RETURN // WITH_UE
     }
 
     MLOperatorKernel(const MLOperatorKernelCreationContext& info) : T(info)
@@ -766,12 +766,12 @@ public:
 
     HRESULT STDMETHODCALLTYPE Compute(IMLOperatorKernelContext* context) noexcept override
     {
-    ORT_TRY
+    ORT_TRY // WITH_UE
     {
         T::Compute(MLOperatorKernelContext(context));
         return S_OK;
     }
-    ORT_CATCH_RETURN
+    ORT_CATCH_RETURN // WITH_UE
     }
 
     using T::Compute;
@@ -792,12 +792,12 @@ public:
 
     HRESULT STDMETHODCALLTYPE InferOutputShapes(IMLOperatorShapeInferenceContext* context) noexcept override
     {
-    ORT_TRY
+    ORT_TRY // WITH_UE
     {
         m_shapeInferenceFn(context);
         return S_OK;
     }
-    ORT_CATCH_RETURN
+    ORT_CATCH_RETURN // WITH_UE
     }
 
 private:
@@ -816,14 +816,14 @@ public:
         IMLOperatorSupportQueryContextPrivate* context,
         BOOL* isSupported) noexcept override
     {
-    ORT_TRY
+    ORT_TRY // WITH_UE
     {
         bool fIsSupported = false;
         m_queryFn(context, &fIsSupported);
         *isSupported = fIsSupported ? TRUE : FALSE;
         return S_OK;
     }
-    ORT_CATCH_RETURN
+    ORT_CATCH_RETURN // WITH_UE
     }
 
 private:
@@ -840,12 +840,12 @@ public:
 
     HRESULT STDMETHODCALLTYPE InferOutputTypes(IMLOperatorTypeInferenceContext* context) noexcept override
     {
-    ORT_TRY
+    ORT_TRY // WITH_UE
     {
         m_typeInferenceFn(context);
         return S_OK;
     }
-    ORT_CATCH_RETURN
+    ORT_CATCH_RETURN // WITH_UE
     }
 
 private:
@@ -864,13 +864,13 @@ public:
         IMLOperatorKernelCreationContext* context,
         _COM_Outptr_ IMLOperatorKernel** kernel) noexcept override
     {
-    ORT_TRY
+    ORT_TRY // WITH_UE
     {
         m_createFn(context, kernel);
         return S_OK;
     }
 
-    ORT_CATCH_RETURN
+    ORT_CATCH_RETURN // WITH_UE
     }
 
 private:

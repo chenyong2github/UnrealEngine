@@ -1,21 +1,17 @@
-#ifdef PLATFORM_WIN64 
+#ifdef PLATFORM_WIN64 // WITH_UE
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+#include "precomp.h"
 
 #ifndef WITH_UE
-
-#include "precomp.h"
 #include "core/session/onnxruntime_c_api.h"
 #include "BucketizedBufferAllocator.h"
 
-#else 
-#include "precomp.h"
+#else //WITH_UE
 #include "BucketizedBufferAllocator.h"
-
 #include "core/session/onnxruntime_c_api.h"
-
-#endif
+#endif //WITH_UE
 // #define PRINT_OUTSTANDING_ALLOCATIONS
 
 namespace Dml
@@ -114,27 +110,15 @@ namespace Dml
             
             if (bucket->resources.empty())
             {
-#ifndef WITH_UE
+                auto aux1 = CD3DX12_RESOURCE_DESC::Buffer(bucketSize, m_resourceFlags); // WITH_UE: To avoid compiler error
                 // No more resources in this bucket - allocate a new one
                 THROW_IF_FAILED(m_device->CreateCommittedResource(
                     &m_heapProperties,
                     m_heapFlags,
-                    &CD3DX12_RESOURCE_DESC::Buffer(bucketSize, m_resourceFlags),
+                    &aux1, // WITH_UE: To avoid compiler error
                     m_initialState,
                     nullptr,
                     IID_PPV_ARGS(&resource)));
-#else
-				auto aux1 = CD3DX12_RESOURCE_DESC::Buffer(bucketSize, m_resourceFlags);
-				// No more resources in this bucket - allocate a new one
-				THROW_IF_FAILED(m_device->CreateCommittedResource(
-					&m_heapProperties,
-					m_heapFlags,
-					&aux1,
-					m_initialState,
-					nullptr,
-					IID_PPV_ARGS(&resource)));
-#endif
-
 
                 resourceId = ++m_currentResourceId;
             }
@@ -150,25 +134,16 @@ namespace Dml
         {
             // The allocation will not be pooled.  Construct a new one
             bucketSize = (size + 3) & ~3;
-#ifndef WITH_UE
+
+            auto aux1 = CD3DX12_RESOURCE_DESC::Buffer(bucketSize, m_resourceFlags); // WITH_UE: To avoid compiler error
             THROW_IF_FAILED(m_device->CreateCommittedResource(
                 &m_heapProperties,
                 m_heapFlags,
-                &CD3DX12_RESOURCE_DESC::Buffer(bucketSize, m_resourceFlags),
+                &aux1, // WITH_UE: To avoid compiler error
                 m_initialState,
                 nullptr,
                 IID_PPV_ARGS(&resource)));
-#else
 
-			auto aux1 = CD3DX12_RESOURCE_DESC::Buffer(bucketSize, m_resourceFlags);
-			THROW_IF_FAILED(m_device->CreateCommittedResource(
-				&m_heapProperties,
-				m_heapFlags,
-				&aux1,
-				m_initialState,
-				nullptr,
-				IID_PPV_ARGS(&resource)));
-#endif
             resourceId = ++m_currentResourceId;        
         }
 
@@ -218,16 +193,12 @@ namespace Dml
 
             // Return the resource to the bucket
             Bucket* bucket = &m_pool[bucketIndex];
-#ifndef WITH_UE
+            
+#if (!defined(WITH_UE) || !defined(__clang__)) // WITH_UE: Fixing Clang error
             Resource resource = {std::move(allocInfo->DetachResource()), pooledResourceId};
-#else
-	#ifndef __clang__
-            Resource resource = {std::move(allocInfo->DetachResource()), pooledResourceId};
-	#else
-			Resource resource = {allocInfo->DetachResource(), pooledResourceId};
-	#endif
-
-#endif
+#else // WITH_UE: Fixing Clang error
+            Resource resource = {allocInfo->DetachResource(), pooledResourceId};
+#endif // WITH_UE
             bucket->resources.push_back(resource);
         }
         else
@@ -290,5 +261,4 @@ namespace Dml
 
 
 } // namespace Dml
-
 #endif // PLATFORM_WIN64

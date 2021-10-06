@@ -163,7 +163,7 @@ namespace Dml
         ID3D12Resource **d3dResource, 
         IUnknown** pooledResource
     ) const noexcept {
-    ORT_TRY
+    ORT_TRY // WITH_UE
     {
         ComPtr<IUnknown> allocation;
         allocation.Attach(static_cast<IUnknown* >(m_allocator->Alloc(size, roundingMode)));
@@ -175,11 +175,11 @@ namespace Dml
         *pooledResource = allocation.Detach();
         return S_OK;
     }
-    ORT_CATCH_RETURN
+    ORT_CATCH_RETURN // WITH_UE
     }
 
     ID3D12Resource* __stdcall ExecutionProviderImpl::DecodeResource(void* allocation) const noexcept {
-        ORT_TRY
+        ORT_TRY // WITH_UE
         {
             const AllocationInfo* allocInfo = m_allocator->DecodeDataHandle(allocation);
             return allocInfo->GetResource();
@@ -261,18 +261,18 @@ namespace Dml
         _Outptr_ ID3D12Fence** fence,
         _Out_ uint64_t* completionValue
         ) const noexcept {
-    ORT_TRY
+    ORT_TRY // WITH_UE
     {
         assert(!m_closed);
         m_context->ExecuteCommandList(commandList, fence, completionValue);
 
         return S_OK;
     }
-    ORT_CATCH_RETURN
+    ORT_CATCH_RETURN // WITH_UE
     }
 
     HRESULT __stdcall ExecutionProviderImpl::AddUAVBarrier() const noexcept {
-    ORT_TRY
+    ORT_TRY // WITH_UE
     {
         assert(!m_closed);
 
@@ -280,7 +280,7 @@ namespace Dml
 
         return S_OK;
     }
-    ORT_CATCH_RETURN
+    ORT_CATCH_RETURN // WITH_UE
     }
 
     HRESULT __stdcall ExecutionProviderImpl::InitializeOperator(
@@ -288,7 +288,7 @@ namespace Dml
         _In_opt_ const DML_BUFFER_BINDING* persistentResourceBinding,
         gsl::span<const DML_BUFFER_BINDING> inputBindings
         ) const noexcept {
-    ORT_TRY
+    ORT_TRY // WITH_UE
     {
         assert(!m_closed);
 
@@ -324,7 +324,7 @@ namespace Dml
 
         return S_OK;
     }
-    ORT_CATCH_RETURN
+    ORT_CATCH_RETURN // WITH_UE
     }
 
     HRESULT __stdcall ExecutionProviderImpl::ExecuteOperator(
@@ -333,7 +333,7 @@ namespace Dml
         gsl::span<IMLOperatorTensor*> inputTensors,
         gsl::span<IMLOperatorTensor*> outputTensors
         ) const noexcept {
-    ORT_TRY
+    ORT_TRY // WITH_UE
     {
         assert(!m_closed);
 
@@ -404,7 +404,7 @@ namespace Dml
         
         return S_OK;
     }
-    ORT_CATCH_RETURN
+    ORT_CATCH_RETURN // WITH_UE
     }
 
     HRESULT __stdcall ExecutionProviderImpl::ExecuteOperator(
@@ -413,7 +413,7 @@ namespace Dml
         gsl::span<DML_BINDING_DESC> inputTensors,
         gsl::span<DML_BINDING_DESC> outputTensors
         ) const noexcept {
-    ORT_TRY
+    ORT_TRY // WITH_UE
     {
         assert(!m_closed);
         
@@ -430,7 +430,7 @@ namespace Dml
 
         return S_OK;
     }
-    ORT_CATCH_RETURN
+    ORT_CATCH_RETURN // WITH_UE
     }
 
     static gsl::span<const std::byte> AsByteSpan(const void* data, size_t sizeInBytes)
@@ -444,7 +444,7 @@ namespace Dml
     }
 
     HRESULT __stdcall ExecutionProviderImpl::CopyTensor(IMLOperatorTensor* dst, IMLOperatorTensor* src) const noexcept {
-    ORT_TRY
+    ORT_TRY // WITH_UE
     {
         assert(!m_closed);
 
@@ -509,14 +509,14 @@ namespace Dml
 
         return S_OK;
     }
-    ORT_CATCH_RETURN
+    ORT_CATCH_RETURN // WITH_UE
     }
 
     HRESULT STDMETHODCALLTYPE ExecutionProviderImpl::FillTensorWithPattern(
         IMLOperatorTensor* dst,
         gsl::span<const std::byte> value // Data type agnostic value, treated as raw bits
         ) const noexcept {
-    ORT_TRY
+    ORT_TRY // WITH_UE
     {
         const AllocationInfo* dstAllocInfo = m_allocator->DecodeDataHandle(MLOperatorTensor(dst).GetDataInterface().Get());
         ID3D12Resource* dstData = dstAllocInfo->GetResource();
@@ -524,11 +524,11 @@ namespace Dml
 
         return S_OK;
     }
-    ORT_CATCH_RETURN
+    ORT_CATCH_RETURN // WITH_UE
     }
 
     HRESULT __stdcall ExecutionProviderImpl::UploadToResource(ID3D12Resource* dstData, const void* srcData, uint64_t srcDataSize) const noexcept {
-    ORT_TRY
+    ORT_TRY // WITH_UE
     {
         assert(!m_closed);
 
@@ -536,7 +536,7 @@ namespace Dml
 
         return S_OK;
     }
-    ORT_CATCH_RETURN
+    ORT_CATCH_RETURN // WITH_UE
     }
 
     uint32_t ExecutionProviderImpl::GetSupportedDeviceDataTypeMask() const

@@ -1,4 +1,4 @@
-#ifdef PLATFORM_WIN64 
+#ifdef PLATFORM_WIN64 // WITH_UE
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
@@ -127,4 +127,4 @@ namespace Dml
         return capacity;
     }
 }
-#endif // PLATFORM_WIN64
+#endif //PLATFORM_WIN64

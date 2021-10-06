@@ -458,7 +458,7 @@ HRESULT STDMETHODCALLTYPE OpNodeInfoWrapper<NodeInfoImpl_t, Base1_t, Base2_t>::G
     _In_z_ const char* name,
     MLOperatorAttributeType type,
     uint32_t* elementCount) const noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   VerifyNotClosed();
 
@@ -484,7 +484,7 @@ ORT_TRY
 
   return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 template <class NodeInfoImpl_t, class Base1_t, class Base2_t>
@@ -509,7 +509,7 @@ HRESULT STDMETHODCALLTYPE OpNodeInfoWrapper<NodeInfoImpl_t, Base1_t, Base2_t>::G
     uint32_t elementCount,
     size_t elementByteSize,
     void* value) const noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   VerifyNotClosed();
 
@@ -549,7 +549,7 @@ ORT_TRY
 
   return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 template <class NodeInfoImpl_t, class Base1_t, class Base2_t>
@@ -590,7 +590,7 @@ HRESULT STDMETHODCALLTYPE OpNodeInfoWrapper<NodeInfoImpl_t, Base1_t, Base2_t>::G
     _In_z_ const char* name,
     uint32_t elementIndex,
     uint32_t* attributeElementByteLength) const noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   VerifyNotClosed();
 
@@ -605,7 +605,7 @@ ORT_TRY
   *attributeElementByteLength = static_cast<uint32_t>(protoString->size() + 1);
   return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 template <class NodeInfoImpl_t, class Base1_t, class Base2_t>
@@ -614,7 +614,7 @@ HRESULT STDMETHODCALLTYPE OpNodeInfoWrapper<NodeInfoImpl_t, Base1_t, Base2_t>::G
     uint32_t elementIndex,
     uint32_t attributeElementByteLength,
     char* attributeElement) const noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   VerifyNotClosed();
 
@@ -626,7 +626,7 @@ ORT_TRY
 
   return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 template <class NodeInfoImpl_t, class Base1_t, class Base2_t>
@@ -650,7 +650,7 @@ template <class NodeInfoImpl_t, class Base1_t, class Base2_t>
 HRESULT STDMETHODCALLTYPE OpNodeInfoWrapper<NodeInfoImpl_t, Base1_t, Base2_t>::GetTensorAttribute(
     _In_z_ const char* name,
     _Outptr_ IMLOperatorTensor** tensor) const noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   VerifyNotClosed();
 
@@ -669,12 +669,12 @@ ORT_TRY
 
   return E_INVALIDARG;  // The argument has no valid matching attribute.
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 template <class NodeInfoImpl_t, class Base1_t, class Base2_t>
 HRESULT STDMETHODCALLTYPE OpNodeInfoWrapper<NodeInfoImpl_t, Base1_t, Base2_t>::GetInputEdgeDescription(uint32_t inputIndex, MLOperatorEdgeDescription* edgeDesc) const noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   VerifyNotClosed();
 
@@ -689,12 +689,12 @@ ORT_TRY
 
   return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 template <class NodeInfoImpl_t, class Base1_t, class Base2_t>
 HRESULT STDMETHODCALLTYPE OpNodeInfoWrapper<NodeInfoImpl_t, Base1_t, Base2_t>::GetOutputEdgeDescription(uint32_t outputIndex, MLOperatorEdgeDescription* edgeDesc) const noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   VerifyNotClosed();
 
@@ -705,12 +705,12 @@ ORT_TRY
 
   return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 template <class NodeInfoImpl_t, class Base1_t, class Base2_t>
 HRESULT STDMETHODCALLTYPE OpNodeInfoWrapper<NodeInfoImpl_t, Base1_t, Base2_t>::GetInputTensorShape(uint32_t inputIndex, uint32_t dimensionCount, uint32_t* dimensions) const noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   VerifyNotClosed();
 
@@ -741,7 +741,7 @@ ORT_TRY
 
   return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 template <class NodeInfoImpl_t, class Base1_t, class Base2_t>
@@ -764,7 +764,7 @@ bool STDMETHODCALLTYPE OpNodeInfoWrapper<NodeInfoImpl_t, Base1_t, Base2_t>::IsOu
 
 template <class NodeInfoImpl_t, class Base1_t, class Base2_t>
 HRESULT STDMETHODCALLTYPE OpNodeInfoWrapper<NodeInfoImpl_t, Base1_t, Base2_t>::GetInputTensorDimensionCount(uint32_t inputIndex, uint32_t* dimensionCount) const noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   VerifyNotClosed();
 
@@ -790,12 +790,12 @@ ORT_TRY
 
   return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 template <class NodeInfoImpl_t, class Base1_t, class Base2_t>
 HRESULT STDMETHODCALLTYPE OpNodeInfoWrapper<NodeInfoImpl_t, Base1_t, Base2_t>::GetConstantInputTensor(uint32_t inputIndex, IMLOperatorTensor** tensor) const noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   bool inputRequiredAsConstant = std::find(
                                      m_requiredConstantCpuInputs.begin(),
@@ -815,11 +815,11 @@ ORT_TRY
 
   return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 HRESULT STDMETHODCALLTYPE OpKernelInfoWrapper::GetOutputTensorShape(uint32_t outputIndex, uint32_t dimensionCount, uint32_t* dimensions) const noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   VerifyNotClosed();
 
@@ -843,11 +843,11 @@ ORT_TRY
 
   return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 HRESULT STDMETHODCALLTYPE OpKernelInfoWrapper::GetOutputTensorDimensionCount(uint32_t outputIndex, uint32_t* dimensionCount) const noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   VerifyNotClosed();
 
@@ -865,7 +865,7 @@ ORT_TRY
 
   return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 bool STDMETHODCALLTYPE OpKernelInfoWrapper::HasTensorShapeDescription() const noexcept {
@@ -873,7 +873,7 @@ bool STDMETHODCALLTYPE OpKernelInfoWrapper::HasTensorShapeDescription() const no
 }
 
 HRESULT STDMETHODCALLTYPE OpKernelInfoWrapper::GetTensorShapeDescription(IMLOperatorTensorShapeDescription** shapeInfo) const noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   VerifyNotClosed();
 
@@ -889,7 +889,7 @@ ORT_TRY
   *shapeInfo = ret.Detach();
   return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 void STDMETHODCALLTYPE OpKernelInfoWrapper::GetExecutionInterface(IUnknown** executionInterface) const noexcept {
@@ -936,7 +936,7 @@ DmlGraphOpKernelInfoWrapper::DmlGraphOpKernelInfoWrapper(
 }
 
 HRESULT STDMETHODCALLTYPE DmlGraphOpKernelInfoWrapper::GetOutputTensorShape(uint32_t outputIndex, uint32_t dimensionCount, uint32_t* dimensions) const noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   VerifyNotClosed();
 
@@ -960,11 +960,11 @@ ORT_TRY
 
   return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 HRESULT STDMETHODCALLTYPE DmlGraphOpKernelInfoWrapper::GetOutputTensorDimensionCount(uint32_t outputIndex, uint32_t* dimensionCount) const noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   VerifyNotClosed();
 
@@ -982,7 +982,7 @@ ORT_TRY
 
   return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 bool STDMETHODCALLTYPE DmlGraphOpKernelInfoWrapper::HasTensorShapeDescription() const noexcept {
@@ -990,7 +990,7 @@ bool STDMETHODCALLTYPE DmlGraphOpKernelInfoWrapper::HasTensorShapeDescription() 
 }
 
 HRESULT STDMETHODCALLTYPE DmlGraphOpKernelInfoWrapper::GetTensorShapeDescription(IMLOperatorTensorShapeDescription** shapeInfo) const noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   VerifyNotClosed();
 
@@ -1006,7 +1006,7 @@ ORT_TRY
   *shapeInfo = ret.Detach();
   return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 void STDMETHODCALLTYPE DmlGraphOpKernelInfoWrapper::GetExecutionInterface(IUnknown** executionInterface) const noexcept {
@@ -1051,7 +1051,7 @@ HRESULT STDMETHODCALLTYPE DmlGraphOpKernelInfoWrapper::SetDmlOperator(
     IDMLOperator* op,
     _In_ const DML_OPERATOR_DESC* desc,
     _In_opt_ const MLOperatorKernelDmlProperties* dmlProperties) const noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   ML_CHECK_BOOL(op != nullptr);
   ML_CHECK_BOOL(dmlProperties != nullptr);
@@ -1065,7 +1065,7 @@ ORT_TRY
 
   return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 OnnxTensorWrapper::OnnxTensorWrapper(onnx::TensorProto* impl) : m_impl(impl) {
@@ -1090,7 +1090,7 @@ uint32_t STDMETHODCALLTYPE OnnxTensorWrapper::GetDimensionCount() const noexcept
 HRESULT STDMETHODCALLTYPE OnnxTensorWrapper::GetShape(
     uint32_t dimensionCount,
     uint32_t* dimensions) const noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   VerifyNotClosed();
 
@@ -1105,11 +1105,11 @@ ORT_TRY
 
   return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 MLOperatorTensorDataType STDMETHODCALLTYPE OnnxTensorWrapper::GetTensorDataType() const noexcept {
-  ORT_TRY {
+  ORT_TRY { // WITH_UE
     VerifyNotClosed();
     return ToMLTensorDataType(static_cast<onnx::TensorProto_DataType>(m_impl->data_type()));
   } ORT_CATCH_GENERIC {
@@ -1180,7 +1180,7 @@ uint32_t STDMETHODCALLTYPE TensorWrapper::GetDimensionCount() const noexcept {
 HRESULT STDMETHODCALLTYPE TensorWrapper::GetShape(
     uint32_t dimensionCount,
     uint32_t* dimensions) const noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   VerifyNotClosed();
 
@@ -1195,11 +1195,11 @@ ORT_TRY
 
   return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 MLOperatorTensorDataType STDMETHODCALLTYPE TensorWrapper::GetTensorDataType() const noexcept {
-  ORT_TRY {
+  ORT_TRY { // WITH_UE
     VerifyNotClosed();
     return ToMLTensorDataType(m_impl->DataType());
   } ORT_CATCH_GENERIC {
@@ -1341,7 +1341,7 @@ void OpKernelContextWrapper::Close() {
 }
 
 HRESULT STDMETHODCALLTYPE OpKernelContextWrapper::GetInputTensor(uint32_t inputIndex, IMLOperatorTensor** tensor) const noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   VerifyNotClosed();
   *tensor = nullptr;
@@ -1364,11 +1364,11 @@ ORT_TRY
 
   return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 HRESULT STDMETHODCALLTYPE OpKernelContextWrapper::GetOutputTensor(uint32_t outputIndex, IMLOperatorTensor** tensor) noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   VerifyNotClosed();
 
@@ -1386,11 +1386,11 @@ ORT_TRY
   uint32_t dimensionCount = gsl::narrow_cast<uint32_t>(m_outputShapes->GetShape(outputIndex).size());
   return GetOutputTensor(outputIndex, dimensionCount, m_outputShapes->GetShape(outputIndex).data(), tensor);
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 HRESULT STDMETHODCALLTYPE OpKernelContextWrapper::GetOutputTensor(uint32_t outputIndex, uint32_t dimensions, const uint32_t* dimensionSizes, IMLOperatorTensor** tensor) noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   VerifyNotClosed();
   *tensor = nullptr;
@@ -1427,20 +1427,20 @@ ORT_TRY
 
   return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 HRESULT STDMETHODCALLTYPE OpKernelContextWrapper::AllocateTemporaryData(size_t size, IUnknown** abiAllocation) const {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   uint64_t allocId;
   return AllocateTemporaryData(size, abiAllocation, &allocId);
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 HRESULT STDMETHODCALLTYPE OpKernelContextWrapper::AllocateTemporaryData(size_t size, IUnknown** abiAllocation, uint64_t* allocId) const {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   VerifyNotClosed();
 
@@ -1469,7 +1469,7 @@ ORT_TRY
 
   return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 void STDMETHODCALLTYPE OpKernelContextWrapper::GetExecutionInterface(IUnknown** executionInterface) const noexcept {
@@ -1865,7 +1865,7 @@ HRESULT STDMETHODCALLTYPE MLSchemaInferenceContext::SetOutputTensorShape(
     uint32_t outputIndex,
     uint32_t dimensionCount,
     const uint32_t* dimensions) noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   VerifyNotClosed();
 
@@ -1884,13 +1884,13 @@ ORT_TRY
 
   return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 HRESULT STDMETHODCALLTYPE MLSchemaInferenceContext::SetOutputEdgeDescription(
     uint32_t outputIndex,
     const MLOperatorEdgeDescription* edgeDesc) const noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   VerifyNotClosed();
 
@@ -1898,14 +1898,14 @@ ORT_TRY
   m_context->getOutputType(outputIndex)->CopyFrom(onnx::Utils::DataTypeUtils::ToTypeProto(&typeStr));
   return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 HRESULT STDMETHODCALLTYPE MLKernelInferenceContext::SetOutputTensorShape(
     uint32_t outputIndex,
     uint32_t dimensionCount,
     const uint32_t* dimensions) noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
   VerifyNotClosed();
 
@@ -1917,7 +1917,7 @@ ORT_TRY
 
   return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 MLSupportQueryContext::MLSupportQueryContext(

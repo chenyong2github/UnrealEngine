@@ -1,7 +1,6 @@
-#ifdef PLATFORM_WIN64 
+#ifdef PLATFORM_WIN64 // WITH_UE
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
-
 
 #include "precomp.h"
 #include "AbiCustomRegistry.h"
@@ -32,7 +31,7 @@ onnx::OpSchema::FormalParameterOption AbiCustomRegistry::ConvertFormalParameterO
             THROW_HR(E_NOTIMPL);
 #ifdef WITH_UE
             return onnx::OpSchema::FormalParameterOption::Single;
-#endif
+#endif //WITH_UE
     }
 }
 
@@ -237,7 +236,7 @@ HRESULT STDMETHODCALLTYPE AbiCustomRegistry::RegisterOperatorSetSchema(
     uint32_t schemaCount,
     _In_opt_ IMLOperatorTypeInferrer* typeInferrer,
     _In_opt_ IMLOperatorShapeInferrer* shapeInferrer) const noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
     std::vector<onnx::OpSchema> schemaVector;
     schemaVector.reserve(schemaCount);
@@ -268,7 +267,7 @@ ORT_TRY
 
     return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
 
 // Convert the list of attribute defaults in a kernel registration into a 
@@ -346,7 +345,7 @@ HRESULT STDMETHODCALLTYPE AbiCustomRegistry::RegisterOperatorKernel(
     bool prefer64BitTensorsDirectly,
     _In_reads_(constantCpuInputCount) const uint32_t* requiredConstantCpuInputs,
     uint32_t constantCpuInputCount) const noexcept {
-ORT_TRY
+ORT_TRY // WITH_UE
 {
 
     // Verify that invalid flags are not passed
@@ -560,8 +559,7 @@ ORT_TRY
 
     return S_OK;
 }
-ORT_CATCH_RETURN
+ORT_CATCH_RETURN // WITH_UE
 }
-
 }
-#endif // PLATFORM_WIN64
+#endif //PLATFORM_WIN64
