@@ -145,7 +145,17 @@ namespace HordeServer.Services
 				}
 
 				List<ObjectId> NewActiveJobs = TemplateRef.Schedule.ActiveJobs.Except(RemoveJobs).Union(AddJobs).ToList();
-				if (await Streams.TryUpdateScheduleTriggerAsync(NewStream, TemplateRefId, LastTriggerTime, LastTriggerChange, NewActiveJobs))
+
+				int? NewLastTriggerChange = LastTriggerChange;
+				DateTimeOffset? NewLastTriggerTime = LastTriggerTime;
+
+				if (NewLastTriggerChange != null && NewLastTriggerChange.Value < TemplateRef.Schedule.LastTriggerChange)
+				{
+					NewLastTriggerChange = null;
+					NewLastTriggerTime = null;
+				}
+
+				if (await Streams.TryUpdateScheduleTriggerAsync(NewStream, TemplateRefId, NewLastTriggerTime, NewLastTriggerChange, NewActiveJobs))
 				{
 					return NewStream;
 				}
