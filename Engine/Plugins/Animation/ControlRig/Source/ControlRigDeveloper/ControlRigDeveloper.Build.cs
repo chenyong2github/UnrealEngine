@@ -38,6 +38,7 @@ namespace UnrealBuildTool.Rules
                 new string[]
                 {
                     "AnimationCore",
+                    "VisualGraphUtils",
                 }
             );
 

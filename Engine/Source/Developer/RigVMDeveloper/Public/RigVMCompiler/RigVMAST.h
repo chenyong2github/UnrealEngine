@@ -252,13 +252,6 @@ private:
 	// @return the text representation of this part of the tree
 	virtual FString DumpText(const FString& InPrefix = FString()) const;
 
-	// returns a string containing a dot file notation
-	// for debugging purposes. this is only used by the parser
-	// @param OutExpressionDefined a bool map to keep track of which expressions have been processed yet
-	// @param InPrefix the prefix to use for indentation
-	// @return the text representation of this part of the tree
-	virtual FString DumpDot(TArray<bool>& OutExpressionDefined, const FString& InPrefix = FString()) const;
-
 	FName Name;
 	EType Type;
 	int32 Index;
