@@ -51,6 +51,8 @@ public:
 
 #if WITH_EDITOR
 	void HandlePackageDone(TConstArrayView<UPackage*> InPackages);
+	// control Rigs are ready only after its package is fully end-loaded
+	void HandleControlRigPackageDone(UControlRig* InControlRig);
 #endif
 
 public:
