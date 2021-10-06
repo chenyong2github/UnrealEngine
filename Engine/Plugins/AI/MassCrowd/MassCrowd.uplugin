@@ -2,7 +2,7 @@
 	"FileVersion": 1,
 	"Version": 1,
 	"VersionName": "1.0",
-	"FriendlyName": "Crowd",
+	"FriendlyName": "MassCrowd",
 	"Description": "Spline based AI crowd system",
 	"Category": "AI",
 	"CreatedBy" : "Epic Games Inc",
