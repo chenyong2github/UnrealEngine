@@ -1285,6 +1285,7 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 			RPInfo.DepthStencilRenderTarget.Action == EDepthStencilTargetActions::LoadDepthClearStencil_StoreDepthStencil)
 		{
 			ExclusiveDepthStencil = FExclusiveDepthStencil::DepthWrite_StencilWrite;
+			CurrentDSLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 		}
 
 		// Make sure that the requested depth-stencil access is compatible with the current layout of the DS target.

@@ -22,7 +22,7 @@ public:
 
 	enum
 	{
-		MaxBufferedOcclusionFrames = 3
+		MaxBufferedOcclusionFrames = 4
 	};
 
 	// get the system-wide number of frames of buffered occlusion queries.
