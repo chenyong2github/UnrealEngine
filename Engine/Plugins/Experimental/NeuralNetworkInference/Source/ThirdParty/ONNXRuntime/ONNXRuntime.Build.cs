@@ -34,7 +34,7 @@ public class ONNXRuntime : ModuleRules
 		{
 			PrivateIncludePaths.AddRange(
 				new string[] {
-					System.IO.Path.Combine(ModuleDirectory, "./Private_DML_EP"),
+					System.IO.Path.Combine(ModuleDirectory, "./Private_DML_EP/Windows"),
 				}
 			);
 		}
