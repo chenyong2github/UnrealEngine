@@ -13,9 +13,13 @@ public class ONNXRuntime : ModuleRules
 
 		PublicIncludePaths.AddRange(
 			new string[] {
-				// ONNXRuntime includes
 				System.IO.Path.Combine(ModuleDirectory, "./Internal/core/session"),
-				// ThirdParty includes
+			}
+		);
+
+		// ThirdParty includes
+		PrivateIncludePaths.AddRange(
+			new string[] {
 				System.IO.Path.Combine(ModuleDirectory, "../Deps/date/include"),
 				System.IO.Path.Combine(ModuleDirectory, "../Deps/gsl"),
 				System.IO.Path.Combine(ModuleDirectory, "../Deps/json"),
@@ -26,26 +30,26 @@ public class ONNXRuntime : ModuleRules
 			}
 		);
 
-		// if (Target.Platform == UnrealTargetPlatform.Win64)
-		// {
-		// 	PrivateIncludePaths.AddRange(
-		// 		new string[] {
-		// 			System.IO.Path.Combine(ModuleDirectory, "./DML_EP"),
-		// 		}
-		// 	);
-		// }
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			PrivateIncludePaths.AddRange(
+				new string[] {
+					System.IO.Path.Combine(ModuleDirectory, "./Private_DML_EP"),
+				}
+			);
+		}
 
 		if (Target.Platform == UnrealTargetPlatform.Win64 || 
 			Target.Platform == UnrealTargetPlatform.Linux ||
 			Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			PublicIncludePaths.AddRange(
+			PrivateIncludePaths.AddRange(
 				new string[] {
 					System.IO.Path.Combine(ModuleDirectory, "../Deps/eigen")
 				}
 			);
 
-			PublicDependencyModuleNames.AddRange
+			PrivateDependencyModuleNames.AddRange
 				(
 				new string[] {
 					"Protobuf",
@@ -58,6 +62,12 @@ public class ONNXRuntime : ModuleRules
 			(
 			new string[] {
 				"Core",
+			}
+		);
+
+		PrivateDependencyModuleNames.AddRange
+			(
+			new string[] {
 				"FlatBuffers",
 				"ONNX",
 				"ONNXRuntimeProto",
@@ -69,7 +79,7 @@ public class ONNXRuntime : ModuleRules
 		// Win64-only
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PublicDependencyModuleNames.AddRange
+			PrivateDependencyModuleNames.AddRange
 				(
 				new string[] {
 					"DirectML",
@@ -80,7 +90,7 @@ public class ONNXRuntime : ModuleRules
 		// Linux
 		else if (Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			PublicDependencyModuleNames.AddRange
+			PrivateDependencyModuleNames.AddRange
 				(
 				new string[] {
 					"Nsync"
@@ -98,6 +108,7 @@ public class ONNXRuntime : ModuleRules
 		bEnableUndefinedIdentifierWarnings = false;
 		bEnforceIWYU = false;
 
+		// PublicDefinitions
 		// Editor-only
 		if (!Target.bBuildEditor)
 		{
