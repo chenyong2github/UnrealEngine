@@ -1009,10 +1009,12 @@ void SortAndMergeDynamicPassMeshDrawCommands(
 
 			if (FeatureLevel == ERHIFeatureLevel::ES3_1)
 			{
+				check(sizeof(FGPUSceneCompactInstanceData) == PrimitiveIdBufferStride);
+				
 				auto WritePrimitiveDataFn = [&](int32 PrimitiveIndex, int32 PrimitiveId) 
 				{
 					checkSlow(PrimitiveIndex < MaxNumPrimitives);
-					checkSlow(sizeof(FGPUSceneCompactInstanceData) == PrimitiveIdBufferStride);
+					
 					FGPUSceneCompactInstanceData* PrimitiveData = reinterpret_cast<FGPUSceneCompactInstanceData*>(PrimitiveIdBufferData) + PrimitiveIndex;
 
 					if ((PrimitiveId & GPrimIDDynamicFlag) != 0)

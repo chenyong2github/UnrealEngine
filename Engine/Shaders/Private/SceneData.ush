@@ -462,6 +462,18 @@ void ComputeInstanceDerivedData(inout FInstanceSceneData InstanceData)
 	//
 	// Do not put any load operations here!
 	//
+
+#if !INSTANCE_COMPRESSED_TRANSFORM
+	float3 Scale2;
+	Scale2.x = length2(InstanceData.LocalToWorld[0].xyz);
+	Scale2.y = length2(InstanceData.LocalToWorld[1].xyz);
+	Scale2.z = length2(InstanceData.LocalToWorld[2].xyz);
+
+	InstanceData.InvNonUniformScale							= rsqrt(Scale2);
+	InstanceData.DeterminantSign							= CondMask(InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN, -1.0f, 1.0f);
+	InstanceData.NonUniformScale.xyz						= Scale2 * InstanceData.InvNonUniformScale;
+#endif
+
 	InstanceData.NonUniformScale.w							= max3( InstanceData.NonUniformScale.x, InstanceData.NonUniformScale.y, InstanceData.NonUniformScale.z );
 	
 	InstanceData.WorldToLocal								= InstanceData.LocalToWorld;
@@ -527,15 +539,6 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride)
 		InstanceData.LightMapAndShadowMapUVBias					= LoadInstanceSceneDataElement(9 * SOAStride + InstanceId);
 	#endif
 
-		float3 Scale2;
-		Scale2.x = length2(InstanceData.LocalToWorld[0].xyz);
-		Scale2.y = length2(InstanceData.LocalToWorld[1].xyz);
-		Scale2.z = length2(InstanceData.LocalToWorld[2].xyz);
-
-		InstanceData.InvNonUniformScale							= rsqrt(Scale2);
-		InstanceData.DeterminantSign							= CondMask(InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN, -1.0f, 1.0f);
-
-		InstanceData.NonUniformScale.xyz						= Scale2 * InstanceData.InvNonUniformScale;
 #else
 		uint4  RotationScale									= asuint(LoadInstanceSceneDataElement(1 * SOAStride + InstanceId));
 		float3 Translation										= LoadInstanceSceneDataElement(2 * SOAStride + InstanceId).xyz;
@@ -681,9 +684,13 @@ FSceneDataIntermediates GetSceneDataIntermediates(uint DrawInstanceId, float4 In
 	InstanceData.Flags = InstanceFlags;
 	InstanceData.PrimitiveId = asuint(InstanceOrigin.w);
 	
-	#if USES_PER_INSTANCE_RANDOM
+#if USES_PER_INSTANCE_RANDOM
 	InstanceData.RandomID = InstanceTransform3.w;
-	#endif
+#endif
+
+#if INSTANCE_COMPRESSED_TRANSFORM
+	#error Compressed instance transform is not supported on mobile path
+#endif
 
 	ComputeInstanceDerivedData(InstanceData);
 
