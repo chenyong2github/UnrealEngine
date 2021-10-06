@@ -184,6 +184,17 @@ struct HAIRSTRANDSCORE_API FHairGroupCardsTextures
 	bool bNeedToBeSaved = false;
 };
 
+/** 
+ * Since hair-card generation can be controlled external to this plugin, this  
+ * provides a way for those external generators a way to store their own 
+ * generation data along with the groom/cards-entry.
+ */
+UCLASS(Abstract, EditInlineNew)
+class HAIRSTRANDSCORE_API UHairCardGenerationSettings : public UObject
+{
+	GENERATED_BODY()
+};
+
 USTRUCT(BlueprintType)
 struct HAIRSTRANDSCORE_API FHairGroupsCardsSourceDescription
 {
@@ -223,6 +234,12 @@ struct HAIRSTRANDSCORE_API FHairGroupsCardsSourceDescription
 	/* LOD on which this cards geometry will be used. -1 means not used  (#hair_todo: change this to be a dropdown selection menu in FHairLODSettings instead) */
 	UPROPERTY(EditAnywhere, Category = "CardsSource")
 	int32 LODIndex = -1; 
+
+#if WITH_EDITORONLY_DATA
+	/* Card generation data saved from the last procedural run. Dependent on the generator responsible for running the generation. */
+	UPROPERTY(meta=(EditInline))
+	TObjectPtr<UHairCardGenerationSettings> GenerationSettings = nullptr;
+#endif // WITH_EDITORONLY_DATA
 
 	UPROPERTY(VisibleAnywhere, Transient, Category = "CardsSource")
 	mutable FHairGroupCardsInfo CardsInfo;

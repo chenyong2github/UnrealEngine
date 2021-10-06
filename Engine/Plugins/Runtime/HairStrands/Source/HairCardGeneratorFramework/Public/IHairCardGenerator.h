@@ -7,13 +7,16 @@
 
 class  UGroomAsset;
 struct FHairGroupsCardsSourceDescription;
+class  UHairCardGenerationSettings;
 
 class HAIRCARDGENERATORFRAMEWORK_API IHairCardGenerator : public IModularFeature
 {
 public:
 	static const FName ModularFeatureName; // "HairCardGenerator"
 
-	virtual bool GenerateHairCardsForLOD(const UGroomAsset* Groom, FHairGroupsCardsSourceDescription& CardsDesc) = 0;
+	virtual bool GenerateHairCardsForLOD(UGroomAsset* Groom, FHairGroupsCardsSourceDescription& CardsDesc) = 0;
+
+	virtual bool IsCompatibleSettings(UHairCardGenerationSettings* OldSettings) = 0;
 };
 
 namespace HairCardGenerator_Utils
