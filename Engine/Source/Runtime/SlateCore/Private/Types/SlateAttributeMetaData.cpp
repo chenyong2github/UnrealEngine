@@ -293,6 +293,27 @@ TArray<FName> FSlateAttributeMetaData::GetAttributeNames(const SWidget& OwningWi
 }
 
 
+const TCHAR* DebugSlateAttribute(const SWidget* Widget, int32 Index)
+{
+	if (Widget)
+	{
+		if (const FSlateAttributeMetaData* MetaData = FSlateAttributeMetaData::FindMetaData(*Widget))
+		{
+			if (MetaData->Attributes.IsValidIndex(Index))
+			{
+				FName AttributeName = MetaData->Attributes[Index].GetAttributeName(*Widget);
+
+				// Hardcoded static array. This function is only used inside the debugger so it should be fine to return it.
+				static TCHAR TempName[FName::StringBufferSize];
+				FCString::Strcpy(TempName, *FName::SafeString(AttributeName.GetDisplayIndex(), AttributeName.GetNumber()));
+				return TempName;
+			}
+		}
+	}
+	return nullptr;
+}
+
+
 FName FSlateAttributeMetaData::FGetterItem::GetAttributeName(const SWidget& OwningWidget) const
 {
 	return CachedAttributeDescriptor ? CachedAttributeDescriptor->GetName() : FName();
