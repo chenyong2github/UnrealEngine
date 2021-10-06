@@ -123,6 +123,24 @@ namespace HordeAgentTests
 		}
 
 		[TestMethod]
+		public void CrashEventMatcher2()
+		{
+			string[] Lines =
+			{
+				@"Took 620.820352s to run UE4Editor-Cmd.exe, ExitCode=3",
+				@"Took 620.820352s to run UE4Editor-Cmd.exe, ExitCode=30",
+			};
+
+			List<CapturedEvent> Events = Parse(Lines);
+			Assert.AreEqual(1, Events.Count);
+			Assert.AreEqual(LogLevel.Error, Events[0].Level);
+			Assert.AreEqual(KnownLogEvents.AutomationTool_CrashExitCode, Events[0].Id);
+
+			Assert.AreEqual(0, Events[0].LineIndex);
+			Assert.AreEqual(1, Events[0].LineCount);
+		}
+
+		[TestMethod]
 		public void CompileEventMatcher()
 		{
 			// Visual C++ error
