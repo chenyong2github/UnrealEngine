@@ -177,7 +177,17 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** Set to true after serialization and postload and before returning from LoadPackage or calling load completion delegate, for loaded packages.			*/
+private:
 	uint8 bHasBeenEndLoaded : 1;
+public:
+	bool GetHasBeenEndLoaded() const
+	{
+		return bHasBeenEndLoaded != 0;
+	}
+	void SetHasBeenEndLoaded(bool bValue)
+	{
+		bHasBeenEndLoaded = bValue ? 1 : 0;
+	}
 #endif
 
 	/**

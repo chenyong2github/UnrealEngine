@@ -835,8 +835,8 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::Tick( float InTimeLimit, bool bInUseTime
 
 		if (LoadProgressScope)
 		{
-		delete LoadProgressScope;
-		LoadProgressScope = nullptr;	
+			delete LoadProgressScope;
+			LoadProgressScope = nullptr;
 		}
 #endif
 	}

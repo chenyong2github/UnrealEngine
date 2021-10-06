@@ -1099,15 +1099,19 @@ public:
 static int32 GGameThreadLoadCounter = 0;
 
 /** Notify delegate listeners of all the packages that loaded; called only once per explicit call to LoadPackage. */
-void BroadcastEndLoad(TArrayView<UPackage*> LoadedPackages)
+void BroadcastEndLoad(TArray<UPackage*>&& LoadedPackages)
 {
 #if WITH_EDITOR
 	// check(IsInGameThread()) was called by the caller, but we still need to test !IsInAsyncLoadingThread to exclude that callsite when the engine is single-threaded
 	if (GIsEditor && !IsInAsyncLoadingThread() && GGameThreadLoadCounter == 0)
 	{
+		LoadedPackages.RemoveAllSwap([](UPackage* Package)
+			{
+				return Package->HasAnyFlags(RF_Transient) || Package->HasAnyPackageFlags(PKG_InMemoryOnly);
+			});
 		for (UPackage* LoadedPackage : LoadedPackages)
 		{
-			LoadedPackage->bHasBeenEndLoaded = true;
+			LoadedPackage->SetHasBeenEndLoaded(true);
 		}
 		FCoreUObjectDelegates::OnEndLoadPackage.Broadcast(LoadedPackages);
 	}
@@ -1250,7 +1254,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 		if (!Linker)
 		{
 			EndLoad(LoadContext, &LoadedPackages);
-			BroadcastEndLoad(LoadedPackages);
+			BroadcastEndLoad(MoveTemp(LoadedPackages));
 			return nullptr;
 		}
 
@@ -1296,7 +1300,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 			// The linker is associated with a package that has already been loaded.
 			// Loading packages that have already been loaded is unsupported.
 			EndLoadAndCopyLocalizationGatherFlag();	
-			BroadcastEndLoad(LoadedPackages);
+			BroadcastEndLoad(MoveTemp(LoadedPackages));
 			return Result;
 		}
 
@@ -1441,7 +1445,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 		Result->SetFlags(RF_WasLoaded);
 	}
 
-	BroadcastEndLoad(LoadedPackages);
+	BroadcastEndLoad(MoveTemp(LoadedPackages));
 	return Result;
 }
 

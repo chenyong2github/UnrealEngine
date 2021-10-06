@@ -166,7 +166,7 @@ void FBulkDataRegistryEditorDomain::Register(UPackage* Owner, const UE::Virtuali
 	UE::Virtualization::FVirtualizedUntypedBulkData CopyBulk(BulkData.CopyTornOff());
 	if (Owner
 		&& Owner->GetFileSize() // We only record the BulkDataList for disk packages
-		&& !Owner->bHasBeenEndLoaded // We only record BulkDats that are loaded before the package finishes loading
+		&& !Owner->GetHasBeenEndLoaded() // We only record BulkDats that are loaded before the package finishes loading
 		&& CopyBulk.CanSaveForRegistry()
 		)
 	{
