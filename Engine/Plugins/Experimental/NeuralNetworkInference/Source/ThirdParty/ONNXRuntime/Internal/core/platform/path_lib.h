@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 #pragma once
-#include "ThirdPartyWarningDisabler.h"
+#include "ThirdPartyWarningDisabler.h" // WITH_UE
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
@@ -15,7 +15,7 @@ NNI_THIRD_PARTY_INCLUDES_START
 #ifdef _WIN32
 #include <Windows.h>
 #include <time.h>  //strftime
-#elif __PROSPERO__
+#elif __PROSPERO__ // WITH_UE
 #include <sys/types.h>
 #include <time.h>    //strftime
 #include <stddef.h>  //ptrdiff_t
@@ -28,7 +28,7 @@ NNI_THIRD_PARTY_INCLUDES_START
 #include "core/common/path_string.h"
 #include "core/common/status.h"
 #include "core/session/onnxruntime_c_api.h"
-NNI_THIRD_PARTY_INCLUDES_END
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
 
 using PATH_CHAR_TYPE = ORTCHAR_T;
 
@@ -231,7 +231,6 @@ inline std::basic_string<PATH_CHAR_TYPE> GetLastComponent(const std::basic_strin
 }
 
 #else
-
 inline OrtFileType DTToFileType(unsigned char t) {
   switch (t) {
     case DT_BLK:
@@ -255,8 +254,7 @@ inline OrtFileType DTToFileType(unsigned char t) {
 
 template <typename T>
 void LoopDir(const std::string& dir_name, T func) {
-#ifndef __PROSPERO__
-
+#ifndef __PROSPERO__ // WITH_UE
   DIR* dir = opendir(dir_name.c_str());
   if (dir == nullptr) {
     auto e = errno;
@@ -289,36 +287,31 @@ void LoopDir(const std::string& dir_name, T func) {
   }
   closedir(dir);
 
-#else
+#else //__PROSPERO__
+  int fd = sceKernelOpen(dir_name.c_str(), SCE_KERNEL_O_RDWR, SCE_KERNEL_O_SYNC);
+  if (fd < 0) {
+    std::ostringstream oss;
+    oss << "couldn't open '" << dir_name << "': Error code" << fd;
+    std::string s = oss.str();
+    ORT_THROW(s);
+  }
 
-	int fd = sceKernelOpen(dir_name.c_str(), SCE_KERNEL_O_RDWR, SCE_KERNEL_O_SYNC);
-	if (fd < 0) {
-		std::ostringstream oss;
-		oss << "couldn't open '" << dir_name << "': Error code" << fd;
-		std::string s = oss.str();
-		ORT_THROW(s);
-	}
-
-	ORT_TRY{
-		SceKernelStat sb;
-		sceKernelFstat(fd, &sb);
-		const int buf_size = sb.st_blksize;
-		std::unique_ptr<char[]> buf = std::make_unique<char[]>(buf_size);
-		int num_bytes_written = 0;
-		while ((num_bytes_written = sceKernelGetdents(fd, buf.get(), buf_size)) > 0) {
-			SceKernelDirent* dirent_from_char = reinterpret_cast<SceKernelDirent*>(buf.get());
-			if (!func(dirent_from_char->d_name, DTToFileType(dirent_from_char->d_type))) {
-				break;
-			}
-		}
-	}
-
-#endif
+  ORT_TRY{
+    SceKernelStat sb;
+    sceKernelFstat(fd, &sb);
+    const int buf_size = sb.st_blksize;
+    std::unique_ptr<char[]> buf = std::make_unique<char[]>(buf_size);
+    int num_bytes_written = 0;
+    while ((num_bytes_written = sceKernelGetdents(fd, buf.get(), buf_size)) > 0) {
+      SceKernelDirent* dirent_from_char = reinterpret_cast<SceKernelDirent*>(buf.get());
+      if (!func(dirent_from_char->d_name, DTToFileType(dirent_from_char->d_type))) {
+        break;
+      }
+    }
+  }
+#endif //__PROSPERO__
 }
-
 #endif
-
-
 template <typename T>
 inline T ReplaceFilename(const T& input, const T& new_value) {
   T ret;

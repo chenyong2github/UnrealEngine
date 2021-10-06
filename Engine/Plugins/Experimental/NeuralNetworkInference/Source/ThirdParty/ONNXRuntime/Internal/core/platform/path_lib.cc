@@ -25,7 +25,7 @@
 #pragma comment(lib, "PathCch.lib")
 #endif
 
-#elif defined(__PROSPERO__)
+#elif defined(__PROSPERO__) // WITH_UE
 #include <stdlib.h>
 #include <sys/stat.h>
 
@@ -35,15 +35,14 @@
 #include <sys/stat.h>
 #endif
 
-#if defined(_WIN32) && !defined(PLATFORM_SCARLET)
+#if defined(_WIN32) && !defined(PLATFORM_SCARLET) // WITH_UE: Added PLATFORM_SCARLET
 namespace onnxruntime {
 
 namespace {
 
 Status RemoveFileSpec(PWSTR pszPath, size_t cchPath) {
   assert(pszPath != nullptr && pszPath[0] != L'\0');
-// TODO - UE Temporary Hack (it avoids the compiling error, but not sure if it works!) - Clang on Windows defines _MSC_VER (stackoverflow.com/questions/38499462/how-to-tell-clang-to-stop-pretending-to-be-other-compilers), so `!defined(__clang__)` required
-#if WINVER < _WIN32_WINNT_WIN8 && !defined(USE_PATHCCH_LIB) && !defined(__clang__)
+#if WINVER < _WIN32_WINNT_WIN8 && !defined(USE_PATHCCH_LIB) && !defined(__clang__) // WITH_UE: Added Clang define
   (void)cchPath;
   for (PWSTR t = L"\0"; *t == L'\0'; t = PathRemoveBackslashW(pszPath))
     ;
@@ -70,8 +69,7 @@ Status RemoveFileSpec(PWSTR pszPath, size_t cchPath) {
       ;
   return Status::OK();
 #else
-
-#ifndef __clang__
+#ifndef __clang__ // WITH_UE
   // Remove any trailing backslashes
   auto result = PathCchRemoveBackslash(pszPath, cchPath);
   if (result == S_OK || result == S_FALSE) {
@@ -86,8 +84,7 @@ Status RemoveFileSpec(PWSTR pszPath, size_t cchPath) {
       return Status::OK();
     }
   }
-#endif
-
+#endif //__clang__
   return Status(common::ONNXRUNTIME, common::FAIL, "unexpected failure");
 #endif
 }
@@ -127,82 +124,55 @@ using MallocdStringPtr = std::unique_ptr<char, Freer<char> >;
 }  // namespace
 
 
-#if defined(PLATFORM_SCARLET)
+#ifdef PLATFORM_SCARLET // WITH_UE
 std::wstring s2ws(const std::string& s)
 {
-	int len = 0;
-	int slength = (int)s.length() + 1;
-	len = MultiByteToWideChar(CP_ACP, 0, s.c_str(), slength, 0, 0);
-	wchar_t* buf = new wchar_t[len];
-	MultiByteToWideChar(CP_ACP, 0, s.c_str(), slength, buf, len);
-	std::wstring r(buf);
-	delete[] buf;
-	return r;
+  int slength = (int)s.length() + 1;
+  int len = MultiByteToWideChar(CP_ACP, 0, s.c_str(), slength, 0, 0);
+  wchar_t* buf = new wchar_t[len];
+  MultiByteToWideChar(CP_ACP, 0, s.c_str(), slength, buf, len);
+  std::wstring r(buf);
+  delete[] buf;
+  return r;
 }
-#endif
+#endif //PLATFORM_SCARLET
 
 
 common::Status GetDirNameFromFilePath(const std::basic_string<ORTCHAR_T>& input,
                                       std::basic_string<ORTCHAR_T>& output) {
 
-#if defined(__PROSPERO__) || defined(PLATFORM_SCARLET)
-	/*
-	auto GetDirName = [](const std::basic_string<ORTCHAR_T>& path)
-	{
-		int32_t idx = -1;
-		idx = path.find_last_of("/\\");
-		return path.substr(0, idx);
-	};
+#if defined(__PROSPERO__) || defined(PLATFORM_SCARLET) // WITH_UE
+  FString IntputFString = FString(input.c_str());
+  FString DirPath = FPaths::GetPath(IntputFString);
 
-	output = GetDirName(input);
-	*/
+#ifndef PLATFORM_SCARLET // WITH_UE
+  output = std::string(TCHAR_TO_UTF8(*DirPath));
+#else //PLATFORM_SCARLET
+  std::string output_8bits = std::string(TCHAR_TO_UTF8(*DirPath));
+  output = s2ws(output_8bits);
+#endif //PLATFORM_SCARLET
 
-	FString IntputFString = FString(input.c_str());
-	FString DirPath = FPaths::GetPath(IntputFString);
+#else // WITH_UE
+  MallocdStringPtr s{strdup(input.c_str())};
+  output = dirname(s.get());
+#endif // WITH_UE
 
-#ifndef PLATFORM_SCARLET
-	output = std::string(TCHAR_TO_UTF8(*DirPath));
-#else
-	std::string output_8bits = std::string(TCHAR_TO_UTF8(*DirPath));
-	output = s2ws(output_8bits);
-#endif
-	return Status::OK();
-
-#else
-
-	MallocdStringPtr s{ strdup(input.c_str()) };
-	output = dirname(s.get());
-	return Status::OK();
-
-#endif
+  return Status::OK();
 }
 
 std::string GetLastComponent(const std::string& input) {
 
-#if defined(__PROSPERO__) || defined(PLATFORM_SCARLET)
-	/*
-	auto GetBasename = [](const std::string& path)
-	{
-		int32_t idx = -1;
-		idx = path.find_last_of("/\\");
-		return path.substr(idx + 1);
-	};
+#if defined(__PROSPERO__) || defined(PLATFORM_SCARLET) // WITH_UE
+  FString IntputFString = FString(input.c_str());
+  FString BaseName = FPaths::GetCleanFilename(IntputFString);
+  std::string ret = std::string(TCHAR_TO_UTF8(*BaseName));
 
-	return GetBasename(input);
-	*/
+#else // WITH_UE
+  MallocdStringPtr s{strdup(input.c_str())};
+  std::string ret = basename(s.get());
+#endif // WITH_UE
 
-	FString IntputFString = FString(input.c_str());
-	FString BaseName = FPaths::GetCleanFilename(IntputFString);
-	std::string RetVal = std::string(TCHAR_TO_UTF8(*BaseName));
-	return RetVal;
-
-#else
-
-	MallocdStringPtr s{ strdup(input.c_str()) };
-	std::string ret = basename(s.get());
-	return ret;
-
-#endif
+  return ret;
 }
 
 }  // namespace onnxruntime

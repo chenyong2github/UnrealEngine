@@ -36,7 +36,7 @@ limitations under the License.
 
 #ifdef WITH_UE
 #include "CoreMinimal.h"
-#endif 
+#endif //WITH_UE
 
 namespace Eigen {
 class ThreadPoolInterface;
@@ -77,8 +77,7 @@ struct ThreadOptions {
 #ifdef WITH_UE
   // Unreal Engine thread priority leve;
   EThreadPriority ThreadPri = EThreadPriority::TPri_Normal;
-#endif
-
+#endif //WITH_UE
 };
 /// \brief An interface used by the onnxruntime implementation to
 /// access operating system functionality like the filesystem etc.
