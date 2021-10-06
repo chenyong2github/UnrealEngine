@@ -1,19 +1,19 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
-#include "ThirdPartyWarningDisabler.h"
+
+#include "ThirdPartyWarningDisabler.h" // WITH_UE
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
 #include <DirectML.h>
 #include <dxgi1_4.h>
 
-
 #include <wrl/client.h>
 using Microsoft::WRL::ComPtr;
 
 #include <wil/wrl.h>
 #include <wil/result.h>
-NNI_THIRD_PARTY_INCLUDES_END
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
 
 #include "core/providers/dml/dml_provider_factory.h"
 #include "core/session/abi_session_options_impl.h"
@@ -28,14 +28,14 @@ struct DMLProviderFactory : IExecutionProviderFactory {
   DMLProviderFactory(IDMLDevice* dml_device,
                      ID3D12CommandQueue* cmd_queue
 #ifdef WITH_UE
-                     , OrtDMLGPUResourceAllocator** resource_allocator = nullptr) 
-#endif
-					 : dml_device_(dml_device),
-                       cmd_queue_(cmd_queue)
+                     , OrtDMLGPUResourceAllocator** resource_allocator = nullptr)
+#endif //WITH_UE
+                                                    : dml_device_(dml_device),
+                                                      cmd_queue_(cmd_queue)
 #ifdef WITH_UE
-                     , resource_allocator_(resource_allocator)
-#endif
-					 {}
+                                                      , resource_allocator_(resource_allocator)
+#endif //WITH_UE
+           {}
   ~DMLProviderFactory() override {}
 
   std::unique_ptr<IExecutionProvider> CreateProvider() override;
@@ -48,7 +48,7 @@ struct DMLProviderFactory : IExecutionProviderFactory {
   ComPtr<ID3D12CommandQueue> cmd_queue_{};
 #ifdef WITH_UE
   OrtDMLGPUResourceAllocator** resource_allocator_{};
-#endif
+#endif //WITH_UE
   AllocatorRoundingMode rounding_mode_ = AllocatorRoundingMode::Enabled;
   bool metacommands_enabled_ = true;
 };
@@ -57,9 +57,8 @@ std::unique_ptr<IExecutionProvider> DMLProviderFactory::CreateProvider() {
   auto provider = Dml::CreateExecutionProvider(dml_device_.Get(), cmd_queue_.Get(), metacommands_enabled_
 #ifdef WITH_UE
   , resource_allocator_
-#endif
+#endif //WITH_UE
   );
-  
   Dml::SetDefaultRoundingMode(provider.get(), rounding_mode_);
   return provider;
 }
@@ -76,9 +75,8 @@ std::shared_ptr<IExecutionProviderFactory> CreateExecutionProviderFactory_DML(ID
                                                                               ID3D12CommandQueue* cmd_queue
 #ifdef WITH_UE
                                                                               , OrtDMLGPUResourceAllocator** resource_allocator = nullptr
-#endif																			  
-																			  ) {
-
+#endif //WITH_UE
+  ) {
   // Validate that the D3D12 devices match between DML and the command queue. This specifically asks for IUnknown in
   // order to be able to compare the pointers for COM object identity.
   ComPtr<IUnknown> d3d12_device_0;
@@ -175,12 +173,11 @@ std::shared_ptr<IExecutionProviderFactory> CreateExecutionProviderFactory_DML(in
 
 #ifdef WITH_UE
 std::shared_ptr<IExecutionProviderFactory> CreateExecutionProviderFactory_DML(OrtDMLProviderOptions* provider_options) {
-  return CreateExecutionProviderFactory_DML(provider_options->dml_device, 
-                                            provider_options->cmd_queue, 
+  return CreateExecutionProviderFactory_DML(provider_options->dml_device,
+                                            provider_options->cmd_queue,
                                             provider_options->resource_allocator);
 }
 #endif
-
 }  // namespace onnxruntime
 
 ORT_API_STATUS_IMPL(OrtSessionOptionsAppendExecutionProvider_DML, _In_ OrtSessionOptions* options, int device_id) {
@@ -199,7 +196,6 @@ API_IMPL_END
   return nullptr;
 }
 
-
 #ifdef WITH_UE
 ORT_API_STATUS_IMPL(OrtSessionOptionsAppendExecutionProviderWithOptions_DML, _In_ OrtSessionOptions* options,
     _In_ OrtDMLProviderOptions* provider_options) {
@@ -208,4 +204,4 @@ API_IMPL_BEGIN
 API_IMPL_END
     return nullptr;
 }
-#endif
+#endif //WITH_UE

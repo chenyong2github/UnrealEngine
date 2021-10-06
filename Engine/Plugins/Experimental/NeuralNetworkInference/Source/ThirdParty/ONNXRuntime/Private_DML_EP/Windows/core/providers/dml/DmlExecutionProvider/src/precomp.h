@@ -18,11 +18,10 @@
 #include <variant>
 #include <cassert>
 
-#include "ThirdPartyWarningDisabler.h"
+#include "ThirdPartyWarningDisabler.h" // WITH_UE
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
-
 #include <wrl/client.h>
 #include <wrl/implements.h>
 
@@ -46,7 +45,6 @@ NNI_THIRD_PARTY_INCLUDES_START
 #include "External/DirectMLHelpers/SchemaHelpers.h"
 #include "External/DirectMLHelpers/GeneratedSchemaHelpers.h"
 
-
 using Microsoft::WRL::ComPtr;
 
 // Windows pollutes the macro space, causing a build break in schema.h.
@@ -61,4 +59,4 @@ using Microsoft::WRL::ComPtr;
 #include "TensorDesc.h"
 #include "DescriptorPool.h"
 #include "IExecutionProvider.h"
-NNI_THIRD_PARTY_INCLUDES_END
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE

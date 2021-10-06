@@ -14,6 +14,6 @@
 #ifndef WITH_UE
 #include <wil/wrl.h>
 #include <wil/result.h>
-#endif
+#endif //WITH_UE
 
 #include <gsl/gsl>

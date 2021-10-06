@@ -233,7 +233,7 @@ namespace Dml::GraphDescBuilder
                 }
             }
 
-#if (!defined(WITH_UE) || (!defined(__clang__)))
+#if (!defined(WITH_UE) || !defined(__clang__))
             DML_OPERATOR_DESC dmlDesc = SchemaHelpers::ConvertOperatorDesc(opDesc, &allocator);
 #else // WITH_UE
             DML_OPERATOR_DESC dmlDesc = SchemaHelpers::ConvertOperatorDesc(opDesc, &allocator);

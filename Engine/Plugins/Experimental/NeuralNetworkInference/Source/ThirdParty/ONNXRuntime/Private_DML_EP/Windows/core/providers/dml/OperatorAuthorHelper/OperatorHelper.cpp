@@ -1,12 +1,10 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-
-#include "ThirdPartyWarningDisabler.h"
+#include "ThirdPartyWarningDisabler.h" // WITH_UE
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
-#undef TEXT 
-
+#undef TEXT
 #include "precomp.h"
 #include "OperatorHelper.h"
 
@@ -169,11 +167,10 @@ namespace OperatorHelper
         case MLOperatorTensorDataType::Complex64:  return static_cast<int64_t>(*reinterpret_cast<const float*>(p)); // Read the real component.
         case MLOperatorTensorDataType::Complex128: return static_cast<int64_t>(*reinterpret_cast<const double*>(p)); // Read the real component.
         case MLOperatorTensorDataType::Undefined:
-        default: 
-			ML_INVALID_ARGUMENT("Unknown MLOperatorTensorDataType.");
+        default: ML_INVALID_ARGUMENT("Unknown MLOperatorTensorDataType.");
 #ifdef WITH_UE
-			return -1;
-#endif
+            return -1;
+#endif //WITH_UE
         };
     }
 
@@ -197,11 +194,10 @@ namespace OperatorHelper
         case MLOperatorTensorDataType::Complex64:  return static_cast<double>(*reinterpret_cast<const float*>(p)); // Read the real component.
         case MLOperatorTensorDataType::Complex128: return static_cast<double>(*reinterpret_cast<const double*>(p)); // Read the real component.
         case MLOperatorTensorDataType::Undefined:
-        default: 
-			ML_INVALID_ARGUMENT("Unknown MLOperatorTensorDataType.");
+        default: ML_INVALID_ARGUMENT("Unknown MLOperatorTensorDataType.");
 #ifdef WITH_UE
-			return -1.0;
-#endif
+            return -1.0;
+#endif //WITH_UE
         };
     }
 
@@ -1004,14 +1000,13 @@ namespace OperatorHelper
         }
         else if (m_components.size() == 2)
         {
-
-#ifndef WITH_UE
+#ifdef WITH_UE
+            auto inputLabels = m_components[0].GetLabels(m_labelIndices);
+            auto outputLabels = m_components[1].GetLabels(m_labelIndices);
+#else //WITH_UE
             auto& inputLabels = m_components[0].GetLabels(m_labelIndices);
             auto& outputLabels = m_components[1].GetLabels(m_labelIndices);
-#else
-			auto inputLabels = m_components[0].GetLabels(m_labelIndices);
-			auto outputLabels = m_components[1].GetLabels(m_labelIndices);
-#endif
+#endif //WITH_UE
             if (inputLabels.size() == outputLabels.size())
             {
                 // Check identity.
@@ -1035,15 +1030,15 @@ namespace OperatorHelper
         else if (m_components.size() == 3)
         {
             // If all components have the same size and label order, then apply elementwise multiplication.
-#ifndef WITH_UE
+#ifdef WITH_UE
+            auto inputALabels = m_components[0].GetLabels(m_labelIndices);
+            auto inputBLabels = m_components[1].GetLabels(m_labelIndices);
+            auto outputLabels = m_components[2].GetLabels(m_labelIndices);
+#else //WITH_UE
             auto& inputALabels = m_components[0].GetLabels(m_labelIndices);
             auto& inputBLabels = m_components[1].GetLabels(m_labelIndices);
             auto& outputLabels = m_components[2].GetLabels(m_labelIndices);
-#else
-			auto inputALabels = m_components[0].GetLabels(m_labelIndices);
-			auto inputBLabels = m_components[1].GetLabels(m_labelIndices);
-			auto outputLabels = m_components[2].GetLabels(m_labelIndices);
-#endif
+#endif //WITH_UE
             if (equals(inputALabels, outputLabels) && equals(inputBLabels, outputLabels))
             {
                 // Handles: "i,i->i", "ij,ij->ij", "ijk,ijk->ijk", "ijkl,ijkl->ijkl" ...
@@ -1146,16 +1141,11 @@ namespace OperatorHelper
             outputDimensions.push_back(labelSizes[labelIndex]);
         }
 
-#ifndef WITH_UE
+#if (!defined(WITH_UE) || !defined(__clang__))
         return { std::move(EdgeShapes(outputDimensions)) };
-#else
-#ifndef __clang__
-        return { std::move(EdgeShapes(outputDimensions)) };
-#else
-		return { EdgeShapes(outputDimensions) };
-#endif
-#endif
-
+#else // WITH_UE
+        return { EdgeShapes(outputDimensions) };
+#endif // WITH_UE
     }
 
     std::vector<EdgeShapes> MatMulHelperBase::GetOutputShapes(const MLShapeInferenceContext& shapeInfo) const
@@ -1248,15 +1238,11 @@ namespace OperatorHelper
         }
         case 1:
         {
-#ifndef WITH_UE
-			return { std::move(EdgeShapes(outputDimensionsSequence)) };
-#else
-#ifndef __clang__
-			return { std::move(EdgeShapes(outputDimensionsSequence)) };
-#else
-			return { EdgeShapes(outputDimensionsSequence) };
-#endif
-#endif
+#if (!defined(WITH_UE) || !defined(__clang__))
+            return { std::move(EdgeShapes(outputDimensionsSequence)) };
+#else // WITH_UE
+            return { EdgeShapes(outputDimensionsSequence) };
+#endif // WITH_UE
         }
         case 2:
         {
@@ -1265,15 +1251,11 @@ namespace OperatorHelper
                 EdgeShapes(outputDimensionsSingle)
             };
 
-#ifndef WITH_UE
-			return std::move(outputShapes);
-#else
-#ifndef __clang__
-			return std::move(outputShapes);
-#else
-			return outputShapes;
-#endif
-#endif
+#if (!defined(WITH_UE) || !defined(__clang__))
+            return std::move(outputShapes);
+#else // WITH_UE
+            return outputShapes;
+#endif // WITH_UE
         }
         case 3:
         {
@@ -1283,15 +1265,11 @@ namespace OperatorHelper
                 EdgeShapes(cellOutputDimensionsSingle)
             };
 
-#ifndef WITH_UE
-			return std::move(outputShapes);
-#else
-#ifndef __clang__
-			return std::move(outputShapes);
-#else
-			return outputShapes;
-#endif
-#endif
+#if (!defined(WITH_UE) || !defined(__clang__))
+            return std::move(outputShapes);
+#else // WITH_UE
+            return outputShapes;
+#endif // WITH_UE
         }
         default:
         {
@@ -1341,16 +1319,11 @@ namespace OperatorHelper
             }
         }
 
-#ifndef WITH_UE
+#if (!defined(WITH_UE) || !defined(__clang__))
         return { std::move(EdgeShapes(outputShape)) };
-#else
-#ifndef __clang__
-        return { std::move(EdgeShapes(outputShape)) };
-#else
+#else // WITH_UE
         return { EdgeShapes(outputShape) };
-#endif
-#endif
-
+#endif // WITH_UE
     }
 
     void CropHelper::Initialize(
@@ -1393,16 +1366,11 @@ namespace OperatorHelper
             m_sizes[Width]
         };
 
-#ifndef WITH_UE
+#if (!defined(WITH_UE) || !defined(__clang__))
         return { std::move(EdgeShapes(outputDimensions)) };
-#else
-#ifndef __clang__
-        return { std::move(EdgeShapes(outputDimensions)) };
-#else
+#else // WITH_UE
         return { EdgeShapes(outputDimensions) };
-#endif
-#endif
-
+#endif // WITH_UE
     }
 
     std::vector<EdgeShapes> DepthToSpaceHelper::GetOutputShapes(const MLShapeInferenceContext& shapeInfo) const
@@ -1420,16 +1388,11 @@ namespace OperatorHelper
             inputDimensions[W] * m_blockSize,
         };
 
-#ifndef WITH_UE
+#if (!defined(WITH_UE) || !defined(__clang__))
         return { std::move(EdgeShapes(outputDimensions)) };
-#else
-#ifndef __clang__
-        return { std::move(EdgeShapes(outputDimensions)) };
-#else
+#else // WITH_UE
         return { EdgeShapes(outputDimensions) };
-#endif
-#endif
-
+#endif // WITH_UE
     }
 
     void FlattenHelper::Initialize(
@@ -1461,16 +1424,11 @@ namespace OperatorHelper
         DimensionType elementsFromAxis = ComputeElementCountFromDimensions(outputDimensionsSpan.subspan(m_axis, inputDimensions.size() - m_axis));
         outputDimensions.assign({ elementsToAxis, elementsFromAxis });
 
-#ifndef WITH_UE
+#if (!defined(WITH_UE) || !defined(__clang__))
         return { std::move(outputDimensions) };
-#else
-#ifndef __clang__
-        return { std::move(outputDimensions) };
-#else
+#else // WITH_UE
         return { outputDimensions };
-#endif
-#endif
-
+#endif // WITH_UE
     }
 
     std::vector<EdgeShapes> PoolingHelperBase::GetOutputShapes(const MLShapeInferenceContext& shapeInfo) const
@@ -1504,16 +1462,11 @@ namespace OperatorHelper
             static_cast<DimensionType>(m_outputSizeW),
         };
 
-#ifndef WITH_UE
+#if (!defined(WITH_UE) || !defined(__clang__))
         return { std::move(EdgeShapes(outputDimensions)) };
-#else
-#ifndef __clang__
-        return { std::move(EdgeShapes(outputDimensions)) };
-#else
+#else // WITH_UE
         return { EdgeShapes(outputDimensions) };
-#endif
-#endif
-
+#endif // WITH_UE
     }
 
     std::vector<EdgeShapes> RoiAlignHelper::GetOutputShapes(const MLShapeInferenceContext& shapeInfo) const
@@ -1530,16 +1483,11 @@ namespace OperatorHelper
             static_cast<DimensionType>(m_outputSizeW),
         };
 
-#ifndef WITH_UE
+#if (!defined(WITH_UE) || !defined(__clang__))
         return { std::move(EdgeShapes(outputDimensions)) };
-#else
-#ifndef __clang__
-        return { std::move(EdgeShapes(outputDimensions)) };
-#else
+#else // WITH_UE
         return { EdgeShapes(outputDimensions) };
-#endif
-#endif
-
+#endif // WITH_UE
     }
 
     void UnpoolingHelper::Initialize()
@@ -1577,16 +1525,11 @@ namespace OperatorHelper
             outputDimensions = m_inferredOutputDimensions;
         }
 
-#ifndef WITH_UE
+#if (!defined(WITH_UE) || !defined(__clang__))
         return { std::move(outputDimensions) };
-#else
-#ifndef __clang__
-        return { std::move(outputDimensions) };
-#else
+#else // WITH_UE
         return { outputDimensions };
-#endif
-#endif
-
+#endif // WITH_UE
     }
 
     void SqueezeHelper::Initialize(
@@ -1629,17 +1572,11 @@ namespace OperatorHelper
 
         outputDimensions.resize(newOutputDimCount);
 
-#ifndef WITH_UE
+#if (!defined(WITH_UE) || !defined(__clang__))
         return { std::move(outputDimensions) };
-#else
-#ifndef __clang__
-        return { std::move(outputDimensions) };
-#else
+#else // WITH_UE
         return { outputDimensions };
-#endif
-#endif
-
-
+#endif // WITH_UE
     }
 
     void UnsqueezeHelper::Initialize(
@@ -1667,15 +1604,11 @@ namespace OperatorHelper
             outputDimensions.insert(outputDimensions.begin() + m_axes[i], 1);
         }
 
-#ifndef WITH_UE
+#if (!defined(WITH_UE) || !defined(__clang__))
         return { std::move(outputDimensions) };
-#else
-#ifndef __clang__
-        return { std::move(outputDimensions) };
-#else
+#else // WITH_UE
         return { outputDimensions };
-#endif
-#endif
+#endif // WITH_UE
     }
     
     std::vector<EdgeShapes> SpaceToDepthHelper::GetOutputShapes(const MLShapeInferenceContext& shapeInfo) const
@@ -1693,16 +1626,11 @@ namespace OperatorHelper
             inputDimensions[W] / m_blockSize,
         };
 
-#ifndef WITH_UE
+#if (!defined(WITH_UE) || !defined(__clang__))
         return { std::move(EdgeShapes(outputDimensions)) };
-#else
-#ifndef __clang__
-        return { std::move(EdgeShapes(outputDimensions)) };
-#else
+#else // WITH_UE
         return { EdgeShapes(outputDimensions) };
-#endif
-#endif
-
+#endif // WITH_UE
     }
         
     std::vector<EdgeShapes> ReshapeHelper::GetOutputShapes(const MLShapeInferenceContext& shapeInfo) const
@@ -1747,16 +1675,11 @@ namespace OperatorHelper
             outElementCount *= outputDimensions[inferDim];
         }
         
-#ifndef WITH_UE
+#if (!defined(WITH_UE) || !defined(__clang__))
         return { std::move(EdgeShapes(outputDimensions)) };
-#else
-#ifndef __clang__
-        return { std::move(EdgeShapes(outputDimensions)) };
-#else
+#else // WITH_UE
         return { EdgeShapes(outputDimensions) };
-#endif
-#endif
-
+#endif // WITH_UE
     }
 
     std::vector<EdgeShapes> ExpandHelper::GetOutputShapes(const MLShapeInferenceContext& shapeInfo) const
@@ -1782,16 +1705,11 @@ namespace OperatorHelper
         // Determine the broadcasted input shape.
         outputDimensions = OperatorHelper::BroadcastTensorShape(actualInputTensorShape, desiredTensorShape);
         
-#ifndef WITH_UE
+#if (!defined(WITH_UE) || !defined(__clang__))
         return { std::move(EdgeShapes(outputDimensions)) };
-#else
-#ifndef __clang__
-        return { std::move(EdgeShapes(outputDimensions)) };
-#else
+#else // WITH_UE
         return { EdgeShapes(outputDimensions) };
-#endif
-#endif
-
+#endif // WITH_UE
     }
     
     std::vector<EdgeShapes> ConstantOfShapeHelper::GetOutputShapes(const MLShapeInferenceContext& shapeInfo) const
@@ -1813,30 +1731,20 @@ namespace OperatorHelper
         std::vector<uint32_t> desiredTensorShape;
         DowncastDimensions(gsl::make_span(shapeData, dimCount), /*out*/ desiredTensorShape);
 
-#ifndef WITH_UE
+#if (!defined(WITH_UE) || !defined(__clang__))
         return { std::move(EdgeShapes(desiredTensorShape)) };
-#else
-#ifndef __clang__
-        return { std::move(EdgeShapes(desiredTensorShape)) };
-#else
+#else // WITH_UE
         return { EdgeShapes(desiredTensorShape) };
-#endif
-#endif
-
+#endif // WITH_UE
     }
 
     std::vector<EdgeShapes> TileHelper::GetOutputShapes(const MLShapeInferenceContext& shapeInfo) const
     {
-#ifndef WITH_UE
+#if (!defined(WITH_UE) || !defined(__clang__))
         return { std::move(EdgeShapes(m_outputDimensions)) };
-#else
-#ifndef __clang__
-		return { std::move(EdgeShapes(m_outputDimensions)) };
-#else
+#else // WITH_UE
         return { EdgeShapes(m_outputDimensions) };
-#endif
-#endif
-
+#endif // WITH_UE
     }
 
     void ResizeHelper::Initialize(
@@ -1924,17 +1832,12 @@ namespace OperatorHelper
 
     std::vector<EdgeShapes> OneHotHelper::GetOutputShapes(const MLShapeInferenceContext& shapeInfo) const
     {
-#ifndef WITH_UE
+#if (!defined(WITH_UE) || !defined(__clang__))
         return { std::move(EdgeShapes(m_outputDimensions)) };
-#else
-#ifndef __clang__
-        return { std::move(EdgeShapes(m_outputDimensions)) };
-#else
+#else // WITH_UE
         return { EdgeShapes(m_outputDimensions) };
-#endif
-#endif
-
+#endif // WITH_UE
     }
 
 } // namespace OperatorHelper
-NNI_THIRD_PARTY_INCLUDES_END
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE

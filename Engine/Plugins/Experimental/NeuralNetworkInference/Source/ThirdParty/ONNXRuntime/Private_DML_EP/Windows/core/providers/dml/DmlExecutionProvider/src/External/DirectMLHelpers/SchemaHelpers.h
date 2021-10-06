@@ -159,7 +159,7 @@ namespace SchemaHelpers
     {
         size_t dimensionCount = src.sizes.size();
 
-#if (!defined(WITH_UE) || (!defined(__clang__)))
+#if (!defined(WITH_UE) || !defined(__clang__))
         auto* sizes = allocator->Allocate<UINT>(dimensionCount);
 #else // WITH_UE
         auto* sizes = allocator->template Allocate<UINT>(dimensionCount);
@@ -169,7 +169,7 @@ namespace SchemaHelpers
         UINT* strides = nullptr;
         if (src.strides)
         {
-#if (!defined(WITH_UE) || (!defined(__clang__)))
+#if (!defined(WITH_UE) || !defined(__clang__))
             strides = allocator->Allocate<UINT>(dimensionCount);
 #else // WITH_UE
             strides = allocator->template Allocate<UINT>(dimensionCount);
@@ -191,7 +191,7 @@ namespace SchemaHelpers
     template <size_t N>
     DML_TENSOR_DESC MakeTensorDesc(const DmlBufferTensorDesc& src, StackAllocator<N>* allocator)
     {
-#if (!defined(WITH_UE) || (!defined(__clang__)))
+#if (!defined(WITH_UE) || !defined(__clang__))
         auto* desc = allocator->Allocate<DML_BUFFER_TENSOR_DESC>();
 #else // WITH_UE
         auto* desc = allocator->template Allocate<DML_BUFFER_TENSOR_DESC>();
@@ -221,7 +221,7 @@ namespace SchemaHelpers
             const auto& value = field.AsTensorDesc();
             if (value)
             {
-#if (!defined(WITH_UE) || (!defined(__clang__)))
+#if (!defined(WITH_UE) || !defined(__clang__))
                 desc = allocator->Allocate<DML_TENSOR_DESC>();
 #else // WITH_UE
                 desc = allocator->template Allocate<DML_TENSOR_DESC>();
@@ -239,7 +239,7 @@ namespace SchemaHelpers
             const auto& values = field.AsTensorDescArray();
             if (values)
             {
-#if (!defined(WITH_UE) || (!defined(__clang__)))
+#if (!defined(WITH_UE) || !defined(__clang__))
                 descs = allocator->Allocate<DML_TENSOR_DESC>(values->size());
 #else // WITH_UE
                 descs = allocator->template Allocate<DML_TENSOR_DESC>(values->size());
@@ -260,7 +260,7 @@ namespace SchemaHelpers
             const auto& value = field.AsOperatorDesc();
             if (value)
             {
-#if (!defined(WITH_UE) || (!defined(__clang__)))
+#if (!defined(WITH_UE) || !defined(__clang__))
                 desc = allocator->Allocate<DML_OPERATOR_DESC>();
 #else // WITH_UE
                 desc = allocator->template Allocate<DML_OPERATOR_DESC>();
@@ -278,7 +278,7 @@ namespace SchemaHelpers
             const auto& values = field.AsOperatorDescArray();
             if (values)
             {
-#if (!defined(WITH_UE) || (!defined(__clang__)))
+#if (!defined(WITH_UE) || !defined(__clang__))
                 descs = allocator->Allocate<DML_OPERATOR_DESC>(values->size());
 #else // WITH_UE
                 descs = allocator->template Allocate<DML_OPERATOR_DESC>(values->size());
@@ -323,7 +323,7 @@ namespace SchemaHelpers
             const auto& values = field.AsUIntArray();
             if (values)
             {
-#if (!defined(WITH_UE) || (!defined(__clang__)))
+#if (!defined(WITH_UE) || !defined(__clang__))
                 arrayPtr = allocator->Allocate<uint32_t>(values->size());
 #else // WITH_UE
                 arrayPtr = allocator->template Allocate<uint32_t>(values->size());
@@ -341,7 +341,7 @@ namespace SchemaHelpers
             const auto& values = field.AsIntArray();
             if (values)
             {
-#if (!defined(WITH_UE) || (!defined(__clang__)))
+#if (!defined(WITH_UE) || !defined(__clang__))
                 arrayPtr = allocator->Allocate<int32_t>(values->size());
 #else // WITH_UE
                 arrayPtr = allocator->template Allocate<int32_t>(values->size());
@@ -359,7 +359,7 @@ namespace SchemaHelpers
             const auto& values = field.AsFloatArray();
             if (values)
             {
-#if (!defined(WITH_UE) || (!defined(__clang__)))
+#if (!defined(WITH_UE) || !defined(__clang__))
                 arrayPtr = allocator->Allocate<float>(values->size());
 #else // WITH_UE
                 arrayPtr = allocator->template Allocate<float>(values->size());
@@ -377,7 +377,7 @@ namespace SchemaHelpers
             const auto& value = field.AsScaleBias();
             if (value)
             {
-#if (!defined(WITH_UE) || (!defined(__clang__)))
+#if (!defined(WITH_UE) || !defined(__clang__))
                 scaleBias = allocator->Allocate<DML_SCALE_BIAS>();
 #else // WITH_UE
                 scaleBias = allocator->template Allocate<DML_SCALE_BIAS>();
@@ -418,7 +418,7 @@ namespace SchemaHelpers
         });
 
         // Allocate a blob of bytes to hold the struct
-#if (!defined(WITH_UE) || (!defined(__clang__)))
+#if (!defined(WITH_UE) || !defined(__clang__))
         byte* abiDesc = allocator->Allocate<byte>(abiDescSizeInBytes);
 #else // WITH_UE
         byte* abiDesc = allocator->template Allocate<byte>(abiDescSizeInBytes);
