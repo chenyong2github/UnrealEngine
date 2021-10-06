@@ -104,19 +104,17 @@ namespace Dml
             D3D12_RESOURCE_STATE_GENERIC_READ,
             nullptr,
             IID_PPV_ARGS(&uploadBuffer)));
-#else
-		auto aux1 = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-		auto aux2 = CD3DX12_RESOURCE_DESC::Buffer(sizeInBytes);
-
-		THROW_IF_FAILED(device->CreateCommittedResource(
-			&aux1,
-			D3D12_HEAP_FLAG_NONE,
-			&aux2,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(&uploadBuffer)));
-#endif
-
+#else //WITH_UE
+        auto aux1 = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+        auto aux2 = CD3DX12_RESOURCE_DESC::Buffer(sizeInBytes);
+        THROW_IF_FAILED(device->CreateCommittedResource(
+            &aux1,
+            D3D12_HEAP_FLAG_NONE,
+            &aux2,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&uploadBuffer)));
+#endif //WITH_UE
 
         return Chunk{ sizeInBytes, std::move(uploadBuffer) };
     }

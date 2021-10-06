@@ -3,9 +3,9 @@
 
 #pragma once
 
-#ifdef WITH_UE 
+#ifdef WITH_UE
 #include "precomp.h"
-#endif
+#endif //WITH_UE
 
 namespace Dml
 {
@@ -67,13 +67,19 @@ namespace Dml
         uint32_t index;
     };
 
-	uint32_t MapStringToIndex(std::string_view mode, gsl::span<const NameAndIndex> nameAndIndexList);
+#ifdef WITH_UE
+    uint32_t MapStringToIndex(std::string_view mode, gsl::span<const NameAndIndex> nameAndIndexList);
+#endif WITH_UE
 
     template<typename T>
     T MapStringToIndex(std::string_view mode, gsl::span<const NameAndIndex> nameAndIndexList)
     {
         return static_cast<T>(MapStringToIndex(mode, nameAndIndexList));
     }
+
+#ifndef WITH_UE
+    uint32_t MapStringToIndex(std::string_view mode, gsl::span<const NameAndIndex> nameAndIndexList);
+#endif WITH_UE
 
     DML_INTERPOLATION_MODE MapStringToInteropolationMode(std::string_view mode);
 

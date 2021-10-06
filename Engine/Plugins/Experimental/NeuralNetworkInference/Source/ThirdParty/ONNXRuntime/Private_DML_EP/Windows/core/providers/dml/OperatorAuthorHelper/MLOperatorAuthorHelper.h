@@ -5,14 +5,13 @@
 
 #include "core/providers/dml/DmlExecutionProvider/inc/MLOperatorAuthor.h"
 #include "MLOperatorAuthorPrivate.h"
-
 #ifdef WITH_UE
 #include "core/framework/data_types.h"
-#endif
+#endif //WITH_UE
 
 #ifdef ORT_NO_EXCEPTIONS
 #define ML_CHECK_BOOL(x) (x)
-#else
+#else //ORT_NO_EXCEPTIONS
 #define ML_CHECK_BOOL(x) THROW_HR_IF(E_INVALIDARG, !(x))
 #endif //ORT_NO_EXCEPTIONS
 
@@ -102,19 +101,14 @@ struct MLTypeTraits<MLFloat16>
     static const MLOperatorTensorDataType TensorType = MLOperatorTensorDataType::Float16;
 };
 
-#ifndef WITH_UE
-
-#else
+#ifdef WITH_UE
 #ifdef __clang__
 template <>
 struct MLTypeTraits<onnxruntime::MLFloat16> {
   static const MLOperatorTensorDataType TensorType = MLOperatorTensorDataType::Float16;
 };
-#endif
-
-#endif
-
-
+#endif //__clang__
+#endif //WITH_UE
 
 inline uint32_t ComputeElementCountFromDimensions(gsl::span<const uint32_t> dimensions)
 {
@@ -141,11 +135,10 @@ inline size_t GetByteSizeFromMlDataType(MLOperatorTensorDataType tensorDataType)
     case MLOperatorTensorDataType::Complex64: return 8;
     case MLOperatorTensorDataType::Complex128: return 16;
     case MLOperatorTensorDataType::Undefined:
-
-		default: THROW_HR(E_INVALIDARG);
+    default: THROW_HR(E_INVALIDARG);
 #ifdef WITH_UE
-		return 0;
-#endif
+        return 0;
+#endif //WITH_UE
     };
 }
 

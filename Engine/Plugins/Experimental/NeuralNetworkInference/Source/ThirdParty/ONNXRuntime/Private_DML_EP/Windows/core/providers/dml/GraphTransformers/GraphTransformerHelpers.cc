@@ -1,12 +1,10 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-
-#include "ThirdPartyWarningDisabler.h"
+#include "ThirdPartyWarningDisabler.h" // WITH_UE
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
-
 #include "precomp.h"
 
 #undef ERROR
@@ -45,5 +43,4 @@ namespace GraphTransformerHelpers
         lotusSession->RegisterGraphTransformer(std::move(rule_transformer), onnxruntime::TransformerLevel::Level1);
     }
 }
-
-NNI_THIRD_PARTY_INCLUDES_END
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
