@@ -335,6 +335,7 @@ void PLANARCUT_API ConvertToMeshDescription(
 	FTransform& TransformOut,
 	bool bCenterPivot,
 	FGeometryCollection& Collection,
+	const TManagedArray<FTransform>& BoneTransforms,
 	const TArrayView<const int32>& TransformIndices
 );
 

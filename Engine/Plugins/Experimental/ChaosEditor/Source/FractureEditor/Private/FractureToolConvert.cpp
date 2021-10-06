@@ -135,7 +135,7 @@ namespace UE
 namespace FractureToolConvertInternal
 {
 // Create + position a single static mesh asset in the provided asset package
-AActor* CreateMeshAsset(FGeometryCollection& Collection, const FTransform& CollectionToWorld, const TConstArrayView<UMaterialInterface*>& Materials, TConstArrayView<int32> Bones, UPackage* AssetPackage, FString UniqueAssetName, bool bCenterPivot)
+AActor* CreateMeshAsset(FGeometryCollection& Collection, const TManagedArray<FTransform>& BoneTransforms, const FTransform& CollectionToWorld, const TConstArrayView<UMaterialInterface*>& Materials, TConstArrayView<int32> Bones, UPackage* AssetPackage, FString UniqueAssetName, bool bCenterPivot)
 {
 	UWorld* TargetWorld = GEditor->GetEditorWorldContext().World();
 	check(TargetWorld);
@@ -158,7 +158,7 @@ AActor* CreateMeshAsset(FGeometryCollection& Collection, const FTransform& Colle
 
 
 	FTransform BonesToCollection;
-	ConvertToMeshDescription(*OutputMeshDescription, BonesToCollection, bCenterPivot, Collection, Bones);
+	ConvertToMeshDescription(*OutputMeshDescription, BonesToCollection, bCenterPivot, Collection, BoneTransforms, Bones);
 
 	// add a material slot. Must always have one material slot.
 	int AddMaterialCount = FMath::Max(1, Materials.Num());
@@ -206,7 +206,7 @@ AActor* CreateMeshAsset(FGeometryCollection& Collection, const FTransform& Colle
 }
 
 // Convert and save all the requested static mesh assets
-bool ConvertAndSaveMeshes(FGeometryCollection& Collection, const FTransform& CollectionToWorld, const TConstArrayView<UMaterialInterface*>& Materials, TConstArrayView<int32> Bones, FString ObjectBaseName, const UObject* RelativeToAsset, bool bPromptToSave, bool bSaveCombined, bool bCenterPivots)
+bool ConvertAndSaveMeshes(FGeometryCollection& Collection, const TManagedArray<FTransform>& BoneTransforms, const FTransform& CollectionToWorld, const TConstArrayView<UMaterialInterface*>& Materials, TConstArrayView<int32> Bones, FString ObjectBaseName, const UObject* RelativeToAsset, bool bPromptToSave, bool bSaveCombined, bool bCenterPivots)
 {
 	check(RelativeToAsset);
 
@@ -266,7 +266,7 @@ bool ConvertAndSaveMeshes(FGeometryCollection& Collection, const FTransform& Col
 		FString UniqueAssetName;
 		UPackage* AssetPackage = MakeUniquePackage(ObjectBaseName, UniqueAssetName);
 		SavePackage.Add(AssetPackage);
-		CreateMeshAsset(Collection, CollectionToWorld, Materials, Bones, AssetPackage, UniqueAssetName, bCenterPivots);
+		CreateMeshAsset(Collection, BoneTransforms, CollectionToWorld, Materials, Bones, AssetPackage, UniqueAssetName, bCenterPivots);
 	}
 	else
 	{
@@ -284,7 +284,7 @@ bool ConvertAndSaveMeshes(FGeometryCollection& Collection, const FTransform& Col
 
 			TArrayView<const int32> SingleBoneView(&UseBone, 1);
 
-			CreateMeshAsset(Collection, CollectionToWorld, Materials, SingleBoneView, AssetPackage, UniqueAssetName, bCenterPivots);
+			CreateMeshAsset(Collection, BoneTransforms, CollectionToWorld, Materials, SingleBoneView, AssetPackage, UniqueAssetName, bCenterPivots);
 		}
 	}
 
@@ -302,6 +302,7 @@ int32 UFractureToolConvert::ExecuteFracture(const FFractureToolContext& Fracture
 	if (FractureContext.IsValid())
 	{
 		FGeometryCollection& Collection = *FractureContext.GetGeometryCollection();
+		const TManagedArray<FTransform>& BoneTransforms = FractureContext.GetGeometryCollectionComponent()->RestTransforms;
 
 		FMeshDescription Mesh;
 		FTransform MeshTransform;
@@ -325,7 +326,7 @@ int32 UFractureToolConvert::ExecuteFracture(const FFractureToolContext& Fracture
 		// choose default mesh name based on corresponding geometry collection name
 		FString BaseName = FString::Printf(TEXT("%s_SM"), *FractureContext.GetFracturedGeometryCollection()->GetName());
 		
-		UE::FractureToolConvertInternal::ConvertAndSaveMeshes(Collection, FractureContext.GetTransform(), Materials,
+		UE::FractureToolConvertInternal::ConvertAndSaveMeshes(Collection, BoneTransforms, FractureContext.GetTransform(), Materials,
 			FractureContext.GetSelection(), BaseName, FractureContext.GetFracturedGeometryCollection(), 
 			ConvertSettings->bPromptForBaseName, !ConvertSettings->bPerBone, ConvertSettings->bCenterPivots);
 	}

@@ -1280,13 +1280,14 @@ void ConvertToMeshDescription(
 	FTransform& TransformOut,
 	bool bCenterPivot,
 	FGeometryCollection& Collection,
+	const TManagedArray<FTransform>& BoneTransforms,
 	const TArrayView<const int32>& TransformIndices
 )
 {
 	FTransform CellsToWorld = FTransform::Identity;
 	TransformOut = FTransform::Identity;
 
-	FDynamicMeshCollection MeshCollection(&Collection, TransformIndices, CellsToWorld);
+	FDynamicMeshCollection MeshCollection(&Collection, BoneTransforms.Num() ? BoneTransforms : Collection.Transform, TransformIndices, CellsToWorld);
 	
 	FDynamicMesh3 CombinedMesh;
 	SetGeometryCollectionAttributes(CombinedMesh, Collection.NumUVLayers());
@@ -1297,13 +1298,6 @@ void ConvertToMeshDescription(
 	{
 		FDynamicMesh3& Mesh = MeshCollection.Meshes[MeshIdx].AugMesh;
 		const FTransform& FromCollection = MeshCollection.Meshes[MeshIdx].FromCollection;
-
-		// transform from the local geometry to the collection space
-		// unless it's just one mesh that we're going to center later anyway
-		if (!bCenterPivot || NumMeshes > 1)
-		{
-			MeshTransforms::ApplyTransformInverse(Mesh, (UE::Geometry::FTransform3d)FromCollection);
-		}
 
 		FMeshNormals::InitializeOverlayToPerVertexNormals(Mesh.Attributes()->PrimaryNormals(), true);
 		AugmentedDynamicMesh::InitializeOverlayToPerVertexUVs(Mesh, Collection.NumUVLayers());
