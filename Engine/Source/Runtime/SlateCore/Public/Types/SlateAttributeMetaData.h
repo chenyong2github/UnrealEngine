@@ -75,12 +75,25 @@ public:
 		return IndexOfAttribute(Attribute) != INDEX_NONE;
 	}
 
-	int32 GetRegisteredAttributeCount() const { return Attributes.Num(); }
+	int32 GetRegisteredAttributeCount() const
+	{
+		return Attributes.Num();
+	}
 
-	int32 GetRegisteredAffectVisibilityAttributeCount() const { return AffectVisibilityCounter; }
+	int32 GetRegisteredAffectVisibilityAttributeCount() const
+	{
+		return AffectVisibilityCounter;
+	}
 
 	/** Get the name of all the attributes, if available. */
 	static TArray<FName> GetAttributeNames(const SWidget& OwningWidget);
+
+	/**
+	 * Helper function that can be used inside the debuggers watch window.
+	 * E.g. "DebugSlateAttribute(this, 0)"
+	 * E.g. "DebugSlateAttribute((SWidget*)(0x123456789), 0)"
+	 */ 
+	friend const TCHAR* DebugSlateAttribute(const SWidget* Widget, int32 Index);
 
 private:
 	using ISlateAttributeContainer = SlateAttributePrivate::ISlateAttributeContainer;
