@@ -15,10 +15,9 @@
 #pragma warning(pop)
 #endif
 
-#include "ThirdPartyWarningDisabler.h"
+#include "ThirdPartyWarningDisabler.h" // WITH_UE
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
-
 /*
 ONNX_OPERATOR_SCHEMA(GRU)
     .SetDoc(R"DOC(
@@ -855,4 +854,4 @@ void UniDirectionalGru<T>::AllocateBuffers() {
 
 }  // namespace detail
 }  // namespace onnxruntime
-NNI_THIRD_PARTY_INCLUDES_END
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE

@@ -2,20 +2,17 @@
 // Licensed under the MIT License.
 
 // TODO: x86 release builds produce warning C4723: potential divide by 0
-
 #ifdef _MSC_VER
 #pragma warning(disable : 4723)
 #endif
 
-
 #include "core/providers/cpu/tensor/space_depth_ops.h"
-#include "ThirdPartyWarningDisabler.h"
+#include "ThirdPartyWarningDisabler.h" // WITH_UE
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
 #include "core/common/eigen_common_wrapper.h"
-NNI_THIRD_PARTY_INCLUDES_END
-
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
 #include <array>
 
 namespace onnxruntime {
