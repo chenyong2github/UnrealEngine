@@ -1046,13 +1046,16 @@ FReply FGroomRenderingDetails::OnSaveCards(int32 DescIndex, FProperty* Property)
 
 FReply FGroomRenderingDetails::OnGenerateCardDataUsingPlugin(int32 GroupIndex)
 {
-	if (GroomAsset->HairGroupsCards.IsValidIndex(GroupIndex))
+	if (GroomAsset && GroomAsset->HairGroupsCards.IsValidIndex(GroupIndex))
 	{
 		TArray<IHairCardGenerator*> HairCardGeneratorPlugins = IModularFeatures::Get().GetModularFeatureImplementations<IHairCardGenerator>(IHairCardGenerator::ModularFeatureName);
 		if (HairCardGeneratorPlugins.Num() > 0)
 		{
 			UE_CLOG(HairCardGeneratorPlugins.Num() > 1, LogGroomAssetDetails, Warning, TEXT("There are more than one available hair-card generator options. Defaulting to the first one found."));
-			HairCardGeneratorPlugins[0]->GenerateHairCardsForLOD(GroomAsset, GroomAsset->HairGroupsCards[GroupIndex]);
+
+			const FScopedTransaction Transaction(LOCTEXT("GenerateHairCardsTransaction", "Generate hair cards."));
+			FHairGroupsCardsSourceDescription& HairCardsEntry = GroomAsset->HairGroupsCards[GroupIndex];
+			HairCardGeneratorPlugins[0]->GenerateHairCardsForLOD(GroomAsset, HairCardsEntry);
 		}
 	}
 	return FReply::Handled();
@@ -1393,7 +1396,12 @@ void FGroomRenderingDetails::OnGenerateElementForHairGroup(TSharedRef<IPropertyH
 				}
 				else if (PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsCardsSourceDescription, ProceduralSettings))
 				{
-					PropertyRow.Visibility(ProceduralPropertyVisibility);
+					PropertyRow.Visibility(TAttribute<EVisibility>::CreateLambda([ShouldShowProceduralProperties]()
+						{
+							TArray<IHairCardGenerator*> HairCardGeneratorPlugins = IModularFeatures::Get().GetModularFeatureImplementations<IHairCardGenerator>(IHairCardGenerator::ModularFeatureName);
+							return HairCardGeneratorPlugins.IsEmpty() && ShouldShowProceduralProperties() ? EVisibility::Visible : EVisibility::Collapsed;
+						}
+					));
 				}
 				else if (PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsCardsSourceDescription, ImportedMesh))
 				{
