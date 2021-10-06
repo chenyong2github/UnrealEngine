@@ -807,7 +807,7 @@ void UAudioMixerBlueprintLibrary::SwapAudioOutputDevice(const UObject* WorldCont
 		//Send message to swap device
 		if (MixerPlatform)
 		{
-			bool result = MixerPlatform->RequestDeviceSwap(NewDeviceId);
+			bool result = MixerPlatform->RequestDeviceSwap(NewDeviceId, /*force*/ false, TEXT("UAudioMixerBlueprintLibrary::SwapAudioOutputDevice"));
 			FAudioOutputDeviceInfo CurrentOutputDevice = MixerPlatform->GetPlatformDeviceInfo();
 
 			//Send data through delegate on game thread

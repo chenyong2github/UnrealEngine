@@ -77,7 +77,7 @@ namespace Audio
 		virtual bool StartAudioStream() override;
 		virtual bool StopAudioStream() override;
 		virtual bool MoveAudioStreamToNewAudioDevice(const FString& InNewDeviceId) override;
-		virtual bool RequestDeviceSwap(const FString& DeviceID) override;
+		virtual bool RequestDeviceSwap(const FString& DeviceID, bool bInForce, const TCHAR* InReason) override;
 		virtual void ResumePlaybackOnNewDevice() override;
 		virtual FAudioPlatformDeviceInfo GetPlatformDeviceInfo() const override;
 		virtual void SubmitBuffer(const uint8* Buffer) override;

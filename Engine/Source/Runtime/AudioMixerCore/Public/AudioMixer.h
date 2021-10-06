@@ -475,7 +475,7 @@ namespace Audio
 		virtual bool MoveAudioStreamToNewAudioDevice(const FString& InNewDeviceId) { return true;  }
 
 		/** Sends a command to swap which output device is being used */
-		virtual bool RequestDeviceSwap(const FString& DeviceID) { return false; }
+		virtual bool RequestDeviceSwap(const FString& DeviceID, bool bInForce, const TCHAR* InReason = nullptr) { return false; }
 
 		/** Returns the platform device info of the currently open audio stream. */
 		virtual FAudioPlatformDeviceInfo GetPlatformDeviceInfo() const = 0;
@@ -706,6 +706,12 @@ namespace Audio
 		FThreadSafeBool bMoveAudioStreamToNewAudioDevice;
 		FThreadSafeBool bIsUsingNullDevice;
 		FThreadSafeBool bIsGeneratingAudio;
+
+		/** A Counter to provide the next unique id. */
+		static FThreadSafeCounter NextInstanceID;
+
+		/** A Unique ID Identifying this instance. Mostly used for logging. */ 
+		const int32 InstanceID{ -1 };
 
 	private:
 		TUniquePtr<FMixerNullCallback> NullDeviceCallback;

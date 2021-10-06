@@ -307,6 +307,9 @@ namespace Audio
 	 * IAudioMixerPlatformInterface
 	 */
 
+	// Static linkage.
+	FThreadSafeCounter IAudioMixerPlatformInterface::NextInstanceID;
+
 	IAudioMixerPlatformInterface::IAudioMixerPlatformInterface()
 		: bWarnedBufferUnderrun(false)
 		, AudioRenderEvent(nullptr)
@@ -321,6 +324,7 @@ namespace Audio
 		, bMoveAudioStreamToNewAudioDevice(false)
 		, bIsUsingNullDevice(false)
 		, bIsGeneratingAudio(false)
+		, InstanceID(NextInstanceID.Increment())
 		, NullDeviceCallback(nullptr)
 	{
 		FadeParam.SetValue(0.0f);
@@ -449,7 +453,7 @@ namespace Audio
 
 	void IAudioMixerPlatformInterface::StartRunningNullDevice()
 	{
-		UE_LOG(LogAudioMixer, Verbose, TEXT("StartRunningNullDevice() called"));
+		UE_LOG(LogAudioMixer, Verbose, TEXT("StartRunningNullDevice() called, InstanceID=%d"), InstanceID);
 		SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_StartRunningNullDevice, FColor::Blue);
 		
 		auto ThrowAwayBuffer = [this]() { this->ReadNextBuffer(); };
@@ -474,7 +478,7 @@ namespace Audio
 
 	void IAudioMixerPlatformInterface::StopRunningNullDevice()
 	{
-		UE_LOG(LogAudioMixer, Verbose, TEXT("StopRunningNullDevice() called"));
+		UE_LOG(LogAudioMixer, Verbose, TEXT("StopRunningNullDevice() called, InstanceID=%d"), InstanceID);
 		SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_StopRunningNullDevice, FColor::Blue);
 
 		if (NullDeviceCallback.IsValid())
@@ -563,7 +567,7 @@ namespace Audio
 					// Underrun/Starvation:
 					// Things to try: Increase # output buffers, ensure audio-render thread has time to run (affinity and priority), debug your mix and reduce # sounds playing.
 
-					UE_LOG(LogAudioMixer, Display, TEXT("Audio Buffer Underrun (starvation) detected."));
+					UE_LOG(LogAudioMixer, Display, TEXT("Audio Buffer Underrun (starvation) detected. InstanceID=%d"), InstanceID);
 					bWarnedBufferUnderrun = true;
 					TimeLastWarningCycles = FPlatformTime::Cycles64();
 				}
@@ -574,7 +578,7 @@ namespace Audio
 			// As soon as a valid buffer goes through, allow more warning
 			if (bWarnedBufferUnderrun)
 			{
-				UE_LOG(LogAudioMixerDebug, Log, TEXT("Audio had %d underruns [Total: %d]."), CurrentUnderrunCount, UnderrunCount);
+				UE_LOG(LogAudioMixerDebug, Log, TEXT("Audio had %d underruns [Total: %d], InstanceID=%d"), CurrentUnderrunCount, UnderrunCount, InstanceID);
 			}
 
 			CurrentUnderrunCount = 0;
@@ -608,7 +612,7 @@ namespace Audio
 
 		// Set the number of buffers to be one more than the number to queue.
 		NumOutputBuffers = FMath::Max(OpenStreamParams.NumBuffers, 2);
-		UE_LOG(LogAudioMixer, Display, TEXT("Output buffers initialized: Frames=%i, Channels=%i, Samples=%i"), NumOutputFrames, NumOutputChannels, NumOutputSamples);
+		UE_LOG(LogAudioMixer, Display, TEXT("Output buffers initialized: Frames=%i, Channels=%i, Samples=%i, InstanceID=%d"), NumOutputFrames, NumOutputChannels, NumOutputSamples, InstanceID);
 
 
 		OutputBuffer.Init(AudioStreamInfo.AudioMixer, NumOutputSamples, NumOutputBuffers, AudioStreamInfo.DeviceInfo.Format);
@@ -702,7 +706,7 @@ namespace Audio
 
 	uint32 IAudioMixerPlatformInterface::RunInternal()
 	{
-		UE_LOG(LogAudioMixer, Display, TEXT("Starting AudioMixerPlatformInterface::RunInternal()"));
+		UE_LOG(LogAudioMixer, Display, TEXT("Starting AudioMixerPlatformInterface::RunInternal(), InstanceID=%d"), InstanceID);
 
 		// Lets prime and submit the first buffer (which is going to be the buffer underrun buffer)
 		int32 NumSamplesPopped;
@@ -723,13 +727,15 @@ namespace Audio
 			OverrunTimeoutCVar = FMath::Clamp(OverrunTimeoutCVar, 500, 5000);
 
 			// Now wait for a buffer to be consumed, which will bump up the read index.
+			double WaitStartTime = FPlatformTime::Seconds();
 			if (AudioRenderEvent && !AudioRenderEvent->Wait(static_cast<uint32>(OverrunTimeoutCVar)))
 			{
 				// if we reached this block, we timed out, and should attempt to
 				// bail on our current device.
-				bMoveAudioStreamToNewAudioDevice = true;
+				RequestDeviceSwap(TEXT(""), /* force */true, TEXT("AudioMixerPlatformInterface. Timeout waiting for h/w."));
 
-				UE_LOG(LogAudioMixer, Warning, TEXT("AudioMixerPlatformInterface. Timeout waiting for h/w. (Trying new device)."));
+				float TimeWaited = FPlatformTime::Seconds() - WaitStartTime;
+				UE_LOG(LogAudioMixer, Warning, TEXT("AudioMixerPlatformInterface Timeout [%dms] waiting for h/w. InstanceID=%d"), (int32)(TimeWaited * 1000.f),InstanceID);
 			}
 		}
 

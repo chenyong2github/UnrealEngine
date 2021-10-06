@@ -82,20 +82,11 @@ public:
 		{
 			return true;
 		}
+		
+		UnregisterForSessionNotifications();
 
 		DeviceListeningToSessionEvents = InDevice;
-		bHasDisconnectSessionHappened = false;
-				
-		// Unregister for any device we're already listening to.
-		if (SessionControls)
-		{
-			SessionControls->UnregisterAudioSessionNotification(this);
-			SessionControls.Reset();
-		}
-		if (SessionManager)
-		{
-			SessionManager.Reset();
-		}
+
 		
 		if(InDevice) 
 		{
@@ -105,6 +96,7 @@ public:
 				{
 					if (SUCCEEDED(SessionControls->RegisterAudioSessionNotification(this)))
 					{
+						UE_LOG(LogAudioMixer, Verbose, TEXT("FWindowsMMNotificationClient: Registering for sessions events for '%s'"), *GetFriendlyName(DeviceListeningToSessionEvents.Get()));
 						return true;
 					}
 				}
@@ -121,13 +113,32 @@ public:
 		}
 		return false;
 	}
+
+	void UnregisterForSessionNotifications()
+	{
+		FScopeLock ScopeLock(&MutationCs);
+		
+		// Unregister for any device we're already listening to.
+		if (SessionControls)
+		{
+			UE_LOG(LogAudioMixer, Verbose, TEXT("FWindowsMMNotificationClient: Unregistering for sessions events for device '%s'"), DeviceListeningToSessionEvents ? *GetFriendlyName(DeviceListeningToSessionEvents.Get()) : TEXT("None"));
+			SessionControls->UnregisterAudioSessionNotification(this);
+			SessionControls.Reset();
+		}
+		if (SessionManager)
+		{
+			SessionManager.Reset();
+		}
+		
+		DeviceListeningToSessionEvents.Reset();
+
+		// Reset this flag.
+		bHasDisconnectSessionHappened = false;
+	}
 	
 	virtual ~FWindowsMMNotificationClient()
 	{
-		if (SessionControls)
-		{
-			SessionControls->UnregisterAudioSessionNotification(this);
-		}
+		UnregisterForSessionNotifications();
 
 		if (DeviceEnumerator)
 		{
@@ -140,14 +151,63 @@ public:
 		}
 	}
 
+	#define CASE_TO_STRING(X) case X: return TEXT(#X)
+	static const TCHAR* ToString(EDataFlow InFlow)
+	{
+#if !NO_LOGGING
+		switch (InFlow)
+		{
+			CASE_TO_STRING(eRender);
+			CASE_TO_STRING(eCapture);
+			CASE_TO_STRING(eAll);
+			default:
+				checkNoEntry();
+				break;
+		}
+#endif //!NO_LOGGING
+		return TEXT("Unknown");
+	}
+	static const TCHAR* ToString(ERole InRole)
+	{
+#if !NO_LOGGING
+		switch (InRole)
+		{
+			CASE_TO_STRING(eConsole);
+			CASE_TO_STRING(eMultimedia);
+			CASE_TO_STRING(eCommunications);
+			default:
+				checkNoEntry();
+				break;
+		}
+#endif //!NO_LOGGING
+		return TEXT("Unknown");
+	}	
+	static const TCHAR* ToString(AudioSessionDisconnectReason InDisconnectReason)
+	{
+#if !NO_LOGGING
+		switch (InDisconnectReason)
+		{
+			CASE_TO_STRING(DisconnectReasonDeviceRemoval);
+			CASE_TO_STRING(DisconnectReasonServerShutdown);
+			CASE_TO_STRING(DisconnectReasonFormatChanged);
+			CASE_TO_STRING(DisconnectReasonSessionLogoff);
+			CASE_TO_STRING(DisconnectReasonSessionDisconnected);
+			CASE_TO_STRING(DisconnectReasonExclusiveModeOverride);
+		default:
+			checkNoEntry();
+			break;
+		}
+#endif //!NO_LOGGING
+		return TEXT("Unknown");
+	}
+	#undef CASE_TO_STRING
+
 	HRESULT STDMETHODCALLTYPE OnDefaultDeviceChanged(EDataFlow InFlow, ERole InRole, LPCWSTR pwstrDeviceId) override
 	{
 		FScopeLock ScopeLock(&MutationCs);
 
-		if (Audio::IAudioMixer::ShouldLogDeviceSwaps())
-		{
-			UE_LOG(LogAudioMixer, Warning, TEXT("OnDefaultDeviceChanged: %d, %d, %s"), InFlow, InRole, pwstrDeviceId);
-		}
+		UE_CLOG(Audio::IAudioMixer::ShouldLogDeviceSwaps(),LogAudioMixer, Warning, 
+			TEXT("FWindowsMMNotificationClient: OnDefaultDeviceChanged: %s, %s, %s - %s"), ToString(InFlow), ToString(InRole), pwstrDeviceId, *GetFriendlyName(pwstrDeviceId));
 
 		Audio::EAudioDeviceRole AudioDeviceRole;
 
@@ -169,26 +229,27 @@ public:
 			AudioDeviceRole = Audio::EAudioDeviceRole::Communications;
 		}
 
+		FString DeviceString(pwstrDeviceId);
 		if (InFlow == eRender)
 		{
 			for (Audio::IAudioMixerDeviceChangedListener* Listener : Listeners)
 			{
-				Listener->OnDefaultRenderDeviceChanged(AudioDeviceRole, FString(pwstrDeviceId));
+				Listener->OnDefaultRenderDeviceChanged(AudioDeviceRole, DeviceString);
 			}
 		}
 		else if (InFlow == eCapture)
 		{
 			for (Audio::IAudioMixerDeviceChangedListener* Listener : Listeners)
 			{
-				Listener->OnDefaultCaptureDeviceChanged(AudioDeviceRole, FString(pwstrDeviceId));
+				Listener->OnDefaultCaptureDeviceChanged(AudioDeviceRole, DeviceString);
 			}
 		}
 		else
 		{
 			for (Audio::IAudioMixerDeviceChangedListener* Listener : Listeners)
 			{
-				Listener->OnDefaultCaptureDeviceChanged(AudioDeviceRole, FString(pwstrDeviceId));
-				Listener->OnDefaultRenderDeviceChanged(AudioDeviceRole, FString(pwstrDeviceId));
+				Listener->OnDefaultCaptureDeviceChanged(AudioDeviceRole, DeviceString);
+				Listener->OnDefaultRenderDeviceChanged(AudioDeviceRole, DeviceString);
 			}
 		}
 
@@ -219,7 +280,7 @@ public:
 	{
 		FScopeLock ScopeLock(&MutationCs);
 
-		UE_CLOG(Audio::IAudioMixer::ShouldLogDeviceSwaps(), LogAudioMixer, Verbose, TEXT("OnDeviceAdded: %s"), *GetFriendlyName(pwstrDeviceId));
+		UE_CLOG(Audio::IAudioMixer::ShouldLogDeviceSwaps(), LogAudioMixer, Display, TEXT("FWindowsMMNotificationClient: OnDeviceAdded: %s"), *GetFriendlyName(pwstrDeviceId));
 			
 		if (Audio::IAudioMixer::ShouldIgnoreDeviceSwaps())
 		{
@@ -239,7 +300,7 @@ public:
 	{
 		FScopeLock ScopeLock(&MutationCs);
 
-		UE_CLOG(Audio::IAudioMixer::ShouldLogDeviceSwaps(),LogAudioMixer, Verbose, TEXT("OnDeviceRemoved: %s"), *GetFriendlyName(pwstrDeviceId));
+		UE_CLOG(Audio::IAudioMixer::ShouldLogDeviceSwaps(),LogAudioMixer, Display, TEXT("FWindowsMMNotificationClient: OnDeviceRemoved: %s"), *GetFriendlyName(pwstrDeviceId));
 
 		if (Audio::IAudioMixer::ShouldIgnoreDeviceSwaps())
 		{
@@ -258,7 +319,7 @@ public:
 	{
 		FScopeLock ScopeLock(&MutationCs);
 
-		UE_CLOG(Audio::IAudioMixer::ShouldLogDeviceSwaps(), LogAudioMixer, Verbose, TEXT("OnDeviceStateChanged: %s, %d"), *GetFriendlyName(pwstrDeviceId), dwNewState);
+		UE_CLOG(Audio::IAudioMixer::ShouldLogDeviceSwaps(), LogAudioMixer, Display, TEXT("FWindowsMMNotificationClient: OnDeviceStateChanged: %s, %d"), *GetFriendlyName(pwstrDeviceId), dwNewState);
 
 		if (Audio::IAudioMixer::ShouldIgnoreDeviceSwaps())
 		{
@@ -318,9 +379,19 @@ public:
 		// Get device.
 		if (TComPtr<IMMDevice> Device = GetDevice(*InDeviceID))
 		{
+			return GetFriendlyName(Device);
+		}
+		return FriendlyName;
+	}
+	FString GetFriendlyName(const TComPtr<IMMDevice>& InDevice)
+	{
+		FString FriendlyName = TEXT("[No Friendly Name for Device]");
+
+		if (InDevice)
+		{
 			// Get property store.
 			TComPtr<IPropertyStore> PropStore;
-			HRESULT Hr = Device->OpenPropertyStore(STGM_READ, &PropStore);
+			HRESULT Hr = InDevice->OpenPropertyStore(STGM_READ, &PropStore);
 
 			// Get friendly name.
 			if (SUCCEEDED(Hr) && PropStore)
@@ -534,8 +605,9 @@ public:
 
 	HRESULT STDMETHODCALLTYPE OnSessionDisconnected(
 		AudioSessionDisconnectReason InDisconnectReason)
-	{
-		UE_CLOG(Audio::IAudioMixer::ShouldLogDeviceSwaps(), LogAudioMixer, Log, TEXT("Session Disconnect: %s"), GetDisconnectReasonString(InDisconnectReason));
+	{	
+		UE_CLOG(Audio::IAudioMixer::ShouldLogDeviceSwaps(), LogAudioMixer, Verbose, TEXT("Session Disconnect: Reason=%s, DeviceBound=%s, HasDisconnectSessionHappened=%d"), 
+			ToString(InDisconnectReason), *GetFriendlyName(DeviceListeningToSessionEvents), (int32)bHasDisconnectSessionHappened);
 
 		FScopeLock ScopeLock(&MutationCs);
 		if (!bHasDisconnectSessionHappened)
@@ -549,28 +621,10 @@ public:
 			// Mark this true.
 			bHasDisconnectSessionHappened = true;
 		}
+
 		return S_OK;
 	}
 	// End IAudioSessionEvents
-
-	static const TCHAR* GetDisconnectReasonString(AudioSessionDisconnectReason InDisconnectReason)
-	{
-		#define CASE_TO_STRING(X) case X: return TEXT(#X)
-		switch (InDisconnectReason)
-		{
-			CASE_TO_STRING(DisconnectReasonDeviceRemoval);
-			CASE_TO_STRING(DisconnectReasonServerShutdown);
-			CASE_TO_STRING(DisconnectReasonFormatChanged);
-			CASE_TO_STRING(DisconnectReasonSessionLogoff);
-			CASE_TO_STRING(DisconnectReasonSessionDisconnected);
-			CASE_TO_STRING(DisconnectReasonExclusiveModeOverride);
-			default:
-				checkNoEntry();
-				break;
-		}
-		return TEXT("Unknown");
-		#undef CASE_TO_STRING
-	}
 	
 	static Audio::IAudioMixerDeviceChangedListener::EDisconnectReason 
 	AudioSessionDisconnectToEDisconnectReason(AudioSessionDisconnectReason InDisconnectReason)
@@ -612,6 +666,13 @@ namespace Audio
 		if (WindowsNotificationClient)
 		{
 			WindowsNotificationClient->RegisterForSessionNotifications(InDeviceId);
+		}
+	}
+	void UnregisterForSessionEvents()
+	{
+		if (WindowsNotificationClient)
+		{
+			WindowsNotificationClient->UnregisterForSessionNotifications();
 		}
 	}
 
@@ -745,7 +806,7 @@ namespace Audio
 			// We didn't match channel masks for all channels, revert to a default ordering
 			if (ChanCount < (uint32)OutInfo.NumChannels)
 			{
-				UE_CLOG(Audio::IAudioMixer::ShouldLogDeviceSwaps(), LogAudioMixer, Warning, TEXT("Did not find the channel type flags for audio device '%s'. Reverting to a default channel ordering."), *OutInfo.FriendlyName);
+				UE_CLOG(Audio::IAudioMixer::ShouldLogDeviceSwaps(), LogAudioMixer, Warning, TEXT("FWindowsMMDeviceCache: Did not find the channel type flags for audio device '%s'. Reverting to a default channel ordering."), *OutInfo.FriendlyName);
 
 				OutInfo.OutputChannels.Reset();
 
@@ -894,7 +955,7 @@ namespace Audio
 				else
 				{
 					// Log a warning if this device is active as we failed to ask for a format
-					UE_CLOG(DeviceState == DEVICE_STATE_ACTIVE, LogAudioMixer, Warning, TEXT("Failed to get Format for active device '%s'"), *OutInfo.FriendlyName);
+					UE_CLOG(DeviceState == DEVICE_STATE_ACTIVE, LogAudioMixer, Warning, TEXT("FWindowsMMDeviceCache: Failed to get Format for active device '%s'"), *OutInfo.FriendlyName);
 				}
 			}
 	
@@ -930,7 +991,7 @@ namespace Audio
 								// Enumerate props into our info object.
 								EnumerateDeviceProps(Device, Info);
 
-								UE_LOG(LogAudioMixer, Verbose, TEXT("%s Device '%s' ID='%s'"),
+								UE_LOG(LogAudioMixer, Verbose, TEXT("FWindowsMMDeviceCache: %s Device '%s' ID='%s'"),
 									Info.Type == FCacheEntry::EEndpointType::Capture ? TEXT("Capture") :
 									Info.Type == FCacheEntry::EEndpointType::Render ? TEXT("Render") :
 									TEXT("UNKNOWN!"),
@@ -980,10 +1041,12 @@ namespace Audio
 				FName DeviceIdName;
 				if (GetDefaultDeviceID(eRender, static_cast<ERole>(i), DeviceIdName))
 				{
+					UE_CLOG(!DeviceIdName.IsNone(), LogAudioMixer, Verbose, TEXT("FWindowsMMDeviceCache: Default Render Role='%s', Device='%s'"), ToString((EAudioDeviceRole)i), *GetFriendlyName(DeviceIdName));
 					DefaultRenderId[i] = DeviceIdName;
 				}
 				if (GetDefaultDeviceID(eCapture, static_cast<ERole>(i), DeviceIdName))
 				{
+					UE_CLOG(!DeviceIdName.IsNone(), LogAudioMixer, Verbose, TEXT("FWindowsMMDeviceCache: Default Capture Role='%s', Device='%s'"), ToString((EAudioDeviceRole)i), *GetFriendlyName(DeviceIdName));
 					DefaultCaptureId[i] = DeviceIdName;
 				}
 			}
@@ -1043,11 +1106,46 @@ namespace Audio
 			return {};
 		}
 
+		FString GetFriendlyName(FName InDeviceId) const
+		{
+			if (const FCacheEntry* Entry = Cache.Find(InDeviceId))
+			{
+				return Entry->FriendlyName;
+			}
+			return TEXT("Unknown");
+		}
+
+		static const TCHAR* ToString(EAudioDeviceState InState)
+		{
+			#define CASE_TO_STRING(X) case EAudioDeviceState::X: return TEXT(#X)
+			switch (InState)
+			{
+				CASE_TO_STRING(Active);
+				CASE_TO_STRING(Disabled);
+				CASE_TO_STRING(NotPresent);
+				CASE_TO_STRING(Unplugged);
+			default:
+				return TEXT("Unknown");
+			}
+			#undef CASE_TO_STRING
+		}
+		static const TCHAR* ToString(EAudioDeviceRole InRole)
+		{
+			#define CASE_TO_STRING(X) case EAudioDeviceRole::X: return TEXT(#X)
+			switch (InRole)
+			{
+				CASE_TO_STRING(Console);
+				CASE_TO_STRING(Multimedia);
+				CASE_TO_STRING(Communications);
+			default:
+				return TEXT("Unknown");
+			}
+			#undef CASE_TO_STRING
+		}
+
 		void OnDeviceStateChanged(const FString& DeviceId, const EAudioDeviceState InState, bool ) override
 		{
-			TOptional<FCacheEntry> Info = BuildCacheEntry(DeviceId);
-			
-			UE_CLOG(Audio::IAudioMixer::ShouldLogDeviceSwaps(), LogAudioMixer, Verbose, TEXT("Device '%s' - '%s' state changed."), Info ? *Info->FriendlyName : TEXT("Unknown"), *DeviceId);
+			TOptional<FCacheEntry> Info = BuildCacheEntry(DeviceId);					
 			
 			FReadScopeLock ReadLock(CacheMutationLock);
 			FName DeviceIdName = *DeviceId;
@@ -1056,6 +1154,10 @@ namespace Audio
 			if (FCacheEntry* Entry = Cache.Find(DeviceIdName))
 			{
 				FWriteScopeLock WriteLock(Entry->MutationLock);
+
+				UE_CLOG(Audio::IAudioMixer::ShouldLogDeviceSwaps(), LogAudioMixer, Verbose, TEXT("FWindowsMMDeviceCache: DeviceName='%s' - DeviceID='%s' state changed from '%s' to '%s'."),
+					Info ? *Info->FriendlyName : TEXT("Unknown"), *DeviceId, ToString(Entry->State), ToString(InState));
+
 				Entry->State = InState;
 			}
 		}
@@ -1072,21 +1174,21 @@ namespace Audio
 					if (Found->NumChannels != InFormat.NumChannels)
 					{
 						FWriteScopeLock WriteLock(Found->MutationLock);
-						UE_CLOG(Audio::IAudioMixer::ShouldLogDeviceSwaps(),LogAudioMixer, Verbose, TEXT("Device '%s' changed default format from %d channels to %d."), *InDeviceId, Found->NumChannels, InFormat.NumChannels);
+						UE_CLOG(Audio::IAudioMixer::ShouldLogDeviceSwaps(),LogAudioMixer, Verbose, TEXT("FWindowsMMDeviceCache: Device '%s' changed default format from %d channels to %d."), *InDeviceId, Found->NumChannels, InFormat.NumChannels);
 						Found->NumChannels = InFormat.NumChannels;
 						bDirty = true;
 					}
 					if (Found->SampleRate != InFormat.SampleRate)
 					{
 						FWriteScopeLock WriteLock(Found->MutationLock);
-						UE_CLOG(Audio::IAudioMixer::ShouldLogDeviceSwaps(),LogAudioMixer, Verbose, TEXT("Device '%s' changed default format from %dhz to %dhz."), *InDeviceId, Found->SampleRate, InFormat.SampleRate);
+						UE_CLOG(Audio::IAudioMixer::ShouldLogDeviceSwaps(),LogAudioMixer, Verbose, TEXT("FWindowsMMDeviceCache: Device '%s' changed default format from %dhz to %dhz."), *InDeviceId, Found->SampleRate, InFormat.SampleRate);
 						Found->SampleRate = InFormat.SampleRate;
 						bDirty = true;
 					}
 					if (Found->SpeakerConfig != InFormat.ChannelConfig)
 					{
 						FWriteScopeLock WriteLock(Found->MutationLock);
-						UE_CLOG(Audio::IAudioMixer::ShouldLogDeviceSwaps(),LogAudioMixer, Verbose, TEXT("Device '%s' changed default format from 0x%x to 0x%x"), *InDeviceId, Found->SpeakerConfig, InFormat.ChannelConfig);
+						UE_CLOG(Audio::IAudioMixer::ShouldLogDeviceSwaps(),LogAudioMixer, Verbose, TEXT("FWindowsMMDeviceCache: Device '%s' changed default format from 0x%x to 0x%x"), *InDeviceId, Found->SpeakerConfig, InFormat.ChannelConfig);
 						Found->SpeakerConfig = InFormat.ChannelConfig;
 						bDirty = true;
 					}
@@ -1263,24 +1365,14 @@ namespace Audio
 	}
 
 	void FMixerPlatformXAudio2::OnDefaultRenderDeviceChanged(const EAudioDeviceRole InAudioDeviceRole, const FString& DeviceId)
-	{
-		if (!AllowDeviceSwap())
-		{
-			return;
-		}
-
+	{		
 		// Ignore changes that are for a change in default communication device.
 		if (InAudioDeviceRole != EAudioDeviceRole::Communications)
 		{
-		if (AudioDeviceSwapCriticalSection.TryLock())
-		{
-				UE_LOG(LogAudioMixer, Warning, TEXT("Changing default audio render device to new device: %s."), *WindowsNotificationClient->GetFriendlyName(DeviceId));
+			UE_LOG(LogAudioMixer, Warning, TEXT("FMixerPlatformXAudio2: Changing default audio render device to new device: Role=%s, DeviceName=%s, InstanceID=%d"), 
+				FWindowsMMDeviceCache::ToString(InAudioDeviceRole), *WindowsNotificationClient->GetFriendlyName(DeviceId), InstanceID);
 
-				NewAudioDeviceId = DeviceId;
-			bMoveAudioStreamToNewAudioDevice = true;
-
-			AudioDeviceSwapCriticalSection.Unlock();
-		}
+			RequestDeviceSwap(DeviceId, /* force */true, TEXT("FMixerPlatformXAudio2::OnDefaultRenderDeviceChanged"));
 		}
 
 		if (UAudioDeviceNotificationSubsystem* AudioDeviceNotifSubsystem = UAudioDeviceNotificationSubsystem::Get())
@@ -1303,10 +1395,10 @@ namespace Audio
 			// move our audio stream to this newly added device.
 			if (AudioStreamInfo.DeviceInfo.DeviceId != OriginalAudioDeviceId && DeviceId == OriginalAudioDeviceId)
 			{
-				UE_LOG(LogAudioMixer, Warning, TEXT("Original audio device re-added. Moving audio back to original audio device %s."), *WindowsNotificationClient->GetFriendlyName(*OriginalAudioDeviceId));
+				UE_LOG(LogAudioMixer, Warning, TEXT("FMixerPlatformXAudio2: Original audio device re-added. Moving audio back to original audio device: DeviceName=%s, bRenderDevice=%d, InstanceID=%d"), 
+					*WindowsNotificationClient->GetFriendlyName(*OriginalAudioDeviceId), (int32)bIsRenderDevice, InstanceID);
 
-				NewAudioDeviceId = OriginalAudioDeviceId;
-				bMoveAudioStreamToNewAudioDevice = true;
+				RequestDeviceSwap(OriginalAudioDeviceId, /*force */ true, TEXT("FMixerPlatformXAudio2::OnDeviceAdded"));
 			}
 
 			AudioDeviceSwapCriticalSection.Unlock();
@@ -1331,10 +1423,10 @@ namespace Audio
 			// If the device we're currently using was removed... then switch to the new default audio device.
 			if (AudioStreamInfo.DeviceInfo.DeviceId == DeviceId)
 			{
-				UE_LOG(LogAudioMixer, Warning, TEXT("Audio device removed [%s], falling back to other windows default device."), *WindowsNotificationClient->GetFriendlyName(DeviceId) );
+				UE_LOG(LogAudioMixer, Warning, TEXT("FMixerPlatformXAudio2: Audio device removed [%s], falling back to other windows default device. bIsRenderDevice=%d, InstanceID=%d"), 
+					*WindowsNotificationClient->GetFriendlyName(DeviceId), (int32)bIsRenderDevice, InstanceID);
 
-				NewAudioDeviceId = "";
-				bMoveAudioStreamToNewAudioDevice = true;
+				RequestDeviceSwap(TEXT(""), /* force */ true, TEXT("FMixerPlatformXAudio2::OnDeviceRemoved"));
 			}
 			AudioDeviceSwapCriticalSection.Unlock();
 		}
