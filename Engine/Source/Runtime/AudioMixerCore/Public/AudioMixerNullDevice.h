@@ -58,6 +58,7 @@ namespace Audio
 		FEvent* SleepEvent = nullptr;
 		FEvent* WakeupEvent = nullptr;	
 		TUniquePtr<FRunnableThread> CallbackThread;
+		double LastLog = 0.f;
 	};
 }
 

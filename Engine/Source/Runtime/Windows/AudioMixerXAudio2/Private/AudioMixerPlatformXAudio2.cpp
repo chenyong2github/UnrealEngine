@@ -286,6 +286,8 @@ namespace Audio
 			{
 				SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_CheckThreadedDeviceSwap_StartAsyncSwap, FColor::Blue);
 
+				UE_LOG(LogAudioMixer, Verbose, TEXT("FMixerPlatformXAudio2::CheckThreadedDeviceSwap() Starting swap to [%s]"), NewAudioDeviceId.IsEmpty() ? TEXT("[System Default]") : *NewAudioDeviceId);
+
 				// Toggle move to audio stream now we're spawning a new job.
 				bMoveAudioStreamToNewAudioDevice = false;
 
@@ -305,7 +307,7 @@ namespace Audio
 					}
 					else
 					{
-						UE_LOG(LogAudioMixer, Error, TEXT("Ignoring attempt to switch to device with unsupported params: Channels=%u, SampleRate=%u, Id=%s, Name=%s"),
+						UE_LOG(LogAudioMixer, Warning, TEXT("Ignoring attempt to switch to device with unsupported params: Channels=%u, SampleRate=%u, Id=%s, Name=%s"),
 							(uint32)DeviceInfo->NumChannels, (uint32)DeviceInfo->SampleRate, *DeviceInfo->DeviceId, *DeviceInfo->Name);
 
 						NewDevice.Reset();
@@ -328,6 +330,7 @@ namespace Audio
 						bSwitchingToValidDevice ]() mutable->FXAudio2AsyncCreateResult
 					{
 						SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_AsyncDeleteCreate, FColor::Blue);
+						UE_LOG(LogAudioMixer, Verbose, TEXT("FMixerPlatformXAudio2::CheckThreadedDeviceSwap() - AsyncTask Start"));
 
 						// New thread might not have COM setup.
 						FPlatformMisc::CoInitialize();
@@ -527,8 +530,8 @@ namespace Audio
 							AudioStreamInfo.DeviceInfo = ActiveDeviceSwap.Get().DeviceInfo;
 
 							// Display our new XAudio2 Mastering voice details.
-							UE_LOG(LogAudioMixer, Display, TEXT("Successful Swap new Device is (NumChannels=%u, SampleRate=%u, DeviceID=%s, Name=%s)"),
-								(uint32)AudioStreamInfo.DeviceInfo.NumChannels, (uint32)AudioStreamInfo.DeviceInfo.SampleRate, *AudioStreamInfo.DeviceInfo.DeviceId, *AudioStreamInfo.DeviceInfo.Name);
+							UE_LOG(LogAudioMixer, Display, TEXT("Successful Swap new Device is (NumChannels=%u, SampleRate=%u, DeviceID=%s, Name=%s), InstanceID=%d"),
+								(uint32)AudioStreamInfo.DeviceInfo.NumChannels, (uint32)AudioStreamInfo.DeviceInfo.SampleRate, *AudioStreamInfo.DeviceInfo.DeviceId, *AudioStreamInfo.DeviceInfo.Name, InstanceID);
 
 							// Reinitialize the output circular buffer to match the buffer math of the new audio device.
 							const int32 NumOutputSamples = AudioStreamInfo.NumOutputFrames * AudioStreamInfo.DeviceInfo.NumChannels;
@@ -1524,7 +1527,7 @@ namespace Audio
 
 	bool FMixerPlatformXAudio2::StartAudioStream()
 	{
-		UE_LOG(LogAudioMixer, Log, TEXT("FMixerPlatformXAudio2::StartAudioStream() called"));
+		UE_LOG(LogAudioMixer, Log, TEXT("FMixerPlatformXAudio2::StartAudioStream() called. InstanceID=%d"), InstanceID);
 		// Start generating audio with our output source voice
 		BeginGeneratingAudio();
 
@@ -1553,7 +1556,7 @@ namespace Audio
 			return false;
 		}
 
-		UE_LOG(LogAudioMixer, Log, TEXT("FMixerPlatformXAudio2::StopAudioStream() called"));
+		UE_LOG(LogAudioMixer, Log, TEXT("FMixerPlatformXAudio2::StopAudioStream() called. InstanceID=%d"), InstanceID);
 
 		if (AudioStreamInfo.StreamState != EAudioOutputStreamState::Stopped && AudioStreamInfo.StreamState != EAudioOutputStreamState::Closed)
 		{
@@ -1599,17 +1602,26 @@ namespace Audio
 		return false;
 	}
 
-	bool FMixerPlatformXAudio2::RequestDeviceSwap(const FString& DeviceID)
+	bool FMixerPlatformXAudio2::RequestDeviceSwap(const FString& DeviceID, bool bInForce, const TCHAR* InReason)
 	{
-		if (!AllowDeviceSwap())
+		if (!AllowDeviceSwap() && !bInForce)
 		{
+			UE_LOG(LogAudioMixer, Verbose, TEXT("NOT-ALLOWING attempt to swap audio render device to new device: '%s', because: '%s', force=%d, InstanceID=%d"),
+				!DeviceID.IsEmpty() ? *DeviceID : TEXT("[System Default]"),
+				InReason ? InReason : TEXT("None specified"),
+				(int32)bInForce,
+				InstanceID
+			);
 			return false;
 		}
 
 		if (AudioDeviceSwapCriticalSection.TryLock())
 		{
-			UE_LOG(LogAudioMixer, Display, TEXT("Attempt to swap audio render device to new device: %s."),
-				!DeviceID.IsEmpty() ? *DeviceID : TEXT("[System Default]")
+			UE_LOG(LogAudioMixer, Verbose, TEXT("Attempt to swap audio render device to new device: '%s', because: '%s', force=%d, InstanceID=%d"),
+				!DeviceID.IsEmpty() ? *DeviceID : TEXT("[System Default]"),
+				InReason ? InReason : TEXT("None specified"),
+				(int32)bInForce,
+				InstanceID
 			);
 
 			NewAudioDeviceId = DeviceID;
@@ -1620,6 +1632,8 @@ namespace Audio
 			return true;
 		}
 
+		UE_CLOG(bInForce,LogAudioMixer, Warning, TEXT("FMixerPlatformXAudio2::RequestDeviceSwap(), Failed to acquire CS, device swap to '%s', will be ignored. InstanceID=%d"),
+			!DeviceID.IsEmpty() ? *DeviceID : TEXT("[System Default]"), InstanceID );
 		return false;
 	}
 
@@ -1878,7 +1892,7 @@ namespace Audio
 
 			if(!FirstBufferSubmitted)
 			{
-				UE_LOG(LogAudioMixer, Display, TEXT("FMixerPlatformXAudio2::SubmitBuffer() called for the first time"));
+				UE_LOG(LogAudioMixer, Display, TEXT("FMixerPlatformXAudio2::SubmitBuffer() called for the first time. InstanceID=%d"), InstanceID);
 				FirstBufferSubmitted = true;
 			}
 		}
@@ -2073,7 +2087,7 @@ namespace Audio
 		if (InReason == IAudioMixerDeviceChangedListener::EDisconnectReason::FormatChanged)
 		{
 			// OnFormatChanged, retry again same device.
-			RequestDeviceSwap(GetDeviceId());
+			RequestDeviceSwap(GetDeviceId(), /*force*/ true, TEXT("FMixerPlatformXAudio2::OnSessionDisconnect() - FormatChanged"));		
 		}
 		else if (InReason == IAudioMixerDeviceChangedListener::EDisconnectReason::DeviceRemoval)
 		{
@@ -2083,7 +2097,7 @@ namespace Audio
 		{
 			// ServerShutdown, SessionLogoff, SessionDisconnected, ExclusiveModeOverride
 			// Attempt a default swap, will likely fail, but then we'll switch to a null device.
-			RequestDeviceSwap(TEXT(""));
+			RequestDeviceSwap(TEXT(""), /*force*/ true, TEXT("FMixerPlatformXAudio2::OnSessionDisconnect() - Other"));
 		}
 	}
 

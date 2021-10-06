@@ -33,7 +33,7 @@ namespace Audio
 				WakeupEvent->Wait(MAX_uint32);
 				WakeupEvent->Reset();
 				
-				UE_CLOG(!bShouldShutdown && !bShouldRecyle, LogAudioMixer, Display, TEXT("FMixerNullCallback: Simulating a h/w device callback at [%dms]"), (int32)(CallbackTime * 1000.f));
+				UE_CLOG(!bShouldShutdown && !bShouldRecyle, LogAudioMixer, Display, TEXT("FMixerNullCallback: Simulating a h/w device callback at [%dms], ThreadID=%u"),  (int32)(CallbackTime * 1000.f), CallbackThread->GetThreadID() );
 
 				// Reset our time differential.
 				AudioClock = FPlatformTime::Seconds();
@@ -64,12 +64,11 @@ namespace Audio
 
 #if !NO_LOGGING
 				// Warn if there's any crazy deltas (limit to every 30s).
-				static double LastLog = 0.f;
 				if (RealClock - LastLog > 30.f)
 				{
 					if (FMath::Abs(SleepTime) > 0.2f)
 					{
-						UE_LOG(LogAudioMixer, Warning, TEXT("FMixerNullCallback: Large time delta between simulated audio clock and realtime [%dms]"), (int32)(SleepTime * 1000.f));
+						UE_LOG(LogAudioMixer, Warning, TEXT("FMixerNullCallback: Large time delta between simulated audio clock and realtime [%dms], ThreadID=%u"), (int32)(SleepTime * 1000.f), CallbackThread->GetThreadID());
 						LastLog = RealClock;
 					}
 				}
