@@ -365,6 +365,10 @@ void UMovieSceneControlRigParameterTrack::PostLoad()
 
 #if WITH_EDITOR
 	FCoreUObjectDelegates::OnEndLoadPackage.AddUObject(this, &UMovieSceneControlRigParameterTrack::HandlePackageDone);
+	if (ControlRig)
+	{
+		ControlRig->OnEndLoadPackage().AddUObject(this, &UMovieSceneControlRigParameterTrack::HandleControlRigPackageDone);
+	}
 #else
 	ReconstructControlRig();
 #endif
@@ -381,6 +385,15 @@ void UMovieSceneControlRigParameterTrack::HandlePackageDone(TConstArrayView<UPac
 	FCoreUObjectDelegates::OnEndLoadPackage.RemoveAll(this);
 
 	ReconstructControlRig();
+}
+
+void UMovieSceneControlRigParameterTrack::HandleControlRigPackageDone(UControlRig* InControlRig)
+{
+	if (ensure(ControlRig == InControlRig))
+	{
+		ControlRig->OnEndLoadPackage().RemoveAll(this);
+		ReconstructControlRig();
+	}
 }
 #endif
 

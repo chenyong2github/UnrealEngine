@@ -536,8 +536,27 @@ void UControlRigBlueprint::HandlePackageDone(TConstArrayView<UPackage*> InPackag
 
 	FCoreUObjectDelegates::OnEndLoadPackage.RemoveAll(this);
 	
+	PropagateHierarchyFromBPToInstances();
 	RecompileVM();
 	RequestControlRigInit();
+	BroadcastControlRigPackageDone();
+}
+
+void UControlRigBlueprint::BroadcastControlRigPackageDone()
+{
+	UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
+	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
+	CDO->BroadCastEndLoadPackage();
+
+	TArray<UObject*> ArchetypeInstances;
+	CDO->GetArchetypeInstances(ArchetypeInstances);
+	for (UObject* Instance : ArchetypeInstances)
+	{
+		if (UControlRig* InstanceRig = Cast<UControlRig>(Instance))
+		{
+			InstanceRig->BroadCastEndLoadPackage();
+		}
+	}
 }
 #endif
 

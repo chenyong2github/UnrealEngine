@@ -62,6 +62,11 @@ public:
 	/** Bindable event for external objects to be notified that a Control is Selected */
 	DECLARE_EVENT_ThreeParams(UControlRig, FControlSelectedEvent, UControlRig*, FRigControlElement*, bool);
 
+#if WITH_EDITOR
+	/** Bindable event for external objects to be notified that a control rig is fully end-loaded*/
+	DECLARE_EVENT_OneParam(UControlRig, FOnEndLoadPackage, UControlRig*);
+#endif
+
 	static const FName OwnerComponent;
 
 	UFUNCTION(BlueprintCallable, Category = ControlRig)
@@ -83,10 +88,21 @@ private:
 	/** Latest state being processed */
 	EControlRigState LatestExecutedState;
 
+	
 public:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 #if WITH_EDITOR
+
+private:
+	FOnEndLoadPackage EndLoadPackageEvent;
+
+public:
+	// these are needed so that sequencer can have a chance to update its 
+	// ControlRig instances after the package is fully end-loaded
+	void BroadCastEndLoadPackage() { EndLoadPackageEvent.Broadcast(this); }
+	FOnEndLoadPackage& OnEndLoadPackage() { return EndLoadPackageEvent; }
+
 	virtual void PostEditUndo() override;
 #endif
 
