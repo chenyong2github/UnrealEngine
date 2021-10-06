@@ -1,3 +1,5 @@
+// Original from ../windows/env.cc
+
 /* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +16,13 @@ limitations under the License.
 ==============================================================================*/
 // Portions Copyright (c) Microsoft Corporation
 
-#include "ThirdPartyWarningDisabler.h"
+#include "ThirdPartyWarningDisabler.h" // WITH_UE
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
 
 #include "core/platform/env.h"
 
-#if defined (PLATFORM_NNI_MICROSOFT) 
+#ifdef PLATFORM_NNI_MICROSOFT
 
 #undef TEXT
 #include <Windows.h>
@@ -33,9 +35,9 @@ NNI_THIRD_PARTY_INCLUDES_START
 #include "core/common/logging/logging.h"
 #include "core/platform/env.h"
 #include "core/platform/scoped_resource.h"
-
 #include "unsupported/Eigen/CXX11/src/ThreadPool/ThreadPoolInterface.h"
 #include <wil/Resource.h>
+
 #include "core/platform/path_lib.h"  // for LoopDir()
 
 EXTERN_C IMAGE_DOS_HEADER __ImageBase;
@@ -86,185 +88,158 @@ namespace onnxruntime {
 namespace {
 
 #ifndef PLATFORM_NNI_MICROSOFT
+  class UnmapFileParam {
+  public:
+    void* addr;
+    size_t len;
+  };
 
-	class UnmapFileParam {
-	public:
-		void* addr;
-		size_t len;
-	};
+  static void UnmapFile(void* param) noexcept {
+    UnmapFileParam* p = reinterpret_cast<UnmapFileParam*>(param);
+    int ret = munmap(p->addr, p->len);
+    if (ret != 0) {
+      int err = errno;
+      LOGS_DEFAULT(ERROR) << "munmap failed. error code: " << err;
+    }
+    delete p;
+  }
 
-	static void UnmapFile(void* param) noexcept {
-		UnmapFileParam* p = reinterpret_cast<UnmapFileParam*>(param);
-		int ret = munmap(p->addr, p->len);
-		if (ret != 0) {
-			int err = errno;
-			LOGS_DEFAULT(ERROR) << "munmap failed. error code: " << err;
-		}
-		delete p;
-	}
+  struct FileDescriptorTraits {
+    using Handle = int;
+    static Handle GetInvalidHandleValue() { return -1; }
+    static void CleanUp(Handle h) {
+      if (close(h) == -1) {
+        const int err = errno;
+        LOGS_DEFAULT(ERROR) << "Failed to close file descriptor " << h << " - error code: " << err;
+      }
+    }
+  };
 
-	struct FileDescriptorTraits {
-		using Handle = int;
-		static Handle GetInvalidHandleValue() { return -1; }
-		static void CleanUp(Handle h) {
-			if (close(h) == -1) {
-				const int err = errno;
-				LOGS_DEFAULT(ERROR) << "Failed to close file descriptor " << h << " - error code: " << err;
-			}
-		}
-	};
+  // Note: File descriptor cleanup may fail but this class doesn't expose a way to check if it failed.
+  //       If that's important, consider using another cleanup method.
+  using ScopedFileDescriptor = ScopedResource<FileDescriptorTraits>;
 
-	// Note: File descriptor cleanup may fail but this class doesn't expose a way to check if it failed.
-	//       If that's important, consider using another cleanup method.
-	using ScopedFileDescriptor = ScopedResource<FileDescriptorTraits>;
+  // non-macro equivalent of TEMP_FAILURE_RETRY, described here:
+  // https://www.gnu.org/software/libc/manual/html_node/Interrupted-Primitives.html
+  template <typename TFunc, typename... TFuncArgs>
+  long int TempFailureRetry(TFunc retriable_operation, TFuncArgs&&... args) {
+    long int result;
+    do {
+      result = retriable_operation(std::forward<TFuncArgs>(args)...);
+    } while (result == -1 && errno == EINTR);
+    return result;
+  }
 
-	// non-macro equivalent of TEMP_FAILURE_RETRY, described here:
-	// https://www.gnu.org/software/libc/manual/html_node/Interrupted-Primitives.html
-	template <typename TFunc, typename... TFuncArgs>
-	long int TempFailureRetry(TFunc retriable_operation, TFuncArgs&&... args) {
-		long int result;
-		do {
-			result = retriable_operation(std::forward<TFuncArgs>(args)...);
-		} while (result == -1 && errno == EINTR);
-		return result;
-	}
+  // nftw() callback to remove a file
+  int nftw_remove(
+    const char* fpath, const struct stat* /*sb*/,
+    int /*typeflag*/, struct FTW* /*ftwbuf*/) {
+    const auto result = remove(fpath);
+    if (result != 0) {
+      const int err = errno;
+      LOGS_DEFAULT(WARNING) << "remove() failed. Error code: " << err
+        << ", path: " << fpath;
+    }
+    return result;
+  }
 
-	// nftw() callback to remove a file
-	int nftw_remove(
-		const char* fpath, const struct stat* /*sb*/,
-		int /*typeflag*/, struct FTW* /*ftwbuf*/) {
-		const auto result = remove(fpath);
-		if (result != 0) {
-			const int err = errno;
-			LOGS_DEFAULT(WARNING) << "remove() failed. Error code: " << err
-				<< ", path: " << fpath;
-		}
-		return result;
-	}
+  template <typename T>
+  struct Freer {
+    void operator()(T* p) { ::free(p); }
+  };
 
-	template <typename T>
-	struct Freer {
-		void operator()(T* p) { ::free(p); }
-	};
-
-	using MallocdStringPtr = std::unique_ptr<char, Freer<char> >;
+  using MallocdStringPtr = std::unique_ptr<char, Freer<char> >;
 
 #endif
 
 
 class FORTUEThread : public EnvThread {
 private:
-	struct Param {
-		const ORTCHAR_T* name_prefix;
-		int index;
-		unsigned (*start_address)(int id, Eigen::ThreadPoolInterface* param);
-		Eigen::ThreadPoolInterface* param;
-		const ThreadOptions& thread_options;
-	};
+  struct Param {
+    const ORTCHAR_T* name_prefix;
+    int index;
+    unsigned (*start_address)(int id, Eigen::ThreadPoolInterface* param);
+    Eigen::ThreadPoolInterface* param;
+    const ThreadOptions& thread_options;
+  };
 
-	class FORTUERunnable : public FRunnable
-	{
-	public:
+  class FORTUERunnable : public FRunnable {
+  public:
+    FORTUERunnable(const Param& ParamSet) : ParamSet(ParamSet) {
+      size_t ThreadIdx = ParamSet.index;
+      uint32 IntStackSize = ParamSet.thread_options.stack_size;
+      EThreadPriority InThreadPri = ParamSet.thread_options.ThreadPri;
 
-		FORTUERunnable(const Param& ParamSet) : ParamSet(ParamSet)
-		{
-			/*
-			Create
-			(
-				FRunnable * InRunnable,
-				const TCHAR * ThreadName,
-				uint32 InStackSize,
-				EThreadPriority InThreadPri,
-				uint64 InThreadAffinityMask,
-				EThreadCreateFlags InCreateFlags
-			)
-			*/
+      uint64 AffinityMask = (!ParamSet.thread_options.affinity.empty()) ?
+        ParamSet.thread_options.affinity[ThreadIdx] :
+        FGenericPlatformAffinity::GetNoAffinityMask();
 
-			size_t ThreadIdx = ParamSet.index;
-			uint32 IntStackSize = ParamSet.thread_options.stack_size;
-			EThreadPriority InThreadPri = ParamSet.thread_options.ThreadPri;
+      std::string ThreadName("FORTUERunnable ");
+      ThreadName.append(std::to_string(ThreadIdx));
+      FString UEThreadName(ThreadName.c_str());
+      Thread = FRunnableThread::Create(
+        this,
+        *UEThreadName,
+        IntStackSize,
+        InThreadPri,
+        AffinityMask
+      );
+    };
 
-			uint64 AffinityMask = (!ParamSet.thread_options.affinity.empty()) ?
-				ParamSet.thread_options.affinity[ThreadIdx] :
-				FGenericPlatformAffinity::GetNoAffinityMask();
+    virtual ~FORTUERunnable() override {
+      if (Thread) {
+        // Kill() is a blocking call, it waits for the thread to finish.
+        // Hopefully that doesn't take too long
+        Thread->Kill();
+        delete Thread;
+      }
+    };
 
-			std::string ThreadName("FORTUERunnable ");
-			ThreadName.append(std::to_string(ThreadIdx));
-			FString UEThreadName(ThreadName.c_str());
-			Thread = FRunnableThread::Create(
-				this,
-				*UEThreadName,
-				IntStackSize,
-				InThreadPri,
-				AffinityMask
-			);
+    bool Init() override {
+      return true;
+    };
 
-		};
+    uint32 Run() override {
+      ORT_TRY {
+        // Ignore the returned value for now
+        ParamSet.start_address(ParamSet.index, ParamSet.param);
+      }
+      ORT_CATCH(const std::exception&) {
+        ParamSet.param->Cancel();
+      }
+      return 0;
+    };
 
-		virtual ~FORTUERunnable() override
-		{
-			if (Thread)
-			{
-				// Kill() is a blocking call, it waits for the thread to finish.
-				// Hopefully that doesn't take too long
-				Thread->Kill();
-				delete Thread;
-			}
-		};
+    void Stop() override {
+      bRunThread = false;
+    };
 
-		bool Init() override
-		{
-			return true;
-		};
-
-		uint32 Run() override
-		{
-			ORT_TRY
-			{
-				// Ignore the returned value for now
-				ParamSet.start_address(ParamSet.index, ParamSet.param);
-			}
-				ORT_CATCH(const std::exception&)
-			{
-				ParamSet.param->Cancel();
-			}
-
-			return 0;
-		};
-
-		void Stop() override
-		{
-			bRunThread = false;
-		};
-
-	private:
-
-		// Thread handle. Control the thread using this, with operators like kill
-		// and suspend
-		FRunnableThread* Thread = nullptr;
-		Param ParamSet;
-		bool bRunThread;
-	};
+  private:
+    // Thread handle. Control the thread using this, with operators like kill
+    // and suspend
+    FRunnableThread* Thread = nullptr;
+    Param ParamSet;
+    bool bRunThread;
+  };
 
 public:
+  FORTUEThread(
+    const ORTCHAR_T* name_prefix,
+    int index,
+    unsigned (*start_address)(int id, Eigen::ThreadPoolInterface* param),
+    Eigen::ThreadPoolInterface* param,
+    const ThreadOptions& thread_options) {
+    Param ParamForRunnable{ name_prefix, index, start_address, param, thread_options };
+    RunnableThread = std::make_unique<FORTUERunnable>(ParamForRunnable);
+  }
 
-	FORTUEThread(
-		const ORTCHAR_T* name_prefix,
-		int index,
-		unsigned (*start_address)(int id, Eigen::ThreadPoolInterface* param),
-		Eigen::ThreadPoolInterface* param,
-		const ThreadOptions& thread_options) {
-		Param ParamForRunnable{ name_prefix, index, start_address, param, thread_options };
-		RunnableThread = std::make_unique<FORTUERunnable>(ParamForRunnable);
-	}
-
-	// This function is called when the threadpool is cancelled.
-	// TODO: Find a way to avoid calling TerminateThread
-	void OnCancel() override {
-	}
+  // This function is called when the threadpool is cancelled.
+  // TODO: Find a way to avoid calling TerminateThread
+  void OnCancel() override {
+  }
 
 private:
-	std::unique_ptr<FORTUERunnable> RunnableThread;
+  std::unique_ptr<FORTUERunnable> RunnableThread;
 };
 
 
@@ -272,24 +247,23 @@ class UnrealEngineEnv : public Env {
  public:
   EnvThread* CreateThread(_In_opt_z_ const ORTCHAR_T* name_prefix, int index,
                           unsigned (*start_address)(int id, Eigen::ThreadPoolInterface* param),
-                          Eigen::ThreadPoolInterface* param, const ThreadOptions& thread_options) 
-  {
-	  return new FORTUEThread(name_prefix, index, start_address, param, thread_options);
+                          Eigen::ThreadPoolInterface* param, const ThreadOptions& thread_options) {
+    return new FORTUEThread(name_prefix, index, start_address, param, thread_options);
   }
 
   void SleepForMicroseconds(int64_t micros) const override {
 #ifndef WITH_UE
     Sleep(static_cast<DWORD>(micros) / 1000);
-#else
-	 // UE Code
-	 constexpr float OneMillion = 1000000.f;
-	 const float Seconds = static_cast<float>(micros) / OneMillion;
-	 FPlatformProcess::Sleep(Seconds);
-#endif
+#else //WITH_UE
+   // UE Code
+   constexpr float OneMillion = 1000000.f;
+   const float Seconds = static_cast<float>(micros) / OneMillion;
+   FPlatformProcess::Sleep(Seconds);
+#endif //WITH_UE
   }
 
   int GetNumCpuCores() const override {
-#if defined (PLATFORM_NNI_MICROSOFT)
+#ifdef PLATFORM_NNI_MICROSOFT
     SYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer[256];
     DWORD returnLength = sizeof(buffer);
     if (GetLogicalProcessorInformation(buffer, &returnLength) == FALSE) {
@@ -312,22 +286,21 @@ class UnrealEngineEnv : public Env {
     if (!processorCoreCount)
       ORT_THROW("Fatal error: 0 count processors from GetLogicalProcessorInformation");
     return processorCoreCount;
-#else
-	// This is the simplest way to do it without writing platform dependent
-	// code.
-	int32 ProcessorCoreCount = 0;
-	ProcessorCoreCount = FGenericPlatformMisc::NumberOfCoresIncludingHyperthreads();
+#else //PLATFORM_NNI_MICROSOFT
+  // This is the simplest way to do it without writing platform dependent
+  // code.
+  int32 ProcessorCoreCount = 0;
+  ProcessorCoreCount = FGenericPlatformMisc::NumberOfCoresIncludingHyperthreads();
 
-	if (!ProcessorCoreCount)
-	{
-		ORT_THROW("Fatal error: 0 count processors from GetLogicalProcessorInformation");
-	}
-	return ProcessorCoreCount;
-#endif
+  if (!ProcessorCoreCount) {
+    ORT_THROW("Fatal error: 0 count processors from GetLogicalProcessorInformation");
+  }
+  return ProcessorCoreCount;
+#endif //PLATFORM_NNI_MICROSOFT
   }
 
   std::vector<size_t> GetThreadAffinityMasks() const override {
-#if defined (PLATFORM_NNI_MICROSOFT)
+#ifdef PLATFORM_NNI_MICROSOFT
     auto generate_vector_of_n = [](int n) {
       std::vector<size_t> ret(n);
       std::iota(ret.begin(), ret.end(), 0);
@@ -349,12 +322,12 @@ class UnrealEngineEnv : public Env {
     if (ret.empty())
       return generate_vector_of_n(std::thread::hardware_concurrency());
     return ret;
-#else
-	// Reusing POSIX code
-	std::vector<size_t> ret(std::thread::hardware_concurrency() / 2);
-	std::iota(ret.begin(), ret.end(), 0);
-	return ret;
-#endif
+#else //PLATFORM_NNI_MICROSOFT
+  // Reusing POSIX code
+  std::vector<size_t> ret(std::thread::hardware_concurrency() / 2);
+  std::iota(ret.begin(), ret.end(), 0);
+  return ret;
+#endif //PLATFORM_NNI_MICROSOFT
   }
 
   static UnrealEngineEnv& Instance() {
@@ -365,14 +338,14 @@ class UnrealEngineEnv : public Env {
   PIDType GetSelfPid() const override {
 #ifndef WITH_UE
     return GetCurrentProcessId();
-#else
-	// Calling internal UE Function
-	return FGenericPlatformProcess::GetCurrentProcessId();
-#endif
+#else //WITH_UE
+  // Calling internal UE Function
+  return FGenericPlatformProcess::GetCurrentProcessId();
+#endif //WITH_UE
   }
 
   Status GetFileLength(_In_z_ const ORTCHAR_T* file_path, size_t& length) const override {
-#if defined (PLATFORM_NNI_MICROSOFT)
+#ifdef PLATFORM_NNI_MICROSOFT
 #if WINVER >= _WIN32_WINNT_WIN8
     wil::unique_hfile file_handle{
         CreateFile2(file_path, FILE_READ_ATTRIBUTES, FILE_SHARE_READ, OPEN_EXISTING, NULL)};
@@ -394,54 +367,49 @@ class UnrealEngineEnv : public Env {
     }
     length = static_cast<size_t>(filesize.QuadPart);
     return Status::OK();
-#else
-	// Path to file, conversion to FString
-	FString FilePathUE(file_path);
-	// Creating the FileManager
-	IPlatformFile& FileManager = FPlatformFileManager::Get().GetPlatformFile();
-	// Getting the file size and storing it
-	int64 FileSize = FileManager.FileSize(*FilePathUE);
-	length = static_cast<size_t>(FileSize);
-	return Status::OK();
-#endif
+#else //PLATFORM_NNI_MICROSOFT
+  // Path to file, conversion to FString
+  FString FilePathUE(file_path);
+  // Creating the FileManager
+  IPlatformFile& FileManager = FPlatformFileManager::Get().GetPlatformFile();
+  // Getting the file size and storing it
+  int64 FileSize = FileManager.FileSize(*FilePathUE);
+  length = static_cast<size_t>(FileSize);
+  return Status::OK();
+#endif //PLATFORM_NNI_MICROSOFT
   }
 
   common::Status GetFileLength(int fd, /*out*/ size_t& file_size) const override {
+    using namespace common;
+    if (fd < 0) {
+      return ORT_MAKE_STATUS(ONNXRUNTIME, INVALID_ARGUMENT, "Invalid fd was supplied: ", fd);
+    }
 
-	using namespace common;
-	if (fd < 0) {
-		return ORT_MAKE_STATUS(ONNXRUNTIME, INVALID_ARGUMENT, "Invalid fd was supplied: ", fd);
-	}
-
-#if defined (PLATFORM_NNI_MICROSOFT)
-   
+#ifdef PLATFORM_NNI_MICROSOFT
     struct _stat buf;
     int rc = _fstat(fd, &buf);
     if (rc < 0) {
       return Status(SYSTEM, errno);
     }
 
-#else
+#else //PLATFORM_NNI_MICROSOFT
+  struct stat buf;
+  int rc = fstat(fd, &buf);
+  if (rc < 0) {
+    return ReportSystemError("fstat", "");
+  }
+#endif //PLATFORM_NNI_MICROSOFT
 
-	struct stat buf;
-	int rc = fstat(fd, &buf);
-	if (rc < 0) {
-		return ReportSystemError("fstat", "");
-	}
+    if (buf.st_size < 0) {
+      return ORT_MAKE_STATUS(SYSTEM, FAIL, "Received negative size from stat call");
+    }
 
-#endif
+    if (static_cast<unsigned long long>(buf.st_size) > std::numeric_limits<size_t>::max()) {
+      return ORT_MAKE_STATUS(SYSTEM, FAIL, "File is too large.");
+    }
 
-	if (buf.st_size < 0) {
-		return ORT_MAKE_STATUS(SYSTEM, FAIL, "Received negative size from stat call");
-	}
-
-	if (static_cast<unsigned long long>(buf.st_size) > std::numeric_limits<size_t>::max()) {
-		return ORT_MAKE_STATUS(SYSTEM, FAIL, "File is too large.");
-	}
-
-	file_size = static_cast<size_t>(buf.st_size);
-	return Status::OK();
-
+    file_size = static_cast<size_t>(buf.st_size);
+    return Status::OK();
   }
 
   common::Status ReadFileIntoBuffer(_In_z_ const ORTCHAR_T* const file_path, const FileOffsetType offset, const size_t length,
@@ -450,9 +418,8 @@ class UnrealEngineEnv : public Env {
     ORT_RETURN_IF_NOT(offset >= 0, "offset < 0");
     ORT_RETURN_IF_NOT(length <= buffer.size(), "length > buffer.size()");
 
-#if defined (PLATFORM_NNI_MICROSOFT)
-
-#if WINVER >= _WIN32_WINNT_WIN8 
+#ifdef PLATFORM_NNI_MICROSOFT
+#if WINVER >= _WIN32_WINNT_WIN8
     wil::unique_hfile file_handle{
         CreateFile2(file_path, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING, NULL)};
 #else
@@ -497,164 +464,153 @@ class UnrealEngineEnv : public Env {
 
     return Status::OK();
 
-#else
-
-	ScopedFileDescriptor file_descriptor{ open(file_path, O_RDONLY) };
-	if (!file_descriptor.IsValid()) {
-		return ReportSystemError("open", file_path);
+#else //PLATFORM_NNI_MICROSOFT
+  ScopedFileDescriptor file_descriptor{ open(file_path, O_RDONLY) };
+  if (!file_descriptor.IsValid()) {
+    return ReportSystemError("open", file_path);
   }
 
-	if (length == 0)
-		return Status::OK();
+  if (length == 0)
+    return Status::OK();
 
-	if (offset > 0) {
-		const FileOffsetType seek_result = lseek(file_descriptor.Get(), offset, SEEK_SET);
-		if (seek_result == -1) {
-			return ReportSystemError("lseek", file_path);
-		}
-	}
+  if (offset > 0) {
+    const FileOffsetType seek_result = lseek(file_descriptor.Get(), offset, SEEK_SET);
+    if (seek_result == -1) {
+      return ReportSystemError("lseek", file_path);
+    }
+  }
 
-	size_t total_bytes_read = 0;
-	while (total_bytes_read < length) {
-		constexpr size_t k_max_bytes_to_read = 1 << 30;  // read at most 1GB each time
-		const size_t bytes_remaining = length - total_bytes_read;
-		const size_t bytes_to_read = std::min(bytes_remaining, k_max_bytes_to_read);
+  size_t total_bytes_read = 0;
+  while (total_bytes_read < length) {
+    constexpr size_t k_max_bytes_to_read = 1 << 30;  // read at most 1GB each time
+    const size_t bytes_remaining = length - total_bytes_read;
+    const size_t bytes_to_read = std::min(bytes_remaining, k_max_bytes_to_read);
 
-		const ssize_t bytes_read =
-			TempFailureRetry(read, file_descriptor.Get(), buffer.data() + total_bytes_read, bytes_to_read);
+    const ssize_t bytes_read =
+      TempFailureRetry(read, file_descriptor.Get(), buffer.data() + total_bytes_read, bytes_to_read);
 
-		if (bytes_read == -1) {
-			return ReportSystemError("read", file_path);
-		}
+    if (bytes_read == -1) {
+      return ReportSystemError("read", file_path);
+    }
 
-		if (bytes_read == 0) {
-			return ORT_MAKE_STATUS(ONNXRUNTIME, FAIL, "ReadFileIntoBuffer - unexpected end of file. ", "File: ", file_path,
-				", offset: ", offset, ", length: ", length);
-		}
+    if (bytes_read == 0) {
+      return ORT_MAKE_STATUS(ONNXRUNTIME, FAIL, "ReadFileIntoBuffer - unexpected end of file. ", "File: ", file_path,
+        ", offset: ", offset, ", length: ", length);
+    }
 
-		total_bytes_read += bytes_read;
-	}
+    total_bytes_read += bytes_read;
+  }
 
-	return Status::OK();
-
-#endif
-
+  return Status::OK();
+#endif //PLATFORM_NNI_MICROSOFT
   }
 
 
-#if defined(PLATFORM_NNI_MICROSOFT) || defined(__PROSPERO__)
+#if defined(PLATFORM_NNI_MICROSOFT) || defined(__PROSPERO__) // WITH_UE
 
-	Status MapFileIntoMemory(_In_z_ const ORTCHAR_T*, FileOffsetType, size_t, MappedMemoryPtr&) const override {
-    	return ORT_MAKE_STATUS(ONNXRUNTIME, NOT_IMPLEMENTED, "MapFileIntoMemory is not implemented on Windows or PS5.");
-  	}
+  Status MapFileIntoMemory(_In_z_ const ORTCHAR_T*, FileOffsetType, size_t, MappedMemoryPtr&) const override {
+    return ORT_MAKE_STATUS(ONNXRUNTIME, NOT_IMPLEMENTED, "MapFileIntoMemory is not implemented on Windows or PS5.");
+  }
 
-#else 
-
-	Status MapFileIntoMemory(
-		const ORTCHAR_T* file_path, 
-		FileOffsetType offset, 
-		size_t length,
+#else // WITH_UE
+  Status MapFileIntoMemory(
+    const ORTCHAR_T* file_path,
+    FileOffsetType offset,
+    size_t length,
         MappedMemoryPtr& mapped_memory) const override {
 
-	ORT_RETURN_IF_NOT(file_path, "file_path == nullptr");
-	ORT_RETURN_IF_NOT(offset >= 0, "offset < 0");
+  ORT_RETURN_IF_NOT(file_path, "file_path == nullptr");
+  ORT_RETURN_IF_NOT(offset >= 0, "offset < 0");
 
-	ScopedFileDescriptor file_descriptor{ open(file_path, O_RDONLY) };
-	if (!file_descriptor.IsValid()) {
-		return ReportSystemError("open", file_path);
-	}
+  ScopedFileDescriptor file_descriptor{ open(file_path, O_RDONLY) };
+  if (!file_descriptor.IsValid()) {
+    return ReportSystemError("open", file_path);
+  }
 
-	if (length == 0) {
-		mapped_memory = MappedMemoryPtr{};
-		return Status::OK();
-	}
+  if (length == 0) {
+    mapped_memory = MappedMemoryPtr{};
+    return Status::OK();
+  }
 
 #ifdef __PROSPERO__
-	static const long page_size = PAGE_SIZE;
-#else
-	static const long page_size = sysconf(_SC_PAGESIZE);
-#endif
+  static const long page_size = PAGE_SIZE;
+#else //__PROSPERO__
+  static const long page_size = sysconf(_SC_PAGESIZE);
+#endif //__PROSPERO__
 
-	const FileOffsetType offset_to_page = offset % static_cast<FileOffsetType>(page_size);
-	const size_t mapped_length = length + offset_to_page;
-	const FileOffsetType mapped_offset = offset - offset_to_page;
-	void* const mapped_base =
-		mmap(nullptr, mapped_length, PROT_READ | PROT_WRITE, MAP_PRIVATE, file_descriptor.Get(), mapped_offset);
+  const FileOffsetType offset_to_page = offset % static_cast<FileOffsetType>(page_size);
+  const size_t mapped_length = length + offset_to_page;
+  const FileOffsetType mapped_offset = offset - offset_to_page;
+  void* const mapped_base =
+    mmap(nullptr, mapped_length, PROT_READ | PROT_WRITE, MAP_PRIVATE, file_descriptor.Get(), mapped_offset);
 
-	if (mapped_base == MAP_FAILED) {
-		return ReportSystemError("mmap", file_path);
-	}
-
-	mapped_memory =
-		MappedMemoryPtr{ reinterpret_cast<char*>(mapped_base) + offset_to_page,
-						  OrtCallbackInvoker{OrtCallback{UnmapFile, new UnmapFileParam{mapped_base, mapped_length}}} };
-
-	return Status::OK();
+  if (mapped_base == MAP_FAILED) {
+    return ReportSystemError("mmap", file_path);
   }
-#endif
+
+  mapped_memory =
+    MappedMemoryPtr{ reinterpret_cast<char*>(mapped_base) + offset_to_page,
+              OrtCallbackInvoker{OrtCallback{UnmapFile, new UnmapFileParam{mapped_base, mapped_length}}} };
+
+  return Status::OK();
+  }
+#endif // WITH_UE
 
 
 
 #ifndef PLATFORM_NNI_MICROSOFT
   static common::Status ReportSystemError(const char* operation_name, const std::string& path) {
-	auto e = errno;
-    char buf[1024];
-    const char* msg = "";
-    if (e > 0) {
+    auto e = errno;
+      char buf[1024];
+      const char* msg = "";
+      if (e > 0) {
 #if defined(__GLIBC__) && defined(_GNU_SOURCE) && !defined(__ANDROID__)
-      msg = strerror_r(e, buf, sizeof(buf));
+        msg = strerror_r(e, buf, sizeof(buf));
 #else
-      // for Mac OS X and Android lower than API 23
-	if (strerror_r(e, buf, sizeof(buf)) != 0) {
-    	buf[0] = '\0';
-    }
-    msg = buf;
+        // for Mac OS X and Android lower than API 23
+    if (strerror_r(e, buf, sizeof(buf)) != 0) {
+        buf[0] = '\0';
+      }
+      msg = buf;
 #endif
+      }
+      std::ostringstream oss;
+      oss << operation_name << " file \"" << path << "\" failed: " << msg;
+      return common::Status(common::SYSTEM, e, oss.str());
     }
-    std::ostringstream oss;
-    oss << operation_name << " file \"" << path << "\" failed: " << msg;
-    return common::Status(common::SYSTEM, e, oss.str());
-  }
-#endif
+#endif //PLATFORM_NNI_MICROSOFT
 
-
-  bool FolderExists(const std::string& path) const override {
-
-	FString FilePathUE(path.c_str());
-	IPlatformFile& FileManager = FPlatformFileManager::Get().GetPlatformFile();
-	const bool bExist = FileManager.DirectoryExists(*FilePathUE);
-	
-	return bExist;
+    bool FolderExists(const std::string& path) const override {
+    FString FilePathUE(path.c_str());
+    IPlatformFile& FileManager = FPlatformFileManager::Get().GetPlatformFile();
+    const bool bExist = FileManager.DirectoryExists(*FilePathUE);
+    return bExist;
   }
 
   common::Status CreateFolder(const std::string& path) const override {
+    FString FilePathUE(path.c_str());
+    IPlatformFile& FileManager = FPlatformFileManager::Get().GetPlatformFile();
+    bool bIsSuccess = FileManager.CreateDirectory(*FilePathUE);
+    common::Status RetVal = (bIsSuccess) ? common::Status::OK() : ORT_MAKE_STATUS(ONNXRUNTIME, FAIL, "Creating Folder: ", ToMBString(path));
 
-	FString FilePathUE(path.c_str());
-	IPlatformFile& FileManager = FPlatformFileManager::Get().GetPlatformFile();
-	bool bIsSuccess = FileManager.CreateDirectory(*FilePathUE);
-	common::Status RetVal = (bIsSuccess) ? common::Status::OK() : ORT_MAKE_STATUS(ONNXRUNTIME, FAIL, "Creating Folder: ", ToMBString(path));
-
-	return RetVal;
+    return RetVal;
   }
 
   common::Status DeleteFolder(const PathString& path) const override {
-	
-	  FString FilePathUE(path.c_str());
-	  IPlatformFile& FileManager = FPlatformFileManager::Get().GetPlatformFile();
-	  bool bIsSuccess = FileManager.DeleteDirectoryRecursively(*FilePathUE);
-	  common::Status RetVal = (bIsSuccess) ? common::Status::OK() : ORT_MAKE_STATUS(ONNXRUNTIME, FAIL, "Deleting Folder: ", ToMBString(path));
+    FString FilePathUE(path.c_str());
+    IPlatformFile& FileManager = FPlatformFileManager::Get().GetPlatformFile();
+    bool bIsSuccess = FileManager.DeleteDirectoryRecursively(*FilePathUE);
+    common::Status RetVal = (bIsSuccess) ? common::Status::OK() : ORT_MAKE_STATUS(ONNXRUNTIME, FAIL, "Deleting Folder: ", ToMBString(path));
 
-	  return RetVal;
+    return RetVal;
   }
 
- 
   common::Status FileOpenRd(const std::string& path, /*out*/ int& fd) const override {
-
-#if defined (PLATFORM_NNI_MICROSOFT)
+#ifdef PLATFORM_NNI_MICROSOFT
     _sopen_s(&fd, path.c_str(), _O_RDONLY | _O_SEQUENTIAL | _O_BINARY, _SH_DENYWR, _S_IREAD | _S_IWRITE);
-#else
-	 fd = open(path.c_str(), O_RDONLY);
-#endif
+#else //PLATFORM_NNI_MICROSOFT
+   fd = open(path.c_str(), O_RDONLY);
+#endif //PLATFORM_NNI_MICROSOFT
 
     if (0 > fd) {
       return common::Status(common::SYSTEM, errno);
@@ -664,12 +620,12 @@ class UnrealEngineEnv : public Env {
 
   common::Status FileOpenWr(const std::string& path, /*out*/ int& fd) const override {
 
-#if defined (PLATFORM_NNI_MICROSOFT)
+#ifdef PLATFORM_NNI_MICROSOFT
     _sopen_s(&fd, path.c_str(), _O_CREAT | _O_TRUNC | _O_SEQUENTIAL | _O_BINARY | _O_WRONLY, _SH_DENYWR,
              _S_IREAD | _S_IWRITE);
-#else
-	fd = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
-#endif
+#else //PLATFORM_NNI_MICROSOFT
+  fd = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+#endif //PLATFORM_NNI_MICROSOFT
 
     if (0 > fd) {
       return common::Status(common::SYSTEM, errno);
@@ -677,52 +633,45 @@ class UnrealEngineEnv : public Env {
     return Status::OK();
   }
 
-#if defined (PLATFORM_NNI_MICROSOFT)
-
+#ifdef PLATFORM_NNI_MICROSOFT
   bool FolderExists(const std::wstring& path) const override {
+    const std::string path_str(path.begin(), path.end());
+    const bool bExist = FolderExists(path_str);
 
-	  const std::string path_str(path.begin(), path.end());
-	  const bool bExist = FolderExists(path_str);
-
-	  return bExist;
+    return bExist;
   }
 
   common::Status CreateFolder(const std::wstring& path) const override {
+    const std::string path_str(path.begin(), path.end());
+    common::Status RetVal = CreateFolder(path_str);
 
-	  const std::string path_str(path.begin(), path.end());
-	  common::Status RetVal = CreateFolder(path_str);
-
-	  return RetVal;
+    return RetVal;
   }
 
   common::Status FileOpenRd(const std::wstring& path, /*out*/ int& fd) const override {
-	  _wsopen_s(&fd, path.c_str(), _O_RDONLY | _O_SEQUENTIAL | _O_BINARY, _SH_DENYWR, _S_IREAD | _S_IWRITE);
-	  if (0 > fd) {
-		  return common::Status(common::SYSTEM, errno);
-	  }
-	  return Status::OK();
+    _wsopen_s(&fd, path.c_str(), _O_RDONLY | _O_SEQUENTIAL | _O_BINARY, _SH_DENYWR, _S_IREAD | _S_IWRITE);
+    if (0 > fd) {
+      return common::Status(common::SYSTEM, errno);
+    }
+    return Status::OK();
   }
 
   common::Status FileOpenWr(const std::wstring& path, /*out*/ int& fd) const override {
-	  _wsopen_s(&fd, path.c_str(), _O_CREAT | _O_TRUNC | _O_SEQUENTIAL | _O_BINARY | _O_WRONLY, _SH_DENYWR,
-		  _S_IREAD | _S_IWRITE);
-	  if (0 > fd) {
-		  return common::Status(common::SYSTEM, errno);
-	  }
-	  return Status::OK();
+    _wsopen_s(&fd, path.c_str(), _O_CREAT | _O_TRUNC | _O_SEQUENTIAL | _O_BINARY | _O_WRONLY, _SH_DENYWR,
+      _S_IREAD | _S_IWRITE);
+    if (0 > fd) {
+      return common::Status(common::SYSTEM, errno);
+    }
+    return Status::OK();
   }
-
-#endif
-
+#endif //PLATFORM_NNI_MICROSOFT
 
   common::Status FileClose(int fd) const override {
-
-#if defined (PLATFORM_NNI_MICROSOFT)
+#ifdef PLATFORM_NNI_MICROSOFT
     int ret = _close(fd);
-#else
-	int ret = close(fd);
-#endif
-
+#else //PLATFORM_NNI_MICROSOFT
+    int ret = close(fd);
+#endif //PLATFORM_NNI_MICROSOFT
     if (0 != ret) {
       return common::Status(common::SYSTEM, errno);
     }
@@ -732,9 +681,7 @@ class UnrealEngineEnv : public Env {
   common::Status GetCanonicalPath(
       const PathString& path,
       PathString& canonical_path) const override {
-
-#if defined (PLATFORM_NNI_MICROSOFT)
-
+#ifdef PLATFORM_NNI_MICROSOFT
     // adapted from MSVC STL std::filesystem::canonical() implementation
     // https://github.com/microsoft/STL/blob/ed3cbf36416a385828e7a5987ca52cb42882d84b/stl/inc/filesystem#L2986
 #if WINVER >= _WIN32_WINNT_WIN8
@@ -799,24 +746,22 @@ class UnrealEngineEnv : public Env {
 
     return Status::OK();
 
-#else
-	
-#ifdef __PROSPERO__
-	  MallocdStringPtr canonical_path_cstr{ strdup(path.c_str()) };
-#else
-	  MallocdStringPtr canonical_path_cstr{ realpath(path.c_str(), nullptr) };
-#endif
+#else //PLATFORM_NNI_MICROSOFT
+#ifdef __PROSPERO__ // WITH_UE
+    MallocdStringPtr canonical_path_cstr{ strdup(path.c_str()) };
+#else //__PROSPERO__
+    MallocdStringPtr canonical_path_cstr{ realpath(path.c_str(), nullptr) };
+#endif //__PROSPERO__
 
-	if (!canonical_path_cstr) {
-		return ReportSystemError("realpath", path);
-	}
-	canonical_path.assign(canonical_path_cstr.get());
-	return Status::OK();
-
-#endif
+  if (!canonical_path_cstr) {
+    return ReportSystemError("realpath", path);
+  }
+  canonical_path.assign(canonical_path_cstr.get());
+  return Status::OK();
+#endif //PLATFORM_NNI_MICROSOFT
   }
 
-#if defined (PLATFORM_NNI_MICROSOFT)
+#ifdef PLATFORM_NNI_MICROSOFT
   // Return the path of the executable/shared library for the current running code. This is to make it
   // possible to load other shared libraries installed next to our core runtime code.
   std::string GetRuntimePath() const override {
@@ -835,65 +780,53 @@ class UnrealEngineEnv : public Env {
 #endif
 
   virtual Status LoadDynamicLibrary(const std::string& library_filename, void** handle) const override {
-
-#ifndef WITH_UE 
-
+#ifndef WITH_UE
 #if WINAPI_FAMILY == WINAPI_FAMILY_PC_APP
     *handle = ::LoadPackagedLibrary(ToWideString(library_filename).c_str(), 0);
 #else
     *handle = ::LoadLibraryExA(library_filename.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
 #endif
-    
-#else 
-	FString PathToDll = FString(library_filename.c_str());
-	*handle = FPlatformProcess::GetDllHandle(*PathToDll);
-#endif
 
-	if (!*handle) {
-		const auto error_code = FGenericPlatformMisc::GetLastError();
-		return ORT_MAKE_STATUS(ONNXRUNTIME, FAIL, "Failed to load library, error code: ", error_code);
-	}
+#else //WITH_UE
+    FString PathToDll = FString(library_filename.c_str());
+    *handle = FPlatformProcess::GetDllHandle(*PathToDll);
+#endif //WITH_UE
+    if (!*handle) {
+      const auto error_code = FGenericPlatformMisc::GetLastError();
+      return ORT_MAKE_STATUS(ONNXRUNTIME, FAIL, "Failed to load library, error code: ", error_code);
+    }
 
-	return Status::OK();
-
+    return Status::OK();
   }
 
   virtual Status UnloadDynamicLibrary(void* handle) const override {
-
-#ifndef WITH_UE 
-	if (::FreeLibrary(reinterpret_cast<HMODULE>(handle)) == 0) {
-		const auto error_code = GetLastError();
-		return ORT_MAKE_STATUS(ONNXRUNTIME, FAIL, "Failed to unload library, error code: ", error_code);
+#ifndef WITH_UE
+    if (::FreeLibrary(reinterpret_cast<HMODULE>(handle)) == 0) {
+      const auto error_code = GetLastError();
+      return ORT_MAKE_STATUS(ONNXRUNTIME, FAIL, "Failed to unload library, error code: ", error_code);
     }
-#else
-	FPlatformProcess::FreeDllHandle(handle);
-#endif
+#else //WITH_UE
+    FPlatformProcess::FreeDllHandle(handle);
+#endif //WITH_UE
 
     return Status::OK();
   }
 
   virtual Status GetSymbolFromLibrary(void* handle, const std::string& symbol_name, void** symbol) const override {
-    
-#ifndef WITH_UE 
+#ifndef WITH_UE
+    *symbol = ::GetProcAddress(reinterpret_cast<HMODULE>(handle), symbol_name.c_str());
+#else //WITH_UE
+    FString SymbolNameUE = FString(symbol_name.c_str());
+    *symbol = FPlatformProcess::GetDllExport(handle, *SymbolNameUE);
+#endif //WITH_UE
 
-	*symbol = ::GetProcAddress(reinterpret_cast<HMODULE>(handle), symbol_name.c_str());
-    
-#else
-
-	FString SymbolNameUE = FString(symbol_name.c_str());
-	*symbol = FPlatformProcess::GetDllExport(handle, *SymbolNameUE);
-
-#endif
-
-	if (!*symbol) {
-		const auto error_code = FGenericPlatformMisc::GetLastError();
-		return ORT_MAKE_STATUS(ONNXRUNTIME, FAIL, 
-			"Failed to find symbol in library, error code: ",
-			error_code);
-	}
-
-	return Status::OK();
-
+    if (!*symbol) {
+      const auto error_code = FGenericPlatformMisc::GetLastError();
+      return ORT_MAKE_STATUS(ONNXRUNTIME, FAIL,
+        "Failed to find symbol in library, error code: ",
+        error_code);
+    }
+    return Status::OK();
   }
 
   virtual std::string FormatLibraryFileName(const std::string& name, const std::string& version) const override {
@@ -910,8 +843,7 @@ class UnrealEngineEnv : public Env {
   // \brief returns a value for the queried variable name (var_name)
   std::string GetEnvironmentVar(const std::string& var_name) const override {
 
-#ifndef WITH_UE 
-
+#ifndef WITH_UE
     // Why getenv() should be avoided on Windows:
     // https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/getenv-wgetenv
     // Instead use the Win32 API: GetEnvironmentVariableA()
@@ -936,19 +868,16 @@ class UnrealEngineEnv : public Env {
 
     return std::string();
 
-#else
-
-	  FString EnvVarName = FString(var_name.c_str());
-	  FString VarVal = FGenericPlatformMisc::GetEnvironmentVariable(*EnvVarName);
-	  std::string RetVal = TCHAR_TO_UTF8(*VarVal);
-
-	  return RetVal;
-
-#endif
+#else //WITH_UE
+    FString EnvVarName = FString(var_name.c_str());
+    FString VarVal = FGenericPlatformMisc::GetEnvironmentVariable(*EnvVarName);
+    std::string RetVal = TCHAR_TO_UTF8(*VarVal);
+    return RetVal;
+#endif //WITH_UE
   }
 
  private:
-	 Telemetry telemetry_provider_;
+  Telemetry telemetry_provider_;
 };
 }  // namespace
 
