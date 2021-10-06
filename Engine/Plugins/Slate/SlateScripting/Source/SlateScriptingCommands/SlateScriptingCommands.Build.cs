@@ -6,6 +6,8 @@ namespace UnrealBuildTool.Rules
 	{
 		public SlateScriptingCommands(ReadOnlyTargetRules Target) : base(Target)
 		{
+			PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
