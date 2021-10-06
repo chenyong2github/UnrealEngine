@@ -488,6 +488,8 @@ public:
 	/** Returns a view of the raw byte array for the ObjectId. */
 	constexpr inline FMemoryView GetView() const { return MakeMemoryView(Bytes); }
 
+	CORE_API static FCbObjectId NewObjectId();
+
 private:
 	alignas(uint32) ByteArray Bytes{};
 };
