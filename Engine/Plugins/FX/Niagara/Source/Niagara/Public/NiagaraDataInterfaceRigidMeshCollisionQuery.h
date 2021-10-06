@@ -169,10 +169,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Static Mesh")
 	bool StaticMesh = true;
 
-	UPROPERTY(EditAnywhere, Category = "Static Mesh", meta = (EditCondition = "UseStaticMeshes"))
+	UPROPERTY(EditAnywhere, Category = "Static Mesh", meta = (EditCondition = "StaticMesh"))
 	FString Tag = TEXT("");
 
-	UPROPERTY(EditAnywhere, Category = "Static Mesh", meta = (EditCondition = "UseStaticMeshes"))
+	UPROPERTY(EditAnywhere, Category = "Static Mesh", meta = (EditCondition = "StaticMesh"))
 	bool OnlyUseMoveable = true;
 
 	UPROPERTY(EditAnywhere, Category = "General")
