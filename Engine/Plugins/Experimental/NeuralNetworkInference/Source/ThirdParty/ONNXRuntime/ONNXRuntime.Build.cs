@@ -14,8 +14,7 @@ public class ONNXRuntime : ModuleRules
 		PublicIncludePaths.AddRange(
 			new string[] {
 				// ONNXRuntime includes
-				System.IO.Path.Combine(ModuleDirectory, "./Classes/onnxruntime"),
-				System.IO.Path.Combine(ModuleDirectory, "./Classes/onnxruntime/core/session"),
+				System.IO.Path.Combine(ModuleDirectory, "./Internal/core/session"),
 				// ThirdParty includes
 				System.IO.Path.Combine(ModuleDirectory, "../Deps/date/include"),
 				System.IO.Path.Combine(ModuleDirectory, "../Deps/gsl"),

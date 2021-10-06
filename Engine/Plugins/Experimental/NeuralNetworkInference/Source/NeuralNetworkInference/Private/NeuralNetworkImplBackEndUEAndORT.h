@@ -9,7 +9,7 @@ NNI_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
 #ifdef WITH_UE_AND_ORT_SUPPORT
-	#include "onnxruntime/core/session/onnxruntime_cxx_api.h"
+	#include "core/session/onnxruntime_cxx_api.h"
 	#ifdef PLATFORM_WIN64
 		struct OrtDMLProviderOptions;
 		namespace Ort
