@@ -1645,9 +1645,15 @@ EMeshResult FDynamicMesh3::MergeEdges(int eKeep, int eDiscard, FMergeEdgesInfo& 
 	// we will not join triangles with incompatible winding order
 	// I can't see how to do this purely topologically.
 	// So relying on closest-pairs testing.
-	IndexUtil::OrientTriEdge(a, b, GetTriangle(tab));
-	//int tcd_otherv = OrientTriEdgeAndFindOtherVtx(ref c, ref d, GetTriangle(tcd));
-	IndexUtil::OrientTriEdge(c, d, GetTriangle(tcd));
+	int OppAB = IndexUtil::OrientTriEdgeAndFindOtherVtx(a, b, GetTriangle(tab));
+	int OppCD = IndexUtil::OrientTriEdgeAndFindOtherVtx(c, d, GetTriangle(tcd));
+
+	// Refuse to merge if doing so would create a duplicate triangle
+	if (OppAB == OppCD)
+	{
+		return EMeshResult::Failed_InvalidNeighbourhood;
+	}
+
 	int x = c; c = d; d = x;   // joinable bdry edges have opposing orientations, so flip to get ac and b/d correspondences
 	FVector3d Va = GetVertex(a), Vb = GetVertex(b), Vc = GetVertex(c), Vd = GetVertex(d);
 	if (bCheckValidOrientation && 
