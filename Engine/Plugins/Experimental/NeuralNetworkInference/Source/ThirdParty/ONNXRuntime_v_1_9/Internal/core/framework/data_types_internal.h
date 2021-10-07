@@ -16,9 +16,11 @@ NNI_THIRD_PARTY_INCLUDES_START
 #include "boost/mp11.hpp"
 
 #include "core/common/common.h"
+#ifndef SHARED_PROVIDER
 #include "core/common/type_list.h"
 #include "core/framework/data_types.h"
 #include "core/graph/onnx_protobuf.h"
+#endif
 
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check

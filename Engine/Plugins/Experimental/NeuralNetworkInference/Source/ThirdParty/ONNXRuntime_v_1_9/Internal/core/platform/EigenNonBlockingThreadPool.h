@@ -941,7 +941,6 @@ void RunInParallelSection(ThreadPoolParallelSection &ps,
   // loops to execute from the current parallel section.
   const auto worker_fn = [&ps](unsigned my_idx) {
     while (ps.active) {
-
 #ifdef __PROSPERO__ // #ifdef WITH_UE
       if ((void*)ps.current_loop == nullptr) {
 #else

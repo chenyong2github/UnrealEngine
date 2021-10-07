@@ -38,28 +38,191 @@ git push origin master
 	- From `D:/P4/ue5_main_pitt64/Engine/Plugins/Experimental/NeuralNetworkInference/Source/ThirdParty/ONNXRuntime/`.
 	- Into `D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/`.
 2. To allow changes, right-click on `ONNXRuntime_src_code_from_NNI`, "Properties", uncheck "Read-only", and "OK".
-3. Bump version in `[...]/ONNXRuntime_src_code_from_NNI/Classes/onnxruntime/onnxruntime_config.h`: #define ORT_VERSION "1.7.1".
+3. Bump version in `[...]/ONNXRuntime_src_code_from_NNI/Internal/onnxruntime_config.h`: #define ORT_VERSION "1.7.1".
 	- Additional info: In the original ORT, `onnxruntime_config.h` is created by `{onnxruntime_path}/cmake/CMakeLists.txt` in line 1151.
 		- `configure_file(onnxruntime_config.h.in ${CMAKE_CURRENT_BINARY_DIR}/onnxruntime_config.h)`
-4. Copy subset of `{onnxruntime_path}/include/onnxruntime/core` into `ONNXRuntime/Classes/onnxruntime/core/`.
-5. Copy subset of `{onnxruntime_path}/onnxruntime/core` into `ONNXRuntime/Internal/core/`.
+4. `ONNXRuntime/Internal/`:
+	- Copy subset of `{onnxruntime_path}/include/onnxruntime/core/` into `ONNXRuntime/Internal/core/`.
+5. `ONNXRuntime/Private/`:
+	- Copy subset of `{onnxruntime_path}/onnxruntime/contrib_ops/cpu/` into `ONNXRuntime/Private/contrib_ops/cpu/`.
+	- Copy subset of `{onnxruntime_path}/onnxruntime/core/` into `ONNXRuntime/Private/core/`.
+	- Copy subset of `{onnxruntime_path}/onnxruntime/test/testdata/custom_op_library/` into `ONNXRuntime/Private/test/testdata/custom_op_library/`.
+
+With commands:
+```
+################################################## REMOVING ##################################################
+# Remove include/onnxruntime
+rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/include/onnxruntime/core
+# Remove contrib_ops/cpu
+rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/contrib_ops/cpu/
+# Remove core
+rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/common
+rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/flatbuffers/
+rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/framework/
+rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/graph/
+rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/optimizer/
+rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/platform/
+rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/profile/
+rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/providers/cpu/
+rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/providers/dml/
+rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/providers/shared/
+rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/providers/shared_library/
+rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/providers/common.h
+rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/providers/get_execution_providers.*
+rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/providers/op_kernel_type_control*
+rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/session/
+rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/util/
+# Remove custom_op_library
+rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/test/testdata/custom_op_library/custom_op_library.cc
+rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/test/testdata/custom_op_library/custom_op_library.h
+
+################################################## ADDING NEW FILES ##################################################
+# Copy include/onnxruntime
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/Internal/core D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/include/onnxruntime/core
+# Copy contrib_ops/cpu
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/Private/contrib_ops/cpu D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/contrib_ops
+# Copy core
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/Private/core D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/Private_DML_EP/Windows/core/ D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime
+# Copy custom_op_library
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/Private/test D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime
+
+# Equivalent to manually dragging:
+# - The 3 folders of {ONNXRuntime_from_NNI}/ONNXRuntime/Private into {ONNXRuntime_repo}/onnxruntime/onnxruntime.
+# - {ONNXRuntime_from_NNI}/Private_DML_EP/Windows/core into {ONNXRuntime_repo}/onnxruntime/onnxruntime.
+# - {ONNXRuntime_from_NNI}/Internal/core into {ONNXRuntime_repo}/include/onnxruntime/core.
+
+
+################################################## REVERTING ACCIDENTAL DELETES ##################################################
+git checkout onnxruntime/core/platform/android/*
+git checkout onnxruntime/core/platform/posix/env*
+git checkout onnxruntime/core/platform/posix/logging/*
+git checkout onnxruntime/core/platform/windows/*
+```
+
+See how many files you have updated:
+```
+# Using git add will let you see renames more easily, just don't commit/push it!
+git add .
+git status
+# Undo git add
+git reset *
+```
+
+```
+# Note: To remove untracked files
+# git checkout *
+# git clean -f -d   # https://koukia.ca/how-to-remove-local-untracked-files-from-the-current-git-branch-571c6ce9b6b1
+```
 
 
 
-Final architecture:
+## Step 3: Upgrade ONNX Runtime
+```
+# git reset --hard 711a31e
+
+# Push code
+git add .
+git commit -m "NNI"
+
+rm onnxruntime/python/tools/tensorrt/perf/build/Dockerfile.tensorrt-perf
+rm onnxruntime/python/tools/tensorrt/perf/build/build_images.sh
+rm onnxruntime/test/testdata/foo_bar_1.onnx
+rm onnxruntime/test/testdata/foo_bar_2.onnx
+rm onnxruntime/test/testdata/transform/fusion/embed_layer_norm_format3_no_cast_opset13.onnx
+rm onnxruntime/test/testdata/transform/fusion/embed_layer_norm_format3_opset13.onnx
+rm onnxruntime/test/testdata/transform/fusion/embed_layer_norm_format5_opset13.onnx
+rm onnxruntime/test/testdata/transform/fusion/embed_layer_norm_format6_opset13.onnx
+rm onnxruntime/test/testdata/transform/fusion/embed_layer_norm_format7_opset13.onnx
+rm onnxruntime/test/testdata/transform/fusion/embed_layer_norm_format8_opset13.onnx
+rm onnxruntime/test/testdata/transform/fusion/embed_layer_norm_format9_opset13.onnx
+rm onnxruntime/test/testdata/transform/fusion/embed_layer_norm_multiple_opset13.onnx
+
+# Last commit on Mar 4, 2021
+# https://github.com/microsoft/onnxruntime/commits/master?before=e2b1852eecc82b92daeae27ec0692d4197b1bd73+1279&branch=master
+git pull https://github.com/microsoft/onnxruntime/ fa8d1b44b832ffafddee0c38ac1fe1d09d8344ee
+
+git add .
+git commit -m "Mar 4th pulled"
+```
+
+
+
+## Step 4: Compare ONNX Runtime
+```
+cd D:/Users/gineshidalgo99/Desktop/ONNXRuntime
+mkdir ORTMoreUpdated/
+cd ORTMoreUpdated
+git clone --recursive https://github.com/gineshidalgo99/onnxruntime
+cd onnxruntime
+git reset --hard fa8d1b44b832ffafddee0c38ac1fe1d09d8344ee
+
+# Manually copy the whole repository from `D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime` into it
+# Hopefully, `git status` should give ONLY the WITH_UE changes. Revert other changes
+
+git status
+```
+
+## Step 5: Push New Code into NNI
+```
+cd D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/
+mkdir 0_NewCodeToPushToNNI/
+cd 0_NewCodeToPushToNNI/
+
+# Copy include/onnxruntime
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ORTMoreUpdated/onnxruntime/include/onnxruntime/core D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Internal/core
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/Internal/onnxruntime_config.h D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Internal/
+# Copy ORTModule.h/cpp
+mkdir D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/Private/ONNXRuntimeModule.* D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/
+# Copy contrib_ops/cpu
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ORTMoreUpdated/onnxruntime/onnxruntime/contrib_ops/cpu D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/contrib_ops/cpu
+# Copy core
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ORTMoreUpdated/onnxruntime/onnxruntime/core/common D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/core/common
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ORTMoreUpdated/onnxruntime/onnxruntime/core/flatbuffers D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/core/flatbuffers
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ORTMoreUpdated/onnxruntime/onnxruntime/core/framework D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/core/framework
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ORTMoreUpdated/onnxruntime/onnxruntime/core/graph D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/core/graph
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ORTMoreUpdated/onnxruntime/onnxruntime/core/optimizer D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/core/optimizer
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ORTMoreUpdated/onnxruntime/onnxruntime/core/platform D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/core/
+rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/core/platform/android
+rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/core/platform/posix/env*
+rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/core/platform/posix/logging
+rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/core/platform/windows
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ORTMoreUpdated/onnxruntime/onnxruntime/core/profile D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/core/profile
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ORTMoreUpdated/onnxruntime/onnxruntime/core/providers/cpu D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/core/providers/cpu
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ORTMoreUpdated/onnxruntime/onnxruntime/core/providers/dml D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private_DML_EP/Windows/core/providers/dml
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ORTMoreUpdated/onnxruntime/onnxruntime/core/providers/shared D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/core/providers/shared
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ORTMoreUpdated/onnxruntime/onnxruntime/core/providers/shared_library D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/core/providers/shared_library
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ORTMoreUpdated/onnxruntime/onnxruntime/core/providers/common.h D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/core/providers/common.h
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ORTMoreUpdated/onnxruntime/onnxruntime/core/providers/get_execution_providers.* D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/core/providers
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ORTMoreUpdated/onnxruntime/onnxruntime/core/providers/op_kernel_type_control* D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/core/providers
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ORTMoreUpdated/onnxruntime/onnxruntime/core/session D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/core/session
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ORTMoreUpdated/onnxruntime/onnxruntime/core/util D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/core/util
+# Copy custom_op_library
+mkdir D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/test/testdata/custom_op_library
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ORTMoreUpdated/onnxruntime/onnxruntime/test/testdata/custom_op_library/custom_op_library.cc D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/test/testdata/custom_op_library/custom_op_library.cc
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ORTMoreUpdated/onnxruntime/onnxruntime/test/testdata/custom_op_library/custom_op_library.h D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/test/testdata/custom_op_library/custom_op_library.h
+```
+
+This new code can be pushed into NNI and heavily tested in there. Once fully working on NNI, repeat steps 2-5 until upgraded to the desired CL.
+NOTE: The first one (from 1.7.1 to master) will be trickier, as there will be merge conflicts between 1.7.1 and master unrelated to the changes made for NNI. But after being in master, it's way easier to upgrade the code.
+
+
+
+## Final Architecture of ONNXRuntime in NNI/Source/ThirdParty/:
 - `ONNXRuntime/`
-	- `Classes/`
-		- `onnxruntime/`
-			- `core/`
-				- `common/`
-				- `framework/`
-				- `graph/`
-				- `optimizer/`
-				- `platform/`
-				- `providers/`
-				- `session/`
-			- `onnxruntime_config.h`
-	- `Public/`
+	- `Internal/`
+		- `core/`
+			- `common/`
+			- `framework/`
+			- `graph/`
+			- `optimizer/`
+			- `platform/`
+			- `providers/`
+			- `session/`
+		- `onnxruntime_config.h`
+	- `Private/`
+		- `contrib_ops/cpu/`
 		- `core/`
 			- `common/`
 			- `contrib_ops/`
@@ -71,15 +234,20 @@ Final architecture:
 			- `platform/`
 				- `UE/`
 			- `profile/`
-			- `providers/` (removed non-used providers)
+			- `providers/` (removed non-used providers, dml one moved into `Private_DML_EP/`)
 				- `cpu/`
-				- `dml/`
-				- `nni_cpu/`
-				- `nni_hlsl/`
+				- `nni_cpu/` (eventually)
+				- `nni_hlsl/` (eventually)
 				- `shared/`
 				- `shared_library/`
 			- `session/`
 			- `util/`
+		- `test/testdata/custom_op_library/`
+	- `Private_DML_EP/`
+		- `Windows/`
+			- `core/`
+				- `providers/`
+					- `dml/`
 
 
 ## Test and Debug ONNX Runtime on GitHub
