@@ -15,12 +15,12 @@
 
 DECLARE_CYCLE_STAT(TEXT("Mass Phase Done"), STAT_MassPhaseDone, STATGROUP_TaskGraphTasks);
 
-namespace FPipeTweakables
+namespace FMassTweakables
 {
 	bool bFullyParallel = false;
 
 	FAutoConsoleVariableRef CVars[] = {
-		{TEXT("pipe.FullyParallel"), bFullyParallel, TEXT("Enables pipe processing distribution to all available thread (via the task graph)")},
+		{TEXT("mass.FullyParallel"), bFullyParallel, TEXT("Enables mass processing distribution to all available thread (via the task graph)")},
 	};
 }
 
@@ -52,7 +52,7 @@ void FMassProcessingPhase::ExecuteTick(float DeltaTime, ELevelTick TickType, ENa
 
 	if (bRunInParallelMode)
 	{
-		bIsDuringPipeProcessing = true;
+		bIsDuringMassProcessing = true;
 		const FGraphEventRef PipelineCompletionEvent = UE::Mass::Executor::TriggerParallelTasks(*PhaseProcessor, Context, [this, DeltaTime]()
 			{
 				OnParallelExecutionDone(DeltaTime);
@@ -69,7 +69,7 @@ void FMassProcessingPhase::ExecuteTick(float DeltaTime, ELevelTick TickType, ENa
 	}
 	else
 	{
-		TGuardValue<bool> PipeRunningGuard(bIsDuringPipeProcessing, true);
+		TGuardValue<bool> MassRunningGuard(bIsDuringMassProcessing, true);
 		UE::Mass::Executor::Run(*PhaseProcessor, Context);
 
 		OnPhaseEnd.Broadcast(DeltaTime);
@@ -79,7 +79,7 @@ void FMassProcessingPhase::ExecuteTick(float DeltaTime, ELevelTick TickType, ENa
 
 void FMassProcessingPhase::OnParallelExecutionDone(const float DeltaTime)
 {
-	bIsDuringPipeProcessing = false;
+	bIsDuringMassProcessing = false;
 	OnPhaseEnd.Broadcast(DeltaTime);
 	check(Manager);
 	Manager->OnPhaseEnd(*this);
@@ -87,12 +87,12 @@ void FMassProcessingPhase::OnParallelExecutionDone(const float DeltaTime)
 
 FString FMassProcessingPhase::DiagnosticMessage()
 {
-	return (Manager ? Manager->GetFullName() : TEXT("NULL-PipeProcessingPhaseManager")) + TEXT("[ProcessorTick]");
+	return (Manager ? Manager->GetFullName() : TEXT("NULL-MassProcessingPhaseManager")) + TEXT("[ProcessorTick]");
 }
 
 FName FMassProcessingPhase::DiagnosticContext(bool bDetailed)
 {
-	return Manager ? Manager->GetClass()->GetFName() : TEXT("NULL-PipeProcessingPhaseManager");
+	return Manager ? Manager->GetClass()->GetFName() : TEXT("NULL-MassProcessingPhaseManager");
 }
 
 //----------------------------------------------------------------------//
@@ -107,9 +107,9 @@ void UMassProcessingPhaseManager::PostInitProperties()
 		UWorld* World = GetWorld();
 		if (World && World->IsGameWorld() == false)
 		{
-			UMassSettings* PipeSettings = GetMutableDefault<UMassSettings>();
-			check(PipeSettings);
-			PipeSettingsChangeHandle = PipeSettings->GetOnSettingsChange().AddUObject(this, &UMassProcessingPhaseManager::OnPipeSettingsChange);
+			UMassSettings* MassSettings = GetMutableDefault<UMassSettings>();
+			check(MassSettings);
+			MassSettingsChangeHandle = MassSettings->GetOnSettingsChange().AddUObject(this, &UMassProcessingPhaseManager::OnMassSettingsChange);
 		}
 #endif // WITH_EDITOR
 	}
@@ -122,25 +122,25 @@ void UMassProcessingPhaseManager::BeginDestroy()
 	Super::BeginDestroy();
 
 #if WITH_EDITOR
-	if (UMassSettings* PipeSettings = GetMutableDefault<UMassSettings>())
+	if (UMassSettings* MassSettings = GetMutableDefault<UMassSettings>())
 	{
-		PipeSettings->GetOnSettingsChange().Remove(PipeSettingsChangeHandle);
+		MassSettings->GetOnSettingsChange().Remove(MassSettingsChangeHandle);
 	}
 #endif // WITH_EDITOR
 }
 
 void UMassProcessingPhaseManager::InitializePhases(UObject& InProcessorOwner)
 {
-	const FMassProcessingPhaseConfig* ProcessingPhasesConfig = GET_PIPE_CONFIG_VALUE(GetProcessingPhasesConfig());
+	const FMassProcessingPhaseConfig* ProcessingPhasesConfig = GET_MASS_CONFIG_VALUE(GetProcessingPhasesConfig());
 
 	FString DependencyGraphFileName;
 
 #if WITH_EDITOR
 	const UWorld* World = InProcessorOwner.GetWorld();
-	const UMassSettings* PipeSettings = GetMutableDefault<UMassSettings>();
-	if (World != nullptr && PipeSettings != nullptr && !PipeSettings->DumpDependencyGraphFileName.IsEmpty())
+	const UMassSettings* MassSettings = GetMutableDefault<UMassSettings>();
+	if (World != nullptr && MassSettings != nullptr && !MassSettings->DumpDependencyGraphFileName.IsEmpty())
 	{
-		DependencyGraphFileName = FString::Printf(TEXT("%s_%s"), *PipeSettings->DumpDependencyGraphFileName,*ToString(World->GetNetMode()));
+		DependencyGraphFileName = FString::Printf(TEXT("%s_%s"), *MassSettings->DumpDependencyGraphFileName,*ToString(World->GetNetMode()));
 	}
 #endif // WITH_EDITOR
 
@@ -201,7 +201,7 @@ void UMassProcessingPhaseManager::EnableTickFunctions(const UWorld& World)
 		Phase.RegisterTickFunction(World.PersistentLevel);
 		Phase.SetTickFunctionEnable(true);
 	}
-	UE_VLOG_UELOG(this, LogMass, Log, TEXT("UPipeTickManager %s.%s has been started")
+	UE_VLOG_UELOG(this, LogMass, Log, TEXT("UMassProcessingPhaseManager %s.%s has been started")
 		, *GetNameSafe(GetOuter()), *GetName());
 }
 
@@ -214,7 +214,7 @@ void UMassProcessingPhaseManager::Stop()
 		Phase.SetTickFunctionEnable(false);
 	}
 
-	UE_VLOG_UELOG(this, LogMass, Log, TEXT("UPipeTickManager %s.%s has been stopped")
+	UE_VLOG_UELOG(this, LogMass, Log, TEXT("UMassProcessingPhaseManager %s.%s has been stopped")
 		, *GetNameSafe(GetOuter()), *GetName());
 }
 
@@ -255,9 +255,9 @@ void UMassProcessingPhaseManager::OnPhaseEnd(FMassProcessingPhase& Phase)
 	CurrentPhase = EMassProcessingPhase::MAX;
 
 	// switch between parallel and single-thread versions only after a given batch of processing has been wrapped up	
-	if (Phase.IsConfiguredForParallelMode() != FPipeTweakables::bFullyParallel)
+	if (Phase.IsConfiguredForParallelMode() != FMassTweakables::bFullyParallel)
 	{
-		if (FPipeTweakables::bFullyParallel)
+		if (FMassTweakables::bFullyParallel)
 		{
 			Phase.ConfigureForParallelMode();
 		}
@@ -269,7 +269,7 @@ void UMassProcessingPhaseManager::OnPhaseEnd(FMassProcessingPhase& Phase)
 }
 
 #if WITH_EDITOR
-void UMassProcessingPhaseManager::OnPipeSettingsChange(const FPropertyChangedEvent& PropertyChangedEvent)
+void UMassProcessingPhaseManager::OnMassSettingsChange(const FPropertyChangedEvent& PropertyChangedEvent)
 {
 	check(GetOuter());
 	InitializePhases(*GetOuter());

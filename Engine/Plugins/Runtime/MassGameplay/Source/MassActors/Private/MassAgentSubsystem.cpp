@@ -286,7 +286,7 @@ void UMassAgentSubsystem::HandlePendingInitialization()
 	check(EntitySystem);
 	check(SpawnerSystem);
 	check(SimulationSystem);
-	check(SimulationSystem->GetPhaseManager().IsDuringPipeProcessing() == false);
+	check(SimulationSystem->GetPhaseManager().IsDuringMassProcessing() == false);
 
 	for (TTuple<FMassEntityTemplateID, FMassAgentInitializationQueue>& Data : PendingAgentEntities)
 	{

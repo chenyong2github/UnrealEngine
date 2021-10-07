@@ -39,12 +39,12 @@ protected:
 	void ConfigureForSingleThreadMode() { bRunInParallelMode = false; }
 
 public:
-	bool IsDuringPipeProcessing() const { return bIsDuringPipeProcessing; }
+	bool IsDuringMassProcessing() const { return bIsDuringMassProcessing; }
 
 protected:
 	friend UMassProcessingPhaseManager;
 
-	UPROPERTY(EditAnywhere, Category=Pipe)
+	UPROPERTY(EditAnywhere, Category=Mass)
 	UMassCompositeProcessor* PhaseProcessor = nullptr;
 
 	UPROPERTY()
@@ -56,7 +56,7 @@ protected:
 
 private:
 	bool bRunInParallelMode = false;
-	bool bIsDuringPipeProcessing = false;
+	bool bIsDuringMassProcessing = false;
 };
 
 // It is unsafe to copy FTickFunctions and any subclasses of FTickFunction should specify the type trait WithCopy = false
@@ -69,10 +69,10 @@ struct TStructOpsTypeTraits<FMassProcessingPhase> : public TStructOpsTypeTraitsB
 	};
 };
 
-/** PipeProcessingPhaseManager owns separate FMassProcessingPhase instances for every ETickingGroup. When activated
+/** MassProcessingPhaseManager owns separate FMassProcessingPhase instances for every ETickingGroup. When activated
  *  via Start function it registers and enables the FMassProcessingPhase instances which themselves are tick functions 
  *  that host FMassRuntimePipeline which they trigger as part of their Tick function. 
- *  PipeProcessingPhaseManager serves as an interface to said FMassProcessingPhase instances and allows initialization
+ *  MassProcessingPhaseManager serves as an interface to said FMassProcessingPhase instances and allows initialization
  *  with MassSchematics (via InitializePhases function) as well as registering arbitrary functions to be called 
  *  when a particular phase starts of ends (via GetOnPhaseStart and GetOnPhaseEnd functions). */
 UCLASS(Transient, HideCategories = (Tick))
@@ -88,7 +88,7 @@ public:
 	FMassProcessingPhase::FOnPhaseEvent& GetOnPhaseEnd(const EMassProcessingPhase Phase) { return ProcessingPhases[uint8(Phase)].OnPhaseEnd; }
 
 	/** 
-	 *  Populates hosted FMassProcessingPhase instances with Processors read from PipeSettings configuration.
+	 *  Populates hosted FMassProcessingPhase instances with Processors read from MassSettings configuration.
 	 *  Calling this function overrides previous configuration of Phases.
 	 */
 	void InitializePhases(UObject& InProcessorOwner);
@@ -108,18 +108,18 @@ public:
 	 *  Note that the function will return false while the OnPhaseStart or OnPhaseEnd are being broadcast,
 	 *  the value returned will be `true` only when the entity subsystem is actively engaged 
 	 */
-	bool IsDuringPipeProcessing() const { return CurrentPhase != EMassProcessingPhase::MAX && ProcessingPhases[int(CurrentPhase)].IsDuringPipeProcessing(); }
+	bool IsDuringMassProcessing() const { return CurrentPhase != EMassProcessingPhase::MAX && ProcessingPhases[int(CurrentPhase)].IsDuringMassProcessing(); }
 
 protected:
 	virtual void PostInitProperties() override;
 	virtual void BeginDestroy() override;
 	void EnableTickFunctions(const UWorld& World);
 
-	/** Creates phase processors instances for each declared phase name, based on PipeSettings */
+	/** Creates phase processors instances for each declared phase name, based on MassSettings */
 	virtual void CreatePhases();
 
 #if WITH_EDITOR
-	virtual void OnPipeSettingsChange(const FPropertyChangedEvent& PropertyChangedEvent);
+	virtual void OnMassSettingsChange(const FPropertyChangedEvent& PropertyChangedEvent);
 #endif // WITH_EDITOR
 
 	friend FMassProcessingPhase;
@@ -137,7 +137,7 @@ protected:
 	void OnPhaseEnd(FMassProcessingPhase& Phase);
 
 protected:	
-	UPROPERTY(VisibleAnywhere, Category=Pipe)
+	UPROPERTY(VisibleAnywhere, Category=Mass)
 	FMassProcessingPhase ProcessingPhases[(uint8)EMassProcessingPhase::MAX];
 
 	UPROPERTY()
@@ -146,6 +146,6 @@ protected:
 	EMassProcessingPhase CurrentPhase = EMassProcessingPhase::MAX;
 
 #if WITH_EDITOR
-	FDelegateHandle PipeSettingsChangeHandle;
+	FDelegateHandle MassSettingsChangeHandle;
 #endif // WITH_EDITOR
 };

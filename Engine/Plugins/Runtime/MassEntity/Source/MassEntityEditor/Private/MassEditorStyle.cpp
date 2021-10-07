@@ -44,12 +44,12 @@ void FMassEntityEditorStyle::Initialize()
 		FTextBlockStyle StateIcon = FTextBlockStyle(NormalText)
 			.SetFont(FEditorStyle::Get().GetFontStyle("FontAwesome.12"))
 			.SetColorAndOpacity(FLinearColor(230.0f / 255.0f, 230.0f / 255.0f, 230.0f / 255.0f, 0.5f));
-		StyleSet->Set("Pipe.Icon", StateIcon);
+		StyleSet->Set("Mass.Icon", StateIcon);
 
 		FTextBlockStyle StateTitle = FTextBlockStyle(NormalText)
 			.SetFont(TTF_CORE_FONT("Fonts/Roboto-Bold", 12))
 			.SetColorAndOpacity(FLinearColor(230.0f / 255.0f, 230.0f / 255.0f, 230.0f / 255.0f));
-		StyleSet->Set("Pipe.State.Title", StateTitle);
+		StyleSet->Set("Mass.State.Title", StateTitle);
 
 		FEditableTextBoxStyle StateTitleEditableText = FEditableTextBoxStyle()
 			.SetFont(TTF_CORE_FONT("Fonts/Roboto-Bold", 10))
@@ -58,9 +58,9 @@ void FMassEntityEditorStyle::Initialize()
 			.SetBackgroundImageFocused(BOX_BRUSH("Common/TextBox_Hovered", FMargin(4.0f / 16.0f)))
 			.SetBackgroundImageReadOnly(BOX_BRUSH("Common/TextBox_ReadOnly", FMargin(4.0f / 16.0f)))
 			.SetScrollBarStyle(ScrollBar);
-		StyleSet->Set("Pipe.State.TitleEditableText", StateTitleEditableText);
+		StyleSet->Set("Mass.State.TitleEditableText", StateTitleEditableText);
 
-		StyleSet->Set("Pipe.State.TitleInlineEditableText", FInlineEditableTextBlockStyle()
+		StyleSet->Set("Mass.State.TitleInlineEditableText", FInlineEditableTextBlockStyle()
 			.SetTextStyle(StateTitle)
 			.SetEditableTextBoxStyle(StateTitleEditableText));
 	}
@@ -70,7 +70,7 @@ void FMassEntityEditorStyle::Initialize()
 		FTextBlockStyle TaskTitle = FTextBlockStyle(NormalText)
 			.SetFont(TTF_CORE_FONT("Fonts/Roboto-Regular", 11))
 			.SetColorAndOpacity(FLinearColor(230.0f / 255.0f, 230.0f / 255.0f, 230.0f / 255.0f));
-		StyleSet->Set("Pipe.Task.Title", TaskTitle);
+		StyleSet->Set("Mass.Task.Title", TaskTitle);
 
 		FEditableTextBoxStyle TaskTitleEditableText = FEditableTextBoxStyle()
 			.SetFont(TTF_CORE_FONT("Fonts/Roboto-Regular", 9))
@@ -79,9 +79,9 @@ void FMassEntityEditorStyle::Initialize()
 			.SetBackgroundImageFocused(BOX_BRUSH("Common/TextBox_Hovered", FMargin(4.0f / 16.0f)))
 			.SetBackgroundImageReadOnly(BOX_BRUSH("Common/TextBox_ReadOnly", FMargin(4.0f / 16.0f)))
 			.SetScrollBarStyle(ScrollBar);
-		StyleSet->Set("Pipe.Task.TitleEditableText", TaskTitleEditableText);
+		StyleSet->Set("Mass.Task.TitleEditableText", TaskTitleEditableText);
 
-		StyleSet->Set("Pipe.Task.TitleInlineEditableText", FInlineEditableTextBlockStyle()
+		StyleSet->Set("Mass.Task.TitleInlineEditableText", FInlineEditableTextBlockStyle()
 			.SetTextStyle(TaskTitle)
 			.SetEditableTextBoxStyle(TaskTitleEditableText));
 	}
@@ -91,12 +91,12 @@ void FMassEntityEditorStyle::Initialize()
 		FTextBlockStyle StateTitle = FTextBlockStyle(NormalText)
 			.SetFont(TTF_CORE_FONT("Fonts/Roboto-Regular", 10))
 			.SetColorAndOpacity(FLinearColor(230.0f / 255.0f, 230.0f / 255.0f, 230.0f / 255.0f));
-		StyleSet->Set("Pipe.Details", StateTitle);
+		StyleSet->Set("Mass.Details", StateTitle);
 	}
 
 	const FLinearColor SelectionColor = FColor(0, 0, 0, 32);
 	const FTableRowStyle& NormalTableRowStyle = FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row");
-	StyleSet->Set("Pipe.Selection",
+	StyleSet->Set("Mass.Selection",
 		FTableRowStyle(NormalTableRowStyle)
 		.SetActiveBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
 		.SetActiveHoveredBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor))

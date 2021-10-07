@@ -30,7 +30,7 @@ void FMassEntityEditor::AddReferencedObjects(FReferenceCollector& Collector)
 
 void FMassEntityEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
-	WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_MassEntityEditor", "Pipe Editor"));
+	WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_MassEntityEditor", "Mass Editor"));
 	TSharedRef<FWorkspaceItem> WorkspaceMenuCategoryRef = WorkspaceMenuCategory.ToSharedRef();
 
 	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
@@ -55,7 +55,7 @@ void FMassEntityEditor::InitEditor(const EToolkitMode::Type Mode, const TSharedP
 	//FGuid Result;
 	//FPlatformMisc::CreateGuid(Result);
 	//TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout(*Result.ToString())
-	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_Pipe_Layout_v1")
+	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_Mass_Layout_v1")
 	->AddArea
 	(
 		FTabManager::NewPrimaryArea() ->SetOrientation(Orient_Vertical)

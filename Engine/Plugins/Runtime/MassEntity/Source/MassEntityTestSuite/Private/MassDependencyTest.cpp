@@ -10,7 +10,7 @@
 
 PRAGMA_DISABLE_OPTIMIZATION
 
-namespace FPipeDependencySolverTest
+namespace FMassDependencySolverTest
 {
 
 template<typename T>
@@ -21,7 +21,7 @@ static FName GetProcessorName()
 
 struct FDependencySolverBase : FAITestBase
 {
-	TArray<UPipeTestProcessorBase*> Processors;
+	TArray<UMassTestProcessorBase*> Processors;
 	TArray<FProcessorDependencySolver::FOrderInfo> Result;
 	
 	virtual bool SetUp() override
@@ -43,16 +43,16 @@ struct FTrivialDependency : FDependencySolverBase
 	virtual bool SetUp() override
 	{
 		{
-			UPipeTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UPipeTestProcessor_A>());
-			Proc->GetMutableExecutionOrder().ExecuteAfter.Add(GetProcessorName<UPipeTestProcessor_C>());
+			UMassTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UMassTestProcessor_A>());
+			Proc->GetMutableExecutionOrder().ExecuteAfter.Add(GetProcessorName<UMassTestProcessor_C>());
 		}
 
 		{
-			UPipeTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UPipeTestProcessor_B>());
-			Proc->GetMutableExecutionOrder().ExecuteAfter.Add(GetProcessorName<UPipeTestProcessor_A>());
+			UMassTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UMassTestProcessor_B>());
+			Proc->GetMutableExecutionOrder().ExecuteAfter.Add(GetProcessorName<UMassTestProcessor_A>());
 		}
 
-		Processors.Add(NewObject<UPipeTestProcessor_C>());
+		Processors.Add(NewObject<UMassTestProcessor_C>());
 
 		return true;
 	}
@@ -61,9 +61,9 @@ struct FTrivialDependency : FDependencySolverBase
 	{
 		Solve();
 
-		AITEST_TRUE("C is expected to be first", Result[0].Name == GetProcessorName<UPipeTestProcessor_C>());
-		AITEST_TRUE("A is expected to be second", Result[1].Name == GetProcessorName<UPipeTestProcessor_A>());
-		AITEST_TRUE("B is expected to be third", Result[2].Name == GetProcessorName<UPipeTestProcessor_B>());
+		AITEST_TRUE("C is expected to be first", Result[0].Name == GetProcessorName<UMassTestProcessor_C>());
+		AITEST_TRUE("A is expected to be second", Result[1].Name == GetProcessorName<UMassTestProcessor_A>());
+		AITEST_TRUE("B is expected to be third", Result[2].Name == GetProcessorName<UMassTestProcessor_B>());
 
 		return true;
 	}
@@ -76,13 +76,13 @@ struct FDeepGroup : FDependencySolverBase
 	virtual bool SetUp() override
 	{
 		{
-			UPipeTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UPipeTestProcessor_A>());
+			UMassTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UMassTestProcessor_A>());
 			Proc->GetMutableExecutionOrder().ExecuteAfter.Add(TEXT("W.X.Y.Z"));
 			Proc->GetMutableExecutionOrder().ExecuteInGroup = TEXT("P.Q.R");
 		}
 
 		{
-			UPipeTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UPipeTestProcessor_B>());
+			UMassTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UMassTestProcessor_B>());
 			Proc->GetMutableExecutionOrder().ExecuteInGroup = TEXT("W.X.Y.Z");
 		}
 
@@ -102,8 +102,8 @@ struct FDeepGroup : FDependencySolverBase
 			}
 		}
 
-		AITEST_TRUE("B is expected to be first", Result[0].Name == GetProcessorName<UPipeTestProcessor_B>());
-		AITEST_TRUE("A is expected to be second", Result[1].Name == GetProcessorName<UPipeTestProcessor_A>());
+		AITEST_TRUE("B is expected to be first", Result[0].Name == GetProcessorName<UMassTestProcessor_B>());
+		AITEST_TRUE("A is expected to be second", Result[1].Name == GetProcessorName<UMassTestProcessor_A>());
 
 		return true;
 	}
@@ -115,35 +115,35 @@ struct FComplexScenario : FDependencySolverBase
 	virtual bool SetUp() override
 	{
 		{
-			UPipeTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UPipeTestProcessor_A>());
+			UMassTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UMassTestProcessor_A>());
 			Proc->GetMutableExecutionOrder().ExecuteInGroup = TEXT("X.Z");
 			Proc->GetMutableExecutionOrder().ExecuteAfter.Add(TEXT("X.Y"));
-			Proc->GetMutableExecutionOrder().ExecuteAfter.Add(UPipeTestProcessor_E::StaticClass()->GetFName());
+			Proc->GetMutableExecutionOrder().ExecuteAfter.Add(UMassTestProcessor_E::StaticClass()->GetFName());
 		}
 
 		{
-			UPipeTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UPipeTestProcessor_B>());
+			UMassTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UMassTestProcessor_B>());
 			Proc->GetMutableExecutionOrder().ExecuteInGroup = TEXT("X.Y");
 		}
 
 		{
-			UPipeTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UPipeTestProcessor_C>());
+			UMassTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UMassTestProcessor_C>());
 			Proc->GetMutableExecutionOrder().ExecuteInGroup = TEXT("X.Y");
 		}
 
 		{
-			UPipeTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UPipeTestProcessor_D>());
-			Proc->GetMutableExecutionOrder().ExecuteBefore.Add(UPipeTestProcessor_A::StaticClass()->GetFName());
+			UMassTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UMassTestProcessor_D>());
+			Proc->GetMutableExecutionOrder().ExecuteBefore.Add(UMassTestProcessor_A::StaticClass()->GetFName());
 		}
 
 		{
-			UPipeTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UPipeTestProcessor_E>());
+			UMassTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UMassTestProcessor_E>());
 			Proc->GetMutableExecutionOrder().ExecuteInGroup = TEXT("X.Z");
 		}
 
 		{
-			UPipeTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UPipeTestProcessor_F>());
-			Proc->GetMutableExecutionOrder().ExecuteAfter.Add(UPipeTestProcessor_A::StaticClass()->GetFName());
+			UMassTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UMassTestProcessor_F>());
+			Proc->GetMutableExecutionOrder().ExecuteAfter.Add(UMassTestProcessor_A::StaticClass()->GetFName());
 		}
 		return true;
 	}
@@ -161,11 +161,11 @@ struct FComplexScenario : FDependencySolverBase
 			}
 		}
 
-		AITEST_TRUE("D is the only fully dependency-less processor so should be first", Result[0].Name == GetProcessorName<UPipeTestProcessor_D>());		
-		AITEST_TRUE("B and C come next", (Result[1].Name == GetProcessorName<UPipeTestProcessor_B>() || Result[2].Name == GetProcessorName<UPipeTestProcessor_B>()) && (Result[1].Name == GetProcessorName<UPipeTestProcessor_C>() || Result[2].Name == GetProcessorName<UPipeTestProcessor_C>()));
-		AITEST_TRUE("Following by E", Result[3].Name == GetProcessorName<UPipeTestProcessor_E>());
-		AITEST_TRUE("Then A", Result[4].Name == GetProcessorName<UPipeTestProcessor_A>());
-		AITEST_TRUE("F is last", Result[5].Name == GetProcessorName<UPipeTestProcessor_F>());
+		AITEST_TRUE("D is the only fully dependency-less processor so should be first", Result[0].Name == GetProcessorName<UMassTestProcessor_D>());		
+		AITEST_TRUE("B and C come next", (Result[1].Name == GetProcessorName<UMassTestProcessor_B>() || Result[2].Name == GetProcessorName<UMassTestProcessor_B>()) && (Result[1].Name == GetProcessorName<UMassTestProcessor_C>() || Result[2].Name == GetProcessorName<UMassTestProcessor_C>()));
+		AITEST_TRUE("Following by E", Result[3].Name == GetProcessorName<UMassTestProcessor_E>());
+		AITEST_TRUE("Then A", Result[4].Name == GetProcessorName<UMassTestProcessor_A>());
+		AITEST_TRUE("F is last", Result[5].Name == GetProcessorName<UMassTestProcessor_F>());
 
 		return true;
 	}
@@ -221,9 +221,9 @@ struct FBadInput_MixedNulls : FDependencySolverBase
 		GetTestRunner().AddExpectedError(TEXT("nullptr found in Processors"), EAutomationExpectedErrorFlags::Contains, 2);
 		Processors.Reset();
 		Processors.Add(nullptr);
-		Processors.Add(NewObject<UPipeTestProcessor_A>());
+		Processors.Add(NewObject<UMassTestProcessor_A>());
 		Processors.Add(nullptr);
-		Processors.Add(NewObject<UPipeTestProcessor_B>());
+		Processors.Add(NewObject<UMassTestProcessor_B>());
 		Solve();
 		AITEST_TRUE("Mixed nullptr and proper inputs should be handled gracefully", Result.Num() == 2);
 		return true;
@@ -237,9 +237,9 @@ struct FBadInput_Duplicates : FDependencySolverBase
 	{
 		GetTestRunner().AddExpectedError(TEXT("already registered. Duplicates are not supported"), EAutomationExpectedErrorFlags::Contains, 2);
 		Processors.Reset();
-		Processors.Add(NewObject<UPipeTestProcessor_A>());
-		Processors.Add(NewObject<UPipeTestProcessor_A>());
-		Processors.Add(NewObject<UPipeTestProcessor_A>());
+		Processors.Add(NewObject<UMassTestProcessor_A>());
+		Processors.Add(NewObject<UMassTestProcessor_A>());
+		Processors.Add(NewObject<UMassTestProcessor_A>());
 		Solve();
 		AITEST_TRUE("Duplicates in input should be handled gracefully", Result.Num() == 1);
 		return true;
@@ -282,7 +282,7 @@ IMPLEMENT_AI_INSTANT_TEST(FGroupNamesGeneration, "System.Mass.Dependencies.Subgr
 // * single non-null processor
 // * circular dependencies  
 
-} // FPipeDependencySolverTest
+} // FMassDependencySolverTest
 
 PRAGMA_ENABLE_OPTIMIZATION
 

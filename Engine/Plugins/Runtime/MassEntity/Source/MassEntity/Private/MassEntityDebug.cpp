@@ -50,7 +50,7 @@ void DebugOutputDescription(TConstArrayView<UMassProcessor*> Processors, FOutput
 
 #if WITH_MASSENTITY_DEBUG && WITH_MASSENTITY_DEBUG
 FAutoConsoleCommandWithWorldArgsAndOutputDevice PrintEntityFragmentsCmd(
-	TEXT("pipe.PrintEntityFragments"),
+	TEXT("mass.PrintEntityFragments"),
 	TEXT("Prints all fragment types and values (uproperties) for the specified Entity index"),
 	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateLambda(
 		[](const TArray<FString>& Params, UWorld* World, FOutputDevice& Ar)
@@ -70,13 +70,13 @@ FAutoConsoleCommandWithWorldArgsAndOutputDevice PrintEntityFragmentsCmd(
 			}
 			else
 			{
-				Ar.Logf(ELogVerbosity::Error, TEXT("Failed to find PipeEntitySubsystem for world %s"), *GetPathNameSafe(World));
+				Ar.Logf(ELogVerbosity::Error, TEXT("Failed to find MassEntitySubsystem for world %s"), *GetPathNameSafe(World));
 			}
 		})
 );
 
 FAutoConsoleCommandWithWorldArgsAndOutputDevice LogArchetypesCmd(
-	TEXT("pipe.LogArchetypes"),
+	TEXT("mass.LogArchetypes"),
 	TEXT("Dumps description of archetypes to log. Optional parameter controls whether to include or exclude non-occupied archetypes. Defaults to 'include'."),
 	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateLambda([](const TArray<FString>& Params, UWorld*, FOutputDevice& Ar)
 	{
@@ -106,7 +106,7 @@ FAutoConsoleCommandWithWorldArgsAndOutputDevice LogArchetypesCmd(
 			}
 			else
 			{
-				Ar.Logf(ELogVerbosity::Error, TEXT("Failed to find PipeEntitySubsystem for world: %s (%s - %s)"),
+				Ar.Logf(ELogVerbosity::Error, TEXT("Failed to find MassEntitySubsystem for world: %s (%s - %s)"),
 					*GetPathNameSafe(World),
 					LexToString(World->WorldType),
 					*ToString(World->GetNetMode()));
@@ -117,7 +117,7 @@ FAutoConsoleCommandWithWorldArgsAndOutputDevice LogArchetypesCmd(
 
 // @todo these console commands will be reparented to "massentities" domain once we rename and shuffle the modules around 
 FAutoConsoleCommandWithWorld RecacheQueries(
-	TEXT("pipe.RecacheQueries"),
+	TEXT("mass.RecacheQueries"),
 	TEXT("Forces EntityQueries to recache their valid archetypes"),
 	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* InWorld)
 		{
@@ -130,7 +130,7 @@ FAutoConsoleCommandWithWorld RecacheQueries(
 	));
 
 FAutoConsoleCommandWithWorldArgsAndOutputDevice LogFragmentSizes(
-	TEXT("pipe.LogFragmentSizes"),
+	TEXT("mass.LogFragmentSizes"),
 	TEXT("Logs all the fragment types being used along with their sizes."),
 	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateLambda([](const TArray<FString>& Params, UWorld* World, FOutputDevice& Ar)
 		{

@@ -13,7 +13,7 @@
 
 PRAGMA_DISABLE_OPTIMIZATION
 
-namespace FPipeEntityTest
+namespace FMassEntityTest
 {
 #if WITH_MASSENTITY_DEBUG
 struct FEntityTest_ArchetypeCreation : FEntityTestBase
@@ -357,7 +357,7 @@ IMPLEMENT_AI_INSTANT_TEST(FEntityTest_ReserveAPreviouslyBuiltEntity, "System.Mas
 
 #endif // WITH_MASSENTITY_DEBUG
 
-} // FPipeEntityTestTest
+} // FMassEntityTestTest
 
 PRAGMA_ENABLE_OPTIMIZATION
 

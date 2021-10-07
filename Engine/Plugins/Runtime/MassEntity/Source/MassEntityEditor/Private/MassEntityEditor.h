@@ -46,7 +46,7 @@ protected:
 private:
 	TSharedRef<SDockTab> SpawnTab_AssetDetails(const FSpawnTabArgs& Args);
 
-	/** Pipe Schematic being edited */
+	/** Mass Schematic being edited */
 	UMassSchematic* MassSchematic;
 
 	/** Asset Property View */

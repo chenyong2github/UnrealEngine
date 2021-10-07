@@ -8,7 +8,7 @@
 #include "InstancedStruct.h"
 #include "MassEntitySettings.generated.h"
 
-#define GET_PIPE_CONFIG_VALUE(a) (GetMutableDefault<UMassSettings>()->a)
+#define GET_MASS_CONFIG_VALUE(a) (GetMutableDefault<UMassSettings>()->a)
 
 class UMassProcessingPhaseManager;
 struct FMassProcessingPhaseConfig;
@@ -20,13 +20,13 @@ struct FMassProcessingPhaseConfig
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, Category = Pipe, config)
+	UPROPERTY(EditAnywhere, Category = Mass, config)
 	FName PhaseName;
 
-	UPROPERTY(EditAnywhere, Category = Pipe, config, NoClear)
+	UPROPERTY(EditAnywhere, Category = Mass, config, NoClear)
 	TSubclassOf<UMassCompositeProcessor> PhaseGroupClass = UMassCompositeProcessor::StaticClass();
 
-	UPROPERTY(EditAnywhere, Category = Pipe, config, NoClear)
+	UPROPERTY(EditAnywhere, Category = Mass, config, NoClear)
 	TArray<FName> OffGameThreadGroupNames;
 
 	UPROPERTY(Transient)
@@ -38,7 +38,7 @@ struct FMassProcessingPhaseConfig
 	UPROPERTY(Transient)
 	UMassCompositeProcessor* PhaseProcessor = nullptr;
 
-	UPROPERTY(VisibleAnywhere, Category = Pipe, Transient)
+	UPROPERTY(VisibleAnywhere, Category = Mass, Transient)
 	FString Description;
 #endif //WITH_EDITORONLY_DATA
 };
@@ -82,15 +82,15 @@ public:
 	 * The dot file will be put in the project log folder.
 	 * To generate a svg out of that file, simply run dot executable with following parameters: -Tsvg -O filename.dot 
 	 */
-	UPROPERTY(EditDefaultsOnly, Category = Pipe, Transient)
+	UPROPERTY(EditDefaultsOnly, Category = Mass, Transient)
 	FString DumpDependencyGraphFileName;
 
 	/** Lets users configure processing phases including the composite processor class to be used as a container for the phases' processors. */
-	UPROPERTY(EditDefaultsOnly, Category = Pipe, config)
+	UPROPERTY(EditDefaultsOnly, Category = Mass, config)
 	FMassProcessingPhaseConfig ProcessingPhasesConfig[(uint8)EMassProcessingPhase::MAX];
 
 	/** This list contains all the processors available in the given binary (including plugins). The contents are sorted by display name.*/
-	UPROPERTY(VisibleAnywhere, Category = Pipe, Transient, Instanced)
+	UPROPERTY(VisibleAnywhere, Category = Mass, Transient, Instanced)
 	TArray<UMassProcessor*> ProcessorCDOs;
 
 #if WITH_EDITORONLY_DATA

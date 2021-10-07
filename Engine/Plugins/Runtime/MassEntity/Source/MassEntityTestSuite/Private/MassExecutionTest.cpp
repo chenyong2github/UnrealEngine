@@ -14,7 +14,7 @@ PRAGMA_DISABLE_OPTIMIZATION
 //----------------------------------------------------------------------//
 // tests 
 //----------------------------------------------------------------------//
-namespace FPipeExecutionTest
+namespace FMassExecutionTest
 {
 
 struct FExecution_Setup : FExecutionTestBase
@@ -110,7 +110,7 @@ struct FExecution_SingleValidProcessor : FExecutionTestBase
 		CA_ASSUME(EntitySubsystem);
 		const float DeltaSeconds = 0.f;
 		FMassProcessingContext ProcessingContext(*EntitySubsystem, DeltaSeconds);
-		UPipeTestProcessorBase* Processor = NewObject<UPipeTestProcessorBase>(EntitySubsystem);
+		UMassTestProcessorBase* Processor = NewObject<UMassTestProcessorBase>(EntitySubsystem);
 		check(Processor);
 
 		// nothing should break. The actual result of processing is getting tested in MassProcessorTests.cpp
@@ -151,7 +151,7 @@ struct FExecution_Sparse : FEntityTestBase
 		CA_ASSUME(EntitySubsystem);
 		const float DeltaSeconds = 0.f;
 		FMassProcessingContext ProcessingContext(*EntitySubsystem, DeltaSeconds);
-		UPipeTestProcessorBase* Processor = NewObject<UPipeTestProcessorBase>(EntitySubsystem);
+		UMassTestProcessorBase* Processor = NewObject<UMassTestProcessorBase>(EntitySubsystem);
 		check(Processor);
 
 		FMassRuntimePipeline Pipeline;
@@ -170,7 +170,7 @@ struct FExecution_Sparse : FEntityTestBase
 	}
 };
 IMPLEMENT_AI_INSTANT_TEST(FExecution_Sparse, "System.Mass.Execution.Sparse");
-} // FPipeExecutionTest
+} // FMassExecutionTest
 
 PRAGMA_ENABLE_OPTIMIZATION
 

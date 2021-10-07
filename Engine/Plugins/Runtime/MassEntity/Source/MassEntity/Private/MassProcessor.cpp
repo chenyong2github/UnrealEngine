@@ -7,7 +7,7 @@
 #include "Engine/World.h"
 #include "MassCommandBuffer.h"
 
-DECLARE_CYCLE_STAT(TEXT("MassProcessor Group Completed"), Pipe_GroupCompletedTask, STATGROUP_TaskGraphTasks);
+DECLARE_CYCLE_STAT(TEXT("MassProcessor Group Completed"), Mass_GroupCompletedTask, STATGROUP_TaskGraphTasks);
 
 #define PARALLELIZED_TRAFFIC_HACK 1
 
@@ -23,7 +23,7 @@ namespace UE::MassTraffic
 namespace UE::Mass::Debug
 {
 	bool bLogProcessingGraph = false;
-	FAutoConsoleVariableRef CVarLogProcessingGraph(TEXT("pipe.LogProcessingGraph"), bLogProcessingGraph
+	FAutoConsoleVariableRef CVarLogProcessingGraph(TEXT("mass.LogProcessingGraph"), bLogProcessingGraph
 		, TEXT("When enabled will log task graph tasks created while dispatching processors to other threads, along with their dependencies"), ECVF_Cheat);
 }
 #endif // WITH_MASSENTITY_DEBUG
@@ -35,14 +35,14 @@ namespace UE::Mass::Debug
 #define PROCESSOR_LOG(...) 
 #endif // WITH_MASSENTITY_DEBUG
 
-namespace FPipeTweakables
+namespace FMassTweakables
 {
 	bool bParallelGroups = false;
 	float PostponedTaskWaitTimeWarningLevel = 0.002f;
 
 	FAutoConsoleVariableRef CVarsMassProcessor[] = {
-		{TEXT("pipe.ParallelGroups"), bParallelGroups, TEXT("Enables pipe processing groups distribution to all available threads (via the task graph)")},
-		{TEXT("pipe.PostponedTaskWaitTimeWarningLevel"), PostponedTaskWaitTimeWarningLevel, TEXT("if waiting for postponed task\'s dependencies exceeds this number an error will be logged")},
+		{TEXT("mass.ParallelGroups"), bParallelGroups, TEXT("Enables mass processing groups distribution to all available threads (via the task graph)")},
+		{TEXT("mass.PostponedTaskWaitTimeWarningLevel"), PostponedTaskWaitTimeWarningLevel, TEXT("if waiting for postponed task\'s dependencies exceeds this number an error will be logged")},
 	};
 }
 
@@ -77,7 +77,7 @@ public:
 
 		UMassEntitySubsystem::FScopedProcessing ProcessingScope = EntitySubsystem->NewProcessingScope();
 
-		TRACE_CPUPROFILER_EVENT_SCOPE_STR("Pipe Processor Task");
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("Mass Processor Task");
 		
 		if (bManageCommandBuffer)
 		{
@@ -185,7 +185,7 @@ void UMassProcessor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
-		// this is here to make sure all the changes to CDOs we do via PipeSettings gets serialized to the ini file
+		// this is here to make sure all the changes to CDOs we do via MassSettings gets serialized to the ini file
 		SaveConfig(CPF_Config, *GetDefaultConfigFilename());
 	}
 }
@@ -236,7 +236,7 @@ FGraphEventRef UMassCompositeProcessor::DispatchProcessorTasks(UMassEntitySubsys
 		else
 		{
 			Events.Add(FFunctionGraphTask::CreateAndDispatchWhenReady([=](){}
-				, GET_STATID(Pipe_GroupCompletedTask), &Prerequisites, ENamedThreads::AnyHiPriThreadHiPriTask));
+				, GET_STATID(Mass_GroupCompletedTask), &Prerequisites, ENamedThreads::AnyHiPriThreadHiPriTask));
 		}
 	}
 
@@ -268,7 +268,7 @@ FGraphEventRef UMassCompositeProcessor::DispatchProcessorTasks(UMassEntitySubsys
 #endif // WITH_MASSENTITY_DEBUG
 
 	FGraphEventRef CompletionEvent = FFunctionGraphTask::CreateAndDispatchWhenReady([this](){}
-		, GET_STATID(Pipe_GroupCompletedTask), &Events, ENamedThreads::AnyHiPriThreadHiPriTask);
+		, GET_STATID(Mass_GroupCompletedTask), &Events, ENamedThreads::AnyHiPriThreadHiPriTask);
 
 	return CompletionEvent;
 }
@@ -276,7 +276,7 @@ FGraphEventRef UMassCompositeProcessor::DispatchProcessorTasks(UMassEntitySubsys
 void UMassCompositeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 #if PARALLELIZED_TRAFFIC_HACK
-	if (FPipeTweakables::bParallelGroups == false
+	if (FMassTweakables::bParallelGroups == false
 		&& UE::MassTraffic::bParallelizeTraffic && GetProcessingPhase() == EMassProcessingPhase::PrePhysics)
 	{
 		static FName TrafficGroup(TEXT("Traffic"));
@@ -314,7 +314,7 @@ void UMassCompositeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMa
 	}
 #endif // PARALLELIZED_TRAFFIC_HACK
 
-	if (FPipeTweakables::bParallelGroups && bHasOffThreadSubGroups)
+	if (FMassTweakables::bParallelGroups && bHasOffThreadSubGroups)
 	{
 		CompletionStatus.Reset();
 		CompletionStatus.AddDefaulted(ChildPipeline.Processors.Num());
@@ -492,7 +492,7 @@ int32 UMassCompositeProcessor::Populate(TArray<FProcessorDependencySolver::FOrde
 	int32 Index = StartIndex;
 	TMap<FName, int32> NameToIndexMap;
 	bool bOffThreadGroupsFound = false;
-	const FMassProcessingPhaseConfig& PhaseConfig = GET_PIPE_CONFIG_VALUE(GetProcessingPhaseConfig(ProcessingPhase));
+	const FMassProcessingPhaseConfig& PhaseConfig = GET_MASS_CONFIG_VALUE(GetProcessingPhaseConfig(ProcessingPhase));
 
 	while (ProcessorsAndGroups.IsValidIndex(Index))
 	{

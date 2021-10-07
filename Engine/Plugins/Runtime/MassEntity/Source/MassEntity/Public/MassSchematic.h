@@ -11,7 +11,7 @@
 class UMassProcessor;
 
 /**
- * Pipe Schematic asset.
+ * Mass Schematic asset.
  */
 UCLASS(BlueprintType)
 class MASSENTITY_API UMassSchematic : public UDataAsset
@@ -22,6 +22,6 @@ public:
 	TConstArrayView<const UMassProcessor*> GetProcessors() const { return MakeArrayView(Processors);  }
 
 protected:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Pipe, Instanced)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Mass, Instanced)
 	TArray<UMassProcessor*> Processors;
 };

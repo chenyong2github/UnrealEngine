@@ -51,10 +51,10 @@ void FMassRuntimePipeline::InitializeFromSchematics(TConstArrayView<TSoftObjectP
 	// @todo we'll sometimes end up with duplicated MassProcessors in the resulting array. We need to come up with a consistent policy for handling that 
 	for (const TSoftObjectPtr<UMassSchematic>& Schematic : Schematics)
 	{
-		UMassSchematic* Pipe = Schematic.LoadSynchronous();
-		if (Pipe)
+		UMassSchematic* SchematicInstance = Schematic.LoadSynchronous();
+		if (SchematicInstance)
 		{
-			AppendOrOverrideRuntimeProcessorCopies(Pipe->GetProcessors(), InOwner);
+			AppendOrOverrideRuntimeProcessorCopies(SchematicInstance->GetProcessors(), InOwner);
 		}
 		else
 		{

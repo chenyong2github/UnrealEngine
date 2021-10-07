@@ -26,9 +26,9 @@ void FMassEntityEditorModule::StartupModule()
 	// Register asset types
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 
-	TSharedPtr<FAssetTypeActions_MassSchematic> PipeAssetTypeAction = MakeShareable(new FAssetTypeActions_MassSchematic);
-	ItemDataAssetTypeActions.Add(PipeAssetTypeAction);
-	AssetTools.RegisterAssetTypeActions(PipeAssetTypeAction.ToSharedRef());
+	TSharedPtr<FAssetTypeActions_MassSchematic> MassAssetTypeAction = MakeShareable(new FAssetTypeActions_MassSchematic);
+	ItemDataAssetTypeActions.Add(MassAssetTypeAction);
+	AssetTools.RegisterAssetTypeActions(MassAssetTypeAction.ToSharedRef());
 
 	// Register the details customizers
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
