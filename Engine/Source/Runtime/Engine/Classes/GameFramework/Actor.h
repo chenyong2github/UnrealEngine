@@ -191,7 +191,6 @@ public:
 	uint8 bNetTemporary:1;
 
 	/** If true, this actor was loaded directly from the map, and for networking purposes can be addressed by its full path name */
-	UPROPERTY()
 	uint8 bNetStartup:1;
 
 	/** If true, this actor is only relevant to its owner. If this flag is changed during play, all non-owner channels would need to be explicitly closed. */
