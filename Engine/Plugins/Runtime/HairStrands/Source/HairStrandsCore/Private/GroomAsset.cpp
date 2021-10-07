@@ -377,15 +377,6 @@ void UpdateHairStrandsLogVerbosity()
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-enum class EHairAtlasTextureType
-{
-	Depth,
-	Tangent,
-	Attribute,
-	Coverage,
-	AuxilaryData
-};
-
 template<typename ResourceType>
 static void InitAtlasTexture(ResourceType* InResource, UTexture2D* InTexture, EHairAtlasTextureType InType)
 {
@@ -1795,6 +1786,11 @@ namespace GroomDerivedDataCacheUtils
 				Ar << Key;
 			}
 			Desc.ProceduralSettings.BuildDDCKey(Ar);
+
+			if (Desc.GenerationSettings)
+			{
+				Desc.GenerationSettings->BuildDDCKey(Ar);
+			}
 		}
 
 		FSHAHash Hash;

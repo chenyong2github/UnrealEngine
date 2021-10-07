@@ -1054,8 +1054,18 @@ FReply FGroomRenderingDetails::OnGenerateCardDataUsingPlugin(int32 GroupIndex)
 			UE_CLOG(HairCardGeneratorPlugins.Num() > 1, LogGroomAssetDetails, Warning, TEXT("There are more than one available hair-card generator options. Defaulting to the first one found."));
 
 			const FScopedTransaction Transaction(LOCTEXT("GenerateHairCardsTransaction", "Generate hair cards."));
-			FHairGroupsCardsSourceDescription& HairCardsEntry = GroomAsset->HairGroupsCards[GroupIndex];
-			HairCardGeneratorPlugins[0]->GenerateHairCardsForLOD(GroomAsset, HairCardsEntry);
+
+			// Use a copy so we can only apply changes on success
+			FHairGroupsCardsSourceDescription HairCardsCopy = GroomAsset->HairGroupsCards[GroupIndex];
+			// Clear fields that are supposed to be set by the generation (in case it leaves any unset, and we don't cary over old settings)
+			HairCardsCopy.Textures = FHairGroupCardsTextures();
+
+			const bool bSuccess = HairCardGeneratorPlugins[0]->GenerateHairCardsForLOD(GroomAsset, HairCardsCopy);
+			if (bSuccess)
+			{
+				GroomAsset->Modify();
+				GroomAsset->HairGroupsCards[GroupIndex] = HairCardsCopy;
+			}
 		}
 	}
 	return FReply::Handled();
