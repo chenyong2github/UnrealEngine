@@ -56,32 +56,31 @@ void FTexture2DMipDataProvider_DDC::Init(const FTextureUpdateContext& Context, c
 			else if (PlatformData->DerivedDataKey.IsType<UE::DerivedData::FCacheKeyProxy>())
 			{
 				using namespace UE::DerivedData;
-				TArray<FCachePayloadKey> MipKeys;
+				TArray<FCacheChunkRequest> MipKeys;
 
+				const FCacheKey& Key = *PlatformData->DerivedDataKey.Get<UE::DerivedData::FCacheKeyProxy>().AsCacheKey();
 				for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx; ++MipIndex)
 				{
 					const FTexture2DMipMap& MipMap = *Context.MipsView[MipIndex];
 					if (MipMap.IsPagedToDerivedData())
 					{
-						MipKeys.Emplace(*PlatformData->GetDerivedDataMipKeyProxy(MipIndex + LODBias, MipMap).AsCachePayloadKey());
+						MipKeys.Add({Key, FTexturePlatformData::MakeMipId(MipIndex + LODBias)});
 					}
 				}
 
 				if (MipKeys.Num())
 				{
-					GetCache().GetPayload(MipKeys, Context.Texture->GetPathName(), ECachePolicy::Default, DDCRequestOwner,
-						[this, &Context, LODBias](FCacheGetPayloadCompleteParams&& Params)
+					GetCache().GetChunks(MipKeys, Context.Texture->GetPathName(), DDCRequestOwner,
+						[this, &Context, LODBias](FCacheGetChunkCompleteParams&& Params)
 						{
 							if (Params.Status == EStatus::Ok)
 							{
 								for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx; ++MipIndex)
 								{
-									TStringBuilder<16> MipName;
-									MipName << TEXT("Mip") << (MipIndex + LODBias);
-									if (Params.Payload.GetId() == FPayloadId::FromName(MipName))
+									if (Params.Id == FTexturePlatformData::MakeMipId(MipIndex + LODBias))
 									{
 										check(!DDCBuffers[MipIndex]);
-										DDCBuffers[MipIndex] = Params.Payload.GetData().Decompress();
+										DDCBuffers[MipIndex] = MoveTemp(Params.RawData);
 										break;
 									}
 								}

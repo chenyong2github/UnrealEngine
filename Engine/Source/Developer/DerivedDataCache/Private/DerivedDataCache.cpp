@@ -3,8 +3,10 @@
 #include "DerivedDataCache.h"
 #include "DerivedDataCacheInterface.h"
 
-#include "CoreMinimal.h"
+#include "Algo/Accumulate.h"
 #include "Algo/AllOf.h"
+#include "Algo/BinarySearch.h"
+#include "Algo/Sort.h"
 #include "Async/AsyncWork.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "DDCCleanup.h"
@@ -153,6 +155,87 @@ void GatherDerivedDataCacheSummaryStats(FDerivedDataCacheSummaryStats& DDCSummar
 
 /** Whether we want to verify the DDC (pass in -VerifyDDC on the command line)*/
 bool GVerifyDDC = false;
+
+namespace UE::DerivedData::Private { class FCacheRecordPolicyShared; }
+
+namespace UE::DerivedData
+{
+
+class Private::FCacheRecordPolicyShared final : public Private::ICacheRecordPolicyShared
+{
+public:
+	inline void AddRef() const final
+	{
+		ReferenceCount.fetch_add(1, std::memory_order_relaxed);
+	}
+
+	inline void Release() const final
+	{
+		if (ReferenceCount.fetch_sub(1, std::memory_order_acq_rel) == 1)
+		{
+			delete this;
+		}
+	}
+
+	inline TConstArrayView<FCachePayloadPolicy> GetPayloadPolicies() const final
+	{
+		return Payloads;
+	}
+
+	inline void AddPayloadPolicy(const FCachePayloadPolicy& Policy) final
+	{
+		Payloads.Add(Policy);
+	}
+
+	inline void Build() final
+	{
+		Algo::SortBy(Payloads, &FCachePayloadPolicy::Id);
+	}
+
+private:
+	TArray<FCachePayloadPolicy, TInlineAllocator<14>> Payloads;
+	mutable std::atomic<uint32> ReferenceCount{0};
+};
+
+ECachePolicy FCacheRecordPolicy::GetPayloadPolicy(const FPayloadId& Id) const
+{
+	if (Shared)
+	{
+		if (TConstArrayView<FCachePayloadPolicy> Payloads = Shared->GetPayloadPolicies(); !Payloads.IsEmpty())
+		{
+			if (int32 Index = Algo::BinarySearchBy(Payloads, Id, &FCachePayloadPolicy::Id); Index != INDEX_NONE)
+			{
+				return Payloads[Index].Policy;
+			}
+		}
+	}
+	return BasePolicy;
+}
+
+void FCacheRecordPolicyBuilder::AddPayloadPolicy(const FCachePayloadPolicy& Policy)
+{
+	if (!Shared)
+	{
+		Shared = new Private::FCacheRecordPolicyShared;
+	}
+	Shared->AddPayloadPolicy(Policy);
+}
+
+FCacheRecordPolicy FCacheRecordPolicyBuilder::Build()
+{
+	FCacheRecordPolicy Policy(BasePolicy);
+	if (Shared)
+	{
+		Shared->Build();
+		const auto PolicyOr = [](ECachePolicy A, ECachePolicy B) { return A | (B & ~ECachePolicy::SkipData); };
+		const TConstArrayView<FCachePayloadPolicy> Payloads = Shared->GetPayloadPolicies();
+		Policy.RecordPolicy = Algo::TransformAccumulate(Payloads, &FCachePayloadPolicy::Policy, BasePolicy, PolicyOr);
+		Policy.Shared = MoveTemp(Shared);
+	}
+	return Policy;
+}
+
+} // UE::DerivedData
 
 namespace UE::DerivedData::Private
 {
@@ -694,26 +777,24 @@ public:
 	void  Get(
 		TConstArrayView<FCacheKey> Keys,
 		FStringView Context,
-		ECachePolicy Policy,
+		FCacheRecordPolicy Policy,
 		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) final
 	{
 		return FDerivedDataBackend::Get().GetRoot().Get(Keys, Context, Policy, Owner, MoveTemp(OnComplete));
 	}
 
-	void GetPayload(
-		TConstArrayView<FCachePayloadKey> Keys,
+	void GetChunks(
+		TConstArrayView<FCacheChunkRequest> Chunks,
 		FStringView Context,
-		ECachePolicy Policy,
 		IRequestOwner& Owner,
-		FOnCacheGetPayloadComplete&& OnComplete) final
+		FOnCacheGetChunkComplete&& OnComplete) final
 	{
-		return FDerivedDataBackend::Get().GetRoot().GetPayload(Keys, Context, Policy, Owner, MoveTemp(OnComplete));
+		return FDerivedDataBackend::Get().GetRoot().GetChunks(Chunks, Context, Owner, MoveTemp(OnComplete));
 	}
 
 	void CancelAll() final
 	{
-		return FDerivedDataBackend::Get().GetRoot().CancelAll();
 	}
 };
 

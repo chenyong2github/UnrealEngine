@@ -145,18 +145,15 @@ public:
 	virtual void Get(
 		TConstArrayView<FCacheKey> Keys,
 		FStringView Context,
-		ECachePolicy Policy,
+		FCacheRecordPolicy Policy,
 		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) override;
 
-	virtual void GetPayload(
-		TConstArrayView<FCachePayloadKey> Keys,
+	virtual void GetChunks(
+		TConstArrayView<FCacheChunkRequest> Chunks,
 		FStringView Context,
-		ECachePolicy Policy,
 		IRequestOwner& Owner,
-		FOnCacheGetPayloadComplete&& OnComplete) override;
-
-	virtual void CancelAll() override;
+		FOnCacheGetChunkComplete&& OnComplete) override;
 
 private:
 	FDerivedDataCacheUsageStats UsageStats;

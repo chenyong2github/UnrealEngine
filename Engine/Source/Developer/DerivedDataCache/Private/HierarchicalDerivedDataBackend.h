@@ -3,14 +3,17 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Algo/BinarySearch.h"
 #include "Containers/ArrayView.h"
 #include "DerivedDataBackendAsyncPutWrapper.h"
 #include "DerivedDataBackendInterface.h"
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataCacheUsageStats.h"
+#include "DerivedDataChunk.h"
 #include "DerivedDataPayload.h"
 #include "DerivedDataRequestOwner.h"
 #include "Misc/ScopeRWLock.h"
+#include "Misc/StringBuilder.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "Templates/UniquePtr.h"
 
@@ -529,15 +532,15 @@ public:
 	virtual void Get(
 		TConstArrayView<FCacheKey> Keys,
 		FStringView Context,
-		ECachePolicy Policy,
+		FCacheRecordPolicy Policy,
 		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) override
 	{
-		const bool bQueryLocal = bHasLocalBackends && EnumHasAnyFlags(Policy, ECachePolicy::QueryLocal);
-		const bool bStoreLocal = bHasWritableLocalBackends && EnumHasAnyFlags(Policy, ECachePolicy::StoreLocal);
-		const bool bQueryRemote = bHasRemoteBackends && EnumHasAnyFlags(Policy, ECachePolicy::QueryRemote);
-		const bool bStoreRemote = bHasWritableRemoteBackends && EnumHasAnyFlags(Policy, ECachePolicy::StoreRemote);
-		const bool bStoreLocalCopy = bStoreLocal && bHasMultipleLocalBackends && !EnumHasAnyFlags(Policy, ECachePolicy::SkipLocalCopy);
+		const bool bQueryLocal = bHasLocalBackends && EnumHasAnyFlags(Policy.GetRecordPolicy(), ECachePolicy::QueryLocal);
+		const bool bStoreLocal = bHasWritableLocalBackends && EnumHasAnyFlags(Policy.GetRecordPolicy(), ECachePolicy::StoreLocal);
+		const bool bQueryRemote = bHasRemoteBackends && EnumHasAnyFlags(Policy.GetRecordPolicy(), ECachePolicy::QueryRemote);
+		const bool bStoreRemote = bHasWritableRemoteBackends && EnumHasAnyFlags(Policy.GetRecordPolicy(), ECachePolicy::StoreRemote);
+		const bool bStoreLocalCopy = bStoreLocal && bHasMultipleLocalBackends;
 
 		TArray<FCacheKey, TInlineAllocator<16>> RemainingKeys(Keys);
 
@@ -602,52 +605,54 @@ public:
 		}
 	}
 
-	virtual void GetPayload(
-		TConstArrayView<FCachePayloadKey> Keys,
+	virtual void GetChunks(
+		TConstArrayView<FCacheChunkRequest> Chunks,
 		FStringView Context,
-		ECachePolicy Policy,
 		IRequestOwner& Owner,
-		FOnCacheGetPayloadComplete&& OnComplete) override
+		FOnCacheGetChunkComplete&& OnComplete) override
 	{
-		TArray<FCachePayloadKey, TInlineAllocator<16>> RemainingKeys(Keys);
-
-		TSet<FCachePayloadKey> KeysOk;
+		TArray<FCacheChunkRequest, TInlineAllocator<16>> RemainingChunks(Chunks);
 
 		{
 			FReadScopeLock LockScope(Lock);
 
-			for (int32 GetCacheIndex = 0; GetCacheIndex < InnerBackends.Num() && !RemainingKeys.IsEmpty(); ++GetCacheIndex)
+			for (FDerivedDataBackendInterface* InnerBackend : InnerBackends)
 			{
+				if (RemainingChunks.IsEmpty())
+				{
+					return;
+				}
+				RemainingChunks.StableSort(TChunkLess());
+				TArray<FCacheChunkRequest, TInlineAllocator<16>> ErrorChunks;
 				FRequestOwner BlockingOwner(EPriority::Blocking);
-				InnerBackends[GetCacheIndex]->GetPayload(RemainingKeys, Context, Policy, BlockingOwner,
-					[&OnComplete, &KeysOk](FCacheGetPayloadCompleteParams&& Params)
+				InnerBackend->GetChunks(RemainingChunks, Context, BlockingOwner,
+					[&OnComplete, &RemainingChunks, &ErrorChunks](FCacheGetChunkCompleteParams&& Params)
 					{
-						if (Params.Status == EStatus::Ok)
+						if (Params.Status == EStatus::Error)
 						{
-							KeysOk.Add({Params.Key, Params.Payload.GetId()});
-							if (OnComplete)
-							{
-								OnComplete(MoveTemp(Params));
-							}
+							const int32 ChunkIndex = Algo::BinarySearch(RemainingChunks, Params, TChunkLess());
+							checkf(ChunkIndex != INDEX_NONE, TEXT("Failed to find remaining chunk %s ")
+								TEXT(" with raw offset %") UINT64_FMT TEXT("."),
+								*WriteToString<96>(Params.Key, '/', Params.Id), Params.RawOffset);
+							ErrorChunks.Add(RemainingChunks[ChunkIndex]);
+						}
+						else if (OnComplete)
+						{
+							OnComplete(MoveTemp(Params));
 						}
 					});
 				BlockingOwner.Wait();
-
-				RemainingKeys.RemoveAll([&KeysOk](const FCachePayloadKey& Key) { return KeysOk.Contains(Key); });
+				RemainingChunks = MoveTemp(ErrorChunks);
 			}
 		}
 
 		if (OnComplete)
 		{
-			for (const FCachePayloadKey& Key : RemainingKeys)
+			for (const FCacheChunkRequest& Chunk : RemainingChunks)
 			{
-				OnComplete({Key.CacheKey, FPayload(Key.Id), EStatus::Error});
+				OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, EStatus::Error});
 			}
 		}
-	}
-
-	virtual void CancelAll() override
-	{
 	}
 
 private:

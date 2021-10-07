@@ -5,7 +5,6 @@
 #include "CoreTypes.h"
 #include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
-#include "DerivedDataPayloadId.h"
 #include "IO/IoHash.h"
 #include "Templates/TypeHash.h"
 
@@ -76,18 +75,6 @@ struct FCacheKey
 
 inline const FCacheKey FCacheKey::Empty;
 
-/** A key that uniquely identifies a payload within a cache record. */
-struct FCachePayloadKey
-{
-	FCacheKey CacheKey;
-	FPayloadId Id;
-
-	/** A payload key with an empty cache key and a null payload identifier. */
-	static const FCachePayloadKey Empty;
-};
-
-inline const FCachePayloadKey FCachePayloadKey::Empty;
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 inline FAnsiStringView FCacheBucket::ToString() const
@@ -129,36 +116,6 @@ template <typename CharType>
 inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FCacheKey& Key)
 {
 	return Builder << Key.Bucket << CharType('/') << Key.Hash;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-inline bool operator==(const FCachePayloadKey& A, const FCachePayloadKey& B)
-{
-	return A.CacheKey == B.CacheKey && A.Id == B.Id;
-}
-
-inline bool operator!=(const FCachePayloadKey& A, const FCachePayloadKey& B)
-{
-	return A.CacheKey != B.CacheKey || A.Id != B.Id;
-}
-
-inline bool operator<(const FCachePayloadKey& A, const FCachePayloadKey& B)
-{
-	const FCacheKey& KeyA = A.CacheKey;
-	const FCacheKey& KeyB = B.CacheKey;
-	return KeyA == KeyB ? A.Id < B.Id : KeyA < KeyB;
-}
-
-inline uint32 GetTypeHash(const FCachePayloadKey& Key)
-{
-	return HashCombine(GetTypeHash(Key.CacheKey), GetTypeHash(Key.Id));
-}
-
-template <typename CharType>
-inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FCachePayloadKey& Key)
-{
-	return Builder << Key.CacheKey << CharType('/') << Key.Id;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

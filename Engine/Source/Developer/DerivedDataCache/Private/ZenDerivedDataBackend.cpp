@@ -5,6 +5,7 @@
 
 #include "Algo/Accumulate.h"
 #include "DerivedDataCacheRecord.h"
+#include "DerivedDataChunk.h"
 #include "DerivedDataPayload.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeLock.h"
@@ -555,7 +556,7 @@ void FZenDerivedDataBackend::Put(
 void FZenDerivedDataBackend::Get(
 	TConstArrayView<FCacheKey> Keys,
 	FStringView Context,
-	ECachePolicy Policy,
+	FCacheRecordPolicy Policy,
 	IRequestOwner& Owner,
 	FOnCacheGetComplete&& OnComplete)
 {
@@ -603,31 +604,30 @@ void FZenDerivedDataBackend::Get(
 	}
 }
 
-void FZenDerivedDataBackend::GetPayload(
-	TConstArrayView<FCachePayloadKey> Keys,
+void FZenDerivedDataBackend::GetChunks(
+	TConstArrayView<FCacheChunkRequest> Chunks,
 	FStringView Context,
-	ECachePolicy Policy,
 	IRequestOwner& Owner,
-	FOnCacheGetPayloadComplete&& OnComplete)
+	FOnCacheGetChunkComplete&& OnComplete)
 {
 	if (bCacheRecordEndpointEnabled)
 	{
-		for (const FCachePayloadKey& Key : Keys)
+		for (const FCacheChunkRequest& Chunk : Chunks)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC_Get);
 			TRACE_COUNTER_ADD(ZenDDC_Get, int64(1));
 			COOK_STAT(auto Timer = UsageStats.TimeGet());
 
 			TStringBuilder<256> QueryUri;
-			AppendZenUri(Key.CacheKey, Key.Id, QueryUri);
-			AppendPolicyQueryString(Policy, QueryUri);
+			AppendZenUri(Chunk.Key, Chunk.Id, QueryUri);
+			AppendPolicyQueryString(Chunk.Policy, QueryUri);
 
 			EGetResult GetResult;
 			FCompressedBuffer CompressedBuffer;
-			if (ShouldSimulateMiss(Key.CacheKey))
+			if (ShouldSimulateMiss(Chunk.Key))
 			{
 				UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
-					*GetName(), *WriteToString<96>(Key), Context.Len(), Context.GetData());
+					*GetName(), *WriteToString<96>(Chunk.Key, '/', Chunk.Id), Context.Len(), Context.GetData());
 				GetResult = EGetResult::NotFound;
 			}
 			else
@@ -641,72 +641,78 @@ void FZenDerivedDataBackend::GetPayload(
 			}
 			if (CompressedBuffer)
 			{
-				FPayload Payload = FPayload(Key.Id, MoveTemp(CompressedBuffer));
+				const uint64 RawSize = FMath::Min(CompressedBuffer.GetRawSize(), Chunk.RawSize);
 				UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for %s from '%.*s'"),
-					*GetName(), *WriteToString<96>(Key), Context.Len(), Context.GetData());
+					*GetName(), *WriteToString<96>(Chunk.Key, '/', Chunk.Id), Context.Len(), Context.GetData());
 				TRACE_COUNTER_ADD(ZenDDC_GetHit, int64(1));
-				TRACE_COUNTER_ADD(ZenDDC_BytesReceived, Payload.GetRawSize());
-				COOK_STAT(Timer.AddHit(Payload.GetRawSize()));
+				TRACE_COUNTER_ADD(ZenDDC_BytesReceived, RawSize);
+				COOK_STAT(Timer.AddHit(RawSize));
 				if (OnComplete)
 				{
-					OnComplete({ Key.CacheKey, MoveTemp(Payload), EStatus::Ok });
+					FUniqueBuffer Buffer = FUniqueBuffer::Alloc(RawSize);
+					CompressedBuffer.DecompressToComposite().CopyTo(Buffer, Chunk.RawOffset);
+					OnComplete({ Chunk.Key, Chunk.Id, Chunk.RawOffset, RawSize, CompressedBuffer.GetRawHash(), Buffer.MoveToShared(), EStatus::Ok });
 				}
 			}
 			else
 			{
 				UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with %s payload %s for %s from '%.*s'"),
 					*GetName(), (GetResult == EGetResult::NotFound ? TEXT("missing") : TEXT("corrupted")),
-					*WriteToString<16>(Key.Id), *WriteToString<96>(Key), Context.Len(), Context.GetData());
+					*WriteToString<16>(Chunk.Id), *WriteToString<96>(Chunk.Key), Context.Len(), Context.GetData());
 				if (OnComplete)
 				{
-					OnComplete({ Key.CacheKey, FPayload(Key.Id), EStatus::Error });
+					OnComplete({ Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, EStatus::Error });
 				}
 			}
 		}
 	}
 	else
 	{
-		// We have to load the CacheRecord for each Payload, so sort all the Payloads sharing
-		// the same key to occur together and we can load the CacheRecord at the start of each run of Payloads
-		TArray<FCachePayloadKey, TInlineAllocator<16>> SortedKeys(Keys);
-		SortedKeys.StableSort();
+		// We have to load the CacheRecord for each chunks, so sort all the chunks sharing
+		// the same key to occur together and we can load the CacheRecord at the start of each run.
+		TArray<FCacheChunkRequest, TInlineAllocator<16>> SortedChunks(Chunks);
+		SortedChunks.StableSort(TChunkLess());
 
 		FOptionalCacheRecord Record;
-		for (const FCachePayloadKey& Key : SortedKeys)
+		for (const FCacheChunkRequest& Chunk : SortedChunks)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC_Get);
 			TRACE_COUNTER_ADD(ZenDDC_Get, int64(1));
 			COOK_STAT(auto Timer = UsageStats.TimeGet());
 
-			if (!Record || Record.Get().GetKey() != Key.CacheKey)
+			if (!Record || Record.Get().GetKey() != Chunk.Key)
 			{
-				Record = LegacyGetCacheRecord(Key.CacheKey, Context, Policy | ECachePolicy::SkipData, /*bAlwaysLoadInlineData*/ true);
+				Record = LegacyGetCacheRecord(Chunk.Key, Context, Chunk.Policy | ECachePolicy::SkipData, /*bAlwaysLoadInlineData*/ true);
 			}
-			if (FPayload Payload = Record ? LegacyGetCachePayload(Key.CacheKey, Context, Policy, Record.Get().GetPayload(Key.Id)) : FPayload::Null)
+			if (Record)
 			{
-				UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for %s from '%.*s'"),
-					*GetName(), *WriteToString<96>(Key), Context.Len(), Context.GetData());
-				TRACE_COUNTER_ADD(ZenDDC_GetHit, int64(1));
-				TRACE_COUNTER_ADD(ZenDDC_BytesReceived, Payload.GetRawSize());
-				COOK_STAT(Timer.AddHit(Payload.GetRawSize()));
-				if (OnComplete)
+				const ECachePolicy PolicyMask = Record.Get().GetValuePayload().GetId() == Chunk.Id
+					? ECachePolicy::SkipValue : ECachePolicy::SkipAttachments;
+				const ECachePolicy Policy = Chunk.Policy | (ECachePolicy::SkipData & ~PolicyMask);
+				if (FPayload Payload = LegacyGetCachePayload(Chunk.Key, Context, Policy, Record.Get().GetPayload(Chunk.Id)))
 				{
-					OnComplete({ Key.CacheKey, MoveTemp(Payload), EStatus::Ok });
+					const uint64 RawSize = FMath::Min(Payload.GetRawSize(), Chunk.RawSize);
+					UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for %s from '%.*s'"),
+						*GetName(), *WriteToString<96>(Chunk.Key, '/', Chunk.Id), Context.Len(), Context.GetData());
+					TRACE_COUNTER_ADD(ZenDDC_GetHit, int64(1));
+					TRACE_COUNTER_ADD(ZenDDC_BytesReceived, RawSize);
+					COOK_STAT(Timer.AddHit(RawSize));
+					if (OnComplete)
+					{
+						FUniqueBuffer Buffer = FUniqueBuffer::Alloc(RawSize);
+						Payload.GetData().DecompressToComposite().CopyTo(Buffer, Chunk.RawOffset);
+						OnComplete({ Chunk.Key, Chunk.Id, Chunk.RawOffset, RawSize, Payload.GetRawHash(), Buffer.MoveToShared(), EStatus::Ok });
+					}
+					continue;
 				}
 			}
-			else
+
+			if (OnComplete)
 			{
-				if (OnComplete)
-				{
-					OnComplete({ Key.CacheKey, FPayload(Key.Id), EStatus::Error });
-				}
+				OnComplete({ Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, EStatus::Error });
 			}
 		}
 	}
-}
-
-void FZenDerivedDataBackend::CancelAll()
-{
 }
 
 bool FZenDerivedDataBackend::PutCacheRecord(const FCacheRecord& Record, FStringView Context, ECachePolicy Policy)
@@ -728,11 +734,13 @@ bool FZenDerivedDataBackend::PutCacheRecord(const FCacheRecord& Record, FStringV
 	return true;
 }
 
-FOptionalCacheRecord FZenDerivedDataBackend::GetCacheRecord(const FCacheKey& Key, FStringView Context,
-	ECachePolicy Policy) const
+FOptionalCacheRecord FZenDerivedDataBackend::GetCacheRecord(
+	const FCacheKey& Key,
+	const FStringView Context,
+	const FCacheRecordPolicy& Policy) const
 {
 	FCbPackage Package;
-	EGetResult GetResult = GetZenData(Key, Policy, Package);
+	EGetResult GetResult = GetZenData(Key, Policy.GetRecordPolicy(), Package);
 	if (GetResult != EGetResult::Success)
 	{
 		switch (GetResult)
@@ -849,8 +857,11 @@ bool FZenDerivedDataBackend::LegacyPutCachePayload(const FCacheKey& Key, FString
 	return true;
 }
 
-FOptionalCacheRecord FZenDerivedDataBackend::LegacyGetCacheRecord(const FCacheKey& Key,
-	FStringView Context, ECachePolicy Policy, bool bAlwaysLoadInlineData) const
+FOptionalCacheRecord FZenDerivedDataBackend::LegacyGetCacheRecord(
+	const FCacheKey& Key,
+	const FStringView Context,
+	const FCacheRecordPolicy& Policy,
+	const bool bAlwaysLoadInlineData) const
 {
 	TStringBuilder<256> Uri;
 	LegacyMakeZenKey(Key, Uri);
@@ -917,8 +928,12 @@ FPayload FZenDerivedDataBackend::LegacyGetCachePayload(const FCacheKey& Key, FSt
 	return FPayload(PayloadIdOnly.GetId(), MoveTemp(CompressedBuffer));
 }
 
-FOptionalCacheRecord FZenDerivedDataBackend::LegacyCreateRecord(FSharedBuffer&& RecordBytes, const FCacheKey& Key,
-	FStringView Context, ECachePolicy Policy, bool bAlwaysLoadInlineData) const
+FOptionalCacheRecord FZenDerivedDataBackend::LegacyCreateRecord(
+	FSharedBuffer&& RecordBytes,
+	const FCacheKey& Key,
+	const FStringView Context,
+	const FCacheRecordPolicy& Policy,
+	const bool bAlwaysLoadInlineData) const
 {
 	// TODO: Temporary function copied from FFileSystemDerivedDataBackend.
 	// Eventually We will instead send the Policy to zen sever along with the request for the FCacheKey,
@@ -926,7 +941,7 @@ FOptionalCacheRecord FZenDerivedDataBackend::LegacyCreateRecord(FSharedBuffer&& 
 	const FCbObject RecordObject(MoveTemp(RecordBytes));
 	FCacheRecordBuilder RecordBuilder(Key);
 
-	if (!EnumHasAnyFlags(Policy, ECachePolicy::SkipMeta))
+	if (!EnumHasAnyFlags(Policy.GetRecordPolicy(), ECachePolicy::SkipMeta))
 	{
 		if (FCbFieldView MetaHash = RecordObject.FindView("MetaHash"_ASV))
 		{
@@ -945,8 +960,8 @@ FOptionalCacheRecord FZenDerivedDataBackend::LegacyCreateRecord(FSharedBuffer&& 
 
 	if (FCbObject ValueObject = RecordObject["Value"_ASV].AsObject())
 	{
-		const ECachePolicy ValuePolicy = Policy | (ECachePolicy::SkipData & ~ECachePolicy::SkipValue);
-		FPayload Payload = LegacyGetCachePayload(Key, Context, ValuePolicy, ValueObject, bAlwaysLoadInlineData);
+		FPayload Payload = LegacyGetCachePayload(Key, Context, Policy,
+			ECachePolicy::SkipValue, ValueObject, bAlwaysLoadInlineData);
 		if (Payload.IsNull())
 		{
 			return FOptionalCacheRecord();
@@ -956,9 +971,8 @@ FOptionalCacheRecord FZenDerivedDataBackend::LegacyCreateRecord(FSharedBuffer&& 
 
 	for (FCbField AttachmentField : RecordObject["Attachments"_ASV])
 	{
-		const ECachePolicy AttachmentsPolicy = Policy | (ECachePolicy::SkipData & ~ECachePolicy::SkipAttachments);
-		FPayload Payload = LegacyGetCachePayload(Key, Context, AttachmentsPolicy, AttachmentField.AsObject(),
-			bAlwaysLoadInlineData);
+		FPayload Payload = LegacyGetCachePayload(Key, Context, Policy,
+			ECachePolicy::SkipAttachments, AttachmentField.AsObject(), bAlwaysLoadInlineData);
 		if (Payload.IsNull())
 		{
 			return FOptionalCacheRecord();
@@ -969,8 +983,13 @@ FOptionalCacheRecord FZenDerivedDataBackend::LegacyCreateRecord(FSharedBuffer&& 
 	return RecordBuilder.Build();
 }
 
-FPayload FZenDerivedDataBackend::LegacyGetCachePayload(const FCacheKey& Key, FStringView Context, ECachePolicy Policy,
-	const FCbObject& Object, bool bAlwaysLoadInlineData) const
+FPayload FZenDerivedDataBackend::LegacyGetCachePayload(
+	const FCacheKey& Key,
+	const FStringView Context,
+	const FCacheRecordPolicy& Policy,
+	const ECachePolicy SkipFlag,
+	const FCbObject& Object,
+	const bool bAlwaysLoadInlineData) const
 {
 	// TODO: Temporary function copied from FFileSystemDerivedDataBackend, helper for CreateRecord
 	const FPayloadId Id = Object.FindView("Id"_ASV).AsObjectId();
@@ -986,11 +1005,12 @@ FPayload FZenDerivedDataBackend::LegacyGetCachePayload(const FCacheKey& Key, FSt
 		return FPayload();
 	}
 
+	const ECachePolicy PayloadPolicy = Policy.GetPayloadPolicy(Id);
 	FPayload Payload(Id, RawHash, RawSize);
 
 	if (CompressedData)
 	{
-		if (EnumHasAllFlags(Policy, ECachePolicy::SkipData) && !bAlwaysLoadInlineData)
+		if (EnumHasAllFlags(PayloadPolicy, SkipFlag) && !bAlwaysLoadInlineData)
 		{
 			return Payload;
 		}
@@ -1000,7 +1020,7 @@ FPayload FZenDerivedDataBackend::LegacyGetCachePayload(const FCacheKey& Key, FSt
 		}
 	}
 
-	return LegacyGetCachePayload(Key, Context, Policy, Payload);
+	return LegacyGetCachePayload(Key, Context, PayloadPolicy, Payload);
 }
 
 FPayload FZenDerivedDataBackend::LegacyValidateCachePayload(const FCacheKey& Key, FStringView Context,

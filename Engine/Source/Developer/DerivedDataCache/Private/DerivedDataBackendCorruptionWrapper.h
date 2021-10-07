@@ -264,26 +264,20 @@ public:
 	virtual void Get(
 		TConstArrayView<FCacheKey> Keys,
 		FStringView Context,
-		ECachePolicy Policy,
+		FCacheRecordPolicy Policy,
 		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) override
 	{
 		return InnerBackend->Get(Keys, Context, Policy, Owner, MoveTemp(OnComplete));
 	}
 
-	virtual void GetPayload(
-		TConstArrayView<FCachePayloadKey> Keys,
+	virtual void GetChunks(
+		TConstArrayView<FCacheChunkRequest> Chunks,
 		FStringView Context,
-		ECachePolicy Policy,
 		IRequestOwner& Owner,
-		FOnCacheGetPayloadComplete&& OnComplete) override
+		FOnCacheGetChunkComplete&& OnComplete) override
 	{
-		return InnerBackend->GetPayload(Keys, Context, Policy, Owner, MoveTemp(OnComplete));
-	}
-
-	virtual void CancelAll() override
-	{
-		InnerBackend->CancelAll();
+		return InnerBackend->GetChunks(Chunks, Context, Owner, MoveTemp(OnComplete));
 	}
 
 private:

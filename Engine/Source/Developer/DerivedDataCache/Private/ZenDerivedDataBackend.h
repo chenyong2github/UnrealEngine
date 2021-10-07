@@ -100,18 +100,15 @@ public:
 	virtual void Get(
 		TConstArrayView<FCacheKey> Keys,
 		FStringView Context,
-		ECachePolicy Policy,
+		FCacheRecordPolicy Policy,
 		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) override;
 
-	virtual void GetPayload(
-		TConstArrayView<FCachePayloadKey> Keys,
+	virtual void GetChunks(
+		TConstArrayView<FCacheChunkRequest> Chunks,
 		FStringView Context,
-		ECachePolicy Policy,
 		IRequestOwner& Owner,
-		FOnCacheGetPayloadComplete&& OnComplete) override;
-
-	virtual void CancelAll() override;
+		FOnCacheGetChunkComplete&& OnComplete) override;
 
 private:
 	enum class EGetResult
@@ -127,8 +124,7 @@ private:
 	EGetResult GetZenData(const FCacheKey& Key, ECachePolicy CachePolicy, FCbPackage& OutPackage) const;
 
 	bool PutCacheRecord(const FCacheRecord& Record, FStringView Context, ECachePolicy Policy);
-	FOptionalCacheRecord GetCacheRecord(const FCacheKey& Key, FStringView Context,
-		ECachePolicy Policy) const;
+	FOptionalCacheRecord GetCacheRecord(const FCacheKey& Key, FStringView Context, const FCacheRecordPolicy& Policy) const;
 
 	bool IsServiceReady();
 	static FString MakeLegacyZenKey(const TCHAR* CacheKey);
@@ -143,14 +139,14 @@ private:
 	bool LegacyPutCacheRecord(const FCacheRecord& Record, FStringView Context, ECachePolicy Policy);
 	bool LegacyPutCachePayload(const FCacheKey& Key, FStringView Context, const FPayload& Payload, FCbWriter& Writer);
 	FOptionalCacheRecord LegacyGetCacheRecord(const FCacheKey& Key, FStringView Context,
-		ECachePolicy Policy, bool bAlwaysLoadInlineData = false) const;
+		const FCacheRecordPolicy& Policy, bool bAlwaysLoadInlineData = false) const;
 	void LegacyMakeZenKey(const FCacheKey& CacheKey, FStringBuilderBase& Out) const;
 	void LegacyMakePayloadKey(const FCacheKey& CacheKey, const FIoHash& RawHash, FStringBuilderBase& Out) const;
 	FPayload LegacyGetCachePayload(const FCacheKey& Key, FStringView Context, ECachePolicy Policy, const FPayload& Payload) const;
 	FOptionalCacheRecord LegacyCreateRecord(FSharedBuffer&& RecordBytes, const FCacheKey& Key, FStringView Context,
-		ECachePolicy Policy, bool bAlwaysLoadInlineData) const;
-	FPayload LegacyGetCachePayload(const FCacheKey& Key, FStringView Context, ECachePolicy Policy, const FCbObject& Object,
-		bool bAlwaysLoadInlineData = false) const;
+		const FCacheRecordPolicy& Policy, bool bAlwaysLoadInlineData) const;
+	FPayload LegacyGetCachePayload(const FCacheKey& Key, FStringView Context, const FCacheRecordPolicy& Policy,
+		ECachePolicy PolicyMask, const FCbObject& Object, bool bAlwaysLoadInlineData = false) const;
 	FPayload LegacyValidateCachePayload(const FCacheKey& Key, FStringView Context, const FPayload& Payload,
 		const FIoHash& CompressedHash, FSharedBuffer&& CompressedData) const;
 

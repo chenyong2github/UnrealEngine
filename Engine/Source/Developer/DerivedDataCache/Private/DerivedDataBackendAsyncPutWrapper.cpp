@@ -493,7 +493,7 @@ void FDerivedDataBackendAsyncPutWrapper::Put(
 void FDerivedDataBackendAsyncPutWrapper::Get(
 	TConstArrayView<FCacheKey> Keys,
 	FStringView Context,
-	ECachePolicy Policy,
+	FCacheRecordPolicy Policy,
 	IRequestOwner& Owner,
 	FOnCacheGetComplete&& OnComplete)
 {
@@ -524,43 +524,37 @@ void FDerivedDataBackendAsyncPutWrapper::Get(
 	}
 }
 
-void FDerivedDataBackendAsyncPutWrapper::GetPayload(
-	TConstArrayView<FCachePayloadKey> Keys,
+void FDerivedDataBackendAsyncPutWrapper::GetChunks(
+	TConstArrayView<FCacheChunkRequest> Chunks,
 	FStringView Context,
-	ECachePolicy Policy,
 	IRequestOwner& Owner,
-	FOnCacheGetPayloadComplete&& OnComplete)
+	FOnCacheGetChunkComplete&& OnComplete)
 {
 	if (Owner.GetPriority() == EPriority::Blocking)
 	{
-		InnerBackend->GetPayload(Keys, Context, Policy, Owner, MoveTemp(OnComplete));
+		InnerBackend->GetChunks(Chunks, Context, Owner, MoveTemp(OnComplete));
 	}
 	else
 	{
 		FDerivedDataAsyncWrapperRequest* Request = new FDerivedDataAsyncWrapperRequest(Owner,
-			[this, Keys = TArray<FCachePayloadKey>(Keys), Context = FString(Context), Policy, OnComplete = MoveTemp(OnComplete)](bool bCancel) mutable
+			[this, Chunks = TArray<FCacheChunkRequest>(Chunks), Context = FString(Context), OnComplete = MoveTemp(OnComplete)](bool bCancel) mutable
 			{
 				if (!bCancel)
 				{
 					FRequestOwner BlockingOwner(EPriority::Blocking);
-					InnerBackend->GetPayload(Keys, Context, Policy, BlockingOwner, MoveTemp(OnComplete));
+					InnerBackend->GetChunks(Chunks, Context, BlockingOwner, MoveTemp(OnComplete));
 					BlockingOwner.Wait();
 				}
 				else if (OnComplete)
 				{
-					for (const FCachePayloadKey& Key : Keys)
+					for (const FCacheChunkRequest& Chunk : Chunks)
 					{
-						OnComplete({Key.CacheKey, FPayload(Key.Id), EStatus::Canceled});
+						OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, EStatus::Canceled});
 					}
 				}
 			});
 		Request->Start(Owner.GetPriority());
 	}
-}
-
-void FDerivedDataBackendAsyncPutWrapper::CancelAll()
-{
-	InnerBackend->CancelAll();
 }
 
 } // UE::DerivedData::Backends

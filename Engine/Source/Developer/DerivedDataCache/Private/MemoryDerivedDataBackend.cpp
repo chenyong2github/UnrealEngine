@@ -503,7 +503,7 @@ void FMemoryDerivedDataBackend::Put(
 void FMemoryDerivedDataBackend::Get(
 	TConstArrayView<FCacheKey> Keys,
 	FStringView Context,
-	ECachePolicy Policy,
+	FCacheRecordPolicy Policy,
 	IRequestOwner& Owner,
 	FOnCacheGetComplete&& OnComplete)
 {
@@ -538,39 +538,41 @@ void FMemoryDerivedDataBackend::Get(
 	}
 }
 
-void FMemoryDerivedDataBackend::GetPayload(
-	TConstArrayView<FCachePayloadKey> Keys,
+void FMemoryDerivedDataBackend::GetChunks(
+	TConstArrayView<FCacheChunkRequest> Chunks,
 	FStringView Context,
-	ECachePolicy Policy,
 	IRequestOwner& Owner,
-	FOnCacheGetPayloadComplete&& OnComplete)
+	FOnCacheGetChunkComplete&& OnComplete)
 {
-	for (const FCachePayloadKey& PayloadKey : Keys)
+	for (const FCacheChunkRequest& Chunk : Chunks)
 	{
 		COOK_STAT(auto Timer = UsageStats.TimeGet());
 		FPayload Payload;
-		if (ShouldSimulateMiss(PayloadKey.CacheKey))
+		if (ShouldSimulateMiss(Chunk.Key))
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
-				*GetName(), *WriteToString<96>(PayloadKey), Context.Len(), Context.GetData());
+				*GetName(), *WriteToString<96>(Chunk.Key, '/', Chunk.Id), Context.Len(), Context.GetData());
 		}
-		else if (FScopeLock ScopeLock(&SynchronizationObject); const FCacheRecord* Record = CacheRecords.Find(PayloadKey.CacheKey))
+		else if (FScopeLock ScopeLock(&SynchronizationObject); const FCacheRecord* Record = CacheRecords.Find(Chunk.Key))
 		{
-			Payload = Record->GetAttachmentPayload(PayloadKey.Id);
+			Payload = Record->GetAttachmentPayload(Chunk.Id);
 		}
-		if (Payload)
+		if (Payload && Chunk.RawOffset <= Payload.GetRawSize())
 		{
-			COOK_STAT(Timer.AddHit(Payload.GetData().GetRawSize()));
+			const uint64 RawSize = FMath::Min(Payload.GetRawSize() - Chunk.RawOffset, Chunk.RawSize);
+			COOK_STAT(Timer.AddHit(RawSize));
 			if (OnComplete)
 			{
-				OnComplete({PayloadKey.CacheKey, MoveTemp(Payload), EStatus::Ok});
+				FUniqueBuffer Buffer = FUniqueBuffer::Alloc(RawSize);
+				Payload.GetData().DecompressToComposite().CopyTo(Buffer, Chunk.RawOffset);
+				OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, RawSize, Payload.GetRawHash(), Buffer.MoveToShared(), EStatus::Ok});
 			}
 		}
 		else
 		{
 			if (OnComplete)
 			{
-				OnComplete({PayloadKey.CacheKey, FPayload(PayloadKey.Id), EStatus::Error});
+				OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, EStatus::Error});
 			}
 		}
 	}

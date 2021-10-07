@@ -42,6 +42,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Interfaces/ITextureFormat.h"
+#include "Misc/StringBuilder.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "VT/VirtualTextureDataBuilder.h"
 #include "VT/LightmapVirtualTexture.h"
@@ -963,13 +964,15 @@ static bool BeginLoadDerivedMips(FTexturePlatformData& PlatformData, int32 First
 	}
 	else if (PlatformData.DerivedDataKey.IsType<FCacheKeyProxy>())
 	{
-		TArray<FCachePayloadKey> MipKeys;
+		TArray<FCacheChunkRequest> MipKeys;
+
+		const FCacheKey& Key = *PlatformData.DerivedDataKey.Get<UE::DerivedData::FCacheKeyProxy>().AsCacheKey();
 		for (int32 MipIndex = FirstMipToLoad; MipIndex < Mips.Num(); ++MipIndex)
 		{
 			const FTexture2DMipMap& Mip = Mips[MipIndex];
 			if (Mip.IsPagedToDerivedData())
 			{
-				MipKeys.Emplace(*PlatformData.GetDerivedDataMipKeyProxy(MipIndex, Mip).AsCachePayloadKey());
+				MipKeys.Add({Key, FTexturePlatformData::MakeMipId(MipIndex)});
 			}
 		}
 
@@ -978,18 +981,16 @@ static bool BeginLoadDerivedMips(FTexturePlatformData& PlatformData, int32 First
 			check(Callback);
 			bool bMiss = false;
 			FRequestOwner RequestOwner(EPriority::Blocking);
-			GetCache().GetPayload(MipKeys, Texture ? Texture->GetPathName() : TEXT("Unknown Texture"_SV), ECachePolicy::Default, RequestOwner,
-				[&Mips, Callback = MoveTemp(Callback), FirstMipToLoad, &bMiss](FCacheGetPayloadCompleteParams&& Params)
+			GetCache().GetChunks(MipKeys, Texture ? Texture->GetPathName() : TEXT("Unknown Texture"_SV), RequestOwner,
+				[&Mips, Callback = MoveTemp(Callback), FirstMipToLoad, &bMiss](FCacheGetChunkCompleteParams&& Params)
 			{
 				if (Params.Status == EStatus::Ok)
 				{
 					for (int32 MipIndex = FirstMipToLoad; MipIndex < Mips.Num(); ++MipIndex)
 					{
-						TStringBuilder<16> MipName;
-						MipName << TEXT("Mip") << MipIndex;
-						if (Params.Payload.GetId() == FPayloadId::FromName(MipName))
+						if (Params.Id == FTexturePlatformData::MakeMipId(MipIndex))
 						{
-							Callback(MipIndex, Params.Payload.GetData().Decompress());
+							Callback(MipIndex, MoveTemp(Params.RawData));
 							break;
 						}
 					}
@@ -1492,7 +1493,7 @@ bool FTexturePlatformData::AreDerivedMipsAvailable(FStringView Context) const
 			GetDerivedDataCacheRef().TryToPrefetch({MipKeys.Last()}, Context);
 		}
 	}
-	else if (DerivedDataKey.IsType<UE::DerivedData::FCachePayloadKeyProxy>())
+	else if (DerivedDataKey.IsType<UE::DerivedData::FCacheKeyProxy>())
 	{
 		bAreDerivedMipsAvailable = true;
 	}
@@ -1767,21 +1768,16 @@ void FTexturePlatformData::Serialize(FArchive& Ar, UTexture* Owner)
 }
 
 #if WITH_EDITORONLY_DATA
+
 FString FTexturePlatformData::GetDerivedDataMipKeyString(int32 MipIndex, const FTexture2DMipMap& Mip) const
 {
 	const FString& KeyString = DerivedDataKey.Get<FString>();
 	return FDerivedDataCacheInterface::SanitizeCacheKey(*FString::Printf(TEXT("%s_MIP%u_%dx%d"), *KeyString, MipIndex, Mip.SizeX, Mip.SizeY));
 }
 
-UE::DerivedData::FCachePayloadKeyProxy FTexturePlatformData::GetDerivedDataMipKeyProxy(int32 MipIndex, const FTexture2DMipMap& Mip) const
+UE::DerivedData::FPayloadId FTexturePlatformData::MakeMipId(int32 MipIndex)
 {
-	using namespace UE::DerivedData;
-	const FCacheKeyProxy& KeyProxy = DerivedDataKey.Get<FCacheKeyProxy>();
-
-	TStringBuilder<16> MipName;
-	MipName << TEXT("Mip") << MipIndex;
-	FCachePayloadKey PayloadKey {*KeyProxy.AsCacheKey(), FPayloadId::FromName(MipName)};
-	return FCachePayloadKeyProxy(PayloadKey);
+	return UE::DerivedData::FPayloadId::FromName(WriteToString<16>(TEXT("Mip"_SV), MipIndex));
 }
 
 #endif // WITH_EDITORONLY_DATA

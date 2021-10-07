@@ -400,10 +400,11 @@ void FEditorDomainPackageSegments::SendSegmentRequest(FSegment& Segment)
 	ICache& Cache = GetCache();
 
 	// Note that Segment.RequestOwner is Interface-only and so we can write it outside the lock
-	Segment.RequestOwner.Emplace(UE::DerivedData::EPriority::Normal);
-	Cache.GetPayload({ FCachePayloadKey{ UE::EditorDomain::GetEditorDomainPackageKey(PackageDigest), Segment.PayloadId} },
-		PackagePath.GetDebugName(), ECachePolicy::Local, *Segment.RequestOwner,
-		[this, &Segment](FCacheGetPayloadCompleteParams&& Params)
+	Segment.RequestOwner.Emplace(EPriority::Normal);
+	FCacheChunkRequest SegmentChunk{UE::EditorDomain::GetEditorDomainPackageKey(PackageDigest), Segment.PayloadId};
+	SegmentChunk.Policy = ECachePolicy::Local;
+	Cache.GetChunks({SegmentChunk}, PackagePath.GetDebugName(), *Segment.RequestOwner,
+		[this, &Segment](FCacheGetChunkCompleteParams&& Params)
 		{
 			if (AsyncSource == ESource::Closed)
 			{
@@ -421,7 +422,7 @@ void FEditorDomainPackageSegments::SendSegmentRequest(FSegment& Segment)
 			}
 			else
 			{
-				Segment.Data = Params.Payload.GetData().Decompress();
+				Segment.Data = MoveTemp(Params.RawData);
 				uint64 SegmentEnd = &Segment < &Segments.Last() ? (&Segment + 1)->Start : Size;
 				uint64 SegmentSize = SegmentEnd - Segment.Start;
 				if (Segment.Data.GetSize() != SegmentSize)

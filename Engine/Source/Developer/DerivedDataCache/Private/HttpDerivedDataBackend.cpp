@@ -2449,7 +2449,7 @@ void FHttpDerivedDataBackend::Put(
 void FHttpDerivedDataBackend::Get(
 	TConstArrayView<FCacheKey> Keys,
 	FStringView Context,
-	ECachePolicy Policy,
+	FCacheRecordPolicy Policy,
 	IRequestOwner& Owner,
 	FOnCacheGetComplete&& OnComplete)
 {
@@ -2462,18 +2462,17 @@ void FHttpDerivedDataBackend::Get(
 	}
 }
 
-void FHttpDerivedDataBackend::GetPayload(
-	TConstArrayView<FCachePayloadKey> Keys,
+void FHttpDerivedDataBackend::GetChunks(
+	TConstArrayView<FCacheChunkRequest> Chunks,
 	FStringView Context,
-	ECachePolicy Policy,
 	IRequestOwner& Owner,
-	FOnCacheGetPayloadComplete&& OnComplete)
+	FOnCacheGetChunkComplete&& OnComplete)
 {
 	if (OnComplete)
 	{
-		for (const FCachePayloadKey& Key : Keys)
+		for (const FCacheChunkRequest& Chunk : Chunks)
 		{
-			OnComplete({Key.CacheKey, FPayload(Key.Id), EStatus::Error});
+			OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, EStatus::Error});
 		}
 	}
 }
