@@ -17,18 +17,19 @@ using HordeServer.Api;
 using MongoDB.Bson;
 using System.Linq;
 using HordeServerTests.Stubs.Services;
+using HordeServer.Collections;
 
 namespace HordeServerTests
 {
     [TestClass]
     public class SchedulerTests : DatabaseIntegrationTest
 	{
+		ProjectId ProjectId { get; } = new ProjectId("ue5");
 		StreamId StreamId { get; } = new StreamId("ue5-main");
 		TemplateRefId TemplateRefId { get; } = new TemplateRefId("template1");
 
 		IServiceProvider ServiceProvider;
 		TestSetup TestSetup;
-		IStream Stream;
 		ITemplate Template;
 		HashSet<ObjectId> InitialJobIds;
 		ScheduleService ScheduleService;
@@ -38,16 +39,10 @@ namespace HordeServerTests
 		{
 			TestSetup = GetTestSetup().Result;
 
-			IProject ? Project = TestSetup.ProjectService.Collection.AddOrUpdateAsync(new ProjectId("ue5"), "", "", 0, new ProjectConfig { Name = "UE5" }).Result;
+			IProject ? Project = TestSetup.ProjectService.Collection.AddOrUpdateAsync(ProjectId, "", "", 0, new ProjectConfig { Name = "UE5" }).Result;
 			Assert.IsNotNull(Project);
 
 			Template = TestSetup.TemplateService.CreateTemplateAsync("Test template", null, false, null, null, new List<TemplateCounter>(), new List<string>(), new List<Parameter>()).Result;
-
-			Stream = TestSetup.StreamCollection.GetAsync(StreamId).Result!;
-			if (Stream == null)
-			{
-				Stream = TestSetup.StreamCollection.TryCreateOrReplaceAsync(new StreamId("ue5-main"), null, "", "", Project!.Id, new StreamConfig { Name = "//UE5/Main" }).Result!;
-			}
 
 			InitialJobIds = new HashSet<ObjectId>(TestSetup.JobCollection.FindAsync().Result.Select(x => x.Id));
 
@@ -61,17 +56,17 @@ namespace HordeServerTests
 			PerforceService.AddChange("//UE5/Main", 102, "Bob", "", new[] { "content.uasset" });
 		}
 
-		async Task SetSchedule(Schedule Schedule)
+		async Task<IStream> SetSchedule(CreateScheduleRequest Schedule)
 		{
-			TemplateRef TemplateRef1 = new TemplateRef(Template, Schedule: Schedule);
-			List<StreamTab> Tabs = new List<StreamTab>();
-			Tabs.Add(new JobsTab("foo", true, new List<TemplateRefId> { TemplateRefId }, new List<string>(), new List<JobsTabColumn>()));
-
 			IStream? Stream = await TestSetup.StreamService.GetStreamAsync(StreamId);
-			Assert.IsNotNull(Stream);
+
+			StreamConfig Config = new StreamConfig();
+			Config.Name = "//UE5/Main";
+			Config.Tabs.Add(new CreateJobsTabRequest { Title = "foo", Templates = new List<string> { TemplateRefId.ToString() } });
+			Config.Templates.Add(new CreateTemplateRefRequest { Id = TemplateRefId.ToString(), Name = "Test", Schedule = Schedule });
 
 			StreamService StreamService = ServiceProvider.GetRequiredService<StreamService>();
-			await StreamService.UpdateStreamAsync(Stream, NewTabs: Tabs, NewTemplateRefs: new Dictionary<TemplateRefId, TemplateRef> { { TemplateRefId, TemplateRef1 } });
+			return (await StreamService.StreamCollection.TryCreateOrReplaceAsync(StreamId, Stream, "", "", ProjectId, Config))!; 
 		}
 
 		[TestMethod]
@@ -130,9 +125,10 @@ namespace HordeServerTests
 			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
 			TestSetup.Clock.UtcNow = StartTime;
 
-			Schedule Schedule = new Schedule(RequireSubmittedChange: false);
-			Schedule.Patterns.Add(new SchedulePattern(null, 13 * 60, 14 * 60, 15));
-			Schedule.LastTriggerTime = StartTime;
+			CreateScheduleRequest Schedule = new CreateScheduleRequest();
+			Schedule.Enabled = true;
+			Schedule.Patterns.Add(new CreateSchedulePatternRequest { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
+//			Schedule.LastTriggerTime = StartTime;
 			await SetSchedule(Schedule);
 
 			// Initial tick
@@ -149,24 +145,6 @@ namespace HordeServerTests
 			Assert.AreEqual(1, Jobs2.Count);
 			Assert.AreEqual(102, Jobs2[0].Change);
 			Assert.AreEqual(100, Jobs2[0].CodeChange);
-
-			IStream Stream2 = (await TestSetup.StreamCollection.GetAsync(Stream.Id))!;
-			Schedule Schedule2 = Stream2.Templates.First().Value.Schedule!;
-			Assert.AreEqual(102, Schedule2.LastTriggerChange);
-			Assert.AreEqual(TestSetup.Clock.UtcNow, Schedule2.LastTriggerTime);
-
-			// Tick a little later (interval not elapsed)
-			await ScheduleService.TickSharedOnlyForTestingAsync();
-			Assert.AreEqual(0, (await GetNewJobs()).Count);
-
-			// Trigger another job
-			TestSetup.Clock.Advance(TimeSpan.FromHours(0.5));
-			await ScheduleService.TickSharedOnlyForTestingAsync();
-
-			List<IJob> Jobs3 = await GetNewJobs();
-			Assert.AreEqual(1, Jobs3.Count);
-			Assert.AreEqual(102, Jobs3[0].Change);
-			Assert.AreEqual(100, Jobs3[0].CodeChange);
 		}
 
 		[TestMethod]
@@ -175,10 +153,10 @@ namespace HordeServerTests
 			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
 			TestSetup.Clock.UtcNow = StartTime;
 
-			Schedule Schedule = new Schedule();
-			Schedule.Patterns.Add(new SchedulePattern(null, 13 * 60, 14 * 60, 15));
-			Schedule.LastTriggerTime = StartTime;
-			await SetSchedule(Schedule);
+			CreateScheduleRequest Schedule = new CreateScheduleRequest();
+			Schedule.Enabled = true;
+			Schedule.Patterns.Add(new CreateSchedulePatternRequest { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
+			IStream Stream = await SetSchedule(Schedule);
 
 			// Initial tick
 			await ScheduleService.TickSharedOnlyForTestingAsync();
@@ -214,9 +192,9 @@ namespace HordeServerTests
 			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
 			TestSetup.Clock.UtcNow = StartTime;
 
-			Schedule Schedule = new Schedule();
-			Schedule.Patterns.Add(new SchedulePattern(null, 13 * 60, 14 * 60, 15));
-			Schedule.LastTriggerTime = StartTime;
+			CreateScheduleRequest Schedule = new CreateScheduleRequest();
+			Schedule.Enabled = true;
+			Schedule.Patterns.Add(new CreateSchedulePatternRequest { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
 			Schedule.MaxChanges = 2;
 			Schedule.Filter = new List<ChangeContentFlags> { ChangeContentFlags.ContainsCode };
 			await SetSchedule(Schedule);
@@ -250,9 +228,10 @@ namespace HordeServerTests
 			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
 			TestSetup.Clock.UtcNow = StartTime;
 
-			Schedule Schedule = new Schedule(RequireSubmittedChange: false);
-			Schedule.Patterns.Add(new SchedulePattern(null, 13 * 60, 14 * 60, 15));
-			Schedule.LastTriggerTime = StartTime;
+			CreateScheduleRequest Schedule = new CreateScheduleRequest();
+			Schedule.Enabled = true;
+			Schedule.RequireSubmittedChange = false;
+			Schedule.Patterns.Add(new CreateSchedulePatternRequest { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
 			Schedule.MaxActive = 1;
 			await SetSchedule(Schedule);
 
@@ -291,18 +270,10 @@ namespace HordeServerTests
 			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
 			TestSetup.Clock.UtcNow = StartTime;
 
-			Schedule Schedule = new Schedule();
-			Schedule.Patterns.Add(new SchedulePattern(null, 13 * 60, 14 * 60, 15));
-			Schedule.LastTriggerTime = StartTime;
-
-			ITemplate? NewTemplate = await TestSetup.TemplateService.CreateTemplateAsync("Test template", SubmitNewChange: "foo.cpp");
-			TemplateRef NewTemplateRef = new TemplateRef(NewTemplate, Schedule: Schedule);
-
-			IStream? Stream = await TestSetup.StreamService.GetStreamAsync(StreamId);
-			Assert.IsNotNull(Stream);
-
-			StreamService StreamService = ServiceProvider.GetRequiredService<StreamService>();
-			await StreamService.UpdateStreamAsync(Stream, NewTemplateRefs: new Dictionary<TemplateRefId, TemplateRef> { { TemplateRefId, NewTemplateRef } });
+			CreateScheduleRequest Schedule = new CreateScheduleRequest();
+			Schedule.Enabled = true;
+			Schedule.Patterns.Add(new CreateSchedulePatternRequest { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
+			IStream Stream = await SetSchedule(Schedule);
 
 			// Trigger a job
 			TestSetup.Clock.Advance(TimeSpan.FromHours(1.25));
@@ -310,8 +281,8 @@ namespace HordeServerTests
 
 			List<IJob> Jobs2 = await GetNewJobs();
 			Assert.AreEqual(1, Jobs2.Count);
-			Assert.AreEqual(103, Jobs2[0].Change);
-			Assert.AreEqual(103, Jobs2[0].CodeChange);
+			Assert.AreEqual(102, Jobs2[0].Change);
+			Assert.AreEqual(100, Jobs2[0].CodeChange);
 
 			// Check another job does not trigger due to the change above
 			TestSetup.Clock.Advance(TimeSpan.FromHours(1.25));
@@ -340,9 +311,14 @@ namespace HordeServerTests
 			NewTemplateRef2.Schedule.LastTriggerTime = StartTime;
 			TemplateRefId NewTemplateRefId2 = new TemplateRefId("new-template-2");
 
-			List<StreamTab> Tabs = new List<StreamTab>();
-			Tabs.Add(new JobsTab("foo", true, new List<TemplateRefId> { NewTemplateRefId1, NewTemplateRefId2 }, new List<string>(), new List<JobsTabColumn>()));
-			await TestSetup.StreamService.UpdateStreamAsync(Stream, NewTabs: Tabs, NewTemplateRefs: new Dictionary<TemplateRefId, TemplateRef> { { NewTemplateRefId1, NewTemplateRef1 }, { NewTemplateRefId2, NewTemplateRef2 } });
+			IStream? Stream = await TestSetup.StreamService.GetStreamAsync(StreamId);
+
+			StreamConfig Config = new StreamConfig();
+			Config.Name = "//UE5/Main";
+			Config.Tabs.Add(new CreateJobsTabRequest { Title = "foo", Templates = new List<string> { NewTemplateRefId1.ToString(), NewTemplateRefId2.ToString() } });
+
+			StreamService StreamService = ServiceProvider.GetRequiredService<StreamService>();
+			Stream = (await StreamService.StreamCollection.TryCreateOrReplaceAsync(StreamId, Stream, "", "", ProjectId, Config))!;
 
 			// Create the TriggerNext step and mark it as complete
 			IGraph GraphA = await TestSetup.GraphCollection.AddAsync(NewTemplate1);
@@ -381,22 +357,55 @@ namespace HordeServerTests
 		}
 
 		[TestMethod]
+		public async Task UpdateConfigAsync()
+		{
+			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
+			TestSetup.Clock.UtcNow = StartTime;
+
+			CreateScheduleRequest Schedule = new CreateScheduleRequest();
+			Schedule.Enabled = true;
+			Schedule.RequireSubmittedChange = false;
+			Schedule.Patterns.Add(new CreateSchedulePatternRequest { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
+			Schedule.MaxActive = 2;
+			await SetSchedule(Schedule);
+
+			TestSetup.Clock.Advance(TimeSpan.FromHours(1.25));
+			await ScheduleService.TickSharedOnlyForTestingAsync();
+
+			List<IJob> Jobs1 = await GetNewJobs();
+			Assert.AreEqual(1, Jobs1.Count);
+			Assert.AreEqual(102, Jobs1[0].Change);
+			Assert.AreEqual(100, Jobs1[0].CodeChange);
+
+			// Make sure the job is registered
+			IStream? Stream1 = await TestSetup.StreamService.GetStreamAsync(StreamId);
+			TemplateRef TemplateRef1 = Stream1!.Templates.First().Value;
+			Assert.AreEqual(1, TemplateRef1.Schedule!.ActiveJobs.Count);
+			Assert.AreEqual(Jobs1[0].Id, TemplateRef1.Schedule!.ActiveJobs[0]);
+
+			// Test that another job does not trigger
+			await SetSchedule(Schedule);
+
+			// Make sure the job is still registered
+			IStream? Stream2 = await TestSetup.StreamService.GetStreamAsync(StreamId);
+			TemplateRef TemplateRef2 = Stream2!.Templates.First().Value;
+			Assert.AreEqual(1, TemplateRef2.Schedule!.ActiveJobs.Count);
+			Assert.AreEqual(Jobs1[0].Id, TemplateRef2.Schedule!.ActiveJobs[0]);
+		}
+
+		[TestMethod]
 		public async Task StreamPausing()
 		{
 			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Utc); // Friday Jan 1, 2021 
 			TestSetup.Clock.UtcNow = StartTime;
-			
-			Schedule Schedule = new Schedule();
-			Schedule.Patterns.Add(new SchedulePattern(null, 13 * 60, 14 * 60, 15));
-			Schedule.LastTriggerTime = StartTime;
-			
-			ITemplate NewTemplate = await TestSetup.TemplateService.CreateTemplateAsync("Test template", SubmitNewChange: "fooAAA.cpp");
-			TemplateRef NewTemplateRef = new TemplateRef(NewTemplate, Schedule: Schedule);
-			
-			StreamService StreamService = ServiceProvider.GetRequiredService<StreamService>();
-			await StreamService.UpdateStreamAsync(Stream,
-				NewTemplateRefs: new Dictionary<TemplateRefId, TemplateRef> { { TemplateRefId, NewTemplateRef } },
-				UpdatePauseFields: true, NewPausedUntil: StartTime.AddHours(5), NewPauseComment: "testing");
+
+			CreateScheduleRequest Schedule = new CreateScheduleRequest();
+			Schedule.Enabled = true;
+			Schedule.Patterns.Add(new CreateSchedulePatternRequest { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
+			IStream Stream = await SetSchedule(Schedule);
+
+			IStreamCollection StreamCollection = ServiceProvider.GetRequiredService<IStreamCollection>();
+			await StreamCollection.TryUpdatePauseStateAsync(Stream, NewPausedUntil: StartTime.AddHours(5), NewPauseComment: "testing");
 			
 			// Try trigger a job. No job should be scheduled as the stream is paused
 			TestSetup.Clock.Advance(TimeSpan.FromHours(1.25));
@@ -410,8 +419,8 @@ namespace HordeServerTests
 
 			List<IJob> Jobs3 = await GetNewJobs();
 			Assert.AreEqual(1, Jobs3.Count);
-			Assert.AreEqual(103, Jobs3[0].Change);
-			Assert.AreEqual(103, Jobs3[0].CodeChange);
+			Assert.AreEqual(102, Jobs3[0].Change);
+			Assert.AreEqual(100, Jobs3[0].CodeChange);
 		}
 
 		async Task<List<IJob>> GetNewJobs()

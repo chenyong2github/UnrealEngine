@@ -92,26 +92,14 @@ namespace HordeServer.Services
 		/// Updates an existing stream
 		/// </summary>
 		/// <param name="Stream">The stream to update</param>
-		/// <param name="NewName">The new name for the stream</param>
-		/// <param name="NewOrder">The new order for the stream</param>
-		/// <param name="NewNotificationChannel">The new notification channel for the stream</param>
-		/// <param name="NewNotificationChannelFilter">The new notification channel filter for the stream</param>
-		/// <param name="NewTriageChannel"></param>
-		/// <param name="NewTabs">New tabs for the stream</param>
-		/// <param name="NewAgentTypes">Map of agent types to update. Anything with a value of null will be removed.</param>
-		/// <param name="NewWorkspaceTypes">Map of workspace types to update. Anything with a value of null will be removed.</param>
-		/// <param name="NewTemplateRefs">New template references for this stream</param>
-		/// <param name="NewProperties">Properties on the stream to update. Anything with a value of null will be removed.</param>
-		/// <param name="NewAcl">The new ACL object</param>
-		/// <param name="UpdatePauseFields">Must be set to true to update the pause fields</param>
 		/// <param name="NewPausedUntil">The new datetime for pausing builds</param>
 		/// <param name="NewPauseComment">The reason for pausing</param>
 		/// <returns>Async task object</returns>
-		public async Task<IStream?> UpdateStreamAsync(IStream? Stream, string? NewName = null, int? NewOrder = null, string? NewNotificationChannel = null, string? NewNotificationChannelFilter = null, string? NewTriageChannel = null, List<StreamTab>? NewTabs = null, Dictionary<string, AgentType?>? NewAgentTypes = null, Dictionary<string, WorkspaceType?>? NewWorkspaceTypes = null, Dictionary<TemplateRefId, TemplateRef>? NewTemplateRefs = null, Dictionary<string, string?>? NewProperties = null, Acl? NewAcl = null, bool? UpdatePauseFields = null, DateTime? NewPausedUntil = null, string? NewPauseComment = null)
+		public async Task<IStream?> UpdatePauseStateAsync(IStream? Stream, DateTime? NewPausedUntil = null, string? NewPauseComment = null)
 		{
 			for (; Stream != null; Stream = await GetStreamAsync(Stream.Id))
 			{
-				if (await TryUpdateStreamAsync(Stream, NewName, NewOrder, NewNotificationChannel, NewNotificationChannelFilter, NewTriageChannel, NewTabs, NewAgentTypes, NewWorkspaceTypes, NewTemplateRefs, NewProperties, NewAcl, UpdatePauseFields, NewPausedUntil, NewPauseComment))
+				if (await Streams.TryUpdatePauseStateAsync(Stream, NewPausedUntil, NewPauseComment))
 				{
 					break;
 				}
@@ -145,17 +133,7 @@ namespace HordeServer.Services
 				}
 
 				List<ObjectId> NewActiveJobs = TemplateRef.Schedule.ActiveJobs.Except(RemoveJobs).Union(AddJobs).ToList();
-
-				int? NewLastTriggerChange = LastTriggerChange;
-				DateTimeOffset? NewLastTriggerTime = LastTriggerTime;
-
-				if (NewLastTriggerChange != null && NewLastTriggerChange.Value < TemplateRef.Schedule.LastTriggerChange)
-				{
-					NewLastTriggerChange = null;
-					NewLastTriggerTime = null;
-				}
-
-				if (await Streams.TryUpdateScheduleTriggerAsync(NewStream, TemplateRefId, NewLastTriggerTime, NewLastTriggerChange, NewActiveJobs))
+				if (await Streams.TryUpdateScheduleTriggerAsync(NewStream, TemplateRefId, LastTriggerTime, LastTriggerChange, NewActiveJobs))
 				{
 					return NewStream;
 				}
@@ -163,30 +141,6 @@ namespace HordeServer.Services
 				NewStream = await Streams.GetAsync(NewStream.Id);
 			}
 			return null;
-		}
-
-		/// <summary>
-		/// Updates an existing stream
-		/// </summary>
-		/// <param name="Stream">The stream to update</param>
-		/// <param name="NewName">The new name for the stream</param>
-		/// <param name="NewOrder">New order for the stream</param>
-		/// <param name="NewNotificationChannel">New notification channel for the stream</param>
-		/// <param name="NewNotificationChannelFilter">New notification channel filter for the stream</param>
-		/// <param name="NewTriageChannel"></param>
-		/// <param name="NewTabs">New tabs for the stream</param>
-		/// <param name="NewAgentTypes">Map of agent types to update. Anything with a value of null will be removed.</param>
-		/// <param name="NewWorkspaceTypes">Map of workspace types to update. Anything with a value of null will be removed.</param>
-		/// <param name="NewTemplateRefs">New template references for this stream</param>
-		/// <param name="NewProperties">Properties on the stream to update. Anything with a value of null will be removed.</param>
-		/// <param name="NewAcl">The new ACL object</param>
-		/// <param name="UpdatePauseFields">Must be set to true to update the pause fields</param>
-		/// <param name="NewPausedUntil">The new datetime for pausing builds</param>
-		/// <param name="NewPauseComment">The reason for pausing</param>
-		/// <returns>Async task object</returns>
-		public Task<bool> TryUpdateStreamAsync(IStream Stream, string? NewName, int? NewOrder, string? NewNotificationChannel, string? NewNotificationChannelFilter, string? NewTriageChannel, List<StreamTab>? NewTabs, Dictionary<string, AgentType?>? NewAgentTypes, Dictionary<string, WorkspaceType?>? NewWorkspaceTypes, Dictionary<TemplateRefId, TemplateRef>? NewTemplateRefs, Dictionary<string, string?>? NewProperties, Acl? NewAcl, bool? UpdatePauseFields = null, DateTime? NewPausedUntil = null, string? NewPauseComment = null)
-		{
-			return Streams.TryUpdatePropertiesAsync(Stream, NewName, NewOrder, NewNotificationChannel, NewNotificationChannelFilter, NewTriageChannel, NewTabs, NewAgentTypes, NewWorkspaceTypes, NewTemplateRefs, NewProperties, NewAcl, UpdatePauseFields, NewPausedUntil, NewPauseComment);
 		}
 
 		/// <summary>
