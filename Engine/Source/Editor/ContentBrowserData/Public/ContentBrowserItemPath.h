@@ -14,9 +14,23 @@ class CONTENTBROWSERDATA_API FContentBrowserItemPath
 {
 public:
 	FContentBrowserItemPath();
+
+	FContentBrowserItemPath(const FName InVirtualPath, const FName InInternalPath)
+		: VirtualPath(InVirtualPath)
+		, InternalPath(InInternalPath)
+	{
+		check(!VirtualPath.IsNone());
+		check(!InternalPath.IsNone());
+	}
+
 	FContentBrowserItemPath(const FStringView InPath, const EContentBrowserPathType InPathType);
 	FContentBrowserItemPath(const TCHAR* InPath, const EContentBrowserPathType InPathType);
 	FContentBrowserItemPath(const FName InPath, const EContentBrowserPathType InPathType);
+
+	bool operator==(const FContentBrowserItemPath& Other) const 
+	{ 
+		return VirtualPath == Other.VirtualPath && InternalPath == Other.InternalPath;
+	}
 
 	/**
 	 * Set the path being stored

@@ -66,7 +66,7 @@ FNativeClassHierarchy::~FNativeClassHierarchy()
 TSharedPtr<const FNativeClassHierarchyNode> FNativeClassHierarchy::FindNode(const FName InClassPath, const ENativeClassHierarchyNodeType InType) const
 {
 	TArray<TSharedRef<FNativeClassHierarchyNode>, TInlineAllocator<4>> NodesFound;
-	GatherMatchingNodesForPaths(TArrayView<const FName>(&InClassPath, 1), NodesFound);
+	GatherMatchingNodesForPaths(TArrayView<const FName>(&InClassPath, 1), NodesFound, InType);
 
 	for(const auto& NodeFound : NodesFound)
 	{
@@ -263,7 +263,7 @@ void FNativeClassHierarchy::GetFoldersRecursive(const TSharedRef<FNativeClassHie
 	}
 }
 
-void FNativeClassHierarchy::GatherMatchingNodesForPaths(const TArrayView<const FName>& InClassPaths, TArray<TSharedRef<FNativeClassHierarchyNode>, TInlineAllocator<4>>& OutMatchingNodes) const
+void FNativeClassHierarchy::GatherMatchingNodesForPaths(const TArrayView<const FName>& InClassPaths, TArray<TSharedRef<FNativeClassHierarchyNode>, TInlineAllocator<4>>& OutMatchingNodes, const ENativeClassHierarchyNodeType InType) const
 {
 	if(InClassPaths.Num() == 0)
 	{
@@ -286,7 +286,16 @@ void FNativeClassHierarchy::GatherMatchingNodesForPaths(const TArrayView<const F
 			{
 				// Try and find the node associated with this part of the path...
 				const FName ClassPathPartName = *ClassPathPart;
-				CurrentNode = (CurrentNode.IsValid()) ? CurrentNode->Children.FindRef(FNativeClassHierarchyNodeKey(ClassPathPartName, ENativeClassHierarchyNodeType::Folder)) : RootNodes.FindRef(ClassPathPartName);
+
+				if (InType == ENativeClassHierarchyNodeType::Class && ClassPathPart == ClassPathParts.Last())
+				{
+
+					CurrentNode = (CurrentNode.IsValid()) ? CurrentNode->Children.FindRef(FNativeClassHierarchyNodeKey(ClassPathPartName, ENativeClassHierarchyNodeType::Class)) : RootNodes.FindRef(ClassPathPartName);
+				}
+				else
+				{
+					CurrentNode = (CurrentNode.IsValid()) ? CurrentNode->Children.FindRef(FNativeClassHierarchyNodeKey(ClassPathPartName, ENativeClassHierarchyNodeType::Folder)) : RootNodes.FindRef(ClassPathPartName);
+				}
 
 				// ... bail out if we didn't find a valid node
 				if(!CurrentNode.IsValid())
@@ -502,7 +511,7 @@ bool FNativeClassHierarchy::GetFileSystemPath(const FString& InClassPath, FStrin
 	return false;
 }
 
-bool FNativeClassHierarchy::GetClassPath(UClass* InClass, FString& OutClassPath, FNativeClassHierarchyGetClassPathCache& InCache, const bool bIncludeClassName) const
+bool FNativeClassHierarchy::GetClassPath(const UClass* InClass, FString& OutClassPath, FNativeClassHierarchyGetClassPathCache& InCache, const bool bIncludeClassName) const
 {
 	const FName ClassModuleName = GetClassModuleName(InClass);
 	if(ClassModuleName.IsNone())
@@ -566,7 +575,7 @@ void FNativeClassHierarchy::OnReloadComplete(EReloadCompleteReason Reason)
 	PopulateHierarchy();
 }
 
-FName FNativeClassHierarchy::GetClassModuleName(UClass* InClass)
+FName FNativeClassHierarchy::GetClassModuleName(const UClass* InClass)
 {
 	UPackage* const ClassPackage = InClass->GetOuterUPackage();
 

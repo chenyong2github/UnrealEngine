@@ -220,7 +220,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 	ThumbnailScaleRangeScalar = ( DisplaySize.Y / 2160 );
 
 	// Create a thumbnail pool for rendering thumbnails	
-	AssetThumbnailPool = MakeShared<FAssetThumbnailPool>(1024);
+	AssetThumbnailPool = MakeShared<FAssetThumbnailPool>(InArgs._InitialThumbnailPoolSize);
 	NumOffscreenThumbnails = 64;
 	ListViewThumbnailResolution = 128;
 	ListViewThumbnailSize = 64;
@@ -1817,79 +1817,92 @@ void SAssetView::RefreshSourceItems()
 	ItemsPendingFrontendFilter.Reset();
 	{
 		UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
-		const FContentBrowserDataFilter DataFilter = CreateBackendDataFilter();
 
-		bWereItemsRecursivelyFiltered = DataFilter.bRecursivePaths;
-
-		if (SourcesData.HasCollections() && EnumHasAnyFlags(DataFilter.ItemCategoryFilter, EContentBrowserItemCategoryFilter::IncludeCollections))
+		auto AddNewItem = [this, &PreviousAvailableBackendItems](FContentBrowserItemData&& InItemData)
 		{
-			// If we are showing collections then we may need to add dummy folder items for the child collections
-			// Note: We don't check the IncludeFolders flag here, as that is forced to false when collections are selected,
-			// instead we check the state of bIncludeChildCollections which will be false when we want to show collection folders
-			const FContentBrowserDataCollectionFilter* CollectionFilter = DataFilter.ExtraFilters.FindFilter<FContentBrowserDataCollectionFilter>();
-			if (CollectionFilter && !CollectionFilter->bIncludeChildCollections)
+			const FContentBrowserItemKey ItemDataKey(InItemData);
+			const uint32 ItemDataKeyHash = GetTypeHash(ItemDataKey);
+
+			TSharedPtr<FAssetViewItem>& NewItem = AvailableBackendItems.FindOrAddByHash(ItemDataKeyHash, ItemDataKey);
+			if (!NewItem && InItemData.IsFile())
 			{
-				FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
-				
-				TArray<FCollectionNameType> ChildCollections;
-				for(const FCollectionNameType& Collection : SourcesData.Collections)
+				// Re-use the old view item where possible to avoid list churn when our backend view already included the item
+				if (TSharedPtr<FAssetViewItem>* PreviousItem = PreviousAvailableBackendItems.FindByHash(ItemDataKeyHash, ItemDataKey))
 				{
-					ChildCollections.Reset();
-					CollectionManagerModule.Get().GetChildCollections(Collection.Name, Collection.Type, ChildCollections);
+					NewItem = *PreviousItem;
+					NewItem->ClearCachedCustomColumns();
+				}
+			}
+			if (NewItem)
+			{
+				NewItem->AppendItemData(InItemData);
+				NewItem->CacheCustomColumns(CustomColumns, true, true, false /*bUpdateExisting*/);
+			}
+			else
+			{
+				NewItem = MakeShared<FAssetViewItem>(MoveTemp(InItemData));
+			}
 
-					for (const FCollectionNameType& ChildCollection : ChildCollections)
+			return true;
+		};
+
+		if (SourcesData.OnEnumerateCustomSourceItemDatas.IsBound())
+		{
+			SourcesData.OnEnumerateCustomSourceItemDatas.Execute(AddNewItem);
+		}
+
+		if (SourcesData.IsIncludingVirtualPaths() || SourcesData.HasCollections()) 
+		{
+			const FContentBrowserDataFilter DataFilter = CreateBackendDataFilter();
+
+			bWereItemsRecursivelyFiltered = DataFilter.bRecursivePaths;
+
+			if (SourcesData.HasCollections() && EnumHasAnyFlags(DataFilter.ItemCategoryFilter, EContentBrowserItemCategoryFilter::IncludeCollections))
+			{
+				// If we are showing collections then we may need to add dummy folder items for the child collections
+				// Note: We don't check the IncludeFolders flag here, as that is forced to false when collections are selected,
+				// instead we check the state of bIncludeChildCollections which will be false when we want to show collection folders
+				const FContentBrowserDataCollectionFilter* CollectionFilter = DataFilter.ExtraFilters.FindFilter<FContentBrowserDataCollectionFilter>();
+				if (CollectionFilter && !CollectionFilter->bIncludeChildCollections)
+				{
+					FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
+				
+					TArray<FCollectionNameType> ChildCollections;
+					for(const FCollectionNameType& Collection : SourcesData.Collections)
 					{
-						// Use "Collections" as the root of the path to avoid this being confused with other view folders - see ContentBrowserUtils::IsCollectionPath
-						FContentBrowserItemData FolderItemData(
-							nullptr, 
-							EContentBrowserItemFlags::Type_Folder | EContentBrowserItemFlags::Category_Collection, 
-							*FString::Printf(TEXT("/Collections/%s/%s"), ECollectionShareType::ToString(ChildCollection.Type), *ChildCollection.Name.ToString()), 
-							ChildCollection.Name, 
-							FText::FromName(ChildCollection.Name), 
-							nullptr
-							);
+						ChildCollections.Reset();
+						CollectionManagerModule.Get().GetChildCollections(Collection.Name, Collection.Type, ChildCollections);
 
-						const FContentBrowserItemKey FolderItemDataKey(FolderItemData);
-						AvailableBackendItems.Add(FolderItemDataKey, MakeShared<FAssetViewItem>(MoveTemp(FolderItemData)));
+						for (const FCollectionNameType& ChildCollection : ChildCollections)
+						{
+							// Use "Collections" as the root of the path to avoid this being confused with other view folders - see ContentBrowserUtils::IsCollectionPath
+							FContentBrowserItemData FolderItemData(
+								nullptr, 
+								EContentBrowserItemFlags::Type_Folder | EContentBrowserItemFlags::Category_Collection, 
+								*FString::Printf(TEXT("/Collections/%s/%s"), ECollectionShareType::ToString(ChildCollection.Type), *ChildCollection.Name.ToString()), 
+								ChildCollection.Name, 
+								FText::FromName(ChildCollection.Name), 
+								nullptr
+								);
+
+							const FContentBrowserItemKey FolderItemDataKey(FolderItemData);
+							AvailableBackendItems.Add(FolderItemDataKey, MakeShared<FAssetViewItem>(MoveTemp(FolderItemData)));
+						}
 					}
 				}
 			}
-		}
 
-		static const FName RootPath = "/";
-		const TArrayView<const FName> DataSourcePaths = SourcesData.HasVirtualPaths() ? MakeArrayView(SourcesData.VirtualPaths) : MakeArrayView(&RootPath, 1);
-		for (const FName& DataSourcePath : DataSourcePaths)
-		{
-			// Ensure paths do not contain trailing slash
-			ensure(DataSourcePath == RootPath || !FStringView(FNameBuilder(DataSourcePath)).EndsWith(TEXT('/')));
-
-			ContentBrowserData->EnumerateItemsUnderPath(DataSourcePath, DataFilter, [this, &PreviousAvailableBackendItems](FContentBrowserItemData&& InItemData)
+			if (SourcesData.IsIncludingVirtualPaths())
 			{
-				const FContentBrowserItemKey ItemDataKey(InItemData);
-				const uint32 ItemDataKeyHash = GetTypeHash(ItemDataKey);
-				
-				TSharedPtr<FAssetViewItem>& NewItem = AvailableBackendItems.FindOrAddByHash(ItemDataKeyHash, ItemDataKey);
-				if (!NewItem && InItemData.IsFile())
+				static const FName RootPath = "/";
+				const TArrayView<const FName> DataSourcePaths = SourcesData.HasVirtualPaths() ? MakeArrayView(SourcesData.VirtualPaths) : MakeArrayView(&RootPath, 1);
+				for (const FName& DataSourcePath : DataSourcePaths)
 				{
-					// Re-use the old view item where possible to avoid list churn when our backend view already included the item
-					if (TSharedPtr<FAssetViewItem>* PreviousItem = PreviousAvailableBackendItems.FindByHash(ItemDataKeyHash, ItemDataKey))
-					{
-						NewItem = *PreviousItem;
-						NewItem->ClearCachedCustomColumns();
-					}
+					// Ensure paths do not contain trailing slash
+					ensure(DataSourcePath == RootPath || !FStringView(FNameBuilder(DataSourcePath)).EndsWith(TEXT('/')));
+					ContentBrowserData->EnumerateItemsUnderPath(DataSourcePath, DataFilter, AddNewItem);
 				}
-				if (NewItem)
-				{
-					NewItem->AppendItemData(InItemData);
-					NewItem->CacheCustomColumns(CustomColumns, true, true, false /*bUpdateExisting*/);
-				}
-				else
-				{
-					NewItem = MakeShared<FAssetViewItem>(MoveTemp(InItemData));
-				}
-
-				return true;
-			});
+			}
 		}
 	}
 
@@ -4345,6 +4358,7 @@ void SAssetView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataU
 	UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
 
 	TArray<FContentBrowserDataCompiledFilter> CompiledDataFilters;
+	if (SourcesData.IsIncludingVirtualPaths())
 	{
 		const FContentBrowserDataFilter DataFilter = CreateBackendDataFilter();
 

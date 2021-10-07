@@ -44,7 +44,7 @@ public:
 	TWeakObjectPtr<UClass> GetWidgetClass() const { return WidgetClass; }
 
 	/** Returns the asset data for this widget which might be invalid. */
-	FAssetData GetWidgetAssetData() { return WidgetAssetData; }
+	const FAssetData& GetWidgetAssetData() { return WidgetAssetData; }
 
 protected:
 	/** Creates a widget template class without any class reference */

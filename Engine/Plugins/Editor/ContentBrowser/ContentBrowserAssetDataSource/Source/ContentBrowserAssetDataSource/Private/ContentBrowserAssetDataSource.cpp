@@ -945,6 +945,58 @@ void UContentBrowserAssetDataSource::EnumerateItemsAtPath(const FName InPath, co
 	}
 }
 
+bool UContentBrowserAssetDataSource::EnumerateItemsAtPaths(const TArrayView<FContentBrowserItemPath> InPaths, const EContentBrowserItemTypeFilter InItemTypeFilter, TFunctionRef<bool(FContentBrowserItemData&&)> InCallback)
+{
+	if (EnumHasAnyFlags(InItemTypeFilter, EContentBrowserItemTypeFilter::IncludeFolders))
+	{
+		for (const FContentBrowserItemPath& InPath : InPaths)
+		{
+			if (InPath.HasInternalPath())
+			{
+				if (AssetRegistry->PathExists(InPath.GetInternalPathName()))
+				{
+					if (!InCallback(CreateAssetFolderItem(InPath.GetInternalPathName())))
+					{
+						return false;
+					}
+				}
+			}
+		}
+	}
+
+	if (EnumHasAnyFlags(InItemTypeFilter, EContentBrowserItemTypeFilter::IncludeFiles) && !InPaths.IsEmpty())
+	{
+		FARFilter ARFilter;
+		
+		// TODO: EnumerateAssets for in memory assets needs optimization, currently enumerates every UObject in memory instead of calling find
+		ARFilter.bIncludeOnlyOnDiskAssets = true;
+
+		for (const FContentBrowserItemPath& InPath : InPaths)
+		{
+			if (InPath.HasInternalPath())
+			{
+				ARFilter.PackageNames.Add(InPath.GetInternalPathName());
+			}
+		}
+
+		auto FileFoundCallback = [this, &InCallback](const FAssetData& AssetData)
+		{
+			if (ContentBrowserAssetData::IsPrimaryAsset(AssetData))
+			{
+				return InCallback(CreateAssetFileItem(AssetData));
+			}
+			return true;
+		};
+
+		if (!AssetRegistry->EnumerateAssets(ARFilter, FileFoundCallback))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 bool UContentBrowserAssetDataSource::IsDiscoveringItems(FText* OutStatus)
 {
 	if (AssetRegistry->IsLoadingAssets())

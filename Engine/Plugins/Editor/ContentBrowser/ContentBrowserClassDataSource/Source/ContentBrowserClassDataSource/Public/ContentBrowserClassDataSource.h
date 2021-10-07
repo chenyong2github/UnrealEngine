@@ -6,6 +6,7 @@
 #include "ContentBrowserDataSource.h"
 #include "ContentBrowserDataMenuContexts.h"
 #include "ContentBrowserClassDataPayload.h"
+#include "NativeClassHierarchy.h"
 #include "ContentBrowserClassDataSource.generated.h"
 
 class IAssetTypeActions;
@@ -13,7 +14,6 @@ class ICollectionManager;
 class UToolMenu;
 class FNativeClassHierarchy;
 struct FCollectionNameType;
-struct FNativeClassHierarchyGetClassPathCache;
 
 USTRUCT()
 struct CONTENTBROWSERCLASSDATASOURCE_API FContentBrowserCompiledClassDataFilter
@@ -43,6 +43,8 @@ public:
 	virtual void EnumerateItemsMatchingFilter(const FContentBrowserDataCompiledFilter& InFilter, TFunctionRef<bool(FContentBrowserItemData&&)> InCallback) override;
 
 	virtual void EnumerateItemsAtPath(const FName InPath, const EContentBrowserItemTypeFilter InItemTypeFilter, TFunctionRef<bool(FContentBrowserItemData&&)> InCallback) override;
+
+	virtual bool EnumerateItemsForObjects(const TArrayView<UObject*> InObjects, TFunctionRef<bool(FContentBrowserItemData&&)> InCallback) override;
 
 	virtual bool IsFolderVisibleIfHidingEmpty(const FName InPath) override;
 
@@ -100,6 +102,7 @@ private:
 	void ClassHierarchyUpdated();
 
 	TSharedPtr<FNativeClassHierarchy> NativeClassHierarchy;
+	FNativeClassHierarchyGetClassPathCache NativeClassHierarchyGetClassPathCache;
 
 	TSharedPtr<IAssetTypeActions> ClassTypeActions;
 

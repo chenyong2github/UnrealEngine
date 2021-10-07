@@ -186,6 +186,26 @@ public:
 	 */
 	virtual void EnumerateItemsAtPath(const FName InPath, const EContentBrowserItemTypeFilter InItemTypeFilter, TFunctionRef<bool(FContentBrowserItemData&&)> InCallback);
 
+	
+	/**
+	 * Enumerate the items (folders and/or files) that exist at the given content browser paths.
+	 * @note Multiple items may have the same virtual path if they are different types, or come from different data sources.
+	 *
+	 * @param InPaths The paths to search for
+	 * @param InItemTypeFilter The types of items we want to find.
+	 * @param InCallback The function to invoke for each matching item (return true to continue enumeration).
+	 */
+	virtual bool EnumerateItemsAtPaths(const TArrayView<FContentBrowserItemPath> InPaths, const EContentBrowserItemTypeFilter InItemTypeFilter, TFunctionRef<bool(FContentBrowserItemData&&)> InCallback);
+
+	/**
+	 * Enumerate the items (files) that exist for the given objects.
+	 * @note Multiple items may have the same virtual path if they are different types, or come from different data sources.
+	 *
+	 * @param InObjects The objects to enumerate
+	 * @param InCallback The function to invoke for each matching item (return true to continue enumeration).
+	 */
+	virtual bool EnumerateItemsForObjects(const TArrayView<UObject*> InObjects, TFunctionRef<bool(FContentBrowserItemData&&)> InCallback);
+
 	/**
 	 * Query whether this data source instance is currently discovering content, and retrieve an optional status message that can be shown in the UI.
 	 */

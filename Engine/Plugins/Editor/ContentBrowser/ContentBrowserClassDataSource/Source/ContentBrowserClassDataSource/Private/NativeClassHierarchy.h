@@ -36,6 +36,12 @@ struct FNativeClassHierarchyGetClassPathCache
 {
 	TSet<FName> GameModules;
 	TMap<FName, FNativeClassHierarchyPluginModuleInfo> PluginModules;
+
+	void Reset()
+	{
+		GameModules.Reset();
+		PluginModules.Reset();
+	}
 };
 
 /**
@@ -249,7 +255,7 @@ public:
 	 * 
 	 * @return true if the class path could be resolved and OutClassPath was filled in, false otherwise
 	 */
-	bool GetClassPath(UClass* InClass, FString& OutClassPath, FNativeClassHierarchyGetClassPathCache& InCache, const bool bIncludeClassName = true) const;
+	bool GetClassPath(const UClass* InClass, FString& OutClassPath, FNativeClassHierarchyGetClassPathCache& InCache, const bool bIncludeClassName = true) const;
 
 	/**
 	 * This will add a transient folder into the hierarchy
@@ -327,8 +333,9 @@ private:
 	 *
 	 * @param InClassPaths - The class paths to find the nodes for, or an empty list to get all root nodes
 	 * @param OutMatchingNodes - Array to be populated the nodes that correspond to the given class paths
+	 * @param InType - Type of node to search for, ie: class / folder
 	 */
-	void GatherMatchingNodesForPaths(const TArrayView<const FName>& InClassPaths, TArray<TSharedRef<FNativeClassHierarchyNode>, TInlineAllocator<4>>& OutMatchingNodes) const;
+	void GatherMatchingNodesForPaths(const TArrayView<const FName>& InClassPaths, TArray<TSharedRef<FNativeClassHierarchyNode>, TInlineAllocator<4>>& OutMatchingNodes, const ENativeClassHierarchyNodeType InType = ENativeClassHierarchyNodeType::Folder) const;
 
 	/**
 	 * Completely clear and re-populate the known class hierarchy
@@ -381,7 +388,7 @@ private:
 	 *
 	 * @return The name of the module that holds the class, eg) "CoreUObject"
 	 */
-	static FName GetClassModuleName(UClass* InClass);
+	static FName GetClassModuleName(const UClass* InClass);
 
 	/**
 	 * Given a module, work out which root path it should use as a parent

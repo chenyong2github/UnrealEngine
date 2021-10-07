@@ -44,17 +44,28 @@ public:
 	TSharedPtr<FAssetFilterCollectionType> TemplatesFilter;
 private:
 
+	bool EnumerateCustomSourceItemDatas(TFunctionRef<bool(FContentBrowserItemData&&)> InCallback);
+
 	/** The asset view widget */
 	TSharedPtr<SAssetView> AssetViewPtr;
-
-	/** Filter we use to narrow down the libary to select widgets asset view */
-	TSharedPtr<class FFrontendFilter_Text> WidgetTextFilter;
 
 	/** Filter we forward our search text to for the asset view */
 	TSharedPtr<class FFrontendFilter_Text> SearchFilter;
 
-	/** Lowercase string used by widget text filter */
+	/** Source data for the asset view */
+	TSharedPtr<struct FSourcesData> LibrarySourceData;
+
+	/** Source item path storage for asset view, accessed via delegate */
+	TArray<FContentBrowserItemPath> SourceItemPaths;
+
+	/** Lowercase string representing widget text filter */
 	FString CachedLowercaseWidgetFilter;
+
+	/** Number of widget assets in view */
+	uint32 NumAssets = 0;
+
+	/** Number of widget classes in view */
+	uint32 NumClasses = 0;
 };
 
 class FLibraryViewModel : public FWidgetCatalogViewModel
