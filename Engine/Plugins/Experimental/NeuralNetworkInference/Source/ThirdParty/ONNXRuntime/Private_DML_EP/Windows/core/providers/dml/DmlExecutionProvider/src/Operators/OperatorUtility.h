@@ -69,7 +69,7 @@ namespace Dml
 
 #ifdef WITH_UE
     uint32_t MapStringToIndex(std::string_view mode, gsl::span<const NameAndIndex> nameAndIndexList);
-#endif WITH_UE
+#endif //WITH_UE
 
     template<typename T>
     T MapStringToIndex(std::string_view mode, gsl::span<const NameAndIndex> nameAndIndexList)
@@ -79,7 +79,7 @@ namespace Dml
 
 #ifndef WITH_UE
     uint32_t MapStringToIndex(std::string_view mode, gsl::span<const NameAndIndex> nameAndIndexList);
-#endif WITH_UE
+#endif //WITH_UE
 
     DML_INTERPOLATION_MODE MapStringToInteropolationMode(std::string_view mode);
 
