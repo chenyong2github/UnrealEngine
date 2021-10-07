@@ -20,11 +20,19 @@ struct FMovieSceneSkeletalAnimationSectionTemplateParameters : public FMovieScen
 		, SectionEndTime(InSectionEndTime)
 	{}
 
+	/**
+	Calculates the animation's appropriate position in seconds from the begin by current frame time and frame rate
+	@param InPosition	Current frame time in sequencer
+	@param InFrameRate	Current frame time of this animation
+	@return A float indicates the seconds of the animation we should play at this frame time
+	*/
 	float MapTimeToAnimation(FFrameTime InPosition, FFrameRate InFrameRate) const;
 
+	/**The start time of this animation clip in this track in frames*/
 	UPROPERTY()
 	FFrameNumber SectionStartTime;
 
+	/**The end time of this animation clip in this track in frames*/
 	UPROPERTY()
 	FFrameNumber SectionEndTime;
 };
