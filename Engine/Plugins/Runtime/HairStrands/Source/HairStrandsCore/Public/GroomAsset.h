@@ -386,6 +386,16 @@ struct HAIRSTRANDSCORE_API FHairGroupInfoWithVisibility : public FHairGroupInfo
 	bool bIsVisible = true;
 };
 
+UENUM(BlueprintType)
+enum class EHairAtlasTextureType : uint8
+{
+	Depth,
+	Tangent,
+	Attribute,
+	Coverage,
+	AuxilaryData
+};
+
 /**
  * Implements an asset that can be used to store hair strands
  */

@@ -11,6 +11,8 @@
 class UMaterialInterface;
 class UStaticMesh;
 class UTexture2D;
+enum class EHairAtlasTextureType : uint8;
+class UGroomAsset;
 
 UENUM(BlueprintType)
 enum class EHairCardsClusterType : uint8
@@ -181,6 +183,8 @@ struct HAIRSTRANDSCORE_API FHairGroupCardsTextures
 	UPROPERTY(EditAnywhere, Category = "CardsAuxilaryData")
 	TObjectPtr<UTexture2D> AuxilaryDataTexture = nullptr;
 
+	void SetTexture(EHairAtlasTextureType SlotID, UTexture2D* Texture);
+
 	bool bNeedToBeSaved = false;
 };
 
@@ -193,6 +197,8 @@ UCLASS(Abstract, EditInlineNew)
 class HAIRSTRANDSCORE_API UHairCardGenerationSettings : public UObject
 {
 	GENERATED_BODY()
+public:
+	virtual void BuildDDCKey(FArchive& Ar) PURE_VIRTUAL(BuildDDCKey,);
 };
 
 USTRUCT(BlueprintType)
