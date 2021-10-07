@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using HordeCommon;
 using HordeServer.Api;
 using HordeServer.Models;
 using HordeServer.Services;
@@ -98,6 +99,11 @@ namespace HordeServer.Collections.Impl
 		IMongoCollection<StreamDocument> Streams;
 
 		/// <summary>
+		/// Clock
+		/// </summary>
+		IClock Clock;
+
+		/// <summary>
 		/// The template collection
 		/// </summary>
 		ITemplateCollection TemplateCollection;
@@ -106,10 +112,12 @@ namespace HordeServer.Collections.Impl
 		/// Constructor
 		/// </summary>
 		/// <param name="DatabaseService">The database service instance</param>
+		/// <param name="Clock"></param>
 		/// <param name="TemplateCollection"></param>
-		public StreamCollection(DatabaseService DatabaseService, ITemplateCollection TemplateCollection)
+		public StreamCollection(DatabaseService DatabaseService, IClock Clock, ITemplateCollection TemplateCollection)
 		{
 			this.Streams = DatabaseService.GetCollection<StreamDocument>("Streams");
+			this.Clock = Clock;
 			this.TemplateCollection = TemplateCollection;
 		}
 
@@ -155,7 +163,7 @@ namespace HordeServer.Collections.Impl
 		/// <param name="Stream">The current stream state</param>
 		/// <param name="TemplateCollection">The template service</param>
 		/// <returns>List of new template references</returns>
-		static async Task<Dictionary<TemplateRefId, TemplateRef>> CreateTemplateRefsAsync(List<CreateTemplateRefRequest> Requests, IStream? Stream, ITemplateCollection TemplateCollection)
+		async Task<Dictionary<TemplateRefId, TemplateRef>> CreateTemplateRefsAsync(List<CreateTemplateRefRequest> Requests, IStream? Stream, ITemplateCollection TemplateCollection)
 		{
 			Dictionary<TemplateRefId, TemplateRef> NewTemplateRefs = new Dictionary<TemplateRefId, TemplateRef>();
 			foreach (CreateTemplateRefRequest Request in Requests)
@@ -174,8 +182,16 @@ namespace HordeServer.Collections.Impl
 					NewTemplateRefId = TemplateRefId.Sanitize(Request.Name);
 				}
 
+				// Create the schedule object
+				Schedule? Schedule = null;
+				if (Request.Schedule != null)
+				{
+					Schedule = Request.Schedule.ToModel();
+					Schedule.LastTriggerTime = Clock.UtcNow;
+				}
+
 				// Add it to the list
-				TemplateRef NewTemplateRef = new TemplateRef(NewTemplate, Request.ShowUgsBadges, Request.ShowUgsAlerts, Request.NotificationChannel, Request.NotificationChannelFilter, Request.TriageChannel, Request.Schedule?.ToModel(), Request.ChainedJobs?.ConvertAll(x => new ChainedJobTemplate(x)), Acl.Merge(null, Request.Acl));
+				TemplateRef NewTemplateRef = new TemplateRef(NewTemplate, Request.ShowUgsBadges, Request.ShowUgsAlerts, Request.NotificationChannel, Request.NotificationChannelFilter, Request.TriageChannel, Schedule, Request.ChainedJobs?.ConvertAll(x => new ChainedJobTemplate(x)), Acl.Merge(null, Request.Acl));
 				if (Stream != null && Stream.Templates.TryGetValue(NewTemplateRefId, out TemplateRef? OldTemplateRef))
 				{
 					if (OldTemplateRef.Schedule != null && NewTemplateRef.Schedule != null)
@@ -353,102 +369,19 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public Task<bool> TryUpdatePropertiesAsync(IStream StreamInterface, string? NewName, int? NewOrder, string? NewNotificationChannel, string? NewNotificationChannelFilter, string? NewTriageChannel, List<StreamTab>? NewTabs, Dictionary<string, AgentType?>? NewAgentTypes, Dictionary<string, WorkspaceType?>? NewWorkspaceTypes, Dictionary<TemplateRefId, TemplateRef>? NewTemplateRefs, Dictionary<string, string?>? NewProperties, Acl? NewAcl, bool? UpdatePauseFields, DateTime? NewPausedUntil, string? NewPauseComment)
+		public Task<bool> TryUpdatePauseStateAsync(IStream StreamInterface, DateTime? NewPausedUntil, string? NewPauseComment)
 		{
 			StreamDocument Stream = (StreamDocument)StreamInterface;
 
 			UpdateDefinitionBuilder<StreamDocument> UpdateBuilder = Builders<StreamDocument>.Update;
 
 			List<UpdateDefinition<StreamDocument>> Updates = new List<UpdateDefinition<StreamDocument>>();
-			if (NewName != null)
-			{
-				Stream.Name = NewName;
-				Updates.Add(UpdateBuilder.Set(x => x.Name, NewName));
-			}
-			if (NewOrder != null)
-			{
-				Stream.Order = NewOrder.Value;
-				Updates.Add(UpdateBuilder.Set(x => x.Order, NewOrder.Value));
-			}
-			if (NewNotificationChannel != null)
-			{
-				Stream.NotificationChannel = NewNotificationChannel;
-				Updates.Add(UpdateBuilder.Set(x => x.NotificationChannel, NewNotificationChannel));
-			}
-			if (NewNotificationChannelFilter != null)
-			{
-				Stream.NotificationChannelFilter = NewNotificationChannelFilter;
-				Updates.Add(UpdateBuilder.Set(x => x.NotificationChannelFilter, NewNotificationChannelFilter));
-			}
-			if (NewTriageChannel != null)
-			{
-				Stream.TriageChannel = NewTriageChannel;
-				Updates.Add(UpdateBuilder.Set(x => x.TriageChannel, NewTriageChannel));
-			}
-			if (NewTabs != null)
-			{
-				Stream.Tabs = NewTabs;
-				Updates.Add(UpdateBuilder.Set(x => x.Tabs, NewTabs));
-			}
-			if (NewAgentTypes != null)
-			{
-				foreach (KeyValuePair<string, AgentType?> Pair in NewAgentTypes)
-				{
-					if (Pair.Value == null)
-					{
-						Stream.AgentTypes.Remove(Pair.Key);
-						Updates.Add(UpdateBuilder.Unset(x => x.AgentTypes[Pair.Key]));
-					}
-					else
-					{
-						Stream.AgentTypes[Pair.Key] = Pair.Value;
-						Updates.Add(UpdateBuilder.Set(x => x.AgentTypes[Pair.Key], Pair.Value));
-					}
-				}
-			}
-			if (NewWorkspaceTypes != null)
-			{
-				foreach (KeyValuePair<string, WorkspaceType?> Pair in NewWorkspaceTypes)
-				{
-					if (Pair.Value == null)
-					{
-						Stream.WorkspaceTypes.Remove(Pair.Key);
-						Updates.Add(UpdateBuilder.Unset(x => x.WorkspaceTypes[Pair.Key]));
-					}
-					else
-					{
-						Stream.WorkspaceTypes[Pair.Key] = Pair.Value;
-						Updates.Add(UpdateBuilder.Set(x => x.WorkspaceTypes[Pair.Key], Pair.Value));
-					}
-				}
-			}
-			if (NewTemplateRefs != null)
-			{
-				Stream.Templates = NewTemplateRefs;
-				Updates.Add(UpdateBuilder.Set(x => x.Templates, Stream.Templates));
-			}
-			if (NewAcl != null)
-			{
-				Stream.Acl = NewAcl;
-				Updates.Add(Acl.CreateUpdate<StreamDocument>(x => x.Acl!, NewAcl));
-			}
+			Stream.PausedUntil = NewPausedUntil;
+			Stream.PauseComment = NewPauseComment;
+			Updates.Add(UpdateBuilder.Set(x => x.PausedUntil, NewPausedUntil));
+			Updates.Add(UpdateBuilder.Set(x => x.PauseComment, NewPauseComment));
 
-			if (UpdatePauseFields != null && UpdatePauseFields == true)
-			{
-				Stream.PausedUntil = NewPausedUntil;
-				Stream.PauseComment = NewPauseComment;
-				Updates.Add(UpdateBuilder.Set(x => x.PausedUntil, NewPausedUntil));
-				Updates.Add(UpdateBuilder.Set(x => x.PauseComment, NewPauseComment));
-			}
-
-			if (Updates.Count > 0)
-			{
-				return TryUpdateStreamAsync(Stream, UpdateBuilder.Combine(Updates));
-			}
-			else
-			{
-				return Task.FromResult(true);
-			}
+			return TryUpdateStreamAsync(Stream, UpdateBuilder.Combine(Updates));
 		}
 
 		/// <inheritdoc/>
