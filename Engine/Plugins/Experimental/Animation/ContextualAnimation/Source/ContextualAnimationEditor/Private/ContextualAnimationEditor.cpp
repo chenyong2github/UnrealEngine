@@ -14,7 +14,8 @@ void FContextualAnimationEditorModule::StartupModule()
 	FEditorModeRegistry::Get().RegisterMode<FContextualAnimEdMode>(FContextualAnimEdMode::EM_ContextualAnimEdModeId, 
 		LOCTEXT("ContextualAnimEdModeEdModeName", "ContextualAnim"), 
 		FSlateIcon(FContextualAnimEditorStyle::GetStyleSetName(), "ContextualAnimEditor.Icon", "ContextualAnimEditor.Icon"),
-		true);
+		true,
+		9000);
 }
 
 void FContextualAnimationEditorModule::ShutdownModule()

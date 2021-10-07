@@ -21,7 +21,8 @@ void FGeometryModeModule::StartupModule()
 		FGeometryEditingModes::EM_Geometry,
 		NSLOCTEXT("EditorModes", "GeometryMode", "Brush Editing"),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.BrushEdit"),
-		true
+		true,
+		7000
 	);
 }
 
