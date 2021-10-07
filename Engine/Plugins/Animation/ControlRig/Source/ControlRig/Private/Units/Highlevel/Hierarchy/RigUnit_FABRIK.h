@@ -46,6 +46,7 @@ struct CONTROLRIG_API FRigUnit_FABRIK : public FRigUnit_HighlevelBaseMutable
 		MaxIterations = 10;
 		EffectorTransform = FTransform::Identity;
 		bPropagateToChildren = true;
+		bSetEffectorTransform = true;
 	}
 
 	/**
@@ -94,6 +95,12 @@ struct CONTROLRIG_API FRigUnit_FABRIK : public FRigUnit_HighlevelBaseMutable
 
 	UPROPERTY(transient)
 	FRigUnit_FABRIK_WorkData WorkData;
+
+	/**
+	* The option to set the effector transform
+	*/
+	UPROPERTY(meta = (Input))
+	bool bSetEffectorTransform;
 };
 
 /**
@@ -116,6 +123,7 @@ struct CONTROLRIG_API FRigUnit_FABRIKPerItem : public FRigUnit_HighlevelBaseMuta
 		bPropagateToChildren = true;
 		MaxIterations = 10;
 		EffectorTransform = FTransform::Identity;
+		bSetEffectorTransform = true;
 	}
 
 	/**
@@ -158,6 +166,12 @@ struct CONTROLRIG_API FRigUnit_FABRIKPerItem : public FRigUnit_HighlevelBaseMuta
 
 	UPROPERTY(transient)
 	FRigUnit_FABRIK_WorkData WorkData;
+
+	/**
+	* The option to set the effector transform
+	*/
+	UPROPERTY(meta = (Input))
+	bool bSetEffectorTransform;
 };
 
 /**
@@ -180,6 +194,7 @@ struct CONTROLRIG_API FRigUnit_FABRIKItemArray : public FRigUnit_HighlevelBaseMu
 		bPropagateToChildren = true;
 		MaxIterations = 10;
 		EffectorTransform = FTransform::Identity;
+		bSetEffectorTransform = true;
 	}
 
 	/**
@@ -222,4 +237,10 @@ struct CONTROLRIG_API FRigUnit_FABRIKItemArray : public FRigUnit_HighlevelBaseMu
 
 	UPROPERTY(transient)
 	FRigUnit_FABRIK_WorkData WorkData;
+	
+	/**
+	* The option to set the effector transform
+	*/
+	UPROPERTY(meta = (Input))
+	bool bSetEffectorTransform;
 };

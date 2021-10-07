@@ -31,13 +31,14 @@ FRigUnit_FABRIK_Execute()
 		bPropagateToChildren,
 		MaxIterations,
 		WorkData,
+		bSetEffectorTransform,
 		ExecuteContext, 
 		Context);
 }
 
 FRigUnit_FABRIKPerItem_Execute()
 {
-	FRigUnit_FABRIKItemArray::StaticExecute(RigVMExecuteContext, Items.Keys, EffectorTransform, Precision, Weight, bPropagateToChildren, MaxIterations, WorkData, ExecuteContext, Context);
+	FRigUnit_FABRIKItemArray::StaticExecute(RigVMExecuteContext, Items.Keys, EffectorTransform, Precision, Weight, bPropagateToChildren, MaxIterations, WorkData, bSetEffectorTransform,ExecuteContext, Context);
 }
 
 FRigUnit_FABRIKItemArray_Execute()
@@ -167,16 +168,19 @@ FRigUnit_FABRIKItemArray_Execute()
 				}
 			}
 
-			if (FMath::IsNearlyEqual(Weight, 1.f))
+			if (bSetEffectorTransform)
 			{
-				Hierarchy->SetGlobalTransform(CachedEffector, EffectorTransform, bPropagateToChildren);
-			}
-			else
-			{
-				float T = FMath::Clamp<float>(Weight, 0.f, 1.f);
-				FTransform PreviousXfo = Hierarchy->GetGlobalTransform(CachedEffector);
-				FTransform Xfo = FControlRigMathLibrary::LerpTransform(PreviousXfo, EffectorTransform, T);
-				Hierarchy->SetGlobalTransform(CachedEffector, Xfo, bPropagateToChildren);
+				if (FMath::IsNearlyEqual(Weight, 1.f))
+				{
+					Hierarchy->SetGlobalTransform(CachedEffector, EffectorTransform, bPropagateToChildren);
+				}
+				else
+				{
+					float T = FMath::Clamp<float>(Weight, 0.f, 1.f);
+					FTransform PreviousXfo = Hierarchy->GetGlobalTransform(CachedEffector);
+					FTransform Xfo = FControlRigMathLibrary::LerpTransform(PreviousXfo, EffectorTransform, T);
+					Hierarchy->SetGlobalTransform(CachedEffector, Xfo, bPropagateToChildren);
+				}
 			}
 		}
 	}
