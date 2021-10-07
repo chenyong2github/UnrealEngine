@@ -276,13 +276,15 @@ void FControlRigEditorModule::StartupModule()
 		FControlRigEditMode::ModeName,
 		NSLOCTEXT("AnimationModeToolkit", "DisplayName", "Animation"),
 		FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRigEditMode", "ControlRigEditMode.Small"),
-		true);
+		true,
+		8000);
 
 	FEditorModeRegistry::Get().RegisterMode<FControlRigEditorEditMode>(
 		FControlRigEditorEditMode::ModeName,
 		NSLOCTEXT("RiggingModeToolkit", "DisplayName", "Rigging"),
 		FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRigEditMode", "ControlRigEditMode.Small"),
-		false);
+		false,
+		8500);
 
 
 	ControlRigGraphPanelNodeFactory = MakeShared<FControlRigGraphPanelNodeFactory>();

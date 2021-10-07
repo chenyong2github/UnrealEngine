@@ -42,7 +42,8 @@ UFractureEditorMode::UFractureEditorMode()
 		EM_FractureEditorModeId,
 		LOCTEXT("FractureToolsEditorModeName", "Fracture"),
 		FSlateIcon("FractureEditorStyle", "LevelEditor.FractureMode", "LevelEditor.FractureMode.Small"),
-		true);
+		true,
+		6000);
 }
 
 UFractureEditorMode::~UFractureEditorMode()
