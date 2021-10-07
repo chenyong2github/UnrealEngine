@@ -19,7 +19,7 @@ namespace SkeinCLI
         {
             // this shows help even if the --help option isn't specified
             app.ShowHelp();
-            return Task.FromResult(0);
+			return base.OnExecute(app);
         }
 
         private static string GetVersion()
