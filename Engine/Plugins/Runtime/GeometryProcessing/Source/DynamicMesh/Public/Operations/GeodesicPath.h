@@ -16,8 +16,6 @@
 #include "MathUtil.h"
 
 
-#include "ExplicitUseGeometryMathTypes.h"
-
 namespace UE
 {
 namespace Geometry
