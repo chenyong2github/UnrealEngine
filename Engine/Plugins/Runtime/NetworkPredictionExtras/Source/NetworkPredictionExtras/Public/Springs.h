@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "Engine/EngineTypes.h"
 #include "Springs.generated.h"
 
 
