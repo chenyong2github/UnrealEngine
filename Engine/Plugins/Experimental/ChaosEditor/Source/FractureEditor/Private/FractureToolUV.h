@@ -29,8 +29,12 @@ enum class EAutoUVTextureResolution : int32
 UENUM()
 enum class ETextureType
 {
+	// Bake thickness, ambient occlusion, and a smoothed curvature metric
 	ThicknessAndSurfaceAttributes,
-	SpatialGradients
+	// Bake position relative to the bounding box
+	SpatialGradients,
+	// Bake surface normals
+	Normals
 };
 
 UENUM()

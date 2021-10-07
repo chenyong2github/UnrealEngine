@@ -600,6 +600,8 @@ void TextureInternalSurfaces(
 	int DistanceToExternalIdx = BakeAttributes.IndexOf((int)EBakeAttributes::DistanceToExternal);
 	int AmbientIdx = BakeAttributes.IndexOf((int)EBakeAttributes::AmbientOcclusion);
 	int CurvatureIdx = BakeAttributes.IndexOf((int)EBakeAttributes::Curvature);
+	int NormalXIdx = BakeAttributes.IndexOf((int)EBakeAttributes::NormalX);
+	int NormalYIdx = BakeAttributes.IndexOf((int)EBakeAttributes::NormalY);
 	int NormalZIdx = BakeAttributes.IndexOf((int)EBakeAttributes::NormalZ);
 
 	FAxisAlignedBox3d Box = OutsideSpatial.GetBoundingBox();
@@ -768,7 +770,7 @@ void TextureInternalSurfaces(
 
 	ParallelFor(OccupancyMap.Dimensions.GetHeight(),
 		[&AttributeSettings, &TextureOut, &UVMesh, &OccupancyMap, &ToTextureMesh, &OutsideSpatial,
-		 &DistanceToExternalIdx, &AmbientIdx, &NormalZIdx, &PosXIdx, &PosYIdx, &PosZIdx](int32 Y)
+		 &DistanceToExternalIdx, &AmbientIdx, &NormalXIdx, &NormalYIdx, &NormalZIdx, &PosXIdx, &PosYIdx, &PosZIdx](int32 Y)
 	{
 		for (int32 X = 0; X < OccupancyMap.Dimensions.GetWidth(); X++)
 		{
@@ -784,7 +786,7 @@ void TextureInternalSurfaces(
 				FDistPoint3Triangle3d DistQuery = TMeshQueries<FGeomFlatUVMesh>::TriangleDistance(UVMesh, TID, FVector3d(UV.X, UV.Y, 0));
 				FVector3d Bary = DistQuery.TriangleBaryCoords;
 				FVector3f Normal(0, 0, 1);
-				bool bNeedsNormal = NormalZIdx > -1 || AmbientIdx > -1;
+				bool bNeedsNormal = NormalXIdx > -1 || NormalYIdx > -1 || NormalZIdx > -1 || AmbientIdx > -1;
 				if (bNeedsNormal)
 				{
 					Normal = ToTextureMesh.GetInterpolatedNormal(TID, Bary);
@@ -818,19 +820,20 @@ void TextureInternalSurfaces(
 					SetSpatial(PosYIdx, 1);
 					SetSpatial(PosZIdx, 2);
 				}
-				if (NormalZIdx > -1)
+				auto SetNormal = [&Normal, &OutColor](int TargetIdx, int Dim)
 				{
-					float NormalZ = Normal.Z;
-					if (AttributeSettings.bNormalZ_TakeAbs)
+					if (TargetIdx > -1)
 					{
-						NormalZ = FMathf::Abs(NormalZ);
+						float NormalVal = Normal[Dim];
+						{
+							NormalVal = (1 + NormalVal) * .5f; // compress from [-1,1] to [0,1] range
+						}
+						OutColor[TargetIdx] = NormalVal;
 					}
-					else
-					{
-						NormalZ = (1 + NormalZ) * .5; // compress from [-1,1] to [0,1] range
-					}
-					OutColor[NormalZIdx] = NormalZ;
-				}
+				};
+				SetNormal(NormalXIdx, 0);
+				SetNormal(NormalYIdx, 1);
+				SetNormal(NormalZIdx, 2);
 
 				TextureOut.SetPixel(LinearCoord, OutColor);
 			}
