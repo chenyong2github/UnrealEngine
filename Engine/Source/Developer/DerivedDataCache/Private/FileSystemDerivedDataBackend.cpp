@@ -23,9 +23,10 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "Async/Async.h"
 
+#include "DerivedDataBackendInterface.h"
 #include "DerivedDataCacheInterface.h"
 #include "DerivedDataCacheRecord.h"
-#include "DerivedDataBackendInterface.h"
+#include "DerivedDataChunk.h"
 #include "DerivedDataPayload.h"
 #include "DDCCleanup.h"
 
@@ -520,7 +521,7 @@ public:
 			FScopeLock Lock(&CriticalSection);
 
 			bool bIsAlreadyInSet = false;
-			PayloadKeys.FindOrAdd(FCachePayloadKey{CacheKey, Id}, &bIsAlreadyInSet);
+			PayloadKeys.FindOrAdd(MakeTuple(CacheKey, Id), &bIsAlreadyInSet);
 			if (!bIsAlreadyInSet)
 			{
 				AppendPath(Path);
@@ -543,7 +544,7 @@ public:
 		FCriticalSection CriticalSection;
 		TSet<FString> CacheKeys;
 		TSet<FCacheKey> ObjectKeys;
-		TSet<FCachePayloadKey> PayloadKeys;
+		TSet<TTuple<FCacheKey, FPayloadId>> PayloadKeys;
 	};
 	
 	
@@ -918,7 +919,7 @@ public:
 	virtual void Get(
 		TConstArrayView<FCacheKey> Keys,
 		FStringView Context,
-		ECachePolicy Policy,
+		FCacheRecordPolicy Policy,
 		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) override
 	{
@@ -949,50 +950,55 @@ public:
 		}
 	}
 
-	virtual void GetPayload(
-		TConstArrayView<FCachePayloadKey> Keys,
+	virtual void GetChunks(
+		TConstArrayView<FCacheChunkRequest> Chunks,
 		FStringView Context,
-		ECachePolicy Policy,
 		IRequestOwner& Owner,
-		FOnCacheGetPayloadComplete&& OnComplete) override
+		FOnCacheGetChunkComplete&& OnComplete) override
 	{
-		TArray<FCachePayloadKey, TInlineAllocator<16>> SortedKeys(Keys);
-		SortedKeys.StableSort();
+		TArray<FCacheChunkRequest, TInlineAllocator<16>> SortedChunks(Chunks);
+		SortedChunks.StableSort(TChunkLess());
 
 		FOptionalCacheRecord Record;
-		for (const FCachePayloadKey& Key : SortedKeys)
+		for (const FCacheChunkRequest& Chunk : SortedChunks)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(FileSystemDDC_Get);
 			TRACE_COUNTER_INCREMENT(FileSystemDDC_Get);
 			COOK_STAT(auto Timer = UsageStats.TimeGet());
-			if (!Record || Record.Get().GetKey() != Key.CacheKey)
+			if (!Record || Record.Get().GetKey() != Chunk.Key)
 			{
-				Record = GetCacheRecord(Key.CacheKey, Context, Policy | ECachePolicy::SkipData, /*bAlwaysLoadInlineData*/ true);
+				FCacheRecordPolicyBuilder PolicyBuilder(ECachePolicy::None);
+				PolicyBuilder.AddPayloadPolicy(Chunk.Id, Chunk.Policy | ECachePolicy::SkipData);
+				Record = GetCacheRecord(Chunk.Key, Context, PolicyBuilder.Build(), /*bAlwaysLoadInlineData*/ true);
 			}
-			if (FPayload Payload = Record ? GetCachePayload(Key.CacheKey, Context, Policy, Record.Get().GetPayload(Key.Id)) : FPayload::Null)
+			if (Record)
 			{
-				UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for %s from '%.*s'"),
-					*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
-				TRACE_COUNTER_INCREMENT(FileSystemDDC_GetHit);
-				TRACE_COUNTER_ADD(FileSystemDDC_BytesRead, Payload.GetRawSize());
-				COOK_STAT(Timer.AddHit(Payload.GetRawSize()));
-				if (OnComplete)
+				const ECachePolicy PolicyMask = Record.Get().GetValuePayload().GetId() == Chunk.Id
+					? ECachePolicy::SkipValue : ECachePolicy::SkipAttachments;
+				const ECachePolicy Policy = Chunk.Policy | (ECachePolicy::SkipData & ~PolicyMask);
+				if (FPayload Payload = GetCachePayload(Chunk.Key, Context, Policy, Record.Get().GetPayload(Chunk.Id)))
 				{
-					OnComplete({Key.CacheKey, MoveTemp(Payload), EStatus::Ok});
+					const uint64 RawSize = FMath::Min(Payload.GetRawSize(), Chunk.RawSize);
+					UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for %s from '%.*s'"),
+						*CachePath, *WriteToString<96>(Chunk.Key, '/', Chunk.Id), Context.Len(), Context.GetData());
+					TRACE_COUNTER_INCREMENT(FileSystemDDC_GetHit);
+					TRACE_COUNTER_ADD(FileSystemDDC_BytesRead, RawSize);
+					COOK_STAT(Timer.AddHit(RawSize));
+					if (OnComplete)
+					{
+						FUniqueBuffer Buffer = FUniqueBuffer::Alloc(RawSize);
+						Payload.GetData().DecompressToComposite().CopyTo(Buffer, Chunk.RawOffset);
+						OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, RawSize, Payload.GetRawHash(), Buffer.MoveToShared(), EStatus::Ok});
+					}
+					continue;
 				}
 			}
-			else
+
+			if (OnComplete)
 			{
-				if (OnComplete)
-				{
-					OnComplete({Key.CacheKey, FPayload(Key.Id), EStatus::Error});
-				}
+				OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, EStatus::Error});
 			}
 		}
-	}
-
-	virtual void CancelAll() override
-	{
 	}
 
 private:
@@ -1082,7 +1088,11 @@ private:
 		return true;
 	}
 
-	FOptionalCacheRecord GetCacheRecord(const FCacheKey& Key, FStringView Context, ECachePolicy Policy, bool bAlwaysLoadInlineData = false)
+	FOptionalCacheRecord GetCacheRecord(
+		const FCacheKey& Key,
+		const FStringView Context,
+		const FCacheRecordPolicy& Policy,
+		const bool bAlwaysLoadInlineData = false)
 	{
 		if (!IsUsable())
 		{
@@ -1091,8 +1101,10 @@ private:
 			return FOptionalCacheRecord();
 		}
 
+		const ECachePolicy RecordPolicy = Policy.GetRecordPolicy();
+
 		// Skip the request if querying the cache is disabled.
-		if (!EnumHasAnyFlags(Policy, SpeedClass == ESpeedClass::Local ? ECachePolicy::QueryLocal : ECachePolicy::QueryRemote))
+		if (!EnumHasAnyFlags(RecordPolicy, SpeedClass == ESpeedClass::Local ? ECachePolicy::QueryLocal : ECachePolicy::QueryRemote))
 		{
 			UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("%s: Skipped get of %s from '%.*s' due to cache policy"),
 				*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
@@ -1117,7 +1129,7 @@ private:
 			return FOptionalCacheRecord();
 		}
 
-		// Delete the record from storage if is corrupted or has missing payloads.
+		// Delete the record from storage if is corrupted.
 		bool bDeleteCacheObject = true;
 		ON_SCOPE_EXIT
 		{
@@ -1138,7 +1150,7 @@ private:
 		const FCbObject RecordObject(MoveTemp(Buffer));
 		FCacheRecordBuilder RecordBuilder(Key);
 
-		if (!EnumHasAnyFlags(Policy, ECachePolicy::SkipMeta))
+		if (!EnumHasAnyFlags(RecordPolicy, ECachePolicy::SkipMeta))
 		{
 			if (FCbFieldView MetaHash = RecordObject.FindView("MetaHash"_ASV))
 			{
@@ -1155,10 +1167,12 @@ private:
 			}
 		}
 
+		// Disable deletion now that the record is validated.
+		bDeleteCacheObject = false;
+
 		if (FCbObject ValueObject = RecordObject["Value"_ASV].AsObject())
 		{
-			const ECachePolicy ValuePolicy = Policy | (ECachePolicy::SkipData & ~ECachePolicy::SkipValue);
-			FPayload Payload = GetCachePayload(Key, Context, ValuePolicy, ValueObject, bAlwaysLoadInlineData);
+			FPayload Payload = GetCachePayload(Key, Context, Policy, ECachePolicy::SkipValue, ValueObject, bAlwaysLoadInlineData);
 			if (Payload.IsNull())
 			{
 				return FOptionalCacheRecord();
@@ -1168,8 +1182,7 @@ private:
 
 		for (FCbField AttachmentField : RecordObject["Attachments"_ASV])
 		{
-			const ECachePolicy AttachmentsPolicy = Policy | (ECachePolicy::SkipData & ~ECachePolicy::SkipAttachments);
-			FPayload Payload = GetCachePayload(Key, Context, AttachmentsPolicy, AttachmentField.AsObject(), bAlwaysLoadInlineData);
+			FPayload Payload = GetCachePayload(Key, Context, Policy, ECachePolicy::SkipAttachments, AttachmentField.AsObject(), bAlwaysLoadInlineData);
 			if (Payload.IsNull())
 			{
 				return FOptionalCacheRecord();
@@ -1191,18 +1204,13 @@ private:
 	{
 		const FIoHash& RawHash = Payload.GetRawHash();
 		const bool bHasData = Payload.HasData();
-		bStoreInline &= bHasData;
 
-		if (!bStoreInline)
+		if (bHasData && !bStoreInline)
 		{
 			TStringBuilder<256> Path;
 			BuildCachePayloadPath(Key, RawHash, Path);
 			if (!FileExists(Path))
 			{
-				if (!bHasData)
-				{
-					return false;
-				}
 				// Save the compressed buffer with its hash as a header.
 				const FCompressedBuffer& CompressedBuffer = Payload.GetData();
 				const FIoHash CompressedHash = FIoHash::HashBuffer(CompressedBuffer.GetCompressed());
@@ -1224,7 +1232,7 @@ private:
 		Writer.BeginObject();
 		Writer.AddObjectId("Id"_ASV, Payload.GetId());
 		Writer.AddInteger("RawSize"_ASV, Payload.GetRawSize());
-		if (bStoreInline)
+		if (bHasData && bStoreInline)
 		{
 			const FCompressedBuffer& CompressedBuffer = Payload.GetData();
 			Writer.AddHash("RawHash"_ASV, RawHash);
@@ -1239,12 +1247,18 @@ private:
 		return true;
 	}
 
-	FPayload GetCachePayload(const FCacheKey& Key, FStringView Context, ECachePolicy Policy, const FCbObject& Object, bool bAlwaysLoadInlineData = false) const
+	FPayload GetCachePayload(
+		const FCacheKey& Key,
+		const FStringView Context,
+		const FCacheRecordPolicy& Policy,
+		const ECachePolicy SkipFlag,
+		const FCbObject& Object,
+		const bool bAlwaysLoadInlineData) const
 	{
 		const FPayloadId Id = Object.FindView("Id"_ASV).AsObjectId();
 		const uint64 RawSize = Object.FindView("RawSize"_ASV).AsUInt64(MAX_uint64);
 		const FIoHash RawHash = Object.FindView("RawHash"_ASV).AsHash();
-		FIoHash CompressedHash = Object.FindView("CompressedHash"_ASV).AsHash();
+		const FIoHash CompressedHash = Object.FindView("CompressedHash"_ASV).AsHash();
 		FSharedBuffer CompressedData = Object["CompressedData"_ASV].AsBinary();
 
 		if (Id.IsNull() || RawSize == MAX_uint64 || RawHash.IsZero() || !(CompressedHash.IsZero() == CompressedData.IsNull()))
@@ -1254,11 +1268,12 @@ private:
 			return FPayload();
 		}
 
+		const ECachePolicy PayloadPolicy = Policy.GetPayloadPolicy(Id);
 		FPayload Payload(Id, RawHash, RawSize);
 
 		if (CompressedData)
 		{
-			if (EnumHasAllFlags(Policy, ECachePolicy::SkipData) && !bAlwaysLoadInlineData)
+			if (EnumHasAllFlags(PayloadPolicy, SkipFlag) && !bAlwaysLoadInlineData)
 			{
 				return Payload;
 			}
@@ -1268,12 +1283,12 @@ private:
 			}
 		}
 
-		return GetCachePayload(Key, Context, Policy, Payload);
+		return GetCachePayload(Key, Context, PayloadPolicy, Payload);
 	}
 
 	FPayload GetCachePayload(const FCacheKey& Key, FStringView Context, ECachePolicy Policy, const FPayload& Payload) const
 	{
-		if (Payload.HasData())
+		if (Payload.HasData() || !EnumHasAnyFlags(Policy, ECachePolicy::Query))
 		{
 			return Payload;
 		}
@@ -1316,7 +1331,7 @@ private:
 
 	FPayload ValidateCachePayload(
 		const FCacheKey& Key,
-		FStringView Context,
+		const FStringView Context,
 		const FPayload& Payload,
 		const FIoHash& CompressedHash,
 		FSharedBuffer&& CompressedData) const

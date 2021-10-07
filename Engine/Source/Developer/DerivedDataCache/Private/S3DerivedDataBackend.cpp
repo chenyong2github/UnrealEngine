@@ -1196,7 +1196,7 @@ void FS3DerivedDataBackend::Put(
 void FS3DerivedDataBackend::Get(
 	TConstArrayView<FCacheKey> Keys,
 	FStringView Context,
-	ECachePolicy Policy,
+	FCacheRecordPolicy Policy,
 	IRequestOwner& Owner,
 	FOnCacheGetComplete&& OnComplete)
 {
@@ -1209,18 +1209,17 @@ void FS3DerivedDataBackend::Get(
 	}
 }
 
-void FS3DerivedDataBackend::GetPayload(
-	TConstArrayView<FCachePayloadKey> Keys,
+void FS3DerivedDataBackend::GetChunks(
+	TConstArrayView<FCacheChunkRequest> Chunks,
 	FStringView Context,
-	ECachePolicy Policy,
 	IRequestOwner& Owner,
-	FOnCacheGetPayloadComplete&& OnComplete)
+	FOnCacheGetChunkComplete&& OnComplete)
 {
 	if (OnComplete)
 	{
-		for (const FCachePayloadKey& Key : Keys)
+		for (const FCacheChunkRequest& Chunk : Chunks)
 		{
-			OnComplete({Key.CacheKey, FPayload(Key.Id), EStatus::Error});
+			OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, EStatus::Error});
 		}
 	}
 }

@@ -10,7 +10,6 @@ namespace UE::DerivedData
 {
 
 struct FCacheKey;
-struct FCachePayloadKey;
 
 namespace Private
 {
@@ -18,12 +17,6 @@ namespace Private
 	{
 		const ANSICHAR* BucketNamePtrDummy = nullptr;
 		FIoHash HashDummy;
-	};
-
-	struct FCachePayloadKeyDummy
-	{
-		FCacheKeyDummy CacheKeyDummy;
-		alignas(uint32) uint8 PayloadBytesDummy[12];
 	};
 } // Private
 
@@ -33,14 +26,6 @@ struct FCacheKeyProxy : private TAlignedBytes<sizeof(UE::DerivedData::Private::F
 	~FCacheKeyProxy();
 	FCacheKey* AsCacheKey() { return (FCacheKey*)this;  }
 	const FCacheKey* AsCacheKey() const { return (const FCacheKey*)this; }
-};
-
-struct FCachePayloadKeyProxy : private TAlignedBytes<sizeof(UE::DerivedData::Private::FCachePayloadKeyDummy), alignof(UE::DerivedData::Private::FCachePayloadKeyDummy)>
-{
-	FCachePayloadKeyProxy(const FCachePayloadKey& InKey);
-	~FCachePayloadKeyProxy();
-	FCachePayloadKey* AsCachePayloadKey() { return (FCachePayloadKey*)this;  }
-	const FCachePayloadKey* AsCachePayloadKey() const { return (const FCachePayloadKey*)this; }
 };
 
 } // UE::DerivedData

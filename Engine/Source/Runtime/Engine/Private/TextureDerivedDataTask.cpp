@@ -1293,11 +1293,11 @@ private:
 			}
 			else if (bInlineMips && (MipIndex >= FirstMipToLoad))
 			{
-				const FPayload& StreamingMipPayload = Output.GetPayload(FPayloadId::FromName(WriteToString<8>(TEXT("Mip"), MipIndex)));
+				const FPayload& StreamingMipPayload = Output.GetPayload(FTexturePlatformData::MakeMipId(MipIndex));
 				if (!StreamingMipPayload)
 				{
-					UE_LOG(LogTexture, Error, TEXT("Missing texture streaming mip '%s' for build of '%s' by %s."),
-						*WriteToString<8>(TEXT("Mip"), MipIndex), *WriteToString<128>(Output.GetName()), *WriteToString<32>(Output.GetFunction()));
+					UE_LOG(LogTexture, Error, TEXT("Missing texture streaming mip '%d' for build of '%s' by %s."),
+						MipIndex, *WriteToString<128>(Output.GetName()), *WriteToString<32>(Output.GetFunction()));
 					return false;
 				}
 				FSharedBuffer StreamingMipData = StreamingMipPayload.GetData().Decompress();
