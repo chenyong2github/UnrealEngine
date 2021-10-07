@@ -73,7 +73,7 @@ void UMassSettings::BuildProcessorList()
 	TArray<UClass*> SubClassess;
 	GetDerivedClasses(UMassProcessor::StaticClass(), SubClassess);
 
-	for (int i = SubClassess.Num() - 1; i; --i)
+	for (int i = SubClassess.Num() - 1; i >= 0; --i)
 	{
 		if (SubClassess[i]->HasAnyClassFlags(CLASS_Abstract))
 		{
