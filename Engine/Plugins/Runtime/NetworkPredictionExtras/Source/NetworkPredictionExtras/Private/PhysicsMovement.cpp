@@ -42,6 +42,10 @@ NETSIM_DEVCVAR_SHIPCONST_INT(DisableAngularVelLimit, 0, "np2.PhysicsMovement.Dis
 NETSIM_DEVCVAR_SHIPCONST_INT(ForceReconcilePhysicsInputCmd, 0, "np2.PhysicsInputCmdForceReconcile", "");
 NETSIM_DEVCVAR_SHIPCONST_FLOAT(TargetYawTolerance, 0.1f, "np2.PhysicsMovement.TargetYawTolerance", "");
 
+NETSIM_DEVCVAR_SHIPCONST_INT(DisableSprings, 0, "np2.PhysicsMovement.DisableSprings", "");
+NETSIM_DEVCVAR_SHIPCONST_INT(SpringTraceWorldDown, 1, "np2.PhysicsMovement.Spring.TraceWorldDown", "If 1: trace straight down, if 0, trace in direction of springs (local down) instead of world down.");
+NETSIM_DEVCVAR_SHIPCONST_INT(SpringPushOnGround, 0, "np2.PhysicsMovement.Spring.PushOnGround", "If enabled, springs apply equal force against object below character.");
+
 bool FPhysicsInputCmd::ShouldReconcile(const FPhysicsInputCmd& AuthState) const
 {
 	return FVector::DistSquared(Force, AuthState.Force) > 0.1f
@@ -100,24 +104,20 @@ struct FPhysicsMovementSimulation
 			UE_LOG(LogTemp, Warning, TEXT("[%d][%d] Location: %s"), UE_NETWORK_PHYSICS::DebugSimulationFrame(), UE_NETWORK_PHYSICS::DebugServer(), *PT->X().ToString());
 		}
 
-		FVector TracePosition = PT->X();
-		FVector EndPosition = TracePosition + FVector(0.f, 0.f, -100.f);
-		FCollisionShape Shape = FCollisionShape::MakeSphere(250.f);
-		ECollisionChannel CollisionChannel = ECollisionChannel::ECC_WorldStatic;
-		FCollisionResponseParams ResponseParams = FCollisionResponseParams::DefaultResponseParam;
-		FCollisionObjectQueryParams ObjectParams(ECollisionChannel::ECC_PhysicsBody);
-
-		FHitResult OutHit;
-		bool bInAir = !UE_NETWORK_PHYSICS::JumpHack() && !World->LineTraceSingleByChannel(OutHit, TracePosition, EndPosition, ECollisionChannel::ECC_WorldStatic, LocalState.QueryParams, ResponseParams);
-		const float UpDot = FVector::DotProduct(PT->R().GetUpVector(), FVector::UpVector);
-
-		if (UPrimitiveComponent* HitPrim = OutHit.Component.Get())
+		bool bInAir = false;
 		{
-			if (FPhysicsInterface::IsValid(HitPrim->BodyInstance.ActorHandle) && (LocalState.Proxy == HitPrim->BodyInstance.ActorHandle))
-			{
-				ensure(false); // hit self somehow?
-			}
+			FHitResult OutHit;
+			FVector TracePosition = PT->X();
+			FVector EndPosition = TracePosition + FVector(0.f, 0.f, -100.f);
+			FCollisionShape Shape = FCollisionShape::MakeSphere(250.f);
+			ECollisionChannel CollisionChannel = ECollisionChannel::ECC_WorldStatic;
+			FCollisionResponseParams ResponseParams = FCollisionResponseParams::DefaultResponseParam;
+			FCollisionObjectQueryParams ObjectParams(ECollisionChannel::ECC_PhysicsBody);
+
+			bInAir = !UE_NETWORK_PHYSICS::JumpHack() && !World->LineTraceSingleByChannel(OutHit, TracePosition, EndPosition, ECollisionChannel::ECC_WorldStatic, LocalState.QueryParams, ResponseParams);
 		}
+		
+		const float UpDot = FVector::DotProduct(PT->R().GetUpVector(), FVector::UpVector);
 
 		// Debug CVar to make jump cause mispredictions
 		if (UE_NETWORK_PHYSICS::JumpMisPredict())
@@ -200,15 +200,31 @@ struct FPhysicsMovementSimulation
 		}
 		
 		// Keep pawn upright
-		if (DisableKeepUpright() == 0 && NetState.bEnableKeepUpright && UpDot < 0.95f)
+		if (DisableKeepUpright() == 0 && NetState.bEnableKeepUpright && UpDot < NetState.KeepUprightThreshold)
 		{
 			FRotator Rot = PT->R().Rotator();
 			FVector Target(0, 0, 1); // TODO choose up based on floor normal
 			FVector CurrentUp = Rot.RotateVector(Target);
-			FVector Torque = -FVector::CrossProduct(Target, CurrentUp);
+
+			// Get axis of rotation
+			FVector TorqueDirection = -FVector::CrossProduct(Target, CurrentUp);
+			float Length2 = TorqueDirection.SizeSquared();
+			if (!FMath::IsNearlyZero(Length2))
+			{
+				TorqueDirection /= FMath::Sqrt(Length2);
+			}
+			else
+			{
+				TorqueDirection = FVector(1, 0, 0);
+			}
+
+			// Get cos(angle) w/ dot and map cos([0,180]) from [1,-1] to [0,1], we want max rotation in opposite directions, no rotation in same direction.
+			float Rotation = (FVector::DotProduct(Target, CurrentUp) - 1) * -0.5f;
+
+			FVector Torque = TorqueDirection * Rotation * UE_NETWORK_PHYSICS::TurnK();
 			FVector Damp(PT->W().X* UE_NETWORK_PHYSICS::TurnDampK(), PT->W().Y* UE_NETWORK_PHYSICS::TurnDampK(), 0);
 
-			PT->AddTorque(Torque* UE_NETWORK_PHYSICS::TurnK() + Damp);
+			PT->AddTorque(Torque + Damp);
 		}
 
 		if (InputCmd.bBrakesPressed)
@@ -296,6 +312,61 @@ struct FPhysicsMovementSimulation
 			{
 				W = W.GetUnsafeNormal() * UE_NETWORK_PHYSICS::MaxAngularVelocity();
 				PT->SetW(W);
+			}
+		}
+
+		// Evaluate Springs
+		if (DisableSprings() == 0)
+		{
+			for (FSpring& Spring : NetState.Springs)
+			{	
+				if (Spring.RaycastLength <= 0.0f)
+				{
+					continue;
+				}
+				const Chaos::FRigidTransform3 CurrentTransform = Chaos::FParticleUtilitiesXR::GetActorWorldTransform(PT);
+				const Chaos::FVec3 WorldSpringPosition = CurrentTransform.TransformPosition(Spring.LocalPosition);
+
+				const FVector& StartPosition = WorldSpringPosition;
+				const Chaos::FVec3 WorldSpringDirection = CurrentTransform.TransformVector(Spring.LocalDirection);
+				const FVector TraceDirection = SpringTraceWorldDown() ? Chaos::FVec3(0, 0, -1) : -WorldSpringDirection;
+				const FVector EndPosition = StartPosition + TraceDirection * Spring.RaycastLength;
+
+				FHitResult OutHit;
+				if (World->LineTraceSingleByChannel(OutHit, StartPosition, EndPosition, Spring.TraceChannel, LocalState.QueryParams))
+				{	
+					const float CurrentLength = OutHit.Time * Spring.RaycastLength;
+					const float DeltaLength = CurrentLength - Spring.NaturalLength;
+					const float DeltaLengthDerivative = (CurrentLength - Spring.GetPreviousLength()) / DeltaSeconds;
+					
+					Chaos::FVec3 WorldForce = WorldSpringDirection * (DeltaLength * Spring.Stiffness + DeltaLengthDerivative * Spring.DampingStrength);
+					if (NetState.bScaleSpringForcesWithMass)
+					{
+						WorldForce *= PT->M();
+					}
+
+					// Apply force at relative location on character
+					{
+
+						Chaos::FParticleUtilitiesXR::AddForceAtPositionWorld(PT, WorldForce, WorldSpringPosition);
+					}
+
+					// Apply force on object spring is pushing on.
+					if (SpringPushOnGround())
+					{
+						// Note: Not threadsafe until we get PT SQ API. Should be safe unless object is destroyed.
+						Chaos::FRigidBodyHandle_Internal* HitObject = OutHit.GetComponent()->BodyInstance.ActorHandle->GetPhysicsThreadAPI();
+						Chaos::FParticleUtilitiesXR::AddForceAtPositionWorld(HitObject, -WorldForce, OutHit.Location);
+					}
+
+					// Cache length for next frame.
+					Spring.SetPreviousLength(CurrentLength);
+				}
+				else
+				{
+					// Cache length for next frame.
+					Spring.SetPreviousLength(Spring.NaturalLength);
+				}
 			}
 		}
 
@@ -450,11 +521,44 @@ void UPhysicsMovementComponent::SetEnableKeepUpright(bool bKeepUpright)
 	});
 }
 
+void UPhysicsMovementComponent::SetKeepUprightThreshold(float Threshold)
+{
+	NetworkPredictionProxy.ModifyNetState<FPhysicsMovementAsyncModelDef>([Threshold](FPhysicsMovementNetState& NetState)
+	{
+			NetState.KeepUprightThreshold = FMath::Clamp(Threshold, 0.0f, 1.0f);
+	});
+}
+
 void UPhysicsMovementComponent::SetAutoBrakeStrength(float AutoBrakeStrength)
 {
 	NetworkPredictionProxy.ModifyNetState<FPhysicsMovementAsyncModelDef>([AutoBrakeStrength](FPhysicsMovementNetState& NetState)
 	{
 		NetState.AutoBrakeStrength = AutoBrakeStrength;
+	});
+}
+
+void UPhysicsMovementComponent::SetScaleSpringForcesWithMass(bool bScaleWithMass)
+{
+	NetworkPredictionProxy.ModifyNetState<FPhysicsMovementAsyncModelDef>([bScaleWithMass](FPhysicsMovementNetState& NetState)
+	{
+			NetState.bScaleSpringForcesWithMass = bScaleWithMass;
+	});
+}
+
+void UPhysicsMovementComponent::AddSpring(FSpring Spring)
+{
+	Spring.ResetState(); // Make sure previous length and other computed data is correct for first frame.
+	NetworkPredictionProxy.ModifyNetState<FPhysicsMovementAsyncModelDef>([Spring](FPhysicsMovementNetState& NetState) mutable
+	{
+		NetState.Springs.Add(Spring);
+	});
+}
+
+void UPhysicsMovementComponent::ClearSprings()
+{
+	NetworkPredictionProxy.ModifyNetState<FPhysicsMovementAsyncModelDef>([](FPhysicsMovementNetState& NetState)
+	{
+			NetState.Springs.Reset();
 	});
 }
 

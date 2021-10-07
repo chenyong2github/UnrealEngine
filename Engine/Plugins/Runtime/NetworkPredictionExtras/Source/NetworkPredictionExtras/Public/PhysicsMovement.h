@@ -7,6 +7,7 @@
 #include "Async/NetworkPredictionAsyncProxy.h"
 #include "NetworkPhysicsComponent.h"
 #include "NetworkPredictionCVars.h"
+#include "Springs.h"
 #include "PhysicsMovement.generated.h"
 
 namespace UE_NP
@@ -112,9 +113,18 @@ struct FPhysicsMovementNetState
 	UPROPERTY(BlueprintReadWrite, Category = "Mock Object")
 	bool bEnableKeepUpright = true;
 
+	// Value 0 to 1 indicating when forces are applied to keep character upright. 0 does nothing, 1 always tries to align character with up,
+	// 0.5 will start applying forces when tipped 90 degrees, etc.
+	UPROPERTY(BlueprintReadWrite, Category = "Mock Object")
+	float KeepUprightThreshold = 0.95f;
+
 	// Strength of auto brake force applied when no input force and on ground.
 	UPROPERTY(BlueprintReadWrite, Category = "Mock Object")
 	float AutoBrakeStrength = 5.f;
+
+	// Should spring forces scale with mass?
+	UPROPERTY(BlueprintReadWrite, Category = "Mock Object")
+	bool bScaleSpringForcesWithMass = true;
 
 	// Arbitrary data that doesn't affect sim but could still trigger rollback
 	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
@@ -146,6 +156,9 @@ struct FPhysicsMovementNetState
 	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
 	int32 KickFrame = 0;
 
+	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
+	TArray<FSpring> Springs;
+
 	void NetSerialize(FArchive& Ar)
 	{
 		Ar << ForceMultiplier;
@@ -155,7 +168,9 @@ struct FPhysicsMovementNetState
 		Ar << AutoFaceTargetYawDamp;
 		Ar << bEnableAutoFaceTargetYaw;
 		Ar << AutoBrakeStrength;
+		Ar << bScaleSpringForcesWithMass;
 		Ar << bEnableKeepUpright;
+		Ar << KeepUprightThreshold;
 		Ar << JumpCooldownMS;
 		Ar << JumpCount;
 		Ar << CheckSum;	
@@ -163,6 +178,7 @@ struct FPhysicsMovementNetState
 		Ar << JumpStartFrame;
 		Ar << InAirFrame;
 		Ar << KickFrame;
+		Ar << Springs;
 	}
 
 	bool ShouldReconcile(const FPhysicsMovementNetState& AuthState) const
@@ -175,7 +191,9 @@ struct FPhysicsMovementNetState
 			AutoFaceTargetYawDamp != AuthState.AutoFaceTargetYawDamp ||
 			bEnableAutoFaceTargetYaw != AuthState.bEnableAutoFaceTargetYaw ||
 			AutoBrakeStrength != AuthState.AutoBrakeStrength ||
+			bScaleSpringForcesWithMass != AuthState.bScaleSpringForcesWithMass || 
 			bEnableKeepUpright != AuthState.bEnableKeepUpright ||
+			KeepUprightThreshold != AuthState.KeepUprightThreshold || 
 			JumpCooldownMS != AuthState.JumpCooldownMS || 
 			JumpCount != AuthState.JumpCount ||
 			RecoveryFrame != AuthState.RecoveryFrame ||
@@ -183,6 +201,7 @@ struct FPhysicsMovementNetState
 			InAirFrame != AuthState.InAirFrame ||
 			KickFrame!= AuthState.KickFrame ||
 			CheckSum != AuthState.CheckSum ||
+			Springs != AuthState.Springs || 
 			(UE_NP::ForceReconcilePhysicsMovementState() > 0);
 	}
 };
@@ -243,7 +262,20 @@ public:
 	void SetEnableKeepUpright(bool bKeepUpright);
 
 	UFUNCTION(BlueprintCallable, Category="Movement")
+	void SetKeepUprightThreshold(float Threshold);
+
+	UFUNCTION(BlueprintCallable, Category="Movement")
 	void SetAutoBrakeStrength(float BrakeStrength);
+
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	void SetScaleSpringForcesWithMass(bool bScaleWithMass);
+	
+	// Add a spring, spring is persistant, can be removed by ClearSprings().
+	UFUNCTION(BlueprintCallable, Category="Movement")
+	void AddSpring(FSpring Spring);
+
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	void ClearSprings();
 
 	void TestMisprediction();
 

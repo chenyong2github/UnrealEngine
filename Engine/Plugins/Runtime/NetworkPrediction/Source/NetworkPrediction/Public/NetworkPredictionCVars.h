@@ -115,7 +115,7 @@ namespace UE_NETWORK_PHYSICS
 	NETSIM_DEVCVAR_SHIPCONST_FLOAT(MaxAngularVelocity, 30.f, "np2.Mock.MaxAngularVelocity", "Limits how fast character can possibly rotate.")
 	NETSIM_DEVCVAR_SHIPCONST_FLOAT(MovementK, 1.25, "np2.Mock.MovementK", "Movement Coefficient (higher=faster movement)");
 	NETSIM_DEVCVAR_SHIPCONST_FLOAT(RotationK, 1.25, "np2.Mock.RotationK", "Rotation Coefficient (higher=faster movement)");
-	NETSIM_DEVCVAR_SHIPCONST_FLOAT(TurnK, 10000000.f, "np2.Mock.TurnK", "Coefficient for automatic turning (higher=quicker turning)");
+	NETSIM_DEVCVAR_SHIPCONST_FLOAT(TurnK, 100000000.f, "np2.Mock.TurnK", "Coefficient for automatic turning (higher=quicker turning)");
 	NETSIM_DEVCVAR_SHIPCONST_FLOAT(TurnDampK, 100.f, "np2.Mock.TurnDampK", "Coefficient for damping portion of turn. Higher=more damping but too higher will lead to instability.");
 	NETSIM_DEVCVAR_SHIPCONST_FLOAT(DampYawVelocityK, 2.f, "np2.Mock.DampYawVelocityK", "Coefficient for damping angular velocity in yaw direction only. This is only enabled when auto target yaw is disabled.");
 
