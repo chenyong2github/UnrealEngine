@@ -271,6 +271,7 @@ public:
 	bool CheckValidity() const;
 
 	FString DebugGetDescription() const;
+	FString DebugGetArchetypeCompatibilityDescription(const FArchetypeHandle& ArchetypeHandle) const;
 
 	TConstArrayView<FMassFragmentRequirement> GetRequirements() const { return Requirements; }
 	const FMassFragmentBitSet& GetRequiredAllFragments() const { return RequiredAllFragments; }
