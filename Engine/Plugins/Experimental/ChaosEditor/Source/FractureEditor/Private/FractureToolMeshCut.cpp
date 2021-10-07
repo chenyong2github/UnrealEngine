@@ -116,10 +116,45 @@ void UFractureToolMeshCut::GenerateMeshTransforms(const FFractureToolContext& Co
 	FBox Bounds = Context.GetWorldBounds();
 	const FVector Extent(Bounds.Max - Bounds.Min);
 
-	MeshTransforms.Reserve(MeshTransforms.Num() + MeshCutSettings->NumberToScatter);
-	for (int32 ii = 0; ii < MeshCutSettings->NumberToScatter; ++ii)
+	TArray<FVector> Positions;
+	if (MeshCutSettings->CutDistribution == EMeshCutDistribution::UniformRandom)
 	{
-		FVector Position(Bounds.Min + FVector(RandStream.FRand(), RandStream.FRand(), RandStream.FRand()) * Extent);
+		Positions.Reserve(MeshCutSettings->NumberToScatter);
+		for (int32 Idx = 0; Idx < MeshCutSettings->NumberToScatter; ++Idx)
+		{
+			Positions.Emplace(Bounds.Min + FVector(RandStream.FRand(), RandStream.FRand(), RandStream.FRand()) * Extent);
+		}
+	}
+	else if (MeshCutSettings->CutDistribution == EMeshCutDistribution::Grid)
+	{
+		Positions.Reserve(MeshCutSettings->GridX * MeshCutSettings->GridY * MeshCutSettings->GridZ);
+		auto ToFrac = [](int32 Val, int32 NumVals) -> FVector::FReal
+		{
+			return (FVector::FReal(Val) + FVector::FReal(.5)) / FVector::FReal(NumVals);
+		};
+		for (int32 X = 0; X < MeshCutSettings->GridX; ++X)
+		{
+			FVector::FReal XFrac = ToFrac(X, MeshCutSettings->GridX);
+			for (int32 Y = 0; Y < MeshCutSettings->GridY; ++Y)
+			{
+				FVector::FReal YFrac = ToFrac(Y, MeshCutSettings->GridY);
+				for (int32 Z = 0; Z < MeshCutSettings->GridZ; ++Z)
+				{
+					FVector::FReal ZFrac = ToFrac(Z, MeshCutSettings->GridZ);
+					Positions.Emplace(Bounds.Min + FVector(XFrac, YFrac, ZFrac) * Extent);
+				}
+			}
+		}
+
+		for (FVector& Position : Positions)
+		{
+			Position += (RandStream.VRand() * RandStream.FRand() * MeshCutSettings->Variability);
+		}
+	}
+
+	MeshTransforms.Reserve(MeshTransforms.Num() + Positions.Num());
+	for (const FVector& Position : Positions)
+	{
 		FVector::FReal Scale = RandStream.FRandRange(MeshCutSettings->MinScaleFactor, MeshCutSettings->MaxScaleFactor);
 		FVector ScaleVec(Scale, Scale, Scale);
 		FRotator Orientation = FRotator::ZeroRotator;
@@ -176,7 +211,7 @@ int32 UFractureToolMeshCut::ExecuteFracture(const FFractureToolContext& Fracture
 		ClearProximity(FractureContext.GetGeometryCollection().Get());
 
 		// (Note: noise and grout not currently supported)
-		if (LocalCutSettings->NumberToScatter == 0)
+		if (LocalCutSettings->CutDistribution == EMeshCutDistribution::SingleCut)
 		{
 			return CutWithMesh(MeshDescription, ActorTransform, InternalSurfaceMaterials, *FractureContext.GetGeometryCollection(), FractureContext.GetSelection(), CollisionSettings->PointSpacing, FractureContext.GetTransform());
 		}
