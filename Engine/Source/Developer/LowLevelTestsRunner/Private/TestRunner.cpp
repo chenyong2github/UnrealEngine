@@ -4,9 +4,14 @@
 
 #include "TestRunner.h"
 #include "TestHarness.h"
+#include "HAL/PlatformTLS.h"
 
 int RunTests(int argc, const char* argv[])
 {
+	// remember thread id of the main thread
+	GGameThreadId = FPlatformTLS::GetCurrentThreadId();
+	GIsGameThreadIdInitialized = true;
+
 	Setup();
 
 	//Read command-line from file (if any). Switch does it earlier.
