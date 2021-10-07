@@ -16,6 +16,7 @@
 #include "Framework/Docking/TabManager.h"
 #include "ContentBrowserDataSubsystem.h"
 #include "ContentBrowserDataUtils.h"
+#include "ContentBrowserItemPath.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowserClassDataSource"
 
@@ -374,6 +375,30 @@ void UContentBrowserClassDataSource::EnumerateItemsAtPath(const FName InPath, co
 	}
 }
 
+bool UContentBrowserClassDataSource::EnumerateItemsForObjects(const TArrayView<UObject*> InObjects, TFunctionRef<bool(FContentBrowserItemData&&)> InCallback)
+{
+	ConditionalCreateNativeClassHierarchy();
+
+	FString InternalPath;
+	for (UObject* InObject : InObjects)
+	{
+		if (UClass* InClass = Cast<UClass>(InObject))
+		{
+			InternalPath.Reset();
+			if (NativeClassHierarchy->GetClassPath(InClass, InternalPath, NativeClassHierarchyGetClassPathCache))
+			{
+				const FContentBrowserItemPath ContentBrowserItemPath(InternalPath, EContentBrowserPathType::Internal);
+				if (!InCallback(ContentBrowserClassData::CreateClassFileItem(this, ContentBrowserItemPath.GetVirtualPathName(), FName(InternalPath), InClass)))
+				{
+					return false;
+				}
+			}
+		}
+	}
+
+	return true;
+}
+
 bool UContentBrowserClassDataSource::IsFolderVisibleIfHidingEmpty(const FName InPath)
 {
 	FName ConvertedPath;
@@ -643,6 +668,7 @@ void UContentBrowserClassDataSource::ConditionalCreateNativeClassHierarchy()
 
 void UContentBrowserClassDataSource::ClassHierarchyUpdated()
 {
+	NativeClassHierarchyGetClassPathCache.Reset();
 	SetVirtualPathTreeNeedsRebuild();
 	NotifyItemDataRefreshed();
 }

@@ -160,6 +160,8 @@ public:
 
 	virtual void EnumerateItemsAtPath(const FName InPath, const EContentBrowserItemTypeFilter InItemTypeFilter, TFunctionRef<bool(FContentBrowserItemData&&)> InCallback) override;
 
+	virtual bool EnumerateItemsAtPaths(const TArrayView<FContentBrowserItemPath> InPaths, const EContentBrowserItemTypeFilter InItemTypeFilter, TFunctionRef<bool(FContentBrowserItemData&&)> InCallback) override;
+
 	virtual bool IsDiscoveringItems(FText* OutStatus = nullptr) override;
 
 	virtual bool PrioritizeSearchPath(const FName InPath) override;

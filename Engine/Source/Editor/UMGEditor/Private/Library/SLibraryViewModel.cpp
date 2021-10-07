@@ -21,6 +21,7 @@
 #include "AssetRegistryModule.h"
 #include "WidgetBlueprintEditorUtils.h"
 
+#include "IContentBrowserDataModule.h"
 #include "Settings/ContentBrowserSettings.h"
 #include "Settings/WidgetDesignerSettings.h"
 #include "UMGEditorProjectSettings.h"
@@ -111,6 +112,10 @@ void FWidgetTemplateListViewModel::ConstructListView(TArray<TSharedPtr<FWidgetTe
 
 	if (!TemplatesFilter)
 	{
+		UContentBrowserDataSubsystem* ContentBrowserDataSubsystem = IContentBrowserDataModule::Get().GetSubsystem();
+		NumAssets = 0;
+		NumClasses = 0;
+
 		// Generate filter text
 		bool bHasFilters = false;
 		TStringBuilder<2048> FilterString;
@@ -118,43 +123,57 @@ void FWidgetTemplateListViewModel::ConstructListView(TArray<TSharedPtr<FWidgetTe
 		{
 			if (TSharedPtr<FWidgetTemplateClass> TemplateClass = StaticCastSharedPtr<FWidgetTemplateClass>(Template))
 			{
-				TWeakObjectPtr<UClass> WidgetClass = TemplateClass->GetWidgetClass();
-				FName TemplateName = WidgetClass.IsValid() ? WidgetClass->GetFName() : TemplateClass->GetWidgetAssetData().AssetName;
-				FString TemplateString = TemplateName.ToString();
+				FString TemplateString;
+				FString TemplatePath;
+
+				if (TemplateClass->GetWidgetAssetData().IsValid())
+				{
+					TemplateString = TemplateClass->GetWidgetAssetData().AssetName.ToString();
+					NumAssets++;
+				}
+				else if (UClass* WidgetClass = TemplateClass->GetWidgetClass().Get())
+				{
+					TemplateString = WidgetClass->GetFName().ToString();
+					NumClasses++;
+				}
 
 				if (!TemplateString.IsEmpty())
 				{
 					TemplateString.RemoveFromEnd(TEXT("_C"));
 					FilterString += bHasFilters ? "|+" : "+";
 					FilterString += TemplateString;
-					bHasFilters = true;
+					bHasFilters = false;
 				}
 			}
 		}
 
-		WidgetTextFilter = MakeShared<FFrontendFilter_Text>();
-		WidgetTextFilter->SetActive(true);
-		WidgetTextFilter->SetIncludeClassName(true);
-		WidgetTextFilter->SetRawFilterText(FText::FromString(FilterString.ToString()));
-		CachedLowercaseWidgetFilter = WidgetTextFilter->GetRawFilterText().ToString().ToLower();
+		LibrarySourceData = MakeShared<FSourcesData>();
+		// Provide a dummy invalid virtual path to make sure nothing tries to enumerate root "/"
+		LibrarySourceData->VirtualPaths.Add(FName(TEXT("/UMGWidgetTemplateListViewModel")));
+		// Disable any enumerate of virtual path folders
+		LibrarySourceData->bIncludeVirtualPaths = false;
+		// Supply a custom list of source items to display
+		LibrarySourceData->OnEnumerateCustomSourceItemDatas.BindSP(this, &FWidgetTemplateListViewModel::EnumerateCustomSourceItemDatas);
+
+		CachedLowercaseWidgetFilter = FString(FilterString.ToString()).ToLower();
 
 		SearchFilter = MakeShared<FFrontendFilter_Text>();
 		SearchFilter->SetActive(false);
 
 		TemplatesFilter = MakeShared<FAssetFilterCollectionType>();
-		TemplatesFilter->Add(WidgetTextFilter);
 		TemplatesFilter->Add(SearchFilter);
 	}
 
 	if (!AssetViewPtr)
 	{
-		FARFilter WidgetTemplateFilter;
-		WidgetTemplateFilter.ClassNames.Add(UClass::StaticClass()->GetFName());
-		WidgetTemplateFilter.ClassNames.Add(UWidgetBlueprint::StaticClass()->GetFName());
+		// Reserve just enough thumbnails, plus a few extra if this category has user widgets
+		uint32 ThumbnailPoolSize = NumAssets + NumClasses;
+		ThumbnailPoolSize += NumAssets > 0 ? 32 : 0;
 
 		AssetViewPtr = SNew(SAssetView)
 			.InitialCategoryFilter(EContentBrowserItemCategoryFilter::IncludeAssets | EContentBrowserItemCategoryFilter::IncludeClasses)
-			.InitialBackendFilter(WidgetTemplateFilter)
+			.InitialSourcesData(*LibrarySourceData)
+			.InitialThumbnailPoolSize(ThumbnailPoolSize)
 			.InitialThumbnailSize(EThumbnailSize::Small)
 			.FrontendFilters(TemplatesFilter)
 			.ForceShowEngineContent(true)
@@ -166,6 +185,50 @@ void FWidgetTemplateListViewModel::ConstructListView(TArray<TSharedPtr<FWidgetTe
 	}
 
 	AssetViewPtr->RequestSlowFullListRefresh();
+}
+
+bool FWidgetTemplateListViewModel::EnumerateCustomSourceItemDatas(TFunctionRef<bool(FContentBrowserItemData&&)> InCallback)
+{
+	SourceItemPaths.Reset();
+	SourceItemPaths.Reserve(NumAssets);
+
+	TArray<UObject*> ClassObjects;
+	ClassObjects.Reserve(NumClasses);
+
+	for (TSharedPtr<FWidgetTemplate> Template : Templates)
+	{
+		if (TSharedPtr<FWidgetTemplateClass> TemplateClass = StaticCastSharedPtr<FWidgetTemplateClass>(Template))
+		{
+			if (TemplateClass->GetWidgetAssetData().IsValid())
+			{
+				SourceItemPaths.Add(FContentBrowserItemPath(TemplateClass->GetWidgetAssetData().PackageName, EContentBrowserPathType::Internal));
+			}
+			else if (UClass* WidgetClass = TemplateClass->GetWidgetClass().Get())
+			{
+				ClassObjects.Add(WidgetClass);
+			}
+		}
+	}
+	
+	UContentBrowserDataSubsystem* ContentBrowserDataSubsystem = IContentBrowserDataModule::Get().GetSubsystem();
+
+	if (!SourceItemPaths.IsEmpty())
+	{
+		if (!ContentBrowserDataSubsystem->EnumerateItemsAtPaths(SourceItemPaths, EContentBrowserItemTypeFilter::IncludeFiles, InCallback))
+		{
+			return false;
+		}
+	}
+
+	if (!ClassObjects.IsEmpty())
+	{
+		if (!ContentBrowserDataSubsystem->EnumerateItemsForObjects(ClassObjects, InCallback))
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 
 FText FWidgetTemplateListViewModel::GetName() const

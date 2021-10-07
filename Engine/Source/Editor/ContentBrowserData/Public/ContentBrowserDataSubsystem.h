@@ -158,6 +158,25 @@ public:
 	void EnumerateItemsAtPath(const FName InPath, const EContentBrowserItemTypeFilter InItemTypeFilter, TFunctionRef<bool(FContentBrowserItemData&&)> InCallback) const;
 
 	/**
+	 * Enumerate the items (files) that exist at the given paths.
+	 * @note Multiple items may have the same virtual path if they are different types, or come from different data sources.
+	 *
+	 * @param InItemPaths The paths to enumerate
+	 * @param InItemTypeFilter The types of items we want to find.
+	 * @param InCallback The function to invoke for each matching item (return true to continue enumeration).
+	 */
+	bool EnumerateItemsAtPaths(const TArrayView<class FContentBrowserItemPath> InItemPaths, const EContentBrowserItemTypeFilter InItemTypeFilter, TFunctionRef<bool(FContentBrowserItemData&&)> InCallback) const;
+
+	/**
+	 * Enumerate the items (files) that exist for the given objects.
+	 * @note Multiple items may have the same virtual path if they are different types, or come from different data sources.
+	 *
+	 * @param InObjects The objects to enumerate
+	 * @param InCallback The function to invoke for each matching item (return true to continue enumeration).
+	 */
+	bool EnumerateItemsForObjects(const TArrayView<UObject*> InObjects, TFunctionRef<bool(FContentBrowserItemData&&)> InCallback) const;
+
+	/**
 	 * Get the items (folders and/or files) that exist at the given virtual path.
 	 * @note Multiple items may have the same virtual path if they are different types, or come from different data sources.
 	 */

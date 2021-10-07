@@ -334,6 +334,34 @@ void UContentBrowserDataSubsystem::EnumerateItemsAtPath(const FName InPath, cons
 	}
 }
 
+bool UContentBrowserDataSubsystem::EnumerateItemsAtPaths(const TArrayView<class FContentBrowserItemPath> InItemPaths, const EContentBrowserItemTypeFilter InItemTypeFilter, TFunctionRef<bool(FContentBrowserItemData&&)> InCallback) const
+{
+	for (const auto& ActiveDataSourcePair : ActiveDataSources)
+	{
+		UContentBrowserDataSource* DataSource = ActiveDataSourcePair.Value;
+		if (!DataSource->EnumerateItemsAtPaths(InItemPaths, InItemTypeFilter, InCallback))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool UContentBrowserDataSubsystem::EnumerateItemsForObjects(TArrayView<UObject*> InObjects, TFunctionRef<bool(FContentBrowserItemData&&)> InCallback) const
+{
+	for (const auto& ActiveDataSourcePair : ActiveDataSources)
+	{
+		UContentBrowserDataSource* DataSource = ActiveDataSourcePair.Value;
+		if (!DataSource->EnumerateItemsForObjects(InObjects, InCallback))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 TArray<FContentBrowserItem> UContentBrowserDataSubsystem::GetItemsAtPath(const FName InPath, const EContentBrowserItemTypeFilter InItemTypeFilter) const
 {
 	TMap<FContentBrowserItemKey, FContentBrowserItem> FoundItems;

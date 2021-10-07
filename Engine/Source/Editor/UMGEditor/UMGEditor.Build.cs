@@ -42,6 +42,7 @@ public class UMGEditor : ModuleRules
 				"Core",
 				"CoreUObject",
 				"ContentBrowser",
+				"ContentBrowserData",
 				"ApplicationCore",
 				"InputCore",
 				"Engine",

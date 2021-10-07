@@ -9,8 +9,12 @@
 
 struct FSourcesData
 {
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnEnumerateCustomSourceItemDatas, TFunctionRef<bool(class FContentBrowserItemData&&)>)
+
 	TArray<FName> VirtualPaths;
 	TArray<FCollectionNameType> Collections;
+	FOnEnumerateCustomSourceItemDatas OnEnumerateCustomSourceItemDatas;
+	bool bIncludeVirtualPaths = true;
 
 	FSourcesData() = default;
 
@@ -49,6 +53,11 @@ struct FSourcesData
 	FORCEINLINE bool HasCollections() const
 	{
 		return Collections.Num() > 0;
+	}
+
+	FORCEINLINE bool IsIncludingVirtualPaths() const
+	{
+		return bIncludeVirtualPaths;
 	}
 
 	bool IsDynamicCollection() const
