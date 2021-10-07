@@ -55,8 +55,23 @@ namespace SkeinCLI
 
         protected override Task<int> OnExecute(CommandLineApplication app)
         {
-            Log.Logger.ForContext<ProjectsListCmd>().Information("Projects listed here [...]");
-            return base.OnExecute(app);
+			/*
+			 * TODO: Remove this.
+			 * This is a test implementation to verify the behaviour of the -j flag
+			 */
+			Random rnd = new Random();
+			if (rnd.NextDouble() > .5)
+			{
+				List<string> projects = new List<string>() { "project1", "testProject", "this is a test project name" };
+				Output("Retrieved projects", projects);
+				return base.OnExecute(app);
+			}
+			else 
+			{
+				OutputError(403, "Cannot reach server");
+				base.OnExecute(app);
+				return Task.FromResult(403);
+			}
         }
     }
 
