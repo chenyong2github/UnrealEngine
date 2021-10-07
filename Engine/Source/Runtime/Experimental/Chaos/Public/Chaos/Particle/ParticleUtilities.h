@@ -176,6 +176,26 @@ namespace Chaos
 			TSpatialAccessor::Position(Particles, Index) = P;
 			TSpatialAccessor::Rotation(Particles, Index) = Q;
 		}
+		
+		template<typename T_PARTICLEHANDLE>
+		static inline void AddForceAtPositionLocal(T_PARTICLEHANDLE Particle, const FVec3& LocalForce, const FVec3& LocalPosition)
+		{
+			const FRigidTransform3 ParticleTransform = GetActorWorldTransform(Particle);
+			const FVec3 WorldPosition = ParticleTransform.TransformPosition(LocalPosition);
+			const FVec3 WorldForce = ParticleTransform.TransformVector(LocalForce);
+
+			AddForceAtPositionWorld(Particle, WorldForce, WorldPosition);
+		}
+
+		template<typename T_PARTICLEHANDLE>
+		static inline void AddForceAtPositionWorld(T_PARTICLEHANDLE Particle, const FVec3& Force, const FVec3& Position)
+		{
+			const FVec3 WorldCOM = GetCoMWorldPosition(Particle);
+			const FVec3 Torque = FVec3::CrossProduct(Position - WorldCOM, Force);
+
+			Particle->AddForce(Force);
+			Particle->AddTorque(Torque);
+		}
 	};
 
 	/**
