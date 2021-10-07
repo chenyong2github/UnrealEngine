@@ -22,13 +22,13 @@ struct CONTROLRIG_API FControlRigGizmoDefinition
 		Transform = FTransform::Identity;
 	}
 
-	UPROPERTY(EditAnywhere, Category = "Gizmo")
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Gizmo")
 	FName GizmoName;
 
-	UPROPERTY(EditAnywhere, Category = "Gizmo")
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Gizmo")
 	TSoftObjectPtr<UStaticMesh> StaticMesh;
 
-	UPROPERTY(EditAnywhere, Category = "Gizmo")
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Gizmo")
 	FTransform Transform;
 };
 
