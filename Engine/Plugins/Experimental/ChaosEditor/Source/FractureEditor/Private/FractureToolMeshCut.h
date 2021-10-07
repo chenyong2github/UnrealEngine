@@ -9,6 +9,16 @@
 
 class FFractureToolContext;
 
+UENUM()
+enum class EMeshCutDistribution
+{
+	// Cut only once, at the cutting mesh's current location in the level
+	SingleCut,
+	// Scatter the cutting mesh in a uniform random distribution around the geometry bounding box
+	UniformRandom,
+	// Arrange the cutting mesh in a regular grid pattern
+	Grid
+};
 
 UCLASS(config = EditorPerProjectUserSettings)
 class UFractureMeshCutSettings : public UFractureToolSettings
@@ -23,29 +33,53 @@ public:
 	UPROPERTY(EditAnywhere, Category = MeshCut, meta = (DisplayName = "Cutting Actor"))
 	TLazyObjectPtr<AStaticMeshActor> CuttingActor;
 
-	/** Number of meshes to random scatter; if 0, the selected mesh will be used in its current position, with no random scattering*/
+	/** How to arrange the mesh cuts in space */
 	UPROPERTY(EditAnywhere, Category = Distribution)
-	int NumberToScatter = 0;
+	EMeshCutDistribution CutDistribution = EMeshCutDistribution::SingleCut;
 
-	UPROPERTY(EditAnywhere, Category = Distribution, meta = (ClampMin = "0.001", EditCondition = "NumberToScatter > 0"))
+	/** Number of meshes to random scatter */
+	UPROPERTY(EditAnywhere, Category = Distribution, meta = (ClampMin = "1", UIMax = "5000",
+		EditCondition = "CutDistribution == EMeshCutDistribution::UniformRandom", EditConditionHides))
+	int NumberToScatter = 10;
+
+	/** Number of meshes to add to grid in X */
+	UPROPERTY(EditAnywhere, Category = Distribution, meta = (DisplayName = "Grid Width", ClampMin = "1", UIMax = "100", ClampMax = "5000",
+		EditCondition = "CutDistribution == EMeshCutDistribution::Grid", EditConditionHides))
+	int32 GridX = 5;
+
+	/** Number of meshes to add to grid in Y */
+	UPROPERTY(EditAnywhere, Category = Distribution, meta = (DisplayName = "Grid Depth", ClampMin = "1", UIMax = "100", ClampMax = "5000",
+		EditCondition = "CutDistribution == EMeshCutDistribution::Grid", EditConditionHides))
+	int32 GridY = 5;
+
+	/** Number of meshes to add to grid in Z */
+	UPROPERTY(EditAnywhere, Category = Distribution, meta = (DisplayName = "Grid Height", ClampMin = "1", UIMax = "100", ClampMax = "5000",
+		EditCondition = "CutDistribution == EMeshCutDistribution::Grid", EditConditionHides))
+	int32 GridZ = 5;
+
+	/** Magnitude of random displacement to cutting meshes */
+	UPROPERTY(EditAnywhere, Category = Distribution, meta = (DisplayName = "Variability", EditCondition = "CutDistribution == EMeshCutDistribution::Grid", EditConditionHides, UIMin = "0.0", ClampMin = "0.0"))
+	float Variability = 0.0f;
+
+	UPROPERTY(EditAnywhere, Category = Distribution, meta = (ClampMin = "0.001", EditCondition = "CutDistribution != EMeshCutDistribution::SingleCut", EditConditionHides))
 	float MinScaleFactor = .5;
 
-	UPROPERTY(EditAnywhere, Category = Distribution, meta = (ClampMin = "0.001", EditCondition = "NumberToScatter > 0"))
+	UPROPERTY(EditAnywhere, Category = Distribution, meta = (ClampMin = "0.001", EditCondition = "CutDistribution != EMeshCutDistribution::SingleCut", EditConditionHides))
 	float MaxScaleFactor = 1.5;
 
-	UPROPERTY(EditAnywhere, Category = Distribution, meta = (EditCondition = "NumberToScatter > 0"))
+	UPROPERTY(EditAnywhere, Category = Distribution, meta = (EditCondition = "CutDistribution != EMeshCutDistribution::SingleCut", EditConditionHides))
 	bool bRandomOrientation = true;
 
 	/** Roll will be chosen between -Range to +Range */
-	UPROPERTY(EditAnywhere, Category = Distribution, meta = (DisplayName = "+/- Roll Range", EditCondition = "NumberToScatter > 0 && bRandomOrientation", ClampMin = "0", ClampMax = "180"))
+	UPROPERTY(EditAnywhere, Category = Distribution, meta = (DisplayName = "+/- Roll Range", EditCondition = "CutDistribution != EMeshCutDistribution::SingleCut && bRandomOrientation", EditConditionHides, ClampMin = "0", ClampMax = "180"))
 	float RollRange = 180;
 
 	/** Pitch will be chosen between -Range to +Range */
-	UPROPERTY(EditAnywhere, Category = Distribution, meta = (DisplayName = "+/- Pitch Range", EditCondition = "NumberToScatter > 0 && bRandomOrientation", ClampMin = "0", ClampMax = "180"))
+	UPROPERTY(EditAnywhere, Category = Distribution, meta = (DisplayName = "+/- Pitch Range", EditCondition = "CutDistribution != EMeshCutDistribution::SingleCut && bRandomOrientation", EditConditionHides, ClampMin = "0", ClampMax = "180"))
 	float PitchRange = 180;
 
 	/** Yaw will be chosen between -Range to +Range */
-	UPROPERTY(EditAnywhere, Category = Distribution, meta = (DisplayName = "+/- Yaw Range", EditCondition = "NumberToScatter > 0 && bRandomOrientation", ClampMin = "0", ClampMax = "180"))
+	UPROPERTY(EditAnywhere, Category = Distribution, meta = (DisplayName = "+/- Yaw Range", EditCondition = "CutDistribution != EMeshCutDistribution::SingleCut && bRandomOrientation", EditConditionHides, ClampMin = "0", ClampMax = "180"))
 	float YawRange = 180;
 };
 
