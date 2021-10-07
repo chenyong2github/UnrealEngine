@@ -76,7 +76,7 @@ public:
 #endif // WITH_EDITORONLY_DATA
 
 	/** Sets bAutoRegisterWithProcessingPhases. Setting it to true will result in this processor class being always 
-	 * instantiated to be automatically evaluated every frame. @see UPipeProcessingPhaseManager
+	 * instantiated to be automatically evaluated every frame. @see UMassProcessingPhaseManager
 	 * Note that calling this function is only valid on CDOs. Calling it on a regular instance will fail an ensure and 
 	 * have no other effect, i.e. CDO's value won't change */
 	void SetShouldAutoRegisterWithGlobalList(const bool bAutoRegister);
@@ -185,7 +185,7 @@ protected:
 	UMassCompositeProcessor* FindOrAddGroupProcessor(FName RequestedGroupName, FString* OutRemainingGroupName = nullptr);
 
 protected:
-	UPROPERTY(VisibleAnywhere, Category=Pipe)
+	UPROPERTY(VisibleAnywhere, Category=Mass)
 	FMassRuntimePipeline ChildPipeline;
 
 	/** Group name that will be used when resolving processor dependencies and grouping */

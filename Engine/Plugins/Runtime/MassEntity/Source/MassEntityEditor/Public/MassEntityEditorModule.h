@@ -25,7 +25,7 @@ public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
-	/** Creates an instance of Pipe editor. Only virtual so that it can be called across the DLL boundary. */
+	/** Creates an instance of Mass editor. Only virtual so that it can be called across the DLL boundary. */
 	virtual TSharedRef<IMassEntityEditor> CreateMassEntityEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UMassSchematic* MassSchematic);
 
 	virtual TSharedPtr<FExtensibilityManager> GetMenuExtensibilityManager() override { return MenuExtensibilityManager; }

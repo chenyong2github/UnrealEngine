@@ -14,10 +14,10 @@ void FAssetTypeActions_MassSchematic::OpenAssetEditor(const TArray<UObject*>& In
 
 	for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
 	{
-		if (UMassSchematic* Pipe = Cast<UMassSchematic>(*ObjIt))
+		if (UMassSchematic* Schematic = Cast<UMassSchematic>(*ObjIt))
 		{
 			FMassEntityEditorModule& EditorModule = FModuleManager::LoadModuleChecked<FMassEntityEditorModule>("MassEntityEditor");
-			TSharedRef<IMassEntityEditor> NewEditor = EditorModule.CreateMassEntityEditor(Mode, EditWithinLevelEditor, Pipe);
+			TSharedRef<IMassEntityEditor> NewEditor = EditorModule.CreateMassEntityEditor(Mode, EditWithinLevelEditor, Schematic);
 		}
 	}
 }

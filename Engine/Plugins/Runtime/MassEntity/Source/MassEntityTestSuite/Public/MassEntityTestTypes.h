@@ -66,11 +66,11 @@ struct FTestTag_D : public FMassTag
 
 
 UCLASS()
-class UPipeTestProcessorBase : public UMassProcessor
+class UMassTestProcessorBase : public UMassProcessor
 {
 	GENERATED_BODY()
 public:
-	UPipeTestProcessorBase();
+	UMassTestProcessorBase();
 	FMassProcessorExecutionOrder& GetMutableExecutionOrder() { return ExecutionOrder; }
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override 
 	{
@@ -91,67 +91,67 @@ protected:
 };
 
 UCLASS()
-class UPipeTestProcessor_A : public UPipeTestProcessorBase
+class UMassTestProcessor_A : public UMassTestProcessorBase
 {
 	GENERATED_BODY()
 };
 
 UCLASS()
-class UPipeTestProcessor_B : public UPipeTestProcessorBase
+class UMassTestProcessor_B : public UMassTestProcessorBase
 {
 	GENERATED_BODY()
 };
 
 UCLASS()
-class UPipeTestProcessor_C : public UPipeTestProcessorBase
+class UMassTestProcessor_C : public UMassTestProcessorBase
 {
 	GENERATED_BODY()
 };
 
 UCLASS()
-class UPipeTestProcessor_D : public UPipeTestProcessorBase
+class UMassTestProcessor_D : public UMassTestProcessorBase
 {
 	GENERATED_BODY()
 };
 
 UCLASS()
-class UPipeTestProcessor_E : public UPipeTestProcessorBase
+class UMassTestProcessor_E : public UMassTestProcessorBase
 {
 	GENERATED_BODY()
 };
 
 UCLASS()
-class UPipeTestProcessor_F : public UPipeTestProcessorBase
+class UMassTestProcessor_F : public UMassTestProcessorBase
 {
 	GENERATED_BODY()
 };
 
 UCLASS()
-class UPipeTestProcessor_Floats : public UPipeTestProcessorBase
+class UMassTestProcessor_Floats : public UMassTestProcessorBase
 {
 	GENERATED_BODY()
 public:
 	TArrayView<FTestFragment_Float> Floats;
-	UPipeTestProcessor_Floats();
+	UMassTestProcessor_Floats();
 };
 
 UCLASS()
-class UPipeTestProcessor_Ints : public UPipeTestProcessorBase
+class UMassTestProcessor_Ints : public UMassTestProcessorBase
 {
 	GENERATED_BODY()
 public:
 	TArrayView<FTestFragment_Int> Ints;
-	UPipeTestProcessor_Ints();
+	UMassTestProcessor_Ints();
 };
 
 UCLASS()
-class UPipeTestProcessor_FloatsInts : public UPipeTestProcessorBase
+class UMassTestProcessor_FloatsInts : public UMassTestProcessorBase
 {
 	GENERATED_BODY()
 public:
 	TArrayView<FTestFragment_Float> Floats;
 	TArrayView<FTestFragment_Int> Ints;
-	UPipeTestProcessor_FloatsInts();
+	UMassTestProcessor_FloatsInts();
 };
 
 struct FExecutionTestBase : FAITestBase

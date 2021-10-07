@@ -46,7 +46,7 @@ bool FEntityTestBase::SetUp()
 //----------------------------------------------------------------------//
 // Processors 
 //----------------------------------------------------------------------//
-UPipeTestProcessorBase::UPipeTestProcessorBase()
+UMassTestProcessorBase::UMassTestProcessorBase()
 {
 #if WITH_EDITORONLY_DATA
 	bCanShowUpInSettings = false;
@@ -58,7 +58,7 @@ UPipeTestProcessorBase::UPipeTestProcessorBase()
 	RequirementsFunction = [](FMassEntityQuery& Query){};
 }
 
-UPipeTestProcessor_Floats::UPipeTestProcessor_Floats()
+UMassTestProcessor_Floats::UMassTestProcessor_Floats()
 {
 	RequirementsFunction = [this](FMassEntityQuery& Query)
 	{
@@ -66,7 +66,7 @@ UPipeTestProcessor_Floats::UPipeTestProcessor_Floats()
 	};
 }
 
-UPipeTestProcessor_Ints::UPipeTestProcessor_Ints()
+UMassTestProcessor_Ints::UMassTestProcessor_Ints()
 {
 	RequirementsFunction = [this](FMassEntityQuery& Query)
 	{
@@ -74,7 +74,7 @@ UPipeTestProcessor_Ints::UPipeTestProcessor_Ints()
 	};
 }
 
-UPipeTestProcessor_FloatsInts::UPipeTestProcessor_FloatsInts()
+UMassTestProcessor_FloatsInts::UMassTestProcessor_FloatsInts()
 {
 	RequirementsFunction = [this](FMassEntityQuery& Query)
 	{

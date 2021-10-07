@@ -69,7 +69,7 @@ void FMassEntityQuery::CacheArchetypes(UMassEntitySubsystem& InEntitySubsystem)
 			InEntitySubsystem.GetValidArchetypes(*this, ValidArchetypes);
 			ArchetypeDataVersion = InEntitySubsystem.GetArchetypeDataVersion();
 
-			TRACE_CPUPROFILER_EVENT_SCOPE_STR("Pipe RequirementsBinding")
+			TRACE_CPUPROFILER_EVENT_SCOPE_STR("Mass RequirementsBinding")
 			const TConstArrayView<FMassFragmentRequirement> LocalRequirements = GetRequirements();
 			ArchetypeFragmentMapping.Reset(ValidArchetypes.Num());
 			ArchetypeFragmentMapping.AddDefaulted(ValidArchetypes.Num());

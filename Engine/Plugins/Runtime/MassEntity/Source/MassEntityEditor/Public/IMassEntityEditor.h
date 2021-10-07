@@ -6,7 +6,7 @@
 #include "Toolkits/AssetEditorToolkit.h"
 
 
-/** Pipe Editor public interface */
+/** Mass Editor public interface */
 class MASSENTITYEDITOR_API IMassEntityEditor : public FAssetEditorToolkit
 {
 public:

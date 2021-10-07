@@ -24,7 +24,7 @@ mz@todo:
 */
 
 
-namespace FPipeQueryTest
+namespace FMassQueryTest
 {
 
 struct FQueryTest_ProcessorRequirements : FEntityTestBase
@@ -33,7 +33,7 @@ struct FQueryTest_ProcessorRequirements : FEntityTestBase
 	{
 		CA_ASSUME(EntitySubsystem);
 
-		UPipeTestProcessor_Floats* Processor = NewObject<UPipeTestProcessor_Floats>(EntitySubsystem);
+		UMassTestProcessor_Floats* Processor = NewObject<UMassTestProcessor_Floats>(EntitySubsystem);
 		TConstArrayView<FMassFragmentRequirement> Requirements = Processor->TestGetQuery().GetRequirements();
 		
 		AITEST_TRUE("Query should have extracted some requirements from the given Processor", Requirements.Num() > 0);
@@ -75,7 +75,7 @@ struct FQueryTest_FragmentViewBinding : FEntityTestBase
 		FTestFragment_Float& TestedFragment = EntitySubsystem->GetFragmentDataChecked<FTestFragment_Float>(Entity);
 		AITEST_TRUE("Initial value of the fragment should match expectations", TestedFragment.Value == 0.f);
 
-		UPipeTestProcessor_Floats* Processor = NewObject<UPipeTestProcessor_Floats>(EntitySubsystem);
+		UMassTestProcessor_Floats* Processor = NewObject<UMassTestProcessor_Floats>(EntitySubsystem);
 		Processor->ExecutionFunction = [Processor](UMassEntitySubsystem& InEntitySubsystem, FMassExecutionContext& Context) {
 			check(Processor);
 			//FMassEntityQuery Query(*Processor);
@@ -542,7 +542,7 @@ struct FQueryTest_AnyTag : FEntityTestBase
 };
 IMPLEMENT_AI_INSTANT_TEST(FQueryTest_AnyTag, "System.Mass.Query.AnyTag");
 
-} // FPipeQueryTest
+} // FMassQueryTest
 
 PRAGMA_ENABLE_OPTIMIZATION
 

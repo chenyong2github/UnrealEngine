@@ -17,7 +17,7 @@ void Run(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& Processi
 		return;
 	}
 
-	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PipeExecutor Run Pipeline")
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("MassExecutor Run Pipeline")
 	RunProcessorsView(RuntimePipeline.Processors, ProcessingContext);
 }
 
@@ -31,7 +31,7 @@ void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& Pr
 		return;
 	}
 
-	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PipeExecutor RunSparseEntities");
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("MassExecutor RunSparseEntities");
 
 	const FArchetypeChunkCollection ChunkCollection(Archetype, Entities);
 	RunProcessorsView(RuntimePipeline.Processors, ProcessingContext, &ChunkCollection);
@@ -47,7 +47,7 @@ void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& Pr
 		return;
 	}
 
-	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PipeExecutor RunSparse");
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("MassExecutor RunSparse");
 
 	RunProcessorsView(RuntimePipeline.Processors, ProcessingContext, &ChunkCollection);
 }
@@ -59,7 +59,7 @@ void Run(UMassProcessor& Processor, FMassProcessingContext& ProcessingContext)
 		return;
 	}
 
-	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PipeExecutor Run")
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("MassExecutor Run")
 
 	UMassProcessor* ProcPtr = &Processor;
 	RunProcessorsView(MakeArrayView(&ProcPtr, 1), ProcessingContext);
@@ -82,14 +82,14 @@ void RunProcessorsView(TArrayView<UMassProcessor*> Processors, FMassProcessingCo
 	}
 #endif // WITH_MASSENTITY_DEBUG
 
-	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PipeExecutor RunProcessorsView")
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("MassExecutor RunProcessorsView")
 
 	FMassExecutionContext ExecutionContext(ProcessingContext.DeltaSeconds);
 	if (ChunkCollection)
 	{
 		ExecutionContext.SetChunkCollection(*ChunkCollection);
 	}
-	// manually creating a new command buffer to let the default one still be used by code unaware of pipe processing
+	// manually creating a new command buffer to let the default one still be used by code unaware of mass processing
 	ExecutionContext.SetDeferredCommandBuffer(MakeShareable(new FMassCommandBuffer()));
 	ExecutionContext.SetFlushDeferredCommands(false);
 	ExecutionContext.SetAuxData(ProcessingContext.AuxData);
@@ -115,9 +115,9 @@ void RunProcessorsView(TArrayView<UMassProcessor*> Processors, FMassProcessingCo
 	}
 }
 
-struct FPipeExecutorDoneTask
+struct FMassExecutorDoneTask
 {
-	FPipeExecutorDoneTask(const FMassExecutionContext& InExecutionContext, UMassEntitySubsystem& InEntitySubsystem, TFunction<void()> InOnDoneNotification, const FString& InDebugName)
+	FMassExecutorDoneTask(const FMassExecutionContext& InExecutionContext, UMassEntitySubsystem& InEntitySubsystem, TFunction<void()> InOnDoneNotification, const FString& InDebugName)
 		: ExecutionContext(InExecutionContext)
 		, EntitySubsystem(InEntitySubsystem)
 		, OnDoneNotification(InOnDoneNotification)
@@ -126,7 +126,7 @@ struct FPipeExecutorDoneTask
 	}
 	static TStatId GetStatId()
 	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(FPipeExecutorDoneTask, STATGROUP_TaskGraphTasks);
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FMassExecutorDoneTask, STATGROUP_TaskGraphTasks);
 	}
 
 	static ENamedThreads::Type GetDesiredThread() { return ENamedThreads::GameThread; }
@@ -140,7 +140,7 @@ struct FPipeExecutorDoneTask
 			ExecutionContext.Defer().MoveAppend(EntitySubsystem.Defer());
 		}
 
-		UE_LOG(LogMass, Log, TEXT("PipeExecutor %s tasks DONE"), *DebugName);
+		UE_LOG(LogMass, Log, TEXT("MassExecutor %s tasks DONE"), *DebugName);
 		ExecutionContext.SetFlushDeferredCommands(true);
 		ExecutionContext.FlushDeferred(EntitySubsystem);
 
@@ -163,7 +163,7 @@ FGraphEventRef TriggerParallelTasks(UMassProcessor& Processor, FMassProcessingCo
 		return FGraphEventRef();
 	}
 
-	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PipeExecutor RunParallel")
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("MassExecutor RunParallel")
 
 	// not going through UMassEntitySubsystem::CreateExecutionContext on purpose - we do need a separate command buffer
 	FMassExecutionContext ExecutionContext(ProcessingContext.DeltaSeconds);
@@ -180,7 +180,7 @@ FGraphEventRef TriggerParallelTasks(UMassProcessor& Processor, FMassProcessingCo
 	if (CompletionEvent.IsValid())
 	{
 		const FGraphEventArray Prerequisites = { CompletionEvent };
-		CompletionEvent = TGraphTask<FPipeExecutorDoneTask>::CreateTask(&Prerequisites)
+		CompletionEvent = TGraphTask<FMassExecutorDoneTask>::CreateTask(&Prerequisites)
 			.ConstructAndDispatchWhenReady(ExecutionContext, *ProcessingContext.EntitySubsystem, OnDoneNotification, Processor.GetName());
 	}
 

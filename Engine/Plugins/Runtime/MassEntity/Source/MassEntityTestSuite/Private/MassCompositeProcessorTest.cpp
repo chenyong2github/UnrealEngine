@@ -13,7 +13,7 @@
 
 PRAGMA_DISABLE_OPTIMIZATION
 
-namespace FPipeCompositeProcessorTest
+namespace FMassCompositeProcessorTest
 {
 
 struct FCompositeProcessorTest_Empty : FEntityTestBase
@@ -47,7 +47,7 @@ struct FCompositeProcessorTest_MultipleSubProcessors : FEntityTestBase
 			TArray<UMassProcessor*> Processors;
 			for (int i = 0; i < 3; ++i)
 			{
-				UPipeTestProcessorBase* Processor = NewObject<UPipeTestProcessorBase>(EntitySubsystem);
+				UMassTestProcessorBase* Processor = NewObject<UMassTestProcessorBase>(EntitySubsystem);
 				Processor->ExecutionFunction = [Processor, &Result, i](UMassEntitySubsystem& InEntitySubsystem, FMassExecutionContext& Context) {
 						check(Processor);
 						Result += FMath::Pow(10.f, float(i));
@@ -66,7 +66,7 @@ struct FCompositeProcessorTest_MultipleSubProcessors : FEntityTestBase
 };
 IMPLEMENT_AI_INSTANT_TEST(FCompositeProcessorTest_MultipleSubProcessors, "System.Mass.Processor.Composite.MultipleSubProcessors");
 
-} // FPipeCompositeProcessorTest
+} // FMassCompositeProcessorTest
 
 PRAGMA_ENABLE_OPTIMIZATION
 
