@@ -92,7 +92,6 @@ cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_
 # - {ONNXRuntime_from_NNI}/Private_DML_EP/Windows/core into {ONNXRuntime_repo}/onnxruntime/onnxruntime.
 # - {ONNXRuntime_from_NNI}/Internal/core into {ONNXRuntime_repo}/include/onnxruntime/core.
 
-
 ################################################## REVERTING ACCIDENTAL DELETES ##################################################
 git checkout onnxruntime/core/platform/android/*
 git checkout onnxruntime/core/platform/posix/env*
@@ -120,11 +119,14 @@ git reset *
 ## Step 3: Upgrade ONNX Runtime
 ```
 # git reset --hard 711a31e
+# git push -f
 
 # Push code
 git add .
 git commit -m "NNI"
+git push
 
+# When doing `git pull https://github.com/microsoft/onnxruntime/ [SOME_FILE]`, error about untracked files, just run something like this with whatever files you get an error message about:
 rm onnxruntime/python/tools/tensorrt/perf/build/Dockerfile.tensorrt-perf
 rm onnxruntime/python/tools/tensorrt/perf/build/build_images.sh
 rm onnxruntime/test/testdata/foo_bar_1.onnx
@@ -138,9 +140,14 @@ rm onnxruntime/test/testdata/transform/fusion/embed_layer_norm_format8_opset13.o
 rm onnxruntime/test/testdata/transform/fusion/embed_layer_norm_format9_opset13.onnx
 rm onnxruntime/test/testdata/transform/fusion/embed_layer_norm_multiple_opset13.onnx
 
-# Last commit on Mar 4, 2021
+
+# Commits on Mar 4, 2021
 # https://github.com/microsoft/onnxruntime/commits/master?before=e2b1852eecc82b92daeae27ec0692d4197b1bd73+1279&branch=master
 git pull https://github.com/microsoft/onnxruntime/ fa8d1b44b832ffafddee0c38ac1fe1d09d8344ee
+
+# Commits on Mar 23, 2021
+# https://github.com/microsoft/onnxruntime/commits/master?before=e2b1852eecc82b92daeae27ec0692d4197b1bd73+1174&branch=master
+git pull https://github.com/microsoft/onnxruntime/ b07e168a2b358e10423a29501bf49634281e6139
 
 git add .
 git commit -m "Mar 4th pulled"
