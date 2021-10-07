@@ -11,7 +11,7 @@
 #endif //WITH_UE
 
 // This value is used in structures passed to ORT so that a newer version of ORT will still work with them
-#define ORT_API_VERSION 7
+#define ORT_API_VERSION 8
 
 #ifdef __cplusplus
 extern "C" {
@@ -59,7 +59,12 @@ extern "C" {
 #define ORT_MUST_USE_RESULT
 #define ORTCHAR_T wchar_t
 #else
+// To make symbols visible on macOS/iOS
+#ifdef __APPLE__
+#define ORT_EXPORT __attribute__((visibility("default")))
+#else
 #define ORT_EXPORT
+#endif
 #define ORT_API_CALL
 #define ORT_MUST_USE_RESULT __attribute__((warn_unused_result))
 #define ORTCHAR_T char
@@ -1165,7 +1170,7 @@ struct OrtApi {
   ORT_API2_STATUS(SetGlobalDenormalAsZero, _Inout_ OrtThreadingOptions* tp_options);
 
   /**
-  * Use this API to create the configuration of an arena that can eventually be used to define 
+  * Use this API to create the configuration of an arena that can eventually be used to define
   * an arena based allocator's behavior
   * \param max_mem - use 0 to allow ORT to choose the default
   * \param arena_extend_strategy -  use -1 to allow ORT to choose the default, 0 = kNextPowerOfTwo, 1 = kSameAsRequested
@@ -1185,8 +1190,8 @@ struct OrtApi {
   * (doc_string field of the GraphProto message within the ModelProto message).
   * If it doesn't exist, an empty string will be returned.
   * \param model_metadata - an instance of OrtModelMetadata
-  * \param allocator - allocator used to allocate the string that will be returned back 
-  * \param value - is set to a null terminated string allocated using 'allocator'. 
+  * \param allocator - allocator used to allocate the string that will be returned back
+  * \param value - is set to a null terminated string allocated using 'allocator'.
     The caller is responsible for freeing it.
   */
   ORT_API2_STATUS(ModelMetadataGetGraphDescription, _In_ const OrtModelMetadata* model_metadata,
@@ -1218,6 +1223,16 @@ struct OrtApi {
 */
 #define OrtCustomOpApi OrtApi
 
+// Specifies some characteristics of inputs/outputs of custom ops:
+// Specify if the inputs/outputs are one of:
+// 1) Non-optional (input/output must be present in the node)
+// 2) Optional (input/output may be absent in the node)
+typedef enum OrtCustomOpInputOutputCharacteristic {
+  // TODO: Support 'Variadic' inputs/outputs
+  INPUT_OUTPUT_REQUIRED = 0,
+  INPUT_OUTPUT_OPTIONAL,
+} OrtCustomOpInputOutputCharacteristic;
+
 /*
  * The OrtCustomOp structure defines a custom op's schema and its kernel callbacks. The callbacks are filled in by
  * the implementor of the custom op.
@@ -1244,11 +1259,11 @@ struct OrtCustomOp {
   // Op kernel callbacks
   void(ORT_API_CALL* KernelCompute)(_In_ void* op_kernel, _In_ OrtKernelContext* context);
   void(ORT_API_CALL* KernelDestroy)(_In_ void* op_kernel);
-};
 
-/*
- * END EXPERIMENTAL
-*/
+  // Returns the characteristics of the input & output tensors
+  OrtCustomOpInputOutputCharacteristic(ORT_API_CALL* GetInputCharacteristic)(_In_ const struct OrtCustomOp* op, _In_ size_t index);
+  OrtCustomOpInputOutputCharacteristic(ORT_API_CALL* GetOutputCharacteristic)(_In_ const struct OrtCustomOp* op, _In_ size_t index);
+};
 
 #ifdef __cplusplus
 }
