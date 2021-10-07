@@ -443,6 +443,16 @@ void EngineShowFlagOverride(EShowFlagInitMode ShowFlagInitMode, EViewModeIndex V
 
 	// Some view modes want some features off or on (no state)
 	{
+		if (ViewModeIndex == VMI_BrushWireframe ||
+			ViewModeIndex == VMI_Wireframe)
+		{
+			EngineShowFlags.SetWireframe(true);
+		}
+		else
+		{
+			EngineShowFlags.SetWireframe(false);
+		}
+
 		if( ViewModeIndex == VMI_BrushWireframe ||
 			ViewModeIndex == VMI_Wireframe ||
 			ViewModeIndex == VMI_Unlit ||
