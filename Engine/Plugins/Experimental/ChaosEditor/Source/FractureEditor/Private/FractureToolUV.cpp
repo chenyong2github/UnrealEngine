@@ -441,12 +441,21 @@ void UFractureToolAutoUV::BakeTextureForComponent(UGeometryCollectionComponent* 
 			0
 		);
 	}
-	else
+	else if (AutoUVSettings->BakeTextureType == ETextureType::SpatialGradients)
 	{
 		Attributes = FIndex4i(
 			(int32)EBakeAttributes::PositionX,
 			(int32)EBakeAttributes::PositionY,
 			(int32)EBakeAttributes::PositionZ,
+			0
+		);
+	}
+	else // ETextureType::Normals
+	{
+		Attributes = FIndex4i(
+			(int32)EBakeAttributes::NormalX,
+			(int32)EBakeAttributes::NormalY,
+			(int32)EBakeAttributes::NormalZ,
 			0
 		);
 	}
@@ -475,6 +484,10 @@ void UFractureToolAutoUV::BakeTextureForComponent(UGeometryCollectionComponent* 
 	if (AutoUVSettings->BakeTextureType == ETextureType::SpatialGradients)
 	{
 		Suffix = "_AutoUV_Spatial";
+	}
+	else if (AutoUVSettings->BakeTextureType == ETextureType::Normals)
+	{
+		Suffix = "_AutoUV_Normals";
 	}
 	Suffix = FPaths::MakeValidFileName(Suffix);
 	SaveGeneratedTexture(ImageBuilder, FString::Printf(TEXT("%s%s"), *BaseName, *Suffix), Component->GetRestCollection(), AutoUVSettings->bPromptToSave, AutoUVSettings->bReplaceExisting);
