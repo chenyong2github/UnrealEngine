@@ -378,7 +378,7 @@ namespace Audio
 		{
 			int32 NumChannels = 0;
 			int32 SampleRate = 0;
-			uint32 ChannelConfig = 0;
+			uint32 ChannelBitmask = 0;
 		};
 
 		enum class EDisconnectReason
@@ -399,7 +399,6 @@ namespace Audio
 		virtual void OnDeviceRemoved(const FString& DeviceId, bool bIsRenderDevice) {}
 		virtual void OnDeviceStateChanged(const FString& DeviceId, const EAudioDeviceState InState, bool bIsRenderDevice) {}
 		virtual void OnFormatChanged(const FString& InDeviceId, const FFormatChangedData& InFormat) {}
-		virtual void OnSpeakerConfigChanged(const FString& InDeviceId, uint32 InSpeakerBitmask) {}		
 		virtual void OnSessionDisconnect(EDisconnectReason InReason) {}
 		
 		virtual FString GetDeviceId() const { return FString(); }
