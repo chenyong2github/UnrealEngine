@@ -209,7 +209,7 @@ ECachePolicy FCacheRecordPolicy::GetPayloadPolicy(const FPayloadId& Id) const
 			}
 		}
 	}
-	return BasePolicy;
+	return DefaultPayloadPolicy;
 }
 
 void FCacheRecordPolicyBuilder::AddPayloadPolicy(const FCachePayloadPolicy& Policy)
