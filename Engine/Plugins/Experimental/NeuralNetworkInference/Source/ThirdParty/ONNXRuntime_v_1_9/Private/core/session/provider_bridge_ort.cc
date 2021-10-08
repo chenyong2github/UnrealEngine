@@ -54,7 +54,9 @@ using IndexedSubGraph_MetaDef = IndexedSubGraph::MetaDef;
 #include "core/common/logging/logging.h"
 #include "core/providers/shared_library/provider_interfaces.h"
 
+#ifdef USE_CUDA // WITH_UE
 #include "core/providers/cuda/cuda_provider_factory.h"
+#endif //USE_CUDA
 #include "core/providers/dnnl/dnnl_provider_factory.h"
 #include "core/providers/tensorrt/tensorrt_provider_factory.h"
 #include "core/providers/openvino/openvino_provider_factory.h"
@@ -78,8 +80,10 @@ using IndexedSubGraph_MetaDef = IndexedSubGraph::MetaDef;
 
 namespace onnxruntime {
 
+#ifdef USE_CUDA // WITH_UE
 ProviderInfo_CUDA* TryGetProviderInfo_CUDA();
 ProviderInfo_CUDA& GetProviderInfo_CUDA();
+#endif //USE_CUDA
 ProviderHostCPU& GetProviderHostCPU();
 
 struct TensorShapeProto_Dimension_Iterator_Impl : TensorShapeProto_Dimension_Iterator {
@@ -990,8 +994,10 @@ void UnloadSharedProviders() {
 
 // Used by test code
 std::unique_ptr<IAllocator> CreateCUDAPinnedAllocator(int16_t device_id, const char* name) {
+#ifdef USE_CUDA // WITH_UE
   if (auto* info = onnxruntime::TryGetProviderInfo_CUDA())
     return info->CreateCUDAPinnedAllocator(device_id, name);
+#endif //USE_CUDA
 
   return nullptr;
 }
@@ -1037,6 +1043,7 @@ ProviderInfo_OpenVINO* GetProviderInfo_OpenVINO() {
   return nullptr;
 }
 
+#ifdef USE_CUDA // WITH_UE
 ProviderInfo_CUDA* TryGetProviderInfo_CUDA() {
   if (auto* provider = s_library_cuda.Get())
     return reinterpret_cast<ProviderInfo_CUDA*>(provider->GetInfo());
@@ -1050,6 +1057,7 @@ ProviderInfo_CUDA& GetProviderInfo_CUDA() {
 
   ORT_THROW("CUDA Provider not available, can't get interface for it");
 }
+#endif //USE_CUDA
 
 void CopyGpuToCpu(
     void* dst_ptr,
@@ -1057,14 +1065,18 @@ void CopyGpuToCpu(
     const size_t size,
     const OrtMemoryInfo& dst_location,
     const OrtMemoryInfo& src_location) {
+#ifdef USE_CUDA // WITH_UE
   if (auto* info = onnxruntime::TryGetProviderInfo_CUDA())
     return info->CopyGpuToCpu(dst_ptr, src_ptr, size, dst_location, src_location);
+#endif //USE_CUDA
   ORT_THROW("GPU-to-CPU copy is not implemented.");
 }
 
 void cudaMemcpy_HostToDevice(void* dst, const void* src, size_t count) {
+#ifdef USE_CUDA // WITH_UE
   if (auto* info = onnxruntime::TryGetProviderInfo_CUDA())
     return info->cudaMemcpy_HostToDevice(dst, src, count);
+#endif //USE_CUDA
   ORT_THROW("cudaMemcpy_HostToDevice is not implemented.");
 }
 
@@ -1156,16 +1168,20 @@ ORT_API_STATUS_IMPL(OrtSessionOptionsAppendExecutionProvider_CUDA, _In_ OrtSessi
 
 ORT_API_STATUS_IMPL(OrtApis::SetCurrentGpuDeviceId, _In_ int device_id) {
   API_IMPL_BEGIN
+#ifdef USE_CUDA // WITH_UE
   if (auto* info = onnxruntime::TryGetProviderInfo_CUDA())
     return info->SetCurrentGpuDeviceId(device_id);
+#endif //USE_CUDA
   return CreateStatus(ORT_FAIL, "CUDA execution provider is either not enabled or not available.");
   API_IMPL_END
 }
 
 ORT_API_STATUS_IMPL(OrtApis::GetCurrentGpuDeviceId, _In_ int* device_id) {
   API_IMPL_BEGIN
+#ifdef USE_CUDA // WITH_UE
   if (auto* info = onnxruntime::TryGetProviderInfo_CUDA())
     return info->GetCurrentGpuDeviceId(device_id);
+#endif //USE_CUDA
   return CreateStatus(ORT_FAIL, "CUDA execution provider is either not enabled or not available.");
   API_IMPL_END
 }

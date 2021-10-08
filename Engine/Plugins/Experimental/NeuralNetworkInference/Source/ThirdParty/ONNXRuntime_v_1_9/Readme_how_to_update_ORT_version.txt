@@ -6,14 +6,34 @@ More ONNX Runtime compiling info in [onnxruntime.ai/docs/how-to/build/inferencin
 
 
 
+## Step 0: Third Parties
+- MLAS:
+```
+cd D:/Users/gineshidalgo99/Desktop/ONNXRuntime
+mkdir ORT_MLAS; cd ORT_MLAS
+git clone --recursive https://github.com/Microsoft/onnxruntime
+cd onnxruntime
+# Go to v1.9.1
+git reset --hard 2a96b73a1afa9aaafb510749627e267c4e8dee63
+.\build.bat --config Release --parallel --use_dml --use_full_protobuf
+
+# Then copy into `Engine/Plugins/Experimental/NeuralNetworkInference/Source/ThirdParty/Deps/MLAS_1_9_1/`:
+# - D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ORT_MLAS/onnxruntime/onnxruntime/core/mlas/
+# - D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ORT_MLAS/onnxruntime/build/Windows/Release/Release/onnxruntime_mlas.lib
+```
+- ONNX: Compile desired ORT version to see ONNX flags + https://github.ol.epicgames.net/francisco-vicente/onnx_nni
+
+
+
 ## Step 1: Create Local ONNX Runtime v1.7.1 Fork
 1. Fork https://github.com/Microsoft/onnxruntime into your GitHub account, e.g., https://github.com/gineshidalgo99/onnxruntime
 2. Checkout to the last version used by NNI (v1.7.1)
 
 ```
 # Clone ONNX Runtime
-cd D:\Users\gineshidalgo99\Desktop\ONNXRuntime
-# cd D:\Users\gines.hidalgo\Desktop\ONNXRuntime
+cd D:/Users/gineshidalgo99/Desktop/ONNXRuntime/
+mkdir MLAS/
+# cd D:/Users/gines.hidalgo/Desktop/ONNXRuntime
 git clone --recursive https://github.com/gineshidalgo99/onnxruntime
 # git clone --recursive https://github.com/Microsoft/onnxruntime
 cd onnxruntime
@@ -22,6 +42,9 @@ cd onnxruntime
 git reset --hard 711a31e
 # Alternatively push code to your fork so the online version is also on v1.7.1
 git push origin master
+
+# Checkout right before v1.9.0
+git reset --hard 6fbd0a823350615c613662f60cb27f18b4cbab24
 
 # Alternatives:
 # git clone https://github.com/gineshidalgo99/onnxruntime
@@ -70,6 +93,7 @@ rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/co
 rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/providers/common.h
 rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/providers/get_execution_providers.*
 rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/providers/op_kernel_type_control*
+rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/quantization/
 rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/session/
 rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/util/
 # Remove custom_op_library
@@ -122,6 +146,7 @@ git reset *
 ## Step 3: Upgrade ONNX Runtime
 ```
 # git reset --hard 711a31e
+# git reset --hard 6fbd0a823350615c613662f60cb27f18b4cbab24
 # git push -f
 
 # Push code
@@ -160,6 +185,10 @@ git pull https://github.com/microsoft/onnxruntime/ f1c3f3fcc1f7b0ef2be9291ebe1c5
 # https://github.com/microsoft/onnxruntime/commits/master?before=e2b1852eecc82b92daeae27ec0692d4197b1bd73+699&branch=master
 git pull https://github.com/microsoft/onnxruntime/ fa093d8e45c5686f438c93146ab31840dd31f779
 
+# v1.9.0 (Commits on Sep 8, 2021)
+# https://github.com/microsoft/onnxruntime/commits/master?after=e2b1852eecc82b92daeae27ec0692d4197b1bd73+99&branch=master
+git pull https://github.com/microsoft/onnxruntime/ 6fbd0a823350615c613662f60cb27f18b4cbab24
+
 git add .
 git commit -m "Mar 4th pulled"
 ```
@@ -173,7 +202,7 @@ mkdir ORTMoreUpdated/
 cd ORTMoreUpdated
 git clone --recursive https://github.com/gineshidalgo99/onnxruntime
 cd onnxruntime
-git reset --hard fa8d1b44b832ffafddee0c38ac1fe1d09d8344ee
+git reset --hard 6fbd0a823350615c613662f60cb27f18b4cbab24
 
 # Manually copy the whole repository from `D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime` into it
 # Hopefully, `git status` should give ONLY the WITH_UE changes. Revert other changes
@@ -214,6 +243,7 @@ cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/co
 cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/providers/common.h D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/core/providers/common.h
 cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/providers/get_execution_providers.* D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/core/providers
 cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/providers/op_kernel_type_control* D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/core/providers
+cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/quantization D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/core/quantization
 cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/session D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/core/session
 cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/util D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_src_code_from_NNI/0_NewCodeToPushToNNI/Private/core/util
 # Copy custom_op_library
@@ -224,7 +254,7 @@ cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/te
 
 ```
 # Revert changes and re-copy changes to double check we did not mess anything here
-git reset --hard fa093d8e45c5686f438c93146ab31840dd31f779
+git reset --hard 6fbd0a823350615c613662f60cb27f18b4cbab24
 # Copy new changes
 ```
 
@@ -264,6 +294,7 @@ NOTE: The first one (from 1.7.1 to master) will be trickier, as there will be me
 				- `nni_hlsl/` (eventually)
 				- `shared/`
 				- `shared_library/`
+			- `quantization/`
 			- `session/`
 			- `util/`
 		- `test/testdata/custom_op_library/`
@@ -275,12 +306,11 @@ NOTE: The first one (from 1.7.1 to master) will be trickier, as there will be me
 
 
 ## Test and Debug ONNX Runtime on GitHub
-# Me
+# Paco's 1.9.1
+.\build.bat --config Release --parallel --use_dml --use_full_protobuf
+
+# Me 1.7.1
 .\build.bat --config Release --use_dml --build_shared_lib --parallel --cmake_generator "Visual Studio 16 2019" --build_wheel
 
-# Paco's
+# Paco's 1.7.1
 .\build.bat --config Release --use_dml --build_shared_lib --parallel --skip_tests --cmake_generator "Visual Studio 16 2019" --build_wheel
-
-
-
-## Step 3: How to update ONNX Runtime version
