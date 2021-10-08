@@ -3784,9 +3784,9 @@ void UNavigationSystemV1::OnNavigationGenerationFinished(ANavigationData& NavDat
 	OnNavigationGenerationFinishedDelegate.Broadcast(&NavData);
 
 #if WITH_EDITOR
-	if (GetWorld()->IsGameWorld() == false && NavData.IsBuildingOnLoad() == false)
+	if (GetWorld()->IsGameWorld() == false)
 	{
-		NavData.MarkPackageDirty();
+		UE_LOG(LogNavigationDataBuild, Log, TEXT("Navigation data generation finished in %s."), *NavData.GetPackage()->GetName());
 	}
 
 	// Reset bIsBuildingOnLoad
