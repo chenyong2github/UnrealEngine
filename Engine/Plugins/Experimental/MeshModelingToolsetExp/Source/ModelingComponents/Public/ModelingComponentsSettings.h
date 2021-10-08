@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Engine/DeveloperSettings.h"
+#include "BodySetupEnums.h"
 #include "ModelingComponentsSettings.generated.h"
 
 
