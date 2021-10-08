@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+#include "core/framework/op_kernel.h" // WITH_UE: Even though repeated, added to avoid weird errors like "error C2641: cannot deduce template arguments for 'onnxruntime::Scatter'"
+
 //https://github.com/onnx/onnx/blob/master/docs/Operators.md#Scatter
 #include <type_traits>
 
