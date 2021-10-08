@@ -424,6 +424,7 @@ protected:
 	virtual void UpdateMaterialMode(EMeshEditingMaterialModes NewMode);
 	virtual void UpdateFlatShadingSetting(bool bNewValue);
 	virtual void UpdateColorSetting(FLinearColor NewColor);
+	virtual void UpdateTransparentColorSetting(FLinearColor NewColor);
 	virtual void UpdateOpacitySetting(double Opacity);
 	virtual void UpdateTwoSidedSetting(bool bOn);
 	virtual void UpdateCustomMaterial(TWeakObjectPtr<UMaterialInterface> NewMaterial);
