@@ -246,6 +246,7 @@ public:
 
 	void GetNumCells(FVectorVMExternalFunctionContext& Context);
 	void SetNumCells(FVectorVMExternalFunctionContext& Context);
+	void UnitToFloatIndex(FVectorVMExternalFunctionContext& Context);
 
 	void GetAttributeIndex(FVectorVMExternalFunctionContext& Context, const FName& InName, int32 NumChannels);
 
