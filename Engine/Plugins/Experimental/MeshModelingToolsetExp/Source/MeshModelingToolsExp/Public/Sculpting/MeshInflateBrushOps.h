@@ -24,6 +24,7 @@ public:
 	float Falloff = 0.5;
 
 	virtual float GetStrength() override { return Strength; }
+	virtual void SetStrength(float NewStrength) override { Strength = FMathf::Clamp(NewStrength, 0.0f, 1.0f); }
 	virtual float GetFalloff() override { return Falloff; }
 };
 

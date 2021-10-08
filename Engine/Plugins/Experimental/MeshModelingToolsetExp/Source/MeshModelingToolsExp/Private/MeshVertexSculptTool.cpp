@@ -936,12 +936,18 @@ bool UMeshVertexSculptTool::GetBaseMeshNearest(int32 VertexID, const FVector3d& 
 
 void UMeshVertexSculptTool::IncreaseBrushSpeedAction()
 {
-	//SculptProperties->PrimaryBrushSpeed = FMath::Clamp(SculptProperties->PrimaryBrushSpeed + 0.05f, 0.0f, 1.0f);
+	TUniquePtr<FMeshSculptBrushOp>& UseBrushOp = GetActiveBrushOp();
+	float CurStrength = UseBrushOp->PropertySet->GetStrength();
+	float NewStrength = FMath::Clamp(CurStrength + 0.05f, 0.0f, 1.0f);
+	UseBrushOp->PropertySet->SetStrength(NewStrength);
 }
 
 void UMeshVertexSculptTool::DecreaseBrushSpeedAction()
 {
-	//SculptProperties->PrimaryBrushSpeed = FMath::Clamp(SculptProperties->PrimaryBrushSpeed - 0.05f, 0.0f, 1.0f);
+	TUniquePtr<FMeshSculptBrushOp>& UseBrushOp = GetActiveBrushOp();
+	float CurStrength = UseBrushOp->PropertySet->GetStrength();
+	float NewStrength = FMath::Clamp(CurStrength - 0.05f, 0.0f, 1.0f);
+	UseBrushOp->PropertySet->SetStrength(NewStrength);
 }
 
 void UMeshVertexSculptTool::UpdateBrushAlpha(UTexture2D* NewAlpha)

@@ -41,6 +41,7 @@ public:
 	EPlaneBrushSideMode WhichSide = EPlaneBrushSideMode::BothSides;
 
 	virtual float GetStrength() override { return Strength; }
+	virtual void SetStrength(float NewStrength) override { Strength = FMathf::Clamp(NewStrength, 0.0f, 1.0f); }
 	virtual float GetFalloff() override { return Falloff; }
 	virtual float GetDepth() override { return Depth; }
 	virtual EPlaneBrushSideMode GetWhichSide() { return WhichSide; }
@@ -69,6 +70,7 @@ public:
 	EPlaneBrushSideMode WhichSide = EPlaneBrushSideMode::BothSides;
 
 	virtual float GetStrength() override { return Strength; }
+	virtual void SetStrength(float NewStrength) override { Strength = FMathf::Clamp(NewStrength, 0.0f, 1.0f); }
 	virtual float GetFalloff() override { return Falloff; }
 	virtual float GetDepth() override { return Depth; }
 	virtual EPlaneBrushSideMode GetWhichSide() { return WhichSide; }
@@ -97,6 +99,7 @@ public:
 	EPlaneBrushSideMode WhichSide = EPlaneBrushSideMode::BothSides;
 
 	virtual float GetStrength() override { return Strength; }
+	virtual void SetStrength(float NewStrength) override { Strength = FMathf::Clamp(NewStrength, 0.0f, 1.0f); }
 	virtual float GetFalloff() override { return Falloff; }
 	virtual float GetDepth() override { return Depth; }
 	virtual EPlaneBrushSideMode GetWhichSide() { return WhichSide; }

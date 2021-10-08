@@ -89,6 +89,9 @@ public:
 	virtual float GetStrength() { return 1.0f; }
 	virtual float GetDepth() { return 0.0f; }
 	virtual float GetFalloff() { return 0.5f; }
+
+	// support for this is optional, used by UI level to edit brush props via hotkeys/etc
+	virtual void SetStrength(float NewStrength) { }
 };
 
 
