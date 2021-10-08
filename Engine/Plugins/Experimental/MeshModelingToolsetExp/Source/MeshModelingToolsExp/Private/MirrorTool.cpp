@@ -293,6 +293,7 @@ void UMirrorTool::SetupPreviews()
 		UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(
 			NewObject<UMeshOpPreviewWithBackgroundCompute>(MirrorOpCreator, "Preview"));
 		Preview->Setup(TargetWorld, MirrorOpCreator);
+		ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, nullptr);
 		Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 
 		FComponentMaterialSet MaterialSet;

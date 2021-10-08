@@ -164,6 +164,7 @@ void UUVProjectionTool::UpdateNumPreviews()
 
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(OperatorFactory);
 	Preview->Setup(this->TargetWorld, OperatorFactory);
+	ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, Target); 
 	Preview->OnMeshUpdated.AddUObject(this, &UUVProjectionTool::OnMeshUpdated);
 	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 

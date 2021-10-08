@@ -69,6 +69,7 @@ void UMeshTangentsTool::Setup()
 	PreviewMesh->bBuildSpatialDataStructure = false;
 	PreviewMesh->CreateInWorld(TargetActor->GetWorld(), FTransform::Identity);
 	PreviewMesh->SetTransform((FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target));
+	ToolSetupUtil::ApplyRenderingConfigurationToPreview(PreviewMesh, nullptr);
 	// configure materials
 	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
 	PreviewMesh->SetMaterials(MaterialSet.Materials);

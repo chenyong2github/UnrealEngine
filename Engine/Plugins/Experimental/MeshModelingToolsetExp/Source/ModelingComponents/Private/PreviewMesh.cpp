@@ -218,16 +218,20 @@ void UPreviewMesh::SetTransform(const FTransform& UseTransform)
 {
 	if (TemporaryParentActor != nullptr)
 	{
-		TemporaryParentActor->SetActorTransform(UseTransform);
+		if (!TemporaryParentActor->GetActorTransform().Equals(UseTransform))
+		{
+			TemporaryParentActor->SetActorTransform(UseTransform);
+			NotifyWorldPathTracedOutputInvalidated();
+		}
 	}
 }
 
-
 void UPreviewMesh::SetVisible(bool bVisible)
 {
-	if (DynamicMeshComponent != nullptr)
+	if (DynamicMeshComponent != nullptr && IsVisible() != bVisible )
 	{
 		DynamicMeshComponent->SetVisibility(bVisible, true);
+		NotifyWorldPathTracedOutputInvalidated();
 	}
 }
 
@@ -399,6 +403,8 @@ void UPreviewMesh::ReplaceMesh(FDynamicMesh3&& NewMesh)
 	{
 		UpdateRenderMeshDecomposition();
 	}
+
+	NotifyWorldPathTracedOutputInvalidated();
 }
 
 
@@ -417,6 +423,8 @@ void UPreviewMesh::EditMesh(TFunctionRef<void(FDynamicMesh3&)> EditFunc)
 	{
 		UpdateRenderMeshDecomposition();
 	}
+
+	NotifyWorldPathTracedOutputInvalidated();
 }
 
 
@@ -471,6 +479,8 @@ void UPreviewMesh::NotifyDeferredEditCompleted(ERenderUpdateMode UpdateMode, EMe
 			DynamicMeshComponent->FastNotifyVertexAttributesUpdated(bNormals, bColors, bUVs);
 		}
 	}
+
+	NotifyWorldPathTracedOutputInvalidated();
 }
 
 
@@ -492,6 +502,8 @@ TUniquePtr<FMeshChange> UPreviewMesh::TrackedEditMesh(TFunctionRef<void(FDynamic
 	{
 		UpdateRenderMeshDecomposition();
 	}
+
+	NotifyWorldPathTracedOutputInvalidated();
 
 	return MoveTemp(Change);
 }
@@ -519,6 +531,8 @@ void UPreviewMesh::ApplyChange(const FMeshChange* Change, bool bRevert)
 	{
 		UpdateRenderMeshDecomposition();
 	}
+
+	NotifyWorldPathTracedOutputInvalidated();
 }
 void UPreviewMesh::ApplyChange(const FMeshReplacementChange* Change, bool bRevert)
 {
@@ -532,6 +546,8 @@ void UPreviewMesh::ApplyChange(const FMeshReplacementChange* Change, bool bRever
 	{
 		UpdateRenderMeshDecomposition();
 	}
+
+	NotifyWorldPathTracedOutputInvalidated();
 }
 
 FSimpleMulticastDelegate& UPreviewMesh::GetOnMeshChanged()
@@ -589,9 +605,24 @@ void UPreviewMesh::UpdateRenderMeshDecomposition()
 void UPreviewMesh::NotifyRegionDeferredEditCompleted(const TArray<int32>& Triangles, EMeshRenderAttributeFlags ModifiedAttribs)
 {
 	DynamicMeshComponent->FastNotifyTriangleVerticesUpdated(Triangles, ModifiedAttribs);
+	NotifyWorldPathTracedOutputInvalidated();
 }
 
 void UPreviewMesh::NotifyRegionDeferredEditCompleted(const TSet<int32>& Triangles, EMeshRenderAttributeFlags ModifiedAttribs)
 {
 	DynamicMeshComponent->FastNotifyTriangleVerticesUpdated(Triangles, ModifiedAttribs);
+	NotifyWorldPathTracedOutputInvalidated();
+}
+
+
+void UPreviewMesh::NotifyWorldPathTracedOutputInvalidated()
+{
+	if (TemporaryParentActor != nullptr)
+	{
+		UWorld* World = TemporaryParentActor->GetWorld();
+		if (World && World->Scene && FApp::CanEverRender())
+		{
+			World->Scene->InvalidatePathTracedOutput();
+		}
+	}
 }

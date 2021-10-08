@@ -134,6 +134,14 @@ struct MODELINGCOMPONENTS_API FCreateMeshObjectParams
 
 
 	//
+	// Rendering Configuration Options, if this is applicable for the given mesh object
+	//
+
+	/** Specify whether normals should be automatically recomputed for this new mesh object */
+	UPROPERTY(Category = "CreateMeshObjectParams", EditAnywhere)
+	bool bEnableRaytracingSupport = true;
+
+	//
 	// Mesh Build Options, if this is applicable for the given mesh object
 	// (Currently somewhat specific to Assets in the Editor)
 	//
@@ -374,6 +382,15 @@ MODELINGCOMPONENTS_API FCreateTextureObjectResult CreateTextureObject(UInteracti
  * @return InputName without _UUID suffix
  */
 MODELINGCOMPONENTS_API FString StripGeneratedAssetSuffixFromName( FString InputName );
+
+
+/**
+* Generate a N-letter GUID string that contains only hex digits,
+* and contains at least one letter and one number. Used to create _UUID suffixes
+* for making asset names unique, etc.
+*/
+MODELINGCOMPONENTS_API FString GenerateRandomShortHexString(int32 NumChars = 8);
+
 
 /**
  * Look up the name for the Asset underlying the given Component, if there is one.

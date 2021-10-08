@@ -152,3 +152,44 @@ FString UE::Modeling::StripGeneratedAssetSuffixFromName(FString InputName)
 
 	return InputName.Left(Index);
 }
+
+
+
+
+
+FString UE::Modeling::GenerateRandomShortHexString(int32 NumChars)
+{
+	int32 FailCount = 0;
+	while (FailCount++ < 10)
+	{
+		FGuid Guid = FGuid::NewGuid();
+		FString GuidString = Guid.ToString(EGuidFormats::UniqueObjectGuid).ToUpper();
+		FString Result;
+		int32 Digits = 0, Letters = 0;
+		for (int32 k = 0; k < GuidString.Len(); ++k)
+		{
+			TCHAR Character = GuidString[k];
+			if (FChar::IsHexDigit(Character))
+			{
+				Result.AppendChar(Character);
+				if (FChar::IsDigit(Character))
+				{
+					Digits++;
+				}
+				else
+				{
+					Letters++;
+				}
+			}
+			if (Result.Len() == NumChars)
+			{
+				if (Digits > 0 && Letters > 0)
+				{
+					return Result;
+				}
+				break;		// exit loop
+			}
+		}
+	}
+	return TEXT("BADGUID1");
+}

@@ -2,12 +2,16 @@
 
 
 #include "ToolSetupUtil.h"
-
+#include "ModelingComponentsSettings.h"
 #include "Curves/CurveFloat.h"
 #include "InteractiveTool.h"
 #include "InteractiveToolManager.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
+
+#include "ModelingToolTargetUtil.h"
+#include "Components/BaseDynamicMeshComponent.h"
+#include "PreviewMesh.h"
 
 
 UMaterialInterface* ToolSetupUtil::GetDefaultMaterial()
@@ -318,4 +322,29 @@ UCurveFloat* ToolSetupUtil::GetContrastAdjustmentCurve(UInteractiveToolManager* 
 	UCurveFloat* CurveCopy = DuplicateObject<UCurveFloat>(Curve, GetTransientPackage());
 
 	return CurveCopy;
+}
+
+
+
+
+void ToolSetupUtil::ApplyRenderingConfigurationToPreview(UBaseDynamicMeshComponent* Component, UToolTarget* SourceTarget)
+{
+	UModelingComponentsSettings* Settings = GetMutableDefault<UModelingComponentsSettings>();
+	bool bEnableRaytracingSupport = (Settings != nullptr) ? Settings->bEnableRayTracingWhileEditing : false;
+
+
+	if (bEnableRaytracingSupport)
+	{
+		Component->SetEnableRaytracing(bEnableRaytracingSupport);
+	}
+}
+
+void ToolSetupUtil::ApplyRenderingConfigurationToPreview(UPreviewMesh* PreviewMesh, UToolTarget* SourceTarget)
+{
+	UBaseDynamicMeshComponent* Component = Cast<UBaseDynamicMeshComponent>(PreviewMesh->GetRootComponent());
+	if (!Component)
+	{
+		return;
+	}
+	ApplyRenderingConfigurationToPreview(Component, SourceTarget);
 }

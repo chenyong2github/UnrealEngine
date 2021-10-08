@@ -3,6 +3,7 @@
 #include "BakeMeshAttributeVertexTool.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
+#include "ToolSetupUtil.h"
 
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -291,6 +292,7 @@ void UBakeMeshAttributeVertexTool::Setup()
 	const FDynamicMesh3 InputMeshWithTangents = UE::ToolTarget::GetDynamicMeshCopy(Targets[0], true);
 	PreviewMesh = NewObject<UPreviewMesh>(this);
 	PreviewMesh->CreateInWorld(TargetWorld, FTransform::Identity);
+	ToolSetupUtil::ApplyRenderingConfigurationToPreview(PreviewMesh, nullptr);
 	PreviewMesh->SetTransform(static_cast<FTransform>(UE::ToolTarget::GetLocalToWorldTransform(Targets[0])));
 	PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::ExternallyProvided);
 	PreviewMesh->ReplaceMesh(InputMeshWithTangents);

@@ -7,6 +7,7 @@
 #include "Selection/ToolSelectionUtil.h"
 #include "ModelingObjectsCreationAPI.h"
 #include "ToolSceneQueriesUtil.h"
+#include "ToolSetupUtil.h"
 
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -139,6 +140,7 @@ void UAddPrimitiveTool::Setup()
 	// create preview mesh object
 	PreviewMesh = NewObject<UPreviewMesh>(this);
 	PreviewMesh->CreateInWorld(TargetWorld, FTransform::Identity);
+	ToolSetupUtil::ApplyRenderingConfigurationToPreview(PreviewMesh, nullptr); 
 	PreviewMesh->SetVisible(false);
 	PreviewMesh->SetMaterial(MaterialProperties->Material.Get());
 	PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);

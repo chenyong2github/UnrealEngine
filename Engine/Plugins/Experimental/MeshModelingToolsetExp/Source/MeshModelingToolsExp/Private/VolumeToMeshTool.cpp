@@ -73,6 +73,7 @@ void UVolumeToMeshTool::Setup()
 	PreviewMesh->bBuildSpatialDataStructure = false;
 	PreviewMesh->CreateInWorld(TargetVolume->GetWorld(), FTransform::Identity);
 	PreviewMesh->SetTransform(TargetVolume->GetActorTransform());
+	ToolSetupUtil::ApplyRenderingConfigurationToPreview(PreviewMesh, nullptr); 
 
 	PreviewMesh->SetMaterial( ToolSetupUtil::GetDefaultSculptMaterial(GetToolManager()) );
 

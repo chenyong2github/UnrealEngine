@@ -269,6 +269,7 @@ void UDrawAndRevolveTool::StartPreview()
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(RevolveOpCreator, "RevolveToolPreview");
 
 	Preview->Setup(TargetWorld, RevolveOpCreator);
+	ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, nullptr); 
 	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 
 	Preview->ConfigureMaterials(MaterialProperties->Material.Get(),

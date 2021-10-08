@@ -3,6 +3,7 @@
 #include "BakeMeshAttributeMapsToolBase.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
+#include "ToolSetupUtil.h"
 
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
@@ -61,6 +62,7 @@ void UBakeMeshAttributeMapsToolBase::Setup()
 	const UE::Geometry::FTransform3d BaseToWorld = UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
 	PreviewMesh = NewObject<UPreviewMesh>(this);
 	PreviewMesh->CreateInWorld(TargetWorld, FTransform::Identity);
+	ToolSetupUtil::ApplyRenderingConfigurationToPreview(PreviewMesh, nullptr);
 	PreviewMesh->SetTransform(static_cast<FTransform>(BaseToWorld));
 	PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::ExternallyProvided);
 	PreviewMesh->ReplaceMesh(InputMesh);

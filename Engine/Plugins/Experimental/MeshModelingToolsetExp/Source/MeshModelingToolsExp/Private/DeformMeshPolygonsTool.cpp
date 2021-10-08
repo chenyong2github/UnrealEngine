@@ -12,6 +12,7 @@
 #include "SegmentTypes.h"
 #include "Solvers/ConstrainedMeshDeformer.h"
 #include "ToolBuilderUtil.h"
+#include "ToolSetupUtil.h"
 #include "ToolSceneQueriesUtil.h"
 #include "ModelingToolTargetUtil.h"
 
@@ -852,6 +853,7 @@ void UDeformMeshPolygonsTool::Setup()
 	DynamicMeshComponent->RegisterComponent();
 	WorldTransform = UE::ToolTarget::GetLocalToWorldTransform(Target);
 	DynamicMeshComponent->SetWorldTransform((FTransform)WorldTransform);
+	ToolSetupUtil::ApplyRenderingConfigurationToPreview(DynamicMeshComponent, Target);
 
 	// set materials
 	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);

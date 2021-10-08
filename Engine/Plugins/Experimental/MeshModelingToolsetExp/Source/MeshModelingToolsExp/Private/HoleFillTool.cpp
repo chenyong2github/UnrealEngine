@@ -316,6 +316,7 @@ void UHoleFillTool::SetupPreview()
 
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(OpFactory, "Preview");
 	Preview->Setup(this->TargetWorld, OpFactory);
+	ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, Target);
 
 	FComponentMaterialSet MaterialSet;
 	Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);

@@ -53,6 +53,7 @@ void UCutMeshWithMeshTool::SetupProperties()
 	// create intersection preview mesh object
 	IntersectPreviewMesh = NewObject<UPreviewMesh>(this);
 	IntersectPreviewMesh->CreateInWorld(TargetWorld, FTransform::Identity);
+	ToolSetupUtil::ApplyRenderingConfigurationToPreview(IntersectPreviewMesh, nullptr); 
 	IntersectPreviewMesh->SetVisible(true);
 	//IntersectPreviewMesh->SetMaterial(MaterialProperties->Material.Get());
 	//IntersectPreviewMesh->SetMaterial(ToolSetupUtil::GetDefaultMaterial(nullptr));

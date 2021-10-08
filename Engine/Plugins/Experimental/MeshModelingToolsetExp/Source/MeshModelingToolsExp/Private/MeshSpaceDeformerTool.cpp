@@ -153,6 +153,7 @@ void UMeshSpaceDeformerTool::Setup()
 
 	OriginalMeshPreview = NewObject<UPreviewMesh>();
 	OriginalMeshPreview->CreateInWorld(TargetWorld, MeshTransform);
+	ToolSetupUtil::ApplyRenderingConfigurationToPreview(OriginalMeshPreview, Target);
 	OriginalMeshPreview->UpdatePreview(OriginalDynamicMesh.Get());
 	OriginalMeshPreview->SetMaterial(0, ToolSetupUtil::GetCustomDepthOffsetMaterial(GetToolManager(), FLinearColor::White,
 		-0.5,  // depth offset, 0.5% inward
@@ -278,6 +279,7 @@ void UMeshSpaceDeformerTool::Setup()
 
 		Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(DeformerOperatorFactory, "Preview");
 		Preview->Setup(this->TargetWorld, DeformerOperatorFactory);
+		ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, Target);
 		Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 
 		Preview->SetIsMeshTopologyConstant(true, EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexNormals);

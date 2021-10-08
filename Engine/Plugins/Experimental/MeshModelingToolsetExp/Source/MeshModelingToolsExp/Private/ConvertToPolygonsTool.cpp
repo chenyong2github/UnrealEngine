@@ -194,6 +194,7 @@ void UConvertToPolygonsTool::Setup()
 
 		PreviewCompute = NewObject<UMeshOpPreviewWithBackgroundCompute>(ConvertToPolygonsOperatorFactory);
 		PreviewCompute->Setup(this->TargetWorld, ConvertToPolygonsOperatorFactory);
+		ToolSetupUtil::ApplyRenderingConfigurationToPreview(PreviewCompute->PreviewMesh, Target);
 		PreviewCompute->SetIsMeshTopologyConstant(true, EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexNormals);
 
 		// Give the preview something to display

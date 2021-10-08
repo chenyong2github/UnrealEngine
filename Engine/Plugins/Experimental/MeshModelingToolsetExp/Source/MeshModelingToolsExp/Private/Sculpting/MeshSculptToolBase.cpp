@@ -235,6 +235,8 @@ void UMeshSculptToolBase::Render(IToolsContextRenderAPI* RenderAPI)
 
 void UMeshSculptToolBase::InitializeSculptMeshComponent(UBaseDynamicMeshComponent* Component)
 {
+	ToolSetupUtil::ApplyRenderingConfigurationToPreview(Component, nullptr);
+
 	// disable shadows initially, as changing shadow settings invalidates the SceneProxy
 	Component->SetShadowsEnabled(false);
 

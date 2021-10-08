@@ -245,6 +245,7 @@ void UEditMeshPolygonsTool::Setup()
 	// Create the preview object
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>();
 	Preview->Setup(TargetWorld);
+	ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, Target); 
 	WorldTransform = UE::ToolTarget::GetLocalToWorldTransform(Target);
 	Preview->PreviewMesh->SetTransform((FTransform)WorldTransform);
 

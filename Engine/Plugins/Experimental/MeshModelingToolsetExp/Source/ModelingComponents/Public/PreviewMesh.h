@@ -446,6 +446,10 @@ protected:
 
 	/** Update chunk decomposition */
 	void UpdateRenderMeshDecomposition();
+
+	// This function is called internally on some changes, to let the path tracer know that this mesha/actor
+	// has been modified in a way that will require invalidating the current path tracing result
+	void NotifyWorldPathTracedOutputInvalidated();
 };
 
 

@@ -98,6 +98,7 @@ void UBaseCreateFromSelectedTool::Setup()
 
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this);
 	Preview->Setup(this->TargetWorld, this);
+	ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, nullptr);
 
 	SetPreviewCallbacks();
 	Preview->OnMeshUpdated.AddLambda(

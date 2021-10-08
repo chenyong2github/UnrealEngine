@@ -828,6 +828,7 @@ void UDisplaceMeshTool::Setup()
 	DynamicMeshComponent->RegisterComponent();
 	DynamicMeshComponent->SetWorldTransform((FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target));
 	DynamicMeshComponent->bExplicitShowWireframe = CommonProperties->bShowWireframe;
+	ToolSetupUtil::ApplyRenderingConfigurationToPreview(DynamicMeshComponent, Target);
 
 	// transfer materials
 	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);

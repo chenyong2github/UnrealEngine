@@ -104,6 +104,7 @@ void UDynamicMeshSculptTool::Setup()
 	DynamicMeshComponent->SetShadowsEnabled(false);
 	DynamicMeshComponent->SetupAttachment(UE::ToolTarget::GetTargetActor(Target)->GetRootComponent());
 	DynamicMeshComponent->RegisterComponent();
+	ToolSetupUtil::ApplyRenderingConfigurationToPreview(DynamicMeshComponent, Target); 
 
 	// initialize from LOD-0 MeshDescription
 	DynamicMeshComponent->SetMesh(UE::ToolTarget::GetDynamicMeshCopy(Target));

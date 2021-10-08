@@ -2,6 +2,7 @@
 
 #include "PropertySets/CreateMeshObjectTypeProperties.h"
 #include "ModelingObjectsCreationAPI.h"
+#include "ModelingComponentsSettings.h"
 
 
 const FString UCreateMeshObjectTypeProperties::StaticMeshIdentifier = TEXT("Static Mesh");
@@ -105,6 +106,15 @@ bool UCreateMeshObjectTypeProperties::ConfigureCreateMeshObjectParams(FCreateMes
 {
 	// client has to handle this case
 	ensure(OutputType != AutoIdentifier);
+
+	const UModelingComponentsSettings* Settings = GetDefault<UModelingComponentsSettings>();
+	if (Settings)
+	{
+		ParamsOut.bEnableCollision = Settings->bEnableCollision;
+		ParamsOut.CollisionMode = Settings->CollisionMode;
+
+		ParamsOut.bEnableRaytracingSupport = Settings->bEnableRayTracing;
+	}
 
 	if (OutputType == StaticMeshIdentifier)
 	{
