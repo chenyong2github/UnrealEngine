@@ -128,6 +128,9 @@
 
 #define IS_MESHPARTICLE_FACTORY (PARTICLE_MESH_FACTORY || NIAGARA_MESH_FACTORY)
 
+#define HAS_INSTANCE_LOCAL_TO_WORLD_PS	(NEEDS_INSTANCE_LOCAL_TO_WORLD_PS && (USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY))
+#define HAS_INSTANCE_WORLD_TO_LOCAL_PS	(NEEDS_INSTANCE_WORLD_TO_LOCAL_PS && (USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY))
+
 #define IS_HAIR_FACTORY (HAIR_STRAND_MESH_FACTORY || HAIR_CARD_MESH_FACTORY)
 
 #define TEMPLATE_USES_STRATA			(PROJECT_STRATA && MATERIAL_IS_STRATA)
@@ -362,6 +365,12 @@ struct FMaterialPixelParameters
 	float2	HairPrimitiveUV;	// U: parametric distance between the two surrounding control point. V: parametric distance along hair width
 #endif
 
+#if HAS_INSTANCE_LOCAL_TO_WORLD_PS
+	float4x4 InstanceLocalToWorld;
+#endif
+#if HAS_INSTANCE_WORLD_TO_LOCAL_PS
+	float4x4 InstanceWorldToLocal;
+#endif
 	/** Per-particle properties. Only valid for particle vertex factories. */
 	FMaterialParticleParameters Particle;
 
@@ -462,9 +471,13 @@ struct FMaterialVertexParameters
 	float3 WorldPosition;
 	// TangentToWorld[2] is WorldVertexNormal
 	half3x3 TangentToWorld;
+	
+#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY
+	float4x4 InstanceLocalToWorld;
+	float4x4 InstanceWorldToLocal;
+#endif
 #if USE_INSTANCING || USE_INSTANCE_CULLING
 	/** Per-instance properties. */
-	float4x4 InstanceLocalToWorld;
 	float3 InstanceLocalPosition;
 	float4 PerInstanceParams;
 #if USE_INSTANCE_CULLING
@@ -473,10 +486,6 @@ struct FMaterialVertexParameters
 	uint InstanceId;
 #endif
 	uint InstanceOffset;
-
-#elif IS_MESHPARTICLE_FACTORY 
-	/** Per-particle properties. */
-	float4x4 InstanceLocalToWorld;
 #endif
 	// If either USE_INSTANCING or (IS_MESHPARTICLE_FACTORY && FEATURE_LEVEL >= FEATURE_LEVEL_SM4)
 	// is true, PrevFrameLocalToWorld is a per-instance transform
@@ -546,6 +555,42 @@ MaterialFloat3x3 GetLocalToWorld3x3(FMaterialPixelParameters Parameters)
 MaterialFloat3x3 GetLocalToWorld3x3()
 {
 	return (MaterialFloat3x3)Primitive.LocalToWorld;
+}
+
+float4x4 GetWorldToInstance(FMaterialVertexParameters Parameters)
+{
+	#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY
+		return Parameters.InstanceWorldToLocal;
+	#else
+		return GetPrimitiveData(Parameters).WorldToLocal;
+	#endif
+}
+
+float4x4 GetWorldToInstance(FMaterialPixelParameters Parameters)
+{
+	#if HAS_INSTANCE_WORLD_TO_LOCAL_PS
+		return Parameters.InstanceWorldToLocal;
+	#else
+		return GetPrimitiveData(Parameters).WorldToLocal;
+	#endif
+}
+
+float4x4 GetInstanceToWorld(FMaterialVertexParameters Parameters)
+{
+	#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY
+		return Parameters.InstanceLocalToWorld;
+	#else
+		return GetPrimitiveData(Parameters).LocalToWorld;
+	#endif
+}
+
+float4x4 GetInstanceToWorld(FMaterialPixelParameters Parameters)
+{
+	#if HAS_INSTANCE_LOCAL_TO_WORLD_PS
+		return Parameters.InstanceLocalToWorld;
+	#else
+		return GetPrimitiveData(Parameters).LocalToWorld;
+	#endif
 }
 
 float3 GetTranslatedWorldPosition(FMaterialVertexParameters Parameters)

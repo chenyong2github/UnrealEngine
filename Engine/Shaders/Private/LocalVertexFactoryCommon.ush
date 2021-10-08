@@ -40,6 +40,13 @@ struct FVertexFactoryInterpolantsVSToPS
 	nointerpolation uint HairPrimitiveId	: HAIR_PRIMITIVE_ID; // Control point ID
 	float2 HairPrimitiveUV					: HAIR_PRIMITIVE_UV; // U: parameteric distance between the two surrounding control points. V: parametric distance along the width.
 #endif
+
+#if HAS_INSTANCE_LOCAL_TO_WORLD_PS
+	nointerpolation float4 InstanceLocalToWorld[3] : INSTANCE_LOCAL_TO_WORLD;
+#endif
+#if HAS_INSTANCE_WORLD_TO_LOCAL_PS
+	nointerpolation float4 InstanceWorldToLocal[3] : INSTANCE_WORLD_TO_LOCAL;
+#endif
 };
 
 #if NUM_TEX_COORD_INTERPOLATORS || USE_PARTICLE_SUBUVS
@@ -150,3 +157,33 @@ void SetLightmapDataIndex(inout FVertexFactoryInterpolantsVSToPS Interpolants, u
 	Interpolants.LightmapDataIndex = LightmapDataIndex;
 #endif
 }
+
+#if HAS_INSTANCE_LOCAL_TO_WORLD_PS
+void SetInstanceLocalToWorld(inout FVertexFactoryInterpolantsVSToPS Interpolants, float4x4 InstanceLocalToWorld)
+{
+	float4x4 InstanceLocalToWorldT = transpose(InstanceLocalToWorld);
+	Interpolants.InstanceLocalToWorld[0] = InstanceLocalToWorldT[0];
+	Interpolants.InstanceLocalToWorld[1] = InstanceLocalToWorldT[1];
+	Interpolants.InstanceLocalToWorld[2] = InstanceLocalToWorldT[2];
+}
+
+float4x4 GetInstanceLocalToWorld(FVertexFactoryInterpolantsVSToPS Interpolants)
+{
+	return transpose(float4x4(Interpolants.InstanceLocalToWorld[0], Interpolants.InstanceLocalToWorld[1], Interpolants.InstanceLocalToWorld[2], float4(0.0f, 0.0f, 0.0f, 1.0f)));
+}
+#endif
+
+#if HAS_INSTANCE_WORLD_TO_LOCAL_PS
+void SetInstanceWorldToLocal(inout FVertexFactoryInterpolantsVSToPS Interpolants, float4x4 InstanceWorldToLocal)
+{
+	float4x4 InstanceWorldToLocalT = transpose(InstanceWorldToLocal);
+	Interpolants.InstanceWorldToLocal[0] = InstanceWorldToLocalT[0];
+	Interpolants.InstanceWorldToLocal[1] = InstanceWorldToLocalT[1];
+	Interpolants.InstanceWorldToLocal[2] = InstanceWorldToLocalT[2];
+}
+
+float4x4 GetInstanceWorldToLocal(FVertexFactoryInterpolantsVSToPS Interpolants)
+{
+	return transpose(float4x4(Interpolants.InstanceWorldToLocal[0], Interpolants.InstanceWorldToLocal[1], Interpolants.InstanceWorldToLocal[2], float4(0.0f, 0.0f, 0.0f, 1.0f)));
+}
+#endif

@@ -10401,7 +10401,8 @@ static EMaterialCommonBasis GetMaterialCommonBasis(EMaterialVectorCoordTransform
 		MCB_World,						// TRANSFORMSOURCE_World
 		MCB_View,						// TRANSFORMSOURCE_View
 		MCB_Camera,						// TRANSFORMSOURCE_Camera
-		MCB_MeshParticle,
+		MCB_MeshParticle,				// TRANSFORMSOURCE_Particle
+		MCB_Instance,					// TRANSFORMSOURCE_Instance
 	};
 	return ConversionTable[X];
 }
@@ -10414,7 +10415,8 @@ static EMaterialCommonBasis GetMaterialCommonBasis(EMaterialVectorCoordTransform
 		MCB_World,						// TRANSFORM_World
 		MCB_View,						// TRANSFORM_View
 		MCB_Camera,						// TRANSFORM_Camera
-		MCB_MeshParticle,
+		MCB_MeshParticle,				// TRANSFORM_Particle
+		MCB_Instance,					// TRANSFORM_Instance
 	};
 	return ConversionTable[X];
 }
@@ -10516,7 +10518,8 @@ static EMaterialCommonBasis GetMaterialCommonBasis(EMaterialPositionTransformSou
 		MCB_TranslatedWorld,			// TRANSFORMPOSSOURCE_TranslatedWorld
 		MCB_View,						// TRANSFORMPOSSOURCE_View
 		MCB_Camera,						// TRANSFORMPOSSOURCE_Camera
-		MCB_MeshParticle,	
+		MCB_MeshParticle,				// TRANSFORMPOSSOURCE_Particle
+		MCB_Instance,					// TRANSFORMPOSSOURCE_Instance
 	};
 	return ConversionTable[X];
 }

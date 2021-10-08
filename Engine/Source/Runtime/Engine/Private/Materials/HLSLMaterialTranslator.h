@@ -354,6 +354,11 @@ protected:
 	/** true if the material reads mesh particle world to local in the pixel shader. */
 	uint32 bUsesParticleWorldToLocal : 1;
 
+	/** true if the material reads per instance local to world in the pixel shader. */
+	uint32 bUsesInstanceLocalToWorldPS : 1;
+	/** true if the material reads per instance world to local in the pixel shader. */
+	uint32 bUsesInstanceWorldToLocalPS : 1;
+
 	/** true if the material uses any type of vertex position */
 	uint32 bUsesVertexPosition : 1;
 

@@ -27,8 +27,11 @@ enum EMaterialVectorCoordTransformSource
 	/** Camera space */
 	TRANSFORMSOURCE_Camera  UMETA(DisplayName="Camera Space"),
 
-	/** Particle space */
-	TRANSFORMSOURCE_ParticleWorld  UMETA(DisplayName = "Mesh particle space"),
+	/** Particle space, deprecated value will be removed in a future release use instance space. */
+	TRANSFORMSOURCE_ParticleWorld  UMETA(Hidden, DisplayName = "Mesh particle space"),
+
+	/** Instance space (used to provide per instance transform, i.e. for Instanced Static Mesh / Particles). */
+	TRANSFORMSOURCE_Instance UMETA(DisplayName = "Instance & Particle Space"),
 
 	TRANSFORMSOURCE_MAX,
 };
@@ -51,8 +54,11 @@ enum EMaterialVectorCoordTransform
 	/** Camera space */
 	TRANSFORM_Camera  UMETA(DisplayName="Camera Space"),
 
-	/** Particle space */
-	TRANSFORM_ParticleWorld UMETA(DisplayName = "Mesh particle space"),
+	/** Particle space, deprecated value will be removed in a future release use instance space. */
+	TRANSFORM_ParticleWorld UMETA(Hidden, DisplayName = "Mesh particle space"),
+
+	/** Instance space (used to provide per instance transform, i.e. for Instanced Static Mesh / Particles). */
+	TRANSFORM_Instance UMETA(DisplayName = "Instance & Particle Space"),
 
 	TRANSFORM_MAX,
 };
