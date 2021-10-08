@@ -259,6 +259,7 @@ void UDynamicMeshSculptTool::Setup()
 		[this]() { return GizmoProperties->Rotation; },
 		[this](FQuat NewRotation) { UpdateGizmoFromProperties(); }, GizmoProperties->Rotation);
 
+	DynamicMeshComponent->bExplicitShowWireframe = ViewProperties->bShowWireframe;
 
 	// create proxy for plane gizmo, but not gizmo itself, as it only appears in FixedPlane brush mode
 	// listen for changes to the proxy and update the plane when that happens
