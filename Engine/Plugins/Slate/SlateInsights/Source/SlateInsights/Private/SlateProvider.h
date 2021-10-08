@@ -57,10 +57,14 @@ struct FWidgetInfo
 struct FWidgetUpdatedMessage
 {
 	FWidgetId WidgetId;
+	/** How long the update took. */
+	double Duration;
+	/** Number of widget that was affected by the updated widget. */
+	int32 AffectedCount;
 	/** Flag that was set by an invalidation or on the widget directly. */
 	EWidgetUpdateFlags UpdateFlags;
 
-	FWidgetUpdatedMessage(const UE::Trace::IAnalyzer::FEventData& EventData);
+	FWidgetUpdatedMessage(const UE::Trace::IAnalyzer::FEventData& EventData, const UE::Trace::IAnalyzer::FEventTime& EventTime);
 };
 
 struct FWidgetInvalidatedMessage

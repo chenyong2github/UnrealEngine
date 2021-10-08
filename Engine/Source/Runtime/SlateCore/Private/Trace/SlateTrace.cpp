@@ -36,7 +36,6 @@ UE_TRACE_EVENT_BEGIN(SlateTrace, ApplicationTickAndDrawWidgets)
 	UE_TRACE_EVENT_FIELD(uint32, TickCount)				// Amount of widget that needed to be tick.
 	UE_TRACE_EVENT_FIELD(uint32, TimerCount)			// Amount of widget that needed a timer update.
 	UE_TRACE_EVENT_FIELD(uint32, RepaintCount)			// Amount of widget that requested a paint.
-	UE_TRACE_EVENT_FIELD(uint32, VolatilePaintCount)	// Amount of widget that will always get painted.
 	UE_TRACE_EVENT_FIELD(uint32, PaintCount)			// Total amount of widget that got painted
 														//This can be higher than RepaintCount+VolatilePaintCount because some widget can get be painted as a side effect of another widget being painted.
 	UE_TRACE_EVENT_FIELD(uint32, InvalidateCount)		// Amount of widget that got invalidated.
@@ -63,7 +62,9 @@ UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(SlateTrace, WidgetUpdated)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(uint64, CycleEnd)
 	UE_TRACE_EVENT_FIELD(uint64, WidgetId)				// Updated widget unique ID.
+	UE_TRACE_EVENT_FIELD(uint32, AffectedCount)			// The number of widget that got affected by the object
 	UE_TRACE_EVENT_FIELD(uint8, UpdateFlags)			// The reason of the update. (EWidgetUpdateFlags)
 UE_TRACE_EVENT_END()
 
@@ -100,12 +101,13 @@ namespace SlateTraceDetail
 {
 	uint32 GWidgetCount = 0;
 	uint32 GScopedPaintCount = 0;
+	uint32 GScopedUpdateCount = 0;
 
 	uint32 GFramePaintCount = 0;
 	uint32 GFrameTickCount = 0;
 	uint32 GFrameTimerCount = 0;
 	uint32 GFrameRepaintCount = 0;
-	uint32 GFrameVolatileCount = 0;
+	//uint32 GFrameVolatileCount = 0;
 	uint32 GFrameInvalidateCount = 0;
 	uint32 GFrameRootInvalidateCount = 0;
 
@@ -130,18 +132,58 @@ namespace SlateTraceDetail
  //-----------------------------------------------------------------------------------//
 
 FSlateTrace::FScopedWidgetPaintTrace::FScopedWidgetPaintTrace(const SWidget* InWidget)
-	: StartCycle(FPlatformTime::Cycles64())
-	, Widget(InWidget)
-	, StartPaintCount(SlateTraceDetail::GScopedPaintCount)
+	: Widget(InWidget)
+	, StartPaintCount(SlateTraceDetail::GFramePaintCount)
 {
+	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(SlateChannel))
+	{
+		StartCycle = FPlatformTime::Cycles64();
+	}
+
 	++SlateTraceDetail::GScopedPaintCount;
 	++SlateTraceDetail::GFramePaintCount;
 }
 
 FSlateTrace::FScopedWidgetPaintTrace::~FScopedWidgetPaintTrace()
 {
-	FSlateTrace::OutputWidgetPaint(Widget, StartCycle, FPlatformTime::Cycles64(), SlateTraceDetail::GScopedPaintCount - StartPaintCount);
 	--SlateTraceDetail::GScopedPaintCount;
+	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(SlateChannel))
+	{
+		const double EndCycle = FPlatformTime::Cycles64();
+		const uint32 AffectedCount = SlateTraceDetail::GFramePaintCount - StartPaintCount;
+		//FSlateTrace::OutputWidgetPaint(Widget, StartCycle, EndCycle, AffectedCount);
+		if (SlateTraceDetail::GScopedPaintCount == 0)
+		{
+			const EWidgetUpdateFlags UpdateFlags = Widget->IsVolatile() ? EWidgetUpdateFlags::NeedsVolatilePaint : EWidgetUpdateFlags::NeedsRepaint;
+			FSlateTrace::OutputWidgetUpdate(Widget, StartCycle, EndCycle, UpdateFlags, AffectedCount);
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------------//
+
+FSlateTrace::FScopedWidgetUpdateTrace::FScopedWidgetUpdateTrace(const SWidget* InWidget)
+{
+	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(SlateChannel))
+	{
+		UpdateFlags = EWidgetUpdateFlags::None;
+		if (EnumHasAnyFlags(InWidget->UpdateFlags, EWidgetUpdateFlags::NeedsActiveTimerUpdate | EWidgetUpdateFlags::NeedsTick))
+		{
+			StartCycle = FPlatformTime::Cycles64();
+			Widget = InWidget;
+			UpdateFlags = InWidget->UpdateFlags & (EWidgetUpdateFlags::NeedsTick | EWidgetUpdateFlags::NeedsActiveTimerUpdate);
+		}
+	}
+	++SlateTraceDetail::GScopedUpdateCount;
+}
+
+FSlateTrace::FScopedWidgetUpdateTrace::~FScopedWidgetUpdateTrace()
+{
+	--SlateTraceDetail::GScopedUpdateCount;
+	if (UpdateFlags != EWidgetUpdateFlags::None)
+	{
+		FSlateTrace::OutputWidgetUpdate(Widget, StartCycle, FPlatformTime::Cycles64(), UpdateFlags, 1);
+	}
 }
 
 //-----------------------------------------------------------------------------------//
@@ -163,7 +205,7 @@ void FSlateTrace::ApplicationTickAndDrawWidgets(float DeltaTime)
 			<< ApplicationTickAndDrawWidgets.TickCount(SlateTraceDetail::GFrameTickCount)
 			<< ApplicationTickAndDrawWidgets.TimerCount(SlateTraceDetail::GFrameTimerCount)
 			<< ApplicationTickAndDrawWidgets.RepaintCount(SlateTraceDetail::GFrameRepaintCount)
-			<< ApplicationTickAndDrawWidgets.VolatilePaintCount(SlateTraceDetail::GFrameVolatileCount)
+			//<< ApplicationTickAndDrawWidgets.VolatilePaintCount(SlateTraceDetail::GFrameVolatileCount)
 			<< ApplicationTickAndDrawWidgets.PaintCount(SlateTraceDetail::GFramePaintCount)
 			<< ApplicationTickAndDrawWidgets.InvalidateCount(SlateTraceDetail::GFrameInvalidateCount)
 			<< ApplicationTickAndDrawWidgets.RootInvalidatedCount(SlateTraceDetail::GFrameRootInvalidateCount)
@@ -172,32 +214,39 @@ void FSlateTrace::ApplicationTickAndDrawWidgets(float DeltaTime)
 		SlateTraceDetail::GFrameTickCount = 0;
 		SlateTraceDetail::GFrameTimerCount = 0;
 		SlateTraceDetail::GFrameRepaintCount = 0;
-		SlateTraceDetail::GFrameVolatileCount = 0;
+		//SlateTraceDetail::GFrameVolatileCount = 0;
 		SlateTraceDetail::GFramePaintCount = 0;
 		SlateTraceDetail::GFrameInvalidateCount = 0;
 		SlateTraceDetail::GFrameRootInvalidateCount = 0;
 	}
 }
 
-void FSlateTrace::WidgetUpdated(const SWidget* Widget, EWidgetUpdateFlags UpdateFlags)
+void FSlateTrace::OutputWidgetUpdate(const SWidget* Widget, uint64 StartCycle, uint64 EndCycle, EWidgetUpdateFlags UpdateFlags, uint32 AffectedCount)
 {
-	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(SlateChannel) && UpdateFlags != EWidgetUpdateFlags::None)
+	if (EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::NeedsActiveTimerUpdate))
 	{
-		if (EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::NeedsTick)) { ++SlateTraceDetail::GFrameTickCount; }
-		if (EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::NeedsActiveTimerUpdate)) { ++SlateTraceDetail::GFrameTimerCount; }
-
-		if (EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::NeedsVolatilePaint)) { ++SlateTraceDetail::GFrameVolatileCount; }
-		else if (EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::NeedsRepaint)) { ++SlateTraceDetail::GFrameRepaintCount; }
-
-		static_assert(sizeof(EWidgetUpdateFlags) == sizeof(uint8), "EWidgetUpdateFlags is not a uint8");
-
-		const uint64 WidgetId = SlateTraceDetail::GetWidgetId(Widget);
-
-		UE_TRACE_LOG(SlateTrace, WidgetUpdated, SlateChannel)
-			<< WidgetUpdated.Cycle(FPlatformTime::Cycles64())
-			<< WidgetUpdated.WidgetId(WidgetId)
-			<< WidgetUpdated.UpdateFlags(static_cast<uint8>(UpdateFlags));
+		++SlateTraceDetail::GFrameTimerCount;
 	}
+	else if (EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::NeedsTick))
+	{
+		++SlateTraceDetail::GFrameTickCount;
+	}
+
+	if (EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::NeedsVolatilePaint | EWidgetUpdateFlags::NeedsRepaint))
+	{
+		++SlateTraceDetail::GFrameRepaintCount;
+	}
+
+	static_assert(sizeof(EWidgetUpdateFlags) == sizeof(uint8), "EWidgetUpdateFlags is not a uint8");
+
+	const uint64 WidgetId = SlateTraceDetail::GetWidgetId(Widget);
+
+	UE_TRACE_LOG(SlateTrace, WidgetUpdated, SlateChannel)
+		<< WidgetUpdated.Cycle(StartCycle)
+		<< WidgetUpdated.CycleEnd(EndCycle)
+		<< WidgetUpdated.WidgetId(WidgetId)
+		<< WidgetUpdated.AffectedCount(AffectedCount)
+		<< WidgetUpdated.UpdateFlags(static_cast<uint8>(UpdateFlags));
 }
 
 void FSlateTrace::WidgetInvalidated(const SWidget* Widget, const SWidget* Investigator, EInvalidateWidgetReason Reason)

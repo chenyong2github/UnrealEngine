@@ -75,7 +75,7 @@ bool FSlateAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 	{
 		const double Time = Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle"));
 
-		SlateProvider.AddWidgetUpdatedEvent(Time, Message::FWidgetUpdatedMessage(EventData));
+		SlateProvider.AddWidgetUpdatedEvent(Time, Message::FWidgetUpdatedMessage(EventData, Context.EventTime));
 		break;
 	}
 	case RouteId_WidgetInvalidated:

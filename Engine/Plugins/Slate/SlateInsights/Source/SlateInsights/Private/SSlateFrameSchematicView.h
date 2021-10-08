@@ -49,16 +49,21 @@ private:
 	void HandleSelectionEventChanged(const TSharedPtr<const ITimingEvent> InEvent);
 
 	TSharedPtr<SWidget> HandleWidgetInvalidateListContextMenu();
+	FString HandleWidgetInvalidateListToStringDebug(TSharedPtr<Private::FWidgetUniqueInvalidatedInfo> Item);
 	bool CanWidgetInvalidateListGotoRootWidget();
 	void HandleWidgetInvalidateListGotoRootWidget();
 	bool CanWidgetInvalidateListViewScriptAndCallStack();
 	void HandleWidgetInvalidateListViewScriptAndCallStack();
+	void HandleWidgetUpdateInfoSort(EColumnSortPriority::Type, const FName& ColumnId, EColumnSortMode::Type SortMode);
+	EColumnSortMode::Type HandleWidgetUpdateGetSortMode(FName ColumnId) const;
 
 	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override;
 
 	void RefreshNodes();
 	void RefreshNodes_Invalidation(const FSlateProvider* SlateProvider);
 	void RefreshNodes_Update(const FSlateProvider* SlateProvider);
+
+	void SortWidgetUpdateInfos();
 
 private:
 	const TraceServices::IAnalysisSession* AnalysisSession;
@@ -74,6 +79,9 @@ private:
 	TSharedPtr<STextBlock> InvalidationSummary;
 	TSharedPtr<STextBlock> UpdateSummary;
 	TSharedPtr<SMultiLineEditableTextBox> ScriptAndCallStackTextBox;
+
+	FName WidgetUpdateSortColumn;
+	bool bWidgetUpdateSortAscending;
 
 	double StartTime;
 	double EndTime;

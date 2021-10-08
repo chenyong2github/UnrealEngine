@@ -160,6 +160,7 @@ class SLATECORE_API SWidget
 	friend class FSlateInvalidationWidgetList;
 	friend class FSlateWindowElementList;
 	friend class SWindow;
+	friend class FSlateTrace;
 	friend struct FSlateCachedElementList;
 	template<class WidgetType, typename RequiredArgsPayloadType>
 	friend struct TSlateDecl;

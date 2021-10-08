@@ -81,21 +81,20 @@ void SSlateTraceWidgetUpdateFlags::Construct(const FArguments& InArgs)
 		"T : Tick : The widget was updated/ticked.\n"
 		"T : Active Timer Update : The widget had an active timer.\n"
 		"P : Repaint : The widget was dirty and was repainted.\n"
-		"V : Volatile Paint : The widget was volatile and was repainted."
-		"P : Volatile Prepass : The widget was volatile and did a SlatePrepass."));
+		"V : Volatile Paint : The widget was volatile and was repainted.");
 }
 
 void SSlateTraceInvalidateWidgetReasonFlags::Construct(const FArguments& InArgs)
 {
 	Reason = InArgs._Reason;
 	SetToolTipText(LOCTEXT("InvalidateWidgetReasonFlagsTooltip", 
+		"C : Child Order : A child was added or removed (this implies layout).\n"
 		"L : Layout : The widget desired size changed.\n"
 		"P : Paint : The widget needs repainting but nothing affecting its size.\n"
 		"V : Volatile : The widget volatility changed.\n"
-		"C : Child Order : A child was added or removed (this implies layout).\n"
 		"R : Render Transform : The widget render transform changed.\n"
-		"V : Visibility : The widget visibility changed (this implies layout)."
-		"A : Attribute Registration : Attributes got bound or unbound."
+		"V : Visibility : The widget visibility changed (this implies layout).\n"
+		"A : Attribute Registration : Attributes got bound or unbound.\n"
 		"P : Prepass : Re-cache desired size of all of this widget's children recursively."));
 }
 
@@ -107,9 +106,8 @@ int32 SSlateTraceWidgetUpdateFlags::OnPaint(const FPaintArgs& Args, const FGeome
 		EWidgetUpdateFlags::NeedsActiveTimerUpdate,
 		EWidgetUpdateFlags::NeedsRepaint,
 		EWidgetUpdateFlags::NeedsVolatilePaint,
-		EWidgetUpdateFlags::NeedsVolatilePrepass,
 	};
-	const FString Text = TEXT("TTPVP");
+	const FString Text = TEXT("TTPV");
 
 	Private::Paint<EWidgetUpdateFlags>(AllUpdateFlags, Text, UpdateFlagsValue, AllottedGeometry, OutDrawElements, LayerId, InWidgetStyle);
 
@@ -121,16 +119,16 @@ int32 SSlateTraceInvalidateWidgetReasonFlags::OnPaint(const FPaintArgs& Args, co
 	FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
 	const EInvalidateWidgetReason AllReasons[] = {
+		EInvalidateWidgetReason::ChildOrder,
 		EInvalidateWidgetReason::Layout,
 		EInvalidateWidgetReason::Paint,
 		EInvalidateWidgetReason::Volatility,
-		EInvalidateWidgetReason::ChildOrder,
 		EInvalidateWidgetReason::RenderTransform,
 		EInvalidateWidgetReason::Visibility,
 		EInvalidateWidgetReason::AttributeRegistration,
 		EInvalidateWidgetReason::Prepass,
 	};
-	const FString Text = TEXT("LPVCRVAP");
+	const FString Text = TEXT("CLPVRVAP");
 
 	Private::Paint<EInvalidateWidgetReason>(AllReasons, Text, Reason, AllottedGeometry, OutDrawElements, LayerId, InWidgetStyle);
 
@@ -145,7 +143,7 @@ FVector2D SSlateTraceWidgetUpdateFlags::ComputeDesiredSize(float LayoutScaleMult
 
 FVector2D SSlateTraceInvalidateWidgetReasonFlags::ComputeDesiredSize(float LayoutScaleMultiplier) const
 {
-	return FVector2D(6 * Private::BoxSize.X, Private::BoxSize.Y);
+	return FVector2D(8 * Private::BoxSize.X, Private::BoxSize.Y);
 }
 
 } //namespace SlateInsights
