@@ -788,7 +788,8 @@ struct CORE_API FGenericPlatformProcess
 	*/
 	static FORCEINLINE void YieldCycles(uint64 cycles)
 	{
-#if PLATFORM_ANDROID
+#if PLATFORM_ANDROID_ARM64 || (PLATFORM_APPLE && !PLATFORM_MAC_X86) || PLATFORM_LINUXARM64
+		// We can't read cycle counter from user mode on these platform
 		for (uint64 i = 0; i < cycles; i++)
 		{
 			Yield();
