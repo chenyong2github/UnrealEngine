@@ -1658,16 +1658,35 @@ void FControlRigEditMode::SetRigElementSelection(ERigElementType Type, const TAr
 
 TArray<FRigElementKey> FControlRigEditMode::GetSelectedRigElements() const
 {
+	TArray<FRigElementKey> SelectedKeys;
+	
 	if (UControlRig* ControlRig = GetControlRig(true))
 	{
 		if (ControlRig->GetHierarchy())
 		{
-			return ControlRig->GetHierarchy()->GetSelectedKeys();
+			SelectedKeys = ControlRig->GetHierarchy()->GetSelectedKeys();
+		}
+
+		// currently only 1 transient control is allowed at a time
+		// Transient Control's bSelected flag is never set to true, probably to avoid confusing other parts of the system
+		// But since Edit Mode directly deals with transient controls, its selection status is given special treatment here.
+		// So basically, whenever a bone is selected, and there is a transient control present, we consider both selected.
+		if (SelectedKeys.Num() == 1)
+		{
+			if (SelectedKeys[0].Type == ERigElementType::Bone || SelectedKeys[0].Type == ERigElementType::Null)
+			{
+				const FName ControlName = UControlRig::GetNameForTransientControl(SelectedKeys[0]);
+				const FRigElementKey TransientControlKey = FRigElementKey(ControlName, ERigElementType::Control);
+				if(ControlRig->GetHierarchy()->Contains(TransientControlKey))
+				{
+					SelectedKeys.Add(TransientControlKey);
+				}
+
+			}
 		}
 	}
 
-	TArray<FRigElementKey> Empty;
-	return Empty;
+	return SelectedKeys;
 }
 
 bool FControlRigEditMode::AreRigElementsSelected(uint32 InTypes) const

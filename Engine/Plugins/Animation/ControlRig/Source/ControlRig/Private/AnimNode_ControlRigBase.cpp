@@ -142,7 +142,14 @@ void FAnimNode_ControlRigBase::UpdateInput(UControlRig* ControlRig, const FPoseC
 				FRigHierarchyValidityBracket ValidityBracket(ControlRig->GetHierarchy());
 			}
 			FRigHierarchyValidityBracket ValidityBracket(ControlRig->GetHierarchy());
-			ControlRig->GetHierarchy()->ResetPoseToInitial(ERigElementType::Bone);
+
+			{
+#if WITH_EDITOR
+				// make sure transient controls don't get reset
+				UControlRig::FTransientControlPoseScope PoseScope(ControlRig);
+#endif 
+				ControlRig->GetHierarchy()->ResetPoseToInitial(ERigElementType::Bone);
+			}
 		}
 
 		if(bTransferPoseInGlobalSpace || NodeMappingContainer.IsValid())
@@ -211,9 +218,6 @@ void FAnimNode_ControlRigBase::UpdateInput(UControlRig* ControlRig, const FPoseC
 			}
 		}
 		
-#if WITH_EDITOR
-		ControlRig->ApplyTransformOverrideForUserCreatedBones();
-#endif
 	}
 
 	if (InputSettings.bUpdateCurves && bTransferInputCurves)
