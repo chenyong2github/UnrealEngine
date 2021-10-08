@@ -86,7 +86,7 @@ void UMeshSculptToolBase::Setup()
 		[this](FLinearColor NewColor) { UpdateColorSetting(NewColor); }); 
 	// This can actually use the same function since the parameter names for the material are the same
 	ViewProperties->WatchProperty(ViewProperties->TransparentMaterialColor,
-		[this](FLinearColor NewColor) { UpdateColorSetting(NewColor); });
+		[this](FLinearColor NewColor) { UpdateTransparentColorSetting(NewColor); });
 	ViewProperties->WatchProperty(ViewProperties->Opacity,
 		[this](double NewValue) { UpdateOpacitySetting(NewValue); });
 	ViewProperties->WatchProperty(ViewProperties->bTwoSided,
@@ -904,11 +904,28 @@ void UMeshSculptToolBase::UpdateFlatShadingSetting(bool bNewValue)
 
 void UMeshSculptToolBase::UpdateColorSetting(FLinearColor NewColor)
 {
-	if (ActiveOverrideMaterial != nullptr)
+	if (ViewProperties->MaterialMode != EMeshEditingMaterialModes::Transparent)
 	{
-		ActiveOverrideMaterial->SetVectorParameterValue(TEXT("Color"), NewColor);
+		if (ActiveOverrideMaterial != nullptr)
+		{
+			ActiveOverrideMaterial->SetVectorParameterValue(TEXT("Color"), NewColor);
+		}
 	}
 }
+
+void UMeshSculptToolBase::UpdateTransparentColorSetting(FLinearColor NewColor)
+{
+	// only want to update the active material if it is the transparent one...
+	if (ViewProperties->MaterialMode == EMeshEditingMaterialModes::Transparent)
+	{
+		if (ActiveOverrideMaterial != nullptr)
+		{
+			ActiveOverrideMaterial->SetVectorParameterValue(TEXT("Color"), NewColor);
+		}
+	}
+}
+
+
 
 void UMeshSculptToolBase::UpdateImageSetting(UTexture2D* NewImage)
 {

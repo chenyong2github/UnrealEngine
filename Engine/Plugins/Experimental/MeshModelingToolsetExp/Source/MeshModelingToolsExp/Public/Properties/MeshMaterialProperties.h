@@ -132,12 +132,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = Rendering, meta = (EditConditionHides, EditCondition = "MaterialMode == EMeshEditingMaterialModes::CustomImage", TransientToolProperty) )
 	TObjectPtr<UTexture2D> Image;
 
-	//~ Could have used the same property as Color, above, but the user may want different saved values for the two
-	UPROPERTY(EditAnywhere, Category = Rendering, AdvancedDisplay, meta = (EditConditionHides, EditCondition = "MaterialMode == EMeshEditingMaterialModes::Transparent", DisplayName = "Color"))
-	FLinearColor TransparentMaterialColor = FLinearColor(0.0606, 0.309, 0.842);
-
+	/** Opacity of transparent material */
 	UPROPERTY(EditAnywhere, Category = Rendering, meta = (EditConditionHides, EditCondition = "MaterialMode == EMeshEditingMaterialModes::Transparent", ClampMin = "0", ClampMax = "1.0"))
 	double Opacity = 0.65;
+
+	//~ Could have used the same property as Color, above, but the user may want different saved values for the two
+	UPROPERTY(EditAnywhere, Category = Rendering, meta = (EditConditionHides, EditCondition = "MaterialMode == EMeshEditingMaterialModes::Transparent", DisplayName = "Color"))
+	FLinearColor TransparentMaterialColor = FLinearColor(0.0606, 0.309, 0.842);
 
 	/** Although a two-sided transparent material causes rendering issues with overlapping faces, it is still frequently useful to see the shape when sculpting around other objects. */
 	UPROPERTY(EditAnywhere, Category = Rendering, meta = (EditConditionHides, EditCondition = "MaterialMode == EMeshEditingMaterialModes::Transparent"))
