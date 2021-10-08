@@ -4,6 +4,10 @@
 #ifndef GOOGLE_PROTOBUF_INCLUDED_onnx_2fonnx_2ddata_2eproto
 #define GOOGLE_PROTOBUF_INCLUDED_onnx_2fonnx_2ddata_2eproto
 
+#include "ThirdPartyWarningDisabler.h" // WITH_UE
+NNI_THIRD_PARTY_INCLUDES_START
+#undef check
+
 #include <limits>
 #include <string>
 
@@ -2139,4 +2143,5 @@ PROTOBUF_NAMESPACE_CLOSE
 // @@protoc_insertion_point(global_scope)
 
 #include <google/protobuf/port_undef.inc>
+NNI_THIRD_PARTY_INCLUDES_END
 #endif  // GOOGLE_PROTOBUF_INCLUDED_GOOGLE_PROTOBUF_INCLUDED_onnx_2fonnx_2ddata_2eproto
