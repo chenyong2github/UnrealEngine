@@ -233,11 +233,6 @@ public:
     RunnableThread = std::make_unique<FORTUERunnable>(ParamForRunnable);
   }
 
-  // This function is called when the threadpool is cancelled.
-  // TODO: Find a way to avoid calling TerminateThread
-  void OnCancel() override {
-  }
-
 private:
   std::unique_ptr<FORTUERunnable> RunnableThread;
 };
@@ -779,7 +774,7 @@ class UnrealEngineEnv : public Env {
   }
 #endif
 
-  virtual Status LoadDynamicLibrary(const std::string& library_filename, void** handle) const override {
+  virtual Status LoadDynamicLibrary(const std::string& library_filename, bool global_symbols, void** handle) const override {
 #ifndef WITH_UE
 #if WINAPI_FAMILY == WINAPI_FAMILY_PC_APP
     *handle = ::LoadPackagedLibrary(ToWideString(library_filename).c_str(), 0);
