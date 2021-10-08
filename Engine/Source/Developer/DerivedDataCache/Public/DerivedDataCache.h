@@ -44,8 +44,6 @@ using FOnCacheGetChunkComplete = TUniqueFunction<void (FCacheGetChunkCompletePar
  * Get(Query | StoreLocal): read from any cache; put to writable local caches if missing.
  * Get(Query | SkipData): check for existence in any cache; do not modify any cache.
  * Get(Default | SkipData): check for existence in any cache; put to writable caches if missing.
- * Get(Default | SkipLocalCopy): read from any cache; put to writable remote caches if missing,
- *                               and to writable local caches if not present in any local cache.
  *
  * Put(Default): write to every writable cache.
  * Put(Remote): write to every writable remote cache, skipping local caches.
@@ -60,14 +58,14 @@ enum class ECachePolicy : uint32
 	QueryLocal      = 1 << 0,
 	/** Allow a cache request to query remote caches. */
 	QueryRemote     = 1 << 1,
-	/** Allow a cache request to query local and remote caches. */
+	/** Allow a cache request to query any caches. */
 	Query           = QueryLocal | QueryRemote,
 
 	/** Allow cache records and values to be stored in local caches. */
 	StoreLocal      = 1 << 2,
 	/** Allow cache records and values to be stored in remote caches. */
 	StoreRemote     = 1 << 3,
-	/** Allow cache records and values to be stored in local and remote caches. */
+	/** Allow cache records and values to be stored in any caches. */
 	Store           = StoreLocal | StoreRemote,
 
 	/** Skip fetching the metadata for record requests. */
@@ -91,15 +89,27 @@ enum class ECachePolicy : uint32
 	 */
 	KeepAlive       = 1 << 7,
 
-	/** Allow cache requests to query and store records in local caches. */
+	/**
+	 * Partial output will be provided with the error status when a required payload is missing.
+	 *
+	 * This is meant for cases when the missing payloads can be individually recovered or rebuilt
+	 * without rebuilding the whole record. The cache automatically adds this flag when there are
+	 * other cache stores that it may be able to recover missing payloads from.
+	 *
+	 * Requests for records would return records where the missing payloads have a hash and size,
+	 * but no data. Requests for chunks or values would return the hash and size, but no data.
+	 */
+	PartialOnError  = 1 << 8,
+
+	/** Allow cache requests to query and store records and values in local caches. */
 	Local           = QueryLocal | StoreLocal,
-	/** Allow cache requests to query and store records in remote caches. */
+	/** Allow cache requests to query and store records and values in remote caches. */
 	Remote          = QueryRemote | StoreRemote,
 
-	/** Allow cache requests to query and store records in local and remote caches. */
+	/** Allow cache requests to query and store records and values in any caches. */
 	Default         = Query | Store,
 
-	/** Do not allow cache requests to query or store records in local or remote caches. */
+	/** Do not allow cache requests to query or store records and values in any caches. */
 	Disable         = None,
 };
 
@@ -107,7 +117,7 @@ ENUM_CLASS_FLAGS(ECachePolicy);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** A payload ID and the policy to use for that payload. */
+/** A payload ID and the cache policy to use for that payload. */
 struct FCachePayloadPolicy
 {
 	FPayloadId Id;
@@ -126,22 +136,30 @@ public:
 	virtual void Build() = 0;
 };
 
-/** A policy for cache record requests, with optional overrides by payload. */
+/**
+ * Flags to control the behavior of cache requests, with optional overrides by payload.
+ *
+ * Examples:
+ * - A base policy of Disable with payload policy overrides of Default will fetch those payloads,
+ *   if they exist in the record, and skip data for any other payloads.
+ * - A base policy of Default with payload policy overrides of (Query | SkipData) will skip those
+ *   payloads, but still check if they exist, and will load any other payloads.
+ */
 class FCacheRecordPolicy
 {
 public:
-	/** Construct a cache record policy that uses the default policy for records and payloads. */
+	/** Construct a cache record policy that uses the default policy. */
 	FCacheRecordPolicy() = default;
 
-	/** Construct a cache record policy from a single policy for both records and payloads. */
+	/** Construct a cache record policy with a uniform policy for the record and every payload. */
 	inline FCacheRecordPolicy(ECachePolicy Policy)
-		: BasePolicy(Policy)
-		, RecordPolicy(Policy)
+		: RecordPolicy(Policy)
+		, DefaultPayloadPolicy(Policy)
 	{
 	}
 
-	/** Returns true if the record and every payload use the same policy. */
-	inline bool IsUniform() const { return !Shared && BasePolicy == RecordPolicy; }
+	/** Returns true if the record and every payload use the same cache policy. */
+	inline bool IsUniform() const { return !Shared && RecordPolicy == DefaultPayloadPolicy; }
 
 	/** Returns the cache policy to use for the record. */
 	inline ECachePolicy GetRecordPolicy() const { return RecordPolicy; }
@@ -150,7 +168,7 @@ public:
 	UE_API ECachePolicy GetPayloadPolicy(const FPayloadId& Id) const;
 
 	/** Returns the cache policy to use for payloads with no override. */
-	inline ECachePolicy GetDefaultPayloadPolicy() const { return BasePolicy; }
+	inline ECachePolicy GetDefaultPayloadPolicy() const { return DefaultPayloadPolicy; }
 
 	/** Returns the array of cache policy overrides for payloads, sorted by ID. */
 	inline TConstArrayView<FCachePayloadPolicy> GetPayloadPolicies() const
@@ -161,8 +179,8 @@ public:
 private:
 	friend class FCacheRecordPolicyBuilder;
 
-	ECachePolicy BasePolicy = ECachePolicy::Default;
 	ECachePolicy RecordPolicy = ECachePolicy::Default;
+	ECachePolicy DefaultPayloadPolicy = ECachePolicy::Default;
 	TRefCountPtr<const Private::ICacheRecordPolicyShared> Shared;
 };
 
@@ -170,10 +188,10 @@ private:
 class FCacheRecordPolicyBuilder
 {
 public:
-	/** Construct a cache record policy builder that uses the default policy as its base policy. */
+	/** Construct a policy builder that uses the default policy as its base policy. */
 	FCacheRecordPolicyBuilder() = default;
 
-	/** Construct a cache record policy builder from the base policy for the record and its payloads. */
+	/** Construct a policy builder that uses the provided policy for the record and payloads with no override. */
 	inline explicit FCacheRecordPolicyBuilder(ECachePolicy Policy)
 		: BasePolicy(Policy)
 	{
@@ -238,9 +256,9 @@ public:
 	 * Records may propagate into other cache stores, in accordance with the policy. A propagated
 	 * record may be a partial record, with some payloads missing data, depending on the policy.
 	 *
-	 * When payloads are required by the policy, but not available, the status must be Error, but
-	 * the cache store may provide a partial record with the available payloads, to be completed,
-	 * when possible, by another cache store.
+	 * When payloads are required by the policy, but not available, the status must be Error. The
+	 * cache store must produce a partial record with the available payloads when the policy flag
+	 * PartialOnError is set for the missing payloads.
 	 *
 	 * @param Keys         The keys identifying the cache records to query.
 	 * @param Context      A description of the request. An object path is typically sufficient.

@@ -898,8 +898,8 @@ public:
 				UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache put complete for %s from '%.*s'"),
 					*CachePath, *WriteToString<96>(Record.GetKey()), Context.Len(), Context.GetData());
 				TRACE_COUNTER_INCREMENT(FileSystemDDC_PutHit);
-				TRACE_COUNTER_ADD(FileSystemDDC_BytesWritten, MeasureCacheRecord(Record));
-				COOK_STAT(Timer.AddHit(MeasureCacheRecord(Record)));
+				TRACE_COUNTER_ADD(FileSystemDDC_BytesWritten, MeasureCompressedCacheRecord(Record));
+				COOK_STAT(Timer.AddHit(MeasureRawCacheRecord(Record)));
 				if (OnComplete)
 				{
 					OnComplete({Record.GetKey(), EStatus::Ok});
@@ -907,7 +907,7 @@ public:
 			}
 			else
 			{
-				COOK_STAT(Timer.AddMiss(MeasureCacheRecord(Record)));
+				COOK_STAT(Timer.AddMiss(MeasureRawCacheRecord(Record)));
 				if (OnComplete)
 				{
 					OnComplete({Record.GetKey(), EStatus::Error});
@@ -928,23 +928,25 @@ public:
 			TRACE_CPUPROFILER_EVENT_SCOPE(FileSystemDDC_Get);
 			TRACE_COUNTER_INCREMENT(FileSystemDDC_Get);
 			COOK_STAT(auto Timer = UsageStats.TimeGet());
-			if (FOptionalCacheRecord Record = GetCacheRecord(Key, Context, Policy))
+			const bool bAlwaysLoadInlineData = false;
+			EStatus Status = EStatus::Error;
+			if (FOptionalCacheRecord Record = GetCacheRecord(Key, Context, Policy, bAlwaysLoadInlineData, Status))
 			{
 				UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for %s from '%.*s'"),
 					*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
 				TRACE_COUNTER_INCREMENT(FileSystemDDC_GetHit);
-				TRACE_COUNTER_ADD(FileSystemDDC_BytesRead, MeasureCacheRecord(Record.Get()));
-				COOK_STAT(Timer.AddHit(MeasureCacheRecord(Record.Get())));
+				TRACE_COUNTER_ADD(FileSystemDDC_BytesRead, MeasureCompressedCacheRecord(Record.Get()));
+				COOK_STAT(Timer.AddHit(MeasureRawCacheRecord(Record.Get())));
 				if (OnComplete)
 				{
-					OnComplete({MoveTemp(Record).Get(), EStatus::Ok});
+					OnComplete({MoveTemp(Record).Get(), Status});
 				}
 			}
 			else
 			{
 				if (OnComplete)
 				{
-					OnComplete({FCacheRecordBuilder(Key).Build(), EStatus::Error});
+					OnComplete({FCacheRecordBuilder(Key).Build(), Status});
 				}
 			}
 		}
@@ -960,35 +962,43 @@ public:
 		SortedChunks.StableSort(TChunkLess());
 
 		FOptionalCacheRecord Record;
+		EStatus RecordStatus = EStatus::Error;
 		for (const FCacheChunkRequest& Chunk : SortedChunks)
 		{
+			const bool bExistsOnly = EnumHasAnyFlags(Chunk.Policy, ECachePolicy::SkipValue);
 			TRACE_CPUPROFILER_EVENT_SCOPE(FileSystemDDC_Get);
 			TRACE_COUNTER_INCREMENT(FileSystemDDC_Get);
-			COOK_STAT(auto Timer = UsageStats.TimeGet());
+			COOK_STAT(auto Timer = bExistsOnly ? UsageStats.TimeProbablyExists() : UsageStats.TimeGet());
 			if (!Record || Record.Get().GetKey() != Chunk.Key)
 			{
+				const bool bAlwaysLoadInlineData = true;
 				FCacheRecordPolicyBuilder PolicyBuilder(ECachePolicy::None);
 				PolicyBuilder.AddPayloadPolicy(Chunk.Id, Chunk.Policy | ECachePolicy::SkipData);
-				Record = GetCacheRecord(Chunk.Key, Context, PolicyBuilder.Build(), /*bAlwaysLoadInlineData*/ true);
+				Record = GetCacheRecord(Chunk.Key, Context, PolicyBuilder.Build(), bAlwaysLoadInlineData, RecordStatus);
 			}
-			if (Record)
+			if (Record && RecordStatus == EStatus::Ok)
 			{
-				const ECachePolicy PolicyMask = Record.Get().GetValuePayload().GetId() == Chunk.Id
-					? ECachePolicy::SkipValue : ECachePolicy::SkipAttachments;
-				const ECachePolicy Policy = Chunk.Policy | (ECachePolicy::SkipData & ~PolicyMask);
-				if (FPayload Payload = GetCachePayload(Chunk.Key, Context, Policy, Record.Get().GetPayload(Chunk.Id)))
+				EStatus PayloadStatus = EStatus::Error;
+				const ECachePolicy Policy = Chunk.Policy | (ECachePolicy::SkipData & ~ECachePolicy::SkipValue);
+				const FPayload& RecordPayload = Record.Get().GetPayload(Chunk.Id);
+				if (FPayload Payload = GetCachePayload(Chunk.Key, Context, Policy, RecordPayload, PayloadStatus))
 				{
 					const uint64 RawSize = FMath::Min(Payload.GetRawSize(), Chunk.RawSize);
 					UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for %s from '%.*s'"),
 						*CachePath, *WriteToString<96>(Chunk.Key, '/', Chunk.Id), Context.Len(), Context.GetData());
 					TRACE_COUNTER_INCREMENT(FileSystemDDC_GetHit);
-					TRACE_COUNTER_ADD(FileSystemDDC_BytesRead, RawSize);
-					COOK_STAT(Timer.AddHit(RawSize));
+					TRACE_COUNTER_ADD(FileSystemDDC_BytesRead, Payload.GetData().GetCompressedSize());
+					COOK_STAT(Timer.AddHit(Payload.HasData() ? RawSize : 0));
 					if (OnComplete)
 					{
-						FUniqueBuffer Buffer = FUniqueBuffer::Alloc(RawSize);
-						Payload.GetData().DecompressToComposite().CopyTo(Buffer, Chunk.RawOffset);
-						OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, RawSize, Payload.GetRawHash(), Buffer.MoveToShared(), EStatus::Ok});
+						FUniqueBuffer Buffer;
+						if (Payload.HasData() && !bExistsOnly)
+						{
+							Buffer = FUniqueBuffer::Alloc(RawSize);
+							Payload.GetData().DecompressToComposite().CopyTo(Buffer, Chunk.RawOffset);
+						}
+						OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset,
+							RawSize, Payload.GetRawHash(), Buffer.MoveToShared(), PayloadStatus});
 					}
 					continue;
 				}
@@ -1002,7 +1012,15 @@ public:
 	}
 
 private:
-	uint64 MeasureCacheRecord(const FCacheRecord& Record) const
+	uint64 MeasureCompressedCacheRecord(const FCacheRecord& Record) const
+	{
+		return Record.GetMeta().GetSize() +
+			Record.GetValuePayload().GetData().GetCompressedSize() +
+			Algo::TransformAccumulate(Record.GetAttachmentPayloads(),
+				[](const FPayload& Payload) { return Payload.GetData().GetCompressedSize(); }, uint64(0));
+	}
+
+	uint64 MeasureRawCacheRecord(const FCacheRecord& Record) const
 	{
 		return Record.GetMeta().GetSize() +
 			Record.GetValuePayload().GetData().GetRawSize() +
@@ -1014,7 +1032,8 @@ private:
 	{
 		if (!IsWritable())
 		{
-			UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("%s: Skipped put of %s from '%.*s' because this is not writable"),
+			UE_LOG(LogDerivedDataCache, VeryVerbose,
+				TEXT("%s: Skipped put of %s from '%.*s' because this cache store is not writable"),
 				*CachePath, *WriteToString<96>(Record.GetKey()), Context.Len(), Context.GetData());
 			return false;
 		}
@@ -1092,11 +1111,15 @@ private:
 		const FCacheKey& Key,
 		const FStringView Context,
 		const FCacheRecordPolicy& Policy,
-		const bool bAlwaysLoadInlineData = false)
+		const bool bAlwaysLoadInlineData,
+		EStatus& OutStatus)
 	{
+		OutStatus = EStatus::Error;
+
 		if (!IsUsable())
 		{
-			UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("%s: Skipped get of %s from '%.*s' because this cache store is not available"),
+			UE_LOG(LogDerivedDataCache, VeryVerbose,
+				TEXT("%s: Skipped get of %s from '%.*s' because this cache store is not available"),
 				*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
 			return FOptionalCacheRecord();
 		}
@@ -1154,13 +1177,14 @@ private:
 		{
 			if (FCbFieldView MetaHash = RecordObject.FindView("MetaHash"_ASV))
 			{
-				if (FCbObject MetaObject = RecordObject["Meta"_ASV].AsObject(); MetaObject.GetHash() == MetaHash.AsHash())
+				if (FCbObject Meta = RecordObject["Meta"_ASV].AsObject(); Meta.GetHash() == MetaHash.AsHash())
 				{
-					RecordBuilder.SetMeta(MoveTemp(MetaObject));
+					RecordBuilder.SetMeta(MoveTemp(Meta));
 				}
 				else
 				{
-					UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with corrupted metadata for %s from '%.*s'"),
+					UE_LOG(LogDerivedDataCache, Display,
+						TEXT("%s: Cache miss with corrupted metadata for %s from '%.*s'"),
 						*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
 					return FOptionalCacheRecord();
 				}
@@ -1169,10 +1193,17 @@ private:
 
 		// Disable deletion now that the record is validated.
 		bDeleteCacheObject = false;
+		OutStatus = EStatus::Ok;
 
 		if (FCbObject ValueObject = RecordObject["Value"_ASV].AsObject())
 		{
-			FPayload Payload = GetCachePayload(Key, Context, Policy, ECachePolicy::SkipValue, ValueObject, bAlwaysLoadInlineData);
+			EStatus PayloadStatus = EStatus::Error;
+			FPayload Payload = GetCachePayload(Key, Context, Policy,
+				ECachePolicy::SkipValue, ValueObject, bAlwaysLoadInlineData, PayloadStatus);
+			if (PayloadStatus == EStatus::Error)
+			{
+				OutStatus = EStatus::Error;
+			}
 			if (Payload.IsNull())
 			{
 				return FOptionalCacheRecord();
@@ -1182,7 +1213,13 @@ private:
 
 		for (FCbField AttachmentField : RecordObject["Attachments"_ASV])
 		{
-			FPayload Payload = GetCachePayload(Key, Context, Policy, ECachePolicy::SkipAttachments, AttachmentField.AsObject(), bAlwaysLoadInlineData);
+			EStatus PayloadStatus = EStatus::Error;
+			FPayload Payload = GetCachePayload(Key, Context, Policy,
+				ECachePolicy::SkipAttachments, AttachmentField.AsObject(), bAlwaysLoadInlineData, PayloadStatus);
+			if (PayloadStatus == EStatus::Error)
+			{
+				OutStatus = EStatus::Error;
+			}
 			if (Payload.IsNull())
 			{
 				return FOptionalCacheRecord();
@@ -1200,7 +1237,12 @@ private:
 		return RecordBuilder.Build();
 	}
 
-	bool PutCachePayload(const FCacheKey& Key, FStringView Context, const FPayload& Payload, FCbWriter& Writer, bool bStoreInline) const
+	bool PutCachePayload(
+		const FCacheKey& Key,
+		const FStringView Context,
+		const FPayload& Payload,
+		FCbWriter& Writer,
+		const bool bStoreInline) const
 	{
 		const FIoHash& RawHash = Payload.GetRawHash();
 		const bool bHasData = Payload.HasData();
@@ -1253,7 +1295,8 @@ private:
 		const FCacheRecordPolicy& Policy,
 		const ECachePolicy SkipFlag,
 		const FCbObject& Object,
-		const bool bAlwaysLoadInlineData) const
+		const bool bAlwaysLoadInlineData,
+		EStatus& OutStatus) const
 	{
 		const FPayloadId Id = Object.FindView("Id"_ASV).AsObjectId();
 		const uint64 RawSize = Object.FindView("RawSize"_ASV).AsUInt64(MAX_uint64);
@@ -1265,6 +1308,7 @@ private:
 		{
 			UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with invalid record format for %s from '%.*s'"),
 				*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
+			OutStatus = EStatus::Error;
 			return FPayload();
 		}
 
@@ -1275,21 +1319,26 @@ private:
 		{
 			if (EnumHasAllFlags(PayloadPolicy, SkipFlag) && !bAlwaysLoadInlineData)
 			{
+				OutStatus = EStatus::Ok;
 				return Payload;
 			}
-			else
-			{
-				return ValidateCachePayload(Key, Context, Payload, CompressedHash, MoveTemp(CompressedData));
-			}
+			return ValidateCachePayload(Key, Context, PayloadPolicy,
+				Payload, CompressedHash, MoveTemp(CompressedData), OutStatus);
 		}
 
-		return GetCachePayload(Key, Context, PayloadPolicy, Payload);
+		return GetCachePayload(Key, Context, PayloadPolicy, Payload, OutStatus);
 	}
 
-	FPayload GetCachePayload(const FCacheKey& Key, FStringView Context, ECachePolicy Policy, const FPayload& Payload) const
+	FPayload GetCachePayload(
+		const FCacheKey& Key,
+		const FStringView Context,
+		const ECachePolicy Policy,
+		const FPayload& Payload,
+		EStatus& OutStatus) const
 	{
 		if (Payload.HasData() || !EnumHasAnyFlags(Policy, ECachePolicy::Query))
 		{
+			OutStatus = EStatus::Ok;
 			return Payload;
 		}
 
@@ -1303,6 +1352,7 @@ private:
 				{
 					AccessLogWriter->Append(Key, Payload.GetId(), Path);
 				}
+				OutStatus = EStatus::Ok;
 				return Payload;
 			}
 		}
@@ -1313,7 +1363,8 @@ private:
 				const FMemoryView CompressedDataView = CompressedData;
 				const FIoHash CompressedHash(CompressedDataView.Left(sizeof(FIoHash)));
 				CompressedData = FSharedBuffer::MakeView(CompressedDataView + sizeof(FIoHash), MoveTemp(CompressedData));
-				const FPayload FullPayload = ValidateCachePayload(Key, Context, Payload, CompressedHash, MoveTemp(CompressedData));
+				const FPayload FullPayload = ValidateCachePayload(Key, Context, Policy,
+					Payload, CompressedHash, MoveTemp(CompressedData), OutStatus);
 				if (FullPayload && AccessLogWriter)
 				{
 					AccessLogWriter->Append(Key, FullPayload.GetId(), Path);
@@ -1326,28 +1377,33 @@ private:
 			TEXT("%s: Cache miss with missing payload %s with hash %s for %s from '%.*s'"),
 			*CachePath, *WriteToString<16>(Payload.GetId()), *WriteToString<48>(Payload.GetRawHash()), *WriteToString<96>(Key),
 			Context.Len(), Context.GetData());
-		return FPayload();
+		OutStatus = EStatus::Error;
+		return EnumHasAllFlags(Policy, ECachePolicy::PartialOnError) ? Payload : FPayload::Null;
 	}
 
 	FPayload ValidateCachePayload(
 		const FCacheKey& Key,
 		const FStringView Context,
+		const ECachePolicy Policy,
 		const FPayload& Payload,
 		const FIoHash& CompressedHash,
-		FSharedBuffer&& CompressedData) const
+		FSharedBuffer&& CompressedData,
+		EStatus& OutStatus) const
 	{
 		if (FCompressedBuffer CompressedBuffer = FCompressedBuffer::FromCompressed(MoveTemp(CompressedData));
 			CompressedBuffer &&
 			CompressedBuffer.GetRawHash() == Payload.GetRawHash() &&
 			FIoHash::HashBuffer(CompressedBuffer.GetCompressed()) == CompressedHash)
 		{
+			OutStatus = EStatus::Ok;
 			return FPayload(Payload.GetId(), MoveTemp(CompressedBuffer));
 		}
 		UE_LOG(LogDerivedDataCache, Display,
 			TEXT("%s: Cache miss with corrupted payload %s with hash %s for %s from '%.*s'"),
-			*CachePath, *WriteToString<16>(Payload.GetId()), *WriteToString<48>(Payload.GetRawHash()), *WriteToString<96>(Key),
-			Context.Len(), Context.GetData());
-		return FPayload();
+			*CachePath, *WriteToString<16>(Payload.GetId()), *WriteToString<48>(Payload.GetRawHash()),
+			*WriteToString<96>(Key), Context.Len(), Context.GetData());
+		OutStatus = EStatus::Error;
+		return EnumHasAllFlags(Policy, ECachePolicy::PartialOnError) ? Payload : FPayload::Null;
 	}
 
 	void BuildCacheObjectPath(const FCacheKey& CacheKey, FStringBuilderBase& Path) const

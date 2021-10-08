@@ -509,8 +509,10 @@ void FMemoryDerivedDataBackend::Get(
 {
 	for (const FCacheKey& Key : Keys)
 	{
-		COOK_STAT(auto Timer = UsageStats.TimeGet());
+		const bool bExistsOnly = EnumHasAllFlags(Policy.GetRecordPolicy(), ECachePolicy::SkipData);
+		COOK_STAT(auto Timer = bExistsOnly ? UsageStats.TimeProbablyExists() : UsageStats.TimeGet());
 		FOptionalCacheRecord Record;
+		EStatus Status = EStatus::Error;
 		if (ShouldSimulateMiss(Key))
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
@@ -518,14 +520,42 @@ void FMemoryDerivedDataBackend::Get(
 		}
 		else if (FScopeLock ScopeLock(&SynchronizationObject); const FCacheRecord* CacheRecord = CacheRecords.Find(Key))
 		{
+			Status = EStatus::Ok;
 			Record = *CacheRecord;
+		}
+		if (Record)
+		{
+			if (const FPayload& Payload = Record.Get().GetValuePayload();
+				!Payload.HasData() && !EnumHasAnyFlags(Policy.GetPayloadPolicy(Payload.GetId()), ECachePolicy::SkipValue))
+			{
+				Status = EStatus::Error;
+				if (!EnumHasAllFlags(Policy.GetPayloadPolicy(Payload.GetId()), ECachePolicy::PartialOnError))
+				{
+					Record.Reset();
+				}
+			}
+			if (Record)
+			{
+				for (const FPayload& Payload : Record.Get().GetAttachmentPayloads())
+				{
+					if (!Payload.HasData() && !EnumHasAnyFlags(Policy.GetPayloadPolicy(Payload.GetId()), ECachePolicy::SkipAttachments))
+					{
+						Status = EStatus::Error;
+						if (!EnumHasAllFlags(Policy.GetPayloadPolicy(Payload.GetId()), ECachePolicy::PartialOnError))
+						{
+							Record.Reset();
+							break;
+						}
+					}
+				}
+			}
 		}
 		if (Record)
 		{
 			COOK_STAT(Timer.AddHit(CalcRawCacheRecordSize(Record.Get())));
 			if (OnComplete)
 			{
-				OnComplete({MoveTemp(Record).Get(), EStatus::Ok});
+				OnComplete({MoveTemp(Record).Get(), Status});
 			}
 		}
 		else
@@ -546,7 +576,8 @@ void FMemoryDerivedDataBackend::GetChunks(
 {
 	for (const FCacheChunkRequest& Chunk : Chunks)
 	{
-		COOK_STAT(auto Timer = UsageStats.TimeGet());
+		const bool bExistsOnly = EnumHasAnyFlags(Chunk.Policy, ECachePolicy::SkipValue);
+		COOK_STAT(auto Timer = bExistsOnly ? UsageStats.TimeProbablyExists() : UsageStats.TimeGet());
 		FPayload Payload;
 		if (ShouldSimulateMiss(Chunk.Key))
 		{
@@ -563,9 +594,15 @@ void FMemoryDerivedDataBackend::GetChunks(
 			COOK_STAT(Timer.AddHit(RawSize));
 			if (OnComplete)
 			{
-				FUniqueBuffer Buffer = FUniqueBuffer::Alloc(RawSize);
-				Payload.GetData().DecompressToComposite().CopyTo(Buffer, Chunk.RawOffset);
-				OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, RawSize, Payload.GetRawHash(), Buffer.MoveToShared(), EStatus::Ok});
+				FUniqueBuffer Buffer;
+				if (Payload.HasData() && !bExistsOnly)
+				{
+					Buffer = FUniqueBuffer::Alloc(RawSize);
+					Payload.GetData().DecompressToComposite().CopyTo(Buffer, Chunk.RawOffset);
+				}
+				const EStatus Status = bExistsOnly || Buffer ? EStatus::Ok : EStatus::Error;
+				OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset,
+					RawSize, Payload.GetRawHash(), Buffer.MoveToShared(), Status});
 			}
 		}
 		else
