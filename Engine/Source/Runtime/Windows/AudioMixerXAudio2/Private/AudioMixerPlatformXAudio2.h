@@ -113,6 +113,7 @@ namespace Audio
 			IXAudio2MasteringVoice* OutputAudioStreamMasteringVoice = nullptr;
 			IXAudio2SourceVoice* OutputAudioStreamSourceVoice = nullptr;
 			FAudioPlatformDeviceInfo DeviceInfo;
+			FString SwapReason;
 		};
 		TFuture<FXAudio2AsyncCreateResult> ActiveDeviceSwap;
 		bool CheckThreadedDeviceSwap();
@@ -147,6 +148,7 @@ namespace Audio
 		FString OriginalAudioDeviceId;
 		FString NewAudioDeviceId;
 		double LastDeviceSwapTime;
+		FString DeviceSwapReason;
 
 		// When we are running the null device,
 		// we check whether a new audio device was connected every second or so.
