@@ -35,7 +35,8 @@ public class ModelingComponents : ModuleRules
 				"GeometryAlgorithms",
 				"DynamicMesh",
 				"MeshConversion",
-				"ModelingOperators"
+				"ModelingOperators",
+				"DeveloperSettings"
 				// ... add other public dependencies that you statically link with here ...
 			}
             );

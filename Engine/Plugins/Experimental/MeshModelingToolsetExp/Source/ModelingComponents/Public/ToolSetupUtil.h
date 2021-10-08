@@ -10,6 +10,10 @@ class UCurveFloat;
 class UTexture;
 class UInteractiveToolManager;
 
+class UToolTarget;
+class UBaseDynamicMeshComponent;
+class UPreviewMesh;
+
 /**
  * Utility functions for Tool implementations to use when doing configuration/setup
  */
@@ -176,4 +180,18 @@ namespace ToolSetupUtil
 	 * @return a curve asset used for contrast adjustments when using a texture map for displacements.
 	 */
 	MODELINGCOMPONENTS_API UCurveFloat* GetContrastAdjustmentCurve(UInteractiveToolManager* ToolManager);
+
+
+
+
+
+	//
+	// Rendering Configuration/Setup Functions
+	// These utility functions are used to configure rendering settings on Preview Meshes created internally by Modeling Tools.
+	// 
+	//
+
+	MODELINGCOMPONENTS_API void ApplyRenderingConfigurationToPreview(UBaseDynamicMeshComponent* Component, UToolTarget* SourceTarget = nullptr);
+	MODELINGCOMPONENTS_API void ApplyRenderingConfigurationToPreview(UPreviewMesh* PreviewMesh, UToolTarget* SourceTarget = nullptr);
+
 }

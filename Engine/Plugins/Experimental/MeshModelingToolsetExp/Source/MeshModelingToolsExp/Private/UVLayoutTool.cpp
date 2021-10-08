@@ -163,6 +163,7 @@ void UUVLayoutTool::UpdateNumPreviews()
 
 			UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(OpFactory, "Preview"));
 			Preview->Setup(this->TargetWorld, OpFactory);
+			ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, Targets[PreviewIdx]); 
 
 			FComponentMaterialSet MaterialSet;
 			TargetMaterialInterface(PreviewIdx)->GetMaterialSet(MaterialSet);

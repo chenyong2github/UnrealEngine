@@ -4,6 +4,7 @@
 #include "InteractiveToolManager.h"
 #include "InteractiveGizmoManager.h"
 #include "ToolBuilderUtil.h"
+#include "ToolSetupUtil.h"
 #include "BaseBehaviors/MultiClickSequenceInputBehavior.h"
 #include "BaseBehaviors/KeyAsModifierInputBehavior.h"
 
@@ -138,6 +139,7 @@ void UDrawPolygonTool::Setup()
 	// create preview mesh object
 	PreviewMesh = NewObject<UPreviewMesh>(this);
 	PreviewMesh->CreateInWorld(this->TargetWorld, FTransform::Identity);
+	ToolSetupUtil::ApplyRenderingConfigurationToPreview(PreviewMesh, nullptr); 
 	PreviewMesh->SetVisible(false);
 	{
 		UMaterialInterface* Material = nullptr;

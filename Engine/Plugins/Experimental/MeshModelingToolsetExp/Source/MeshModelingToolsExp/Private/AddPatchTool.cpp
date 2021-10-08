@@ -2,6 +2,7 @@
 
 #include "AddPatchTool.h"
 #include "ToolBuilderUtil.h"
+#include "ToolSetupUtil.h"
 #include "InteractiveToolManager.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "Selection/ToolSelectionUtil.h"
@@ -73,6 +74,7 @@ void UAddPatchTool::Setup()
 	// create preview mesh object
 	PreviewMesh = NewObject<UPreviewMesh>(this);
 	PreviewMesh->CreateInWorld(TargetWorld, FTransform::Identity);
+	ToolSetupUtil::ApplyRenderingConfigurationToPreview(PreviewMesh, nullptr);
 	PreviewMesh->SetVisible(false);
 	PreviewMesh->SetMaterial(MaterialProperties->Material.Get());
 	GeneratePreviewBaseMesh();

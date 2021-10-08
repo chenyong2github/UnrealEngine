@@ -372,8 +372,8 @@ void ULatticeDeformerTool::StartPreview()
 	LatticeDeformOpCreator->LatticeDeformerTool = this;
 
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(LatticeDeformOpCreator);
-
 	Preview->Setup(TargetWorld, LatticeDeformOpCreator);
+	ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, Target);
 
 	Preview->SetIsMeshTopologyConstant(true, EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexNormals);
 

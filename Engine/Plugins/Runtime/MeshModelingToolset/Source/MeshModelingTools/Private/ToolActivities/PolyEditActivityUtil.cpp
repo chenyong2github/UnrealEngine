@@ -16,6 +16,7 @@ UPolyEditPreviewMesh* PolyEditActivityUtil::CreatePolyEditPreviewMesh(UInteracti
 {
 	UPolyEditPreviewMesh* EditPreview = NewObject<UPolyEditPreviewMesh>(&Tool);
 	EditPreview->CreateInWorld(Tool.GetWorld(), FTransform::Identity);
+	ToolSetupUtil::ApplyRenderingConfigurationToPreview(EditPreview, nullptr); 
 	UpdatePolyEditPreviewMaterials(Tool, ActivityContext, *EditPreview, EPreviewMaterialType::PreviewMaterial);
 	EditPreview->EnableWireframe(true);
 

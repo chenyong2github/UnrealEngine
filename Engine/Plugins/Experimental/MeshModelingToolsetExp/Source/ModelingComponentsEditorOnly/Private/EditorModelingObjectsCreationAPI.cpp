@@ -245,6 +245,9 @@ FCreateMeshObjectResult UEditorModelingObjectsCreationAPI::CreateDynamicMeshActo
 		NewComponent->UpdateCollision(false);
 	}
 
+	// configure raytracing
+	NewComponent->SetEnableRaytracing(CreateMeshParams.bEnableRaytracingSupport);
+
 	NewActor->PostEditChange();
 
 	// emit result

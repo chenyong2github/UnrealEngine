@@ -687,6 +687,7 @@ void UDrawPolyPathTool::InitializePreviewMesh()
 	{
 		EditPreview = NewObject<UPolyEditPreviewMesh>(this);
 		EditPreview->CreateInWorld(TargetWorld, FTransform::Identity);
+		ToolSetupUtil::ApplyRenderingConfigurationToPreview(EditPreview, nullptr);
 		if ( MaterialProperties->Material == nullptr )
 		{
 			EditPreview->SetMaterial(

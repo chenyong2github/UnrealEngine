@@ -329,7 +329,7 @@ protected:
 public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Mesh Component|Rendering")
-	bool bEnableRaytracing = false;
+	bool bEnableRaytracing = true;
 
 	/**
 	 * Enable/Disable raytracing support. This is an expensive call as it flushes

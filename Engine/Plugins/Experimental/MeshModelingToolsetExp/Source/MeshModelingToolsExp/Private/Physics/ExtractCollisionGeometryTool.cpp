@@ -70,6 +70,7 @@ void UExtractCollisionGeometryTool::Setup()
 	{
 		return LinearColors::SelectFColor(Mesh->GetTriangleGroup(TriangleID));
 	});
+	ToolSetupUtil::ApplyRenderingConfigurationToPreview(PreviewMesh, nullptr);
 
 	OutputTypeProperties = NewObject<UCreateMeshObjectTypeProperties>(this);
 	OutputTypeProperties->OutputType = UCreateMeshObjectTypeProperties::VolumeIdentifier;		// prefer volumes for extracting simple collision
