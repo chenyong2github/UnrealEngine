@@ -769,6 +769,24 @@ private:
 		TObjectPtr<URigHierarchy> Hierarchy;
 	};
 
+public:
+	// Class used to temporarily cache current pose of transient controls
+	// restore them after a ResetPoseToInitial call,
+	// which allows user to move bones in setup mode
+	class FTransientControlPoseScope
+	{
+	public:
+		FTransientControlPoseScope(TObjectPtr<UControlRig> InControlRig);
+		~FTransientControlPoseScope();
+	
+	private:
+		
+		UControlRig* ControlRig;
+		FRigPose CachedPose;	
+	};	
+
+private:
+	
 #endif
 
 	friend class FControlRigBlueprintCompilerContext;

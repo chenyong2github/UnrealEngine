@@ -724,39 +724,52 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 					GetHierarchy()->CopyPose(CDO->GetHierarchy(), false, true);
 				}
 			}
-			
+
 			{
-				// save the current state of all pose elements to preserve user intention
-				// the saved pose is reapplied to the rig after setup event as the pose scope goes out of scope
-				TUniquePtr<UControlRig::FPoseScope> PoseScope;
-				if (!bSetupModeEnabled)
+#if WITH_EDITOR
+				TUniquePtr<FTransientControlPoseScope> TransientControlPoseScope;
+				if (bSetupModeEnabled)
 				{
-					// only do this in non-setup mode because 
-					// when setup mode is enabled, the control values are cleared before reaching here (too late to save them)
-					PoseScope = MakeUnique<UControlRig::FPoseScope>(this, ERigElementType::ToResetAfterSetupEvent);
+					// save the transient control value, it should not be constantly reset in setup mode
+					TransientControlPoseScope = MakeUnique<FTransientControlPoseScope>(this);
+				}
+#endif
+				{
+					// save the current state of all pose elements to preserve user intention
+					// the saved pose is reapplied to the rig after setup event as the pose scope goes out of scope
+					TUniquePtr<UControlRig::FPoseScope> PoseScope;
+					if (!bSetupModeEnabled)
+					{
+						// only do this in non-setup mode because 
+						// when setup mode is enabled, the control values are cleared before reaching here (too late to save them)
+						PoseScope = MakeUnique<UControlRig::FPoseScope>(this, ERigElementType::ToResetAfterSetupEvent);
+					}
+
+					{
+
+						// reset the pose to initial such that setup event can run from a deterministic initial state
+						GetHierarchy()->ResetPoseToInitial(ERigElementType::All);
+					}
+
+					if (PreSetupEvent.IsBound())
+					{
+						FControlRigBracketScope BracketScope(PreSetupBracket);
+						PreSetupEvent.Broadcast(this, EControlRigState::Update, FRigUnit_PrepareForExecution::EventName);
+					}
+
+					ExecuteUnits(Context, FRigUnit_PrepareForExecution::EventName);
+
+					if (PostSetupEvent.IsBound())
+					{
+						FControlRigBracketScope BracketScope(PostSetupBracket);
+						PostSetupEvent.Broadcast(this, EControlRigState::Update, FRigUnit_PrepareForExecution::EventName);
+					}
 				}
 
-				// reset the pose to initial such that setup event can run from a deterministic initial state
-				GetHierarchy()->ResetPoseToInitial(ERigElementType::All);
-
-				if (PreSetupEvent.IsBound())
+				if (bSetupModeEnabled)
 				{
-					FControlRigBracketScope BracketScope(PreSetupBracket);
-					PreSetupEvent.Broadcast(this, EControlRigState::Update, FRigUnit_PrepareForExecution::EventName);
+					GetHierarchy()->ResetPoseToInitial(ERigElementType::Bone);
 				}
-
-				ExecuteUnits(Context, FRigUnit_PrepareForExecution::EventName);
-
-				if (PostSetupEvent.IsBound())
-				{
-					FControlRigBracketScope BracketScope(PostSetupBracket);
-					PostSetupEvent.Broadcast(this, EControlRigState::Update, FRigUnit_PrepareForExecution::EventName);
-				}
-			}
-
-			if (bSetupModeEnabled)
-			{
-				GetHierarchy()->ResetPoseToInitial(ERigElementType::Bone);
 			}
 		}
 		else
@@ -777,6 +790,9 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 			{
 				VM->SetFirstEntryEventInEventQueue(EventQueue[0]);
 			}
+
+			// Transform Overrride is generated using a Transient Control 
+			ApplyTransformOverrideForUserCreatedBones();
 #endif
 
 			if (InState == EControlRigState::Update && InEventName == FRigUnit_BeginExecution::EventName)
@@ -2780,6 +2796,8 @@ void UControlRig::SetControlCustomization(const FRigElementKey& InControl, const
 
 void UControlRig::PostInitInstanceIfRequired()
 {
+	static int re_entry = 0;
+	re_entry++;
 	if(GetHierarchy() == nullptr || VM == nullptr)
 	{
 		if(HasAnyFlags(RF_ClassDefaultObject))
@@ -2792,6 +2810,7 @@ void UControlRig::PostInitInstanceIfRequired()
 			PostInitInstance(CDO);
 		}
 	}
+	re_entry--;
 }
 
 void UControlRig::PostInitInstance(UControlRig* InCDO)
@@ -2893,6 +2912,27 @@ UControlRig::FTransientControlScope::~FTransientControlScope()
             false
         );
 	}
+}
+
+UControlRig::FTransientControlPoseScope::FTransientControlPoseScope(TObjectPtr<UControlRig> InControlRig)
+{
+	ControlRig = InControlRig;
+
+	TArray<FRigControlElement*> TransientControls = ControlRig->GetHierarchy()->GetTransientControls();
+	TArray<FRigElementKey> Keys;
+	for(FRigControlElement* TransientControl : TransientControls)
+	{
+		Keys.Add(TransientControl->GetKey());
+	}
+	
+	CachedPose = ControlRig->GetHierarchy()->GetPose(false, ERigElementType::Control, TArrayView<FRigElementKey>(Keys));
+}
+
+UControlRig::FTransientControlPoseScope::~FTransientControlPoseScope()
+{
+	check(ControlRig);
+
+	ControlRig->GetHierarchy()->SetPose(CachedPose);
 }
 
 #endif
