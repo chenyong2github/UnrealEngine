@@ -23,7 +23,7 @@ namespace Message
 		, TickCount(EventData.GetValue<uint32>("TickCount"))
 		, TimerCount(EventData.GetValue<uint32>("TimerCount"))
 		, RepaintCount(EventData.GetValue<uint32>("RepaintCount"))
-		, VolatilePaintCount(EventData.GetValue<uint32>("VolatilePaintCount"))
+		//, VolatilePaintCount(EventData.GetValue<uint32>("VolatilePaintCount"))
 		, PaintCount(EventData.GetValue<uint32>("PaintCount"))
 		, InvalidateCount(EventData.GetValue<uint32>("InvalidateCount"))
 		, RootInvalidatedCount(EventData.GetValue<uint32>("RootInvalidatedCount"))
@@ -48,8 +48,10 @@ namespace Message
 		EventData.GetString("DebugInfo", DebugInfo);
 	}
 	
-	FWidgetUpdatedMessage::FWidgetUpdatedMessage(const UE::Trace::IAnalyzer::FEventData& EventData)
+	FWidgetUpdatedMessage::FWidgetUpdatedMessage(const UE::Trace::IAnalyzer::FEventData& EventData, const UE::Trace::IAnalyzer::FEventTime& EventTime)
 		: WidgetId(EventData.GetValue<uint64>("WidgetId"))
+		, Duration(EventTime.AsSeconds(EventData.GetValue<uint64>("CycleEnd")) - EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle")))
+		, AffectedCount(EventData.GetValue<int32>("AffectedCount"))
 		, UpdateFlags(static_cast<EWidgetUpdateFlags>(EventData.GetValue<uint8>("UpdateFlags")))
 	{
 		static_assert(sizeof(EWidgetUpdateFlags) == sizeof(uint8), "EWidgetUpdateFlags is not a uint8");

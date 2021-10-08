@@ -47,9 +47,17 @@ public:
 		const SWidget* Widget;
 		int32 StartPaintCount;
 	};
+	struct FScopedWidgetUpdateTrace
+	{
+		FScopedWidgetUpdateTrace(const SWidget* InWidget);
+		~FScopedWidgetUpdateTrace();
+
+		uint64 StartCycle;
+		const SWidget* Widget;
+		EWidgetUpdateFlags UpdateFlags;
+	};
 
 	SLATECORE_API static void ApplicationTickAndDrawWidgets(float DeltaTime);
-	SLATECORE_API static void WidgetUpdated(const SWidget* Widget, EWidgetUpdateFlags UpdateFlags);
 	SLATECORE_API static void WidgetInvalidated(const SWidget* Widget, const SWidget* Investigator, EInvalidateWidgetReason Reason);
 	SLATECORE_API static void RootInvalidated(const SWidget* Widget, const SWidget* Investigator);
 	SLATECORE_API static void RootChildOrderInvalidated(const SWidget* Widget, const SWidget* Investigator);
@@ -60,6 +68,7 @@ public:
 
 private:
 	static void OutputWidgetPaint(const SWidget* Widget, uint64 StartCycle, uint64 EndCycle, uint32 PaintCount);
+	static void OutputWidgetUpdate(const SWidget* Widget, uint64 StartCycle, uint64 EndCycle, EWidgetUpdateFlags UpdateFlags, uint32 AffectedCount);
 };
 
 #define UE_TRACE_SLATE_BOOKMARK(Format, ...) \
@@ -82,8 +91,8 @@ private:
 #define UE_TRACE_SCOPED_SLATE_WIDGET_PAINT(Widget) \
 	FSlateTrace::FScopedWidgetPaintTrace _ScopedSlateWidgetPaintTrace(Widget);
 	
-#define UE_TRACE_SLATE_WIDGET_UPDATED(Widget, UpdateFlag) \
-	FSlateTrace::WidgetUpdated(Widget, UpdateFlag);
+#define UE_TRACE_SCOPED_SLATE_WIDGET_UPDATE(Widget) \
+	FSlateTrace::FScopedWidgetUpdateTrace _ScopedSlateWidgetUpdateTrace(Widget);
 
 #define UE_TRACE_SLATE_WIDGET_INVALIDATED(Widget, Investigator, InvalidateWidgetReason) \
 	FSlateTrace::WidgetInvalidated(Widget, Investigator, InvalidateWidgetReason);
@@ -102,7 +111,7 @@ private:
 #define UE_TRACE_SLATE_WIDGET_DEBUG_INFO(Widget)
 #define UE_TRACE_SLATE_WIDGET_REMOVED(Widget)
 #define UE_TRACE_SCOPED_SLATE_WIDGET_PAINT(Widget)
-#define UE_TRACE_SLATE_WIDGET_UPDATED(Widget, UpdateFlag)
+#define UE_TRACE_SCOPED_SLATE_WIDGET_UPDATE(Widget)
 #define UE_TRACE_SLATE_WIDGET_INVALIDATED(Widget, Investigator, InvalidateWidgetReason)
 #define UE_TRACE_SLATE_ROOT_INVALIDATED(Widget, Investigator)
 #define UE_TRACE_SLATE_ROOT_CHILDORDER_INVALIDATED(Widget, Investigator)

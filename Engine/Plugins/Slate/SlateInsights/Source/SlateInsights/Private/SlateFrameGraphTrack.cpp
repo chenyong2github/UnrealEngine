@@ -422,14 +422,14 @@ void FSlateFrameGraphTrack::AddAllSeries(const ITimingTrackUpdateContext& Contex
 			Series->SetColor_Detail(StyleSet.GetColor("SlateGraph.Color.RepaintCount"));
 			AllSeries.Add(Series);
 		}
-		{
-			TSharedRef<Private::FSlateFrameGraphSeries> Series = MakeShared<Private::FSlateFrameGraphSeries>(&Message::FApplicationTickedMessage::VolatilePaintCount);
-			Series->SetVisibility(true);
-			Series->SetName(LOCTEXT("VolatilePaintName", "Volatile Paint Count"));
-			Series->SetDescription(LOCTEXT("VolatilePaintDescription", "Volatile Paint Count"));
-			Series->SetColor_Detail(StyleSet.GetColor("SlateGraph.Color.VolatilePaintCount"));
-			AllSeries.Add(Series);
-		}
+		//{
+		//	TSharedRef<Private::FSlateFrameGraphSeries> Series = MakeShared<Private::FSlateFrameGraphSeries>(&Message::FApplicationTickedMessage::VolatilePaintCount);
+		//	Series->SetVisibility(true);
+		//	Series->SetName(LOCTEXT("VolatilePaintName", "Volatile Paint Count"));
+		//	Series->SetDescription(LOCTEXT("VolatilePaintDescription", "Volatile Paint Count"));
+		//	Series->SetColor_Detail(StyleSet.GetColor("SlateGraph.Color.VolatilePaintCount"));
+		//	AllSeries.Add(Series);
+		//}
 		{
 			TSharedRef<Private::FSlateFrameGraphSeries> Series = MakeShared<Private::FSlateFrameGraphSeries>(&Message::FApplicationTickedMessage::PaintCount);
 			Series->SetVisibility(true);

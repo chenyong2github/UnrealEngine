@@ -43,6 +43,8 @@ namespace Private
 {
 	const FName ColumnWidgetId("WidgetId");
 	const FName ColumnNumber("Number");
+	const FName ColumnAffectedCount("AffectedCount");
+	const FName ColumnDuration("Duration");
 	const FName ColumnFlag("Flag");
 
 	/** */
@@ -64,12 +66,14 @@ namespace Private
 	/** */
 	struct FWidgetUpdateInfo
 	{
-		FWidgetUpdateInfo(Message::FWidgetId InWidgetId, EWidgetUpdateFlags InUpdateFlags)
-			: WidgetId(InWidgetId), UpdateFlags(InUpdateFlags), Count(1)
+		FWidgetUpdateInfo(Message::FWidgetId InWidgetId, int32 InAffectedCount, double InDuration, EWidgetUpdateFlags InUpdateFlags)
+			: WidgetId(InWidgetId), AffectedCount(InAffectedCount), Count(1), Duration(InDuration), UpdateFlags(InUpdateFlags)
 		{ }
 		Message::FWidgetId WidgetId;
-		EWidgetUpdateFlags UpdateFlags;
+		int32 AffectedCount;
 		uint32 Count;
+		double Duration;
+		EWidgetUpdateFlags UpdateFlags;
 	};
 
 	/** */
@@ -168,6 +172,16 @@ namespace Private
 			{
 				return SNew(STextBlock)
 					.Text(FText::AsNumber(Info->Count));
+			}
+			else if (Column == ColumnAffectedCount)
+			{
+				return SNew(STextBlock)
+					.Text(FText::AsNumber(Info->AffectedCount));
+			}
+			else if (Column == ColumnDuration)
+			{
+				return SNew(STextBlock)
+					.Text(FText::FromString(TimeUtils::FormatTimeAuto(Info->Duration)));
 			}
 			else if (Column == ColumnFlag)
 			{
@@ -339,6 +353,9 @@ void SSlateFrameSchematicView::Construct(const FArguments& InArgs)
 	StartTime = -1.0;
 	EndTime = -1.0;
 
+	WidgetUpdateSortColumn = FName();
+	bWidgetUpdateSortAscending = false;
+
 	ChildSlot
 	[
 		SNew(SVerticalBox)
@@ -392,6 +409,7 @@ void SSlateFrameSchematicView::Construct(const FArguments& InArgs)
 					.TreeItemsSource(&WidgetInvalidationInfos)
 					.OnGenerateRow(this, &SSlateFrameSchematicView::HandleUniqueInvalidatedMakeTreeRowWidget)
 					.OnGetChildren(this, &SSlateFrameSchematicView::HandleUniqueInvalidatedChildrenForInfo)
+					.OnItemToString_Debug(this, &SSlateFrameSchematicView::HandleWidgetInvalidateListToStringDebug)
 					.OnContextMenuOpening(this, &SSlateFrameSchematicView::HandleWidgetInvalidateListContextMenu)
 					.SelectionMode(ESelectionMode::Single)
 					.HeaderRow
@@ -401,6 +419,7 @@ void SSlateFrameSchematicView::Construct(const FArguments& InArgs)
 						+ SHeaderRow::Column(Private::ColumnWidgetId)
 						.DefaultLabel(LOCTEXT("WidgetColumn", "Widget"))
 						.FillWidth(1.f)
+						.HAlignCell(EHorizontalAlignment::HAlign_Left)
 
 						+ SHeaderRow::Column(Private::ColumnNumber)
 						.DefaultLabel(LOCTEXT("AmountColumn", "Amount"))
@@ -409,7 +428,7 @@ void SSlateFrameSchematicView::Construct(const FArguments& InArgs)
 						
 						+ SHeaderRow::Column(Private::ColumnFlag)
 						.DefaultLabel(LOCTEXT("ReasonColumn", "Reason"))
-						.FixedWidth(75.f)
+						.FixedWidth(95.f)
 						.HAlignCell(EHorizontalAlignment::HAlign_Right)
 					)
 				]
@@ -455,8 +474,25 @@ void SSlateFrameSchematicView::Construct(const FArguments& InArgs)
 
 						+ SHeaderRow::Column(Private::ColumnWidgetId)
 						.DefaultLabel(LOCTEXT("WidgetColumn", "Widget"))
-						.FillWidth(1.f)
+						.HAlignCell(EHorizontalAlignment::HAlign_Left)
+						.FillWidth(0.8f)
+						.SortMode(this, &SSlateFrameSchematicView::HandleWidgetUpdateGetSortMode, Private::ColumnWidgetId)
+						.OnSort(this, &SSlateFrameSchematicView::HandleWidgetUpdateInfoSort)
 
+						+ SHeaderRow::Column(Private::ColumnAffectedCount)
+						.DefaultLabel(LOCTEXT("AffectedColumn", "Affected"))
+						.FixedWidth(50.f)
+						.HAlignCell(EHorizontalAlignment::HAlign_Right)
+						.SortMode(this, &SSlateFrameSchematicView::HandleWidgetUpdateGetSortMode, Private::ColumnAffectedCount)
+						.OnSort(this, &SSlateFrameSchematicView::HandleWidgetUpdateInfoSort)
+						
+						+ SHeaderRow::Column(Private::ColumnDuration)
+						.DefaultLabel(LOCTEXT("Duration", "Length"))
+						.FillWidth(0.2f)
+						.HAlignCell(EHorizontalAlignment::HAlign_Right)
+						.SortMode(this, &SSlateFrameSchematicView::HandleWidgetUpdateGetSortMode, Private::ColumnDuration)
+						.OnSort(this, &SSlateFrameSchematicView::HandleWidgetUpdateInfoSort)
+						
 						+ SHeaderRow::Column(Private::ColumnNumber)
 						.DefaultLabel(LOCTEXT("AmountColumn", "Amount"))
 						.FixedWidth(50.f)
@@ -464,7 +500,7 @@ void SSlateFrameSchematicView::Construct(const FArguments& InArgs)
 
 						+ SHeaderRow::Column(Private::ColumnFlag)
 						.DefaultLabel(LOCTEXT("UpdateFlagColumn", "Update"))
-						.FixedWidth(75.f)
+						.FixedWidth(95.f)
 						.HAlignCell(EHorizontalAlignment::HAlign_Right)
 					)
 				]
@@ -535,6 +571,27 @@ TSharedRef<ITableRow> SSlateFrameSchematicView::HandleWidgetUpdateInfoGenerateWi
 		Private::GetWidgetName(AnalysisSession, Item->WidgetId));
 }
 
+void SSlateFrameSchematicView::HandleWidgetUpdateInfoSort(EColumnSortPriority::Type, const FName& ColumnId, EColumnSortMode::Type SortMode)
+{
+	if (WidgetUpdateSortColumn == ColumnId)
+	{
+		bWidgetUpdateSortAscending = !bWidgetUpdateSortAscending;
+	}
+	else
+	{
+		bWidgetUpdateSortAscending = true;
+	}
+	WidgetUpdateSortColumn = ColumnId;
+	SortWidgetUpdateInfos();
+}
+
+EColumnSortMode::Type SSlateFrameSchematicView::HandleWidgetUpdateGetSortMode(FName ColumnId) const
+{
+	return WidgetUpdateSortColumn == ColumnId
+		? (bWidgetUpdateSortAscending? EColumnSortMode::Ascending : EColumnSortMode::Descending)
+		: EColumnSortMode::None;
+}
+
 void SSlateFrameSchematicView::HandleTimeMarkerChanged(Insights::ETimeChangedFlags InFlags, double InTimeMarker)
 {
 	if (!FMath::IsNearlyEqual(StartTime, InTimeMarker) && !FMath::IsNearlyEqual(EndTime, InTimeMarker))
@@ -597,6 +654,11 @@ TSharedPtr<SWidget> SSlateFrameSchematicView::HandleWidgetInvalidateListContextM
 		));
 
 	return MenuBuilder.MakeWidget();
+}
+
+FString SSlateFrameSchematicView::HandleWidgetInvalidateListToStringDebug(TSharedPtr<Private::FWidgetUniqueInvalidatedInfo> InInfo)
+{
+	return Private::GetWidgetName(AnalysisSession, InInfo->WidgetId).ToString();
 }
 
 bool SSlateFrameSchematicView::CanWidgetInvalidateListGotoRootWidget()
@@ -827,7 +889,7 @@ void SSlateFrameSchematicView::RefreshNodes_Invalidation(const FSlateProvider* S
 					InvalidationMap.Add(Message.InvestigatorId, InvestigatorInfo);
 				}
 				InvestigatorInfo->bRoot = false;
-				WidgetInfo->Investigators.Add(InvestigatorInfo);
+				WidgetInfo->Investigators.AddUnique(InvestigatorInfo);
 			}
 
 			if (!Message.ScriptTrace.IsEmpty())
@@ -864,20 +926,85 @@ void SSlateFrameSchematicView::RefreshNodes_Update(const FSlateProvider* SlatePr
 		{
 			if (TSharedPtr<Private::FWidgetUpdateInfo>* Info = WidgetUpdateInfosMap.Find(Message.WidgetId))
 			{
-				++((*Info)->Count);
-				(*Info)->UpdateFlags |= Message.UpdateFlags;
+				Private::FWidgetUpdateInfo& UpdateInfo = *(*Info);
+				// if we have the same flag again, then we have a duplicate
+				if ((UpdateInfo.UpdateFlags & Message.UpdateFlags) != EWidgetUpdateFlags::None)
+				{
+					++UpdateInfo.Count;
+				}
+				UpdateInfo.AffectedCount = FMath::Max(UpdateInfo.AffectedCount, Message.AffectedCount);
+				// If the new update is the paint message, take it's time since it include the tick and active timer
+				if (EnumHasAnyFlags(UpdateInfo.UpdateFlags, EWidgetUpdateFlags::NeedsRepaint|EWidgetUpdateFlags::NeedsVolatilePaint))
+				{
+					UpdateInfo.Duration = Message.Duration;
+				}
+				UpdateInfo.UpdateFlags |= Message.UpdateFlags;
 			}
 			else
 			{
 				WidgetUpdateInfosMap.Add(
 					Message.WidgetId,
-					MakeShared<Private::FWidgetUpdateInfo>(Message.WidgetId, Message.UpdateFlags));
+					MakeShared<Private::FWidgetUpdateInfo>(Message.WidgetId, Message.AffectedCount, Message.Duration, Message.UpdateFlags));
 			}
 			return TraceServices::EEventEnumerate::Continue;
 		});
 	WidgetUpdateInfosMap.GenerateValueArray(WidgetUpdateInfos);
+	SortWidgetUpdateInfos();
 
 	UpdateSummary->SetText(FText::Format(LOCTEXT("UpdateSummary_Formated", "{0} widgets updated."), FText::AsNumber(WidgetUpdateInfos.Num())));
+}
+
+void SSlateFrameSchematicView::SortWidgetUpdateInfos()
+{
+	if (bWidgetUpdateSortAscending)
+	{
+		if (WidgetUpdateSortColumn == Private::ColumnAffectedCount)
+		{
+			WidgetUpdateInfos.Sort([](const TSharedPtr<Private::FWidgetUpdateInfo>& A, const TSharedPtr<Private::FWidgetUpdateInfo>& B)
+				{
+					return A->AffectedCount < B->AffectedCount;
+				});
+		}
+		else if (WidgetUpdateSortColumn == Private::ColumnDuration)
+		{
+			WidgetUpdateInfos.Sort([](const TSharedPtr<Private::FWidgetUpdateInfo>& A, const TSharedPtr<Private::FWidgetUpdateInfo>& B)
+				{
+					return A->Duration < B->Duration;
+				});
+		}
+		else if (WidgetUpdateSortColumn == Private::ColumnWidgetId)
+		{
+			WidgetUpdateInfos.Sort([](const TSharedPtr<Private::FWidgetUpdateInfo>& A, const TSharedPtr<Private::FWidgetUpdateInfo>& B)
+				{
+					return A->WidgetId.GetValue() < B->WidgetId.GetValue();
+				});
+		}
+	}
+	else
+	{
+		if (WidgetUpdateSortColumn == Private::ColumnAffectedCount)
+		{
+			WidgetUpdateInfos.Sort([](const TSharedPtr<Private::FWidgetUpdateInfo>& A, const TSharedPtr<Private::FWidgetUpdateInfo>& B)
+				{
+					return A->AffectedCount > B->AffectedCount;
+				});
+		}
+		else if (WidgetUpdateSortColumn == Private::ColumnDuration)
+		{
+			WidgetUpdateInfos.Sort([](const TSharedPtr<Private::FWidgetUpdateInfo>& A, const TSharedPtr<Private::FWidgetUpdateInfo>& B)
+				{
+					return A->Duration > B->Duration;
+				});
+		}
+		else if (WidgetUpdateSortColumn == Private::ColumnWidgetId)
+		{
+			WidgetUpdateInfos.Sort([](const TSharedPtr<Private::FWidgetUpdateInfo>& A, const TSharedPtr<Private::FWidgetUpdateInfo>& B)
+				{
+					return A->WidgetId.GetValue() > B->WidgetId.GetValue();
+				});
+		}
+	}
+	WidgetUpdateInfoListView->RebuildList();
 }
 
 } //namespace SlateInsights

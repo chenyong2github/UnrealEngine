@@ -57,6 +57,7 @@ int32 FWidgetProxy::Update(const FPaintArgs& PaintArgs, FSlateWindowElementList&
 	}
 	else
 	{
+		UE_TRACE_SCOPED_SLATE_WIDGET_UPDATE(CurrentWidget.Get());
 		EWidgetUpdateFlags PreviousUpdateFlag = CurrentWidget->UpdateFlags;
 		if (CurrentWidget->HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsActiveTimerUpdate))
 		{
@@ -77,7 +78,6 @@ int32 FWidgetProxy::Update(const FPaintArgs& PaintArgs, FSlateWindowElementList&
 #if WITH_SLATE_DEBUGGING
 		FSlateDebugging::BroadcastWidgetUpdated(CurrentWidget.Get(), PreviousUpdateFlag);
 #endif
-		UE_TRACE_SLATE_WIDGET_UPDATED(CurrentWidget.Get(), PreviousUpdateFlag);
 	}
 
 	return OutgoingLayerId;

@@ -1408,29 +1408,32 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	FGeometry DesktopSpaceGeometry = AllottedGeometry;
 	DesktopSpaceGeometry.AppendTransform(FSlateLayoutTransform(Args.GetWindowToDesktopTransform()));
 
-	if (HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsActiveTimerUpdate))
 	{
-		if (bHasPendingAttributesInvalidation)
+		UE_TRACE_SCOPED_SLATE_WIDGET_UPDATE(this);
+		if (HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsActiveTimerUpdate))
 		{
-			FSlateAttributeMetaData::ApplyDelayedInvalidation(*MutableThis);
+			if (bHasPendingAttributesInvalidation)
+			{
+				FSlateAttributeMetaData::ApplyDelayedInvalidation(*MutableThis);
+			}
+
+			SCOPE_CYCLE_COUNTER(STAT_SlateExecuteActiveTimers);
+			MutableThis->ExecuteActiveTimers(Args.GetCurrentTime(), Args.GetDeltaTime());
 		}
 
-		SCOPE_CYCLE_COUNTER(STAT_SlateExecuteActiveTimers);
-		MutableThis->ExecuteActiveTimers(Args.GetCurrentTime(), Args.GetDeltaTime());
-	}
-
-	if (HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsTick))
-	{
-		if (bHasPendingAttributesInvalidation)
+		if (HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsTick))
 		{
-			FSlateAttributeMetaData::ApplyDelayedInvalidation(*MutableThis);
+			if (bHasPendingAttributesInvalidation)
+			{
+				FSlateAttributeMetaData::ApplyDelayedInvalidation(*MutableThis);
+			}
+
+			INC_DWORD_STAT(STAT_SlateNumTickedWidgets);
+
+			SCOPE_CYCLE_COUNTER(STAT_SlateTickWidgets);
+			SCOPE_CYCLE_SWIDGET(this);
+			MutableThis->Tick(DesktopSpaceGeometry, Args.GetCurrentTime(), Args.GetDeltaTime());
 		}
-
-		INC_DWORD_STAT(STAT_SlateNumTickedWidgets);
-
-		SCOPE_CYCLE_COUNTER(STAT_SlateTickWidgets);
-		SCOPE_CYCLE_SWIDGET(this);
-		MutableThis->Tick(DesktopSpaceGeometry, Args.GetCurrentTime(), Args.GetDeltaTime());
 	}
 
 	if (bHasPendingAttributesInvalidation)
@@ -1631,7 +1634,6 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 #if WITH_SLATE_DEBUGGING
 	FSlateDebugging::BroadcastWidgetUpdatedByPaint(this, PreviousUpdateFlag);
 #endif
-	UE_TRACE_SLATE_WIDGET_UPDATED(this, PreviousUpdateFlag);
 
 	return NewLayerId;
 }
