@@ -514,6 +514,13 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 	Result.TwoSidedSign = 1;
 	Result.PrimitiveId = GetPrimitiveId(Interpolants);
 
+#if HAS_INSTANCE_LOCAL_TO_WORLD_PS
+	Result.InstanceLocalToWorld = GetInstanceLocalToWorld(Interpolants);
+#endif
+#if HAS_INSTANCE_WORLD_TO_LOCAL_PS
+	Result.InstanceWorldToLocal = GetInstanceWorldToLocal(Interpolants);
+#endif
+
 #if NEEDS_PARTICLE_LOCAL_TO_WORLD
 	Result.Particle.ParticleToWorld = GetPrimitiveData(Result.PrimitiveId).LocalToWorld;
 #endif
@@ -556,11 +563,30 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	Result.InstanceId = GetInstanceId(Input.InstanceId); 
 	Result.InstanceOffset = InstanceOffset;
 	Result.PrevFrameLocalToWorld = mul(GetInstancePrevTransform(Intermediates), GetPrimitiveData(Intermediates).PreviousLocalToWorld);
+
+	// Calculate derived world to local
+	{
+		float3 Scale2;
+		Scale2.x = length2(Result.InstanceLocalToWorld[0].xyz);
+		Scale2.y = length2(Result.InstanceLocalToWorld[1].xyz);
+		Scale2.z = length2(Result.InstanceLocalToWorld[2].xyz);
+
+		float3 InvNonUniformScale = rsqrt(Scale2);
+
+		Result.InstanceWorldToLocal			 = Result.InstanceLocalToWorld;
+		Result.InstanceWorldToLocal[0].xyz	*= Pow2(InvNonUniformScale.x);
+		Result.InstanceWorldToLocal[1].xyz	*= Pow2(InvNonUniformScale.y);
+		Result.InstanceWorldToLocal[2].xyz	*= Pow2(InvNonUniformScale.z);
+		Result.InstanceWorldToLocal[3].xyz	 = 0.0f;
+		Result.InstanceWorldToLocal			 = transpose(Result.InstanceWorldToLocal);
+		Result.InstanceWorldToLocal[3].xyz	 = mul(float4(-Result.InstanceLocalToWorld[3].xyz, 0.0f), Result.InstanceWorldToLocal).xyz;
+	}
 #else
 	Result.PrevFrameLocalToWorld = GetInstanceData(Intermediates).PrevLocalToWorld;
 	#if USE_INSTANCE_CULLING
 		Result.InstanceLocalPosition = Input.Position.xyz;
 		Result.InstanceLocalToWorld = GetInstanceData(Intermediates).LocalToWorld;
+		Result.InstanceWorldToLocal = GetInstanceData(Intermediates).WorldToLocal;
 		Result.PerInstanceParams = Intermediates.PerInstanceParams;
 		Result.PrimitiveLocalInstanceIndex = Intermediates.PrimitiveLocalInstanceIndex;
 	#endif
@@ -1058,6 +1084,13 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 #endif
 
 	SetPrimitiveId(Interpolants, Intermediates.SceneData.PrimitiveId);
+
+#if HAS_INSTANCE_LOCAL_TO_WORLD_PS
+	SetInstanceLocalToWorld(Interpolants, VertexParameters.InstanceLocalToWorld);
+#endif
+#if HAS_INSTANCE_WORLD_TO_LOCAL_PS
+	SetInstanceWorldToLocal(Interpolants, VertexParameters.InstanceWorldToLocal);
+#endif
 
 	return Interpolants;
 }

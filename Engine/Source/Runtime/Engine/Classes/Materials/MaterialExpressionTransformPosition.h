@@ -27,8 +27,11 @@ enum EMaterialPositionTransformSource
 	/** Camera space */
 	TRANSFORMPOSSOURCE_Camera  UMETA(DisplayName="Camera Space"),
 
-	/** Particle space */
-	TRANSFORMPOSSOURCE_Particle UMETA(DisplayName = "Mesh Particle Space"),
+	/** Particle space, deprecated value will be removed in a future release use instance space. */
+	TRANSFORMPOSSOURCE_Particle UMETA(Hidden, DisplayName = "Mesh Particle Space"),
+
+	/** Instance space (used to provide per instance transform, i.e. for Instanced Static Mesh / Particles). */
+	TRANSFORMPOSSOURCE_Instance UMETA(DisplayName = "Instance & Particle Space"),
 
 	TRANSFORMPOSSOURCE_MAX,
 };

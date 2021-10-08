@@ -177,6 +177,8 @@ FHLSLMaterialTranslator::FHLSLMaterialTranslator(FMaterial* InMaterial,
 ,	bUsesParticleColor(false)
 ,	bUsesParticleLocalToWorld(false)
 ,	bUsesParticleWorldToLocal(false)
+,	bUsesInstanceLocalToWorldPS(false)
+,	bUsesInstanceWorldToLocalPS(false)
 ,	bUsesVertexPosition(false)
 ,	bUsesTransformVector(false)
 ,	bCompilingPreviousFrame(false)
@@ -1490,6 +1492,8 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 	OutEnvironment.SetDefine(TEXT("NEEDS_PARTICLE_COLOR"), bUsesParticleColor); 
 	OutEnvironment.SetDefine(TEXT("NEEDS_PARTICLE_LOCAL_TO_WORLD"), bUsesParticleLocalToWorld);
 	OutEnvironment.SetDefine(TEXT("NEEDS_PARTICLE_WORLD_TO_LOCAL"), bUsesParticleWorldToLocal);
+	OutEnvironment.SetDefine(TEXT("NEEDS_INSTANCE_LOCAL_TO_WORLD_PS"), bUsesInstanceLocalToWorldPS);
+	OutEnvironment.SetDefine(TEXT("NEEDS_INSTANCE_WORLD_TO_LOCAL_PS"), bUsesInstanceWorldToLocalPS);
 	OutEnvironment.SetDefine(TEXT("USES_TRANSFORM_VECTOR"), bUsesTransformVector);
 	OutEnvironment.SetDefine(TEXT("WANT_PIXEL_DEPTH_OFFSET"), bUsesPixelDepthOffset);
 	if (IsMetalPlatform(InPlatform))
@@ -7904,6 +7908,11 @@ int32 FHLSLMaterialTranslator::TransformBase(EMaterialCommonBasis SourceCoordBas
 				CodeStr = TEXT("mul(<A>, <MATRIX>(Parameters.Particle.WorldToParticle))");
 				bUsesParticleWorldToLocal = true;
 			}
+			else if (DestCoordBasis == MCB_Instance)
+			{
+				CodeStr = TEXT("mul(<A>, <MATRIX>GetWorldToInstance(Parameters))");
+				bUsesInstanceWorldToLocalPS = ShaderFrequency == SF_Pixel;
+			}
 
 			// else use MCB_TranslatedWorld as intermediary basis
 			IntermediaryBasis = MCB_TranslatedWorld;
@@ -7939,6 +7948,17 @@ int32 FHLSLMaterialTranslator::TransformBase(EMaterialCommonBasis SourceCoordBas
 			// use World as an intermediary base
 			break;
 		}
+		case MCB_Instance:
+		{
+			if (DestCoordBasis == MCB_World)
+			{
+				CodeStr = TEXT("mul(<A>, <MATRIX>GetInstanceToWorld(Parameters))");
+				bUsesInstanceLocalToWorldPS = ShaderFrequency == SF_Pixel;
+			}
+			// use World as an intermediary base
+			break;
+		}
+
 		default:
 			check(0);
 			break;

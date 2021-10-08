@@ -18,8 +18,8 @@
 #define USE_PARTICLE_TIME (NEEDS_PARTICLE_TIME)
 #define USE_PARTICLE_RANDOM (NEEDS_PARTICLE_RANDOM)
 #define USE_PARTICLE_TRANSFORM (NEEDS_PARTICLE_TRANSFORM)
-#define USE_PARTICLE_LOCAL_TO_WORLD (NEEDS_PARTICLE_LOCAL_TO_WORLD)
-#define USE_PARTICLE_WORLD_TO_LOCAL (NEEDS_PARTICLE_WORLD_TO_LOCAL)
+#define USE_PARTICLE_LOCAL_TO_WORLD (NEEDS_PARTICLE_LOCAL_TO_WORLD || NEEDS_INSTANCE_LOCAL_TO_WORLD_PS)
+#define USE_PARTICLE_WORLD_TO_LOCAL (NEEDS_PARTICLE_WORLD_TO_LOCAL || NEEDS_INSTANCE_WORLD_TO_LOCAL_PS)
 
 #ifndef ENABLE_PRECISE_MOTION_VECTORS
 #define ENABLE_PRECISE_MOTION_VECTORS 0
@@ -367,19 +367,23 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 #endif
 
 #if USE_PARTICLE_LOCAL_TO_WORLD
-	Result.Particle.ParticleToWorld = transpose(float4x4(
-		Interpolants.ParticleToWorld[0],
-		Interpolants.ParticleToWorld[1],
-		Interpolants.ParticleToWorld[2],
-		float4(0.0f, 0.0f, 0.0f, 1.0f)));
+	float4x4 ParticleToWorld = transpose(float4x4(Interpolants.ParticleToWorld[0], Interpolants.ParticleToWorld[1], Interpolants.ParticleToWorld[2], float4(0.0f, 0.0f, 0.0f, 1.0f)));
+	#if NEEDS_PARTICLE_LOCAL_TO_WORLD
+		Result.Particle.ParticleToWorld = ParticleToWorld;
+	#endif
+	#if NEEDS_INSTANCE_LOCAL_TO_WORLD_PS
+		Result.InstanceLocalToWorld = ParticleToWorld;
+	#endif
 #endif
 
 #if USE_PARTICLE_WORLD_TO_LOCAL
-	Result.Particle.WorldToParticle = transpose(float4x4(
-		Interpolants.WorldToParticle[0],
-		Interpolants.WorldToParticle[1],
-		Interpolants.WorldToParticle[2],
-		float4(0.0f, 0.0f, 0.0f, 1.0f)));
+	float4x4 WorldToParticle = transpose(float4x4(Interpolants.WorldToParticle[0], Interpolants.WorldToParticle[1], Interpolants.WorldToParticle[2], float4(0.0f, 0.0f, 0.0f, 1.0f)));
+	#if NEEDS_PARTICLE_WORLD_TO_LOCAL
+		Result.Particle.WorldToParticle = WorldToParticle;
+	#endif
+	#if NEEDS_INSTANCE_WORLD_TO_LOCAL_PS
+		Result.InstanceWorldToLocal = WorldToParticle;
+	#endif
 #endif
 
 	Result.Particle.MotionBlurFade = 1.0f;
@@ -440,11 +444,11 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	Result.Particle.DynamicParameter3 = Intermediates.DynamicParameter3;
 #endif
 
-	float4x4 Transform = GetParticleTransform(Intermediates);
-	Result.InstanceLocalToWorld = Transform;
+	Result.InstanceLocalToWorld = GetParticleTransform(Intermediates);
+	Result.InstanceWorldToLocal = GetParticleInvTransform(Intermediates);
 
-	Result.Particle.ParticleToWorld = Transform;
-	Result.Particle.WorldToParticle = GetParticleInvTransform(Intermediates);
+	Result.Particle.ParticleToWorld = Result.InstanceLocalToWorld;
+	Result.Particle.WorldToParticle = Result.InstanceWorldToLocal;
 
 	// Use the particle's unscaled transform for rotating normals to match static mesh
 	Result.TangentToWorld = mul(TangentToLocal, (float3x3)GetParticleTransformNoScale(Intermediates));

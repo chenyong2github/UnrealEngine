@@ -179,6 +179,7 @@ enum EMaterialCommonBasis
 	MCB_View,
 	MCB_Camera,
 	MCB_MeshParticle,
+	MCB_Instance,
 	MCB_MAX,
 };
 
