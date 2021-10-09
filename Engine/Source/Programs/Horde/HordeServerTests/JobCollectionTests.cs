@@ -38,16 +38,16 @@ namespace HordeServerTests
 			this.JobCollection = new JobCollection(DatabaseService, NullLogger<JobCollection>.Instance);
 		}
 
-		CreateGroupRequest AddGroup(List<CreateGroupRequest> Groups)
+		NewGroup AddGroup(List<NewGroup> Groups)
 		{
-			CreateGroupRequest Group = new CreateGroupRequest("win64", new List<CreateNodeRequest>());
+			NewGroup Group = new NewGroup("win64", new List<NewNode>());
 			Groups.Add(Group);
 			return Group;
 		}
 
-		CreateNodeRequest AddNode(CreateGroupRequest Group, string Name, string[]? InputDependencies, Action<CreateNodeRequest>? Action = null)
+		NewNode AddNode(NewGroup Group, string Name, string[]? InputDependencies, Action<NewNode>? Action = null)
 		{
-			CreateNodeRequest Node = new CreateNodeRequest(Name, InputDependencies?.ToList(), InputDependencies?.ToList(), null, null, null, null, null, null);
+			NewNode Node = new NewNode(Name, InputDependencies?.ToList(), InputDependencies?.ToList(), null, null, null, null, null, null);
 			if (Action != null)
 			{
 				Action.Invoke(Node);
@@ -90,16 +90,16 @@ namespace HordeServerTests
 			await StartBatch(Job, BaseGraph, 0);
 			await RunStep(Job, BaseGraph, 0, 0, JobStepOutcome.Success); // Setup Build
 
-			List<CreateGroupRequest> NewGroups = new List<CreateGroupRequest>();
+			List<NewGroup> NewGroups = new List<NewGroup>();
 
-			CreateGroupRequest InitialGroup = AddGroup(NewGroups);
+			NewGroup InitialGroup = AddGroup(NewGroups);
 			AddNode(InitialGroup, "Update Version Files", null);
 			AddNode(InitialGroup, "Compile Editor", new[] { "Update Version Files" });
 
-			CreateGroupRequest CompileGroup = AddGroup(NewGroups);
+			NewGroup CompileGroup = AddGroup(NewGroups);
 			AddNode(CompileGroup, "Compile Client", new[] { "Update Version Files" });
 
-			CreateGroupRequest PublishGroup = AddGroup(NewGroups);
+			NewGroup PublishGroup = AddGroup(NewGroups);
 			AddNode(PublishGroup, "Cook Client", new[] { "Compile Editor" }, x => x.RunEarly = true);
 			AddNode(PublishGroup, "Publish Client", new[] { "Compile Client", "Cook Client" });
 			AddNode(PublishGroup, "Post-Publish Client", null, x => x.OrderDependencies = new List<string> { "Publish Client" });
@@ -162,9 +162,9 @@ namespace HordeServerTests
 			await StartBatch(Job, BaseGraph, 0);
 			await RunStep(Job, BaseGraph, 0, 0, JobStepOutcome.Success); // Setup Build
 
-			List<CreateGroupRequest> NewGroups = new List<CreateGroupRequest>();
+			List<NewGroup> NewGroups = new List<NewGroup>();
 
-			CreateGroupRequest InitialGroup = AddGroup(NewGroups);
+			NewGroup InitialGroup = AddGroup(NewGroups);
 			AddNode(InitialGroup, "Step 1", null);
 			AddNode(InitialGroup, "Step 2", HasDependency? new[] { "Step 1" } : null);
 			AddNode(InitialGroup, "Step 3", new[] { "Step 2" });

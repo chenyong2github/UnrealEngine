@@ -817,29 +817,29 @@ namespace HordeServer.Services
 		/// <returns>Information about the new agent</returns>
 		public async override Task<UpdateGraphResponse> UpdateGraph(UpdateGraphRequest Request, ServerCallContext Context)
 		{
-			List<Api.CreateGroupRequest> ApiGroups = new List<Api.CreateGroupRequest>();
+			List<NewGroup> NewGroups = new List<NewGroup>();
 			foreach (CreateGroupRequest Group in Request.Groups)
 			{
-				List<Api.CreateNodeRequest> ApiNodes = new List<Api.CreateNodeRequest>();
+				List<NewNode> NewNodes = new List<NewNode>();
 				foreach (CreateNodeRequest Node in Group.Nodes)
 				{
-					Api.CreateNodeRequest ApiNode = new Api.CreateNodeRequest(Node.Name, Node.InputDependencies.ToList(), Node.OrderDependencies.ToList(), Node.Priority, Node.AllowRetry, Node.RunEarly, Node.Warnings, new Dictionary<string, string>(Node.Credentials), new Dictionary<string, string>(Node.Properties));
-					ApiNodes.Add(ApiNode);
+					NewNode NewNode = new NewNode(Node.Name, Node.InputDependencies.ToList(), Node.OrderDependencies.ToList(), Node.Priority, Node.AllowRetry, Node.RunEarly, Node.Warnings, new Dictionary<string, string>(Node.Credentials), new Dictionary<string, string>(Node.Properties));
+					NewNodes.Add(NewNode);
 				}
-				ApiGroups.Add(new Api.CreateGroupRequest(Group.AgentType, ApiNodes));
+				NewGroups.Add(new NewGroup(Group.AgentType, NewNodes));
 			}
 
-			List<Api.CreateAggregateRequest> ApiAggregates = new List<Api.CreateAggregateRequest>();
+			List<NewAggregate> NewAggregates = new List<NewAggregate>();
 			foreach (CreateAggregateRequest Aggregate in Request.Aggregates)
 			{
-				Api.CreateAggregateRequest ApiAggregate = new Api.CreateAggregateRequest(Aggregate.Name, Aggregate.Nodes.ToList());
-				ApiAggregates.Add(ApiAggregate);
+				NewAggregate NewAggregate = new NewAggregate(Aggregate.Name, Aggregate.Nodes.ToList());
+				NewAggregates.Add(NewAggregate);
 			}
 
-			List<Api.CreateLabelRequest> ApiLabels = new List<Api.CreateLabelRequest>();
+			List<NewLabel> NewLabels = new List<NewLabel>();
 			foreach (CreateLabelRequest Label in Request.Labels)
 			{
-				Api.CreateLabelRequest NewLabel = new Api.CreateLabelRequest();
+				NewLabel NewLabel = new NewLabel();
 				NewLabel.DashboardName = String.IsNullOrEmpty(Label.DashboardName) ? null : Label.DashboardName;
 				NewLabel.DashboardCategory = String.IsNullOrEmpty(Label.DashboardCategory) ? null : Label.DashboardCategory;
 				NewLabel.UgsName = String.IsNullOrEmpty(Label.UgsName) ? null : Label.UgsName;
@@ -847,7 +847,7 @@ namespace HordeServer.Services
 				NewLabel.Change = Label.Change;
 				NewLabel.RequiredNodes = Label.RequiredNodes.ToList();
 				NewLabel.IncludedNodes = Label.IncludedNodes.ToList();
-				ApiLabels.Add(NewLabel);
+				NewLabels.Add(NewLabel);
 			}
 
 			ObjectId JobIdValue = Request.JobId.ToObjectId();
@@ -864,7 +864,7 @@ namespace HordeServer.Services
 				}
 
 				IGraph Graph = await JobService.GetGraphAsync(Job);
-				Graph = await Graphs.AppendAsync(Graph, ApiGroups, ApiAggregates, ApiLabels);
+				Graph = await Graphs.AppendAsync(Graph, NewGroups, NewAggregates, NewLabels);
 
 				if (await JobService.TryUpdateGraphAsync(Job, Graph))
 				{

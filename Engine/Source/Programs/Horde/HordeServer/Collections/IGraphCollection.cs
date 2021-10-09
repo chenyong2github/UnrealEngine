@@ -38,7 +38,7 @@ namespace HordeServer.Collections
 		/// <param name="NewAggregateRequests">List of aggregate requests</param>
 		/// <param name="NewLabelRequests">List of label requests</param>
 		/// <returns>The new graph definition</returns>
-		Task<IGraph> AppendAsync(IGraph? BaseGraph, List<CreateGroupRequest>? NewGroupRequests = null, List<CreateAggregateRequest>? NewAggregateRequests = null, List<CreateLabelRequest>? NewLabelRequests = null);
+		Task<IGraph> AppendAsync(IGraph? BaseGraph, List<NewGroup>? NewGroupRequests = null, List<NewAggregate>? NewAggregateRequests = null, List<NewLabel>? NewLabelRequests = null);
 
 		/// <summary>
 		/// Gets the graph for a job

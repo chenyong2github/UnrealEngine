@@ -280,10 +280,10 @@ namespace HordeServer.Models
 		/// <returns>True if the node was found, false otherwise</returns>
 		public static bool TryFindNode(this IGraph Graph, string NodeName, out NodeRef Ref)
 		{
-			for(int GroupIdx = 0; GroupIdx < Graph.Groups.Count; GroupIdx++)
+			for (int GroupIdx = 0; GroupIdx < Graph.Groups.Count; GroupIdx++)
 			{
 				INodeGroup Group = Graph.Groups[GroupIdx];
-				for(int NodeIdx = 0; NodeIdx < Group.Nodes.Count; NodeIdx++)
+				for (int NodeIdx = 0; NodeIdx < Group.Nodes.Count; NodeIdx++)
 				{
 					INode Node = Group.Nodes[NodeIdx];
 					if (String.Equals(Node.Name, NodeName, StringComparison.OrdinalIgnoreCase))
@@ -366,5 +366,189 @@ namespace HordeServer.Models
 			return Enumerable.Concat(Node.InputDependencies, Node.OrderDependencies).Select(x => Graph.GetNode(x));
 		}
 	}
+
+	/// <summary>
+	/// Information required to create a node
+	/// </summary>
+	public class NewNode
+	{
+		/// <summary>
+		/// The name of this node 
+		/// </summary>
+		public string Name { get; set; } = null!;
+
+		/// <summary>
+		/// List of nodes which must succeed for this node to run
+		/// </summary>
+		public List<string>? InputDependencies { get; set; }
+
+		/// <summary>
+		/// List of nodes which must have completed for this node to run
+		/// </summary>
+		public List<string>? OrderDependencies { get; set; }
+
+		/// <summary>
+		/// The priority of this node
+		/// </summary>
+		public Priority? Priority { get; set; }
+
+		/// <summary>
+		/// This node can be run multiple times
+		/// </summary>
+		public bool? AllowRetry { get; set; }
+
+		/// <summary>
+		/// This node can start running early, before dependencies of other nodes in the same group are complete
+		/// </summary>
+		public bool? RunEarly { get; set; }
+
+		/// <summary>
+		/// Whether to include warnings in the diagnostic output
+		/// </summary>
+		public bool? Warnings { get; set; }
+
+		/// <summary>
+		/// Credentials required for this node to run. This dictionary maps from environment variable names to a credential property in the format 'CredentialName.PropertyName'.
+		/// </summary>
+		public Dictionary<string, string>? Credentials { get; set; }
+
+		/// <summary>
+		/// Properties for this node
+		/// </summary>
+		public Dictionary<string, string>? Properties { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Name">Name of the node</param>
+		/// <param name="InputDependencies">List of nodes which must have completed succesfully for this node to run</param>
+		/// <param name="OrderDependencies">List of nodes which must have completed for this node to run</param>
+		/// <param name="Priority">Priority of this node</param>
+		/// <param name="AllowRetry">Whether the node can be run multiple times</param>
+		/// <param name="RunEarly">Whether the node can run early, before dependencies of other nodes in the same group complete</param>
+		/// <param name="Warnings">Whether to include warnings in the diagnostic output (defaults to true)</param>
+		/// <param name="Credentials">Credentials required for this node to run</param>
+		/// <param name="Properties">Properties for the node</param>
+		public NewNode(string Name, List<string>? InputDependencies = null, List<string>? OrderDependencies = null, Priority? Priority = null, bool? AllowRetry = null, bool? RunEarly = null, bool? Warnings = null, Dictionary<string, string>? Credentials = null, Dictionary<string, string>? Properties = null)
+		{
+			this.Name = Name;
+			this.InputDependencies = InputDependencies;
+			this.OrderDependencies = OrderDependencies;
+			this.Priority = Priority;
+			this.AllowRetry = AllowRetry;
+			this.RunEarly = RunEarly;
+			this.Warnings = Warnings;
+			this.Credentials = Credentials;
+			this.Properties = Properties;
+		}
+	}
+
+	/// <summary>
+	/// Information about a group of nodes
+	/// </summary>
+	public class NewGroup
+	{
+		/// <summary>
+		/// The type of agent to execute this group
+		/// </summary>
+		public string AgentType { get; set; }
+
+		/// <summary>
+		/// Nodes in the group
+		/// </summary>
+		public List<NewNode> Nodes { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="AgentType">The type of agent to execute this group</param>
+		/// <param name="Nodes">Nodes in this group</param>
+		public NewGroup(string AgentType, List<NewNode> Nodes)
+		{
+			this.AgentType = AgentType;
+			this.Nodes = Nodes;
+		}
+	}
+
+	/// <summary>
+	/// Information about a group of nodes
+	/// </summary>
+	public class NewLabel
+	{
+		/// <summary>
+		/// Category for this label
+		/// </summary>
+		[Obsolete("Use DashboardCategory instead")]
+		public string? Category => DashboardCategory;
+
+		/// <summary>
+		/// Name of the aggregate
+		/// </summary>
+		[Obsolete("Use DashboardName instead")]
+		public string? Name => DashboardName;
+
+		/// <summary>
+		/// Name of the aggregate
+		/// </summary>
+		public string? DashboardName { get; set; }
+
+		/// <summary>
+		/// Category for this label
+		/// </summary>
+		public string? DashboardCategory { get; set; }
+
+		/// <summary>
+		/// Name of the badge in UGS
+		/// </summary>
+		public string? UgsName { get; set; }
+
+		/// <summary>
+		/// Project to show this label for in UGS
+		/// </summary>
+		public string? UgsProject { get; set; }
+
+		/// <summary>
+		/// Which change the label applies to
+		/// </summary>
+		public LabelChange Change { get; set; }
+
+		/// <summary>
+		/// Nodes which must be part of the job for the aggregate to be valid
+		/// </summary>
+		public List<string> RequiredNodes { get; set; } = new List<string>();
+
+		/// <summary>
+		/// Nodes which must be part of the job for the aggregate to be valid
+		/// </summary>
+		public List<string> IncludedNodes { get; set; } = new List<string>();
+	}
+
+	/// <summary>
+	/// Information about a group of nodes
+	/// </summary>
+	public class NewAggregate
+	{
+		/// <summary>
+		/// Name of the aggregate
+		/// </summary>
+		public string Name { get; set; }
+
+		/// <summary>
+		/// Nodes which must be part of the job for the aggregate to be valid
+		/// </summary>
+		public List<string> Nodes { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Name">Name of this aggregate</param>
+		/// <param name="Nodes">Nodes which must be part of the job for the aggregate to be shown</param>
+		public NewAggregate(string Name, List<string> Nodes)
+		{
+			this.Name = Name;
+			this.Nodes = Nodes;
+		}
+	}
 }
+
 

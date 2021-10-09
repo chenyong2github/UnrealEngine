@@ -88,21 +88,6 @@ namespace HordeServer.Api
 		public bool? UpdateIssues { get; set; }
 
 		/// <summary>
-		/// Nodes for the new job
-		/// </summary>
-		public List<CreateGroupRequest>? Groups { get; set; }
-
-		/// <summary>
-		/// Aggregates for the new job
-		/// </summary>
-		public List<CreateAggregateRequest>? Aggregates { get; set; }
-
-		/// <summary>
-		/// Labels for the new job
-		/// </summary>
-		public List<CreateLabelRequest>? Labels { get; set; }
-
-		/// <summary>
 		/// Arguments for the job
 		/// </summary>
 		public List<string>? Arguments { get; set; }
