@@ -219,7 +219,7 @@ void TMeshSimplification<QuadricErrorType>::InitializeQueue()
 	EdgeQuadrics.SetNum(MaxEID);
 	EdgeQueue.Initialize(MaxEID);
 	TArray<FEdgeError> EdgeErrors;
-	EdgeErrors.SetNum(MaxEID);
+	EdgeErrors.Init(FEdgeError{MAX_FLT, -1}, MaxEID);
 
 	// @todo vertex quadrics can be computed in parallel
 	//gParallel.BlockStartEnd(0, MaxEID - 1, (start_eid, end_eid) = > {
