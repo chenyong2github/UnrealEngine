@@ -47,16 +47,6 @@ namespace HordeServer.Api
 		public List<string>? ArtifactIds { get; set; }
 
 		/// <summary>
-		/// Private constructor for serialization
-		/// </summary>
-		private GetArtifactZipRequest()
-		{
-			JobId = null!;
-			StepId = null!;
-			ArtifactIds = null!;
-		}
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="JobId">Job id to get all artifacts for</param>
