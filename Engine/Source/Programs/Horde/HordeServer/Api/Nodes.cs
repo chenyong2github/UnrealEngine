@@ -64,14 +64,6 @@ namespace HordeServer.Api
 		public Dictionary<string, string>? Properties { get; set; }
 
 		/// <summary>
-		/// Private constructor for serialization
-		/// </summary>
-		private CreateNodeRequest()
-		{
-			this.Name = null!;
-		}
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Name">Name of the node</param>
@@ -113,15 +105,6 @@ namespace HordeServer.Api
 		/// </summary>
 		[Required]
 		public List<CreateNodeRequest> Nodes { get; set; }
-
-		/// <summary>
-		/// Private constructor for serialization
-		/// </summary>
-		private CreateGroupRequest()
-		{
-			AgentType = null!;
-			Nodes = new List<CreateNodeRequest>();
-		}
 
 		/// <summary>
 		/// Constructor
@@ -186,34 +169,6 @@ namespace HordeServer.Api
 		/// Nodes which must be part of the job for the aggregate to be valid
 		/// </summary>
 		public List<string> IncludedNodes { get; set; } = new List<string>();
-
-		/// <summary>
-		/// Private constructor for serialization
-		/// </summary>
-		private CreateLabelRequest()
-		{
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="DashboardName">Name of this label</param>
-		/// <param name="DashboardCategory">Category of this label</param>
-		/// <param name="UgsName">Name of this label for UGS</param>
-		/// <param name="UgsProject">Name of the project to show this label for in UGS</param>
-		/// <param name="Change">Which change the label applies to</param>
-		/// <param name="RequiredNodes">Nodes which must be part of the job for the aggregate to be shown</param>
-		/// <param name="IncludedNodes">Nodes to include in the status of this aggregate, if present in the job</param>
-		public CreateLabelRequest(string? DashboardName, string? DashboardCategory, string? UgsName, string? UgsProject, LabelChange Change, List<string> RequiredNodes, List<string> IncludedNodes)
-		{
-			this.DashboardName = String.IsNullOrEmpty(DashboardName)? null : DashboardName;
-			this.DashboardCategory = String.IsNullOrEmpty(DashboardCategory)? null : DashboardCategory;
-			this.UgsName = String.IsNullOrEmpty(UgsName)? null : UgsName;
-			this.UgsProject = String.IsNullOrEmpty(UgsProject)? null : UgsProject;
-			this.Change = Change;
-			this.RequiredNodes = RequiredNodes;
-			this.IncludedNodes = IncludedNodes;
-		}
 	}
 
 	/// <summary>

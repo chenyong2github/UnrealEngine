@@ -110,10 +110,10 @@ namespace HordeServer.Api
 		/// <summary>
 		/// Private constructor for serialization
 		/// </summary>
-		private CreateJobRequest()
+		public CreateJobRequest(string StreamId, string TemplateId)
 		{
-			StreamId = null!;
-			TemplateId = null!;
+			this.StreamId = StreamId;
+			this.TemplateId = TemplateId;
 		}
 	}
 

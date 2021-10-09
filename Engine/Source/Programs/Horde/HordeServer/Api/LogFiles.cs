@@ -29,62 +29,6 @@ namespace HordeServer.Api
 	}
 
 	/// <summary>
-	/// Parameters required to create log file
-	/// </summary>
-	public class CreateLogFileRequest
-	{
-		/// <summary>
-		/// Job Id this log file belongs to
-		/// </summary>
-		[Required]
-		public string JobId { get; set; }
-
-		/// <summary>
-		/// The type of events stored in this log
-		/// </summary>
-		public LogType Type { get; set; }
-
-		/// <summary>
-		/// Private constructor for serialization
-		/// </summary>
-		private CreateLogFileRequest()
-		{
-			JobId = null!;
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="JobId">Unique job id that this log file belongs to</param>
-		/// <param name="Type">Type of events to be stored in this file</param>
-		public CreateLogFileRequest(string JobId, LogType Type)
-		{
-			this.JobId = JobId;
-			this.Type = Type;
-		}
-	}
-
-	/// <summary>
-	/// Response from creating a log file
-	/// </summary>
-	public class CreateLogFileResponse
-	{
-		/// <summary>
-		/// Unique id for this log file
-		/// </summary>
-		public string Id { get; set; }
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="Id">The log file id</param>
-		public CreateLogFileResponse(string Id)
-		{
-			this.Id = Id;
-		}
-	}
-
-	/// <summary>
 	/// Response describing a log file
 	/// </summary>
 	public class GetLogFileResponse

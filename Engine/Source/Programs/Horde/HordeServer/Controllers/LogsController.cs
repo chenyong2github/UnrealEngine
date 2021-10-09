@@ -84,25 +84,6 @@ namespace HordeServer.Controllers
 		}
 
 		/// <summary>
-		/// Creates a new logfile
-		/// </summary>
-		/// <param name="Create">Parameters for the new LogFile</param>
-		/// <returns>Http result code</returns>
-		[HttpPost]
-		[Route("/api/v1/logs")]
-		public async Task<ActionResult<CreateLogFileResponse>> CreateLogFile([FromBody] CreateLogFileRequest Create)
-		{
-			ObjectId JobId = Create.JobId.ToObjectId();
-			if (!await JobService.AuthorizeAsync(JobId, AclAction.CreateLog, User, null))
-			{
-				return Forbid();
-			}
-
-			ILogFile NewLogFile = await LogFileService.CreateLogFileAsync(JobId, null, Create.Type);
-			return new CreateLogFileResponse(NewLogFile.Id.ToString());
-		}
-
-		/// <summary>
 		/// Retrieve metadata about a specific log file
 		/// </summary>
 		/// <param name="LogFileId">Id of the log file to get information about</param>

@@ -26,15 +26,6 @@ namespace HordeServer.Api
 		public List<string> Nodes { get; set; }
 
 		/// <summary>
-		/// Private constructor for serialization
-		/// </summary>
-		private CreateAggregateRequest()
-		{
-			Name = null!;
-			Nodes = null!;
-		}
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Name">Name of this aggregate</param>

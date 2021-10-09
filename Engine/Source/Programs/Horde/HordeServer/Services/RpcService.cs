@@ -839,8 +839,15 @@ namespace HordeServer.Services
 			List<Api.CreateLabelRequest> ApiLabels = new List<Api.CreateLabelRequest>();
 			foreach (CreateLabelRequest Label in Request.Labels)
 			{
-				Api.CreateLabelRequest ApiLabel = new Api.CreateLabelRequest(Label.DashboardName, Label.DashboardCategory, Label.UgsName, Label.UgsProject, Label.Change, Label.RequiredNodes.ToList(), Label.IncludedNodes.ToList());
-				ApiLabels.Add(ApiLabel);
+				Api.CreateLabelRequest NewLabel = new Api.CreateLabelRequest();
+				NewLabel.DashboardName = String.IsNullOrEmpty(Label.DashboardName) ? null : Label.DashboardName;
+				NewLabel.DashboardCategory = String.IsNullOrEmpty(Label.DashboardCategory) ? null : Label.DashboardCategory;
+				NewLabel.UgsName = String.IsNullOrEmpty(Label.UgsName) ? null : Label.UgsName;
+				NewLabel.UgsProject = String.IsNullOrEmpty(Label.UgsProject) ? null : Label.UgsProject;
+				NewLabel.Change = Label.Change;
+				NewLabel.RequiredNodes = Label.RequiredNodes.ToList();
+				NewLabel.IncludedNodes = Label.IncludedNodes.ToList();
+				ApiLabels.Add(NewLabel);
 			}
 
 			ObjectId JobIdValue = Request.JobId.ToObjectId();

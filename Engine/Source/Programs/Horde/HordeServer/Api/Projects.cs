@@ -41,11 +41,11 @@ namespace HordeServer.Api
 		public List<string> ExcludePatterns { get; set; } = new List<string>();
 
 		/// <summary>
-		/// Private constructor for serialization
+		/// Constructor
 		/// </summary>
-		private CreateProjectCategoryRequest()
+		public CreateProjectCategoryRequest(string Name)
 		{
-			Name = null!;
+			this.Name = Name;
 		}
 	}
 
