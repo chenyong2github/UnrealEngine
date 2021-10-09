@@ -158,15 +158,15 @@ namespace HordeServerTests
 			ITemplate Template = await TestSetup.TemplateService.CreateTemplateAsync("Test template", null, false, null, null, new List<TemplateCounter>(), new List<string>(), new List<Parameter>());
 			IGraph Graph = await TestSetup.GraphCollection.AddAsync(Template);
 
-			CreateGroupRequest GroupA = new CreateGroupRequest("win", new List<CreateNodeRequest>());
-			GroupA.Nodes.Add(new CreateNodeRequest("Compile"));
+			NewGroup GroupA = new NewGroup("win", new List<NewNode>());
+			GroupA.Nodes.Add(new NewNode("Compile"));
 
-			CreateGroupRequest GroupB = new CreateGroupRequest("win", new List<CreateNodeRequest>());
-			GroupB.Nodes.Add(new CreateNodeRequest("Cook", RunEarly: true));
-			GroupB.Nodes.Add(new CreateNodeRequest("Middle"));
-			GroupB.Nodes.Add(new CreateNodeRequest("Pak", InputDependencies: new List<string> { "Compile", "Cook" }));
+			NewGroup GroupB = new NewGroup("win", new List<NewNode>());
+			GroupB.Nodes.Add(new NewNode("Cook", RunEarly: true));
+			GroupB.Nodes.Add(new NewNode("Middle"));
+			GroupB.Nodes.Add(new NewNode("Pak", InputDependencies: new List<string> { "Compile", "Cook" }));
 
-			Graph = await TestSetup.GraphCollection.AppendAsync(Graph, new List<CreateGroupRequest> { GroupA, GroupB });
+			Graph = await TestSetup.GraphCollection.AppendAsync(Graph, new List<NewGroup> { GroupA, GroupB });
 
 			IJob Job = await TestSetup.JobService.CreateJobAsync(null, Stream!, new TemplateRefId("temp"), Template.Id, Graph, "Hello", 1234, 1233, 999, null, null, "joe", null, null, null, null, true, true, null, null, null, Template.Counters, new List<string> { "-Target=Pak" });
 

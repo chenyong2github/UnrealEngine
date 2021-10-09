@@ -170,18 +170,6 @@ namespace HordeServer.Controllers
 
 			// New groups for the job
 			IGraph Graph = await Graphs.AddAsync(Template);
-			if (Create.Groups != null)
-			{
-				Graph = await Graphs.AppendAsync(Graph, Create.Groups, null, null);
-			}
-			if (Create.Aggregates != null)
-			{
-				Graph = await Graphs.AppendAsync(Graph, null, Create.Aggregates, null);
-			}
-			if (Create.Labels != null)
-			{
-				Graph = await Graphs.AppendAsync(Graph, null, null, Create.Labels);
-			}
 
 			// Get the change to build
 			int Change;
@@ -629,7 +617,7 @@ namespace HordeServer.Controllers
 		/// <returns>Id of the new job</returns>
 		[HttpPost]
 		[Route("/api/v1/jobs/{JobId}/groups")]
-		public async Task<ActionResult> CreateGroupsAsync(string JobId, [FromBody] List<CreateGroupRequest> Requests)
+		public async Task<ActionResult> CreateGroupsAsync(string JobId, [FromBody] List<NewGroup> Requests)
 		{
 			Dictionary<string, int> ExpectedDurationCache = new Dictionary<string, int>();
 
@@ -1254,7 +1242,7 @@ namespace HordeServer.Controllers
 		/// <returns>Response object with the first index of the new aggregates</returns>
 		[HttpPost]
 		[Route("/api/v1/jobs/{JobId}/aggregates")]
-		public async Task<ActionResult> CreateAggregatesAsync(string JobId, [FromBody] List<CreateAggregateRequest> Requests)
+		public async Task<ActionResult> CreateAggregatesAsync(string JobId, [FromBody] List<NewAggregate> Requests)
 		{
 			ObjectId JobIdValue = JobId.ToObjectId();
 			for (; ; )

@@ -322,8 +322,8 @@ namespace HordeServerTests
 
 			// Create the TriggerNext step and mark it as complete
 			IGraph GraphA = await TestSetup.GraphCollection.AddAsync(NewTemplate1);
-			CreateGroupRequest GroupA = new CreateGroupRequest("win", new List<CreateNodeRequest> { new CreateNodeRequest("TriggerNext") });
-			GraphA = await TestSetup.GraphCollection.AppendAsync(GraphA, new List<CreateGroupRequest> { GroupA });
+			NewGroup GroupA = new NewGroup("win", new List<NewNode> { new NewNode("TriggerNext") });
+			GraphA = await TestSetup.GraphCollection.AppendAsync(GraphA, new List<NewGroup> { GroupA });
 
 			// Tick the schedule and make sure it doesn't trigger
 			await ScheduleService.TickSharedOnlyForTestingAsync();

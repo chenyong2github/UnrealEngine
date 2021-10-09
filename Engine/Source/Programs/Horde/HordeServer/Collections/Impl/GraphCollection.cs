@@ -202,7 +202,7 @@ namespace HordeServer.Collections.Impl
 				this.Id = ContentHash.SHA1(BsonExtensionMethods.ToBson(this));
 			}
 
-			public GraphDocument(GraphDocument BaseGraph, List<CreateGroupRequest>? NewGroupRequests, List<CreateAggregateRequest>? NewAggregateRequests, List<CreateLabelRequest>? NewLabelRequests)
+			public GraphDocument(GraphDocument BaseGraph, List<NewGroup>? NewGroupRequests, List<NewAggregate>? NewAggregateRequests, List<NewLabel>? NewLabelRequests)
 			{
 				Dictionary<string, NodeRef> NodeNameToRef = new Dictionary<string, NodeRef>(BaseGraph.GetNodeNameToRef(), StringComparer.OrdinalIgnoreCase);
 
@@ -210,10 +210,10 @@ namespace HordeServer.Collections.Impl
 				List<NodeGroup> NewGroups = new List<NodeGroup>(BaseGraph.Groups);
 				if (NewGroupRequests != null)
 				{
-					foreach (CreateGroupRequest NewGroupRequest in NewGroupRequests)
+					foreach (NewGroup NewGroupRequest in NewGroupRequests)
 					{
 						List<Node> Nodes = new List<Node>();
-						foreach (CreateNodeRequest NewNodeRequest in NewGroupRequest.Nodes)
+						foreach (NewNode NewNodeRequest in NewGroupRequest.Nodes)
 						{
 							int NodeIdx = Nodes.Count;
 
@@ -237,7 +237,7 @@ namespace HordeServer.Collections.Impl
 				List<Aggregate> NewAggregates = new List<Aggregate>(BaseGraph.Aggregates);
 				if (NewAggregateRequests != null)
 				{
-					foreach (CreateAggregateRequest NewAggregateRequest in NewAggregateRequests)
+					foreach (NewAggregate NewAggregateRequest in NewAggregateRequests)
 					{
 						List<NodeRef> Nodes = NewAggregateRequest.Nodes.ConvertAll(x => NodeNameToRef[x]);
 						NewAggregates.Add(new Aggregate(NewAggregateRequest.Name, Nodes));
@@ -248,7 +248,7 @@ namespace HordeServer.Collections.Impl
 				List<Label> NewLabels = new List<Label>(BaseGraph.Labels);
 				if (NewLabelRequests != null)
 				{
-					foreach (CreateLabelRequest NewLabelRequest in NewLabelRequests)
+					foreach (NewLabel NewLabelRequest in NewLabelRequests)
 					{
 						List<NodeRef> RequiredNodes = NewLabelRequest.RequiredNodes.ConvertAll(x => NodeNameToRef[x]);
 						List<NodeRef> IncludedNodes = NewLabelRequest.IncludedNodes.ConvertAll(x => NodeNameToRef[x]);
@@ -397,7 +397,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IGraph> AppendAsync(IGraph? BaseGraph, List<CreateGroupRequest>? NewGroupRequests, List<CreateAggregateRequest>? NewAggregateRequests, List<CreateLabelRequest>? NewLabelRequests)
+		public async Task<IGraph> AppendAsync(IGraph? BaseGraph, List<NewGroup>? NewGroupRequests, List<NewAggregate>? NewAggregateRequests, List<NewLabel>? NewLabelRequests)
 		{
 			GraphDocument Graph = new GraphDocument((GraphDocument?)BaseGraph ?? GraphDocument.Empty, NewGroupRequests, NewAggregateRequests, NewLabelRequests);
 			await AddAsync(Graph);
