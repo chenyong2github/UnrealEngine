@@ -151,15 +151,6 @@ namespace HordeServer.Api
 		public List<string>? Exceptions { get; set; }
 
 		/// <summary>
-		/// Parameterless constructor for serialization
-		/// </summary>
-		private GetAclResponse()
-		{
-			Entries = new List<GetAclEntryResponse>();
-			Exceptions = new List<string>();
-		}
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Acl">The ACL to construct from</param>

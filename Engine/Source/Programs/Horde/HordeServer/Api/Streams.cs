@@ -358,14 +358,6 @@ namespace HordeServer.Api
 		public Dictionary<string, string>? Environment { get; set; }
 
 		/// <summary>
-		/// Default constructor
-		/// </summary>
-		private GetAgentTypeResponse()
-		{
-			Pool = null!;
-		}
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Pool">Pool of agents to use for this agent type</param>
@@ -647,19 +639,6 @@ namespace HordeServer.Api
 		/// Reason for stream being paused
 		/// </summary>
 		public string? PauseComment { get; set; }
-
-		/// <summary>
-		/// Parameterless constructor for serialization
-		/// </summary>
-		private GetStreamResponse()
-		{
-			Id = null!;
-			ProjectId = null!;
-			Name = null!;
-			Tabs = null!;
-			AgentTypes = null!;
-			Templates = null!;
-		}
 
 		/// <summary>
 		/// Constructor

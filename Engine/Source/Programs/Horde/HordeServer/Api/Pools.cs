@@ -58,14 +58,6 @@ namespace HordeServer.Api
 		public string Id { get; set; }
 
 		/// <summary>
-		/// Private constructor for serialization
-		/// </summary>
-		private CreatePoolResponse()
-		{
-			Id = null!;
-		}
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Id">Unique id for the new pool</param>
@@ -177,17 +169,6 @@ namespace HordeServer.Api
 		/// Arbitrary properties for this pool.
 		/// </summary>
 		public IReadOnlyDictionary<string, string> Properties { get; set; }
-
-		/// <summary>
-		/// Parameterless constructor for serialization
-		/// </summary>
-		private GetPoolResponse()
-		{
-			Id = null!;
-			Name = null!;
-			Workspaces = null!;
-			Properties = null!;
-		}
 
 		/// <summary>
 		/// Constructor

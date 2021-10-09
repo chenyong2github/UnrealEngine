@@ -81,14 +81,6 @@ namespace HordeServer.Api
 		public DateTime? MadeDefaultAtTime { get; set; }
 
 		/// <summary>
-		/// Default constructor for serialization
-		/// </summary>
-		private GetSoftwareResponse()
-		{
-			Id = null!;
-		}
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Software">The object to construct from</param>

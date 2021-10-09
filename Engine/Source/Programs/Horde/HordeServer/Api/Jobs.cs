@@ -128,14 +128,6 @@ namespace HordeServer.Api
 		public string Id { get; set; }
 
 		/// <summary>
-		/// Private constructor for serialization
-		/// </summary>
-		private CreateJobResponse()
-		{
-			Id = null!;
-		}
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Id">Unique id for the new job</param>
@@ -536,14 +528,6 @@ namespace HordeServer.Api
 		public Dictionary<string, string>? Properties { get; set; }
 
 		/// <summary>
-		/// Parameterless constructor for serialization
-		/// </summary>
-		private GetStepResponse()
-		{
-			Id = null!;
-		}
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Step">The step to construct from</param>
@@ -743,15 +727,6 @@ namespace HordeServer.Api
 		/// Time at which the group finished (UTC)
 		/// </summary>
 		public DateTimeOffset? FinishTime { get; set; }
-
-		/// <summary>
-		/// Parameterless constructor for serialization
-		/// </summary>
-		private GetBatchResponse()
-		{
-			Id = null!;
-			Steps = new List<GetStepResponse>();
-		}
 
 		/// <summary>
 		/// Converts this batch into a public response object

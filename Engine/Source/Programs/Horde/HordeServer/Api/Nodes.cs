@@ -272,18 +272,6 @@ namespace HordeServer.Api
 		public IReadOnlyDictionary<string, string>? Properties { get; set; }
 
 		/// <summary>
-		/// Parameterless constructor for serialization
-		/// </summary>
-		private GetNodeResponse()
-		{
-			this.Name = null!;
-			this.InputDependencies = new List<string>();
-			this.OrderDependencies = new List<string>();
-			this.Credentials = new Dictionary<string, string>();
-			this.Properties = new Dictionary<string, string>();
-		}
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Node">The node to construct from</param>

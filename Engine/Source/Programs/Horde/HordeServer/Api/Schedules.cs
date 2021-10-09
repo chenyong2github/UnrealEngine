@@ -164,13 +164,6 @@ namespace HordeServer.Api
 		public int? Interval { get; set; }
 
 		/// <summary>
-		/// Private constructor for serialization
-		/// </summary>
-		private GetSchedulePatternResponse()
-		{
-		}
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Pattern">The pattern to construct from</param>
@@ -270,16 +263,6 @@ namespace HordeServer.Api
 		public List<string> ActiveJobs { get; set; }
 
 		/// <summary>
-		/// Parameterless constructor for serialization
-		/// </summary>
-		private GetScheduleResponse()
-		{
-			TemplateParameters = null!;
-			Patterns = null!;
-			ActiveJobs = new List<string>();
-		}
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Schedule">The schedule to construct from</param>
@@ -311,14 +294,6 @@ namespace HordeServer.Api
 		/// Next trigger times
 		/// </summary>
 		public List<DateTime> Times { get; set; }
-
-		/// <summary>
-		/// Private constructor for serialization
-		/// </summary>
-		private GetScheduleForecastResponse()
-		{
-			this.Times = null!;
-		}
 
 		/// <summary>
 		/// Constructor

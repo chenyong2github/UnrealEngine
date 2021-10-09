@@ -75,14 +75,6 @@ namespace HordeServer.Api
 		public string Id { get; set; }
 
 		/// <summary>
-		/// Private constructor for serialization
-		/// </summary>
-		private CreateLogFileResponse()
-		{
-			Id = null!;
-		}
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Id">The log file id</param>

@@ -37,14 +37,6 @@ namespace HordeServer.Api
 		public string Id { get; set; }
 
 		/// <summary>
-		/// Private constructor for serialization
-		/// </summary>
-		private CreateCredentialResponse()
-		{
-			Id = null!;
-		}
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Id">Unique id for the new credential</param>
@@ -99,16 +91,6 @@ namespace HordeServer.Api
 		/// Custom permissions for this object
 		/// </summary>
 		public GetAclResponse? Acl { get; set; }
-
-		/// <summary>
-		/// Parameterless constructor for serialization
-		/// </summary>
-		private GetCredentialResponse()
-		{
-			Id = null!;
-			Name = null!;
-			Properties = null!;
-		}
 
 		/// <summary>
 		/// Constructor
