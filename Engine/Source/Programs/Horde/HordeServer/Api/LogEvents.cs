@@ -48,15 +48,6 @@ namespace HordeServer.Api
 		public List<JsonElement> Lines { get; set; }
 
 		/// <summary>
-		/// Private constructor for serialization
-		/// </summary>
-		private GetLogEventResponse()
-		{
-			LogId = null!;
-			Lines = new List<JsonElement>();
-		}
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Event">The event to construct from</param>

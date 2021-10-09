@@ -57,14 +57,6 @@ namespace HordeServer.Api
 		public string Id { get; set; }
 
 		/// <summary>
-		/// Parameterless constructor for serialization
-		/// </summary>
-		private CreateAgentResponse()
-		{
-			Id = null!;
-		}
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Id">Unique id for this agent</param>
@@ -181,15 +173,6 @@ namespace HordeServer.Api
 		public LeaseState? State { get; set; }
 
 		/// <summary>
-		/// Parameterless constructor for serialization
-		/// </summary>
-		private GetAgentLeaseResponse()
-		{
-			this.Id = null!;
-			this.Name = String.Empty;
-		}
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Lease">The lease to initialize from</param>
@@ -256,14 +239,6 @@ namespace HordeServer.Api
 		public string? Version { get; set; }
 
 		/// <summary>
-		/// Private constructor for serialization
-		/// </summary>
-		private GetAgentSessionResponse()
-		{
-			this.Id = null!;
-		}
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Session">The session to construct from</param>
@@ -311,15 +286,6 @@ namespace HordeServer.Api
 		/// Whether to use an incremental workspace
 		/// </summary>
 		public bool bIncremental { get; set; }
-
-		/// <summary>
-		/// Private constructor for serialization
-		/// </summary>
-		private GetAgentWorkspaceResponse()
-		{
-			Identifier = null!;
-			Stream = null!;
-		}
 
 		/// <summary>
 		/// Constructor
@@ -460,18 +426,6 @@ namespace HordeServer.Api
 		/// Comment for this agent
 		/// </summary>
 		public string? Comment { get; set; }
-
-		/// <summary>
-		/// Parameterless constructor for serialization
-		/// </summary>
-		private GetAgentResponse()
-		{
-			this.Id = null!;
-			this.Name = null!;
-			Properties = new List<string>();
-			Resources = new Dictionary<string, int>();
-			this.Leases = new List<GetAgentLeaseResponse>();
-		}
 
 		/// <summary>
 		/// Constructor

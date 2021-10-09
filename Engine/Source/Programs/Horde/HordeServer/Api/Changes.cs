@@ -29,15 +29,6 @@ namespace HordeServer.Api
 		public string Description { get; set; }
 
 		/// <summary>
-		/// Private constructor for serialization
-		/// </summary>
-		private GetChangeSummaryResponse()
-		{
-			Author = String.Empty;
-			Description = String.Empty;
-		}
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="ChangeSummary">The commit to construct from</param>
@@ -73,16 +64,6 @@ namespace HordeServer.Api
 		/// List of files that were modified, relative to the stream base
 		/// </summary>
 		public List<string> Files { get; set; }
-
-		/// <summary>
-		/// Private constructor for serialization
-		/// </summary>
-		private GetChangeDetailsResponse()
-		{
-			Author = null!;
-			Description = null!;
-			Files = null!;
-		}
 
 		/// <summary>
 		/// Constructor

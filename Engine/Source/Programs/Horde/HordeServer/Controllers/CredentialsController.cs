@@ -51,7 +51,7 @@ namespace HordeServer.Controllers
 		/// <returns>Http result code</returns>
 		[HttpPost]
 		[Route("/api/v1/credentials")]
-		public async Task<ActionResult<CreateCredentialResponse>> CreateCredentialAsync([FromBody] CreateProjectRequest Create)
+		public async Task<ActionResult<CreateCredentialResponse>> CreateCredentialAsync([FromBody] CreateCredentialRequest Create)
 		{
 			if(!await AclService.AuthorizeAsync(AclAction.CreateCredential, User))
 			{

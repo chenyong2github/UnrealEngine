@@ -50,92 +50,6 @@ namespace HordeServer.Api
 	}
 
 	/// <summary>
-	/// Parameters to create a new project
-	/// </summary>
-	public class CreateProjectRequest
-	{
-		/// <summary>
-		/// Name for the new project
-		/// </summary>
-		[Required]
-		public string Name { get; set; } = null!;
-
-		/// <summary>
-		/// Order to display this project on the dashboard
-		/// </summary>
-		public int? Order { get; set; }
-
-		/// <summary>
-		/// Categories to include in this project
-		/// </summary>
-		public List<CreateProjectCategoryRequest>? Categories { get; set; }
-
-		/// <summary>
-		/// Properties for the new project
-		/// </summary>
-		public Dictionary<string, string>? Properties { get; set; }
-	}
-
-	/// <summary>
-	/// Response from creating a new project
-	/// </summary>
-	public class CreateProjectResponse
-	{
-		/// <summary>
-		/// Unique id for the new project
-		/// </summary>
-		public string Id { get; set; }
-
-		/// <summary>
-		/// Private constructor for serialization
-		/// </summary>
-		private CreateProjectResponse()
-		{
-			Id = null!;
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="Id">Unique id for the new project</param>
-		public CreateProjectResponse(string Id)
-		{
-			this.Id = Id;
-		}
-	}
-
-	/// <summary>
-	/// Parameters to update a project
-	/// </summary>
-	public class UpdateProjectRequest
-	{
-		/// <summary>
-		/// Optional new name for the project
-		/// </summary>
-		public string? Name { get; set; }
-
-		/// <summary>
-		/// Order to display this project on the dashboard
-		/// </summary>
-		public int? Order { get; set; }
-
-		/// <summary>
-		/// New set of categories for the request
-		/// </summary>
-		public List<CreateProjectCategoryRequest>? Categories { get; set; }
-
-		/// <summary>
-		/// Properties to update for the project. Properties set to null will be removed.
-		/// </summary>
-		public Dictionary<string, string>? Properties { get; set; }
-
-		/// <summary>
-		/// Custom permissions for this object
-		/// </summary>
-		public UpdateAclRequest? Acl { get; set; }
-	}
-
-	/// <summary>
 	/// Information about a stream within a project
 	/// </summary>
 	public class GetProjectStreamResponse
@@ -245,17 +159,6 @@ namespace HordeServer.Api
 		/// Custom permissions for this object
 		/// </summary>
 		public GetAclResponse? Acl { get; set; }
-
-		/// <summary>
-		/// Parameterless constructor for serialization
-		/// </summary>
-		private GetProjectResponse()
-		{
-			Id = null!;
-			Name = null!;
-			Streams = null!;
-			Categories = null!;
-		}
 
 		/// <summary>
 		/// Constructor
