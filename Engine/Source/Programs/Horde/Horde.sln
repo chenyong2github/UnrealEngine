@@ -18,7 +18,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		..\..\..\Restricted\NotForLicensees\Source\Programs\Horde\BuildHorde.xml = ..\..\..\Restricted\NotForLicensees\Source\Programs\Horde\BuildHorde.xml
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HordeServerTests", "HordeServerTests\HordeServerTests.csproj", "{EB3085C5-8768-45EF-AE22-A2B15B7AF926}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HordeServer.Compute.Tests", "HordeServer.Compute.Tests\HordeServer.Compute.Tests.csproj", "{EB3085C5-8768-45EF-AE22-A2B15B7AF926}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HordeAgentTests", "HordeAgentTests\HordeAgentTests.csproj", "{0D4F13CA-AE5D-4DAC-8376-E5C43CDF66B7}"
 EndProject
