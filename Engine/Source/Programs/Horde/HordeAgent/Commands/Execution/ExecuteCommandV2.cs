@@ -15,7 +15,6 @@ using HordeAgent.Services;
 using Grpc.Net.Client;
 using System.Net.Http.Headers;
 using Grpc.Core;
-using Google.LongRunning;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;

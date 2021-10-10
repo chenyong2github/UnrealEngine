@@ -674,14 +674,6 @@ namespace HordeAgent.Services
 		{
 			Any Payload = LeaseInfo.Lease.Payload;
 
-			ActionTask ActionTask;
-			if (LeaseInfo.Lease.Payload.TryUnpack(out ActionTask))
-			{
-				GlobalTracer.Instance.ActiveSpan?.SetTag("task", "Action");
-				Func<ILogger, Task<LeaseResult>> Handler = NewLogger => ActionAsync(RpcConnection, LeaseInfo.Lease.Id, ActionTask, NewLogger, LeaseInfo.CancellationTokenSource.Token);
-				return await HandleLeasePayloadWithLogAsync(RpcConnection, ActionTask.LogId, AgentId, null, null, Handler, LeaseInfo.CancellationTokenSource.Token);
-			}
-
 			ComputeTaskMessage ComputeTask;
 			if (LeaseInfo.Lease.Payload.TryUnpack(out ComputeTask))
 			{
@@ -819,81 +811,6 @@ namespace HordeAgent.Services
 						return LeaseResult.Failed;
 					}
 				}
-			}
-		}
-
-		/// <summary>
-		/// Execute a remote execution aciton
-		/// </summary>
-		/// <param name="RpcConnection">RPC client for communicating with the server</param>
-		/// <param name="LeaseId">The lease id</param>
-		/// <param name="ActionTask">The action task parameters</param>
-		/// <param name="Logger">Logger for the task</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
-		/// <returns></returns>
-		internal async Task<LeaseResult> ActionAsync(IRpcConnection RpcConnection, string LeaseId, ActionTask ActionTask, ILogger Logger, CancellationToken CancellationToken)
-		{
-			DateTimeOffset ActionTaskStartTime = DateTimeOffset.UtcNow;
-			using (IRpcClientRef Client = await RpcConnection.GetClientRef(new RpcContext(), CancellationToken))
-			{
-				DirectoryReference LeaseDir = DirectoryReference.Combine(WorkingDir, "Remote", LeaseId);
-				DirectoryReference.CreateDirectory(LeaseDir);
-
-				GrpcChannel GetChannel(string? Url, string? Token)
-				{
-					if (string.IsNullOrEmpty(Url)) return Client.Channel;
-					if (!string.IsNullOrEmpty(Token))
-						return GrpcService.CreateGrpcChannel(Url, new AuthenticationHeaderValue("ServiceAccount", Token));
-					
-					return GrpcChannel.ForAddress(Url, new GrpcChannelOptions
-					{
-						// Required payloads coming from CAS service can be large
-						MaxReceiveMessageSize = 1024 * 1024 * 1024, // 1 GB
-						MaxSendMessageSize = 1024 * 1024 * 1024 // 1 GB
-					});
-				}
-
-				GrpcChannel CasChannel = GetChannel(ActionTask.CasUrl, ActionTask.ServiceAccountToken);// == null ? Client.Channel : GrpcChannel.ForAddress(ActionTask.CasUrl);
-				GrpcChannel ActionCacheChannel = GetChannel(ActionTask.ActionCacheUrl, ActionTask.ServiceAccountToken);//ActionTask.ActionCacheUrl == null ? Client.Channel : GrpcChannel.ForAddress(ActionTask.ActionCacheUrl);
-				GrpcChannel ActionRpcChannel = Client.Channel;
-
-				Logger.LogInformation("CasChannel={CasChannel}", CasChannel.Target);
-				Logger.LogInformation("ActionCacheChannel={ActionCacheChannel}", ActionCacheChannel.Target);
-				Logger.LogInformation("ActionRpcChannel={ActionRpcChannel}", ActionRpcChannel.Target);
-
-				ActionExecutor Executor = new ActionExecutor(
-					Settings.GetAgentName(), ActionTask.InstanceName,
-					GrpcService.CreateCasClient(CasChannel),
-					GrpcService.CreateActionCacheClient(ActionCacheChannel),
-					GrpcService.CreateActionRpcClient(ActionRpcChannel), Logger);
-
-				try
-				{
-					await Executor.ExecuteActionAsync(LeaseId, ActionTask, LeaseDir, ActionTaskStartTime, CancellationToken);
-				}
-				catch (Exception re)
-				{
-					Logger.LogError(re, "Unhandled exception during remote execution");
-					PostActionResultRequest PostResultRequest = new PostActionResultRequest();
-					PostResultRequest.LeaseId = LeaseId;
-					PostResultRequest.ActionDigest = ActionTask.Digest;
-					PostResultRequest.Error = new RpcException(new Status(StatusCode.Unknown, "Unhandled exception during remote execution: " + re.Message), re.Message).Status;
-					await Executor.ActionRpc.PostActionResultAsync(PostResultRequest);
-					
-					throw re;
-				}
-				finally
-				{
-					try
-					{
-						DirectoryReference.Delete(LeaseDir, true);
-					}
-					catch
-					{
-					}
-				}
-
-				return LeaseResult.Success;
 			}
 		}
 

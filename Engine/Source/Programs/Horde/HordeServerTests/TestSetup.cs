@@ -19,7 +19,6 @@ using HordeServer.Logs.Storage.Impl;
 using HordeServer.Models;
 using HordeServer.Notifications;
 using HordeServer.Notifications.Impl;
-using HordeServer.Rpc;
 using HordeServer.Services;
 using HordeServer.Services.Impl;
 using HordeServer.Storage;
@@ -198,14 +197,7 @@ namespace HordeServerTests
 			Services.AddSingleton<TemplateService>();
 			Services.AddSingleton<UpgradeService>();
 
-			Services.AddSingleton<ActionTaskSource>();
 			Services.AddSingleton<ConformTaskSource>();
-
-			Services.AddSingleton<ActionCacheService>();
-			Services.AddSingleton<ByteStreamService>();
-			Services.AddSingleton<CapabilitiesService>();
-			Services.AddSingleton<ContentStorageService>();
-			Services.AddSingleton<ExecutionService>();
 
 			Services.AddSingleton<IBlobCollection, BlobCollection>();
 			Services.AddSingleton<IObjectCollection, ObjectCollection>();

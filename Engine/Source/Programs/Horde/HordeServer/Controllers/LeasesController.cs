@@ -176,9 +176,9 @@ namespace HordeServer.Controllers
 				return NotFound();
 			}
 
-			if (!AgentLease.IsActionLease() && !AgentLease.IsConformLease())
+			if (!AgentLease.IsConformLease())
 			{
-				Logger.LogError("Lease abort only supported on action and conform leases for now, {LeaseId}", LeaseId);
+				Logger.LogError("Lease abort only supported on conform leases for now, {LeaseId}", LeaseId);
 				return Ok();
 			}
 

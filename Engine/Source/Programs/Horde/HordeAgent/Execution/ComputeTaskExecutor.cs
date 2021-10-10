@@ -3,7 +3,6 @@
 using EpicGames.Core;
 using EpicGames.Horde;
 using EpicGames.Horde.Storage;
-using Google.LongRunning;
 using Google.Protobuf;
 using Grpc.Core;
 using Microsoft.Extensions.Options;
@@ -23,7 +22,6 @@ using HordeAgent.Utility;
 using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Logging;
 using HordeCommon.Rpc;
-using EpicGames.Horde.Common.RemoteExecution;
 using EpicGames.Serialization;
 using EpicGames.Horde.Compute;
 using EpicGames.Horde.Common;
