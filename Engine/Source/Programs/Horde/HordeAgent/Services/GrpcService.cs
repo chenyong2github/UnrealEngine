@@ -12,7 +12,6 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
-using Build.Bazel.Remote.Execution.V2;
 using Grpc.Core;
 using HordeCommon.Rpc;
 
@@ -38,10 +37,6 @@ namespace HordeAgent.Services
 		/// </summary>
 		ILogger Logger;
 
-		internal Func<ChannelBase, ContentAddressableStorage.ContentAddressableStorageClient> CasClientFactory;
-		internal Func<ChannelBase, ActionCache.ActionCacheClient> ActionCacheClientFactory;
-		internal Func<ChannelBase, ActionRpc.ActionRpcClient> ActionRpcClientFactory;
-
 		/// <summary>
 		/// Constructor
 		/// </summary>
@@ -52,10 +47,6 @@ namespace HordeAgent.Services
 			this.Settings = Settings;
 			this.ServerProfile = Settings.Value.GetCurrentServerProfile();
 			this.Logger = Logger;
-			
-			CasClientFactory = Channel => new ContentAddressableStorage.ContentAddressableStorageClient(Channel);
-			ActionCacheClientFactory = Channel => new ActionCache.ActionCacheClient(Channel);
-			ActionRpcClientFactory = Channel => new ActionRpc.ActionRpcClient(Channel);
 		}
 
 		/// <summary>
@@ -116,21 +107,6 @@ namespace HordeAgent.Services
 				HttpClient = HttpClient,
 				DisposeHttpClient = true
 			});
-		}
-
-		public ContentAddressableStorage.ContentAddressableStorageClient CreateCasClient(ChannelBase Channel)
-		{
-			return CasClientFactory(Channel);
-		}
-
-		public ActionCache.ActionCacheClient CreateActionCacheClient(ChannelBase Channel)
-		{
-			return ActionCacheClientFactory(Channel);
-		}
-
-		public ActionRpc.ActionRpcClient CreateActionRpcClient(ChannelBase Channel)
-		{
-			return ActionRpcClientFactory(Channel);
 		}
 	}
 }

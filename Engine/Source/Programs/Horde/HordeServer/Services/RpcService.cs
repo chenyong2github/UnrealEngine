@@ -111,11 +111,6 @@ namespace HordeServer.Services
 		ITestDataCollection TestData;
 
 		/// <summary>
-		/// The RPC action source
-		/// </summary>
-		ActionTaskSource ActionTaskSource;
-
-		/// <summary>
 		/// The conform task source
 		/// </summary>
 		ConformTaskSource ConformTaskSource;
@@ -141,10 +136,9 @@ namespace HordeServer.Services
 		/// <param name="LifetimeService">The application lifetime</param>
 		/// <param name="Graphs">Collection of graph documents</param>
 		/// <param name="TestData">Collection of testdata</param>
-		/// <param name="ActionTaskSource"></param>
 		/// <param name="ConformTaskSource"></param>
 		/// <param name="Logger">Log writer</param>
-		public RpcService(DatabaseService DatabaseService, AclService AclService, AgentService AgentService, StreamService StreamService, JobService JobService, AgentSoftwareService AgentSoftwareService, ArtifactService ArtifactService, ILogFileService LogFileService, CredentialService CredentialService, PoolService PoolService, LifetimeService LifetimeService, IGraphCollection Graphs, ITestDataCollection TestData, ActionTaskSource ActionTaskSource, ConformTaskSource ConformTaskSource, ILogger<RpcService> Logger)
+		public RpcService(DatabaseService DatabaseService, AclService AclService, AgentService AgentService, StreamService StreamService, JobService JobService, AgentSoftwareService AgentSoftwareService, ArtifactService ArtifactService, ILogFileService LogFileService, CredentialService CredentialService, PoolService PoolService, LifetimeService LifetimeService, IGraphCollection Graphs, ITestDataCollection TestData, ConformTaskSource ConformTaskSource, ILogger<RpcService> Logger)
 		{
 			this.DatabaseService = DatabaseService;
 			this.AclService = AclService;
@@ -159,7 +153,6 @@ namespace HordeServer.Services
 			this.LifetimeService = LifetimeService;
 			this.Graphs = Graphs;
 			this.TestData = TestData;
-			this.ActionTaskSource = ActionTaskSource;
 			this.ConformTaskSource = ConformTaskSource;
 			this.Logger = Logger;
 		}

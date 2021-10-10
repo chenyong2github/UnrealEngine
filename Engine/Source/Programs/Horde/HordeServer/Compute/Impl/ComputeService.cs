@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using Google.LongRunning;
 using Google.Protobuf;
 using Google.Protobuf.Reflection;
 using Google.Protobuf.WellKnownTypes;
@@ -10,7 +9,6 @@ using HordeCommon;
 using HordeCommon.Rpc.Tasks;
 using HordeServer.Api;
 using HordeServer.Models;
-using HordeServer.Rpc;
 using HordeServer.Services;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;

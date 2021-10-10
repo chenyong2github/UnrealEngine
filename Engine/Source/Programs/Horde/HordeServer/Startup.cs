@@ -59,7 +59,6 @@ using HordeServer.Collections.Impl;
 using HordeServer.Services.Impl;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using HordeServer.Authentication;
-using HordeServer.Rpc;
 using HordeServer.Tasks.Impl;
 using HordeServer.Tasks;
 using StatsdClient;
@@ -410,12 +409,6 @@ namespace HordeServer
 			Services.AddSingleton<TemplateService>();
 			Services.AddSingleton<UpgradeService>();
 
-			Services.AddSingleton<ActionCacheService>();
-			Services.AddSingleton<ByteStreamService>();
-			Services.AddSingleton<CapabilitiesService>();
-			Services.AddSingleton<ContentStorageService>();
-			Services.AddSingleton<ExecutionService>();
-
 			Services.AddSingleton<DeviceService>();
 
 			AWSOptions AwsOptions = Configuration.GetAWSOptions();
@@ -553,7 +546,6 @@ namespace HordeServer
 
 			// Task sources. Order of registration is important here; it dictates the order in which sources are served.
 			Services.AddSingleton<JobTaskSource>();
-			Services.AddSingleton<ActionTaskSource>();
 			Services.AddSingleton<ConformTaskSource>();
 			Services.AddSingleton<IComputeService, ComputeService>();
 
@@ -562,7 +554,6 @@ namespace HordeServer
 			Services.AddSingleton<ITaskSource, RestartTaskSource>();
 			Services.AddSingleton<ITaskSource, ConformTaskSource>(Provider => Provider.GetRequiredService<ConformTaskSource>());
 			Services.AddSingleton<ITaskSource, JobTaskSource>(Provider => Provider.GetRequiredService<JobTaskSource>());
-			Services.AddSingleton<ITaskSource, ActionTaskSource>(Provider => Provider.GetRequiredService<ActionTaskSource>());
 			Services.AddSingleton<ITaskSource>(Provider => new NewTaskSourceWrapper(Provider.GetRequiredService<IComputeService>()));
 
 			Services.AddHostedService(Provider => Provider.GetRequiredService<ConformTaskSource>());
@@ -814,17 +805,8 @@ namespace HordeServer
 				Endpoints.MapGrpcService<RpcService>();
 				
 				// Google Remote Execution API
-				Endpoints.MapGrpcService<ActionRpcService>();
-				Endpoints.MapGrpcService<ActionCacheService>();
-				Endpoints.MapGrpcService<ByteStreamService>();
-				Endpoints.MapGrpcService<CapabilitiesService>();
-				Endpoints.MapGrpcService<ContentStorageService>();
-				Endpoints.MapGrpcService<ExecutionService>();
-
 				Endpoints.MapGrpcService<ComputeRpcServer>();
-				Endpoints.MapGrpcService<BlobRpc>();
 				Endpoints.MapGrpcService<BlobStoreRpc>();
-				Endpoints.MapGrpcService<RefRpc>();
 				Endpoints.MapGrpcService<RefTableRpc>();
 
 				Endpoints.MapGrpcReflectionService();
