@@ -396,6 +396,8 @@ public:
 
 	virtual IRHITransientResourceAllocator* RHICreateTransientResourceAllocator() override;
 
+	virtual bool RHIIsTypedUAVLoadSupported(EPixelFormat PixelFormat) override;
+
 #if WITH_MGPU
 	virtual IRHICommandContextContainer* RHIGetCommandContextContainer(int32 Index, int32 Num, FRHIGPUMask GPUMask)final override;
 #endif
