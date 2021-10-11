@@ -59,9 +59,7 @@ namespace SkeinCLI
 
 		private static string GetLogsOutputFolder()
 		{
-			// Windows: C:\Users\<username>\AppData\Roaming\skein\logs
-			// Linux  : /home/.config/skein/logs
-			return Path.Combine(System.Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "skein", "logs");
+			return Path.Combine(SkeinUtils.GetDataFolder(), "logs");
 		}
 	}
 }
