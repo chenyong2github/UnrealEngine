@@ -575,3 +575,8 @@ D3D12_RESOURCE_ALLOCATION_INFO FD3D12Device::GetResourceAllocationInfo(const D3D
 		return Result;
 	}
 }
+
+bool FD3D12DynamicRHI::RHIIsTypedUAVLoadSupported(EPixelFormat PixelFormat)
+{
+	return EnumHasAnyFlags(GPixelFormats[PixelFormat].Capabilities, EPixelFormatCapabilities::TypedUAVLoad);
+}
