@@ -241,7 +241,7 @@ public:
 
 	/** Event for this critical state */
 	UPROPERTY(VisibleAnywhere, Category = "CriticalState")
-	EStageCriticalStateEvent State;
+	EStageCriticalStateEvent State = EStageCriticalStateEvent::Enter;
 
 	/** Source of the critical state. i.e. TakeName, CustomRecorder, etc... */
 	UPROPERTY(VisibleAnywhere, Category = "CriticalState")
