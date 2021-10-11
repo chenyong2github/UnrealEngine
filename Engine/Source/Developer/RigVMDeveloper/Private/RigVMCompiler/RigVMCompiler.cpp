@@ -2783,6 +2783,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 	{
 		const TMap<FRigVMASTProxy, FRigVMASTProxy>& SharedOperandPins = InVarExpr->GetParser()->SharedOperandPins;
 		TArray<FRigVMASTProxy> PinProxies = FindProxiesWithSharedOperand(InVarExpr);
+		ensure(!PinProxies.IsEmpty());
 
 		for (const FRigVMASTProxy& Proxy : PinProxies)
 		{
@@ -2858,6 +2859,11 @@ TArray<FRigVMASTProxy> URigVMCompiler::FindProxiesWithSharedOperand(const FRigVM
 				}
 			}
 		}
+	}
+
+	if (PinProxies.IsEmpty())
+	{
+		PinProxies.Add(InVarExpr->GetProxy());
 	}
 
 	return PinProxies;
