@@ -361,16 +361,16 @@ public:
 	FString Camera;
 
 	UPROPERTY()
-	float BufferRatio;
+	float BufferRatio = 1.0f;
 
 	UPROPERTY()
-	int GPUIndex;
+	int32 GPUIndex = 0;
 
 	UPROPERTY()
-	bool AllowCrossGPUTransfer;
+	bool AllowCrossGPUTransfer = false;
 
 	UPROPERTY()
-	bool IsShared;
+	bool IsShared = false;
 
 	UPROPERTY()
 	FDisplayClusterConfigurationJsonRectangle_426 Region;
@@ -389,10 +389,10 @@ public:
 	FString Host;
 
 	UPROPERTY()
-	bool Sound;
+	bool Sound = true;
 
 	UPROPERTY()
-	bool FullScreen;
+	bool FullScreen = false;
 
 	UPROPERTY()
 	FDisplayClusterConfigurationJsonRectangle_426 Window;
@@ -430,13 +430,13 @@ struct FDisplayClusterConfigurationJsonDiagnostics_426
 
 public:
 	UPROPERTY()
-	bool SimulateLag;
+	bool SimulateLag = false;
 
 	UPROPERTY()
-	float MinLagTime;
+	float MinLagTime = 0.01f;
 
 	UPROPERTY()
-	float MaxLagTime;
+	float MaxLagTime = 0.3f;
 };
 
 

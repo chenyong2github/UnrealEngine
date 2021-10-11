@@ -13,10 +13,10 @@ struct FMPCDIGeometryImportData
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MPCDI")
-	int Width;
+	int32 Width = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MPCDI")
-	int Height;
+	int32 Height = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MPCDI")
 	TArray<FVector>   Vertices;

@@ -55,18 +55,26 @@ public:
 USTRUCT(Blueprintable)
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_ColorGradingSettings
 {
-	GENERATED_BODY()
+	GENERATED_BODY();
+
+	FDisplayClusterConfigurationViewport_ColorGradingSettings()
+		: bOverride_Saturation(false)
+		, bOverride_Contrast(false)
+		, bOverride_Gamma(false)
+		, bOverride_Gain(false)
+		, bOverride_Offset(false)
+	{ }
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
-	uint8 bOverride_Saturation:1;
+	uint8 bOverride_Saturation : 1;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
-	uint8 bOverride_Contrast:1;
+	uint8 bOverride_Contrast : 1;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
-	uint8 bOverride_Gamma:1;
+	uint8 bOverride_Gamma : 1;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
-	uint8 bOverride_Gain:1;
+	uint8 bOverride_Gain : 1;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
-	uint8 bOverride_Offset:1;
+	uint8 bOverride_Offset : 1;
 
 	// Saturation
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Color Grading", meta = (UIMin = "0.0", UIMax = "2.0", Delta = "0.01", EditCondition = "bOverride_Saturation", ColorGradingMode = "saturation"))
