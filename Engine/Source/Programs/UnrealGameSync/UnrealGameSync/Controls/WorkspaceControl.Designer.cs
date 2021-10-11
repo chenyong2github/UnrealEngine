@@ -27,7 +27,6 @@ namespace UnrealGameSync
 			this.toolStripSeparator11 = new System.Windows.Forms.ToolStripSeparator();
 			this.editorToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.editorPhysXToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-			this.pS4ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.OptionsContextMenu_AutoResolveConflicts = new System.Windows.Forms.ToolStripMenuItem();
 			this.OptionsContextMenu_SyncFilter = new System.Windows.Forms.ToolStripMenuItem();
 			this.toolStripSeparator3 = new System.Windows.Forms.ToolStripSeparator();
@@ -223,8 +222,7 @@ namespace UnrealGameSync
             this.disabledToolStripMenuItem,
             this.toolStripSeparator11,
             this.editorToolStripMenuItem,
-            this.editorPhysXToolStripMenuItem,
-            this.pS4ToolStripMenuItem});
+            this.editorPhysXToolStripMenuItem});
 			this.OptionsContextMenu_SyncPrecompiledBinaries.Name = "OptionsContextMenu_SyncPrecompiledBinaries";
 			this.OptionsContextMenu_SyncPrecompiledBinaries.Size = new System.Drawing.Size(261, 22);
 			this.OptionsContextMenu_SyncPrecompiledBinaries.Text = "Sync Precompiled Binaries";
@@ -252,12 +250,6 @@ namespace UnrealGameSync
 			this.editorPhysXToolStripMenuItem.Name = "editorPhysXToolStripMenuItem";
 			this.editorPhysXToolStripMenuItem.Size = new System.Drawing.Size(210, 22);
 			this.editorPhysXToolStripMenuItem.Text = "Editor (PhysX)";
-			// 
-			// pS4ToolStripMenuItem
-			// 
-			this.pS4ToolStripMenuItem.Name = "pS4ToolStripMenuItem";
-			this.pS4ToolStripMenuItem.Size = new System.Drawing.Size(210, 22);
-			this.pS4ToolStripMenuItem.Text = "PS4";
 			// 
 			// OptionsContextMenu_AutoResolveConflicts
 			// 
@@ -1479,7 +1471,6 @@ namespace UnrealGameSync
 		private System.Windows.Forms.ToolStripSeparator toolStripSeparator11;
 		private System.Windows.Forms.ToolStripMenuItem editorToolStripMenuItem;
 		private System.Windows.Forms.ToolStripMenuItem editorPhysXToolStripMenuItem;
-		private System.Windows.Forms.ToolStripMenuItem pS4ToolStripMenuItem;
 		private System.IO.FileSystemWatcher EditorConfigWatcher;
 		private System.Windows.Forms.ToolStripMenuItem BuildListContextMenu_ViewInSwarm;
 		private System.Windows.Forms.ToolStripMenuItem BuildListContextMenu_CopyChangelistNumber;

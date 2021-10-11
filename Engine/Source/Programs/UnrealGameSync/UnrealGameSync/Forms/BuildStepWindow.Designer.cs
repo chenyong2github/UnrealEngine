@@ -180,9 +180,7 @@ namespace UnrealGameSync
 				"Linux",
 				"Android",
 				"iOS",
-				"Mac",
-				"PS4",
-				"XboxOne"});
+				"Mac"});
 			this.CompilePlatformComboBox.Location = new System.Drawing.Point(304, 35);
 			this.CompilePlatformComboBox.Name = "CompilePlatformComboBox";
 			this.CompilePlatformComboBox.Size = new System.Drawing.Size(189, 23);

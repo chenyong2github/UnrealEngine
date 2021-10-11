@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -292,15 +292,6 @@ namespace UnrealGameSync
 					UpdateNode.MaxExcludeRuleNumber = LastNode.RuleNumber;
 				}
 			}
-		}
-
-		/// <summary>
-		/// Excludes all restricted platform folders from the filter
-		/// </summary>
-		public void ExcludeConfidentialPlatforms()
-		{
-			AddRule(".../PS4/...", FileFilterType.Exclude);
-			AddRule(".../XboxOne/...", FileFilterType.Exclude);
 		}
 
 		/// <summary>
