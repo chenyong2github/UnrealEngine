@@ -55,7 +55,7 @@ enum class EEditPivotSnapDragRotationMode : uint8
 
 
 /**
- * Standard properties of the Transform Meshes operation
+ * Standard properties of the Edit Pivot operation
  */
 UCLASS()
 class MESHMODELINGTOOLSEXP_API UEditPivotToolProperties : public UInteractiveToolPropertySet
