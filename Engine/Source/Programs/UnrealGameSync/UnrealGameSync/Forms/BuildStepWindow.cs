@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -39,6 +39,7 @@ namespace UnrealGameSync
 			string DefaultTargetName = TargetNames.FirstOrDefault(x => !x.EndsWith("Editor") && !x.EndsWith("Client") && !x.EndsWith("Server")) ?? ((TargetNames.Count > 0)? TargetNames[0] : "");
 			CompileTargetComboBox.Items.AddRange(TargetNames.ToArray());
 			CompileTargetComboBox.Text = String.IsNullOrEmpty(Step.Target)? DefaultTargetName : Step.Target;
+			StatusPanelLinkTextBox.Text = Step.StatusPanelLink;
 
 			DescriptionTextBox.Text = Step.Description;
 			StatusTextTextBox.Text = Step.StatusText;
@@ -118,8 +119,9 @@ namespace UnrealGameSync
 		{
 			Step.Description = DescriptionTextBox.Text;
 			Step.StatusText = StatusTextTextBox.Text;
+			Step.StatusPanelLink = StatusPanelLinkTextBox.Text;
 
-			if(!int.TryParse(DurationTextBox.Text, out Step.EstimatedDuration))
+			if (!int.TryParse(DurationTextBox.Text, out Step.EstimatedDuration))
 			{
 				Step.EstimatedDuration = 1;
 			}
