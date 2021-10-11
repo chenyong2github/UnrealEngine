@@ -98,6 +98,14 @@ static TAutoConsoleVariable<int32> CVarShaderCompilerEmitWarningsOnLoad(
 	ECVF_Default
 );
 
+static TAutoConsoleVariable<int32> CVarShadersForceDXC(
+	TEXT("r.Shaders.ForceDXC"),
+	0,
+	TEXT("Forces DirectX Shader Compiler (DXC) to be used for all shaders instead of HLSLcc if supported.\n")
+	TEXT(" 0: Disable (default)\n")
+	TEXT(" 1: Force new compiler for all shaders"),
+	ECVF_ReadOnly);
+
 static TLinkedList<FShaderType*>*			GShaderTypeList = nullptr;
 static TLinkedList<FShaderPipelineType*>*	GShaderPipelineList = nullptr;
 
@@ -1292,14 +1300,24 @@ void DispatchIndirectComputeShader(
 
 bool IsDxcEnabledForPlatform(EShaderPlatform Platform)
 {
+	// Check the generic console variable first (if DXC is supported)
+	if (FDataDrivenShaderPlatformInfo::GetSupportsDxc(Platform))
+	{
+		static const IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shaders.ForceDXC"));
+		if (CVar && CVar->GetInt() != 0)
+		{
+			return true;
+		}
+	}
+	// Check backend specific console variables next
 	if (IsD3DPlatform(Platform) && IsPCPlatform(Platform))
 	{
-		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.D3D.ForceDXC"));
+		static const IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.D3D.ForceDXC"));
 		return (CVar && CVar->GetInt() != 0);
 	}
 	if (IsOpenGLPlatform(Platform))
 	{
-		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.OpenGL.ForceDXC"));
+		static const IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.OpenGL.ForceDXC"));
 		return (CVar && CVar->GetInt() != 0);
 	}
 	// Hlslcc has been removed for Metal and Vulkan. There is only DXC now.

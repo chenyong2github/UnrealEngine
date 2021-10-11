@@ -359,6 +359,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 MaxMeshShaderThreadGroupSize : 10;
 	uint32 bSupportsPerPixelDBufferMask : 1;
 	uint32 bIsHlslcc : 1;
+	uint32 bSupportsDxc : 1; // Whether DirectXShaderCompiler (DXC) is supported
 	uint32 bSupportsVariableRateShading : 1;
 	uint32 NumberOfComputeThreads : 10;
 	uint32 bWaterUsesSimpleForwardShading : 1;
@@ -689,6 +690,11 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetIsHlslcc(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bIsHlslcc;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsDxc(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsDxc;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsVariableRateShading(const FStaticShaderPlatform Platform)
