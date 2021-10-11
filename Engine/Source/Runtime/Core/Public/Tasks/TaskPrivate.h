@@ -470,7 +470,7 @@ namespace UE { namespace Tasks
 				{
 					// execute before cancelling the low-level task as successful cancellation can release the last reference and destroy the task
 					// the low-level task wasn't scheduled, so successful execution and low-level task cancellation is guaranted
-					verify(TryExecute());
+					TryExecute();
 					verify(LowLevelTask.TryCancel());
 					return true;
 				}
