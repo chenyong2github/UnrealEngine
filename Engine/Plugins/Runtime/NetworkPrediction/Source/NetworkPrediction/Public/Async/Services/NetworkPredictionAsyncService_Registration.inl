@@ -145,9 +145,12 @@ private:
 		}
 
 		// Cheat a little and put the initial state values into the latest snapshot so we don't have to special case this in other spots
+		// FIXME: This isn't valid in all cases. We still have gaps!
 		NpResizeForIndex(DataStore->LatestSnapshot.NetStates, FreeIndice);
 		DataStore->LatestSnapshot.NetStates[FreeIndice] = InitialValueNet;
 		NpResizeForIndex(DataStore->LatestSnapshot.InputCmds, FreeIndice);
+
+		npEnsure(DataStore->LatestSnapshot.InputCmds.Num() == DataStore->LatestSnapshot.NetStates.Num());
 
 		// Marshal via Input
 		TAsyncModelDataStore_Input<AsyncModelDef>* InputDataStore = Input->GetPendingDataStore_External<AsyncModelDef>();

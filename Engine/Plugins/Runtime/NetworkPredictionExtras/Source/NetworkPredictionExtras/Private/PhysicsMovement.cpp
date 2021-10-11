@@ -23,6 +23,7 @@
 #include "Async/NetworkPredictionAsyncModelDefRegistry.h"
 #include "Async/NetworkPredictionAsyncProxyImpl.h"
 #include "Components/PrimitiveComponent.h"
+#include "PhysicsEffect.h"
 
 
 NETSIM_DEVCVAR_SHIPCONST_INT(DisablePhysicsMovement, 0, "np2.DisablePhysicsMovement", "");
@@ -420,19 +421,29 @@ void UPhysicsMovementComponent::InitializeComponent()
 	UWorld* World = GetWorld();	
 	checkSlow(World);
 	
-	FPhysicsMovementLocalState LocalState;
-	LocalState.Proxy = this->GetManagedProxy();
-	LocalState.QueryParams.AddIgnoredActor(GetOwner());
-	if (LocalState.Proxy)
 	{
-		if (ensure(NetworkPredictionProxy.RegisterProxy(GetWorld())))
+		FPhysicsMovementLocalState LocalState;
+		LocalState.Proxy = this->GetManagedProxy();
+		LocalState.QueryParams.AddIgnoredActor(GetOwner());
+		if (LocalState.Proxy)
 		{
-			NetworkPredictionProxy.RegisterSim<FPhysicsMovementAsyncModelDef>(MoveTemp(LocalState), FPhysicsMovementNetState(), &PendingInputCmd, &MovementState);
+			if (ensure(NetworkPredictionProxy.RegisterProxy(GetWorld())))
+			{
+				NetworkPredictionProxy.RegisterSim<FPhysicsMovementAsyncModelDef>(MoveTemp(LocalState), FPhysicsMovementNetState(), &PendingInputCmd, &MovementState);
+
+				if (bEnablePhysicsEffects)
+				{
+					FPhysicsEffectLocalState PELocalState;
+					PELocalState.Proxy = this->GetManagedProxy();
+					PELocalState.QueryParams.AddIgnoredActor(GetOwner());
+					InitializePhysicsEffects(MoveTemp(PELocalState));
+				}
+			}
 		}
-	}
-	else
-	{
-		UE_LOG(LogNetworkPhysics, Warning, TEXT("No valid physics body found on %s"), *GetName());
+		else
+		{
+			UE_LOG(LogNetworkPhysics, Warning, TEXT("No valid physics body found on %s"), *GetName());
+		}
 	}
 #endif
 }
@@ -451,6 +462,8 @@ void UPhysicsMovementComponent::UninitializeComponent()
 
 void UPhysicsMovementComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
+	SyncPhysicsEffects();
+
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 	
 	APlayerController* PC = GetOwnerPC();
@@ -470,6 +483,22 @@ void UPhysicsMovementComponent::TickComponent(float DeltaTime, enum ELevelTick T
 		PendingInputCmd.bLegit = true;
 		PendingInputCmd.Counter++;
 	}
+
+
+#if 0 // Requires SetInterpChannel
+	if ((GetOwnerRole() != ROLE_Authority))
+	{
+		if (Chaos::FSingleParticlePhysicsProxy* Proxy = this->GetManagedProxy())
+		{
+			const int32 InterpChannel = PC == nullptr ? 1 : 0;
+			if (Proxy->GetInterpChannel() != InterpChannel)
+			{
+				Proxy->SetInterpChannel(InterpChannel);
+				UE_LOG(LogTemp, Warning, TEXT("%s SetInterpChannel %d"), *GetName(), InterpChannel);
+			}
+		}
+	}
+#endif
 }
 
 void UPhysicsMovementComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -573,23 +602,45 @@ void UPhysicsMovementComponent::TestMisprediction()
 	});	
 }
 
+bool UPhysicsMovementComponent::IsController() const
+{
+	APlayerController* PC = GetOwnerPC();
+	if (PC && PC->IsLocalController())
+	{
+		return true;
+	}
+
+	const bool bIServer = GetOwnerRole() == ROLE_Authority;
+	if (bIServer && PC == nullptr)
+	{
+		return true;
+	}
+
+	return false;
+}
+
 FAutoConsoleCommandWithWorldAndArgs ForcePhysicsMovementCorrectionCmd(TEXT("np.PhysicsMovement.ForceRandCorrection2"), TEXT(""),
 FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray< FString >& Args, UWorld* InWorld) 
+{
+	for (TObjectIterator<UWorld> It; It; ++It)
 	{
-		for (TObjectIterator<UWorld> It; It; ++It)
+		UWorld* World = *It;
+		if (World->GetNetMode() != NM_Client && (World->WorldType == EWorldType::PIE || World->WorldType == EWorldType::Game))
 		{
-			UWorld* World = *It;
-			if (World->GetNetMode() != NM_Client && (World->WorldType == EWorldType::PIE || World->WorldType == EWorldType::Game))
-			{
-				const int32 NewRand = FMath::RandHelper(1024);
+			const int32 NewRand = FMath::RandHelper(1024);
 
-				for (TActorIterator<AActor> ActorIt(World); ActorIt; ++ActorIt)
+			for (TActorIterator<AActor> ActorIt(World); ActorIt; ++ActorIt)
+			{
+				if (UPhysicsMovementComponent* PhysComp = ActorIt->FindComponentByClass<UPhysicsMovementComponent>())
 				{
-					if (UPhysicsMovementComponent* PhysComp = ActorIt->FindComponentByClass<UPhysicsMovementComponent>())
-					{
-						PhysComp->TestMisprediction();
-					}
+					PhysComp->TestMisprediction();
 				}
 			}
 		}
-	}));
+	}
+}));
+
+
+
+
+

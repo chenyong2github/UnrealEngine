@@ -81,6 +81,24 @@ void FNetworkPredictionAsyncProxy::OnPreReplication()
 {
 	if (Manager)
 	{
-		CachedLatestFrame = Manager->GetLatestFrame();
+		CachedLatestFrame = Manager->GetLatestSimFrame();
 	}
+}
+
+int32 FNetworkPredictionAsyncProxy::GetNextSimFrame() const
+{
+	if (Manager)
+	{
+		return Manager->GetNextSimFrame();
+	}
+	return INDEX_NONE;
+}
+	
+int32 FNetworkPredictionAsyncProxy::GetLatestOutputSimFrame() const
+{
+	if (Manager)
+	{
+		return Manager->GetLatestSimFrame();
+	}
+	return INDEX_NONE;
 }

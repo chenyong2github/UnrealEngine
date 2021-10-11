@@ -426,7 +426,7 @@ public:
 		npCheckSlow(AsyncCallback);
 		FNetworkPredictionSimCallbackInput* AsyncInput = AsyncCallback->GetProducerInputData_External();
 		npCheckSlow(AsyncInput);
-
+		
 		AsyncCallback->PushLatestLocalFrameOffset(LocalFrameOffset);
 
 		for (int32 StepNum=0; StepNum < NumSteps; ++StepNum)
@@ -461,6 +461,7 @@ public:
 		}
 
 		NextPhysicsStep = PhysicsStep;
+		NextSimulationStep = PhysicsStep - LocalFrameOffset;
 
 		// Consume all output data. Note we are consuming all SimCallback Output objects here even though we really only want the latest -
 		// but there maybe objects that were destroyed and not present in the final output, so this is trying to not miss them.
@@ -489,9 +490,14 @@ public:
 	}
 
 	// Returns latest simulation frame number that has been marshaled back from PT
-	int32 GetLatestFrame() const
+	int32 GetLatestSimFrame() const
 	{
 		return GlobalOutput_External.SimulationFrame;
+	}
+
+	int32 GetNextSimFrame() const
+	{
+		return NextSimulationStep;
 	}
 
 private:
@@ -572,7 +578,8 @@ private:
 
 	int32 SpawnIDCounter = 1;
 	int32 ClientSpawnIDCounter = -1;
-	int32 NextPhysicsStep = 0;
+	int32 NextPhysicsStep = 0; // Local
+	int32 NextSimulationStep = 0; // Networked
 
 	uint32 InitializedModelDefsMask = 0;
 

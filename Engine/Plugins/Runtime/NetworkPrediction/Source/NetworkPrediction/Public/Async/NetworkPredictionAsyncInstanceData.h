@@ -34,6 +34,7 @@ struct TAsncInstanceStaticData
 
 	uint16 Index;
 	LocalStateType LocalState;
+	int32 LocalSpawnFrame = INDEX_NONE;
 };
 
 template<typename AsyncModelDef>
