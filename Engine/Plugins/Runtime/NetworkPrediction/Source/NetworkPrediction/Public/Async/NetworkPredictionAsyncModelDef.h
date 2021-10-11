@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "Containers/UnrealString.h"
+#include "Templates/EnableIf.h"
 
 class AActor;
 class APlayerController;
@@ -34,5 +36,44 @@ struct FNetworkPredictionAsyncModelDef
 	using OutStateType = typename AsyncModelDef::OutStateType; \
 	using ControlKeyType = typename AsyncModelDef::ControlKeyType; \
 	using SimulationTickType = typename AsyncModelDef::SimulationTickType;
+
+
+
+// Template nonsense to implement optional user-defined functions and operations.
+// Mainly we want to avoid base classes on the user states, so calls that are optional
+// can go through NpModelUtil to either do nothing or some default implementation, or
+// be overridden by the user when they need to.
+template<typename AsyncModelDef>
+struct NpModelUtilBase
+{
+	HOIST_ASYNCMODELDEF_TYPES();
+
+	
+	struct CToStringFuncable
+	{
+		template <typename InType>
+		auto Requires(InType* T) -> decltype(T->ToString());
+	};
+
+	template<typename T, bool bEnable=TModels<CToStringFuncable, T>::Value>
+	static typename TEnableIf<bEnable, FString>::Type ToString(const T* State)
+	{
+		return State->ToString();
+	}
+
+	
+	template<typename T, bool bEnable=TModels<CToStringFuncable, T>::Value>
+	static typename TEnableIf<!bEnable, FString>::Type ToString(const T* State)
+	{
+		return FString(TEXT("{requires ToString()}"));
+	}
+};
+
+template<typename AsyncModelDef>
+struct NpModelUtil : NpModelUtilBase<AsyncModelDef>
+{
+
+};
+
 
 } // namespace UE_NP

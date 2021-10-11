@@ -8,6 +8,7 @@
 #include "NetworkPhysicsComponent.h"
 #include "NetworkPredictionCVars.h"
 #include "Springs.h"
+#include "PhysicsEffect.h"
 #include "PhysicsMovement.generated.h"
 
 namespace UE_NP
@@ -204,6 +205,11 @@ struct FPhysicsMovementNetState
 			Springs != AuthState.Springs || 
 			(UE_NP::ForceReconcilePhysicsMovementState() > 0);
 	}
+
+	FString ToString() const
+	{
+		return FString();
+	}
 };
 
 USTRUCT(BlueprintType)
@@ -217,7 +223,7 @@ struct FPhysicsMovementLocalState
 };
 
 UCLASS(BlueprintType, meta=(BlueprintSpawnableComponent))
-class NETWORKPREDICTIONEXTRAS_API UPhysicsMovementComponent : public UNetworkPhysicsComponent
+class NETWORKPREDICTIONEXTRAS_API UPhysicsMovementComponent : public UNetworkPhysicsComponent, public IPhysicsEffectsInterface
 {
 	GENERATED_BODY()
 
@@ -247,7 +253,11 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Input")
 	FOnGenerateLocalInputCmd OnGenerateLocalInputCmd;
 
+	void TestMisprediction();
 	
+	// ---------------------------------------------------------------------
+	//	Movement
+	// ---------------------------------------------------------------------
 
 	UFUNCTION(BlueprintCallable, Category="Movement")
 	void SetAutoTargetYawStrength(float Strength);
@@ -277,9 +287,35 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	void ClearSprings();
 
-	void TestMisprediction();
+
+	// ---------------------------------------------------------------------
+	//	Physics Effects
+	// ---------------------------------------------------------------------
+
+	UPROPERTY(EditDefaultsOnly, Category="Physics Effects")
+	bool bEnablePhysicsEffects=true;
+
+	FNetworkPredictionAsyncProxy& GetNetworkPredictionAsyncProxy() override { return NetworkPredictionProxy; }
+	FPhysicsEffectsExternalState& GetPhysicsEffectsExternalState() override { return PhysicsEffectsExternalState; }
+
+	bool IsController() const override;
+
+	// Forward input producing event to someone else (probably the owning actor)
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhysicsEffect, int32, TypeID);
+
+	// Delegate to inform the GT/bp that a PE has taken place and is now "seen" on the GT
+	UPROPERTY(BlueprintAssignable, Category = "Physics Effect")
+	FOnPhysicsEffect NotifyPhysicsEffectExecuted;
+	void OnPhysicsEffectExecuted(uint8 TypeID) override { NotifyPhysicsEffectExecuted.Broadcast(TypeID); };
+
+	// Delegate to inform the GT/bp  that a PE will take place soon but not hasn't happened yet
+	UPROPERTY(BlueprintAssignable, Category = "Physics Effect")
+	FOnPhysicsEffect NotifyPhysicsEffectWindUp;
+	void OnPhysicsEffectWindUp(uint8 TypeID) override { NotifyPhysicsEffectWindUp.Broadcast(TypeID); };
 
 private:
+
+	FPhysicsEffectsExternalState PhysicsEffectsExternalState;
 
 	APlayerController* GetOwnerPC() const;
 

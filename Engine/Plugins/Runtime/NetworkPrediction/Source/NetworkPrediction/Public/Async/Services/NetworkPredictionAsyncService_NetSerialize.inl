@@ -31,6 +31,13 @@ public:
 
 	void NetRecv(FNetworkPredictionAsyncID ID, uint8 Flags, int32 ThisFrame, int32 FutureFrame, FNetBitReader& Ar) final override
 	{
+		uint8 bIsValid = 0;
+		Ar << bIsValid;
+		if (!bIsValid)
+		{
+			return;
+		}
+
 		TAsncInstanceStaticData<AsyncModelDef>& InstanceData = DataStore->Instances.FindChecked(ID);
 
 		if (DataStore->PendingNetRecv.NetRecvInstances.IsValidIndex(InstanceData.Index) == false)
@@ -49,8 +56,19 @@ public:
 	void NetSend(FNetworkPredictionAsyncID ID, uint8 Flags, int32 ThisFrame, int32 PendingInputCmdFrame, FNetBitWriter& Ar) final override
 	{
 		TAsncInstanceStaticData<AsyncModelDef>& InstanceData = DataStore->Instances.FindChecked(ID);
-
 		const int32 idx = InstanceData.Index;
+
+		uint8 bIsValid = true;
+		if (!DataStore->LatestSnapshot.InputCmds.IsValidIndex(idx) || !DataStore->LatestSnapshot.NetStates.IsValidIndex(idx))
+		{
+			bIsValid = false;
+		}
+		Ar << bIsValid;
+		if (!bIsValid)
+		{
+			return;
+		}
+
 		npCheckSlow(DataStore->LatestSnapshot.InputCmds.IsValidIndex(idx));
 		npCheckSlow(DataStore->LatestSnapshot.NetStates.IsValidIndex(idx));
 
@@ -75,7 +93,6 @@ private:
 		{
 			if (auto* FoundPtr = DataStore->PendingInputCmdBuffers.Find(ID))
 			{
-				// Need latest 
 				TAsyncPendingInputCmdBuffer<AsyncModelDef>& PendingInputs = FoundPtr->Get();
 				PendingInputs.Buffer[PendingInputCmdFrame % PendingInputs.Buffer.Num()].NetSerialize(Ar);
 			}

@@ -103,7 +103,9 @@ public:
 			// New instances
 			for (const typename TAsyncModelDataStore_Input<AsyncModelDef>::FNewInstance& NewInstance : InputData->NewInstances)
 			{
-				DataStore->Instances.FindOrAdd(NewInstance.ID) = NewInstance.StaticData;
+				TAsncInstanceStaticData<AsyncModelDef>& StaticData = DataStore->Instances.FindOrAdd(NewInstance.ID);
+				StaticData = NewInstance.StaticData;
+				StaticData.LocalSpawnFrame = LocalFrame;
 
 				NpResizeForIndex(Snapshot.InputCmds, NewInstance.StaticData.Index);
 				NpResizeForIndex(Snapshot.NetStates, NewInstance.StaticData.Index);
@@ -190,6 +192,8 @@ public:
 
 			NpResizeForIndex(Snapshot.InputCmds, idx);
 			NpResizeForIndex(Snapshot.NetStates, idx);
+
+			npEnsure(Snapshot.InputCmds.Num()==Snapshot.NetStates.Num());
 				
 			Snapshot.InputCmds[idx] = CorrectionInstance.InputCmd;
 			Snapshot.NetStates[idx] = CorrectionInstance.NetState;

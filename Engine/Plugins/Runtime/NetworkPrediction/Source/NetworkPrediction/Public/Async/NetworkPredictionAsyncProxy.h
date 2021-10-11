@@ -30,6 +30,13 @@ struct NETWORKPREDICTION_API FNetworkPredictionAsyncProxy
 	bool Identical(const FNetworkPredictionAsyncProxy* Other, uint32 PortFlags) const;
 	void OnPreReplication();
 
+	// Gets the next expected simulation frame number that will be marshalled GT -> PT
+	// Note this can be unstable on clients. For example if you get this value and then receive an input fault from server, the next frame may be different.
+	int32 GetNextSimFrame() const;
+
+	// Returns the latest simulation frame that was marshalled back from the PT
+	int32 GetLatestOutputSimFrame() const;
+
 	// Include NetworkPredictionAsyncProxyImpl.h in your .cpp to use these.
 	template<typename AsyncModelDef>
 	void RegisterSim(typename AsyncModelDef::LocalStateType&& LocalState, typename AsyncModelDef::NetStateType&& NetState, typename AsyncModelDef::InputCmdType* PendingInputCmd, typename AsyncModelDef::NetStateType* OutNetState);

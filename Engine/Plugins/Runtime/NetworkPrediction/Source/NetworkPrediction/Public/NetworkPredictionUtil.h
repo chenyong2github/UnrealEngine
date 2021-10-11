@@ -45,6 +45,7 @@ void NpClearBitArray(BitArrayType& BitArray)
 template<typename ArrayType>
 void NpResizeForIndex(ArrayType& Array, int32 Index)
 {
+	npEnsure(Index >= 0);
 	if (Array.IsValidIndex(Index) == false)
 	{
 		Array.SetNum(Index + UE_NP::FrameStorageGrowth);

@@ -35,10 +35,25 @@ public:
 		{
 			FNetworkPredictionAsyncID& ID = MapIt.Key;
 			TAsncInstanceStaticData<AsyncModelDef>& InstanceData = MapIt.Value;
-			InputCmdType& InputCmd = Snapshot.InputCmds[InstanceData.Index];
-			NetStateType& NetState = Snapshot.NetStates[InstanceData.Index];
+			if (InstanceData.LocalSpawnFrame <= Context.LocalStorageFrame)			
+			{
+				if (Snapshot.InputCmds.Num() != Snapshot.NetStates.Num())
+				{
+					UE_LOG(LogNetworkPrediction, Error, TEXT("%s InputCmds and NetStates array size are out of sync (%d %d). LocalFrame: %d"), AsyncModelDef::GetName(), Snapshot.InputCmds.Num(), Snapshot.NetStates.Num(), Context.LocalStorageFrame);
+				}
 
-			SimulationTickType::Tick_Internal(Context, ID, InputCmd, InstanceData.LocalState, NetState);
+
+				if (Snapshot.InputCmds.IsValidIndex(InstanceData.Index) && Snapshot.NetStates.IsValidIndex(InstanceData.Index))
+				{
+					InputCmdType& InputCmd = Snapshot.InputCmds[InstanceData.Index];
+					NetStateType& NetState = Snapshot.NetStates[InstanceData.Index];
+					SimulationTickType::Tick_Internal(Context, ID, InputCmd, InstanceData.LocalState, NetState);
+				}
+				else
+				{
+					UE_LOG(LogNetworkPrediction, Warning, TEXT("%s Invalid Instanced %d @ index %d. LocalFrame: %d SpawnFrame: %d. Sizes: (%d %d)"), AsyncModelDef::GetName(), (int32)ID, InstanceData.Index, Context.LocalStorageFrame, InstanceData.LocalSpawnFrame, Snapshot.InputCmds.Num(), Snapshot.NetStates.Num());
+				}
+			}
 		}
 	}
 

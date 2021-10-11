@@ -63,11 +63,15 @@ public:
 							if (LocalInputCmd.ShouldReconcile(RecvData.InputCmd))
 							{
 								UE_CLOG(LogStateCorrections() > 0, LogNetworkPrediction, Log, TEXT("Reconcile on InputCmd. %s. Instance: %d. Frame: [%d/%d]"), AsyncModelDef::GetName(), idx, RecvData.Frame - LocalFrameOffset, RecvData.Frame);
+								UE_CLOG(LogStateCorrections() > 0, LogNetworkPrediction, Log, TEXT("    Local: %s"), *NpModelUtil<AsyncModelDef>::ToString(&LocalInputCmd));
+								UE_CLOG(LogStateCorrections() > 0, LogNetworkPrediction, Log, TEXT("   Server: %s"), *NpModelUtil<AsyncModelDef>::ToString(&RecvData.InputCmd));
 								bShouldReconcile = true;
 							}
 							if (LocalNetState.ShouldReconcile(RecvData.NetState))
 							{
 								UE_CLOG(LogStateCorrections() > 0, LogNetworkPrediction, Log, TEXT("Reconcile on NetState. %s. Instance: %d. Frame: [%d/%d]"), AsyncModelDef::GetName(), idx, RecvData.Frame - LocalFrameOffset, RecvData.Frame);
+								UE_CLOG(LogStateCorrections() > 0, LogNetworkPrediction, Log, TEXT("    Local: %s"), *NpModelUtil<AsyncModelDef>::ToString(&LocalNetState));
+								UE_CLOG(LogStateCorrections() > 0, LogNetworkPrediction, Log, TEXT("   Server: %s"), *NpModelUtil<AsyncModelDef>::ToString(&RecvData.NetState));
 								bShouldReconcile = true;
 							}
 						}
