@@ -82,11 +82,6 @@ UMultiLineEditableTextBox::UMultiLineEditableTextBox(const FObjectInitializer& O
 	{
 		static ConstructorHelpers::FObjectFinder<UFont> RobotoFontObj(*UWidget::GetDefaultFontName());
 		Font_DEPRECATED = FSlateFontInfo(RobotoFontObj.Object, 12, FName("Bold"));
-
-		WidgetStyle.SetFont(Font_DEPRECATED);
-		WidgetStyle.SetForegroundColor(ForegroundColor_DEPRECATED);
-		WidgetStyle.SetBackgroundColor(BackgroundColor_DEPRECATED);
-		WidgetStyle.SetReadOnlyForegroundColor(ReadOnlyForegroundColor_DEPRECATED);
 	}
 }
 
