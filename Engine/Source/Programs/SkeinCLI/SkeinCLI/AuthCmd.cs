@@ -36,13 +36,7 @@ namespace SkeinCLI
     {
         private AuthCmd Parent { get; set; }
 
-        [Option("-u|--username", CommandOptionType.SingleValue, Description = "User Name")]
-        public string UserName { get; set; }
-
-        [Option("-p|--password", CommandOptionType.SingleValue, Description = "Password")]
-        public string Password { get; set; }
-
-        public override List<string> CreateArgs()
+		public override List<string> CreateArgs()
         {
             var args = Parent.CreateArgs();
             args.Add("login");
@@ -52,34 +46,28 @@ namespace SkeinCLI
 
         protected override Task<int> OnExecute(CommandLineApplication app)
         {
-            if (string.IsNullOrEmpty(UserName) && !Quiet)
-            {
-                UserName = Prompt.GetString("User Name:",
-                    promptColor: ConsoleColor.Black,
-                    promptBgColor: ConsoleColor.White);
-            }
+			if (AuthUtils.IsLoggedIn())
+			{
+				Log.Logger.ForContext<AuthLoginCmd>().Information("Login succeeded (token still valid).");
+				return Task.FromResult(0);
+			}
 
-            if (string.IsNullOrEmpty(Password) && !Quiet)
-            {
-                Password = Prompt.GetPassword("Password:",
-                    promptColor: ConsoleColor.Black,
-                    promptBgColor: ConsoleColor.White);
-            }
+			if (AuthUtils.Refresh())
+			{
+				Log.Logger.ForContext<AuthLoginCmd>().Information("Login succeeded (token refreshed).");
+				return Task.FromResult(0);
+			}
 
-            if (!string.IsNullOrEmpty(UserName) && !string.IsNullOrEmpty(Password))
-            {
-                Log.Logger.ForContext<ProjectsSnapshotsGetCmd>().Information($"User Name: {UserName}, Password: {Password}");
-                Log.Logger.ForContext<ProjectsListCmd>().Information("Login process here [...]");
-            }
-            else 
-            {
-                Log.Logger.ForContext<ProjectsListCmd>().Information("Login cancelled");
-            }
-
-            
-            return base.OnExecute(app);
-        }
-    }
+			if (AuthUtils.Login())
+			{
+				Log.Logger.ForContext<AuthLoginCmd>().Information("Login succeeded.");
+				return Task.FromResult(0);
+			}
+			
+			Log.Logger.ForContext<AuthLoginCmd>().Error("Login failed.");
+			return Task.FromResult(1);
+		}
+	}
 
     [Command(Name = "logout", Description = "Skein logout")]
     class AuthLogoutCmd : SkeinCmdBase
@@ -96,8 +84,14 @@ namespace SkeinCLI
 
         protected override Task<int> OnExecute(CommandLineApplication app)
         {
-            Log.Logger.ForContext<ProjectsListCmd>().Information("Logout process here [...]");
-            return base.OnExecute(app);
-        }
+			if (AuthUtils.Logout())
+			{
+				Log.Logger.ForContext<AuthLoginCmd>().Information("Logout succeeded.");
+				return Task.FromResult(0);
+			}
+			
+			Log.Logger.ForContext<AuthLoginCmd>().Error("Logout failed.");
+			return Task.FromResult(1);
+		}
     }
 }
