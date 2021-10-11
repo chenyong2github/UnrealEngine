@@ -1057,7 +1057,7 @@ namespace UnrealGameSync
 				BuildStep.MergeBuildStepObjects(BuildStepObjects, Context.UserBuildStepObjects);
 
 				// Construct build steps from them
-				List<BuildStep> BuildSteps = BuildStepObjects.Values.Select(x => new BuildStep(x)).OrderBy(x => x.OrderIndex).ToList();
+				List<BuildStep> BuildSteps = BuildStepObjects.Values.Select(x => new BuildStep(x)).OrderBy(x => (x.OrderIndex == -1) ? 10000 : x.OrderIndex).ToList();
 				if(Context.CustomBuildSteps != null && Context.CustomBuildSteps.Count > 0)
 				{
 					BuildSteps.RemoveAll(x => !Context.CustomBuildSteps.Contains(x.UniqueId));
