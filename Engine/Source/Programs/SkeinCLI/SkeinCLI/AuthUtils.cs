@@ -259,10 +259,7 @@ namespace SkeinCLI
 		/// </summary>
 		private static string GetTokenFolder()
 		{
-			// Windows: C:\Users\<username>\AppData\Roaming\skein
-			// Linux  : /home/.config/skein
-
-			return Path.Combine(System.Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "skein");
+			return SkeinUtils.GetDataFolder();
 		}
 
 		/// <summary>
