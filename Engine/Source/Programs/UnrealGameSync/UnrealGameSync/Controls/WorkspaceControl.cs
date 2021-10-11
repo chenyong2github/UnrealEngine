@@ -5413,7 +5413,7 @@ public enum LatestChangeType
 			}
 
 			// Create the expanded task objects
-			return UserBuildStepObjects.Values.Select(x => new BuildStep(x)).OrderBy(x => x.OrderIndex).ToList();
+			return UserBuildStepObjects.Values.Select(x => new BuildStep(x)).OrderBy(x => (x.OrderIndex == -1)? 10000 : x.OrderIndex).ToList();
 		}
 
 		private void OptionsContextMenu_SyncPrecompiledBinaries_Click(object sender, EventArgs e)
