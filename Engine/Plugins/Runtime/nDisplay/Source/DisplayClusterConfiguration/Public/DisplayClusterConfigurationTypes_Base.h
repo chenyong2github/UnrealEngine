@@ -20,11 +20,11 @@ struct DISPLAYCLUSTERCONFIGURATION_API FTextureCropOrigin
 public:
 	// Replace texture origin X location, in pixels
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "X"))
-	int32 X;
+	int32 X = 0;
 
 	// Replace texture origin Y position, in pixels
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Y"))
-	int32 Y;
+	int32 Y = 0;
 };
 
 /**
@@ -38,11 +38,11 @@ struct DISPLAYCLUSTERCONFIGURATION_API FTextureCropSize
 public:
 	// Replace texture crop width, in pixels
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "W"))
-	int32 W;
+	int32 W = 0;
 
 	// Replace texture crop height, in pixels
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "H"))
-	int32 H;
+	int32 H = 0;
 };
 
 /**

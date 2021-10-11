@@ -442,13 +442,13 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationDiagnostics
 
 public:
 	UPROPERTY(EditAnywhere, Category = NDisplay)
-	bool bSimulateLag;
+	bool bSimulateLag = false;
 
 	UPROPERTY(EditAnywhere, Category = NDisplay)
-	float MinLagTime;
+	float MinLagTime = 0.01f;
 
 	UPROPERTY(EditAnywhere, Category = NDisplay)
-	float MaxLagTime;
+	float MaxLagTime = 0.3f;
 };
 
 struct FDisplayClusterConfigurationDataMetaInfo

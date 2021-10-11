@@ -21,27 +21,27 @@ public:
 
 	// Location on a backbuffer.
 	UPROPERTY(EditAnywhere, Category = "NDisplay")
-	FIntPoint RectLocation;
+	FIntPoint RectLocation = FIntPoint::ZeroValue;
 
 	// Size on a backbuffer.
 	UPROPERTY(EditAnywhere, Category = "NDisplay")
-	FIntPoint RectSize;
+	FIntPoint RectSize = FIntPoint::ZeroValue;
 
 	// Camera view location
 	UPROPERTY(EditAnywhere, Category = "NDisplay")
-	FVector  ViewLocation;
+	FVector  ViewLocation = FVector::ZeroVector;
 
 	// Camera view rotation
 	UPROPERTY(EditAnywhere, Category = "NDisplay")
-	FRotator ViewRotation;
+	FRotator ViewRotation = FRotator::ZeroRotator;
 
 	// Camera projection Matrix
 	UPROPERTY(EditAnywhere, Category = "NDisplay")
-	FMatrix ProjectionMatrix;
+	FMatrix ProjectionMatrix = FMatrix::Identity;
 
 	// Rendering status for this viewport (Overlay and other configuration rules can disable rendering for this viewport.)
 	UPROPERTY(EditAnywhere, Category = "NDisplay")
-	bool bIsRendering;
+	bool bIsRendering = true;
 };
 
 USTRUCT()
@@ -56,11 +56,11 @@ public:
 
 	// Location on a backbuffer.
 	UPROPERTY(EditAnywhere, Category = "NDisplay")
-	FIntPoint RectLocation;
+	FIntPoint RectLocation = FIntPoint::ZeroValue;
 
 	// Size on a backbuffer.
 	UPROPERTY(EditAnywhere, Category = "NDisplay")
-	FIntPoint RectSize;
+	FIntPoint RectSize = FIntPoint::ZeroValue;
 
 	// Camera view location
 	UPROPERTY(EditAnywhere, Category = "NDisplay")
@@ -76,5 +76,5 @@ public:
 
 	// Rendering status for this viewport (Overlay and other configuration rules can disable rendering for this viewport.)
 	UPROPERTY(EditAnywhere, Category = "NDisplay")
-	bool bIsRendering;
+	bool bIsRendering = true;
 };

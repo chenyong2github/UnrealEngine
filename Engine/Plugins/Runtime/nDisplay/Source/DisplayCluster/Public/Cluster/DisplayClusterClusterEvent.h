@@ -26,11 +26,11 @@ public:
 public:
 	// Is nDisplay internal event (should never be true for end users)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Is Sytem Event. 'True' is reserved for nDisplay internals."), Category = "NDisplay")
-	bool bIsSystemEvent;
+	bool bIsSystemEvent = false;
 
 	// Should older events with the same Name/Type/Category (for JSON) or ID (for binary) be discarded if a new one received
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay")
-	bool bShouldDiscardOnRepeat;
+	bool bShouldDiscardOnRepeat = true;
 };
 
 
@@ -83,7 +83,7 @@ struct FDisplayClusterClusterEventBinary
 public:
 	// Event ID (used for discarding outdated events)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay")
-	int32 EventId;
+	int32 EventId = -1;
 
 	// Binary event data
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay")
