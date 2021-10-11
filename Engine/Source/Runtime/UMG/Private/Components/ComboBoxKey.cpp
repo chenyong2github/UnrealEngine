@@ -35,7 +35,7 @@ UComboBoxKey::UComboBoxKey()
 	}
 
 	ContentPadding = FMargin(4.0, 2.0);
-	ForegroundColor = FLinearColor::Black;
+	ForegroundColor = ItemStyle.TextColor;
 
 	MaxListHeight = 450.0f;
 	bHasDownArrow = true;

@@ -72,7 +72,7 @@ UComboBoxString::UComboBoxString(const FObjectInitializer& ObjectInitializer)
 	WidgetStyle.UnlinkColors();
 	ItemStyle.UnlinkColors();
 
-	ForegroundColor = FLinearColor::Black;
+	ForegroundColor = ItemStyle.TextColor;
 	bIsFocusable = true;
 
 	ContentPadding = FMargin(4.0, 2.0);
