@@ -4,6 +4,7 @@
 
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "CurveEditorTypes.h"
 #include "SCurveEditorView.h"
 #include "ICurveEditorDragOperation.h"
