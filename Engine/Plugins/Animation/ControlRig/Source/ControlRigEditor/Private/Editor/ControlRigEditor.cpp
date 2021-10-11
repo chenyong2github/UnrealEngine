@@ -2111,7 +2111,8 @@ void FControlRigEditor::DeleteSelectedNodes()
 				AnalyticsTrackNodeEvent(GetBlueprintObj(), Node, true);
 				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
 				{
-					if(GetFocusedController()->RemoveNodeByName(*RigNode->ModelNodePath, true, false, true))
+					const bool bReconnectPins = (FSlateApplication::Get().GetModifierKeys().IsShiftDown());
+					if(GetFocusedController()->RemoveNodeByName(*RigNode->ModelNodePath, true, false, true, bReconnectPins))
 					{
 						DeletedAnything = true;
 					}

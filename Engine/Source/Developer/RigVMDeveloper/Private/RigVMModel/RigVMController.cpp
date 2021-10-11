@@ -4675,7 +4675,7 @@ void URigVMController::RefreshFunctionPins(URigVMNode* InNode, bool bNotify)
 	}
 }
 
-bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool bRecursive, bool bPrintPythonCommand)
+bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool bRecursive, bool bPrintPythonCommand, bool bRelinkPins)
 {
 	if (!IsValidNodeForGraph(InNode))
 	{
@@ -4847,6 +4847,12 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 		}
 	}
 
+	// try to reconnect source and target nodes based on the current links
+	if (bRelinkPins)
+	{
+		RelinkSourceAndTargetPins(InNode, bSetupUndoRedo);
+	}
+	
 	if (bSetupUndoRedo || bRecursive)
 	{
 		SelectNode(InNode, false, bSetupUndoRedo);
@@ -4913,11 +4919,12 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 		else
 		{
 			const FString NodePath = GetSanitizedPinPath(InNode->GetNodePath());
+
+			FString PythonCmd = FString::Printf(TEXT("blueprint.get_controller_by_name('%s')."), *GraphName );
+			PythonCmd += bRelinkPins ? FString::Printf(TEXT("remove_node_by_name('%s', relink_pins=True)"), *NodePath) :
+									   FString::Printf(TEXT("remove_node_by_name('%s')"), *NodePath);
 			
-			RigVMPythonUtils::Print(GetGraphOuterName(), 
-								FString::Printf(TEXT("blueprint.get_controller_by_name('%s').remove_node_by_name('%s')"),
-												*GraphName,
-												*NodePath));
+			RigVMPythonUtils::Print(GetGraphOuterName(), PythonCmd );
 		}
 	}
 
@@ -4945,7 +4952,7 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 	return true;
 }
 
-bool URigVMController::RemoveNodeByName(const FName& InNodeName, bool bSetupUndoRedo, bool bRecursive, bool bPrintPythonCommand)
+bool URigVMController::RemoveNodeByName(const FName& InNodeName, bool bSetupUndoRedo, bool bRecursive, bool bPrintPythonCommand, bool bRelinkPins)
 {
 	if (!IsValidGraph())
 	{
@@ -4955,7 +4962,7 @@ bool URigVMController::RemoveNodeByName(const FName& InNodeName, bool bSetupUndo
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
-	return RemoveNode(Graph->FindNodeByName(InNodeName), bSetupUndoRedo, bRecursive, bPrintPythonCommand);
+	return RemoveNode(Graph->FindNodeByName(InNodeName), bSetupUndoRedo, bRecursive, bPrintPythonCommand, bRelinkPins);
 }
 
 bool URigVMController::RenameNode(URigVMNode* InNode, const FName& InNewName, bool bSetupUndoRedo, bool bPrintPythonCommand)
@@ -7133,6 +7140,64 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 	}
 
 	return true;
+}
+
+void URigVMController::RelinkSourceAndTargetPins(URigVMNode* Node, bool bSetupUndoRedo)
+{
+	TArray<URigVMPin*> SourcePins;
+	TArray<URigVMPin*> TargetPins;
+	TArray<URigVMLink*> LinksToRemove;
+
+	// store source and target links 
+	const TArray<URigVMLink*> RigVMLinks = Node->GetLinks();
+	for (URigVMLink* Link: RigVMLinks)
+	{
+		URigVMPin* SrcPin = Link->GetSourcePin();
+		if (SrcPin && SrcPin->GetNode() != Node)
+		{
+			SourcePins.AddUnique(SrcPin);
+			LinksToRemove.AddUnique(Link);
+		}
+
+		URigVMPin* DstPin = Link->GetTargetPin();
+		if (DstPin && DstPin->GetNode() != Node)
+		{
+			TargetPins.AddUnique(DstPin);
+			LinksToRemove.AddUnique(Link);
+		}
+	}
+
+	if( SourcePins.Num() > 0 && TargetPins.Num() > 0 )
+	{
+		// remove previous links 
+		for (URigVMLink* Link: LinksToRemove)
+		{
+			BreakLink(Link->GetSourcePin(), Link->GetTargetPin(), bSetupUndoRedo); 
+		}
+
+		// relink pins if feasible 
+		TArray<bool> TargetHandled;
+		TargetHandled.AddZeroed(TargetPins.Num());
+		for (URigVMPin* Src: SourcePins)
+		{
+			for (int32 Index = 0; Index < TargetPins.Num(); Index++)
+			{
+				if (!TargetHandled[Index])
+				{
+					if (URigVMPin::CanLink(Src, TargetPins[Index], nullptr, nullptr))
+					{
+						// execute pins can be linked to one target only so link to the 1st compatible target
+						const bool bNeedNewLink = Src->IsExecuteContext() ? (Src->GetTargetLinks().Num() == 0) : true;
+						if (bNeedNewLink)
+						{
+							AddLink(Src, TargetPins[Index], bSetupUndoRedo);
+							TargetHandled[Index] = true;								
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 bool URigVMController::BreakLink(const FString& InOutputPinPath, const FString& InInputPinPath, bool bSetupUndoRedo, bool bPrintPythonCommand)
