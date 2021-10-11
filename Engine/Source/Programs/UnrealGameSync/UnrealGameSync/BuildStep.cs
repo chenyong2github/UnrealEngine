@@ -37,6 +37,7 @@ namespace UnrealGameSync
 		public bool bNormalSync;
 		public bool bScheduledSync;
 		public bool bShowAsTool;
+		public Guid[] Requires;
 		public Guid ToolId;
 
 		public BuildStep(Guid InUniqueId, int InOrderIndex, string InDescription, string InStatusText, int InEstimatedDuration, string InFileName, string InArguments, string InWorkingDir, bool bInUseLogWindow)
@@ -117,6 +118,17 @@ namespace UnrealGameSync
 			{
 				bShowAsTool = false;
 			}
+
+			List<Guid> Requires = new List<Guid>();
+			foreach (string RequireString in Object.GetValue("Requires", String.Empty).Split(';', StringSplitOptions.RemoveEmptyEntries))
+			{
+				if (Guid.TryParse(RequireString, out Guid Require))
+				{
+					Requires.Add(Require);
+				}
+			}
+			this.Requires = Requires.ToArray();
+	
 			if (!Guid.TryParse(Object.GetValue("Tool", ""), out ToolId))
 			{
 				ToolId = Guid.Empty;
