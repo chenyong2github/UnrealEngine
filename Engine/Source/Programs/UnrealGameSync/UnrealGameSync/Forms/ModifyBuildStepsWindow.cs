@@ -38,8 +38,7 @@ namespace UnrealGameSync
 
 				NormalSyncColumn.Width = (int)(104 * DpiScaleX);
 				ScheduledSyncColumn.Width = (int)(104 * DpiScaleX);
-				ShowAsToolColumn.Width = (int)(104 * DpiScaleX);
-				DescriptionColumn.Width = BuildStepList.ClientSize.Width - NormalSyncColumn.Width - ScheduledSyncColumn.Width - ShowAsToolColumn.Width - 10;
+				DescriptionColumn.Width = BuildStepList.ClientSize.Width - NormalSyncColumn.Width - ScheduledSyncColumn.Width - 10;
 			}
 
 			BuildStepList.Font = SystemFonts.IconTitleFont;
@@ -58,7 +57,6 @@ namespace UnrealGameSync
 		{
 			ListViewItem Item = new ListViewItem(Task.Description);
 			Item.Tag = Task;
-			Item.SubItems.Add(new ListViewItem.ListViewSubItem());
 			Item.SubItems.Add(new ListViewItem.ListViewSubItem());
 			Item.SubItems.Add(new ListViewItem.ListViewSubItem());
 			BuildStepList.Items.Add(Item);
@@ -148,13 +146,9 @@ namespace UnrealGameSync
 				{
 					bEnabled = Task.bNormalSync;
 				}
-				else if(e.ColumnIndex == 2)
-				{
-					bEnabled = Task.bScheduledSync;
-				}
 				else
 				{
-					bEnabled = Task.bShowAsTool;
+					bEnabled = Task.bScheduledSync;
 				}
 
 				bool Selected = BuildStepList.SelectedItems.Contains(e.Item);
@@ -198,13 +192,9 @@ namespace UnrealGameSync
 					{
 						Task.bNormalSync ^= true;
 					}
-					else if(ColumnIndex == 2)
-					{
-						Task.bScheduledSync ^= true;
-					}
 					else
 					{
-						Task.bShowAsTool ^= true;
+						Task.bScheduledSync ^= true;
 					}
 					BuildStepList.Invalidate(HitTest.SubItem.Bounds);
 				}

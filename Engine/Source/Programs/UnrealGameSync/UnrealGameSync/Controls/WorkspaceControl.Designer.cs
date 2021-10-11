@@ -307,7 +307,7 @@ namespace UnrealGameSync
 			// 
 			this.OptionsContextMenu_CustomizeBuildSteps.Name = "OptionsContextMenu_CustomizeBuildSteps";
 			this.OptionsContextMenu_CustomizeBuildSteps.Size = new System.Drawing.Size(261, 22);
-			this.OptionsContextMenu_CustomizeBuildSteps.Text = "Customize Build Steps...";
+			this.OptionsContextMenu_CustomizeBuildSteps.Text = "Customize Commands...";
 			this.OptionsContextMenu_CustomizeBuildSteps.Click += new System.EventHandler(this.OptionsContextMenu_EditBuildSteps_Click);
 			// 
 			// OptionsContextMenu_EditorArguments

@@ -263,7 +263,8 @@ public enum LatestChangeType
 		List<int> SortedChangeNumbers = new List<int>();
 		Dictionary<string, Dictionary<int, string>> ArchiveToChangeNumberToArchiveKey = new Dictionary<string, Dictionary<int, string>>();
 		Dictionary<int, ChangeLayoutInfo> ChangeNumberToLayoutInfo = new Dictionary<int, ChangeLayoutInfo>();
-		List<ToolStripMenuItem> CustomToolMenuItems = new List<ToolStripMenuItem>();
+		List<ContextMenuStrip> CustomStatusPanelMenus = new List<ContextMenuStrip>();
+		List<(string, Action<Point, Rectangle>)> CustomStatusPanelLinks = new List<(string, Action<Point, Rectangle>)>();
 		int NumChanges;
 		int PendingSelectedChangeNumber = -1;
 		bool bHasBuildSteps = false;
@@ -3517,6 +3518,12 @@ public enum LatestChangeType
 					}
 				}
 
+				foreach ((string Name, Action<Point, Rectangle> Action) in CustomStatusPanelLinks)
+				{
+					ProgramsLine.AddLink(Name, FontStyle.Regular, Action);
+					ProgramsLine.AddText("  |  ");
+				}
+
 				ProgramsLine.AddLink("Windows Explorer", FontStyle.Regular, () => { SafeProcessStart("explorer.exe", String.Format("\"{0}\"", Path.GetDirectoryName(SelectedFileName))); });
 
 				if (GetDefaultIssueFilter() != null)
@@ -3964,6 +3971,11 @@ public enum LatestChangeType
 				ToggleLogVisibility();
 			}
 			SyncLog.ScrollToEnd();
+		}
+
+		private void ShowToolContextMenu(Rectangle Bounds, ContextMenuStrip MenuStrip)
+		{
+			MenuStrip.Show(StatusPanel, new Point(Bounds.Left, Bounds.Bottom), ToolStripDropDownDirection.BelowRight);
 		}
 
 		private void ShowActionsMenu(Rectangle Bounds)
@@ -5127,12 +5139,20 @@ public enum LatestChangeType
 		{
 			bHasBuildSteps = false;
 
-			foreach (ToolStripMenuItem CustomToolMenuItem in CustomToolMenuItems)
+			int MoreToolsItemCount = MoreToolsContextMenu.Items.IndexOf(MoreActionsContextMenu_CustomToolSeparator);
+			while (MoreToolsItemCount > 0)
 			{
-				MoreToolsContextMenu.Items.Remove(CustomToolMenuItem);
+				MoreToolsContextMenu.Items.RemoveAt(--MoreToolsItemCount);
 			}
 
-			CustomToolMenuItems.Clear();
+			for (int Idx = 0; Idx < CustomStatusPanelMenus.Count; Idx++)
+			{
+				components.Remove(CustomStatusPanelMenus[Idx]);
+				CustomStatusPanelMenus[Idx].Dispose();
+			}
+
+			CustomStatusPanelLinks.Clear();
+			CustomStatusPanelMenus.Clear();
 
 			if (Workspace != null)
 			{
@@ -5140,54 +5160,55 @@ public enum LatestChangeType
 				if (ProjectConfigFile != null)
 				{
 					Dictionary<Guid, ConfigObject> ProjectBuildStepObjects = GetProjectBuildStepObjects(ProjectConfigFile);
-
-					int InsertIdx = 0;
-
 					List<BuildStep> UserSteps = GetUserBuildSteps(ProjectBuildStepObjects);
 
-					Dictionary<Guid, BuildStep> IdToStep = new Dictionary<Guid, BuildStep>();
+					Dictionary<string, ContextMenuStrip> NameToMenu = new Dictionary<string, ContextMenuStrip>();
 					foreach (BuildStep Step in UserSteps)
 					{
-						IdToStep[Step.UniqueId] = Step;
-					}
-
-					foreach (BuildStep Step in UserSteps)
-					{
-						if (Step.bShowAsTool && (Step.ToolId == Guid.Empty || Settings.EnabledTools.Contains(Step.ToolId)))
+						if (!String.IsNullOrEmpty(Step.StatusPanelLink))
 						{
-							// Find all the dependent steps that also need executing
-							HashSet<Guid> StepSet = new HashSet<Guid> { Step.UniqueId };
-
-							Stack<Guid> Stack = new Stack<Guid>(StepSet);
-							while (Stack.Count > 0)
+							int BaseMenuIdx = Step.StatusPanelLink.IndexOf('|');
+							if (BaseMenuIdx == -1)
 							{
-								Guid Id = Stack.Pop();
-								if (IdToStep.TryGetValue(Id, out BuildStep StackStep))
+								CustomStatusPanelLinks.Add((Step.StatusPanelLink, (P, R) => RunCustomTool(Step, UserSteps)));
+							}
+							else
+							{
+								string MenuName = Step.StatusPanelLink.Substring(0, BaseMenuIdx);
+								string ItemName = Step.StatusPanelLink.Substring(BaseMenuIdx + 1).Replace("&", "&&");
+
+								ToolStripMenuItem NewMenuItem = new ToolStripMenuItem(ItemName);
+								NewMenuItem.Click += new EventHandler((sender, e) => { RunCustomTool(Step, UserSteps); });
+
+								if (MenuName == "More...")
 								{
-									foreach (Guid RequiresId in StackStep.Requires)
+									MoreToolsContextMenu.Items.Insert(MoreToolsItemCount++, NewMenuItem);
+								}
+								else
+								{
+									ContextMenuStrip Menu;
+									if (!NameToMenu.TryGetValue(MenuName, out Menu))
 									{
-										if (StepSet.Add(RequiresId))
-										{
-											Stack.Push(RequiresId);
-										}
+										Menu = new ContextMenuStrip();
+										NameToMenu.Add(MenuName, Menu);
+										CustomStatusPanelLinks.Add(($"{MenuName} \u25BE", (P, R) => ShowToolContextMenu(R, Menu)));
+										CustomStatusPanelMenus.Add(Menu);
+										components.Add(Menu);
 									}
+									Menu.Items.Add(NewMenuItem);
 								}
 							}
-
-							ToolStripMenuItem NewMenuItem = new ToolStripMenuItem(Step.Description.Replace("&", "&&"));
-							NewMenuItem.Click += new EventHandler((sender, e) => { RunCustomTool(Step, StepSet); });
-							CustomToolMenuItems.Add(NewMenuItem);
-							MoreToolsContextMenu.Items.Insert(InsertIdx++, NewMenuItem);
 						}
+
 						bHasBuildSteps |= Step.bNormalSync;
 					}
 				}
 			}
 
-			MoreActionsContextMenu_CustomToolSeparator.Visible = (CustomToolMenuItems.Count > 0);
+			MoreActionsContextMenu_CustomToolSeparator.Visible = (MoreToolsItemCount > 0);
 		}
 
-		private void RunCustomTool(BuildStep Step, HashSet<Guid> AllStepSet)
+		private void RunCustomTool(BuildStep Step, List<BuildStep> AllSteps)
 		{
 			if (Workspace != null)
 			{
@@ -5197,6 +5218,29 @@ public enum LatestChangeType
 				}
 				else
 				{
+					HashSet<Guid> StepSet = new HashSet<Guid> { Step.UniqueId };
+
+					ConfigFile ProjectConfigFile = Workspace.ProjectConfigFile;
+					if (ProjectConfigFile != null && Step.Requires.Length > 0)
+					{
+						Stack<Guid> Stack = new Stack<Guid>(StepSet);
+						while (Stack.Count > 0)
+						{
+							Guid Id = Stack.Pop();
+							BuildStep NextStep = AllSteps.FirstOrDefault(x => x.UniqueId == Id);
+							if (NextStep != null)
+							{
+								foreach (Guid RequiresId in NextStep.Requires)
+								{
+									if (StepSet.Add(RequiresId))
+									{
+										Stack.Push(RequiresId);
+									}
+								}
+							}
+						}
+					}
+
 					Dictionary<string, string> Variables = GetWorkspaceVariables(Workspace.CurrentChangeNumber);
 					if (Step.ToolId != Guid.Empty)
 					{
@@ -5207,7 +5251,7 @@ public enum LatestChangeType
 						}
 					}
 
-					WorkspaceUpdateContext Context = new WorkspaceUpdateContext(Workspace.CurrentChangeNumber, WorkspaceUpdateOptions.Build, null, GetDefaultBuildStepObjects(), ProjectSettings.BuildSteps, AllStepSet, Variables);
+					WorkspaceUpdateContext Context = new WorkspaceUpdateContext(Workspace.CurrentChangeNumber, WorkspaceUpdateOptions.Build, null, GetDefaultBuildStepObjects(), ProjectSettings.BuildSteps, StepSet, Variables);
 					StartWorkspaceUpdate(Context, null);
 				}
 			}
@@ -5289,6 +5333,7 @@ public enum LatestChangeType
 
 				// Update the custom tools menu, because we might have changed it
 				UpdateBuildSteps();
+				UpdateStatusPanel();
 				UpdateSyncActionCheckboxes();
 			}
 		}

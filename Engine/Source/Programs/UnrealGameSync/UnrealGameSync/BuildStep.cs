@@ -36,7 +36,7 @@ namespace UnrealGameSync
 		public bool bUseLogWindow;
 		public bool bNormalSync;
 		public bool bScheduledSync;
-		public bool bShowAsTool;
+		public string StatusPanelLink;
 		public Guid[] Requires;
 		public Guid ToolId;
 
@@ -114,9 +114,15 @@ namespace UnrealGameSync
 			{
 				bScheduledSync = bNormalSync;
 			}
-			if(!Boolean.TryParse(Object.GetValue("bShowAsTool", ""), out bShowAsTool))
+
+			StatusPanelLink = Object.GetValue("Link", null);
+			if (String.IsNullOrEmpty(StatusPanelLink))
 			{
-				bShowAsTool = false;
+				bool bShowAsTool;
+				if (Boolean.TryParse(Object.GetValue("bShowAsTool", ""), out bShowAsTool) && bShowAsTool)
+				{
+					StatusPanelLink = $"More...|{Description}";
+				}
 			}
 
 			List<Guid> Requires = new List<Guid>();
@@ -196,7 +202,10 @@ namespace UnrealGameSync
 			Result["OrderIndex"] = OrderIndex.ToString();
 			Result["bNormalSync"] = bNormalSync.ToString();
 			Result["bScheduledSync"] = bScheduledSync.ToString();
-			Result["bShowAsTool"] = bShowAsTool.ToString();
+			if (!String.IsNullOrEmpty(StatusPanelLink))
+			{
+				Result["Link"] = StatusPanelLink;
+			}
 			if (ToolId != Guid.Empty)
 			{
 				Result["Tool"] = ToolId.ToString();
