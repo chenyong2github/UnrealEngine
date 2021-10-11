@@ -38,10 +38,17 @@ struct RIGVM_API FRigVMBreakpoint
 		Depth = 0;
 	}
 
+	// Whether or not the breakpoint is active
 	bool bIsActive;
+
+	// Instruction where this breakpoint is set
 	uint16 InstructionIndex;
-	UObject* Subject;
-	uint16 Depth;
+
+	// Node related to the breakpoint
+	UObject* Subject; 
+
+	// The same instruction might be related to multiple breakpoints at different callstack depths
+	uint16 Depth; 
 
 	bool operator==(const FRigVMBreakpoint& Other) const
 	{
@@ -101,7 +108,11 @@ struct RIGVM_API FRigVMDebugInfo
 
 	bool IsActive(const TSharedPtr<FRigVMBreakpoint> InBreakpoint) const;
 
+	void SetBreakpointHits(const TSharedPtr<FRigVMBreakpoint> InBreakpoint, const uint16 InBreakpointHits);
+
 	void HitBreakpoint(const TSharedPtr<FRigVMBreakpoint> InBreakpoint);
+
+	void SetBreakpointActivationOnHit(const TSharedPtr<FRigVMBreakpoint> InBreakpoint, const uint16 InActivationOnHit);
 
 	void IncrementBreakpointActivationOnHit(const TSharedPtr<FRigVMBreakpoint> InBreakpoint);
 

@@ -144,6 +144,18 @@ bool FRigVMDebugInfo::IsActive(const TSharedPtr<FRigVMBreakpoint> InBreakpoint) 
 	return false;		
 }
 
+void FRigVMDebugInfo::SetBreakpointHits(const TSharedPtr<FRigVMBreakpoint> InBreakpoint, const uint16 InBreakpointHits)
+{
+	if (BreakpointHits.Contains(InBreakpoint))
+	{
+		BreakpointHits[InBreakpoint] = InBreakpointHits;
+	}
+	else
+	{
+		BreakpointHits.Add(InBreakpoint, InBreakpointHits);
+	}
+}
+
 void FRigVMDebugInfo::HitBreakpoint(const TSharedPtr<FRigVMBreakpoint> InBreakpoint)
 {
 	if (BreakpointHits.Contains(InBreakpoint))
@@ -153,6 +165,18 @@ void FRigVMDebugInfo::HitBreakpoint(const TSharedPtr<FRigVMBreakpoint> InBreakpo
 	else
 	{
 		BreakpointHits.Add(InBreakpoint, 1);
+	}
+}
+
+void FRigVMDebugInfo::SetBreakpointActivationOnHit(const TSharedPtr<FRigVMBreakpoint> InBreakpoint, const uint16 InActivationOnHit)
+{
+	if (BreakpointActivationOnHit.Contains(InBreakpoint))
+	{
+		BreakpointActivationOnHit[InBreakpoint] = InActivationOnHit;
+	}
+	else
+	{
+		BreakpointActivationOnHit.Add(InBreakpoint, InActivationOnHit);
 	}
 }
 
