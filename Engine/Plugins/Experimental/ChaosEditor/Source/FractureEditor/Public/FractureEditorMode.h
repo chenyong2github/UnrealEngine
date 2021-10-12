@@ -94,6 +94,29 @@ struct FFractureModeCustomSectionColor
 };
 
 
+/**
+ * Defines a color to be used for a particular Tool Palette Section
+ */
+USTRUCT()
+struct FFractureModeCustomToolColor
+{
+	GENERATED_BODY()
+
+	/**
+	 * Name of Section or Tool in Fracture Mode Tool Palette
+	 *
+	 * Format:
+	 * SectionName        (Specifies a default color for all tools in the section.)
+	 * SectionName.ToolName        (Specifies an override color for a specific tool in the given section.)
+	 */
+	UPROPERTY(EditAnywhere, Category = "ToolColor")
+	FString ToolName = TEXT("");
+
+	/** Custom Tool Color */
+	UPROPERTY(EditAnywhere, Category = "ToolColor")
+	FLinearColor Color = FLinearColor::Gray;
+};
+
 
 UCLASS(config = Editor)
 class FRACTUREEDITOR_API UFractureModeCustomizationSettings : public UDeveloperSettings
@@ -131,5 +154,15 @@ public:
 	/** Custom Section Header Colors for listed Sections in the Fracture Mode Tool Palette */
 	UPROPERTY(config, EditAnywhere, Category = "Fracture Mode|UI Customization")
 	TArray<FFractureModeCustomSectionColor> SectionColors;
+
+	/**
+	 * Custom Tool Colors for listed Tools in the Fracture Mode Tool Palette.
+	 * 
+	 * Format:
+	 * SectionName        (Specifies a default color for all tools in the section.)
+	 * SectionName.ToolName        (Specifies an override color for a specific tool in the given section.)
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Fracture Mode|UI Customization")
+	TArray<FFractureModeCustomToolColor> ToolColors;
 };
 
