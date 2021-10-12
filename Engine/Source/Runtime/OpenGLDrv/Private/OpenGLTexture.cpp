@@ -2287,7 +2287,9 @@ void FOpenGLDynamicRHI::RHIUpdateTexture2D(FRHITexture2D* TextureRHI,uint32 MipI
 	uint8* RHITSourceData = nullptr;
 	if (!ShouldRunGLRenderContextOpOnThisThread(RHICmdList))
 	{
-		const int32 DataSize = SourcePitch*UpdateRegion.Height;
+		const FPixelFormatInfo& FormatInfo = GPixelFormats[TextureRHI->GetFormat()];
+		const size_t UpdateHeightInTiles = FMath::DivideAndRoundUp(UpdateRegion.Height, (uint32)FormatInfo.BlockSizeY);
+		const size_t DataSize = static_cast<size_t>(SourcePitch) * UpdateHeightInTiles;
 		RHITSourceData = (uint8*)FMemory::Malloc(DataSize, 16);
 		FMemory::Memcpy(RHITSourceData, SourceDataIn, DataSize);
 	}
