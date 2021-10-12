@@ -563,7 +563,7 @@ void SRigHierarchy::OnSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ES
 		TGuardValue<bool> SuspendDetailsPanelRefreshGuard(*SuspensionFlagPtr, true);
 		
 		const TArray<FRigElementKey> NewSelection = GetSelectedKeys();
-		if(!Controller->SetSelection(NewSelection))
+		if(!Controller->SetSelection(NewSelection, true))
 		{
 			return;
 		}
