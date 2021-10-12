@@ -5,6 +5,7 @@
 #include "SceneUtils.h"
 #include "ScenePrivate.h"
 #include "Rendering/NaniteStreamingManager.h"
+#include "SceneRelativeViewMatrices.h"
 
 DEFINE_LOG_CATEGORY(LogNanite);
 DEFINE_GPU_STAT(NaniteDebug);
@@ -41,23 +42,31 @@ FPackedView CreatePackedView( const FPackedViewParams& Params )
 	// Longer term it would be great to refactor a common place for both of this logic, but currently FSceneView has a lot of heavy-weight
 	// stuff in it beyond the relevant parameters to SetupViewRectUniformBufferParameters (and Nanite has a few of its own parameters too).
 
+	const FRelativeViewMatrices RelativeMatrices = FRelativeViewMatrices::Create(Params.ViewMatrices, Params.PrevViewMatrices);
+	const FLargeWorldRenderPosition AbsoluteViewOrigin(Params.ViewMatrices.GetViewOrigin());
+	const FVector ViewTileOffset = AbsoluteViewOrigin.GetTileOffset();
+
 	FPackedView PackedView;
 
 	PackedView.TranslatedWorldToView		= Params.ViewMatrices.GetOverriddenTranslatedViewMatrix();
 	PackedView.TranslatedWorldToClip		= Params.ViewMatrices.GetTranslatedViewProjectionMatrix();
-	PackedView.ViewToClip					= Params.ViewMatrices.GetProjectionMatrix();
-	PackedView.ClipToWorld					= Params.ViewMatrices.GetInvViewProjectionMatrix();
-	PackedView.PreViewTranslation			= Params.ViewMatrices.GetPreViewTranslation();
-	PackedView.WorldCameraOrigin			= FVector4f(Params.ViewMatrices.GetViewOrigin(), 0.0f);
+	PackedView.ViewToClip					= RelativeMatrices.ViewToClip;
+	PackedView.ClipToRelativeWorld			= RelativeMatrices.ClipToRelativeWorld;
+	PackedView.PreViewTranslation			= Params.ViewMatrices.GetPreViewTranslation() + ViewTileOffset;
+	PackedView.WorldCameraOrigin			= FVector4f(Params.ViewMatrices.GetViewOrigin() - ViewTileOffset, 0.0f);
 	PackedView.ViewForwardAndNearPlane		= FVector4f(Params.ViewMatrices.GetOverriddenTranslatedViewMatrix().GetColumn(2), Params.ViewMatrices.ComputeNearPlane());
+	PackedView.ViewTilePosition				= AbsoluteViewOrigin.GetTile();
+	PackedView.Padding0						= 0u;
+	PackedView.MatrixTilePosition			= RelativeMatrices.TilePosition;
+	PackedView.Padding1						= 0u;
 
 	PackedView.PrevTranslatedWorldToView	= Params.PrevViewMatrices.GetOverriddenTranslatedViewMatrix();
 	PackedView.PrevTranslatedWorldToClip	= Params.PrevViewMatrices.GetTranslatedViewProjectionMatrix();
 	PackedView.PrevViewToClip				= Params.PrevViewMatrices.GetProjectionMatrix();
-	PackedView.PrevClipToWorld				= Params.PrevViewMatrices.GetInvViewProjectionMatrix();
-	PackedView.PrevPreViewTranslation		= Params.PrevViewMatrices.GetPreViewTranslation();
+	PackedView.PrevClipToRelativeWorld		= RelativeMatrices.PrevClipToRelativeWorld;
+	PackedView.PrevPreViewTranslation		= Params.PrevViewMatrices.GetPreViewTranslation() + ViewTileOffset;
 
-	const FIntRect &ViewRect = Params.ViewRect;
+	const FIntRect& ViewRect = Params.ViewRect;
 	const FVector4f ViewSizeAndInvSize(ViewRect.Width(), ViewRect.Height(), 1.0f / float(ViewRect.Width()), 1.0f / float(ViewRect.Height()));
 
 	PackedView.ViewRect = FIntVector4(ViewRect.Min.X, ViewRect.Min.Y, ViewRect.Max.X, ViewRect.Max.Y);
@@ -65,10 +74,10 @@ FPackedView CreatePackedView( const FPackedViewParams& Params )
 
 	// Transform clip from full screen to viewport.
 	FVector2D RcpRasterContextSize = FVector2D(1.0f / Params.RasterContextSize.X, 1.0f / Params.RasterContextSize.Y);
-	PackedView.ClipSpaceScaleOffset = FVector4f(	ViewSizeAndInvSize.X * RcpRasterContextSize.X,
-												ViewSizeAndInvSize.Y * RcpRasterContextSize.Y,
-												 ( ViewSizeAndInvSize.X + 2.0f * ViewRect.Min.X) * RcpRasterContextSize.X - 1.0f,
-												-( ViewSizeAndInvSize.Y + 2.0f * ViewRect.Min.Y) * RcpRasterContextSize.Y + 1.0f );
+	PackedView.ClipSpaceScaleOffset = FVector4f(ViewSizeAndInvSize.X * RcpRasterContextSize.X,
+		ViewSizeAndInvSize.Y * RcpRasterContextSize.Y,
+		(ViewSizeAndInvSize.X + 2.0f * ViewRect.Min.X) * RcpRasterContextSize.X - 1.0f,
+		-(ViewSizeAndInvSize.Y + 2.0f * ViewRect.Min.Y) * RcpRasterContextSize.Y + 1.0f);
 
 	const float Mx = 2.0f * ViewSizeAndInvSize.Z;
 	const float My = -2.0f * ViewSizeAndInvSize.W;
@@ -76,10 +85,10 @@ FPackedView CreatePackedView( const FPackedViewParams& Params )
 	const float Ay = 1.0f + 2.0f * ViewRect.Min.Y * ViewSizeAndInvSize.W;
 
 	PackedView.SVPositionToTranslatedWorld =
-		FMatrix(FPlane(Mx, 0, 0, 0),
-			FPlane(0, My, 0, 0),
-			FPlane(0, 0, 1, 0),
-			FPlane(Ax, Ay, 0, 1)) * Params.ViewMatrices.GetInvTranslatedViewProjectionMatrix();
+		FMatrix44f(FPlane4f(Mx, 0, 0, 0),
+			FPlane4f(0, My, 0, 0),
+			FPlane4f(0, 0, 1, 0),
+			FPlane4f(Ax, Ay, 0, 1)) * Params.ViewMatrices.GetInvTranslatedViewProjectionMatrix();
 	PackedView.ViewToTranslatedWorld = Params.ViewMatrices.GetOverriddenInvTranslatedViewMatrix();
 
 	check(Params.StreamingPriorityCategory <= STREAMING_PRIORITY_CATEGORY_MASK);
@@ -95,8 +104,9 @@ FPackedView CreatePackedView( const FPackedViewParams& Params )
 	PackedView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.W = Params.PrevTargetLayerIndex;
 
 	PackedView.HZBTestViewRect = FIntVector4(Params.HZBTestViewRect.Min.X, Params.HZBTestViewRect.Min.Y, Params.HZBTestViewRect.Max.X, Params.HZBTestViewRect.Max.Y);
-	
+
 	return PackedView;
+
 }
 
 FPackedView CreatePackedViewFromViewInfo

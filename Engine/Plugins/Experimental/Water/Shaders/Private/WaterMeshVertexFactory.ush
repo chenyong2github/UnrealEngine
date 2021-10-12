@@ -174,7 +174,7 @@ float3 MorphWorldPosition(float3 OriginalWorldPos, float2 InMorphOrigin, float L
 	float3 WorldPos = OriginalWorldPos;
 
 	// Origin world position  
-	float3 TessWorldOrigin = ResolvedView.WorldCameraOrigin;
+	float3 TessWorldOrigin = LWCHackToFloat(ResolvedView.WorldCameraOrigin);
 	
 	float DistanceToVert2D = distance(WorldPos.xy, TessWorldOrigin.xy);
 
@@ -250,7 +250,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 		Intermediates.MorphedWorldPosRaw = Intermediates.OriginalWorldPos;
 	}
 
-	Intermediates.MorphedWorldPos = float4(Intermediates.MorphedWorldPosRaw + ResolvedView.PreViewTranslation.xyz, 1);
+	Intermediates.MorphedWorldPos = float4(Intermediates.MorphedWorldPosRaw + LWCHackToFloat(ResolvedView.PreViewTranslation), 1);
 
 #if WITH_WATER_SELECTION_SUPPORT_VF
 	float SelectedValue = Input.InstanceData2.w;
@@ -340,13 +340,13 @@ float4 VertexFactoryGetWorldPosition(FPositionOnlyVertexFactoryInput Input)
 // @return previous translated world position
 float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	return float4(Intermediates.MorphedWorldPosRaw + ResolvedView.PrevPreViewTranslation.xyz, 1);
+	return float4(Intermediates.MorphedWorldPosRaw + LWCHackToFloat(ResolvedView.PrevPreViewTranslation), 1);
 }
 
 float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolantsVSToPS Interpolants)
 {
-	float4 ObjectWorldPositionAndRadius = GetPrimitiveData(GetPrimitiveId(Interpolants)).ObjectWorldPositionAndRadius;
-	return float4(ObjectWorldPositionAndRadius.xyz + ResolvedView.PreViewTranslation.xyz, ObjectWorldPositionAndRadius.w);
+	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(GetPrimitiveId(Interpolants));
+	return float4(LWCToFloat(LWCAdd(PrimitiveData.ObjectWorldPosition, ResolvedView.PreViewTranslation)), PrimitiveData.ObjectRadius);
 }
 
 uint VertexFactoryGetPrimitiveId(FVertexFactoryInterpolantsVSToPS Interpolants)

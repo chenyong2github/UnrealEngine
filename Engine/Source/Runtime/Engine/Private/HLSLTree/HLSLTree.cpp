@@ -371,58 +371,75 @@ const TCHAR* UE::HLSLTree::FEmitContext::AcquireLocalDeclarationCode()
 	return AllocateStringf(*Allocator, TEXT("Local%d"), NumExpressionLocals++);
 }
 
-const TCHAR* UE::HLSLTree::FEmitContext::GetCode(const FEmitValue* Value) const
+// From MaterialUniformExpressions.cpp
+extern void WriteMaterialUniformAccess(UE::Shader::EValueComponentType ComponentType, uint32 NumComponents, uint32 UniformOffset, FStringBuilderBase& OutResult);
+
+const TCHAR* UE::HLSLTree::FEmitContext::GetCode(const FEmitValue* Value)
 {
 	check(Value);
 	if (!Value->Code)
 	{
-		FLocalHLSLCodeWriter LocalWriter;
+		TStringBuilder<1024> FormattedCode;
 		if (Value->EvaluationType == EExpressionEvaluationType::Constant)
 		{
-			LocalWriter.WriteConstant(Value->ConstantValue);
+			FormattedCode.Append(Value->ConstantValue.ToString(Shader::EValueStringFormat::HLSL));
 		}
 		else
 		{
 			check(Value->EvaluationType == EExpressionEvaluationType::Preshader);
 			check(Value->Preshader);
 
-			FUniformExpressionSet& UniformExpressionSet = MaterialCompilationOutput->UniformExpressionSet;
-			FMaterialUniformPreshaderHeader* PreshaderHeader = nullptr;
-			if (Value->ExpressionType == Shader::EValueType::Float1)
-			{
-				const static TCHAR IndexToMask[] = { 'x', 'y', 'z', 'w' };
-				const int32 ScalarInputIndex = UniformExpressionSet.UniformScalarPreshaders.Num();
-				LocalWriter.Writef(TEXT("Material.ScalarExpressions[%u].%c"), ScalarInputIndex / 4, IndexToMask[ScalarInputIndex % 4]);
+			const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(Value->ExpressionType);
+			ensure(TypeDesc.ComponentType == Shader::EValueComponentType::Float || TypeDesc.ComponentType == Shader::EValueComponentType::Double);
 
-				PreshaderHeader = &UniformExpressionSet.UniformScalarPreshaders.AddDefaulted_GetRef();
+			FUniformExpressionSet& UniformExpressionSet = MaterialCompilationOutput->UniformExpressionSet;
+			FMaterialUniformPreshaderHeader& PreshaderHeader = UniformExpressionSet.UniformPreshaders.AddDefaulted_GetRef();
+
+			const uint32 RegisterOffset = UniformPreshaderOffset % 4;
+			if (TypeDesc.ComponentType == Shader::EValueComponentType::Float && RegisterOffset + TypeDesc.NumComponents > 4u)
+			{
+				// If this uniform would span multiple registers, align offset to the next register to avoid this
+				UniformPreshaderOffset = Align(UniformPreshaderOffset, 4u);
+			}
+
+			PreshaderHeader.OpcodeOffset = UniformExpressionSet.UniformPreshaderData.Num();
+			UniformExpressionSet.UniformPreshaderData.Append(*Value->Preshader);
+			PreshaderHeader.OpcodeSize = Value->Preshader->Num();
+			PreshaderHeader.BufferOffset = UniformPreshaderOffset;
+			PreshaderHeader.ComponentType = TypeDesc.ComponentType;
+			PreshaderHeader.NumComponents = TypeDesc.NumComponents;
+			
+			if (TypeDesc.ComponentType == Shader::EValueComponentType::Double)
+			{
+				if (TypeDesc.NumComponents == 1)
+				{
+					FormattedCode.Append(TEXT("MakeLWCScalar("));
+				}
+				else
+				{
+					FormattedCode.Appendf(TEXT("MakeLWCVector%d("), TypeDesc.NumComponents);
+				}
+
+				WriteMaterialUniformAccess(UE::Shader::EValueComponentType::Float, TypeDesc.NumComponents, UniformPreshaderOffset, FormattedCode); // Tile
+				UniformPreshaderOffset += TypeDesc.NumComponents;
+				FormattedCode.Append(TEXT(","));
+				WriteMaterialUniformAccess(UE::Shader::EValueComponentType::Float, TypeDesc.NumComponents, UniformPreshaderOffset, FormattedCode); // Offset
+				UniformPreshaderOffset += TypeDesc.NumComponents;
+				FormattedCode.Append(TEXT(")"));
 			}
 			else
 			{
-				const TCHAR* Mask = TEXT("");
-				switch (Value->ExpressionType)
-				{
-				case Shader::EValueType::Float1: Mask = TEXT(".r"); break;
-				case Shader::EValueType::Float2: Mask = TEXT(".rg"); break;
-				case Shader::EValueType::Float3: Mask = TEXT(".rgb"); break;
-				case Shader::EValueType::Float4: break;
-				default: checkNoEntry(); break;
-				};
-				const int32 VectorInputIndex = UniformExpressionSet.UniformVectorPreshaders.Num();
-				LocalWriter.Writef(TEXT("Material.VectorExpressions[%u]%s"), VectorInputIndex, Mask);
-
-				PreshaderHeader = &UniformExpressionSet.UniformVectorPreshaders.AddDefaulted_GetRef();
+				WriteMaterialUniformAccess(TypeDesc.ComponentType, TypeDesc.NumComponents, UniformPreshaderOffset, FormattedCode);
+				UniformPreshaderOffset += TypeDesc.NumComponents;
 			}
-			PreshaderHeader->OpcodeOffset = UniformExpressionSet.UniformPreshaderData.Num();
-			UniformExpressionSet.UniformPreshaderData.Append(*Value->Preshader);
-			PreshaderHeader->OpcodeSize = Value->Preshader->Num();
 		}
-		Value->Code = AllocateString(*Allocator, LocalWriter.GetStringBuilder());
+		Value->Code = AllocateString(*Allocator, FormattedCode);
 	}
 
 	return Value->Code;
 }
 
-void UE::HLSLTree::FEmitContext::AppendPreshader(const FEmitValue* Value, Shader::FPreshaderData& InOutPreshader) const
+void UE::HLSLTree::FEmitContext::AppendPreshader(const FEmitValue* Value, Shader::FPreshaderData& InOutPreshader)
 {
 	check(Value);
 	if (Value->EvaluationType == EExpressionEvaluationType::Constant)
@@ -582,6 +599,11 @@ bool UE::HLSLTree::FEmitContext::FinalizeScope(FEmitScope& EmitScope)
 	}
 
 	return true;
+}
+
+void UE::HLSLTree::FEmitContext::Finalize()
+{
+	MaterialCompilationOutput->UniformExpressionSet.UniformPreshaderBufferSize = (UniformPreshaderOffset + 3u) / 4u;
 }
 
 UE::HLSLTree::FScope* UE::HLSLTree::FScope::FindSharedParent(FScope* Lhs, FScope* Rhs)
@@ -893,7 +915,10 @@ bool UE::HLSLTree::FTree::EmitHLSL(UE::HLSLTree::FEmitContext& Context, FCodeWri
 			bFinalizeResult = Context.FinalizeScope(*EmitRootScope);
 		}
 
+		Context.Finalize();
+
 		WriteScope(*EmitRootScope, 0, *Writer.StringBuilder);
+
 		return true;
 	}
 	return false;

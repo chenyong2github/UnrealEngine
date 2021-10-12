@@ -124,12 +124,12 @@ half ComputeLightFunctionMultiplier(float3 WorldPosition)
 #if USE_LIGHT_FUNCTION	
 	float4 LightVector = mul(float4(WorldPosition, 1.0), WorldToLight);
 	LightVector.xyz /= LightVector.w;
-	//float3 LightVector = View.WorldCameraOrigin - WorldPosition;
+	//float3 LightVector = LWCHackToFloat(PrimaryView.WorldCameraOrigin) - WorldPosition;
 
 	half3 LightFunction = GetLightFunctionColor(LightVector.xyz, WorldPosition);
 	half GreyScale = dot(LightFunction, .3333f);
 	// Calculate radial view distance for stable fading
-	float ViewDistance = length(View.WorldCameraOrigin - WorldPosition);
+	float ViewDistance = length(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - WorldPosition);
 	half DistanceFadeAlpha = saturate((LightFunctionParameters2.x - ViewDistance) / (LightFunctionParameters2.x * .2f));
 	// Fade to disabled based on LightFunctionFadeDistance
 	GreyScale = lerp(LightFunctionParameters2.y, GreyScale, DistanceFadeAlpha);
@@ -256,8 +256,8 @@ void MobileDirectLightPS(
 	}
 	
 	float2 ScreenPos = UVAndScreenPos.zw;
-	float3 WorldPosition = mul(float4(ScreenPos * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
-	half3 CameraVector = normalize(View.WorldCameraOrigin - WorldPosition);
+	float3 WorldPosition = mul(float4(ScreenPos * SceneDepth, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
+	half3 CameraVector = normalize(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - WorldPosition);
 	half NoV = max(0, dot(GBuffer.WorldNormal, CameraVector));
 	half3 ReflectionVector = GBuffer.WorldNormal * (NoV * 2.0) - CameraVector;
 	
@@ -381,8 +381,8 @@ void MobileRadialLightPS(
 	// With a perspective projection, the clip space position is NDC * Clip.w
 	// With an orthographic projection, clip space is the same as NDC
 	float2 ClipPosition = InScreenPosition.xy / InScreenPosition.w * (View.ViewToClip[3][3] < 1.0f ? SceneDepth : 1.0f);
-	float3 WorldPosition = mul(float4(ClipPosition, SceneDepth, 1), View.ScreenToWorld).xyz;
-	half3 CameraVector = normalize(View.WorldCameraOrigin - WorldPosition);
+	float3 WorldPosition = mul(float4(ClipPosition, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
+	half3 CameraVector = normalize(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - WorldPosition);
 	half NoV = max(0, dot(GBuffer.WorldNormal, CameraVector));
 		
 	FMobileLightData LightData = (FMobileLightData)0;

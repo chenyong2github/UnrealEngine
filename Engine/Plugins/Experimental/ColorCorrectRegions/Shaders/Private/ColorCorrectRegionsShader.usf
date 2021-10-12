@@ -241,12 +241,12 @@ struct FMaterialVertexParameters
  */
 MaterialFloat3x3 GetLocalToWorld3x3(uint PrimitiveId)
 {
-	return (MaterialFloat3x3) GetPrimitiveData(PrimitiveId).LocalToWorld;
+	return LWCToFloat3x3(GetPrimitiveData(PrimitiveId).LocalToWorld);
 }
 
 MaterialFloat3x3 GetLocalToWorld3x3()
 {
-	return (MaterialFloat3x3) Primitive.LocalToWorld;
+	return LWCToFloat3x3(GetPrimitiveDataFromUniformBuffer().LocalToWorld);
 }
 
 float3 GetTranslatedWorldPosition(FMaterialVertexParameters Parameters)
@@ -256,7 +256,7 @@ float3 GetTranslatedWorldPosition(FMaterialVertexParameters Parameters)
 
 float3 GetWorldPosition(FMaterialVertexParameters Parameters)
 {
-	return GetTranslatedWorldPosition(Parameters) - ResolvedView.PreViewTranslation;
+	return GetTranslatedWorldPosition(Parameters) - LWCHackToFloat(ResolvedView.PreViewTranslation);
 }
 
 float3 GetWorldPosition(FMaterialPixelParameters Parameters)
@@ -367,14 +367,14 @@ MaterialFloat2 GetDefaultSceneTextureUV(FMaterialPixelParameters Parameters, con
 /** Return the object's position in world space */
 float3 GetObjectWorldPosition(FMaterialPixelParameters Parameters)
 {
-    return GetPrimitiveData(Parameters.PrimitiveId).ObjectWorldPositionAndRadius.xyz;
+    return LWCHackToFloat(GetPrimitiveData(Parameters.PrimitiveId).ObjectWorldPosition);
 }
 
 
 /** Return the object's position in world space. For instanced meshes, this returns the instance position. */
 float3 GetObjectWorldPosition(FMaterialVertexParameters Parameters)
 {
-    return GetPrimitiveData(Parameters.PrimitiveId).ObjectWorldPositionAndRadius.xyz;
+    return LWCHackToFloat(GetPrimitiveData(Parameters.PrimitiveId).ObjectWorldPosition);
 }
 
 /** Rotates Position about the given axis by the given angle, in radians, and returns the offset to Position. */
@@ -866,7 +866,7 @@ void MainPS(
 
 	// Remove the pre view translation
 	Parameters.WorldPosition_CamRelative = TranslatedWorldPosition.xyz;
-	Parameters.AbsoluteWorldPosition = TranslatedWorldPosition.xyz - ResolvedView.PreViewTranslation.xyz;
+	Parameters.AbsoluteWorldPosition = TranslatedWorldPosition, LWCHackToFloat(ResolvedView.PreViewTranslation);
 
 	Parameters.SvPosition = SvPosition;
 	Parameters.ScreenPosition = ScreenPosition;

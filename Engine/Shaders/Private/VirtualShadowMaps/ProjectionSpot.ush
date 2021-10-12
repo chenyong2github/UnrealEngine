@@ -281,7 +281,7 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 	const bool bCullBackface,
 	half3 WorldNormal)
 {
-	const float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
+	const float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
 
 	half3 ConeAxis;
 	half ConeSin;
@@ -426,7 +426,7 @@ bool GenerateRayLocalLight(
 	inout float3 OutRayStart,
 	inout float3 OutRayEnd)
 {
-	const float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
+	const float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
 
 	half3 ConeAxis;
 	half ConeSin;

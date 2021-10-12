@@ -385,13 +385,13 @@ half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameter
 	// Lumen Radiance Cache for reflections on translucency
 	if (TranslucentBasePass_FinalProbeResolution > 0)
 	{
-		bLumenRadianceCacheValid = GetRadianceCacheCoverage(MaterialParameters.AbsoluteWorldPosition, RayDirection).bValid;
+		bLumenRadianceCacheValid = GetRadianceCacheCoverage(LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition), RayDirection).bValid;
 	}
 
 	if (bLumenRadianceCacheValid)
 	{
 		float ConeHalfAngle = 0;
-		SpecularIBL = SampleRadianceCacheInterpolated(MaterialParameters.AbsoluteWorldPosition, RayDirection, ConeHalfAngle, 0.0f);
+		SpecularIBL = SampleRadianceCacheInterpolated(LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition), RayDirection, ConeHalfAngle, 0.0f);
 	}
 	// Fallback to unshadowed skylight if no valid Radiance Cache
 	else
@@ -425,7 +425,7 @@ half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameter
 		const bool bCompositeSkylight = true;
 		SpecularIBL = CompositeReflectionCapturesAndSkylight(
 			1.0f, 
-			MaterialParameters.AbsoluteWorldPosition, 
+			LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition), 
 			RayDirection, 
 			Roughness, 
 			IndirectIrradiance, 
@@ -493,7 +493,7 @@ half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameter
 	if (abs(dot(PlanarReflectionStruct.ReflectionPlane.xyz, 1)) > .0001f)
 	{
 		// Reuse ReflectionCubemapSampler to avoid reducing the sampler count available to artists
-		float4 PlanarReflection = ComputePlanarReflections(MaterialParameters.AbsoluteWorldPosition, MaterialParameters.WorldNormal, Roughness, ReflectionStruct.ReflectionCubemapSampler);
+		float4 PlanarReflection = ComputePlanarReflections(LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition), MaterialParameters.WorldNormal, Roughness, ReflectionStruct.ReflectionCubemapSampler);
 		// Planar reflections win over SSR and reflection environment
 		SpecularLighting = PlanarReflection.rgb + (1 - PlanarReflection.a) * SpecularLighting;
 	}

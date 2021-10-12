@@ -238,20 +238,22 @@ struct FNaniteView
 	float4x4	TranslatedWorldToView;
 	float4x4	TranslatedWorldToClip;
 	float4x4	ViewToClip;
-	float4x4	ClipToWorld;
+	FLWCMatrix	ClipToWorld;
 	
 	float4x4	PrevTranslatedWorldToView;
 	float4x4	PrevTranslatedWorldToClip;
 	float4x4	PrevViewToClip;
-	float4x4	PrevClipToWorld;
+	FLWCMatrix	PrevClipToWorld;
 
 	int4		ViewRect;
 	float4		ViewSizeAndInvSize;
 	float4		ClipSpaceScaleOffset;
-	float3		PreViewTranslation;
-	float3		PrevPreViewTranslation;
-	float3		WorldCameraOrigin;
+	FLWCVector3	PreViewTranslation;
+	FLWCVector3	PrevPreViewTranslation;
+	FLWCVector3	WorldCameraOrigin;
 	float3		ViewForward;
+	float3		ViewTilePosition;
+	float3		MatrixTilePosition;
 	float		NearPlane;
 	float		LODScale;
 	float		LODScaleHW;
@@ -385,24 +387,20 @@ FInstanceSceneData GetInstanceSceneData( inout FVisibleCluster VisibleCluster )
 
 FInstanceDynamicData CalculateInstanceDynamicData( FNaniteView NaniteView, FInstanceSceneData InstanceData )
 {
-	float4x4 LocalToWorld = InstanceData.LocalToWorld;
-	float4x4 WorldToLocal = InstanceData.WorldToLocal;
+	FLWCInverseMatrix WorldToLocal = InstanceData.WorldToLocal;
 
-	float4x4 LocalToTranslatedWorld = LocalToWorld;
-	LocalToTranslatedWorld[3].xyz += NaniteView.PreViewTranslation.xyz;
-
-	float4x4 PrevLocalToTranslatedWorld = InstanceData.PrevLocalToWorld;
-	PrevLocalToTranslatedWorld[3].xyz += NaniteView.PrevPreViewTranslation.xyz;
+	float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
+	float4x4 PrevLocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.PrevLocalToWorld, NaniteView.PrevPreViewTranslation);
 
 	FInstanceDynamicData DynamicData;
 	DynamicData.LocalToTranslatedWorld = LocalToTranslatedWorld;
 	DynamicData.LocalToClip = mul( LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip );
-	DynamicData.ClipToLocal = mul( NaniteView.ClipToWorld, WorldToLocal );
+	DynamicData.ClipToLocal = LWCMultiply( NaniteView.ClipToWorld, WorldToLocal );
 
 	DynamicData.PrevLocalToClip	= mul( PrevLocalToTranslatedWorld, NaniteView.PrevTranslatedWorldToClip );
 
-	DynamicData.ViewPosScaledLocal = mul( float4( NaniteView.WorldCameraOrigin.xyz, 1 ), WorldToLocal ).xyz * InstanceData.NonUniformScale.xyz;
-	DynamicData.ViewForwardScaledLocal = mul( float4( NaniteView.ViewForward.xyz, 0 ), WorldToLocal ).xyz * InstanceData.NonUniformScale.xyz;
+	DynamicData.ViewPosScaledLocal = LWCMultiply( NaniteView.WorldCameraOrigin, WorldToLocal ) * InstanceData.NonUniformScale.xyz;
+	DynamicData.ViewForwardScaledLocal = LWCMultiplyVector( NaniteView.ViewForward.xyz, WorldToLocal ) * InstanceData.NonUniformScale.xyz;
 
 	DynamicData.bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber;
 
@@ -659,23 +657,25 @@ FNaniteView UnpackNaniteView(FPackedNaniteView PackedView)
 	
 	NaniteView.SVPositionToTranslatedWorld	= PackedView.SVPositionToTranslatedWorld;
 	NaniteView.ViewToTranslatedWorld		= PackedView.ViewToTranslatedWorld;
+	NaniteView.ViewTilePosition				= PackedView.ViewTilePosition;
+	NaniteView.MatrixTilePosition			= PackedView.MatrixTilePosition;
 
 	NaniteView.TranslatedWorldToView		= PackedView.TranslatedWorldToView;
 	NaniteView.TranslatedWorldToClip		= PackedView.TranslatedWorldToClip;
 	NaniteView.ViewToClip					= PackedView.ViewToClip;
-	NaniteView.ClipToWorld					= PackedView.ClipToWorld;
+	NaniteView.ClipToWorld					= MakeLWCMatrix(PackedView.MatrixTilePosition, PackedView.ClipToRelativeWorld);
 	
 	NaniteView.PrevTranslatedWorldToView	= PackedView.PrevTranslatedWorldToView;
 	NaniteView.PrevTranslatedWorldToClip	= PackedView.PrevTranslatedWorldToClip;
 	NaniteView.PrevViewToClip				= PackedView.PrevViewToClip;
-	NaniteView.PrevClipToWorld				= PackedView.PrevClipToWorld;
+	NaniteView.PrevClipToWorld				= MakeLWCMatrix(PackedView.MatrixTilePosition, PackedView.PrevClipToRelativeWorld);
 
 	NaniteView.ViewRect						= PackedView.ViewRect;
 	NaniteView.ViewSizeAndInvSize			= PackedView.ViewSizeAndInvSize;
 	NaniteView.ClipSpaceScaleOffset			= PackedView.ClipSpaceScaleOffset;
-	NaniteView.PreViewTranslation			= PackedView.PreViewTranslation.xyz;
-	NaniteView.PrevPreViewTranslation		= PackedView.PrevPreViewTranslation.xyz;
-	NaniteView.WorldCameraOrigin			= PackedView.WorldCameraOrigin.xyz;
+	NaniteView.PreViewTranslation			= MakeLWCVector3(-PackedView.ViewTilePosition, PackedView.PreViewTranslation.xyz);
+	NaniteView.PrevPreViewTranslation		= MakeLWCVector3(-PackedView.ViewTilePosition, PackedView.PrevPreViewTranslation.xyz);
+	NaniteView.WorldCameraOrigin			= MakeLWCVector3(PackedView.ViewTilePosition, PackedView.WorldCameraOrigin.xyz);
 	NaniteView.ViewForward					= PackedView.ViewForwardAndNearPlane.xyz;
 	NaniteView.NearPlane					= PackedView.ViewForwardAndNearPlane.w;
 	NaniteView.LODScale						= PackedView.LODScales.x;
@@ -698,28 +698,31 @@ StructuredBuffer< FPackedNaniteView > InViews;
 FNaniteView GetNaniteView( uint ViewIndex )
 {
 #if NANITE_USE_VIEW_UNIFORM_BUFFER
+	ViewState LocalView = GetPrimaryView();
 	FNaniteView NaniteView;
 
-	NaniteView.SVPositionToTranslatedWorld  = View.SVPositionToTranslatedWorld;
-	NaniteView.ViewToTranslatedWorld		= View.ViewToTranslatedWorld;
+	NaniteView.SVPositionToTranslatedWorld  = LocalView.SVPositionToTranslatedWorld;
+	NaniteView.ViewToTranslatedWorld		= LocalView.ViewToTranslatedWorld;
+	NaniteView.ViewTilePosition				= LocalView.ViewTilePosition;
+	NaniteView.MatrixTilePosition			= LocalView.MatrixTilePosition;
 
-	NaniteView.TranslatedWorldToView		= View.TranslatedWorldToView;
-	NaniteView.TranslatedWorldToClip		= View.TranslatedWorldToClip;
-	NaniteView.ViewToClip					= View.ViewToClip;
-	NaniteView.ClipToWorld					= View.ClipToWorld;
+	NaniteView.TranslatedWorldToView		= LocalView.TranslatedWorldToView;
+	NaniteView.TranslatedWorldToClip		= LocalView.TranslatedWorldToClip;
+	NaniteView.ViewToClip					= LocalView.ViewToClip;
+	NaniteView.ClipToWorld					= LocalView.ClipToWorld;
 	
-	NaniteView.PrevTranslatedWorldToView	= View.PrevTranslatedWorldToView;
-	NaniteView.PrevTranslatedWorldToClip	= View.PrevTranslatedWorldToClip;
-	NaniteView.PrevViewToClip				= View.PrevViewToClip;
-	NaniteView.PrevClipToWorld				= View.PrevInvViewProj;
+	NaniteView.PrevTranslatedWorldToView	= LocalView.PrevTranslatedWorldToView;
+	NaniteView.PrevTranslatedWorldToClip	= LocalView.PrevTranslatedWorldToClip;
+	NaniteView.PrevViewToClip				= LocalView.PrevViewToClip;
+	NaniteView.PrevClipToWorld				= LocalView.PrevClipToWorld;
 
-	NaniteView.ViewSizeAndInvSize			= View.ViewSizeAndInvSize;
-	NaniteView.ViewRect						= int4(int2(View.ViewRectMin.xy + 0.5f), int2(View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy + 0.5f));
-	NaniteView.PreViewTranslation			= View.PreViewTranslation;
-	NaniteView.PrevPreViewTranslation		= View.PrevPreViewTranslation;
-	NaniteView.WorldCameraOrigin			= View.WorldCameraOrigin;
-	NaniteView.ViewForward					= View.ViewForward;
-	NaniteView.NearPlane					= View.NearPlane;
+	NaniteView.ViewSizeAndInvSize			= LocalView.ViewSizeAndInvSize;
+	NaniteView.ViewRect						= int4(int2(LocalView.ViewRectMin.xy + 0.5f), int2(LocalView.ViewRectMin.xy + LocalView.ViewSizeAndInvSize.xy + 0.5f));
+	NaniteView.PreViewTranslation			= LocalView.PreViewTranslation;
+	NaniteView.PrevPreViewTranslation		= LocalView.PrevPreViewTranslation;
+	NaniteView.WorldCameraOrigin			= LocalView.WorldCameraOrigin;
+	NaniteView.ViewForward					= LocalView.ViewForward;
+	NaniteView.NearPlane					= LocalView.NearPlane;
 	NaniteView.LODScale						= 1.0f;
 	NaniteView.LODScaleHW					= 1.0f;
 	NaniteView.MinBoundsRadiusSq			= 0;
@@ -752,6 +755,8 @@ void PatchViewState(FNaniteView NaniteView, inout ViewState InOutView)
 {
 	InOutView.SVPositionToTranslatedWorld	= NaniteView.SVPositionToTranslatedWorld;
 	InOutView.ViewToTranslatedWorld			= NaniteView.ViewToTranslatedWorld;
+	InOutView.ViewTilePosition				= NaniteView.ViewTilePosition;
+	InOutView.MatrixTilePosition			= NaniteView.MatrixTilePosition;
 
 	InOutView.TranslatedWorldToView			= NaniteView.TranslatedWorldToView;
 	InOutView.TranslatedWorldToClip			= NaniteView.TranslatedWorldToClip;
@@ -761,7 +766,7 @@ void PatchViewState(FNaniteView NaniteView, inout ViewState InOutView)
 	InOutView.PrevTranslatedWorldToView		= NaniteView.PrevTranslatedWorldToView;
 	InOutView.PrevTranslatedWorldToClip		= NaniteView.PrevTranslatedWorldToClip;
 	InOutView.PrevViewToClip				= NaniteView.PrevViewToClip;
-	InOutView.PrevInvViewProj				= NaniteView.PrevClipToWorld;
+	InOutView.PrevClipToWorld				= NaniteView.PrevClipToWorld;
 
 	InOutView.ViewSizeAndInvSize			= NaniteView.ViewSizeAndInvSize;
 	InOutView.ViewRectMin.xy				= NaniteView.ViewRect.xy - 0.5f; // Convert from float2 with a half texel offset to an int2 texel coord

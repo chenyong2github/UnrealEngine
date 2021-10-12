@@ -45,6 +45,10 @@ class UMaterialFunctionInstance : public UMaterialFunctionInterface
 	UPROPERTY(EditAnywhere, Category=MaterialFunctionInstance)
 	TArray<struct FVectorParameterValue> VectorParameterValues;
 
+	/** DoubleVector parameters. */
+	UPROPERTY(EditAnywhere, Category = MaterialFunctionInstance)
+	TArray<struct FDoubleVectorParameterValue> DoubleVectorParameterValues;
+
 	/** Texture parameters. */
 	UPROPERTY(EditAnywhere, Category=MaterialFunctionInstance)
 	TArray<struct FTextureParameterValue> TextureParameterValues;

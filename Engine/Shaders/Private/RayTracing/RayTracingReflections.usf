@@ -446,7 +446,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 						if (DIM_HYBRID && DeferredMaterialPayload.SortKey < RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS)
 						{
 							float3 RayHitWorldPos = TopLayerRay.Origin + TopLayerRay.Direction * DeferredMaterialPayload.HitT;
-							float4 RayHitClipPos = mul(float4(RayHitWorldPos, 1), View.WorldToClip);
+							float4 RayHitClipPos = mul(float4(RayHitWorldPos, 1), LWCHackToFloat(PrimaryView.WorldToClip));
 
 							if (RayHitClipPos.w > 0)
 							{
@@ -626,7 +626,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 					&& DeferredMaterialPayload.SortKey == RAY_TRACING_DEFERRED_MATERIAL_KEY_SCREEN_SPACE)
 				{
 					float3 RayHitWorldPos = TopLayerRay.Origin + TopLayerRay.Direction * DeferredMaterialPayload.HitT;
-					float4 RayHitClipPos = mul(float4(RayHitWorldPos, 1), View.WorldToClip);
+					float4 RayHitClipPos = mul(float4(RayHitWorldPos, 1), LWCHackToFloat(PrimaryView.WorldToClip));
 					float2 RayHitScreenPos = RayHitClipPos.xy / RayHitClipPos.w;
 					float2 RayHitUV = RayHitScreenPos * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
 
@@ -678,7 +678,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 					{
 						// Enforce consistent eye vector for computing lighting between screen space and ray traced reflections when using hybrid mode.
 						// This ensures that specular lighting matches and there is no visual discontinuity, even though it is wrong.
-						LightingViewDirection = normalize(RayHitWorldPos - View.WorldCameraOrigin);
+						LightingViewDirection = normalize(RayHitWorldPos - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
 					}
 
 					float3 Radiance = 0.0;
@@ -914,13 +914,13 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 		// Calculate imaginary closest hit depth based on the closest hit distance (NVIDIA's denoiser specifically uses the closest hit depth)
 
 		float4 ImaginaryClosestWorldPos = float4(WorldPosition + CameraDirection * ClosestHitDistance, 1.0f);
-		float4 ImaginaryClosestClipPos = mul(ImaginaryClosestWorldPos, View.WorldToClip);
+		float4 ImaginaryClosestClipPos = mul(ImaginaryClosestWorldPos, LWCHackToFloat(PrimaryView.WorldToClip));
 		float ImaginaryClosestSVDepth = saturate(ImaginaryClosestClipPos.z / ImaginaryClosestClipPos.w);
 
 		// Calculate imaginary hit depth based on the imaginary hit distance
 
 		float4 ImaginaryWorldPos = float4(WorldPosition + CameraDirection * ImaginaryHitDistance, 1.0f);
-		float4 ImaginaryClipPos = mul(ImaginaryWorldPos, View.WorldToClip);
+		float4 ImaginaryClipPos = mul(ImaginaryWorldPos, LWCHackToFloat(PrimaryView.WorldToClip));
 
 		// Calculate imaginary hit position velocity if the denoiser expects the regular G-buffer to have one
 
@@ -949,7 +949,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 
 		float ConfusionFactor = ComputeDenoiserConfusionFactor(
 			ClosestHitDistance != DENOISER_INVALID_HIT_DISTANCE,
-			length(WorldPosition - View.WorldCameraOrigin),
+			length(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin)),
 			ClosestHitDistance);
 
 		// Accumulate output information if it has been set by the initial sample
@@ -1017,10 +1017,10 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 		if (EnableTranslucency && (SampleMode == SAMPLE_PHASE_MONOLITHIC || SampleMode == SAMPLE_PHASE_RESOLVE))
 		{
 			RayDesc TransmissionRay;
-			TransmissionRay.Origin = View.WorldCameraOrigin;
+			TransmissionRay.Origin = LWCHackToFloat(PrimaryView.WorldCameraOrigin);
 			TransmissionRay.Direction = CameraDirection;
 			TransmissionRay.TMin = 0.0;
-			TransmissionRay.TMax = dot(OriginalWorldPosition - View.WorldCameraOrigin, CameraDirection) - 0.1;
+			TransmissionRay.TMax = dot(OriginalWorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin), CameraDirection) - 0.1;
 			float3 Inscattering = 0.0;
 			float Transmission = Transmit(TransmissionRay, PixelCoord, Inscattering);
 			//#dxr_todo: add Inscattering support (this is emission only so far)

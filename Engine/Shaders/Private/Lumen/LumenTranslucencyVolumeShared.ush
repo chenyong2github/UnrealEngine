@@ -15,15 +15,15 @@ bool IsLumenTranslucencyGIEnabled()
 	return LumenGIVolumeStruct.TranslucencyGIGridSize.z > 0;
 }
 
-float3 ComputeTranslucencyGIVolumeUV(float3 WorldPosition, float4x4 WorldToClip) 
+float3 ComputeTranslucencyGIVolumeUV(FLWCVector3 WorldPosition, FLWCInverseMatrix WorldToClip) 
 {
-	float4 NDCPosition = mul(float4(WorldPosition, 1), WorldToClip);
+	float4 NDCPosition = LWCMultiply(MakeLWCVector4(WorldPosition, 1.0f), WorldToClip);
 	NDCPosition.xy /= NDCPosition.w;
 	float NormalizedZSlice = log2(NDCPosition.w * LumenGIVolumeStruct.TranslucencyGIGridZParams.x + LumenGIVolumeStruct.TranslucencyGIGridZParams.y) * LumenGIVolumeStruct.TranslucencyGIGridZParams.z / (float)LumenGIVolumeStruct.TranslucencyGIGridSize.z;
 	return float3(NDCPosition.xy * float2(.5f, -.5f) + .5f, NormalizedZSlice);
 }
 
-FTwoBandSHVectorRGB GetTranslucencyGIVolumeLighting(float3 WorldPosition, float4x4 WorldToClip, bool bTemporalFiltered)
+FTwoBandSHVectorRGB GetTranslucencyGIVolumeLighting(FLWCVector3 WorldPosition, FLWCInverseMatrix WorldToClip, bool bTemporalFiltered)
 {
 	float3 VolumeUV = ComputeTranslucencyGIVolumeUV(WorldPosition, WorldToClip);
 

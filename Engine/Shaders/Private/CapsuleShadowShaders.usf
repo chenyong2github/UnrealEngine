@@ -366,11 +366,11 @@ void SetupTileCullingData(
 	}
 
 	float3 ViewGroup0Center = (ViewTileMax + ViewTileMin) / 2;
-	TileCullingData0.BoundingSphere.xyz = mul(float4(ViewGroup0Center, 1), View.ViewToTranslatedWorld).xyz - View.PreViewTranslation;
+	TileCullingData0.BoundingSphere.xyz = mul(float4(ViewGroup0Center, 1), View.ViewToTranslatedWorld).xyz - LWCHackToFloat(PrimaryView.PreViewTranslation);
 	TileCullingData0.BoundingSphere.w = length(ViewGroup0Center - ViewTileMax);
 
 	float3 ViewGroup1Center = (ViewTileMax2 + ViewTileMin2) / 2;
-	TileCullingData1.BoundingSphere.xyz = mul(float4(ViewGroup1Center, 1), View.ViewToTranslatedWorld).xyz - View.PreViewTranslation;
+	TileCullingData1.BoundingSphere.xyz = mul(float4(ViewGroup1Center, 1), View.ViewToTranslatedWorld).xyz - LWCHackToFloat(PrimaryView.PreViewTranslation);
 	TileCullingData1.BoundingSphere.w = length(ViewGroup1Center - ViewTileMax2);
 
 #if LIGHT_SOURCE_MODE == LIGHT_SOURCE_PUNCTUAL
@@ -994,7 +994,7 @@ void CapsuleShadowingCS(
 	float SceneDepth = CalcSceneDepth(ScreenUV);
 #endif
 	
-	float3 OpaqueWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
+	float3 OpaqueWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
 
 	uint CulledDataParameter = 0;
 	bool bTileShouldComputeShadowing = true;

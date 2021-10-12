@@ -44,13 +44,14 @@ void UpdateMaterialCloudParam(inout FMaterialPixelParameters MaterialParameters,
 	float3 AbsoluteWorldPosition, in ViewState InputView, in FCloudLayerParameters CloudLayerParams,
 	in float ShadowSampleDistance)
 {
-	MaterialParameters.AbsoluteWorldPosition = AbsoluteWorldPosition;
-	MaterialParameters.WorldPosition_CamRelative = MaterialParameters.AbsoluteWorldPosition + InputView.PreViewTranslation.xyz;
+	// TODO LWC
+	MaterialParameters.AbsoluteWorldPosition = LWCPromote(AbsoluteWorldPosition);
+	MaterialParameters.WorldPosition_CamRelative = LWCToFloat(LWCAdd(MaterialParameters.AbsoluteWorldPosition, InputView.PreViewTranslation));
 	//MaterialParameters.WorldPosition_NoOffsets;				// TODO
 	//MaterialParameters.WorldPosition_NoOffsets_CamRelative;	// TODO
-	MaterialParameters.CameraVector = normalize(InputView.WorldCameraOrigin - MaterialParameters.AbsoluteWorldPosition);
+	MaterialParameters.CameraVector = normalize(LWCToFloat(LWCSubtract(InputView.WorldCameraOrigin, MaterialParameters.AbsoluteWorldPosition)));
 
-	float CloudSampleAltitude = length(MaterialParameters.AbsoluteWorldPosition - CloudLayerParams.CloudLayerCenter);
+	float CloudSampleAltitude = length(LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition) - CloudLayerParams.CloudLayerCenter);
 	MaterialParameters.CloudSampleAltitude = CloudSampleAltitude - CloudLayerParams.PlanetRadius;
 	MaterialParameters.CloudSampleAltitudeInLayer = CloudSampleAltitude - CloudLayerParams.BottomRadius;
 	MaterialParameters.CloudSampleNormAltitudeInLayer = saturate(MaterialParameters.CloudSampleAltitudeInLayer * CloudLayerParams.ToNormAltitude);

@@ -97,7 +97,7 @@ bool DisocclusionHeuristic(float2 ScreenPos, float DeviceZ, float2 HistoryUV)
 	float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
 	float3 PrevExpectedDeviceZ = PrevClip.z / PrevClip.w;
 
-	float3 CameraVelocity = View.WorldViewOrigin - View.PrevWorldViewOrigin;
+	float3 CameraVelocity = LWCToFloat(LWCSubtract(PrimaryView.WorldViewOrigin, PrimaryView.PrevWorldViewOrigin));
 
 	float CompensatedPrevDeviceZ = ConvertToDeviceZ(ConvertFromDeviceZ(PrevDeviceZ) + length(CameraVelocity));
 

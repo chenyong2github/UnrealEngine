@@ -154,7 +154,7 @@ void CullObjectsForShadowCS(
 			FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
 
 			// Assume ObjectBoundingSphere is located at (0, 0, 0) in local space
-            float ViewDist2 = length2(DFObjectBounds.Center - View.WorldViewOrigin);
+            float ViewDist2 = length2(DFObjectBounds.Center - LWCHackToFloat(PrimaryView.WorldViewOrigin));
 
             if ((DFObjectData.MinMaxDrawDistance2.x < 0.0001 || ViewDist2 > DFObjectData.MinMaxDrawDistance2.x)
                 && (DFObjectData.MinMaxDrawDistance2.y < 0.0001 || ViewDist2 < DFObjectData.MinMaxDrawDistance2.y))
@@ -499,11 +499,11 @@ void CullObjectsToTileWithGather(
 	ViewTileMax2.z = MaxTileZ + ExpandRadius;
 
 	float3 ViewGroup0Center = (ViewTileMax + ViewTileMin) / 2;
-	float3 WorldGroup0Center = mul(float4(ViewGroup0Center, 1), View.ViewToTranslatedWorld).xyz - View.PreViewTranslation;
+	float3 WorldGroup0Center = mul(float4(ViewGroup0Center, 1), View.ViewToTranslatedWorld).xyz - LWCHackToFloat(PrimaryView.PreViewTranslation);
 	float Group0BoundingRadius = length(ViewGroup0Center - ViewTileMax);
 
 	float3 ViewGroup1Center = (ViewTileMax2 + ViewTileMin2) / 2;
-	float3 WorldGroup1Center = mul(float4(ViewGroup1Center, 1), View.ViewToTranslatedWorld).xyz - View.PreViewTranslation;
+	float3 WorldGroup1Center = mul(float4(ViewGroup1Center, 1), View.ViewToTranslatedWorld).xyz - LWCHackToFloat(PrimaryView.PreViewTranslation);
 	float Group1BoundingRadius = length(ViewGroup1Center - ViewTileMax2);
 
 #if POINT_LIGHT
@@ -590,7 +590,7 @@ void DistanceFieldShadowingCS(
 	float2 ScreenPosition = (ScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 
 	float SceneDepth = CalcSceneDepth(ScreenUV);
-	float3 OpaqueWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
+	float3 OpaqueWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
 
 	// Distance for directional lights to trace
 	float TraceDistance = TanLightAngleAndNormalThreshold.z;

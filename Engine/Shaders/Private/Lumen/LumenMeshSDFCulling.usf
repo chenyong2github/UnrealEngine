@@ -60,7 +60,7 @@ void CullMeshSDFObjectsForViewCS(
 	{
 		FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
 
-		float DistanceToViewSq = LengthSq(View.WorldCameraOrigin - DFObjectBounds.Center);
+		float DistanceToViewSq = LengthSq(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - DFObjectBounds.Center);
 
 		if (DistanceToViewSq < Square(CardTraceEndDistanceFromCamera + DFObjectBounds.SphereRadius)
 			&& DFObjectBounds.SphereRadius > MeshSDFRadiusThreshold
@@ -140,7 +140,7 @@ void MeshSDFObjectCullVS(
 	//@todo - expand to handle conservative rasterization
 	float EffectiveRadius = (DFObjectBounds.SphereRadius + MaxMeshSDFInfluenceRadius) * ConservativeRadiusScale / 0.7f;
 	float3 WorldPosition = InPosition.xyz * EffectiveRadius + DFObjectBounds.Center;
-	OutPosition = mul(float4(WorldPosition, 1), View.WorldToClip);
+	OutPosition = mul(float4(WorldPosition, 1), LWCHackToFloat(PrimaryView.WorldToClip));
 	Output.PositionAndRadius.xyz = DFObjectBounds.Center;
 	Output.PositionAndRadius.w = DFObjectBounds.SphereRadius;
 	Output.ObjectIndex = ObjectIndex;
@@ -187,7 +187,7 @@ float3 ComputeCellWorldPosition(uint3 GridCoordinate, float3 CellOffset)
 	float TileDeviceZ = ConvertToDeviceZ(SceneDepth);
 
 	float4 CenterPosition = mul(float4(VolumeNDC, TileDeviceZ, 1), View.ClipToTranslatedWorld);
-	return CenterPosition.xyz / CenterPosition.w - View.PreViewTranslation;
+	return CenterPosition.xyz / CenterPosition.w - LWCHackToFloat(PrimaryView.PreViewTranslation);
 }
 
 uint MaxNumberOfCulledObjects;
@@ -210,7 +210,7 @@ void MeshSDFObjectCullPS(
 	float3 WorldObjectPosition = Input.PositionAndRadius.xyz;
 	float3 WorldObjectExtent = mul(DFObjectData.VolumePositionExtent, abs(((float3x3) DFObjectData.VolumeToWorld)));
 
-	float3 ViewSpaceObjectPosition = mul(float4(WorldObjectPosition + View.PreViewTranslation.xyz, 1), View.TranslatedWorldToView).xyz;
+	float3 ViewSpaceObjectPosition = mul(float4(WorldObjectPosition + LWCHackToFloat(PrimaryView.PreViewTranslation), 1), View.TranslatedWorldToView).xyz;
 	float3 ViewSpaceObjectInfluenceExtent = mul(WorldObjectExtent, abs((float3x3)View.TranslatedWorldToView)) + MaxMeshSDFInfluenceRadius;
 
 	float4 FrustumPlanes[6];
@@ -350,9 +350,9 @@ void MeshSDFObjectCullForProbesPS(
 
 			ProbeTMax = min(MaxMeshSDFInfluenceRadius, ProbeTMax);
 
-			float3 ProbeWorldPosition = ProbeInfo.TranslatedWorldPosition - View.PreViewTranslation;
+			float3 ProbeWorldPosition = ProbeInfo.TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
 
-			float DistanceToViewSq = LengthSq(View.WorldCameraOrigin - ProbeWorldPosition);
+			float DistanceToViewSq = LengthSq(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - ProbeWorldPosition);
 
 			if (DistanceToViewSq < Pow2(CardTraceEndDistanceFromCamera)
 				&& ProbeTMin < ProbeTMax)

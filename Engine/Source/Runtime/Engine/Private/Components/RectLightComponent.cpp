@@ -6,6 +6,7 @@
 
 #include "Components/RectLightComponent.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Misc/LargeWorldRenderPosition.h"
 #include "RenderingThread.h"
 #include "Engine/Texture2D.h"
 #include "SceneManagement.h"
@@ -220,10 +221,11 @@ bool FRectLightSceneProxy::HasSourceTexture() const
 /** Accesses parameters needed for rendering the light. */
 void FRectLightSceneProxy::GetLightShaderParameters(FLightShaderParameters& LightParameters) const
 {
+	const FLargeWorldRenderPosition AbsoluteWorldPosition(GetOrigin());
 	FLinearColor LightColor = GetColor();
 	LightColor /= 0.5f * SourceWidth * SourceHeight;
-
-	LightParameters.Position = GetOrigin();
+	LightParameters.Position = AbsoluteWorldPosition.GetOffset();
+	LightParameters.TilePosition = AbsoluteWorldPosition.GetTile();
 	LightParameters.InvRadius = InvRadius;
 	LightParameters.Color = FVector(LightColor.R, LightColor.G, LightColor.B);
 	LightParameters.FalloffExponent = 0.0f;

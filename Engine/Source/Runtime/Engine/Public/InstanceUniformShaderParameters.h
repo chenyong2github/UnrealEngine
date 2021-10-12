@@ -141,6 +141,18 @@ struct FInstanceSceneShaderData
 		uint32 LastUpdateFrame
 	);
 
+	ENGINE_API FInstanceSceneShaderData(
+		const FPrimitiveInstance& Instance,
+		uint32 PrimitiveId,
+		const FMatrix& PrimitiveLocalToWorld,
+		const FMatrix& PrimitivePrevLocalToWorld,
+		const FRenderTransform& PrevLocalToPrimitive, // TODO: Temporary
+		const FVector4& LightMapShadowMapUVBias, // TODO: Temporary
+		float RandomID, // TODO: Temporary
+		float CustomDataFloat0, // TODO: Temporary Hack!
+		uint32 LastUpdateFrame
+	);
+
 	ENGINE_API void Setup(
 		const FPrimitiveInstance& Instance,
 		uint32 PrimitiveId,

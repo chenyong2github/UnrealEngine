@@ -180,10 +180,10 @@ public:
 	}
 
 	/** Gets HLSL code that references the given value */
-	const TCHAR* GetCode(const FEmitValue* Value) const;
+	const TCHAR* GetCode(const FEmitValue* Value);
 
 	/** Append preshader bytecode that represents the given value */
-	void AppendPreshader(const FEmitValue* Value, Shader::FPreshaderData& InOutPreshader) const;
+	void AppendPreshader(const FEmitValue* Value, Shader::FPreshaderData& InOutPreshader);
 
 	FEmitScope* FindScope(const FScope& Scope);
 	FEmitScope* AcquireScope(const FScope& Scope);
@@ -240,6 +240,7 @@ public:
 	bool WriteAssignment(FEmitScope& EmitScope, const TCHAR* Declaration, FExpression* Expression, Shader::EValueType& InOutType);
 
 	bool FinalizeScope(FEmitScope& EmitScope);
+	void Finalize();
 
 	struct FDeclarationEntry
 	{
@@ -271,6 +272,7 @@ public:
 	const FStaticParameterSet* StaticParameters = nullptr;
 	FMaterialCompilationOutput* MaterialCompilationOutput = nullptr;
 	TMap<Shader::FValue, uint32> DefaultUniformValues;
+	uint32 UniformPreshaderOffset = 0u;
 	int32 TotalCodeLength = 0;
 	int32 NumExpressionLocals = 0;
 	int32 NumTexCoords = 0;

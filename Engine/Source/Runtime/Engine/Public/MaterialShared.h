@@ -161,11 +161,58 @@ enum EMaterialValueType
 
 	MCT_Strata				  = 1 << 16,
 
-	MCT_Execution             = 1 << 17,
+	MCT_LWCScalar			  = 1 << 17,
+	MCT_LWCVector2			  = 1 << 18,
+	MCT_LWCVector3			  = 1 << 19,
+	MCT_LWCVector4			  = 1 << 20,
+	MCT_LWCType				  = MCT_LWCScalar | MCT_LWCVector2 | MCT_LWCVector3 | MCT_LWCVector4,
+
+	MCT_Execution             = 1 << 21,
 
 	/** Used for code chunks that are statements with no value, rather than expressions */
-	MCT_VoidStatement         = 1 << 18,
+	MCT_VoidStatement         = 1 << 22,
 };
+
+inline bool IsLWCType(EMaterialValueType InType)
+{
+	return (InType & MCT_LWCType);
+}
+
+inline bool IsFloatNumericType(EMaterialValueType InType)
+{
+	return (InType & MCT_Float) || IsLWCType(InType);
+}
+
+inline bool IsNumericType(EMaterialValueType InType)
+{
+	// 'ShadingModel' is considered an 'int' 
+	return IsFloatNumericType(InType) || InType == MCT_ShadingModel;
+}
+
+inline EMaterialValueType MakeNonLWCType(EMaterialValueType Type)
+{
+	switch (Type)
+	{
+	case MCT_LWCScalar: return MCT_Float1;
+	case MCT_LWCVector2: return MCT_Float2;
+	case MCT_LWCVector3: return MCT_Float3;
+	case MCT_LWCVector4: return MCT_Float4;
+	default: return Type;
+	}
+}
+
+inline EMaterialValueType MakeLWCType(EMaterialValueType Type)
+{
+	switch (Type)
+	{
+	case MCT_Float: return MCT_LWCScalar;
+	case MCT_Float1: return MCT_LWCScalar;
+	case MCT_Float2: return MCT_LWCVector2;
+	case MCT_Float3: return MCT_LWCVector3;
+	case MCT_Float4: return MCT_LWCVector4;
+	default: return Type;
+	}
+}
 
 /**
  * The common bases of material
@@ -321,15 +368,22 @@ class FMaterialUniformPreshaderHeader
 public:
 	friend inline bool operator==(const FMaterialUniformPreshaderHeader& Lhs, const FMaterialUniformPreshaderHeader& Rhs)
 	{
-		return Lhs.OpcodeOffset == Rhs.OpcodeOffset && Lhs.OpcodeSize == Rhs.OpcodeSize;
+		return Lhs.OpcodeOffset == Rhs.OpcodeOffset &&
+			Lhs.OpcodeSize == Rhs.OpcodeSize &&
+			Lhs.BufferOffset == Rhs.BufferOffset &&
+			Lhs.ComponentType == Rhs.ComponentType &&
+			Lhs.NumComponents == Rhs.NumComponents;
 	}
 	friend inline bool operator!=(const FMaterialUniformPreshaderHeader& Lhs, const FMaterialUniformPreshaderHeader& Rhs)
 	{
 		return !operator==(Lhs, Rhs);
 	}
 
-	LAYOUT_FIELD(uint32, OpcodeOffset);
-	LAYOUT_FIELD(uint32, OpcodeSize);
+	LAYOUT_FIELD(uint32, OpcodeOffset); /** Offset of the preshader opcodes, within the material's buffer */
+	LAYOUT_FIELD(uint32, OpcodeSize); /** Size of the preshader opcodes */
+	LAYOUT_FIELD(uint32, BufferOffset); /** Offset in the uniform buffer where result will be written */
+	LAYOUT_FIELD(UE::Shader::EValueComponentType, ComponentType);
+	LAYOUT_FIELD(uint8, NumComponents);
 };
 
 class FMaterialNumericParameterInfo
@@ -449,7 +503,7 @@ class FUniformExpressionSet
 {
 	DECLARE_TYPE_LAYOUT(FUniformExpressionSet, NonVirtual);
 public:
-	FUniformExpressionSet() = default;
+	FUniformExpressionSet() : UniformPreshaderBufferSize(0u) {}
 
 	bool IsEmpty() const;
 	bool operator==(const FUniformExpressionSet& ReferenceSet) const;
@@ -515,11 +569,11 @@ protected:
 	friend class FDebugUniformExpressionSet;
 	friend class UE::HLSLTree::FEmitContext;
 
-	LAYOUT_FIELD(TMemoryImageArray<FMaterialUniformPreshaderHeader>, UniformVectorPreshaders);
-	LAYOUT_FIELD(TMemoryImageArray<FMaterialUniformPreshaderHeader>, UniformScalarPreshaders);
+	LAYOUT_FIELD(TMemoryImageArray<FMaterialUniformPreshaderHeader>, UniformPreshaders);
 	LAYOUT_FIELD(TMemoryImageArray<FMaterialNumericParameterInfo>, UniformNumericParameters);
 	LAYOUT_ARRAY(TMemoryImageArray<FMaterialTextureParameterInfo>, UniformTextureParameters, NumMaterialTextureParameterTypes);
 	LAYOUT_FIELD(TMemoryImageArray<FMaterialExternalTextureParameterInfo>, UniformExternalTextureParameters);
+	LAYOUT_FIELD(uint32, UniformPreshaderBufferSize);
 
 	LAYOUT_FIELD(UE::Shader::FPreshaderData, UniformPreshaderData);
 	LAYOUT_FIELD(TMemoryImageArray<uint8>, DefaultValues);

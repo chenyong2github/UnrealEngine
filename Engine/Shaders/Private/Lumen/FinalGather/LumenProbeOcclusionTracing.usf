@@ -109,7 +109,7 @@ void TraceRay(
 		ConeHalfAngle = DiffuseConeHalfAngle;
 	}
 
-	float3 WorldPosition = PixelInfos.TranslatedWorldPosition - View.PreViewTranslation + PixelInfos.GBuffer.WorldNormal * SurfaceBias + SurfaceBias * RayInfos.BxDFSample.L;
+	float3 WorldPosition = PixelInfos.TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation) + PixelInfos.GBuffer.WorldNormal * SurfaceBias + SurfaceBias * RayInfos.BxDFSample.L;
 
 	float FinalMaxTraceDistance = min(MaxTraceDistance, RayInfos.TMax);
 
@@ -159,7 +159,7 @@ void TraceRay(
 	{
 		ConeTraceLumenSceneCards(TraceInput, TraceResult);
 
-		float DistanceFromViewpoint = length(View.WorldCameraOrigin - WorldPosition);
+		float DistanceFromViewpoint = length(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - WorldPosition);
 		float DistanceFade = saturate(4 * DistanceFromViewpoint / CardTraceEndDistanceFromCamera - 3);
 
 		TraceResult.Lighting *= 1 - DistanceFade;

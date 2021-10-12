@@ -62,53 +62,69 @@
 #endif
 
 
-float3 TransformLocalToWorld(float3 LocalPosition, float4x4 LocalToWorld)
+FLWCVector3 TransformLocalToWorld(float3 LocalPosition, FLWCMatrix LocalToWorld)
 {
-	//expand the matrix multiply to avoid a code-gen bug on PS4.
 	//invariant code!
-	return INVARIANT((LocalToWorld[0].xyz * LocalPosition.xxx + LocalToWorld[1].xyz * LocalPosition.yyy + LocalToWorld[2].xyz * LocalPosition.zzz) + LocalToWorld[3].xyz);
+	return LWCInvariantMultiply(LocalPosition, LocalToWorld);
 }
 
-float4 TransformLocalToWorld(float3 LocalPosition)
+FLWCVector3 TransformLocalToWorld(float3 LocalPosition)
 {
-	float3 RotatedPosition = Primitive.LocalToWorld[0].xyz * LocalPosition.xxx + Primitive.LocalToWorld[1].xyz * LocalPosition.yyy + Primitive.LocalToWorld[2].xyz * LocalPosition.zzz;
-	return float4(RotatedPosition + Primitive.LocalToWorld[3].xyz ,1);
+	return TransformLocalToWorld(LocalPosition, GetPrimitiveDataFromUniformBuffer().LocalToWorld);
+}
+
+float4 TransformLocalToTranslatedWorld(float3 LocalPosition, FLWCMatrix LocalToWorld)
+{
+	FLWCVector3 WorldPosition = LWCMultiply(LocalPosition, LocalToWorld);
+	FLWCVector3 TranslatedWorldPosition = LWCAdd(WorldPosition, ResolvedView.PreViewTranslation);
+	return float4(LWCToFloat(TranslatedWorldPosition), 1.0f);
 }
 
 float4 TransformLocalToTranslatedWorld(float3 LocalPosition, float4x4 LocalToWorld)
 {
-	float3 RotatedPosition = LocalToWorld[0].xyz * LocalPosition.xxx + LocalToWorld[1].xyz * LocalPosition.yyy + LocalToWorld[2].xyz * LocalPosition.zzz;
-	return float4(RotatedPosition + (LocalToWorld[3].xyz + ResolvedView.PreViewTranslation.xyz), 1.0f);
+	return TransformLocalToTranslatedWorld(LocalPosition, LWCPromote(LocalToWorld));
+}
+
+float3 RotateLocalToWorld(float3 LocalDirection, float3x3 LocalToWorld, float3 InvScale)
+{
+	return
+		InvScale.x * LocalToWorld[0] * LocalDirection.xxx +
+		InvScale.y * LocalToWorld[1] * LocalDirection.yyy +
+		InvScale.z * LocalToWorld[2] * LocalDirection.zzz;
 }
 
 float3 RotateLocalToWorld(float3 LocalDirection, float4x4 LocalToWorld, float3 InvScale)
 {
-	return
-		InvScale.x * LocalToWorld[0].xyz * LocalDirection.xxx +
-		InvScale.y * LocalToWorld[1].xyz * LocalDirection.yyy +
-		InvScale.z * LocalToWorld[2].xyz * LocalDirection.zzz;
+	return RotateLocalToWorld(LocalDirection, (float3x3)LocalToWorld, InvScale);
+}
+
+float3 RotateLocalToWorld(float3 LocalDirection, FLWCMatrix LocalToWorld, float3 InvScale)
+{
+	return RotateLocalToWorld(LocalDirection, LWCToFloat3x3(LocalToWorld), InvScale);
 }
 
 #if !VF_USE_PRIMITIVE_SCENE_DATA
 
 float4 TransformLocalToTranslatedWorld(float3 LocalPosition)
 {
-	float3 RotatedPosition = Primitive.LocalToWorld[0].xyz * LocalPosition.xxx + Primitive.LocalToWorld[1].xyz * LocalPosition.yyy + Primitive.LocalToWorld[2].xyz * LocalPosition.zzz;
-	return float4(RotatedPosition + (Primitive.LocalToWorld[3].xyz + ResolvedView.PreViewTranslation.xyz),1);
+	return TransformLocalToTranslatedWorld(LocalPosition, GetPrimitiveDataFromUniformBuffer().LocalToWorld);
 }
 
 float3 RotateLocalToWorld(float3 LocalDirection)
 {
-	return RotateLocalToWorld(LocalDirection, Primitive.LocalToWorld, Primitive.InvNonUniformScale);
+	FPrimitiveSceneData PrimitiveData = GetPrimitiveDataFromUniformBuffer();
+	return RotateLocalToWorld(LocalDirection, PrimitiveData.LocalToWorld, PrimitiveData.InvNonUniformScale);
 }
 
 float3 RotateWorldToLocal(float3 WorldDirection)
 {
-	const float3 InvScale = Primitive.InvNonUniformScale;
+	FPrimitiveSceneData PrimitiveData = GetPrimitiveDataFromUniformBuffer();
+	const float3 InvScale = PrimitiveData.InvNonUniformScale;
+	const float3x3 LocalToWorld = LWCToFloat3x3(PrimitiveData.LocalToWorld);
 	float3x3 InvRot = {
-		InvScale.x * Primitive.LocalToWorld[0].xyz,
-		InvScale.y * Primitive.LocalToWorld[1].xyz,
-		InvScale.z * Primitive.LocalToWorld[2].xyz
+		InvScale.x * LocalToWorld[0],
+		InvScale.y * LocalToWorld[1],
+		InvScale.z * LocalToWorld[2]
 	};
 	InvRot = transpose(InvRot);
 	return mul(WorldDirection, InvRot);

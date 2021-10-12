@@ -14,6 +14,7 @@
 #include "Engine/EngineTypes.h"
 
 class FSceneView;
+struct FRelativeViewMatrices;
 
 /**
  * A vertex shader for rendering a texture on a simple element.
@@ -28,15 +29,17 @@ public:
 	FSimpleElementVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 	FSimpleElementVS() {}
 
-	/*ENGINE_API */void SetParameters(FRHICommandList& RHICmdList, const FMatrix& TransformValue, bool bSwitchVerticalAxis = false);
+	void SetParameters(FRHICommandList& RHICmdList, const FMatrix& WorldToClipMatrix, bool bSwitchVerticalAxis = false);
+	void SetParameters(FRHICommandList& RHICmdList, const FRelativeViewMatrices& Matrices, bool bSwitchVerticalAxis = false);
 
 	//virtual bool Serialize(FArchive& Ar) override;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 
 private:
-	LAYOUT_FIELD(FShaderParameter, Transform)
-	LAYOUT_FIELD(FShaderParameter, SwitchVerticalAxis)
+	LAYOUT_FIELD(FShaderParameter, RelativeTransform);
+	LAYOUT_FIELD(FShaderParameter, TransformTilePosition);
+	LAYOUT_FIELD(FShaderParameter, SwitchVerticalAxis);
 };
 
 /**

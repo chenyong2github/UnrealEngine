@@ -649,6 +649,14 @@ struct FIntVector4
 	{
 	}
 
+	FORCEINLINE explicit FIntVector4(const FIntVector& InValue, int32 InW = 0)
+		: X(InValue.X)
+		, Y(InValue.Y)
+		, Z(InValue.Z)
+		, W(InW)
+	{
+	}
+
 	FORCEINLINE FIntVector4(EForceInit)
 		: X(0)
 		, Y(0)

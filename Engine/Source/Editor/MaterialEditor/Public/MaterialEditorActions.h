@@ -114,6 +114,12 @@ public:
 	/** Converts selected objects to parameters */
 	TSharedPtr< FUICommandInfo > ConvertObjects;
 
+	/** Convert the selected parameters from 'float' to 'double' */
+	TSharedPtr< FUICommandInfo > PromoteToDouble;
+
+	/** Convert the selected parameters from 'double' to 'float' */
+	TSharedPtr< FUICommandInfo > PromoteToFloat;
+
 	/** Converts selected texture type into another */
 	TSharedPtr< FUICommandInfo > ConvertToTextureObjects;
 	TSharedPtr< FUICommandInfo > ConvertToTextureSamples;

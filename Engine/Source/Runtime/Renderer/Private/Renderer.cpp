@@ -182,8 +182,8 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 						InstanceFlags
 					),
 					0, /* Primitive Id */
-					PrimitiveParams.LocalToWorld,
-					PrimitiveParams.PreviousLocalToWorld,
+					FRenderTransform(PrimitiveParams.LocalToRelativeWorld),
+					FRenderTransform(PrimitiveParams.PreviousLocalToRelativeWorld),
 					FRenderTransform::Identity, /* PrevLocalToPrimitive */
 					FVector4f(ForceInitToZero), /* Lightmap and Shadowmap UV Bias */
 					0.0f, /* Per instance Random ID */

@@ -344,10 +344,10 @@ void MainCS(uint2 DispatchThreadID : SV_DispatchThreadID)
 	HairViewInfo.bIsOrthoView = false;
 
 	const float3 WP0  = mul(float4(CP0.Position, 1), HairStrandsVF_LocalToWorldPrimitiveTransform).xyz;
-	const float4 NDC0 = mul(float4(WP0, 1), View.WorldToClip);
+	const float4 NDC0 = mul(float4(WP0, 1), LWCHackToFloat(PrimaryView.WorldToClip));
 
 	const float3 WP1  = mul(float4(CP1.Position, 1), HairStrandsVF_LocalToWorldPrimitiveTransform).xyz;
-	const float4 NDC1 = mul(float4(WP1, 1), View.WorldToClip);
+	const float4 NDC1 = mul(float4(WP1, 1), LWCHackToFloat(PrimaryView.WorldToClip));
 	
 	float3 SP0 = NDCToPixelCoord(NDC0);
 	float3 SP1 = NDCToPixelCoord(NDC1);

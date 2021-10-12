@@ -208,8 +208,8 @@ void ReconstructVolumetricRenderTargetPS(
 
 
 				const float ReconstructDepthZ = HalfResDepthTexture.Load(int3(SVPos.xy + ViewViewRectMin, 0)).r;
-				const float3 WorldPosition = SvPositionToWorld(float4(CenterSample, ReconstructDepthZ, 1.0));
-				const float PixelDistanceFromViewKm = length(WorldPosition - View.WorldCameraOrigin) * (1.0f / 100000.0f); // centimeter to kilometer
+				const float3 WorldPosition = LWCHackToFloat(SvPositionToWorld(float4(CenterSample, ReconstructDepthZ, 1.0)));
+				const float PixelDistanceFromViewKm = length(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin)) * (1.0f / 100000.0f); // centimeter to kilometer
 
 				RGBA = HistoryRGBA;
 				Depths = HistoryDepths;
@@ -404,20 +404,20 @@ void ComposeVolumetricRTOverScenePS(
 
 	float PixelLinearDepth = WaterLinearDepthTexture.SampleLevel(LinearTextureSampler, WaterDepthScreenUV, 0).r * UseWaterLinearDepthTexture;
 
-	float3 WorldPosition = float4(SvPositionToWorld(float4(SVPos.xy, 0.5, 1.0)), 1.0).xyz;
-	WorldPosition = normalize(WorldPosition - View.WorldCameraOrigin) * PixelLinearDepth + View.WorldCameraOrigin;
+	float3 WorldPosition = LWCHackToFloat(SvPositionToWorld(float4(SVPos.xy, 0.5, 1.0)));
+	WorldPosition = normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin)) * PixelLinearDepth + LWCHackToFloat(PrimaryView.WorldCameraOrigin);
 
-	float4 ClipPosition = mul(float4(WorldPosition,1.0), View.WorldToClip);
+	float4 ClipPosition = mul(float4(WorldPosition,1.0), LWCHackToFloat(PrimaryView.WorldToClip));
 	ClipPosition /= ClipPosition.w;
 	float PixelDeviceZ = ClipPosition.z;
 
-	float3 ScreenWorldPosition = float4(SvPositionToWorld(float4(SVPos.xy, ClipPosition.z, 1.0)), 1.0).xyz;
+	float3 ScreenTranslatedWorldPosition = SvPositionToTranslatedWorld(float4(SVPos.xy, ClipPosition.z, 1.0));
 #else
 	float PixelDeviceZ = SceneTexturesStruct.SceneDepthTexture.Load(uint3(SVPos.xy, 0)).r;
-	float3 ScreenWorldPosition = float4(SvPositionToWorld(float4(SVPos.xy, PixelDeviceZ, 1.0)), 1.0).xyz;
+	float3 ScreenTranslatedWorldPosition = SvPositionToTranslatedWorld(float4(SVPos.xy, PixelDeviceZ, 1.0));
 #endif 
 
-	float PixelDistanceFromView   = length(View.WorldCameraOrigin - ScreenWorldPosition);
+	float PixelDistanceFromView   = length(PrimaryView.TranslatedWorldCameraOrigin - ScreenTranslatedWorldPosition);
 	float PixelDistanceFromViewKm = PixelDistanceFromView * (1.0f / 100000.0f); // centimeter to kilometer
 
 

@@ -28,7 +28,7 @@ struct FCulledLightList
 		FCulledLightList Result = (FCulledLightList)0;
 
 		// volume is centered on the viewer
-		float3 Position = WorldPos - View.WorldViewOrigin;
+		float3 Position = WorldPos - LWCHackToFloat(PrimaryView.WorldViewOrigin);
 
 		const float Scale = 100.0f;
 		const int Dim = RaytracingLightsDataPacked.CellCount;

@@ -417,7 +417,14 @@ void FMaterialInstanceParameterDetails::CreateSingleGroupWidget(FEditorParameter
 			{
 				CreateLabeledTextureParameterValueWidget(Parameter, ParameterProperty, DetailGroup);
 			}
-			else if (ScalarParam || SwitchParam || TextureParam || RuntimeVirtualTextureParam || VectorParam || FontParam)
+			else if (LayersParam)
+			{
+			}
+			else if (CompMaskParam)
+			{
+				CreateMaskParameterValueWidget(Parameter, ParameterProperty, DetailGroup);
+			}
+			else
 			{
 				if (ScalarParam && ScalarParam->SliderMax > ScalarParam->SliderMin)
 				{
@@ -451,18 +458,6 @@ void FMaterialInstanceParameterDetails::CreateSingleGroupWidget(FEditorParameter
 				}
 
 				CreateParameterValueWidget(Parameter, ParameterProperty, DetailGroup);
-			}
-			else if (LayersParam)
-			{
-			}
-			else if (CompMaskParam)
-			{
-				CreateMaskParameterValueWidget(Parameter, ParameterProperty, DetailGroup);
-			}
-			else
-			{
-				// Unsupported parameter type
-				check(false);
 			}
 		}
 	}

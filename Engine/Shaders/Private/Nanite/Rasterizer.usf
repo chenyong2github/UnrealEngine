@@ -415,11 +415,10 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 {
 	VSOut Out;
 
-	float4x4 LocalToWorld = InstanceData.LocalToWorld;
-
+	float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
 	float3 PointLocal = DecodePosition( VertIndex, Cluster );
-	float3 PointRotated = LocalToWorld[0].xyz * PointLocal.xxx + LocalToWorld[1].xyz * PointLocal.yyy + LocalToWorld[2].xyz * PointLocal.zzz;
-	float3 PointTranslatedWorld = PointRotated + (LocalToWorld[3].xyz + NaniteView.PreViewTranslation.xyz);
+	float3 PointRotated = LocalToTranslatedWorld[0].xyz * PointLocal.xxx + LocalToTranslatedWorld[1].xyz * PointLocal.yyy + LocalToTranslatedWorld[2].xyz * PointLocal.zzz;
+	float3 PointTranslatedWorld = PointRotated + LocalToTranslatedWorld[3].xyz;
 	float4 PointClip = mul( float4( PointTranslatedWorld, 1 ), NaniteView.TranslatedWorldToClip );
 	PointClipNoScaling = PointClip;
 #if CLUSTER_PER_PAGE

@@ -370,7 +370,8 @@ public:
 	/** Accesses parameters needed for rendering the light. */
 	virtual void GetLightShaderParameters(FLightShaderParameters& LightParameters) const override
 	{
-		LightParameters.Position = FVector::ZeroVector;
+		LightParameters.Position = FVector3f::ZeroVector;
+		LightParameters.TilePosition = FVector3f::ZeroVector;
 		LightParameters.InvRadius = 0.0f;
 		LightParameters.FalloffExponent = 0.0f;
 

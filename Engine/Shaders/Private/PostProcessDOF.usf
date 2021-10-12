@@ -125,7 +125,7 @@ void SetupPS(
 	// and put into MRT0 or MRT1
 	
 	// can be optimized, needed to not blur the skybox
-	float3 ScreenVector = normalize(mul(float4(ScreenSpacePos, 1, 0), View.ScreenToWorld).xyz);
+	float3 ScreenVector = normalize(mul(float3(ScreenSpacePos, 1), LWCToFloat3x3(PrimaryView.ScreenToWorld)).xyz);
 	float SkyWithoutHorizonMask = saturate(ScreenVector.z * 3.0f);
 
 	// 0:see though..1:Near blurred

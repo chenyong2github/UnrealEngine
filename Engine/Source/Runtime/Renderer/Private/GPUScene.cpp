@@ -278,11 +278,14 @@ struct FUploadDataSourceAdapterScenePrimitives
 		{
 			FPrimitiveSceneProxy* PrimitiveSceneProxy = Scene.PrimitiveSceneProxies[PrimitiveID];
 			const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
+			
+			const FMatrix LocalToWorld = PrimitiveSceneProxy->GetLocalToWorld();
+			const FLargeWorldRenderPosition AbsoluteOrigin(LocalToWorld.GetOrigin());
 
 			InstanceUploadInfo.InstanceSceneDataOffset = PrimitiveSceneInfo->GetInstanceSceneDataOffset();
 			InstanceUploadInfo.LastUpdateSceneFrameNumber = SceneFrameNumber;
 			InstanceUploadInfo.PrimitiveID = PrimitiveID;
-			InstanceUploadInfo.PrimitiveToWorld = PrimitiveSceneProxy->GetLocalToWorld();
+			InstanceUploadInfo.PrimitiveToWorld = AbsoluteOrigin.MakeToRelativeWorldMatrix(LocalToWorld);
 
 			{
 				bool bHasPrecomputedVolumetricLightmap{};
@@ -291,7 +294,7 @@ struct FUploadDataSourceAdapterScenePrimitives
 
 				FMatrix PreviousLocalToWorld;
 				Scene.GetPrimitiveUniformShaderParameters_RenderThread(PrimitiveSceneInfo, bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex, bOutputVelocity);
-				InstanceUploadInfo.PrevPrimitiveToWorld = PreviousLocalToWorld;
+				InstanceUploadInfo.PrevPrimitiveToWorld = AbsoluteOrigin.MakeClampedToRelativeWorldMatrix(PreviousLocalToWorld);
 			}
 
 			bool bPerformUpload = true;
@@ -483,7 +486,7 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 						const FPrimitiveSceneShaderData& Item = PrimitiveBufferPtr[Index + IndexOffset];
 						for (int32 DataIndex = 0; DataIndex < FPrimitiveSceneShaderData::DataStrideInFloat4s; ++DataIndex)
 						{
-							check(PrimitiveSceneData.Data[DataIndex] == Item.Data[DataIndex]);
+							check(FMemory::Memcmp(&PrimitiveSceneData.Data[DataIndex], &Item.Data[DataIndex], sizeof(FVector4)) == 0);
 						}
 					}
 				}
@@ -1348,7 +1351,7 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 		{
 			const FPrimitiveUniformShaderParameters& PrimitiveData = PrimitiveShaderData[ItemIndex];
 			InstanceUploadInfo.PrimitiveID = PrimitiveIDStartOffset + ItemIndex;
-			InstanceUploadInfo.PrimitiveToWorld = PrimitiveData.LocalToWorld;
+			InstanceUploadInfo.PrimitiveToWorld = PrimitiveData.LocalToRelativeWorld;
 			InstanceUploadInfo.PrevPrimitiveToWorld = InstanceUploadInfo.PrimitiveToWorld;
 			
 			InstanceUploadInfo.DummyInstance.LocalToPrimitive.SetIdentity();
@@ -1910,7 +1913,7 @@ void FGPUScene::AddUpdatePrimitiveIdsPass(FRDGBuilder& GraphBuilder, FInstanceGP
 
 void FGPUSceneCompactInstanceData::Init(const FGPUScenePrimitiveCollector* PrimitiveCollector, int32 PrimitiveId)
 {
-	FMatrix44f LocalToWorld = FMatrix44f::Identity;
+	FMatrix44f LocalToRelativeWorld = FMatrix44f::Identity;
 	int32 DynamicPrimitiveId = PrimitiveId;
 	if (PrimitiveCollector && PrimitiveCollector->UploadData && !PrimitiveCollector->GetPrimitiveIdRange().IsEmpty())
 	{
@@ -1918,28 +1921,30 @@ void FGPUSceneCompactInstanceData::Init(const FGPUScenePrimitiveCollector* Primi
 		if (PrimitiveCollector->GetPrimitiveIdRange().Contains(DynamicPrimitiveId))
 		{
 			const FPrimitiveUniformShaderParameters& PrimitiveData = PrimitiveCollector->UploadData->PrimitiveShaderData[PrimitiveId];
-			LocalToWorld = PrimitiveData.LocalToWorld;
+			LocalToRelativeWorld = PrimitiveData.LocalToRelativeWorld;
 		}
 	}
-	InstanceOriginAndId		= LocalToWorld.GetOrigin();
-	InstanceTransform1		= LocalToWorld.GetScaledAxis(EAxis::X);
-	InstanceTransform2		= LocalToWorld.GetScaledAxis(EAxis::Y);
-	InstanceTransform3		= LocalToWorld.GetScaledAxis(EAxis::Z);
+	InstanceOriginAndId		= LocalToRelativeWorld.GetOrigin();
+	InstanceTransform1		= LocalToRelativeWorld.GetScaledAxis(EAxis::X);
+	InstanceTransform2		= LocalToRelativeWorld.GetScaledAxis(EAxis::Y);
+	InstanceTransform3		= LocalToRelativeWorld.GetScaledAxis(EAxis::Z);
 	InstanceOriginAndId.W	= *(float*)&DynamicPrimitiveId;
 	InstanceAuxData			= FVector4f(0);
 }
 
 void FGPUSceneCompactInstanceData::Init(const FScene* Scene, int32 PrimitiveId)
 {
-	FMatrix44f LocalToWorld = FMatrix44f::Identity;
+	FMatrix44f LocalToRelativeWorld = FMatrix44f::Identity;
 	if (Scene && PrimitiveId >= 0 && PrimitiveId < Scene->PrimitiveTransforms.Num())
 	{
-		LocalToWorld = Scene->PrimitiveTransforms[PrimitiveId];
+		const FMatrix LocalToWorld = Scene->PrimitiveTransforms[PrimitiveId];
+		const FLargeWorldRenderPosition AbsoluteOrigin(LocalToWorld.GetOrigin());
+		LocalToRelativeWorld = AbsoluteOrigin.MakeToRelativeWorldMatrix(LocalToWorld);
 	}
-	InstanceOriginAndId		= LocalToWorld.GetOrigin();
-	InstanceTransform1		= LocalToWorld.GetScaledAxis(EAxis::X);
-	InstanceTransform2		= LocalToWorld.GetScaledAxis(EAxis::Y);
-	InstanceTransform3		= LocalToWorld.GetScaledAxis(EAxis::Z);
+	InstanceOriginAndId		= LocalToRelativeWorld.GetOrigin();
+	InstanceTransform1		= LocalToRelativeWorld.GetScaledAxis(EAxis::X);
+	InstanceTransform2		= LocalToRelativeWorld.GetScaledAxis(EAxis::Y);
+	InstanceTransform3		= LocalToRelativeWorld.GetScaledAxis(EAxis::Z);
 	InstanceOriginAndId.W	= *(float*)&PrimitiveId;
 	InstanceAuxData			= FVector4f(0);
 }

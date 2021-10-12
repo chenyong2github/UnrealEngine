@@ -517,6 +517,7 @@ FVector4 URuntimeVirtualTexture::GetUniformParameter(int32 Index) const
 void URuntimeVirtualTexture::Initialize(IVirtualTexture* InProducer, FVTProducerDescription const& InProducerDesc, FTransform const& InVolumeToWorld, FBox const& InWorldBounds)
 {
 	//todo[vt]: possible issues with precision in large worlds here it might be better to calculate/upload camera space relative transform per frame?
+	// LWC_TODO: If we don't update this to use translated world space, will need to update this to store a FLWCVector3 for translation (and update VirtualTextureWorldToUV to match)
 	WorldToUVTransformParameters[0] = InVolumeToWorld.GetTranslation();
 	WorldToUVTransformParameters[1] = InVolumeToWorld.GetUnitAxis(EAxis::X) * 1.f / InVolumeToWorld.GetScale3D().X;
 	WorldToUVTransformParameters[2] = InVolumeToWorld.GetUnitAxis(EAxis::Y) * 1.f / InVolumeToWorld.GetScale3D().Y;

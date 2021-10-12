@@ -4137,9 +4137,9 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 		FVector4f InstancingViewZCompareOne(MIN_flt, MIN_flt, MAX_flt, 0.0f);
 		FVector4f InstancingViewZConstant(ForceInit);
 		FVector4f InstancingOffset(ForceInit);
-		FVector4f InstancingWorldViewOriginZero(ForceInit);
-		FVector4f InstancingWorldViewOriginOne(ForceInit);
-		InstancingWorldViewOriginOne.W = 1.0f;
+		FVector4f InstancingTranslatedWorldViewOriginZero(ForceInit);
+		FVector4f InstancingTranslatedWorldViewOriginOne(ForceInit);
+		InstancingTranslatedWorldViewOriginOne.W = 1.0f;
 		if (InstancingUserData && BatchElement.InstancedLODRange)
 		{
 			int32 FirstLOD = InstancingUserData->MinLOD;
@@ -4218,12 +4218,14 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 			}
 
 			InstancingOffset = InstancingUserData->InstancingOffset;
-			InstancingWorldViewOriginZero = View->GetTemporalLODOrigin(0);
-			InstancingWorldViewOriginOne = View->GetTemporalLODOrigin(1);
+
+			const FVector PreViewTranslation = View->ViewMatrices.GetPreViewTranslation();
+			InstancingTranslatedWorldViewOriginZero = View->GetTemporalLODOrigin(0) + PreViewTranslation;
+			InstancingTranslatedWorldViewOriginOne = View->GetTemporalLODOrigin(1) + PreViewTranslation;
 
 			float Alpha = View->GetTemporalLODTransition();
-			InstancingWorldViewOriginZero.W = 1.0f - Alpha;
-			InstancingWorldViewOriginOne.W = Alpha;
+			InstancingTranslatedWorldViewOriginZero.W = 1.0f - Alpha;
+			InstancingTranslatedWorldViewOriginOne.W = Alpha;
 
 			InstancingViewZCompareZero.W = LODRandom;
 		}
@@ -4232,8 +4234,8 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 		ShaderBindings.Add(InstancingViewZCompareOneParameter, InstancingViewZCompareOne);
 		ShaderBindings.Add(InstancingViewZConstantParameter, InstancingViewZConstant);
 		ShaderBindings.Add(InstancingOffsetParameter, InstancingOffset);
-		ShaderBindings.Add(InstancingWorldViewOriginZeroParameter, InstancingWorldViewOriginZero);
-		ShaderBindings.Add(InstancingWorldViewOriginOneParameter, InstancingWorldViewOriginOne);
+		ShaderBindings.Add(InstancingWorldViewOriginZeroParameter, InstancingTranslatedWorldViewOriginZero);
+		ShaderBindings.Add(InstancingWorldViewOriginOneParameter, InstancingTranslatedWorldViewOriginOne);
 	}
 
 	if( InstancingFadeOutParamsParameter.IsBound() )

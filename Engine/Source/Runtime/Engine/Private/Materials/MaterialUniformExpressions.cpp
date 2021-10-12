@@ -18,6 +18,50 @@
 #include "VirtualTexturing.h"
 #include "VT/RuntimeVirtualTexture.h"
 
+void WriteMaterialUniformAccess(UE::Shader::EValueComponentType ComponentType, uint32 NumComponents, uint32 UniformOffset, FStringBuilderBase& OutResult)
+{
+	static const TCHAR IndexToMask[] = TEXT("xyzw");
+	uint32 RegisterIndex = UniformOffset / 4;
+	uint32 RegisterOffset = UniformOffset % 4;
+	uint32 NumComponentsToWrite = NumComponents;
+	bool bConstructor = false;
+
+	check(ComponentType == UE::Shader::EValueComponentType::Float); // TODO - other types
+
+	while (NumComponentsToWrite > 0u)
+	{
+		const uint32 NumComponentsInRegister = FMath::Min(NumComponentsToWrite, 4u - RegisterOffset);
+		if (NumComponentsInRegister < NumComponents && !bConstructor)
+		{
+			// Uniform will be split across multiple registers, so add the constructor to concat them together
+			OutResult.Appendf(TEXT("float%d("), NumComponents);
+			bConstructor = true;
+		}
+
+		OutResult.Appendf(TEXT("Material.PreshaderBuffer[%u]"), RegisterIndex);
+		// Can skip writing mask if we're taking all 4 components from the register
+		if (NumComponentsInRegister < 4u)
+		{
+			OutResult.Append(TCHAR('.'));
+			for (uint32 i = 0u; i < NumComponentsInRegister; ++i)
+			{
+				OutResult.Append(IndexToMask[RegisterOffset + i]);
+			}
+		}
+		NumComponentsToWrite -= NumComponentsInRegister;
+		RegisterIndex++;
+		RegisterOffset = 0u;
+		if (NumComponentsToWrite > 0u)
+		{
+			OutResult.Append(TEXT(", "));
+		}
+	}
+	if (bConstructor)
+	{
+		OutResult.Append(TEXT(")"));
+	}
+}
+
 TLinkedList<FMaterialUniformExpressionType*>*& FMaterialUniformExpressionType::GetTypeList()
 {
 	static TLinkedList<FMaterialUniformExpressionType*>* TypeList = NULL;
@@ -222,8 +266,7 @@ bool FUniformExpressionSet::IsEmpty() const
 	}
 
 	return UniformNumericParameters.Num() == 0
-		&& UniformVectorPreshaders.Num() == 0
-		&& UniformScalarPreshaders.Num() == 0
+		&& UniformPreshaders.Num() == 0
 		&& UniformExternalTextureParameters.Num() == 0
 		&& VTStacks.Num() == 0
 		&& ParameterCollections.Num() == 0;
@@ -240,8 +283,7 @@ bool FUniformExpressionSet::operator==(const FUniformExpressionSet& ReferenceSet
 	}
 
 	if (UniformNumericParameters.Num() != ReferenceSet.UniformNumericParameters.Num()
-		|| UniformScalarPreshaders.Num() != ReferenceSet.UniformScalarPreshaders.Num()
-		|| UniformVectorPreshaders.Num() != ReferenceSet.UniformVectorPreshaders.Num()
+		|| UniformPreshaders.Num() != ReferenceSet.UniformPreshaders.Num()
 		|| UniformExternalTextureParameters.Num() != ReferenceSet.UniformExternalTextureParameters.Num()
 		|| VTStacks.Num() != ReferenceSet.VTStacks.Num()
 		|| ParameterCollections.Num() != ReferenceSet.ParameterCollections.Num())
@@ -257,17 +299,9 @@ bool FUniformExpressionSet::operator==(const FUniformExpressionSet& ReferenceSet
 		}
 	}
 
-	for (int32 i = 0; i < UniformScalarPreshaders.Num(); i++)
+	for (int32 i = 0; i < UniformPreshaders.Num(); i++)
 	{
-		if (UniformScalarPreshaders[i] != ReferenceSet.UniformScalarPreshaders[i])
-		{
-			return false;
-		}
-	}
-
-	for (int32 i = 0; i < UniformVectorPreshaders.Num(); i++)
-	{
-		if (UniformVectorPreshaders[i] != ReferenceSet.UniformVectorPreshaders[i])
+		if (UniformPreshaders[i] != ReferenceSet.UniformPreshaders[i])
 		{
 			return false;
 		}
@@ -318,9 +352,8 @@ bool FUniformExpressionSet::operator==(const FUniformExpressionSet& ReferenceSet
 
 FString FUniformExpressionSet::GetSummaryString() const
 {
-	return FString::Printf(TEXT("(%u vectors, %u scalars, %u 2d tex, %u cube tex, %u 2darray tex, %u cubearray tex, %u 3d tex, %u virtual tex, %u external tex, %u VT stacks, %u collections)"),
-		UniformVectorPreshaders.Num(), 
-		UniformScalarPreshaders.Num(),
+	return FString::Printf(TEXT("(%u preshaders, %u 2d tex, %u cube tex, %u 2darray tex, %u cubearray tex, %u 3d tex, %u virtual tex, %u external tex, %u VT stacks, %u collections)"),
+		UniformPreshaders.Num(),
 		UniformTextureParameters[(uint32)EMaterialTextureParameterType::Standard2D].Num(),
 		UniformTextureParameters[(uint32)EMaterialTextureParameterType::Cube].Num(),
 		UniformTextureParameters[(uint32)EMaterialTextureParameterType::Array2D].Num(),
@@ -364,18 +397,10 @@ FShaderParametersMetadata* FUniformExpressionSet::CreateBufferStruct()
 		NextMemberOffset += NumVirtualTextures * sizeof(FUintVector4);
 	}
 
-	if (UniformVectorPreshaders.Num())
+	if (UniformPreshaderBufferSize > 0u)
 	{
-		new(Members) FShaderParametersMetadata::FMember(TEXT("VectorExpressions"),TEXT(""),__LINE__,NextMemberOffset,UBMT_FLOAT32,EShaderPrecisionModifier::Half,1,4, UniformVectorPreshaders.Num(),NULL);
-		const uint32 VectorArraySize = UniformVectorPreshaders.Num() * sizeof(FVector4f);
-		NextMemberOffset += VectorArraySize;
-	}
-
-	if (UniformScalarPreshaders.Num())
-	{
-		new(Members) FShaderParametersMetadata::FMember(TEXT("ScalarExpressions"),TEXT(""),__LINE__,NextMemberOffset,UBMT_FLOAT32,EShaderPrecisionModifier::Half,1,4,(UniformScalarPreshaders.Num() + 3) / 4,NULL);
-		const uint32 ScalarArraySize = (UniformScalarPreshaders.Num() + 3) / 4 * sizeof(FVector4f);
-		NextMemberOffset += ScalarArraySize;
+		new(Members) FShaderParametersMetadata::FMember(TEXT("PreshaderBuffer"),TEXT(""),__LINE__,NextMemberOffset,UBMT_FLOAT32,EShaderPrecisionModifier::Half,1,4, UniformPreshaderBufferSize,NULL);
+		NextMemberOffset += UniformPreshaderBufferSize * sizeof(FVector4f);
 	}
 
 	check((NextMemberOffset % (2 * SHADER_PARAMETER_POINTER_ALIGNMENT)) == 0);
@@ -725,40 +750,47 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			}
 		}
 
-		// Dump vector expression into the buffer.
+		// Dump preshader results into buffer.
+		float* PreshaderBuffer = (float*)BufferCursor;
 		UE::Shader::FPreshaderStack PreshaderStack;
 		UE::Shader::FPreshaderDataContext PreshaderBaseContext(UniformPreshaderData);
-		for(int32 VectorIndex = 0;VectorIndex < UniformVectorPreshaders.Num();++VectorIndex)
+		for (const FMaterialUniformPreshaderHeader& Preshader : UniformPreshaders)
 		{
-			UE::Shader::FValue VectorValue(0.0f, 0.0f, 0.0f, 0.0f);
-
-			const FMaterialUniformPreshaderHeader& Preshader = UniformVectorPreshaders[VectorIndex];
+			UE::Shader::FValue Result;
 			UE::Shader::FPreshaderDataContext PreshaderContext(PreshaderBaseContext, Preshader.OpcodeOffset, Preshader.OpcodeSize);
-			UE::Shader::EvaluatePreshader(this, MaterialRenderContext, PreshaderStack, PreshaderContext, VectorValue);
-	
-			FLinearColor* DestAddress = (FLinearColor*)BufferCursor;
-			*DestAddress = VectorValue.AsLinearColor();
-			BufferCursor = DestAddress + 1;
-			check(BufferCursor <= TempBuffer + TempBufferSize);
-		}
+			UE::Shader::EvaluatePreshader(this, MaterialRenderContext, PreshaderStack, PreshaderContext, Result);
 
-		// Dump scalar expression into the buffer.
-		for(int32 ScalarIndex = 0;ScalarIndex < UniformScalarPreshaders.Num();++ScalarIndex)
-		{
-			UE::Shader::FValue VectorValue(0.0f, 0.0f, 0.0f, 0.0f);
-
-			const FMaterialUniformPreshaderHeader& Preshader = UniformScalarPreshaders[ScalarIndex];
-			UE::Shader::FPreshaderDataContext PreshaderContext(PreshaderBaseContext, Preshader.OpcodeOffset, Preshader.OpcodeSize);
-			UE::Shader::EvaluatePreshader(this, MaterialRenderContext, PreshaderStack, PreshaderContext, VectorValue);
-
-			float* DestAddress = (float*)BufferCursor;
-			*DestAddress = VectorValue.AsFloat().Component[0];
-			BufferCursor = DestAddress + 1;
-			check(BufferCursor <= TempBuffer + TempBufferSize);
+			float* DestAddress = PreshaderBuffer + Preshader.BufferOffset;
+			if(Preshader.ComponentType == UE::Shader::EValueComponentType::Float)
+			{
+				const UE::Shader::FFloatValue FloatValue = Result.AsFloat();
+				for (uint32 i = 0u; i < Preshader.NumComponents; ++i)
+				{
+					*DestAddress++ = FloatValue[i];
+				}
+			}
+			else if (Preshader.ComponentType == UE::Shader::EValueComponentType::Double)
+			{
+				const UE::Shader::FDoubleValue DoubleValue = Result.AsDouble();
+				float TileValue[4];
+				float OffsetValue[4];
+				for (uint32 i = 0u; i < Preshader.NumComponents; ++i)
+				{
+					const FLargeWorldRenderScalar Value(DoubleValue[i]);
+					TileValue[i] = Value.GetTile();
+					OffsetValue[i] = Value.GetOffset();
+				}
+				for (uint32 i = 0u; i < Preshader.NumComponents; ++i) *DestAddress++ = TileValue[i];
+				for (uint32 i = 0u; i < Preshader.NumComponents; ++i) *DestAddress++ = OffsetValue[i];
+			}
+			else
+			{
+				ensure(false);
+			}
 		}
 
 		// Offsets the cursor to next first resource.
-		BufferCursor = ((float*)BufferCursor) + ((4 - UniformScalarPreshaders.Num() % 4) % 4);
+		BufferCursor = PreshaderBuffer + UniformPreshaderBufferSize * 4;
 		check(BufferCursor <= TempBuffer + TempBufferSize);
 
 #if DO_CHECK
@@ -1457,6 +1489,7 @@ class FMaterialUniformExpressionRuntimeVirtualTextureParameter_DEPRECATED : publ
 
 IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionTexture);
 IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionConstant);
+IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionGenericConstant);
 IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionNumericParameter);
 IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionTextureParameter);
 IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionExternalTextureBase);
@@ -1468,7 +1501,9 @@ IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionRuntimeVirtua
 IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionFlipBookTextureParameter);
 IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionSine);
 IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionSquareRoot);
+IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionRcp);
 IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionLength);
+IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionNormalize);
 IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionLogarithm2);
 IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionLogarithm10);
 IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionFoldedMath);

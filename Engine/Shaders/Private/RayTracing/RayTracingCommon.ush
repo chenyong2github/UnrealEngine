@@ -362,7 +362,7 @@ RayDesc CreatePrimaryRay(float2 UV)
 	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 
 	RayDesc Ray;
-	float4 O = mul(float4(ScreenPosition, 1, 1), View.ClipToWorld); // near (world space)
+	float4 O = mul(float4(ScreenPosition, 1, 1), LWCHackToFloat(PrimaryView.ClipToWorld)); // near (world space)
 	float4 A = mul(float4(ScreenPosition, 1, 1), View.ClipToTranslatedWorld); // near 
 	float4 B = mul(float4(ScreenPosition, 0, 1), View.ClipToTranslatedWorld); // far
 	Ray.Origin = O.xyz / O.w;

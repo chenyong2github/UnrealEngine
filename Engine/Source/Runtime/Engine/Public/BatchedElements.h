@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 #include "Templates/RefCounting.h"
+#include "Misc/LargeWorldRenderPosition.h"
 #include "RHI.h"
 #include "RenderResource.h"
 #include "HitProxies.h"
@@ -18,6 +19,7 @@
 
 struct FBatchedPoint;
 struct FMeshPassProcessorRenderState;
+struct FRelativeViewMatrices;
 
 namespace EBlendModeFilter
 {
@@ -33,19 +35,52 @@ namespace EBlendModeFilter
 /** The type used to store batched line vertices. */
 struct FSimpleElementVertex
 {
-	FVector4f Position;
+	// Store LWC-scale positions per-vertex
+	// Could potentially optimize this by storing a global batch offset, along with relative position per-vertex, but this would be more complicated
+	// Could also pack this structure to save some space, W component of position is currently unused for example
+	FVector4f RelativePosition;
+	FVector4f TilePosition;
 	FVector2D TextureCoordinate;
 	FLinearColor Color;
 	FColor HitProxyIdColor;
 
 	FSimpleElementVertex() {}
 
-	FSimpleElementVertex(const FVector4& InPosition,const FVector2D& InTextureCoordinate,const FLinearColor& InColor,FHitProxyId InHitProxyId):
-		Position((FVector4f)InPosition),	// LWC_TODO: Precision loss
+	FSimpleElementVertex(const FVector4f& InPosition, const FVector2D& InTextureCoordinate, const FLinearColor& InColor, FHitProxyId InHitProxyId) :
+		RelativePosition(InPosition),
+		TilePosition(ForceInitToZero),
 		TextureCoordinate(InTextureCoordinate),
 		Color(InColor),
 		HitProxyIdColor(InHitProxyId.GetColor())
 	{}
+
+	FSimpleElementVertex(const FVector3f& InPosition, const FVector2D& InTextureCoordinate, const FLinearColor& InColor, FHitProxyId InHitProxyId) :
+		RelativePosition(InPosition),
+		TilePosition(ForceInitToZero),
+		TextureCoordinate(InTextureCoordinate),
+		Color(InColor),
+		HitProxyIdColor(InHitProxyId.GetColor())
+	{}
+
+	FSimpleElementVertex(const FVector4d& InPosition, const FVector2D& InTextureCoordinate, const FLinearColor& InColor, FHitProxyId InHitProxyId) :
+		TextureCoordinate(InTextureCoordinate),
+		Color(InColor),
+		HitProxyIdColor(InHitProxyId.GetColor())
+	{
+		const FLargeWorldRenderPosition AbsolutePosition(InPosition);
+		RelativePosition = FVector4f(AbsolutePosition.GetOffset(), (float)InPosition.W); // Don't bother with LWC W-component
+		TilePosition = FVector4f(AbsolutePosition.GetTile(), 0.0f);
+	}
+
+	FSimpleElementVertex(const FVector3d& InPosition, const FVector2D& InTextureCoordinate, const FLinearColor& InColor, FHitProxyId InHitProxyId) :
+		TextureCoordinate(InTextureCoordinate),
+		Color(InColor),
+		HitProxyIdColor(InHitProxyId.GetColor())
+	{
+		const FLargeWorldRenderPosition AbsolutePosition(InPosition);
+		RelativePosition = FVector4f(AbsolutePosition.GetOffset(), 1.0f);
+		TilePosition = FVector4f(AbsolutePosition.GetTile(), 0.0f);
+	}
 };
 
 /**
@@ -64,10 +99,11 @@ public:
 	{
 		FVertexDeclarationElementList Elements;
 		uint16 Stride = sizeof(FSimpleElementVertex);
-		Elements.Add(FVertexElement(0,STRUCT_OFFSET(FSimpleElementVertex,Position),VET_Float4,0,Stride));
-		Elements.Add(FVertexElement(0,STRUCT_OFFSET(FSimpleElementVertex,TextureCoordinate),VET_Float2,1,Stride));
-		Elements.Add(FVertexElement(0,STRUCT_OFFSET(FSimpleElementVertex,Color),VET_Float4,2,Stride));
-		Elements.Add(FVertexElement(0,STRUCT_OFFSET(FSimpleElementVertex,HitProxyIdColor),VET_Color,3,Stride));
+		Elements.Add(FVertexElement(0,STRUCT_OFFSET(FSimpleElementVertex, RelativePosition),VET_Float4,0,Stride));
+		Elements.Add(FVertexElement(0,STRUCT_OFFSET(FSimpleElementVertex, TilePosition),VET_Float4,1,Stride));
+		Elements.Add(FVertexElement(0,STRUCT_OFFSET(FSimpleElementVertex,TextureCoordinate),VET_Float2,2,Stride));
+		Elements.Add(FVertexElement(0,STRUCT_OFFSET(FSimpleElementVertex,Color),VET_Float4,3,Stride));
+		Elements.Add(FVertexElement(0,STRUCT_OFFSET(FSimpleElementVertex,HitProxyIdColor),VET_Color,4,Stride));
 		VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
 	}
 
@@ -90,6 +126,7 @@ class FBatchedElementParameters
 public:
 
 	/** Binds vertex and pixel shaders for this element */
+	// LWC_TODO - InTransform should be a FMatrix44f, and/or should extend this with a method that takes FRelativeViewMatrices, to allow LWC-aware rendering with customized shaders
 	virtual void BindShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, ERHIFeatureLevel::Type InFeatureLevel, const FMatrix& InTransform, const float InGamma, const FMatrix& ColorWeights, const FTexture* Texture) = 0;
 
 };
@@ -367,7 +404,7 @@ private:
 		uint32 StencilRef,
 		ERHIFeatureLevel::Type FeatureLevel,
 		ESimpleElementBlendMode BlendMode,
-		const FMatrix& Transform,
+		const FRelativeViewMatrices& ViewMatrices,
 		bool bSwitchVerticalAxis,
 		FBatchedElementParameters* BatchedElementParameters,
 		const FTexture* Texture,

@@ -1422,7 +1422,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		FVector SkyWorldCameraOrigin;
 		FMatrix SkyViewLutReferential;
 		FVector4 TempSkyPlanetData;
-		AtmosphereSetup.ComputeViewData(ViewUniformShaderParameters.WorldCameraOrigin, ViewUniformShaderParameters.ViewForward, ViewUniformShaderParameters.ViewRight,
+		AtmosphereSetup.ComputeViewData(InViewMatrices.GetViewOrigin(), ViewUniformShaderParameters.ViewForward, ViewUniformShaderParameters.ViewRight,
 			SkyWorldCameraOrigin, TempSkyPlanetData, SkyViewLutReferential);
 		// LWC_TODO: Precision loss
 		ViewUniformShaderParameters.SkyPlanetCenterAndViewHeight = FVector4f(TempSkyPlanetData);
@@ -1444,7 +1444,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		ViewUniformShaderParameters.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKm = 1.0f;
 		ViewUniformShaderParameters.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKmInv = 1.0f;
 		ViewUniformShaderParameters.SkyAtmosphereApplyCameraAerialPerspectiveVolume = 0.0f;
-		ViewUniformShaderParameters.SkyWorldCameraOrigin = ViewUniformShaderParameters.WorldCameraOrigin;
+		ViewUniformShaderParameters.SkyWorldCameraOrigin = ViewUniformShaderParameters.RelativeWorldCameraOrigin;
 		ViewUniformShaderParameters.SkyPlanetCenterAndViewHeight = FVector4f(ForceInitToZero);
 		ViewUniformShaderParameters.SkyViewLutReferential = FMatrix44f::Identity;
 

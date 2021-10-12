@@ -136,11 +136,11 @@ void VisualizeMeshDistanceFieldCS(
 	float2 ScreenPosition = (ScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 
 	float SceneDepth = CalcSceneDepth(ScreenUV);
-	float3 OpaqueWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
+	float3 TranslatedWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 
 	float TraceDistance = 100000.0f;
-	float3 WorldRayStart = View.WorldCameraOrigin;
-	float3 WorldRayDirection = normalize(OpaqueWorldPosition - View.WorldCameraOrigin);
+	float3 WorldRayStart = LWCHackToFloat(PrimaryView.WorldCameraOrigin);
+	float3 WorldRayDirection = normalize(TranslatedWorldPosition - View.TranslatedWorldCameraOrigin);
 
 #if USE_GLOBAL_DISTANCE_FIELD
 
@@ -179,7 +179,7 @@ void VisualizeMeshDistanceFieldCS(
 		TileConeAxis = mul(ViewSpaceTileConeAxis, (float3x3)View.ViewToTranslatedWorld);
 		TileConeAngleCos = min(min(dot(ViewSpaceTileConeAxis, TileCorner00), dot(ViewSpaceTileConeAxis, TileCorner10)), min(dot(ViewSpaceTileConeAxis, TileCorner01), dot(ViewSpaceTileConeAxis, TileCorner11)));
 		TileConeAngleSin = sqrt(1 - TileConeAngleCos * TileConeAngleCos);
-		TileConeVertex = View.WorldCameraOrigin;
+		TileConeVertex = LWCHackToFloat(PrimaryView.WorldCameraOrigin);
 	}
 
 	uint NumCulledObjects = GetCulledNumObjects();

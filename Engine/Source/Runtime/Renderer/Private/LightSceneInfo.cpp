@@ -9,6 +9,7 @@
 #include "SceneCore.h"
 #include "ScenePrivate.h"
 #include "DistanceFieldLightingShared.h"
+#include "Misc/LargeWorldRenderPosition.h"
 
 int32 GWholeSceneShadowUnbuiltInteractionThreshold = 500;
 static FAutoConsoleVariableRef CVarWholeSceneShadowUnbuiltInteractionThreshold(
@@ -264,7 +265,8 @@ void FLightSceneInfo::ConditionalUpdateMobileMovablePointLightUniformBuffer(cons
 	FVector4 SpotLightAnglesAndSoftTransitionScaleAndLightShadowType;
 	FVector4 SpotLightShadowSharpenAndShadowFadeFraction;
 	FVector4f SpotLightShadowmapMinMax;
-	FMatrix SpotLightWorldToShadowMatrix;
+	FVector4 LightTilePosition;
+	FMatrix44f SpotLightWorldToShadowMatrix;
 
 	bool bShouldBeRender = false;
 	bool bShouldCastShadow = false;
@@ -338,10 +340,15 @@ void FLightSceneInfo::ConditionalUpdateMobileMovablePointLightUniformBuffer(cons
 			}
 
 			SpotLightShadowSharpenAndShadowFadeFraction = FVector4(Proxy->GetShadowSharpen() * 7.0f + 1.0f, ShadowFadeFraction, ProjectedShadowInfo->GetShaderReceiverDepthBias(), 0.0f);
-			SpotLightWorldToShadowMatrix = ProjectedShadowInfo->GetWorldToShadowMatrix(SpotLightShadowmapMinMax);
+
+			const FMatrix WorldToShadowMatrix = ProjectedShadowInfo->GetWorldToShadowMatrix(SpotLightShadowmapMinMax);
+			const FLargeWorldRenderPosition AbsoluteWorldPosition(LightParameters.TilePosition, LightParameters.Position);
+
+			SpotLightWorldToShadowMatrix = FTranslationMatrix(AbsoluteWorldPosition.GetAbsolute()) * WorldToShadowMatrix;
 		}
 
 		LightPositionAndInvRadius = FVector4(LightParameters.Position, LightParameters.InvRadius);
+		LightTilePosition = FVector4(LightParameters.TilePosition, 0);
 		LightColorAndFalloffExponent = FVector4(LightParameters.Color, LightParameters.FalloffExponent);
 		SpotLightDirectionAndSpecularScale = FVector4(LightParameters.Direction.X, LightParameters.Direction.Y, LightParameters.Direction.Z, Proxy->GetSpecularScale());
 		SpotLightAnglesAndSoftTransitionScaleAndLightShadowType = FVector4(LightParameters.SpotAngles.X, LightParameters.SpotAngles.Y, SoftTransitionScale, LightShadowType);
@@ -365,6 +372,7 @@ void FLightSceneInfo::ConditionalUpdateMobileMovablePointLightUniformBuffer(cons
 		const FMobileMovablePointLightUniformShaderParameters MobileMovablePointLightUniformShaderParameters =
 			GetMovablePointLightUniformShaderParameters(
 				LightPositionAndInvRadius,
+				LightTilePosition,
 				LightColorAndFalloffExponent,
 				SpotLightDirectionAndSpecularScale,
 				SpotLightAnglesAndSoftTransitionScaleAndLightShadowType,

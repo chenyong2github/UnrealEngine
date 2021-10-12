@@ -74,7 +74,7 @@ void ScreenSpaceBentNormalCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 				bool bRayWasClipped;
 
 				FSSRTRay Ray = InitScreenSpaceRayFromWorldSpace(
-					WorldPosition + View.PreViewTranslation, RayDirection,
+					WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation), RayDirection,
 					/* WorldTMax = */ TraceDistance,
 					/* SceneDepth = */ SceneDepth,
 					/* SlopeCompareToleranceScale */ SlopeCompareToleranceScale * DepthThresholdScale,

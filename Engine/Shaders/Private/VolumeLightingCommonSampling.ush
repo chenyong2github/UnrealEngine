@@ -141,7 +141,7 @@ float ComputeVolumeShadowing(
 	// fade shadows in the distance
 	if (!bPointLight && !bSpotLight)
 	{
-		float Depth = dot(WorldPositionForLighting - View.WorldCameraOrigin, View.ViewForward);
+		float Depth = dot(WorldPositionForLighting - LWCHackToFloat(PrimaryView.WorldCameraOrigin), View.ViewForward);
 		float DistanceFade = saturate(Depth * VSSPREFIX(ShadowInjectParams).z + VSSPREFIX(ShadowInjectParams).w);
 		DynamicShadowFactor = lerp(DynamicShadowFactor, 1.0f, DistanceFade * DistanceFade);
 	}

@@ -114,7 +114,7 @@ void VoxelizeGS(triangle FVoxelizeVolumePrimitiveVSToGS Inputs[3], inout Triangl
 	uint PrimitiveId = VertexFactoryGetPrimitiveId(Inputs[0].FactoryInterpolants);
 	float3 LocalObjectBoundsMin = GetPrimitiveData(PrimitiveId).LocalObjectBoundsMin;
 	float3 LocalObjectBoundsMax = GetPrimitiveData(PrimitiveId).LocalObjectBoundsMax;
-	float4x4 LocalToWorld = GetPrimitiveData(PrimitiveId).LocalToWorld;
+	float4x4 LocalToWorld = LWCHackToFloat(GetPrimitiveData(PrimitiveId).LocalToWorld);
 
 	float QuadDepth = ViewSpacePrimitiveVolumeOrigin.z;
 
@@ -152,7 +152,7 @@ void VoxelizeGS(triangle FVoxelizeVolumePrimitiveVSToGS Inputs[3], inout Triangl
 			float3 BoxVertexMask = float3((BoxVertex >> 0) & 1, (BoxVertex >> 1) & 1, (BoxVertex >> 2) & 1);
 			float3 BoxVertexLocalPosition = LocalObjectBoundsMin + (LocalObjectBoundsMax - LocalObjectBoundsMin) * BoxVertexMask;
 			float3 BoxVertexPosition = mul(float4(BoxVertexLocalPosition, 1), LocalToWorld).xyz;
-			float3 ViewSpaceBoxVertex = mul(float4(BoxVertexPosition + ResolvedView.PreViewTranslation, 1), ResolvedView.TranslatedWorldToView).xyz;
+			float3 ViewSpaceBoxVertex = mul(float4(BoxVertexPosition + LWCHackToFloat(ResolvedView.PreViewTranslation), 1), ResolvedView.TranslatedWorldToView).xyz;
 			ViewSpaceBoundingBoxMin = min(ViewSpaceBoundingBoxMin, ViewSpaceBoxVertex.xy);
 			ViewSpaceBoundingBoxMax = max(ViewSpaceBoundingBoxMax, ViewSpaceBoxVertex.xy);
 		}
@@ -262,7 +262,7 @@ float ComputeVolumeShapeMasking(float3 WorldPosition, uint PrimitiveId, FVertexF
 #if VOXELIZE_SHAPE_MODE == PRIMITIVE_SPHERE_MODE
 
 	float4 PrimitiveVolumeBounds = VertexFactoryGetTranslatedPrimitiveVolumeBounds(FactoryInterpolants);
-	float3 ConnectingVector = PrimitiveVolumeBounds.xyz - ResolvedView.PreViewTranslation - WorldPosition;
+	float3 ConnectingVector = PrimitiveVolumeBounds.xyz - LWCHackToFloat(ResolvedView.PreViewTranslation) - WorldPosition;
 
 	FLATTEN
 	if (dot(ConnectingVector, ConnectingVector) > PrimitiveVolumeBounds.w * PrimitiveVolumeBounds.w)
@@ -274,9 +274,9 @@ float ComputeVolumeShapeMasking(float3 WorldPosition, uint PrimitiveId, FVertexF
 
 	float3 LocalObjectBoundsMin = GetPrimitiveData(PrimitiveId).LocalObjectBoundsMin;
 	float3 LocalObjectBoundsMax = GetPrimitiveData(PrimitiveId).LocalObjectBoundsMax;
-	float4x4 LocalToWorld = GetPrimitiveData(PrimitiveId).LocalToWorld;
+	float4x4 LocalToWorld = LWCHackToFloat(GetPrimitiveData(PrimitiveId).LocalToWorld);
 
-	float3 LocalPosition = mul(float4(WorldPosition, 1), GetPrimitiveData(PrimitiveId).WorldToLocal).xyz;
+	float3 LocalPosition = mul(float4(WorldPosition, 1), LWCHackToFloat(GetPrimitiveData(PrimitiveId).WorldToLocal)).xyz;
 
 	FLATTEN
 	if (any((LocalPosition < LocalObjectBoundsMin || LocalPosition > LocalObjectBoundsMax)))
@@ -310,7 +310,7 @@ void VoxelizePS(
 	const float NotShadowSample = 0.0f;
 	float4 ScreenPosition = SvPositionToResolvedScreenPosition(SvPosition);
 	float3 TranslatedWorldPosition = SvPositionToResolvedTranslatedWorld(SvPosition);
-	float3 AbsoluteWorldPosition = TranslatedWorldPosition.xyz - ResolvedView.PreViewTranslation.xyz;
+	float3 AbsoluteWorldPosition = TranslatedWorldPosition.xyz - LWCHackToFloat(ResolvedView.PreViewTranslation);
 	UpdateMaterialCloudParam(MaterialParameters, AbsoluteWorldPosition, ResolvedView, CloudLayerParams, NotShadowSample);
 #endif
 
@@ -331,7 +331,7 @@ void VoxelizePS(
 	float Scale = UnitScale * SliceFadeAlpha * SliceFadeAlpha * SliceFadeAlpha;
 
 	// Would be faster to branch around the whole material evaluation, but that would cause divergent flow control for gradient operations
-	Scale *= ComputeVolumeShapeMasking(MaterialParameters.AbsoluteWorldPosition, MaterialParameters.PrimitiveId, Interpolants.FactoryInterpolants);
+	Scale *= ComputeVolumeShapeMasking(LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition), MaterialParameters.PrimitiveId, Interpolants.FactoryInterpolants);
 
 	OutVBufferA = float4(Scattering * Scale, Absorption * Scale);
 	OutVBufferB = float4(EmissiveColor * Scale, 0);

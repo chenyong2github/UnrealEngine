@@ -122,6 +122,8 @@ public:
 	virtual float GetSurfaceHeight() const override { return GetSizeY(); }
 	virtual float GetSurfaceDepth() const override { return 0; }
 	virtual uint32 GetSurfaceArraySize() const override { return 0; }
+	virtual TextureAddress GetTextureAddressX() const override { return AddressX; }
+	virtual TextureAddress GetTextureAddressY() const override { return AddressY; }
 	virtual FTextureResource* CreateResource() override;
 	virtual EMaterialValueType GetMaterialType() const override;
 	virtual void UpdateResource() override;

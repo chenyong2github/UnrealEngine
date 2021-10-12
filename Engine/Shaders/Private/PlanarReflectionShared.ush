@@ -26,7 +26,7 @@ half4 ComputePlanarReflections(float3 WorldPosition, half3 WorldNormal, half Rou
 	if (FinalFade > 0)
 	{
 		// CameraToPixel in the main view is what we used as ReflectionVector when rendering the reflection pass to PlanarReflectionTexture
-		float3 CameraToPixel = normalize(WorldPosition - ResolvedView.WorldCameraOrigin);
+		float3 CameraToPixel = normalize(WorldPosition - LWCHackToFloat(ResolvedView.WorldCameraOrigin));
 		// Reflect the effective ReflectionVector in mirrored space to get the original camera vector
 		float3 MirroredCameraVector = reflect(CameraToPixel, -PlanarReflectionStruct.ReflectionPlane.xyz);
 		// Transform the GBuffer normal into mirrored space
@@ -38,7 +38,7 @@ half4 ComputePlanarReflections(float3 WorldPosition, half3 WorldNormal, half Rou
 		// As an approximation we are just intersecting with a user defined sphere
 		float3 VirtualReflectionSpherePosition = WorldPosition + MirroredReflectionVectorOffNormal * PlanarReflectionStruct.PlanarReflectionParameters.z;
 		// Transform the intersection position into view space
-		float3 ViewVirtualReflectionSpherePosition = mul(float4(VirtualReflectionSpherePosition + ResolvedView.PreViewTranslation.xyz, 1), ResolvedView.TranslatedWorldToView).xyz;
+		float3 ViewVirtualReflectionSpherePosition = mul(float4(VirtualReflectionSpherePosition + LWCHackToFloat(ResolvedView.PreViewTranslation), 1), ResolvedView.TranslatedWorldToView).xyz;
 		// Transform the intersection position into clip space using the same projection matrix used to render PlanarReflectionTexture
 		float4 ClipVirtualReflectionSpherePosition = mul(float4(ViewVirtualReflectionSpherePosition, 1), PlanarReflectionStruct.ProjectionWithExtraFOV[ResolvedView.StereoPassIndex]);
 

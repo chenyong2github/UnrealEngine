@@ -4,9 +4,11 @@
 	ReflectionEnvironmentComposite
 =============================================================================*/
 
-float3 CompositeReflectionCapturesAndSkylight(
+#include "LargeWorldCoordinates.ush"
+
+float3 CompositeReflectionCapturesAndSkylightTWS(
 	float CompositeAlpha, 
-	float3 WorldPosition, 
+	float3 TranslatedWorldPosition, 
 	float3 RayDirection, 
 	float Roughness, 
 	float IndirectIrradiance, 
@@ -54,16 +56,18 @@ float3 CompositeReflectionCapturesAndSkylight(
 	#endif
 #endif
 
+		FLWCVector3 CaptureWorldPosition = MakeLWCVector3(ReflectionCapture.TilePosition[CaptureIndex].xyz, ReflectionCapture.PositionAndRadius[CaptureIndex].xyz);
+		float3 CaptureTranslatedWorldPosition = LWCToFloat(LWCAdd(CaptureWorldPosition, PrimaryView.PreViewTranslation));
+		float CaptureRadius = ReflectionCapture.PositionAndRadius[CaptureIndex].w;
 			
-		float4 CapturePositionAndRadius = ReflectionCapture.PositionAndRadius[CaptureIndex];
 		float4 CaptureProperties = ReflectionCapture.CaptureProperties[CaptureIndex];
 
-		float3 CaptureVector = WorldPosition - CapturePositionAndRadius.xyz;
+		float3 CaptureVector = TranslatedWorldPosition - CaptureTranslatedWorldPosition;
 		float CaptureVectorLength = sqrt(dot(CaptureVector, CaptureVector));		
-		float NormalizedDistanceToCapture = saturate(CaptureVectorLength / CapturePositionAndRadius.w);
+		float NormalizedDistanceToCapture = saturate(CaptureVectorLength / CaptureRadius);
 
 		BRANCH
-		if (CaptureVectorLength < CapturePositionAndRadius.w)
+		if (CaptureVectorLength < CaptureRadius)
 		{
 			float3 ProjectedCaptureVector = RayDirection;
 			float4 CaptureOffsetAndAverageBrightness = ReflectionCapture.CaptureOffsetAndAverageBrightness[CaptureIndex];
@@ -79,7 +83,7 @@ float3 CompositeReflectionCapturesAndSkylight(
 					BRANCH if (CaptureProperties.b > 0)
 					#endif
 					{
-						ProjectedCaptureVector = GetLookupVectorForBoxCapture(RayDirection, WorldPosition, CapturePositionAndRadius, ReflectionCapture.BoxTransform[CaptureIndex], ReflectionCapture.BoxScales[CaptureIndex], CaptureOffsetAndAverageBrightness.xyz, DistanceAlpha);
+						ProjectedCaptureVector = GetLookupVectorForBoxCapture(RayDirection, TranslatedWorldPosition, float4(CaptureTranslatedWorldPosition, CaptureRadius), ReflectionCapture.BoxTransform[CaptureIndex], ReflectionCapture.BoxScales[CaptureIndex], CaptureOffsetAndAverageBrightness.xyz, DistanceAlpha);
 					}
 				#endif
 
@@ -89,7 +93,7 @@ float3 CompositeReflectionCapturesAndSkylight(
 					else
 					#endif
 					{
-						ProjectedCaptureVector = GetLookupVectorForSphereCapture(RayDirection, WorldPosition, CapturePositionAndRadius, NormalizedDistanceToCapture, CaptureOffsetAndAverageBrightness.xyz, DistanceAlpha);
+						ProjectedCaptureVector = GetLookupVectorForSphereCapture(RayDirection, TranslatedWorldPosition, float4(CaptureTranslatedWorldPosition, CaptureRadius), NormalizedDistanceToCapture, CaptureOffsetAndAverageBrightness.xyz, DistanceAlpha);
 					}
 				#endif
 			#else 
@@ -119,19 +123,22 @@ float3 CompositeReflectionCapturesAndSkylight(
 
 	float3 ProjectedCaptureVector = RayDirection;
 
+	FLWCVector3 SingleCaptureWorldPosition = MakeLWCVector3(ReflectionCapture.TilePosition[SingleCaptureIndex].xyz, ReflectionCapture.PositionAndRadius[SingleCaptureIndex].xyz);
+	float3 SingleCaptureTranslatedWorldPosition = LWCToFloat(LWCAdd(SingleCaptureWorldPosition, PrimaryView.PreViewTranslation));
+	float SingleCaptureRadius = ReflectionCapture.PositionAndRadius[SingleCaptureIndex].w;
+
 	float4 SingleCaptureOffsetAndAverageBrightness = ReflectionCapture.CaptureOffsetAndAverageBrightness[SingleCaptureIndex];
-	float4 SingleCapturePositionAndRadius = ReflectionCapture.PositionAndRadius[SingleCaptureIndex];
 	float SingleCaptureBrightness = ReflectionCapture.CaptureProperties[SingleCaptureIndex].x;
 	float SingleCaptureArrayIndex = ReflectionCapture.CaptureProperties[SingleCaptureIndex].y;
 
 	#define APPROXIMATE_CONTINUOUS_SINGLE_CAPTURE_PARALLAX 0
 	#if APPROXIMATE_CONTINUOUS_SINGLE_CAPTURE_PARALLAX
-		float3 CaptureVector = WorldPosition - SingleCapturePositionAndRadius.xyz;
+		float3 CaptureVector = TranslatedWorldPosition - SingleCaptureTranslatedWorldPosition;
 		float CaptureVectorLength = sqrt(dot(CaptureVector, CaptureVector));		
-		float NormalizedDistanceToCapture = saturate(CaptureVectorLength / SingleCapturePositionAndRadius.w);
+		float NormalizedDistanceToCapture = saturate(CaptureVectorLength / SingleCaptureRadius);
 
 		float UnusedDistanceAlpha = 0;
-		ProjectedCaptureVector = GetLookupVectorForSphereCapture(RayDirection, WorldPosition, SingleCapturePositionAndRadius, NormalizedDistanceToCapture, SingleCaptureOffsetAndAverageBrightness.xyz, UnusedDistanceAlpha);
+		ProjectedCaptureVector = GetLookupVectorForSphereCapture(RayDirection, TranslatedWorldPosition, float4(SingleCaptureTranslatedWorldPosition, SingleCaptureRadius), NormalizedDistanceToCapture, SingleCaptureOffsetAndAverageBrightness.xyz, UnusedDistanceAlpha);
 		
 		float x = saturate(NormalizedDistanceToCapture);
 		float DistanceAlpha = 1 - x * x * (3 - 2 * x);
@@ -191,6 +198,34 @@ float3 CompositeReflectionCapturesAndSkylight(
 	return ImageBasedReflections.rgb;
 }
 
+float3 CompositeReflectionCapturesAndSkylightTWS(
+	float CompositeAlpha, 
+	float3 TranslatedWorldPosition, 
+	float3 RayDirection, 
+	float Roughness, 
+	float IndirectIrradiance, 
+	float IndirectSpecularOcclusion,
+	float3 ExtraIndirectSpecular,
+	uint NumCapturesAffectingTile,
+	uint CaptureDataStartIndex,
+	int SingleCaptureIndex,
+	bool bCompositeSkylight)
+{
+	return CompositeReflectionCapturesAndSkylightTWS(
+		CompositeAlpha, 
+		TranslatedWorldPosition, 
+		RayDirection, 
+		Roughness, 
+		IndirectIrradiance, 
+		IndirectSpecularOcclusion, 
+		ExtraIndirectSpecular, 
+		NumCapturesAffectingTile, 
+		CaptureDataStartIndex,
+		SingleCaptureIndex,
+		bCompositeSkylight,
+		0);
+}
+
 float3 CompositeReflectionCapturesAndSkylight(
 	float CompositeAlpha, 
 	float3 WorldPosition, 
@@ -204,9 +239,9 @@ float3 CompositeReflectionCapturesAndSkylight(
 	int SingleCaptureIndex,
 	bool bCompositeSkylight)
 {
-	return CompositeReflectionCapturesAndSkylight(
+	return CompositeReflectionCapturesAndSkylightTWS(
 		CompositeAlpha, 
-		WorldPosition, 
+		WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation), 
 		RayDirection, 
 		Roughness, 
 		IndirectIrradiance, 
@@ -217,4 +252,33 @@ float3 CompositeReflectionCapturesAndSkylight(
 		SingleCaptureIndex,
 		bCompositeSkylight,
 		0);
+}
+
+float3 CompositeReflectionCapturesAndSkylight(
+	float CompositeAlpha, 
+	float3 WorldPosition, 
+	float3 RayDirection, 
+	float Roughness, 
+	float IndirectIrradiance, 
+	float IndirectSpecularOcclusion,
+	float3 ExtraIndirectSpecular,
+	uint NumCapturesAffectingTile,
+	uint CaptureDataStartIndex,
+	int SingleCaptureIndex,
+	bool bCompositeSkylight,
+	uint EyeIndex)
+{
+	return CompositeReflectionCapturesAndSkylightTWS(
+		CompositeAlpha, 
+		WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation), 
+		RayDirection, 
+		Roughness, 
+		IndirectIrradiance, 
+		IndirectSpecularOcclusion, 
+		ExtraIndirectSpecular, 
+		NumCapturesAffectingTile, 
+		CaptureDataStartIndex,
+		SingleCaptureIndex,
+		bCompositeSkylight,
+		EyeIndex);
 }

@@ -16,17 +16,25 @@ static inline bool IsDebugGenerateAllFunctionsEnabled()
 	return GDebugGenerateAllFunctionsEnabled != 0;
 }
 
-static inline const TCHAR * GetBoolVectorName(int32 TypeIndex)
+static inline const TCHAR * GetBoolVectorName(EDerivativeType Type)
 {
-	switch(TypeIndex)
+	switch(Type)
 	{
-	case 0:
+	case EDerivativeType::Float1:
 		return TEXT("bool");
-	case 1:
+	case EDerivativeType::Float2:
 		return TEXT("bool2");
-	case 2:
+	case EDerivativeType::Float3:
 		return TEXT("bool3");
-	case 3:
+	case EDerivativeType::Float4:
+		return TEXT("bool4");
+	case EDerivativeType::LWCScalar:
+		return TEXT("bool");
+	case EDerivativeType::LWCVector2:
+		return TEXT("bool2");
+	case EDerivativeType::LWCVector3:
+		return TEXT("bool3");
+	case EDerivativeType::LWCVector4:
 		return TEXT("bool4");
 	default:
 		check(0);
@@ -34,87 +42,142 @@ static inline const TCHAR * GetBoolVectorName(int32 TypeIndex)
 	}
 }
 
-static inline const TCHAR * GetFloatVectorName(int32 TypeIndex)
+static inline const TCHAR * GetFloatVectorName(EDerivativeType Type)
 {
-	switch(TypeIndex)
+	switch(Type)
 	{
-	case 0:
+	case EDerivativeType::Float1:
 		return TEXT("float");
-	case 1:
+	case EDerivativeType::Float2:
 		return TEXT("float2");
-	case 2:
+	case EDerivativeType::Float3:
 		return TEXT("float3");
-	case 3:
+	case EDerivativeType::Float4:
 		return TEXT("float4");
+	case EDerivativeType::LWCScalar:
+		return TEXT("FLWCScalar");
+	case EDerivativeType::LWCVector2:
+		return TEXT("FLWCVector2");
+	case EDerivativeType::LWCVector3:
+		return TEXT("FLWCVector3");
+	case EDerivativeType::LWCVector4:
+		return TEXT("FLWCVector4");
 	default:
 		check(0);
 		return TEXT("");
 	}
 }
 
-static inline const TCHAR * GetDerivVectorName(int32 TypeIndex)
+static inline uint32 GetNumComponents(EDerivativeType Type)
 {
-	switch(TypeIndex)
+	switch (Type)
 	{
-	case 0:
+	case EDerivativeType::Float1: return 1u;
+	case EDerivativeType::Float2: return 2u;
+	case EDerivativeType::Float3: return 3u;
+	case EDerivativeType::Float4: return 4u;
+	case EDerivativeType::LWCScalar: return 1u;
+	case EDerivativeType::LWCVector2: return 2u;
+	case EDerivativeType::LWCVector3: return 3u;
+	case EDerivativeType::LWCVector4: return 4u;
+	default: check(0); return 0u;
+	}
+}
+
+static inline const TCHAR* GetFloatVectorDDXYName(EDerivativeType Type)
+{
+	return GetFloatVectorName(MakeNonLWCType(Type));
+}
+
+static inline const TCHAR * GetDerivVectorName(EDerivativeType Type)
+{
+	switch(Type)
+	{
+	case EDerivativeType::Float1:
 		return TEXT("FloatDeriv");
-	case 1:
+	case EDerivativeType::Float2:
 		return TEXT("FloatDeriv2");
-	case 2:
+	case EDerivativeType::Float3:
 		return TEXT("FloatDeriv3");
-	case 3:
+	case EDerivativeType::Float4:
 		return TEXT("FloatDeriv4");
+	case EDerivativeType::LWCScalar:
+		return TEXT("FLWCScalarDeriv");
+	case EDerivativeType::LWCVector2:
+		return TEXT("FLWCVector2Deriv");
+	case EDerivativeType::LWCVector3:
+		return TEXT("FLWCVector3Deriv");
+	case EDerivativeType::LWCVector4:
+		return TEXT("FLWCVector4Deriv");
 	default:
 		check(0);
 		return TEXT("");
 	}
 }
 
-
-// 0: Float
-// 1: Float2
-// 2: Float3
-// 3: Float4
-// -1: Everything else
-int32 GetDerivTypeIndex(EMaterialValueType ValueType, bool bAllowNonFloat)
+EDerivativeType GetDerivType(EMaterialValueType ValueType, bool bAllowNonFloat)
 {
-	int32 Ret = INDEX_NONE;
+	EDerivativeType Ret = EDerivativeType::None;
 	if (ValueType == MCT_Float1 || ValueType == MCT_Float)
 	{
-		Ret = 0;
+		Ret = EDerivativeType::Float1;
 	}
 	else if (ValueType == MCT_Float2)
 	{
-		Ret = 1;
+		Ret = EDerivativeType::Float2;
 	}
 	else if (ValueType == MCT_Float3)
 	{
-		Ret = 2;
+		Ret = EDerivativeType::Float3;
 	}
 	else if (ValueType == MCT_Float4)
 	{
-		Ret = 3;
+		Ret = EDerivativeType::Float4;
+	}
+	else if (ValueType == MCT_LWCScalar)
+	{
+		Ret = EDerivativeType::LWCScalar;
+	}
+	else if (ValueType == MCT_LWCVector2)
+	{
+		Ret = EDerivativeType::LWCVector2;
+	}
+	else if (ValueType == MCT_LWCVector3)
+	{
+		Ret = EDerivativeType::LWCVector3;
+	}
+	else if (ValueType == MCT_LWCVector4)
+	{
+		Ret = EDerivativeType::LWCVector4;
 	}
 	else
 	{
-		Ret = INDEX_NONE;
+		Ret = EDerivativeType::None;
 		check(bAllowNonFloat);
 	}
 	return Ret;
 }
 
-static EMaterialValueType GetMaterialTypeFromDerivTypeIndex(int32 Index)
+static EMaterialValueType GetMaterialTypeFromDerivType(EDerivativeType Type)
 {
-	switch (Index)
+	switch (Type)
 	{
-	case 0:
+	case EDerivativeType::Float1:
 		return MCT_Float;
-	case 1:
+	case EDerivativeType::Float2:
 		return MCT_Float2;
-	case 2:
+	case EDerivativeType::Float3:
 		return MCT_Float3;
-	case 3:
+	case EDerivativeType::Float4:
 		return MCT_Float4;
+	case EDerivativeType::LWCScalar:
+		return MCT_LWCScalar;
+	case EDerivativeType::LWCVector2:
+		return MCT_LWCVector2;
+	case EDerivativeType::LWCVector3:
+		return MCT_LWCVector3;
+	case EDerivativeType::LWCVector4:
+		return MCT_LWCVector4;
 	default:
 		check(0);
 		break;
@@ -123,37 +186,16 @@ static EMaterialValueType GetMaterialTypeFromDerivTypeIndex(int32 Index)
 	return (EMaterialValueType)0; // invalid, should be a Float 1/2/3/4, break at the check(0);
 }
 
-
-static FString CoerceFloat(const TCHAR* Value, int32 DstType, int32 SrcType)
+static FString CoerceFloat(FHLSLMaterialTranslator& Translator, const TCHAR* Value, EDerivativeType DstType, EDerivativeType SrcType)
 {
-	if (DstType == SrcType)
-	{
-		return Value;
-	}
-
-	if (SrcType == 0)
-	{
-		const TCHAR* Mask[4] = { TEXT("x"), TEXT("xx"), TEXT("xxx"), TEXT("xxxx") };
-		return FString::Printf(TEXT("%s.%s"), Value, Mask[DstType]);
-	}
-	
-	if (DstType < SrcType)
-	{
-		const TCHAR* Mask[4] = { TEXT("x"), TEXT("xy"), TEXT("xyz"), TEXT("xyzw") };
-		return FString::Printf(TEXT("%s.%s"), Value, Mask[DstType]);
-	}
-	else
-	{
-		check(DstType > SrcType);
-		const TCHAR* Zeros[4] = { TEXT("0.0f"), TEXT("0.0f, 0.0f"), TEXT("0.0f, 0.0f, 0.0f"), TEXT("0.0f, 0.0f, 0.0f, 0.0f") };
-		return FString::Printf(TEXT("%s(%s, %s)"), GetFloatVectorName(DstType), Value, Zeros[DstType - SrcType - 1]);
-	}
+	const EMaterialCastFlags CastFlags = EMaterialCastFlags::ReplicateScalar | EMaterialCastFlags::AllowAppendZeroes | EMaterialCastFlags::AllowTruncate;
+	return Translator.CastValue(Value, GetMaterialTypeFromDerivType(SrcType), GetMaterialTypeFromDerivType(DstType), CastFlags);
 }
 
 void FMaterialDerivativeAutogen::EnableGeneratedDepencencies()
 {
 
-	for (int32 Index = 0; Index < 4; Index++)
+	for (int32 Index = 0; Index < NumDerivativeTypes; Index++)
 	{
 		// PowPositiveClamped requires Pow
 		if (bFunc2OpIsEnabled[(int32)EFunc2::PowPositiveClamped][Index])
@@ -162,14 +204,22 @@ void FMaterialDerivativeAutogen::EnableGeneratedDepencencies()
 		}
 	}
 
-	for (int32 Index = 0; Index < 4; Index++)
+	for (int32 Index = 0; Index < NumDerivativeTypes; Index++)
 	{
+		const EDerivativeType Type = (EDerivativeType)Index;
+		const EDerivativeType ScalarType = IsLWCType(Type) ? EDerivativeType::LWCScalar : EDerivativeType::Float1;
+
 		// normalize requires rsqrt1, dot, expand, and mul
 		if (bFunc1OpIsEnabled[(int32)EFunc1::Normalize][Index])
 		{
 			bConvertDerivEnabled[Index][0] = true;
+			if (IsLWCType(Type))
+			{
+				// Convert from LWC->NonLWC
+				bConvertDerivEnabled[(int32)MakeNonLWCType(Type)][Index] = true;
+			}
 			bFunc2OpIsEnabled[(int32)EFunc2::Dot][Index] = true;
-			bFunc1OpIsEnabled[(int32)EFunc1::Rsqrt][0] = true;
+			bFunc1OpIsEnabled[(int32)EFunc1::Rsqrt][(int32)ScalarType] = true;
 			bFunc2OpIsEnabled[(int32)EFunc2::Mul][Index] = true;
 		}
 
@@ -177,26 +227,36 @@ void FMaterialDerivativeAutogen::EnableGeneratedDepencencies()
 		if (bFunc1OpIsEnabled[(int32)EFunc1::Length][Index])
 		{
 			bFunc2OpIsEnabled[(int32)EFunc2::Dot][Index] = true;
-			bFunc1OpIsEnabled[(int32)EFunc1::Sqrt][0] = true;
+			bFunc1OpIsEnabled[(int32)EFunc1::Sqrt][(int32)ScalarType] = true;
 		}
 
 		// inv length requires rsqrt1 (instead of sqrt1) and dot
 		if (bFunc1OpIsEnabled[(int32)EFunc1::InvLength][Index])
 		{
 			bFunc2OpIsEnabled[(int32)EFunc2::Dot][Index] = true;
-			bFunc1OpIsEnabled[(int32)EFunc1::Rsqrt][0] = true;
+			bFunc1OpIsEnabled[(int32)EFunc1::Rsqrt][(int32)ScalarType] = true;
 		}
 	}
 
 	// Dot requires extract, mul1, add1 and FloatDeriv constructor
-	for (int32 Index = 0; Index < 4; Index++)
+	for (int32 Index = 0; Index < NumDerivativeTypes; Index++)
 	{
 		if (bFunc2OpIsEnabled[(int32)EFunc2::Dot][Index])
 		{
+			const EDerivativeType Type = (EDerivativeType)Index;
 			bExtractIndexEnabled[Index] = true;
-			bConstructConstantDerivEnabled[0] = true;
-			bFunc2OpIsEnabled[(int32)EFunc2::Add][0] = true;
-			bFunc2OpIsEnabled[(int32)EFunc2::Mul][0] = true;
+			if (IsLWCType(Type))
+			{
+				bConstructConstantDerivEnabled[(int32)EDerivativeType::LWCScalar] = true;
+				bFunc2OpIsEnabled[(int32)EFunc2::Add][(int32)EDerivativeType::LWCScalar] = true;
+				bFunc2OpIsEnabled[(int32)EFunc2::Mul][(int32)EDerivativeType::LWCScalar] = true;
+			}
+			else
+			{
+				bConstructConstantDerivEnabled[(int32)EDerivativeType::Float1] = true;
+				bFunc2OpIsEnabled[(int32)EFunc2::Add][(int32)EDerivativeType::Float1] = true;
+				bFunc2OpIsEnabled[(int32)EFunc2::Mul][(int32)EDerivativeType::Float1] = true;
+			}
 		}
 	}
 
@@ -209,167 +269,191 @@ void FMaterialDerivativeAutogen::EnableGeneratedDepencencies()
 }
 
 // given a string, convert it from type to type
-FString FMaterialDerivativeAutogen::CoerceValueRaw(FHLSLMaterialTranslator& Translator, const FString& Token, int32 SrcType, EDerivativeStatus SrcStatus, int32 DstType)
+FString FMaterialDerivativeAutogen::CoerceValueRaw(FHLSLMaterialTranslator& Translator, const FString& Token, const FDerivInfo& SrcInfo, EDerivativeType DstType)
 {
-	check(IsDerivTypeIndexValid(SrcType));
-	check(IsDerivTypeIndexValid(DstType));
-
 	FString Ret = Token;
 
 	// If the original value is a derivative, grab the raw value
-	if (SrcStatus == EDerivativeStatus::Valid)
+	if (SrcInfo.DerivativeStatus == EDerivativeStatus::Valid)
 	{
-		Ret = Ret + TEXT(".Value");
+		Ret = TEXT("DERIV_BASE_VALUE(") + Ret + TEXT(")");
 	}
 
-	Ret = CoerceFloat(*Ret, DstType, SrcType);
+	Ret = CoerceFloat(Translator, *Ret, DstType, SrcInfo.DerivType);
 	return Ret;
 }
 
 // given a string, convert it from type to type
-FString FMaterialDerivativeAutogen::CoerceValueDeriv(const FString& Token, int32 SrcType, EDerivativeStatus SrcStatus, int32 DstType)
+FString FMaterialDerivativeAutogen::CoerceValueDeriv(const FString& Token, const FDerivInfo& SrcInfo, EDerivativeType DstType)
 {
-	check(IsDerivTypeIndexValid(SrcType));
-	check(IsDerivTypeIndexValid(DstType));
-
 	FString Ret = Token;
 
-	check(IsDerivativeValid(SrcStatus));
+	check(IsDerivativeValid(SrcInfo.DerivativeStatus));
 
 	// If it's valid, then it's already a type. Otherwise, we need to convert it from raw to deriv
-	if (SrcStatus == EDerivativeStatus::Zero)
+	if (SrcInfo.DerivativeStatus == EDerivativeStatus::Zero)
 	{
-		FString SrcDerivType = GetDerivVectorName(SrcType);
-		bConstructConstantDerivEnabled[SrcType] = true;
+		FString SrcDerivType = GetDerivVectorName(SrcInfo.DerivType);
+		bConstructConstantDerivEnabled[(int32)SrcInfo.DerivType] = true;
 		Ret = TEXT("ConstructConstant") + SrcDerivType + TEXT("(") + Ret + TEXT(")");
 	}
 
-	return ConvertDeriv(Ret, DstType, SrcType);
+	return ConvertDeriv(Ret, DstType, SrcInfo.DerivType);
 }
 
-FString FMaterialDerivativeAutogen::ConstructDeriv(const FString& Value, const FString& Ddx, const FString& Ddy, int32 DstType)
+FString FMaterialDerivativeAutogen::ConstructDeriv(const FString& Value, const FString& Ddx, const FString& Ddy, EDerivativeType DstType)
 {
-	check(IsDerivTypeIndexValid(DstType));
-
-	bConstructDerivEnabled[DstType] = true;
+	bConstructDerivEnabled[(int32)DstType] = true;
 	FString TypeName = GetDerivVectorName(DstType);
 	FString Ret = TEXT("Construct") + TypeName + TEXT("(") + Value + TEXT(",") + Ddx + TEXT(",") + Ddy + TEXT(")");
 	return Ret;
 }
 
-FString FMaterialDerivativeAutogen::ConstructDerivFinite(const FString& Value, int32 DstType)
+FString FMaterialDerivativeAutogen::ConstructDerivFinite(const FString& Value, EDerivativeType DstType)
 {
-	check(IsDerivTypeIndexValid(DstType));
-
-	bConstructFiniteDerivEnabled[DstType] = true;
+	bConstructFiniteDerivEnabled[(int32)DstType] = true;
 
 	FString TypeName = GetDerivVectorName(DstType);
 	FString Ret = TEXT("ConstructFinite") + TypeName + TEXT("(") + Value + TEXT(")");
 	return Ret;
 }
 
-FString FMaterialDerivativeAutogen::ConvertDeriv(const FString& Value, int32 DstType, int32 SrcType)
+FString FMaterialDerivativeAutogen::ConvertDeriv(const FString& Value, EDerivativeType DstType, EDerivativeType SrcType)
 {
-	check(IsDerivTypeIndexValid(DstType));
-	check(IsDerivTypeIndexValid(SrcType));
-
 	if (DstType == SrcType)
 		return Value;
 	
-	bConvertDerivEnabled[DstType][SrcType] = true;
+	bConvertDerivEnabled[(int32)DstType][(int32)SrcType] = true;
 
+	FString SrctTypeName = GetDerivVectorName(SrcType);
 	FString DstTypeName = GetDerivVectorName(DstType);
-	return FString::Printf(TEXT("Convert%s(%s)"), *DstTypeName, *Value);
+	return FString::Printf(TEXT("Convert_%s_%s(%s)"), *DstTypeName, *SrctTypeName, *Value);
 }
 
-int32 FMaterialDerivativeAutogen::GetFunc1ReturnNumComponents(int32 SrcTypeIndex, EFunc1 Op)
+FMaterialDerivativeAutogen::FOperationType1 FMaterialDerivativeAutogen::GetFunc1ReturnType(EDerivativeType SrcType, EFunc1 Op)
 {
-	check(IsDerivTypeIndexValid(SrcTypeIndex));
-
-	int32 DstTypeIndex = INDEX_NONE;
-
+	const EDerivativeType SrcNonLWCType = MakeNonLWCType(SrcType);
 	switch(Op)
 	{
 	case EFunc1::Abs:
-	case EFunc1::Log2:
-	case EFunc1::Log10:
-	case EFunc1::Exp:
+		// Operate on LWCType
+		return SrcType;
+	case EFunc1::Saturate:
+	case EFunc1::Frac:
+	case EFunc1::Sqrt:
+	case EFunc1::Rsqrt:
+	case EFunc1::Rcp:
+	case EFunc1::Normalize:
 	case EFunc1::Sin:
 	case EFunc1::Cos:
 	case EFunc1::Tan:
+		// Operate on LWCType, but return a non-LWCType
+		return FOperationType1(SrcNonLWCType, SrcType);
+	case EFunc1::Length:
+		// Operate on LWCType, return LWCScalar
+		return FOperationType1(IsLWCType(SrcType) ? EDerivativeType::LWCScalar : EDerivativeType::Float1, SrcType);
+	case EFunc1::InvLength:
+		// Operate on LWCType, but return a float1
+		return FOperationType1(EDerivativeType::Float1, SrcType);
+	case EFunc1::Log2:
+	case EFunc1::Log10:
+	case EFunc1::Exp:
 	case EFunc1::Asin:
 	case EFunc1::AsinFast:
 	case EFunc1::Acos:
 	case EFunc1::AcosFast:
 	case EFunc1::Atan:
 	case EFunc1::AtanFast:
-	case EFunc1::Sqrt:
-	case EFunc1::Rcp:
-	case EFunc1::Rsqrt:
-	case EFunc1::Saturate:
-	case EFunc1::Frac:
-	case EFunc1::Normalize:
-		DstTypeIndex = SrcTypeIndex;
-		break;
-
-	case EFunc1::Length:
-	case EFunc1::InvLength:
-		DstTypeIndex = 0;
-		break;
+		// No support for LWC
+		return SrcNonLWCType;
 	default:
 		check(0);
 		break;
 	}
 
-	return DstTypeIndex;
+	return EDerivativeType::None;
 }
 
-int32 FMaterialDerivativeAutogen::GetFunc2ReturnNumComponents(int32 LhsTypeIndex, int32 RhsTypeIndex, EFunc2 Op)
+FMaterialDerivativeAutogen::FOperationType2 FMaterialDerivativeAutogen::GetFunc2ReturnType(EDerivativeType LhsType, EDerivativeType RhsType, EFunc2 Op)
 {
-	check(IsDerivTypeIndexValid(LhsTypeIndex));
-	check(IsDerivTypeIndexValid(RhsTypeIndex));
+	const EDerivativeType LhsNonLWCType = MakeNonLWCType(LhsType);
+	const EDerivativeType RhsNonLWCType = MakeNonLWCType(RhsType);
+	const EDerivativeType NonLWCType = (EDerivativeType)FMath::Max<int32>((int32)LhsNonLWCType, (int32)RhsNonLWCType);
 
-	int32 DstTypeIndex = INDEX_NONE;
-	
 	switch(Op)
 	{
 	case EFunc2::Add:
 	case EFunc2::Sub:
 	case EFunc2::Mul:
 	case EFunc2::Div:
+	case EFunc2::Dot:
+	case EFunc2::Max:
+	case EFunc2::Min:
 	case EFunc2::Fmod:
+		// Operations that support LWC
+		// Any LWC type promotes result to LWC
+		if (IsLWCType(LhsType) || (IsLWCType(RhsType) && Op != EFunc2::Fmod))
+		{
+			const EDerivativeType LhsLWCType = MakeLWCType(LhsType);
+			const EDerivativeType RhsLWCType = MakeLWCType(RhsType);
+			if (LhsLWCType == RhsLWCType || LhsLWCType == EDerivativeType::LWCScalar || RhsLWCType == EDerivativeType::LWCScalar)
+			{
+				const EDerivativeType LWCType = (EDerivativeType)FMath::Max<int32>((int32)LhsLWCType, (int32)RhsLWCType);
+				switch (Op)
+				{
+				case EFunc2::Dot:
+					// Result is always LWCScalar
+					return FOperationType2(EDerivativeType::LWCScalar, LWCType, LWCType);
+				case EFunc2::Div:
+					// Make sure we generate LWCDivide(LWC, float) if possible, since have a LWC denominator will result in worse approximation
+					return FOperationType2(LWCType, LWCType, IsLWCType(RhsType) ? LWCType : NonLWCType);
+				case EFunc2::Fmod:
+					// FMOD Rhs is non-LWC
+					return FOperationType2(NonLWCType, LWCType, NonLWCType);
+				case EFunc2::Min:
+				case EFunc2::Max:
+					// See note about Min/Max below
+					return LhsLWCType;
+				default:
+					return LWCType;
+				}
+			}
+		}
+		// Fallthrough to non-LWC case
 	case EFunc2::Pow:
 	case EFunc2::PowPositiveClamped:
 	case EFunc2::Atan2:
 	case EFunc2::Atan2Fast:
-		// if the initial type is different from the output type, then it's only valid if type is 0 (float). We can convert
-		// a float to a type with more components, but for example, we can't implicitly convert a float2 to a float3/float4.
-		if (LhsTypeIndex == RhsTypeIndex || RhsTypeIndex == 0 || LhsTypeIndex == 0)
+		if (LhsNonLWCType == RhsNonLWCType || LhsNonLWCType == EDerivativeType::Float1 || RhsNonLWCType == EDerivativeType::Float1)
 		{
-			DstTypeIndex = FMath::Max<int32>(LhsTypeIndex, RhsTypeIndex);
+			// if the initial type is different from the output type, then it's only valid if type is 0 (float). We can convert
+			// a float to a type with more components, but for example, we can't implicitly convert a float2 to a float3/float4.
+			switch (Op)
+			{
+			case EFunc2::Dot:
+				// Result is always float
+				return FOperationType2(EDerivativeType::Float1, NonLWCType, NonLWCType);
+			case EFunc2::Min:
+			case EFunc2::Max:
+				// Min/Max should probably use the same logic as other binary operations
+				// However, legacy HLSLMaterialTranslator::Min/Max simply coerce the Rhs value to the type of the Lhs value
+				// Need to preserve this behavior here (may want to wrap this behind a legacy flag/CVAR at some point)
+				return LhsNonLWCType;
+			default:
+				return NonLWCType;
+			}
 		}
 		break;
-	case EFunc2::Max:
-	case EFunc2::Min:
-		// Min/Max should probably use the same logic as other binary operations
-		// However, legacy HLSLMaterialTranslator::Min/Max simply coerce the Rhs value to the type of the Lhs value
-		// Need to preserve this behavior here (may want to wrap this behind a legacy flag/CVAR at some point)
-		DstTypeIndex = LhsTypeIndex;
-		break;
-	case EFunc2::Dot:
-		DstTypeIndex = 0;
-		break;
 	case EFunc2::Cross:
-		check(LhsTypeIndex == 2);
-		check(RhsTypeIndex == 2);
-		DstTypeIndex = 2;
-		break;
+		check(LhsNonLWCType == EDerivativeType::Float3);
+		check(RhsNonLWCType == EDerivativeType::Float3);
+		return EDerivativeType::Float3;
 	default:
 		check(0);
 		break;
 	}
 
-	return DstTypeIndex;
+	return EDerivativeType::None;
 }
 
 
@@ -381,12 +465,12 @@ int32 FMaterialDerivativeAutogen::GenerateExpressionFunc1(FHLSLMaterialTranslato
 	}
 
 	const FDerivInfo SrcDerivInfo = Translator.GetDerivInfo(SrcCode);
-	int32 OutputTypeIndex	= GetFunc1ReturnNumComponents(SrcDerivInfo.TypeIndex, Op);
-
-	if (OutputTypeIndex < 0)
+	const FOperationType1 OperationType = GetFunc1ReturnType(SrcDerivInfo.DerivType, Op);
+	if (OperationType.ReturnType == EDerivativeType::None)
 	{
 		return INDEX_NONE;
 	}
+	const bool bIsLWC = IsLWCType(OperationType.IntermediateType);
 
 	EDerivativeStatus DstStatus = IsDerivativeValid(SrcDerivInfo.DerivativeStatus) ? EDerivativeStatus::Valid : EDerivativeStatus::NotValid;
 	bool bUseScalarVersion = (DstStatus != EDerivativeStatus::Valid);
@@ -399,20 +483,21 @@ int32 FMaterialDerivativeAutogen::GenerateExpressionFunc1(FHLSLMaterialTranslato
 		ECompiledPartialDerivativeVariation Variation = (ECompiledPartialDerivativeVariation)Index;
 
 		FString SrcToken = Translator.GetParameterCodeDeriv(SrcCode,Variation);
-
-		// The token is the symbol name. If we are in finite mode, that's all we have to do. But if
-		// we are in analytic mode, we may need to get the value.
-		if (Index == CompiledPDV_Analytic)
-		{
-			SrcToken = CoerceValueRaw(Translator, SrcToken, SrcDerivInfo.TypeIndex, SrcDerivInfo.DerivativeStatus, SrcDerivInfo.TypeIndex);
-		}
+		SrcToken = CoerceValueRaw(Translator, SrcToken, SrcDerivInfo, OperationType.IntermediateType);
 
 		FString DstToken;
 		// just generate a type
 		switch(Op)
 		{
 		case EFunc1::Abs:
-			DstToken = TEXT("abs(") + SrcToken + TEXT(")");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCAbs(") + SrcToken + TEXT(")");
+			}
+			else
+			{
+				DstToken = TEXT("abs(") + SrcToken + TEXT(")");
+			}
 			break;
 		case EFunc1::Log2:
 			DstToken = TEXT("log2(") + SrcToken + TEXT(")");
@@ -424,55 +509,180 @@ int32 FMaterialDerivativeAutogen::GenerateExpressionFunc1(FHLSLMaterialTranslato
 			DstToken = TEXT("exp(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::Sin:
-			DstToken = TEXT("sin(") + SrcToken + TEXT(")");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCSin(") + SrcToken + TEXT(")");
+			}
+			else
+			{
+				DstToken = TEXT("sin(") + SrcToken + TEXT(")");
+			}
 			break;
 		case EFunc1::Cos:
-			DstToken = TEXT("cos(") + SrcToken + TEXT(")");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCCos(") + SrcToken + TEXT(")");
+			}
+			else
+			{
+				DstToken = TEXT("cos(") + SrcToken + TEXT(")");
+			}
 			break;
 		case EFunc1::Tan:
-			DstToken = TEXT("tan(") + SrcToken + TEXT(")");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCTan(") + SrcToken + TEXT(")");
+			}
+			else
+			{
+				DstToken = TEXT("tan(") + SrcToken + TEXT(")");
+			}
 			break;
 		case EFunc1::Asin:
-			DstToken = TEXT("asin(") + SrcToken + TEXT(")");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCASin(") + SrcToken + TEXT(")");
+			}
+			else
+			{
+				DstToken = TEXT("asin(") + SrcToken + TEXT(")");
+			}
 			break;
 		case EFunc1::AsinFast:
-			DstToken = TEXT("asinFast(") + SrcToken + TEXT(")");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCASin(") + SrcToken + TEXT(")");
+			}
+			else
+			{
+				DstToken = TEXT("asinFast(") + SrcToken + TEXT(")");
+			}
 			break;
 		case EFunc1::Acos:
-			DstToken = TEXT("acos(") + SrcToken + TEXT(")");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCACos(") + SrcToken + TEXT(")");
+			}
+			else
+			{
+				DstToken = TEXT("acos(") + SrcToken + TEXT(")");
+			}
 			break;
 		case EFunc1::AcosFast:
-			DstToken = TEXT("acosFast(") + SrcToken + TEXT(")");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCACos(") + SrcToken + TEXT(")");
+			}
+			else
+			{
+				DstToken = TEXT("acosFast(") + SrcToken + TEXT(")");
+			}
 			break;
 		case EFunc1::Atan:
-			DstToken = TEXT("atan(") + SrcToken + TEXT(")");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCATan(") + SrcToken + TEXT(")");
+			}
+			else
+			{
+				DstToken = TEXT("atan(") + SrcToken + TEXT(")");
+			}
 			break;
 		case EFunc1::AtanFast:
-			DstToken = TEXT("atanFast(") + SrcToken + TEXT(")");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCATan(") + SrcToken + TEXT(")");
+			}
+			else
+			{
+				DstToken = TEXT("atanFast(") + SrcToken + TEXT(")");
+			}
 			break;
 		case EFunc1::Sqrt:
-			DstToken = TEXT("sqrt(") + SrcToken + TEXT(")");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCSqrt(") + SrcToken + TEXT(")");
+			}
+			else
+			{
+				DstToken = TEXT("sqrt(") + SrcToken + TEXT(")");
+			}
 			break;
 		case EFunc1::Rcp:
-			DstToken = TEXT("rcp(") + SrcToken + TEXT(")");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCRcp(") + SrcToken + TEXT(")");
+			}
+			else
+			{
+				DstToken = TEXT("rcp(") + SrcToken + TEXT(")");
+			}
 			break;
 		case EFunc1::Rsqrt:
-			DstToken = TEXT("rsqrt(") + SrcToken + TEXT(")");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCRsqrt(") + SrcToken + TEXT(")");
+			}
+			else
+			{
+				DstToken = TEXT("rsqrt(") + SrcToken + TEXT(")");
+			}
 			break;
 		case EFunc1::Saturate:
-			DstToken = TEXT("saturate(") + SrcToken + TEXT(")");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCSaturate(") + SrcToken + TEXT(")");
+			}
+			else
+			{
+				DstToken = TEXT("saturate(") + SrcToken + TEXT(")");
+			}
 			break;
 		case EFunc1::Frac:
-			DstToken = TEXT("frac(") + SrcToken + TEXT(")");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCFrac(") + SrcToken + TEXT(")");
+			}
+			else
+			{
+				DstToken = TEXT("frac(") + SrcToken + TEXT(")");
+			}
 			break;
 		case EFunc1::Length:
-			DstToken = TEXT("length(") + SrcToken + TEXT(")");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCLength(") + SrcToken + TEXT(")");
+			}
+			else
+			{
+				DstToken = TEXT("length(") + SrcToken + TEXT(")");
+			}
 			break;
 		case EFunc1::InvLength:
-			DstToken = TEXT("rcp(length(") + SrcToken + TEXT("))");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCRcpLength(") + SrcToken + TEXT(")");
+			}
+			else
+			{
+				DstToken = TEXT("rcp(length(") + SrcToken + TEXT("))");
+			}
 			break;
 		case EFunc1::Normalize:
-			DstToken = TEXT("normalize(") + SrcToken + TEXT(")");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCNormalize(") + SrcToken + TEXT(")");
+			}
+			else if (OperationType.IntermediateType == EDerivativeType::Float1)
+			{
+				// Normalizing a scalar is always just 1.0f
+				// Avoid generating a call to normalize(float), as this overload is not defined on all shader compilers
+				DstToken = TEXT("1.0f");
+			}
+			else
+			{
+				DstToken = TEXT("normalize(") + SrcToken + TEXT(")");
+			}
 			break;
 		default:
 			check(0);
@@ -486,76 +696,79 @@ int32 FMaterialDerivativeAutogen::GenerateExpressionFunc1(FHLSLMaterialTranslato
 	{
 		FString SrcToken = Translator.GetParameterCodeDeriv(SrcCode, CompiledPDV_Analytic);
 
-		SrcToken = CoerceValueDeriv(SrcToken, SrcDerivInfo.TypeIndex, SrcDerivInfo.DerivativeStatus, SrcDerivInfo.TypeIndex);
+		// Add LWC suffix to function names for LWC operations, avoids problems with HLSL overloading rules that just count number of 'floats' in each type
+		const FString Suffix = bIsLWC ? TEXT("LWC") : TEXT("");
+
+		SrcToken = CoerceValueDeriv(SrcToken, SrcDerivInfo, OperationType.IntermediateType);
 
 		check(Op < EFunc1::Num);
-		bFunc1OpIsEnabled[(int32)Op][SrcDerivInfo.TypeIndex] = true;
+		bFunc1OpIsEnabled[(int32)Op][(int32)OperationType.IntermediateType] = true;
 		
 		FString DstToken;
 		switch(Op)
 		{
 		case EFunc1::Abs:
-			DstToken = TEXT("AbsDeriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("AbsDeriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::Log2:
-			DstToken = TEXT("Log2Deriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("Log2Deriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::Log10:
-			DstToken = TEXT("Log10Deriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("Log10Deriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::Exp:
-			DstToken = TEXT("ExpDeriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("ExpDeriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::Sin:
-			DstToken = TEXT("SinDeriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("SinDeriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::Cos:
-			DstToken = TEXT("CosDeriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("CosDeriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::Tan:
-			DstToken = TEXT("TanDeriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("TanDeriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::Asin:
-			DstToken = TEXT("AsinDeriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("AsinDeriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::AsinFast:
-			DstToken = TEXT("AsinFastDeriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("AsinFastDeriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::Acos:
-			DstToken = TEXT("AcosDeriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("AcosDeriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::AcosFast:
-			DstToken = TEXT("AcosFastDeriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("AcosFastDeriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::Atan:
-			DstToken = TEXT("AtanDeriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("AtanDeriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::AtanFast:
-			DstToken = TEXT("AtanFastDeriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("AtanFastDeriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::Sqrt:
-			DstToken = TEXT("SqrtDeriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("SqrtDeriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::Rcp:
-			DstToken = TEXT("RcpDeriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("RcpDeriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::Rsqrt:
-			DstToken = TEXT("RsqrtDeriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("RsqrtDeriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::Saturate:
-			DstToken = TEXT("SaturateDeriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("SaturateDeriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::Frac:
-			DstToken = TEXT("FracDeriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("FracDeriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::Length:
-			DstToken = TEXT("LengthDeriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("LengthDeriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::InvLength:
-			DstToken = TEXT("InvLengthDeriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("InvLengthDeriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::Normalize:
-			DstToken = TEXT("NormalizeDeriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("NormalizeDeriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
 			break;
 		default:
 			check(0);
@@ -565,7 +778,7 @@ int32 FMaterialDerivativeAutogen::GenerateExpressionFunc1(FHLSLMaterialTranslato
 		DstTokens[CompiledPDV_Analytic] = DstToken;
 	}
 
-	EMaterialValueType DstMatType = GetMaterialTypeFromDerivTypeIndex(OutputTypeIndex);
+	EMaterialValueType DstMatType = GetMaterialTypeFromDerivType(OperationType.ReturnType);
 	int32 Ret = Translator.AddCodeChunkInnerDeriv(*DstTokens[CompiledPDV_FiniteDifferences],*DstTokens[CompiledPDV_Analytic],DstMatType,false /*?*/, DstStatus);
 	return Ret;
 }
@@ -580,35 +793,17 @@ int32 FMaterialDerivativeAutogen::GenerateExpressionFunc2(FHLSLMaterialTranslato
 	const FDerivInfo LhsDerivInfo = Translator.GetDerivInfo(LhsCode);
 	const FDerivInfo RhsDerivInfo = Translator.GetDerivInfo(RhsCode);
 
-	int32 IntermediaryTypeIndex;
-	switch (Op)
-	{
-	case EFunc2::Cross:
-		IntermediaryTypeIndex = 2;
-		break;
-	case EFunc2::Min:
-	case EFunc2::Max:
-		// Min/Max should probably use the same logic as other binary operations
-		// However, legacy HLSLMaterialTranslator::Min/Max simply coerce the Rhs value to the type of the Lhs value
-		// Need to preserve this behavior here (may want to wrap this behind a legacy flag/CVAR at some point)
-		IntermediaryTypeIndex = LhsDerivInfo.TypeIndex;
-		break;
-	default:
-		IntermediaryTypeIndex = FMath::Max<int32>(LhsDerivInfo.TypeIndex, RhsDerivInfo.TypeIndex);
-		break;
-	}
-
 	if (Op == EFunc2::Fmod)
 	{
 		check(RhsDerivInfo.DerivativeStatus == EDerivativeStatus::Zero);
 	}
 
-	int32 OutputTypeIndex = GetFunc2ReturnNumComponents(LhsDerivInfo.TypeIndex, RhsDerivInfo.TypeIndex, Op);
-
-	if (OutputTypeIndex < 0)
+	const FOperationType2 OperationType = GetFunc2ReturnType(LhsDerivInfo.DerivType, RhsDerivInfo.DerivType, Op);
+	if (OperationType.ReturnType == EDerivativeType::None)
 	{
 		return INDEX_NONE;
 	}
+	const bool bIsLWC = IsLWCType(OperationType.LhsIntermediateType) || IsLWCType(OperationType.RhsIntermediateType);
 
 	EDerivativeStatus DstStatus = EDerivativeStatus::NotValid;
 
@@ -677,41 +872,92 @@ int32 FMaterialDerivativeAutogen::GenerateExpressionFunc2(FHLSLMaterialTranslato
 		FString LhsToken = Translator.GetParameterCodeDeriv(LhsCode,Variation);
 		FString RhsToken = Translator.GetParameterCodeDeriv(RhsCode,Variation);
 
-		// The token is the symbol name. If we are in finite mode, that's all we have to do. But if
-		// we are in analytic mode, we may need to get the value.
-		if (Index == CompiledPDV_Analytic)
-		{
-			LhsToken = CoerceValueRaw(Translator, LhsToken, LhsDerivInfo.TypeIndex, LhsDerivInfo.DerivativeStatus, IntermediaryTypeIndex);
-			RhsToken = CoerceValueRaw(Translator, RhsToken, RhsDerivInfo.TypeIndex, RhsDerivInfo.DerivativeStatus, IntermediaryTypeIndex);
-		}
+		LhsToken = CoerceValueRaw(Translator, LhsToken, LhsDerivInfo, OperationType.LhsIntermediateType);
+		RhsToken = CoerceValueRaw(Translator, RhsToken, RhsDerivInfo, OperationType.RhsIntermediateType);
 
 		FString DstToken;
 		// just generate a type
 		switch(Op)
 		{
 		case EFunc2::Add:
-			DstToken = TEXT("(") + LhsToken + TEXT(" + ") + RhsToken + TEXT(")");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCAdd(") + LhsToken + TEXT(", ") + RhsToken + TEXT(")");
+			}
+			else
+			{
+				DstToken = TEXT("(") + LhsToken + TEXT(" + ") + RhsToken + TEXT(")");
+			}
 			break;
 		case EFunc2::Sub:
-			DstToken = TEXT("(") + LhsToken + TEXT(" - ") + RhsToken + TEXT(")");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCSubtract(") + LhsToken + TEXT(", ") + RhsToken + TEXT(")");
+			}
+			else
+			{
+				DstToken = TEXT("(") + LhsToken + TEXT(" - ") + RhsToken + TEXT(")");
+			}
 			break;
 		case EFunc2::Mul:
-			DstToken = TEXT("(") + LhsToken + TEXT(" * ") + RhsToken + TEXT(")");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCMultiply(") + LhsToken + TEXT(", ") + RhsToken + TEXT(")");
+			}
+			else
+			{
+				DstToken = TEXT("(") + LhsToken + TEXT(" * ") + RhsToken + TEXT(")");
+			}
 			break;
 		case EFunc2::Div:
-			DstToken = TEXT("(") + LhsToken + TEXT(" / ") + RhsToken + TEXT(")");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCDivide(") + LhsToken + TEXT(", ") + RhsToken + TEXT(")");
+			}
+			else
+			{
+				DstToken = TEXT("(") + LhsToken + TEXT(" / ") + RhsToken + TEXT(")");
+			}
 			break;
 		case EFunc2::Fmod:
-			DstToken = TEXT("fmod(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCFmod(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			}
+			else
+			{
+				DstToken = TEXT("fmod(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			}
 			break;
 		case EFunc2::Min:
-			DstToken = TEXT("min(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCMin(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			}
+			else
+			{
+				DstToken = TEXT("min(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			}
 			break;
 		case EFunc2::Max:
-			DstToken = TEXT("max(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCMax(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			}
+			else
+			{
+				DstToken = TEXT("max(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			}
 			break;
 		case EFunc2::Dot:
-			DstToken = TEXT("dot(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			if (bIsLWC)
+			{
+				DstToken = TEXT("LWCDot(") + LhsToken + TEXT(", ") + RhsToken + TEXT(")");
+			}
+			else
+			{
+				DstToken = TEXT("dot(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			}
 			break;
 		case EFunc2::Pow:
 			DstToken = TEXT("pow(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
@@ -740,54 +986,55 @@ int32 FMaterialDerivativeAutogen::GenerateExpressionFunc2(FHLSLMaterialTranslato
 	{
 		FString LhsToken = Translator.GetParameterCodeDeriv(LhsCode,CompiledPDV_Analytic);
 		FString RhsToken = Translator.GetParameterCodeDeriv(RhsCode,CompiledPDV_Analytic);
+		const FString Suffix = bIsLWC ? TEXT("LWC") : TEXT("");
 
-		LhsToken = CoerceValueDeriv(LhsToken, LhsDerivInfo.TypeIndex, LhsDerivInfo.DerivativeStatus, IntermediaryTypeIndex);
-		RhsToken = CoerceValueDeriv(RhsToken, RhsDerivInfo.TypeIndex, RhsDerivInfo.DerivativeStatus, IntermediaryTypeIndex);
+		LhsToken = CoerceValueDeriv(LhsToken, LhsDerivInfo, OperationType.LhsIntermediateType);
+		RhsToken = CoerceValueDeriv(RhsToken, RhsDerivInfo, OperationType.RhsIntermediateType);
 
 		check(Op < EFunc2::Num);
-		bFunc2OpIsEnabled[(int32)Op][IntermediaryTypeIndex] = true;
+		bFunc2OpIsEnabled[(int32)Op][(int32)OperationType.LhsIntermediateType] = true;
 
 		FString DstToken;
 		switch(Op)
 		{
 		case EFunc2::Add:
-			DstToken = TEXT("AddDeriv(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			DstToken = TEXT("AddDeriv") + Suffix + TEXT("(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
 			break;
 		case EFunc2::Sub:
-			DstToken = TEXT("SubDeriv(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			DstToken = TEXT("SubDeriv") + Suffix + TEXT("(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
 			break;
 		case EFunc2::Mul:
-			DstToken = TEXT("MulDeriv(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			DstToken = TEXT("MulDeriv") + Suffix + TEXT("(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
 			break;
 		case EFunc2::Div:
-			DstToken = TEXT("DivDeriv(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			DstToken = TEXT("DivDeriv") + Suffix + TEXT("(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
 			break;
 		case EFunc2::Fmod:
-			DstToken = TEXT("FmodDeriv(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			DstToken = TEXT("FmodDeriv") + Suffix + TEXT("(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
 			break;
 		case EFunc2::Dot:
-			DstToken = TEXT("DotDeriv(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			DstToken = TEXT("DotDeriv") + Suffix + TEXT("(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
 			break;
 		case EFunc2::Min:
-			DstToken = TEXT("MinDeriv(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			DstToken = TEXT("MinDeriv") + Suffix + TEXT("(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
 			break;
 		case EFunc2::Max:
-			DstToken = TEXT("MaxDeriv(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			DstToken = TEXT("MaxDeriv") + Suffix + TEXT("(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
 			break;
 		case EFunc2::Pow:
-			DstToken = TEXT("PowDeriv(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			DstToken = TEXT("PowDeriv") + Suffix + TEXT("(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
 			break;
 		case EFunc2::PowPositiveClamped:
-			DstToken = TEXT("PowPositiveClampedDeriv(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			DstToken = TEXT("PowPositiveClampedDeriv") + Suffix + TEXT("(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
 			break;
 		case EFunc2::Cross:
-			DstToken = TEXT("CrossDeriv(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			DstToken = TEXT("CrossDeriv") + Suffix + TEXT("(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
 			break;
 		case EFunc2::Atan2:
-			DstToken = TEXT("Atan2Deriv(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			DstToken = TEXT("Atan2Deriv") + Suffix + TEXT("(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
 			break;
 		case EFunc2::Atan2Fast:
-			DstToken = TEXT("Atan2FastDeriv(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			DstToken = TEXT("Atan2FastDeriv") + Suffix + TEXT("(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
 			break;
 		default:
 			check(0);
@@ -798,8 +1045,7 @@ int32 FMaterialDerivativeAutogen::GenerateExpressionFunc2(FHLSLMaterialTranslato
 		DstStatus = EDerivativeStatus::Valid;
 	}
 
-	EMaterialValueType DstMatType = GetMaterialTypeFromDerivTypeIndex(OutputTypeIndex);
-
+	const EMaterialValueType DstMatType = GetMaterialTypeFromDerivType(OperationType.ReturnType);
 	int32 Ret = Translator.AddCodeChunkInnerDeriv(*DstTokens[CompiledPDV_FiniteDifferences],*DstTokens[CompiledPDV_Analytic],DstMatType,false /*?*/, DstStatus);
 	return Ret;
 }
@@ -817,28 +1063,29 @@ int32 FMaterialDerivativeAutogen::GenerateLerpFunc(FHLSLMaterialTranslator& Tran
 	const FDerivInfo SDerivInfo = Translator.GetDerivInfo(S);
 	
 	const EMaterialValueType ResultType = Translator.GetArithmeticResultType(A, B);
-	const EMaterialValueType AlphaType = (ResultType == SDerivInfo.Type) ? ResultType : MCT_Float1;
+	const EMaterialValueType AlphaType = (MakeNonLWCType(ResultType) == MakeNonLWCType(SDerivInfo.Type)) ? MakeNonLWCType(ResultType) : MCT_Float1;
 	const uint32 NumResultComponents = GetNumComponents(ResultType);
 
 	const bool bAllZeroDeriv = (ADerivInfo.DerivativeStatus == EDerivativeStatus::Zero && BDerivInfo.DerivativeStatus == EDerivativeStatus::Zero && SDerivInfo.DerivativeStatus == EDerivativeStatus::Zero);
-	FString FiniteString = FString::Printf(TEXT("lerp(%s,%s,%s)"), *Translator.CoerceParameter(A, ResultType), *Translator.CoerceParameter(B, ResultType), *Translator.CoerceParameter(S, AlphaType));
+	const TCHAR* FunctionName = (ResultType & MCT_LWCType) ? TEXT("LWCLerp") : TEXT("lerp");
+	FString FiniteString = FString::Printf(TEXT("%s(%s,%s,%s)"), FunctionName, *Translator.CoerceParameter(A, ResultType), *Translator.CoerceParameter(B, ResultType), *Translator.CoerceParameter(S, AlphaType));
 	
 	if (!bAllZeroDeriv && IsDerivativeValid(ADerivInfo.DerivativeStatus) && IsDerivativeValid(BDerivInfo.DerivativeStatus) && IsDerivativeValid(SDerivInfo.DerivativeStatus))
 	{
-		const uint32 ResultTypeIndex = GetDerivTypeIndex(ResultType);
-		//const uint32 AlphaTypeIndex = GetDerivTypeIndex(AlphaType);
+		const EDerivativeType ResultDerivType = GetDerivType(ResultType);
+		const EDerivativeType AlphaDerivType = MakeNonLWCType(ResultDerivType);
 		FString ADeriv = Translator.GetParameterCodeDeriv(A, CompiledPDV_Analytic);
 		FString BDeriv = Translator.GetParameterCodeDeriv(B, CompiledPDV_Analytic);
 		FString SDeriv = Translator.GetParameterCodeDeriv(S, CompiledPDV_Analytic);
 
-		ADeriv = CoerceValueDeriv(ADeriv, ADerivInfo.TypeIndex, ADerivInfo.DerivativeStatus, ResultTypeIndex);
-		BDeriv = CoerceValueDeriv(BDeriv, BDerivInfo.TypeIndex, BDerivInfo.DerivativeStatus, ResultTypeIndex);
-		SDeriv = CoerceValueDeriv(SDeriv, SDerivInfo.TypeIndex, SDerivInfo.DerivativeStatus, ResultTypeIndex);
+		ADeriv = CoerceValueDeriv(ADeriv, ADerivInfo, ResultDerivType);
+		BDeriv = CoerceValueDeriv(BDeriv, BDerivInfo, ResultDerivType);
+		SDeriv = CoerceValueDeriv(SDeriv, SDerivInfo, AlphaDerivType);
 
 		FString AnalyticString = FString::Printf(TEXT("LerpDeriv(%s, %s, %s)"), *ADeriv, *BDeriv, *SDeriv);
 
 		check(NumResultComponents <= 4);
-		bLerpEnabled[ResultTypeIndex] = true;
+		bLerpEnabled[(int32)ResultDerivType] = true;
 
 		return Translator.AddCodeChunkInnerDeriv(*FiniteString, *AnalyticString, ResultType, false, EDerivativeStatus::Valid);
 	}
@@ -873,9 +1120,9 @@ int32 FMaterialDerivativeAutogen::GenerateRotateScaleOffsetTexCoordsFunc(FHLSLMa
 		FString RotationScaleDeriv	= Translator.GetParameterCodeDeriv(RotationScale, CompiledPDV_Analytic);
 		FString OffsetDeriv			= Translator.GetParameterCodeDeriv(Offset, CompiledPDV_Analytic);
 
-		TexCoordDeriv		= CoerceValueDeriv(TexCoordDeriv,		TexCoordDerivInfo.TypeIndex,		TexCoordDerivInfo.DerivativeStatus,			1);
-		RotationScaleDeriv	= CoerceValueDeriv(RotationScaleDeriv,	RotationScaleDerivInfo.TypeIndex,	RotationScaleDerivInfo.DerivativeStatus,	3);
-		OffsetDeriv			= CoerceValueDeriv(OffsetDeriv,			OffsetDerivInfo.TypeIndex,			OffsetDerivInfo.DerivativeStatus,			1);
+		TexCoordDeriv		= CoerceValueDeriv(TexCoordDeriv,		TexCoordDerivInfo,			EDerivativeType::Float2);
+		RotationScaleDeriv	= CoerceValueDeriv(RotationScaleDeriv,	RotationScaleDerivInfo,		EDerivativeType::Float4);
+		OffsetDeriv			= CoerceValueDeriv(OffsetDeriv,			OffsetDerivInfo,			EDerivativeType::Float2);
 
 		FString AnalyticString = FString::Printf(TEXT("RotateScaleOffsetTexCoordsDeriv(%s, %s, %s)"), *TexCoordDeriv, *RotationScaleDeriv, *OffsetDeriv);
 
@@ -905,6 +1152,7 @@ int32 FMaterialDerivativeAutogen::GenerateIfFunc(FHLSLMaterialTranslator& Transl
 	if (bEqual && Threshold == INDEX_NONE)
 		return INDEX_NONE;
 
+	EMaterialValueType CompareType = Translator.GetArithmeticResultType(A, B);
 	EMaterialValueType ResultType = Translator.GetArithmeticResultType(Greater, Less);
 
 	if (bEqual)
@@ -930,51 +1178,91 @@ int32 FMaterialDerivativeAutogen::GenerateIfFunc(FHLSLMaterialTranslator& Transl
 
 	FString CodeFinite;
 	FString ThresholdFinite;
-	if (bEqual)
+	FString CompareGreaterEqual;
+	FString CompareNotEqual;
+	if (IsLWCType(CompareType))
 	{
-		ThresholdFinite = *Translator.GetParameterCode(Threshold);
-
-		CodeFinite = FString::Printf(
-			TEXT("((abs(%s - %s) > %s) ? (%s >= %s ? %s : %s) : %s)"),
-			*AFinite, *BFinite, *ThresholdFinite,
-			*AFinite, *BFinite,
-			*GreaterFinite, *LessFinite, *Translator.GetParameterCode(Equal));
+		CompareGreaterEqual = FString::Printf(TEXT("LWCGreaterEqual(%s, %s)"), *AFinite, *BFinite);
 	}
 	else
 	{
-		CodeFinite = FString::Printf(
-			TEXT("((%s >= %s) ? %s : %s)"),
-			*AFinite, *BFinite,
-			*GreaterFinite, *LessFinite
-		);
+		CompareGreaterEqual = FString::Printf(TEXT("(%s >= %s)"), *AFinite, *BFinite);
+	}
+
+	if (bEqual)
+	{
+		ThresholdFinite = *Translator.GetParameterCode(Threshold);
+		if (IsLWCType(CompareType))
+		{
+			CompareNotEqual = FString::Printf(TEXT("(!LWCEqualsApprox(%s, %s, %s))"), *AFinite, *BFinite, *ThresholdFinite);
+		}
+		else
+		{
+			CompareNotEqual = FString::Printf(TEXT("(abs(%s - %s) > %s)"), *AFinite, *BFinite, *ThresholdFinite);
+		}
+
+		if (IsLWCType(ResultType))
+		{
+			CodeFinite = FString::Printf(
+				TEXT("LWCSelect(%s, LWCSelect(%s, %s, %s), %s)"),
+				*CompareNotEqual, *CompareGreaterEqual,
+				*GreaterFinite, *LessFinite, *Translator.GetParameterCode(Equal));
+		}
+		else
+		{
+			CodeFinite = FString::Printf(
+				TEXT("(%s ? (%s ? %s : %s) : %s)"),
+				*CompareNotEqual, *CompareGreaterEqual,
+				*GreaterFinite, *LessFinite, *Translator.GetParameterCode(Equal));
+		}
+	}
+	else
+	{
+		if (IsLWCType(ResultType))
+		{
+			CodeFinite = FString::Printf(
+				TEXT("LWCSelect(%s, %s, %s)"),
+				*CompareGreaterEqual,
+				*GreaterFinite, *LessFinite
+			);
+		}
+		else
+		{
+			CodeFinite = FString::Printf(
+				TEXT("(%s ? %s : %s)"),
+				*CompareGreaterEqual,
+				*GreaterFinite, *LessFinite
+			);
+		}
 	}
 
 	const bool bAllDerivValid = IsDerivativeValid(GreaterDerivInfo.DerivativeStatus) && IsDerivativeValid(LessDerivInfo.DerivativeStatus) && (!bEqual || IsDerivativeValid(Translator.GetDerivativeStatus(Equal)));
 	const bool bAllDerivZero = GreaterDerivInfo.DerivativeStatus == EDerivativeStatus::Zero && LessDerivInfo.DerivativeStatus == EDerivativeStatus::Zero && (!bEqual || Translator.GetDerivativeStatus(Equal) == EDerivativeStatus::Zero);
 	if (bAllDerivValid && !bAllDerivZero)
 	{
-		const uint32 ResultTypeIndex = GetDerivTypeIndex(ResultType);
+		const EDerivativeType ResultDerivType = GetDerivType(ResultType);
 
 		FString GreaterDeriv	= Translator.GetParameterCodeDeriv(Greater, CompiledPDV_Analytic);
 		FString LessDeriv		= Translator.GetParameterCodeDeriv(Less,	CompiledPDV_Analytic);
 
-		GreaterDeriv	= CoerceValueDeriv(GreaterDeriv,	ResultTypeIndex, GreaterDerivInfo.DerivativeStatus, ResultTypeIndex);
-		LessDeriv		= CoerceValueDeriv(LessDeriv,		ResultTypeIndex, LessDerivInfo.DerivativeStatus,	ResultTypeIndex);
+		// TODO - replace GreaterDerivInfo/LessDerivInfo.TypeIndex with ResultDerivType??
+		GreaterDeriv	= CoerceValueDeriv(GreaterDeriv,	GreaterDerivInfo,	ResultDerivType);
+		LessDeriv		= CoerceValueDeriv(LessDeriv,		LessDerivInfo,		ResultDerivType);
 
 		FString CodeAnalytic;
 		if (bEqual)
 		{
 			const FDerivInfo EqualDerivInfo = Translator.GetDerivInfo(Equal, true);
 			FString EqualDeriv = Translator.GetParameterCodeDeriv(Equal, CompiledPDV_Analytic);
-			EqualDeriv = CoerceValueDeriv(EqualDeriv, ResultTypeIndex, EqualDerivInfo.DerivativeStatus, ResultTypeIndex);
+			EqualDeriv = CoerceValueDeriv(EqualDeriv, EqualDerivInfo, ResultDerivType); // TODO - see above
 
-			CodeAnalytic = FString::Printf(TEXT("IfDeriv(%s, %s, %s, %s, %s, %s)"), *AFinite, *BFinite, *GreaterDeriv, *LessDeriv, *EqualDeriv, *ThresholdFinite);
-			bIf2Enabled[ResultTypeIndex] = true;
+			CodeAnalytic = FString::Printf(TEXT("IfDeriv(%s, %s, %s, %s, %s)"), *CompareNotEqual, *CompareGreaterEqual, *GreaterDeriv, *LessDeriv, *EqualDeriv);
+			bIf2Enabled[(int32)ResultDerivType] = true;
 		}
 		else
 		{
-			CodeAnalytic = FString::Printf(TEXT("IfDeriv(%s, %s, %s, %s)"), *AFinite, *BFinite, *GreaterDeriv, *LessDeriv);
-			bIfEnabled[ResultTypeIndex] = true;
+			CodeAnalytic = FString::Printf(TEXT("IfDeriv(%s, %s, %s)"), *CompareGreaterEqual, *GreaterDeriv, *LessDeriv);
+			bIfEnabled[(int32)ResultDerivType] = true;
 		}
 
 		return Translator.AddCodeChunkInnerDeriv(*CodeFinite, *CodeAnalytic, ResultType, false, EDerivativeStatus::Valid);
@@ -995,29 +1283,33 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 
 	// The basic structs (FloatDeriv, FloatDeriv2, FloatDeriv3, FloatDeriv4)
 	// It's not worth keeping track of all the times these are used, just make them.
-	for (int32 Index = 0; Index < 4; Index++)
+	for (int32 Index = 0; Index < NumDerivativeTypes; Index++)
 	{
-		FString BaseName = GetDerivVectorName(Index);
-		FString FieldName = GetFloatVectorName(Index);
+		EDerivativeType DerivType = (EDerivativeType)Index;
+		FString BaseName = GetDerivVectorName(DerivType);
+		FString FieldName = GetFloatVectorName(DerivType);
+		FString FieldNameDDXY = GetFloatVectorDDXYName(DerivType);
 
 		Ret += TEXT("struct ") + BaseName + LINE_TERMINATOR;
 		Ret += TEXT("{") LINE_TERMINATOR;
 		Ret += TEXT("\t") + FieldName + TEXT(" Value;") LINE_TERMINATOR;
-		Ret += TEXT("\t") + FieldName + TEXT(" Ddx;") LINE_TERMINATOR;
-		Ret += TEXT("\t") + FieldName + TEXT(" Ddy;") LINE_TERMINATOR;
+		Ret += TEXT("\t") + FieldNameDDXY + TEXT(" Ddx;") LINE_TERMINATOR;
+		Ret += TEXT("\t") + FieldNameDDXY + TEXT(" Ddy;") LINE_TERMINATOR;
 		Ret += TEXT("};") LINE_TERMINATOR;
 		Ret += TEXT("") LINE_TERMINATOR;
 	}
 
 	// Full FloatDerivX constructors with explicit derivatives.
-	for (int32 Index = 0; Index < 4; Index++)
+	for (int32 Index = 0; Index < NumDerivativeTypes; Index++)
 	{
 		if (bConstructDerivEnabled[Index] || IsDebugGenerateAllFunctionsEnabled())
 		{
-			FString BaseName = GetDerivVectorName(Index);
-			FString FieldName = GetFloatVectorName(Index);
+			EDerivativeType DerivType = (EDerivativeType)Index;
+			FString BaseName = GetDerivVectorName(DerivType);
+			FString FieldName = GetFloatVectorName(DerivType);
+			FString FieldNameDDXY = GetFloatVectorDDXYName(DerivType);
 
-			Ret += BaseName + TEXT(" Construct") + BaseName + TEXT("(") + FieldName + TEXT(" InValue,") + FieldName + TEXT(" InDdx,") + FieldName + TEXT(" InDdy)") LINE_TERMINATOR;
+			Ret += BaseName + TEXT(" Construct") + BaseName + TEXT("(") + FieldName + TEXT(" InValue,") + FieldNameDDXY + TEXT(" InDdx,") + FieldNameDDXY + TEXT(" InDdy)") LINE_TERMINATOR;
 			Ret += TEXT("{") LINE_TERMINATOR;
 			Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
 			Ret += TEXT("\tRet.Value = InValue;") LINE_TERMINATOR;
@@ -1030,12 +1322,13 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 	}
 
 	// FloatDerivX constructors from constant floatX.
-	for (int32 Index = 0; Index < 4; Index++)
+	for (int32 Index = 0; Index < NumDerivativeTypes; Index++)
 	{
 		if (bConstructConstantDerivEnabled[Index] || IsDebugGenerateAllFunctionsEnabled())
 		{
-			FString BaseName = GetDerivVectorName(Index);
-			FString FieldName = GetFloatVectorName(Index);
+			EDerivativeType DerivType = (EDerivativeType)Index;
+			FString BaseName = GetDerivVectorName(DerivType);
+			FString FieldName = GetFloatVectorName(DerivType);
 
 			Ret += BaseName + TEXT(" ConstructConstant") + BaseName + TEXT("(") + FieldName + TEXT(" Value)") LINE_TERMINATOR;
 			Ret += TEXT("{") LINE_TERMINATOR;
@@ -1050,19 +1343,29 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 	}
 
 	// FloatDerivX constructor from floatX with implicit derivatives.
-	for (int32 Index = 0; Index < 4; Index++)
+	for (int32 Index = 0; Index < NumDerivativeTypes; Index++)
 	{
 		if (bConstructFiniteDerivEnabled[Index] || IsDebugGenerateAllFunctionsEnabled())
 		{
-			FString BaseName = GetDerivVectorName(Index);
-			FString FieldName = GetFloatVectorName(Index);
+			EDerivativeType DerivType = (EDerivativeType)Index;
+			FString BaseName = GetDerivVectorName(DerivType);
+			FString FieldName = GetFloatVectorName(DerivType);
 
 			Ret += BaseName + TEXT(" ConstructFinite") + BaseName + TEXT("(") + FieldName + TEXT(" InValue)") LINE_TERMINATOR;
 			Ret += TEXT("{") LINE_TERMINATOR;
 			Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
 			Ret += TEXT("\tRet.Value = InValue;") LINE_TERMINATOR;
-			Ret += TEXT("\tRet.Ddx = ddx(InValue);") LINE_TERMINATOR;
-			Ret += TEXT("\tRet.Ddy = ddy(InValue);") LINE_TERMINATOR;
+			if (Index == 4)
+			{
+				// LWC_TODO: Better way to do this??
+				Ret += TEXT("\tRet.Ddx = ddx(LWCHackToFloat(InValue));") LINE_TERMINATOR;
+				Ret += TEXT("\tRet.Ddy = ddy(LWCHackToFloat(InValue));") LINE_TERMINATOR;
+			}
+			else
+			{
+				Ret += TEXT("\tRet.Ddx = ddx(InValue);") LINE_TERMINATOR;
+				Ret += TEXT("\tRet.Ddy = ddy(InValue);") LINE_TERMINATOR;
+			}
 			Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
 			Ret += TEXT("}") LINE_TERMINATOR;
 			Ret += TEXT("") LINE_TERMINATOR;
@@ -1070,25 +1373,29 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 	}
 
 	// Convert between FloatDeriv types
-	for (int32 DstIndex = 0; DstIndex < 4; DstIndex++)
+	for (int32 DstIndex = 0; DstIndex < NumDerivativeTypes; DstIndex++)
 	{
-		for (int32 SrcIndex = 0; SrcIndex < 4; SrcIndex++)
+		for (int32 SrcIndex = 0; SrcIndex < NumDerivativeTypes; SrcIndex++)
 		{
 			if (SrcIndex == DstIndex)
 				continue;
 
 			if (bConvertDerivEnabled[DstIndex][SrcIndex] || IsDebugGenerateAllFunctionsEnabled())
 			{
-				FString DstBaseName = GetDerivVectorName(DstIndex);
-				FString SrcBaseName = GetDerivVectorName(SrcIndex);
-				FString ScalarName = GetDerivVectorName(0);
+				EDerivativeType SrcDerivType = (EDerivativeType)SrcIndex;
+				EDerivativeType DstDerivType = (EDerivativeType)DstIndex;
+				FString DstBaseName = GetDerivVectorName(DstDerivType);
+				FString SrcBaseName = GetDerivVectorName(SrcDerivType);
+				FString ScalarName = GetDerivVectorName(EDerivativeType::Float1);
+				const EDerivativeType SrcTypeDDXY = MakeNonLWCType(SrcDerivType);
+				const EDerivativeType DstTypeDDXY = MakeNonLWCType(DstDerivType);
 
-				Ret += DstBaseName + TEXT(" Convert") + DstBaseName + TEXT("(") + SrcBaseName + TEXT(" Src)") LINE_TERMINATOR;
+				Ret += DstBaseName + TEXT(" Convert_") + DstBaseName + TEXT("_") + SrcBaseName + TEXT("(") + SrcBaseName + TEXT(" Src)") LINE_TERMINATOR;
 				Ret += TEXT("{") LINE_TERMINATOR;
 				Ret += TEXT("\t") + DstBaseName + TEXT(" Ret;") LINE_TERMINATOR;
-				Ret += TEXT("\tRet.Value = ") + CoerceFloat(TEXT("Src.Value"), DstIndex, SrcIndex) + TEXT(";") LINE_TERMINATOR;
-				Ret += TEXT("\tRet.Ddx = ") + CoerceFloat(TEXT("Src.Ddx"), DstIndex, SrcIndex) + TEXT(";") LINE_TERMINATOR;
-				Ret += TEXT("\tRet.Ddy = ") + CoerceFloat(TEXT("Src.Ddy"), DstIndex, SrcIndex) + TEXT(";") LINE_TERMINATOR;
+				Ret += TEXT("\tRet.Value = ") + CoerceFloat(Translator, TEXT("Src.Value"), DstDerivType, SrcDerivType) + TEXT(";") LINE_TERMINATOR;
+				Ret += TEXT("\tRet.Ddx = ") + CoerceFloat(Translator, TEXT("Src.Ddx"), DstTypeDDXY, SrcTypeDDXY) + TEXT(";") LINE_TERMINATOR;
+				Ret += TEXT("\tRet.Ddy = ") + CoerceFloat(Translator, TEXT("Src.Ddy"), DstTypeDDXY, SrcTypeDDXY) + TEXT(";") LINE_TERMINATOR;
 				Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
 				Ret += TEXT("}") LINE_TERMINATOR;
 				Ret += TEXT("") LINE_TERMINATOR;
@@ -1105,23 +1412,31 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 	};
 
 	// Extract single FloatDeriv element from FloatDerivX
-	for (int32 StructIndex = 0; StructIndex < 4; StructIndex++)
+	for (int32 Index = 0; Index < NumDerivativeTypes; Index++)
 	{
-		for (int32 ElemIndex = 0; ElemIndex <= StructIndex; ElemIndex++)
+		if (bExtractIndexEnabled[Index] || IsDebugGenerateAllFunctionsEnabled())
 		{
-			if (bExtractIndexEnabled[StructIndex] || IsDebugGenerateAllFunctionsEnabled())
+			EDerivativeType DerivType = (EDerivativeType)Index;
+			EDerivativeType ScalarDerivType = IsLWCType(DerivType) ? EDerivativeType::LWCScalar : EDerivativeType::Float1;
+			FString BaseName = GetDerivVectorName(DerivType);
+			FString ScalarName = GetDerivVectorName(ScalarDerivType);
+			const uint32 NumComponents = GetNumComponents(DerivType);
+
+			for (uint32 ElemIndex = 0; ElemIndex < NumComponents; ElemIndex++)
 			{
-				// i.e. can't grab the 4th component of a float3
-				check(ElemIndex <= StructIndex);
-
-				FString BaseName = GetDerivVectorName(StructIndex);
-
 				FString ElemStr = FString::Printf(TEXT("%d"), ElemIndex + 1);
 
-				Ret += TEXT("FloatDeriv Extract") + BaseName + TEXT("_") + ElemStr + TEXT("(") + BaseName + TEXT(" InValue)") LINE_TERMINATOR;
+				Ret += ScalarName + TEXT(" Extract") + BaseName + TEXT("_") + ElemStr + TEXT("(") + BaseName + TEXT(" InValue)") LINE_TERMINATOR;
 				Ret += TEXT("{") LINE_TERMINATOR;
-				Ret += TEXT("\tFloatDeriv Ret;") LINE_TERMINATOR;
-				Ret += TEXT("\tRet.Value = InValue.Value.") + FString(SwizzleList[ElemIndex]) + TEXT(";") LINE_TERMINATOR;
+				Ret += TEXT("\t") + ScalarName + TEXT(" Ret;") LINE_TERMINATOR;
+				if (IsLWCType(DerivType))
+				{
+					Ret += FString::Printf(TEXT("\tRet.Value = LWCGetComponent(InValue.Value, %d);") LINE_TERMINATOR, ElemIndex);
+				}
+				else
+				{
+					Ret += TEXT("\tRet.Value = InValue.Value.") + FString(SwizzleList[ElemIndex]) + TEXT(";") LINE_TERMINATOR;
+				}
 				Ret += TEXT("\tRet.Ddx = InValue.Ddx.") + FString(SwizzleList[ElemIndex]) + TEXT(";") LINE_TERMINATOR;
 				Ret += TEXT("\tRet.Ddy = InValue.Ddy.") + FString(SwizzleList[ElemIndex]) + TEXT(";") LINE_TERMINATOR;
 				Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
@@ -1134,21 +1449,34 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 	// Func2s
 	for (int32 Op = 0; Op < (int32)EFunc2::Num; Op++)
 	{
-		for (int32 Index = 0; Index < 4; Index++)
+		for (int32 Index = 0; Index < NumDerivativeTypes; Index++)
 		{
 			if (bFunc2OpIsEnabled[Op][Index] || IsDebugGenerateAllFunctionsEnabled())
 			{
-				FString BaseName = GetDerivVectorName(Index);
-				FString FieldName = GetFloatVectorName(Index);
-				FString BoolName = GetBoolVectorName(Index);
+				EDerivativeType DerivType = (EDerivativeType)Index;
+				EDerivativeType ScalarDerivType = IsLWCType(DerivType) ? EDerivativeType::LWCScalar : EDerivativeType::Float1;
+				FString BaseName = GetDerivVectorName(DerivType);
+				FString NonLWCBaseName = GetDerivVectorName(MakeNonLWCType(DerivType));
+				FString ScalarName = GetDerivVectorName(ScalarDerivType);
+				FString FieldName = GetFloatVectorName(MakeNonLWCType(DerivType));
+				FString BoolName = GetBoolVectorName(DerivType);
+				const uint32 NumComponents = GetNumComponents(DerivType);
+				const FString Suffix = IsLWCType(DerivType) ? TEXT("LWC") : TEXT("");
 
-				switch((EFunc2)Op)
+				switch ((EFunc2)Op)
 				{
 				case EFunc2::Add:
-					Ret += BaseName + TEXT(" AddDeriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
+					Ret += BaseName + TEXT(" AddDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
 					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Value = A.Value + B.Value;") LINE_TERMINATOR;
+					if (IsLWCType(DerivType))
+					{
+						Ret += TEXT("\tRet.Value = LWCAdd(A.Value, B.Value);") LINE_TERMINATOR;
+					}
+					else
+					{
+						Ret += TEXT("\tRet.Value = A.Value + B.Value;") LINE_TERMINATOR;
+					}
 					Ret += TEXT("\tRet.Ddx = A.Ddx + B.Ddx;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Ddy = A.Ddy + B.Ddy;") LINE_TERMINATOR;
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
@@ -1156,10 +1484,17 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc2::Sub:
-					Ret += BaseName + TEXT(" SubDeriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
+					Ret += BaseName + TEXT(" SubDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
 					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Value = A.Value - B.Value;") LINE_TERMINATOR;
+					if (IsLWCType(DerivType))
+					{
+						Ret += TEXT("\tRet.Value = LWCSubtract(A.Value, B.Value);") LINE_TERMINATOR;
+					}
+					else
+					{
+						Ret += TEXT("\tRet.Value = A.Value - B.Value;") LINE_TERMINATOR;
+					}
 					Ret += TEXT("\tRet.Ddx = A.Ddx - B.Ddx;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Ddy = A.Ddy - B.Ddy;") LINE_TERMINATOR;
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
@@ -1167,37 +1502,82 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc2::Mul:
-					Ret += BaseName + TEXT(" MulDeriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
+					Ret += BaseName + TEXT(" MulDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
 					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Value = A.Value * B.Value;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Ddx = A.Ddx * B.Value + A.Value * B.Ddx;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Ddy = A.Ddy * B.Value + A.Value * B.Ddy;") LINE_TERMINATOR;
+					if (IsLWCType(DerivType))
+					{
+						Ret += TEXT("\tRet.Value = LWCMultiply(A.Value, B.Value);") LINE_TERMINATOR;
+						Ret += TEXT("\tRet.Ddx = A.Ddx * LWCToFloat(B.Value) + LWCToFloat(A.Value) * B.Ddx;") LINE_TERMINATOR;
+						Ret += TEXT("\tRet.Ddy = A.Ddy * LWCToFloat(B.Value) + LWCToFloat(A.Value) * B.Ddy;") LINE_TERMINATOR;
+					}
+					else
+					{
+						Ret += TEXT("\tRet.Value = A.Value * B.Value;") LINE_TERMINATOR;
+						Ret += TEXT("\tRet.Ddx = A.Ddx * B.Value + A.Value * B.Ddx;") LINE_TERMINATOR;
+						Ret += TEXT("\tRet.Ddy = A.Ddy * B.Value + A.Value * B.Ddy;") LINE_TERMINATOR;
+					}
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
 					Ret += TEXT("}") LINE_TERMINATOR;
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc2::Div:
-					Ret += BaseName + TEXT(" DivDeriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
+					Ret += BaseName + TEXT(" DivDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
 					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Value = A.Value / B.Value;") LINE_TERMINATOR;
-					Ret += TEXT("\t") + FieldName + TEXT(" Denom = rcp(B.Value * B.Value);") LINE_TERMINATOR;
-					Ret += TEXT("\t") + FieldName + TEXT(" dFdA =  B.Value * Denom;") LINE_TERMINATOR;
-					Ret += TEXT("\t") + FieldName + TEXT(" dFdB = -A.Value * Denom;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx + dFdB * B.Ddx;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy + dFdB * B.Ddy;") LINE_TERMINATOR;
+					if (IsLWCType(DerivType))
+					{
+						Ret += TEXT("\tRet.Value = LWCDivide(A.Value, B.Value);") LINE_TERMINATOR;
+						Ret += TEXT("\t") + FieldName + TEXT(" Denom = LWCRcp(LWCMultiply(B.Value, B.Value));") LINE_TERMINATOR;
+						Ret += TEXT("\t") + FieldName + TEXT(" dFdA =  LWCToFloat(LWCMultiply(B.Value, Denom));") LINE_TERMINATOR;
+						Ret += TEXT("\t") + FieldName + TEXT(" dFdB = -LWCToFloat(LWCMultiply(A.Value, Denom));") LINE_TERMINATOR;
+						Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx + dFdB * B.Ddx;") LINE_TERMINATOR;
+						Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy + dFdB * B.Ddy;") LINE_TERMINATOR;
+					}
+					else
+					{
+						Ret += TEXT("\tRet.Value = A.Value / B.Value;") LINE_TERMINATOR;
+						Ret += TEXT("\t") + FieldName + TEXT(" Denom = rcp(B.Value * B.Value);") LINE_TERMINATOR;
+						Ret += TEXT("\t") + FieldName + TEXT(" dFdA =  B.Value * Denom;") LINE_TERMINATOR;
+						Ret += TEXT("\t") + FieldName + TEXT(" dFdB = -A.Value * Denom;") LINE_TERMINATOR;
+						Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx + dFdB * B.Ddx;") LINE_TERMINATOR;
+						Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy + dFdB * B.Ddy;") LINE_TERMINATOR;
+					}
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
 					Ret += TEXT("}") LINE_TERMINATOR;
 					Ret += TEXT("") LINE_TERMINATOR;
+
+					if (IsLWCType(DerivType))
+					{
+						// Add an overload to divide LWC by non-LWC value
+						Ret += BaseName + TEXT(" DivDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A, ") + NonLWCBaseName + TEXT(" B)") LINE_TERMINATOR;
+						Ret += TEXT("{") LINE_TERMINATOR;
+						Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+						Ret += TEXT("\tRet.Value = LWCDivide(A.Value, B.Value);") LINE_TERMINATOR;
+						Ret += TEXT("\t") + FieldName + TEXT(" Denom = rcp(B.Value * B.Value);") LINE_TERMINATOR;
+						Ret += TEXT("\t") + FieldName + TEXT(" dFdA =  B.Value * Denom;") LINE_TERMINATOR;
+						Ret += TEXT("\t") + FieldName + TEXT(" dFdB = -LWCToFloat(LWCMultiply(A.Value, Denom));") LINE_TERMINATOR;
+						Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx + dFdB * B.Ddx;") LINE_TERMINATOR;
+						Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy + dFdB * B.Ddy;") LINE_TERMINATOR;
+						Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+						Ret += TEXT("}") LINE_TERMINATOR;
+						Ret += TEXT("") LINE_TERMINATOR;
+					}
 					break;
 				case EFunc2::Fmod:
 					// Only valid when B derivatives are zero.
 					// We can't really do anything meaningful in the non-zero case.
-					Ret += BaseName + TEXT(" FmodDeriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
+					Ret += NonLWCBaseName + TEXT(" FmodDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A, ") + NonLWCBaseName + TEXT(" B)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
-					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Value = fmod(A.Value, B.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + NonLWCBaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					if (IsLWCType(DerivType))
+					{
+						Ret += TEXT("\tRet.Value = LWCFmod(A.Value, B.Value);") LINE_TERMINATOR;
+					}
+					else
+					{
+						Ret += TEXT("\tRet.Value = fmod(A.Value, B.Value);") LINE_TERMINATOR;
+					}
 					Ret += TEXT("\tRet.Ddx = A.Ddx;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Ddy = A.Ddy;") LINE_TERMINATOR;
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
@@ -1205,11 +1585,19 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc2::Min:
-					Ret += BaseName + TEXT(" MinDeriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
+					Ret += BaseName + TEXT(" MinDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
 					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
-					Ret += TEXT("\t") + BoolName + TEXT(" Cmp = A.Value < B.Value;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Value = Cmp ? A.Value : B.Value;") LINE_TERMINATOR;
+					if (IsLWCType(DerivType))
+					{
+						Ret += TEXT("\t") + BoolName + TEXT(" Cmp = LWCLess(A.Value, B.Value);") LINE_TERMINATOR;
+						Ret += TEXT("\tRet.Value = LWCSelect(Cmp, A.Value, B.Value);") LINE_TERMINATOR;
+					}
+					else
+					{
+						Ret += TEXT("\t") + BoolName + TEXT(" Cmp = A.Value < B.Value;") LINE_TERMINATOR;
+						Ret += TEXT("\tRet.Value = Cmp ? A.Value : B.Value;") LINE_TERMINATOR;
+					}
 					Ret += TEXT("\tRet.Ddx = Cmp ? A.Ddx : B.Ddx;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Ddy = Cmp ? A.Ddy : B.Ddy;") LINE_TERMINATOR;
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
@@ -1217,11 +1605,19 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc2::Max:
-					Ret += BaseName + TEXT(" MaxDeriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
+					Ret += BaseName + TEXT(" MaxDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
 					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
-					Ret += TEXT("\t") + BoolName + TEXT(" Cmp = A.Value > B.Value;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Value = Cmp ? A.Value : B.Value;") LINE_TERMINATOR;
+					if (IsLWCType(DerivType))
+					{
+						Ret += TEXT("\t") + BoolName + TEXT(" Cmp = LWCGreater(A.Value, B.Value);") LINE_TERMINATOR;
+						Ret += TEXT("\tRet.Value = LWCSelect(Cmp, A.Value, B.Value);") LINE_TERMINATOR;
+					}
+					else
+					{
+						Ret += TEXT("\t") + BoolName + TEXT(" Cmp = A.Value > B.Value;") LINE_TERMINATOR;
+						Ret += TEXT("\tRet.Value = Cmp ? A.Value : B.Value;") LINE_TERMINATOR;
+					}
 					Ret += TEXT("\tRet.Ddx = Cmp ? A.Ddx : B.Ddx;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Ddy = Cmp ? A.Ddy : B.Ddy;") LINE_TERMINATOR;
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
@@ -1229,12 +1625,19 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc2::Dot:
-					Ret += TEXT("FloatDeriv DotDeriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
+					Ret += ScalarName + TEXT(" DotDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
-					Ret += TEXT("\tFloatDeriv Ret = ConstructConstantFloatDeriv(0);") LINE_TERMINATOR;
-					for (int32 Component = 0; Component <= Index; Component++)
+					if (IsLWCType(DerivType))
 					{
-						Ret += FString::Printf(TEXT("\tRet = AddDeriv(Ret,MulDeriv(Extract%s_%d(A),Extract%s_%d(B)));"), *BaseName, Component + 1, *BaseName, Component + 1) + LINE_TERMINATOR;
+						Ret += TEXT("\t") + ScalarName + TEXT(" Ret = ConstructConstant") + ScalarName + TEXT("(LWCPromote(0.0f));") LINE_TERMINATOR;
+					}
+					else
+					{
+						Ret += TEXT("\t") + ScalarName + TEXT(" Ret = ConstructConstant") + ScalarName + TEXT("(0);") LINE_TERMINATOR;
+					}
+					for (uint32 Component = 0; Component < NumComponents; Component++)
+					{
+						Ret += FString::Printf(TEXT("\tRet = AddDeriv%s(Ret,MulDeriv%s(Extract%s_%d(A),Extract%s_%d(B)));"), *Suffix, *Suffix, *BaseName, Component + 1, *BaseName, Component + 1) + LINE_TERMINATOR;
 					}
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
 					Ret += TEXT("}") LINE_TERMINATOR;
@@ -1247,7 +1650,7 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					// sanity check when B is constant and A is a linear function (B'=0,A'=1)
 					//     pow'(A,B) = pow(A,B) * (0*log(A) + (B/A)*1)
 					//     pow'(A,B) = B * pow(A,B-1)
-					Ret += BaseName + TEXT(" PowDeriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
+					Ret += BaseName + TEXT(" PowDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
 					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Value = pow(A.Value, B.Value);") LINE_TERMINATOR;
@@ -1258,7 +1661,7 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc2::PowPositiveClamped:
-					Ret += BaseName + TEXT(" PowPositiveClampedDeriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
+					Ret += BaseName + TEXT(" PowPositiveClampedDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
 					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
 					Ret += TEXT("\t") + BoolName + TEXT(" InRange = (0.0 < B.Value);") LINE_TERMINATOR; // should we check for A as well?
@@ -1273,7 +1676,7 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc2::Atan2:
-					Ret += BaseName + TEXT(" Atan2Deriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
+					Ret += BaseName + TEXT(" Atan2Deriv") + Suffix + TEXT("(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
 					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Value = atan2(A.Value, B.Value);") LINE_TERMINATOR;
@@ -1287,7 +1690,7 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc2::Atan2Fast:
-					Ret += BaseName + TEXT(" Atan2FastDeriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
+					Ret += BaseName + TEXT(" Atan2FastDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
 					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Value = atan2Fast(A.Value, B.Value);") LINE_TERMINATOR;
@@ -1301,12 +1704,12 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc2::Cross:
-					if (Index == 2)
+					if (DerivType == EDerivativeType::Float3)
 					{
 						// (A*B)' = A' * B + A * B'
 						// Cross(A, B) = A.yzx * B.zxy - A.zxy * B.yzx;
 						// Cross(A, B)' = A.yzx' * B.zxy + A.yzx * B.zxy' - A.zxy' * B.yzx - A.zxy * B.yzx';
-						Ret += BaseName + TEXT(" CrossDeriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
+						Ret += BaseName + TEXT(" CrossDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
 						Ret += TEXT("{") LINE_TERMINATOR;
 						Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
 						Ret += TEXT("\tRet.Value = cross(A.Value, B.Value);") LINE_TERMINATOR;
@@ -1327,23 +1730,38 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 
 	for (int32 Op = 0; Op < (int32)EFunc1::Num; Op++)
 	{
-		for (int32 Index = 0; Index < 4; Index++)
+		for (int32 Index = 0; Index < NumDerivativeTypes; Index++)
 		{
 			if (bFunc1OpIsEnabled[Op][Index] || IsDebugGenerateAllFunctionsEnabled())
 			{
-				FString BaseName	= GetDerivVectorName(Index);
-				FString FieldName	= GetFloatVectorName(Index);
-				FString BoolName	= GetBoolVectorName(Index);
+				EDerivativeType DerivType = (EDerivativeType)Index;
+				EDerivativeType ScalarDerivType = IsLWCType(DerivType) ? EDerivativeType::LWCScalar : EDerivativeType::Float1;
+				FString BaseName	= GetDerivVectorName(DerivType);
+				FString NonLWCBaseName = GetDerivVectorName(MakeNonLWCType(DerivType));
+				FString ScalarName = GetDerivVectorName(ScalarDerivType);
+				FString FieldName	= GetFloatVectorName(MakeNonLWCType(DerivType));
+				FString NonLWCFieldName = GetFloatVectorName(MakeNonLWCType(DerivType));
+				FString BoolName	= GetBoolVectorName(DerivType);
+				const FString Suffix = IsLWCType(DerivType) ? TEXT("LWC") : TEXT("");
 
 				switch((EFunc1)Op)
 				{
 				case EFunc1::Abs:
-					Ret += BaseName + TEXT(" AbsDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += BaseName + TEXT(" AbsDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + NonLWCFieldName + TEXT(" One = 1.0f;") LINE_TERMINATOR;
 					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Value = abs(A.Value);") LINE_TERMINATOR;
-					Ret += TEXT("\t") + FieldName + TEXT(" One = 1.0f;") LINE_TERMINATOR;
-					Ret += TEXT("\t") + FieldName + TEXT(" dFdA = (A.Value >= 0.0f ? One : -One);") LINE_TERMINATOR;
+					if (IsLWCType(DerivType))
+					{
+						Ret += TEXT("\tRet.Value = LWCAbs(A.Value);") LINE_TERMINATOR;
+						Ret += TEXT("\t") + NonLWCFieldName + TEXT(" dFdA = LWCGreaterEqual(A.Value, 0.0f) ? One : -One;") LINE_TERMINATOR;
+					}
+					else
+					{
+						Ret += TEXT("\tRet.Value = abs(A.Value);") LINE_TERMINATOR;
+						Ret += TEXT("\t") + NonLWCFieldName + TEXT(" dFdA = (A.Value >= 0.0f ? One : -One);") LINE_TERMINATOR;
+					}
+
 					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy;") LINE_TERMINATOR;
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
@@ -1351,11 +1769,19 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc1::Sin:
-					Ret += BaseName + TEXT(" SinDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += NonLWCBaseName + TEXT(" SinDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
-					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Value = sin(A.Value);") LINE_TERMINATOR;
-					Ret += TEXT("\t") + FieldName + TEXT(" dFdA = cos(A.Value);");
+					Ret += TEXT("\t") + NonLWCBaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					if (IsLWCType(DerivType))
+					{
+						Ret += TEXT("\tRet.Value = LWCSin(A.Value);") LINE_TERMINATOR;
+						Ret += TEXT("\t") + FieldName + TEXT(" dFdA = LWCCos(A.Value);");
+					}
+					else
+					{
+						Ret += TEXT("\tRet.Value = sin(A.Value);") LINE_TERMINATOR;
+						Ret += TEXT("\t") + FieldName + TEXT(" dFdA = cos(A.Value);");
+					}
 					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy;") LINE_TERMINATOR;
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
@@ -1363,11 +1789,19 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc1::Cos:
-					Ret += BaseName + TEXT(" CosDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += NonLWCBaseName + TEXT(" CosDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
-					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Value = cos(A.Value);") LINE_TERMINATOR;
-					Ret += TEXT("\t") + FieldName + TEXT(" dFdA = -sin(A.Value);");
+					Ret += TEXT("\t") + NonLWCBaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					if (IsLWCType(DerivType))
+					{
+						Ret += TEXT("\tRet.Value = LWCCos(A.Value);") LINE_TERMINATOR;
+						Ret += TEXT("\t") + FieldName + TEXT(" dFdA = -LWCSin(A.Value);");
+					}
+					else
+					{
+						Ret += TEXT("\tRet.Value = cos(A.Value);") LINE_TERMINATOR;
+						Ret += TEXT("\t") + FieldName + TEXT(" dFdA = -sin(A.Value);");
+					}
 					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy;") LINE_TERMINATOR;
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
@@ -1375,11 +1809,19 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc1::Tan:
-					Ret += BaseName + TEXT(" TanDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += NonLWCBaseName + TEXT(" TanDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
-					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Value = tan(A.Value);") LINE_TERMINATOR;
-					Ret += TEXT("\t") + FieldName + TEXT(" dFdA = rcp(cos(A.Value) * cos(A.Value));");
+					Ret += TEXT("\t") + NonLWCBaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					if (IsLWCType(DerivType))
+					{
+						Ret += TEXT("\tRet.Value = LWCTan(A.Value);") LINE_TERMINATOR;
+						Ret += TEXT("\t") + FieldName + TEXT(" dFdA = rcp(Pow2(LWCCos(A.Value)));");
+					}
+					else
+					{
+						Ret += TEXT("\tRet.Value = tan(A.Value);") LINE_TERMINATOR;
+						Ret += TEXT("\t") + FieldName + TEXT(" dFdA = rcp(Pow2(cos(A.Value)));");
+					}
 					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy;") LINE_TERMINATOR;
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
@@ -1387,7 +1829,7 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc1::Asin:
-					Ret += BaseName + TEXT(" AsinDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += BaseName + TEXT(" AsinDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
 					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Value = asin(A.Value);") LINE_TERMINATOR;
@@ -1399,7 +1841,7 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc1::AsinFast:
-					Ret += BaseName + TEXT(" AsinFastDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += BaseName + TEXT(" AsinFastDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
 					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Value = asinFast(A.Value);") LINE_TERMINATOR;
@@ -1411,7 +1853,7 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc1::Acos:
-					Ret += BaseName + TEXT(" AcosDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += BaseName + TEXT(" AcosDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
 					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Value = acos(A.Value);") LINE_TERMINATOR;
@@ -1423,7 +1865,7 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc1::AcosFast:
-					Ret += BaseName + TEXT(" AcosFastDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += BaseName + TEXT(" AcosFastDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
 					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Value = acosFast(A.Value);") LINE_TERMINATOR;
@@ -1435,7 +1877,7 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc1::Atan:
-					Ret += BaseName + TEXT(" AtanDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += BaseName + TEXT(" AtanDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
 					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Value = atan(A.Value);") LINE_TERMINATOR;
@@ -1447,7 +1889,7 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc1::AtanFast:
-					Ret += BaseName + TEXT(" AtanFastDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += BaseName + TEXT(" AtanFastDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
 					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Value = atanFast(A.Value);") LINE_TERMINATOR;
@@ -1459,11 +1901,20 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc1::Sqrt:
-					Ret += BaseName + TEXT(" SqrtDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += NonLWCBaseName + TEXT(" SqrtDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
-					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Value = sqrt(A.Value);") LINE_TERMINATOR;
-					Ret += TEXT("\t") + FieldName + TEXT(" dFdA = 0.5f * rsqrt(max(A.Value, 0.00001f));");
+					Ret += TEXT("\t") + NonLWCBaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					if (IsLWCType(DerivType))
+					{
+						Ret += TEXT("\tRet.Value = LWCSqrt(A.Value);") LINE_TERMINATOR;
+						Ret += TEXT("\t") + NonLWCFieldName + TEXT(" dFdA = 0.5f * LWCRsqrt(LWCMax(A.Value, 0.00001f));") LINE_TERMINATOR;
+					}
+					else
+					{
+						Ret += TEXT("\tRet.Value = sqrt(A.Value);") LINE_TERMINATOR;
+						Ret += TEXT("\t") + NonLWCFieldName + TEXT(" dFdA = 0.5f * rsqrt(max(A.Value, 0.00001f));") LINE_TERMINATOR;
+					}
+					
 					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy;") LINE_TERMINATOR;
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
@@ -1471,11 +1922,18 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc1::Rcp:
-					Ret += BaseName + TEXT(" RcpDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += NonLWCBaseName + TEXT(" RcpDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
-					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Value = rcp(A.Value);") LINE_TERMINATOR;
-					Ret += TEXT("\t") + FieldName + TEXT(" dFdA = -Ret.Value * Ret.Value;");
+					Ret += TEXT("\t") + NonLWCBaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					if (IsLWCType(DerivType))
+					{
+						Ret += TEXT("\tRet.Value = LWCRcp(A.Value);") LINE_TERMINATOR;
+					}
+					else
+					{
+						Ret += TEXT("\tRet.Value = rcp(A.Value);") LINE_TERMINATOR;
+					}
+					Ret += TEXT("\t") + NonLWCFieldName + TEXT(" dFdA = -Ret.Value * Ret.Value;");
 					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy;") LINE_TERMINATOR;
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
@@ -1483,11 +1941,20 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc1::Rsqrt:
-					Ret += BaseName + TEXT(" RsqrtDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += NonLWCBaseName + TEXT(" RsqrtDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
-					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Value = rsqrt(A.Value);") LINE_TERMINATOR;
-					Ret += TEXT("\t") + FieldName + TEXT(" dFdA = -0.5f * rsqrt(A.Value) * rcp(A.Value);");
+					Ret += TEXT("\t") + NonLWCBaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					if (IsLWCType(DerivType))
+					{
+						Ret += TEXT("\tRet.Value = LWCRsqrt(A.Value);") LINE_TERMINATOR;
+						Ret += TEXT("\t") + NonLWCFieldName + TEXT(" dFdA = -0.5f * LWCRsqrt(A.Value) * LWCRcp(A.Value);");
+					}
+					else
+					{
+						Ret += TEXT("\tRet.Value = rsqrt(A.Value);") LINE_TERMINATOR;
+						Ret += TEXT("\t") + NonLWCFieldName + TEXT(" dFdA = -0.5f * rsqrt(A.Value) * rcp(A.Value);");
+					}
+					
 					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy;") LINE_TERMINATOR;
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
@@ -1495,12 +1962,20 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc1::Saturate:
-					Ret += BaseName + TEXT(" SaturateDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += NonLWCBaseName + TEXT(" SaturateDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
-					Ret += TEXT("\t") + BoolName + TEXT(" InRange = (0.0 < A.Value && A.Value < 1.0);") LINE_TERMINATOR;
-					Ret += TEXT("\t") + FieldName + TEXT(" Zero = 0.0f;") LINE_TERMINATOR;
-					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Value = saturate(A.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + NonLWCFieldName + TEXT(" Zero = 0.0f;") LINE_TERMINATOR;
+					Ret += TEXT("\t") + NonLWCBaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					if (IsLWCType(DerivType))
+					{
+						Ret += TEXT("\tRet.Value = LWCSaturate(A.Value);") LINE_TERMINATOR;
+						Ret += TEXT("\t") + BoolName + TEXT(" InRange = LWCEquals(Ret.Value, A.Value);") LINE_TERMINATOR;
+					}
+					else
+					{
+						Ret += TEXT("\tRet.Value = saturate(A.Value);") LINE_TERMINATOR;
+						Ret += TEXT("\t") + BoolName + TEXT(" InRange = (0.0 < A.Value && A.Value < 1.0);") LINE_TERMINATOR;
+					}
 					Ret += TEXT("\tRet.Ddx = InRange ? A.Ddx : Zero;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Ddy = InRange ? A.Ddy : Zero;") LINE_TERMINATOR;
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
@@ -1508,10 +1983,17 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc1::Frac:
-					Ret += BaseName + TEXT(" FracDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += NonLWCBaseName + TEXT(" FracDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
-					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Value = frac(A.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + NonLWCBaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					if (IsLWCType(DerivType))
+					{
+						Ret += TEXT("\tRet.Value = LWCFrac(A.Value);") LINE_TERMINATOR;
+					}
+					else
+					{
+						Ret += TEXT("\tRet.Value = frac(A.Value);") LINE_TERMINATOR;
+					}
 					Ret += TEXT("\tRet.Ddx = A.Ddx;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Ddy = A.Ddy;") LINE_TERMINATOR;
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
@@ -1519,7 +2001,7 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc1::Log2:
-					Ret += BaseName + TEXT(" Log2Deriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += BaseName + TEXT(" Log2Deriv") + Suffix + TEXT("(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
 					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Value = log2(A.Value);") LINE_TERMINATOR;
@@ -1531,7 +2013,7 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc1::Log10:
-					Ret += BaseName + TEXT(" Log10Deriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += BaseName + TEXT(" Log10Deriv") + Suffix + TEXT("(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
 					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Value = log10(A.Value);") LINE_TERMINATOR;
@@ -1543,7 +2025,7 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc1::Exp:
-					Ret += BaseName + TEXT(" ExpDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += BaseName + TEXT(" ExpDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
 					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Value = exp(A.Value);") LINE_TERMINATOR;
@@ -1554,27 +2036,57 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc1::Length:
-					Ret += TEXT("FloatDeriv LengthDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += ScalarName + TEXT(" LengthDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
-					Ret += TEXT("\tFloatDeriv Ret = SqrtDeriv(DotDeriv(A,A));") LINE_TERMINATOR;
+					Ret += TEXT("\t") + ScalarName + TEXT(" Ret;") LINE_TERMINATOR;
+					if (IsLWCType(DerivType))
+					{
+						Ret += TEXT("\tRet.Value = LWCLength(A.Value);") LINE_TERMINATOR;
+					}
+					else
+					{
+						Ret += TEXT("\tRet.Value = length(A.Value);") LINE_TERMINATOR;
+					}
+					Ret += FString::Printf(TEXT("\tFloatDeriv Deriv = SqrtDeriv%s(DotDeriv%s(A,A));") LINE_TERMINATOR, * Suffix, * Suffix);
+					Ret += TEXT("\tRet.Ddx = Deriv.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = Deriv.Ddy;") LINE_TERMINATOR;
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
 					Ret += TEXT("}") LINE_TERMINATOR;
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc1::InvLength:
-					Ret += TEXT("FloatDeriv InvLengthDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += TEXT("FloatDeriv InvLengthDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
-					Ret += TEXT("\tFloatDeriv Ret = RsqrtDeriv(DotDeriv(A,A));") LINE_TERMINATOR;
+					Ret += TEXT("\tFloatDeriv Ret;") LINE_TERMINATOR;
+					if (IsLWCType(DerivType))
+					{
+						Ret += TEXT("\tRet.Value = LWCRcpLength(A.Value);") LINE_TERMINATOR;
+					}
+					else
+					{
+						Ret += TEXT("\tRet.Value = rcp(length(A.Value));") LINE_TERMINATOR;
+					}
+					Ret += FString::Printf(TEXT("\tFloatDeriv Deriv = RsqrtDeriv%s(DotDeriv%s(A,A));") LINE_TERMINATOR, *Suffix, *Suffix);
+					Ret += TEXT("\tRet.Ddx = Deriv.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = Deriv.Ddy;") LINE_TERMINATOR;
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
 					Ret += TEXT("}") LINE_TERMINATOR;
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EFunc1::Normalize:
-					Ret += BaseName + TEXT(" NormalizeDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += NonLWCBaseName + TEXT(" NormalizeDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
-					Ret += TEXT("\tFloatDeriv InvLen = RsqrtDeriv(DotDeriv(A,A));") LINE_TERMINATOR;
-					Ret += TEXT("\t") + BaseName + TEXT(" Ret = MulDeriv(") + ConvertDeriv(TEXT("InvLen"), Index, 0) + TEXT(", A);") LINE_TERMINATOR;
-					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += FString::Printf(TEXT("\tFloatDeriv InvLen = RsqrtDeriv%s(DotDeriv%s(A,A));") LINE_TERMINATOR, *Suffix, *Suffix);
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret = MulDeriv") + Suffix + TEXT("(") + ConvertDeriv(TEXT("InvLen"), DerivType, EDerivativeType::Float1) + TEXT(", A);") LINE_TERMINATOR;
+					if (IsLWCType(DerivType))
+					{
+						// Convert the result to non-LWC
+						Ret += TEXT("\treturn ") + ConvertDeriv(TEXT("Ret"), MakeNonLWCType(DerivType), DerivType) + TEXT(";") LINE_TERMINATOR;
+					}
+					else
+					{
+						Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					}
 					Ret += TEXT("}") LINE_TERMINATOR;
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
@@ -1586,23 +2098,34 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 		}
 	}
 
-	for (int32 Index = 0; Index < 4; Index++)
+	for (int32 Index = 0; Index < NumDerivativeTypes; Index++)
 	{
-		const FString BaseName = GetDerivVectorName(Index);
-		const FString FieldName = GetFloatVectorName(Index);
-		const FString BoolName = GetBoolVectorName(Index);
+		EDerivativeType DerivType = (EDerivativeType)Index;
+		const FString BaseName = GetDerivVectorName(DerivType);
+		const FString NonLWCBaseName = GetDerivVectorName(MakeNonLWCType(DerivType));
+		const FString FieldName = GetFloatVectorName(DerivType);
+		const FString BoolName = GetBoolVectorName(DerivType);
 
 		if (bLerpEnabled[Index] || IsDebugGenerateAllFunctionsEnabled())
 		{
 			
 			// lerp(a,b,s) = a*(1-s) + b*s
 			// lerp(a,b,s)' = a' * (1 - s') + b' * s + s' * (b - a)
-			Ret += FString::Printf(TEXT("%s LerpDeriv(%s A, %s B, %s S)"), *BaseName, *BaseName, *BaseName, *BaseName) + LINE_TERMINATOR;
+			Ret += FString::Printf(TEXT("%s LerpDeriv(%s A, %s B, %s S)"), *BaseName, *BaseName, *BaseName, *NonLWCBaseName) + LINE_TERMINATOR;
 			Ret += TEXT("{") LINE_TERMINATOR;
 			Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
-			Ret += TEXT("\tRet.Value = lerp(A.Value, B.Value, S.Value);") LINE_TERMINATOR;
-			Ret += TEXT("\tRet.Ddx = lerp(A.Ddx, B.Ddx, S.Value) + S.Ddx * (B.Value - A.Value);") LINE_TERMINATOR;
-			Ret += TEXT("\tRet.Ddy = lerp(A.Ddy, B.Ddy, S.Value) + S.Ddy * (B.Value - A.Value);") LINE_TERMINATOR;
+			if (IsLWCType(DerivType))
+			{
+				Ret += TEXT("\tRet.Value = LWCLerp(A.Value, B.Value, S.Value);") LINE_TERMINATOR;
+				Ret += TEXT("\tRet.Ddx = lerp(A.Ddx, B.Ddx, S.Value) + S.Ddx * LWCToFloat(LWCSubtract(B.Value, A.Value));") LINE_TERMINATOR;
+				Ret += TEXT("\tRet.Ddy = lerp(A.Ddy, B.Ddy, S.Value) + S.Ddy * LWCToFloat(LWCSubtract(B.Value, A.Value));") LINE_TERMINATOR;
+			}
+			else
+			{
+				Ret += TEXT("\tRet.Value = lerp(A.Value, B.Value, S.Value);") LINE_TERMINATOR;
+				Ret += TEXT("\tRet.Ddx = lerp(A.Ddx, B.Ddx, S.Value) + S.Ddx * (B.Value - A.Value);") LINE_TERMINATOR;
+				Ret += TEXT("\tRet.Ddy = lerp(A.Ddy, B.Ddy, S.Value) + S.Ddy * (B.Value - A.Value);") LINE_TERMINATOR;
+			}
 			Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
 			Ret += TEXT("}") LINE_TERMINATOR;
 			Ret += TEXT("") LINE_TERMINATOR;
@@ -1610,9 +2133,10 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 
 		if (bIfEnabled[Index] || IsDebugGenerateAllFunctionsEnabled())
 		{
-			Ret += FString::Printf(TEXT("%s IfDeriv(float A, float B, %s Greater, %s Less)"), *BaseName, *BaseName, *BaseName) + LINE_TERMINATOR;
+			// TODO - do we need to make these bool-vectors?
+			Ret += FString::Printf(TEXT("%s IfDeriv(bool bGreaterEqual, %s Greater, %s Less)"), *BaseName, *BaseName, *BaseName) + LINE_TERMINATOR;
 			Ret += TEXT("{") LINE_TERMINATOR;
-			Ret += TEXT("\tif(A >= B)") LINE_TERMINATOR;
+			Ret += TEXT("\tif(bGreaterEqual)") LINE_TERMINATOR;
 			Ret += TEXT("\t\treturn Greater;") LINE_TERMINATOR;
 			Ret += TEXT("\telse") LINE_TERMINATOR;
 			Ret += TEXT("\t\treturn Less;") LINE_TERMINATOR;
@@ -1622,11 +2146,11 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 
 		if (bIf2Enabled[Index] || IsDebugGenerateAllFunctionsEnabled())
 		{
-			Ret += FString::Printf(TEXT("%s IfDeriv(float A, float B, %s Greater, %s Less, %s Equal, float Threshold)"), *BaseName, *BaseName, *BaseName, *BaseName) + LINE_TERMINATOR;
+			Ret += FString::Printf(TEXT("%s IfDeriv(bool bNotEqual, bool bGreaterEqual, %s Greater, %s Less, %s Equal)"), *BaseName, *BaseName, *BaseName, *BaseName) + LINE_TERMINATOR;
 			Ret += TEXT("{") LINE_TERMINATOR;
-			Ret += TEXT("\tif(!(abs(A - B) > Threshold))") LINE_TERMINATOR;	// Written like this to preserve NaN behavior of original code.
+			Ret += TEXT("\tif(!bNotEqual)") LINE_TERMINATOR;	// Written like this to preserve NaN behavior of original code.
 			Ret += TEXT("\t\treturn Equal;") LINE_TERMINATOR;
-			Ret += TEXT("\tif(A >= B)") LINE_TERMINATOR;
+			Ret += TEXT("\tif(bGreaterEqual)") LINE_TERMINATOR;
 			Ret += TEXT("\t\treturn Greater;") LINE_TERMINATOR;
 			Ret += TEXT("\telse") LINE_TERMINATOR;
 			Ret += TEXT("\t\treturn Less;") LINE_TERMINATOR;

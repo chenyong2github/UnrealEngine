@@ -336,7 +336,7 @@ void MainPS(in noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPositio
 	float AbsoluteDiffuseMip = AmbientCubemapMipAdjust.z;
 
 
-	float3 ScreenVector = normalize(mul(float4(ScreenSpacePos, 1, 0), View.ScreenToWorld).xyz);
+	float3 ScreenVector = normalize(mul(float3(ScreenSpacePos, 1), LWCToFloat3x3(PrimaryView.ScreenToWorld)).xyz);
 
 	float3 N = GBuffer.WorldNormal;
 	float3 V = -ScreenVector;

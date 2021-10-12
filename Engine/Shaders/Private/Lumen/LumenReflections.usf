@@ -221,7 +221,7 @@ void ReflectionGenerateRaysCS(
 		if (NeedRayTracedReflections(TopLayerRoughness, GBufferData.ShadingModelID))
 		{
 			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, GBufferData.Depth);
-			float3 CameraVector = normalize(WorldPosition - View.WorldCameraOrigin);
+			float3 CameraVector = normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
 
 			float3 RayDirection;
 			float ConeAngle = 0.0f;
@@ -349,7 +349,7 @@ void ReflectionResolveCS(
 #if USE_SPATIAL_RECONSTRUCTION
 			{
 				float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
-				float3 V = -normalize(WorldPosition - View.WorldCameraOrigin);
+				float3 V = -normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
 				float3x3 TangentBasis = GetTangentBasis(GBufferData.WorldNormal);
 				float3 TangentV = mul(TangentBasis, V);
 				float4 ScenePlane = float4(GBufferData.WorldNormal, dot(WorldPosition, GBufferData.WorldNormal));

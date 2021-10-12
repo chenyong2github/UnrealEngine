@@ -3747,7 +3747,9 @@ void UpdateReflectionSceneData(FScene* Scene)
 		}
 
 		NewSortEntry.Guid = CurrentCapture->Guid;
-		NewSortEntry.PositionAndRadius = FVector4(CurrentCapture->Position, CurrentCapture->InfluenceRadius);
+		NewSortEntry.RelativePosition = CurrentCapture->RelativePosition;
+		NewSortEntry.TilePosition = CurrentCapture->TilePosition;
+		NewSortEntry.Radius = CurrentCapture->InfluenceRadius;
 		float ShapeTypeValue = (float)CurrentCapture->Shape;
 		NewSortEntry.CaptureProperties = FVector4f(CurrentCapture->Brightness, NewSortEntry.CubemapIndex, ShapeTypeValue, 0);
 
@@ -3755,11 +3757,11 @@ void UpdateReflectionSceneData(FScene* Scene)
 		{
 			//planes count as boxes in the compute shader.
 			++ReflectionSceneData.NumBoxCaptures;
-			NewSortEntry.BoxTransform = FMatrix(
-				FPlane(CurrentCapture->ReflectionPlane),
-				FPlane(CurrentCapture->ReflectionXAxisAndYScale),
-				FPlane(0, 0, 0, 0),
-				FPlane(0, 0, 0, 0));
+			NewSortEntry.BoxTransform = FMatrix44f(
+				FPlane4f(CurrentCapture->LocalReflectionPlane),
+				FPlane4f(CurrentCapture->ReflectionXAxisAndYScale),
+				FPlane4f(0, 0, 0, 0),
+				FPlane4f(0, 0, 0, 0));
 
 			NewSortEntry.BoxScales = FVector4f(0);
 		}
@@ -4703,7 +4705,9 @@ void FSceneRenderer::SetupSceneReflectionCaptureBuffer(FRHICommandListImmediate&
 
 	for (int32 CaptureIndex = 0; CaptureIndex < SortedCaptures.Num(); CaptureIndex++)
 	{
-		SamplePositionsBuffer.PositionAndRadius[CaptureIndex] = SortedCaptures[CaptureIndex].PositionAndRadius;
+		SamplePositionsBuffer.PositionAndRadius[CaptureIndex] = FVector4(SortedCaptures[CaptureIndex].RelativePosition, SortedCaptures[CaptureIndex].Radius);
+		SamplePositionsBuffer.TilePosition[CaptureIndex] = FVector4(SortedCaptures[CaptureIndex].TilePosition, 0);
+
 		SamplePositionsBuffer.CaptureProperties[CaptureIndex] = SortedCaptures[CaptureIndex].CaptureProperties;
 		SamplePositionsBuffer.CaptureOffsetAndAverageBrightness[CaptureIndex] = SortedCaptures[CaptureIndex].CaptureOffsetAndAverageBrightness;
 		SamplePositionsBuffer.BoxTransform[CaptureIndex] = SortedCaptures[CaptureIndex].BoxTransform;
@@ -4728,7 +4732,8 @@ void FSceneRenderer::SetupSceneReflectionCaptureBuffer(FRHICommandListImmediate&
 
 			for (int32 CaptureIndex = 0; CaptureIndex < SortedCaptures.Num(); CaptureIndex++)
 			{
-				const FSphere BoundingSphere(SortedCaptures[CaptureIndex].PositionAndRadius, SortedCaptures[CaptureIndex].PositionAndRadius.W);
+				FLargeWorldRenderPosition AbsolutePosition(SortedCaptures[CaptureIndex].TilePosition, SortedCaptures[CaptureIndex].RelativePosition);
+				const FSphere BoundingSphere(AbsolutePosition.GetAbsolute(), SortedCaptures[CaptureIndex].Radius);
 
 				const float Distance = View.ViewMatrices.GetViewMatrix().TransformPosition(BoundingSphere.Center).Z + BoundingSphere.W;
 

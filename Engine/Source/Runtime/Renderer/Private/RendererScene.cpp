@@ -1239,7 +1239,7 @@ void FScene::AddPrimitive(UPrimitiveComponent* Primitive)
 		{
 			FPrimitiveSceneProxy* SceneProxy = Params.PrimitiveSceneProxy;
 			FScopeCycleCounter Context(SceneProxy->GetStatId());
-			SceneProxy->SetTransform(FMatrix44f(Params.RenderMatrix), Params.WorldBounds, Params.LocalBounds, Params.AttachmentRootPosition);
+			SceneProxy->SetTransform(Params.RenderMatrix, Params.WorldBounds, Params.LocalBounds, Params.AttachmentRootPosition);
 
 			// Create any RenderThreadResources required.
 			SceneProxy->CreateRenderThreadResources();
@@ -2107,9 +2107,10 @@ void FScene::AddReflectionCapture(UReflectionCaptureComponent* Component)
 
 		FScene* Scene = this;
 		FReflectionCaptureProxy* Proxy = Component->SceneProxy;
+		const FVector Position = Component->GetComponentLocation();
 
 		ENQUEUE_RENDER_COMMAND(FAddCaptureCommand)
-			([Scene, Proxy](FRHICommandListImmediate& RHICmdList)
+			([Scene, Proxy, Position](FRHICommandListImmediate& RHICmdList)
 		{
 			if (Proxy->bUsingPreviewCaptureData)
 			{
@@ -2120,7 +2121,7 @@ void FScene::AddReflectionCapture(UReflectionCaptureComponent* Component)
 			const int32 PackedIndex = Scene->ReflectionSceneData.RegisteredReflectionCaptures.Add(Proxy);
 
 			Proxy->PackedIndex = PackedIndex;
-			Scene->ReflectionSceneData.RegisteredReflectionCapturePositionAndRadius.Add(FSphere(Proxy->Position, Proxy->InfluenceRadius));
+			Scene->ReflectionSceneData.RegisteredReflectionCapturePositionAndRadius.Add(FSphere(Position, Proxy->InfluenceRadius));
 			
 			if (Scene->GetFeatureLevel() <= ERHIFeatureLevel::ES3_1)
 			{

@@ -84,10 +84,9 @@ void FPixelShaderInOut_MainPS(inout FPixelShaderIn In, inout FPixelShaderOut Out
 	clip(OSPosition.xyz + 1.0f);
 	clip(1.0f - OSPosition.xyz);
 
-	// todo: TranslatedWorld would be better for quality
-	float3 WSPosition = SvPositionToWorld(In.SvPosition);
+	float3 TranslatedWorldPosition = SvPositionToTranslatedWorld(In.SvPosition);
 
-	float3 CameraVector = normalize(View.WorldCameraOrigin - WSPosition);
+	float3 CameraVector = normalize(PrimaryView.TranslatedWorldCameraOrigin - TranslatedWorldPosition);
 
 	// can be optimized
 	float3 DecalVector = OSPosition * 0.5f + 0.5f;
@@ -111,10 +110,10 @@ void FPixelShaderInOut_MainPS(inout FPixelShaderIn In, inout FPixelShaderOut Out
 	MaterialParameters.SvPosition = In.SvPosition;
 	MaterialParameters.ScreenPosition = SvPositionToScreenPosition(In.SvPosition);
 	MaterialParameters.LightVector = SwizzlePos;
-	MaterialParameters.AbsoluteWorldPosition = 
-		MaterialParameters.WorldPosition_CamRelative = 
-		MaterialParameters.WorldPosition_NoOffsets = 
-		MaterialParameters.WorldPosition_NoOffsets_CamRelative = WSPosition;
+
+	MaterialParameters.AbsoluteWorldPosition = MaterialParameters.WorldPosition_NoOffsets = LWCSubtract(TranslatedWorldPosition, PrimaryView.PreViewTranslation);
+	MaterialParameters.WorldPosition_CamRelative = MaterialParameters.WorldPosition_NoOffsets_CamRelative = TranslatedWorldPosition;
+
 	FPixelMaterialInputs PixelMaterialInputs;
 	CalcPixelMaterialInputs(MaterialParameters, PixelMaterialInputs);
 	

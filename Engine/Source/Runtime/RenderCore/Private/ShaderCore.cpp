@@ -534,6 +534,13 @@ void FShaderParameterMap::RemoveParameterAllocation(const TCHAR* ParameterName)
 	ParameterMap.Remove(ParameterName);
 }
 
+void FShaderCompilerDefinitions::SetFloatDefine(const TCHAR* Name, float Value)
+{
+	// Make sure the printed value perfectly matches the given number
+	FString Define = FString::Printf(TEXT("%#.9gf"), Value);
+	Definitions.Add(Name, MoveTemp(Define));
+}
+
 void FShaderCompilerOutput::GenerateOutputHash()
 {
 	FSHA1 HashState;

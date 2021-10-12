@@ -47,12 +47,12 @@ struct FPackedView
 	FMatrix44f	TranslatedWorldToView;
 	FMatrix44f	TranslatedWorldToClip;
 	FMatrix44f	ViewToClip;
-	FMatrix44f	ClipToWorld;
-	
+	FMatrix44f	ClipToRelativeWorld;
+
 	FMatrix44f	PrevTranslatedWorldToView;
 	FMatrix44f	PrevTranslatedWorldToClip;
 	FMatrix44f	PrevViewToClip;
-	FMatrix44f	PrevClipToWorld;
+	FMatrix44f	PrevClipToRelativeWorld;
 
 	FIntVector4	ViewRect;
 	FVector4f	ViewSizeAndInvSize;
@@ -61,11 +61,17 @@ struct FPackedView
 	FVector4f	PrevPreViewTranslation;
 	FVector4f	WorldCameraOrigin;
 	FVector4f	ViewForwardAndNearPlane;
-	
+
+	FVector3f	ViewTilePosition;
+	uint32		Padding0;
+
+	FVector3f	MatrixTilePosition;
+	uint32		Padding1;
+
 	FVector2D	LODScales;
 	float		MinBoundsRadiusSq;
 	uint32		StreamingPriorityCategory_AndFlags;
-	
+
 	FIntVector4 TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ;
 
 	FIntVector4	HZBTestViewRect;	// In full resolution

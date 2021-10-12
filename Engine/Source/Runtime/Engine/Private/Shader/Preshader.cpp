@@ -341,6 +341,9 @@ void UE::Shader::EvaluatePreshader(const FUniformExpressionSet* UniformExpressio
 		case EPreshaderOpcode::Dot: EvaluateBinaryOp(Stack, UE::Shader::Dot); break;
 		case EPreshaderOpcode::Cross: EvaluateBinaryOp(Stack, UE::Shader::Cross); break;
 		case EPreshaderOpcode::Sqrt: EvaluateUnaryOp(Stack, UE::Shader::Sqrt); break;
+		case EPreshaderOpcode::Rcp: EvaluateUnaryOp(Stack, UE::Shader::Rcp); break;
+		case EPreshaderOpcode::Length: EvaluateUnaryOp(Stack, [](const UE::Shader::FValue& Value) { return Sqrt(Dot(Value, Value)); }); break;
+		case EPreshaderOpcode::Normalize: EvaluateUnaryOp(Stack, [](const UE::Shader::FValue& Value) { return Div(Value, Sqrt(Dot(Value, Value))); }); break;
 		case EPreshaderOpcode::Sin: EvaluateUnaryOp(Stack, UE::Shader::Sin); break;
 		case EPreshaderOpcode::Cos: EvaluateUnaryOp(Stack, UE::Shader::Cos); break;
 		case EPreshaderOpcode::Tan: EvaluateUnaryOp(Stack, UE::Shader::Tan); break;

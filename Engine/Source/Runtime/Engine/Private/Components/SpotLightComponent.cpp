@@ -6,6 +6,7 @@
 
 #include "Components/SpotLightComponent.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Misc/LargeWorldRenderPosition.h"
 #include "Engine/Texture2D.h"
 #include "SceneManagement.h"
 #include "PointLightSceneProxy.h"
@@ -53,7 +54,9 @@ public:
 	/** Accesses parameters needed for rendering the light. */
 	virtual void GetLightShaderParameters(FLightShaderParameters& LightParameters) const override
 	{
-		LightParameters.Position = GetOrigin();
+		const FLargeWorldRenderPosition AbsoluteWorldPosition(GetOrigin());
+		LightParameters.Position = AbsoluteWorldPosition.GetOffset();
+		LightParameters.TilePosition = AbsoluteWorldPosition.GetTile();
 		LightParameters.InvRadius = InvRadius;
 		LightParameters.Color = FVector(GetColor());
 		LightParameters.FalloffExponent = FalloffExponent;

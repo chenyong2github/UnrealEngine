@@ -10,6 +10,7 @@
 #include "UObject/RenderingObjectVersion.h"
 #include "UObject/EditorObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "UObject/UE5LWCRenderingStreamObjectVersion.h"
 #include "Misc/App.h"
 #include "UObject/Object.h"
 #include "UObject/Class.h"
@@ -152,6 +153,7 @@
 #include "Materials/MaterialExpressionStaticSwitchParameter.h"
 #include "Materials/MaterialExpressionStaticComponentMaskParameter.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
+#include "Materials/MaterialExpressionDoubleVectorParameter.h"
 #include "Materials/MaterialExpressionParticleColor.h"
 #include "Materials/MaterialExpressionParticleDirection.h"
 #include "Materials/MaterialExpressionParticleMacroUV.h"
@@ -265,6 +267,7 @@
 #include "Materials/MaterialExpressionSetLocal.h"
 #include "Materials/MaterialExpressionGetLocal.h"
 #include "Materials/MaterialExpressionBinaryOp.h"
+#include "Materials/MaterialExpressionGenericConstant.h"
 #include "EditorSupportDelegates.h"
 #include "MaterialCompiler.h"
 #if WITH_EDITOR
@@ -2587,6 +2590,7 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 		else
 		{
 			WorldPositionIndex = Compiler->WorldPosition(WPT_Default);
+			ensure(WorldPositionIndex != INDEX_NONE);
 		}
 		
 		if (WorldPositionIndex != INDEX_NONE)
@@ -4223,6 +4227,49 @@ void UMaterialExpressionLinearInterpolate::GetCaption(TArray<FString>& OutCaptio
 	}
 
 	OutCaptions.Add(ret);
+}
+#endif // WITH_EDITOR
+
+UMaterialExpressionGenericConstant::UMaterialExpressionGenericConstant(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Constants;
+		FConstructorStatics()
+			: NAME_Constants(LOCTEXT("Constants", "Constants"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Constants);
+	bCollapsed = true;
+#endif
+}
+
+UMaterialExpressionConstantDouble::UMaterialExpressionConstantDouble(const FObjectInitializer& ObjectInitializer) {}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionGenericConstant::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	return Compiler->GenericConstant(GetConstantValue());
+}
+
+void UMaterialExpressionGenericConstant::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(GetConstantValue().ToString(UE::Shader::EValueStringFormat::Description));
+}
+
+FString UMaterialExpressionGenericConstant::GetDescription() const
+{
+	FString Result = FString(*GetClass()->GetName()).Mid(FCString::Strlen(TEXT("MaterialExpression")));
+	Result += TEXT(" (");
+	Result += Super::GetDescription();
+	Result += TEXT(")");
+	return Result;
 }
 #endif // WITH_EDITOR
 
@@ -7951,6 +7998,69 @@ bool UMaterialExpressionVectorParameter::HasClassAndNameCollision(UMaterialExpre
 #endif
 
 //
+//	UMaterialExpressionDoubleVectorParameter
+//
+UMaterialExpressionDoubleVectorParameter::UMaterialExpressionDoubleVectorParameter(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT(""), 1, 1, 1, 1, 0));
+	Outputs.Add(FExpressionOutput(TEXT(""), 1, 1, 0, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT(""), 1, 0, 1, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT(""), 1, 0, 0, 1, 0));
+	Outputs.Add(FExpressionOutput(TEXT(""), 1, 0, 0, 0, 1));
+#endif // WITH_EDITORONLY_DATA
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionDoubleVectorParameter::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	return Compiler->NumericParameter(EMaterialParameterType::DoubleVector, ParameterName, DefaultValue);
+}
+
+void UMaterialExpressionDoubleVectorParameter::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(FString::Printf(
+		TEXT("Param (%.3g,%.3g,%.3g,%.3g)"),
+		DefaultValue.X,
+		DefaultValue.Y,
+		DefaultValue.Z,
+		DefaultValue.W));
+	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString()));
+}
+#endif // WITH_EDITOR
+
+#if WITH_EDITOR
+bool UMaterialExpressionDoubleVectorParameter::SetParameterValue(FName InParameterName, FVector4d InValue, EMaterialExpressionSetParameterValueFlags Flags)
+{
+	if (InParameterName == ParameterName)
+	{
+		DefaultValue = InValue;
+		if (EnumHasAnyFlags(Flags, EMaterialExpressionSetParameterValueFlags::SendPostEditChangeProperty))
+		{
+			SendPostEditChangeProperty(this, TEXT("DefaultValue"));
+		}
+		return true;
+	}
+	return false;
+}
+
+void UMaterialExpressionDoubleVectorParameter::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	FProperty* PropertyThatChanged = PropertyChangedEvent.MemberProperty;
+	const FString PropertyName = PropertyThatChanged ? PropertyThatChanged->GetName() : TEXT("");
+
+	if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionDoubleVectorParameter, DefaultValue))
+	{
+		// Callback into the editor
+		FEditorSupportDelegates::NumericParameterDefaultChanged.Broadcast(this, EMaterialParameterType::DoubleVector, ParameterName, DefaultValue);
+	}
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+#endif
+
+//
 //	UMaterialExpressionChannelMaskParameter
 //
 UMaterialExpressionChannelMaskParameter::UMaterialExpressionChannelMaskParameter(const FObjectInitializer& ObjectInitializer)
@@ -9000,8 +9110,7 @@ int32 UMaterialExpressionNormalize::Compile(class FMaterialCompiler* Compiler, i
 		return Compiler->Errorf(TEXT("Missing Normalize input"));
 
 	int32	V = VectorInput.Compile(Compiler);
-
-	return Compiler->Div(V,Compiler->SquareRoot(Compiler->Dot(V,V)));
+	return Compiler->Normalize(V);
 }
 #endif // WITH_EDITOR
 
@@ -10236,12 +10345,12 @@ int32 UMaterialExpressionIf::Compile(class FMaterialCompiler* Compiler, int32 Ou
 	int32 CompiledA = A.Compile(Compiler);
 	int32 CompiledB = B.GetTracedInput().Expression ? B.Compile(Compiler) : Compiler->Constant(ConstB);
 
-	if(Compiler->GetType(CompiledA) != MCT_Float)
+	if(!IsFloatNumericType(Compiler->GetType(CompiledA)))
 	{
 		return Compiler->Errorf(TEXT("If input A must be of type float."));
 	}
 
-	if(Compiler->GetType(CompiledB) != MCT_Float)
+	if(!IsFloatNumericType(Compiler->GetType(CompiledB)))
 	{
 		return Compiler->Errorf(TEXT("If input B must be of type float."));
 	}
@@ -12136,6 +12245,8 @@ void UMaterialExpressionCustom::Serialize(FStructuredArchive::FRecord Record)
 	FArchive& UnderlyingArchive = Record.GetUnderlyingArchive();
 
 	UnderlyingArchive.UsingCustomVersion(FRenderingObjectVersion::GUID);
+	UnderlyingArchive.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+	UnderlyingArchive.UsingCustomVersion(FUE5LWCRenderingStreamObjectVersion::GUID);
 
 	// Make a copy of the current code before we change it
 	const FString PreFixUp = Code;
@@ -12247,6 +12358,56 @@ void UMaterialExpressionCustom::Serialize(FStructuredArchive::FRecord Record)
 		if (Code.ReplaceInline(TEXT("View.RenderTargetSize"), TEXT("View.BufferSizeAndInvSize.xy"), ESearchCase::CaseSensitive) > 0)
 		{
 			bDidUpdate = true;
+		}
+	}
+
+	if (UnderlyingArchive.CustomVer(FUE5LWCRenderingStreamObjectVersion::GUID) < FUE5LWCRenderingStreamObjectVersion::LWCTypesInShaders)
+	{
+		static const TCHAR* UniformMembers[] =
+		{
+			TEXT("WorldToClip"),
+			TEXT("ClipToWorld"),
+			TEXT("ScreenToWorld"),
+			TEXT("PrevClipToWorld"),
+			TEXT("WorldCameraOrigin"),
+			TEXT("WorldViewOrigin"),
+			TEXT("PrevWorldCameraOrigin"),
+			TEXT("PrevWorldViewOrigin"),
+			TEXT("PreViewTranslation"),
+			TEXT("PrevPreViewTranslation"),
+		};
+
+		static const TCHAR* GlobalExpressions[] =
+		{
+			TEXT("GetWorldPosition(Parameters)"),
+			TEXT("GetPrevWorldPosition(Parameters)"),
+			TEXT("GetObjectWorldPosition(Parameters)"),
+		};
+
+		for (const TCHAR* Member : UniformMembers)
+		{
+			const FString ViewSearchString = FString(TEXT("View.")) + Member;
+			const FString ResolvedSearchString = FString(TEXT("ResolvedView.")) + Member;
+			const FString ReplaceString = FString(TEXT("LWCToFloat(ResolvedView.")) + Member + FString(TEXT(")"));
+
+			if (Code.ReplaceInline(*ResolvedSearchString, *ReplaceString, ESearchCase::CaseSensitive) > 0)
+			{
+				bDidUpdate = true;
+			}
+
+			if (Code.ReplaceInline(*ViewSearchString, *ReplaceString, ESearchCase::CaseSensitive) > 0)
+			{
+				bDidUpdate = true;
+			}
+		}
+
+		for (const TCHAR* Expression : GlobalExpressions)
+		{
+			const FString ReplaceString = FString::Printf(TEXT("LWCToFloat(%s)"), Expression);
+			if (Code.ReplaceInline(Expression, *ReplaceString, ESearchCase::CaseSensitive) > 0)
+			{
+				bDidUpdate = true;
+			}
 		}
 	}
 
@@ -14803,10 +14964,9 @@ int32 UMaterialExpressionFunctionInput::Compile(class FMaterialCompiler* Compile
 
 	// If we are being compiled as part of a material which calls this function
 	FExpressionInput EffectivePreviewDuringCompileTracedInput = EffectivePreviewDuringCompile.GetTracedInput();
+	int32 ExpressionResult = INDEX_NONE;
 	if (EffectivePreviewDuringCompileTracedInput.Expression && !bCompilingFunctionPreview)
 	{
-		int32 ExpressionResult;
-
 		// Stay in this function if we are compiling an expression that is in the current function
 		// This can happen if bUsePreviewValueAsDefault is true and the calling material didn't override the input
 		if (bUsePreviewValueAsDefault && EffectivePreviewDuringCompileTracedInput.Expression->GetOuter() == GetOuter())
@@ -14834,10 +14994,6 @@ int32 UMaterialExpressionFunctionInput::Compile(class FMaterialCompiler* Compile
 			// Tell the compiler that we are re-entering the function
 			Compiler->PushFunction(FunctionState);
 		}
-
-		// Cast to the type that the function author specified
-		// This will truncate (float4 -> float3) but not add components (float2 -> float3)
-		return Compiler->ValidCast(ExpressionResult, FunctionTypeMapping[InputType]);
 	}
 	else
 	{
@@ -14845,13 +15001,28 @@ int32 UMaterialExpressionFunctionInput::Compile(class FMaterialCompiler* Compile
 		{
 			// If we are compiling the function in a preview material, such as when editing the function,
 			// Compile the preview value or texture and output a texture object.
-			return Compiler->ValidCast(CompilePreviewValue(Compiler), FunctionTypeMapping[InputType]);
+			ExpressionResult = CompilePreviewValue(Compiler);
 		}
 		else
 		{
-			return Compiler->Errorf(TEXT("Missing function input '%s'"), *InputName.ToString());
+			ExpressionResult = Compiler->Errorf(TEXT("Missing function input '%s'"), *InputName.ToString());
 		}
 	}
+
+	if (ExpressionResult != INDEX_NONE)
+	{
+		// Cast to the type that the function author specified
+		// This will truncate (float4 -> float3) but not add components (float2 -> float3)
+		// Don't change the LWC status of the type
+		EMaterialValueType ResultType = FunctionTypeMapping[InputType];
+		if (IsLWCType(Compiler->GetParameterType(ExpressionResult)))
+		{
+			ResultType = MakeLWCType(ResultType);
+		}
+
+		ExpressionResult = Compiler->ValidCast(ExpressionResult, ResultType);
+	}
+	return ExpressionResult;
 }
 
 int32 UMaterialExpressionFunctionInput::CompilePreview(class FMaterialCompiler* Compiler, int32 OutputIndex)
@@ -16382,21 +16553,12 @@ void UMaterialExpressionRotateAboutAxis::GetCaption(TArray<FString>& OutCaptions
 static int32 CompileHelperLength( FMaterialCompiler* Compiler, int32 A, int32 B )
 {
 	int32 Delta = Compiler->Sub(A, B);
-
 	if(Compiler->GetType(A) == MCT_Float && Compiler->GetType(B) == MCT_Float)
 	{
 		// optimized
 		return Compiler->Abs(Delta);
 	}
-
-	int32 Dist2 = Compiler->Dot(Delta, Delta);
-	return Compiler->SquareRoot(Dist2);
-}
-
-/** Used FMath::Clamp(), which will be optimized away later to a saturate(). */
-static int32 CompileHelperSaturate( FMaterialCompiler* Compiler, int32 A )
-{
-	return Compiler->Clamp(A, Compiler->Constant(0.0f), Compiler->Constant(1.0f));
+	return Compiler->Length(Delta);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -16475,8 +16637,7 @@ int32 UMaterialExpressionSphereMask::Compile(class FMaterialCompiler* Compiler, 
 
 		int32 NegNormalizedDistance = Compiler->Sub(Compiler->Constant(1.0f), NormalizeDistance);
 		int32 MaskUnclamped = Compiler->Mul(NegNormalizedDistance, ArgInvHardness);
-
-		return CompileHelperSaturate(Compiler, MaskUnclamped);
+		return Compiler->Saturate(MaskUnclamped);
 	}
 }
 
@@ -17674,7 +17835,7 @@ int32 UMaterialExpressionDepthFade::Compile(class FMaterialCompiler* Compiler, i
 		PixelDepthIndex = Compiler->PixelDepth();
 	}
 	
-	const int32 FadeIndex = CompileHelperSaturate(Compiler, Compiler->Div(Compiler->Sub(Compiler->SceneDepth(INDEX_NONE, INDEX_NONE, false), PixelDepthIndex), FadeDistanceIndex));
+	const int32 FadeIndex = Compiler->Saturate(Compiler->Div(Compiler->Sub(Compiler->SceneDepth(INDEX_NONE, INDEX_NONE, false), PixelDepthIndex), FadeDistanceIndex));
 	
 	return Compiler->Mul(OpacityIndex, FadeIndex);
 }
@@ -18575,9 +18736,18 @@ int32 UMaterialExpressionVertexInterpolator::CompileInput(class FMaterialCompile
 	if (Input.GetTracedInput().Expression)
 	{
 		int32 InternalCode = Input.Compile(Compiler);
+		EMaterialValueType Type = Compiler->GetType(InternalCode);
+		if (IsLWCType(Type))
+		{
+			// Don't support LWC interpolators for now
+			// Possible to do this with more complex allocation scheme, if we interpolate tile coordinate along with offset
+			Type = MakeNonLWCType(Type);
+			InternalCode = Compiler->ValidCast(InternalCode, Type);
+		}
+
 		Compiler->CustomOutput(this, AssignedInterpolatorIndex, InternalCode);
 		InterpolatorIndex = AssignedInterpolatorIndex;
-		InterpolatedType = Compiler->GetType(InternalCode);
+		InterpolatedType = Type;
 		Ret = InternalCode;
 	}
 

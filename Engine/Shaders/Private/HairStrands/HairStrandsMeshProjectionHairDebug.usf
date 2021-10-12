@@ -132,7 +132,7 @@ void MainVS(
 
 	OutVertexUVs = UVs;
 	OutFaceNormal = N;
-	OutPosition = mul(float4(P,1), View.WorldToClip);
+	OutPosition = mul(float4(P,1), LWCHackToFloat(PrimaryView.WorldToClip));
 }
 
 void MainPS(

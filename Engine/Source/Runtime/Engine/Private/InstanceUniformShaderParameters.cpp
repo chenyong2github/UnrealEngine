@@ -31,6 +31,32 @@ FInstanceSceneShaderData::FInstanceSceneShaderData(
 	);
 }
 
+FInstanceSceneShaderData::FInstanceSceneShaderData(
+	const FPrimitiveInstance& Instance,
+	uint32 PrimitiveId,
+	const FMatrix& PrimitiveLocalToWorld,
+	const FMatrix& PrimitivePrevLocalToWorld,
+	const FRenderTransform& PrevLocalToPrimitive, // TODO: Temporary
+	const FVector4& LightMapShadowMapUVBias, // TODO: Temporary
+	float RandomID, // TODO: Temporary
+	float CustomDataFloat0, // TODO: Temporary Hack!
+	uint32 LastUpdateFrame
+)
+	: Data(InPlace, NoInit)
+{
+	const FLargeWorldRenderPosition WorldOrigin(PrimitiveLocalToWorld.GetOrigin());
+	Setup(Instance,
+		PrimitiveId,
+		FRenderTransform(WorldOrigin.MakeToRelativeWorldMatrix(PrimitiveLocalToWorld)),
+		FRenderTransform(WorldOrigin.MakeClampedToRelativeWorldMatrix(PrimitivePrevLocalToWorld)),
+		PrevLocalToPrimitive,
+		LightMapShadowMapUVBias,
+		RandomID,
+		CustomDataFloat0,
+		LastUpdateFrame
+	);
+}
+
 void FInstanceSceneShaderData::Setup(
 	const FPrimitiveInstance& Instance,
 	uint32 PrimitiveId,

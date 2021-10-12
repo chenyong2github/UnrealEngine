@@ -46,9 +46,10 @@ float3 PackNormal( in float3 N )
 }
 
 // Prepare for VirtualTextureUnpackHeight() in VirtualTextureCommon.ush
-float PackWorldHeight( in float Height, in float2 PackHeightScaleBias )
+// LWC_TODO: LWC scale/bias?
+float PackWorldHeight( in FLWCScalar Height, in float2 PackHeightScaleBias )
 {
-	return saturate(Height * PackHeightScaleBias.x + PackHeightScaleBias.y);
+	return LWCSaturate(LWCAdd(LWCMultiply(Height, PackHeightScaleBias.x), PackHeightScaleBias.y));
 }
 
 void FPixelShaderInOut_MainPS(
@@ -73,7 +74,7 @@ void FPixelShaderInOut_MainPS(
 	half Specular = GetVirtualTextureOutput1(MaterialParameters);
 	half Roughness = GetVirtualTextureOutput2(MaterialParameters);
 	half3 Normal = GetVirtualTextureOutput3(MaterialParameters);
-	half WorldHeight = GetVirtualTextureOutput4(MaterialParameters);
+	FLWCScalar WorldHeight = GetVirtualTextureOutput4_LWC(MaterialParameters);
 	float Opacity = GetVirtualTextureOutput5(MaterialParameters);
 	float Mask = GetVirtualTextureOutput6(MaterialParameters);
 #else
@@ -82,7 +83,7 @@ void FPixelShaderInOut_MainPS(
 	half Specular = GetMaterialSpecular(PixelMaterialInputs);
 	half Roughness = GetMaterialRoughness(PixelMaterialInputs);
 	half3 Normal = MaterialParameters.WorldNormal;
-	float WorldHeight = MaterialParameters.AbsoluteWorldPosition.z;
+	FLWCScalar WorldHeight = LWCGetZ(MaterialParameters.AbsoluteWorldPosition);
 	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
 	float Mask = 0.f;
 #endif

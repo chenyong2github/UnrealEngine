@@ -23,7 +23,7 @@ void RayTracingDynamicMeshVS(
 	ResolvedView = ResolveView();
 
 	FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
-	Output.WorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates) - float4(ResolvedView.PreViewTranslation, 0.0f);
+	Output.WorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates) - float4(LWCHackToFloat(ResolvedView.PreViewTranslation), 0.0f);
 }
 
 // Must match GetUniformMeshStreamOutLayout and TRIANGLE_VERTEX_DATA_STRIDE
@@ -84,7 +84,7 @@ void RayTracingDynamicGeometryConverterCS(uint3 DispatchThreadId : SV_DispatchTh
 		float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);
 		FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, WorldPosition.xyz, TangentToLocal);
 
-		WorldPosition.xyz -= ResolvedView.PreViewTranslation;
+		WorldPosition.xyz -= LWCHackToFloat(ResolvedView.PreViewTranslation);
 		if (bApplyWorldPositionOffset)
 		{
 			// We must guarantee that no NaNs are produced by WPO to avoid a possibility of producing invalid BLAS.

@@ -214,7 +214,7 @@ void ScreenProbeTemporallyAccumulateTraceRadianceCS(
 
 						if (NeighborHistoryDepth > 0.0f)
 						{
-							float3 NeighborWorldPosition = HistoryScreenProbeTranslatedWorldPosition[NeighborHistoryScreenProbeCoord] - View.PrevPreViewTranslation;
+							float3 NeighborWorldPosition = HistoryScreenProbeTranslatedWorldPosition[NeighborHistoryScreenProbeCoord] - LWCHackToFloat(PrimaryView.PrevPreViewTranslation);
 
 							float PlaneDistance = abs(dot(float4(NeighborWorldPosition, -1), ScenePlane));
 							float RelativeDepthDifference = PlaneDistance / SceneDepth;

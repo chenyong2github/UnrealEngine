@@ -24,15 +24,15 @@
 float3 CalcPrevWorldPositionFromGPUSceneInstanceIndex(float3 WorldPosition, uint GPUSceneInstanceIndex)
 {
 	FInstanceSceneData InstanceSceneData = GetInstanceSceneData(GPUSceneInstanceIndex, View.InstanceSceneDataSOAStride);
-	float4 LocalPosition = mul(float4(WorldPosition, 1), InstanceSceneData.WorldToLocal);
-	float3 PrevWorldPosition = mul(LocalPosition, InstanceSceneData.PrevLocalToWorld).xyz;
+	float4 LocalPosition = mul(float4(WorldPosition, 1), LWCHackToFloat(InstanceSceneData.WorldToLocal));
+	float3 PrevWorldPosition = mul(LocalPosition, LWCHackToFloat(InstanceSceneData.PrevLocalToWorld)).xyz;
 	return PrevWorldPosition;
 }
 
 float3 CalcLocalPositionFromGPUSceneInstanceIndex(float3 WorldPosition, uint GPUSceneInstanceIndex)
 {
 	FInstanceSceneData InstanceSceneData = GetInstanceSceneData(GPUSceneInstanceIndex, View.InstanceSceneDataSOAStride);
-	float3 LocalPosition = mul(float4(WorldPosition, 1), InstanceSceneData.WorldToLocal).xyz;
+	float3 LocalPosition = mul(float4(WorldPosition, 1), LWCHackToFloat(InstanceSceneData.WorldToLocal)).xyz;
 	return LocalPosition;
 }
 

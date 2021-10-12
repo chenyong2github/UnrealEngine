@@ -373,7 +373,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 
 	// Previous frame not handled deliberately. Lacks necessary information and
 	// primitives using this VF are usually transparent and hence don't output velocity
-	Result.PrevFrameLocalToWorld = float4x4(float4(1.0f, 0.0f, 0.0f, 0.0f), float4(0.0f, 1.0f, 0.0f, 0.0f), float4(0.0f, 0.0f, 1.0f, 0.0f), float4(0.0f, 0.0f, 0.0f, 1.0f));
+	Result.PrevFrameLocalToWorld = LWCPromote(float4x4(float4(1.0f, 0.0f, 0.0f, 0.0f), float4(0.0f, 1.0f, 0.0f, 0.0f), float4(0.0f, 0.0f, 1.0f, 0.0f), float4(0.0f, 0.0f, 0.0f, 1.0f)));
 
 #if (DYNAMIC_PARAMETERS_MASK != 0)
 	Result.Particle.DynamicParameterValidMask = NiagaraSpriteVF.MaterialParamValidMask;
@@ -462,7 +462,7 @@ void GetTangents(FVertexFactoryInput Input, float3 ParticlePosition, float Rotat
 	float3 CameraFacingVector = -ResolvedView.ViewForward;
 
 	// Determine the vector from the particle to the camera and the particle's movement direction.
-	const float3 CameraVector = ResolvedView.WorldCameraOrigin - ParticlePosition;
+	const float3 CameraVector = LWCHackToFloat(ResolvedView.WorldCameraOrigin) - ParticlePosition;
 	const float3 CameraDirection = SafeNormalize(CameraVector);
 
 	float3 CustomFacingVector = NiagaraSpriteVFLooseParameters.ParticleFacingMode == FACING_MODE_CUSTOMFACINGVECTOR ? CustomFacing : CameraDirection;
@@ -638,16 +638,16 @@ float3 SimToWorldPos(float3 SimSpacePos, float4x4 LocalToWorld)
 	return SimSpacePos;
 }
 
-float3 LocalToWorldVec(float3 LocalSpaceVec, float4x4 LocalToWorld)
+float3 LocalToWorldVec(float3 LocalSpaceVec, float3x3 LocalToWorld)
 {
-	const float3 InvScale = Primitive.InvNonUniformScale;
+	const float3 InvScale = GetPrimitiveDataFromUniformBuffer().InvNonUniformScale;
 	return
-		InvScale.x * LocalToWorld[0].xyz * LocalSpaceVec.xxx +
-		InvScale.y * LocalToWorld[1].xyz * LocalSpaceVec.yyy +
-		InvScale.z * LocalToWorld[2].xyz * LocalSpaceVec.zzz;
+		InvScale.x * LocalToWorld[0] * LocalSpaceVec.xxx +
+		InvScale.y * LocalToWorld[1] * LocalSpaceVec.yyy +
+		InvScale.z * LocalToWorld[2] * LocalSpaceVec.zzz;
 }
 
-float3 SimToWorldVec(float3 SimSpaceVec, float4x4 LocalToWorld)
+float3 SimToWorldVec(float3 SimSpaceVec, float3x3 LocalToWorld)
 {
 	if (NiagaraSpriteVF.bLocalSpace)
 	{
@@ -663,22 +663,22 @@ float3 SimToWorldVec(float3 SimSpaceVec, float4x4 LocalToWorld)
 
 float3 GetNiagaraParticlePosition(uint InstanceID)
 {
-	return SimToWorldPos(SafeGetVec3(NiagaraSpriteVF.PositionDataOffset, InstanceID, NiagaraSpriteVF.DefaultPos.xyz), Primitive.LocalToWorld);
+	return SimToWorldPos(SafeGetVec3(NiagaraSpriteVF.PositionDataOffset, InstanceID, NiagaraSpriteVF.DefaultPos.xyz), LWCHackToFloat(GetPrimitiveDataFromUniformBuffer().LocalToWorld));
 }
 
 float3 GetNiagaraPreviousParticlePosition(uint InstanceID)
 {
-	return SimToWorldPos(SafeGetVec3(NiagaraSpriteVF.PrevPositionDataOffset, InstanceID, NiagaraSpriteVF.DefaultPrevPos.xyz), Primitive.PreviousLocalToWorld);
+	return SimToWorldPos(SafeGetVec3(NiagaraSpriteVF.PrevPositionDataOffset, InstanceID, NiagaraSpriteVF.DefaultPrevPos.xyz), LWCHackToFloat(GetPrimitiveDataFromUniformBuffer().PreviousLocalToWorld));
 }
 
 float3 GetNiagaraParticleVelocity(uint InstanceID)
 {
-	return SimToWorldVec(SafeGetVec3(NiagaraSpriteVF.VelocityDataOffset, InstanceID, NiagaraSpriteVF.DefaultVelocity.xyz), Primitive.LocalToWorld);
+	return SimToWorldVec(SafeGetVec3(NiagaraSpriteVF.VelocityDataOffset, InstanceID, NiagaraSpriteVF.DefaultVelocity.xyz), LWCToFloat3x3(GetPrimitiveDataFromUniformBuffer().LocalToWorld));
 }
 
 float3 GetNiagaraPreviousParticleVelocity(uint InstanceID)
 {
-	return SimToWorldVec(SafeGetVec3(NiagaraSpriteVF.PrevVelocityDataOffset, InstanceID, NiagaraSpriteVF.DefaultPrevVelocity.xyz), Primitive.PreviousLocalToWorld);
+	return SimToWorldVec(SafeGetVec3(NiagaraSpriteVF.PrevVelocityDataOffset, InstanceID, NiagaraSpriteVF.DefaultPrevVelocity.xyz), LWCToFloat3x3(GetPrimitiveDataFromUniformBuffer().PreviousLocalToWorld));
 }
 
 float2 GetNiagaraParticleSize(uint InstanceID)
@@ -779,23 +779,23 @@ float GetNiagaraParticleSubimage(uint InstanceID)
 float3 GetNiagaraParticleFacingVector(uint InstanceID)
 {
 	// See FNiagaraConstants for a synchronized value...
-	return SimToWorldVec(SafeGetVec3(NiagaraSpriteVF.FacingDataOffset, InstanceID, NiagaraSpriteVF.DefaultFacing.xyz), Primitive.LocalToWorld);
+	return SimToWorldVec(SafeGetVec3(NiagaraSpriteVF.FacingDataOffset, InstanceID, NiagaraSpriteVF.DefaultFacing.xyz), LWCToFloat3x3(GetPrimitiveDataFromUniformBuffer().LocalToWorld));
 }
 
 float3 GetNiagaraPreviousParticleFacingVector(uint InstanceID)
 {
 	// See FNiagaraConstants for a synchronized value...
-	return SimToWorldVec(SafeGetVec3(NiagaraSpriteVF.PrevFacingDataOffset, InstanceID, NiagaraSpriteVF.DefaultPrevFacing.xyz), Primitive.PreviousLocalToWorld);
+	return SimToWorldVec(SafeGetVec3(NiagaraSpriteVF.PrevFacingDataOffset, InstanceID, NiagaraSpriteVF.DefaultPrevFacing.xyz), LWCToFloat3x3(GetPrimitiveDataFromUniformBuffer().PreviousLocalToWorld));
 }
 
 float3 GetNiagaraParticleAlignmentVector(uint InstanceID)
 {
-	return SimToWorldVec(SafeGetVec3(NiagaraSpriteVF.AlignmentDataOffset, InstanceID, NiagaraSpriteVF.DefaultAlignment.xyz), Primitive.LocalToWorld);
+	return SimToWorldVec(SafeGetVec3(NiagaraSpriteVF.AlignmentDataOffset, InstanceID, NiagaraSpriteVF.DefaultAlignment.xyz), LWCToFloat3x3(GetPrimitiveDataFromUniformBuffer().LocalToWorld));
 }
 
 float3 GetNiagaraPreviousParticleAlignmentVector(uint InstanceID)
 {
-	return SimToWorldVec(SafeGetVec3(NiagaraSpriteVF.PrevAlignmentDataOffset, InstanceID, NiagaraSpriteVF.DefaultPrevAlignment.xyz), Primitive.PreviousLocalToWorld);
+	return SimToWorldVec(SafeGetVec3(NiagaraSpriteVF.PrevAlignmentDataOffset, InstanceID, NiagaraSpriteVF.DefaultPrevAlignment.xyz), LWCToFloat3x3(GetPrimitiveDataFromUniformBuffer().PreviousLocalToWorld));
 }
 
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
@@ -817,7 +817,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	const float3 CustomAlignment = SafeNormalize(GetNiagaraParticleAlignmentVector(ParticleID));	
 	const float2 PivotOffset = GetNiagaraPivotOffset(ParticleID);
 	const float2 UVScale = GetNiagaraUVScale(ParticleID);
-	const float3 CameraOffset = SafeNormalize(ResolvedView.WorldCameraOrigin - ParticlePosition) * GetNiagaraCameraOffset(ParticleID);
+	const float3 CameraOffset = SafeNormalize(LWCHackToFloat(ResolvedView.WorldCameraOrigin) - ParticlePosition) * GetNiagaraCameraOffset(ParticleID);
 	
 	Intermediates.SceneData = VF_GPUSCENE_GET_INTERMEDIATES(Input);
 	Intermediates.Position = ParticlePosition;
@@ -874,7 +874,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 		const float3 PrevCustomFacing = SafeNormalize(GetNiagaraPreviousParticleFacingVector(ParticleID));
 		const float3 PrevCustomAlignment = SafeNormalize(GetNiagaraPreviousParticleAlignmentVector(ParticleID));
 		const float2 PrevPivotOffset = GetNiagaraPreviousPivotOffset(ParticleID);
-		const float3 PrevCameraOffset = SafeNormalize(ResolvedView.PrevWorldCameraOrigin - PrevParticlePosition) * GetNiagaraPreviousCameraOffset(ParticleID);
+		const float3 PrevCameraOffset = SafeNormalize(LWCHackToFloat(ResolvedView.PrevWorldCameraOrigin) - PrevParticlePosition) * GetNiagaraPreviousCameraOffset(ParticleID);
 		const float3 PrevParticleDirection = SafeNormalizeWithFallback(PrevParticleVelocity, float3(0,0,1));
 			
 		float3 PrevRight, PrevUp;
@@ -897,7 +897,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 #if USE_PARTICLE_POSITION
 	// Do we really want the camera offset here ? What about when GENERATE_SPHERICAL_PARTICLE_NORMALS
-	Intermediates.TranslatedWorldPositionAndSize.xyz = Intermediates.Position + CameraOffset + ResolvedView.PreViewTranslation;
+	Intermediates.TranslatedWorldPositionAndSize.xyz = Intermediates.Position + CameraOffset + LWCHackToFloat(ResolvedView.PreViewTranslation);
 	Intermediates.TranslatedWorldPositionAndSize.w = .5f * min(Size.x, Size.y);
 #if GENERATE_SPHERICAL_PARTICLE_NORMALS
 	// Recenter the particle position for GENERATE_SPHERICAL_PARTICLE_NORMALS to use the right center.
@@ -954,7 +954,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	return float4(Intermediates.VertexWorldPosition + ResolvedView.PreViewTranslation, 1);
+	return float4(Intermediates.VertexWorldPosition + LWCHackToFloat(ResolvedView.PreViewTranslation), 1);
 }
 
 float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
@@ -980,7 +980,7 @@ float3 VertexFactoryGetPositionForVertexLighting(FVertexFactoryInput Input, FVer
 {
 #if (TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_DIRECTIONAL || TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_NONDIRECTIONAL)
 	// Do per-vertex lighting with particle position instead of vertex position when we're using SubUV cutouts, since the vertex positions vary per-frame which would cause popping
-	return NiagaraSpriteVFLooseParameters.NumCutoutVerticesPerFrame > 0 ? (Intermediates.Position + ResolvedView.PreViewTranslation.xyz) : TranslatedWorldPosition;
+	return NiagaraSpriteVFLooseParameters.NumCutoutVerticesPerFrame > 0 ? (Intermediates.Position + LWCHackToFloat(ResolvedView.PreViewTranslation)) : TranslatedWorldPosition;
 #else
 	return TranslatedWorldPosition;
 #endif
@@ -1170,7 +1170,7 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryAssignInterpolants(FVertexFactoryR
 
 float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	return float4(Intermediates.PreviousVertexWorldPosition + ResolvedView.PrevPreViewTranslation, 1.0f);
+	return float4(Intermediates.PreviousVertexWorldPosition + LWCHackToFloat(ResolvedView.PrevPreViewTranslation), 1.0f);
 }
 
 /**

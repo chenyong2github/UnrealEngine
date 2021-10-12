@@ -95,7 +95,7 @@ bool NiagaraAny(bool4 b) { return b.x || b.y || b.z || b.w; }
 	// utility function used for scene depth calculations
 	float3 WorldPositionFromSceneDepth(float2 ScreenPosition, float SceneDepth)
 	{
-		float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld);
+		float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld));
 		return HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
 	}
 

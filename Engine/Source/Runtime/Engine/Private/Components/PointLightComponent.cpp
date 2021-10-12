@@ -6,6 +6,7 @@
 
 #include "Components/PointLightComponent.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Misc/LargeWorldRenderPosition.h"
 #include "RenderingThread.h"
 #include "Engine/Texture2D.h"
 #include "SceneManagement.h"
@@ -31,11 +32,14 @@ void FLocalLightSceneProxy::UpdateRadius_GameThread(float ComponentRadius)
 /** Accesses parameters needed for rendering the light. */
 void FPointLightSceneProxy::GetLightShaderParameters(FLightShaderParameters& LightParameters) const
 {
-	LightParameters.Position = GetOrigin();
+	const FLargeWorldRenderPosition AbsoluteWorldPosition(GetOrigin());
+	LightParameters.Position = AbsoluteWorldPosition.GetOffset();
+	LightParameters.TilePosition = AbsoluteWorldPosition.GetTile();
 	LightParameters.InvRadius = InvRadius;
 	LightParameters.Color = FVector(GetColor());
 	LightParameters.FalloffExponent = FalloffExponent;
 
+	// TODO LWC - GetDirection() seems like it needs to be normalized, somehow accumulating error with large-scale position values
 	LightParameters.Direction = -GetDirection();
 	LightParameters.Tangent = FVector(WorldToLight.M[0][2], WorldToLight.M[1][2], WorldToLight.M[2][2]);
 	LightParameters.SpotAngles = FVector2D( -2.0f, 1.0f );

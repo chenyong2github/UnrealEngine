@@ -142,8 +142,8 @@ void MainPS(
 	{
 		float2 ScreenPosition = SvPositionToScreenPosition(SVPos).xy;
 		const float Depth = 1000000.0f;
-		float4 WorldPos = mul(float4(ScreenPosition * Depth, Depth, 1), View.ScreenToWorld);
-		const float3 V = normalize(View.WorldCameraOrigin - WorldPos.xyz);
+		float4 WorldPos = mul(float4(ScreenPosition * Depth, Depth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld));
+		const float3 V = normalize(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - WorldPos.xyz);
 
 		ClassificationData.MaterialAO = Header.MaterialAO;
 		ClassificationData.bIsSimple = Header.BSDFCount == 1;

@@ -16,6 +16,7 @@
 #include "UnrealEngine.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
+#include "Materials/MaterialExpressionDoubleVectorParameter.h"
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
 #include "Materials/MaterialExpressionFontSampleParameter.h"
 #include "Materials/MaterialExpressionMaterialAttributeLayers.h"
@@ -270,6 +271,7 @@ bool FMaterialInstanceResource::GetParameterValue(EMaterialParameterType Type, c
 		{
 		case EMaterialParameterType::Scalar: bResult = RenderThread_GetParameterValue<float>(ParameterInfo, OutValue); break;
 		case EMaterialParameterType::Vector: bResult = RenderThread_GetParameterValue<FLinearColor>(ParameterInfo, OutValue); break;
+		case EMaterialParameterType::DoubleVector: bResult = RenderThread_GetParameterValue<FVector4d>(ParameterInfo, OutValue); break;
 		case EMaterialParameterType::Texture: bResult = RenderThread_GetParameterValue<const UTexture*>(ParameterInfo, OutValue); break;
 		case EMaterialParameterType::RuntimeVirtualTexture: bResult = RenderThread_GetParameterValue<const URuntimeVirtualTexture*>(ParameterInfo, OutValue); break;
 		default: ensure(false); break; // other parameter types are not expected on the render thread
@@ -327,6 +329,7 @@ void FMaterialInstanceResource::InitMIParameters(FMaterialInstanceParameterSet& 
 	InvalidateUniformExpressionCache(false);
 	Swap(ScalarParameterArray, ParameterSet.ScalarParameters);
 	Swap(VectorParameterArray, ParameterSet.VectorParameters);
+	Swap(DoubleVectorParameterArray, ParameterSet.DoubleVectorParameters);
 	Swap(TextureParameterArray, ParameterSet.TextureParameters);
 	Swap(RuntimeVirtualTextureParameterArray, ParameterSet.RuntimeVirtualTextureParameters);
 }
@@ -466,6 +469,7 @@ void UMaterialInstance::SwapLayerParameterIndices(int32 OriginalIndex, int32 New
 	{
 		SwapLayerParameterIndicesArray(ScalarParameterValues, OriginalIndex, NewIndex);
 		SwapLayerParameterIndicesArray(VectorParameterValues, OriginalIndex, NewIndex);
+		SwapLayerParameterIndicesArray(DoubleVectorParameterValues, OriginalIndex, NewIndex);
 		SwapLayerParameterIndicesArray(TextureParameterValues, OriginalIndex, NewIndex);
 		SwapLayerParameterIndicesArray(RuntimeVirtualTextureParameterValues, OriginalIndex, NewIndex);
 		SwapLayerParameterIndicesArray(FontParameterValues, OriginalIndex, NewIndex);
@@ -480,6 +484,7 @@ void UMaterialInstance::RemoveLayerParameterIndex(int32 Index)
 {
 	RemoveLayerParameterIndicesArray(ScalarParameterValues, Index);
 	RemoveLayerParameterIndicesArray(VectorParameterValues, Index);
+	RemoveLayerParameterIndicesArray(DoubleVectorParameterValues, Index);
 	RemoveLayerParameterIndicesArray(TextureParameterValues, Index);
 	RemoveLayerParameterIndicesArray(RuntimeVirtualTextureParameterValues, Index);
 	RemoveLayerParameterIndicesArray(FontParameterValues, Index);
@@ -521,6 +526,9 @@ bool UMaterialInstance::UpdateParameters()
 			// Vector parameters	
 			bDirty = UpdateParameterSet<FVectorParameterValue, UMaterialExpressionVectorParameter>(VectorParameterValues, ParentMaterial) || bDirty;
 
+			// Vector parameters	
+			bDirty = UpdateParameterSet<FDoubleVectorParameterValue, UMaterialExpressionDoubleVectorParameter>(DoubleVectorParameterValues, ParentMaterial) || bDirty;
+
 			// Texture parameters
 			bDirty = UpdateParameterSet<FTextureParameterValue, UMaterialExpressionTextureSampleParameter>(TextureParameterValues, ParentMaterial) || bDirty;
 
@@ -559,6 +567,7 @@ bool UMaterialInstance::UpdateParameters()
 					{
 						RemapLayerParameterIndicesArray(ScalarParameterValues, RemapLayerIndices);
 						RemapLayerParameterIndicesArray(VectorParameterValues, RemapLayerIndices);
+						RemapLayerParameterIndicesArray(DoubleVectorParameterValues, RemapLayerIndices);
 						RemapLayerParameterIndicesArray(TextureParameterValues, RemapLayerIndices);
 						RemapLayerParameterIndicesArray(RuntimeVirtualTextureParameterValues, RemapLayerIndices);
 						RemapLayerParameterIndicesArray(FontParameterValues, RemapLayerIndices);
@@ -641,6 +650,15 @@ void GameThread_InitMIParameters(const UMaterialInstance& Instance)
 		auto& ParamRef = ParameterSet.VectorParameters.AddDefaulted_GetRef();
 		ParamRef.Info = Parameter.ParameterInfo;
 		ParamRef.Value = FVectorParameterValue::GetValue(Parameter);
+	}
+
+	// Double Vector parameters
+	ParameterSet.DoubleVectorParameters.Reserve(Instance.DoubleVectorParameterValues.Num());
+	for (const FDoubleVectorParameterValue& Parameter : Instance.DoubleVectorParameterValues)
+	{
+		auto& ParamRef = ParameterSet.DoubleVectorParameters.AddDefaulted_GetRef();
+		ParamRef.Info = Parameter.ParameterInfo;
+		ParamRef.Value = FDoubleVectorParameterValue::GetValue(Parameter);
 	}
 
 	// Texture + Fonts parameters
@@ -784,6 +802,7 @@ bool UMaterialInstance::GetParameterOverrideValue(EMaterialParameterType Type, c
 	{
 	case EMaterialParameterType::Scalar: bResult = GameThread_GetParameterValue(ScalarParameterValues, ParameterInfo, OutResult); break;
 	case EMaterialParameterType::Vector: bResult = GameThread_GetParameterValue(VectorParameterValues, ParameterInfo, OutResult); break;
+	case EMaterialParameterType::DoubleVector: bResult = GameThread_GetParameterValue(DoubleVectorParameterValues, ParameterInfo, OutResult); break;
 	case EMaterialParameterType::Texture: bResult = GameThread_GetParameterValue(TextureParameterValues, ParameterInfo, OutResult); break;
 	case EMaterialParameterType::RuntimeVirtualTexture: bResult = GameThread_GetParameterValue(RuntimeVirtualTextureParameterValues, ParameterInfo, OutResult); break;
 	case EMaterialParameterType::Font: bResult = GameThread_GetParameterValue(FontParameterValues, ParameterInfo, OutResult); break;
@@ -1749,6 +1768,7 @@ void UMaterialInstance::GetAllParametersOfType(EMaterialParameterType Type, TMap
 		{
 		case EMaterialParameterType::Scalar: GameThread_ApplyParameterOverrides(Instance->ScalarParameterValues, bSetOverride, OutParameters); break;
 		case EMaterialParameterType::Vector: GameThread_ApplyParameterOverrides(Instance->VectorParameterValues, bSetOverride, OutParameters); break;
+		case EMaterialParameterType::DoubleVector: GameThread_ApplyParameterOverrides(Instance->DoubleVectorParameterValues, bSetOverride, OutParameters); break;
 		case EMaterialParameterType::Texture: GameThread_ApplyParameterOverrides(Instance->TextureParameterValues, bSetOverride, OutParameters); break;
 		case EMaterialParameterType::RuntimeVirtualTexture: GameThread_ApplyParameterOverrides(Instance->RuntimeVirtualTextureParameterValues, bSetOverride, OutParameters); break;
 		case EMaterialParameterType::Font: GameThread_ApplyParameterOverrides(Instance->FontParameterValues, bSetOverride, OutParameters); break;
@@ -2385,7 +2405,7 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 #endif // WITH_EDITORONLY_DATA
 
 #if !WITH_EDITORONLY_DATA
-	checkf(!Ar.IsLoading() || bSavedCachedData, TEXT("MaterialInstance %s must have saved cached data, if editor-only data is not present"), *GetName());
+	ensureMsgf(!Ar.IsLoading() || bSavedCachedData, TEXT("MaterialInstance %s must have saved cached data, if editor-only data is not present"), *GetName());
 #endif
 
 	if (bSavedCachedData)
@@ -2891,6 +2911,7 @@ void UMaterialInstance::ReserveParameterValuesInternal(EMaterialParameterType Ty
 	{
 	case EMaterialParameterType::Scalar: ScalarParameterValues.Reserve(Capacity); break;
 	case EMaterialParameterType::Vector: VectorParameterValues.Reserve(Capacity); break;
+	case EMaterialParameterType::DoubleVector: DoubleVectorParameterValues.Reserve(Capacity); break;
 	case EMaterialParameterType::Texture: TextureParameterValues.Reserve(Capacity); break;
 	case EMaterialParameterType::Font: FontParameterValues.Reserve(Capacity); break;
 	case EMaterialParameterType::RuntimeVirtualTexture: RuntimeVirtualTextureParameterValues.Reserve(Capacity); break;
@@ -2917,6 +2938,7 @@ void UMaterialInstance::AddParameterValueInternal(const FMaterialParameterInfo& 
 		ScalarParameterValues.Emplace(ParameterInfo, Value.AsScalar(), AtlasData);
 		break;
 	case EMaterialParameterType::Vector: VectorParameterValues.Emplace(ParameterInfo, Value.AsLinearColor()); break;
+	case EMaterialParameterType::DoubleVector: DoubleVectorParameterValues.Emplace(ParameterInfo, Value.AsVector4d()); break;
 	case EMaterialParameterType::Texture: TextureParameterValues.Emplace(ParameterInfo, Value.Texture); break;
 	case EMaterialParameterType::Font: FontParameterValues.Emplace(ParameterInfo, Value.Font.Value, Value.Font.Page); break;
 	case EMaterialParameterType::RuntimeVirtualTexture: RuntimeVirtualTextureParameterValues.Emplace(ParameterInfo, Value.RuntimeVirtualTexture); break;
@@ -2943,6 +2965,7 @@ void UMaterialInstance::SetParameterValueInternal(const FMaterialParameterInfo& 
 		SetScalarParameterValueInternal(ParameterInfo, Value.AsScalar(), bUseAtlas, AtlasData);
 		break;
 	case EMaterialParameterType::Vector: SetVectorParameterValueInternal(ParameterInfo, Value.AsLinearColor()); break;
+	case EMaterialParameterType::DoubleVector: SetDoubleVectorParameterValueInternal(ParameterInfo, Value.AsVector4d()); break;
 	case EMaterialParameterType::Texture: SetTextureParameterValueInternal(ParameterInfo, Value.Texture); break;
 	case EMaterialParameterType::Font: SetFontParameterValueInternal(ParameterInfo, Value.Font.Value, Value.Font.Page); break;
 	case EMaterialParameterType::RuntimeVirtualTexture: SetRuntimeVirtualTextureParameterValueInternal(ParameterInfo, Value.RuntimeVirtualTexture); break;
@@ -2961,6 +2984,31 @@ void UMaterialInstance::SetVectorParameterValueInternal(const FMaterialParameter
 	{
 		// If there's no element for the named parameter in array yet, add one.
 		ParameterValue = new(VectorParameterValues) FVectorParameterValue;
+		ParameterValue->ParameterInfo = ParameterInfo;
+		ParameterValue->ExpressionGUID.Invalidate();
+		bForceUpdate = true;
+	}
+
+	// Don't enqueue an update if it isn't needed
+	if (bForceUpdate || ParameterValue->ParameterValue != Value)
+	{
+		ParameterValue->ParameterValue = Value;
+		// Update the material instance data in the rendering thread.
+		GameThread_UpdateMIParameter(this, *ParameterValue);
+	}
+}
+
+void UMaterialInstance::SetDoubleVectorParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, FVector4d Value)
+{
+	LLM_SCOPE(ELLMTag::MaterialInstance);
+
+	FDoubleVectorParameterValue* ParameterValue = GameThread_FindParameterByName(DoubleVectorParameterValues, ParameterInfo);
+
+	bool bForceUpdate = false;
+	if (!ParameterValue)
+	{
+		// If there's no element for the named parameter in array yet, add one.
+		ParameterValue = new(DoubleVectorParameterValues) FDoubleVectorParameterValue;
 		ParameterValue->ParameterInfo = ParameterInfo;
 		ParameterValue->ExpressionGUID.Invalidate();
 		bForceUpdate = true;
@@ -4061,6 +4109,31 @@ void UMaterialInstance::EndAllowCachingStaticParameterValues()
 }
 #endif // WITH_EDITOR
 
+template<typename ParameterType>
+static void MergeParameterOverrides(TArray<ParameterType>& ParameterValues, const TArray<ParameterType>& SourceParameterValues)
+{
+	for (const ParameterType& SourceParameter : SourceParameterValues)
+	{
+		// If the parameter already exists, override it
+		bool bExisting = false;
+		for (ParameterType& ExistingParameter : ParameterValues)
+		{
+			if (ExistingParameter.ParameterInfo.Name == SourceParameter.ParameterInfo.Name)
+			{
+				ExistingParameter.ParameterValue = SourceParameter.ParameterValue;
+				bExisting = true;
+				break;
+			}
+		}
+
+		// Instance has introduced a new parameter via static param set
+		if (!bExisting)
+		{
+			ParameterValues.Add(SourceParameter);
+		}
+	}
+}
+
 void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface* Source)
 {
 	LLM_SCOPE(ELLMTag::MaterialInstance);
@@ -4100,99 +4173,19 @@ void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface
 			// For instances override existing data
 			if (UMaterialInstance* AsInstance = Cast<UMaterialInstance>(Interface))
 			{
-				// Scalars
-				for (FScalarParameterValue& Parameter : AsInstance->ScalarParameterValues)
-				{
-					// If the parameter already exists, override it
-					bool bExisting = false;
-					for (FScalarParameterValue& ExistingParameter : ScalarParameterValues)
-					{
-						if (ExistingParameter.ParameterInfo.Name == Parameter.ParameterInfo.Name)
-						{
-							ExistingParameter.ParameterValue = Parameter.ParameterValue;
-							bExisting = true;
-							break;
-						}
-					}
-
-					// Instance has introduced a new parameter via static param set
-					if (!bExisting)
-					{
-						ScalarParameterValues.Add(Parameter);
-					}
-				}
-
-				// Vectors
-				for (FVectorParameterValue& Parameter : AsInstance->VectorParameterValues)
-				{
-					// If the parameter already exists, override it
-					bool bExisting = false;
-					for (FVectorParameterValue& ExistingParameter : VectorParameterValues)
-					{
-						if (ExistingParameter.ParameterInfo.Name == Parameter.ParameterInfo.Name)
-						{
-							ExistingParameter.ParameterValue = Parameter.ParameterValue;
-							bExisting = true;
-							break;
-						}
-					}
-
-					// Instance has introduced a new parameter via static param set
-					if (!bExisting)
-					{
-						VectorParameterValues.Add(Parameter);
-					}
-				}
-
-				// Textures
-				for (FTextureParameterValue& Parameter : AsInstance->TextureParameterValues)
-				{
-					// If the parameter already exists, override it
-					bool bExisting = false;
-					for (FTextureParameterValue& ExistingParameter : TextureParameterValues)
-					{
-						if (ExistingParameter.ParameterInfo.Name == Parameter.ParameterInfo.Name)
-						{
-							ExistingParameter.ParameterValue = Parameter.ParameterValue;
-							bExisting = true;
-							break;
-						}
-					}
-
-					// Instance has introduced a new parameter via static param set
-					if (!bExisting)
-					{
-						TextureParameterValues.Add(Parameter);
-					}
-				}
-
-				// Runtime Virtual Textures
-				for (FRuntimeVirtualTextureParameterValue& Parameter : AsInstance->RuntimeVirtualTextureParameterValues)
-				{
-					// If the parameter already exists, override it
-					bool bExisting = false;
-					for (FRuntimeVirtualTextureParameterValue& ExistingParameter : RuntimeVirtualTextureParameterValues)
-					{
-						if (ExistingParameter.ParameterInfo.Name == Parameter.ParameterInfo.Name)
-						{
-							ExistingParameter.ParameterValue = Parameter.ParameterValue;
-							bExisting = true;
-							break;
-						}
-					}
-
-					// Instance has introduced a new parameter via static param set
-					if (!bExisting)
-					{
-						RuntimeVirtualTextureParameterValues.Add(Parameter);
-					}
-				}
+				MergeParameterOverrides(ScalarParameterValues, AsInstance->ScalarParameterValues);
+				MergeParameterOverrides(VectorParameterValues, AsInstance->VectorParameterValues);
+				MergeParameterOverrides(DoubleVectorParameterValues, AsInstance->DoubleVectorParameterValues);
+				MergeParameterOverrides(TextureParameterValues, AsInstance->TextureParameterValues);
+				MergeParameterOverrides(RuntimeVirtualTextureParameterValues, AsInstance->RuntimeVirtualTextureParameterValues);
+				// No fonts?
 			}
 			else if (UMaterial* AsMaterial = Cast<UMaterial>(Interface))
 			{
 				// Material should be the base and only append new parameters
 				checkSlow(ScalarParameterValues.Num() == 0);
 				checkSlow(VectorParameterValues.Num() == 0);
+				checkSlow(DoubleVectorParameterValues.Num() == 0);
 				checkSlow(TextureParameterValues.Num() == 0);
 				checkSlow(RuntimeVirtualTextureParameterValues.Num() == 0);
 
