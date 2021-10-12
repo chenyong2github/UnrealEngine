@@ -357,6 +357,12 @@ bool FHLMediaPlayer::InitializePlayer(const TSharedPtr<FArchive, ESPMode::Thread
 {
     UE_LOG(LogHLMediaPlayer, Verbose, TEXT("HLMediaPlayer %p: Initializing %s (archive = %s, adaptive streaming = %s)"), this, *Url, Archive.IsValid() ? TEXT("yes") : TEXT("no"), IsAdaptiveStreaming ? TEXT("yes") : TEXT("no"));
 
+	if (!GIsRunning)
+	{
+		UE_LOG(LogHLMediaPlayer, Warning, L"Attempting to start FHLMediaPlayer before engine is fully initialized.");
+		return false;
+	}
+	
     MediaUrl = Url;
 
     // initialize presentation on a separate thread
