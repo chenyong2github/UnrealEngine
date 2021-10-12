@@ -22,6 +22,19 @@ struct FProjectCategory;
 struct FProjectItem;
 struct FSlateBrush;
 
+enum class EProjectSortOption : uint8
+{
+	/** Sort by the last time the project was opened */
+	LastAccessTime,
+
+	/** Sort by engine version */
+	Version,
+
+	/** By project name */
+	Alphabetical,
+};
+
+
 enum class ECheckBoxState : uint8;
 
 DECLARE_DELEGATE_OneParam(FProjectSelectionChanged, FString);
@@ -94,7 +107,6 @@ protected:
 	/** Handler to check to see if a find in explorer command is allowed */
 	bool CanExecuteFindInExplorer() const;
 
-
 	/** Gets the currently selected template item */
 	TSharedPtr<FProjectItem> GetSelectedProjectItem() const;
 
@@ -141,6 +153,9 @@ private:
 	/** Get the filter text to highlight on items in the list */
 	FText GetItemHighlightText() const;
 
+	void SortProjectTiles(EProjectSortOption NewSortOption);
+	ECheckBoxState GetSortOptionCheckState(EProjectSortOption TestOption) const;
+
 private:
 	TSharedPtr<STileView<TSharedPtr<FProjectItem>>> ProjectTileView;
 	TArray<TSharedPtr<FProjectItem>> ProjectItemsSource;
@@ -164,5 +179,7 @@ private:
 
 	// Holds a delegate that is executed when the new project screen is being requested.
 	FNewProjectScreenRequested NewProjectScreenRequestedDelegate;
+
+	EProjectSortOption CurrentSortOption = EProjectSortOption::LastAccessTime;
 };
 
