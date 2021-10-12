@@ -348,6 +348,7 @@ UMovieSceneCompiledDataManager::UMovieSceneCompiledDataManager()
 						// Entry is a ref here, so care is taken to ensure we do not allocate CompiledDataEntries while the ref is around
 						Entry = FMovieSceneCompiledDataEntry();
 						Entry.SequenceKey = NewSequence;
+						Entry.DataID = DataID;
 
 						this->SequenceToDataIDs.Add(Entry.SequenceKey, DataID);
 					}
