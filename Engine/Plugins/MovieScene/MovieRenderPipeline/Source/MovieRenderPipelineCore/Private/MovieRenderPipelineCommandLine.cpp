@@ -117,7 +117,7 @@ UClass* GetMoviePipelineClass(const FString& MoviePipelineClassType, const FStri
 {
 	if (MoviePipelineClassType.Len() > 0)
 	{
-		UClass* LoadedMoviePipelineClass = LoadClass<UMoviePipelineExecutorBase>(GetTransientPackage(), *MoviePipelineClassType);
+		UClass* LoadedMoviePipelineClass = LoadClass<UMoviePipeline>(GetTransientPackage(), *MoviePipelineClassType);
 		if (LoadedMoviePipelineClass)
 		{
 			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Loaded explicitly specified Movie Pipeline %s."), *MoviePipelineClassType);
