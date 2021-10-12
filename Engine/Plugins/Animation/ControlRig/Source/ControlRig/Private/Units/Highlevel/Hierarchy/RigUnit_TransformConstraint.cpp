@@ -490,7 +490,7 @@ FRigUnit_PositionConstraint_Execute()
 
 			// handle filtering, performed in local space
 			FTransform ChildParentGlobalTransform = Hierarchy->GetParentTransform(Child, false);
-			FVector MixedPosition = ChildParentGlobalTransform.Inverse().TransformVector(MixedGlobalPosition);
+			FVector MixedPosition = ChildParentGlobalTransform.Inverse().TransformPosition(MixedGlobalPosition);
 			
 			FTransform ChildCurrentLocalTransform = Hierarchy->GetLocalTransform(Child);
 			
