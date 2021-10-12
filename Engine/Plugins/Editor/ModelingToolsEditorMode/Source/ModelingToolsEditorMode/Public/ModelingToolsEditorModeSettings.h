@@ -151,6 +151,29 @@ struct FModelingModeCustomSectionColor
 };
 
 
+/**
+ * Defines a color to be used for a particular Tool Palette Tool
+ */
+USTRUCT()
+struct FModelingModeCustomToolColor
+{
+	GENERATED_BODY()
+
+	/**
+	 * Name of Section or Tool in Modeling Mode Tool Palette
+	 *
+	 * Format:
+	 * SectionName        (Specifies a default color for all tools in the section.)
+	 * SectionName.ToolName        (Specifies an override color for a specific tool in the given section.)
+	 */
+	UPROPERTY(EditAnywhere, Category = "ToolColor")
+	FString ToolName = TEXT("");
+
+	/** Custom Tool Color */
+	UPROPERTY(EditAnywhere, Category = "ToolColor")
+	FLinearColor Color = FLinearColor::Gray;
+};
+
 
 UCLASS(config=Editor)
 class MODELINGTOOLSEDITORMODE_API UModelingToolsModeCustomizationSettings : public UDeveloperSettings
@@ -181,4 +204,14 @@ public:
 	/** Custom Section Header Colors for listed Sections in the Modeling Mode Tool Palette */
 	UPROPERTY(config, EditAnywhere, Category = "Modeling Mode|UI Customization")
 	TArray<FModelingModeCustomSectionColor> SectionColors;
+
+	/**
+	 * Custom Tool Colors for listed Tools in the Modeling Mode Tool Palette.
+	 * 
+	 * Format:
+	 * SectionName        (Specifies a default color for all tools in the section.)
+	 * SectionName.ToolName        (Specifies an override color for a specific tool in the given section.)
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Modeling Mode|UI Customization")
+	TArray<FModelingModeCustomToolColor> ToolColors;
 };

@@ -22,6 +22,8 @@
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SExpandableArea.h"
+#include "Framework/MultiBox/SToolBarButtonBlock.h"
+#include "Internationalization/Text.h"
 
 // for Tool Extensions
 #include "Features/IModularFeatures.h"
@@ -752,8 +754,31 @@ void FModelingToolsEditorModeToolkit::InvokeUI()
 		HeaderRadii = BaseBrush->OutlineSettings.CornerRadii;
 	}
 
+	// Generate a map for tool specific colors
+	TMap<FString, FLinearColor> SectionIconColorMap;
+	TMap<FString, TMap<FString, FLinearColor>> SectionToolIconColorMap;
+	for (const FModelingModeCustomToolColor& ToolColor : UISettings->ToolColors)
+	{
+		FString SectionName, ToolName;
+		ToolColor.ToolName.Split(".", &SectionName, &ToolName);
+		SectionName.ToLowerInline();
+		if (ToolName.Len() > 0)
+		{
+			if (!SectionToolIconColorMap.Contains(SectionName))
+			{
+				SectionToolIconColorMap.Emplace(SectionName, TMap<FString, FLinearColor>());
+			}
+			SectionToolIconColorMap[SectionName].Add(ToolName, ToolColor.Color);
+		}
+		else
+		{
+			SectionIconColorMap.Emplace(ToolColor.ToolName.ToLower(), ToolColor.Color);
+		}
+	}
+
 	for (FEdModeToolbarRow& ToolbarRow : ActiveToolBarRows)
 	{
+		// Update section header colors
 		for (FModelingModeCustomSectionColor ToolColor : UISettings->SectionColors)
 		{
 			if (ToolColor.SectionName.Equals(ToolbarRow.PaletteName.ToString(), ESearchCase::IgnoreCase)
@@ -783,6 +808,103 @@ void FModelingToolsEditorModeToolkit::InvokeUI()
 					}
 				}
 				break;
+			}
+		}
+
+		// Update tool colors
+		FLinearColor* SectionIconColor = SectionIconColorMap.Find(ToolbarRow.PaletteName.ToString().ToLower());
+		if (!SectionIconColor)
+		{
+			SectionIconColor = SectionIconColorMap.Find(ToolbarRow.DisplayName.ToString().ToLower());
+		}
+		TMap<FString, FLinearColor>* SectionToolIconColors = SectionToolIconColorMap.Find(ToolbarRow.PaletteName.ToString().ToLower());
+		if (!SectionToolIconColors)
+		{
+			SectionToolIconColors = SectionToolIconColorMap.Find(ToolbarRow.DisplayName.ToString().ToLower());
+		}
+		if (SectionIconColor || SectionToolIconColors)
+		{
+			// code below is highly dependent on the structure of the ToolbarRow.ToolbarWidget. Currently this is 
+			// a SMultiBoxWidget. The code will fail gracefully if this structure changes.
+			
+			if (ToolbarRow.ToolbarWidget.IsValid() && ToolbarRow.ToolbarWidget->GetTypeAsString().Compare(TEXT("SMultiBoxWidget")) == 0)
+			{
+				auto FindFirstChildWidget = [](const TSharedPtr<SWidget>& Widget, const FString& WidgetType)
+				{
+					auto FindFirstChildWidgetImpl = [](const TSharedPtr<SWidget>& Widget, const FString& WidgetType, auto& FindRef) -> TSharedPtr<SWidget>
+					{
+						TSharedPtr<SWidget> Result;
+						if (Widget.IsValid())
+						{
+							FChildren* Children = Widget->GetChildren();
+							const int32 NumChild = Children ? Children->NumSlot() : 0;
+							for (int32 ChildIdx = 0; ChildIdx < NumChild; ++ChildIdx)
+							{
+								const TSharedRef<SWidget> ChildWidgetRef = Children->GetChildAt(ChildIdx);
+								TSharedPtr<SWidget> ChildWidgetPtr(ChildWidgetRef);
+								if (ChildWidgetPtr.IsValid())
+								{
+									if (ChildWidgetPtr->GetTypeAsString().Compare(WidgetType) == 0)
+									{
+										Result = ChildWidgetPtr;
+										break;
+									}
+
+									Result = FindRef(ChildWidgetPtr, WidgetType, FindRef);
+									if (Result.IsValid())
+									{
+										break;
+									}
+								}
+							}
+						}
+						return Result;
+					};
+					return FindFirstChildWidgetImpl(Widget, WidgetType, FindFirstChildWidgetImpl);
+				};
+
+				TSharedPtr<SWidget> PanelWidget = FindFirstChildWidget(ToolbarRow.ToolbarWidget, TEXT("SUniformWrapPanel"));
+				if (PanelWidget.IsValid())
+				{
+					// This contains each of the FToolBarButtonBlock items for this row.
+					FChildren* PanelChildren = PanelWidget->GetChildren();
+					const int32 NumChild = PanelChildren ? PanelChildren->NumSlot() : 0;
+					for (int32 ChildIdx = 0; ChildIdx < NumChild; ++ChildIdx)
+					{
+						const TSharedRef<SWidget> ChildWidgetRef = PanelChildren->GetChildAt(ChildIdx);
+						TSharedPtr<SWidget> ChildWidgetPtr(ChildWidgetRef);
+						if (ChildWidgetPtr.IsValid() && ChildWidgetPtr->GetTypeAsString().Compare(TEXT("SToolBarButtonBlock")) == 0)
+						{
+							TSharedPtr<SToolBarButtonBlock> ToolBarButton = StaticCastSharedPtr<SToolBarButtonBlock>(ChildWidgetPtr);
+							if (ToolBarButton.IsValid())
+							{
+								TSharedPtr<SWidget> LayeredImageWidget = FindFirstChildWidget(ToolBarButton, TEXT("SLayeredImage"));
+								TSharedPtr<SWidget> TextBlockWidget = FindFirstChildWidget(ToolBarButton, TEXT("STextBlock"));
+								if (LayeredImageWidget.IsValid() && TextBlockWidget.IsValid())
+								{
+									TSharedPtr<SImage> ImageWidget = StaticCastSharedPtr<SImage>(LayeredImageWidget);
+									TSharedPtr<STextBlock> TextWidget = StaticCastSharedPtr<STextBlock>(TextBlockWidget);
+									// Check if this Section.Tool has an explicit color entry. If not, fallback
+									// to any Section-wide color entry, otherwise leave the tint alone.
+									FLinearColor* TintColor = SectionToolIconColors ? SectionToolIconColors->Find(TextWidget->GetText().ToString()) : nullptr;
+									if (!TintColor)
+									{
+										const FString* SourceText = FTextInspector::GetSourceString(TextWidget->GetText());
+										TintColor = SectionToolIconColors && SourceText ? SectionToolIconColors->Find(*SourceText) : nullptr;
+										if (!TintColor)
+										{
+											TintColor = SectionIconColor;
+										}
+									}
+									if (TintColor)
+									{
+										ImageWidget->SetColorAndOpacity(FSlateColor(*TintColor));
+									}
+								}
+							}
+						}
+					}
+				}
 			}
 		}
 	}
