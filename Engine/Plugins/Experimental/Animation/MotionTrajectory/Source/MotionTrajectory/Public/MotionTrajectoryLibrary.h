@@ -15,11 +15,11 @@ struct MOTIONTRAJECTORY_API FTrajectoryDirectionClamp
 
 	// Target clamped direction for an incoming source direction
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings")
-	FVector Direction;
+	FVector Direction = FVector::ZeroVector;
 
 	// Target clamped directions will be applied to any source direction within this angle boundary
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings", meta=(ClampMin="1.0", ClampMax="180.0"))
-	float AngleTresholdDegrees;
+	float AngleTresholdDegrees = 0.f;
 };
 
 UCLASS(Category="Motion Trajectory")

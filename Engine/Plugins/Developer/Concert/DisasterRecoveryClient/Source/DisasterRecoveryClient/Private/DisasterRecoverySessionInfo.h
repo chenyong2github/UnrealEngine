@@ -103,7 +103,7 @@ struct FDisasterRecoveryClientInfo
 
 	/** The client process ID. */
 	UPROPERTY()
-	uint32 ClientProcessId;
+	uint32 ClientProcessId = 0;
 
 	/** The client app ID. */
 	UPROPERTY()
