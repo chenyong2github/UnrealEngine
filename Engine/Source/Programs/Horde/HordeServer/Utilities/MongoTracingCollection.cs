@@ -56,11 +56,39 @@ namespace HordeServer.Utiltiies
 		}
 
 		/// <inheritdoc />
-		public async Task<IAsyncCursor<TResult>> AggregateAsync<TResult>(IClientSessionHandle Session, PipelineDefinition<T, TResult> pipeline, AggregateOptions Options = null!,
+		public async Task<IAsyncCursor<TResult>> AggregateAsync<TResult>(IClientSessionHandle Session, PipelineDefinition<T, TResult> Pipeline, AggregateOptions Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
 			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "AggregateAsync").StartActive();
-			return await Collection.AggregateAsync(Session, pipeline, Options, CancellationToken);
+			return await Collection.AggregateAsync(Session, Pipeline, Options, CancellationToken);
+		}
+
+		/// <inheritdoc />
+		public void AggregateToCollection<TResult>(PipelineDefinition<T, TResult> Pipeline, AggregateOptions? Options = null, CancellationToken CancellationToken = default(CancellationToken))
+		{
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "AggregateToCollection").StartActive();
+			Collection.AggregateToCollection(Pipeline, Options, CancellationToken);
+		}
+
+		/// <inheritdoc />
+		public void AggregateToCollection<TResult>(IClientSessionHandle Session, PipelineDefinition<T, TResult> pipeline, AggregateOptions? options = null, CancellationToken cancellationToken = default(CancellationToken))
+		{
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "AggregateToCollection").StartActive();
+			Collection.AggregateToCollection(Session, pipeline, options, cancellationToken);
+		}
+
+		/// <inheritdoc />
+		public async Task AggregateToCollectionAsync<TResult>(PipelineDefinition<T, TResult> Pipeline, AggregateOptions? Options = null, CancellationToken CancellationToken = default(CancellationToken))
+		{
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "AggregateToCollectionAsync").StartActive();
+			await Collection.AggregateToCollectionAsync(Pipeline, Options, CancellationToken);
+		}
+
+		/// <inheritdoc />
+		public async Task AggregateToCollectionAsync<TResult>(IClientSessionHandle Session, PipelineDefinition<T, TResult> Pipeline, AggregateOptions? Options = null, CancellationToken CancellationToken = default(CancellationToken))
+		{
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "AggregateToCollectionAsync").StartActive();
+			await Collection.AggregateToCollectionAsync(Session, Pipeline, Options, CancellationToken);
 		}
 
 		/// <inheritdoc />
