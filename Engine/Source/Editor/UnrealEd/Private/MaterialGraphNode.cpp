@@ -32,6 +32,7 @@
 #include "Materials/MaterialExpressionTextureObject.h"
 #include "Materials/MaterialExpressionTextureProperty.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
+#include "Materials/MaterialExpressionDoubleVectorParameter.h"
 #include "Materials/MaterialExpressionViewProperty.h"
 #include "Materials/MaterialExpressionMaterialLayerOutput.h"
 #include "Materials/MaterialExpressionTextureObjectParameter.h"
@@ -436,6 +437,18 @@ void UMaterialGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeCo
 				{
 					NodeSection.AddMenuEntry(FMaterialEditorCommands::Get().ConvertToConstant);
 				}
+			}
+
+			// Add 'Promote to Double' option for float types
+			if (MaterialExpression->IsA(UMaterialExpressionVectorParameter::StaticClass()))
+			{
+				NodeSection.AddMenuEntry(FMaterialEditorCommands::Get().PromoteToDouble);
+			}
+
+			// Add 'Promote to Float' option for double types
+			if (MaterialExpression->IsA(UMaterialExpressionDoubleVectorParameter::StaticClass()))
+			{
+				NodeSection.AddMenuEntry(FMaterialEditorCommands::Get().PromoteToFloat);
 			}
 
 			{

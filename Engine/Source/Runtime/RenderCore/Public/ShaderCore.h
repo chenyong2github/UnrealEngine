@@ -307,11 +307,7 @@ public:
 	/**
 	 * Works for float
 	 */
-	void SetFloatDefine(const TCHAR* Name, float Value)
-	{
-		// can be optimized
-		Definitions.Add(Name, FString::Printf(TEXT("%f"), Value));
-	}
+	RENDERCORE_API void SetFloatDefine(const TCHAR* Name, float Value);
 
 	const TMap<FString,FString>& GetDefinitionMap() const
 	{

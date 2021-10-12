@@ -150,12 +150,13 @@ void WritePackedInstanceData(uint Offset, uint InstanceId, FInstanceSceneData In
 
 	const uint PackedPrimitiveFlags = ((PrimitiveData.Flags & 0xffff) | (InstanceData.Flags << 16u));
 
-	float4 InstanceOriginAndId = InstanceData.LocalToWorld[3];
+	// This will only write out the relative instance transform, but that's fine; the tile coordinate of the instance transform comes from the primitive data
+	float4 InstanceOriginAndId = InstanceData.LocalToWorld.M[3];
 	InstanceOriginAndId.w = asfloat(InstanceData.PrimitiveId);
 
-	float4 InstanceTransform1 = InstanceData.LocalToWorld[0];
-	float4 InstanceTransform2 = InstanceData.LocalToWorld[1];
-	float4 InstanceTransform3 = InstanceData.LocalToWorld[2];
+	float4 InstanceTransform1 = InstanceData.LocalToWorld.M[0];
+	float4 InstanceTransform2 = InstanceData.LocalToWorld.M[1];
+	float4 InstanceTransform3 = InstanceData.LocalToWorld.M[2];
 	
 	InstanceTransform1.w = asfloat(PackedPrimitiveFlags); 
 	InstanceTransform2.w = InstanceAuxData1; 
@@ -229,8 +230,7 @@ bool IsInstanceVisible(FInstanceSceneData InstanceData, uint ViewIdIndex)
 	{
 		FNaniteView NaniteView = GetNaniteView(ViewDataIndex);
 
-		float4x4 LocalToTranslatedWorld = InstanceData.LocalToWorld;
-		LocalToTranslatedWorld[3].xyz += NaniteView.PreViewTranslation.xyz;
+		float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
 		float4x4 LocalToClip = mul(LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip);
 
 		FFrustumCullData Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bNearClip, false);
@@ -239,8 +239,7 @@ bool IsInstanceVisible(FInstanceSceneData InstanceData, uint ViewIdIndex)
 		BRANCH
 		if (Cull.bIsVisible)
 		{
-			float4x4 LocalToPrevTranslatedWorld = InstanceData.LocalToWorld;
-			LocalToPrevTranslatedWorld[3].xyz += NaniteView.PrevPreViewTranslation.xyz;
+			float4x4 LocalToPrevTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PrevPreViewTranslation);
 			float4x4 LocalToPrevClip = mul(LocalToPrevTranslatedWorld, NaniteView.PrevTranslatedWorldToClip);
 			FFrustumCullData PrevCull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToPrevClip, bNearClip, false);
 			BRANCH

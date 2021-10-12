@@ -24,6 +24,7 @@
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "Misc/ScopeRWLock.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
+#include "Misc/LargeWorldRenderPosition.h"
 
 #if WITH_EDITORONLY_DATA
 #include "Interfaces/IShaderFormat.h"
@@ -1891,5 +1892,10 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	{
 		// add whether or not non-pipelined shader types are included
 		KeyString += FString::Printf(TEXT("_ExclNonPipSh-%d"), ExcludeNonPipelinedShaderTypes(Platform));
+	}
+
+	if (!UE_LARGE_WORLD_COORDINATES_DISABLED)
+	{
+		KeyString += FString::Printf(TEXT("_LWC-%d"), FMath::FloorToInt(FLargeWorldRenderScalar::GetTileSize()));
 	}
 }

@@ -165,7 +165,8 @@ void MainTemporalUpsampleEditorDepthPS(
 	{
 		float PrevHistoryDepth = ConvertFromDeviceZ(PrevHistoryDeviceZ);
 
-		const float3 PrevHistoryTranslatedWorldPosition = mul(float4(PrevScreenPos * PrevHistoryDepth, PrevHistoryDepth, 1), View.PrevScreenToTranslatedWorld).xyz + (View.PreViewTranslation.xyz - View.PrevPreViewTranslation.xyz);
+		const float3 PreViewTranslationOffset = LWCToFloat(LWCSubtract(PrimaryView.PreViewTranslation, PrimaryView.PrevPreViewTranslation));
+		const float3 PrevHistoryTranslatedWorldPosition = mul(float4(PrevScreenPos * PrevHistoryDepth, PrevHistoryDepth, 1), View.PrevScreenToTranslatedWorld).xyz + PreViewTranslationOffset;
 
 		float CorrectedPrevHistoryDepth = mul(float4(PrevHistoryTranslatedWorldPosition, 1.0), View.TranslatedWorldToView).z;
 		

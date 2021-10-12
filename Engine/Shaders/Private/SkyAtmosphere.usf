@@ -148,15 +148,15 @@ float4 GetScreenWorldPos(float4 SVPos, float DeviceZ)
 #if HAS_INVERTED_Z_BUFFER
 	DeviceZ = max(0.000000000001, DeviceZ);	// TODO: investigate why SvPositionToWorld returns bad values when DeviceZ is far=0 when using inverted z
 #endif
-	return float4(SvPositionToWorld(float4(SVPos.xy, DeviceZ, 1.0)), 1.0);
+	return float4(LWCHackToFloat(SvPositionToWorld(float4(SVPos.xy, DeviceZ, 1.0))), 1.0);
 }
 
 float3 GetScreenWorldDir(in float4 SVPos)
 {
 	float2 ScreenPosition = SvPositionToScreenPosition(SVPos).xy;
 	const float Depth = 1000000.0f;
-	float4 WorldPos = mul(float4(ScreenPosition * Depth, Depth, 1), View.ScreenToWorld);
-	return normalize(WorldPos.xyz - View.WorldCameraOrigin);
+	float4 WorldPos = mul(float4(ScreenPosition * Depth, Depth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld));
+	return normalize(WorldPos.xyz - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
 }
 
 // This is the world position of the camera. It is also force to be at the top of the virutal planet surface. 
@@ -947,7 +947,7 @@ void RenderSkyAtmosphereRayMarchingPS(
 #else
 
 	float3 DepthBufferWorldPos = GetScreenWorldPos(SVPos, DeviceZ).xyz;
-	float4 NDCPosition = mul(float4(DepthBufferWorldPos.xyz, 1), View.WorldToClip);
+	float4 NDCPosition = mul(float4(DepthBufferWorldPos.xyz, 1), LWCHackToFloat(PrimaryView.WorldToClip));
 
 	float4 AP = GetAerialPerspectiveLuminanceTransmittance(
 		ResolvedView.RealTimeReflectionCapture, ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeSizeAndInvSize,
@@ -1541,7 +1541,7 @@ void RenderSkyAtmosphereDebugPS(
 	const float AerialPespectiveViewDistanceScale = 1.0f;
 
 	// We position the camera at the same height as the view port camera, along z-up vector
-	float3 WorldPos = float3(0.0f, 0.0f, length((View.WorldCameraOrigin - View.SkyPlanetCenterAndViewHeight.xyz) * CM_TO_SKY_UNIT));
+	float3 WorldPos = float3(0.0f, 0.0f, length((LWCHackToFloat(PrimaryView.WorldCameraOrigin) - View.SkyPlanetCenterAndViewHeight.xyz) * CM_TO_SKY_UNIT));
 
 	// Some organisation constants
 	const float Margin = 2.0f;

@@ -122,7 +122,7 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 				ShadowMaskRay.bShadowFactorComplete = false;
 				bool bVSMValid = false;
 
-				const float4 PostProjectionPosition = mul(float4(WorldPosition, 1.0), View.WorldToClip);
+				const float4 PostProjectionPosition = mul(float4(WorldPosition, 1.0), LWCHackToFloat(PrimaryView.WorldToClip));
 
 				// Shadow maps are culled so only query points inside the view frustum are valid
 				if (all(PostProjectionPosition.xy < PostProjectionPosition.w && PostProjectionPosition.xy > -PostProjectionPosition.w))
@@ -152,7 +152,7 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 						{
 							#if DYNAMICALLY_SHADOWED
 							{
-								float SceneDepth = dot(WorldPositionForShadowing - View.WorldCameraOrigin, View.ViewForward);
+								float SceneDepth = dot(WorldPositionForShadowing - LWCHackToFloat(PrimaryView.WorldCameraOrigin), View.ViewForward);
 
 								bool bShadowingFromValidUVArea = false;
 								float NewShadowFactor = ComputeDirectionalLightDynamicShadowing(WorldPositionForShadowing, SceneDepth, bShadowingFromValidUVArea);

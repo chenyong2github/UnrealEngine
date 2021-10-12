@@ -67,6 +67,9 @@ public:
 	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const;
 
 	virtual void GetNumberValue(const struct FMaterialRenderContext& Context, FLinearColor& OutValue) const;
+
+	/** Offset of this uniform, within the shader's uniform buffer array */
+	int32 UniformOffset = INDEX_NONE;
 };
 
 /**
@@ -214,6 +217,47 @@ public:
 private:
 	FLinearColor Value;
 	uint8 ValueType;
+};
+
+/**
+ */
+class FMaterialUniformExpressionGenericConstant : public FMaterialUniformExpression
+{
+	DECLARE_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionGenericConstant);
+public:
+	FMaterialUniformExpressionGenericConstant() {}
+	FMaterialUniformExpressionGenericConstant(const UE::Shader::FValue& InValue) :
+		Value(InValue)
+	{}
+
+	// FMaterialUniformExpression interface.
+	virtual bool IsConstant() const
+	{
+		return true;
+	}
+	virtual bool IsIdentical(const FMaterialUniformExpression* OtherExpression) const
+	{
+		if (GetType() != OtherExpression->GetType())
+		{
+			return false;
+		}
+		FMaterialUniformExpressionGenericConstant* OtherConstant = (FMaterialUniformExpressionGenericConstant*)OtherExpression;
+		return OtherConstant->Value == Value;
+	}
+
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
+	{
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Constant);
+		OutData.Write(Value);
+	}
+
+	virtual void GetNumberValue(const FMaterialRenderContext& Context, FLinearColor& OutValue) const override
+	{
+		OutValue = Value.AsLinearColor();
+	}
+
+private:
+	UE::Shader::FValue Value;
 };
 
 /**
@@ -545,6 +589,42 @@ private:
 
 /**
  */
+class FMaterialUniformExpressionRcp : public FMaterialUniformExpression
+{
+	DECLARE_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionRcp);
+public:
+
+	FMaterialUniformExpressionRcp() {}
+	FMaterialUniformExpressionRcp(FMaterialUniformExpression* InX) :
+		X(InX)
+	{}
+
+	// FMaterialUniformExpression interface.
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
+	{
+		X->WriteNumberOpcodes(OutData);
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Rcp);
+	}
+	virtual bool IsConstant() const
+	{
+		return X->IsConstant();
+	}
+	virtual bool IsIdentical(const FMaterialUniformExpression* OtherExpression) const
+	{
+		if (GetType() != OtherExpression->GetType())
+		{
+			return false;
+		}
+		FMaterialUniformExpressionRcp* OtherRcp = (FMaterialUniformExpressionRcp*)OtherExpression;
+		return X->IsIdentical(OtherRcp->X);
+	}
+
+private:
+	TRefCountPtr<FMaterialUniformExpression> X;
+};
+
+/**
+ */
 class FMaterialUniformExpressionLength: public FMaterialUniformExpression
 {
 	DECLARE_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionLength);
@@ -560,7 +640,7 @@ public:
 	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
 		X->WriteNumberOpcodes(OutData);
-		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Length).Write((uint8)ValueType);
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Length);
 	}
 	virtual bool IsConstant() const
 	{
@@ -580,6 +660,42 @@ private:
 	TRefCountPtr<FMaterialUniformExpression> X;
 	uint32 ValueType;
 };
+
+/**
+ */
+class FMaterialUniformExpressionNormalize : public FMaterialUniformExpression
+{
+	DECLARE_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionNormalize);
+public:
+
+	FMaterialUniformExpressionNormalize() {}
+	FMaterialUniformExpressionNormalize(FMaterialUniformExpression* InX) : X(InX)
+	{}
+
+	// FMaterialUniformExpression interface.
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
+	{
+		X->WriteNumberOpcodes(OutData);
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Normalize);
+	}
+	virtual bool IsConstant() const
+	{
+		return X->IsConstant();
+	}
+	virtual bool IsIdentical(const FMaterialUniformExpression* OtherExpression) const
+	{
+		if (GetType() != OtherExpression->GetType())
+		{
+			return false;
+		}
+		FMaterialUniformExpressionNormalize* OtherSqrt = (FMaterialUniformExpressionNormalize*)OtherExpression;
+		return X->IsIdentical(OtherSqrt->X);
+	}
+
+private:
+	TRefCountPtr<FMaterialUniformExpression> X;
+};
+
 
 /**
  */

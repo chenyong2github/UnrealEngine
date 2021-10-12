@@ -60,7 +60,7 @@ void CopySceneColorToCubeFaceColorPS(
 
 	// Convert INF's to valid values
 	SceneColor = ClampToHalfFloatRange(SceneColor);
-	float3 WorldPosition = Input.ScreenVector * SceneDepth + View.WorldCameraOrigin;
+	float3 TranslatedWorldPosition = Input.ScreenVector * SceneDepth + View.TranslatedWorldCameraOrigin;
 
 	float Alpha = 1;
 
@@ -75,7 +75,7 @@ void CopySceneColorToCubeFaceColorPS(
 	}
 	else if (SkyLightCaptureParameters.x == 1)
 	{
-		float RadialDistance = length(WorldPosition - View.WorldCameraOrigin);
+		float RadialDistance = length(TranslatedWorldPosition - View.TranslatedWorldCameraOrigin);
 		float MaxDistance = SkyLightCaptureParameters.y;
 
 		// Setup alpha to fade out smoothly past the max distance

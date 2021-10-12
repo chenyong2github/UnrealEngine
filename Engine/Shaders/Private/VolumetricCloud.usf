@@ -416,7 +416,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 	FPixelMaterialInputs PixelMaterialInputs	= (FPixelMaterialInputs)0;
 	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, true);
 
-	float3 RayOrigin			= ResolvedView.WorldCameraOrigin;
+	float3 RayOrigin			= LWCHackToFloat(ResolvedView.WorldCameraOrigin);
 	float3 RayOriginKm			= RayOrigin * CENTIMETER_TO_KILOMETER;
 	float3 Raydir				= -MaterialParameters.CameraVector;
 	float TMin					= -999999999.0f;
@@ -494,7 +494,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 #if HAS_INVERTED_Z_BUFFER
 		DeviceZ = max(0.000000000001, DeviceZ);
 #endif
-		float3 DepthBufferWorldPos = SvPositionToWorld(float4(SvPosition.xy, DeviceZ, 1.0));
+		float3 DepthBufferWorldPos = LWCHackToFloat(SvPositionToWorld(float4(SvPosition.xy, DeviceZ, 1.0)));
 		float TDepthBuffer = length(DepthBufferWorldPos - RayOrigin);
 		OutColor1.y = TDepthBuffer * CENTIMETER_TO_KILOMETER;
 
@@ -999,7 +999,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 			{ 
 				const float2 PixelPos = SvPosition.xy * RenderVolumetricCloudParameters.TracingCoordToFullResPixelCoordScaleBias.xy - ResolvedView.ViewRectMin.xy;// *RenderVolumetricCloudParameters.TracingCoordToFullResPixelCoordScaleBias.xy; // We do not take into account the bias so this owuld not work for split screens / VR.
 
-				float4 ClipPos = mul(float4(SampleWorldPosition, 1.0f), ResolvedView.WorldToClip);
+				float4 ClipPos = mul(float4(SampleWorldPosition, 1.0f), LWCHackToFloat(ResolvedView.WorldToClip));
 				ClipPos /= ClipPos.w;
 				const float SceneDepth = ConvertFromDeviceZ(ClipPos.z);
 				 
@@ -1252,7 +1252,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 
 	const float tAP = tAPWeightsSum==0.0f ? NoCloudDepth : tAPWeightedSum / max(0.0000000001f, tAPWeightsSum);
 	float3 AbsoluteWorldPosition = RayOrigin + tAP * Raydir;
-	float4 AbsoluteWorldPositionNDC = mul(float4(AbsoluteWorldPosition, 1.0f), ResolvedView.WorldToClip);
+	float4 AbsoluteWorldPositionNDC = mul(float4(AbsoluteWorldPosition, 1.0f), LWCHackToFloat(ResolvedView.WorldToClip));
 	float MeanTransmittance = dot(TransmittanceToView.MATSUF, 1.0f / 3.0f);
 
 	if (RenderVolumetricCloudParameters.EnableAerialPerspectiveSampling && tAPWeightsSum > 0.0f)
@@ -1261,7 +1261,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 		// This allows to apply AP only once per pixel instead of per sample.
 		float4 AerialPerspective = GetAerialPerspectiveLuminanceTransmittance(
 			ResolvedView.RealTimeReflectionCapture, ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeSizeAndInvSize,
-			AbsoluteWorldPositionNDC, AbsoluteWorldPosition * CM_TO_SKY_UNIT, ResolvedView.WorldCameraOrigin * CM_TO_SKY_UNIT,
+			AbsoluteWorldPositionNDC, AbsoluteWorldPosition * CM_TO_SKY_UNIT, LWCHackToFloat(ResolvedView.WorldCameraOrigin) * CM_TO_SKY_UNIT,
 			View.CameraAerialPerspectiveVolume, View.CameraAerialPerspectiveVolumeSampler,
 			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
 			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolution,
@@ -1282,7 +1282,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 	//
 	if (RenderVolumetricCloudParameters.EnableHeightFog && tAPWeightsSum > 0.0f)
 	{
-		float4 HeightFogInscatteringAndTransmittance = CalculateHeightFog(AbsoluteWorldPosition - ResolvedView.WorldCameraOrigin);
+		float4 HeightFogInscatteringAndTransmittance = CalculateHeightFog(AbsoluteWorldPosition - LWCHackToFloat(ResolvedView.WorldCameraOrigin));
 		
 		if (FogStruct.ApplyVolumetricFog > 0)
 		{

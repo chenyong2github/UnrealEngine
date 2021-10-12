@@ -128,11 +128,11 @@ float GetSpecularOcclusion(float NoV, float RoughnessSq, float AO)
 	return saturate( pow( NoV + AO, RoughnessSq ) - 1 + AO );
 }
 
-float3 GetLookupVectorForBoxCapture(float3 ReflectionVector, float3 WorldPosition, float4 BoxCapturePositionAndRadius, float4x4 BoxTransform, float4 BoxScales, float3 LocalCaptureOffset, out float DistanceAlpha)
+float3 GetLookupVectorForBoxCapture(float3 ReflectionVector, float3 WorldPosition, float4 BoxCapturePositionAndRadius, float4x4 RelativeWorldToBox, float4 BoxScales, float3 LocalCaptureOffset, out float DistanceAlpha)
 {
 	// Transform the ray into the local space of the box, where it is an AABB with mins at -1 and maxs at 1
-	float3 LocalRayStart		= mul(float4(WorldPosition, 1), BoxTransform).xyz;
-	float3 LocalRayDirection	= mul(float4(ReflectionVector,  0), BoxTransform).xyz;
+	float3 LocalRayStart		= mul(float4(WorldPosition - BoxCapturePositionAndRadius.xyz, 1), RelativeWorldToBox).xyz;
+	float3 LocalRayDirection	= mul(float4(ReflectionVector,  0), RelativeWorldToBox).xyz;
 
 	float3 InvRayDir = rcp(LocalRayDirection);
 	

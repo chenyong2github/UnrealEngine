@@ -137,6 +137,7 @@ int NumDynamicPointLights;
 	float4 ReflectionAverageBrigtness;
 	float4 ReflectanceMaxValueRGBM;
 	float4 ReflectionPositionsAndRadii[MAX_HQ_REFLECTIONS];
+	float4 ReflectionTilePositions[MAX_HQ_REFLECTIONS];
 		#if ALLOW_CUBE_REFLECTIONS
 		float4x4 CaptureBoxTransformArray[MAX_HQ_REFLECTIONS];
 		float4 CaptureBoxScalesArray[MAX_HQ_REFLECTIONS];
@@ -177,11 +178,11 @@ half MobileComputeMixingWeight(half IndirectIrradiance, half AverageBrightness, 
 	return lerp(1.0f, MixingWeight, MixingAlpha);
 }
 
-half3 GetLookupVectorForBoxCaptureMobile(half3 ReflectionVector, half3 WorldPosition, half4 BoxCapturePositionAndRadius, half4x4 BoxTransform, half4 BoxScales, half3 LocalCaptureOffset, out half DistanceAlpha)
+half3 GetLookupVectorForBoxCaptureMobile(half3 ReflectionVector, half3 WorldPosition, half4 BoxCapturePositionAndRadius, half4x4 RelativeWorldToBox, half4 BoxScales, half3 LocalCaptureOffset, out half DistanceAlpha)
 {
 	// Transform the ray into the local space of the box, where it is an AABB with mins at -1 and maxs at 1
-	half3 LocalRayStart = mul(half4(WorldPosition, 1), BoxTransform).xyz;
-	half3 LocalRayDirection = mul(half4(ReflectionVector, 0), BoxTransform).xyz;
+	half3 LocalRayStart = mul(half4(WorldPosition - BoxCapturePositionAndRadius.xyz, 1), RelativeWorldToBox).xyz;
+	half3 LocalRayDirection = mul(half4(ReflectionVector, 0), RelativeWorldToBox).xyz;
 
 	half3 InvRayDir = rcp(LocalRayDirection);
 
@@ -262,31 +263,35 @@ void GatherSpecularIBL(FMaterialPixelParameters MaterialParameters
 
 #if HQ_REFLECTIONS
 
-	if (ReflectionPositionsAndRadii[ReflectionIndex].w == 0.0f)
+	float CaptureRadius = ReflectionPositionsAndRadii[ReflectionIndex].w;
+	if (CaptureRadius == 0.0f)
 	{
 		return;
 	}
 	
 	half DistanceAlpha = 0.0;
 
-	half3 CaptureVector = MaterialParameters.AbsoluteWorldPosition - ReflectionPositionsAndRadii[ReflectionIndex].xyz;
-	half CaptureVectorLength = sqrt(dot(CaptureVector, CaptureVector));
-	half NormalizedDistanceToCapture = saturate(CaptureVectorLength / ReflectionPositionsAndRadii[ReflectionIndex].w);
+	FLWCVector3 CaptureWorldPosition = MakeLWCVector3(ReflectionTilePositions[ReflectionIndex].xyz, ReflectionPositionsAndRadii[ReflectionIndex].xyz);
+	float3 CaptureTranslatedWorldPosition = LWCToFloat(LWCAdd(CaptureWorldPosition, ResolvedView.PreViewTranslation));
 
-	if (CaptureVectorLength < ReflectionPositionsAndRadii[ReflectionIndex].w || ReflectionPositionsAndRadii[ReflectionIndex].w <= 0)
+	half3 CaptureVector = MaterialParameters.WorldPosition_CamRelative - CaptureTranslatedWorldPosition;
+	half CaptureVectorLength = sqrt(dot(CaptureVector, CaptureVector));
+	half NormalizedDistanceToCapture = saturate(CaptureVectorLength / CaptureRadius);
+
+	if (CaptureVectorLength < CaptureRadius || CaptureRadius <= 0)
 	{
 #if ALLOW_CUBE_REFLECTIONS
 		if (CaptureBoxScalesArray[ReflectionIndex].w > 0)
 		{
-			ProjectedCaptureVector = GetLookupVectorForBoxCaptureMobile(MaterialParameters.ReflectionVector, MaterialParameters.AbsoluteWorldPosition, ReflectionPositionsAndRadii[ReflectionIndex], CaptureBoxTransformArray[ReflectionIndex], CaptureBoxScalesArray[ReflectionIndex], half3(0.0f, 0.0f, 0.0f), DistanceAlpha);
+			ProjectedCaptureVector = GetLookupVectorForBoxCaptureMobile(MaterialParameters.ReflectionVector, MaterialParameters.WorldPosition_CamRelative, float4(CaptureTranslatedWorldPosition, CaptureRadius), CaptureBoxTransformArray[ReflectionIndex], CaptureBoxScalesArray[ReflectionIndex], half3(0.0f, 0.0f, 0.0f), DistanceAlpha);
 		}
 		else
 #endif
 		{
-			ProjectedCaptureVector = GetLookupVectorForSphereCaptureMobile(MaterialParameters.ReflectionVector, MaterialParameters.AbsoluteWorldPosition, ReflectionPositionsAndRadii[ReflectionIndex], NormalizedDistanceToCapture, half3(0.0f, 0.0f, 0.0f), DistanceAlpha);
+			ProjectedCaptureVector = GetLookupVectorForSphereCaptureMobile(MaterialParameters.ReflectionVector, MaterialParameters.WorldPosition_CamRelative, float4(CaptureTranslatedWorldPosition, CaptureRadius), NormalizedDistanceToCapture, half3(0.0f, 0.0f, 0.0f), DistanceAlpha);
 		}
 	}
-	half UsingSkyReflection = ReflectionPositionsAndRadii[ReflectionIndex].w <= 0.0f;
+	half UsingSkyReflection = CaptureRadius <= 0.0f;
 
 #else
 	half UsingSkyReflection = MobileReflectionCapture.Params.y > 0.0f;
@@ -411,7 +416,8 @@ void AccumulateLightingOfDynamicPointLight(
 FMaterialPixelParameters MaterialParameters, 
 FMobileShadingModelContext ShadingModelContext,
 FGBufferData GBuffer,
-float4 LightPositionAndInvRadius, 
+float4 LightPositionAndInvRadius,
+float4 LightTilePosition,
 float4 LightColorAndFalloffExponent, 
 float4 SpotLightDirectionAndSpecularScale, 
 float4 SpotLightAnglesAndSoftTransitionScaleAndLightShadowType, 
@@ -426,8 +432,11 @@ inout FMobileLightAccumulator MobileLightAccumulator)
 	uint LightShadowType = SpotLightAnglesAndSoftTransitionScaleAndLightShadowType.w;
 
 	float FadedShadow = 1.0f;
-
-	float3 ToLight = LightPositionAndInvRadius.xyz - MaterialParameters.AbsoluteWorldPosition;
+	
+	FLWCVector3 LightWorldPosition = MakeLWCVector3(LightTilePosition.xyz, LightPositionAndInvRadius.xyz);
+	FLWCVector3 LightTranslatedWorldPosition = LWCAdd(LightWorldPosition, ResolvedView.PreViewTranslation);
+	float3 LocalPosition = MaterialParameters.WorldPosition_CamRelative - LWCToFloat(LightTranslatedWorldPosition);
+	float3 ToLight = -LocalPosition;
 	float DistanceSqr = dot(ToLight, ToLight);
 	half3 L = ToLight * rsqrt(DistanceSqr);
 	float3 PointH = normalize(float3(MaterialParameters.CameraVector + L));
@@ -440,7 +449,7 @@ inout FMobileLightAccumulator MobileLightAccumulator)
 		if ((LightShadowType & LightShadowType_Shadow) == LightShadowType_Shadow)
 		{
 
-			float4 HomogeneousShadowPosition = mul(float4(MaterialParameters.AbsoluteWorldPosition, 1), SpotLightShadowWorldToShadowMatrix);
+			float4 HomogeneousShadowPosition = mul(float4(LocalPosition, 1), SpotLightShadowWorldToShadowMatrix);
 			float2 ShadowUVs = HomogeneousShadowPosition.xy / HomogeneousShadowPosition.w;
 			if (all(ShadowUVs >= SpotLightShadowmapMinMax.xy && ShadowUVs <= SpotLightShadowmapMinMax.zw))
 			{
@@ -729,7 +738,7 @@ void Main(
 		#if MATERIAL_SUBSURFACE_PROFILE_USE_CURVATURE
 			GBuffer.CustomData.g = GetMaterialCustomData0(MaterialParameters);
 		#else
-			GBuffer.CustomData.g = CalculateCurvature(GBuffer.WorldNormal, MaterialParameters.AbsoluteWorldPosition);
+			GBuffer.CustomData.g = CalculateCurvature(GBuffer.WorldNormal, MaterialParameters.WorldPosition_CamRelative);
 		#endif
 
 		GBuffer.CustomData.g = max(saturate(GBuffer.CustomData.g), 0.001f);
@@ -842,7 +851,7 @@ void Main(
 		BRANCH
 		if (abs(dot(PlanarReflectionStruct.ReflectionPlane.xyz, 1)) > .0001f)
 		{
-			half4 PlanarReflection = GetPlanarReflection(MaterialParameters.AbsoluteWorldPosition, MaterialParameters.WorldNormal, GBuffer.Roughness);
+			half4 PlanarReflection = GetPlanarReflection(LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition), MaterialParameters.WorldNormal, GBuffer.Roughness);
 			// Planar reflections win over reflection environment
 			SpecularIBL = lerp(SpecularIBL, PlanarReflection.rgb, PlanarReflection.a);
 		}
@@ -890,7 +899,8 @@ void Main(
 			AccumulateLightingOfDynamicPointLight(MaterialParameters, 
 												ShadingModelContext,
 												GBuffer,
-												MobileMovablePointLight0.LightPositionAndInvRadius, 
+												MobileMovablePointLight0.LightPositionAndInvRadius,
+												MobileMovablePointLight0.LightTilePosition,
 												MobileMovablePointLight0.LightColorAndFalloffExponent, 
 												MobileMovablePointLight0.SpotLightDirectionAndSpecularScale, 
 												MobileMovablePointLight0.SpotLightAnglesAndSoftTransitionScaleAndLightShadowType, 
@@ -907,7 +917,8 @@ void Main(
 				AccumulateLightingOfDynamicPointLight(MaterialParameters, 
 														ShadingModelContext,
 														GBuffer,
-														MobileMovablePointLight1.LightPositionAndInvRadius, 
+													MobileMovablePointLight1.LightPositionAndInvRadius, 
+													MobileMovablePointLight1.LightTilePosition,
 														MobileMovablePointLight1.LightColorAndFalloffExponent, 
 														MobileMovablePointLight1.SpotLightDirectionAndSpecularScale, 
 														MobileMovablePointLight1.SpotLightAnglesAndSoftTransitionScaleAndLightShadowType, 
@@ -925,6 +936,7 @@ void Main(
 															ShadingModelContext,
 															GBuffer,
 															MobileMovablePointLight2.LightPositionAndInvRadius, 
+														MobileMovablePointLight2.LightTilePosition,
 															MobileMovablePointLight2.LightColorAndFalloffExponent, 
 															MobileMovablePointLight2.SpotLightDirectionAndSpecularScale, 
 															MobileMovablePointLight2.SpotLightAnglesAndSoftTransitionScaleAndLightShadowType, 
@@ -942,6 +954,7 @@ void Main(
 																ShadingModelContext,
 																GBuffer,
 																MobileMovablePointLight3.LightPositionAndInvRadius, 
+															MobileMovablePointLight3.LightTilePosition,
 																MobileMovablePointLight3.LightColorAndFalloffExponent, 
 																MobileMovablePointLight3.SpotLightDirectionAndSpecularScale, 
 																MobileMovablePointLight3.SpotLightAnglesAndSoftTransitionScaleAndLightShadowType, 

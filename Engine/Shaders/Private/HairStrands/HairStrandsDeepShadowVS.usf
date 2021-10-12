@@ -63,7 +63,7 @@ void Main(
 #else
 	float4 WorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates);
 #endif
-	WorldPosition.xyz -= ResolvedView.PreViewTranslation.xyz; // Remove the camera relative position (todo move this into matrix transform)
+	WorldPosition.xyz -= LWCHackToFloat(ResolvedView.PreViewTranslation); // Remove the camera relative position (todo move this into matrix transform)
 
 	Output.Position = mul(WorldPosition, WorldToClipMatrix);
 

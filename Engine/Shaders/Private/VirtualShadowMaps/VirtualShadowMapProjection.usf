@@ -170,8 +170,8 @@ FVirtualShadowMapSampleResult ProjectLight(
 	half SubsurfaceOpacity,
 	const half Noise)
 {
-	const float3 BaseWorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
-	// NOTE: If View.PreViewTranslation is guaranteed to be the camera position we can simplify
+	const float3 BaseWorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
+	// NOTE: If PrimaryView.PreViewTranslation is guaranteed to be the camera position we can simplify
 	const float DistanceToCamera = length(TranslatedWorldPosition - View.TranslatedWorldCameraOrigin);
 	const float NormalBiasLength = max(0.01f, NormalBias * DistanceToCamera / View.ViewToClip._11);
 
@@ -242,7 +242,7 @@ FVirtualShadowMapSampleResult ProjectLight(
 		{
 			Result = SampleVirtualShadowMap(
 				VirtualShadowMapId,
-				TranslatedWorldPosition - View.PreViewTranslation,
+				TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation),
 				ContactShadowLengthWorld,
 				WorldNormal);
 		}
@@ -512,7 +512,7 @@ void VirtualShadowMapProjection(
 		{
 			SSSTransmission = ComputeSimpleSubsurfaceTransmissionFromVirtualShadowMap(
 				VirtualShadowMapId,
-				TranslatedWorldPosition - View.PreViewTranslation,
+				LWCHackToFloat(LWCSubtract(TranslatedWorldPosition, PrimaryView.PreViewTranslation)),
 				SubsurfaceOpacity);
 		}
 

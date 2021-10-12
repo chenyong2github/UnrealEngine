@@ -10,22 +10,37 @@
 #define ALLOW_SWITCH_VERTICALAXIS 0
 #endif
 
+#ifndef ENABLE_LWC
+#define ENABLE_LWC 0
+#endif
+
 float4x4 Transform;
+#if ENABLE_LWC
+float3 TransformTilePosition;
+#endif
 
 float SwitchVerticalAxis;
 
 void Main(
-	in float4 InPosition : ATTRIBUTE0,
-	in float2 InTextureCoordinate : ATTRIBUTE1,
-	in float4 InColor : ATTRIBUTE2,
-	in float4 InHitProxyId : ATTRIBUTE3,
+	in float4 InRelativePosition : ATTRIBUTE0,
+	in float4 InTilePosition : ATTRIBUTE1,
+	in float2 InTextureCoordinate : ATTRIBUTE2,
+	in float4 InColor : ATTRIBUTE3,
+	in float4 InHitProxyId : ATTRIBUTE4,
 	out float2 OutTextureCoordinate : TEXCOORD0,
 	out float4 OutColor : TEXCOORD1,
 	out float4 OutHitProxyId : TEXCOORD2,
 	out float4 OutPosition : SV_POSITION
 	)
 {
-	OutPosition = mul(InPosition,Transform);
+#if ENABLE_LWC
+	FLWCVector4 InPosition = MakeLWCVector4(InTilePosition, InRelativePosition);
+	FLWCInverseMatrix WorldToClip = MakeLWCInverseMatrix(TransformTilePosition, Transform);
+	OutPosition = LWCMultiply(InPosition, WorldToClip);
+#else
+	OutPosition = mul(InRelativePosition, Transform);
+#endif
+
 #if ALLOW_SWITCH_VERTICALAXIS
 	OutPosition.y *= SwitchVerticalAxis;
 #endif

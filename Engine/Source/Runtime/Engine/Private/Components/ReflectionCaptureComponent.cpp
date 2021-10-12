@@ -1254,17 +1254,22 @@ FReflectionCaptureProxy::FReflectionCaptureProxy(const UReflectionCaptureCompone
 
 void FReflectionCaptureProxy::SetTransform(const FMatrix& InTransform)
 {
-	Position = InTransform.GetOrigin();
-	BoxTransform = InTransform.Inverse();
+	const FLargeWorldRenderPosition AbsolutePosition(InTransform.GetOrigin());
 
-	FVector ForwardVector(1.0f,0.0f,0.0f);
-	FVector RightVector(0.0f,-1.0f,0.0f);
-	const FVector4 PlaneNormal = InTransform.TransformVector(ForwardVector);
+	RelativePosition = AbsolutePosition.GetOffset();
+	TilePosition = AbsolutePosition.GetTile();
+
+	const FMatrix44f LocalToRelativeWorld = InTransform.RemoveTranslation();
+	BoxTransform = LocalToRelativeWorld.Inverse();
+
+	FVector3f ForwardVector(1.0f,0.0f,0.0f);
+	FVector3f RightVector(0.0f,-1.0f,0.0f);
+	const FVector4 PlaneNormal = LocalToRelativeWorld.TransformVector(ForwardVector);
 
 	// Normalize the plane
-	ReflectionPlane = FPlane(Position, FVector(PlaneNormal).GetSafeNormal());
-	const FVector ReflectionXAxis = InTransform.TransformVector(RightVector);
-	const FVector ScaleVector = InTransform.GetScaleVector();
+	LocalReflectionPlane = FPlane4f(FVector3f::ZeroVector, FVector3f(PlaneNormal).GetSafeNormal());
+	const FVector3f ReflectionXAxis = LocalToRelativeWorld.TransformVector(RightVector);
+	const FVector3f ScaleVector = LocalToRelativeWorld.GetScaleVector();
 	BoxScales = ScaleVector;
 	// Include the owner's draw scale in the axes
 	ReflectionXAxisAndYScale = ReflectionXAxis.GetSafeNormal() * ScaleVector.Y;

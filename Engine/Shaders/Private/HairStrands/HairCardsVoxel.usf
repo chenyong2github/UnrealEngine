@@ -113,7 +113,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	float3 HitColor = 0;
 	{
 		// Reverse-Z
-		const float3 O = View.WorldCameraOrigin;
+		const float3 O = LWCHackToFloat(PrimaryView.WorldCameraOrigin);
 		const float3 E = ReconstructWorldPositionFromDepth(UV, ConvertFromDeviceZ(0.0001f));
 		const float3 D = (E - O);
 

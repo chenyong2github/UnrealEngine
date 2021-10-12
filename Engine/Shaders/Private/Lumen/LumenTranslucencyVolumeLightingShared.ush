@@ -30,7 +30,7 @@ float3 ComputeCellWorldPosition(uint3 GridCoordinate, float3 CellOffset, out flo
 
 	float TileDeviceZ = ConvertToDeviceZ(SceneDepth);
 	float4 CenterPosition = mul(float4(VolumeNDC, TileDeviceZ, 1), UnjitteredClipToTranslatedWorld);
-	return CenterPosition.xyz / CenterPosition.w - View.PreViewTranslation;
+	return CenterPosition.xyz / CenterPosition.w - LWCHackToFloat(PrimaryView.PreViewTranslation);
 }
 
 float3 ComputeCellWorldPosition(uint3 GridCoordinate, float3 CellOffset)

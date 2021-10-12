@@ -82,7 +82,7 @@ void VirtualSmInvalidateInstancePagesCS(
 				FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(ShadowMapDataIndex);
 				const bool bDirectionalLight = (ProjectionData.LightType == LIGHT_TYPE_DIRECTIONAL);
 
-				float4x4 LocalToTranslatedWorld = InstanceSceneData.LocalToWorld;
+				float4x4 LocalToTranslatedWorld = LWCHackToFloat(InstanceSceneData.LocalToWorld);
 				LocalToTranslatedWorld[3].xyz += ProjectionData.ShadowPreViewTranslation;
 
 				// Go back to clip space
@@ -158,7 +158,7 @@ void VirtualSmInvalidateInstancePagesCS(
 		if (bDrawBounds && PageInvalidationCount > 0U)
 		{
 			float3 Color = float3(0.3f, 0.3f, 0.3f) + ColorMapTurbo(min(1.0f, float(PageInvalidationCount) / 100.0f)) * 0.7f;
-			AddOBB(InstanceSceneData.LocalBoundsCenter - InstanceSceneData.LocalBoundsExtent, InstanceSceneData.LocalBoundsCenter + InstanceSceneData.LocalBoundsExtent, float4(Color, 1.0f), InstanceSceneData.LocalToWorld);
+			AddOBB(InstanceSceneData.LocalBoundsCenter - InstanceSceneData.LocalBoundsExtent, InstanceSceneData.LocalBoundsCenter + InstanceSceneData.LocalBoundsExtent, float4(Color, 1.0f), LWCHackToFloat(InstanceSceneData.LocalToWorld));
 		}
 #endif
 	}

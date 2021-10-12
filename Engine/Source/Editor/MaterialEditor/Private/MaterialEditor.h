@@ -755,6 +755,8 @@ private:
 	void OnConvertObjects();
 	/** Command for converting nodes to textures */
 	void OnConvertTextures();
+	/** Command for promoting nodes to double precision */
+	void OnPromoteObjects();
 	/** Command to select local variable declaration */
 	void OnSelectNamedRerouteDeclaration();
 	/** Command to select local variable usages */

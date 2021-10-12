@@ -94,7 +94,7 @@ void Main(
 #endif
 
 #if USE_PS_CLIP_PLANE
-	Output.BasePassInterpolants.OutClipDistance = dot(ResolvedView.GlobalClippingPlane, float4(WorldPosition.xyz - ResolvedView.PreViewTranslation.xyz, 1));
+	Output.BasePassInterpolants.OutClipDistance = dot(ResolvedView.GlobalClippingPlane, float4(WorldPosition.xyz, 1));
 #endif
 
 #if USE_VERTEX_FOG

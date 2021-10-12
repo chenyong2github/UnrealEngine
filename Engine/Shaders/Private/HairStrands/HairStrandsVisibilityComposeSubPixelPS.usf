@@ -37,14 +37,14 @@ Texture2D<float4>	HairLightingSampleBuffer;
 
 float4 EvaluateVolumetric(float3 WorldPosition)
 {
-	const float3 CameraRelative_WorldPosition = WorldPosition - View.WorldCameraOrigin;
+	const float3 CameraRelative_WorldPosition = WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin);
 	float4 HeightFogging = CalculateHeightFog(CameraRelative_WorldPosition);
 	float4 Fogging = HeightFogging;
 
 	if (FogStruct.ApplyVolumetricFog > 0)
 	{
 		const uint EyeIndex = 0;
-		float3 VolumeUV = ComputeVolumeUV(WorldPosition, View.WorldToClip);
+		float3 VolumeUV = ComputeVolumeUV_DEPRECATED(WorldPosition, LWCHackToFloat(PrimaryView.WorldToClip));
 		Fogging = CombineVolumetricFog(HeightFogging, VolumeUV, EyeIndex);
 	}
 
@@ -52,7 +52,7 @@ float4 EvaluateVolumetric(float3 WorldPosition)
 
 	if (View.SkyAtmosphereApplyCameraAerialPerspectiveVolume > 0.0f)
 	{
-		float4 NDCPosition = mul(float4(WorldPosition.xyz, 1), View.WorldToClip);
+		float4 NDCPosition = mul(float4(WorldPosition.xyz, 1), LWCHackToFloat(PrimaryView.WorldToClip));
 
 		// Sample the aerial perspective (AP).
 		Fogging = GetAerialPerspectiveLuminanceTransmittanceWithFogOver(
@@ -60,7 +60,7 @@ float4 EvaluateVolumetric(float3 WorldPosition)
 			View.SkyAtmosphereCameraAerialPerspectiveVolumeSizeAndInvSize,
 			NDCPosition, 
 			WorldPosition.xyz * CM_TO_SKY_UNIT, 
-			View.WorldCameraOrigin.xyz * CM_TO_SKY_UNIT,
+			LWCHackToFloat(PrimaryView.WorldCameraOrigin).xyz * CM_TO_SKY_UNIT,
 			View.CameraAerialPerspectiveVolume, 
 			View.CameraAerialPerspectiveVolumeSampler,
 			View.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
@@ -98,7 +98,7 @@ void ComposeSamplePS(
 	const uint Resolution = uint(ceil(sqrt(float(TotalNodeCount))));
 
 	const float HairDeviceZ = HairStrands.HairOnlyDepthTexture.Load(PixelCoord);
-	const float3 ClosetPointWorldPosition = SvPositionToWorld(float4(Input.Position.xy, HairDeviceZ, 1.0));
+	const float3 ClosetPointWorldPosition = LWCHackToFloat(SvPositionToWorld(float4(Input.Position.xy, HairDeviceZ, 1.0)));
 	const float4 Volumetric = EvaluateVolumetric(ClosetPointWorldPosition);
 
 	float3 LocalAccColor = 0;

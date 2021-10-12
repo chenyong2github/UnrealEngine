@@ -54,6 +54,13 @@ struct FDeferredLightData
 	float RectLightBarnCosAngle;
 	float RectLightBarnLength;
 
+	/** 
+	 * Whether this light's position is specified in translated world space (vs regular absolute world space)
+	 * This should always be set as a compile-time constant
+	 * LWC will eventually require all lighting to be in TWS, at which point this can be removed
+	 */
+	bool bUsingTranslatedWorldSpace;
+
 	FHairTransmittanceData HairTransmittance;
 };
 
@@ -71,7 +78,7 @@ struct FSimpleDeferredLightData
 #define REFERENCE_QUALITY	0
 
 /** Returns 0 for positions closer than the fade near distance from the camera, and 1 for positions further than the fade far distance. */
-float DistanceFromCameraFade(float SceneDepth, FDeferredLightData LightData, float3 WorldPosition, float3 CameraPosition)
+float DistanceFromCameraFade(float SceneDepth, FDeferredLightData LightData)
 {
 	// depth (non radial) based fading over distance
 	float Fade = saturate(SceneDepth * LightData.DistanceFadeMAD.x + LightData.DistanceFadeMAD.y);
@@ -149,7 +156,7 @@ float ShadowRayCast(
 #error "Must set SUPPORT_CONTACT_SHADOWS"
 #endif
 
-void GetShadowTerms(float SceneDepth, float4 PrecomputedShadowFactors, uint ShadingModelID, float ContactShadowOpacity, FDeferredLightData LightData, float3 WorldPosition, float3 L, float4 LightAttenuation, float Dither, inout FShadowTerms Shadow)
+void GetShadowTerms(float SceneDepth, float4 PrecomputedShadowFactors, uint ShadingModelID, float ContactShadowOpacity, FDeferredLightData LightData, float3 BaseWorldPosition, float3 L, float4 LightAttenuation, float Dither, inout FShadowTerms Shadow)
 {
 	float ContactShadowLength = 0.0f;
 	const float ContactShadowLengthScreenScale = View.ClipToView[1][1] * SceneDepth;
@@ -182,7 +189,7 @@ void GetShadowTerms(float SceneDepth, float4 PrecomputedShadowFactors, uint Shad
 			// Also fix up the fade between dynamic and static shadows
 			// to work with plane splits rather than spheres.
 
-			float DynamicShadowFraction = DistanceFromCameraFade(SceneDepth, LightData, WorldPosition, View.WorldCameraOrigin);
+			float DynamicShadowFraction = DistanceFromCameraFade(SceneDepth, LightData);
 			// For a directional light, fade between static shadowing and the whole scene dynamic shadowing based on distance + per object shadows
 			Shadow.SurfaceShadow = lerp(LightAttenuation.x, StaticShadowing, DynamicShadowFraction);
 			// Fade between SSS dynamic shadowing and static shadowing based on distance
@@ -221,9 +228,11 @@ void GetShadowTerms(float SceneDepth, float4 PrecomputedShadowFactors, uint Shad
 	BRANCH
 	if (ContactShadowLength > 0.0)
 	{
+		float3 TranslatedWorldPosition = LightData.bUsingTranslatedWorldSpace ? BaseWorldPosition : (BaseWorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation));
+
 		float StepOffset = Dither - 0.5;
 		bool bHitCastContactShadow = false;
-		float HitDistance = ShadowRayCast( WorldPosition + View.PreViewTranslation, L, ContactShadowLength, 8, StepOffset, bHitCastContactShadow );
+		float HitDistance = ShadowRayCast( TranslatedWorldPosition, L, ContactShadowLength, 8, StepOffset, bHitCastContactShadow );
 				
 		if ( HitDistance > 0.0 )
 		{

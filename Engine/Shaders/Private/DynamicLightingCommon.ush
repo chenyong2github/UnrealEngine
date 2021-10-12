@@ -4,6 +4,19 @@
 	DynamicLightingCommon.usf: Contains functions shared by dynamic light shaders.
 =============================================================================*/
 
+#include "LargeWorldCoordinates.ush"
+
+/**
+ * Various functions here have the suffix TWS.  This means they expect an input position given in (T)ranslated(W)orld(S)pace.  Otherwise position is in absolute world space.
+ * For LWC to work, the non-TWS versions will need to be deprecated, and shaders will need to be updated to work in TWS exclusively
+ */
+
+float3 GetDeferredLightTranslatedWorldPosition()
+{
+	FLWCVector3 LightWorldPosition = MakeLWCVector3(DeferredLightUniforms.TilePosition, DeferredLightUniforms.Position);
+	return LWCToFloat(LWCAdd(LightWorldPosition, PrimaryView.PreViewTranslation));
+}
+
 /** 
  * Returns a radial attenuation factor for a point light.  
  * WorldLightVector is the vector from the position being shaded to the light, divided by the radius of the light. 
@@ -57,13 +70,13 @@ float SpotAttenuation(float3 L, float3 SpotDirection, float2 SpotAngles)
 }
 
 /** Calculates radial and spot attenuation. */
-float CalcLightAttenuation(float3 WorldPosition, out float3 WorldLightVector)
+float CalcLightAttenuationTWS(float3 TranslatedWorldPosition, out float3 WorldLightVector)
 {
 	WorldLightVector = DeferredLightUniforms.Direction;
 	float DistanceAttenuation = 1;
 
 #if RADIAL_ATTENUATION
-	WorldLightVector = DeferredLightUniforms.Position - WorldPosition;
+	WorldLightVector = GetDeferredLightTranslatedWorldPosition() - TranslatedWorldPosition;
 	float DistanceSqr = dot( WorldLightVector, WorldLightVector );
 
 	// TODO Line segment falloff
@@ -87,25 +100,35 @@ float CalcLightAttenuation(float3 WorldPosition, out float3 WorldLightVector)
 	return SpotFalloff * DistanceAttenuation;
 }
 
-float3 GetNormalizedLightVector(float3 WorldPosition)
+float CalcLightAttenuation(float3 WorldPosition, out float3 WorldLightVector)
+{
+	return CalcLightAttenuationTWS(WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation), WorldLightVector);
+}
+
+float3 GetNormalizedLightVectorTWS(float3 TranslatedWorldPosition)
 {
 	// assumed to be normalized
 	float3 Ret = DeferredLightUniforms.Direction;
 
 	#if RADIAL_ATTENUATION
-		Ret = normalize(DeferredLightUniforms.Position - WorldPosition);
+		Ret = normalize(GetDeferredLightTranslatedWorldPosition() - TranslatedWorldPosition);
 	#endif
 
 	return Ret;
 }
 
-float GetLightInfluenceMask(float3 WorldPosition)
+float3 GetNormalizedLightVector(float3 WorldPosition)
+{
+	return GetNormalizedLightVectorTWS(WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation));
+}
+
+float GetLightInfluenceMaskTWS(float3 TranslatedWorldPosition)
 {
 	float LightMask = 1;
 
 	if (DeferredLightUniforms.InvRadius > 0)
 	{
-		float3 ToLight = DeferredLightUniforms.Position - WorldPosition;
+		float3 ToLight = GetDeferredLightTranslatedWorldPosition() - TranslatedWorldPosition;
 		float DistanceSqr = dot(ToLight, ToLight);
 		float3 L = ToLight * rsqrt(DistanceSqr);
 
@@ -127,3 +150,9 @@ float GetLightInfluenceMask(float3 WorldPosition)
 
 	return LightMask > 0.0f ? 1.0f : 0.0f;
 }
+
+float GetLightInfluenceMask(float3 WorldPosition)
+{
+	return GetLightInfluenceMaskTWS(WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation));
+}
+

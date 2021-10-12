@@ -33,22 +33,24 @@ void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint
 			float2 Noise = Rand3DPCG16( int3( PixelPos, FrameRand ) ).xy / 65535.0;
 			float2 PixelClip = ( ( PixelPos + 0.5 ) * NaniteView.ViewSizeAndInvSize.zw - 0.5 ) * float2(2, -2);
 
-			FRay RayWorld;
+			FLWCVector3 RayWorldOrigin;
+			float3 RayWorldDirection;
 			if( bOrtho )
 			{
-				RayWorld.Origin = mul( float4( PixelClip, 1, 1 ), NaniteView.ClipToWorld ).xyz;
-				RayWorld.Direction = mul( float4( PixelClip, 0, 1 ), NaniteView.ClipToWorld ).xyz - RayWorld.Origin;
+				RayWorldOrigin = LWCMultiply( float3( PixelClip, 1 ), NaniteView.ClipToWorld );
+				RayWorldDirection = LWCToFloat( LWCSubtract( LWCMultiply( float3( PixelClip, 0 ), NaniteView.ClipToWorld ), RayWorldOrigin ) );
 				Noise = 0.5;
 			}
 			else
 			{
-				RayWorld.Origin = NaniteView.WorldCameraOrigin.xyz;
-				RayWorld.Direction = mul( float4( PixelClip, 0, 1 ), NaniteView.ClipToWorld ).xyz;
+				RayWorldOrigin = NaniteView.WorldCameraOrigin;
+				// TODO LWC - OK to subtract RayWorldOrigin, and convert to float?
+				RayWorldDirection = LWCHackToFloat(LWCMultiply( float3( PixelClip, 0 ), NaniteView.ClipToWorld ));
 			}
 	
 			FRay RayLocal;
-			RayLocal.Origin		= mul( float4( RayWorld.Origin, 1 ),	InstanceData.WorldToLocal ).xyz;
-			RayLocal.Direction	= mul( float4( RayWorld.Direction, 0 ),	InstanceData.WorldToLocal ).xyz;
+			RayLocal.Origin		= LWCMultiply( RayWorldOrigin,	InstanceData.WorldToLocal );
+			RayLocal.Direction	= LWCMultiplyVector( RayWorldDirection,	InstanceData.WorldToLocal );
 
 			uint2 ImposterPixel = RayIntersectImposter( RayLocal, RootClusterIndex, InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, Noise );
 
@@ -183,8 +185,7 @@ void InstanceCull(
 			const bool bSkipBoxCullHZB     = false;
 #endif
 
-			float4x4 LocalToTranslatedWorld = InstanceData.LocalToWorld;
-			LocalToTranslatedWorld[3].xyz += NaniteView.PreViewTranslation.xyz;
+			float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
 			float4x4 LocalToClip = mul( LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip );
 
 			float BoundsRadiusSq = dot(InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsExtent);
@@ -207,8 +208,7 @@ void InstanceCull(
 			BRANCH
 			if( bViewHZB && bIsVisible )
 			{
-				float4x4 LocalToPrevTranslatedWorld = InstanceData.LocalToWorld;
-				LocalToPrevTranslatedWorld[ 3 ].xyz += NaniteView.PrevPreViewTranslation.xyz;
+				float4x4 LocalToPrevTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PrevPreViewTranslation);
 				float4x4 LocalToPrevClip = mul(LocalToPrevTranslatedWorld, NaniteView.PrevTranslatedWorldToClip);
 
 				FFrustumCullData PrevCull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToPrevClip, bNearClip, bSkipBoxCullFrustum);
@@ -452,9 +452,8 @@ void InstanceCullVSM(
 			FNaniteView NaniteView = GetNaniteView( PrimaryViewId );
 			// NOTE: With view compaction, the "primary view" may be any of the mip levels
 			// const uint2 TargetViewSize = uint2( NaniteView.ViewSizeAndInvSize.xy );
-			
-			float4x4 LocalToTranslatedWorld = InstanceData.LocalToWorld;
-			LocalToTranslatedWorld[ 3 ].xyz += NaniteView.PreViewTranslation.xyz;
+
+			float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
 			float4x4 LocalToClip = mul( LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip );
 
 			FFrustumCullData Cull = BoxCullFrustum( InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bNearClip, bSkipBoxCullFrustum );
@@ -490,8 +489,7 @@ void InstanceCullVSM(
 				BRANCH
 				if( bViewHZB && bVisible )
 				{
-					float4x4 LocalToPrevTranslatedWorld = InstanceData.LocalToWorld;
-					LocalToPrevTranslatedWorld[ 3 ].xyz += MipView.PrevPreViewTranslation.xyz;
+					float4x4 LocalToPrevTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, MipView.PrevPreViewTranslation);
 					float4x4 LocalToPrevClip = mul(LocalToPrevTranslatedWorld, MipView.PrevTranslatedWorldToClip);
 
 					FFrustumCullData PrevCull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToPrevClip, bNearClip, bSkipBoxCullFrustum);

@@ -176,6 +176,53 @@ struct FVectorParameterValue
 	}
 };
 
+/** Editable vector parameter. */
+USTRUCT(BlueprintType)
+struct FDoubleVectorParameterValue
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = VectorParameterValue)
+	FMaterialParameterInfo ParameterInfo;
+
+	// LWC_TODO: Blueprint?
+	UPROPERTY(EditAnywhere, Category = VectorParameterValue)
+	FVector4d ParameterValue;
+
+	UPROPERTY()
+	FGuid ExpressionGUID;
+
+	explicit FDoubleVectorParameterValue(const FMaterialParameterInfo& InParameterInfo = FMaterialParameterInfo(), const FVector4d& InValue = FVector3d(ForceInit))
+		: ParameterInfo(InParameterInfo), ParameterValue(InValue)
+	{
+	}
+
+	bool IsOverride() const { return true; }
+
+	bool operator==(const FDoubleVectorParameterValue& Other) const
+	{
+		return
+			ParameterInfo == Other.ParameterInfo &&
+			ParameterValue == Other.ParameterValue &&
+			ExpressionGUID == Other.ExpressionGUID;
+	}
+	bool operator!=(const FDoubleVectorParameterValue& Other) const
+	{
+		return !((*this) == Other);
+	}
+
+	typedef FVector4d ValueType;
+	static ValueType GetValue(const FDoubleVectorParameterValue& Parameter) { return Parameter.ParameterValue; }
+
+	void GetValue(FMaterialParameterMetadata& OutResult) const
+	{
+		OutResult.Value = ParameterValue;
+#if WITH_EDITORONLY_DATA
+		OutResult.ExpressionGuid = ExpressionGUID;
+#endif
+	}
+};
+
 /** Editable texture parameter. */
 USTRUCT(BlueprintType)
 struct FTextureParameterValue
@@ -475,6 +522,10 @@ class UMaterialInstance : public UMaterialInterface
 	/** Vector parameters. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=MaterialInstance, meta = (EditFixedOrder))
 	TArray<struct FVectorParameterValue> VectorParameterValues;
+
+	/** DoubleVector parameters. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = MaterialInstance, meta = (EditFixedOrder))
+	TArray<struct FDoubleVectorParameterValue> DoubleVectorParameterValues;
 
 	/** Texture parameters. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=MaterialInstance, meta = (EditFixedOrder))
@@ -829,6 +880,7 @@ protected:
 	void AddParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, const FMaterialParameterMetadata& Meta, EMaterialSetParameterValueFlags Flags = EMaterialSetParameterValueFlags::None);
 	void SetParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, const FMaterialParameterMetadata& Meta, EMaterialSetParameterValueFlags Flags = EMaterialSetParameterValueFlags::None);
 	void SetVectorParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, FLinearColor Value);
+	void SetDoubleVectorParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, FVector4d Value);
 	bool SetVectorParameterByIndexInternal(int32 ParameterIndex, FLinearColor Value);
 	bool SetScalarParameterByIndexInternal(int32 ParameterIndex, float Value);
 	void SetScalarParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, float Value, bool bUseAtlas = false, FScalarParameterAtlasInstanceData AtlasData = FScalarParameterAtlasInstanceData());
@@ -1129,6 +1181,11 @@ template <typename ParameterType, typename ExpressionType>
 bool UpdateParameterSet(TArray<FVectorParameterValue>& Parameters, UMaterial* ParentMaterial)
 {
 	return MaterialInstance_Private::UpdateParameterSet_WithCachedData<FVectorParameterValue, ExpressionType>(EMaterialParameterType::Vector, Parameters, ParentMaterial);
+}
+template <typename ParameterType, typename ExpressionType>
+bool UpdateParameterSet(TArray<FDoubleVectorParameterValue>& Parameters, UMaterial* ParentMaterial)
+{
+	return MaterialInstance_Private::UpdateParameterSet_WithCachedData<FDoubleVectorParameterValue, ExpressionType>(EMaterialParameterType::DoubleVector, Parameters, ParentMaterial);
 }
 template <typename ParameterType, typename ExpressionType>
 bool UpdateParameterSet(TArray<FTextureParameterValue>& Parameters, UMaterial* ParentMaterial)

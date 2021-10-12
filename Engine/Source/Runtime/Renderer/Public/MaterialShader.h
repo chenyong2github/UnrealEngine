@@ -28,8 +28,7 @@ class FDebugUniformExpressionSet
 	DECLARE_TYPE_LAYOUT(FDebugUniformExpressionSet, NonVirtual);
 public:
 	FDebugUniformExpressionSet()
-		: NumVectorExpressions(0)
-		, NumScalarExpressions(0)
+		: NumPreshaders(0)
 	{
 		FMemory::Memzero(NumTextureExpressions);
 	}
@@ -42,8 +41,7 @@ public:
 	/** Initialize from a uniform expression set. */
 	void InitFromExpressionSet(const FUniformExpressionSet& InUniformExpressionSet)
 	{
-		NumVectorExpressions = InUniformExpressionSet.UniformVectorPreshaders.Num();
-		NumScalarExpressions = InUniformExpressionSet.UniformScalarPreshaders.Num();
+		NumPreshaders = InUniformExpressionSet.UniformPreshaders.Num();
 		for (uint32 TypeIndex = 0u; TypeIndex < NumMaterialTextureParameterTypes; ++TypeIndex)
 		{
 			NumTextureExpressions[TypeIndex] = InUniformExpressionSet.UniformTextureParameters[TypeIndex].Num();
@@ -60,12 +58,11 @@ public:
 				return false;
 			}
 		}
-		return NumVectorExpressions == InUniformExpressionSet.UniformVectorPreshaders.Num() && NumScalarExpressions == InUniformExpressionSet.UniformScalarPreshaders.Num();
+		return NumPreshaders == InUniformExpressionSet.UniformPreshaders.Num();
 	}
 	
 	/** The number of each type of expression contained in the set. */
-	LAYOUT_FIELD(int32, NumVectorExpressions);
-	LAYOUT_FIELD(int32, NumScalarExpressions);
+	LAYOUT_FIELD(int32, NumPreshaders);
 	LAYOUT_ARRAY(int32, NumTextureExpressions, NumMaterialTextureParameterTypes);
 };
 

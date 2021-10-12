@@ -62,6 +62,7 @@
 #include "RenderUtils.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "ClearReplacementShaders.h"
+#include "Misc/LargeWorldRenderPosition.h"
 
 #if WITH_EDITOR
 #include "TextureCompiler.h"
@@ -5077,7 +5078,19 @@ ENGINE_API void GenerateInstancedStereoCode(FString& Result, EShaderPlatform Sha
 		GenerateUniformBufferStructMember(MemberDecl, StructMembers[MemberIndex], ShaderPlatform);
 		Result += FString::Printf(TEXT("\t%s;\r\n"), *MemberDecl);
 	}
+	Result += "\tFLWCInverseMatrix WorldToClip;\r\n";
+	Result += "\tFLWCMatrix ClipToWorld;\r\n";
+	Result += "\tFLWCMatrix ScreenToWorld;\r\n";
+	Result += "\tFLWCMatrix PrevClipToWorld;\r\n";
+	Result += "\tFLWCVector3 WorldCameraOrigin;\r\n";
+	Result += "\tFLWCVector3 WorldViewOrigin;\r\n";
+	Result += "\tFLWCVector3 PrevWorldCameraOrigin;\r\n";
+	Result += "\tFLWCVector3 PrevWorldViewOrigin;\r\n";
+	Result += "\tFLWCVector3 PreViewTranslation;\r\n";
+	Result += "\tFLWCVector3 PrevPreViewTranslation;\r\n";
 	Result += "};\r\n";
+
+	Result += "\tvoid FinalizeViewState(inout ViewState InOutView);\r\n";
 
 	// GetPrimaryView definition
 	Result += "ViewState GetPrimaryView()\r\n";
@@ -5088,6 +5101,7 @@ ENGINE_API void GenerateInstancedStereoCode(FString& Result, EShaderPlatform Sha
 		const FShaderParametersMetadata::FMember& Member = StructMembers[MemberIndex];
 		Result += FString::Printf(TEXT("\tResult.%s = View.%s;\r\n"), Member.GetName(), Member.GetName());
 	}
+	Result += "\tFinalizeViewState(Result);\r\n";
 	Result += "\treturn Result;\r\n";
 	Result += "}\r\n";
 
@@ -5100,6 +5114,7 @@ ENGINE_API void GenerateInstancedStereoCode(FString& Result, EShaderPlatform Sha
 		const FShaderParametersMetadata::FMember& Member = StructMembers[MemberIndex];
 		Result += FString::Printf(TEXT("\tResult.%s = InstancedView.%s;\r\n"), Member.GetName(), Member.GetName());
 	}
+	Result += "\tFinalizeViewState(Result);\r\n";
 	Result += "\treturn Result;\r\n";
 	Result += "}\r\n";
 	
@@ -5113,6 +5128,7 @@ ENGINE_API void GenerateInstancedStereoCode(FString& Result, EShaderPlatform Sha
 		const FShaderParametersMetadata::FMember& Member = StructMembers[MemberIndex];
 		Result += FString::Printf(TEXT("\tResult.%s = (ViewIndex == 0) ? View.%s : InstancedView.%s;\r\n"), Member.GetName(), Member.GetName(), Member.GetName());
 	}
+	Result += "\tFinalizeViewState(Result);\r\n";
 	Result += "\treturn Result;\r\n";
 	Result += "}\r\n";
 	Result += "#endif\r\n";
@@ -5781,6 +5797,27 @@ void GlobalBeginCompileShader(
 
 		bool bMobileEnableMovableSpotlightsShadow = (MobileEnableMovableSpotlightsShadowIniValue.Get((EShaderPlatform)Target.Platform) != 0);
 		Input.Environment.SetDefine(TEXT("PROJECT_MOBILE_ENABLE_MOVABLE_SPOTLIGHTS_SHADOW"), bMobileEnableMovableSpotlights && bMobileEnableMovableSpotlightsShadow ? 1 : 0);
+	}
+
+	Input.Environment.SetDefine(TEXT("UE_LARGE_WORLD_COORDINATES_DISABLED"), UE_LARGE_WORLD_COORDINATES_DISABLED);
+	if (UE_LARGE_WORLD_COORDINATES_DISABLED)
+	{
+		Input.Environment.SetDefine(TEXT("UE_LWC_RENDER_TILE_SIZE"), 0.0f);
+		Input.Environment.SetDefine(TEXT("UE_LWC_RENDER_TILE_SIZE_SQRT"), 0.0f);
+		Input.Environment.SetDefine(TEXT("UE_LWC_RENDER_TILE_SIZE_RSQRT"), 0.0f);
+		Input.Environment.SetDefine(TEXT("UE_LWC_RENDER_TILE_SIZE_RCP"), 0.0f);
+		Input.Environment.SetDefine(TEXT("UE_LWC_RENDER_TILE_SIZE_FMOD_PI"), 0.0f);
+		Input.Environment.SetDefine(TEXT("UE_LWC_RENDER_TILE_SIZE_FMOD_2PI"), 0.0f);
+	}
+	else
+	{
+		const double TileSize = FLargeWorldRenderScalar::GetTileSize();
+		Input.Environment.SetDefine(TEXT("UE_LWC_RENDER_TILE_SIZE"), (float)TileSize);
+		Input.Environment.SetDefine(TEXT("UE_LWC_RENDER_TILE_SIZE_SQRT"), (float)FMath::Sqrt(TileSize));
+		Input.Environment.SetDefine(TEXT("UE_LWC_RENDER_TILE_SIZE_RSQRT"), (float)FMath::InvSqrt(TileSize));
+		Input.Environment.SetDefine(TEXT("UE_LWC_RENDER_TILE_SIZE_RCP"), (float)(1.0 / TileSize));
+		Input.Environment.SetDefine(TEXT("UE_LWC_RENDER_TILE_SIZE_FMOD_PI"), (float)FMath::Fmod(TileSize, DOUBLE_PI));
+		Input.Environment.SetDefine(TEXT("UE_LWC_RENDER_TILE_SIZE_FMOD_2PI"), (float)FMath::Fmod(TileSize, 2.0 * DOUBLE_PI));
 	}
 
 	// Allow the target shader format to modify the shader input before we add it as a job

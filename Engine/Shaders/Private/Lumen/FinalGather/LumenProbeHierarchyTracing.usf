@@ -97,7 +97,7 @@ void CardTraceProbeCS(
 		GetProbeTracingRange(ProbeTracingCtx, /* out */ ProbeTMin, /* out */ ProbeTMax);
 
 		float3 WorldConeDirection = ProbeTracingCtx.WorldDirection;
-		float3 SamplePosition = ProbeTracingCtx.ProbeInfo.TranslatedWorldPosition - View.PreViewTranslation;
+		float3 SamplePosition = ProbeTracingCtx.ProbeInfo.TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
 		
 		float FinalMinTraceDistance = max(MinTraceDistance, ProbeTMin);
 		float FinalMaxTraceDistance = min(MaxTraceDistance, ProbeTMax);
@@ -131,7 +131,7 @@ void CardTraceProbeCS(
 		ConeTraceLumenSceneCards(TraceInput, TraceResult);
 		
 		{
-			float DistanceFromViewpoint = length(View.WorldCameraOrigin - SamplePosition);
+			float DistanceFromViewpoint = length(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - SamplePosition);
 			float DistanceFade = saturate(4 * DistanceFromViewpoint / CardTraceEndDistanceFromCamera - 3);
 
 			TraceResult.Lighting *= 1 - DistanceFade;
@@ -174,7 +174,7 @@ void VoxelTraceProbeCS(
 		float ProbeTMax;
 		GetProbeTracingRange(ProbeTracingCtx, /* out */ ProbeTMin, /* out */ ProbeTMax);
 
-		float3 SamplePosition = ProbeTracingCtx.ProbeInfo.TranslatedWorldPosition - View.PreViewTranslation;
+		float3 SamplePosition = ProbeTracingCtx.ProbeInfo.TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
 		float3 WorldConeDirection = ProbeTracingCtx.WorldDirection;
 
 		float FinalMinTraceDistance = max(MinTraceDistance, ProbeTMin);

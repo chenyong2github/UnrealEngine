@@ -284,9 +284,9 @@ struct FVertexFactoryIntermediates
 	float3 InvNonUniformScale;
 	float DeterminantSign;
 
-	float4x4 LocalToWorld;
-	float4x4 WorldToLocal;
-	float4x4 PrevLocalToWorld;
+	FLWCMatrix LocalToWorld;
+	FLWCInverseMatrix WorldToLocal;
+	FLWCMatrix PrevLocalToWorld;
 
 	// Blend Matrix (used for position/tangents)
 	FBoneMatrix BlendMatrix;
@@ -329,7 +329,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	Result.SceneData = Intermediates.SceneData;
 	Result.WorldPosition = WorldPosition;
 	Result.VertexColor = Intermediates.Color;
-	Result.TangentToWorld = mul(TangentToLocal, (float3x3)Intermediates.LocalToWorld);
+	Result.TangentToWorld = mul(TangentToLocal, LWCToFloat3x3(Intermediates.LocalToWorld));
 	Result.PreSkinnedPosition = Intermediates.UnpackedPosition.xyz;
 	Result.PreSkinnedNormal = Input.TangentZ.xyz;
 
@@ -745,8 +745,8 @@ float3x3 SkinTangents( FVertexFactoryInput Input, FVertexFactoryIntermediates In
 		    TangentToLocal[2] = normalize(NormalPosition - Intermediates.SimulatedPosition.xyz);
 
 		    // cloth data are all in world space so need to change into local space
-		    TangentToLocal[0] = mul(TangentToLocal[0], (half3x3)Intermediates.WorldToLocal);
-		    TangentToLocal[2] = mul(TangentToLocal[2], (half3x3)Intermediates.WorldToLocal);
+		    TangentToLocal[0] = LWCMultiplyVector(TangentToLocal[0], Intermediates.WorldToLocal);
+		    TangentToLocal[2] = LWCMultiplyVector(TangentToLocal[2], Intermediates.WorldToLocal);
 	
 			// derive the new binormal by getting the cross product of the normal and tangent
 			// and flip vector based on sign of tangent basis determinant
@@ -825,16 +825,18 @@ float4 CalcWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates 
 	{
 		// skinned positions
 		float4 SkinnedPosition = float4(SkinPosition(Input, Intermediates), 1);
-		float4 TransformedSkinPos = mul(SkinnedPosition, Intermediates.LocalToWorld);
+
+		// LWC_TODO - This is computing a value in TranslatedWorldSpace which is good, but 'SimulatedPosition' is currently in AbsoluteWorldSpace which is bad, need to update cloth sim to work in TLS
+		float4 TransformedSkinPos = mul(SkinnedPosition, LWCHackToFloat(Intermediates.LocalToWorld));
 
 		// Intermediates.SimulatedPosition is a clothing position in world coord
 		float3 BlendedPos = lerp(TransformedSkinPos.xyz, Intermediates.SimulatedPosition.xyz, ClothBlendWeight * Intermediates.SimulatedPosition.w);
-		return float4(BlendedPos + ResolvedView.PreViewTranslation, 1);
+		return float4(BlendedPos + LWCHackToFloat(ResolvedView.PreViewTranslation), 1);
 	}
 	else
 #endif
 	{
-		float4x4 LocalToWorld = Intermediates.SceneData.InstanceData.LocalToWorld;
+		FLWCMatrix LocalToWorld = Intermediates.SceneData.InstanceData.LocalToWorld;
 		return TransformLocalToTranslatedWorld(SkinPosition(Input, Intermediates), LocalToWorld);
 	}
 }
@@ -867,7 +869,7 @@ float3 VertexFactoryGetPositionForVertexLighting(FVertexFactoryInput Input, FVer
 
 void CalcTangentToWorld(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, out float3 TangentToWorld0, out float4 TangentToWorld2)
 {
-	float3x3 LocalToWorld = (float3x3)Intermediates.LocalToWorld;
+	float3x3 LocalToWorld = LWCToFloat3x3(Intermediates.LocalToWorld);
 
 	// Remove scaling.
 	half3 InvScale = Intermediates.InvNonUniformScale;
@@ -935,17 +937,13 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 // @return previous translated world position
 float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	float4x4 PreviousLocalToWorldTranslated = Intermediates.PrevLocalToWorld;
-
-	PreviousLocalToWorldTranslated[3][0] += ResolvedView.PrevPreViewTranslation.x;
-	PreviousLocalToWorldTranslated[3][1] += ResolvedView.PrevPreViewTranslation.y;
-	PreviousLocalToWorldTranslated[3][2] += ResolvedView.PrevPreViewTranslation.z;
-
+	float4x4 PreviousLocalToWorldTranslated = LWCMultiplyTranslation(Intermediates.PrevLocalToWorld, ResolvedView.PreViewTranslation);
 	float4 PrevSkinPosInWorld = mul(float4(SkinPreviousPosition(Input, Intermediates),1), PreviousLocalToWorldTranslated);
 #if GPUSKIN_APEX_CLOTH
 	if (IsSimulatedVertex(Intermediates.ClothVertexInfluences[0]))
 	{
-		float3 PrevSimulatedPos = Intermediates.PreviousSimulatedPosition.xyz + ResolvedView.PrevPreViewTranslation;
+		// TODO LWC
+		float3 PrevSimulatedPos = Intermediates.PreviousSimulatedPosition.xyz + LWCHackToFloat(ResolvedView.PrevPreViewTranslation);
 		float3 BlendedPrevPos = lerp(PrevSkinPosInWorld.xyz, PrevSimulatedPos.xyz, ClothBlendWeight * Intermediates.PreviousSimulatedPosition.w);
 		return float4(BlendedPrevPos, 1);
 	}

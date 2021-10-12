@@ -235,7 +235,7 @@ void MainDrawDebugAABBCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 				const float3 SphereOrigin = (Bound.Min + Bound.Max) * 0.5f;
 				const float  SphereRadius = length(Bound.Max - SphereOrigin);
-				ScreenSize = ComputeBoundsScreenSize(SphereOrigin, SphereRadius, View.WorldCameraOrigin, View.ViewToClip);
+				ScreenSize = ComputeBoundsScreenSize(SphereOrigin, SphereRadius, LWCHackToFloat(PrimaryView.WorldCameraOrigin), View.ViewToClip);
 			}
 			Pos = ShaderPrint(Pos, ScreenSize);
 

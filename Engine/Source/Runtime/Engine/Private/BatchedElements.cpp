@@ -7,6 +7,7 @@
 #include "SimpleElementShaders.h"
 #include "PipelineStateCache.h"
 #include "MeshPassProcessor.h"
+#include "SceneRelativeViewMatrices.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogBatchedElements, Log, All);
 
@@ -453,7 +454,7 @@ void FBatchedElements::PrepareShaders(
 	uint32 StencilRef,
 	ERHIFeatureLevel::Type FeatureLevel,
 	ESimpleElementBlendMode BlendMode,
-	const FMatrix& Transform,
+	const FRelativeViewMatrices& ViewMatrices,
 	bool bSwitchVerticalAxis,
 	FBatchedElementParameters* BatchedElementParameters,
 	const FTexture* Texture,
@@ -536,7 +537,8 @@ void FBatchedElements::PrepareShaders(
 	if( BatchedElementParameters != NULL )
 	{
 		// Use the vertex/pixel shader that we were given
-		BatchedElementParameters->BindShaders(RHICmdList, GraphicsPSOInit, FeatureLevel, Transform, GammaToUse, ColorWeights, Texture);
+		ensure(ViewMatrices.TilePosition.IsZero());
+		BatchedElementParameters->BindShaders(RHICmdList, GraphicsPSOInit, FeatureLevel, ViewMatrices.RelativeWorldToClip, GammaToUse, ColorWeights, Texture);
 	}
 	else
 	{
@@ -706,7 +708,7 @@ void FBatchedElements::PrepareShaders(
 		}
 
 		// Set the simple element vertex shader parameters
-		VertexShader->SetParameters(RHICmdList, Transform, bSwitchVerticalAxis);
+		VertexShader->SetParameters(RHICmdList, ViewMatrices, bSwitchVerticalAxis);
 	}
 }
 
@@ -738,12 +740,12 @@ void FBatchedElements::DrawPointElements(FRHICommandList& RHICmdList, const FMat
 			const FVector WorldPointX = CameraX * Point.Size / ViewportMajorAxis * TransformedPosition.W;
 			const FVector WorldPointY = CameraY * -Point.Size / ViewportMajorAxis * TransformedPosition.W;
 					
-			PointVertices[VertIdx + 0] = FSimpleElementVertex(FVector4(Point.Position + WorldPointX - WorldPointY,1),FVector2D(1,0),Point.Color,Point.HitProxyId);
-			PointVertices[VertIdx + 1] = FSimpleElementVertex(FVector4(Point.Position + WorldPointX + WorldPointY,1),FVector2D(1,1),Point.Color,Point.HitProxyId);
-			PointVertices[VertIdx + 2] = FSimpleElementVertex(FVector4(Point.Position - WorldPointX - WorldPointY,1),FVector2D(0,0),Point.Color,Point.HitProxyId);
-			PointVertices[VertIdx + 3] = FSimpleElementVertex(FVector4(Point.Position + WorldPointX + WorldPointY,1),FVector2D(1,1),Point.Color,Point.HitProxyId);
-			PointVertices[VertIdx + 4] = FSimpleElementVertex(FVector4(Point.Position - WorldPointX - WorldPointY,1),FVector2D(0,0),Point.Color,Point.HitProxyId);
-			PointVertices[VertIdx + 5] = FSimpleElementVertex(FVector4(Point.Position - WorldPointX + WorldPointY,1),FVector2D(0,1),Point.Color,Point.HitProxyId);
+			PointVertices[VertIdx + 0] = FSimpleElementVertex(Point.Position + WorldPointX - WorldPointY,FVector2D(1,0),Point.Color,Point.HitProxyId);
+			PointVertices[VertIdx + 1] = FSimpleElementVertex(Point.Position + WorldPointX + WorldPointY,FVector2D(1,1),Point.Color,Point.HitProxyId);
+			PointVertices[VertIdx + 2] = FSimpleElementVertex(Point.Position - WorldPointX - WorldPointY,FVector2D(0,0),Point.Color,Point.HitProxyId);
+			PointVertices[VertIdx + 3] = FSimpleElementVertex(Point.Position + WorldPointX + WorldPointY,FVector2D(1,1),Point.Color,Point.HitProxyId);
+			PointVertices[VertIdx + 4] = FSimpleElementVertex(Point.Position - WorldPointX - WorldPointY,FVector2D(0,0),Point.Color,Point.HitProxyId);
+			PointVertices[VertIdx + 5] = FSimpleElementVertex(Point.Position - WorldPointX + WorldPointY,FVector2D(0,1),Point.Color,Point.HitProxyId);
 
 			VertIdx += 6;
 		}
@@ -786,7 +788,9 @@ bool FBatchedElements::Draw(FRHICommandList& RHICmdList, const FMeshPassProcesso
 
 bool FBatchedElements::Draw(FRHICommandList& RHICmdList, const FMeshPassProcessorRenderState& DrawRenderState, ERHIFeatureLevel::Type FeatureLevel, bool bNeedToSwitchVerticalAxis, const FSceneView& View, bool bHitTesting, float Gamma /* = 1.0f */, EBlendModeFilter::Type Filter /* = EBlendModeFilter::All */) const
 {
-	const FMatrix& Transform = View.ViewMatrices.GetViewProjectionMatrix();
+	const FRelativeViewMatrices RelativeMatrices = FRelativeViewMatrices::Create(View.ViewMatrices);
+	const FMatrix& WorldToClip = View.ViewMatrices.GetViewProjectionMatrix();
+	const FMatrix& ClipToWorld = View.ViewMatrices.GetInvViewProjectionMatrix();
 	const uint32 ViewportSizeX = View.UnscaledViewRect.Width();
 	const uint32 ViewportSizeY = View.UnscaledViewRect.Height();
 
@@ -804,10 +808,9 @@ bool FBatchedElements::Draw(FRHICommandList& RHICmdList, const FMeshPassProcesso
 
 	if( HasPrimsToDraw() )
 	{
-		FMatrix InvTransform = Transform.Inverse();
-		FVector CameraX = InvTransform.TransformVector(FVector(1,0,0)).GetSafeNormal();
-		FVector CameraY = InvTransform.TransformVector(FVector(0,1,0)).GetSafeNormal();
-		FVector CameraZ = InvTransform.TransformVector(FVector(0,0,1)).GetSafeNormal();
+		FVector CameraX = ClipToWorld.TransformVector(FVector(1,0,0)).GetSafeNormal();
+		FVector CameraY = ClipToWorld.TransformVector(FVector(0,1,0)).GetSafeNormal();
+		FVector CameraZ = ClipToWorld.TransformVector(FVector(0,0,1)).GetSafeNormal();
 
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
@@ -824,7 +827,7 @@ bool FBatchedElements::Draw(FRHICommandList& RHICmdList, const FMeshPassProcesso
 				GraphicsPSOInit.PrimitiveType = PT_LineList;
 
 				// Set the appropriate pixel shader parameters & shader state for the non-textured elements.
-				PrepareShaders(RHICmdList, GraphicsPSOInit, StencilRef, FeatureLevel, SE_BLEND_Opaque, Transform, bNeedToSwitchVerticalAxis, BatchedElementParameters, GWhiteTexture, bHitTesting, Gamma, NULL, &View);
+				PrepareShaders(RHICmdList, GraphicsPSOInit, StencilRef, FeatureLevel, SE_BLEND_Opaque, RelativeMatrices, bNeedToSwitchVerticalAxis, BatchedElementParameters, GWhiteTexture, bHitTesting, Gamma, NULL, &View);
 
 				FRHIResourceCreateInfo CreateInfo(TEXT("Lines"));
 				FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FSimpleElementVertex) * LineVertices.Num(), BUF_Volatile, CreateInfo);
@@ -856,10 +859,10 @@ bool FBatchedElements::Draw(FRHICommandList& RHICmdList, const FMeshPassProcesso
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 			// Set the appropriate pixel shader parameters & shader state for the non-textured elements.
-			PrepareShaders(RHICmdList, GraphicsPSOInit, StencilRef, FeatureLevel, SE_BLEND_Opaque, Transform, bNeedToSwitchVerticalAxis, BatchedElementParameters, GWhiteTexture, bHitTesting, Gamma, NULL, &View);
+			PrepareShaders(RHICmdList, GraphicsPSOInit, StencilRef, FeatureLevel, SE_BLEND_Opaque, RelativeMatrices, bNeedToSwitchVerticalAxis, BatchedElementParameters, GWhiteTexture, bHitTesting, Gamma, NULL, &View);
 
 			// Draw points
-			DrawPointElements(RHICmdList, Transform, ViewportSizeX, ViewportSizeY, CameraX, CameraY);
+			DrawPointElements(RHICmdList, WorldToClip, ViewportSizeX, ViewportSizeY, CameraX, CameraY);
 
 			if ( ThickLines.Num() > 0 )
 			{
@@ -893,7 +896,7 @@ bool FBatchedElements::Draw(FRHICommandList& RHICmdList, const FMeshPassProcesso
 					FRasterizerStateInitializerRHI Initializer = { FM_Solid, CM_None, 0, DepthBiasThisBatch, bEnableMSAA, bEnableLineAA };
 					auto RasterState = RHICreateRasterizerState(Initializer);
 					GraphicsPSOInit.RasterizerState = RasterState.GetReference();
-					PrepareShaders(RHICmdList, GraphicsPSOInit, StencilRef, FeatureLevel, SE_BLEND_AlphaBlend, Transform, bNeedToSwitchVerticalAxis, BatchedElementParameters, GWhiteTexture, bHitTesting, Gamma, NULL, &View);
+					PrepareShaders(RHICmdList, GraphicsPSOInit, StencilRef, FeatureLevel, SE_BLEND_AlphaBlend, RelativeMatrices, bNeedToSwitchVerticalAxis, BatchedElementParameters, GWhiteTexture, bHitTesting, Gamma, NULL, &View);
 
 					FRHIResourceCreateInfo CreateInfo(TEXT("ThickLines"));
 					FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FSimpleElementVertex) * 8 * 3 * NumLinesThisBatch, BUF_Volatile, CreateInfo);
@@ -906,8 +909,8 @@ bool FBatchedElements::Draw(FRHICommandList& RHICmdList, const FMeshPassProcesso
 						const FBatchedThickLines& Line = ThickLines[FirstLineThisBatch + i];
 						const float Thickness = FMath::Abs( Line.Thickness );
 
-						const float StartW			= Transform.TransformFVector4(Line.Start).W;
-						const float EndW			= Transform.TransformFVector4(Line.End).W;
+						const float StartW			= WorldToClip.TransformFVector4(Line.Start).W;
+						const float EndW			= WorldToClip.TransformFVector4(Line.End).W;
 
 						// Negative thickness means that thickness is calculated in screen space, positive thickness should be used for world space thickness.
 						const float ScalingStart	= Line.bScreenSpace ? StartW / ViewportSizeX : 1.0f;
@@ -931,40 +934,40 @@ bool FBatchedElements::Draw(FRHICommandList& RHICmdList, const FMeshPassProcesso
 						const FVector WorldPointY = CameraY * Thickness * StartW / ViewportSizeX;
 
 						// Begin point
-						ThickVertices[0] = FSimpleElementVertex(FVector4(Line.Start + WorldPointXS - WorldPointYS,1),FVector2D(1,0),Line.Color,Line.HitProxyId); // 0S
-						ThickVertices[1] = FSimpleElementVertex(FVector4(Line.Start + WorldPointXS + WorldPointYS,1),FVector2D(1,1),Line.Color,Line.HitProxyId); // 1S
-						ThickVertices[2] = FSimpleElementVertex(FVector4(Line.Start - WorldPointXS - WorldPointYS,1),FVector2D(0,0),Line.Color,Line.HitProxyId); // 2S
+						ThickVertices[0] = FSimpleElementVertex(Line.Start + WorldPointXS - WorldPointYS,FVector2D(1,0),Line.Color,Line.HitProxyId); // 0S
+						ThickVertices[1] = FSimpleElementVertex(Line.Start + WorldPointXS + WorldPointYS,FVector2D(1,1),Line.Color,Line.HitProxyId); // 1S
+						ThickVertices[2] = FSimpleElementVertex(Line.Start - WorldPointXS - WorldPointYS,FVector2D(0,0),Line.Color,Line.HitProxyId); // 2S
 					
-						ThickVertices[3] = FSimpleElementVertex(FVector4(Line.Start + WorldPointXS + WorldPointYS,1),FVector2D(1,1),Line.Color,Line.HitProxyId); // 1S
-						ThickVertices[4] = FSimpleElementVertex(FVector4(Line.Start - WorldPointXS - WorldPointYS,1),FVector2D(0,0),Line.Color,Line.HitProxyId); // 2S
-						ThickVertices[5] = FSimpleElementVertex(FVector4(Line.Start - WorldPointXS + WorldPointYS,1),FVector2D(0,1),Line.Color,Line.HitProxyId); // 3S
+						ThickVertices[3] = FSimpleElementVertex(Line.Start + WorldPointXS + WorldPointYS,FVector2D(1,1),Line.Color,Line.HitProxyId); // 1S
+						ThickVertices[4] = FSimpleElementVertex(Line.Start - WorldPointXS - WorldPointYS,FVector2D(0,0),Line.Color,Line.HitProxyId); // 2S
+						ThickVertices[5] = FSimpleElementVertex(Line.Start - WorldPointXS + WorldPointYS,FVector2D(0,1),Line.Color,Line.HitProxyId); // 3S
 
 						// Ending point
-						ThickVertices[0+ 6] = FSimpleElementVertex(FVector4(Line.End + WorldPointXE - WorldPointYE,1),FVector2D(1,0),Line.Color,Line.HitProxyId); // 0E
-						ThickVertices[1+ 6] = FSimpleElementVertex(FVector4(Line.End + WorldPointXE + WorldPointYE,1),FVector2D(1,1),Line.Color,Line.HitProxyId); // 1E
-						ThickVertices[2+ 6] = FSimpleElementVertex(FVector4(Line.End - WorldPointXE - WorldPointYE,1),FVector2D(0,0),Line.Color,Line.HitProxyId); // 2E
+						ThickVertices[0+ 6] = FSimpleElementVertex(Line.End + WorldPointXE - WorldPointYE,FVector2D(1,0),Line.Color,Line.HitProxyId); // 0E
+						ThickVertices[1+ 6] = FSimpleElementVertex(Line.End + WorldPointXE + WorldPointYE,FVector2D(1,1),Line.Color,Line.HitProxyId); // 1E
+						ThickVertices[2+ 6] = FSimpleElementVertex(Line.End - WorldPointXE - WorldPointYE,FVector2D(0,0),Line.Color,Line.HitProxyId); // 2E
 																																							  
-						ThickVertices[3+ 6] = FSimpleElementVertex(FVector4(Line.End + WorldPointXE + WorldPointYE,1),FVector2D(1,1),Line.Color,Line.HitProxyId); // 1E
-						ThickVertices[4+ 6] = FSimpleElementVertex(FVector4(Line.End - WorldPointXE - WorldPointYE,1),FVector2D(0,0),Line.Color,Line.HitProxyId); // 2E
-						ThickVertices[5+ 6] = FSimpleElementVertex(FVector4(Line.End - WorldPointXE + WorldPointYE,1),FVector2D(0,1),Line.Color,Line.HitProxyId); // 3E
+						ThickVertices[3+ 6] = FSimpleElementVertex(Line.End + WorldPointXE + WorldPointYE,FVector2D(1,1),Line.Color,Line.HitProxyId); // 1E
+						ThickVertices[4+ 6] = FSimpleElementVertex(Line.End - WorldPointXE - WorldPointYE,FVector2D(0,0),Line.Color,Line.HitProxyId); // 2E
+						ThickVertices[5+ 6] = FSimpleElementVertex(Line.End - WorldPointXE + WorldPointYE,FVector2D(0,1),Line.Color,Line.HitProxyId); // 3E
 
 						// First part of line
-						ThickVertices[0+12] = FSimpleElementVertex(FVector4(Line.Start - WorldPointXS - WorldPointYS,1),FVector2D(0,0),Line.Color,Line.HitProxyId); // 2S
-						ThickVertices[1+12] = FSimpleElementVertex(FVector4(Line.Start + WorldPointXS + WorldPointYS,1),FVector2D(1,1),Line.Color,Line.HitProxyId); // 1S
-						ThickVertices[2+12] = FSimpleElementVertex(FVector4(Line.End   - WorldPointXE - WorldPointYE,1),FVector2D(0,0),Line.Color,Line.HitProxyId); // 2E
+						ThickVertices[0+12] = FSimpleElementVertex(Line.Start - WorldPointXS - WorldPointYS,FVector2D(0,0),Line.Color,Line.HitProxyId); // 2S
+						ThickVertices[1+12] = FSimpleElementVertex(Line.Start + WorldPointXS + WorldPointYS,FVector2D(1,1),Line.Color,Line.HitProxyId); // 1S
+						ThickVertices[2+12] = FSimpleElementVertex(Line.End   - WorldPointXE - WorldPointYE,FVector2D(0,0),Line.Color,Line.HitProxyId); // 2E
 
-						ThickVertices[3+12] = FSimpleElementVertex(FVector4(Line.Start + WorldPointXS + WorldPointYS,1),FVector2D(1,1),Line.Color,Line.HitProxyId); // 1S
-						ThickVertices[4+12] = FSimpleElementVertex(FVector4(Line.End   + WorldPointXE + WorldPointYE,1),FVector2D(1,1),Line.Color,Line.HitProxyId); // 1E
-						ThickVertices[5+12] = FSimpleElementVertex(FVector4(Line.End   - WorldPointXE - WorldPointYE,1),FVector2D(0,0),Line.Color,Line.HitProxyId); // 2E
+						ThickVertices[3+12] = FSimpleElementVertex(Line.Start + WorldPointXS + WorldPointYS,FVector2D(1,1),Line.Color,Line.HitProxyId); // 1S
+						ThickVertices[4+12] = FSimpleElementVertex(Line.End   + WorldPointXE + WorldPointYE,FVector2D(1,1),Line.Color,Line.HitProxyId); // 1E
+						ThickVertices[5+12] = FSimpleElementVertex(Line.End   - WorldPointXE - WorldPointYE,FVector2D(0,0),Line.Color,Line.HitProxyId); // 2E
 
 						// Second part of line
-						ThickVertices[0+18] = FSimpleElementVertex(FVector4(Line.Start - WorldPointXS + WorldPointYS,1),FVector2D(0,1),Line.Color,Line.HitProxyId); // 3S
-						ThickVertices[1+18] = FSimpleElementVertex(FVector4(Line.Start + WorldPointXS - WorldPointYS,1),FVector2D(1,0),Line.Color,Line.HitProxyId); // 0S
-						ThickVertices[2+18] = FSimpleElementVertex(FVector4(Line.End   - WorldPointXE + WorldPointYE,1),FVector2D(0,1),Line.Color,Line.HitProxyId); // 3E
+						ThickVertices[0+18] = FSimpleElementVertex(Line.Start - WorldPointXS + WorldPointYS,FVector2D(0,1),Line.Color,Line.HitProxyId); // 3S
+						ThickVertices[1+18] = FSimpleElementVertex(Line.Start + WorldPointXS - WorldPointYS,FVector2D(1,0),Line.Color,Line.HitProxyId); // 0S
+						ThickVertices[2+18] = FSimpleElementVertex(Line.End   - WorldPointXE + WorldPointYE,FVector2D(0,1),Line.Color,Line.HitProxyId); // 3E
 
-						ThickVertices[3+18] = FSimpleElementVertex(FVector4(Line.Start + WorldPointXS - WorldPointYS,1),FVector2D(1,0),Line.Color,Line.HitProxyId); // 0S
-						ThickVertices[4+18] = FSimpleElementVertex(FVector4(Line.End   + WorldPointXE - WorldPointYE,1),FVector2D(1,0),Line.Color,Line.HitProxyId); // 0E
-						ThickVertices[5+18] = FSimpleElementVertex(FVector4(Line.End   - WorldPointXE + WorldPointYE,1),FVector2D(0,1),Line.Color,Line.HitProxyId); // 3E
+						ThickVertices[3+18] = FSimpleElementVertex(Line.Start + WorldPointXS - WorldPointYS,FVector2D(1,0),Line.Color,Line.HitProxyId); // 0S
+						ThickVertices[4+18] = FSimpleElementVertex(Line.End   + WorldPointXE - WorldPointYE,FVector2D(1,0),Line.Color,Line.HitProxyId); // 0E
+						ThickVertices[5+18] = FSimpleElementVertex(Line.End   - WorldPointXE + WorldPointYE,FVector2D(0,1),Line.Color,Line.HitProxyId); // 3E
 
 						ThickVertices += 24;
 					}
@@ -1018,7 +1021,7 @@ bool FBatchedElements::Draw(FRHICommandList& RHICmdList, const FMeshPassProcesso
 					Initializer.DepthBias = DepthBias;
 					auto RasterState = RHICreateRasterizerState(Initializer);
 					GraphicsPSOInit.RasterizerState = RasterState.GetReference();
-					PrepareShaders(RHICmdList, GraphicsPSOInit, StencilRef, FeatureLevel, SE_BLEND_Opaque, Transform, bNeedToSwitchVerticalAxis, BatchedElementParameters, GWhiteTexture, bHitTesting, Gamma, NULL, &View);
+					PrepareShaders(RHICmdList, GraphicsPSOInit, StencilRef, FeatureLevel, SE_BLEND_Opaque, RelativeMatrices, bNeedToSwitchVerticalAxis, BatchedElementParameters, GWhiteTexture, bHitTesting, Gamma, NULL, &View);
 
 					int32 NumTris = MaxTri - MinTri;
 					RHICmdList.DrawPrimitive(MinTri * 3, NumTris, 1);
@@ -1087,13 +1090,13 @@ bool FBatchedElements::Draw(FRHICommandList& RHICmdList, const FMeshPassProcesso
 					const float VStart = Sprite.V / Sprite.Texture->GetSizeY();
 					const float VEnd = (Sprite.V + Sprite.VL) / Sprite.Texture->GetSizeY();
 
-					Vertex[0] = FSimpleElementVertex(FVector4(Sprite.Position + WorldSpriteX - WorldSpriteY, 1), FVector2D(UEnd, VStart), Sprite.Color, Sprite.HitProxyId);
-					Vertex[1] = FSimpleElementVertex(FVector4(Sprite.Position + WorldSpriteX + WorldSpriteY, 1), FVector2D(UEnd, VEnd), Sprite.Color, Sprite.HitProxyId);
-					Vertex[2] = FSimpleElementVertex(FVector4(Sprite.Position - WorldSpriteX - WorldSpriteY, 1), FVector2D(UStart, VStart), Sprite.Color, Sprite.HitProxyId);
+					Vertex[0] = FSimpleElementVertex(Sprite.Position + WorldSpriteX - WorldSpriteY, FVector2D(UEnd, VStart), Sprite.Color, Sprite.HitProxyId);
+					Vertex[1] = FSimpleElementVertex(Sprite.Position + WorldSpriteX + WorldSpriteY, FVector2D(UEnd, VEnd), Sprite.Color, Sprite.HitProxyId);
+					Vertex[2] = FSimpleElementVertex(Sprite.Position - WorldSpriteX - WorldSpriteY, FVector2D(UStart, VStart), Sprite.Color, Sprite.HitProxyId);
 
-					Vertex[3] = FSimpleElementVertex(FVector4(Sprite.Position + WorldSpriteX + WorldSpriteY, 1), FVector2D(UEnd, VEnd), Sprite.Color, Sprite.HitProxyId);
-					Vertex[4] = FSimpleElementVertex(FVector4(Sprite.Position - WorldSpriteX - WorldSpriteY, 1), FVector2D(UStart, VStart), Sprite.Color, Sprite.HitProxyId);
-					Vertex[5] = FSimpleElementVertex(FVector4(Sprite.Position - WorldSpriteX + WorldSpriteY, 1), FVector2D(UStart, VEnd), Sprite.Color, Sprite.HitProxyId);
+					Vertex[3] = FSimpleElementVertex(Sprite.Position + WorldSpriteX + WorldSpriteY, FVector2D(UEnd, VEnd), Sprite.Color, Sprite.HitProxyId);
+					Vertex[4] = FSimpleElementVertex(Sprite.Position - WorldSpriteX - WorldSpriteY, FVector2D(UStart, VStart), Sprite.Color, Sprite.HitProxyId);
+					Vertex[5] = FSimpleElementVertex(Sprite.Position - WorldSpriteX + WorldSpriteY, FVector2D(UStart, VEnd), Sprite.Color, Sprite.HitProxyId);
 				}
 				RHIUnlockBuffer(VertexBufferRHI);
 
@@ -1115,7 +1118,7 @@ bool FBatchedElements::Draw(FRHICommandList& RHICmdList, const FMeshPassProcesso
 						const int32 SpriteNum = SpriteIndex - BatchStartIndex;
 						const int32 BaseVertex = BatchStartIndex * 6;
 						const int32 PrimCount = SpriteNum * 2;
-						PrepareShaders(RHICmdList, GraphicsPSOInit, StencilRef, FeatureLevel, CurrentBlendMode, Transform, bNeedToSwitchVerticalAxis, BatchedElementParameters, CurrentTexture, bHitTesting, Gamma, NULL, &View, CurrentOpacityMask);
+						PrepareShaders(RHICmdList, GraphicsPSOInit, StencilRef, FeatureLevel, CurrentBlendMode, RelativeMatrices, bNeedToSwitchVerticalAxis, BatchedElementParameters, CurrentTexture, bHitTesting, Gamma, NULL, &View, CurrentOpacityMask);
 						RHICmdList.SetStreamSource(0, VertexBufferRHI, 0);
 						RHICmdList.DrawPrimitive(BaseVertex, PrimCount, 1);
 
@@ -1159,7 +1162,7 @@ bool FBatchedElements::Draw(FRHICommandList& RHICmdList, const FMeshPassProcesso
 						MeshElement.Texture ? *MeshElement.Texture->GetFriendlyName() : TEXT(""));
 
 					// Set the appropriate pixel shader for the mesh.
-					PrepareShaders(RHICmdList, GraphicsPSOInit, StencilRef, FeatureLevel, MeshElement.BlendMode, Transform, bNeedToSwitchVerticalAxis, MeshElement.BatchedElementParameters, MeshElement.Texture, bHitTesting, Gamma, &MeshElement.GlowInfo, &View);
+					PrepareShaders(RHICmdList, GraphicsPSOInit, StencilRef, FeatureLevel, MeshElement.BlendMode, RelativeMatrices, bNeedToSwitchVerticalAxis, MeshElement.BatchedElementParameters, MeshElement.Texture, bHitTesting, Gamma, &MeshElement.GlowInfo, &View);
 
 					FBufferRHIRef IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), sizeof(uint16) * MeshElement.Indices.Num(), BUF_Volatile, CreateInfo);
 					void* VoidPtr2 = RHILockBuffer(IndexBufferRHI, 0, sizeof(uint16) * MeshElement.Indices.Num(), RLM_WriteOnly);

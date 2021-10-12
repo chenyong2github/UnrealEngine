@@ -56,7 +56,7 @@ float3 ComputeCellWorldPosition(uint3 GridCoordinate, float3 CellOffset, out flo
 
 	float TileDeviceZ = ConvertToDeviceZ(SceneDepth);
 	float4 CenterPosition = mul(float4(VolumeNDC, TileDeviceZ, 1), UnjitteredClipToTranslatedWorld);
-	return CenterPosition.xyz / CenterPosition.w - View.PreViewTranslation;
+	return CenterPosition.xyz / CenterPosition.w - LWCHackToFloat(PrimaryView.PreViewTranslation);
 }
 
 float3 ComputeCellWorldPosition(uint3 GridCoordinate, float3 CellOffset)
@@ -308,7 +308,7 @@ void InjectShadowedLocalLightPS(
 
 #if USE_TEMPORAL_REPROJECTION
 
-		float3 HistoryUV = ComputeVolumeUV(ComputeCellWorldPosition(GridCoordinate, .5f), UnjitteredPrevWorldToClip);
+		float3 HistoryUV = ComputeVolumeUV_DEPRECATED(ComputeCellWorldPosition(GridCoordinate, .5f), UnjitteredPrevWorldToClip);
 		float HistoryAlpha = HistoryWeight;
 
 		FLATTEN
@@ -328,7 +328,7 @@ void InjectShadowedLocalLightPS(
 
 			float SceneDepth;
 			float3 WorldPosition = ComputeCellWorldPosition(GridCoordinate, CellOffset, SceneDepth);
-			float3 CameraVector = normalize(WorldPosition - View.WorldCameraOrigin);
+			float3 CameraVector = normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
 
 			float CellRadius = length(WorldPosition - ComputeCellWorldPosition(GridCoordinate + uint3(1, 1, 1), CellOffset));
 			// Bias the inverse squared light falloff based on voxel size to prevent aliasing near the light source
@@ -531,7 +531,7 @@ void LightScatteringCS(
 		const float3 FarDepthOffset = float3(0.5f, 0.5f, -1.0f);
 		float3 CellWorldPosition = ComputeCellWorldPosition(GridCoordinate, FarDepthOffset);
 
-		float4 CellNDCPosition = mul(float4(CellWorldPosition, 1), View.WorldToClip);
+		float4 CellNDCPosition = mul(float4(CellWorldPosition, 1), LWCHackToFloat(PrimaryView.WorldToClip));
 		CellNDCPosition.xyz /= CellNDCPosition.w;
 		float2 UVs = CellNDCPosition.xy * float2(0.5f, -0.5f) + 0.5f;
 
@@ -554,7 +554,7 @@ void LightScatteringCS(
 	}
 
 #if USE_TEMPORAL_REPROJECTION
-	float3 HistoryUV = ComputeVolumeUV(ComputeCellWorldPosition(GridCoordinate, .5f), UnjitteredPrevWorldToClip);
+	float3 HistoryUV = ComputeVolumeUV_DEPRECATED(ComputeCellWorldPosition(GridCoordinate, .5f), UnjitteredPrevWorldToClip);
 	float HistoryAlpha = HistoryWeight;
 
 	FLATTEN
@@ -577,8 +577,8 @@ void LightScatteringCS(
 
 		float SceneDepth;
 		float3 WorldPosition = ComputeCellWorldPosition(GridCoordinate, CellOffset, SceneDepth);
-		float CameraVectorLength = length(WorldPosition - View.WorldCameraOrigin);
-		float3 CameraVector = (WorldPosition - View.WorldCameraOrigin) / CameraVectorLength;
+		float CameraVectorLength = length(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
+		float3 CameraVector = (WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin)) / CameraVectorLength;
 
 		BRANCH
 		if (ForwardLightData.HasDirectionalLight)
@@ -633,7 +633,8 @@ void LightScatteringCS(
 #if LUMEN_GI
 
 		// Lumen Dynamic GI + shadowed Skylight
-		FTwoBandSHVectorRGB TranslucencyGISH = GetTranslucencyGIVolumeLighting(WorldPosition, View.WorldToClip, false);
+		// TODO LWC
+		FTwoBandSHVectorRGB TranslucencyGISH = GetTranslucencyGIVolumeLighting(LWCPromote(WorldPosition), PrimaryView.WorldToClip, false);
 
 		LightScattering += max(DotSH(TranslucencyGISH, RotatedHGZonalHarmonic), 0);
 
@@ -792,7 +793,7 @@ void FinalIntegrationCS(
 
 	float3 AccumulatedLighting = 0;
 	float AccumulatedTransmittance = 1.0f;
-	float3 PreviousSliceWorldPosition = View.WorldCameraOrigin;
+	float3 PreviousSliceWorldPosition = LWCHackToFloat(PrimaryView.WorldCameraOrigin);
 
 	for (uint LayerIndex = 0; LayerIndex < VolumetricFog.GridSizeInt.z; LayerIndex++)
 	{

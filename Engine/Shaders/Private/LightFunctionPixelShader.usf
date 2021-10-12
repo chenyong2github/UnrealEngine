@@ -34,15 +34,14 @@ void Main(
 		LightVector = Hom.xyz / Hom.w;
 	}
 	
-	// todo: TranslatedWorld would be better for quality
-	float3 AbsoluteWorldPosition = SvPositionToWorld(SvPosition);
+	float3 TranslatedWorldPosition = SvPositionToTranslatedWorld(SvPosition);
 
 	// Calculate radial view distance for stable fading
-	float ViewDistance = length(View.WorldCameraOrigin - AbsoluteWorldPosition);
+	float ViewDistance = length(PrimaryView.TranslatedWorldCameraOrigin - TranslatedWorldPosition);
 
 	float GreyScale;
 	{
-		float3 Color = GetLightFunctionColor(LightVector, AbsoluteWorldPosition);
+		float3 Color = GetLightFunctionColorTWS(LightVector, TranslatedWorldPosition);
 		GreyScale = dot(Color, .3333f);
 	}
 
@@ -54,7 +53,7 @@ void Main(
 	GreyScale = lerp(LightFunctionParameters2.y, GreyScale, LightFunctionParameters.y);
 
 #if FORWARD_SHADING
-	float LightInfluenceMask = GetLightInfluenceMask(AbsoluteWorldPosition);
+	float LightInfluenceMask = GetLightInfluenceMaskTWS(TranslatedWorldPosition);
 	GreyScale = lerp(1, GreyScale, LightInfluenceMask);
 	OutColor = EncodeLightAttenuation(GreyScale);
 #else

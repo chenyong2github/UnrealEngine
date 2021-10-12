@@ -13,6 +13,7 @@ enum class EValueComponentType : uint8
 {
 	Void,
 	Float,
+	Double,
 	Int,
 	Bool,
 	MaterialAttributes,
@@ -36,6 +37,11 @@ enum class EValueType : uint8
 	Float2,
 	Float3,
 	Float4,
+
+	Double1,
+	Double2,
+	Double3,
+	Double4,
 
 	Int1,
 	Int2,
@@ -66,8 +72,15 @@ struct TValue
 	T Component[4];
 };
 using FFloatValue = TValue<float>;
+using FDoubleValue = TValue<double>;
 using FIntValue = TValue<int32>;
 using FBoolValue = TValue<bool>;
+
+enum class EValueStringFormat
+{
+	Description,
+	HLSL,
+};
 
 struct FMemoryImageValue
 {
@@ -83,12 +96,13 @@ union FValueComponent
 	// 'Bool' is stored as uint8 to avoid changing on different compilers
 	bool AsBool() const { return Bool != 0u; }
 
-	uint32 Packed;
+	uint64 Packed;
+	double Double;
 	float Float;
 	int32 Int;
 	uint8 Bool;
 };
-static_assert(sizeof(FValueComponent) == sizeof(uint32), "bad packing");
+static_assert(sizeof(FValueComponent) == sizeof(uint64), "bad packing");
 
 struct FValue
 {
@@ -129,6 +143,32 @@ struct FValue
 		Component[3].Float = W;
 	}
 
+	inline FValue(double v) : ComponentType(EValueComponentType::Double), NumComponents(1)
+	{
+		Component[0].Double = v;
+	}
+
+	inline FValue(double X, double Y) : ComponentType(EValueComponentType::Double), NumComponents(2)
+	{
+		Component[0].Double = X;
+		Component[1].Double = Y;
+	}
+
+	inline FValue(double X, double Y, double Z) : ComponentType(EValueComponentType::Double), NumComponents(3)
+	{
+		Component[0].Double = X;
+		Component[1].Double = Y;
+		Component[2].Double = Z;
+	}
+
+	inline FValue(double X, double Y, double Z, double W) : ComponentType(EValueComponentType::Double), NumComponents(4)
+	{
+		Component[0].Double = X;
+		Component[1].Double = Y;
+		Component[2].Double = Z;
+		Component[3].Double = W;
+	}
+
 	inline FValue(const FLinearColor& Value) : ComponentType(EValueComponentType::Float), NumComponents(4)
 	{
 		Component[0].Float = Value.R;
@@ -150,12 +190,27 @@ struct FValue
 		Component[2].Float = Value.Z;
 	}
 
-	inline FValue(const FVector4& Value) : ComponentType(EValueComponentType::Float), NumComponents(4)
+	inline FValue(const FVector3d& Value) : ComponentType(EValueComponentType::Double), NumComponents(3)
+	{
+		Component[0].Double = Value.X;
+		Component[1].Double = Value.Y;
+		Component[2].Double = Value.Z;
+	}
+
+	inline FValue(const FVector4f& Value) : ComponentType(EValueComponentType::Float), NumComponents(4)
 	{
 		Component[0].Float = Value.X;
 		Component[1].Float = Value.Y;
 		Component[2].Float = Value.Z;
 		Component[3].Float = Value.W;
+	}
+
+	inline FValue(const FVector4d& Value) : ComponentType(EValueComponentType::Double), NumComponents(4)
+	{
+		Component[0].Double = Value.X;
+		Component[1].Double = Value.Y;
+		Component[2].Double = Value.Z;
+		Component[3].Double = Value.W;
 	}
 
 	inline FValue(bool v) : ComponentType(EValueComponentType::Bool), NumComponents(1)
@@ -185,16 +240,20 @@ struct FValue
 	FMemoryImageValue AsMemoryImage() const;
 
 	FFloatValue AsFloat() const;
+	FDoubleValue AsDouble() const;
 	FIntValue AsInt() const;
 	FBoolValue AsBool() const;
 
 	FLinearColor AsLinearColor() const;
+	FVector4d AsVector4d() const;
 	float AsFloatScalar() const;
 	bool AsBoolScalar() const;
 
+	FString ToString(EValueStringFormat Format = EValueStringFormat::Description) const;
+
+	FValueComponent Component[4];
 	EValueComponentType ComponentType;
 	int8 NumComponents;
-	FValueComponent Component[4];
 };
 
 ENGINE_API bool operator==(const FValue& Lhs, const FValue& Rhs);
@@ -211,6 +270,7 @@ ENGINE_API FValue Sign(const FValue& Value);
 ENGINE_API FValue Frac(const FValue& Value);
 ENGINE_API FValue Fractional(const FValue& Value);
 ENGINE_API FValue Sqrt(const FValue& Value);
+ENGINE_API FValue Rcp(const FValue& Value);
 ENGINE_API FValue Log2(const FValue& Value);
 ENGINE_API FValue Log10(const FValue& Value);
 ENGINE_API FValue Sin(const FValue& Value);

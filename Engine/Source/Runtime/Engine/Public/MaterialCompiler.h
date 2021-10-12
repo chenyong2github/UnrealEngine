@@ -15,6 +15,14 @@
 #include "Materials/MaterialExpressionTextureProperty.h"
 #include "Materials/MaterialExpressionViewProperty.h"
 
+namespace UE
+{
+namespace Shader
+{
+struct FValue;
+}
+}
+
 class Error;
 class UMaterialParameterCollection;
 class URuntimeVirtualTexture;
@@ -152,6 +160,7 @@ public:
 	virtual int32 Constant2(float X,float Y) = 0;
 	virtual int32 Constant3(float X,float Y,float Z) = 0;
 	virtual int32 Constant4(float X,float Y,float Z,float W) = 0;
+	virtual int32 GenericConstant(const UE::Shader::FValue& Value) = 0;
 
 	virtual	int32 ViewProperty(EMaterialExposedViewProperty Property, bool InvProperty = false) = 0;
 
@@ -316,6 +325,7 @@ public:
 	virtual int32 Logarithm10(int32 X) = 0;
 	virtual int32 SquareRoot(int32 X) = 0;
 	virtual int32 Length(int32 X) = 0;
+	virtual int32 Normalize(int32 X) = 0;
 
 	virtual int32 Lerp(int32 X,int32 Y,int32 A) = 0;
 	virtual int32 Min(int32 A,int32 B) = 0;
@@ -533,6 +543,7 @@ public:
 	virtual int32 Constant2(float X, float Y) override { return Compiler->Constant2(X, Y); }
 	virtual int32 Constant3(float X, float Y, float Z) override { return Compiler->Constant3(X, Y, Z); }
 	virtual int32 Constant4(float X, float Y, float Z, float W) override { return Compiler->Constant4(X, Y, Z, W); }
+	virtual int32 GenericConstant(const UE::Shader::FValue& Value) override { return Compiler->GenericConstant(Value); }
 
 	virtual	int32 ViewProperty(EMaterialExposedViewProperty Property, bool InvProperty) override { return Compiler->ViewProperty(Property, InvProperty); }
 
@@ -658,6 +669,7 @@ public:
 	virtual int32 Logarithm10(int32 X) override { return Compiler->Logarithm10(X); }
 	virtual int32 SquareRoot(int32 X) override { return Compiler->SquareRoot(X); }
 	virtual int32 Length(int32 X) override { return Compiler->Length(X); }
+	virtual int32 Normalize(int32 X) override { return Compiler->Normalize(X); }
 
 	virtual int32 Lerp(int32 X, int32 Y, int32 A) override { return Compiler->Lerp(X, Y, A); }
 	virtual int32 Min(int32 A, int32 B) override { return Compiler->Min(A, B); }

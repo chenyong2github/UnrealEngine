@@ -260,7 +260,7 @@ bool UNiagaraDataInterfaceCamera::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(out float3 Out_ViewPositionWorld, out float3 Out_ViewForwardVector, out float3 Out_ViewUpVector, out float3 Out_ViewRightVector, out float4 Out_ViewSizeAndInverseSize, out float4 Out_ScreenToViewSpace, out float2 Out_Current_TAAJitter, out float2 Out_Previous_TAAJitter, out float3 Out_PreViewTranslation, out float4 Out_BufferSizeAndInverseSize, out float2 Out_ViewportOffset)
 			{
-				Out_ViewPositionWorld.xyz = View.WorldViewOrigin.xyz;
+				Out_ViewPositionWorld.xyz = LWCHackToFloat(PrimaryView.WorldViewOrigin);
 				Out_ViewForwardVector.xyz = View.ViewForward.xyz;
 				Out_ViewUpVector.xyz = View.ViewUp.xyz;
 				Out_ViewRightVector.xyz = View.ViewRight.xyz;
@@ -268,7 +268,7 @@ bool UNiagaraDataInterfaceCamera::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 				Out_ScreenToViewSpace = View.ScreenToViewSpace;
 				Out_Current_TAAJitter = View.TemporalAAJitter.xy;
 				Out_Previous_TAAJitter = View.TemporalAAJitter.zw;
-				Out_PreViewTranslation = View.PreViewTranslation;
+				Out_PreViewTranslation = LWCHackToFloat(PrimaryView.PreViewTranslation);
 				Out_BufferSizeAndInverseSize = View.BufferSizeAndInvSize;
 				Out_ViewportOffset = View.ViewRectMin.xy;
 			} 
@@ -293,12 +293,12 @@ bool UNiagaraDataInterfaceCamera::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 			void {FunctionName}(out float4x4 Out_WorldToClipTransform, out float4x4 Out_TranslatedWorldToClipTransform, out float4x4 Out_ClipToWorldTransform, out float4x4 Out_ClipToViewTransform,
 				out float4x4 Out_ClipToTranslatedWorldTransform, out float4x4 Out_ScreenToWorldTransform, out float4x4 Out_ScreenToTranslatedWorldTransform, out float4x4 Out_ClipToPreviousClipTransform)
 			{
-				Out_WorldToClipTransform = View.WorldToClip;
+				Out_WorldToClipTransform = LWCHackToFloat(PrimaryView.WorldToClip);
 				Out_TranslatedWorldToClipTransform = View.TranslatedWorldToClip;
-				Out_ClipToWorldTransform = View.ClipToWorld;
+				Out_ClipToWorldTransform = LWCHackToFloat(PrimaryView.ClipToWorld);
 				Out_ClipToViewTransform = View.ClipToView;
 				Out_ClipToTranslatedWorldTransform = View.ClipToTranslatedWorld;
-				Out_ScreenToWorldTransform = View.ScreenToWorld;
+				Out_ScreenToWorldTransform = LWCHackToFloat(PrimaryView.ScreenToWorld);
 				Out_ScreenToTranslatedWorldTransform = View.ScreenToTranslatedWorld;
 				Out_ClipToPreviousClipTransform = View.ClipToPrevClip;
 			}
@@ -328,7 +328,7 @@ bool UNiagaraDataInterfaceCamera::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(out float3 Out_CameraPositionWorld, out float3 Out_ViewForwardVector, out float3 Out_ViewUpVector, out float3 Out_ViewRightVector)
 			{				
-				Out_CameraPositionWorld.xyz = View.WorldCameraOrigin.xyz;
+				Out_CameraPositionWorld.xyz = LWCHackToFloat(PrimaryView.WorldCameraOrigin);
 				Out_ViewForwardVector.xyz = View.ViewForward.xyz;
 				Out_ViewUpVector.xyz = View.ViewUp.xyz;
 				Out_ViewRightVector.xyz = View.ViewRight.xyz;

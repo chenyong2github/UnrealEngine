@@ -235,7 +235,8 @@ static FSceneView* CreateSceneView( FSceneViewFamilyContext* ViewFamilyContext, 
 		FViewMatrices()
 	);
 
-	ViewUniformShaderParameters.WorldViewOrigin = View->ViewMatrices.GetViewOrigin();
+	// TODO LWC
+	ViewUniformShaderParameters.RelativeWorldViewOrigin = View->ViewMatrices.GetViewOrigin();
 	
 
 	ERHIFeatureLevel::Type RHIFeatureLevel = View->GetFeatureLevel();

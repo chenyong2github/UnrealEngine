@@ -1236,6 +1236,12 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLightShaderParameters, ENGINE_API)
 	// 1 / light's falloff radius from Position.
 	SHADER_PARAMETER(float, InvRadius)
 
+	// Tile position of the light
+	// Could potentially change this to store light position in TranslatedWorldSpace, which would avoid need for tile coordinate
+	// (probably better, assuming light uniforms are regenerated every frame)
+	SHADER_PARAMETER(FVector3f, TilePosition)
+	SHADER_PARAMETER(uint32, Padding)
+
 	// Color of the light.
 	SHADER_PARAMETER(FVector3f, Color)
 
@@ -1278,6 +1284,7 @@ END_SHADER_PARAMETER_STRUCT()
 // Movable point light uniform buffer for mobile
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileMovablePointLightUniformShaderParameters,ENGINE_API)
 	SHADER_PARAMETER(FVector4f, LightPositionAndInvRadius)
+	SHADER_PARAMETER(FVector4f, LightTilePosition) // w unused
 	SHADER_PARAMETER(FVector4f, LightColorAndFalloffExponent)
 	SHADER_PARAMETER(FVector4f, SpotLightDirectionAndSpecularScale)
 	SHADER_PARAMETER(FVector4f, SpotLightAnglesAndSoftTransitionScaleAndLightShadowType) //xy SpotAngles, z SoftTransitionScale, w LightShadowType if (w&1 == 1) is pointlight, (w&2 == 2) is spotlight, (w&4 == 4) is with shadow
@@ -1289,22 +1296,24 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 /** Initializes the movable point light uniform shader parameters. */
 FORCEINLINE FMobileMovablePointLightUniformShaderParameters GetMovablePointLightUniformShaderParameters(
 	const FVector4& LightPositionAndInvRadius,
+	const FVector4& LightTilePosition,
 	const FVector4& LightColorAndFalloffExponent,
 	const FVector4& SpotLightDirectionAndSpecularScale,
 	const FVector4& SpotLightAnglesAndSoftTransitionScaleAndLightShadowType,
 	const FVector4& SpotLightShadowSharpenAndShadowFadeFraction,
 	const FVector4& SpotLightShadowmapMinMax,
-	const FMatrix& SpotLightShadowWorldToShadowMatrix
+	const FMatrix44f& SpotLightShadowWorldToShadowMatrix
 )
 {
 	FMobileMovablePointLightUniformShaderParameters Result;
 	Result.LightPositionAndInvRadius = LightPositionAndInvRadius;
+	Result.LightTilePosition = LightTilePosition;
 	Result.LightColorAndFalloffExponent = LightColorAndFalloffExponent;
 	Result.SpotLightDirectionAndSpecularScale = SpotLightDirectionAndSpecularScale;
 	Result.SpotLightAnglesAndSoftTransitionScaleAndLightShadowType = SpotLightAnglesAndSoftTransitionScaleAndLightShadowType;
 	Result.SpotLightShadowSharpenAndShadowFadeFraction = SpotLightShadowSharpenAndShadowFadeFraction;
 	Result.SpotLightShadowmapMinMax = SpotLightShadowmapMinMax;
-	Result.SpotLightShadowWorldToShadowMatrix = (FMatrix44f)SpotLightShadowWorldToShadowMatrix;
+	Result.SpotLightShadowWorldToShadowMatrix = SpotLightShadowWorldToShadowMatrix;
 
 	return Result;
 }
@@ -1312,13 +1321,14 @@ FORCEINLINE FMobileMovablePointLightUniformShaderParameters GetMovablePointLight
 FORCEINLINE FMobileMovablePointLightUniformShaderParameters GetDummyMovablePointLightUniformShaderParameters()
 {
 	return GetMovablePointLightUniformShaderParameters(
-		FVector4(),
-		FVector4(),
-		FVector4(),
-		FVector4(),
-		FVector4(),
-		FVector4(),
-		FMatrix()
+		FVector4(ForceInitToZero),
+		FVector4(ForceInitToZero),
+		FVector4(ForceInitToZero),
+		FVector4(ForceInitToZero),
+		FVector4(ForceInitToZero),
+		FVector4(ForceInitToZero),
+		FVector4(ForceInitToZero),
+		FMatrix44f(ForceInitToZero)
 	);
 }
 
@@ -1891,20 +1901,21 @@ public:
 	EReflectionCaptureShape::Type Shape;
 
 	// Properties shared among all shapes
-	FVector Position;
+	FVector3f RelativePosition;
+	FVector3f TilePosition;
 	float InfluenceRadius;
 	float Brightness;
 	uint32 Guid;
-	FVector CaptureOffset;
+	FVector3f CaptureOffset;
 	int32 SortedCaptureIndex; // Index into ReflectionSceneData.SortedCaptures (and ReflectionCaptures uniform buffer).
 
 	// Box properties
-	FMatrix BoxTransform;
-	FVector BoxScales;
+	FMatrix44f BoxTransform;
+	FVector3f BoxScales;
 	float BoxTransitionDistance;
 
 	// Plane properties
-	FPlane ReflectionPlane;
+	FPlane4f LocalReflectionPlane;
 	FVector4 ReflectionXAxisAndYScale;
 
 	bool bUsingPreviewCaptureData;

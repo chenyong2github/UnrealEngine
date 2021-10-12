@@ -65,7 +65,7 @@ void ReflectionTraceScreenTexturesCS(
 			float3 HitUVz;
 
 			TraceScreen(
-				WorldPosition + View.PreViewTranslation,
+				WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation),
 				RayData.Direction,
 				RayData.TraceDistance,
 				HZBUvFactorAndInvFactor,
@@ -84,7 +84,7 @@ void ReflectionTraceScreenTexturesCS(
 				float3 Hair_HitUVz;
 
 				TraceHairScreen(
-					WorldPosition + View.PreViewTranslation,
+					WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation),
 					RayData.Direction,
 					RayData.TraceDistance,
 					HZBUvFactorAndInvFactor,
@@ -155,7 +155,7 @@ void ReflectionTraceScreenTexturesCS(
 				}
 			}
 
-			float HitDistance = min(sqrt(ComputeRayHitSqrDistance(WorldPosition + View.PreViewTranslation, HitUVz)), MaxTraceDistance);
+			float HitDistance = min(sqrt(ComputeRayHitSqrDistance(WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation), HitUVz)), MaxTraceDistance);
 			RWTraceHit[ReflectionTracingCoord] = EncodeRayDistance(HitDistance, bHit);
 		}
 	}
@@ -390,7 +390,7 @@ void TraceMeshSDFs(
 	float Transparency = TraceResult.Transparency;
 	float OpaqueHitDistance = TraceResult.OpaqueHitDistance;
 
-	float DistanceFromViewpoint = length(View.WorldCameraOrigin - WorldPosition);
+	float DistanceFromViewpoint = length(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - WorldPosition);
 	float DistanceFade = saturate(4 * DistanceFromViewpoint / CardTraceEndDistanceFromCamera - 3);
 	DistanceFade = max(DistanceFade, saturate((OpaqueHitDistance - MaxMeshSDFTraceDistance * .7f) / (MaxMeshSDFTraceDistance * .3f)));
 

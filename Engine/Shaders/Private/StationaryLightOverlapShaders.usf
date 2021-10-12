@@ -51,7 +51,7 @@ void OverlapRadialPixelMain(
 	BRANCH if( GBuffer.ShadingModelID > 0 )
 #endif
 {
-		float3 WorldPosition = SvPositionToWorld(SvPosition);
+		float3 WorldPosition = LWCHackToFloat(SvPositionToWorld(SvPosition));
 
 		float3 ToLight = DeferredLightUniforms.Direction;
 

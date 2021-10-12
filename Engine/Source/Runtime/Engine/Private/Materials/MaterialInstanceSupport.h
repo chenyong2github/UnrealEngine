@@ -110,6 +110,7 @@ public:
 	void RenderThread_ClearParameters()
 	{
 		VectorParameterArray.Empty();
+		DoubleVectorParameterArray.Empty();
 		ScalarParameterArray.Empty();
 		TextureParameterArray.Empty();
 		RuntimeVirtualTextureParameterArray.Empty();
@@ -169,6 +170,7 @@ private:
 
 	static bool IsValidParameterValue(float) { return true; }
 	static bool IsValidParameterValue(const FLinearColor&) { return true; }
+	static bool IsValidParameterValue(const FVector4d&) { return true; }
 	static bool IsValidParameterValue(const UTexture* Value) { return Value != nullptr; }
 	static bool IsValidParameterValue(const URuntimeVirtualTexture* Value) { return Value != nullptr; }
 
@@ -183,6 +185,8 @@ private:
 	
 	/** Vector parameters for this material instance. */
 	TArray<TNamedParameter<FLinearColor> > VectorParameterArray;
+	/** DoubleVector parameters for this material instance. */
+	TArray<TNamedParameter<FVector4d> > DoubleVectorParameterArray;
 	/** Scalar parameters for this material instance. */
 	TArray<TNamedParameter<float> > ScalarParameterArray;
 	/** Texture parameters for this material instance. */
@@ -193,10 +197,12 @@ private:
 
 template <> FORCEINLINE TArray<FMaterialInstanceResource::TNamedParameter<float> >& FMaterialInstanceResource::GetValueArray() { return ScalarParameterArray; }
 template <> FORCEINLINE TArray<FMaterialInstanceResource::TNamedParameter<FLinearColor> >& FMaterialInstanceResource::GetValueArray() { return VectorParameterArray; }
+template <> FORCEINLINE TArray<FMaterialInstanceResource::TNamedParameter<FVector4d> >& FMaterialInstanceResource::GetValueArray() { return DoubleVectorParameterArray; }
 template <> FORCEINLINE TArray<FMaterialInstanceResource::TNamedParameter<const UTexture*> >& FMaterialInstanceResource::GetValueArray() { return TextureParameterArray; }
 template <> FORCEINLINE TArray<FMaterialInstanceResource::TNamedParameter<const URuntimeVirtualTexture*> >& FMaterialInstanceResource::GetValueArray() { return RuntimeVirtualTextureParameterArray; }
 template <> FORCEINLINE const TArray<FMaterialInstanceResource::TNamedParameter<float> >& FMaterialInstanceResource::GetValueArray() const { return ScalarParameterArray; }
 template <> FORCEINLINE const TArray<FMaterialInstanceResource::TNamedParameter<FLinearColor> >& FMaterialInstanceResource::GetValueArray() const { return VectorParameterArray; }
+template <> FORCEINLINE const TArray<FMaterialInstanceResource::TNamedParameter<FVector4d> >& FMaterialInstanceResource::GetValueArray() const { return DoubleVectorParameterArray; }
 template <> FORCEINLINE const TArray<FMaterialInstanceResource::TNamedParameter<const UTexture*> >& FMaterialInstanceResource::GetValueArray() const { return TextureParameterArray; }
 template <> FORCEINLINE const TArray<FMaterialInstanceResource::TNamedParameter<const URuntimeVirtualTexture*> >& FMaterialInstanceResource::GetValueArray() const { return RuntimeVirtualTextureParameterArray; }
 
@@ -204,6 +210,7 @@ struct FMaterialInstanceParameterSet
 {
 	TArray<FMaterialInstanceResource::TNamedParameter<float> > ScalarParameters;
 	TArray<FMaterialInstanceResource::TNamedParameter<FLinearColor> > VectorParameters;
+	TArray<FMaterialInstanceResource::TNamedParameter<FVector4d> > DoubleVectorParameters;
 	TArray<FMaterialInstanceResource::TNamedParameter<const UTexture*> > TextureParameters;
 	TArray<FMaterialInstanceResource::TNamedParameter<const URuntimeVirtualTexture*> > RuntimeVirtualTextureParameters;
 };

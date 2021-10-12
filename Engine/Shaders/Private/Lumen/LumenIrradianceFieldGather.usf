@@ -12,7 +12,7 @@
 float3 GetWorldPositionFromScreenUV(float2 ScreenUV, float SceneDepth)
 {
 	float2 ScreenPosition = (ScreenUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
-	float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
+	float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
 	return WorldPosition;
 }
 
@@ -84,7 +84,7 @@ void IrradianceFieldGatherCS(
 		if (GBufferData.ShadingModelID != SHADINGMODELID_UNLIT)
 		{
 			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
-			float3 V = normalize(View.WorldCameraOrigin - WorldPosition);
+			float3 V = normalize(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - WorldPosition);
 			uint ClipmapIndex = GetRadianceProbeClipmap(WorldPosition);
 
 			float3 DiffuseLighting = 0;

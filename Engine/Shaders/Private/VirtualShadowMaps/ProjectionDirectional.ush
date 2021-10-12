@@ -165,7 +165,7 @@ FVirtualShadowMapSampleResult TraceDirectional(
 	bool bCullBackface,
 	half3 WorldNormal)
 {
-	float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
+	float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
 	float3 ViewPosition = mul(float4(TranslatedWorldPosition, 1.0f), View.TranslatedWorldToView).xyz;
 	float DistanceFromViewOrigin = length(ViewPosition);
 
@@ -255,7 +255,7 @@ bool GenerateRayDirectional(
 	inout float3 OutRayStart,
 	inout float3 OutRayEnd)
 {
-	float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
+	float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
 	float3 ViewPosition = mul(float4(TranslatedWorldPosition, 1.0f), View.TranslatedWorldToView).xyz;
 	float DistanceFromViewOrigin = length(ViewPosition);
 

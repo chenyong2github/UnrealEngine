@@ -162,8 +162,8 @@ struct FPositionAndNormalOnlyVertexFactoryInput
  */
 struct FVertexFactoryIntermediates
 {
-	float4x4 LocalToWorld;
-	float4x4 PrevLocalToWorld;
+	FLWCMatrix LocalToWorld;
+	FLWCMatrix PrevLocalToWorld;
 
 	half3x3 TangentToLocal;
 	half3x3 TangentToWorld;
@@ -327,9 +327,9 @@ half3x3 LoadTangentToLocal(FVertexFactoryInput Input, inout float TangentSignOut
 	return Result;
 }
 
-half3x3 CalcTangentToWorld(half3 InvScale, half3x3 TangentToLocal, float4x4 LocalToWorld)
+half3x3 CalcTangentToWorld(half3 InvScale, half3x3 TangentToLocal, FLWCMatrix LocalToWorld)
 {
-	half3x3 LocalToWorld3x3 = (half3x3)LocalToWorld;
+	half3x3 LocalToWorld3x3 = LWCToFloat3x3(LocalToWorld);
 	LocalToWorld3x3[0] *= InvScale.x;
 	LocalToWorld3x3[1] *= InvScale.y;
 	LocalToWorld3x3[2] *= InvScale.z;
@@ -343,8 +343,8 @@ struct FTransformData
 {
 	FSceneDataIntermediates SceneData;
 
-	float4x4 LocalToWorld;
-	float4x4 PrevLocalToWorld;
+	FLWCMatrix LocalToWorld;
+	FLWCMatrix PrevLocalToWorld;
 	float3 InvScale;
 };
 
@@ -353,8 +353,8 @@ FTransformData LoadTransformData(FSceneDataIntermediates SceneData, uint VertexI
 	FTransformData TransformData;
 	TransformData.SceneData = SceneData;
 	TransformData.InvScale = TransformData.SceneData.InstanceData.InvNonUniformScale;
-	float4x4 InstanceLocalToWorld = TransformData.SceneData.InstanceData.LocalToWorld;
-	float4x4 PrevInstanceLocalToWorld = TransformData.SceneData.InstanceData.PrevLocalToWorld;
+	FLWCMatrix InstanceLocalToWorld = TransformData.SceneData.InstanceData.LocalToWorld;
+	FLWCMatrix PrevInstanceLocalToWorld = TransformData.SceneData.InstanceData.PrevLocalToWorld;
 
 #if MANUAL_VERTEX_FETCH
 	uint BoneIndex = VertexFetch_BoneMapBuffer[GeometryCollectionVF.VertexFetch_Parameters[VF_VertexOffset] + VertexId];
@@ -364,7 +364,7 @@ FTransformData LoadTransformData(FSceneDataIntermediates SceneData, uint VertexI
 		float4(VertexFetch_BoneTransformBuffer[4 * BoneIndex + 2].xyz, 0.0f),
 		float4(VertexFetch_BoneTransformBuffer[4 * BoneIndex + 3].xyz, 1.0f));
 
-	TransformData.LocalToWorld = mul(LocalToInstance, InstanceLocalToWorld);
+	TransformData.LocalToWorld = LWCMultiply(LocalToInstance, InstanceLocalToWorld);
 
 	float4x4 PrevLocalToInstance = float4x4(
 		float4(VertexFetch_BonePrevTransformBuffer[4 * BoneIndex + 0].xyz, 0.0f),
@@ -372,7 +372,7 @@ FTransformData LoadTransformData(FSceneDataIntermediates SceneData, uint VertexI
 		float4(VertexFetch_BonePrevTransformBuffer[4 * BoneIndex + 2].xyz, 0.0f),
 		float4(VertexFetch_BonePrevTransformBuffer[4 * BoneIndex + 3].xyz, 1.0f));
 
-	TransformData.PrevLocalToWorld = mul(PrevLocalToInstance, PrevInstanceLocalToWorld);
+	TransformData.PrevLocalToWorld = LWCMultiply(PrevLocalToInstance, PrevInstanceLocalToWorld);
 #else
 	// In this case the LTW because it already is skinned on CPU
 	// Note: this changes the meaning of tangent to local etc, I assume that is fine because that is how it used to be
@@ -533,8 +533,8 @@ float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexF
 
 float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolantsVSToPS Interpolants)
 {
-	float4 ObjectWorldPositionAndRadius = GetPrimitiveData(GetPrimitiveId(Interpolants)).ObjectWorldPositionAndRadius;
-	return float4(ObjectWorldPositionAndRadius.xyz + ResolvedView.PreViewTranslation.xyz, ObjectWorldPositionAndRadius.w);
+	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(GetPrimitiveId(Interpolants));
+	return float4(LWCToFloat(LWCAdd(PrimitiveData.ObjectWorldPosition, ResolvedView.PreViewTranslation)), PrimitiveData.ObjectRadius);
 }
 
 uint VertexFactoryGetPrimitiveId(FVertexFactoryInterpolantsVSToPS Interpolants)

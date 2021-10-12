@@ -82,6 +82,12 @@ void UMaterialInstanceDynamic::SetVectorParameterValue(FName ParameterName, FLin
 	SetVectorParameterValueInternal(ParameterInfo,Value);
 }
 
+void UMaterialInstanceDynamic::SetDoubleVectorParameterValue(FName ParameterName, FVector Value)
+{
+	FMaterialParameterInfo ParameterInfo(ParameterName);
+	SetDoubleVectorParameterValueInternal(ParameterInfo, Value);
+}
+
 void UMaterialInstanceDynamic::SetVectorParameterValueByInfo(const FMaterialParameterInfo& ParameterInfo, FLinearColor Value)
 {
 	SetVectorParameterValueInternal(ParameterInfo, Value);

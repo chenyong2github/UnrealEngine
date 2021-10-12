@@ -1257,6 +1257,10 @@ public:
 	/** @return the array size of the surface represented by the texture. */
 	virtual uint32 GetSurfaceArraySize() const PURE_VIRTUAL(UTexture::GetSurfaceArraySize, return 0;);
 
+	virtual TextureAddress GetTextureAddressX() const { return TA_Clamp; }
+	virtual TextureAddress GetTextureAddressY() const { return TA_Clamp; }
+	virtual TextureAddress GetTextureAddressZ() const { return TA_Clamp; }
+
 	/**
 	 * Access the GUID which defines this texture's resources externally through FExternalTextureRegistry
 	 */

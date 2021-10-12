@@ -114,7 +114,7 @@ uint GetPriorityBucketIndex(FLumenCardData Card, FLumenCardPageData CardPage, ui
 	// [0;MAX_UPDATE_FREQUENCY]
 	float Frequency = 1.0f;
 	{
-		float3 CardSpaceViewPosition = mul(View.WorldCameraOrigin - Card.Origin, Card.WorldToLocalRotation);
+		float3 CardSpaceViewPosition = mul(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - Card.Origin, Card.WorldToLocalRotation);
 		float3 CardPageLocalCenter;
 		float3 CardPageLocalExtent;
 		GetCardPageLocalBBox(CardPage, Card, CardPageLocalCenter, CardPageLocalExtent);

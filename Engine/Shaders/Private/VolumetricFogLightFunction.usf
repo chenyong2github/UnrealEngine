@@ -61,7 +61,7 @@ void Main(
 	float GreyScale = dot(LightFunction, .3333f).x;
 
 	// Calculate radial view distance for stable fading
-	float ViewDistance = length(View.WorldCameraOrigin - AbsoluteWorldPosition.xyz);
+	float ViewDistance = length(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - AbsoluteWorldPosition.xyz);
 
 	float DistanceFadeAlpha = saturate((LightFunctionParameters2.x - ViewDistance) / (LightFunctionParameters2.x * .2f));
 	// Fade to disabled based on LightFunctionFadeDistance

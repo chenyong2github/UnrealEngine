@@ -57,7 +57,7 @@ void VisualizeQuadsCS(
 	bool bCoveredByRadianceCache = false;
 
 #if RADIANCE_CACHE
-	FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(View.WorldCameraOrigin, CameraVector);
+	FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(LWCHackToFloat(PrimaryView.WorldCameraOrigin), CameraVector);
 				
 	if (Coverage.bValid)
 	{
@@ -66,7 +66,7 @@ void VisualizeQuadsCS(
 #endif
 
 	FConeTraceInput TraceInput;
-	TraceInput.Setup(View.WorldCameraOrigin, CameraVector, PreviewConeAngle, .01f, MinTraceDistance, TraceDistance, VisualizeStepFactor);
+	TraceInput.Setup(LWCHackToFloat(PrimaryView.WorldCameraOrigin), CameraVector, PreviewConeAngle, .01f, MinTraceDistance, TraceDistance, VisualizeStepFactor);
 	TraceInput.VoxelStepFactor = VoxelStepFactor;
 	TraceInput.SDFStepFactor = lerp(.8f, 1.0f, Noise);
 	TraceInput.ScreenCoord = PixelPos;
@@ -117,7 +117,7 @@ void VisualizeQuadsCS(
 #endif
 
 #if RADIANCE_CACHE
-	TraceResult.Lighting += SampleRadianceCacheInterpolated(View.WorldCameraOrigin, CameraVector, PreviewConeAngle, 0).xyz * TraceResult.Transparency;
+	TraceResult.Lighting += SampleRadianceCacheInterpolated(LWCHackToFloat(PrimaryView.WorldCameraOrigin), CameraVector, PreviewConeAngle, 0).xyz * TraceResult.Transparency;
 	TraceResult.Transparency = 0.0f;
 #else
 
@@ -227,7 +227,7 @@ void VisualizeLumenVoxelsCS(
 
 	float RayTime = 0.0f;
 	float3 RayDirection = normalize(ScreenVector);
-	float3 RayOrigin = View.WorldCameraOrigin + MinTraceDistance * RayDirection;
+	float3 RayOrigin = LWCHackToFloat(PrimaryView.WorldCameraOrigin) + MinTraceDistance * RayDirection;
 	int3 VoxelStep = (RayDirection < 0) ? int3(-1, -1, -1) : int3(1, 1, 1);
 
 	uint VoxelClipmapIndex = VisualizeClipmapIndex >= 0 ? VisualizeClipmapIndex : 0;
@@ -349,7 +349,7 @@ void VisualizeTracesVS(
 		WorldPosition += VisualizeTracesData[TraceIndex * VISUALIZE_TRACE_DATA_STRIDE + 1].xyz;
 	}
 
-	OutPosition = mul(float4(WorldPosition, 1), View.WorldToClip);
+	OutPosition = mul(float4(WorldPosition, 1), LWCHackToFloat(PrimaryView.WorldToClip));
 	Output.TraceLighting = VisualizeTracesData[TraceIndex * VISUALIZE_TRACE_DATA_STRIDE + 2].xyz;
 } 
 

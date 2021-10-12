@@ -283,7 +283,7 @@ float CollisionDepthBounds;
 /** TODO: Should be moved to Common.usf and used globaly. */
 float3 WorldPositionFromSceneDepth(float2 ScreenPosition, float SceneDepth)
 {
-	float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
+	float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
 	return WorldPosition;
 }
 
@@ -347,7 +347,7 @@ void CollideWithDepthBuffer(
 	float3 CollisionOffset = normalize(DeltaPosition) * CollisionRadius;
 
 	float3 CollisionPosition = InPosition + CollisionOffset;
-	float4 SamplePosition = float4(CollisionPosition + View.PreViewTranslation,1);
+	float4 SamplePosition = float4(CollisionPosition + LWCHackToFloat(PrimaryView.PreViewTranslation),1);
 	float4 ClipPosition = mul(SamplePosition, View.TranslatedWorldToClip);
 	float2 ScreenPosition = ClipPosition.xy / ClipPosition.w;
 
@@ -382,7 +382,7 @@ void CollideWithDepthBuffer(
 #elif FORWARD_SHADING_NORMAL_CALC // && !FORWARD_SHADING_ACCURATE_NORMAL
 			// Compute normal using a ddx/ddy hack, hopefully the neighbooring particules will be close enough...
 			float3 WorldNormal = normalize(cross(ddx(WorldPosition), ddy(WorldPosition)));
-			WorldNormal *= sign(dot(View.WorldCameraOrigin - NewPosition, WorldNormal));
+			WorldNormal *= sign(dot(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - NewPosition, WorldNormal));
 #else //!FORWARD_SHADING_NORMAL_CALC
 			// Sample the normal buffer to create a plane to collide against.
 			float3 WorldNormal = Texture2DSampleLevel(SceneTexturesStruct.GBufferATexture, SceneTexturesStruct_GBufferATextureSampler, ScreenUV, 0).xyz * 2.0 - 1.0;

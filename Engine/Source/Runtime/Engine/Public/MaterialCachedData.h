@@ -146,6 +146,9 @@ struct FMaterialCachedParameters
 	TArray<FLinearColor> VectorValues;
 
 	UPROPERTY()
+	TArray<FVector4d> DoubleVectorValues;
+
+	UPROPERTY()
 	TArray<TObjectPtr<UTexture>> TextureValues;
 
 	UPROPERTY()

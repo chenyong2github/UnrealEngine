@@ -26,7 +26,7 @@ void ShaderDrawDebugVS(
 	float4 VertexPosition = float4(VertexId == 0 ? Item.Pos0 : Item.Pos1, 1.0f);
 	float4 VertexColor = VertexId == 0 ? Item.Color0 : Item.Color1;
 
-	Position = mul(VertexPosition, View.WorldToClip);
+	Position = mul(VertexPosition, LWCHackToFloat(PrimaryView.WorldToClip));
 	ColorAlpha = VertexColor;
 }
 #endif

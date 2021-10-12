@@ -65,8 +65,8 @@ void MarkRadianceProbesUsedByVisualizeCS(
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
 	// For visualize mode, generate probes around the camera position
-	uint ClipmapIndex = GetRadianceProbeClipmap(View.WorldCameraOrigin);
-	MarkPositionUsedInIndirectionTexture(View.WorldCameraOrigin, ClipmapIndex);
+	uint ClipmapIndex = GetRadianceProbeClipmap(LWCHackToFloat(PrimaryView.WorldCameraOrigin));
+	MarkPositionUsedInIndirectionTexture(LWCHackToFloat(PrimaryView.WorldCameraOrigin), ClipmapIndex);
 }
 
 Texture3D<uint> LastFrameRadianceProbeIndirectionTexture;
@@ -145,7 +145,7 @@ bool ShouldUpdateProbeThisFrame(uint ProbeIndex, float3 ProbeWorldPosition)
 	}
 #define PROBE_UPDATE_BASED_ON_VIEWER_DISTANCE 1
 #if PROBE_UPDATE_BASED_ON_VIEWER_DISTANCE
-	float DistanceFromViewerSq = dot(View.WorldCameraOrigin - ProbeWorldPosition, View.WorldCameraOrigin - ProbeWorldPosition);
+	float DistanceFromViewerSq = dot(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - ProbeWorldPosition, LWCHackToFloat(PrimaryView.WorldCameraOrigin) - ProbeWorldPosition);
 	uint ProbeUpdateFrequency = clamp((uint)pow(DistanceFromViewerSq * .001f, .25f), EffectiveProbesUpdateEveryNFrames, 100);
 
 	return ProbeIndex % ProbeUpdateFrequency == FrameNumber % ProbeUpdateFrequency;
@@ -548,7 +548,7 @@ void GenerateProbeTraceTilesCS(
 	uint ProbeIndex;
 	GetProbeTraceData(ProbeTraceIndex, ProbeWorldCenter, Unused, ProbeIndex);
 
-	float DistanceFromCameraSq = dot(View.WorldCameraOrigin - ProbeWorldCenter, View.WorldCameraOrigin - ProbeWorldCenter);
+	float DistanceFromCameraSq = dot(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - ProbeWorldCenter, LWCHackToFloat(PrimaryView.WorldCameraOrigin) - ProbeWorldCenter);
 
 
 #define DEBUG_UNIFORM_TRACES 0

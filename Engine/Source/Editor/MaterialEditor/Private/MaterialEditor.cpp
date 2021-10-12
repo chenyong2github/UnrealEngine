@@ -81,6 +81,7 @@
 #include "Materials/MaterialExpressionTextureSampleParameterSubUV.h"
 #include "Materials/MaterialExpressionTransformPosition.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
+#include "Materials/MaterialExpressionDoubleVectorParameter.h"
 #include "Materials/MaterialExpressionStaticBoolParameter.h"
 #include "Materials/MaterialFunction.h"
 #include "Materials/MaterialFunctionInstance.h"
@@ -3164,6 +3165,14 @@ void FMaterialEditor::BindCommands()
 		FExecuteAction::CreateSP(this, &FMaterialEditor::OnConvertObjects));
 
 	ToolkitCommands->MapAction(
+		Commands.PromoteToDouble,
+		FExecuteAction::CreateSP(this, &FMaterialEditor::OnPromoteObjects));
+
+	ToolkitCommands->MapAction(
+		Commands.PromoteToFloat,
+		FExecuteAction::CreateSP(this, &FMaterialEditor::OnPromoteObjects));
+
+	ToolkitCommands->MapAction(
 		Commands.ConvertToTextureObjects,
 		FExecuteAction::CreateSP(this, &FMaterialEditor::OnConvertTextures));
 
@@ -3573,6 +3582,98 @@ void FMaterialEditor::OnUseCurrentTexture()
 		RegenerateCodeView();
 		RefreshExpressionPreviews();
 		SetMaterialDirty();
+	}
+}
+
+void FMaterialEditor::OnPromoteObjects()
+{
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+	if (SelectedNodes.Num() > 0)
+	{
+		const FScopedTransaction Transaction(LOCTEXT("MaterialEditorPromote", "Material Editor: Promote"));
+		Material->Modify();
+		Material->MaterialGraph->Modify();
+		TArray<class UEdGraphNode*> NodesToDelete;
+		TArray<class UEdGraphNode*> NodesToSelect;
+
+		for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
+		{
+			UMaterialGraphNode* GraphNode = Cast<UMaterialGraphNode>(*NodeIt);
+			if (GraphNode)
+			{
+				// Look for the supported classes to convert from
+				UMaterialExpression* CurrentSelectedExpression = GraphNode->MaterialExpression;
+				UMaterialExpressionVectorParameter* VectorParameterExpression = Cast<UMaterialExpressionVectorParameter>(CurrentSelectedExpression);
+				UMaterialExpressionDoubleVectorParameter* DoubleVectorParameterExpression = Cast<UMaterialExpressionDoubleVectorParameter>(CurrentSelectedExpression);
+
+				// Setup the class to convert to
+				UClass* ClassToCreate = nullptr;
+				if (VectorParameterExpression)
+				{
+					ClassToCreate = UMaterialExpressionDoubleVectorParameter::StaticClass();
+				}
+				else if (DoubleVectorParameterExpression)
+				{
+					ClassToCreate = UMaterialExpressionVectorParameter::StaticClass();
+				}
+
+				if (ClassToCreate)
+				{
+					UMaterialExpression* NewExpression = CreateNewMaterialExpression(ClassToCreate, FVector2D(GraphNode->NodePosX, GraphNode->NodePosY), true, true);
+					if (NewExpression)
+					{
+						UMaterialGraphNode* NewGraphNode = CastChecked<UMaterialGraphNode>(NewExpression->GraphNode);
+						NewGraphNode->ReplaceNode(GraphNode);
+
+						bool bNeedsRefresh = false;
+
+						// Copy over any common values
+						if (GraphNode->NodeComment.Len() > 0)
+						{
+							bNeedsRefresh = true;
+							NewGraphNode->NodeComment = GraphNode->NodeComment;
+						}
+
+						// Copy over expression-specific values
+						NewExpression->SetParameterName(CurrentSelectedExpression->GetParameterName());
+						if (VectorParameterExpression)
+						{
+							bNeedsRefresh = true;
+							CastChecked<UMaterialExpressionDoubleVectorParameter>(NewExpression)->DefaultValue = FVector4d(VectorParameterExpression->DefaultValue);
+						}
+						else if (DoubleVectorParameterExpression)
+						{
+							bNeedsRefresh = true;
+							CastChecked<UMaterialExpressionVectorParameter>(NewExpression)->DefaultValue = FLinearColor(DoubleVectorParameterExpression->DefaultValue);
+						}
+
+						if (bNeedsRefresh)
+						{
+							// Refresh the expression preview if we changed its properties after it was created
+							NewExpression->bNeedToUpdatePreview = true;
+							RefreshExpressionPreview(NewExpression, true);
+
+							UpdateGenerator();
+						}
+
+						NodesToDelete.AddUnique(GraphNode);
+						NodesToSelect.Add(NewGraphNode);
+					}
+				}
+			}
+		}
+
+		// Delete the replaced nodes
+		DeleteNodes(NodesToDelete);
+
+		// Select each of the newly converted expressions
+		if (TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin())
+		{
+			for (TArray<UEdGraphNode*>::TConstIterator NodeIter(NodesToSelect); NodeIter; ++NodeIter)
+			{
+				FocusedGraphEd->SetNodeSelection(*NodeIter, true);
+			}
+		}
 	}
 }
 
@@ -6306,6 +6407,14 @@ TSharedRef<SGraphEditor> FMaterialEditor::CreateGraphEditorWidget(TSharedRef<cla
 		GraphEditorCommands->MapAction( FMaterialEditorCommands::Get().ConvertObjects,
 			FExecuteAction::CreateSP(this, &FMaterialEditor::OnConvertObjects)
 			);
+
+		GraphEditorCommands->MapAction(FMaterialEditorCommands::Get().PromoteToDouble,
+			FExecuteAction::CreateSP(this, &FMaterialEditor::OnPromoteObjects)
+		);
+
+		GraphEditorCommands->MapAction(FMaterialEditorCommands::Get().PromoteToFloat,
+			FExecuteAction::CreateSP(this, &FMaterialEditor::OnPromoteObjects)
+		);
 
 		GraphEditorCommands->MapAction( FMaterialEditorCommands::Get().ConvertToTextureObjects,
 			FExecuteAction::CreateSP(this, &FMaterialEditor::OnConvertTextures)

@@ -861,6 +861,8 @@ static const int32 GMaxNumReflectionCaptures = 341;
 /** Per-reflection capture data needed by the shader. */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FReflectionCaptureShaderData,)
 	SHADER_PARAMETER_ARRAY(FVector4f,PositionAndRadius,[GMaxNumReflectionCaptures])
+	// W is unused
+	SHADER_PARAMETER_ARRAY(FVector4f,TilePosition,[GMaxNumReflectionCaptures])
 	// R is brightness, G is array index, B is shape
 	SHADER_PARAMETER_ARRAY(FVector4f,CaptureProperties,[GMaxNumReflectionCaptures])
 	SHADER_PARAMETER_ARRAY(FVector4f,CaptureOffsetAndAverageBrightness,[GMaxNumReflectionCaptures])

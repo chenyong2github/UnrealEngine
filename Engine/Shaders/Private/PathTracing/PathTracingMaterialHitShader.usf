@@ -54,7 +54,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 
 	{
 		float4 ScreenPosition = SvPositionToResolvedScreenPosition(SvPosition);
-		float3 TranslatedWorldPosition = WorldRayOrigin() + WorldRayDirection() * RayTCurrent() + ResolvedView.PreViewTranslation.xyz;
+		float3 TranslatedWorldPosition = WorldRayOrigin() + WorldRayDirection() * RayTCurrent() + LWCHackToFloat(ResolvedView.PreViewTranslation);
 
 		bool bIsFrontFace = HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE;
 
@@ -121,7 +121,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	/**
 	 * Set material attributes for full materials
 	 **/
-	Payload.WorldPos = MaterialParameters.AbsoluteWorldPosition;
+	Payload.WorldPos = LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition);
 	// Because the geometric normal is computed directly in world space
 	// it doesn't reflect the sign flip from the object transform, so apply it here
 	float GeoNormalSign = MaterialParameters.TwoSidedSign * GetPrimitive_DeterminantSign(MaterialParameters.PrimitiveId);
@@ -282,7 +282,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	{
 		Payload.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
 	}
-	Payload.WorldPos = MaterialParameters.AbsoluteWorldPosition;
+	Payload.WorldPos = LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition);
 	Payload.WorldNormal = normalize(MaterialParameters.WorldNormal);
 	Payload.Radiance = GetMaterialEmissive(PixelMaterialInputs);
 	Payload.BaseColor = BaseColor;
@@ -356,7 +356,7 @@ RAY_TRACING_ENTRY_ANY_HIT(PathTracingMaterialAHS,
 
 	{
 		float4 ScreenPosition = SvPositionToResolvedScreenPosition(SvPosition);
-		float3 TranslatedWorldPosition = WorldRayOrigin() + WorldRayDirection() * RayTCurrent() + ResolvedView.PreViewTranslation.xyz;
+		float3 TranslatedWorldPosition = WorldRayOrigin() + WorldRayDirection() * RayTCurrent() + LWCHackToFloat(ResolvedView.PreViewTranslation);
 
 		MaterialParameters.CameraVector = -WorldRayDirection();
 

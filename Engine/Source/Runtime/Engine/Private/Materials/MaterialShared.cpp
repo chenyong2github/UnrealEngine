@@ -4101,9 +4101,12 @@ int32 UMaterialInterface::CompileProperty(FMaterialCompiler* Compiler, EMaterial
 		Result = FMaterialAttributeDefinitionMap::CompileDefaultExpression(Compiler, Property);
 	}
 
-	if (ForceCastFlags & MFCF_ForceCast)
+	// Cast is always required to go between float and LWC
+	const EMaterialValueType ResultType = Compiler->GetParameterType(Result);
+	const EMaterialValueType PropertyType = FMaterialAttributeDefinitionMap::GetValueType(Property);
+	if ((ForceCastFlags & MFCF_ForceCast) || IsLWCType(ResultType) != IsLWCType(PropertyType))
 	{
-		Result = Compiler->ForceCast(Result, FMaterialAttributeDefinitionMap::GetValueType(Property), ForceCastFlags);
+		Result = Compiler->ForceCast(Result, PropertyType, ForceCastFlags);
 	}
 
 	return Result;
@@ -4999,6 +5002,7 @@ FMaterialParameterValue::FMaterialParameterValue(EMaterialParameterType InType, 
 	{
 	case EMaterialParameterType::Scalar: *this = InValue.AsFloatScalar(); break;
 	case EMaterialParameterType::Vector: *this = InValue.AsLinearColor(); break;
+	case EMaterialParameterType::DoubleVector: *this = InValue.AsVector4d(); break;
 	case EMaterialParameterType::StaticSwitch: *this = InValue.AsBoolScalar(); break;
 	case EMaterialParameterType::StaticComponentMask:
 	{
@@ -5016,6 +5020,7 @@ UE::Shader::FValue FMaterialParameterValue::AsShaderValue() const
 	{
 	case EMaterialParameterType::Scalar: return Float[0];
 	case EMaterialParameterType::Vector: return UE::Shader::FValue(Float[0], Float[1], Float[2], Float[3]);
+	case EMaterialParameterType::DoubleVector: return UE::Shader::FValue(Double[0], Double[1], Double[2], Double[3]);
 	case EMaterialParameterType::StaticSwitch: return Bool[0];
 	case EMaterialParameterType::StaticComponentMask: return UE::Shader::FValue(Bool[0], Bool[1], Bool[2], Bool[3]);
 	case EMaterialParameterType::Texture:
@@ -5035,6 +5040,7 @@ UE::Shader::EValueType GetShaderValueType(EMaterialParameterType Type)
 	{
 	case EMaterialParameterType::Scalar: return UE::Shader::EValueType::Float1;
 	case EMaterialParameterType::Vector: return UE::Shader::EValueType::Float4;
+	case EMaterialParameterType::DoubleVector: return UE::Shader::EValueType::Double4;
 	case EMaterialParameterType::StaticSwitch: return UE::Shader::EValueType::Bool1;
 	case EMaterialParameterType::StaticComponentMask: return UE::Shader::EValueType::Bool4;
 	case EMaterialParameterType::Texture:

@@ -209,7 +209,7 @@ float3 GetTranslucencyVolumeLighting(
 	float3 InnerVolumeUVs;
 	float3 OuterVolumeUVs;
 	float FinalLerpFactor;
-	ComputeVolumeUVs(MaterialParameters.AbsoluteWorldPosition, MaterialParameters.LightingPositionOffset, InnerVolumeUVs, OuterVolumeUVs, FinalLerpFactor);
+	ComputeVolumeUVs(LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition), MaterialParameters.LightingPositionOffset, InnerVolumeUVs, OuterVolumeUVs, FinalLerpFactor);
 
 	#if TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_DIRECTIONAL
 
@@ -239,7 +239,7 @@ float3 GetTranslucencyVolumeLighting(
 		{
 			// Determine the shadow space position
 			// Apply a stable offset to the world position used for shadowing, which blurs out high frequency details in the shadowmap with many layers
-			float4 HomogeneousShadowPosition = mul(float4(MaterialParameters.AbsoluteWorldPosition + MaterialParameters.LightingPositionOffset, 1), TranslucentSelfShadow.WorldToShadowMatrix);
+			float4 HomogeneousShadowPosition = mul(float4(LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition) + MaterialParameters.LightingPositionOffset, 1), TranslucentSelfShadow.WorldToShadowMatrix);
 			float2 ShadowUVs = HomogeneousShadowPosition.xy / HomogeneousShadowPosition.w;
 			// Lookup the shadow density at the point being shaded
 			float3 ShadowDensity = CalculateTranslucencyShadowingDensity(ShadowUVs, HomogeneousShadowPosition.z) / GetMaterialTranslucentMultipleScatteringExtinction();
@@ -495,7 +495,7 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 		if (View.IndirectLightingCacheShowFlag > 0.0f)
 		{
 			// Compute volume texture UVs from world position
-			float3 VolumeUVs = MaterialParameters.AbsoluteWorldPosition * IndirectLightingCache.IndirectLightingCachePrimitiveScale + IndirectLightingCache.IndirectLightingCachePrimitiveAdd;
+			float3 VolumeUVs = LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition) * IndirectLightingCache.IndirectLightingCachePrimitiveScale + IndirectLightingCache.IndirectLightingCachePrimitiveAdd;
 			// Clamp UV to be within the valid region
 			// Pixels outside of the object's bounding box would read garbage otherwise
 			VolumeUVs = clamp(VolumeUVs, IndirectLightingCache.IndirectLightingCacheMinUV, IndirectLightingCache.IndirectLightingCacheMaxUV);
@@ -1044,7 +1044,7 @@ void FPixelShaderInOut_MainPS(
 	float3 VolumetricLightmapBrickTextureUVs;
 
 #if PRECOMPUTED_IRRADIANCE_VOLUME_LIGHTING
-	VolumetricLightmapBrickTextureUVs = ComputeVolumetricLightmapBrickTextureUVs(MaterialParameters.AbsoluteWorldPosition);
+	VolumetricLightmapBrickTextureUVs = ComputeVolumetricLightmapBrickTextureUVs(LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition));
 #endif
 
 	FGBufferData GBuffer = (FGBufferData)0;
@@ -1174,7 +1174,7 @@ void FPixelShaderInOut_MainPS(
 
 	#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION && !MATERIAL_SHADINGMODEL_UNLIT && NUM_MATERIAL_OUTPUTS_GETBENTNORMAL > 0
 	{
-		float3 V = normalize(View.WorldCameraOrigin - MaterialParameters.AbsoluteWorldPosition);
+		float3 V = normalize(PrimaryView.TranslatedWorldCameraOrigin - MaterialParameters.WorldPosition_CamRelative);
 		float3 N = GBuffer.WorldNormal;
 
 		#if MATERIAL_TANGENTSPACENORMAL
@@ -1301,7 +1301,7 @@ void FPixelShaderInOut_MainPS(
 				GridIndex = ComputeLightGridCellIndex((uint2)((MaterialParameters.SvPosition.xy - ResolvedView.ViewRectMin.xy) * View.LightProbeSizeRatioAndInvSizeRatio.zw), MaterialParameters.SvPosition.w, EyeIndex);
 
 				#if FORWARD_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
-					FDeferredLightingSplit ForwardDirectLighting = GetForwardDirectLightingSplit(GridIndex, MaterialParameters.AbsoluteWorldPosition, MaterialParameters.CameraVector, GBuffer, NearestResolvedDepthScreenUV, MaterialParameters.PrimitiveId, EyeIndex, Dither, DirectionalLightShadow);
+					FDeferredLightingSplit ForwardDirectLighting = GetForwardDirectLightingSplit(GridIndex, LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition), MaterialParameters.CameraVector, GBuffer, NearestResolvedDepthScreenUV, MaterialParameters.PrimitiveId, EyeIndex, Dither, DirectionalLightShadow);
 					
 					#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
 						DiffuseColor += ForwardDirectLighting.DiffuseLighting.rgb;
@@ -1382,7 +1382,7 @@ void FPixelShaderInOut_MainPS(
 
 #if NEEDS_BASEPASS_PIXEL_FOGGING
 	const float OneOverPreExposure = ResolvedView.OneOverPreExposure;
-	float4 NDCPosition = mul(float4(MaterialParameters.AbsoluteWorldPosition.xyz, 1), ResolvedView.WorldToClip);
+	float4 NDCPosition = mul(float4(MaterialParameters.WorldPosition_CamRelative.xyz, 1.0f), ResolvedView.TranslatedWorldToClip);
 #endif
 
 #if NEEDS_BASEPASS_PIXEL_FOGGING && PROJECT_SUPPORT_SKY_ATMOSPHERE && MATERIAL_IS_SKY==0 // Do not apply aerial perpsective on sky materials
@@ -1391,7 +1391,7 @@ void FPixelShaderInOut_MainPS(
 		// Sample the aerial perspective (AP).
 		Fogging = GetAerialPerspectiveLuminanceTransmittanceWithFogOver(
 			ResolvedView.RealTimeReflectionCapture, ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeSizeAndInvSize,
-			NDCPosition, MaterialParameters.AbsoluteWorldPosition.xyz*CM_TO_SKY_UNIT, ResolvedView.WorldCameraOrigin.xyz*CM_TO_SKY_UNIT,
+			NDCPosition, LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition)*CM_TO_SKY_UNIT, LWCHackToFloat(ResolvedView.WorldCameraOrigin)*CM_TO_SKY_UNIT,
 			View.CameraAerialPerspectiveVolume, View.CameraAerialPerspectiveVolumeSampler,
 			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
 			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolution,
@@ -1407,7 +1407,7 @@ void FPixelShaderInOut_MainPS(
 	if (TranslucentBasePass.ApplyVolumetricCloudOnTransparent > 0.0f)
 	{
 		Fogging = GetCloudLuminanceTransmittanceOverFog(
-			NDCPosition, MaterialParameters.AbsoluteWorldPosition.xyz, ResolvedView.WorldCameraOrigin.xyz,
+			NDCPosition, LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition), LWCHackToFloat(ResolvedView.WorldCameraOrigin),
 			TranslucentBasePass.VolumetricCloudColor, TranslucentBasePass.VolumetricCloudColorSampler,
 			TranslucentBasePass.VolumetricCloudDepth, TranslucentBasePass.VolumetricCloudDepthSampler,
 			OneOverPreExposure, Fogging);
@@ -1451,9 +1451,9 @@ void FPixelShaderInOut_MainPS(
 					GetPrimitiveData(MaterialParameters).ObjectBoundsZ
 				);
 
-			if (any(abs(MaterialParameters.AbsoluteWorldPosition - GetPrimitiveData(MaterialParameters).ObjectWorldPositionAndRadius.xyz) > ObjectBounds + 1))
+			if (any(abs(LWCToFloat(LWCSubtract(MaterialParameters.AbsoluteWorldPosition, GetPrimitiveData(MaterialParameters).ObjectWorldPosition))) > ObjectBounds + 1))
 			{
-				float Gradient = frac(dot(MaterialParameters.AbsoluteWorldPosition, float3(.577f, .577f, .577f)) / 500.0f);
+				float Gradient = LWCFrac(LWCDivide(LWCDot(MaterialParameters.AbsoluteWorldPosition, float3(.577f, .577f, .577f)), 500.0f));
 				Emissive = lerp(float3(1,1,0), float3(0,1,1), Gradient.xxx > .5f);
 				Opacity = 1;
 			}

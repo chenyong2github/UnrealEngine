@@ -132,7 +132,7 @@ void Main(
 
 	float4 ScreenPosition = float4(((ScreenUV.xy - View.ScreenPositionScaleBias.wz ) / View.ScreenPositionScaleBias.xy) * SceneW, SceneW, 1);
 	float4 ShadowPosition = mul(ScreenPosition, ScreenToShadowMatrix);
-	float3 WorldPosition = mul(ScreenPosition, View.ScreenToWorld).xyz;
+	float3 TranslateWorldPosition = mul(ScreenPosition, View.ScreenToTranslatedWorld).xyz;
 
 	float ShadowZ = 1 - ShadowPosition.z;
 	ShadowPosition.xyz /= ShadowPosition.w;
@@ -188,7 +188,7 @@ void Main(
 		#if SPOT_LIGHT_PCSS
 		{
 			float CotanOuterCone = DeferredLightUniforms.SpotAngles.x * rsqrt(1. - DeferredLightUniforms.SpotAngles.x * DeferredLightUniforms.SpotAngles.x);
-			float WorldLightDistance = dot(DeferredLightUniforms.Direction, DeferredLightUniforms.Position - WorldPosition);
+			float WorldLightDistance = dot(DeferredLightUniforms.Direction, GetDeferredLightTranslatedWorldPosition() - TranslateWorldPosition);
 			Settings.ProjectedSourceRadius = 0.5 * DeferredLightUniforms.SourceRadius * CotanOuterCone / WorldLightDistance;
 			Settings.TanLightSourceAngle = 0;
 		}
@@ -216,7 +216,7 @@ void Main(
 		#if SHADING_PATH_DEFERRED && !FORWARD_SHADING && !SUBPIXEL_SHADOW
 			// Attenuate soft transition based on the angle with the light and the shading normal (acts as a receiver bias)
 			const bool bIsDirectional = LightPositionOrDirection.w == 0;
-			const float3 LightDirection = bIsDirectional ? -LightPositionOrDirection.xyz : normalize(LightPositionOrDirection.xyz - WorldPosition);
+			const float3 LightDirection = bIsDirectional ? -LightPositionOrDirection.xyz : normalize(LightPositionOrDirection.xyz - TranslateWorldPosition);
 
 		#if STRATA_ENABLED
 			const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerNormalTexture.Load(uint3(SVPos.xy, 0)));
@@ -352,7 +352,7 @@ void Main(
 	float FadedShadow = lerp(1.0f, Square(Shadow), ShadowFadeFraction * PerObjectDistanceFadeFraction);
 
 #if FORWARD_SHADING
-	float LightInfluenceMask = GetLightInfluenceMask(WorldPosition);
+	float LightInfluenceMask = GetLightInfluenceMaskTWS(TranslateWorldPosition);
 	// Constrain shadowing from this light to pixels inside the light's influence, since other non-overlapping lights are packed into the same channel
 	FadedShadow = lerp(1, FadedShadow, LightInfluenceMask);
 	// Write into all channels, the write mask will constrain to the correct one
@@ -409,11 +409,11 @@ void MainOnePassPointLightPS(
 #endif
 
 	float2 ScreenPosition = ( ScreenUV.xy - View.ScreenPositionScaleBias.wz ) / View.ScreenPositionScaleBias.xy;
-	float3 WorldPosition = mul(float4(ScreenPosition.xy * SceneW, SceneW, 1), View.ScreenToWorld).xyz;
+	float3 TranslateWorldPosition = mul(float4(ScreenPosition.xy * SceneW, SceneW, 1), View.ScreenToTranslatedWorld).xyz;
 
 	// For debugging
 #define OUTPUT_CUBE_SHADOW_DEPTH_NO_FILTERING 0
-	float3 WorldSampleToLightVec = LightPositionAndInvRadius.xyz - WorldPosition.xyz;
+	float3 WorldSampleToLightVec = LightPositionAndInvRadius.xyz - TranslateWorldPosition.xyz;
 #if OUTPUT_CUBE_SHADOW_DEPTH_NO_FILTERING
 	// Note: point light shadow depth is Z / W, not linear
 #if OPENGL_PROFILE || COMPILER_VULKAN || COMPILER_SWITCH
@@ -442,7 +442,7 @@ void MainOnePassPointLightPS(
 	}
 #endif
 
-	float Shadow = CubemapHardwarePCF(WorldPosition, LightPositionAndInvRadius.xyz, LightPositionAndInvRadius.w, PointLightDepthBias.x, SlopeBias, PointLightDepthBias.z);
+	float Shadow = CubemapHardwarePCF(TranslateWorldPosition, LightPositionAndInvRadius.xyz, LightPositionAndInvRadius.w, PointLightDepthBias.x, SlopeBias, PointLightDepthBias.z);
 
 	Shadow = saturate( (Shadow - 0.5) * ShadowSharpen + 0.5 );
 #endif
@@ -450,7 +450,7 @@ void MainOnePassPointLightPS(
 	float FadedShadow = lerp(1.0f, Square(Shadow), ShadowFadeFraction);
 
 #if FORWARD_SHADING
-	float LightInfluenceMask = GetLightInfluenceMask(WorldPosition);
+	float LightInfluenceMask = GetLightInfluenceMaskTWS(TranslateWorldPosition);
 	FadedShadow = lerp(1, FadedShadow, LightInfluenceMask);
 	OutColor = EncodeLightAttenuation(FadedShadow);
 #else

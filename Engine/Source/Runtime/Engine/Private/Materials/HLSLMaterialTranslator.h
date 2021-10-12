@@ -208,6 +208,17 @@ struct FMaterialLocalVariableEntry
 	int32 DeclarationCodeIndex = INDEX_NONE;
 };
 
+enum class EMaterialCastFlags : uint32
+{
+	None = 0u,
+	ReplicateScalar = (1u << 0),
+	AllowTruncate = (1u << 1),
+	AllowAppendZeroes = (1u << 2),
+
+	ValidCast = ReplicateScalar | AllowTruncate,
+};
+ENUM_CLASS_FLAGS(EMaterialCastFlags);
+
 class FHLSLMaterialTranslator : public FMaterialCompiler
 {
 	friend class FMaterialDerivativeAutogen;
@@ -273,12 +284,10 @@ protected:
 
 	// Uniform expressions used across all material properties
 	TArray<FShaderCodeChunk> UniformExpressions;
-
-	TArray<TRefCountPtr<FMaterialUniformExpression> > UniformVectorExpressions;
-	TArray<TRefCountPtr<FMaterialUniformExpression> > UniformScalarExpressions;
 	TArray<TRefCountPtr<FMaterialUniformExpressionTexture> > UniformTextureExpressions[NumMaterialTextureParameterTypes];
 	TArray<TRefCountPtr<FMaterialUniformExpressionExternalTexture>> UniformExternalTextureExpressions;
 	TMap<UE::Shader::FValue, uint32> DefaultUniformValues;
+	uint32 UniformPreshaderOffset = 0u;
 
 	/** Parameter collections referenced by this material.  The position in this array is used as an index on the shader parameter. */
 	TArray<UMaterialParameterCollection*> ParameterCollections;
@@ -536,8 +545,13 @@ public:
 	int32 AddCodeChunkInnerDeriv(const TCHAR* FormattedCodeFinite, const TCHAR* FormattedCodeAnalytic, EMaterialValueType Type, bool bInlined, EDerivativeStatus DerivativeStatus);
 	int32 AddCodeChunkInnerDeriv(const TCHAR* FormattedCode, EMaterialValueType Type, bool bInlined, EDerivativeStatus DerivativeStatus);
 
+	FString CastValue(const FString& Code, EMaterialValueType SourceType, EMaterialValueType DestType, EMaterialCastFlags Flags);
+
 	// CoerceParameter
 	FString CoerceParameter(int32 Index, EMaterialValueType DestType);
+	FString CoerceValue(const FString& Code, EMaterialValueType SourceType, EMaterialValueType DestType);
+
+	int32 CastToNonLWCIfDisabled(int32 Code);
 
 	EMaterialValueType GetArithmeticResultType(int32 A, int32 B);
 
@@ -686,6 +700,7 @@ protected:
 	virtual int32 Constant2(float X, float Y) override;
 	virtual int32 Constant3(float X, float Y, float Z) override;
 	virtual int32 Constant4(float X, float Y, float Z, float W) override;
+	virtual int32 GenericConstant(const UE::Shader::FValue& Value) override;
 	
 	virtual int32 ViewProperty(EMaterialExposedViewProperty Property, bool InvProperty) override;
 
@@ -871,6 +886,7 @@ protected:
 	virtual int32 Logarithm10(int32 X) override;
 	virtual int32 SquareRoot(int32 X) override;
 	virtual int32 Length(int32 X) override;
+	virtual int32 Normalize(int32 X) override;
 	virtual int32 Step(int32 Y, int32 X) override;
 	virtual int32 SmoothStep(int32 X, int32 Y, int32 A) override;
 	virtual int32 InvLerp(int32 X, int32 Y, int32 A) override;
@@ -909,6 +925,8 @@ protected:
 	virtual int32 PixelNormalWS() override;
 	virtual int32 DDX(int32 A) override;
 	virtual int32 DDY(int32 A) override;
+
+	int32 Derivative(int32 A, const TCHAR* Component);
 
 	virtual int32 AntialiasedTextureMask(int32 Tex, int32 UV, float Threshold, uint8 Channel) override;
 	virtual int32 DepthOfFieldFunction(int32 Depth, int32 FunctionValueIndex) override;

@@ -29,18 +29,57 @@ inline bool IsDerivativeValid(EDerivativeStatus Status)
 	return Status == EDerivativeStatus::Valid || Status == EDerivativeStatus::Zero;
 }
 
-inline bool IsDerivTypeIndexValid(int32 DerivTypeIndex)
+enum class EDerivativeType
 {
-	return (uint32)DerivTypeIndex < 4u;
+	None = -1,
+	Float1 = 0,
+	Float2,
+	Float3,
+	Float4,
+	LWCScalar,
+	LWCVector2,
+	LWCVector3,
+	LWCVector4,
+	Num,
+};
+static const int32 NumDerivativeTypes = (int32)EDerivativeType::Num;
+
+inline bool IsLWCType(EDerivativeType Type)
+{
+	return (int32)Type >= (int32)EDerivativeType::LWCScalar;
 }
 
-int32 GetDerivTypeIndex(EMaterialValueType ValueType, bool bAllowNonFloat = false);
+inline EDerivativeType MakeNonLWCType(EDerivativeType Type)
+{
+	switch (Type)
+	{
+	case EDerivativeType::LWCScalar: return EDerivativeType::Float1;
+	case EDerivativeType::LWCVector2: return EDerivativeType::Float2;
+	case EDerivativeType::LWCVector3: return EDerivativeType::Float3;
+	case EDerivativeType::LWCVector4: return EDerivativeType::Float4;
+	default: return Type;
+	}
+}
+
+inline EDerivativeType MakeLWCType(EDerivativeType Type)
+{
+	switch (Type)
+	{
+	case EDerivativeType::Float1: return EDerivativeType::LWCScalar;
+	case EDerivativeType::Float2: return EDerivativeType::LWCVector2;
+	case EDerivativeType::Float3: return EDerivativeType::LWCVector3;
+	case EDerivativeType::Float4: return EDerivativeType::LWCVector4;
+	default: return Type;
+	}
+}
+
+EDerivativeType GetDerivType(EMaterialValueType ValueType, bool bAllowNonFloat = false);
 
 
 struct FDerivInfo
 {
 	EMaterialValueType	Type;
-	int32				TypeIndex;
+	EDerivativeType		DerivType;
 	EDerivativeStatus	DerivativeStatus;
 };
 
@@ -104,36 +143,55 @@ public:
 
 	FString ApplyUnMirror(FString Value, bool bUnMirrorU, bool bUnMirrorV);
 
-	FString ConstructDeriv(const FString& Value, const FString& Ddx, const FString& Ddy, int32 DstType);
-	FString ConstructDerivFinite(const FString& Value, int32 DstType);
+	FString ConstructDeriv(const FString& Value, const FString& Ddx, const FString& Ddy, EDerivativeType DstType);
+	FString ConstructDerivFinite(const FString& Value, EDerivativeType DstType);
 
-	FString ConvertDeriv(const FString& Value, int32 DstType, int32 SrcType);
+	FString ConvertDeriv(const FString& Value, EDerivativeType DstType, EDerivativeType SrcType);
 
 private:
-	// Note that the type index is from [0,3] for float1 to float4. I.e. A float3 would be index 2.
-	static int32 GetFunc1ReturnNumComponents(int32 SrcTypeIndex, EFunc1 Op);
-	static int32 GetFunc2ReturnNumComponents(int32 LhsTypeIndex, int32 RhsTypeIndex, EFunc2 Op);
+	struct FOperationType1
+	{
+		FOperationType1(EDerivativeType InType) : ReturnType(InType), IntermediateType(InType) {}
+		FOperationType1(EDerivativeType InReturnType, EDerivativeType InIntermediateType) : ReturnType(InReturnType), IntermediateType(InIntermediateType) {}
 
-	FString CoerceValueRaw(FHLSLMaterialTranslator& Translator, const FString& Token, int32 SrcType, EDerivativeStatus SrcStatus, int32 DstType);
-	FString CoerceValueDeriv(const FString& Token, int32 SrcType, EDerivativeStatus SrcStatus, int32 DstType);
+		EDerivativeType ReturnType; // type of the result
+		EDerivativeType IntermediateType; // type of the inputs (may need to implicitly convert to this type before the operation)
+	};
+
+	struct FOperationType2
+	{
+		FOperationType2(EDerivativeType InType) : ReturnType(InType), LhsIntermediateType(InType), RhsIntermediateType(InType) {}
+		FOperationType2(EDerivativeType InReturnType, EDerivativeType InIntermediateType) : ReturnType(InReturnType), LhsIntermediateType(InIntermediateType), RhsIntermediateType(InIntermediateType) {}
+		FOperationType2(EDerivativeType InReturnType, EDerivativeType InLhsIntermediateType, EDerivativeType InRhsIntermediateType) : ReturnType(InReturnType), LhsIntermediateType(InLhsIntermediateType), RhsIntermediateType(InRhsIntermediateType) {}
+
+		EDerivativeType ReturnType; // type of the result
+		EDerivativeType LhsIntermediateType; // type of the inputs (may need to implicitly convert to this type before the operation)
+		EDerivativeType RhsIntermediateType; // type of the inputs (may need to implicitly convert to this type before the operation)
+	};
+
+	static FOperationType1 GetFunc1ReturnType(EDerivativeType SrcType, EFunc1 Op);
+	static FOperationType2 GetFunc2ReturnType(EDerivativeType LhsType, EDerivativeType RhsType, EFunc2 Op);
+
+	FString CoerceValueRaw(FHLSLMaterialTranslator& Translator, const FString& Token, const FDerivInfo& SrcInfo, EDerivativeType DstType);
+	FString CoerceValueDeriv(const FString& Token, const FDerivInfo& SrcInfo, EDerivativeType DstType);
 
 	void EnableGeneratedDepencencies();
 
 	// State to keep track of which derivative functions have been used and need to be generated.
-	bool bFunc1OpIsEnabled[(int32)EFunc1::Num][4] = {};
-	bool bFunc2OpIsEnabled[(int32)EFunc2::Num][4] = {};
+	bool bFunc1OpIsEnabled[(int32)EFunc1::Num][NumDerivativeTypes] = {};
+	bool bFunc2OpIsEnabled[(int32)EFunc2::Num][NumDerivativeTypes] = {};
 
-	bool bConstructDerivEnabled[4] = {};
-	bool bConstructConstantDerivEnabled[4] = {};
-	bool bConstructFiniteDerivEnabled[4] = {};
+	bool bConstructDerivEnabled[NumDerivativeTypes] = {};
+	bool bConstructConstantDerivEnabled[NumDerivativeTypes] = {};
+	bool bConstructFiniteDerivEnabled[NumDerivativeTypes] = {};
 
-	bool bConvertDerivEnabled[4][4] = {};
+	bool bConvertDerivEnabled[NumDerivativeTypes][NumDerivativeTypes] = {};
 
-	bool bExtractIndexEnabled[4] = {};
+	bool bExtractIndexEnabled[NumDerivativeTypes] = {};
 
-	bool bIfEnabled[4] = {};
-	bool bIf2Enabled[4] = {};
-	bool bLerpEnabled[4] = {};
+	bool bIfEnabled[NumDerivativeTypes] = {};
+	bool bIf2Enabled[NumDerivativeTypes] = {};
+	bool bLerpEnabled[NumDerivativeTypes] = {};
 	bool bRotateScaleOffsetTexCoords = false;
 	bool bUnMirrorEnabled[2][2] = {};
 	

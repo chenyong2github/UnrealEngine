@@ -61,7 +61,8 @@ void CullObjectsForViewCS(
 
 		FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
 
-		float DistanceToViewSq = dot(View.WorldCameraOrigin - DFObjectBounds.Center, View.WorldCameraOrigin - DFObjectBounds.Center);
+		float3 WorldCameraOrigin = LWCHackToFloat(PrimaryView.WorldCameraOrigin);
+		float DistanceToViewSq = dot(WorldCameraOrigin - DFObjectBounds.Center, WorldCameraOrigin - DFObjectBounds.Center);
 
 		if (DistanceToViewSq < Square(AOMaxViewDistance + DFObjectBounds.SphereRadius)
 			&& ViewFrustumIntersectSphere(DFObjectBounds.Center, DFObjectBounds.SphereRadius + AOObjectMaxDistance))
@@ -263,7 +264,7 @@ void ObjectCullVS(
 	//@todo - expand to handle conservative rasterization
 	float EffectiveRadius = (ObjectPositionAndRadius.w + AOObjectMaxDistance) * ConservativeRadiusScale;
 	float3 WorldPosition = InPosition.xyz * EffectiveRadius + ObjectPositionAndRadius.xyz;
-	OutPosition = mul(float4(WorldPosition, 1), View.WorldToClip);
+	OutPosition = mul(float4(WorldPosition, 1), LWCHackToFloat(PrimaryView.WorldToClip));
 	Output.PositionAndRadius = ObjectPositionAndRadius;
 	Output.ObjectIndex = ObjectIndex;
 } 
@@ -287,7 +288,7 @@ bool IntersectObjectWithConeDepthRange(
 
 		// Use the position halfway between the depth ranges as the center for the bounding sphere of this tile depth range
 		float3 ViewTileBoundingSphereCenter = TileConeVertex + TileConeAxis * (.5f * (ConeDepthRange.x + ConeDepthRange.y));
-		float3 WorldTileBoundingSphereCenter = mul(float4(ViewTileBoundingSphereCenter.xyz, 1), View.ViewToTranslatedWorld).xyz - View.PreViewTranslation.xyz;
+		float3 WorldTileBoundingSphereCenter = mul(float4(ViewTileBoundingSphereCenter.xyz, 1), View.ViewToTranslatedWorld).xyz - LWCHackToFloat(PrimaryView.PreViewTranslation);
 		float DistanceAlongAxis = .5f * (ConeDepthRange.y - ConeDepthRange.x);
 		float FarDepthDistanceToEdgeOfCone = ConeDepthRange.y * TileConeAngleSin / TileConeAngleCos;
 		float TileBoundingSphereRadius = sqrt(DistanceAlongAxis * DistanceAlongAxis + FarDepthDistanceToEdgeOfCone * FarDepthDistanceToEdgeOfCone);
@@ -342,7 +343,7 @@ void ObjectCullPS(
 	float TileConeAngleSin = sqrt(1 - TileConeAngleCos * TileConeAngleCos);
 
 	float4 WorldSphereCenterAndRadius = Input.PositionAndRadius;
-	float3 ViewSpaceSphereCenter = mul(float4(WorldSphereCenterAndRadius.xyz + View.PreViewTranslation.xyz, 1), View.TranslatedWorldToView).xyz;
+	float3 ViewSpaceSphereCenter = mul(float4(WorldSphereCenterAndRadius.xyz + LWCHackToFloat(PrimaryView.PreViewTranslation), 1), View.TranslatedWorldToView).xyz;
 	
 	// A value of 1 is conservative, but has a huge impact on performance
 	float RadiusScale = .5f;

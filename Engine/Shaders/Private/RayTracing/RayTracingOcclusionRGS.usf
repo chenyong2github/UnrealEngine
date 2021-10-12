@@ -519,7 +519,7 @@ FOcclusionResult ComputeOcclusion(
 
 		// Fix light sampling to occur at the light center for all transmission computations..
 		float2 LightSample = 0.5;
-		const float3 V = normalize(WorldPosition - View.WorldViewOrigin);
+		const float3 V = normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldViewOrigin));
 
 		const float MeanFreePath = TransmissionProfileParams.ExtinctionScale;
 		const float Eta = TransmissionProfileParams.OneOverIOR;
@@ -537,7 +537,7 @@ FOcclusionResult ComputeOcclusion(
 	}
 	else if (ShadingModelID == SHADINGMODELID_SUBSURFACE || ShadingModelID == SHADINGMODELID_HAIR)
 	{
-		float Depth = length(WorldPosition - View.WorldCameraOrigin);
+		float Depth = length(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
 		float Range = LODTransitionEnd - LODTransitionStart;
 		if (Depth > LODTransitionStart && Range > 0.0)
 		{

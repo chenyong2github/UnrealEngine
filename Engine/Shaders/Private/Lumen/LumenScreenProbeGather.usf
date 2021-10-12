@@ -980,7 +980,7 @@ void ScreenProbeIntegrateCS(
 			float Epsilon = .01f;
 			InterpolationWeights /= max(dot(InterpolationWeights, 1), Epsilon);
 
-			float3 V = normalize(View.WorldCameraOrigin - WorldPosition);
+			float3 V = normalize(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - WorldPosition);
 			float3 UnitBentNormal = GBufferData.WorldNormal;
 			float AO = 1.0f;
 			float3 DiffuseLighting = 0;

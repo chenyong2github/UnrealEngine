@@ -83,7 +83,7 @@ FScreenPixelData GetScreenPixelData(uint2 PixelPos, float DeviceZ)
 	const float3 TranslatedWorldPosition = SvPositionToTranslatedWorld( SvPosition );
 
 	// Subtract the view pre-translation to get back to world space
-	Data.WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
+	Data.WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
 
 	return Data;
 }

@@ -508,6 +508,7 @@ void TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>::GetShaderBindings
 			// set reflection parameters
 			FTexture* ReflectionCubemapTextures[MaxNumReflections] = { GBlackTextureCube, GBlackTextureCube, GBlackTextureCube };
 			FVector4f CapturePositions[MaxNumReflections] = { FVector4f(0, 0, 0, 0), FVector4f(0, 0, 0, 0), FVector4f(0, 0, 0, 0) };
+			FVector4f CaptureTilePositions[MaxNumReflections] = { FVector4f(0, 0, 0, 0), FVector4f(0, 0, 0, 0), FVector4f(0, 0, 0, 0) };
 			FVector4f ReflectionParams(0.0f, 0.0f, 0.0f, 0.0f);
 			FVector4f ReflectanceMaxValueRGBMParams(0.0f, 0.0f, 0.0f, 0.0f);
 			FMatrix44f CaptureBoxTransformArray[MaxNumReflections] = { FMatrix44f(EForceInit::ForceInitToZero), FMatrix44f(EForceInit::ForceInitToZero), FMatrix44f(EForceInit::ForceInitToZero) };
@@ -520,8 +521,9 @@ void TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>::GetShaderBindings
 					const FReflectionCaptureProxy* ReflectionProxy = PrimitiveSceneInfo->CachedReflectionCaptureProxies[i];
 					if (ReflectionProxy)
 					{
-						CapturePositions[i] = ReflectionProxy->Position;
+						CapturePositions[i] = ReflectionProxy->RelativePosition;
 						CapturePositions[i].W = ReflectionProxy->InfluenceRadius;
+						CaptureTilePositions[i] = FVector4(ReflectionProxy->TilePosition, 0);
 						if (ReflectionProxy->EncodedHDRCubemap)
 						{
 							ReflectionCubemapTextures[i] = ReflectionProxy->EncodedHDRCubemap->GetResource();
@@ -554,6 +556,7 @@ void TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>::GetShaderBindings
 			ShaderBindings.Add(HQReflectionInvAverageBrigtnessParams, ReflectionParams);
 			ShaderBindings.Add(HQReflectanceMaxValueRGBMParams, ReflectanceMaxValueRGBMParams);
 			ShaderBindings.Add(HQReflectionPositionsAndRadii, CapturePositions);
+			ShaderBindings.Add(HQReflectionTilePositions, CaptureTilePositions);
 			ShaderBindings.Add(HQReflectionCaptureBoxTransformArray, CaptureBoxTransformArray);
 			ShaderBindings.Add(HQReflectionCaptureBoxScalesArray, CaptureBoxScalesArray);
 		}

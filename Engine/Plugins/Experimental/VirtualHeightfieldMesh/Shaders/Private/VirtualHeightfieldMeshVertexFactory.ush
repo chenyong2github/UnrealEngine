@@ -192,9 +192,10 @@ uint VertexFactoryGetPrimitiveId(FVertexFactoryInterpolantsVSToPS Interpolants)
 /** Computes the world space position of this vertex. */
 float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	float4x4 LocalToWorld = GetPrimitiveData(Intermediates).LocalToWorld;
-	float3 RotatedPosition = LocalToWorld[0].xyz * Intermediates.LocalPos.xxx + LocalToWorld[1].xyz * Intermediates.LocalPos.yyy + LocalToWorld[2].xyz * Intermediates.LocalPos.zzz;
-	return float4(RotatedPosition + (LocalToWorld[3].xyz + ResolvedView.PreViewTranslation.xyz), 1);
+	FLWCMatrix LocalToWorld = GetPrimitiveData(Intermediates).LocalToWorld;
+	FLWCVector3 WorldPosition = LWCMultiply(Intermediates.LocalPos, LocalToWorld);
+	float3 TranslatedWorldPosition = LWCToFloat(LWCAdd(WorldPosition, ResolvedView.PreViewTranslation));
+	return float4(TranslatedWorldPosition, 1.0f);
 }
 
 /** Computes the world space position of this vertex. */
@@ -221,12 +222,8 @@ float3 VertexFactoryGetPositionForVertexLighting(FVertexFactoryInput Input, FVer
 /** Computes the world space position of this vertex last frame. */
 float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	float4x4 PreviousLocalToWorldTranslated = GetPrimitiveData(Intermediates).PreviousLocalToWorld;
-	PreviousLocalToWorldTranslated[3][0] += ResolvedView.PrevPreViewTranslation.x;
-	PreviousLocalToWorldTranslated[3][1] += ResolvedView.PrevPreViewTranslation.y;
-	PreviousLocalToWorldTranslated[3][2] += ResolvedView.PrevPreViewTranslation.z;
-
-	return mul(float4(Intermediates.LocalPos, 1), PreviousLocalToWorldTranslated);
+	float4x4 PreviousLocalToWorldTranslated = LWCMultiplyTranslation(GetPrimitiveData(Intermediates).PreviousLocalToWorld, ResolvedView.PreViewTranslation);
+	return mul(float4(Intermediates.LocalPos,1), PreviousLocalToWorldTranslated);
 }
 
 /** Computes the world space normal of this vertex. */
@@ -244,8 +241,8 @@ half3x3 VertexFactoryGetTangentToLocal(FVertexFactoryInput Input, FVertexFactory
 /** Get the translated bounding sphere for this primitive. */
 float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolantsVSToPS Interpolants)
 {
-	float4 ObjectWorldPositionAndRadius = GetPrimitiveData(GetPrimitiveId(Interpolants)).ObjectWorldPositionAndRadius;
-	return float4(ObjectWorldPositionAndRadius.xyz + ResolvedView.PreViewTranslation.xyz, ObjectWorldPositionAndRadius.w);
+	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(GetPrimitiveId(Interpolants));
+	return float4(LWCToFloat(LWCAdd(PrimitiveData.ObjectWorldPosition, ResolvedView.PreViewTranslation)), PrimitiveData.ObjectRadius);
 }
 
 #if NUM_TEX_COORD_INTERPOLATORS

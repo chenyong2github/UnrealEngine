@@ -6594,13 +6594,44 @@ bool FHlslNiagaraTranslator::ParseDIFunctionSpecifiers(UNiagaraNode* NodeForErro
 	return true;
 }
 
-
-
 void FHlslNiagaraTranslator::ProcessCustomHlsl(const FString& InCustomHlsl, ENiagaraScriptUsage InUsage, const FNiagaraFunctionSignature& InSignature, const TArray<int32>& Inputs, UNiagaraNode* InNodeForErrorReporting, FString& OutCustomHlsl,  FNiagaraFunctionSignature& OutSignature)
 {
 	// Split up the hlsl into constituent tokens
 	TArray<FString> Tokens;
 	UNiagaraNodeCustomHlsl::GetTokensFromString(InCustomHlsl, Tokens);
+
+	// Check for any access to LWC values in the View uniform buffer, and convert to float for backwards compat
+	// Newly written code can access the LWC values directly using PrimaryView.X if desired
+	{
+		static const TCHAR* LWCViewMembers[] =
+		{
+			TEXT("WorldToClip"),
+			TEXT("ClipToWorld"),
+			TEXT("ScreenToWorld"),
+			TEXT("PrevClipToWorld"),
+			TEXT("WorldCameraOrigin"),
+			TEXT("WorldViewOrigin"),
+			TEXT("PrevWorldCameraOrigin"),
+			TEXT("PrevWorldViewOrigin"),
+			TEXT("PreViewTranslation"),
+			TEXT("PrevPreViewTranslation"),
+		};
+
+		for (FString& Token : Tokens)
+		{
+			if (Token.StartsWith(TEXT("View."), ESearchCase::CaseSensitive))
+			{
+				for (const TCHAR* LWCMember : LWCViewMembers)
+				{
+					if (Token.Equals(FString(TEXT("View.")) + LWCMember))
+					{
+						Token = FString::Printf(TEXT("LWCToFloat(PrimaryView.%s)"), LWCMember);
+						break;
+					}
+				}
+			}
+		}
+	}
 
 	// Look for tokens that should be replaced with a data interface or not used directly
 	if (CompilationTarget != ENiagaraSimTarget::GPUComputeSim)
@@ -6876,6 +6907,7 @@ void FHlslNiagaraTranslator::ProcessCustomHlsl(const FString& InCustomHlsl, ENia
 	OutCustomHlsl = OutCustomHlsl.Replace(TEXT("\n"), TEXT("\n\t"));
 	OutCustomHlsl = TEXT("\n") + OutCustomHlsl + TEXT("\n");
 }
+
 void FHlslNiagaraTranslator::HandleCustomHlslNode(UNiagaraNodeCustomHlsl* CustomFunctionHlsl, ENiagaraScriptUsage& OutScriptUsage, FString& OutName, FString& OutFullName, bool& bOutCustomHlsl, FString& OutCustomHlsl,
 	FNiagaraFunctionSignature& OutSignature, TArray<int32>& Inputs)
 {

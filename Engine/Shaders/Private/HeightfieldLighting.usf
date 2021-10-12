@@ -157,7 +157,7 @@ void ShadowHeightfieldsPS(
 {
 	float3 WorldHeightfieldShadingPosition = GetGlobalHeightfieldWorldPosition(Input.LocalPosition, Input.GlobalUV, GetLocalToWorld(Input.HeightfieldIndex));
 
-	float ViewDistance = mul(float4(WorldHeightfieldShadingPosition + View.PreViewTranslation.xyz, 1), View.TranslatedWorldToView).z;
+	float ViewDistance = mul(float4(WorldHeightfieldShadingPosition + LWCHackToFloat(PrimaryView.PreViewTranslation), 1), View.TranslatedWorldToView).z;
 
 	if (ViewDistance < CascadeDepthMinMax.x || ViewDistance > CascadeDepthMinMax.y)
 	{
@@ -567,7 +567,7 @@ void CalculateHeightfieldOcclusionScreenGridCS(
 		float2 ScreenUV = GetScreenUVFromScreenGrid(OutputCoordinate);
 		float2 ScreenPosition = (ScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 		
-		float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
+		float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
 
 		uint OutputBaseIndex = (OutputCoordinate.y * ScreenGridConeVisibilitySize.x + OutputCoordinate.x) * NUM_CONE_DIRECTIONS;
 
@@ -643,7 +643,7 @@ void CalculateHeightfieldIrradianceScreenGridCS(
 		float2 ScreenUV = GetScreenUVFromScreenGrid(OutputCoordinate);
 		float2 ScreenPosition = (ScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 		
-		float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
+		float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
 
 		//@todo - constant time grid lookup
 		LOOP

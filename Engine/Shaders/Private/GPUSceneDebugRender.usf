@@ -114,7 +114,7 @@ void GPUSceneDebugRenderCS(uint InstanceID : SV_DispatchThreadID)
 		return;
 	}
 
-	float3 LocalRayStart = mul(float4(PickingRayStart, 1.0f), InstanceData.WorldToLocal).xyz;
+	float3 LocalRayStart = mul(float4(PickingRayStart, 1.0f), LWCHackToFloat(InstanceData.WorldToLocal)).xyz;
 
 	// Skip if beyond draw range
 	if (DrawRange > 0.0f && length(InstanceData.LocalBoundsCenter - LocalRayStart) > DrawRange)
@@ -122,7 +122,7 @@ void GPUSceneDebugRenderCS(uint InstanceID : SV_DispatchThreadID)
 		return;
 	}
 
-	float3 LocalRayEnd = mul(float4(PickingRayEnd, 1.0f), InstanceData.WorldToLocal).xyz;
+	float3 LocalRayEnd = mul(float4(PickingRayEnd, 1.0f), LWCHackToFloat(InstanceData.WorldToLocal)).xyz;
 	float2 RayResult = LineBoxIntersect(LocalRayStart, LocalRayEnd, InstanceData.LocalBoundsCenter - InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsCenter + InstanceData.LocalBoundsExtent);
 	bool bIsMouseOver = RayResult.x <= RayResult.y;
 	// Only draw selected
@@ -157,8 +157,8 @@ void GPUSceneDebugRenderCS(uint InstanceID : SV_DispatchThreadID)
 	}
 	if (bIsMouseOver || bIsSelected || bDrawAll != 0)
 	{
-		AddOBB(InstanceData.LocalBoundsCenter - InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsCenter + InstanceData.LocalBoundsExtent, InstanceBoundColor, InstanceData.LocalToWorld);
-		AddReferential(InstanceData.LocalToWorld, 1);
+		AddOBB(InstanceData.LocalBoundsCenter - InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsCenter + InstanceData.LocalBoundsExtent, InstanceBoundColor, LWCHackToFloat(InstanceData.LocalToWorld));
+		AddReferential(LWCHackToFloat(InstanceData.LocalToWorld), 1);
 	}
 
 	uint StartOffsetX = 10;

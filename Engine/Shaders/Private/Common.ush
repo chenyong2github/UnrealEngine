@@ -28,6 +28,25 @@
 	#define MaterialFloat4x3 float4x3 
 #endif
 
+#define POSITIVE_INFINITY (asfloat(0x7F800000))
+#define NEGATIVE_INFINITY (asfloat(0xFF800000))
+
+#define METER_TO_CENTIMETER		100.0f
+#define CENTIMETER_TO_METER		(1.0f / METER_TO_CENTIMETER)
+#define KILOMETER_TO_METER  	1000.0f
+#define METER_TO_KILOMETER  	(1.0f / KILOMETER_TO_METER)
+#define KILOMETER_TO_CENTIMETER	(KILOMETER_TO_METER * METER_TO_CENTIMETER)
+#define CENTIMETER_TO_KILOMETER	(1.0f / KILOMETER_TO_CENTIMETER)
+
+#define NearDepthValue (HAS_INVERTED_Z_BUFFER ? 1.0f : 0.0f)
+#define FarDepthValue  (HAS_INVERTED_Z_BUFFER ? 0.0f : 1.0f)
+
+const static MaterialFloat PI = 3.1415926535897932f;
+const static float MaxHalfFloat = 65504.0f;
+const static float Max11BitsFloat = 65024.0f;
+const static float Max10BitsFloat = 64512.0f;
+const static float3 Max111110BitsFloat3 = float3(Max11BitsFloat, Max11BitsFloat, Max10BitsFloat);
+
 #if POST_PROCESS_ALPHA
 #define SceneColorLayout float4
 #define CastFloat4ToSceneColorLayout(x) (x)
@@ -70,6 +89,30 @@
 // uniform buffers specifics
 #include "CommonViewUniformBuffer.ush"
 
+// In HLSL, fmod is implemented as 'Lhs - trunc(Lhs / Rhs) * Rhs'
+// In some cases, using floor rather than trunc is better
+float FmodFloor(float Lhs, float Rhs)
+{
+	return Lhs - floor(Lhs / Rhs) * Rhs;
+}
+
+float2 FmodFloor(float2 Lhs, float2 Rhs)
+{
+	return Lhs - floor(Lhs / Rhs) * Rhs;
+}
+
+float3 FmodFloor(float3 Lhs, float3 Rhs)
+{
+	return Lhs - floor(Lhs / Rhs) * Rhs;
+}
+
+float4 FmodFloor(float4 Lhs, float4 Rhs)
+{
+	return Lhs - floor(Lhs / Rhs) * Rhs;
+}
+
+#include "LargeWorldCoordinates.ush"
+
 #include "InstancedStereo.ush"
 
 #include "Definitions.usf"
@@ -89,25 +132,6 @@
 
 // Using SV_ClipDistance has overhead (15% slower base pass in triangle bound test scene on PS4) so projects have to opt-in
 #define USE_GLOBAL_CLIP_PLANE (PLATFORM_SUPPORTS_GLOBAL_CLIP_PLANE && PROJECT_ALLOW_GLOBAL_CLIP_PLANE && !MATERIAL_DOMAIN_POSTPROCESS && !MATERIAL_DOMAIN_UI)
-
-#define POSITIVE_INFINITY (asfloat(0x7F800000))
-#define NEGATIVE_INFINITY (asfloat(0xFF800000))
-
-#define METER_TO_CENTIMETER		100.0f
-#define CENTIMETER_TO_METER		(1.0f / METER_TO_CENTIMETER)
-#define KILOMETER_TO_METER  	1000.0f
-#define METER_TO_KILOMETER  	(1.0f / KILOMETER_TO_METER)
-#define KILOMETER_TO_CENTIMETER	(KILOMETER_TO_METER * METER_TO_CENTIMETER)
-#define CENTIMETER_TO_KILOMETER	(1.0f / KILOMETER_TO_CENTIMETER)
-
-#define NearDepthValue (HAS_INVERTED_Z_BUFFER ? 1.0f : 0.0f)
-#define FarDepthValue  (HAS_INVERTED_Z_BUFFER ? 0.0f : 1.0f)
-
-const static MaterialFloat PI = 3.1415926535897932f;
-const static float MaxHalfFloat = 65504.0f;
-const static float Max11BitsFloat = 65024.0f;
-const static float Max10BitsFloat = 64512.0f;
-const static float3 Max111110BitsFloat3 = float3(Max11BitsFloat, Max11BitsFloat, Max10BitsFloat);
 
 // Control MIP level used for material texture fetches. By default only raytracing 
 // shaders (i.e., !PIXELSHADER) use manual MIP level selection. A material shader 
@@ -1175,12 +1199,13 @@ float3 SvPositionToResolvedTranslatedWorld(float4 SvPosition)
 }
 
 // prefer to use SvPositionToTranslatedWorld() for better quality
-float3 SvPositionToWorld(float4 SvPosition)
+FLWCVector3 SvPositionToWorld(float4 SvPosition)
 {
-	return SvPositionToTranslatedWorld(SvPosition) - View.PreViewTranslation;
+	float3 TranslatedWorldPosition = SvPositionToTranslatedWorld(SvPosition);
+	return LWCSubtract(TranslatedWorldPosition, PrimaryView.PreViewTranslation);
 }
 
-// investigate: doesn't work for usage with View.ScreenToWorld, see SvPositionToScreenPosition2()
+// investigate: doesn't work for usage with PrimaryView.ScreenToWorld, see SvPositionToScreenPosition2()
 float4 SvPositionToScreenPosition(float4 SvPosition)
 {
 	// todo: is already in .w or needs to be reconstructed like this:

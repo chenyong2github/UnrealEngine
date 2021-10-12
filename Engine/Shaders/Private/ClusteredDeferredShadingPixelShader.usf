@@ -218,8 +218,8 @@ float4 GetLightGridLocalLighting(const FCulledLightsGridData InLightGridData, fl
 		float2 ScreenPosition = UVAndScreenPos.zw;	\
 		FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(ScreenUV);	\
 		float SceneDepth = CalcSceneDepth(ScreenUV);	\
-		float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;	\
-		float3 CameraVector = normalize(WorldPosition - View.WorldCameraOrigin);	\
+		float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;	\
+		float3 CameraVector = normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));	\
 		ScreenSpaceData.GBuffer.ShadingModelID = ShadingModelId;	\
 		CompositedLighting += GetLightGridLocalLighting(LightGridData, WorldPosition, CameraVector, ScreenSpaceData, ScreenUV, 0, Dither, FirstNonSimpleLightIndex); \
 	}	\
@@ -290,8 +290,8 @@ void ClusteredShadingPixelShader(
 	{
 		float2 ScreenPosition = UVAndScreenPos.zw;
 		FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(ScreenUV);
-		float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
-		float3 CameraVector = normalize(WorldPosition - View.WorldCameraOrigin);
+		float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
+		float3 CameraVector = normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
 
 		// Limit max to ForwardLightData.NumLocalLights.
 		// This prevents GPU hangs when the PS tries to read from uninitialized NumCulledLightsGrid buffer
@@ -340,8 +340,8 @@ void ClusteredShadingPixelShader(
 
 	float2 ScreenPosition = UVAndScreenPos.zw;
 	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(ScreenUV);
-	float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
-	float3 CameraVector = normalize(WorldPosition - View.WorldCameraOrigin);
+	float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
+	float3 CameraVector = normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
 
 	uint NumCulledEntryIndex = (ForwardLightData.NumGridCells + GridIndex) * NUM_CULLED_LIGHTS_GRID_STRIDE;
 
@@ -414,8 +414,8 @@ void ClusteredShadingPixelShader(
 		return;
 	}
 
-	const float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
-	const float3 CameraVector = normalize(WorldPosition - View.WorldCameraOrigin);
+	const float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
+	const float3 CameraVector = normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
 
 	float4 CompositedLighting = 0;
 	uint FirstNonSimpleLightIndex = 0;

@@ -61,7 +61,7 @@ float2 GetReflectionTracingCoordFromScreenUV(float2 ScreenUV, uint TemporalIndex
 float3 GetWorldPositionFromScreenUV(float2 ScreenUV, float SceneDepth)
 {
 	float2 ScreenPosition = (ScreenUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
-	float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
+	float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
 	return WorldPosition;
 }
 

@@ -36,6 +36,8 @@ void FMaterialEditorCommands::RegisterCommands()
 	UI_COMMAND( MatertialPasteHere, "Paste Here", "Pastes copied items at this location.", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( UseCurrentTexture, "Use Current Texture", "Uses the current texture selected in the content browser.", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( ConvertObjects, "Convert to Parameter", "Converts the objects to parameters.", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND( PromoteToDouble, "Promote to Double", "Converts the parameters to double precision.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND( PromoteToFloat, "Promote to Float", "Converts the parameters to float precision.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND( ConvertToConstant, "Convert to Constant", "Converts the parameters to constants.", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( SelectNamedRerouteDeclaration, "Select Named Reroute Declaration", "Select this named reroute's declaration node.", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( SelectNamedRerouteUsages, "Select Named Reroute Usages", "Select this named reroute's usage nodes.", EUserInterfaceActionType::Button, FInputChord() );

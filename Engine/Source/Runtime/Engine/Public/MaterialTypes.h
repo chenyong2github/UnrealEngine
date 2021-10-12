@@ -20,6 +20,7 @@ enum class EMaterialParameterType : uint8
 {
 	Scalar = 0u,
 	Vector,
+	DoubleVector,
 	Texture,
 	Font,
 	RuntimeVirtualTexture,
@@ -118,6 +119,7 @@ struct FMaterialParameterValue
 	FMaterialParameterValue(float InValue) : Type(EMaterialParameterType::Scalar) { Float[0] = InValue; }
 	FMaterialParameterValue(const FLinearColor& InValue) : Type(EMaterialParameterType::Vector) { Float[0] = InValue.R; Float[1] = InValue.G; Float[2] = InValue.B; Float[3] = InValue.A; }
 	FMaterialParameterValue(const FVector3f& InValue) : Type(EMaterialParameterType::Vector) { Float[0] = InValue.X; Float[1] = InValue.Y; Float[2] = InValue.Z; Float[3] = 0.0f; }
+	FMaterialParameterValue(const FVector4d& InValue) : Type(EMaterialParameterType::DoubleVector) { Double[0] = InValue.X; Double[1] = InValue.Y; Double[2] = InValue.Z; Double[3] = InValue.W; }
 	FMaterialParameterValue(UTexture* InValue) : Type(EMaterialParameterType::Texture) { Texture = InValue; }
 	FMaterialParameterValue(const TObjectPtr<UTexture>& InValue) : Type(EMaterialParameterType::Texture) { Texture = InValue; }
 	FMaterialParameterValue(URuntimeVirtualTexture* InValue) : Type(EMaterialParameterType::RuntimeVirtualTexture) { RuntimeVirtualTexture = InValue; }
@@ -139,12 +141,14 @@ struct FMaterialParameterValue
 
 	inline float AsScalar() const { check(Type == EMaterialParameterType::Scalar); return Float[0]; }
 	inline FLinearColor AsLinearColor() const { check(Type == EMaterialParameterType::Vector); return FLinearColor(Float[0], Float[1], Float[2], Float[3]); }
+	inline FVector4d AsVector4d() const { check(Type == EMaterialParameterType::DoubleVector); return FVector4d(Double[0], Double[1], Double[2], Double[3]); }
 	inline bool AsStaticSwitch() const { check(Type == EMaterialParameterType::StaticSwitch); return Bool[0]; }
 	inline FStaticComponentMaskValue AsStaticComponentMask() const { check(Type == EMaterialParameterType::StaticComponentMask); return FStaticComponentMaskValue(Bool[0], Bool[1], Bool[2], Bool[3]); }
 	ENGINE_API UE::Shader::FValue AsShaderValue() const;
 
 	union
 	{
+		double Double[4];
 		float Float[4];
 		bool Bool[4];
 		UTexture* Texture;
@@ -174,6 +178,10 @@ inline bool operator==(const FMaterialParameterValue& Lhs, const FMaterialParame
 		Lhs.Float[1] == Rhs.Float[1] &&
 		Lhs.Float[2] == Rhs.Float[2] &&
 		Lhs.Float[3] == Rhs.Float[3];
+	case EMaterialParameterType::DoubleVector: return
+		Lhs.Double[0] == Rhs.Double[0] &&
+		Lhs.Double[1] == Rhs.Double[1] &&
+		Lhs.Double[2] == Rhs.Double[2];
 	case EMaterialParameterType::Texture: return Lhs.Texture == Rhs.Texture;
 	case EMaterialParameterType::Font: return Lhs.Font.Value == Rhs.Font.Value && Lhs.Font.Page == Rhs.Font.Page;
 	case EMaterialParameterType::RuntimeVirtualTexture: return Lhs.RuntimeVirtualTexture == Rhs.RuntimeVirtualTexture;

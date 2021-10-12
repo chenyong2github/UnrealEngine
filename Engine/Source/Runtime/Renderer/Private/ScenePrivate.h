@@ -1601,20 +1601,22 @@ public:
 
 struct FReflectionCaptureSortData
 {
+	FVector3f RelativePosition;
+	FVector3f TilePosition;
+	FMatrix44f BoxTransform;
 	uint32 Guid;
 	int32 CubemapIndex;
-	FVector4 PositionAndRadius;
+	float Radius;
 	FVector4f CaptureProperties;
-	FMatrix BoxTransform;
 	FVector4f BoxScales;
 	FVector4f CaptureOffsetAndAverageBrightness;
 	FReflectionCaptureProxy* CaptureProxy;
 
 	bool operator < (const FReflectionCaptureSortData& Other) const
 	{
-		if (PositionAndRadius.W != Other.PositionAndRadius.W)
+		if (Radius != Other.Radius)
 		{
-			return PositionAndRadius.W < Other.PositionAndRadius.W;
+			return Radius < Radius;
 		}
 		else
 		{
