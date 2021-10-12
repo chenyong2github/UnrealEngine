@@ -85,6 +85,9 @@ namespace CrossCompiler
 
 		/** Identifier for the intermediate output variable in a tessellation-control shader. */
 		const ANSICHAR* IntermediateTessControlOutput;
+
+		/** Identifier for dummy samplers used for platforms where samplers are required */
+		const ANSICHAR* DummySampler;
 	};
 
 	/** Wrapper class to handle interface between UE and ShaderConductor. Use to compile HLSL shaders to SPIR-V or high-level languages such as Metal. */
