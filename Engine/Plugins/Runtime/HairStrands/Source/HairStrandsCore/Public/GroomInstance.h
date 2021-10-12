@@ -105,6 +105,9 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 		#if RHI_RAYTRACING
 		FHairStrandsRaytracingResource* RenRaytracingResource = nullptr;
 		bool RenRaytracingResourceOwned = false;
+		float CachedHairScaledRadius = 0;
+		float CachedHairRootScale = 0;
+		float CachedHairTipScale = 0;
 		#endif
 
 		FRDGExternalBuffer DebugAttributeBuffer;
