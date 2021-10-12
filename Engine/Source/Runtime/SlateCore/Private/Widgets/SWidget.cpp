@@ -805,21 +805,26 @@ void SWidget::SetFastPathProxyHandle(const FWidgetProxyHandle& Handle, bool bInI
 
 void SWidget::UpdateFastPathVisibility(bool bParentVisible, bool bWidgetRemoved, FHittestGrid* ParentHittestGrid)
 {
-	const EVisibility CurrentVisibility = GetVisibility();
-	const bool bParentAndSelfVisible = bParentVisible && CurrentVisibility.IsVisible();
-	const bool bWasInvisible = bInvisibleDueToParentOrSelfVisibility;
-	bInvisibleDueToParentOrSelfVisibility = !bParentAndSelfVisible;
-	const bool bVisibilityChanged = bWasInvisible != bInvisibleDueToParentOrSelfVisibility;
+	// Don't consider visibility if just removing a widget
+	bool bParentAndSelfVisible = bParentVisible;
+	bool bFastPathValid = FastPathProxyHandle.IsValid(this);
 
 	FHittestGrid* HittestGridToRemoveFrom = ParentHittestGrid;
-	if (FastPathProxyHandle.IsValid(this))
-	{	
-		// Try and remove this from the current handles hit test grid.  If we are in a nested invalidation situation the hittest grid may have changed
-		HittestGridToRemoveFrom = FastPathProxyHandle.GetInvalidationRoot()->GetHittestGrid();
-		FWidgetProxy& Proxy = FastPathProxyHandle.GetProxy();
-		Proxy.Visibility = CurrentVisibility;
+	if (!bWidgetRemoved)
+	{
+		const EVisibility CurrentVisibility = GetVisibility();
+		bParentAndSelfVisible = bParentVisible && CurrentVisibility.IsVisible();
+		bInvisibleDueToParentOrSelfVisibility = !bParentAndSelfVisible;
+
+		if (bFastPathValid)
+		{
+			// Try and remove this from the current handles hit test grid.  If we are in a nested invalidation situation the hittest grid may have changed
+			HittestGridToRemoveFrom = FastPathProxyHandle.GetInvalidationRoot()->GetHittestGrid();
+			FWidgetProxy& Proxy = FastPathProxyHandle.GetProxy();
+			Proxy.Visibility = CurrentVisibility;
+		}
 	}
-	else if (bWidgetRemoved)
+	else if (!bFastPathValid)
 	{
 		// The widget can be deleted before the next FastWidgetPathList is built. Remove it now from its InvalidationRoot
 		if (FSlateInvalidationRoot* InvalidationRoot = FastPathProxyHandle.GetInvalidationRootHandle().GetInvalidationRoot())
