@@ -402,6 +402,11 @@ void UUMGSequencePlayer::PostEvaluation(const FMovieSceneContext& Context)
 
 		PlayerStatus = EMovieScenePlayerStatus::Stopped;
 		
+		if (RootTemplateInstance.IsValid())
+		{
+			RootTemplateInstance.Finish(*this);
+		}
+
 		if (bRestoreState)
 		{
 			RestorePreAnimatedState();
