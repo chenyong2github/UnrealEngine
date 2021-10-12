@@ -168,7 +168,7 @@ namespace Gauntlet
 					Role.Platform = DefaultPlatform;
 					Role.Configuration = DefaultConfiguration;
 
-					// globally, what was requested (e.g -platform=PS4 -configuration=Shipping)
+					// globally, what was requested (e.g -platform=Win64 -configuration=Shipping)
 					UnrealTargetPlatform RequestedPlatform = PlatformType;
 					UnrealTargetConfiguration RequestedConfiguration = ContextOptions.Configuration;
 

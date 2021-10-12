@@ -94,11 +94,6 @@ namespace Gauntlet
 				return;
 			}
 
-			/*if (Device is TargetDevicePS4)
-			{
-				CleanPS4(Device as TargetDevicePS4);
-			}*/
-
 			// disconnect and power down
 			Gauntlet.Log.Info("Powering down and disconnecting from {0}", Device.Name);
 			Device.Disconnect();

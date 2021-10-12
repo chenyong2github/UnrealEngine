@@ -792,7 +792,7 @@ namespace Gauntlet
 
 			// Now, because platforms sometimes dump asserts to the log and low-level logging, and we might have a post-mortem stack, we
 			// need to prune out redundancies. Basic approach - find errors with the same assert message and keep the one with the
-			// longest callstack. If we have a post-mortem error, overwrite the previous trace with its info (on PS4 the post-mortem
+			// longest callstack. If we have a post-mortem error, overwrite the previous trace with its info (on some devices the post-mortem
 			// info is way more informative).
 
 			List<UnrealLog.CallstackMessage> FilteredTraces = new List<UnrealLog.CallstackMessage>();
