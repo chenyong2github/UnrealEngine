@@ -114,7 +114,7 @@ namespace BuildGraph.Tasks
 					}
 				}
 
-				StringBuilder Arguments = new StringBuilder("--ansi never build .");
+				StringBuilder Arguments = new StringBuilder("build .");
 				if (Parameters.Tag != null)
 				{
 					Arguments.Append($" -t {Parameters.Tag}");
