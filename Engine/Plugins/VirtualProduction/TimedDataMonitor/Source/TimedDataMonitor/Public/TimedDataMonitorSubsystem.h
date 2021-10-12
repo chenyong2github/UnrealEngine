@@ -50,7 +50,7 @@ public:
 	
 	/** New state of the channel */
 	UPROPERTY(VisibleAnywhere, Category = "Timed Data State")
-	ETimedDataInputState NewState;
+	ETimedDataInputState NewState = ETimedDataInputState::Connected;
 
 	/** Input owning that channel */
 	UPROPERTY(VisibleAnywhere, Category = "Timed Data State")
@@ -78,7 +78,7 @@ public:
 
 	/** New state of the channel */
 	UPROPERTY(VisibleAnywhere, Category = "Timed Data State")
-	ETimedDataMonitorEvaluationState NewState;
+	ETimedDataMonitorEvaluationState NewState = ETimedDataMonitorEvaluationState::NoSample;
 
 	/** Input owning that channel */
 	UPROPERTY(VisibleAnywhere, Category = "Timed Data State")

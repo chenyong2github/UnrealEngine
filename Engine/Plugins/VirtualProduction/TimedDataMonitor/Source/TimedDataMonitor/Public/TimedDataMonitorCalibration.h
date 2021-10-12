@@ -45,7 +45,7 @@ struct FTimedDataMonitorCalibrationResult
 	GENERATED_BODY();
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Result")
-	ETimedDataMonitorCalibrationReturnCode ReturnCode;
+	ETimedDataMonitorCalibrationReturnCode ReturnCode = ETimedDataMonitorCalibrationReturnCode::Succeeded;
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Result")
 	TArray<FTimedDataMonitorInputIdentifier> FailureInputIdentifiers;
@@ -118,7 +118,7 @@ struct FTimedDataMonitorTimeCorrectionResult
 	GENERATED_BODY();
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Result")
-	ETimedDataMonitorTimeCorrectionReturnCode ReturnCode;
+	ETimedDataMonitorTimeCorrectionReturnCode ReturnCode = ETimedDataMonitorTimeCorrectionReturnCode::Succeeded;
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Result")
 	TArray<FTimedDataMonitorChannelIdentifier> FailureChannelIdentifiers;
