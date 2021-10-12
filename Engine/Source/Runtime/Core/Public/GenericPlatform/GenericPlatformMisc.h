@@ -1288,12 +1288,18 @@ public:
 
 	/**
 	 * Get the Epic account ID for the user who last used the Launcher.
+	 *
+	 * Note: This function is for Epic internal use only.  Do not use.
+	 *
 	 * @return an empty string if the account ID was not present or it failed to read it for any reason.
 	 */
 	static FString GetEpicAccountId();
 
 	/**
 	 * Set the Epic account ID for the user who last used the Launcher
+	 *
+	 * Note: This function is obsolete and should not be called under any circumstances.
+	 *
 	 * @return true if the account ID was set successfully, false if something failed and it was not set.
 	 */
 	static bool SetEpicAccountId( const FString& AccountId );

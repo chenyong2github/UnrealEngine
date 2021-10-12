@@ -1375,7 +1375,8 @@ FString FGenericPlatformMisc::GetEpicAccountId()
 
 bool FGenericPlatformMisc::SetEpicAccountId( const FString& AccountId )
 {
-	return FPlatformMisc::SetStoredValue( TEXT( "Epic Games" ), TEXT( "Unreal Engine/Identifiers" ), TEXT( "AccountId" ), AccountId );
+	checkf(false, TEXT("FPlatformMisc::SetEpicAccountId should not be called"));
+	return false;
 }
 
 EConvertibleLaptopMode FGenericPlatformMisc::GetConvertibleLaptopMode()

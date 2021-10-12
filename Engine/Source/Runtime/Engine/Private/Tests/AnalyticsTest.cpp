@@ -20,16 +20,9 @@ bool FAnalyticStartUpSimTest::RunTest(const FString& Parameters)
 {
 	if (FEngineAnalytics::IsAvailable())
 	{
-		//Setup a temp AccountID.
-		FGuid TempAccountID(FGuid::NewGuid());
-		FString OldEpicAccountID = FPlatformMisc::GetEpicAccountId();
-		FString NewEpicAccountID = TempAccountID.ToString().ToLower();
-		FPlatformMisc::SetEpicAccountId(NewEpicAccountID);
-
 		//Setup the 'Event Attributes'
 		TArray<FAnalyticsEventAttribute> EventAttributes;
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("LoginID"),		FPlatformMisc::GetLoginId()));
-		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("AccountID"),		FPlatformMisc::GetEpicAccountId()));
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("OSID"),			FPlatformMisc::GetOperatingSystemId()));
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("GameName"),		FApp::GetProjectName()));
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("CommandLine"),	FCommandLine::Get()));
@@ -39,14 +32,12 @@ bool FAnalyticStartUpSimTest::RunTest(const FString& Parameters)
 
 		//Get the event strings used
 		FString LoginIDTest		=	FPlatformMisc::GetLoginId();
-		FString AccountIDTest	=	FPlatformMisc::GetEpicAccountId();
 		FString OSID			=	FPlatformMisc::GetOperatingSystemId();
 		FString GameNameTest	=	FApp::GetProjectName();
 		FString CommandLineArgs	=	FCommandLine::Get();
 
 		//Test the strings to verify they have data.
 		TestFalse(TEXT("'LoginID' is not expected to be empty!"), LoginIDTest.IsEmpty());
-		TestFalse(TEXT("'AccountID' is not expected to be empty!"), AccountIDTest.IsEmpty());
 		TestFalse(TEXT("'OperatingSystemID' is not expected to be empty!"), OSID.IsEmpty());
 		TestFalse(TEXT("'GameName' is expected."), GameNameTest.IsEmpty());
 
@@ -55,7 +46,6 @@ bool FAnalyticStartUpSimTest::RunTest(const FString& Parameters)
 		if ( CommandLineArgs.Contains(TEXT("AnalyticsDisableCaching")) )
 		{
 			FString FullLoginIDTestEventName = FString::Printf(TEXT("LoginID\":\"%s"), *LoginIDTest);
-			FString FullAccountIDTestEventName = FString::Printf(TEXT("AccountID\":\"%s"), *AccountIDTest);
 			FString FullOSIDTestEventName = FString::Printf(TEXT("OSID\":\"%s"), *OSID);
 
 			for ( const FAutomationExecutionEntry& Entry : ExecutionInfo.GetEntries() )
@@ -67,7 +57,6 @@ bool FAnalyticStartUpSimTest::RunTest(const FString& Parameters)
 
 					TestTrue(TEXT("Recorded event name is expected to be in the sent event."), Message.Contains(TEXT("Engine.AutomationTest.Analytics.ProgramStartedEvent")));
 					TestTrue(TEXT("'LoginID' is expected to be in the sent event."), Message.Contains(*FullLoginIDTestEventName));
-					TestTrue(TEXT("'AccountID' is expected to be in the sent event."), Message.Contains(*FullAccountIDTestEventName));
 					TestTrue(TEXT("'OperatingSystemID' is expected to be in the sent event."), Message.Contains(*FullOSIDTestEventName));
 					TestTrue(TEXT("'GameName' is expected to be in the sent event."), Message.Contains(*GameNameTest));
 					TestTrue(TEXT("'CommandLine arguments' are expected to be in the sent event."), Message.Contains(TEXT("AnalyticsDisableCaching")));
@@ -75,8 +64,6 @@ bool FAnalyticStartUpSimTest::RunTest(const FString& Parameters)
 			}
 		}
 
-		//Set the AccountID to it's original state.
-		FPlatformMisc::SetEpicAccountId(OldEpicAccountID);
 		return true;
 	}
 
