@@ -918,6 +918,7 @@ namespace CrossCompiler
 			/*InputAttribute:*/					"in.var.ATTRIBUTE",
 			/*GlobalsUniformBuffer:*/			"$Globals",
 			/*IntermediateTessControlOutput:*/	"temp.var.hullMainRetVal",
+			/*DummySampler:*/					"SPIRV_Cross_DummySampler",
 		};
 		return IdentifierTable;
 	}
