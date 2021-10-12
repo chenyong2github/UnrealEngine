@@ -69,8 +69,8 @@ namespace HordeServer.Collections
 		/// <param name="Stream">The stream to update</param>
 		/// <param name="NewPausedUntil">The new datetime for pausing builds</param>
 		/// <param name="NewPauseComment">The reason for pausing</param>
-		/// <returns>Async task object</returns>
-		Task<bool> TryUpdatePauseStateAsync(IStream Stream, DateTime? NewPausedUntil, string? NewPauseComment);
+		/// <returns>The updated stream if successful, null otherwise</returns>
+		Task<IStream?> TryUpdatePauseStateAsync(IStream Stream, DateTime? NewPausedUntil, string? NewPauseComment);
 
 		/// <summary>
 		/// Attempts to update the last trigger time for a schedule
@@ -80,8 +80,8 @@ namespace HordeServer.Collections
 		/// <param name="LastTriggerTime">New last trigger time for the schedule</param>
 		/// <param name="LastTriggerChange">New last trigger changelist for the schedule</param>
 		/// <param name="NewActiveJobs">New list of active jobs</param>
-		/// <returns>True if the stream was updated</returns>
-		Task<bool> TryUpdateScheduleTriggerAsync(IStream Stream, TemplateRefId TemplateRefId, DateTimeOffset? LastTriggerTime, int? LastTriggerChange, List<ObjectId> NewActiveJobs);
+		/// <returns>The updated stream if successful, null otherwise</returns>
+		Task<IStream?> TryUpdateScheduleTriggerAsync(IStream Stream, TemplateRefId TemplateRefId, DateTimeOffset? LastTriggerTime, int? LastTriggerChange, List<ObjectId> NewActiveJobs);
 
 		/// <summary>
 		/// Delete a stream
