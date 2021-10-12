@@ -583,7 +583,9 @@ std::vector<Thread::Id> Process::EnumerateThreads(Id processId)
 		processSnapshot = ::malloc(bufferSize);
 
 		// try getting a process snapshot into the provided buffer
-		status = WindowsInternals::NtQuerySystemInformation(WindowsInternals::SystemProcessInformation, processSnapshot, bufferSize, NULL);
+		// BEGIN EPIC MOD
+		status = WindowsInternals::NtQuerySystemInformation.ExecNoResultCheck(WindowsInternals::SystemProcessInformation, processSnapshot, bufferSize, NULL);
+		// END EPIC MOD
 
 		if (status == STATUS_INFO_LENGTH_MISMATCH)
 		{
@@ -597,6 +599,7 @@ std::vector<Thread::Id> Process::EnumerateThreads(Id processId)
 		{
 			// something went wrong
 			// BEGIN EPIC MOD - PVS is having problems dealing with + here. 
+			WindowsInternals::NtQuerySystemInformation.CheckResult(status); // write the error
 			LC_ERROR_USER("Cannot enumerate threads in process (PID: %d)", static_cast<DWORD>(processId));
 			// END EPIC MOD
 			::free(processSnapshot);
