@@ -162,7 +162,8 @@ public:
 	virtual EProcessHoldActionResult ProcessHoldInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent) const override;
 	virtual bool ProcessNormalInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent) const override;
 	virtual bool IsReceivingInput() const override { return bCanReceiveInput && IsWidgetActivated(); }
-	
+
+	bool IsWidgetValid() const;
 	bool IsWidgetActivated() const;
 	bool DoesWidgetSupportActivationFocus() const;
 	void AppendAllActiveActions(TArray<FUIActionBindingHandle>& BoundActions) const;

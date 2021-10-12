@@ -715,6 +715,11 @@ bool FActivatableTreeNode::ProcessNormalInput(ECommonInputMode ActiveInputMode, 
 	return false;
 }
 
+bool FActivatableTreeNode::IsWidgetValid() const
+{ 
+	return RepresentedWidget.IsValid();
+}
+
 bool FActivatableTreeNode::IsWidgetActivated() const
 {
 	return ensure(RepresentedWidget.IsValid()) && RepresentedWidget->IsActivated();
