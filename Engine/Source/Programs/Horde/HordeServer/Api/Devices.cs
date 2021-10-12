@@ -689,4 +689,30 @@ namespace HordeServer.Api
 		public string DeviceData { get; set; } = null!;
 	}
 
+	/// <summary>
+	/// Platform mapping update for V1 devices
+	/// </summary>
+	public class UpdatePlatformMapRequest
+	{
+		/// <summary>
+		/// Platform name => platform id
+		/// </summary>
+		[Required]
+		public Dictionary<string, string> PlatformMap { get; set; } = null!;
+
+		/// <summary>
+		/// Platform id => name
+		/// </summary>
+		[Required]
+		public Dictionary<string, string> PlatformReverseMap { get; set; } = null!;
+
+		/// <summary>
+		/// Perfspec v1 => model names
+		/// </summary>
+		[Required]
+		public Dictionary<string, string> PerfSpecHighMap { get; set; } = null!;
+
+	}
+
+
 }

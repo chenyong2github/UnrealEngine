@@ -29,6 +29,11 @@ namespace HordeServer.Controllers
 	{
 
 		/// <summary>
+		/// The acl service singleton
+		/// </summary>
+		AclService AclService;
+
+		/// <summary>
 		/// The user collection instance
 		/// </summary>
 		IUserCollection UserCollection { get; set; }
@@ -47,11 +52,12 @@ namespace HordeServer.Controllers
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public DevicesController(DeviceService DeviceService, IUserCollection UserCollection, ILogger<DevicesController> Logger)
+		public DevicesController(DeviceService DeviceService, AclService AclService, IUserCollection UserCollection, ILogger<DevicesController> Logger)
 		{
-            this.UserCollection = UserCollection;
-            this.DeviceService = DeviceService;
-            this.Logger = Logger;
+			this.UserCollection = UserCollection;
+			this.DeviceService = DeviceService;
+			this.Logger = Logger;
+			this.AclService = AclService;
 		}
 
 		// DEVICES
@@ -634,34 +640,6 @@ namespace HordeServer.Controllers
 			High
 		};
 
-		static Dictionary<string, DevicePlatformId> PlatformMap = new Dictionary<string, DevicePlatformId>()
-			{
-				{ "PS4", new DevicePlatformId("ps4") },
-				{ "PS4-DevKit", new DevicePlatformId("ps4") },
-				{ "XboxOne", new DevicePlatformId("xboxone") },
-				{ "XboxOneGDK", new DevicePlatformId("xboxone") },
-				{ "XboxOne-DevKit", new DevicePlatformId("xboxone") },
-				{ "Switch", new DevicePlatformId("switch") },
-				{ "XSX", new DevicePlatformId("xsx") },
-				{ "PS5", new DevicePlatformId("ps5") }
-			};
-
-		static Dictionary<DevicePlatformId, string> PlatformReverseMap = new Dictionary<DevicePlatformId, string>()
-			{
-				{ new DevicePlatformId("ps4"),  "PS4-DevKit"},
-				{ new DevicePlatformId("ps5"),  "PS5"},
-				{ new DevicePlatformId("xboxone"),  "XboxOneGDK"},
-				{ new DevicePlatformId("xsx"),  "XSX"},
-				{ new DevicePlatformId("switch"),  "Switch"},
-			};
-
-		static Dictionary<DevicePlatformId, string> PerfSpecHighMap = new Dictionary<DevicePlatformId, string>()
-			{
-				{ new DevicePlatformId("ps4"),  "PS4Pro"},
-				{ new DevicePlatformId("xboxone"),  "XboxOneX"}
-			};
-
-
 		/// <summary>
 		/// Create a device reservation
 		/// </summary>
@@ -674,40 +652,40 @@ namespace HordeServer.Controllers
 			List<IDevicePool> Pools = await DeviceService.GetPoolsAsync();
 			List<IDevicePlatform> Platforms = await DeviceService.GetPlatformsAsync();
 
-            string Message;
-            string? PoolId = Request.PoolId;
+			string Message;
+			string? PoolId = Request.PoolId;
 
 			// @todo: Remove this once all streams are updated to provide jobid
-            string Details = "";
-            if ((String.IsNullOrEmpty(Request.JobId) || String.IsNullOrEmpty(Request.StepId)))
+			string Details = "";
+			if ((String.IsNullOrEmpty(Request.JobId) || String.IsNullOrEmpty(Request.StepId)))
 			{
- 				if (!string.IsNullOrEmpty(Request.ReservationDetails))
-				 {
+				if (!string.IsNullOrEmpty(Request.ReservationDetails))
+				{
 					Details = $" - {Request.ReservationDetails}";
-				 }
-				 else
-				 {
+				}
+				else
+				{
 					Details = $" - Host {Request.Hostname}";
-				 }							 
-            }
+				}
+			}
 
 			if (string.IsNullOrEmpty(PoolId))
 			{
-                Message = $"No pool specified, defaulting to UE4" + Details;
-                Logger.LogError(Message + $" JobId: {Request.JobId}, StepId: {Request.StepId}");
+				Message = $"No pool specified, defaulting to UE4" + Details;
+				Logger.LogError(Message + $" JobId: {Request.JobId}, StepId: {Request.StepId}");
 				await DeviceService.NotifyDeviceServiceAsync(Message, null, Request.JobId, Request.StepId);
 				PoolId = "ue4";
-                //return BadRequest(Message);
-            }			
+				//return BadRequest(Message);
+			}
 
 			DevicePoolId PoolIdValue = DevicePoolId.Sanitize(PoolId);
 			IDevicePool? Pool = Pools.FirstOrDefault(x => x.Id == PoolIdValue);
 			if (Pool == null)
 			{
-                Message = $"Unknown pool {PoolId} " + Details;
+				Message = $"Unknown pool {PoolId} " + Details;
 				Logger.LogError(Message);
 				await DeviceService.NotifyDeviceServiceAsync(Message, null, Request.JobId, Request.StepId);
-                return BadRequest(Message);
+				return BadRequest(Message);
 			}
 
 			List<DeviceRequestData> RequestedDevices = new List<DeviceRequestData>();
@@ -731,22 +709,24 @@ namespace HordeServer.Controllers
 
 				DevicePlatformId PlatformId;
 
-				if (!PlatformMap.TryGetValue(PlatformName, out PlatformId))
+				DevicePlatformMapV1 MapV1 = await DeviceService.GetPlatformMapV1();
+
+				if (!MapV1.PlatformMap.TryGetValue(PlatformName, out PlatformId))
 				{
-                    Message = $"Unknown platform {PlatformName}" + Details;
+					Message = $"Unknown platform {PlatformName}" + Details;
 					Logger.LogError(Message);
 					await DeviceService.NotifyDeviceServiceAsync(Message, null, Request.JobId, Request.StepId);
-                    return BadRequest(Message);
+					return BadRequest(Message);
 				}
 
 				IDevicePlatform? Platform = Platforms.FirstOrDefault(x => x.Id == PlatformId);
 
 				if (Platform == null)
 				{
-                    Message = $"Unknown platform {PlatformId}" + Details;
+					Message = $"Unknown platform {PlatformId}" + Details;
 					Logger.LogError(Message);
 					await DeviceService.NotifyDeviceServiceAsync(Message, null, Request.JobId, Request.StepId);
-                    return BadRequest(Message);
+					return BadRequest(Message);
 				}
 
 				List<string> IncludeModels = new List<string>();
@@ -755,7 +735,7 @@ namespace HordeServer.Controllers
 				if (PerfSpecName == "High")
 				{
 					string? Model = null;
-					if (PerfSpecHighMap.TryGetValue(PlatformId, out Model))
+					if (MapV1.PerfSpecHighMap.TryGetValue(PlatformId, out Model))
 					{
 						IncludeModels.Add(Model);
 					}
@@ -764,7 +744,7 @@ namespace HordeServer.Controllers
 				if (PerfSpecName == "Minimum" || PerfSpecName == "Recommended")
 				{
 					string? Model = null;
-					if (PerfSpecHighMap.TryGetValue(PlatformId, out Model))
+					if (MapV1.PerfSpecHighMap.TryGetValue(PlatformId, out Model))
 					{
 						ExcludeModels.Add(Model);
 					}
@@ -809,8 +789,8 @@ namespace HordeServer.Controllers
 
 			if (Reservation == null)
 			{
-                Logger.LogError($"Unable to find reservation for legacy guid {ReservationGuid}");
-                return BadRequest();
+				Logger.LogError($"Unable to find reservation for legacy guid {ReservationGuid}");
+				return BadRequest();
 			}
 
 			bool Updated = await DeviceService.TryUpdateReservationAsync(Reservation.Id);
@@ -821,9 +801,9 @@ namespace HordeServer.Controllers
 				return BadRequest();
 			}
 
-            List<IDevice> Devices = await DeviceService.GetDevicesAsync(Reservation.Devices);
+			List<IDevice> Devices = await DeviceService.GetDevicesAsync(Reservation.Devices);
 
-            GetLegacyReservationResponse Response = new GetLegacyReservationResponse();
+			GetLegacyReservationResponse Response = new GetLegacyReservationResponse();
 
 			Response.Guid = Reservation.LegacyGuid;
 			Response.DeviceNames = Reservation.Devices.Select(DeviceId => Devices.First(D => D.Id == DeviceId).Name).ToArray();
@@ -874,8 +854,10 @@ namespace HordeServer.Controllers
 				return BadRequest($"Unknown device {DeviceName}");
 			}
 
+			DevicePlatformMapV1 MapV1 = await DeviceService.GetPlatformMapV1();
+
 			string? Platform;
-			if (!PlatformReverseMap.TryGetValue(Device.PlatformId, out Platform))
+			if (!MapV1.PlatformReverseMap.TryGetValue(Device.PlatformId, out Platform))
 			{
 				return BadRequest($"Unable to map platform for {DeviceName} : {Device.PlatformId}");
 			}
@@ -889,19 +871,19 @@ namespace HordeServer.Controllers
 			Response.AvailableEndTime = "00:00:00";
 			Response.Enabled = true;
 			Response.DeviceData = "";
-						
+
 			Response.PerfSpec = "Minimum";
 
 			if (Device.ModelId != null)
 			{
 				string? Model = null;
-				if (PerfSpecHighMap.TryGetValue(Device.PlatformId, out Model))
+				if (MapV1.PerfSpecHighMap.TryGetValue(Device.PlatformId, out Model))
 				{
 					if (Model == Device.ModelId)
 					{
 						Response.PerfSpec = "High";
 					}
-					
+
 				}
 			}
 
@@ -923,20 +905,20 @@ namespace HordeServer.Controllers
 			{
 				Logger.LogError($"Device error reported for unknown device {DeviceName}");
 				return BadRequest($"Unknown device {DeviceName}");
-			}			
+			}
 
 			await DeviceService.UpdateDeviceAsync(Device.Id, NewProblem: true);
 
 			string Message = $"Device problem, {Device.Name} : {Device.PoolId.ToString().ToUpperInvariant()}";
 
-            IDeviceReservation? Reservation = await DeviceService.TryGetDeviceReservation(Device.Id);
+			IDeviceReservation? Reservation = await DeviceService.TryGetDeviceReservation(Device.Id);
 
-            string? JobId = null;
-            string? StepId = null;
-            if (Reservation != null) 
+			string? JobId = null;
+			string? StepId = null;
+			if (Reservation != null)
 			{
 				JobId = !string.IsNullOrEmpty(Reservation.JobId) ? Reservation.JobId : null;
-                StepId = !string.IsNullOrEmpty(Reservation.StepId) ? Reservation.StepId : null;
+				StepId = !string.IsNullOrEmpty(Reservation.StepId) ? Reservation.StepId : null;
 
 				if ((JobId == null || StepId == null))
 				{
@@ -947,16 +929,49 @@ namespace HordeServer.Controllers
 					else
 					{
 						Message += $" - Host {Reservation.Hostname}";
-					}                    
-                }
-            }
+					}
+				}
+			}
 
-            Logger.LogError(Message);
+			Logger.LogError(Message);
 
-            await DeviceService.NotifyDeviceServiceAsync(Message, Device.Id, JobId, StepId);
+			await DeviceService.NotifyDeviceServiceAsync(Message, Device.Id, JobId, StepId);
 
 			return Ok();
 
+		}
+
+		/// <summary>
+		/// Updates the platform map for v1 requests
+		/// </summary>
+		[HttpPut]
+		[Route("/api/v1/devices/platformmap")]
+		public async Task<ActionResult> UpdatePlatformMapV1([FromBody] UpdatePlatformMapRequest Request)
+		{
+			if (!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
+			{
+				return Forbid();
+			}
+
+			bool Result = false;
+
+			try
+			{
+				Result = await DeviceService.UpdatePlatformMapAsync(Request);
+			}
+			catch (Exception Ex)
+			{
+				Logger.LogError(Ex, "Error updating device platform map {Message}", Ex.Message);
+				throw;
+			}
+
+			if (!Result)
+			{
+				Logger.LogError("Unable to update device platform mapping");
+				return BadRequest();
+			}
+
+			return Ok();
 		}
 	}
 }
