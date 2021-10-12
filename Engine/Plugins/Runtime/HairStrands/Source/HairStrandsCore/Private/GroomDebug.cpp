@@ -11,6 +11,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "UnrealEngine.h"
 #include "SystemTextures.h"
+#include "CanvasTypes.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
