@@ -20,6 +20,7 @@ public:
 	: bReportWarningsAndErrors(true)
 	, Hierarchy(nullptr)
 	, bSuspendNotifications(false)
+	, bSuspendPythonPrinting(false)
 	{}
 
 	virtual ~URigHierarchyController();
@@ -61,7 +62,7 @@ public:
 	 * @return Returns true if the selection was applied
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
-    bool SetSelection(TArray<FRigElementKey> InKeys);
+    bool SetSelection(const TArray<FRigElementKey>& InKeys, bool bPrintPythonCommand = false);
 
 	/**
 	 * Clears the selection
@@ -607,6 +608,11 @@ private:
 	 * If set to true all notifs coming from this hierarchy will be suspended
 	 */
 	bool bSuspendNotifications;
+
+	/** 
+	* If set to true all python printing can be disabled.  
+	*/
+	bool bSuspendPythonPrinting;
 
 	/**
 	 * This function can be used to override the controller's logging mechanism
