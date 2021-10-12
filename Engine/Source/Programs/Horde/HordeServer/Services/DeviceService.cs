@@ -16,12 +16,37 @@ using System.Security.Claims;
 using System.Diagnostics.CodeAnalysis;
 using HordeServer.Notifications;
 using System.Linq;
+using HordeServer.Api;
 
 namespace HordeServer.Services
 {
 	using DeviceId = StringId<IDevice>;
 	using DevicePlatformId = StringId<IDevicePlatform>;
 	using DevicePoolId = StringId<IDevicePool>;
+
+	/// <summary>
+	/// Platform map required by V1 API
+	/// </summary>
+	[SingletonDocument("6165a2e26fd5f104e31e6862")]
+	public class DevicePlatformMapV1 : SingletonBase
+	{
+		/// <summary>
+		/// Platform V1 => Platform Id
+		/// </summary>
+		public Dictionary<string, DevicePlatformId> PlatformMap { get; set; } = new Dictionary<string, DevicePlatformId>();
+
+		/// <summary>
+		/// Platform Id => Platform V1
+		/// </summary>
+		public Dictionary<DevicePlatformId, string> PlatformReverseMap { get; set; } = new Dictionary<DevicePlatformId, string>();
+
+		/// <summary>
+		/// Perfspec V1 => Model
+		/// </summary>
+		public Dictionary<DevicePlatformId, string> PerfSpecHighMap { get; set; } = new Dictionary<DevicePlatformId, string>();
+
+	}
+
 
 	/// <summary>
 	/// Device management service
@@ -60,9 +85,14 @@ namespace HordeServer.Services
 		IDeviceCollection Devices;
 
 		/// <summary>
+		/// Platform map V1 singleton
+		/// </summary>
+		ISingletonDocument<DevicePlatformMapV1> PlatformMapSingleton;
+
+		/// <summary>
 		/// Device service constructor
 		/// </summary>
-		public DeviceService(IDeviceCollection Devices, JobService JobService, StreamService StreamService, AclService AclService, INotificationService NotificationService, ILogger<DeviceService> Logger)
+		public DeviceService(IDeviceCollection Devices, ISingletonDocument<DevicePlatformMapV1> PlatformMapSingleton, JobService JobService, StreamService StreamService, AclService AclService, INotificationService NotificationService, ILogger<DeviceService> Logger)
 			: base(TimeSpan.FromMinutes(1.0), Logger)
 		{
 			this.Devices = Devices;
@@ -71,6 +101,9 @@ namespace HordeServer.Services
             this.AclService = AclService;
             this.NotificationService = NotificationService;
             this.Logger = Logger;
+			
+			this.PlatformMapSingleton = PlatformMapSingleton;
+
 		}
 
 		/// <summary>
@@ -331,6 +364,77 @@ namespace HordeServer.Services
 				return Task.FromResult(true);
 			}
 			return Task.FromResult(User.IsInRole("Internal-Employees"));			
+		}
+
+		/// <summary>
+		/// Get Platform mappings for V1 API
+		/// </summary>		
+		public async Task<DevicePlatformMapV1> GetPlatformMapV1()
+		{
+			return await PlatformMapSingleton.GetAsync();
+		}
+
+		/// <summary>
+		/// Updates the platform mapping information required for the V1 api
+		/// </summary>				
+		public async Task<bool> UpdatePlatformMapAsync(UpdatePlatformMapRequest Request)
+		{
+
+			List<IDevicePlatform> Platforms = await GetPlatformsAsync();
+
+			// Update the platform map
+			for (int i = 0; i < 10; i++)
+			{
+				DevicePlatformMapV1 Instance = await PlatformMapSingleton.GetAsync();
+
+				Instance.PlatformMap = new Dictionary<string, DevicePlatformId>();
+				Instance.PlatformReverseMap = new Dictionary<DevicePlatformId, string>();
+				Instance.PerfSpecHighMap = new Dictionary<DevicePlatformId, string>();
+
+				foreach(KeyValuePair<string, string> Entry in Request.PlatformMap)
+				{
+					IDevicePlatform? Platform = Platforms.FirstOrDefault(P => P.Id == new DevicePlatformId(Entry.Value));
+					if (Platform == null)
+					{
+						throw new Exception($"Unknowm platform in map {Entry.Key} : {Entry.Value}");
+					}
+
+					Instance.PlatformMap.Add(Entry.Key, Platform.Id);
+				}
+
+				foreach (KeyValuePair<string, string> Entry in Request.PlatformReverseMap)
+				{
+					IDevicePlatform? Platform = Platforms.FirstOrDefault(P => P.Id == new DevicePlatformId(Entry.Key));
+					if (Platform == null)
+					{
+						throw new Exception($"Unknowm platform in reverse map {Entry.Key} : {Entry.Value}");
+					}
+
+					Instance.PlatformReverseMap.Add(Platform.Id, Entry.Value);
+				}
+
+				foreach (KeyValuePair<string, string> Entry in Request.PerfSpecHighMap)
+				{
+					IDevicePlatform? Platform = Platforms.FirstOrDefault(P => P.Id == new DevicePlatformId(Entry.Key));
+					if (Platform == null)
+					{
+						throw new Exception($"Unknowm platform in spec map {Entry.Key} : {Entry.Value}");
+					}
+
+					Instance.PerfSpecHighMap.Add(Platform.Id, Entry.Value);
+				}
+
+
+				if (await PlatformMapSingleton.TryUpdateAsync(Instance))
+				{
+					return true;
+				}
+
+				Thread.Sleep(1000);
+			}
+
+			return false;
+
 		}
 
 	}
