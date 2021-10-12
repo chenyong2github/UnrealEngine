@@ -309,7 +309,6 @@ namespace Gauntlet
 			// do we have any tests? Need to check the global test list
 			bool HaveTests = TestList.Count > 0 || PlatformList.Where(Plat => Plat.ParseValues("test").Count() > 0).Count() > 0;
 
-			// turn -device=BobsKit,BobsKit(PS4) into a device list
 			List<string> DeviceArgStrings = Params.ParseValues("device=");
 
 			if (DeviceArgStrings.Count == 0)
