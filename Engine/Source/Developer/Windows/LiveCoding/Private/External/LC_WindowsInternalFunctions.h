@@ -25,7 +25,10 @@ namespace WindowsInternals
 
 		inline R operator()(Args... args) const;
 
-	private:
+		// BEGIN EPIC MODS
+		inline R ExecNoResultCheck(Args... args) const;
+		// END EPIC MODS
+
 		// Helper for letting us check the result for arbitrary return types.
 		// Base template.
 		template <typename T>
@@ -40,6 +43,10 @@ namespace WindowsInternals
 				LC_ERROR_USER("Call to function %s in module %s failed. Error: 0x%X", m_functionName, m_moduleName, result);
 			}
 		}
+
+		// BEGIN EPIC MODS
+	private:
+		// END EPIC MODS
 
 		const char* m_moduleName;
 		const char* m_functionName;
@@ -78,6 +85,15 @@ inline R WindowsInternals::Function<R (Args...)>::operator()(Args... args) const
 	return result;
 }
 
+// BEGIN EPIC MODS
+template <typename R, typename... Args>
+inline R WindowsInternals::Function<R(Args...)>::ExecNoResultCheck(Args... args) const
+{
+	const R result = m_function(args...);
+
+	return result;
+}
+// BEGIN EPIC MODS
 
 // These are undocumented functions found in ntdll.dll.
 // We don't call them directly, but use them for "extracting" their signature using decltype.
