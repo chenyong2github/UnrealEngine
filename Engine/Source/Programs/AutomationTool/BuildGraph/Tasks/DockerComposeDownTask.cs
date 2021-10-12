@@ -58,7 +58,7 @@ namespace BuildGraph.Tasks
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
 		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
-			StringBuilder Arguments = new StringBuilder("--no-ansi ");
+			StringBuilder Arguments = new StringBuilder("--ansi never ");
 			if (!String.IsNullOrEmpty(Parameters.File))
 			{
 				Arguments.Append($"--file {Parameters.File.QuoteArgument()} ");
