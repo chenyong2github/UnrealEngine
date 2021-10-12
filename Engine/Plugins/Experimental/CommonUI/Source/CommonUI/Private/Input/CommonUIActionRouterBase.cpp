@@ -575,6 +575,15 @@ void UCommonUIActionRouterBase::HandleSlateFocusChanging(const FFocusEvent& Focu
 void UCommonUIActionRouterBase::HandlePostGarbageCollect()
 {
 	FUIActionBinding::CleanRegistrations();
+
+	// GC may result in root widget being purged while conditional slate resource release skips HandleRootWidgetSlateReleased, handle this scenario
+	for (auto Iter = RootNodes.CreateIterator(); Iter; ++Iter)
+	{
+		if (!Iter->Get().IsWidgetValid())
+		{
+			Iter.RemoveCurrent();
+		}
+	}
 }
 
 void UCommonUIActionRouterBase::ProcessRebuiltWidgets()
