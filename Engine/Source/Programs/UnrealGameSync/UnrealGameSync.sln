@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.30406.217
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31710.8
 MinimumVisualStudioVersion = 15.0.26124.0
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnrealGameSync", "UnrealGameSync\UnrealGameSync.csproj", "{3E369569-F91E-46E1-B66F-2EE7B2312C85}"
 EndProject
@@ -23,6 +23,10 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Core", "..\Shared\EpicGames.Core\EpicGames.Core.csproj", "{B4E411AB-849C-46C2-A19D-95CE7AA09C9B}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Jupiter", "..\Shared\EpicGames.Jupiter\EpicGames.Jupiter.csproj", "{A826A3C5-A02E-45DA-B418-A5C3EDDC1654}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetadataServer", "MetadataServer\MetadataServer.csproj", "{C8D13E98-C8CD-42FB-9C79-F3EB11B0F3E8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PostBadgeStatus", "PostBadgeStatus\PostBadgeStatus.csproj", "{DCBE3437-5DBF-41B4-B854-967BC0C93C48}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -73,6 +77,18 @@ Global
 		{A826A3C5-A02E-45DA-B418-A5C3EDDC1654}.Development|Any CPU.Build.0 = Development|Any CPU
 		{A826A3C5-A02E-45DA-B418-A5C3EDDC1654}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A826A3C5-A02E-45DA-B418-A5C3EDDC1654}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C8D13E98-C8CD-42FB-9C79-F3EB11B0F3E8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C8D13E98-C8CD-42FB-9C79-F3EB11B0F3E8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C8D13E98-C8CD-42FB-9C79-F3EB11B0F3E8}.Development|Any CPU.ActiveCfg = Debug|Any CPU
+		{C8D13E98-C8CD-42FB-9C79-F3EB11B0F3E8}.Development|Any CPU.Build.0 = Debug|Any CPU
+		{C8D13E98-C8CD-42FB-9C79-F3EB11B0F3E8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C8D13E98-C8CD-42FB-9C79-F3EB11B0F3E8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DCBE3437-5DBF-41B4-B854-967BC0C93C48}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DCBE3437-5DBF-41B4-B854-967BC0C93C48}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DCBE3437-5DBF-41B4-B854-967BC0C93C48}.Development|Any CPU.ActiveCfg = Debug|Any CPU
+		{DCBE3437-5DBF-41B4-B854-967BC0C93C48}.Development|Any CPU.Build.0 = Debug|Any CPU
+		{DCBE3437-5DBF-41B4-B854-967BC0C93C48}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DCBE3437-5DBF-41B4-B854-967BC0C93C48}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
