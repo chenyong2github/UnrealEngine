@@ -36,6 +36,10 @@ static void OnRequestExit()
 class FLiveCodingConsoleApp
 {
 private:
+	static constexpr TCHAR* SectionName = TEXT("LiveCodingConsole");
+	static constexpr TCHAR* DisableActionLimitKey = TEXT("bDisableActionLimit");
+	static constexpr TCHAR* ActionLimitKey = TEXT("ActionLimit");
+
 	FCriticalSection CriticalSection;
 	FSlateApplication& Slate;
 	ILiveCodingServer& Server;
@@ -44,7 +48,7 @@ private:
 	TSharedPtr<SNotificationItem> CompileNotification;
 	TArray<FSimpleDelegate> MainThreadTasks;
 	bool bRequestCancel;
-	bool bDisableLimit;
+	bool bDisableActionLimit;
 	bool bHasReinstancingProcess;
 	bool bWarnOnRestart;
 	FDateTime LastPatchTime;
@@ -55,7 +59,7 @@ public:
 		: Slate(InSlate)
 		, Server(InServer)
 		, bRequestCancel(false)
-		, bDisableLimit(false)
+		, bDisableActionLimit(false)
 		, bHasReinstancingProcess(false)
 		, bWarnOnRestart(false)
 		, LastPatchTime(FDateTime::MinValue())
@@ -65,6 +69,8 @@ public:
 
 	void Run()
 	{
+		GConfig->GetBool(SectionName, DisableActionLimitKey, bDisableActionLimit, GEngineIni);
+
 		// open up the app window	
 		LogWidget = SNew(SLogWidget);
 
@@ -125,8 +131,13 @@ public:
 						.Padding(5)
 						[
 							SNew(SCheckBox)
-							.IsChecked_Lambda([this]() { return bDisableLimit ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-							.OnCheckStateChanged_Lambda([this](ECheckBoxState InCheckBoxState) { bDisableLimit = InCheckBoxState == ECheckBoxState::Checked; })
+							.IsChecked_Lambda([this]() { return bDisableActionLimit ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+							.OnCheckStateChanged_Lambda([this](ECheckBoxState InCheckBoxState) 
+								{ 
+									bDisableActionLimit = InCheckBoxState == ECheckBoxState::Checked;
+									GConfig->SetBool(SectionName, DisableActionLimitKey, bDisableActionLimit, GEngineIni);
+									GConfig->Flush(false, GEngineIni);
+								})
 							[
 								SNew(STextBlock)
 								.Text(LOCTEXT("DisableLimit", "Disable action limit for this session"))
@@ -193,6 +204,8 @@ public:
 			}
 			MainThreadTasks.Empty();
 		}
+
+		// NOTE: In normal operation, this is never reached.  The window's JOB system will terminate the process.
 
 		// Make sure the window is hidden, because it might take a while for the background thread to finish.
 		Window->HideWindow();
@@ -289,13 +302,11 @@ private:
 			Arguments += FString::Printf(TEXT("-Target=\"%s\" "), *Target.Replace(TEXT("\""), TEXT("\"\"")));
 		}
 		Arguments += FString::Printf(TEXT("-LiveCoding -LiveCodingModules=\"%s\" -LiveCodingManifest=\"%s\" -WaitMutex"), *ModulesFileName, *ManifestFileName);
-		if (!bDisableLimit && CompileReason == ELiveCodingCompileReason::Initial)
+		if (!bDisableActionLimit && CompileReason == ELiveCodingCompileReason::Initial)
 		{
-			bool bDisableActionLimit = false;
-			GConfig->GetBool(TEXT("LiveCoding"), TEXT("bDisableActionLimit"), bDisableActionLimit, GEngineIni);
 			int ActionLimit = 1;
-			GConfig->GetInt(TEXT("LiveCoding"), TEXT("ActionLimit"), ActionLimit, GEngineIni);
-			if (!bDisableActionLimit && ActionLimit > 0)
+			GConfig->GetInt(SectionName, ActionLimitKey, ActionLimit, GEngineIni);
+			if (ActionLimit > 0)
 			{
 				Arguments += FString::Printf(TEXT(" -LiveCodingLimit=%d"), ActionLimit);
 			}
