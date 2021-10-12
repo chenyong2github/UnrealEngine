@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using AutomationTool;
 using EpicGames.Core;
 using System;
 using System.Collections.Generic;
@@ -7,7 +8,7 @@ using System.IO;
 using System.Text;
 using System.Xml;
 
-namespace AutomationTool.Tasks
+namespace BuildGraph.Tasks
 {
 	/// <summary>
 	/// Parameters for a DotNet task
@@ -27,6 +28,18 @@ namespace AutomationTool.Tasks
 		public string BaseDir;
 
 		/// <summary>
+		/// Environment variables to set
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public string Environment;
+
+		/// <summary>
+		/// File to read environment variables from
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public string EnvironmentFile;
+
+		/// <summary>
 		/// The minimum exit code, which is treated as an error.
 		/// </summary>
 		[TaskParameter(Optional = true)]
@@ -37,7 +50,7 @@ namespace AutomationTool.Tasks
 	/// Spawns Docker and waits for it to complete.
 	/// </summary>
 	[TaskElement("DotNet", typeof(DotNetTaskParameters))]
-	public class DotNetTask : CustomTask
+	public class DotNetTask : SpawnTaskBase
 	{
 		/// <summary>
 		/// Parameters for this task
@@ -67,7 +80,7 @@ namespace AutomationTool.Tasks
 				throw new AutomationException("DotNet is missing from {0}", DotNetFile);
 			}
 
-			IProcessResult Result = CommandUtils.Run(DotNetFile.FullName, Parameters.Arguments, WorkingDir: Parameters.BaseDir);
+			IProcessResult Result = Execute(DotNetFile.FullName, Parameters.Arguments, WorkingDir: Parameters.BaseDir, EnvVars: ParseEnvVars(Parameters.Environment, Parameters.EnvironmentFile));
 			if (Result.ExitCode < 0 || Result.ExitCode >= Parameters.ErrorLevel)
 			{
 				throw new AutomationException("Docker terminated with an exit code indicating an error ({0})", Result.ExitCode);

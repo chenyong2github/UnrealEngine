@@ -1,75 +1,51 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using AutomationTool;
 using EpicGames.Core;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.Json;
 using System.Xml;
+using AutomationTool;
+using UnrealBuildBase;
 
 namespace BuildGraph.Tasks
 {
 	/// <summary>
-	/// Parameters for a Docker-Build task
+	/// Parameters for a Docker-Compose task
 	/// </summary>
-	public class DockerPushTaskParameters
+	public class DockerComposeDownTaskParameters
 	{
 		/// <summary>
-		/// Repository
+		/// Path to the docker-compose file
 		/// </summary>
 		[TaskParameter]
-		public string Repository;
+		public string File;
 
 		/// <summary>
-		/// Source image to push
-		/// </summary>
-		[TaskParameter]
-		public string Image;
-
-		/// <summary>
-		/// Name of the target image
+		/// Arguments for the command
 		/// </summary>
 		[TaskParameter(Optional = true)]
-		public string TargetImage;
-
-		/// <summary>
-		/// Additional environment variables
-		/// </summary>
-		[TaskParameter(Optional = true)]
-		public string Environment;
-
-		/// <summary>
-		/// File to read environment from
-		/// </summary>
-		[TaskParameter(Optional = true)]
-		public string EnvironmentFile;
-
-		/// <summary>
-		/// Whether to login to AWS ECR
-		/// </summary>
-		[TaskParameter(Optional = true)]
-		public bool AwsEcr;
+		public string Arguments;
 	}
 
 	/// <summary>
 	/// Spawns Docker and waits for it to complete.
 	/// </summary>
-	[TaskElement("Docker-Push", typeof(DockerPushTaskParameters))]
-	public class DockerPushTask : SpawnTaskBase
+	[TaskElement("Docker-Compose-Down", typeof(DockerComposeDownTaskParameters))]
+	public class DockerComposeDownTask : SpawnTaskBase
 	{
 		/// <summary>
 		/// Parameters for this task
 		/// </summary>
-		DockerPushTaskParameters Parameters;
+		DockerComposeDownTaskParameters Parameters;
 
 		/// <summary>
-		/// Construct a Docker task
+		/// Construct a Docker-Compose task
 		/// </summary>
 		/// <param name="InParameters">Parameters for the task</param>
-		public DockerPushTask(DockerPushTaskParameters InParameters)
+		public DockerComposeDownTask(DockerComposeDownTaskParameters InParameters)
 		{
 			Parameters = InParameters;
 		}
@@ -82,20 +58,21 @@ namespace BuildGraph.Tasks
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
 		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
-			Log.TraceInformation("Pushing Docker image");
+			StringBuilder Arguments = new StringBuilder("--no-ansi ");
+			if (!String.IsNullOrEmpty(Parameters.File))
+			{
+				Arguments.Append($"--file {Parameters.File.QuoteArgument()} ");
+			}
+			Arguments.Append("down");
+			if (!String.IsNullOrEmpty(Parameters.Arguments))
+			{
+				Arguments.Append($" {Parameters.Arguments}");
+			}
+
+			Log.TraceInformation("Running docker compose {0}", Arguments.ToString());
 			using (LogIndentScope Scope = new LogIndentScope("  "))
 			{
-				Dictionary<string, string> Environment = ParseEnvVars(Parameters.Environment, Parameters.EnvironmentFile);
-
-				if (Parameters.AwsEcr)
-				{
-					IProcessResult Result = SpawnTaskBase.Execute("aws", "ecr get-login-password", EnvVars: Environment, LogOutput: false);
-					Execute("docker", $"--no-ansi login {Parameters.Repository} --username AWS --password-stdin", Input: Result.Output);
-				}
-
-				string TargetImage = Parameters.TargetImage ?? Parameters.Image;
-				Execute("docker", $"--no-ansi tag {Parameters.Image} {Parameters.Repository}/{TargetImage}", EnvVars: Environment);
-				Execute("docker", $"--no-ansi push {Parameters.Repository}/{TargetImage}", EnvVars: Environment);
+				SpawnTaskBase.Execute("docker-compose", Arguments.ToString());
 			}
 		}
 
@@ -113,7 +90,7 @@ namespace BuildGraph.Tasks
 		/// <returns>The tag names which are read by this task</returns>
 		public override IEnumerable<string> FindConsumedTagNames()
 		{
-			yield break;
+			return Enumerable.Empty<string>();
 		}
 
 		/// <summary>
@@ -122,7 +99,7 @@ namespace BuildGraph.Tasks
 		/// <returns>The tag names which are modified by this task</returns>
 		public override IEnumerable<string> FindProducedTagNames()
 		{
-			yield break;
+			return Enumerable.Empty<string>();
 		}
 	}
 }
