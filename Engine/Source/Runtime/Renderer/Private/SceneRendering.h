@@ -965,7 +965,7 @@ struct FPreviousViewInfo
 	FScreenSpaceDenoiserHistory ReflectedSkyLightHistory;
 
 	// History for shadow denoising.
-	TMap<const ULightComponent*, FScreenSpaceDenoiserHistory> ShadowHistories;
+	TMap<const ULightComponent*, TSharedPtr<FScreenSpaceDenoiserHistory>> ShadowHistories;
 
 	// History for denoising all lights penumbra at once.
 	FScreenSpaceDenoiserHistory PolychromaticPenumbraHarmonicsHistory;

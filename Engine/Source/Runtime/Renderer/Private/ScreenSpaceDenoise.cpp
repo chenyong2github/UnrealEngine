@@ -2114,13 +2114,26 @@ public:
 			Settings.LightSceneInfo[BatchedSignalId] = Parameters.LightSceneInfo;
 			// Get the packed penumbra and hit distance in Penumbra texture.
 			InputSignal.Textures[BatchedSignalId] = Parameters.InputTextures.Mask;
-			PrevHistories[BatchedSignalId] = PreviousViewInfos->ShadowHistories.Find(Settings.LightSceneInfo[BatchedSignalId]->Proxy->GetLightComponent());
+
+			const ULightComponent* LightComponent = Settings.LightSceneInfo[BatchedSignalId]->Proxy->GetLightComponent();
+			TSharedPtr<FScreenSpaceDenoiserHistory>* PrevHistoryEntry = PreviousViewInfos->ShadowHistories.Find(LightComponent);
+			PrevHistories[BatchedSignalId] = PrevHistoryEntry ? PrevHistoryEntry->Get() : nullptr;
 			NewHistories[BatchedSignalId] = nullptr;
 				
 			if (!View.bStatePrevViewInfoIsReadOnly)
 			{
 				check(View.ViewState);
-				NewHistories[BatchedSignalId] = &View.ViewState->PrevFrameViewInfo.ShadowHistories.FindOrAdd(Settings.LightSceneInfo[BatchedSignalId]->Proxy->GetLightComponent());
+				TSharedPtr<FScreenSpaceDenoiserHistory>* NewHistoryEntry = View.ViewState->PrevFrameViewInfo.ShadowHistories.Find(LightComponent);
+				if (NewHistoryEntry == nullptr)
+				{
+					FScreenSpaceDenoiserHistory* NewHistory = new FScreenSpaceDenoiserHistory;
+					View.ViewState->PrevFrameViewInfo.ShadowHistories.Emplace(LightComponent, NewHistory);
+					NewHistories[BatchedSignalId] = NewHistory;
+				}
+				else
+				{
+					NewHistories[BatchedSignalId] = NewHistoryEntry->Get();
+				}
 			}
 		}
 
