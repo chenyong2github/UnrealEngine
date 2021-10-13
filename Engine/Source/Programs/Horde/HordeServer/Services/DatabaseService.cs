@@ -137,6 +137,7 @@ namespace HordeServer.Services
 			
 			public void Handle(CommandStartedEvent e)
 			{
+				Serilog.Log.Debug("Mongo command start: {Command}", e.CommandName);
 				IScope Scope = GlobalTracer.Instance.BuildSpan("mongodb.command").StartActive();
 				string? DbName = null;
 				string? CollectionName = null;
@@ -176,8 +177,9 @@ namespace HordeServer.Services
 					Scope.Dispose();
 					Scopes.Remove(e.RequestId, out _);
 				}
+				Serilog.Log.Debug("Mongo command succeded: {Command} ({HaveScope})", e.CommandName, Scope != null);
 			}
-			
+
 			public void Handle(CommandFailedEvent e)
 			{
 				if (Scopes.TryGetValue(e.RequestId, out IScope? Scope))
@@ -186,6 +188,7 @@ namespace HordeServer.Services
 					Scope.Dispose();
 					Scopes.Remove(e.RequestId, out _);
 				}
+				Serilog.Log.Debug("Mongo command failed: {Command} ({HaveScope})", e.CommandName, Scope != null);
 			}
 		}
 
