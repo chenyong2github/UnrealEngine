@@ -332,7 +332,7 @@ protected:
 
 	uint32 GetCellForPoint(int32 PointID) const
 	{
-		if (PointID >= 0 && PointID < PointIDToCellMap.Num())
+		if (PointID >= 0 && size_t(PointID) < PointIDToCellMap.Num())
 		{
 			return PointIDToCellMap[PointID];
 		}
