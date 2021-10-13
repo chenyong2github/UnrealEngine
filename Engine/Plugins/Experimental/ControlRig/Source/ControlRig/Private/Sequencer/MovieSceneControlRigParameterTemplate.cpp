@@ -567,6 +567,14 @@ void FControlRigBindingHelper::BindToSequencerInstance(UControlRig* ControlRig)
 			}
 		}
 	}
+	else if (UControlRigComponent* ControlRigComponent = Cast<UControlRigComponent>(ControlRig->GetObjectBinding()->GetBoundObject()))
+	{
+		if (ControlRigComponent->GetControlRig() != ControlRig)
+		{
+			ControlRigComponent->Initialize();
+			ControlRigComponent->SetControlRig(ControlRig);
+		}
+	}
 }
 
 void FControlRigBindingHelper::UnBindFromSequencerInstance(UControlRig* ControlRig)
