@@ -791,7 +791,9 @@ bool FUserManagerEOS::AutoLogin(int32 LocalUserNum)
 	FParse::Value(FCommandLine::Get(), TEXT("AUTH_PASSWORD="), Password);
 	FParse::Value(FCommandLine::Get(), TEXT("AUTH_TYPE="), AuthType);
 
-	if (EOSSubsystem->bIsDefaultOSS && (LoginId.IsEmpty() || Password.IsEmpty() || AuthType.IsEmpty()))
+	FEOSSettings Settings = UEOSSettings::GetSettings();
+
+	if (EOSSubsystem->bIsDefaultOSS && Settings.bUseEAS && (LoginId.IsEmpty() || Password.IsEmpty() || AuthType.IsEmpty()))
 	{
 		UE_LOG_ONLINE(Warning, TEXT("Unable to AutoLogin user (%d) due to missing auth command line args"), LocalUserNum);
 		return false;
