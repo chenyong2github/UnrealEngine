@@ -52,6 +52,22 @@ void  INiagaraShaderModule::ResetOnRequestDefaultDataInterfaceHandler()
 
 UNiagaraDataInterfaceBase* INiagaraShaderModule::RequestDefaultDataInterface(const FString& DIClassName)
 {
-	checkf(OnRequestDefaultDataInterface.IsBound(), TEXT("Can not invoke OnRequestDefaultDataInterface.  Delegate was never set."));
+	if (!OnRequestDefaultDataInterface.IsBound())
+	{
+		UE_LOG(LogTemp, Log, TEXT("NiagaraShader requires data interface '%s' and is serialized before Niagara module startup, attempting to load Niagara module."), *DIClassName);
+
+		EModuleLoadResult LoadResult;
+		FModuleManager::Get().LoadModuleWithFailureReason(TEXT("Niagara"), LoadResult);
+		if (LoadResult != EModuleLoadResult::Success)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Module manager failed to load Niagara module LoadResult(%d)."), LoadResult);
+		}
+
+		if ( !OnRequestDefaultDataInterface.IsBound() )
+		{
+			UE_LOG(LogTemp, Fatal, TEXT("Failed to start Niagara module for serialization of shader that requires data interface '%s'.  This is a load order issue that can not be resolved, content dependencies will need fixing."), *DIClassName);
+		}
+	}
+
 	return OnRequestDefaultDataInterface.Execute(DIClassName);
 }
