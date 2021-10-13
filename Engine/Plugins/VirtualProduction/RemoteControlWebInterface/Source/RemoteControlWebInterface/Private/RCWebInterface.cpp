@@ -12,7 +12,6 @@
 
 #if WITH_EDITOR
 #include "Editor.h"
-#include "Misc/CoreDelegates.h"
 #include "RCWebInterfaceCustomizations.h"
 #endif
 
