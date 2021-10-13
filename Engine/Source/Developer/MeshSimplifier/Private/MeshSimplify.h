@@ -1885,7 +1885,7 @@ float TMeshSimplifier<T, NumAttributes>::SimplifyMesh( float maxErrorLimit, int 
 		{
 			break;
 		}
-		//maxError = FMath::Max( maxError, error );
+		maxError = FMath::Max( maxError, error );
 		
 		edgeHeap.Pop();
 
@@ -1912,8 +1912,8 @@ float TMeshSimplifier<T, NumAttributes>::SimplifyMesh( float maxErrorLimit, int 
 				locked = true;
 			}
 		}
-		//if( locked )
-		//	continue;
+		if( locked )
+			continue;
 
 		v = top->v0;
 		do {
@@ -1956,7 +1956,7 @@ float TMeshSimplifier<T, NumAttributes>::SimplifyMesh( float maxErrorLimit, int 
 #else
 			float Error = ComputeEdgeCollapseCost( edge, true );
 #endif
-			maxError = FMath::Max( maxError, Error );
+			//maxError = FMath::Max( maxError, Error );
 		}
 
 		// collapse all edges

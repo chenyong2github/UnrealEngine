@@ -6,6 +6,8 @@
 #include "Input/UIActionBindingHandle.h"
 #include "CommonActivatableWidget.generated.h"
 
+class FActivatableTreeNode;
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWidgetActivationChanged);
 
 /** 
@@ -90,6 +92,9 @@ public:
 
 	bool SetsVisibilityOnActivated() const { return bSetVisibilityOnActivated; }
 	bool SetsVisibilityOnDeactivated() const { return bSetVisibilityOnDeactivated; }
+
+	void RegisterInputTreeNode(const TSharedPtr<FActivatableTreeNode>& OwnerNode);
+	void ClearActiveHoldInputs();
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -215,6 +220,9 @@ private:
 
 	/** Handle to default back action, if bound */
 	FUIActionBindingHandle DefaultBackActionHandle;
+
+	/** Input tree node referencing this widget */
+	TWeakPtr<FActivatableTreeNode> InputTreeNode;
 
 	mutable FSimpleMulticastDelegate OnActivatedEvent;
 	mutable FSimpleMulticastDelegate OnDeactivatedEvent;

@@ -17,7 +17,8 @@
  * Helper function to enforce that the delta between two Quaternions represents
  * the shortest possible rotation angle
  */
-static FQuat EnforceShortestArc(const FQuat& A, const FQuat& B)
+template<typename T>
+static UE::Math::TQuat<T> EnforceShortestArc(const UE::Math::TQuat<T>& A, const UE::Math::TQuat<T>& B)
 {
 	const float DotResult = (A | B);
 	const float Bias = FMath::FloatSelect(DotResult, 1.0f, -1.0f);
@@ -25,27 +26,20 @@ static FQuat EnforceShortestArc(const FQuat& A, const FQuat& B)
 }
 
 /**
- * Helper template function to calculate the delta between two data types.
+ * Helper functions to calculate the delta between two data types.
  * Used in the FilterLinearKeysTemplate function below
  */
-template <typename T>
-float CalcDelta(const T& A, const T& B)
-{
-	// only the custom instantiations below are valid
-	check(0);
-	return 0;
-}
 
-/** custom instantiation of CalcDelta for FVectors */
-template <> float CalcDelta<FVector3f>(const FVector3f& A, const FVector3f& B)
+/** CalcDelta for FVectors */
+float CalcDelta(const FVector3f& A, const FVector3f& B)
 {
 	return (A - B).Size();
 }
 
-/** custom instantiation of CalcDelta for FQuat */
-template <> float CalcDelta<FQuat>(const FQuat& A, const FQuat& B)
+/** CalcDelta for FQuat */
+float CalcDelta(const FQuat4f& A, const FQuat4f& B)
 {
-	return FQuat::Error(A, B);
+	return FQuat4f::Error(A, B);
 }
 
 UAnimCompress_RemoveLinearKeys::UAnimCompress_RemoveLinearKeys(const FObjectInitializer& ObjectInitializer)
@@ -67,9 +61,9 @@ UAnimCompress_RemoveLinearKeys::UAnimCompress_RemoveLinearKeys(const FObjectInit
 #if WITH_EDITOR
 struct RotationAdapter
 {
-	typedef FQuat KeyType;
+	typedef FQuat4f KeyType;
 
-	static FTransform UpdateBoneAtom(const FTransform& Atom, const FQuat& Component) { return FTransform(Component, Atom.GetTranslation(), Atom.GetScale3D()); }
+	static FTransform UpdateBoneAtom(const FTransform& Atom, const FQuat4f& Component) { return FTransform(FQuat(Component), Atom.GetTranslation(), Atom.GetScale3D()); }
 };
 
 struct TranslationAdapter
@@ -452,8 +446,8 @@ void UAnimCompress_RemoveLinearKeys::ConvertFromRelativeSpace(FCompressibleAnimD
 
 		// @note: we only extract the first frame, as we don't want to induce motion from the base pose
 		// only the motion from the additive data should matter.
-		const FVector& RefBonePos = BasePoseTrack.PosKeys[0];
-		const FQuat& RefBoneRotation = BasePoseTrack.RotKeys[0];
+		const FVector3f& RefBonePos = BasePoseTrack.PosKeys[0];
+		const FQuat4f& RefBoneRotation = BasePoseTrack.RotKeys[0];
 
 		// Transform position keys.
 		for (int32 PosIndex = 0; PosIndex < RawTrack.PosKeys.Num(); ++PosIndex)
@@ -471,8 +465,8 @@ void UAnimCompress_RemoveLinearKeys::ConvertFromRelativeSpace(FCompressibleAnimD
 		// make sure scale key exists
 		if (RawTrack.ScaleKeys.Num() > 0)
 		{
-			const FVector DefaultScale(1.f);
-			const FVector& RefBoneScale = (BasePoseTrack.ScaleKeys.Num() > 0)? BasePoseTrack.ScaleKeys[0] : DefaultScale;
+			const FVector3f DefaultScale(1.f);
+			const FVector3f& RefBoneScale = (BasePoseTrack.ScaleKeys.Num() > 0)? BasePoseTrack.ScaleKeys[0] : DefaultScale;
 			for (int32 ScaleIndex = 0; ScaleIndex < RawTrack.ScaleKeys.Num(); ++ScaleIndex)
 			{
 				RawTrack.ScaleKeys[ScaleIndex] = RefBoneScale * (DefaultScale + RawTrack.ScaleKeys[ScaleIndex]);
@@ -502,7 +496,7 @@ void UAnimCompress_RemoveLinearKeys::ConvertToRelativeSpace(FCompressibleAnimDat
 
 		// @note: we only extract the first frame, as we don't want to induce motion from the base pose
 		// only the motion from the additive data should matter.
-		const FQuat InvRefBoneRotation = BasePoseTrack.RotKeys[0].Inverse();
+		const FQuat4f InvRefBoneRotation = BasePoseTrack.RotKeys[0].Inverse();
 		const FVector3f InvRefBoneTranslation = -BasePoseTrack.PosKeys[0];
 
 		// transform position keys.
@@ -548,7 +542,7 @@ void UAnimCompress_RemoveLinearKeys::ConvertToRelativeSpace(
 
 		// @note: we only extract the first frame, as we don't want to induce motion from the base pose
 		// only the motion from the additive data should matter.
-		const FQuat InvRefBoneRotation = BasePoseTrack.RotKeys[0].Inverse();
+		const FQuat4f InvRefBoneRotation = BasePoseTrack.RotKeys[0].Inverse();
 		const FVector3f InvRefBoneTranslation = -BasePoseTrack.PosKeys[0];
 
 		// convert the new translation tracks to additive space
@@ -743,7 +737,7 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 					{
 						for ( int32 KeyIndex = 0; KeyIndex < NumRotKeys; ++KeyIndex )
 						{
-							FQuat& Key = RotTrack.RotKeys[KeyIndex];
+							FQuat4f& Key = RotTrack.RotKeys[KeyIndex];
 
 							check(ParentBoneIndex != INDEX_NONE);
 							const int32 FrameIndex = FMath::Clamp(KeyIndex, 0, LastFrame);
@@ -752,7 +746,7 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 							const FTransform& RelTM = (RawWorldChild.GetRelativeTransform(NewWorldParent)); 
 							FQuat Rot = FTransform(RelTM).GetRotation();
 
-							const FQuat& AlignedKey = EnforceShortestArc(Key, Rot);
+							const FQuat4f& AlignedKey = EnforceShortestArc(Key,FQuat4f(Rot));
 							Key = AlignedKey;
 						}
 					}
@@ -774,7 +768,7 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 						// adjust all rotation keys towards the end effector target
 						for ( int32 KeyIndex = 0; KeyIndex < NumRotKeys; ++KeyIndex )
 						{
-							FQuat& Key = RotTrack.RotKeys[KeyIndex];
+							FQuat4f& Key = RotTrack.RotKeys[KeyIndex];
 
 							const int32 FrameIndex = FMath::Clamp(KeyIndex, 0, LastFrame);
 
@@ -795,17 +789,17 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 								// limit the range we will retarget to something reasonable (~60 degrees)
 								if (DotResult < 1.0f && DotResult > 0.5f)
 								{
-									FQuat Adjustment= FQuat::FindBetweenVectors(CurrentHeading, DesiredHeading);
-									Adjustment= EnforceShortestArc(FQuat::Identity, Adjustment);
+									FQuat4f Adjustment= FQuat4f::FindBetweenVectors(CurrentHeading, DesiredHeading);
+									Adjustment = EnforceShortestArc(FQuat4f::Identity, Adjustment);
 
 									const FVector Test = Adjustment.RotateVector(CurrentHeading);
 									const float DeltaSqr = (Test - DesiredHeading).SizeSquared();
 									if (DeltaSqr < FMath::Square(0.001f))
 									{
-										FQuat NewKey = Adjustment * Key;
+										FQuat4f NewKey = Adjustment * Key;
 										NewKey.Normalize();
 
-										const FQuat& AlignedKey = EnforceShortestArc(Key, NewKey);
+										const FQuat4f& AlignedKey = EnforceShortestArc(Key, NewKey);
 										Key = AlignedKey;
 									}
 								}

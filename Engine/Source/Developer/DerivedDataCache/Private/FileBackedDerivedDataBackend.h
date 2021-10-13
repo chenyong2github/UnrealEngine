@@ -12,6 +12,8 @@
 class FFileBackedDerivedDataBackend : public FDerivedDataBackendInterface
 {
 public:
+
+	virtual FString GetDisplayName() const override { return FString(TEXT("File")); }
 	
 	/**
 	 * Save the cache to disk

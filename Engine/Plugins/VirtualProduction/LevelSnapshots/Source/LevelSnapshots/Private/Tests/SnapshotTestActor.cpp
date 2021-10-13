@@ -15,6 +15,15 @@ USnapshotTestComponent::USnapshotTestComponent()
 	Subobject = CreateDefaultSubobject<USubobject>(TEXT("Subobject"));
 }
 
+ASnapshotTestActor* ASnapshotTestActor::Spawn(UWorld* World, FName Name)
+{
+	FActorSpawnParameters Params;
+	Params.Name = Name;
+	Params.bNoFail = true;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	return World->SpawnActor<ASnapshotTestActor>(Params);
+}
+
 ASnapshotTestActor::ASnapshotTestActor()
 {
 	ConstructorHelpers::FObjectFinder<UMaterialInterface> GradientLinearMaterialFinder(TEXT("Material'/Engine/MaterialTemplates/Gradients/Gradient_Linear.Gradient_Linear'"), LOAD_Quiet | LOAD_NoWarn);
@@ -39,6 +48,10 @@ ASnapshotTestActor::ASnapshotTestActor()
 	{
 		CylinderMesh = CylinderFinder.Object;
 	}
+
+	StaticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticMeshComponent"));
+	StaticMeshComponent->SetupAttachment(RootComponent);
+	StaticMeshComponent->SetStaticMesh(CubeMesh);
 	
 	InstancedMeshComponent = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("InstancedMeshComponent"));
 	InstancedMeshComponent->SetupAttachment(RootComponent);

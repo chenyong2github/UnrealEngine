@@ -715,7 +715,7 @@ FNiagaraParameterMapHistoryBuilder::FNiagaraParameterMapHistoryBuilder()
 {
 	ContextuallyVisitedNodes.AddDefaulted(1);
 	PinToParameterMapIndices.AddDefaulted(1);
-	bFilterByScriptWhitelist = false;
+	bFilterByScriptAllowList = false;
 	bIgnoreDisabled = true;
 	FilterScriptType = ENiagaraScriptUsage::Function;
 }
@@ -731,9 +731,9 @@ void FNiagaraParameterMapHistoryBuilder::BuildParameterMaps(const UNiagaraNodeOu
 	EndUsage();
 }
 
-void FNiagaraParameterMapHistoryBuilder::EnableScriptWhitelist(bool bInEnable, ENiagaraScriptUsage InScriptType)
+void FNiagaraParameterMapHistoryBuilder::EnableScriptAllowList(bool bInEnable, ENiagaraScriptUsage InScriptType)
 {
-	bFilterByScriptWhitelist = bInEnable;
+	bFilterByScriptAllowList = bInEnable;
 	FilterScriptType = InScriptType;
 }
 
@@ -1214,7 +1214,7 @@ bool FNiagaraParameterMapHistoryBuilder::IsNamespacedVariableRelevantToScriptTyp
 
 bool FNiagaraParameterMapHistoryBuilder::ShouldTrackVariable(const FNiagaraVariable& InVar)
 {
-	if (!bFilterByScriptWhitelist)
+	if (!bFilterByScriptAllowList)
 	{
 		return true;
 	}

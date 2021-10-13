@@ -106,6 +106,12 @@ struct TDuplicateChildEntityInitializer : FChildEntityInitializer
 
 struct FObjectFactoryBatch : FChildEntityFactory
 {
+	enum class EResolveError
+	{
+		None              = 0x0,
+		UnresolvedBinding = 0x1,
+	};
+
 	void Add(int32 EntityIndex, UObject* BoundObject);
 
 	virtual void GenerateDerivedType(FComponentMask& OutNewEntityType) override;
@@ -114,7 +120,7 @@ struct FObjectFactoryBatch : FChildEntityFactory
 
 	virtual void PostInitialize(UMovieSceneEntitySystemLinker* InLinker) override;
 
-	virtual void ResolveObjects(FInstanceRegistry* InstanceRegistry, FInstanceHandle InstanceHandle, int32 InEntityIndex, const FGuid& ObjectBinding) = 0;
+	virtual EResolveError ResolveObjects(FInstanceRegistry* InstanceRegistry, FInstanceHandle InstanceHandle, int32 InEntityIndex, const FGuid& ObjectBinding) = 0;
 
 	TMap<TTuple<UObject*, FMovieSceneEntityID>, FMovieSceneEntityID>* StaleEntitiesToPreserve;
 
@@ -122,6 +128,7 @@ private:
 	TSortedMap<FMovieSceneEntityID, FMovieSceneEntityID> PreservedEntities;
 	TArray<UObject*> ObjectsToAssign;
 };
+ENUM_CLASS_FLAGS(FObjectFactoryBatch::EResolveError)
 
 struct FBoundObjectTask
 {
@@ -137,8 +144,16 @@ struct FBoundObjectTask
 
 private:
 
+	struct FEntityMutationData
+	{
+		FMovieSceneEntityID EntityID;
+		FComponentTypeID ComponentTypeID;
+		bool bAddComponent;
+	};
+
 	TMap<TTuple<UObject*, FMovieSceneEntityID>, FMovieSceneEntityID> StaleEntitiesToPreserve;
 	TArray<FMovieSceneEntityID> EntitiesToDiscard;
+	TArray<FEntityMutationData> EntityMutations;
 
 protected:
 

@@ -24,7 +24,7 @@
 			"Name": "ModelingComponentsEditorOnly",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [ "Win64" ]
+			"PlatformAllowList": [ "Win64" ]
 		},		
 		{
 			"Name": "ModelingOperators",
@@ -35,7 +35,7 @@
 			"Name": "ModelingOperatorsEditorOnly",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [ "Win64" ]
+			"PlatformAllowList": [ "Win64" ]
 		},
 		{
 			"Name": "MeshModelingToolsExp",
@@ -46,13 +46,13 @@
 			"Name": "MeshModelingToolsEditorOnly",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [ "Win64" ]
+			"PlatformAllowList": [ "Win64" ]
 		},
 		{
 			"Name": "GeometryProcessingAdapters",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [ "Win64" ]
+			"PlatformAllowList": [ "Win64" ]
 		}
 	],
 	"Plugins": [

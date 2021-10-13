@@ -127,6 +127,7 @@ TSharedRef<SWidget> SGraphNodeBlendSpaceGraph::CreateNodeBody()
 		]
 		+SVerticalBox::Slot()
 		.AutoHeight()
+		.Padding(4.0f, 2.0f, 4.0f, 2.0f)
 		[
 			SAnimationGraphNode::CreateNodeFunctionsWidget(BlendSpaceNode, MakeAttributeLambda(UseLowDetailNode))
 		]
@@ -158,7 +159,7 @@ TSharedRef<SWidget> SGraphNodeBlendSpaceGraph::CreateNodeBody()
 		+SVerticalBox::Slot()
 		.AutoHeight()
 		.HAlign(HAlign_Right)
-		.Padding(8.0f, 4.0f, 8.0f, 8.0f)
+		.Padding(4.0f, 2.0f, 4.0f, 2.0f)
 		[
 			SAnimationGraphNode::CreateNodeTagWidget(BlendSpaceNode, MakeAttributeLambda(UseLowDetailNode))
 		];

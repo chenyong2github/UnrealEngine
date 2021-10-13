@@ -2,9 +2,9 @@
 
 #include "USDAssetCache.h"
 
-#include "Misc/ScopeLock.h"
+#include "USDLog.h"
 
-//#include "USDLog.h"
+#include "Misc/ScopeLock.h"
 
 UUsdAssetCache::UUsdAssetCache()
 	: bAllowPersistentStorage( true )
@@ -29,7 +29,7 @@ void UUsdAssetCache::CacheAsset( const FString& Hash, UObject* Asset, const FStr
 {
 	if ( !Asset )
 	{
-		//UE_LOG( LogUsd, Warning, TEXT( "Attempted to add a null asset to USD Asset Cache with hash '%s' and PrimPath '%s'!" ), *Hash, *PrimPath );
+		UE_LOG( LogUsd, Warning, TEXT( "Attempted to add a null asset to USD Asset Cache with hash '%s' and PrimPath '%s'!" ), *Hash, *PrimPath );
 		return;
 	}
 
@@ -37,11 +37,30 @@ void UUsdAssetCache::CacheAsset( const FString& Hash, UObject* Asset, const FStr
 
 	if ( !bAllowPersistentStorage || Asset->HasAnyFlags( RF_Transient ) || Asset->GetOutermost() == GetTransientPackage() )
 	{
+		if ( UObject* ExistingAsset = TransientStorage.FindRef( Hash ) )
+		{
+			if ( ExistingAsset != Asset )
+			{
+				UE_LOG( LogUsd, Log, TEXT( "Overwriting asset '%s' with '%s' (prim path '%s') in the asset cache's transient storage" ), *ExistingAsset->GetPathName(), *Asset->GetPathName(), *PrimPath );
+				DiscardAsset( Hash );
+			}
+		}
+
 		TransientStorage.Add( Hash, Asset );
 	}
 	else
 	{
 		Modify();
+
+		if ( UObject* ExistingAsset = PersistentStorage.FindRef( Hash ) )
+		{
+			if ( ExistingAsset != Asset )
+			{
+				UE_LOG( LogUsd, Log, TEXT( "Overwriting asset '%s' with '%s' (prim path '%s') in the asset cache's persistent storage" ), *ExistingAsset->GetPathName(), *Asset->GetPathName(), *PrimPath );
+				DiscardAsset( Hash );
+			}
+		}
+
 		PersistentStorage.Add( Hash, Asset );
 	}
 
@@ -124,7 +143,7 @@ void UUsdAssetCache::LinkAssetToPrim( const FString& PrimPath, UObject* Asset )
 
 	if ( !OwnedAssets.Contains( Asset ) )
 	{
-		//UE_LOG( LogUsd, Warning, TEXT( "Tried to set prim path '%s' to asset '%s', but it is not currently owned by the USD stage cache!" ), *PrimPath, *Asset->GetName() );
+		UE_LOG( LogUsd, Warning, TEXT( "Tried to set prim path '%s' to asset '%s', but it is not currently owned by the USD stage cache!" ), *PrimPath, *Asset->GetName() );
 		return;
 	}
 

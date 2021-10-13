@@ -2,7 +2,6 @@
 
 #include "MetasoundFrontendInjectReceiveNodes.h"
 
-#include "CoreMinimal.h"
 #include "MetasoundFacade.h"
 #include "MetasoundFrontendGraph.h"
 #include "MetasoundFrontendRegistries.h"

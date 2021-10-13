@@ -126,20 +126,20 @@ public class DeploymentContext //: ProjectParams
 	/// </summary>
 	public bool bStageCrashReporter;
 
-    /// <summary>
-    ///  CookPlatform, where to get the cooked data from and use for sandboxes
-    /// </summary>
-    public string CookPlatform;
+	/// <summary>
+	///  CookPlatform, where to get the cooked data from and use for sandboxes
+	/// </summary>
+	public string CookPlatform;
 
 	/// <summary>
-    ///  FinalCookPlatform, directory to stage and archive the final result to
+	///  FinalCookPlatform, directory to stage and archive the final result to
 	/// </summary>
-    public string FinalCookPlatform;
+	public string FinalCookPlatform;
 
-    /// <summary>
-    ///  Source platform to get the cooked data from
-    /// </summary>
-    public Platform CookSourcePlatform;
+	/// <summary>
+	///  Source platform to get the cooked data from
+	/// </summary>
+	public Platform CookSourcePlatform;
 
 	/// <summary>
 	///  Target platform used for sandboxes and stage directory names
@@ -281,46 +281,46 @@ public class DeploymentContext //: ProjectParams
 	/// List of directories to allow staging, even if they contain restricted folder names
 	/// This list is read from the +WhitelistDirectories=... array in the [Staging] section of *Game.ini files
 	/// </summary>
-	public List<StagedDirectoryReference> WhitelistDirectories = new List<StagedDirectoryReference>();
+	public List<StagedDirectoryReference> DirectoriesAllowList = new List<StagedDirectoryReference>();
 
 	/// <summary>
-	/// Set of config files which are whitelisted to be staged. By default, we warn for config files which are not well known to prevent internal data (eg. editor/server settings)
+	/// Set of config files which are allow listed to be staged. By default, we warn for config files which are not well known to prevent internal data (eg. editor/server settings)
 	/// leaking in packaged builds. This list is read from the +WhitelistConfigFiles=... array in the [Staging] section of *Game.ini files.
 	/// </summary>
-	public HashSet<StagedFileReference> WhitelistConfigFiles = new HashSet<StagedFileReference>();
+	public HashSet<StagedFileReference> ConfigFilesAllowList = new HashSet<StagedFileReference>();
 
 	/// <summary>
-	/// Set of config files which are blacklisted from staging. By default, we warn for config files which are not well known to prevent internal data (eg. editor/server settings)
+	/// Set of config files which are denied from staging. By default, we warn for config files which are not well known to prevent internal data (eg. editor/server settings)
 	/// leaking in packaged builds. This list is read from the +BlacklistConfigFiles=... array in the [Staging] section of *Game.ini files.
 	/// </summary>
-	public HashSet<StagedFileReference> BlacklistConfigFiles = new HashSet<StagedFileReference>();
+	public HashSet<StagedFileReference> ConfigFilesDenyList = new HashSet<StagedFileReference>();
 
 
 	/// <summary>
 	/// List of ini keys to strip when staging
 	/// </summary>
-	public List<string> IniKeyBlacklist = null;
+	public List<string> IniKeyDenyList = null;
 
 	/// <summary>
 	/// List of ini sections to strip when staging
 	/// </summary>
-	public List<string> IniSectionBlacklist = null;
+	public List<string> IniSectionDenyList = null;
 
 	/// <summary>
 	/// List of ini suffixes to always stage
 	/// </summary>
-	public List<string> IniSuffixWhitelist = null;
+	public List<string> IniSuffixAllowList = null;
 
 	/// <summary>
 	/// List of ini suffixes to never stage
 	/// </summary>
-	public List<string> IniSuffixBlacklist = null;
+	public List<string> IniSuffixDenyList = null;
 
 	/// <summary>
 	/// List of localization targets that are not included in staged build. By default, all project Content/Localization targets are automatically staged.
 	/// This list is read from the +BlacklistLocalizationTargets=... array in the [Staging] section of *Game.ini files.
 	/// </summary>
-	public List<string> BlacklistLocalizationTargets = new List<string>();
+	public List<string> LocalizationTargetsDenyList = new List<string>();
 
 	/// <summary>
 	///  Directory to archive all of the files in: d:\archivedir\Windows
@@ -452,7 +452,6 @@ public class DeploymentContext //: ProjectParams
 		if (BaseArchiveDirectory != null)
 		{
 			// If the user specifies a path that contains the platform or cooked platform names, don't append to it.
-			// This allows more control for scripts respect to putting packages in things like <path>/PS4/Development/Pkg.pkg, <path>/PS4/Test/Pkg.pkg
 			string PlatformName = StageTargetPlatform.GetStagePlatforms().FirstOrDefault().ToString();
 			IEnumerable<string> PathComponents = new DirectoryInfo(BaseArchiveDirectory.FullName).FullName.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
 
@@ -558,38 +557,38 @@ public class DeploymentContext //: ProjectParams
 			}
 		}
 
-		// Read the list of directories to whitelist from restricted folder warnings
-		List<string> WhitelistDirectoriesList;
-		if (GameConfig.GetArray("Staging", "WhitelistDirectories", out WhitelistDirectoriesList))
+		// Read the list of directories to allow (prevent from warning about from restricted folders)
+		List<string> DirectoriesAllowListStrings;
+		if (GameConfig.GetArray("Staging", "WhitelistDirectories", out DirectoriesAllowListStrings))
 		{
-			foreach(string WhitelistDirectory in WhitelistDirectoriesList)
+			foreach(string AllowedDir in DirectoriesAllowListStrings)
 			{
-				WhitelistDirectories.Add(new StagedDirectoryReference(WhitelistDirectory));
+				DirectoriesAllowList.Add(new StagedDirectoryReference(AllowedDir));
 			}
 		}
 
-		List<string> BlacklistLocTargetsList;
-		if (GameConfig.GetArray("Staging", "BlacklistLocalizationTargets", out BlacklistLocTargetsList))
+		List<string> LocTargetsDenyListStrings;
+		if (GameConfig.GetArray("Staging", "BlacklistLocalizationTargets", out LocTargetsDenyListStrings))
 		{
-			foreach (string BlacklistLocTarget in BlacklistLocTargetsList)
+			foreach (string DeniedLocTarget in LocTargetsDenyListStrings)
 			{
-				BlacklistLocalizationTargets.Add(BlacklistLocTarget);
+				LocalizationTargetsDenyList.Add(DeniedLocTarget);
 			}
 		}
 
-		// Read the list of files which are whitelisted to be staged
-		ReadConfigFileList(GameConfig, "Staging", "WhitelistConfigFiles", WhitelistConfigFiles);
-		ReadConfigFileList(GameConfig, "Staging", "BlacklistConfigFiles", BlacklistConfigFiles);
+		// Read the list of files which are allow listed to be staged
+		ReadConfigFileList(GameConfig, "Staging", "WhitelistConfigFiles", ConfigFilesAllowList);
+		ReadConfigFileList(GameConfig, "Staging", "BlacklistConfigFiles", ConfigFilesDenyList);
 
 		// Grab the game ini data
 		String PackagingIniPath = "/Script/UnrealEd.ProjectPackagingSettings";
 
-		// Read the config blacklists
-		GameConfig.GetArray(PackagingIniPath, "IniKeyBlacklist", out IniKeyBlacklist);
-		GameConfig.GetArray(PackagingIniPath, "IniSectionBlacklist", out IniSectionBlacklist);
+		// Read the config deny lists
+		GameConfig.GetArray(PackagingIniPath, "IniKeyBlacklist", out IniKeyDenyList);
+		GameConfig.GetArray(PackagingIniPath, "IniSectionBlacklist", out IniSectionDenyList);
 
 		// TODO: Drive these lists from a config file
-		IniSuffixWhitelist = new List<string>
+		IniSuffixAllowList = new List<string>
 		{
 			".ini",
 			"compat.ini",
@@ -606,7 +605,7 @@ public class DeploymentContext //: ProjectParams
 			"installbundle.ini"
 		};
 
-		IniSuffixBlacklist = new List<string>
+		IniSuffixDenyList = new List<string>
 		{
 			"crypto.ini",
 			"editor.ini",
@@ -641,7 +640,7 @@ public class DeploymentContext //: ProjectParams
 	}
 
 	/// <summary>
-	/// Read a list of whitelisted or blacklisted config files names from a config file
+	/// Read a list of allowed or denied config files names from a config file
 	/// </summary>
 	/// <param name="Config">The config hierarchy to read from</param>
 	/// <param name="SectionName">The section name</param>
@@ -1103,5 +1102,61 @@ public class DeploymentContext //: ProjectParams
 	public string GetUFSDeployedManifestFileName(string DeviceName)
 	{
 		return string.Format("Manifest_UFSFiles_{0}{1}.txt", StageTargetPlatform.PlatformType, GetSanitizedDeviceNameSuffix(DeviceName));
+	}
+
+	[Obsolete("Use DirectoriesAllowList instead")]
+	public List<StagedDirectoryReference> WhitelistDirectories
+	{
+		get { return DirectoriesAllowList; }
+		set { DirectoriesAllowList = value; }
+	}
+
+	[Obsolete("Use ConfigFilesAllowList instead")]
+	public HashSet<StagedFileReference> WhitelistConfigFiles
+	{
+		get { return ConfigFilesAllowList; }
+		set { ConfigFilesAllowList = value; }
+	}
+
+	[Obsolete("Use ConfigFilesDenyList instead")]
+	public HashSet<StagedFileReference> BlacklistConfigFiles
+	{
+		get { return ConfigFilesDenyList; }
+		set { ConfigFilesDenyList = value; }
+	}
+
+	[Obsolete("Use IniKeyDenyList instead")]
+	public List<string> IniKeyBlacklist
+	{
+		get { return IniKeyDenyList; }
+		set { IniKeyDenyList = value; }
+	}
+
+	[Obsolete("Use IniSectionDenyList instead")]
+	public List<string> IniSectionBlacklist
+	{
+		get { return IniSectionDenyList; }
+		set { IniSectionDenyList = value; }
+	}
+
+	[Obsolete("Use IniSuffixAllowList instead")]
+	public List<string> IniSuffixWhitelist
+	{
+		get { return IniSuffixAllowList; }
+		set { IniSuffixAllowList = value; }
+	}
+	
+	[Obsolete("Use IniSuffixDenyList instead")]
+	public List<string> IniSuffixBlacklist
+	{
+		get { return IniSuffixDenyList; }
+		set { IniSuffixDenyList = value; }
+	}
+
+	[Obsolete("Use LocalizationTargetsDenyList instead")]
+	public List<string> BlacklistLocalizationTargets
+	{
+		get { return LocalizationTargetsDenyList; }
+		set { LocalizationTargetsDenyList = value; }
 	}
 }

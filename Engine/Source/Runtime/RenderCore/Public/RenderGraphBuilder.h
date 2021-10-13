@@ -535,14 +535,12 @@ private:
 	struct FParallelPassSet
 	{
 		FParallelPassSet() = default;
-		FParallelPassSet(FRDGPass* const* InPasses, int32 InPassCount, bool bInDispatchAfterExecute)
-			: Passes(InPasses, InPassCount)
-			, bDispatchAfterExecute(bInDispatchAfterExecute)
-		{}
 
 		TArray<FRDGPass*, FRDGArrayAllocator> Passes;
 		FGraphEventRef Event;
 		FRHICommandList* RHICmdList{};
+		IF_RHI_WANT_BREADCRUMB_EVENTS(FRDGBreadcrumbState* BreadcrumbStateBegin{});
+		IF_RHI_WANT_BREADCRUMB_EVENTS(FRDGBreadcrumbState* BreadcrumbStateEnd{});
 		int8 bInitialized = 0;
 		bool bDispatchAfterExecute = false;
 	};
@@ -566,6 +564,7 @@ private:
 
 	IF_RDG_CPU_SCOPES(FRDGCPUScopeStacks CPUScopeStacks);
 	IF_RDG_GPU_SCOPES(FRDGGPUScopeStacksByPipeline GPUScopeStacks);
+	IF_RHI_WANT_BREADCRUMB_EVENTS(FRDGBreadcrumbState* BreadcrumbState{});
 
 	IF_RDG_ENABLE_TRACE(FRDGTrace Trace);
 

@@ -935,7 +935,7 @@ void FOutputLogTextLayoutMarshaller::AppendPendingMessagesToTextLayout()
 			break;
 		}
 
-		if (Message->Category.IsValid() && (Message->Category == CategoryToHighlight))
+		if (!Message->Category.IsNone() && (Message->Category == CategoryToHighlight))
 		{
 			Highlights.Emplace(LineIndex, FTextRange(0, LineText->Len()), /*Zorder=*/ -5, FCategoryLineHighlighter::Create());
 		}
@@ -1335,7 +1335,7 @@ void SOutputLog::ExtendTextBoxMenu(FMenuBuilder& Builder)
 	{
 		const FName CategoryName = MessagesTextMarshaller->GetCategoryForLocation(CursorTextLocation);
 
-		if (CategoryName.IsValid())
+		if (!CategoryName.IsNone())
 		{
 			Builder.BeginSection(NAME_None, FText::Format(LOCTEXT("CategoryActionsSectionHeading", "Category {0}"), FText::FromName(CategoryName)));
 

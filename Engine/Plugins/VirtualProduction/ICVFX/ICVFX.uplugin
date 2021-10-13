@@ -75,10 +75,6 @@
 			"Enabled": true
 		},
 		{
-			"Name": "nDisplaySupportForLevelSnapshots",
-			"Enabled": true
-		},
-		{
 			"Name": "OSC",
 			"Enabled": true
 		},

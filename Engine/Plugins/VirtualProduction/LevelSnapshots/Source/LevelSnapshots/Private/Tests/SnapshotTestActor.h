@@ -74,6 +74,8 @@ class ASnapshotTestActor : public ACharacter
 	GENERATED_BODY()
 public:
 
+	static ASnapshotTestActor* Spawn(UWorld* World, FName Name);
+	
 	ASnapshotTestActor();
 
 	bool HasAnyValidHardObjectReference() const;
@@ -202,6 +204,9 @@ public:
 	
 	/******************** Subobject Component references  ********************/
 
+	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
+	UStaticMeshComponent* StaticMeshComponent;
+	
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
 	UInstancedStaticMeshComponent* InstancedMeshComponent;
 

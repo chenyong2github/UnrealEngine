@@ -97,7 +97,7 @@ void SPropertyBinding::Construct(const FArguments& InArgs, UBlueprint* InBluepri
 	];
 }
 
-bool SPropertyBinding::IsClassBlackListed(UClass* InClass) const
+bool SPropertyBinding::IsClassDenied(UClass* InClass) const
 {
 	if(Args.OnCanBindToClass.IsBound() && Args.OnCanBindToClass.Execute(InClass))
 	{
@@ -107,9 +107,9 @@ bool SPropertyBinding::IsClassBlackListed(UClass* InClass) const
 	return true;
 }
 
-bool SPropertyBinding::IsFieldFromBlackListedClass(FFieldVariant Field) const
+bool SPropertyBinding::IsFieldFromDeniedClass(FFieldVariant Field) const
 {
-	return IsClassBlackListed(Field.GetOwnerClass());
+	return IsClassDenied(Field.GetOwnerClass());
 }
 
 template <typename Predicate>
@@ -125,7 +125,7 @@ void SPropertyBinding::ForEachBindableFunction(UClass* FromClass, Predicate Pred
 				UFunction* Function = *FuncIt;
 
 				// Stop processing functions after reaching a base class that it doesn't make sense to go beyond.
-				if ( IsFieldFromBlackListedClass(Function) )
+				if ( IsFieldFromDeniedClass(Function) )
 				{
 					break;
 				}
@@ -198,7 +198,7 @@ void SPropertyBinding::ForEachBindableProperty(UStruct* InStruct, Predicate Pred
 			FProperty* Property = *PropIt;
 
 			// Stop processing properties after reaching the stopped base class
-			if ( IsFieldFromBlackListedClass(Property) )
+			if ( IsFieldFromDeniedClass(Property) )
 			{
 				break;
 			}
@@ -293,8 +293,8 @@ bool SPropertyBinding::HasBindablePropertiesRecursive(UStruct* InStruct, TSet<US
 			if (Class)
 			{
 				// Ignore any subobject properties that are not bindable.
-				// Also ignore any class that is explicitly on the black list.
-				if ( IsClassBlackListed(Class) || (Args.OnCanBindToSubObjectClass.IsBound() && Args.OnCanBindToSubObjectClass.Execute(Class)))
+				// Also ignore any class that is explicitly on the deny list.
+				if ( IsClassDenied(Class) || (Args.OnCanBindToSubObjectClass.IsBound() && Args.OnCanBindToSubObjectClass.Execute(Class)))
 				{
 					return;
 				}
@@ -706,8 +706,8 @@ void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, UStruct* InOw
 						if (Class)
 						{
 							// Ignore any subobject properties that are not bindable.
-							// Also ignore any class that is explicitly on the black list.
-							if ( IsClassBlackListed(Class) || (Args.OnCanBindToSubObjectClass.IsBound() && Args.OnCanBindToSubObjectClass.Execute(Class)))
+							// Also ignore any class that is explicitly on the deny list.
+							if ( IsClassDenied(Class) || (Args.OnCanBindToSubObjectClass.IsBound() && Args.OnCanBindToSubObjectClass.Execute(Class)))
 							{
 								return;
 							}

@@ -10,9 +10,15 @@
 	Command line.
 -----------------------------------------------------------------------------*/
 
-#ifndef WANTS_COMMANDLINE_WHITELIST
-	#define WANTS_COMMANDLINE_WHITELIST 0
+#ifndef UE_COMMAND_LINE_USES_ALLOW_LIST
+	#ifdef WANTS_COMMANDLINE_WHITELIST
+		#pragma message("Use UE_COMMAND_LINE_USES_ALLOW_LIST instead of WANTS_COMMANDLINE_WHITELIST")
+		#define UE_COMMAND_LINE_USES_ALLOW_LIST WANTS_COMMANDLINE_WHITELIST
+	#else
+		#define UE_COMMAND_LINE_USES_ALLOW_LIST 0
+	#endif
 #endif
+
 
 struct CORE_API FCommandLine
 {
@@ -103,19 +109,19 @@ struct CORE_API FCommandLine
 	static FString BuildFromArgV(const TCHAR* Prefix, int32 ArgC, TCHAR* ArgV[], const TCHAR* Suffix);
 
 private:
-#if WANTS_COMMANDLINE_WHITELIST
+#if UE_COMMAND_LINE_USES_ALLOW_LIST
 	/** Filters both the original and current command line list for approved only args */
-	static void WhitelistCommandLines();
+	static void ApplyCommandLineAllowList();
 	/** Filters any command line args that aren't on the approved list */
 	static TArray<FString> FilterCommandLine(TCHAR* CommandLine);
 	/** Filters any command line args that are on the to-strip list */
 	static TArray<FString> FilterCommandLineForLogging(TCHAR* CommandLine);
 	/** Rebuilds the command line using the filtered args */
-	static void BuildWhitelistCommandLine(TCHAR* CommandLine, uint32 Length, const TArray<FString>& FilteredArgs);
+	static void BuildCommandLineAllowList(TCHAR* CommandLine, uint32 Length, const TArray<FString>& FilteredArgs);
 	static TArray<FString> ApprovedArgs;
 	static TArray<FString> FilterArgsForLogging;
 #else
-#define WhitelistCommandLines()
+	#define ApplyCommandLineAllowList()
 #endif
 
 	/** Flag to check if the commandline has been initialized or not. */

@@ -358,6 +358,8 @@ void FCurveEditor::BindCommands()
 	CommandList->MapAction(FCurveEditorCommands::Get().SetSelectionRangeEnd, FExecuteAction::CreateSP(this, &FCurveEditor::SetSelectionRangeEnd));
 	CommandList->MapAction(FCurveEditorCommands::Get().ClearSelectionRange, FExecuteAction::CreateSP(this, &FCurveEditor::ClearSelectionRange));
 
+	CommandList->MapAction(FCurveEditorCommands::Get().SelectAllKeys, FExecuteAction::CreateSP(this, &FCurveEditor::SelectAllKeys));
+
 	{
 		FExecuteAction   ToggleInputSnapping     = FExecuteAction::CreateSP(this,   &FCurveEditor::ToggleInputSnapping);
 		FIsActionChecked IsInputSnappingEnabled  = FIsActionChecked::CreateSP(this, &FCurveEditor::IsInputSnappingEnabled);
@@ -608,8 +610,11 @@ void FCurveEditor::ZoomToFitInternal(EAxisList::Type Axes, const TMap<FCurveMode
 		}
 		else
 		{
+			FCurveEditorScreenSpaceH InputSpace = GetPanelInputSpace();
+			double InputPercentage = Settings->GetFrameInputPadding() / InputSpace.GetPhysicalWidth();
+
 			const double MinInputZoom = InputSnapEnabledAttribute.Get() ? InputSnapRateAttribute.Get().AsInterval() : 0.00001;
-			const double InputPadding = FMath::Max((InputMax - InputMin) * 0.1, MinInputZoom);
+			const double InputPadding = FMath::Max((InputMax - InputMin) * InputPercentage, MinInputZoom);
 			InputMax = FMath::Max(InputMin + MinInputZoom, InputMax);
 
 			InputMin -= InputPadding;
@@ -635,10 +640,11 @@ void FCurveEditor::ZoomToFitInternal(EAxisList::Type Axes, const TMap<FCurveMode
 		}
 		else
 		{
-			constexpr double MinOutputZoom = 0.00001;
-			const double OutputPadding = FMath::Max((OutputMax - OutputMin) * 0.05, MinOutputZoom);
+			double OutputPercentage = Settings->GetFrameOutputPadding() / View->GetViewSpace().GetPhysicalHeight();
 
-			
+			constexpr double MinOutputZoom = 0.00001;
+			const double OutputPadding = FMath::Max((OutputMax - OutputMin) * OutputPercentage, MinOutputZoom);
+
 			OutputMin -= OutputPadding;
 			OutputMax = FMath::Max(OutputMin + MinOutputZoom, OutputMax) + OutputPadding;
 		}
@@ -919,6 +925,18 @@ void FCurveEditor::ClearSelectionRange()
 	WeakTimeSliderController.Pin()->SetSelectionRange(TRange<FFrameNumber>::Empty());
 }
 
+void FCurveEditor::SelectAllKeys()
+{		
+	for (FCurveModelID ID : GetEditedCurves())
+	{
+		if (FCurveModel* Curve = FindCurve(ID))
+		{
+			TArray<FKeyHandle> KeyHandles;
+			Curve->GetKeys(*this, TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), KeyHandles);
+			Selection.Add(ID, ECurvePointType::Key, KeyHandles);
+		}
+	}
+}
 
 bool FCurveEditor::IsInputSnappingEnabled() const
 {

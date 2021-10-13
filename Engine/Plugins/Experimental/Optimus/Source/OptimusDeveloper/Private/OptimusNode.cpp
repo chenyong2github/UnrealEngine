@@ -4,7 +4,7 @@
 
 #include "Actions/OptimusNodeActions.h"
 #include "OptimusActionStack.h"
-#include "OptimusContextNames.h"
+#include "OptimusDataDomain.h"
 #include "OptimusDeveloperModule.h"
 #include "OptimusDataTypeRegistry.h"
 #include "OptimusDeformer.h"
@@ -605,18 +605,18 @@ bool UOptimusNode::SetPinNameDirect(
 }
 
 
-bool UOptimusNode::SetPinResourceContexts(
+bool UOptimusNode::SetPinDataDomain(
 	UOptimusNodePin* InPin,
-	const TArray<FName>& InResourceContexts
+	const TArray<FName>& InDataDomainLevelNames
 	)
 {
-	if (!InPin || InPin->GetResourceContexts() == InResourceContexts)
+	if (!InPin || InPin->GetDataDomainLevelNames() == InDataDomainLevelNames)
 	{
 		return false;
 	}
 
 	FOptimusCompoundAction* Action = new FOptimusCompoundAction;
-	Action->SetTitlef(TEXT("Set Resource Contexts"));
+	Action->SetTitlef(TEXT("Set Pin Data Domain"));
 
 	// Disconnect all the links because they _will_ become incompatible.
 	for (UOptimusNodePin* ConnectedPin: InPin->GetConnectedPins())
@@ -631,18 +631,18 @@ bool UOptimusNode::SetPinResourceContexts(
 		}
 	}
 	
-	Action->AddSubAction<FOptimusNodeAction_SetPinResourceContexts>(InPin, InResourceContexts);
+	Action->AddSubAction<FOptimusNodeAction_SetPinDataDomain>(InPin, InDataDomainLevelNames);
 	
 	return GetActionStack()->RunAction(Action);
 }
 
 
-bool UOptimusNode::SetPinResourceContextsDirect(
+bool UOptimusNode::SetPinDataDomainDirect(
 	UOptimusNodePin* InPin,
-	const TArray<FName>& InResourceContexts
+	const TArray<FName>& InDataDomainLevelNames
 	)
 {
-	InPin->ResourceContexts = InResourceContexts;
+	InPin->DataDomain.LevelNames = InDataDomainLevelNames;
 	return true;
 }
 
@@ -741,7 +741,7 @@ UOptimusNodePin* UOptimusNode::CreatePinFromProperty(
 			return nullptr;
 		}
 
-		StorageConfig = FOptimusNodePinStorageConfig({Optimus::ContextName::Vertex});
+		StorageConfig = FOptimusNodePinStorageConfig({Optimus::DomainName::Vertex});
 	}
 
 

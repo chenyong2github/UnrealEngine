@@ -11,6 +11,7 @@
 #include "RigVMExecuteContext.generated.h"
 
 struct FRigVMExecuteContext;
+class URigVM;
 
 USTRUCT()
 struct RIGVM_API FRigVMSlice
@@ -192,6 +193,7 @@ struct RIGVM_API FRigVMExecuteContext
 		: EventName(NAME_None)
 		, FunctionName(NAME_None)
 		, InstructionIndex(0)
+		, VM(nullptr)
 		, RuntimeSettings()
 		, LastExecutionMicroSeconds() 
 	{
@@ -204,6 +206,7 @@ struct RIGVM_API FRigVMExecuteContext
 		Slices.Add(FRigVMSlice());
 		SliceOffsets.Reset();
 		InstructionIndex = 0;
+		VM = nullptr;
 		ExternalVariables.Reset();
 	}
 
@@ -212,6 +215,7 @@ struct RIGVM_API FRigVMExecuteContext
 		EventName = Other.EventName;
 		FunctionName = Other.FunctionName;
 		InstructionIndex = Other.InstructionIndex;
+		VM = Other.VM;
 		RuntimeSettings = Other.RuntimeSettings;
 		ExternalVariables = Other.ExternalVariables;
 		OpaqueArguments = Other.OpaqueArguments;
@@ -338,6 +342,7 @@ struct RIGVM_API FRigVMExecuteContext
 	FName EventName;
 	FName FunctionName;
 	uint16 InstructionIndex;
+	URigVM* VM;
 	FRigVMRuntimeSettings RuntimeSettings;
 #if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	FRigVMFixedArray<void*> OpaqueArguments;

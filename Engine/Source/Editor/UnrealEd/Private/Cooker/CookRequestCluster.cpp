@@ -17,6 +17,7 @@
 #include "DerivedDataRequestOwner.h"
 #include "EditorDomain/EditorDomainUtils.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "Misc/RedirectCollector.h"
 #include "Misc/StringBuilder.h"
 
 namespace UE::Cook
@@ -459,17 +460,25 @@ void FRequestCluster::FetchDependencies(const FCookerTimer& CookerTimer, bool& b
 			EVisitStatus& Status = AddVertex(PackageName, PackageData, bPushedStack, TimerCounter);
 			if (bPushedStack)
 			{
-				check(Status == EVisitStatus::Visited);
+				check(Status == EVisitStatus::Visited && !IsStackEmpty());
 				break;
 			}
-			else if (Status != EVisitStatus::Visited)
+			else
 			{
-				// If an initial request was found from transitive dependencies of another initial request, and was not
-				// cookable, it was skipped. We need to reprocess it with the information that it is an initial vertex.
-				check(Status == EVisitStatus::Skipped);
-				Visited.Remove(PackageData->GetPackageName());
-				Status = AddVertex(PackageName, PackageData, bPushedStack, TimerCounter);
-				check(Status == EVisitStatus::Visited);
+				if (Status != EVisitStatus::Visited)
+				{
+					// If an initial request was found from transitive dependencies of another initial request, and was not
+					// cookable, it was skipped. We need to reprocess it with the information that it is an initial vertex.
+					check(Status == EVisitStatus::Skipped);
+					Visited.Remove(PackageData->GetPackageName());
+					Status = AddVertex(PackageName, PackageData, bPushedStack, TimerCounter);
+					check(Status == EVisitStatus::Visited);
+				}
+				while (!Segment.IsEmpty())
+				{
+					// Pop Segment from back to front so that when we PushFront onto TransitiveRequests they will maintain their same relative order
+					TransitiveRequests.AddFront(Segment.PopValue());
+				}
 			}
 		}
 		if (IsStackEmpty())
@@ -478,6 +487,7 @@ void FRequestCluster::FetchDependencies(const FCookerTimer& CookerTimer, bool& b
 			break;
 		}
 	}
+	check(Segment.IsEmpty());
 
 	// Reverse the TransitiveRequests array to put it in LeafToRoot order, and push it into the output Requests
 	COOK_STAT(DetailedCookStats::NumPreloadedDependencies += FMath::Max(0,TransitiveRequests.Num() - Requests.Num()));
@@ -698,6 +708,8 @@ void FRequestCluster::PopStack()
 
 void FRequestCluster::VisitPackageData(FPackageData* PackageData, TArray<FName>* OutDependencies, bool& bOutAlreadyCooked)
 {
+	using namespace UE::AssetRegistry;
+
 	if (OutDependencies)
 	{
 		OutDependencies->Reset();
@@ -707,16 +719,46 @@ void FRequestCluster::VisitPackageData(FPackageData* PackageData, TArray<FName>*
 		// the dependencies that we report. And if we explicitly load an EditorOnly dependency, that causes
 		// StaticLoadObjectInternal to SetLoadedByEditorPropertiesOnly(false), which then treats the editor-only package
 		// as needed in-game.
-		UE::AssetRegistry::EDependencyQuery DependencyQuery = UE::AssetRegistry::EDependencyQuery::Game;
+		EDependencyQuery DependencyQuery = EDependencyQuery::Game;
 		// We always skip assetregistry soft dependencies if the cook commandline is set to skip soft references.
 		// We also need to skip them if the project has problems with editor-only robustness and has turned
 		// ExploreDependencies off
 		if (!bAllowSoftDependencies || !bPreexploreDependenciesEnabled)
 		{
-			DependencyQuery |= UE::AssetRegistry::EDependencyQuery::Hard;
+			DependencyQuery |= EDependencyQuery::Hard;
+			AssetRegistry.GetDependencies(PackageName, *OutDependencies, EDependencyCategory::Package,
+				DependencyQuery);
 		}
-		AssetRegistry.GetDependencies(PackageName, *OutDependencies,
-			UE::AssetRegistry::EDependencyCategory::Package, DependencyQuery);
+		else
+		{
+			// Even if we're following soft references in general, we need to check with the SoftObjectPath registry
+			// for any startup packages that marked their softobjectpaths as excluded, and not follow those
+			TSet<FName>& SkippedPackages(this->NameSetScratch);
+			if (GRedirectCollector.RemoveAndCopySoftObjectPathExclusions(PackageName, SkippedPackages))
+			{
+				// Get hard dependencies separately; always add them
+				AssetRegistry.GetDependencies(PackageName, *OutDependencies, EDependencyCategory::Package,
+					DependencyQuery | EDependencyQuery::Hard);
+				// Get the soft dependencies, and add them only if they're not in SkippedPackages
+				TArray<FName> SoftDependencies;
+				AssetRegistry.GetDependencies(PackageName, SoftDependencies, EDependencyCategory::Package,
+					DependencyQuery | EDependencyQuery::Soft);
+				for (FName SoftDependency : SoftDependencies)
+				{
+					if (!SkippedPackages.Contains(SoftDependency))
+					{
+						OutDependencies->Add(SoftDependency);
+					}
+				}
+			}
+			else
+			{
+				// No skipped soft object paths from this package; add all dependencies, hard or soft
+				AssetRegistry.GetDependencies(PackageName, *OutDependencies, EDependencyCategory::Package,
+					DependencyQuery);
+			}
+		}
+
 		bool bIncrementIterativeCounter = false;
 		bool bFoundBuildDefinitions = false;
 		for (int32 PlatIndex = 0; PlatIndex < Platforms.Num(); ++PlatIndex)

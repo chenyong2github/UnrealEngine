@@ -3,11 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ActorSnapshotHash.h"
 #include "ComponentSnapshotData.h"
 #include "CustomSerializationData.h"
 #include "ObjectSnapshotData.h"
 #include "SubobjectSnapshotData.h"
-
 #include "ActorSnapshotData.generated.h"
 
 class UActorComponent;
@@ -47,6 +47,7 @@ struct LEVELSNAPSHOTS_API FActorSnapshotData
 	void DeserializeComponents(AActor* IntoActor, FWorldSnapshotData& WorldData, FHandleFoundComponent Callback);
 
 	void DeserializeSubobjectsForSnapshotActor(AActor* IntoActor, FWorldSnapshotData& WorldData, UPackage* InLocalisationSnapshotPackage);
+
 	
 	/* We cache the actor to avoid recreating it all the time */
 	UPROPERTY(Transient)
@@ -58,8 +59,18 @@ struct LEVELSNAPSHOTS_API FActorSnapshotData
 	 * Example: When serializing another actor which referenced this actor.
 	 */
 	UPROPERTY(Transient)
-	mutable bool bReceivedSerialisation = false;
+	bool bReceivedSerialisation = false;
 
+
+#if WITH_EDITORONLY_DATA
+	/** Whether bCachedHadChanges contains a valid value */
+	UPROPERTY(Transient)
+	bool bHasBeenDiffed = false;
+
+	/** Whether the saved data was different from the world counterpart, the last time we compared. */
+	UPROPERTY(Transient)
+	bool bCachedHadChanges;
+#endif
 	
 
 	/** The class the actor had when it was saved. */
@@ -85,4 +96,10 @@ struct LEVELSNAPSHOTS_API FActorSnapshotData
 	/** Tracks all non-component subobjects. Valid index to FWorldSnapshotData::SerializedObjectReferences. */
 	UPROPERTY()
 	TArray<int32> OwnedSubobjects;
+
+	
+
+	/** Used to detect changes without loading actor into memory. */
+	UPROPERTY()
+	FActorSnapshotHash Hash;
 };

@@ -19,7 +19,7 @@ class FIKRigEditorController;
 class SIKRigRetargetChainList;
 class FIKRigEditorToolkit;
 struct FBoneChain;
-
+class SEditableTextBox;
 
 class FRetargetChainElement
 {

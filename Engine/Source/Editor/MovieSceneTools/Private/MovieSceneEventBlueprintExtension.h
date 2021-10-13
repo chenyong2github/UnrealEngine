@@ -18,7 +18,7 @@ public:
 
 	GENERATED_BODY()
 
-	void Add(UMovieSceneEventSectionBase* EventSection)
+	void Add(TWeakObjectPtr<UMovieSceneEventSectionBase> EventSection)
 	{
 		EventSections.AddUnique(EventSection);
 	}
@@ -31,5 +31,5 @@ private:
 
 	/** List of event sections that are bound to the blueprint */
 	UPROPERTY()
-	TArray<TObjectPtr<UMovieSceneEventSectionBase>> EventSections;
+	TArray<TWeakObjectPtr<UMovieSceneEventSectionBase>> EventSections;
 };

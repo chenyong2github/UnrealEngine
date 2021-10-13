@@ -1300,8 +1300,13 @@ void FPixelShaderInOut_MainPS(
 			#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 				GridIndex = ComputeLightGridCellIndex((uint2)((MaterialParameters.SvPosition.xy - ResolvedView.ViewRectMin.xy) * View.LightProbeSizeRatioAndInvSizeRatio.zw), MaterialParameters.SvPosition.w, EyeIndex);
 
+				float DirectionalLightCloudShadow = 1.0f;
+				#if NEEDS_BASEPASS_CLOUD_SHADOW_INTERPOLATOR
+					DirectionalLightCloudShadow = BasePassInterpolants.VertexCloudShadow;
+				#endif
+
 				#if FORWARD_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
-					FDeferredLightingSplit ForwardDirectLighting = GetForwardDirectLightingSplit(GridIndex, LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition), MaterialParameters.CameraVector, GBuffer, NearestResolvedDepthScreenUV, MaterialParameters.PrimitiveId, EyeIndex, Dither, DirectionalLightShadow);
+					FDeferredLightingSplit ForwardDirectLighting = GetForwardDirectLightingSplit(GridIndex, LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition), MaterialParameters.CameraVector, GBuffer, NearestResolvedDepthScreenUV, MaterialParameters.PrimitiveId, EyeIndex, Dither, DirectionalLightCloudShadow, DirectionalLightShadow);
 					
 					#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
 						DiffuseColor += ForwardDirectLighting.DiffuseLighting.rgb;

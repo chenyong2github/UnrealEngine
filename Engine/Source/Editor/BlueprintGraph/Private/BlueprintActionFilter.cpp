@@ -248,13 +248,13 @@ namespace BlueprintActionFilterImpl
 
 	/**
 	 * Rejection test that checks to see if the node-spawner is associated with 
-	 * a field that belongs to a class that is not white-listed (ignores global/
+	 * a field that belongs to a class that is not allowed (ignores global/
 	 * static fields).
 	 * 
 	 * @param  Filter					Holds the class context for this test.
 	 * @param  BlueprintAction			The action you wish to query.
 	 * @param  bPermitNonTargetGlobals	Determines if this test should pass for external global/static fields.
-	 * @return True if the action is associated with a non-whitelisted class member.
+	 * @return True if the action is associated with a non-allowed class member.
 	 */
 	static bool IsNonTargetMember(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction, bool const bPermitNonTargetGlobals);
 
@@ -279,13 +279,13 @@ namespace BlueprintActionFilterImpl
 
 	/**
 	 * Rejection test that checks to see if the node-spawner would produce a 
-	 * node type that isn't white-listed. 
+	 * node type that isn't allowed
 	 * 
 	 * @param  Filter				Holds the class context for this test.
 	 * @param  BlueprintAction		The action you wish to query.
 	 * @param  bPermitChildClasses	When true, the node's class doesn't have to perfectly match a class to be passed (it can be a sub-class).
 	 * @param  bRejectChildClasses	When true, the node's class doesn't have to perfectly match a class to be rejected (it can be a sub-class).
-	 * @return True if the action would produce a non-whitelisted node.
+	 * @return True if the action would produce a denied node.
 	 */
 	static bool IsFilteredNodeType(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction, bool const bPermitChildClasses, bool const bRejectChildClasses);
 

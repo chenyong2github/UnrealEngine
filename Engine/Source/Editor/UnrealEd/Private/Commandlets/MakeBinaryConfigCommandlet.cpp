@@ -41,16 +41,16 @@ int32 UMakeBinaryConfigCommandlet::Main(const FString& Params)
 	// removing for now, because this causes issues with some plugins not getting ini files merged in
 //	IPluginManager::Get().IntegratePluginsIntoConfig(Config, *FinalConfigFilenames.EngineIni, *PlatformName, *StagedPluginsFile);
 
-	// pull out black list entries
+	// pull out deny list entries
 
-	TArray<FString> BlacklistKeyStrings;
-	TArray<FString> BlacklistSections;
-	GConfig->GetArray(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("IniKeyBlacklist"), BlacklistKeyStrings, GGameIni);
-	GConfig->GetArray(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("IniSectionBlacklist"), BlacklistSections, GGameIni);
-	TArray<FName> BlacklistKeys;
-	for (FString Key : BlacklistKeyStrings)
+	TArray<FString> KeyDenyListStrings;
+	TArray<FString> SectionsDenyList;
+	GConfig->GetArray(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("IniKeyBlacklist"), KeyDenyListStrings, GGameIni);
+	GConfig->GetArray(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("IniSectionBlacklist"), SectionsDenyList, GGameIni);
+	TArray<FName> KeysDenyList;
+	for (FString Key : KeyDenyListStrings)
 	{
-		BlacklistKeys.Add(FName(*Key));
+		KeysDenyList.Add(FName(*Key));
 	}
 
 	for (const FString& Filename : Config.GetFilenames())
@@ -60,7 +60,7 @@ int32 UMakeBinaryConfigCommandlet::Main(const FString& Params)
 		delete File->SourceConfigFile;
 		File->SourceConfigFile = nullptr;
 
-		for (FString Section : BlacklistSections)
+		for (FString Section : SectionsDenyList)
 		{
 			File->Remove(Section);
 		}
@@ -69,17 +69,17 @@ int32 UMakeBinaryConfigCommandlet::Main(const FString& Params)
 		for (TPair<FString, FConfigSection>& SectionPair : *File)
 		{
 			FConfigSection& Section = SectionPair.Value;
-			for (FName Key : BlacklistKeys)
+			for (FName Key : KeysDenyList)
 			{
 				Section.Remove(Key);
 			}
 		}
 	}
 
-	// check the blacklist removed itself
-	BlacklistKeyStrings.Empty();
-	Config.GetArray(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("IniKeyBlacklist"), BlacklistKeyStrings, GGameIni);
-	check(BlacklistKeyStrings.Num() == 0);
+	// check the deny list removed itself
+	KeyDenyListStrings.Empty();
+	Config.GetArray(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("IniKeyBlacklist"), KeyDenyListStrings, GGameIni);
+	check(KeyDenyListStrings.Num() == 0);
 
 	// allow delegates to modify the config data with some tagged binary data
 	FCoreDelegates::FExtraBinaryConfigData ExtraData(Config, true);

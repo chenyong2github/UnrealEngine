@@ -82,10 +82,10 @@
 
 using namespace CADKernel;
 
-FCoreTechBridge::FCoreTechBridge(TSharedRef<FSession>& InSession)
+FCoreTechBridge::FCoreTechBridge(FSession& InSession)
 	: Session(InSession)
-	, GeometricTolerance(Session->GetGeometricTolerance())
-	, SquareGeometricTolerance(FMath::Square(Session->GetGeometricTolerance()))
+	, GeometricTolerance(Session.GetGeometricTolerance())
+	, SquareGeometricTolerance(FMath::Square(Session.GetGeometricTolerance()))
 	, SquareJoiningVertexTolerance(SquareGeometricTolerance * 2)
 {
 }
@@ -190,7 +190,7 @@ void FCoreTechBridge::AddFace(CT_OBJECT_ID CTFaceId, TSharedRef<FShell>& Shell)
 		FMessage::Printf(Log, TEXT("KIO Surface %d (of Body) has surfacic tolerance probleme: %f %f\n"), CTFaceId, Tolerance[0], Tolerance[1]);
 		return;
 	}
-  	ensureCADKernel(Tolerance[0] > SMALL_NUMBER && Tolerance[1] > SMALL_NUMBER);
+	ensureCADKernel(Tolerance[0] > SMALL_NUMBER && Tolerance[1] > SMALL_NUMBER);
 #endif
 
 	const FSurfacicBoundary& SurfaceBounds = Surface->GetBoundary();
@@ -252,7 +252,7 @@ void FCoreTechBridge::AddFace(CT_OBJECT_ID CTFaceId, TSharedRef<FShell>& Shell)
 
 	TSharedRef<FTopologicalFace> Face = FEntity::MakeShared<FTopologicalFace>(Surface);
 	AddMetadata(CTFaceId, Face);
-	Face->SetPatchId((int32) CTFaceId);
+	Face->SetPatchId((int32)CTFaceId);
 
 #ifdef CORETECHBRIDGE_DEBUG
 	Face->CtKioId = (FIdent)CTFaceId;
@@ -731,7 +731,7 @@ TSharedPtr<FSurface> FCoreTechBridge::AddNurbsSurface(CT_OBJECT_ID CTSurfaceId)
 
 	int32 PolesUNum = KnotsU.Num() - DegreU - 1;
 	int32 PolesVNum = KnotsV.Num() - DegreV - 1;
-	if(PolesDim == 4)
+	if (PolesDim == 4)
 	{
 		TArray<double> Weights;
 		Weights.SetNum(PoleNum);
@@ -991,7 +991,7 @@ FMatrixH FCoreTechBridge::CreateCoordinateSystem(const CT_COORDINATE& InOrigin, 
 	FPoint Origin(InOrigin.xyz);
 	FPoint Ox(InUReference.xyz);
 	FPoint Oz(InDirection.xyz);
- 	FPoint Oy = Oz ^ Ox;
+	FPoint Oy = Oz ^ Ox;
 	return FMatrixH(Origin, Ox, Oy, Oz);
 }
 
@@ -1073,13 +1073,13 @@ void FCoreTechBridge::AddMetadata(CT_OBJECT_ID CTNodeId, TSharedRef<FMetadataDic
 	CT_UINT32 IthAttrib = 0;
 	while (CT_OBJECT_IO::SearchAttribute(CTNodeId, CT_ATTRIB_ALL, IthAttrib++) == IO_OK)
 	{
-		CT_ATTRIB_TYPE       AttributeType;
+		CT_ATTRIB_TYPE AttributeType;
 		if (CT_CURRENT_ATTRIB_IO::AskAttributeType(AttributeType) != IO_OK)
 		{
 			continue;
 		}
 
-		switch (AttributeType) 
+		switch (AttributeType)
 		{
 		case CT_ATTRIB_NAME:
 		{
@@ -1095,7 +1095,7 @@ void FCoreTechBridge::AddMetadata(CT_OBJECT_ID CTNodeId, TSharedRef<FMetadataDic
 		}
 
 		case CT_ATTRIB_ORIGINAL_NAME:
-			{
+		{
 			CT_STR NameStrValue;
 			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_NAME_VALUE, NameStrValue) == IO_OK)
 			{
@@ -1150,8 +1150,8 @@ void FCoreTechBridge::AddMetadata(CT_OBJECT_ID CTNodeId, TSharedRef<FMetadataDic
 
 		default:
 			break;
-			}
-			}
-			}
+		}
+	}
+}
 
 #endif // USE_KERNEL_IO_SDK

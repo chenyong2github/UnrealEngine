@@ -404,13 +404,21 @@ bool FKismetVariableDragDropAction::CanExecuteMakeSetter(FNodeConstructionParams
 {
 	check(InVariableProperty);
 	check(InParams.VariableSource.Get());
+	check(InParams.Graph);
 
 	if(UClass* VariableSourceClass = Cast<UClass>(InParams.VariableSource.Get()))
 	{
 		const UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(InParams.Graph);
 		const bool bWritableProperty = (FBlueprintEditorUtils::IsPropertyWritableInBlueprint(Blueprint, InVariableProperty) == FBlueprintEditorUtils::EPropertyWritableState::Writable);
 
-		return (bWritableProperty && !VariableSourceClass->HasAnyClassFlags(CLASS_Const));
+		bool bSupportsImpureNodes = false;
+		const UEdGraphSchema_K2* K2_Schema = Cast<const UEdGraphSchema_K2>(InParams.Graph->GetSchema());
+		if (K2_Schema)
+		{
+			bSupportsImpureNodes = K2_Schema->DoesGraphSupportImpureFunctions(InParams.Graph);
+		}
+		
+		return (bSupportsImpureNodes && bWritableProperty && !VariableSourceClass->HasAnyClassFlags(CLASS_Const));
 	}
 
 	return true;

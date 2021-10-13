@@ -26,7 +26,7 @@ FText UFractureToolResample::GetDisplayText() const
 
 FText UFractureToolResample::GetTooltipText() const 
 {
-	return FText(NSLOCTEXT("Resample", "FractureToolResampleTooltip", "The Resample tool can add collision samples in large flat regions that otherwise might have poor collision response."));
+	return FText(NSLOCTEXT("Resample", "FractureToolResampleTooltip", "Resample to add collision particles in large flat regions that otherwise might have poor collision response."));
 }
 
 FSlateIcon UFractureToolResample::GetToolIcon() const 
@@ -36,7 +36,7 @@ FSlateIcon UFractureToolResample::GetToolIcon() const
 
 void UFractureToolResample::RegisterUICommand( FFractureEditorCommands* BindingContext ) 
 {
-	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Resample", "Resample", "Resample", EUserInterfaceActionType::ToggleButton, FInputChord() );
+	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Resample", "Resmpl", "Resample to add collision particles in large flat regions that otherwise might have poor collision response.", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	BindingContext->Resample = UICommandInfo;
 }
 

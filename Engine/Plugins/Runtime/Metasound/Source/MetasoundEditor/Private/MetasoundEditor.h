@@ -110,6 +110,9 @@ namespace Metasound
 			/** Duplicates the selected node(s) in the graph */
 			void DuplicateNodes();
 
+			/** Forces all UX pertaining to the root graph's details panel to be refreshed. */
+			void RefreshDetails();
+			
 			/** Pastes node(s) from the clipboard to the graph */
 			void PasteNodes(const FVector2D* InLocation = nullptr);
 			void PasteNodes(const FVector2D* InLocation, const FText& InTransactionText);

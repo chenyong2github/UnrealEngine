@@ -32,6 +32,7 @@ private:
 	void ChildRequestPaste(const UNiagaraClipboardContent* ClipboardContent, int32 PasteIndex, FText& OutPasteWarning);
 
 private:
+	void OnRendererAdded(UNiagaraRendererProperties* RendererProperties) const;
 	TSharedPtr<INiagaraStackItemGroupAddUtilities> AddUtilities;
 
 	TWeakObjectPtr<UNiagaraEmitter> EmitterWeak;

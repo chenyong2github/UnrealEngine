@@ -412,7 +412,7 @@ public:
 	*  the map history to only include variables that are relevant to the specific script type. For instance, a System 
 	*  script doesn't really care about the Particles namespace.
 	*/
-	void EnableScriptWhitelist(bool bInEnable, ENiagaraScriptUsage InScriptType);
+	void EnableScriptAllowList(bool bInEnable, ENiagaraScriptUsage InScriptType);
 
 	bool HasCurrentUsageContext() const;
 	ENiagaraScriptUsage GetCurrentUsageContext()const;
@@ -439,7 +439,7 @@ protected:
 	*/
 	void BuildCurrentAliases();
 
-	/** Helper function called when variables are added to enable the filtering specified in EnableScriptWhitelist.*/
+	/** Helper function called when variables are added to enable the filtering specified in EnableScriptAllowList.*/
 	bool ShouldTrackVariable(const FNiagaraVariable& InVar);
 
 	/** Helper method used to take in input script type and determine if the passed in namespaced variable is worth tracking.*/
@@ -468,9 +468,9 @@ protected:
 	TArray<TArray<FString> > EncounteredFunctionNames;
 	TArray<FString> EncounteredEmitterNames;
 	
-	/** Whether or not the script whitelist is active.*/
-	bool bFilterByScriptWhitelist;
-	/** What the script type is that we should be filtering to if the whitelist is enabled.*/
+	/** Whether or not the script allow list is active.*/
+	bool bFilterByScriptAllowList;
+	/** What the script type is that we should be filtering to if the allow list is enabled.*/
 	ENiagaraScriptUsage FilterScriptType;
 
 	/** Whether or not to ignore disabled nodes.*/

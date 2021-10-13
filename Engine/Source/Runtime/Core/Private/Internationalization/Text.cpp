@@ -22,6 +22,7 @@
 #include "Serialization/StructuredArchive.h"
 
 #include "UObject/EditorObjectVersion.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "HAL/PlatformProcess.h"
 
 //DEFINE_STAT(STAT_TextFormat);
@@ -535,7 +536,7 @@ void FText::UnregisterTextGenerator( FName TypeID )
 * Generate an FText that represents the passed number in the passed culture
 */
 
-// on some platforms (PS4) int64_t is a typedef of long.  However, UE4 typedefs int64 as long long.  Since these are distinct types, and ICU only has a constructor for int64_t, casting to int64 causes a compile error from ambiguous function call, 
+// on some platforms int64_t is a typedef of long.  However, UE4 typedefs int64 as long long.  Since these are distinct types, and ICU only has a constructor for int64_t, casting to int64 causes a compile error from ambiguous function call, 
 // so cast to int64_t's where appropriate here to avoid problems.
 
 #define DEF_ASNUMBER_CAST(T1, T2) FText FText::AsNumber(T1 Val, const FNumberFormattingOptions* const Options, const FCulturePtr& TargetCulture) { return FText::AsNumberTemplate<T1, T2>(Val, Options, TargetCulture); }
@@ -1444,6 +1445,7 @@ void FFormatArgumentData::ResetValue()
 	ArgumentValue = FText::GetEmpty();
 	ArgumentValueInt = 0;
 	ArgumentValueFloat = 0.0f;
+	ArgumentValueDouble = 0.0;
 	ArgumentValueGender = ETextGender::Masculine;
 }
 
@@ -1455,6 +1457,8 @@ FFormatArgumentValue FFormatArgumentData::ToArgumentValue() const
 		return FFormatArgumentValue(ArgumentValueInt);
 	case EFormatArgumentType::Float:
 		return FFormatArgumentValue(ArgumentValueFloat);
+	case EFormatArgumentType::Double:
+		return FFormatArgumentValue(ArgumentValueDouble);
 	case EFormatArgumentType::Text:
 		return FFormatArgumentValue(ArgumentValue);
 	case EFormatArgumentType::Gender:
@@ -1471,7 +1475,8 @@ void operator<<(FStructuredArchive::FSlot Slot, FFormatArgumentData& Value)
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
 
 	UnderlyingArchive.UsingCustomVersion(FEditorObjectVersion::GUID);
-
+	UnderlyingArchive.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+	
 	if (UnderlyingArchive.IsLoading())
 	{
 		// ArgumentName was changed to be FString rather than FText, so we need to convert older data to ensure serialization stays happy outside of UStruct::SerializeTaggedProperties.
@@ -1515,10 +1520,23 @@ void operator<<(FStructuredArchive::FSlot Slot, FFormatArgumentData& Value)
 	switch (Value.ArgumentValueType)
 	{
 	case EFormatArgumentType::Int:
-		Record << SA_VALUE(TEXT("Value"), Value.ArgumentValueInt);
+		if (UnderlyingArchive.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::TextFormatArgumentData64bitSupport)
+		{
+			Record << SA_VALUE(TEXT("Value"), Value.ArgumentValueInt);	
+		}
+		// Legacy support for binary serialization of int32 values before 64 bit support was the default
+		else
+		{
+			int32 IntValue = static_cast<int32>(Value.ArgumentValueInt);
+			Record << SA_VALUE(TEXT("Value"), IntValue);
+			Value.ArgumentValueInt = static_cast<int64>(IntValue);
+		}
 		break;
 	case EFormatArgumentType::Float:
 		Record << SA_VALUE(TEXT("Value"), Value.ArgumentValueFloat);
+		break;
+	case EFormatArgumentType::Double:
+		Record << SA_VALUE(TEXT("Value"), Value.ArgumentValueDouble);
 		break;
 	case EFormatArgumentType::Text:
 		Record << SA_VALUE(TEXT("Value"), Value.ArgumentValue);

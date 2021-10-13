@@ -58,7 +58,7 @@ void UTakePreset::CreateLevelSequence()
 		LevelSequence->Modify();
 
 		FName UniqueName = MakeUniqueObjectName(GetTransientPackage(), ULevelSequence::StaticClass(), "DEAD_TakePreset_LevelSequence");
-		LevelSequence->Rename(*UniqueName.ToString());
+		LevelSequence->Rename(*UniqueName.ToString(), GetTransientPackage());
 		LevelSequence = nullptr;
 	}
 

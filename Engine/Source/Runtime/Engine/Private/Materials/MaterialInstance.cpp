@@ -125,7 +125,8 @@ FFontParameterValue::ValueType FFontParameterValue::GetValue(const FFontParamete
 }
 
 FMaterialInstanceResource::FMaterialInstanceResource(UMaterialInstance* InOwner)
-	: Parent(NULL)
+	: FMaterialRenderProxy(GetPathNameSafe(InOwner->GetMaterial()))
+	, Parent(NULL)
 	, Owner(InOwner)
 	, GameThreadParent(NULL)
 {

@@ -21,7 +21,7 @@
 			"Name": "ConcertSyncTest",
 			"Type": "UncookedOnly",
 			"LoadingPhase": "PreDefault",
-			"WhitelistPrograms": []
+			"ProgramAllowList": []
 		}
 	],
 	"Plugins": [

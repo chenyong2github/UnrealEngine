@@ -20,7 +20,7 @@
 * Exposes a Sequencer float type key to Python/Blueprints.
 * Stores a reference to the data so changes to this class are forwarded onto the underlying data structures.
 */
-UCLASS(BlueprintType)
+UCLASS(abstract, BlueprintType)
 class UMovieSceneScriptingFloatKey : public UMovieSceneScriptingKey
 {
 	GENERATED_BODY()

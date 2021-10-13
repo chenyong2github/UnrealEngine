@@ -806,8 +806,17 @@ bool DeleteGroupTrianglesAndGetLoop(FDynamicMesh3& Mesh, const FGroupTopology& T
 	Editor.RemoveTriangles(Component.Indices, false); // don't remove isolated verts
 	
 	// Remove verts that weren't on the boundary
-	Algo::ForEachIf(ComponentVids, [&BoundaryVidSet](int32 Vid) { return !BoundaryVidSet.Contains(Vid); },
-		[&Mesh](int32 Vid) { Mesh.RemoveVertex(Vid, false, false); } // Don't try to remove attached tris, don't care about bowties
+	Algo::ForEachIf(ComponentVids, 
+		[&BoundaryVidSet](int32 Vid) 
+	{ 
+		return !BoundaryVidSet.Contains(Vid); 
+	},
+		[&Mesh](int32 Vid) 
+	{ 
+		checkSlow(!Mesh.IsReferencedVertex(Vid));
+		constexpr bool bPreserveManifold = false;
+		Mesh.RemoveVertex(Vid, bPreserveManifold);
+	}
 	);
 
 	if (Mesh.HasAttributes())

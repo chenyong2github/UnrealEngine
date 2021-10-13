@@ -27,7 +27,7 @@ public:
 	UAsyncCaptureScene();
 
 	UFUNCTION(BlueprintCallable, meta=( BlueprintInternalUseOnly="true" ))
-	static UAsyncCaptureScene* CaptureScreenshot(UCameraComponent* ViewCamera, TSubclassOf<ASceneCapture2D> SceneCaptureClass, int ResX, int ResY);
+	static UAsyncCaptureScene* CaptureSceneAsync(UCameraComponent* ViewCamera, TSubclassOf<ASceneCapture2D> SceneCaptureClass, int ResX, int ResY);
 
 	virtual void Activate() override;
 public:
@@ -39,9 +39,8 @@ private:
 
 	void NotifyComplete(UTextureRenderTarget2D* InTexture);
 	void Start(UCameraComponent* ViewCamera, TSubclassOf<ASceneCapture2D> SceneCaptureClass, int ResX, int ResY);
-	void ReadPixelsFromRT(UTextureRenderTarget2D* InRT, TArray<FColor>* OutPixels);
 	void FinishLoadingBeforeScreenshot();
-
+	
 private:
 	UPROPERTY()
 	TObjectPtr<ASceneCapture2D> SceneCapture;

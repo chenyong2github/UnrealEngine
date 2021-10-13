@@ -912,39 +912,6 @@ const TArray<FTargetInfo>& FDesktopPlatformBase::GetTargetsForCurrentProject() c
 	return GetTargetsForProject(FPaths::GetProjectFilePath());
 }
 
-bool FDesktopPlatformBase::GetSolutionPath(FString& OutSolutionPath)
-{
-	// Get the platform-specific suffix for solution files
-#if PLATFORM_MAC
-	const TCHAR* Suffix = TEXT(".xcworkspace/contents.xcworkspacedata");
-#elif PLATFORM_LINUX
-	const TCHAR* Suffix = TEXT(".workspace");	// FIXME: Should depend on PreferredAccessor setting
-#else
-	const TCHAR* Suffix = TEXT(".sln");
-#endif
-
-	// When using game specific uproject files, the solution is named after the game and in the uproject folder
-	if(FPaths::IsProjectFilePathSet())
-	{
-		FString SolutionPath = FPaths::ProjectDir() / FPaths::GetBaseFilename(FPaths::GetProjectFilePath()) + Suffix;
-		if(FPaths::FileExists(SolutionPath))
-		{
-			OutSolutionPath = SolutionPath;
-			return true;
-		}
-	}
-
-	// Otherwise, it is simply titled UE4.sln
-	FString DefaultSolutionPath = FPaths::RootDir() / FString(TEXT("UE4")) + Suffix;
-	if(FPaths::FileExists(DefaultSolutionPath))
-	{
-		OutSolutionPath = DefaultSolutionPath;
-		return true;
-	}
-
-	return false;
-}
-
 FString FDesktopPlatformBase::GetDefaultProjectCreationPath()
 {
 	// My Documents

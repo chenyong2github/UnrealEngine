@@ -86,6 +86,7 @@ void SClippingHorizontalBox::Construct( const FArguments& InArgs )
 	OnWrapButtonClicked = InArgs._OnWrapButtonClicked;
 	StyleSet = InArgs._StyleSet;
 	StyleName = InArgs._StyleName;
+	bIsFocusable = InArgs._IsFocusable;
 
 	LastClippedIdx = ClippedIdx = INDEX_NONE;
 }
@@ -104,6 +105,7 @@ void SClippingHorizontalBox::AddWrapButton()
 		.OnGetMenuContent( OnWrapButtonClicked )
 		.Cursor( EMouseCursor::Default )
 		.OnMenuOpenChanged(this, &SClippingHorizontalBox::OnWrapButtonOpenChanged)
+		.IsFocusable(bIsFocusable)
 		.ButtonContent()
 		[
 			SNew(SImage)

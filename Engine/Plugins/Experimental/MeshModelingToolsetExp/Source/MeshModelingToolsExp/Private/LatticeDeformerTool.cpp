@@ -426,6 +426,7 @@ void ULatticeDeformerTool::OnTick(float DeltaTime)
 	{
 		if (bShouldRebuild)
 		{
+			ClearConstrainedPoints();
 			TArray<FVector3d> LatticePoints;
 			TArray<FVector2i> LatticeEdges;
 			InitializeLattice(LatticePoints, LatticeEdges);

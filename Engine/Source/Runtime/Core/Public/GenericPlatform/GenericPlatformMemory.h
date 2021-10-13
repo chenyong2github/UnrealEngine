@@ -147,6 +147,16 @@ struct CORE_API FGenericPlatformMemoryStats : public FPlatformMemoryConstants
 	/** The peak amount of virtual memory used by the process. */
 	uint64 PeakUsedVirtual;
 	
+	/** Memory pressure states, useful for platforms in which the available memory estimate
+	 	may not take in to account memory reclaimable from closing inactive processes or resorting to swap. */
+	enum class EMemoryPressureStatus : uint8 
+	{ 
+		Unknown,
+		Nominal, 
+		Critical, // high risk of OOM conditions
+	};
+	EMemoryPressureStatus GetMemoryPressureStatus();
+
 	/** Default constructor, clears all variables. */
 	FGenericPlatformMemoryStats();
 

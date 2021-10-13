@@ -12,5 +12,7 @@ struct LEVELSNAPSHOTS_API FObjectSnapshotData
 
 	UPROPERTY()
 	TArray<uint8> SerializedData;
-	
+
+	UPROPERTY()
+	uint64 ObjectFlags;
 };

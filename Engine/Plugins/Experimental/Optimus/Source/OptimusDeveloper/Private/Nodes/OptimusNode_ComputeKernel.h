@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "OptimusContextNames.h"
+#include "OptimusDataDomain.h"
 #include "OptimusNode.h"
 #include "OptimusDataType.h"
-#include "OptimusResourceDescription.h"
 #include "ComputeFramework/ComputeKernelSource.h"
 
 #include "Types/OptimusType_ShaderText.h"
@@ -108,13 +107,13 @@ struct FOptimus_ShaderBinding
 
 
 USTRUCT()
-struct FOptimus_ShaderContextBinding :
+struct FOptimus_ShaderDataBinding :
 	public FOptimus_ShaderBinding
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = Binding)
-	FOptimusNestedResourceContext Context;
+	FOptimusMultiLevelDataDomain DataDomain;
 };
 
 
@@ -149,18 +148,17 @@ public:
 	UPROPERTY(EditAnywhere, Category = KernelConfiguration, meta=(Min=1))
 	int32 ThreadCount = 64;
 
-	// HACK: Replace with contexts gathered from supported DataInterfaces.
 	UPROPERTY(EditAnywhere, Category = KernelConfiguration)
-	FOptimusResourceContext DriverContext;
+	FOptimusDataDomain ExecutionDomain;
 
 	UPROPERTY(EditAnywhere, Category=Bindings)
 	TArray<FOptimus_ShaderBinding> Parameters;
 	
 	UPROPERTY(EditAnywhere, Category=Bindings)
-	TArray<FOptimus_ShaderContextBinding> InputBindings;
+	TArray<FOptimus_ShaderDataBinding> InputBindings;
 
 	UPROPERTY(EditAnywhere, Category=Bindings)
-	TArray<FOptimus_ShaderContextBinding> OutputBindings;
+	TArray<FOptimus_ShaderDataBinding> OutputBindings;
 
 	UPROPERTY(EditAnywhere, Category = ShaderSource)
 	FOptimusType_ShaderText ShaderSource;
@@ -202,7 +200,7 @@ private:
 	void UpdatePinNames(
 	    EOptimusNodePinDirection InPinDirection);
 
-	void UpdatePinResourceContexts(
+	void UpdatePinDataDomains(
 		EOptimusNodePinDirection InPinDirection
 		);
 	

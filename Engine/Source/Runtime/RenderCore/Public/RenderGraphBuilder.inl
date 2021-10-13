@@ -29,6 +29,16 @@ inline FRDGTextureRef FRDGBuilder::CreateTexture(
 	FRDGTextureDesc OverrideDesc = Desc;
 	EnumRemoveFlags(OverrideDesc.Flags, TexCreate_Transient);
 
+#if !UE_BUILD_SHIPPING
+	ensureMsgf(OverrideDesc.Extent.X >= 1, TEXT("CreateTexture %s X size too small: %i, Min: %i, clamping"), Name ? Name : TEXT(""), OverrideDesc.Extent.X, 1);
+	ensureMsgf(OverrideDesc.Extent.Y >= 1, TEXT("CreateTexture %s Y size too small: %i, Min: %i, clamping"), Name ? Name : TEXT(""), OverrideDesc.Extent.Y, 1);
+	ensureMsgf(((uint32)OverrideDesc.Extent.X) <= GetMax2DTextureDimension(), TEXT("CreateTexture %s X size too large: %i, Max: %i, clamping"), Name ? Name : TEXT(""), OverrideDesc.Extent.X, GetMax2DTextureDimension());
+	ensureMsgf(((uint32)OverrideDesc.Extent.Y) <= GetMax2DTextureDimension(), TEXT("CreateTexture %s Y size too large: %i, Max: %i, clamping"), Name ? Name : TEXT(""), OverrideDesc.Extent.Y, GetMax2DTextureDimension());
+#endif
+	// Clamp the texture size to that which is permissible, otherwise it's a guaranteed crash.
+	OverrideDesc.Extent.X = FMath::Clamp(OverrideDesc.Extent.X, 1, GetMax2DTextureDimension());
+	OverrideDesc.Extent.Y = FMath::Clamp(OverrideDesc.Extent.Y, 1, GetMax2DTextureDimension());
+
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateTexture(OverrideDesc, Name, Flags));
 	FRDGTextureRef Texture = Textures.Allocate(Allocator, Name, OverrideDesc, Flags, ERenderTargetTexture::ShaderResource);
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateTexture(Texture));

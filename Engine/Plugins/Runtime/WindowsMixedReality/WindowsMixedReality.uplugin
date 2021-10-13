@@ -23,7 +23,7 @@
 			"Name": "WindowsMixedRealityRuntimeSettings",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"HoloLens"
 			]
@@ -32,7 +32,7 @@
 			"Name": "WindowsMixedRealityHMD",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"HoloLens"
 			]
@@ -41,7 +41,7 @@
 			"Name": "WindowsMixedRealitySpatialInput",
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"HoloLens"
 			]
@@ -50,7 +50,7 @@
 			"Name": "WindowsMixedRealityHandTracking",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"HoloLens"
 			]
@@ -59,7 +59,7 @@
 			"Name": "WindowsMixedRealityPlatformEditor",
 			"Type": "Editor",
 			"LoadingPhase": "PostEngineInit",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"HoloLens"
 			]
@@ -68,7 +68,7 @@
 			"Name": "WindowsMixedRealityEyeTracker",
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"HoloLens"
 			]
@@ -77,7 +77,7 @@
 			"Name": "WindowsMixedRealityRHI",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"HoloLens"
 			]
 		},
@@ -85,7 +85,7 @@
 			"Name": "WindowsMixedRealityInputSimulation",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64"
 			]
 		},
@@ -93,7 +93,7 @@
 			"Name": "HoloLensAR",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"HoloLens",
 				"Win64"
 			]

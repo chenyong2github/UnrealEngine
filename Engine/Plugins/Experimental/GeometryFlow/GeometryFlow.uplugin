@@ -29,7 +29,7 @@
 			"Name": "GeometryFlowMeshProcessingEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [ "Win64" ]
+			"PlatformAllowList": [ "Win64" ]
 		},		
 	],
 	"Plugins": [

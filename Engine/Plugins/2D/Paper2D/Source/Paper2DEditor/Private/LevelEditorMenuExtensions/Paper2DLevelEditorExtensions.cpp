@@ -115,8 +115,8 @@ public:
 		{
 			// Add the sprite actions sub-menu extender
 			Extender->AddMenuExtension(
-				"ActorType",
-				EExtensionHook::Before,
+				"ActorTypeTools",
+				EExtensionHook::After,
 				nullptr,
 				FMenuExtensionDelegate::CreateStatic(&FPaperLevelEditorMenuExtensions_Impl::CreateSpriteActionsMenuEntries, /*bCanMerge=*/ bCanMergeSprites, /*bCanSplit=*/ bCanSplitSprites));
 		}

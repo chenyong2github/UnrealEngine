@@ -64,24 +64,15 @@ inline const TCHAR* LexToString(ESocialRelationship Relationship)
 {
 	switch (Relationship)
 	{
-	case ESocialRelationship::Any:
-		return TEXT("Any");
-	case ESocialRelationship::FriendInviteReceived:
-		return TEXT("FriendInviteReceived");
-	case ESocialRelationship::FriendInviteSent:
-		return TEXT("FriendInviteSent");
-	case ESocialRelationship::PartyInvite:
-		return TEXT("PartyInvite");
-	case ESocialRelationship::Friend:
-		return TEXT("Friend");
-	case ESocialRelationship::BlockedPlayer:
-		return TEXT("BlockedPlayer");
-	case ESocialRelationship::SuggestedFriend:
-		return TEXT("SuggestedFriend");
-	case ESocialRelationship::RecentPlayer:
-		return TEXT("RecentPlayer");
-	case ESocialRelationship::JoinRequest:
-		return TEXT("JoinRequest");
+	case ESocialRelationship::Any: return TEXT("Any");
+	case ESocialRelationship::FriendInviteReceived: return TEXT("FriendInviteReceived");
+	case ESocialRelationship::FriendInviteSent: return TEXT("FriendInviteSent");
+	case ESocialRelationship::PartyInvite: return TEXT("PartyInvite");
+	case ESocialRelationship::Friend: return TEXT("Friend");
+	case ESocialRelationship::BlockedPlayer: return TEXT("BlockedPlayer");
+	case ESocialRelationship::SuggestedFriend: return TEXT("SuggestedFriend");
+	case ESocialRelationship::RecentPlayer: return TEXT("RecentPlayer");
+	case ESocialRelationship::JoinRequest: return TEXT("JoinRequest");
 	}
 
 	return TEXT("Unknown");
@@ -191,22 +182,6 @@ inline const TCHAR* ToString(ESocialSubsystem SocialSubsystem)
 	{
 	case ESocialSubsystem::Primary: return TEXT("Primary");
 	case ESocialSubsystem::Platform: return TEXT("Platform");
-	}
-	return TEXT("Unknown");
-}
-
-inline const TCHAR* ToString(ESocialRelationship Type)
-{
-	switch (Type)
-	{
-	case ESocialRelationship::FriendInviteReceived: return TEXT("FriendInviteReceived");
-	case ESocialRelationship::FriendInviteSent: return TEXT("FriendInviteSent");
-	case ESocialRelationship::PartyInvite: return TEXT("PartyInvite");
-	case ESocialRelationship::Friend: return TEXT("Friend");
-	case ESocialRelationship::BlockedPlayer: return TEXT("BlockedPlayer");
-	case ESocialRelationship::SuggestedFriend: return TEXT("SuggestedFriend");
-	case ESocialRelationship::RecentPlayer: return TEXT("RecentPlayer");
-	case ESocialRelationship::JoinRequest: return TEXT("JoinRequest");
 	}
 	return TEXT("Unknown");
 }

@@ -18,6 +18,10 @@ UE_TRACE_CHANNEL_DEFINE(CpuChannel)
 UE_TRACE_EVENT_BEGIN(CpuProfiler, EventSpec, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(uint32, Id)
 	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, Name)
+	#if CPUPROFILERTRACE_FILE_AND_LINE_ENABLED
+	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, File)
+	UE_TRACE_EVENT_FIELD(uint32, Line)
+	#endif
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(CpuProfiler, EventBatch, NoSync)
@@ -148,7 +152,7 @@ void FCpuProfilerTrace::OutputBeginEvent(uint32 SpecId)
 	CPUPROFILERTRACE_OUTPUTBEGINEVENT_EPILOGUE();
 }
 
-void FCpuProfilerTrace::OutputBeginDynamicEvent(const ANSICHAR* Name)
+void FCpuProfilerTrace::OutputBeginDynamicEvent(const ANSICHAR* Name, const ANSICHAR* File, uint32 Line)
 {
 	CPUPROFILERTRACE_OUTPUTBEGINEVENT_PROLOGUE();
 	uint32 SpecId = ThreadBuffer->DynamicAnsiScopeNamesMap.FindRef(Name);
@@ -157,13 +161,13 @@ void FCpuProfilerTrace::OutputBeginDynamicEvent(const ANSICHAR* Name)
 		int32 NameSize = strlen(Name) + 1;
 		ANSICHAR* NameCopy = reinterpret_cast<ANSICHAR*>(ThreadBuffer->DynamicScopeNamesMemory.Alloc(NameSize, alignof(ANSICHAR)));
 		FMemory::Memmove(NameCopy, Name, NameSize);
-		SpecId = OutputEventType(NameCopy);
+		SpecId = OutputEventType(NameCopy, File, Line);
 		ThreadBuffer->DynamicAnsiScopeNamesMap.Add(NameCopy, SpecId);
 	}
 	CPUPROFILERTRACE_OUTPUTBEGINEVENT_EPILOGUE();
 }
 
-void FCpuProfilerTrace::OutputBeginDynamicEvent(const TCHAR* Name)
+void FCpuProfilerTrace::OutputBeginDynamicEvent(const TCHAR* Name, const ANSICHAR* File, uint32 Line)
 {
 	CPUPROFILERTRACE_OUTPUTBEGINEVENT_PROLOGUE();
 	uint32 SpecId = ThreadBuffer->DynamicTCharScopeNamesMap.FindRef(Name);
@@ -172,13 +176,13 @@ void FCpuProfilerTrace::OutputBeginDynamicEvent(const TCHAR* Name)
 		int32 NameSize = (FCString::Strlen(Name) + 1) * sizeof(TCHAR);
 		TCHAR* NameCopy = reinterpret_cast<TCHAR*>(ThreadBuffer->DynamicScopeNamesMemory.Alloc(NameSize, alignof(TCHAR)));
 		FMemory::Memmove(NameCopy, Name, NameSize);
-		SpecId = OutputEventType(NameCopy);
+		SpecId = OutputEventType(NameCopy, File, Line);
 		ThreadBuffer->DynamicTCharScopeNamesMap.Add(NameCopy, SpecId);
 	}
 	CPUPROFILERTRACE_OUTPUTBEGINEVENT_EPILOGUE();
 }
 
-void FCpuProfilerTrace::OutputBeginDynamicEvent(const FName& Name)
+void FCpuProfilerTrace::OutputBeginDynamicEvent(const FName& Name, const ANSICHAR* File, uint32 Line)
 {
 	CPUPROFILERTRACE_OUTPUTBEGINEVENT_PROLOGUE();
 	uint32 SpecId = ThreadBuffer->DynamicFNameScopeNamesMap.FindRef(Name.GetComparisonIndex());
@@ -189,13 +193,13 @@ void FCpuProfilerTrace::OutputBeginDynamicEvent(const FName& Name)
 		{
 			static WIDECHAR WideName[NAME_SIZE];
 			NameEntry->GetWideName(WideName);
-			SpecId = OutputEventType(WideName);
+			SpecId = OutputEventType(WideName, File, Line);
 		}
 		else
 		{
 			static ANSICHAR AnsiName[NAME_SIZE];
 			NameEntry->GetAnsiName(AnsiName);
-			SpecId = OutputEventType(AnsiName);
+			SpecId = OutputEventType(AnsiName, File, Line);
 		}
 		ThreadBuffer->DynamicFNameScopeNamesMap.Add(Name.GetComparisonIndex(), SpecId);
 	}
@@ -231,23 +235,43 @@ uint32 FCpuProfilerTraceInternal::GetNextSpecId()
 	return (NextSpecId++) + 1;
 }
 
-uint32 FCpuProfilerTrace::OutputEventType(const TCHAR* Name)
+uint32 FCpuProfilerTrace::OutputEventType(const TCHAR* Name, const ANSICHAR* File, uint32 Line)
 {
 	uint32 SpecId = FCpuProfilerTraceInternal::GetNextSpecId();
 	uint16 NameLen = uint16(FCString::Strlen(Name));
-	UE_TRACE_LOG(CpuProfiler, EventSpec, CpuChannel, NameLen * sizeof(ANSICHAR))
+	uint32 DataSize = NameLen * sizeof(ANSICHAR); // EventSpec.Name is traced as UE::Trace::AnsiString
+#if CPUPROFILERTRACE_FILE_AND_LINE_ENABLED
+	uint16 FileLen = (File != nullptr) ? uint16(strlen(File)) : 0;
+	DataSize += FileLen * sizeof(ANSICHAR);
+#endif
+	UE_TRACE_LOG(CpuProfiler, EventSpec, CpuChannel, DataSize)
 		<< EventSpec.Id(SpecId)
-		<< EventSpec.Name(Name, NameLen);
+		<< EventSpec.Name(Name, NameLen)
+#if CPUPROFILERTRACE_FILE_AND_LINE_ENABLED
+		<< EventSpec.File(File, FileLen)
+		<< EventSpec.Line(Line)
+#endif
+	;
 	return SpecId;
 }
 
-uint32 FCpuProfilerTrace::OutputEventType(const ANSICHAR* Name)
+uint32 FCpuProfilerTrace::OutputEventType(const ANSICHAR* Name, const ANSICHAR* File, uint32 Line)
 {
 	uint32 SpecId = FCpuProfilerTraceInternal::GetNextSpecId();
 	uint16 NameLen = uint16(strlen(Name));
-	UE_TRACE_LOG(CpuProfiler, EventSpec, CpuChannel, NameLen * sizeof(ANSICHAR))
+	uint32 DataSize = NameLen * sizeof(ANSICHAR);
+#if CPUPROFILERTRACE_FILE_AND_LINE_ENABLED
+	uint16 FileLen = (File != nullptr) ? uint16(strlen(File)) : 0;
+	DataSize += FileLen * sizeof(ANSICHAR);
+#endif
+	UE_TRACE_LOG(CpuProfiler, EventSpec, CpuChannel, DataSize)
 		<< EventSpec.Id(SpecId)
-		<< EventSpec.Name(Name, NameLen);
+		<< EventSpec.Name(Name, NameLen)
+#if CPUPROFILERTRACE_FILE_AND_LINE_ENABLED
+		<< EventSpec.File(File, FileLen)
+		<< EventSpec.Line(Line)
+#endif
+	;
 	return SpecId;
 }
 

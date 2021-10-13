@@ -64,6 +64,12 @@ public:
 			for (int32 i = 1; i < Args.Num(); ++i)
 			{
 				ValueStr += Args[i];
+				// There must be a space beteen the values of axis types for InitFromString to work correctly
+				// There is no need add a space to the end
+				if(i < Args.Num() - 1)
+				{
+					ValueStr += " ";
+				}
 			}
 
 			FVector2D Value2D;

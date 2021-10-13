@@ -8,7 +8,7 @@
 
 #include "AssetToolsModule.h"
 #include "ObjectTools.h"
-#include "Misc/BlacklistNames.h"
+#include "Misc/NamePermissionList.h"
 #include "Modules/ModuleManager.h"
 
 DEFINE_LOG_CATEGORY(LogContentBrowserAliasDataSource);

@@ -188,6 +188,15 @@ public:
 		ObjectPath.AppendString(OutFullName);
 	}
 
+	/** Populates OutFullNameBuilder with the full name for the asset in the form: Class ObjectPath */
+	void GetFullName(FStringBuilderBase& OutFullNameBuilder) const
+	{
+		OutFullNameBuilder.Reset();
+		AssetClass.AppendString(OutFullNameBuilder);
+		OutFullNameBuilder.Append(' ');
+		ObjectPath.AppendString(OutFullNameBuilder);
+	}
+
 	/** Returns the name for the asset in the form: Class'ObjectPath' */
 	FString GetExportTextName() const
 	{
@@ -204,6 +213,16 @@ public:
 		OutExportTextName.AppendChar('\'');
 		ObjectPath.AppendString(OutExportTextName);
 		OutExportTextName.AppendChar('\'');
+	}
+
+	/** Populates OutExportTextNameBuilder with the name for the asset in the form: Class'ObjectPath' */
+	void GetExportTextName(FStringBuilderBase& OutExportTextNameBuilder) const
+	{
+		OutExportTextNameBuilder.Reset();
+		AssetClass.AppendString(OutExportTextNameBuilder);
+		OutExportTextNameBuilder.Append('\'');
+		ObjectPath.AppendString(OutExportTextNameBuilder);
+		OutExportTextNameBuilder.Append('\'');
 	}
 
 	/** Returns true if the this asset is a redirector. */

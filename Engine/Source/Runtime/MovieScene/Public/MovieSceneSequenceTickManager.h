@@ -81,7 +81,9 @@ public:
 	FMovieSceneEntitySystemRunner& GetRunner() { return Runner; }
 
 	void RegisterSequenceActor(AActor* InActor);
+	void RegisterSequenceActor(AActor* InActor, TScriptInterface<IMovieSceneSequenceActor> InActorInterface);
 	void UnregisterSequenceActor(AActor* InActor);
+	void UnregisterSequenceActor(AActor* InActor, TScriptInterface<IMovieSceneSequenceActor> InActorInterface);
 
 	void AddLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate);
 	void RunLatentActions();

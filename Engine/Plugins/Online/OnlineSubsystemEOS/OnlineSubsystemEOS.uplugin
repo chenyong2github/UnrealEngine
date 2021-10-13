@@ -16,7 +16,7 @@
 			"Name": "OnlineSubsystemEOS",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"Mac",
 				"Android"
@@ -26,7 +26,7 @@
 			"Name": "OnlineSubsystemEOSPlus",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"Mac",
 				"Android"

@@ -41,6 +41,10 @@
 #include "ComponentReregisterContext.h"
 #include "ComponentRecreateRenderStateContext.h"
 
+#if RHI_RAYTRACING
+#include "RayTracingInstance.h"
+#endif
+
 static int32 GParallelGeometryCollectionBatchSize = 1024;
 static TAutoConsoleVariable<int32> CVarParallelGeometryCollectionBatchSize(
 	TEXT("r.ParallelGeometryCollectionBatchSize"),
@@ -69,9 +73,33 @@ FAutoConsoleVariableRef CVarGeometryCollectionOptimizedTransforms(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+static int32 GRayTracingGeometryCollectionProxyMeshes = 0;
+FAutoConsoleVariableRef CVarRayTracingGeometryCollectionProxyMeshes(
+	TEXT("r.RayTracing.Geometry.GeometryCollection"),
+	GRayTracingGeometryCollectionProxyMeshes,
+	TEXT("Include geometry collection proxy meshes in ray tracing effects (default = 0 (Geometry collection meshes disabled in ray tracing))"),
+	ECVF_RenderThreadSafe
+);
+
 DEFINE_LOG_CATEGORY_STATIC(FGeometryCollectionSceneProxyLogging, Log, All);
 
 FGeometryCollectionDynamicDataPool GDynamicDataPool;
+
+class FGeometryCollectionMeshCollectorResources : public FOneFrameResource
+{
+public:
+	FGeometryCollectionVertexFactory VertexFactory;
+	
+	FGeometryCollectionMeshCollectorResources(ERHIFeatureLevel::Type InFeatureLevel):VertexFactory(InFeatureLevel,true)
+	{
+	}
+	virtual ~FGeometryCollectionMeshCollectorResources()
+	{
+		VertexFactory.ReleaseResource();
+	}
+
+	virtual FGeometryCollectionVertexFactory& GetVertexFactory() { return VertexFactory; }
+};
 
 FGeometryCollectionSceneProxy::FGeometryCollectionSceneProxy(UGeometryCollectionComponent* Component)
 	: FPrimitiveSceneProxy(Component)
@@ -185,9 +213,33 @@ FGeometryCollectionSceneProxy::FGeometryCollectionSceneProxy(UGeometryCollection
 
 		PreSkinnedBounds = FBoxSphereBounds(PreSkinnedBoundsTemp);
 	}
+
+#if RHI_RAYTRACING
+	if (IsRayTracingEnabled())
+	{
+
+		ENQUEUE_RENDER_COMMAND(InitGeometryCollectionRayTracingGeometry)(
+			[this](FRHICommandListImmediate& RHICmdList)
+			{
+				FRayTracingGeometryInitializer Initializer;
+				Initializer.DebugName = TEXT("GeometryCollection");
+				Initializer.GeometryType = RTGT_Triangles;
+				Initializer.bFastBuild = true;
+				Initializer.bAllowUpdate = false;
+				Initializer.TotalPrimitiveCount = 0;
+
+				RayTracingGeometry.SetInitializer(Initializer);
+				RayTracingGeometry.InitResource();
+			});
+	}
+#endif
 }
 
 FGeometryCollectionSceneProxy::~FGeometryCollectionSceneProxy()
+{
+}
+
+void FGeometryCollectionSceneProxy::DestroyRenderThreadResources()
 {
 	ReleaseResources();
 
@@ -200,6 +252,56 @@ FGeometryCollectionSceneProxy::~FGeometryCollectionSceneProxy()
 	if (ConstantData != nullptr)
 	{
 		delete ConstantData;
+	}
+
+#if RHI_RAYTRACING
+	if (IsRayTracingEnabled())
+	{
+		RayTracingGeometry.ReleaseResource();
+		RayTracingDynamicVertexBuffer.Release();
+	}
+#endif
+}
+
+void UpdateLooseParameter(FGeometryCollectionVertexFactory& VertexFactory,
+	FRHIShaderResourceView* BoneTransformSRV,
+	FRHIShaderResourceView* BonePrevTransformSRV,
+	FRHIShaderResourceView* BoneMapSRV)
+{
+	FGCBoneLooseParameters LooseParameters;
+
+	LooseParameters.VertexFetch_BoneTransformBuffer = BoneTransformSRV;
+	LooseParameters.VertexFetch_BonePrevTransformBuffer = BonePrevTransformSRV;
+	LooseParameters.VertexFetch_BoneMapBuffer = BoneMapSRV;
+
+	EUniformBufferUsage UniformBufferUsage = VertexFactory.EnableLooseParameter ? UniformBuffer_SingleFrame : UniformBuffer_MultiFrame;
+
+	VertexFactory.LooseParameterUniformBuffer = FGCBoneLooseParametersRef::CreateUniformBufferImmediate(LooseParameters, UniformBufferUsage);
+}
+
+void FGeometryCollectionSceneProxy::SetupVertexFactory(FGeometryCollectionVertexFactory& GeometryCollectionVertexFactory)const
+{
+	FGeometryCollectionVertexFactory::FDataType Data;
+	
+	VertexBuffers.PositionVertexBuffer.BindPositionVertexBuffer(&GeometryCollectionVertexFactory, Data);
+	VertexBuffers.StaticMeshVertexBuffer.BindTangentVertexBuffer(&GeometryCollectionVertexFactory, Data);
+	VertexBuffers.StaticMeshVertexBuffer.BindPackedTexCoordVertexBuffer(&GeometryCollectionVertexFactory, Data);
+	VertexBuffers.StaticMeshVertexBuffer.BindLightMapVertexBuffer(&GeometryCollectionVertexFactory, Data, 0);
+	VertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(&GeometryCollectionVertexFactory, Data);
+
+	Data.BoneMapSRV = BoneMapBuffer.VertexBufferSRV;
+	Data.BoneTransformSRV = TransformBuffers[CurrentTransformBufferIndex].VertexBufferSRV;
+	Data.BonePrevTransformSRV = PrevTransformBuffers[CurrentTransformBufferIndex].VertexBufferSRV;
+
+	GeometryCollectionVertexFactory.SetData(Data);
+
+	if (!GeometryCollectionVertexFactory.IsInitialized())
+	{
+		GeometryCollectionVertexFactory.InitResource();
+	}
+	else
+	{
+		GeometryCollectionVertexFactory.UpdateRHI();
 	}
 }
 
@@ -466,6 +568,21 @@ void FGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometryCollec
 			void* BoneMapBufferData = RHILockBuffer(BoneMapBuffer.VertexBufferRHI, 0, Vertices.Num() * sizeof(int32), RLM_WriteOnly);								
 			FMemory::Memcpy(BoneMapBufferData, &ConstantData->BoneMap[0], ConstantData->BoneMap.Num() * sizeof(int32));
 			RHIUnlockBuffer(BoneMapBuffer.VertexBufferRHI);
+
+			// In order to use loose parameter to support raytracing, we need to initialize the transform/pretransform buffer
+			// before it's set up in the dynamic path. Otherwise, the transformation matrix will be all zero instead of identity. 
+			// Then, nothing will be drawn
+			const bool bLocalGeometryCollectionTripleBufferUploads = (GGeometryCollectionTripleBufferUploads != 0) && bSupportsTripleBufferVertexUpload;
+			const EResourceLockMode LockMode = bLocalGeometryCollectionTripleBufferUploads ? RLM_WriteOnly_NoOverwrite : RLM_WriteOnly;
+
+			FGeometryCollectionTransformBuffer& TransformBuffer = GetCurrentTransformBuffer();
+			FGeometryCollectionTransformBuffer& PrevTransformBuffer = GetCurrentPrevTransformBuffer();
+
+			
+			// if we are rendering the base mesh geometry, then use rest transforms rather than the simulated one for both current and previous transforms
+			TransformBuffer.UpdateDynamicData(ConstantData->RestTransforms, LockMode);
+			PrevTransformBuffer.UpdateDynamicData(ConstantData->RestTransforms, LockMode);
+
 		}
 
 		// Update mesh sections
@@ -504,6 +621,14 @@ void FGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometryCollec
 		ReleaseSubSections_RenderThread();
 #endif
 	}
+
+#if RHI_RAYTRACING
+	if (IsRayTracingEnabled())
+	{
+		bGeometryResourceUpdated = true;
+	}
+#endif
+
 }
 
 void FGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryCollectionDynamicData* NewDynamicData)
@@ -565,6 +690,8 @@ void FGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryCollect
 
 					TransformVertexBuffersContainsOriginalMesh = true;
 				}
+
+				UpdateLooseParameter(VertexFactory, TransformBuffer.VertexBufferSRV, PrevTransformBuffer.VertexBufferSRV, BoneMapBuffer.VertexBufferSRV);
 			}
 		}
 		else
@@ -627,6 +754,13 @@ void FGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryCollect
 
 			RHIUnlockBuffer(VertexBuffer.VertexBufferRHI);
 		}
+
+#if RHI_RAYTRACING
+		if (IsRayTracingEnabled())
+		{
+			bGeometryResourceUpdated = true;
+		}
+#endif
 	}
 }
 
@@ -828,6 +962,178 @@ void FGeometryCollectionSceneProxy::GetDynamicMeshElements(const TArray<const FS
 		}
 	}
 }
+
+#if RHI_RAYTRACING
+void FGeometryCollectionSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<struct FRayTracingInstance>& OutRayTracingInstances)
+{
+	if (GRayTracingGeometryCollectionProxyMeshes == 0)
+	{
+		return;
+	}
+
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_GeometryCollectionSceneProxy_GetDynamicRayTracingInstances);
+
+	if (GetRequiredVertexCount())
+	{
+		const uint32 LODIndex = 0;
+		const bool bWireframe = false; //AllowDebugViewmodes();//&& ViewFamily.EngineShowFlags.Wireframe;
+		
+		// render original mesh if it isn't dynamic and there is an unfractured mesh
+		// #todo(dmp): refactor this to share more code later
+		const bool bIsDynamic = DynamicData && DynamicData->IsDynamic;
+
+		//Loose parameter needs to be updated every frame
+		FGeometryCollectionMeshCollectorResources* CollectorResources;
+		CollectorResources = &Context.RayTracingMeshResourceCollector.
+			AllocateOneFrameResource<FGeometryCollectionMeshCollectorResources>(GetScene().GetFeatureLevel());
+		FGeometryCollectionVertexFactory& GeometryCollectionVertexFactory = CollectorResources->GetVertexFactory();
+		
+		// Render dynamic objects
+		if (!GeometryCollectionVertexFactory.GetType()->SupportsRayTracingDynamicGeometry())
+		{
+			return;
+		}
+
+		SetupVertexFactory(GeometryCollectionVertexFactory);
+
+		FGeometryCollectionIndexBuffer* ActiveIndexBuffer = bIsDynamic ? &IndexBuffer : &OriginalMeshIndexBuffer;
+		UpdatingRayTracingGeometry_RenderingThread(ActiveIndexBuffer);
+
+#if GEOMETRYCOLLECTION_EDITOR_SELECTION
+		const TArray<FGeometryCollectionSection>& SectionArray = bUsesSubSections && SubSections.Num() ? SubSections : Sections;
+		UE_LOG(FGeometryCollectionSceneProxyLogging, VeryVerbose, TEXT("GetDynamicMeshElements, bUseSubSections=%d, NumSections=%d for %p."), bUsesSubSections, SectionArray.Num(), this);
+#else
+		const TArray<FGeometryCollectionSection>& SectionArray = Sections;
+#endif
+		const int32 InstanceCount = SectionArray.Num();
+
+		if (InstanceCount > 0 && RayTracingGeometry.RayTracingGeometryRHI.IsValid())
+		{
+
+			FRayTracingInstance RayTracingInstance;
+			RayTracingInstance.Geometry = &RayTracingGeometry;
+			RayTracingInstance.InstanceTransforms.Reserve(DynamicData->Transforms.Num());
+			for (int32 TransformIndex = 0; TransformIndex < DynamicData->Transforms.Num(); ++TransformIndex)
+			{
+				RayTracingInstance.InstanceTransforms.Emplace(FMatrix44f::Identity);
+			}
+
+			// Grab the material proxies we'll be using for each section
+			TArray<FMaterialRenderProxy*, TInlineAllocator<32>> MaterialProxies;
+
+			for (int32 SectionIndex = 0; SectionIndex < SectionArray.Num(); ++SectionIndex)
+			{
+				const FGeometryCollectionSection& Section = SectionArray[SectionIndex];
+				FMaterialRenderProxy* MaterialProxy = GetMaterial(Context.RayTracingMeshResourceCollector, Section.MaterialID);
+				MaterialProxies.Add(MaterialProxy);
+			}
+
+			int32 MaxVertexIndex = 0;
+			for (int32 SectionIndex = 0; SectionIndex < SectionArray.Num(); ++SectionIndex)
+			{
+				const FGeometryCollectionSection& Section = SectionArray[SectionIndex];
+
+				// Draw the mesh
+
+				FMeshBatch& Mesh = RayTracingInstance.Materials.AddDefaulted_GetRef();
+				Mesh.bWireframe = bWireframe;//bWireframe needs viewfamily access ?
+				Mesh.SegmentIndex = SectionIndex;
+				Mesh.VertexFactory = &GeometryCollectionVertexFactory;
+				Mesh.MaterialRenderProxy = MaterialProxies[SectionIndex];
+				Mesh.LODIndex = LODIndex;
+				Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
+				Mesh.bDisableBackfaceCulling = true;
+				Mesh.Type = PT_TriangleList;
+				Mesh.DepthPriorityGroup = SDPG_World;
+				Mesh.bCanApplyViewModeOverrides = true;
+
+				FMeshBatchElement& BatchElement = Mesh.Elements[0];
+				BatchElement.IndexBuffer = ActiveIndexBuffer;
+				BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
+				BatchElement.FirstIndex = Section.FirstIndex;
+				BatchElement.NumPrimitives = Section.NumTriangles;
+				BatchElement.MinVertexIndex = Section.MinVertexIndex;
+				BatchElement.MaxVertexIndex = Section.MaxVertexIndex; 
+				BatchElement.NumInstances = 1;
+
+				MaxVertexIndex = std::max(Section.MaxVertexIndex, MaxVertexIndex);
+#if WITH_EDITOR
+				if (GIsEditor)
+				{
+					Mesh.BatchHitProxyId = Section.HitProxy ? Section.HitProxy->Id : FHitProxyId();
+				}
+#endif
+				//#TODO: bone color, bone selection and render bound?
+				
+				FRWBuffer* VertexBuffer = RayTracingDynamicVertexBuffer.NumBytes > 0 ? &RayTracingDynamicVertexBuffer : nullptr;
+
+				const uint32 VertexCount = Section.MaxVertexIndex + 1;
+				Context.DynamicRayTracingGeometriesToUpdate.Add(
+					FRayTracingDynamicGeometryUpdateParams
+					{
+						RayTracingInstance.Materials,
+						false,
+						VertexCount,
+						VertexCount * (uint32)sizeof(FVector3f),
+						RayTracingGeometry.Initializer.TotalPrimitiveCount,
+						&RayTracingGeometry,
+						VertexBuffer,
+						true
+					}
+				);
+			}
+
+			FRayTracingMaskAndFlags MaskAndFlags = BuildRayTracingInstanceMaskAndFlags(RayTracingInstance.Materials, GetScene().GetFeatureLevel());
+
+			RayTracingInstance.Mask = MaskAndFlags.Mask;
+			RayTracingInstance.bForceOpaque = MaskAndFlags.bForceOpaque;
+			RayTracingInstance.bDoubleSided = MaskAndFlags.bDoubleSided;
+
+			OutRayTracingInstances.Emplace(RayTracingInstance);
+		}
+
+	}
+
+}
+
+void FGeometryCollectionSceneProxy::UpdatingRayTracingGeometry_RenderingThread(FGeometryCollectionIndexBuffer* InIndexBuffer)
+{
+#if GEOMETRYCOLLECTION_EDITOR_SELECTION
+	const TArray<FGeometryCollectionSection>& SectionArray = bUsesSubSections && SubSections.Num() ? SubSections : Sections;
+	UE_LOG(FGeometryCollectionSceneProxyLogging, VeryVerbose, TEXT("GetDynamicMeshElements, bUseSubSections=%d, NumSections=%d for %p."), bUsesSubSections, SectionArray.Num(), this);
+#else
+	const TArray<FGeometryCollectionSection>& SectionArray = Sections;
+#endif
+	const int32 InstanceCount = SectionArray.Num();//InstanceSceneData.Num();
+
+	if (InIndexBuffer && bGeometryResourceUpdated)
+	{
+		RayTracingGeometry.Initializer.Segments.Empty();
+		RayTracingGeometry.Initializer.TotalPrimitiveCount = 0;
+
+		for (int SectionIndex = 0; SectionIndex < InstanceCount; ++SectionIndex)
+		{
+			const FGeometryCollectionSection& Section = SectionArray[SectionIndex];
+			FRayTracingGeometrySegment Segment;
+			Segment.FirstPrimitive = Section.FirstIndex / 3;
+			Segment.VertexBuffer = VertexBuffers.PositionVertexBuffer.VertexBufferRHI;
+			Segment.NumPrimitives = Section.NumTriangles;
+			Segment.MaxVertices = VertexBuffers.PositionVertexBuffer.GetNumVertices();
+			RayTracingGeometry.Initializer.Segments.Add(Segment);
+			RayTracingGeometry.Initializer.TotalPrimitiveCount += Section.NumTriangles;
+		}
+				
+		if (RayTracingGeometry.Initializer.TotalPrimitiveCount > 0)
+		{
+			RayTracingGeometry.Initializer.IndexBuffer = InIndexBuffer->IndexBufferRHI;
+			RayTracingGeometry.UpdateRHI();
+		}
+
+		bGeometryResourceUpdated = false;
+	}
+}
+
+#endif
 
 FPrimitiveViewRelevance FGeometryCollectionSceneProxy::GetViewRelevance(const FSceneView* View) const
 {

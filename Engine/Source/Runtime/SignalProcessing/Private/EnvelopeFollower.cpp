@@ -371,14 +371,14 @@ namespace Audio
 		return Smoother.GetSampleRate();
 	}
 
-	float FEnvelopeFollower::GetAttackTime() const
+	float FEnvelopeFollower::GetAttackTimeMsec() const
 	{
-		return Smoother.GetAttackTimeSamples() / Smoother.GetSampleRate();
+		return Smoother.GetAttackTimeMsec();
 	}
 
-	float FEnvelopeFollower::GetReleaseTime() const
+	float FEnvelopeFollower::GetReleaseTimeMsec() const
 	{
-		return Smoother.GetReleaseTimeSamples() / Smoother.GetSampleRate();
+		return Smoother.GetReleaseTimeMsec();
 	}
 
 	bool FEnvelopeFollower::GetAnalog() const

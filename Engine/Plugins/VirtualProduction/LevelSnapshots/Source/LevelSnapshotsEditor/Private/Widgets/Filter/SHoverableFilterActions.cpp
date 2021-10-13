@@ -59,7 +59,7 @@ void SHoverableFilterActions::Construct(FArguments InArgs, TWeakPtr<SWidget> InH
 				.ButtonStyle(FLevelSnapshotsEditorStyle::Get(), "LevelSnapshotsEditor.RemoveFilterButton")
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("PropertyWindow.Button_EmptyArray"))
+					.Image(FEditorStyle::GetBrush("Icons.Delete"))
 				]
 			]
 		]

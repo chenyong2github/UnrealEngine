@@ -93,6 +93,7 @@ void FAnimStreamableChunk::Serialize(FArchive& Ar, UAnimStreamable* Owner, int32
 				TempBytes.Reset(InitialSize);
 
 				FMemoryWriter TempAr(TempBytes, true);
+				TempAr.SetFilterEditorOnly(Ar.IsFilterEditorOnly());
 				CompressedAnimSequence->SerializeCompressedData(TempAr, false, Owner, Owner->GetSkeleton(), Owner->BoneCompressionSettings, Owner->CurveCompressionSettings, false);
 
 				BulkData.Lock(LOCK_READ_WRITE);

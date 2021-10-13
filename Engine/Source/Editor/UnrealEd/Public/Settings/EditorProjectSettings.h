@@ -214,7 +214,7 @@ public:
 	// End of UObject interface
 };
 
-UCLASS(config=Editor, meta=(DisplayName="DDC"), defaultconfig)
+UCLASS(config=Editor, meta=(DisplayName="Derived Data"), defaultconfig)
 class UNREALED_API UDDCProjectSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
@@ -223,14 +223,26 @@ public:
 	UDDCProjectSettings() { }
 
 	/**
-	 * 
+	 *
 	 */
-	UPROPERTY(EditAnywhere, config, Category=Blueprints)
-	bool RecommendEveryoneSetupAGlobalLocalDDCPath;
+	UPROPERTY(EditAnywhere, config, Category = Warnings)
+	bool EnableWarnings = true;
 
 	/**
 	 * 
 	 */
-	UPROPERTY(EditAnywhere, config, Category=Blueprints)
-	bool RecommendEveryoneSetupAGlobalS3DDCPath;
+	UPROPERTY(EditAnywhere, config, Category= Warnings)
+	bool RecommendEveryoneSetupAGlobalLocalDDCPath=false;
+
+	/**
+	 * 
+	 */
+	UPROPERTY(EditAnywhere, config, Category= Warnings)
+	bool RecommendEveryoneSetupAGlobalS3DDCPath = false;
+
+	/**
+	 *
+	 */
+	UPROPERTY(EditAnywhere, config, Category = Warnings)
+	bool RecommendEveryoneEnableS3DDC = false;
 };

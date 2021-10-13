@@ -23,11 +23,11 @@ protected:
 
 private:
 
-	void OnFloatPropCommitted(double InValue, ETextCommit::Type InCommitType, FNumericProperty* Prop, int32 Offset);
+	void OnFloatPropCommitted(double InValue, ETextCommit::Type InCommitType, FNumericProperty* Prop, int32 RecordedElementSize, int32 Offset);
 	void OnSignedPropCommitted(int64 InValue, ETextCommit::Type InCommitType, FNumericProperty* Prop, int32 Offset);
 	void OnUnsignedPropCommitted(uint64 InValue, ETextCommit::Type InCommitType, FNumericProperty* Prop, int32 Offset);
 
-	TOptional<double> GetFloatValueFromPropertyValue(FNumericProperty* Prop, int32 Offset) const;
+	TOptional<double> GetFloatValueFromPropertyValue(FNumericProperty* Prop, int32 RecordedElementSize, int32 Offset) const;
 	TOptional<int64> GetSignedValueFromPropertyValue(FNumericProperty* Prop, int32 Offset) const;
 	TOptional<uint64> GetUnsignedValueFromPropertyValue(FNumericProperty* Prop, int32 Offset) const;
 
@@ -37,7 +37,7 @@ private:
 
 	void OnBeginSliderMovement(FNumericProperty* Prop);
 
-	void OnFloatEndSliderMovement(double LastValue, FNumericProperty* Prop, int32 Offset);
+	void OnFloatEndSliderMovement(double LastValue, FNumericProperty* Prop, int32 RecordedElementSize, int32 Offset);
 	void OnSignedEndSliderMovement(int64 LastValue, FNumericProperty* Prop, int32 Offset);
 	void OnUnsignedEndSliderMovement(uint64 LastValue, FNumericProperty* Prop, int32 Offset);
 
@@ -46,7 +46,7 @@ private:
 	void OnUnsignedValueChanged(uint64 NewValue, FNumericProperty* Prop);
 
 	template <typename F>
-	TSharedRef<SWidget> GenerateFloatEntryBox(FNumericProperty* Prop, int32 Offset);
+	TSharedRef<SWidget> GenerateFloatEntryBox(FNumericProperty* Prop, int32 RecordedElementSize, int32 Offset);
 	template <typename S>
 	TSharedRef<SWidget> GenerateSignedEntryBox(FNumericProperty* Prop, int32 Offset);
 	template <typename U>

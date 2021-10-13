@@ -665,11 +665,13 @@ TSharedPtr<FEnvQueryInstance> UEnvQueryManager::CreateQueryInstance(const UEnvQu
 		return nullptr;
 	}
 
+	const FName TemplateFullName = FName(Template->GetFullName());
+	
 	// try to find entry in cache
 	FEnvQueryInstance* InstanceTemplate = NULL;
 	for (int32 InstanceIndex = 0; InstanceIndex < InstanceCache.Num(); InstanceIndex++)
 	{
-		if (InstanceCache[InstanceIndex].AssetName == Template->GetFName() &&
+		if (InstanceCache[InstanceIndex].AssetName == TemplateFullName &&
 			InstanceCache[InstanceIndex].Instance.Mode == RunMode)
 		{
 			InstanceTemplate = &InstanceCache[InstanceIndex].Instance;
@@ -692,7 +694,7 @@ TSharedPtr<FEnvQueryInstance> UEnvQueryManager::CreateQueryInstance(const UEnvQu
 		{
 			// memory stat tracking: temporary variable will exist only inside this section
 			FEnvQueryInstanceCache NewCacheEntry;
-			NewCacheEntry.AssetName = Template->GetFName();
+			NewCacheEntry.AssetName = TemplateFullName;
 			NewCacheEntry.Template = LocalTemplate;
 			NewCacheEntry.Instance.UniqueName = LocalTemplate->GetFName();
 			NewCacheEntry.Instance.QueryName = LocalTemplate->GetQueryName().ToString();

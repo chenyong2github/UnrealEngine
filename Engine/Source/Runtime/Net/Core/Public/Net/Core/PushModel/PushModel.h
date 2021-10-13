@@ -379,6 +379,8 @@ namespace UEPushModelPrivate
 	NETCORE_API bool DoesHaveDirtyPropertiesOrRecentlyCollectedGarbage(const FPushModelPerNetDriverHandle Handle);
 
 	NETCORE_API bool ValidateObjectIdReassignment(FNetPushObjectId CurrentId, FNetPushObjectId NewId);
+
+	NETCORE_API void LogMemory(FOutputDevice& Ar);
 }
 
 

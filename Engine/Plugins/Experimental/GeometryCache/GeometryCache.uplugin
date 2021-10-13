@@ -26,7 +26,7 @@
 			"Name" : "GeometryCacheEd",
 			"Type" : "Editor",
 			"LoadingPhase" : "Default",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"Win64",
 				"Mac"
@@ -36,7 +36,7 @@
 			"Name" : "GeometryCacheSequencer",
 			"Type" : "Editor",
 			"LoadingPhase" : "Default",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"Win64",
 				"Mac"
@@ -46,7 +46,7 @@
 			"Name" : "GeometryCacheStreamer",
 			"Type" : "Editor",
 			"LoadingPhase" : "Default",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"Win64",
 				"Mac",

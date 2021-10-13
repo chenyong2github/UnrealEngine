@@ -22,6 +22,7 @@
 #include "Subsystems/PanelExtensionSubsystem.h"	// SExtensionPanel
 #include "Kismet2/ComponentEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"		// ApplyInstanceChangesToBlueprint
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "SSubobjectInstanceEditor"
 
@@ -484,14 +485,17 @@ FMenuBuilder SSubobjectInstanceEditor::CreateMenuBuilder()
 
 FSlateColor SSubobjectInstanceEditor::GetColorTintForIcon(FSubobjectEditorTreeNodePtrType Node) const
 {
-	static const FLinearColor IntroducedHereColor(FLinearColor::White);
+	USlateThemeManager& ThemeManager = USlateThemeManager::Get();
+
+	const FLinearColor& IntroducedHereColor = ThemeManager.GetColor(EStyleColor::AccentWhite);
+
 	// A blue-ish tint
-	static const FLinearColor InheritedBlueprintComponentColor(0.08f, 0.35f, 0.6f);
-	
-	static const FLinearColor InstancedInheritedBlueprintComponentColor(0.08f, 0.35f, 0.6f);
+	const FLinearColor& InheritedBlueprintComponentColor = ThemeManager.GetColor(EStyleColor::AccentBlue);
+	const FLinearColor& InstancedInheritedBlueprintComponentColor = ThemeManager.GetColor(EStyleColor::AccentBlue);
+
 	// A green-ish tint
-	static const FLinearColor InheritedNativeComponentColor(0.7f, 0.9f, 0.7f);
-	
+	const FLinearColor& InheritedNativeComponentColor = ThemeManager.GetColor(EStyleColor::AccentGreen);
+
 	const FSubobjectData* Data = Node ? Node->GetDataSource() : nullptr;
 	if(!Data)
 	{
@@ -521,7 +525,7 @@ FSlateColor SSubobjectInstanceEditor::GetColorTintForIcon(FSubobjectEditorTreeNo
 	}
 	else if(Data->IsActor())
 	{
-		return FSlateColor::UseForeground();
+		return ThemeManager.GetColor(EStyleColor::AccentWhite);
 	}
 	
 	return IntroducedHereColor;

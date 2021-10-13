@@ -15,7 +15,7 @@
             "Name": "HTTPChunkInstaller",
             "Type": "Runtime",
             "LoadingPhase" : "PostConfigInit",
-			"BlacklistPlatforms" :
+			"PlatformDenyList" :
 			[
 			]
         }

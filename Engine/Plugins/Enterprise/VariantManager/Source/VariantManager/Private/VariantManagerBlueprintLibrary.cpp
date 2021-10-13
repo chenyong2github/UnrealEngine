@@ -17,11 +17,15 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 
-FVariantManager UVariantManagerBlueprintLibrary::VariantManager;
+TUniquePtr<FVariantManager> UVariantManagerBlueprintLibrary::VariantManager;
 
 UVariantManagerBlueprintLibrary::UVariantManagerBlueprintLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	if (!VariantManager.IsValid())
+	{
+		VariantManager = MakeUnique<FVariantManager>();
+	}
 }
 
 ULevelVariantSets* UVariantManagerBlueprintLibrary::CreateLevelVariantSetsAsset(const FString& AssetName, const FString& AssetPath)
@@ -51,7 +55,7 @@ void UVariantManagerBlueprintLibrary::AddVariantSet(ULevelVariantSets* LevelVari
 		return;
 	}
 
-	VariantManager.AddVariantSets({VariantSet}, LevelVariantSets);
+	VariantManager->AddVariantSets({VariantSet}, LevelVariantSets);
 }
 
 void UVariantManagerBlueprintLibrary::AddVariant(UVariantSet* VariantSet, UVariant* Variant)
@@ -61,7 +65,7 @@ void UVariantManagerBlueprintLibrary::AddVariant(UVariantSet* VariantSet, UVaria
 		return;
 	}
 
-	VariantManager.AddVariants({Variant}, VariantSet);
+	VariantManager->AddVariants({Variant}, VariantSet);
 }
 
 void UVariantManagerBlueprintLibrary::AddActorBinding(UVariant* Variant, AActor* Actor)
@@ -71,7 +75,7 @@ void UVariantManagerBlueprintLibrary::AddActorBinding(UVariant* Variant, AActor*
 		return;
 	}
 
-	VariantManager.CreateObjectBindings({Actor}, {Variant});
+	VariantManager->CreateObjectBindings({Actor}, {Variant});
 }
 
 
@@ -84,7 +88,7 @@ void UVariantManagerBlueprintLibrary::RemoveVariantSet(ULevelVariantSets* LevelV
 		return;
 	}
 
-	VariantManager.RemoveVariantSetsFromParent({VariantSet});
+	VariantManager->RemoveVariantSetsFromParent({VariantSet});
 }
 
 void UVariantManagerBlueprintLibrary::RemoveVariant(UVariantSet* VariantSet, UVariant* Variant)
@@ -94,7 +98,7 @@ void UVariantManagerBlueprintLibrary::RemoveVariant(UVariantSet* VariantSet, UVa
 		return;
 	}
 
-	VariantManager.RemoveVariantsFromParent({Variant});
+	VariantManager->RemoveVariantsFromParent({Variant});
 }
 
 void UVariantManagerBlueprintLibrary::RemoveActorBinding(UVariant* Variant, AActor* Actor)
@@ -116,7 +120,7 @@ void UVariantManagerBlueprintLibrary::RemoveActorBinding(UVariant* Variant, AAct
 		}
 	}
 
-	VariantManager.RemoveObjectBindingsFromParent({TargetBinding});
+	VariantManager->RemoveObjectBindingsFromParent({TargetBinding});
 }
 
 
@@ -132,7 +136,7 @@ void UVariantManagerBlueprintLibrary::RemoveVariantSetByName(ULevelVariantSets* 
 	UVariantSet* VarSet = LevelVariantSets->GetVariantSetByName(VariantSetName);
 	if (VarSet)
 	{
-		VariantManager.RemoveVariantSetsFromParent({VarSet});
+		VariantManager->RemoveVariantSetsFromParent({VarSet});
 	}
 }
 
@@ -146,7 +150,7 @@ void UVariantManagerBlueprintLibrary::RemoveVariantByName(UVariantSet* VariantSe
 	UVariant* Var = VariantSet->GetVariantByName(VariantName);
 	if (Var)
 	{
-		VariantManager.RemoveVariantsFromParent({Var});
+		VariantManager->RemoveVariantsFromParent({Var});
 	}
 }
 
@@ -161,7 +165,7 @@ void UVariantManagerBlueprintLibrary::RemoveActorBindingByName(UVariant* Variant
 
 	if (Binding)
 	{
-		VariantManager.RemoveObjectBindingsFromParent({Binding});
+		VariantManager->RemoveObjectBindingsFromParent({Binding});
 	}
 }
 
@@ -282,11 +286,11 @@ TArray<FString> UVariantManagerBlueprintLibrary::GetCapturableProperties(UObject
 
 	if (AActor* Actor = Cast<AActor>(ActorOrClass))
 	{
-		VariantManager.GetCapturableProperties({Actor}, OutProps, TargetPropertyPath, bCaptureAllArrayIndices);
+		VariantManager->GetCapturableProperties({Actor}, OutProps, TargetPropertyPath, bCaptureAllArrayIndices);
 	}
 	else if (UClass* Class = Cast<UClass>(ActorOrClass))
 	{
-		VariantManager.GetCapturableProperties({Class}, OutProps, TargetPropertyPath, bCaptureAllArrayIndices);
+		VariantManager->GetCapturableProperties({Class}, OutProps, TargetPropertyPath, bCaptureAllArrayIndices);
 	}
 
 	Result.Reserve(OutProps.Num());
@@ -338,7 +342,7 @@ UPropertyValue* UVariantManagerBlueprintLibrary::CaptureProperty(UVariant* Varia
 
 	const bool bCaptureAllArrayIndices = false;
 	TArray<TSharedPtr<FCapturableProperty>> OutProps;
-	VariantManager.GetCapturableProperties({Actor}, OutProps, PropertyPath, bCaptureAllArrayIndices);
+	VariantManager->GetCapturableProperties({Actor}, OutProps, PropertyPath, bCaptureAllArrayIndices);
 
 	if (OutProps.Num() < 1)
 	{
@@ -346,7 +350,7 @@ UPropertyValue* UVariantManagerBlueprintLibrary::CaptureProperty(UVariant* Varia
 		return nullptr;
 	}
 
-	TArray<UPropertyValue*> CreatedProps = VariantManager.CreatePropertyCaptures(OutProps, {TargetBinding});
+	TArray<UPropertyValue*> CreatedProps = VariantManager->CreatePropertyCaptures(OutProps, {TargetBinding});
 	if (CreatedProps.Num() > 0)
 	{
 		return CreatedProps[0];
@@ -414,7 +418,7 @@ void UVariantManagerBlueprintLibrary::RemoveCapturedProperty(UVariant* Variant, 
 		return;
 	}
 
-	VariantManager.RemovePropertyCapturesFromParent({Property});
+	VariantManager->RemovePropertyCapturesFromParent({Property});
 }
 
 void UVariantManagerBlueprintLibrary::RemoveCapturedPropertyByName(UVariant* Variant, AActor* Actor, FString PropertyPath)
@@ -440,7 +444,7 @@ void UVariantManagerBlueprintLibrary::RemoveCapturedPropertyByName(UVariant* Var
 
 		if (FoundPropPtr)
 		{
-			VariantManager.RemovePropertyCapturesFromParent({*FoundPropPtr});
+			VariantManager->RemovePropertyCapturesFromParent({*FoundPropPtr});
 		}
 	}
 }

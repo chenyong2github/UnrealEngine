@@ -8,17 +8,17 @@
 
 TSharedPtr<class SGraphPin> FOptimusEditorGraphPinFactory::CreatePin(class UEdGraphPin* InPin) const
 {
-	if(const UEdGraphNode* OwningNode = InPin->GetOwningNode())
-	{
-		// only create pins within optimus graphs
-		if(Cast<UOptimusEditorGraph>(OwningNode->GetGraph()) == nullptr)
-		{
-			return nullptr;
-		}
-	}
-
 	if (InPin)
 	{
+		if (const UEdGraphNode* OwningNode = InPin->GetOwningNode())
+		{
+			// only create pins within optimus graphs
+			if (Cast<UOptimusEditorGraph>(OwningNode->GetGraph()) == nullptr)
+			{
+				return nullptr;
+			}
+		}
+
 		// FIXME: Add specializations here.
 	}
 

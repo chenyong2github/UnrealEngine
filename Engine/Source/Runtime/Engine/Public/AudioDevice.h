@@ -431,10 +431,6 @@ private:
 	 */
 	bool HandleDumpSoundInfoCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	/**
-	 * Lists all the loaded sounds and their memory footprint
-	 */
-	bool HandleListSoundsCommand(const TCHAR* Cmd, FOutputDevice& Ar);
-	/**
 	 * Lists all the playing waveinstances and their associated source
 	 */
 	bool HandleListWavesCommand(const TCHAR* Cmd, FOutputDevice& Ar);

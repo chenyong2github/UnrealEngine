@@ -1244,10 +1244,10 @@ void FPointerTableBase::SaveToArchive(FArchive& Ar, const FPlatformTypeLayoutPar
 	for (int32 i = 0; i < TypeDependencies.Num(); ++i)
 	{
 		const FTypeLayoutDesc* DependencyTypeDesc = TypeDependencies[i];
-		uint64 NameHash = DependencyTypeDesc->NameHash;
+		FName Name = DependencyTypeDesc->Name;
 		FSHAHash LayoutHash;
 		uint32 LayoutSize = Freeze::HashLayout(*DependencyTypeDesc, LayoutParams, LayoutHash);
-		Ar << NameHash;
+		Ar << Name;
 		Ar << LayoutSize;
 		Ar << LayoutHash;
 	}
@@ -1269,15 +1269,15 @@ bool FPointerTableBase::LoadFromArchive(FArchive& Ar, const FPlatformTypeLayoutP
 	bool bValid = true;
 	for (int32 i = 0u; i < NumDependencies; ++i)
 	{
-		uint64 NameHash = 0u;
+		FName Name;
 		uint32 SavedLayoutSize = 0u;
 		FSHAHash SavedLayoutHash;
-		Ar << NameHash;
+		Ar << Name;
 		Ar << SavedLayoutSize;
 		Ar << SavedLayoutHash;
 
 #if UE_MEMORYIMAGE_TRACK_TYPE_DEPENDENCIES
-		const FTypeLayoutDesc* DependencyType = FTypeLayoutDesc::Find(NameHash);
+		const FTypeLayoutDesc* DependencyType = FTypeLayoutDesc::Find(FHashedName(Name).GetHash());
 		TypeDependencies.Add(DependencyType);
 		if (DependencyType)
 		{
@@ -1285,14 +1285,18 @@ bool FPointerTableBase::LoadFromArchive(FArchive& Ar, const FPlatformTypeLayoutP
 			const uint32 CheckLayoutSize = Freeze::HashLayout(*DependencyType, LayoutParams, CheckLayoutHash);
 			if (CheckLayoutSize != SavedLayoutSize)
 			{
-				UE_LOG(LogMemoryImage, Error, TEXT("Mismatch size for type %s, compiled size is %d, loaded size is %d"), DependencyType->Name, CheckLayoutSize, SavedLayoutSize);
+				UE_LOG(LogMemoryImage, Error, TEXT("Mismatch size for type %s, compiled size is %d, loaded size is %d"), *Name.ToString(), CheckLayoutSize, SavedLayoutSize);
 				bValid = false;
 			}
 			else if (CheckLayoutHash != SavedLayoutHash)
 			{
-				UE_LOG(LogMemoryImage, Error, TEXT("Mismatch hash for type %s"), DependencyType->Name);
+				UE_LOG(LogMemoryImage, Error, TEXT("Mismatch hash for type %s"), *Name.ToString());
 				bValid = false;
 			}
+		}
+		else
+		{
+			UE_LOG(LogMemoryImage, Warning, TEXT("Unknown TypeLayout %s"), *Name.ToString());
 		}
 #endif // UE_MEMORYIMAGE_TRACK_TYPE_DEPENDENCIES
 	}
@@ -1504,11 +1508,10 @@ void FMemoryImageResult::ApplyPatches(void* FrozenObject) const
 	}
 }
 
-FMemoryImageObject FMemoryImageResult::LoadFromArchive(FArchive& Ar, const FTypeLayoutDesc& TypeDesc, FPointerTableBase* PointerTable)
+FMemoryImageObject FMemoryImageResult::LoadFromArchive(FArchive& Ar, const FTypeLayoutDesc& TypeDesc, FPointerTableBase* PointerTable, FPlatformTypeLayoutParameters& LayoutParameters)
 {
 	SCOPED_LOADTIMER(FMemoryImageResult_LoadFromArchive);
 
-	FPlatformTypeLayoutParameters LayoutParameters;
 	Ar << LayoutParameters;
 
 	uint32 FrozenSize = 0u;

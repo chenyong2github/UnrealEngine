@@ -233,7 +233,7 @@ private:
 	mutable TWeakObjectPtr<USceneComponent> ComponentPtr;
 };
 
-USTRUCT()
+USTRUCT(meta = (HideChildren))
 struct DISPLAYCLUSTER_API FDisplayClusterComponentRef
 {
 	GENERATED_BODY()

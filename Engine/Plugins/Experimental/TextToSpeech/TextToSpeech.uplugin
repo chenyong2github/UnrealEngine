@@ -20,7 +20,7 @@
 			"Name" : "TextToSpeech",
 			"Type" : "Runtime",
 			"LoadingPhase" : "PostEngineInit",
-			"WhitelistPlatforms":
+			"PlatformAllowList":
 			[
 				"Win64",
 				"Mac",
@@ -29,7 +29,7 @@
 				"Linux",
 				"LinuxArm64"
 			],
-			"BlacklistTargets" :[
+			"TargetDenyList" :[
 				"Server"
 			]
 		}

@@ -12,6 +12,7 @@
 #include "Modules/ModuleManager.h"
 #include "ControlRigEditMode.h"
 #include "EditorModeManager.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "MovieSceneSequence.h"
@@ -36,6 +37,7 @@
 #include "IKeyArea.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigRootCustomization"
 
@@ -272,7 +274,7 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, FControlRigEd
 	DisplaySettings.bShowBones = false;
 	DisplaySettings.bShowControls = true;
 	DisplaySettings.bShowNulls = false;
-	DisplaySettings.bShowSockets = false;
+	DisplaySettings.bShowReferences = false;
 	DisplaySettings.bShowRigidBodies = false;
 	DisplaySettings.bHideParentsOnFilter = true;
 	DisplaySettings.bFlattenHierarchyOnFilter = true;
@@ -670,7 +672,8 @@ void SControlRigEditModeTools::HandleActiveSpaceChanged(URigHierarchy* InHierarc
 		if (UControlRig* ControlRig = SequencerRig.Get())
 		{
 			FString FailureReason;
-			if(!InHierarchy->CanSwitchToParent(InControlKey, InSpaceKey, &FailureReason))
+			URigHierarchy::TElementDependencyMap DependencyMap = InHierarchy->GetDependenciesForVM(ControlRig->GetVM());
+			if(!InHierarchy->CanSwitchToParent(InControlKey, InSpaceKey, DependencyMap, &FailureReason))
 			{
 				// notification
 				FNotificationInfo Info(FText::FromString(FailureReason));
@@ -771,7 +774,7 @@ FReply SControlRigEditModeTools::OnBakeControlsToNewSpaceButtonClicked()
 		FMovieSceneControlRigSpaceBaseKey Value;
 		using namespace UE::MovieScene;
 		URigHierarchy* RigHierarchy = SpacePickerWidget->GetHierarchy();
-		Settings.TargetSpace = URigHierarchy::GetDefaultParentSocketKey();
+		Settings.TargetSpace = URigHierarchy::GetDefaultParentKey();
 		
 		TRange<FFrameNumber> Range = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange();
 		TArray<FFrameNumber> Keys;
@@ -811,9 +814,11 @@ FReply SControlRigEditModeTools::OnBakeControlsToNewSpaceButtonClicked()
 					for (const FRigElementKey& ControlKey : InControls)
 					{
 						FSpaceChannelAndSection SpaceChannelAndSection = FControlRigSpaceChannelHelpers::FindSpaceChannelAndSectionForControl(ControlRig, ControlKey.Name, Sequencer, false /*bCreateIfNeeded*/);
-
-						FControlRigSpaceChannelHelpers::SequencerBakeControlInSpace(ControlRig, Sequencer, SpaceChannelAndSection.SpaceChannel, SpaceChannelAndSection.SectionToKey,
-							Frames, InHierarchy, ControlKey, InSettings);
+						if (SpaceChannelAndSection.SpaceChannel)
+						{
+							FControlRigSpaceChannelHelpers::SequencerBakeControlInSpace(ControlRig, Sequencer, SpaceChannelAndSection.SpaceChannel, SpaceChannelAndSection.SectionToKey,
+								Frames, InHierarchy, ControlKey, InSettings);
+						}
 					}
 					return FReply::Handled();
 				});

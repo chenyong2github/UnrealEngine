@@ -97,6 +97,9 @@ private:
 	// IClassVariableCreator interface
 	virtual void CreateClassVariablesFromBlueprint(IAnimBlueprintVariableCreationContext& InCreationContext) override;
 
+	// UObject interface
+	virtual void PostEditUndo() override;
+	
 	// UEdGraphNode interface
 	virtual void AllocateDefaultPins() override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;

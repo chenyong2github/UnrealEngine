@@ -15,7 +15,7 @@
             "Name": "OnlineSubsystemGoogle",
             "Type": "Runtime",
             "LoadingPhase" : "Default",
-			      "WhitelistPlatforms" :
+			      "PlatformAllowList" :
 			      [
 				      "Win64"
 			      ]

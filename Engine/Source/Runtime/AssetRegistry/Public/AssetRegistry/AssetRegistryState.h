@@ -41,8 +41,8 @@ struct FAssetRegistrySerializationOptions
 	/** If true will read/write FAssetPackageData */
 	bool bSerializePackageData = false;
 
-	/** True if CookFilterlistTagsByClass is a whitelist. False if it is a blacklist. */
-	bool bUseAssetRegistryTagsWhitelistInsteadOfBlacklist = false;
+	/** True if CookFilterlistTagsByClass is an allow list. False if it is a deny list. */
+	bool bUseAssetRegistryTagsAllowListInsteadOfDenyList = false;
 
 	/** True if we want to only write out asset data if it has valid tags. This saves memory by not saving data for things like textures */
 	bool bFilterAssetDataWithNoTags = false;
@@ -53,7 +53,7 @@ struct FAssetRegistrySerializationOptions
 	/** Filter out searchable names from dependency data */
 	bool bFilterSearchableNames = false;
 
-	/** The map of classname to tag set of tags that are allowed in cooked builds. This is either a whitelist or blacklist depending on bUseAssetRegistryTagsWhitelistInsteadOfBlacklist */
+	/** The map of classname to tag set of tags that are allowed in cooked builds. This is either an allow list or deny list depending on bUseAssetRegistryTagsAllowListInsteadOfDenyList */
 	TMap<FName, TSet<FName>> CookFilterlistTagsByClass;
 
 	/** Tag keys whose values should be stored as FName in cooked builds */
@@ -426,7 +426,7 @@ private:
 	bool RemoveDependsNode(const FAssetIdentifier& Identifier);
 
 	/** Filter a set of tags and output a copy of the filtered set. */
-	static void FilterTags(const FAssetDataTagMapSharedView& InTagsAndValues, FAssetDataTagMap& OutTagsAndValues, const TSet<FName>* ClassSpecificFilterlist, const FAssetRegistrySerializationOptions & Options);
+	static void FilterTags(const FAssetDataTagMapSharedView& InTagsAndValues, FAssetDataTagMap& OutTagsAndValues, const TSet<FName>* ClassSpecificFilterList, const FAssetRegistrySerializationOptions & Options);
 
 	void LoadDependencies(FArchive& Ar);
 	void LoadDependencies_BeforeFlags(FArchive& Ar, bool bSerializeDependencies, FAssetRegistryVersion::Type Version);

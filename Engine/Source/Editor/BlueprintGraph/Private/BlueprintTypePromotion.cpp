@@ -522,21 +522,21 @@ void FTypePromotion::AddOpFunction(FName OpName, UFunction* Function)
 	OperatorTable.FindOrAdd(OpName).Add(Function);
 }
 
-static bool HasBlackListedPinType(const UFunction* Function)
+static bool IsPinTypeDeniedForTypePromotion(const UFunction* Function)
 {
-	const TSet<FName>& Blacklist = GetDefault<UBlueprintEditorSettings>()->TypePromotionPinBlacklist;
+	const TSet<FName>& DenyList = GetDefault<UBlueprintEditorSettings>()->TypePromotionPinDenyList;
 
 	check(Function);
 	const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
 
-	// For each property in the func, see if the pin type is on the blacklist 
+	// For each property in the func, see if the pin type is on the deny list 
 	for (TFieldIterator<FProperty> PropIt(Function); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
 	{
 		const FProperty* Param = *PropIt;
 		FEdGraphPinType ParamType;
 		if (Schema->ConvertPropertyToPinType(Param, /* out */ ParamType))
 		{
-			if (Blacklist.Contains(ParamType.PinCategory))
+			if (DenyList.Contains(ParamType.PinCategory))
 			{
 				return true;
 			}
@@ -557,7 +557,9 @@ bool FTypePromotion::IsPromotableFunction(const UFunction* Function)
 		Function->HasAnyFunctionFlags(FUNC_BlueprintPure) &&
 		Function->GetReturnProperty() &&
 		OpName != OperatorNames::NoOp && 
-		!HasBlackListedPinType(Function);
+		!IsPinTypeDeniedForTypePromotion(Function) &&
+		// Users can deny specific functions from being considered for type promotion
+		!Function->HasMetaData(FBlueprintMetadata::MD_IgnoreTypePromotion);
 }
 
 bool FTypePromotion::IsOperatorSpawnerRegistered(UFunction const* const Func)

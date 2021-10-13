@@ -3223,6 +3223,20 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 		Package = FindObjectFast<UPackage>(nullptr, PackageToLoadInto);
 		if (Package == nullptr || !Package->IsFullyLoaded())
 		{
+			{
+				TCHAR PackageToLoadBuffer[FName::StringBufferSize];
+				PackageToLoad.ToString(PackageToLoadBuffer);
+				if (FPackageName::IsScriptPackage(PackageToLoadBuffer))
+				{
+					if (!FLinkerLoad::IsKnownMissingPackage(PackageToLoad))
+					{
+						FLinkerLoad::AddKnownMissingPackage(PackageToLoad);
+						UE_LOG(LogLinker, Warning, TEXT("VerifyImport: Failed to find script package for import object '%s'"), *GetImportFullName(ImportIndex));
+					}
+					return nullptr;
+				}
+			}
+
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 			// when LOAD_DeferDependencyLoads is in play, we usually head off 
 			// dependency loads before we get to this point, but there are two 
@@ -3269,16 +3283,15 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 		}
 #endif
 
-		// @todo linkers: This could quite possibly be cleaned up
-		if (Package == nullptr)
-		{
-			Package = CreatePackage(*PackageToLoad.ToString());
-		}
-
 		// if we couldn't create the package or it is 
 		// to be linked to any other package's ImportMaps
 		if (!Package || Package->HasAnyPackageFlags(PKG_Compiling))
 		{
+			if (!FLinkerLoad::IsKnownMissingPackage(PackageToLoad))
+			{
+				FLinkerLoad::AddKnownMissingPackage(PackageToLoad);
+				UE_LOG(LogLinker, Warning, TEXT("VerifyImport: Failed to load package for import object '%s'"), *GetImportFullName(ImportIndex));
+			}
 			return nullptr;
 		}
 

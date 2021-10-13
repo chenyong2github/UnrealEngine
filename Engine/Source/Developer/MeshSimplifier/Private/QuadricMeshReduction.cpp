@@ -14,6 +14,7 @@
 #include "StaticMeshOperations.h"
 #include "RenderUtils.h"
 #include "Engine/StaticMesh.h"
+#include "Misc/ConfigCacheIni.h"
 
 class FQuadricSimplifierMeshReductionModule : public IMeshReductionModule
 {
@@ -64,7 +65,8 @@ public:
 		// bool bUseQuadricSimplier = SplitVersionString[0].Equals("QuadricMeshReduction");
 
 		static FString Version = TEXT("QuadricMeshReduction_V2.0");
-		return Version;
+		static FString AltVersion = TEXT("QuadricMeshReduction_V2.0_OldSimplifier");
+		return bUseOldMeshSimplifier ? AltVersion : Version;
 	}
 
 	virtual void ReduceMeshDescription(
@@ -234,211 +236,214 @@ public:
 		uint32 NumIndexes = Indexes.Num();
 		uint32 NumTris = NumIndexes / 3;
 
-#if 0
-		static_assert(NumTexCoords == 8, "NumTexCoords changed, fix AttributeWeights");
-		const uint32 NumAttributes = (sizeof(TVertSimp< NumTexCoords >) - sizeof(FVector3f)) / sizeof(float);
-		float AttributeWeights[] =
+		if (bUseOldMeshSimplifier)
 		{
-			16.0f, 16.0f, 16.0f,	// Normal
-			0.1f, 0.1f, 0.1f,		// Tangent[0]
-			0.1f, 0.1f, 0.1f,		// Tangent[1]
-			0.1f, 0.1f, 0.1f, 0.1f,	// Color
-			0.5f, 0.5f,				// TexCoord[0]
-			0.5f, 0.5f,				// TexCoord[1]
-			0.5f, 0.5f,				// TexCoord[2]
-			0.5f, 0.5f,				// TexCoord[3]
-			0.5f, 0.5f,				// TexCoord[4]
-			0.5f, 0.5f,				// TexCoord[5]
-			0.5f, 0.5f,				// TexCoord[6]
-			0.5f, 0.5f,				// TexCoord[7]
-		};
-		float* ColorWeights = AttributeWeights + 3 + 3 + 3;
-		float* TexCoordWeights = ColorWeights + 4;
-
-		// Re-scale the weights for UV channels that exceed the expected 0-1 range.
-		// Otherwise garbage on the UVs will dominate the simplification quadric.
-		{
-			float XLength[MAX_STATIC_TEXCOORDS] = { 0 };
-			float YLength[MAX_STATIC_TEXCOORDS] = { 0 };
+			static_assert(NumTexCoords == 8, "NumTexCoords changed, fix AttributeWeights");
+			const uint32 NumAttributes = (sizeof(TVertSimp< NumTexCoords >) - sizeof(FVector3f)) / sizeof(float);
+			float AttributeWeights[] =
 			{
+				16.0f, 16.0f, 16.0f,	// Normal
+				0.1f, 0.1f, 0.1f,		// Tangent[0]
+				0.1f, 0.1f, 0.1f,		// Tangent[1]
+				0.1f, 0.1f, 0.1f, 0.1f,	// Color
+				0.5f, 0.5f,				// TexCoord[0]
+				0.5f, 0.5f,				// TexCoord[1]
+				0.5f, 0.5f,				// TexCoord[2]
+				0.5f, 0.5f,				// TexCoord[3]
+				0.5f, 0.5f,				// TexCoord[4]
+				0.5f, 0.5f,				// TexCoord[5]
+				0.5f, 0.5f,				// TexCoord[6]
+				0.5f, 0.5f,				// TexCoord[7]
+			};
+			float* ColorWeights = AttributeWeights + 3 + 3 + 3;
+			float* TexCoordWeights = ColorWeights + 4;
+
+			// Re-scale the weights for UV channels that exceed the expected 0-1 range.
+			// Otherwise garbage on the UVs will dominate the simplification quadric.
+			{
+				float XLength[MAX_STATIC_TEXCOORDS] = { 0 };
+				float YLength[MAX_STATIC_TEXCOORDS] = { 0 };
+				{
+					for (int32 TexCoordId = 0; TexCoordId < NumTexCoords; ++TexCoordId)
+					{
+						float XMax = -FLT_MAX;
+						float YMax = -FLT_MAX;
+						float XMin = FLT_MAX;
+						float YMin = FLT_MAX;
+						for (const TVertSimp< NumTexCoords >& SimpVert : Verts)
+						{
+							const FVector2D& UVs = SimpVert.TexCoords[TexCoordId];
+							XMax = FMath::Max(XMax, UVs.X);
+							XMin = FMath::Min(XMin, UVs.X);
+
+							YMax = FMath::Max(YMax, UVs.Y);
+							YMin = FMath::Min(YMin, UVs.Y);
+						}
+
+						XLength[TexCoordId] = (XMax > XMin) ? XMax - XMin : 0.f;
+						YLength[TexCoordId] = (YMax > YMin) ? YMax - YMin : 0.f;
+					}
+				}
+
 				for (int32 TexCoordId = 0; TexCoordId < NumTexCoords; ++TexCoordId)
 				{
-					float XMax = -FLT_MAX;
-					float YMax = -FLT_MAX;
-					float XMin = FLT_MAX;
-					float YMin = FLT_MAX;
-					for (const TVertSimp< NumTexCoords >& SimpVert : Verts)
+
+					if (XLength[TexCoordId] > 1.f)
 					{
-						const FVector2D& UVs = SimpVert.TexCoords[TexCoordId];
-						XMax = FMath::Max(XMax, UVs.X);
-						XMin = FMath::Min(XMin, UVs.X);
-
-						YMax = FMath::Max(YMax, UVs.Y);
-						YMin = FMath::Min(YMin, UVs.Y);
+						TexCoordWeights[2 * TexCoordId + 0] /= XLength[TexCoordId];
 					}
-
-					XLength[TexCoordId] =  ( XMax > XMin ) ? XMax - XMin : 0.f;
-					YLength[TexCoordId] =  ( YMax > YMin ) ? YMax - YMin : 0.f;
+					if (YLength[TexCoordId] > 1.f)
+					{
+						TexCoordWeights[2 * TexCoordId + 1] /= YLength[TexCoordId];
+					}
 				}
 			}
 
-			for (int32 TexCoordId = 0; TexCoordId < NumTexCoords; ++TexCoordId)
+			// Zero out weights that aren't used
 			{
+				//TODO Check if we have vertex color
 
-				if (XLength[TexCoordId] > 1.f)
+				for (int32 TexCoordIndex = 0; TexCoordIndex < NumTexCoords; TexCoordIndex++)
 				{
-					TexCoordWeights[2 * TexCoordId + 0] /= XLength[TexCoordId];
-				}
-				if (YLength[TexCoordId] > 1.f)
-				{
-					TexCoordWeights[2 * TexCoordId + 1] /= YLength[TexCoordId];
-				}
-			}
-		}
-
-		// Zero out weights that aren't used
-		{
-			//TODO Check if we have vertex color
-
-			for (int32 TexCoordIndex = 0; TexCoordIndex < NumTexCoords; TexCoordIndex++)
-			{
-				if (TexCoordIndex >= InVertexUVs.GetNumChannels())
-				{
-					TexCoordWeights[2 * TexCoordIndex + 0] = 0.0f;
-					TexCoordWeights[2 * TexCoordIndex + 1] = 0.0f;
+					if (TexCoordIndex >= InVertexUVs.GetNumChannels())
+					{
+						TexCoordWeights[2 * TexCoordIndex + 0] = 0.0f;
+						TexCoordWeights[2 * TexCoordIndex + 1] = 0.0f;
+					}
 				}
 			}
-		}
 
-		TMeshSimplifier< TVertSimp< NumTexCoords >, NumAttributes >* MeshSimp = new TMeshSimplifier< TVertSimp< NumTexCoords >, NumAttributes >(Verts.GetData(), NumVerts, Indexes.GetData(), NumIndexes);
+			TMeshSimplifier< TVertSimp< NumTexCoords >, NumAttributes >* MeshSimp = new TMeshSimplifier< TVertSimp< NumTexCoords >, NumAttributes >(Verts.GetData(), NumVerts, Indexes.GetData(), NumIndexes);
 
-		MeshSimp->SetAttributeWeights(AttributeWeights);
-		MeshSimp->SetEdgeWeight( 256.0f );
-		//MeshSimp->SetBoundaryLocked();
-		MeshSimp->InitCosts();
+			MeshSimp->SetAttributeWeights(AttributeWeights);
+			MeshSimp->SetEdgeWeight(256.0f);
+			//MeshSimp->SetBoundaryLocked();
+			MeshSimp->InitCosts();
 
-		//We need a minimum of 2 triangles, to see the object on both side. If we use one, we will end up with zero triangle when we will remove a shared edge
-		int32 AbsoluteMinTris = 2;
-		int32 TargetNumTriangles = (ReductionSettings.TerminationCriterion != EStaticMeshReductionTerimationCriterion::Vertices) ? FMath::Max(AbsoluteMinTris, FMath::CeilToInt(NumTris * ReductionSettings.PercentTriangles)) : AbsoluteMinTris;
-		int32 TargetNumVertices = (ReductionSettings.TerminationCriterion != EStaticMeshReductionTerimationCriterion::Triangles) ? FMath::CeilToInt(NumVerts * ReductionSettings.PercentVertices) : 0;
-		
-		float MaxErrorSqr = MeshSimp->SimplifyMesh(MAX_FLT, TargetNumTriangles, TargetNumVertices);
+			//We need a minimum of 2 triangles, to see the object on both side. If we use one, we will end up with zero triangle when we will remove a shared edge
+			int32 AbsoluteMinTris = 2;
+			int32 TargetNumTriangles = (ReductionSettings.TerminationCriterion != EStaticMeshReductionTerimationCriterion::Vertices) ? FMath::Max(AbsoluteMinTris, FMath::CeilToInt(NumTris * ReductionSettings.PercentTriangles)) : AbsoluteMinTris;
+			int32 TargetNumVertices = (ReductionSettings.TerminationCriterion != EStaticMeshReductionTerimationCriterion::Triangles) ? FMath::CeilToInt(NumVerts * ReductionSettings.PercentVertices) : 0;
 
-		MeshSimp->OutputMesh(Verts.GetData(), Indexes.GetData(), &NumVerts, &NumIndexes);
-		MeshSimp->CompactFaceData( MaterialIndexes );
-		NumTris = NumIndexes / 3;
-		delete MeshSimp;
+			float MaxErrorSqr = MeshSimp->SimplifyMesh(MAX_FLT, TargetNumTriangles, TargetNumVertices);
 
-		OutMaxDeviation = FMath::Sqrt(MaxErrorSqr) / 8.0f;
-#else
-		uint32 TargetNumTris = FMath::CeilToInt( NumTris * ReductionSettings.PercentTriangles );
-		uint32 TargetNumVerts = FMath::CeilToInt( NumVerts * ReductionSettings.PercentVertices );
+			MeshSimp->OutputMesh(Verts.GetData(), Indexes.GetData(), &NumVerts, &NumIndexes);
+			MeshSimp->CompactFaceData(MaterialIndexes);
+			NumTris = NumIndexes / 3;
+			delete MeshSimp;
 
-		// We need a minimum of 2 triangles, to see the object on both side. If we use one, we will end up with zero triangle when we will remove a shared edge
-		TargetNumTris = FMath::Max( TargetNumTris, 2u );
-
-		if( TargetNumVerts < NumVerts || TargetNumTris < NumTris )
-		{
-			using VertType = TVertSimp< NumTexCoords >;
-
-			float TriangleSize = FMath::Sqrt( SurfaceArea / NumTris );
-	
-			FFloat32 CurrentSize( FMath::Max( TriangleSize, THRESH_POINTS_ARE_SAME ) );
-			FFloat32 DesiredSize( 0.25f );
-			FFloat32 Scale( 1.0f );
-
-			// Lossless scaling by only changing the float exponent.
-			int32 Exponent = FMath::Clamp( (int)DesiredSize.Components.Exponent - (int)CurrentSize.Components.Exponent, -126, 127 );
-			Scale.Components.Exponent = Exponent + 127;	//ExpBias
-			float PositionScale = Scale.FloatValue;
-
-
-			const uint32 NumAttributes = ( sizeof( VertType ) - sizeof( FVector3f ) ) / sizeof(float);
-			float AttributeWeights[ NumAttributes ] =
-			{
-				1.0f, 1.0f, 1.0f,		// Normal
-				0.006f, 0.006f, 0.006f,	// Tangent[0]
-				0.006f, 0.006f, 0.006f	// Tangent[1]
-			};
-			float* ColorWeights = AttributeWeights + 9;
-			float* UVWeights = ColorWeights + 4;
-
-			bool bHasColors = true;
-
-			// Set weights if they are used
-			if( bHasColors )
-			{
-				ColorWeights[0] = 0.0625f;
-				ColorWeights[1] = 0.0625f;
-				ColorWeights[2] = 0.0625f;
-				ColorWeights[3] = 0.0625f;
-			}
-
-			float UVWeight = 1.0f / ( 32.0f * InVertexUVs.GetNumChannels() );
-			for( int32 UVIndex = 0; UVIndex < InVertexUVs.GetNumChannels(); UVIndex++ )
-			{
-				// Normalize UVWeights using min/max UV range.
-
-				float MinUV = +FLT_MAX;
-				float MaxUV = -FLT_MAX;
-
-				for( int32 VertexIndex = 0; VertexIndex < Verts.Num(); VertexIndex++ )
-				{
-					MinUV = FMath::Min( MinUV, Verts[ VertexIndex ].TexCoords[ UVIndex ].X );
-					MinUV = FMath::Min( MinUV, Verts[ VertexIndex ].TexCoords[ UVIndex ].Y );
-					MaxUV = FMath::Max( MaxUV, Verts[ VertexIndex ].TexCoords[ UVIndex ].X );
-					MaxUV = FMath::Max( MaxUV, Verts[ VertexIndex ].TexCoords[ UVIndex ].Y );
-				}
-
-				UVWeights[ 2 * UVIndex + 0 ] = UVWeight / FMath::Max( 1.0f, MaxUV - MinUV );
-				UVWeights[ 2 * UVIndex + 1 ] = UVWeight / FMath::Max( 1.0f, MaxUV - MinUV );
-			}
-
-			for( auto& Vert : Verts )
-			{
-				Vert.Position *= PositionScale;
-			}
-
-			FMeshSimplifier Simplifier( (float*)Verts.GetData(), Verts.Num(), Indexes.GetData(), Indexes.Num(), MaterialIndexes.GetData(), NumAttributes );
-
-			Simplifier.SetAttributeWeights( AttributeWeights );
-			Simplifier.SetCorrectAttributes( CorrectAttributes );
-			Simplifier.SetEdgeWeight( 4.0f );
-
-			float MaxErrorSqr = Simplifier.Simplify( TargetNumVerts, TargetNumTris );
-
-			if( Simplifier.GetRemainingNumVerts() == 0 || Simplifier.GetRemainingNumTris() == 0 )
-			{
-				// Reduced to nothing so just return the orignial.
-				OutReducedMesh = InMesh;
-				OutMaxDeviation = 0.0f;
-				return;
-			}
-		
-			Simplifier.Compact();
-	
-			Verts.SetNum( Simplifier.GetRemainingNumVerts() );
-			Indexes.SetNum( Simplifier.GetRemainingNumTris() * 3 );
-			MaterialIndexes.SetNum( Simplifier.GetRemainingNumTris() );
-
-			NumVerts = Simplifier.GetRemainingNumVerts();
-			NumTris = Simplifier.GetRemainingNumTris();
-			NumIndexes = NumTris * 3;
-
-			float InvScale = 1.0f / PositionScale;
-			for( auto& Vert : Verts )
-			{
-				Vert.Position *= InvScale;
-			}
-
-			OutMaxDeviation = FMath::Sqrt( MaxErrorSqr ) * InvScale;
+			OutMaxDeviation = FMath::Sqrt(MaxErrorSqr) / 8.0f;
 		}
 		else
 		{
-			// Rare but could happen with rounding or only 2 triangles.
-			OutMaxDeviation = 0.0f;
+			uint32 TargetNumTris = FMath::CeilToInt(NumTris * ReductionSettings.PercentTriangles);
+			uint32 TargetNumVerts = FMath::CeilToInt(NumVerts * ReductionSettings.PercentVertices);
+
+			// We need a minimum of 2 triangles, to see the object on both side. If we use one, we will end up with zero triangle when we will remove a shared edge
+			TargetNumTris = FMath::Max(TargetNumTris, 2u);
+
+			if (TargetNumVerts < NumVerts || TargetNumTris < NumTris)
+			{
+				using VertType = TVertSimp< NumTexCoords >;
+
+				float TriangleSize = FMath::Sqrt(SurfaceArea / NumTris);
+
+				FFloat32 CurrentSize(FMath::Max(TriangleSize, THRESH_POINTS_ARE_SAME));
+				FFloat32 DesiredSize(0.25f);
+				FFloat32 Scale(1.0f);
+
+				// Lossless scaling by only changing the float exponent.
+				int32 Exponent = FMath::Clamp((int)DesiredSize.Components.Exponent - (int)CurrentSize.Components.Exponent, -126, 127);
+				Scale.Components.Exponent = Exponent + 127;	//ExpBias
+				float PositionScale = Scale.FloatValue;
+
+
+				const uint32 NumAttributes = (sizeof(VertType) - sizeof(FVector3f)) / sizeof(float);
+				float AttributeWeights[NumAttributes] =
+				{
+					1.0f, 1.0f, 1.0f,		// Normal
+					0.006f, 0.006f, 0.006f,	// Tangent[0]
+					0.006f, 0.006f, 0.006f	// Tangent[1]
+				};
+				float* ColorWeights = AttributeWeights + 9;
+				float* UVWeights = ColorWeights + 4;
+
+				bool bHasColors = true;
+
+				// Set weights if they are used
+				if (bHasColors)
+				{
+					ColorWeights[0] = 0.0625f;
+					ColorWeights[1] = 0.0625f;
+					ColorWeights[2] = 0.0625f;
+					ColorWeights[3] = 0.0625f;
+				}
+
+				float UVWeight = 1.0f / (32.0f * InVertexUVs.GetNumChannels());
+				for (int32 UVIndex = 0; UVIndex < InVertexUVs.GetNumChannels(); UVIndex++)
+				{
+					// Normalize UVWeights using min/max UV range.
+
+					float MinUV = +FLT_MAX;
+					float MaxUV = -FLT_MAX;
+
+					for (int32 VertexIndex = 0; VertexIndex < Verts.Num(); VertexIndex++)
+					{
+						MinUV = FMath::Min(MinUV, Verts[VertexIndex].TexCoords[UVIndex].X);
+						MinUV = FMath::Min(MinUV, Verts[VertexIndex].TexCoords[UVIndex].Y);
+						MaxUV = FMath::Max(MaxUV, Verts[VertexIndex].TexCoords[UVIndex].X);
+						MaxUV = FMath::Max(MaxUV, Verts[VertexIndex].TexCoords[UVIndex].Y);
+					}
+
+					UVWeights[2 * UVIndex + 0] = UVWeight / FMath::Max(1.0f, MaxUV - MinUV);
+					UVWeights[2 * UVIndex + 1] = UVWeight / FMath::Max(1.0f, MaxUV - MinUV);
+				}
+
+				for (auto& Vert : Verts)
+				{
+					Vert.Position *= PositionScale;
+				}
+
+				FMeshSimplifier Simplifier((float*)Verts.GetData(), Verts.Num(), Indexes.GetData(), Indexes.Num(), MaterialIndexes.GetData(), NumAttributes);
+
+				Simplifier.SetAttributeWeights(AttributeWeights);
+				Simplifier.SetCorrectAttributes(CorrectAttributes);
+				Simplifier.SetEdgeWeight(4.0f);
+
+				float MaxErrorSqr = Simplifier.Simplify(TargetNumVerts, TargetNumTris);
+
+				if (Simplifier.GetRemainingNumVerts() == 0 || Simplifier.GetRemainingNumTris() == 0)
+				{
+					// Reduced to nothing so just return the orignial.
+					OutReducedMesh = InMesh;
+					OutMaxDeviation = 0.0f;
+					return;
+				}
+
+				Simplifier.Compact();
+
+				Verts.SetNum(Simplifier.GetRemainingNumVerts());
+				Indexes.SetNum(Simplifier.GetRemainingNumTris() * 3);
+				MaterialIndexes.SetNum(Simplifier.GetRemainingNumTris());
+
+				NumVerts = Simplifier.GetRemainingNumVerts();
+				NumTris = Simplifier.GetRemainingNumTris();
+				NumIndexes = NumTris * 3;
+
+				float InvScale = 1.0f / PositionScale;
+				for (auto& Vert : Verts)
+				{
+					Vert.Position *= InvScale;
+				}
+
+				OutMaxDeviation = FMath::Sqrt(MaxErrorSqr) * InvScale;
+			}
+			else
+			{
+				// Rare but could happen with rounding or only 2 triangles.
+				OutMaxDeviation = 0.0f;
+			}
 		}
-#endif
 
 		{
 			//Empty the destination mesh
@@ -617,12 +622,20 @@ public:
 		return false;
 	}
 
+	FQuadricSimplifierMeshReduction()
+		: bUseOldMeshSimplifier(false)
+	{
+		GConfig->GetBool(TEXT("/Script/Engine.MeshSimplificationSettings"), TEXT("bMeshReductionBackwardCompatible"), bUseOldMeshSimplifier, GEngineIni);
+	}
+
 	virtual ~FQuadricSimplifierMeshReduction() {}
 
 	static FQuadricSimplifierMeshReduction* Create()
 	{
 		return new FQuadricSimplifierMeshReduction;
 	}
+
+	bool bUseOldMeshSimplifier;
 };
 
 TUniquePtr<FQuadricSimplifierMeshReduction> GQuadricSimplifierMeshReduction;

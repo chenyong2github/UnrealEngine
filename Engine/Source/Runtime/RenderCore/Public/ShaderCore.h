@@ -13,6 +13,8 @@
 #include "Misc/Paths.h"
 #include "Misc/CoreStats.h"
 #include "UniformBuffer.h"
+#include "Containers/SortedMap.h"
+#include "Misc/CString.h"
 
 class Error;
 
@@ -940,8 +942,16 @@ extern void GenerateReferencedUniformBuffers(
 	const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables,
 	TMap<const TCHAR*,FCachedUniformBufferDeclaration>& UniformBufferEntries);
 
+struct FUniformBufferNameSortOrder
+{
+	FORCEINLINE bool operator()(const TCHAR* Name1, const TCHAR* Name2)
+	{
+		return FCString::Strcmp(Name1, Name2) <= 0;
+	}
+};
+
 /** Records information about all the uniform buffer layouts referenced by UniformBufferEntries. */
-extern RENDERCORE_API void SerializeUniformBufferInfo(class FShaderSaveArchive& Ar, const TMap<const TCHAR*,FCachedUniformBufferDeclaration>& UniformBufferEntries);
+extern RENDERCORE_API void SerializeUniformBufferInfo(class FShaderSaveArchive& Ar, const TSortedMap<const TCHAR*,FCachedUniformBufferDeclaration, FDefaultAllocator, FUniformBufferNameSortOrder>& UniformBufferEntries);
 
 /** Create a block of source code to be injected in the preprocessed shader code. The Block will be put into a #line directive
  * to show up in case shader compilation failures happen in this code block.

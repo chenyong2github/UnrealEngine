@@ -38,6 +38,7 @@
 #include "EditorDirectories.h"
 #include "Dialogs/Dialogs.h"
 #include "UnrealEdGlobals.h"
+#include "LevelEditorSubsystem.h"
 #include "EditorLevelUtils.h"
 #include "BusyCursor.h"
 #include "MRUFavoritesList.h"
@@ -66,7 +67,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "AutoSaveUtils.h"
 #include "AssetRegistryModule.h"
-#include "Misc/BlacklistNames.h"
+#include "Misc/NamePermissionList.h"
 #include "EngineAnalytics.h"
 #include "StudioAnalytics.h"
 #include "AnalyticsEventAttribute.h"
@@ -2739,7 +2740,13 @@ bool FEditorFileUtils::LoadMap(const FString& InFilename, bool LoadAsTemplate, b
 	GConfig->SetString(TEXT("EditorStartup"), TEXT("LastLevel"), *LongMapPackageName, GEditorPerProjectIni);
 
 	// Deactivate any editor modes when loading a new map
-	GLevelEditorModeTools().DeactivateAllModes();
+	if (ULevelEditorSubsystem* LevelEditorSubsystem = GEditor->GetEditorSubsystem<ULevelEditorSubsystem>())
+	{
+		if (FEditorModeTools* ModeManager = LevelEditorSubsystem->GetLevelEditorModeManager())
+		{
+			ModeManager->DeactivateAllModes();
+		}
+	}
 
 	FString LoadCommand = FString::Printf(TEXT("MAP LOAD FILE=\"%s\" TEMPLATE=%d SHOWPROGRESS=%d FEATURELEVEL=%d"), *Filename, LoadAsTemplate, bShowProgress, (int32)GEditor->DefaultWorldFeatureLevel);
 	const bool bResult = GEditor->Exec( NULL, *LoadCommand );
@@ -4458,7 +4465,7 @@ FString FEditorFileUtils::ExtractPackageName(const FString& ObjectPath)
 void FEditorFileUtils::GetDirtyWorldPackages(TArray<UPackage*>& OutDirtyPackages, const FShouldIgnorePackageFunctionRef& ShouldIgnorePackageFunction)
 {
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	const TSharedRef<FBlacklistPaths>& WritableFolderFilter = AssetToolsModule.Get().GetWritableFolderBlacklist();
+	const TSharedRef<FPathPermissionList>& WritableFolderFilter = AssetToolsModule.Get().GetWritableFolderPermissionList();
 	const bool bHasWritableFolderFilter = WritableFolderFilter->HasFiltering();
 
 	for (TObjectIterator<UWorld> WorldIt; WorldIt; ++WorldIt)
@@ -4580,7 +4587,7 @@ void FEditorFileUtils::GetDirtyWorldPackages(TArray<UPackage*>& OutDirtyPackages
 void FEditorFileUtils::GetDirtyContentPackages(TArray<UPackage*>& OutDirtyPackages, const FShouldIgnorePackageFunctionRef& ShouldIgnorePackageFunction)
 {
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	const TSharedRef<FBlacklistPaths>& WritableFolderFilter = AssetToolsModule.Get().GetWritableFolderBlacklist();
+	const TSharedRef<FPathPermissionList>& WritableFolderFilter = AssetToolsModule.Get().GetWritableFolderPermissionList();
 	const bool bHasWritableFolderFilter = WritableFolderFilter->HasFiltering();
 
 	// Make a list of all content packages that we should save
@@ -4675,7 +4682,14 @@ bool UEditorLoadingAndSavingUtils::SaveMap(UWorld* World, const FString& AssetPa
 
 UWorld* UEditorLoadingAndSavingUtils::NewBlankMap(bool bSaveExistingMap)
 {
-	GLevelEditorModeTools().DeactivateAllModes();
+	// Deactivate any editor modes when creating a new map
+	if (ULevelEditorSubsystem* LevelEditorSubsystem = GEditor->GetEditorSubsystem<ULevelEditorSubsystem>())
+	{
+		if (FEditorModeTools* ModeManager = LevelEditorSubsystem->GetLevelEditorModeManager())
+		{
+			ModeManager->DeactivateAllModes();
+		}
+	}
 
 	const bool bPromptUserToSave = false;
 	const bool bFastSave = !bPromptUserToSave;

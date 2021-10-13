@@ -1089,6 +1089,9 @@ namespace OculusHMD
 		MonitorDesc.DesktopX = MonitorDesc.DesktopY = 0;
 		MonitorDesc.ResolutionX = MonitorDesc.ResolutionY = 0;
 		MonitorDesc.WindowSizeX = MonitorDesc.WindowSizeY = 0;
+#if PLATFORM_ANDROID
+		MonitorDesc.bShouldTestResolution = true;
+#endif
 
 		if (Settings.IsValid())
 		{

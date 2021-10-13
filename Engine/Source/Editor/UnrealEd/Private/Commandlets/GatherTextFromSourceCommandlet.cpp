@@ -388,9 +388,15 @@ FString UGatherTextFromSourceCommandlet::UnescapeLiteralCharacterEscapeSequences
 
 	EParseState ParseState = EParseState::Idle;
 	FString EscapedLiteralCharacter;
-	for (const TCHAR* CharPtr = *InString; *CharPtr; ++CharPtr)
+	for (const TCHAR* CharPtr = *InString; ; ++CharPtr)
 	{
 		const TCHAR CurChar = *CharPtr;
+
+		if (ParseState == EParseState::Idle && CurChar == 0)
+		{
+			// End of string
+			break;
+		}
 
 		switch (ParseState)
 		{
@@ -451,9 +457,12 @@ FString UGatherTextFromSourceCommandlet::UnescapeLiteralCharacterEscapeSequences
 				}
 				else
 				{
-					RetString.AppendChar((TCHAR)FCString::Strtoi(*EscapedLiteralCharacter, nullptr, 8));
+					if (EscapedLiteralCharacter.Len() > 0)
+					{
+						RetString.AppendChar((TCHAR)FCString::Strtoi(*EscapedLiteralCharacter, nullptr, 8));
+					}
 					ParseState = EParseState::Idle;
-					RetString.AppendChar(CurChar);
+					--CharPtr; // Walk backwards as we need to consider whether the current character is the start of a new escape sequence
 				}
 			}
 			break;
@@ -466,9 +475,12 @@ FString UGatherTextFromSourceCommandlet::UnescapeLiteralCharacterEscapeSequences
 				}
 				else
 				{
-					RetString.AppendChar((TCHAR)FCString::Strtoi(*EscapedLiteralCharacter, nullptr, 16));
+					if (EscapedLiteralCharacter.Len() > 0)
+					{
+						RetString.AppendChar((TCHAR)FCString::Strtoi(*EscapedLiteralCharacter, nullptr, 16));
+					}
 					ParseState = EParseState::Idle;
-					RetString.AppendChar(CurChar);
+					--CharPtr; // Walk backwards as we need to consider whether the current character is the start of a new escape sequence
 				}
 			}
 			break;
@@ -497,16 +509,19 @@ FString UGatherTextFromSourceCommandlet::UnescapeLiteralCharacterEscapeSequences
 				}
 				else
 				{
-					const uint32 UnicodeCodepoint = (uint32)FCString::Strtoi(*EscapedLiteralCharacter, nullptr, 16);
-
-					FString UnicodeString;
-					if (FUnicodeChar::CodepointToString(UnicodeCodepoint, UnicodeString))
+					if (EscapedLiteralCharacter.Len() > 0)
 					{
-						RetString.Append(MoveTemp(UnicodeString));
+						const uint32 UnicodeCodepoint = (uint32)FCString::Strtoi(*EscapedLiteralCharacter, nullptr, 16);
+
+						FString UnicodeString;
+						if (FUnicodeChar::CodepointToString(UnicodeCodepoint, UnicodeString))
+						{
+							RetString.Append(MoveTemp(UnicodeString));
+						}
 					}
 
 					ParseState = EParseState::Idle;
-					RetString.AppendChar(CurChar);
+					--CharPtr; // Walk backwards as we need to consider whether the current character is the start of a new escape sequence
 				}
 			}
 			break;
@@ -535,16 +550,19 @@ FString UGatherTextFromSourceCommandlet::UnescapeLiteralCharacterEscapeSequences
 				}
 				else
 				{
-					const uint32 UnicodeCodepoint = (uint32)FCString::Strtoui64(*EscapedLiteralCharacter, nullptr, 16);
-
-					FString UnicodeString;
-					if (FUnicodeChar::CodepointToString(UnicodeCodepoint, UnicodeString))
+					if (EscapedLiteralCharacter.Len() > 0)
 					{
-						RetString.Append(MoveTemp(UnicodeString));
+						const uint32 UnicodeCodepoint = (uint32)FCString::Strtoui64(*EscapedLiteralCharacter, nullptr, 16);
+
+						FString UnicodeString;
+						if (FUnicodeChar::CodepointToString(UnicodeCodepoint, UnicodeString))
+						{
+							RetString.Append(MoveTemp(UnicodeString));
+						}
 					}
 
 					ParseState = EParseState::Idle;
-					RetString.AppendChar(CurChar);
+					--CharPtr; // Walk backwards as we need to consider whether the current character is the start of a new escape sequence
 				}
 			}
 			break;

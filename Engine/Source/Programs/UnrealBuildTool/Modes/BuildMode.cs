@@ -9,6 +9,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using OpenTracing;
+using OpenTracing.Util;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -149,7 +151,7 @@ namespace UnrealBuildTool
 			// now that we know the available platforms, we can delete other platforms' junk. if we're only building specific modules from the editor, don't touch anything else (it may be in use).
 			if (!bIgnoreJunk && !Unreal.IsEngineInstalled())
 			{
-				using(Timeline.ScopeEvent("DeleteJunk()"))
+				using (GlobalTracer.Instance.BuildSpan("DeleteJunk()").StartActive())
 				{
 					JunkDeleter.DeleteJunk();
 				}
@@ -161,7 +163,7 @@ namespace UnrealBuildTool
 				List<TargetDescriptor> TargetDescriptors;
 
 				// Parse all the target descriptors
-				using(Timeline.ScopeEvent("TargetDescriptor.ParseCommandLine()"))
+				using (GlobalTracer.Instance.BuildSpan("TargetDescriptor.ParseCommandLine()").StartActive())
 				{
 					TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile);
 				}
@@ -302,7 +304,7 @@ namespace UnrealBuildTool
 				ActionGraph.CheckForConflicts(Makefiles.SelectMany(x => x.Actions));
 
 				// Check we don't exceed the nominal max path length
-				using (Timeline.ScopeEvent("ActionGraph.CheckPathLengths"))
+				using (GlobalTracer.Instance.BuildSpan("ActionGraph.CheckPathLengths").StartActive())
 				{
 					ActionGraph.CheckPathLengths(BuildConfiguration, Makefiles.SelectMany(x => x.Actions));
 				}
@@ -349,7 +351,7 @@ namespace UnrealBuildTool
 				ActionHistory History = new ActionHistory();
 				for (int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
 				{
-					using (Timeline.ScopeEvent("Reading action history"))
+					using (GlobalTracer.Instance.BuildSpan("Reading action history").StartActive())
 					{
 						TargetDescriptor TargetDescriptor = TargetDescriptors[TargetIdx];
 						if(TargetDescriptor.ProjectFile != null)
@@ -363,7 +365,7 @@ namespace UnrealBuildTool
 				CppDependencyCache CppDependencies = new CppDependencyCache();
 				for (int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
 				{
-					using (Timeline.ScopeEvent("Reading dependency cache"))
+					using (GlobalTracer.Instance.BuildSpan("Reading dependency cache").StartActive())
 					{
 						TargetDescriptor TargetDescriptor = TargetDescriptors[TargetIdx];
 						CppDependencies.Mount(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, Makefiles[TargetIdx].TargetType, TargetDescriptor.Architecture);
@@ -557,7 +559,7 @@ namespace UnrealBuildTool
 					OutputToolchainInfo(TargetDescriptors, Makefiles);
 
 					// Just export to an XML file
-					using (Timeline.ScopeEvent("XGE.ExportActions()"))
+					using (GlobalTracer.Instance.BuildSpan("XGE.ExportActions()").StartActive())
 					{
 						XGE.ExportActions(MergedActionsToExecute);
 					}
@@ -567,7 +569,7 @@ namespace UnrealBuildTool
 					OutputToolchainInfo(TargetDescriptors, Makefiles);
 
 					// Write actions to an output file
-					using (Timeline.ScopeEvent("ActionGraph.WriteActions"))
+					using (GlobalTracer.Instance.BuildSpan("ActionGraph.WriteActions").StartActive())
 					{
 						ActionGraph.ExportJson(MergedActionsToExecute, WriteOutdatedActionsFile);
 					}
@@ -593,7 +595,7 @@ namespace UnrealBuildTool
 
 						ActionExecutor.SetMemoryPerActionOverride(Makefiles.Select(x => x.MemoryPerActionGB).Max());
 
-						using(Timeline.ScopeEvent("ActionGraph.ExecuteActions()"))
+						using (GlobalTracer.Instance.BuildSpan("ActionGraph.ExecuteActions()").StartActive())
 						{
 							ActionGraph.ExecuteActions(BuildConfiguration, MergedActionsToExecute);
 						}
@@ -669,7 +671,7 @@ namespace UnrealBuildTool
 			TargetMakefile? Makefile = null;
 			if(MakefileLocation != null)
 			{
-				using(Timeline.ScopeEvent("TargetMakefile.Load()"))
+				using (GlobalTracer.Instance.BuildSpan("TargetMakefile.Load()").StartActive())
 				{
 					string? ReasonNotLoaded;
 					Makefile = TargetMakefile.Load(MakefileLocation, TargetDescriptor.ProjectFile, TargetDescriptor.Platform, TargetDescriptor.AdditionalArguments.GetRawArray(), out ReasonNotLoaded);
@@ -708,7 +710,7 @@ namespace UnrealBuildTool
 			{
 				// Create the target
 				UEBuildTarget Target;
-				using(Timeline.ScopeEvent("UEBuildTarget.Create()"))
+				using (GlobalTracer.Instance.BuildSpan("UEBuildTarget.Create()").StartActive())
 				{
 					Target = UEBuildTarget.Create(TargetDescriptor, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, BuildConfiguration.bUsePrecompiled);
 				}
@@ -724,7 +726,7 @@ namespace UnrealBuildTool
 				}
 
 				// Build the target
-				using(Timeline.ScopeEvent("UEBuildTarget.Build()"))
+				using (GlobalTracer.Instance.BuildSpan("UEBuildTarget.Build()").StartActive())
 				{
 					Makefile = Target.Build(BuildConfiguration, WorkingSet, TargetDescriptor.SpecificFilesToCompile);
 				}
@@ -749,7 +751,7 @@ namespace UnrealBuildTool
 				// Save the makefile for next time
 				if(MakefileLocation != null)
 				{
-					using(Timeline.ScopeEvent("TargetMakefile.Save()"))
+					using (GlobalTracer.Instance.BuildSpan("TargetMakefile.Save()").StartActive())
 					{
 						Makefile.Save(MakefileLocation);
 					}

@@ -2,6 +2,7 @@
 
 #include "ProfilingDebugging/TraceAuxiliary.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "ProfilingDebugging/CallstackTrace.h"
 #include "Trace/Trace.h"
 
 #if PLATFORM_WINDOWS
@@ -702,6 +703,10 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 		Desc.TailSizeBytes <<= 20;
 	}
 	UE::Trace::Initialize(Desc);
+
+	// Initialize callstack tracing with the regular malloc (it might have already been initialized by memory tracing).
+	CallstackTrace_Create(GMalloc);
+	CallstackTrace_Initialize();
 
 	// By default use 1msec for stack sampling interval
 	uint32 Microseconds = 1000;

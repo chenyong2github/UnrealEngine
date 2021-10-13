@@ -22,7 +22,7 @@
 			"Name": "HPMotionController",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64"
 			]
 		}
@@ -31,7 +31,7 @@
 		{
 			"Name": "OpenXR",
 			"Enabled": true,
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64"
 			]
 		}

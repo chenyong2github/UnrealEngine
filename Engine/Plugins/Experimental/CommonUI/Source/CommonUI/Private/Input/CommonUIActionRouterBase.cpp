@@ -134,6 +134,11 @@ FUIActionBindingHandle UCommonUIActionRouterBase::RegisterUIActionBinding(const 
 		if (OwnerNode)
 		{
 			OwnerNode->AddBinding(*FUIActionBinding::FindBinding(BindingHandle));
+			
+			if (UCommonActivatableWidget* ActivatableWidget = OwnerNode->GetWidget())
+			{
+				ActivatableWidget->RegisterInputTreeNode(OwnerNode);
+			}
 		}
 		else if (Widget.GetCachedWidget())
 		{
@@ -660,6 +665,11 @@ void UCommonUIActionRouterBase::ProcessRebuiltWidgets()
 		{
 			FActivatableTreeNodePtr OwnerNode = FindOwningNode(*Widget);
 			RegisterWidgetBindings(OwnerNode, PendingRegistration.ActionBindings);
+
+			if (UCommonActivatableWidget* OwnerWidget = OwnerNode ? OwnerNode->GetWidget() : nullptr)
+			{
+				OwnerWidget->RegisterInputTreeNode(OwnerNode);
+			}
 
 			if ((PendingRegistration.bIsScrollRecipient || PendingRegistration.Preprocessors.Num() > 0) && ensureMsgf(OwnerNode, TEXT("Widget [%s] does not have a parent activatable widget at any level - cannot register preprocessors or as a scroll recipient"), *Widget->GetName()))
 			{

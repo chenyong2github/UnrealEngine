@@ -56,7 +56,7 @@ typedef FScopeLock FGathererScopeLock;
 class FAssetDataGatherer : public FRunnable
 {
 public:
-	FAssetDataGatherer(const TArray<FString>& InBlacklistLongPackageNames, const TArray<FString>& InBlacklistMountRelativePaths, bool bInIsSynchronous);
+	FAssetDataGatherer(const TArray<FString>& InLongPackageNamesDenyList, const TArray<FString>& InMountRelativePathsDenyList, bool bInIsSynchronous);
 	virtual ~FAssetDataGatherer();
 
 
@@ -93,13 +93,13 @@ public:
 	/** Wait for all monitored assets under the given path to be added to search results. Returns immediately if the given path is not monitored. */
 	void WaitOnPath(FStringView LocalPath);
 	/**
-	 * Mark a set of paths as whitelisted, optionally force rescanning and ignore blacklist on them,
+	 * Add a set of paths to the allow list, optionally force rescanning and ignore deny list on them,
 	 * and wait for all assets in the paths to be added to search results.
 	 * Wait time is minimized by prioritizing the paths and transferring async scanning to the current thread.
 	 * If SaveCacheFilename is non-empty, save a cachefile to it with all discovered paths that are in one of
 	 * the SaveCacheLongPackageNameDirs paths.
 	 */
-	void ScanPathsSynchronous(const TArray<FString>& InPaths, bool bForceRescan, bool bIgnoreBlackListScanFilters,
+	void ScanPathsSynchronous(const TArray<FString>& InPaths, bool bForceRescan, bool bIgnoreDenyListScanFilters,
 		const FString& SaveCacheFilename, const TArray<FString>& SaveCacheLongPackageNameDirs);
 	/** Wait for all monitored assets to be added to search results. */
 	void WaitForIdle();
@@ -145,20 +145,20 @@ public:
 	/** Mark a file or directory to be scanned before unprioritized assets. */
 	void PrioritizeSearchPath(const FString& PathToPrioritize);
 	/**
-	 * Mark whether a given path is in the scanning whitelist.
+	 * Mark whether a given path is in the scanning allow list.
 	 *
-	 * By default no paths are scanned; adding a path to the whitelist causes it and its subdirectories to be scanned.
-	 * Note that the blacklist (InBlacklistLongPackageName) overrides the whitelist.
-	 * Whitelist settings are recursive. Attempting to mark a path as whitelisted if a parent path is whitelisted
-	 * will have no effect. This means the scenario (1) add whitelist A (2) add whitelist A/Child (3) remove whitelist A will
-	 * therefore not result in A/Child being whitelisted.
+	 * By default no paths are scanned; adding a path to the allow list causes it and its subdirectories to be scanned.
+	 * Note that the deny list (InLongPackageNameDenyList) overrides the allow list.
+	 * Allow list settings are recursive. Attempting to mark a path as allowed if a parent path is on the allow list
+	 * will have no effect. This means the scenario (1) add allow list A (2) add allow list A/Child (3) remove allow list A will
+	 * therefore not result in A/Child being allowed.
 	 */
-	void SetIsWhitelisted(FStringView LocalPath, bool bIsWhitelisted);
-	/** Report whether the path is in the whitelist. If not it will not be scanned. If so it will be scanned unless it is in the blacklist. */
-	bool IsWhitelisted(FStringView LocalPath) const;
-	/** Report whether the path is in the blacklist. If so it will not be scanned regardless of whether it is in the whitelist. */
-	bool IsBlacklisted(FStringView LocalPath) const;
-	/** Report whether the path is both in the whitelist and not in the blacklist. */
+	void SetIsOnAllowList(FStringView LocalPath, bool bIsAllowed);
+	/** Report whether the path is in the allow list. If not it will not be scanned. If so it will be scanned unless it is in the deny list. */
+	bool IsOnAllowList(FStringView LocalPath) const;
+	/** Report whether the path is in the deny list. If so it will not be scanned regardless of whether it is in the allow list. */
+	bool IsOnDenyList(FStringView LocalPath) const;
+	/** Report whether the path is both in the allow list and not in the deny list. */
 	bool IsMonitored(FStringView LocalPath) const;
 
 	/**

@@ -130,6 +130,11 @@ FBoundObjectTask::FBoundObjectTask(UMovieSceneEntitySystemLinker* InLinker)
 
 void FBoundObjectTask::ForEachAllocation(const FEntityAllocation* Allocation, FReadEntityIDs EntityIDs, TRead<FInstanceHandle> Instances, TRead<FGuid> ObjectBindings)
 {
+	FComponentTypeID TagHasUnresolvedBinding = FBuiltInComponentTypes::Get()->Tags.HasUnresolvedBinding;
+
+	// Check whether every binding in this allocation is currently unresolved
+	const bool bWasUnresolvedBinding = Allocation->FindComponentHeader(TagHasUnresolvedBinding) != nullptr;
+
 	FObjectFactoryBatch& Batch = AddBatch(Allocation);
 	Batch.StaleEntitiesToPreserve = &StaleEntitiesToPreserve;
 
@@ -159,8 +164,27 @@ void FBoundObjectTask::ForEachAllocation(const FEntityAllocation* Allocation, FR
 			}
 		}
 
-		Batch.ResolveObjects(InstanceRegistry, Instances[Index], Index, ObjectBindings[Index]);
+		const FObjectFactoryBatch::EResolveError Error = Batch.ResolveObjects(InstanceRegistry, Instances[Index], Index, ObjectBindings[Index]);
+		if (Error == FObjectFactoryBatch::EResolveError::None)
+		{
+			// We have successfully resolved a binding, so remove the HasUnresolvedBinding tag
+			if (bWasUnresolvedBinding)
+			{
+				constexpr bool bAddComponent = false;
+				EntityMutations.Add(FEntityMutationData{ ParentID, TagHasUnresolvedBinding, bAddComponent });
+			}
+		}
+		else if (Error == FObjectFactoryBatch::EResolveError::UnresolvedBinding)
+		{
+			if (!bWasUnresolvedBinding)
+			{
+				// Only bother attempting to add the HasUnresolvedBindingTag if it is not already tagged in such a way
+				constexpr bool bAddComponent = true;
+				EntityMutations.Add(FEntityMutationData{ ParentID, TagHasUnresolvedBinding, bAddComponent });
+			}
+		}
 	}
+
 }
 
 void FBoundObjectTask::PostTask()
@@ -171,6 +195,18 @@ void FBoundObjectTask::PostTask()
 	for (FMovieSceneEntityID Discard : EntitiesToDiscard)
 	{
 		Linker->EntityManager.AddComponent(Discard, NeedsUnlink, EEntityRecursion::Full);
+	}
+
+	for (FEntityMutationData Mutation : EntityMutations)
+	{
+		if (Mutation.bAddComponent)
+		{
+			Linker->EntityManager.AddComponent(Mutation.EntityID, Mutation.ComponentTypeID);
+		}
+		else
+		{
+			Linker->EntityManager.RemoveComponent(Mutation.EntityID, Mutation.ComponentTypeID);
+		}
 	}
 }
 

@@ -7,6 +7,7 @@
 #include "Animation/AnimNodeBase.h"
 #include "AnimGraphNode_AssetPlayerBase.h"
 #include "AnimationGraphSchema.h"
+#include "Algo/StableSort.h"
 
 FAnimBlueprintNodeOptionalPinManager::FAnimBlueprintNodeOptionalPinManager(class UAnimGraphNode_Base* Node, TArray<UEdGraphPin*>* InOldPins)
 	: BaseNode(Node)
@@ -124,5 +125,17 @@ void FAnimBlueprintNodeOptionalPinManager::PostRemovedOldPin(FOptionalPinFromPro
 void FAnimBlueprintNodeOptionalPinManager::AllocateDefaultPins(UStruct* SourceStruct, uint8* StructBasePtr, uint8* DefaultsPtr)
 {
 	RebuildPropertyList(BaseNode->ShowPinForProperties, SourceStruct);
+
+	const UAnimationGraphSchema* Schema = GetDefault<UAnimationGraphSchema>();
+	
+	// Sort pins by property offset (makes pose pins consistent across derived nodes amongst other things)
+	Algo::StableSort(BaseNode->ShowPinForProperties, [SourceStruct, Schema](const FOptionalPinFromProperty& InPin0, const FOptionalPinFromProperty& InPin1)
+	{
+		FProperty* Property0 = FindFieldChecked<FProperty>(SourceStruct, InPin0.PropertyName);
+		FProperty* Property1 = FindFieldChecked<FProperty>(SourceStruct, InPin1.PropertyName);
+		
+		return Property0->GetOffset_ForInternal() < Property1->GetOffset_ForInternal();
+	});
+	
 	CreateVisiblePins(BaseNode->ShowPinForProperties, SourceStruct, EGPD_Input, BaseNode, StructBasePtr, DefaultsPtr);
 }

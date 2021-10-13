@@ -61,54 +61,46 @@ public:
 
 	/** Default constructor. */
 	TUnion()
-		: CurrentSubtypeIndex(-1)
 	{ }
 
 	/** Initialization constructor. */
 	explicit TUnion(typename TCallTraits<TypeA>::ParamType InValue, TDisambiguater<0> Disambiguater = TDisambiguater<0>())
-		: CurrentSubtypeIndex(-1)
 	{
 		SetSubtype<TypeA>(InValue);
 	}
 	
 	/** Initialization constructor. */
 	explicit TUnion(typename TCallTraits<TypeB>::ParamType InValue, TDisambiguater<1> Disambiguater = TDisambiguater<1>())
-		: CurrentSubtypeIndex(-1)
 	{
 		SetSubtype<TypeB>(InValue);
 	}
 	
 	/** Initialization constructor. */
 	explicit TUnion(typename TCallTraits<TypeC>::ParamType InValue, TDisambiguater<2> Disambiguater = TDisambiguater<2>())
-		: CurrentSubtypeIndex(-1)
 	{
 		SetSubtype<TypeC>(InValue);
 	}
 	
 	/** Initialization constructor. */
 	explicit TUnion(typename TCallTraits<TypeD>::ParamType InValue, TDisambiguater<3> Disambiguater = TDisambiguater<3>())
-		: CurrentSubtypeIndex(-1)
 	{
 		SetSubtype<TypeD>(InValue);
 	}
 	
 	/** Initialization constructor. */
 	explicit TUnion(typename TCallTraits<TypeE>::ParamType InValue, TDisambiguater<4> Disambiguater = TDisambiguater<4>())
-		: CurrentSubtypeIndex(-1)
 	{
 		SetSubtype<TypeE>(InValue);
 	}
 	
 	/** Initialization constructor. */
 	explicit TUnion(typename TCallTraits<TypeF>::ParamType InValue, TDisambiguater<5> Disambiguater = TDisambiguater<5>())
-		: CurrentSubtypeIndex(-1)
 	{
 		SetSubtype<TypeF>(InValue);
 	}
 
 	/** Copy constructor. */
 	TUnion(const TUnion& Other)
-	:	CurrentSubtypeIndex(-1)
 	{
 		*this = Other;
 	}
@@ -125,7 +117,7 @@ public:
 	bool HasSubtype() const
 	{
 		// Determine the subtype's index and reference.
-		int32 SubtypeIndex;
+		uint8 SubtypeIndex;
 		const Subtype* SubtypeValuePointer;
 		GetSubtypeIndexAndReference<Subtype,const Subtype*>(*this,SubtypeIndex,SubtypeValuePointer);
 
@@ -137,7 +129,7 @@ public:
 	void ResetSubtype()
 	{
 		// Determine the subtype's index and reference.
-		int32 SubtypeIndex;
+		uint8 SubtypeIndex;
 		Subtype* SubtypeValuePointer;
 		GetSubtypeIndexAndReference<Subtype,Subtype*>(*this,SubtypeIndex,SubtypeValuePointer);
 
@@ -156,7 +148,7 @@ public:
 	const Subtype& GetSubtype() const
 	{
 		// Determine the subtype's index and reference.
-		int32 SubtypeIndex;
+		uint8 SubtypeIndex;
 		const Subtype* SubtypeValuePointer;
 		GetSubtypeIndexAndReference<Subtype,const Subtype*>(*this,SubtypeIndex,SubtypeValuePointer);
 
@@ -171,7 +163,7 @@ public:
 	Subtype& GetSubtype()
 	{
 		// Determine the subtype's index and reference.
-		int32 SubtypeIndex;
+		uint8 SubtypeIndex;
 		Subtype* SubtypeValuePointer;
 		GetSubtypeIndexAndReference<Subtype,Subtype*>(*this,SubtypeIndex,SubtypeValuePointer);
 
@@ -185,7 +177,7 @@ public:
 	template<typename Subtype>
 	Subtype* SetSubtype()
 	{
-		int32 SubtypeIndex;
+		uint8 SubtypeIndex;
 		Subtype* SubtypeValuePointer;
 		GetSubtypeIndexAndReference<Subtype, Subtype*>(*this, SubtypeIndex, SubtypeValuePointer);
 
@@ -201,7 +193,7 @@ public:
 	template<typename Subtype>
 	Subtype* SetSubtype(typename TCallTraits<Subtype>::ParamType NewValue)
 	{
-		int32 SubtypeIndex;
+		uint8 SubtypeIndex;
 		Subtype* SubtypeValuePointer;
 		GetSubtypeIndexAndReference<Subtype,Subtype*>(*this,SubtypeIndex,SubtypeValuePointer);
 
@@ -341,7 +333,7 @@ private:
 	} Values;
 
 	/** The index of the subtype that the union's current value is of. */
-	uint8 CurrentSubtypeIndex;
+	uint8 CurrentSubtypeIndex = (uint8)-1;
 
 	/** Sets the union's value to a default value of the given subtype. */
 	template<typename Subtype>
@@ -355,7 +347,7 @@ private:
 	template<typename Subtype,typename PointerType>
 	static void GetSubtypeIndexAndReference(
 		const TUnion& Union,
-		int32& OutIndex,
+		uint8& OutIndex,
 		PointerType& OutValuePointer
 		)
 	{
@@ -399,7 +391,7 @@ private:
 				TAreTypesEqual<TEMPLATE_PARAMETERS2(TypeE, Subtype)>::Value ||
 				TAreTypesEqual<TEMPLATE_PARAMETERS2(TypeF, Subtype)>::Value,
 				"Type is not subtype of union.");
-			OutIndex = -1;
+			OutIndex = (uint8)-1;
 			OutValuePointer = NULL;
 		}
 	}

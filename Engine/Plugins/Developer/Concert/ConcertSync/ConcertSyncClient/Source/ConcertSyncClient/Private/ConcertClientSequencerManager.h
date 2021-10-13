@@ -110,9 +110,9 @@ private:
 	enum class EPlaybackMode
 	{
 		/** This sequencer's time should be propagated to the collaboration server */
-		Master,
+		Controller,
 		/** This sequencer's time should be updated in response to an event from the collaboration server */
-		Slave,
+		Agent,
 		/** To our knowledge, no sequencer is playing back, and this sequencer will both send and receive transport events */
 		Undefined
 	};
@@ -134,6 +134,15 @@ private:
 	};
 
 private:
+	/**
+	 * Returns true if we can send the provided sequencer event onto the server.
+	 */
+	bool CanSendSequencerEvent(const FString& ObjectPath) const;
+
+	/**
+	 * Delegate function called when we have entered into a reload state. We need to know when we are in a asset reload
+	 * so that we can properly reload the sequence player.
+	 */
 	void HandleAssetReload(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent);
 
 	/**
@@ -264,7 +273,6 @@ private:
 	}
 
 private:
-
 	/** Destroy the given sequence player with corresponding actor. */
 	void DestroyPlayer(FSequencePlayer& Player, ALevelSequenceActor* LevelSequenceActor);
 

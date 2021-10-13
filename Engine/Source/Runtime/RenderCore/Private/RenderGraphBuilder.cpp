@@ -550,6 +550,13 @@ FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName I
 	GRDGEmitEvents = GetEmitDrawEvents();
 #endif
 
+#if RHI_WANT_BREADCRUMB_EVENTS
+	if (bParallelExecuteEnabled)
+	{
+		BreadcrumbState = FRDGBreadcrumbState::Create(Allocator);
+	}
+#endif
+
 	IF_RDG_ENABLE_DEBUG(LogFile.Begin(BuilderName));
 }
 
@@ -1504,6 +1511,10 @@ void FRDGBuilder::Execute(EExecuteMode ExecuteMode)
 
 		if (bParallelExecuteEnabled)
 		{
+		#if RHI_WANT_BREADCRUMB_EVENTS
+			RHICmdList.ExportBreadcrumbState(*BreadcrumbState);
+		#endif
+
 			// Parallel execute setup can be done off the render thread and synced prior to dispatch.
 			AsyncCompileEvents.Emplace(FFunctionGraphTask::CreateAndDispatchWhenReady(
 				[this](ENamedThreads::Type, const FGraphEventRef&)
@@ -1740,6 +1751,8 @@ void FRDGBuilder::Execute(EExecuteMode ExecuteMode)
 
 						check(ParallelPassSet.Event != nullptr && ParallelPassSet.RHICmdList != nullptr);
 						RHICmdList.QueueRenderThreadCommandListSubmit(ParallelPassSet.Event, ParallelPassSet.RHICmdList);
+
+						IF_RHI_WANT_BREADCRUMB_EVENTS(RHICmdList.ImportBreadcrumbState(*ParallelPassSet.BreadcrumbStateEnd));
 
 						if (ParallelPassSet.bDispatchAfterExecute && IsRunningRHIInSeparateThread())
 						{
@@ -2230,13 +2243,16 @@ void FRDGBuilder::SetupParallelExecute()
 
 			FRDGPass* PassEnd = ParallelPassCandidates[PassEndIndex - 1];
 			PassEnd->bParallelExecuteEnd = 1;
+			PassEnd->ParallelPassSetIndex = ParallelPassSets.Num();
 
 			for (int32 PassIndex = PassBeginIndex; PassIndex < PassEndIndex; ++PassIndex)
 			{
 				ParallelPassCandidates[PassIndex]->bParallelExecute = 1;
 			}
 
-			ParallelPassSets.Emplace(ParallelPassCandidates.GetData() + PassBeginIndex, ParallelPassCandidateCount, bDispatchAfterExecute);
+			FParallelPassSet& ParallelPassSet = ParallelPassSets.Emplace_GetRef();
+			ParallelPassSet.Passes.Append(ParallelPassCandidates.GetData() + PassBeginIndex, ParallelPassCandidateCount);
+			ParallelPassSet.bDispatchAfterExecute = bDispatchAfterExecute;
 		}
 
 		ParallelPassCandidates.Reset();
@@ -2290,6 +2306,40 @@ void FRDGBuilder::SetupParallelExecute()
 
 	ParallelPassCandidates.Emplace(EpiloguePass);
 	FlushParallelPassCandidates();
+
+#if RHI_WANT_BREADCRUMB_EVENTS
+	SCOPED_NAMED_EVENT(BreadcrumbSetup, FColor::Emerald);
+
+	for (FRDGPassHandle PassHandle = GetProloguePassHandle(); PassHandle <= GetEpiloguePassHandle(); ++PassHandle)
+	{
+		FRDGPass* Pass = Passes[PassHandle];
+
+		if (Pass->bCulled)
+		{
+			continue;
+		}
+
+		if (Pass->bParallelExecuteBegin)
+		{
+			FParallelPassSet& ParallelPassSet = ParallelPassSets[Pass->ParallelPassSetIndex];
+			ParallelPassSet.BreadcrumbStateBegin = BreadcrumbState->Copy(Allocator);
+			ParallelPassSet.BreadcrumbStateEnd = ParallelPassSet.BreadcrumbStateBegin;
+		}
+
+		Pass->GPUScopeOpsPrologue.Event.Execute(*BreadcrumbState);
+		Pass->GPUScopeOpsEpilogue.Event.Execute(*BreadcrumbState);
+
+		if (Pass->bParallelExecuteEnd)
+		{
+			FParallelPassSet& ParallelPassSet = ParallelPassSets[Pass->ParallelPassSetIndex];
+
+			if (ParallelPassSet.BreadcrumbStateEnd->Version != BreadcrumbState->Version)
+			{
+				ParallelPassSet.BreadcrumbStateEnd = BreadcrumbState->Copy(Allocator);
+			}
+		}
+	}
+#endif
 }
 
 void FRDGBuilder::DispatchParallelExecute(IRHICommandContext* RHICmdContext)
@@ -2302,6 +2352,8 @@ void FRDGBuilder::DispatchParallelExecute(IRHICommandContext* RHICmdContext)
 		FParallelPassSet& ParallelPassSet = ParallelPassSets[Index];
 		ParallelPassSet.RHICmdList = new FRHICommandList(FRHIGPUMask::All());
 		ParallelPassSet.RHICmdList->SetContext(RHICmdContext);
+
+		IF_RHI_WANT_BREADCRUMB_EVENTS(ParallelPassSet.RHICmdList->ImportBreadcrumbState(*ParallelPassSet.BreadcrumbStateBegin));
 
 		// Avoid referencing the parallel pass struct directly in the task, as the set can resize.
 		TArrayView<FRDGPass*> ParallelPasses = ParallelPassSet.Passes;

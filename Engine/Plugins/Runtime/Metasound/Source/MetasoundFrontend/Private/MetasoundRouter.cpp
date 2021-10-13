@@ -5,7 +5,6 @@
 #include "MetasoundFrontendDataTypeRegistry.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundOperatorInterface.h"
-#include "CoreMinimal.h"
 #include "HAL/IConsoleManager.h"
 
 
@@ -101,9 +100,21 @@ static FAutoConsoleCommand GPushStringCommand(
 		})
 );
 
-
 namespace Metasound
 {
+	FSendAddress::FSendAddress(const FString& InChannelName)
+	: ChannelName(*InChannelName)
+	, DataType()
+	, InstanceID(INDEX_NONE)
+	{
+	}
+
+	FSendAddress::FSendAddress(const FName& InChannelName, const FName& InDataType, uint64 InInstanceID)
+	: ChannelName(InChannelName)
+	, DataType(InDataType)
+	, InstanceID(InInstanceID)
+	{
+	}
 
 	IReceiver::~IReceiver()
 	{
@@ -114,17 +125,6 @@ namespace Metasound
 	{
 		DataChannel->OnSenderDestroyed();
 	}
-	
-	ITransmissionSubsystem::ITransmissionSubsystem(FName InSubsystemName)
-		: SubsystemName(InSubsystemName)
-	{
-		FDataTransmissionCenter::Get().RegisterSubsystem(this, SubsystemName);
-	}
-
-	ITransmissionSubsystem::~ITransmissionSubsystem()
-	{
-		FDataTransmissionCenter::Get().UnregisterSubsystem(SubsystemName);
-	}
 
 	FDataTransmissionCenter& FDataTransmissionCenter::Get()
 	{
@@ -132,93 +132,24 @@ namespace Metasound
 		return Singleton;
 	}
 
-	TUniquePtr<ISender> FDataTransmissionCenter::RegisterNewSender(const FName& InDataTypeName, const FSendAddress& InAddress, const FSenderInitParams& InitParams)
+	TUniquePtr<ISender> FDataTransmissionCenter::RegisterNewSender(const FSendAddress& InAddress, const FSenderInitParams& InitParams)
 	{
-		TUniquePtr<ISender> Sender;
-
-		if (InAddress.Subsystem == GetSubsystemNameForSendScope(ETransmissionScope::ThisInstanceOnly))
-		{
-			Sender = InstanceRouter.RegisterNewSender(InAddress.MetasoundInstanceID, InDataTypeName, InAddress.ChannelName, InitParams);
-		}
-		else if (InAddress.Subsystem == GetSubsystemNameForSendScope(ETransmissionScope::Global))
-		{
-			Sender = GlobalRouter.RegisterNewSender(InDataTypeName, InAddress.ChannelName, InitParams);
-		}
-		else if (FSubsystemData* FoundSubsystem = SubsystemRouters.Find(InAddress.Subsystem))
-		{
-			ITransmissionSubsystem* SubsystemInterface = FoundSubsystem->SubsystemPtr;
-
-			// Ensure that this subsystem can support this send type.
-			if (ensureAlways(SubsystemInterface && SubsystemInterface->CanSupportDataType(InDataTypeName)))
-			{
-
-				FScopeLock ScopeLock(&SubsystemRoutersMutationLock);
-				Sender = FoundSubsystem->AddressRouter.RegisterNewSender(InDataTypeName, InAddress.ChannelName, InitParams);
-
-				FoundSubsystem->SubsystemPtr->OnNewSendRegistered(InAddress, InDataTypeName);
-			}
-		}
-		else
-		{
-			// Otherwise, the subsystem FName was invalid.
-			UE_LOG(LogMetaSound, Error, TEXT("Cannot create Sender. Did not find transmission subsystem [Name:%s]"), *InAddress.Subsystem.ToString());
-		}
-
-		return MoveTemp(Sender);
+		return GlobalRouter.RegisterNewSender(InAddress, InitParams);
 	}
 
-	TUniquePtr<IReceiver> FDataTransmissionCenter::RegisterNewReceiver(const FName& InDataTypeName, const FSendAddress& InAddress, const FReceiverInitParams& InitParams)
+	TUniquePtr<IReceiver> FDataTransmissionCenter::RegisterNewReceiver(const FSendAddress& InAddress, const FReceiverInitParams& InitParams)
 	{
-		TUniquePtr<IReceiver> Receiver;
-
-		if (InAddress.Subsystem == GetSubsystemNameForSendScope(ETransmissionScope::ThisInstanceOnly))
-		{
-			Receiver = InstanceRouter.RegisterNewReceiver(InAddress.MetasoundInstanceID, InDataTypeName, InAddress.ChannelName, InitParams);
-		}
-		else if (InAddress.Subsystem == GetSubsystemNameForSendScope(ETransmissionScope::Global))
-		{
-			Receiver = GlobalRouter.RegisterNewReceiver(InDataTypeName, InAddress.ChannelName, InitParams);
-		}
-		else if (FSubsystemData* FoundSubsystem = SubsystemRouters.Find(InAddress.Subsystem))
-		{
-			ITransmissionSubsystem* SubsystemInterface = FoundSubsystem->SubsystemPtr;
-
-			// Ensure that this subsystem can support this send type.
-			if (ensureAlways(SubsystemInterface && SubsystemInterface->CanSupportDataType(InDataTypeName)))
-			{
-				FScopeLock ScopeLock(&SubsystemRoutersMutationLock);
-
-				Receiver = FoundSubsystem->AddressRouter.RegisterNewReceiver(InDataTypeName, InAddress.ChannelName, InitParams);
-				FoundSubsystem->SubsystemPtr->OnNewReceiverRegistered(InAddress, InDataTypeName);
-			}
-		}
-		else
-		{
-			// Otherwise, the subsystem FName was invalid.
-			UE_LOG(LogMetaSound, Error, TEXT("Cannot create Receiver. Did not find transmission subsystem [Name:%s]"), *InAddress.Subsystem.ToString());
-		}
-
-		return MoveTemp(Receiver);
+		return GlobalRouter.RegisterNewReceiver(InAddress, InitParams);
 	}
 
-	bool FDataTransmissionCenter::UnregisterDataChannel(const FName& InDataTypeName, const FSendAddress& InAddress)
+	bool FDataTransmissionCenter::UnregisterDataChannel(const FSendAddress& InAddress)
 	{
-		// Only supporting global router. Other subsystems are not used and will be reworked. 
-		if (ensure(InAddress.Subsystem == GetSubsystemNameForSendScope(ETransmissionScope::Global)))
-		{
-			return GlobalRouter.UnregisterDataChannel(InDataTypeName, InAddress.ChannelName);
-		}
-		return false;
+		return GlobalRouter.UnregisterDataChannel(InAddress);
 	}
 
-	bool FDataTransmissionCenter::UnregisterDataChannelIfUnconnected(const FName& InDataTypeName, const FSendAddress& InAddress)
+	bool FDataTransmissionCenter::UnregisterDataChannelIfUnconnected(const FSendAddress& InAddress)
 	{
-		// Only supporting global router. Other subsystems are not used and will be reworked. 
-		if (ensure(InAddress.Subsystem == GetSubsystemNameForSendScope(ETransmissionScope::Global)))
-		{
-			return GlobalRouter.UnregisterDataChannelIfUnconnected(InDataTypeName, InAddress.ChannelName);
-		}
-		return false;
+		return GlobalRouter.UnregisterDataChannelIfUnconnected(InAddress);
 	}
 
 	bool FDataTransmissionCenter::PushLiteral(FName DataType, FName GlobalChannelName, const FLiteral& InParam)
@@ -226,41 +157,15 @@ namespace Metasound
 		return GlobalRouter.PushLiteral(DataType, GlobalChannelName, InParam);
 	}
 
-	void FDataTransmissionCenter::RegisterSubsystem(ITransmissionSubsystem* InSystem, FName InSubsytemName)
-	{
-		FScopeLock ScopeLock(&SubsystemRoutersMutationLock);
 
-		//check to make sure we're not adding a subsystem twice.
-		check(!SubsystemRouters.Contains(InSubsytemName));
-
-		SubsystemRouters.Emplace(InSubsytemName, InSystem);
-	}
-
-	void FDataTransmissionCenter::UnregisterSubsystem(FName InSubsystemName)
-	{
-		FScopeLock ScopeLock(&SubsystemRoutersMutationLock);
-
-		//check to make sure we're not adding a subsystem twice.
-		check(SubsystemRouters.Contains(InSubsystemName));
-
-		SubsystemRouters.Remove(InSubsystemName);
-	}
-
-	FAddressRouter::FDataChannelKey FAddressRouter::GetDataChannelKey(const FName& InDataTypeName, const FName& InChannelName) const
-	{
-		return FString::Format(TEXT("{0}[{1}]"), { InChannelName.ToString(), InDataTypeName.ToString() });
-	}
-
-	TSharedPtr<IDataChannel, ESPMode::ThreadSafe> FAddressRouter::FindDataChannel(const FName& InDataTypeName, const FName& InChannelName)
+	TSharedPtr<IDataChannel, ESPMode::ThreadSafe> FAddressRouter::FindDataChannel(const FSendAddress& InAddress)
 	{
 		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> Channel;
-
-		const FDataChannelKey ChannelKey = GetDataChannelKey(InDataTypeName, InChannelName);
 
 		{
 			FScopeLock ScopeLock(&DataChannelMapMutationLock);
 
-			if (TSharedRef<IDataChannel, ESPMode::ThreadSafe>* ExistingChannelPtr = DataChannelMap.Find(ChannelKey))
+			if (TSharedRef<IDataChannel, ESPMode::ThreadSafe>* ExistingChannelPtr = DataChannelMap.Find(InAddress))
 			{
 				Channel = *ExistingChannelPtr;
 			}
@@ -269,31 +174,28 @@ namespace Metasound
 		return Channel;
 	}
 
-	TSharedPtr<IDataChannel, ESPMode::ThreadSafe> FAddressRouter::GetDataChannel(const FName& InDataTypeName, const FName& InChannelName, const FOperatorSettings& InOperatorSettings)
+	TSharedPtr<IDataChannel, ESPMode::ThreadSafe> FAddressRouter::GetDataChannel(const FSendAddress& InAddress, const FOperatorSettings& InOperatorSettings)
 	{
-		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> DataChannel = FindDataChannel(InDataTypeName, InChannelName);
+		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> DataChannel = FindDataChannel(InAddress);
 
 		if (!DataChannel.IsValid())
 		{
 			FScopeLock ScopeLock(&DataChannelMapMutationLock);
 
-			const FDataChannelKey ChannelKey = GetDataChannelKey(InDataTypeName, InChannelName);
-			
 			// This is the first time we're seeing this, add it to the map.
-			DataChannel = Metasound::Frontend::IDataTypeRegistry::Get().CreateDataChannel(InDataTypeName, InOperatorSettings);
+			DataChannel = Metasound::Frontend::IDataTypeRegistry::Get().CreateDataChannel(InAddress.GetDataType(), InOperatorSettings);
 			if (DataChannel.IsValid())
 			{
-				DataChannelMap.Add(ChannelKey, DataChannel.ToSharedRef());
+				DataChannelMap.Add(InAddress, DataChannel.ToSharedRef());
 			}
 		}
 
 		return DataChannel;
 	}
 
-	TUniquePtr<ISender> FAddressRouter::RegisterNewSender(const FName& InDataTypeName, const FName& InChannelName, const FSenderInitParams& InitParams)
+	TUniquePtr<ISender> FAddressRouter::RegisterNewSender(const FSendAddress& InAddress, const FSenderInitParams& InitParams)
 	{
-
-		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> DataChannel = GetDataChannel(InDataTypeName, InChannelName, InitParams.OperatorSettings);
+		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> DataChannel = GetDataChannel(InAddress, InitParams.OperatorSettings);
 
 		if (DataChannel.IsValid())
 		{
@@ -305,39 +207,37 @@ namespace Metasound
 		}
 	}
 
-	bool FAddressRouter::UnregisterDataChannel(const FName& InDataTypeName, const FName& InChannelName)
+	bool FAddressRouter::UnregisterDataChannel(const FSendAddress& InAddress)
 	{
 		FScopeLock ScopeLock(&DataChannelMapMutationLock);
-		const FDataChannelKey ChannelKey = GetDataChannelKey(InDataTypeName, InChannelName);
 
-		if (TSharedRef<IDataChannel, ESPMode::ThreadSafe>* Channel = DataChannelMap.Find(ChannelKey))
+		if (TSharedRef<IDataChannel, ESPMode::ThreadSafe>* Channel = DataChannelMap.Find(InAddress))
 		{
 			if (const int32 NumReceiversActive = Channel->Get().GetNumActiveReceivers())
 			{
-				UE_LOG(LogMetaSound, Verbose, TEXT("DataChannel '%s' of type '%s' shutting down with %d receivers active."), *InChannelName.ToString(), *InDataTypeName.ToString(), NumReceiversActive);
+				UE_LOG(LogMetaSound, Verbose, TEXT("DataChannel '%s' shutting down with %d receivers active."), *InAddress.ToString(), NumReceiversActive);
 			}
 
 			if (const int32 NumSendersActive = Channel->Get().GetNumActiveSenders())
 			{
-				UE_LOG(LogMetaSound, Verbose, TEXT("DataChannel '%s' of type '%s' shutting down with %d senders active."), *InChannelName.ToString(), *InDataTypeName.ToString(), NumSendersActive);
+				UE_LOG(LogMetaSound, Verbose, TEXT("DataChannel '%s' shutting down with %d senders active."), *InAddress.ToString(), NumSendersActive);
 			}
 		}
 
-		return DataChannelMap.Remove(ChannelKey) > 0;
+		return DataChannelMap.Remove(InAddress) > 0;
 	}
 
-	bool FAddressRouter::UnregisterDataChannelIfUnconnected(const FName& InDataTypeName, const FName& InChannelName)
+	bool FAddressRouter::UnregisterDataChannelIfUnconnected(const FSendAddress& InAddress)
 	{
 		FScopeLock ScopeLock(&DataChannelMapMutationLock);
-		const FDataChannelKey ChannelKey = GetDataChannelKey(InDataTypeName, InChannelName);
 
-		if (TSharedRef<IDataChannel, ESPMode::ThreadSafe>* Channel = DataChannelMap.Find(ChannelKey))
+		if (TSharedRef<IDataChannel, ESPMode::ThreadSafe>* Channel = DataChannelMap.Find(InAddress))
 		{
 			if (0 == Channel->Get().GetNumActiveReceivers())
 			{
 				if (0 == Channel->Get().GetNumActiveSenders())
 				{
-					return DataChannelMap.Remove(ChannelKey) > 0;
+					return DataChannelMap.Remove(InAddress) > 0;
 				}
 			}
 		}
@@ -345,9 +245,9 @@ namespace Metasound
 		return false;
 	}
 
-	TUniquePtr<IReceiver> FAddressRouter::RegisterNewReceiver(const FName& InDataTypeName, const FName& InChannelName, const FReceiverInitParams& InitParams)
+	TUniquePtr<IReceiver> FAddressRouter::RegisterNewReceiver(const FSendAddress& InAddress, const FReceiverInitParams& InitParams)
 	{
-		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> DataChannel = GetDataChannel(InDataTypeName, InChannelName, InitParams.OperatorSettings);
+		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> DataChannel = GetDataChannel(InAddress, InitParams.OperatorSettings);
 
 		if (DataChannel.IsValid())
 		{
@@ -356,38 +256,6 @@ namespace Metasound
 		else
 		{
 			return TUniquePtr<IReceiver>(nullptr);
-		}
-	}
-
-	TUniquePtr<IReceiver> FInstanceLocalRouter::RegisterNewReceiver(uint64 InInstanceID, const FName& InDataTypeName, const FName& InChannelName, const FReceiverInitParams& InitParams)
-	{
-		FScopeLock ScopeLock(&InstanceRouterMapMutationLock);
-
-		if (FAddressRouter* AddressRouter = InstanceRouterMap.Find(InInstanceID))
-		{
-			return AddressRouter->RegisterNewReceiver(InDataTypeName, InChannelName, InitParams);
-		}
-		else
-		{
-			// This is the first time we're seeing this, add it to the map.
-			FAddressRouter& NewRouter = InstanceRouterMap.Add(InInstanceID, FAddressRouter());
-			return NewRouter.RegisterNewReceiver(InDataTypeName, InChannelName, InitParams);
-		}
-	}
-
-	TUniquePtr<ISender> FInstanceLocalRouter::RegisterNewSender(uint64 InInstanceID, const FName& InDataTypeName, const FName& InChannelName, const FSenderInitParams& InitParams)
-	{
-		FScopeLock ScopeLock(&InstanceRouterMapMutationLock);
-
-		if (FAddressRouter* AddressRouter = InstanceRouterMap.Find(InInstanceID))
-		{
-			return AddressRouter->RegisterNewSender(InDataTypeName, InChannelName, InitParams);
-		}
-		else
-		{
-			// This is the first time we're seeing this, add it to the map.
-			FAddressRouter& NewRouter = InstanceRouterMap.Add(InInstanceID, FAddressRouter());
-			return NewRouter.RegisterNewSender(InDataTypeName, InChannelName, InitParams);
 		}
 	}
 }

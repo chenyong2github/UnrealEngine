@@ -112,8 +112,8 @@ static bool BlueprintNativeCodeGenUtilsImpl::GeneratePluginDescFile(const FBluep
 	}
 	else
 	{
-		ModuleDesc->WhitelistPlatforms.Empty();
-		ModuleDesc->WhitelistTargets.Empty();
+		ModuleDesc->PlatformAllowList.Empty();
+		ModuleDesc->TargetAllowList.Empty();
 	}
 	if (ensure(ModuleDesc))
 	{
@@ -127,12 +127,12 @@ static bool BlueprintNativeCodeGenUtilsImpl::GeneratePluginDescFile(const FBluep
 		{
 			if (PlatformInfo->Name == PlatformName)
 			{
-				// We use the 'UBTPlatformName' because this white-list expects the 
+				// We use the 'UBTPlatformName' because this allow list expects the 
 				// string to correspond to UBT's UnrealTargetPlatform enum (and by proxy, FPlatformMisc::GetUBTPlatform)
-				ModuleDesc->WhitelistPlatforms.AddUnique(PlatformInfo->DataDrivenPlatformInfo->UBTPlatformString);
+				ModuleDesc->PlatformAllowList.AddUnique(PlatformInfo->DataDrivenPlatformInfo->UBTPlatformString);
 
 				FName UBTPlatformName = PlatformInfo->DataDrivenPlatformInfo->UBTPlatformName;
-				// Hack to allow clients for PS4/XboxOne (etc.) to build the nativized assets plugin
+				// Hack to allow clients for some platforms to build the nativized assets plugin
 				const bool bIsClientValidForPlatform = UBTPlatformName == TEXT("Win64") ||
 					UBTPlatformName == TEXT("Linux") ||
 					UBTPlatformName == TEXT("LinuxArm64") ||
@@ -142,22 +142,22 @@ static bool BlueprintNativeCodeGenUtilsImpl::GeneratePluginDescFile(const FBluep
 				switch (PlatformInfo->PlatformType)
 				{
 				case EBuildTargetType::Game:
-					ModuleDesc->WhitelistTargets.AddUnique(EBuildTargetType::Game);
+					ModuleDesc->TargetAllowList.AddUnique(EBuildTargetType::Game);
 
-					// Hack to allow clients for PS4/XboxOne (etc.) to build the nativized assets plugin
+					// Hack to allow clients for some platforms to build the nativized assets plugin
 					if(!bIsClientValidForPlatform)
 					{
 						// Also add "Client" target
-						ModuleDesc->WhitelistTargets.AddUnique(EBuildTargetType::Client);
+						ModuleDesc->TargetAllowList.AddUnique(EBuildTargetType::Client);
 					}
 					break;
 
 				case EBuildTargetType::Client:
-					ModuleDesc->WhitelistTargets.AddUnique(EBuildTargetType::Client);
+					ModuleDesc->TargetAllowList.AddUnique(EBuildTargetType::Client);
 					break;
 
 				case EBuildTargetType::Server:
-					ModuleDesc->WhitelistTargets.AddUnique(EBuildTargetType::Server);
+					ModuleDesc->TargetAllowList.AddUnique(EBuildTargetType::Server);
 					break;
 
 				case EBuildTargetType::Editor:

@@ -15,6 +15,7 @@ class UAnimationAsset;
 class UAnimBlueprint;
 class UPhysicsAsset;
 struct FBPInterfaceDescription;
+class UAnimGraphNode_Base;
 
 UCLASS(MinimalAPI)
 class UAnimationGraphSchema : public UEdGraphSchema_K2
@@ -115,6 +116,9 @@ class UAnimationGraphSchema : public UEdGraphSchema_K2
 
 	/** Find a position for a newly created linked input pose */
 	ANIMGRAPH_API static FVector2D GetPositionForNewLinkedInputPoseNode(UEdGraph& InGraph);
+
+	/** Create a binding widget for the specified named pin on the specified anim graph nodes */
+	ANIMGRAPH_API static TSharedPtr<SWidget> MakeBindingWidgetForPin(const TArray<UAnimGraphNode_Base*>& InAnimGraphNodes, FName InPinName, bool bInOnGraphNode, TAttribute<bool> bInIsEnabled);
 };
 
 

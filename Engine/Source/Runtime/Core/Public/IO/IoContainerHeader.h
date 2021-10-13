@@ -53,17 +53,36 @@ struct FIoContainerHeaderPackageRedirect
 	CORE_API friend FArchive& operator<<(FArchive& Ar, FIoContainerHeaderPackageRedirect& PackageRedirect);
 };
 
-using FSourceToLocalizedPackageIdMap = TArray<FIoContainerHeaderPackageRedirect>;
-using FCulturePackageMap = TMap<FString, FSourceToLocalizedPackageIdMap>;
+struct FIoContainerHeaderLocalizedPackage
+{
+	FPackageId SourcePackageId;
+	FMappedName SourcePackageName;
+
+	CORE_API friend FArchive& operator<<(FArchive& Ar, FIoContainerHeaderLocalizedPackage& LocalizedPackage);
+};
+
+enum class EIoContainerHeaderVersion : uint32
+{
+	Initial = 0,
+	LocalizedPackages = 1,
+
+	LatestPlusOne,
+	Latest = LatestPlusOne - 1
+};
 
 struct FIoContainerHeader
 {
+	enum
+	{
+		Signature = 0x496f436e
+	};
+
 	FIoContainerId ContainerId;
 	uint32 PackageCount = 0;
 	TArray<FPackageId> PackageIds;
 	TArray<uint8> StoreEntries; //FPackageStoreEntry[PackageCount]
 	TArray<FNameEntryId> RedirectsNameMap;
-	FCulturePackageMap CulturePackageMap;
+	TArray<FIoContainerHeaderLocalizedPackage> LocalizedPackages;
 	TArray<FIoContainerHeaderPackageRedirect> PackageRedirects;
 
 	CORE_API friend FArchive& operator<<(FArchive& Ar, FIoContainerHeader& ContainerHeader);

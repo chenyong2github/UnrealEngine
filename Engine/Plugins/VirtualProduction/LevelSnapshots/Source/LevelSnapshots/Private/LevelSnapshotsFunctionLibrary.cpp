@@ -11,6 +11,31 @@
 #include "EngineUtils.h"
 #include "CustomSerialization/CustomObjectSerializationWrapper.h"
 
+ULevelSnapshot* ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot(const UObject* WorldContextObject, const FName NewSnapshotName, const FString Description)
+{
+	return TakeLevelSnapshot_Internal(WorldContextObject, NewSnapshotName, nullptr, Description);
+}
+
+ULevelSnapshot* ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot_Internal(const UObject* WorldContextObject, const FName NewSnapshotName, UPackage* InPackage, const FString Description)
+{
+	UWorld* TargetWorld = nullptr;
+	if (WorldContextObject)
+	{
+		TargetWorld = WorldContextObject->GetWorld();
+	}
+
+	if (!ensure(TargetWorld))
+	{
+		return nullptr;
+	}
+	
+	ULevelSnapshot* NewSnapshot = NewObject<ULevelSnapshot>(InPackage ? InPackage : GetTransientPackage(), NewSnapshotName, RF_NoFlags);
+	NewSnapshot->SetSnapshotName(NewSnapshotName);
+	NewSnapshot->SetSnapshotDescription(Description);
+	NewSnapshot->SnapshotWorld(TargetWorld);
+	return NewSnapshot;
+}
+
 namespace
 {
 	struct FPropertyMapBuilder
@@ -47,7 +72,8 @@ namespace
             }
         
             AActor* WorldActor = Cast<AActor>(ResolvedWorldActor);
-            if (ensureAlwaysMsgf(WorldActor, TEXT("A path that was previously associated with an actor no longer refers to an actor. Something is wrong.")))
+            if (ensureAlwaysMsgf(WorldActor, TEXT("A path that was previously associated with an actor no longer refers to an actor. Something is wrong."))
+				&& Snapshot->HasChangedSinceSnapshotWasTaken(WorldActor))
             {
             	TOptional<AActor*> DeserializedSnapshotActor = Snapshot->GetDeserializedActor(OriginalActorPath);
             	if (!ensureMsgf(DeserializedSnapshotActor.Get(nullptr), TEXT("Failed to get TMap value for key %s. Is the snapshot corrupted?"), *OriginalActorPath.ToString()))
@@ -56,11 +82,7 @@ namespace
             		UE_LOG(LogLevelSnapshots, Error, TEXT("Failed to lookup actor %s OriginalActorPath. The snapshot is corrupted."));
             		return;
             	}
-                    
-            	if (Snapshot->HasOriginalChangedPropertiesSinceSnapshotWasTaken(*DeserializedSnapshotActor, WorldActor))
-            	{
-            		ULevelSnapshotsFunctionLibrary::ApplyFilterToFindSelectedProperties(Snapshot, SelectionMap, WorldActor, DeserializedSnapshotActor.GetValue(), FilterToApply);
-            	}
+            	ULevelSnapshotsFunctionLibrary::ApplyFilterToFindSelectedProperties(Snapshot, SelectionMap, WorldActor, DeserializedSnapshotActor.GetValue(), FilterToApply);
             }
 		}
 		
@@ -90,31 +112,6 @@ namespace
 			}
 		}
 	};
-}
-
-ULevelSnapshot* ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot(const UObject* WorldContextObject, const FName NewSnapshotName, const FString Description)
-{
-	return TakeLevelSnapshot_Internal(WorldContextObject, NewSnapshotName, nullptr, Description);
-}
-
-ULevelSnapshot* ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot_Internal(const UObject* WorldContextObject, const FName NewSnapshotName, UPackage* InPackage, const FString Description)
-{
-	UWorld* TargetWorld = nullptr;
-	if (WorldContextObject)
-	{
-		TargetWorld = WorldContextObject->GetWorld();
-	}
-
-	if (!ensure(TargetWorld))
-	{
-		return nullptr;
-	}
-	
-	ULevelSnapshot* NewSnapshot = NewObject<ULevelSnapshot>(InPackage ? InPackage : GetTransientPackage(), NewSnapshotName, RF_NoFlags);
-	NewSnapshot->SetSnapshotName(NewSnapshotName);
-	NewSnapshot->SetSnapshotDescription(Description);
-	NewSnapshot->SnapshotWorld(TargetWorld);
-	return NewSnapshot;
 }
 
 void ULevelSnapshotsFunctionLibrary::ApplySnapshotToWorld(const UObject* WorldContextObject, ULevelSnapshot* Snapshot, ULevelSnapshotFilter* OptionalFilter)

@@ -241,7 +241,7 @@ void UDynamicMeshComponent::InvalidateAutoCalculatedTangents()
 
 const UE::Geometry::FMeshTangentsf* UDynamicMeshComponent::GetAutoCalculatedTangents() 
 { 
-	if (TangentsType == EDynamicMeshComponentTangentsMode::AutoCalculated)
+	if (TangentsType == EDynamicMeshComponentTangentsMode::AutoCalculated && GetDynamicMesh()->GetMeshRef().HasAttributes())
 	{
 		UpdateAutoCalculatedTangents();
 		return (bAutoCalculatedTangentsValid) ? &AutoCalculatedTangents : nullptr;

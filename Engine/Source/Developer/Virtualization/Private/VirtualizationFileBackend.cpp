@@ -11,33 +11,6 @@
 
 namespace UE::Virtualization
 {
-/**
- * Fill in the given string builder with the human readable message of the current system
- * code, followed by the code value itself. 
- * In the system value is currently 0, then we assume that it was cleared before this was 
- * able to be called and write that the error is unknown instead of assuming that the 
- * operation was a success.
- */
-void GetFormattedSystemError(FStringBuilderBase& SystemErrorMessage)
-{
-	SystemErrorMessage.Reset();
-
-	const uint32 SystemError = FPlatformMisc::GetLastError();
-	// If we have a system error we can give a more informative error message but don't output it if the error is zero as 
-	// this can lead to very confusing error messages.
-	if (SystemError != 0)
-	{
-		TCHAR SystemErrorMsg[MAX_SPRINTF] = { 0 };
-		FPlatformMisc::GetSystemErrorMessage(SystemErrorMsg, sizeof(SystemErrorMsg), SystemError);
-
-		SystemErrorMessage.Appendf(TEXT("'%s' (%d)"), SystemErrorMsg, SystemError);
-	}
-	else
-	{
-		SystemErrorMessage << TEXT("'unknown reason' (0)");
-	}
-}
-
 
 FFileSystemBackend::FFileSystemBackend(FStringView ConfigName)
 	: IVirtualizationBackend(EOperations::Both)
@@ -104,7 +77,7 @@ EPushResult FFileSystemBackend::PushData(const FPayloadId& Id, const FCompressed
 	if (FileAr == nullptr)
 	{
 		TStringBuilder<MAX_SPRINTF> SystemErrorMsg;
-		GetFormattedSystemError(SystemErrorMsg);
+		Utils::GetFormattedSystemError(SystemErrorMsg);
 
 		UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to write payload '%s' to '%s' due to system error: %s"), 
 			*GetDebugString(),
@@ -124,7 +97,7 @@ EPushResult FFileSystemBackend::PushData(const FPayloadId& Id, const FCompressed
 	if (!FileAr->Close())
 	{
 		TStringBuilder<MAX_SPRINTF> SystemErrorMsg;
-		GetFormattedSystemError(SystemErrorMsg);
+		Utils::GetFormattedSystemError(SystemErrorMsg);
 
 		UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to write payload '%s' contents to '%s' due to system error: %s"),
 			*GetDebugString(),
@@ -140,11 +113,12 @@ EPushResult FFileSystemBackend::PushData(const FPayloadId& Id, const FCompressed
 	TStringBuilder<512> FilePath;
 	CreateFilePath(Id, FilePath);
 
-	if (!IFileManager::Get().Move(FilePath.ToString(), *TempFilePath))
+	// If the file already exists we don't need to replace it, we will also do our own error logging.
+	if (!IFileManager::Get().Move(FilePath.ToString(), *TempFilePath, /*Replace*/ false, /*EvenIfReadOnly*/ false, /*Attributes*/ false, /*bDoNotRetryOrError*/ true))
 	{
 		// Store the error message in case we need to display it
 		TStringBuilder<MAX_SPRINTF> SystemErrorMsg;
-		GetFormattedSystemError(SystemErrorMsg);
+		Utils::GetFormattedSystemError(SystemErrorMsg);
 
 		IFileManager::Get().Delete(*TempFilePath, true, false, true); // Clean up the temp file if it is still around but do not failure cases to the user
 
@@ -189,7 +163,7 @@ FCompressedBuffer FFileSystemBackend::PullData(const FPayloadId& Id)
 	if (FileAr == nullptr)
 	{
 		TStringBuilder<MAX_SPRINTF> SystemErrorMsg;
-		GetFormattedSystemError(SystemErrorMsg);
+		Utils::GetFormattedSystemError(SystemErrorMsg);
 
 		UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to load payload '%s' from file '%s' due to system error: %s"),
 			*GetDebugString(),

@@ -55,10 +55,9 @@ struct FSavePackageArgs
 class FSavePackageContext
 {
 public:
-	FSavePackageContext(const ITargetPlatform* InTargetPlatform, IPackageWriter* InPackageWriter, bool InbForceLegacyOffsets)
+	FSavePackageContext(const ITargetPlatform* InTargetPlatform, IPackageWriter* InPackageWriter)
 	: TargetPlatform(InTargetPlatform)
 	, PackageWriter(InPackageWriter) 
-	, bForceLegacyOffsets(InbForceLegacyOffsets)
 	{
 		if (PackageWriter)
 		{
@@ -66,12 +65,20 @@ public:
 		}
 	}
 
+	UE_DEPRECATED(5.0, "bInForceLegacyOffsets is no longer supported; remove the variable from your constructor call")
+	FSavePackageContext(const ITargetPlatform* InTargetPlatform, IPackageWriter* InPackageWriter, bool InbForceLegacyOffsets)
+		: FSavePackageContext(InTargetPlatform, InPackageWriter)
+	{
+	}
+
 	COREUOBJECT_API ~FSavePackageContext();
 
 	const ITargetPlatform* const TargetPlatform;
 	IPackageWriter* const PackageWriter;
 	IPackageWriter::FCapabilities PackageWriterCapabilities;
-	const bool bForceLegacyOffsets;
+
+	UE_DEPRECATED(5.0, "bForceLegacyOffsets is no longer supported; remove uses of the variable")
+	const bool bForceLegacyOffsets = false;
 };
 
 namespace UE

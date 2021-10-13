@@ -69,8 +69,10 @@ void FDerivedDataStatusBarMenuCommands::RegisterCommands()
 
 void FDerivedDataStatusBarMenuCommands::ChangeSettings_Clicked()
 {
-	FDerivedDataEditorModule& DerivedDataEditorModule = FModuleManager::LoadModuleChecked<FDerivedDataEditorModule>("DerivedDataEditor");
-	DerivedDataEditorModule.ShowSettingsDialog();
+	FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Editor", "General", "Global");
+
+	//FDerivedDataEditorModule& DerivedDataEditorModule = FModuleManager::LoadModuleChecked<FDerivedDataEditorModule>("DerivedDataEditor");
+	//DerivedDataEditorModule.ShowSettingsDialog();
 }
 
 void FDerivedDataStatusBarMenuCommands::ViewCacheStatistics_Clicked()
@@ -89,7 +91,7 @@ TSharedRef<SWidget> SDerivedDataStatusBarWidget::CreateStatusBarMenu()
 {
 	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("StatusBar.ToolBar.DDC", NAME_None, EMultiBoxType::Menu, false);
 
-	/*{
+	{
 		FToolMenuSection& Section = Menu->AddSection("DDCMenuSettingsSection", LOCTEXT("DDCMenuSettingsSection", "Settings"));
 
 		Section.AddMenuEntry(
@@ -98,7 +100,7 @@ TSharedRef<SWidget> SDerivedDataStatusBarWidget::CreateStatusBarMenu()
 			TAttribute<FText>(),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "DerivedData.Cache.Settings")
 		);
-	}*/
+	}
 
 	{
 		FToolMenuSection& Section = Menu->AddSection("DDCMenuStatisticsSection", LOCTEXT("DDCMenuStatisticsSection", "Statistics"));
@@ -123,10 +125,6 @@ TSharedRef<SWidget> SDerivedDataStatusBarWidget::CreateStatusBarMenu()
 
 void SDerivedDataStatusBarWidget::Construct(const FArguments& InArgs)
 {	
-	BusyPulseSequence = FCurveSequence(0.f, 1.0f, ECurveEaseFunction::QuadInOut);
-	FadeGetSequence = FCurveSequence(0.f, 0.5f, ECurveEaseFunction::Linear);
-	FadePutSequence = FCurveSequence(0.f, 0.5f, ECurveEaseFunction::Linear);
-
 	this->ChildSlot
 	[
 		SNew(SComboButton)
@@ -170,17 +168,17 @@ void SDerivedDataStatusBarWidget::Construct(const FArguments& InArgs)
 				[
 					SNew(SImage)
 					.Image(FAppStyle::Get().GetBrush("DerivedData.RemoteCache.Uploading"))
-					.ColorAndOpacity_Lambda([this] { return FDerivedDataInformation::IsUploading() ? FLinearColor::White.CopyWithNewOpacity(0.5f + (0.5f * FMath::MakePulsatingValue(FadePutSequence.GetLerp(), 1))) : FLinearColor(0,0,0,0); })
+					.ColorAndOpacity_Lambda([this] { return ( FDerivedDataInformation::IsUploading() && FDerivedDataInformation::GetRemoteCacheState() == ERemoteCacheState::Busy )? FLinearColor::White.CopyWithNewOpacity(FMath::MakePulsatingValue(ElapsedUploadTime, 2)) : FLinearColor(0,0,0,0); })
 					.ToolTipText_Lambda([this] { return GetRemoteCacheToolTipText(); })
 				]
 
 				+ SOverlay::Slot()
 				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Bottom)
+				.VAlign(VAlign_Top)
 				[
 					SNew(SImage)
 					.Image(FAppStyle::Get().GetBrush("DerivedData.RemoteCache.Downloading"))
-					.ColorAndOpacity_Lambda([this] { return FDerivedDataInformation::IsDownloading() ? FLinearColor::White.CopyWithNewOpacity(0.5f + (0.5f * FMath::MakePulsatingValue(FadeGetSequence.GetLerp(), 1))) : FLinearColor(0, 0, 0, 0); })
+					.ColorAndOpacity_Lambda([this] { return ( FDerivedDataInformation::IsDownloading() && FDerivedDataInformation::GetRemoteCacheState()==ERemoteCacheState::Busy ) ? FLinearColor::White.CopyWithNewOpacity(FMath::MakePulsatingValue(ElapsedDownloadTime, 2)) : FLinearColor(0, 0, 0, 0); })
 					.ToolTipText_Lambda([this] { return GetRemoteCacheToolTipText(); })
 				]				
 			]
@@ -198,7 +196,7 @@ void SDerivedDataStatusBarWidget::Construct(const FArguments& InArgs)
 		.OnGetMenuContent(FOnGetContent::CreateRaw(this, &SDerivedDataStatusBarWidget::CreateStatusBarMenu))
 	];
 
-	RegisterActiveTimer(0.5f, FWidgetActiveTimerDelegate::CreateSP(this, &SDerivedDataStatusBarWidget::UpdateBusyIndicator));
+	RegisterActiveTimer(0.2f, FWidgetActiveTimerDelegate::CreateSP(this, &SDerivedDataStatusBarWidget::UpdateBusyIndicator));
 	RegisterActiveTimer(5.0f, FWidgetActiveTimerDelegate::CreateSP(this, &SDerivedDataStatusBarWidget::UpdateWarnings));
 }
 
@@ -208,20 +206,31 @@ EActiveTimerReturnType SDerivedDataStatusBarWidget::UpdateBusyIndicator(double I
 
 	bBusy = GetDerivedDataCache()->AnyAsyncRequestsRemaining();
 
-	FadeGetSequence.PlayRelative(this->AsShared(), FDerivedDataInformation::IsDownloading());
-	FadePutSequence.PlayRelative(this->AsShared(), FDerivedDataInformation::IsUploading());
-
-	if (bBusy)
+	if (FDerivedDataInformation::IsUploading())
 	{
-		if (!BusyPulseSequence.IsPlaying())
-		{
-			BusyPulseSequence.Play(this->AsShared(), true);
-		}
+		ElapsedUploadTime += fmod(InDeltaTime,3600.0);
 	}
 	else
 	{
-		BusyPulseSequence.JumpToEnd();
-		BusyPulseSequence.Pause();
+		ElapsedUploadTime = 0.0;
+	}
+
+	if (FDerivedDataInformation::IsDownloading())
+	{
+		ElapsedDownloadTime += fmod(InDeltaTime, 3600.0);
+	}
+	else
+	{
+		ElapsedDownloadTime = 0.0;
+	}
+
+	if (bBusy)
+	{
+		ElapsedBusyTime += fmod(InDeltaTime, 3600.0);
+	}
+	else
+	{
+		ElapsedBusyTime = 0;
 	}
 
 	return EActiveTimerReturnType::Continue;
@@ -229,72 +238,52 @@ EActiveTimerReturnType SDerivedDataStatusBarWidget::UpdateBusyIndicator(double I
 
 EActiveTimerReturnType SDerivedDataStatusBarWidget::UpdateWarnings(double InCurrentTime, float InDeltaTime)
 {
-	const UEditorSettings* Settings = GetDefault<UEditorSettings>();
-	const UDDCProjectSettings* DDCProjectSettings = GetDefault<UDDCProjectSettings>();
-
-	if (DDCProjectSettings->RecommendEveryoneSetupAGlobalLocalDDCPath && Settings->GlobalLocalDDCPath.Path.IsEmpty())
+	if ( FDerivedDataInformation::GetRemoteCacheState()== ERemoteCacheState::Warning )
 	{
-		TPromise<TWeakPtr<SNotificationItem>> NotificationPromise;
+		if ( NotificationItem.IsValid() == false || NotificationItem->GetCompletionState()== SNotificationItem::CS_None)
+		{
+			// No existing notification or the existing one has finished
+			TPromise<TWeakPtr<SNotificationItem>> NotificationPromise;
 
-		FNotificationInfo Info(LOCTEXT("SharedProjectLocalDDC", "This project recommends you setup the 'Global Local DDC Path', \nso that all copies of this project use the same local DDC cache."));
-		Info.bUseSuccessFailIcons = true;
-		Info.bFireAndForget = false;
-		Info.bUseThrobber = false;
-		Info.FadeOutDuration = 0.0f;
-		Info.ExpireDuration = 0.0f;
+			FNotificationInfo Info(FDerivedDataInformation::GetRemoteCacheWarningMessage());
+			Info.bUseSuccessFailIcons = true;
+			Info.bFireAndForget = false;
+			Info.bUseThrobber = false;
+			Info.FadeOutDuration = 0.0f;
+			Info.ExpireDuration = 0.0f;
 
-		Info.ButtonDetails.Add(FNotificationButtonInfo(LOCTEXT("UpdateSettings", "Update Settings"), FText(), FSimpleDelegate::CreateLambda([NotificationFuture = NotificationPromise.GetFuture().Share()]() {
-			FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Editor", "General", "Global");
+			Info.ButtonDetails.Add(FNotificationButtonInfo(LOCTEXT("UpdateSettings", "Update Settings"), FText(), FSimpleDelegate::CreateLambda([NotificationFuture = NotificationPromise.GetFuture().Share()]() {
+				FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Editor", "General", "Global");
 
-			TWeakPtr<SNotificationItem> NotificationPtr = NotificationFuture.Get();
-			if (TSharedPtr<SNotificationItem> Notification = NotificationPtr.Pin())
+				TWeakPtr<SNotificationItem> NotificationPtr = NotificationFuture.Get();
+				if (TSharedPtr<SNotificationItem> Notification = NotificationPtr.Pin())
+				{
+					Notification->SetCompletionState(SNotificationItem::CS_None);
+					Notification->ExpireAndFadeout();
+				}
+			}),
+				SNotificationItem::ECompletionState::CS_Fail));
+
+			NotificationItem = FSlateNotificationManager::Get().AddNotification(Info);
+
+			if (NotificationItem.IsValid())
 			{
-				Notification->SetCompletionState(SNotificationItem::CS_None);
-				Notification->ExpireAndFadeout();
+				NotificationPromise.SetValue(NotificationItem);
+				NotificationItem->SetCompletionState(SNotificationItem::CS_Fail);
 			}
-		}),
-		SNotificationItem::ECompletionState::CS_Fail));
-
-		TSharedPtr<SNotificationItem> NotificationItem = FSlateNotificationManager::Get().AddNotification(Info);
+		}
+	}
+	else
+	{
+		// No longer any warnings
 		if (NotificationItem.IsValid())
 		{
-			NotificationPromise.SetValue(NotificationItem);
-			NotificationItem->SetCompletionState(SNotificationItem::CS_Fail);
+			NotificationItem->SetCompletionState(SNotificationItem::CS_None);
+			NotificationItem->ExpireAndFadeout();
 		}
 	}
 
-	if (DDCProjectSettings->RecommendEveryoneSetupAGlobalS3DDCPath && (Settings->bEnableS3DDC && Settings->GlobalS3DDCPath.Path.IsEmpty()))
-	{
-		TPromise<TWeakPtr<SNotificationItem>> NotificationPromise;
-
-		FNotificationInfo Info(LOCTEXT("SharedProjectS3DDC", "This project recommends you setup the 'Global Local S3 DDC Path', \nso that all copies of this project use the same local S3 DDC cache."));
-		Info.bUseSuccessFailIcons = true;
-		Info.bFireAndForget = false;
-		Info.bUseThrobber = false;
-		Info.FadeOutDuration = 0.0f;
-		Info.ExpireDuration = 0.0f;
-
-		Info.ButtonDetails.Add(FNotificationButtonInfo(LOCTEXT("UpdateSettings", "Update Settings"), FText(), FSimpleDelegate::CreateLambda([NotificationFuture = NotificationPromise.GetFuture().Share()]() {
-			FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Editor", "General", "Global");
-
-			TWeakPtr<SNotificationItem> NotificationPtr = NotificationFuture.Get();
-			if (TSharedPtr<SNotificationItem> Notification = NotificationPtr.Pin())
-			{
-				Notification->SetCompletionState(SNotificationItem::CS_None);
-				Notification->ExpireAndFadeout();
-			}
-		}),
-		SNotificationItem::ECompletionState::CS_Fail));
-
-		TSharedPtr<SNotificationItem> NotificationItem = FSlateNotificationManager::Get().AddNotification(Info);
-		if (NotificationItem.IsValid())
-		{
-			NotificationPromise.SetValue(NotificationItem);
-			NotificationItem->SetCompletionState(SNotificationItem::CS_Fail);
-		}
-	}
-
-	return EActiveTimerReturnType::Stop;
+	return EActiveTimerReturnType::Continue;
 }
 
 FText SDerivedDataStatusBarWidget::GetTitleToolTipText() const
@@ -311,44 +300,18 @@ FText SDerivedDataStatusBarWidget::GetTitleText() const
 	return LOCTEXT("DerivedDataToolBarName", "Derived Data");
 }
 
-FText GetRemoteCacheStateAsText()
-{
-	switch ( FDerivedDataInformation::GetRemoteCacheState())
-	{
-		case ERemoteCacheState::Idle :
-		{
-			return FText::FromString(TEXT("Idle"));
-			break;
-		}
-
-		case ERemoteCacheState::Busy :
-		{
-			return FText::FromString(TEXT("Busy"));
-			break;
-		}	
-
-		case ERemoteCacheState::Unavailable:
-		{
-			return FText::FromString(TEXT("Unavailable"));
-			break;
-		}
-
-		default:
-		case ERemoteCacheState::Warning:
-		{
-			return FText::FromString(TEXT("Warning"));
-			break;
-		}
-	}
-}
-
 FText SDerivedDataStatusBarWidget::GetRemoteCacheToolTipText() const
 {
 	FTextBuilder DescBuilder;
 
+	if (FDerivedDataInformation::GetRemoteCacheState() == ERemoteCacheState::Warning)
+	{
+		DescBuilder.AppendLineFormat(LOCTEXT("RemoteCacheErrorText", "WARNING\t: {0}\n"), FDerivedDataInformation::GetRemoteCacheWarningMessage());
+	}
+
 	DescBuilder.AppendLine(LOCTEXT("RemoteCacheToolTipText", "Remote Cache\n"));
 	DescBuilder.AppendLineFormat(LOCTEXT("RemoteCacheConnectedText", "Connected\t: {0}"), FText::FromString((FDerivedDataInformation::GetHasRemoteCache() ? TEXT("Yes") : TEXT("No"))));
-	DescBuilder.AppendLineFormat(LOCTEXT("RemoteCacheStatusText", "Status\t: {0}"), GetRemoteCacheStateAsText() );
+	DescBuilder.AppendLineFormat(LOCTEXT("RemoteCacheStatusText", "Status\t: {0}"), FDerivedDataInformation::GetRemoteCacheStateAsText() );
 	
 	const double DownloadedBytesMB = FUnitConversion::Convert(FDerivedDataInformation::GetCacheActivitySizeBytes(true, false), EUnit::Bytes, EUnit::Megabytes);
 	const double UploadedBytesMB = FUnitConversion::Convert(FDerivedDataInformation::GetCacheActivitySizeBytes(false, false), EUnit::Bytes, EUnit::Megabytes);

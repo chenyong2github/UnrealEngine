@@ -602,8 +602,9 @@ bool FHierarchicalLODUtilities::BuildStaticMeshForLODActor(ALODActor* LODActor, 
 	{
 		struct FLODInstanceBatch
 		{
-			UStaticMesh*		StaticMesh;
-			TArray<FTransform>	Transforms;
+			UStaticMesh*					StaticMesh;
+			TArray<FTransform>				Transforms;
+			TArray<FCustomPrimitiveData>	CustomPrimitiveData;
 		};
 
 		// Get all meshes + transforms for all instances type (per material)
@@ -635,6 +636,7 @@ bool FHierarchicalLODUtilities::BuildStaticMeshForLODActor(ALODActor* LODActor, 
 			else
 			{
 				LODInstanceBatch.Transforms.Add(SMC->GetOwner()->GetActorTransform());
+				LODInstanceBatch.CustomPrimitiveData.Add(SMC->GetCustomPrimitiveData());
 			}
 
 			// The static mesh hasn't been created yet, do it.
@@ -647,7 +649,7 @@ bool FHierarchicalLODUtilities::BuildStaticMeshForLODActor(ALODActor* LODActor, 
 		// Add imposters to the LODActor
 		for (const auto& ImposterBatch : InstancesBatches)
 		{
-			LODActor->AddInstances(ImposterBatch.Value.StaticMesh, ImposterBatch.Key.Material, ImposterBatch.Value.Transforms);
+			LODActor->AddInstances(ImposterBatch.Value.StaticMesh, ImposterBatch.Key.Material, ImposterBatch.Value.Transforms, ImposterBatch.Value.CustomPrimitiveData);
 		}
 	}
 

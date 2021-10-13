@@ -23,6 +23,7 @@
 #include "Engine/Texture2DArray.h"
 #include "Engine/TextureCubeArray.h"
 #include "Engine/VolumeTexture.h"
+#include "TextureEncodingSettings.h"
 #include "Engine/TextureRenderTarget.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/TextureRenderTarget2DArray.h"
@@ -465,7 +466,18 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 		FormatText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_Format_NA", "Format: Computing..."));
 		NumMipsText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_NumMips_NA", "Number of Mips: Computing..."));
 		HasAlphaChannelText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_HasAlphaChannel_NA", "Has Alpha Channel: Computing..."));
+		EncodeSpeedText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_EncodeSpeed_NA", "Encode Speed: Computing..."));
 		return;
+	}
+
+	FTexturePlatformData** PlatformDataPtr = Texture->GetRunningPlatformData();
+	if (PlatformDataPtr)
+	{
+		EncodeSpeedText->SetText(
+			FText::Format(
+				FText::AsCultureInvariant(NSLOCTEXT("TextureEditor", "QuickInfo_EncodeSpeed_Fmt", "Encode Speed: {0}")), PlatformDataPtr[0]->UsedEncodeSpeed == (uint8)ETextureEncodeSpeed::Fast ? NSLOCTEXT("TextureEditor", "QuickInfo_EncodeSpeed_Fast", "Fast") : NSLOCTEXT("TextureEditor", "QuickInfo_EncodeSpeed_Final", "Final")
+				)
+			);
 	}
 
 	UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
@@ -937,6 +949,15 @@ void FTextureEditorToolkit::CreateInternalWidgets( )
 			[
 				SAssignNew(NumMipsText, STextBlock)
 			]
+
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.VAlign(VAlign_Center)
+			.Padding(4.0f)
+			[
+				SAssignNew(EncodeSpeedText, STextBlock)
+			]
+
 		]
 	]
 

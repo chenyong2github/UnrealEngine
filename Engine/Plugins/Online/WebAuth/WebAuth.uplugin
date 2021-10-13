@@ -15,13 +15,13 @@
 			"Name": "WebAuth",
 			"Type": "Runtime",
 			"LoadingPhase" : "Default",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"Win64",
 				"IOS",
 				"Android"
 			],
-			"BlacklistTargets": [ "Server" ]
+			"TargetDenyList": [ "Server" ]
 		}
 	]
 }

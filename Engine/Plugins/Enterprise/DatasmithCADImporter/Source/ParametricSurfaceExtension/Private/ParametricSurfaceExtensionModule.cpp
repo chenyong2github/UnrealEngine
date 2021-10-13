@@ -96,7 +96,7 @@ void FParametricSurfaceExtensionModule::StartupModule()
 	}
 }
 
-IMPLEMENT_MODULE(FParametricSurfaceExtensionModule, CoreTechExtension);
+IMPLEMENT_MODULE(FParametricSurfaceExtensionModule, ParametricSurfaceExtension);
 
 #undef LOCTEXT_NAMESPACE // "DatasmithCoreTechExtensionModule"
 

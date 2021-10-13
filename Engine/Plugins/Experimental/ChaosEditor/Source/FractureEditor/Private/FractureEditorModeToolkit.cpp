@@ -756,24 +756,24 @@ void FFractureEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToo
 	else if (PaletteIndex == TEXT("Select"))
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.SelectAll);
+		ToolbarBuilder.AddToolBarButton(Commands.SelectInvert);
 		ToolbarBuilder.AddToolBarButton(Commands.SelectNone);
-		ToolbarBuilder.AddToolBarButton(Commands.SelectNeighbors);
 		ToolbarBuilder.AddToolBarButton(Commands.SelectParent);
 		ToolbarBuilder.AddToolBarButton(Commands.SelectChildren);
 		ToolbarBuilder.AddToolBarButton(Commands.SelectSiblings);
 		ToolbarBuilder.AddToolBarButton(Commands.SelectAllInLevel);
-		ToolbarBuilder.AddToolBarButton(Commands.SelectInvert);
+		ToolbarBuilder.AddToolBarButton(Commands.SelectNeighbors);
 	}
 	else if (PaletteIndex == TEXT("Fracture"))
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.Uniform);
 		ToolbarBuilder.AddToolBarButton(Commands.Clustered);
 		ToolbarBuilder.AddToolBarButton(Commands.Radial);
-		ToolbarBuilder.AddToolBarButton(Commands.CustomVoronoi);
 		ToolbarBuilder.AddToolBarButton(Commands.Planar);
-		ToolbarBuilder.AddToolBarButton(Commands.Mesh);
 		ToolbarBuilder.AddToolBarButton(Commands.Slice);
 		ToolbarBuilder.AddToolBarButton(Commands.Brick);
+		ToolbarBuilder.AddToolBarButton(Commands.Mesh);
+		ToolbarBuilder.AddToolBarButton(Commands.CustomVoronoi);
 	}
 	else if (PaletteIndex == TEXT("Edit"))
 	{

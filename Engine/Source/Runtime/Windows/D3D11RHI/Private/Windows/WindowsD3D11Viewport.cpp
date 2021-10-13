@@ -121,11 +121,12 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 	bNeedSwapChain = !FParse::Param(FCommandLine::Get(), TEXT("RenderOffScreen"));
 	if (bNeedSwapChain)
 	{
-		// Create the swapchain.
-		if (InD3DRHI->IsQuadBufferStereoEnabled())
-		{
-			IDXGIFactory2* Factory2 = (IDXGIFactory2*)D3DRHI->GetFactory();
+		TRefCountPtr<IDXGIFactory2> Factory2;
+		const bool bSupportsFactory2 = SUCCEEDED(D3DRHI->GetFactory()->QueryInterface(__uuidof(IDXGIFactory2), (void**)Factory2.GetInitReference()));
 
+		// Create the swapchain.
+		if (InD3DRHI->IsQuadBufferStereoEnabled() && bSupportsFactory2)
+		{
 			BOOL stereoEnabled = Factory2->IsWindowedStereoEnabled();
 			if (stereoEnabled)
 			{
@@ -158,7 +159,7 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 		}
 
 		// Try and create a swapchain capable of being used on HDR monitors
-		if ((SwapChain == nullptr) && (InD3DRHI->bDXGISupportsHDR))
+		if ((SwapChain == nullptr) && InD3DRHI->bDXGISupportsHDR && bSupportsFactory2)
 		{
 			// Create the swapchain.
 			DXGI_SWAP_CHAIN_DESC1 SwapChainDesc;
@@ -181,8 +182,6 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 			SwapChainDesc.Scaling = GSwapScaling;
 
 			IDXGISwapChain1* SwapChain1 = nullptr;
-			IDXGIFactory2* Factory2 = (IDXGIFactory2*)D3DRHI->GetFactory();
-
 			HRESULT CreateSwapChainForHwndResult = Factory2->CreateSwapChainForHwnd(D3DRHI->GetDevice(), WindowHandle, &SwapChainDesc, &FSSwapChainDesc, nullptr, &SwapChain1);
 			if(SUCCEEDED(CreateSwapChainForHwndResult))
 			{

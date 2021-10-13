@@ -11,6 +11,8 @@
 
 #if WITH_EDITOR
 
+enum class ESoftObjectPathCollectType : uint8;
+
 class COREUOBJECT_API FRedirectCollector
 {
 private:
@@ -110,18 +112,46 @@ public:
 		return SoftObjectPathMap.Num() > 0;
 	}
 
+	/**
+	 * Removes and copies the value of the list of package dependencies of the given package that were
+	 * marked as excluded by FSoftObjectPathSerializationScopes during the load of the package.
+	 * This is only used on startup packages during the cook commandlet; for all other packages and
+	 * modes it will find an empty list and return false.
+	 * @param OutExcludedReferences Out set that is reset and then appended with any discovered values
+	 * @return Whether any references were found
+	 */
+	bool RemoveAndCopySoftObjectPathExclusions(FName PackageName, TSet<FName>& OutExcludedReferences);
+
+	/** Called from the cooker to stop the tracking of exclusions. */
+	void OnStartupPackageLoadComplete();
+
 private:
 
 	/** A map of assets referenced by soft object paths, with the key being the package with the reference */
 	typedef TSet<FSoftObjectPathProperty> FSoftObjectPathPropertySet;
 	typedef TMap<FName, FSoftObjectPathPropertySet> FSoftObjectPathMap;
+
+	/** Return whether SoftObjectPathExclusions are currently being tracked, based on commandline and cook phase. */
+	bool ShouldTrackPackageReferenceTypes();
+
+	/** The discovered references that should be followed during cook */
 	FSoftObjectPathMap SoftObjectPathMap;
+	/** The discovered references to packages and the collect type for whether they should be followed during cook. */
+	TMap<FName, TMap<FName, ESoftObjectPathCollectType>> PackageReferenceTypes;
 
 	/** When saving, apply this remapping to all soft object paths */
 	TMap<FName, FName> AssetPathRedirectionMap;
 
 	/** For SoftObjectPackageMap map */
 	FCriticalSection CriticalSection;
+
+	enum class ETrackingReferenceTypesState : uint8
+	{
+		Uninitialized,
+		Disabled,
+		Enabled,
+	};
+	ETrackingReferenceTypesState TrackingReferenceTypesState;
 };
 
 // global redirect collector callback structure

@@ -20,7 +20,7 @@
             "Name": "OnlineSubsystemApple",
             "Type": "Runtime",
             "LoadingPhase": "Default",
-            "WhitelistPlatforms" :
+            "PlatformAllowList" :
 			[
                 "Mac",
                 "IOS",

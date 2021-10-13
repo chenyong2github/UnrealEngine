@@ -20,7 +20,7 @@
 			"Name" : "LinuxDeviceProfileSelector",
 			"Type" : "RuntimeNoCommandlet",
 			"LoadingPhase" : "PostConfigInit",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"Linux",
 				"LinuxArm64"

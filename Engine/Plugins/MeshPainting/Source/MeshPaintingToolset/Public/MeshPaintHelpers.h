@@ -269,6 +269,8 @@ protected:
 	bool bSelectionHasMaterialValidForTexturePaint;
 
 private:
+	FName GetComponentActorName(const UMeshComponent* InComponent) const;
+
 	void CleanUp();
 
 private:

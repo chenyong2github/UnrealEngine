@@ -123,8 +123,8 @@ void UContextualAnimSceneAsset::GenerateAlignmentTracks(const FContextualAnimTra
 				const FTransform ScenePivotTransform = AlignmentSections[Idx].ScenePivots[AnimData.Index];
 				const FTransform RootRelativeToScenePivot = RootTransform.GetRelativeTransform(ScenePivotTransform);
 
-				SceneTrack.PosKeys.Add(RootRelativeToScenePivot.GetLocation());
-				SceneTrack.RotKeys.Add(RootRelativeToScenePivot.GetRotation());
+				SceneTrack.PosKeys.Add(FVector3f(RootRelativeToScenePivot.GetLocation()));
+				SceneTrack.RotKeys.Add(FQuat4f(RootRelativeToScenePivot.GetRotation()));
 			}
 		}
 	}
@@ -139,8 +139,8 @@ void UContextualAnimSceneAsset::GenerateAlignmentTracks(const FContextualAnimTra
 			const FTransform ScenePivotTransform = AlignmentSections[Idx].ScenePivots[AnimData.Index];
 			const FTransform RootRelativeToScenePivot = RootTransform.GetRelativeTransform(ScenePivotTransform);
 
-			SceneTrack.PosKeys.Add(RootRelativeToScenePivot.GetLocation());
-			SceneTrack.RotKeys.Add(RootRelativeToScenePivot.GetRotation());
+			SceneTrack.PosKeys.Add(FVector3f(RootRelativeToScenePivot.GetLocation()));
+			SceneTrack.RotKeys.Add(FQuat4f(RootRelativeToScenePivot.GetRotation()));
 		}
 	}
 }
@@ -311,8 +311,8 @@ void UContextualAnimSceneAsset::GenerateIKTargetTracks(const FContextualAnimTrac
 
 						// Add transform to the track
 						FRawAnimSequenceTrack& NewTrack = AnimData.IKTargetData.Tracks.AnimationTracks[Idx];
-						NewTrack.PosKeys.Add(BoneRelativeToOther.GetLocation());
-						NewTrack.RotKeys.Add(BoneRelativeToOther.GetRotation());
+						NewTrack.PosKeys.Add(FVector3f(BoneRelativeToOther.GetLocation()));
+						NewTrack.RotKeys.Add(FQuat4f(BoneRelativeToOther.GetRotation()));
 
 						UE_LOG(LogContextualAnim, Verbose, TEXT("\t\t Animation: %s Time: %f BoneName: %s (T: %s) Target Animation: %s TargetBoneName: %s (T: %s)"),
 							*GetNameSafe(Animation), Time, *BoneName.ToString(), *BoneTransform.GetLocation().ToString(),

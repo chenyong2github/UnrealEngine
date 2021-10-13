@@ -25,7 +25,7 @@
 			"Name" : "AppleImageUtilsBlueprintSupport",
 			"Type" : "UncookedOnly",
 			"LoadingPhase" : "Default",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"Win64",
 				"Mac",

@@ -674,6 +674,14 @@ void UAnimBlueprintGeneratedClass::GenerateAnimationBlueprintFunctions()
 
 void UAnimBlueprintGeneratedClass::InitializeAnimNodeData(UObject* DefaultObject, bool bForce)
 {
+#if WITH_EDITOR
+	// In editor, skip this work if properties and node data are mismatched. This will be rectified by compile-on-load
+	if (AnimNodeProperties.Num() != AnimNodeData.Num())
+	{
+		return;
+	}
+#endif
+
 	// Link functions to their nodes
 	for(int32 AnimNodeIndex = 0; AnimNodeIndex < AnimNodeProperties.Num(); ++AnimNodeIndex)
 	{
@@ -685,7 +693,7 @@ void UAnimBlueprintGeneratedClass::InitializeAnimNodeData(UObject* DefaultObject
 
 			// This function is called on child->parent hierarchies in postload. We dont want to overwrite child data
 			// with parent data so skip if the node data has already been set up by a previous call.	
-			if(bForce || Node->NodeData == nullptr || IAnimClassInterface::GetActualAnimClass(&Node->NodeData->GetAnimClassInterface()) != this)
+			if(bForce || Node->NodeData == nullptr || IAnimClassInterface::GetActualAnimClass(&Node->NodeData->GetAnimClassInterface()) != DefaultObject->GetClass())
 			{
 				Node->SetNodeData(AnimNodeData[AnimNodeIndex]);
 			}
@@ -698,6 +706,18 @@ void UAnimBlueprintGeneratedClass::LinkFunctionsToDefaultObjectNodes(UObject* De
 	PreUpdateNodeProperties.Empty();
 	DynamicResetNodeProperties.Empty();
 	InitializationNodeProperties.Empty();
+
+#if WITH_EDITORONLY_DATA
+	// If this class has not been generated against the current set of anim node data layouts, accessing anim node data
+	// (e.g. via RootNode->GetName()) could end up accessing incorrect data. To verify this we check the serialized layout
+	// that we are expecting to find here and do not use it if so.
+	// This is OK in editor due to compile-on-load rectifying the layout against the current set of anim node structs.
+	// If we continue past this point then we could potentially pollute any persistent FNodeDataIds with invalid indices.
+	if(!VerifyNodeDataLayout())
+	{
+		return;
+	}
+#endif
 
 	// Perform node init as a first pass as root nodes (needed for function names)
 	// may not be initialized in sparse class data before they need to be patched
@@ -731,7 +751,8 @@ void UAnimBlueprintGeneratedClass::LinkFunctionsToDefaultObjectNodes(UObject* De
 		if (StructProperty->Struct->IsChildOf(FAnimNode_Root::StaticStruct()))
 		{
 			FAnimNode_Root* RootNode = StructProperty->ContainerPtrToValuePtr<FAnimNode_Root>(DefaultObject);
-			if(FAnimBlueprintFunction* FoundFunction = AnimBlueprintFunctions.FindByPredicate([RootNode](const FAnimBlueprintFunction& InFunction){ return InFunction.Name == RootNode->GetName(); }))
+			const FName RootNodeName = RootNode->GetName();
+			if(FAnimBlueprintFunction* FoundFunction = AnimBlueprintFunctions.FindByPredicate([RootNodeName](const FAnimBlueprintFunction& InFunction){ return InFunction.Name == RootNodeName; }))
 			{
 				FoundFunction->Group = RootNode->GetGroup();
 				FoundFunction->OutputPoseNodeIndex = AnimNodeIndex;
@@ -927,3 +948,24 @@ FName UAnimBlueprintGeneratedClass::GetMutablesStructName()
 	static const FName Name(TEXT("AnimBlueprintGeneratedMutableData"));
 	return Name;
 }
+
+#if WITH_EDITORONLY_DATA
+bool UAnimBlueprintGeneratedClass::VerifyNodeDataLayout()
+{
+	// Run though the type map and check against the currently-compiled set of structs
+	for(const auto& NodeTypePair : NodeTypeMap)
+	{
+		FAnimNodeStructData CurrentData(NodeTypePair.Key);
+		const FAnimNodeStructData& CompiledInData = NodeTypePair.Value;
+
+		if(!CurrentData.DoesLayoutMatch(CompiledInData))
+		{
+			bDataLayoutValid = false;
+			return false;
+		}
+	}
+
+	bDataLayoutValid = true;
+	return true;
+}
+#endif

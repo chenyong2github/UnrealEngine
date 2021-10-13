@@ -2,14 +2,16 @@
 
 #include "LevelSnapshotsEditorStyle.h"
 
-#include "Brushes/SlateImageBrush.h"
 #include "Brushes/SlateBoxBrush.h"
 #include "Brushes/SlateBorderBrush.h"
+#include "Brushes/SlateImageBrush.h"
+#include "Brushes/SlateRoundedBoxBrush.h"
 #include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IPluginManager.h"
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Styling/StyleColors.h"
 
 TSharedPtr<FSlateStyleSet> FLevelSnapshotsEditorStyle::StyleInstance = nullptr;
 
@@ -72,7 +74,7 @@ TSharedRef< FSlateStyleSet > FLevelSnapshotsEditorStyle::Create()
 	Style->Set("LevelSnapshots.ToolbarButton.Small", new IMAGE_BRUSH("Icons/Icon20", Icon20x20));
 
 	// Brush
-	Style->Set("LevelSnapshotsEditor.GroupBorder", new BOX_BRUSH("Common/DarkGroupBorder", FMargin(4.0f / 16.0f)));
+	Style->Set("LevelSnapshotsEditor.GroupBorder", new FSlateRoundedBoxBrush(FStyleColors::Secondary, 4.0f));
 	Style->Set("LevelSnapshotsEditor.BrightBorder", new FSlateColorBrush(FColor(112, 112, 112, 100)));
 	Style->Set("LevelSnapshotsEditor.FilterSelected", new BOX_BRUSH("Common/Filter_Selected", FMargin(18.0f / 64.0f)));
 

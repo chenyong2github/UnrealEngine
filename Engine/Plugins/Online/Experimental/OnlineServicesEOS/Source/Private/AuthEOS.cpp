@@ -131,7 +131,7 @@ bool LexFromString(EOS_ELoginCredentialType& OutEnum, const TCHAR* const InStrin
 
 TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
 {
-	TOnlineAsyncOp<FAuthLogin>& Op = Services.OpCache.GetOp<FAuthLogin>(MoveTemp(Params));
+	TOnlineAsyncOp<FAuthLogin>& Op = GetOp<FAuthLogin>(MoveTemp(Params));
 
 	EOS_Auth_LoginOptions LoginOptions = { };
 	LoginOptions.ApiVersion = EOS_AUTH_LOGIN_API_LATEST;
@@ -247,7 +247,7 @@ TOnlineAsyncOpHandle<FAuthLogout> FAuthEOS::Logout(FAuthLogout::Params&& Params)
 {
 	FAccountId ParamLocalUserId = Params.LocalUserId;
 	TOptional<EOS_EpicAccountId> AccountId = EOSAccountIdFromOnlineServiceAccountId(ParamLocalUserId);
-	TOnlineAsyncOp<FAuthLogout>& Op = Services.OpCache.GetOp<FAuthLogout>(MoveTemp(Params));
+	TOnlineAsyncOp<FAuthLogout>& Op = GetOp<FAuthLogout>(MoveTemp(Params));
 	if (AccountId.IsSet() && AccountInfos.Contains(ParamLocalUserId))
 	{
 		// Should we destroy persistent auth first?

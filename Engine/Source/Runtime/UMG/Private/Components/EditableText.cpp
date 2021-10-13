@@ -198,6 +198,11 @@ void UEditableText::SetClearKeyboardFocusOnCommit(bool bInClearKeyboardFocusOnCo
 	MyEditableText->SetClearKeyboardFocusOnCommit(ClearKeyboardFocusOnCommit);
 }
 
+void UEditableText::SetKeyboardType(EVirtualKeyboardType::Type Type)
+{
+	KeyboardType = Type;
+}
+
 void UEditableText::HandleOnTextChanged(const FText& InText)
 {
 	OnTextChanged.Broadcast(InText);

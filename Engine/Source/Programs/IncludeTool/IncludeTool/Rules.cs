@@ -11,6 +11,17 @@ using System.Threading.Tasks;
 namespace IncludeTool
 {
 	/// <summary>
+	/// Class which can modify the rules object at runtime
+	/// </summary>
+	abstract class RulesMutator
+	{
+		/// <summary>
+		/// Allows a platform specific hook to modify the rules class
+		/// </summary>
+		public abstract void Run();
+	}
+
+	/// <summary>
 	/// Contains callback functions to disambiguate and provide metadata for files in this branch
 	/// </summary>
 	static class Rules
@@ -142,13 +153,11 @@ namespace IncludeTool
 			"iphlpapi.h",
 			"Iphlpapi.h",
 			"IcmpAPI.h",
+			"EtwPlus.h",
 			
 			// Mac
 			"AUEffectBase.h",
 			"Security/Security.h",
-
-			// XboxOne
-			"EtwPlus.h",
 
 			// Vorbis
 			"vorbis_stream_encoder.h",
@@ -234,15 +243,8 @@ namespace IncludeTool
 		/// </summary>
 		static string[,] IgnoreIncludePatterns = new string[,]
 		{
-			{ "/engine/source/runtime/xboxone/xboxoned3d11rhi/", "/engine/source/runtime/windows/d3d11rhi/" },
-			{ "/engine/plugins/runtime/oculusrift/", "/engine/source/runtime/xboxone/" },
-			{ "/engine/source/developer/windows/shaderformatd3d/", "/engine/source/runtime/xboxone/" },
-			{ "/engine/source/developer/xboxone/xboxoneshaderformat/", "/engine/source/runtime/windows/" },
 			{ "/portal/source/layers/", "/engine/source/editor/unrealed/" },
 			{ "/portal/source/layers/", "/engine/source/runtime/online/icmp/" },
-			{ "/engine/source/runtime/xboxone/xboxoned3d12rhi/", "/engine/source/runtime/windows/d3d12rhi/" },
-			{ "/engine/source/runtime/windows/d3d12rhi/", "/engine/source/runtime/xboxone/xboxoned3d12rhi/" },
-			{ "/engine/source/runtime/windows/d3d11rhi/", "/engine/source/runtime/xboxone/xboxoned3d11rhi/" },
 			{ "/engine/source/programs/unreallightmass/", "/engine/source/runtime/engine/" },
 		};
 
@@ -342,9 +344,6 @@ namespace IncludeTool
 			"/Engine/Source/Developer/Android/AndroidTargetPlatform/Private/AndroidTargetPlatform.h",
 
 			// Platform specific
-			"/Engine/Source/Runtime/Slate/Public/Framework/Text/IOS/IOSPlatformTextField.h",
-			"/Engine/Source/Runtime/Slate/Public/Framework/Text/Android/AndroidPlatformTextField.h",
-			"/Engine/Source/Runtime/Slate/Public/Framework/Text/PS4/PS4PlatformTextField.h",
 			"/Engine/Source/Runtime/Slate/Public/Framework/Text/GenericPlatformTextField.h",
 
 			// Base definitions for OpenGL3/4

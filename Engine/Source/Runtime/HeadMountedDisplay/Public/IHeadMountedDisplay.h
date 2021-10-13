@@ -75,6 +75,7 @@ public:
 		int		DesktopX, DesktopY;
 		int		ResolutionX, ResolutionY;
 		int		WindowSizeX, WindowSizeY;
+		bool	bShouldTestResolution;
 
 		MonitorInfo() : MonitorId(0)
 			, DesktopX(0)
@@ -83,6 +84,7 @@ public:
 			, ResolutionY(0)
 			, WindowSizeX(0)
 			, WindowSizeY(0)
+			, bShouldTestResolution(false)
 		{
 		}
 

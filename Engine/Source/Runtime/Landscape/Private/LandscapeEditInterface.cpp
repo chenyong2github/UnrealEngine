@@ -2533,13 +2533,13 @@ bool DeleteLayerIfAllZero(ULandscapeComponent* const Component, const uint8* con
 }
 
 
-inline bool FLandscapeEditDataInterface::IsWhitelisted(const ULandscapeLayerInfoObject* const LayerInfo, const int32 ComponentIndexX, const int32 SubIndexX, const int32 SubX, const int32 ComponentIndexY, const int32 SubIndexY, const int32 SubY)
+inline bool FLandscapeEditDataInterface::IsLayerAllowed(const ULandscapeLayerInfoObject* const LayerInfo, const int32 ComponentIndexX, const int32 SubIndexX, const int32 SubX, const int32 ComponentIndexY, const int32 SubIndexY, const int32 SubY)
 {
 	// left / right
 	if (SubIndexX == 0 && SubX == 0)
 	{
 		ULandscapeComponent* EdgeComponent = LandscapeInfo->XYtoComponentMap.FindRef(FIntPoint(ComponentIndexX - 1, ComponentIndexY));
-		if (EdgeComponent && !EdgeComponent->LayerWhitelist.Contains(LayerInfo))
+		if (EdgeComponent && !EdgeComponent->LayerAllowList.Contains(LayerInfo))
 		{
 			return false;
 		}
@@ -2547,7 +2547,7 @@ inline bool FLandscapeEditDataInterface::IsWhitelisted(const ULandscapeLayerInfo
 	else if (SubIndexX == ComponentNumSubsections - 1 && SubX == SubsectionSizeQuads)
 	{
 		ULandscapeComponent* EdgeComponent = LandscapeInfo->XYtoComponentMap.FindRef(FIntPoint(ComponentIndexX + 1, ComponentIndexY));
-		if (EdgeComponent && !EdgeComponent->LayerWhitelist.Contains(LayerInfo))
+		if (EdgeComponent && !EdgeComponent->LayerAllowList.Contains(LayerInfo))
 		{
 			return false;
 		}
@@ -2557,7 +2557,7 @@ inline bool FLandscapeEditDataInterface::IsWhitelisted(const ULandscapeLayerInfo
 	if (SubIndexY == 0 && SubY == 0)
 	{
 		ULandscapeComponent* EdgeComponent = LandscapeInfo->XYtoComponentMap.FindRef(FIntPoint(ComponentIndexX, ComponentIndexY - 1));
-		if (EdgeComponent && !EdgeComponent->LayerWhitelist.Contains(LayerInfo))
+		if (EdgeComponent && !EdgeComponent->LayerAllowList.Contains(LayerInfo))
 		{
 			return false;
 		}
@@ -2565,7 +2565,7 @@ inline bool FLandscapeEditDataInterface::IsWhitelisted(const ULandscapeLayerInfo
 	else if (SubIndexY == ComponentNumSubsections - 1 && SubY == SubsectionSizeQuads)
 	{
 		ULandscapeComponent* EdgeComponent = LandscapeInfo->XYtoComponentMap.FindRef(FIntPoint(ComponentIndexX, ComponentIndexY + 1));
-		if (EdgeComponent && !EdgeComponent->LayerWhitelist.Contains(LayerInfo))
+		if (EdgeComponent && !EdgeComponent->LayerAllowList.Contains(LayerInfo))
 		{
 			return false;
 		}
@@ -2575,7 +2575,7 @@ inline bool FLandscapeEditDataInterface::IsWhitelisted(const ULandscapeLayerInfo
 	if (SubIndexY == 0 && SubY == 0 && SubIndexX == 0 && SubX == 0)
 	{
 		ULandscapeComponent* CornerComponent = LandscapeInfo->XYtoComponentMap.FindRef(FIntPoint(ComponentIndexX - 1, ComponentIndexY - 1));
-		if (CornerComponent && !CornerComponent->LayerWhitelist.Contains(LayerInfo))
+		if (CornerComponent && !CornerComponent->LayerAllowList.Contains(LayerInfo))
 		{
 			return false;
 		}
@@ -2583,7 +2583,7 @@ inline bool FLandscapeEditDataInterface::IsWhitelisted(const ULandscapeLayerInfo
 	else if (SubIndexY == 0 && SubY == 0 && SubIndexX == ComponentNumSubsections - 1 && SubX == SubsectionSizeQuads)
 	{
 		ULandscapeComponent* CornerComponent = LandscapeInfo->XYtoComponentMap.FindRef(FIntPoint(ComponentIndexX + 1, ComponentIndexY - 1));
-		if (CornerComponent && !CornerComponent->LayerWhitelist.Contains(LayerInfo))
+		if (CornerComponent && !CornerComponent->LayerAllowList.Contains(LayerInfo))
 		{
 			return false;
 		}
@@ -2591,7 +2591,7 @@ inline bool FLandscapeEditDataInterface::IsWhitelisted(const ULandscapeLayerInfo
 	else if (SubIndexY == ComponentNumSubsections - 1 && SubY == SubsectionSizeQuads && SubIndexX == 0 && SubX == 0)
 	{
 		ULandscapeComponent* CornerComponent = LandscapeInfo->XYtoComponentMap.FindRef(FIntPoint(ComponentIndexX - 1, ComponentIndexY + 1));
-		if (CornerComponent && !CornerComponent->LayerWhitelist.Contains(LayerInfo))
+		if (CornerComponent && !CornerComponent->LayerAllowList.Contains(LayerInfo))
 		{
 			return false;
 		}
@@ -2599,7 +2599,7 @@ inline bool FLandscapeEditDataInterface::IsWhitelisted(const ULandscapeLayerInfo
 	else if (SubIndexY == ComponentNumSubsections - 1 && SubY == SubsectionSizeQuads && SubIndexX == ComponentNumSubsections - 1 && SubX == SubsectionSizeQuads)
 	{
 		ULandscapeComponent* CornerComponent = LandscapeInfo->XYtoComponentMap.FindRef(FIntPoint(ComponentIndexX + 1, ComponentIndexY + 1));
-		if (CornerComponent && !CornerComponent->LayerWhitelist.Contains(LayerInfo))
+		if (CornerComponent && !CornerComponent->LayerAllowList.Contains(LayerInfo))
 		{
 			return false;
 		}
@@ -2809,7 +2809,7 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 				continue;
 			}
 
-			if (PaintingRestriction == ELandscapeLayerPaintingRestriction::UseComponentWhitelist && !Component->LayerWhitelist.Contains(LayerInfo))
+			if (PaintingRestriction == ELandscapeLayerPaintingRestriction::UseComponentAllowList && !Component->LayerAllowList.Contains(LayerInfo))
 			{
 				continue;
 			}
@@ -2982,10 +2982,10 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 								continue;
 							}
 
-							if (PaintingRestriction == ELandscapeLayerPaintingRestriction::UseComponentWhitelist && NewWeight != 0)
+							if (PaintingRestriction == ELandscapeLayerPaintingRestriction::UseComponentAllowList && NewWeight != 0)
 							{
-								bool bWhitelisted = IsWhitelisted(LayerInfo, ComponentIndexX, SubIndexX, SubX, ComponentIndexY, SubIndexY, SubY);
-								if (!bWhitelisted)
+								bool bIsAllowed = IsLayerAllowed(LayerInfo, ComponentIndexX, SubIndexX, SubX, ComponentIndexY, SubIndexY, SubY);
+								if (!bIsAllowed)
 								{
 									NewWeight = 0;
 								}

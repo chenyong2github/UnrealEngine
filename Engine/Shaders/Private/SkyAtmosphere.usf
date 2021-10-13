@@ -105,6 +105,10 @@ Texture2D<float>	VolumetricCloudDepthTexture;
 Texture2D<float4>	InputCloudLuminanceTransmittanceTexture;
 #endif
 
+#if MSAA_SAMPLE_COUNT > 1
+Texture2DMS<float, MSAA_SAMPLE_COUNT> MSAADepthTexture;
+#endif
+
 
 // View data is not available for passes running once per scene (and not once per view).
 #define VIEWDATA_AVAILABLE (TRANSMITTANCE_PASS!=1 && MULTISCATT_PASS!=1 && SKYLIGHT_PASS!=1)
@@ -841,6 +845,9 @@ void RenderSkyAtmosphereRayMarchingPS(
 #if COLORED_TRANSMITTANCE_ENABLED
 	, float4 Transmittance : SV_TARGET1;	// For dual source blending when available
 #endif
+#if MSAA_SAMPLE_COUNT > 1
+	, in uint SampleIndex : SV_SampleIndex
+#endif
 )
 {
 	OutLuminance = 0;
@@ -878,10 +885,16 @@ void RenderSkyAtmosphereRayMarchingPS(
 	float DeviceZ = CloudDepthKm; // Warning: for simplicity, we use DeviceZ as world distance in kilometer when SAMPLE_ATMOSPHERE_ON_CLOUDS. See special case in IntegrateSingleScatteredLuminance.
 
 #else // SAMPLE_ATMOSPHERE_ON_CLOUDS
-	// Get the light disk luminance to draw 
+
+#if  MSAA_SAMPLE_COUNT > 1
+	float DeviceZ = DepthReadDisabled ? FarDepthValue : MSAADepthTexture.Load(int2(PixPos), SampleIndex).x;
+#else
 	float DeviceZ = DepthReadDisabled ? FarDepthValue : LookupDeviceZ(UvBuffer);
+#endif
+
 	if (DeviceZ == FarDepthValue)
 	{
+		// Get the light disk luminance to draw 
 		LuminanceScale = SkyAtmosphere.SkyLuminanceFactor;
 #if SOURCE_DISK_ENABLED
 		if (SourceDiskEnabled > 0)

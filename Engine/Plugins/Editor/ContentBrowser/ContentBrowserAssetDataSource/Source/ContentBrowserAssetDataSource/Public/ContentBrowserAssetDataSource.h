@@ -6,7 +6,7 @@
 #include "ContentBrowserDataSource.h"
 #include "IAssetRegistry.h"
 #include "UObject/GCObject.h"
-#include "Misc/BlacklistNames.h"
+#include "Misc/NamePermissionList.h"
 #include "ContentBrowserDataMenuContexts.h"
 #include "ContentBrowserAssetDataPayload.h"
 #include "Input/Reply.h"
@@ -33,9 +33,9 @@ public:
 	// On-demand filtering (always recursive on PathToScanOnDemand)
 	bool bRecursivePackagePathsToInclude = false;
 	bool bRecursivePackagePathsToExclude = false;
-	FBlacklistPaths PackagePathsToInclude;
-	FBlacklistPaths PackagePathsToExclude;
-	FBlacklistPaths PathBlacklist;
+	FPathPermissionList PackagePathsToInclude;
+	FPathPermissionList PackagePathsToExclude;
+	FPathPermissionList PathPermissionList;
 	TSet<FName> ExcludedPackagePaths;
 	EContentBrowserItemAttributeFilter ItemAttributeFilter = EContentBrowserItemAttributeFilter::IncludeAll;
 	FString VirtualPathToScanOnDemand;
@@ -77,8 +77,8 @@ public:
 		const FContentBrowserDataClassFilter* ClassFilter = nullptr;
 		const FContentBrowserDataCollectionFilter* CollectionFilter = nullptr;
 
-		const FBlacklistPaths* PathBlacklist = nullptr;
-		const FBlacklistNames* ClassBlacklist = nullptr;
+		const FPathPermissionList* PathPermissionList = nullptr;
+		const FNamePermissionList* ClassPermissionList = nullptr;
 
 		FContentBrowserDataFilterList* FilterList = nullptr;
 		FContentBrowserCompiledAssetDataFilter* AssetDataFilter = nullptr;

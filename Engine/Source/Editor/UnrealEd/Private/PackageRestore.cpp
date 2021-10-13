@@ -23,6 +23,7 @@
 #include "Misc/MessageDialog.h"
 #include "PackageTools.h"
 #include "AutoSaveUtils.h"
+#include "SWarningOrErrorBox.h"
 
 #define LOCTEXT_NAMESPACE "PackageRestore"
 
@@ -134,6 +135,145 @@ namespace PackageRestore
 
 	typedef TSharedPtr<FPackageRestoreItem> FPackageRestoreItemPtr;
 	typedef TArray<FPackageRestoreItemPtr> FPackageRestoreItems;
+	const FName ColumnID_CheckBoxLabel("PackageCheckboxLabel");
+	const FName ColumnID_PackageLabel("PackageNameLabel");
+	const FName ColumnID_FileLabel("PackageFileLabel");
+	const FName ColumnID_SaveLabel("PackageAutosaveLabel");
+
+	/** Widget that represents a row in the PackageRestoreDialog's list view.  Generates widgets for each column on demand. */
+	class SPackageRestoreItemsListRow
+		: public SMultiColumnTableRow< FPackageRestoreItemPtr >
+	{
+
+	public:
+
+		SLATE_BEGIN_ARGS(SPackageRestoreItemsListRow) {}
+
+		/** The list item for this row */
+		SLATE_ARGUMENT(FPackageRestoreItemPtr, Item)
+
+		SLATE_END_ARGS()
+
+		/** Construct function for this widget */
+		void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
+		{
+			Item = InArgs._Item;
+
+			SMultiColumnTableRow< FPackageRestoreItemPtr >::Construct(
+				FSuperRowType::FArguments()
+				, InOwnerTableView);
+		}
+
+		/** Overridden from SMultiColumnTableRow.  Generates a widget for this column of the list row. */
+		virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override
+		{
+			check(Item.IsValid());
+
+			const FSlateBrush* FolderOpenBrush = FAppStyle::Get().GetBrush("PackageRestore.FolderOpen");
+			TSharedPtr<SWidget> ItemContentWidget;;
+
+			if (ColumnName == ColumnID_CheckBoxLabel)
+			{
+				ItemContentWidget = SNew(SHorizontalBox)
+					.ToolTipText(Item->GetToolTip())
+					+ SHorizontalBox::Slot()
+					.Padding(7, 4, 2, 0)
+					[
+						SNew(SCheckBox)
+						.IsChecked(Item.Get(), &FPackageRestoreItem::GetState)
+						.OnCheckStateChanged(Item.Get(), &FPackageRestoreItem::SetState)
+					];
+					
+			}
+			else if (ColumnName == ColumnID_PackageLabel)
+			{
+				ItemContentWidget = SNew(SHorizontalBox)
+					.ToolTipText(Item->GetToolTip())
+					+ SHorizontalBox::Slot()
+					.Padding(FMargin(2, 0, 4, 0))
+					.AutoWidth()
+					[
+						SNew(SImage)
+						.Image(FAppStyle::Get().GetBrush("Icons.WarningWithColor"))
+						.DesiredSizeOverride(FVector2D(16, 16))
+						.ToolTipText(LOCTEXT("OverwritingMoreRecentPackageFile", "The auto-saved file is older than the file it restores. You could lose work if the file was updated or modified after the crash but before the Editor was restarted."))
+						.Visibility(Item.Get(), &FPackageRestoreItem::GetRestoreOverMoreRecentPackageWarningVisibility)
+					]
+					+ SHorizontalBox::Slot()
+					.Padding(FMargin(6, 4, 20, 0))
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Left)
+					.FillWidth(1)
+					[
+						SNew(STextBlock)
+						.Text(FText::FromString(Item->GetPackageName()))
+					];
+			}
+			else if (ColumnName == ColumnID_FileLabel)
+			{
+				ItemContentWidget = SNew(SHorizontalBox)
+					.ToolTipText(Item->GetToolTip())
+					+ SHorizontalBox::Slot()
+					.Padding(FMargin(4, 4, 0, 0))
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Left)
+					.FillWidth(1)
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.FillWidth(1)
+						[
+							SNew(STextBlock)
+							.Text(FText::FromString(Item->GetPackageFilename()))
+						]
+						+ SHorizontalBox::Slot()
+						.Padding(FMargin(11, 0, 20, 0))
+						.AutoWidth()
+						[
+							SNew(SImage)
+							.Image(FolderOpenBrush)
+							.OnMouseButtonDown(Item.Get(), &FPackageRestoreItem::OnExploreToPackage)
+							.ColorAndOpacity(FSlateColor::UseForeground())
+						]
+					];
+			}
+			else if (ColumnName == ColumnID_SaveLabel)
+			{
+				ItemContentWidget = SNew(SHorizontalBox)
+					.ToolTipText(Item->GetToolTip())
+					+ SHorizontalBox::Slot()
+					.Padding(FMargin(4, 4, 0, 0))
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Left)
+					.FillWidth(1)
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.FillWidth(1)
+						[
+							SNew(STextBlock)
+							.Text(FText::FromString(Item->GetAutoSaveFilename()))
+						]
+						+ SHorizontalBox::Slot()
+						.Padding(FMargin(11, 0, 40, 0))
+						.AutoWidth()
+						[
+							SNew(SImage)
+							.Image(FolderOpenBrush)
+							.OnMouseButtonDown(Item.Get(), &FPackageRestoreItem::OnExploreToAutoSave)
+							.ColorAndOpacity(FSlateColor::UseForeground())
+						]
+					];
+			}
+			
+			return ItemContentWidget.ToSharedRef();
+		}
+
+	private:
+
+		/** The item associated with this row of data */
+		FPackageRestoreItemPtr Item;
+	};
 
 	/** Dialog for letting the user choose which packages they want to restore */
 	class SPackageRestoreDialog : public SCompoundWidget
@@ -142,11 +282,11 @@ namespace PackageRestore
 		SLATE_BEGIN_ARGS(SPackageRestoreDialog)
 			{}
 
-			/** Information about which packages to offer restoration for */
-			SLATE_ATTRIBUTE(FPackageRestoreItems*, PackageRestoreItems)
+		/** Information about which packages to offer restoration for */
+		SLATE_ATTRIBUTE(FPackageRestoreItems*, PackageRestoreItems)
 
 		SLATE_END_ARGS()
-
+		
 		/**
 		 * Construct this widget
 		 *
@@ -157,83 +297,65 @@ namespace PackageRestore
 			PackageRestoreItems = InArgs._PackageRestoreItems.Get();
 			ReturnCode = false;
 
+			TSharedRef< SHeaderRow > HeaderRowWidget = SNew(SHeaderRow);
+
+			HeaderRowWidget->AddColumn(
+				SHeaderRow::Column(ColumnID_CheckBoxLabel)
+				[
+					SNew(SCheckBox)
+					.IsChecked(this, &SPackageRestoreDialog::GetToggleSelectedState)
+					.OnCheckStateChanged(this, &SPackageRestoreDialog::OnToggleSelectedCheckBox)
+				]
+				.FixedWidth(34.f)
+				.HAlignHeader(HAlign_Center)
+				);
+
+			HeaderRowWidget->AddColumn(
+				SHeaderRow::Column(ColumnID_PackageLabel)
+				.DefaultLabel(LOCTEXT("PackageName", "Package Name"))
+				.HeaderContentPadding(FMargin(8, 0, 0, 0))
+			);
+
+			HeaderRowWidget->AddColumn(
+				SHeaderRow::Column(ColumnID_FileLabel)
+				.DefaultLabel(LOCTEXT("PackageFile", "Package File"))
+				.HeaderContentPadding(FMargin(8, 0, 0, 0))
+			);
+
+			HeaderRowWidget->AddColumn(
+				SHeaderRow::Column(ColumnID_SaveLabel)
+				.DefaultLabel(LOCTEXT("AutoSaveFile", "Autosave File"))
+				.HeaderContentPadding(FMargin(8, 0, 0, 0))
+			);
+
+
 			this->ChildSlot
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 				[
 					SNew(SVerticalBox)
 					+SVerticalBox::Slot()
-					.Padding(10)
+					.Padding(9, 13, 7, 16)
 					.AutoHeight()
 					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("RestoreInfo", "Unreal Editor detected that it did not shut-down cleanly and that the following packages have auto-saves associated with them.\nWould you like to restore from these auto-saves?"))
-						.AutoWrapText(true)
+						SNew(SWarningOrErrorBox)
+						.MessageStyle(EMessageStyle::Warning)
+						.Message(LOCTEXT("RestoreInfo", "Unreal Editor detected that it did not shut-down cleanly and that the following packages have auto-saves associated with them.\nWould you like to restore from these auto-saves?"))
 					]
 					+SVerticalBox::Slot() 
 					.FillHeight(1)
+					.Padding(8, 0)
 					[
-						SNew(SBorder)
-						[
-							SNew(SVerticalBox)
-							+SVerticalBox::Slot()
-							.AutoHeight()
-							[
-								SNew(SBorder)
-								.BorderImage(FEditorStyle::GetBrush(TEXT("PackageDialog.ListHeader")))
-								[
-									SNew(SHorizontalBox)
-									+SHorizontalBox::Slot()
-									.AutoWidth()
-									.VAlign(VAlign_Center)
-									.HAlign(HAlign_Center)
-									[
-										SNew(SCheckBox)
-										.IsChecked(this, &SPackageRestoreDialog::GetToggleSelectedState)
-										.OnCheckStateChanged(this, &SPackageRestoreDialog::OnToggleSelectedCheckBox)
-									]
-									+SHorizontalBox::Slot()
-									.Padding(FMargin(2, 0, 0, 0))
-									.VAlign(VAlign_Center)
-									.HAlign(HAlign_Left)
-									.FillWidth(1)
-									[
-										SNew(STextBlock) 
-										.Text(LOCTEXT("PackageName", "Package Name"))
-									]
-									+SHorizontalBox::Slot()
-									.Padding(FMargin(4, 0, 0, 0))
-									.VAlign(VAlign_Center)
-									.HAlign(HAlign_Left)
-									.FillWidth(1)
-									[
-										SNew(STextBlock) 
-										.Text(LOCTEXT("PackageFile", "Package File"))
-									]
-									+SHorizontalBox::Slot()
-									.Padding(FMargin(4, 0, 0, 0))
-									.VAlign(VAlign_Center)
-									.HAlign(HAlign_Left)
-									.FillWidth(1)
-									[
-										SNew(STextBlock) 
-										.Text(LOCTEXT("AutoSaveFile", "Autosave File"))
-									]
-								]
-							]
-							+SVerticalBox::Slot()
-							[
-								SAssignNew(ItemListView, SListView<FPackageRestoreItemPtr>)
-								.ListItemsSource(PackageRestoreItems)
-								.OnGenerateRow(this, &SPackageRestoreDialog::MakePackageRestoreListItemWidget)
-								.ItemHeight(20)
-							]
-						]
+						SAssignNew(ItemListView, SListView<FPackageRestoreItemPtr>)
+						.ListItemsSource(PackageRestoreItems)
+						.OnGenerateRow(this, &SPackageRestoreDialog::MakePackageRestoreListItemWidget)
+						.HeaderRow(HeaderRowWidget)
+						.ItemHeight(20)
 					]
 					+SVerticalBox::Slot()
 					.AutoHeight()
-					.Padding(2)
+					.Padding(2, 17, 26, 17)
 					.HAlign(HAlign_Right)
 					.VAlign(VAlign_Bottom)
 					[
@@ -242,16 +364,16 @@ namespace PackageRestore
 						.Padding(2)
 						.AutoWidth()
 						[
-							SNew(SButton) 
+							SNew(SButton)
 							.Text(LOCTEXT("RestoreSelectedPackages", "Restore Selected"))
 							.OnClicked(this, &SPackageRestoreDialog::OnRestoreSelectedButtonClicked)
 							.IsEnabled(this, &SPackageRestoreDialog::IsRestoreSelectedButtonEnabled)
 						]
 						+SHorizontalBox::Slot()
-						.Padding(2)
+						.Padding(7, 2, 2, 2)
 						.AutoWidth()
 						[
-							SNew(SButton) 
+							SNew(SButton)
 							.Text(LOCTEXT("SkipRestorePackages", "Skip Restore"))
 							.OnClicked(this, &SPackageRestoreDialog::OnSkipRestoreButtonClicked)
 						]
@@ -273,90 +395,8 @@ namespace PackageRestore
 		 */
 		TSharedRef<ITableRow> MakePackageRestoreListItemWidget(FPackageRestoreItemPtr Item, const TSharedRef<STableViewBase>& OwnerTable)
 		{
-			check(Item.IsValid());
-
-			const FSlateBrush* FolderOpenBrush = FEditorStyle::GetBrush("PackageRestore.FolderOpen");
-
-			return 
-			SNew(STableRow<FPackageRestoreItemPtr>, OwnerTable)
-			.Padding(FMargin(2, 0))
-			[
-				SNew(SHorizontalBox)
-				.ToolTipText(Item->GetToolTip())
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Center)
-				[
-					SNew(SCheckBox)
-					.IsChecked(Item.Get(), &FPackageRestoreItem::GetState)
-					.OnCheckStateChanged(Item.Get(), &FPackageRestoreItem::SetState)
-				]
-				+SHorizontalBox::Slot()
-				.Padding(FMargin(2, 0, 0, 0))
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Left)
-				.AutoWidth()
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::Get().GetBrush("Icons.Warning"))
-					.ToolTipText(LOCTEXT("OverwritingMoreRecentPackageFile", "The auto-saved file is older than the file it restores. You could lose work if the file was updated or modified after the crash but before the Editor was restarted."))
-					.Visibility(Item.Get(), &FPackageRestoreItem::GetRestoreOverMoreRecentPackageWarningVisibility)
-				]
-				+SHorizontalBox::Slot()
-				.Padding(FMargin(2, 0, 0, 0))
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Left)
-				.FillWidth(1)
-				[
-					SNew(STextBlock)
-					.Text(FText::FromString(Item->GetPackageName()))
-				]
-				+SHorizontalBox::Slot()
-				.Padding(FMargin(4, 0, 0, 0))
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Left)
-				.FillWidth(1)
-				[
-					SNew(SHorizontalBox)
-					+SHorizontalBox::Slot()
-					.FillWidth(1)
-					[
-						SNew(STextBlock) 
-						.Text(FText::FromString(Item->GetPackageFilename()))
-					]
-					+SHorizontalBox::Slot()
-					.Padding(FMargin(2, 0, 0, 0))
-					.AutoWidth()
-					[
-						SNew(SImage) 
-						.Image(FolderOpenBrush)
-						.OnMouseButtonDown(Item.Get(), &FPackageRestoreItem::OnExploreToPackage)
-					]
-				]
-				+SHorizontalBox::Slot()
-				.Padding(FMargin(4, 0, 0, 0))
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Left)
-				.FillWidth(1)
-				[
-					SNew(SHorizontalBox)
-					+SHorizontalBox::Slot()
-					.FillWidth(1)
-					[
-						SNew(STextBlock) 
-						.Text(FText::FromString(Item->GetAutoSaveFilename()))
-					]
-					+SHorizontalBox::Slot()
-					.Padding(FMargin(2, 0, 0, 0))
-					.AutoWidth()
-					[
-						SNew(SImage) 
-						.Image(FolderOpenBrush)
-						.OnMouseButtonDown(Item.Get(), &FPackageRestoreItem::OnExploreToAutoSave)
-					]
-				]
-			];
+			return SNew(SPackageRestoreItemsListRow, OwnerTable)
+				.Item(Item);
 		}
 
 		/** 
@@ -599,7 +639,7 @@ FEditorFileUtils::EPromptReturnCode PackageRestore::PromptToRestorePackages(cons
 	// Create the window to host our dlg
 	TSharedRef<SWindow> PackageRestoreWindowRef = SNew(SWindow)
 		.Title(LOCTEXT("RestorePackages", "Restore Packages"))
-		.ClientSize(FVector2D(900, 400));
+		.ClientSize(FVector2D(1000, 550));
 	PackageRestoreWindowRef->SetContent(PackageRestoreDlgRef);
 	PackageRestoreDlgRef->SetWindow(PackageRestoreWindowRef);
 

@@ -23,9 +23,9 @@ enum class ERigElementType : uint8
 	Control = 0x004,
 	Curve = 0x008,
 	RigidBody = 0x010,
-	Socket = 0x020,
+	Reference = 0x020,
 	Last = 0x040 UMETA(Hidden),
-	All = Bone | Null | Control | Curve | RigidBody | Socket,
+	All = Bone | Null | Control | Curve | RigidBody | Reference,
 	ToResetAfterSetupEvent = Bone | Control | Curve UMETA(Hidden),
 };
 
@@ -1378,9 +1378,9 @@ public:
 			{
 				return FString::Printf(TEXT("RigidBody(%s)"), *Name.ToString());
 			}
-			case ERigElementType::Socket:
+			case ERigElementType::Reference:
 			{
-				return FString::Printf(TEXT("Socket(%s)"), *Name.ToString());
+				return FString::Printf(TEXT("Reference(%s)"), *Name.ToString());
 			}
 		}
 		return FString();

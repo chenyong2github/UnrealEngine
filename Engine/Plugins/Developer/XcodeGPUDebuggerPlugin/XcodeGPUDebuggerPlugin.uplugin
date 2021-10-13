@@ -15,7 +15,7 @@
 			"Name": "XcodeGPUDebuggerPlugin",
 			"Type": "DeveloperTool",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms":
+			"PlatformAllowList":
             [
 				"Mac"
 			]

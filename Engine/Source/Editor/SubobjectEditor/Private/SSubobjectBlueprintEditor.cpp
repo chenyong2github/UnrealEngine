@@ -27,6 +27,7 @@
 #include "Kismet2/ChildActorComponentEditorUtils.h"
 #include "ObjectTools.h"						// ThumbnailTools::CacheEmptyThumbnail
 #include "K2Node_ComponentBoundEvent.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "SSubobjectBlueprintEditor"
 
@@ -844,7 +845,9 @@ void SSubobjectBlueprintEditor::ViewEvent(UBlueprint* Blueprint, const FName Eve
 
 FSlateColor SSubobjectBlueprintEditor::GetColorTintForIcon(FSubobjectEditorTreeNodePtrType Node) const
 {
-	static const FLinearColor IntroducedHereColor(FLinearColor::White);
+	USlateThemeManager& ThemeManager = USlateThemeManager::Get();
+
+	const FLinearColor& IntroducedHereColor = ThemeManager.GetColor(EStyleColor::AccentWhite);
 	
 	const FSubobjectData* Data = Node ? Node->GetDataSource() : nullptr;
 	if(!Data || Data->IsActor())
@@ -852,7 +855,43 @@ FSlateColor SSubobjectBlueprintEditor::GetColorTintForIcon(FSubobjectEditorTreeN
 		return IntroducedHereColor;
 	}
 
-	return Data->GetColorTintForIcon();
+	// A blue-ish tint
+	const FLinearColor& InheritedBlueprintComponentColor = ThemeManager.GetColor(EStyleColor::AccentBlue);
+	const FLinearColor& InstancedInheritedBlueprintComponentColor = ThemeManager.GetColor(EStyleColor::AccentBlue);
+
+	// A green-ish tint
+	const FLinearColor& InheritedNativeComponentColor = ThemeManager.GetColor(EStyleColor::AccentGreen);
+
+	if (Data->IsInheritedComponent())
+	{
+		// Native C++ components will be tinted green
+		if (Data->IsNativeComponent())
+		{
+			return InheritedNativeComponentColor;
+		}
+		else if (Data->IsInstancedComponent())
+		{
+			return InstancedInheritedBlueprintComponentColor;
+		}
+		else
+		{
+			return InheritedBlueprintComponentColor;
+		}
+	}
+	// If we have an SCS but are not Inherited, then this is just a regular blueprint and we should be blue
+	else
+	{
+		// If it's inherited BP color then it should be blue (i.e. this is a BP component that came from a BP generated class)
+		if (Data->IsInheritedComponent() || Data->IsInstancedComponent())
+		{
+			return InheritedBlueprintComponentColor;
+		}
+		// Otherwise this is just a regular SCS node inside of the BP editor
+		else
+		{
+			return IntroducedHereColor;
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

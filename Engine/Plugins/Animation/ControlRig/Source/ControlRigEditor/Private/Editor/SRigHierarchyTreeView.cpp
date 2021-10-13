@@ -278,9 +278,9 @@ bool SRigHierarchyTreeView::AddElement(const FRigBaseElement* InElement)
 			}
 			break;
 		}
-		case ERigElementType::Socket:
+		case ERigElementType::Reference:
 		{
-			if(!Settings.bShowSockets)
+			if(!Settings.bShowReferences)
 			{
 				return false;
 			}
@@ -619,7 +619,7 @@ const FSlateBrush* SRigHierarchyItem::GetBrushForElementType(const URigHierarchy
 			Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.RigidBody");
 			break;
 		}
-		case ERigElementType::Socket:
+		case ERigElementType::Reference:
 		{
 			Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.Socket");
 			break;

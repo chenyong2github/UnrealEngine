@@ -26,7 +26,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
-#include "PropertyEditorWhitelist.h"
+#include "PropertyEditorPermissionList.h"
 
 namespace DetailWidgetConstants
 {
@@ -566,6 +566,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 			FSlimHorizontalToolBarBuilder ToolbarBuilder(TSharedPtr<FUICommandList>(), FMultiBoxCustomization::None);
 			ToolbarBuilder.SetLabelVisibility(EVisibility::Collapsed);
 			ToolbarBuilder.SetStyle(&FAppStyle::Get(), "DetailsView.ExtensionToolBar");
+			ToolbarBuilder.SetIsFocusable(false);
 
 			for (const FPropertyRowExtensionButton& Extension : ExtensionButtons)
 			{
@@ -794,7 +795,7 @@ bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
 			FavoriteAction);
 	}
 
-	if (FPropertyEditorWhitelist::Get().ShouldShowMenuEntries())
+	if (FPropertyEditorPermissionList::Get().ShouldShowMenuEntries())
 	{
 		// Hide separator line if it only contains the SearchWidget, making the next 2 elements the top of the list
 		if (MenuBuilder.GetMultiBox()->GetBlocks().Num() > 1)
@@ -969,11 +970,11 @@ void SDetailSingleItemRow::OnToggleWhitelist() const
 		const UStruct* ExactStruct = GetExactStructForProperty(Owner->GetParentBaseStructure(), Owner->GetNodeName());
 		if (IsWhitelistChecked())
 		{
-			FPropertyEditorWhitelist::Get().RemoveFromWhitelist(ExactStruct, Owner->GetNodeName(), OwnerName);
+			FPropertyEditorPermissionList::Get().RemoveFromAllowList(ExactStruct, Owner->GetNodeName(), OwnerName);
 		}
 		else
 		{
-			FPropertyEditorWhitelist::Get().AddToWhitelist(ExactStruct, Owner->GetNodeName(), OwnerName);
+			FPropertyEditorPermissionList::Get().AddToAllowList(ExactStruct, Owner->GetNodeName(), OwnerName);
 		}
 	}
 }
@@ -983,7 +984,7 @@ bool SDetailSingleItemRow::IsWhitelistChecked() const
 	if (const TSharedPtr<FDetailTreeNode> Owner = OwnerTreeNode.Pin())
 	{
 		const UStruct* ExactStruct = GetExactStructForProperty(Owner->GetParentBaseStructure(), Owner->GetNodeName());
-		return FPropertyEditorWhitelist::Get().IsSpecificPropertyWhitelisted(ExactStruct, Owner->GetNodeName());
+		return FPropertyEditorPermissionList::Get().IsSpecificPropertyAllowListed(ExactStruct, Owner->GetNodeName());
 	}
 	return false;
 }
@@ -997,11 +998,11 @@ void SDetailSingleItemRow::OnToggleBlacklist() const
 		const UStruct* ExactStruct = GetExactStructForProperty(Owner->GetParentBaseStructure(), Owner->GetNodeName());
 		if (IsBlacklistChecked())
 		{
-			FPropertyEditorWhitelist::Get().RemoveFromBlacklist(ExactStruct, Owner->GetNodeName(), OwnerName);
+			FPropertyEditorPermissionList::Get().RemoveFromDenyList(ExactStruct, Owner->GetNodeName(), OwnerName);
 		}
 		else
 		{
-			FPropertyEditorWhitelist::Get().AddToBlacklist(ExactStruct, Owner->GetNodeName(), OwnerName);
+			FPropertyEditorPermissionList::Get().AddToDenyList(ExactStruct, Owner->GetNodeName(), OwnerName);
 		}
 	}
 }
@@ -1010,7 +1011,7 @@ bool SDetailSingleItemRow::IsBlacklistChecked() const
 {
 	if (const TSharedPtr<FDetailTreeNode> Owner = OwnerTreeNode.Pin())
     {
-    	return FPropertyEditorWhitelist::Get().IsSpecificPropertyBlacklisted(Owner->GetParentBaseStructure(), Owner->GetNodeName());
+    	return FPropertyEditorPermissionList::Get().IsSpecificPropertyDenyListed(Owner->GetParentBaseStructure(), Owner->GetNodeName());
     }
 	return false;
 }

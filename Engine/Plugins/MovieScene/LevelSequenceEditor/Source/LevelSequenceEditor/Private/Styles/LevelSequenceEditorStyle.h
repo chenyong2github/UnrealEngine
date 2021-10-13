@@ -11,11 +11,7 @@
 #include "Brushes/SlateImageBrush.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateStyle.h"
-
-#define IMAGE_BRUSH(RelativePath, ...) FSlateImageBrush(RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
-#define BOX_BRUSH(RelativePath, ...) FSlateBoxBrush(RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
-#define BORDER_BRUSH(RelativePath, ...) FSlateBorderBrush(RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
-
+#include "Styling/SlateStyleMacros.h"
 
 /**
  * Implements the visual style of the messaging debugger UI.
@@ -34,15 +30,19 @@ public:
 		const FVector2D Icon40x40(40.0f, 40.0f);
 
 		SetContentRoot(FPaths::EnginePluginsDir() / TEXT("MovieScene/LevelSequenceEditor/Content"));
+		SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
 		// tab icons
 		Set("LevelSequenceEditor.Tabs.Sequencer", new IMAGE_BRUSH("icon_tab_sequencer_16x", Icon16x16));
+
 		Set("LevelSequenceEditor.PossessNewActor", new IMAGE_BRUSH("Icon_Actor_To_Sequencer_16x", Icon16x16));
 		Set("LevelSequenceEditor.PossessNewActor.Small", new IMAGE_BRUSH("Icon_Actor_To_Sequencer_16x", Icon16x16));
-		Set("LevelSequenceEditor.CreateNewLevelSequenceInLevel", new IMAGE_BRUSH("CreateNewLevelSequenceInLevel_16x", Icon16x16));
-		Set("LevelSequenceEditor.CreateNewLevelSequenceInLevel.Small", new IMAGE_BRUSH("CreateNewLevelSequenceInLevel_16x", Icon16x16));
-		Set("LevelSequenceEditor.CreateNewMasterSequenceInLevel", new IMAGE_BRUSH("CreateNewMasterSequenceInLevel_16x", Icon16x16));
-		Set("LevelSequenceEditor.CreateNewMasterSequenceInLevel.Small", new IMAGE_BRUSH("CreateNewMasterSequenceInLevel_16x", Icon16x16));
+
+		Set("LevelSequenceEditor.CreateNewLevelSequenceInLevel", new IMAGE_BRUSH_SVG("LevelSequence", Icon16x16));
+		Set("LevelSequenceEditor.CreateNewLevelSequenceInLevel.Small", new IMAGE_BRUSH_SVG("LevelSequence", Icon16x16));
+
+		Set("LevelSequenceEditor.CreateNewMasterSequenceInLevel", new IMAGE_BRUSH_SVG("MasterSequence", Icon16x16));
+		Set("LevelSequenceEditor.CreateNewMasterSequenceInLevel.Small", new IMAGE_BRUSH_SVG("MasterSequence", Icon16x16));
 		
 		Set("LevelSequenceEditor.CinematicViewportPlayMarker", new IMAGE_BRUSH("CinematicViewportPlayMarker", FVector2D(11, 6)));
 		Set("LevelSequenceEditor.CinematicViewportRangeStart", new BORDER_BRUSH("CinematicViewportRangeStart", FMargin(1.f,.3f,0.f,.6f)));

@@ -29,7 +29,6 @@ FName FSceneOutlinerItemLabelColumn::GetColumnID()
 SHeaderRow::FColumn::FArguments FSceneOutlinerItemLabelColumn::ConstructHeaderRowColumn()
 {
 	return SHeaderRow::Column(GetColumnID())
-		.DefaultLabel(LOCTEXT("ItemLabel_HeaderText", "Label"))
 		.FillWidth( 5.0f );
 }
 const TSharedRef<SWidget> FSceneOutlinerItemLabelColumn::ConstructRowWidget(FSceneOutlinerTreeItemRef TreeItem, const STableRow<FSceneOutlinerTreeItemPtr>& Row)

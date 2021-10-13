@@ -4141,7 +4141,7 @@ bool UEditorEngine::IsPackageValidForAutoAdding(UPackage* InPackage, const FStri
 bool UEditorEngine::IsPackageOKToSave(UPackage* InPackage, const FString& InFilename, FOutputDevice* Error)
 {
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	if (InPackage && !AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(InPackage->GetName()))
+	if (InPackage && !AssetToolsModule.Get().GetWritableFolderPermissionList()->PassesStartsWithFilter(InPackage->GetName()))
 	{
 		return false;
 	}
@@ -4268,24 +4268,7 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 			// Look at top level object for the base root candidate,
 			// this should find the world if the package contains a map, however worlds are sometimes not properly flagged as asset when saved
 			// This will also allow other asset types that need to have Pre/PostSaveRoot called on them to be done so properly
-			TArray<UObject*> PotentialAssets;
-			GetObjectsWithPackage(InOuter, PotentialAssets, false);
-			for (UObject* Object : PotentialAssets)
-			{
-				if (Object->IsAsset() && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(Object) &&
-					(TopLevelFlags == RF_NoFlags || Object->HasAnyFlags(TopLevelFlags)))
-				{
-					if (FAssetData::IsUAsset(Object))
-					{
-						Base = Object;
-						break;
-					}
-					if (!Base)
-					{
-						Base = Object;
-					}
-				}
-			}
+			Base = InOuter->FindAssetInPackage();
 		}
 	}
 
@@ -7594,15 +7577,17 @@ ULevelEditorDragDropHandler* UEditorEngine::GetLevelEditorDragDropHandler() cons
 {
 	if (DragDropHandler == nullptr)
 	{
-		DragDropHandler = const_cast<UEditorEngine*>(this)->CreateLevelEditorDragDropHandler();
+		if (OnCreateLevelEditorDragDropHandlerDelegate.IsBound())
+		{
+			DragDropHandler = OnCreateLevelEditorDragDropHandlerDelegate.Execute();
+		}
+		else
+		{
+			DragDropHandler = NewObject<ULevelEditorDragDropHandler>(const_cast<UEditorEngine*>(this));
+		}
 	}
 
 	return DragDropHandler;
-}
-
-ULevelEditorDragDropHandler* UEditorEngine::CreateLevelEditorDragDropHandler()
-{
-	return NewObject<ULevelEditorDragDropHandler>(this);
 }
 
 #undef LOCTEXT_NAMESPACE 

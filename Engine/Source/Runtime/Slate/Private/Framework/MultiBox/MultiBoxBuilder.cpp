@@ -406,6 +406,12 @@ void FMenuBarBuilder::ApplyHook(FName InExtensionHook, EExtensionHook::Position 
 	}
 }
 
+void FToolBarBuilder::SetIsFocusable(bool bInIsFocusable)
+{
+	bIsFocusable = bInIsFocusable; 
+	MultiBox->bIsFocusable = bIsFocusable;
+}
+
 void FToolBarBuilder::AddToolBarButton(const TSharedPtr< const FUICommandInfo > InCommand, FName InExtensionHook, const TAttribute<FText>& InLabelOverride, const TAttribute<FText>& InToolTipOverride, const TAttribute<FSlateIcon>& InIconOverride, FName InTutorialHighlightName, FNewMenuDelegate InCustomMenuDelegate )
 {
 	ApplySectionBeginning();

@@ -43,6 +43,21 @@ void FLevelSnapshotPropertyChain::AppendInline(const FProperty* Property)
 	}
 }
 
+FString FLevelSnapshotPropertyChain::ToString() const
+{
+	FString Result;
+	for (int32 i = 0; i < GetNumProperties(); ++i)
+	{
+		const FProperty* CurrentProperty = GetPropertyFromRoot(i);
+		Result.Append(CurrentProperty->GetName());
+		if (i != GetNumProperties() - 1)
+		{
+			Result.Append(TEXT("."));
+		}
+	}
+	return Result;
+}
+
 bool FLevelSnapshotPropertyChain::EqualsSerializedProperty(const FArchiveSerializedPropertyChain* ContainerChain, const FProperty* LeafProperty) const
 {
 	check(GetNumProperties() > 0);

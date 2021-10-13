@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using EpicGames.Core;
+using OpenTracing.Util;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -125,7 +126,7 @@ namespace UnrealBuildTool
 
 			foreach (DirectoryReference RootDirectory in RootDirectories)
 			{
-				using (Timeline.ScopeEvent("Finding engine modules"))
+				using (GlobalTracer.Instance.BuildSpan("Finding engine modules").StartActive())
 				{
 					DirectoryReference SourceDirectory = DirectoryReference.Combine(RootDirectory, "Source");
 
@@ -137,7 +138,7 @@ namespace UnrealBuildTool
 			}
 
 			// Add all the plugin modules too (don't need to loop over RootDirectories since the plugins come in already found
-			using (Timeline.ScopeEvent("Finding plugin modules"))
+			using (GlobalTracer.Instance.BuildSpan("Finding plugin modules").StartActive())
 			{
 				ModuleRulesContext PluginsModuleContext = new ModuleRulesContext(PluginsScope, RootDirectories[0]);
 				FindModuleRulesForPlugins(Plugins, PluginsModuleContext, ModuleFileToContext);
@@ -159,13 +160,13 @@ namespace UnrealBuildTool
 				ModuleRulesContext ProgramsModuleContext = new ModuleRulesContext(ProgramsScope, RootDirectory);
 				ProgramsModuleContext.DefaultUHTModuleType = UHTModuleType.Program;
 
-				using (Timeline.ScopeEvent("Finding program modules"))
+				using (GlobalTracer.Instance.BuildSpan("Finding program modules").StartActive())
 				{
 					// Find all the rules files
 					AddModuleRulesWithContext(ProgramsDirectory, ProgramsModuleContext, ProgramModuleFiles);
 				}
 
-				using (Timeline.ScopeEvent("Finding program targets"))
+				using (GlobalTracer.Instance.BuildSpan("Finding program targets").StartActive())
 				{
 					ProgramTargetFiles.AddRange(Rules.FindAllRulesFiles(SourceDirectory, Rules.RulesFileType.Target));
 				}
@@ -193,7 +194,7 @@ namespace UnrealBuildTool
 
 			// Add all the plugin modules too (don't need to loop over RootDirectories since the plugins come in already found
 			Dictionary<FileReference, ModuleRulesContext> ModuleFileToContext = new Dictionary<FileReference, ModuleRulesContext>();
-			using (Timeline.ScopeEvent("Finding marketplace plugin modules"))
+			using (GlobalTracer.Instance.BuildSpan("Finding marketplace plugin modules").StartActive())
 			{
 				ModuleRulesContext PluginsModuleContext = new ModuleRulesContext(MarketplaceScope, Unreal.EngineDirectory);
 				FindModuleRulesForPlugins(Plugins, PluginsModuleContext, ModuleFileToContext);

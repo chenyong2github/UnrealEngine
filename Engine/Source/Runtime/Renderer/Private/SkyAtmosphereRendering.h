@@ -117,6 +117,9 @@ struct FSkyAtmosphereRenderContext
 	FRDGTextureRef VolumetricCloudDepthTexture;
 	FRDGTextureRef InputCloudLuminanceTransmittanceTexture;
 
+	uint8 MSAASampleCount;
+	FRDGTextureRef MSAADepthTexture;
+
 	FSkyAtmosphereRenderContext();
 
 private:

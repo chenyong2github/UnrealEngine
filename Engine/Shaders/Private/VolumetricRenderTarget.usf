@@ -320,6 +320,10 @@ float4 SceneWithoutSingleLayerWaterViewRect;
 float2 FullResolutionToWaterBufferScale;
 #endif
 
+#if MSAA_SAMPLE_COUNT > 1
+Texture2DMS<float, MSAA_SAMPLE_COUNT> MSAADepthTexture;
+#endif
+
 float4 SafeLoadVolumetricTexture(uint2 Coord)
 {
 	return VolumetricTexture.Load(uint3(clamp(Coord, VolumetricTextureValidCoordRect.xy, VolumetricTextureValidCoordRect.zw), 0));
@@ -344,7 +348,11 @@ float2 FullResolutionToVolumetricBufferResolutionScale;
 
 void ComposeVolumetricRTOverScenePS(
 	in float4 SVPos : SV_POSITION,
-	out float4 OutputRt0 : SV_Target0)
+	out float4 OutputRt0 : SV_Target0
+#if MSAA_SAMPLE_COUNT > 1
+	, in uint SampleIndex : SV_SampleIndex
+#endif
+)
 {
 	float2 CurResPixelCoord = SVPos.xy;
 	float2 ScreenUV = CurResPixelCoord * View.BufferSizeAndInvSize.zw;
@@ -412,8 +420,14 @@ void ComposeVolumetricRTOverScenePS(
 	float PixelDeviceZ = ClipPosition.z;
 
 	float3 ScreenTranslatedWorldPosition = SvPositionToTranslatedWorld(float4(SVPos.xy, ClipPosition.z, 1.0));
+
+#else
+
+#if  MSAA_SAMPLE_COUNT > 1
+	float PixelDeviceZ = MSAADepthTexture.Load(int2(SVPos.xy), SampleIndex).x;
 #else
 	float PixelDeviceZ = SceneTexturesStruct.SceneDepthTexture.Load(uint3(SVPos.xy, 0)).r;
+#endif
 	float3 ScreenTranslatedWorldPosition = SvPositionToTranslatedWorld(float4(SVPos.xy, PixelDeviceZ, 1.0));
 #endif 
 

@@ -716,6 +716,7 @@ void SetupViewFamilyForSceneCapture(
 	USceneCaptureComponent* SceneCaptureComponent,
 	const TArrayView<const FSceneCaptureViewInfo> Views,
 	float MaxViewDistance,
+	bool bUseFauxOrthoViewPos,
 	bool bCaptureSceneColor,
 	bool bIsPlanarReflection,
 	FPostProcessSettings* PostProcessSettings,
@@ -740,6 +741,7 @@ void SetupViewFamilyForSceneCapture(
 		ViewInitOptions.SceneViewStateInterface = SceneCaptureComponent->GetViewState(ViewIndex);
 		ViewInitOptions.ProjectionMatrix = SceneCaptureViewInfo.ProjectionMatrix;
 		ViewInitOptions.LODDistanceFactor = FMath::Clamp(SceneCaptureComponent->LODDistanceFactor, .01f, 100.0f);
+		ViewInitOptions.bUseFauxOrthoViewPos = bUseFauxOrthoViewPos;
 
 		if (ViewFamily.Scene->GetWorld() != nullptr && ViewFamily.Scene->GetWorld()->GetWorldSettings() != nullptr)
 		{
@@ -846,6 +848,7 @@ static FSceneRenderer* CreateSceneRendererForSceneCapture(
 	const FMatrix& ViewRotationMatrix,
 	const FVector& ViewLocation,
 	const FMatrix& ProjectionMatrix,
+	bool bUseFauxOrthoViewPos,
 	float MaxViewDistance,
 	bool bCaptureSceneColor,
 	FPostProcessSettings* PostProcessSettings,
@@ -875,6 +878,7 @@ static FSceneRenderer* CreateSceneRendererForSceneCapture(
 		SceneCaptureComponent,
 		MakeArrayView(&SceneCaptureViewInfo, 1),
 		MaxViewDistance, 
+		bUseFauxOrthoViewPos,
 		bCaptureSceneColor,
 		/* bIsPlanarReflection = */ false,
 		PostProcessSettings, 
@@ -914,7 +918,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 
 		const bool bUseSceneColorTexture = CaptureNeedsSceneColor(CaptureComponent->CaptureSource);
 		const bool bEnableOrthographicTiling = (CaptureComponent->GetEnableOrthographicTiling() && CaptureComponent->ProjectionType == ECameraProjectionMode::Orthographic && bUseSceneColorTexture);
-		
+		bool bUseFauxOrthoViewPos = false;
 		if (CaptureComponent->GetEnableOrthographicTiling() && CaptureComponent->ProjectionType == ECameraProjectionMode::Orthographic && !bUseSceneColorTexture)
 		{
 			UE_LOG(LogRenderer, Warning, TEXT("SceneCapture - Orthographic and tiling with CaptureSource not using SceneColor (i.e FinalColor) not compatible. SceneCapture render will not be tiled"));
@@ -938,6 +942,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 			}
 			else
 			{
+				bUseFauxOrthoViewPos = CaptureComponent->bUseFauxOrthoViewPos;
 				if (bEnableOrthographicTiling)
 				{
 					BuildOrthoMatrix(CaptureSize, CaptureComponent->OrthoWidth, CaptureComponent->TileID, NumXTiles, NumYTiles, ProjectionMatrix);
@@ -958,6 +963,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 			ViewRotationMatrix, 
 			ViewLocation, 
 			ProjectionMatrix, 
+			bUseFauxOrthoViewPos,
 			CaptureComponent->MaxViewDistanceOverride, 
 			bUseSceneColorTexture,
 			&CaptureComponent->PostProcessSettings, 
@@ -1201,7 +1207,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponentCube* CaptureCompo
 
 				FSceneRenderer* SceneRenderer = CreateSceneRendererForSceneCapture(this, CaptureComponent, 
 				    TextureTarget->GameThread_GetRenderTargetResource(), CaptureSize, ViewRotationMatrix, 
-					Location, ProjectionMatrix, CaptureComponent->MaxViewDistanceOverride, 
+					Location, ProjectionMatrix, false, CaptureComponent->MaxViewDistanceOverride, 
 					bCaptureSceneColor, &PostProcessSettings, 0, CaptureComponent->GetViewOwner(), StereoIPD);
 
 				SceneRenderer->ViewFamily.SceneCaptureSource = CaptureComponent->CaptureSource;

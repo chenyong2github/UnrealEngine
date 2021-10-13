@@ -747,6 +747,39 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 		int32 FunctionIndex = WorkData.VM->AddRigVMFunction(UnitNode->GetScriptStruct(), UnitNode->GetMethodName());
 		WorkData.VM->GetByteCode().AddExecuteOp(FunctionIndex, Operands);
 		InstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
+
+#if WITH_EDITORONLY_DATA
+		TArray<FRigVMOperand> InputsOperands, OutputOperands;
+
+		for(const URigVMPin* InputPin : UnitNode->GetPins())
+		{
+			if(InputPin->IsExecuteContext())
+			{
+				continue;
+			}
+
+			const FRigVMOperand& Operand = Operands[InputPin->GetPinIndex()];
+
+			if(InputPin->GetDirection() == ERigVMPinDirection::Output || InputPin->GetDirection() == ERigVMPinDirection::IO)
+			{
+				OutputOperands.Add(Operand);
+			}
+
+			if(InputPin->GetDirection() != ERigVMPinDirection::Input && InputPin->GetDirection() != ERigVMPinDirection::IO)
+			{
+				continue;
+			}
+
+			InputsOperands.Add(Operand);
+		}
+
+		WorkData.VM->GetByteCode().SetOperandsForInstruction(
+			InstructionIndex,
+			FRigVMOperandArray(InputsOperands.GetData(), InputsOperands.Num()),
+			FRigVMOperandArray(OutputOperands.GetData(), OutputOperands.Num()));
+
+#endif
+		
 		if (Settings.SetupNodeInstructionIndex)
 		{
 			const FRigVMCallstack Callstack = InExpr->GetProxy().GetCallstack();

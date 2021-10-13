@@ -20,6 +20,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Instanced, Category = Asset, meta = (ShowOnlyInnerProperties))
 	TArray<TObjectPtr<class UDatasmithAdditionalData>> AdditionalData;
+
+	UPROPERTY(EditAnywhere, Category = "External Source URI")
+	FString SourceUri;
 #endif		// WITH_EDITORONLY_DATA
 };
 
@@ -91,6 +94,9 @@ class DATASMITHCONTENT_API UDatasmithSceneImportData : public UAssetImportData
 public:
 	UPROPERTY(EditAnywhere, Category = "Options", meta = (ShowOnlyInnerProperties))
 	FDatasmithImportBaseOptions BaseOptions;
+
+	UPROPERTY(EditAnywhere, Category = "External Source URI")
+	FString SourceUri;
 
 	//~ UObject interface
 #if WITH_EDITOR

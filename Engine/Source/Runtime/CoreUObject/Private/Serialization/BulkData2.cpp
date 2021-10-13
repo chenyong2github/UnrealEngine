@@ -477,8 +477,7 @@ public:
 			bool bIsOk = true;
 			for (Request& Request : RequestArray)
 			{
-				TIoStatusOr<FIoBuffer> RequestResult = Request.IoRequest.GetResult();
-				bIsOk &= RequestResult.IsOk();
+				bIsOk &= Request.IoRequest.Status().IsOk();
 			}
 			if (bIsOk)
 			{
@@ -846,7 +845,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 		const FLinkerLoad* Linker = nullptr;
 		if (bEngineUsesIoStore)
 		{
-			checkf(IsInlined() || !NeedsOffsetFixup(), TEXT("IODispatcher does not support offset fixups; 'LegacyBulkDataOffsets=true' will not work with the IoStore!"));
+			checkf(IsInlined() || !NeedsOffsetFixup(), TEXT("IODispatcher does not support offset fixups; SaveBulkData during cooking should have added the flag BULKDATA_NoOffsetFixUp."));
 			checkf(IsInlined() || IsInSeparateFile() || !GEventDrivenLoaderEnabled,
 				TEXT("IODispatcher does not support finding the file size of header segments, which is required if BulkData is at end-of-file and EDL is enabled. ")
 				TEXT("Non-inline BulkData must be stored in a separate file when EDL is enabled!"));
@@ -1681,14 +1680,14 @@ void FBulkDataBase::InternalLoadFromIoStore(void** DstBuffer)
 	Batch.IssueAndTriggerEvent(BatchCompletedEvent);
 	BatchCompletedEvent->Wait(); // Blocking wait until all requests in the batch are done
 	FPlatformProcess::ReturnSynchEventToPool(BatchCompletedEvent);
-	CHECK_IOSTATUS(Request.GetResult().Status(), TEXT("FIoRequest"));
+	CHECK_IOSTATUS(Request.Status(), TEXT("FIoRequest"));
 
 	// If the data is compressed we need to decompress it to the destination buffer.
 	// We know it was compressed via FArchive so the easiest way to decompress it 
 	// is to wrap it in a memory reader archive.
 	if (IsStoredCompressedOnDisk())
 	{
-		const FIoBuffer& CompressedBuffer = Request.GetResult().ValueOrDie();
+		const FIoBuffer& CompressedBuffer = Request.GetResultOrDie();
 		FLargeMemoryReader Ar(CompressedBuffer.Data(), (int64)CompressedBuffer.DataSize());
 		Ar.SerializeCompressed(*DstBuffer, GetBulkDataSize(), GetDecompressionFormat(), COMPRESS_NoFlags, false);
 	}
@@ -1739,7 +1738,7 @@ void FBulkDataBase::ProcessDuplicateData(EBulkDataFlags NewFlags, int64 NewSizeO
 			| BULKDATA_OptionalPayload | BULKDATA_PayloadInSeperateFile | BULKDATA_PayloadAtEndOfFile);
 		if (bUsingIODispatcher)
 		{
-			checkf(!NeedsOffsetFixup(), TEXT("IODispatcher does not support offset fixups; 'LegacyBulkDataOffsets=true' will not work with the IoStore!"));
+			checkf(!NeedsOffsetFixup(), TEXT("IODispatcher does not support offset fixups; SaveBulkData during cooking should have added the flag BULKDATA_NoOffsetFixUp"));
 			BulkDataFlags = static_cast<EBulkDataFlags>(BulkDataFlags | BULKDATA_UsesIoDispatcher);
 		}
 		else

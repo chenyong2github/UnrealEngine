@@ -40,9 +40,9 @@ static TAutoConsoleVariable<int32> CVarWarnOfBadDrivers(
 	TEXT("The test is fast so this should not cost any performance.\n")
 	TEXT(" 0: off\n")
 	TEXT(" 1: a message on startup might appear (default)\n")
-	TEXT(" 2: Simulating the system has a blacklisted NVIDIA driver (UI should appear)\n")
-	TEXT(" 3: Simulating the system has a blacklisted AMD driver (UI should appear)\n")
-	TEXT(" 4: Simulating the system has a not blacklisted AMD driver (no UI should appear)\n")
+	TEXT(" 2: Simulating the system has a NVIDIA driver on the deny list (UI should appear)\n")
+	TEXT(" 3: Simulating the system has a AMD driver on the deny list (UI should appear)\n")
+	TEXT(" 4: Simulating the system has an allowed AMD driver (no UI should appear)\n")
 	TEXT(" 5: Simulating the system has a Intel driver (no UI should appear)"),
 	ECVF_RenderThreadSafe
 	);
@@ -138,18 +138,18 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 	FGPUHardware DetectedGPUHardware(DriverInfo);
 
 	// Pre-GCN GPUs usually don't support updating to latest driver
-	// But it is unclear what is the lastest version supported as it varies from card to card
+	// But it is unclear what is the latest version supported as it varies from card to card
 	// So just don't complain if pre-gcn
 	if (DriverInfo.IsValid() && !GRHIDeviceIsAMDPreGCNArchitecture)
 	{
-		FBlackListEntry BlackListEntry = DetectedGPUHardware.FindDriverBlacklistEntry();
+		FDriverDenyListEntry DenyListEntry = DetectedGPUHardware.FindDriverDenyListEntry();
 
-		GRHIAdapterDriverBlacklisted = BlackListEntry.IsValid();
-		FGenericCrashContext::SetEngineData(TEXT("RHI.DriverBlacklisted"), BlackListEntry.IsValid() ? TEXT("true") : TEXT("false"));
+		GRHIAdapterDriverOnDenyList = DenyListEntry.IsValid();
+		FGenericCrashContext::SetEngineData(TEXT("RHI.DriverBlacklisted"), DenyListEntry.IsValid() ? TEXT("true") : TEXT("false"));
 
-		if (BlackListEntry.IsValid())
+		if (DenyListEntry.IsValid())
 		{
-			bool bLatestBlacklisted = DetectedGPUHardware.IsLatestBlacklisted();
+			bool bLatestDenied = DetectedGPUHardware.IsLatestDenied();
 
 			// Note: we don't localize the vendor's name.
 			FString VendorString = DriverInfo.ProviderName;
@@ -174,16 +174,16 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 			FFormatNamedArguments Args;
 			Args.Add(TEXT("AdapterName"), FText::FromString(DriverInfo.DeviceDescription));
 			Args.Add(TEXT("Vendor"), FText::FromString(VendorString));
-			Args.Add(TEXT("RHI"), FText::FromString(BlackListEntry.RHIName));
+			Args.Add(TEXT("RHI"), FText::FromString(DenyListEntry.RHIName));
 			Args.Add(TEXT("Hyperlink"), HyperlinkText);
 			Args.Add(TEXT("RecommendedVer"), FText::FromString(DetectedGPUHardware.GetSuggestedDriverVersion(DriverInfo.RHIName)));
 			Args.Add(TEXT("InstalledVer"), FText::FromString(DriverInfo.UserDriverVersion));
 
 			// this message can be suppressed with r.WarnOfBadDrivers=0
 			FText LocalizedMsg;
-			if (bLatestBlacklisted)
+			if (bLatestDenied)
 			{
-				if (!BlackListEntry.RHIName.IsEmpty())
+				if (!DenyListEntry.RHIName.IsEmpty())
 				{
 					LocalizedMsg = FText::Format(NSLOCTEXT("MessageDialog", "LatestVideoCardDriverRHIIssueReport", "The latest version of the {Vendor} graphics driver has known issues in {RHI}.\nPlease install the recommended driver version or switch to a different rendering API.\n\n{Hyperlink}\n\n{AdapterName}\nInstalled: {InstalledVer}\nRecommended: {RecommendedVer}"), Args);
 				}
@@ -194,7 +194,7 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 			}
 			else
 			{
-				if (!BlackListEntry.RHIName.IsEmpty())
+				if (!DenyListEntry.RHIName.IsEmpty())
 				{
 					LocalizedMsg = FText::Format(NSLOCTEXT("MessageDialog", "VideoCardDriverRHIIssueReport", "The installed version of the {Vendor} graphics driver has known issues in {RHI}.\nPlease install either the latest or the recommended driver version or switch to a different rendering API.\n\n{Hyperlink}\n\n{AdapterName}\nInstalled: {InstalledVer}\nRecommended: {RecommendedVer}"), Args);
 				}
@@ -204,9 +204,8 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 			}
 			}
 
-			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,
-				*LocalizedMsg.ToString(),
-				*NSLOCTEXT("MessageDialog", "TitleVideoCardDriverIssue", "WARNING: Known issues with graphics driver").ToString());
+			FText Title = NSLOCTEXT("MessageDialog", "TitleVideoCardDriverIssue", "WARNING: Known issues with graphics driver");
+			FMessageDialog::Open(EAppMsgType::Ok, LocalizedMsg, &Title);
 		}
 	}
 }

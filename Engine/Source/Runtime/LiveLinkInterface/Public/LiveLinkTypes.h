@@ -10,7 +10,6 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/StructOnScope.h"
 #include "Serialization/Archive.h"
-#include "Templates/HasGetTypeHash.h"
 #include "UObject/PropertyPortFlags.h"
 
 #include "LiveLinkTypes.generated.h"

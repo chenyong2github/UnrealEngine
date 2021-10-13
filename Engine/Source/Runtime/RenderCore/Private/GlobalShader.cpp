@@ -456,7 +456,7 @@ void FGlobalShaderMapId::AppendKeyString(FString& KeyString, const TArray<FShade
 		KeyString += TEXT("_");
 	}
 
-	TMap<const TCHAR*,FCachedUniformBufferDeclaration> ReferencedUniformBuffers;
+	TSortedMap<const TCHAR*, FCachedUniformBufferDeclaration, FDefaultAllocator, FUniformBufferNameSortOrder> ReferencedUniformBuffers;
 
 	for (int32 ShaderIndex = 0; ShaderIndex < Dependencies.Num(); ShaderIndex++)
 	{

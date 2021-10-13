@@ -844,7 +844,7 @@ public:
 
 	const FReal GetVolume() const
 	{
-		return MScale.X * MScale.Y * MScale.Z * MObject->GetVolume();
+		return FMath::Abs(MScale.X * MScale.Y * MScale.Z) * MObject->GetVolume();
 	}
 
 	const FVec3 GetCenterOfMass() const

@@ -1087,13 +1087,6 @@ namespace UnrealBuildTool
 		public bool bUseFastMonoCalls = true;
 
 		/// <summary>
-		/// New Xbox driver supports a "fast semantics" context type. This switches it on for the immediate and deferred contexts
-		/// Try disabling this if you see rendering issues and/or crashes inthe Xbox RHI.
-		/// </summary>
-		[XmlConfigFile(Category = "BuildConfiguration")]
-		public bool bUseFastSemanticsRenderContexts = true;
-
-		/// <summary>
 		/// An approximate number of bytes of C++ code to target for inclusion in a single unified C++ file.
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
@@ -1807,12 +1800,25 @@ namespace UnrealBuildTool
 			// disable them, and remove them from Enabled in case they were there
 			if (ProjectGameIni.GetArray("CookedEditorSettings", "DisabledPlugins", out DisabledPlugins))
 			{
+				if (Configuration == UnrealTargetConfiguration.Shipping)
+				{
+					List<string>? DisabledPluginsShipping;
+					if (ProjectGameIni.GetArray("CookedEditorSettings", "DisabledPluginsInShipping", out DisabledPluginsShipping))
+					{
+						DisabledPlugins.AddRange(DisabledPluginsShipping);
+					}
+				}
+
 				foreach (string PluginName in DisabledPlugins)
 				{
 					DisablePlugins.Add(PluginName);
 					EnablePlugins.Remove(PluginName);
 				}
 			}
+
+			// enable > 4gb pdb file support, which needs an up-to-date compiler and can make pdbs a little bigger, so we 
+			// only enable it when needed
+			WindowsPlatform.AdditionalLinkerOptions = "/PDBPAGESIZE:8192";
 		}
 
 		/// <summary>
@@ -2579,11 +2585,6 @@ namespace UnrealBuildTool
 		public bool bUseFastMonoCalls
 		{
 			get { return Inner.bUseFastMonoCalls; }
-		}
-
-		public bool bUseFastSemanticsRenderContexts
-		{
-			get { return Inner.bUseFastSemanticsRenderContexts; }
 		}
 
 		public int NumIncludedBytesPerUnityCPP

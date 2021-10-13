@@ -90,6 +90,7 @@ namespace UnrealIdentifiers
 
 	const TfToken MaterialAssignments = TfToken("unrealMaterials"); // DEPRECATED in favor of MaterialAssignment
 	const TfToken MaterialAssignment = TfToken("unrealMaterial");
+	const TfToken Unreal = TfToken("unreal");
 
 	const TfToken DiffuseColor = TfToken("diffuseColor");
 	const TfToken EmissiveColor = TfToken("emissiveColor");

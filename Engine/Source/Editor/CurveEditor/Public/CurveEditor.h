@@ -195,6 +195,9 @@ public:
 	void SetSelectionRangeEnd();
 	void ClearSelectionRange();
 
+	/** Selection */
+	void SelectAllKeys();
+
 	/** Toggle the expansion state of the selected nodes or all nodes if none selected */
 	void ToggleExpandCollapseNodes(bool bRecursive);
 

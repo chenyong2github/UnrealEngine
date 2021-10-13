@@ -584,17 +584,11 @@ namespace Metasound
 							StereoFormatLocation = Location.Value;
 						}
 
-						TArray<FInputHandle> LeftInputs = StereoFormatOutput->GetInputsWithVertexName(TEXT("Left"));
-						if (ensure(LeftInputs.Num() == 1))
-						{
-							LeftOutputToReconnect = LeftInputs[0]->GetConnectedOutput();
-						}
+						FInputHandle LeftInput = StereoFormatOutput->GetInputWithVertexName(TEXT("Left"));
+						LeftOutputToReconnect = LeftInput->GetConnectedOutput();
 
-						TArray<FInputHandle> RightInputs = StereoFormatOutput->GetInputsWithVertexName(TEXT("Right"));
-						if (ensure(RightInputs.Num() == 1))
-						{
-							RightOutputToReconnect = RightInputs[0]->GetConnectedOutput();
-						}
+						FInputHandle RightInput = StereoFormatOutput->GetInputWithVertexName(TEXT("Right"));
+						RightOutputToReconnect = RightInput->GetConnectedOutput();
 
 						Graph->RemoveOutputVertex(MetasoundSourceStereoV1_0::GetAudioOutputName());
 					}

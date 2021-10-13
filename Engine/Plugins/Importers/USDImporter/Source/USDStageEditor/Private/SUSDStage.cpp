@@ -625,7 +625,7 @@ void SUsdStage::FillRenderContextSubMenu( FMenuBuilder& MenuBuilder )
 		FText RenderContextName = FText::FromName( RenderContext );
 		if ( RenderContext.IsNone() )
 		{
-			RenderContextName = LOCTEXT("UniversalRenderContext", "Universal");
+			RenderContextName = LOCTEXT("UniversalRenderContext", "universal");
 		}
 
 		MenuBuilder.AddMenuEntry(

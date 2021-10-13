@@ -348,6 +348,7 @@ UMovieSceneCompiledDataManager::UMovieSceneCompiledDataManager()
 						// Entry is a ref here, so care is taken to ensure we do not allocate CompiledDataEntries while the ref is around
 						Entry = FMovieSceneCompiledDataEntry();
 						Entry.SequenceKey = NewSequence;
+						Entry.DataID = DataID;
 
 						this->SequenceToDataIDs.Add(Entry.SequenceKey, DataID);
 					}
@@ -1255,6 +1256,11 @@ void UMovieSceneCompiledDataManager::GatherTrack(const FMovieSceneBinding* Objec
 
 		for (const FMovieSceneTrackEvaluationFieldEntry& Entry : EvaluationField.Entries)
 		{
+			if (Entry.Section && Track->IsRowEvalDisabled(Entry.Section->GetRowIndex()))
+			{
+				continue;
+			}
+
 			IMovieSceneEntityProvider* EntityProvider = Cast<IMovieSceneEntityProvider>(Entry.Section);
 			if (!EntityProvider)
 			{

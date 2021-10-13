@@ -37,8 +37,10 @@ void FActionMappingsNodeBuilder::Tick(float DeltaTime)
 
 void FActionMappingsNodeBuilder::GenerateHeaderRowContent(FDetailWidgetRow& NodeRow)
 {
-	TSharedRef<SWidget> AddButton = PropertyCustomizationHelpers::MakeAddButton(FSimpleDelegate::CreateSP(this, &FActionMappingsNodeBuilder::AddActionMappingButton_OnClick),
-		LOCTEXT("AddActionMappingToolTip", "Adds Action Mapping"));
+	TSharedRef<SWidget> AddButton = PropertyCustomizationHelpers::MakeAddButton(
+		FSimpleDelegate::CreateSP(this, &FActionMappingsNodeBuilder::AddActionMappingButton_OnClick),
+		TAttribute<FText>(this, &FActionMappingsNodeBuilder::GetAddNewActionTooltip),
+		TAttribute<bool>(this, &FActionMappingsNodeBuilder::CanAddNewActionMapping));
 
 	TSharedRef<SWidget> ClearButton = PropertyCustomizationHelpers::MakeEmptyButton(FSimpleDelegate::CreateSP(this, &FActionMappingsNodeBuilder::ClearActionMappingButton_OnClick),
 		LOCTEXT("ClearActionMappingToolTip", "Removes all Action Mappings"));
@@ -73,6 +75,38 @@ void FActionMappingsNodeBuilder::GenerateHeaderRowContent(FDetailWidgetRow& Node
 			ClearButton
 		]
 	];
+}
+
+bool FActionMappingsNodeBuilder::CanAddNewActionMapping() const
+{
+	// If the last action mapping the user has added is still null, then do not allow adding another one
+	TSharedPtr<IPropertyHandleArray> ActionMappingsArrayHandle = ActionMappingsPropertyHandle->AsArray();
+
+	uint32 NumMappings;
+	ActionMappingsArrayHandle->GetNumElements(NumMappings);
+
+	if(NumMappings > 0)
+	{
+		TSharedRef<IPropertyHandle> ActionMapping = ActionMappingsArrayHandle->GetElement(NumMappings - 1);
+		const UObject* Action;
+		FPropertyAccess::Result Result = ActionMapping->GetChildHandle(GET_MEMBER_NAME_CHECKED(FEnhancedActionKeyMapping, Action))->GetValue(Action);
+		return Result == FPropertyAccess::Success && Action;
+	}
+
+	// If there are no mappings, then the user is allowed to add one
+	return true;
+}
+
+FText FActionMappingsNodeBuilder::GetAddNewActionTooltip() const
+{
+	if(CanAddNewActionMapping())
+	{
+		return LOCTEXT("AddActionMappingToolTip_Enabled", "Adds Action Mapping");
+	}
+	else
+	{
+		return LOCTEXT("AddActionMappingToolTip_Disabled", "Cannot add an action mapping while an empty mapping exists");
+	}
 }
 
 void FActionMappingsNodeBuilder::GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder)

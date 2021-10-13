@@ -2,6 +2,7 @@
 
 #include "UObject/Package.h"
 
+#include "AssetRegistry/AssetData.h"
 #include "HAL/FileManager.h"
 #include "Misc/AssetRegistryInterface.h"
 #include "Misc/ITransaction.h"
@@ -118,19 +119,27 @@ void UPackage::Serialize( FArchive& Ar )
 	}
 }
 
-UObject* UPackage::FindAssetInPackage() const
+UObject* UPackage::FindAssetInPackage(EObjectFlags RequiredTopLevelFlags) const
 {
 	UObject* Asset = nullptr;
-	ForEachObjectWithPackage(this, [&Asset](UObject* Object)
+
+	ForEachObjectWithPackage(this, [&Asset, RequiredTopLevelFlags](UObject* Object)
 		{
-			if (Object->IsAsset() && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(Object))
+			if (Object->IsAsset() && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(Object) &&
+				(RequiredTopLevelFlags == RF_NoFlags || Object->HasAnyFlags(RequiredTopLevelFlags)))
 			{
-				ensure(Asset == nullptr);
-				Asset = Object;
-				return false;
+				if (FAssetData::IsUAsset(Object))
+				{
+					Asset = Object;
+					return false;
+				}
+				if (!Asset)
+				{
+					Asset = Object;
+				}
 			}
 			return true;
-		}, false);
+		}, false /*bIncludeNestedObjects*/);
 	return Asset;
 }
 

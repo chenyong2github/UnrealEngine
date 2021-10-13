@@ -359,7 +359,7 @@ bool FProjectManager::SetPluginEnabled(const FString& PluginName, bool bEnabled,
 	}
 
 	// If the current plugin reference is the default, just remove it from the list
-	if (PluginRef.WhitelistPlatforms.Num() == 0 && PluginRef.BlacklistPlatforms.Num() == 0)
+	if (PluginRef.PlatformAllowList.Num() == 0 && PluginRef.PlatformDenyList.Num() == 0)
 	{
 		// We alway need to be explicit about installed plugins, because they'll be auto-enabled again if we're not.
 		if (!Plugin.IsValid() || !Plugin->GetDescriptor().bInstalled)

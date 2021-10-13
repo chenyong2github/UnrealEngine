@@ -14,5 +14,8 @@ class UStateTreeTestSchema : public UStateTreeSchema
 public:
 	/** @return True if we should use StateTree V2 */
 	virtual bool IsV2() const { return true; }
+
+	/** @return True if specified struct is supported */
+	virtual bool IsStructAllowed(const UScriptStruct* InScriptStruct) const { return false; }
 };
 

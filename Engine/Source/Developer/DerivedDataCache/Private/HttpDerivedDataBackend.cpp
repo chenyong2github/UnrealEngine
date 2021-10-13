@@ -1952,6 +1952,11 @@ FHttpDerivedDataBackend::~FHttpDerivedDataBackend()
 	}
 }
 
+FString FHttpDerivedDataBackend::GetDisplayName() const
+{
+	return FString(TEXT("Http"));
+}
+
 FString FHttpDerivedDataBackend::GetName() const
 {
 	return Domain;

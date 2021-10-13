@@ -459,6 +459,13 @@ public:
 		return bWriteTestPassed || bReadTestPassed;
 	}
 
+	/** Return a type for this interface */
+	virtual FString GetDisplayName() const override
+	{
+		return FString(TEXT("FileSystem"));
+	}
+
+
 	/** Return a name for this interface */
 	virtual FString GetName() const override 
 	{ 

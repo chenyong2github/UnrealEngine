@@ -59,12 +59,11 @@
 #include "ZenStoreWriter.h"
 #include "IO/IoContainerHeader.h"
 #include "ProfilingDebugging/CountersTrace.h"
+#include "IO/IoStore.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, IoStoreUtilities);
-
-DEFINE_LOG_CATEGORY_STATIC(LogIoStore, Log, All);
 
 #define IOSTORE_CPU_SCOPE(NAME) TRACE_CPUPROFILER_EVENT_SCOPE(IoStore##NAME);
 #define IOSTORE_CPU_SCOPE_DATA(NAME, DATA) TRACE_CPUPROFILER_EVENT_SCOPE(IoStore##NAME);
@@ -526,7 +525,7 @@ public:
 			}
 
 			FIoBuffer Buffer = Status.ConsumeValueOrDie();
-			uint32 HeaderSize = reinterpret_cast<const FPackageSummary*>(Buffer.Data())->HeaderSize;
+			uint32 HeaderSize = reinterpret_cast<const FZenPackageSummary*>(Buffer.Data())->HeaderSize;
 			if (HeaderSize > Buffer.DataSize())
 			{
 				ReadOptions.SetRange(0, HeaderSize);
@@ -1979,12 +1978,7 @@ void LogContainerPackageInfo(const TArray<FContainerTargetSpec*>& ContainerTarge
 	{
 		uint64 StoreSize = ContainerTarget->Header.StoreEntries.Num();
 		uint64 PackageCount = ContainerTarget->Packages.Num();
-		uint64 LocalizedPackageCount = 0;
-
-		for (const auto& KV : ContainerTarget->Header.CulturePackageMap)
-		{
-			LocalizedPackageCount += KV.Value.Num();
-		}
+		uint64 LocalizedPackageCount = ContainerTarget->Header.LocalizedPackages.Num();
 
 		UE_LOG(LogIoStore, Display, TEXT("%-30s %20.0lf %20llu %20llu"),
 			*ContainerTarget->Name.ToString(),
@@ -3079,7 +3073,6 @@ int32 Describe(
 
 	struct FPackageRedirect
 	{
-		FName Culture;
 		FPackageDesc* Source = nullptr;
 		FPackageDesc* Target = nullptr;
 	};
@@ -3089,6 +3082,7 @@ int32 Describe(
 		FName Name;
 		FIoContainerId Id;
 		FGuid EncryptionKeyGuid;
+		TArray<FPackageDesc*> LocalizedPackages;
 		TArray<FPackageRedirect> PackageRedirects;
 		bool bCompressed;
 		bool bSigned;
@@ -3239,7 +3233,7 @@ int32 Describe(
 		FContainerDesc* ContainerDesc = nullptr;
 		TArray<FPackageDesc*> Packages;
 		FIoStoreReader* Reader = nullptr;
-		FCulturePackageMap RawCulturePackageMap;
+		TArray<FIoContainerHeaderLocalizedPackage> RawLocalizedPackages;
 		TArray<FIoContainerHeaderPackageRedirect> RawPackageRedirects;
 	};
 
@@ -3286,7 +3280,7 @@ int32 Describe(
 			FIoContainerHeader ContainerHeader;
 			Ar << ContainerHeader;
 
-			Job.RawCulturePackageMap = ContainerHeader.CulturePackageMap;
+			Job.RawLocalizedPackages = ContainerHeader.LocalizedPackages;
 			Job.RawPackageRedirects = ContainerHeader.PackageRedirects;
 
 			TArrayView<FFilePackageStoreEntry> StoreEntries(reinterpret_cast<FFilePackageStoreEntry*>(ContainerHeader.StoreEntries.GetData()), ContainerHeader.PackageCount);
@@ -3351,16 +3345,9 @@ int32 Describe(
 			PackageRedirect.Source = PackageByIdMap.FindRef(RedirectPair.SourcePackageId);
 			PackageRedirect.Target = PackageByIdMap.FindRef(RedirectPair.TargetPackageId);
 		}
-		for (const auto& CultureRedirectsPair : LoadContainerHeaderJob.RawCulturePackageMap)
+		for (const auto& LocalizedPackage : LoadContainerHeaderJob.RawLocalizedPackages)
 		{
-			FName Culture(CultureRedirectsPair.Get<0>());
-			for (const auto& RedirectPair : CultureRedirectsPair.Get<1>())
-			{
-				FPackageRedirect& PackageRedirect = LoadContainerHeaderJob.ContainerDesc->PackageRedirects.AddDefaulted_GetRef();
-				PackageRedirect.Source = PackageByIdMap.FindRef(RedirectPair.SourcePackageId);
-				PackageRedirect.Target = PackageByIdMap.FindRef(RedirectPair.TargetPackageId);
-				PackageRedirect.Culture = Culture;
-			}
+			LoadContainerHeaderJob.ContainerDesc->LocalizedPackages.Add(PackageByIdMap.FindRef(LocalizedPackage.SourcePackageId));
 		}
 	}
 	
@@ -3387,21 +3374,28 @@ int32 Describe(
 		TIoStatusOr<FIoBuffer> IoBuffer = Reader->Read(Job.ChunkId, ReadOptions);
 		check(IoBuffer.IsOk());
 		const uint8* PackageSummaryData = IoBuffer.ValueOrDie().Data();
-		const FPackageSummary* PackageSummary = reinterpret_cast<const FPackageSummary*>(PackageSummaryData);
+		const FZenPackageSummary* PackageSummary = reinterpret_cast<const FZenPackageSummary*>(PackageSummaryData);
 		if (PackageSummary->HeaderSize > IoBuffer.ValueOrDie().DataSize())
 		{
 			ReadOptions.SetRange(0, PackageSummary->HeaderSize);
 			IoBuffer = Reader->Read(Job.ChunkId, ReadOptions);
 			PackageSummaryData = IoBuffer.ValueOrDie().Data();
-			PackageSummary = reinterpret_cast<const FPackageSummary*>(PackageSummaryData);
+			PackageSummary = reinterpret_cast<const FZenPackageSummary*>(PackageSummaryData);
+		}
+
+		TArrayView<const uint8> HeaderDataView(PackageSummaryData + sizeof(FZenPackageSummary), PackageSummary->HeaderSize - sizeof(FZenPackageSummary));
+		FMemoryReaderView HeaderDataReader(HeaderDataView);
+
+		FZenPackageVersioningInfo VersioningInfo;
+		if (PackageSummary->bHasVersioningInfo)
+		{
+			HeaderDataReader << VersioningInfo;
 		}
 
 		TArray<FNameEntryId> PackageNameMap;
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(LoadNameBatch);
-			TArrayView<const uint8> NameMapView(PackageSummaryData + sizeof(FPackageSummary), PackageSummary->HeaderSize - sizeof(FPackageSummary));
-			FMemoryReaderView NameMapReader(NameMapView);
-			PackageNameMap = LoadNameBatch(NameMapReader);
+			PackageNameMap = LoadNameBatch(HeaderDataReader);
 		}
 
 		Job.PackageDesc->PackageName = FName::CreateFromDisplayId(PackageNameMap[PackageSummary->Name.GetIndex()], PackageSummary->Name.GetNumber());
@@ -3702,6 +3696,18 @@ int32 Describe(
 				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\tEncryptionKeyGuid: %s"), *ContainerDesc->EncryptionKeyGuid.ToString());
 			}
 
+			if (ContainerDesc->LocalizedPackages.Num())
+			{
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("--------------------------------------------"));
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("Localized Packages"));
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("=========="));
+				for (const FPackageDesc* LocalizedPackage : ContainerDesc->LocalizedPackages)
+				{
+					OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t*************************"));
+					OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t           Source: 0x%llX '%s'"), LocalizedPackage->PackageId.ValueForDebugging(), *LocalizedPackage->PackageName.ToString());
+				}
+			}
+
 			if (ContainerDesc->PackageRedirects.Num())
 			{
 				OutputOverride->Logf(ELogVerbosity::Display, TEXT("--------------------------------------------"));
@@ -3710,10 +3716,6 @@ int32 Describe(
 				for (const FPackageRedirect& Redirect : ContainerDesc->PackageRedirects)
 				{
 					OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t*************************"));
-					if (!Redirect.Culture.IsNone())
-					{
-						OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t          Culture: %s"), *Redirect.Culture.ToString());
-					}
 					OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t           Source: 0x%llX '%s'"), Redirect.Source->PackageId.ValueForDebugging(), *Redirect.Source->PackageName.ToString());
 					OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t           Target: 0x%llX '%s'"), Redirect.Target->PackageId.ValueForDebugging(), *Redirect.Target->PackageName.ToString());
 				}

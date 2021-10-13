@@ -285,4 +285,11 @@ bool UK2Node_PropertyAccess::HasResolvedPinType() const
 	return ResolvedPinType != FEdGraphPinType() && ResolvedPinType.PinCategory != UEdGraphSchema_K2::PC_Wildcard;
 }
 
+void UK2Node_PropertyAccess::PostEditUndo()
+{
+	Super::PostEditUndo();
+	
+	ResolvePropertyAccess();
+}
+
 #undef LOCTEXT_NAMESPACE

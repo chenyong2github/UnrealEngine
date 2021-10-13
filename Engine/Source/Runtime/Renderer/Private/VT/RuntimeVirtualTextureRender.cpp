@@ -16,10 +16,16 @@
 #include "VT/RuntimeVirtualTexture.h"
 #include "VT/RuntimeVirtualTextureSceneProxy.h"
 #include "MeshPassProcessor.inl"
-
+#include "RenderCaptureInterface.h"
 
 namespace RuntimeVirtualTexture
 {
+    int32 RenderCaptureNextRVTPagesDraws = 0;
+    static FAutoConsoleVariableRef CVarRenderCaptureNextRVTPagesDraws(
+	    TEXT("r.VT.RenderCaptureNextPagesDraws"),
+	    RenderCaptureNextRVTPagesDraws,
+	    TEXT("Trigger a render capture during the next RVT RenderPages draw calls."));
+
 	BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FEtcParameters, )
 		SHADER_PARAMETER_ARRAY(FVector4f, ALPHA_DISTANCE_TABLES, [16])
 		SHADER_PARAMETER_ARRAY(FVector4f, RGB_DISTANCE_TABLES, [8])
@@ -1247,26 +1253,32 @@ namespace RuntimeVirtualTexture
 	{
 		check(InDesc.NumPageDescs <= EMaxRenderPageBatch);
 
-		for (int32 PageIndex = 0; PageIndex < InDesc.NumPageDescs; ++PageIndex)
+		if (InDesc.NumPageDescs > 0)
 		{
-			FRenderPageDesc const& PageDesc = InDesc.PageDescs[PageIndex];
+			RenderCaptureInterface::FScopedCapture RenderCapture((RenderCaptureNextRVTPagesDraws != 0), GraphBuilder, TEXT("RenderRVTPages"));
+			RenderCaptureNextRVTPagesDraws = FMath::Max(RenderCaptureNextRVTPagesDraws - 1, 0);
 
-			RenderPage(
-				GraphBuilder,
-				InDesc.Scene,
-				InDesc.RuntimeVirtualTextureMask,
-				InDesc.MaterialType,
-				InDesc.bClearTextures,
-				InDesc.bIsThumbnails,
-				InDesc.Targets[0].Texture, InDesc.Targets[0].UAV, InDesc.Targets[0].PooledRenderTarget, PageDesc.DestBox[0],
-				InDesc.Targets[1].Texture, InDesc.Targets[1].UAV, InDesc.Targets[1].PooledRenderTarget, PageDesc.DestBox[1],
-				InDesc.Targets[2].Texture, InDesc.Targets[2].UAV, InDesc.Targets[2].PooledRenderTarget, PageDesc.DestBox[2],
-				InDesc.UVToWorld,
-				InDesc.WorldBounds,
-				PageDesc.UVRange,
-				PageDesc.vLevel,
-				InDesc.MaxLevel,
-				InDesc.DebugType);
+			for (int32 PageIndex = 0; PageIndex < InDesc.NumPageDescs; ++PageIndex)
+			{
+				FRenderPageDesc const& PageDesc = InDesc.PageDescs[PageIndex];
+
+				RenderPage(
+					GraphBuilder,
+					InDesc.Scene,
+					InDesc.RuntimeVirtualTextureMask,
+					InDesc.MaterialType,
+					InDesc.bClearTextures,
+					InDesc.bIsThumbnails,
+					InDesc.Targets[0].Texture, InDesc.Targets[0].UAV, InDesc.Targets[0].PooledRenderTarget, PageDesc.DestBox[0],
+					InDesc.Targets[1].Texture, InDesc.Targets[1].UAV, InDesc.Targets[1].PooledRenderTarget, PageDesc.DestBox[1],
+					InDesc.Targets[2].Texture, InDesc.Targets[2].UAV, InDesc.Targets[2].PooledRenderTarget, PageDesc.DestBox[2],
+					InDesc.UVToWorld,
+					InDesc.WorldBounds,
+					PageDesc.UVRange,
+					PageDesc.vLevel,
+					InDesc.MaxLevel,
+					InDesc.DebugType);
+			}
 		}
 	}
 

@@ -214,8 +214,8 @@ public:
 				else if ((EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap || EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Visibility) &&
 					EdMode->UISettings->PaintingRestriction != ELandscapeLayerPaintingRestriction::None)
 				{
-					if (EdMode->UISettings->PaintingRestriction == ELandscapeLayerPaintingRestriction::UseComponentWhitelist &&
-						!Component->LayerWhitelist.Contains(LayerInfo))
+					if (EdMode->UISettings->PaintingRestriction == ELandscapeLayerPaintingRestriction::UseComponentAllowList &&
+						!Component->LayerAllowList.Contains(LayerInfo))
 					{
 						bCanPaint = false;
 					}

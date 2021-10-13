@@ -68,7 +68,8 @@ bool FSimpleHoleFiller::Fill_Fan(int GroupID)
 	FDynamicMeshEditResult AddFanResult;
 	if (!Editor.AddTriangleFan_OrderedVertexLoop(NewVertex, Loop.Vertices, GroupID, AddFanResult))
 	{
-		Mesh->RemoveVertex(NewVertex, true, false);
+		constexpr bool bPreserveManifold = false;
+		Mesh->RemoveVertex(NewVertex, false);
 		NewVertex = FDynamicMesh3::InvalidID;
 		return false;
 	}

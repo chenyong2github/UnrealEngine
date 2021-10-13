@@ -3,6 +3,7 @@
 #include "CommonActivatableWidget.h"
 #include "CommonUIPrivatePCH.h"
 #include "Input/CommonUIInputTypes.h"
+#include "Input/UIActionRouterTypes.h"
 #include "ICommonInputModule.h"
 
 UCommonActivatableWidget::FActivatableWidgetRebuildEvent UCommonActivatableWidget::OnRebuilding;
@@ -115,6 +116,32 @@ void UCommonActivatableWidget::InternalProcessDeactivation()
 	NativeOnDeactivated();
 }
 
+void UCommonActivatableWidget::RegisterInputTreeNode(const TSharedPtr<FActivatableTreeNode>& OwnerNode)
+{
+	InputTreeNode = OwnerNode;
+}
+
+void UCommonActivatableWidget::ClearActiveHoldInputs()
+{
+	if (InputTreeNode.IsValid())
+	{
+		TSharedPtr<FActivatableTreeNode> Node = InputTreeNode.Pin();
+		if (Node->HasHoldBindings())
+		{
+			const TArray<FUIActionBindingHandle>& NodeActionBindings = Node->GetActionBindings();
+			for (const FUIActionBindingHandle& Handle : NodeActionBindings)
+			{
+				const TSharedPtr<FUIActionBinding>& UIActionBinding = FUIActionBinding::FindBinding(Handle);
+				if (UIActionBinding.IsValid() && UIActionBinding->IsHoldActive())
+				{
+					UIActionBinding->CancelHold();
+					UIActionBinding->OnHoldActionProgressed.Broadcast(0.0f);
+				}
+			}
+		}
+	}
+}
+
 TSharedRef<SWidget> UCommonActivatableWidget::RebuildWidget()
 {
 	// Note: the scoped builder guards against design-time so we don't need to here (as it'd make the scoped lifetime more awkward to leverage)
@@ -158,6 +185,9 @@ void UCommonActivatableWidget::NativeOnDeactivated()
 			SetVisibility(DeactivatedVisibility);
 			UE_LOG(LogCommonUI, Verbose, TEXT("[%s] set visibility to [%d] on deactivation"), *GetName(), *StaticEnum<ESlateVisibility>()->GetDisplayValueAsText(DeactivatedVisibility).ToString());
 		}
+
+		// Cancel any holds that were active
+		ClearActiveHoldInputs();
 
 		BP_OnDeactivated();
 		OnDeactivated().Broadcast();

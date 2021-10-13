@@ -16,9 +16,9 @@ void UMovieSceneEventBlueprintExtension::PostLoad()
 
 void UMovieSceneEventBlueprintExtension::HandlePreloadObjectsForCompilation(UBlueprint* OwningBlueprint)
 {
-	for (UMovieSceneEventSectionBase* EventSection : EventSections)
+	for (TWeakObjectPtr<UMovieSceneEventSectionBase> WeakEventSection : EventSections)
 	{
-		if (EventSection)
+		if (UMovieSceneEventSectionBase* EventSection = WeakEventSection.Get())
 		{
 			UBlueprint::ForceLoad(EventSection);
 		}
@@ -27,8 +27,9 @@ void UMovieSceneEventBlueprintExtension::HandlePreloadObjectsForCompilation(UBlu
 
 void UMovieSceneEventBlueprintExtension::HandleGenerateFunctionGraphs(FKismetCompilerContext* CompilerContext)
 {
-	for (UMovieSceneEventSectionBase* EventSection : EventSections)
+	for (TWeakObjectPtr<UMovieSceneEventSectionBase> WeakEventSection : EventSections)
 	{
+		UMovieSceneEventSectionBase* EventSection = WeakEventSection.Get();
 		if (!EventSection)
 		{
 			continue;

@@ -158,6 +158,11 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 	Style->Set("NiagaraEditor.SystemOverview.NodeBackgroundBorder", new BOX_PLUGIN_BRUSH("Icons/SystemOverviewNodeBackground", FMargin(1.0f / 4.0f)));
 	Style->Set("NiagaraEditor.SystemOverview.NodeBackgroundColor", FLinearColor(FColor(48, 48, 48)));
 
+	FTextBlockStyle NamePropertySelectionEntryTextBlockStyle = FTextBlockStyle(NormalText)
+		.SetFont(DEFAULT_FONT("Regular", 10))
+		.SetColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 1.f));
+	Style->Set("NiagaraEditor.NamePropertySelectionEntry", NamePropertySelectionEntryTextBlockStyle);
+	
 	const FTableRowStyle& NormalTableRowStyle = FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row");
 	FSlateFontInfo CurveOverviewTopLevelFont = DEFAULT_FONT("Bold", 10);
 	FTextBlockStyle CurveOverviewTopLevelText = FTextBlockStyle(NormalText)

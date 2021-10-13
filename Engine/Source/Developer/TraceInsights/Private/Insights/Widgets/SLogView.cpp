@@ -527,6 +527,7 @@ void SLogView::Construct(const FArguments& InArgs)
 	.AlwaysShowScrollbar(true);
 
 	FSlimHorizontalToolBarBuilder ToolbarBuilder(TSharedPtr<const FUICommandList>(), FMultiBoxCustomization::None);
+	ToolbarBuilder.SetStyle(&FInsightsStyle::Get(), "SecondaryToolbar");
 
 	ToolbarBuilder.BeginSection("Filters");
 	{
@@ -576,10 +577,9 @@ void SLogView::Construct(const FArguments& InArgs)
 	[
 		SNew(SVerticalBox)
 
-		// Toolbar
 		+ SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(FMargin(2.0f, 0.0f, 0.0f, 0.0f))
+		.Padding(FMargin(0.0f))
 		[
 			ToolbarBuilder.MakeWidget()
 		]
@@ -649,11 +649,7 @@ void SLogView::Construct(const FArguments& InArgs)
 			.AutoWidth()
 			.Padding(0.0f)
 			[
-				SNew(SBox)
-				.WidthOverride(FOptionalSize(13.0f))
-				[
-					ExternalScrollbar.ToSharedRef()
-				]
+				ExternalScrollbar.ToSharedRef()
 			]
 		]
 	];

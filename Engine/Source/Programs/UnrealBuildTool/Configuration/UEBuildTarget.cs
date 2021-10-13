@@ -13,6 +13,7 @@ using System.Runtime.Serialization;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
 using System.Reflection;
+using OpenTracing.Util;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -709,13 +710,13 @@ namespace UnrealBuildTool
 			}
 
 			RulesAssembly RulesAssembly;
-			using(Timeline.ScopeEvent("RulesCompiler.CreateTargetRulesAssembly()"))
+			using (GlobalTracer.Instance.BuildSpan("RulesCompiler.CreateTargetRulesAssembly()").StartActive())
 			{
 				RulesAssembly = RulesCompiler.CreateTargetRulesAssembly(Descriptor.ProjectFile, Descriptor.Name, bSkipRulesCompile, bForceRulesCompile, bUsePrecompiled, Descriptor.ForeignPlugin);
 			}
 
 			TargetRules RulesObject;
-			using(Timeline.ScopeEvent("RulesAssembly.CreateTargetRules()"))
+			using (GlobalTracer.Instance.BuildSpan("RulesAssembly.CreateTargetRules()").StartActive())
 			{
 				RulesObject = RulesAssembly.CreateTargetRules(Descriptor.Name, Descriptor.Platform, Descriptor.Configuration, Descriptor.Architecture, Descriptor.ProjectFile, Descriptor.AdditionalArguments);
 			}
@@ -815,11 +816,11 @@ namespace UnrealBuildTool
 
 			// Generate a build target from this rules module
 			UEBuildTarget Target;
-			using(Timeline.ScopeEvent("UEBuildTarget constructor"))
+			using (GlobalTracer.Instance.BuildSpan("UEBuildTarget constructor").StartActive())
 			{
 				Target = new UEBuildTarget(Descriptor, new ReadOnlyTargetRules(RulesObject), RulesAssembly);
 			}
-			using(Timeline.ScopeEvent("UEBuildTarget.PreBuildSetup()"))
+			using (GlobalTracer.Instance.BuildSpan("UEBuildTarget.PreBuildSetup()").StartActive())
 			{
 				Target.PreBuildSetup();
 			}
@@ -1690,7 +1691,7 @@ namespace UnrealBuildTool
 					HashSet<UEBuildModule> ReferencedModules = Module.GetDependencies(bWithIncludePathModules: true, bWithDynamicallyLoadedModules: true);
 					foreach(UEBuildModule ReferencedModule in ReferencedModules)
 					{
-						if(!Module.Rules.Context.Scope.Contains(ReferencedModule.Rules.Context.Scope) && !IsWhitelistedEnginePluginReference(Module.Name, ReferencedModule.Name))
+						if(!Module.Rules.Context.Scope.Contains(ReferencedModule.Rules.Context.Scope) && !IsEngineToPluginReferenceAllowed(Module.Name, ReferencedModule.Name))
 						{
 							throw new BuildException("Module '{0}' ({1}) should not reference module '{2}' ({3}). Hierarchy is {4}.", Module.Name, Module.Rules.Context.Scope.Name, ReferencedModule.Name, ReferencedModule.Rules.Context.Scope.Name, ReferencedModule.Rules.Context.Scope.FormatHierarchy());
 						}
@@ -1750,7 +1751,7 @@ namespace UnrealBuildTool
 
 			// Generate headers
 			HashSet<UEBuildModuleCPP> ModulesToGenerateHeadersFor = GatherDependencyModules(OriginalBinaries.ToList());
-			using(Timeline.ScopeEvent("ExternalExecution.SetupUObjectModules()"))
+			using (GlobalTracer.Instance.BuildSpan("ExternalExecution.SetupUObjectModules()").StartActive())
 			{
 				ExternalExecution.SetupUObjectModules(ModulesToGenerateHeadersFor, Rules.Platform, ProjectDescriptor, Makefile.UObjectModules, Makefile.UObjectModuleHeaders, Rules.GeneratedCodeVersion, MetadataCache);
 			}
@@ -1820,7 +1821,7 @@ namespace UnrealBuildTool
 
 			// Build the target's binaries.
 			DirectoryReference ExeDir = GetExecutableDir();
-			using(Timeline.ScopeEvent("UEBuildBinary.Build()"))
+			using (GlobalTracer.Instance.BuildSpan("UEBuildBinary.Build()").StartActive())
 			{
 				foreach (UEBuildBinary Binary in BuildBinaries)
 				{
@@ -1892,7 +1893,7 @@ namespace UnrealBuildTool
 			{
 				foreach (string InvalidIncludeDirectiveMessage in InvalidIncludeDirectiveMessages)
 				{
-					Log.WriteLine(0, LogEventType.Warning, LogFormatOptions.NoSeverityPrefix, "{0}", InvalidIncludeDirectiveMessage);
+					Log.WriteLine(LogEventType.Warning, LogFormatOptions.NoSeverityPrefix, "{0}", InvalidIncludeDirectiveMessage);
 				}
 			}
 
@@ -2215,12 +2216,12 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Check whether a reference from an engine module to a plugin module is allowed. Temporary hack until these can be fixed up propertly.
+		/// Check whether a reference from an engine module to a plugin module is allowed. 'Temporary' hack until these can be fixed up properly.
 		/// </summary>
 		/// <param name="EngineModuleName">Name of the engine module.</param>
 		/// <param name="PluginModuleName">Name of the plugin module.</param>
-		/// <returns>True if the reference is whitelisted.</returns>
-		static bool IsWhitelistedEnginePluginReference(string EngineModuleName, string PluginModuleName)
+		/// <returns>True if the reference is allowed.</returns>
+		static bool IsEngineToPluginReferenceAllowed(string EngineModuleName, string PluginModuleName)
 		{
 			if(EngineModuleName == "AndroidDeviceDetection" && PluginModuleName == "TcpMessaging")
 			{
@@ -2736,7 +2737,7 @@ namespace UnrealBuildTool
 			// Set of module names to build
 			HashSet<string> FilteredModuleNames = new HashSet<string>();
 
-			// Only add engine modules for non-program targets. Programs only compile whitelisted modules through plugins.
+			// Only add engine modules for non-program targets. Programs only compile allowed modules through plugins.
 			if(TargetType != TargetType.Program)
 			{
 				// Find all the known module names in this assembly
@@ -2751,8 +2752,8 @@ namespace UnrealBuildTool
 				}
 				Directories.AddRange(Unreal.GetExtensionDirs(Unreal.EngineDirectory, "Source/Runtime"));
 
-				// Also allow anything in the developer directory in non-shipping configurations (though we blacklist by default unless the PrecompileForTargets
-				// setting indicates that it's actually useful at runtime).
+				// Also allow anything in the developer directory in non-shipping configurations (though we deny by default
+				// unless the PrecompileForTargets setting indicates that it's actually useful at runtime).
 				if(Rules.bBuildDeveloperTools)
 				{
 					Directories.AddRange(Unreal.GetExtensionDirs(Unreal.EngineDirectory, "Source/Developer"));
@@ -3177,7 +3178,7 @@ namespace UnrealBuildTool
 
 						if (PluginReference.bHasExplicitPlatforms)
 						{
-							PluginReference.WhitelistPlatforms = PluginReference.SupportedTargetPlatforms; //synthesize whitelist if it must be explicit
+							PluginReference.PlatformAllowList = PluginReference.SupportedTargetPlatforms; //synthesize allow list if it must be explicit
 						}
 
 						AddPlugin(PluginReference, "default plugins", ExcludeFolders, NameToInstance, NameToInfo);
@@ -3259,9 +3260,21 @@ namespace UnrealBuildTool
 			else
 			{
 				// Check if the plugin is required for this platform
-				if(!Reference.IsEnabledForPlatform(Platform) || !Reference.IsEnabledForTargetConfiguration(Configuration) || !Reference.IsEnabledForTarget(TargetType))
+				if(!Reference.IsEnabledForPlatform(Platform))
 				{
-					Log.TraceLog("Ignoring plugin '{0}' (referenced via {1}) for platform/configuration", Reference.Name, ReferenceChain);
+					Log.TraceLog("Ignoring plugin '{0}' (referenced via {1}), not enabled for platform {2}", Reference.Name, ReferenceChain, Platform);
+					return null;
+				}
+
+				if (!Reference.IsEnabledForTargetConfiguration(Configuration))
+				{
+					Log.TraceLog("Ignoring plugin '{0}' (referenced via {1}), not enabled for target configuration {2}", Reference.Name, ReferenceChain, Configuration);
+					return null;
+				}
+
+				if (!Reference.IsEnabledForTarget(TargetType))
+				{
+					Log.TraceLog("Ignoring plugin '{0}' (referenced via {1}), not enabled for target {2}", Reference.Name, ReferenceChain, TargetType);
 					return null;
 				}
 

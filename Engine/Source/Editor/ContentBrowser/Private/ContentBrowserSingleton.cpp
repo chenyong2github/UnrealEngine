@@ -32,7 +32,7 @@
 #include "CoreGlobals.h"
 #include "AssetToolsModule.h"
 #include "EditorDirectories.h"
-#include "Misc/BlacklistNames.h"
+#include "Misc/NamePermissionList.h"
 #include "StatusBarSubsystem.h"
 #include "ToolMenus.h"
 
@@ -326,7 +326,25 @@ TSharedPtr<SContentBrowser> FContentBrowserSingleton::FindContentBrowserToSync(b
 		ChooseNewPrimaryBrowser();
 	}
 
-	if ( PrimaryContentBrowser.IsValid() && (bAllowLockedBrowsers || !PrimaryContentBrowser.Pin()->IsLocked()) )
+	auto CanContentBrowserBeSynced =
+		[ this, bAllowLockedBrowsers ]( const TWeakPtr< SContentBrowser >& ContentBrowser ) -> bool
+		{
+			// Content browser can be synced if:
+			// - It's valid.
+			// - It's not locked or we allow locked browsers (bAllowLockedBrowsers).
+			// - If it's the drawer, the active window needs to have a status bar so that it can show the drawer.
+
+			bool bCanBeSynced = ContentBrowser.IsValid() && ( bAllowLockedBrowsers || !PrimaryContentBrowser.Pin()->IsLocked() );
+
+			if ( ContentBrowser == ContentBrowserDrawer )
+			{
+				bCanBeSynced = bCanBeSynced && GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->ActiveWindowHasStatusBar();
+			}
+
+			return bCanBeSynced;
+		};
+
+	if ( CanContentBrowserBeSynced( PrimaryContentBrowser ) )
 	{
 		// If wanting to spawn a new browser window, don't set the BrowserToSync in order to summon a new browser
 		if (!bNewSpawnBrowser)
@@ -338,19 +356,19 @@ TSharedPtr<SContentBrowser> FContentBrowserSingleton::FindContentBrowserToSync(b
 	else
 	{
 
-		// If there is no primary or it is locked, sync the content browser drawer
-		if (ContentBrowserDrawer.IsValid())
+		// If there is no primary or it is locked, sync the content browser drawer if it's available
+		if ( CanContentBrowserBeSynced( ContentBrowserDrawer ) )
 		{
 			ContentBrowserToSync = ContentBrowserDrawer.Pin();
 		}
 		else
 		{
-			// if the drawer doesn't exist find the first non-locked valid browser
-			for (int32 BrowserIdx = 0; BrowserIdx < AllContentBrowsers.Num(); ++BrowserIdx)
+			// if the drawer isn't available, find the first non-locked valid browser
+			for ( const TWeakPtr< SContentBrowser >& ContentBrowser : AllContentBrowsers )
 			{
-				if (AllContentBrowsers[BrowserIdx].IsValid() && (bAllowLockedBrowsers || !AllContentBrowsers[BrowserIdx].Pin()->IsLocked()))
+				if ( CanContentBrowserBeSynced( ContentBrowser ) )
 				{
-					ContentBrowserToSync = AllContentBrowsers[BrowserIdx].Pin();
+					ContentBrowserToSync = ContentBrowser.Pin();
 					break;
 				}
 			}
@@ -1031,7 +1049,7 @@ FContentBrowserItemPath FContentBrowserSingleton::GetInitialPathToSaveAsset(cons
 	}
 	else
 	{
-		bPathIsWritable = AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(InPath.GetInternalPathName(), /*bAllowParentPaths*/true);
+		bPathIsWritable = AssetToolsModule.Get().GetWritableFolderPermissionList()->PassesStartsWithFilter(InPath.GetInternalPathName(), /*bAllowParentPaths*/true);
 	}
 
 	FString AssetPath;
@@ -1045,7 +1063,7 @@ FContentBrowserItemPath FContentBrowserSingleton::GetInitialPathToSaveAsset(cons
 		const FString DefaultFilesystemDirectory = FEditorDirectories::Get().GetLastDirectory(ELastDirectory::NEW_ASSET);
 		if (!DefaultFilesystemDirectory.IsEmpty() && FPackageName::TryConvertFilenameToLongPackageName(DefaultFilesystemDirectory, AssetPath))
 		{
-			if (AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(AssetPath, /*bAllowParentPaths*/true))
+			if (AssetToolsModule.Get().GetWritableFolderPermissionList()->PassesStartsWithFilter(AssetPath, /*bAllowParentPaths*/true))
 			{
 				bPathIsWritable = true;
 			}
@@ -1064,7 +1082,7 @@ FContentBrowserItemPath FContentBrowserSingleton::GetInitialPathToSaveAsset(cons
 				{
 					if (IContentBrowserDataModule::Get().GetSubsystem()->TryConvertVirtualPath(FNameBuilder(VirtualPath), AssetPath) == EContentBrowserPathType::Internal)
 					{
-						if (AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(AssetPath, /*bAllowParentPaths*/true))
+						if (AssetToolsModule.Get().GetWritableFolderPermissionList()->PassesStartsWithFilter(AssetPath, /*bAllowParentPaths*/true))
 						{
 							break;
 						}

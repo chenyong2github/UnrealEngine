@@ -29,6 +29,8 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Misc/FileHelper.h"
 #include "Modules/ModuleManager.h"
+#include "RenderUtils.h"
+#include "RHI.h"
 
 #if WITH_EDITOR
 	#include "Factories/TextureFactory.h"
@@ -546,20 +548,26 @@ namespace UE
 #endif // WITH_EDITOR
 
 								Texture = UsdUtils::CreateTexture( FileInput.GetAttr(), MaterialPrimPath, LODGroup, TexturesCache );
+
+								if ( Texture )
+								{
+									Texture->SRGB = bSRGB;
+									Texture->CompressionSettings = CompressionSettings;
+
+									if ( bForceVirtualTextures )
+									{
+										Texture->VirtualTextureStreaming = true;
+										UsdUtils::NotifyIfVirtualTexturesNeeded( Texture );
+									}
+
+									Texture->UpdateResource();
+
+									TexturesCache->CacheAsset( TextureHash, Texture );
+								}
 							}
 
 							if ( Texture )
 							{
-								Texture->SRGB = bSRGB;
-								Texture->CompressionSettings = CompressionSettings;
-
-								if ( bForceVirtualTextures )
-								{
-									Texture->VirtualTextureStreaming = true;
-								}
-
-								Texture->UpdateResource();
-
 								FString PrimvarName = GetPrimvarUsedAsST(Source);
 								int32 UVIndex = 0;
 								if ( !PrimvarName.IsEmpty() && PrimvarToUVIndex )
@@ -577,8 +585,6 @@ namespace UE
 										)
 									);
 								}
-
-								TexturesCache->CacheAsset( TextureHash, Texture );
 
 								FTextureParameterValue OutTextureValue;
 								OutTextureValue.Texture = Texture;
@@ -1579,7 +1585,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	return ConvertMaterial( UsdShadeMaterial, Material, nullptr, PrimvarToUVIndex );
 }
 
-bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterialInstance& Material, UUsdAssetCache* TexturesCache, TMap< FString, int32 >& PrimvarToUVIndex )
+bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterialInstance& Material, UUsdAssetCache* TexturesCache, TMap< FString, int32 >& PrimvarToUVIndex, const TCHAR* RenderContext )
 {
 	FScopedUsdAllocs UsdAllocs;
 
@@ -1589,11 +1595,25 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	// The idea being that when building a master material, we can't know which textures will be virtual so it's safer to set the samplers as if they were all virtual.
 	const bool bForceVirtualTextures = UsdUtils::IsMaterialUsingUDIMs( UsdShadeMaterial );
 
-	pxr::UsdShadeShader SurfaceShader = UsdShadeMaterial.ComputeSurfaceSource();
+	pxr::TfToken RenderContextToken = pxr::UsdShadeTokens->universalRenderContext;
+	if ( RenderContext )
+	{
+		pxr::TfToken ProvidedRenderContextToken = UnrealToUsd::ConvertToken( RenderContext ).Get();
+
+		// We won't ever create an asset for the Unreal render context material prim.
+		// Check the universal context here in case this material should also generate an asset for that context too
+		if ( ProvidedRenderContextToken != UnrealIdentifiers::Unreal )
+		{
+			RenderContextToken = ProvidedRenderContextToken;
+		}
+	}
+
+	pxr::UsdShadeShader SurfaceShader = UsdShadeMaterial.ComputeSurfaceSource( RenderContextToken );
 	if ( !SurfaceShader )
 	{
 		return false;
 	}
+
 	pxr::UsdShadeConnectableAPI Connectable{ SurfaceShader };
 
 	UsdShadeConversionImpl::FParameterValue ParameterValue;
@@ -1719,16 +1739,30 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	return ConvertMaterial( UsdShadeMaterial, Material, nullptr, PrimvarToUVIndex );
 }
 
-bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterial& Material, UUsdAssetCache* TexturesCache, TMap< FString, int32 >& PrimvarToUVIndex )
+bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterial& Material, UUsdAssetCache* TexturesCache, TMap< FString, int32 >& PrimvarToUVIndex, const TCHAR* RenderContext )
 {
 	bool bHasMaterialInfo = false;
 
 #if WITH_EDITOR
-	pxr::UsdShadeShader SurfaceShader = UsdShadeMaterial.ComputeSurfaceSource();
+	pxr::TfToken RenderContextToken = pxr::UsdShadeTokens->universalRenderContext;
+	if ( RenderContext )
+	{
+		pxr::TfToken ProvidedRenderContextToken = UnrealToUsd::ConvertToken( RenderContext ).Get();
+
+		// We won't ever create an asset for the Unreal render context material prim.
+		// Check the universal context here in case this material should also generate an asset for that context too
+		if ( ProvidedRenderContextToken != UnrealIdentifiers::Unreal )
+		{
+			RenderContextToken = ProvidedRenderContextToken;
+		}
+	}
+
+	pxr::UsdShadeShader SurfaceShader = UsdShadeMaterial.ComputeSurfaceSource( RenderContextToken );
 	if ( !SurfaceShader )
 	{
 		return false;
 	}
+
 	pxr::UsdShadeConnectableAPI Connectable{ SurfaceShader };
 
 	UsdShadeConversionImpl::FParameterValue ParameterValue;
@@ -2037,6 +2071,29 @@ UTexture* UsdUtils::CreateTexture( const pxr::UsdAttribute& TextureAssetPathAttr
 	else
 	{
 		return UsdShadeConversionImpl::CreateTextureAtRuntime( TextureAssetPathAttr, PrimPath, LODGroup );
+	}
+}
+
+void UsdUtils::NotifyIfVirtualTexturesNeeded( UTexture* Texture )
+{
+	if ( !Texture || !Texture->VirtualTextureStreaming )
+	{
+		return;
+	}
+
+	FString TexturePath = Texture->GetName();
+	if ( UUsdAssetImportData* AssetImportData = Cast<UUsdAssetImportData>( Texture ) )
+	{
+		TexturePath = AssetImportData->PrimPath;
+	}
+
+	if ( !UseVirtualTexturing( GMaxRHIFeatureLevel ) )
+	{
+		FUsdLogManager::LogMessage(
+			EMessageSeverity::Warning,
+			FText::Format( LOCTEXT( "DisabledVirtualTexturing", "Texture '{0}' requires Virtual Textures, but the feature is disabled for this project" ),
+				FText::FromString( TexturePath ) )
+		);
 	}
 }
 

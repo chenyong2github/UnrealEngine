@@ -1323,7 +1323,7 @@ FString GRHIAdapterName;
 FString GRHIAdapterInternalDriverVersion;
 FString GRHIAdapterUserDriverVersion;
 FString GRHIAdapterDriverDate;
-bool GRHIAdapterDriverBlacklisted = false;
+bool GRHIAdapterDriverOnDenyList = false;
 uint32 GRHIVendorId = 0;
 uint32 GRHIDeviceId = 0;
 uint32 GRHIDeviceRevision = 0;
@@ -1741,31 +1741,27 @@ RHI_API bool IsRHIDeviceNVIDIA()
 
 RHI_API const TCHAR* RHIVendorIdToString()
 {
-	switch (GRHIVendorId)
-	{
-	case 0x1002: return TEXT("AMD");
-	case 0x1010: return TEXT("ImgTec");
-	case 0x10DE: return TEXT("NVIDIA");
-	case 0x13B5: return TEXT("ARM");
-	case 0x14E4: return TEXT("Broadcom");
-	case 0x5143: return TEXT("Qualcomm");
-	case 0x8086: return TEXT("Intel");
-	default: return TEXT("Unknown");
-	}
+	return RHIVendorIdToString((EGpuVendorId)GRHIVendorId);
 }
 
 RHI_API const TCHAR* RHIVendorIdToString(EGpuVendorId VendorId)
 {
 	switch (VendorId)
 	{
-	case EGpuVendorId::Amd: return TEXT("AMD");
-	case EGpuVendorId::ImgTec: return TEXT("ImgTec");
-	case EGpuVendorId::Nvidia: return TEXT("NVIDIA");
-	case EGpuVendorId::Arm: return TEXT("ARM");
-	case EGpuVendorId::Broadcom: return TEXT("Broadcom");
-	case EGpuVendorId::Qualcomm: return TEXT("Qualcomm");
-	case EGpuVendorId::Intel: return TEXT("Intel");
-	case EGpuVendorId::NotQueried: return TEXT("Not Queried");
+	case EGpuVendorId::Amd:			return TEXT("AMD");
+	case EGpuVendorId::ImgTec:		return TEXT("ImgTec");
+	case EGpuVendorId::Nvidia:		return TEXT("NVIDIA");
+	case EGpuVendorId::Arm:			return TEXT("ARM");
+	case EGpuVendorId::Broadcom:	return TEXT("Broadcom");
+	case EGpuVendorId::Qualcomm:	return TEXT("Qualcomm");
+	case EGpuVendorId::Apple:		return TEXT("Apple");
+	case EGpuVendorId::Intel:		return TEXT("Intel");
+	case EGpuVendorId::Vivante:		return TEXT("Vivante");
+	case EGpuVendorId::VeriSilicon:	return TEXT("VeriSilicon");
+	case EGpuVendorId::Kazan:		return TEXT("Kazan");
+	case EGpuVendorId::Codeplay:	return TEXT("Codeplay");
+	case EGpuVendorId::Mesa:		return TEXT("Mesa");
+	case EGpuVendorId::NotQueried:	return TEXT("Not Queried");
 	default:
 		break;
 	}

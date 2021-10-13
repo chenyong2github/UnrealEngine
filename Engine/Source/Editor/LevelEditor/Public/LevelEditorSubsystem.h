@@ -9,6 +9,7 @@
 
 class UTypedElementSelectionSet;
 struct FToolMenuContext;
+class FEditorModeTools;
 
 /**
 * ULevelEditorSubsystem
@@ -125,4 +126,10 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
 	UTypedElementSelectionSet* GetSelectionSet();
+
+	/**
+	 * Gets the global level editor mode manager, if we have one.
+	 * The mode manager is not created in commandlet environments, because modes inherently imply user interactions.
+	 */
+	FEditorModeTools* GetLevelEditorModeManager();
 };

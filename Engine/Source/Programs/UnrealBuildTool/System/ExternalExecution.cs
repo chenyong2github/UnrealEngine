@@ -16,6 +16,8 @@ using System.Text.Json.Serialization;
 using UnrealBuildBase;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
+using OpenTracing;
+using OpenTracing.Util;
 
 namespace UnrealBuildTool
 {
@@ -1189,7 +1191,7 @@ namespace UnrealBuildTool
 						TargetDescriptor TargetDescriptor = new TargetDescriptor(ScriptProjectFile, "UnrealHeaderTool", Platform, Configuration, Architecture, null);
 						TargetDescriptor.bQuiet = true;
 
-						using(Timeline.ScopeEvent("Building UnrealHeaderTool"))
+						using (GlobalTracer.Instance.BuildSpan("Building UnrealHeaderTool").StartActive())
 						{
 							BuildMode.Build(new List<TargetDescriptor>{ TargetDescriptor }, BuildConfiguration, WorkingSet, BuildOptions.None, null);
 						}
@@ -1244,9 +1246,9 @@ namespace UnrealBuildTool
 
 					Stopwatch s = new Stopwatch();
 					s.Start();
-					ITimelineEvent Timer = Timeline.ScopeEvent("Executing UnrealHeaderTool");
+					IScope Timer = GlobalTracer.Instance.BuildSpan("Executing UnrealHeaderTool").StartActive();
 					CompilationResult UHTResult = (CompilationResult)RunExternalNativeExecutable(ExternalExecution.GetHeaderToolPath(HeaderToolReceipt), CmdLine);
-					Timer.Finish();
+					Timer.Span.Finish();
 					s.Stop();
 
 					if (UHTResult != CompilationResult.Succeeded)
@@ -1278,7 +1280,7 @@ namespace UnrealBuildTool
 
 					// Now that UHT has successfully finished generating code, we need to update all cached FileItems in case their last write time has changed.
 					// Otherwise UBT might not detect changes UHT made.
-					using(Timeline.ScopeEvent("ExternalExecution.ResetCachedHeaderInfo()"))
+					using (GlobalTracer.Instance.BuildSpan("ExternalExecution.ResetCachedHeaderInfo()").StartActive())
 					{
 						ResetCachedHeaderInfo(Makefile.UObjectModules);
 					}
@@ -1290,7 +1292,7 @@ namespace UnrealBuildTool
 
 				Progress.Write(2, 3);
 
-				using(Timeline.ScopeEvent("ExternalExecution.UpdateTimestamps()"))
+				using (GlobalTracer.Instance.BuildSpan("ExternalExecution.UpdateTimestamps()").StartActive())
 				{
 					UpdateTimestamps(Makefile.UObjectModules);
 				}

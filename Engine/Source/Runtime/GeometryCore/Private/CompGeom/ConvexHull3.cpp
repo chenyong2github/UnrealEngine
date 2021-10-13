@@ -407,7 +407,7 @@ struct FHullConnectivity
 			checkSlow(Triangles.Num() == TriNeighbors.Num());
 			checkSlow(Triangles.Num() == VisiblePoints.Num());
 
-			// nuke back-refs
+			// remove back-refs
 			UpdateNeighbors(TriIdx, -1);
 
 			int32 LastIdx = Triangles.Num() - 1;

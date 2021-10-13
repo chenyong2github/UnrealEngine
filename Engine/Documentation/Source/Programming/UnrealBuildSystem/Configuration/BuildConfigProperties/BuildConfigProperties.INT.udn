@@ -84,8 +84,6 @@ $ bRetainFramePointers : Forces frame pointers to be retained this is usually re
 
 $ bUseFastMonoCalls : New Monolithic Graphics drivers have optional "fast calls" replacing various D3d functions
 
-$ bUseFastSemanticsRenderContexts : New Xbox driver supports a "fast semantics" context type. This switches it on for the immediate and deferred contexts Try disabling this if you see rendering issues and/or crashes inthe Xbox RHI.
-
 $ NumIncludedBytesPerUnityCPP : An approximate number of bytes of C++ code to target for inclusion in a single unified C++ file.
 
 $ bStressTestUnity : Whether to stress test the C++ unity build robustness by including all C++ files files in a project from a single unified file.

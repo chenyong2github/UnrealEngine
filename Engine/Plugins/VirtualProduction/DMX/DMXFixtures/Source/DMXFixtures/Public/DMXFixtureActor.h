@@ -33,7 +33,6 @@ class DMXFIXTURES_API ADMXFixtureActor : public AActor
 	GENERATED_BODY()
 
 protected:
-
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
@@ -82,36 +81,60 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX Fixture")
 	void InterpolateDMXComponents(float DeltaSeconds);
 	
+	/** Sets the a new max light intensity */
+	UFUNCTION(BlueprintCallable, Category = "DMX Fixture")
+	void SetLightIntensityMax(float NewLightIntensityMax);
+
+	/** Sets a new max light distance */
+	UFUNCTION(BlueprintCallable, Category = "DMX Fixture")
+	void SetLightDistanceMax(float NewLightDistanceMax);
+
+	/** Sets a new light color temperature */
+	UFUNCTION(BlueprintCallable, Category = "DMX Fixture")
+	void SetLightColorTemp(float NewLightColorTemp);
+
+	/** Sets a new spotlight intensity scale */
+	UFUNCTION(BlueprintCallable, Category = "DMX Fixture")
+	void SetSpotlightIntensityScale(float NewSpotlightIntensityScale);
+
+	/** Sets a new pointlight intensity scale */
+	UFUNCTION(BlueprintCallable, Category = "DMX Fixture")
+	void SetPointlightIntensityScale(float NewPointlightIntensityScale);
+
+	/** Sets if the light should cast shadows */
+	UFUNCTION(BlueprintCallable, Category = "DMX Fixture")
+	void SetLightCastShadow(bool bLightShouldCastShadow);
+
+
 	// PARAMETERS---------------------------------
 
 	// Light intensity at 1 steradian (32.77deg half angle)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture")
+	UPROPERTY(EditAnywhere, BlueprintSetter = SetLightIntensityMax, Category = "DMX Light Fixture")
 	float LightIntensityMax;
 
 	// Sets Attenuation Radius on the spotlight and pointlight
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture")
+	UPROPERTY(EditAnywhere, BlueprintSetter = SetLightDistanceMax, Category = "DMX Light Fixture")
 	float LightDistanceMax;
 
 	// Light color temperature on the spotlight and pointlight
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture")
+	UPROPERTY(EditAnywhere, BlueprintSetter = SetLightColorTemp, Category = "DMX Light Fixture")
 	float LightColorTemp;
 
 	// Scales spotlight intensity
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture")
+	UPROPERTY(EditAnywhere, BlueprintSetter = SetSpotlightIntensityScale, Category = "DMX Light Fixture")
 	float SpotlightIntensityScale;
 
 	// Scales pointlight intensity
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture")
+	UPROPERTY(EditAnywhere, BlueprintSetter = SetPointlightIntensityScale, Category = "DMX Light Fixture")
 	float PointlightIntensityScale;
 
 	// Enable/disable cast shadow on the spotlight and pointlight
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture")
+	UPROPERTY(EditAnywhere, BlueprintSetter = SetLightCastShadow, Category = "DMX Light Fixture")
 	bool LightCastShadow;
 
 	// Simple solution useful for walls, 1 linetrace from the center
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture")
 	bool UseDynamicOcclusion;
-
 
 
 	// DMX COMPONENT -----------------------------

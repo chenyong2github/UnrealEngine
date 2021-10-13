@@ -20,7 +20,7 @@
 			"Name" : "WebSocketNetworking",
 			"Type" : "Runtime",
 			"LoadingPhase" : "Default",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"Mac",
 				"Win64",

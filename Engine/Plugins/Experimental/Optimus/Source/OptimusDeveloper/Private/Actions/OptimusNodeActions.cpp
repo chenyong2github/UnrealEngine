@@ -207,7 +207,7 @@ bool FOptimusNodeAction_SetPinType::SetPinType(
 }
 
 
-FOptimusNodeAction_SetPinResourceContexts::FOptimusNodeAction_SetPinResourceContexts(
+FOptimusNodeAction_SetPinDataDomain::FOptimusNodeAction_SetPinDataDomain(
 	UOptimusNodePin* InPin,
 	const TArray<FName>& InContextNames
 	)
@@ -216,24 +216,24 @@ FOptimusNodeAction_SetPinResourceContexts::FOptimusNodeAction_SetPinResourceCont
 	{
 		PinPath = InPin->GetPinPath();
 		NewContextNames = InContextNames;
-		OldContextNames = InPin->GetResourceContexts();
+		OldContextNames = InPin->GetDataDomainLevelNames();
 	}
 }
 
 
-bool FOptimusNodeAction_SetPinResourceContexts::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeAction_SetPinDataDomain::Do(IOptimusNodeGraphCollectionOwner* InRoot)
 {
-	return SetPinResourceContext(InRoot, NewContextNames);
+	return SetPinDataDomain(InRoot, NewContextNames);
 }
 
 
-bool FOptimusNodeAction_SetPinResourceContexts::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeAction_SetPinDataDomain::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
 {
-	return SetPinResourceContext(InRoot, OldContextNames);
+	return SetPinDataDomain(InRoot, OldContextNames);
 }
 
 
-bool FOptimusNodeAction_SetPinResourceContexts::SetPinResourceContext(
+bool FOptimusNodeAction_SetPinDataDomain::SetPinDataDomain(
 	IOptimusNodeGraphCollectionOwner* InRoot,
 	const TArray<FName>& InContextNames
 	) const
@@ -245,7 +245,7 @@ bool FOptimusNodeAction_SetPinResourceContexts::SetPinResourceContext(
 		return false;
 	}
 
-	return Pin->GetNode()->SetPinResourceContextsDirect(Pin, InContextNames);
+	return Pin->GetNode()->SetPinDataDomainDirect(Pin, InContextNames);
 }
 
 
@@ -289,7 +289,7 @@ FOptimusNodeAction_AddRemovePin::FOptimusNodeAction_AddRemovePin(UOptimusNodePin
 		Direction = InPin->GetDirection();
 		if (InPin->GetStorageType() == EOptimusNodePinStorageType::Resource)
 		{
-			StorageConfig = FOptimusNodePinStorageConfig(InPin->GetResourceContexts());
+			StorageConfig = FOptimusNodePinStorageConfig(InPin->GetDataDomainLevelNames());
 		}
 		else
 		{

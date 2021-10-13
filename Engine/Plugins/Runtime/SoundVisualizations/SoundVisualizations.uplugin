@@ -20,7 +20,7 @@
 			"Name" : "SoundVisualizations",
 			"Type" : "Runtime",
 			"LoadingPhase" : "Default",
-			"BlacklistPlatforms" :
+			"PlatformDenyList" :
 			[
 			]
 		}

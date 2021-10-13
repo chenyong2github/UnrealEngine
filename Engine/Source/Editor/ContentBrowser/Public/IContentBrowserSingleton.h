@@ -16,7 +16,7 @@
 #include "Framework/Views/ITypedTableView.h"
 #include "AssetThumbnail.h"
 #include "ContentBrowserItemPath.h"
-#include "Misc/BlacklistNames.h"
+#include "Misc/NamePermissionList.h"
 
 class FViewport;
 class UFactory;
@@ -336,8 +336,8 @@ struct FPathPickerConfig
 	/** The initial path to select. Leave empty to skip initial selection. */
 	FString DefaultPath;
 
-	/** Custom Folder Blacklist to be used to filter folders in this Path Picker. */
-	TSharedPtr<FBlacklistPaths> CustomFolderBlacklist;
+	/** Custom Folder permissions to be used to filter folders in this Path Picker. */
+	TSharedPtr<FPathPermissionList> CustomFolderPermissionList;
 
 	/** The delegate that fires when a path was selected */
 	FOnPathSelected OnPathSelected;
@@ -676,7 +676,7 @@ public:
 	virtual void ExecuteAddFolder(TSharedPtr<SWidget> PathPickerWidget) = 0;
 
 	/**
-	 * Force refresh on the path picker widget.  You may need to do this if you have changed the filter/white list on the path picker.
+	 * Force refresh on the path picker widget.  You may need to do this if you have changed the filter on the path picker.
 	 *
 	 * @param PathPickerWidget The path picker widget where we want to add an folder
 	*/

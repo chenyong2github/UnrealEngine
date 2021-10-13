@@ -12,6 +12,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using OpenTracing.Util;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -249,7 +250,7 @@ namespace UnrealBuildTool
 		public static List<LinkedAction> GetActionsToExecute(List<LinkedAction> Actions,
 			CppDependencyCache CppDependencies, ActionHistory History, bool bIgnoreOutdatedImportLibraries)
 		{
-			using (Timeline.ScopeEvent("ActionGraph.GetActionsToExecute()"))
+			using (GlobalTracer.Instance.BuildSpan("ActionGraph.GetActionsToExecute()").StartActive())
 			{
 				// For all targets, build a set of all actions that are outdated.
 				Dictionary<LinkedAction, bool> OutdatedActionDictionary = new Dictionary<LinkedAction, bool>();
@@ -797,7 +798,7 @@ namespace UnrealBuildTool
 			Dictionary<LinkedAction, bool> OutdatedActions, CppDependencyCache CppDependencies,
 			bool bIgnoreOutdatedImportLibraries)
 		{
-			using (Timeline.ScopeEvent("Prefetching include dependencies"))
+			using (GlobalTracer.Instance.BuildSpan("Prefetching include dependencies").StartActive())
 			{
 				List<FileItem> Dependencies = new List<FileItem>();
 				foreach (LinkedAction Action in Actions)
@@ -811,7 +812,7 @@ namespace UnrealBuildTool
 				Parallel.ForEach(Dependencies, File => { CppDependencies.TryGetDependencies(File, out _); });
 			}
 
-			using (Timeline.ScopeEvent("Cache individual outdated actions"))
+			using (GlobalTracer.Instance.BuildSpan("Cache individual outdated actions").StartActive())
 			{
 				ReaderWriterLockSlim OutdatedActionsLock = new ReaderWriterLockSlim();
 				Parallel.ForEach(Actions,
@@ -819,7 +820,7 @@ namespace UnrealBuildTool
 						ActionHistory, CppDependencies, bIgnoreOutdatedImportLibraries));
 			}
 
-			using (Timeline.ScopeEvent("Cache outdated actions based on recursive prerequisites"))
+			using (GlobalTracer.Instance.BuildSpan("Cache outdated actions based on recursive prerequisites").StartActive())
 			{
 				foreach (var Action in Actions)
 				{

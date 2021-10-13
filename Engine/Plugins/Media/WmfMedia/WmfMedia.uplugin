@@ -20,27 +20,27 @@
 			"Name": "WmfMedia",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [ "Win64" ],
-			"BlacklistTargets": [ "Server" ]
+			"PlatformAllowList": [ "Win64" ],
+			"TargetDenyList": [ "Server" ]
 		},
 		{
 			"Name": "WmfMediaEditor",
 			"Type": "Editor",
 			"LoadingPhase": "PostEngineInit",
-			"BlacklistTargets": [ "Server" ]
+			"TargetDenyList": [ "Server" ]
 		},
 		{
 			"Name": "WmfMediaFactory",
 			"Type": "Editor",
 			"LoadingPhase": "PostEngineInit",
-			"BlacklistTargets": [ "Server" ]
+			"TargetDenyList": [ "Server" ]
 		},
 		{
 			"Name": "WmfMediaFactory",
 			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "PostEngineInit",
-			"WhitelistPlatforms": [ "Mac", "Linux", "Win64" ],
-			"BlacklistTargets": [ "Server" ]
+			"PlatformAllowList": [ "Mac", "Linux", "Win64" ],
+			"TargetDenyList": [ "Server" ]
 		}
 	]
 }

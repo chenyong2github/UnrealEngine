@@ -2,6 +2,10 @@
 
 #include "TimerNode.h"
 
+#include "TraceServices/Model/AnalysisSession.h"
+#include "TraceServices/Model/TimingProfiler.h"
+
+#include "Insights/InsightsManager.h"
 #include "Insights/ViewModels/TimingEvent.h"
 
 #define LOCTEXT_NAMESPACE "TimerNode"
@@ -62,6 +66,43 @@ void FTimerNode::ResetAggregatedStats()
 void FTimerNode::SetAggregatedStats(const TraceServices::FTimingProfilerAggregatedStats& InAggregatedStats)
 {
 	AggregatedStats = InAggregatedStats;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FTimerNode::GetSourceFileAndLine(FString& OutFile, uint32& OutLine) const
+{
+	bool bIsSourceFileValid = false;
+
+	if (GetTimerId() != FTimerNode::InvalidTimerId)
+	{
+		TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		if (Session.IsValid() && TraceServices::ReadTimingProfilerProvider(*Session.Get()))
+		{
+			const TraceServices::ITimingProfilerProvider& TimingProfilerProvider = *TraceServices::ReadTimingProfilerProvider(*Session.Get());
+
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+
+			const TraceServices::ITimingProfilerTimerReader* TimerReader = nullptr;
+			TimingProfilerProvider.ReadTimers([&TimerReader](const TraceServices::ITimingProfilerTimerReader& Out) { TimerReader = &Out; });
+			if (TimerReader)
+			{
+				const TraceServices::FTimingProfilerTimer* Timer = TimerReader->GetTimer(GetTimerId());
+				if (Timer && Timer->File)
+				{
+					OutFile = FString(Timer->File);
+					OutLine = Timer->Line;
+					bIsSourceFileValid = true;
+				}
+			}
+		}
+	}
+	if (!bIsSourceFileValid)
+	{
+		OutFile.Reset();
+		OutLine = 0;
+	}
+	return bIsSourceFileValid;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

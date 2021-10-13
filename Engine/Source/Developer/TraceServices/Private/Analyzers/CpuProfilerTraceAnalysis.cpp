@@ -74,7 +74,18 @@ bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 			Name = FString::Printf(TEXT("<noname %u>"), SpecId);
 			TimerName = *Name;
 		}
-		DefineTimer(SpecId, Session.StoreString(TimerName));
+
+		const TCHAR* FileName = nullptr;
+		FString File;
+		uint32 Line = 0;
+		if (EventData.GetString("File", File) && !File.IsEmpty())
+		{
+			FileName = *File;
+			Line = EventData.GetValue<uint32>("Line");
+		}
+
+		constexpr bool bMergeByName = true;
+		DefineTimer(SpecId, Session.StoreString(TimerName), FileName, Line, bMergeByName);
 		break;
 	}
 	case RouteId_EndThread:
@@ -203,7 +214,7 @@ uint64 FCpuProfilerAnalyzer::ProcessBuffer(const FEventTime& EventTime, uint32 T
 				// The name might be updated when an EventSpec event is received (for this SpecId),
 				// so we do not want to merge by name all the unknown timers.
 				constexpr bool bMergeByName = false;
-				TimerId = DefineTimer(SpecId, TimerName, bMergeByName);
+				TimerId = DefineTimer(SpecId, TimerName, nullptr, 0, bMergeByName);
 			}
 			else
 			{
@@ -283,7 +294,8 @@ void FCpuProfilerAnalyzer::OnCpuScopeEnter(const FOnEventContext& Context)
 	{
 		FString ScopeName;
 		ScopeName += Context.EventData.GetTypeInfo().GetName();
-		TimerId = DefineTimer(SpecId, Session.StoreString(*ScopeName));
+		constexpr bool bMergeByName = true;
+		TimerId = DefineTimer(SpecId, Session.StoreString(*ScopeName), nullptr, 0, bMergeByName);
 	}
 
 	TArray<uint8> CborData;
@@ -308,7 +320,7 @@ void FCpuProfilerAnalyzer::OnCpuScopeLeave(const FOnEventContext& Context)
 	ThreadState.PendingEvents.Add({~Cycle});
 }
 
-uint32 FCpuProfilerAnalyzer::DefineTimer(uint32 SpecId, const TCHAR* Name, bool bMergeByName)
+uint32 FCpuProfilerAnalyzer::DefineTimer(uint32 SpecId, const TCHAR* Name, const TCHAR* File, uint32 Line, bool bMergeByName)
 {
 	// The cpu scoped events (timers) will be merged by name.
 	// Ex.: If there are multiple timers defined in code with same name,
@@ -325,7 +337,7 @@ uint32 FCpuProfilerAnalyzer::DefineTimer(uint32 SpecId, const TCHAR* Name, bool 
 		{
 			// Yes, SpecId was already mapped to a timer (ex. as an <unknown> timer).
 			// Update name for mapped timer.
-			TimingProfilerProvider.SetTimerName(*FindTimerId, Name);
+			TimingProfilerProvider.SetTimerNameAndLocation(*FindTimerId, Name, File, Line);
 			// In this case, we do not remap the SpecId to the previously defined timer with same name.
 			// This is becasue the two timers are already used in timelines.
 			// So we will continue to use separate timers, even if those have same name.
@@ -347,7 +359,7 @@ uint32 FCpuProfilerAnalyzer::DefineTimer(uint32 SpecId, const TCHAR* Name, bool 
 		{
 			// Yes, SpecId was already mapped to a timer (ex. as an <unknown> timer).
 			// Update name for mapped timer.
-			TimingProfilerProvider.SetTimerName(*FindTimerId, Name);
+			TimingProfilerProvider.SetTimerNameAndLocation(*FindTimerId, Name, File, Line);
 			if (bMergeByName)
 			{
 				// Map the name to the timer.
@@ -358,7 +370,7 @@ uint32 FCpuProfilerAnalyzer::DefineTimer(uint32 SpecId, const TCHAR* Name, bool 
 		else
 		{
 			// Define a new Cpu timer.
-			uint32 NewTimerId = TimingProfilerProvider.AddCpuTimer(Name);
+			uint32 NewTimerId = TimingProfilerProvider.AddCpuTimer(Name, File, Line);
 			// Map the SpecId to the timer.
 			SpecIdToTimerIdMap.Add(SpecId, NewTimerId);
 			if (bMergeByName)

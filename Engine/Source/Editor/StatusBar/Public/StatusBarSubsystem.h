@@ -105,7 +105,7 @@ public:
 	 *
 	 * @param ParentWindow			The parent window of the status bar 
 	 * @param bAlwaysToggleDrawer	If true, the output log drawer will be toggled without focusing the debug console first
-	 * @return true of a status bar debug console was found and focused 
+	 * @return true if a status bar debug console was found and focused 
 	 */
 	bool ToggleDebugConsole(TSharedRef<SWindow> ParentWindow, bool bAlwaysToggleDrawer=false);
 
@@ -139,6 +139,11 @@ public:
 	 * @param StatusBarName	The name of the status bar for updating it later.
 	 */
 	TSharedRef<SWidget> MakeStatusBarWidget(FName StatusBarName, const TSharedRef<SDockTab>& InParentTab);
+
+	/**
+	 * @return true if a status bar was found for the active window
+	 */
+	bool ActiveWindowHasStatusBar() const;
 
 	/**
 	 * Creates a new instance of a status bar widget

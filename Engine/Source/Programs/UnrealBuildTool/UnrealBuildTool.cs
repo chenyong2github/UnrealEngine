@@ -10,6 +10,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using EpicGames.Core;
+using OpenTracing.Util;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -422,10 +423,13 @@ namespace UnrealBuildTool
 		private static int Main(string[] ArgumentsArray)
 		{
 			SingleInstanceMutex? Mutex = null;
+			JsonTracer? Tracer = null;
+			
 			try
 			{
 				// Start capturing performance info
 				Timeline.Start();
+				Tracer = JsonTracer.TryRegisterAsGlobalTracer();
 
 				// Parse the command line arguments
 				CommandLineArguments Arguments = new CommandLineArguments(ArgumentsArray);
@@ -449,7 +453,6 @@ namespace UnrealBuildTool
 				Log.OutputLevel = Options.LogOutputLevel;
 				Log.IncludeTimestamps = Options.bLogTimestamps;
 				Log.IncludeProgramNameWithSeverityPrefix = Options.bLogFromMsBuild;
-				Log.IncludeCallingMethod = false;
 
 				// Always start capturing logs as early as possible to later copy to a log file if the ToolMode desires it (we have to start capturing before we get the ToolModeOptions below)
 				StartupTraceListener StartupTrace = new StartupTraceListener();
@@ -499,7 +502,7 @@ namespace UnrealBuildTool
 				// Start prefetching the contents of the engine folder
 				if((ModeOptions & ToolModeOptions.StartPrefetchingEngine) != 0)
 				{
-					using(Timeline.ScopeEvent("FileMetadataPrefetch.QueueEngineDirectory()"))
+					using (GlobalTracer.Instance.BuildSpan("FileMetadataPrefetch.QueueEngineDirectory()").StartActive())
 					{
 						FileMetadataPrefetch.QueueEngineDirectory();
 					}
@@ -508,7 +511,7 @@ namespace UnrealBuildTool
 				// Read the XML configuration files
 				if((ModeOptions & ToolModeOptions.XmlConfig) != 0)
 				{
-					using(Timeline.ScopeEvent("XmlConfig.ReadConfigFiles()"))
+					using (GlobalTracer.Instance.BuildSpan("XmlConfig.ReadConfigFiles()").StartActive())
 					{
 						string XmlConfigMutexName = SingleInstanceMutex.GetUniqueMutexForPath("UnrealBuildTool_Mutex_XmlConfig", Assembly.GetExecutingAssembly().CodeBase!);
 						using(SingleInstanceMutex XmlConfigMutex = new SingleInstanceMutex(XmlConfigMutexName, true))
@@ -522,7 +525,7 @@ namespace UnrealBuildTool
 				// Acquire a lock for this branch
 				if((ModeOptions & ToolModeOptions.SingleInstance) != 0 && !Options.bNoMutex)
 				{
-					using(Timeline.ScopeEvent("SingleInstanceMutex.Acquire()"))
+					using (GlobalTracer.Instance.BuildSpan("SingleInstanceMutex.Acquire()").StartActive())
 					{
 						string MutexName = SingleInstanceMutex.GetUniqueMutexForPath("UnrealBuildTool_Mutex", Assembly.GetExecutingAssembly().CodeBase!);
 						Mutex = new SingleInstanceMutex(MutexName, Options.bWaitMutex);
@@ -532,21 +535,21 @@ namespace UnrealBuildTool
 				// Register all the build platforms
 				if((ModeOptions & ToolModeOptions.BuildPlatforms) != 0)
 				{
-					using(Timeline.ScopeEvent("UEBuildPlatform.RegisterPlatforms()"))
+					using (GlobalTracer.Instance.BuildSpan("UEBuildPlatform.RegisterPlatforms()").StartActive())
 					{
 						UEBuildPlatform.RegisterPlatforms(false, false);
 					}
 				}
 				if ((ModeOptions & ToolModeOptions.BuildPlatformsHostOnly) != 0)
 				{
-					using (Timeline.ScopeEvent("UEBuildPlatform.RegisterPlatforms()"))
+					using (GlobalTracer.Instance.BuildSpan("UEBuildPlatform.RegisterPlatforms()").StartActive())
 					{
 						UEBuildPlatform.RegisterPlatforms(false, true);
 					}
 				}
 				if ((ModeOptions & ToolModeOptions.BuildPlatformsForValidation) != 0)
 				{
-					using(Timeline.ScopeEvent("UEBuildPlatform.RegisterPlatforms()"))
+					using (GlobalTracer.Instance.BuildSpan("UEBuildPlatform.RegisterPlatforms()").StartActive())
 					{
 						UEBuildPlatform.RegisterPlatforms(true, false);
 					}
@@ -586,7 +589,7 @@ namespace UnrealBuildTool
 			finally
 			{
 				// Cancel the prefetcher
-				using(Timeline.ScopeEvent("FileMetadataPrefetch.Stop()"))
+				using (GlobalTracer.Instance.BuildSpan("FileMetadataPrefetch.Stop()").StartActive())
 				{
 					FileMetadataPrefetch.Stop();
 				}
@@ -598,7 +601,10 @@ namespace UnrealBuildTool
 				Trace.Close();
 
 				// Write any trace logs
-				TraceSpan.Flush();
+				if (Tracer != null)
+				{
+					Tracer.Flush();
+				}
 
 				// Dispose of the mutex. Must be done last to ensure that another process does not startup and start trying to write to the same log file.
 				if (Mutex != null)

@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "Fonts/SlateFontInfo.h"
+#include "Input/Reply.h"
 
 class FMenuBuilder;
 class SWidget;

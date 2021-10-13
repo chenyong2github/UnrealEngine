@@ -30,6 +30,7 @@
 #include "VT/VirtualTextureBuildSettings.h"
 #include "VT/VirtualTextureBuiltData.h"
 #include "HAL/FileManager.h"
+#include "Misc/ConfigCacheIni.h"
 
 #if WITH_EDITOR
 
@@ -47,6 +48,7 @@
 #include "VT/VirtualTextureDataBuilder.h"
 #include "VT/LightmapVirtualTexture.h"
 #include "TextureCompiler.h"
+#include "TextureEncodingSettings.h"
 
 /*------------------------------------------------------------------------------
 	Versioning for texture derived data.
@@ -58,7 +60,7 @@
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID and set this new
 // guid as version
 
-#define TEXTURE_DERIVEDDATA_VER		TEXT("6F4DB6EC89FB4C34B2415FC04F995708")
+#define TEXTURE_DERIVEDDATA_VER		TEXT("596BF8F951D64FD7A48E0C99F80E2F36")
 
 // This GUID is mixed into DDC version for virtual textures only, this allows updating DDC version for VT without invalidating DDC for all textures
 // This is useful during development, but once large numbers of VT are present in shipped content, it will have the same problem as TEXTURE_DERIVEDDATA_VER
@@ -185,12 +187,14 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 		TempGuid = FGuid(0x2C9DF7E3, 0xBC9D413B, 0xBF963C7A, 0x3F27E8B1); // Guid reserved for bForceAlphaChannel feature
 		Ar << TempGuid;
 	}
-	//Settings.LossyCompressionAmount
-	//Settings.CompressionQuality
 
-	//note : LossyCompressionAmount and CompressionQuality are not put in DDC key
-	// 	   same for FastTextureEncode
-	// it is up to textureformats that use them to put them in
+	// Note - compression quality is added to the DDC by the formats (based on whether they
+	// use them or not).
+	// This is true for:
+	//	LossyCompressionAmount
+	//	CompressionQuality
+	//	OodleEncodeEffort
+	//	OodleUniversalTiling
 }
 
 /**
@@ -199,7 +203,7 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
  * @param BuildSettings - Build settings for which to compute the derived data key.
  * @param OutKeySuffix - The derived data key suffix.
  */
- void GetTextureDerivedDataKeySuffix(const UTexture& Texture, const FTextureBuildSettings* BuildSettingsPerLayer, FString& OutKeySuffix)
+void GetTextureDerivedDataKeySuffix(const UTexture& Texture, const FTextureBuildSettings* BuildSettingsPerLayer, FString& OutKeySuffix)
 {
 	uint16 Version = 0;
 
@@ -355,7 +359,68 @@ static void GetTextureDerivedDataKey(
 
 #if WITH_EDITOR
 
-static void FinalizeBuildSettingsForLayer(const UTexture& Texture, int32 LayerIndex, FTextureBuildSettings& OutSettings)
+struct FTextureEncodeSpeedOptions
+{
+	ETextureEncodeEffort Effort = ETextureEncodeEffort::Default;
+	ETextureUniversalTiling Tiling = ETextureUniversalTiling::Disabled;
+	bool bUsesRDO = false;
+	uint8 RDOLambda = 30;
+};
+
+// InEncodeSpeed must be fast or final.
+static void GetEncodeSpeedOptions(ETextureEncodeSpeed InEncodeSpeed, FTextureEncodeSpeedOptions* OutOptions)
+{
+	// We have to cache this because we are hitting the options on a worker thread, and it'll
+	// crash if we use GetDefault while someone edits the project settings.
+	// At the moment there's no guaranteed game thread place to do this as jobs can be kicked
+	// off from worker threads (async encodes shader/light map).
+	static struct ThreadSafeInitCSO
+	{
+		FTextureEncodeSpeedOptions Fast, Final;
+		ThreadSafeInitCSO()
+		{
+
+			const UTextureEncodingProjectSettings* Settings = GetDefault<UTextureEncodingProjectSettings>();
+			Fast.Effort = Settings->FastEffortLevel;
+			Fast.Tiling = Settings->FastUniversalTiling;
+			Fast.bUsesRDO = Settings->bFastUsesRDO;
+			Fast.RDOLambda = Settings->FastRDOLambda;
+
+			Final.Effort = Settings->FinalEffortLevel;
+			Final.Tiling = Settings->FinalUniversalTiling;
+			Final.bUsesRDO = Settings->bFinalUsesRDO;
+			Final.RDOLambda = Settings->FinalRDOLambda;
+			
+			// log settings once at startup
+			UEnum* EncodeEffortEnum = StaticEnum<ETextureEncodeEffort>();
+
+			UE_LOG(LogTexture, Display, TEXT("Oodle Texture Encode Speed settings: Fast: RDO %s Lambda %d, Effort %s Final: RDO %s Lambda %d, Effort %s"), \
+				Fast.bUsesRDO ? TEXT("On") : TEXT("Off"), Fast.bUsesRDO ? Fast.RDOLambda : 0,  *(EncodeEffortEnum->GetNameStringByValue((int64)Fast.Effort)), \
+				Final.bUsesRDO ? TEXT("On") : TEXT("Off"), Final.bUsesRDO ? Final.RDOLambda : 0,  *(EncodeEffortEnum->GetNameStringByValue((int64)Final.Effort)) );
+
+
+		}
+	} EncodeSpeedOptions;
+
+	if (InEncodeSpeed == ETextureEncodeSpeed::Final)
+	{
+		*OutOptions = EncodeSpeedOptions.Final;
+	}
+	else
+	{
+		*OutOptions = EncodeSpeedOptions.Fast;
+	}
+}
+
+
+// Convert the baseline build settings for all layers to one for the given layer.
+// Note this gets called twice for layer 0, so needs to be idempotent.
+static void FinalizeBuildSettingsForLayer(
+	const UTexture& Texture, 
+	int32 LayerIndex, 
+	const ITargetPlatform* TargetPlatform, 
+	ETextureEncodeSpeed InEncodeSpeed, // must be Final or Fast.
+	FTextureBuildSettings& OutSettings)
 {
 	FTextureFormatSettings FormatSettings;
 	Texture.GetLayerFormatSettings(LayerIndex, FormatSettings);
@@ -374,96 +439,173 @@ static void FinalizeBuildSettingsForLayer(const UTexture& Texture, int32 LayerIn
 	{
 		OutSettings.bReplicateRed = true;
 	}
+
+	if (OutSettings.bVirtualStreamable)
+	{
+		OutSettings.TextureFormatName = TargetPlatform->FinalizeVirtualTextureLayerFormat(OutSettings.TextureFormatName);
+	}
+
+	// Now that we know the texture format, we can make decisions based on it.
+
+	bool bSupportsEncodeSpeed = false;
+	{
+		ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
+		if (TPM)
+		{
+			// Can be null with first finalize (at the end of GetTextureBuildSettings)
+			const ITextureFormat* TextureFormat = TPM->FindTextureFormat(OutSettings.TextureFormatName);
+			if (TextureFormat)
+			{
+				bSupportsEncodeSpeed = TextureFormat->SupportsEncodeSpeed(OutSettings.TextureFormatName);
+			}
+		}
+	}
+
+	if (bSupportsEncodeSpeed)
+	{
+		FTextureEncodeSpeedOptions Options;
+		GetEncodeSpeedOptions(InEncodeSpeed, &Options);
+
+		// Always pass effort and tiling.
+		OutSettings.OodleEncodeEffort = (uint8)Options.Effort;
+		OutSettings.OodleUniversalTiling = (uint8)Options.Tiling;
+
+		// LCA has no effect if disabled, and only override if not default.
+		OutSettings.bOodleUsesRDO = Options.bUsesRDO;
+		if (Options.bUsesRDO)
+		{
+			// If this mapping changes, update the tooltip in TextureEncodingSettings.h
+			switch (OutSettings.LossyCompressionAmount)
+			{
+			default:
+			case TLCA_Default: OutSettings.OodleRDO = Options.RDOLambda; break; // Use global defaults.
+			case TLCA_None:    OutSettings.OodleRDO = 0; break;		// "No lossy compression"
+			case TLCA_Lowest:  OutSettings.OodleRDO = 1; break;		// "Lowest (Best Image quality, largest filesize)"
+			case TLCA_Low:     OutSettings.OodleRDO = 10; break;	// "Low"
+			case TLCA_Medium:  OutSettings.OodleRDO = 20; break;	// "Medium"
+			case TLCA_High:    OutSettings.OodleRDO = 30; break;	// "High"
+			case TLCA_Highest: OutSettings.OodleRDO = 40; break;	// "Highest (Worst Image quality, smallest filesize)"
+			}
+		}
+		else
+		{
+			OutSettings.OodleRDO = 0;
+		}
+	}
 }
 
-static ETextureFastEncode GetDesiredFastTextureEncode(	const ITargetPlatform& CurrentPlatform )
+static ETextureEncodeSpeed GetDesiredEncodeSpeed()
 {
-	static uint32 CachedFastTextureEncodeOption = 0; // 0 = not checked, 1 = no , 2 = yes + high bits are the value
-	
-	if ( CachedFastTextureEncodeOption == 0 )
+	//
+	// I don't really see a good place to initialize target platform cached data,
+	// but we can't hit this constantly for perf and because changing the project settings UI
+	// can cause a crash in the GetDefault<> call.
+	//
+	// So we init once here.
+	static struct FThreadSafeInitializer
 	{
-		// check for command line options
-		
-		FString FastTextureEncodeMode;
-		if ( FParse::Value(FCommandLine::Get(), TEXT("fasttextureencode="), FastTextureEncodeMode) )
-		{
-			ETextureFastEncode FastTextureEncodeOption;
+		ETextureEncodeSpeed CachedEncodeSpeedOption;
 
-			// FString operator== is case insensitive
-			if ( FastTextureEncodeMode == "0" || FastTextureEncodeMode == "off" )
+		// For thread safety, we do all the work in a constructor that the compiler
+		// guarantees will be called only once.
+		FThreadSafeInitializer()
+		{
+			UEnum* EncodeSpeedEnum = StaticEnum<ETextureEncodeSpeed>();
+
+			// Overridden by command line?
+			FString CmdLineSpeed;
+			if (FParse::Value(FCommandLine::Get(), TEXT("-ForceTextureEncodeSpeed="), CmdLineSpeed))
 			{
-				FastTextureEncodeOption = ETextureFastEncode::Off;				
+				int64 Value = EncodeSpeedEnum->GetValueByNameString(CmdLineSpeed);
+				if (Value == INDEX_NONE)
+				{
+					UE_LOG(LogTexture, Error, TEXT("Invalid value for ForceTextureEncodeSpeed, ignoring. Valid values are the ETextureEncodeSpeed enum (Final, FinalIfAvailable, Fast)"));
+				}
+				else
+				{
+					CachedEncodeSpeedOption = (ETextureEncodeSpeed)Value;
+					UE_LOG(LogTexture, Display, TEXT("Texture Encode Speed forced to %s via command line."), *EncodeSpeedEnum->GetNameStringByValue(Value));
+					return;
+				}
 			}
-			else if ( FastTextureEncodeMode == "1" || FastTextureEncodeMode == "on" )
+
+			// Overridden by user settings?
+			const UTextureEncodingUserSettings* UserSettings = GetDefault<UTextureEncodingUserSettings>();
+			if (UserSettings->ForceEncodeSpeed != ETextureEncodeSpeedOverride::Disabled)
 			{
-				FastTextureEncodeOption = ETextureFastEncode::TryOffEncodeFast;				
+				// enums have same values for payload.
+				CachedEncodeSpeedOption = (ETextureEncodeSpeed)UserSettings->ForceEncodeSpeed;
+				UE_LOG(LogTexture, Display, TEXT("Texture Encode Speed forced to %s via user settings."), *EncodeSpeedEnum->GetNameStringByValue((int64)CachedEncodeSpeedOption));
+				return;
 			}
-			else if ( FastTextureEncodeMode == "2" || FastTextureEncodeMode == "forced" )
+
+			// Use project settings
+			const UTextureEncodingProjectSettings* Settings = GetDefault<UTextureEncodingProjectSettings>();
+			if (GIsEditor && !IsRunningCommandlet())
 			{
-				FastTextureEncodeOption = ETextureFastEncode::Forced;				
+				// Interactive editor
+				CachedEncodeSpeedOption = Settings->EditorUsesSpeed;
+				UE_LOG(LogTexture, Display, TEXT("Texture Encode Speed: %s (editor)."), *EncodeSpeedEnum->GetNameStringByValue((int64)CachedEncodeSpeedOption));
 			}
 			else
 			{
-				FastTextureEncodeOption = ETextureFastEncode::TryOffEncodeFast;		
-				UE_LOG(LogTexture, Warning, TEXT("Unrecognized fasttextureencode mode %s"), *FastTextureEncodeMode);
+				CachedEncodeSpeedOption = Settings->CookUsesSpeed;
+				UE_LOG(LogTexture, Display, TEXT("Texture Encode Speed: %s (cook)."), *EncodeSpeedEnum->GetNameStringByValue((int64)CachedEncodeSpeedOption));
 			}
-		
-			CachedFastTextureEncodeOption = 2 | ((uint32)FastTextureEncodeOption<<8);
+			
 		}
-		else if ( FCString::Strifind(FCommandLine::Get(), TEXT("-fasttextureencode")) != NULL )
-		{
-			CachedFastTextureEncodeOption = 2 | ((uint32)ETextureFastEncode::TryOffEncodeFast<<8);
-		}
-		else
-		{
-			// no option on command line
-			// store 1 so we don't check here again
-			CachedFastTextureEncodeOption = 1;
-		}
-	}
+	} FThreadSafeInitializer;
 
-	if ( CachedFastTextureEncodeOption >= 2 )
+	return FThreadSafeInitializer.CachedEncodeSpeedOption;
+}
+
+//
+// Resolves whether the texture is streamable independent of compression speed, and avoids
+// unnecessary build settings generation work.
+//
+static bool GetTextureIsStreamable(const UTexture& Texture, const ITargetPlatform& CurrentPlatform)
+{
+	const bool bPlatformSupportsTextureStreaming = CurrentPlatform.SupportsFeature(ETargetPlatformFeatures::TextureStreaming);
+
+	bool bStreamable = false;
+	if (Texture.IsA(UTexture2DArray::StaticClass()))
 	{
-		// have CachedFastTextureEncodeOption
-		return (ETextureFastEncode)(CachedFastTextureEncodeOption>>8);
+		bStreamable = GSupportsTexture2DArrayStreaming;
 	}
-	else
+	else if (Texture.IsA(UVolumeTexture::StaticClass()))
 	{
-		check( CachedFastTextureEncodeOption == 1 );
-		// no option specified, default behavior :
-
-		// control by is in interactive editor (not cook / ddc fill commandlets)
-		//  cook/ddcfill will only make "notfast" ("shipping") by default
-		//  that behavior can be changed with an explicit -fasttextureencode argument
-
-		// does not depend on currentplatform so we could store in CachedFastTextureEncodeOption
-
-		if ( GIsEditor && ! IsRunningCommandlet() )
-		{
-			return ETextureFastEncode::TryOffEncodeFast;
-		}
-		else
-		{
-			return ETextureFastEncode::Off;
-		}
+		bStreamable = GSupportsVolumeTextureStreaming;
 	}
+	else if (Texture.IsA(UTexture2D::StaticClass()))
+	{
+		bStreamable = true;
+	}
+
+	bStreamable &= bPlatformSupportsTextureStreaming && !Texture.NeverStream && (Texture.LODGroup != TEXTUREGROUP_UI);
+	return bStreamable;
 }
 
 /**
  * Sets texture build settings.
  * @param Texture - The texture for which to build compressor settings.
  * @param OutBuildSettings - Build settings.
+ * 
+ * This function creates the build settings that are shared across all layers - you can not
+ * assume a texture format at this time (See FinalizeBuildSettingsForLayer)
  */
 static void GetTextureBuildSettings(
 	const UTexture& Texture,
 	const UTextureLODSettings& TextureLODSettings,
 	const ITargetPlatform& CurrentPlatform,
+	ETextureEncodeSpeed InEncodeSpeed, // must be Final or Fast.
 	FTextureBuildSettings& OutBuildSettings
 	)
 {
 	const bool bPlatformSupportsTextureStreaming = CurrentPlatform.SupportsFeature(ETargetPlatformFeatures::TextureStreaming);
 	const bool bPlatformSupportsVirtualTextureStreaming = CurrentPlatform.SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming);
-		
+	
+	OutBuildSettings.RepresentsEncodeSpeedNoSend = (uint8)InEncodeSpeed;
+
 	OutBuildSettings.ColorAdjustment.AdjustBrightness = Texture.AdjustBrightness;
 	OutBuildSettings.ColorAdjustment.AdjustBrightnessCurve = Texture.AdjustBrightnessCurve;
 	OutBuildSettings.ColorAdjustment.AdjustVibrance = Texture.AdjustVibrance;
@@ -484,7 +626,6 @@ static void GetTextureBuildSettings(
 	OutBuildSettings.bTextureArray = false;
 	OutBuildSettings.DiffuseConvolveMipLevel = 0;
 	OutBuildSettings.bLongLatSource = false;
-	OutBuildSettings.bStreamable = false;
 	OutBuildSettings.SourceEncodingOverride = Texture.SourceEncodingOverride.GetValue();
 
 	if (Texture.MaxTextureSize > 0)
@@ -501,7 +642,6 @@ static void GetTextureBuildSettings(
 	}
 	else if (Texture.IsA(UTexture2DArray::StaticClass()))
 	{
-		OutBuildSettings.bStreamable = GSupportsTexture2DArrayStreaming;
 		OutBuildSettings.bTextureArray = true;
 	}
 	else if (Texture.IsA(UTextureCubeArray::StaticClass()))
@@ -512,12 +652,7 @@ static void GetTextureBuildSettings(
 	}
 	else if (Texture.IsA(UVolumeTexture::StaticClass()))
 	{
-		OutBuildSettings.bStreamable = GSupportsVolumeTextureStreaming;
 		OutBuildSettings.bVolume = true;
-	}
-	else if (Texture.IsA(UTexture2D::StaticClass()))
-	{
-		OutBuildSettings.bStreamable = true;
 	}
 
 	bool bDownsampleWithAverage;
@@ -549,7 +684,7 @@ static void GetTextureBuildSettings(
 	OutBuildSettings.CompositePower = Texture.CompositePower;
 	OutBuildSettings.LODBias = TextureLODSettings.CalculateLODBias(SourceSize.X, SourceSize.Y, Texture.MaxTextureSize, Texture.LODGroup, Texture.LODBias, Texture.NumCinematicMipLevels, Texture.MipGenSettings, bVirtualTextureStreaming);
 	OutBuildSettings.LODBiasWithCinematicMips = TextureLODSettings.CalculateLODBias(SourceSize.X, SourceSize.Y, Texture.MaxTextureSize, Texture.LODGroup, Texture.LODBias, 0, Texture.MipGenSettings, bVirtualTextureStreaming);
-	OutBuildSettings.bStreamable &= bPlatformSupportsTextureStreaming && !Texture.NeverStream && (Texture.LODGroup != TEXTUREGROUP_UI);
+	OutBuildSettings.bStreamable = GetTextureIsStreamable(Texture, CurrentPlatform);
 	OutBuildSettings.bVirtualStreamable = bVirtualTextureStreaming;
 	OutBuildSettings.PowerOfTwoMode = Texture.PowerOfTwoMode;
 	OutBuildSettings.PaddingColor = Texture.PaddingColor;
@@ -563,7 +698,9 @@ static void GetTextureBuildSettings(
 	// if LossyCompressionAmount is Default, inherit from LODGroup :
 	const FTextureLODGroup& LODGroup = TextureLODSettings.GetTextureLODGroup(Texture.LODGroup);
 	if ( OutBuildSettings.LossyCompressionAmount == TLCA_Default )
+	{
 		OutBuildSettings.LossyCompressionAmount = LODGroup.LossyCompressionAmount;
+	}
 
 	OutBuildSettings.Downscale = 1.0f;
 	if (MipGenSettings == TMGS_NoMipmaps && 
@@ -620,10 +757,8 @@ static void GetTextureBuildSettings(
 		OutBuildSettings.bVirtualTextureEnableCompressCrunch = false;
 	}
 
-	OutBuildSettings.FastTextureEncode = GetDesiredFastTextureEncode( CurrentPlatform );
-
 	// By default, initialize settings for layer0
-	FinalizeBuildSettingsForLayer(Texture, 0, OutBuildSettings);
+	FinalizeBuildSettingsForLayer(Texture, 0, &CurrentPlatform, InEncodeSpeed, OutBuildSettings);
 }
 
 /**
@@ -633,6 +768,7 @@ static void GetTextureBuildSettings(
  */
 static void GetBuildSettingsForRunningPlatform(
 	const UTexture& Texture,
+	ETextureEncodeSpeed InEncodeSpeed, //  must be Fast or Final
 	TArray<FTextureBuildSettings>& OutSettingPerLayer
 	)
 {
@@ -660,7 +796,7 @@ static void GetBuildSettingsForRunningPlatform(
 
 		const UTextureLODSettings* LODSettings = (UTextureLODSettings*)UDeviceProfileManager::Get().FindProfile(CurrentPlatform->PlatformName());
 		FTextureBuildSettings SourceBuildSettings;
-		GetTextureBuildSettings(Texture, *LODSettings, *CurrentPlatform, SourceBuildSettings);
+		GetTextureBuildSettings(Texture, *LODSettings, *CurrentPlatform, InEncodeSpeed, SourceBuildSettings);
 
 		TArray< TArray<FName> > PlatformFormats;
 		CurrentPlatform->GetTextureFormats(&Texture, PlatformFormats);
@@ -674,17 +810,17 @@ static void GetBuildSettingsForRunningPlatform(
 		{
 			FTextureBuildSettings& OutSettings = OutSettingPerLayer.Add_GetRef(SourceBuildSettings);
 			OutSettings.TextureFormatName = PlatformFormats[0][LayerIndex];
-			FinalizeBuildSettingsForLayer(Texture, LayerIndex, OutSettings);
-
-			if (SourceBuildSettings.bVirtualStreamable)
-			{
-				OutSettings.TextureFormatName = CurrentPlatform->FinalizeVirtualTextureLayerFormat(OutSettings.TextureFormatName);
-			}
+			FinalizeBuildSettingsForLayer(Texture, LayerIndex, CurrentPlatform, InEncodeSpeed, OutSettings);
 		}
 	}
 }
 
-static void GetBuildSettingsPerFormat(const UTexture& Texture, const FTextureBuildSettings& SourceBuildSettings, const ITargetPlatform* TargetPlatform, TArray< TArray<FTextureBuildSettings> >& OutBuildSettingsPerFormat)
+static void GetBuildSettingsPerFormat(
+	const UTexture& Texture, 
+	const FTextureBuildSettings& SourceBuildSettings, 
+	const ITargetPlatform* TargetPlatform, 
+	ETextureEncodeSpeed InEncodeSpeed, //  must be Fast or Final
+	TArray< TArray<FTextureBuildSettings> >& OutBuildSettingsPerFormat)
 {
 	const int32 NumLayers = Texture.Source.GetNumLayers();
 
@@ -701,12 +837,7 @@ static void GetBuildSettingsPerFormat(const UTexture& Texture, const FTextureBui
 		{
 			FTextureBuildSettings& OutSettings = OutSettingPerLayer.Add_GetRef(SourceBuildSettings);
 			OutSettings.TextureFormatName = PlatformFormatsPerLayer[LayerIndex];
-			FinalizeBuildSettingsForLayer(Texture, LayerIndex, OutSettings);
-
-			if (SourceBuildSettings.bVirtualStreamable)
-			{
-				OutSettings.TextureFormatName = TargetPlatform->FinalizeVirtualTextureLayerFormat(OutSettings.TextureFormatName);
-			}
+			FinalizeBuildSettingsForLayer(Texture, LayerIndex, TargetPlatform, InEncodeSpeed, OutSettings);
 		}
 	}
 }
@@ -819,11 +950,19 @@ uint32 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& D
 
 void FTexturePlatformData::Cache(
 	UTexture& InTexture,
-	const FTextureBuildSettings* InSettingsPerLayer,
+	const FTextureBuildSettings* InSettingsPerLayerFetchFirst, // can be null
+	const FTextureBuildSettings* InSettingsPerLayerFetchOrBuild, // must be valid
 	uint32 InFlags,
 	ITextureCompressorModule* Compressor
 	)
 {
+	//
+	// Note this can be called off the main thread, despite referencing a UObject!
+	// Be very careful!
+	// (as of this writing, the shadow and light maps can call CachePlatformData
+	// off the main thread via FAsyncEncode<>.)
+	//
+	
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTexturePlatformData::Cache);
 
 	// Flush any existing async task and ignore results.
@@ -831,17 +970,22 @@ void FTexturePlatformData::Cache(
 
 	ETextureCacheFlags Flags = ETextureCacheFlags(InFlags);
 
-	if (IsUsingNewDerivedData() && InTexture.Source.GetNumLayers() == 1 && !InSettingsPerLayer->bVirtualStreamable)
+	if (IsUsingNewDerivedData() && InTexture.Source.GetNumLayers() == 1 && !InSettingsPerLayerFetchOrBuild->bVirtualStreamable)
 	{
 		COOK_STAT(auto Timer = TextureCookStats::UsageStats.TimeSyncWork());
 		COOK_STAT(Timer.TrackCyclesOnly());
 		EQueuedWorkPriority Priority = FTextureCompilingManager::Get().GetBasePriority(&InTexture);
-		AsyncTask = CreateTextureBuildTask(InTexture, *this, *InSettingsPerLayer, Priority, Flags);
+		AsyncTask = CreateTextureBuildTask(InTexture, *this, InSettingsPerLayerFetchFirst, *InSettingsPerLayerFetchOrBuild, Priority, Flags);
 		if (AsyncTask)
 		{
 			return;
 		}
+		UE_LOG(LogTexture, Warning, TEXT("Failed to create requested DDC2 build task for texture %s -- falling back to DDC1"), *InTexture.GetName());
 	}
+
+	//
+	// DDC1 from here on out.
+	//
 
 	static bool bForDDC = FString(FCommandLine::Get()).Contains(TEXT("Run=DerivedDataCache"));
 	if (bForDDC)
@@ -857,7 +1001,7 @@ void FTexturePlatformData::Cache(
 		Compressor = &FModuleManager::LoadModuleChecked<ITextureCompressorModule>(TEXTURE_COMPRESSOR_MODULENAME);
 	}
 
-	if (InSettingsPerLayer[0].bVirtualStreamable)
+	if (InSettingsPerLayerFetchOrBuild[0].bVirtualStreamable)
 	{
 		Flags |= ETextureCacheFlags::ForVirtualTextureStreamingBuild;
 	}
@@ -869,17 +1013,18 @@ void FTexturePlatformData::Cache(
 
 		COOK_STAT(auto Timer = TextureCookStats::UsageStats.TimeSyncWork());
 		COOK_STAT(Timer.TrackCyclesOnly());
-		FTextureAsyncCacheDerivedDataWorkerTask* LocalTask = new FTextureAsyncCacheDerivedDataWorkerTask(TextureThreadPool, Compressor, this, &InTexture, InSettingsPerLayer, Flags);
+		FTextureAsyncCacheDerivedDataWorkerTask* LocalTask = new FTextureAsyncCacheDerivedDataWorkerTask(TextureThreadPool, Compressor, this, &InTexture, InSettingsPerLayerFetchFirst, InSettingsPerLayerFetchOrBuild, Flags);
 		AsyncTask = LocalTask;
 		LocalTask->StartBackgroundTask(TextureThreadPool, BasePriority, EQueuedWorkFlags::DoNotRunInsideBusyWait, LocalTask->GetTask().GetRequiredMemoryEstimate());
 	}
 	else
 	{
-		FTextureCacheDerivedDataWorker Worker(Compressor, this, &InTexture, InSettingsPerLayer, Flags);
+		FTextureCacheDerivedDataWorker Worker(Compressor, this, &InTexture, InSettingsPerLayerFetchFirst, InSettingsPerLayerFetchOrBuild, Flags);
 		{
 			COOK_STAT(auto Timer = TextureCookStats::UsageStats.TimeSyncWork());
 			Worker.DoWork();
 			Worker.Finalize();
+
 			COOK_STAT(Timer.AddHitOrMiss(Worker.WasLoadedFromDDC() ? FCookStats::CallStats::EHitOrMiss::Hit : FCookStats::CallStats::EHitOrMiss::Miss, Worker.GetBytesCached()));
 		}
 	}
@@ -908,8 +1053,20 @@ void FTexturePlatformData::CancelCache()
 
 bool FTexturePlatformData::IsUsingNewDerivedData()
 {
-	static const bool bUseNewDerivedData = FParse::Param(FCommandLine::Get(), TEXT("DDC2AsyncTextureBuilds")) || FParse::Param(FCommandLine::Get(), TEXT("DDC2TextureBuilds"));
-	return bUseNewDerivedData;
+	struct FTextureDerivedDataSetting
+	{
+		FTextureDerivedDataSetting()
+		{
+			bUseNewDerivedData = FParse::Param(FCommandLine::Get(), TEXT("DDC2AsyncTextureBuilds")) || FParse::Param(FCommandLine::Get(), TEXT("DDC2TextureBuilds"));
+			if (!bUseNewDerivedData)
+			{
+				GConfig->GetBool(TEXT("TextureBuild"), TEXT("NewTextureBuilds"), bUseNewDerivedData, GEditorIni);
+			}
+		}
+		bool bUseNewDerivedData;
+	};
+	static const FTextureDerivedDataSetting TextureDerivedDataSetting;
+	return TextureDerivedDataSetting.bUseNewDerivedData;
 }
 
 bool FTexturePlatformData::IsAsyncWorkComplete() const
@@ -927,7 +1084,7 @@ void FTexturePlatformData::FinishCache()
 			bool bFoundInCache = false;
 			uint64 ProcessedByteCount = 0;
 			AsyncTask->Wait();
-			AsyncTask->Finalize(bFoundInCache, ProcessedByteCount);
+			AsyncTask->Finalize(bFoundInCache, (ETextureEncodeSpeed&)UsedEncodeSpeed, ProcessedByteCount);
 			COOK_STAT(Timer.AddHitOrMiss(bFoundInCache ? FCookStats::CallStats::EHitOrMiss::Hit : FCookStats::CallStats::EHitOrMiss::Miss, int64(ProcessedByteCount)));
 		}
 		delete AsyncTask;
@@ -943,6 +1100,10 @@ typedef TArray<uint32> FAsyncVTChunkHandles;
  * @param Mip - Mips to retrieve.
  * @param FirstMipToLoad - Index of the first mip to retrieve.
  * @param OutHandles - Handles to the asynchronous DDC gets.
+ * 
+ * This function must be called after the initial DDC fetch is complete,
+ * so we know what our in-use key is. This might be on the worker immediately
+ * after the fetch completes.
  */
 static bool BeginLoadDerivedMips(FTexturePlatformData& PlatformData, int32 FirstMipToLoad, UTexture* Texture, FAsyncMipHandles& OutHandles, TUniqueFunction<void (int32 MipIndex, FSharedBuffer MipData)> Callback)
 {
@@ -1097,13 +1258,11 @@ bool FTexturePlatformData::TryInlineMipData(int32 FirstMipToLoad, UTexture* Text
 			}
 			if (bLoadedFromDDC)
 			{
-				int32 MipSize = 0;
 				FMemoryReader Ar(TempData, /*bIsPersistent=*/ true);
-				Ar << MipSize;
 
 				Mip.BulkData.Lock(LOCK_READ_WRITE);
-				void* MipData = Mip.BulkData.Realloc(MipSize);
-				Ar.Serialize(MipData, MipSize);
+				void* MipData = Mip.BulkData.Realloc(TempData.Num());
+				Ar.Serialize(MipData, TempData.Num());
 				Mip.BulkData.Unlock();
 				Mip.SetPagedToDerivedData(false);
 			}
@@ -1207,6 +1366,7 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData, 
 	check(LoadableMips >= 0);
 
 #if WITH_EDITOR
+
 	TArray<uint8> TempData;
 	FAsyncMipHandles AsyncHandles;
 	FDerivedDataCacheInterface& DDC = GetDerivedDataCacheRef();
@@ -1281,16 +1441,14 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData, 
 				DDC.WaitAsynchronousCompletion(AsyncHandle);
 				if (DDC.GetAsynchronousResults(AsyncHandle, TempData))
 				{
-					int32 MipSize = 0;
 					FMemoryReader Ar(TempData, /*bIsPersistent=*/ true);
-					Ar << MipSize;
-					CheckMipSize(Mip, PixelFormat, MipSize);
+					CheckMipSize(Mip, PixelFormat, TempData.Num());
 					NumMipsCached++;
 
 					if (OutMipData)
 					{
-						OutMipData[MipIndex - FirstMipToLoad] = FMemory::Malloc(MipSize);
-						Ar.Serialize(OutMipData[MipIndex - FirstMipToLoad], MipSize);
+						OutMipData[MipIndex - FirstMipToLoad] = FMemory::Malloc(TempData.Num());
+						Ar.Serialize(OutMipData[MipIndex - FirstMipToLoad], TempData.Num());
 					}
 				}
 				else
@@ -1335,7 +1493,7 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData, 
 
 int32 FTexturePlatformData::GetNumNonStreamingMips() const
 {
-	if (FPlatformProperties::RequiresCookedData())
+	if (CanUseCookedDataPath())
 	{
 		// We're on a cooked platform so we should only be streaming mips that were not inlined in the texture by thecooker.
 		int32 NumNonStreamingMips = Mips.Num();
@@ -1389,7 +1547,7 @@ int32 FTexturePlatformData::GetNumNonStreamingMips() const
 int32 FTexturePlatformData::GetNumNonOptionalMips() const
 {
 	// TODO : Count from last mip to first.
-	if (FPlatformProperties::RequiresCookedData())
+	if (CanUseCookedDataPath())
 	{
 		int32 NumNonOptionalMips = Mips.Num();
 
@@ -1454,6 +1612,15 @@ EPixelFormat FTexturePlatformData::GetLayerPixelFormat(uint32 LayerIndex) const
 	}
 	check(LayerIndex == 0u);
 	return PixelFormat;
+}
+
+bool FTexturePlatformData::CanUseCookedDataPath() const
+{
+#if WITH_IOSTORE_IN_EDITOR
+	return Mips.Num() > 0 && Mips[0].BulkData.IsUsingIODispatcher();
+#else	
+	return FPlatformProperties::RequiresCookedData();
+#endif //WITH_IOSTORE_IN_EDITOR
 }
 
 #if WITH_EDITOR
@@ -1864,6 +2031,11 @@ void UTexture::UpdateCachedLODBias()
 #if WITH_EDITOR
 void UTexture::CachePlatformData(bool bAsyncCache, bool bAllowAsyncBuild, bool bAllowAsyncLoading, ITextureCompressorModule* Compressor)
 {
+	//
+	// NOTE this can be called off the main thread via FAsyncEncode<> for shadow/light maps!
+	// This is why the compressor is passed in, to avoid calling LoadModule off the main thread.
+	//
+
 	TRACE_CPUPROFILER_EVENT_SCOPE(UTexture::CachePlatformData);
 
 	FTexturePlatformData** PlatformDataLinkPtr = GetRunningPlatformData();
@@ -1879,49 +2051,58 @@ void UTexture::CachePlatformData(bool bAsyncCache, bool bAllowAsyncBuild, bool b
 				(bAllowAsyncBuild? ETextureCacheFlags::AllowAsyncBuild : ETextureCacheFlags::None) |
 				(bAllowAsyncLoading? ETextureCacheFlags::AllowAsyncLoading : ETextureCacheFlags::None);
 
-			TArray<FTextureBuildSettings> BuildSettings;
-			GetBuildSettingsForRunningPlatform(*this, BuildSettings);
-			check(BuildSettings.Num() == Source.GetNumLayers());
+			ETextureEncodeSpeed EncodeSpeed = GetDesiredEncodeSpeed();
 
-			if (PlatformDataLink == NULL)
+			//
+			// Step 1 of the caching process is to determine whether or not we need to actually
+			// do a cache. To check this, we compare the keys for the FetchOrBuild settings since we
+			// know we always have those. If we need the FetchFirst key, we generate it later when
+			// we know we're actually going to Cache()
+			//
+			TArray<FTextureBuildSettings> BuildSettingsFetchOrBuild;
+			if (EncodeSpeed == ETextureEncodeSpeed::FinalIfAvailable ||
+				EncodeSpeed == ETextureEncodeSpeed::Fast)
 			{
-				bPerformCache = true;
+				GetBuildSettingsForRunningPlatform(*this, ETextureEncodeSpeed::Fast, BuildSettingsFetchOrBuild);
 			}
 			else
 			{
-				if (FTexturePlatformData::IsUsingNewDerivedData() && (Source.GetNumLayers() == 1) && !BuildSettings[0].bVirtualStreamable)
+				GetBuildSettingsForRunningPlatform(*this, ETextureEncodeSpeed::Final, BuildSettingsFetchOrBuild);
+			}
+
+			check(BuildSettingsFetchOrBuild.Num() == Source.GetNumLayers());
+
+			// The only time we don't cache is if we a) have existing data and b) it matches what we want.
+			bPerformCache = true;
+			if (PlatformDataLink != nullptr)
+			{
+				// Check if our keys match.
+				if (FTexturePlatformData::IsUsingNewDerivedData() && (Source.GetNumLayers() == 1) && !BuildSettingsFetchOrBuild[0].bVirtualStreamable)
 				{
-					
+					// DDC2 version
 					using namespace UE::DerivedData;
-					if (const FTexturePlatformData::FStructuredDerivedDataKey* ExistingDerivedDataKey = PlatformDataLink->ComparisonDerivedDataKey.TryGet<FTexturePlatformData::FStructuredDerivedDataKey>())
+					if (const FTexturePlatformData::FStructuredDerivedDataKey* ExistingDerivedDataKey = PlatformDataLink->FetchOrBuildDerivedDataKey.TryGet<FTexturePlatformData::FStructuredDerivedDataKey>())
 					{
-						if (*ExistingDerivedDataKey != CreateTextureDerivedDataKey(*this, CacheFlags, BuildSettings[0]))
+						if (*ExistingDerivedDataKey == CreateTextureDerivedDataKey(*this, CacheFlags, BuildSettingsFetchOrBuild[0]))
 						{
-							bPerformCache = true;
-						}
-					}
-					else
-					{
-						bPerformCache = true;
+							bPerformCache = false;
+						}						
 					}
 				}
 				else
 				{
-					if (const FString* ExistingDerivedDataKey = PlatformDataLink->ComparisonDerivedDataKey.TryGet<FString>())
+					// DDC1 version.
+					if (const FString* ExistingDerivedDataKey = PlatformDataLink->FetchOrBuildDerivedDataKey.TryGet<FString>())
 					{
 						FString DerivedDataKey;
-						GetTextureDerivedDataKey(*this, BuildSettings.GetData(), DerivedDataKey);
-						if (*ExistingDerivedDataKey != DerivedDataKey)
+						GetTextureDerivedDataKey(*this, BuildSettingsFetchOrBuild.GetData(), DerivedDataKey);
+						if (*ExistingDerivedDataKey == DerivedDataKey)
 						{
-							bPerformCache = true;
+							bPerformCache = false;
 						}
 					}
-					else
-					{
-						bPerformCache = true;
-					}
 				}
-			}
+			} // end if checking existing data matches.
 
 			if (bPerformCache)
 			{
@@ -1939,7 +2120,15 @@ void UTexture::CachePlatformData(bool bAsyncCache, bool bAllowAsyncBuild, bool b
 					PlatformDataLink = new FTexturePlatformData();
 				}
 
-				PlatformDataLink->Cache(*this, BuildSettings.GetData(), uint32(CacheFlags), Compressor);
+				// We delayed generating our FetchFirst settings since we assume we'll usually be just testing
+				// keys above.
+				TArray<FTextureBuildSettings> BuildSettingsFetchFirst;
+				if (EncodeSpeed == ETextureEncodeSpeed::FinalIfAvailable)
+				{
+					GetBuildSettingsForRunningPlatform(*this, ETextureEncodeSpeed::Final, BuildSettingsFetchFirst);
+				}
+
+				PlatformDataLink->Cache(*this, BuildSettingsFetchFirst.Num() ? BuildSettingsFetchFirst.GetData() : 0, BuildSettingsFetchOrBuild.GetData(), uint32(CacheFlags), Compressor);
 			}
 		}
 		else if (PlatformDataLink == NULL)
@@ -1983,55 +2172,75 @@ void UTexture::BeginCacheForCookedPlatformData( const ITargetPlatform *TargetPla
 		UTexture::GetPixelFormatEnum();
 
 		// Retrieve formats to cache for target platform.
-		
-		//TArray<FName> PlatformFormats;
+		bool HaveFetch = false;
+		TArray< TArray<FTextureBuildSettings> > BuildSettingsToCacheFetch; // can be empty
+		TArray< TArray<FTextureBuildSettings> > BuildSettingsToCacheFetchOrBuild;
+		ETextureEncodeSpeed EncodeSpeed = GetDesiredEncodeSpeed();
+		if (EncodeSpeed == ETextureEncodeSpeed::FinalIfAvailable)
+		{			
+			FTextureBuildSettings BuildSettingsFinal, BuildSettingsFast;
+			GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, ETextureEncodeSpeed::Final, BuildSettingsFinal);
+			GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, ETextureEncodeSpeed::Fast, BuildSettingsFast);
 
-		FTextureBuildSettings BuildSettings;
-		GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, BuildSettings);
-		
-		TArray< TArray<FTextureBuildSettings> > BuildSettingsToCache;
-		GetBuildSettingsPerFormat(*this, BuildSettings, TargetPlatform, BuildSettingsToCache);
-
-		// Cull redundant settings by comparing derived data keys.
-		TArray<FString> BuildSettingsCacheKeys;
-		for (TArray<TArray<FTextureBuildSettings>>::TIterator It = BuildSettingsToCache.CreateIterator(); It; ++It)
+			// Try and fetch Final, but build Fast.
+			GetBuildSettingsPerFormat(*this, BuildSettingsFinal, TargetPlatform, ETextureEncodeSpeed::Final, BuildSettingsToCacheFetch);
+			GetBuildSettingsPerFormat(*this, BuildSettingsFast, TargetPlatform, ETextureEncodeSpeed::Fast, BuildSettingsToCacheFetchOrBuild);
+			HaveFetch = true;
+		}
+		else
 		{
-			check(It->Num() == Source.GetNumLayers());
+			FTextureBuildSettings BuildSettings;
+			GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, EncodeSpeed, BuildSettings);
+			GetBuildSettingsPerFormat(*this, BuildSettings, TargetPlatform, EncodeSpeed, BuildSettingsToCacheFetchOrBuild);
+		}
+		
+		// Cull redundant settings by comparing derived data keys.
+		// There's an assumption here where we believe that if
+		// a Fetch key is unique, so is its associated FetchOrBuild key,
+		// and visa versa. Since we know we have FetchOrBuild, but not
+		// necessarily Fetch, we just do the uniqueness check on FetchOrBuild.
+		TArray<FString> BuildSettingsCacheKeysFetchOrBuild;
+		for (int32 i=0; i<BuildSettingsToCacheFetchOrBuild.Num(); i++)
+		{
+			TArray<FTextureBuildSettings>& LayerBuildSettingsFetchOrBuild = BuildSettingsToCacheFetchOrBuild[i];
+			check(LayerBuildSettingsFetchOrBuild.Num() == Source.GetNumLayers());
 
-			FString DerivedDataKey;
-			GetTextureDerivedDataKey(*this, It->GetData(), DerivedDataKey);
+			FString DerivedDataKeyFetchOrBuild;
+			GetTextureDerivedDataKey(*this, LayerBuildSettingsFetchOrBuild.GetData(), DerivedDataKeyFetchOrBuild);
 
-			if (CookedPlatformData.FindRef(DerivedDataKey) || BuildSettingsCacheKeys.Contains(DerivedDataKey))
+			if (BuildSettingsCacheKeysFetchOrBuild.Find(DerivedDataKeyFetchOrBuild) != INDEX_NONE)
 			{
-				It.RemoveCurrent();
+				BuildSettingsToCacheFetchOrBuild.RemoveAtSwap(i);
+				if (HaveFetch)
+				{
+					BuildSettingsToCacheFetch.RemoveAtSwap(i);
+				}
+				i--;
+				continue;
 			}
-			else
-			{
-				BuildSettingsCacheKeys.Add(MoveTemp(DerivedDataKey));
-			}
+
+			BuildSettingsCacheKeysFetchOrBuild.Add(MoveTemp(DerivedDataKeyFetchOrBuild));
 		}
 
-		for (int32 SettingsIndex = 0; SettingsIndex < BuildSettingsToCache.Num(); ++SettingsIndex)
+		// Now have a unique list - kick off the caches.
+		for (int32 SettingsIndex = 0; SettingsIndex < BuildSettingsCacheKeysFetchOrBuild.Num(); ++SettingsIndex)
 		{
-			// UE_LOG(LogTemp, Warning, TEXT("Caching data for texture %s with id %s"), *GetName(), *DerivedDataKey);
 			FTexturePlatformData* PlatformDataToCache = new FTexturePlatformData();
 			PlatformDataToCache->Cache(
 				*this,
-				BuildSettingsToCache[SettingsIndex].GetData(),
+				HaveFetch ? BuildSettingsToCacheFetch[SettingsIndex].GetData() : nullptr,
+				BuildSettingsToCacheFetchOrBuild[SettingsIndex].GetData(),
 				uint32(ETextureCacheFlags::Async | ETextureCacheFlags::InlineMips | ETextureCacheFlags::AllowAsyncBuild | ETextureCacheFlags::AllowAsyncLoading),
 				nullptr
 				);
-			CookedPlatformData.Add(BuildSettingsCacheKeys[SettingsIndex], PlatformDataToCache);
+
+			CookedPlatformData.Add(BuildSettingsCacheKeysFetchOrBuild[SettingsIndex], PlatformDataToCache);
 		}
 	}
 }
 
 void UTexture::ClearCachedCookedPlatformData( const ITargetPlatform* TargetPlatform )
 {
-	// I feel like bobby fisher, always four moves ahead of
-	// my competition, listen they ain't gonna stop me ever
-	// I feel as large as Biggie, swear it could not get better, 
-	// I feel in charge like Biggie, wearing that Cosby sweater
 	TMap<FString, FTexturePlatformData*> *CookedPlatformDataPtr = GetCookedPlatformData();
 
 	if ( CookedPlatformDataPtr )
@@ -2041,31 +2250,37 @@ void UTexture::ClearCachedCookedPlatformData( const ITargetPlatform* TargetPlatf
 		// Make sure the pixel format enum has been cached.
 		UTexture::GetPixelFormatEnum();
 
-		// Retrieve formats to cache for target platform.
-		FTextureBuildSettings BuildSettings;
-		GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, BuildSettings);
+		// Get the list of keys associated with the target platform so we know
+		// what to evict from the CookedPlatformData array.
 
-		TArray< TArray<FTextureBuildSettings> > BuildSettingsToCache;
-		GetBuildSettingsPerFormat(*this, BuildSettings, TargetPlatform, BuildSettingsToCache);
-
-
-		//TargetPlatform->GetTextureFormats(this, 0, PlatformFormats);
-		/*for (int32 FormatIndex = 0; FormatIndex < PlatformFormats.Num(); ++FormatIndex)
+		// The cooked platform data map is keyed off of the FetchOrBuild ddc key, so we don't
+		// bother generating the Fetch one.
+		// Retrieve formats to cache for target platform.			
+		TArray< TArray<FTextureBuildSettings> > BuildSettingsForPlatform;
+		ETextureEncodeSpeed EncodeSpeed = GetDesiredEncodeSpeed();
+		if (EncodeSpeed == ETextureEncodeSpeed::FinalIfAvailable ||
+			EncodeSpeed == ETextureEncodeSpeed::Fast)
 		{
-			BuildSettings.TextureFormatName = PlatformFormats[FormatIndex];
-			// if (BuildSettings.TextureFormatName != NAME_None)
-			{
-				BuildSettingsToCache.Add(BuildSettings);
-			}
-		}*/
-
-		// Cull redundant settings by comparing derived data keys.
-		for (int32 SettingsIndex = 0; SettingsIndex < BuildSettingsToCache.Num(); ++SettingsIndex)
+			FTextureBuildSettings BuildSettings;
+			GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, ETextureEncodeSpeed::Fast, BuildSettings);
+			GetBuildSettingsPerFormat(*this, BuildSettings, TargetPlatform, ETextureEncodeSpeed::Fast, BuildSettingsForPlatform);
+		}
+		else
 		{
-			check(BuildSettingsToCache[SettingsIndex].Num() == Source.GetNumLayers());
+			FTextureBuildSettings BuildSettings;
+			GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, ETextureEncodeSpeed::Final, BuildSettings);
+			GetBuildSettingsPerFormat(*this, BuildSettings, TargetPlatform, ETextureEncodeSpeed::Final, BuildSettingsForPlatform);
+		}
+		
+		// If the cooked platform data contains our data, evict it
+		// This also is likely to only be handful of entries... try using an array and having
+		// FTargetPlatformSet track what platforms the data is valid for. Once all are cleared, wipe...
+		for (int32 SettingsIndex = 0; SettingsIndex < BuildSettingsForPlatform.Num(); ++SettingsIndex)
+		{
+			check(BuildSettingsForPlatform[SettingsIndex].Num() == Source.GetNumLayers());
 
 			FString DerivedDataKey;
-			GetTextureDerivedDataKey(*this, BuildSettingsToCache[SettingsIndex].GetData(), DerivedDataKey);
+			GetTextureDerivedDataKey(*this, BuildSettingsForPlatform[SettingsIndex].GetData(), DerivedDataKey);
 
 			if ( CookedPlatformData.Contains( DerivedDataKey ) )
 			{
@@ -2098,22 +2313,39 @@ bool UTexture::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPla
 	const TMap<FString, FTexturePlatformData*>* CookedPlatformDataPtr = GetCookedPlatformData();
 	if (!CookedPlatformDataPtr)
 	{
-		return true; // we should always have CookedPlatformDataPtr in the case of WITH_EDITOR
+		// when WITH_EDITOR is 0, the derived classes don't compile their GetCookedPlatformData()
+		// so this returns the base class (nullptr). Since this function only exists when
+		// WITH_EDITOR is 1, we can assume we have this data. This code should never get hit.
+		return true; 
 	}
 
-	FTextureBuildSettings BuildSettings;
-	TArray<FTexturePlatformData*> PlatformDataToSerialize;
-	GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, BuildSettings);
+	// CookedPlatformData is keyed off of FetchOrBuild settings.
+	ETextureEncodeSpeed EncodeSpeed = GetDesiredEncodeSpeed();
 
-	TArray<TArray<FTextureBuildSettings>> BuildSettingsToCache;
-	GetBuildSettingsPerFormat(*this, BuildSettings, TargetPlatform, BuildSettingsToCache);
-
-	for (const TArray<FTextureBuildSettings>& PlatformBuildSettings : BuildSettingsToCache)
+	TArray<TArray<FTextureBuildSettings>> BuildSettingsAllFormats;	
+	if (EncodeSpeed == ETextureEncodeSpeed::Fast ||
+		EncodeSpeed == ETextureEncodeSpeed::FinalIfAvailable)
 	{
-		check(PlatformBuildSettings.Num() == Source.GetNumLayers());
+		FTextureBuildSettings BuildSettings;
+		GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, ETextureEncodeSpeed::Fast, BuildSettings);
+		GetBuildSettingsPerFormat(*this, BuildSettings, TargetPlatform, ETextureEncodeSpeed::Fast, BuildSettingsAllFormats);
+	}
+	else
+	{
+		FTextureBuildSettings BuildSettings;
+		GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, ETextureEncodeSpeed::Final, BuildSettings);
+		GetBuildSettingsPerFormat(*this, BuildSettings, TargetPlatform, ETextureEncodeSpeed::Final, BuildSettingsAllFormats);
+	}
+
+	
+	
+
+	for (const TArray<FTextureBuildSettings>& FormatBuildSettings : BuildSettingsAllFormats)
+	{
+		check(FormatBuildSettings.Num() == Source.GetNumLayers());
 
 		FString DerivedDataKey;
-		GetTextureDerivedDataKey(*this, PlatformBuildSettings.GetData(), DerivedDataKey);
+		GetTextureDerivedDataKey(*this, FormatBuildSettings.GetData(), DerivedDataKey);
 
 		FTexturePlatformData* PlatformData = (*CookedPlatformDataPtr).FindRef(DerivedDataKey);
 
@@ -2229,7 +2461,7 @@ void UTexture::FinishCachePlatformData()
 	UpdateCachedLODBias();
 }
 
-void UTexture::ForceRebuildPlatformData()
+void UTexture::ForceRebuildPlatformData(uint8 InEncodeSpeedOverride /* =255 ETextureEncodeSpeedOverride::Disabled */)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UTexture::ForceRebuildPlatformData)
 
@@ -2238,12 +2470,37 @@ void UTexture::ForceRebuildPlatformData()
 	{
 		FTexturePlatformData *&PlatformDataLink = *PlatformDataLinkPtr;
 		FlushRenderingCommands();
-		TArray<FTextureBuildSettings> BuildSettings;
-		GetBuildSettingsForRunningPlatform(*this, BuildSettings);
-		check(BuildSettings.Num() == Source.GetNumLayers());
+
+		ETextureEncodeSpeed EncodeSpeed;
+		if (InEncodeSpeedOverride != (uint8)ETextureEncodeSpeedOverride::Disabled)
+		{
+			EncodeSpeed = (ETextureEncodeSpeed)InEncodeSpeedOverride;
+		}
+		else
+		{
+			EncodeSpeed = GetDesiredEncodeSpeed();
+		}
+
+
+		TArray<FTextureBuildSettings> BuildSettingsFetch;
+		TArray<FTextureBuildSettings> BuildSettingsFetchOrBuild;
+
+		if (EncodeSpeed == ETextureEncodeSpeed::FinalIfAvailable)
+		{
+			GetBuildSettingsForRunningPlatform(*this, ETextureEncodeSpeed::Final, BuildSettingsFetch);
+			GetBuildSettingsForRunningPlatform(*this, ETextureEncodeSpeed::Fast, BuildSettingsFetchOrBuild);
+		}
+		else
+		{
+			GetBuildSettingsForRunningPlatform(*this, EncodeSpeed, BuildSettingsFetchOrBuild);
+		}
+		
+		check(BuildSettingsFetchOrBuild.Num() == Source.GetNumLayers());
+
 		PlatformDataLink->Cache(
 			*this,
-			BuildSettings.GetData(),
+			BuildSettingsFetch.GetData(),
+			BuildSettingsFetchOrBuild.GetData(),
 			uint32(ETextureCacheFlags::ForceRebuild),
 			nullptr
 			);
@@ -2339,9 +2596,6 @@ void UTexture::SerializeCookedPlatformData(FArchive& Ar)
 		bCookedIsStreamable.Reset();
 		if (Ar.CookingTarget()->AllowAudioVisualData())
 		{
-			FTextureBuildSettings BuildSettings;
-			GetTextureBuildSettings(*this, Ar.CookingTarget()->GetTextureLODSettings(), *Ar.CookingTarget(), BuildSettings);
-
 			TArray<FTexturePlatformData*> PlatformDataToSerialize;
 
 			if (GetOutermost()->bIsCookedForEditor)
@@ -2361,28 +2615,53 @@ void UTexture::SerializeCookedPlatformData(FArchive& Ar)
 			}
 			else
 			{
-				TMap<FString, FTexturePlatformData*>* CookedPlatformDataPtr = GetCookedPlatformData();
+				TMap<FString, FTexturePlatformData*> *CookedPlatformDataPtr = GetCookedPlatformData();
 				if (CookedPlatformDataPtr == nullptr)
 				{
 					return;
 				}
 
-				TArray<TArray<FTextureBuildSettings>> BuildSettingsToCache;
-				GetBuildSettingsPerFormat(*this, BuildSettings, Ar.CookingTarget(), BuildSettingsToCache);
+				// Kick off builds for anything we don't have on hand already.
+				ETextureEncodeSpeed EncodeSpeed = GetDesiredEncodeSpeed();
 
-				for (TArray<FTextureBuildSettings>& LayerBuildSettings : BuildSettingsToCache)
+				TArray< TArray<FTextureBuildSettings> > BuildSettingsToCacheFetch;
+				TArray< TArray<FTextureBuildSettings> > BuildSettingsToCacheFetchOrBuild;
+				if (EncodeSpeed == ETextureEncodeSpeed::FinalIfAvailable)
 				{
-					check(LayerBuildSettings.Num() == Source.GetNumLayers());
+					FTextureBuildSettings BuildSettingsFetch;
+					GetTextureBuildSettings(*this, Ar.CookingTarget()->GetTextureLODSettings(), *Ar.CookingTarget(), ETextureEncodeSpeed::Final, BuildSettingsFetch);
+					GetBuildSettingsPerFormat(*this, BuildSettingsFetch, Ar.CookingTarget(), ETextureEncodeSpeed::Final, BuildSettingsToCacheFetch);
 
-					FString DerivedDataKey;
-					GetTextureDerivedDataKey(*this, LayerBuildSettings.GetData(), DerivedDataKey);
+					FTextureBuildSettings BuildSettingsFetchOrBuild;
+					GetTextureBuildSettings(*this, Ar.CookingTarget()->GetTextureLODSettings(), *Ar.CookingTarget(), ETextureEncodeSpeed::Fast, BuildSettingsFetchOrBuild);
+					GetBuildSettingsPerFormat(*this, BuildSettingsFetchOrBuild, Ar.CookingTarget(), ETextureEncodeSpeed::Fast, BuildSettingsToCacheFetchOrBuild);
+				}
+				else
+				{
+					FTextureBuildSettings BuildSettingsFetchOrBuild;
+					GetTextureBuildSettings(*this, Ar.CookingTarget()->GetTextureLODSettings(), *Ar.CookingTarget(), EncodeSpeed, BuildSettingsFetchOrBuild);
+					GetBuildSettingsPerFormat(*this, BuildSettingsFetchOrBuild, Ar.CookingTarget(), EncodeSpeed, BuildSettingsToCacheFetchOrBuild);
+				}
 
-					FTexturePlatformData*& PlatformDataPtr = (*CookedPlatformDataPtr).FindOrAdd(DerivedDataKey);
-					if (PlatformDataPtr == nullptr)
+				for (int32 SettingIndex = 0; SettingIndex < BuildSettingsToCacheFetchOrBuild.Num(); SettingIndex++)
+				{
+					check(BuildSettingsToCacheFetchOrBuild[SettingIndex].Num() == Source.GetNumLayers());
+
+					// CookedPlatformData is keyed off of the fetchorbuild key.
+					FString DerivedDataKeyFetchOrBuild;
+					GetTextureDerivedDataKey(*this, BuildSettingsToCacheFetchOrBuild[SettingIndex].GetData(), DerivedDataKeyFetchOrBuild);
+
+					FTexturePlatformData *PlatformDataPtr = (*CookedPlatformDataPtr).FindRef(DerivedDataKeyFetchOrBuild);
+					if (PlatformDataPtr == NULL)
 					{
 						PlatformDataPtr = new FTexturePlatformData();
-						PlatformDataPtr->Cache(*this, LayerBuildSettings.GetData(), uint32(ETextureCacheFlags::InlineMips | ETextureCacheFlags::Async), nullptr);
+						PlatformDataPtr->Cache(*this, 
+							BuildSettingsToCacheFetch.Num() ? BuildSettingsToCacheFetch[SettingIndex].GetData() : 0,
+							BuildSettingsToCacheFetchOrBuild[SettingIndex].GetData(), 
+							uint32(ETextureCacheFlags::InlineMips | ETextureCacheFlags::Async), 
+							nullptr);
 
+						CookedPlatformDataPtr->Add(DerivedDataKeyFetchOrBuild, PlatformDataPtr);
 					}
 					PlatformDataToSerialize.Add(PlatformDataPtr);
 				}
@@ -2410,7 +2689,8 @@ void UTexture::SerializeCookedPlatformData(FArchive& Ar)
 				}
 
 				// Pass streamable flag for inlining mips
-				PlatformDataToSave->SerializeCooked(Ar, this, BuildSettings.bStreamable);
+				bool bTextureIsStreamable = GetTextureIsStreamable(*this, *Ar.CookingTarget());
+				PlatformDataToSave->SerializeCooked(Ar, this, bTextureIsStreamable);
 
 				SkipOffset = Ar.Tell() - SkipOffsetLoc;
 				Ar.Seek(SkipOffsetLoc);

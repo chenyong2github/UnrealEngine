@@ -844,9 +844,12 @@ bool UWorldPartition::UpdateEditorCells(TFunctionRef<bool(TArray<UWorldPartition
 	{
 		for (const UWorldPartitionEditorCell::FActorReference& ActorDesc : Cell->LoadedActors)
 		{
-			if (!bIsCellShouldBeLoaded || !ShouldActorBeLoadedByEditorCells(*ActorDesc))
+			if (ActorDesc.IsValid())
 			{
-				UnloadCount.FindOrAdd(*ActorDesc, 0)++;
+				if (!bIsCellShouldBeLoaded || !ShouldActorBeLoadedByEditorCells(*ActorDesc))
+				{
+					UnloadCount.FindOrAdd(*ActorDesc, 0)++;
+				}
 			}
 		}
 	}
@@ -978,23 +981,26 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 	{
 		for (UWorldPartitionEditorCell::FActorHandle& ActorHandle: Cell->Actors)
 		{
-			AActor* Actor = ActorHandle->GetActor();
+			if (ActorHandle.IsValid())
+			{
+				AActor* Actor = ActorHandle->GetActor();
 
-			// Filter actor against DataLayers
-			if (ShouldActorBeLoadedByEditorCells(*ActorHandle))
-			{
-				Cell->LoadedActors.Add(UWorldPartitionEditorCell::FActorReference(ActorHandle.Source, ActorHandle.Handle));
-			}
-			else
-			{
-				// Don't call LoadedActors.Remove(ActorHandle) right away, as this will create a temporary reference and might try to load.
-				for (const UWorldPartitionEditorCell::FActorReference& ActorReference: Cell->LoadedActors)
+				// Filter actor against DataLayers
+				if (ShouldActorBeLoadedByEditorCells(*ActorHandle))
 				{
-					if ((ActorReference.Source == ActorHandle.Source) && (ActorReference.Handle == ActorHandle.Handle))
+					Cell->LoadedActors.Add(UWorldPartitionEditorCell::FActorReference(ActorHandle.Source, ActorHandle.Handle));
+				}
+				else
+				{
+					// Don't call LoadedActors.Remove(ActorHandle) right away, as this will create a temporary reference and might try to load.
+					for (const UWorldPartitionEditorCell::FActorReference& ActorReference : Cell->LoadedActors)
 					{
-						Cell->LoadedActors.Remove(UWorldPartitionEditorCell::FActorReference(ActorHandle.Source, ActorHandle.Handle));
-						bPotentiallyUnloadedActors = true;
-						break;
+						if ((ActorReference.Source == ActorHandle.Source) && (ActorReference.Handle == ActorHandle.Handle))
+						{
+							Cell->LoadedActors.Remove(UWorldPartitionEditorCell::FActorReference(ActorHandle.Source, ActorHandle.Handle));
+							bPotentiallyUnloadedActors = true;
+							break;
+						}
 					}
 				}
 			}
@@ -1189,13 +1195,13 @@ void UWorldPartition::UpdateStreamingState()
 	}
 }
 
-class ULevel* UWorldPartition::GetPreferredLoadedLevelToAddToWorld() const
+bool UWorldPartition::CanAddLoadedLevelToWorld(class ULevel* InLevel) const
 {
 	if (GetWorld()->IsGameWorld())
 	{
-		return StreamingPolicy->GetPreferredLoadedLevelToAddToWorld();
+		return StreamingPolicy->CanAddLoadedLevelToWorld(InLevel);
 	}
-	return nullptr;
+	return true;
 }
 
 bool UWorldPartition::IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState) const

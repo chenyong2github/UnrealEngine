@@ -54,7 +54,6 @@ private:
 	mutable FControlFlowPopulator TaskPopulator;
 
 	TSharedPtr<FControlFlow> TaskFlow = nullptr;
-
 };
 
 class FControlFlowTask_Loop : public FControlFlowSimpleSubTask
@@ -75,10 +74,10 @@ private:
 	FControlFlowLoopComplete TaskCompleteDecider;
 };
 
-class FControlFlowTask_Branch : public FControlFlowSubTaskBase
+class FControlFlowTask_BranchLegacy : public FControlFlowSubTaskBase
 {
 public:
-	FControlFlowTask_Branch(FControlFlowBranchDecider& BranchDecider, const FString& TaskName);
+	FControlFlowTask_BranchLegacy(FControlFlowBranchDecider_Legacy& BranchDecider, const FString& TaskName);
 
 	/** Returns a delegate for easier syntax to bind a function for the flow to execute and then move on */
 	FSimpleDelegate& QueueFunction(int32 BranchIndex, const FString& FlowNodeDebugName = TEXT(""));
@@ -90,7 +89,7 @@ public:
 	FControlFlowPopulator& QueueControlFlow(int32 BranchIndex, const FString& TaskName = TEXT(""), const FString& FlowNodeDebugName = TEXT(""));
 
 	/** Adds a branch to your flow. The flow will use FControlFlowBranchDecider to determine which flow branch to execute */
-	TSharedRef<FControlFlowTask_Branch> QueueBranch(int32 BranchIndex, FControlFlowBranchDecider& BranchDecider, const FString& TaskName = TEXT(""), const FString& FlowNodeDebugName = TEXT(""));
+	TSharedRef<FControlFlowTask_BranchLegacy> QueueBranch(int32 BranchIndex, FControlFlowBranchDecider_Legacy& BranchDecider, const FString& TaskName = TEXT(""), const FString& FlowNodeDebugName = TEXT(""));
 
 	/** Adds a Loop to your flow. The flow will use FControlFlowLoopComplete - if this returns false, the flow will execute FControlFlowPopulator until true is returned */
 	FControlFlowPopulator& QueueLoop(int32 BranchIndex, FControlFlowLoopComplete& LoopCompleteDelgate, const FString& TaskName = TEXT(""), const FString& FlowNodeDebugName = TEXT(""));
@@ -113,9 +112,34 @@ private:
 
 	TSharedRef<FControlFlow> GetOrAddBranch(int32 BranchIndex);
 
-	mutable FControlFlowBranchDecider BranchDelegate;
+	mutable FControlFlowBranchDecider_Legacy BranchDelegate;
 
 	TMap<int32, TSharedRef<FControlFlow>> Branches;
 
 	int32 SelectedBranch = INDEX_NONE;
+};
+
+class FControlFlowTask_Branch : public FControlFlowSubTaskBase
+{
+public:
+	friend class FControlFlow;
+
+public:
+	FControlFlowTask_Branch(const FString& TaskName)
+		: FControlFlowSubTaskBase(TaskName)
+	{}
+
+	FControlFlowBranchDefiner& GetDelegate() { return BranchDelegate; }
+
+protected:
+	virtual void Execute() override;
+	virtual void Cancel() override;
+
+private:
+
+	void HandleBranchCompleted();
+	void HandleBranchCancelled();
+
+	FControlFlowBranchDefiner BranchDelegate;
+	TSharedPtr<FControlFlow> SelectedBranchFlow;
 };

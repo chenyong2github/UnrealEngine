@@ -2,7 +2,9 @@
 
 #include "Settings/LevelSnapshotsEditorProjectSettings.h"
 
+#include "Data/Util/ActorHashUtil.h"
 #include "PropertyInfoHelpers.h"
+
 #include "Application/SlateApplicationBase.h"
 #include "HAL/PlatformApplicationMisc.h"
 
@@ -39,7 +41,9 @@ void ULevelSnapshotsEditorProjectSettings::SetLastCreationWindowSize(const FVect
 void ULevelSnapshotsEditorProjectSettings::PostInitProperties()
 {
 	UObject::PostInitProperties();
+	
 	FPropertyInfoHelpers::UpdateDecimalComparisionPrecision(FloatComparisonPrecision, DoubleComparisonPrecision);
+	SnapshotUtil::GHashSettings = HashSettings;
 }
 
 #if WITH_EDITOR
@@ -51,6 +55,11 @@ void ULevelSnapshotsEditorProjectSettings::PostEditChangeProperty(FPropertyChang
 		FPropertyInfoHelpers::UpdateDecimalComparisionPrecision(FloatComparisonPrecision, DoubleComparisonPrecision);
 	}
 
+	if (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(ULevelSnapshotsEditorProjectSettings, HashSettings))
+	{
+		SnapshotUtil::GHashSettings = HashSettings;
+	}
+	
 	UObject::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif

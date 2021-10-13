@@ -6,7 +6,7 @@
 #include "HAL/FileManager.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Misc/Paths.h"
-#include "Misc/BlacklistNames.h"
+#include "Misc/NamePermissionList.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/ScopedSlowTask.h"
@@ -220,7 +220,7 @@ bool AssetViewUtils::PromptToLoadAssets(const TArray<FString>& UnloadedObjects)
 void AssetViewUtils::CopyAssets(const TArray<UObject*>& Assets, const FString& DestPath)
 {
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	if (!AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(DestPath))
+	if (!AssetToolsModule.Get().GetWritableFolderPermissionList()->PassesStartsWithFilter(DestPath))
 	{
 		AssetToolsModule.Get().NotifyBlockedByWritableFolderFilter();
 		return;
@@ -253,7 +253,7 @@ void AssetViewUtils::MoveAssets(const TArray<UObject*>& Assets, const FString& D
 	check(DestPath.Len() > 0);
 
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	if (!AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(DestPath))
+	if (!AssetToolsModule.Get().GetWritableFolderPermissionList()->PassesStartsWithFilter(DestPath))
 	{
 		AssetToolsModule.Get().NotifyBlockedByWritableFolderFilter();
 		return;

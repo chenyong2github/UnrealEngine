@@ -26,6 +26,8 @@ struct LEVELSNAPSHOTS_API FLevelSnapshotPropertyChain : FArchiveSerializedProper
 	FLevelSnapshotPropertyChain MakeAppended(const FProperty* Property) const;
 	void AppendInline(const FProperty* Property);
 
+	FString ToString() const;
+
 	/**
 	 * Checks whether a given property being serialized corresponds to this chain.
 	 *

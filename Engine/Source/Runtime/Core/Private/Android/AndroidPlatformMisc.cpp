@@ -51,7 +51,6 @@
 #include "Misc/OutputDevice.h"
 #include "Logging/LogMacros.h"
 #include "Misc/OutputDeviceError.h"
-#include "Async/Async.h"
 
 #if USE_ANDROID_JNI
 extern AAssetManager * AndroidThunkCpp_GetAssetManager();
@@ -2979,49 +2978,13 @@ int32 FAndroidMisc::GetNativeDisplayRefreshRate()
 
 }
 
-static FAndroidMemoryWarningContext GAndroidMemoryWarningContext;
-void (*GMemoryWarningHandler)(const FGenericMemoryWarningContext& Context) = NULL;
-
-static void SendMemoryWarningContext()
-	{
-	if (FTaskGraphInterface::IsRunning())
-	{
-		// Run on game thread to avoid mem handler callback getting confused.
-		AsyncTask(ENamedThreads::GameThread, [AndroidMemoryWarningContext = GAndroidMemoryWarningContext]()
-			{
-				if (GMemoryWarningHandler)
-				{
-					// note that we may also call this when recovering from low memory conditions. (i.e. not in low memory state.)
-					GMemoryWarningHandler(AndroidMemoryWarningContext);
-				}
-			});
-	}
-	else
-	{
-		const FAndroidMemoryWarningContext& Context = GAndroidMemoryWarningContext;
-		UE_LOG(LogAndroid, Warning, TEXT("Not calling memory warning handler, received too early. Last Trim Memory State: %d"), Context.LastTrimMemoryState);
-	}
-}
-
-void FAndroidMisc::UpdateOSMemoryStatus(EOSMemoryStatusCategory OSMemoryStatusCategory, int Value)
-{
-	switch (OSMemoryStatusCategory)
-	{
-		case EOSMemoryStatusCategory::OSTrim:
-			GAndroidMemoryWarningContext.LastTrimMemoryState = Value;
-			break;
-		default:
-			checkNoEntry();
-	}
-
-	SendMemoryWarningContext();
-}
-
 FORCEINLINE bool ValueOutsideThreshold(float Value, float BaseLine, float Threshold)
 {
 	return Value > BaseLine * (1.0f + Threshold)
 		|| Value < BaseLine * (1.0f - Threshold);
 }
+
+void (*GMemoryWarningHandler)(const FGenericMemoryWarningContext& Context) = NULL;
 
 void FAndroidMisc::SetMemoryWarningHandler(void (*InHandler)(const FGenericMemoryWarningContext& Context))
 {

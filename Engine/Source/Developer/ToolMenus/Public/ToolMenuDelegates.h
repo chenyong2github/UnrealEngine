@@ -15,13 +15,14 @@
 
 class UToolMenu;
 struct FToolMenuSection;
-
+struct FToolMenuCustomWidgetContext;
 
 DECLARE_DELEGATE_OneParam(FNewToolMenuSectionDelegate, FToolMenuSection&);
 DECLARE_DELEGATE_OneParam(FNewToolMenuDelegate, UToolMenu*);
 DECLARE_DELEGATE_TwoParams(FNewToolMenuDelegateLegacy, class FMenuBuilder&, UToolMenu*);
 DECLARE_DELEGATE_TwoParams(FNewToolBarDelegateLegacy, class FToolBarBuilder&, UToolMenu*);
 DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<SWidget>, FNewToolMenuWidget, const FToolMenuContext&);
+DECLARE_DELEGATE_RetVal_TwoParams(TSharedRef<SWidget>, FNewToolMenuCustomWidget, const FToolMenuContext&, const FToolMenuCustomWidgetContext&);
 
 DECLARE_DELEGATE_OneParam(FToolMenuExecuteAction, const FToolMenuContext&);
 DECLARE_DELEGATE_RetVal_OneParam(bool, FToolMenuCanExecuteAction, const FToolMenuContext&);

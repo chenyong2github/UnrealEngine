@@ -36,7 +36,7 @@ FSlateIcon UFractureToolRecomputeNormals::GetToolIcon() const
 
 void UFractureToolRecomputeNormals::RegisterUICommand( FFractureEditorCommands* BindingContext ) 
 {
-	UI_COMMAND_EXT( BindingContext, UICommandInfo, "RecomputeNormals", "Normals", "Recompute Normals and Tangents", EUserInterfaceActionType::ToggleButton, FInputChord() );
+	UI_COMMAND_EXT( BindingContext, UICommandInfo, "RecomputeNormals", "Normals", "Recompute (and visualize) normals and tangents.", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	BindingContext->RecomputeNormals = UICommandInfo;
 }
 

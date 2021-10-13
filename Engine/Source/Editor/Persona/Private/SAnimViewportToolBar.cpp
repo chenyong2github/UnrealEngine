@@ -51,6 +51,7 @@
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
 #include "Animation/MirrorDataTable.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "AnimViewportToolBar"
 
@@ -356,12 +357,12 @@ TSharedRef<SWidget> SAnimViewportToolBar::MakeFloorOffsetWidget() const
 			.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
 			.WidthOverride(100.0f)
 			[
-				SNew(SNumericEntryBox<float>)
+				SNew(SSpinBox<float>)
 				.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
-				.AllowSpin(true)
 				.MinSliderValue(-100.0f)
 				.MaxSliderValue(100.0f)
 				.Value(this, &SAnimViewportToolBar::OnGetFloorOffset)
+				.OnBeginSliderMovement(const_cast<SAnimViewportToolBar*>(this), &SAnimViewportToolBar::OnBeginSliderMovementFloorOffset)
 				.OnValueChanged(const_cast<SAnimViewportToolBar*>(this), &SAnimViewportToolBar::OnFloorOffsetChanged)
 				.OnValueCommitted(const_cast<SAnimViewportToolBar*>(this), &SAnimViewportToolBar::OnFloorOffsetCommitted)
 				.ToolTipText(LOCTEXT("FloorOffsetToolTip", "Height offset for the floor mesh (stored per-mesh)"))
@@ -707,6 +708,8 @@ TSharedRef<SWidget> SAnimViewportToolBar::GenerateCharacterMenu() const
 						SubMenuBuilder.AddMenuEntry(FAnimViewportShowCommands::Get().ShowBoneDrawAll);
 						SubMenuBuilder.AddMenuEntry(FAnimViewportShowCommands::Get().ShowBoneDrawSelected);
 						SubMenuBuilder.AddMenuEntry(FAnimViewportShowCommands::Get().ShowBoneDrawSelectedAndParents);
+						SubMenuBuilder.AddMenuEntry(FAnimViewportShowCommands::Get().ShowBoneDrawSelectedAndChildren);
+						SubMenuBuilder.AddMenuEntry(FAnimViewportShowCommands::Get().ShowBoneDrawSelectedAndParentsAndChildren);
 						SubMenuBuilder.AddMenuEntry(FAnimViewportShowCommands::Get().ShowBoneDrawNone);
 					}
 					SubMenuBuilder.EndSection();
@@ -1205,7 +1208,7 @@ void SAnimViewportToolBar::OnCamSpeedScalarChanged(float NewValue)
 	AnimViewportClient.ConfigOption->SetCameraSpeedScalar(AnimViewportClient.GetAssetEditorToolkit()->GetEditorName(), NewValue, AnimViewportClient.GetViewportIndex());
 }
 
-TOptional<float> SAnimViewportToolBar::OnGetFloorOffset() const
+float SAnimViewportToolBar::OnGetFloorOffset() const
 {
 	if(Viewport.IsValid())
 	{
@@ -1216,22 +1219,37 @@ TOptional<float> SAnimViewportToolBar::OnGetFloorOffset() const
 	return 0.0f;
 }
 
+void SAnimViewportToolBar::OnBeginSliderMovementFloorOffset()
+{
+	// This value is saved in a UPROPERTY for the floor mesh, so changes are transactional
+	PendingTransaction = MakeUnique<FScopedTransaction>(LOCTEXT("SetFloorOffset", "Set Floor Offset"));
+	PinnedCommands->AddCustomWidget(TEXT("FloorOffsetWidget"));
+}
+
 void SAnimViewportToolBar::OnFloorOffsetChanged( float NewValue )
 {
 	FAnimationViewportClient& AnimViewportClient = (FAnimationViewportClient&)Viewport.Pin()->GetLevelViewportClient();
 
-	AnimViewportClient.SetFloorOffset( NewValue, false );
+	AnimViewportClient.SetFloorOffset( NewValue );
 
 	PinnedCommands->AddCustomWidget(TEXT("FloorOffsetWidget"));
 }
 
 void SAnimViewportToolBar::OnFloorOffsetCommitted( float NewValue, ETextCommit::Type CommitType )
 {
+	if (!PendingTransaction)
+	{
+		// Create the transaction here if it doesn't already exist. This can happen when changes come via text entry to the slider.
+		PendingTransaction = MakeUnique<FScopedTransaction>(LOCTEXT("SetFloorOffset", "Set Floor Offset"));
+	}
+
 	FAnimationViewportClient& AnimViewportClient = (FAnimationViewportClient&)Viewport.Pin()->GetLevelViewportClient();
 
-	AnimViewportClient.SetFloorOffset( NewValue, true );
+	AnimViewportClient.SetFloorOffset( NewValue );
 
 	PinnedCommands->AddCustomWidget(TEXT("FloorOffsetWidget"));
+
+	PendingTransaction.Reset();
 }
 
 void SAnimViewportToolBar::AddMenuExtender(FName MenuToExtend, FMenuExtensionDelegate MenuBuilderDelegate)

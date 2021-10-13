@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "MetasoundFrontendGraph.h"
 #include "MetasoundVertex.h"
 

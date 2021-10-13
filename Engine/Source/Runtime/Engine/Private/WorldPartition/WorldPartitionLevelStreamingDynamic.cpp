@@ -53,7 +53,7 @@ void UWorldPartitionLevelStreamingDynamic::Initialize(const UWorldPartitionRunti
 	check(!WorldAsset.IsNull());
 
 	bShouldBeAlwaysLoaded = InCell.IsAlwaysLoaded();
-	StreamingPriority = InCell.GetStreamingPriority();
+	StreamingPriority = 0;
 	ChildPackages = InCell.GetPackages();
 	ActorContainer = InCell.ActorContainer;
 

@@ -46,7 +46,7 @@
 #include "DesktopPlatformModule.h"
 #include "Misc/FileHelper.h"
 #include "Misc/TextFilterUtils.h"
-#include "Misc/BlacklistNames.h"
+#include "Misc/NamePermissionList.h"
 #include "AssetRegistryState.h"
 #include "Materials/Material.h"
 #include "ContentBrowserMenuContexts.h"
@@ -324,9 +324,9 @@ void SAssetView::Construct( const FArguments& InArgs )
 	OwningContentBrowser = InArgs._OwningContentBrowser;
 
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	AssetClassBlacklist = AssetToolsModule.Get().GetAssetClassBlacklist();
-	FolderBlacklist = AssetToolsModule.Get().GetFolderBlacklist();
-	WritableFolderBlacklist = AssetToolsModule.Get().GetWritableFolderBlacklist();
+	AssetClassPermissionList = AssetToolsModule.Get().GetAssetClassPermissionList();
+	FolderPermissionList = AssetToolsModule.Get().GetFolderPermissionList();
+	WritableFolderPermissionList = AssetToolsModule.Get().GetWritableFolderPermissionList();
 
 	FEditorWidgetsModule& EditorWidgetsModule = FModuleManager::LoadModuleChecked<FEditorWidgetsModule>("EditorWidgets");
 	TSharedRef<SWidget> AssetDiscoveryIndicator = EditorWidgetsModule.CreateAssetDiscoveryIndicator(EAssetDiscoveryIndicatorScaleMode::Scale_Vertical);
@@ -372,9 +372,9 @@ void SAssetView::Construct( const FArguments& InArgs )
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			[
-				// Container for the view types
 				SAssignNew(ViewContainer, SBox)
-				.Padding(FMargin(5.0f,0,0,0))
+				.Padding(6.0f)
+
 			]
 
 			+ SOverlay::Slot()
@@ -1783,8 +1783,8 @@ FContentBrowserDataFilter SAssetView::CreateBackendDataFilter() const
 		| (IsShowingDevelopersContent() ? EContentBrowserItemAttributeFilter::IncludeDeveloper : EContentBrowserItemAttributeFilter::IncludeNone)
 		| (IsShowingLocalizedContent() ? EContentBrowserItemAttributeFilter::IncludeLocalized : EContentBrowserItemAttributeFilter::IncludeNone);
 
-	TSharedPtr<FBlacklistPaths> CombinedFolderBlacklist = ContentBrowserUtils::GetCombinedFolderBlacklist(FolderBlacklist, IsShowingReadOnlyFolders() ? nullptr : WritableFolderBlacklist);
-	ContentBrowserUtils::AppendAssetFilterToContentBrowserFilter(BackendFilter, AssetClassBlacklist, CombinedFolderBlacklist, DataFilter);
+	TSharedPtr<FPathPermissionList> CombinedFolderPermissionList = ContentBrowserUtils::GetCombinedFolderPermissionList(FolderPermissionList, IsShowingReadOnlyFolders() ? nullptr : WritableFolderPermissionList);
+	ContentBrowserUtils::AppendAssetFilterToContentBrowserFilter(BackendFilter, AssetClassPermissionList, CombinedFolderPermissionList, DataFilter);
 
 	if (bHasCollections && !SourcesData.IsDynamicCollection())
 	{
@@ -4237,7 +4237,7 @@ void SAssetView::FillToggleColumnsMenu(FMenuBuilder& MenuBuilder)
 
 void SAssetView::ResetColumns()
 {
-	HiddenColumnNames.Empty();
+	HiddenColumnNames = DefaultHiddenColumnNames;
 	NumVisibleColumns = ColumnView->GetHeaderRow()->GetColumns().Num();
 	ColumnView->GetHeaderRow()->RefreshColumns();
 	ColumnView->RebuildList();

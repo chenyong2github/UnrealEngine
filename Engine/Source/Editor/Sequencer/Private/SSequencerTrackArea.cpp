@@ -516,16 +516,27 @@ FReply SSequencerTrackArea::OnDragOver(const FGeometry& MyGeometry, const FDragD
 	bAllowDrop = false;
 	DropFrameRange.Reset();
 
-	if (DroppedNode.IsValid() && DroppedNode.Pin()->GetType() == ESequencerNode::Track && Sequencer.IsValid())
+	if (DroppedNode.IsValid() && Sequencer.IsValid())
 	{
-		TSharedPtr<FSequencerTrackNode> TrackNode = StaticCastSharedPtr<FSequencerTrackNode>(DroppedNode.Pin());
-		UMovieSceneTrack* Track = TrackNode->GetTrack();
-		int32 RowIndex = TrackNode->GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::SubTrack ? TrackNode->GetRowIndex() : 0;
-
+		UMovieSceneTrack* Track = nullptr;
+		int32 RowIndex = 0;
 		FGuid ObjectBinding;
-		TSharedPtr<FSequencerObjectBindingNode> ObjectBindingNode = TrackNode->FindParentObjectBindingNode();
-		if (ObjectBindingNode.IsValid())
+
+		if (DroppedNode.Pin()->GetType() == ESequencerNode::Track)
 		{
+			TSharedPtr<FSequencerTrackNode> TrackNode = StaticCastSharedPtr<FSequencerTrackNode>(DroppedNode.Pin());
+			Track = TrackNode->GetTrack();
+			RowIndex = TrackNode->GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::SubTrack ? TrackNode->GetRowIndex() : 0;
+
+			TSharedPtr<FSequencerObjectBindingNode> ObjectBindingNode = TrackNode->FindParentObjectBindingNode();
+			if (ObjectBindingNode.IsValid())
+			{
+				ObjectBinding = ObjectBindingNode->GetObjectBinding();
+			}
+		}
+		else if (DroppedNode.Pin()->GetType() == ESequencerNode::Object) 
+		{
+			TSharedPtr<FSequencerObjectBindingNode> ObjectBindingNode = StaticCastSharedPtr<FSequencerObjectBindingNode>(DroppedNode.Pin());
 			ObjectBinding = ObjectBindingNode->GetObjectBinding();
 		}
 
@@ -569,16 +580,27 @@ FReply SSequencerTrackArea::OnDrop(const FGeometry& MyGeometry, const FDragDropE
 
 	DroppedNode = PinnedTreeView->HitTestNode(MyGeometry.AbsoluteToLocal(DragDropEvent.GetScreenSpacePosition()).Y);
 
-	if (DroppedNode.IsValid() && DroppedNode.Pin()->GetType() == ESequencerNode::Track && Sequencer.IsValid())
+	if (DroppedNode.IsValid() && Sequencer.IsValid())
 	{
-		TSharedPtr<FSequencerTrackNode> TrackNode = StaticCastSharedPtr<FSequencerTrackNode>(DroppedNode.Pin());
-		UMovieSceneTrack* Track = TrackNode->GetTrack();
-		int32 RowIndex = TrackNode->GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::SubTrack ? TrackNode->GetRowIndex() : 0;
-
+		UMovieSceneTrack* Track = nullptr;
+		int32 RowIndex = 0;
 		FGuid ObjectBinding;
-		TSharedPtr<FSequencerObjectBindingNode> ObjectBindingNode = TrackNode->FindParentObjectBindingNode();
-		if (ObjectBindingNode.IsValid())
+
+		if (DroppedNode.Pin()->GetType() == ESequencerNode::Track)
 		{
+			TSharedPtr<FSequencerTrackNode> TrackNode = StaticCastSharedPtr<FSequencerTrackNode>(DroppedNode.Pin());
+			Track = TrackNode->GetTrack();
+			RowIndex = TrackNode->GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::SubTrack ? TrackNode->GetRowIndex() : 0;
+
+			TSharedPtr<FSequencerObjectBindingNode> ObjectBindingNode = TrackNode->FindParentObjectBindingNode();
+			if (ObjectBindingNode.IsValid())
+			{
+				ObjectBinding = ObjectBindingNode->GetObjectBinding();
+			}
+		}
+		else if (DroppedNode.Pin()->GetType() == ESequencerNode::Object) 
+		{
+			TSharedPtr<FSequencerObjectBindingNode> ObjectBindingNode = StaticCastSharedPtr<FSequencerObjectBindingNode>(DroppedNode.Pin());
 			ObjectBinding = ObjectBindingNode->GetObjectBinding();
 		}
 

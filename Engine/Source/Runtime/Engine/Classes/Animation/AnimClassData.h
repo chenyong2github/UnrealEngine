@@ -151,6 +151,10 @@ private:
 	virtual void ForEachSubsystem(TFunctionRef<EAnimSubsystemEnumeration(const FAnimSubsystemContext&)> InFunction) const override {}
 	virtual void ForEachSubsystem(UObject* InObject, TFunctionRef<EAnimSubsystemEnumeration(const FAnimSubsystemInstanceContext&)> InFunction) const override {}
 	virtual const FAnimSubsystem* FindSubsystem(UScriptStruct* InStruct) const override { return nullptr; }
+
+#if WITH_EDITORONLY_DATA
+	virtual bool IsDataLayoutValid() const override { return false; };
+#endif
 	
 public:
 	// Resolve TFieldPaths to FStructPropertys, init value handlers

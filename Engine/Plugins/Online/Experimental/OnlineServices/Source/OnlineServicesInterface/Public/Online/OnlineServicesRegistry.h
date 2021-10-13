@@ -60,7 +60,7 @@ public:
 	 * @param OnlineServices Services that the factory is for
 	 * @param Priority Integer priority, will be unregistered only if the priority matches the one that is registered
 	 */
-	ONLINESERVICESINTERFACE_API void UnRegisterServicesFactory(EOnlineServices OnlineServices, int32 Priority = 0);
+	ONLINESERVICESINTERFACE_API void UnregisterServicesFactory(EOnlineServices OnlineServices, int32 Priority = 0);
 
 	/**
 	 * Get a named instance of a specific IOnlineServices
@@ -103,9 +103,10 @@ private:
 	};
 
 	TMap<EOnlineServices, FFactoryAndPriority> ServicesFactories;
-	TMap<EOnlineServices, TMap<FName, TSharedPtr<IOnlineServices>>> NamedServiceInstances;
+	TMap<EOnlineServices, TMap<FName, TSharedRef<IOnlineServices>>> NamedServiceInstances;
 
 	FOnlineServicesRegistry() {}
+	~FOnlineServicesRegistry();
 	friend FLazySingleton;
 };
 

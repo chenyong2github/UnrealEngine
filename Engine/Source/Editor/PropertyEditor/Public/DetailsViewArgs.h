@@ -70,10 +70,12 @@ struct FDetailsViewArgs
 	bool bShowObjectLabel : 1;
 	UE_DEPRECATED(5.0, "bShowActorLabel has been renamed bShowObjectLabel")
 	bool bShowActorLabel : 1;
-	/** True if you want to show the 'Show Only Modified Properties'. Only valid in conjunction with bShowOptions */
+	/** True if you want to show the 'Show Only Modified Properties' option. Only valid in conjunction with bShowOptions */
 	bool bShowModifiedPropertiesOption : 1;
-	/** Bind this delegate to hide differing properties */
+	/** True if you want to show the 'Show Only Differing Properties' option. Only valid in conjunction with bShowOptions. */
 	bool bShowDifferingPropertiesOption : 1;
+	/** True if you want to show the 'Show Hidden Properties While Playing' option. Only valid in conjunction with bShowOptions. */
+	bool bShowHiddenPropertiesWhilePlayingOption : 1;
 	/** If true, the name area will be created but will not be displayed so it can be placed in a custom location.  */
 	bool bCustomNameAreaLocation : 1;
 	/** If true, the filter area will be created but will not be displayed so it can be placed in a custom location.  */
@@ -114,6 +116,7 @@ public:
 		, bShowObjectLabel(true)
 		, bShowModifiedPropertiesOption(true)
 		, bShowDifferingPropertiesOption(false)
+		, bShowHiddenPropertiesWhilePlayingOption(true)
 		, bCustomNameAreaLocation(false)
 		, bCustomFilterAreaLocation(false)
 		, bAllowFavoriteSystem(false)	

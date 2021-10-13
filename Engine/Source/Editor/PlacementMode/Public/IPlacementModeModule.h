@@ -14,7 +14,7 @@
 #include "GameFramework/Volume.h"
 #include "Editor.h"
 
-class FBlacklistNames;
+class FNamePermissionList;
 
 /**
  * Struct that defines an identifier for a particular placeable item in this module.
@@ -311,11 +311,11 @@ public:
 	 */
 	virtual const FPlacementCategoryInfo* GetRegisteredPlacementCategory(FName UniqueHandle) const = 0;
 
-	/** Placement categories blacklist */
-	virtual TSharedRef<FBlacklistNames>& GetCategoryBlacklist() = 0;
+	/** Placement categories deny list */
+	virtual TSharedRef<FNamePermissionList>& GetCategoryPermissionList() = 0;
 
 	/**
-	 * Get all placement categories that aren't blacklisted, sorted by SortOrder
+	 * Get all placement categories that aren't denied, sorted by SortOrder
 	 *
 	 * @param OutCategories	The array to populate with registered category information
 	 */

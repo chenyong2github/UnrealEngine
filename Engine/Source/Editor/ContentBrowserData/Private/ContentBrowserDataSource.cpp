@@ -8,7 +8,7 @@
 #include "IContentBrowserDataModule.h"
 #include "Settings/ContentBrowserSettings.h"
 #include "Misc/PackageName.h"
-#include "Misc/BlacklistNames.h"
+#include "Misc/NamePermissionList.h"
 #include "IContentBrowserSingleton.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowserDataSource"

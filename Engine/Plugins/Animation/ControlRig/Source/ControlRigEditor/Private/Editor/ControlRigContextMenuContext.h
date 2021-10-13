@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
+#include "EdGraph/EdGraph.h"
 #include "Rigs/RigHierarchyDefines.h"
 
 #include "ControlRigContextMenuContext.generated.h"
@@ -14,7 +14,6 @@ class FControlRigEditor;
 class URigVMGraph;
 class URigVMNode;
 class URigVMPin;
-class UEdGraph;
 class SRigHierarchy;
 
 USTRUCT(BlueprintType)

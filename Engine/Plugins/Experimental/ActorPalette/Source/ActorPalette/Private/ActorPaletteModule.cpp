@@ -32,7 +32,7 @@
 // - Support for materials (e.g., detect if it's a material demo kiosk and drag-drop the material instead of the mesh)
 // - Store the source map..actor path in package metadata for placed instances and provide a key bind to focus it back (Shift+Ctrl+B maybe?)
 // - Add keybinds to cycle between related objects in a set (using metadata on the placed instance linking it back to template map, along with set/chain metadata in the template map or via an associated collection)
-//     Should this nuke the existing actor and spawn a new one, only copying transform, or should it do something crazier like try to delta
+//     Should this destroy the existing actor and spawn a new one, only copying transform, or should it do something crazier like try to delta
 //     serialize against old template and apply diffs to new template (getting into CPFUO land...)
 // - Keybind to randomize Z rotation for selected object (totally unrelated to actor palette, just might be a nice level editor feature?)
 // - Picker-style shortcut to let it be used without keeping it up all the time

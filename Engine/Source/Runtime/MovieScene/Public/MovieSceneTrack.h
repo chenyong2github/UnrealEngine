@@ -31,6 +31,8 @@ enum class ECookOptimizationFlags
 	RemoveTrack		= 1 << 0,
 	/** Remove this track's object since its of no consequence to runtime */
 	RemoveObject	= 1 << 1,
+	/** Remove this section's object since its of no consequence to runtime */
+	RemoveSection	= 1 << 2,
 };
 ENUM_CLASS_FLAGS(ECookOptimizationFlags)
 
@@ -408,6 +410,8 @@ public:
 	 * Called when this track should be removed for cooking
 	 */
 	MOVIESCENE_API virtual void RemoveForCook();
+
+	static bool RemoveMutedTracksOnCook();
 
 #endif
 

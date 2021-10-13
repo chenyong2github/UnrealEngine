@@ -409,6 +409,13 @@ UAbilitySystemComponent* UAttributeSet::GetOwningAbilitySystemComponent() const
 	return UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwningActor());
 }
 
+UAbilitySystemComponent* UAttributeSet::GetOwningAbilitySystemComponentChecked() const
+{
+	UAbilitySystemComponent* Result = GetOwningAbilitySystemComponent();
+	check(Result);
+	return Result;
+}
+
 FGameplayAbilityActorInfo* UAttributeSet::GetActorInfo() const
 {
 	UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent();

@@ -72,7 +72,7 @@ struct FStructTracker
 
 	TConstArrayView<TWeakObjectPtr<const UScriptStruct>> DebugGetAllStructTypes() const { return StructTypesList; }
 
-	void DebugNukeStructTypeMappingInfo()
+	void DebugResetStructTypeMappingInfo()
 	{
 		StructTypeToIndexSet.Reset();
 		StructTypesList.Reset();
@@ -457,9 +457,9 @@ public:
 	 * Resets all the information gathered on the tags. Calling this results in invalidating all previously created
 	 * FStructTypeCollection instances. Used only for debugging and unit/functional testing.
 	 */
-	static void DebugNukeStructTypeMappingInfo()
+	static void DebugResetStructTypeMappingInfo()
 	{
-		StructTracker.DebugNukeStructTypeMappingInfo();
+		StructTracker.DebugResetStructTypeMappingInfo();
 	}
 protected:
 	// unittesting purposes only

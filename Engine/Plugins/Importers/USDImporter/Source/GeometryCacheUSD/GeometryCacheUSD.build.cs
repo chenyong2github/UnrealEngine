@@ -19,6 +19,7 @@ public class GeometryCacheUSD : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"UnrealUSDWrapper",
 				"GeometryCacheStreamer"
             }
         );

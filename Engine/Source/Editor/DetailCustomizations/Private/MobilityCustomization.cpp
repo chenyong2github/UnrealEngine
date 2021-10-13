@@ -1,99 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Customizations/MobilityCustomization.h"
-
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Styling/SlateTypes.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "EditorStyleSet.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "EditorStyleSet.h"
-#include "Styling/SlateTypes.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Input/SComboBox.h"
-#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Input/SSegmentedControl.h"
 
 #define LOCTEXT_NAMESPACE "MobilityCustomization" 
-
-static FName GetOptionName(TOptional<EComponentMobility::Type> InMobility)
-{
-	if (InMobility.IsSet())
-	{
-		EComponentMobility::Type Mobility = InMobility.GetValue();
-		switch (Mobility)
-		{
-		case EComponentMobility::Static: return FName("Static");
-		case EComponentMobility::Stationary: return FName("Stationary");
-		case EComponentMobility::Movable: return FName("Movable");
-		}
-	}
-	return NAME_None;
-}
-
-
-static TOptional<EComponentMobility::Type> GetOptionValue(FName InMobilityName)
-{
-	if (!InMobilityName.IsNone())
-	{
-		if (InMobilityName == GetOptionName(EComponentMobility::Static))
-		{
-			return EComponentMobility::Static;
-		}
-		else if (InMobilityName == GetOptionName(EComponentMobility::Stationary))
-		{
-			return EComponentMobility::Stationary;
-		}
-		else if (InMobilityName == GetOptionName(EComponentMobility::Movable))
-		{
-			return EComponentMobility::Movable;
-		}
-	}
-
-	return TOptional<EComponentMobility::Type>();
-}
-
-static FText GetOptionText(TOptional<EComponentMobility::Type> InMobility)
-{
-	if (InMobility.IsSet())
-	{
-		EComponentMobility::Type Mobility = InMobility.GetValue();
-		switch (Mobility)
-		{
-		case EComponentMobility::Static:
-			return LOCTEXT("Static", "Static");
-		case EComponentMobility::Movable:
-			return LOCTEXT("Movable", "Movable");
-		case EComponentMobility::Stationary:
-			return LOCTEXT("Stationary", "Stationary");
-		}
-	}
-
-	return LOCTEXT("MultipleValues", "Multiple Values");
-}
-
-static FText GetOptionToolTip(TOptional<EComponentMobility::Type> InMobility, const bool bForLight)
-{
-	if(InMobility.IsSet())
-	{ 
-		EComponentMobility::Type Mobility = InMobility.GetValue();
-		switch (Mobility)
-		{
-		case EComponentMobility::Static:
-			return bForLight
-				? LOCTEXT("Mobility_Static_Light_Tooltip", "A static light can't be changed in game.\n* Fully Baked Lighting\n* Fastest Rendering")
-				: LOCTEXT("Mobility_Static_Tooltip", "A static object can't be changed in game.\n* Allows Baked Lighting\n* Fastest Rendering");;
-		case EComponentMobility::Movable:
-			return bForLight
-				? LOCTEXT("Mobility_Movable_Light_Tooltip", "Movable lights can be moved and changed in game.\n* Totally Dynamic\n* Whole Scene Dynamic Shadows\n* Slowest Rendering")
-				: LOCTEXT("Mobility_Movable_Tooltip", "Movable objects can be moved and changed in game.\n* Totally Dynamic\n* Casts a Dynamic Shadow \n* Slowest Rendering");
-		case EComponentMobility::Stationary:
-			return bForLight
-				? LOCTEXT("Mobility_Stationary_Tooltip", "A stationary light will only have its shadowing and bounced lighting from static geometry baked by Lightmass, all other lighting will be dynamic.  It can change color and intensity in game.\n* Can't Move\n* Allows Partially Baked Lighting\n* Dynamic Shadows from Movable objects")
-				: LOCTEXT("Mobility_Stationary_Object_Tooltip", "A stationary object can be changed in game but not moved, and enables cached lighting methods. \n* Cached Dynamic Shadows.");
-		}
-	}
-	
-	return LOCTEXT("MobilityMultipleValues_Tooltip", "Multiple components are selected with different mobilities");
-}
 
 FMobilityCustomization::FMobilityCustomization(TSharedPtr<IPropertyHandle> InMobilityHandle, uint8 InRestrictedMobilityBits, bool InForLight)
 {
@@ -114,98 +32,116 @@ FName FMobilityCustomization::GetName() const
 
 void FMobilityCustomization::GenerateHeaderRowContent(FDetailWidgetRow& WidgetRow)
 {
-	AllowedOptions.Reset();
-
-	const bool bShowStatic = !(RestrictedMobilityBits & StaticMobilityBitMask);
-	if (bShowStatic)
-	{
-		AllowedOptions.Add(GetOptionName(EComponentMobility::Static));
-	}
-
-	const bool bShowStationary = !(RestrictedMobilityBits & StationaryMobilityBitMask);
-	if (bShowStationary)
-	{
-		AllowedOptions.Add(GetOptionName(EComponentMobility::Stationary));
-	}
-
-	const bool bShowMovable = !(RestrictedMobilityBits & MovableMobilityBitMask);
-	if (bShowMovable)
-	{
-		AllowedOptions.Add(GetOptionName(EComponentMobility::Movable));
-	}
-
-	TSharedRef<SComboBox<FName>> ComboBox =
-		SNew(SComboBox<FName>)
-		.OptionsSource(&AllowedOptions)
-		.InitiallySelectedItem(GetOptionName(GetActiveMobility()))
-		.OnSelectionChanged(this, &FMobilityCustomization::OnMobilityChanged)
-		.OnGenerateWidget(this, &FMobilityCustomization::OnGenerateWidget)
-		.Content()
-		[
-			SNew(STextBlock)
-			.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.NormalFont"))
-			.Text(this, &FMobilityCustomization::GetActiveMobilityText)
-			.ToolTipText(this, &FMobilityCustomization::GetActiveMobilityToolTip)
-		];
+	TSharedRef<SSegmentedControl<EComponentMobility::Type>> ButtonOptionsPanel =
+		SNew(SSegmentedControl<EComponentMobility::Type>)
+		.Value(this, &FMobilityCustomization::GetActiveMobility)
+		.OnValueChanged(this, &FMobilityCustomization::OnMobilityChanged);
 		
 	WidgetRow
 	.NameContent()
 	[
 		SNew(STextBlock)
-		.Font(IDetailLayoutBuilder::GetDetailFont())
 		.Text(LOCTEXT("Mobility", "Mobility"))
 		.ToolTipText(this, &FMobilityCustomization::GetMobilityToolTip)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
 	]
 	.ValueContent()
 	.MaxDesiredWidth(0)
+	[
+		ButtonOptionsPanel
+	];
+
+	bool bShowStatic = !( RestrictedMobilityBits & StaticMobilityBitMask );
+	bool bShowStationary = !( RestrictedMobilityBits & StationaryMobilityBitMask );
+
+	int32 ColumnIndex = 0;
+
+	if ( bShowStatic )
+	{
+		FText StaticTooltip = bForLight
+			? LOCTEXT("Mobility_Static_Light_Tooltip", "A static light can't be changed in game.\n* Fully Baked Lighting\n* Fastest Rendering")
+			: LOCTEXT("Mobility_Static_Tooltip", "A static object can't be changed in game.\n* Allows Baked Lighting\n* Fastest Rendering");
+
+		// Static Mobility
+		ButtonOptionsPanel->AddSlot(EComponentMobility::Static)
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			SNew(STextBlock)
+			.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.MobilityFont"))
+			.Text(LOCTEXT("Static", "Static"))
+		]
+		.ToolTip(StaticTooltip);
+	}
+
+	// Stationary Mobility
+	if ( bShowStationary )
+	{
+		FText StationaryTooltip = bForLight
+			? LOCTEXT("Mobility_Stationary_Tooltip", "A stationary light will only have its shadowing and bounced lighting from static geometry baked by Lightmass, all other lighting will be dynamic.  It can change color and intensity in game.\n* Can't Move\n* Allows Partially Baked Lighting\n* Dynamic Shadows from Movable objects")
+			: LOCTEXT("Mobility_Stationary_Object_Tooltip", "A stationary object can be changed in game but not moved, and enables cached lighting methods. \n* Cached Dynamic Shadows.");
+
+		ButtonOptionsPanel->AddSlot(EComponentMobility::Stationary)
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			SNew(STextBlock)
+			.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.MobilityFont"))
+			.Text(LOCTEXT("Stationary", "Stationary"))
+		]
+		.ToolTip(StationaryTooltip);
+	}
+
+	FText MovableTooltip = bForLight
+			? LOCTEXT("Mobility_Movable_Light_Tooltip", "Movable lights can be moved and changed in game.\n* Totally Dynamic\n* Whole Scene Dynamic Shadows\n* Slowest Rendering")
+			: LOCTEXT("Mobility_Movable_Tooltip", "Movable objects can be moved and changed in game.\n* Totally Dynamic\n* Casts a Dynamic Shadow \n* Slowest Rendering");
+
+	// Movable Mobility
+	ButtonOptionsPanel->AddSlot(EComponentMobility::Movable)
+	.HAlign(HAlign_Center)
 	.VAlign(VAlign_Center)
 	[
-		ComboBox
-	];
+		SNew(STextBlock)
+		.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.MobilityFont"))
+		.Text(LOCTEXT("Movable", "Movable"))
+	]
+	.ToolTip(MovableTooltip);
+
+	ButtonOptionsPanel->RebuildChildren();
 }
 
-TSharedRef<SWidget> FMobilityCustomization::OnGenerateWidget(const FName InMobilityName) const
-{
-	const TOptional<EComponentMobility::Type> Mobility = GetOptionValue(InMobilityName);
-	const FText Text = GetOptionText(Mobility);
-	const FText ToolTip = GetOptionToolTip(Mobility, bForLight);
-
-	return SNew(STextBlock)
-		.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.NormalFont"))
-		.Text(Text)
-		.ToolTipText(ToolTip);
-}
-
-void FMobilityCustomization::OnMobilityChanged(FName InMobilityName, ESelectInfo::Type)
-{
-	if (MobilityHandle.IsValid() && !InMobilityName.IsNone())
-	{
-		MobilityHandle->SetValue((uint8) GetOptionValue(InMobilityName).GetValue());
-	}
-}
-
-TOptional<EComponentMobility::Type> FMobilityCustomization::GetActiveMobility() const
+EComponentMobility::Type FMobilityCustomization::GetActiveMobility() const
 {
 	if (MobilityHandle.IsValid())
 	{
 		uint8 MobilityByte;
-		if(MobilityHandle->GetValue(MobilityByte) == FPropertyAccess::Success)
-		{
-			return (EComponentMobility::Type)MobilityByte;
-		}
+		MobilityHandle->GetValue(MobilityByte);
+
+		return (EComponentMobility::Type)MobilityByte;
 	}
 
-	return TOptional<EComponentMobility::Type>();
+	return EComponentMobility::Static;
 }
 
-FText FMobilityCustomization::GetActiveMobilityText() const
+FSlateColor FMobilityCustomization::GetMobilityTextColor(EComponentMobility::Type InMobility) const
 {
-	return GetOptionText(GetActiveMobility());
+	if (MobilityHandle.IsValid())
+	{
+		uint8 MobilityByte;
+		MobilityHandle->GetValue(MobilityByte);
+
+		return MobilityByte == InMobility ? FSlateColor(FLinearColor(0, 0, 0)) : FSlateColor(FLinearColor(0.72f, 0.72f, 0.72f, 1.f));
+	}
+
+	return FSlateColor(FLinearColor(0.72f, 0.72f, 0.72f, 1.f));
 }
 
-FText FMobilityCustomization::GetActiveMobilityToolTip() const
+void FMobilityCustomization::OnMobilityChanged(EComponentMobility::Type InMobility)
 {
-	return GetOptionToolTip(GetActiveMobility(), bForLight);
+	if (MobilityHandle.IsValid())
+	{
+		MobilityHandle->SetValue((uint8)InMobility);
+	}
 }
 
 FText FMobilityCustomization::GetMobilityToolTip() const

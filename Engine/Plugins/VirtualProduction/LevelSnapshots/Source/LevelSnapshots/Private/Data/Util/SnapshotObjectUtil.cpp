@@ -216,9 +216,7 @@ namespace
 			SubobjectData.Class = Class;
 			SubobjectData.OuterIndex = SnapshotUtil::Object::AddObjectDependency(WorldData, ReferenceFromOriginalObject->GetOuter());
 			// ... because serialisation recursively calls this function. FWorldSnapshotData::Subobjects is possibly reallocated
-			FTakeWorldObjectSnapshotArchive Serializer = FTakeWorldObjectSnapshotArchive::MakeArchiveForSavingWorldObject(SubobjectData, WorldData, ReferenceFromOriginalObject);
-			ReferenceFromOriginalObject->Serialize(Serializer);
-
+			FTakeWorldObjectSnapshotArchive::TakeSnapshot(SubobjectData, WorldData, ReferenceFromOriginalObject);
 			
 			WorldData.Subobjects[ObjectIndex] = MoveTemp(SubobjectData); // MoveTemp not profiled
 			WorldData.AddClassDefault(Class);

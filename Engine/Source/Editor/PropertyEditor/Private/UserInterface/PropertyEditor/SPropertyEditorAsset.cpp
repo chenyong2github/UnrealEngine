@@ -626,7 +626,9 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 		[
 			PropertyCustomizationHelpers::MakeBrowseButton(
 				FSimpleDelegate::CreateSP( this, &SPropertyEditorAsset::OnBrowse ),
-				TAttribute<FText>( this, &SPropertyEditorAsset::GetOnBrowseToolTip )
+				TAttribute<FText>( this, &SPropertyEditorAsset::GetOnBrowseToolTip ),
+				true,
+				bIsActor
 				)
 		];
 	}

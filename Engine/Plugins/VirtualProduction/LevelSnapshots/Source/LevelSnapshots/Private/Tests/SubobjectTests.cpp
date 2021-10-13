@@ -863,16 +863,19 @@ bool FReorderSubobjectCollections::RunTest(const FString& Parameters)
 	FSnapshotTestRunner()
 		.ModifyWorld([&](UWorld* World)
 		{
-			SwapElementOrder = World->SpawnActor<ASnapshotTestActor>();
-			SwapElementWithNull = World->SpawnActor<ASnapshotTestActor>();
-			ReplaceElementWithNull = World->SpawnActor<ASnapshotTestActor>();
+			FActorSpawnParameters SwapElementOrderParams;
+			
+			
+			SwapElementOrder = ASnapshotTestActor::Spawn(World, "SwapElementOrder");
+			SwapElementWithNull = ASnapshotTestActor::Spawn(World, "SwapElementWithNull");
+			ReplaceElementWithNull = ASnapshotTestActor::Spawn(World, "ReplaceElementWithNull");
 
 			{
 				USubobject* First = NewObject<USubobject>(SwapElementOrder, USubobject::StaticClass(), TEXT("First"));
 				USubobject* Second = NewObject<USubobject>(SwapElementOrder, USubobject::StaticClass(), TEXT("Second"));
 				First->IntProperty = 1;
 				Second->IntProperty = 2;
-
+				
 				SwapElementOrder->ObjectArray.Add(First);
 				SwapElementOrder->ObjectArray.Add(Second);
 				SwapElementOrder->ObjectMap.Add("First", First);

@@ -59,7 +59,7 @@ bool FVisualLogger::CheckVisualLogInputInternal(const UObject* Object, const FNa
 	}
 
 	FVisualLogger& VisualLogger = FVisualLogger::Get();
-	if (VisualLogger.IsBlockedForAllCategories() && VisualLogger.IsWhiteListed(CategoryName) == false)
+	if (VisualLogger.IsBlockedForAllCategories() && VisualLogger.IsCategoryAllowed(CategoryName) == false)
 	{
 		return false;
 	}
@@ -99,16 +99,16 @@ void FVisualLogger::SetGetTimeStampFunc(const TFunction<float(const UObject*)> F
 	GetTimeStampFunc = Function;
 }
 
-void FVisualLogger::AddWhitelistedClass(UClass& InClass)
+void FVisualLogger::AddClassToAllowList(UClass& InClass)
 {
-	ClassWhitelist.AddUnique(&InClass);
+	ClassAllowList.AddUnique(&InClass);
 }
 
-bool FVisualLogger::IsClassWhitelisted(const UClass& InClass) const
+bool FVisualLogger::IsClassAllowed(const UClass& InClass) const
 {
-	for (const UClass* WhitelistedClass : ClassWhitelist)
+	for (const UClass* AllowedRoot : ClassAllowList)
 	{
-		if (InClass.IsChildOf(WhitelistedClass))
+		if (InClass.IsChildOf(AllowedRoot))
 		{
 			return true;
 		}
@@ -117,41 +117,41 @@ bool FVisualLogger::IsClassWhitelisted(const UClass& InClass) const
 	return false;
 }
 
-void FVisualLogger::AddWhitelistedObject(const UObject& InObject)
+void FVisualLogger::AddObjectToAllowList(const UObject& InObject)
 {
-	const int32 PrevNum = ObjectWhitelist.Num();
-	ObjectWhitelist.Add(&InObject);
+	const int32 PrevNum = ObjectAllowList.Num();
+	ObjectAllowList.Add(&InObject);
 
-	const bool bChanged = (PrevNum != ObjectWhitelist.Num());
+	const bool bChanged = (PrevNum != ObjectAllowList.Num());
 	if (bChanged)
 	{
 		FVisualLogEntry* CurrentEntry = CurrentEntryPerObject.Find(&InObject);
 		if (CurrentEntry)
 		{
-			CurrentEntry->bIsObjectWhitelisted = true;
+			CurrentEntry->bPassedObjectAllowList = true;
 			CurrentEntry->UpdateAllowedToLog();
 		}
 	}
 }
 
-void FVisualLogger::ClearObjectWhitelist()
+void FVisualLogger::ClearObjectAllowList()
 {
-	for (FObjectKey It : ObjectWhitelist)
+	for (FObjectKey It : ObjectAllowList)
 	{
 		FVisualLogEntry* CurrentEntry = CurrentEntryPerObject.Find(It);
 		if (CurrentEntry)
 		{
-			CurrentEntry->bIsObjectWhitelisted = false;
+			CurrentEntry->bPassedObjectAllowList = false;
 			CurrentEntry->UpdateAllowedToLog();
 		}
 	}
 
-	ObjectWhitelist.Empty();
+	ObjectAllowList.Empty();
 }
 
-bool FVisualLogger::IsObjectWhitelisted(const UObject* InObject) const
+bool FVisualLogger::IsObjectAllowed(const UObject* InObject) const
 {
-	return ObjectWhitelist.Contains(InObject);
+	return ObjectAllowList.Contains(InObject);
 }
 
 FVisualLogEntry* FVisualLogger::GetLastEntryForObject(const UObject* Object)
@@ -207,10 +207,10 @@ FVisualLogEntry* FVisualLogger::GetEntryToWrite(const UObject* Object, float Tim
 		ObjectToClassNameMap.Add(LogOwner, *(LogOwner->GetClass()->GetName()));
 		ObjectToWorldMap.Add(LogOwner, World);
 
-		// IsClassWhitelisted isn't super fast, but this gets calculated only once for every
+		// IsClassAllowed isn't super fast, but this gets calculated only once for every 
 		// object trying to log something
-		CurrentEntry->bIsClassWhitelisted = (ClassWhitelist.Num() == 0) || IsClassWhitelisted(*LogOwner->GetClass()) || IsClassWhitelisted(*Object->GetClass());
-		CurrentEntry->bIsObjectWhitelisted = IsObjectWhitelisted(LogOwner);
+		CurrentEntry->bPassedClassAllowList = (ClassAllowList.Num() == 0) || IsClassAllowed(*LogOwner->GetClass()) || IsClassAllowed(*Object->GetClass());
+		CurrentEntry->bPassedObjectAllowList = IsObjectAllowed(LogOwner);
 		CurrentEntry->UpdateAllowedToLog();
 
 		bInitializeNewEntry = CurrentEntry->bIsAllowedToLog;
@@ -646,7 +646,7 @@ bool FVisualLogger::IsCategoryLogged(const FLogCategoryBase& Category) const
 	}
 
 	const FName CategoryName = Category.GetCategoryName();
-	if (IsBlockedForAllCategories() && IsWhiteListed(CategoryName) == false)
+	if (IsBlockedForAllCategories() && IsCategoryAllowed(CategoryName) == false)
 	{
 		return false;
 	}
@@ -687,7 +687,7 @@ public:
 				{
 					const FString Category = FParse::Token(Cmd, /*UseEscape*/ true);
 					FVisualLogger::Get().BlockAllCategories(true);
-					FVisualLogger::Get().AddCategoryToWhitelist(*Category);
+					FVisualLogger::Get().AddCategoryToAllowList(*Category);
 					return true;
 				}
 #if WITH_EDITOR

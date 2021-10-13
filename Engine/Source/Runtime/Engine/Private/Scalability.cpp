@@ -296,8 +296,8 @@ FString GetScalabilitySectionString(const TCHAR* InGroupName, int32 InQualityLev
 FName PlatformScalabilityName; // The name of the current platform scalability, or NAME_None if none is active
 FString PlatformScalabilityIniFilename;
 TMap<IConsoleVariable*, FString> PlatformScalabilityCVarBackup;
-TSet<const IConsoleVariable*> PlatformScalabilityCVarWhitelist;
-TSet<const IConsoleVariable*> PlatformScalabilityCVarBlacklist;
+TSet<const IConsoleVariable*> PlatformScalabilityCVarAllowList;
+TSet<const IConsoleVariable*> PlatformScalabilityCVarDenyList;
 
 void UndoPlatformScalability()
 {
@@ -315,8 +315,8 @@ void ApplyScalabilityGroupFromPlatformIni(const TCHAR* InSectionName, const TCHA
 
 	TFunction<void(IConsoleVariable*, const FString&, const FString&)> Func = [&](IConsoleVariable* CVar, const FString& KeyString, const FString& ValueString)
 	{
-		// Check the blacklist and whitelist
-		if (!PlatformScalabilityCVarBlacklist.Contains(CVar) && (PlatformScalabilityCVarWhitelist.Num() == 0 || PlatformScalabilityCVarWhitelist.Contains(CVar)))
+		// Check the allow/deny lists
+		if (!PlatformScalabilityCVarDenyList.Contains(CVar) && (PlatformScalabilityCVarAllowList.Num() == 0 || PlatformScalabilityCVarAllowList.Contains(CVar)))
 		{
 			// Backup cvar we're going to overwrite with the platform specific
 			if (!PlatformScalabilityCVarBackup.Contains(CVar))
@@ -350,27 +350,27 @@ void ChangeScalabilityPreviewPlatform(FName NewPlatformScalabilityName)
 		FString PlatformString = NewPlatformScalabilityName.ToString();
 		FConfigCacheIni::LoadGlobalIniFile(PlatformScalabilityIniFilename, TEXT("Scalability"), *PlatformString, true);
 
-		// load blacklist and whitelist of cvars we can set when previewing this platform
-		PlatformScalabilityCVarWhitelist.Empty();
-		TArray<FString> WhitelistCVarNames;
-		GConfig->GetArray(TEXT("ScalabilityPreview"), TEXT("WhitelistCVars"), WhitelistCVarNames, *PlatformScalabilityIniFilename);
-		for (const FString& CVarName : WhitelistCVarNames)
+		// load allow/deny lists of cvars we can set when previewing this platform
+		PlatformScalabilityCVarAllowList.Empty();
+		TArray<FString> AllowListCVarNames;
+		GConfig->GetArray(TEXT("ScalabilityPreview"), TEXT("CVarAllowList"), AllowListCVarNames, *PlatformScalabilityIniFilename);
+		for (const FString& CVarName : AllowListCVarNames)
 		{
 			const IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*CVarName);
 			if (CVar)
 			{
-				PlatformScalabilityCVarWhitelist.Add(CVar);
+				PlatformScalabilityCVarAllowList.Add(CVar);
 			}
 		}
-		PlatformScalabilityCVarBlacklist.Empty();
-		TArray<FString> BlacklistCVarNames;
-		GConfig->GetArray(TEXT("ScalabilityPreview"), TEXT("BlacklistCVars"), BlacklistCVarNames, *PlatformScalabilityIniFilename);
-		for (const FString& CVarName : BlacklistCVarNames)
+		PlatformScalabilityCVarDenyList.Empty();
+		TArray<FString> DenyListCVarNames;
+		GConfig->GetArray(TEXT("ScalabilityPreview"), TEXT("CVarDenyList"), DenyListCVarNames, *PlatformScalabilityIniFilename);
+		for (const FString& CVarName : DenyListCVarNames)
 		{
 			const IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*CVarName);
 			if (CVar)
 			{
-				PlatformScalabilityCVarBlacklist.Add(CVar);
+				PlatformScalabilityCVarDenyList.Add(CVar);
 			}
 		}
 		

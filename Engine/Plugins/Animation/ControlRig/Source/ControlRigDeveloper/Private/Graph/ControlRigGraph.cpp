@@ -97,7 +97,7 @@ void UControlRigGraph::CacheNameLists(URigHierarchy* InHierarchy, const FControl
 		ElementNameLists.FindOrAdd(ERigElementType::Control);
 		ElementNameLists.FindOrAdd(ERigElementType::Curve);
 		ElementNameLists.FindOrAdd(ERigElementType::RigidBody);
-		ElementNameLists.FindOrAdd(ERigElementType::Socket);
+		ElementNameLists.FindOrAdd(ERigElementType::Reference);
 
 		TArray<TSharedPtr<FString>>& AllNameList = ElementNameLists.FindChecked(ERigElementType::All);
 		TArray<TSharedPtr<FString>>& BoneNameList = ElementNameLists.FindChecked(ERigElementType::Bone);
@@ -105,7 +105,7 @@ void UControlRigGraph::CacheNameLists(URigHierarchy* InHierarchy, const FControl
 		TArray<TSharedPtr<FString>>& ControlNameList = ElementNameLists.FindChecked(ERigElementType::Control);
 		TArray<TSharedPtr<FString>>& CurveNameList = ElementNameLists.FindChecked(ERigElementType::Curve);
 		TArray<TSharedPtr<FString>>& RigidBodyNameList = ElementNameLists.FindChecked(ERigElementType::RigidBody);
-		TArray<TSharedPtr<FString>>& SocketNameList = ElementNameLists.FindChecked(ERigElementType::Socket);
+		TArray<TSharedPtr<FString>>& ReferenceNameList = ElementNameLists.FindChecked(ERigElementType::Reference);
 		
 		CacheNameListForHierarchy<FRigBaseElement>(InHierarchy, AllNameList);
 		CacheNameListForHierarchy<FRigBoneElement>(InHierarchy, BoneNameList);
@@ -113,7 +113,7 @@ void UControlRigGraph::CacheNameLists(URigHierarchy* InHierarchy, const FControl
 		CacheNameListForHierarchy<FRigControlElement>(InHierarchy, ControlNameList);
 		CacheNameListForHierarchy<FRigCurveElement>(InHierarchy, CurveNameList);
 		CacheNameListForHierarchy<FRigRigidBodyElement>(InHierarchy, RigidBodyNameList);
-		CacheNameListForHierarchy<FRigSocketElement>(InHierarchy, SocketNameList);
+		CacheNameListForHierarchy<FRigReferenceElement>(InHierarchy, ReferenceNameList);
 
 		LastHierarchyTopologyVersion = InHierarchy->GetTopologyVersion();
 	}

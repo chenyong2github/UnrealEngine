@@ -158,11 +158,24 @@ void FToolMenuContext::AddObject(UObject* InObject, FContextObjectCleanup&& InCl
 	}
 }
 
+void FToolMenuContext::AddCleanup(FContextCleanup&& InCleanup)
+{
+	if (InCleanup)
+	{
+		ContextCleanupFuncs.Add(MoveTemp(InCleanup));
+	}
+}
+
 void FToolMenuContext::CleanupObjects()
 {
 	for (const TTuple<TObjectPtr<UObject>, FContextObjectCleanup>& CleanupPair : ContextObjectCleanupFuncs)
 	{
 		CleanupPair.Value(CleanupPair.Key);
+	}
+
+	for (const FContextCleanup& CleanupFunc : ContextCleanupFuncs)
+	{
+		CleanupFunc();
 	}
 }
 
@@ -170,6 +183,7 @@ void FToolMenuContext::Empty()
 {
 	ContextObjects.Empty();
 	ContextObjectCleanupFuncs.Empty();
+	ContextCleanupFuncs.Empty();
 	CommandLists.Empty();
 	CommandList.Reset();
 	Extenders.Empty();

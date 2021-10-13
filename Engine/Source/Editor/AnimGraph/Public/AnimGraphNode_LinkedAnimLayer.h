@@ -64,10 +64,13 @@ protected:
 	void HandleInstanceChanged();
 	// ----- END UI CALLBACKS ----- //
 
+	// UAnimGraphNode_Base interface
+	virtual FProperty* GetPinProperty(FName InPinName) const override;
+	virtual void CreateCustomPins(TArray<UEdGraphPin*>* OldPins) override;
+
 	// Begin UAnimGraphNode_CustomProperty
 	virtual FAnimNode_CustomProperty* GetCustomPropertyNode() override { return &Node;  }
 	virtual const FAnimNode_CustomProperty* GetCustomPropertyNode() const override { return &Node; }
-	void GetExposableProperties( TArray<FProperty*>& OutExposableProperties) const override;
 	virtual bool NeedsToSpecifyValidTargetClass() const override { return false; }
 	virtual UClass* GetTargetSkeletonClass() const override;
 

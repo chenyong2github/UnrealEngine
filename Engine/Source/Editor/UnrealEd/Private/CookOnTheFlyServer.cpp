@@ -385,12 +385,6 @@ public:
 		return Cooker.FindOrCreatePackageWriter(TargetPlatform);
 	}
 
-	DECLARE_DERIVED_EVENT(UCookOnTheFlyServer::FCookOnTheFlyServerInterface, UE::Cook::ICookOnTheFlyServer::FFlushEvent, FFlushEvent);
-	virtual FFlushEvent& OnFlush() override
-	{
-		return FlushEvent;
-	}
-
 	virtual double WaitForPendingFlush() override
 	{
 		const double StartTime = bIsFlushing ? FPlatformTime::Seconds() : 0.0;
@@ -410,11 +404,6 @@ public:
 		for (UE::Cook::FCookSavePackageContext* Context : Cooker.SavePackageContexts)
 		{
 			Context->PackageWriter->Flush();
-		}
-
-		if (FlushEvent.IsBound())
-		{
-			FlushEvent.Broadcast();
 		}
 
 		UE_LOG(LogCook, Log, TEXT("Flush completed"));
@@ -455,7 +444,6 @@ private:
 	}
 
 	UCookOnTheFlyServer& Cooker;
-	FFlushEvent FlushEvent;
 	FEvent* FlushCompletedEvent;
 	FCriticalSection FlushCriticalSection;
 	FCriticalSection RequestsCriticalSection;
@@ -480,14 +468,6 @@ UCookOnTheFlyServer::UCookOnTheFlyServer(const FObjectInitializer& ObjectInitial
 	ExternalRequests = MakeUnique<UE::Cook::FExternalRequests>();
 	PackageTracker = MakeUnique<UE::Cook::FPackageTracker>(*PackageDatas.Get());
 	DiffModeHelper = MakeUnique<FDiffModeCookServerUtils>();
-	bSaveAsyncAllowed = true;
-	FString Temp;
-	const TCHAR* CommandLine = FCommandLine::Get();
-	if (FParse::Value(CommandLine, TEXT("-diffagainstcookdirectory="), Temp) || FParse::Value(CommandLine, TEXT("-breakonfile="), Temp))
-	{
-		// async save doesn't work with any of these flags
-		bSaveAsyncAllowed = false;
-	}
 }
 
 UCookOnTheFlyServer::UCookOnTheFlyServer(FVTableHelper& Helper) :Super(Helper) {}
@@ -581,6 +561,7 @@ bool UCookOnTheFlyServer::StartCookOnTheFly(FCookOnTheFlyOptions InCookOnTheFlyO
 		PackageTracker->NeverCookPackageList.Add(NeverCookPackage);
 	}
 
+	GRedirectCollector.OnStartupPackageLoadComplete();
 
 	{
 		UE::Cook::FPlatformManager::FReadScopeLock PlatformScopeLock(PlatformManager->ReadLockPlatforms());
@@ -597,7 +578,7 @@ bool UCookOnTheFlyServer::StartCookOnTheFly(FCookOnTheFlyOptions InCookOnTheFlyO
 	{
 		UE::Cook::FIoStoreCookOnTheFlyServerOptions ServerOptions;
 		ServerOptions.Port = -1; // Use default
-		CookOnTheFlyRequestManager = UE::Cook::MakeIoStoreCookOnTheFlyRequestManager(*CookOnTheFlyServerInterface, MoveTemp(ServerOptions));
+		CookOnTheFlyRequestManager = UE::Cook::MakeIoStoreCookOnTheFlyRequestManager(*CookOnTheFlyServerInterface, AssetRegistry, MoveTemp(ServerOptions));
 	}
 	else
 	{
@@ -4341,7 +4322,7 @@ void FSaveCookedPackageContext::SetupPackage()
 		UE_LOG(LogCook, Fatal, TEXT("Package %s marked as reloading for cook by was requested to save"), *PackageName);
 	}
 
-	SaveFlags = SAVE_KeepGUID | (COTFS.bSaveAsyncAllowed ? SAVE_Async : SAVE_None)
+	SaveFlags = SAVE_KeepGUID | SAVE_Async
 		| (COTFS.IsCookFlagSet(ECookInitializationFlags::Unversioned) ? SAVE_Unversioned : 0);
 
 	// removing editor only packages only works when cooking in commandlet and non iterative cooking
@@ -4699,7 +4680,7 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 	MaxNumPackagesBeforePartialGC = 400;
 	GConfig->GetInt(TEXT("CookSettings"), TEXT("MaxNumPackagesBeforePartialGC"), MaxNumPackagesBeforePartialGC, GEditorIni);
 	
-	GConfig->GetArray(TEXT("CookSettings"), TEXT("ConfigSettingBlacklist"), ConfigSettingBlacklist, GEditorIni);
+	GConfig->GetArray(TEXT("CookSettings"), TEXT("CookOnTheFlyConfigSettingDenyList"), ConfigSettingDenyList, GEditorIni);
 
 	UE_LOG(LogCook, Display, TEXT("CookSettings for Memory: MemoryMaxUsedVirtual %dMiB, MemoryMaxUsedPhysical %dMiB, MemoryMinFreeVirtual %dMiB, MemoryMinFreePhysical %dMiB"),
 		MemoryMaxUsedVirtual / 1024 / 1024, MemoryMaxUsedPhysical / 1024 / 1024, MemoryMinFreeVirtual / 1024 / 1024, MemoryMinFreePhysical / 1024 / 1024);
@@ -5122,7 +5103,7 @@ bool UCookOnTheFlyServer::GetCurrentIniVersionStrings( const ITargetPlatform* Ta
 
 	// remove any which are filtered out
 	FString EditorPrefix(TEXT("Editor."));
-	for ( const FString& Filter : ConfigSettingBlacklist )
+	for ( const FString& Filter : ConfigSettingDenyList )
 	{
 		TArray<FString> FilterArray;
 		Filter.ParseIntoArray( FilterArray, TEXT(":"));
@@ -5147,7 +5128,7 @@ bool UCookOnTheFlyServer::GetCurrentIniVersionStrings( const ITargetPlatform* Ta
 		{
 			for ( auto ConfigFile = IniVersionStrings.CreateIterator(); ConfigFile; ++ConfigFile )
 			{
-				// Some ConfigBlacklistSettings are written as *.Engine, and are intended to affect the platform-less Editor Engine.ini, which is just "Engine"
+				// Some deny list entries are written as *.Engine, and are intended to affect the platform-less Editor Engine.ini, which is just "Engine"
 				// To make *.Engine match the editor-only config files as well, we check whether the wildcard matches either Engine or Editor.Engine for the editor files
 				FString IniVersionStringFilename = ConfigFile.Key().ToString();
 				if (IniVersionStringFilename.MatchesWildcard(*ConfigFileName) ||
@@ -5508,13 +5489,13 @@ bool UCookOnTheFlyServer::IniSettingsOutOfDate(const ITargetPlatform* TargetPlat
 		{
 			const FName& SectionName = OldIniSection.Key;
 			const FConfigSection* IniSection = ConfigFile->Find( SectionName.ToString() );
-			const FString BlackListSetting = FString::Printf(TEXT("%s%s%s:%s"), *PlatformName, bFoundPlatformName ? TEXT(".") : TEXT(""), *Filename, *SectionName.ToString());
+			const FString DenyListSetting = FString::Printf(TEXT("%s%s%s:%s"), *PlatformName, bFoundPlatformName ? TEXT(".") : TEXT(""), *Filename, *SectionName.ToString());
 
 			if ( IniSection == nullptr )
 			{
 				UE_LOG(LogCook, Display, TEXT("Inisetting is different for %s, Current section doesn't exist"), 
 					*FString::Printf(TEXT("%s %s %s"), *PlatformName, *Filename, *SectionName.ToString()));
-				UE_LOG(LogCook, Display, TEXT("To avoid this add blacklist setting to DefaultEditor.ini [CookSettings] %s"), *BlackListSetting);
+				UE_LOG(LogCook, Display, TEXT("To avoid this add a deny list setting to DefaultEditor.ini [CookSettings] %s"), *DenyListSetting);
 				return true;
 			}
 
@@ -5529,7 +5510,7 @@ bool UCookOnTheFlyServer::IniSettingsOutOfDate(const ITargetPlatform* TargetPlat
 				{
 					UE_LOG(LogCook, Display, TEXT("Inisetting is different for %s, missmatched num array elements %d != %d "), *FString::Printf(TEXT("%s %s %s %s"),
 						*PlatformName, *Filename, *SectionName.ToString(), *ValueName.ToString()), CurrentValues.Num(), OldIniValue.Value.Num());
-					UE_LOG(LogCook, Display, TEXT("To avoid this add blacklist setting to DefaultEditor.ini [CookSettings] %s"), *BlackListSetting);
+					UE_LOG(LogCook, Display, TEXT("To avoid this add a deny list setting to DefaultEditor.ini [CookSettings] %s"), *DenyListSetting);
 					return true;
 				}
 				for ( int Index = 0; Index < CurrentValues.Num(); ++Index )
@@ -5540,7 +5521,7 @@ bool UCookOnTheFlyServer::IniSettingsOutOfDate(const ITargetPlatform* TargetPlat
 						UE_LOG(LogCook, Display, TEXT("Inisetting is different for %s, value %s != %s invalidating cook"),
 							*FString::Printf(TEXT("%s %s %s %s %d"),*PlatformName, *Filename, *SectionName.ToString(), *ValueName.ToString(), Index),
 							*CurrentValues[Index].GetSavedValue(), *OldIniValue.Value[Index] );
-						UE_LOG(LogCook, Display, TEXT("To avoid this add blacklist setting to DefaultEditor.ini [CookSettings] %s"), *BlackListSetting);
+						UE_LOG(LogCook, Display, TEXT("To avoid this add a deny list setting to DefaultEditor.ini [CookSettings] %s"), *DenyListSetting);
 						return true;
 					}
 				}
@@ -7443,8 +7424,12 @@ UE::Cook::FCookSavePackageContext* UCookOnTheFlyServer::CreateSaveContext(const 
 		
 	bool bLegacyBulkDataOffsets = false;
 	PlatformEngineIni.GetBool(TEXT("Core.System"), TEXT("LegacyBulkDataOffsets"), bLegacyBulkDataOffsets);
+	if (bLegacyBulkDataOffsets)
+	{
+		UE_LOG(LogCook, Warning, TEXT("Engine.ini:[Core.System]:LegacyBulkDataOffsets is no longer supported in UE5. The intended use was to reduce patch diffs, but UE5 changed cooked bytes in every package for other reasons, so removing support for this flag does not cause additional patch diffs."));
+	}
 
-	return new UE::Cook::FCookSavePackageContext(TargetPlatform, PackageWriter, bLegacyBulkDataOffsets, WriterDebugName);
+	return new UE::Cook::FCookSavePackageContext(TargetPlatform, PackageWriter, WriterDebugName);
 }
 
 void UCookOnTheFlyServer::FinalizePackageStore()
@@ -7900,6 +7885,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 			GRedirectCollector.ProcessSoftObjectPathPackageList(StartupPackage, false, StartupSoftObjectPackages);
 		}
 	}
+	GRedirectCollector.OnStartupPackageLoadComplete();
 
 	TMap<FName, TArray<FName>> GameDefaultObjects;
 	GetGameDefaultObjects(TargetPlatforms, GameDefaultObjects);

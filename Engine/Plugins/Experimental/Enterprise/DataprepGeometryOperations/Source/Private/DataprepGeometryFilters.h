@@ -10,7 +10,7 @@
 
 #include "DataprepGeometryFilters.generated.h"
 
-UCLASS(BlueprintType, NotBlueprintable, HideCategories = (Filter), Meta = (DisplayName="Jacketing/Select Hidden", ToolTip = "Apply mesh jacketing to selected objects"))
+UCLASS(BlueprintType, NotBlueprintable, HideCategories = (Filter), Meta = (DisplayName="Jacketing", ToolTip = "Apply mesh jacketing to selected objects"))
 class UDataprepJacketingFilter : public UDataprepFilterNoFetcher
 {
 	GENERATED_BODY()
@@ -39,9 +39,9 @@ private:
 private:
 	/** Accuracy of the distance field approximation, in cm. */
 	UPROPERTY(EditAnywhere, Category = JacketingFilter, meta = (Units = cm, UIMin = "0.1", UIMax = "100", ClampMin = "0"))
-	float Accuracy = 3.0f;
+	float VoxelPrecision = 3.0f;
 
 	/** Merge distance used to fill gap, in cm. */
 	UPROPERTY(EditAnywhere, Category = JacketingFilter, meta = (Units = cm, UIMin = "0.1", UIMax = "100", ClampMin = "0"))
-	float MergeDistance = 4.0f;
+	float GapMaxDiameter = 4.0f;
 };

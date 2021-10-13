@@ -253,28 +253,28 @@ FString FScanDir::GetMountRelPath() const
 
 bool FScanDir::FInherited::IsMonitored() const
 {
-	return IsWhitelisted() && !IsBlacklisted();
+	return IsOnAllowList() && !IsOnDenyList();
 }
 
-bool FScanDir::FInherited::IsBlacklisted() const
+bool FScanDir::FInherited::IsOnDenyList() const
 {
-	return bMatchesBlacklist && !bIgnoreBlacklist;
+	return bMatchesDenyList && !bIgnoreDenyList;
 }
 
-bool FScanDir::FInherited::IsWhitelisted() const
+bool FScanDir::FInherited::IsOnAllowList() const
 {
-	return bIsWhitelisted;
+	return bIsOnAllowList;
 }
 
 bool FScanDir::FInherited::HasSetting() const
 {
-	return bIsWhitelisted || bMatchesBlacklist || bIgnoreBlacklist;
+	return bIsOnAllowList || bMatchesDenyList || bIgnoreDenyList;
 }
 
 FScanDir::FInherited::FInherited(const FInherited& Parent, const FInherited& Child)
-	: bIsWhitelisted(Parent.bIsWhitelisted || Child.bIsWhitelisted)
-	, bMatchesBlacklist(Parent.bMatchesBlacklist || Child.bMatchesBlacklist)
-	, bIgnoreBlacklist(Parent.bIgnoreBlacklist || Child.bIgnoreBlacklist)
+	: bIsOnAllowList(Parent.bIsOnAllowList || Child.bIsOnAllowList)
+	, bMatchesDenyList(Parent.bMatchesDenyList || Child.bMatchesDenyList)
+	, bIgnoreDenyList(Parent.bIgnoreDenyList || Child.bIgnoreDenyList)
 {
 }
 
@@ -411,28 +411,28 @@ bool FScanDir::TrySetDirectoryProperties(FStringView InRelPath, const FSetPathPr
 	if (InRelPath.IsEmpty())
 	{
 		// The properties apply to this entire directory
-		if (InProperties.IsWhitelisted.IsSet() && DirectData.bIsWhitelisted != *InProperties.IsWhitelisted)
+		if (InProperties.IsOnAllowList.IsSet() && DirectData.bIsOnAllowList != *InProperties.IsOnAllowList)
 		{
 			if (bScanInFlight)
 			{
 				bScanInFlightInvalidated = true;
 			}
-			DirectData.bIsWhitelisted = *InProperties.IsWhitelisted;
+			DirectData.bIsOnAllowList = *InProperties.IsOnAllowList;
 
-			if (DirectData.bIsWhitelisted)
+			if (DirectData.bIsOnAllowList)
 			{
 				// Since we are setting this directory to be monitored, we need to implement the guarantee that all Monitored flags of its children are set to false
-				// We also need to SetComplete false on all directories in between this and a previously whitelisted directory, since those non-whitelisted parent directories
-				// marked themselves complete once their whitelisted children finished
+				// We also need to SetComplete false on all directories in between this and a previously allow listed directory, since those non-allow listed parent directories
+				// marked themselves complete once their allow listed children finished
 				ForEachDescendent([](FScanDir& ScanDir)
 					{
-						ScanDir.DirectData.bIsWhitelisted = false;
+						ScanDir.DirectData.bIsOnAllowList = false;
 						ScanDir.SetComplete(false);
 					});
 			}
 			else
 			{
-				// Cancel any scans since they are no longer whitelisted
+				// Cancel any scans since they are no longer allow listed
 				ForEachDescendent([](FScanDir& ScanDir)
 					{
 						if (ScanDir.bScanInFlight)
@@ -442,35 +442,35 @@ bool FScanDir::TrySetDirectoryProperties(FStringView InRelPath, const FSetPathPr
 					});
 			}
 		}
-		if ((InProperties.MatchesBlacklist.IsSet() && DirectData.bMatchesBlacklist != *InProperties.MatchesBlacklist) ||
-			(InProperties.IgnoreBlacklist.IsSet() && DirectData.bIgnoreBlacklist != *InProperties.IgnoreBlacklist))
+		if ((InProperties.MatchesDenyList.IsSet() && DirectData.bMatchesDenyList != *InProperties.MatchesDenyList) ||
+			(InProperties.IgnoreDenyList.IsSet() && DirectData.bIgnoreDenyList != *InProperties.IgnoreDenyList))
 		{
-			if (InProperties.MatchesBlacklist.IsSet())
+			if (InProperties.MatchesDenyList.IsSet())
 			{
-				DirectData.bMatchesBlacklist = *InProperties.MatchesBlacklist;
+				DirectData.bMatchesDenyList = *InProperties.MatchesDenyList;
 			}
-			if (InProperties.IgnoreBlacklist.IsSet())
+			if (InProperties.IgnoreDenyList.IsSet())
 			{
-				DirectData.bIgnoreBlacklist = *InProperties.IgnoreBlacklist;
+				DirectData.bIgnoreDenyList = *InProperties.IgnoreDenyList;
 			}
-			bool bIgnoreBlacklist = false;
-			bool bMatchesBlacklist = false;
+			bool bIgnoreDenyList = false;
+			bool bMatchesDenyList = false;
 			for (FScanDir* Current = this; Current; Current = Current->Parent)
 			{
-				bIgnoreBlacklist = bIgnoreBlacklist || Current->DirectData.bIgnoreBlacklist;
-				bMatchesBlacklist = bMatchesBlacklist || Current->DirectData.bMatchesBlacklist;
+				bIgnoreDenyList = bIgnoreDenyList || Current->DirectData.bIgnoreDenyList;
+				bMatchesDenyList = bMatchesDenyList || Current->DirectData.bMatchesDenyList;
 			}
-			bool bIsBlacklisted = bMatchesBlacklist && !bIgnoreBlacklist;
+			bool bIsOnDenyList = bMatchesDenyList && !bIgnoreDenyList;
 
 			// Mark all children as incomplete
-			// Also cancel any scans since they are now potentially blacklisted
-			if (bIsBlacklisted && bScanInFlight)
+			// Also cancel any scans since they are now potentially on the deny list
+			if (bIsOnDenyList && bScanInFlight)
 			{
 				bScanInFlightInvalidated = true;
 			}
-			ForEachDescendent([&bIsBlacklisted](FScanDir& ScanDir)
+			ForEachDescendent([&bIsOnDenyList](FScanDir& ScanDir)
 				{
-					if (bIsBlacklisted && ScanDir.bScanInFlight)
+					if (bIsOnDenyList && ScanDir.bScanInFlight)
 					{
 						ScanDir.bScanInFlightInvalidated = true;
 					}
@@ -502,11 +502,11 @@ bool FScanDir::TrySetDirectoryProperties(FStringView InRelPath, const FSetPathPr
 	{
 		TOptional<FSetPathProperties> ModifiedProperties;
 		const FSetPathProperties* Properties = &InProperties;
-		if (Properties->IsWhitelisted.IsSet() && DirectData.bIsWhitelisted)
+		if (Properties->IsOnAllowList.IsSet() && DirectData.bIsOnAllowList)
 		{
 			// If this directory is set to be monitored, all Monitored flags of its children are unused, are guaranteed set to false, and should not be changed
 			ModifiedProperties = *Properties;
-			ModifiedProperties->IsWhitelisted.Reset();
+			ModifiedProperties->IsOnAllowList.Reset();
 			if (!ModifiedProperties->IsSet())
 			{
 				return false;
@@ -521,9 +521,9 @@ bool FScanDir::TrySetDirectoryProperties(FStringView InRelPath, const FSetPathPr
 		FScanDir* SubDir = nullptr;
 		if (bHasScanned &&
 			(!Properties->HasScanned.IsSet() || *Properties->HasScanned == true) &&
-			(!Properties->IsWhitelisted.IsSet()) &&
-			(!Properties->IgnoreBlacklist.IsSet()) &&
-			(!Properties->MatchesBlacklist.IsSet()))
+			(!Properties->IsOnAllowList.IsSet()) &&
+			(!Properties->IgnoreDenyList.IsSet()) &&
+			(!Properties->MatchesDenyList.IsSet()))
 		{
 			// If this parent directory has already been scanned and we are not changing the target directory's has-been-scanned value,
 			// and the next child subdirectory does not exist, then the child directory has already been scanned and we do not need to set the properties on it.
@@ -724,26 +724,26 @@ void FScanDir::Update(FScanDir*& OutCursor, FInherited& InOutParentData)
 	}
 	else
 	{
-		if (Parent->DirectData.bIsWhitelisted)
+		if (Parent->DirectData.bIsOnAllowList)
 		{
-			// We have a contract that bIsWhitelisted is only set on the highest-level directory to monitor and
-			// applies to all directories under it. So we only need to change ParentData.bIsWhitelisted from true to
-			// false when we move up the tree into a parent directory with bIsWhitelisted = true.
-			check(!this->DirectData.bIsWhitelisted); // Verify children below whitelist true are whitelist false
-			check(!Parent->Parent || !Parent->Parent->DirectData.bIsWhitelisted); // Verify above whitelist true is whitelist false
-			check(InOutParentData.bIsWhitelisted); // Verify original InOutParentData matches parent's direct value
-			InOutParentData.bIsWhitelisted = false;
+			// We have a contract that bIsOnAllowList is only set on the highest-level directory to monitor and
+			// applies to all directories under it. So we only need to change ParentData.bIsOnAllowList from true to
+			// false when we move up the tree into a parent directory with bIsOnAllowList = true.
+			check(!this->DirectData.bIsOnAllowList); // Verify children below allow list true are allow list false
+			check(!Parent->Parent || !Parent->Parent->DirectData.bIsOnAllowList); // Verify above allow list true is allow list false
+			check(InOutParentData.bIsOnAllowList); // Verify original InOutParentData matches parent's direct value
+			InOutParentData.bIsOnAllowList = false;
 		}
-		if (Parent->DirectData.bMatchesBlacklist || Parent->DirectData.bIgnoreBlacklist)
+		if (Parent->DirectData.bMatchesDenyList || Parent->DirectData.bIgnoreDenyList)
 		{
-			// We don't have the same set-once contract for blacklisted information, so when we find a direct blacklisted parent
-			// we have to recalculate the parent's blacklisted information by checking all ancestors.
-			InOutParentData.bMatchesBlacklist = false;
-			InOutParentData.bIgnoreBlacklist = false;
+			// We don't have the same set-once contract for deny list information, so when we find a direct deny list parent
+			// we have to recalculate the parent's deny listed information by checking all ancestors.
+			InOutParentData.bMatchesDenyList = false;
+			InOutParentData.bIgnoreDenyList = false;
 			for (FScanDir* Current = Parent->Parent; Current; Current = Current->Parent)
 			{
-				InOutParentData.bMatchesBlacklist = InOutParentData.bMatchesBlacklist || Current->DirectData.bMatchesBlacklist;
-				InOutParentData.bIgnoreBlacklist = InOutParentData.bIgnoreBlacklist || Current->DirectData.bIgnoreBlacklist;
+				InOutParentData.bMatchesDenyList = InOutParentData.bMatchesDenyList || Current->DirectData.bMatchesDenyList;
+				InOutParentData.bIgnoreDenyList = InOutParentData.bIgnoreDenyList || Current->DirectData.bIgnoreDenyList;
 			}
 		}
 	}
@@ -966,7 +966,7 @@ FMountDir::FMountDir(FAssetDataDiscovery& InDiscovery, FStringView InLocalAbsPat
 	, Discovery(InDiscovery)
 {
 	Root = new FScanDir(*this, nullptr, FStringView());
-	UpdateBlacklist();
+	UpdateDenyList();
 }
 
 FMountDir::~FMountDir()
@@ -1013,8 +1013,8 @@ SIZE_T FMountDir::GetAllocatedSize() const
 		Result += Value.GetAllocatedSize();
 	}
 	Result += LongPackageName.GetAllocatedSize();
-	Result += BlacklistedRelPaths.GetAllocatedSize();
-	for (const FString& Value : BlacklistedRelPaths)
+	Result += RelPathsDenyList.GetAllocatedSize();
+	for (const FString& Value : RelPathsDenyList)
 	{
 		Result += Value.GetAllocatedSize();
 	}
@@ -1025,7 +1025,7 @@ void FMountDir::Shrink()
 {
 	Root->Shrink();
 	ChildMountPaths.Shrink();
-	BlacklistedRelPaths.Shrink();
+	RelPathsDenyList.Shrink();
 }
 
 bool FMountDir::IsComplete() const
@@ -1064,16 +1064,16 @@ bool FMountDir::TrySetDirectoryProperties(FStringView InLocalAbsPath, const FSet
 	{
 		return false;
 	}
-	if (InProperties.IgnoreBlacklist.IsSet())
+	if (InProperties.IgnoreDenyList.IsSet())
 	{
 		if (!ensure(!IsChildMountPath(RelPath)))
 		{
-			// Setting IgnoreBlacklist on a child path would break behavior because we use MatchesBlacklist to indicate that 
-			// the scandir is a child path, and setting it to ignoreblacklists will defeat that setting.
-			// This should never be called, because setting ignoreblacklist is only called external to FAssetDataDiscovery, and 
+			// Setting IgnoreDenyList on a child path would break behavior because we use MatchesDenyList to indicate that 
+			// the scandir is a child path, and setting it to IgnoreDenyLists will defeat that setting.
+			// This should never be called, because setting IgnoreDenyList is only called external to FAssetDataDiscovery, and 
 			// FAssetDataDiscovery would call it on the child mount dir instead of this parent mountdir
 			FSetPathProperties NewProperties(InProperties);
-			NewProperties.IgnoreBlacklist.Reset();
+			NewProperties.IgnoreDenyList.Reset();
 			if (!NewProperties.IsSet())
 			{
 				return false;
@@ -1084,61 +1084,61 @@ bool FMountDir::TrySetDirectoryProperties(FStringView InLocalAbsPath, const FSet
 	return Root->TrySetDirectoryProperties(RelPath, InProperties, bConfirmedExists);
 }
 
-void FMountDir::UpdateBlacklist()
+void FMountDir::UpdateDenyList()
 {
-	TSet<FString> RemovedBlacklists;
-	for (const FString& Old : BlacklistedRelPaths)
+	TSet<FString> RemovedDenyLists;
+	for (const FString& Old : RelPathsDenyList)
 	{
-		RemovedBlacklists.Add(Old);
+		RemovedDenyLists.Add(Old);
 	}
 
-	BlacklistedRelPaths.Empty(Discovery.BlacklistMountRelativePaths.Num());
-	for (const FString& BlacklistName : Discovery.BlacklistLongPackageNames)
+	RelPathsDenyList.Empty(Discovery.MountRelativePathsDenyList.Num());
+	for (const FString& DenyListEntry : Discovery.LongPackageNamesDenyList)
 	{
 		FStringView MountRelPath;
-		if (FPathViews::TryMakeChildPathRelativeTo(BlacklistName, LongPackageName, MountRelPath))
+		if (FPathViews::TryMakeChildPathRelativeTo(DenyListEntry, LongPackageName, MountRelPath))
 		{
-			// Note that an empty RelPath means we blacklist the entire mountpoint
-			BlacklistedRelPaths.Emplace(MountRelPath);
+			// Note that an empty RelPath means we deny the entire mountpoint
+			RelPathsDenyList.Emplace(MountRelPath);
 		}
 	}
-	for (const FString& MountRelPath : Discovery.BlacklistMountRelativePaths)
+	for (const FString& MountRelPath : Discovery.MountRelativePathsDenyList)
 	{
-		BlacklistedRelPaths.Emplace(MountRelPath);
+		RelPathsDenyList.Emplace(MountRelPath);
 	}
 	for (const FString& ChildPath : ChildMountPaths)
 	{
-		BlacklistedRelPaths.Emplace(ChildPath);
+		RelPathsDenyList.Emplace(ChildPath);
 	}
 
-	TSet<FString> AddedBlacklists;
-	for (const FString& New : BlacklistedRelPaths)
+	TSet<FString> AddedDenyListPaths;
+	for (const FString& New : RelPathsDenyList)
 	{
-		if (!RemovedBlacklists.Remove(New))
+		if (!RemovedDenyLists.Remove(New))
 		{
-			AddedBlacklists.Add(New);
+			AddedDenyListPaths.Add(New);
 		}
 	}
 
-	TStringBuilder<256> BlacklistAbsPath;
+	TStringBuilder<256> AbsPathDenyList;
 	IFileManager& FileManager = IFileManager::Get();
-	FSetPathProperties ChangeBlacklist;
-	ChangeBlacklist.MatchesBlacklist = true;
-	for (const FString& RelPath : AddedBlacklists)
+	FSetPathProperties ChangeDenyList;
+	ChangeDenyList.MatchesDenyList = true;
+	for (const FString& RelPath : AddedDenyListPaths)
 	{
-		BlacklistAbsPath.Reset();
-		BlacklistAbsPath << LocalAbsPath;
-		FPathViews::AppendPath(BlacklistAbsPath, RelPath);
-		if (FileManager.DirectoryExists(BlacklistAbsPath.ToString()))
+		AbsPathDenyList.Reset();
+		AbsPathDenyList << LocalAbsPath;
+		FPathViews::AppendPath(AbsPathDenyList, RelPath);
+		if (FileManager.DirectoryExists(AbsPathDenyList.ToString()))
 		{
-			Root->TrySetDirectoryProperties(RelPath, ChangeBlacklist, true /* bConfirmedExists */);
+			Root->TrySetDirectoryProperties(RelPath, ChangeDenyList, true /* bConfirmedExists */);
 		}
 	}
-	ChangeBlacklist.MatchesBlacklist = false;
-	for (const FString& RelPath : RemovedBlacklists)
+	ChangeDenyList.MatchesDenyList = false;
+	for (const FString& RelPath : RemovedDenyLists)
 	{
 		// We don't need to check for existence when setting the removal property, because the scandir already exists
-		Root->TrySetDirectoryProperties(RelPath, ChangeBlacklist, false /* bConfirmedExists */);
+		Root->TrySetDirectoryProperties(RelPath, ChangeDenyList, false /* bConfirmedExists */);
 	}
 }
 
@@ -1171,7 +1171,7 @@ void FMountDir::AddChildMount(FMountDir* ChildMount)
 			TEXT("Assets in the new mount point may exist twice in the AssetRegistry under two different package names."),
 			LocalAbsPath.Len(), *LocalAbsPath, ChildMount->LocalAbsPath.Len(), *ChildMount->LocalAbsPath);
 	}
-	UpdateBlacklist();
+	UpdateDenyList();
 	MarkDirty(RelPath);
 }
 
@@ -1196,7 +1196,7 @@ void FMountDir::RemoveChildMount(FMountDir* ChildMount)
 			TEXT("Assets in the new mount point may exist twice in the AssetRegistry under two different package names."),
 			ChildMount->LocalAbsPath.Len(), *ChildMount->LocalAbsPath, LocalAbsPath.Len(), *LocalAbsPath);
 	}
-	UpdateBlacklist();
+	UpdateDenyList();
 	MarkDirty(RelPath);
 }
 
@@ -1276,9 +1276,9 @@ bool FMountDir::IsChildMountPath(FStringView MountRelPath) const
 }
 
 
-FAssetDataDiscovery::FAssetDataDiscovery(const TArray<FString>& InBlacklistLongPackageNames, const TArray<FString>& InBlacklistMountRelativePaths, bool bInIsSynchronous)
-	: BlacklistLongPackageNames(InBlacklistLongPackageNames)
-	, BlacklistMountRelativePaths(InBlacklistMountRelativePaths)
+FAssetDataDiscovery::FAssetDataDiscovery(const TArray<FString>& InLongPackageNamesDenyList, const TArray<FString>& InMountRelativePathsDenyList, bool bInIsSynchronous)
+	: LongPackageNamesDenyList(InLongPackageNamesDenyList)
+	, MountRelativePathsDenyList(InMountRelativePathsDenyList)
 	, Thread(nullptr)
 	, bIsSynchronous(bInIsSynchronous)
 	, bIsIdle(false)
@@ -1715,7 +1715,7 @@ void FPathExistence::LoadExistenceData()
 	bHasExistenceData = true;
 }
 
-void FAssetDataDiscovery::SetPropertiesAndWait(FPathExistence& QueryPath, bool bAddToWhitelist, bool bForceRescan, bool bIgnoreBlackListScanFilters)
+void FAssetDataDiscovery::SetPropertiesAndWait(FPathExistence& QueryPath, bool bAddToAllowList, bool bForceRescan, bool bIgnoreDenyListScanFilters)
 {
 	// We might have been asked to wait on a filename missing the extension, in which case QueryPath.GetType() == MissingButDirExists
 	// We need to handle Directory, File, and MissingButDirExists in unique ways
@@ -1744,17 +1744,17 @@ void FAssetDataDiscovery::SetPropertiesAndWait(FPathExistence& QueryPath, bool b
 		if (PathType == FPathExistence::EType::Directory)
 		{
 			FSetPathProperties Properties;
-			if (bAddToWhitelist)
+			if (bAddToAllowList)
 			{
-				Properties.IsWhitelisted = bAddToWhitelist;
+				Properties.IsOnAllowList = bAddToAllowList;
 			}
 			if (bForceRescan)
 			{
 				Properties.HasScanned = false;
 			}
-			if (bIgnoreBlackListScanFilters)
+			if (bIgnoreDenyListScanFilters)
 			{
-				Properties.IgnoreBlacklist = true;
+				Properties.IgnoreDenyList = true;
 			}
 			if (Properties.IsSet())
 			{
@@ -1767,9 +1767,9 @@ void FAssetDataDiscovery::SetPropertiesAndWait(FPathExistence& QueryPath, bool b
 		FScanDir::FInherited MonitorData;
 		bool bSearchPathIsDirectory = PathType == FPathExistence::EType::Directory || PathType == FPathExistence::EType::MissingButDirExists;
 		TRefCountPtr<FScanDir> ScanDir = MountDir->GetControllingDir(SearchPath, bSearchPathIsDirectory, MonitorData, RelPath);
-		bool bIsWhitelistedInThisCall = MonitorData.IsWhitelisted() || bAddToWhitelist;
-		bool bIsBlacklistedInThisCall = MonitorData.IsBlacklisted() && !bIgnoreBlackListScanFilters;
-		bool bIsMonitoredInThisCall = bIsWhitelistedInThisCall && !bIsBlacklistedInThisCall;
+		bool bIsAllowedInThisCall = MonitorData.IsOnAllowList() || bAddToAllowList;
+		bool bIsDeniedInThisCall = MonitorData.IsOnDenyList() && !bIgnoreDenyListScanFilters;
+		bool bIsMonitoredInThisCall = bIsAllowedInThisCall && !bIsDeniedInThisCall;
 		if (!ScanDir || !bIsMonitoredInThisCall)
 		{
 			UE_LOG(LogAssetRegistry, Log, TEXT("SetPropertiesAndWait called on %s which is not monitored. Call will be ignored."),
@@ -1871,7 +1871,7 @@ bool FAssetDataDiscovery::TrySetDirectoryPropertiesInternal(const FString& Local
 	return MountDir->TrySetDirectoryProperties(LocalAbsPath, InProperties, bConfirmedExists);
 }
 
-bool FAssetDataDiscovery::IsWhitelisted(FStringView LocalAbsPath) const
+bool FAssetDataDiscovery::IsOnAllowList(FStringView LocalAbsPath) const
 {
 	CHECK_IS_NOT_LOCKED_CURRENT_THREAD(ResultsLock);
 	FGathererScopeLock TreeScopeLock(&TreeLock);
@@ -1882,10 +1882,10 @@ bool FAssetDataDiscovery::IsWhitelisted(FStringView LocalAbsPath) const
 	}
 	FScanDir::FInherited MonitorData;
 	MountDir->GetMonitorData(LocalAbsPath, MonitorData);
-	return MonitorData.IsWhitelisted();
+	return MonitorData.IsOnAllowList();
 }
 
-bool FAssetDataDiscovery::IsBlacklisted(FStringView LocalAbsPath) const
+bool FAssetDataDiscovery::IsOnDenyList(FStringView LocalAbsPath) const
 {
 	CHECK_IS_NOT_LOCKED_CURRENT_THREAD(ResultsLock);
 	FGathererScopeLock TreeScopeLock(&TreeLock);
@@ -1896,7 +1896,7 @@ bool FAssetDataDiscovery::IsBlacklisted(FStringView LocalAbsPath) const
 	}
 	FScanDir::FInherited MonitorData;
 	MountDir->GetMonitorData(LocalAbsPath, MonitorData);
-	return MonitorData.IsBlacklisted();
+	return MonitorData.IsOnDenyList();
 }
 
 bool FAssetDataDiscovery::IsMonitored(FStringView LocalAbsPath) const
@@ -1927,8 +1927,8 @@ SIZE_T FAssetDataDiscovery::GetAllocatedSize() const
 	FGathererScopeLock ResultsScopeLock(&ResultsLock);
 
 	SIZE_T Result = 0;
-	Result += GetArrayRecursiveAllocatedSize(BlacklistLongPackageNames);
-	Result += GetArrayRecursiveAllocatedSize(BlacklistMountRelativePaths);
+	Result += GetArrayRecursiveAllocatedSize(LongPackageNamesDenyList);
+	Result += GetArrayRecursiveAllocatedSize(MountRelativePathsDenyList);
 	Result += GetArrayRecursiveAllocatedSize(DirLongPackageNamesToNotReport);
 	if (Thread)
 	{
@@ -2096,7 +2096,7 @@ void FAssetDataDiscovery::OnDirectoryCreated(FStringView LocalAbsPath)
 		return;
 	}
 
-	// Skip reporting the directory if it is in the blacklists of directories to not report
+	// Skip reporting the directory if it is in the deny list of directories to not report
 	if (!ShouldDirBeReported(LongPackageName))
 	{
 		return;
@@ -2476,7 +2476,7 @@ public:
 } // namespace AssetDataGather
 } // namespace UE
 
-FAssetDataGatherer::FAssetDataGatherer(const TArray<FString>& InBlacklistLongPackageNames, const TArray<FString>& InBlacklistMountRelativePaths, bool bInIsSynchronous)
+FAssetDataGatherer::FAssetDataGatherer(const TArray<FString>& InLongPackageNamesDenyList, const TArray<FString>& InMountRelativePathsDenyList, bool bInIsSynchronous)
 	: Thread(nullptr)
 	, bIsSynchronous(bInIsSynchronous)
 	, IsStopped(0)
@@ -2518,7 +2518,7 @@ FAssetDataGatherer::FAssetDataGatherer(const TArray<FString>& InBlacklistLongPac
 	}
 	bIsSynchronousTick = bIsSynchronous;
 
-	Discovery = MakeUnique<UE::AssetDataGather::Private::FAssetDataDiscovery>(InBlacklistLongPackageNames, InBlacklistMountRelativePaths, bInIsSynchronous);
+	Discovery = MakeUnique<UE::AssetDataGather::Private::FAssetDataDiscovery>(InLongPackageNamesDenyList, InMountRelativePathsDenyList, bInIsSynchronous);
 	FilesToSearch = MakeUnique<UE::AssetDataGather::Private::FFilesToSearch>();
 }
 
@@ -3097,12 +3097,12 @@ void FAssetDataGatherer::WaitOnPath(FStringView InPath)
 	}
 	FString LocalAbsPath = NormalizeLocalPath(InPath);
 	UE::AssetDataGather::Private::FPathExistence QueryPath(LocalAbsPath);
-	Discovery->SetPropertiesAndWait(QueryPath, false /* bAddToWhitelist */, false /* bForceRescan */, false /* bIgnoreBlacklistScanFilters */);
+	Discovery->SetPropertiesAndWait(QueryPath, false /* bAddToAllowList */, false /* bForceRescan */, false /* bIgnoreDenyListScanFilters */);
 	WaitOnPathsInternal(TArrayView<UE::AssetDataGather::Private::FPathExistence>(&QueryPath, 1), FString(), TArray<FString>());
 }
 
 void FAssetDataGatherer::ScanPathsSynchronous(const TArray<FString>& InLocalPaths, bool bForceRescan,
-	bool bIgnoreBlackListScanFilters, const FString& SaveCacheFilename, const TArray<FString>& SaveCacheLongPackageNameDirs)
+	bool bIgnoreDenyListScanFilters, const FString& SaveCacheFilename, const TArray<FString>& SaveCacheLongPackageNameDirs)
 {
 	TArray<UE::AssetDataGather::Private::FPathExistence> QueryPaths;
 	QueryPaths.Reserve(InLocalPaths.Num());
@@ -3113,7 +3113,7 @@ void FAssetDataGatherer::ScanPathsSynchronous(const TArray<FString>& InLocalPath
 
 	for (UE::AssetDataGather::Private::FPathExistence& QueryPath: QueryPaths)
 	{
-		Discovery->SetPropertiesAndWait(QueryPath, true /* bAddToWhitelist */, bForceRescan, bIgnoreBlackListScanFilters);
+		Discovery->SetPropertiesAndWait(QueryPath, true /* bAddToAllowList */, bForceRescan, bIgnoreDenyListScanFilters);
 	}
 
 	{
@@ -3441,7 +3441,7 @@ void FAssetDataGatherer::SerializeCacheLoad(FAssetRegistryReader& Ar)
 	}
 	else
 	{
-		FSoftObjectPathSerializationScope SerializationScope(NAME_None, NAME_None, ESoftObjectPathCollectType::NeverCollect, ESoftObjectPathSerializeType::AlwaysSerialize);
+		FSoftObjectPathSerializationScope SerializationScope(NAME_None, NAME_None, ESoftObjectPathCollectType::NonPackage, ESoftObjectPathSerializeType::AlwaysSerialize);
 
 		// allocate one single block for all asset data structs (to reduce tens of thousands of heap allocations)
 		FName* PackageNameBlock = new FName[LocalNumAssets];
@@ -3675,23 +3675,23 @@ void FAssetDataGatherer::SortPathsByPriority(
 	OutNumPaths = FilesToSearch->NumBlockingFiles();
 }
 
-void FAssetDataGatherer::SetIsWhitelisted(FStringView LocalPath, bool bIsWhitelisted)
+void FAssetDataGatherer::SetIsOnAllowList(FStringView LocalPath, bool bIsAllowed)
 {
 	using namespace UE::AssetDataGather::Private;
 
 	FSetPathProperties Properties;
-	Properties.IsWhitelisted = bIsWhitelisted;
+	Properties.IsOnAllowList = bIsAllowed;
 	SetDirectoryProperties(LocalPath, Properties);
 }
 
-bool FAssetDataGatherer::IsWhitelisted(FStringView LocalPath) const
+bool FAssetDataGatherer::IsOnAllowList(FStringView LocalPath) const
 {
-	return Discovery->IsWhitelisted(NormalizeLocalPath(LocalPath));
+	return Discovery->IsOnAllowList(NormalizeLocalPath(LocalPath));
 }
 
-bool FAssetDataGatherer::IsBlacklisted(FStringView LocalPath) const
+bool FAssetDataGatherer::IsOnDenyList(FStringView LocalPath) const
 {
-	return Discovery->IsBlacklisted(NormalizeLocalPath(LocalPath));
+	return Discovery->IsOnDenyList(NormalizeLocalPath(LocalPath));
 }
 
 bool FAssetDataGatherer::IsMonitored(FStringView LocalPath) const

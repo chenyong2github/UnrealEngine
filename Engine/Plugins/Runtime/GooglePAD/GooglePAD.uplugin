@@ -20,13 +20,13 @@
 			"Name" : "GooglePAD",
 			"Type" : "Runtime",
 			"LoadingPhase" : "Default",
-			"WhitelistPlatforms" : [ "Android", "Win64", "Mac", "Linux" ]
+			"PlatformAllowList" : [ "Android", "Win64", "Mac", "Linux" ]
 		},
 		{
 			"Name" : "GooglePADEditor",
 			"Type" : "Editor",
 			"LoadingPhase" : "PostEngineInit",
-			"WhitelistPlatforms" : [ "Win64", "Mac", "Linux" ]
+			"PlatformAllowList" : [ "Win64", "Mac", "Linux" ]
 		}
 	]
 }

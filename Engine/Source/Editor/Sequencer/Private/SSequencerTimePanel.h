@@ -28,8 +28,6 @@ public:
 
 private:
 
-	FReply OnBorderFadeClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
-
 	FReply Close();
 	FReply Apply();
 

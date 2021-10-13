@@ -182,18 +182,6 @@ protected:
 	bool bInitialized;
 };
 
-template< typename OBJECTYPE >
-void DoIt( UCommandlet* Commandlet, UPackage* Package, TArray<FString>& Tokens, TArray<FString>& Switches ){}
-
-/** 
- *	This will set the passed in tag name on the objects if they are not in the whitelist
- *
- *	@param	ObjectNames				The list of object names to tag
- *	@param	CollectionName			The tag to apply to the objects
- *	@param	CollectionNameWhitelist	The tag of objects that should *not* be tagged (whitelist)
- */
-void UpdateSetCollectionsForObjects(TMap<FString,bool>& ObjectNames, const FString& CollectionName, const FString& CollectionNameWhitelist);
-
 /**
  * This is our Functional "Do an Action to all Packages" Template.  Basically it handles all
  * of the boilerplate code which normally gets copy pasted around.  So now we just pass in

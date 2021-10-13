@@ -157,66 +157,31 @@ public:
 	virtual void SetWorld(class UWorld* InWorld) override;
 
 	/** Current record/playback frame number */
-	UE_DEPRECATED(4.26, "Please use GetDemoFrameNum instead.")
-	int32 DemoFrameNum;
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	int32 GetDemoFrameNum() const { return ReplayHelper.DemoFrameNum; }
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	/** Total time of demo in seconds */
-	UE_DEPRECATED(4.26, "Please use GetDemoTotalTime/SetDemoTotalTime instead.")
-	float DemoTotalTime;
-
-	/** Current record/playback position in seconds */
-	UE_DEPRECATED(4.26, "Please use GetDemoCurrentTime/SetDemoCurrentTime instead.")
-	float DemoCurrentTime;
-
-	/** Old current record/playback position in seconds (so we can restore on checkpoint failure) */
-	UE_DEPRECATED(4.26, "No longer used.")
-	float OldDemoCurrentTime;
-
-	/** Total number of frames in the demo */
-	UE_DEPRECATED(4.26, "No longer used.")
-	int32 DemoTotalFrames;
-
-	/** True if as have paused all of the channels */
-	UE_DEPRECATED(4.26, "Please use GetChannelsArePaused instead.")
-	bool bChannelsArePaused;
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bool GetChannelsArePaused() const { return bChannelsArePaused; }
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	/** Index of LevelNames that is currently loaded */
-	UE_DEPRECATED(4.26, "Please use GetCurrentLevelIndex/SetCurrentLevelIndex instead.")
-	int32 CurrentLevelIndex;
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	double GetCurrentLevelIndex() const { return ReplayHelper.CurrentLevelIndex; }
 
 	void SetCurrentLevelIndex(int32 Index)
 	{
 		ReplayHelper.CurrentLevelIndex = Index;
-		CurrentLevelIndex = Index;
 	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	APlayerController* GetSpectatorController() const { return SpectatorController; }
+
+private:
+	/** True if as have paused all of the channels */
+	bool bChannelsArePaused;
 
 	/** This is the main spectator controller that is used to view the demo world from */
-	UE_DEPRECATED(4.26, "Please use GetSpectatorController() instead.")
 	APlayerController* SpectatorController;
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	APlayerController* GetSpectatorController() const { return SpectatorController; }
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	/** Our network replay streamer */
-	UE_DEPRECATED(4.26, "Please use GetReplayStreamer() instead.")
 	TSharedPtr<class INetworkReplayStreamer> ReplayStreamer;
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+public:
 	TSharedPtr<class INetworkReplayStreamer> GetReplayStreamer() const { return ReplayStreamer; }
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	uint32 GetDemoCurrentTimeInMS() const { return (uint32)((double)GetDemoCurrentTime() * 1000); }
 
@@ -226,45 +191,23 @@ public:
 	double MaxRecordTime;
 	int32 RecordCountSinceFlush;
 
-	/** Net startup actors that need to be destroyed after checkpoints are loaded */
-	UE_DEPRECATED(4.26, "Moved into FReplayHelper")
-	TSet<FString> DeletedNetStartupActors;
-
-	/** Keeps track of NetGUIDs that were deleted, so we can skip them when saving checkpoints. Only used while recording. */
-	UE_DEPRECATED(4.26, "Moved into FReplayHelper")
-	TSet<FNetworkGUID> DeletedNetStartupActorGUIDs;
-
+private:
 	/** 
 	 * Net startup actors that need to be rolled back during scrubbing by being destroyed and re-spawned 
 	 * NOTE - DeletedNetStartupActors will take precedence here, and destroy the actor instead
 	 */
-	UE_DEPRECATED(4.26, "Will be made private in a future release.")
 	UPROPERTY(transient)
 	TMap<FString, FRollbackNetStartupActorInfo> RollbackNetStartupActors;
 
-	UE_DEPRECATED(4.26, "Please use GetLastCheckpointTime/SetLastCheckpointTime instead.")
-	double LastCheckpointTime;					// Last time a checkpoint was saved
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+public:
 	double GetLastCheckpointTime() const { return ReplayHelper.LastCheckpointTime; }
 
 	void SetLastCheckpointTime(double CheckpointTime)
 	{
 		ReplayHelper.LastCheckpointTime = CheckpointTime;
-		LastCheckpointTime = CheckpointTime;
 	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	void RespawnNecessaryNetStartupActors(TArray<AActor*>& SpawnedActors, ULevel* Level = nullptr);
-
-	UE_DEPRECATED(4.26, "Will be removed in a future release.")
-	virtual bool ShouldSaveCheckpoint() const;
-
-	UE_DEPRECATED(4.26, "Will be removed in a future release.")
-	void SaveCheckpoint();
-	
-	UE_DEPRECATED(4.26, "Will be removed in a future release.")
-	void TickCheckpoint();
 
 private:
 
@@ -287,54 +230,14 @@ public:
 
 	/** Returns true if we're in the process of saving a checkpoint. */
 	bool IsSavingCheckpoint() const;
-
-	UE_DEPRECATED(4.26, "Will be removed in a future release.")
-	void SaveExternalData(FArchive& Ar);
-	
-	UE_DEPRECATED(4.26, "Will be removed in a future release.")
-	void LoadExternalData(FArchive& Ar, const float TimeSeconds);
-
-	/** Public delegate for external systems to be notified when a replay begins. UDemoNetDriver is passed as a param */
-	UE_DEPRECATED(4.26, "Moving to FNetworkReplayDelegates.")
-	static FOnDemoStartedDelegate OnDemoStarted;
-
-	/** Public delegate to be notified when a replay failed to start. UDemoNetDriver and FailureType are passed as params */
-	UE_DEPRECATED(4.26, "Moving to FNetworkReplayDelegates.")
-	static FOnDemoFailedToStartDelegate OnDemoFailedToStart;
-
-	/** Public delegate for external systems to be notified when scrubbing is complete. Only called for successful scrub. */
-	UE_DEPRECATED(4.26, "Moving to FNetworkReplayDelegates.")
-	FOnGotoTimeMCDelegate OnGotoTimeDelegate;
-
-	/** Delegate for external systems to be notified when demo playback ends */
-	UE_DEPRECATED(4.26, "Moving to FNetworkReplayDelegates.")
-	FOnDemoFinishPlaybackDelegate OnDemoFinishPlaybackDelegate;
-
-	/** Public Delegate for external systems to be notified when replay recording is about to finish. */
-	UE_DEPRECATED(4.26, "Moving to FNetworkReplayDelegates.")
-	FOnDemoFinishRecordingDelegate OnDemoFinishRecordingDelegate;
-
-	/** Delegate for external systems to be notified when channels are paused during playback, usually waiting for data to be available. */
-	UE_DEPRECATED(4.26, "Moving to FNetworkReplayDelegates.")
-	FOnPauseChannelsDelegate OnPauseChannelsDelegate;
-
 	bool IsLoadingCheckpoint() const { return ReplayHelper.bIsLoadingCheckpoint; }
 	
 	bool IsPlayingClientReplay() const;
 
-	/** ExternalDataToObjectMap is used to map a FNetworkGUID to the proper FReplayExternalDataArray */
-	UE_DEPRECATED(4.26, "Moved to FReplayHelper.")
-	TMap<FNetworkGUID, FReplayExternalDataArray> ExternalDataToObjectMap;
-		
 	/** PlaybackPackets are used to buffer packets up when we read a demo frame, which we can then process when the time is right */
 	TArray<FPlaybackPacket> PlaybackPackets;
 
-	UE_DEPRECATED(4.26, "Please use IsRecordingMapChanges() instead.")
-	bool bRecordMapChanges;
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bool IsRecordingMapChanges() const { return ReplayHelper.bRecordMapChanges; }
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	void RequestCheckpoint();
 
@@ -465,13 +368,11 @@ public:
 	bool IsRecording() const;
 	bool IsPlaying() const;
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Total time of demo in seconds */
-	float GetDemoTotalTime() const { return DemoTotalTime; }
+	float GetDemoTotalTime() const { return ReplayHelper.DemoTotalTime; }
 
 	void SetDemoTotalTime(float TotalTime)
 	{
-		DemoTotalTime = TotalTime;
 		ReplayHelper.DemoTotalTime = TotalTime;
 	}
 
@@ -480,10 +381,8 @@ public:
 
 	void SetDemoCurrentTime(float CurrentTime)
 	{
-		DemoCurrentTime = CurrentTime;
 		ReplayHelper.DemoCurrentTime = CurrentTime;
 	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FString GetDemoURL() const { return ReplayHelper.DemoURL.ToString(); }
 
@@ -515,11 +414,6 @@ public:
 	bool ComparePropertyState(const FDemoSavedPropertyState& State) const;
 
 public:
-
-	UE_DEPRECATED(4.26, "No longer used")
-	UPROPERTY()
-	bool bIsLocalReplay;
-
 	/** @return true if the net resource is valid or false if it should not be used */
 	virtual bool IsNetResourceValid(void) override { return true; }
 
@@ -541,12 +435,6 @@ public:
 	}
 	
 	void WriteDemoFrameFromQueuedDemoPackets(FArchive& Ar, TArray<FQueuedDemoPacket>& QueuedPackets, float FrameTime, EWriteDemoFrameFlags Flags);
-
-	UE_DEPRECATED(4.25, "WriteDemoFrameFromQueuedDemoPackets now takes an additional flag value")
-	void WriteDemoFrameFromQueuedDemoPackets(FArchive& Ar, TArray<FQueuedDemoPacket>& QueuedPackets, float FrameTime)
-	{
-		WriteDemoFrameFromQueuedDemoPackets(Ar, QueuedPackets, FrameTime, EWriteDemoFrameFlags::None);
-	}
 
 	void WritePacket(FArchive& Ar, uint8* Data, int32 Count);
 
@@ -674,10 +562,6 @@ public:
 	/** Called when a "go to time" operation is completed. */
 	void NotifyGotoTimeFinished(bool bWasSuccessful);
 
-	/** Read the streaming level information from the metadata after the level is loaded */
-	UE_DEPRECATED(4.26, "No longer used.")
-	void PendingNetGameLoadMapCompleted();
-	
 	virtual void NotifyActorDestroyed(AActor* ThisActor, bool IsSeamlessTravel=false) override;
 	virtual void NotifyActorLevelUnloaded(AActor* Actor) override;
 	virtual void NotifyStreamingLevelUnload(ULevel* InLevel) override;

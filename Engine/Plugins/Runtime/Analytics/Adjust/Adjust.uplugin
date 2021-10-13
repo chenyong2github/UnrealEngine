@@ -25,7 +25,7 @@
 			"Name" : "AndroidAdjust",
 			"Type" : "Runtime",
 			"LoadingPhase" : "PreDefault",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"Android"
 			]
@@ -34,7 +34,7 @@
 			"Name" : "IOSAdjust",
 			"Type" : "Runtime",
 			"LoadingPhase" : "PreDefault",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"IOS"
 			]

@@ -337,6 +337,7 @@ private:
 	TSharedPtr<STextBlock> HasAlphaChannelText;
 	TSharedPtr<STextBlock> NumMipsText;
 	TSharedPtr<STextBlock> MipLevelTextBlock;
+	TSharedPtr<STextBlock> EncodeSpeedText;
 
 	// Holds the anchor for the view options menu.
 	TSharedPtr<SMenuAnchor> ViewOptionsMenuAnchor;

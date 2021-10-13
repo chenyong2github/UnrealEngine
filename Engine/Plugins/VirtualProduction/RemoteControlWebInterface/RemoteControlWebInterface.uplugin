@@ -19,7 +19,7 @@
 			"Name": "RemoteControlWebInterface",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Mac",
 				"Win64",
 				"Linux"

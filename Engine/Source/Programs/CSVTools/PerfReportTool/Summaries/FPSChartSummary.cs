@@ -112,6 +112,9 @@ namespace PerfSummaries
 			outData.HitchCount = hitchCount;
 			outData.TotalTimeSeconds = TotalSeconds;
 			outData.HitchesPerMinute = (float)hitchCount / TotalMinutes;
+
+			// subtract hitch threshold to weight larger hitches
+			totalHitchTime -= (hitchCount * hitchThreshold);
 			outData.HitchTimePercent = (float)(totalHitchTime / totalFrametime) * 100.0f;
 
 			int TotalTargetFrames = (int)((double)fps * (TotalSeconds));

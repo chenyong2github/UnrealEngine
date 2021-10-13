@@ -28,7 +28,7 @@ FText UFractureToolMeshCut::GetDisplayText() const
 
 FText UFractureToolMeshCut::GetTooltipText() const 
 {
-	return FText(NSLOCTEXT("Fracture", "FractureToolMeshCutTooltip", "Mesh fracture can be used to make cuts along a mesh in your Geometry Collection. You can apply noise to mesh cuts for more organic results.  Click the Fracture Button to commit the fracture to the geometry collection."));
+	return FText(NSLOCTEXT("Fracture", "FractureToolMeshCutTooltip", "Mesh fracture can be used to make cuts along a mesh in your Geometry Collection. Click the Fracture Button to commit the fracture to the geometry collection."));
 }
 
 FSlateIcon UFractureToolMeshCut::GetToolIcon() const 
@@ -38,7 +38,7 @@ FSlateIcon UFractureToolMeshCut::GetToolIcon() const
 
 void UFractureToolMeshCut::RegisterUICommand( FFractureEditorCommands* BindingContext ) 
 {
-	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Mesh", "Mesh", "Mesh Fracture", EUserInterfaceActionType::ToggleButton, FInputChord() );
+	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Mesh", "Mesh", "Fracture using the shape of a chosen static mesh.", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	BindingContext->Mesh = UICommandInfo;
 }
 

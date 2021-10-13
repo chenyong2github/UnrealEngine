@@ -66,7 +66,7 @@ FSlateIcon UFractureToolConvert::GetToolIcon() const
 
 void UFractureToolConvert::RegisterUICommand(FFractureEditorCommands* BindingContext)
 {
-	UI_COMMAND_EXT(BindingContext, UICommandInfo, "ToMesh", "ToMesh", "Convert geometry to static mesh", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND_EXT(BindingContext, UICommandInfo, "ToMesh", "ToMesh", "Convert selected geometry to static meshes.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	BindingContext->ConvertToMesh = UICommandInfo;
 }
 

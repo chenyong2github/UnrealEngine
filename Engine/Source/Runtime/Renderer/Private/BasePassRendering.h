@@ -29,6 +29,7 @@
 #include "ReflectionEnvironment.h"
 #include "Strata/Strata.h"
 #include "VirtualShadowMaps/VirtualShadowMapArray.h"
+#include "VolumetricCloudRendering.h"
 
 class FScene;
 
@@ -98,6 +99,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FTranslucentBasePassUniformParameters,)
 	SHADER_PARAMETER_STRUCT(FSharedBasePassUniformParameters, Shared)
 	SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, SceneTextures)
 	SHADER_PARAMETER_STRUCT(FStrataBasePassUniformParameters, Strata)
+	SHADER_PARAMETER_STRUCT(FLightCloudTransmittanceParameters, ForwardDirLightCloudShadow)
 	// Material SSR
 	SHADER_PARAMETER(FVector4f, HZBUvFactorAndInvFactor)
 	SHADER_PARAMETER(FVector4f, PrevScreenPositionScaleBias)
@@ -142,6 +144,7 @@ extern TRDGUniformBufferRef<FOpaqueBasePassUniformParameters> CreateOpaqueBasePa
 
 extern TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBasePassUniformBuffer(
 	FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
 	const FViewInfo& View,
 	const int32 ViewIndex = 0,
 	const FTranslucencyLightingVolumeTextures& TranslucencyLightingVolumeTextures = {},
@@ -444,6 +447,7 @@ public:
 		// This define simply lets the compilation environment know that we are using BasePassPixelShader.usf, so that we can check for more
 		// complicated defines later in the compilation pipe.
 		OutEnvironment.SetDefine(TEXT("IS_BASE_PASS"), 1);
+		OutEnvironment.SetDefine(TEXT("IS_MOBILE_BASE_PASS"), 0);
 
 		TBasePassPixelShaderBaseType<LightMapPolicyType>::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}

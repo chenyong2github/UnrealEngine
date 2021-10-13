@@ -269,7 +269,6 @@ public:
 	 */
 	static TSharedRef<FMultiBox> Create( const EMultiBoxType InType,  FMultiBoxCustomization InCustomization, const bool bInShouldCloseWindowAfterMenuSelection );
 
-
 	/**
 	 * Gets the type of this MultiBox
 	 *
@@ -280,7 +279,6 @@ public:
 		return Type;
 	}
 
-
 	/**
 	 * Gets whether or not the window that contains this multibox should be destroyed after the user clicks on a menu item in this box
 	 *
@@ -290,8 +288,6 @@ public:
 	{
 		return bShouldCloseWindowAfterMenuSelection;
 	}
-
-
 
 	/**
 	 * Adds a MultiBlock to this MultiBox, to the end of the list
@@ -397,6 +393,9 @@ public:
 
 	/* Whether the MultiBox has a search widget */
 	bool bHasSearchWidget;
+
+	/** Whether the MultiBox can be focused. */
+	bool bIsFocusable;
 
 	/* Returns the last command list used */
 	const TSharedPtr<const FUICommandList> GetLastCommandList() const { return CommandLists.Num() > 0 ? CommandLists.Last() : nullptr; }

@@ -110,7 +110,7 @@ UMovieSceneSequencePlayer::UMovieSceneSequencePlayer(const FObjectInitializer& I
 	, bReversePlayback(false)
 	, bPendingOnStartedPlaying(false)
 	, bIsEvaluating(false)
-	, bIsMainLevelUpdate(false)
+	, bIsAsyncUpdate(false)
 	, bSkipNextUpdate(false)
 	, Sequence(nullptr)
 	, StartTime(0)
@@ -865,13 +865,10 @@ void UMovieSceneSequencePlayer::Update(const float DeltaSeconds)
 
 		if (!bSkipNextUpdate)
 		{
-			check(!bIsMainLevelUpdate && !bIsEvaluating);
-			bIsMainLevelUpdate = true;
+			check(!bIsEvaluating);
 
 			FFrameTime NewTime = TimeController->RequestCurrentTime(GetCurrentTime(), PlayRate);
 			UpdateTimeCursorPosition(NewTime, EUpdatePositionMethod::Play);
-
-			bIsMainLevelUpdate = false;
 		}
 
 		bSkipNextUpdate = false;
@@ -884,6 +881,16 @@ void UMovieSceneSequencePlayer::Update(const float DeltaSeconds)
 	{
 		LastTickGameTimeSeconds = CurrentWorldTime;
 	}
+}
+
+void UMovieSceneSequencePlayer::UpdateAsync(const float DeltaSeconds)
+{
+	check(!bIsAsyncUpdate);
+	bIsAsyncUpdate = true;
+
+	Update(DeltaSeconds);
+
+	bIsAsyncUpdate = false;
 }
 
 void UMovieSceneSequencePlayer::UpdateTimeCursorPosition(FFrameTime NewPosition, EUpdatePositionMethod Method, bool bHasJumpedOverride)
@@ -1049,7 +1056,7 @@ void UMovieSceneSequencePlayer::UpdateTimeCursorPosition_Internal(FFrameTime New
 		// to only queue this sequence's update, so everything updates in parallel. If not possible, or if
 		// not in the main level update, we run the evaluation synchronously.
 		FMovieSceneUpdateArgs Args;
-		Args.bIsAsync = (bIsMainLevelUpdate && !bIsSequenceBlocking);
+		Args.bIsAsync = (bIsAsyncUpdate && !bIsSequenceBlocking);
 		Args.bHasJumped = bHasJumpedOverride;
 
 		PostEvaluationCallbacks.Add(FOnEvaluationCallback::CreateUObject(this, &UMovieSceneSequencePlayer::UpdateNetworkSyncProperties));
@@ -1513,7 +1520,7 @@ void UMovieSceneSequencePlayer::PostNetReceive()
 		{
 			// Treat all net updates as the main level update - this ensures they get evaluated as part of the 
 			// main tick manager
-			bIsMainLevelUpdate = true;
+			bIsAsyncUpdate = true;
 
 			// Make sure the client time matches the server according to the client's current status
 			if (Status == EMovieScenePlayerStatus::Playing)
@@ -1606,7 +1613,7 @@ void UMovieSceneSequencePlayer::PostNetReceive()
 				SetPlaybackPosition(FMovieSceneSequencePlaybackParams(NetSyncProps.LastKnownPosition, EUpdatePositionMethod::Scrub));
 			}
 
-			bIsMainLevelUpdate = false;
+			bIsAsyncUpdate = false;
 		}
 
 		if (bHasChangedStatus)

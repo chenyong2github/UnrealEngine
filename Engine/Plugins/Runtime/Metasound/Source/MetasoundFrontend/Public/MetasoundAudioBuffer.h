@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "DSP/BufferVectorOperations.h"
 #include "MetasoundGraphCoreModule.h"
 #include "MetasoundDataReferenceMacro.h"
 #include "MetasoundLog.h"
+#include "MetasoundOperatorSettings.h"
 
 /** Define which determines whether to check that the size of the audio buffer has not changed since initialization */
 #define METASOUNDGRAPHCORE_CHECKAUDIONUM !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

@@ -416,6 +416,13 @@ bool FUntypedBulkData::IsStoredCompressedOnDisk() const
 bool FUntypedBulkData::CanLoadFromDisk() const
 {
 #if WITH_EDITOR
+#if WITH_IOSTORE_IN_EDITOR
+	if (IsUsingIODispatcher())
+	{
+		return PackageId.IsValid();
+	}
+#endif //WITH_IOSTORE_IN_EDITOR
+
 	return AttachedAr != NULL;
 #else
 	bool bCanLoadFromDisk = false;
@@ -433,6 +440,13 @@ bool FUntypedBulkData::CanLoadFromDisk() const
 
 bool FUntypedBulkData::DoesExist() const
 {
+#if WITH_IOSTORE_IN_EDITOR
+	if (IsUsingIODispatcher())
+	{
+		return FBulkDataBase::GetIoDispatcher()->DoesChunkExist(CreateBulkDataChunkId(PackageId, BulkDataFlags));
+	}
+#endif
+
 	if (IsInExternalResource())
 	{
 		return IPackageResourceManager::Get().DoesExternalResourceExist(
@@ -1266,13 +1280,21 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 #if WITH_IOSTORE_IN_EDITOR
 							if (bUseIOStore)
 							{
-								TUniquePtr<IBulkDataIORequest> Request = CreateBulkDataIoDispatcherRequest(CreateBulkDataChunkId(PackageId, BulkDataFlags));
-								Request->WaitCompletion();
+								FIoChunkId ChunkId = CreateBulkDataChunkId(PackageId, BulkDataFlags);
+								// If the chunk does not exist in iostore do not request it (which will trigger an error)
+								// Users will need to handle the lack of existing data, which they can check for by calling DoesExist.
+								// This is necessary to handle bulkdatas in optional segments that may not have been downloaded into the current project
+								// (e.g. optional mips)
+								if (FBulkDataBase::GetIoDispatcher()->DoesChunkExist(ChunkId))
+								{
+									TUniquePtr<IBulkDataIORequest> Request = CreateBulkDataIoDispatcherRequest(ChunkId);
+									Request->WaitCompletion();
 
-								FLargeMemoryReader MemoryAr(Request->GetReadResults(), Request->GetSize());
-								MemoryAr.Seek(BulkDataOffsetInFile);
+									FLargeMemoryReader MemoryAr(Request->GetReadResults(), Request->GetSize());
+									MemoryAr.Seek(BulkDataOffsetInFile);
 
-								SerializeBulkData(MemoryAr, BulkData.Get(), BulkDataFlags);
+									SerializeBulkData(MemoryAr, BulkData.Get(), BulkDataFlags);
+								}
 							}
 							else
 #endif

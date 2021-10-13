@@ -56,10 +56,10 @@ protected:
 	*/
 	virtual void ParseIgnoreFolders(const FString& FullIgnoreFolderString);
 
-	/* Handles parsing out all the different files to whitelist from a file. These files will not be built. 
-	* @Param WhitelistFilePath the filepath to parse a whitelist from 
+	/* Handles parsing out all the different files to allow from a file. These files will not be built. 
+	* @Param ListFilePath the filepath to parse an allow list from 
 	*/
-	virtual void ParseWhitelist(const FString& WhitelistFilePath);
+	virtual void ParseAllowList(const FString& ListFilePath);
 
 	/* Checks if the passed in asset has any tag inside of the passed in tag collection. 
 	* @Param Asset  Asset to check all tags of
@@ -68,11 +68,11 @@ protected:
 	*/
 	virtual bool CheckHasTagInList(FAssetData const& Asset, const TArray<TPair<FString, TArray<FString>>>& TagCollectionToCheck) const;
 
-	/* Checks if the passed in asset is included in the white list.
-	* @Param Asset  Asset to check against the whitelist
-	* @Return True if the asset is in the whitelist. False otherwise.
+	/* Checks if the passed in asset is included in the allow list.
+	* @Param Asset  Asset to check against the allow list
+	* @Return True if the asset is in the list. False otherwise.
 	*/
-	virtual bool CheckInWhitelist(FAssetData const& Asset) const;
+	virtual bool IsAssetAllowed(FAssetData const& Asset) const;
 
 	/* Handles outputting the results to the log */
 	virtual void LogResults();
@@ -84,7 +84,7 @@ protected:
 	bool bCookedOnly;
 	bool bDirtyOnly;
 	TArray<FString> IgnoreFolders;
-	TArray<FString> WhitelistFiles;
+	TArray<FString> FileAllowList;
 	TArray<TPair<FString, TArray<FString>>> RequireAssetTags;
 	TArray<TPair<FString, TArray<FString>>> ExcludeAssetTags;
 	FName BlueprintBaseClassName;

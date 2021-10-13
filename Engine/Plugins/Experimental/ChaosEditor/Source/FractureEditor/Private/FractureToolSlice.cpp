@@ -40,7 +40,7 @@ FSlateIcon UFractureToolSlice::GetToolIcon() const
 
 void UFractureToolSlice::RegisterUICommand( FFractureEditorCommands* BindingContext ) 
 {
-	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Slice", "Slice", "Slice Fracture", EUserInterfaceActionType::ToggleButton, FInputChord() );
+	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Slice", "Slice", "Fracture with a grid of X, Y, and Z slices, with optional random variation in angle and offset.", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	BindingContext->Slice = UICommandInfo;
 }
 

@@ -254,33 +254,28 @@ struct FLandscapeComponentGrassData
 	TMap<int32, TArray<uint16>> HeightMipData;
 
 	// Grass data was updated but not saved yet
-	bool bIsDirty;
+	bool bIsDirty = false;
 #endif
 
-	// Elements per contiguous array (for validation)
-	int32 NumElements = 0;
+	static constexpr int32 UnknownNumElements = -1;
+	// Elements per contiguous array: for validation and also to indicate whether the grass data is valid (NumElements >= 0, meaning 0 elements is valid but the grass data is all zero and 
+	//  therefore empty) or not known yet (== UnknownNumElements)
+	int32 NumElements = UnknownNumElements;
 	// Serialized in one block to prevent Slack waste
 	TMap<ULandscapeGrassType*, int32> WeightOffsets;
 	TArray<uint8> HeightWeightData;
 
-	FLandscapeComponentGrassData()
-#if WITH_EDITORONLY_DATA
-		: bIsDirty(false) 
-#endif
-	{}
+	FLandscapeComponentGrassData() = default;
 
 #if WITH_EDITOR
 	FLandscapeComponentGrassData(ULandscapeComponent* Component);
 #endif
 
-	bool HasData()
-	{
-		return HeightWeightData.Num() > 0 
-#if WITH_EDITORONLY_DATA
-			|| HeightMipData.Num() > 0
-#endif
-			;
-	}
+	// Returns whether grass data has been computed (or serialized) yet. Returns true even if the data is completely empty (e.g. all-zero weightmap data)
+	bool HasValidData() const;
+
+	// Returns whether the data is completely empty (e.g. all-zero weightmap data). Returns false if the data just wasn't computed yet :
+	bool HasData() const;
 
 	void InitializeFrom(const TArray<uint16>& HeightData, const TMap<ULandscapeGrassType*, TArray<uint8>>& WeightData);
 
@@ -608,13 +603,13 @@ public:
 	TObjectPtr<UTexture2D> GIBakedBaseColorTexture;
 
 #if WITH_EDITORONLY_DATA
-	/** LOD level Bias to use when lighting buidling via lightmass, -1 Means automatic LOD calculation based on ForcedLOD + LODBias */
+	/** LOD level Bias to use when lighting building via lightmass, -1 Means automatic LOD calculation based on ForcedLOD + LODBias */
 	UPROPERTY(EditAnywhere, Category=LandscapeComponent)
 	int32 LightingLODBias;
 
 	// List of layers allowed to be painted on this component
 	UPROPERTY(EditAnywhere, Category=LandscapeComponent)
-	TArray<TObjectPtr<ULandscapeLayerInfoObject>> LayerWhitelist;
+	TArray<TObjectPtr<ULandscapeLayerInfoObject>> LayerAllowList;
 
 	/** Pointer to data shared with the render thread, used by the editor tools */
 	UPROPERTY(Transient, DuplicateTransient, NonTransactional)
@@ -703,12 +698,14 @@ public:
 
 	LANDSCAPE_API void UpdateEditToolRenderData();
 
-	/** Fix up component layers, weightmaps
-	 */
+	/** Fix up component layers, weightmaps */
 	LANDSCAPE_API void FixupWeightmaps();
 
-	// Update layer whitelist to include the currently painted layers
-	LANDSCAPE_API void UpdateLayerWhitelistFromPaintedLayers();
+	/** Repair invalid texture data that might have been introduced by a faulty version. Returns the list of repaired textures  */
+	TArray<UTexture*> RepairInvalidTextures();
+
+	// Update layer allow list to include the currently painted layers
+	LANDSCAPE_API void UpdateLayerAllowListFromPaintedLayers();
 	
 	//~ Begin UPrimitiveComponent Interface.
 	virtual bool GetLightMapResolution( int32& Width, int32& Height ) const override;
@@ -864,6 +861,8 @@ public:
 #if WITH_EDITOR
 	/** Returns all generated textures and material instances used by this component. */
 	LANDSCAPE_API void GetGeneratedTexturesAndMaterialInstances(TArray<UObject*>& OutTexturesAndMaterials) const;
+	LANDSCAPE_API TArray<UTexture*> GetGeneratedTextures() const;
+	LANDSCAPE_API TArray<UMaterialInstance*> GetGeneratedMaterialInstances() const;
 #endif
 
 	/** Gets the landscape proxy actor which owns this component */

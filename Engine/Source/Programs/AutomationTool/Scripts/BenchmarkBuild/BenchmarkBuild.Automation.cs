@@ -17,8 +17,8 @@ namespace AutomationTool.Benchmark
 
 	[Help("Runs benchmarks and reports overall results")]
 	[Help("Example1: RunUAT BenchmarkBuild -all -project=UE4")]
-	[Help("Example2: RunUAT BenchmarkBuild -allcompile -project=UE4+EngineTest -platform=PS4")]
-	[Help("Example3: RunUAT BenchmarkBuild -editor -client -cook -cooknoshaderddc -cooknoddc -xge -noxge -singlecompile -nopcompile -project=UE4+QAGame+EngineTest -platform=WIn64+PS4+XboxOne+Switch -iterations=3")]
+	[Help("Example2: RunUAT BenchmarkBuild -allcompile -project=UE4+EngineTest -platform=Win64")]
+	[Help("Example3: RunUAT BenchmarkBuild -editor -client -cook -cooknoshaderddc -cooknoddc -xge -noxge -singlecompile -nopcompile -project=UE4+QAGame+EngineTest -platform=WIn64+Android -iterations=3")]
 	[Help("preview", "List everything that will run but don't do it")]
 	[Help("project=<name>", "Do tests on the specified projec(s)t. E.g. -project=UE4+FortniteGame+QAGame")]
 	[Help("all", "Run all the things (except noddc)")]

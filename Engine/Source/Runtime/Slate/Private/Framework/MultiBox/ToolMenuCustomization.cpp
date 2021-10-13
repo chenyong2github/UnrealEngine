@@ -191,7 +191,7 @@ FCustomizedToolMenu FCustomizedToolMenuHierarchy::GenerateFlattened() const
 			}
 		}
 
-		Result.BlacklistFilter.Append(Current->BlacklistFilter);
+		Result.MenuPermissions.Append(Current->MenuPermissions);
 	};
 
 	// Process parents first then children

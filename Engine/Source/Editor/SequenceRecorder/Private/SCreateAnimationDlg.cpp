@@ -13,6 +13,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Editor.h"
 #include "EditorStyleSet.h"
+#include "PropertyEditorModule.h"
 #include "Styling/CoreStyle.h"
 //#include "Persona.h"
 #include "Developer/AssetTools/Public/IAssetTools.h"
@@ -69,6 +70,22 @@ void SCreateAnimationDlg::Construct(const FArguments& InArgs)
 	PathPickerConfig.bAddDefaultPath = true;
 
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	
+	FDetailsViewArgs DetailsViewArgs;
+	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+	DetailsViewArgs.bShowOptions = false;
+	DetailsViewArgs.bAllowSearch = false;
+	DetailsViewArgs.bShowPropertyMatrixButton = false;
+	DetailsViewArgs.bUpdatesFromSelection = false;
+	DetailsViewArgs.bLockable = false;
+	DetailsViewArgs.bAllowFavoriteSystem = false;
+	DetailsViewArgs.ViewIdentifier = "AnimationRecorder";
+
+	TSharedPtr<class IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+	GetMutableDefault<UAnimationRecordingParameters>()->LoadConfig();
+	DetailsView->SetObject(GetMutableDefault<UAnimationRecordingParameters>(), true);
+	DetailsView->OnFinishedChangingProperties().AddLambda([](const FPropertyChangedEvent& InEvent) { GetMutableDefault<UAnimationRecordingParameters>()->SaveConfig(); });
 
 	SWindow::Construct(SWindow::FArguments()
 		.Title(LOCTEXT("SCreateAnimationDlg_Title", "Create New Animation Object"))
@@ -131,6 +148,14 @@ void SCreateAnimationDlg::Construct(const FArguments& InArgs)
 							.MinDesiredWidth(250)
 						]
 					]
+
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.HAlign(HAlign_Fill)
+					[
+						DetailsView.ToSharedRef()
+					]
+
 				]
 			]
 

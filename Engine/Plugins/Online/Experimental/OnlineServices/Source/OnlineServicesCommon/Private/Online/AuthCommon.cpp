@@ -8,28 +8,27 @@
 namespace UE::Online {
 
 FAuthCommon::FAuthCommon(FOnlineServicesCommon& InServices)
-	: TOnlineComponent(TEXT("Auth"), InServices.AsShared())
-	, Services(InServices)
+	: TOnlineComponent(TEXT("Auth"), InServices)
 {
 }
 
 TOnlineAsyncOpHandle<FAuthLogin> FAuthCommon::Login(FAuthLogin::Params&& Params)
 {
-	TOnlineAsyncOp<FAuthLogin>& Operation = Services.OpCache.GetOp<FAuthLogin>(MoveTemp(Params));
+	TOnlineAsyncOp<FAuthLogin>& Operation = GetOp<FAuthLogin>(MoveTemp(Params));
 	Operation.SetError(Errors::Unimplemented());
 	return Operation.GetHandle();
 }
 
 TOnlineAsyncOpHandle<FAuthLogout> FAuthCommon::Logout(FAuthLogout::Params&& Params)
 {
-	TOnlineAsyncOp<FAuthLogout>& Operation = Services.OpCache.GetOp<FAuthLogout>(MoveTemp(Params));
+	TOnlineAsyncOp<FAuthLogout>& Operation = GetOp<FAuthLogout>(MoveTemp(Params));
 	Operation.SetError(Errors::Unimplemented());
 	return Operation.GetHandle();
 }
 
 TOnlineAsyncOpHandle<FAuthGenerateAuth> FAuthCommon::GenerateAuth(FAuthGenerateAuth::Params&& Params)
 {
-	TOnlineAsyncOp<FAuthGenerateAuth>& Operation = Services.OpCache.GetOp<FAuthGenerateAuth>(MoveTemp(Params));
+	TOnlineAsyncOp<FAuthGenerateAuth>& Operation = GetOp<FAuthGenerateAuth>(MoveTemp(Params));
 	Operation.SetError(Errors::Unimplemented());
 	return Operation.GetHandle();
 }

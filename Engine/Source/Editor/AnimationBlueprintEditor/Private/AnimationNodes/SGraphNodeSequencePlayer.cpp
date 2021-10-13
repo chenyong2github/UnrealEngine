@@ -87,7 +87,7 @@ void SGraphNodeSequencePlayer::CreateBelowPinControls(TSharedPtr<SVerticalBox> M
 	MainBox->InsertSlot(FMath::Max(0, MainBox->NumSlots() - DebugSliderSlotReverseIndex))
 	.AutoHeight()
 	.VAlign( VAlign_Fill )
-	.Padding(FMargin(4))
+	.Padding(FMargin(4.0f, 0.0f))
 	[
 		SNew(SLevelOfDetailBranchNode)
 		.UseLowDetailSlot_Lambda(UseLowDetailNode)

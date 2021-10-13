@@ -54,6 +54,7 @@
 #include "TextureDerivedDataBuildUtils.h"
 #include "VT/VirtualTextureChunkDDCCache.h"
 #include "VT/VirtualTextureDataBuilder.h"
+#include "TextureEncodingSettings.h"
 #include <atomic>
 
 static TAutoConsoleVariable<int32> CVarVTValidateCompressionOnLoad(
@@ -82,7 +83,7 @@ public:
 	}
 };
 
-static FText ComposeTextureBuildText(const UTexture& Texture, int32 SizeX, int32 SizeY, int32 NumBlocks, int32 NumLayers, const FTextureBuildSettings& BuildSettings, int64 RequiredMemoryEstimate, bool bIsVT)
+static FText ComposeTextureBuildText(const UTexture& Texture, int32 SizeX, int32 SizeY, int32 NumBlocks, int32 NumLayers, const FTextureBuildSettings& BuildSettings, ETextureEncodeSpeed InEncodeSpeed, int64 RequiredMemoryEstimate, bool bIsVT)
 {
 	FFormatNamedArguments Args;
 	Args.Add(TEXT("TextureName"), FText::FromString(Texture.GetPathName()));
@@ -93,21 +94,31 @@ static FText ComposeTextureBuildText(const UTexture& Texture, int32 SizeX, int32
 	Args.Add(TEXT("NumBlocks"), FText::FromString(FString::FromInt(NumBlocks)));
 	Args.Add(TEXT("NumLayers"), FText::FromString(FString::FromInt(NumLayers)));
 	Args.Add(TEXT("EstimatedMemory"), FText::FromString(FString::SanitizeFloat(double(RequiredMemoryEstimate) / (1024.0*1024.0), 3)));
+	
+	const TCHAR* SpeedText = TEXT("");
+	switch (InEncodeSpeed)
+	{
+	case ETextureEncodeSpeed::Final: SpeedText = TEXT("Final"); break;
+	case ETextureEncodeSpeed::Fast: SpeedText = TEXT("Fast"); break;
+	case ETextureEncodeSpeed::FinalIfAvailable: SpeedText = TEXT("FinalIfAvailable"); break;
+	}
+
+	Args.Add(TEXT("Speed"), FText::FromString(FString(SpeedText)));
 
 	return FText::Format(
-		NSLOCTEXT("Engine", "BuildTextureStatus", "Building textures: {TextureName} ({TextureFormatName}{IsVT}, {TextureResolutionX}X{TextureResolutionY} X{NumBlocks}X{NumLayers}) (Required Memory Estimate: {EstimatedMemory} MB)"), 
+		NSLOCTEXT("Engine", "BuildTextureStatus", "Building textures: {TextureName} ({TextureFormatName}{IsVT}, {TextureResolutionX}X{TextureResolutionY} X{NumBlocks}X{NumLayers}) (Required Memory Estimate: {EstimatedMemory} MB), EncodeSpeed: {Speed}"), 
 		Args
 	);
 }
 
-static FText ComposeTextureBuildText(const UTexture& Texture, const FTextureSourceData& TextureData, const FTextureBuildSettings& BuildSettings, int64 RequiredMemoryEstimate, bool bIsVT)
+static FText ComposeTextureBuildText(const UTexture& Texture, const FTextureSourceData& TextureData, const FTextureBuildSettings& BuildSettings, ETextureEncodeSpeed InEncodeSpeed, int64 RequiredMemoryEstimate, bool bIsVT)
 {
-	return ComposeTextureBuildText(Texture, TextureData.Blocks[0].MipsPerLayer[0][0].SizeX, TextureData.Blocks[0].MipsPerLayer[0][0].SizeY, TextureData.Blocks.Num(), TextureData.Layers.Num(), BuildSettings, RequiredMemoryEstimate, bIsVT);
+	return ComposeTextureBuildText(Texture, TextureData.Blocks[0].MipsPerLayer[0][0].SizeX, TextureData.Blocks[0].MipsPerLayer[0][0].SizeY, TextureData.Blocks.Num(), TextureData.Layers.Num(), BuildSettings, InEncodeSpeed, RequiredMemoryEstimate, bIsVT);
 }
 
-static FText ComposeTextureBuildText(const UTexture& Texture, const FTextureBuildSettings& BuildSettings, int64 RequiredMemoryEstimate, bool bIsVT)
+static FText ComposeTextureBuildText(const UTexture& Texture, const FTextureBuildSettings& BuildSettings, ETextureEncodeSpeed InEncodeSpeed, int64 RequiredMemoryEstimate, bool bIsVT)
 {
-	return ComposeTextureBuildText(Texture, Texture.Source.GetSizeX(), Texture.Source.GetSizeY(), Texture.Source.GetNumBlocks(), Texture.Source.GetNumLayers(), BuildSettings, RequiredMemoryEstimate, bIsVT);
+	return ComposeTextureBuildText(Texture, Texture.Source.GetSizeX(), Texture.Source.GetSizeY(), Texture.Source.GetNumBlocks(), Texture.Source.GetNumLayers(), BuildSettings, InEncodeSpeed, RequiredMemoryEstimate, bIsVT);
 }
 
 static bool ValidateTexture2DPlatformData(const FTexturePlatformData& TextureData, const UTexture2D& Texture, bool bFromDDC)
@@ -145,7 +156,7 @@ static bool ValidateTexture2DPlatformData(const FTexturePlatformData& TextureDat
 #endif
 }
 
-void FTextureSourceData::Init(UTexture& InTexture, const FTextureBuildSettings* InBuildSettingsPerLayer, bool bAllowAsyncLoading)
+void FTextureSourceData::Init(UTexture& InTexture, TextureMipGenSettings InMipGenSettings, bool bInCubeMap, bool bInTextureArray, bool bInVolumeTexture, bool bAllowAsyncLoading)
 {
 	const int32 NumBlocks = InTexture.Source.GetNumBlocks();
 	const int32 NumLayers = InTexture.Source.GetNumLayers();
@@ -193,12 +204,12 @@ void FTextureSourceData::Init(UTexture& InTexture, const FTextureBuildSettings* 
 			BlockData->NumMips = SourceBlock.NumMips;
 			BlockData->NumSlices = SourceBlock.NumSlices;
 
-			if (InBuildSettingsPerLayer[0].MipGenSettings != TMGS_LeaveExistingMips)
+			if (InMipGenSettings != TMGS_LeaveExistingMips)
 			{
 				BlockData->NumMips = 1;
 			}
 
-			if (!InBuildSettingsPerLayer[0].bCubemap && !InBuildSettingsPerLayer[0].bTextureArray && !InBuildSettingsPerLayer[0].bVolume)
+			if (!bInCubeMap && !bInTextureArray && !bInVolumeTexture)
 			{
 				BlockData->NumSlices = 1;
 			}
@@ -388,7 +399,8 @@ private:
 
 } // UE::TextureDerivedData
 
-void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
+// Synchronous DDC1 texture build function
+void FTextureCacheDerivedDataWorker::BuildTexture(TArray<FTextureBuildSettings>& InBuildSettingsPerLayer, bool bReplaceExistingDDC)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTextureCacheDerivedDataWorker::BuildTexture);
 
@@ -407,7 +419,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 	}
 
 	FTextureStatusMessageContext StatusMessage(
-		ComposeTextureBuildText(Texture, TextureData, BuildSettingsPerLayer[0], RequiredMemoryEstimate, bForVirtualTextureStreamingBuild)
+		ComposeTextureBuildText(Texture, TextureData, InBuildSettingsPerLayer[0], (ETextureEncodeSpeed)InBuildSettingsPerLayer[0].RepresentsEncodeSpeedNoSend, RequiredMemoryEstimate, bForVirtualTextureStreamingBuild)
 		);
 
 	if (bForVirtualTextureStreamingBuild)
@@ -418,7 +430,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 		}
 
 		FVirtualTextureDataBuilder Builder(*DerivedData->VTData, Compressor, ImageWrapper);
-		Builder.Build(TextureData, CompositeTextureData, &BuildSettingsPerLayer[0], true);
+		Builder.Build(TextureData, CompositeTextureData, &InBuildSettingsPerLayer[0], true);
 
 		DerivedData->SizeX = DerivedData->VTData->Width;
 		DerivedData->SizeY = DerivedData->VTData->Height;
@@ -437,12 +449,12 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 			// @todo: This will remove the streaming bulk data, which we immediately reload below!
 			// Should ideally avoid this redundant work, but it only happens when we actually have 
 			// to build the texture, which should only ever be once.
-			this->BytesCached = PutDerivedDataInCache(DerivedData, KeySuffix, Texture.GetPathName(), BuildSettingsPerLayer[0].bCubemap || BuildSettingsPerLayer[0].bVolume || BuildSettingsPerLayer[0].bTextureArray, bReplaceExistingDDC);
+			this->BytesCached = PutDerivedDataInCache(DerivedData, KeySuffix, Texture.GetPathName(), InBuildSettingsPerLayer[0].bCubemap || InBuildSettingsPerLayer[0].bVolume || InBuildSettingsPerLayer[0].bTextureArray, bReplaceExistingDDC);
 
 			if (DerivedData->VTData->Chunks.Num())
 			{
 				const bool bInlineMips = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::InlineMips);
-				bSucceeded = !bInlineMips || DerivedData->TryInlineMipData(BuildSettingsPerLayer[0].LODBiasWithCinematicMips, &Texture);
+				bSucceeded = !bInlineMips || DerivedData->TryInlineMipData(InBuildSettingsPerLayer[0].LODBiasWithCinematicMips, &Texture);
 				if (!bSucceeded)
 				{
 					UE_LOG(LogTexture, Display, TEXT("Failed to put and then read back mipmap data from DDC for %s"), *Texture.GetPathName());
@@ -450,7 +462,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 			}
 			else
 			{
-				UE_LOG(LogTexture, Warning, TEXT("Failed to build %s derived data for %s"), *BuildSettingsPerLayer[0].TextureFormatName.GetPlainNameString(), *Texture.GetPathName());
+				UE_LOG(LogTexture, Warning, TEXT("Failed to build %s derived data for %s"), *InBuildSettingsPerLayer[0].TextureFormatName.GetPlainNameString(), *Texture.GetPathName());
 			}
 		}
 	}
@@ -484,7 +496,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 		TArray<FCompressedImage2D> CompressedMips;
 		if (Compressor->BuildTexture(TextureData.Blocks[0].MipsPerLayer[0],
 			((bool)Texture.CompositeTexture && CompositeTextureData.Blocks.Num() && CompositeTextureData.Blocks[0].MipsPerLayer.Num()) ? CompositeTextureData.Blocks[0].MipsPerLayer[0] : TArray<FImage>(),
-			BuildSettingsPerLayer[0],
+			InBuildSettingsPerLayer[0],
 			CompressedMips,
 			OptData.NumMipsInTail,
 			OptData.ExtData))
@@ -502,7 +514,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 				NewMip->SizeY = CompressedImage.SizeY;
 				NewMip->SizeZ = CompressedImage.SizeZ;
 				NewMip->FileRegionType = FFileRegion::SelectType(EPixelFormat(CompressedImage.PixelFormat));
-				check(NewMip->SizeZ == 1 || BuildSettingsPerLayer[0].bVolume || BuildSettingsPerLayer[0].bTextureArray); // Only volume & arrays can have SizeZ != 1
+				check(NewMip->SizeZ == 1 || InBuildSettingsPerLayer[0].bVolume || InBuildSettingsPerLayer[0].bTextureArray); // Only volume & arrays can have SizeZ != 1
 				NewMip->BulkData.Lock(LOCK_READ_WRITE);
 				check(CompressedImage.RawData.GetTypeSize() == 1);
 				void* NewMipData = NewMip->BulkData.Realloc(CompressedImage.RawData.Num());
@@ -514,11 +526,11 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 					DerivedData->SizeX = CompressedImage.SizeX;
 					DerivedData->SizeY = CompressedImage.SizeY;
 					DerivedData->PixelFormat = (EPixelFormat)CompressedImage.PixelFormat;
-					if (BuildSettingsPerLayer[0].bVolume || BuildSettingsPerLayer[0].bTextureArray)
+					if (InBuildSettingsPerLayer[0].bVolume || InBuildSettingsPerLayer[0].bTextureArray)
 					{
 						DerivedData->SetNumSlices(CompressedImage.SizeZ);
 					}
-					else if (BuildSettingsPerLayer[0].bCubemap)
+					else if (InBuildSettingsPerLayer[0].bCubemap)
 					{
 						DerivedData->SetNumSlices(6);
 					}
@@ -526,7 +538,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 					{
 						DerivedData->SetNumSlices(1);
 					}
-					DerivedData->SetIsCubemap(BuildSettingsPerLayer[0].bCubemap);
+					DerivedData->SetIsCubemap(InBuildSettingsPerLayer[0].bCubemap);
 				}
 				else
 				{
@@ -540,13 +552,13 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 			// @todo: This will remove the streaming bulk data, which we immediately reload below!
 			// Should ideally avoid this redundant work, but it only happens when we actually have 
 			// to build the texture, which should only ever be once.
-			this->BytesCached = PutDerivedDataInCache(DerivedData, KeySuffix, Texture.GetPathName(), BuildSettingsPerLayer[0].bCubemap || (BuildSettingsPerLayer[0].bVolume && !GSupportsVolumeTextureStreaming) || (BuildSettingsPerLayer[0].bTextureArray && !GSupportsTexture2DArrayStreaming), bReplaceExistingDDC);
+			this->BytesCached = PutDerivedDataInCache(DerivedData, KeySuffix, Texture.GetPathName(), InBuildSettingsPerLayer[0].bCubemap || (InBuildSettingsPerLayer[0].bVolume && !GSupportsVolumeTextureStreaming) || (InBuildSettingsPerLayer[0].bTextureArray && !GSupportsTexture2DArrayStreaming), bReplaceExistingDDC);
 		}
 
 		if (DerivedData->Mips.Num())
 		{
 			const bool bInlineMips = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::InlineMips);
-			bSucceeded = !bInlineMips || DerivedData->TryInlineMipData(BuildSettingsPerLayer[0].LODBiasWithCinematicMips, &Texture);
+			bSucceeded = !bInlineMips || DerivedData->TryInlineMipData(InBuildSettingsPerLayer[0].LODBiasWithCinematicMips, &Texture);
 			if (!bSucceeded)
 			{
 				UE_LOG(LogTexture, Display, TEXT("Failed to put and then read back mipmap data from DDC for %s"), *Texture.GetPathName());
@@ -554,7 +566,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 		}
 		else
 		{
-			UE_LOG(LogTexture, Warning, TEXT("Failed to build %s derived data for %s"), *BuildSettingsPerLayer[0].TextureFormatName.GetPlainNameString(), *Texture.GetPathName());
+			UE_LOG(LogTexture, Warning, TEXT("Failed to build %s derived data for %s"), *InBuildSettingsPerLayer[0].TextureFormatName.GetPlainNameString(), *Texture.GetPathName());
 		}
 	}
 }
@@ -563,7 +575,8 @@ FTextureCacheDerivedDataWorker::FTextureCacheDerivedDataWorker(
 	ITextureCompressorModule* InCompressor,
 	FTexturePlatformData* InDerivedData,
 	UTexture* InTexture,
-	const FTextureBuildSettings* InSettingsPerLayer,
+	const FTextureBuildSettings* InSettingsPerLayerFetchFirst,
+	const FTextureBuildSettings* InSettingsPerLayerFetchOrBuild,
 	ETextureCacheFlags InCacheFlags
 	)
 	: Compressor(InCompressor)
@@ -576,10 +589,28 @@ FTextureCacheDerivedDataWorker::FTextureCacheDerivedDataWorker(
 {
 	check(DerivedData);
 
-	BuildSettingsPerLayer.SetNum(InTexture->Source.GetNumLayers());
-	for (int32 LayerIndex = 0; LayerIndex < BuildSettingsPerLayer.Num(); ++LayerIndex)
+	if (InSettingsPerLayerFetchFirst)
 	{
-		BuildSettingsPerLayer[LayerIndex] = InSettingsPerLayer[LayerIndex];
+		BuildSettingsPerLayerFetchFirst.SetNum(InTexture->Source.GetNumLayers());
+		for (int32 LayerIndex = 0; LayerIndex < BuildSettingsPerLayerFetchFirst.Num(); ++LayerIndex)
+		{
+			BuildSettingsPerLayerFetchFirst[LayerIndex] = InSettingsPerLayerFetchFirst[LayerIndex];
+		}
+	}
+	
+	BuildSettingsPerLayerFetchOrBuild.SetNum(InTexture->Source.GetNumLayers());
+	for (int32 LayerIndex = 0; LayerIndex < BuildSettingsPerLayerFetchOrBuild.Num(); ++LayerIndex)
+	{
+		BuildSettingsPerLayerFetchOrBuild[LayerIndex] = InSettingsPerLayerFetchOrBuild[LayerIndex];
+	}
+
+	// FetchOrBuildDerivedDataKey needs to be assigned on the create thread.
+	{
+		FString LocalKeySuffix;
+		GetTextureDerivedDataKeySuffix(Texture, BuildSettingsPerLayerFetchOrBuild.GetData(), LocalKeySuffix);
+		FString DDK;
+		GetTextureDerivedDataKeyFromSuffix(LocalKeySuffix, DDK);
+		InDerivedData->FetchOrBuildDerivedDataKey.Emplace<FString>(DDK);
 	}
 
 	// At this point, the texture *MUST* have a valid GUID.
@@ -589,12 +620,6 @@ FTextureCacheDerivedDataWorker::FTextureCacheDerivedDataWorker(
 		Texture.Source.ForceGenerateGuid();
 	}
 	check(Texture.Source.GetId().IsValid());
-
-	FString LocalDerivedDataKeySuffix;
-	FString LocalDerivedDataKey;
-	GetTextureDerivedDataKeySuffix(Texture, BuildSettingsPerLayer.GetData(), LocalDerivedDataKeySuffix);
-	GetTextureDerivedDataKeyFromSuffix(LocalDerivedDataKeySuffix, LocalDerivedDataKey);
-	DerivedData->ComparisonDerivedDataKey.Emplace<FString>(LocalDerivedDataKey);
 
 	// Dump any existing mips.
 	DerivedData->Mips.Empty();
@@ -616,7 +641,9 @@ FTextureCacheDerivedDataWorker::FTextureCacheDerivedDataWorker(
 		ImageWrapper = &FModuleManager::LoadModuleChecked<IImageWrapperModule>( FName("ImageWrapper") );
 	}
 
-	TextureData.Init(Texture, BuildSettingsPerLayer.GetData(), bAllowAsyncLoading);
+	// All of these settings are fixed across build settings and are derived directly from the texture.
+	// So we can just use layer 0 of whatever we have.
+	TextureData.Init(Texture, (TextureMipGenSettings)BuildSettingsPerLayerFetchOrBuild[0].MipGenSettings, BuildSettingsPerLayerFetchOrBuild[0].bCubemap, BuildSettingsPerLayerFetchOrBuild[0].bTextureArray, BuildSettingsPerLayerFetchOrBuild[0].bVolume, bAllowAsyncLoading);
 	if (Texture.CompositeTexture && Texture.CompositeTextureMode != CTM_Disabled)
 	{
 		bool bMatchingBlocks = Texture.CompositeTexture->Source.GetNumBlocks() == Texture.Source.GetNumBlocks();
@@ -658,11 +685,13 @@ FTextureCacheDerivedDataWorker::FTextureCacheDerivedDataWorker(
 
 		if (bMatchingBlocks && bMatchingAspectRatio && bOnlyPowerOfTwoSize)
 		{
-			CompositeTextureData.Init(*Texture.CompositeTexture, BuildSettingsPerLayer.GetData(), bAllowAsyncLoading);
+			// These are derived from the texture, and the composite texture must match.
+			CompositeTextureData.Init(*Texture.CompositeTexture, (TextureMipGenSettings)BuildSettingsPerLayerFetchOrBuild[0].MipGenSettings, BuildSettingsPerLayerFetchOrBuild[0].bCubemap, BuildSettingsPerLayerFetchOrBuild[0].bTextureArray, BuildSettingsPerLayerFetchOrBuild[0].bVolume, bAllowAsyncLoading);
 		}
 	}
 }
 
+// DDC1 primary fetch/build work function
 void FTextureCacheDerivedDataWorker::DoWork()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTextureCacheDerivedDataWorker::DoWork);
@@ -676,45 +705,52 @@ void FTextureCacheDerivedDataWorker::DoWork()
 
 	TArray<uint8> RawDerivedData;
 
+	// Can't have a fetch first if we are rebuilding
+	if (bForceRebuild)
+	{
+		BuildSettingsPerLayerFetchFirst.Empty();
+	}
+
 	FString LocalDerivedDataKeySuffix;
 	FString LocalDerivedDataKey;
-	GetTextureDerivedDataKeySuffix(Texture, BuildSettingsPerLayer.GetData(), LocalDerivedDataKeySuffix);
-	GetTextureDerivedDataKeyFromSuffix(LocalDerivedDataKeySuffix, LocalDerivedDataKey);
-	if (!bForceRebuild)
-	{
-		// First try to load a texture generated for the shipping build from the cache.
-		// FTexturePlatformData::ShippingDerivedDataKey is set when we are running a build in the Editor.
-		// This allows to preview how the texture will look in the final build and avoid rebuilding texture locally using fast cooking.
-		if (BuildSettingsPerLayer[0].FastTextureEncode == ETextureFastEncode::TryOffEncodeFast)
-		{
-			const int32 NumLayers = Texture.Source.GetNumLayers();
-			TArray<FTextureBuildSettings> ShippingBuildSettingsPerLayer;
-			ShippingBuildSettingsPerLayer.SetNum(NumLayers);
-			for (int32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
-			{
-				ShippingBuildSettingsPerLayer[LayerIndex] = BuildSettingsPerLayer[LayerIndex];
-				ShippingBuildSettingsPerLayer[LayerIndex].FastTextureEncode = ETextureFastEncode::Off;
-			}
-			FString ShippingDerivedDataKeySuffix;
-			FString ShippingDerivedDataKey;
-			GetTextureDerivedDataKeySuffix(Texture, ShippingBuildSettingsPerLayer.GetData(), ShippingDerivedDataKeySuffix);
-			GetTextureDerivedDataKeyFromSuffix(ShippingDerivedDataKeySuffix, ShippingDerivedDataKey);
+	
+	FString FetchOrBuildKeySuffix;
+	GetTextureDerivedDataKeySuffix(Texture, BuildSettingsPerLayerFetchOrBuild.GetData(), FetchOrBuildKeySuffix);
 
-			bLoadedFromDDC = GetDerivedDataCacheRef().GetSynchronous(*ShippingDerivedDataKey, RawDerivedData, Texture.GetPathName());
+	bool bUsedFetchFirst = false;
+	if (BuildSettingsPerLayerFetchFirst.Num())
+	{
+		FString FetchFirstKeySuffix;
+		GetTextureDerivedDataKeySuffix(Texture, BuildSettingsPerLayerFetchFirst.GetData(), FetchFirstKeySuffix);
+
+		// If the suffixes are the same, then use fetchorbuild to avoid a get()
+		if (FetchFirstKeySuffix != FetchOrBuildKeySuffix)
+		{
+			FString FetchFirstKey;
+			GetTextureDerivedDataKeyFromSuffix(FetchFirstKeySuffix, FetchFirstKey);
+		
+			bLoadedFromDDC = GetDerivedDataCacheRef().GetSynchronous(*FetchFirstKey, RawDerivedData, Texture.GetPathName());
 			if (bLoadedFromDDC)
 			{
-				LocalDerivedDataKeySuffix = ShippingDerivedDataKeySuffix;
-				LocalDerivedDataKey = ShippingDerivedDataKey;
+				bUsedFetchFirst = true;
+				LocalDerivedDataKey = MoveTemp(FetchFirstKey);
+				LocalDerivedDataKeySuffix = MoveTemp(FetchFirstKeySuffix);
 			}
 		}
-
-		if (!bLoadedFromDDC)
-		{
-			bLoadedFromDDC = GetDerivedDataCacheRef().GetSynchronous(*LocalDerivedDataKey, RawDerivedData, Texture.GetPathName());
-		}
 	}
+
+	if (bLoadedFromDDC == false)
+	{
+		// Didn't get the initial fetch, so we're using fetch/build.
+		LocalDerivedDataKeySuffix = MoveTemp(FetchOrBuildKeySuffix);
+		GetTextureDerivedDataKeyFromSuffix(LocalDerivedDataKeySuffix, LocalDerivedDataKey);
+		bLoadedFromDDC = GetDerivedDataCacheRef().GetSynchronous(*LocalDerivedDataKey, RawDerivedData, Texture.GetPathName());
+	}
+
 	KeySuffix = LocalDerivedDataKeySuffix;
 	DerivedData->DerivedDataKey.Emplace<FString>(LocalDerivedDataKey);
+	TArray<FTextureBuildSettings>& ActiveBuildSettingsPerLayer = bUsedFetchFirst ? BuildSettingsPerLayerFetchFirst : BuildSettingsPerLayerFetchOrBuild;
+	UsedEncodeSpeed = (ETextureEncodeSpeed)ActiveBuildSettingsPerLayer[0].RepresentsEncodeSpeedNoSend;
 
 	if (bLoadedFromDDC)
 	{
@@ -754,7 +790,7 @@ void FTextureCacheDerivedDataWorker::DoWork()
 		}
 		else if (bInlineMips)
 		{
-			bSucceeded = DerivedData->TryInlineMipData(BuildSettingsPerLayer[0].LODBiasWithCinematicMips, &Texture);
+			bSucceeded = DerivedData->TryInlineMipData(ActiveBuildSettingsPerLayer[0].LODBiasWithCinematicMips, &Texture);
 
 			if (!bSucceeded)
 			{
@@ -782,18 +818,18 @@ void FTextureCacheDerivedDataWorker::DoWork()
 					UE_LOG(LogTexture, Display, TEXT("Texture %s is missing derived mips. The texture will be rebuilt."), *Texture.GetFullName());
 				}
 
-				if (bSucceeded && BuildSettingsPerLayer.Num() > 0)
+				if (bSucceeded && ActiveBuildSettingsPerLayer.Num() > 0)
 				{
 					// Code inspired by the texture compressor module as a hot fix for the bad data that might have been push into the ddc in 4.23 or 4.24 
 					const bool bLongLatCubemap = DerivedData->IsCubemap() && DerivedData->GetNumSlices() == 1;
 					int32 MaximumNumberOfMipMaps = TNumericLimits<int32>::Max();
 					if (bLongLatCubemap)
 					{
-						MaximumNumberOfMipMaps = FMath::CeilLogTwo(FMath::Clamp<uint32>(uint32(1 << FMath::FloorLog2(DerivedData->SizeX / 2)), uint32(32), BuildSettingsPerLayer[0].MaxTextureResolution)) + 1;
+						MaximumNumberOfMipMaps = FMath::CeilLogTwo(FMath::Clamp<uint32>(uint32(1 << FMath::FloorLog2(DerivedData->SizeX / 2)), uint32(32), ActiveBuildSettingsPerLayer[0].MaxTextureResolution)) + 1;
 					}
 					else
 					{
-						MaximumNumberOfMipMaps = FMath::CeilLogTwo(FMath::Max3(DerivedData->SizeX, DerivedData->SizeY, BuildSettingsPerLayer[0].bVolume ? DerivedData->GetNumSlices() : 1)) + 1;
+						MaximumNumberOfMipMaps = FMath::CeilLogTwo(FMath::Max3(DerivedData->SizeX, DerivedData->SizeY, ActiveBuildSettingsPerLayer[0].bVolume ? DerivedData->GetNumSlices() : 1)) + 1;
 					}
 
 					bSucceeded = DerivedData->Mips.Num() <= MaximumNumberOfMipMaps;
@@ -866,7 +902,7 @@ void FTextureCacheDerivedDataWorker::DoWork()
 		{
 			// Replace any existing DDC data, if corrupt compression was detected
 			const bool bReplaceExistingDDC = bInvalidVirtualTextureCompression;
-			BuildTexture(bReplaceExistingDDC);
+			BuildTexture(ActiveBuildSettingsPerLayer, bReplaceExistingDDC);
 			if (bInvalidVirtualTextureCompression && DerivedData->VTData)
 			{
 				// If we loaded data that turned out to be corrupt, flag it here so we can also recreate the VT data cached to local /DerivedDataCache/VT/ directory
@@ -902,6 +938,10 @@ void FTextureCacheDerivedDataWorker::Finalize()
 {
 	// if we couldn't get from the DDC or didn't build synchronously, then we have to build now. 
 	// This is a super edge case that should rarely happen.
+	// (update) this always happens with a ForceRebuildPlatformData, as its a synchronous build that
+	//		uses this worker class. The DoWork never does work if async is not set unless its a clean
+	//		get, so we land here. Note that we never _fetch_ here, it's only ever a full build, so
+	//		we can ignore FetchFirst.
 	if (!bSucceeded)
 	{
 		TextureData.GetSourceMips(Texture.Source, ImageWrapper);
@@ -909,15 +949,19 @@ void FTextureCacheDerivedDataWorker::Finalize()
 		{
 			CompositeTextureData.GetSourceMips(Texture.CompositeTexture->Source, ImageWrapper);
 		}
-		BuildTexture();
+
+		BuildTexture(BuildSettingsPerLayerFetchOrBuild);
 	}
 		
-	if (bSucceeded && BuildSettingsPerLayer[0].bVirtualStreamable) // Texture.VirtualTextureStreaming is more a hint that might be overruled by the buildsettings
+	if (bSucceeded && BuildSettingsPerLayerFetchOrBuild[0].bVirtualStreamable) // Texture.VirtualTextureStreaming is more a hint that might be overruled by the buildsettings
 	{
 		check((DerivedData->VTData != nullptr) == Texture.VirtualTextureStreaming); 
 	}
 }
 
+//
+// DDC2 texture fetch/build task.
+//
 class FTextureBuildTask final : public FTextureAsyncCacheDerivedDataTask
 {
 public:
@@ -925,14 +969,15 @@ public:
 		UTexture& Texture,
 		FStringView FunctionName,
 		FTexturePlatformData& InDerivedData,
-		const FTextureBuildSettings& Settings,
+		const FTextureBuildSettings* InSettingsFetchFirst, // can be nullptr
+		const FTextureBuildSettings& InSettingsFetchOrBuild,
 		EQueuedWorkPriority InPriority,
 		ETextureCacheFlags Flags)
 		: DerivedData(InDerivedData)
 		, Priority(InPriority)
 		, bCacheHit(false)
 		, bInlineMips(EnumHasAnyFlags(Flags, ETextureCacheFlags::InlineMips))
-		, FirstMipToLoad(Settings.LODBiasWithCinematicMips)
+		, FirstMipToLoad(InSettingsFetchOrBuild.LODBiasWithCinematicMips)
 		, InputResolver(Texture)
 	{
 		using namespace UE::DerivedData;
@@ -957,33 +1002,59 @@ public:
 		
 		if (IsInGameThread() && OwnerPriority == EPriority::Blocking)
 		{
-			StatusMessage.Emplace(ComposeTextureBuildText(Texture, Settings, Texture.GetBuildRequiredMemory(), EnumHasAnyFlags(Flags, ETextureCacheFlags::ForVirtualTextureStreamingBuild)));
+			// this gets sent whether or not we are building the texture, and is a rare edge case for UI feedback.
+			// We don't actually know whether we're using fetchfirst or actually building, so if we have two keys,
+			// we can assume we're FinalIfAvailable.
+			ETextureEncodeSpeed EncodeSpeed = (ETextureEncodeSpeed)InSettingsFetchOrBuild.RepresentsEncodeSpeedNoSend;
+			if (InSettingsFetchFirst)
+			{
+				EncodeSpeed = ETextureEncodeSpeed::FinalIfAvailable;
+			}
+
+			StatusMessage.Emplace(ComposeTextureBuildText(Texture, InSettingsFetchOrBuild, EncodeSpeed, Texture.GetBuildRequiredMemory(), EnumHasAnyFlags(Flags, ETextureCacheFlags::ForVirtualTextureStreamingBuild)));
+		}
+		
+
+		if (InSettingsFetchFirst &&
+			EnumHasAnyFlags(Flags, ETextureCacheFlags::ForceRebuild))
+		{
+			// Can't fetch first if we are rebuilding.
+			InSettingsFetchFirst = nullptr;
 		}
 
-		FBuildDefinition Definition = CreateDefinition(Build, Texture, TexturePath, FunctionName, Settings, bUseCompositeTexture);
-		DerivedData.ComparisonDerivedDataKey.Emplace<FTexturePlatformData::FStructuredDerivedDataKey>(GetKey(Definition, Texture, bUseCompositeTexture));
-
-		if (!EnumHasAnyFlags(Flags, ETextureCacheFlags::ForceRebuild) && Settings.FastTextureEncode == ETextureFastEncode::TryOffEncodeFast)
+		FBuildDefinition FetchOrBuildDefinition = CreateDefinition(Build, Texture, TexturePath, FunctionName, InSettingsFetchOrBuild, bUseCompositeTexture);
+		DerivedData.FetchOrBuildDerivedDataKey.Emplace<FTexturePlatformData::FStructuredDerivedDataKey>(GetKey(FetchOrBuildDefinition, Texture, bUseCompositeTexture));
+		
+		bool bBuildKicked = false;
+		if (InSettingsFetchFirst)
 		{
-			FTextureBuildSettings ShippingSettings = Settings;
-			ShippingSettings.FastTextureEncode = ETextureFastEncode::Off;
-			FBuildDefinition ShippingDefinition = CreateDefinition(Build, Texture, TexturePath, FunctionName, ShippingSettings, bUseCompositeTexture);
-			BuildSession.Get().Build(ShippingDefinition, EBuildPolicy::Cache, *Owner,
-				[this, Definition = MoveTemp(Definition), Flags](FBuildCompleteParams&& Params)
-				{
-					switch (Params.Status)
+			// If the keys are the same, ignore fetch first.
+			FBuildDefinition FetchDefinition = CreateDefinition(Build, Texture, TexturePath, FunctionName, *InSettingsFetchFirst, bUseCompositeTexture);
+			if (FetchDefinition.GetKey() != FetchOrBuildDefinition.GetKey())
+			{
+				bBuildKicked = true;
+				this->UsedEncodeSpeed = (ETextureEncodeSpeed)InSettingsFetchFirst->RepresentsEncodeSpeedNoSend;
+
+				BuildSession.Get().Build(FetchDefinition, EBuildPolicy::Cache, *Owner,
+					[this, FetchOrBuildDefinition = MoveTemp(FetchOrBuildDefinition), Flags, FetchOrBuildEncodeSpeed = (ETextureEncodeSpeed)InSettingsFetchOrBuild.RepresentsEncodeSpeedNoSend](FBuildCompleteParams&& Params)
 					{
-					default:
-					case EStatus::Ok:
-						return EndBuild(Params.CacheKey, MoveTemp(Params.Output), Params.BuildStatus);
-					case EStatus::Error:
-						return BeginBuild(Definition, Flags);
-					}
-				});
+						switch (Params.Status)
+						{
+						default:
+						case EStatus::Ok:
+							return EndBuild(Params.CacheKey, MoveTemp(Params.Output), Params.BuildStatus);
+						case EStatus::Error:
+							this->UsedEncodeSpeed = FetchOrBuildEncodeSpeed;
+							return BeginBuild(FetchOrBuildDefinition, Flags);
+						}
+					});
+			}
 		}
-		else
+
+		if (bBuildKicked == false)
 		{
-			BeginBuild(Definition, Flags);
+			// we didn't use the fetch first path.
+			BeginBuild(FetchOrBuildDefinition, Flags);
 		}
 	}
 
@@ -1006,6 +1077,7 @@ public:
 		return DefinitionBuilder.Build();
 	}
 
+private:
 	void BeginBuild(const UE::DerivedData::FBuildDefinition& Definition, ETextureCacheFlags Flags)
 	{
 		using namespace UE::DerivedData;
@@ -1032,11 +1104,13 @@ public:
 		StatusMessage.Reset();
 	}
 
-	void Finalize(bool& bOutFoundInCache, uint64& OutProcessedByteCount) final
+	void Finalize(bool& bOutFoundInCache, ETextureEncodeSpeed& OutUsedEncodeSpeed, uint64& OutProcessedByteCount) final
 	{
+		OutUsedEncodeSpeed = UsedEncodeSpeed;
 		bOutFoundInCache = bCacheHit;
 		OutProcessedByteCount = BuildOutputSize;
 	}
+public:
 
 	EQueuedWorkPriority GetPriority() const final
 	{
@@ -1387,6 +1461,9 @@ private:
 		return true;
 	}
 
+	// The settings we used for the build -- this can change when we look for the final
+	// and fall back to the fast.
+	ETextureEncodeSpeed UsedEncodeSpeed;
 	FTexturePlatformData& DerivedData;
 	TOptional<UE::DerivedData::FRequestOwner> Owner;
 	UE::DerivedData::FOptionalBuildSession BuildSession;
@@ -1398,19 +1475,20 @@ private:
 	TOptional<FTextureStatusMessageContext> StatusMessage;
 	UE::TextureDerivedData::FTextureBuildInputResolver InputResolver;
 	FRWLock Lock;
-};
+}; // end DDC2 fetch/build task (FTextureBuildTask)
 
 FTextureAsyncCacheDerivedDataTask* CreateTextureBuildTask(
 	UTexture& Texture,
 	FTexturePlatformData& DerivedData,
-	const FTextureBuildSettings& Settings,
+	const FTextureBuildSettings* SettingsFetch,
+	const FTextureBuildSettings& SettingsFetchOrBuild,
 	EQueuedWorkPriority Priority,
 	ETextureCacheFlags Flags)
 {
 	TStringBuilder<64> FunctionName;
-	if (TryFindTextureBuildFunction(FunctionName, Settings))
+	if (TryFindTextureBuildFunction(FunctionName, SettingsFetchOrBuild.TextureFormatName))
 	{
-		return new FTextureBuildTask(Texture, FunctionName, DerivedData, Settings, Priority, Flags);
+		return new FTextureBuildTask(Texture, FunctionName, DerivedData, SettingsFetch, SettingsFetchOrBuild, Priority, Flags);
 	}
 	return nullptr;
 }
@@ -1423,7 +1501,7 @@ FTexturePlatformData::FStructuredDerivedDataKey CreateTextureDerivedDataKey(
 	using namespace UE::DerivedData;
 
 	TStringBuilder<64> FunctionName;
-	if (TryFindTextureBuildFunction(FunctionName, Settings))
+	if (TryFindTextureBuildFunction(FunctionName, Settings.TextureFormatName))
 	{
 		IBuild& Build = GetBuild();
 

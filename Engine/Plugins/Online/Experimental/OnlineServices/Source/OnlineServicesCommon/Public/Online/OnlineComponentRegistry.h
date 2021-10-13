@@ -5,7 +5,7 @@
 #include <Containers/Array.h>
 #include <Templates/UniquePtr.h>
 
-#include "Online/OnlineComponent.h"
+#include "Online/IOnlineComponent.h"
 #include "Online/OnlineTypeInfo.h"
 #include "Online/OnlineMeta.h"
 

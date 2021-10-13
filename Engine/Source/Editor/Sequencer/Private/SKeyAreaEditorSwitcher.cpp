@@ -29,7 +29,7 @@ void SKeyAreaEditorSwitcher::Rebuild()
 		// Empty our cache so we don't persistently rebuild
 		CachedKeyAreas.Empty();
 
-		// Node is no longer valid so just nuke everything and make this a null widget
+		// Node is no longer valid so just make this a null widget
 		ChildSlot
 		[
 			SNullWidget::NullWidget

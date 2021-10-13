@@ -304,6 +304,19 @@ void FDisplayClusterViewportManager::ConfigureViewFamily(const FDisplayClusterRe
 			break;
 		}
 	}
+	// Disable nanite for lightcards or chromakey
+	{
+		switch (InFrameTarget.CaptureMode)
+		{
+		case EDisplayClusterViewportCaptureMode::Chromakey:
+		case EDisplayClusterViewportCaptureMode::Lightcard:
+		case EDisplayClusterViewportCaptureMode::Lightcard_OCIO:
+			ViewFamily.EngineShowFlags.NaniteMeshes = false;
+			break;
+		default:
+			break;
+		}
+	}
 }
 
 void FDisplayClusterViewportManager::RenderFrame(FViewport* InViewport)

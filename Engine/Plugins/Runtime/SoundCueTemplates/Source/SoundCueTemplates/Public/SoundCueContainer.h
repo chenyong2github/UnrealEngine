@@ -67,11 +67,8 @@ public:
 #endif // WITH_EDITORONLYDATA
 
 #if WITH_EDITOR
-	/** Whitelisted categories, which allows hiding default
-	  * categories from the editor on the inherited SoundCue
-	  * as desired.
-	  */
-	static TSet<FName>& GetWhitelistedCategories();
+	/** List of categories to allow showing on the inherited SoundCue. */
+	static TSet<FName>& GetCategoryAllowList();
 	virtual void OnRebuildGraph(USoundCue& SoundCue) const override;
 
 private:

@@ -361,7 +361,7 @@ void FRPCDoSDetection::InitConfig(FName NetDriverName)
 			NextTimeQuotaCheck = FPlatformTime::Seconds() + (CurConfigObj->InitialConnectToleranceMS / 1000.0);
 		}
 
-		RPCBlockWhitelist = CurConfigObj->RPCBlockWhitelist;
+		RPCBlockAllowList = CurConfigObj->RPCBlockWhitelist;
 	}
 
 
@@ -1022,7 +1022,7 @@ ERPCNotifyResult FRPCDoSDetection::CheckRPCTracking(UFunction* Function, FName F
 		if (bNewTracking)
 		{
 			Tracking.HistoryCount = 1;
-			Tracking.BlockState = RPCBlockWhitelist.Contains(FunctionName) ? ERPCBlockState::Whitelisted : ERPCBlockState::NotBlocked;
+			Tracking.BlockState = RPCBlockAllowList.Contains(FunctionName) ? ERPCBlockState::OnAllowList : ERPCBlockState::NotBlocked;
 		}
 		else if (OldTrackedSecondIncrement != SecondsIncrementer)
 		{
@@ -1096,7 +1096,7 @@ ERPCNotifyResult FRPCDoSDetection::CheckRPCTracking(UFunction* Function, FName F
 		}
 
 		// When tracking is enabled, the quota's are checked every RPC call until blocked (and analytics in the PostSequential call)
-		if (!bNewTracking && PostReceivedRPCBlockCount == 0 && Tracking.BlockState != ERPCBlockState::Whitelisted)
+		if (!bNewTracking && PostReceivedRPCBlockCount == 0 && Tracking.BlockState != ERPCBlockState::OnAllowList)
 		{
 			auto HasHitQuota = [&Tracking](int32 TimePeriod, int32 CountPerPeriod, double SecsPerPeriod)
 				{

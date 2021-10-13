@@ -240,6 +240,7 @@ public:
 	/** Gets information about owning actor */
 	FORCEINLINE AActor* GetOwningActor() const { return CastChecked<AActor>(GetOuter()); }
 	UAbilitySystemComponent* GetOwningAbilitySystemComponent() const;
+	UAbilitySystemComponent* GetOwningAbilitySystemComponentChecked() const;
 	FGameplayAbilityActorInfo* GetActorInfo() const;
 
 	/** Print debug information to the log */
@@ -396,7 +397,7 @@ private:
 #define GAMEPLAYATTRIBUTE_REPNOTIFY(ClassName, PropertyName, OldValue) \
 { \
 	static FProperty* ThisProperty = FindFieldChecked<FProperty>(ClassName::StaticClass(), GET_MEMBER_NAME_CHECKED(ClassName, PropertyName)); \
-	GetOwningAbilitySystemComponent()->SetBaseAttributeValueFromReplication(FGameplayAttribute(ThisProperty), PropertyName, OldValue); \
+	GetOwningAbilitySystemComponentChecked()->SetBaseAttributeValueFromReplication(FGameplayAttribute(ThisProperty), PropertyName, OldValue); \
 }
 
 /**

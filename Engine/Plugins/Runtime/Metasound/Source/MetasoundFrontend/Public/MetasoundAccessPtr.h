@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
 #include "Templates/UnrealTemplate.h"
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

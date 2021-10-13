@@ -473,6 +473,12 @@ class DevicenDisplay(DeviceUnreal):
                 '(-UDPMESSAGING_TRANSPORT_STATIC) in addition to those '
                 'managed by Switchboard.'),
         ),
+        'disable_ensures': BoolSetting(
+            attr_name='disable_ensures',
+            nice_name="Disable Ensures",
+            value=True,
+            tool_tip="When checked, disables the handling of ensure errors - which are non-fatal and may cause hitches."
+        ),
     }
 
     ndisplay_monitor_ui = None
@@ -742,6 +748,12 @@ class DevicenDisplay(DeviceUnreal):
                 '-UDPMESSAGING_TRANSPORT_STATIC='
                 f'\"{",".join(static_endpoints)}\"')
 
+        # Disable ensures
+        disable_ensures = (
+            '-handleensurepercent=0'
+            if DevicenDisplay.csettings['disable_ensures'].get_value()
+            else '')
+
         # fill in fixed arguments
         args = [
             f'"{uproject}"',
@@ -776,6 +788,7 @@ class DevicenDisplay(DeviceUnreal):
             f'{ini_engine}',              # Engine ini injections
             f'{ini_game}',                # Game ini injections
             f'{unattended}',              # -unattended
+            f'{disable_ensures}',         # -handleensurepercent=0
             f'{udpm_transport_multi}',    # -UDPMESSAGING_TRANSPORT_MULTICAST=
             f'{udpm_transport_unicast}',  # -UDPMESSAGING_TRANSPORT_UNICAST=
             f'{udpm_transport_static}',   # -UDPMESSAGING_TRANSPORT_STATIC=

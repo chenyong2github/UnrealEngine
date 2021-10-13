@@ -574,45 +574,43 @@ void FDynamicMesh3::ReverseOrientation(bool bFlipNormals)
 	UpdateChangeStamps(true, true);
 }
 
-EMeshResult FDynamicMesh3::RemoveVertex(int vID, bool bRemoveAllTriangles, bool bPreserveManifold)
+EMeshResult FDynamicMesh3::RemoveVertex(int vID, bool bPreserveManifold)
 {
 	if (VertexRefCounts.IsValid(vID) == false)
 	{
 		return EMeshResult::Failed_NotAVertex;
 	}
 
-	if (bRemoveAllTriangles)
+	// if any one-ring vtx is a boundary vtx and one of its outer-ring edges is an
+	// interior edge then we will create a bowtie if we remove that triangle
+	if (bPreserveManifold)
 	{
-		// if any one-ring vtx is a boundary vtx and one of its outer-ring edges is an
-		// interior edge then we will create a bowtie if we remove that triangle
-		if (bPreserveManifold)
+		for (int tid : VtxTrianglesItr(vID))
 		{
-			for (int tid : VtxTrianglesItr(vID))
+			FIndex3i tri = GetTriangle(tid);
+			int j = IndexUtil::FindTriIndex(vID, tri);
+			int oa = tri[(j + 1) % 3], ob = tri[(j + 2) % 3];
+			int eid = FindEdge(oa, ob);
+			if (IsBoundaryEdge(eid))
 			{
-				FIndex3i tri = GetTriangle(tid);
-				int j = IndexUtil::FindTriIndex(vID, tri);
-				int oa = tri[(j + 1) % 3], ob = tri[(j + 2) % 3];
-				int eid = FindEdge(oa, ob);
-				if (IsBoundaryEdge(eid))
-				{
-					continue;
-				}
-				if (IsBoundaryVertex(oa) || IsBoundaryVertex(ob))
-				{
-					return EMeshResult::Failed_WouldCreateBowtie;
-				}
+				continue;
+			}
+			if (IsBoundaryVertex(oa) || IsBoundaryVertex(ob))
+			{
+				return EMeshResult::Failed_WouldCreateBowtie;
 			}
 		}
+	}
 
-		TArray<int> tris;
-		GetVtxTriangles(vID, tris);
-		for (int tID : tris)
+	// Remove incident triangles
+	TArray<int> tris;
+	GetVtxTriangles(vID, tris);
+	for (int tID : tris)
+	{
+		EMeshResult result = RemoveTriangle(tID, false, bPreserveManifold);
+		if (result != EMeshResult::Ok)
 		{
-			EMeshResult result = RemoveTriangle(tID, false, bPreserveManifold);
-			if (result != EMeshResult::Ok)
-			{
-				return result;
-			}
+			return result;
 		}
 	}
 

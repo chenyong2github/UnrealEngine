@@ -72,7 +72,8 @@ void UAnimSequenceBase::PostLoad()
 	{
 		const bool bRequiresModelCreation = DataModel == nullptr;
 		const bool bRequiresModelPopulation = GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::IntroducingAnimationDataModel;
-		checkf(bRequiresModelPopulation || DataModel != nullptr, TEXT("Invalid Animation Sequence base state, no data model found past upgrade object version"));
+		// for now, allow filtered (cooked) packages to not have the DataModel, and recreate it. this is temporary until we come up with best solution (JIRA UE-130385)
+		checkf(bRequiresModelPopulation || DataModel != nullptr || GetOutermost()->HasAnyPackageFlags(PKG_FilterEditorOnly), TEXT("Invalid Animation Sequence base state, no data model found past upgrade object version"));
 
 		// Construct a new UAnimDataModel instance
 		if(bRequiresModelCreation)

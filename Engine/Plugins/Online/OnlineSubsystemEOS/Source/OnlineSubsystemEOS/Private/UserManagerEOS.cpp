@@ -258,6 +258,7 @@ void FUserManagerEOS::GetPlatformAuthToken(int32 LocalUserNum, const FOnGetLinke
 
 typedef TEOSCallback<EOS_Auth_OnLoginCallback, EOS_Auth_LoginCallbackInfo> FLoginCallback;
 typedef TEOSCallback<EOS_Connect_OnLoginCallback, EOS_Connect_LoginCallbackInfo> FConnectLoginCallback;
+typedef TEOSCallback<EOS_Auth_OnDeletePersistentAuthCallback, EOS_Auth_DeletePersistentAuthCallbackInfo> FDeletePersistentAuthCallback;
 
 // Chose arbitrarily since the SDK doesn't define it
 #define EOS_MAX_TOKEN_SIZE 4096
@@ -271,6 +272,9 @@ struct FAuthCredentials :
 		ApiVersion = EOS_AUTH_CREDENTIALS_API_LATEST;
 		Id = IdAnsi;
 		Token = TokenAnsi;
+
+		FMemory::Memset(IdAnsi, 0, sizeof(IdAnsi));
+		FMemory::Memset(TokenAnsi, 0, sizeof(TokenAnsi));
 	}
 
 	FAuthCredentials(EOS_EExternalCredentialType InExternalType, const FExternalAuthToken& AuthToken) :
@@ -363,6 +367,8 @@ bool FUserManagerEOS::Login(int32 LocalUserNum, const FOnlineAccountCredentials&
 	LoginOptions.Credentials = &Credentials;
 	EOSHelpers->PlatformAuthCredentials(Credentials);
 
+	bool bIsPersistentLogin = false;
+
 	if (AccountCredentials.Type == TEXT("exchangecode"))
 	{
 		// This is how the Epic launcher will pass credentials to you
@@ -381,6 +387,19 @@ bool FUserManagerEOS::Login(int32 LocalUserNum, const FOnlineAccountCredentials&
 		// This is auth via the EOS Account Portal
 		Credentials.Type = EOS_ELoginCredentialType::EOS_LCT_AccountPortal;
 	}
+	else if (AccountCredentials.Type == TEXT("persistentauth"))
+	{
+		// Use locally stored token managed by EOSSDK keyring to attempt login.
+		Credentials.Type = EOS_ELoginCredentialType::EOS_LCT_PersistentAuth;
+
+		// Id and Token must be null when using EOS_ELoginCredentialType::EOS_LCT_PersistentAuth
+		Credentials.Id = nullptr;
+		Credentials.Token = nullptr;
+
+		// Store selection of persistent auth.
+		// The persistent auth token is handled by the EOSSDK. On a login failure the persistent token may need to be deleted if it is invalid.
+		bIsPersistentLogin = true;
+	}
 	else
 	{
 		UE_LOG_ONLINE(Warning, TEXT("Unable to Login() user (%d) due to missing auth parameters"), LocalUserNum);
@@ -389,7 +408,7 @@ bool FUserManagerEOS::Login(int32 LocalUserNum, const FOnlineAccountCredentials&
 	}
 
 	FLoginCallback* CallbackObj = new FLoginCallback();
-	CallbackObj->CallbackLambda = [this, LocalUserNum](const EOS_Auth_LoginCallbackInfo* Data)
+	CallbackObj->CallbackLambda = [this, LocalUserNum, bIsPersistentLogin](const EOS_Auth_LoginCallbackInfo* Data)
 	{
 		if (Data->ResultCode == EOS_EResult::EOS_Success)
 		{
@@ -398,9 +417,37 @@ bool FUserManagerEOS::Login(int32 LocalUserNum, const FOnlineAccountCredentials&
 		}
 		else
 		{
-			FString ErrorString = FString::Printf(TEXT("Login(%d) failed with EOS result code (%s)"), LocalUserNum, ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
-			UE_LOG_ONLINE(Warning, TEXT("%s"), *ErrorString);
-			TriggerOnLoginCompleteDelegates(LocalUserNum, false, *FUniqueNetIdEOS::EmptyId(), ErrorString);
+			auto TriggerLoginFailure = [this, LocalUserNum, LoginResultCode = Data->ResultCode]()
+			{
+				FString ErrorString = FString::Printf(TEXT("Login(%d) failed with EOS result code (%s)"), LocalUserNum, ANSI_TO_TCHAR(EOS_EResult_ToString(LoginResultCode)));
+				UE_LOG_ONLINE(Warning, TEXT("%s"), *ErrorString);
+				TriggerOnLoginCompleteDelegates(LocalUserNum, false, *FUniqueNetIdEOS::EmptyId(), ErrorString);
+			};
+
+			const bool bShouldRemoveCachedToken =
+				Data->ResultCode == EOS_EResult::EOS_InvalidAuth ||
+				Data->ResultCode == EOS_EResult::EOS_AccessDenied ||
+				Data->ResultCode == EOS_EResult::EOS_Auth_InvalidToken;
+
+			// Check for invalid persistent login credentials.
+			if (bIsPersistentLogin && bShouldRemoveCachedToken)
+			{
+				FDeletePersistentAuthCallback* DeleteAuthCallbackObj = new FDeletePersistentAuthCallback();
+				DeleteAuthCallbackObj->CallbackLambda = [this, LocalUserNum, TriggerLoginFailure](const EOS_Auth_DeletePersistentAuthCallbackInfo* Data)
+				{
+					// Deleting the auth token is best effort.
+					TriggerLoginFailure();
+				};
+
+				EOS_Auth_DeletePersistentAuthOptions DeletePersistentAuthOptions;
+				DeletePersistentAuthOptions.ApiVersion = EOS_AUTH_DELETEPERSISTENTAUTH_API_LATEST;
+				DeletePersistentAuthOptions.RefreshToken = nullptr;
+				EOS_Auth_DeletePersistentAuth(EOSSubsystem->AuthHandle, &DeletePersistentAuthOptions, (void*)DeleteAuthCallbackObj, DeleteAuthCallbackObj->GetCallbackPtr());
+			}
+			else
+			{
+				TriggerLoginFailure();
+			}
 		}
 	};
 	// Perform the auth call
@@ -759,16 +806,25 @@ bool FUserManagerEOS::Logout(int32 LocalUserNum)
 	FLogoutCallback* CallbackObj = new FLogoutCallback();
 	CallbackObj->CallbackLambda = [LocalUserNum, this](const EOS_Auth_LogoutCallbackInfo* Data)
 	{
-		if (Data->ResultCode == EOS_EResult::EOS_Success)
+		FDeletePersistentAuthCallback* DeleteAuthCallbackObj = new FDeletePersistentAuthCallback();
+		DeleteAuthCallbackObj->CallbackLambda = [this, LocalUserNum, LogoutResultCode = Data->ResultCode](const EOS_Auth_DeletePersistentAuthCallbackInfo* Data)
 		{
-			RemoveLocalUser(LocalUserNum);
+			if (LogoutResultCode == EOS_EResult::EOS_Success)
+			{
+				RemoveLocalUser(LocalUserNum);
 
-			TriggerOnLogoutCompleteDelegates(LocalUserNum, true);
-		}
-		else
-		{
-			TriggerOnLogoutCompleteDelegates(LocalUserNum, false);
-		}
+				TriggerOnLogoutCompleteDelegates(LocalUserNum, true);
+			}
+			else
+			{
+				TriggerOnLogoutCompleteDelegates(LocalUserNum, false);
+			}
+		};
+
+		EOS_Auth_DeletePersistentAuthOptions DeletePersistentAuthOptions;
+		DeletePersistentAuthOptions.ApiVersion = EOS_AUTH_DELETEPERSISTENTAUTH_API_LATEST;
+		DeletePersistentAuthOptions.RefreshToken = nullptr;
+		EOS_Auth_DeletePersistentAuth(EOSSubsystem->AuthHandle, &DeletePersistentAuthOptions, (void*)DeleteAuthCallbackObj, DeleteAuthCallbackObj->GetCallbackPtr());
 	};
 
 	EOS_Auth_LogoutOptions LogoutOptions = { };

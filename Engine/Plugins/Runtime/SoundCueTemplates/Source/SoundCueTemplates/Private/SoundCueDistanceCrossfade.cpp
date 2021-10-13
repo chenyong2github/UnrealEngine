@@ -88,7 +88,7 @@ void USoundCueDistanceCrossfade::OnRebuildGraph(USoundCue& SoundCue) const
 	}
 }
 
-TSet<FName>& USoundCueDistanceCrossfade::GetWhitelistedCategories()
+TSet<FName>& USoundCueDistanceCrossfade::GetCategoryAllowList()
 {
 	static TSet<FName> Categories;
 	if (Categories.Num() == 0)
@@ -115,10 +115,10 @@ void FSoundCueDistanceCrossfadeDetailCustomization::CustomizeDetails(IDetailLayo
 	TArray<FName> CategoryNames;
 	DetailLayout.GetCategoryNames(CategoryNames);
 
-	const TSet<FName>& Whitelist = USoundCueDistanceCrossfade::GetWhitelistedCategories();
+	const TSet<FName>& AllowList = USoundCueDistanceCrossfade::GetCategoryAllowList();
 	for (FName CategoryName : CategoryNames)
 	{
-		if (!Whitelist.Contains(CategoryName))
+		if (!AllowList.Contains(CategoryName))
 		{
 			DetailLayout.HideCategory(CategoryName);
 		}

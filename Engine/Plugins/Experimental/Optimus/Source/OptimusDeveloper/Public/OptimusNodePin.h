@@ -5,7 +5,7 @@
 #include "OptimusDataType.h"
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "OptimusDataDomain.h"
 
 #include "OptimusNodePin.generated.h"
 
@@ -39,18 +39,18 @@ struct FOptimusNodePinStorageConfig
 	FOptimusNodePinStorageConfig() = default;
 	
 	// Create a storage config for a resource pin.
-	FOptimusNodePinStorageConfig(const TArray<FName>& InContexts) :
+	FOptimusNodePinStorageConfig(const TArray<FName>& InDataDomainLevelNames) :
 		Type(EOptimusNodePinStorageType::Resource),
-		ResourceContexts(InContexts)
+		DataDomain(InDataDomainLevelNames)
 	{ }
 	
 	UPROPERTY()
 	EOptimusNodePinStorageType Type = EOptimusNodePinStorageType::Value;
 
-	// The context set for this pin. Can be one or more, for a given resource. Each context
+	// The data domain for this pin. Can be one or more, for a given resource. Each domain level
 	// adds another lookup dimension to the resource.
 	UPROPERTY()
-	TArray<FName> ResourceContexts;
+	FOptimusMultiLevelDataDomain DataDomain;
 };
 
 
@@ -104,11 +104,11 @@ public:
 	/** Returns the storage type for this pin, either a value or a bound resource */
 	EOptimusNodePinStorageType GetStorageType() const { return StorageType; }
 
-	/** Returns the nested resource context names for this pin, if a resource pin, otherwise
+	/** Returns the data domain level names for this pin, if a resource pin, otherwise
 	 *  returns an empty array */
-	TArray<FName> GetResourceContexts() const
+	TArray<FName> GetDataDomainLevelNames() const
 	{
-		return StorageType == EOptimusNodePinStorageType::Resource ? ResourceContexts : TArray<FName>();
+		return StorageType == EOptimusNodePinStorageType::Resource ? DataDomain.LevelNames : TArray<FName>();
 	}
 
 	/** Returns the FProperty object for this pin. This can be used to directly address the
@@ -199,7 +199,7 @@ private:
 	FName ResourceContext_DEPRECATED;
 
 	UPROPERTY()
-	TArray<FName> ResourceContexts;
+	FOptimusMultiLevelDataDomain DataDomain;
 	
 	UPROPERTY()
 	FOptimusDataTypeRef DataType;

@@ -354,7 +354,7 @@ void SLevelSequenceContextPicker::Construct(const FArguments& InArgs)
 			[
 				SNew(SImage)
 				.ColorAndOpacity(FSlateColor::UseForeground())
-				.Image(FEditorStyle::GetBrush("SceneOutliner.World"))
+				.Image(FAppStyle::Get().GetBrush("Icons.World"))
 			]
 		]
 	];

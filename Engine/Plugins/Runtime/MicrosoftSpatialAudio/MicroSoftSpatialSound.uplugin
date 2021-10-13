@@ -22,7 +22,7 @@
 			"Name": "MicrosoftSpatialSound",
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"HoloLens",
 				"Win64"
 			]

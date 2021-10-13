@@ -981,24 +981,17 @@ struct FNetPrivatePushIdHelper
 };
 #endif // (WITH_PUSH_MODEL)
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FRepChangedPropertyTracker::FRepChangedPropertyTracker(const bool InbIsReplay, const bool InbIsClientReplayRecording) :
-	bIsReplay(InbIsReplay),
 	bIsClientReplayRecording(InbIsClientReplayRecording),
 	ExternalDataNumBits(0)
 {}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-FRepChangedPropertyTracker::~FRepChangedPropertyTracker() {}
 
 void FRepChangedPropertyTracker::SetCustomIsActiveOverride(UObject* OwningObject, const uint16 RepIndex, const bool bIsActive)
 {
 	FRepChangedParent& Parent = Parents[RepIndex];
 
 	Parent.OldActive = Parent.Active;
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Parent.Active = (bIsActive || bIsClientReplayRecording) ? 1 : 0;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_PUSH_MODEL
 	if (!Parent.OldActive && Parent.Active)
@@ -1007,7 +1000,6 @@ void FRepChangedPropertyTracker::SetCustomIsActiveOverride(UObject* OwningObject
 	}
 #endif	
 }
-
 
 void FRepChangedPropertyTracker::SetExternalData(const uint8* Src, const int32 NumBits)
 {
@@ -1024,7 +1016,6 @@ void FRepChangedPropertyTracker::CountBytes(FArchive& Ar) const
 	Ar.CountBytes(sizeof(FRepChangedPropertyTracker), sizeof(FRepChangedPropertyTracker));
 	Parents.CountBytes(Ar);
 	ExternalData.CountBytes(Ar);
-
 }
 
 void FRepStateStaticBuffer::CountBytes(FArchive& Ar) const
@@ -6182,7 +6173,7 @@ void FRepLayout::InitFromClass(
 	}
 #endif
 
-	if (NumberOfLifetimeProperties == 0)
+	if (NumberOfLifetimeProperties == 0 && !LifetimeCustomPropertyState.IsValid())
 	{
 		Flags |= ERepLayoutFlags::NoReplicatedProperties;
 	}
@@ -6972,13 +6963,13 @@ FRepStateStaticBuffer FRepLayout::CreateShadowBuffer(const FConstRepObjectDataBu
 	if (!IsEmpty())
 	{
 		if (ShadowDataBufferSize == 0)
-	{
-		UE_LOG(LogRep, Error, TEXT("FRepLayout::InitShadowData: Invalid RepLayout: %s"), *GetPathNameSafe(Owner));
-	}
+		{
+			UE_LOG(LogRep, Error, TEXT("FRepLayout::InitShadowData: Invalid RepLayout: %s"), *GetPathNameSafe(Owner));
+		}
 		else
-	{
-		InitRepStateStaticBuffer(ShadowData, Source);
-	}
+		{
+			InitRepStateStaticBuffer(ShadowData, Source);
+		}
 	}
 
 	return ShadowData;

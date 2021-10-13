@@ -291,7 +291,7 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 TSharedRef<class SWidget> SMediaFrameworkVideoInput::MakeToolBar()
 {
-	FToolBarBuilder ToolBarBuilder(TSharedPtr<FUICommandList>(), FMultiBoxCustomization::None);
+	FSlimHorizontalToolBarBuilder ToolBarBuilder(TSharedPtr<FUICommandList>(), FMultiBoxCustomization::None);
 	ToolBarBuilder.BeginSection(TEXT("Player"));
 	{
 		ToolBarBuilder.AddToolBarButton(
@@ -307,8 +307,9 @@ TSharedRef<class SWidget> SMediaFrameworkVideoInput::MakeToolBar()
 			NAME_None,
 			LOCTEXT("Play_Label", "Play"),
 			LOCTEXT("Play_ToolTip", "Open the video feeds"),
-			FSlateIcon(FMediaFrameworkUtilitiesEditorStyle::GetStyleSetName(), "VideoInput.Play")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Toolbar.Play")
 			);
+
 		ToolBarBuilder.AddToolBarButton(
 			FUIAction(
 				FExecuteAction::CreateLambda([this]
@@ -323,27 +324,39 @@ TSharedRef<class SWidget> SMediaFrameworkVideoInput::MakeToolBar()
 			NAME_None,
 			LOCTEXT("Stop_Label", "Stop"),
 			LOCTEXT("Stop_ToolTip", "Stop playing the video feeds"),
-			FSlateIcon(FMediaFrameworkUtilitiesEditorStyle::GetStyleSetName(), "VideoInput.Stop")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Toolbar.Stop")
 			);
 	}
 	ToolBarBuilder.EndSection();
-	ToolBarBuilder.BeginSection("Options");
+
+
+	FSlimHorizontalToolBarBuilder RightToolBarBuilder(TSharedPtr<FUICommandList>(), FMultiBoxCustomization::None);
+	RightToolBarBuilder.BeginSection("Options");
 	{
 		FUIAction OpenSettingsMenuAction;
 		OpenSettingsMenuAction.CanExecuteAction = FCanExecuteAction::CreateLambda([this] { return !bIsPlaying; });
 
-		ToolBarBuilder.AddComboButton(
+		RightToolBarBuilder.AddComboButton(
 			OpenSettingsMenuAction,
 			FOnGetContent::CreateRaw(this, &SMediaFrameworkVideoInput::CreateSettingsMenu),
 			LOCTEXT("Settings_Label", "Settings"),
 			LOCTEXT("Settings_ToolTip", "Settings"),
-			FSlateIcon(FMediaFrameworkUtilitiesEditorStyle::GetStyleSetName(), "VideoInput.Settings")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Toolbar.Settings")
 		);
 	}
-	ToolBarBuilder.EndSection();
+	RightToolBarBuilder.EndSection();
 
+	return SNew(SHorizontalBox)
+	+SHorizontalBox::Slot()
+	[
+		ToolBarBuilder.MakeWidget()
+	]
 
-	return ToolBarBuilder.MakeWidget();
+	+SHorizontalBox::Slot()
+	.AutoWidth()
+	[
+		RightToolBarBuilder.MakeWidget()
+	];
 }
 
 

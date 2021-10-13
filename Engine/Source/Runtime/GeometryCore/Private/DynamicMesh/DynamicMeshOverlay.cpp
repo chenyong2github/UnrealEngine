@@ -1489,7 +1489,7 @@ bool TDynamicMeshOverlay<RealType, ElementSize>::CheckValidity(bool bAllowNonMan
 	{
 		int32 CurRefCount = ElementsRefCounts.GetRefCount(ElementID);
 		CheckOrFailF((RealRefCounts[ElementID] == 0 && CurRefCount == 0)
-			|| (RealRefCounts[ElementID] != 0 && CurRefCount == RealRefCounts[ElementID] + 1));
+			|| (CurRefCount == RealRefCounts[ElementID] + 1));
 	}
 
 	return is_ok;

@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "Internationalization/Text.h"
 #include "MetasoundAccessPtr.h"
 #include "MetasoundFrontendLiteral.h"
@@ -48,11 +49,20 @@ enum class EMetasoundFrontendClassType : uint8
 	// The Metasound class is an input into a graph in the containing document.
 	Input,
 
-	// The Metasound class is an internal variable of a graph in the containing document.
-	Variable,
-
 	// The Metasound class is an output from a graph in the containing document.
 	Output,
+
+	// The Metasound class is an literal requiring an literal value to construct.
+	Literal,
+
+	// The Metasound class is an variable requiring an literal value to construct.
+	Variable,
+
+	// The MetaSound class accesses variables.
+	VariableAccessor,
+
+	// The MetaSound class mutates variables.
+	VariableMutator,
 
 	Invalid UMETA(Hidden)
 };
@@ -249,6 +259,45 @@ struct FMetasoundFrontendVertexLiteral
 	FMetasoundFrontendLiteral Value;
 };
 
+// Contains graph data associated with a variable.
+USTRUCT()
+struct FMetasoundFrontendVariable
+{
+	GENERATED_BODY()
+
+	// Variable display name
+	UPROPERTY()
+	FText DisplayName;
+
+	// Variable data type name
+	UPROPERTY()
+	FName TypeName;
+
+	// Literal used to initialize the variable.
+	UPROPERTY()
+	FMetasoundFrontendLiteral Literal;
+
+	// Unique ID for the variable
+	UPROPERTY()
+	FGuid ID = Metasound::FrontendInvalidID;
+
+	// Node ID of the associated VariableNode
+	UPROPERTY()
+	FGuid VariableNodeID = Metasound::FrontendInvalidID;
+
+	// Node ID of the associated VariableMutatorNode
+	UPROPERTY()
+	FGuid MutatorNodeID = Metasound::FrontendInvalidID;
+
+	// Node IDs of the associated VariableAccessorNodes
+	UPROPERTY()
+	TArray<FGuid> AccessorNodeIDs;
+
+	// Node IDs of the associated VariableDeferredAccessorNodes
+	UPROPERTY()
+	TArray<FGuid> DeferredAccessorNodeIDs;
+};
+
 
 USTRUCT()
 struct METASOUNDFRONTEND_API FMetasoundFrontendNodeInterface
@@ -356,9 +405,9 @@ public:
 		return ID;
 	}
 
-	void UpdateID()
+	void UpdateID(const FGuid& InNewGuid)
 	{
-		ID = FGuid::NewGuid();
+		ID = InNewGuid;
 	}
 };
 
@@ -447,6 +496,10 @@ struct FMetasoundFrontendGraph
 	// Connections between points on nodes.
 	UPROPERTY()
 	TArray<FMetasoundFrontendEdge> Edges;
+
+	// Graph local variables.
+	UPROPERTY()
+	TArray<FMetasoundFrontendVariable> Variables;
 
 	// Style of graph display.
 	UPROPERTY()

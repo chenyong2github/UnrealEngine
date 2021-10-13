@@ -362,7 +362,7 @@ void UNiagaraNodeEmitter::BuildParameterMapHistory(FNiagaraParameterMapHistoryBu
 			FNiagaraParameterMapHistoryBuilder ChildBuilder;
 			ChildBuilder.ConstantResolver = OutHistory.ConstantResolver;
 			ChildBuilder.RegisterEncounterableVariables(OutHistory.GetEncounterableVariables());
-			ChildBuilder.EnableScriptWhitelist(true, GetUsage());
+			ChildBuilder.EnableScriptAllowList(true, GetUsage());
 			FString LocalEmitterName = TEXT("Emitter");
 			ChildBuilder.EnterEmitter(LocalEmitterName, Graph, this);
 			for (UNiagaraNodeOutput* OutputNode : OutputNodes)

@@ -20,7 +20,7 @@
 			"Name": "GameplayInsights",
 			"Type": "EditorAndProgram",
 			"LoadingPhase": "Default",
-			"WhitelistPrograms": [
+			"ProgramAllowList": [
 				"UnrealInsights"
 			]
 		},

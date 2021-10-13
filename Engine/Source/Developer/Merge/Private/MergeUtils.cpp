@@ -66,16 +66,9 @@ UObject const* FMergeToolUtils::LoadRevision(const FString& PackageName, const F
 	const UObject* AssetRevision = nullptr;
 	if (UPackage* AssetPackage = LoadPackage(/*Outer =*/nullptr, *PackageName, LOAD_None))
 	{
-		TArray<UObject*> PackageObjs;
-		GetObjectsWithOuter(AssetPackage, PackageObjs, /*bIncludeNestedObjects =*/false);
-
-		for (UObject* PackageObj : PackageObjs)
+		if (UObject* Asset = AssetPackage->FindAssetInPackage())
 		{
-			if (PackageObj->IsAsset() && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(PackageObj))
-			{
-				AssetRevision = LoadRevision(PackageObj, DesiredRevision);
-				break;
-			}
+			AssetRevision = LoadRevision(Asset, DesiredRevision);
 		}
 	}
 	return AssetRevision;

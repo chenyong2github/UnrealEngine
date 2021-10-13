@@ -8,10 +8,13 @@
 #include "Serialization/ArchiveSerializedPropertyChain.h"
 #include "UObject/UnrealType.h"
 
-FTakeWorldObjectSnapshotArchive FTakeWorldObjectSnapshotArchive::MakeArchiveForSavingWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject)
+void FTakeWorldObjectSnapshotArchive::TakeSnapshot(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject)
 {
-	ensure(InOriginalObject);
-	return FTakeWorldObjectSnapshotArchive(InObjectData, InSharedData, InOriginalObject);
+	check(InOriginalObject);
+	
+	FTakeWorldObjectSnapshotArchive Archive(InObjectData, InSharedData, InOriginalObject);
+	InOriginalObject->Serialize(Archive);
+	InObjectData.ObjectFlags = InOriginalObject->GetFlags();
 }
 
 FTakeWorldObjectSnapshotArchive::FTakeWorldObjectSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject)

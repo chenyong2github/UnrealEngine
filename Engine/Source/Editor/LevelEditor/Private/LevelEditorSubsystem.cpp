@@ -10,7 +10,6 @@
 #include "FileHelpers.h"
 #include "IAssetViewport.h"
 #include "LevelEditor.h"
-#include "LevelEditor.h"
 #include "LevelEditorMenuContext.h"
 #include "Modules/ModuleManager.h"
 #include "SLevelViewport.h"
@@ -18,6 +17,7 @@
 #include "ToolMenuDelegates.h"
 #include "ToolMenus.h"
 #include "UnrealEdGlobals.h"
+#include "EditorModeManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LevelEditorSubsystem, Log, All);
 
@@ -611,9 +611,23 @@ ULevel* ULevelEditorSubsystem::GetCurrentLevel()
 
 UTypedElementSelectionSet* ULevelEditorSubsystem::GetSelectionSet()
 {
-	if (TSharedPtr<ILevelEditor> LevelEditor = GCurrentLevelEditingViewportClient->ParentLevelEditor.Pin())
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+	TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetFirstLevelEditor();
+	if (LevelEditor.IsValid())
 	{
 		return LevelEditor->GetMutableElementSelectionSet();
+	}
+
+	return nullptr;
+}
+
+FEditorModeTools* ULevelEditorSubsystem::GetLevelEditorModeManager()
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+	TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetFirstLevelEditor();
+	if (LevelEditor.IsValid() && !IsRunningCommandlet())
+	{
+		return &LevelEditor->GetEditorModeManager();
 	}
 
 	return nullptr;

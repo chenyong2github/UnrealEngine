@@ -39,7 +39,7 @@
 			"Name": "ONNXRuntime",
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64", "Linux", "Mac"
 			]
 		},

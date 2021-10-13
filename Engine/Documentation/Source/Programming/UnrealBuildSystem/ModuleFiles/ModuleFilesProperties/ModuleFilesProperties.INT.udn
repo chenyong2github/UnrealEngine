@@ -62,7 +62,7 @@ $ IsRedistributableOverride (Nullable&lt;Boolean&gt;): Redistribution override f
 
 $ bLegalToDistributeObjectCode (Boolean): Whether the output from this module can be publicly distributed, even if it has code/ dependencies on modules that are not (i.e. CarefullyRedist, NotForLicensees, NoRedist). This should be used when you plan to release binaries but not source.
 
-$ WhitelistRestrictedFolders (List&lt;String&gt;): List of folders which are whitelisted to be referenced when compiling this binary, without propagating restricted folder names
+$ WhitelistRestrictedFolders (List&lt;String&gt;): List of folders which are allowed to be referenced when compiling this binary, without propagating restricted folder names
 
 $ AliasRestrictedFolders (Dictionary&lt;String, String&gt;): Set of aliased restricted folder references
 

@@ -22,10 +22,7 @@
 	#define VF_VertexOffset 3
 
 	Buffer<float4> VertexFetch_BoneOriginBuffer;
-	Buffer<float4> VertexFetch_BoneTransformBuffer;
 	Buffer<float4> VertexFetch_BoneLightmapBuffer;
-	Buffer<float4> VertexFetch_BonePrevTransformBuffer;
-	Buffer<uint>   VertexFetch_BoneMapBuffer;
 #endif
 
 // Since we don't have template functions it will have to be this way.
@@ -101,30 +98,8 @@ struct FVertexFactoryInput
 #endif
 };
 
-#if RAYHITGROUPSHADER
 
-uint GetNumRayTracingDynamicMeshVerticesIndirect()
-{
-	return 0;
-}
 
-FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexIndex)
-{
-	FVertexFactoryInput Input = (FVertexFactoryInput)0;
-
-	FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(TriangleIndex);
-
-	Input.VertexId = Tri.Indices[VertexIndex];
-	Input.Position = float4(Tri.LocalPositions[VertexIndex], 1.0f);
-#if VF_USE_PRIMITIVE_SCENE_DATA
-	// Note: GetInstanceUserData() stores the GPU-Scene primitive ID
-	Input.InstanceIdOffset = GetInstanceUserData() | VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG;
-	Input.DrawInstanceId = 0;
-#endif // VF_USE_PRIMITIVE_SCENE_DATA
-
-	return Input;
-}
-#endif
 
 /** 
  * Per-vertex inputs from bound vertex buffers.  Used by passes with a trimmed down position-only shader.
@@ -357,20 +332,20 @@ FTransformData LoadTransformData(FSceneDataIntermediates SceneData, uint VertexI
 	FLWCMatrix PrevInstanceLocalToWorld = TransformData.SceneData.InstanceData.PrevLocalToWorld;
 
 #if MANUAL_VERTEX_FETCH
-	uint BoneIndex = VertexFetch_BoneMapBuffer[GeometryCollectionVF.VertexFetch_Parameters[VF_VertexOffset] + VertexId];
+	uint BoneIndex = GCBoneLooseParameters.VertexFetch_BoneMapBuffer[GeometryCollectionVF.VertexFetch_Parameters[VF_VertexOffset] + VertexId];
 	float4x4 LocalToInstance = float4x4(
-		float4(VertexFetch_BoneTransformBuffer[4 * BoneIndex + 0].xyz, 0.0f),
-		float4(VertexFetch_BoneTransformBuffer[4 * BoneIndex + 1].xyz, 0.0f),
-		float4(VertexFetch_BoneTransformBuffer[4 * BoneIndex + 2].xyz, 0.0f),
-		float4(VertexFetch_BoneTransformBuffer[4 * BoneIndex + 3].xyz, 1.0f));
+		float4(GCBoneLooseParameters.VertexFetch_BoneTransformBuffer[4 * BoneIndex + 0].xyz, 0.0f),
+		float4(GCBoneLooseParameters.VertexFetch_BoneTransformBuffer[4 * BoneIndex + 1].xyz, 0.0f),
+		float4(GCBoneLooseParameters.VertexFetch_BoneTransformBuffer[4 * BoneIndex + 2].xyz, 0.0f),
+		float4(GCBoneLooseParameters.VertexFetch_BoneTransformBuffer[4 * BoneIndex + 3].xyz, 1.0f));
 
 	TransformData.LocalToWorld = LWCMultiply(LocalToInstance, InstanceLocalToWorld);
 
 	float4x4 PrevLocalToInstance = float4x4(
-		float4(VertexFetch_BonePrevTransformBuffer[4 * BoneIndex + 0].xyz, 0.0f),
-		float4(VertexFetch_BonePrevTransformBuffer[4 * BoneIndex + 1].xyz, 0.0f),
-		float4(VertexFetch_BonePrevTransformBuffer[4 * BoneIndex + 2].xyz, 0.0f),
-		float4(VertexFetch_BonePrevTransformBuffer[4 * BoneIndex + 3].xyz, 1.0f));
+		float4(GCBoneLooseParameters.VertexFetch_BonePrevTransformBuffer[4 * BoneIndex + 0].xyz, 0.0f),
+		float4(GCBoneLooseParameters.VertexFetch_BonePrevTransformBuffer[4 * BoneIndex + 1].xyz, 0.0f),
+		float4(GCBoneLooseParameters.VertexFetch_BonePrevTransformBuffer[4 * BoneIndex + 2].xyz, 0.0f),
+		float4(GCBoneLooseParameters.VertexFetch_BonePrevTransformBuffer[4 * BoneIndex + 3].xyz, 1.0f));
 
 	TransformData.PrevLocalToWorld = LWCMultiply(PrevLocalToInstance, PrevInstanceLocalToWorld);
 #else
@@ -541,6 +516,132 @@ uint VertexFactoryGetPrimitiveId(FVertexFactoryInterpolantsVSToPS Interpolants)
 {
 	return GetPrimitiveId(Interpolants);
 }
+
+#if RAYHITGROUPSHADER
+
+struct FVertexFactoryRayTracingInterpolants
+{
+	FVertexFactoryInterpolantsVSToPS InterpolantsVSToPS;
+};
+
+float2 VertexFactoryGetRayTracingTextureCoordinate(FVertexFactoryRayTracingInterpolants Interpolants)
+{
+#if NUM_MATERIAL_TEXCOORDS
+	return Interpolants.InterpolantsVSToPS.TexCoords[0].xy;
+#else // #if NUM_MATERIAL_TEXCOORDS
+	return float2(0, 0);
+#endif // #if NUM_MATERIAL_TEXCOORDS
+}
+
+FVertexFactoryInterpolantsVSToPS VertexFactoryAssignInterpolants(FVertexFactoryRayTracingInterpolants Input)
+{
+	return Input.InterpolantsVSToPS;
+}
+
+FVertexFactoryRayTracingInterpolants VertexFactoryGetRayTracingInterpolants(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, FMaterialVertexParameters VertexParameters)
+{
+	FVertexFactoryRayTracingInterpolants Interpolants;
+
+	Interpolants.InterpolantsVSToPS = VertexFactoryGetInterpolantsVSToPS(Input, Intermediates, VertexParameters);
+
+	return Interpolants;
+}
+
+FVertexFactoryRayTracingInterpolants VertexFactoryInterpolate(FVertexFactoryRayTracingInterpolants a, float aInterp, FVertexFactoryRayTracingInterpolants b, float bInterp)
+{
+	// Default initialize. Otherwise, some graphics pipelines that
+	// couple tessellation with geometry shaders won't write to all TEXCOORD semantics,
+	// but read from them when <FVertexFactoryRayTracingInterpolants> is being copied as a whole.
+	FVertexFactoryRayTracingInterpolants O = (FVertexFactoryRayTracingInterpolants)0;
+
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	O.InterpolantsVSToPS.PrimitiveId = a.InterpolantsVSToPS.PrimitiveId;
+#if NEEDS_LIGHTMAP_COORDINATE
+	O.InterpolantsVSToPS.LightmapDataIndex = a.InterpolantsVSToPS.LightmapDataIndex;
+#endif
+#endif	
+	// Do we really need to interpolate TangentToWorld2 here? It should be replaced by the
+	// interpolated normal from 'whatever' interpolation scheme we're using
+
+	INTERPOLATE_MEMBER(InterpolantsVSToPS.TangentToWorld0.xyz);
+	INTERPOLATE_MEMBER(InterpolantsVSToPS.TangentToWorld2);
+#if INTERPOLATE_VERTEX_COLOR
+	INTERPOLATE_MEMBER(InterpolantsVSToPS.Color);
+#endif
+#if USE_INSTANCING || USE_INSTANCE_CULLING
+	INTERPOLATE_MEMBER(InterpolantsVSToPS.PerInstanceParams);
+#endif
+
+#if NEEDS_LIGHTMAP_COORDINATE
+	INTERPOLATE_MEMBER(InterpolantsVSToPS.LightMapCoordinate);
+#endif
+
+#if NUM_TEX_COORD_INTERPOLATORS
+	UNROLL
+		for (int tc = 0; tc < (NUM_TEX_COORD_INTERPOLATORS + 1) / 2; ++tc)
+		{
+			INTERPOLATE_MEMBER(InterpolantsVSToPS.TexCoords[tc]);
+		}
+#elif USE_PARTICLE_SUBUVS
+	INTERPOLATE_MEMBER(InterpolantsVSToPS.TexCoords[0]);
+#endif
+
+	return O;
+}
+#endif
+
+
+#if RAYHITGROUPSHADER
+
+FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexIndex)
+{
+	FVertexFactoryInput Input = (FVertexFactoryInput)0;
+
+	FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(TriangleIndex);
+
+	Input.VertexId = Tri.Indices[VertexIndex];
+	Input.Position = float4(Tri.LocalPositions[VertexIndex], 1.0f);
+
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	// Note: GetInstanceUserData() stores the GPU-Scene primitive ID
+	int PrimitiveId = GetInstanceUserData();
+	Input.InstanceIdOffset = PrimitiveId | VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG;
+	Input.DrawInstanceId = 0;
+#endif // VF_USE_PRIMITIVE_SCENE_DATA
+
+	return Input;
+}
+
+#endif
+
+#if RAYHITGROUPSHADER || COMPUTESHADER
+uint GetNumRayTracingDynamicMeshVerticesIndirect()
+{
+	return 0;
+}
+#endif
+
+#if COMPUTESHADER  
+FVertexFactoryInput LoadVertexFactoryInputForDynamicUpdate(uint TriangleIndex, int VertexIndex, uint PrimitiveId)
+{
+	FVertexFactoryInput Input = (FVertexFactoryInput)0;
+
+#if MANUAL_VERTEX_FETCH
+	Input.VertexId = TriangleIndex * 3 + VertexIndex;
+	uint VertexOffset = GeometryCollectionVF.VertexFetch_Parameters[VF_VertexOffset] + Input.VertexId * 3;
+	Input.Position.x = GeometryCollectionVF.VertexFetch_PositionBuffer[VertexOffset + 0];
+	Input.Position.y = GeometryCollectionVF.VertexFetch_PositionBuffer[VertexOffset + 1];
+	Input.Position.z = GeometryCollectionVF.VertexFetch_PositionBuffer[VertexOffset + 2];
+#endif
+
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && VF_USE_PRIMITIVE_SCENE_DATA
+	Input.DrawInstanceId = 0;
+	Input.InstanceIdOffset = PrimitiveId | VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG;
+#endif
+	return Input;
+}
+
+#endif
 
 #undef GCVF_GET_INPUT_VERTEX_ID
 

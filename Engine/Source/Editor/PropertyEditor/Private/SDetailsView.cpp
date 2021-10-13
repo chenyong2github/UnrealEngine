@@ -48,15 +48,18 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 {
 	DetailsViewArgs = InDetailsViewArgs;
 
-	const FDetailsViewConfig& ViewConfig = GetMutableViewConfig();
-	if (ViewConfig.ValueColumnWidth != 0 && ViewConfig.ValueColumnWidth != DetailsViewArgs.ColumnWidth)
+	const FDetailsViewConfig* ViewConfig = GetConstViewConfig();
+	if (ViewConfig != nullptr)
 	{
-		DetailsViewArgs.ColumnWidth = ViewConfig.ValueColumnWidth;
-	}
+		if (ViewConfig->ValueColumnWidth != 0 && ViewConfig->ValueColumnWidth != DetailsViewArgs.ColumnWidth)
+		{
+			DetailsViewArgs.ColumnWidth = ViewConfig->ValueColumnWidth;
+		}
 
-	if (DetailsViewArgs.bShowSectionSelector)
-	{
-		DetailsViewArgs.bShowSectionSelector = ViewConfig.bShowSections;
+		if (DetailsViewArgs.bShowSectionSelector)
+		{
+			DetailsViewArgs.bShowSectionSelector = ViewConfig->bShowSections;
+		}
 	}
 
 	ColumnSizeData.SetValueColumnWidth(DetailsViewArgs.ColumnWidth);
@@ -79,150 +82,156 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 	TSharedRef<SScrollBar> ExternalScrollbar = SNew(SScrollBar);
 	ExternalScrollbar->SetVisibility( TAttribute<EVisibility>( this, &SDetailsView::GetScrollBarVisibility ) );
 
-		FMenuBuilder DetailViewOptions( true, nullptr);
+	FMenuBuilder DetailViewOptions( true, nullptr);
 
-		if (DetailsViewArgs.bShowModifiedPropertiesOption)
-		{
-			DetailViewOptions.AddMenuEntry( 
-				LOCTEXT("ShowOnlyModified", "Show Only Modified Properties"),
-				LOCTEXT("ShowOnlyModified_ToolTip", "Displays only properties which have been changed from their default"),
-				FSlateIcon(),
-				FUIAction( 
-					FExecuteAction::CreateSP( this, &SDetailsView::OnShowOnlyModifiedClicked ),
-					FCanExecuteAction(),
-					FIsActionChecked::CreateSP( this, &SDetailsView::IsShowOnlyModifiedChecked )
-				),
-				NAME_None,
-				EUserInterfaceActionType::ToggleButton 
-			);
-		}
-
-		if (DetailsViewArgs.bShowCustomFilterOption)
-		{
-			TAttribute<FText> CustomFilterLabelDelegate;
-			CustomFilterLabelDelegate.BindRaw(this, &SDetailsView::GetCustomFilterLabel);
-			DetailViewOptions.AddMenuEntry(
-				CustomFilterLabelDelegate,
-				FText(),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateSP(this, &SDetailsView::OnCustomFilterClicked),
-					FCanExecuteAction(),
-					FIsActionChecked::CreateSP(this, &SDetailsView::IsCustomFilterChecked)
-				),
-				NAME_None,
-				EUserInterfaceActionType::ToggleButton
-			);
-		}
-
-		if( DetailsViewArgs.bShowDifferingPropertiesOption )
-		{
-			DetailViewOptions.AddMenuEntry(
-				LOCTEXT("ShowOnlyDiffering", "Show Only Differing Properties"),
-				LOCTEXT("ShowOnlyDiffering_ToolTip", "Displays only properties in this instance which have been changed or added from the instance being compared"),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateSP(this, &SDetailsView::OnShowOnlyWhitelistedClicked),
-					FCanExecuteAction(),
-					FIsActionChecked::CreateSP(this, &SDetailsView::IsShowOnlyWhitelistedChecked)
-				),
-				NAME_None,
-				EUserInterfaceActionType::ToggleButton
-			);
-		}
-		if (DetailsViewArgs.bShowKeyablePropertiesOption)
-		{
-			DetailViewOptions.AddMenuEntry(
-				LOCTEXT("ShowOnlyKeyable", "Show Only Keyable Properties"),
-				LOCTEXT("ShowOnlyKeyable_ToolTip", "Displays only properties which are keyable"),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateSP(this, &SDetailsView::OnShowKeyableClicked),
-					FCanExecuteAction(),
-					FIsActionChecked::CreateSP(this, &SDetailsView::IsShowKeyableChecked)
-				),
-				NAME_None,
-				EUserInterfaceActionType::ToggleButton
-			);
-		}
-		if (DetailsViewArgs.bShowAnimatedPropertiesOption)
-		{
-			DetailViewOptions.AddMenuEntry(
-				LOCTEXT("ShowAnimated", "Show Only Animated Properties"),
-				LOCTEXT("ShowAnimated_ToolTip", "Displays only properties which are animated (have tracks)"),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateSP(this, &SDetailsView::OnShowAnimatedClicked),
-					FCanExecuteAction(),
-					FIsActionChecked::CreateSP(this, &SDetailsView::IsShowAnimatedChecked)
-				),
-				NAME_None,
-				EUserInterfaceActionType::ToggleButton
-			);
-		}
-		DetailViewOptions.AddMenuEntry(
-			LOCTEXT("ShowAllAdvanced", "Show All Advanced Details"),
-			LOCTEXT("ShowAllAdvanced_ToolTip", "Shows all advanced detail sections in each category"),
+	if (DetailsViewArgs.bShowModifiedPropertiesOption)
+	{
+		DetailViewOptions.AddMenuEntry( 
+			LOCTEXT("ShowOnlyModified", "Show Only Modified Properties"),
+			LOCTEXT("ShowOnlyModified_ToolTip", "Displays only properties which have been changed from their default"),
 			FSlateIcon(),
 			FUIAction( 
-			FExecuteAction::CreateSP( this, &SDetailsView::OnShowAllAdvancedClicked ),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateSP( this, &SDetailsView::IsShowAllAdvancedChecked )
-				),
+				FExecuteAction::CreateSP( this, &SDetailsView::OnShowOnlyModifiedClicked ),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP( this, &SDetailsView::IsShowOnlyModifiedChecked )
+			),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton 
 		);
+	}
 
+	if (DetailsViewArgs.bShowCustomFilterOption)
+	{
+		TAttribute<FText> CustomFilterLabelDelegate;
+		CustomFilterLabelDelegate.BindRaw(this, &SDetailsView::GetCustomFilterLabel);
+		DetailViewOptions.AddMenuEntry(
+			CustomFilterLabelDelegate,
+			FText(),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SDetailsView::OnCustomFilterClicked),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &SDetailsView::IsCustomFilterChecked)
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
+
+	if (DetailsViewArgs.bShowDifferingPropertiesOption)
+	{
+		DetailViewOptions.AddMenuEntry(
+			LOCTEXT("ShowOnlyDiffering", "Show Only Differing Properties"),
+			LOCTEXT("ShowOnlyDiffering_ToolTip", "Displays only properties in this instance which have been changed or added from the instance being compared"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SDetailsView::OnShowOnlyAllowedClicked),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &SDetailsView::IsShowOnlyAllowedChecked)
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
+
+	if (DetailsViewArgs.bShowKeyablePropertiesOption)
+	{
+		DetailViewOptions.AddMenuEntry(
+			LOCTEXT("ShowOnlyKeyable", "Show Only Keyable Properties"),
+			LOCTEXT("ShowOnlyKeyable_ToolTip", "Displays only properties which are keyable"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SDetailsView::OnShowKeyableClicked),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &SDetailsView::IsShowKeyableChecked)
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton 
+		);
+	}
+
+	if (DetailsViewArgs.bShowAnimatedPropertiesOption)
+	{
+		DetailViewOptions.AddMenuEntry(
+			LOCTEXT("ShowAnimated", "Show Only Animated Properties"),
+			LOCTEXT("ShowAnimated_ToolTip", "Displays only properties which are animated (have tracks)"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SDetailsView::OnShowAnimatedClicked),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &SDetailsView::IsShowAnimatedChecked)
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
+
+	DetailViewOptions.AddMenuEntry(
+		LOCTEXT("ShowAllAdvanced", "Show All Advanced Details"),
+		LOCTEXT("ShowAllAdvanced_ToolTip", "Shows all advanced detail sections in each category"),
+		FSlateIcon(),
+		FUIAction( 
+		FExecuteAction::CreateSP( this, &SDetailsView::OnShowAllAdvancedClicked ),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP( this, &SDetailsView::IsShowAllAdvancedChecked )
+			),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton 
+	);
+
+	if (DetailsViewArgs.bShowHiddenPropertiesWhilePlayingOption)
+	{
 		DetailViewOptions.AddMenuEntry(
 			LOCTEXT("ShowHiddenPropertiesWhilePlaying", "Show Hidden Properties while Playing"),
 			LOCTEXT("ShowHiddenPropertiesWhilePlaying_ToolTip", "When Playing or Simulating, shows all properties (even non-visible and non-editable properties), if the object belongs to a simulating world.  This is useful for debugging."),
 			FSlateIcon(),
-			FUIAction( 
-			FExecuteAction::CreateSP( this, &SDetailsView::OnShowHiddenPropertiesWhilePlayingClicked ),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SDetailsView::OnShowHiddenPropertiesWhilePlayingClicked),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &SDetailsView::IsShowHiddenPropertiesWhilePlayingChecked)
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
+
+	DetailViewOptions.AddMenuEntry(
+		LOCTEXT("ShowAllChildrenIfCategoryMatches", "Show Child On Category Match"),
+		LOCTEXT("ShowAllChildrenIfCategoryMatches_ToolTip", "Shows children if their category matches the search criteria"),
+		FSlateIcon(),
+		FUIAction( 
+			FExecuteAction::CreateSP( this, &SDetailsView::OnShowAllChildrenIfCategoryMatchesClicked ),
 			FCanExecuteAction(),
-			FIsActionChecked::CreateSP( this, &SDetailsView::IsShowHiddenPropertiesWhilePlayingChecked )
-				),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton 
-		);
+			FIsActionChecked::CreateSP( this, &SDetailsView::IsShowAllChildrenIfCategoryMatchesChecked )
+		),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton 
+	);
 
-		DetailViewOptions.AddMenuEntry(
-			LOCTEXT("ShowAllChildrenIfCategoryMatches", "Show Child On Category Match"),
-			LOCTEXT("ShowAllChildrenIfCategoryMatches_ToolTip", "Shows children if their category matches the search criteria"),
-			FSlateIcon(),
-			FUIAction( 
-				FExecuteAction::CreateSP( this, &SDetailsView::OnShowAllChildrenIfCategoryMatchesClicked ),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateSP( this, &SDetailsView::IsShowAllChildrenIfCategoryMatchesChecked )
-			),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton 
-		);
+	DetailViewOptions.AddMenuEntry(
+		LOCTEXT("ShowSections", "Show Sections"),
+		LOCTEXT("ShowSections_ToolTip", "Shows the sections list."),
+		FSlateIcon(),
+		FUIAction( 
+			FExecuteAction::CreateSP(this, &SDetailsView::OnShowSectionsClicked),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(this, &SDetailsView::IsShowSectionsChecked)
+		),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton 
+	);		
 
-		DetailViewOptions.AddMenuEntry(
-			LOCTEXT("ShowSections", "Show Sections"),
-			LOCTEXT("ShowSections_ToolTip", "Shows the sections list."),
-			FSlateIcon(),
-			FUIAction( 
-				FExecuteAction::CreateSP(this, &SDetailsView::OnShowSectionsClicked),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(this, &SDetailsView::IsShowSectionsChecked)
-			),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton 
-		);
+	DetailViewOptions.AddMenuEntry(
+		LOCTEXT("CollapseAll", "Collapse All Categories"),
+		LOCTEXT("CollapseAll_ToolTip", "Collapses all root level categories"),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateSP(this, &SDetailsView::SetRootExpansionStates, /*bExpanded=*/false, /*bRecurse=*/false )));
 
-		DetailViewOptions.AddMenuEntry(
-			LOCTEXT("CollapseAll", "Collapse All Categories"),
-			LOCTEXT("CollapseAll_ToolTip", "Collapses all root level categories"),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SDetailsView::SetRootExpansionStates, /*bExpanded=*/false, /*bRecurse=*/false )));
-
-		DetailViewOptions.AddMenuEntry(
-			LOCTEXT("ExpandAll", "Expand All Categories"),
-			LOCTEXT("ExpandAll_ToolTip", "Expands all root level categories"),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SDetailsView::SetRootExpansionStates, /*bExpanded=*/true, /*bRecurse=*/false )));
+	DetailViewOptions.AddMenuEntry(
+		LOCTEXT("ExpandAll", "Expand All Categories"),
+		LOCTEXT("ExpandAll_ToolTip", "Expands all root level categories"),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateSP(this, &SDetailsView::SetRootExpansionStates, /*bExpanded=*/true, /*bRecurse=*/false )));
 
 	TSharedRef<SVerticalBox> VerticalBox = SNew(SVerticalBox);
 		
@@ -999,8 +1008,12 @@ void SDetailsView::OnShowHiddenPropertiesWhilePlayingClicked()
 {
 	const bool bNewValue = !IsShowHiddenPropertiesWhilePlayingChecked();
 
-	GetMutableViewConfig().bShowHiddenPropertiesWhilePlaying = bNewValue;
-	SaveViewConfig();
+	FDetailsViewConfig* ViewConfig = GetMutableViewConfig();
+	if (ViewConfig != nullptr)
+	{
+		ViewConfig->bShowHiddenPropertiesWhilePlaying = bNewValue;
+		SaveViewConfig();
+	}
 
 	GConfig->SetBool(TEXT("/Script/EditorStyle.EditorStyleSettings"), TEXT("bShowHiddenPropertiesWhilePlaying"), bNewValue, GEditorPerProjectIni);
 
@@ -1011,8 +1024,13 @@ void SDetailsView::OnShowHiddenPropertiesWhilePlayingClicked()
 void SDetailsView::OnShowSectionsClicked()
 {
 	DetailsViewArgs.bShowSectionSelector = !DetailsViewArgs.bShowSectionSelector;
-	GetMutableViewConfig().bShowSections = DetailsViewArgs.bShowSectionSelector;
-	SaveViewConfig();
+
+	FDetailsViewConfig* ViewConfig = GetMutableViewConfig();
+	if (ViewConfig != nullptr)
+	{
+		ViewConfig->bShowSections = DetailsViewArgs.bShowSectionSelector;
+		SaveViewConfig();
+	}
 
 	if (!DetailsViewArgs.bShowSectionSelector)
 	{
@@ -1039,8 +1057,12 @@ FReply SDetailsView::OnToggleFavoritesClicked()
 {
 	CurrentFilter.bShowFavoritesCategory = !CurrentFilter.bShowFavoritesCategory;
 
-	GetMutableViewConfig().bShowFavoritesCategory = CurrentFilter.bShowFavoritesCategory;
-	SaveViewConfig();
+	FDetailsViewConfig* ViewConfig = GetMutableViewConfig();
+	if (ViewConfig != nullptr)
+	{
+		ViewConfig->bShowFavoritesCategory = CurrentFilter.bShowFavoritesCategory;
+		SaveViewConfig();
+	}
 
 	RerunCurrentFilter();
 

@@ -3,18 +3,10 @@
 #include "ControlRigEditModeSettings.h"
 #include "EditorModeManager.h"
 #include "ControlRigEditMode.h"
-#include "Sequencer/ControlRigSequence.h"
-#include "Rigs/RigControlHierarchy.h"
-
-#include "Components/SkeletalMeshComponent.h"
-#include "Subsystems/AssetEditorSubsystem.h"
-#include "MovieSceneCommonHelpers.h"
-
 
 void UControlRigEditModeSettings::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	Super::PreEditChange(PropertyAboutToChange);
-
 }
 
 void UControlRigEditModeSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
@@ -27,7 +19,11 @@ void UControlRigEditModeSettings::PostEditChangeProperty(struct FPropertyChanged
 		Tools.SetWidgetScale(GizmoScale);
 	}
 #endif
-
+	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
+	{
+		// Dragging spinboxes causes this to be called every frame so we wait until they've finished dragging before saving.
+		SaveConfig();
+	}
 }
 
 #if WITH_EDITOR

@@ -84,7 +84,7 @@ private:
 	bool CanFavorite() const;
 	bool IsFavorite() const;
 
-	/** UIActions to help populate the PropertyEditorWhitelist, which must first be turned on through FPropertyEditorWhitelist::Get().SetShouldShowMenuEntries */
+	/** UIActions to help populate the PropertyEditorPermissionList, which must first be turned on through FPropertyEditorPermissionList::Get().SetShouldShowMenuEntries */
 	void CopyWhitelistText() const;
 	void OnToggleWhitelist() const;
 	bool IsWhitelistChecked() const;

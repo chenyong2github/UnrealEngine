@@ -595,6 +595,7 @@ public:
 	FFileIoStoreReadRequest* Peek(FFileIoStoreReadRequestSortKey LastSortKey);
 	FFileIoStoreReadRequest* Pop(FFileIoStoreReadRequestSortKey LastSortKey);
 	void Push(FFileIoStoreReadRequest* Request);
+	void CancelRequestsWithFileHandle(uint64 FileHandle);
 
 private:
 	int32 Priority;

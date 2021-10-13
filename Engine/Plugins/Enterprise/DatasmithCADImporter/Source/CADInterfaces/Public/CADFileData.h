@@ -9,21 +9,12 @@
 
 namespace CADLibrary
 {
-	enum class ECADImportSdk
-	{
-		None = 0,
-		KernelIO, 
-		TechSoft
-	};
-
 	class FCADFileData
 	{
 	public:
 		FCADFileData(const FImportParameters& InImportParameters, const FFileDescriptor& InFileDescription, const FString& InCachePath)
-			: CADImportSdk(ECADImportSdk::KernelIO)
-			, ImportParameters(InImportParameters)
+			: ImportParameters(InImportParameters)
 			, CachePath(InCachePath)
-			, BodyCacheExt(FImportParameters::bGDisableCADKernelTessellation ? TEXT(".ct") : TEXT(".ugeom"))
 			, bIsCacheDefined(!InCachePath.IsEmpty())
 			, FileDescription(InFileDescription)
 		{
@@ -31,17 +22,17 @@ namespace CADLibrary
 			SceneGraphArchive.CADFileName = FileDescription.GetFileName();
 		}
 
-		uint32 GetSceneFileHash()
+		uint32 GetSceneFileHash() const
 		{
 			if (!SceneFileHash)
 			{
 				SceneFileHash = HashCombine(FileDescription.GetDescriptorHash(), ::GetTypeHash(ImportParameters.GetStitchingTechnique()));
-				SceneFileHash = HashCombine(SceneFileHash, ::GetTypeHash(CADImportSdk));
+				SceneFileHash = HashCombine(SceneFileHash, ::GetTypeHash(CADLibrary::GCADLibrary));
 			}
 			return SceneFileHash;
 		}
 
-		uint32 GetGeomFileHash()
+		uint32 GetGeomFileHash() const
 		{
 			if (!GeomFileHash)
 			{
@@ -79,8 +70,7 @@ namespace CADLibrary
 		{
 			if (IsCacheDefined())
 			{
-				FString BodyFileName = FString::Printf(TEXT("UEx%08x"), BodyHash);
-				return FPaths::Combine(CachePath, TEXT("body"), BodyFileName + BodyCacheExt);
+				return CADLibrary::BuildCacheFilePath(*CachePath, TEXT("body"), BodyHash);
 			}
 			return FString();
 		}
@@ -92,8 +82,7 @@ namespace CADLibrary
 		{
 			if (IsCacheDefined())
 			{
-				FString CacheFileName = FString::Printf(TEXT("UEx%08x"), FileDescription.GetDescriptorHash());
-				return FPaths::Combine(CachePath, TEXT("cad"), CacheFileName + TEXT(".ct"));
+				return CADLibrary::BuildCacheFilePath(*CachePath, TEXT("cad"), FileDescription.GetDescriptorHash());
 			}
 			return FString();
 		}
@@ -322,10 +311,8 @@ namespace CADLibrary
 		}
 
 	private:
-		ECADImportSdk CADImportSdk = ECADImportSdk::KernelIO;
 		const FImportParameters ImportParameters;
 		const FString CachePath;
-		const FString BodyCacheExt;
 		const bool bIsCacheDefined;
 
 		FFileDescriptor FileDescription;
@@ -337,7 +324,7 @@ namespace CADLibrary
 
 		TArray<FString> WarningMessages;
 
-		uint32 SceneFileHash = 0;
-		uint32 GeomFileHash = 0;
+		mutable uint32 SceneFileHash = 0;
+		mutable uint32 GeomFileHash = 0;
 	};
 }

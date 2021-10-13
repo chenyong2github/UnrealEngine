@@ -217,11 +217,11 @@ bool UContentBrowserAssetDataSource::PopulateAssetFilterInputParams(FAssetFilter
 	Params.PackageFilter = InFilter.ExtraFilters.FindFilter<FContentBrowserDataPackageFilter>();
 	Params.ClassFilter = InFilter.ExtraFilters.FindFilter<FContentBrowserDataClassFilter>();
 
-	Params.PathBlacklist = Params.PackageFilter && Params.PackageFilter->PathBlacklist && Params.PackageFilter->PathBlacklist->HasFiltering() ? Params.PackageFilter->PathBlacklist.Get() : nullptr;
-	Params.ClassBlacklist = Params.ClassFilter && Params.ClassFilter->ClassBlacklist && Params.ClassFilter->ClassBlacklist->HasFiltering() ? Params.ClassFilter->ClassBlacklist.Get() : nullptr;
+	Params.PathPermissionList = Params.PackageFilter && Params.PackageFilter->PathPermissionList && Params.PackageFilter->PathPermissionList->HasFiltering() ? Params.PackageFilter->PathPermissionList.Get() : nullptr;
+	Params.ClassPermissionList = Params.ClassFilter && Params.ClassFilter->ClassPermissionList && Params.ClassFilter->ClassPermissionList->HasFiltering() ? Params.ClassFilter->ClassPermissionList.Get() : nullptr;
 
 	// If we are filtering all paths, then we can bail now as we won't return any content
-	if (Params.PathBlacklist && Params.PathBlacklist->IsBlacklistAll())
+	if (Params.PathPermissionList && Params.PathPermissionList->IsDenyListAll())
 	{
 		return false;
 	}
@@ -260,24 +260,24 @@ bool UContentBrowserAssetDataSource::CreatePathFilter(FAssetFilterInputParams& P
 		// We also go through this path if we're not including files, as then we don't run the asset code below
 		if (!InFilter.bRecursivePaths || !Params.bIncludeFiles)
 		{
-			// Build the basic paths blacklist from the given data
+			// Build the basic paths permissions from the given data
 			if (Params.PackageFilter)
 			{
 				Params.AssetDataFilter->bRecursivePackagePathsToInclude = Params.PackageFilter->bRecursivePackagePathsToInclude;
 				for (const FName PackagePathToInclude : Params.PackageFilter->PackagePathsToInclude)
 				{
-					Params.AssetDataFilter->PackagePathsToInclude.AddWhitelistItem(NAME_None, PackagePathToInclude);
+					Params.AssetDataFilter->PackagePathsToInclude.AddAllowListItem(NAME_None, PackagePathToInclude);
 				}
 
 				Params.AssetDataFilter->bRecursivePackagePathsToExclude = Params.PackageFilter->bRecursivePackagePathsToExclude;
 				for (const FName PackagePathToExclude : Params.PackageFilter->PackagePathsToExclude)
 				{
-					Params.AssetDataFilter->PackagePathsToExclude.AddBlacklistItem(NAME_None, PackagePathToExclude);
+					Params.AssetDataFilter->PackagePathsToExclude.AddDenyListItem(NAME_None, PackagePathToExclude);
 				}
 			}
-			if (Params.PathBlacklist)
+			if (Params.PathPermissionList)
 			{
-				Params.AssetDataFilter->PathBlacklist = *Params.PathBlacklist;
+				Params.AssetDataFilter->PathPermissionList = *Params.PathPermissionList;
 			}
 		}
 
@@ -397,17 +397,17 @@ bool UContentBrowserAssetDataSource::CreateAssetFilter(FAssetFilterInputParams& 
 	}
 
 	// If we are filtering all classes, then we can bail now as we won't return any content
-	if (Params.ClassBlacklist && Params.ClassBlacklist->IsBlacklistAll())
+	if (Params.ClassPermissionList && Params.ClassPermissionList->IsDenyListAll())
 	{
 		return false;
 	}
 
 	// If we are filtering out this path, then we can bail now as it won't return any content
-	if (Params.PathBlacklist && !InFilter.bRecursivePaths)
+	if (Params.PathPermissionList && !InFilter.bRecursivePaths)
 	{
 		for (auto It = Params.InternalPaths.CreateIterator(); It; ++It)
 		{
-			if (!Params.PathBlacklist->PassesStartsWithFilter(*It))
+			if (!Params.PathPermissionList->PassesStartsWithFilter(*It))
 			{
 				It.RemoveCurrent();
 			}
@@ -515,25 +515,25 @@ bool UContentBrowserAssetDataSource::CreateAssetFilter(FAssetFilterInputParams& 
 			}
 		}
 
-		// Remove any inclusive paths that aren't in the explicit whitelist set
-		if (Params.PathBlacklist && Params.PathBlacklist->GetWhitelist().Num() > 0)
+		// Remove any inclusive paths that aren't in the explicit AllowList set
+		if (Params.PathPermissionList && Params.PathPermissionList->GetAllowList().Num() > 0)
 		{
-			FARCompiledFilter CompiledWhitelistPathFilter;
+			FARCompiledFilter CompiledPathFilterAllowList;
 			{
-				FARFilter WhitelistPathFilter;
-				for (const auto& WhitelistPair : Params.PathBlacklist->GetWhitelist())
+				FARFilter AllowListPathFilter;
+				for (const auto& AllowListPair : Params.PathPermissionList->GetAllowList())
 				{
-					WhitelistPathFilter.PackagePaths.Add(*WhitelistPair.Key);
+					AllowListPathFilter.PackagePaths.Add(*AllowListPair.Key);
 				}
-				WhitelistPathFilter.bRecursivePaths = true;
-				CreateCompiledFilter(WhitelistPathFilter, CompiledWhitelistPathFilter);
+				AllowListPathFilter.bRecursivePaths = true;
+				CreateCompiledFilter(AllowListPathFilter, CompiledPathFilterAllowList);
 			}
 
 			if (CompiledInclusiveFilter.PackagePaths.Num() > 0)
 			{
-				// Explicit paths given - remove anything not in the whitelist paths set
+				// Explicit paths given - remove anything not in the allow list paths set
 				// If the paths resolve as empty then the combined filter will return nothing and can be skipped
-				CompiledInclusiveFilter.PackagePaths = CompiledInclusiveFilter.PackagePaths.Intersect(CompiledWhitelistPathFilter.PackagePaths);
+				CompiledInclusiveFilter.PackagePaths = CompiledInclusiveFilter.PackagePaths.Intersect(CompiledPathFilterAllowList.PackagePaths);
 				if (CompiledInclusiveFilter.PackagePaths.Num() == 0)
 				{
 					return false;
@@ -541,30 +541,30 @@ bool UContentBrowserAssetDataSource::CreateAssetFilter(FAssetFilterInputParams& 
 			}
 			else
 			{
-				// No explicit paths given - just use the whitelist paths set
-				CompiledInclusiveFilter.PackagePaths = MoveTemp(CompiledWhitelistPathFilter.PackagePaths);
+				// No explicit paths given - just use the allow list paths set
+				CompiledInclusiveFilter.PackagePaths = MoveTemp(CompiledPathFilterAllowList.PackagePaths);
 			}
 		}
 
-		// Remove any inclusive classes that aren't in the explicit whitelist set
-		if (Params.ClassBlacklist && Params.ClassBlacklist->GetWhitelist().Num() > 0)
+		// Remove any inclusive classes that aren't in the explicit allow list set
+		if (Params.ClassPermissionList && Params.ClassPermissionList->GetAllowList().Num() > 0)
 		{
-			FARCompiledFilter CompiledWhitelistClassFilter;
+			FARCompiledFilter CompiledClassFilterAllowList;
 			{
-				FARFilter WhitelistClassFilter;
-				for (const auto& WhitelistPair : Params.ClassBlacklist->GetWhitelist())
+				FARFilter AllowListClassFilter;
+				for (const auto& AllowListPair : Params.ClassPermissionList->GetAllowList())
 				{
-					WhitelistClassFilter.ClassNames.Add(WhitelistPair.Key);
+					AllowListClassFilter.ClassNames.Add(AllowListPair.Key);
 				}
-				WhitelistClassFilter.bRecursiveClasses = true;
-				Params.AssetRegistry->CompileFilter(WhitelistClassFilter, CompiledWhitelistClassFilter);
+				AllowListClassFilter.bRecursiveClasses = true;
+				Params.AssetRegistry->CompileFilter(AllowListClassFilter, CompiledClassFilterAllowList);
 			}
 
 			if (CompiledInclusiveFilter.ClassNames.Num() > 0)
 			{
-				// Explicit classes given - remove anything not in the whitelist class set
+				// Explicit classes given - remove anything not in the allow list class set
 				// If the classes resolve as empty then the combined filter will return nothing and can be skipped
-				CompiledInclusiveFilter.ClassNames = CompiledInclusiveFilter.ClassNames.Intersect(CompiledWhitelistClassFilter.ClassNames);
+				CompiledInclusiveFilter.ClassNames = CompiledInclusiveFilter.ClassNames.Intersect(CompiledClassFilterAllowList.ClassNames);
 				if (CompiledInclusiveFilter.ClassNames.Num() == 0)
 				{
 					return false;
@@ -572,8 +572,8 @@ bool UContentBrowserAssetDataSource::CreateAssetFilter(FAssetFilterInputParams& 
 			}
 			else
 			{
-				// No explicit classes given - just use the whitelist class set
-				CompiledInclusiveFilter.ClassNames = MoveTemp(CompiledWhitelistClassFilter.ClassNames);
+				// No explicit classes given - just use the allow list class set
+				CompiledInclusiveFilter.ClassNames = MoveTemp(CompiledClassFilterAllowList.ClassNames);
 			}
 		}
 	}
@@ -604,38 +604,38 @@ bool UContentBrowserAssetDataSource::CreateAssetFilter(FAssetFilterInputParams& 
 			CreateCompiledFilter(ExclusiveFilter, CompiledExclusiveFilter);
 		}
 
-		// Add any exclusive paths that are in the explicit blacklist set
-		if (Params.PathBlacklist && Params.PathBlacklist->GetBlacklist().Num() > 0)
+		// Add any exclusive paths that are in the explicit DenyList set
+		if (Params.PathPermissionList && Params.PathPermissionList->GetDenyList().Num() > 0)
 		{
-			FARCompiledFilter CompiledBlacklistPathFilter;
+			FARCompiledFilter CompiledClassFilter;
 			{
-				FARFilter BlacklistPathFilter;
-				for (const auto& BlacklistPair : Params.PathBlacklist->GetBlacklist())
+				FARFilter ClassFilter;
+				for (const auto& FilterPair : Params.PathPermissionList->GetDenyList())
 				{
-					BlacklistPathFilter.PackagePaths.Add(*BlacklistPair.Key);
+					ClassFilter.PackagePaths.Add(*FilterPair.Key);
 				}
-				BlacklistPathFilter.bRecursivePaths = true;
-				CreateCompiledFilter(BlacklistPathFilter, CompiledBlacklistPathFilter);
+				ClassFilter.bRecursivePaths = true;
+				CreateCompiledFilter(ClassFilter, CompiledClassFilter);
 			}
 
-			CompiledExclusiveFilter.PackagePaths.Append(CompiledBlacklistPathFilter.PackagePaths);
+			CompiledExclusiveFilter.PackagePaths.Append(CompiledClassFilter.PackagePaths);
 		}
 
-		// Add any exclusive classes that are in the explicit blacklist set
-		if (Params.ClassBlacklist && Params.ClassBlacklist->GetBlacklist().Num() > 0)
+		// Add any exclusive classes that are in the explicit DenyList set
+		if (Params.ClassPermissionList && Params.ClassPermissionList->GetDenyList().Num() > 0)
 		{
-			FARCompiledFilter CompiledBlacklistClassFilter;
+			FARCompiledFilter CompiledClassFilter;
 			{
-				FARFilter BlacklistClassFilter;
-				for (const auto& BlacklistPair : Params.ClassBlacklist->GetBlacklist())
+				FARFilter ClassFilter;
+				for (const auto& FilterPair : Params.ClassPermissionList->GetDenyList())
 				{
-					BlacklistClassFilter.ClassNames.Add(BlacklistPair.Key);
+					ClassFilter.ClassNames.Add(FilterPair.Key);
 				}
-				BlacklistClassFilter.bRecursiveClasses = true;
-				Params.AssetRegistry->CompileFilter(BlacklistClassFilter, CompiledBlacklistClassFilter);
+				ClassFilter.bRecursiveClasses = true;
+				Params.AssetRegistry->CompileFilter(ClassFilter, CompiledClassFilter);
 			}
 
-			CompiledExclusiveFilter.ClassNames.Append(CompiledBlacklistClassFilter.ClassNames);
+			CompiledExclusiveFilter.ClassNames.Append(CompiledClassFilter.ClassNames);
 		}
 	}
 
@@ -1748,13 +1748,10 @@ void UContentBrowserAssetDataSource::OnAssetUpdated(const FAssetData& InAssetDat
 
 void UContentBrowserAssetDataSource::OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InPropertyChangedEvent)
 {
-	if (InObject && InObject->IsAsset())
+	if (InObject && InObject->IsAsset() && ContentBrowserAssetData::IsPrimaryAsset(InObject))
 	{
 		FAssetData AssetData(InObject);
-		if (ContentBrowserAssetData::IsPrimaryAsset(AssetData))
-		{
-			QueueItemDataUpdate(FContentBrowserItemDataUpdate::MakeItemModifiedUpdate(CreateAssetFileItem(AssetData)));
-		}
+		QueueItemDataUpdate(FContentBrowserItemDataUpdate::MakeItemModifiedUpdate(CreateAssetFileItem(AssetData)));
 	}
 }
 
@@ -2220,14 +2217,14 @@ bool UContentBrowserAssetDataSource::PathPassesCompiledDataFilter(const FContent
 	FNameBuilder PathStr(InPath);
 	FStringView Path(PathStr);
 
-	auto PathPassesFilter = [Path](const FBlacklistPaths& InPathFilter, const bool InRecursive)
+	auto PathPassesFilter = [Path](const FPathPermissionList& InPathFilter, const bool InRecursive)
 	{
 		return !InPathFilter.HasFiltering() || (InRecursive ? InPathFilter.PassesStartsWithFilter(Path, /*bAllowParentPaths*/true) : InPathFilter.PassesFilter(Path));
 	};
 
-	return PathPassesFilter(InFilter.PackagePathsToInclude, InFilter.bRecursivePackagePathsToInclude) // PassesFilterBlacklist
-		&& PathPassesFilter(InFilter.PackagePathsToExclude, InFilter.bRecursivePackagePathsToExclude) // PassesFilterBlacklist
-		&& PathPassesFilter(InFilter.PathBlacklist, /*bRecursive*/true) // PassesPathFilter
+	return PathPassesFilter(InFilter.PackagePathsToInclude, InFilter.bRecursivePackagePathsToInclude)
+		&& PathPassesFilter(InFilter.PackagePathsToExclude, InFilter.bRecursivePackagePathsToExclude)
+		&& PathPassesFilter(InFilter.PathPermissionList, /*bRecursive*/true) // PassesPathFilter
 		&& !InFilter.ExcludedPackagePaths.Contains(InPath) // PassesExcludedPathsFilter
 		&& ContentBrowserDataUtils::PathPassesAttributeFilter(Path, 0, InFilter.ItemAttributeFilter); // PassesAttributeFilter
 }

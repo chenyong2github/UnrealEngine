@@ -14,9 +14,17 @@ namespace TraceServices
 struct FTimingProfilerTimer
 {
 	const TCHAR* Name = nullptr;
+	const TCHAR* File = nullptr;
 	uint32 Id = 0;
-	uint32 NameHash = 0;
-	bool IsGpuTimer = false;
+	union
+	{
+		struct
+		{
+			uint32 Line : 24;
+			uint32 IsGpuTimer : 1;
+		};
+		uint32 LineAndFlags = 0; // used only to default initialize Line and IsGpuTimer with 0
+	};
 };
 
 struct FTimingProfilerEvent

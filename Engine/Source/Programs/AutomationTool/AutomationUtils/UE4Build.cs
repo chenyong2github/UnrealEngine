@@ -9,6 +9,8 @@ using UnrealBuildTool;
 using EpicGames.Core;
 using System.Linq;
 using System.Reflection;
+using OpenTracing;
+using OpenTracing.Util;
 using UnrealBuildBase;
 
 namespace AutomationTool
@@ -187,8 +189,11 @@ namespace AutomationTool
 			}
 
 			PrepareUBT();
-			using(TelemetryStopwatch CleanStopwatch = new TelemetryStopwatch("CleanWithUBT.{0}.{1}.{2}", TargetName, Platform.ToString(), Config))
+			using (IScope Scope = GlobalTracer.Instance.BuildSpan("Compile").StartActive())
 			{
+				Scope.Span.SetTag("target", TargetName);
+				Scope.Span.SetTag("platform", Platform.ToString());
+				Scope.Span.SetTag("config", Config.ToString());
 				CommandUtils.RunUBT(CommandUtils.CmdEnv, UBTExecutable: UBTExecutable, Project: UprojectPath, Target: TargetName, Platform: Platform, Config: Config, AdditionalArgs: "-Clean -NoHotReload" + AddArgs);
 			}
         }
@@ -517,7 +522,7 @@ namespace AutomationTool
 
 		public bool ProcessXGEItems(List<XGEItem> Actions, string XGETool, string Args, string TaskFilePath, bool ShowProgress)
 		{
-			TelemetryStopwatch CombineXGEStopwatch = new TelemetryStopwatch("CombineXGEItemFiles.{0}", Path.GetFileNameWithoutExtension(XGETool));
+			IScope CombineXGEScope = GlobalTracer.Instance.BuildSpan("CombineXGEItemFiles").WithTag("xgeTool", Path.GetFileNameWithoutExtension(XGETool)).StartActive();
 
 			XmlDocument XGETaskDocument;	
 			if (!CombineXGEItemFiles(Actions, TaskFilePath, out XGETaskDocument))
@@ -564,7 +569,7 @@ namespace AutomationTool
 					throw new UE4BuildException("Unable to find xge xml: " + TaskFilePath);
 				}
 
-				CombineXGEStopwatch.Finish();
+				CombineXGEScope.Span.Finish();
 
 				if(XGETool == null)
 				{
@@ -584,7 +589,7 @@ namespace AutomationTool
 				}
 				else
 				{
-					using (TelemetryStopwatch ProcessXGEStopwatch = new TelemetryStopwatch("ProcessXGE.{0}", Path.GetFileNameWithoutExtension(XGETool)))
+					using (IScope Scope = GlobalTracer.Instance.BuildSpan("ProcessXGE").WithTag("xgeTool", Path.GetFileNameWithoutExtension(XGETool)).StartActive())
 					{
 						int ConnectionRetries = 4;
 						while (true)

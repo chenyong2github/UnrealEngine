@@ -24,7 +24,7 @@
 #include "SourcesViewWidgets.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "ContentBrowserModule.h"
-#include "Misc/BlacklistNames.h"
+#include "Misc/NamePermissionList.h"
 #include "Misc/PathViews.h"
 
 #include "IContentBrowserDataModule.h"
@@ -115,8 +115,8 @@ void SPathView::Construct( const FArguments& InArgs )
 	ContentBrowserData->OnItemDataDiscoveryComplete().AddSP(this, &SPathView::HandleItemDataDiscoveryComplete);
 
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	FolderBlacklist = AssetToolsModule.Get().GetFolderBlacklist();
-	WritableFolderBlacklist = AssetToolsModule.Get().GetWritableFolderBlacklist();
+	FolderPermissionList = AssetToolsModule.Get().GetFolderPermissionList();
+	WritableFolderPermissionList = AssetToolsModule.Get().GetWritableFolderPermissionList();
 
 	// Listen for when view settings are changed
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::GetModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
@@ -177,8 +177,6 @@ void SPathView::Construct( const FArguments& InArgs )
 	TSharedRef<SBox> SearchBox = SNew(SBox);
 	if (!InArgs._ExternalSearch)
 	{
-		SearchBox->SetPadding(FMargin(0, 1, 0, 3));
-
 		SearchBox->SetContent(
 			SNew(SHorizontalBox)
 
@@ -204,21 +202,33 @@ void SPathView::Construct( const FArguments& InArgs )
 	[
 		SNew(SVerticalBox)
 
-		// Search
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SearchBox
-		]
-
-		// Tree title
 		+SVerticalBox::Slot()
 		.AutoHeight()
 		[
-			SNew(STextBlock)
-			.Font( FEditorStyle::GetFontStyle("ContentBrowser.SourceTitleFont") )
-			.Text(this, &SPathView::GetTreeTitle)
-			.Visibility(InArgs._ShowTreeTitle ? EVisibility::Visible : EVisibility::Collapsed)
+			SNew(SBorder)
+			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
+			.Padding(8.f)
+			.Visibility((!InArgs._ExternalSearch || InArgs._ShowTreeTitle) ? EVisibility::Visible : EVisibility::Collapsed)
+			[
+				SNew(SVerticalBox)
+
+				// Search
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SearchBox
+				]
+
+				// Tree title
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(STextBlock)
+					.Font( FEditorStyle::GetFontStyle("ContentBrowser.SourceTitleFont") )
+					.Text(this, &SPathView::GetTreeTitle)
+					.Visibility(InArgs._ShowTreeTitle ? EVisibility::Visible : EVisibility::Collapsed)
+				]
+			]
 		]
 
 		// Separator
@@ -238,7 +248,7 @@ void SPathView::Construct( const FArguments& InArgs )
 		]
 	];
 
-	CustomFolderBlacklist = InArgs._CustomFolderBlacklist;
+	CustomFolderPermissionList = InArgs._CustomFolderPermissionList;
 	// Add all paths currently gathered from the asset registry
 	Populate();
 
@@ -725,35 +735,19 @@ FContentBrowserDataCompiledFilter SPathView::CreateCompiledFolderFilter() const
 
 	FContentBrowserDataFilter DataFilter;
 	DataFilter.bRecursivePaths = true;
-
 	DataFilter.ItemTypeFilter = EContentBrowserItemTypeFilter::IncludeFolders;
+	DataFilter.ItemCategoryFilter = GetContentBrowserItemCategoryFilter();
+	DataFilter.ItemAttributeFilter = GetContentBrowserItemAttributeFilter();
 
-	DataFilter.ItemCategoryFilter = InitialCategoryFilter;
-	if (bAllowClassesFolder && ContentBrowserSettings->GetDisplayCppFolders())
-	{
-		DataFilter.ItemCategoryFilter |= EContentBrowserItemCategoryFilter::IncludeClasses;
-	}
-	else
-	{
-		DataFilter.ItemCategoryFilter &= ~EContentBrowserItemCategoryFilter::IncludeClasses;
-	}
-	DataFilter.ItemCategoryFilter &= ~EContentBrowserItemCategoryFilter::IncludeCollections;
-	
-	DataFilter.ItemAttributeFilter = EContentBrowserItemAttributeFilter::IncludeProject
-		| (ContentBrowserSettings->GetDisplayEngineFolder() ? EContentBrowserItemAttributeFilter::IncludeEngine : EContentBrowserItemAttributeFilter::IncludeNone)
-		| (ContentBrowserSettings->GetDisplayPluginFolders() ? EContentBrowserItemAttributeFilter::IncludePlugins : EContentBrowserItemAttributeFilter::IncludeNone)
-		| (ContentBrowserSettings->GetDisplayDevelopersFolder() ? EContentBrowserItemAttributeFilter::IncludeDeveloper : EContentBrowserItemAttributeFilter::IncludeNone)
-		| (ContentBrowserSettings->GetDisplayL10NFolder() ? EContentBrowserItemAttributeFilter::IncludeLocalized : EContentBrowserItemAttributeFilter::IncludeNone);
+	TSharedPtr<FPathPermissionList> CombinedFolderPermissionList = ContentBrowserUtils::GetCombinedFolderPermissionList(FolderPermissionList, bAllowReadOnlyFolders ? nullptr : WritableFolderPermissionList);
 
-	TSharedPtr<FBlacklistPaths> CombinedFolderBlacklist = ContentBrowserUtils::GetCombinedFolderBlacklist(FolderBlacklist, bAllowReadOnlyFolders ? nullptr : WritableFolderBlacklist);
-
-	if (CustomFolderBlacklist.IsValid())
+	if (CustomFolderPermissionList.IsValid())
 	{
-		if (!CombinedFolderBlacklist.IsValid())
+		if (!CombinedFolderPermissionList.IsValid())
 		{
-			CombinedFolderBlacklist = MakeShared<FBlacklistPaths>();
+			CombinedFolderPermissionList = MakeShared<FPathPermissionList>();
 		}
-		CombinedFolderBlacklist->Append(*CustomFolderBlacklist);
+		CombinedFolderPermissionList->Append(*CustomFolderPermissionList);
 	}
 
 	if (PluginPathFilters.IsValid() && PluginPathFilters->Num() > 0 && ContentBrowserSettings->GetDisplayPluginFolders())
@@ -766,16 +760,16 @@ FContentBrowserDataCompiledFilter SPathView::CreateCompiledFolderFilter() const
 				FString MountedAssetPath = Plugin->GetMountedAssetPath();
 				MountedAssetPath.RemoveFromEnd(TEXT("/"), ESearchCase::CaseSensitive);
 
-				if (!CombinedFolderBlacklist.IsValid())
+				if (!CombinedFolderPermissionList.IsValid())
 				{
-					CombinedFolderBlacklist = MakeShared<FBlacklistPaths>();
+					CombinedFolderPermissionList = MakeShared<FPathPermissionList>();
 				}
-				CombinedFolderBlacklist->AddBlacklistItem("PluginPathFilters", MountedAssetPath);
+				CombinedFolderPermissionList->AddDenyListItem("PluginPathFilters", MountedAssetPath);
 			}
 		}
 	}
 
-	ContentBrowserUtils::AppendAssetFilterToContentBrowserFilter(FARFilter(), nullptr, CombinedFolderBlacklist, DataFilter);
+	ContentBrowserUtils::AppendAssetFilterToContentBrowserFilter(FARFilter(), nullptr, CombinedFolderPermissionList, DataFilter);
 
 	FContentBrowserDataCompiledFilter CompiledDataFilter;
 	{
@@ -784,6 +778,74 @@ FContentBrowserDataCompiledFilter SPathView::CreateCompiledFolderFilter() const
 		ContentBrowserData->CompileFilter(RootPath, DataFilter, CompiledDataFilter);
 	}
 	return CompiledDataFilter;
+}
+
+EContentBrowserItemCategoryFilter SPathView::GetContentBrowserItemCategoryFilter() const
+{
+	const UContentBrowserSettings* ContentBrowserSettings = GetDefault<UContentBrowserSettings>();
+	EContentBrowserItemCategoryFilter ItemCategoryFilter = InitialCategoryFilter;
+	if (bAllowClassesFolder && ContentBrowserSettings->GetDisplayCppFolders())
+	{
+		ItemCategoryFilter |= EContentBrowserItemCategoryFilter::IncludeClasses;
+	}
+	else
+	{
+		ItemCategoryFilter &= ~EContentBrowserItemCategoryFilter::IncludeClasses;
+	}
+	ItemCategoryFilter &= ~EContentBrowserItemCategoryFilter::IncludeCollections;
+
+	return ItemCategoryFilter;
+}
+
+EContentBrowserItemAttributeFilter SPathView::GetContentBrowserItemAttributeFilter() const
+{
+	const UContentBrowserSettings* ContentBrowserSettings = GetDefault<UContentBrowserSettings>();
+	return EContentBrowserItemAttributeFilter::IncludeProject
+			| (ContentBrowserSettings->GetDisplayEngineFolder() ? EContentBrowserItemAttributeFilter::IncludeEngine : EContentBrowserItemAttributeFilter::IncludeNone)
+			| (ContentBrowserSettings->GetDisplayPluginFolders() ? EContentBrowserItemAttributeFilter::IncludePlugins : EContentBrowserItemAttributeFilter::IncludeNone)
+			| (ContentBrowserSettings->GetDisplayDevelopersFolder() ? EContentBrowserItemAttributeFilter::IncludeDeveloper : EContentBrowserItemAttributeFilter::IncludeNone)
+			| (ContentBrowserSettings->GetDisplayL10NFolder() ? EContentBrowserItemAttributeFilter::IncludeLocalized : EContentBrowserItemAttributeFilter::IncludeNone);
+}
+
+bool SPathView::InternalPathPassesBlockLists(const FStringView InInternalPath, const int32 InAlreadyCheckedDepth) const
+{
+	TArray<const FPathPermissionList*, TInlineAllocator<2>> BlockLists;
+	if (FolderPermissionList.IsValid() && FolderPermissionList->HasFiltering())
+	{
+		BlockLists.Add(FolderPermissionList.Get());
+	}
+
+	if (!bAllowReadOnlyFolders && WritableFolderPermissionList.IsValid() && WritableFolderPermissionList->HasFiltering())
+	{
+		BlockLists.Add(WritableFolderPermissionList.Get());
+	}
+
+	for (const FPathPermissionList* Filter : BlockLists)
+	{
+		if (!Filter->PassesStartsWithFilter(InInternalPath))
+		{
+			return false;
+		}
+	}
+
+	if (InAlreadyCheckedDepth < 1 && PluginPathFilters.IsValid() && PluginPathFilters->Num() > 0)
+	{
+		const UContentBrowserSettings* ContentBrowserSettings = GetDefault<UContentBrowserSettings>();
+		if (ContentBrowserSettings->GetDisplayPluginFolders())
+		{
+			bool bHadClassesPrefix;
+			const FStringView FirstFolderName = FContentBrowserVirtualPathTree::GetMountPointFromPath(InInternalPath, bHadClassesPrefix);
+			if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(FirstFolderName))
+			{
+				if (!PluginPathFilters->PassesAllFilters(Plugin.ToSharedRef()))
+				{
+					return false;
+				}
+			}
+		}
+	}
+
+	return true;
 }
 
 void SPathView::SyncToItems(TArrayView<const FContentBrowserItem> ItemsToSync, const bool bAllowImplicitSync)

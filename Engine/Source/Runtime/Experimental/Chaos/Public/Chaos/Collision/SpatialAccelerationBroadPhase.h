@@ -7,6 +7,7 @@
 #include "Chaos/Collision/StatsData.h"
 #include "Chaos/Collision/NarrowPhase.h"
 #include "Chaos/ISpatialAccelerationCollection.h"
+#include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDRigidsSOAs.h"
 #include "Chaos/Capsule.h"
@@ -35,9 +36,10 @@ namespace Chaos
 	struct FSimOverlapVisitor
 	{
 		TArray<FAccelerationStructureHandle>& Intersections;
-		FSimOverlapVisitor(const FCollisionFilterData& InSimFilterData, TArray<FAccelerationStructureHandle>& InIntersections)
+		FSimOverlapVisitor(FUniqueIdx InParticleUniqueIdx, const FCollisionFilterData& InSimFilterData, TArray<FAccelerationStructureHandle>& InIntersections)
 			: Intersections(InIntersections)
 			, SimFilterData(InSimFilterData)
+			, ParticleUniqueIdx(InParticleUniqueIdx)
 		{
 		}
 
@@ -63,8 +65,14 @@ namespace Chaos
 
 		const void* GetSimData() const { return &SimFilterData; }
 
+		bool ShouldIgnore(const TSpatialVisitorData<FAccelerationStructureHandle>& Instance) const
+		{
+			return Instance.Payload.UniqueIdx() == ParticleUniqueIdx;
+		}
+
 	private:
 		FCollisionFilterData SimFilterData;
+		FUniqueIdx ParticleUniqueIdx; // unique id of the particle visiting, used to skip self intersection as early as possible
 	};
 
 	/**
@@ -225,7 +233,7 @@ namespace Chaos
 
 						CHAOS_COLLISION_STAT(StatData.RecordBoundsData(Box1));
 
-						FSimOverlapVisitor OverlapVisitor(ParticleSimData, PotentialIntersections);
+						FSimOverlapVisitor OverlapVisitor(Particle1.UniqueIdx(), ParticleSimData, PotentialIntersections);
 						InSpatialAcceleration.Overlap(Box1, OverlapVisitor);
 					}
 					else

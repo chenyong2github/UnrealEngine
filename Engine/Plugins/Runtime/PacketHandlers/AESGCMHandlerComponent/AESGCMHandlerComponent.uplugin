@@ -20,7 +20,7 @@
 			"Name" : "AESGCMHandlerComponent",
 			"Type" : "Runtime",
 			"LoadingPhase" : "Default",
-			"WhitelistPlatforms":
+			"PlatformAllowList":
 			[
 				"Android",
 				"IOS",
@@ -28,7 +28,6 @@
 				"Win64",
 				"Linux",
 				"LinuxArm64",
-				"PS4"
 			]
 		}
 	],
@@ -37,7 +36,7 @@
 		{
 			"Name": "PlatformCrypto",
 			"Enabled": true,
-			"WhitelistPlatforms":
+			"PlatformAllowList":
 			[
 				"Android",
 				"IOS",
@@ -45,7 +44,6 @@
 				"Win64",
 				"Linux",
 				"LinuxArm64",
-				"PS4"
 			]
 		}
 	]

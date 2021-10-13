@@ -88,7 +88,7 @@ public:
 	virtual void SearchAllAssets(bool bSynchronousSearch) override;
 	virtual void WaitForCompletion() override;
 	virtual void WaitForPackage(const FString& PackageName) override;
-	virtual void ScanPathsSynchronous(const TArray<FString>& InPaths, bool bForceRescan = false, bool bIgnoreBlackListScanFilters = false) override;
+	virtual void ScanPathsSynchronous(const TArray<FString>& InPaths, bool bForceRescan = false, bool bIgnoreDenyListScanFilters = false) override;
 	virtual void ScanFilesSynchronous(const TArray<FString>& InFilePaths, bool bForceRescan = false) override;
 	virtual void PrioritizeSearchPath(const FString& PathToPrioritize) override;
 	virtual void ScanModifiedAssetFiles(const TArray<FString>& InFilePaths) override;
@@ -199,7 +199,7 @@ private:
 
 	/** Shared helper for Scan*Synchronous function */
 	void ScanPathsSynchronousInternal(const TArray<FString>& InDirs, const TArray<FString>& InFiles,
-		bool bInForceRescan, bool bInIgnoreBlackListScanFilters);
+		bool bInForceRescan, bool bInIgnoreDenyListScanFilters);
 
 #if WITH_EDITOR
 	/** Create FAssetData from any loaded UObject assets and store the updated AssetData in the state */

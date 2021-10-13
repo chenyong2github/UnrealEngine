@@ -5,6 +5,7 @@
 #include "Engine/SceneCapture2D.h"
 #include "AudioResampler.h"
 #include "OculusPluginWrapper.h"
+#include "DSP/BufferVectorOperations.h"
 
 #include "OculusMR_CastingCameraActor.generated.h"
 

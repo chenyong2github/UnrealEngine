@@ -181,10 +181,10 @@ namespace Audio
 		int32 GetAudioBusNumChannels(uint32 InAudioBusId) const;
 
 		// Adds a patch output for an audio bus from the Audio Render Thread
-		void AddPatchOutputForAudioBus(uint32 InAudioBusId, FPatchOutputStrongPtr& InPatchOutputStrongPtr);
+		void AddPatchOutputForAudioBus(uint32 InAudioBusId, const FPatchOutputStrongPtr& InPatchOutputStrongPtr);
 
 		// Adds a patch output for an audio bus from the Audio Thread
-		void AddPatchOutputForAudioBus_AudioThread(uint32 InAudioBusId, FPatchOutputStrongPtr& InPatchOutputStrongPtr);
+		void AddPatchOutputForAudioBus_AudioThread(uint32 InAudioBusId, const FPatchOutputStrongPtr& InPatchOutputStrongPtr);
 
 		// Adds a patch input for an audio bus
 		void AddPatchInputForAudioBus(uint32 InAudioBusId, FPatchInput& InPatchInput);

@@ -79,7 +79,7 @@ TArray<FNiagaraParameterMapHistory> UNiagaraNodeParameterMapBase::GetParameterMa
 
 	if (bLimitToOutputScriptType)
 	{
-		Builder.EnableScriptWhitelist(true, InGraphEnd->GetUsage());
+		Builder.EnableScriptAllowList(true, InGraphEnd->GetUsage());
 	}
 	
 	Builder.BuildParameterMaps(InGraphEnd);

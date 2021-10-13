@@ -1121,29 +1121,29 @@ void F3DTransformTrackEditor::ImportAnimSequenceTransforms(const FAssetData& Ass
 
 				if(RawTrack.PosKeys.IsValidIndex(KeyIndex))
 				{
-					TempKey.Transform.SetTranslation(RawTrack.PosKeys[KeyIndex]);
+					TempKey.Transform.SetTranslation(FVector(RawTrack.PosKeys[KeyIndex]));
 				}
 				else if(RawTrack.PosKeys.Num() > 0)
 				{
-					TempKey.Transform.SetTranslation(RawTrack.PosKeys[0]);
+					TempKey.Transform.SetTranslation(FVector(RawTrack.PosKeys[0]));
 				}
 				
 				if(RawTrack.RotKeys.IsValidIndex(KeyIndex))
 				{
-					TempKey.Transform.SetRotation(RawTrack.RotKeys[KeyIndex]);
+					TempKey.Transform.SetRotation(FQuat(RawTrack.RotKeys[KeyIndex]));
 				}
 				else if(RawTrack.RotKeys.Num() > 0)
 				{
-					TempKey.Transform.SetRotation(RawTrack.RotKeys[0]);
+					TempKey.Transform.SetRotation(FQuat(RawTrack.RotKeys[0]));
 				}
 
 				if(RawTrack.ScaleKeys.IsValidIndex(KeyIndex))
 				{
-					TempKey.Transform.SetScale3D(RawTrack.ScaleKeys[KeyIndex]);
+					TempKey.Transform.SetScale3D(FVector(RawTrack.ScaleKeys[KeyIndex]));
 				}
 				else if(RawTrack.ScaleKeys.Num() > 0)
 				{
-					TempKey.Transform.SetScale3D(RawTrack.ScaleKeys[0]);
+					TempKey.Transform.SetScale3D(FVector(RawTrack.ScaleKeys[0]));
 				}
 
 				// apply component transform if any

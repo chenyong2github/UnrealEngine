@@ -2019,8 +2019,8 @@ void FLevelEditorToolBar::RegisterCinematicsMenu()
 			InitOptions.bShowSearchBox = true;
 			InitOptions.bShowCreateNewFolder = false;
 
-			InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Label(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 0));
-			InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::ActorInfo(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 10));
+			InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Label(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 0, FCreateSceneOutlinerColumn(), false, 0.6));
+			InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::ActorInfo(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 10, FCreateSceneOutlinerColumn(), false, 0.4));
 
 			// Only display MovieScene actors
 			auto ActorFilter = [&](const AActor* Actor) {
@@ -2037,9 +2037,13 @@ void FLevelEditorToolBar::RegisterCinematicsMenu()
 			.AutoHeight()
 			.MaxHeight(400.0f)
 			[
-				SceneOutlinerModule.CreateActorPicker(
-					InitOptions,
-					FOnActorPicked::CreateStatic(&FLevelEditorToolBar::OnCinematicsActorPicked))
+				SNew(SBox)
+				.WidthOverride(360)
+				[
+					SceneOutlinerModule.CreateActorPicker(
+						InitOptions,
+						FOnActorPicked::CreateStatic(&FLevelEditorToolBar::OnCinematicsActorPicked))
+				]
 			];
 
 		InSection.AddEntry(FToolMenuEntry::InitWidget("LevelEditorExistingCinematic", MiniSceneOutliner, FText::GetEmpty(), true));

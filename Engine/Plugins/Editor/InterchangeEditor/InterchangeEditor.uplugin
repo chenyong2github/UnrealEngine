@@ -35,7 +35,7 @@
 		{
 			"Name": "Interchange",
 			"Enabled": true,
-			"WhitelistTargets": [
+			"TargetAllowList": [
 				"Editor",
 				"Program"
 			]

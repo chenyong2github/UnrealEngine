@@ -2023,10 +2023,6 @@ bool FAudioDevice::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 	{
 		return HandleDumpSoundInfoCommand(Cmd, Ar);
 	}
-	if (ParseAudioExecCmd(&Cmd, TEXT("ListSounds")))
-	{
-		return HandleListSoundsCommand(Cmd, Ar);
-	}
 	else if (ParseAudioExecCmd(&Cmd, TEXT("ListWaves")))
 	{
 		return HandleListWavesCommand(Cmd, Ar);
@@ -6523,62 +6519,6 @@ FSoundClassDynamicProperties* FAudioDevice::GetSoundClassDynamicProperties(USoun
 	}
 	return nullptr;
 }
-
-#if !UE_BUILD_SHIPPING
-/**
- * Displays debug information about the loaded sounds
- */
-bool FAudioDevice::HandleListSoundsCommand(const TCHAR* Cmd, FOutputDevice& Ar)
-{
-	FAudioThreadSuspendContext AudioThreadSuspend;
-
-	// does the user want to sort by name instead of size?
-	const bool bAlphaSort = FParse::Param(Cmd, TEXT("ALPHASORT"));
-	const bool bUseLongNames = FParse::Param(Cmd, TEXT("LONGNAMES"));
-
-	int32 TotalResident = 0;
-	int32 ResidentCount = 0;
-
-	Ar.Logf(TEXT("Listing all sounds:"));
-
-	// Get audio device manager since thats where sound buffers are stored
-	FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
-	check(AudioDeviceManager != nullptr);
-
-	TArray<FSoundBuffer*> AllSounds;
-	for (int32 BufferIndex = 0; BufferIndex < AudioDeviceManager->Buffers.Num(); BufferIndex++)
-	{
-		AllSounds.Add(AudioDeviceManager->Buffers[BufferIndex]);
-	}
-
-	// sort by name or size, depending on flag
-	if (bAlphaSort)
-	{
-		AllSounds.Sort([](FSoundBuffer& A, FSoundBuffer& B) { return A.ResourceName < B.ResourceName; });
-	}
-	else
-	{
-		// sort memory usage from large to small
-		AllSounds.Sort([](FSoundBuffer& A, FSoundBuffer& B) { return B.GetSize() < A.GetSize(); });
-	}
-
-	// now list the sorted sounds
-	for (int32 BufferIndex = 0; BufferIndex < AllSounds.Num(); BufferIndex++)
-	{
-		FSoundBuffer* Buffer = AllSounds[BufferIndex];
-
-		// format info string
-		Ar.Logf(TEXT("%s"), *Buffer->Describe(bUseLongNames));
-
-		// track memory and count
-		TotalResident += Buffer->GetSize();
-		ResidentCount++;
-	}
-
-	Ar.Logf(TEXT("%8.2f Kb for %d resident sounds"), TotalResident / 1024.0f, ResidentCount);
-	return true;
-}
-#endif // !UE_BUILD_SHIPPING
 
 void FAudioDevice::StopSoundsUsingResource(USoundWave* SoundWave, TArray<UAudioComponent*>* StoppedComponents)
 {

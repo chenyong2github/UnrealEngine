@@ -19,29 +19,29 @@
 			"Name": "ElectraPlayerRuntime",
 			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "PreLoadingScreen",
-			"WhitelistPlatforms": [ "Win64", "Mac", "IOS", "Android" ],
-			"BlacklistTargets": [ "Server" ]
+			"PlatformAllowList": [ "Win64", "Mac", "IOS", "Android" ],
+			"TargetDenyList": [ "Server" ]
 		},
 		{
 			"Name": "ElectraPlayerPlugin",
 			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "PreLoadingScreen",
-			"WhitelistPlatforms": [ "Win64", "Mac", "IOS", "Android" ],
-			"BlacklistTargets": [ "Server" ]
+			"PlatformAllowList": [ "Win64", "Mac", "IOS", "Android" ],
+			"TargetDenyList": [ "Server" ]
 		},
 		{
 			"Name": "ElectraPlayerFactory",
 			"Type": "Editor",
 			"LoadingPhase": "PostEngineInit",
-			"WhitelistPlatforms": [ "Win64", "Mac" ],
-			"BlacklistTargets": [ "Server" ]
+			"PlatformAllowList": [ "Win64", "Mac" ],
+			"TargetDenyList": [ "Server" ]
 		},
 		{
 			"Name": "ElectraPlayerFactory",
 			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "PostEngineInit",
-			"WhitelistPlatforms": [ "Win64", "Mac", "IOS", "Android" ],
-			"BlacklistTargets": [ "Server" ]
+			"PlatformAllowList": [ "Win64", "Mac", "IOS", "Android" ],
+			"TargetDenyList": [ "Server" ]
 		}
 	],
 	"Plugins": [

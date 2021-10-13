@@ -185,7 +185,8 @@ void FBackgroundURLSessionHandler::OnDelayedBackgroundURLSessionCompleteHandlerC
 	
 -(void)URLSession:(NSURLSession *)session downloadTask : (NSURLSessionDownloadTask *)downloadTask didFinishDownloadingToURL : (NSURL *)location;
 {
-	//Go ahead and try and move the file out of IOS system temporary storage and into our own background download specific temp storage that won't be nuked by iOS
+	//Go ahead and try and move the file out of IOS system temporary storage and into our own background download specific
+	//temp storage that won't be deleted by iOS
 	//We do this here because we need to handle this case even if nothing has subscribed to the delegate yet
 	
 	NSURL* destinationURL = nil;

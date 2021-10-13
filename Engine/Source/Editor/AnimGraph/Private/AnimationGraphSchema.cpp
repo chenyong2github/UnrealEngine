@@ -747,7 +747,7 @@ void UAnimationGraphSchema::GetContextMenuActions(UToolMenu* Menu, UGraphNodeCon
 {
 	Super::GetContextMenuActions(Menu, Context);
 	
-	if (const UAnimGraphNode_Base* AnimGraphNode = Cast<const UAnimGraphNode_Base>(Context->Node))
+	if (UAnimGraphNode_Base* AnimGraphNode = Cast<UAnimGraphNode_Base>(Context->Node))
 	{
 		{
 			// Node contextual actions
@@ -755,22 +755,99 @@ void UAnimationGraphSchema::GetContextMenuActions(UToolMenu* Menu, UGraphNodeCon
 			Section.AddMenuEntry(FAnimGraphCommands::Get().TogglePoseWatch);
 		}
 
-		if(Context->Pin && !IsPosePin(Context->Pin->PinType) && AnimGraphNode->IsPinBindable(Context->Pin))
+		if(Context->Pin && !IsPosePin(Context->Pin->PinType))
 		{
-			FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaPinActions");
-			
-			FProperty* PinProperty = AnimGraphNode->GetPinProperty(Context->Pin);
-			check(PinProperty);
-
-			const int32 OptionalPinIndex = AnimGraphNode->ShowPinForProperties.IndexOfByPredicate([PinProperty](const FOptionalPinFromProperty& InOptionalPin)
+			TSharedPtr<SWidget> BindingWidget = MakeBindingWidgetForPin({ AnimGraphNode }, Context->Pin->GetFName(), false, true);
+			if(BindingWidget.IsValid())
 			{
-				return PinProperty->GetFName() == InOptionalPin.PropertyName;
-			});
-			
-			const UAnimGraphNode_Base::FAnimPropertyBindingWidgetArgs Args({ const_cast<UAnimGraphNode_Base*>(AnimGraphNode) }, PinProperty, Context->Pin->GetFName(), OptionalPinIndex);
-			Section.AddEntry(FToolMenuEntry::InitWidget("BindingWidget", UAnimGraphNode_Base::MakePropertyBindingWidget(Args), LOCTEXT("BindingWidgetLabel", "Binding"), true));
+				FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaPinActions");
+				Section.AddEntry(FToolMenuEntry::InitWidget("BindingWidget", BindingWidget.ToSharedRef(), LOCTEXT("BindingWidgetLabel", "Binding"), true));
+			}
 		}
 	}
+}
+
+TSharedPtr<SWidget> UAnimationGraphSchema::MakeBindingWidgetForPin(const TArray<UAnimGraphNode_Base*>& InAnimGraphNodes, FName InPinName, bool bInOnGraphNode, TAttribute<bool> bInIsEnabled)
+{
+	const UAnimGraphNode_Base* FirstNode = InAnimGraphNodes[0];
+	
+	FProperty* PinProperty = nullptr;
+	int32 OptionalPinIndex = INDEX_NONE;
+	FName BindingName = NAME_None;
+	if(FirstNode && FirstNode->GetPinBindingInfo(InPinName, BindingName, PinProperty, OptionalPinIndex))
+	{
+		check(PinProperty);
+		check(OptionalPinIndex != INDEX_NONE);
+		check(BindingName != NAME_None);
+
+		const bool bPropertyIsOnFNode = FirstNode->GetFNodeProperty() != nullptr && (FirstNode->GetFNodeProperty()->Struct->IsChildOf(PinProperty->GetOwner<UScriptStruct>()));
+		
+		UAnimGraphNode_Base::FAnimPropertyBindingWidgetArgs BindingArgs(InAnimGraphNodes, PinProperty, InPinName, BindingName, OptionalPinIndex);
+
+		BindingArgs.OnGetOptionalPins = UAnimGraphNode_Base::FAnimPropertyBindingWidgetArgs::FOnGetOptionalPins::CreateLambda([bPropertyIsOnFNode](UAnimGraphNode_Base* InNode, TArrayView<FOptionalPinFromProperty>& OutOptionalPins)
+		{
+			if(UAnimGraphNode_CustomProperty* CustomProperty = Cast<UAnimGraphNode_CustomProperty>(InNode))
+			{
+				if(bPropertyIsOnFNode)
+				{
+					OutOptionalPins = InNode->ShowPinForProperties;
+				}
+				else
+				{
+					OutOptionalPins = CustomProperty->CustomPinProperties;
+				}
+			}
+			else
+			{
+				OutOptionalPins = InNode->ShowPinForProperties;
+			}
+		});
+		BindingArgs.OnSetPinVisibility = UAnimGraphNode_Base::FAnimPropertyBindingWidgetArgs::FOnSetPinVisibility::CreateLambda([bPropertyIsOnFNode](UAnimGraphNode_Base* InNode, bool bInVisible, int32 InOptionalPinIndex)
+		{
+			if(UAnimGraphNode_CustomProperty* CustomProperty = Cast<UAnimGraphNode_CustomProperty>(InNode))
+			{
+				if(bPropertyIsOnFNode)
+				{
+					InNode->SetPinVisibility(bInVisible, InOptionalPinIndex);
+				}
+				else
+				{
+					CustomProperty->SetCustomPinVisibility(bInVisible, InOptionalPinIndex);
+				}
+			}
+			else
+			{
+				InNode->SetPinVisibility(bInVisible, InOptionalPinIndex);
+			}
+		});
+		
+		// Only show 'always dynamic' for properties of the internal FAnimNode_Base
+		BindingArgs.bPropertyIsOnFNode = bPropertyIsOnFNode;
+		BindingArgs.bOnGraphNode = bInOnGraphNode; 
+
+		// Wrap in a box to control the widget's enabled & visibility states
+		return SNew(SBox)
+		.IsEnabled(bInIsEnabled)
+		.Visibility_Lambda([BindingName, FirstNode, bInOnGraphNode]()
+		{
+			if(bInOnGraphNode)
+			{
+				if (const FAnimGraphNodePropertyBinding* BindingPtr = FirstNode->PropertyBindings.Find(BindingName))
+				{
+					return EVisibility::Visible;
+				}
+
+				return EVisibility::Collapsed;
+			}
+			
+			return EVisibility::Visible;
+		})
+		[
+			UAnimGraphNode_Base::MakePropertyBindingWidget(BindingArgs)
+		];
+	}
+
+	return nullptr;
 }
 
 FText UAnimationGraphSchema::GetPinDisplayName(const UEdGraphPin* Pin) const 

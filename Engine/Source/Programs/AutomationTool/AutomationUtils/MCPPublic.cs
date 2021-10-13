@@ -1160,11 +1160,11 @@ namespace EpicGames.MCP.Automation
 
 			public void DumpLogFile()
 			{
-				Log.WriteLine(1, LogEventType.Console, "Dumping log file from last exception {0}", ToString());
+				Log.WriteLine(LogEventType.Console, "Dumping log file from last exception {0}", ToString());
 				// do the same as Process.StdOut
 				foreach (string LogFileLine in LogFileLines)
 				{
-					Log.WriteLine(1, LogEventType.Console, LogFileLine);
+					Log.WriteLine(LogEventType.Console, LogFileLine);
 				}
 }
 			public override string ToString()

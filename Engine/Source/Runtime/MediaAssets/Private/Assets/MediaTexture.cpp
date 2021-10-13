@@ -40,15 +40,29 @@ public:
 
 	virtual void TickRender(FTimespan DeltaTime, FTimespan Timecode) override
 	{
+		FScopeLock Lock(&CriticalSection);
+
 		if (UMediaTexture* OwnerPtr = Owner.Get())
 		{
 			OwnerPtr->TickResource(Timecode);
 		}
 	}
 
+	/**
+	 * Call this when the owner is destroyed.
+	 */
+	void OwnerDestroyed()
+	{
+		FScopeLock Lock(&CriticalSection);
+		Owner.Reset();
+	}
+
 private:
 
 	TWeakObjectPtr<UMediaTexture> Owner;
+
+	/** Used to prevent owner destruction happening during tick. */
+	FCriticalSection CriticalSection;
 };
 
 
@@ -206,6 +220,9 @@ void UMediaTexture::BeginDestroy()
 {
 	if (ClockSink.IsValid())
 	{
+		// Tell sink we are done.
+		ClockSink->OwnerDestroyed(); 
+
 		IMediaModule* MediaModule = FModuleManager::LoadModulePtr<IMediaModule>("Media");
 
 		if (MediaModule != nullptr)

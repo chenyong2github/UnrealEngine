@@ -69,6 +69,9 @@ void FCurveEditorContextMenu::BuildMenu(FMenuBuilder& MenuBuilder, TSharedRef<FC
 				MenuBuilder.AddMenuSeparator();
 			}
 
+			// Select
+			MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().SelectAllKeys);
+
 			// Filters
 			MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().OpenUserImplementableFilterWindow);
 			
@@ -124,6 +127,9 @@ void FCurveEditorContextMenu::BuildMenu(FMenuBuilder& MenuBuilder, TSharedRef<FC
 					MenuBuilder.AddMenuSeparator();
 				}
 
+				// Select
+				MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().SelectAllKeys);
+
 				// Filters
 				MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().OpenUserImplementableFilterWindow);
 
@@ -161,11 +167,14 @@ void FCurveEditorContextMenu::BuildMenu(FMenuBuilder& MenuBuilder, TSharedRef<FC
 					// Modify Curves
 					MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().AddKeyToAllCurves);
 					MenuBuilder.AddMenuSeparator();
-
-					// Filters
-					MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().OpenUserImplementableFilterWindow);
 				}
 
+				// Select
+				MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().SelectAllKeys);
+
+				// Filters
+				MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().OpenUserImplementableFilterWindow);
+				
 				// View
 				MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().ZoomToFit);
 			}

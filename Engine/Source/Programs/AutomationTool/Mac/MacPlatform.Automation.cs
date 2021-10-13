@@ -81,7 +81,7 @@ public class MacPlatform : Platform
 	/// <returns></returns>
 	protected bool CanBuildTargetForAllArchitectures(UE4Build.BuildTarget InTarget, ProjectParams InParams)
 	{
-		return MacExports.TargetsWhitelistedForAppleSilicon.Contains(InTarget.TargetName, StringComparer.OrdinalIgnoreCase);
+		return MacExports.TargetsAllowedForAppleSilicon.Contains(InTarget.TargetName, StringComparer.OrdinalIgnoreCase);
 	}
 
 	/// <summary>

@@ -157,9 +157,6 @@ private:
 	void OnSetFilterActive(bool bInActive, TWeakPtr<FFrontendFilter> InWeakFilter);
 
 private:
-	/** The horizontal box which contains all the filters */
-	TSharedPtr<SWrapBox> FilterBox;
-
 	/** All SFilters in the list */
 	TArray<TSharedRef<SFilter>> Filters;
 

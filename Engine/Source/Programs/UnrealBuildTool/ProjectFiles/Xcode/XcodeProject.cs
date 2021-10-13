@@ -973,9 +973,9 @@ namespace UnrealBuildTool
 
 		/// <summary>
 		/// Returns the Mac architectures that should be configured for the provided target. If the target has a project we'll adhere
-		/// to whether it's set as Intel/Universal/Apple unless the type is blacklisted (pretty much just Editor)
+		/// to whether it's set as Intel/Universal/Apple unless the type is denied (pretty much just Editor)
 		/// 
-		/// If the target has no project we'll support whitelisted targets for installed builds and all non-editor architectures 
+		/// If the target has no project we'll support allow-listed targets for installed builds and all non-editor architectures 
 		/// for source builds. Not all programs are going to compile for Apple Silicon, but being able to build and fail is useful...
 		/// </summary>
 		/// <param name="Config">Build config for the target we're generating</param>
@@ -1003,25 +1003,25 @@ namespace UnrealBuildTool
 				// Default to Intel
 				IEnumerable<string> TargetArchitectures = new[] { MacExports.IntelArchitecture };
 
-				// These targets are known to work so are whitelisted
-				bool IsWhiteListed = MacExports.TargetsWhitelistedForAppleSilicon.Contains(TargetName, StringComparer.OrdinalIgnoreCase);
+				// These targets are known to work so are allow-listed
+				bool IsAllowed = MacExports.TargetsAllowedForAppleSilicon.Contains(TargetName, StringComparer.OrdinalIgnoreCase);
 
-				// These target types are known to never work so are blacklisted. This is mostly to avoid generating an arm64 editor config for 
+				// These target types are known to never work so are denied. This is mostly to avoid generating an arm64 editor config for 
 				// a code project that is set to be universal
-				bool IsBlacklisted = MacExports.TargetTypesBlacklistedForAppleSilicon.Contains(Config.ProjectTarget.TargetRules.Type);
+				bool IsDenied = MacExports.TargetTypesDeniedForAppleSilicon.Contains(Config.ProjectTarget.TargetRules.Type);
 
-				// check whitelists and blacklists
-				if (IsWhiteListed)
+				// determine the target architectures based on what's allowed/denied
+				if (IsAllowed)
 				{
 					TargetArchitectures = AllArchitectures;
 				}
-				else if (IsBlacklisted)
+				else if (IsDenied)
 				{
 					TargetArchitectures = new[] { MacExports.IntelArchitecture };
 				}
 				else
 				{
-					// if no project file then this is a non-whitelisted tool/program. Default to Intel for installed builds because we know all of that works. 
+					// if no project file then this is an unspecified tool/program. Default to Intel for installed builds because we know all of that works. 
 					if (InProjectFile == null)
 					{
 						// For misc tools we default to Intel for installed builds because we know all of that works. 
@@ -1030,7 +1030,7 @@ namespace UnrealBuildTool
 					else
 					{
 						// For project targets we default to Intel then check the project settings. Note the editor target will have
-						// been blacklisted above already.
+						// been denied above already.
 						TargetArchitectures = new[] { MacExports.IntelArchitecture };
 
 						// Look at the project engine config to see if it has specified a default editor target

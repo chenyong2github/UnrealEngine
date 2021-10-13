@@ -1585,6 +1585,9 @@ void FTextHistory_ArgumentDataFormat::GetHistoricFormatData(const FText& InText,
 		case EFormatArgumentType::Float:
 			ArgumentValue = FFormatArgumentValue(ArgumentData.ArgumentValueFloat);
 			break;
+		case EFormatArgumentType::Double:
+			ArgumentValue = FFormatArgumentValue(ArgumentData.ArgumentValueDouble);
+			break;
 		case EFormatArgumentType::Gender:
 			ArgumentValue = FFormatArgumentValue(ArgumentData.ArgumentValueGender);
 			break;

@@ -241,7 +241,11 @@ protected:
 
 	// Get the number of properties (including editor only properties) that the anim node type has
 	virtual int32 GetAnimNodePropertyCount(const UScriptStruct* InNodeType) const = 0;
-	
+
+#if WITH_EDITORONLY_DATA
+	// Check that the serialized NodeTypeMap can be used with the current set of native node data layouts
+	virtual bool IsDataLayoutValid() const = 0;
+#endif
 public:
 
 	// Get the root anim class interface (i.e. if this is a derived class).

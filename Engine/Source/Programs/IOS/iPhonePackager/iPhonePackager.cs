@@ -669,7 +669,19 @@ namespace iPhonePackager
                     return A;
                 }
             }
-            else if (AssemblyName.ToLowerInvariant() == "ionic.zip.reduced")
+			else if (AssemblyName.ToLowerInvariant() == "sysadminslv.asn1parser")
+			{
+				AssemblyName = Path.GetFullPath(@"..\..\ThirdParty\IOS\" + AssemblyName + ".dll");
+
+				Debug.WriteLineIf(System.Diagnostics.Debugger.IsAttached, "Loading assembly: " + AssemblyName);
+
+				if (File.Exists(AssemblyName))
+				{
+					Assembly A = Assembly.LoadFile(AssemblyName);
+					return A;
+				}
+			}
+			else if (AssemblyName.ToLowerInvariant() == "ionic.zip.reduced")
             {
                 AssemblyName = Path.GetFullPath(@"..\" + AssemblyName + ".dll");
 

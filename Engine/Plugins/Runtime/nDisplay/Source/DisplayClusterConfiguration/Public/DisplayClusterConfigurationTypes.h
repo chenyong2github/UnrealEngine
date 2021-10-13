@@ -11,6 +11,7 @@
 #include "DisplayClusterConfigurationTypes_ICVFX.h"
 #include "DisplayClusterConfigurationTypes_Viewport.h"
 #include "DisplayClusterConfigurationTypes_OutputRemap.h"
+#include "DisplayClusterEditorPropertyReference.h"
 
 #include "DisplayClusterConfigurationVersion.h"
 
@@ -223,10 +224,10 @@ public:
 	FDisplayClusterConfigurationClusterSync();
 	
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Configuration)
 	FDisplayClusterConfigurationRenderSyncPolicy RenderSyncPolicy;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Configuration)
 	FDisplayClusterConfigurationInputSyncPolicy InputSyncPolicy;
 };
 
@@ -302,7 +303,7 @@ public:
 	/** IP address of this specific cluster Node */
 	UPROPERTY(EditAnywhere, BlueprintReadonly, Category = "Configuration", meta = (DisplayName = "Host IP Address"))
 	FString Host;
-
+	
 	/** Enables or disables sound on nDisplay primary Node */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (DisplayName = "Enable Sound"))
 	bool bIsSoundEnabled;
@@ -325,17 +326,17 @@ public:
 	bool bFixedAspectRatio;
 #endif
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, EditFixedSize, Instanced, Category = "Configuration", meta = (DisplayThumbnail = false, ShowInnerProperties, nDisplayInstanceOnly))
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, EditFixedSize, Instanced, Category = "Configuration", meta = (DisplayThumbnail = false))
 	TMap<FString, UDisplayClusterConfigurationViewport*> Viewports;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration", meta = (DisplayName = "Custom Output Settings", DisplayThumbnail = false, ShowInnerProperties))
 	TMap<FString, FDisplayClusterConfigurationPostprocess> Postprocess;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration", meta = (nDisplayHidden))
+	UPROPERTY(EditDefaultsOnly, Category = "Configuration", meta = (HideProperty))
 	bool bIsVisible;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration", meta = (nDisplayHidden))
+	UPROPERTY(EditDefaultsOnly, Category = "Configuration", meta = (HideProperty))
 	bool bIsEnabled;
 
 	/** Binds a background preview image for easier output mapping */
@@ -410,16 +411,16 @@ class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationCluster
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Configuration", meta = (ShowOnlyInnerProperties))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration", meta = (ShowOnlyInnerProperties))
 	FDisplayClusterConfigurationMasterNode MasterNode;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Configuration")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration", meta = (ShowOnlyInnerProperties))
 	FDisplayClusterConfigurationClusterSync Sync;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Configuration")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration")
 	FDisplayClusterConfigurationNetworkSettings Network;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, EditFixedSize, Instanced, Category = NDisplay, meta = (DisplayThumbnail = false, nDisplayInstanceOnly, ShowInnerProperties))
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, EditFixedSize, Instanced, Category = NDisplay, meta = (DisplayThumbnail = false, HideProperty))
 	TMap<FString, UDisplayClusterConfigurationClusterNode*> Nodes;
 
 #if WITH_EDITORONLY_DATA
@@ -511,31 +512,31 @@ public:
 public:
 	FDisplayClusterConfigurationDataMetaInfo Meta;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Advanced)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Configuration, meta = (DisplayAfter = "RenderFrameSettings"))
 	FDisplayClusterConfigurationInfo Info;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Transient, Category = Advanced)
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Transient, Category = NDisplay, meta = (HideProperty))
 	UDisplayClusterConfigurationScene* Scene;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Instanced, Category = Advanced, meta = (DisplayThumbnail = false, ShowInnerProperties))
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Instanced, Category = NDisplay)
 	UDisplayClusterConfigurationCluster* Cluster;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Advanced)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Configuration, meta = (DisplayAfter = "Diagnostics"))
 	TMap<FString, FString> CustomParameters;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Advanced)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Configuration, meta = (DisplayAfter = "Info"))
 	FDisplayClusterConfigurationDiagnostics Diagnostics;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Advanced)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Configuration, meta = (HidePropertyInstanceOnly, DisplayAfter = "DefaultFrameSizeRef"))
 	FDisplayClusterConfigurationRenderFrame RenderFrameSettings;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Advanced)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (HideProperty))
 	FDisplayClusterConfigurationICVFX_StageSettings StageSettings;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Advanced, meta = (DisplayName = "Follow Local Player Camera"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Configuration, meta = (DisplayName = "Follow Local Player Camera", DisplayAfter = "CustomParameters"))
 	bool bFollowLocalPlayerCamera = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Advanced, meta = (DisplayName = "Exit When ESC Pressed"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Configuration, meta = (DisplayName = "Exit When ESC Pressed", DisplayAfter = "bFollowLocalPlayerCamera"))
 	bool bExitOnEsc = true;
 
 	/** Create empty config data. */
@@ -557,5 +558,12 @@ public:
 
 	const static TSet<FString> ProjectionPolicies;
 	
-#endif
+//////////////////////////////////////////////////////////////////////////////////////////////
+// Details Panel Property Referencers
+//////////////////////////////////////////////////////////////////////////////////////////////
+private:
+	UPROPERTY(EditDefaultsOnly, Transient, Category = Configuration, meta = (PropertyPath = "StageSettings.DefaultFrameSize"))
+	FDisplayClusterEditorPropertyReference DefaultFrameSizeRef;
+
+#endif // WITH_EDITORONLY_DATA
 };

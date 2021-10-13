@@ -25,7 +25,7 @@ class UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartitionRuntimeSp
 	virtual bool IsLoading() const override;
 	//~End UWorldPartitionRuntimeCell Interface
 
-	int32 GetStreamingPriority() const { return Level; }
+	virtual void SetStreamingPriority(int32 InStreamingPriority) const override;
 	class UWorldPartitionLevelStreamingDynamic* GetLevelStreaming() const;
 	
 

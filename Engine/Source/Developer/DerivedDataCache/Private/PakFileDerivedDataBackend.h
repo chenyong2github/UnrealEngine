@@ -30,8 +30,11 @@ public:
 
 	void Close();
 
+	/** Return a type for this interface */
+	virtual FString GetDisplayName() const override;
+
 	/** Return a name for this interface */
-	virtual FString GetName() const override { return Filename; }
+	virtual FString GetName() const override;
 
 	/** return true if this cache is writable **/
 	virtual bool IsWritable() const override;

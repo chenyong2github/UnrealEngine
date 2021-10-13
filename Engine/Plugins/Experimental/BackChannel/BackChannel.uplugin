@@ -14,7 +14,7 @@
 			"Name": "BackChannel",
 			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "Default",
-			"BlacklistPlatforms": [
+			"PlatformDenyList": [
 			]
 		}
 	]

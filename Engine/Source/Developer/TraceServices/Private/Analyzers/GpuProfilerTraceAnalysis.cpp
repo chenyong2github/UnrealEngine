@@ -38,7 +38,15 @@ bool FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 		const auto& Name = EventData.GetArray<UTF16CHAR>("Name");
 
 		auto NameTChar = StringCast<TCHAR>(Name.GetData(), Name.Num());
-		EventTypeMap.Add(EventType, TimingProfilerProvider.AddGpuTimer(FStringView(NameTChar.Get(), NameTChar.Length())));
+		uint32* TimerIndexPtr = EventTypeMap.Find(EventType);
+		if (!TimerIndexPtr)
+		{
+			EventTypeMap.Add(EventType, TimingProfilerProvider.AddGpuTimer(FStringView(NameTChar.Get(), NameTChar.Length())));
+		}
+		else
+		{
+			TimingProfilerProvider.SetTimerName(*TimerIndexPtr, FStringView(NameTChar.Get(), NameTChar.Length()));
+		}
 		break;
 	}
 	case RouteId_Frame:

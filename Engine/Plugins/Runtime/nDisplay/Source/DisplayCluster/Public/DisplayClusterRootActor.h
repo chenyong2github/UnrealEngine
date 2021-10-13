@@ -18,6 +18,7 @@
 #include "DisplayClusterConfigurationTypes_Viewport.h"
 #include "DisplayClusterConfigurationTypes_ICVFX.h"
 #include "DisplayClusterConfigurationTypes_OCIO.h"
+#include "DisplayClusterEditorPropertyReference.h"
 
 #include "Render/Viewport/IDisplayClusterViewportManager.h"
 
@@ -38,7 +39,7 @@ class UDisplayClusterSyncTickComponent;
 /**
  * VR root. This contains nDisplay VR hierarchy in the game.
  */
-UCLASS(meta=(DisplayName = "nDisplay Root Actor"))
+UCLASS(HideCategories=(Replication, Collision, Input, Actor, LOD, Cooking, Physics, Activation, AssetUserData, ActorTick, Advanced), meta=(DisplayName = "nDisplay Root Actor"))
 class DISPLAYCLUSTER_API ADisplayClusterRootActor
 	: public AActor
 {
@@ -155,6 +156,61 @@ protected:
 	// Unique viewport manager for this configuration
 	TUniquePtr<IDisplayClusterViewportManager> ViewportManager;
 
+//////////////////////////////////////////////////////////////////////////////////////////////
+// Details Panel Property Referencers
+// Placed here to ensure layout builders process referencers first
+//////////////////////////////////////////////////////////////////////////////////////////////
+#if WITH_EDITORONLY_DATA
+private:	
+	UPROPERTY(EditAnywhere, Transient, Category = Viewports, meta = (PropertyPath = "CurrentConfigData.RenderFrameSettings.ClusterICVFXOuterViewportBufferRatioMult"))
+	FDisplayClusterEditorPropertyReference ViewportScreenPercentageMultiplierRef;
+
+	UPROPERTY(EditInstanceOnly, Transient, Category = Viewports, meta = (DisplayName = "Viewport Screen Percentage", PropertyPath = "CurrentConfigData.Cluster.Nodes.Viewports.RenderSettings.BufferRatio", ToolTip = "Adjust resolution scaling for an individual viewport.  Viewport Screen Percentage Multiplier is applied to this value."))
+	FDisplayClusterEditorPropertyReference ViewportScreenPercentageRef;
+
+	UPROPERTY(EditInstanceOnly, Transient, Category = Viewports, meta = (DisplayName = "Viewport Overscan", PropertyPath = "CurrentConfigData.Cluster.Nodes.Viewports.RenderSettings.Overscan", ToolTip = "Render a larger frame than specified in the configuration to achieve continuity across displays when using post-processing effects."))
+	FDisplayClusterEditorPropertyReference ViewportOverscanRef;
+
+	UPROPERTY(EditAnywhere, Transient, Category = Viewports, meta = (PropertyPath = "CurrentConfigData.StageSettings.HideList"))
+	FDisplayClusterEditorPropertyReference ClusterHideListRef;
+
+	UPROPERTY(EditAnywhere, Transient, Category = Viewports, meta = (PropertyPath = "CurrentConfigData.StageSettings.OuterViewportHideList"))
+	FDisplayClusterEditorPropertyReference OuterHideListRef;
+
+	UPROPERTY(EditAnywhere, Transient, Category = "In Camera VFX", meta = (PropertyPath = "CurrentConfigData.StageSettings.bEnableInnerFrustums"))
+	FDisplayClusterEditorPropertyReference EnableInnerFrustumsRef;
+
+	UPROPERTY(EditInstanceOnly, Transient, Category = "In Camera VFX", meta = (DisplayName = "Inner Frustum Visible in Viewports", PropertyPath = "CurrentConfigData.Cluster.Nodes.Viewports.ICVFX.bAllowInnerFrustum", ToolTip = "Enable/disable inner frustum rendering on each individual viewport for all ICVFX cameras.", EditCondition = "CurrentConfigData->StageSettings.bEnableInnerFrustums"))
+	FDisplayClusterEditorPropertyReference ViewportAllowInnerFrustumRef;
+
+	UPROPERTY(EditAnywhere, Transient, Category = "Color Grading", meta = (PropertyPath = "CurrentConfigData.StageSettings.EntireClusterColorGrading.bEnableEntireClusterColorGrading"))
+	FDisplayClusterEditorPropertyReference EnableClusterColorGradingRef;
+
+	UPROPERTY(EditAnywhere, Transient, Category = "Color Grading", meta = (DisplayName = "Entire Cluster", PropertyPath = "CurrentConfigData.StageSettings.EntireClusterColorGrading.ColorGradingSettings", EditConditional = "CurrentConfigData.StageSettings.EntireClusterColorGrading.bEnableEntireClusterColorGrading"))
+	FDisplayClusterEditorPropertyReference ClusterColorGradingRef;
+
+	UPROPERTY(EditAnywhere, Transient, Category = "Color Grading", meta = (PropertyPath = "CurrentConfigData.StageSettings.PerViewportColorGrading"))
+	FDisplayClusterEditorPropertyReference PerViewportColorGradingRef;
+
+	UPROPERTY(EditAnywhere, Transient, Category = OCIO, meta = (PropertyPath = "CurrentConfigData.StageSettings.bUseOverallClusterOCIOConfiguration"))
+	FDisplayClusterEditorPropertyReference EnableClusterOCIORef;
+
+	UPROPERTY(EditAnywhere, Transient, Category = OCIO, meta = (DisplayName = "All Viewports Color Configuration", PropertyPath = "CurrentConfigData.StageSettings.AllViewportsOCIOConfiguration.OCIOConfiguration.ColorConfiguration", ToolTip = "Apply this OpenColorIO configuration to all viewports.", EditCondition = "CurrentConfigData.StageSettings.bUseOverallClusterOCIOConfiguration"))
+	FDisplayClusterEditorPropertyReference ClusterOCIOColorConfigurationRef;
+
+	UPROPERTY(EditAnywhere, Transient, Category = OCIO, meta = (PropertyPath = "CurrentConfigData.StageSettings.PerViewportOCIOProfiles"))
+	FDisplayClusterEditorPropertyReference PerViewportOCIOProfilesRef;
+
+	UPROPERTY(EditAnywhere, Transient, Category = "Light Cards", meta = (PropertyPath = "CurrentConfigData.StageSettings.Lightcard.bEnable"))
+	FDisplayClusterEditorPropertyReference EnableLightcardsRef;
+
+	UPROPERTY(EditAnywhere, Transient, Category = "Light Cards", meta = (PropertyPath = "CurrentConfigData.StageSettings.Lightcard.Blendingmode", EditCondition = "CurrentConfigData.StageSettings.Lightcard.bEnable"))
+	FDisplayClusterEditorPropertyReference LightCardBlendingModeRef;
+
+	UPROPERTY(EditAnywhere, Transient, Category = "Light Cards", meta = (PropertyPath = "CurrentConfigData.StageSettings.Lightcard.ShowOnlyList", EditCondition = "CurrentConfigData.StageSettings.Lightcard.bEnable"))
+	FDisplayClusterEditorPropertyReference LightCardContentRef;
+#endif // WITH_EDITORONLY_DATA
+
 private:
 	/**
 	 * Name of the CurrentConfigData asset. Only required if this is a parent of a DisplayClusterBlueprint.
@@ -174,7 +230,7 @@ private:
 	 * Must have CPF_Edit(such as VisibleDefaultsOnly) on property for Live Link.
 	 * nDisplay details panel will hide this from actually being visible.
 	 */
-	UPROPERTY(EditAnywhere, Category = "NDisplay")
+	UPROPERTY(EditAnywhere, Category = "NDisplay", meta = (HideProperty))
 	USceneComponent* DisplayClusterRootComponent;
 
 	/**
@@ -201,7 +257,7 @@ private:
 
 public:
 	/** Set the priority for inner frustum rendering if there is any overlap when enabling multiple ICVFX cameras. */
-	UPROPERTY(EditInstanceOnly, EditFixedSize, Category = "In Camera VFX", meta = (TitleProperty = "Name"))
+	UPROPERTY(EditInstanceOnly, EditFixedSize, Category = "In Camera VFX", meta = (TitleProperty = "Name", DisplayAfter = "ViewportAllowInnerFrustumRef"))
 	TArray<FDisplayClusterComponentRef> InnerFrustumPriority;
 
 public:

@@ -20,7 +20,7 @@
 			"Name" : "NullSourceCodeAccess",
 			"Type" : "UncookedOnly",
 			"LoadingPhase" : "PreDefault",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"Linux"
 			]

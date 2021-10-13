@@ -72,13 +72,14 @@ public:
 			// build configuration menu
 			SNew(SComboButton)
 			.VAlign(VAlign_Center)
+			.ComboButtonStyle(FAppStyle::Get(), "Launcher.ComboButton")
 			.ButtonContent()
 			[
 				SNew(STextBlock)
 				.Font(FCoreStyle::Get().GetFontStyle(TEXT("SmallFont")))
 				.Text(InArgs._Text)
 			]
-			.ContentPadding(FMargin(6.0f, 2.0f))
+			.ContentPadding(FMargin(6.0f, 0.0f))
 			.MenuContent()
 			[
 				MenuBuilder.MakeWidget()

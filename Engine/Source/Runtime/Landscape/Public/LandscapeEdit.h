@@ -312,8 +312,8 @@ private:
 
 	FORCEINLINE FColor& GetHeightMapColor(const ULandscapeComponent* Component, int32 TexU, int32 TexV, FColor* TextureData);
 
-	// test if layer is whitelisted for a given texel
-	inline bool IsWhitelisted(const ULandscapeLayerInfoObject* LayerInfo,
+	// test if layer is allowed for a given texel
+	inline bool IsLayerAllowed(const ULandscapeLayerInfoObject* LayerInfo,
 	                          int32 ComponentIndexX, int32 SubIndexX, int32 SubX,
 	                          int32 ComponentIndexY, int32 SubIndexY, int32 SubY);
 

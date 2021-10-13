@@ -72,7 +72,7 @@ public:
 
 	virtual void Bookmark(const char* text) override
 	{
-		TRACE_BOOKMARK(TEXT("%s"), text);
+		TRACE_BOOKMARK(TEXT("%s"), ANSI_TO_TCHAR(text));
 	}
 };
 static FVHACDProfiler VHACDProfiler;

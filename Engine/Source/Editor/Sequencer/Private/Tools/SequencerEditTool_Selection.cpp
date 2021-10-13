@@ -478,9 +478,13 @@ void FSequencerEditTool_Selection::OnMouseLeave(SWidget& OwnerWidget, const FPoi
 
 void FSequencerEditTool_Selection::OnMouseCaptureLost()
 {
-	DelayedDrag.Reset();
-	DragOperation = nullptr;
-	CursorDecorator = nullptr;
+	// Delaying nulling out until next tick because this could be invoked during OnMouseMove()
+	GEditor->GetTimerManager()->SetTimerForNextTick([this]()
+	{
+		DelayedDrag.Reset();
+		DragOperation = nullptr;
+		CursorDecorator = nullptr;
+	});
 }
 
 

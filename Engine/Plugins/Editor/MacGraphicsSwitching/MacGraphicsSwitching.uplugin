@@ -20,7 +20,7 @@
 			"Name" : "MacGraphicsSwitching",
 			"Type" : "Editor",
 			"LoadingPhase" : "Default",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"Mac"
 			]

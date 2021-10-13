@@ -31,6 +31,32 @@ DEFINE_LOG_CATEGORY_STATIC(LogStatusBar, Log, All);
 
 int32 UStatusBarSubsystem::MessageHandleCounter = 0;
 
+namespace UE
+{
+	namespace StatusBarSubsystem
+	{
+		namespace Private
+		{
+			TSharedPtr<SWindow> FindParentWindow()
+			{
+				TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().GetActiveTopLevelWindow();
+				if (!ParentWindow.IsValid())
+				{
+					if (TSharedPtr<SDockTab> ActiveTab = FGlobalTabmanager::Get()->GetActiveTab())
+					{
+						if (TSharedPtr<SDockTab> ActiveMajorTab = FGlobalTabmanager::Get()->GetMajorTabForTabManager(ActiveTab->GetTabManager()))
+						{
+							ParentWindow = ActiveMajorTab->GetParentWindow();
+						}
+					}
+				}
+
+				return ParentWindow;
+			}
+		}
+	}
+}
+
 class SNewUserTipNotification : public SCompoundWidget
 {
 	SLATE_BEGIN_ARGS(SNewUserTipNotification)
@@ -294,17 +320,7 @@ bool UStatusBarSubsystem::ToggleDebugConsole(TSharedRef<SWindow> ParentWindow, b
 
 bool UStatusBarSubsystem::OpenContentBrowserDrawer()
 {
-	TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().GetActiveTopLevelWindow();
-	if (!ParentWindow.IsValid())
-	{
-		if (TSharedPtr<SDockTab> ActiveTab = FGlobalTabmanager::Get()->GetActiveTab())
-		{
-			if (TSharedPtr<SDockTab> ActiveMajorTab = FGlobalTabmanager::Get()->GetMajorTabForTabManager(ActiveTab->GetTabManager()))
-			{
-				ParentWindow = ActiveMajorTab->GetParentWindow();
-			}
-		}
-	}
+	TSharedPtr<SWindow> ParentWindow = UE::StatusBarSubsystem::Private::FindParentWindow();
 
 	if (ParentWindow.IsValid() && ParentWindow->GetType() == EWindowType::Normal)
 	{
@@ -317,17 +333,7 @@ bool UStatusBarSubsystem::OpenContentBrowserDrawer()
 
 bool UStatusBarSubsystem::OpenOutputLogDrawer()
 {
-	TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().GetActiveTopLevelWindow();
-	if (!ParentWindow.IsValid())
-	{
-		if (TSharedPtr<SDockTab> ActiveTab = FGlobalTabmanager::Get()->GetActiveTab())
-		{
-			if (TSharedPtr<SDockTab> ActiveMajorTab = FGlobalTabmanager::Get()->GetMajorTabForTabManager(ActiveTab->GetTabManager()))
-			{
-				ParentWindow = ActiveMajorTab->GetParentWindow();
-			}
-		}
-	}
+	TSharedPtr<SWindow> ParentWindow = UE::StatusBarSubsystem::Private::FindParentWindow();
 
 	if (ParentWindow.IsValid() && ParentWindow->GetType() == EWindowType::Normal)
 	{
@@ -341,17 +347,7 @@ bool UStatusBarSubsystem::TryToggleDrawer(const FName DrawerId)
 {
 	bool bToggledSuccessfully = false;
 
-	TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().GetActiveTopLevelWindow();
-	if (!ParentWindow.IsValid())
-	{
-		if (TSharedPtr<SDockTab> ActiveTab = FGlobalTabmanager::Get()->GetActiveTab())
-		{
-			if (TSharedPtr<SDockTab> ActiveMajorTab = FGlobalTabmanager::Get()->GetMajorTabForTabManager(ActiveTab->GetTabManager()))
-			{
-				ParentWindow = ActiveMajorTab->GetParentWindow();
-			}
-		}
-	}
+	TSharedPtr<SWindow> ParentWindow = UE::StatusBarSubsystem::Private::FindParentWindow();
 
 	if (ParentWindow.IsValid() && ParentWindow->GetType() == EWindowType::Normal)
 	{
@@ -494,6 +490,28 @@ TSharedRef<SWidget> UStatusBarSubsystem::MakeStatusBarWidget(FName StatusBarName
 	StatusBars.Add(StatusBarName, StatusBarData);
 
 	return StatusBar;
+}
+
+bool UStatusBarSubsystem::ActiveWindowHasStatusBar() const
+{
+	TSharedPtr<SWindow> ParentWindow = UE::StatusBarSubsystem::Private::FindParentWindow();
+
+	if (ParentWindow.IsValid() && ParentWindow->GetType() == EWindowType::Normal)
+	{
+		for (const TPair<FName, FStatusBarData>& StatusBar : StatusBars)
+		{
+			if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.StatusBarWidget.Pin())
+			{
+				TSharedPtr<SDockTab> ParentTab = StatusBarPinned->GetParentTab();
+				if (ParentTab && ParentTab->IsForeground() && ParentTab->GetParentWindow() == ParentWindow)
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
 }
 
 void UStatusBarSubsystem::RegisterDrawer(FName StatusBarName, FStatusBarDrawer&& Drawer, int32 SlotIndex)

@@ -167,6 +167,8 @@ namespace UnrealBuildTool
 			WorkspaceSettingsContent.Append("<dict>" + ProjectFileGenerator.NewLine);
 			WorkspaceSettingsContent.Append("\t<key>DisableBuildSystemDeprecationWarning</key>" + ProjectFileGenerator.NewLine);
 			WorkspaceSettingsContent.Append("\t<true/>" + ProjectFileGenerator.NewLine);
+            WorkspaceSettingsContent.Append("\t<key>DisableBuildSystemDeprecationDiagnostic</key>" + ProjectFileGenerator.NewLine);
+            WorkspaceSettingsContent.Append("\t<true/>" + ProjectFileGenerator.NewLine);
 			WorkspaceSettingsContent.Append("</dict>" + ProjectFileGenerator.NewLine);
 			WorkspaceSettingsContent.Append("</plist>" + ProjectFileGenerator.NewLine);
 			return WriteFileIfChanged(Path, WorkspaceSettingsContent.ToString(), new UTF8Encoding());

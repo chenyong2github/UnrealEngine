@@ -4,6 +4,7 @@
 
 #include "Components/ActorComponent.h"
 #include "MovieSceneSequencePlayer.h"
+#include "MovieSceneSequenceTickManager.h"
 #include "ActorSequenceComponent.generated.h"
 
 
@@ -17,6 +18,7 @@ class UActorSequencePlayer;
 UCLASS(Blueprintable, Experimental, ClassGroup=Sequence, hidecategories=(Collision, Cooking, Activation), meta=(BlueprintSpawnableComponent))
 class ACTORSEQUENCE_API UActorSequenceComponent
 	: public UActorComponent
+	, public IMovieSceneSequenceActor
 {
 public:
 	GENERATED_BODY()
@@ -33,10 +35,14 @@ public:
 		return SequencePlayer;
 	}
 	
+	// UActorComponent interface
 	virtual void PostInitProperties() override;
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+
+	// IMovieSceneSequenceActor interface
+	virtual void TickFromSequenceTickManager(float DeltaSeconds) override;
 
 protected:
 

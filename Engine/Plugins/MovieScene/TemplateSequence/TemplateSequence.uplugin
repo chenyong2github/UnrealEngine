@@ -2,7 +2,7 @@
 	"FileVersion" : 1,
 	"Version" : 1,
 	"VersionName" : "0.1",
-	"FriendlyName" : "Template Sequence (Experimental)",
+	"FriendlyName" : "Template Sequence",
 	"Description" : "Runtime for template sequences",
 	"Category" : "Editor",
 	"CreatedBy" : "Epic Games, Inc.",

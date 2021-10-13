@@ -101,7 +101,7 @@ T* PrecompileDuplicateObject(T const* SourceObject, UObject* Outer, const FName 
 
 void FNiagaraCompileRequestDuplicateData::DuplicateReferencedGraphs(UNiagaraGraph* InSrcGraph, UNiagaraGraph* InDupeGraph, ENiagaraScriptUsage InUsage, FCompileConstantResolver ConstantResolver, TMap<UNiagaraNodeFunctionCall*, ENiagaraScriptUsage> FunctionsWithUsage)
 {
-	if (!InDupeGraph && !InSrcGraph)
+	if (!InDupeGraph || !InSrcGraph)
 	{
 		return;
 	}
@@ -493,7 +493,7 @@ void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>
 				FString TranslationName = TEXT("Emitter");
 				Builder.BeginTranslation(TranslationName);
 				Builder.BeginUsage(FoundOutputNode->GetUsage(), SimStageName);
-				Builder.EnableScriptWhitelist(true, FoundOutputNode->GetUsage());
+				Builder.EnableScriptAllowList(true, FoundOutputNode->GetUsage());
 				Builder.BuildParameterMaps(FoundOutputNode, true);
 				Builder.EndUsage();
 
@@ -596,7 +596,7 @@ void FNiagaraCompileRequestDuplicateData::FinishPrecompileDuplicate(const TArray
 			FString TranslationName = TEXT("Emitter");
 			Builder.BeginTranslation(TranslationName);
 			Builder.BeginUsage(FoundOutputNode->GetUsage(), SimStageName);
-			Builder.EnableScriptWhitelist(true, FoundOutputNode->GetUsage());
+			Builder.EnableScriptAllowList(true, FoundOutputNode->GetUsage());
 			Builder.BuildParameterMaps(FoundOutputNode, true);
 			Builder.EndUsage();
 
@@ -685,8 +685,10 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 		return InvalidPtr;
 	}
 
+	FString LogName = LogPackage ? LogPackage->GetName() : InObj->GetName();
+
 	TRACE_CPUPROFILER_EVENT_SCOPE(NiagaraPrecompile);
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_ON_CHANNEL(LogPackage ? *LogPackage->GetName() : *InObj->GetName(), NiagaraChannel);
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_ON_CHANNEL(*LogName, NiagaraChannel);
 
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_ScriptSource_PreCompile);
 	double StartTime = FPlatformTime::Seconds();
@@ -867,7 +869,7 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 		}
 	}
 
-	UE_LOG(LogNiagaraEditor, Verbose, TEXT("'%s' Precompile took %f sec."), *LogPackage->GetName(),
+	UE_LOG(LogNiagaraEditor, Verbose, TEXT("'%s' Precompile took %f sec."), *LogName,
 		(float)(FPlatformTime::Seconds() - StartTime));
 
 	return BasePtr;

@@ -25,7 +25,7 @@
 		{
 			"Name": "PlanarCut",
 			"Enabled": true,
-			"WhitelistTargets": [ "Editor" ]
+			"TargetAllowList": [ "Editor" ]
 		},
 		{
 			"Name": "GeometryCollectionPlugin",
@@ -34,7 +34,7 @@
 		{
 			"Name": "MeshModelingToolsetExp",
 			"Enabled": true,
-			"WhitelistTargets": [ "Editor" ]
+			"TargetAllowList": [ "Editor" ]
 		},
 		{
 			"Name": "EditorScriptingUtilities",

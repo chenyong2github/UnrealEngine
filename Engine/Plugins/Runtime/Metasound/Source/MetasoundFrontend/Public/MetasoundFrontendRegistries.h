@@ -44,7 +44,7 @@ namespace Metasound
 	using FInputNodeConstructorParams = FDefaultNamedVertexWithLiteralNodeConstructorParams;
 	using FOutputNodeConstructorParams = FDefaultNamedVertexNodeConstructorParams;
 	using FLiteralNodeConstructorParams = FDefaultLiteralNodeConstructorParams;
-	using FInitVariableNodeConstructorParams = FDefaultLiteralNodeConstructorParams;
+	using FVariableNodeConstructorParams = FDefaultLiteralNodeConstructorParams;
 
 	using FIterateMetasoundFrontendClassFunction = TFunctionRef<void(const FMetasoundFrontendClass&)>;
 

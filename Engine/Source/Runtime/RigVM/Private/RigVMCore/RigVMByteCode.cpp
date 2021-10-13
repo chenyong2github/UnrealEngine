@@ -665,6 +665,8 @@ void FRigVMByteCode::Reset()
 	CallstackPerInstruction.Reset();
 	CallstackHashToInstructions.Reset();
 	CallstackHashPerInstruction.Reset();
+	InputOperandsPerInstruction.Reset();
+	OutputOperandsPerInstruction.Reset();
 #endif
 }
 
@@ -683,6 +685,8 @@ void FRigVMByteCode::Empty()
 	CallstackPerInstruction.Empty();
 	CallstackHashToInstructions.Empty();
 	CallstackHashPerInstruction.Empty();
+	InputOperandsPerInstruction.Empty();
+	OutputOperandsPerInstruction.Empty();
 #endif
 }
 
@@ -930,8 +934,16 @@ uint64 FRigVMByteCode::AddCopyOp(const FRigVMOperand& InSource, const FRigVMOper
 	check(InTarget.GetMemoryType() != ERigVMMemoryType::Literal);
 	check(InSource != InTarget);
 
-	FRigVMCopyOp Op(InSource, InTarget);
-	return AddOp(Op);
+	const FRigVMCopyOp Op(InSource, InTarget);
+	const uint64 ByteIndex = AddOp(Op);
+
+#if WITH_EDITORONLY_DATA
+	const FRigVMOperandArray InputOperands(&InSource, 1);
+	const FRigVMOperandArray OutputOperands(&InTarget, 1);
+	SetOperandsForInstruction(GetNumInstructions() - 1, InputOperands, OutputOperands);
+#endif
+	
+	return ByteIndex;
 }
 
 #endif
@@ -961,14 +973,36 @@ uint64 FRigVMByteCode::AddDecrementOp(const FRigVMOperand& InArg)
 
 uint64 FRigVMByteCode::AddEqualsOp(const FRigVMOperand& InA, const FRigVMOperand& InB, const FRigVMOperand& InResult)
 {
-	FRigVMComparisonOp Op(ERigVMOpCode::Equals, InA, InB, InResult);
-	return AddOp(Op);
+	const FRigVMComparisonOp Op(ERigVMOpCode::Equals, InA, InB, InResult);
+	const uint64 ByteIndex = AddOp(Op);
+	
+#if WITH_EDITORONLY_DATA
+	TArray<FRigVMOperand> Inputs;
+	Inputs.Add(InA);
+	Inputs.Add(InB);
+	const FRigVMOperandArray InputOperands(&Inputs[0], Inputs.Num());
+	const FRigVMOperandArray OutputOperands(&InResult, 1);
+	SetOperandsForInstruction(GetNumInstructions() - 1, InputOperands, OutputOperands);
+#endif
+
+	return ByteIndex;
 }
 
 uint64 FRigVMByteCode::AddNotEqualsOp(const FRigVMOperand& InA, const FRigVMOperand& InB, const FRigVMOperand& InResult)
 {
-	FRigVMComparisonOp Op(ERigVMOpCode::NotEquals, InA, InB, InResult);
-	return AddOp(Op);
+	const FRigVMComparisonOp Op(ERigVMOpCode::NotEquals, InA, InB, InResult);
+	const uint64 ByteIndex = AddOp(Op);
+
+#if WITH_EDITORONLY_DATA
+	TArray<FRigVMOperand> Inputs;
+	Inputs.Add(InA);
+	Inputs.Add(InB);
+	const FRigVMOperandArray InputOperands(&Inputs[0], Inputs.Num());
+	const FRigVMOperandArray OutputOperands(&InResult, 1);
+	SetOperandsForInstruction(GetNumInstructions() - 1, InputOperands, OutputOperands);
+#endif
+
+	return ByteIndex;
 }
 
 uint64 FRigVMByteCode::AddJumpOp(ERigVMOpCode InOpCode, uint16 InInstructionIndex)
@@ -1807,6 +1841,44 @@ uint32 FRigVMByteCode::GetCallstackHash(const TArrayView<UObject* const>& InCall
 		Hash = HashCombine(Hash, GetTypeHash(Object));
 	}
 	return Hash;
+}
+
+void FRigVMByteCode::SetOperandsForInstruction(int32 InInstructionIndex, const FRigVMOperandArray& InputOperands,
+	const FRigVMOperandArray& OutputOperands)
+{
+	if (InputOperandsPerInstruction.Num() <= InInstructionIndex)
+	{
+		InputOperandsPerInstruction.AddZeroed(1 + InInstructionIndex - InputOperandsPerInstruction.Num());
+	}
+	InputOperandsPerInstruction[InInstructionIndex].Reset();
+	InputOperandsPerInstruction[InInstructionIndex].Reserve(InputOperands.Num());
+
+	for(int32 OperandIndex = 0; OperandIndex < InputOperands.Num(); OperandIndex++)
+	{
+		// we are only interested in memory here which can change over time
+		if(InputOperands[OperandIndex].GetMemoryType() == ERigVMMemoryType::Literal)
+		{
+			continue;;
+		}
+		InputOperandsPerInstruction[InInstructionIndex].Add(InputOperands[OperandIndex]);
+	}
+
+	if (OutputOperandsPerInstruction.Num() <= InInstructionIndex)
+	{
+		OutputOperandsPerInstruction.AddZeroed(1 + InInstructionIndex - OutputOperandsPerInstruction.Num());
+	}
+	OutputOperandsPerInstruction[InInstructionIndex].Reset();
+	OutputOperandsPerInstruction[InInstructionIndex].Reserve(OutputOperands.Num());
+
+	for(int32 OperandIndex = 0; OperandIndex < OutputOperands.Num(); OperandIndex++)
+	{
+		// we are only interested in memory here which can change over time
+		if(OutputOperands[OperandIndex].GetMemoryType() == ERigVMMemoryType::Literal)
+		{
+			continue;;
+		}
+		OutputOperandsPerInstruction[InInstructionIndex].Add(OutputOperands[OperandIndex]);
+	}
 }
 
 #endif

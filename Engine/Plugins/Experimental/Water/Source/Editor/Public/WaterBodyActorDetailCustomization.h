@@ -23,7 +23,11 @@ public:
 		// TODO [jonathan.bard] : remove after deprecation : 
 		DetailBuilder.HideProperty(TEXT("Wave Spectrum Settings")); // BP-property that was deprecated
 
-		if (!IsWaveSupported(DetailBuilder.GetSelectedObjects()))
+		if (IsWaveSupported(DetailBuilder.GetSelectedObjects()))
+		{
+			DetailBuilder.EditCategory(TEXT("Wave"), FText::GetEmpty(), ECategoryPriority::TypeSpecific);
+		}
+		else
 		{
 			DetailBuilder.HideCategory(TEXT("Wave"));
 		}
@@ -40,7 +44,7 @@ private:
 			{
 				if (UWaterBodyComponent* WaterBodyComponent = WaterBody->GetWaterBodyComponent())
 				{
-					if (WaterBodyComponent->IsWaveSupported())
+					if (!WaterBodyComponent->IsWaveSupported())
 					{
 					bWaveSupported = false;
 					break;

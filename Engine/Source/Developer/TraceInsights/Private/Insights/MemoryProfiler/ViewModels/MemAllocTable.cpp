@@ -602,6 +602,8 @@ void FMemAllocTable::AddDefaultColumns()
 									TEXT("FMemory::"_SV),
 									TEXT("FMallocWrapper::"_SV),
 									TEXT("FMallocPoisonProxy::"_SV),
+									TEXT("Malloc"_SV),
+									TEXT("Realloc"_SV),
 								};
 
 								bool bMatchIgnoreSymbol = false;

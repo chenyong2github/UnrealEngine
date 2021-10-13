@@ -699,7 +699,7 @@ namespace AssetUtil
 
 				for (const FString& DroppedAssetString : DroppedAssetStrings)
 				{
-					if (DroppedAssetString.Len() < NAME_SIZE && FName::IsValidXName(DroppedAssetString, INVALID_OBJECTNAME_CHARACTERS INVALID_LONGPACKAGE_CHARACTERS))
+					if (DroppedAssetString.Len() < NAME_SIZE && FName::IsValidXName(DroppedAssetString, INVALID_OBJECTPATH_CHARACTERS))
 					{
 						FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(FName(*DroppedAssetString));
 						if (AssetData.IsValid())

@@ -32,6 +32,7 @@ struct FFrameRate;
 
 class UMovieSceneEntitySystemLinker;
 class IMovieScenePlayer;
+enum class ECookOptimizationFlags;
 
 namespace UE
 {
@@ -572,6 +573,21 @@ public:
 
 #if WITH_EDITOR
 	MOVIESCENE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
+#if WITH_EDITOR
+
+	/**
+	 * Called when this section's movie scene is being cooked to determine if/how this section should be cooked.
+	 * @return ECookOptimizationFlags detailing how to optimize this section
+	 */
+	MOVIESCENE_API virtual ECookOptimizationFlags GetCookOptimizationFlags() const;
+
+	/**
+	 * Called when this section should be removed for cooking
+	 */
+	MOVIESCENE_API virtual void RemoveForCook();
+
 #endif
 
 public:

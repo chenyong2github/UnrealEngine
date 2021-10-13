@@ -3069,7 +3069,7 @@ namespace FramePro
 		RelaxedAtomic<size_t> m_SendBufferMemorySize;
 		RelaxedAtomic<size_t> m_StringMemorySize;
 
-		static const int m_SendBufferCapacity = 32*1024;
+		static const int m_SendBufferCapacity = 32768 - 16;
 
 		int64 m_ClockFrequency;
 

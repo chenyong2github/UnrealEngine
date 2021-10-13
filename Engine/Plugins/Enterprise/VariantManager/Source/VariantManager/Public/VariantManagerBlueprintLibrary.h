@@ -215,5 +215,5 @@ public:
 	static FIntPoint GetValueIntPoint(UPropertyValue* Property);
 
 private:
-	static FVariantManager VariantManager;
+	static TUniquePtr<FVariantManager> VariantManager;
 };

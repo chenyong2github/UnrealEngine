@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using OpenTracing.Util;
 using UnrealBuildBase;
 
 #nullable disable
@@ -312,7 +313,7 @@ namespace UnrealBuildTool
 					throw new BuildException("Unknown editor filename for this platform");
 				}
 
-				using(Timeline.ScopeEvent("Finding editor processes for hot-reload"))
+				using (GlobalTracer.Instance.BuildSpan("Finding editor processes for hot-reload").StartActive())
 				{
 					DirectoryReference EditorRunsDir = DirectoryReference.Combine(Unreal.EngineDirectory, "Intermediate", "EditorRuns");
 					if (!DirectoryReference.Exists(EditorRunsDir))

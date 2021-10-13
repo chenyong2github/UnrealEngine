@@ -113,6 +113,7 @@ private:
 	TArray<FPackageData*> Requests;
 	TArray<FPackageData*> RequestsToDemote;
 	UE::TargetDomain::FCookAttachments OplogDataScratch;
+	TSet<FName> NameSetScratch;
 	TArray<const ITargetPlatform*> Platforms;
 	TArray<ICookedPackageWriter*> PackageWriters;
 	FPackageDataSet OwnedPackageDatas;

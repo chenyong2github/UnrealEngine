@@ -95,6 +95,13 @@ static TAutoConsoleVariable<int32> CVarVolumetricCloudShadowSampleAtmosphericLig
 	TEXT("Enable the sampling of atmospheric lights shadow map in order to produce volumetric shadows."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
+// The project setting for the cloud shadow to affect all translucenct surface not relying on the translucent lighting volume (enable/disable runtime and shader code).  This is not implemented on mobile as VolumetricClouds are not available on these platforms.
+static TAutoConsoleVariable<int32> CVarSupportCloudShadowOnForwardLitTranslucent(
+	TEXT("r.SupportCloudShadowOnForwardLitTranslucent"),
+	0,
+	TEXT("Enables cloud shadow to affect all translucenct surface not relying on the translucent lighting volume."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
 ////////////////////////////////////////////////////////////////////////// Cloud SKY AO
 
 static TAutoConsoleVariable<int32> CVarVolumetricCloudSkyAO(
@@ -216,9 +223,15 @@ static bool ShouldPipelineCompileVolumetricCloudShader(EShaderPlatform ShaderPla
 	return RHISupportsComputeShaders(ShaderPlatform);
 }
 
-static bool ShouldUseComputeForCloudTracing()
+static bool ShouldUseComputeForCloudTracing(const FStaticFeatureLevel InFeatureLevel)
 {
-	return !CVarVolumetricCloudDisableCompute.GetValueOnRenderThread() && GDynamicRHI->RHIIsTypedUAVLoadSupported(PF_FloatRGBA) && GDynamicRHI->RHIIsTypedUAVLoadSupported(PF_G16R16F);
+	// When capturing a non-real-time sky light, the reflection cube face is first rendered in the scene texture 
+	// before it is copied to the corresponding cubemap face. 
+	// We cannot create UAV on a MSAA texture for the compute shader.
+	// So in this case, when capturing such a sky light, we must disabled the compute path.
+	const bool bMSAAEnabled = GetDefaultMSAACount(InFeatureLevel) > 1;
+
+	return !CVarVolumetricCloudDisableCompute.GetValueOnRenderThread() && GDynamicRHI->RHIIsTypedUAVLoadSupported(PF_FloatRGBA) && GDynamicRHI->RHIIsTypedUAVLoadSupported(PF_G16R16F) && !bMSAAEnabled;
 }
 
 bool ShouldRenderVolumetricCloud(const FScene* Scene, const FEngineShowFlags& EngineShowFlags)
@@ -1936,7 +1949,9 @@ static TRDGUniformBufferRef<FRenderVolumetricCloudGlobalParameters> CreateCloudP
 		VolumetricCloudParams.OpaqueIntersectionMode = 2;	// always intersect with opaque
 	}
 
-	if (CloudRC.bIsReflectionRendering)
+	const bool bIsPathTracing = MainView.Family && MainView.Family->EngineShowFlags.PathTracing;
+	if (CloudRC.bIsReflectionRendering 
+		&& !(bIsPathTracing && CloudRC.bIsSkyRealTimeReflectionRendering))	// When using path tracing and real time sky capture, the captured sky cubemap is used to render the sky in the main view. As such, we always use the view settings.
 	{
 		const float BaseReflectionRaySampleCount = 10.0f;
 		const float BaseReflectionShadowRaySampleCount = 3.0f;
@@ -2016,7 +2031,7 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 	TRDGUniformBufferRef<FRenderVolumetricCloudGlobalParameters> CloudPassUniformBuffer = CreateCloudPassUniformBuffer(GraphBuilder, CloudRC);
 
 	const bool bCloudEnableLocalLightSampling = CVarVolumetricCloudEnableLocalLightsSampling.GetValueOnRenderThread() > 0;
-	if (ShouldUseComputeForCloudTracing())
+	if (ShouldUseComputeForCloudTracing(Scene->GetFeatureLevel()))
 	{
 		FRDGTextureRef CloudColorCubeTexture;
 		FRDGTextureRef CloudColorTexture;
@@ -2287,10 +2302,16 @@ bool FSceneRenderer::RenderVolumetricCloud(
 								TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV), TEXT("Cloud.HighQualityAPIntermediate"));
 					}
 
+					// Create a texture for cloud depth data that will be dropped out just after.
+					// This texture must also match the MSAA sample count of the color buffer in case this direct to SceneColor rendering happens 
+					// while capturing a non-real-time sky light. This is because, in this case, the capture scene rendering happens in the scene color which can have MSAA NumSamples > 1.
+					uint8 DepthNumMips = 1;
+					uint8 DepthNumSamples = bShouldUseHighQualityAerialPerspective ? IntermediateRT->Desc.NumSamples : DestinationRT->Desc.NumSamples;
+					ETextureCreateFlags DepthTexCreateFlags = ETextureCreateFlags(TexCreate_ShaderResource | TexCreate_RenderTargetable | (DepthNumSamples > 1 ? TexCreate_None : TexCreate_UAV));
 					DestinationRTDepth = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(FIntPoint(RtSize.X, RtSize.Y), PF_G16R16F, FClearValueBinding::Black,
-						TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV), TEXT("Cloud.DummyDepth"));
+						DepthTexCreateFlags, DepthNumMips, DepthNumSamples), TEXT("Cloud.DummyDepth"));
 
-					if (bShouldUseHighQualityAerialPerspective && ShouldUseComputeForCloudTracing())
+					if (bShouldUseHighQualityAerialPerspective && ShouldUseComputeForCloudTracing(Scene->GetFeatureLevel()))
 					{
 						// If using the compute path, we then need to clear the intermediate render target manually as RDG won't do it for us in this case.
 						AddClearRenderTargetPass(GraphBuilder, IntermediateRT);
@@ -2472,8 +2493,23 @@ bool FSceneRenderer::RenderVolumetricCloud(
 	return bAsyncComputeUsed;
 }
 
-bool SetupLightCloudTransmittanceParameters(const FScene* Scene, const FViewInfo& View, const FLightSceneInfo* LightSceneInfo, FLightCloudTransmittanceParameters& OutParameters)
+bool SetupLightCloudTransmittanceParameters(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View, const FLightSceneInfo* LightSceneInfo, FLightCloudTransmittanceParameters& OutParameters)
 {
+	auto DefaultLightCloudTransmittanceParameters = [](FRDGBuilder& GraphBuilder, FLightCloudTransmittanceParameters& OutParam)
+	{
+		OutParam.CloudShadowmapTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
+		OutParam.CloudShadowmapSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		OutParam.CloudShadowmapFarDepthKm = 1.0f;
+		OutParam.CloudShadowmapWorldToLightClipMatrix = FMatrix::Identity;
+		OutParam.CloudShadowmapStrength = 0.0f;
+	};
+
+	if (!Scene || !LightSceneInfo)
+	{
+		DefaultLightCloudTransmittanceParameters(GraphBuilder, OutParameters);
+		return false;
+	}
+
 	FLightSceneProxy* AtmosphereLight0Proxy = Scene->AtmosphereLights[0] ? Scene->AtmosphereLights[0]->Proxy : nullptr;
 	FLightSceneProxy* AtmosphereLight1Proxy = Scene->AtmosphereLights[1] ? Scene->AtmosphereLights[1]->Proxy : nullptr;
 	const FVolumetricCloudRenderSceneInfo* CloudInfo = Scene->GetVolumetricCloudSceneInfo();
@@ -2499,11 +2535,7 @@ bool SetupLightCloudTransmittanceParameters(const FScene* Scene, const FViewInfo
 	}
 	else
 	{
-		OutParameters.CloudShadowmapTexture = View.VolumetricCloudShadowRenderTarget[0];
-		OutParameters.CloudShadowmapSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-		OutParameters.CloudShadowmapFarDepthKm = 1.0f;
-		OutParameters.CloudShadowmapWorldToLightClipMatrix = FMatrix::Identity;
-		OutParameters.CloudShadowmapStrength = 0.0f;
+		DefaultLightCloudTransmittanceParameters(GraphBuilder, OutParameters);
 	}
 
 	return bLight0CloudPerPixelTransmittance || bLight1CloudPerPixelTransmittance;

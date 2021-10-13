@@ -1787,13 +1787,14 @@ namespace Audio
 			float* RESTRICT OutputFrame = &DestinationBuffer[FrameIndex * NumDestinationChannels];
 			const float* RESTRICT InputFrame = &SourceBuffer[FrameIndex * NumSourceChannels];
 
-			FMemory::Memzero(OutputFrame, NumDestinationChannels * sizeof(float));
 			for (int32 OutputChannelIndex = 0; OutputChannelIndex < NumDestinationChannels; OutputChannelIndex++)
 			{
+				float Value = 0.f;
 				for (int32 InputChannelIndex = 0; InputChannelIndex < NumSourceChannels; InputChannelIndex++)
 				{
-					OutputFrame[OutputChannelIndex] += InputFrame[InputChannelIndex] * Gains[InputChannelIndex * NumDestinationChannels + OutputChannelIndex];
+					Value += InputFrame[InputChannelIndex] * Gains[InputChannelIndex * NumDestinationChannels + OutputChannelIndex];
 				}
+				OutputFrame[OutputChannelIndex] = Value;
 			}
 		}
 	}
@@ -1808,7 +1809,7 @@ namespace Audio
 		// First, build a map of the per-frame delta that we will use to increment StartGains every frame:
 		check(NumSourceChannels <= 8 && NumDestinationChannels <= 8);
 		alignas(16) float GainDeltas[8 * 8];
-		
+
 		for (int32 OutputChannelIndex = 0; OutputChannelIndex < NumDestinationChannels; OutputChannelIndex++)
 		{
 			for (int32 InputChannelIndex = 0; InputChannelIndex < NumSourceChannels; InputChannelIndex++)
@@ -1823,15 +1824,16 @@ namespace Audio
 			float* RESTRICT OutputFrame = &DestinationBuffer[FrameIndex * NumDestinationChannels];
 			const float* RESTRICT InputFrame = &SourceBuffer[FrameIndex * NumSourceChannels];
 
-			FMemory::Memzero(OutputFrame, NumDestinationChannels * sizeof(float));
 			for (int32 OutputChannelIndex = 0; OutputChannelIndex < NumDestinationChannels; OutputChannelIndex++)
 			{
+				float Value = 0.f;
 				for (int32 InputChannelIndex = 0; InputChannelIndex < NumSourceChannels; InputChannelIndex++)
 				{
 					const int32 GainMatrixIndex = InputChannelIndex * NumDestinationChannels + OutputChannelIndex;
-					OutputFrame[OutputChannelIndex] += InputFrame[InputChannelIndex] * StartGains[GainMatrixIndex];
+					Value += InputFrame[InputChannelIndex] * StartGains[GainMatrixIndex];
 					StartGains[GainMatrixIndex] += GainDeltas[GainMatrixIndex];
 				}
+				OutputFrame[OutputChannelIndex] = Value;
 			}
 		}
 	}
@@ -1851,10 +1853,12 @@ namespace Audio
 
 			for (int32 OutputChannelIndex = 0; OutputChannelIndex < NumDestinationChannels; OutputChannelIndex++)
 			{
+				float Value = 0.f;
 				for (int32 InputChannelIndex = 0; InputChannelIndex < NumSourceChannels; InputChannelIndex++)
 				{
-					OutputFrame[OutputChannelIndex] += InputFrame[InputChannelIndex] * Gains[InputChannelIndex * NumDestinationChannels + OutputChannelIndex];
+					 Value += InputFrame[InputChannelIndex] * Gains[InputChannelIndex * NumDestinationChannels + OutputChannelIndex];
 				}
+				OutputFrame[OutputChannelIndex] += Value;
 			}
 		}
 	}

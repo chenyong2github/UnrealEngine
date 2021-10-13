@@ -36,6 +36,13 @@ class UNetDriver;
 
 /** Delegate for overriding the behavior when a navigation action is taken, Not to be confused with FNavigationDelegate which allows a specific widget to override behavior for itself */
 DECLARE_DELEGATE_RetVal_TwoParams(bool, FCustomNavigationHandler, const uint32, TSharedPtr<SWidget>);
+
+/** Delegate for overriding key input before it is routed to player controllers, returning true means it was handled by delegate */
+DECLARE_DELEGATE_RetVal_OneParam(bool, FOverrideInputKeyHandler, FInputKeyEventArgs& /*EventArgs*/);
+
+/** Delegate for overriding axis input before it is routed to player controllers, returning true means it was handled by delegate */
+DECLARE_DELEGATE_RetVal_FourParams(bool, FOverrideInputAxisHandler, FInputKeyEventArgs& /*EventArgs*/, float& /*Delta*/, float& /*DeltaTime*/, int32& /*NumSamples*/);
+
 DECLARE_MULTICAST_DELEGATE_SevenParams(FOnInputAxisSignature, FViewport* /*InViewport*/, int32 /*ControllerId*/, FKey /*Key*/, float /*Delta*/, float /*DeltaTime*/, int32 /*NumSamples*/, bool /*bGamepad*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnInputKeySignature, const FInputKeyEventArgs& /*EventArgs*/);
 
@@ -159,8 +166,6 @@ public:
 	//~ Begin FViewportClient Interface.
 	virtual void RedrawRequested(FViewport* InViewport) override {}
 	virtual bool InputKey(const FInputKeyEventArgs& EventArgs) override;
-	UE_DEPRECATED(4.21, "Use the new InputKey(const FInputKeyEventArgs& EventArgs) function.")
-	virtual bool InputKey(FViewport* InViewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed = 1.f, bool bGamepad = false) override final { return false; }
 	virtual bool InputAxis(FViewport* Viewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime, int32 NumSamples=1, bool bGamepad=false) override;
 	virtual bool InputChar(FViewport* Viewport,int32 ControllerId, TCHAR Character) override;
 	virtual bool InputTouch(FViewport* Viewport, int32 ControllerId, uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, float Force, FDateTime DeviceTimestamp, uint32 TouchpadIndex) override;
@@ -199,6 +204,9 @@ public:
 	 * Gives the game's custom viewport client a way to handle F11 or Alt+Enter before processing the input
 	 */
 	bool TryToggleFullscreenOnInputKey(FKey Key, EInputEvent EventType);
+
+	/** Function that handles remapping controller information for cases like PIE */
+	virtual void RemapControllerInput(FInputKeyEventArgs& InOutKeyEvent);
 
 	/**
 	 * Exec command handlers
@@ -587,13 +595,25 @@ public:
 		return CustomNavigationEvent;
 	}
 
-	/** fetches OnInputKeyEvent reference */
+	/** Set an override handler for input key handling, can be used for things like press start screen */
+	FOverrideInputKeyHandler& OnOverrideInputKey()
+	{
+		return OnOverrideInputKeyEvent;
+	}
+
+	/** Set an override handler for input axis handling */
+	FOverrideInputAxisHandler& OnOverrideInputAxis()
+	{
+		return OnOverrideInputAxisEvent;
+	}
+
+	/** Gets broadcast delegate for input key, happens in addition to player controller input */
 	FOnInputKeySignature& OnInputKey()
 	{
 		return OnInputKeyEvent;
 	}
 
-	/** fetches OnInputAxisEvent reference */
+	/** Gets broadcast delegate for input axis, happens in addition to player controller input */
 	FOnInputAxisSignature& OnInputAxis()
 	{
 		return OnInputAxisEvent;
@@ -998,6 +1018,12 @@ private:
 
 	/** Delegate for custom navigation behavior */
 	FCustomNavigationHandler CustomNavigationEvent;
+
+	/** Delegate for overriding input key behavior */
+	FOverrideInputKeyHandler OnOverrideInputKeyEvent;
+
+	/** Delegate for overriding input axis behavior */
+	FOverrideInputAxisHandler OnOverrideInputAxisEvent;
 
 	/** A broadcast delegate broadcasting from UGameViewportClient::InputKey */
 	FOnInputKeySignature OnInputKeyEvent;

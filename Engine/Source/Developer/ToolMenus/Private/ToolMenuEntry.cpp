@@ -11,7 +11,7 @@
 #include "Internationalization/Internationalization.h"
 #include "Input/Events.h"
 
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FToolMenuEntry::FToolMenuEntry() :
 	Type(EMultiBlockType::None),
 	UserInterfaceActionType(EUserInterfaceActionType::Button),
@@ -35,6 +35,12 @@ FToolMenuEntry::FToolMenuEntry(const FToolMenuOwner InOwner, const FName InName,
 	bCommandIsKeybindOnly(false)
 {
 }
+
+FToolMenuEntry::FToolMenuEntry(const FToolMenuEntry&) = default;
+FToolMenuEntry::FToolMenuEntry(FToolMenuEntry&&) = default;
+FToolMenuEntry& FToolMenuEntry::operator=(const FToolMenuEntry&) = default;
+FToolMenuEntry& FToolMenuEntry::operator=(FToolMenuEntry&&) = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 const FUIAction* FToolMenuEntry::GetActionForCommand(const FToolMenuContext& InContext, TSharedPtr<const FUICommandList>& OutCommandList) const
 {
@@ -137,7 +143,7 @@ FToolMenuEntry FToolMenuEntry::InitMenuEntry(const FName InName, const FToolUIAc
 {
 	FToolMenuEntry Entry(UToolMenus::Get()->CurrentOwner(), InName, EMultiBlockType::MenuEntry);
 	Entry.Action = InAction;
-	Entry.MakeWidget.BindLambda([Widget](const FToolMenuContext&) { return Widget; });
+	Entry.MakeCustomWidget.BindLambda([Widget](const FToolMenuContext&, const FToolMenuCustomWidgetContext&) { return Widget; });
 	return Entry;
 }
 
@@ -173,7 +179,7 @@ FToolMenuEntry FToolMenuEntry::InitSubMenu(const FName InName, const FToolUIActi
 {
 	FToolMenuEntry Entry(UToolMenus::Get()->CurrentOwner(), InName, EMultiBlockType::MenuEntry);
 	Entry.Action = InAction;
-	Entry.MakeWidget.BindLambda([=](const FToolMenuContext&) { return InWidget; });
+	Entry.MakeCustomWidget.BindLambda([=](const FToolMenuContext&, const FToolMenuCustomWidgetContext&) { return InWidget; });
 	Entry.bShouldCloseWindowAfterMenuSelection = bInShouldCloseWindowAfterMenuSelection;
 	Entry.SubMenuData.bIsSubMenu = true;
 	Entry.SubMenuData.ConstructMenu = InMakeMenu;
@@ -223,7 +229,7 @@ FToolMenuEntry FToolMenuEntry::InitWidget(const FName InName, const TSharedRef<S
 {
 	FToolMenuEntry Entry(UToolMenus::Get()->CurrentOwner(), InName, EMultiBlockType::Widget);
 	Entry.Label = Label;
-	Entry.MakeWidget.BindLambda([=](const FToolMenuContext&) { return InWidget; });
+	Entry.MakeCustomWidget.BindLambda([=](const FToolMenuContext&, const FToolMenuCustomWidgetContext&) { return InWidget; });
 	Entry.WidgetData.bNoIndent = bNoIndent;
 	Entry.WidgetData.bSearchable = bSearchable;
 	Entry.WidgetData.bNoPadding = bNoPadding;

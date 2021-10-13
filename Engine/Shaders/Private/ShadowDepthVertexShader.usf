@@ -281,7 +281,11 @@ void MainOnePassPointLightGS(triangle FShadowDepthVSToGS Input[3], inout Triangl
 void Main(
 	FVertexFactoryInput Input,
 #if ONEPASS_POINTLIGHT_SHADOW
+  #if IS_FOR_GEOMETRY_SHADER
 	out FShadowDepthVSToGS OutParameters,
+  #else
+	out FShadowDepthVSToPS OutParameters,
+  #endif
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && USING_VERTEX_SHADER_LAYER
 	out uint LayerIndex : SV_RenderTargetArrayIndex,
 #endif
@@ -311,11 +315,15 @@ void Main(
 
 #if ONEPASS_POINTLIGHT_SHADOW
 
-	OutPosition = OutParameters.GSPosition = WorldPos;
-	OutParameters.WorldNormal = WorldNormal;
-#if ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS && IS_FOR_GEOMETRY_SHADER
-	OutParameters.ViewIndex = VertexFactoryGetViewIndex(VFIntermediates);
-#endif // ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS && IS_FOR_GEOMETRY_SHADER
+	OutPosition = WorldPos;
+
+	#if IS_FOR_GEOMETRY_SHADER
+		OutParameters.GSPosition = WorldPos;
+		OutParameters.WorldNormal = WorldNormal;
+		#if ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS
+			OutParameters.ViewIndex = VertexFactoryGetViewIndex(VFIntermediates);
+		#endif // ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS
+	#endif // IS_FOR_GEOMETRY_SHADER
 
 	#if INTERPOLATE_VF_ATTRIBUTES
 		// Masked materials need texture coords to clip
@@ -329,7 +337,7 @@ void Main(
 	#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && USING_VERTEX_SHADER_LAYER && VERTEXSHADER
 		LayerIndex = bUseGpuSceneInstancing ? VertexFactoryGetViewIndex(VFIntermediates) : LayerId;
 		OutPosition = mul(WorldPos, PassStruct.ShadowViewProjectionMatrices[LayerIndex]);
-		#if INTERPOLATE_VF_ATTRIBUTES
+		#if INTERPOLATE_VF_ATTRIBUTES && IS_FOR_GEOMETRY_SHADER
 			OutParameters.GSPosition = OutPosition;
 		#endif
 	#endif

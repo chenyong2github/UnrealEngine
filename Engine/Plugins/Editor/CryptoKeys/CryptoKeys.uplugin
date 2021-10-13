@@ -19,7 +19,7 @@
 			"Name": "CryptoKeys",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Mac",
 				"Win64",
 				"Linux"
@@ -29,7 +29,7 @@
 			"Name": "CryptoKeysOpenSSL",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Mac",
 				"Win64",
 				"Linux"

@@ -31,7 +31,7 @@ public:
 	void SynchronizeAssetClassDisplayName(const FAssetData& InAssetData);
 
 	virtual bool CanAutoUpdate(const FMetasoundFrontendClassName& InClassName) const override;
-	virtual void RescanAutoUpdateBlacklist() override;
+	virtual void RescanAutoUpdateDenyList() override;
 	virtual FMetasoundAssetBase* FindAssetFromKey(const Metasound::Frontend::FNodeRegistryKey& RegistryKey) const override;
 	virtual const FSoftObjectPath* FindObjectPathFromKey(const Metasound::Frontend::FNodeRegistryKey& RegistryKey) const override;
 	virtual FMetasoundAssetBase* TryLoadAsset(const FSoftObjectPath& InObjectPath) const override;
@@ -41,10 +41,10 @@ protected:
 	void PostInitAssetScan();
 
 private:
-	void RebuildBlacklistCache(const UAssetManager& InAssetManager);
+	void RebuildDenyListCache(const UAssetManager& InAssetManager);
 
-	int32 AutoUpdateBlacklistChangeID = INDEX_NONE;
-	TSet<FName> AutoUpdateBlacklistCache;
+	int32 AutoUpdateDenyListChangeID = INDEX_NONE;
+	TSet<FName> AutoUpdateDenyListCache;
 	TMap<Metasound::Frontend::FNodeRegistryKey, FSoftObjectPath> PathMap;
 };
 

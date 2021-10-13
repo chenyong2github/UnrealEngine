@@ -32,12 +32,5 @@ public class SDL2 : ModuleRules
 				PublicAdditionalLibraries.Add(Path.Combine(SDL2LibPath, "Unix", Target.Architecture, "libSDL2_fPIC.a"));
 			}
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Win64)
-		{
-			PublicAdditionalLibraries.Add(Path.Combine(SDL2LibPath, "Win64", "SDL2.lib"));
-
-			RuntimeDependencies.Add(Path.Combine("$(EngineDir)", "Binaries", "ThirdParty", "SDL2", "Win64/SDL2.dll"));
-			PublicDelayLoadDLLs.Add("SDL2.dll");
-		}
 	}
 }

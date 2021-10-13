@@ -20,7 +20,7 @@
 			"Name" : "ProceduralMeshComponent",
 			"Type" : "Runtime",
 			"LoadingPhase" : "Default",
-			"BlacklistPlatforms" :
+			"PlatformDenyList" :
 			[
 			]
 		},

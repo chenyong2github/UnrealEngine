@@ -20,7 +20,7 @@
             "Name": "GoogleVRHMD",
             "Type": "Runtime",
             "LoadingPhase": "PostConfigInit",
-            "WhitelistPlatforms": [ "Win64", "Mac", "Android" ]
+            "PlatformAllowList": [ "Win64", "Mac", "Android" ]
         }
     ]
 }

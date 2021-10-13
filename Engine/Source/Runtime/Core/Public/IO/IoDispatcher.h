@@ -826,7 +826,8 @@ public:
 	CORE_API FIoRequest& operator=(const FIoRequest& Other);
 	CORE_API FIoRequest& operator=(FIoRequest&& Other);
 	CORE_API FIoStatus						Status() const;
-	CORE_API TIoStatusOr<FIoBuffer>			GetResult();
+	CORE_API const FIoBuffer*				GetResult() const;
+	CORE_API const FIoBuffer&				GetResultOrDie() const;
 	CORE_API void							Cancel();
 	CORE_API void							UpdatePriority(uint32 NewPriority);
 	CORE_API void							Release();

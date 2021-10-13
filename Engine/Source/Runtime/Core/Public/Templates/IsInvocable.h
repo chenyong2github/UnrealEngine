@@ -4,7 +4,7 @@
 
 #include "Templates/Invoke.h"
 
-namespace UE4Private_IsInvocable
+namespace UE::Core::Private::IsInvocable
 {
 	template <typename T>
 	T&& DeclVal();
@@ -43,6 +43,6 @@ namespace UE4Private_IsInvocable
  *     IsInvocable<TFunction<void(FString)>, int32>::Value == false
  */
 template <typename CallableType, typename... ArgTypes>
-struct TIsInvocable : UE4Private_IsInvocable::TIsInvocableImpl<void, CallableType, ArgTypes...>
+struct TIsInvocable : UE::Core::Private::IsInvocable::TIsInvocableImpl<void, CallableType, ArgTypes...>
 {
 };

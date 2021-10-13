@@ -926,7 +926,7 @@ void FMaterialShaderMapId::AppendKeyString(FString& KeyString) const
 		KeyString += ReferencedParameterCollections[CollectionIndex].ToString();
 	}
 
-	TMap<const TCHAR*,FCachedUniformBufferDeclaration> ReferencedUniformBuffers;
+	TSortedMap<const TCHAR*, FCachedUniformBufferDeclaration, FDefaultAllocator, FUniformBufferNameSortOrder> ReferencedUniformBuffers;
 
 	// Add the inputs for any shaders that are stored inline in the shader map
 	for (int32 ShaderIndex = 0; ShaderIndex < ShaderTypeDependencies.Num(); ShaderIndex++)
@@ -1618,9 +1618,9 @@ void FMaterialShaderMap::SubmitCompileJobs(uint32 CompilingShaderMapId,
 	uint32 NumVertexFactories = 0;
 
 	const EShaderPlatform ShaderPlatform = GetShaderPlatform();
-	const EShaderPermutationFlags PermutationFlags = ShaderMapId.GetPermutationFlags();
+	const EShaderPermutationFlags LocalPermutationFlags = ShaderMapId.GetPermutationFlags();
 	const FMaterialShaderParameters MaterialParameters(Material);
-	const FMaterialShaderMapLayout& Layout = AcquireMaterialShaderMapLayout(ShaderPlatform, PermutationFlags, MaterialParameters);
+	const FMaterialShaderMapLayout& Layout = AcquireMaterialShaderMapLayout(ShaderPlatform, LocalPermutationFlags, MaterialParameters);
 
 #if ALLOW_SHADERMAP_DEBUG_DATA && WITH_EDITOR
 	FString DebugExtensionStr(TEXT(""));
@@ -1679,7 +1679,7 @@ void FMaterialShaderMap::SubmitCompileJobs(uint32 CompilingShaderMapId,
 					CompilingShaderMapId,
 					Shader.PermutationId,
 					ShaderPlatform,
-					PermutationFlags,
+					LocalPermutationFlags,
 					Material,
 					MaterialEnvironment,
 					MeshLayout.VertexFactoryType,
@@ -1723,7 +1723,7 @@ void FMaterialShaderMap::SubmitCompileJobs(uint32 CompilingShaderMapId,
 					CompilingShaderMapId,
 					kUniqueShaderPermutationId,
 					ShaderPlatform,
-					PermutationFlags,
+					LocalPermutationFlags,
 					Material,
 					MaterialEnvironment,
 					MeshLayout.VertexFactoryType,
@@ -1786,7 +1786,7 @@ void FMaterialShaderMap::SubmitCompileJobs(uint32 CompilingShaderMapId,
 				Material,
 				MaterialEnvironment,
 				ShaderPlatform,
-				PermutationFlags,
+				LocalPermutationFlags,
 				CompileJobs,
 				DebugDescription,
 				DebugExtension
@@ -1820,7 +1820,7 @@ void FMaterialShaderMap::SubmitCompileJobs(uint32 CompilingShaderMapId,
 				FMaterialShaderType::BeginCompileShaderPipeline(InPriority,
 					CompilingShaderMapId,
 					ShaderPlatform,
-					PermutationFlags,
+					LocalPermutationFlags,
 					Material,
 					MaterialEnvironment,
 					Pipeline,

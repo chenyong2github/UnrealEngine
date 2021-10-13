@@ -16,11 +16,13 @@
 #include "DatasmithScene.h"
 #include "DatasmithStaticMeshImporter.h"
 #include "DatasmithUtils.h"
+#include "DirectLinkExternalSource.h"
 #include "ObjectTemplates/DatasmithObjectTemplate.h"
 #include "ObjectTemplates/DatasmithStaticMeshTemplate.h"
 #include "UI/DatasmithConsumerDetails.h"
 #include "UI/DatasmithStyle.h"
 
+#include "Async/Async.h"
 #include "AssetToolsModule.h"
 #include "ContentBrowserDelegates.h"
 #include "ContentBrowserMenuContexts.h"
@@ -34,6 +36,7 @@
 #include "Engine/StaticMesh.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IAssetTools.h"
+#include "IDirectLinkManager.h"
 #include "LevelEditor.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
@@ -144,7 +147,8 @@ private:
 	static void ApplyCustomActionOnAssets(TArray< FAssetData > SelectedAssets, IDatasmithCustomAction* Action);
 
 	void SetupMenuEntry();
-	void OnClickedMenuEntry();
+	void OnClickedImportFileMenuEntry();
+	void OnClickedImportDirectLinkMenuEntry();
 
 	// Add the menu entry for a datasmith asset generated from a dataprep asset
 	void AddDataprepMenuEntryForDatasmithSceneAsset();
@@ -168,27 +172,71 @@ void FDatasmithImporterModule::SetupMenuEntry()
 {
 	if (!IsRunningCommandlet())
 	{
-		UToolMenu* ContentMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.AddQuickMenu");
-		check(ContentMenu);
+		UToolMenu* ContentMenu = UToolMenus::Get()->ExtendMenu( "LevelEditor.LevelEditorToolBar.AddQuickMenu" );
+		check( ContentMenu );
 
-		FToolMenuSection& Section = ContentMenu->FindOrAddSection("ImportAssets");
-		Section.InitSection("ImportAssets", LOCTEXT("ImportAssets_Label", "Import Assets"), FToolMenuInsert());
+		FToolMenuSection& Section = ContentMenu->FindOrAddSection( "ImportAssets" );
+		Section.InitSection( "ImportAssets", LOCTEXT( "ImportAssets_Label", "Import Assets" ), FToolMenuInsert() );
 
-		Section.AddMenuEntry(
-			TEXT("Import"),
-			LOCTEXT("DatasmithImport", "Datasmith..."), // label
-			LOCTEXT("DatasmithImportTooltip", "Import Unreal Datasmith file"), // description
-			FSlateIcon(FDatasmithStyle::GetStyleSetName(), TEXT("Datasmith.Import")),
-			FUIAction(FExecuteAction::CreateRaw(this, &FDatasmithImporterModule::OnClickedMenuEntry)/*, FCanExecuteAction()*/)
+		const bool bOpenMenuOnClick = false; //default value;
+		Section.AddSubMenu(
+			TEXT( "DatasmithImport" ),
+			LOCTEXT( "DatasmithImport", "Datasmith" ), // label
+			LOCTEXT( "DatasmithImportTooltip", "Import Unreal Datasmith file" ), // description
+			FNewToolMenuDelegate::CreateLambda( [&]( UToolMenu* Menu ) {
+				FToolMenuSection& SubSection = Menu->FindOrAddSection( TEXT( "DatasmithImportMenu" ) );
+				SubSection.InitSection( TEXT( "DatasmithImportMenu" ), LOCTEXT( "DatasmithImport_Label", "Datasmith Import" ), FToolMenuInsert() );
+
+				SubSection.AddMenuEntry(
+					TEXT( "ImportFile" ),
+					LOCTEXT( "DatasmithFileImport", "File Import..." ), // label
+					LOCTEXT( "DatasmithFileImportTooltip", "Import Unreal Datasmith file" ), // description
+					FSlateIcon( FDatasmithStyle::GetStyleSetName(), TEXT("Datasmith.Import") ),
+					FUIAction( FExecuteAction::CreateRaw( this, &FDatasmithImporterModule::OnClickedImportFileMenuEntry ) )
+				);
+
+				SubSection.AddMenuEntry(
+					TEXT( "ImportDirectLink" ),
+					LOCTEXT( "DatasmithDirectLinkImport", "Direct Link Import..." ), // label
+					LOCTEXT( "DatasmithDirectLinkImportTooltip", "Import Unreal Datasmith with Direct Link" ), // description
+					FSlateIcon( FDatasmithStyle::GetStyleSetName(), TEXT( "Datasmith.Import" ) ),
+					FUIAction( FExecuteAction::CreateRaw( this, &FDatasmithImporterModule::OnClickedImportDirectLinkMenuEntry ) )
+				);
+			}),
+			bOpenMenuOnClick,
+			FSlateIcon( FDatasmithStyle::GetStyleSetName(), TEXT( "Datasmith.Import" ) )
 		);
 	}
 }
 
-void FDatasmithImporterModule::OnClickedMenuEntry()
+void FDatasmithImporterModule::OnClickedImportFileMenuEntry()
 {
-	if (!IsRunningCommandlet())
+	if ( !IsRunningCommandlet() )
 	{
-		FDatasmithImporterHelper::Import<UDatasmithImportFactory>();
+		FDatasmithImporterHelper::Import< UDatasmithImportFactory >();
+	}
+}
+
+void FDatasmithImporterModule::OnClickedImportDirectLinkMenuEntry()
+{
+	using namespace UE::DatasmithImporter;
+
+	TSharedPtr<FDirectLinkExternalSource> ExternalSource = IDirectLinkExtensionModule::Get().DisplayDirectLinkSourcesDialog();
+	if ( ExternalSource )
+	{
+		TFuture<TSharedPtr<IDatasmithScene>> DatasmithSceneFuture = ExternalSource->AsyncLoad();
+
+		// Even though DatasmithSceneFuture will be destructed when exiting this scope, its shared state will still be referenced by the TPromise.
+		// This is where the delegate set by Next() is kept, and so the callback will always be called.
+		DatasmithSceneFuture.Next([ExternalSource = MoveTemp(ExternalSource)](const TSharedPtr<IDatasmithScene>& LoadedScene) {
+			if (LoadedScene)
+			{
+				// Import can only be triggered from main thread.
+				Async(EAsyncExecution::TaskGraphMainThread, [ExternalSource]() {
+					FDatasmithImporterHelper::Import< UDatasmithImportFactory >(ExternalSource.ToSharedRef());
+				});
+			}
+		});
 	}
 }
 
@@ -413,15 +461,17 @@ TSharedRef<FExtender> FDatasmithImporterModule::OnExtendLevelEditorActorSelectio
 	if ( bShouldExtendActorActions )
 	{
 		// Add the Datasmith actions sub-menu extender
-		Extender->AddMenuExtension("ActorControl", EExtensionHook::After, nullptr, FMenuExtensionDelegate::CreateLambda(
+		Extender->AddMenuExtension("ActorTypeTools", EExtensionHook::After, nullptr, FMenuExtensionDelegate::CreateLambda(
 			[SelectedActors](FMenuBuilder& MenuBuilder)
 		{
+			MenuBuilder.BeginSection("Datasmith", LOCTEXT("DatasmithMenuSection", "Datasmith"));
 			MenuBuilder.AddSubMenu(
 				NSLOCTEXT("DatasmithActions", "ObjectContext_Datasmith", "Datasmith"),
 				NSLOCTEXT("DatasmithActions", "ObjectContext_Datasmith", "Datasmith"),
 				FNewMenuDelegate::CreateStatic( &FDatasmithImporterModule::PopulateDatasmithActorsMenu, SelectedActors ),
 				false,
 				FSlateIcon());
+			MenuBuilder.EndSection();
 		}));
 	}
 

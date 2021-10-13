@@ -38,7 +38,7 @@ FSlateIcon UFractureToolAddEmbeddedGeometry::GetToolIcon() const
 
 void UFractureToolAddEmbeddedGeometry::RegisterUICommand(FFractureEditorCommands* BindingContext)
 {
-	UI_COMMAND_EXT(BindingContext, UICommandInfo, "AddEmbeddedGeometry", "Embed", "Embed", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND_EXT(BindingContext, UICommandInfo, "AddEmbeddedGeometry", "Embed", "Embed selected static mesh as passive geometry parented to selected bone. Will be lost if GeometryCollection is Reset!", EUserInterfaceActionType::ToggleButton, FInputChord());
 	BindingContext->AddEmbeddedGeometry = UICommandInfo;
 }
 
@@ -154,7 +154,7 @@ FSlateIcon UFractureToolAutoEmbedGeometry::GetToolIcon() const
 
 void UFractureToolAutoEmbedGeometry::RegisterUICommand(FFractureEditorCommands* BindingContext)
 {
-	UI_COMMAND_EXT(BindingContext, UICommandInfo, "AutoEmbedGeometry", "Auto", "Auto", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND_EXT(BindingContext, UICommandInfo, "AutoEmbedGeometry", "Auto", "Embed selected static meshes as passive geometry parented to nearest bone. Will be lost if GeometryCollection is Reset!", EUserInterfaceActionType::ToggleButton, FInputChord());
 	BindingContext->AutoEmbedGeometry = UICommandInfo;
 }
 

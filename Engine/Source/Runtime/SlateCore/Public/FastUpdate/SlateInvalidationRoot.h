@@ -119,6 +119,17 @@ public:
 	/** @return the last paint type the invalidation root handle used. */
 	ESlateInvalidationPaintType GetLastPaintType() const { return LastPaintType; }
 	void SetLastPaintType(ESlateInvalidationPaintType Value) { LastPaintType = Value; }
+
+	struct FPerformanceStat
+	{
+		double WidgetsPreUpdate = 0.0;
+		double WidgetsAttribute = 0.0;
+		double WidgetsPrepass = 0.0;
+		double WidgetsUpdate = 0.0;
+		/** Include the other stats + maintenance */
+		double InvalidationProcessing = 0.0;
+	};
+	FPerformanceStat GetPerformanceStat() const { return PerformanceStat; }
 #endif
 
 protected:
@@ -152,9 +163,9 @@ private:
 	void ProcessPreUpdate();
 	/** Slate attribute update */
 	void ProcessAttributeUpdate();
-	/** Call slate prepass. */
+	/** Call Slate Prepass. */
 	void ProcessPrepassUpdate();
-	/** Update layout, and update the FinalUpdateList */
+	/** Update paint, tick, timers */
 	bool ProcessPostUpdate();
 
 private:
@@ -200,6 +211,7 @@ private:
 
 #if WITH_SLATE_DEBUGGING
 	ESlateInvalidationPaintType LastPaintType;
+	FPerformanceStat PerformanceStat;
 #endif
 #if UE_SLATE_DEBUGGING_CLEAR_ALL_FAST_PATH_DATA
 	TArray<const SWidget*> FastWidgetPathToClearedBecauseOfDelay;

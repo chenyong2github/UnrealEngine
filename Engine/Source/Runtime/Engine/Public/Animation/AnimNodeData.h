@@ -139,6 +139,13 @@ struct ENGINE_API FAnimNodeStructData
 
 	int32 GetNumProperties() const;
 
+#if WITH_EDITORONLY_DATA
+	// Verifies the layout of another struct data against this one
+	// Note: uses name + index, so not robust to type/size changes. This is OK however as tagged property serializaton
+	// will deal with those and names/indices are all we need to be consistent at this level (as we inderect by name/index)
+	bool DoesLayoutMatch(const FAnimNodeStructData& InOther) const;
+#endif
+	
 private:
 	UPROPERTY()
 	TMap<FName, int32> NameToIndexMap;

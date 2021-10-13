@@ -4,6 +4,7 @@
 #include "IO/IoDispatcherPrivate.h"
 #include "IO/IoStore.h"
 #include "Misc/ScopeRWLock.h"
+#include "Misc/CommandLine.h"
 #include "Misc/CoreDelegates.h"
 #include "Math/RandomStream.h"
 #include "Misc/ScopeLock.h"
@@ -382,6 +383,11 @@ public:
 		return TotalLoaded;
 	}
 
+	bool HasMountedBackend() const
+	{
+		return Backends.Num() > 0;
+	}
+
 private:
 	friend class FIoBatch;
 	friend class FIoRequest;
@@ -699,10 +705,28 @@ HasScriptObjectsChunk(FIoDispatcher& Dispatcher)
 	return bHasScriptObjectsChunk;
 }
 
+static bool
+HasUseIoStoreParam()
+{
+	static bool bForceIoStore = WITH_IOSTORE_IN_EDITOR && FParse::Param(FCommandLine::Get(), TEXT("UseIoStore"));
+	return bForceIoStore;
+}
+
 bool
 FIoDispatcher::IsInitialized()
 {
-	return GIoDispatcher && HasScriptObjectsChunk(*GIoDispatcher);
+	if (GIoDispatcher)
+	{
+		if (HasScriptObjectsChunk(*GIoDispatcher))
+		{
+			return true;
+		}
+		if (HasUseIoStoreParam() && GIoDispatcher->Impl->HasMountedBackend())
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 FIoStatus
@@ -940,24 +964,35 @@ FIoRequest::Status() const
 	}
 }
 
-TIoStatusOr<FIoBuffer>
-FIoRequest::GetResult()
+const FIoBuffer*
+FIoRequest::GetResult() const
 {
 	if (!Impl)
 	{
-		return FIoStatus::Invalid;
+		return nullptr;
 	}
 	FIoStatus Status(Impl->ErrorCode.Load());
 	check(Status.IsCompleted());
 	TIoStatusOr<FIoBuffer> Result;
 	if (Status.IsOk())
 	{
-		return Impl->GetBuffer();
+		return &Impl->GetBuffer();
 	}
 	else
 	{
-		return Status;
+		return nullptr;
 	}
+}
+
+const FIoBuffer&
+FIoRequest::GetResultOrDie() const
+{
+	const FIoBuffer* Result = GetResult();
+	if (!Result)
+	{
+		UE_LOG(LogIoDispatcher, Fatal, TEXT("I/O Error '%s'"), *Status().ToString());
+	}
+	return *Result;
 }
 
 void

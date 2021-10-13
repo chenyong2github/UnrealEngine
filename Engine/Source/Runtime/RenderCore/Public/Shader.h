@@ -637,15 +637,6 @@ enum class EShaderPermutationFlags : uint32
 };
 ENUM_CLASS_FLAGS(EShaderPermutationFlags);
 
-inline EShaderPermutationFlags GetCurrentShaderPermutationFlags()
-{
-	EShaderPermutationFlags Result = EShaderPermutationFlags::None;
-#if WITH_EDITORONLY_DATA
-	Result |= EShaderPermutationFlags::HasEditorOnlyData;
-#endif
-	return Result;
-}
-
 inline EShaderPermutationFlags GetShaderPermutationFlags(const FPlatformTypeLayoutParameters& LayoutParams)
 {
 	EShaderPermutationFlags Result = EShaderPermutationFlags::None;
@@ -2021,6 +2012,11 @@ public:
 	void UnfreezeContent();
 	bool Serialize(FArchive& Ar, bool bInlineShaderResources, bool bLoadedByCookedMaterial, bool bInlineShaderCode=false);
 
+	EShaderPermutationFlags GetPermutationFlags() const
+	{
+		return PermutationFlags;
+	}
+
 	FString ToString() const;
 
 #if WITH_EDITOR
@@ -2075,6 +2071,7 @@ private:
 	FShaderMapPointerTable* PointerTable;
 	TMemoryImageObject<FShaderMapContent> Content;
 	uint32 NumFrozenShaders;
+	EShaderPermutationFlags PermutationFlags;
 };
 
 template<typename ContentType, typename PointerTableType = FShaderMapPointerTable>

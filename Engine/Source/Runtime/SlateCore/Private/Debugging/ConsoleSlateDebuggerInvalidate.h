@@ -10,6 +10,7 @@
 #include "CoreMinimal.h"
 #include "Debugging/ConsoleSlateDebuggerUtility.h"
 #include "Delegates/Delegate.h"
+#include "FastUpdate/SlateInvalidationRootHandle.h"
 #include "HAL/IConsoleManager.h"
 
 struct FGeometry;
@@ -66,11 +67,8 @@ private:
 		bool bIsInvalidatorPaintValid;
 	};
 
-	void ToggleLegend();
-	void ToggleWidgetNameList();
-	void ToggleLogInvalidatedWidget();
-
 	void HandleEnabled(IConsoleVariable* Variable);
+	void HandledConfigChanged(IConsoleVariable* Variable);
 	void HandleSetInvalidateWidgetReasonFilter(const TArray<FString>& Params);
 	void HandleSetInvalidateRootReasonFilter(const TArray<FString>& Params);
 
@@ -80,6 +78,7 @@ private:
 
 	int32 GetInvalidationPriority(EInvalidateWidgetReason InvalidationInfo, ESlateDebuggingInvalidateRootReason InvalidationRootReason) const;
 	const FLinearColor& GetColor(const FInvalidationInfo& InvalidationInfo) const;
+	void CleanFrameList();
 	void ProcessFrameList();
 
 private:
@@ -87,10 +86,11 @@ private:
 	bool bEnabledCVarValue;
 
 	//~ Settings
-	bool bDisplayWidgetList;
+	bool bShowWidgetList;
 	bool bUseWidgetPathAsName;
 	bool bShowLegend;
 	bool bLogInvalidatedWidget;
+	bool bUsePerformanceThreshold;
 	EInvalidateWidgetReason InvalidateWidgetReasonFilter;
 	ESlateDebuggingInvalidateRootReason InvalidateRootReasonFilter;
 	FLinearColor DrawRootRootColor;
@@ -105,19 +105,25 @@ private:
 	FLinearColor DrawWidgetVisibilityColor;
 	int32 MaxNumberOfWidgetInList;
 	float CacheDuration;
+	float ThresholdPerformanceMs;
 
 	//~ Console objects
 	FAutoConsoleCommand StartCommand;
 	FAutoConsoleCommand StopCommand;
 	FAutoConsoleVariableRef EnabledRefCVar;
-	FAutoConsoleCommand ToggleLegendCommand;
-	FAutoConsoleCommand ToogleWidgetsNameListCommand;
-	FAutoConsoleCommand ToogleLogInvalidatedWidgetCommand;
+	FAutoConsoleVariableRef ShowLegendRefCVar;
+	FAutoConsoleVariableRef ShowWidgetsNameListRefCVar;
+	FAutoConsoleVariableRef LogInvalidatedWidgetRefCVar;
+	FAutoConsoleVariableRef UsePerformanceThresholdRefCVar;
+	FAutoConsoleVariableRef ThresholdPerformanceRefCVar;
 	FAutoConsoleCommand SetInvalidateWidgetReasonFilterCommand;
 	FAutoConsoleCommand SetInvalidateRootReasonFilterCommand;
 	
+	uint64 LastPerformanceThresholdFrameCount;
+	double LastPerformanceThresholdSeconds;
 	TArray<FInvalidationInfo> InvalidationInfos;
 	TArray<FInvalidationInfo> FrameInvalidationInfos;
+	TArray<FSlateInvalidationRootHandle> FrameRootHandles;
 };
 
 #endif //WITH_SLATE_DEBUGGING

@@ -629,6 +629,9 @@ void UDeviceProfileManager::ExpandDeviceProfileCVars(UDeviceProfile* DeviceProfi
 	// ECVF_SetByDeviceProfile:
 	ProcessDeviceProfileIniSettings(DeviceProfile->GetName(), EDeviceProfileMode::DPM_CacheValues);
 
+	// ECVF_SetByGameOverride:
+	//   skipped, since we don't have a user
+
 	// ECVF_SetByConsoleVariablesIni:
 	//   maybe skip this? it's a weird one, but maybe?
 

@@ -40,9 +40,10 @@ bool FDynamicMeshEditor::RemoveIsolatedVertices()
 	bool bSuccess = true;
 	for (int VID : Mesh->VertexIndicesItr())
 	{
-		if (Mesh->GetVtxEdgeCount(VID) == 0)
+		if (!Mesh->IsReferencedVertex(VID))
 		{
-			bSuccess = Mesh->RemoveVertex(VID, false, false) == EMeshResult::Ok && bSuccess;
+			constexpr bool bPreserveManifold = false;
+			bSuccess = Mesh->RemoveVertex(VID, bPreserveManifold) == EMeshResult::Ok && bSuccess;
 		}
 	}
 	return bSuccess;

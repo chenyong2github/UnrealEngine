@@ -167,8 +167,8 @@ TSharedPtr<IDatasmithMeshElement> FDatasmithSceneGraphBuilder::FindOrAddMeshElem
 {
 	if (TSharedPtr<IDatasmithMeshElement> MeshElement = FDatasmithSceneBaseGraphBuilder::FindOrAddMeshElement(Body, InLabel))
 	{
-		FString BodyFile = ImportParameters.DefineCADFilePath(*FPaths::Combine(CachePath, TEXT("body")), *FString::Printf(TEXT("UEx%08x"), Body.MeshActorName));
-		MeshElement->SetFile(*BodyFile);
+		FString BodyCachePath = CADLibrary::BuildCacheFilePath(*CachePath, TEXT("body"), Body.MeshActorName);
+		MeshElement->SetFile(*BodyCachePath);
 		return MeshElement;
 	}
 

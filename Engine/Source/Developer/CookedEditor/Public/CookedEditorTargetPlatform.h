@@ -43,6 +43,11 @@ public:
 		return CachedPlatformName;
 	}
 
+	virtual FString CookingDeviceProfileName() const override
+	{
+		return Base::PlatformName();
+	}
+
 	/**
 	 * If you override this to return false, you will have to stage uncooked assets to allow the editor to run properly
 	 */
@@ -66,7 +71,7 @@ public:
 	{
 		if (AllowsEditorObjects())
 		{
-			PackageManager->GatherAllPackages(PackageNames);
+			PackageManager->GatherAllPackages(PackageNames, this);
 		}
 	}
 

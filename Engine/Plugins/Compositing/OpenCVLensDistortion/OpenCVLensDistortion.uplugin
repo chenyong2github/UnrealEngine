@@ -20,7 +20,7 @@
 			"Name" : "OpenCVLensCalibration",
 			"Type" : "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 			"Win64",
 			"Linux",
 			"Mac"
@@ -30,7 +30,7 @@
 			"Name" : "OpenCVLensDistortion",
 			"Type" : "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 			"Win64",
 			"Linux",
 			"Mac"
@@ -40,7 +40,7 @@
 		  "Name": "OpenCVHelper",
 		  "Type": "Runtime",
 		  "LoadingPhase": "PostConfigInit",
-		  "WhitelistPlatforms": [
+		  "PlatformAllowList": [
 			"Win64",
 			"Linux",
 			"Mac"

@@ -262,7 +262,7 @@ static bool bDumpPrimitivesNextFrame = false;
 
 static FAutoConsoleCommand CVarDumpPrimitives(
 	TEXT("DumpPrimitives"),
-	TEXT("Writes out all scene primitive names to a CSV file in the Logs directory"),
+	TEXT("Writes out all scene primitive names to a CSV file"),
 	FConsoleCommandDelegate::CreateStatic([] { bDumpPrimitivesNextFrame = true; }),
 	ECVF_Default);
 
@@ -3860,12 +3860,20 @@ void FSceneRenderer::DumpPrimitives(const FViewCommands& ViewCommands)
 
 	struct FPrimitiveInfo
 	{
-		FString		Name;
-		uint32		DrawCount;
+		const FPrimitiveSceneInfo* PrimitiveSceneInfo;
+		FString Name;
+		uint32 DrawCount;
 
-		bool operator<(const FPrimitiveInfo& other) const
+		bool operator<(const FPrimitiveInfo& Other) const
 		{
-			return Name < other.Name;
+			// Sort by name to group similar assets together, then by exact primitives so we can ignore duplicates
+			const int32 NameCompare = Name.Compare(Other.Name);
+			if (NameCompare != 0)
+			{
+				return NameCompare < 0;
+			}
+
+			return PrimitiveSceneInfo < Other.PrimitiveSceneInfo;
 		}
 	};
 
@@ -3885,7 +3893,7 @@ void FSceneRenderer::DumpPrimitives(const FViewCommands& ViewCommands)
 
 				uint32 DrawCount = GetDrawCountFromPrimitiveSceneInfo(Scene, PrimitiveSceneInfo);
 
-				Primitives.Add({ MoveTemp(FullName), DrawCount });
+				Primitives.Add({ PrimitiveSceneInfo, MoveTemp(FullName), DrawCount });
 			}
 		}
 
@@ -3896,22 +3904,30 @@ void FSceneRenderer::DumpPrimitives(const FViewCommands& ViewCommands)
 
 			uint32 DrawCount = GetDrawCountFromPrimitiveSceneInfo(Scene, PrimitiveSceneInfo);
 
-			Primitives.Add({ MoveTemp(FullName), DrawCount });
+			Primitives.Add({ PrimitiveSceneInfo, MoveTemp(FullName), DrawCount });
 		}
 	}
 
 	Primitives.Sort();
 
-	FDiagnosticTableViewer DrawViewer(*FDiagnosticTableViewer::GetUniqueTemporaryFilePath(TEXT("Primitives")), true);
+	const FString OutputPath = FPaths::ProfilingDir() / TEXT("Primitives") / FString::Printf(TEXT("Primitives-%s.csv"), *FDateTime::Now().ToString());
+	const bool bSuppressViewer = true;
+	FDiagnosticTableViewer DrawViewer(*OutputPath, bSuppressViewer);
 	DrawViewer.AddColumn(TEXT("Name"));
 	DrawViewer.AddColumn(TEXT("NumDraws"));
 	DrawViewer.CycleRow();
 
+	const FPrimitiveSceneInfo* LastPrimitiveSceneInfo = nullptr;
 	for (const FPrimitiveInfo& Primitive : Primitives)
 	{
-		DrawViewer.AddColumn(*Primitive.Name);
-		DrawViewer.AddColumn(*FString::Printf(TEXT("%d"), Primitive.DrawCount));
-		DrawViewer.CycleRow();
+		if (Primitive.PrimitiveSceneInfo != LastPrimitiveSceneInfo)
+		{
+			DrawViewer.AddColumn(*Primitive.Name);
+			DrawViewer.AddColumn(*FString::Printf(TEXT("%d"), Primitive.DrawCount));
+			DrawViewer.CycleRow();
+
+			LastPrimitiveSceneInfo = Primitive.PrimitiveSceneInfo;
+		}
 	}
 }
 #endif

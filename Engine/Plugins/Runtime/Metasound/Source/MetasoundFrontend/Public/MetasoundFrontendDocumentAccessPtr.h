@@ -26,6 +26,8 @@ namespace Metasound
 		using FConstClassInputAccessPtr = TAccessPtr<const FMetasoundFrontendClassInput>;
 		using FClassOutputAccessPtr = TAccessPtr<FMetasoundFrontendClassOutput>;
 		using FConstClassOutputAccessPtr = TAccessPtr<const FMetasoundFrontendClassOutput>;
+		using FVariableAccessPtr = TAccessPtr<FMetasoundFrontendVariable>;
+		using FConstVariableAccessPtr = TAccessPtr<const FMetasoundFrontendVariable>;
 
 		class METASOUNDFRONTEND_API FNodeAccessPtr : public TAccessPtr<FMetasoundFrontendNode>
 		{
@@ -102,6 +104,7 @@ namespace Metasound
 			FClassOutputAccessPtr GetOutputWithName(const FVertexName& InName);
 			FClassOutputAccessPtr GetOutputWithNodeID(const FGuid& InNodeID);
 
+			FVariableAccessPtr GetVariableWithID(const FGuid& InID);
 			FNodeAccessPtr GetNodeWithNodeID(const FGuid& InNodeID);
 			FGraphAccessPtr GetGraph();
 
@@ -110,6 +113,7 @@ namespace Metasound
 			FConstClassOutputAccessPtr GetOutputWithName(const FVertexName& InName) const;
 			FConstClassOutputAccessPtr GetOutputWithNodeID(const FGuid& InNodeID) const;
 
+			FConstVariableAccessPtr GetVariableWithID(const FGuid& InID) const;
 			FConstNodeAccessPtr GetNodeWithNodeID(const FGuid& InNodeID) const;
 			FConstGraphAccessPtr GetGraph() const;
 		};
@@ -125,6 +129,7 @@ namespace Metasound
 			FConstClassInputAccessPtr GetInputWithNodeID(const FGuid& InNodeID) const;
 			FConstClassOutputAccessPtr GetOutputWithName(const FVertexName& InName) const;
 			FConstClassOutputAccessPtr GetOutputWithNodeID(const FGuid& InNodeID) const;
+			FConstVariableAccessPtr GetVariableWithID(const FGuid& InID) const;
 			FConstNodeAccessPtr GetNodeWithNodeID(const FGuid& InNodeID) const;
 			FConstGraphAccessPtr GetGraph() const;
 		};

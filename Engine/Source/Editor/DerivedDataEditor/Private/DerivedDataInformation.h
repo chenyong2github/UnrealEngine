@@ -22,6 +22,7 @@ public:
 	static bool					GetHasRemoteCache();
 	static ERemoteCacheState	GetRemoteCacheState() { return RemoteCacheState; }
 	static FText				GetRemoteCacheStateAsText();
+	static FText				GetRemoteCacheWarningMessage() { return RemoteCacheWarningMessage; }
 	static void					UpdateRemoteCacheState();
 	static bool					IsUploading() { return bIsUploading; }
 	static bool					IsDownloading() { return bIsDownloading; }
@@ -29,6 +30,7 @@ public:
 private:
 
 	static ERemoteCacheState	RemoteCacheState;
+	static FText				RemoteCacheWarningMessage;
 	static double				LastGetTime;
 	static double				LastPutTime;
 	static bool					bIsUploading;

@@ -17,6 +17,14 @@ FSnapshotTestRunner::FSnapshotTestRunner()
 			);
 }
 
+FSnapshotTestRunner::FSnapshotTestRunner(FSnapshotTestRunner&& Other)
+{
+	TestWorld = Other.TestWorld;
+	Snapshots = Other.Snapshots;
+	// Prevent Other's destructor from calling RemoveFromRoot
+	Other.Snapshots.Empty();
+}
+
 FSnapshotTestRunner::~FSnapshotTestRunner()
 {
 	for (auto SnapshotIt = Snapshots.CreateIterator(); SnapshotIt; ++SnapshotIt)
@@ -64,6 +72,14 @@ FSnapshotTestRunner& FSnapshotTestRunner::AccessSnapshot(TFunction<void (ULevelS
 	}
 
 	return *this;
+}
+
+FSnapshotTestRunner& FSnapshotTestRunner::AccessSnapshotAndWorld(TFunction<void(ULevelSnapshot*, UWorld*)> Callback, FName SnapshotId)
+{
+	return AccessSnapshot([this, &Callback](ULevelSnapshot* Snapshot)
+	{
+		Callback(Snapshot, TestWorld->GetWorld());
+	}, SnapshotId);
 }
 
 FSnapshotTestRunner& FSnapshotTestRunner::ApplySnapshot(TFunction<ULevelSnapshotFilter*()> Callback, FName SnapshotId)

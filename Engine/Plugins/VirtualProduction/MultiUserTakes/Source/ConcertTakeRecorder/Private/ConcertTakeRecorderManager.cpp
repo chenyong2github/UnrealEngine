@@ -855,7 +855,7 @@ SIZE_T FConcertTakeRecorderManager::RemoteRecorders() const
 
 FTakeRecorderParameters FConcertTakeRecorderManager::SetupTakeParametersForMultiuser(const FTakeRecorderParameters& Input)
 {
-	if (WeakSession.IsValid())
+	if (IsTakeSyncEnabled() && WeakSession.IsValid())
 	{
 		if (CanRecord() && RemoteRecorders() > 0)
 		{

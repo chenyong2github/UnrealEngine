@@ -43,6 +43,7 @@
 #include "AssetData.h"
 #include "Engine/Brush.h"
 #include "Editor.h"
+#include "EditorWorldUtils.h"
 #include "FileHelpers.h"
 #include "PlatformInfo.h"
 #include "CollectionManagerModule.h"
@@ -1666,27 +1667,15 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 	}
 
 	// Setup the world.
-	World->WorldType = EWorldType::Editor;
-	World->AddToRoot();
-	if (!World->bIsWorldInitialized)
-	{
-		UWorld::InitializationValues IVS;
-		IVS.RequiresHitProxies(false);
-		IVS.ShouldSimulatePhysics(false);
-		IVS.EnableTraceCollision(false);
-		IVS.CreateNavigation(bShouldBuildNavigationData);
-		IVS.CreateAISystem(false);
-		IVS.AllowAudioPlayback(false);
-		IVS.CreatePhysicsScene(true);
-
-		World->InitWorld(IVS);
-		World->PersistentLevel->UpdateModelComponents();
-		World->UpdateWorldComponents(true, false);
-	}
-	FWorldContext& WorldContext = GEditor->GetEditorWorldContext(true);
-	WorldContext.SetCurrentWorld(World);
-	UWorld* PrevGWorld = GWorld;
-	GWorld = World;
+	UWorld::InitializationValues IVS;
+	IVS.RequiresHitProxies(false);
+	IVS.ShouldSimulatePhysics(false);
+	IVS.EnableTraceCollision(false);
+	IVS.CreateNavigation(bShouldBuildNavigationData);
+	IVS.CreateAISystem(false);
+	IVS.AllowAudioPlayback(false);
+	IVS.CreatePhysicsScene(true);
+	FScopedEditorWorld EditorWorld(World, IVS);
 
 	// Load and Save world partition actor packages
 	if (bResaveWorldPartitionExternalActors)
@@ -2073,14 +2062,6 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 			}
 		}
 	}
-
-	// Cleanup
-	const bool bBroadcastWorldDestroyedEvent = false;
-	World->DestroyWorld(bBroadcastWorldDestroyedEvent);
-	
-	// Restore previous world
-	WorldContext.SetCurrentWorld(PrevGWorld);
-	GWorld = PrevGWorld;
 }
 
 void UResavePackagesCommandlet::PerformAdditionalOperations( class UObject* Object, bool& bSavePackage )

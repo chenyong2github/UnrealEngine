@@ -157,7 +157,7 @@ void UAnimCompress::PackVectorToStream(
 void UAnimCompress::PackQuaternionToStream(
 	TArray<uint8>& ByteStream,
 	AnimationCompressionFormat Format,
-	const FQuat& Quat,
+	const FQuat4f& Quat,
 	const float* Mins,
 	const float* Ranges)
 {
@@ -244,8 +244,8 @@ void UAnimCompress::PrecalculateShortestQuaternionRoutes(
 		FRotationTrack& SrcRot	= RotationData[TrackIndex];
 		for ( int32 KeyIndex = 1 ; KeyIndex < SrcRot.RotKeys.Num() ; ++KeyIndex )
 		{
-			const FQuat& R0 = SrcRot.RotKeys[KeyIndex-1];
-			FQuat& R1 = SrcRot.RotKeys[KeyIndex];
+			const FQuat4f& R0 = SrcRot.RotKeys[KeyIndex-1];
+			FQuat4f& R1 = SrcRot.RotKeys[KeyIndex];
 			
 			if( (R0 | R1) < 0.f )
 			{
@@ -442,7 +442,7 @@ void UAnimCompress::BitwiseCompressAnimationTracks(
 				float MaxZ = -1.f;
 				for (int32 KeyIndex = 0; KeyIndex < SrcRot.RotKeys.Num(); ++KeyIndex)
 				{
-					FQuat Quat(SrcRot.RotKeys[KeyIndex]);
+					FQuat4f Quat(SrcRot.RotKeys[KeyIndex]);
 					if (Quat.W < 0.f)
 					{
 						Quat.X = -Quat.X;
@@ -475,7 +475,7 @@ void UAnimCompress::BitwiseCompressAnimationTracks(
 				// n elements of the compressed type.
 				for (int32 KeyIndex = 0; KeyIndex < SrcRot.RotKeys.Num(); ++KeyIndex)
 				{
-					const FQuat& Quat = SrcRot.RotKeys[KeyIndex];
+					const FQuat4f& Quat = SrcRot.RotKeys[KeyIndex];
 					PackQuaternionToStream(AnimData.CompressedByteStream, TargetRotationFormat, Quat, Mins, Ranges);
 				}
 
@@ -515,7 +515,7 @@ void UAnimCompress::BitwiseCompressAnimationTracks(
 			else if (NumKeysRot == 1)
 			{
 				// For a rotation track of n=1 keys, the single key is packed as an FQuatFloat96NoW.
-				const FQuat& Quat = SrcRot.RotKeys[0];
+				const FQuat4f& Quat = SrcRot.RotKeys[0];
 				const FQuatFloat96NoW QuatFloat96NoW(Quat);
 				UnalignedWriteToStream(AnimData.CompressedByteStream, &QuatFloat96NoW, sizeof(FQuatFloat96NoW));
 			}
@@ -826,11 +826,11 @@ void UAnimCompress::FilterTrivialRotationKeys(
 	// Only bother doing anything if we have some keys!
 	if(KeyCount > 1)
 	{
-		const FQuat& FirstRot = Track.RotKeys[0];
+		const FQuat4f& FirstRot = Track.RotKeys[0];
 		bool bFramesIdentical = true;
 		for(int32 KeyIndex=1; KeyIndex<KeyCount; ++KeyIndex)
 		{
-			if( FQuat::Error(FirstRot, Track.RotKeys[KeyIndex]) > MaxRotDelta )
+			if( FQuat4f::Error(FirstRot, Track.RotKeys[KeyIndex]) > MaxRotDelta )
 			{
 				bFramesIdentical = false;
 				break;
@@ -935,7 +935,7 @@ void UAnimCompress::FilterIntermittentRotationKeys(
 
 	check(Track.Times.Num() == Track.RotKeys.Num());
 
-	TArray<FQuat> NewRotKeys;
+	TArray<FQuat4f> NewRotKeys;
 	TArray<float> NewTimes;
 
 	NewTimes.Empty(KeyCount);
@@ -1022,7 +1022,7 @@ void UAnimCompress::SeparateRawDataIntoTracks(
 		// Copy over position keys.
 		for ( int32 PosIndex = 0; PosIndex < RawTrack.PosKeys.Num(); ++PosIndex )
 		{
-			TranslationTrack.PosKeys.Add( RawTrack.PosKeys[PosIndex] );
+			TranslationTrack.PosKeys.Add( FVector(RawTrack.PosKeys[PosIndex]) );
 		}
 
 		// Copy over rotation keys.

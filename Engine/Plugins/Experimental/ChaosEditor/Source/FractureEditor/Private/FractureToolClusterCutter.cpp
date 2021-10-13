@@ -32,7 +32,7 @@ FSlateIcon UFractureToolClusterCutter::GetToolIcon() const
 
 void UFractureToolClusterCutter::RegisterUICommand( FFractureEditorCommands* BindingContext )
 {
-	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Clustered", "Clustered", "Clustered Voronoi Fracture", EUserInterfaceActionType::ToggleButton, FInputChord() );
+	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Clustered", "Cluster", "Fracture using a Voronoi diagram with a 'clustered' pattern, creating varied fracture density across the shape.", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	BindingContext->Clustered = UICommandInfo;
 }
 

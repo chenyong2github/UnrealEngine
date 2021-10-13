@@ -420,10 +420,10 @@ void SRigHierarchy::BindCommands()
 		FIsActionChecked::CreateLambda([this]() { return DisplaySettings.bShowRigidBodies; }));
 
 	CommandList->MapAction(
-		Commands.ShowSockets,
-		FExecuteAction::CreateLambda([this]() { DisplaySettings.bShowSockets = !DisplaySettings.bShowSockets; RefreshTreeView(); }),
+		Commands.ShowReferences,
+		FExecuteAction::CreateLambda([this]() { DisplaySettings.bShowReferences = !DisplaySettings.bShowReferences; RefreshTreeView(); }),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateLambda([this]() { return DisplaySettings.bShowSockets; }));
+		FIsActionChecked::CreateLambda([this]() { return DisplaySettings.bShowReferences; }));
 
 	CommandList->MapAction(
 		Commands.ShowDynamicHierarchy,
@@ -668,23 +668,26 @@ void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigH
 			{
 				if(URigHierarchy* Hierarchy = GetDebuggedHierarchy())
 				{
-					TArray<FRigElementWeight> ParentWeights = Hierarchy->GetParentWeightArray(InElement->GetKey());
-					if(ParentWeights.Num() > 0)
+					if(InElement)
 					{
-						TArray<FRigElementKey> ParentKeys = Hierarchy->GetParents(InElement->GetKey());
-						check(ParentKeys.Num() == ParentWeights.Num());
-						for(int32 ParentIndex=0;ParentIndex<ParentKeys.Num();ParentIndex++)
+						TArray<FRigElementWeight> ParentWeights = Hierarchy->GetParentWeightArray(InElement->GetKey());
+						if(ParentWeights.Num() > 0)
 						{
-							if(ParentWeights[ParentIndex].IsAlmostZero())
+							TArray<FRigElementKey> ParentKeys = Hierarchy->GetParents(InElement->GetKey());
+							check(ParentKeys.Num() == ParentWeights.Num());
+							for(int32 ParentIndex=0;ParentIndex<ParentKeys.Num();ParentIndex++)
 							{
-								continue;
+								if(ParentWeights[ParentIndex].IsAlmostZero())
+								{
+									continue;
+								}
+	
+								if(TreeView->ReparentElement(InElement->GetKey(), ParentKeys[ParentIndex]))
+								{
+									RefreshTreeView(false);
+								}
+								break;
 							}
-
-							if(TreeView->ReparentElement(InElement->GetKey(), ParentKeys[ParentIndex]))
-							{
-								RefreshTreeView(false);
-							}
-							break;
 						}
 					}
 				}
@@ -1629,7 +1632,7 @@ bool SRigHierarchy::CanRenameItem() const
 	{
 		const FRigElementKey Key = GetSelectedKeys()[0];
 		if(Key.Type == ERigElementType::RigidBody ||
-			Key.Type == ERigElementType::Socket)
+			Key.Type == ERigElementType::Reference)
 		{
 			return false;
 		}
@@ -1937,7 +1940,7 @@ TOptional<EItemDropZone> SRigHierarchy::OnCanAcceptDrop(const FDragDropEvent& Dr
 			case ERigElementType::Control:
 			case ERigElementType::Null:
 			case ERigElementType::RigidBody:
-			case ERigElementType::Socket:
+			case ERigElementType::Reference:
 			{
 				for (const FRigElementKey& DraggedKey : RigDragDropOp->GetElements())
 				{
@@ -1946,7 +1949,7 @@ TOptional<EItemDropZone> SRigHierarchy::OnCanAcceptDrop(const FDragDropEvent& Dr
 						case ERigElementType::Control:
 						case ERigElementType::Null:
 						case ERigElementType::RigidBody:
-						case ERigElementType::Socket:
+						case ERigElementType::Reference:
 						{
 							break;
 						}

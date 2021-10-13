@@ -17,6 +17,7 @@ using Microsoft.CodeAnalysis.Emit;
 using System.Reflection.Metadata;
 using Microsoft.CodeAnalysis.Text;
 using System.Runtime.InteropServices;
+using OpenTracing.Util;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -135,25 +136,26 @@ namespace UnrealBuildTool
 			{
 				switch (Diag.Severity)
 				{
-					case DiagnosticSeverity.Error: 
-					{
-						Log.TraceError(Diag.ToString()); 
-						break;
-					}
-					case DiagnosticSeverity.Hidden: 
-					{
-						break;
-					}
-					case DiagnosticSeverity.Warning: 
-					{
-						Log.TraceWarning(Diag.ToString()); 
-						break;
-					}
-					case DiagnosticSeverity.Info: 
-					{
-						Log.TraceInformation(Diag.ToString()); 
-						break;
-					}
+					// Diagnostics are pre-formatted suitable for Visual Studio consumption - print them without an additional severity prefix
+					case DiagnosticSeverity.Error:
+						{
+							Log.WriteLine(LogEventType.Error, LogFormatOptions.NoSeverityPrefix, Diag.ToString());
+							break;
+						}
+					case DiagnosticSeverity.Hidden:
+						{
+							break;
+						}
+					case DiagnosticSeverity.Warning:
+						{
+							Log.WriteLine(LogEventType.Warning, LogFormatOptions.NoSeverityPrefix, Diag.ToString());
+							break;
+						}
+					case DiagnosticSeverity.Info:
+						{
+							Log.WriteLine(LogEventType.Console, LogFormatOptions.NoSeverityPrefix, Diag.ToString());
+							break;
+						}
 				}
 			}
 		}
@@ -334,7 +336,7 @@ namespace UnrealBuildTool
 			// Compile the assembly if me
 			if (bNeedsCompilation)
 			{
-				using(Timeline.ScopeEvent(String.Format("Compiling rules assembly ({0})", OutputAssemblyPath.GetFileName())))
+				using (GlobalTracer.Instance.BuildSpan(String.Format("Compiling rules assembly ({0})", OutputAssemblyPath.GetFileName())).StartActive())
 				{
 					CompiledAssembly = CompileAssembly(OutputAssemblyPath, SourceFileNames, ReferencedAssembies, PreprocessorDefines, TreatWarningsAsErrors);
 				}

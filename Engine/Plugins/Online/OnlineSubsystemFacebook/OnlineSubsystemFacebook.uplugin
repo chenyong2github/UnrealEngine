@@ -15,7 +15,7 @@
             "Name": "OnlineSubsystemFacebook",
             "Type": "Runtime",
             "LoadingPhase" : "Default",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"IOS",
 				"Android",

@@ -50,6 +50,15 @@ namespace GenericPlatformMemory
 		GLogPlatformMemoryStats,
 		TEXT("Report Platform Memory Stats)\n"),
 		ECVF_Default);
+
+	static float GMemoryPressureCriticalThresholdMB = 0;
+	static FAutoConsoleVariableRef CVarMemoryPressureCriticalThresholdMB(
+		TEXT("memory.MemoryPressureCriticalThresholdMB"),
+		GMemoryPressureCriticalThresholdMB,
+		TEXT("When the available physical memory drops below this threshold memory stats will consider this to be at critical pressure.\n")
+		TEXT("Where a platform can specifically state it's memory pressure this test maybe ignored.\n")
+		TEXT("0 (default) critical pressure will not use the threshold."),
+		ECVF_Default);
 }
 
 struct TUnalignedTester
@@ -109,6 +118,16 @@ FGenericPlatformMemoryStats::FGenericPlatformMemoryStats()
 	, UsedVirtual( 0 )
 	, PeakUsedVirtual( 0 )
 {}
+
+FGenericPlatformMemoryStats::EMemoryPressureStatus FGenericPlatformMemoryStats::GetMemoryPressureStatus()
+{
+	if (GenericPlatformMemory::GMemoryPressureCriticalThresholdMB > 0)
+	{
+		float AvailablePhysicalMB = float(AvailablePhysical / 1024 / 1024);
+		return AvailablePhysicalMB < GenericPlatformMemory::GMemoryPressureCriticalThresholdMB ? EMemoryPressureStatus::Critical : EMemoryPressureStatus::Nominal;
+	}
+	return EMemoryPressureStatus::Unknown;
+}
 
 bool FGenericPlatformMemory::bIsOOM = false;
 uint64 FGenericPlatformMemory::OOMAllocationSize = 0;

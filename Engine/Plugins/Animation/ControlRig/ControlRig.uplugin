@@ -19,7 +19,7 @@
 		{
 			"Name": "PythonScriptPlugin",
 			"Enabled": true,
-			"WhitelistTargets": [
+			"TargetAllowList": [
 				"Editor"
 			]
 		},

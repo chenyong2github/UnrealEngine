@@ -36,6 +36,8 @@
 #include "PackageTools.h"
 #include "DetailLayoutBuilder.h"
 #include "SPrimaryButton.h"
+#include "SSimpleButton.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "CreateBlueprintFromActorDialog"
 
@@ -350,15 +352,18 @@ void SSCreateBlueprintPicker::Construct(const FArguments& InArgs)
 		{ LOCTEXT("CreateMode_Harvest", "Harvest Components"), LOCTEXT("CreateMode_Harvest_Description", "Replace the selected actors with an instance of a new Blueprint Class inherited from the selected parent class that contains the components."), ECreateBlueprintFromActorMode::Harvest, bCanHarvestComponents }
 	};
 
-	const FCheckBoxStyle& RadioStyle = FEditorStyle::Get().GetWidgetStyle<FCheckBoxStyle>("Property.ToggleButton");
+	const FCheckBoxStyle& RadioStyle = FEditorStyle::Get().GetWidgetStyle<FCheckBoxStyle>("SegmentedCombo.ButtonOnly");
 
 	SAssignNew(CreationMethodSection, SGridPanel)
 	.FillColumn(1, 1.f);
 
 	for (int32 Index = 0; Index < UE_ARRAY_COUNT(CreateModeDetails); ++Index)
 	{
+		float TopPadding = Index == 0 ? 28.0f : 16.0f;
+		float BottomPadding = Index == UE_ARRAY_COUNT(CreateModeDetails) - 1 ? 28.0f : 16.0f;
+
 		CreationMethodSection->AddSlot(0, Index)
-		.Padding(10.0f, 5.0f, 5.0f, 5.0f)
+		.Padding(10.0f, TopPadding, 5.0f, BottomPadding)
 		.VAlign(VAlign_Center)
 		[
 			SNew(SCheckBox)
@@ -370,40 +375,85 @@ void SSCreateBlueprintPicker::Construct(const FArguments& InArgs)
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
-				.FillWidth(1.0f)
 				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Center)
-				.Padding(6, 2)
+				.HAlign(HAlign_Left)
+				.Padding(-8, 3, 0, 3)
+				.AutoWidth()
+				[
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("Icons.Blueprints"))
+				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Left)
+				.Padding(4, 3, 0, 3)
+				.AutoWidth()
 				[
 					SNew(STextBlock)
 					.Text(CreateModeDetails[Index].Label)
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-					.ColorAndOpacity(this, &SSCreateBlueprintPicker::GetCreateModeTextColor, CreateModeDetails[Index].CreateMode)
+					.TextStyle(FAppStyle::Get(), "NormalText")
+					.ColorAndOpacity(FStyleColors::White)
 				]
 			]
 		];
 
 		CreationMethodSection->AddSlot(1, Index)
-		.Padding(1.0f, 5.0f, 1.0f, 5.0f)
+		.Padding(4.0f, TopPadding, 1.0f, BottomPadding)
 		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
 			.Text(CreateModeDetails[Index].Description)
+			.TextStyle(FAppStyle::Get(), "SmallText")
 			.IsEnabled(CreateModeDetails[Index].bEnabled)
 			.AutoWrapText(true)
 		];
+
 	}
 
 	ChildSlot
 	[
 		SNew(SBorder)
 		.Visibility(EVisibility::Visible)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
 		[
 			SNew(SBox)
 			.Visibility(EVisibility::Visible)
 			[
 				SNew(SVerticalBox)
+
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.0f, 0.0f, 0.0f, 0.0f)
+				[
+					SNew(SExpandableArea)
+					.AreaTitle(LOCTEXT("CreationMethod", "Creation Method"))
+					.AreaTitleFont(FCoreStyle::Get().GetFontStyle("NormalFontBold"))
+					.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+					.BodyBorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
+					.BodyContent()
+					[
+						CreationMethodSection.ToSharedRef()
+					]
+				]
+				
+				+SVerticalBox::Slot()
+				.FillHeight(1.f)
+				.Padding(0.0f, 1.0f, 0.0f, 0.0f)
+				[
+					SNew(SExpandableArea)
+					.MaxHeight(320.f)
+					.InitiallyCollapsed(false)
+					.AreaTitle(NSLOCTEXT("SClassPickerDialog", "ParentClassAreaTitle", "Parent Class"))
+					.AreaTitleFont(FCoreStyle::Get().GetFontStyle("NormalFontBold"))
+					.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+					.BodyBorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
+					.OnAreaExpansionChanged(this, &SSCreateBlueprintPicker::OnCustomAreaExpansionChanged)
+					.BodyContent()
+					[
+						ClassViewer.ToSharedRef()
+					]
+				]
+
 				+SVerticalBox::Slot()
 				.AutoHeight()
 				.Padding(0.0f, 10.0f, 0.0f, 0.0f)
@@ -411,21 +461,21 @@ void SSCreateBlueprintPicker::Construct(const FArguments& InArgs)
 					SNew(SGridPanel)
 					.FillColumn(1, 1.f)
 					+SGridPanel::Slot(0, 0)
-					.Padding(0.0f, 0.0f, 5.0f, 2.0f)
+					.Padding(16.0f, 0.0f, 13.0f, 7.0f)
 					.VAlign(VAlign_Center)
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("CreateBlueprintFromActor_NameLabel", "Blueprint Name"))
 					]
 					+SGridPanel::Slot(1, 0)
-					.Padding(0.0f, 0.0f, 0.0f, 5.0f)
+					.Padding(0.0f, 0.0f, 55.0f, 10.0f)
 					[
 						SAssignNew(FileNameWidget, SEditableTextBox)
 						.Text(FText::FromString(AssetName))
 						.OnTextChanged(this, &SSCreateBlueprintPicker::OnFilenameChanged)
 					]
 					+SGridPanel::Slot(0, 1)
-					.Padding(0.0f, 0.0f, 5.0f, 0.0f)
+					.Padding(15.0f, 0.0f, 13.0f, 0.0f)
 					.VAlign(VAlign_Center)
 					[
 						SNew(STextBlock)
@@ -442,39 +492,16 @@ void SSCreateBlueprintPicker::Construct(const FArguments& InArgs)
 							.IsReadOnly(true)
 						]
 						+SHorizontalBox::Slot()
+						.Padding(8.0f, 0.0f, 19.0f, 0.0f)
 						.AutoWidth()
 						[
-							SNew(SButton)
-							.Text(FText::FromString(TEXT("...")))
+							SNew(SSimpleButton)
 							.OnClicked(this, &SSCreateBlueprintPicker::OnPathPickerSummoned)
+							.Icon(FAppStyle::Get().GetBrush("Icons.FolderClosed"))
 						]
 					]
 				]
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(0.0f, 10.0f, 0.0f, 0.0f)
-				[
-					SNew(SExpandableArea)
-					.AreaTitle(LOCTEXT("CreationMethod", "Creation Method"))
-					.BodyContent()
-					[
-						CreationMethodSection.ToSharedRef()
-					]
-				]
-				+SVerticalBox::Slot()
-				.FillHeight(1.f)
-				.Padding(0.0f, 10.0f, 0.0f, 0.0f)
-				[
-					SNew(SExpandableArea)
-					.MaxHeight(320.f)
-					.InitiallyCollapsed(false)
-					.AreaTitle(NSLOCTEXT("SClassPickerDialog", "ParentClassAreaTitle", "Parent Class"))
-					.OnAreaExpansionChanged(this, &SSCreateBlueprintPicker::OnCustomAreaExpansionChanged)
-					.BodyContent()
-					[
-						ClassViewer.ToSharedRef()
-					]
-				]
+
 				+SVerticalBox::Slot()
 				.AutoHeight()
 				.HAlign(HAlign_Right)

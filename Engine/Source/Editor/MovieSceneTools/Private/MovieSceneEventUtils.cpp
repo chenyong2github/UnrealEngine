@@ -494,4 +494,25 @@ void FMovieSceneEventUtils::BindEventSectionToBlueprint(UMovieSceneEventSectionB
 	DirectorBP->Extensions.Add(EventExtension);
 }
 
+void FMovieSceneEventUtils::RemoveEndpointsForEventSection(UMovieSceneEventSectionBase* EventSection, UBlueprint* DirectorBP)
+{
+	check(EventSection && DirectorBP);
+
+	static const TCHAR* const EventGraphName = TEXT("Sequencer Events");
+	UEdGraph* SequenceEventGraph = FindObject<UEdGraph>(DirectorBP, EventGraphName);
+
+	if (SequenceEventGraph)
+	{
+		for (FMovieSceneEvent& EntryPoint : EventSection->GetAllEntryPoints())
+		{
+			UEdGraphNode* Endpoint = FMovieSceneEventUtils::FindEndpoint(&EntryPoint, EventSection, DirectorBP);
+			if (Endpoint)
+			{
+				UE_LOG(LogMovieScene, Display, TEXT("Removing event: %s from: %s"), *GetNameSafe(Endpoint), *GetNameSafe(DirectorBP));
+				SequenceEventGraph->RemoveNode(Endpoint);
+			}
+		}
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

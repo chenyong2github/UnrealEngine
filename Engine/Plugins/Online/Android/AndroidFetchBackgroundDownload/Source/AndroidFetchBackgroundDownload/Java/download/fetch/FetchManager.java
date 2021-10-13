@@ -347,7 +347,7 @@ public class FetchManager implements FetchDownloadProgressOwner, FetchEnqueueRes
 			{
 				Log.debug("InitFetch has existing non-closed FetchInstance. Unfreezing and deleting all in progress requests");
 
-				//If we are just unfreezing existing Fetch work, lets nuke everything that wasn't finished by the previous work before unfreezing
+				//If we are just unfreezing existing Fetch work, lets delete everything that wasn't finished by the previous work before unfreezing
 				//This prevents errors in resuming where we no longer want a particular download or we fail to resume the work
 				DeleteAllInProgressRequests();
 

@@ -58,6 +58,9 @@
 #define TRANSLUCENCY_PERVERTEX_LIGHTING_VOLUME (!FORWARD_SHADING && (TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_DIRECTIONAL || TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_NONDIRECTIONAL))
 #define TRANSLUCENCY_PERVERTEX_FORWARD_SHADING (FORWARD_SHADING && (TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_DIRECTIONAL || TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_NONDIRECTIONAL))
 
+// We consider that the cloud shadow is always enabled but the interpolator is only used when render lit translucent with forward shading. We only support per vertex cloud shadow as of today.
+#define NEEDS_BASEPASS_CLOUD_SHADOW_INTERPOLATOR (SUPPORT_CLOUD_SHADOW_ON_FORWARD_LIT_TRANSLUCENT && IS_MATERIAL_TRANSLUCENT_AND_LIT && !TRANSLUCENCY_PERVERTEX_FORWARD_SHADING && !TRANSLUCENCY_PERVERTEX_LIGHTING_VOLUME)
+
 struct FSharedBasePassInterpolants
 {
 	//for texture-lightmapped translucency we can pass the vertex fog in its own interpolator
@@ -65,7 +68,9 @@ struct FSharedBasePassInterpolants
 	float4 VertexFog		: TEXCOORD7;
 #endif
 
-	// Note: TEXCOORD8 is unused
+#if NEEDS_BASEPASS_CLOUD_SHADOW_INTERPOLATOR
+	float  VertexCloudShadow: TEXCOORD8;
+#endif
 
 #if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS && !IS_NANITE_FACTORY
 	float3 PixelPositionExcludingWPO : TEXCOORD9;

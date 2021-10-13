@@ -376,17 +376,17 @@ bool UMovieSceneAnimationTrackRecorder::LoadRecordedFile(const FString& FileName
 									{
 										Controller.AddBoneTrack(Header.AnimationTrackNames[TrackIndex]);
 
-										TArray<FVector> PosKeys;
-										TArray<FQuat> RotKeys;
-										TArray<FVector> ScaleKeys;
+										TArray<FVector3f> PosKeys;
+										TArray<FQuat4f> RotKeys;
+										TArray<FVector3f> ScaleKeys;
 
 										// Generate key arrays
 										for (const FAnimationSerializedFrame& SerializedFrame : InFrames)
 										{
 											const FSerializedAnimation& Frame = SerializedFrame.Frame;
-											PosKeys.Add(Frame.AnimationData[TrackIndex].PosKey);
-											RotKeys.Add(Frame.AnimationData[TrackIndex].RotKey);
-											ScaleKeys.Add(Frame.AnimationData[TrackIndex].ScaleKey);
+											PosKeys.Add(FVector3f(Frame.AnimationData[TrackIndex].PosKey));
+											RotKeys.Add(FQuat4f(Frame.AnimationData[TrackIndex].RotKey));
+											ScaleKeys.Add(FVector3f(Frame.AnimationData[TrackIndex].ScaleKey));
 										}
 
 										MaxNumberOfKeys = FMath::Max(MaxNumberOfKeys, PosKeys.Num());

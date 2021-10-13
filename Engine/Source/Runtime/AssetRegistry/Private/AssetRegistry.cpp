@@ -779,15 +779,15 @@ void InitializeSerializationOptionsFromIni(FAssetRegistrySerializationOptions& O
 		EngineIni->GetBool(TEXT("AssetRegistry"), TEXT("bFilterSearchableNames"), Options.bFilterSearchableNames);
 	}
 
-	EngineIni->GetBool(TEXT("AssetRegistry"), TEXT("bUseAssetRegistryTagsWhitelistInsteadOfBlacklist"), Options.bUseAssetRegistryTagsWhitelistInsteadOfBlacklist);
-	TArray<FString> FilterlistItems;
-	if (Options.bUseAssetRegistryTagsWhitelistInsteadOfBlacklist)
+	EngineIni->GetBool(TEXT("AssetRegistry"), TEXT("bUseAssetRegistryTagsWhitelistInsteadOfBlacklist"), Options.bUseAssetRegistryTagsAllowListInsteadOfDenyList);
+	TArray<FString> FilterListItems;
+	if (Options.bUseAssetRegistryTagsAllowListInsteadOfDenyList)
 	{
-		EngineIni->GetArray(TEXT("AssetRegistry"), TEXT("CookedTagsWhitelist"), FilterlistItems);
+		EngineIni->GetArray(TEXT("AssetRegistry"), TEXT("CookedTagsWhitelist"), FilterListItems);
 	}
 	else
 	{
-		EngineIni->GetArray(TEXT("AssetRegistry"), TEXT("CookedTagsBlacklist"), FilterlistItems);
+		EngineIni->GetArray(TEXT("AssetRegistry"), TEXT("CookedTagsBlacklist"), FilterListItems);
 	}
 
 	{
@@ -802,22 +802,22 @@ void InitializeSerializationOptionsFromIni(FAssetRegistrySerializationOptions& O
 	}
 
 	// Takes on the pattern "(Class=SomeClass,Tag=SomeTag)"
-	// Optional key KeepInDevOnly for tweaking a DevelopmentAssetRegistry (additive if whitelist, subtractive if blacklist)
-	for (const FString& FilterlistItem : FilterlistItems)
+	// Optional key KeepInDevOnly for tweaking a DevelopmentAssetRegistry (additive if allow list, subtractive if deny list)
+	for (const FString& FilterEntry : FilterListItems)
 	{
-		FString TrimmedFilterlistItem = FilterlistItem;
-		TrimmedFilterlistItem.TrimStartAndEndInline();
-		if (TrimmedFilterlistItem.Left(1) == TEXT("("))
+		FString TrimmedEntry = FilterEntry;
+		TrimmedEntry.TrimStartAndEndInline();
+		if (TrimmedEntry.Left(1) == TEXT("("))
 		{
-			TrimmedFilterlistItem.RightChopInline(1, false);
+			TrimmedEntry.RightChopInline(1, false);
 		}
-		if (TrimmedFilterlistItem.Right(1) == TEXT(")"))
+		if (TrimmedEntry.Right(1) == TEXT(")"))
 		{
-			TrimmedFilterlistItem.LeftChopInline(1, false);
+			TrimmedEntry.LeftChopInline(1, false);
 		}
 
 		TArray<FString> Tokens;
-		TrimmedFilterlistItem.ParseIntoArray(Tokens, TEXT(","));
+		TrimmedEntry.ParseIntoArray(Tokens, TEXT(","));
 		FString ClassName;
 		FString TagName;
 		bool bKeepInDevOnly = false;
@@ -845,7 +845,7 @@ void InitializeSerializationOptionsFromIni(FAssetRegistrySerializationOptions& O
 			}
 		}
 
-		const bool bPassesDevOnlyRule = !bKeepInDevOnly || Options.bUseAssetRegistryTagsWhitelistInsteadOfBlacklist == bForDevelopment;
+		const bool bPassesDevOnlyRule = !bKeepInDevOnly || Options.bUseAssetRegistryTagsAllowListInsteadOfDenyList == bForDevelopment;
 		if (!ClassName.IsEmpty() && !TagName.IsEmpty() && bPassesDevOnlyRule)
 		{
 			FName TagFName = FName(*TagName);
@@ -995,16 +995,16 @@ void FAssetRegistryImpl::ConstructGatherer()
 		return;
 	}
 
-	TArray<FString> BlacklistPaths;
-	TArray<FString> BlacklistContentSubPaths;
+	TArray<FString> PathsDenyList;
+	TArray<FString> ContentSubPathsDenyList;
 	if (FConfigFile* EngineIni = GConfig->FindConfigFile(GEngineIni))
 	{
-		EngineIni->GetArray(TEXT("AssetRegistry"), TEXT("BlacklistPackagePathScanFilters"), BlacklistPaths);
-		EngineIni->GetArray(TEXT("AssetRegistry"), TEXT("BlacklistContentSubPathScanFilters"), BlacklistContentSubPaths);
+		EngineIni->GetArray(TEXT("AssetRegistry"), TEXT("BlacklistPackagePathScanFilters"), PathsDenyList);
+		EngineIni->GetArray(TEXT("AssetRegistry"), TEXT("BlacklistContentSubPathScanFilters"), ContentSubPathsDenyList);
 	}
 
 	bool bIsSynchronous = IsRunningGame();
-	GlobalGatherer = MakeUnique<FAssetDataGatherer>(BlacklistPaths, BlacklistContentSubPaths, bIsSynchronous);
+	GlobalGatherer = MakeUnique<FAssetDataGatherer>(PathsDenyList, ContentSubPathsDenyList, bIsSynchronous);
 
 	// Read script packages if all initial plugins have been loaded, otherwise do nothing; we wait for the callback.
 	ELoadingPhase::Type LoadingPhase = IPluginManager::Get().GetLastCompletedLoadingPhase();
@@ -1063,7 +1063,7 @@ void FAssetRegistryImpl::SearchAllAssets(Impl::FEventContext& EventContext, bool
 	{
 		const FString& MountLocalPath = FPackageName::LongPackageNameToFilename(PackagePath);
 		Gatherer.AddMountPoint(MountLocalPath, PackagePath);
-		Gatherer.SetIsWhitelisted(MountLocalPath, true);
+		Gatherer.SetIsOnAllowList(MountLocalPath, true);
 	}
 	bSearchAllAssets = true; // Mark that future mounts and directories should be scanned
 
@@ -2495,17 +2495,17 @@ namespace UE::AssetRegistry
 
 bool FAssetRegistryImpl::AddPath(Impl::FEventContext& EventContext, const FString& PathToAdd)
 {
-	bool bBlacklisted = false;
-	// If no GlobalGatherer, then we are in the game or non-cook commandlet and we do not implement blacklisting
+	bool bIsDenied = false;
+	// If no GlobalGatherer, then we are in the game or non-cook commandlet and we do not implement deny listing
 	if (GlobalGatherer.IsValid())
 	{
 		FString LocalPathToAdd;
 		if (FPackageName::TryConvertLongPackageNameToFilename(PathToAdd, LocalPathToAdd))
 		{
-			bBlacklisted = GlobalGatherer->IsBlacklisted(LocalPathToAdd);
+			bIsDenied = GlobalGatherer->IsOnDenyList(LocalPathToAdd);
 		}
 	}
-	if (bBlacklisted)
+	if (bIsDenied)
 	{
 		return false;
 	}
@@ -2538,19 +2538,19 @@ bool UAssetRegistryImpl::PathExists(const FName PathToTest) const
 }
 
 void UAssetRegistryImpl::ScanPathsSynchronous(const TArray<FString>& InPaths, bool bForceRescan,
-	bool bIgnoreBlackListScanFilters)
+	bool bIgnoreDenyListScanFilters)
 {
-	ScanPathsSynchronousInternal(InPaths, TArray<FString>(), bForceRescan, bIgnoreBlackListScanFilters);
+	ScanPathsSynchronousInternal(InPaths, TArray<FString>(), bForceRescan, bIgnoreDenyListScanFilters);
 }
 
 void UAssetRegistryImpl::ScanFilesSynchronous(const TArray<FString>& InFilePaths, bool bForceRescan)
 {
 	ScanPathsSynchronousInternal(TArray<FString>(), InFilePaths, bForceRescan,
-		false /* bIgnoreBlackListScanFilters */);
+		false /* bIgnoreDenyListScanFilters */);
 }
 
 void UAssetRegistryImpl::ScanPathsSynchronousInternal(const TArray<FString>& InDirs, const TArray<FString>& InFiles,
-	bool bInForceRescan, bool bInIgnoreBlackListScanFilters)
+	bool bInForceRescan, bool bInIgnoreDenyListScanFilters)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UAssetRegistryImpl::ScanPathsSynchronousInternal);
 	UE_TRACK_REFERENCING_OPNAME_SCOPED(PackageAccessTrackingOps::NAME_ResetContext);
@@ -2558,7 +2558,7 @@ void UAssetRegistryImpl::ScanPathsSynchronousInternal(const TArray<FString>& InD
 
 	UE::AssetRegistry::Impl::FEventContext EventContext;
 	UE::AssetRegistry::Impl::FScanPathContext Context(EventContext, InDirs, InFiles,
-		bInForceRescan, bInIgnoreBlackListScanFilters, nullptr /* OutFindAssets */);
+		bInForceRescan, bInIgnoreDenyListScanFilters, nullptr /* OutFindAssets */);
 
 	{
 		FWriteScopeLock InterfaceScopeLock(InterfaceLock);
@@ -2886,8 +2886,9 @@ void FAssetRegistryImpl::TickGatherer(Impl::FEventContext& EventContext, const d
 		int32 NumPending = NumFilesToSearch + NumPathsToSearch + BackgroundPathResults.Num() + BackgroundAssetResults.Num() + BackgroundDependencyResults.Num() + BackgroundCookedPackageNamesWithoutAssetDataResults.Num();
 		HighestPending = FMath::Max(this->HighestPending, NumPending);
 
-		// Notify the status change
-		if (bIsSearching || bHadAssetsToProcess)
+		bOutIdle = !bInterrupted && !bIsSearching && NumPending == 0;
+		// Notify the status change, only when something changed, or when sending the final result before going idle
+		if (bIsSearching || bHadAssetsToProcess || (bOutIdle && !this->bGatherIdle))
 		{
 			EventContext.ProgressUpdateData.Emplace(
 				HighestPending,					// NumTotalAssets
@@ -2896,8 +2897,6 @@ void FAssetRegistryImpl::TickGatherer(Impl::FEventContext& EventContext, const d
 				bIsDiscoveringFiles				// bIsDiscoveringAssetFiles
 			);
 		}
-
-		bOutIdle = !bInterrupted && !bIsSearching && NumPending == 0;
 		this->bGatherIdle = bOutIdle;
 	};
 
@@ -3284,23 +3283,23 @@ namespace Impl
 {
 
 FScanPathContext::FScanPathContext(FEventContext& InEventContext, const TArray<FString>& InDirs, const TArray<FString>& InFiles,
-	bool bInForceRescan, bool bInIgnoreBlackListScanFilters, TArray<FName>* FoundAssets)
+	bool bInForceRescan, bool bInIgnoreDenyListScanFilters, TArray<FName>* FoundAssets)
 	: EventContext(InEventContext)
 	, OutFoundAssets(FoundAssets)
 	, bForceRescan(bInForceRescan)
-	, bIgnoreBlackListScanFilters(bInIgnoreBlackListScanFilters)
+	, bIgnoreDenyListScanFilters(bInIgnoreDenyListScanFilters)
 {
 	if (OutFoundAssets)
 	{
 		OutFoundAssets->Empty();
 	}
 
-	if (bIgnoreBlackListScanFilters && !bForceRescan)
+	if (bIgnoreDenyListScanFilters && !bForceRescan)
 	{
-		// This restriction is necessary because we have not yet implemented some of the required behavior to handle bIgnoreBlackListScanFilters without bForceRescan;
-		// For skipping of directories that we have already scanned, we would have to check whether the directory has been set to be monitored with the proper flag (ignore blacklist or not)
+		// This restriction is necessary because we have not yet implemented some of the required behavior to handle bIgnoreDenyListScanFilters without bForceRescan;
+		// For skipping of directories that we have already scanned, we would have to check whether the directory has been set to be monitored with the proper flag (ignore deny list or not)
 		// rather than just checking whether it has been set to be monitored at all
-		UE_LOG(LogAssetRegistry, Warning, TEXT("ScanPathsSynchronous: bIgnoreBlacklistScanFilters==true is only valid when bForceRescan==true. Setting bForceRescan=true."));
+		UE_LOG(LogAssetRegistry, Warning, TEXT("ScanPathsSynchronous: bIgnoreDenyListScanFilters==true is only valid when bForceRescan==true. Setting bForceRescan=true."));
 		bForceRescan = true;
 	}
 
@@ -3364,7 +3363,7 @@ void FAssetRegistryImpl::ScanPathsSynchronous(Impl::FScanPathContext& Context)
 	{
 		for (int n = 0; n < Context.LocalDirs.Num(); ++n)
 		{
-			if (!Gatherer.IsWhitelisted(Context.LocalDirs[n]))
+			if (!Gatherer.IsOnAllowList(Context.LocalDirs[n]))
 			{
 				CacheFilePackagePaths.Add(Context.PackageDirs[n]);
 			}
@@ -3386,7 +3385,7 @@ void FAssetRegistryImpl::ScanPathsSynchronous(Impl::FScanPathContext& Context)
 		Gatherer.LoadCacheFile(CacheFilename);
 	}
 
-	Gatherer.ScanPathsSynchronous(Context.LocalPaths, Context.bForceRescan, Context.bIgnoreBlackListScanFilters, CacheFilename, Context.PackageDirs);
+	Gatherer.ScanPathsSynchronous(Context.LocalPaths, Context.bForceRescan, Context.bIgnoreDenyListScanFilters, CacheFilename, Context.PackageDirs);
 
 	auto AssetsFoundCallback = [&Context](const TRingBuffer<FAssetData*>& InFoundAssets)
 	{
@@ -4080,7 +4079,7 @@ void FAssetRegistryImpl::OnDirectoryChanged(Impl::FEventContext& EventContext, T
 			if (GlobalGatherer->IsSynchronous())
 			{
 				Impl::FScanPathContext Context(EventContext, NewDirs, NewFiles,
-					false /* bForceRescan */, false /* bIgnoreBlacklistScanFilters */, nullptr /* OutFoundAssets */);
+					false /* bForceRescan */, false /* bIgnoreDenyListScanFilters */, nullptr /* OutFoundAssets */);
 				ScanPathsSynchronous(Context);
 			}
 		}
@@ -4319,7 +4318,7 @@ void FAssetRegistryImpl::ScanModifiedAssetFiles(Impl::FEventContext& EventContex
 		// Re-scan and update the asset registry with the new asset data
 		TArray<FName> FoundAssets;
 		Impl::FScanPathContext Context(EventContext, TArray<FString>(), InFilePaths,
-			true /* bForceRescan */, false /* bIgnoreBlacklistScanFilters */, &FoundAssets);
+			true /* bForceRescan */, false /* bIgnoreDenyListScanFilters */, &FoundAssets);
 		ScanPathsSynchronous(Context);
 
 		// Remove any assets that are no longer present in the package
@@ -4413,7 +4412,7 @@ void FAssetRegistryImpl::OnContentPathMounted(Impl::FEventContext& EventContext,
 		else
 		{
 			GlobalGatherer->AddMountPoint(FileSystemPath, InAssetPath);
-			GlobalGatherer->SetIsWhitelisted(FileSystemPath, true);
+			GlobalGatherer->SetIsOnAllowList(FileSystemPath, true);
 		}
 	}
 }

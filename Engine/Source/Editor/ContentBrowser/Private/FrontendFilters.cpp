@@ -24,6 +24,7 @@
 #include "Settings/ContentBrowserSettings.h"
 #include "HAL/FileManager.h"
 #include "TextFilterKeyValueHandlers.h"
+#include "TextFilterValueHandlers.h"
 #include "AssetCompilingManager.h"
 
 /** Helper functions for frontend filters */
@@ -330,6 +331,12 @@ public:
 
 	virtual bool TestBasicStringExpression(const FTextFilterString& InValue, const ETextFilterTextComparisonMode InTextComparisonMode) const override
 	{
+		bool bIsHandlerMatch = false;
+		if (UTextFilterValueHandlers::HandleTextFilterValue(*AssetPtr, InValue, InTextComparisonMode, bIsHandlerMatch))
+		{
+			return bIsHandlerMatch;
+		}
+
 		if (InValue.CompareName(AssetPtr->GetItemName(), InTextComparisonMode))
 		{
 			return true;
@@ -390,9 +397,10 @@ public:
 
 	virtual bool TestComplexExpression(const FName& InKey, const FTextFilterString& InValue, const ETextFilterComparisonOperation InComparisonOperation, const ETextFilterTextComparisonMode InTextComparisonMode) const override
 	{
-		if (UTextFilterKeyValueHandlers::HandleTextFilterKeyValue(*AssetPtr, InKey, InValue, InComparisonOperation, InTextComparisonMode))
+		bool bIsHandlerMatch = false;
+		if (UTextFilterKeyValueHandlers::HandleTextFilterKeyValue(*AssetPtr, InKey, InValue, InComparisonOperation, InTextComparisonMode, bIsHandlerMatch))
 		{
-			return true;
+			return bIsHandlerMatch;
 		}
 
 		// Special case for the asset name, as this isn't contained within the asset registry meta-data

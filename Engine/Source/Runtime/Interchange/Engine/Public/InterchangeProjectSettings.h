@@ -34,6 +34,7 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Interchange)
 	FName DefaultPipelineStack;
 
+#if WITH_EDITORONLY_DATA
 	/** This tell interchange which pipeline configuration dialog to popup when we need to configure the pipelines.*/
 	UPROPERTY(EditAnywhere, config, Category = Interchange)
 	TSoftClassPtr <UInterchangePipelineConfigurationBase> PipelineConfigurationDialogClass;
@@ -41,6 +42,7 @@ public:
 	/** If enabled, the pipeline stacks configuration dialog will show every time interchange must choose a pipeline to import or re-import. If disabled interchange will use the DefaultPipelineStack.*/
 	UPROPERTY(EditAnywhere, config, Category = Interchange)
 	bool bShowPipelineStacksConfigurationDialog;
+#endif
 
 	/** If checked, will use Interchange when importing into level.*/
 	UPROPERTY(EditAnywhere, config, Category = "Interchange (Experimental)")

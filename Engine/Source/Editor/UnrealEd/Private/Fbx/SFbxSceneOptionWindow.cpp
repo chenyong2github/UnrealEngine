@@ -1343,8 +1343,6 @@ void SFbxSceneOptionWindow::CloseFbxSceneOption()
 		FbxSceneImportTabManager->UnregisterAllTabSpawners();
 		FbxSceneImportTabManager->CloseAllAreas();
 	}
-	FbxSceneImportTabManager = nullptr;
-	Layout = nullptr;
 
 	//Clear scene tab resource
 	SceneTabTreeview = nullptr;
@@ -1383,6 +1381,9 @@ void SFbxSceneOptionWindow::CloseFbxSceneOption()
 		OwnerWindow.Pin()->RequestDestroyWindow();
 	}
 	OwnerWindow = nullptr;
+	//The tab manager must be deleted only after we destroy the windows, because it can be access by a WeakPtr and it must be valid
+	FbxSceneImportTabManager = nullptr;
+	Layout = nullptr;
 }
 
 bool SFbxSceneOptionWindow::CanImport()  const

@@ -686,8 +686,8 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 
 	if(GetHierarchy())
 	{
-		// if we have any aux elements dirty them
-		GetHierarchy()->UpdateSockets(&Context);
+		// if we have any referenced elements dirty them
+		GetHierarchy()->UpdateReferences(&Context);
 	}
 
 #if WITH_EDITOR
@@ -1116,6 +1116,15 @@ void UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 					SnapShotVM->CopyFrom(VM, false, false, false, true, true);
 				}
 			}
+#endif
+
+#if WITH_EDITOR
+			URigHierarchy* Hierarchy = GetHierarchy();
+			Hierarchy->ReadTransformsPerInstructionPerSlice.Reset();
+			Hierarchy->WrittenTransformsPerInstructionPerSlice.Reset();
+			Hierarchy->ReadTransformsPerInstructionPerSlice.AddZeroed(VM->GetByteCode().GetNumInstructions());
+			Hierarchy->WrittenTransformsPerInstructionPerSlice.AddZeroed(VM->GetByteCode().GetNumInstructions());
+			TGuardValue<const FRigVMExecuteContext*> HierarchyContextGuard(Hierarchy->ExecuteContext, &VM->GetContext());
 #endif
 
 #if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED

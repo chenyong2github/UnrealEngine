@@ -19,12 +19,12 @@
 			"Name": "WebMMoviePlayer",
 			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "PreLoadingScreen",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"Linux",
 				"Mac"
 			],
-			"BlacklistTargets": [
+			"TargetDenyList": [
 				"Server"
 			]
 		}

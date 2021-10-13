@@ -111,8 +111,7 @@ TSharedRef<class SWidget> FConsoleVariableCellPresenter::ConstructDisplayWidget(
 		SNew(SButton)
 		.OnClicked(this, &FConsoleVariableCellPresenter::HandleEditCVarsButtonPressed)
 		.ContentPadding(2.0f)
-		.ForegroundColor(FSlateColor::UseForeground())
-		.IsFocusable(false)
+		.ButtonStyle(FAppStyle::Get(), "DeviceDetails.EditButton")
 		[
 			SNew(SImage)
 			.Image(FEditorStyle::GetBrush("Icons.Edit"))

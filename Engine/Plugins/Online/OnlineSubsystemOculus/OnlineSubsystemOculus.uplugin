@@ -19,7 +19,7 @@
 			"Name": "OnlineSubsystemOculus",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"Android"
 			]

@@ -38,11 +38,20 @@ void UMovieSceneBoundSceneComponentInstantiator::OnRun(FSystemTaskPrerequisites&
 
 	struct FBoundSceneComponentBatch : FObjectFactoryBatch
 	{
-		virtual void ResolveObjects(FInstanceRegistry* InstanceRegistry, FInstanceHandle InstanceHandle, int32 InEntityIndex, const FGuid& ObjectBinding) override
+		virtual EResolveError ResolveObjects(FInstanceRegistry* InstanceRegistry, FInstanceHandle InstanceHandle, int32 InEntityIndex, const FGuid& ObjectBinding) override
 		{
+			EResolveError Result = EResolveError::UnresolvedBinding;
+
 			FSequenceInstance& SequenceInstance = InstanceRegistry->MutateInstance(InstanceHandle);
 
-			for (TWeakObjectPtr<> WeakObject : SequenceInstance.GetPlayer()->FindBoundObjects(ObjectBinding, SequenceInstance.GetSequenceID()))
+			TArrayView<TWeakObjectPtr<>> BoundObjects = SequenceInstance.GetPlayer()->FindBoundObjects(ObjectBinding, SequenceInstance.GetSequenceID());
+			if (BoundObjects.Num() == 0)
+			{
+				UE_LOG(LogMovieSceneECS, Warning, TEXT("FBoundSceneComponentBatch::ResolveObjects: No bound objects returned for FGuid: %s"), *ObjectBinding.ToString());
+				return Result;
+			}
+
+			for (TWeakObjectPtr<> WeakObject : BoundObjects)
 			{
 				if (UObject* Object = WeakObject.Get())
 				{
@@ -55,14 +64,22 @@ void UMovieSceneBoundSceneComponentInstantiator::OnRun(FSystemTaskPrerequisites&
 
 						// Make a child entity for this resolved binding
 						Add(InEntityIndex, SceneComponent);
+						Result = EResolveError::None;
 					}
 					else if (Object->Implements<UMovieSceneSceneComponentImpersonator>())
 					{
 						// Objects meant explicitly to be impersonators are also allowed.
 						Add(InEntityIndex, Object);
+						Result = EResolveError::None;
 					}
 				}
+				else
+				{
+					UE_LOG(LogMovieSceneECS, Warning, TEXT("FBoundSceneComponentBatch::ResolveObjects: Invalid weak object returned for FGuid: %s"), *ObjectBinding.ToString());
+				}
 			}
+
+			return Result;
 		}
 	};
 
@@ -73,6 +90,6 @@ void UMovieSceneBoundSceneComponentInstantiator::OnRun(FSystemTaskPrerequisites&
 	.ReadEntityIDs()
 	.Read(Components->InstanceHandle)
 	.Read(Components->SceneComponentBinding)
-	.FilterAll({ Components->Tags.NeedsLink })
+	.FilterAny({ Components->Tags.NeedsLink, Components->Tags.HasUnresolvedBinding })
 	.RunInline_PerAllocation(&Linker->EntityManager, ObjectBindingTask);
 }

@@ -32,12 +32,12 @@ public:
 
 	void Stop() override;
 
-	void AddWhitelistedClient(const FString& InIPAddress) override;
-	void RemoveWhitelistedClient(const FString& InIPAddress) override;
-	void ClearWhitelistedClients() override;
-	TSet<FString> GetWhitelistedClients() const override;
+	void AddClientToAllowList(const FString& InIPAddress) override;
+	void RemoveClientFromAllowList(const FString& InIPAddress) override;
+	void ClearClientAllowList() override;
+	TSet<FString> GetClientAllowList() const override;
 
-	void SetWhitelistClientsEnabled(bool bInEnabled) override;
+	void SetFilterClientsByAllowList(bool bInEnabled) override;
 
 #if WITH_EDITOR
 	void SetTickableInEditor(bool bInTickInEditor) override;
@@ -67,8 +67,8 @@ public:
 	/** UDP receiver. */
 	FUdpSocketReceiver* SocketReceiver;
 
-	/** Set of client addresses whitelisted to process packets from. */
-	TSet<uint32> ClientWhitelist;
+	/** Only packets from this list of client addresses will be processed if bFilterClientsByAllowList is true. */
+	TSet<uint32> ClientAllowList;
 
 	/** IPAddress to listen for OSC packets on.  If unset, defaults to LocalHost */
 	FIPv4Address ReceiveIPAddress;
@@ -79,8 +79,8 @@ public:
 	/** Whether or not to loopback if address provided is multicast */
 	bool bMulticastLoopback;
 
-	/** Whether or not to use client whitelist */
-	bool bWhitelistClients;
+	/** Whether or not to use client allow list */
+	bool bFilterClientsByAllowList;
 
 #if WITH_EDITOR
 	bool bTickInEditor;

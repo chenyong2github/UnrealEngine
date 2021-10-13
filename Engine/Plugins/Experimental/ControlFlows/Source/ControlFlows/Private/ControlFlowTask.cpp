@@ -2,6 +2,7 @@
 
 #include "ControlFlowTask.h"
 #include "ControlFlows.h"
+#include "ControlFlowBranch.h"
 
 //////////////////////////
 //FControlFlowTask
@@ -26,53 +27,53 @@ void FControlFlowSubTaskBase::Cancel()
 //FControlFlowBranch
 //////////////////////////
 
-FControlFlowTask_Branch::FControlFlowTask_Branch(FControlFlowBranchDecider& BranchDecider, const FString& TaskName)
+FControlFlowTask_BranchLegacy::FControlFlowTask_BranchLegacy(FControlFlowBranchDecider_Legacy& BranchDecider, const FString& TaskName)
 	: FControlFlowSubTaskBase(TaskName)
 	, BranchDelegate(BranchDecider)
 {
 
 }
 
-FSimpleDelegate& FControlFlowTask_Branch::QueueFunction(int32 BranchIndex, const FString& FlowNodeDebugName /*= TEXT("")*/)
+FSimpleDelegate& FControlFlowTask_BranchLegacy::QueueFunction(int32 BranchIndex, const FString& FlowNodeDebugName /*= TEXT("")*/)
 {
 	return GetOrAddBranch(BranchIndex)->QueueFunction(FlowNodeDebugName);
 }
 
-FControlFlowWaitDelegate& FControlFlowTask_Branch::QueueWait(int32 BranchIndex, const FString& FlowNodeDebugName /*= TEXT("")*/)
+FControlFlowWaitDelegate& FControlFlowTask_BranchLegacy::QueueWait(int32 BranchIndex, const FString& FlowNodeDebugName /*= TEXT("")*/)
 {
 	return GetOrAddBranch(BranchIndex)->QueueWait(FlowNodeDebugName);
 }
 
-FControlFlowPopulator& FControlFlowTask_Branch::QueueControlFlow(int32 BranchIndex, const FString& TaskName /*= TEXT("")*/, const FString& FlowNodeDebugName /*= TEXT("")*/)
+FControlFlowPopulator& FControlFlowTask_BranchLegacy::QueueControlFlow(int32 BranchIndex, const FString& TaskName /*= TEXT("")*/, const FString& FlowNodeDebugName /*= TEXT("")*/)
 {
 	return GetOrAddBranch(BranchIndex)->QueueControlFlow(TaskName, FlowNodeDebugName);
 }
 
-TSharedRef<FControlFlowTask_Branch> FControlFlowTask_Branch::QueueBranch(int32 BranchIndex, FControlFlowBranchDecider& BranchDecider, const FString& TaskName /*= TEXT("")*/, const FString& FlowNodeDebugName /*= TEXT("")*/)
+TSharedRef<FControlFlowTask_BranchLegacy> FControlFlowTask_BranchLegacy::QueueBranch(int32 BranchIndex, FControlFlowBranchDecider_Legacy& BranchDecider, const FString& TaskName /*= TEXT("")*/, const FString& FlowNodeDebugName /*= TEXT("")*/)
 {
 	return GetOrAddBranch(BranchIndex)->QueueBranch(BranchDecider, TaskName, FlowNodeDebugName);
 }
 
-FControlFlowPopulator& FControlFlowTask_Branch::QueueLoop(int32 BranchIndex, FControlFlowLoopComplete& LoopCompleteDelgate, const FString& TaskName /*= TEXT("")*/, const FString& FlowNodeDebugName /*= TEXT("")*/)
+FControlFlowPopulator& FControlFlowTask_BranchLegacy::QueueLoop(int32 BranchIndex, FControlFlowLoopComplete& LoopCompleteDelgate, const FString& TaskName /*= TEXT("")*/, const FString& FlowNodeDebugName /*= TEXT("")*/)
 {
 	return GetOrAddBranch(BranchIndex)->QueueLoop(LoopCompleteDelgate, TaskName, FlowNodeDebugName);
 }
 
-void FControlFlowTask_Branch::HandleBranchCompleted()
+void FControlFlowTask_BranchLegacy::HandleBranchCompleted()
 {
 	Branches.Reset();
 
 	OnComplete().ExecuteIfBound();
 }
 
-void FControlFlowTask_Branch::HandleBranchCancelled()
+void FControlFlowTask_BranchLegacy::HandleBranchCancelled()
 {
 	Branches.Reset();
 
 	OnCancelled().ExecuteIfBound();
 }
 
-TSharedRef<FControlFlow> FControlFlowTask_Branch::GetOrAddBranch(int32 BranchIndex)
+TSharedRef<FControlFlow> FControlFlowTask_BranchLegacy::GetOrAddBranch(int32 BranchIndex)
 {
 	if (!Branches.Contains(BranchIndex))
 	{
@@ -82,7 +83,7 @@ TSharedRef<FControlFlow> FControlFlowTask_Branch::GetOrAddBranch(int32 BranchInd
 	return Branches[BranchIndex];
 }
 
-void FControlFlowTask_Branch::Execute()
+void FControlFlowTask_BranchLegacy::Execute()
 {
 	if (BranchDelegate.IsBound())
 	{
@@ -90,9 +91,9 @@ void FControlFlowTask_Branch::Execute()
 
 		TSharedRef<FControlFlow> FlowToExecute = GetOrAddBranch(SelectedBranch);
 
-		FlowToExecute->OnComplete().BindSP(SharedThis(this), &FControlFlowTask_Branch::HandleBranchCompleted);
-		FlowToExecute->OnExecutedWithoutAnyNodes().BindSP(SharedThis(this), &FControlFlowTask_Branch::HandleBranchCompleted);
-		FlowToExecute->OnCancelled().BindSP(SharedThis(this), &FControlFlowTask_Branch::HandleBranchCancelled);
+		FlowToExecute->OnComplete().BindSP(SharedThis(this), &FControlFlowTask_BranchLegacy::HandleBranchCompleted);
+		FlowToExecute->OnExecutedWithoutAnyNodes().BindSP(SharedThis(this), &FControlFlowTask_BranchLegacy::HandleBranchCompleted);
+		FlowToExecute->OnCancelled().BindSP(SharedThis(this), &FControlFlowTask_BranchLegacy::HandleBranchCancelled);
 
 		FlowToExecute->ExecuteFlow();
 	}
@@ -102,7 +103,7 @@ void FControlFlowTask_Branch::Execute()
 	}
 }
 
-void FControlFlowTask_Branch::Cancel()
+void FControlFlowTask_BranchLegacy::Cancel()
 {
 	if (Branches.Contains(SelectedBranch) && Branches[SelectedBranch]->IsRunning())
 	{
@@ -233,5 +234,75 @@ void FControlFlowTask_Loop::CompletedLoop()
 
 void FControlFlowTask_Loop::CancelledLoop()
 {
+	OnCancelled().ExecuteIfBound();
+}
+
+//////////////////////////////////
+//FControlFlowTask_Branch
+//////////////////////////////////
+
+void FControlFlowTask_Branch::Execute()
+{
+	if (ensureAlways(BranchDelegate.IsBound() && !SelectedBranchFlow.IsValid()))
+	{
+		TSharedRef<FControlFlowBranch> BranchDefinitions = MakeShared<FControlFlowBranch>();
+		int32 SelectedBranchKey = BranchDelegate.Execute(BranchDefinitions);
+
+		if (ensureAlwaysMsgf(BranchDefinitions->Contains(SelectedBranchKey), TEXT("You've returned a Branch Key that doesn't exist!")))
+		{
+			SelectedBranchFlow = BranchDefinitions->FindChecked(SelectedBranchKey);
+
+			SelectedBranchFlow->OnComplete().BindSP(SharedThis(this), &FControlFlowTask_Branch::HandleBranchCompleted);
+			SelectedBranchFlow->OnExecutedWithoutAnyNodes().BindSP(SharedThis(this), &FControlFlowTask_Branch::HandleBranchCompleted);
+			SelectedBranchFlow->OnCancelled().BindSP(SharedThis(this), &FControlFlowTask_Branch::HandleBranchCancelled);
+
+			ensureAlwaysMsgf(!BranchDefinitions->IsAnyBranchRunning(), TEXT("Did you call ExecuteFlow() on a Branch? Do not do this! You only need to call ExecuteFlow once per FControlFlowStatics::Create!"));
+
+			SelectedBranchFlow->ExecuteFlow();
+		}
+		else
+		{
+			HandleBranchCompleted();
+		}
+	}
+	else
+	{
+		HandleBranchCompleted();
+	}
+}
+
+void FControlFlowTask_Branch::Cancel()
+{
+	if (ensureAlways(SelectedBranchFlow.IsValid()) && SelectedBranchFlow->IsRunning())
+	{
+		SelectedBranchFlow->CancelFlow();
+	}
+	else
+	{
+		HandleBranchCancelled();
+	}
+}
+
+void FControlFlowTask_Branch::HandleBranchCompleted()
+{
+	SelectedBranchFlow.Reset();
+
+	if (BranchDelegate.IsBound())
+	{
+		BranchDelegate.Unbind();
+	}
+
+	OnComplete().ExecuteIfBound();
+}
+
+void FControlFlowTask_Branch::HandleBranchCancelled()
+{
+	SelectedBranchFlow.Reset();
+
+	if (BranchDelegate.IsBound())
+	{
+		BranchDelegate.Unbind();
+	}
+
 	OnCancelled().ExecuteIfBound();
 }

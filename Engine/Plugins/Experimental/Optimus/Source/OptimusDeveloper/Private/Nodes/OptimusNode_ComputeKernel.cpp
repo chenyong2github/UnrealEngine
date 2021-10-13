@@ -98,31 +98,31 @@ static FString GetShaderParamPinValueString(
 }
 
 // FIXME: This should be a a direct request from the pin 
-static TArray<FName> GetContextsFomPin(
+static TArray<FName> GetDataDomainLevelsFomPin(
 	const UOptimusNodePin* Pin,
-	const TArray<FOptimus_ShaderContextBinding>& InBindings
+	const TArray<FOptimus_ShaderDataBinding>& InBindings
 	)
 {
-	for (const FOptimus_ShaderContextBinding& Binding: InBindings)
+	for (const FOptimus_ShaderDataBinding& Binding: InBindings)
 	{
 		if (Binding.Name == Pin->GetFName())
 		{
-			return Binding.Context.ContextNames;
+			return Binding.DataDomain.LevelNames;
 		}
 	}
 	check(false);
 	return TArray<FName>{};
 }
 
-static TArray<FString> GetIndexNamesFromContextNames(
-	const TArray<FName> &InContextNames
+static TArray<FString> GetIndexNamesFromDataDomainLevels(
+	const TArray<FName> &InLevelNames
 	)
 {
 	TArray<FString> IndexNames;
 
-	for (FName ContextName: InContextNames)
+	for (FName DomainName: InLevelNames)
 	{
-		IndexNames.Add(FString::Printf(TEXT("%sIndex"), *ContextName.ToString()));
+		IndexNames.Add(FString::Printf(TEXT("%sIndex"), *DomainName.ToString()));
 	}
 	return IndexNames;
 }
@@ -226,9 +226,9 @@ void UOptimusNode_ComputeKernel::ProcessInputPinForComputeKernel(
 			// For resources we need the index parameter.
 			if (InInputPin->GetStorageType() == EOptimusNodePinStorageType::Resource)
 			{
-				TArray<FName> Contexts = GetContextsFomPin(InInputPin, InputBindings);
+				TArray<FName> LevelNames = GetDataDomainLevelsFomPin(InInputPin, InputBindings);
 
-				for (int32 Count = 0; Count < Contexts.Num(); Count++)
+				for (int32 Count = 0; Count < LevelNames.Num(); Count++)
 				{
 					FuncDef.ParamTypes.Add(IndexParamDef);
 				}
@@ -251,7 +251,7 @@ void UOptimusNode_ComputeKernel::ProcessInputPinForComputeKernel(
 		}
 		else
 		{
-			TArray<FName> Contexts = GetContextsFomPin(InInputPin, InputBindings);
+			TArray<FName> LevelNames = GetDataDomainLevelsFomPin(InInputPin, InputBindings);
 			
 			ValueStr = GetShaderParamDefaultValueString(InInputPin->GetDataType());
 
@@ -259,7 +259,7 @@ void UOptimusNode_ComputeKernel::ProcessInputPinForComputeKernel(
 			// of optimizing out anything that causes us to ends up here.
 			TArray<FString> StubIndexes;
 			
-			for (const FString &IndexName: GetIndexNamesFromContextNames(Contexts))
+			for (const FString &IndexName: GetIndexNamesFromDataDomainLevels(LevelNames))
 			{
 				StubIndexes.Add(*FString::Printf(TEXT("uint %s"), *IndexName));
 			}
@@ -287,8 +287,8 @@ void UOptimusNode_ComputeKernel::ProcessOutputPinForComputeKernel(
 	FShaderParamTypeDefinition IndexParamDef;
 	CopyValueType(FShaderValueType::Get(EShaderFundamentalType::Uint), IndexParamDef);
 
-	TArray<FName> Contexts = GetContextsFomPin(InOutputPin, OutputBindings);
-	TArray<FString> IndexNames = GetIndexNamesFromContextNames(Contexts);
+	TArray<FName> LevelNames = GetDataDomainLevelsFomPin(InOutputPin, OutputBindings);
+	TArray<FString> IndexNames = GetIndexNamesFromDataDomainLevels(LevelNames);
 	const FShaderValueTypeHandle ValueType = InOutputPin->GetDataType()->ShaderValueType;
 
 	if (!InInputPins.IsEmpty())
@@ -355,7 +355,7 @@ void UOptimusNode_ComputeKernel::ProcessOutputPinForComputeKernel(
 		
 			FShaderParamTypeDefinition ParamDef;
 			CopyValueType(ValueType, ParamDef);
-			for (int32 Count = 0; Count < Contexts.Num(); Count++)
+			for (int32 Count = 0; Count < LevelNames.Num(); Count++)
 			{
 				FuncDef.ParamTypes.Add(IndexParamDef);
 			}
@@ -426,8 +426,6 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 	
 	// Figure out bindings for the pins.
 	const UOptimusNodeGraph *Graph = GetOwningGraph();
-
-	TMap<FName, bool> SeenContexts;
 
 	// Wrap functions for unconnected resource pins (or value pins) that return default values
 	// (for reads) or do nothing (for writes).
@@ -523,15 +521,15 @@ void UOptimusNode_ComputeKernel::PostEditChangeProperty(
 			}
 			UpdatePreamble();
 		}
-		else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FOptimusNestedResourceContext, ContextNames))
+		else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FOptimusMultiLevelDataDomain, LevelNames))
 		{
 			if (BasePropertyName == ParametersName || BasePropertyName == InputBindingsName)
 			{
-				UpdatePinResourceContexts(EOptimusNodePinDirection::Input);
+				UpdatePinDataDomains(EOptimusNodePinDirection::Input);
 			}
 			else if (BasePropertyName == OutputBindingsName)
 			{
-				UpdatePinResourceContexts(EOptimusNodePinDirection::Output);
+				UpdatePinDataDomains(EOptimusNodePinDirection::Output);
 			}
 			UpdatePreamble();
 		}
@@ -562,8 +560,7 @@ void UOptimusNode_ComputeKernel::PostEditChangeProperty(
 			Binding = &InputBindings.Last();
 			Name = FName("Input");
 
-			// FIXME: Dimensionlity and context.
-			StorageConfig = FOptimusNodePinStorageConfig({Optimus::ContextName::Vertex});
+			StorageConfig = FOptimusNodePinStorageConfig({Optimus::DomainName::Vertex});
 		}
 		else if (BasePropertyName == OutputBindingsName)
 		{
@@ -571,7 +568,7 @@ void UOptimusNode_ComputeKernel::PostEditChangeProperty(
 			Binding = &OutputBindings.Last();
 			Name = FName("Output");
 
-			StorageConfig = FOptimusNodePinStorageConfig({Optimus::ContextName::Vertex});
+			StorageConfig = FOptimusNodePinStorageConfig({Optimus::DomainName::Vertex});
 		}
 
 		if (ensure(Binding))
@@ -646,14 +643,14 @@ void UOptimusNode_ComputeKernel::ConstructNode()
 	{
 		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Input, {}, Binding.DataType);
 	}
-	for (const FOptimus_ShaderContextBinding& Binding: InputBindings)
+	for (const FOptimus_ShaderDataBinding& Binding: InputBindings)
 	{
-		const FOptimusNodePinStorageConfig StorageConfig(Binding.Context.ContextNames);
+		const FOptimusNodePinStorageConfig StorageConfig(Binding.DataDomain.LevelNames);
 		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Input, StorageConfig, Binding.DataType);
 	}
-	for (const FOptimus_ShaderContextBinding& Binding: OutputBindings)
+	for (const FOptimus_ShaderDataBinding& Binding: OutputBindings)
 	{
-		const FOptimusNodePinStorageConfig StorageConfig(Binding.Context.ContextNames);
+		const FOptimusNodePinStorageConfig StorageConfig(Binding.DataDomain.LevelNames);
 		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Output, StorageConfig, Binding.DataType);
 	}
 }
@@ -773,37 +770,39 @@ void UOptimusNode_ComputeKernel::UpdatePinNames(
 	}
 }
 
-void UOptimusNode_ComputeKernel::UpdatePinResourceContexts(EOptimusNodePinDirection InPinDirection)
+void UOptimusNode_ComputeKernel::UpdatePinDataDomains(
+	EOptimusNodePinDirection InPinDirection
+	)
 {
-	TArray<TArray<FName>> PinResourceContexts;
+	TArray<TArray<FName>> PinDataDomains;
 
 	if (InPinDirection == EOptimusNodePinDirection::Input)
 	{
 		for (const FOptimus_ShaderBinding& Binding: Parameters)
 		{
-			PinResourceContexts.Add({});
+			PinDataDomains.Add({});
 		}
-		for (const FOptimus_ShaderContextBinding& Binding: InputBindings)
+		for (const FOptimus_ShaderDataBinding& Binding: InputBindings)
 		{
-			PinResourceContexts.Add(Binding.Context.ContextNames);
+			PinDataDomains.Add(Binding.DataDomain.LevelNames);
 		}
 	}
 	else if (InPinDirection == EOptimusNodePinDirection::Output)
 	{
-		for (const FOptimus_ShaderContextBinding& Binding: OutputBindings)
+		for (const FOptimus_ShaderDataBinding& Binding: OutputBindings)
 		{
-			PinResourceContexts.Add(Binding.Context.ContextNames);
+			PinDataDomains.Add(Binding.DataDomain.LevelNames);
 		}
 	}	
 	
 	// Let's try and figure out which pin got changed.
 	const TArray<UOptimusNodePin *> KernelPins = GetKernelPins(InPinDirection);
 
-	if (ensure(PinResourceContexts.Num() == KernelPins.Num()))
+	if (ensure(PinDataDomains.Num() == KernelPins.Num()))
 	{
 		for (int32 Index = 0; Index < KernelPins.Num(); Index++)
 		{
-			SetPinResourceContexts(KernelPins[Index], PinResourceContexts[Index]);
+			SetPinDataDomain(KernelPins[Index], PinDataDomains[Index]);
 		}
 	}
 }
@@ -848,25 +847,25 @@ void UOptimusNode_ComputeKernel::UpdatePreamble()
 	}
 
 	// FIXME: Lump input/output functions together into single context.
-	auto ContextsPredicate = [](const FOptimus_ShaderContextBinding& A, const FOptimus_ShaderContextBinding &B)
+	auto ContextsPredicate = [](const FOptimus_ShaderDataBinding& A, const FOptimus_ShaderDataBinding &B)
 	{
-		for (int32 Index = 0; Index < FMath::Min(A.Context.ContextNames.Num(), B.Context.ContextNames.Num()); Index++)
+		for (int32 Index = 0; Index < FMath::Min(A.DataDomain.LevelNames.Num(), B.DataDomain.LevelNames.Num()); Index++)
 		{
-			if (A.Context.ContextNames[Index] != B.Context.ContextNames[Index])
+			if (A.DataDomain.LevelNames[Index] != B.DataDomain.LevelNames[Index])
 			{
-				return FNameLexicalLess()(A.Context.ContextNames[Index], B.Context.ContextNames[Index]);
+				return FNameLexicalLess()(A.DataDomain.LevelNames[Index], B.DataDomain.LevelNames[Index]);
 			}
 		}
 		return false;
 	};
 	
-	TSet<TArray<FName>> SeenContexts;
-	TArray<FOptimus_ShaderContextBinding> Bindings = InputBindings;
+	TSet<TArray<FName>> SeenDataDomains;
+	TArray<FOptimus_ShaderDataBinding> Bindings = InputBindings;
 	Bindings.Sort(ContextsPredicate);
 
-	auto AddCountFunctionIfNeeded = [&Declarations, &SeenContexts](const TArray<FName>& InContextNames)
+	auto AddCountFunctionIfNeeded = [&Declarations, &SeenDataDomains](const TArray<FName>& InContextNames)
 	{
-		if (!SeenContexts.Contains(InContextNames))
+		if (!SeenDataDomains.Contains(InContextNames))
 		{
 			FString CountNameInfix;
 
@@ -875,16 +874,16 @@ void UOptimusNode_ComputeKernel::UpdatePreamble()
 				CountNameInfix.Append(ContextName.ToString());
 			}
 			Declarations.Add(FString::Printf(TEXT("uint Get%sCount();"), *CountNameInfix));
-			SeenContexts.Add(InContextNames);
+			SeenDataDomains.Add(InContextNames);
 		}
 	};
 	
-	for (const FOptimus_ShaderContextBinding& Binding: Bindings)
+	for (const FOptimus_ShaderDataBinding& Binding: Bindings)
 	{
-		AddCountFunctionIfNeeded(Binding.Context.ContextNames);
+		AddCountFunctionIfNeeded(Binding.DataDomain.LevelNames);
 		
 		TArray<FString> Indexes;
-		for (FString IndexName: GetIndexNamesFromContextNames(Binding.Context.ContextNames))
+		for (FString IndexName: GetIndexNamesFromDataDomainLevels(Binding.DataDomain.LevelNames))
 		{
 			Indexes.Add(FString::Printf(TEXT("uint %s"), *IndexName));
 		}
@@ -895,12 +894,12 @@ void UOptimusNode_ComputeKernel::UpdatePreamble()
 
 	Bindings = OutputBindings;
 	Bindings.Sort(ContextsPredicate);
-	for (const FOptimus_ShaderContextBinding& Binding: Bindings)
+	for (const FOptimus_ShaderDataBinding& Binding: Bindings)
 	{
-		AddCountFunctionIfNeeded(Binding.Context.ContextNames);
+		AddCountFunctionIfNeeded(Binding.DataDomain.LevelNames);
 		
 		TArray<FString> Indexes;
-		for (FString IndexName: GetIndexNamesFromContextNames(Binding.Context.ContextNames))
+		for (FString IndexName: GetIndexNamesFromDataDomainLevels(Binding.DataDomain.LevelNames))
 		{
 			Indexes.Add(FString::Printf(TEXT("uint %s"), *IndexName));
 		}

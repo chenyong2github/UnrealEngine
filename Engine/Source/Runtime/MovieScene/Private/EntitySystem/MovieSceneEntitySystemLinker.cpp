@@ -58,6 +58,10 @@ UMovieSceneEntitySystemLinker::UMovieSceneEntitySystemLinker(const FObjectInitia
 		FWorldDelegates::OnWorldCleanup.AddUObject(this, &UMovieSceneEntitySystemLinker::OnWorldCleanup);
 
 		InstanceRegistry.Reset(new FInstanceRegistry(this));
+
+#if WITH_EDITOR
+		FCoreUObjectDelegates::OnObjectsReplaced.AddUObject(this, &UMovieSceneEntitySystemLinker::OnObjectsReplaced);
+#endif
 	}
 }
 
@@ -248,7 +252,8 @@ void UMovieSceneEntitySystemLinker::CleanGarbage()
 {
 	using namespace UE::MovieScene;
 
-	FComponentTypeID NeedsUnlink = FBuiltInComponentTypes::Get()->Tags.NeedsUnlink;
+	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+	FComponentTypeID NeedsUnlink = BuiltInComponents->Tags.NeedsUnlink;
 	if (!EntityManager.ContainsComponent(NeedsUnlink))
 	{
 		return;
@@ -261,11 +266,48 @@ void UMovieSceneEntitySystemLinker::CleanGarbage()
 	SystemGraph.IteratePhase(ESystemPhase::Spawn, RouteCleanTaggedGarbage);
 	SystemGraph.IteratePhase(ESystemPhase::Instantiation, RouteCleanTaggedGarbage);
 
+	TArray<FMovieSceneEntityID> UnresolvedEntities;
+
+	FEntityTaskBuilder()
+	.Read(BuiltInComponents->BoundObject)
+	.Read(BuiltInComponents->ParentEntity)
+	.Iterate_PerEntity(&EntityManager, [&UnresolvedEntities](UObject* Object, FMovieSceneEntityID ParentEntityID)
+	{
+		if (!Object)
+		{
+			UnresolvedEntities.Add(ParentEntityID);
+		}
+	});
+
+	for (FMovieSceneEntityID EntityID : UnresolvedEntities)
+	{
+		EntityManager.AddComponent(EntityID, BuiltInComponents->Tags.HasUnresolvedBinding);
+	}
+
 	// Free the entities
 	TSet<FMovieSceneEntityID> FreedEntities;
 	EntityManager.FreeEntities(FEntityComponentFilter().All({ NeedsUnlink }), &FreedEntities);
 
 	InstanceRegistry->CleanupLinkerEntities(FreedEntities);
+}
+
+void UMovieSceneEntitySystemLinker::OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap)
+{
+#if WITH_EDITOR
+	using namespace UE::MovieScene;
+
+	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+
+	FEntityTaskBuilder()
+	.Write(BuiltInComponents->BoundObject)
+	.Iterate_PerEntity(&EntityManager, [&ReplacementMap](UObject*& Object)
+	{
+		if (UObject* Replacement = ReplacementMap.FindRef(Object))
+		{
+			Object = Replacement;
+		}
+	});
+#endif
 }
 
 void UMovieSceneEntitySystemLinker::OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources)

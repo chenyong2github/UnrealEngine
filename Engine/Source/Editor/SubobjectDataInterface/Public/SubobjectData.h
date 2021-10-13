@@ -211,9 +211,7 @@ public:
 	FText GetIntroducedInToolTipText() const;
 
 	virtual FText GetActorDisplayText() const;
-	
-	FLinearColor GetColorTintForIcon() const;
-	
+		
 protected:
 	
 	/**

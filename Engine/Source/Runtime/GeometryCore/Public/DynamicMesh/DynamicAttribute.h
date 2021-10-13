@@ -271,7 +271,7 @@ public:
 	{
 		for (TDynamicAttributeBase<ParentType>* A : RegisteredAttributes)
 		{
-			A->OnRemoveTriangle(VertexID);
+			A->OnRemoveVertex(VertexID);
 		}
 	}
 	virtual void OnReverseTriOrientation(int TriangleID)

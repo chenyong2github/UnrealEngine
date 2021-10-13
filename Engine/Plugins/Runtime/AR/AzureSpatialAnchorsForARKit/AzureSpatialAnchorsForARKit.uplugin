@@ -22,7 +22,7 @@
 		{
 			"Name": "AzureSpatialAnchorsForARKit",
 			"Type": "Runtime",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"IOS"
 			]
 		}
@@ -31,14 +31,14 @@
 		{
 			"Name": "AzureSpatialAnchors",
 			"Enabled": true,
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"IOS"
 			]
 		},
         {
             "Name": "AppleARKit",
             "Enabled": true,
-            "WhitelistPlatforms": [
+            "PlatformAllowList": [
                 "IOS"
             ]
         }

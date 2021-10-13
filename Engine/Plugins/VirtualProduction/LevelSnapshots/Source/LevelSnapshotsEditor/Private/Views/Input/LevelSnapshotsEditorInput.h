@@ -3,8 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Views/SnapshotEditorViewData.h"
 #include "Templates/SharedPointer.h"
+#include "Views/SnapshotEditorViewData.h"
+#include "Widgets/SWidget.h"
 
 class SWidget;
 class SLevelSnapshotsEditorInput;
@@ -23,6 +24,8 @@ public:
 	const FSnapshotEditorViewData& GetBuilder() const { return ViewBuildData; }
 
 	void OpenLevelSnapshotsDialogWithAssetSelected(const FAssetData& InAssetData) const;
+
+	void ShowOrHideInputPanel(const bool bShouldShow);
 
 private:
 	

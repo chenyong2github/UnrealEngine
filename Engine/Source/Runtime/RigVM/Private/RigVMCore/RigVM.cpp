@@ -1330,6 +1330,11 @@ bool URigVM::ShouldHaltAtInstruction(const FName& InEventName, const uint16 Inst
 {
 	FRigVMByteCode& ByteCode = GetByteCode();
 
+	if (HaltedAtBreakpoint && InstructionIndex < HaltedAtBreakpoint->InstructionIndex)
+	{
+		return false;
+	}
+
 	TArray<TSharedPtr<FRigVMBreakpoint>> BreakpointsAtInstruction = DebugInfo->FindBreakpointsAtInstruction(InstructionIndex);
 	for (TSharedPtr<FRigVMBreakpoint> Breakpoint : BreakpointsAtInstruction)
 	{
@@ -1473,8 +1478,6 @@ bool URigVM::ShouldHaltAtInstruction(const FName& InEventName, const uint16 Inst
 
 				// Create new temporary breakpoint
 				TSharedPtr<FRigVMBreakpoint> NewBreakpoint = DebugInfo->AddBreakpoint(Context.InstructionIndex, NewBreakpointNode, 0, true);
-				DebugInfo->SetBreakpointHits(NewBreakpoint, GetInstructionVisitedCount(Context.InstructionIndex));
-				DebugInfo->SetBreakpointActivationOnHit(NewBreakpoint, GetInstructionVisitedCount(Context.InstructionIndex));
 				CurrentBreakpointAction = ERigVMBreakpointAction::None;					
 
 				HaltedAtBreakpoint = NewBreakpoint;
@@ -1538,6 +1541,8 @@ bool URigVM::Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void
 	Context.SliceOffsets.AddZeroed(Instructions.Num());
 	Context.OpaqueArguments = AdditionalArguments;
 	Context.ExternalVariables = ExternalVariables;
+
+	TGuardValue<URigVM*> VMInContext(Context.VM, this);
 	
 	while (Instructions.IsValidIndex(Context.InstructionIndex))
 	{
@@ -1889,6 +1894,8 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 	Context.SliceOffsets.AddZeroed(Instructions.Num());
 	Context.OpaqueArguments = AdditionalArguments;
 	Context.ExternalVariables = ExternalVariables;
+
+	TGuardValue<URigVM*> VMInContext(Context.VM, this);
 
 	ClearDebugMemory();
 

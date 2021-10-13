@@ -20,7 +20,7 @@
 			"Name" : "AppleVision",
 			"Type" : "Runtime",
 			"LoadingPhase" : "Default",
-			"BlacklistPlatforms" :
+			"PlatformDenyList" :
 			[
 				"TVOS"
 			]
@@ -29,7 +29,7 @@
 			"Name" : "AppleVisionBlueprintSupport",
 			"Type" : "UncookedOnly",
 			"LoadingPhase" : "Default",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"Win64",
 				"Mac",

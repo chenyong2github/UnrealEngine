@@ -73,24 +73,25 @@ void FAnimNode_CustomProperty::InitializeProperties(const UObject* InSourceInsta
 
 		for(int32 Idx = 0; Idx < SourcePropertyNames.Num(); ++Idx)
 		{
-			const FName& SourceName = SourcePropertyNames[Idx];
 			const FName& DestName = DestPropertyNames[Idx];
 
-			FProperty* SourceProperty = FindFProperty<FProperty>(SourceClass, SourceName);
-			FProperty* DestProperty = FindFProperty<FProperty>(InTargetClass, DestName);
-
-			if (SourceProperty && DestProperty
-#if WITH_EDITOR
-				// This type check can fail when anim blueprints are in an error state:
-				&& SourceProperty->SameType(DestProperty)
-#endif
-				)
+			if (FProperty* DestProperty = FindFProperty<FProperty>(InTargetClass, DestName))
 			{
-				SourceProperties.Add(SourceProperty);
-				DestProperties.Add(DestProperty);
+				const FName& SourceName = SourcePropertyNames[Idx];
+				FProperty* SourceProperty = FindFProperty<FProperty>(SourceClass, SourceName);
+
+				if (SourceProperty
+#if WITH_EDITOR
+					// This type check can fail when anim blueprints are in an error state:
+					&& SourceProperty->SameType(DestProperty)
+#endif
+					)
+				{
+					SourceProperties.Add(SourceProperty);
+					DestProperties.Add(DestProperty);
+				}
 			}
 		}
-		
 	}
 }
 

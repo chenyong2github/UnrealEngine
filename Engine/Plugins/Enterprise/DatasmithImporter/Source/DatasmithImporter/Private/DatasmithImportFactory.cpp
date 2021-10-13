@@ -5,6 +5,7 @@
 #include "DatasmithAssetImportData.h"
 #include "DatasmithAssetUserData.h"
 #include "DatasmithContentBlueprintLibrary.h"
+#include "DatasmithImporterHelper.h"
 #include "DatasmithImporterModule.h"
 #include "DatasmithScene.h"
 #include "DatasmithSceneActor.h"
@@ -22,8 +23,11 @@
 #include "ComponentReregisterContext.h"
 #include "Engine/StaticMesh.h"
 #include "EngineAnalytics.h"
+#include "ExternalSource.h"
+#include "ExternalSourceModule.h"
 #include "HAL/FileManager.h"
 #include "Interfaces/IAnalyticsProvider.h"
+#include "IUriManager.h"
 #include "Logging/LogMacros.h"
 #include "Logging/MessageLog.h"
 #include "Materials/Material.h"
@@ -120,7 +124,7 @@ namespace DatasmithImportFactoryImpl
 
 		if (AssetName.IsEmpty())
 		{
-			AssetName = FPaths::GetBaseFilename(InContext.Options->FilePath);
+			AssetName = InContext.Scene->GetName();
 		}
 
 		AssetName = FDatasmithUtils::SanitizeObjectName(AssetName);
@@ -164,6 +168,7 @@ namespace DatasmithImportFactoryImpl
 			ReImportSceneData->AdditionalOptions.Add(OptionObj);
 		}
 		ReImportSceneData->Update( InContext.Options->FilePath, InContext.FileHash.IsValid() ? &InContext.FileHash : nullptr );
+		ReImportSceneData->SourceUri = InContext.Options->SourceUri;
 
 		FAssetRegistryModule::AssetCreated(ReImportSceneData);
 
@@ -459,6 +464,20 @@ UObject* UDatasmithImportFactory::FactoryCreateFile(UClass* InClass, UObject* In
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UDatasmithImportFactory::FactoryCreateFile);
 
+	TSharedPtr<UE::DatasmithImporter::FExternalSource> ExternalSource = IExternalSourceModule::Get().GetManager()->GetOrCreateExternalSource(UE::DatasmithImporter::FSourceUri::FromFilePath(InFilename));
+	if ( !ExternalSource )
+	{
+		UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith import error: no suitable external source found for this file path. Abort import."));
+		return nullptr;
+	}
+	
+	return CreateFromExternalSource(InClass, InParent, InName, InFlags, ExternalSource.ToSharedRef(), InParms, InWarn, bOutOperationCanceled);
+}
+
+UObject* UDatasmithImportFactory::CreateFromExternalSource(UClass* InClass, UObject* InParent, FName InName, EObjectFlags InFlags, const TSharedRef<UE::DatasmithImporter::FExternalSource>& InExternalSource, const TCHAR* InParms, FFeedbackContext* InWarn, bool& bOutOperationCanceled)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UDatasmithImportFactory::CreateFromExternalSource);
+
 	// Do not go any further if the user had canceled the import.
 	// Happens when multiple files have been selected.
 	if (bOperationCanceled)
@@ -467,32 +486,17 @@ UObject* UDatasmithImportFactory::FactoryCreateFile(UClass* InClass, UObject* In
 		return nullptr;
 	}
 
-	TStrongObjectPtr< UObject > ParentPtr( InParent );
-
-	FDatasmithSceneSource Source;
-	Source.SetSourceFile(InFilename);
-
-	FDatasmithTranslatableSceneSource TranslatableSource(Source);
-	if (!TranslatableSource.IsTranslatable())
-	{
-		UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith import error: no suitable translator found for this source. Abort import."));
-		return nullptr;
-	}
-
-	FDatasmithImportContext ImportContext(Source.GetSourceFile(), !IsAutomatedImport(), GetLoggerName(), GetDisplayName(), TranslatableSource.GetTranslator());
-
-	TSharedRef< IDatasmithScene > Scene = FDatasmithSceneFactory::CreateScene(*Source.GetSceneName());
-	bool bIsSilent = IsAutomatedImport() || !bShowOptions;
-
 	FString PackageRoot;
 	FString PackagePath;
 	FString PackageName;
 
 	FPackageName::SplitLongPackageName( InParent->GetName(), PackageRoot, PackagePath, PackageName );
+	const FString ImportPath = PackageRoot / PackagePath;
 
-	FString ImportPath = FPaths::Combine( *PackageRoot, *PackagePath );
+	FDatasmithImportContext ImportContext(InExternalSource, !IsAutomatedImport(), GetLoggerName(), GetDisplayName());
 
-	if ( !ImportContext.Init( Scene, ImportPath, InFlags, InWarn, ImportSettingsJson, bIsSilent ) )
+	const bool bIsSilent = IsAutomatedImport() || !bShowOptions;
+	if (!ImportContext.Init(ImportPath, InFlags, InWarn, ImportSettingsJson, bIsSilent))
 	{
 		bOperationCanceled = true;
 		bOutOperationCanceled = true;
@@ -502,7 +506,11 @@ UObject* UDatasmithImportFactory::FactoryCreateFile(UClass* InClass, UObject* In
 	// Collect start time to log amount of time spent to import incoming file
 	uint64 StartTime = FPlatformTime::Cycles64();
 
-	if (!TranslatableSource.Translate(Scene))
+	if (TSharedPtr<IDatasmithScene> Scene = InExternalSource->TryLoad())
+	{
+		ImportContext.InitScene(Scene.ToSharedRef());
+	}
+	else
 	{
 		UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith import error: Scene translation failure. Abort import."));
 		return nullptr;
@@ -630,6 +638,7 @@ void UDatasmithImportFactory::OnObjectReimported(UObject* Object, UStaticMesh* S
 
 EReimportResult::Type UDatasmithImportFactory::ReimportStaticMesh(UStaticMesh* Mesh)
 {
+	using namespace UE::DatasmithImporter;
 	UDatasmithStaticMeshImportData* MeshImportData = UDatasmithStaticMeshImportData::GetImportDataForStaticMesh(Mesh);
 
 	if (MeshImportData == nullptr || MeshImportData->AssetImportOptions.PackagePath.IsNone())
@@ -637,21 +646,16 @@ EReimportResult::Type UDatasmithImportFactory::ReimportStaticMesh(UStaticMesh* M
 		return EReimportResult::Failed;
 	}
 
-	FString Filename = MeshImportData->GetFirstFilename();
-
-	FDatasmithSceneSource Source;
-	Source.SetSourceFile(Filename);
-
-	FDatasmithTranslatableSceneSource TranslatableSource(Source);
-
-	if (!TranslatableSource.IsTranslatable())
+	TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::Get().GetManager()->TryGetExternalSourceFromImportData(*MeshImportData);
+	if (!ExternalSource)
 	{
+		UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith ReimportStaticMesh error: cannot resolve the external source from Source file or URI. Abort import"));
 		bOperationCanceled = true;
-		UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith ReimportStaticMesh error: no suitable translator found for this source. Abort import."));
 		return EReimportResult::Failed;
 	}
 
-	FDatasmithImportContext ImportContext(Source.GetSourceFile(), false, GetLoggerName(), GetDisplayName(), TranslatableSource.GetTranslator());
+	const FString ImportPath = MeshImportData->AssetImportOptions.PackagePath.ToString();
+	FDatasmithImportContext ImportContext(ExternalSource.ToSharedRef(), false, GetLoggerName(), GetDisplayName());
 
 	// Restore static mesh options stored in mesh import data
 	ImportContext.Options->BaseOptions.StaticMeshOptions = MeshImportData->ImportOptions;
@@ -676,14 +680,17 @@ EReimportResult::Type UDatasmithImportFactory::ReimportStaticMesh(UStaticMesh* M
 		}
 	}
 
-	TSharedRef< IDatasmithScene > Scene = FDatasmithSceneFactory::CreateScene(*Source.GetSceneName());
-	bool bIsSilent = true;
-	if ( !ImportContext.Init( Scene, MeshImportData->AssetImportOptions.PackagePath.ToString(), Mesh->GetFlags(), GWarn, ImportSettingsJson, bIsSilent ) )
+	const bool bIsSilent = true;
+	if (!ImportContext.Init(ImportPath, Mesh->GetFlags(), GWarn, ImportSettingsJson, bIsSilent))
 	{
 		return EReimportResult::Cancelled;
 	}
 
-	if (!TranslatableSource.Translate(Scene))
+	if ( TSharedPtr<IDatasmithScene> LoadedScene = ExternalSource->TryLoad() )
+	{
+		ImportContext.InitScene( LoadedScene.ToSharedRef() );
+	}
+	else
 	{
 		bOperationCanceled = true;
 		UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith ReimportStaticMesh error: Scene translation failure. Abort import."));
@@ -695,9 +702,9 @@ EReimportResult::Type UDatasmithImportFactory::ReimportStaticMesh(UStaticMesh* M
 
 	TSharedPtr< IDatasmithMeshElement > MeshElement;
 
-	for (int32 MeshElementIndex = 0; MeshElementIndex < Scene->GetMeshesCount(); ++MeshElementIndex)
+	for (int32 MeshElementIndex = 0; MeshElementIndex < ImportContext.Scene->GetMeshesCount(); ++MeshElementIndex)
 	{
-		TSharedPtr< IDatasmithMeshElement > SceneMeshElement = Scene->GetMesh( MeshElementIndex );
+		TSharedPtr< IDatasmithMeshElement > SceneMeshElement = ImportContext.Scene->GetMesh( MeshElementIndex );
 		if ( SceneMeshElement->GetName() == StaticMeshUniqueId )
 		{
 			MeshElement = SceneMeshElement;
@@ -765,30 +772,30 @@ EReimportResult::Type UDatasmithImportFactory::ReimportStaticMesh(UStaticMesh* M
 
 EReimportResult::Type UDatasmithImportFactory::ReimportScene(UDatasmithScene* SceneAsset)
 {
+	using namespace UE::DatasmithImporter;
 	// #ueent_todo: unify with import, BP, python, DP.
 	if (!SceneAsset || !SceneAsset->AssetImportData)
 	{
 		return EReimportResult::Failed;
 	}
 
-	UDatasmithSceneImportData& ReimportData = *SceneAsset->AssetImportData;
-
-	FDatasmithSceneSource Source;
-	Source.SetSourceFile(ReimportData.GetFirstFilename());
-	Source.SetSceneName(SceneAsset->GetName()); // keep initial name
-
-	FDatasmithTranslatableSceneSource TranslatableSource(Source);
-	if (!TranslatableSource.IsTranslatable())
+	UDatasmithSceneImportData& AssetImportData = *SceneAsset->AssetImportData;
+	
+	TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::Get().GetManager()->TryGetExternalSourceFromImportData(AssetImportData);
+	if (!ExternalSource)
 	{
-		UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith ReimportScene error: no suitable translator found for this source. Abort import."));
+		UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith ReimportScene error: cannot resolve the external source from Source file or URI. Abort import"));
 		return EReimportResult::Failed;
 	}
 
+	ExternalSource->SetSceneName(*SceneAsset->GetName()); // keep initial name
+
 	// Setup pipe for reimport
-	bool bLoadConfig = false;
-	FDatasmithImportContext ImportContext(Source.GetSourceFile(), bLoadConfig, GetLoggerName(), GetDisplayName(), TranslatableSource.GetTranslator());
+	const bool bLoadConfig = false;
+	const FString ImportPath = AssetImportData.BaseOptions.AssetOptions.PackagePath.ToString();
+	FDatasmithImportContext ImportContext(ExternalSource.ToSharedRef(), bLoadConfig, GetLoggerName(), GetDisplayName());
 	ImportContext.SceneAsset = SceneAsset;
-	ImportContext.Options->BaseOptions = ReimportData.BaseOptions; // Restore options as used in original import
+	ImportContext.Options->BaseOptions = AssetImportData.BaseOptions; // Restore options as used in original import
 	if (UDatasmithTranslatedSceneImportData* TranslatedSceneReimportData = Cast<UDatasmithTranslatedSceneImportData>(SceneAsset->AssetImportData))
 	{
 		for (UDatasmithOptionsBase* Option : TranslatedSceneReimportData->AdditionalOptions)
@@ -798,11 +805,9 @@ EReimportResult::Type UDatasmithImportFactory::ReimportScene(UDatasmithScene* Sc
 	}
 	ImportContext.bIsAReimport = true;
 
-	FString ImportPath = ImportContext.Options->BaseOptions.AssetOptions.PackagePath.ToString();
 
-	TSharedRef< IDatasmithScene > Scene = FDatasmithSceneFactory::CreateScene( *Source.GetSceneName() );
-	bool bIsSilent = IsAutomatedImport();
-	if ( !ImportContext.Init( Scene, ImportPath, ImportContext.SceneAsset->GetFlags(), GWarn, ImportSettingsJson, bIsSilent ) )
+	const bool bIsSilent = IsAutomatedImport() || IsAutomatedReimport();
+	if (!ImportContext.Init(ImportPath, ImportContext.SceneAsset->GetFlags(), GWarn, ImportSettingsJson, bIsSilent))
 	{
 		return EReimportResult::Cancelled;
 	}
@@ -810,7 +815,11 @@ EReimportResult::Type UDatasmithImportFactory::ReimportScene(UDatasmithScene* Sc
 	// Collect start time to log amount of time spent to import incoming file
 	uint64 StartTime = FPlatformTime::Cycles64();
 
-	if (!TranslatableSource.Translate(Scene))
+	if (TSharedPtr<IDatasmithScene> LoadedScene = ExternalSource->TryLoad())
+	{
+		ImportContext.InitScene(LoadedScene.ToSharedRef());
+	}
+	else
 	{
 		UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith import error: Scene translation failure. Abort import."));
 		return EReimportResult::Failed;
@@ -845,6 +854,7 @@ EReimportResult::Type UDatasmithImportFactory::ReimportScene(UDatasmithScene* Sc
 
 EReimportResult::Type UDatasmithImportFactory::ReimportMaterial( UMaterialInterface* Material )
 {
+	using namespace UE::DatasmithImporter;
 	UDatasmithAssetImportData* MaterialImportData = Material ? Cast< UDatasmithAssetImportData >( Material->AssetImportData ) : nullptr;
 	if ( MaterialImportData == nullptr )
 	{
@@ -859,15 +869,13 @@ EReimportResult::Type UDatasmithImportFactory::ReimportMaterial( UMaterialInterf
 		return EReimportResult::Failed;
 	}
 
-	FDatasmithSceneSource Source;
-	Source.SetSourceFile(MaterialImportData->GetFirstFilename());
-
-	FDatasmithTranslatableSceneSource TranslatableSource(Source);
-	if (!TranslatableSource.IsTranslatable())
+	TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::Get().GetManager()->TryGetExternalSourceFromImportData(*MaterialImportData);
+	if (!ExternalSource)
 	{
-		UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith ReimportMaterial error: no suitable translator found for this source. Abort import."));
+		UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith ReimportMaterial error: cannot resolve the external source from Source file or URI. Abort import"));
 		return EReimportResult::Failed;
 	}
+
 	// Reopen the material editor if it was opened for this material. Note that this will close all the tabs, even the ones for other materials.
 	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
 	IAssetEditorInstance* EditorInstance = AssetEditorSubsystem->FindEditorForAsset(Material, false);
@@ -876,21 +884,25 @@ EReimportResult::Type UDatasmithImportFactory::ReimportMaterial( UMaterialInterf
 		AssetEditorSubsystem->CloseAllEditorsForAsset(Material);
 	}
 
-	FDatasmithImportContext ImportContext(Source.GetSourceFile(), false, GetLoggerName(), GetDisplayName(), TranslatableSource.GetTranslator());
+	FDatasmithImportContext ImportContext(ExternalSource.ToSharedRef(), false, GetLoggerName(), GetDisplayName());
 
 	ImportContext.Options->BaseOptions.AssetOptions = MaterialImportData->AssetImportOptions;
 
 	ImportContext.SceneAsset = FDatasmithImporterUtils::FindDatasmithSceneForAsset( Material );
 
-	TSharedRef< IDatasmithScene > Scene = FDatasmithSceneFactory::CreateScene(*Source.GetSceneName());
-	if ( !ImportContext.Init( Scene, ImportPath, Material->GetFlags(), GWarn, ImportSettingsJson, true ) )
+	const bool bIsSilent = true;
+	if (!ImportContext.Init(ImportPath, Material->GetFlags(), GWarn, ImportSettingsJson, bIsSilent))
 	{
 		return EReimportResult::Cancelled;
 	}
 
-	if (!TranslatableSource.Translate(Scene))
+	if (TSharedPtr<IDatasmithScene> LoadedScene = ExternalSource->TryLoad())
 	{
-		UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith ReimportMaterial error: Scene translation failure. Abort import."));
+		ImportContext.InitScene(LoadedScene.ToSharedRef());
+	}
+	else
+	{
+		UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith ReimportMaterial error: Scene load failure. Abort import."));
 		return EReimportResult::Failed;
 	}
 
@@ -903,9 +915,9 @@ EReimportResult::Type UDatasmithImportFactory::ReimportMaterial( UMaterialInterf
 	TSharedPtr< IDatasmithBaseMaterialElement > MaterialElement;
 	const FString MaterialUniqueId = FDatasmithImporterUtils::GetDatasmithElementIdString(Material);
 
-	for ( int32 MaterialElementIndex = 0; MaterialElementIndex < Scene->GetMaterialsCount(); ++MaterialElementIndex )
+	for ( int32 MaterialElementIndex = 0; MaterialElementIndex < ImportContext.Scene->GetMaterialsCount(); ++MaterialElementIndex )
 	{
-		if (TSharedPtr< IDatasmithBaseMaterialElement > CandidateElement = Scene->GetMaterial( MaterialElementIndex ))
+		if (TSharedPtr< IDatasmithBaseMaterialElement > CandidateElement = ImportContext.Scene->GetMaterial( MaterialElementIndex ))
 		{
 			if ( CandidateElement->GetName() == MaterialUniqueId )
 			{

@@ -20,3 +20,8 @@ void FLevelSnapshotsEditorInput::OpenLevelSnapshotsDialogWithAssetSelected(const
 {
 	EditorInputWidget->OpenLevelSnapshotsDialogWithAssetSelected(InAssetData);
 }
+
+void FLevelSnapshotsEditorInput::ShowOrHideInputPanel(const bool bShouldShow)
+{
+	EditorInputWidget->SetVisibility(bShouldShow ? EVisibility::Visible : EVisibility::Collapsed);
+}

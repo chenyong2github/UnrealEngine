@@ -299,7 +299,8 @@ protected:
 		}
 	}
 
-	static FBox CalculateQuatACF96Bounds(const FQuat* Points, int32 NumPoints)
+	template<typename T>
+	static FBox CalculateQuatACF96Bounds(const UE::Math::TQuat<T>* Points, int32 NumPoints)
 	{
 		FBox Results(ForceInitToZero);
 
@@ -320,7 +321,7 @@ protected:
 		const int32 NumKeys = RotationData.RotKeys.Num();
 		for (int32 i = 0; i < NumKeys; ++i)
 		{
-			const float Error = FQuat::ErrorAutoNormalize(RotationData.RotKeys[i], FQuat::Identity);
+			const float Error = FQuat4f::ErrorAutoNormalize(RotationData.RotKeys[i], FQuat4f::Identity);
 			MaxError = FMath::Max(MaxError, Error);
 			SumError += Error;
 		}
@@ -336,7 +337,7 @@ protected:
 		const int32 NumKeys = RotationData.RotKeys.Num();
 		for (int32 i = 0; i < NumKeys; ++i)
 		{
-			const FQuat& Q = RotationData.RotKeys[i];
+			const FQuat4f& Q = RotationData.RotKeys[i];
 			check(Q.IsNormalized());
 
 			// Compress and write out the quaternion
@@ -344,11 +345,11 @@ protected:
 			AppendBytes(&Compressor, sizeof(Compressor));
 
 			// Decompress and check the error caused by the compression
-			FQuat DecompressedQ;
+			FQuat4f DecompressedQ;
 			Compressor.ToQuat(DecompressedQ);
 
 			check(DecompressedQ.IsNormalized());
-			const float Error = FQuat::ErrorAutoNormalize(Q, DecompressedQ);
+			const float Error = FQuat4f::ErrorAutoNormalize(Q, DecompressedQ);
 			MaxError = FMath::Max(MaxError, Error);
 			SumError += Error;
 		}
@@ -392,9 +393,9 @@ protected:
 		// Write the keys for the non-zero components
 		for (int32 i = 0; i < NumKeys; ++i)
 		{
-			const FQuat& Q = RotationData.RotKeys[i];
+			const FQuat4f& Q = RotationData.RotKeys[i];
 
-			FQuat QRenorm(Q);
+			FQuat4f QRenorm(Q);
 			if (!bHasX)
 			{
 				QRenorm.X = 0;
@@ -436,7 +437,7 @@ protected:
 			Decompressor.Y = bHasY ? FAnimationCompression_PerTrackUtils::DecompressFixed16<0>(Y) : 0.0f;
 			Decompressor.Z = bHasZ ? FAnimationCompression_PerTrackUtils::DecompressFixed16<0>(Z) : 0.0f;
 
-			FQuat DecompressedQ;
+			FQuat4f DecompressedQ;
 			Decompressor.ToQuat(DecompressedQ);
 
 			if (!DecompressedQ.IsNormalized())
@@ -449,7 +450,7 @@ protected:
 			}
 
 			check(DecompressedQ.IsNormalized());
-			const float Error = FQuat::ErrorAutoNormalize(Q, DecompressedQ);
+			const float Error = FQuat4f::ErrorAutoNormalize(Q, DecompressedQ);
 			MaxError = FMath::Max(MaxError, Error);
 			SumError += Error;
 		}
@@ -521,9 +522,9 @@ protected:
 		// Write the keys out
 		for (int32 i = 0; i < NumKeys; ++i)
 		{
-			const FQuat& Q = RotationData.RotKeys[i];
+			const FQuat4f& Q = RotationData.RotKeys[i];
 
-			FQuat QRenorm(Q);
+			FQuat4f QRenorm(Q);
 			if (!bHasX)
 			{
 				QRenorm.X = 0;
@@ -544,7 +545,7 @@ protected:
 			AppendBytes(&Compressor, sizeof(Compressor));
 
 			// Decompress and check the error caused by the compression
-			FQuat DecompressedQ;
+			FQuat4f DecompressedQ;
 			Compressor.ToQuat(DecompressedQ, Mins, Ranges);
 
 			if (!DecompressedQ.IsNormalized())
@@ -557,7 +558,7 @@ protected:
 				UE_LOG(LogAnimationCompression, Log, TEXT(" Mins(%f, %f, %f)   Maxs(%f, %f,%f)"), KeyBounds.Min.X, KeyBounds.Min.Y, KeyBounds.Min.Z, KeyBounds.Max.X, KeyBounds.Max.Y, KeyBounds.Max.Z);
 			}
 			check(DecompressedQ.IsNormalized());
-			const float Error = FQuat::ErrorAutoNormalize(Q, DecompressedQ);
+			const float Error = FQuat4f::ErrorAutoNormalize(Q, DecompressedQ);
 			MaxError = FMath::Max(MaxError, Error);
 			SumError += Error;
 		}
@@ -1365,7 +1366,7 @@ void ResampleRotationKeys(
 		IntervalTime = IntervalTime * (KeyCount / (float)(KeyCount - 1));
 	}
 
-	TArray<FQuat> NewRotKeys;
+	TArray<FQuat4f> NewRotKeys;
 	TArray<float> NewTimes;
 
 	NewTimes.Empty(KeyCount);
@@ -1388,15 +1389,15 @@ void ResampleRotationKeys(
 			}
 		}
 
-		FQuat Value;
+		FQuat4f Value;
 
 		check(Track.Times[CachedIndex] <= Time);
 		if (CachedIndex + 1 < KeyCount)
 		{
 			check(Track.Times[CachedIndex+1] >= Time);
 
-			FQuat A = Track.RotKeys[CachedIndex];
-			FQuat B = Track.RotKeys[CachedIndex + 1];
+			FQuat4f A = Track.RotKeys[CachedIndex];
+			FQuat4f B = Track.RotKeys[CachedIndex + 1];
 
 			float Alpha = (Time - Track.Times[CachedIndex]) / (Track.Times[CachedIndex+1] - Track.Times[CachedIndex]);
 			Value = FMath::Lerp(A, B, Alpha);
@@ -1483,9 +1484,9 @@ void* UAnimCompress_PerTrackCompression::FilterBeforeMainKeyRemoval(
 	// Find out how a small change affects the maximum error in the end effectors
 	if (bUseAdaptiveError2)
 	{
-		FVector3f TranslationProbe(PerturbationProbeSize, PerturbationProbeSize, PerturbationProbeSize);
+		FVector TranslationProbe(PerturbationProbeSize, PerturbationProbeSize, PerturbationProbeSize);
 		FQuat RotationProbe(PerturbationProbeSize, PerturbationProbeSize, PerturbationProbeSize, PerturbationProbeSize);
-		FVector3f ScaleProbe(PerturbationProbeSize, PerturbationProbeSize, PerturbationProbeSize);
+		FVector ScaleProbe(PerturbationProbeSize, PerturbationProbeSize, PerturbationProbeSize);
 
 		FAnimationUtils::TallyErrorsFromPerturbation(
 			CompressibleAnimData,

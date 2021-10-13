@@ -2,20 +2,22 @@
 
 #include "Data/WorldSnapshotData.h"
 
-#include "Archive/TakeWorldObjectSnapshotArchive.h"
 #include "Archive/ClassDefaults/ApplyClassDefaulDataArchive.h"
 #include "Archive/ClassDefaults/TakeClassDefaultObjectSnapshotArchive.h"
 #include "LevelSnapshotsLog.h"
 #include "PropertySelectionMap.h"
 #include "Restorability/SnapshotRestorability.h"
+#include "Util/SortedScopedLog.h"
 
-#include "Components/ActorComponent.h"
 #include "EngineUtils.h"
+#include "HAL/IConsoleManager.h"
+#include "LevelSnapshotsModule.h"
+#include "SnapshotConsoleVariables.h"
 #include "GameFramework/Actor.h"
 #include "Misc/ScopeExit.h"
+#include "Serialization/BufferArchive.h"
+#include "Stats/StatsMisc.h"
 #include "UObject/Package.h"
-#include "Util/SnapshotObjectUtil.h"
-#include "Util/SnapshotUtil.h"
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
@@ -66,15 +68,18 @@ void FWorldSnapshotData::SnapshotWorld(UWorld* World)
 	TakeSnapshotTask.MakeDialogDelayed(1.f);
 #endif
 
+	const bool bShouldLog = SnapshotCVars::CVarLogTimeTakingSnapshots.GetValueOnAnyThread();
+	FConditionalSortedScopedLog SortedLog(bShouldLog);
 	for (TActorIterator<AActor> It(World, AActor::StaticClass(), EActorIteratorFlags::SkipPendingKill); It; ++It)
 	{
 #if WITH_EDITOR
 		TakeSnapshotTask.EnterProgressFrame();
 #endif
 		
-		AActor* Actor = *It; 
+		AActor* Actor = *It;
 		if (FSnapshotRestorability::IsActorDesirableForCapture(Actor))
 		{
+			FScopedLogItem LogTakeSnapshot = SortedLog.AddScopedLogItem(Actor->GetName());
 			ActorData.Add(Actor, FActorSnapshotData::SnapshotActor(Actor, *this));
 		}
 	}
@@ -144,17 +149,6 @@ void FWorldSnapshotData::ForEachOriginalActor(TFunction<void(const FSoftObjectPa
 bool FWorldSnapshotData::HasMatchingSavedActor(const FSoftObjectPath& OriginalObjectPath) const
 {
 	return ActorData.Contains(OriginalObjectPath);
-}
-
-TOptional<AActor*> FWorldSnapshotData::GetPreallocatedActor(const FSoftObjectPath& OriginalObjectPath)
-{
-	FActorSnapshotData* SerializedActor = ActorData.Find(OriginalObjectPath);
-	if (SerializedActor)
-	{
-		return SerializedActor->GetPreallocated(TempActorWorld->GetWorld(), *this);
-	}
-
-	return {};
 }
 
 TOptional<AActor*> FWorldSnapshotData::GetDeserializedActor(const FSoftObjectPath& OriginalObjectPath, UPackage* LocalisationSnapshotPackage)
@@ -248,7 +242,11 @@ void FWorldSnapshotData::AddClassDefault(UClass* Class)
 	}
 	
 	FClassDefaultObjectSnapshotData ClassData;
-	FTakeClassDefaultObjectSnapshotArchive::SaveClassDefaultObject(ClassData, *this, ClassDefault);
+	ClassData.bWasBlacklistedCDO = FLevelSnapshotsModule::GetInternalModuleInstance().IsClassDefaultBlacklisted(Class); 
+	if (!ClassData.bWasBlacklistedCDO)	
+	{
+		FTakeClassDefaultObjectSnapshotArchive::SaveClassDefaultObject(ClassData, *this, ClassDefault);
+	}
 	
 	// Copy in case AddClassDefault was called recursively, which may reallocate ClassDefaults.
 	ClassDefaults.Emplace(Class, MoveTemp(ClassData));
@@ -260,6 +258,11 @@ UObject* FWorldSnapshotData::GetClassDefault(UClass* Class)
 	if (!ClassDefaultData)
 	{
 		UE_LOG(LogLevelSnapshots, Warning, TEXT("No saved CDO data available for class %s. Returning global CDO..."), *Class->GetName());
+		return Class->GetDefaultObject();
+	}
+	
+	if (ClassDefaultData->bWasBlacklistedCDO)
+	{
 		return Class->GetDefaultObject();
 	}
 
@@ -282,17 +285,16 @@ UObject* FWorldSnapshotData::GetClassDefault(UClass* Class)
 void FWorldSnapshotData::SerializeClassDefaultsInto(UObject* Object)
 {
 	FClassDefaultObjectSnapshotData* ClassDefaultData = ClassDefaults.Find(Object->GetClass());
-	if (ClassDefaultData)
+	if (ClassDefaultData && !ClassDefaultData->bWasBlacklistedCDO && !FLevelSnapshotsModule::GetInternalModuleInstance().IsClassDefaultBlacklisted(Object->GetClass()))
 	{
 		FApplyClassDefaulDataArchive::RestoreChangedClassDefaults(*ClassDefaultData, *this, Object);
 	}
-	else
-	{
-		UE_LOG(LogLevelSnapshots, Warning,
+
+	UE_CLOG(ClassDefaultData == nullptr,
+			LogLevelSnapshots, Warning,
 			TEXT("No CDO saved for class '%s'. If you changed some class default values for this class, then the affected objects will have the latest values instead of the class defaults at the time the snapshot was taken. Should be nothing major to worry about."),
 			*Object->GetClass()->GetName()
 			);
-	}
 }
 
 const FSnapshotVersionInfo& FWorldSnapshotData::GetSnapshotVersionInfo() const
@@ -360,26 +362,32 @@ void FWorldSnapshotData::ApplyToWorld_HandleRemovingActors(UWorld* WorldToApplyT
 #endif
 }
 
-namespace
+namespace WorldSnapshotData
 {
-	void DeleteActor(AActor* ActorToDespawn)
+	static void HandleNameClash(const FSoftObjectPath& OriginalRemovedActorPath)
 	{
-		check(ActorToDespawn);
-
-		if ( IsValid(ActorToDespawn) )
+		UObject* FoundObject = FindObject<UObject>(nullptr, *OriginalRemovedActorPath.ToString());
+		if (!FoundObject)
 		{
-#if WITH_EDITOR
-			GEditor->SelectActor(ActorToDespawn, /*bSelect =*/true, /*bNotifyForActor =*/false, /*bSelectEvenIfHidden =*/true);
-			const bool bVerifyDeletionCanHappen = true;
-			const bool bWarnAboutReferences = false;
-			GEditor->edactDeleteSelected(ActorToDespawn->GetWorld(), bVerifyDeletionCanHappen, bWarnAboutReferences, bWarnAboutReferences);
-#else
-			ActorToDespawn->Destroy(true, true);
-#endif
+			return;
 		}
 
-		const FName NewName = MakeUniqueObjectName(ActorToDespawn->GetLevel(), ActorToDespawn->GetClass());
-		ActorToDespawn->Rename(*NewName.ToString(), nullptr, REN_NonTransactional);
+		// If it's not an actor then it's possibly an UObjectRedirector
+		AActor* AsActor = Cast<AActor>(FoundObject);
+		if (IsValid(AsActor))
+		{
+#if WITH_EDITOR
+			GEditor->SelectActor(AsActor, /*bSelect =*/true, /*bNotifyForActor =*/false, /*bSelectEvenIfHidden =*/true);
+			const bool bVerifyDeletionCanHappen = true;
+			const bool bWarnAboutReferences = false;
+			GEditor->edactDeleteSelected(AsActor->GetWorld(), bVerifyDeletionCanHappen, bWarnAboutReferences, bWarnAboutReferences);
+#else
+			AsActor->Destroy(true, true);
+#endif
+		}
+		
+		const FName NewName = MakeUniqueObjectName(FoundObject->GetOuter(), FoundObject->GetClass());
+		FoundObject->Rename(*NewName.ToString(), nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
 	}
 }
 
@@ -408,12 +416,8 @@ void FWorldSnapshotData::ApplyToWorld_HandleRecreatingActors(TSet<AActor*>& Eval
 			UE_LOG(LogLevelSnapshots, Warning, TEXT("Failed to resolve class '%s'. Was it removed?"), *ActorSnapshot->GetActorClass().ToString());
 			continue;
 		}
-		
-		if (UObject* NameClash = OriginalRemovedActorPath.ResolveObject())
-		{
-			AActor* Actor = Cast<AActor>(NameClash);
-			DeleteActor(Actor);
-		}
+
+		WorldSnapshotData::HandleNameClash(OriginalRemovedActorPath);
 		
 		// Example: /Game/MapName.MapName:PersistentLevel.StaticMeshActor_42.StaticMeshComponent becomes /Game/MapName.MapName
 		const FSoftObjectPath PathToOwningWorldAsset = OriginalRemovedActorPath.GetAssetPathString();
@@ -457,8 +461,7 @@ void FWorldSnapshotData::ApplyToWorld_HandleRecreatingActors(TSet<AActor*>& Eval
 #endif
 		if (FActorSnapshotData* ActorSnapshot = ActorData.Find(OriginalRemovedActorPath))
 		{
-			AActor** RecreatedActor = RecreatedActors.Find(OriginalRemovedActorPath);
-			if (RecreatedActor)
+			if (AActor** RecreatedActor = RecreatedActors.Find(OriginalRemovedActorPath))
 			{
 				// Mark it, otherwise we'll serialize it again when we look for world actors matching the snapshot
 				EvaluatedActors.Add(*RecreatedActor);

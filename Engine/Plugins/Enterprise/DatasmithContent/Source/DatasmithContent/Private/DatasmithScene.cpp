@@ -37,6 +37,18 @@ UDatasmithScene::~UDatasmithScene()
 #endif
 }
 
+void UDatasmithScene::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
+{
+#if WITH_EDITORONLY_DATA
+	if (AssetImportData)
+	{
+		OutTags.Add(FAssetRegistryTag(SourceFileTagName(), AssetImportData->GetSourceData().ToJson(), FAssetRegistryTag::TT_Hidden));
+
+		OutTags.Add(FAssetRegistryTag(TEXT("SourceUri"), AssetImportData->SourceUri, FAssetRegistryTag::TT_Hidden));
+	}
+#endif
+}
+
 void UDatasmithScene::RegisterPreWorldRenameCallback()
 {
 #if WITH_EDITOR

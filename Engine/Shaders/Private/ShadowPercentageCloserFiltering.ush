@@ -65,7 +65,7 @@ struct FPCSSSamplerSettings
 	// SceneDepth in shadow view space.
 	float SceneDepth;
 
-	// Transition scale (TODO: Could probably nuke that guy).
+	// Transition scale (TODO: Could probably remove this).
 	float TransitionScale;
 
 	// Size of a SourceRadius-sized sphere in shadow space

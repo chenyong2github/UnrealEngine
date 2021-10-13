@@ -44,7 +44,7 @@ namespace FunctionPickerUtils
 		
 		auto CategoryFilter = [] (const UFunction* TestFunction)
 		{
-			static TSet<FString> BlacklistedCategories = {
+			static TSet<FString> CategoriesDenyList = {
 				TEXT("Replication"),
                 TEXT("Tick"),
                 TEXT("Rendering"),
@@ -59,20 +59,20 @@ namespace FunctionPickerUtils
 			const FString& Category = TestFunction->GetMetaData(CategoryName);
 			const bool bCanHaveEmptyCategory = TestFunction->HasAnyFunctionFlags(FUNC_BlueprintEvent);
 			const bool bIsValid = (bCanHaveEmptyCategory || Category.Len() != 0)
-				&& !BlacklistedCategories.Contains(Category);
+				&& !CategoriesDenyList.Contains(Category);
 			
 			return bIsValid;
 		};
 
 		auto NameFilter = [](const UFunction* TestFunction)
 		{
-			static TSet<FName> BlackListedNames = {
+			static TSet<FName> NamesDenyList = {
 				"ExecuteUbergraph",
 				"ReceiveTick",
 				"Destroyed",
 				"UserConstructionScript"};
 
-			return !BlackListedNames.Contains(TestFunction->GetFName());
+			return !NamesDenyList.Contains(TestFunction->GetFName());
 		};
 		
 		TArray<UFunction*> ExposableFunctions;

@@ -12,8 +12,11 @@
 UENUM()
 enum class ENormalCalculationMethod : uint8
 {
+	/** Use triangle area to weight how much a triangle's normal contributes its vertices' normals */
 	AreaWeighted,
+	/** Use the angle of a triangle at a vertex to weight how much that triangle's normal contributes to that vertex's normal */
 	AngleWeighted,
+	/** Multiply area and angle weights together for a combined weight controlling how much a triangle's normal contributes to its vertices' normals */
 	AreaAngleWeighting
 };
 

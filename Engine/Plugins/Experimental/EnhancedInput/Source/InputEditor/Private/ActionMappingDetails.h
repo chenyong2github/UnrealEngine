@@ -59,6 +59,12 @@ private:
 	/** Makes sure that groups have their expansion set after any rebuilding */
 	void HandleDelayedGroupExpansion();
 
+	/** Returns true if the "Adds Action Mapping" button can be pressed */
+	bool CanAddNewActionMapping() const;
+
+	/** The tooltip attribute for the "Adds Action Mapping" button */
+	FText GetAddNewActionTooltip() const;
+
 private:
 	/** Called to rebuild the children of the detail tree */
 	FSimpleDelegate OnRebuildChildren;

@@ -12,6 +12,11 @@
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 
 #include "ScopedTransaction.h"
+#include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/Stack/NiagaraStackSimulationStageGroup.h"
+#include "ViewModels/Stack/NiagaraStackViewModel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackSimulationStagesGroup"
 
@@ -130,6 +135,9 @@ void UNiagaraStackSimulationStagesGroup::SetOnItemAdded(FOnItemAdded InOnItemAdd
 void UNiagaraStackSimulationStagesGroup::ItemAddedFromUtilties(UNiagaraSimulationStageBase* AddedSimulationStage)
 {
 	ItemAddedDelegate.ExecuteIfBound();
+
+	GetSystemViewModel()->GetSelectionViewModel()->EmptySelection();
+	GetSystemViewModel()->GetSelectionViewModel()->AddEntryToSelectionByDisplayedObjectKeyDeferred(FObjectKey(AddedSimulationStage));
 }
 
 #undef LOCTEXT_NAMESPACE

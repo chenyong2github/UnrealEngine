@@ -86,8 +86,7 @@ FRDGEventScopeGuard::~FRDGEventScopeGuard()
 static void OnPushEvent(FRHIComputeCommandList& RHICmdList, const FRDGEventScope* Scope, bool bRDGEvents)
 {
 #if RHI_WANT_BREADCRUMB_EVENTS
-	//TODO: Breadcrumbs are not being tracked in a parallel way.
-	//RHICmdList.PushBreadcrumb(Scope->Name.GetTCHAR());
+	RHICmdList.PushBreadcrumb(Scope->Name.GetTCHAR());
 #endif
 
 	if (bRDGEvents)
@@ -106,8 +105,7 @@ static void OnPopEvent(FRHIComputeCommandList& RHICmdList, const FRDGEventScope*
 	}
 
 #if RHI_WANT_BREADCRUMB_EVENTS
-	//TODO: Breadcrumbs are not being tracked in a parallel way.
-	//RHICmdList.PopBreadcrumb();
+	RHICmdList.PopBreadcrumb();
 #endif
 }
 
@@ -141,6 +139,32 @@ void FRDGEventScopeOpArray::Execute(FRHIComputeCommandList& RHICmdList)
 		}
 	}
 }
+
+#if RHI_WANT_BREADCRUMB_EVENTS
+
+void FRDGEventScopeOpArray::Execute(FRDGBreadcrumbState& State)
+{
+	for (int32 Index = 0; Index < Ops.Num(); ++Index)
+	{
+		FRDGEventScopeOp Op = Ops[Index];
+
+		if (Op.IsScope())
+		{
+			if (Op.IsPush())
+			{
+				State.PushBreadcrumb(Op.Scope->Name.GetTCHAR());
+				State.Version++;
+			}
+			else
+			{
+				State.PopBreadcrumb();
+				State.Version++;
+			}
+		}
+	}
+}
+
+#endif
 
 FRDGEventScopeOpArray FRDGEventScopeStack::CompilePassPrologue(const FRDGPass* Pass)
 {

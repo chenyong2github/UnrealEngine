@@ -14,6 +14,10 @@
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 
 #include "ScopedTransaction.h"
+#include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/Stack/NiagaraStackViewModel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackEventHandlerGroup"
 
@@ -91,7 +95,21 @@ void UNiagaraStackEventHandlerGroup::SetOnItemAdded(FOnItemAdded InOnItemAdded)
 
 void UNiagaraStackEventHandlerGroup::ItemAddedFromUtilties(FNiagaraEventScriptProperties AddedEventHandler)
 {
+	// this will cause a refresh
 	ItemAddedDelegate.ExecuteIfBound();
+
+	// we can now look for the new event handler properties item to select it
+	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = GetSystemViewModel()->GetEmitterHandleViewModelForEmitter(GetEmitterViewModel()->GetEmitter());
+	TArray<UNiagaraStackEventScriptItemGroup*> EventScriptGroups;
+	EmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry()->GetUnfilteredChildrenOfType(EventScriptGroups);
+	
+	for(UNiagaraStackEventScriptItemGroup* EventScriptItemGroup : EventScriptGroups)
+	{
+		if(EventScriptItemGroup->GetEventHandlerPropertiesItem()->GetEventScriptUsageId() == AddedEventHandler.Script->GetUsageId())
+		{
+			GetSystemViewModel()->GetSelectionViewModel()->UpdateSelectedEntries({EventScriptItemGroup->GetEventHandlerPropertiesItem()}, {}, true);
+		}
+	}	
 }
 
 #undef LOCTEXT_NAMESPACE

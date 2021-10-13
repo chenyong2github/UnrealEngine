@@ -65,6 +65,11 @@ public:
 		Instance = &InInterface;
 	}
 
+	static IMetaSoundAssetManager* Get()
+	{
+		return Instance;
+	}
+
 	static IMetaSoundAssetManager& GetChecked()
 	{
 		check(Instance);
@@ -83,8 +88,8 @@ public:
 	// Returns path associated with the given key (null if key is not registered with the AssetManager or was not loaded from asset)
 	virtual const FSoftObjectPath* FindObjectPathFromKey(const Metasound::Frontend::FNodeRegistryKey& InRegistryKey) const = 0;
 
-	// Rescans settings for blacklisted assets not to run reference auto-update against.
-	virtual void RescanAutoUpdateBlacklist() = 0;
+	// Rescans settings for denied assets not to run reference auto-update against.
+	virtual void RescanAutoUpdateDenyList() = 0;
 
 	// Attempts to load an FMetasoundAssetBase from the given path, or returns it if its already loaded
 	virtual FMetasoundAssetBase* TryLoadAsset(const FSoftObjectPath& InObjectPath) const = 0;

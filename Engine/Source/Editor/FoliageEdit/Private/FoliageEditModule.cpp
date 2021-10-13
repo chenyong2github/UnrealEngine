@@ -223,6 +223,16 @@ public:
 		FoliageMode->MoveSelectedFoliageToLevel(InTargetLevel);
 	}
 
+	virtual void UpdateMeshList() override
+	{
+		FEditorModeTools& EditorModeTools = GLevelEditorModeTools(); 
+		if (EditorModeTools.IsModeActive(FBuiltinEditorModes::EM_Foliage))
+		{
+			FEdModeFoliage* FoliageMode = (FEdModeFoliage*)EditorModeTools.GetActiveMode(FBuiltinEditorModes::EM_Foliage);
+			FoliageMode->PopulateFoliageMeshList();
+		}
+	}
+
 	virtual bool CanMoveSelectedFoliageToLevel(ULevel* InTargetLevel) const override
 	{
 		ensure(GLevelEditorModeTools().IsModeActive(FBuiltinEditorModes::EM_Foliage));

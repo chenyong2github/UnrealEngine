@@ -94,6 +94,14 @@ static FAutoConsoleVariableRef CVarNiagaraCompileWaitLoggingTerminationCap(
 	ECVF_Default
 );
 
+static float GNiagaraCompileDDCWaitTimeout = 10.0f;
+static FAutoConsoleVariableRef CVarNiagaraCompileDDCWaitTimeout(
+	TEXT("fx.Niagara.CompileDDCWaitTimeout"),
+	GNiagaraCompileDDCWaitTimeout,
+	TEXT("During script compilation, how long do we wait for the ddc to answer in seconds before starting shader compilation?"),
+	ECVF_Default
+);
+
 //////////////////////////////////////////////////////////////////////////
 
 UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
@@ -227,7 +235,7 @@ void FNiagaraAsyncCompileTask::ProcessCurrentState()
 	{
 		return;
 	}
-	
+
 	if (CurrentState == ENiagaraCompilationState::CheckDDC)
 	{
 		// check if the DDC data is ready
@@ -440,7 +448,7 @@ void FNiagaraAsyncCompileTask::WaitAndResolveResult()
 		ProcessCurrentState();
 	}
 }
-	
+
 void FNiagaraAsyncCompileTask::AbortTask()
 {
 	MoveToState(ENiagaraCompilationState::Aborted);
@@ -481,12 +489,17 @@ void FNiagaraAsyncCompileTask::CheckDDCResult()
 		DDCFetchTime = FPlatformTime::Seconds() - StartTaskTime;
 		UE_LOG(LogNiagara, Verbose, TEXT("Compile task for %s took %f seconds to fetch data from ddc."), *AssetPath, DDCFetchTime);
 	}
+	else if ((FPlatformTime::Seconds() - StartTaskTime) > GNiagaraCompileDDCWaitTimeout)
+	{
+		MoveToState(ENiagaraCompilationState::Precompile);
+		UE_LOG(LogNiagara, Log, TEXT("DDC timed out after %i seconds, starting compilation for %s."), (int)GNiagaraCompileDDCWaitTimeout, *AssetPath);
+	}
 }
 
 void FNiagaraAsyncCompileTask::PutToDDC()
 {
 	if (DDCOutData.Num() > 0)
-{
+	{
 		UE_LOG(LogNiagara, Verbose, TEXT("Writing data for %s to the ddc"), *AssetPath);
 		GetDerivedDataCache()->Put(*DDCKey, DDCOutData, *AssetPath, true);
 	}
@@ -2596,7 +2609,7 @@ void UNiagaraSystem::EvaluateCompileResultDependencies() const
 void UNiagaraSystem::PreProcessWaitingDDCTasks(bool bProcessForWait)
 {
 	if (!bProcessForWait)
-{
+	{
 		return;
 	}
 	for (FNiagaraSystemCompileRequest& CompileRequest : ActiveCompilations)
@@ -2604,12 +2617,12 @@ void UNiagaraSystem::PreProcessWaitingDDCTasks(bool bProcessForWait)
 		for (auto& AsyncTask : CompileRequest.DDCTasks)
 		{
 			AsyncTask->bWaitForCompileJob = true;
-				// before we start to wait for the compile results, we start the compilation of all remaining tasks
+			// before we start to wait for the compile results, we start the compilation of all remaining tasks
 			while (!AsyncTask->IsDone() && AsyncTask->CurrentState < ENiagaraCompilationState::AwaitResult)
-				{
-					AsyncTask->ProcessCurrentState();
-				}
+			{
+				AsyncTask->ProcessCurrentState();
 			}
+		}
 	}
 }
 
@@ -2648,7 +2661,7 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 			if (bWait)
 			{
 				AsyncTask->WaitAndResolveResult();
-				}
+			}
 			else
 			{
 				bAreWeWaitingForAnyResults = true;
@@ -2791,7 +2804,7 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 		ResolveScalabilitySettings();
 
 		const float ElapsedWallTime = (float)(FPlatformTime::Seconds() - CompileRequest.StartTime);
-
+		
 		if (bHasCompiledJobs)
 		{
 			UE_LOG(LogNiagara, Log, TEXT("Compiling System %s took %f sec (time since issued), %f sec (combined shader worker time)."),

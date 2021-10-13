@@ -11,6 +11,8 @@ class UStruct;
 
 struct FPropertyComparisonParams
 {
+	const FWorldSnapshotData& WorldData;
+	
 	/* The class we're looking at. This is not necessarily the class LeafProperty resides in. */
 	UClass* InspectedClass;
 	/* The property being checked */
@@ -31,14 +33,16 @@ struct FPropertyComparisonParams
 	/* Actor currently in the world */
 	AActor* WorldActor;
 
-	FPropertyComparisonParams(UClass* InspectedClass, const FProperty* LeafProperty, void* SnapshotContainer, void* WorldContainer, UObject* SnapshotObject, UObject* WorldObject, AActor* SnapshotActor, AActor* WorldActor)
-		: InspectedClass(InspectedClass),
-		  LeafProperty(LeafProperty),
-		  SnapshotContainer(SnapshotContainer),
-		  WorldContainer(WorldContainer),
-		  SnapshotObject(SnapshotObject),
-		  WorldObject(WorldObject),
-		  SnapshotActor(SnapshotActor),
-		  WorldActor(WorldActor)
+	FPropertyComparisonParams(const FWorldSnapshotData& WorldData, UClass* InspectedClass, const FProperty* LeafProperty, void* SnapshotContainer, void* WorldContainer, UObject* SnapshotObject, UObject* WorldObject, AActor* SnapshotActor, AActor* WorldActor)
+		:
+		WorldData(WorldData),
+		InspectedClass(InspectedClass),
+		LeafProperty(LeafProperty),
+		SnapshotContainer(SnapshotContainer),
+		WorldContainer(WorldContainer),
+		SnapshotObject(SnapshotObject),
+		WorldObject(WorldObject),
+		SnapshotActor(SnapshotActor),
+		WorldActor(WorldActor)
 	{}
 };

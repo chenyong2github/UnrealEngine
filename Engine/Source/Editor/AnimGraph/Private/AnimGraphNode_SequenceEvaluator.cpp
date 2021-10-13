@@ -15,6 +15,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "BlueprintActionDatabaseRegistrar.h"
 #include "BlueprintNodeTemplateCache.h"
+#include "Animation/AnimRootMotionProvider.h"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_SequenceEvaluator
@@ -195,6 +196,16 @@ EAnimAssetHandlerType UAnimGraphNode_SequenceEvaluator::SupportsAssetClass(const
 	else
 	{
 		return EAnimAssetHandlerType::NotSupported;
+	}
+}
+
+void UAnimGraphNode_SequenceEvaluator::GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const
+{
+	Super::GetOutputLinkAttributes(OutAttributes);
+
+	if (UE::Anim::IAnimRootMotionProvider::Get())
+	{
+		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::AttributeName);
 	}
 }
 

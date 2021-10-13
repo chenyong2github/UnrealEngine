@@ -24,6 +24,7 @@ DerivedDataCacheCommandlet.cpp: Commandlet for DDC maintenence
 #include "Algo/Transform.h"
 #include "Settings/ProjectPackagingSettings.h"
 #include "Editor.h"
+#include "EditorWorldUtils.h"
 #include "AssetCompilingManager.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
@@ -334,12 +335,7 @@ void UDerivedDataCacheCommandlet::FinishCachingObjects(const TArray<ITargetPlatf
 
 void UDerivedDataCacheCommandlet::CacheWorldPackages(UWorld* World, uint8 PackageFilter, const TArray<ITargetPlatform*>& Platforms, TSet<FName>& OutNewProcessedPackages)
 {
-	check(World);
-
-	World->AddToRoot();
-	
 	// Setup the world
-	World->WorldType = EWorldType::Editor;
 	UWorld::InitializationValues IVS;
 	IVS.RequiresHitProxies(false);
 	IVS.ShouldSimulatePhysics(false);
@@ -348,10 +344,7 @@ void UDerivedDataCacheCommandlet::CacheWorldPackages(UWorld* World, uint8 Packag
 	IVS.CreateAISystem(false);
 	IVS.AllowAudioPlayback(false);
 	IVS.CreatePhysicsScene(true);
-
-	World->InitWorld(UWorld::InitializationValues(IVS));
-	World->PersistentLevel->UpdateModelComponents();
-	World->UpdateWorldComponents(true /*bRerunConstructionScripts*/, false /*bCurrentLevelOnly*/);
+	FScopedEditorWorld EditorWorld(World, IVS);
 
 	// If the world is partitioned
 	bool bResult = true;
@@ -371,9 +364,6 @@ void UDerivedDataCacheCommandlet::CacheWorldPackages(UWorld* World, uint8 Packag
 			return true;
 		});
 	}
-
-	const bool bBroadcastWorldDestroyedEvent = false;
-	World->DestroyWorld(bBroadcastWorldDestroyedEvent);
 }
 
 int32 UDerivedDataCacheCommandlet::Main( const FString& Params )

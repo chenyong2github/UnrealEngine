@@ -217,7 +217,6 @@ private:
 	TUniquePtr<FAsyncIODelete> AsyncIODelete; // Helper for deleting the old cook directory asynchronously
 	FString DefaultAsyncIODeletePlatformName; // Default platform name to be used by GetAsyncIODelete()
 	bool bIsSavingPackage = false; // used to stop recursive mark package dirty functions
-	bool bSaveAsyncAllowed = false; // True if and only if command line options and all other restrictions allow the use of SAVE_Async
 	/** Set to true during CookOnTheFly if a plugin is calling RequestPackage and we should therefore not make assumptions about when platforms are done cooking */
 	bool bCookOnTheFlyExternalRequests = false;
 
@@ -272,7 +271,7 @@ private:
 	mutable bool IniSettingRecurse = false;
 	mutable FIniSettingContainer AccessedIniStrings;
 	TArray<const FConfigFile*> OpenConfigFiles;
-	TArray<FString> ConfigSettingBlacklist;
+	TArray<FString> ConfigSettingDenyList;
 	void OnFConfigDeleted(const FConfigFile* Config);
 	void OnFConfigCreated(const FConfigFile* Config);
 

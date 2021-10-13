@@ -53,6 +53,16 @@ FPakFileDerivedDataBackend::~FPakFileDerivedDataBackend()
 	Close();
 }
 
+FString FPakFileDerivedDataBackend::GetDisplayName() const
+{
+	return FString(TEXT("PakFile"));
+}
+
+FString FPakFileDerivedDataBackend::GetName() const
+{
+	return Filename;
+}
+
 void FPakFileDerivedDataBackend::Close()
 {
 	FDerivedDataBackend::Get().WaitForQuiescence();

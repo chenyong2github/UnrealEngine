@@ -18,7 +18,6 @@ class UMovieSceneControlRigParameterTrack;
 class UMovieSceneControlRigParameterSection;
 class UControlRig;
 struct FRigHierarchyContainer;
-class ULevelSequencePlayer;
 
 namespace UE
 {
@@ -31,7 +30,7 @@ enum class EBindingVisibilityState
 	VisibleWhenSelected
 };
 
-class FSequencerTrailHierarchy : public FTrailHierarchy, public FGCObject
+class FSequencerTrailHierarchy : public FTrailHierarchy
 {
 public:
 	FSequencerTrailHierarchy(TWeakPtr<ISequencer> InWeakSequencer)
@@ -39,7 +38,6 @@ public:
 		, WeakSequencer(InWeakSequencer)
 		, ObjectsTracked()
 		, ControlsTracked()
-		, LevelSequencePlayer(nullptr)
 		, HierarchyRenderer(MakeUnique<FTrailHierarchyRenderer>(this))
 		, OnActorAddedToSequencerHandle()
 		, OnSelectionChangedHandle()
@@ -61,13 +59,6 @@ public:
 	virtual void Update() override;
 	// End FTrailHierarchy interface
 
-	// Begin FGCObject interface, this holds reference to a common ULevelSequencePlayer we use for evaluation.
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-	virtual FString GetReferencerName() const override
-	{
-		return TEXT("UE::SequencerAnimTools::FMovieSceneTransformTrail");
-	}
-	// End FGCObject interface
 	const TMap<UObject*, FGuid>& GetObjectsTracked() const { return ObjectsTracked; }
 	const TMap<USkeletalMeshComponent*, TMap<FName, FGuid>>& GetBonesTracked() const { return BonesTracked; }
 	const TMap<UControlRig*, TMap<FName, FGuid>>& GetControlsTracked() const { return ControlsTracked; }
@@ -90,7 +81,6 @@ private:
 	void AddSkeletonToHierarchy(USkeletalMeshComponent* CompToAdd);
 
 	void RegisterControlRigDelegates(USkeletalMeshComponent* Component, UMovieSceneControlRigParameterTrack* CRParameterTrack);
-	void AssignLevelSequencePlayer();
 
 	TWeakPtr<ISequencer> WeakSequencer;
 	TMap<UObject*, FGuid> ObjectsTracked;
@@ -99,7 +89,6 @@ private:
 
 	// TODO: components can have multiple rigs so make this a map from sections to controls instead. However, this is only part of a larger problem of handling blending
 
-	ULevelSequencePlayer* LevelSequencePlayer; //gco object
 	TUniquePtr<FTrailHierarchyRenderer> HierarchyRenderer;
 
 	FDelegateHandle OnActorAddedToSequencerHandle;
@@ -112,8 +101,6 @@ private:
 		FDelegateHandle OnControlSelected;
 	};
 	TMap<UMovieSceneControlRigParameterTrack*, FControlRigDelegateHandles> ControlRigDelegateHandles;
-
-
 };
 
 } // namespace MovieScene

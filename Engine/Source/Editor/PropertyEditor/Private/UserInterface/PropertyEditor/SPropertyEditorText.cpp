@@ -92,13 +92,6 @@ void SPropertyEditorText::GetDesiredWidth( float& OutMinDesiredWidth, float& Out
 	OutMaxDesiredWidth = 600.0f;
 }
 
-FVector2D SPropertyEditorText::ComputeDesiredSize(float Scale) const
-{
-	FVector2D LocalDesiredSize = SCompoundWidget::ComputeDesiredSize(Scale);
-
-	return FVector2D(LocalDesiredSize.X, 22.0f);
-}
-
 bool SPropertyEditorText::Supports( const TSharedRef< FPropertyEditor >& InPropertyEditor )
 {
 	const TSharedRef< FPropertyNode > PropertyNode = InPropertyEditor->GetPropertyNode();

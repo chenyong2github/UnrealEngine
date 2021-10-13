@@ -498,7 +498,7 @@ void AEFPerTrackCompressionCodec::GetBoneAtomRotation(
 #if USE_VECTOR_PTC_DECOMPRESSOR
 		const VectorRegister R0 = DecompressSingleTrackRotationVectorized(KeyFormat, FormatFlags, TrackData, KeyData0);
 #else
-		FQuat R0;
+		FQuat4f R0;
 		FAnimationCompression_PerTrackUtils::DecompressRotation(KeyFormat, FormatFlags, R0, TrackData, KeyData0);
 #endif
 
@@ -516,18 +516,18 @@ void AEFPerTrackCompressionCodec::GetBoneAtomRotation(
 			const VectorRegister BlendedNormalizedQuat = VectorNormalizeQuaternion(BlendedQuat);
 			OutAtom.SetRotation(BlendedNormalizedQuat);
 #else
-			FQuat R1;
+			FQuat4f R1;
 			FAnimationCompression_PerTrackUtils::DecompressRotation(KeyFormat, FormatFlags, R1, TrackData, KeyData1);
 
 			// Fast linear quaternion interpolation.
-			FQuat BlendedQuat = FQuat::FastLerp(R0, R1, Alpha);
-			OutAtom.SetRotation( BlendedQuat );
+			FQuat4f BlendedQuat = FQuat4f::FastLerp(R0, R1, Alpha);
+			OutAtom.SetRotation( FQuat(BlendedQuat) );
 			OutAtom.NormalizeRotation();
 #endif
 		}
 		else // (Index0 == Index1)
 		{
-			OutAtom.SetRotation( R0 );
+			OutAtom.SetRotation( FQuat(R0) );
 			OutAtom.NormalizeRotation();
 		}
 	}

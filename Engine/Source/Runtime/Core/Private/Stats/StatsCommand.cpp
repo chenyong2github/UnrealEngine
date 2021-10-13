@@ -1204,14 +1204,24 @@ struct FHUDGroupManager
 				Stats.GetExclusiveAggregateStackStats( TargetFrame, NewFrame.ExclusiveAggregate, &Filter, false );
 
 				//Merge all task graph stats into 1
+				const TCHAR* TaskGraphWorkerPrefixes[] =
+				{
+					TEXT("TaskGraphThread"),
+					TEXT("Foreground Worker #"),
+					TEXT("Background Worker #")
+				};
 				TArray<FStatMessage> MergedTaskGraphThreads;
 				for(TMap<FName, TArray<FStatMessage>>::TIterator It(NewFrame.InclusiveAggregateThreadBreakdown); It; ++It)
 				{
-					const FName ThreadName = FStatNameAndInfo::GetShortNameFrom(It.Key());
-					if (ThreadName.ToString().Contains(TEXT("TaskGraphThread")))
+					const FString ThreadName = FStatNameAndInfo::GetShortNameFrom(It.Key()).ToString();
+					for (const TCHAR* Prefix : TaskGraphWorkerPrefixes)
 					{
-						FStatsUtils::AddMergeStatArray(MergedTaskGraphThreads, It.Value());
-						It.RemoveCurrent();
+						if (ThreadName.StartsWith(Prefix))
+						{
+							FStatsUtils::AddMergeStatArray(MergedTaskGraphThreads, It.Value());
+							It.RemoveCurrent();
+							break;
+						}
 					}
 				}
 				

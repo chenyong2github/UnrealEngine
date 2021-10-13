@@ -104,29 +104,6 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 
 	TSharedRef<SHorizontalBox> HorizontalBox = SNew(SHorizontalBox);
 
-	if (InArgs._AssetPickerConfig.bAddFilterUI)
-	{
-		// Filter
-		HorizontalBox->AddSlot()
-		.AutoWidth()
-		[
-			SAssignNew(FilterComboButtonPtr, SComboButton)
-			.ComboButtonStyle( FEditorStyle::Get(), "GenericFilters.ComboButtonStyle" )
-			.ForegroundColor(FLinearColor::White)
-			.ToolTipText( LOCTEXT( "AddFilterToolTip", "Add an asset filter." ) )
-			.OnGetMenuContent( this, &SAssetPicker::MakeAddFilterMenu )
-			.HasDownArrow( true )
-			.ContentPadding( FMargin( 1, 0 ) )
-			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserFiltersCombo")))
-			.ButtonContent()
-			[
-				SNew( STextBlock )
-				.TextStyle( FEditorStyle::Get(), "GenericFilters.TextStyle" )
-				.Text( LOCTEXT( "Filters", "Filters" ) )
-			]
-		];
-	}
-	
 	if (!InArgs._AssetPickerConfig.bAutohideSearchBar)
 	{
 		// Search box
@@ -145,12 +122,14 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 		// The 'Other Developers' filter is always on by design.
 		HorizontalBox->AddSlot()
 		.AutoWidth()
+		.Padding(4.f, 0.0f, 0.0f, 0.0f)
 		[
 			SNew(SCheckBox)
 			.Style(FEditorStyle::Get(), "ToggleButtonCheckBox")
 			.ToolTipText(this, &SAssetPicker::GetShowOtherDevelopersToolTip)
 			.OnCheckStateChanged(this, &SAssetPicker::HandleShowOtherDevelopersCheckStateChanged)
 			.IsChecked(this, &SAssetPicker::GetShowOtherDevelopersCheckState)
+			.Padding(4.f)
 			[
 				SNew(SImage)
 				.ColorAndOpacity(FSlateColor::UseForeground())
@@ -166,10 +145,32 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 			SNew(SSpacer)
 		];
 	}
+
+
+	if (InArgs._AssetPickerConfig.bAddFilterUI)
+	{
+		// Filter
+		HorizontalBox->AddSlot()
+		.AutoWidth()
+		[
+			SAssignNew(FilterComboButtonPtr, SComboButton)
+			.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
+			.ToolTipText( LOCTEXT( "AddFilterToolTip", "Add an asset filter." ) )
+			.OnGetMenuContent( this, &SAssetPicker::MakeAddFilterMenu )
+			.HasDownArrow( false )
+			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserFiltersCombo")))
+			.ButtonContent()
+			[
+				SNew( SImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				.Image(FAppStyle::Get().GetBrush("Icons.Filter"))
+			]
+		];
+	}
 		
 	VerticalBox->AddSlot()
 	.AutoHeight()
-	.Padding(0, 0, 0, 1)
+	.Padding(8.f, 0.f, 8.f, 8.f)
 	[
 		HorizontalBox
 	];

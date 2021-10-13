@@ -1058,7 +1058,8 @@ void FControlRigEditor::ToggleSetupMode()
 			EditMode->RecreateGizmoActors(RigBlueprint->Hierarchy->GetSelectedKeys());
 		}
 
-		EditMode->Settings->bDisplayNulls = bSetupModeEnabled;
+		UControlRigEditModeSettings* Settings = GetMutableDefault<UControlRigEditModeSettings>();
+		Settings->bDisplayNulls = bSetupModeEnabled;
 	}
 
 	if (PreviousSelection.Num() > 0)
@@ -3540,18 +3541,18 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 
 TOptional<float> FControlRigEditor::GetToolbarAxesScale() const
 {
-	if (FControlRigEditMode* EditMode = GetEditMode())
+	if (const UControlRigEditModeSettings* Settings = GetDefault<UControlRigEditModeSettings>())
 	{
-		return EditMode->Settings->AxisScale;
+		return Settings->AxisScale;
 	}
 	return 0.f;
 }
 
 void FControlRigEditor::OnToolbarAxesScaleChanged(float InValue)
 {
-	if (FControlRigEditMode* EditMode = GetEditMode())
+	if (UControlRigEditModeSettings* Settings = GetMutableDefault<UControlRigEditModeSettings>())
 	{
-		EditMode->Settings->AxisScale = InValue;
+		Settings->AxisScale = InValue;
 	}
 }
 
@@ -3586,18 +3587,18 @@ void FControlRigEditor::OnToolbarBoneRadiusChanged(float InValue)
 
 ECheckBoxState FControlRigEditor::GetToolbarDrawAxesOnSelection() const
 {
-	if (FControlRigEditMode* EditMode = GetEditMode())
+	if (const UControlRigEditModeSettings* Settings = GetDefault<UControlRigEditModeSettings>())
 	{
-		return EditMode->Settings->bDisplayAxesOnSelection ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		return Settings->bDisplayAxesOnSelection ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 	}
 	return ECheckBoxState::Unchecked;
 }
 
 void FControlRigEditor::OnToolbarDrawAxesOnSelectionChanged(ECheckBoxState InNewValue)
 {
-	if (FControlRigEditMode* EditMode = GetEditMode())
+	if (UControlRigEditModeSettings* Settings = GetMutableDefault<UControlRigEditModeSettings>())
 	{
-		EditMode->Settings->bDisplayAxesOnSelection = InNewValue == ECheckBoxState::Checked;
+		Settings->bDisplayAxesOnSelection = InNewValue == ECheckBoxState::Checked;
 	}
 }
 
@@ -3615,18 +3616,18 @@ bool FControlRigEditor::IsToolbarDrawNullsEnabled() const
 
 ECheckBoxState FControlRigEditor::GetToolbarDrawNulls() const
 {
-	if (FControlRigEditMode* EditMode = GetEditMode())
+	if (const UControlRigEditModeSettings* Settings = GetDefault<UControlRigEditModeSettings>())
 	{
-		return EditMode->Settings->bDisplayNulls ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		return Settings->bDisplayNulls ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 	}
 	return ECheckBoxState::Unchecked;
 }
 
 void FControlRigEditor::OnToolbarDrawNullsChanged(ECheckBoxState InNewValue)
 {
-	if (FControlRigEditMode* EditMode = GetEditMode())
+	if (UControlRigEditModeSettings* Settings = GetMutableDefault<UControlRigEditModeSettings>())
 	{
-		EditMode->Settings->bDisplayNulls = InNewValue == ECheckBoxState::Checked;
+		Settings->bDisplayNulls = InNewValue == ECheckBoxState::Checked;
 		UpdateCapsules();
 	}
 }

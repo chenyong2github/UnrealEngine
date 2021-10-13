@@ -27,6 +27,7 @@ public:
 	
 	// SGraphNode overrides
 	void EndUserInteraction() const override;
+	void CreateStandardPinWidget(UEdGraphPin* CurPin) override;
 	void AddPin( const TSharedRef<SGraphPin>& PinToAdd ) override;
 	TSharedPtr<SGraphPin> GetHoveredPin(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) const override;
 	void RefreshErrorInfo() override;
@@ -68,6 +69,10 @@ private:
 	// pin hovering.
 	TArray<TSharedRef<SWidget>> HoverWidgetLabels;
 	TArray<TSharedRef<SGraphPin>> HoverWidgetPins;
+
+	// Pins to keep after calling SyncPinWidgetsWithGraphPins. We recycle these pins in
+	// CreateStandardPinWidget.
+	TMap<const UEdGraphPin *, TSharedRef<SGraphPin>> PinsToKeep;
 
 	// Delayed pin deletion. To deal with the fact that pin deletion cannot occur until we
 	// have re-generated the pin list. SOptimusEditorGraphNode has already relinquished them

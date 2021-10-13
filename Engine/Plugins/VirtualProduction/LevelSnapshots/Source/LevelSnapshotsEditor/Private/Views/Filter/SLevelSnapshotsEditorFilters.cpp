@@ -205,6 +205,7 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
             // Favorite filters
             + SVerticalBox::Slot()
             .AutoHeight()
+            .Padding(5.f, 0.f)
             .HAlign(HAlign_Fill)
             [
 				SAssignNew(FavoriteList, SFavoriteFilterList, InFilters->GetViewBuildData().EditorDataPtr->GetFavoriteFilters(), GetEditorData())
@@ -212,7 +213,7 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 
             // Rows 
             +SVerticalBox::Slot()
-				.Padding(FMargin(0.f, 10.f, 0.f, 0.f))
+				.Padding(FMargin(5.f, 10.f, 5.f, 0.f))
             [
 				SNew(SScrollBox)
                 .Orientation(Orient_Vertical)
@@ -230,7 +231,7 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 
                     // Add button
                     + SVerticalBox::Slot()
-                    .Padding(5.f, 10.f)
+                    .Padding(0.f, 10.f)
                     .AutoHeight()
                     [
                         SNew(SButton)

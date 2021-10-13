@@ -39,6 +39,10 @@ float AlphaEmbeddedGamma;
 
 float4 InnerCameraSoftEdge;
 
+float4 InnerCameraBorderColor;
+float InnerCameraBorderThickness;
+float InnerCameraFrameAspectRatio;
+
 float4 ChromakeyColor;
 float4 ChromakeyMarkerColor;
 

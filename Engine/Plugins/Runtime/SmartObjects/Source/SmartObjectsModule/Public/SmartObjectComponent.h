@@ -9,7 +9,7 @@
 
 // @todo SO: there is currently an issue with components relying on sparse class data. Until that we keep the config as a member.
 //UCLASS(ClassGroup = Gameplay, SparseClassDataTypes = SmartObjectConfig, meta = (BlueprintSpawnableComponent), config = Game, HideCategories = (Variable, Tags, Activation, Cooking, AssetUserData, Collision, ComponentReplication, ComponentTick, Sockets, Events))
-UCLASS(ClassGroup = Gameplay, meta = (BlueprintSpawnableComponent), config = Game, HideCategories = (Variable, Tags, Activation, Cooking, AssetUserData, Collision, ComponentReplication, ComponentTick, Sockets, Events))
+UCLASS(Blueprintable, ClassGroup = Gameplay, meta = (BlueprintSpawnableComponent), config = Game, HideCategories = (Variable, Tags, Activation, Cooking, AssetUserData, Collision, ComponentReplication, ComponentTick, Sockets, Events))
 class SMARTOBJECTSMODULE_API USmartObjectComponent : public USceneComponent
 {
 	GENERATED_BODY()

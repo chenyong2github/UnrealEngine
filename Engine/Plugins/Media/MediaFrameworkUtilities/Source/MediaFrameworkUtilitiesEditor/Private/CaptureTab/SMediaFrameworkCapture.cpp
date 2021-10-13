@@ -264,7 +264,7 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 TSharedRef<class SWidget> SMediaFrameworkCapture::MakeToolBar()
 {
-	FToolBarBuilder ToolBarBuilder(TSharedPtr<FUICommandList>(), FMultiBoxCustomization::None);
+	FSlimHorizontalToolBarBuilder ToolBarBuilder(TSharedPtr<FUICommandList>(), FMultiBoxCustomization::None);
 	ToolBarBuilder.BeginSection(TEXT("Player"));
 	{
 		ToolBarBuilder.AddToolBarButton(
@@ -296,28 +296,40 @@ TSharedRef<class SWidget> SMediaFrameworkCapture::MakeToolBar()
 			NAME_None,
 			LOCTEXT("Stop_Label", "Stop"),
 			LOCTEXT("Stop_ToolTip", "Stop the capturing of the camera's viewport and the render target."),
-			FSlateIcon(FMediaFrameworkUtilitiesEditorStyle::GetStyleSetName(), "MediaCapture.Stop")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Toolbar.Stop")
 			);
 	}
 	ToolBarBuilder.EndSection();
 
-	ToolBarBuilder.BeginSection("Options");
+	FSlimHorizontalToolBarBuilder RightToolBarBuilder(TSharedPtr<FUICommandList>(), FMultiBoxCustomization::None);
+
+	RightToolBarBuilder.BeginSection("Options");
 	{
 		FUIAction OpenSettingsMenuAction;
 		OpenSettingsMenuAction.CanExecuteAction = FCanExecuteAction::CreateLambda([this] { return !IsCapturing(); });
 
-		ToolBarBuilder.AddComboButton(
+		RightToolBarBuilder.AddComboButton(
 			OpenSettingsMenuAction,
 			FOnGetContent::CreateRaw(this, &SMediaFrameworkCapture::CreateSettingsMenu),
 			LOCTEXT("Settings_Label", "Settings"),
 			LOCTEXT("Settings_ToolTip", "Settings"),
-			FSlateIcon(FMediaFrameworkUtilitiesEditorStyle::GetStyleSetName(), "MediaCapture.Settings")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Toolbar.Settings")
 		);
 	}
-	ToolBarBuilder.EndSection();
+	RightToolBarBuilder.EndSection();
 
 
-	return ToolBarBuilder.MakeWidget();
+	return SNew(SHorizontalBox)
+	+SHorizontalBox::Slot()
+	[
+		ToolBarBuilder.MakeWidget()
+	]
+
+	+SHorizontalBox::Slot()
+	.AutoWidth()
+	[
+		RightToolBarBuilder.MakeWidget()
+	];
 }
 
 TSharedRef<SWidget> SMediaFrameworkCapture::CreateSettingsMenu()

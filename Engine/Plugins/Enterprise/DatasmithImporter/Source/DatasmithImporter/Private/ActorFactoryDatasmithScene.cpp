@@ -15,7 +15,10 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "Engine/World.h"
+#include "ExternalSourceModule.h"
 #include "GameFramework/Actor.h"
+#include "IUriManager.h"
+#include "SourceUri.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
 #define LOCTEXT_NAMESPACE "ActorFactoryDatasmithScene"
@@ -34,6 +37,7 @@ namespace UActorFactoryDatasmithSceneImpl
 	 */
 	ADatasmithSceneActor* ImportActors( UDatasmithScene* DatasmithScene, ADatasmithSceneActor* RootActor, const FTransform& Transform, EObjectFlags ObjectFlags, bool bReimportDeletedActors )
 	{
+		using namespace UE::DatasmithImporter;
 		// The root and scene must match in order to update an existing root from a scene
 		ensure( !RootActor || RootActor->Scene == DatasmithScene );
 
@@ -51,14 +55,28 @@ namespace UActorFactoryDatasmithSceneImpl
 
 		FName LoggerName = TEXT("DatasmithActorFactory");
 		FText LoggerLabel = LOCTEXT("DatasmithSceneDisplayName", "Datasmith Scene");
-		FDatasmithImportContext ImportContext( DatasmithSceneElement->GetName(), false, LoggerName, LoggerLabel );
+		
+		TSharedPtr<UE::DatasmithImporter::FExternalSource> ExternalSource;
+		if (TObjectPtr<UDatasmithAssetImportData> DatasmithImportData = Cast<UDatasmithAssetImportData>(DatasmithScene->AssetImportData))
+		{
+			ExternalSource = IExternalSourceModule::Get().GetManager()->TryGetExternalSourceFromImportData(*DatasmithImportData.Get());
+		}
+		
+		if (!ExternalSource)
+		{
+			return nullptr;
+		}
+
+		const FString ImportPath = DatasmithScene->AssetImportData->BaseOptions.AssetOptions.PackagePath.ToString();
+		FDatasmithImportContext ImportContext( ExternalSource.ToSharedRef(), false, LoggerName, LoggerLabel );
 
 		ImportContext.Options->BaseOptions = DatasmithScene->AssetImportData->BaseOptions;
 		ImportContext.Options->BaseOptions.SceneHandling = EDatasmithImportScene::CurrentLevel;
 
+		const bool bSilent = true;
 		TSharedPtr<FJsonObject> JsonOptions;
-
-		if ( !ImportContext.Init( DatasmithSceneElement.ToSharedRef(), DatasmithScene->AssetImportData->BaseOptions.AssetOptions.PackagePath.ToString(), ObjectFlags, GWarn, JsonOptions, true ) )
+		ImportContext.InitScene( DatasmithSceneElement.ToSharedRef() );
+		if ( !ImportContext.Init( ImportPath, ObjectFlags, GWarn, JsonOptions, bSilent ) )
 		{
 			return nullptr;
 		}

@@ -624,6 +624,12 @@ namespace UsdStageImporterImpl
 				continue;
 			}
 
+			if ( Asset->IsA( UGeometryCache::StaticClass() ) )
+			{
+				UE_LOG( LogUsd, Warning, TEXT( "Ignoring asset '%s': Importing GeometryCaches assets from USD is not supported at this time" ), *Asset->GetName() );
+				continue;
+			}
+
 			FString AssetTypeFolder;
 			if ( ImportContext.ImportOptions->bPrimPathFolderStructure )
 			{
@@ -650,6 +656,10 @@ namespace UsdStageImporterImpl
 				else if (Asset->IsA(UStaticMesh::StaticClass()))
 				{
 					AssetTypeFolder = "StaticMeshes";
+				}
+				else if (Asset->IsA(UGeometryCache::StaticClass()))
+				{
+					AssetTypeFolder = "GeometryCaches";
 				}
 				else if (Asset->IsA(UTexture::StaticClass()))
 				{

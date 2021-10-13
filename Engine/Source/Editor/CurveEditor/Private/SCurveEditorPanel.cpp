@@ -1080,7 +1080,7 @@ TSharedPtr<FExtender> SCurveEditorPanel::GetToolbarExtender()
 					FOnGetContent::CreateSP(InEditorPanel, &SCurveEditorPanel::MakeCurveEditorCurveViewOptionsMenu),
 					LOCTEXT("CurveEditorCurveOptions", "Curves Options"),
 					LOCTEXT("CurveEditorCurveOptionsToolTip", "Curve Options"),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCurveEditor.VisibilityOptions"));
+					FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Visibility"));
 
 			}
 			ToolBarBuilder.EndSection();

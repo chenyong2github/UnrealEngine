@@ -100,7 +100,7 @@ public:
 		{
 			// Add asset actions extender
 			Extender->AddMenuExtension(
-				"ActorControl",
+				"ActorOptions",
 				EExtensionHook::After,
 				CommandList,
 				FMenuExtensionDelegate::CreateStatic(&FBlutilityMenuExtensions::CreateActorBlutilityActionsMenu, UtilityAndSelectionIndices, SupportedActors));

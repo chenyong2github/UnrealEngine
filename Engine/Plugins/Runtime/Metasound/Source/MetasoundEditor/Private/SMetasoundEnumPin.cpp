@@ -3,6 +3,7 @@
 #include "SMetasoundEnumPin.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphNode.h"
+#include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDataTypeRegistry.h"
 #include "ScopedTransaction.h"
 
@@ -31,12 +32,14 @@ TSharedRef<SWidget> SMetasoundEnumPin::GetDefaultValueWidget()
 TSharedPtr<const Metasound::Frontend::IEnumDataTypeInterface> 
 SMetasoundEnumPin::FindEnumInterfaceFromPin(UEdGraphPin* InPin) 
 {
+	using namespace Metasound::Frontend;
+
 	auto MetasoundEditorNode = Cast<UMetasoundEditorGraphNode>(InPin->GetOwningNode());
-	Metasound::Frontend::FNodeHandle NodeHandle = MetasoundEditorNode->GetNodeHandle();
-	auto Inputs = NodeHandle->GetInputsWithVertexName(InPin->GetFName());
-	if (Inputs.Num() > 0)
+	FNodeHandle NodeHandle = MetasoundEditorNode->GetNodeHandle();
+	FConstInputHandle Input = NodeHandle->GetConstInputWithVertexName(InPin->GetFName());
+	if (Input->IsValid())
 	{
-		FName DataType = Inputs[0]->GetDataType();
+		FName DataType = Input->GetDataType();
 		return Metasound::Frontend::IDataTypeRegistry::Get().GetEnumInterfaceForDataType(DataType);
 	}
 	return nullptr;

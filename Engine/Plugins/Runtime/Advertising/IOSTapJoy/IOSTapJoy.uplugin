@@ -20,7 +20,7 @@
 			"Name" : "IOSTapJoy",
 			"Type" : "Runtime",
 			"LoadingPhase" : "Default",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"IOS"
 			]

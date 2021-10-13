@@ -14,7 +14,7 @@
 #include "Templates/IsTriviallyDestructible.h"
 
 
-namespace UE4MemoryOps_Private
+namespace UE::Core::Private::MemoryOps
 {
 	template <typename DestinationElementType, typename SourceElementType>
 	struct TCanBitwiseRelocate
@@ -323,7 +323,7 @@ namespace UE4MemoryOps_Private
 	template <typename DestinationElementType, typename SourceElementType, typename SizeType>
 	FORCEINLINE void RelocateConstructItems(void* Dest, const SourceElementType* Source, SizeType Count)
 	{
-		if constexpr (UE4MemoryOps_Private::TCanBitwiseRelocate<DestinationElementType, SourceElementType>::Value)
+		if constexpr (UE::Core::Private::MemoryOps::TCanBitwiseRelocate<DestinationElementType, SourceElementType>::Value)
 		{
 			/* All existing UE containers seem to assume trivial relocatability (i.e. memcpy'able) of their members,
 			 * so we're going to assume that this is safe here.  However, it's not generally possible to assume this
@@ -361,7 +361,7 @@ namespace UE4MemoryOps_Private
 	 * @param	Count		The number of elements to relocate.
 	 */
 	template <typename DestinationElementType, typename SourceElementType, typename SizeType>
-	FORCEINLINE typename TEnableIf<!UE4MemoryOps_Private::TCanBitwiseRelocate<DestinationElementType, SourceElementType>::Value>::Type RelocateConstructItems(void* Dest, const SourceElementType* Source, SizeType Count)
+	FORCEINLINE typename TEnableIf<!UE::Core::Private::MemoryOps::TCanBitwiseRelocate<DestinationElementType, SourceElementType>::Value>::Type RelocateConstructItems(void* Dest, const SourceElementType* Source, SizeType Count)
 	{
 		while (Count)
 		{
@@ -376,7 +376,7 @@ namespace UE4MemoryOps_Private
 	}
 
 	template <typename DestinationElementType, typename SourceElementType, typename SizeType>
-	FORCEINLINE typename TEnableIf<UE4MemoryOps_Private::TCanBitwiseRelocate<DestinationElementType, SourceElementType>::Value>::Type RelocateConstructItems(void* Dest, const SourceElementType* Source, SizeType Count)
+	FORCEINLINE typename TEnableIf<UE::Core::Private::MemoryOps::TCanBitwiseRelocate<DestinationElementType, SourceElementType>::Value>::Type RelocateConstructItems(void* Dest, const SourceElementType* Source, SizeType Count)
 	{
 		/* All existing UE containers seem to assume trivial relocatability (i.e. memcpy'able) of their members,
 		 * so we're going to assume that this is safe here.  However, it's not generally possible to assume this

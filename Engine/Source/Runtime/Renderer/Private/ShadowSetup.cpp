@@ -1647,7 +1647,7 @@ void FProjectedShadowInfo::AddSubjectPrimitive(FPrimitiveSceneInfo* PrimitiveSce
 			}
 
 			bOpaque |= ViewRelevance.bOpaque || ViewRelevance.bMasked;
-			bTranslucentRelevance |= ViewRelevance.HasTranslucency() && !ViewRelevance.bMasked;
+			bTranslucentRelevance |= ViewRelevance.HasTranslucency();
 			bShadowRelevance |= ViewRelevance.bShadowRelevance;
 		}
 
@@ -1873,7 +1873,7 @@ uint64 FProjectedShadowInfo::AddSubjectPrimitive_AnyThread(
 		}
 
 		bOpaque = ViewRelevance.bOpaque || ViewRelevance.bMasked;
-		bTranslucentRelevance = ViewRelevance.HasTranslucency() && !ViewRelevance.bMasked;
+		bTranslucentRelevance = ViewRelevance.HasTranslucency();
 		bShadowRelevance = ViewRelevance.bShadowRelevance;
 		bStaticRelevance = ViewRelevance.bStaticRelevance;
 

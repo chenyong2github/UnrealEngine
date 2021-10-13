@@ -69,7 +69,7 @@ void FAppEntry::Init()
 		RealCmdLine = CmdLine.Mid(Index + 14); // "-directLaunch " is 14 characters. 
 		NSLog(@"Stripped cmd line: %s", TCHAR_TO_ANSI(*RealCmdLine));
 
-		// Nuke the args so that this app (which is an actual Unreal app) doesn't try to communicate with the cookonthefly server, etc. ;-)
+		// Clear the args so that this app (which is an actual Unreal app) doesn't try to communicate with the cookonthefly server, etc. ;-)
 		FIOSCommandLineHelper::InitCommandArgs(TEXT(""));
 
 		DirectLaunch = true;

@@ -61,21 +61,12 @@ public:
 
 		ComboVisibility = Column.HeaderComboVisibility;
 
-		FMargin AdjustedDefaultHeaderContentPadding = DefaultHeaderContentPadding;
-
 		TAttribute< FText > LabelText = Column.DefaultText;
-		TAttribute< FText > TooltipText = Column.DefaultTooltip;
-
 		if (Column.HeaderContent.Widget == SNullWidget::NullWidget)
 		{
 			if (!Column.DefaultText.IsSet())
 			{
 				LabelText = FText::FromString( Column.ColumnId.ToString() + TEXT("[LabelMissing]") );
-			}
-
-			if (!Column.DefaultTooltip.IsSet())
-			{
-				TooltipText = LabelText;
 			}
 		}
 
@@ -92,57 +83,67 @@ public:
 		{
 			PrimaryContent = 
 				SNew( SBox )
-				.Padding( OnSortModeChanged.IsBound() ? FMargin( 0, 2, 0, 2 ) : FMargin( 0, 4, 0, 4 ) )
+				.HeightOverride( 24.0f )
+				.Padding( 0.0f )
 				.VAlign( VAlign_Center )
 				[
-					SNew(STextBlock)
-					.TextStyle(FAppStyle::Get(), "NormalText")
+					SNew( STextBlock )
+					.TextStyle( FAppStyle::Get(), "NormalText" )
 					.Text( LabelText )
-					.ToolTipText( TooltipText )
 				];
 		}
 
 		if ( OnSortModeChanged.IsBound() )
 		{
 			//optional main button with the column's title. Used to toggle sorting modes.
-
-			TSharedRef<SButton> SortButton = SNew(SButton)
-			.ButtonStyle( FAppStyle::Get(), "NoBorder" )
-			.ForegroundColor( FSlateColor::UseForeground() )
-			.OnClicked(this, &STableColumnHeader::OnTitleClicked)
+			Box->AddSlot()
+			.FillWidth( 1.0f )
+			.HAlign( HAlign_Fill )
 			[
-				SNew(SHorizontalBox)
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding( FMargin( 0, 2, 0, 2 ) )
+				SNew( SButton )
+				.ButtonStyle( FAppStyle::Get(), "NoBorder" )
+				.ForegroundColor( FSlateColor::UseForeground() )
+				.OnClicked( this, &STableColumnHeader::OnTitleClicked )
+				.ContentPadding( 0.0f )
 				[
-					PrimaryContent
+					SNew(SBox)
+					.HAlign( Column.HeaderHAlignment )
+					.VAlign( Column.HeaderVAlignment )
+					[
+						SNew( SHorizontalBox )
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding( FMargin( 0.0f ) )
+						[
+							PrimaryContent
+						]
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.HAlign( HAlign_Left )
+						.VAlign( VAlign_Center)
+						.Padding( FMargin( 4.0f, 0.0f, 0.0f, 0.0f) )
+						[
+							SNew( SImage )
+							.ColorAndOpacity( FSlateColor::UseForeground() )
+							.Image( this, &STableColumnHeader::GetSortingBrush )
+							.Visibility( this, &STableColumnHeader::GetSortModeVisibility )
+						]
+					]
 				]
-
-				+SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				.HAlign(HAlign_Left)
-				.VAlign( VAlign_Center)
-				.Padding( FMargin( 4, 0, 0, 0 ) )
-				[
-					SNew(SImage)
-					.ColorAndOpacity(FSlateColor::UseForeground())
-					.Image( this, &STableColumnHeader::GetSortingBrush )
-					.Visibility( this, &STableColumnHeader::GetSortModeVisibility )
-				]
-
 			];
-
-			PrimaryContent = SortButton;
 		}
-		
-		Box->AddSlot()
-		.FillWidth(1.0f)
-		[
-			PrimaryContent
-		];
+		else
+		{
+			Box->AddSlot()
+			.FillWidth( 1.0f )
+			.HAlign( Column.HeaderHAlignment )
+			.VAlign( Column.HeaderVAlignment )
+			[
+				PrimaryContent
+			];
+		}
 
-		if( Column.HeaderMenuContent.Widget != SNullWidget::NullWidget || 
+		if( Column.HeaderMenuContent.Widget != SNullWidget::NullWidget ||
 			Column.OnGetMenuContent.IsBound())
 		{
 			// Add Drop down menu button (only if menu content has been specified)
@@ -151,21 +152,16 @@ public:
 			[
 				SAssignNew( MenuOverlay, SOverlay )
 				.Visibility( this, &STableColumnHeader::GetMenuOverlayVisibility )
-				+SOverlay::Slot()
-				[
-					SNew( SSpacer )
-					.Size( FVector2D( 12.0f, 0 ) )
-				]
 
 				+SOverlay::Slot()
 				[
 					SNew( SBorder )
-					.Padding( FMargin( 0, 0, AdjustedDefaultHeaderContentPadding.Right, 0 ) )
+					.Padding( FMargin( 0.0f ) )
 					.BorderImage( this, &STableColumnHeader::GetComboButtonBorderBrush )
 					[
-						SAssignNew( ComboButton, SComboButton)
+						SAssignNew( ComboButton, SComboButton )
 						.HasDownArrow(false)
-						.ButtonStyle( FAppStyle::Get(), "NoBorder")
+						.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 						.ContentPadding( FMargin(0) )
 						.ButtonContent()
 						[
@@ -177,36 +173,43 @@ public:
 
 				+SOverlay::Slot()
 				.HAlign( HAlign_Center )
-				.VAlign( VAlign_Center)
+				.VAlign( VAlign_Center )
 				[
-					SNew(SImage)
-					.Image( &Style->MenuDropdownImage )
-					.ColorAndOpacity( this, &STableColumnHeader::GetComboButtonTint )
-					.Visibility( EVisibility::HitTestInvisible )
+					SNew( SBox )
+					.HeightOverride( 18.0f )
+					.Padding( FMargin( 0.0f, -2.0f ) )
+					[
+						SNew( SImage )
+						.Image( &Style->MenuDropdownImage )
+						.ColorAndOpacity( this, &STableColumnHeader::GetComboButtonTint )
+						.Visibility( EVisibility::HitTestInvisible )
+					]
 				]
-			];		
-
+			];
 
 			if (Column.HeaderMenuContent.Widget != SNullWidget::NullWidget)
 			{
-				ComboButton->SetMenuContent(ContextMenuContent);
+				ComboButton->SetMenuContent( ContextMenuContent );
 			}
 			else if (Column.OnGetMenuContent.IsBound())
 			{
-				ComboButton->SetOnGetMenuContent(Column.OnGetMenuContent);
+				ComboButton->SetOnGetMenuContent( Column.OnGetMenuContent );
 			}
-
-			AdjustedDefaultHeaderContentPadding.Right = 0;
 		}
 
 		this->ChildSlot
 		[
 			SNew( SBorder )
 			.BorderImage( this, &STableColumnHeader::GetHeaderBackgroundBrush )
-			.HAlign( Column.HeaderHAlignment )
-			.VAlign( Column.HeaderVAlignment )
-			.Padding( Column.HeaderContentPadding.Get( AdjustedDefaultHeaderContentPadding ) )
-			.Clipping(EWidgetClipping::ClipToBounds)
+			.HAlign( HAlign_Fill )
+			.VAlign( VAlign_Fill )
+			.ToolTip( Column.ToolTip )
+			.ToolTipText( Column.ToolTip.IsSet()                                 ? TAttribute<FText>() :
+			              Column.DefaultTooltip.IsSet()                          ? Column.DefaultTooltip :
+			              Column.HeaderContent.Widget == SNullWidget::NullWidget ? LabelText :
+			                                                                       TAttribute<FText>() )
+			.Padding( Column.HeaderContentPadding.Get( DefaultHeaderContentPadding ) )
+			.Clipping( EWidgetClipping::ClipToBounds )
 			[
 				Overlay
 			]
@@ -351,7 +354,7 @@ private:
 	/** Checks if sorting mode has been selected */
 	EVisibility GetSortModeVisibility() const
 	{
-		return (SortMode.Get() != EColumnSortMode::None) ? EVisibility::HitTestInvisible : EVisibility::Hidden;
+		return (SortMode.Get() != EColumnSortMode::None) ? EVisibility::HitTestInvisible : EVisibility::Collapsed;
 	}
 	
 	/** Called when the column title has been clicked to change sorting mode */
@@ -359,6 +362,8 @@ private:
 	{
 		if ( OnSortModeChanged.IsBound() )
 		{
+			FSlateApplication::Get().CloseToolTip();
+
 			const bool bIsShiftClicked = FSlateApplication::Get().GetModifierKeys().IsShiftDown();
 			EColumnSortPriority::Type ColumnSortPriority = SortPriority.Get();
 			EColumnSortMode::Type ColumnSortMode = SortMode.Get();
@@ -405,6 +410,7 @@ private:
 			const FVector2D& SummonLocation = MouseEvent.GetScreenSpacePosition();
 			FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
 
+			FSlateApplication::Get().CloseToolTip();
 			FSlateApplication::Get().PushMenu(AsShared(), WidgetPath, ContextMenuContent, SummonLocation, FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
 		}
 	}
@@ -665,6 +671,7 @@ FReply SHeaderRow::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEv
 		FMenuBuilder MenuBuilder(CloseAfterSelection, nullptr);
 		OnGenerateSelectColumnsSubMenu(MenuBuilder);
 
+		FSlateApplication::Get().CloseToolTip();
 		FSlateApplication::Get().PushMenu(AsShared(), WidgetPath, MenuBuilder.MakeWidget(), SummonLocation, FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
 		return FReply::Handled();
 	}

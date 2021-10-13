@@ -190,7 +190,10 @@ TSharedRef<SDockTab> FLevelEditorModule::SpawnLevelEditor( const FSpawnTabArgs& 
 {
 	TSharedRef<SDockTab> LevelEditorTab = SNew(SDockTab)
 		.TabRole(ETabRole::MajorTab)
-		.ContentPadding( FMargin(0) );
+		.ContentPadding(FMargin(0))
+		.IconColor(FAppStyle::Get().GetColor("LevelEditor.AssetColor")); // Same color as FAssetTypeActions_World
+
+	LevelEditorTab->SetTabIcon(FAppStyle::Get().GetBrush("LevelEditor.Tab"));
 
 	SetLevelEditorInstanceTab(LevelEditorTab);
 	TSharedPtr< SWindow > OwnerWindow = InArgs.GetOwnerWindow();
@@ -717,7 +720,8 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 
 	ActionList.MapAction( 
 		FGlobalEditorCommonCommands::Get().FindInContentBrowser, 
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::FindInContentBrowser_Clicked )
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::FindInContentBrowser_Clicked ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::FindInContentBrowser_CanExecute )
 		);
 
 	ActionList.MapAction(
@@ -748,7 +752,8 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 
 	ActionList.MapAction(
 		Commands.GoToCodeForActor, 
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::GoToCodeForActor_Clicked )
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::GoToCodeForActor_Clicked ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::GoToCodeForActor_CanExecute )
 		);
 
 	ActionList.MapAction( 
@@ -966,7 +971,8 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 
 	ActionList.MapAction(
 		Commands.DetachFromParent,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::DetachActor_Clicked )
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::DetachActor_Clicked ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::DetachActor_CanExecute )
 		);
 
 	ActionList.MapAction(
@@ -993,7 +999,8 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 
 	ActionList.MapAction(
 		Commands.RegroupActors,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::RegroupActor_Clicked )
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::RegroupActor_Clicked ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ActorSelected_CanExecute )
 		);
 
 	ActionList.MapAction(
@@ -1115,13 +1122,13 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 	ActionList.MapAction(
 		Commands.SelectStaticMeshesOfSameClass,
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ACTOR SELECT MATCHINGSTATICMESH") ) ),
-		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ActorTypesSelected_CanExecute, FLevelEditorActionCallbacks::IncludeStaticMeshes, /*bSingleOnly*/ false )
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ActorSelected_CanExecute )
 		);
 
 	ActionList.MapAction(
 		Commands.SelectStaticMeshesAllClasses,
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ACTOR SELECT MATCHINGSTATICMESH ALLCLASSES") ) ),
-		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ActorTypesSelected_CanExecute, FLevelEditorActionCallbacks::IncludeStaticMeshes, /*bSingleOnly*/ false )
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ActorSelected_CanExecute )
 		);
 
 	ActionList.MapAction(

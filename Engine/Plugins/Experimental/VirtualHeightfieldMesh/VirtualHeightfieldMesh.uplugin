@@ -18,7 +18,7 @@
 		{
 			"Name": "VirtualHeightfieldMesh",
 			"Type": "Runtime",
-			"BlacklistTargets": [ "Server" ],
+			"TargetDenyList": [ "Server" ],
 			"LoadingPhase": "PostConfigInit"
 		},
 		{

@@ -486,7 +486,8 @@ void FAnimTimelineTrack_Curves::CreateTrack(const FText& ComittedText, ETextComm
 			const FScopedTransaction Transaction(LOCTEXT("AnimCurve_AddTrack", "Add New Curve"));
 			FSmartName NewTrackName;
 
-			if(Skeleton->AddSmartNameAndModify(USkeleton::AnimCurveMappingName, FName(*ComittedText.ToString()), NewTrackName))
+			Skeleton->AddSmartNameAndModify(USkeleton::AnimCurveMappingName, FName(*ComittedText.ToString()), NewTrackName);
+			if ( NewTrackName.IsValid() )
 			{
 				AddVariableCurve(NewTrackName.UID);
 			}

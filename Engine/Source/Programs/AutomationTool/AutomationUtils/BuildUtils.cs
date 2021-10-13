@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.IO;
+using OpenTracing;
+using OpenTracing.Util;
 
 namespace AutomationTool
 {
@@ -56,8 +58,11 @@ namespace AutomationTool
 				throw new AutomationException("Unable to find msbuild.exe at: \"{0}\"", Env.FrameworkMsbuildPath);
 			}
 			string CmdLine = String.Format("\"{0}\" /m /t:Build /p:Configuration=\"{1}\" /p:Platform=\"{2}\" /verbosity:minimal /nologo", SolutionFile, BuildConfig, BuildPlatform);
-			using (TelemetryStopwatch CompileStopwatch = new TelemetryStopwatch("Compile.{0}.{1}.{2}", Path.GetFileName(SolutionFile), "WinC#", BuildConfig))
+			using (IScope Scope = GlobalTracer.Instance.BuildSpan("Compile").StartActive())
 			{
+				Scope.Span.SetTag("solution", Path.GetFileName(SolutionFile));
+				Scope.Span.SetTag("platform", "WinC#");
+				Scope.Span.SetTag("config", BuildConfig);
 				RunAndLog(Env, Env.FrameworkMsbuildPath, CmdLine, LogName);
 			}
 		}
@@ -85,6 +90,7 @@ namespace AutomationTool
 			MsBuild(Env, ProjectFile, CmdLine, LogName);
 		}
 
+		///
 		/// <summary>
 		/// returns true if this is a linux executable using some awful conventions
 		/// <param name="Filename">Filename</param>

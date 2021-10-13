@@ -529,7 +529,7 @@ void FPackageAutoSaver::UpdateAutoSaveNotification()
 				static FText AutoSaveSaveButtonToolTipText		= NSLOCTEXT("AutoSaveNotify", "AutoSaveSaveToolTip", "Force Autosave");
 
 				FNotificationInfo Info( GetAutoSaveNotificationText(TimeInSecondsUntilAutosave) );
-				Info.Image = FEditorStyle::GetBrush("MainFrame.AutoSaveImage");
+				Info.Image = FAppStyle::Get().GetBrush("Icons.Save");
 
 				// Add the buttons with text, tooltip and callback
 				Info.ButtonDetails.Add(FNotificationButtonInfo(AutoSaveCancelButtonText, AutoSaveCancelButtonToolTipText, FSimpleDelegate::CreateRaw(this, &FPackageAutoSaver::OnAutoSaveCancel)));

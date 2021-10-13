@@ -173,29 +173,29 @@ void FMovieScene3DTransformSectionRecorder::FinalizeSection(float CurrentTime)
 					FTransform Transform;
 					if (RawTrack.PosKeys.IsValidIndex(KeyIndex))
 					{
-						Transform.SetTranslation(RawTrack.PosKeys[KeyIndex]);
+						Transform.SetTranslation(FVector(RawTrack.PosKeys[KeyIndex]));
 					}
 					else if (RawTrack.PosKeys.Num() > 0)
 					{
-						Transform.SetTranslation(RawTrack.PosKeys[0]);
+						Transform.SetTranslation(FVector(RawTrack.PosKeys[0]));
 					}
 
 					if (RawTrack.RotKeys.IsValidIndex(KeyIndex))
 					{
-						Transform.SetRotation(RawTrack.RotKeys[KeyIndex]);
+						Transform.SetRotation(FQuat(RawTrack.RotKeys[KeyIndex]));
 					}
 					else if (RawTrack.RotKeys.Num() > 0)
 					{
-						Transform.SetRotation(RawTrack.RotKeys[0]);
+						Transform.SetRotation(FQuat(RawTrack.RotKeys[0]));
 					}
 
 					if (RawTrack.ScaleKeys.IsValidIndex(KeyIndex))
 					{
-						Transform.SetScale3D(RawTrack.ScaleKeys[KeyIndex]);
+						Transform.SetScale3D(FVector(RawTrack.ScaleKeys[KeyIndex]));
 					}
 					else if (RawTrack.ScaleKeys.Num() > 0)
 					{
-						Transform.SetScale3D(RawTrack.ScaleKeys[0]);
+						Transform.SetScale3D(FVector(RawTrack.ScaleKeys[0]));
 					}
 
 					FFrameNumber AnimationFrame = (AnimSequence->GetTimeAtFrame(KeyIndex) * TickResolution).FloorToFrame();

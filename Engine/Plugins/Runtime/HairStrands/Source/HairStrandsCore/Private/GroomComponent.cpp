@@ -152,6 +152,7 @@ public:
 
 	/** Initialization constructor. */
 	FHairDebugModeMaterialRenderProxy(const FMaterialRenderProxy* InParent, float InMode, float InMinRadius, float InMaxRadius, FVector InGroupColor) :
+		FMaterialRenderProxy(InParent->GetMaterialName()),
 		Parent(InParent),
 		DebugMode(InMode),
 		HairMinRadius(InMinRadius),

@@ -123,7 +123,7 @@ void STimerTreeView::Construct(const FArguments& InArgs, const FText& InViewName
 				//.OnSelectionChanged(this, &STimerTreeView::TreeView_OnSelectionChanged)
 				//.OnMouseButtonDoubleClick(this, &STimerTreeView::TreeView_OnMouseButtonDoubleClick)
 				.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &STimerTreeView::TreeView_GetMenuContent))
-				.ItemHeight(12.0f)
+				.ItemHeight(16.0f)
 				.HeaderRow
 				(
 					SAssignNew(TreeViewHeaderRow, SHeaderRow)
@@ -818,9 +818,9 @@ void STimerTreeView::ShowColumn(const FName ColumnId)
 	ColumnArgs
 		.ColumnId(Column.GetId())
 		.DefaultLabel(Column.GetShortName())
-		.HAlignHeader(HAlign_Fill)
-		.VAlignHeader(VAlign_Fill)
-		.HeaderContentPadding(FMargin(2.0f))
+		.ToolTip(STimersViewTooltip::GetColumnTooltip(Column))
+		.HAlignHeader(Column.GetHorizontalAlignment())
+		.VAlignHeader(VAlign_Center)
 		.HAlignCell(HAlign_Fill)
 		.VAlignCell(VAlign_Fill)
 		.SortMode(this, &STimerTreeView::GetSortModeForColumn, Column.GetId())
@@ -830,8 +830,8 @@ void STimerTreeView::ShowColumn(const FName ColumnId)
 		.HeaderContent()
 		[
 			SNew(SBox)
-			.ToolTip(STimersViewTooltip::GetColumnTooltip(Column))
-			.HAlign(Column.GetHorizontalAlignment())
+			.HeightOverride(24.0f)
+			.Padding(FMargin(0.0f))
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)

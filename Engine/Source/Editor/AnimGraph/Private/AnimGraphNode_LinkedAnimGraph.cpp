@@ -81,18 +81,34 @@ void UAnimGraphNode_LinkedAnimGraph::GetMenuActions(FBlueprintActionDatabaseRegi
 		{
 			if(InAssetData.IsValid())
 			{
-				return FText::Format(LOCTEXT("MenuDescFormat", "{0} - Linked Anim Graph"), FText::FromName(InAssetData.AssetName));
+				FText DisplayName;
+				InAssetData.GetTagValue(FBlueprintTags::BlueprintDisplayName, DisplayName);
+				if(!DisplayName.IsEmpty())
+				{
+					return DisplayName;
+				}
+				else
+				{
+					return FText::Format(LOCTEXT("MenuDescFormat", "{0} - Linked Anim Graph"), FText::FromName(InAssetData.AssetName));
+				}
 			}
-			else
-			{
-				return LOCTEXT("MenuDesc", "Linked Anim Graph");
-			}
+
+			return LOCTEXT("MenuDesc", "Linked Anim Graph");
 		},
 		[](const FAssetData& InAssetData, UClass* InClass)
 		{
 			if(InAssetData.IsValid())
 			{
-				return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Linked Anim Graph\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+				FText Description;
+				InAssetData.GetTagValue(FBlueprintTags::BlueprintDescription, Description);
+				if(!Description.IsEmpty())
+				{
+					return Description;
+				}
+				else
+				{
+					return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Linked Anim Graph - Runs a linked anim graph in another instance to process animation\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+				}
 			}
 			else
 			{
@@ -103,6 +119,20 @@ void UAnimGraphNode_LinkedAnimGraph::GetMenuActions(FBlueprintActionDatabaseRegi
 		{
 			UAnimGraphNode_LinkedAnimGraph* GraphNode = CastChecked<UAnimGraphNode_LinkedAnimGraph>(InNewNode);
 			GraphNode->SetupFromAsset(InAssetData, bInIsTemplateNode);
+		},
+		nullptr,
+		[](const FAssetData& InAssetData)
+		{
+			if(InAssetData.IsValid())
+			{
+				FText Category;
+				InAssetData.GetTagValue(FBlueprintTags::BlueprintCategory, Category);
+				return Category;
+			}
+			else
+			{
+				return FText::GetEmpty();
+			}
 		});
 }
 

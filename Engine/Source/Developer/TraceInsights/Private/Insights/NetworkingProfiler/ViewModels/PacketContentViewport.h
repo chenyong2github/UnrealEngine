@@ -21,7 +21,7 @@ public:
 	{
 		HorizontalAxisViewport.Reset();
 		Height = 0.0f;
-		TopEventPosY = 40.0f + 4.0f; // toolbar height + 4px
+		TopEventPosY = 32.0f + 4.0f; // toolbar height + 4px
 		EventHeight = 14.0f;
 		EventDY = 2.0f;
 	}

@@ -238,7 +238,19 @@ TArray<TSubclassOf<ULevelSnapshotFilter>> UFavoriteFilterContainer::GetAllAvaila
 
 TArray<FName> UFavoriteFilterContainer::GetCategories() const
 {
-	return { NativeClassesCategoryName, BlueprintClassesCategoryName};
+	TArray<FName> ReturnValue;
+
+	if (GetAvailableNativeFilters().Num() > 0)
+	{
+		ReturnValue.Add(NativeClassesCategoryName);
+	}
+
+	if (GetAvailableBlueprintFilters().Num() > 0)
+	{
+		ReturnValue.Add(BlueprintClassesCategoryName);
+	}
+
+	return ReturnValue;
 }
 
 FText UFavoriteFilterContainer::CategoryNameToText(FName CategoryName) const

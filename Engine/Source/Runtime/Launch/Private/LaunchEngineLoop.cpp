@@ -28,6 +28,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/App.h"
 #include "Misc/OutputDeviceConsole.h"
+#include "Misc/ScopeExit.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/FileManagerGeneric.h"
 #include "HAL/ExceptionHandling.h"
@@ -35,6 +36,7 @@
 #include "Stats/StatsMallocProfilerProxy.h"
 #include "Trace/Trace.inl"
 #include "ProfilingDebugging/TraceAuxiliary.h"
+#include "ProfilingDebugging/BootProfiling.h"
 #if WITH_ENGINE
 #include "HAL/PlatformSplash.h"
 #endif
@@ -315,9 +317,11 @@ class FExecuteConcurrentWithSlateTickTask
 
 public:
 
-	FExecuteConcurrentWithSlateTickTask(TFunction<void()> InTickWithSlate)
+	FExecuteConcurrentWithSlateTickTask(TFunction<void()> InTickWithSlate, FEvent* InCompleteEvent)
 		: TickWithSlate(InTickWithSlate)
+		, CompleteEvent(InCompleteEvent)
 	{
+		check(CompleteEvent);
 	}
 
 	static FORCEINLINE TStatId GetStatId()
@@ -335,7 +339,11 @@ public:
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
 		TickWithSlate();
+		CompleteEvent->Trigger();
 	}
+
+private:
+	FEvent* CompleteEvent;
 };
 
 // Pipe output to std output
@@ -1526,6 +1534,7 @@ DECLARE_CYCLE_STAT(TEXT("FEngineLoop::PreInitPostStartupScreen.AfterStats"), STA
 
 int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 {
+	ON_SCOPE_EXIT { GEnginePreInitPreStartupScreenEndTime = FPlatformTime::Seconds(); };
 	FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::StartOfEnginePreInit);
 	SCOPED_BOOT_TIMING("FEngineLoop::PreInitPreStartupScreen");
 
@@ -1537,6 +1546,18 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	if (GLog != nullptr)
 	{
 		GLog->SetCurrentThreadAsMasterThread();
+	}
+
+	// Command line option for enabling named events
+	if (FParse::Param(CmdLine, TEXT("statnamedevents")))
+	{
+		GCycleStatsShouldEmitNamedEvents = 1;
+	}
+	
+	if (FParse::Param(CmdLine, TEXT("verbosenamedevents")))
+	{
+		GCycleStatsShouldEmitNamedEvents = 1;
+		GShouldEmitVerboseNamedEvents = 1;
 	}
 
 	// Set the flag for whether we've build DebugGame instead of Development. The engine does not know this (whereas the launch module does) because it is always built in development.
@@ -3051,6 +3072,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 {
+	ON_SCOPE_EXIT{ GEnginePreInitPostStartupScreenEndTime = FPlatformTime::Seconds(); };
 	SCOPED_BOOT_TIMING("FEngineLoop::PreInitPostStartupScreen");
 
 	if (IsEngineExitRequested())
@@ -4211,6 +4233,7 @@ void GameLoopIsStarved()
 
 int32 FEngineLoop::Init()
 {
+	ON_SCOPE_EXIT{ GEngineInitEndTime = FPlatformTime::Seconds(); };
 	LLM_SCOPE(ELLMTag::EngineInitMemory);
 	SCOPED_BOOT_TIMING("FEngineLoop::Init");
 
@@ -4885,7 +4908,7 @@ static inline void BeginFrameRenderThread(FRHICommandListImmediate& RHICmdList, 
 	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel))
 	{
 		TraceFrameEventThreadId = FPlatformTLS::GetCurrentThreadId();
-		FCpuProfilerTrace::OutputBeginDynamicEvent(TEXT("Frame"));
+		FCpuProfilerTrace::OutputBeginDynamicEvent(TEXT("Frame"), __FILE__, __LINE__);
 	}
 #endif //CPUPROFILERTRACE_ENABLED
 
@@ -4994,11 +5017,13 @@ void FEngineLoop::Tick()
 #if ENABLE_NAMED_EVENTS
 	TCHAR IndexedFrameString[32] = { 0 };
 	const TCHAR* FrameString = nullptr;
+#if CPUPROFILERTRACE_ENABLED
 	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel))
 	{
 		FrameString = TEXT("FEngineLoop");
 	}
 	else
+#endif
 	{
 #if PLATFORM_LIMIT_PROFILER_UNIQUE_NAMED_EVENTS
 		FrameString = TEXT("FEngineLoop");
@@ -5282,6 +5307,7 @@ void FEngineLoop::Tick()
 #if WITH_ENGINE
 		// process concurrent Slate tasks
 		FGraphEventRef ConcurrentTask;
+		FEvent* ConcurrentTaskCompleteEvent = nullptr;
 		const bool bDoConcurrentSlateTick = GEngine->ShouldDoAsyncEndOfFrameTasks();
 
 		const UGameViewportClient* const GameViewport = GEngine->GameViewport;
@@ -5302,6 +5328,9 @@ void FEngineLoop::Tick()
 
 			if (CurrentDemoNetDriver && CurrentDemoNetDriver->ShouldTickFlushAsyncEndOfFrame())
 			{
+				ConcurrentTaskCompleteEvent = FPlatformProcess::GetSynchEventFromPool();
+				check(ConcurrentTaskCompleteEvent);
+
 				ConcurrentTask = TGraphTask<FExecuteConcurrentWithSlateTickTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(
 					[CurrentDemoNetDriver, DeltaSeconds]()
 				{
@@ -5314,7 +5343,9 @@ void FEngineLoop::Tick()
 					{
 						CurrentDemoNetDriver->TickFlushAsyncEndOfFrame(DeltaSeconds);
 					}
-				});
+				},
+				ConcurrentTaskCompleteEvent);
+				check(ConcurrentTask.IsValid());
 			}
 		}
 #endif
@@ -5343,7 +5374,10 @@ void FEngineLoop::Tick()
 			CSV_SCOPED_SET_WAIT_STAT(Slate);
 
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_ConcurrentWithSlateTickTasks_Wait);
-			FTaskGraphInterface::Get().WaitUntilTaskCompletes(ConcurrentTask);
+			check(ConcurrentTaskCompleteEvent);
+			ConcurrentTaskCompleteEvent->Wait();
+			FPlatformProcess::ReturnSynchEventToPool(ConcurrentTaskCompleteEvent);
+			ConcurrentTaskCompleteEvent = nullptr;
 			ConcurrentTask = nullptr;
 		}
 		{

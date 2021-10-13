@@ -24,7 +24,7 @@
 			"Name": "OpenColorIOEditor",
 			"Type": "Editor",
 			"LoadingPhase": "PreDefault",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64"
 			]
 		}

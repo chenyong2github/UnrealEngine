@@ -22,6 +22,9 @@
 #include "RetargetEditor/IKRetargetMode.h"
 #include "RetargetEditor/IKRetargetEditorController.h"
 
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SEditableTextBox.h"
+
 #define LOCTEXT_NAMESPACE "IKRetargeterEditor"
 
 const FName IKRetargetEditorModes::IKRetargetEditorMode("IKRetargetEditorMode");

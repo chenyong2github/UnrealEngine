@@ -7983,6 +7983,7 @@ void FBlueprintEditorUtils::FindActorsThatReferenceActor( AActor* InActor, TArra
 
 void FBlueprintEditorUtils::GetActorReferenceMap(UWorld* InWorld, TArray<UClass*>& InClassesToIgnore, TMap<AActor*, TArray<AActor*> >& OutReferencingActors)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FBlueprintEditorUtils::GetActorReferenceMap);
 	// Iterate all actors in the same world as InActor
 	for (FActorIterator ActorIt(InWorld); ActorIt; ++ActorIt)
 	{

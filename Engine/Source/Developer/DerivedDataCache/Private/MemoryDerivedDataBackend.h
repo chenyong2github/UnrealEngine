@@ -25,6 +25,9 @@ public:
 	~FMemoryDerivedDataBackend();
 
 	/** Return a name for this interface */
+	virtual FString GetDisplayName() const override { return FString(TEXT("Memory")); }
+
+	/** Return a name for this interface */
 	virtual FString GetName() const override { return Name; }
 
 	/** return true if this cache is writable **/
@@ -122,17 +125,24 @@ private:
 	struct FCacheValue
 	{
 		int32 Age;
+		int32 Size;
+		FRWLock DataLock;
 		TArray<uint8> Data;
-		FCacheValue(TArrayView<const uint8> InData, int32 InAge = 0)
+		FCacheValue(int32 InSize, int32 InAge = 0)
 			: Age(InAge)
-			, Data(InData.GetData(), InData.Num())
+			, Size(InSize)
 		{
 		}
 	};
 
-	FORCEINLINE int32 CalcCacheValueSize(const FString& Key, const FCacheValue& Val)
+	FORCEINLINE int32 CalcSerializedCacheValueSize(const FString& Key, const FCacheValue& Val)
 	{
-		return (Key.Len() + 1) * sizeof(TCHAR) + sizeof(Val.Age) + Val.Data.Num();
+		return (Key.Len() + 1) * sizeof(TCHAR) + sizeof(FCacheValue::Age) + Val.Size;
+	}
+
+	FORCEINLINE int32 CalcSerializedCacheValueSize(const FString& Key, const TArrayView<const uint8>& Data)
+	{
+		return (Key.Len() + 1) * sizeof(TCHAR) + sizeof(FCacheValue::Age) + Data.Num();
 	}
 
 	int64 CalcRawCacheRecordSize(const FCacheRecord& Record) const;
@@ -148,9 +158,9 @@ private:
 	/** Maximum size the cached items can grow up to ( in bytes ) */
 	int64 MaxCacheSize;
 	/** When set to true, this cache is disabled...ignore all requests. */
-	bool bDisabled;
+	std::atomic<bool> bDisabled;
 	/** Object used for synchronization via a scoped lock						*/
-	mutable FCriticalSection SynchronizationObject;
+	mutable FRWLock SynchronizationObject;
 	/** Current estimated cache size in bytes */
 	int64 CurrentCacheSize;
 	/** Indicates that the cache max size has been exceeded. This is used to avoid

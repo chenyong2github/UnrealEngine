@@ -433,6 +433,7 @@ void FChannelCurveModel<ChannelType, ChannelValue, KeyType>::GetCurveColorObject
 
 		*OutObject = Section->GetImplicitObjectOwner();
 		OutName = GetIntentionName();
+		return;
 	}
 	// Just call base if it doesn't work
 	FCurveModel::GetCurveColorObjectAndName(OutObject, OutName);

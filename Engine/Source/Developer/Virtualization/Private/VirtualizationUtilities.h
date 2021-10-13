@@ -41,4 +41,13 @@ void PayloadIdToPath(const FPayloadId& Id, FStringBuilderBase& OutPath);
  */
 FString PayloadIdToPath(const FPayloadId& Id);
 
+/**
+ * Fill in the given string builder with the human readable message of the current system
+ * code, followed by the code value itself.
+ * In the system value is currently 0, then we assume that it was cleared before this was
+ * able to be called and write that the error is unknown instead of assuming that the
+ * operation was a success.
+ */
+void GetFormattedSystemError(FStringBuilderBase& SystemErrorMessage);
+
 } // namespace UE::Virtualization::Utils

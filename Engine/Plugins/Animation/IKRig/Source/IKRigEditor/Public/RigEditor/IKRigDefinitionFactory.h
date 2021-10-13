@@ -7,6 +7,8 @@
 #include "Factories/Factory.h"
 #include "IKRigDefinitionFactory.generated.h"
 
+class SWindow;
+
 UCLASS(BlueprintType, hidecategories=Object)
 class UIKRigDefinitionFactory : public UFactory
 {

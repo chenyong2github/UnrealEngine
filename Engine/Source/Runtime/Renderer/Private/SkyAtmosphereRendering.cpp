@@ -559,6 +559,7 @@ class FSampleOpaqueShadow : SHADER_PERMUTATION_BOOL("SAMPLE_OPAQUE_SHADOW");
 class FSampleCloudShadow : SHADER_PERMUTATION_BOOL("SAMPLE_CLOUD_SHADOW");
 class FSampleCloudSkyAO : SHADER_PERMUTATION_BOOL("SAMPLE_CLOUD_SKYAO");
 class FAtmosphereOnClouds : SHADER_PERMUTATION_BOOL("SAMPLE_ATMOSPHERE_ON_CLOUDS");
+class FMSAASampleCount : SHADER_PERMUTATION_SPARSE_INT("MSAA_SAMPLE_COUNT", 1, 2, 4, 8);
 
 }
 
@@ -597,7 +598,7 @@ class FRenderSkyAtmospherePS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FRenderSkyAtmospherePS);
 	SHADER_USE_PARAMETER_STRUCT(FRenderSkyAtmospherePS, FGlobalShader);
 
-	using FPermutationDomain = TShaderPermutationDomain<FSampleCloudSkyAO, FFastSky, FFastAerialPespective, FSecondAtmosphereLight, FRenderSky, FSampleOpaqueShadow, FSampleCloudShadow, FAtmosphereOnClouds>;
+	using FPermutationDomain = TShaderPermutationDomain<FSampleCloudSkyAO, FFastSky, FFastAerialPespective, FSecondAtmosphereLight, FRenderSky, FSampleOpaqueShadow, FSampleCloudShadow, FAtmosphereOnClouds, FMSAASampleCount>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FAtmosphereUniformShaderParameters, Atmosphere)
@@ -614,6 +615,7 @@ class FRenderSkyAtmospherePS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float2>, VolumetricCloudSkyAOTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float> , VolumetricCloudDepthTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, InputCloudLuminanceTransmittanceTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2DMS<float>, MSAADepthTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, TransmittanceLutTextureSampler)
 		SHADER_PARAMETER_SAMPLER(SamplerState, MultiScatteredLuminanceLutTextureSampler)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SkyViewLutTextureSampler)
@@ -670,6 +672,12 @@ class FRenderSkyAtmospherePS : public FGlobalShader
 			{
 				return false;
 			}
+		}
+
+		if ((!IsAnyForwardShadingEnabled(Parameters.Platform) || !RHISupportsMSAA(Parameters.Platform)) && PermutationVector.Get<FMSAASampleCount>() > 1)
+		{
+			// We only compile the MSAA support when Forward shading is enabled because MSAA can only be used in this case.
+			return false;
 		}
 
 		return ShouldPipelineCompileSkyAtmosphereShader(Parameters.Platform);
@@ -1657,6 +1665,9 @@ FSkyAtmosphereRenderContext::FSkyAtmosphereRenderContext()
 	bAPOnCloudMode = false;
 	VolumetricCloudDepthTexture = nullptr;
 	InputCloudLuminanceTransmittanceTexture = nullptr;
+
+	MSAASampleCount = 1;
+	MSAADepthTexture = nullptr;
 }
 
 void FSceneRenderer::RenderSkyAtmosphereInternal(
@@ -1682,6 +1693,12 @@ void FSceneRenderer::RenderSkyAtmosphereInternal(
 	const bool ForceRayMarching = SkyRC.bForceRayMarching || (FVector::Distance(ViewOrigin, PlanetCenter) - TopOfAtmosphere - PlanetRadiusTraceSafeEdgeCm) > 0.0f;
 	const bool bDisableBlending = SkyRC.bDisableBlending;
 
+	// We only support MSAA up to 8 sample and in forward
+	check(SkyRC.MSAASampleCount <= 8);
+	// We only support MSAA in forward, not in deferred.
+	const bool bForwardShading = IsForwardShadingEnabled(Scene->GetShaderPlatform());
+	check(bForwardShading || (!bForwardShading && SkyRC.MSAASampleCount == 1));
+
 	// Render the sky, and optionally the atmosphere aerial perspective, on the scene luminance buffer
 	{
 		FLightSceneProxy* AtmosphereLight0Proxy = Scene->AtmosphereLights[0] ? Scene->AtmosphereLights[0]->Proxy : nullptr;
@@ -1699,6 +1716,7 @@ void FSceneRenderer::RenderSkyAtmosphereInternal(
 		PsPermutationVector.Set<FSampleOpaqueShadow>(SkyRC.bShouldSampleOpaqueShadow);
 		PsPermutationVector.Set<FSampleCloudShadow>(bShouldSampleCloudShadow);
 		PsPermutationVector.Set<FAtmosphereOnClouds>(SkyRC.bAPOnCloudMode);
+		PsPermutationVector.Set<FMSAASampleCount>(SkyRC.MSAASampleCount);
 		PsPermutationVector = FRenderSkyAtmospherePS::RemapPermutation(PsPermutationVector);
 		TShaderMapRef<FRenderSkyAtmospherePS> PixelShader(GetGlobalShaderMap(SkyRC.FeatureLevel), PsPermutationVector);
 
@@ -1711,6 +1729,7 @@ void FSceneRenderer::RenderSkyAtmosphereInternal(
 		PsPassParameters->ViewUniformBuffer = SkyRC.ViewUniformBuffer;
 		PsPassParameters->RenderTargets = SkyRC.RenderTargets;
 		PsPassParameters->SceneTextures = SceneTextures;
+		PsPassParameters->MSAADepthTexture = SkyRC.MSAADepthTexture;
 		PsPassParameters->TransmittanceLutTextureSampler = SamplerLinearClamp;
 		PsPassParameters->MultiScatteredLuminanceLutTextureSampler = SamplerLinearClamp;
 		PsPassParameters->SkyViewLutTextureSampler = SamplerLinearClamp;
@@ -1853,6 +1872,9 @@ void FSceneRenderer::RenderSkyAtmosphere(FRDGBuilder& GraphBuilder, const FMinim
 
 	SkyRC.RenderTargets[0] = FRenderTargetBinding(SceneTextures.Color.Target, ERenderTargetLoadAction::ELoad);
 	SkyRC.RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthRead_StencilNop);
+
+	SkyRC.MSAASampleCount = SceneTextures.Depth.Target->Desc.NumSamples;
+	SkyRC.MSAADepthTexture = SceneTextures.Depth.Target;
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{

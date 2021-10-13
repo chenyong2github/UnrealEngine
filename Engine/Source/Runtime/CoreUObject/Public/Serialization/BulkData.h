@@ -293,6 +293,7 @@ private:
 
 public:
 	friend class FLinkerLoad;
+	friend class FExportArchive;
 	friend class UE::Virtualization::FVirtualizedUntypedBulkData; // To allow access to AttachedAr
 
 	using BulkDataRangeArray = TArray<FBulkDataStreamingToken*, TInlineAllocator<8>>;

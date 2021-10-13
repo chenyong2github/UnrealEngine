@@ -13,7 +13,6 @@
 #include "Animation/DebugSkelMeshComponent.h"
 #include "IPersonaPreviewScene.h"
 #include "Preferences/PersonaOptions.h"
-#include "ScopedTransaction.h"
 
 class FCanvas;
 class UPersonaOptions;
@@ -45,8 +44,10 @@ namespace EBoneDrawMode
 		None,
 		Selected,
 		SelectedAndParents,
+		SelectedAndChildren,
+		SelectedAndParentsAndChildren,
 		All,
-		NumAxesModes
+		NumDrawModes
 	};
 };
 
@@ -256,7 +257,7 @@ public:
 	float GetFloorOffset() const;
 
 	/* Sets the floor height offset, saves it to config and invalidates the viewport so it shows up immediately */
-	void SetFloorOffset(float NewValue, bool bCommitted);
+	void SetFloorOffset(float NewValue);
 
 	/** Function to set mesh stat drawing state */
 	void OnSetShowMeshStats(int32 ShowMode);
@@ -364,6 +365,9 @@ private:
 	/* Member use to unregister OnPhysicsCreatedDelegate */
 	FDelegateHandle OnPhysicsCreatedDelegateHandle;
 
+	/* Member use to unregister OnMeshChanged for our preview skeletal mesh */
+	FDelegateHandle OnMeshChangedDelegateHandle;
+
 private:
 
 	void SetCameraTargetLocation(const FSphere &BoundSphere, float DeltaSeconds);
@@ -443,8 +447,6 @@ private:
 
 	/** Relative view location stored to match it pre/post tick */
 	FVector RelativeViewLocation;
-
-	TUniquePtr<FScopedTransaction> PendingTransaction;
 
 	// Delegate Handler to allow changing of camera controller
 	void OnCameraControllerChanged();

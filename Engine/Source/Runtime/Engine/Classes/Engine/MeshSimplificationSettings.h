@@ -20,6 +20,9 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=General, meta=(ConsoleVariable="r.MeshReductionModule", DisplayName="Mesh Reduction Plugin", ConfigRestartRequired=true))
 	FName MeshReductionModuleName;
 
+	UPROPERTY(config, EditAnywhere, Category=General, meta=(DisplayName="Mesh Reduction Backward Compatible", ConfigRestartRequired = true))
+	bool bMeshReductionBackwardCompatible;
+
 	virtual void PostInitProperties() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;

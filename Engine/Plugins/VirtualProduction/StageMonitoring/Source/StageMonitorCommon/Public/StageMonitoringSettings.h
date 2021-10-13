@@ -7,7 +7,6 @@
 #include "GameplayTagContainer.h"
 #include "Misc/FrameRate.h"
 #include "StageMessages.h"
-#include "Templates/HasGetTypeHash.h"
 
 #include "StageMonitoringSettings.generated.h"
 

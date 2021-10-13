@@ -108,13 +108,14 @@ void SPacketContentView::Construct(const FArguments& InArgs, TSharedPtr<SNetwork
 	ProfilerWindow = InProfilerWindow;
 
 	FSlimHorizontalToolBarBuilder ToolbarBuilder(TSharedPtr<const FUICommandList>(), FMultiBoxCustomization::None);
+	ToolbarBuilder.SetStyle(&FInsightsStyle::Get(), "SecondaryToolbar2");
 
 	ToolbarBuilder.BeginSection("FindPacket");
 	{
 		ToolbarBuilder.AddWidget(
 			SNew(SBox)
 			.VAlign(VAlign_Center)
-			.Padding(FMargin(8.0f, 0.0f, 0.0f, 0.0f))
+			.Padding(FMargin(4.0f, 0.0f, 2.0f, 0.0f))
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("FindPacketText", "Find Packet:"))
@@ -141,7 +142,7 @@ void SPacketContentView::Construct(const FArguments& InArgs, TSharedPtr<SNetwork
 				.Text(this, &SPacketContentView::GetPacketText)
 				.ToolTipText(LOCTEXT("SequenceNumber_Tooltip", "Sequence Number"))
 				.OnTextCommitted(this, &SPacketContentView::Packet_OnTextCommitted)
-				.MinDesiredWidth(30.0f)
+				.MinDesiredWidth(40.0f)
 			]
 		);
 
@@ -161,7 +162,7 @@ void SPacketContentView::Construct(const FArguments& InArgs, TSharedPtr<SNetwork
 		ToolbarBuilder.AddWidget(
 			SNew(SBox)
 			.VAlign(VAlign_Center)
-			.Padding(FMargin(8.0f, 0.0f, 0.0f, 0.0f))
+			.Padding(FMargin(4.0f, 0.0f, 2.0f, 0.0f))
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("FindEventText", "Find Event:"))
@@ -209,8 +210,10 @@ void SPacketContentView::Construct(const FArguments& InArgs, TSharedPtr<SNetwork
 	ToolbarBuilder.BeginSection("FilterByNetId");
 	{
 		ToolbarBuilder.AddWidget(
-			SNew(SBox)
-			.Padding(FMargin(4.0f, 0.0f, 4.0f, 0.0f))
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.Padding(FMargin(4.0f, 0.0f, 2.0f, 0.0f))
+			.AutoWidth()
 			[
 				SNew(SCheckBox)
 				.ToolTipText(LOCTEXT("FilterByNetId_Tooltip", "Filter events that have the specified NetId."))
@@ -218,18 +221,16 @@ void SPacketContentView::Construct(const FArguments& InArgs, TSharedPtr<SNetwork
 				.OnCheckStateChanged(this, &SPacketContentView::FilterByNetId_OnCheckStateChanged)
 				[
 					SNew(SBox)
-					.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
+					.Padding(FMargin(2.0f, 0.0f, 0.0f, 0.0f))
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("FilterByNetId_Text", "By NetId:"))
 					]
 				]
 			]
-		);
-
-		ToolbarBuilder.AddWidget(
-			SNew(SBox)
-			.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
+			+ SHorizontalBox::Slot()
+			.Padding(FMargin(2.0f, 0.0f, 4.0f, 0.0f))
+			.AutoWidth()
 			.VAlign(VAlign_Center)
 			[
 				SNew(SEditableTextBox)
@@ -247,8 +248,10 @@ void SPacketContentView::Construct(const FArguments& InArgs, TSharedPtr<SNetwork
 	ToolbarBuilder.BeginSection("FilterByEventType");
 	{
 		ToolbarBuilder.AddWidget(
-			SNew(SBox)
-			.Padding(FMargin(4.0f, 0.0f, 4.0f, 0.0f))
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.Padding(FMargin(4.0f, 0.0f, 2.0f, 0.0f))
+			.AutoWidth()
 			[
 				SNew(SCheckBox)
 				.ToolTipText(LOCTEXT("FilterByEventType_Tooltip", "Filter events that have the specified type.\n\nTo set the event type:\n\tdouble click either an event in the Packet Content view\n\tor an event type in the NetStats tree view."))
@@ -256,18 +259,16 @@ void SPacketContentView::Construct(const FArguments& InArgs, TSharedPtr<SNetwork
 				.OnCheckStateChanged(this, &SPacketContentView::FilterByEventType_OnCheckStateChanged)
 				[
 					SNew(SBox)
-					.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
+					.Padding(FMargin(2.0f, 0.0f, 0.0f, 0.0f))
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("FilterByEventType_Text", "By Type:"))
 					]
 				]
 			]
-		);
-
-		ToolbarBuilder.AddWidget(
-			SNew(SBox)
-			.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
+			+ SHorizontalBox::Slot()
+			.Padding(FMargin(2.0f, 0.0f, 4.0f, 0.0f))
+			.AutoWidth()
 			.VAlign(VAlign_Center)
 			[
 				SNew(SEditableTextBox)
@@ -311,21 +312,19 @@ void SPacketContentView::Construct(const FArguments& InArgs, TSharedPtr<SNetwork
 		+ SOverlay::Slot()
 		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Top)
-		.Padding(FMargin(0, 0, 0, 0))
+		.Padding(FMargin(0.0f))
 		[
 			ToolbarBuilder.MakeWidget()
 		]
 
 		+ SOverlay::Slot()
 		.VAlign(VAlign_Bottom)
-		.Padding(FMargin(0, 0, 0, 0))
+		.Padding(FMargin(0.0f))
 		[
 			SAssignNew(HorizontalScrollBar, SScrollBar)
 			.Orientation(Orient_Horizontal)
 			.AlwaysShowScrollbar(false)
 			.Visibility(EVisibility::Visible)
-			.Thickness(FVector2D(5.0f, 5.0f))
-			.RenderOpacity(0.75)
 			.OnUserScrolled(this, &SPacketContentView::HorizontalScrollBar_OnUserScrolled)
 		]
 	];

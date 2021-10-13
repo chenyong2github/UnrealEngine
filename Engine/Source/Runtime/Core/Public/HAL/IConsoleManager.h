@@ -103,28 +103,30 @@ enum EConsoleVariableFlags
 	/* to get some history of where the last value was set by ( useful for track down why a cvar is in a specific state */
 	ECVF_SetByMask =				0xff000000,
 
-	// the ECVF_SetBy are sorted in override order (weak to strong), the value is not serialized, it only affects it's override behavior when calling Set()
+	// The ECVF_SetBy flags are sorted in override order (weak to strong), the value is not serialized. It only affects the override behavior when calling Set()
 
-	// lowest priority (default after console variable creation)
+	// Lowest priority (default after console variable creation)
 	ECVF_SetByConstructor =			0x00000000,
-	// from Scalability.ini (lower priority than game settings so it's easier to override partially)
+	// Set by scalability groups from Scalability.ini (lower priority than game settings so it's easier to override partially)
 	ECVF_SetByScalability =			0x01000000,
-	// (in game UI or from file)
+	// Default priority for engine-level game user settings, platform-specific settings will override this
 	ECVF_SetByGameSetting =			0x02000000,
-	// project settings (editor UI or from file, higher priority than game setting to allow to enforce some setting fro this project)
+	// Set by project settings UI or specific sections in ini file (higher priority than game setting to allow enforcing some settings for this project)
 	ECVF_SetByProjectSetting =		0x03000000,
-	// per project setting (ini file e.g. Engine.ini or Game.ini)
+	// Used by the [ConsoleVariables] section of Engine.ini as well as FSystemSettings
 	ECVF_SetBySystemSettingsIni =	0x04000000,
-	// per device setting (e.g. specific iOS device, higher priority than per project to do device specific settings)
+	// Per device settings using the DeviceProfiles.ini hierarchy (e.g. specific iOS device, higher priority than per project to do device specific settings)
 	ECVF_SetByDeviceProfile =		0x05000000,
-	// consolevariables.ini (for multiple projects)
-	ECVF_SetByConsoleVariablesIni = 0x06000000,
-	// a minus command e.g. -VSync (very high priority to enforce the setting for the application)
-	ECVF_SetByCommandline =			0x07000000,
-	// least useful, likely a hack, maybe better to find the correct SetBy...
-	ECVF_SetByCode =				0x08000000,
-	// editor UI or console in game or editor
-	ECVF_SetByConsole =				0x09000000,
+	// User settable game overrides, used for GameUserSettings fields that need to override device specific settings
+	ECVF_SetByGameOverride =		0x06000000,
+	// Set by local consolevariables.ini, mostly used for testing multiple projects
+	ECVF_SetByConsoleVariablesIni = 0x07000000,
+	// Used by some command line parameters, others use the Console priority instead
+	ECVF_SetByCommandline =			0x08000000,
+	// Used for high priority temporary debugging or operation modes 
+	ECVF_SetByCode =				0x09000000,
+	// Highest priority used via editor UI or or game/editor interactive console
+	ECVF_SetByConsole =				0x0A000000,
 
 	// ------------------------------------------------
 };

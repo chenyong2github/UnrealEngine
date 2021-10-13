@@ -52,6 +52,13 @@ struct FUnderwaterPostProcessVolume : public IInterface_PostProcessVolume
 		return PostProcessProperties;
 	}
 
+#if DEBUG_POST_PROCESS_VOLUME_ENABLE
+	virtual FString GetDebugName() const override
+	{
+		return FString("UnderwaterPostProcessVolume");
+	}
+#endif
+
 	FPostProcessVolumeProperties PostProcessProperties;
 };
 
@@ -181,7 +188,7 @@ public:
 
 private:
 	void NotifyWaterScalabilityChangedInternal(IConsoleVariable* CVar);
-	void NotifyWaterEnabledChangedInternal(IConsoleVariable* CVar);
+	void NotifyWaterVisibilityChangedInternal(IConsoleVariable* CVar);
 	void ComputeUnderwaterPostProcess(FVector ViewLocation, FSceneView* SceneView);
 	void SetMPCTime(float Time, float PrevTime);
 	void AdjustUnderwaterWaterInfoQueryFlags(EWaterBodyQueryFlags& InOutFlags);

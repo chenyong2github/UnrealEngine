@@ -6,7 +6,7 @@
 #include "ComputeFramework/ComputeKernelPermutationSet.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "GPUSkinCache.h"
-#include "OptimusContextNames.h"
+#include "OptimusDataDomain.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "ShaderParameterMetadataBuilder.h"
@@ -21,7 +21,7 @@ TArray<FOptimusCDIPinDefinition> USkeletalMeshReadDataInterface::GetPinDefinitio
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
 
-	using namespace Optimus::ContextName;
+	using namespace Optimus::DomainName;
 
 	Defs.Add({"NumVertices", "ReadNumVertices"});
 	Defs.Add({"NumTriangles", "ReadNumTriangles"});

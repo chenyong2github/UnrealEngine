@@ -113,13 +113,6 @@ public:
 	virtual ICookedPackageWriter& GetPackageWriter(const ITargetPlatform* TargetPlatform) = 0;
 
 	/**
-	 * A somewhat temporary event triggered when all pending packages has been cooked.
-	 * This is to ensure that all packages has been sent to all connected clients.
-	 */
-	DECLARE_EVENT(ICookOnTheFlyServer, FFlushEvent);
-	virtual FFlushEvent& OnFlush() = 0;
-
-	/**
 	 * Wait until any pending flush request is completed.
 	 *
 	 * @return Duration in seconds.

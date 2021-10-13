@@ -454,20 +454,32 @@ public:
 				BuildConfig = EProjectPackagingBuildConfigurations::PPBC_Shipping;
 			}
 			
-			const FTargetInfo* BuildTargetInfo = AllPlatformPackagingSettings->GetBuildTargetInfoForPlatform(IniPlatformName);
+			bool bIsProjectBuildTarget = false;
+			const FTargetInfo* BuildTargetInfo = AllPlatformPackagingSettings->GetBuildTargetInfoForPlatform(IniPlatformName, bIsProjectBuildTarget);
 
 			const UProjectPackagingSettings::FConfigurationInfo& ConfigurationInfo = UProjectPackagingSettings::ConfigurationInfo[(int)BuildConfig];
-			if (BuildTargetInfo && BuildTargetInfo->Type == EBuildTargetType::Client)
+			if (BuildTargetInfo)
 			{
-				BuildCookRunParams += FString::Printf(TEXT(" -client -target=%s -clientconfig=%s"), *BuildTargetInfo->Name, LexToString(ConfigurationInfo.Configuration));
-			}
-			else if (BuildTargetInfo && BuildTargetInfo->Type == EBuildTargetType::Server)
-			{
-				BuildCookRunParams += FString::Printf(TEXT(" -server -noclient -target=%s -serverconfig=%s"), *BuildTargetInfo->Name, LexToString(ConfigurationInfo.Configuration));
-			}
-			else
-			{
-				BuildCookRunParams += FString::Printf(TEXT(" -clientconfig=%s"), LexToString(ConfigurationInfo.Configuration));
+				// Only add the -Target=... argument for code projects. Content projects will return UnrealGame/UnrealClient/UnrealServer here, but
+				// may need a temporary target generated to enable/disable plugins. Specifying -Target in these cases will cause packaging to fail,
+				// since it'll have a different name.
+				if (bIsProjectBuildTarget)
+				{
+					BuildCookRunParams += FString::Printf(TEXT(" -target=%s"), *BuildTargetInfo->Name);
+				}
+
+				if (BuildTargetInfo->Type == EBuildTargetType::Client)
+				{
+					BuildCookRunParams += FString::Printf(TEXT(" -client -clientconfig=%s"), LexToString(ConfigurationInfo.Configuration));
+				}
+				else if (BuildTargetInfo->Type == EBuildTargetType::Server)
+				{
+					BuildCookRunParams += FString::Printf(TEXT(" -server -noclient -serverconfig=%s"), LexToString(ConfigurationInfo.Configuration));
+				}
+				else
+				{
+					BuildCookRunParams += FString::Printf(TEXT(" -clientconfig=%s"), LexToString(ConfigurationInfo.Configuration));
+				}
 			}
 		}
 // 		else if (Mode == EPrepareContentMode::PrepareForDebugging)

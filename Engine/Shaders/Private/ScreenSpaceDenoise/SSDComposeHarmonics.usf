@@ -218,7 +218,7 @@ void MainCS(
 		MultiplexedIntegrand,
 		MultiplexedFrequencies);
 
-	// Whitelists computation that needs to be done.
+	// Determine computation that needs to be done.
 	FSSDSignalArray OutputSamples = CreateSignalArrayFromScalarValue(0.0);
 	UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
 	for (uint MultiplexId = 0; MultiplexId < CONFIG_SIGNAL_BATCH_SIZE; MultiplexId++)

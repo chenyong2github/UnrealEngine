@@ -19,7 +19,7 @@
 			"Name": "VCamCore",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"BlacklistPlatforms": [
+			"PlatformDenyList": [
 				"TVOS"
 			]
 		},
@@ -27,7 +27,7 @@
 			"Name": "VCamCoreEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"BlacklistPlatforms": [
+			"PlatformDenyList": [
 				"TVOS"
 			]
 		},
@@ -35,7 +35,7 @@
 			"Name": "VCamInput",
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault",
-			"BlacklistPlatforms": [
+			"PlatformDenyList": [
 				"TVOS"
 			]
 		},
@@ -43,7 +43,7 @@
 			"Name": "VirtualCamera",
 			"Type": "UncookedOnly",
 			"LoadingPhase": "PostDefault",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"Linux",
 				"Mac"
@@ -62,10 +62,6 @@
 		},
 		{
 			"Name": "MediaFrameworkUtilities",
-			"Enabled": true
-		},
-		{
-			"Name": "LiveLink",
 			"Enabled": true
 		},
 		{

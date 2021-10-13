@@ -360,6 +360,7 @@ struct FFoliageInfo
 
 	FOLIAGE_API void AddToBaseHash(int32 InstanceIdx);
 	FOLIAGE_API void RemoveFromBaseHash(int32 InstanceIdx);
+	FOLIAGE_API void RecomputeHash();
 	FOLIAGE_API bool ShouldAttachToBaseComponent() const { return Implementation->ShouldAttachToBaseComponent(); }
 
 	// For debugging. Validate state after editing.
@@ -382,7 +383,7 @@ struct FFoliageInfo
 	FOLIAGE_API FBox GetApproximatedInstanceBounds() const;
 #endif
 
-	friend FArchive& operator<<(FArchive& Ar, FFoliageInfo& MeshInfo);
+	FOLIAGE_API friend FArchive& operator<<(FArchive& Ar, FFoliageInfo& MeshInfo);
 
 	// Non-copyable
 	FFoliageInfo(const FFoliageInfo&) = delete;

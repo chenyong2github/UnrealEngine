@@ -9,6 +9,7 @@
 #include "UObject/Package.h"
 #include "Misc/AsciiSet.h"
 #include "Misc/PackageName.h"
+#include "Async/ParallelFor.h"
 #include "HAL/IConsoleManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogUObjectHash, Log, All);
@@ -305,34 +306,56 @@ public:
 
 	void ShrinkMaps()
 	{
+		const EParallelForFlags BaseFlags = FTaskGraphInterface::IsRunning() ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread;
 		double StartTime = FPlatformTime::Seconds();
-		Hash.Compact();
-		for (auto& Pair : Hash)
+		ParallelFor(7,
+			[this](int32 Index)
 		{
-			Pair.Value.Compact();
-		}
-		HashOuter.Compact();
-		ObjectOuterMap.Compact();
-		for (auto& Pair : ObjectOuterMap)
-		{
-			Pair.Value.Compact();
-		}
-		ClassToObjectListMap.Compact();
-		for (auto& Pair : ClassToObjectListMap)
-		{
-			Pair.Value.Compact();
-		}
-		ClassToChildListMap.Compact();
-		for (auto& Pair : ClassToChildListMap)
-		{
-			Pair.Value.Compact();
-		}
-		PackageToObjectListMap.Compact();
-		for (auto& Pair : PackageToObjectListMap)
-		{
-			Pair.Value.Compact();
-		}
-		ObjectToPackageMap.Compact();
+			switch (Index)
+			{
+			case 0:
+				Hash.Compact();
+				for (auto& Pair : Hash)
+				{
+					Pair.Value.Compact();
+				}
+				break;
+			case 1:
+				HashOuter.Compact();
+				break;
+			case 2:
+				ObjectOuterMap.Compact();
+				for (auto& Pair : ObjectOuterMap)
+				{
+					Pair.Value.Compact();
+				}
+				break;
+			case 3:
+				ClassToObjectListMap.Compact();
+				for (auto& Pair : ClassToObjectListMap)
+				{
+					Pair.Value.Compact();
+				}
+				break;
+			case 4:
+				ClassToChildListMap.Compact();
+				for (auto& Pair : ClassToChildListMap)
+				{
+					Pair.Value.Compact();
+				}
+				break;
+			case 5:
+				PackageToObjectListMap.Compact();
+				for (auto& Pair : PackageToObjectListMap)
+				{
+					Pair.Value.Compact();
+				}
+				break;
+			case 6:
+				ObjectToPackageMap.Compact();
+				break;
+			}
+		}, BaseFlags | EParallelForFlags::Unbalanced);
 		UE_LOG(LogUObjectHash, Log, TEXT("Compacting FUObjectHashTables data took %6.2fms"), 1000.0f * float(FPlatformTime::Seconds() - StartTime));
 	}
 

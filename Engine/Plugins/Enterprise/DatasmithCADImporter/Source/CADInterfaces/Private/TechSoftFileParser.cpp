@@ -39,6 +39,11 @@ namespace TechSoftFileParserImpl
 		A3D_INITIALIZE_DATA(A3DAsmPartDefinitionData, sData);
 	}
 
+	void InitializeData(A3DMiscCartesianTransformationData& sData)
+	{
+		A3D_INITIALIZE_DATA(A3DMiscCartesianTransformationData, sData);
+	}
+
 	void InitializeData(A3DRiDirectionData& sData)
 	{
 		A3D_INITIALIZE_DATA(A3DRiDirectionData, sData);
@@ -549,15 +554,17 @@ namespace CADLibrary
 			return 0;
 		}
 
-		TraverseTransformation(OccurrenceData->m_pLocation);
-
 		FArchiveInstance& Instance = AddInstance(InstanceMetaData);
+
+		Instance.TransformMatrix = TraverseTransformation(OccurrenceData->m_pLocation);
 
 		FEntityMetaData PrototypeMetaData;
 		bool bIsUnloadedPrototype = false;
 		if (OccurrenceData->m_pPrototype)
 		{
-			TraversePrototype(OccurrenceData->m_pPrototype, PrototypeMetaData);
+			FMatrix PrototypeMatrix;
+			TraversePrototype(OccurrenceData->m_pPrototype, PrototypeMetaData, PrototypeMatrix);
+			Instance.TransformMatrix *= PrototypeMatrix;
 		}
 
 		if (PrototypeMetaData.bUnloaded)
@@ -626,26 +633,26 @@ namespace CADLibrary
 		return FFileDescriptor();
 	}
 
-	void FTechSoftFileParser::TraversePrototype(const A3DAsmProductOccurrence* PrototypePtr, FEntityMetaData& PrototypeMetaData)
+	void FTechSoftFileParser::TraversePrototype(const A3DAsmProductOccurrence* InPrototypePtr, FEntityMetaData& OutPrototypeMetaData, FMatrix& OutPrototypeMatrix)
 	{
-		TechSoft::TUniqueTSObj<A3DAsmProductOccurrenceData, A3DAsmProductOccurrence> PrototypeData(PrototypePtr, A3DAsmProductOccurrenceGet);
+		TechSoft::TUniqueTSObj<A3DAsmProductOccurrenceData, A3DAsmProductOccurrence> PrototypeData(InPrototypePtr, A3DAsmProductOccurrenceGet);
 		if (!PrototypeData.IsValid())
 		{
 			return;
 		}
 
-		TraverseMetaData(PrototypePtr, PrototypeMetaData);
-		TraverseSpecificMetaData(PrototypePtr, PrototypeMetaData);
-		DefineEntityName(PrototypeMetaData.MetaData, EComponentType::Reference);
+		TraverseMetaData(InPrototypePtr, OutPrototypeMetaData);
+		TraverseSpecificMetaData(InPrototypePtr, OutPrototypeMetaData);
+		DefineEntityName(OutPrototypeMetaData.MetaData, EComponentType::Reference);
 
-		TraverseMaterialProperties(PrototypePtr);
+		TraverseMaterialProperties(InPrototypePtr);
 
-		TraverseTransformation(PrototypeData->m_pLocation);
+		OutPrototypeMatrix = TraverseTransformation(PrototypeData->m_pLocation);
 
-		PrototypeMetaData.bUnloaded = TechSoftFileParserImpl::IsUnloadedPrototype(*PrototypeData);
-		if (PrototypeMetaData.bUnloaded)
+		OutPrototypeMetaData.bUnloaded = TechSoftFileParserImpl::IsUnloadedPrototype(*PrototypeData);
+		if (OutPrototypeMetaData.bUnloaded)
 		{
-			PrototypeMetaData.ExternalFile = GetOccurrenceFileName(PrototypePtr);
+			OutPrototypeMetaData.ExternalFile = GetOccurrenceFileName(InPrototypePtr);
 		}
 	}
 
@@ -826,7 +833,7 @@ namespace CADLibrary
 
 			if (MetaData->m_pcName && MetaData->m_pcName[0] != '\0')
 			{
-				OutMetaData.MetaData.Find(TEXT("TechSoftName"));
+				OutMetaData.MetaData.Emplace(TEXT("TechSoftName"), UTF8_TO_TCHAR(MetaData->m_pcName));
 			}
 
 			TechSoft::TUniqueTSObj<A3DMiscAttributeData, A3DMiscAttribute> AttributeData(A3DMiscAttributeGet);
@@ -867,7 +874,7 @@ namespace CADLibrary
 
 		switch (EntityType)
 		{
-		case EComponentType::Occurrence:
+		case EComponentType::Reference:
 		{
 			FString* Name = MetaData.Find(TEXT("Name"));
 			if (Name)
@@ -1101,40 +1108,59 @@ namespace CADLibrary
 		}
 	}
 
-	void FTechSoftFileParser::TraverseTransformation3D(const A3DMiscCartesianTransformation* CartesianTransformation)
+	FMatrix FTechSoftFileParser::TraverseTransformation3D(const A3DMiscCartesianTransformation* CartesianTransformation)
 	{
-		// TODO
-
 		if (CartesianTransformation)
 		{
-			TechSoft::TUniqueTSObj<A3DMiscCartesianTransformationData, A3DEntity> CartesianTransformationData(CartesianTransformation, A3DMiscCartesianTransformationGet);
+			TechSoft::TUniqueTSObj<A3DMiscCartesianTransformationData, A3DEntity> CartesianTransformationData(CartesianTransformation, A3DMiscCartesianTransformationGet, TechSoftFileParserImpl::InitializeData);
+
 			if (CartesianTransformationData.IsValid())
 			{
-				//trsf->SetAttribute("m_ucBehaviour", (int)(CartesianTransformationData.m_ucBehaviour));
-				//"m_sOrigin", CartesianTransformationData.m_sOrigin, trsf);
-				//"m_sXVector", CartesianTransformationData.m_sXVector, trsf);
-				//"m_sYVector", CartesianTransformationData.m_sYVector, trsf);
-				//"m_sScale", CartesianTransformationData.m_sScale, trsf);
+				FVector Origin(CartesianTransformationData->m_sOrigin.m_dX, CartesianTransformationData->m_sOrigin.m_dY, CartesianTransformationData->m_sOrigin.m_dZ);
+				FVector XVector(CartesianTransformationData->m_sXVector.m_dX, CartesianTransformationData->m_sXVector.m_dY, CartesianTransformationData->m_sXVector.m_dZ);;
+				FVector YVector(CartesianTransformationData->m_sYVector.m_dX, CartesianTransformationData->m_sYVector.m_dY, CartesianTransformationData->m_sYVector.m_dZ);;
+
+				FVector ZVector = XVector ^ YVector;
+				FMatrix Matrix(XVector, YVector, ZVector, FVector::Zero());
+
+				FMatrix Scale = FMatrix::Identity;
+				Scale.M[0][0] = CartesianTransformationData->m_sScale.m_dX;
+				Scale.M[1][1] = CartesianTransformationData->m_sScale.m_dY;
+				Scale.M[2][2] = CartesianTransformationData->m_sScale.m_dZ;
+				Matrix = Matrix * Scale;
+				
+				Matrix = Matrix.ConcatTranslation(Origin);
+				
+				return Matrix;
 			}
 		}
+		return FMatrix::Identity;
 	}
 
-	void FTechSoftFileParser::TraverseGeneralTransformation(const A3DMiscGeneralTransformation* GeneralTransformation)
+	FMatrix FTechSoftFileParser::TraverseGeneralTransformation(const A3DMiscGeneralTransformation* GeneralTransformation)
 	{
-		// TODO
-
 		TechSoft::TUniqueTSObj<A3DMiscGeneralTransformationData, A3DMiscGeneralTransformation> GeneralTransformationData(GeneralTransformation, A3DMiscGeneralTransformationGet);
 		if (GeneralTransformationData.IsValid())
 		{
-			//traverseDoubles("m_adCoeff", 16, GeneralTransformationData.m_adCoeff, trsf);
+			FMatrix Matrix;
+			int32 Index = 0;
+			for (int32 Andex = 0; Andex < 4; ++Andex)
+			{
+				for (int32 Bndex = 0; Bndex < 4; ++Bndex, ++Index)
+				{
+					Matrix.M[Andex][Bndex] = GeneralTransformationData->m_adCoeff[Index];
+				}
+			}
+			return Matrix;
 		}
+		return FMatrix::Identity;
 	}
 
-	void FTechSoftFileParser::TraverseTransformation(const A3DMiscCartesianTransformation* Transformation3D)
+	FMatrix FTechSoftFileParser::TraverseTransformation(const A3DMiscCartesianTransformation* Transformation3D)
 	{
 		if (Transformation3D == NULL)
 		{
-			return;
+			return FMatrix::Identity;
 		}
 
 		A3DEEntityType Type = kA3DTypeUnknown;
@@ -1142,21 +1168,23 @@ namespace CADLibrary
 
 		if (Type == kA3DTypeMiscCartesianTransformation)
 		{
-			TraverseTransformation3D(Transformation3D);
+			return TraverseTransformation3D(Transformation3D);
 		}
 		else if (Type == kA3DTypeMiscGeneralTransformation)
 		{
-			TraverseGeneralTransformation(Transformation3D);
+			return TraverseGeneralTransformation(Transformation3D);
 		}
+		return FMatrix::Identity;
 	}
 
-	void FTechSoftFileParser::TraverseCoordinateSystem(const A3DRiCoordinateSystem* CoordinateSystem)
+	FMatrix FTechSoftFileParser::TraverseCoordinateSystem(const A3DRiCoordinateSystem* CoordinateSystem)
 	{
 		TechSoft::TUniqueTSObj<A3DRiCoordinateSystemData, A3DRiCoordinateSystem> CoordinateSystemData(CoordinateSystem, A3DRiCoordinateSystemGet);
 		if (CoordinateSystemData.IsValid())
 		{
-			TraverseTransformation3D(CoordinateSystemData->m_pTransformation);
+			return TraverseTransformation3D(CoordinateSystemData->m_pTransformation);
 		}
+		return FMatrix::Identity;
 	}
 
 	void FTechSoftFileParser::TraverseLayer(const A3DAsmProductOccurrence* Occurrence)

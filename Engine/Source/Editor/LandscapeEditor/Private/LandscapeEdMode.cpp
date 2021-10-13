@@ -347,6 +347,7 @@ ULandscapeLayerInfoObject* FEdModeLandscape::GetSelectedLandscapeLayerInfo() con
 
 void FEdModeLandscape::SetLandscapeInfo(ULandscapeInfo* InLandscapeInfo)
 {
+	check(!InLandscapeInfo || InLandscapeInfo->SupportsLandscapeEditing());
 	if (CurrentToolTarget.LandscapeInfo != InLandscapeInfo)
 	{
 		{
@@ -373,7 +374,7 @@ void FEdModeLandscape::Enter()
 		{
 			if (ULandscapeInfo* LandscapeInfo = It.Value())
 			{
-				if (ALandscape* Landscape = IsValid(LandscapeInfo) ? LandscapeInfo->LandscapeActor.Get() : nullptr)
+				if (ALandscape* Landscape = (IsValid(LandscapeInfo) && LandscapeInfo->SupportsLandscapeEditing()) ? LandscapeInfo->LandscapeActor.Get() : nullptr)
 				{
 					Landscape->RegisterLandscapeEdMode(this);
 				}
@@ -388,7 +389,7 @@ void FEdModeLandscape::Enter()
 	UpdateToolModes();
 
 	ALandscapeProxy* SelectedLandscape = GEditor->GetSelectedActors()->GetTop<ALandscapeProxy>();
-	if (SelectedLandscape)
+	if (SelectedLandscape && SelectedLandscape->GetLandscapeInfo()->SupportsLandscapeEditing())
 	{
 		SetLandscapeInfo(SelectedLandscape->GetLandscapeInfo());
 		GEditor->SelectNone(false, true);
@@ -401,13 +402,19 @@ void FEdModeLandscape::Enter()
 
 	for (TActorIterator<ALandscapeGizmoActiveActor> It(GetWorld()); It; ++It)
 	{
-		CurrentGizmoActor = *It;
-		break;
+		ALandscapeGizmoActiveActor* GizmoActor = *It;
+		if (GizmoActor->HasAnyFlags(RF_Transient))
+		{
+			CurrentGizmoActor = *It;
+			break;
+		}
 	}
 
 	if (!CurrentGizmoActor.IsValid())
 	{
-		CurrentGizmoActor = GetWorld()->SpawnActor<ALandscapeGizmoActiveActor>();
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.ObjectFlags |= RF_Transient;
+		CurrentGizmoActor = GetWorld()->SpawnActor<ALandscapeGizmoActiveActor>(SpawnParams);
 		CurrentGizmoActor->ImportFromClipboard();
 	}
 
@@ -580,7 +587,7 @@ void FEdModeLandscape::Exit()
 		{
 			if (ULandscapeInfo* LandscapeInfo = It.Value())
 			{
-				if (ALandscape* Landscape = IsValid(LandscapeInfo) ? LandscapeInfo->LandscapeActor.Get() : nullptr)
+				if (ALandscape* Landscape = (IsValid(LandscapeInfo) && LandscapeInfo->SupportsLandscapeEditing()) ? LandscapeInfo->LandscapeActor.Get() : nullptr)
 				{
 					Landscape->UnregisterLandscapeEdMode();
 				}
@@ -2032,7 +2039,7 @@ int32 FEdModeLandscape::UpdateLandscapeList()
 		for (auto It = LandscapeInfoMap.Map.CreateIterator(); It; ++It)
 		{
 			ULandscapeInfo* LandscapeInfo = It.Value();
-			if (IsValid(LandscapeInfo))
+			if (IsValid(LandscapeInfo) && LandscapeInfo->SupportsLandscapeEditing())
 			{
 				if (ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get())
 				{
@@ -2758,15 +2765,17 @@ bool FEdModeLandscape::Select(AActor* InActor, bool bInSelected)
 	if (InActor->IsA<ALandscapeProxy>() && bInSelected)
 	{
 		ALandscapeProxy* Landscape = CastChecked<ALandscapeProxy>(InActor);
-
-		if (CurrentToolTarget.LandscapeInfo != Landscape->GetLandscapeInfo())
+		if (Landscape->GetLandscapeInfo()->SupportsLandscapeEditing())
 		{
-			SetLandscapeInfo(Landscape->GetLandscapeInfo());
-		
-			// If we were in "New Landscape" mode and we select a landscape then switch to editing mode
-			if (NewLandscapePreviewMode != ENewLandscapePreviewMode::None)
+			if (CurrentToolTarget.LandscapeInfo != Landscape->GetLandscapeInfo())
 			{
-				SetCurrentTool("Sculpt");
+				SetLandscapeInfo(Landscape->GetLandscapeInfo());
+
+				// If we were in "New Landscape" mode and we select a landscape then switch to editing mode
+				if (NewLandscapePreviewMode != ENewLandscapePreviewMode::None)
+				{
+					SetCurrentTool("Sculpt");
+				}
 			}
 		}
 	}

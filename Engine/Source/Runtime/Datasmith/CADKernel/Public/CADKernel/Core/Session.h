@@ -17,6 +17,7 @@ namespace CADKernel
 
 		double GeometricTolerance;
 		FDatabase Database;
+		int32 LastHostId;
 
 	public:
 #ifdef CADKERNEL_DEV
@@ -114,6 +115,24 @@ namespace CADKernel
 			return Database.SpawnEntityIdent((TSharedPtr<FEntity>&) SelectedEntity, bForceSpawning);
 		}
 
+		int32 GetLastHostId() const 
+		{
+			return LastHostId;
+		}
+
+		int32 NewHostId()
+		{
+			return ++LastHostId;
+		}
+
+		/**
+		 * For stitching purpose, stitching can generate new body needing a host id. 
+		 * To avoid duplicate, the first generated host id can be set.
+		 */
+		void SetFirstNewHostId(int32 StartHostId)
+		{
+			LastHostId = StartHostId;
+		}
 	};
 
 } // namespace CADKernel

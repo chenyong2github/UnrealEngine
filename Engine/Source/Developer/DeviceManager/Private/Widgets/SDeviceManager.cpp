@@ -62,27 +62,27 @@ void SDeviceManager::Construct(const FArguments& InArgs, const TSharedRef<ITarge
 
 	TabManager->RegisterTabSpawner(DeviceBrowserTabId, FOnSpawnTab::CreateRaw(this, &SDeviceManager::HandleTabManagerSpawnTab, DeviceBrowserTabId))
 		.SetDisplayName(LOCTEXT("DeviceBrowserTabTitle", "Device Browser"))
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "DeviceDetails.Tabs.Tools"))
+		.SetIcon(FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Settings"))
 		.SetGroup(AppMenuGroup);
 
 	TabManager->RegisterTabSpawner(DeviceDetailsTabId, FOnSpawnTab::CreateRaw(this, &SDeviceManager::HandleTabManagerSpawnTab, DeviceDetailsTabId))
 		.SetDisplayName(LOCTEXT("DeviceDetailsTabTitle", "Device Details"))
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "DeviceDetails.Tabs.Tools"))
+		.SetIcon(FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Settings"))
 		.SetGroup(AppMenuGroup);
 
 	TabManager->RegisterTabSpawner(DeviceAppsTabId, FOnSpawnTab::CreateRaw(this, &SDeviceManager::HandleTabManagerSpawnTab, DeviceAppsTabId))
 		.SetDisplayName(LOCTEXT("DeviceAppsTabTitle", "Deployed Apps"))
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "DeviceDetails.Tabs.Tools"))
+		.SetIcon(FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Settings"))
 		.SetGroup(AppMenuGroup);
 
 	TabManager->RegisterTabSpawner(DeviceProcessesTabId, FOnSpawnTab::CreateRaw(this, &SDeviceManager::HandleTabManagerSpawnTab, DeviceProcessesTabId))
 		.SetDisplayName(LOCTEXT("DeviceProcessesTabTitle", "Running Processes"))
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "DeviceDetails.Tabs.Tools"))
+		.SetIcon(FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Settings"))
 		.SetGroup(AppMenuGroup);
 
 	TabManager->RegisterTabSpawner(DeviceToolbarTabId, FOnSpawnTab::CreateRaw(this, &SDeviceManager::HandleTabManagerSpawnTab, DeviceToolbarTabId))
 		.SetDisplayName(LOCTEXT("DeviceToolbarTabTitle", "Toolbar"))
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "DeviceDetails.Tabs.Tools"))
+		.SetIcon(FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Settings"))
 		.SetGroup(AppMenuGroup);
 
 	// create tab layout

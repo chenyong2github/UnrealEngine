@@ -2,13 +2,22 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "Serialization/Archive.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "Serialization/LargeMemoryReader.h"
 #include "Templates/RefCounting.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
 
 class FUObjectThreadContext;
 class FLinkerLoad;
+class FProperty;
+class UObject;
 struct FObjectImport;
 struct FObjectExport;
 
@@ -198,11 +207,10 @@ public:
 		uint8* Data;
 		int64 Size;
 		int64 HeaderSize;
-		int64 StartOffset;		
+		int64 StartOffset;
 
 		FPackageData()
-			: Data(nullptr)
-			, Size(0)
+			: Size(0)
 			, HeaderSize(0)
 			, StartOffset(0)
 		{}
@@ -234,19 +242,26 @@ public:
 		DebugDataStack.Pop();
 	}
 #endif
-	//~ End FArchive Interface		
+	//~ End FArchive Interface
 
-	/** Compares the contents of this archive with the package on disk. Dumps all differences to log. */
-	void CompareWith(const TCHAR* InFilename, const int64 TotalHeaderSize, const TCHAR* CallstackCutoffText, const int32 MaxDiffsToLog, TMap<FName, FArchiveDiffStats>& OutStats);
+	/** Compares this archive with the given bytes from disk or FPackageData. Dumps all differences to log. */
+	void CompareWith(const TCHAR* InFilename, const int64 TotalHeaderSize, const TCHAR* CallstackCutoffText,
+		const int32 MaxDiffsToLog, TMap<FName, FArchiveDiffStats>& OutStats);
+	void CompareWith(const FPackageData& SourcePackage, const TCHAR* FileDisplayName, const int64 TotalHeaderSize,
+		const TCHAR* CallstackCutoffText, const int32 MaxDiffsToLog, TMap<FName, FArchiveDiffStats>& OutStats);
 
-	/** Generates a map of all differences between the package on disk and this file. */
-	bool GenerateDiffMap(const TCHAR* InFilename, int64 TotalHeaderSize, int32 MaxDiffsToFind, FArchiveDiffMap& OutDiffMap);	
+	/** Generates a map of all differences between this archive and the given bytes from disk or FPackageData. */
+	bool GenerateDiffMap(const TCHAR* InFilename, int64 TotalHeaderSize, int32 MaxDiffsToFind, FArchiveDiffMap& OutDiffMap);
+	bool GenerateDiffMap(const FPackageData& SourcePackage, int64 TotalHeaderSize, int32 MaxDiffsToFind,
+		FArchiveDiffMap& OutDiffMap);
 
-	/** Compares the specified file on disk with the provided buffer */
+	/** Compares the provided buffer with the given bytes from disk or FPackageData. */
 	static bool IsIdentical(const TCHAR* InFilename, int64 BufferSize, const uint8* BufferData);
+	static bool IsIdentical(const FPackageData& SourcePackage, int64 BufferSize, const uint8* BufferData);
 
 	/** Helper function to load package contents into memory. Supports EDL packages. */
-	static bool LoadPackageIntoMemory(const TCHAR* InFilename, FPackageData& OutPackageData);
+	static bool LoadPackageIntoMemory(const TCHAR* InFilename, FPackageData& OutPackageData,
+		TUniquePtr<uint8>& OutLoadedBytes);
 };
 
 class COREUOBJECT_API FArchiveStackTraceReader : public FLargeMemoryReader

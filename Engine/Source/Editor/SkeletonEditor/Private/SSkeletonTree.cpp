@@ -2135,6 +2135,11 @@ void SSkeletonTree::PostDuplicateSocket(UObject* InAttachedObject, const FName& 
 	CreateFromSkeleton();
 }
 
+void SSkeletonTree::PostSetSocketParent()
+{
+	CreateFromSkeleton();
+}
+
 void RecursiveSetLODChange(UDebugSkelMeshComponent* PreviewComponent, TSharedPtr<ISkeletonTreeItem> TreeRow)
 {
 	if (TreeRow->IsOfType<FSkeletonTreeBoneItem>())

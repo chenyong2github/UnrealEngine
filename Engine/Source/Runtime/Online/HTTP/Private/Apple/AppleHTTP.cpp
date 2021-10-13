@@ -358,7 +358,7 @@ bool FAppleHttpRequest::ProcessRequest()
 	}
 	else if (!FHttpModule::Get().GetHttpManager().IsDomainAllowed(GetURL()))
 	{
-		UE_LOG(LogHttp, Warning, TEXT("ProcessRequest failed. URL '%s' is not using a whitelisted domain. %p"), *GetURL(), this);
+		UE_LOG(LogHttp, Warning, TEXT("ProcessRequest failed. URL '%s' is not using an allowed domain. %p"), *GetURL(), this);
 	}
 	else
 	{

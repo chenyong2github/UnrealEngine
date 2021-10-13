@@ -276,6 +276,8 @@ EAssetRenameResult FAssetRenameManager::RenameAssetsWithDialog(const TArray<FAss
 
 void FAssetRenameManager::FindSoftReferencesToObject(FSoftObjectPath TargetObject, TArray<UObject*>& ReferencingObjects) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FAssetRenameManager::FindSoftReferencesToObject);
+
 	TArray<FAssetRenameDataWithReferencers> AssetsToRename;
 	AssetsToRename.Emplace(FAssetRenameDataWithReferencers(FAssetRenameData(TargetObject, TargetObject, true)));
 
@@ -299,6 +301,8 @@ void FAssetRenameManager::FindSoftReferencesToObject(FSoftObjectPath TargetObjec
 
 void FAssetRenameManager::FindSoftReferencesToObjects(const TArray<FSoftObjectPath>& TargetObjects, TMap<FSoftObjectPath, TArray<UObject*>>& ReferencingObjects) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FAssetRenameManager::FindSoftReferencesToObjects);
+
 	TArray<FAssetRenameDataWithReferencers> AssetsToRename;
 	for (const FSoftObjectPath& TargetObject : TargetObjects)
 	{
@@ -572,7 +576,7 @@ struct FSoftObjectPathRenameSerializer : public FArchiveUObject
 
 			ThreadContext.GetSerializationOptions(ReferencingPackageName, ReferencingPropertyName, CollectType, SerializeType, this);
 
-			if (CollectType == ESoftObjectPathCollectType::NeverCollect)
+			if (CollectType == ESoftObjectPathCollectType::NeverCollect || CollectType == ESoftObjectPathCollectType::NonPackage)
 			{
 				return *this;
 			}

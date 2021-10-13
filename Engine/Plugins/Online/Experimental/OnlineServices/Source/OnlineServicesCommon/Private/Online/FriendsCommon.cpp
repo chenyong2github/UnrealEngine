@@ -7,14 +7,13 @@
 namespace UE::Online {
 
 FFriendsCommon::FFriendsCommon(FOnlineServicesCommon& InServices)
-	: TOnlineComponent(TEXT("Friends"), InServices.AsShared())
-	, Services(InServices)
+	: TOnlineComponent(TEXT("Friends"), InServices)
 {
 }
 
 TOnlineAsyncOpHandle<FQueryFriends> FFriendsCommon::QueryFriends(FQueryFriends::Params&& Params)
 {
-	TOnlineAsyncOp<FQueryFriends>& Operation = Services.OpCache.GetOp<FQueryFriends>(MoveTemp(Params));
+	TOnlineAsyncOp<FQueryFriends>& Operation = GetOp<FQueryFriends>(MoveTemp(Params));
 	Operation.SetError(Errors::Unimplemented());
 	return Operation.GetHandle();
 }

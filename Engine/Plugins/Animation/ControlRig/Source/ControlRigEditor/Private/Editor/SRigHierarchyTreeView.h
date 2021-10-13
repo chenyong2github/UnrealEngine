@@ -23,7 +23,7 @@ struct CONTROLRIGEDITOR_API FRigTreeDisplaySettings
 		bShowControls = true;
 		bShowNulls = true;
 		bShowRigidBodies = true;
-		bShowSockets = true;
+		bShowReferences = true;
 		bShowDynamicHierarchy = false;
 	}
 	
@@ -50,8 +50,8 @@ struct CONTROLRIGEDITOR_API FRigTreeDisplaySettings
 	/** Whether or not to show rigidbodies in the hierarchy */
 	bool bShowRigidBodies;
 
-	/** Whether or not to show sockets in the hierarchy */
-	bool bShowSockets;
+	/** Whether or not to show references in the hierarchy */
+	bool bShowReferences;
 
 	/** Whether or not to show the static or dynamic hierarchy */
 	bool bShowDynamicHierarchy;

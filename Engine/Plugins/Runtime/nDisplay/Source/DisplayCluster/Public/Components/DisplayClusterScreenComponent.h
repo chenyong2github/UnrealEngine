@@ -41,7 +41,7 @@ protected:
 
 #if WITH_EDITORONLY_DATA
 protected:
-	friend class FDisplayClusterConfiguratorScreenDetailCustomization;
+	friend class FDisplayClusterConfiguratorScreenDetailsCustomization;
 
 	/** Adjust the size of the screen. */
 	UPROPERTY(EditDefaultsOnly, Category = "Screen Size", meta = (DisplayName = "Size", AllowPreserveRatio))

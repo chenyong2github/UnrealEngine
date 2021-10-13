@@ -32,7 +32,6 @@
 #include "EdGraphSchema_K2.h"
 #include "K2Node_FunctionEntry.h"
 #include "EditorStyleSet.h"
-#include "BlueprintEditorSettings.h"
 #include "Framework/Docking/TabManager.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "WorkspaceMenuStructure.h"
@@ -2059,11 +2058,8 @@ void FFindInBlueprintSearchManager::Initialize()
 		BuildCache();
 	}
 
-	// Register global find results tabs if the feature is enabled.
-	if (GetDefault<UBlueprintEditorSettings>()->bHostFindInBlueprintsInGlobalTab)
-	{
-		EnableGlobalFindResults(true);
-	}
+	// Register global find results tabs.
+	EnableGlobalFindResults(true);
 }
 
 void FFindInBlueprintSearchManager::OnAssetAdded(const FAssetData& InAssetData)

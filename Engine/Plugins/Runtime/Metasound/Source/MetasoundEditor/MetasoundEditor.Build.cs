@@ -31,6 +31,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"ApplicationCore",
 					"AudioMixer",
+					"AudioWidgets",
 					"ClassViewer",
 					"ContentBrowser",
 					"Core",

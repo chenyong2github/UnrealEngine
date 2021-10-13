@@ -42,7 +42,7 @@ FSlateIcon UFractureToolGenerateAsset::GetToolIcon() const
 
 void UFractureToolGenerateAsset::RegisterUICommand(FFractureEditorCommands* BindingContext)
 {
-	UI_COMMAND_EXT(BindingContext, UICommandInfo, "GenerateAsset", "New", "Generate Asset", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND_EXT(BindingContext, UICommandInfo, "GenerateAsset", "New", "Generate a geometry collection asset from static meshes contained in selected actors.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	BindingContext->GenerateAsset = UICommandInfo;
 }
 
@@ -74,7 +74,7 @@ void UFractureToolGenerateAsset::OpenGenerateAssetDialog(TArray<AActor*>& Actors
 	SAssignNew(PickAssetPathWindow, SWindow)
 		.Title(LOCTEXT("SelectPath", "Select Path"))
 		.ToolTipText(LOCTEXT("SelectPathTooltip", "Select the path where the Geometry Collection will be created at"))
-		.ClientSize(FVector2D(400, 400));
+		.ClientSize(FVector2D(500, 500));
 
 	// NOTE - the parent window has to completely exist before this one does so the parent gets set properly.
 	// This is why we do not just put this in the Contents()[ ... ] of the Window above.
@@ -363,7 +363,7 @@ FSlateIcon UFractureToolResetAsset::GetToolIcon() const
 
 void UFractureToolResetAsset::RegisterUICommand(FFractureEditorCommands* BindingContext)
 {
-	UI_COMMAND_EXT(BindingContext, UICommandInfo, "ResetAsset", "Reset", "Reset", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND_EXT(BindingContext, UICommandInfo, "ResetAsset", "Reset", "Reset selected geometry collection(s) to their initial unfractured state.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	BindingContext->ResetAsset = UICommandInfo;
 }
 

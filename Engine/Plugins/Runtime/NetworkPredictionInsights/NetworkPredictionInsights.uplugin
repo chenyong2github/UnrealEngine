@@ -20,7 +20,7 @@
 			"Name": "NetworkPredictionInsights",
 			"Type": "EditorAndProgram",
 			"LoadingPhase": "Default",
-			"WhitelistPrograms": [
+			"ProgramAllowList": [
 				"UnrealInsights"
 			]
 		}

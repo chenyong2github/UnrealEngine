@@ -310,6 +310,14 @@ bool UWorldPartitionRuntimeLevelStreamingCell::CanAddToWorld() const
 		   (LevelStreaming->GetCurrentState() == ULevelStreaming::ECurrentState::MakingVisible);
 }
 
+void UWorldPartitionRuntimeLevelStreamingCell::SetStreamingPriority(int32 InStreamingPriority) const
+{
+	if (LevelStreaming)
+	{
+		LevelStreaming->SetPriority(InStreamingPriority);
+	}
+}
+
 ULevel* UWorldPartitionRuntimeLevelStreamingCell::GetLevel() const 
 {
 	return LevelStreaming ? LevelStreaming->GetLoadedLevel() : nullptr;

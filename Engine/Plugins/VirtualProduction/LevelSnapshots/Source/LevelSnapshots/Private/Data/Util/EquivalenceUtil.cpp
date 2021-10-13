@@ -8,12 +8,20 @@
 #include "Data/CustomSerialization/CustomObjectSerializationWrapper.h"
 #include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsModule.h"
+#include "PropertyComparisonParams.h"
+#include "PropertyInfoHelpers.h"
+#include "SnapshotCustomVersion.h"
+#include "SnapshotRestorability.h"
+#include "CustomSerialization/CustomObjectSerializationWrapper.h"
+#include "SnapshotUtil.h"
 #include "PropertyInfoHelpers.h"
 #include "Restorability/PropertyComparisonParams.h"
 #include "Restorability/SnapshotRestorability.h"
 
 #include "Components/ActorComponent.h"
 #include "EngineUtils.h"
+#include "SnapshotUtil.h"
+#include "CustomSerialization/CustomObjectSerializationWrapper.h"
 #include "GameFramework/Actor.h"
 #include "UObject/TextProperty.h"
 #include "UObject/UnrealType.h"
@@ -30,7 +38,7 @@ namespace
 		for (TFieldIterator<FProperty> FieldIt(ClassToIterate); FieldIt; ++FieldIt)
 		{
 			// Ask external modules about the property
-			const FPropertyComparisonParams Params { ClassToIterate, *FieldIt, SnapshotObject, WorldObject, SnapshotObject, WorldObject, SnapshotActor, WorldActor} ;
+			const FPropertyComparisonParams Params { WorldData, ClassToIterate, *FieldIt, SnapshotObject, WorldObject, SnapshotObject, WorldObject, SnapshotActor, WorldActor} ;
 			const IPropertyComparer::EPropertyComparison ComparisonResult = Module.ShouldConsiderPropertyEqual(PropertyComparers, Params);
 			
 			switch (ComparisonResult)
@@ -71,23 +79,13 @@ namespace
 		return bFailedToMatchAllObjects;
 	}
 
-	UActorComponent* TryFindMatchingComponent(UActorComponent* CounterpartComponentToMatch, const TInlineComponentArray<UActorComponent*>& ActorComponents)
+	UActorComponent* TryFindMatchingComponent(AActor* ActorToSearchOn, UActorComponent* CounterpartComponentToMatch)
 	{
-		const FName ComponentName = CounterpartComponentToMatch->GetFName();
-		UActorComponent* const* PossibleResult = ActorComponents.FindByPredicate([ComponentName](UActorComponent* Component)
-		{
-			return Component->GetFName().IsEqual(ComponentName);
-		});
-		if (!PossibleResult)
-		{
-			return nullptr;
-		}
-
-		UActorComponent* MatchedComponent = *PossibleResult;
-		if (MatchedComponent->GetClass() != CounterpartComponentToMatch->GetClass())
+		UActorComponent* MatchedComponent = SnapshotUtil::FindMatchingComponent(ActorToSearchOn, CounterpartComponentToMatch);
+		if (MatchedComponent && MatchedComponent->GetClass() != CounterpartComponentToMatch->GetClass())
 		{
 			UE_LOG(LogLevelSnapshots, Error, TEXT("Components named %s were matched to each other but had differing classes (%s and %s)."),
-				*ComponentName.ToString(),
+				*CounterpartComponentToMatch->GetName(),
 				*MatchedComponent->GetClass()->GetName(),
 				*CounterpartComponentToMatch->GetClass()->GetName()
 			);
@@ -122,17 +120,14 @@ namespace
 
 void SnapshotUtil::IterateComponents(AActor* SnapshotActor, AActor* WorldActor, FHandleMatchedActorComponent OnComponentsMatched, FHandleUnmatchedActorComponent OnSnapshotComponentUnmatched, FHandleUnmatchedActorComponent OnWorldComponentUnmatched)
 {
-	TInlineComponentArray<UActorComponent*> WorldComponents(WorldActor);
-	TInlineComponentArray<UActorComponent*> SnapshotComponents(SnapshotActor);
-	
-	for (UActorComponent* WorldComp : WorldComponents)
+	for (UActorComponent* WorldComp : WorldActor->GetComponents())
 	{
 		if (!FSnapshotRestorability::IsComponentDesirableForCapture(WorldComp))
 		{
 			continue;
 		}
 		
-		if (UActorComponent* SnapshotMatchedComp = TryFindMatchingComponent(WorldComp, SnapshotComponents))
+		if (UActorComponent* SnapshotMatchedComp = TryFindMatchingComponent(SnapshotActor, WorldComp))
 		{
 			OnComponentsMatched(SnapshotMatchedComp, WorldComp);
 		}
@@ -142,19 +137,50 @@ void SnapshotUtil::IterateComponents(AActor* SnapshotActor, AActor* WorldActor, 
 		}
 	}
 
-	for (UActorComponent* SnapshotComp : SnapshotComponents)
+	for (UActorComponent* SnapshotComp : SnapshotActor->GetComponents())
 	{
 		if (FSnapshotRestorability::IsComponentDesirableForCapture(SnapshotComp)
-			&& TryFindMatchingComponent(SnapshotComp, WorldComponents) == nullptr)
+			&& TryFindMatchingComponent(WorldActor, SnapshotComp) == nullptr)
 		{
 			OnSnapshotComponentUnmatched(SnapshotComp);
 		}
 	}
 }
 
+namespace
+{
+	FString ExtractRootToLeafComponentPath(const FSoftObjectPath& ComponentPath)
+	{
+		const TOptional<int32> FirstDotAfterActorName = SnapshotUtil::FindDotAfterActorName(ComponentPath);
+		// PersistentLevel.SomeActor.SomeParentComp.SomeChildComp becomes SomeParentComp.SomeChildComp
+		return ensure(FirstDotAfterActorName) ? ComponentPath.GetSubPathString().RightChop(*FirstDotAfterActorName) : FString();
+	}
+}
+
+UActorComponent* SnapshotUtil::FindMatchingComponent(AActor* ActorToSearchOn, const FSoftObjectPath& ComponentPath)
+{
+	const FString RootToLeafPath = ExtractRootToLeafComponentPath(ComponentPath);
+	if (!ensure(!RootToLeafPath.IsEmpty()))
+	{
+		return nullptr;
+	}
+
+	const FName ComponentName = *SnapshotUtil::ExtractLastSubobjectName(ComponentPath);
+	for (UActorComponent* Component : ActorToSearchOn->GetComponents())
+	{
+		if (Component->GetFName() == ComponentName // Not logically required but reduces number of string operations
+			&& RootToLeafPath.Equals( ExtractRootToLeafComponentPath(Component)))
+		{
+			return Component;
+		}
+	}
+
+	return nullptr;
+}
+
 bool SnapshotUtil::HasOriginalChangedPropertiesSinceSnapshotWasTaken(const FWorldSnapshotData& WorldData, AActor* SnapshotActor, AActor* WorldActor)
 {
-	SCOPED_SNAPSHOT_CORE_TRACE(HasOriginalChangedSinceSnapshot);
+	SCOPED_SNAPSHOT_CORE_TRACE(HasOriginalChangedPropertiesSinceSnapshotWasTaken);
 	
 	if (!IsValid(SnapshotActor) || !IsValid(WorldActor))
 	{

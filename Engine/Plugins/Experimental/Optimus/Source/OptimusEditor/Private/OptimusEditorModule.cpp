@@ -113,8 +113,8 @@ void FOptimusEditorModule::RegisterPropertyCustomizations()
 	};
 
 	RegisterPropertyCustomization(FOptimusDataTypeRef::StaticStruct()->GetFName(), &FOptimusDataTypeRefCustomization::MakeInstance);
-	RegisterPropertyCustomization(FOptimusResourceContext::StaticStruct()->GetFName(), &FOptimusResourceContextCustomization::MakeInstance);
-	RegisterPropertyCustomization(FOptimusNestedResourceContext::StaticStruct()->GetFName(), &FOptimusNestedResourceContextCustomization::MakeInstance);
+	RegisterPropertyCustomization(FOptimusDataDomain::StaticStruct()->GetFName(), &FOptimusDataDomainCustomization::MakeInstance);
+	RegisterPropertyCustomization(FOptimusMultiLevelDataDomain::StaticStruct()->GetFName(), &FOptimusMultiLevelDataDomainCustomization::MakeInstance);
 	RegisterPropertyCustomization(FOptimusType_ShaderText::StaticStruct()->GetFName(), &FOptimusType_ShaderTextCustomization::MakeInstance);
 }
 

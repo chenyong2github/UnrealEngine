@@ -279,7 +279,7 @@ FZenStoreWriter::FZenStoreWriter(
 
 	HttpClient->TryCreateProject(ProjectId, OplogId, AbsServerRoot, AbsEngineDir, AbsProjectDir);
 
-	PackageStoreOptimizer->Initialize(InTargetPlatform);
+	PackageStoreOptimizer->Initialize();
 
 	FPackageStoreManifest::FZenServerInfo& ZenServerInfo = PackageStoreManifest.EditZenServerInfo();
 	ZenServerInfo.HostName = HttpClient->GetHostName();
@@ -430,7 +430,21 @@ bool FZenStoreWriter::WriteAdditionalFile(const FAdditionalFileInfo& Info, const
 
 void FZenStoreWriter::WriteLinkerAdditionalData(const FLinkerAdditionalDataInfo& Info, const FIoBuffer& Data, const TArray<FFileRegion>& FileRegions)
 {
-	// Should not be called because bsLinkerAdditionalDataInSeparateArchive is false
+	// LinkerAdditionalData is not yet implemented in this writer; it is only used for VirtualizedBulkData which is not used in cooked content
+	checkNoEntry();
+}
+
+bool FZenStoreWriter::GetPreviousCookedBytes(FName PackageName, const ITargetPlatform* InTargetPlatform,
+	const TCHAR* SandboxFilename, FPreviousCookedBytesData& OutData)
+{
+	// GetCookCapabilities returns bDiffModeSupported == false, so GetPreviousCookedBytes should never be called
+	checkNoEntry();
+	return false;
+}
+
+void FZenStoreWriter::SetCookOutputLocation(EOutputLocation Location)
+{
+	// GetCookCapabilities returns bDiffModeSupported == false, so SetCookOutputLocation should never be called
 	checkNoEntry();
 }
 

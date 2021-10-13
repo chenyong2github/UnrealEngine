@@ -1808,7 +1808,7 @@ FString FFbxImporter::MakeName(const ANSICHAR* Name)
 
 FString FFbxImporter::MakeString(const ANSICHAR* Name)
 {
-	return FString(ANSI_TO_TCHAR(Name));
+	return FString(UTF8_TO_TCHAR(Name));
 }
 
 FName FFbxImporter::MakeNameForMesh(FString InName, FbxObject* FbxObject)

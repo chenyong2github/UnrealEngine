@@ -79,8 +79,17 @@ void UAnimBlueprintExtension::RequestExtensionsForNode(UAnimGraphNode_Base* InAn
             UAnimBlueprintExtension_PropertyAccess::StaticClass()
         };
 
-		if(InAnimGraphNode->InitialUpdateFunction.ResolveMember<UFunction>(InAnimGraphNode->GetBlueprintClassFromNode()) != nullptr ||
-			InAnimGraphNode->BecomeRelevantFunction.ResolveMember<UFunction>(InAnimGraphNode->GetBlueprintClassFromNode()) != nullptr)
+		// As this can be called when we have not regenerated the skeleton class, we need to be less conservative
+		// and request extensions if it *looks* like we have a valid reference, rather than a verified concrete ref.
+		// Later validation code will do the actual validation for us anyways and fail compilation if the reference is
+		// actually invalid.
+		auto MemberReferencePotentiallyValid = [](const FMemberReference& InMemberReference)
+		{
+			return InMemberReference.GetMemberGuid().IsValid() || InMemberReference.GetMemberName() != NAME_None;
+		};
+
+		if( MemberReferencePotentiallyValid(InAnimGraphNode->InitialUpdateFunction) ||
+			MemberReferencePotentiallyValid(InAnimGraphNode->BecomeRelevantFunction))
 		{
 			ExtensionClasses.Add(UAnimBlueprintExtension_NodeRelevancy::StaticClass());
 		}

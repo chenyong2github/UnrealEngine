@@ -525,6 +525,22 @@ public:
 	virtual bool IsPlayerMuted(const FString& PlayerName) const = 0;
 
 	/**
+	 * Mute or unmute a player in a given channel
+	 *
+	 * @param ChannelName Channel in which to mute the player
+	 * @param PlayerName Player to mute in channel
+	 * @param bMuted true if the player should be muted in the specified channel
+	 */
+	virtual void SetChannelPlayerMuted(const FString& ChannelName, const FString& PlayerName, bool bAudioMuted) = 0;
+
+	/**
+	 * @param ChannelName Channel in which the mute state will be checked
+	 * @param PlayerName Player to get the mute state of in channel
+	 * @return true if player is muted
+	 */
+	virtual bool IsChannelPlayerMuted(const FString& ChannelName, const FString& PlayerName) const = 0;
+
+	/**
 	 * Delegate triggered when a player's muted state is updated, usually as a result of calling SetPlayerMuted
 	 */
 	virtual FOnVoiceChatPlayerMuteUpdatedDelegate& OnVoiceChatPlayerMuteUpdated() = 0;

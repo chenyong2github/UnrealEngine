@@ -62,7 +62,7 @@ protected:
  *  reverse lookup tables that can be used during heavy scene updates
  *  of async asset compilation.
  */
-class FObjectCacheContext
+class ENGINE_API FObjectCacheContext
 {
 public:
 	TObjectCacheIterator<UPrimitiveComponent>   GetPrimitiveComponents();

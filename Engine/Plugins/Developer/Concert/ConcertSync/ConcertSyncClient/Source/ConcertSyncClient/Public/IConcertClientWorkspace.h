@@ -213,6 +213,11 @@ public:
 	virtual void RemoveWorkspaceCanProcessPackagesDelegate(FName InDelegateName) = 0;
 
 	/**
+	 * Returns true if the current named package is being reloaded by the package manager.
+	 */
+	virtual bool IsReloadingPackage(FName PackageName) const = 0;
+
+	/**
 	 * @return the key/value store shared by all clients.
 	 */
 	virtual IConcertClientDataStore& GetDataStore() = 0;

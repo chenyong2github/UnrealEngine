@@ -157,6 +157,7 @@ void FCustomSerializationDataWriter::WriteObjectAnnotation(const FObjectAnnotato
 	{
 		FMemoryWriter MemoryWriter(SerializationDataGetter_ReadWrite.Execute()->RootAnnotationData, true);
 		FObjectAndNameAsStringProxyArchive RootArchive(MemoryWriter, false);
+		WorldData_ReadOnly.GetSnapshotVersionInfo().ApplyToArchive(RootArchive);
 		Writer.Execute(RootArchive);
 	}
 }
@@ -195,8 +196,7 @@ int32 FCustomSerializationDataWriter::AddSubobjectSnapshot(UObject* Subobject)
 		MoveTemp(SubobjectData) // Not profiled
 		);
 	// Optimisation: Serialize into the allocated SerializationData directly avoiding a possibly large copy of the serialized data
-	FTakeWorldObjectSnapshotArchive Archive = FTakeWorldObjectSnapshotArchive::MakeArchiveForSavingWorldObject(SerializationData->Subobjects[SubobjectIndex], WorldData_ReadWrite, Subobject);
-	Subobject->Serialize(Archive);
+	FTakeWorldObjectSnapshotArchive::TakeSnapshot(SerializationData->Subobjects[SubobjectIndex], WorldData_ReadWrite, Subobject);
 	
 	CachedSubobjectMetaData.Add(MakeShared<FSnapshotSubobjectMetaDataManager>(Subobject, SubobjectIndex, WorldData_ReadWrite, SerializationDataGetter_ReadOnly, SerializationDataGetter_ReadWrite));
 

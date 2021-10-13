@@ -84,72 +84,10 @@ void UMovieScene::PostLoad()
 	Super::PostLoad();
 }
 
-
 void UMovieScene::Serialize( FArchive& Ar )
 {
 	Ar.UsingCustomVersion(FMovieSceneEvaluationCustomVersion::GUID);
 	Ar.UsingCustomVersion(FSequencerObjectVersion::GUID);
-
-#if WITH_EDITOR
-
-	// Perform optimizations for cooking
-	if (Ar.IsCooking())
-	{
-		for (int32 MasterTrackIndex = 0; MasterTrackIndex < MasterTracks.Num(); )
-		{
-			UMovieSceneTrack* MasterTrack = MasterTracks[MasterTrackIndex];
-			if (MasterTrack && MasterTrack->GetCookOptimizationFlags() == ECookOptimizationFlags::RemoveTrack)
-			{				
-				MasterTrack->RemoveForCook();
-				RemoveMasterTrack(*MasterTrack);
-				UE_LOG(LogMovieScene, Display, TEXT("Removing muted track: %s from: %s"), *MasterTrack->GetDisplayName().ToString(), *GetPathName());
-				continue;
-			}
-			++MasterTrackIndex;
-		}
-
-		for (int32 ObjectBindingIndex = 0; ObjectBindingIndex < ObjectBindings.Num(); )
-		{
-			bool bRemoveObject = false;
-
-			// First, look to remove the object
-			for (int32 TrackIndex = 0; TrackIndex < ObjectBindings[ObjectBindingIndex].GetTracks().Num(); ++TrackIndex)
-			{
-				UMovieSceneTrack* Track = ObjectBindings[ObjectBindingIndex].GetTracks()[TrackIndex];
-				if (Track && Track->GetCookOptimizationFlags() == ECookOptimizationFlags::RemoveObject)
-				{
-					bRemoveObject = true;
-					break;
-				}
-			}
-
-			if (bRemoveObject)
-			{
-				UE_LOG(LogMovieScene, Display, TEXT("Removing muted object and all of its tracks: %s from: %s"), *ObjectBindings[ObjectBindingIndex].GetName(), *GetPathName());
-				ObjectBindings.RemoveAt(ObjectBindingIndex);
-			}
-			else
-			{
-				// If the object wasn't removed, look to remove tracks
-				for (int32 TrackIndex = 0; TrackIndex < ObjectBindings[ObjectBindingIndex].GetTracks().Num(); )
-				{
-					UMovieSceneTrack* Track = ObjectBindings[ObjectBindingIndex].GetTracks()[TrackIndex];
-					if (Track && Track->GetCookOptimizationFlags() == ECookOptimizationFlags::RemoveTrack)
-					{
-						Track->RemoveForCook();
-						ObjectBindings[ObjectBindingIndex].RemoveTrack(*Track);
-						UE_LOG(LogMovieScene, Display, TEXT("Removing muted track: %s from: %s"), *Track->GetDisplayName().ToString(), *GetPathName());
-						continue;
-					}
-					++TrackIndex;
-				}
-				
-				++ObjectBindingIndex;
-			}
-		}
-	}
-
-#endif // WITH_EDITOR
 
 	// Serialize the MovieScene
 	Super::Serialize(Ar);
@@ -394,8 +332,13 @@ bool UMovieScene::ReplacePossessable( const FGuid& OldGuid, const FMovieScenePos
 		{	
 			Modify();
 
+			bool bNullPossessedObjectClass = true;
+#if WITH_EDITORONLY_DATA
+			bNullPossessedObjectClass = InNewPosessable.GetPossessedObjectClass() == nullptr;
+#endif
+
 			// Found it!
-			if (InNewPosessable.GetPossessedObjectClass() == nullptr)
+			if (bNullPossessedObjectClass)
 			{
 				// @todo: delete this when
 				// bool ReplacePossessable(const FGuid& OldGuid, const FGuid& NewGuid, const FString& Name)

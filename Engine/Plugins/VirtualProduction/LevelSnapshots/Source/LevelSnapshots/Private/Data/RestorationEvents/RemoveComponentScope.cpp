@@ -2,6 +2,7 @@
 
 #include "Data/RestorationEvents/RemoveComponentScope.h"
 
+#include "Components/ActorComponent.h"
 #include "LevelSnapshotsModule.h"
 #include "Components/ActorComponent.h"
 

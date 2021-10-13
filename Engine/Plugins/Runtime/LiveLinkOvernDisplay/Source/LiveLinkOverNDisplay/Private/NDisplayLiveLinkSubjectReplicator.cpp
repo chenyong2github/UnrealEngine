@@ -187,7 +187,7 @@ void FNDisplayLiveLinkSubjectReplicator::OnDataSynchronization(FArchive& Ar)
 				for (FLiveLinkSubjectKey& SubjectKey : ThisFramesSubjects)
 				{
 					const FName SubjectName = SubjectKey.SubjectName;
-					TSubclassOf<ULiveLinkRole> SubjectRole = LiveLinkClient->GetSubjectRole(SubjectKey);
+					TSubclassOf<ULiveLinkRole> SubjectRole = LiveLinkClient->GetSubjectRole_AnyThread(SubjectKey);
 
 					FLiveLinkSubjectFrameData SubjectFrameData;
 					if (LiveLinkClient->EvaluateFrame_AnyThread(SubjectName, SubjectRole, SubjectFrameData))

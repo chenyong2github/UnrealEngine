@@ -118,6 +118,11 @@ public:
 		}
 	}
 
+	virtual bool SupportsEncodeSpeed(FName Format) const override
+	{
+		return GetBaseFormatObject(Format)->SupportsEncodeSpeed(Format);
+	}
+
 	virtual uint16 GetVersion(FName Format, const FTextureBuildSettings* BuildSettings) const final
 	{
 		uint16 BaseVersion = GetBaseFormatObject(Format)->GetVersion(Format, BuildSettings);

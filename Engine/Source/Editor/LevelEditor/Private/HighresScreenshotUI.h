@@ -77,8 +77,10 @@ private:
 
 	void OnResolutionMultiplierSliderChanged( float NewValue )
 	{
-		Config.ResolutionMultiplierScale = NewValue;
-		Config.ResolutionMultiplier = FMath::RoundToFloat(FMath::Lerp(FHighResScreenshotConfig::MinResolutionMultipler, FHighResScreenshotConfig::MaxResolutionMultipler, NewValue));
+		Config.ResolutionMultiplier = NewValue;
+
+		// scale needs to be [0, 1.0]
+		Config.ResolutionMultiplierScale = (NewValue - FHighResScreenshotConfig::MinResolutionMultipler) / (FHighResScreenshotConfig::MaxResolutionMultipler - FHighResScreenshotConfig::MinResolutionMultipler);
 	}
 
 	void OnMaskEnabledChanged( ECheckBoxState NewValue )
@@ -143,7 +145,7 @@ private:
 
 	float GetResolutionMultiplierSlider() const
 	{
-		return Config.ResolutionMultiplierScale;
+		return Config.ResolutionMultiplier;
 	}
 
 	ECheckBoxState GetMaskEnabled() const

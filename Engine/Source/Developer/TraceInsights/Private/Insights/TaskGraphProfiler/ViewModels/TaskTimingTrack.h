@@ -57,9 +57,9 @@ private:
 
 	void BuildTasksSubMenu(FMenuBuilder& MenuBuilder);
 
-	void ContextMenu_ShowTaskDependecies_Execute();
-	bool ContextMenu_ShowTaskDependecies_CanExecute();
-	bool ContextMenu_ShowTaskDependecies_IsChecked();
+	void ContextMenu_ShowTaskDependencies_Execute();
+	bool ContextMenu_ShowTaskDependencies_CanExecute();
+	bool ContextMenu_ShowTaskDependencies_IsChecked();
 
 	void ContextMenu_ShowTaskPrerequisites_Execute();
 	bool ContextMenu_ShowTaskPrerequisites_CanExecute();
@@ -72,6 +72,10 @@ private:
 	void ContextMenu_ShowNestedTasks_Execute();
 	bool ContextMenu_ShowNestedTasks_CanExecute();
 	bool ContextMenu_ShowNestedTasks_IsChecked();
+	
+	void ContextMenu_ShowCriticalPath_Execute();
+	bool ContextMenu_ShowCriticalPath_CanExecute();
+	bool ContextMenu_ShowCriticalPath_IsChecked();
 
 	void OnTaskSettingsChanged();
 

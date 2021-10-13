@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+
 #ifndef UE_WITH_ZEN
 #	if PLATFORM_WINDOWS
 #		define UE_WITH_ZEN 1
@@ -15,12 +17,15 @@
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
 #include "Templates/UniquePtr.h"
+#include "ZenStatistics.h"
 
 #define UE_API DERIVEDDATACACHE_API
 
 namespace UE::Zen {
 
 class FZenServiceInstance;
+
+enum EServiceMode {Default, DefaultNoLaunch};
 
 /**
  * Type used to declare usage of a Zen server instance whether the shared default instance or a unique non-default instance.
@@ -37,6 +42,7 @@ public:
 	}
 	UE_API FScopeZenService(FStringView InstanceURL);
 	UE_API FScopeZenService(FStringView InstanceHostName, uint16 InstancePort);
+	UE_API FScopeZenService(EServiceMode Mode);
 
 	UE_API const FZenServiceInstance& GetInstance() const { return *ServiceInstance; }
 	UE_API FZenServiceInstance& GetInstance() { return *ServiceInstance; }
@@ -68,17 +74,18 @@ UE_API FZenServiceInstance& GetDefaultServiceInstance();
 class FZenServiceInstance
 {
 public:
+
 	 UE_API FZenServiceInstance()
-	 : FZenServiceInstance(FStringView())
+	 : FZenServiceInstance(Default, FStringView())
 	 {
 	 }
-	 UE_API FZenServiceInstance(FStringView InstanceURL);
+	 UE_API FZenServiceInstance(EServiceMode Mode, FStringView InstanceURL);
 	 UE_API ~FZenServiceInstance();
 
 	 inline const TCHAR* GetURL() const { return *URL; }
 	 inline const TCHAR* GetHostName() const { return *HostName; }
 	 inline uint16 GetPort() const { return Port; }
-
+	 UE_API bool GetStats(FZenStats& stats) const;
 	 UE_API bool IsServiceRunning();
 	 UE_API bool IsServiceReady();
 
@@ -97,6 +104,7 @@ private:
 		{
 			FString WorkspaceDataPath;
 			FString DataPath;
+			FString LogPath;
 			FString ExtraArgs;
 			uint16 DesiredPort = 1337;
 			bool bHidden = true;
@@ -114,11 +122,20 @@ private:
 	FString URL;
 	FString HostName;
 	uint16 Port;
+	static inline uint16 AutoLaunchedPort = 0;
 	bool bHasLaunchedLocal = false;
 };
 
 } // namespace UE::Zen
 
 #undef UE_API
+
+#else
+
+namespace UE::Zen {
+
+enum EServiceMode {Default, DefaultNoLaunch};
+
+} // namespace UE::Zen
 
 #endif // UE_WITH_ZEN

@@ -257,12 +257,9 @@ void FTexture2DStreamIn_DDC::DoLoadNewMipsFromDDC(const FContext& Context)
 						const int32 ExpectedMipSize = CalcTextureMipMapSize(MipMap.SizeX, MipMap.SizeY, Context.Resource->GetPixelFormat(), 0);
 						FMemoryReader Ar(DerivedMipData, true);
 
-						int32 MipSize = 0;
-						Ar << MipSize;
-
-						if (MipSize == ExpectedMipSize)
+						if (DerivedMipData.Num() == ExpectedMipSize)
 						{
-							Ar.Serialize(MipData[MipIndex], MipSize);
+							Ar.Serialize(MipData[MipIndex], DerivedMipData.Num());
 						}
 						else
 						{

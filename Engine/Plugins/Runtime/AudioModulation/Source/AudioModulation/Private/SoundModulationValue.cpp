@@ -16,9 +16,20 @@ FSoundModulationMixValue::FSoundModulationMixValue(float InValue, float InAttack
 
 void FSoundModulationMixValue::SetActiveFade(EActiveFade InActiveFade, float InFadeTime)
 {
-	if (ActiveFade == EActiveFade::Release || InActiveFade == ActiveFade)
+	// Release has already been issued, so fade cannot be overwritten (to avoid orphaned
+	// mix stages/values)
+	if (ActiveFade == EActiveFade::Release)
 	{
 		return;
+	}
+
+	// Only override fades can modify existing, active behavior
+	if (ActiveFade != EActiveFade::Override)
+	{
+		if (InActiveFade == ActiveFade)
+		{
+			return;
+		}
 	}
 
 	ActiveFade = InActiveFade;
@@ -47,7 +58,7 @@ void FSoundModulationMixValue::SetActiveFade(EActiveFade InActiveFade, float InF
 		case EActiveFade::Override:
 		default:
 		{
-			if (InFadeTime > 0.0f)
+			if (InFadeTime > 0.0f || FMath::IsNearlyZero(InFadeTime))
 			{
 				LerpTime = InFadeTime;
 			}

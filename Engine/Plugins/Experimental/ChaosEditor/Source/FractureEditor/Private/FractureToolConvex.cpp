@@ -31,12 +31,12 @@ bool UFractureToolConvex::CanExecute() const
 
 FText UFractureToolConvex::GetDisplayText() const
 {
-	return FText(LOCTEXT("FractureToolConvex", "Make Convex Hulls"));
+	return FText(LOCTEXT("FractureToolConvex", "Make Convex Collision Volumes"));
 }
 
 FText UFractureToolConvex::GetTooltipText() const
 {
-	return FText(LOCTEXT("FractureToolConvexTooltip", "This tool creates (non-overlapping) convex hulls for the bones of geometry collections"));
+	return FText(LOCTEXT("FractureToolConvexTooltip", "This tool creates (non-overlapping) convex volumes for the bones of geometry collections"));
 }
 
 FSlateIcon UFractureToolConvex::GetToolIcon() const
@@ -46,7 +46,7 @@ FSlateIcon UFractureToolConvex::GetToolIcon() const
 
 void UFractureToolConvex::RegisterUICommand(FFractureEditorCommands* BindingContext)
 {
-	UI_COMMAND_EXT(BindingContext, UICommandInfo, "Convex", "Convex", "Make Convex Hulls", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND_EXT(BindingContext, UICommandInfo, "Convex", "Convex", "Create (and visualize) a hierarchy of non-overlapping convex collision volumes for the bones of geometry collections.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	BindingContext->MakeConvex = UICommandInfo;
 }
 

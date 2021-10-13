@@ -12,6 +12,7 @@
 #include "SEditorHeaderButton.h"
 #include "Retargeter/IKRetargeter.h"
 #include "RigEditor/IKRigEditorStyle.h"
+#include "Widgets/Input/SComboBox.h"
 
 #define LOCTEXT_NAMESPACE "SIKRigRetargetChains"
 

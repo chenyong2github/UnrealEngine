@@ -125,31 +125,33 @@ void FSplineMeshSceneProxy::InitVertexFactory(USplineMeshComponent* InComponent,
 	bool bOverrideColorVertexBuffer = !!InOverrideColorVertexBuffer;
 	ERHIFeatureLevel::Type FeatureLevel = GetScene().GetFeatureLevel();
 
+	if ((VertexFactories->SplineVertexFactory && !bOverrideColorVertexBuffer) || (VertexFactories->SplineVertexFactoryOverrideColorVertexBuffer && bOverrideColorVertexBuffer))
+	{
+		// we already have it
+		return;
+	}
+
+	FSplineMeshVertexFactory* VertexFactory = new FSplineMeshVertexFactory(FeatureLevel);
+	if (bOverrideColorVertexBuffer)
+	{
+		VertexFactories->SplineVertexFactoryOverrideColorVertexBuffer = VertexFactory;
+	}
+	else
+	{
+		VertexFactories->SplineVertexFactory = VertexFactory;
+	}
+
+	int32 LightMapCoordinateIndex = Parent->GetLightMapCoordinateIndex();
 	// Initialize the static mesh's vertex factory.
 	ENQUEUE_RENDER_COMMAND(InitSplineMeshVertexFactory)(
-		[VertexFactories, RenderData2, Parent, bOverrideColorVertexBuffer, FeatureLevel](FRHICommandListImmediate& RHICmdList)
+		[VertexFactory, RenderData2, bOverrideColorVertexBuffer, LightMapCoordinateIndex](FRHICommandListImmediate& RHICmdList)
 	{
-
-		if ((VertexFactories->SplineVertexFactory && !bOverrideColorVertexBuffer) || (VertexFactories->SplineVertexFactoryOverrideColorVertexBuffer && bOverrideColorVertexBuffer))
-		{
-			// we already have it
-			return;
-		}
-		FSplineMeshVertexFactory* VertexFactory = new FSplineMeshVertexFactory(FeatureLevel);
-		if (bOverrideColorVertexBuffer)
-		{
-			VertexFactories->SplineVertexFactoryOverrideColorVertexBuffer = VertexFactory;
-		}
-		else
-		{
-			VertexFactories->SplineVertexFactory = VertexFactory;
-		}
 		FLocalVertexFactory::FDataType Data;
 
 		RenderData2->VertexBuffers.PositionVertexBuffer.BindPositionVertexBuffer(VertexFactory, Data);
 		RenderData2->VertexBuffers.StaticMeshVertexBuffer.BindTangentVertexBuffer(VertexFactory, Data);
 		RenderData2->VertexBuffers.StaticMeshVertexBuffer.BindPackedTexCoordVertexBuffer(VertexFactory, Data);
-		RenderData2->VertexBuffers.StaticMeshVertexBuffer.BindLightMapVertexBuffer(VertexFactory, Data, Parent->GetLightMapCoordinateIndex());
+		RenderData2->VertexBuffers.StaticMeshVertexBuffer.BindLightMapVertexBuffer(VertexFactory, Data, LightMapCoordinateIndex);
 		if (bOverrideColorVertexBuffer)
 		{
 			FColorVertexBuffer::BindDefaultColorVertexBuffer(VertexFactory, Data, FColorVertexBuffer::NullBindStride::FColorSizeForComponentOverride);

@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -54,6 +54,7 @@ private:
 	// UAnimGraphNode_Base interface
 	virtual void GetRequiredExtensions(TArray<TSubclassOf<UAnimBlueprintExtension>>& OutExtensions) const override;
 	virtual bool ShouldCreateStructEvalHandlers() const override { return false; }
+	virtual void OnProcessDuringCompilation(IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) override;
 
 private:
 	void AllocateFunctionPins();
@@ -62,8 +63,8 @@ private:
 	void SetupFromFunction(UFunction* InFunction);
 	void BindDelegates();
 
-	/** Checks to see if the passed-in function is blacklisted (i.e. cannot be called) in anim graphs. */
-	bool IsFunctionBlacklisted(const UFunction* InFunction) const;
+	/** Checks to see if the passed-in function is disallowed in anim graphs. */
+	bool IsFunctionDenied(const UFunction* InFunction) const;
 
 	/** Validate the function's parameters to check if it can be called in anim graphs */
 	bool AreFunctionParamsValid(const UFunction* InFunction) const;

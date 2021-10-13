@@ -13,11 +13,15 @@
 #include "Dom/JsonObject.h"
 #include "Engine/StaticMesh.h"
 #include "EngineUtils.h"
+#include "ExternalSource.h"
+#include "ExternalSourceModule.h"
 #include "FileHelpers.h"
 #include "Interfaces/IMainFrameModule.h"
+#include "IUriManager.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/Paths.h"
 #include "PackageTools.h"
+#include "SourceUri.h"
 
 
 #define LOCTEXT_NAMESPACE "DatasmithImportPlugin"
@@ -55,11 +59,12 @@ public:
 	 * Display options' dialog
 	 *
 	 * @param	ImportOptions	The options to display
-	 * @param	DatasmithScene	The DatasmithScene for which we are displaying the import options
+	 * @param	DatasmithScene	The DatasmithScene for which we are displaying the import options.
+	 *							if the scene is not valid, default values are used.
 	 *
 	 * @returns true if user accepted the import.
 	 */
-	static bool DisplayOptionsDialog(const TArray<UObject*>& ImportOptions, TSharedRef< IDatasmithScene > DatasmithScene);
+	static bool DisplayOptionsDialog(const TArray<UObject*>& ImportOptions, const TSharedPtr< IDatasmithScene >& DatasmithScene);
 
 	/** Update options based on content in JSON object*/
 	static void LoadOptions(const TArray<UObject*>& ImportOptions, const TSharedPtr<FJsonObject>& ImportSettingsJson);
@@ -68,7 +73,7 @@ public:
 	static void CleanUpOptions(const TArray<UObject*>& ImportOptions);
 };
 
-bool FDatasmithImportOptionHelper::DisplayOptionsDialog(const TArray<UObject*>& ImportOptions, TSharedRef< IDatasmithScene > DatasmithScene)
+bool FDatasmithImportOptionHelper::DisplayOptionsDialog(const TArray<UObject*>& ImportOptions, const TSharedPtr< IDatasmithScene >& DatasmithScene)
 {
 	TSharedPtr<SWindow> ParentWindow;
 
@@ -86,7 +91,17 @@ bool FDatasmithImportOptionHelper::DisplayOptionsDialog(const TArray<UObject*>& 
 	UDatasmithImportOptions* MainOptions = Cast<UDatasmithImportOptions>(ImportOptions[0]);
 
 	float SceneVersion;
-	LexFromString( SceneVersion, DatasmithScene->GetExporterVersion() );
+	FString FileSDKVersion;
+	if (DatasmithScene)
+	{
+		LexFromString( SceneVersion, DatasmithScene->GetExporterVersion() );
+		FileSDKVersion = DatasmithScene->GetExporterSDKVersion();
+	}
+	else
+	{
+		SceneVersion = FDatasmithUtils::GetDatasmithFormatVersionAsFloat();
+		FileSDKVersion = FDatasmithUtils::GetEnterpriseVersionAsString();
+	}
 
 	TSharedPtr<SDatasmithOptionsWindow> OptionsWindow;
 	Window->SetContent
@@ -98,7 +113,7 @@ bool FDatasmithImportOptionHelper::DisplayOptionsDialog(const TArray<UObject*>& 
 		.FileNameText(FText::Format(LOCTEXT("DatasmithImportSettingsFileName", "  Import File  :    {0}"), FText::FromString(MainOptions->FileName)))
 		.FilePathText(FText::FromString(MainOptions->FilePath))
 		.FileFormatVersion(SceneVersion)
-		.FileSDKVersion( FText::FromString( DatasmithScene->GetExporterSDKVersion() ) )
+		.FileSDKVersion( FText::FromString(FileSDKVersion))
 		.PackagePathText(FText::Format(LOCTEXT("DatasmithImportSettingsPackagePath", "  Import To   :    {0}"), FText::FromString(MainOptions->BaseOptions.AssetOptions.PackagePath.ToString())))
 		.ProceedButtonLabel(LOCTEXT("DatasmithOptionWindow_ImportCurLevel", "Import"))
 		.ProceedButtonTooltip(LOCTEXT("DatasmithOptionWindow_ImportCurLevel_ToolTip", "Import the file and add to the current Level"))
@@ -152,7 +167,7 @@ void FDatasmithImportOptionHelper::CleanUpOptions(const TArray<UObject*>& Import
 	}
 }
 
-FDatasmithImportContext::FDatasmithImportContext(const FString& FileName, bool bLoadConfig, const FName& LoggerName, const FText& LoggerLabel, TSharedPtr<IDatasmithTranslator> InSceneTranslator)
+FDatasmithImportContext::FDatasmithImportContext(const FString& InFileName, bool bLoadConfig, const FName& LoggerName, const FText& LoggerLabel, TSharedPtr<IDatasmithTranslator> InSceneTranslator)
 	: SceneTranslator(InSceneTranslator)
 	, Options(NewObject<UDatasmithImportOptions>(GetTransientPackage(), TEXT("Datasmith Import Settings")))
 	, SceneAsset(nullptr)
@@ -182,9 +197,52 @@ FDatasmithImportContext::FDatasmithImportContext(const FString& FileName, bool b
 
 	// Force the SceneHandling to be on current level by default.
 	// Note: This is done because this option was previously persisted and can get overwritten
+	UE::DatasmithImporter::FSourceUri SourceUri(UE::DatasmithImporter::FSourceUri::FromFilePath(InFileName));
+	Options->BaseOptions.SceneHandling = EDatasmithImportScene::CurrentLevel;
+	Options->FileName = FPaths::GetCleanFilename(InFileName);
+	Options->FilePath = FPaths::ConvertRelativePathToFull(InFileName);
+	Options->SourceUri = SourceUri.ToString();
+
+	FileHash = FMD5Hash::HashFile(*Options->FilePath);
+}
+
+
+FDatasmithImportContext::FDatasmithImportContext(const TSharedRef<UE::DatasmithImporter::FExternalSource>& InExternalSource, bool bLoadConfig, const FName& LoggerName, const FText& LoggerLabel)
+	: SceneTranslator(InExternalSource->GetAssetTranslator())
+	, Options(NewObject<UDatasmithImportOptions>(GetTransientPackage(), TEXT("Datasmith Import Settings")))
+	, SceneAsset(nullptr)
+	, bUserCancelled(false)
+	, bIsAReimport(false)
+	, bImportedViaScript(false)
+	, FeedbackContext(nullptr)
+	, AssetsContext(*this)
+	, ContextExtension(nullptr)
+	, Logger(LoggerName, LoggerLabel)
+	, CurrentSceneActorIndex(0)
+	, ReferenceCollector(this)
+{
+	if (SceneTranslator)
+	{
+		SceneTranslator->GetSceneImportOptions(AdditionalImportOptions);
+	}
+
+	if (bLoadConfig)
+	{
+		DatasmithImportContextImpl::LoadOptionConfig(Options.Get());
+		for (const auto& AdditionalImportOption : AdditionalImportOptions)
+		{
+			DatasmithImportContextImpl::LoadOptionConfig(AdditionalImportOption.Get());
+		}
+	}
+
+	// Force the SceneHandling to be on current level by default.
+	// Note: This is done because this option was previously persisted and can get overwritten
+	const FString FileName = InExternalSource->GetFallbackFilepath();
 	Options->BaseOptions.SceneHandling = EDatasmithImportScene::CurrentLevel;
 	Options->FileName = FPaths::GetCleanFilename(FileName);
 	Options->FilePath = FPaths::ConvertRelativePathToFull(FileName);
+	Options->SourceUri = InExternalSource->GetSourceUri().ToString();
+	SceneName = FDatasmithUtils::SanitizeObjectName(InExternalSource->GetSceneName());
 
 	FileHash = FMD5Hash::HashFile(*Options->FilePath);
 }
@@ -223,20 +281,32 @@ TSharedRef<FTokenizedMessage> FDatasmithImportContext::LogInfo(const FText& InIn
 
 bool FDatasmithImportContext::Init(TSharedRef< IDatasmithScene > InScene, const FString& InImportPath, EObjectFlags InFlags, FFeedbackContext* InWarn, const TSharedPtr<FJsonObject>& ImportSettingsJson, bool bSilent)
 {
-	Options->BaseOptions.AssetOptions.PackagePath = FName(*InImportPath); // Package path displayed in options window
+	InitScene(InScene);
 
-	return InitOptions(InScene, ImportSettingsJson, bSilent)
+	return InitOptions(ImportSettingsJson, InImportPath, bSilent)
+		&& SetupDestination(InImportPath, InFlags, InWarn, bSilent);
+}
+
+bool FDatasmithImportContext::Init(const FString& InImportPath, EObjectFlags InFlags, FFeedbackContext* InWarn, const TSharedPtr<FJsonObject>& ImportSettingsJson, bool bSilent)
+{
+	return InitOptions(ImportSettingsJson, InImportPath, bSilent)
 		&& SetupDestination(InImportPath, InFlags, InWarn, bSilent);
 }
 
 bool FDatasmithImportContext::InitOptions(TSharedRef< IDatasmithScene > InScene, const TSharedPtr<FJsonObject>& ImportSettingsJson, bool bSilent)
+{
+	InitScene(InScene);
+	const FString ImportPath = Options->BaseOptions.AssetOptions.PackagePath.ToString();
+	return InitOptions(ImportSettingsJson, ImportPath, bSilent);
+}
+
+bool FDatasmithImportContext::InitOptions(const TSharedPtr<FJsonObject>& ImportSettingsJson, const TOptional<FString>& InImportPath, bool bSilent)
 {
 	if (!FModuleManager::Get().IsModuleLoaded("AssetTools"))
 	{
 		UE_LOG(LogDatasmithImport, Warning, TEXT("Import failed. The AssetTools module can't be loaded."));
 		return false;
 	}
-	Scene = InScene;
 
 	check(Options->FileName.Len() > 0);
 	check(Options->FilePath.Len() > 0);
@@ -260,9 +330,17 @@ bool FDatasmithImportContext::InitOptions(TSharedRef< IDatasmithScene > InScene,
 	}
 	else
 	{
+		if (!InImportPath.IsSet())
+		{
+			UE_LOG(LogDatasmithImport, Display, TEXT("Can't call FDatasmithImportContext::InitOptions(), with bSilent=false if InImportPath is not set."));
+			return false;
+		}
+
+		Options->BaseOptions.AssetOptions.PackagePath = FName(*InImportPath.GetValue()); // Package path displayed in options window
+
 		SetupBaseOptionsVisibility();
 
-		bool bShouldImport = FDatasmithImportOptionHelper::DisplayOptionsDialog(ImportOptions, Scene.ToSharedRef());
+		bool bShouldImport = FDatasmithImportOptionHelper::DisplayOptionsDialog(ImportOptions, Scene);
 
 		ResetBaseOptionsVisibility();
 
@@ -295,8 +373,9 @@ bool FDatasmithImportContext::InitOptions(TSharedRef< IDatasmithScene > InScene,
 
 bool FDatasmithImportContext::SetupDestination(const FString& InImportPath, EObjectFlags InFlags, FFeedbackContext* InWarn, bool bSilent)
 {
-	if (!Scene.IsValid())
+	if (SceneName.IsEmpty())
 	{
+		//Scene must be valid for initializing AssetsContext.
 		return false;
 	}
 
@@ -343,10 +422,6 @@ bool FDatasmithImportContext::SetupDestination(const FString& InImportPath, EObj
 
 	FeedbackContext = InWarn;
 
-	// Initialize the filtered scene as a copy of the original scene. We will use it to then filter out items to import.
-	FilteredScene = FDatasmithSceneFactory::DuplicateScene(Scene.ToSharedRef());
-
-	SceneName = FDatasmithUtils::SanitizeObjectName(Scene->GetName());
 	bUserCancelled = false;
 
 	ObjectFlags = InFlags | RF_Transactional;
@@ -359,6 +434,15 @@ bool FDatasmithImportContext::SetupDestination(const FString& InImportPath, EObj
 	}
 
 	return bResult;
+}
+
+void FDatasmithImportContext::InitScene(const TSharedRef<IDatasmithScene>& InScene)
+{
+	Scene = InScene;
+
+	// Initialize the filtered scene as a copy of the original scene. We will use it to then filter out items to import.
+	FilteredScene = FDatasmithSceneFactory::DuplicateScene(Scene.ToSharedRef());
+	SceneName = FDatasmithUtils::SanitizeObjectName(Scene->GetName());
 }
 
 void FDatasmithImportContext::DisplayMessages()

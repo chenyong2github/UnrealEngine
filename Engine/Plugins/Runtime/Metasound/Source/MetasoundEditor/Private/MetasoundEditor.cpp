@@ -1750,6 +1750,14 @@ namespace Metasound
 			MetasoundGraphEditor->NotifyGraphChanged();
 		}
 
+		void FEditor::RefreshDetails()
+		{
+			if (MetasoundDetails.IsValid())
+			{
+				MetasoundDetails->ForceRefresh();
+			}
+		}
+
 		void FEditor::RefreshInterface()
 		{
 			if (MetasoundInterfaceMenu.IsValid())
@@ -1900,6 +1908,24 @@ namespace Metasound
 					NameChangeDelegateHandles.FindOrAdd(NodeID) = EdGraphOutput->NameChanged.AddSP(this, &FEditor::OnOutputNameChanged);
 				}
 			}, EMetasoundFrontendClassType::Output);
+
+			// In certain cases, while synchronizing the editor layer with the frontend, nodes
+			// associated with delegates are orphaned, but can still have stale handles
+			// associated.  Clear them out to avoid them being fired.
+			TArray<FGuid> StaleNodeGuids;
+			UMetasoundEditorGraph& Graph = GetMetaSoundGraphChecked();
+			for (const TPair<FGuid, FDelegateHandle>& Pair : NameChangeDelegateHandles)
+			{
+				if (!Graph.FindInput(Pair.Key))
+				{
+					StaleNodeGuids.Add(Pair.Key);
+				}
+			}
+
+			for (const FGuid& StaleNodeGuid : StaleNodeGuids)
+			{
+				NameChangeDelegateHandles.Remove(StaleNodeGuid);
+			}
 		}
 
 		void FEditor::CollectStaticSections(TArray<int32>& StaticSectionIDs)
@@ -1939,7 +1965,8 @@ namespace Metasound
 				.OnClosedCallback(InOnMenuClosed);
 // 				.OnCloseReason(this, &FEditor::OnGraphActionMenuClosed);
 
-			return FActionMenuContent(ActionMenu, ActionMenu->GetFilterTextBox());
+			TSharedPtr<SWidget> FilterTextBox = StaticCastSharedRef<SWidget>(ActionMenu->GetFilterTextBox());
+			return FActionMenuContent(StaticCastSharedRef<SWidget>(ActionMenu), FilterTextBox);
 		}
 
 		void FEditor::OnActionSelected(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, ESelectInfo::Type InSelectionType)
@@ -2062,6 +2089,8 @@ namespace Metasound
 
 			UMetasoundEditorGraph& Graph = GetMetaSoundGraphChecked();
 
+			TArray<TObjectPtr<UObject>> SelectedObjects;
+
 			FName NameToSelect;
 			switch (static_cast<ENodeSection>(InSectionID))
 			{
@@ -2085,6 +2114,7 @@ namespace Metasound
 								Input->NameChanged.Remove(*NameChangeDelegate);
 							}
 							NameChangeDelegateHandles.FindOrAdd(NodeID) = Input->NameChanged.AddSP(this, &FEditor::OnInputNameChanged);
+							SelectedObjects.Add(Input);
 						}
 					}
 				}
@@ -2110,6 +2140,7 @@ namespace Metasound
 								Output->NameChanged.Remove(*NameChangeDelegate);
 							}
 							NameChangeDelegateHandles.FindOrAdd(NodeID) = Output->NameChanged.AddSP(this, &FEditor::OnOutputNameChanged);
+							SelectedObjects.Add(Output);
 						}
 					}
 				}
@@ -2127,6 +2158,7 @@ namespace Metasound
 				if (!NameToSelect.IsNone())
 				{
 					MetasoundInterfaceMenu->SelectItemByName(NameToSelect);
+					SetSelection(SelectedObjects);
 				}
 			}
 			return FReply::Handled();

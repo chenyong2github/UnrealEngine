@@ -43,13 +43,13 @@ private:
 };
 
 
-class FOptimusResourceContextCustomization :
+class FOptimusDataDomainCustomization :
 	public IPropertyTypeCustomization
 {
 public:
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
 
-	FOptimusResourceContextCustomization();
+	FOptimusDataDomainCustomization();
 
 	// IPropertyTypeCustomization overrides
 	void CustomizeHeader(
@@ -68,13 +68,13 @@ private:
 };
 
 
-class FOptimusNestedResourceContextCustomization :
+class FOptimusMultiLevelDataDomainCustomization :
 	public IPropertyTypeCustomization
 {
 public:
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
 
-	FOptimusNestedResourceContextCustomization();
+	FOptimusMultiLevelDataDomainCustomization();
 
 	// IPropertyTypeCustomization overrides
 	void CustomizeHeader(

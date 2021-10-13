@@ -18,6 +18,7 @@
 #include "Widgets/Views/STableViewBase.h"
 
 // Insights
+#include "Insights/InsightsStyle.h"
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/NetworkingProfiler/NetworkingProfilerManager.h"
@@ -115,13 +116,13 @@ void SNetStatsView::Construct(const FArguments& InArgs, TSharedPtr<SNetworkingPr
 					SNew(SCheckBox)
 					.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
 					.HAlign(HAlign_Center)
-					.Padding(2.0f)
+					.Padding(3.0f)
 					.OnCheckStateChanged(this, &SNetStatsView::FilterOutZeroCountEvents_OnCheckStateChanged)
 					.IsChecked(this, &SNetStatsView::FilterOutZeroCountEvents_IsChecked)
 					.ToolTipText(LOCTEXT("FilterOutZeroCountEvents_Tooltip", "Filter out the net event types having zero total instance count (aggregated stats)."))
 					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("FilterOutZeroCountEvents_Button", " !0 "))
+						SNew(SImage)
+						.Image(FInsightsStyle::Get().GetBrush("ZeroCountFilter.Icon.Small"))
 					]
 				]
 			]
@@ -184,7 +185,7 @@ void SNetStatsView::Construct(const FArguments& InArgs, TSharedPtr<SNetworkingPr
 				.OnSelectionChanged(this, &SNetStatsView::TreeView_OnSelectionChanged)
 				.OnMouseButtonDoubleClick(this, &SNetStatsView::TreeView_OnMouseButtonDoubleClick)
 				.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &SNetStatsView::TreeView_GetMenuContent))
-				.ItemHeight(12.0f)
+				.ItemHeight(16.0f)
 				.HeaderRow
 				(
 					SAssignNew(TreeViewHeaderRow, SHeaderRow)
@@ -1261,9 +1262,9 @@ void SNetStatsView::ShowColumn(const FName ColumnId)
 	ColumnArgs
 		.ColumnId(Column.GetId())
 		.DefaultLabel(Column.GetShortName())
-		.HAlignHeader(HAlign_Fill)
-		.VAlignHeader(VAlign_Fill)
-		.HeaderContentPadding(FMargin(2.0f))
+		.ToolTip(SNetStatsViewTooltip::GetColumnTooltip(Column))
+		.HAlignHeader(Column.GetHorizontalAlignment())
+		.VAlignHeader(VAlign_Center)
 		.HAlignCell(HAlign_Fill)
 		.VAlignCell(VAlign_Fill)
 		.SortMode(this, &SNetStatsView::GetSortModeForColumn, Column.GetId())
@@ -1273,8 +1274,8 @@ void SNetStatsView::ShowColumn(const FName ColumnId)
 		.HeaderContent()
 		[
 			SNew(SBox)
-			.ToolTip(SNetStatsViewTooltip::GetColumnTooltip(Column))
-			.HAlign(Column.GetHorizontalAlignment())
+			.HeightOverride(24.0f)
+			.Padding(FMargin(0.0f))
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)

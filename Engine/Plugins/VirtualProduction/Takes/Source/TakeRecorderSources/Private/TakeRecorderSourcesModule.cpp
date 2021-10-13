@@ -441,7 +441,7 @@ public:
 
 		if (SelectedActors.Num() > 0)
 		{
-			Extender->AddMenuExtension("ActorControl", EExtensionHook::After, CommandList, FMenuExtensionDelegate::CreateLambda(
+			Extender->AddMenuExtension("ActorUETools", EExtensionHook::After, CommandList, FMenuExtensionDelegate::CreateLambda(
 				[this, SelectedActors](FMenuBuilder& MenuBuilder) 
 			{
 				FText RecordText;
@@ -454,9 +454,7 @@ public:
 					RecordText = FText::Format(LOCTEXT("RecordSelectedActorsText", "Record {0} actors with Take Recorder"), SelectedActors.Num());
 				}
 
-				MenuBuilder.BeginSection("TakeRecorder", LOCTEXT("TakeRecorderSection", "Take Recorder"));
 				MenuBuilder.AddMenuEntry(FTakeRecorderSourcesCommands::Get().RecordSelectedActors, NAME_None, RecordText);
-				MenuBuilder.EndSection();
 			}
 			
 			));

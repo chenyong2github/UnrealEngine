@@ -9,6 +9,7 @@
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
+#include "Debugging/SKismetDebugTreeView.h"
 
 class FDebugLineItem;
 class FTraceStackParentItem;
@@ -19,128 +20,6 @@ class FBreakpointParentItem;
 class SSearchBox;
 class SComboButton;
 class SCheckBox;
-
-//////////////////////////////////////////////////////////////////////////
-// FDebugLineItem
-
-// Shared pointer to a debugging tree line entry
-typedef TSharedPtr<class FDebugLineItem> FDebugTreeItemPtr;
-
-// The base class for a line entry in the debugging tree view
-class FDebugLineItem : public TSharedFromThis<FDebugLineItem>
-{
-public:
-	friend class FLineItemWithChildren; // used by FLineItemWithChildren::EnsureChildIsAdded
-	enum EDebugLineType
-	{
-		DLT_Message,
-		DLT_TraceStackParent,
-		DLT_TraceStackChild,
-		DLT_Parent,
-		DLT_Watch,
-		DLT_WatchChild,
-		DLT_LatentAction,
-		DLT_Breakpoint,
-		DLT_BreakpointParent
-	};
-
-	virtual ~FDebugLineItem() {}
-	
-	// Create the widget for the name column
-	virtual TSharedRef<SWidget> GenerateNameWidget();
-
-	// Create the widget for the value column
-	virtual TSharedRef<SWidget> GenerateValueWidget();
-
-	// Add any context menu items that can act on this node
-	// If you override, make sure FDebugLineItem::MakeMenu still gets called
-	virtual void MakeMenu(class FMenuBuilder& MenuBuilder);
-
-	// Gather all of the children
-	virtual void GatherChildrenBase(TArray<FDebugTreeItemPtr>& OutChildren, bool bRespectSearch = true) {}
-
-	// returns whether this tree node has children (used by drop down arrows)
-	virtual bool HasChildren();
-
-	// only line items inherriting from FLineItemWithChildren can have children
-	virtual bool CanHaveChildren() { return false; }
-
-	// @return The object that will act as a parent to more items in the tree, or NULL if this is a leaf node
-	virtual UObject* GetParentObject() { return NULL; }
-
-	virtual EDebugLineType GetType() const
-	{
-		return Type;
-	}
-
-	// returns a widget that will go to the left of the Name Widget.
-	virtual TSharedRef<SWidget> GetNameIcon();
-
-	// returns a widget that will go to the left of the Value Widget.
-	virtual TSharedRef<SWidget> GetValueIcon();
-
-	// Helper function to try to get the blueprint for a given object;
-	//   Returns the blueprint that was used to create the instance if there was one
-	//   Returns the object itself if it is already a blueprint
-	//   Otherwise returns NULL
-	static UBlueprint* GetBlueprintForObject(UObject* ParentObject);
-
-	static UBlueprintGeneratedClass* GetClassForObject(UObject* ParentObject);
-
-	static bool IsDebugLineTypeActive(EDebugLineType Type);
-	static void OnDebugLineTypeActiveChanged(ECheckBoxState CheckState, EDebugLineType Type);
-
-	// updates bVisible and bParentsMatchSearch based on this node alone
-	void UpdateSearchFlags(bool bIsRootNode = false, bool bIsContainerElement = false);
-
-	bool IsVisible();
-	bool DoParentsMatchSearch();
-protected:
-	TSharedPtr<SSearchBox> SearchBox;
-	
-	// Cannot create an instance of this class, it's just for use as a base class
-	FDebugLineItem(EDebugLineType InType, TSharedPtr<SSearchBox> InSearchBox)
-		: SearchBox(MoveTemp(InSearchBox)), Type(InType)
-	{
-	}
-
-	// Duplicate this item
-	virtual FDebugLineItem* Duplicate() const=0;
-
-	// Compare this item to another of the same type
-	virtual bool Compare(const FDebugLineItem* Other) const=0;
-
-	// used for sets
-	virtual uint32 GetHash() = 0;
-
-	// Used to update the state of a line item rather than replace it.
-	// called after Compare returns true
-	[[maybe_unused]] virtual void UpdateData(const FDebugLineItem& NewerData) {}
-
-	// @return The actual underlying name of the item, for search compatibility
-	virtual FText GetName() const;
-
-	// @return The text to display in the name column, unless GenerateNameWidget is overridden
-	virtual FText GetDisplayName() const;
-
-	// @return The text to display in the value column, unless GenerateValueWidget is overridden
-	virtual FText GetDescription() const;
-
-	bool HasName() const;
-	bool HasValue() const;
-	void CopyNameToClipboard() const;
-	void CopyValueToClipboard() const;
-protected:
-	// Type of action (poor mans RTTI for the tree, really only used to accelerate Compare checks)
-	EDebugLineType Type;
-
-	static uint16 ActiveTypeBitset;
-
-	// true if self or any recursive children match the search
-	bool bVisible = false;
-	// true if self or any recursive parents match the search
-	bool bParentsMatchSearch = false;
-};
 
 //////////////////////////////////////////////////////////////////////////
 // SKismetDebuggingView
@@ -176,29 +55,24 @@ protected:
 	void OnBlueprintClassPicked(UClass* PickedClass);
 	TSharedRef<SWidget> ConstructBlueprintClassPicker();
 
-	TSharedRef<ITableRow> OnGenerateRowForWatchTree(FDebugTreeItemPtr InItem, const TSharedRef<STableViewBase>& OwnerTable);
-	void OnGetChildrenForWatchTree(FDebugTreeItemPtr InParent, TArray<FDebugTreeItemPtr>& OutChildren);
-
 	static TSharedRef<SHorizontalBox> GetDebugLineTypeToggle(FDebugLineItem::EDebugLineType Type, const FText& Text);
 	
 	TSharedPtr<SWidget> OnMakeDebugTreeContextMenu() const;
 	TSharedPtr<SWidget> OnMakeOtherTreeContextMenu() const;
-	static TSharedPtr<SWidget> OnMakeTreeContextMenu(const TSharedPtr<STreeView<FDebugTreeItemPtr>>& Tree);
+	static TSharedPtr<SWidget> OnMakeTreeContextMenu(const TSharedPtr<SKismetDebugTreeView>& Tree);
 
-	// called when SearchBox query is committed by the user
-	void OnSearchTextCommitted(const FText& Text, ETextCommit::Type);
+	// called when SearchBox query is changed by user
+	void OnSearchTextChanged(const FText& Text);
 protected:
-	TSharedPtr<STreeView<FDebugTreeItemPtr>> DebugTreeView;
+	TSharedPtr<SKismetDebugTreeView> DebugTreeView;
 	TMap<UObject*, FDebugTreeItemPtr> ObjectToTreeItemMap;
-	TArray<FDebugTreeItemPtr> RootTreeItems;
 
 	// includes items such as breakpoints and Exectution trace
-	TSharedPtr< STreeView<FDebugTreeItemPtr> > OtherTreeView;
-	TArray<FDebugTreeItemPtr> OtherTreeItems;
+	TSharedPtr< SKismetDebugTreeView > OtherTreeView;
 
 	// UI tree entries for stack trace and breakpoints
-	TSharedPtr< FTraceStackParentItem > TraceStackItem;
-	TSharedPtr< FBreakpointParentItem > BreakpointParentItem;
+	FDebugTreeItemPtr TraceStackItem;
+	FDebugTreeItemPtr BreakpointParentItem;
 
 	// Combo button for selecting which blueprint is being watched
 	TSharedPtr<SComboButton> DebugClassComboButton;

@@ -52,6 +52,12 @@ namespace Audio
 		/** Get the release time in samples. */
 		FORCEINLINE float GetReleaseTimeSamples() const { return ReleaseTimeSamples; }
 
+		/** Get the attack time in milliseconds. */
+		FORCEINLINE float GetAttackTimeMsec() const { return AttackTimeMsec; }
+
+		/** Get the release time in milliseconds. */
+		FORCEINLINE float GetReleaseTimeMsec() const { return ReleaseTimeMsec; }
+
 		/** Get the sample rate. */
 		FORCEINLINE float GetSampleRate() const { return SampleRate; }
 
@@ -233,10 +239,10 @@ namespace Audio
 		float GetSampleRate() const;
 
 		/** Returns the envelope follower attack time (how fast the envelope responds to input) */
-		float GetAttackTime() const;
+		float GetAttackTimeMsec() const;
 
 		/** Returns the envelope follower release time (how slow the envelope dampens from input) */
-		float GetReleaseTime() const;
+		float GetReleaseTimeMsec() const;
 
 		/** Returns whether or not to use analog or digital time constants */
 		bool GetAnalog() const;

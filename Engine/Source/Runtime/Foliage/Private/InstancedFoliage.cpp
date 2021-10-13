@@ -2512,6 +2512,23 @@ void FFoliageInfo::RemoveFromBaseHash(int32 InstanceIndex)
 	}
 }
 
+void FFoliageInfo::RecomputeHash()
+{
+	ComponentHash.Empty();
+	InstanceHash->Empty();
+	for (int32 InstanceIdx = 0; InstanceIdx < Instances.Num(); InstanceIdx++)
+	{
+		// Invalidate base if we aren't supposed to be attached.
+		if (!ShouldAttachToBaseComponent())
+		{
+			Instances[InstanceIdx].BaseId = FFoliageInstanceBaseCache::InvalidBaseId;
+			Instances[InstanceIdx].BaseComponent = nullptr;
+		}
+		AddToBaseHash(InstanceIdx);
+		InstanceHash->InsertInstance(Instances[InstanceIdx].Location, InstanceIdx);
+	}
+}
+
 // Destroy existing clusters and reassign all instances to new clusters
 void FFoliageInfo::ReallocateClusters(UFoliageType* InSettings)
 {
@@ -4375,21 +4392,8 @@ void AInstancedFoliageActor::PostLoad()
 
 				Info.ReallocateClusters(Pair.Key);
 			}
-
-			// Update the hash.
-			Info.ComponentHash.Empty();
-			Info.InstanceHash->Empty();
-			for (int32 InstanceIdx = 0; InstanceIdx < Info.Instances.Num(); InstanceIdx++)
-			{
-				// Invalidate base if we aren't supposed to be attached.
-				if (!Info.ShouldAttachToBaseComponent())
-				{
-					Info.Instances[InstanceIdx].BaseId = FFoliageInstanceBaseCache::InvalidBaseId;
-					Info.Instances[InstanceIdx].BaseComponent = nullptr;
-				}
-				Info.AddToBaseHash(InstanceIdx);
-				Info.InstanceHash->InsertInstance(Info.Instances[InstanceIdx].Location, InstanceIdx);
-			}
+			
+			Info.RecomputeHash();
 
 			// Convert to Hierarchical foliage
 			if (GetLinkerCustomVersion(FFoliageCustomVersion::GUID) < FFoliageCustomVersion::FoliageUsingHierarchicalISMC)

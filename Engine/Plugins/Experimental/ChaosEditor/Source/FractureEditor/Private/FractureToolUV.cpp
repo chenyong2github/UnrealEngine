@@ -111,7 +111,7 @@ FSlateIcon UFractureToolAutoUV::GetToolIcon() const
 
 void UFractureToolAutoUV::RegisterUICommand(FFractureEditorCommands* BindingContext)
 {
-	UI_COMMAND_EXT(BindingContext, UICommandInfo, "AutoUV", "AutoUV", "Autogenerate UV and texture for internal faces", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND_EXT(BindingContext, UICommandInfo, "AutoUV", "AutoUV", "Autogenerate UVs and textures for geometry collections (especially for internal fracture surfaces).", EUserInterfaceActionType::ToggleButton, FInputChord());
 	BindingContext->AutoUV = UICommandInfo;
 }
 

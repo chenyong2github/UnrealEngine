@@ -118,7 +118,7 @@ void UBTTask_RunEQSQuery::OnQueryFinished(TSharedPtr<FEnvQueryResult> Result)
 		return;
 	}
 
-	bool bSuccess = (Result->Items.Num() >= 1);
+	bool bSuccess = Result->IsSuccessful() && (Result->Items.Num() >= 1);
 	if (bSuccess)
 	{
 		UBlackboardComponent* MyBlackboard = MyComp->GetBlackboardComponent();

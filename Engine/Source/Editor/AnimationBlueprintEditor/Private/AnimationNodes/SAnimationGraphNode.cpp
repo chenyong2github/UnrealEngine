@@ -16,6 +16,7 @@
 #include "SLevelOfDetailBranchNode.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "AnimationGraphSchema.h"
+#include "AnimGraphNode_CustomProperty.h"
 #include "BlueprintMemberReferenceCustomization.h"
 #include "SGraphPin.h"
 #include "Widgets/Layout/SWrapBox.h"
@@ -289,7 +290,7 @@ void SAnimationGraphNode::CreateBelowPinControls(TSharedPtr<SVerticalBox> MainBo
 		// Insert above the error reporting bar
 		MainBox->InsertSlot(FMath::Max(0, MainBox->NumSlots() - TagAndFunctionsSlotReverseIndex))
 		.AutoHeight()
-		.Padding(4.0f)
+		.Padding(4.0f, 2.0f, 4.0f, 2.0f)
 		[
 			SNew(SVerticalBox)
 			.IsEnabled_Lambda([this](){ return IsNodeEditable(); })
@@ -298,9 +299,16 @@ void SAnimationGraphNode::CreateBelowPinControls(TSharedPtr<SVerticalBox> MainBo
 			[
 				CreateNodeFunctionsWidget(AnimNode, MakeAttributeLambda(UseLowDetailNode))
 			]
+		];
+
+		MainBox->InsertSlot(FMath::Max(0, MainBox->NumSlots() - TagAndFunctionsSlotReverseIndex))
+		.AutoHeight()
+		.Padding(4.0f, 2.0f, 4.0f, 2.0f)
+		[
+			SNew(SVerticalBox)
+			.IsEnabled_Lambda([this](){ return IsNodeEditable(); })
 			+SVerticalBox::Slot()
 			.AutoHeight()
-			.Padding(4.0f, 0.0f, 4.0f, 4.0f)
 			.HAlign(HAlign_Right)
 			[
 				CreateNodeTagWidget(AnimNode, MakeAttributeLambda(UseLowDetailNode))
@@ -460,11 +468,15 @@ TSharedRef<SWidget> SAnimationGraphNode::CreateNodeTagWidget(UAnimGraphNode_Base
 		]
 		.HighDetail()
 		[
-			SNew(SInlineEditableTextBlock)
-			.ToolTipText_Lambda([InAnimNode](){ return FText::Format(LOCTEXT("TagFormat_Tooltip", "Tag: {0}\nThis node can be referenced elsewhere in this Anim Blueprint using this tag"), FText::FromName(InAnimNode->GetTag())); })
-			.Style(&FEditorStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("AnimGraph.Node.Tag"))
-			.Text_Lambda([InAnimNode](){ return FText::FromName(InAnimNode->GetTag()); })
-			.OnTextCommitted_Lambda([InAnimNode](const FText& InText, ETextCommit::Type InCommitType){ InAnimNode->SetTag(*InText.ToString()); })
+			SNew(SBox)
+			.Padding(FMargin(4.0f, 0.0f, 4.0f, 4.0f))
+			[
+				SNew(SInlineEditableTextBlock)
+				.ToolTipText_Lambda([InAnimNode](){ return FText::Format(LOCTEXT("TagFormat_Tooltip", "Tag: {0}\nThis node can be referenced elsewhere in this Anim Blueprint using this tag"), FText::FromName(InAnimNode->GetTag())); })
+				.Style(&FEditorStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("AnimGraph.Node.Tag"))
+				.Text_Lambda([InAnimNode](){ return FText::FromName(InAnimNode->GetTag()); })
+				.OnTextCommitted_Lambda([InAnimNode](const FText& InText, ETextCommit::Type InCommitType){ InAnimNode->SetTag(*InText.ToString()); })
+			]
 		];
 }
 
@@ -481,67 +493,40 @@ void SAnimationGraphNode::ReconfigurePinWidgetsForPropertyBindings(UAnimGraphNod
 			{
 				// Tweak padding a little to improve extended appearance
 				PinWidget->GetLabelAndValue()->SetInnerSlotPadding(FVector2D(2.0f, 0.0f));
-				
-				const FName PinName = Pin->GetFName();
 
-				// Compare FName without number to make sure we catch array properties that are split into multiple pins
-				FName ComparisonName = Pin->GetFName();
-				ComparisonName.SetNumber(0);
-
-				// Hide any value widgets when we have bindings
-				if(PinWidget->GetValueWidget() != SNullWidget::NullWidget)
+				TAttribute<bool> bIsEnabled = MakeAttributeLambda([WeakWidget = TWeakPtr<SGraphNode>(InGraphNodeWidget)]()
 				{
-					TWeakPtr<SGraphPin> WeakPinWidget = PinWidget;
-
-					PinWidget->GetValueWidget()->SetVisibility(MakeAttributeLambda([PinName, InAnimGraphNode, WeakPinWidget]()
-					{
-						EVisibility Visibility = EVisibility::Collapsed;
-
-						if(WeakPinWidget.IsValid())
-						{
-							Visibility = WeakPinWidget.Pin()->GetDefaultValueVisibility();
-
-							if (FAnimGraphNodePropertyBinding* BindingPtr = InAnimGraphNode->PropertyBindings.Find(PinName))
-							{
-								Visibility = EVisibility::Collapsed;
-							}
-						}
-
-						return Visibility;
-					}));
-				}
-
-				FProperty* PinProperty = InAnimGraphNode->GetFNodeType()->FindPropertyByName(ComparisonName);
-				if(PinProperty)
+					return WeakWidget.IsValid() ? WeakWidget.Pin()->IsNodeEditable() : false;
+				});
+				TSharedPtr<SWidget> PropertyBindingWidget = UAnimationGraphSchema::MakeBindingWidgetForPin({ InAnimGraphNode }, Pin->GetFName(), true, bIsEnabled);
+				if(PropertyBindingWidget.IsValid())
 				{
-					const int32 OptionalPinIndex = InAnimGraphNode->ShowPinForProperties.IndexOfByPredicate([PinProperty](const FOptionalPinFromProperty& InOptionalPin)
-					{
-						return PinProperty->GetFName() == InOptionalPin.PropertyName;
-					});
-
-					UAnimGraphNode_Base::FAnimPropertyBindingWidgetArgs Args( { InAnimGraphNode }, PinProperty, Pin->GetFName(), OptionalPinIndex);
-
 					// Add binding widget
 					PinWidget->GetLabelAndValue()->AddSlot()
 					[
-						SNew(SBox)
-						.IsEnabled_Lambda([WeakWidget = TWeakPtr<SGraphNode>(InGraphNodeWidget)]()
+						PropertyBindingWidget.ToSharedRef()
+					];
+
+					// Hide any value widgets when we have bindings
+					if(PinWidget->GetValueWidget() != SNullWidget::NullWidget)
+					{
+						PinWidget->GetValueWidget()->SetVisibility(MakeAttributeLambda([WeakPropertyBindingWidget = TWeakPtr<SWidget>(PropertyBindingWidget), WeakPinWidget = TWeakPtr<SGraphPin>(PinWidget)]()
 						{
-							return WeakWidget.IsValid() ? WeakWidget.Pin()->IsNodeEditable() : false;
-						})
-						.Visibility_Lambda([PinName, InAnimGraphNode]()
-						{
-							if (FAnimGraphNodePropertyBinding* BindingPtr = InAnimGraphNode->PropertyBindings.Find(PinName))
+							EVisibility Visibility = EVisibility::Collapsed;
+
+							if (WeakPinWidget.IsValid())
 							{
-								return EVisibility::Visible;
+								Visibility = WeakPinWidget.Pin()->GetDefaultValueVisibility();
 							}
 
-							return EVisibility::Collapsed;
-						})
-						[
-							UAnimGraphNode_Base::MakePropertyBindingWidget(Args)
-						]
-					];
+							if(Visibility == EVisibility::Visible && WeakPropertyBindingWidget.IsValid())
+							{
+								Visibility = WeakPropertyBindingWidget.Pin()->GetVisibility() == EVisibility::Visible ? EVisibility::Collapsed : EVisibility::Visible;
+							}
+
+							return Visibility;
+						}));
+					}	
 				}
 			}
 		}

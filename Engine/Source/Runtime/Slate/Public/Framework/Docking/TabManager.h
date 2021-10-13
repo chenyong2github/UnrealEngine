@@ -12,7 +12,7 @@
 
 class FJsonObject;
 class FMenuBuilder;
-class FBlacklistNames;
+class FNamePermissionList;
 class FMultiBox;
 class FProxyTabmanager;
 class SDockingArea;
@@ -977,7 +977,7 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		TSharedPtr<SDockTab> GetOwnerTab() { return OwnerTabPtr.Pin(); }
 
 		/** Returns filter for additional control over available tabs */
-		TSharedRef<FBlacklistNames>& GetTabBlacklist();
+		TSharedRef<FNamePermissionList>& GetTabPermissionList();
 
 		FUIAction GetUIActionForTabSpawnerMenuEntry(TSharedPtr<FTabSpawnerEntry> InTabMenuEntry);
 
@@ -1169,7 +1169,7 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		bool bAllowPerWindowMenu = false;
 
 		/** Allow systems to dynamically hide tabs */
-		TSharedRef<FBlacklistNames> TabBlacklist;
+		TSharedRef<FNamePermissionList> TabPermissionList;
 
 		/** Tabs which have been temporarily put in the a sidebar */
 		TArray<TWeakPtr<SDockTab>> TemporarilySidebaredTabs;

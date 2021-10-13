@@ -44,19 +44,19 @@
 			"Name": "MovieRenderPipelineCore",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [ "Mac", "Win64", "Linux" ]
+			"PlatformAllowList": [ "Mac", "Win64", "Linux" ]
 		},
 		{
 			"Name": "MovieRenderPipelineSettings",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [ "Mac", "Win64", "Linux" ]
+			"PlatformAllowList": [ "Mac", "Win64", "Linux" ]
 		},
 		{
 			"Name": "MovieRenderPipelineRenderPasses",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [ "Mac", "Win64", "Linux" ]
+			"PlatformAllowList": [ "Mac", "Win64", "Linux" ]
 		},
 		{
 			"Name": "MovieRenderPipelineEditor",
@@ -67,7 +67,7 @@
 			"Name": "UEOpenExrRTTI",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [ "Mac", "Win64", "Linux" ]
+			"PlatformAllowList": [ "Mac", "Win64", "Linux" ]
 		}
 	]
 }

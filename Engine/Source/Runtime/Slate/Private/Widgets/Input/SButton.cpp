@@ -437,7 +437,7 @@ void SButton::OnMouseLeave( const FPointerEvent& MouseEvent )
 	const bool bWasHovered = IsHovered();
 	
 	// Call parent implementation
-	SWidget::OnMouseLeave( MouseEvent );
+	SBorder::OnMouseLeave( MouseEvent );
 
 	// If we're setup to click on mouse-down, then we never capture the mouse and may not receive a
 	// mouse up event, so we need to make sure our pressed state is reset properly here

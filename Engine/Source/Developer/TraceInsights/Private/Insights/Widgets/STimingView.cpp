@@ -21,6 +21,7 @@
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateBrush.h"
 #include "Styling/StyleColors.h"
+#include "Styling/ToolBarStyle.h"
 #include "TraceServices/AnalysisService.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SButton.h"
@@ -145,6 +146,7 @@ STimingView::~STimingView()
 void STimingView::Construct(const FArguments& InArgs)
 {
 	FSlimHorizontalToolBarBuilder LeftToolbar(nullptr, FMultiBoxCustomization::None);
+	LeftToolbar.SetStyle(&FInsightsStyle::Get(), "SecondaryToolbar");
 
 	LeftToolbar.BeginSection("Menus");
 	LeftToolbar.AddComboButton(
@@ -182,6 +184,7 @@ void STimingView::Construct(const FArguments& InArgs)
 	//////////////////////////////////////////////////
 
 	FSlimHorizontalToolBarBuilder RightToolbar(nullptr, FMultiBoxCustomization::None);
+	RightToolbar.SetStyle(&FInsightsStyle::Get(), "SecondaryToolbar2");
 
 	FUIAction AutoScrollToggleButtonAction;
 	AutoScrollToggleButtonAction.GetActionCheckState.BindLambda([this]
@@ -198,9 +201,9 @@ void STimingView::Construct(const FArguments& InArgs)
 	RightToolbar.AddToolBarButton(
 		AutoScrollToggleButtonAction,
 		NAME_None,
-		FText::GetEmpty(),
+		TAttribute<FText>(),
 		LOCTEXT("AutoScrollToolTip", "Auto-Scroll"),
-		FSlateIcon(FInsightsStyle::GetStyleSetName(),"Icon.AutoScroll"),
+		FSlateIcon(FInsightsStyle::GetStyleSetName(),"AutoScroll.Icon.Small"),
 		EUserInterfaceActionType::ToggleButton);
 	RightToolbar.AddComboButton(
 		FUIAction(),
@@ -241,25 +244,29 @@ void STimingView::Construct(const FArguments& InArgs)
 		]
 
 		+ SOverlay::Slot()
-		.HAlign(HAlign_Left)
+		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Top)
-		.Padding(FMargin(2.0f, 0.0f, 0.0f, 0.0f))
+		.Padding(FMargin(0.0f))
 		[
-			LeftToolbar.MakeWidget()
-		]
-
-		+ SOverlay::Slot()
-		.HAlign(HAlign_Right)
-		.VAlign(VAlign_Top)
-		.Padding(FMargin(0.0f, 0.0f, 6.0f, 0.0f))
-		[
-			RightToolbar.MakeWidget()
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.FillWidth(1.0f)
+			[
+				LeftToolbar.MakeWidget()
+			]
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Right)
+			.AutoWidth()
+			[
+				RightToolbar.MakeWidget()
+			]
 		]
 
 		+ SOverlay::Slot()
 		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Fill)
-		.Padding(FMargin(0.0f, 0.0f, 0.0f, 0.0f))
+		.Padding(FMargin(0.0f))
 		[
 			ExtensionOverlay.ToSharedRef()
 		]
@@ -528,7 +535,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Update viewport.
 
-	Viewport.SetPosY(40.0f); // height of toolbar
+	Viewport.SetPosY(32.0f); // height of toolbar
 	Viewport.UpdateSize(FMath::RoundToFloat(ViewWidth), FMath::RoundToFloat(ViewHeight) - Viewport.GetPosY());
 
 	if (!bIsPanning && !bAutoScroll)
@@ -1429,6 +1436,14 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 	// Fill the background of the toolbar.
 	DrawContext.DrawBox(0.0f, 0.0f, ViewWidth, Viewport.GetPosY(), WhiteBrush, FSlateColor(EStyleColor::Panel).GetSpecifiedColor());
+
+	// Fill the background of the vertical scrollbar.
+	const float ScrollBarHeight = Viewport.GetScrollableAreaHeight();
+	if (ScrollBarHeight > 0)
+	{
+		constexpr float ScrollBarWidth = 12.0f;
+		DrawContext.DrawBox(ViewWidth - ScrollBarWidth, Viewport.GetPosY() + Viewport.GetTopOffset(), ScrollBarWidth, ScrollBarHeight, WhiteBrush, FSlateColor(EStyleColor::Panel).GetSpecifiedColor());
+	}
 
 	//////////////////////////////////////////////////
 	// Draw the overscroll indication lines.
@@ -4341,7 +4356,7 @@ void STimingView::CreateAllTracksMenu(FMenuBuilder& MenuBuilder)
 		//	SNew(STextBlock)
 		//	.Text(LOCTEXT("ForegroundTracks", "Foreground Tracks")),
 		//	FText(), true);
-		
+
 		MenuBuilder.AddWidget(
 			SNew(SBox)
 			.MaxDesiredHeight(MaxDesiredHeight)
@@ -4494,65 +4509,115 @@ void STimingView::ToggleAutoHideEmptyTracks()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void AddMenuEntryRadioButton(
+	FMenuBuilder& InOutMenuBuilder,
+	const FUIAction& InAction,
+	const TAttribute<FText>& InLabel,
+	const TAttribute<FText>& InToolTipText,
+	const TAttribute<FText>& InKeybinding)
+{
+	InOutMenuBuilder.AddMenuEntry(
+		InAction,
+		SNew(SBox)
+		.Padding(FMargin(0.0f))
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.Padding(FMargin(2.0f, 0.0f))
+			.VAlign(VAlign_Center)
+			.FillWidth(1.0f)
+			[
+				SNew(STextBlock)
+				.TextStyle(FCoreStyle::Get(), "Menu.Label")
+				.Text(InLabel)
+			]
+			+ SHorizontalBox::Slot()
+			.Padding(FMargin(4.0f, 0.0f))
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(STextBlock)
+				.TextStyle(FCoreStyle::Get(), "Menu.Keybinding")
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				.Text(InKeybinding)
+			]
+		],
+		NAME_None,
+		InToolTipText,
+		EUserInterfaceActionType::RadioButton
+	);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void STimingView::CreateDepthLimitMenu(FMenuBuilder& MenuBuilder)
 {
 	MenuBuilder.BeginSection("DepthLimit", LOCTEXT("DepthLimitHeading", "Depth Limit"));
 	{
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("UnlimitedDepth", "Unlimited"),
-			LOCTEXT("UnlimitedDepth_Desc", "Timing Events tracks (like the Cpu Thread tracks) can have unlimited depth (lanes)."),
-			FSlateIcon(),
+		AddMenuEntryRadioButton(MenuBuilder,
 			FUIAction(
 				FExecuteAction::CreateSP(this, &STimingView::SetEventDepthLimit, FTimingProfilerManager::UnlimitedEventDepth),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateSP(this, &STimingView::CheckEventDepthLimit, FTimingProfilerManager::UnlimitedEventDepth)),
-			NAME_None,
-			EUserInterfaceActionType::RadioButton
-		);
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("DepthLimit4", "4 Lanes"),
-			LOCTEXT("DepthLimit4_Desc", "Timing Events tracks (like the Cpu Thread tracks) can have maximum 4 lanes."),
-			FSlateIcon(),
+			LOCTEXT("UnlimitedDepth", "Unlimited"),
+			LOCTEXT("UnlimitedDepth_Desc", "Timing Events tracks (like the Cpu Thread tracks) can have unlimited depth (lanes)."),
+			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &STimingView::GetEventDepthLimitKeybindingText, FTimingProfilerManager::UnlimitedEventDepth)));
+
+		AddMenuEntryRadioButton(MenuBuilder,
 			FUIAction(
 				FExecuteAction::CreateSP(this, &STimingView::SetEventDepthLimit, (uint32)4),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateSP(this, &STimingView::CheckEventDepthLimit, (uint32)4)),
-			NAME_None,
-			EUserInterfaceActionType::RadioButton
-		);
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("DepthLimit1", "Single Lane"),
-			LOCTEXT("DepthLimit1_Desc", "Timing Events tracks (like the Cpu Thread tracks) can have a single lane."),
-			FSlateIcon(),
+			LOCTEXT("DepthLimit4", "4 Lanes"),
+			LOCTEXT("DepthLimit4_Desc", "Timing Events tracks (like the Cpu Thread tracks) can have maximum 4 lanes."),
+			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &STimingView::GetEventDepthLimitKeybindingText, (uint32)4)));
+
+		AddMenuEntryRadioButton(MenuBuilder,
 			FUIAction(
 				FExecuteAction::CreateSP(this, &STimingView::SetEventDepthLimit, (uint32)1),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateSP(this, &STimingView::CheckEventDepthLimit, (uint32)1)),
-			NAME_None,
-			EUserInterfaceActionType::RadioButton
-		);
+			LOCTEXT("DepthLimit1", "Single Lane"),
+			LOCTEXT("DepthLimit1_Desc", "Timing Events tracks (like the Cpu Thread tracks) can have a single lane."),
+			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &STimingView::GetEventDepthLimitKeybindingText, (uint32)1)));
 	}
 	MenuBuilder.EndSection();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingView::ChooseNextEventDepthLimit()
+FText STimingView::GetEventDepthLimitKeybindingText(uint32 DepthLimit) const
 {
-	uint32 DepthLimit = FTimingProfilerManager::Get()->GetEventDepthLimit();
+	uint32 CurrentDepthLimit = FTimingProfilerManager::Get()->GetEventDepthLimit();
+	uint32 NextDepthLimit = GetNextEventDepthLimit(CurrentDepthLimit);
+	return DepthLimit == NextDepthLimit ? LOCTEXT("DepthLimitKeybinding", "X") : FText::GetEmpty();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+uint32 STimingView::GetNextEventDepthLimit(uint32 DepthLimit) const
+{
 	if (DepthLimit == 1)
 	{
-		DepthLimit = 4;
+		return 4;
 	}
 	else if (DepthLimit == 4)
 	{
-		DepthLimit = FTimingProfilerManager::UnlimitedEventDepth;
+		return FTimingProfilerManager::UnlimitedEventDepth;
 	}
-	else
+	else // Unlimited
 	{
-		DepthLimit = 1;
+		return 1;
 	}
-	FTimingProfilerManager::Get()->SetEventDepthLimit(DepthLimit);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::ChooseNextEventDepthLimit()
+{
+	const uint32 CurrentDepthLimit = FTimingProfilerManager::Get()->GetEventDepthLimit();
+	const uint32 NextDepthLimit = GetNextEventDepthLimit(CurrentDepthLimit);
+	FTimingProfilerManager::Get()->SetEventDepthLimit(NextDepthLimit);
 	Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
 }
 
@@ -4566,7 +4631,7 @@ void STimingView::SetEventDepthLimit(uint32 DepthLimit)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimingView::CheckEventDepthLimit(uint32 DepthLimit)
+bool STimingView::CheckEventDepthLimit(uint32 DepthLimit) const
 {
 	return DepthLimit == FTimingProfilerManager::Get()->GetEventDepthLimit();
 }
@@ -4601,7 +4666,8 @@ void STimingView::CreateCpuThreadTrackColoringModeMenu(FMenuBuilder& MenuBuilder
 		);
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("CpuThreadTrackColoringMode_ByDuration", "By Duration"),
-			LOCTEXT("CpuThreadTrackColoringMode_ByDuration_Desc", "Assign a color to CPU/GPU timing events based on their duration (inclusive time).\nred: > 10 ms,   yellow: (1 ms .. 10 ms],   green: (100 us .. 1 ms],   blue: ≤ 100 us"),
+			LOCTEXT("CpuThreadTrackColoringMode_ByDuration_Desc",
+"Assign a color to CPU/GPU timing events based on their duration (inclusive time).\n\t≥ 10ms : red\n\t≥ 1ms : yellow\n\t≥ 100μs : green\n\t≥ 10μs : cyan\n\t≥ 1μs : blue\n\t< 1μs : grey"),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &STimingView::SetCpuThreadTrackColoringMode, Insights::ETimingEventsColoringMode::ByDuration),

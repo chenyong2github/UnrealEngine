@@ -6,6 +6,7 @@
 #include "Serialization/AsyncLoading2.h"
 #include "UObject/UObjectThreadContext.h"
 #include "Misc/PackageName.h"
+#include "IO/IoDispatcher.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditorPackageLoader, Log, All);
 
@@ -25,8 +26,12 @@ public:
 
 	virtual void InitializeLoading() override
 	{
-		UE_LOG(LogEditorPackageLoader, Log, TEXT("Initializing EDL loader for cooked packages in editor"));
-		CookedPackageLoader->InitializeLoading();
+		if (FIoDispatcher::Get().DoesChunkExist(CreateIoChunkId(0, 0, EIoChunkType::ScriptObjects)))
+		{
+			UE_LOG(LogEditorPackageLoader, Log, TEXT("Initializing Zen loader for cooked packages in editor startup"));
+			CookedPackageLoader->InitializeLoading();
+			bHasInitializedCookedPackageLoader = true;
+		}
 		UncookedPackageLoader->InitializeLoading();
 	}
 
@@ -38,6 +43,12 @@ public:
 
 	virtual void StartThread() override
 	{
+		if (!bHasInitializedCookedPackageLoader)
+		{
+			UE_LOG(LogEditorPackageLoader, Log, TEXT("Initializing Zen loader for cooked packages in editor after startup"));
+			CookedPackageLoader->InitializeLoading();
+			bHasInitializedCookedPackageLoader = true;
+		}
 		CookedPackageLoader->StartThread();
 		UncookedPackageLoader->StartThread();
 	}
@@ -53,8 +64,8 @@ public:
 		const FLinkerInstancingContext* InstancingContext) override
 	{
 		// Use the old loader if an uncooked package exists on disk
-		const bool bDoesUncookedPackageExist = FPackageName::DoesPackageExistEx(PackagePath, FPackageName::EPackageLocationFilter::Uncooked) != FPackageName::EPackageLocationFilter::None;
-		if (bDoesUncookedPackageExist)
+		if (!bHasInitializedCookedPackageLoader ||
+			FPackageName::DoesPackageExistEx(PackagePath, FPackageName::EPackageLocationFilter::Uncooked) != FPackageName::EPackageLocationFilter::None)
 		{
 			UE_LOG(LogEditorPackageLoader, Verbose, TEXT("Loading uncooked package '%s' from filesystem"), *PackagePath.GetDebugName());
 			return UncookedPackageLoader->LoadPackage(PackagePath, CustomPackageName, InCompletionDelegate, InGuid, InPackageFlags, InPIEInstanceID, InPackagePriority, InstancingContext);
@@ -188,6 +199,7 @@ public:
 private:
 	TUniquePtr<IAsyncPackageLoader> CookedPackageLoader;
 	TUniquePtr<IAsyncPackageLoader> UncookedPackageLoader;
+	bool bHasInitializedCookedPackageLoader = false;
 };
 
 TUniquePtr<IAsyncPackageLoader> MakeEditorPackageLoader(FIoDispatcher& InIoDispatcher, IEDLBootNotificationManager& InEDLBootNotificationManager)

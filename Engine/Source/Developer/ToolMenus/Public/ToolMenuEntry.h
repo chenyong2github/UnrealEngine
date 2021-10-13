@@ -90,6 +90,15 @@ public:
 	bool bNoPadding;
 };
 
+struct FToolMenuCustomWidgetContext
+{
+	// The style used by the menu creating the widget
+	const class ISlateStyle* StyleSet = nullptr;
+
+	// The name of the style used by the menu creating the widget
+	FName StyleName;
+};
+
 USTRUCT(BlueprintType)
 struct TOOLMENUS_API FToolMenuEntry
 {
@@ -97,6 +106,12 @@ struct TOOLMENUS_API FToolMenuEntry
 
 	FToolMenuEntry();
 	FToolMenuEntry(const FToolMenuOwner InOwner, const FName InName, EMultiBlockType InType);
+
+	FToolMenuEntry(const FToolMenuEntry&);
+	FToolMenuEntry(FToolMenuEntry&&);
+
+	FToolMenuEntry& operator=(const FToolMenuEntry&);
+	FToolMenuEntry& operator=(FToolMenuEntry&&);
 
 	static FToolMenuEntry InitMenuEntry(const FName InName, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const TAttribute<FSlateIcon>& InIcon, const FToolUIActionChoice& InAction, const EUserInterfaceActionType UserInterfaceActionType = EUserInterfaceActionType::Button, const FName InTutorialHighlightName = NAME_None);
 	static FToolMenuEntry InitMenuEntry(const TSharedPtr< const FUICommandInfo >& InCommand, const TAttribute<FText>& InLabelOverride = TAttribute<FText>(), const TAttribute<FText>& InToolTipOverride = TAttribute<FText>(), const TAttribute<FSlateIcon>& InIconOverride = TAttribute<FSlateIcon>(), const FName InTutorialHighlightName = NAME_None, const TOptional<FName> InNameOverride = TOptional<FName>());
@@ -178,8 +193,11 @@ public:
 
 	FToolMenuEntryWidgetData WidgetData;
 
-	/** Optional delegate that returns a widget to use as this menu entry */
+	UE_DEPRECATED(5.1, "Use MakeCustomWidget instead")
 	FNewToolMenuWidget MakeWidget;
+
+	/** Optional delegate that returns a widget to use as this menu entry */
+	FNewToolMenuCustomWidget MakeCustomWidget;
 
 	TAttribute<FText> Label;
 	TAttribute<FText> ToolTip;
@@ -206,4 +224,3 @@ private:
 	UPROPERTY()
 	bool bCommandIsKeybindOnly;
 };
-

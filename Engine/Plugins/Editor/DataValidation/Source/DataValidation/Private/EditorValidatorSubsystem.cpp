@@ -138,7 +138,7 @@ void UEditorValidatorSubsystem::AddValidator(UEditorValidatorBase* InValidator)
 {
 	if (InValidator)
 	{
-		Validators.Add(InValidator->GetClass(), InValidator);
+		Validators.Add(InValidator->GetClass()->GetPathName(), InValidator);
 	}
 }
 

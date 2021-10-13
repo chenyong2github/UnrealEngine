@@ -89,11 +89,6 @@ void FIOSPlatformTextField::ShowVirtualKeyboard(bool bShow, int32 UserIndex, TSh
 	{
 		if(bShow)
 		{
-			if (TextField == nullptr)
-			{
-				TextField = [[[SlateTextField alloc] init] retain];
-			}
-
 			// capture some gamethread strings before we toss over to main thread
 			NSString* TextContents = [NSString stringWithFString : TextEntryWidget->GetText().ToString()];
 			NSString* PlaceholderContents = [NSString stringWithFString : TextEntryWidget->GetHintText().ToString()];
@@ -102,6 +97,10 @@ void FIOSPlatformTextField::ShowVirtualKeyboard(bool bShow, int32 UserIndex, TSh
 
 			// these functions must be run on the main thread
 			dispatch_async(dispatch_get_main_queue(),^ {
+				if (TextField == nullptr)
+				{
+					TextField = [[[SlateTextField alloc]init] retain];
+				}
 				[TextField show:TextEntryWidget text:TextContents placeholder:PlaceholderContents keyboardConfig:KeyboardConfig];
 			});
 		}

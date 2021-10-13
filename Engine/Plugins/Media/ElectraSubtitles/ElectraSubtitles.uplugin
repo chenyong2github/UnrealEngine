@@ -19,8 +19,8 @@
 			"Name": "ElectraSubtitles",
 			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "PostEngineInit",
-			"WhitelistPlatforms": [ "Win64", "Mac", "IOS", "Android" ],
-			"BlacklistTargets": [ "Server" ]
+			"PlatformAllowList": [ "Win64", "Mac", "IOS", "Android" ],
+			"TargetDenyList": [ "Server" ]
 		}
 	],
 	"Plugins": [

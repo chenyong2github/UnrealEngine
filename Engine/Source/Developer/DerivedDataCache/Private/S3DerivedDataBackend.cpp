@@ -950,6 +950,11 @@ TSharedRef<FDerivedDataCacheStatsNode> FS3DerivedDataBackend::GatherUsageStats()
 	return Usage;
 }
 
+FString FS3DerivedDataBackend::GetDisplayName() const
+{
+	return FString(TEXT("S3"));
+}
+
 FString FS3DerivedDataBackend::GetName() const
 {
 	return BaseUrl;

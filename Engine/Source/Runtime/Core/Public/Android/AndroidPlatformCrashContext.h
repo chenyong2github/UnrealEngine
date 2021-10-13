@@ -84,10 +84,10 @@ private:
 
 struct CORE_API FAndroidMemoryWarningContext : public FGenericMemoryWarningContext
 {
-	FAndroidMemoryWarningContext() : LastTrimMemoryState(-1) {}
+	FAndroidMemoryWarningContext() : LastTrimMemoryState(FAndroidPlatformMemory::ETrimValues::Unknown) {}
 
-	// value last recorded from java side's OnTrimMemory. -1 if unset.
-	int LastTrimMemoryState;
+	// value last recorded from java side's OnTrimMemory.
+	FAndroidPlatformMemory::ETrimValues LastTrimMemoryState;
 };
 
 typedef FAndroidCrashContext FPlatformCrashContext;

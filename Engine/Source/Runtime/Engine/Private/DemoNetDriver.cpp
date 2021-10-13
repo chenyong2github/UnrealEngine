@@ -103,12 +103,6 @@ namespace ReplayTaskNames
 	static FName FastForwardLevelsTask(TEXT("FastForwardLevelsTask"));
 };
 
-// static delegates
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-FOnDemoStartedDelegate UDemoNetDriver::OnDemoStarted;
-FOnDemoFailedToStartDelegate UDemoNetDriver::OnDemoFailedToStart;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 // This is only intended for testing purposes
 // A "better" way might be to throw together a GameplayDebuggerComponent or Category, so we could populate
 // more than just the DemoTime.
@@ -613,9 +607,6 @@ void UDemoNetDriver::InitDefaults()
 {
 	DemoSessionID = FGuid::NewGuid().ToString().ToLower();
 	SetCurrentLevelIndex(0);
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	bRecordMapChanges = false;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	bIsWaitingForHeaderDownload = false;
 	bIsWaitingForStream = false;
 	MaxArchiveReadPos = 0;
@@ -821,13 +812,6 @@ void UDemoNetDriver::ResetDemoState()
 	bIsWaitingForStream = false;
 	bIsFinalizingFastForward = false;
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	DemoFrameNum = 0;
-	DemoTotalFrames = 0;
-	LastCheckpointTime = 0.0f;
-	ExternalDataToObjectMap.Empty();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	PlaybackPackets.Empty();
 
 	ReplayHelper.ResetState();
@@ -1026,10 +1010,6 @@ bool UDemoNetDriver::InitListen(FNetworkNotify* InNotify, FURL& ListenURL, bool 
 	BudgetLogHelper = MakeUnique<FDemoBudgetLogHelper>(NetDriverName.ToString());
 
 	ReplayHelper.StartRecording(Connection);
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	bRecordMapChanges = ReplayHelper.bRecordMapChanges;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Spawn the demo recording spectator.
 	SpawnDemoRecSpectator(Connection, ListenURL);
@@ -1380,10 +1360,6 @@ void UDemoNetDriver::StopDemo()
 		return;
 	}
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	OnDemoFinishRecordingDelegate.Broadcast();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	UE_LOG(LogDemo, Log, TEXT("StopDemo: Demo %s stopped at frame %d"), *ReplayHelper.DemoURL.Map, GetDemoFrameNum());
 
 	if (!ServerConnection)
@@ -1418,16 +1394,6 @@ Demo Recording tick.
 bool UDemoNetDriver::DemoReplicateActor(AActor* Actor, UNetConnection* Connection, bool bMustReplicate)
 {
 	return ReplayHelper.ReplicateActor(Actor, Connection, bMustReplicate);
-}
-
-void UDemoNetDriver::SaveExternalData(FArchive& Ar)
-{
-	ReplayHelper.SaveExternalData(ClientConnections[0], Ar);
-}
-
-void UDemoNetDriver::LoadExternalData(FArchive& Ar, const float TimeSeconds)
-{
-	ReplayHelper.LoadExternalData(Ar, TimeSeconds);
 }
 
 void UDemoNetDriver::AddEvent(const FString& Group, const FString& Meta, const TArray<uint8>& Data)
@@ -1659,9 +1625,6 @@ void UDemoNetDriver::TickDemoRecordFrame(float DeltaSeconds)
 	}
 
 	// Save out a frame
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	DemoFrameNum++;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	ReplayHelper.DemoFrameNum++;
 
 	ReplicationFrame++;
@@ -2131,12 +2094,6 @@ bool UDemoNetDriver::ReplicatePrioritizedActors(const FDemoActorPriority* Actors
 	return bTimeRemaining;
 }
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-bool UDemoNetDriver::ShouldSaveCheckpoint() const
-{
-	return ReplayHelper.ShouldSaveCheckpoint();
-}
-
 void UDemoNetDriver::PauseChannels(const bool bPause)
 {
 	if (bPause == bChannelsArePaused)
@@ -2173,10 +2130,8 @@ void UDemoNetDriver::PauseChannels(const bool bPause)
 	bChannelsArePaused = bPause;
 
 	UE_LOG(LogDemo, Verbose, TEXT("PauseChannels: %d"), bChannelsArePaused);
-	OnPauseChannelsDelegate.Broadcast(bChannelsArePaused);
 	FNetworkReplayDelegates::OnPauseChannelsChanged.Broadcast(World, bChannelsArePaused);
 }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 bool UDemoNetDriver::ReadDemoFrameIntoPlaybackPackets(FArchive& Ar, TArray<FPlaybackPacket>& InPlaybackPackets, const bool bForLevelFastForward, float* OutTime)
 {
@@ -2604,9 +2559,6 @@ void UDemoNetDriver::TickDemoPlayback(float DeltaSeconds)
 #endif
 		if (!ReplayHelper.ReplayStreamer->IsLive() && bIsAtEnd)
 		{
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			OnDemoFinishPlaybackDelegate.Broadcast();
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			FNetworkReplayDelegates::OnReplayPlaybackComplete.Broadcast(World);
 
 			FReplayPlaylistTracker* LocalPlaylistTracker = PlaylistTracker.Get();
@@ -2705,9 +2657,6 @@ void UDemoNetDriver::TickDemoPlayback(float DeltaSeconds)
 		// Process packets until we are caught up (this implicitly handles fast forward if DemoCurrentTime past many frames)
 		while (ConditionallyProcessPlaybackPackets())
 		{
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			DemoFrameNum++;
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			ReplayHelper.DemoFrameNum++;
 		}
 
@@ -3049,9 +2998,6 @@ void UDemoNetDriver::ReplayStreamingReady(const FStartStreamingResult& Result)
 		}
 
 		// Notify all listeners that a demo is starting
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		OnDemoStarted.Broadcast(this);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		FNetworkReplayDelegates::OnReplayStarted.Broadcast(World);
 	}
 }
@@ -3399,9 +3345,6 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 
 	} ReadPacketsHelper(*this, LastProcessedPacketTime);
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	DeletedNetStartupActors.Empty();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	ReplayHelper.DeletedNetStartupActors.Empty();
 
 	PlaybackDeltaCheckpointData.Empty();
@@ -3448,7 +3391,6 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 					*CheckpointArchive << LevelIndex;
 				}
 
-				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				if (PlaybackVersion >= HISTORY_DELETED_STARTUP_ACTORS)
 				{
 					if (bDeltaCheckpoint)
@@ -3457,7 +3399,6 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 
 						ReplayHelper.ReadDeletedStartupActors(ServerConnection, *CheckpointArchive, CheckpointData->DestroyedNetStartupActors);
 
-						DeletedNetStartupActors.Append(CheckpointData->DestroyedNetStartupActors);
 						ReplayHelper.DeletedNetStartupActors.Append(CheckpointData->DestroyedNetStartupActors);
 
 						*CheckpointArchive << CheckpointData->DestroyedDynamicActors;
@@ -3465,15 +3406,11 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 					}
 					else
 					{
-						DeletedNetStartupActors.Empty();
 						ReplayHelper.DeletedNetStartupActors.Empty();
 
 						ReplayHelper.ReadDeletedStartupActors(ServerConnection, *CheckpointArchive, ReplayHelper.DeletedNetStartupActors);
-
-						DeletedNetStartupActors = ReplayHelper.DeletedNetStartupActors;
 					}
 				}
-				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 				CheckpointArchive->Seek(PacketOffset);
 
@@ -3940,10 +3877,6 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 	}
 #endif
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	ExternalDataToObjectMap.Empty();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	ReplayHelper.ExternalDataToObjectMap.Empty();
 
 	PlaybackPackets.Empty();
@@ -4023,9 +3956,6 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 	if (GotoCheckpointArchive->TotalSize() == 0 || GotoCheckpointArchive->TotalSize() == INDEX_NONE)
 	{
 		// Make sure this is empty so that RespawnNecessaryNetStartupActors will respawn them
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		DeletedNetStartupActors.Empty();
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		ReplayHelper.DeletedNetStartupActors.Empty();
 
 		// Re-create all startup actors that were destroyed but should exist beyond this point
@@ -4052,9 +3982,6 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 
 	GotoCheckpointArchive->Seek(0);
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	DeletedNetStartupActors.Empty();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	ReplayHelper.DeletedNetStartupActors.Empty();
 
 	PlaybackDeltaCheckpointData.Empty();
@@ -4096,14 +4023,12 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 			{
 				TSet<FString> DeltaActors;
 
-				DeletedNetStartupActors.Append(DeltaActors);
 				ReplayHelper.DeletedNetStartupActors.Append(DeltaActors);
 
 				TUniquePtr<FDeltaCheckpointData>& CheckpointData = PlaybackDeltaCheckpointData.Emplace_GetRef(new FDeltaCheckpointData());
 
 				ReplayHelper.ReadDeletedStartupActors(ServerConnection, *GotoCheckpointArchive, CheckpointData->DestroyedNetStartupActors);
 
-				DeletedNetStartupActors.Append(CheckpointData->DestroyedNetStartupActors);
 				ReplayHelper.DeletedNetStartupActors.Append(CheckpointData->DestroyedNetStartupActors);
 
 				*GotoCheckpointArchive << CheckpointData->DestroyedDynamicActors;
@@ -4111,12 +4036,9 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 			}
 			else
 			{
-				DeletedNetStartupActors.Empty();
 				ReplayHelper.DeletedNetStartupActors.Empty();
 
 				ReplayHelper.ReadDeletedStartupActors(ServerConnection, *GotoCheckpointArchive, ReplayHelper.DeletedNetStartupActors);
-
-				DeletedNetStartupActors = ReplayHelper.DeletedNetStartupActors;
 			}
 		}
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -4812,16 +4734,8 @@ void UDemoNetDriver::NotifyGotoTimeFinished(bool bWasSuccessful)
 	// call only when successful
 	if (bWasSuccessful)
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		OnGotoTimeDelegate.Broadcast();
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 		FNetworkReplayDelegates::OnReplayScrubComplete.Broadcast(World);
 	}
-}
-
-void UDemoNetDriver::PendingNetGameLoadMapCompleted()
-{
 }
 
 void UDemoNetDriver::OnSeamlessTravelStartDuringRecording(const FString& LevelName)
@@ -4850,9 +4764,6 @@ void UDemoNetDriver::InitDestroyedStartupActors()
 				const TArray<FReplicatedStaticActorDestructionInfo>& DestroyedReplicatedStaticActors = Level->GetDestroyedReplicatedStaticActors();
 				for (const FReplicatedStaticActorDestructionInfo& Info : DestroyedReplicatedStaticActors)
 				{
-					PRAGMA_DISABLE_DEPRECATION_WARNINGS
-					DeletedNetStartupActors.Add(Info.FullName);
-					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					ReplayHelper.DeletedNetStartupActors.Add(Info.FullName);
 					ReplayHelper.RecordingDeltaCheckpointData.DestroyedNetStartupActors.Add(Info.FullName);
 				}
@@ -4925,22 +4836,11 @@ void UDemoNetDriver::NotifyActorDestroyed(AActor* Actor, bool IsSeamlessTravel)
 			UE_CLOG(bActorRewindable, LogDemo, Warning, TEXT("Replay Rewindable Actor destroyed during recording. Replay may show artifacts (%s)"), *FullName);
 
 			UE_LOG(LogDemo, VeryVerbose, TEXT("NotifyActyorDestroyed: adding actor to deleted startup list: %s"), *FullName);
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			DeletedNetStartupActors.Add(FullName);
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			ReplayHelper.DeletedNetStartupActors.Add(FullName);
 
 			if (bDeltaCheckpoint)
 			{
 				ReplayHelper.RecordingDeltaCheckpointData.DestroyedNetStartupActors.Add(FullName);
-			}
-
-			FNetworkGUID NetGUID = GuidCache->NetGUIDLookup.FindRef(Actor);
-			if (NetGUID.IsValid())
-			{
-				PRAGMA_DISABLE_DEPRECATION_WARNINGS
-				DeletedNetStartupActorGUIDs.Add(NetGUID);
-				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 		}
 	}
@@ -5169,10 +5069,6 @@ void UDemoNetDriver::NotifyDemoPlaybackFailure(EDemoPlayFailure::Type FailureTyp
 	const bool bIsPlaying = IsPlaying();
 
 	// fire delegate
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	OnDemoFailedToStart.Broadcast(this, FailureType);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	FNetworkReplayDelegates::OnReplayStartFailure.Broadcast(World, FailureType);
 
 	StopDemo();
@@ -5331,10 +5227,6 @@ void UDemoPendingNetGame::LoadMapCompleted(UEngine* Engine, FWorldContext& Conte
 		}
 		return;
 	}
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	TheDriver->PendingNetGameLoadMapCompleted();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UDemoNetDriver::Serialize(FArchive& Ar)
@@ -5350,35 +5242,6 @@ void UDemoNetDriver::Serialize(FArchive& Ar)
 		//		Dynamic Delegate Data
 		//		QueuedReplayTasks.
 		//		DemoURL
-
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DeletedNetStartupActors",
-			DeletedNetStartupActors.CountBytes(Ar);
-			for (FString& ActorString : DeletedNetStartupActors)
-			{
-				Ar << ActorString;
-			}
-		);
-
-		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DeletedNetStartupActorGUIDs", DeletedNetStartupActorGUIDs.CountBytes(Ar));
-
-		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RollbackNetStartupActorsValues",
-			// The map for RollbackNetStartupActors may have already been serialized,
-			// However, that won't capture non-property members or properly count them.
-			for (const auto& RollbackNetStartupActorPair : RollbackNetStartupActors)
-			{
-				RollbackNetStartupActorPair.Value.CountBytes(Ar);
-			}
-		);
-
-		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ExternalDataToObjectMap",
-			ExternalDataToObjectMap.CountBytes(Ar);
-			for (const auto& ExternalDataToObjectPair : ExternalDataToObjectMap)
-			{
-				ExternalDataToObjectPair.Value.CountBytes(Ar);
-			}
-		);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PlaybackPackets",
 			PlaybackPackets.CountBytes(Ar);

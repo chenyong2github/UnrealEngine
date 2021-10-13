@@ -388,6 +388,11 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 	{
 		CollectEngineNamespaceParameterActions();
 		CollectMakeNew(Collector, NamespaceId);
+
+		// Special case; collect DataInstance.Alive so that it is an option if we are selecting a parameter from a map node in a script.
+		TArray<FNiagaraVariable> Variables;
+		Variables.Add(SYS_PARAM_INSTANCE_ALIVE);
+		AddParameterGroup(Collector, Variables, FNiagaraEditorGuids::DataInstanceNamespaceMetaDataGuid, FText(), 3, FString(), false);
 	}
 
 	// Any other "unreserved" namespace
@@ -553,16 +558,21 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 		}
 
 		// Gather available parameters in the used namespace from the graph parameter to reference map and the system editor only parameters.
-		TOptional<FName> UsageNamespace = FNiagaraStackGraphUtilities::GetNamespaceForOutputNode(OutputNode);
-		if (UsageNamespace.IsSet())
-		{
+		auto VariableIsStrictlyInNamespace = [](const FNiagaraVariable& Var, const FName& Namespace)->bool {
+			FName OutName;
+			const TArray<FName> Namespaces = FNiagaraEditorUtilities::DecomposeVariableNamespace(Var.GetName(), OutName);
+			if (Namespaces.Num() == 1 && Namespaces[0] == Namespace)
+			{
+				return true;
+			}
+			return false;
+		};
+
+		auto AddAvailableParametersForNamespace = [&AvailableParameters, &OutputNode, &OwningSystem, &VariableIsStrictlyInNamespace](const FName& Namespace) {
 			for (const TPair<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& Entry : OutputNode->GetNiagaraGraph()->GetParameterReferenceMap())
 			{
-				// Pick up any params with 0 references from the Parameters window
-				bool bDoesParamHaveNoReferences = Entry.Value.ParameterReferences.Num() == 0;
-				bool bIsParamInUsageNamespace = Entry.Key.IsInNameSpace(UsageNamespace.GetValue().ToString());
-
-				if (bDoesParamHaveNoReferences && bIsParamInUsageNamespace)
+				// Pick up any params in the target namespace.
+				if (VariableIsStrictlyInNamespace(Entry.Key, Namespace))
 				{
 					AvailableParameters.AddUnique(Entry.Key);
 				}
@@ -571,17 +581,23 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 			TSharedPtr<FNiagaraSystemViewModel> SystemViewModel = TNiagaraViewModelManager<UNiagaraSystem, FNiagaraSystemViewModel>::GetExistingViewModelForObject(OwningSystem);
 			if (SystemViewModel.IsValid())
 			{
-				TArray<FNiagaraVariable> EditorOnlyParameters;
 				for (const UNiagaraScriptVariable* EditorOnlyScriptVar : SystemViewModel->GetEditorOnlyParametersAdapter()->GetParameters())
 				{
 					const FNiagaraVariable& EditorOnlyParameter = EditorOnlyScriptVar->Variable;
-					if (EditorOnlyParameter.IsInNameSpace(UsageNamespace.GetValue().ToString()))
+					if (VariableIsStrictlyInNamespace(EditorOnlyParameter, Namespace))
 					{
 						AvailableParameters.AddUnique(EditorOnlyParameter);
 					}
 				}
 			}
+		};
+
+		TOptional<FName> UsageNamespace = FNiagaraStackGraphUtilities::GetNamespaceForOutputNode(OutputNode);
+		if (UsageNamespace.IsSet())
+		{
+			AddAvailableParametersForNamespace(UsageNamespace.GetValue());
 		}
+		AddAvailableParametersForNamespace(FNiagaraConstants::TransientNamespace);
 
 		// Now check to see if any of the available write namespaces have overlap with the iteration namespaces. If so, we need to exclude them if they aren't the active stack context.
 		// This is for situations like Emitter.Grid2DCollection.TestValue which should only be written if in the sim stage scripts and not emitter scripts, which would normally be allowed.

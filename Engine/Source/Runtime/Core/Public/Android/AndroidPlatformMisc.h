@@ -164,11 +164,6 @@ public:
 	static bool FileExistsInPlatformPackage(const FString& RelativePath);
 
 	// ANDROID ONLY:
-
-	// called when OS (via JNI) reports memory trouble, triggers MemoryWarningHandler callback on game thread if set.
-	enum class EOSMemoryStatusCategory { OSTrim };
-	static void UpdateOSMemoryStatus(EOSMemoryStatusCategory OSMemoryStatusCategory, int value);
-
 	static void SetVersionInfo(FString AndroidVersion, int32 InTargetSDKVersion, FString DeviceMake, FString DeviceModel, FString DeviceBuildNumber, FString OSLanguage);
 	static const FString GetAndroidVersion();
 	static int32 GetAndroidMajorVersion();

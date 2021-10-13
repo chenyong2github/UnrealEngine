@@ -26,7 +26,7 @@ namespace AutomationTool
 				throw new AutomationException("Base directory '{0}' does not exist", BaseDir);
 			}
 
-			// Find a list of restricted folders, and remove any names which are explicitly whitelisted
+			// Find a list of restricted folders, and remove any names which are explicitly allowed
 			HashSet<string> RestrictedNames = new HashSet<string>(RestrictedFolder.GetNames(), StringComparer.InvariantCultureIgnoreCase);
 			foreach (string AllowParam in ParseParamValues("Allow"))
 			{

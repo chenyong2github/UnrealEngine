@@ -160,7 +160,7 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 
 	TSharedPtr<SHorizontalBox> ToolbarBox;
 
-	auto WidgetContent = 
+	auto WidgetContent =
 	SNew(SVerticalBox)
 
 	+ SVerticalBox::Slot()
@@ -261,7 +261,7 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 				.OnSelectionChanged(this, &STableTreeView::TreeView_OnSelectionChanged)
 				.OnMouseButtonDoubleClick(this, &STableTreeView::TreeView_OnMouseButtonDoubleClick)
 				.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &STableTreeView::TreeView_GetMenuContent))
-				.ItemHeight(12.0f)
+				.ItemHeight(16.0f)
 				.HeaderRow
 				(
 					SAssignNew(TreeViewHeaderRow, SHeaderRow)
@@ -808,7 +808,7 @@ void STableTreeView::Tick(const FGeometry& AllottedGeometry, const double InCurr
 		if (DispatchEvent.IsValid() && !DispatchEvent->IsComplete())
 		{
 			// We wait for the TreeView to be refreshed before dispatching the tasks.
-			// This should make the TreeView release all of it's shared pointers to nodes to prevent 
+			// This should make the TreeView release all of it's shared pointers to nodes to prevent
 			// the TreeView (MainThread) and the tasks from accesing the non-thread safe shared pointers at the same time.
 			if (!TreeView->IsPendingRefresh())
 			{
@@ -900,7 +900,7 @@ void STableTreeView::ApplyFiltering()
 
 	UpdateAggregatedValues(*Root);
 
-	// Cannot call TreeView functions from other threads than MainThread and SlateThread. 
+	// Cannot call TreeView functions from other threads than MainThread and SlateThread.
 	if (!bRunInAsyncMode)
 	{
 		// Only expand nodes if we have a text filter.
@@ -1099,7 +1099,7 @@ bool STableTreeView::MakeSubtreeVisible(FTableTreeNodePtr NodePtr, bool bFilterI
 
 void STableTreeView::HandleItemToStringArray(const FTableTreeNodePtr& FTableTreeNodePtr, TArray<FString>& OutSearchStrings)
 {
-	OutSearchStrings.Add(FTableTreeNodePtr->GetName().GetPlainNameString());
+	OutSearchStrings.Add(FTableTreeNodePtr->GetName().ToString());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2176,21 +2176,20 @@ void STableTreeView::ShowColumn(FTableColumn& Column)
 		ColumnArgs
 			.ColumnId(Column.GetId())
 			.DefaultLabel(Column.GetShortName())
-			.HAlignHeader(HAlign_Fill)
-			.VAlignHeader(VAlign_Fill)
-			.HeaderContentPadding(FMargin(2.0f))
+			.ToolTip(STableTreeViewTooltip::GetColumnTooltip(Column))
+			.HAlignHeader(Column.GetHorizontalAlignment())
+			.VAlignHeader(VAlign_Center)
 			.HAlignCell(HAlign_Fill)
 			.VAlignCell(VAlign_Fill)
 			.SortMode(this, &STableTreeView::GetSortModeForColumn, Column.GetId())
 			.OnSort(this, &STableTreeView::OnSortModeChanged)
-			//.ManualWidth(Column.GetInitialWidth())
 			.FillWidth(Column.GetInitialWidth())
 			//.FixedWidth(Column.IsFixedWidth() ? Column.GetInitialWidth() : TOptional<float>())
 			.HeaderContent()
 			[
 				SNew(SBox)
-				.ToolTip(STableTreeViewTooltip::GetColumnTooltip(Column))
-				.HAlign(Column.GetHorizontalAlignment())
+				.HeightOverride(24.0f)
+				.Padding(FMargin(0.0f))
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
@@ -2622,9 +2621,9 @@ FText STableTreeView::GetCurrentOperationName() const
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 double STableTreeView::GetAllOperationsDuration()
-{ 
-	AsyncUpdateStopwatch.Update();  
-	return AsyncUpdateStopwatch.GetAccumulatedTime(); 
+{
+	AsyncUpdateStopwatch.Update();
+	return AsyncUpdateStopwatch.GetAccumulatedTime();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2840,7 +2839,7 @@ FText STableTreeView::AdvancedFilters_GetTooltipText() const
 	{
 		return LOCTEXT("AdvancedFiltersBtn_ToolTip", "Opens the filter configurator window.");
 	}
-	
+
 	return LOCTEXT("AdvancedFiltersBtn_Disabled_ToolTip", "Advanced filters cannot be added when filters are already applied using the search box.");
 }
 

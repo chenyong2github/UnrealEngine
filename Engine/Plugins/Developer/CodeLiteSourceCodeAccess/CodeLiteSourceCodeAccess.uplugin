@@ -20,7 +20,7 @@
 			"Name" : "CodeLiteSourceCodeAccess",
 			"Type" : "UncookedOnly",
 			"LoadingPhase" : "Default",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"Linux"
 			]

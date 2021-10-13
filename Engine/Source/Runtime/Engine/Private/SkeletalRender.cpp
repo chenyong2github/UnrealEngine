@@ -403,6 +403,11 @@ void UpdatePreviousRefToLocalMatrices(TArray<FMatrix44f>& ReferenceToLocal, cons
 	{
 		ReferenceToLocal.Reset();
 		ReferenceToLocal.AddUninitialized(RefBasesInvMatrix->Num());
+
+		for (int32 Index = 0; Index < ReferenceToLocal.Num(); ++Index)
+		{
+			ReferenceToLocal[Index] = FMatrix44f::Identity;
+		}
 	}
 
 	if (!InSkeletalMeshRenderData->LODRenderData.IsValidIndex(LODIndex))

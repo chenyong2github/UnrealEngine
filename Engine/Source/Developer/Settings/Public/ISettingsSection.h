@@ -11,7 +11,7 @@ class SWidget;
  * Interface for setting sections.
  *
  * A setting section is a collection of settings that logically belong together
- * (i.e. all settings for the PS4 Platform). Internally, the individual settings
+ * (i.e. all settings for a console platform). Internally, the individual settings
  * are represented as the properties of an UObject. One or more setting sections
  * can the be hierarchically arranged in a setting category.
  */

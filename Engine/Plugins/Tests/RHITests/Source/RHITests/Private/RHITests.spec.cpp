@@ -8,9 +8,9 @@
 #include "RHITextureTests.h"
 
 
-BEGIN_DEFINE_SPEC(FAutomationExpectedErrorTest, "System.Automation.RHI", EAutomationTestFlags::EngineFilter | EAutomationTestFlags::ApplicationContextMask)
-END_DEFINE_SPEC(FAutomationExpectedErrorTest)
-void FAutomationExpectedErrorTest::Define()
+BEGIN_DEFINE_SPEC(FAutomationRHITest, "System.Automation.RHI", EAutomationTestFlags::EngineFilter | EAutomationTestFlags::ApplicationContextMask)
+END_DEFINE_SPEC(FAutomationRHITest)
+void FAutomationRHITest::Define()
 {
 	Describe("Test RHI Clear", [this]()
 	{

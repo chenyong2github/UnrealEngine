@@ -9,6 +9,7 @@ using UnrealBuildTool;
 using AutomationTool;
 using System.Xml;
 using EpicGames.Core;
+using OpenTracing;
 
 namespace AutomationTool
 {
@@ -281,6 +282,25 @@ namespace AutomationTool
 			if (Parameters.Project != null)
 			{
 				Span.AddMetadata(Prefix + "target.project", Parameters.Project);
+			}
+		}
+		
+		/// <summary>
+		/// Get properties to include in tracing info
+		/// </summary>
+		/// <param name="Span">The span to add metadata to</param>
+		/// <param name="Prefix">Prefix for all metadata keys</param>
+		public override void GetTraceMetadata(ISpan Span, string Prefix)
+		{
+			base.GetTraceMetadata(Span, Prefix);
+
+			Span.SetTag(Prefix + "target.name", Parameters.Target);
+			Span.SetTag(Prefix + "target.config", Parameters.Configuration.ToString());
+			Span.SetTag(Prefix + "target.platform", Parameters.Platform.ToString());
+
+			if (Parameters.Project != null)
+			{
+				Span.SetTag(Prefix + "target.project", Parameters.Project);
 			}
 		}
 

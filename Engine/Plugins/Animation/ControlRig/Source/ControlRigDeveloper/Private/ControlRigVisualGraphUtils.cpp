@@ -2,7 +2,106 @@
 
 #include "ControlRigVisualGraphUtils.h"
 
-FString FControlRigVisualGraphUtils::DumpRigHierarchyToDotGraph(URigHierarchy* InHierarchy)
+#include "ControlRig.h"
+#include "VisualGraphUtilsModule.h"
+
+#if WITH_EDITOR
+
+#include "HAL/PlatformApplicationMisc.h"
+#include "RigVMModel/RigVMNode.h"
+#include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
+#include "ControlRig/Private/Units/Execution/RigUnit_PrepareForExecution.h"
+#include "ControlRig/Private/Units/Execution/RigUnit_InverseExecution.h"
+
+FAutoConsoleCommandWithWorldAndArgs FCmdControlRigVisualGraphUtilsDumpHierarchy
+(
+	TEXT("VisualGraphUtils.ControlRig.TraverseHierarchy"),
+	TEXT("Traverses the hierarchy for a given control rig"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& InParams, UWorld* InWorld)
+	{
+		const FName BeginExecuteEventName = FRigUnit_BeginExecution::EventName;
+		const FName PrepareForExecuteEventName = FRigUnit_PrepareForExecution::EventName;
+		const FName InverseExecuteEventName = FRigUnit_InverseExecution::EventName;
+
+		if(InParams.Num() == 0)
+		{
+			UE_LOG(LogVisualGraphUtils, Error, TEXT("Unsufficient parameters. Command usage:"));
+			UE_LOG(LogVisualGraphUtils, Error, TEXT("Example: VisualGraphUtilsControlRig.TraverseHierarchy /Game/Animation/ControlRig/BasicControls_CtrlRig event=update"));
+			UE_LOG(LogVisualGraphUtils, Error, TEXT("Provide one path name to an instance of a control rig."));
+			UE_LOG(LogVisualGraphUtils, Error, TEXT("Optionally provide the event name (%s, %s or %s)."), *BeginExecuteEventName.ToString(), *PrepareForExecuteEventName.ToString(), *InverseExecuteEventName.ToString());
+			return;
+		}
+
+		TArray<FString> ObjectPathNames;
+		FName EventName = BeginExecuteEventName;
+		for(const FString& InParam : InParams)
+		{
+			static const FString ObjectPathToken = TEXT("path"); 
+			static const FString EventPathToken = TEXT("event"); 
+			FString Token = ObjectPathToken;
+			FString Content = InParam;
+
+			if(InParam.Contains(TEXT("=")))
+			{
+				const int32 Pos = InParam.Find(TEXT("="));
+				Token = InParam.Left(Pos);
+				Content = InParam.Mid(Pos+1);
+				Token.TrimStartAndEndInline();
+				Token.ToLowerInline();
+				Content.TrimStartAndEndInline();
+			}
+
+			if(Token == ObjectPathToken)
+			{
+				ObjectPathNames.Add(Content);
+			}
+			else if(Token == EventPathToken)
+			{
+				EventName = *Content;
+			}
+		}
+
+		TArray<URigHierarchy*> Hierarchies;
+		for(const FString& ObjectPathName : ObjectPathNames)
+		{
+			if(UObject* Object = FindObject<UObject>(ANY_PACKAGE, *ObjectPathName, false))
+			{
+				if(UControlRig* CR = Cast<UControlRig>(Object))
+				{
+					Hierarchies.Add(CR->GetHierarchy());
+				}
+				else if(URigHierarchy* Hierarchy = Cast<URigHierarchy>(Object))
+				{
+					Hierarchies.Add(Hierarchy);
+				}
+				else
+				{
+					UE_LOG(LogVisualGraphUtils, Error, TEXT("Object is not a hierarchy / nor a Control Rig: '%s'"), *ObjectPathName);
+					return;
+				}
+			}
+			else
+			{
+				UE_LOG(LogVisualGraphUtils, Error, TEXT("Object with pathname '%s' not found."), *ObjectPathName);
+				return;
+			}
+		}
+
+		if(Hierarchies.Num() == 0)
+		{
+			UE_LOG(LogVisualGraphUtils, Error, TEXT("No hierarchy found."));
+			return;
+		}
+
+		const FString DotGraphContent = FControlRigVisualGraphUtils::DumpRigHierarchyToDotGraph(Hierarchies[0], EventName);
+		FPlatformApplicationMisc::ClipboardCopy(*DotGraphContent);
+		UE_LOG(LogVisualGraphUtils, Display, TEXT("The content has been copied to the clipboard."));
+	})
+);
+
+#endif
+
+FString FControlRigVisualGraphUtils::DumpRigHierarchyToDotGraph(URigHierarchy* InHierarchy, const FName& InEventName)
 {
 	check(InHierarchy);
 
@@ -10,6 +109,17 @@ FString FControlRigVisualGraphUtils::DumpRigHierarchyToDotGraph(URigHierarchy* I
 
 	struct Local
 	{
+		static FName GetNodeNameForElement(const FRigBaseElement* InElement)
+		{
+			check(InElement);
+			return GetNodeNameForElementIndex(InElement->GetIndex());
+		}
+
+		static FName GetNodeNameForElementIndex(int32 InElementIndex)
+		{
+			return *FString::Printf(TEXT("Element_%d"), InElementIndex);
+		}
+
 		static TArray<int32> VisitParents(const FRigBaseElement* InElement, URigHierarchy* InHierarchy, FVisualGraph& OutGraph)
 		{
 			TArray<int32> Result;
@@ -31,7 +141,7 @@ FString FControlRigVisualGraphUtils::DumpRigHierarchyToDotGraph(URigHierarchy* I
 				return INDEX_NONE;
 			}
 			
-			const FName NodeName = *FString::Printf(TEXT("Element_%d"), InElement->GetIndex());
+			const FName NodeName = GetNodeNameForElement(InElement);
 			int32 NodeIndex = OutGraph.FindNode(NodeName);
 			if(NodeIndex != INDEX_NONE)
 			{
@@ -111,5 +221,55 @@ FString FControlRigVisualGraphUtils::DumpRigHierarchyToDotGraph(URigHierarchy* I
 		return true;
 	});
 
+#if WITH_EDITOR
+	
+	if(!InEventName.IsNone())
+	{
+		if(UControlRig* CR = InHierarchy->GetTypedOuter<UControlRig>())
+		{
+			URigVM* VM = CR->GetVM();
+
+			URigHierarchy::TElementDependencyMap Dependencies = InHierarchy->GetDependenciesForVM(VM, InEventName);
+
+			for(const URigHierarchy::TElementDependencyMapPair& Dependency : Dependencies)
+			{
+				const int32 SourceElementIndex = Dependency.Key;
+				
+				for(const int32 TargetElementIndex : Dependency.Value)
+				{
+					FName EdgeName = *FString::Printf(TEXT("Dependency_%d_%d"), SourceElementIndex, TargetElementIndex);
+					if(Graph.FindEdge(EdgeName) != INDEX_NONE)
+					{
+						continue;
+					}
+					
+					const TOptional<FLinearColor> EdgeColor = FLinearColor::Gray;
+					TOptional<EVisualGraphStyle> Style = EVisualGraphStyle::Dashed;
+
+					const FName SourceNodeName = Local::GetNodeNameForElementIndex(SourceElementIndex);
+					const FName TargetNodeName = Local::GetNodeNameForElementIndex(TargetElementIndex);
+					const int32 SourceNodeIndex = Graph.FindNode(SourceNodeName);
+					const int32 TargetNodeIndex = Graph.FindNode(TargetNodeName);
+
+					if(SourceNodeIndex == INDEX_NONE || TargetNodeIndex == INDEX_NONE)
+					{
+						continue;
+					}
+					
+					Graph.AddEdge(
+						TargetNodeIndex,
+						SourceNodeIndex,
+						EVisualGraphEdgeDirection::SourceToTarget,
+						EdgeName,
+						TOptional<FName>(),
+						EdgeColor,
+						Style);
+				}					
+			}
+		}
+	}
+	
+#endif
+	
 	return Graph.DumpDot();
 }

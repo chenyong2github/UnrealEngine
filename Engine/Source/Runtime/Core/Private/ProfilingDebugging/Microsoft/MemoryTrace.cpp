@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProfilingDebugging/MemoryTrace.h"
+#include "ProfilingDebugging/CallstackTrace.h"
+#include "ProfilingDebugging/TraceMalloc.h"
 
 #if UE_MEMORY_TRACE_ENABLED
 
@@ -21,17 +23,7 @@
 
 
 ////////////////////////////////////////////////////////////////////////////////
-void	Backtracer_Create(FMalloc*);
-void	Backtracer_Initialize();
-uint32	Backtracer_GetBacktraceId(void*);
 void 	MemoryTrace_InitTags(FMalloc*);
-
-////////////////////////////////////////////////////////////////////////////////
-FORCEINLINE uint32 GetOwner()
-{
-	void* RetAddrAddr = PLATFORM_RETURN_ADDRESS_POINTER();
-	return Backtracer_GetBacktraceId(RetAddrAddr);
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 template <class T>
@@ -71,7 +63,7 @@ static_assert(sizeof(FAddrPack) == sizeof(uint64), "");
 
 ////////////////////////////////////////////////////////////////////////////////
 static FUndestructed<FAllocationTrace> GAllocationTrace;
-
+static FUndestructed<FTraceMalloc> GTraceMalloc;
 
 ////////////////////////////////////////////////////////////////////////////////
 class FMallocWrapper
@@ -128,8 +120,8 @@ void* FMallocWrapper::Malloc(SIZE_T Size, uint32 Alignment)
 	uint32 ActualAlignment = GetActualAlignment(Size, Alignment);
 	void* Address = InnerMalloc->Malloc(Size, Alignment);
 
-	const uint32 Owner = GetOwner();
-	GAllocationTrace->Alloc(Address, Size, ActualAlignment, Owner);
+	const uint32 Callstack = CallstackTrace_GetCurrentId();
+	GAllocationTrace->Alloc(Address, Size, ActualAlignment, Callstack);
 
 	return Address;
 }
@@ -153,9 +145,9 @@ void* FMallocWrapper::Realloc(void* PrevAddress, SIZE_T NewSize, uint32 Alignmen
 
 	void* RetAddress = InnerMalloc->Realloc(PrevAddress, NewSize, Alignment);
 
-	const uint32 Owner = GetOwner();
+	const uint32 Callstack = CallstackTrace_GetCurrentId();
 	Alignment = GetActualAlignment(NewSize, Alignment);
-	GAllocationTrace->ReallocAlloc(RetAddress, NewSize, Alignment, Owner);
+	GAllocationTrace->ReallocAlloc(RetAddress, NewSize, Alignment, Callstack);
 
 	return RetAddress;
 }
@@ -353,10 +345,10 @@ void FVirtualWinApiHooks::Initialize(bool bInLight)
 LPVOID WINAPI FVirtualWinApiHooks::VmAlloc(LPVOID Address, SIZE_T Size, DWORD Type, DWORD Protect)
 {
 	LPVOID Ret = VmAllocOrig(Address, Size, Type, Protect);
-	if (Ret != nullptr && (Type & MEM_COMMIT))
+	if (Ret != nullptr && (Type & MEM_COMMIT) && FTraceMalloc::ShouldTrace())
 	{
-		const uint32 Owner = GetOwner();
-		GAllocationTrace->Alloc(Ret, Size, 0, Owner, EMemoryTraceRootHeap::SystemMemory);
+		const uint32 Callstack = CallstackTrace_GetCurrentId();
+		GAllocationTrace->Alloc(Ret, Size, 0, Callstack, EMemoryTraceRootHeap::SystemMemory);
 		GAllocationTrace->MarkAllocAsHeap(Ret, EMemoryTraceRootHeap::SystemMemory);
 	}
 
@@ -366,7 +358,10 @@ LPVOID WINAPI FVirtualWinApiHooks::VmAlloc(LPVOID Address, SIZE_T Size, DWORD Ty
 ////////////////////////////////////////////////////////////////////////////////
 BOOL WINAPI FVirtualWinApiHooks::VmFree(LPVOID Address, SIZE_T Size, DWORD Type)
 {
-	GAllocationTrace->Free(Address, EMemoryTraceRootHeap::SystemMemory);
+	if (FTraceMalloc::ShouldTrace())
+	{
+		GAllocationTrace->Free(Address, EMemoryTraceRootHeap::SystemMemory);
+	}
 	return VmFreeOrig(Address, Size, Type);
 }
 
@@ -374,10 +369,10 @@ BOOL WINAPI FVirtualWinApiHooks::VmFree(LPVOID Address, SIZE_T Size, DWORD Type)
 LPVOID WINAPI FVirtualWinApiHooks::VmAllocEx(HANDLE Process, LPVOID Address, SIZE_T Size, DWORD Type, DWORD Protect)
 {
 	LPVOID Ret = VmAllocExOrig(Process, Address, Size, Type, Protect);
-	if (Process == GetCurrentProcess() && Ret != nullptr && (Type & MEM_COMMIT))
+	if (Process == GetCurrentProcess() && Ret != nullptr && (Type & MEM_COMMIT) && FTraceMalloc::ShouldTrace())
 	{
-		const uint32 Owner = GetOwner();
-		GAllocationTrace->Alloc(Ret, Size, 0, Owner);
+		const uint32 Callstack = CallstackTrace_GetCurrentId();
+		GAllocationTrace->Alloc(Ret, Size, 0, Callstack);
 		GAllocationTrace->MarkAllocAsHeap(Ret, EMemoryTraceRootHeap::SystemMemory);
 	}
 
@@ -387,7 +382,7 @@ LPVOID WINAPI FVirtualWinApiHooks::VmAllocEx(HANDLE Process, LPVOID Address, SIZ
 ////////////////////////////////////////////////////////////////////////////////
 BOOL WINAPI FVirtualWinApiHooks::VmFreeEx(HANDLE Process, LPVOID Address, SIZE_T Size, DWORD Type)
 {
-	if (Process == GetCurrentProcess())
+	if (Process == GetCurrentProcess() && FTraceMalloc::ShouldTrace())
 	{
 		GAllocationTrace->Free(Address, EMemoryTraceRootHeap::SystemMemory);
 	}
@@ -438,18 +433,21 @@ FMalloc* MemoryTrace_Create(FMalloc* InMalloc)
 		GAllocationTrace.Construct();
 		GAllocationTrace->Initialize();
 
-		MemoryTrace_InitTags(InMalloc);
+		GTraceMalloc.Construct(InMalloc);
 
-		Backtracer_Create(InMalloc);
+		// Both tag and callstack tracing need to use the wrapped trace malloc
+		// so we can break out tracing memory overhead (and not cause recursive behaviour).
+		MemoryTrace_InitTags(&GTraceMalloc);
+		CallstackTrace_Create(&GTraceMalloc);
 
 #if defined(PLATFORM_SUPPORTS_TRACE_WIN32_VIRTUAL_MEMORY_HOOKS)
 		FVirtualWinApiHooks::Initialize(false);
 #endif // defined(PLATFORM_SUPPORTS_TRACE_WIN32_VIRTUAL_MEMORY_HOOKS)
 
-		static FUndestructed<FMallocWrapper> MemoryTrace;
-		MemoryTrace.Construct(InMalloc);
+		static FUndestructed<FMallocWrapper> SMallocWrapper;
+		SMallocWrapper.Construct(InMalloc);
 
-		return &MemoryTrace;
+		return &SMallocWrapper;
 	}
 
 	return InMalloc;
@@ -460,7 +458,7 @@ void MemoryTrace_Initialize()
 {
 	// Allocators aren't completely ready in _Create() so we have an extra step
 	// where any initialisation that may allocate can go.
-	Backtracer_Initialize();
+	CallstackTrace_Initialize();
 }
 
 
@@ -475,11 +473,11 @@ HeapId MemoryTrace_HeapSpec(HeapId ParentId, const TCHAR* Name, EMemoryTraceHeap
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-HeapId MemoryTrace_RootHeapSpec(const TCHAR* Name)
+HeapId MemoryTrace_RootHeapSpec(const TCHAR* Name, EMemoryTraceHeapFlags Flags)
 {
 	if (GAllocationTrace.IsConstructed())
 	{
-		return GAllocationTrace->RootHeapSpec(Name);
+		return GAllocationTrace->RootHeapSpec(Name, Flags);
 	}
 	return ~0;
 }
@@ -507,7 +505,7 @@ void MemoryTrace_Alloc(uint64 Address, uint64 Size, uint32 Alignment, HeapId Roo
 {
 	if (GAllocationTrace.IsConstructed())
 	{
-		GAllocationTrace->Alloc((void*)Address, Size, Alignment, GetOwner(), RootHeap);
+		GAllocationTrace->Alloc((void*)Address, Size, Alignment, CallstackTrace_GetCurrentId(), RootHeap);
 	}
 }
 
@@ -534,7 +532,7 @@ void MemoryTrace_ReallocAlloc(uint64 Address, uint64 NewSize, uint32 Alignment, 
 {
 	if (GAllocationTrace.IsConstructed())
 	{
-		GAllocationTrace->ReallocAlloc((void*)Address, NewSize, Alignment, GetOwner(), RootHeap);
+		GAllocationTrace->ReallocAlloc((void*)Address, NewSize, Alignment, CallstackTrace_GetCurrentId(), RootHeap);
 	}
 }
 

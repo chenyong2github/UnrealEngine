@@ -11,6 +11,7 @@
 #include "Misc/PackageName.h"
 #include "UObject/SavePackage.h"
 #include "ProfilingDebugging/CountersTrace.h"
+#include "AssetRegistry/IAssetRegistry.h"
 
 #if WITH_COTF
 
@@ -22,7 +23,6 @@ class FCookOnTheFlyPackageTracker
 	{
 		None,
 		Cooking,
-		WaitingForImports,
 		Cooked,
 		Failed
 	};
@@ -35,8 +35,6 @@ class FCookOnTheFlyPackageTracker
 				return TEXT("None");
 			case EPackageStatus::Cooking:
 				return TEXT("Cooking");
-			case EPackageStatus::WaitingForImports:
-				return TEXT("WaitingForImports");
 			case EPackageStatus::Cooked:
 				return TEXT("Cooked");
 			case EPackageStatus::Failed:
@@ -52,9 +50,6 @@ class FCookOnTheFlyPackageTracker
 		FName PackageName;
 		EPackageStatus Status = EPackageStatus::None;
 		int32 EntryIndex = INDEX_NONE;
-		TSet<FPackageId> WaitingPackages;
-		TSet<FPackageId> PendingImports;
-		bool bAnyImportFailed = false;
 	};
 
 public:
@@ -83,16 +78,15 @@ public:
 		return Packages.Num();
 	}
 
-	EPackageStoreEntryStatus GetStatus(const FName& PackageName)
+	EPackageStoreEntryStatus GetStatus(FPackageId PackageId)
 	{
-		FPackage& Package = GetPackage(FPackageId::FromName(PackageName));
+		FPackage& Package = GetPackage(PackageId);
 
 		switch(Package.Status)
 		{
 			case EPackageStatus::None:
 				return EPackageStoreEntryStatus::None;
 			case EPackageStatus::Cooking:
-			case EPackageStatus::WaitingForImports:
 				return EPackageStoreEntryStatus::Pending;
 			case EPackageStatus::Cooked:
 				return EPackageStoreEntryStatus::Ok;
@@ -101,15 +95,15 @@ public:
 		}
 	}
 
-	bool IsCooked(const FName& PackageName)
+	bool IsCooked(FPackageId PackageId)
 	{
-		FPackage& Package = GetPackage(FPackageId::FromName(PackageName));
+		FPackage& Package = GetPackage(PackageId);
 		return Package.Status != EPackageStatus::None;
 	}
 
-	void MarkAsRequested(const FName& PackageName)
+	void MarkAsRequested(FPackageId PackageId)
 	{
-		FPackage& Package = GetPackage(FPackageId::FromName(PackageName));
+		FPackage& Package = GetPackage(PackageId);
 		check(Package.Status == EPackageStatus::None);
 		Package.Status = EPackageStatus::Cooking;
 	}
@@ -136,46 +130,8 @@ public:
 		Package.Status		= EntryIndex != INDEX_NONE ? EPackageStatus::Cooked : EPackageStatus::Failed;
 		Package.EntryIndex	= EntryIndex;
 
-		if (Package.Status == EPackageStatus::Cooked)
-		{
-			const FPackageStoreEntryResource& Entry = Entries[EntryIndex];
-
-			for (FPackageId ImportedPackageId : Entry.ImportedPackageIds)
-			{
-				FPackage& ImportedPackage = GetPackage(ImportedPackageId);
-				bool bWaitForImport = ImportedPackage.Status == EPackageStatus::None || ImportedPackage.Status == EPackageStatus::Cooking;
-
-				if (ImportedPackage.Status == EPackageStatus::WaitingForImports)
-				{
-					// Check if this import or any of it's waiting imports is waiting for this cooked package
-					const bool bAnyWaitingForPackage = IsAnyWaitingForPackage(Package, ImportedPackageId);
-					bWaitForImport = !bAnyWaitingForPackage;
-				}
-
-				if (bWaitForImport)
-				{
-					Package.Status = EPackageStatus::WaitingForImports;
-
-					bool bIsAlreadyInSet = false;
-					ImportedPackage.WaitingPackages.Add(PackageId, &bIsAlreadyInSet);
-					check(!bIsAlreadyInSet);
-
-					Package.PendingImports.Add(ImportedPackageId, &bIsAlreadyInSet);
-					check(!bIsAlreadyInSet);
-				}
-			}
-		}
-
-		if (Package.Status == EPackageStatus::Cooked || Package.Status == EPackageStatus::Failed)
-		{
-			AddCompletedPackage(Package);
-			ResolveWaitingPackages(Package);
-		}
-		else
-		{
-			AddWaitingPackage(Package);
-		}
-
+		AddCompletedPackage(Package);
+		
 		OutPackages.TotalCooked = CookedEntries.Num();
 		OutPackages.TotalFailed = FailedPackages.Num();
 		OutPackages.TotalTracked = Packages.Num();
@@ -222,121 +178,7 @@ public:
 		}
 	}
 
-	FCompletedPackages Flush()
-	{
-		UE_LOG(LogCookOnTheFlyTracker, Log, TEXT("Flushing '%d' waiting package(s)"), WaitingPackages.Num());
-
-		FCompletedPackages CompletedPackages;
-
-		for (auto& KeyValue : Packages)
-		{
-			TUniquePtr<FPackage>& Package = KeyValue.Value;
-			
-			if (Package->Status == EPackageStatus::WaitingForImports)
-			{
-				check(Package->EntryIndex != INDEX_NONE);
-				
-				UE_LOG(LogCookOnTheFlyTracker, Warning, TEXT("Package '%s' is still waiting for:"), *Package->PackageName.ToString());
-				for (FPackageId PendingImportId : Package->PendingImports)
-				{
-					const TUniquePtr<FPackage>* ImportedPackage = Packages.Find(PendingImportId);
-					UE_LOG(LogCookOnTheFlyTracker, Warning, TEXT( " ==> '%s'"),
-						ImportedPackage
-							? *FString::Printf(TEXT("%s, (Status=%s)"), *(*ImportedPackage)->PackageName.ToString(), LexToString((*ImportedPackage)->Status))
-							: *FString::Printf(TEXT("<Untracked PackageId='0x%llX'>"), PendingImportId.Value()));
-				}
-				
-				Package->WaitingPackages.Empty();
-				Package->PendingImports.Empty();
-
-				CookedEntries.Add(Package->EntryIndex);
-				CompletedPackages.CookedEntryIndices.Add(Package->EntryIndex);
-			}
-		}
-
-		for (auto& KeyValue : Packages)
-		{
-			TUniquePtr<FPackage>& Package = KeyValue.Value;
-			
-			if (Package->Status == EPackageStatus::WaitingForImports)
-			{
-				Package->Status = EPackageStatus::Cooked;
-			}
-		}
-
-		WaitingPackages.Empty();
-
-		return MoveTemp(CompletedPackages);
-	}
-
 private:
-
-	void ResolveWaitingPackages(FPackage& Package)
-	{
-		check(Package.Status == EPackageStatus::Cooked || Package.Status == EPackageStatus::Failed);
-
-		TSet<FPackageId> ResolvedPackageIds;
-
-		for (FPackageId WaitingPackageId : Package.WaitingPackages)
-		{
-			FPackage& WaitingPackage = GetPackage(WaitingPackageId);
-			check(WaitingPackage.PendingImports.Contains(Package.PackageId));
-			check(WaitingPackage.Status == EPackageStatus::WaitingForImports);
-			WaitingPackage.PendingImports.Remove(Package.PackageId);
-			WaitingPackage.bAnyImportFailed |= Package.Status == EPackageStatus::Failed;
-
-			if (!WaitingPackage.PendingImports.Num())
-			{
-				WaitingPackage.Status = WaitingPackage.bAnyImportFailed ? EPackageStatus::Failed : Package.Status;
-				ResolvedPackageIds.Add(WaitingPackage.PackageId);
-				WaitingPackages.Remove(WaitingPackage.PackageName);
-				AddCompletedPackage(WaitingPackage);
-			}
-		}
-
-		Package.WaitingPackages.Empty();
-
-		for (FPackageId ResolvedPackageId : ResolvedPackageIds)
-		{
-			FPackage& ResolvedPackage = GetPackage(ResolvedPackageId);
-			ResolveWaitingPackages(ResolvedPackage);
-		}
-	}
-
-	bool IsAnyWaitingForPackageRecursive(const FPackage& Package, FPackageId TargetPackageId, TSet<FPackageId>& Visited)
-	{
-		Visited.Add(TargetPackageId);
-
-		FPackage& TargetPackage = GetPackage(TargetPackageId);
-		
-		if (TargetPackage.Status == EPackageStatus::WaitingForImports)
-		{
-			if (Package.WaitingPackages.Contains(TargetPackageId))
-			{
-				return true;
-			}
-
-			for (FPackageId PendingImportId : TargetPackage.PendingImports)
-			{
-				if (!Visited.Contains(PendingImportId))
-				{
-					const bool bIsWaitingForPackage = IsAnyWaitingForPackageRecursive(Package, PendingImportId, Visited);
-					if (bIsWaitingForPackage)
-					{
-						return true;
-					}
-				}
-			}
-		}
-	
-		return false;
-	}
-
-	bool IsAnyWaitingForPackage(const FPackage& Package, FPackageId TargetPackageId)
-	{
-		TSet<FPackageId> Visited;
-		return IsAnyWaitingForPackageRecursive(Package, TargetPackageId, Visited);
-	}
 
 	FPackage& GetPackage(FPackageId PackageId)
 	{
@@ -358,50 +200,30 @@ private:
 			FailedPackages.Add(Package.PackageName);
 		}
 
-		UE_LOG(LogCookOnTheFlyTracker, Log, TEXT("'%s' (0x%llX) [%s], Cooked/Fully/Waiting/Failed='%d/%d/%d/%d'"),
+		UE_LOG(LogCookOnTheFlyTracker, Log, TEXT("'%s' (0x%llX) [%s], Cooked/Failed='%d/%d'"),
 			*Package.PackageName.ToString(), Package.PackageId.Value(), LexToString(Package.Status),
-			CookedEntries.Num() + WaitingPackages.Num(), CookedEntries.Num(), WaitingPackages.Num(), FailedPackages.Num());
-	}
-
-	void AddWaitingPackage(FPackage& Package)
-	{
-		check(Package.Status == EPackageStatus::WaitingForImports);
-
-		bool bIsAlreadyInSet = false;
-		WaitingPackages.Add(Package.PackageName, &bIsAlreadyInSet);
-		check(!bIsAlreadyInSet);
-
-		UE_LOG(LogCookOnTheFlyTracker, Log, TEXT("'%s' (0x%llX) [%s], Cooked/Fully/Waiting/Failed='%d/%d/%d/%d'"),
-			*Package.PackageName.ToString(), Package.PackageId.Value(), LexToString(Package.Status),
-			CookedEntries.Num() + WaitingPackages.Num(), CookedEntries.Num(), WaitingPackages.Num(), FailedPackages.Num());
-
-		for (const FPackageId ImportedPackageId : Package.PendingImports)
-		{
-			FPackage& ImportedPackage = GetPackage(ImportedPackageId);
-
-			UE_LOG(LogCookOnTheFlyTracker, Verbose, TEXT(" ==> '%s', Status='%s'"),
-				ImportedPackage.PackageName.IsNone()
-					? *FString::Printf(TEXT("0x%llX"), ImportedPackageId.Value())
-					: *ImportedPackage.PackageName.ToString(),
-				LexToString(ImportedPackage.Status));
-		}
+			CookedEntries.Num(), FailedPackages.Num());
 	}
 
 	TMap<FPackageId, TUniquePtr<FPackage>> Packages;
 	TArray<int32> CookedEntries;
 	TArray<FName> FailedPackages;
-	TSet<FName> WaitingPackages;
 };
 
 class FIoStoreCookOnTheFlyRequestManager final
 	: public UE::Cook::ICookOnTheFlyRequestManager
 {
 public:
-	FIoStoreCookOnTheFlyRequestManager(UE::Cook::ICookOnTheFlyServer& InCookOnTheFlyServer, UE::Cook::FIoStoreCookOnTheFlyServerOptions InOptions)
+	FIoStoreCookOnTheFlyRequestManager(UE::Cook::ICookOnTheFlyServer& InCookOnTheFlyServer, const IAssetRegistry* AssetRegistry, UE::Cook::FIoStoreCookOnTheFlyServerOptions InOptions)
 		: CookOnTheFlyServer(InCookOnTheFlyServer)
 		, Options(MoveTemp(InOptions))
 	{
-		CookOnTheFlyServer.OnFlush().AddRaw(this, &FIoStoreCookOnTheFlyRequestManager::OnFlush);
+		TArray<FAssetData> AllAssets;
+		AssetRegistry->GetAllAssets(AllAssets, true);
+		for (const FAssetData& AssetData : AllAssets)
+		{
+			AllKnownPackagesMap.Add(FPackageId::FromName(AssetData.PackageName), AssetData.PackageName);
+		}
 	}
 
 private:
@@ -574,28 +396,36 @@ private:
 
 		FCookPackageRequest CookRequest = Request.GetBodyAs<FCookPackageRequest>();
 		
-		UE_LOG(LogCookOnTheFly, Log, TEXT("Received cook request, PackageName='%s'"), *CookRequest.PackageName.ToString());
-
-		const bool bIsCooked = Context.PackageTracker.IsCooked(CookRequest.PackageName);
-
-		if (!bIsCooked)
+		FName PackageName = AllKnownPackagesMap.FindRef(CookRequest.PackageId);
+		if (PackageName.IsNone())
 		{
-			Context.PackageTracker.MarkAsRequested(CookRequest.PackageName);
-
-			FString Filename;
-			if (FPackageName::TryConvertLongPackageNameToFilename(CookRequest.PackageName.ToString(), Filename))
-			{
-				const bool bEnqueued = CookOnTheFlyServer.EnqueueCookRequest(UE::Cook::FCookPackageRequest { Client.PlatformName, Filename });
-				check(bEnqueued);
-			}
-			else
-			{
-				UE_LOG(LogCookOnTheFly, Warning, TEXT("Failed to cook package '%s' (File not found)"), *CookRequest.PackageName.ToString());
-				Context.PackageTracker.MarkAsFailed(CookRequest.PackageName);
-			}
+			UE_LOG(LogCookOnTheFly, Log, TEXT("Received cook request for unknown package 0x%llX"), CookRequest.PackageId.ValueForDebugging());
+			Response.SetBodyTo(FCookPackageResponse { EPackageStoreEntryStatus::Missing });
 		}
+		else
+		{
+			UE_LOG(LogCookOnTheFly, Log, TEXT("Received cook request, PackageName='%s'"), *PackageName.ToString());
+			const bool bIsCooked = Context.PackageTracker.IsCooked(CookRequest.PackageId);
 
-		Response.SetBodyTo(FCookPackageResponse { Context.PackageTracker.GetStatus(CookRequest.PackageName) });
+			if (!bIsCooked)
+			{
+				Context.PackageTracker.MarkAsRequested(CookRequest.PackageId);
+
+				FString Filename;
+				if (FPackageName::TryConvertLongPackageNameToFilename(PackageName.ToString(), Filename))
+				{
+					const bool bEnqueued = CookOnTheFlyServer.EnqueueCookRequest(UE::Cook::FCookPackageRequest{ Client.PlatformName, Filename });
+					check(bEnqueued);
+				}
+				else
+				{
+					UE_LOG(LogCookOnTheFly, Warning, TEXT("Failed to cook package '%s' (File not found)"), *PackageName.ToString());
+					Context.PackageTracker.MarkAsFailed(PackageName);
+				}
+			}
+
+			Response.SetBodyTo(FCookPackageResponse{ Context.PackageTracker.GetStatus(CookRequest.PackageId) });
+		}
 		Response.SetStatus(UE::Cook::ECookOnTheFlyMessageStatus::Ok);
 
 		return true;
@@ -753,51 +583,6 @@ private:
 		FPlatformProcess::ReturnSynchEventToPool(RecompileCompletedEvent);
 	}
 
-	void OnFlush()
-	{
-		using namespace UE::Cook;
-		using namespace UE::PackageStore::Messaging;
-
-		FScopeLock _(&CriticalSection);
-
-		for (auto& KeyValue : PlatformContexts)
-		{
-			const FName PlatformName = KeyValue.Key;
-			FPlatformContext& Context = *KeyValue.Value;
-			FScopeLock PlatformLock(&Context.CriticalSection);
-
-			FCookOnTheFlyPackageTracker::FCompletedPackages CompletedPackages = Context.PackageTracker.Flush();
-
-			if (CompletedPackages.CookedEntryIndices.Num() || CompletedPackages.FailedPackages.Num())
-			{
-				UE_LOG(LogCookOnTheFly, Warning, TEXT("Flushing '%d' pending package entry(s) that should have been completed"),
-					CompletedPackages.CookedEntryIndices.Num() || CompletedPackages.FailedPackages.Num());
-
-				FPackageStoreData PackageStoreData;
-				PackageStoreData.TotalCookedPackages = Context.PackageTracker.GetCookedEntryIndices().Num();
-				PackageStoreData.TotalFailedPackages = Context.PackageTracker.GetFailedPackages().Num();
-				PackageStoreData.FailedPackages = MoveTemp(CompletedPackages.FailedPackages);
-
-				Context.PackageWriter->GetEntries([&CompletedPackages, &PackageStoreData](TArrayView<const FPackageStoreEntryResource> Entries,
-					TArrayView<const IPackageStoreWriter::FOplogCookInfo> CookInfos)
-				{
-					for (int32 EntryIndex : CompletedPackages.CookedEntryIndices)
-					{
-						check(EntryIndex != INDEX_NONE);
-						PackageStoreData.CookedPackages.Add(Entries[EntryIndex]);
-					}
-				});
-
-				UE_LOG(LogCookOnTheFly, Log, TEXT("Sending cooked package(s) message, Cooked = '%d', Failed = '%d', Total cooked = '%d', Total failed = '%d'"),
-					PackageStoreData.CookedPackages.Num(), PackageStoreData.FailedPackages.Num(), PackageStoreData.TotalCookedPackages, PackageStoreData.TotalFailedPackages);
-
-				FCookOnTheFlyMessage Message(ECookOnTheFlyMessage::PackagesCooked);
-				Message.SetBodyTo<FPackagesCookedMessage>(FPackagesCookedMessage { MoveTemp(PackageStoreData) });
-				ConnectionServer->BroadcastMessage(Message, Context.PlatformName);
-			}
-		}
-	}
-
 	FPlatformContext& GetContext(const FName& PlatformName)
 	{
 		FScopeLock _(&CriticalSection);
@@ -811,14 +596,15 @@ private:
 	TUniquePtr<UE::Cook::ICookOnTheFlyConnectionServer> ConnectionServer;
 	FCriticalSection CriticalSection;
 	TMap<FName, TUniquePtr<FPlatformContext>> PlatformContexts;
+	TMap<FPackageId, FName> AllKnownPackagesMap;
 };
 
 namespace UE { namespace Cook
 {
 
-TUniquePtr<ICookOnTheFlyRequestManager> MakeIoStoreCookOnTheFlyRequestManager(ICookOnTheFlyServer& CookOnTheFlyServer, FIoStoreCookOnTheFlyServerOptions Options)
+TUniquePtr<ICookOnTheFlyRequestManager> MakeIoStoreCookOnTheFlyRequestManager(ICookOnTheFlyServer& CookOnTheFlyServer, const IAssetRegistry* AssetRegistry, FIoStoreCookOnTheFlyServerOptions Options)
 {
-	return MakeUnique<FIoStoreCookOnTheFlyRequestManager>(CookOnTheFlyServer, Options);
+	return MakeUnique<FIoStoreCookOnTheFlyRequestManager>(CookOnTheFlyServer, AssetRegistry, Options);
 }
 
 }}

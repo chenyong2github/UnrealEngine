@@ -21,7 +21,7 @@ public class ARUtilities : ModuleRules
 		PublicDependencyModuleNames.AddRange(new string[]
 		{
 			"Core",
-			"LiveLink",
+			"LiveLinkAnimationCore",
 		});
 			
 		

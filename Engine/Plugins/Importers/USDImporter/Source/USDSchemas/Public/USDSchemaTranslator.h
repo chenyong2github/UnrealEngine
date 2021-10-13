@@ -114,10 +114,12 @@ public:
 
 	const TSet< FName >& GetRenderContexts() const { return RegisteredRenderContexts; }
 	const FName& GetUniversalRenderContext() const { return UniversalRenderContext; }
+	const FName& GetUnrealRenderContext() const { return UnrealRenderContext; }
 
 protected:
 	TSet< FName > RegisteredRenderContexts;
 	FName UniversalRenderContext;
+	FName UnrealRenderContext;
 };
 
 struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUsdSchemaTranslationContext >

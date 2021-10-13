@@ -22,7 +22,7 @@
 		{
 			"Name": "AzureSpatialAnchorsForARCore",
 			"Type": "Runtime",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Android"
 			]
 		}
@@ -31,14 +31,14 @@
 		{
 			"Name": "AzureSpatialAnchors",
 			"Enabled": true,
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Android"
 			]
 		},
 		{
 			"Name": "GoogleARCore",
 			"Enabled": true,
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Android"
 			]
 		}

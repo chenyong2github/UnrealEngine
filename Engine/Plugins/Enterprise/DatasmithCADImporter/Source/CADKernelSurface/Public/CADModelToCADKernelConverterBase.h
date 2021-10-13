@@ -12,6 +12,7 @@
 
 #include "CADKernel/Core/Session.h"
 #include "CADKernel/Topo/Model.h"
+#include "CADKernel/Topo/Joiner.h"
 
 struct FDatasmithMeshElementPayload;
 struct FDatasmithTessellationOptions;
@@ -36,6 +37,15 @@ public:
 	virtual bool RepairTopology() override
 	{
 		// Apply stitching if applicable
+		if(ImportParameters.GetStitchingTechnique() != CADLibrary::StitchingNone)
+		{
+			// the joining tolerance is set to 0.1 mm until the user can specify it
+			double JoiningTolerance = ImportParameters.ConvertMMToImportUnit(0.1);
+			TSharedRef<CADKernel::FModel> Model = CADKernelSession.GetModel();
+			CADKernel::FJoiner Joiner(CADKernelSession, Model, JoiningTolerance);
+			Joiner.JoinFaces();
+		}
+
 		return true;
 	}
 
@@ -49,8 +59,8 @@ public:
 
 	virtual bool Tessellate(const CADLibrary::FMeshParameters& InMeshParameters, FMeshDescription& OutMeshDescription) override
 	{
-		TSharedRef<CADKernel::FTopologicalEntity> CADKernelEntity = CADKernelSession.GetModel();
-		return CADLibrary::FCADKernelTools::Tessellate(CADKernelEntity, ImportParameters, InMeshParameters, OutMeshDescription);
+		TSharedRef<CADKernel::FTopologicalEntity> Model = CADKernelSession.GetModel();
+		return CADLibrary::FCADKernelTools::Tessellate(Model, ImportParameters, InMeshParameters, OutMeshDescription);
 	}
 
 	virtual void SetImportParameters(double ChordTolerance, double MaxEdgeLength, double NormalTolerance, CADLibrary::EStitchingTechnique StitchingTechnique) override

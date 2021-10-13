@@ -79,10 +79,10 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationPostRender_Ge
 	TEnumAsByte<enum TextureAddress> MipsAddressV = TA_Clamp;
 
 	/** Performance: Allows a limited number of MIPs for high resolution. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (DisplayName = "Enable Maximum Number of Mips", EditCondition = "bAutoGenerateMips"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "NDisplay Render", meta = (DisplayName = "Enable Maximum Number of Mips", EditCondition = "bAutoGenerateMips"))
 	bool bEnabledMaxNumMips = false;
 
 	/** Performance: Use this value as the maximum number of MIPs for high resolution.  */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (DisplayName = "Maximum Number of Mips", EditCondition = "bAutoGenerateMips && bEnabledMaxNumMips"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "NDisplay Render", meta = (DisplayName = "Maximum Number of Mips", EditCondition = "bAutoGenerateMips && bEnabledMaxNumMips"))
 	int MaxNumMips = 0;
 };

@@ -558,11 +558,11 @@ void USkeletalMeshComponent::OnRegister()
 
 				UE_LOG(LogSkeletalMesh, Display,
 					TEXT("OnRegister[%s]: [%s] is currently unable to provide a fully functional simulation for each of this SkeletalMesh's clothing assets."),
-					*GetNameSafe(SkeletalMesh),
+					*GetPathNameSafe(SkeletalMesh),
 					*ClothingSimulationFactory->GetName());
 				UE_LOG(LogSkeletalMesh, Display,
 					TEXT("OnRegister[%s]: The ClothingSimulationFactory property will now be automatically updated to use the most functional simulation that can be found."),
-					*GetNameSafe(SkeletalMesh));
+					*GetPathNameSafe(SkeletalMesh));
 
 				break;
 			}
@@ -611,11 +611,11 @@ void USkeletalMeshComponent::OnRegister()
 
 			UE_CLOG(!MostSupportedNumAssets, LogSkeletalMesh, Warning,
 				TEXT("OnRegister[%s]: There is no clothing simulation factory available that supports any of this SkeletalMesh's clothing assets."),
-				*GetNameSafe(SkeletalMesh));
+				*GetPathNameSafe(SkeletalMesh));
 
 			UE_CLOG(MostSupportedNumAssets && !bSupportsAllAssets, LogSkeletalMesh, Warning,
 				TEXT("OnRegister[%s]: The most suitable clothing simulation factory available only partially supports this SkeletalMesh's clothing assets."),
-				*GetNameSafe(SkeletalMesh));
+				*GetPathNameSafe(SkeletalMesh));
 		}
 	}
 
@@ -628,7 +628,7 @@ void USkeletalMeshComponent::OnRegister()
 	{
 		UE_LOG(LogSkeletalMesh, Display, TEXT("OnRegister[%s]: "
 			"Chaos Cloth does not currently support bCollideWithEnvironment."),
-			*GetNameSafe(SkeletalMesh));
+			*GetPathNameSafe(SkeletalMesh));
 	}
 #endif  // #if WITH_CHAOS_CLOTHING
 }
@@ -2534,7 +2534,7 @@ void USkeletalMeshComponent::DispatchParallelTickPose(FActorComponentTickFunctio
 void USkeletalMeshComponent::PostAnimEvaluation(FAnimationEvaluationContext& EvaluationContext)
 {
 #if DO_CHECK
-	checkf(!bPostEvaluatingAnimation, TEXT("PostAnimEvaluation already in progress, recursion detected for SkeletalMeshComponent [%s], AnimInstance [%s]"), *GetNameSafe(this), *GetNameSafe(EvaluationContext.AnimInstance));
+	checkf(!bPostEvaluatingAnimation, TEXT("PostAnimEvaluation already in progress, recursion detected for SkeletalMeshComponent [%s], AnimInstance [%s]"), *GetPathNameSafe(this), *GetPathNameSafe(EvaluationContext.AnimInstance));
 
 	FGuardValue_Bitfield(bPostEvaluatingAnimation, true);
 #endif
@@ -2561,7 +2561,7 @@ void USkeletalMeshComponent::PostAnimEvaluation(FAnimationEvaluationContext& Eva
 		if (EvaluationContext.bDuplicateToCacheCurve)
 		{
 			ensureAlwaysMsgf(AnimCurves.IsValid(), TEXT("Animation Curve is invalid (%s). TotalCount(%d) "),
-				*GetNameSafe(SkeletalMesh), AnimCurves.NumValidCurveCount);
+				*GetPathNameSafe(SkeletalMesh), AnimCurves.NumValidCurveCount);
 			CachedCurve.CopyFrom(AnimCurves);
 		}
 
@@ -3155,7 +3155,7 @@ void USkeletalMeshComponent::HideBone( int32 BoneIndex, EPhysBodyOp PhysBodyOpti
 	}
 	else
 	{
-		UE_LOG(LogSkeletalMesh, Warning, TEXT("HideBone[%s]: Invalid Body Index (%d) has entered. This component doesn't contain buffer for the given body."), *GetNameSafe(SkeletalMesh), BoneIndex);
+		UE_LOG(LogSkeletalMesh, Warning, TEXT("HideBone[%s]: Invalid Body Index (%d) has entered. This component doesn't contain buffer for the given body."), *GetPathNameSafe(SkeletalMesh), BoneIndex);
 	}
 }
 
@@ -3185,7 +3185,7 @@ void USkeletalMeshComponent::UnHideBone( int32 BoneIndex )
 	}
 	else
 	{
-		UE_LOG(LogSkeletalMesh, Warning, TEXT("UnHideBone[%s]: Invalid Body Index (%d) has entered. This component doesn't contain buffer for the given body."), *GetNameSafe(SkeletalMesh), BoneIndex);
+		UE_LOG(LogSkeletalMesh, Warning, TEXT("UnHideBone[%s]: Invalid Body Index (%d) has entered. This component doesn't contain buffer for the given body."), *GetPathNameSafe(SkeletalMesh), BoneIndex);
 	}
 }
 
@@ -3852,7 +3852,7 @@ void USkeletalMeshComponent::ParallelDuplicateAndInterpolate(FAnimationEvaluatio
 		if (InAnimEvaluationContext.bDuplicateToCacheCurve)
 		{
 			ensureAlwaysMsgf(InAnimEvaluationContext.Curve.IsValid(), TEXT("Animation Curve is invalid (%s). TotalCount(%d) "),
-				*GetNameSafe(SkeletalMesh), InAnimEvaluationContext.Curve.NumValidCurveCount);
+				*GetPathNameSafe(SkeletalMesh), InAnimEvaluationContext.Curve.NumValidCurveCount);
 			InAnimEvaluationContext.CachedCurve.CopyFrom(InAnimEvaluationContext.Curve);
 		}
 
@@ -4163,7 +4163,7 @@ bool USkeletalMeshComponent::MoveComponentImpl(const FVector& Delta, const FQuat
 			if (BI->IsInstanceSimulatingPhysics() && Teleport == ETeleportType::None && (MoveFlags&EMoveComponentFlags::MOVECOMP_SkipPhysicsMove) == 0)
 			{
 				FMessageLog("PIE").Warning(FText::Format(LOCTEXT("MovingSimulatedSkeletalMesh", "Attempting to move a fully simulated skeletal mesh {0}. Please use the Teleport flag"),
-					FText::FromString(GetNameSafe(this))));
+					FText::FromString(GetPathNameSafe(this))));
 			}
 		}
 	}

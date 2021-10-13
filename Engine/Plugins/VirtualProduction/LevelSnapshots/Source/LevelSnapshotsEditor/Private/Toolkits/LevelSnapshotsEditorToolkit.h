@@ -60,6 +60,7 @@ private:
 	TSharedRef<SDockTab> SpawnTab_Results(const FSpawnTabArgs& Args);
 
 	FReply OnClickTakeSnapshot();
+	FReply InputPanelExpandClicked();
 	
 	TWeakObjectPtr<ULevelSnapshotsEditorData> EditorData;
 	
@@ -70,4 +71,7 @@ private:
 	TSharedPtr<FLevelSnapshotsEditorResults> EditorResults;
 
 	TSharedPtr<SCheckBox> SettingsButtonPtr;
+
+	TSharedPtr<SDockTab> InputTab;
+	bool bInputPanelExpanded = true;
 };

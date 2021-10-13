@@ -81,21 +81,22 @@ TSharedRef<FExtender> FLightWeightInstancesEditorModule::CreateLevelViewportCont
 		FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 		TSharedRef<FUICommandList> LevelEditorCommandBindings = LevelEditor.GetGlobalLevelEditorActions();
 
-		// We can only convert to an LWI if we didn't select an LWI
-		if (!InActors[0]->GetClass()->IsChildOf(ALightWeightInstanceManager::StaticClass()))
-		{
-			Extender->AddMenuExtension("ActorControl", EExtensionHook::After, LevelEditorCommandBindings, FMenuExtensionDelegate::CreateLambda(
-				[this, ActorName, InActors](FMenuBuilder& MenuBuilder) {
+		// Note: ActorConvert extension point appears only in the pulldown Actor menu.
+		Extender->AddMenuExtension("ActorConvert", EExtensionHook::After, LevelEditorCommandBindings, FMenuExtensionDelegate::CreateLambda(
+			[this, ActorName, InActors](FMenuBuilder& MenuBuilder) {
+				// We can only convert to an LWI if we didn't select an LWI
+				const bool bCanExecute = !InActors[0]->GetClass()->IsChildOf(ALightWeightInstanceManager::StaticClass());
 
-					MenuBuilder.AddMenuEntry(
-						FText::Format(LOCTEXT("ConvertSelectedActorsToLWIsText", "Convert {0} To Light Weight Instances"), ActorName),
-						LOCTEXT("ConvertSelectedActorsToLWIsTooltip", "Convert the selected actors to light weight instances."),
-						FSlateIcon(),
-						FUIAction(FExecuteAction::CreateRaw(this, &FLightWeightInstancesEditorModule::ConvertActorsToLWIsUIAction, InActors))
-					);
-				})
-			);
-		}
+				MenuBuilder.AddMenuEntry(
+					FText::Format(LOCTEXT("ConvertSelectedActorsToLWIsText", "Convert {0} To Light Weight Instances"), ActorName),
+					LOCTEXT("ConvertSelectedActorsToLWIsTooltip", "Convert the selected actors to light weight instances."),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateRaw(this, &FLightWeightInstancesEditorModule::ConvertActorsToLWIsUIAction, InActors),
+						FCanExecuteAction::CreateLambda([bCanExecute]() { return bCanExecute; }))
+				);
+			})
+		);
 	}
 	return Extender;
 }

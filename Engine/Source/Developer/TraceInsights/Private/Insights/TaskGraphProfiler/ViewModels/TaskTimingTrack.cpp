@@ -47,10 +47,11 @@ public:
 	PRAGMA_DISABLE_OPTIMIZATION
 	virtual void RegisterCommands() override
 	{
-		UI_COMMAND(Command_ShowTaskDependencies, "Show Task Dependencies ", "Show/hide dependencies of the current task (for a selected cpu timing event)", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::T));
-		UI_COMMAND(Command_ShowTaskPrerequisites, "Show dependencies for prerequisites ", "Show/hide dependecies of the current task's prerequisites", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::P));
-		UI_COMMAND(Command_ShowTaskSubsequents, "Show dependencies for subsequents ", "Show/hide dependecies of the current task's subsequents", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::S));
-		UI_COMMAND(Command_ShowNestedTasks, "Show dependencies for nested tasks ", "Show/hide dependencies of the current task's nested tasks", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::N));
+		UI_COMMAND(Command_ShowTaskDependencies, "Show Task Dependencies", "Show/hide dependencies of the current task (for a selected cpu timing event)", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::T));
+		UI_COMMAND(Command_ShowTaskPrerequisites, "Show dependencies for prerequisites", "Show/hide dependencies of the current task's prerequisites", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::P));
+		UI_COMMAND(Command_ShowTaskSubsequents, "Show dependencies for subsequents", "Show/hide dependencies of the current task's subsequents", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::S));
+		UI_COMMAND(Command_ShowNestedTasks, "Show dependencies for nested tasks", "Show/hide dependencies of the current task's nested tasks", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::N));
+		UI_COMMAND(Command_ShowCriticalPath, "Show task critical path", "Show/hide relations representing the critical path containing the current task", EUserInterfaceActionType::ToggleButton, FInputChord());
 	}
 	PRAGMA_ENABLE_OPTIMIZATION
 
@@ -58,6 +59,7 @@ public:
 	TSharedPtr<FUICommandInfo> Command_ShowTaskPrerequisites;
 	TSharedPtr<FUICommandInfo> Command_ShowTaskSubsequents;
 	TSharedPtr<FUICommandInfo> Command_ShowNestedTasks;
+	TSharedPtr<FUICommandInfo> Command_ShowCriticalPath;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -185,6 +187,15 @@ void FTaskTimingSharedState::BuildTasksSubMenu(FMenuBuilder& MenuBuilder)
 {
 	MenuBuilder.AddMenuEntry
 	(
+		FTaskTimingStateCommands::Get().Command_ShowCriticalPath,
+		NAME_None,
+		TAttribute<FText>(),
+		TAttribute<FText>(),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Type.Calls")
+	);
+
+	MenuBuilder.AddMenuEntry
+	(
 		FTaskTimingStateCommands::Get().Command_ShowTaskDependencies,
 		NAME_None,
 		TAttribute<FText>(),
@@ -233,9 +244,9 @@ void FTaskTimingSharedState::InitCommandList()
 
 	CommandList->MapAction(
 		FTaskTimingStateCommands::Get().Command_ShowTaskDependencies,
-		FExecuteAction::CreateSP(this, &FTaskTimingSharedState::ContextMenu_ShowTaskDependecies_Execute),
-		FCanExecuteAction::CreateSP(this, &FTaskTimingSharedState::ContextMenu_ShowTaskDependecies_CanExecute),
-		FIsActionChecked::CreateSP(this, &FTaskTimingSharedState::ContextMenu_ShowTaskDependecies_IsChecked));
+		FExecuteAction::CreateSP(this, &FTaskTimingSharedState::ContextMenu_ShowTaskDependencies_Execute),
+		FCanExecuteAction::CreateSP(this, &FTaskTimingSharedState::ContextMenu_ShowTaskDependencies_CanExecute),
+		FIsActionChecked::CreateSP(this, &FTaskTimingSharedState::ContextMenu_ShowTaskDependencies_IsChecked));
 
 	CommandList->MapAction(
 		FTaskTimingStateCommands::Get().Command_ShowTaskPrerequisites,
@@ -254,12 +265,18 @@ void FTaskTimingSharedState::InitCommandList()
 		FExecuteAction::CreateSP(this, &FTaskTimingSharedState::ContextMenu_ShowNestedTasks_Execute),
 		FCanExecuteAction::CreateSP(this, &FTaskTimingSharedState::ContextMenu_ShowNestedTasks_CanExecute),
 		FIsActionChecked::CreateSP(this, &FTaskTimingSharedState::ContextMenu_ShowNestedTasks_IsChecked));
+
+	CommandList->MapAction(
+		FTaskTimingStateCommands::Get().Command_ShowCriticalPath,
+		FExecuteAction::CreateSP(this, &FTaskTimingSharedState::ContextMenu_ShowCriticalPath_Execute),
+		FCanExecuteAction::CreateSP(this, &FTaskTimingSharedState::ContextMenu_ShowCriticalPath_CanExecute),
+		FIsActionChecked::CreateSP(this, &FTaskTimingSharedState::ContextMenu_ShowCriticalPath_IsChecked));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Dependencies
 
-void FTaskTimingSharedState::ContextMenu_ShowTaskDependecies_Execute()
+void FTaskTimingSharedState::ContextMenu_ShowTaskDependencies_Execute()
 {
 	TSharedPtr<Insights::FTaskGraphProfilerManager> TaskGraphManager = Insights::FTaskGraphProfilerManager::Get();
 	if (TaskGraphManager.IsValid() && TaskGraphManager->GetIsAvailable())
@@ -271,14 +288,14 @@ void FTaskTimingSharedState::ContextMenu_ShowTaskDependecies_Execute()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FTaskTimingSharedState::ContextMenu_ShowTaskDependecies_CanExecute()
+bool FTaskTimingSharedState::ContextMenu_ShowTaskDependencies_CanExecute()
 {
 	return Insights::FTaskGraphProfilerManager::Get().IsValid() && Insights::FTaskGraphProfilerManager::Get()->GetIsAvailable();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FTaskTimingSharedState::ContextMenu_ShowTaskDependecies_IsChecked()
+bool FTaskTimingSharedState::ContextMenu_ShowTaskDependencies_IsChecked()
 {
 	TSharedPtr<Insights::FTaskGraphProfilerManager> TaskGraphManager = Insights::FTaskGraphProfilerManager::Get();
 	return TaskGraphManager.IsValid() && TaskGraphManager->GetIsAvailable() && TaskGraphManager->GetShowRelations();
@@ -364,6 +381,34 @@ void FTaskTimingSharedState::ContextMenu_ShowNestedTasks_Execute()
 	if (TaskGraphManager.IsValid() && TaskGraphManager->GetIsAvailable())
 	{
 		TaskGraphManager->SetShowNestedTasks(!TaskGraphManager->GetShowNestedTasks());
+		OnTaskSettingsChanged();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// CriticalPath
+
+bool FTaskTimingSharedState::ContextMenu_ShowCriticalPath_CanExecute()
+{
+	return Insights::FTaskGraphProfilerManager::Get().IsValid() && Insights::FTaskGraphProfilerManager::Get()->GetIsAvailable();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FTaskTimingSharedState::ContextMenu_ShowCriticalPath_IsChecked()
+{
+	TSharedPtr<Insights::FTaskGraphProfilerManager> TaskGraphManager = Insights::FTaskGraphProfilerManager::Get();
+	return TaskGraphManager.IsValid() && TaskGraphManager->GetIsAvailable() && TaskGraphManager->GetShowCriticalPath();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTaskTimingSharedState::ContextMenu_ShowCriticalPath_Execute()
+{
+	TSharedPtr<Insights::FTaskGraphProfilerManager> TaskGraphManager = Insights::FTaskGraphProfilerManager::Get();
+	if (TaskGraphManager.IsValid() && TaskGraphManager->GetIsAvailable())
+	{
+		TaskGraphManager->SetShowCriticalPath(!TaskGraphManager->GetShowCriticalPath());
 		OnTaskSettingsChanged();
 	}
 }
@@ -464,7 +509,7 @@ void FTaskTimingTrack::PostDraw(const ITimingTrackDrawContext& Context) const
 
 void FTaskTimingTrack::OnTimingEventSelected(TSharedPtr<const ITimingEvent> InSelectedEvent)
 {
-	if (!FTaskGraphProfilerManager::Get()->GetShowRelations())
+	if (!FTaskGraphProfilerManager::Get()->GetShowAnyRelations())
 	{
 		return;
 	}

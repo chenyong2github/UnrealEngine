@@ -33,7 +33,7 @@ public:
 	{
 		if (ILiveLinkClient* Client = ClientRef.GetClient())
 		{
-			TSubclassOf<ULiveLinkRole> SubjectRole = Client->GetSubjectRole(EditorCamera);
+			TSubclassOf<ULiveLinkRole> SubjectRole = Client->GetSubjectRole_AnyThread(EditorCamera);
 			if (SubjectRole)
 			{
 				//Old plugin will stream EditorCamera as AnimationRole through backward compatibility path. Otherwise, it should be of the Camera Role

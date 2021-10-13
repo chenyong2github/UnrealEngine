@@ -10,6 +10,7 @@ class IAssetRegistry;
 class FAssetThumbnail;
 class FAssetFolderContextMenu;
 class FAssetFileContextMenu;
+class UObject;
 class UToolMenu;
 class UContentBrowserDataSource;
 
@@ -31,6 +32,8 @@ namespace ContentBrowserAssetData
 	CONTENTBROWSERASSETDATASOURCE_API void EnumerateAssetItemPayloads(const UContentBrowserDataSource* InOwnerDataSource, TArrayView<const FContentBrowserItemData> InItems, TFunctionRef<bool(const TSharedRef<const FContentBrowserAssetFolderItemDataPayload>&)> InFolderPayloadCallback, TFunctionRef<bool(const TSharedRef<const FContentBrowserAssetFileItemDataPayload>&)> InAssetPayloadCallback);
 
 	CONTENTBROWSERASSETDATASOURCE_API bool IsPrimaryAsset(const FAssetData& InAssetData);
+
+	CONTENTBROWSERASSETDATASOURCE_API bool IsPrimaryAsset(UObject* InObject);
 
 	CONTENTBROWSERASSETDATASOURCE_API void SetOptionalErrorMessage(FText* OutErrorMsg, FText InErrorMsg);
 

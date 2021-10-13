@@ -20,7 +20,7 @@
 			"Name" : "AndroidMedia",
 			"Type" : "RuntimeNoCommandlet",
 			"LoadingPhase" : "PreLoadingScreen",
-			"WhitelistPlatforms" : [ "Android" ]
+			"PlatformAllowList" : [ "Android" ]
 		},
 		{
 			"Name" : "AndroidMediaEditor",
@@ -36,7 +36,7 @@
 			"Name" : "AndroidMediaFactory",
 			"Type" : "RuntimeNoCommandlet",
 			"LoadingPhase" : "PostEngineInit",
-			"WhitelistPlatforms" : [ "Android" ]
+			"PlatformAllowList" : [ "Android" ]
 		}
 	]
 }

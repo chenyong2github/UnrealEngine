@@ -32,6 +32,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Appearance)
 	bool AlwaysShowLabel;
 
+	/** Whether to show text label. */
+	UPROPERTY(EditAnywhere, Category = Appearance)
+	bool ShowUnitsText;
+
 	/** A bindable delegate to allow logic to drive the value of the widget */
 	UPROPERTY()
 	FGetFloat ValueDelegate;
@@ -89,14 +93,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
 	float GetLinValue(const float OutputValue);
 
-	/** Sets whether editable value text is read only or not. */
+	/** Sets whether editable value and units text is read only or not. */
  	UFUNCTION(BlueprintCallable, Category = "Behavior")
- 	void SetTextReadOnly(const bool bIsReadOnly);
+ 	void SetAllTextReadOnly(const bool bIsReadOnly);
+	
+	/** Sets whether to show the units text. */
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetShowUnitsText(const bool bShowUnitsText);
 
 	/** Sets whether editable value text is read only or not. */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
 	void SetAlwaysShowLabel(const bool bSetAlwaysShowLabel);
-	
+
+	/** The slider's orientation. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Appearance)
+	TEnumAsByte<EOrientation> Orientation;
+
 	/** Called when the value is changed by slider or typing. */
 	UPROPERTY(BlueprintAssignable, Category = "Widget Event")
 	FOnFloatValueChangedEvent OnValueChanged;

@@ -655,6 +655,15 @@ public:
 	TArray<FWeightedBlendable> Array;
 };
 
+struct FPostProcessSettingsDebugInfo
+{
+	FString Name;
+
+	float Priority;
+	float CurrentBlendWeight;
+	bool bIsEnabled;
+	bool bIsUnbound;
+};
 
 /** To be able to use struct PostProcessSettings. */
 // Each property consists of a bool to enable it (by default off),

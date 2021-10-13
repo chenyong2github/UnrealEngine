@@ -199,57 +199,57 @@ public:
 	}
 
 	/** 
-	 * Increases the box size.
+	 * Returns a box of increased size.
 	 *
 	 * @param W The size to increase the volume by.
 	 * @return A new bounding box.
 	 */
-	FORCEINLINE TBox<T> ExpandBy(T W) const
+	UE_NODISCARD FORCEINLINE TBox<T> ExpandBy(T W) const
 	{
 		return TBox<T>(Min - TVector<T>(W, W, W), Max + TVector<T>(W, W, W));
 	}
 
 	/**
-	* Increases the box size.
+	* Returns a box of increased size.
 	*
 	* @param V The size to increase the volume by.
 	* @return A new bounding box.
 	*/
-	FORCEINLINE TBox<T> ExpandBy(const TVector<T>& V) const
+	UE_NODISCARD FORCEINLINE TBox<T> ExpandBy(const TVector<T>& V) const
 	{
 		return TBox<T>(Min - V, Max + V);
 	}
 
 	/**
-	* Increases the box size.
+	* Returns a box of increased size.
 	*
 	* @param Neg The size to increase the volume by in the negative direction (positive values move the bounds outwards)
 	* @param Pos The size to increase the volume by in the positive direction (positive values move the bounds outwards)
 	* @return A new bounding box.
 	*/
-	TBox<T> ExpandBy(const TVector<T>& Neg, const TVector<T>& Pos) const
+	UE_NODISCARD TBox<T> ExpandBy(const TVector<T>& Neg, const TVector<T>& Pos) const
 	{
 		return TBox<T>(Min - Neg, Max + Pos);
 	}
 
 	/** 
-	 * Shifts the bounding box position.
+	 * Returns a box with its position shifted.
 	 *
 	 * @param Offset The vector to shift the box by.
 	 * @return A new bounding box.
 	 */
-	FORCEINLINE TBox<T> ShiftBy( const TVector<T>& Offset ) const
+	UE_NODISCARD FORCEINLINE TBox<T> ShiftBy( const TVector<T>& Offset ) const
 	{
 		return TBox<T>(Min + Offset, Max + Offset);
 	}
 
 	/** 
-	 * Moves the center of bounding box to new destination.
+	 * Returns a box with its center moved to the new destination.
 	 *
 	 * @param Destination The destination point to move center of box to.
 	 * @return A new bounding box.
 	 */
-	FORCEINLINE TBox<T> MoveTo( const TVector<T>& Destination ) const
+	UE_NODISCARD FORCEINLINE TBox<T> MoveTo( const TVector<T>& Destination ) const
 	{
 		const TVector<T> Offset = Destination - GetCenter();
 		return TBox<T>(Min + Offset, Max + Offset);

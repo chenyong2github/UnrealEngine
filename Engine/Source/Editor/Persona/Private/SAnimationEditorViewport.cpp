@@ -853,6 +853,18 @@ void SAnimationEditorViewportTabBody::BindCommands()
 		FIsActionChecked::CreateSP(this, &SAnimationEditorViewportTabBody::IsBoneDrawModeSet, (int32)EBoneDrawMode::SelectedAndParents));
 
 	CommandList.MapAction(
+		ViewportShowMenuCommands.ShowBoneDrawSelectedAndChildren,
+		FExecuteAction::CreateSP(this, &SAnimationEditorViewportTabBody::OnSetBoneDrawMode, (int32)EBoneDrawMode::SelectedAndChildren),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &SAnimationEditorViewportTabBody::IsBoneDrawModeSet, (int32)EBoneDrawMode::SelectedAndChildren));
+
+	CommandList.MapAction(
+		ViewportShowMenuCommands.ShowBoneDrawSelectedAndParentsAndChildren,
+		FExecuteAction::CreateSP(this, &SAnimationEditorViewportTabBody::OnSetBoneDrawMode, (int32)EBoneDrawMode::SelectedAndParentsAndChildren),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &SAnimationEditorViewportTabBody::IsBoneDrawModeSet, (int32)EBoneDrawMode::SelectedAndParentsAndChildren));
+
+	CommandList.MapAction(
 		ViewportShowMenuCommands.ShowBoneDrawAll,
 		FExecuteAction::CreateSP(this, &SAnimationEditorViewportTabBody::OnSetBoneDrawMode, (int32)EBoneDrawMode::All),
 		FCanExecuteAction(),

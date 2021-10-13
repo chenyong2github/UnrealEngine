@@ -691,20 +691,7 @@ static void EditorCommandLineUtilsImpl::RunAssetMerge(FMergeAsset const& Base, F
 //------------------------------------------------------------------------------
 static UObject* EditorCommandLineUtilsImpl::ExtractAssetFromPackage(UPackage* Package)
 {
-	TArray<UObject*> ObjectsWithOuter;
-	GetObjectsWithOuter(Package, ObjectsWithOuter, /*bIncludeNestedObjects =*/false);
-
-	UObject* FoundAsset = nullptr;
-	for (UObject* PackageObj : ObjectsWithOuter)
-	{
-		if (PackageObj->IsAsset() && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(PackageObj))
-		{
-			FoundAsset = PackageObj;
-			break;
-		}
-	}
-
-	return FoundAsset;
+	return Package->FindAssetInPackage();
 }
 
 /*******************************************************************************

@@ -19,13 +19,13 @@
         {
             "Name" : "GoogleARCoreBase",
             "Type" : "Runtime",
-            "WhitelistPlatforms": [ "Win64", "Mac", "Android", "Linux" ]
+            "PlatformAllowList": [ "Win64", "Mac", "Android", "Linux" ]
         },
         {
             "Name": "GoogleARCoreRendering",
             "Type": "Runtime",
             "LoadingPhase" : "PostConfigInit",
-            "WhitelistPlatforms": [ "Win64", "Mac", "Android", "Linux" ]
+            "PlatformAllowList": [ "Win64", "Mac", "Android", "Linux" ]
         },
     ],
     "Plugins": [

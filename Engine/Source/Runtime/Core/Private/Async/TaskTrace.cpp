@@ -11,7 +11,7 @@
 
 namespace TaskTrace
 {
-	UE_TRACE_CHANNEL(TaskChannel);
+	UE_TRACE_CHANNEL_DEFINE(TaskChannel);
 
 	UE_TRACE_EVENT_BEGIN(TaskTrace, Init)
 		UE_TRACE_EVENT_FIELD(uint32, Version)
@@ -80,6 +80,7 @@ namespace TaskTrace
 	}
 
 	static bool bGTaskTraceInitialized = false;
+	uint32 ExecuteTaskSpecId = 0;
 
 	void Init()
 	{
@@ -87,6 +88,9 @@ namespace TaskTrace
 			<< Init.Version(0);
 
 		bGTaskTraceInitialized = true;
+#if CPUPROFILERTRACE_ENABLED
+		ExecuteTaskSpecId = FCpuProfilerTrace::OutputEventType("ExecuteTask");
+#endif
 	}
 
 	void Created(FId TaskId)
@@ -211,6 +215,33 @@ namespace TaskTrace
 
 		UE_TRACE_LOG(TaskTrace, WaitingFinished, TaskChannel)
 			<< WaitingFinished.Timestamp(FPlatformTime::Cycles64());
+	}
+
+	FTaskTimingEventScope::FTaskTimingEventScope(TaskTrace::FId InTaskId)
+	{
+		TaskId = InTaskId;
+		TaskTrace::Started(TaskId);
+
+		// The RenderingThread outputs a BeginEvent in the BeginFrameRenderThread function and an EndEvent in EndFrameRenderThread.
+		// Outputing the ExecuteTask event would cause the Frame event to be closed incorrectly.
+#if CPUPROFILERTRACE_ENABLED
+		if (UE_TRACE_CHANNELEXPR_IS_ENABLED(TaskChannel) && !IsInRenderingThread())
+		{
+			bIsActive = true;
+			FCpuProfilerTrace::OutputBeginEvent(ExecuteTaskSpecId);
+		}
+#endif
+	}
+
+	FTaskTimingEventScope::~FTaskTimingEventScope()
+	{
+#if CPUPROFILERTRACE_ENABLED
+		if (bIsActive)
+		{
+			FCpuProfilerTrace::OutputEndEvent();
+		}
+#endif
+		TaskTrace::Finished(TaskId);
 	}
 }
 

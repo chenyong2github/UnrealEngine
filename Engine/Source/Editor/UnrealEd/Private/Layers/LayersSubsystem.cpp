@@ -757,48 +757,51 @@ void ULayersSubsystem::RemoveViewFromActorViewVisibility( FLevelEditorViewportCl
 	uint64 KeepBits = ViewBit - 1;
 
 	// Iterate over all actors, looking for actors in the specified layers.
-	for( FActorIterator It(ViewportClient->GetWorld()) ; It ; ++It )
+	if (ViewportClient->GetWorld())
 	{
-		AActor* Actor = *It;
-
-		if( !IsActorValidForLayer( Actor ) )
+		for( FActorIterator It(ViewportClient->GetWorld()) ; It ; ++It )
 		{
-			continue;
-		}
+			AActor* Actor = *It;
 
-		// remember original bits
-		uint64 OriginalHiddenViews = Actor->HiddenEditorViews;
-
-		uint64 Was = Actor->HiddenEditorViews;
-
-		// slide all bits higher than ViewIndex down one since the view is being removed from Editor
-		uint64 LowBits = Actor->HiddenEditorViews & KeepBits;
-
-		// now slide the top bits down by ViewIndex + 1 (chopping off ViewBit)
-		uint64 HighBits = Actor->HiddenEditorViews >> (ViewIndex + 1);
-		// then slide back up by ViewIndex, which will now have erased ViewBit, as well as leaving 0 in the low bits
-		HighBits = HighBits << ViewIndex;
-
-		// put it all back together
-		Actor->HiddenEditorViews = LowBits | HighBits;
-
-		// reregister if we changed the visibility bits, as the rendering thread needs them
-		if (OriginalHiddenViews == Actor->HiddenEditorViews)
-		{
-			continue;
-		}
-
-		// Find all registered primitive components and update the scene proxy with the actors updated visibility map
-		TInlineComponentArray<UPrimitiveComponent*> Components;
-		Actor->GetComponents(Components);
-
-		for (UActorComponent* Component : Actor->GetComponents())
-		{
-			UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(Component);
-			if (PrimitiveComponent && PrimitiveComponent->IsRegistered())
+			if( !IsActorValidForLayer( Actor ) )
 			{
-				// Push visibility to the render thread
-				PrimitiveComponent->PushEditorVisibilityToProxy( Actor->HiddenEditorViews );
+				continue;
+			}
+
+			// remember original bits
+			uint64 OriginalHiddenViews = Actor->HiddenEditorViews;
+
+			uint64 Was = Actor->HiddenEditorViews;
+
+			// slide all bits higher than ViewIndex down one since the view is being removed from Editor
+			uint64 LowBits = Actor->HiddenEditorViews & KeepBits;
+
+			// now slide the top bits down by ViewIndex + 1 (chopping off ViewBit)
+			uint64 HighBits = Actor->HiddenEditorViews >> (ViewIndex + 1);
+			// then slide back up by ViewIndex, which will now have erased ViewBit, as well as leaving 0 in the low bits
+			HighBits = HighBits << ViewIndex;
+
+			// put it all back together
+			Actor->HiddenEditorViews = LowBits | HighBits;
+
+			// reregister if we changed the visibility bits, as the rendering thread needs them
+			if (OriginalHiddenViews == Actor->HiddenEditorViews)
+			{
+				continue;
+			}
+
+			// Find all registered primitive components and update the scene proxy with the actors updated visibility map
+			TInlineComponentArray<UPrimitiveComponent*> Components;
+			Actor->GetComponents(Components);
+
+			for (UActorComponent* Component : Actor->GetComponents())
+			{
+				UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(Component);
+				if (PrimitiveComponent && PrimitiveComponent->IsRegistered())
+				{
+					// Push visibility to the render thread
+					PrimitiveComponent->PushEditorVisibilityToProxy( Actor->HiddenEditorViews );
+				}
 			}
 		}
 	}

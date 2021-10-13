@@ -46,11 +46,11 @@ public:
 	virtual void SetTickableInEditor(bool bInTickInEditor) = 0;
 #endif // WITH_EDITOR
 	virtual void Stop() = 0;
-	virtual void AddWhitelistedClient(const FString& InIPAddress) = 0;
-	virtual void RemoveWhitelistedClient(const FString& IPAddress) = 0;
-	virtual void ClearWhitelistedClients() = 0;
-	virtual TSet<FString> GetWhitelistedClients() const = 0;
-	virtual void SetWhitelistClientsEnabled(bool bEnabled) = 0;
+	virtual void AddClientToAllowList(const FString& InIPAddress) = 0;
+	virtual void RemoveClientFromAllowList(const FString& IPAddress) = 0;
+	virtual void ClearClientAllowList() = 0;
+	virtual TSet<FString> GetClientAllowList() const = 0;
+	virtual void SetFilterClientsByAllowList(bool bEnabled) = 0;
 };
 
 UCLASS(BlueprintType)

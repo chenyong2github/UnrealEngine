@@ -431,8 +431,13 @@ void FTextureCompilingManager::PostCompilation(TArrayView<UTexture* const> InCom
 				AssetsData.Emplace(Texture);
 			}
 
-			FAssetCompilingManager::Get().OnAssetPostCompileEvent().Broadcast(AssetsData);
-			OnTexturePostCompileEvent().Broadcast(InCompiledTextures);
+			// Calling this delegate during app exit might be quite dangerous and lead to crash
+			// Triggering this callback while garbage collecting can also result in listeners trying to look up objects
+			if (!GExitPurge && !IsGarbageCollecting())
+			{
+				FAssetCompilingManager::Get().OnAssetPostCompileEvent().Broadcast(AssetsData);
+				OnTexturePostCompileEvent().Broadcast(InCompiledTextures);
+			}
 		}
 	}
 }

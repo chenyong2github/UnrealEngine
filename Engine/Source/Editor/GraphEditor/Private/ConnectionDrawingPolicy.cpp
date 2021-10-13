@@ -175,16 +175,18 @@ void FConnectionDrawingPolicy::SetMousePosition(const FVector2D& InMousePos)
 
 void FConnectionDrawingPolicy::SetMarkedPin(TWeakPtr<SGraphPin> InMarkedPin)
 {
-	if (InMarkedPin.IsValid())
+	if (TSharedPtr<SGraphPin> StrongPtr = InMarkedPin.Pin())
 	{
 		LastHoverTimeEvent = 0.0;
 
-		UEdGraphPin* MarkedPin = InMarkedPin.Pin()->GetPinObj();
-		HoveredPins.Add(MarkedPin);
-
-		for (auto LinkIt = MarkedPin->LinkedTo.CreateConstIterator(); LinkIt; ++LinkIt)
+		if (UEdGraphPin* MarkedPin = StrongPtr->GetPinObj())
 		{
-			HoveredPins.Add(*LinkIt);
+			HoveredPins.Add(MarkedPin);
+
+			for (auto LinkIt = MarkedPin->LinkedTo.CreateConstIterator(); LinkIt; ++LinkIt)
+			{
+				HoveredPins.Add(*LinkIt);
+			}
 		}
 	}
 }

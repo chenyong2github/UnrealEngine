@@ -147,7 +147,7 @@ namespace PropertyCustomizationHelpers
 		return
 			SNew( SPropertyEditorButton )
 			.Text( OptionalToolTipText.Get().IsEmpty() ? LOCTEXT( "UseButtonToolTipText", "Use Selected Asset from Content Browser") : OptionalToolTipText )
-			.Image( FEditorStyle::GetBrush("Icons.CircleArrowLeft") )
+			.Image( FEditorStyle::GetBrush("Icons.Use") )
 			.OnClickAction( OnUseSelectedClicked )
 			.IsEnabled(IsEnabled)
 			.IsFocusable( false );
@@ -201,12 +201,14 @@ namespace PropertyCustomizationHelpers
 			];
 	}
 
-	TSharedRef<SWidget> MakeBrowseButton( FSimpleDelegate OnFindClicked, TAttribute<FText> OptionalToolTipText, TAttribute<bool> IsEnabled )
+	TSharedRef<SWidget> MakeBrowseButton( FSimpleDelegate OnFindClicked, TAttribute<FText> OptionalToolTipText, TAttribute<bool> IsEnabled, const bool IsActor)
 	{
+		const FSlateBrush* BrowseIcon = IsActor ? FAppStyle::Get().GetBrush("Icons.SelectInViewport") : FAppStyle::Get().GetBrush("Icons.BrowseContent");
+
 		return
 			SNew( SPropertyEditorButton )
 			.Text( OptionalToolTipText.Get().IsEmpty() ? LOCTEXT( "BrowseButtonToolTipText", "Browse to Asset in Content Browser") : OptionalToolTipText )
-			.Image( FEditorStyle::GetBrush("Icons.Search") )
+			.Image(BrowseIcon)
 			.OnClickAction( OnFindClicked )
 			.IsEnabled(IsEnabled)
 			.IsFocusable( false );

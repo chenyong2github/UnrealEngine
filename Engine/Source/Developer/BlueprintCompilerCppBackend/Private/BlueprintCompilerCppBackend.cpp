@@ -183,7 +183,7 @@ void FBlueprintCompilerCppBackend::EmitCastObjToInterfaceStatement(FEmitterLocal
 
 	if (ObjectValue.Equals(TEXT("this")))
 	{
-		//if ObjectValue is "this", we will be checking "this" against nullptr, which will not pass a strict compiler check (e.g. PS4)
+		//if ObjectValue is "this", we will be checking "this" against nullptr, which will not pass a strict compiler check on some platforms
 		EmitterContext.AddLine(FString::Printf(TEXT("if ( %s->GetClass()->ImplementsInterface(%s) )"), *ObjectValue, *InterfaceClass));
 	}
 	else

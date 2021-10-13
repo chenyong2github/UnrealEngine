@@ -1372,13 +1372,11 @@ void AActor::CallPreReplication(UNetDriver* NetDriver)
 		PreReplication(*ActorChangedPropertyTracker);
 	}
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// If we're recording a replay, call this for everyone (includes SimulatedProxies).
-	if (ActorChangedPropertyTracker->IsReplay() || NetDriver->HasReplayConnection())
+	if (Cast<UDemoNetDriver>(NetDriver) || NetDriver->HasReplayConnection())
 	{
 		PreReplicationForReplay(*ActorChangedPropertyTracker);
 	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Call PreReplication on all owned components that are replicated
 	for (UActorComponent* Component : ReplicatedComponents)

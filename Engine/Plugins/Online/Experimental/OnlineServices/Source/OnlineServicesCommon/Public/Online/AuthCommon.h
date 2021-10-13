@@ -24,8 +24,6 @@ public:
 	virtual TOnlineEvent<void(const FLoginStatusChanged&)> OnLoginStatusChanged() override;
 
 protected:
-	FOnlineServicesCommon& Services;
-
 	TOnlineEventCallable<void(const FLoginStatusChanged&)> OnLoginStatusChangedEvent;
 };
 

@@ -20,7 +20,7 @@
 			"Name" : "AndroidCamera",
 			"Type" : "RuntimeNoCommandlet",
 			"LoadingPhase" : "PreLoadingScreen",
-			"WhitelistPlatforms" : [ "Android" ]
+			"PlatformAllowList" : [ "Android" ]
 		},
 		{
 			"Name" : "AndroidCameraEditor",
@@ -36,7 +36,7 @@
 			"Name" : "AndroidCameraFactory",
 			"Type" : "RuntimeNoCommandlet",
 			"LoadingPhase" : "PostEngineInit",
-			"WhitelistPlatforms" : [ "Android" ]
+			"PlatformAllowList" : [ "Android" ]
 		}
 	]
 }

@@ -404,6 +404,7 @@ UWorld::UWorld( const FObjectInitializer& ObjectInitializer )
 	});
 
 	IsInBlockTillLevelStreamingCompleted = 0;
+	BlockTillLevelStreamingCompletedEpoch = 0;
 }
 
 UWorld::~UWorld()
@@ -1565,7 +1566,7 @@ void UWorld::RepairWorldSettings()
 		for (int32 Index = 1, ActorNum = PersistentLevel->Actors.Num(); Index < ActorNum; ++Index)
 		{
 			AActor* Actor = PersistentLevel->Actors[Index];
-			if (Actor && Actor->IsA<AWorldSettings>())
+			if (Actor != nullptr && Actor->IsA<AWorldSettings>())
 			{
 				UE_LOG(LogWorld, Warning, TEXT("Extra World Settings '%s' actor found. Resave level or actors to clean up"), *Actor->GetName());
 				Actor->Destroy();
@@ -2578,11 +2579,8 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 
 	if (bExecuteNextStep)
 	{
-		ULevel* NextPreferredLevelPendingVisibility = CalculateNextPreferredLevelPendingVisibility();
-		if (NextPreferredLevelPendingVisibility != nullptr && NextPreferredLevelPendingVisibility != Level)
+		if (!CanAddLoadedLevelToWorld(Level))
 		{
-			// Don't add to world if the level is not the preferred one
-			check(CurrentLevelPendingVisibility == nullptr);
 			bExecuteNextStep = false;
 		}
 	}
@@ -3473,7 +3471,7 @@ void FStreamingLevelsToConsider::Add_Internal(ULevelStreaming* StreamingLevel, b
 			if (bGuaranteedNotInContainer || !StreamingLevels.Contains(StreamingLevel))
 			{
 				auto PrioritySort = [](ULevelStreaming* LambdaStreamingLevel, ULevelStreaming* OtherStreamingLevel)
-			{
+				{
 					if (LambdaStreamingLevel && OtherStreamingLevel)
 					{
 						const int32 Priority = LambdaStreamingLevel->GetPriority();
@@ -3635,7 +3633,13 @@ void UWorld::BlockTillLevelStreamingCompleted()
 {
 	const double StartTime = FPlatformTime::Seconds();
 	TScopeCounter<uint32> IsInBlockTillLevelStreamingCompletedCounter(IsInBlockTillLevelStreamingCompleted);
-	
+
+	if (IsInBlockTillLevelStreamingCompleted == 1)
+	{
+		++BlockTillLevelStreamingCompletedEpoch;
+	}
+
+	bool bIsStreamingPaused = false;
 	bool bWorkToDo = false;
 	do
 	{
@@ -3648,20 +3652,22 @@ void UWorld::BlockTillLevelStreamingCompleted()
 		bWorkToDo = (IsVisibilityRequestPending() || IsAsyncLoading());
 		if (bWorkToDo)
 		{
-			if (GEngine->GameViewport && GEngine->BeginStreamingPauseDelegate && GEngine->BeginStreamingPauseDelegate->IsBound())
+			if (!bIsStreamingPaused && GEngine->GameViewport && GEngine->BeginStreamingPauseDelegate && GEngine->BeginStreamingPauseDelegate->IsBound())
 			{
 				GEngine->BeginStreamingPauseDelegate->Execute(GEngine->GameViewport->Viewport);
+				bIsStreamingPaused = true;
 			}
 
 			// Flush level streaming requests, blocking till completion.
 			FlushLevelStreaming(EFlushLevelStreamingType::Full);
-
-			if (GEngine->EndStreamingPauseDelegate && GEngine->EndStreamingPauseDelegate->IsBound())
-			{
-				GEngine->EndStreamingPauseDelegate->Execute();
-			}
 		}
 	} while (bWorkToDo);
+
+	if (bIsStreamingPaused && GEngine->EndStreamingPauseDelegate && GEngine->EndStreamingPauseDelegate->IsBound())
+	{
+		GEngine->EndStreamingPauseDelegate->Execute();
+	}
+
 	const double ElapsedTime = FPlatformTime::Seconds() - StartTime;
 	UE_LOG(LogWorld, Log, TEXT("BlockTillLevelStreamingCompleted took %s seconds (MatchStarted %d)"), *FText::AsNumber(ElapsedTime).ToString(), bMatchStarted);
 }
@@ -3686,14 +3692,17 @@ void UWorld::InternalUpdateStreamingState()
 	}
 }
 
-ULevel* UWorld::CalculateNextPreferredLevelPendingVisibility() const
+bool UWorld::CanAddLoadedLevelToWorld(ULevel* Level) const
 {
 	if (CurrentLevelPendingVisibility == nullptr)
 	{
-		const UWorldPartition* WorldPartition = GetWorldPartition();
-		return WorldPartition ? WorldPartition->GetPreferredLoadedLevelToAddToWorld() : nullptr;
+		// Allow world partition to decide wether a level should be added or not to the world
+		if (const UWorldPartition* WorldPartition = GetWorldPartition())
+		{
+			return WorldPartition->CanAddLoadedLevelToWorld(Level);
+		}
 	}
-	return nullptr;
+	return true;
 }
 
 void UWorld::UpdateLevelStreaming()
@@ -8321,6 +8330,21 @@ static void DoPostProcessVolume(IInterface_PostProcessVolume* Volume, FVector Vi
 		}
 	}
 
+#if DEBUG_POST_PROCESS_VOLUME_ENABLE
+	if (SceneView->Family && SceneView->Family->EngineShowFlags.VisualizePostProcessStack)
+	{
+		FPostProcessSettingsDebugInfo& PPDebug = SceneView->FinalPostProcessDebugInfo.AddDefaulted_GetRef();
+
+		PPDebug.Name = Volume->GetDebugName();
+
+		FPostProcessVolumeProperties VProperties = Volume->GetProperties();
+		PPDebug.bIsEnabled = VProperties.bIsEnabled;
+		PPDebug.bIsUnbound = VProperties.bIsUnbound;
+		PPDebug.Priority = VProperties.Priority;
+		PPDebug.CurrentBlendWeight = LocalWeight;
+	}
+#endif
+
 	if (LocalWeight > 0)
 	{
 		SceneView->OverridePostProcessSettings(*VolumeProperties.Settings, LocalWeight);
@@ -8330,6 +8354,10 @@ static void DoPostProcessVolume(IInterface_PostProcessVolume* Volume, FVector Vi
 void UWorld::AddPostProcessingSettings(FVector ViewLocation, FSceneView* SceneView)
 {
 	OnBeginPostProcessSettings.Broadcast(ViewLocation, SceneView);
+
+#if DEBUG_POST_PROCESS_VOLUME_ENABLE
+	SceneView->FinalPostProcessDebugInfo.Reset();
+#endif
 
 	for (IInterface_PostProcessVolume* PPVolume : PostProcessVolumes)
 	{

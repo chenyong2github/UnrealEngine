@@ -248,6 +248,7 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 						UControlRig** NewControlRig = OldToNewControlRigs.Find(OldControlRig);
 						if (NewControlRig)
 						{  
+							TArray<FName> SelectedControls = OldControlRig->CurrentControlSelection();
 							OldControlRig->ClearControlSelection();
 							UnbindControlRig(OldControlRig);
 							if (*NewControlRig)
@@ -267,12 +268,9 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 								{
 									ControlRigEditMode->SetObjects(*NewControlRig, nullptr, GetSequencer());
 								}
-								if (*NewControlRig)
-								{
-									(*NewControlRig)->ClearControlSelection();
-								}
-													
-								auto UpdateSelectionDelegate = [this]()
+								UControlRig* PtrNewControlRig = *NewControlRig;
+
+								auto UpdateSelectionDelegate = [this, SelectedControls, PtrNewControlRig]()
 								{
 
 									UE_LOG(LogControlRigEditor, Log, TEXT("UpdateSelectionTimer"));
@@ -281,7 +279,17 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 										UE_LOG(LogControlRigEditor, Log, TEXT("UpdateSelectionTimer - Sync"));
 										TGuardValue<bool> Guard(bIsDoingSelection, true);
 										GetSequencer()->ExternalSelectionHasChanged();
-
+										if (PtrNewControlRig)
+										{
+											GEditor->GetTimerManager()->SetTimerForNextTick([SelectedControls,PtrNewControlRig]()
+											{
+												PtrNewControlRig->ClearControlSelection();
+												for (const FName& ControlName : SelectedControls)
+												{
+													PtrNewControlRig->SelectControl(ControlName, true);
+												}
+											});
+										}
 										if (UpdateSelectionTimerHandle.IsValid())
 										{
 											UE_LOG(LogControlRigEditor, Log, TEXT("UpdateSelectionTimer - Clear"));
@@ -2076,12 +2084,10 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 	//if fk rig show hierarchy.
 	if (Subject->IsA<UFKControlRig>())
 	{
-		FControlRigEditMode* EditMode = GetEditMode();
-		if (EditMode)
+		if (UControlRigEditModeSettings* Settings = GetMutableDefault<UControlRigEditModeSettings>())
 		{
-			EditMode->GetSettings()->bDisplayHierarchy = true;
+			Settings->bDisplayHierarchy = true;
 		}
-
 	}
 
 	if (bIsDoingSelection)
@@ -2219,6 +2225,10 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(UControlRig* InControlRi
 			continue;
 		}
 
+		if (SectionToKey->ControlChannelMap.Find(ControlElement->GetName()) == nullptr)
+		{
+			continue;
+		}
 		bool bMaskKeyOut = (ControlIndex >= ControlsMask.Num() || ControlsMask[ControlIndex] == false);
 		bool bSetKey = ControlElement->GetName() == ParameterName && !bMaskKeyOut;
 

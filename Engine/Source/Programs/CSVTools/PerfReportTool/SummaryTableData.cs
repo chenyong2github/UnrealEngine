@@ -240,6 +240,15 @@ namespace PerfSummaries
 			return true;
 		}
 
+		public int GetFrameCount()
+		{
+			if (!dict.ContainsKey("framecount"))
+			{
+				return 0;
+			}
+			return (int)dict["framecount"].numericValue;
+		}
+
 		public void RemoveSafe(string name)
 		{
 			string key = name.ToLower();

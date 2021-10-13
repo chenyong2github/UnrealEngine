@@ -22,11 +22,11 @@
 			"Name" : "XCodeSourceCodeAccess",
 			"Type" : "UncookedOnly",
 			"LoadingPhase" : "Default",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"Mac"
 			],
-			"WhitelistPrograms" : [ "UnrealFrontend", "UnrealInsights" ]
+			"ProgramAllowList" : [ "UnrealFrontend", "UnrealInsights" ]
 		}
 	]
 }

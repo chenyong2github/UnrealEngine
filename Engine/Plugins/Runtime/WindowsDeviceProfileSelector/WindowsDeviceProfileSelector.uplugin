@@ -20,7 +20,7 @@
 			"Name" : "WindowsDeviceProfileSelector",
 			"Type" : "RuntimeNoCommandlet",
 			"LoadingPhase" : "PostConfigInit",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"Win64"
 			]

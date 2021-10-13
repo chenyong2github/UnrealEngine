@@ -147,7 +147,7 @@ void FOpenColorIOShaderMapId::AppendKeyString(FString& OutKeyString) const
 		OutKeyString += TEXT("_");
 	}
 
-	TMap<const TCHAR*, FCachedUniformBufferDeclaration> ReferencedUniformBuffers;
+	TSortedMap<const TCHAR*, FCachedUniformBufferDeclaration, FDefaultAllocator, FUniformBufferNameSortOrder> ReferencedUniformBuffers;
 
 	// Add the inputs for any shaders that are stored inline in the shader map
 	for (const FShaderTypeDependency& ShaderTypeDependency : ShaderTypeDependencies)

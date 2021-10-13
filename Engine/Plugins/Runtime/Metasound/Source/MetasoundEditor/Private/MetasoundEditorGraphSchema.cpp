@@ -667,17 +667,7 @@ void UMetasoundEditorGraphSchema::GetContextMenuActions(class UToolMenu* Menu, c
 {
 	using namespace Metasound::Editor;
 
-	if (Context->Pin)
-	{
-		FToolMenuSection& Section = Menu->AddSection("MetasoundGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"));
-
-		// Only displays the 'Break Link' option if there is a link to break
-		if (Context->Pin->LinkedTo.Num() > 0)
-		{
-			Section.AddMenuEntry(FGraphEditorCommands::Get().BreakPinLinks);
-		}
-	}
-	else if (Context->Node && Context->Node->IsA<UMetasoundEditorGraphNode>())
+	if (!Context->Pin && Context->Node && Context->Node->IsA<UMetasoundEditorGraphNode>())
 	{
 		FToolMenuSection& Section = Menu->AddSection("MetasoundGraphSchemaNodeActions", LOCTEXT("NodeActionsMenuHeader", "Node Actions"));
 		Section.AddMenuEntry(FGenericCommands::Get().Delete);
@@ -917,32 +907,35 @@ FText UMetasoundEditorGraphSchema::GetPinDisplayName(const UEdGraphPin* Pin) con
 		{
 			if (Pin->Direction == EGPD_Input)
 			{
-				TArray<FConstInputHandle> InputHandles = NodeHandle->GetConstInputsWithVertexName(Pin->GetFName());
-				if (ensure(!InputHandles.IsEmpty()))
+				FConstInputHandle InputHandle = NodeHandle->GetConstInputWithVertexName(Pin->GetFName());
+				if (InputHandle->IsValid())
 				{
-					return InputHandles[0]->GetDisplayName();;
+					return InputHandle->GetDisplayName();;
 				}
 			}
 			else
 			{
-				TArray<FConstOutputHandle> OutputHandles = NodeHandle->GetConstOutputsWithVertexName(Pin->GetFName());
-				if (ensure(!OutputHandles.IsEmpty()))
+				FConstOutputHandle OutputHandle = NodeHandle->GetConstOutputWithVertexName(Pin->GetFName());
+				if (OutputHandle->IsValid())
 				{
-					return OutputHandles[0]->GetDisplayName();
+					return OutputHandle->GetDisplayName();
 				}
 			}
 
 			return Super::GetPinDisplayName(Pin);
 		}
 
+		case EMetasoundFrontendClassType::Literal:
 		case EMetasoundFrontendClassType::Variable:
+		case EMetasoundFrontendClassType::VariableAccessor:
+		case EMetasoundFrontendClassType::VariableMutator:
 		case EMetasoundFrontendClassType::Graph:
 			// TODO: Implement above
 
 		case EMetasoundFrontendClassType::Invalid:
 		default:
 		{
-			static_assert(static_cast<int32>(EMetasoundFrontendClassType::Invalid) == 5, "Possible missing EMetasoundFrontendClassType case coverage");
+			static_assert(static_cast<int32>(EMetasoundFrontendClassType::Invalid) == 8, "Possible missing EMetasoundFrontendClassType case coverage");
 			return Super::GetPinDisplayName(Pin);
 		}
 	}

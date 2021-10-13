@@ -586,10 +586,12 @@ UObject* UMovieSceneSection::GetImplicitObjectOwner()
 				}
 				else if (FMovieScenePossessable* MovieScenePossessable = MovieScene->FindPossessable(Guid))
 				{
+#if WITH_EDITORONLY_DATA
 					if (MovieScenePossessable->GetPossessedObjectClass() && MovieScenePossessable->GetPossessedObjectClass()->GetDefaultObject())
 					{
 						return MovieScenePossessable->GetPossessedObjectClass()->GetDefaultObject();
 					}
+#endif
 				}
 			}
 		}
@@ -759,5 +761,31 @@ void UMovieSceneSection::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 	}
 }
 
-#endif
+ECookOptimizationFlags UMovieSceneSection::GetCookOptimizationFlags() const
+{
+	UMovieSceneTrack* Track = GetTypedOuter<UMovieSceneTrack>();
 
+	if (UMovieSceneTrack::RemoveMutedTracksOnCook() && Track && Track->IsRowEvalDisabled(GetRowIndex()))
+	{
+		return ECookOptimizationFlags::RemoveSection;
+	}
+	return ECookOptimizationFlags::None; 
+}
+
+void UMovieSceneSection::RemoveForCook()
+{
+	Modify();
+
+	for (const FMovieSceneChannelEntry& Entry : GetChannelProxy().GetAllEntries())
+	{
+		for (FMovieSceneChannel* Channel : Entry.GetChannels())
+		{
+			if (Channel)
+			{
+				Channel->Reset();
+			}
+		}
+	}
+}
+
+#endif

@@ -333,6 +333,11 @@ void SSceneOutliner::SetupColumns(SHeaderRow& HeaderRow)
 				ColumnArgs.ShouldGenerateWidget(true);
 			}
 
+			if (SharedData->ColumnMap[ID].FillSize.IsSet())
+			{
+				ColumnArgs.FillWidth(SharedData->ColumnMap[ID].FillSize.GetValue());
+			}
+
 			HeaderRow.AddColumn(ColumnArgs);
 			HeaderRowWidget->SetShowGeneratedColumn(ID, bIsVisible);
 		}

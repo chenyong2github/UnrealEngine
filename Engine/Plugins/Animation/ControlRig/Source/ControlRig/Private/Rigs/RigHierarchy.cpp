@@ -21,6 +21,7 @@
 #include "JsonObjectConverter.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
 
 static FCriticalSection GRigHierarchyStackTraceMutex;
 static char GRigHierarchyStackTrace[65536];
@@ -105,6 +106,10 @@ URigHierarchy::URigHierarchy()
 , bEnableCacheValidityCheck(false)
 #endif
 , HierarchyForCacheValidation()
+#if WITH_EDITOR
+, ExecuteContext(nullptr)
+, bRecordTransformsPerInstruction(true)
+#endif
 {
 	Reset();
 #if WITH_EDITOR
@@ -498,28 +503,28 @@ void URigHierarchy::CopyPose(URigHierarchy* InHierarchy, bool bCurrent, bool bIn
 	EnsureCacheValidity();
 }
 
-void URigHierarchy::UpdateSockets(const FRigUnitContext* InContext)
+void URigHierarchy::UpdateReferences(const FRigUnitContext* InContext)
 {
 	check(InContext);
 	
 	for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
 	{
-		if(FRigSocketElement* Socket = Cast<FRigSocketElement>(Elements[ElementIndex]))
+		if(FRigReferenceElement* Reference = Cast<FRigReferenceElement>(Elements[ElementIndex]))
 		{
-			const FTransform InitialWorldTransform = Socket->GetSocketWorldTransform(InContext, true);
-			const FTransform CurrentWorldTransform = Socket->GetSocketWorldTransform(InContext, false);
+			const FTransform InitialWorldTransform = Reference->GetReferenceWorldTransform(InContext, true);
+			const FTransform CurrentWorldTransform = Reference->GetReferenceWorldTransform(InContext, false);
 
 			const FTransform InitialGlobalTransform = InitialWorldTransform.GetRelativeTransform(InContext->ToWorldSpaceTransform);
 			const FTransform CurrentGlobalTransform = CurrentWorldTransform.GetRelativeTransform(InContext->ToWorldSpaceTransform);
 
-			const FTransform InitialParentTransform = GetParentTransform(Socket, ERigTransformType::InitialGlobal); 
-			const FTransform CurrentParentTransform = GetParentTransform(Socket, ERigTransformType::CurrentGlobal);
+			const FTransform InitialParentTransform = GetParentTransform(Reference, ERigTransformType::InitialGlobal); 
+			const FTransform CurrentParentTransform = GetParentTransform(Reference, ERigTransformType::CurrentGlobal);
 
 			const FTransform InitialLocalTransform = InitialGlobalTransform.GetRelativeTransform(InitialParentTransform);
 			const FTransform CurrentLocalTransform = CurrentGlobalTransform.GetRelativeTransform(CurrentParentTransform);
 
-			SetTransform(Socket, InitialLocalTransform, ERigTransformType::InitialLocal, true, false);
-			SetTransform(Socket, CurrentLocalTransform, ERigTransformType::CurrentLocal, true, false);
+			SetTransform(Reference, InitialLocalTransform, ERigTransformType::InitialLocal, true, false);
+			SetTransform(Reference, CurrentLocalTransform, ERigTransformType::CurrentLocal, true, false);
 		}
 	}
 }
@@ -740,7 +745,7 @@ bool URigHierarchy::IsNameAvailable(const FString& InPotentialNewName, ERigEleme
 
 	// check for fixed keywords
 	const FRigElementKey PotentialKey(*InPotentialNewName, InType);
-	if(PotentialKey == URigHierarchy::GetDefaultParentSocketKey())
+	if(PotentialKey == URigHierarchy::GetDefaultParentKey())
 	{
 		return false;
 	}
@@ -1395,7 +1400,7 @@ bool URigHierarchy::SetParentWeightArray(FRigBaseElement* InChild,  const TArray
 	return false;
 }
 
-bool URigHierarchy::CanSwitchToParent(FRigElementKey InChild, FRigElementKey InParent, FString* OutFailureReason)
+bool URigHierarchy::CanSwitchToParent(FRigElementKey InChild, FRigElementKey InParent, const TElementDependencyMap& InDependencyMap, FString* OutFailureReason)
 {
 	InParent = PreprocessParentElementKeyForSpaceSwitching(InChild, InParent);
 
@@ -1414,7 +1419,7 @@ bool URigHierarchy::CanSwitchToParent(FRigElementKey InChild, FRigElementKey InP
 	{
 		// if we don't specify anything and the element is parented directly to the world,
 		// perfomring this switch means unparenting it from world (since there is no default parent)
-		if(!InParent.IsValid() && GetFirstParent(InChild) == GetWorldSpaceSocketKey())
+		if(!InParent.IsValid() && GetFirstParent(InChild) == GetWorldSpaceReferenceKey())
 		{
 			return true;
 		}
@@ -1450,7 +1455,7 @@ bool URigHierarchy::CanSwitchToParent(FRigElementKey InChild, FRigElementKey InP
 		}
 	}
 
-	if(IsParentedTo(InParent, InChild))
+	if(IsParentedTo(Parent, Child, InDependencyMap))
 	{
 		if(OutFailureReason)
 		{
@@ -1462,18 +1467,18 @@ bool URigHierarchy::CanSwitchToParent(FRigElementKey InChild, FRigElementKey InP
 	return true;
 }
 
-bool URigHierarchy::SwitchToParent(FRigElementKey InChild, FRigElementKey InParent, bool bInitial, bool bAffectChildren, FString* OutFailureReason)
+bool URigHierarchy::SwitchToParent(FRigElementKey InChild, FRigElementKey InParent, bool bInitial, bool bAffectChildren, const TElementDependencyMap& InDependencyMap, FString* OutFailureReason)
 {
 	InParent = PreprocessParentElementKeyForSpaceSwitching(InChild, InParent);
-	return SwitchToParent(Find(InChild), Find(InParent), bInitial, bAffectChildren, OutFailureReason);
+	return SwitchToParent(Find(InChild), Find(InParent), bInitial, bAffectChildren, InDependencyMap, OutFailureReason);
 }
 
 bool URigHierarchy::SwitchToParent(FRigBaseElement* InChild, FRigBaseElement* InParent, bool bInitial,
-	bool bAffectChildren, FString* OutFailureReason)
+	bool bAffectChildren, const TElementDependencyMap& InDependencyMap, FString* OutFailureReason)
 {
 	if(InChild && InParent)
 	{
-		if(!CanSwitchToParent(InChild->GetKey(), InParent->GetKey(), OutFailureReason))
+		if(!CanSwitchToParent(InChild->GetKey(), InParent->GetKey(), InDependencyMap, OutFailureReason))
 		{
 			return false;
 		}
@@ -1517,32 +1522,32 @@ bool URigHierarchy::SwitchToParent(FRigBaseElement* InChild, int32 InParentIndex
 
 bool URigHierarchy::SwitchToDefaultParent(FRigElementKey InChild, bool bInitial, bool bAffectChildren)
 {
-	return SwitchToParent(InChild, GetDefaultParentSocketKey(), bInitial, bAffectChildren);
+	return SwitchToParent(InChild, GetDefaultParentKey(), bInitial, bAffectChildren);
 }
 
 bool URigHierarchy::SwitchToDefaultParent(FRigBaseElement* InChild, bool bInitial, bool bAffectChildren)
 {
 	// we assume that the first stored parent is the default parent
 	check(InChild);
-	return SwitchToParent(InChild->GetKey(), GetDefaultParentSocketKey(), bInitial, bAffectChildren);
+	return SwitchToParent(InChild->GetKey(), GetDefaultParentKey(), bInitial, bAffectChildren);
 }
 
 bool URigHierarchy::SwitchToWorldSpace(FRigElementKey InChild, bool bInitial, bool bAffectChildren)
 {
-	return SwitchToParent(InChild, GetWorldSpaceSocketKey(), bInitial, bAffectChildren);
+	return SwitchToParent(InChild, GetWorldSpaceReferenceKey(), bInitial, bAffectChildren);
 }
 
 bool URigHierarchy::SwitchToWorldSpace(FRigBaseElement* InChild, bool bInitial, bool bAffectChildren)
 {
 	check(InChild);
-	return SwitchToParent(InChild->GetKey(), GetWorldSpaceSocketKey(), bInitial, bAffectChildren);
+	return SwitchToParent(InChild->GetKey(), GetWorldSpaceReferenceKey(), bInitial, bAffectChildren);
 }
 
-FRigElementKey URigHierarchy::GetOrAddWorldSpaceSocket()
+FRigElementKey URigHierarchy::GetOrAddWorldSpaceReference()
 {
-	const FRigElementKey WorldSpaceSocketKey = GetWorldSpaceSocketKey();
+	const FRigElementKey WorldSpaceReferenceKey = GetWorldSpaceReferenceKey();
 
-	FRigBaseElement* Parent = Find(WorldSpaceSocketKey);
+	FRigBaseElement* Parent = Find(WorldSpaceReferenceKey);
 	if(Parent)
 	{
 		return Parent->GetKey();
@@ -1550,26 +1555,26 @@ FRigElementKey URigHierarchy::GetOrAddWorldSpaceSocket()
 
 	if(URigHierarchyController* Controller = GetController(true))
 	{
-		return Controller->AddSocket(
-			WorldSpaceSocketKey.Name,
+		return Controller->AddReference(
+			WorldSpaceReferenceKey.Name,
 			FRigElementKey(),
-			FRigSocketGetWorldTransformDelegate::CreateUObject(this, &URigHierarchy::GetWorldTransformForSocket),
+			FRigReferenceGetWorldTransformDelegate::CreateUObject(this, &URigHierarchy::GetWorldTransformForReference),
 			false);
 	}
 
 	return FRigElementKey();
 }
 
-FRigElementKey URigHierarchy::GetDefaultParentSocketKey()
+FRigElementKey URigHierarchy::GetDefaultParentKey()
 {
-	static const FName DefaultParentSocketName = TEXT("DefaultParent");
-	return FRigElementKey(DefaultParentSocketName, ERigElementType::Socket); 
+	static const FName DefaultParentName = TEXT("DefaultParent");
+	return FRigElementKey(DefaultParentName, ERigElementType::Reference); 
 }
 
-FRigElementKey URigHierarchy::GetWorldSpaceSocketKey()
+FRigElementKey URigHierarchy::GetWorldSpaceReferenceKey()
 {
-	static const FName WorldSpaceSocketName = TEXT("WorldSpace");
-	return FRigElementKey(WorldSpaceSocketName, ERigElementType::Socket); 
+	static const FName WorldSpaceReferenceName = TEXT("WorldSpace");
+	return FRigElementKey(WorldSpaceReferenceName, ERigElementType::Reference); 
 }
 
 TArray<FRigElementKey> URigHierarchy::GetAllKeys(bool bTraverse, ERigElementType InElementType) const
@@ -1961,6 +1966,21 @@ FTransform URigHierarchy::GetTransform(FRigTransformElement* InTransformElement,
 	{
 		return FTransform::Identity;
 	}
+
+#if WITH_EDITOR
+
+	if(bRecordTransformsPerInstruction && ExecuteContext)
+	{
+		TArray<TArray<int32>>& ReadTransformsPerSlice = ReadTransformsPerInstructionPerSlice[ExecuteContext->InstructionIndex];
+		while(ReadTransformsPerSlice.Num() < ExecuteContext->GetSlice().TotalNum())
+		{
+			ReadTransformsPerSlice.Add(TArray<int32>());
+		}
+		ReadTransformsPerSlice[ExecuteContext->GetSlice().GetIndex()].Add(InTransformElement->GetIndex());
+	}
+	TGuardValue<bool> RecordTransformsPerInstructionGuard(bRecordTransformsPerInstruction, false);
+	
+#endif
 	
 	if(InTransformElement->Pose.IsDirty(InTransformType))
 	{
@@ -2031,6 +2051,21 @@ void URigHierarchy::SetTransform(FRigTransformElement* InTransformElement, const
 			return;
 		}
 	}
+
+#if WITH_EDITOR
+
+	if(bRecordTransformsPerInstruction && ExecuteContext)
+	{
+		TArray<TArray<int32>>& WrittenTransformsPerSlice = WrittenTransformsPerInstructionPerSlice[ExecuteContext->InstructionIndex];
+		while(WrittenTransformsPerSlice.Num() < ExecuteContext->GetSlice().TotalNum())
+		{
+			WrittenTransformsPerSlice.Add(TArray<int32>());
+		}
+		WrittenTransformsPerSlice[ExecuteContext->GetSlice().GetIndex()].Add(InTransformElement->GetIndex());
+	}
+	TGuardValue<bool> RecordTransformsPerInstructionGuard(bRecordTransformsPerInstruction, false);
+	
+#endif
 
 	if(!InTransformElement->Pose.IsDirty(InTransformType))
 	{
@@ -2143,7 +2178,22 @@ FTransform URigHierarchy::GetControlOffsetTransform(FRigControlElement* InContro
 	{
 		return FTransform::Identity;
 	}
+
+#if WITH_EDITOR
+
+	if(bRecordTransformsPerInstruction && ExecuteContext)
+	{
+		TArray<TArray<int32>>& ReadTransformsPerSlice = ReadTransformsPerInstructionPerSlice[ExecuteContext->InstructionIndex];
+		while(ReadTransformsPerSlice.Num() < ExecuteContext->GetSlice().TotalNum())
+		{
+			ReadTransformsPerSlice.Add(TArray<int32>());
+		}
+		ReadTransformsPerSlice[ExecuteContext->GetSlice().GetIndex()].Add(InControlElement->GetIndex());
+	}
+	TGuardValue<bool> RecordTransformsPerInstructionGuard(bRecordTransformsPerInstruction, false);
 	
+#endif
+
 	if(InControlElement->Offset.IsDirty(InTransformType))
 	{
 		const ERigTransformType::Type OpposedType = SwapLocalAndGlobal(InTransformType);
@@ -2179,6 +2229,21 @@ void URigHierarchy::SetControlOffsetTransform(FRigControlElement* InControlEleme
 		return;
 	}
 
+#if WITH_EDITOR
+
+	if(bRecordTransformsPerInstruction && ExecuteContext)
+	{
+		TArray<TArray<int32>>& WrittenTransformsPerSlice = WrittenTransformsPerInstructionPerSlice[ExecuteContext->InstructionIndex];
+		while(WrittenTransformsPerSlice.Num() < ExecuteContext->GetSlice().TotalNum())
+		{
+			WrittenTransformsPerSlice.Add(TArray<int32>());
+		}
+		WrittenTransformsPerSlice[ExecuteContext->GetSlice().GetIndex()].Add(InControlElement->GetIndex());
+	}
+	TGuardValue<bool> RecordTransformsPerInstructionGuard(bRecordTransformsPerInstruction, false);
+	
+#endif
+
 	if(!InControlElement->Offset.IsDirty(InTransformType))
 	{
 		const FTransform PreviousTransform = InControlElement->Offset.Get(InTransformType);
@@ -2187,7 +2252,7 @@ void URigHierarchy::SetControlOffsetTransform(FRigControlElement* InControlEleme
 			return;
 		}
 	}
-
+	
 	const FTransform PreviousTransform = GetControlOffsetTransform(InControlElement, InTransformType);
 	PropagateDirtyFlags(InControlElement, ERigTransformType::IsInitial(InTransformType), bAffectChildren);
 
@@ -2755,36 +2820,59 @@ FRigElementKey URigHierarchy::GetPreviousParent(const FRigElementKey& InKey) con
 	return FRigElementKey();
 }
 
-bool URigHierarchy::IsParentedTo(FRigBaseElement* InChild, FRigBaseElement* InParent) const
+bool URigHierarchy::IsParentedTo(FRigBaseElement* InChild, FRigBaseElement* InParent, const TElementDependencyMap& InDependencyMap) const
 {
-	if((InChild == nullptr) || (InParent == nullptr))
+	return IsDependentOn(InChild, InParent, InDependencyMap);
+}
+
+bool URigHierarchy::IsDependentOn(FRigBaseElement* InDependent, FRigBaseElement* InDependency, const TElementDependencyMap& InDependencyMap) const
+{
+	if((InDependent == nullptr) || (InDependency == nullptr))
 	{
 		return false;
 	}
 
-	if(InChild == InParent)
+	if(InDependent == InDependency)
 	{
 		return true;
 	}
 
-	if(FRigSingleParentElement* SingleParentElement = Cast<FRigSingleParentElement>(InChild))
+	if(const FRigSingleParentElement* SingleParentElement = Cast<FRigSingleParentElement>(InDependent))
 	{
-		if(SingleParentElement->ParentElement == InParent)
+		if(SingleParentElement->ParentElement == InDependency)
 		{
 			return true;
 		}
-		return IsParentedTo(SingleParentElement->ParentElement, InParent);
+		if(IsDependentOn(SingleParentElement->ParentElement, InDependency, InDependencyMap))
+		{
+			return true;
+		}
 	}
 
-	if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InChild))
+	if(const FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InDependent))
 	{
 		for(const FRigElementParentConstraint& ParentConstraint : MultiParentElement->ParentConstraints)
 		{
-			if(ParentConstraint.ParentElement == InParent)
+			if(ParentConstraint.ParentElement == InDependency)
 			{
 				return true;
 			}
-			if(IsParentedTo(ParentConstraint.ParentElement, InParent))
+			if(IsDependentOn(ParentConstraint.ParentElement, InDependency, InDependencyMap))
+			{
+				return true;
+			}
+		}
+	}
+
+	// check the optional dependency map
+	if(const TArray<int32>* DependentIndicesPtr = InDependencyMap.Find(InDependency->GetIndex()))
+	{
+		const TArray<int32>& DependentIndices = *DependentIndicesPtr;
+		for(int32 DependentIndex : DependentIndices)
+		{
+			ensure(Elements.IsValidIndex(DependentIndex));
+			
+			if(IsDependentOn(InDependent, Elements[DependentIndex], InDependencyMap))
 			{
 				return true;
 			}
@@ -3025,14 +3113,14 @@ void URigHierarchy::UpdateAllCachedChildren() const
 	
 FRigElementKey URigHierarchy::PreprocessParentElementKeyForSpaceSwitching(const FRigElementKey& InChildKey, const FRigElementKey& InParentKey)
 {
-	if(InParentKey == GetWorldSpaceSocketKey())
+	if(InParentKey == GetWorldSpaceReferenceKey())
 	{
-		return GetOrAddWorldSpaceSocket();
+		return GetOrAddWorldSpaceReference();
 	}
-	else if(InParentKey == GetDefaultParentSocketKey())
+	else if(InParentKey == GetDefaultParentKey())
 	{
 		const FRigElementKey FirstParent = GetFirstParent(InChildKey);
-		if(FirstParent == GetWorldSpaceSocketKey())
+		if(FirstParent == GetWorldSpaceReferenceKey())
 		{
 			return FRigElementKey();
 		}
@@ -3122,16 +3210,16 @@ FRigBaseElement* URigHierarchy::MakeElement(ERigElementType InElementType, int32
 			Element = Elements;
 			break;
 		}
-		case ERigElementType::Socket:
+		case ERigElementType::Reference:
 		{
 			if(OutStructureSize)
 			{
-				*OutStructureSize = sizeof(FRigSocketElement);
+				*OutStructureSize = sizeof(FRigReferenceElement);
 			}
-			FRigSocketElement* Elements = (FRigSocketElement*)FMemory::Malloc(sizeof(FRigSocketElement) * InCount);
+			FRigReferenceElement* Elements = (FRigReferenceElement*)FMemory::Malloc(sizeof(FRigReferenceElement) * InCount);
 			for(int32 Index=0;Index<InCount;Index++)
 			{
-				new(&Elements[Index]) FRigSocketElement(); 
+				new(&Elements[Index]) FRigReferenceElement(); 
 			} 
 			Element = Elements;
 			break;
@@ -3206,12 +3294,12 @@ void URigHierarchy::DestroyElement(FRigBaseElement*& InElement)
 			}
 			break;
 		}
-		case ERigElementType::Socket:
+		case ERigElementType::Reference:
 		{
-			FRigSocketElement* Elements = Cast<FRigSocketElement>(InElement);
+			FRigReferenceElement* Elements = Cast<FRigReferenceElement>(InElement);
 			for(int32 Index=0;Index<Count;Index++)
 			{
-				Elements[Index].~FRigSocketElement(); 
+				Elements[Index].~FRigReferenceElement(); 
 			}
 			break;
 		}
@@ -3611,9 +3699,138 @@ void URigHierarchy::EnsureCacheValidityImpl()
 	});
 }
 
+#if WITH_EDITOR
+
+URigHierarchy::TElementDependencyMap URigHierarchy::GetDependenciesForVM(URigVM* InVM, FName InEventName)
+{
+	check(InVM);
+
+	if(InEventName.IsNone())
+	{
+		InEventName = FRigUnit_BeginExecution().GetEventName();
+	}
+
+	URigHierarchy::TElementDependencyMap Dependencies;
+	const FRigVMInstructionArray Instructions = InVM->GetByteCode().GetInstructions();
+
+	// make sure the vm matches our cached data
+	if(ReadTransformsPerInstructionPerSlice.Num() != Instructions.Num())
+	{
+		return Dependencies;
+	}
+
+	// if the VM doesn't implement the given event
+	if(!InVM->ContainsEntry(InEventName))
+	{
+		return Dependencies;
+	}
+
+	// only represent instruction for a given event
+	const int32 EntryIndex = InVM->GetByteCode().FindEntryIndex(InEventName);
+	const int32 EntryInstructionIndex = InVM->GetByteCode().GetEntry(EntryIndex).InstructionIndex;
+
+	TMap<FRigVMOperand, TArray<int32>> OperandToInstructions;
+
+	for(int32 InstructionIndex = EntryInstructionIndex; InstructionIndex < Instructions.Num(); InstructionIndex++)
+	{
+		// early exit since following instructions belong to another event
+		if(Instructions[InstructionIndex].OpCode == ERigVMOpCode::Exit)
+		{
+			break;
+		}
+
+		const FRigVMOperandArray InputOperands = InVM->GetByteCode().GetInputOperands(InstructionIndex);
+		for(const FRigVMOperand InputOperand : InputOperands)
+		{
+			const FRigVMOperand InputOperandNoRegisterOffset(InputOperand.GetMemoryType(), InputOperand.GetRegisterIndex());
+			OperandToInstructions.FindOrAdd(InputOperandNoRegisterOffset).Add(InstructionIndex);
+		}
+	}
+
+	// for each read transform on an instruction
+	// follow the operands to the next instruction affected by it
+	for(int32 InstructionIndex = EntryInstructionIndex; InstructionIndex < Instructions.Num(); InstructionIndex++)
+	{
+		// early exit since following instructions belong to another event
+		if(Instructions[InstructionIndex].OpCode == ERigVMOpCode::Exit)
+		{
+			break;
+		}
+
+		const TArray<TArray<int32>>& ReadTransformsPerSlice = ReadTransformsPerInstructionPerSlice[InstructionIndex];
+
+		for(int32 SliceIndex = 0; SliceIndex < ReadTransformsPerSlice.Num(); SliceIndex++)
+		{
+			const TArray<int32>& ReadTransforms = ReadTransformsPerSlice[SliceIndex];
+			if(ReadTransforms.IsEmpty())
+			{
+				continue;
+			}
+
+			TArray<int32> InstructionsToVisit;
+			InstructionsToVisit.Add(InstructionIndex);
+			
+			TArray<int32> WrittenTransforms;
+
+			for(int32 InstructionToVisitIndex = 0; InstructionToVisitIndex < InstructionsToVisit.Num(); InstructionToVisitIndex++)
+			{
+				const int32 InstructionToVisit = InstructionsToVisit[InstructionToVisitIndex];
+				const TArray<TArray<int32>>& WrittenTransformsPerSlice = WrittenTransformsPerInstructionPerSlice[InstructionToVisit];
+				if(WrittenTransformsPerSlice.IsValidIndex(SliceIndex))
+				{
+					const TArray<int32>& WrittenTransformsForSlice = WrittenTransformsPerSlice[SliceIndex];
+					for(int32 WrittenTransform : WrittenTransformsForSlice)
+					{
+						// for the first instruction in this pass let's only care about
+						// written transforms which have not been read before
+						if(InstructionToVisit == InstructionIndex)
+						{
+							if(ReadTransforms.Contains(WrittenTransform))
+							{
+								continue;
+							}
+						}
+						
+						WrittenTransforms.AddUnique(WrittenTransform);
+					}
+				}
+
+				FRigVMOperandArray OutputOperands = InVM->GetByteCode().GetOutputOperands(InstructionToVisit);
+				for(const FRigVMOperand OutputOperand : OutputOperands)
+				{
+					const FRigVMOperand OutputOperandNoRegisterOffset(OutputOperand.GetMemoryType(), OutputOperand.GetRegisterIndex());
+
+					if(const TArray<int32>* InstructionsWithInputOperand = OperandToInstructions.Find(OutputOperandNoRegisterOffset))
+					{
+						for(int32 InstructionWithInputOperand : *InstructionsWithInputOperand)
+						{
+							InstructionsToVisit.AddUnique(InstructionWithInputOperand);
+						}
+					}
+				}
+			}
+
+			for(const int32 ReadTransform : ReadTransforms)
+			{
+				for(const int32 WrittenTransform : WrittenTransforms)
+				{
+					if(ReadTransform != WrittenTransform)
+					{
+						Dependencies.FindOrAdd(ReadTransform).AddUnique(WrittenTransform);
+					}
+				}
+			}
+		}
+	}
+
+	return Dependencies;
+}
+
+#endif
+
 void URigHierarchy::PushTransformToStack(const FRigElementKey& InKey, ERigTransformStackEntryType InEntryType,
-	ERigTransformType::Type InTransformType, const FTransform& InOldTransform, const FTransform& InNewTransform,
-	bool bAffectChildren, bool bModify)
+                                         ERigTransformType::Type InTransformType, const FTransform& InOldTransform, const FTransform& InNewTransform,
+                                         bool bAffectChildren, bool bModify)
 {
 #if WITH_EDITOR
 
@@ -3827,7 +4044,7 @@ void URigHierarchy::ComputeAllTransforms()
 	}
 }
 
-FTransform URigHierarchy::GetWorldTransformForSocket(const FRigUnitContext* InContext, const FRigElementKey& InKey, bool bInitial)
+FTransform URigHierarchy::GetWorldTransformForReference(const FRigUnitContext* InContext, const FRigElementKey& InKey, bool bInitial)
 {
 	if(const USceneComponent* OuterSceneComponent = GetTypedOuter<USceneComponent>())
 	{

@@ -18,7 +18,7 @@ FOSCServerProxy::FOSCServerProxy(UOSCServer& InServer)
 	, SocketReceiver(nullptr)
 	, Port(0)
 	, bMulticastLoopback(false)
-	, bWhitelistClients(false)
+	, bFilterClientsByAllowList(false)
 #if WITH_EDITOR
 	, bTickInEditor(false)
 #endif // WITH_EDITOR
@@ -167,49 +167,49 @@ void FOSCServerProxy::Stop()
 
 }
 
-void FOSCServerProxy::AddWhitelistedClient(const FString& InIPAddress)
+void FOSCServerProxy::AddClientToAllowList(const FString& InIPAddress)
 {
 	FIPv4Address OutAddress;
 	if (!FIPv4Address::Parse(InIPAddress, OutAddress))
 	{
-		UE_LOG(LogOSC, Warning, TEXT("OSCServer '%s' failed to whitelist IP Address '%s'. Address is invalid."), *InIPAddress);
+		UE_LOG(LogOSC, Warning, TEXT("OSCServer '%s' failed to add IP Address '%s' to allow list. Address is invalid."), *InIPAddress);
 		return;
 	}
 
-	ClientWhitelist.Add(OutAddress.Value);
+	ClientAllowList.Add(OutAddress.Value);
 }
 
-void FOSCServerProxy::RemoveWhitelistedClient(const FString& InIPAddress)
+void FOSCServerProxy::RemoveClientFromAllowList(const FString& InIPAddress)
 {
 	FIPv4Address OutAddress;
 	if (!FIPv4Address::Parse(InIPAddress, OutAddress))
 	{
-		UE_LOG(LogOSC, Warning, TEXT("OSCServer '%s' failed to remove whitelisted IP Address '%s'. Address is invalid."), *InIPAddress);
+		UE_LOG(LogOSC, Warning, TEXT("OSCServer '%s' failed to remove IP Address '%s' from allow list. Address is invalid."), *InIPAddress);
 		return;
 	}
 
-	ClientWhitelist.Remove(OutAddress.Value);
+	ClientAllowList.Remove(OutAddress.Value);
 }
 
-void FOSCServerProxy::ClearWhitelistedClients()
+void FOSCServerProxy::ClearClientAllowList()
 {
-	ClientWhitelist.Reset();
+	ClientAllowList.Reset();
 }
 
-TSet<FString> FOSCServerProxy::GetWhitelistedClients() const
+TSet<FString> FOSCServerProxy::GetClientAllowList() const
 {
-	TSet<FString> OutWhitelist;
-	for (uint32 Client : ClientWhitelist)
+	TSet<FString> Result;
+	for (uint32 Client : ClientAllowList)
 	{
-		OutWhitelist.Add(FIPv4Address(Client).ToString());
+		Result.Add(FIPv4Address(Client).ToString());
 	}
 
-	return OutWhitelist;
+	return Result;
 }
 
-void FOSCServerProxy::SetWhitelistClientsEnabled(bool bInEnabled)
+void FOSCServerProxy::SetFilterClientsByAllowList(bool bInEnabled)
 {
-	bWhitelistClients = bInEnabled;
+	bFilterClientsByAllowList = bInEnabled;
 }
 
 void FOSCServerProxy::Tick(float InDeltaTime)
@@ -217,7 +217,7 @@ void FOSCServerProxy::Tick(float InDeltaTime)
 	check(IsInGameThread());
 	check(Server);
 
-	Server->PumpPacketQueue(bWhitelistClients ? &ClientWhitelist : nullptr);
+	Server->PumpPacketQueue(bFilterClientsByAllowList ? &ClientAllowList : nullptr);
 }
 
 TStatId FOSCServerProxy::GetStatId() const

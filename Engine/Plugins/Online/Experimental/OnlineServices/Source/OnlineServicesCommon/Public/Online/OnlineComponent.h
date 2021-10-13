@@ -3,26 +3,11 @@
 #pragma once
 
 #include "Templates/SharedPointer.h"
+#include "Online/OnlineAsyncOp.h"
+#include "Online/IOnlineComponent.h"
+#include "Online/OnlineServicesCommon.h"
 
 namespace UE::Online {
-
-class IOnlineComponent
-{
-public:
-	virtual ~IOnlineComponent() {}
-	// Called after component has been constructed. It is not safe to reference other components at this time
-	virtual void Initialize() = 0;
-	// Called after all components have been initialized
-	virtual void PostInitialize() = 0;
-	// Called whenever we need to reload data from config
-	virtual void LoadConfig() = 0;
-	// Called every Tick
-	virtual void Tick(float DeltaSeconds) = 0;
-	// Called before any component has been shutdown
-	virtual void PreShutdown() = 0;
-	// Called right before the component is destroyed. It is not safe to reference any other components at this time
-	virtual void Shutdown() = 0;
-};
 
 template <typename ComponentType>
 class TOnlineComponent
@@ -35,9 +20,10 @@ public:
 
 	/**
 	 */
-	template <typename U>
-	TOnlineComponent(const FString& ComponentName, const TSharedRef<U>& OwningRef)
-		: WeakThis(TSharedPtr<ComponentType>(OwningRef, static_cast<ComponentType*>(this)))
+	TOnlineComponent(const FString& ComponentName, FOnlineServicesCommon& InServices)
+		: Services(InServices)
+		, WeakThis(TSharedPtr<ComponentType>(InServices.AsShared(), static_cast<ComponentType*>(this)))
+		, ConfigName(ComponentName)
 		{
 		}
 
@@ -51,10 +37,33 @@ public:
 	template <typename StructType>
 	bool LoadConfig(StructType& Struct, const FString& OperationName = FString()) const
 	{
-		return static_cast<const ComponentType*>(this)->GetServices()->LoadConfig(Struct, GetConfigSectionName(), OperationName);
+		return static_cast<const ComponentType*>(this)->GetServices()->LoadConfig(Struct, GetConfigName(), OperationName);
 	}
 
-	const FString& GetConfigSectionName() const { return ConfigSectionName; }
+	const FString& GetConfigName() const { return ConfigName; }
+
+	template <typename OpType>
+	TOnlineAsyncOp<OpType>& GetOp(typename OpType::Params&& Params)
+	{
+		return Services.template GetOp<OpType>(MoveTemp(Params), GetConfigSectionHeiarchy(OpType::Name));
+	}
+
+	template <typename OpType, typename ParamsFuncsType = TJoinableOpParamsFuncs<OpType>>
+	TOnlineAsyncOp<OpType>& GetJoinableOp(typename OpType::Params&& Params)
+	{
+		return Services.template GetJoinableOp<OpType, ParamsFuncsType>(MoveTemp(Params), GetConfigSectionHeiarchy(OpType::Name));
+	}
+
+	template <typename OpType, typename ParamsFuncsType = TMergeableOpParamsFuncs<OpType>>
+	TOnlineAsyncOp<OpType>& GetMergeableOp(typename OpType::Params&& Params)
+	{
+		return Services.template GetMergeableOp<OpType, ParamsFuncsType>(MoveTemp(Params), GetConfigSectionHeiarchy(OpType::Name));
+	}
+
+	FOnlineServicesCommon& GetServices()
+	{
+		return Services;
+	}
 
 	// TSharedFromThis-like behaviour
 	TSharedRef<ComponentType> AsShared()
@@ -71,6 +80,23 @@ public:
 		return MoveTemp(SharedThis).ToSharedRef();
 	}
 
+	TArray<FString> GetConfigSectionHeiarchy(const FString& OperationName = FString())
+	{
+		TArray<FString> SectionHeiarchy;
+		FString SectionName = TEXT("OnlineServices");
+		SectionHeiarchy.Add(SectionName);
+		SectionName += TEXT(".") + GetServices().GetConfigName();
+		SectionHeiarchy.Add(SectionName);
+		SectionName += TEXT(".") + GetConfigName();
+		SectionHeiarchy.Add(SectionName);
+		if (!OperationName.IsEmpty())
+		{
+			SectionName += TEXT(".") + OperationName;
+			SectionHeiarchy.Add(SectionName);
+		}
+		return SectionHeiarchy;
+	}
+
 protected:
 	template <class OtherType>
 	static TSharedRef<OtherType> SharedThis(OtherType* ThisPtr)
@@ -84,9 +110,11 @@ protected:
 		return StaticCastSharedRef<OtherType const>(ThisPtr->AsShared());
 	}
 
+	FOnlineServicesCommon& Services;
+
 private:
 	TWeakPtr<ComponentType> WeakThis;
-	FString ConfigSectionName;
+	FString ConfigName;
 };
 
 /* UE::Online */ }

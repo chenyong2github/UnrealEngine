@@ -19,7 +19,7 @@
 			"Name": "AppleMoviePlayer",
 			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "PreLoadingScreen",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"IOS",
 				"TVOS",
 				"Mac"

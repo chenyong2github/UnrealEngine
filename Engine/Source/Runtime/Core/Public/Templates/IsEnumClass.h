@@ -5,7 +5,7 @@
 #include "CoreTypes.h"
 #include "Templates/AndOrNot.h"
 
-namespace UE4IsEnumClass_Private
+namespace UE::Core::Private::IsEnumClass
 {
 	template <typename T>
 	struct TIsEnumConvertibleToInt
@@ -23,5 +23,5 @@ namespace UE4IsEnumClass_Private
 template <typename T>
 struct TIsEnumClass
 { 
-	enum { Value = TAndValue<__is_enum(T), TNot<UE4IsEnumClass_Private::TIsEnumConvertibleToInt<T>>>::Value };
+	enum { Value = TAndValue<__is_enum(T), TNot<UE::Core::Private::IsEnumClass::TIsEnumConvertibleToInt<T>>>::Value };
 };

@@ -13,8 +13,6 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"InputDevice",
-                    "LiveLink",
-                    "LiveLinkInterface"
                 }
             );
 
@@ -24,12 +22,12 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
-					"InputCore",
-					"Slate",
 					"HeadMountedDisplay",
-					"SlateCore",
-	                "LiveLink",
+					"InputCore",
+                    "LiveLinkAnimationCore",
                     "LiveLinkInterface",
+					"Slate",
+					"SlateCore",
 					"WindowsMixedRealityHMD"
 				}
 			);

@@ -70,6 +70,7 @@
 #include "Misc/MessageDialog.h"
 #include "StaticMeshCompiler.h"
 #include "AssetCompilingManager.h"
+#include "ObjectCacheContext.h"
 #endif // #if WITH_EDITOR
 
 #include "Engine/StaticMeshSocket.h"
@@ -3489,6 +3490,21 @@ void UStaticMesh::PreEditChange(FProperty* PropertyAboutToChange)
 
 	// Release the static mesh's resources.
 	ReleaseResources();
+
+	// Invalidate the render data for any components using this static mesh. This is essentially the same work done by the
+	// FStaticMeshComponentRecreateRenderStateContext constructor, but we don't want to re-create the render state immediately.
+	TSet<FSceneInterface*> Scenes;
+	FObjectCacheContextScope ObjectCacheScope;
+	for (UStaticMeshComponent* Component : ObjectCacheScope.GetContext().GetStaticMeshComponents(this))
+	{
+		if (Component->IsRenderStateCreated())
+		{
+			Component->DestroyRenderState_Concurrent();
+			Scenes.Add(Component->GetScene());
+		}
+	}
+
+	UpdateAllPrimitiveSceneInfosForScenes(MoveTemp(Scenes));
 
 	// Flush the resource release commands to the rendering thread to ensure that the edit change doesn't occur while a resource is still
 	// allocated, and potentially accessing the UStaticMesh.

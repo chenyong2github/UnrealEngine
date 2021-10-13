@@ -28,7 +28,7 @@ struct METASOUNDENGINE_API FDefaultMetaSoundAssetAutoUpdateSettings
 {
 	GENERATED_BODY()
 
-	/** MetaSound to blacklist from AutoUpdate. */
+	/** MetaSound to prevent from AutoUpdate. */
 	UPROPERTY(EditAnywhere, Category = "AutoUpdate", meta = (AllowedClasses = "MetaSound, MetaSoundSource"))
 	FSoftObjectPath MetaSound;
 };
@@ -45,20 +45,20 @@ public:
 	bool bAutoUpdateEnabled = true;
 
 	/** List of native MetaSound classes whose node references should not be AutoUpdated. */
-	UPROPERTY(EditAnywhere, config, Category = AutoUpdate, meta = (DisplayName = "Blacklist", EditCondition = "bAutoUpdateEnabled"))
+	UPROPERTY(EditAnywhere, config, Category = AutoUpdate, meta = (DisplayName = "DenyList", EditCondition = "bAutoUpdateEnabled"))
 	TArray<FMetasoundFrontendClassName> AutoUpdateBlacklist;
 
 	/** List of MetaSound assets whose node references should not be AutoUpdated. */
-	UPROPERTY(EditAnywhere, config, Category = AutoUpdate, meta = (DisplayName = "Asset Blacklist", EditCondition = "bAutoUpdateEnabled"))
+	UPROPERTY(EditAnywhere, config, Category = AutoUpdate, meta = (DisplayName = "Asset DenyList", EditCondition = "bAutoUpdateEnabled"))
 	TArray<FDefaultMetaSoundAssetAutoUpdateSettings> AutoUpdateAssetBlacklist;
 
 	UPROPERTY(Transient)
-	int32 BlacklistCacheChangeID = 0;
+	int32 DenyListCacheChangeID = 0;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override
 	{
-		BlacklistCacheChangeID++;
+		DenyListCacheChangeID++;
 	}
 #endif // WITH_EDITOR
 };

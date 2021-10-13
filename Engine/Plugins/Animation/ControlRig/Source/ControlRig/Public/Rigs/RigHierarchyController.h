@@ -181,17 +181,17 @@ public:
 		bool bPrintPythonCommand = false);
 
 	/**
-	* Adds an socket to the hierarchy
-	* @param InName The suggested name of the new socket - will eventually be corrected by the namespace
-	* @param InParent The (optional) parent of the new socket. If you don't need a parent, pass FRigElementKey()
+	* Adds an reference to the hierarchy
+	* @param InName The suggested name of the new reference - will eventually be corrected by the namespace
+	* @param InParent The (optional) parent of the new reference. If you don't need a parent, pass FRigElementKey()
 	* @param InDelegate The delegate to use to pull the local transform
 	* @param bSetupUndo If set to true the stack will record the change for undo / redo
-	* @return The key for the newly created socket.
+	* @return The key for the newly created reference.
 	*/
-    FRigElementKey AddSocket(
+    FRigElementKey AddReference(
         FName InName,
         FRigElementKey InParent,
-        FRigSocketGetWorldTransformDelegate InDelegate,
+        FRigReferenceGetWorldTransformDelegate InDelegate,
         bool bSetupUndo = false);
 
 	/**

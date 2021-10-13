@@ -112,7 +112,7 @@ void FAssetEditorToolkit::InitAssetEditor( const EToolkitMode::Type Mode, const 
 			.ContentPadding(0.0f)
 			.TabRole(ETabRole::MajorTab)
 			.ToolTip(IDocumentation::Get()->CreateToolTip(ToolTipText, nullptr, DocLink, GetToolkitFName().ToString()))
-			.TabColorScale(this, &FAssetEditorToolkit::GetDefaultTabColor)
+			.IconColor(this, &FAssetEditorToolkit::GetDefaultTabColor)
 			.Label(Label)
 			.LabelSuffix(LabelSuffix);
 		const TAttribute<const FSlateBrush*> TabIcon = TAttribute<const FSlateBrush*>::CreateSP(this, &FAssetEditorToolkit::GetDefaultTabIcon);

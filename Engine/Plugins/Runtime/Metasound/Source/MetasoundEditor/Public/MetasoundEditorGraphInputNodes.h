@@ -4,7 +4,9 @@
 #include "Algo/Count.h"
 #include "Algo/Transform.h"
 #include "AudioParameterInterface.h"
+#include "Components/Widget.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "EdGraph/EdGraphNode.h"
 #include "GraphEditorSettings.h"
 #include "MetasoundDataReference.h"
@@ -148,21 +150,66 @@ public:
 	virtual void UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterInterface>& InParameterInterface) const override;
 };
 
+// For input widget
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnMetasoundInputValueChangedEvent, float);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnMetasoundRangeChangedEvent, FVector2D);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnMetasoundInputClampDefaultChangedEvent, bool);
+
+UENUM()
+enum class EMetasoundInputWidget : uint8
+{
+	None,
+	Slider
+};
+
+UENUM()
+enum class EMetasoundInputWidgetValueType : uint8
+{
+	Linear, 
+	Frequency UMETA(DisplayName = "Frequency (Log)"),
+	Volume
+};
+
 UCLASS(MinimalAPI)
 class UMetasoundEditorGraphInputFloat : public UMetasoundEditorGraphInputLiteral
 {
 	GENERATED_BODY()
 
+private:
+	UPROPERTY(EditAnywhere, Category = DefaultValue)
+	float Default = 0.f;
+
 public:
 	virtual ~UMetasoundEditorGraphInputFloat() = default;
 
+	UPROPERTY(EditAnywhere, Category = DefaultValue, meta=(EditCondition = "InputWidgetType == EMetasoundInputWidget::None", EditConditionHides))
+	bool ClampDefault = false;
+
+	UPROPERTY(EditAnywhere, Category = DefaultValue, meta = (EditCondition = "ClampDefault || InputWidgetType == EMetasoundInputWidget::Slider", EditConditionHides))
+	FVector2D Range = FVector2D(FMath::Min(0.0f, Default), FMath::Max(0.0f, Default));
+
 	UPROPERTY(EditAnywhere, Category = DefaultValue)
-	float Default = 0.f;
+	EMetasoundInputWidget InputWidgetType = EMetasoundInputWidget::None;
+	
+	UPROPERTY(EditAnywhere, Category = DefaultValue, meta=(EditCondition="InputWidgetType == EMetasoundInputWidget::Slider", EditConditionHides))
+	TEnumAsByte<EOrientation> InputWidgetOrientation = EOrientation::Orient_Horizontal;
+
+	UPROPERTY(EditAnywhere, Category = DefaultValue, meta=(EditCondition="InputWidgetType == EMetasoundInputWidget::Slider", EditConditionHides))
+	EMetasoundInputWidgetValueType InputWidgetValueType = EMetasoundInputWidgetValueType::Linear;
+
+	FOnMetasoundInputValueChangedEvent OnDefaultValueChanged;
+	FOnMetasoundRangeChangedEvent OnRangeChanged;
+	FOnMetasoundInputClampDefaultChangedEvent OnClampInputChanged;
 
 	virtual FMetasoundFrontendLiteral GetDefault() const override;
 	virtual EMetasoundFrontendLiteralType GetLiteralType() const override;
 	virtual void SetFromLiteral(const FMetasoundFrontendLiteral& InLiteral) override;
 	virtual void UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterInterface>& InParameterInterface) const override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
+	void SetDefault(const float InDefault);
+	float GetDefault();
+	FVector2D GetRange();
 };
 
 UCLASS(MinimalAPI)

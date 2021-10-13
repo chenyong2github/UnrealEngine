@@ -49,15 +49,15 @@ namespace CADKernel
 			}
 			if (ColorId == 0)
 			{
-				HostId = MetaData.ColorId;
+				ColorId = MetaData.ColorId;
 			}
 			if (MaterialId == 0)
 			{
-				HostId = MetaData.MaterialId;
+				MaterialId = MetaData.MaterialId;
 			}
 			if (LayerId == 0)
 			{
-				HostId = MetaData.LayerId;
+				LayerId = MetaData.LayerId;
 			}
 		}
 
@@ -66,7 +66,7 @@ namespace CADKernel
 			HostId = InHostId;
 		}
 
-		const int32 GetHostId(const int32 InHostId) const
+		const int32 GetHostId() const
 		{
 			return HostId;
 		}
@@ -84,6 +84,11 @@ namespace CADKernel
 		void SetName(const FString& InName)
 		{
 			Name = InName;
+		}
+
+		bool HasName() const
+		{
+			return !Name.IsEmpty();
 		}
 
 		const TCHAR* GetName() const
@@ -119,6 +124,34 @@ namespace CADKernel
 		int32 GetPatchId() const
 		{
 			return PatchId;
+		}
+
+		void GetMetaData(TMap<FString, FString>& OutMetaData)
+		{
+			if (!Name.IsEmpty())
+			{
+				OutMetaData.Add(TEXT("Name"), Name);
+			}
+			if (HostId != 0)
+			{
+				OutMetaData.Add(TEXT("HostId"), FString::FromInt(HostId));
+			}
+			if (PatchId != 0)
+			{
+				OutMetaData.Add(TEXT("PatchId"), FString::FromInt(PatchId));
+			}
+			if (ColorId != 0)
+			{
+				OutMetaData.Add(TEXT("ColorName"), FString::Printf(TEXT("%u"), ColorId));
+			}
+			if (MaterialId != 0)
+			{
+				OutMetaData.Add(TEXT("MaterialName"), FString::Printf(TEXT("%u"), MaterialId));
+			}
+			if (LayerId != 0)
+			{
+				OutMetaData.Add(TEXT("LayerId"), FString::FromInt(LayerId));
+			}
 		}
 	};
 }

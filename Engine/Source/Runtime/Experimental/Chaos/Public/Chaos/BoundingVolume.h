@@ -199,6 +199,7 @@ public:
 			}
 			const void* GetQueryData() const { return nullptr; }
 			const void* GetSimData() const { return nullptr; }
+			bool ShouldIgnore(const TSpatialVisitorData<TPayloadType>& Instance) const { return false; }
 			TArray<TPayloadType>& CollectedResults;
 		};
 
@@ -420,12 +421,10 @@ private:
 	{
 		TVector<T, d> TmpPosition;
 		T TOI;
-		const void* QueryData = Visitor.GetQueryData();
-		const void* SimData = Visitor.GetSimData();
 
 		for (const auto& Elem : MGlobalPayloads)
 		{
-			if (PrePreFilterHelper(Elem.Payload, QueryData, SimData))
+			if (PrePreFilterHelper(Elem.Payload, Visitor))
 			{
 				continue;
 			}
@@ -446,7 +445,7 @@ private:
 
 		for (const auto& Elem : MDirtyElements)
 		{
-			if (PrePreFilterHelper(Elem.Payload, QueryData, SimData))
+			if (PrePreFilterHelper(Elem.Payload, Visitor))
 			{
 				continue;
 			}
@@ -488,7 +487,7 @@ private:
 
 				for (const auto& Elem : Elems)
 				{
-					if (PrePreFilterHelper(Elem.Payload, QueryData, SimData))
+					if (PrePreFilterHelper(Elem.Payload, Visitor))
 					{
 						continue;
 					}
@@ -590,11 +589,9 @@ private:
 	bool SweepImp(const TVector<T, d>& Start, FQueryFastData& CurData, const TVector<T, d> QueryHalfExtents, SQVisitor& Visitor, const FVec3& Dir, const FVec3 InvDir, const bool bParallel[3]) const
 	{
 		T TOI = 0;
-		const void* QueryData = Visitor.GetQueryData();
-		const void* SimData = Visitor.GetSimData();
 		for (const auto& Elem : MGlobalPayloads)
 		{
-			if (PrePreFilterHelper(Elem.Payload, QueryData, SimData))
+			if (PrePreFilterHelper(Elem.Payload, Visitor))
 			{
 				continue;
 			}
@@ -616,7 +613,7 @@ private:
 
 		for (const auto& Elem : MDirtyElements)
 		{
-			if (PrePreFilterHelper(Elem.Payload, QueryData, SimData))
+			if (PrePreFilterHelper(Elem.Payload, Visitor))
 			{
 				continue;
 			}
@@ -775,7 +772,7 @@ private:
 				const auto& Elems = MElements(CellIntersection.CellIdx);
 				for (const auto& Elem : Elems)
 				{
-					if (PrePreFilterHelper(Elem.Payload, QueryData, SimData))
+					if (PrePreFilterHelper(Elem.Payload, Visitor))
 					{
 						continue;
 					}
@@ -831,11 +828,9 @@ private:
 	template <typename SQVisitor, bool bPruneDuplicates = true>
 	bool OverlapImp(const TAABB<T, d>& QueryBounds, SQVisitor& Visitor) const
 	{
-		const void* QueryData = Visitor.GetQueryData();
-		const void* SimData = Visitor.GetSimData();
 		for (const auto& Elem : MGlobalPayloads)
 		{
-			if (PrePreFilterHelper(Elem.Payload, QueryData, SimData))
+			if (PrePreFilterHelper(Elem.Payload, Visitor))
 			{
 				continue;
 			}
@@ -853,7 +848,7 @@ private:
 
 		for (const auto& Elem : MDirtyElements)
 		{
-			if (PrePreFilterHelper(Elem.Payload, QueryData, SimData))
+			if (PrePreFilterHelper(Elem.Payload, Visitor))
 			{
 				continue;
 			}
@@ -889,7 +884,7 @@ private:
 					const auto& Elems = MElements(X, Y, Z);
 					for (const auto& Elem : Elems)
 					{
-						if (PrePreFilterHelper(Elem.Payload, QueryData, SimData))
+						if (PrePreFilterHelper(Elem.Payload, Visitor))
 						{
 							continue;
 						}

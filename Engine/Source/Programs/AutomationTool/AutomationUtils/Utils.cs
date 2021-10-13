@@ -305,7 +305,7 @@ namespace AutomationTool
 		// Characters that can appear at the start of
 		private static char[] IgnoredIniValuePrefixes = { '+', '-', ' ', '\t' };
 
-		private static void FilterIniFile(string SourceName, string TargetName, List<string> IniKeyBlacklist, List<string> InSectionBlacklist)
+		private static void FilterIniFile(string SourceName, string TargetName, List<string> IniKeyDenyList, List<string> InSectionDenyList)
 		{
 			string[] Lines = File.ReadAllLines(SourceName);
 			StringBuilder NewLines = new StringBuilder("");
@@ -326,7 +326,7 @@ namespace AutomationTool
 				if (!bFiltered)
 				{
 					string TrimmedLine = Line.TrimStart(IgnoredIniValuePrefixes);
-					foreach (string Filter in IniKeyBlacklist)
+					foreach (string Filter in IniKeyDenyList)
 					{
 						if (TrimmedLine.StartsWith(Filter + "="))
 						{
@@ -336,12 +336,12 @@ namespace AutomationTool
 					}
 				}
 
-				if (InSectionBlacklist != null)
+				if (InSectionDenyList != null)
 				{
 					if (Line.StartsWith("[") && Line.EndsWith("]"))
 					{
 						string SectionName = Line.Substring(1, Line.Length - 2);
-						bFilteringSection = bFiltered = InSectionBlacklist.Contains(SectionName);
+						bFilteringSection = bFiltered = InSectionDenyList.Contains(SectionName);
 
 						if (bFilteringSection)
 						{
@@ -374,7 +374,7 @@ namespace AutomationTool
 		/// <param name="SourceName">Source name</param>
 		/// <param name="TargetName">Target name</param>
 		/// <returns>True if the operation was successful, false otherwise.</returns>
-		public static bool SafeCopyFile(string SourceName, string TargetName, bool bQuiet = false, List<string> IniKeyBlacklist = null, List<string> IniSectionBlacklist = null)
+		public static bool SafeCopyFile(string SourceName, string TargetName, bool bQuiet = false, List<string> IniKeyDenyList = null, List<string> IniSectionDenyList = null)
 		{
 			if (!bQuiet)
 			{
@@ -393,9 +393,9 @@ namespace AutomationTool
 					bool bSkipSizeCheck = false;
 					// BinaryConfig.ini is a special case with binary data, but with same extension to handle all ini 
 					// file chunking/packaging/etc rules
-					if (IniKeyBlacklist != null && Path.GetExtension(SourceName) == ".ini" && Path.GetFileName(SourceName) != "BinaryConfig.ini")
+					if (IniKeyDenyList != null && Path.GetExtension(SourceName) == ".ini" && Path.GetFileName(SourceName) != "BinaryConfig.ini")
 					{
-						FilterIniFile(SourceName, TargetName, IniKeyBlacklist, IniSectionBlacklist);
+						FilterIniFile(SourceName, TargetName, IniKeyDenyList, IniSectionDenyList);
 						// ini files may change size, don't check
 						bSkipSizeCheck = true;
 					}

@@ -14,7 +14,7 @@ THIRD_PARTY_INCLUDES_END
 #   define TCHAR_TO_FICHAR TCHAR_TO_UTF8
 #endif
 
-class FFreeImageWrapper
+class FUEFreeImageWrapper
 {
 public:
 	static bool IsValid() { return FreeImageDllHandle != nullptr; }
@@ -25,9 +25,9 @@ private:
 	static void* FreeImageDllHandle; // Lazy init on first use, never release for now
 };
 
-void* FFreeImageWrapper::FreeImageDllHandle = nullptr;
+void* FUEFreeImageWrapper::FreeImageDllHandle = nullptr;
 
-void FFreeImageWrapper::FreeImage_Initialise()
+void FUEFreeImageWrapper::FreeImage_Initialise()
 {
 	if (FreeImageDllHandle != nullptr)
 	{

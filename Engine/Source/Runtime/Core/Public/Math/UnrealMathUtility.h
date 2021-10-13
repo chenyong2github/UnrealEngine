@@ -497,11 +497,18 @@ public:
 		return X < Min ? Min : X < Max ? X : Max;
 	}
 
-	/** Wraps X to be between Min and Max, inclusive */
+	/** Wraps X to be between Min and Max, inclusive. */
+	/** When X can wrap to both Min and Max, it will wrap to Min if it lies below the range and wrap to Max if it is above the range. */
 	template< class T >
 	static FORCEINLINE T Wrap(const T X, const T Min, const T Max)
 	{
 		T Size = Max - Min;
+		if (Size == 0)
+		{
+			// Guard against zero-sized ranges causing an infinite loop.
+			return Max;
+		}
+
 		T EndVal = X;
 		while (EndVal < Min)
 		{

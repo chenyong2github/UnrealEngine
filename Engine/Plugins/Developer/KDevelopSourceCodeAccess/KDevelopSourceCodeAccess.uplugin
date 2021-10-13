@@ -20,7 +20,7 @@
 			"Name" : "KDevelopSourceCodeAccess",
 			"Type" : "UncookedOnly",
 			"LoadingPhase" : "Default",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"Linux"
 			]

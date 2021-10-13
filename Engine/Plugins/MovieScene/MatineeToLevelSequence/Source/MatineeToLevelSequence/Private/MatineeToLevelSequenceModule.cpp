@@ -159,7 +159,7 @@ protected:
 		{
 			// Add the convert to level sequence asset sub-menu extender
 			Extender->AddMenuExtension(
-				"ActorSelectVisibilityLevels",
+				"ActorTypeTools",
 				EExtensionHook::After,
 				nullptr,
 				FMenuExtensionDelegate::CreateRaw(this, &FMatineeToLevelSequenceModule::CreateLevelViewportContextMenuEntries, ActorsToConvert));

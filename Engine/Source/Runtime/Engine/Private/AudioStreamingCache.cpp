@@ -125,14 +125,6 @@ FAutoConsoleVariableRef CVarSaveAudiomemReportOnCacheOverflow(
 	TEXT("0: Disabled, 1: Enabled"),
 	ECVF_Default);
 
-static int32 UseObjectKeyInChunkKeyComparisonsCVar = 1;
-FAutoConsoleVariableRef CVarUseObjectKeyInChunkKeyComparisons(
-	TEXT("au.streamcaching.UseObjectKeyInChunkKeyComparisons"),
-	UseObjectKeyInChunkKeyComparisonsCVar,
-	TEXT("Enables the comparison of FObjectKeys when comparing Stream Cache Chunk Keys.  Without this FName collisions could occur if 2 SoundWaves have the same name.\n")
-	TEXT("1: (default) Compare object keys.  0: Do not compare object keys."),
-	ECVF_Default);
-
 static int32 DebugViewCVar = 2;
 FAutoConsoleVariableRef CVarDebugView(
 	TEXT("au.streamcaching.DebugView"),
@@ -287,23 +279,11 @@ FAudioChunkCache::FChunkKey::FChunkKey(const FSoundWaveProxyPtr& InSoundWave, ui
 
 bool FAudioChunkCache::FChunkKey::operator==(const FChunkKey& Other) const
 {
-	if (UseObjectKeyInChunkKeyComparisonsCVar != 0)
-	{
 #if WITH_EDITOR
 	return (SoundWaveName == Other.SoundWaveName) && (ObjectKey == Other.ObjectKey) && (ChunkIndex == Other.ChunkIndex) && (ChunkRevision == Other.ChunkRevision);
 #else
 	return (SoundWaveName == Other.SoundWaveName) && (ObjectKey == Other.ObjectKey) && (ChunkIndex == Other.ChunkIndex);
 #endif
-	}
-	else
-	{
-#if WITH_EDITOR
-		return (SoundWaveName == Other.SoundWaveName) && (ChunkIndex == Other.ChunkIndex) && (ChunkRevision == Other.ChunkRevision);
-#else
-		return (SoundWaveName == Other.SoundWaveName) && (ChunkIndex == Other.ChunkIndex);
-#endif
-	}
-
 }
 
 bool FAudioChunkCache::FChunkKey::IsChunkStale()
@@ -769,9 +749,7 @@ uint64 FAudioChunkCache::AddOrTouchChunk(const FChunkKey& InKey, TFunction<void(
 
 	FScopeLock ScopeLock(&CacheMutationCriticalSection);
 
-	const uint64 LookupIDForChunk = GetCacheLookupIDForChunk(InKey);
 	FCacheElement* FoundElement = FindElementForKey(InKey);
-
 	if (FoundElement)
 	{
 		TouchElement(FoundElement);
@@ -1235,24 +1213,21 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::FindElementForKey(const FChun
 {
 	FScopeLock ScopeLock(&CacheMutationCriticalSection);
 
-	if (CacheLookupIdMap.Contains(InKey))
+	const uint64 CacheOffset = GetCacheLookupIDForChunk(InKey);
+
+	// If we have a known cache offset, access that chunk directly.
+	if (CacheOffset != InvalidAudioStreamCacheLookupID)
 	{
-		const uint64 CacheOffset = CacheLookupIdMap[InKey];
+		check(CacheOffset < CachePool.Num());
 
-		// If we have a known cache offset, access that chunk directly.
-		if (CacheOffset != InvalidAudioStreamCacheLookupID)
+		// Finally, sanity check that the key is still the same.
+		if (CachePool[CacheOffset].Key == InKey)
 		{
-			check(CacheOffset < CachePool.Num());
-
-			// Finally, sanity check that the key is still the same.
-			if (CachePool[CacheOffset].Key == InKey)
-			{
-				return &CachePool[CacheOffset];
-			}
-
-			UE_LOG(LogAudioStreamCaching, Verbose, TEXT("Cache Miss for soundwave: %s. (Cache Lookup ID [%i] currently stores chunk for Soundwave: %s"),
-				*InKey.SoundWaveName.ToString(), CacheOffset, *CachePool[CacheOffset].Key.SoundWaveName.ToString());
+			return &CachePool[CacheOffset];
 		}
+
+		UE_LOG(LogAudioStreamCaching, Verbose, TEXT("Cache Miss for soundwave: %s. (Cache Lookup ID [%i] currently stores chunk for Soundwave: %s"),
+			*InKey.SoundWaveName.ToString(), CacheOffset, *CachePool[CacheOffset].Key.SoundWaveName.ToString());
 	}
 
 	if (EnableExhaustiveCacheSearchesCVar)

@@ -32,7 +32,7 @@ FFliteTextToSpeechSubmixListener::~FFliteTextToSpeechSubmixListener()
 
 void FFliteTextToSpeechSubmixListener::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 NumChannels, const int32 SampleRate, double AudioClock)
 {
-	if (!bAllowPlayback || bMuted)
+	if (!bAllowPlayback)
 	{
 		return;
 	}
@@ -54,7 +54,9 @@ void FFliteTextToSpeechSubmixListener::OnNewSubmixBuffer(const USoundSubmix* Own
 	// The way that flite streaming works, we could have have no samples popped but an indication that 
 	// the last chunk was synthesized 
 
-	float VolumeMultiplier = Volume.load();
+	// If speech is muted, we want the speech to continue playing and pick up when we unmute
+	// Thus set volume to 0 for when muted 
+	float VolumeMultiplier = bMuted ? 0.0f : Volume.load();
 	ensure(VolumeMultiplier >= 0 && VolumeMultiplier <= 1.0);
 	// We only mix in up to the number of popped samples as the remainder of the output speech buffer is silence
 	// output buffer is mono. Thus the frame index is the same

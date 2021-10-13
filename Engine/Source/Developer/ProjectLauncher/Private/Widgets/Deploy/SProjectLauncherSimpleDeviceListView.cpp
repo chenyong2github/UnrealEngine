@@ -56,6 +56,7 @@ void SProjectLauncherSimpleDeviceListView::Construct(const FArguments& InArgs, c
 
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
+		.Padding(0)
 		[
 			SNew(SScrollBorder, DeviceProxyListView.ToSharedRef())
 			[
@@ -65,29 +66,36 @@ void SProjectLauncherSimpleDeviceListView::Construct(const FArguments& InArgs, c
 
 		+ SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(2, 4, 2, 4)
+		.Padding(0)
 		[
-			SNew(SHorizontalBox)
-
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.HAlign(HAlign_Left)
+			SNew(SBorder)
+			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
+			.Padding(FMargin(0, 6))
 			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("ProjectLauncherDeviceManagerLinkPreamble", "Don't see your device? Verify it's setup and claimed in the "))
-			]
+				SNew(SHorizontalBox)
 
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.HAlign(HAlign_Left)
-			.Padding(0.0f, 0.0f)
-			[
-				// all cultures hyper link
-				SNew(SHyperlink)
-				.OnNavigate(this, &SProjectLauncherSimpleDeviceListView::HandleDeviceManagerHyperlinkNavigate)
-				.Text(LOCTEXT("ProjectLauncherDeviceManagerLink", "Device Manager."))
-				.ToolTipText(LOCTEXT("ProjectLauncherDeviceManagerLinkTooltip", "Open the Device Manager window, where you can setup and claim devices connected to your machine or shared on the network."))
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.HAlign(HAlign_Left)
+				.Padding(14, 0, 0, 0)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("ProjectLauncherDeviceManagerLinkPreamble", "Don't see your device? Verify it's setup and claimed in the "))
+				]
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.HAlign(HAlign_Left)
+				.Padding(0.0f, 0.0f)
+				[
+					// all cultures hyper link
+					SNew(SHyperlink)
+					.OnNavigate(this, &SProjectLauncherSimpleDeviceListView::HandleDeviceManagerHyperlinkNavigate)
+					.Text(LOCTEXT("ProjectLauncherDeviceManagerLink", "Device Manager."))
+					.ToolTipText(LOCTEXT("ProjectLauncherDeviceManagerLinkTooltip", "Open the Device Manager window, where you can setup and claim devices connected to your machine or shared on the network."))
+				]
 			]
+			
 		]
 	];
 

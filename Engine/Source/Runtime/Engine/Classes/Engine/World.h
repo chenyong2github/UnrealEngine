@@ -1003,9 +1003,6 @@ public:
 	/** Returns the level, if any, in the process of being made visible */
 	ULevel* GetCurrentLevelPendingVisibility() const { return CurrentLevelPendingVisibility; }
 
-	/** Returns the best candidate level, if any, to become the CurrentLevelPendingVisibility */
-	ULevel* CalculateNextPreferredLevelPendingVisibility() const;
-
 	/** Returns the level, if any, in the process of being made invisible */
 	ULevel* GetCurrentLevelPendingInvisibility() const { return CurrentLevelPendingInvisibility; }
 
@@ -1057,11 +1054,18 @@ public:
 	/** Whether the world is currently in a BlockTillLevelStreamingCompleted() call */
 	bool GetIsInBlockTillLevelStreamingCompleted() const { return IsInBlockTillLevelStreamingCompleted > 0; }
 
+	/** Returns BlockTillLevelStreamingCompletedEpoch. */
+	int32 GetBlockTillLevelStreamingCompletedEpoch() const { return BlockTillLevelStreamingCompletedEpoch; }
+
 	/** Prefix we used to rename streaming levels, non empty in PIE and standalone preview */
 	UPROPERTY()
 	FString										StreamingLevelsPrefix;
 
 private:
+
+	/** Returns wether AddToWorld should be skipped on a given level */
+	bool CanAddLoadedLevelToWorld(ULevel* Level) const;
+
 	/** Pointer to the current level in the queue to be made visible, NULL if none are pending. */
 	UPROPERTY(Transient)
 	TObjectPtr<class ULevel>								CurrentLevelPendingVisibility;
@@ -1250,6 +1254,9 @@ private:
 
 	/** Whether the world is currently in a BlockTillLevelStreamingCompleted() call */
 	uint32 IsInBlockTillLevelStreamingCompleted;
+
+	/** Epoch updated every time BlockTillLevelStreamingCompleted() is called. */
+	int32 BlockTillLevelStreamingCompletedEpoch;
 
 	/** The world's navigation data manager */
 	UPROPERTY(Transient)
@@ -2257,6 +2264,27 @@ public:
 	 *	@param UserData			UserData
 	 */ 
 	FTraceHandle	AsyncOverlapByObjectType(const FVector& Pos, const FQuat& Rot, const FCollisionObjectQueryParams& ObjectQueryParams, const FCollisionShape& CollisionShape, const FCollisionQueryParams& Params = FCollisionQueryParams::DefaultQueryParam, FOverlapDelegate * InDelegate = NULL, uint32 UserData = 0);
+
+	/**
+	 * Interface for Async trace
+	 * Pretty much same parameter set except you can optional set delegate to be called when execution is completed and you can set UserData if you'd like
+	 * if no delegate, you can query trace data using QueryTraceData or QueryOverlapData
+	 * the data is available only in the next frame after request is made - in other words, if request is made in frame X, you can get the result in frame (X+1)
+	 *
+	 *  @param  Pos             Location of center of shape to test against the world
+	 *  @param  ProfileName     The 'profile' used to determine which components to hit
+	 *  @param	CollisionShape		CollisionShape - supports Box, Sphere, Capsule
+	 *  @param  Params          Additional parameters used for the trace
+	 *	@param	InDeleagte		Delegate function to be called - to see example, search FTraceDelegate
+	 *							Example can be void MyActor::TraceDone(const FTraceHandle& TraceHandle, FTraceDatum & TraceData)
+	 *							Before sending to the function,
+	 *
+	 *							FTraceDelegate TraceDelegate;
+	 *							TraceDelegate.BindRaw(this, &MyActor::TraceDone);
+	 *
+	 *	@param UserData			UserData
+	 */
+	FTraceHandle	AsyncOverlapByProfile(const FVector& Pos, const FQuat& Rot, FName ProfileName, const FCollisionShape& CollisionShape, const FCollisionQueryParams& Params = FCollisionQueryParams::DefaultQueryParam, FOverlapDelegate* InDelegate = NULL, uint32 UserData = 0);
 
 	/**
 	 * Query function 

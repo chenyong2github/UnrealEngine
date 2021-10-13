@@ -75,18 +75,13 @@ public:
 		check(InFilename);
 		// if we are cooking we should be doing it in the editor
 		check(!IsCooking() || WITH_EDITOR);
+
+		SaveArgs.TopLevelFlags = UE::SavePackageUtilities::NormalizeTopLevelFlags(SaveArgs.TopLevelFlags, IsCooking());
+
 		// if the asset wasn't provided, fetch it from the package
 		if (Asset == nullptr)
 		{
-			ForEachObjectWithPackage(Package, [this](UObject* InObject)
-				{
-					if (InObject->IsAsset() && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(InObject))
-					{
-						Asset = InObject;
-						return false;
-					}
-					return true;
-				}, false/*bIncludeNestedObjects*/);
+			Asset = InPackage->FindAssetInPackage();
 		}
 
 		TargetPackagePath = FPackagePath::FromLocalPath(InFilename);
@@ -95,14 +90,17 @@ public:
 			TargetPackagePath.SetHeaderExtension(EPackageExtension::EmptyString);
 		}
 
-		SaveArgs.TopLevelFlags = UE::SavePackageUtilities::NormalizeTopLevelFlags(SaveArgs.TopLevelFlags, IsCooking());
-
 		bCanUseUnversionedPropertySerialization = CanUseUnversionedPropertySerialization(SaveArgs.TargetPlatform);
 		bTextFormat = FString(Filename).EndsWith(FPackageName::GetTextAssetPackageExtension()) || FString(Filename).EndsWith(FPackageName::GetTextMapPackageExtension());
 		static const IConsoleVariable* ProcessPrestreamingRequests = IConsoleManager::Get().FindConsoleVariable(TEXT("s.ProcessPrestreamingRequests"));
 		if (ProcessPrestreamingRequests)
 		{
 			bIsProcessingPrestreamPackages = ProcessPrestreamingRequests->GetInt() > 0;
+		}
+		static const IConsoleVariable* FixupStandaloneFlags = IConsoleManager::Get().FindConsoleVariable(TEXT("save.FixupStandaloneFlags"));
+		if (FixupStandaloneFlags)
+		{
+			bIsFixupStandaloneFlags = FixupStandaloneFlags->GetInt() != 0;
 		}
 
 		ObjectSaveContext.Set(InPackage, GetTargetPlatform(), TargetPackagePath, SaveArgs.SaveFlags);
@@ -232,9 +230,9 @@ public:
 		return !!(SaveArgs.SaveFlags & SAVE_FromAutosave);
 	}
 
-	bool IsSaveAsync() const
+	bool IsSaveToMemory() const
 	{
-		return !!(SaveArgs.SaveFlags & SAVE_Async);
+		return !!(SaveArgs.SaveFlags & SAVE_Async) || GetPackageWriter();
 	}
 
 	bool IsGenerateSaveError() const
@@ -320,6 +318,11 @@ public:
 	bool IsProcessingPrestreamingRequests() const
 	{
 		return bIsProcessingPrestreamPackages;
+	}
+
+	bool IsFixupStandaloneFlags() const
+	{
+		return bIsFixupStandaloneFlags;
 	}
 
 	FUObjectSerializeContext* GetSerializeContext() const
@@ -568,8 +571,6 @@ public:
 		return SaveArgs.SavePackageContext ? SaveArgs.SavePackageContext->PackageWriter : nullptr;
 	}
 
-	bool IsAdditionalFilesNeedLinkerSize() const;
-
 public:
 	ESavePackageResult Result;
 
@@ -609,6 +610,7 @@ private:
 	bool bCanUseUnversionedPropertySerialization = false;
 	bool bTextFormat = false;
 	bool bIsProcessingPrestreamPackages = false;
+	bool bIsFixupStandaloneFlags = false;
 	bool bNeedPreSaveCleanup = false;
 	bool bGenerateFileStub = false;
 

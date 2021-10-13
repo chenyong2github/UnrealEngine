@@ -36,7 +36,7 @@ void FMinClientParms::ValidateParms()
 
 	// Validate the rest of the flags which cross-check against non-flag variables, or otherwise should be runtime-only checks
 
-	// You can't whitelist client RPC's (i.e. unblock whitelisted RPC's), unless all RPC's are blocked by default
+	// You can't use an allow list for client RPC's (i.e. unblock allow listed RPC's), unless all RPC's are blocked by default
 	UNIT_ASSERT(!(MinClientFlags & EMinClientFlags::AcceptRPCs) || AllowedClientRPCs.Num() == 0);
 
 #if UE_BUILD_SHIPPING

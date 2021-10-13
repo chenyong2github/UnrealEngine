@@ -505,6 +505,9 @@ public:
 	/** Update the sequence for the current time, if playing */
 	void Update(const float DeltaSeconds);
 
+	/** Update the sequence for the current time, if playing, asynchronously */
+	void UpdateAsync(const float DeltaSeconds);
+
 public:
 
 	/**
@@ -668,7 +671,7 @@ protected:
 	uint32 bIsEvaluating : 1;
 
 	/** Set to true when the player is currently in the main level update */
-	uint32 bIsMainLevelUpdate : 1;
+	uint32 bIsAsyncUpdate : 1;
 
 	/** Flag that allows the player to tick its time controller without actually evaluating the sequence */
 	uint32 bSkipNextUpdate : 1;

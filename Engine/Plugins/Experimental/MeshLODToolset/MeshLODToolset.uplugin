@@ -19,7 +19,7 @@
 			"Name": "MeshLODToolset",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [ "Win64" ]
+			"PlatformAllowList": [ "Win64" ]
 		},
 	],
 	"Plugins": [
@@ -34,7 +34,7 @@
 		{
 			"Name": "MeshModelingToolsetExp",
 			"Enabled": true,
-			"WhitelistTargets": [ "Editor" ]
+			"TargetAllowList": [ "Editor" ]
 		},
 		{
 			"Name": "EditorScriptingUtilities",

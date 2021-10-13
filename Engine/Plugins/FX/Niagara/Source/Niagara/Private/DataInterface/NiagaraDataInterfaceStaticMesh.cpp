@@ -9,6 +9,11 @@
 #include "ShaderParameterUtils.h"
 #include "NiagaraStats.h"
 
+#if WITH_EDITOR
+#include "Editor.h"
+#include "Subsystems/ImportSubsystem.h"
+#endif
+
 #include "Engine/StaticMeshActor.h"
 #include "Engine/StaticMeshSocket.h"
 #include "Internationalization/Internationalization.h"

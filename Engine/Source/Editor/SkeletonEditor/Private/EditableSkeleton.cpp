@@ -662,6 +662,14 @@ void FEditableSkeleton::SetSocketParent(const FName& SocketName, const FName& Ne
 
 		Socket->BoneName = NewParentName;
 
+		for (TWeakPtr<SSkeletonTree> SkeletonTree : SkeletonTrees)
+		{
+			if (SkeletonTree.IsValid())
+			{
+				SkeletonTree.Pin()->PostSetSocketParent();
+			}
+		}
+
 		OnTreeRefresh.Broadcast();
 	}
 }

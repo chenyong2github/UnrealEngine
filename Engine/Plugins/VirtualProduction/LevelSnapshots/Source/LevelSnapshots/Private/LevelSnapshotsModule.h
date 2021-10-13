@@ -33,12 +33,17 @@ public:
 	virtual void UnregisterPropertyComparer(UClass* Class, TSharedRef<IPropertyComparer> Comparer) override;
 	virtual void RegisterCustomObjectSerializer(UClass* Class, TSharedRef<ICustomObjectSnapshotSerializer> CustomSerializer, bool bIncludeBlueprintChildClasses = true);
 	virtual void UnregisterCustomObjectSerializer(UClass* Class) override;
+	virtual void RegisterSnapshotLoader(TSharedRef<ISnapshotLoader> Loader) override;
+	virtual void UnregisterSnapshotLoader(TSharedRef<ISnapshotLoader> Loader) override;
 	virtual void RegisterRestorationListener(TSharedRef<IRestorationListener> Listener) override;
 	virtual void UnregisterRestorationListener(TSharedRef<IRestorationListener> Listener) override;
 	virtual void AddWhitelistedProperties(const TSet<const FProperty*>& Properties) override;
 	virtual void RemoveWhitelistedProperties(const TSet<const FProperty*>& Properties) override;
 	virtual void AddBlacklistedProperties(const TSet<const FProperty*>& Properties) override;
 	virtual void RemoveBlacklistedProperties(const TSet<const FProperty*>& Properties) override;
+	virtual void AddBlacklistedClassDefault(const UClass* Class) override;
+	virtual void RemoveBlacklistedClassDefault(const UClass* Class) override;
+	virtual bool IsClassDefaultBlacklisted(const UClass* Class) const override;
 	//~ Begin ILevelSnapshotsModule Interface
 
 	bool IsSubobjectClassBlacklisted(const UClass* Class) const;
@@ -52,10 +57,11 @@ public:
 
 	TSharedPtr<ICustomObjectSnapshotSerializer> GetCustomSerializerForClass(UClass* Class) const;
 
-
 	virtual void AddCanTakeSnapshotDelegate(FName DelegateName, FCanTakeSnapshot Delegate) override;
 	virtual void RemoveCanTakeSnapshotDelegate(FName DelegateName) override;
 	virtual bool CanTakeSnapshot(const FPreTakeSnapshotEventData& Event) const override;
+
+	void OnPostLoadSnapshotObject(const FPostLoadSnapshotObjectParams& Params);
 
 	void OnPreApplySnapshotProperties(const FApplySnapshotPropertiesParams& Params);
 	void OnPostApplySnapshotProperties(const FApplySnapshotPropertiesParams& Params);
@@ -83,17 +89,19 @@ private:
 	/** Subobject classes we do not capture nor restore */
 	TSet<UClass*> BlacklistedSubobjectClasses;
 	
-	/**/
 	TMap<FSoftClassPath, TArray<TSharedRef<IPropertyComparer>>> PropertyComparers;
-	/**/
 	TMap<FSoftClassPath, FCustomSerializer> CustomSerializers;
-	/**/
+	
+	TArray<TSharedRef<ISnapshotLoader>> SnapshotLoaders;
 	TArray<TSharedRef<IRestorationListener>> RestorationListeners;
 
 	/* Allows these properties even when the default behaviour would exclude them. */
 	TSet<const FProperty*> WhitelistedProperties;
 	/* Forbid these properties even when the default behaviour would include them. */
 	TSet<const FProperty*> BlacklistedProperties;
+
+	/** Classes for which to not serialize class default */
+	TSet<FSoftClassPath> BlacklistedCDOs;
 
 	/** Map of named delegates for confirming that a level snapshot is possible. */
 	TMap<FName, FCanTakeSnapshot> CanTakeSnapshotDelegates;

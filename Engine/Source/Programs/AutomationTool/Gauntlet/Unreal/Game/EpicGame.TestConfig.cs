@@ -264,12 +264,6 @@ namespace EpicGame
 					AppConfig.CommandLine += " -noepicportal";
 				}
 
-				// turn off voice chat, otherwise will open blocking permission requests on mobile
-				if (ConfigRole.Platform == UnrealTargetPlatform.IOS)
-				{
-					AppConfig.CommandLine += " -ini:Engine:[VoiceChat.Vivox]:bEnabled=false";
-				}
-
 				// turn off crashlytics so we get symbolicated tombstone crashes on Android
 				if (ConfigRole.Platform == UnrealTargetPlatform.Android)
 				{

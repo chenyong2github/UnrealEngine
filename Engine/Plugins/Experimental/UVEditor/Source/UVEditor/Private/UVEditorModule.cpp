@@ -79,12 +79,11 @@ void FUVEditorModule::RegisterMenus()
 	}
 
 	// Extend the level editor context menu
-	// TODO: Currently, for dynamic meshes, the "Open UV Editor" dialog ends up in an unrelated section
-	// because there is no ActorAsset section. Need to figure out a way to change which section the
-	// option goes into based on whether the ActorAsset section exists...
 	{
-		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.ActorContextMenu");
-		FToolMenuSection& Section = Menu->FindOrAddSection("ActorAsset");
+		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.ActorContextMenu.AssetToolsSubMenu");
+
+		FToolMenuSection& Section = Menu->AddSection("UVEditorCommands", TAttribute<FText>(), FToolMenuInsert("AssetTools", EToolMenuInsertType::After));
+
 		Section.AddDynamicEntry("OpenUVEditor", FNewToolMenuSectionDelegate::CreateLambda(
 			[this](FToolMenuSection& Section) 
 			{
@@ -118,15 +117,15 @@ void FUVEditorModule::RegisterMenus()
 				UUVEditorSubsystem* UVSubsystem = GEditor->GetEditorSubsystem<UUVEditorSubsystem>();
 				check(UVSubsystem);
 
-				if (UVSubsystem->AreObjectsValidTargets(TargetObjects))
-				{
-					TSharedPtr<class FUICommandList> CommandListToBind = MakeShared<FUICommandList>();
-					CommandListToBind->MapAction(
-						FUVEditorCommands::Get().OpenUVEditor,
-						FExecuteAction::CreateUObject(UVSubsystem, &UUVEditorSubsystem::StartUVEditor, TargetObjects));
+				bool bValidTargets = UVSubsystem->AreObjectsValidTargets(TargetObjects);
 
-					Section.AddMenuEntryWithCommandList(FUVEditorCommands::Get().OpenUVEditor, CommandListToBind);
-				}
+				TSharedPtr<class FUICommandList> CommandListToBind = MakeShared<FUICommandList>();
+				CommandListToBind->MapAction(
+					FUVEditorCommands::Get().OpenUVEditor,
+					FExecuteAction::CreateUObject(UVSubsystem, &UUVEditorSubsystem::StartUVEditor, TargetObjects),
+					FCanExecuteAction::CreateLambda([bValidTargets]() { return bValidTargets; }));
+
+				Section.AddMenuEntryWithCommandList(FUVEditorCommands::Get().OpenUVEditor, CommandListToBind);
 			}));
 	}
 }

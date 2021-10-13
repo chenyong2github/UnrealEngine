@@ -134,7 +134,7 @@ public:
 	 *
 	 * @param Url the path to check domain on
 	 *
-	 * @return true if domain is whitelisted and allowed
+	 * @return true if domain is allowed
 	 */
 	bool IsDomainAllowed(const FString& Url) const;
 

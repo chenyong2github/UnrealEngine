@@ -278,7 +278,14 @@ namespace LowLevelTasks
 				FTask* OldTask = FSchedulerTls::ActiveTask;
 				FSchedulerTls::ActiveTask = Task;
 				{
+#if UE_TASK_TRACE_ENABLED
+					if (!UE_TRACE_CHANNELEXPR_IS_ENABLED(TaskTrace::TaskChannel))
+					{
+						TRACE_CPUPROFILER_EVENT_SCOPE(ExecuteTask);
+					}
+#else
 					TRACE_CPUPROFILER_EVENT_SCOPE(ExecuteTask);
+#endif
 					Task->ExecuteTask();
 				}
 				FSchedulerTls::ActiveTask = OldTask;

@@ -64,6 +64,8 @@ namespace TraceServices
 		TArray<FRelationInfo> Subsequents;
 		// the task is completed only after all nested tasks are completed
 		TArray<FRelationInfo> NestedTasks;
+		// The parent task. Is valid only for nested tasks
+		TUniquePtr<FRelationInfo> ParentOfNestedTask;
 	};
 
 	struct FWaitingForTasks

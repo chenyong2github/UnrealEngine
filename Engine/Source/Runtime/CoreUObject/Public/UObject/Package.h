@@ -617,7 +617,7 @@ public:
 	 * Utility function to find Asset in this package, if any
 	 * @return the asset in the package, if any
 	 */
-	UObject* FindAssetInPackage() const;
+	UObject* FindAssetInPackage(EObjectFlags RequiredTopLevelFlags = RF_NoFlags) const;
 
 	/**
 	 * Return the list of packages found assigned to object outer-ed to the top level objects of this package

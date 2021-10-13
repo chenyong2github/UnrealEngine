@@ -21,7 +21,7 @@
 			"Name": "LocationServicesIOSImpl",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"IOS"
 			]
 		}

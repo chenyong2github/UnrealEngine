@@ -45,6 +45,8 @@
 #include "ContentBrowserDataSource.h"
 #include "ContentBrowserDataSubsystem.h"
 #include "ContentBrowserDataMenuContexts.h"
+#include "Stats/Stats.h"
+#include "AssetContextMenuUtils.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -63,11 +65,17 @@ void FAssetFolderContextMenu::AddMenuOptions(UToolMenu* Menu)
 	UContentBrowserDataMenuContext_FolderMenu* Context = Menu->FindContext<UContentBrowserDataMenuContext_FolderMenu>();
 	checkf(Context, TEXT("Required context UContentBrowserDataMenuContext_FolderMenu was missing!"));
 
-	ParentWidget = Context->ParentWidget;
-
 	// Cache any vars that are used in determining if you can execute any actions.
 	// Useful for actions whose "CanExecute" will not change or is expensive to calculate.
-	CacheCanExecuteVars();
+	StartProcessCanExecuteVars();
+	TWeakPtr<FAssetFolderContextMenu> WeakThisPtr = AsShared();
+	Menu->Context.AddCleanup([WeakThisPtr]()
+		{
+			if (TSharedPtr<FAssetFolderContextMenu> SharedThis = WeakThisPtr.Pin())
+			{
+				SharedThis->StopProcessCanExecuteVars();
+			}
+		});
 
 	if(Context->bCanBeModified)
 	{
@@ -108,40 +116,45 @@ void FAssetFolderContextMenu::AddMenuOptions(UToolMenu* Menu)
 			ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 			if (SourceControlProvider.IsEnabled())
 			{
+				using namespace UE::ContentBrowserAssetDataSource::Private;
+
 				// Check out
-				Section.AddMenuEntry(
+				AddAsyncMenuEntry(
+					Section,
 					"FolderSCCCheckOut",
 					LOCTEXT("FolderSCCCheckOut", "Check Out"),
 					LOCTEXT("FolderSCCCheckOutTooltip", "Checks out all assets from source control which are in this folder."),
-					FSlateIcon(),
 					FUIAction(
 						FExecuteAction::CreateSP(this, &FAssetFolderContextMenu::ExecuteSCCCheckOut),
 						FCanExecuteAction::CreateSP(this, &FAssetFolderContextMenu::CanExecuteSCCCheckOut)
-					)
+					),
+					FIsAsyncProcessingActive::CreateSP(this, &FAssetFolderContextMenu::IsProcessingSCCCheckOut)
 				);
 
 				// Open for Add
-				Section.AddMenuEntry(
+				AddAsyncMenuEntry(
+					Section,
 					"FolderSCCOpenForAdd",
 					LOCTEXT("FolderSCCOpenForAdd", "Mark For Add"),
 					LOCTEXT("FolderSCCOpenForAddTooltip", "Adds all assets to source control that are in this folder and not already added."),
-					FSlateIcon(),
 					FUIAction(
 						FExecuteAction::CreateSP(this, &FAssetFolderContextMenu::ExecuteSCCOpenForAdd),
 						FCanExecuteAction::CreateSP(this, &FAssetFolderContextMenu::CanExecuteSCCOpenForAdd)
-					)
+					),
+					FIsAsyncProcessingActive::CreateSP(this, &FAssetFolderContextMenu::IsProcessingSCCOpenForAdd)
 				);
 
 				// Check in
-				Section.AddMenuEntry(
+				AddAsyncMenuEntry(
+					Section,
 					"FolderSCCCheckIn",
 					LOCTEXT("FolderSCCCheckIn", "Check In"),
 					LOCTEXT("FolderSCCCheckInTooltip", "Checks in all assets to source control which are in this folder."),
-					FSlateIcon(),
 					FUIAction(
 						FExecuteAction::CreateSP(this, &FAssetFolderContextMenu::ExecuteSCCCheckIn),
 						FCanExecuteAction::CreateSP(this, &FAssetFolderContextMenu::CanExecuteSCCCheckIn)
-					)
+					),
+					FIsAsyncProcessingActive::CreateSP(this, &FAssetFolderContextMenu::IsProcessingSCCCheckIn)
 				);
 
 				// Sync
@@ -410,9 +423,27 @@ bool FAssetFolderContextMenu::CanExecuteSCCConnect() const
 	return (!ISourceControlModule::Get().IsEnabled() || !ISourceControlModule::Get().GetProvider().IsAvailable()) && SelectedPaths.Num() > 0;
 }
 
-void FAssetFolderContextMenu::CacheCanExecuteVars()
+bool FAssetFolderContextMenu::IsProcessingSCCCheckOut() const
 {
-	// Cache whether we can execute any of the source control commands
+	return IsTickable() && !CanExecuteSCCCheckOut();
+}
+
+bool FAssetFolderContextMenu::IsProcessingSCCOpenForAdd() const
+{
+	return IsTickable() && !CanExecuteSCCOpenForAdd();
+}
+
+bool FAssetFolderContextMenu::IsProcessingSCCCheckIn() const
+{
+	return IsTickable() && !CanExecuteSCCCheckIn();
+}
+
+
+void FAssetFolderContextMenu::StartProcessCanExecuteVars()
+{
+	// Start Cache whether we can execute any of the source control commands
+	StopProcessCanExecuteVars();
+
 	bCanExecuteSCCCheckOut = false;
 	bCanExecuteSCCOpenForAdd = false;
 	bCanExecuteSCCCheckIn = false;
@@ -420,35 +451,9 @@ void FAssetFolderContextMenu::CacheCanExecuteVars()
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 	if ( SourceControlProvider.IsEnabled() && SourceControlProvider.IsAvailable() )
 	{
-		TArray<FString> PackageNames;
-		GetPackageNamesInSelectedPaths(PackageNames);
-
-		// Check the SCC state for each package in the selected paths
-		for ( auto PackageIt = PackageNames.CreateConstIterator(); PackageIt; ++PackageIt )
-		{
-			FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(SourceControlHelpers::PackageFilename(*PackageIt), EStateCacheUsage::Use);
-			if(SourceControlState.IsValid())
-			{
-				if ( SourceControlState->CanCheckout() )
-				{
-					bCanExecuteSCCCheckOut = true;
-				}
-				else if ( !SourceControlState->IsSourceControlled() )
-				{
-					bCanExecuteSCCOpenForAdd = true;
-				}
-				else if ( SourceControlState->CanCheckIn() )
-				{
-					bCanExecuteSCCCheckIn = true;
-				}
-			}
-
-			if ( bCanExecuteSCCCheckOut && bCanExecuteSCCOpenForAdd && bCanExecuteSCCCheckIn )
-			{
-				// All SCC options are available, no need to keep iterating
-				break;
-			}
-		}
+		GetPackageNamesInSelectedPaths(PackageNamesToProcess);
+		CurrentPackageIndex = 0;
+		ProcessCanExecuteVars();
 	}
 }
 
@@ -488,5 +493,64 @@ FString FAssetFolderContextMenu::GetFirstSelectedPath() const
 {
 	return SelectedPaths.Num() > 0 ? SelectedPaths[0] : TEXT("");
 }
+
+void FAssetFolderContextMenu::Tick(float DeltaTime)
+{
+	ProcessCanExecuteVars();
+}
+
+TStatId FAssetFolderContextMenu::GetStatId() const
+{
+	RETURN_QUICK_DECLARE_CYCLE_STAT(FAssetFolderContextMenu, STATGROUP_Tickables);
+}
+
+void FAssetFolderContextMenu::ProcessCanExecuteVars()
+{
+	const int32 StartPackageIndex = CurrentPackageIndex;
+	constexpr int32 MaxToProcessThisFrame = 500;
+
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+
+	while (PackageNamesToProcess.Num() > CurrentPackageIndex
+		&& (CurrentPackageIndex - StartPackageIndex) <= MaxToProcessThisFrame)
+	{
+		FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(SourceControlHelpers::PackageFilename(*PackageNamesToProcess[CurrentPackageIndex]), EStateCacheUsage::Use);
+		++CurrentPackageIndex;
+		if (SourceControlState.IsValid())
+		{
+			if (!bCanExecuteSCCCheckOut && SourceControlState->CanCheckout())
+			{
+				bCanExecuteSCCCheckOut = true;
+			}
+			else if (!bCanExecuteSCCOpenForAdd && !SourceControlState->IsSourceControlled())
+			{
+				bCanExecuteSCCOpenForAdd = true;
+			}
+			else if (!bCanExecuteSCCCheckIn && SourceControlState->CanCheckIn())
+			{
+				bCanExecuteSCCCheckIn = true;
+			}
+		}
+
+		if (bCanExecuteSCCCheckOut && bCanExecuteSCCOpenForAdd && bCanExecuteSCCCheckIn)
+		{
+			// All SCC options are available, no need to keep iterating
+			StopProcessCanExecuteVars();
+			break;
+		}
+	}
+
+	if (PackageNamesToProcess.Num() <= CurrentPackageIndex)
+	{
+		// Everything was processed stop ticking
+		StopProcessCanExecuteVars();
+	}
+}
+
+void FAssetFolderContextMenu::StopProcessCanExecuteVars()
+{
+	PackageNamesToProcess.Empty();
+}
+
 
 #undef LOCTEXT_NAMESPACE

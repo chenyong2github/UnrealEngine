@@ -31,9 +31,6 @@ private:
 	uint64				BaseCycle;
 	std::atomic<uint32>	MarkerCounter;
 	bool				bPumpTrace = false;
-	static const uint32 MarkerSamplePeriod	= (4 << 10) - 1;
-	static const uint32 SizeShift = 3;
-	static const uint32 HeapShift = 60;	
 };
 
 #endif // UE_MEMORY_TRACE_ENABLED

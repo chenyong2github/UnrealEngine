@@ -198,6 +198,7 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 
 	const FRewindDebuggerCommands& Commands = FRewindDebuggerCommands::Get();
 
+	ToolBarBuilder.SetStyle(&FAppStyle::Get(), "PaletteToolBar");
 	ToolBarBuilder.BeginSection("Debugger");
 	{
 		ToolBarBuilder.AddToolBarButton(Commands.FirstFrame);
@@ -211,8 +212,6 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 		ToolBarBuilder.AddToolBarButton(Commands.StopRecording);
 	}
 	ToolBarBuilder.EndSection();
-
-   
 
 	ComponentTreeView =	SNew(SRewindDebuggerComponentTree)
 				.DebugComponents(InArgs._DebugComponents)
@@ -299,7 +298,7 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 						.Image(FRewindDebuggerStyle::Get().GetBrush("RewindDebugger.MenuIcon"))
 					]
 				]
-				+SHorizontalBox::Slot().AutoWidth()
+				+SHorizontalBox::Slot().FillWidth(1.0)
 				[
 					ToolBarBuilder.MakeWidget()
 				]

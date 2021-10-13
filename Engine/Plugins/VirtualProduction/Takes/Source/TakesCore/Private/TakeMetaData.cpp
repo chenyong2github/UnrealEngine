@@ -145,12 +145,20 @@ UTakePreset* UTakeMetaData::GetPresetOrigin() const
 
 ULevel* UTakeMetaData::GetLevelOrigin() const
 {
+#if WITH_EDITORONLY_DATA
 	return LevelOrigin.Get();
+#else
+	return nullptr;
+#endif // WITH_EDITORONLY_DATA
 }
 
 FString UTakeMetaData::GetLevelPath() const
 {
+#if WITH_EDITORONLY_DATA
 	return !LevelOrigin.IsNull() ? LevelOrigin.ToString() : FString();
+#else
+	return FString();
+#endif // WITH_EDITORONLY_DATA
 }
 
 bool UTakeMetaData::GetFrameRateFromTimecode() const
@@ -242,10 +250,12 @@ void UTakeMetaData::SetPresetOrigin(UTakePreset* InPresetOrigin)
 
 void UTakeMetaData::SetLevelOrigin(ULevel* InLevelOrigin)
 {
+#if WITH_EDITORONLY_DATA
 	if (!bIsLocked)
 	{
 		LevelOrigin = InLevelOrigin; 
 	}
+#endif // WITH_EDITORONLY_DATA
 }
 
 void UTakeMetaData::SetFrameRateFromTimecode(bool InFromTimecode)

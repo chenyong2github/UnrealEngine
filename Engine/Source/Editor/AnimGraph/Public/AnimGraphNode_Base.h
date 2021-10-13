@@ -148,7 +148,7 @@ struct FAnimGraphNodePropertyBinding
 
 	/** Property binding name */
 	UPROPERTY()
-	FName PropertyName;
+	FName PropertyName = NAME_None;
 
 	UPROPERTY()
 	int32 ArrayIndex = INDEX_NONE;
@@ -163,7 +163,7 @@ struct FAnimGraphNodePropertyBinding
 
 	/** The context of the binding */
 	UPROPERTY()
-	FName ContextId;
+	FName ContextId = NAME_None;
 
 	UPROPERTY()
 	FText CompiledContext;
@@ -430,25 +430,48 @@ public:
 	// Arguments used to construct a property binding widget
 	struct FAnimPropertyBindingWidgetArgs
 	{
-		FAnimPropertyBindingWidgetArgs(const TArray<UAnimGraphNode_Base*>& InNodes, FProperty* InPinProperty, FName InPinName, int32 InOptionalPinIndex)
+		FAnimPropertyBindingWidgetArgs(const TArray<UAnimGraphNode_Base*>& InNodes, FProperty* InPinProperty, FName InPinName, FName InBindingName, int32 InOptionalPinIndex)
 			: Nodes(InNodes)
 			, PinProperty(InPinProperty)
 			, PinName(InPinName)
+			, BindingName(InBindingName)
 			, OptionalPinIndex(InOptionalPinIndex)
 			, bOnGraphNode(true)
+			, bPropertyIsOnFNode(true)
 		{
 		}
 
 		// The nodes to display the binding for
 		TArray<UAnimGraphNode_Base*> Nodes;
+		
 		// The pin property for this binding
-		FProperty* PinProperty;
+		FProperty* PinProperty = nullptr;
+		
 		// The name of the pin
-		FName PinName;
+		FName PinName = NAME_None;
+
+		// The name of the property we are binding to
+		FName BindingName = NAME_None;
+		
 		// The optional pin index that refers to this pin
-		int32 OptionalPinIndex;
+		int32 OptionalPinIndex = INDEX_NONE;
+		
 		// Whether this is for display on a graph node
-		bool bOnGraphNode;
+		bool bOnGraphNode = true;
+
+		// Whether the property is on the FAnimNode_Base of this anim node
+		bool bPropertyIsOnFNode = true;
+		
+		// Delegate used to to access property bindings to modify for the specified node
+		DECLARE_DELEGATE_TwoParams(FOnGetOptionalPins, UAnimGraphNode_Base* /*InNode*/, TArrayView<FOptionalPinFromProperty>& /*OutOptionalPins*/);
+		FOnGetOptionalPins OnGetOptionalPins;
+		
+		// Delegate used to set pin visibility
+		DECLARE_DELEGATE_ThreeParams(FOnSetPinVisibility, UAnimGraphNode_Base* /*InNode*/, bool /*bInVisible*/, int32 /*InOptionalPinIndex*/);
+		FOnSetPinVisibility OnSetPinVisibility;
+
+		// Menu extender used to add custom entries in the binding menu
+		TSharedPtr<FExtender> MenuExtender;
 	};
 	
 	// Make a property binding widget to edit the bindings of the passed-in nodes
@@ -456,9 +479,10 @@ public:
 
 	// Get the property corresponding to a pin. For array element pins returns the outer array property. Returns null if a property cannot be found.
 	FProperty* GetPinProperty(const UEdGraphPin* InPin) const;
+	virtual FProperty* GetPinProperty(FName InPinName) const;
 	
 	// Check whether the named pin is bindable
-	bool IsPinBindable(const UEdGraphPin* InPin) const;
+	virtual bool IsPinBindable(const UEdGraphPin* InPin) const;
 
 	// Get the tag for this node, if any
 	FName GetTag() const { return Tag; }
@@ -472,6 +496,7 @@ protected:
 	friend class UAnimBlueprintExtension;
 	friend class UAnimBlueprintExtension_Base;
 	friend class SAnimationGraphNode;
+	friend class UAnimationGraphSchema;
 
 	// Set the tag for this node but without regenerating any BP data for tagging
 	void SetTagInternal(FName InTag) { Tag = InTag; }
@@ -524,11 +549,28 @@ protected:
 	// Allocates or reallocates pins
 	void InternalPinCreation(TArray<UEdGraphPin*>* OldPins);
 
+	// Override point to create custom pins
+	// @param	OldPins		In the case of reconstruction, the OldPins array contains all the pins that the node had prior, otherwise if the
+	// 				node is being created anew the array ptr will be null
+	virtual void CreateCustomPins(TArray<UEdGraphPin*>* OldPins) {}
+
+	// Get the pin binding info for the supplied pin
+	// @param	InPinName	The name of the pin
+	// @param	OutBindingName	The name of the binding that this pin represents (for array pins the binding name includes the array index as e.g. Binding_1)
+	// @param	OutPinProperty	The property that the binding represents
+	// @param	OutOptionalPinIndex	The optional pin index (index into the ShowPinForProperties array) 
+	// @return false if the pin cannot be bound
+	virtual bool GetPinBindingInfo(FName InPinName, FName& OutBindingName, FProperty*& OutPinProperty, int32& OutOptionalPinIndex) const;
+
+	// Check whether the specified property is bound via PropertyBindings
+	virtual bool HasBinding(FName InPropertyName) const;
+	
 	FOnNodePropertyChangedEvent PropertyChangeEvent;
 
 	FOnNodeTitleChangedEvent NodeTitleChangedEvent;
 
-private:
+protected:
+	// Old shown pins. Needs to be a member variable to track pin visibility changes between Pre and PostEditChange 
 	TArray<FName> OldShownPins;
 };
 

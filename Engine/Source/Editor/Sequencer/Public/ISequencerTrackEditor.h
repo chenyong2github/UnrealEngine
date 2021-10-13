@@ -52,7 +52,7 @@ struct FSequencerDragDropParams
 	{}
 
 	/** The track that is receiving this drop event */
-	UMovieSceneTrack* Track;
+	TWeakObjectPtr<UMovieSceneTrack> Track;
 	 
 	/** The row index to drop onto */
 	int32 RowIndex;

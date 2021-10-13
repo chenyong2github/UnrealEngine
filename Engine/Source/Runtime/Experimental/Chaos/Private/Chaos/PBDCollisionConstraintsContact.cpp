@@ -308,7 +308,7 @@ namespace Chaos
 				if (IterationParameters.Dt > SMALL_NUMBER)
 				{
 					// Update velocity to be consistent with PBD
-					Particle0->SetV(1 / IterationParameters.Dt * (Particle0->P() - Particle0->X()));
+					Particle0->SetV((1.f / IterationParameters.Dt) * (Particle0->P() - Particle0->X()));
 				}
 				else
 				{

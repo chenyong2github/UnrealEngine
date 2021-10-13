@@ -887,12 +887,15 @@ public:
 	 * Called when the FindInContentBrowser command is executed
 	 */
 	static void FindInContentBrowser_Clicked();
+	static bool FindInContentBrowser_CanExecute();
 
 	/** Called to when "Edit Asset" is clicked */
 	static void EditAsset_Clicked( const EToolkitMode::Type ToolkitMode, TWeakPtr< class SLevelEditor > LevelEditor, bool bAskMultiple );
+	static bool EditAsset_CanExecute();
 
 	/** Called when 'detach' is clicked */
 	static void DetachActor_Clicked();
+	static bool DetachActor_CanExecute();
 
 	/** Called when attach selected actors is pressed */
 	static void AttachSelectedActors();
@@ -918,6 +921,7 @@ public:
 
 	/** Called when 'Go to Code for Actor' is clicked */
 	static void GoToCodeForActor_Clicked();
+	static bool GoToCodeForActor_CanExecute();
 
 	/** Called when 'Go to Documentation for Actor' is clicked */
 	static void GoToDocsForActor_Clicked();

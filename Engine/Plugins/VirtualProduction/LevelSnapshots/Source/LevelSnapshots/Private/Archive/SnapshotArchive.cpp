@@ -2,10 +2,14 @@
 
 #include "SnapshotArchive.h"
 
+#include "LevelSnapshotsModule.h"
 #include "ObjectSnapshotData.h"
 #include "SnapshotRestorability.h"
 #include "SnapshotVersion.h"
 #include "WorldSnapshotData.h"
+#if UE_BUILD_DEBUG
+#include "SnapshotConsoleVariables.h"
+#endif
 
 #include "Internationalization/TextNamespaceUtil.h"
 #include "Internationalization/TextPackageNamespaceUtil.h"
@@ -34,6 +38,7 @@ void FSnapshotArchive::ApplyToSnapshotWorldObject(FObjectSnapshotData& InObjectD
 #endif
 
 	InObjectToRestore->Serialize(Archive);
+	FLevelSnapshotsModule::GetInternalModuleInstance().OnPostLoadSnapshotObject({ InObjectToRestore, InSharedData });
 }
 
 FString FSnapshotArchive::GetArchiveName() const
@@ -59,6 +64,14 @@ void FSnapshotArchive::Seek(int64 InPos)
 
 bool FSnapshotArchive::ShouldSkipProperty(const FProperty* InProperty) const
 {
+#if UE_BUILD_DEBUG
+	FString PropertyToDebug = SnapshotCVars::CVarBreakOnSerializedPropertyName.GetValueOnAnyThread();
+	if (!PropertyToDebug.IsEmpty() && InProperty->GetName().Equals(PropertyToDebug, ESearchCase::IgnoreCase))
+	{
+		UE_DEBUG_BREAK();
+	}
+#endif
+	
 	const bool bIsPropertyUnsupported = InProperty->HasAnyPropertyFlags(ExcludedPropertyFlags);
 	return bIsPropertyUnsupported || !FSnapshotRestorability::IsPropertyDesirableForCapture(InProperty);
 }
@@ -151,11 +164,11 @@ void FSnapshotArchive::Serialize(void* Data, int64 Length)
 
 UObject* FSnapshotArchive::ResolveObjectDependency(int32 ObjectIndex) const
 {
+	FString LocalizationNamespace;
 #if USE_STABLE_LOCALIZATION_KEYS
-	return SnapshotUtil::Object::ResolveObjectDependencyForSnapshotWorld(SharedData, ObjectIndex, GetLocalizationNamespace());
-#else
-	return SnapshotUtil::Object::ResolveObjectDependencyForSnapshotWorld(SharedData, ObjectIndex, "");
+	LocalizationNamespace = GetLocalizationNamespace();
 #endif
+	return SnapshotUtil::Object::ResolveObjectDependencyForSnapshotWorld(SharedData, ObjectIndex, LocalizationNamespace);
 }
 
 FSnapshotArchive::FSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, bool bIsLoading, UObject* InSerializedObject)
@@ -167,7 +180,7 @@ FSnapshotArchive::FSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnap
 {
 	Super::SetWantBinaryPropertySerialization(false);
 	Super::SetIsTransacting(false);
-	Super::SetIsPersistent(!bIsLoading);
+	Super::SetIsPersistent(true);
 	ArNoDelta = true;
 
 	if (bIsLoading)

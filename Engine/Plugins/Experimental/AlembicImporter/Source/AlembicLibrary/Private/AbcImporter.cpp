@@ -740,8 +740,8 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 					const FVector SampleOffset = SamplesOffsets.GetValue()[SampleIndex];
 					RootBoneTrack.PosKeys.Add(SampleOffset);
 
-					RootBoneTrack.RotKeys.Add(FQuat::Identity);
-					RootBoneTrack.ScaleKeys.Add(FVector::OneVector);
+					RootBoneTrack.RotKeys.Add(FQuat4f::Identity);
+					RootBoneTrack.ScaleKeys.Add(FVector3f::OneVector);
 				}
 
 				const FReferenceSkeleton& RefSkeleton = SkeletalMesh->GetRefSkeleton();

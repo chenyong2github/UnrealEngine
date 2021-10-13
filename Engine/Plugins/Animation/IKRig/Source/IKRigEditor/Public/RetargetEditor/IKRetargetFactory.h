@@ -7,6 +7,7 @@
 #include "Factories/Factory.h"
 #include "IKRetargetFactory.generated.h"
 
+class SWindow;
 
 UCLASS(hidecategories=Object, MinimalAPI)
 class UIKRetargetFactory : public UFactory

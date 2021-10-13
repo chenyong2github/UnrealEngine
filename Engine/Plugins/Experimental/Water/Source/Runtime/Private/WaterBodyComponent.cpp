@@ -59,7 +59,8 @@ const FName UWaterBodyComponent::WaterBodyIndexParamName(TEXT("WaterBodyIndex"))
 const FName UWaterBodyComponent::WaterVelocityAndHeightName(TEXT("WaterVelocityAndHeight"));
 const FName UWaterBodyComponent::GlobalOceanHeightName(TEXT("GlobalOceanHeight"));
 const FName UWaterBodyComponent::FixedZHeightName(TEXT("FixedZHeight"));
-const FName UWaterBodyComponent::OverriddenWaterDepthName(TEXT("Overridden Water Depth"));
+const FName UWaterBodyComponent::FixedVelocityName(TEXT("FixedVelocity"));
+const FName UWaterBodyComponent::FixedWaterDepthName(TEXT("FixedWaterDepth"));
 
 // ----------------------------------------------------------------------------------
 
@@ -76,6 +77,20 @@ UWaterBodyComponent::UWaterBodyComponent(const FObjectInitializer& ObjectInitial
 
 	bCanAffectNavigation = false;
 	bFillCollisionUnderWaterBodiesForNavmesh = false;
+}
+
+void UWaterBodyComponent::OnVisibilityChanged()
+{
+	Super::OnVisibilityChanged();
+
+	UpdateComponentVisibility(/* bAllowWaterMeshRebuild = */true);
+}
+
+void UWaterBodyComponent::OnHiddenInGameChanged()
+{
+	Super::OnHiddenInGameChanged();
+
+	UpdateComponentVisibility(/* bAllowWaterMeshRebuild = */true);
 }
 
 bool UWaterBodyComponent::IsFlatSurface() const
@@ -303,6 +318,12 @@ float UWaterBodyComponent::GetConstantDepth() const
 	// Only makes sense when you consider the water depth to be constant for the whole water body, in which case we just use the first spline key's : 
 	const UWaterSplineComponent* const WaterSpline = GetWaterSpline();
 	return WaterSpline ? WaterSpline->GetFloatPropertyAtSplineInputKey(0.0f, GET_MEMBER_NAME_CHECKED(UWaterSplineMetadata, Depth)) : 0.0f;
+}
+
+FVector UWaterBodyComponent::GetConstantVelocity() const
+{
+	// Only makes sense when you consider the water velocity to be constant for the whole water body, in which case we just use the first spline key's : 
+	return GetWaterVelocityVectorAtSplineInputKey(0.0f);
 }
 
 void UWaterBodyComponent::GetSurfaceMinMaxZ(float& OutMinZ, float& OutMaxZ) const
@@ -702,29 +723,33 @@ ALandscapeProxy* UWaterBodyComponent::FindLandscape() const
 	return Landscape.Get();
 }
 
-void UWaterBodyComponent::UpdateComponentVisibility()
+void UWaterBodyComponent::UpdateComponentVisibility(bool bAllowWaterMeshRebuild)
 {
 	if (UWorld* World = GetWorld())
 	{
-	 	// If water rendering is enabled we dont need the components to do the rendering
-	 	const bool bIsWaterRenderingEnabled = UWaterSubsystem::GetWaterSubsystem(World)->IsWaterRenderingEnabled();
+	 	const bool bIsWaterRenderingEnabled = FWaterUtils::IsWaterEnabled(/*bIsRenderThread = */false);
 	 
-	 	const bool bIsEditorWorld = GetWorld()->IsEditorWorld();
-	 
-	 	TInlineComponentArray<UStaticMeshComponent*> MeshComponents;
-	 	GetOwner()->GetComponents(MeshComponents);
-	 	for (UStaticMeshComponent* Component : MeshComponents)
+		bool bIsRenderedByWaterMesh = ShouldGenerateWaterMeshTile();
+		bool bLocalVisible = bIsWaterRenderingEnabled && !bIsRenderedByWaterMesh && IsVisible();
+		bool bLocalHiddenInGame = !bIsWaterRenderingEnabled || bIsRenderedByWaterMesh || bHiddenInGame;
+
+	 	for (UPrimitiveComponent* Component : GetStandardRenderableComponents())
 	 	{
-	 		if (bIsEditorWorld)
-	 		{
-	 			Component->SetVisibility(false);
-	 			Component->SetHiddenInGame(true);
-	 		}
-	 		else
-	 		{
-	 			Component->SetHiddenInGame(bIsWaterRenderingEnabled);
-	 		}
+	 		Component->SetVisibility(bLocalVisible);
+	 		Component->SetHiddenInGame(bLocalHiddenInGame);
 	 	}
+
+		// If the component is being or can be rendered by the water mesh, rebuild it in case its visibility has changed : 
+		if (bAllowWaterMeshRebuild && (GetWaterBodyType() != EWaterBodyType::Transition))
+		{
+			if (UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld())) 
+			{
+				if (AWaterMeshActor* WaterMesh = WaterSubsystem->GetWaterMeshActor())
+				{
+					WaterMesh->MarkWaterMeshComponentForRebuild();
+				}
+			}
+		}
 	}
 }
 
@@ -1062,7 +1087,7 @@ void UWaterBodyComponent::UpdateAll(bool bShapeOrPositionChanged)
 			FNavigationSystem::UpdateActorAndComponentData(*WaterBodyOwner);
 		}
 
-		UpdateComponentVisibility();
+		UpdateComponentVisibility(/* bAllowWaterMeshRebuild = */true);
 
 #if WITH_EDITOR
 		WaterBodyOwner->UpdateActorIcon();
@@ -1144,37 +1169,43 @@ bool UWaterBodyComponent::MoveComponentImpl(const FVector& Delta, const FQuat& N
 	return Super::MoveComponentImpl(Delta, CorrectedRotation, bSweep, Hit, MoveFlags, Teleport);
 }
 
-void UWaterBodyComponent::SetDynamicParametersOnMID(UMaterialInstanceDynamic* InMID)
+bool UWaterBodyComponent::SetDynamicParametersOnMID(UMaterialInstanceDynamic* InMID)
 {
 	UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld());
 	if ((InMID == nullptr) || (WaterSubsystem == nullptr))
 	{
-		return;
+		return false;
 	}
 
 	const float GlobalOceanHeight = WaterSubsystem->GetOceanTotalHeight();
 	InMID->SetScalarParameterValue(WaterBodyIndexParamName, WaterBodyIndex);
 	InMID->SetScalarParameterValue(GlobalOceanHeightName, GlobalOceanHeight);
+	InMID->SetScalarParameterValue(FixedZHeightName, GetConstantSurfaceZ());
+	InMID->SetScalarParameterValue(FixedWaterDepthName, GetConstantDepth());
+	InMID->SetVectorParameterValue(FixedVelocityName, GetConstantVelocity());
 
 	if (AWaterMeshActor* WaterMesh = WaterSubsystem->GetWaterMeshActor())
 	{
 		InMID->SetTextureParameterValue(WaterVelocityAndHeightName, WaterMesh->WaterVelocityTexture);
 	}
+
+	return true;
 }
 
-void UWaterBodyComponent::SetDynamicParametersOnUnderwaterPostProcessMID(UMaterialInstanceDynamic* InMID)
+bool UWaterBodyComponent::SetDynamicParametersOnUnderwaterPostProcessMID(UMaterialInstanceDynamic* InMID)
 {
 	UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld());
 	if ((InMID == nullptr) || (WaterSubsystem == nullptr))
 	{
-		return;
+		return false;
 	}
 
 	// The post process MID needs the same base parameters as the water materials : 
 	SetDynamicParametersOnMID(InMID);
 
-	InMID->SetScalarParameterValue(FixedZHeightName, GetConstantSurfaceZ());
-	InMID->SetScalarParameterValue(OverriddenWaterDepthName, GetConstantDepth());
+	// Add here the list of parameters that the underwater material needs (for not nothing more than the standard material) :
+
+	return true;
 }
 
 float UWaterBodyComponent::GetWaveReferenceTime() const

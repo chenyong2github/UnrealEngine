@@ -991,7 +991,9 @@ FSubobjectDataHandle USubobjectDataSubsystem::AddNewSubobject(const FAddNewSubob
 				// Do Scene Attachment if this new Component is a USceneComponent
 				if (USceneComponent* NewSceneComponent = Cast<USceneComponent>(NewInstanceComponent))
 				{
-					if (ParentObjData->IsDefaultSceneRoot() && ParentObjData->CanReparent())
+					// If this is an actor with no subobjects on it, then set the new subobject as scene root of the actor.
+					// This can occur if the user has placed in a native C++ class to the world with no subobjects on it
+					if (ParentObjData->IsActor() && ParentObjData->GetChildrenHandles().IsEmpty())
 					{
 						ActorInstance->SetRootComponent(NewSceneComponent);
 					}

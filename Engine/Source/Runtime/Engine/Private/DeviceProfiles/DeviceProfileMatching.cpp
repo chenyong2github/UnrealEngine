@@ -14,6 +14,7 @@
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "Internationalization/Regex.h"
 #include "GenericPlatform/GenericPlatformDriver.h"
+#include "GenericPlatform/GenericPlatformCrashContext.h"
 
 // Platform independent source types
 static FName SRC_Chipset(TEXT("SRC_Chipset"));
@@ -591,6 +592,10 @@ TArray<FSelectedFragmentProperties> UDeviceProfileManager::FindMatchingFragments
 		UE_CLOG(bIsPreview && !DPSelector && DPHasMatchingRules(ParentDP, ConfigSystem), LogInit, Warning, TEXT("Preview DP %s contains fragment matching rules, but no preview profile selector was found. The selected fragments for %s will likely not match the behavior of the intended preview device."), *ParentDP, *ParentDP);
 	}
 	SelectedFragments = RemoveAllWhiteSpace(SelectedFragments);
+	if(!SelectedFragments.IsEmpty())
+	{
+		FGenericCrashContext::SetEngineData(TEXT("DeviceProfile.MatchedFragments"), SelectedFragments);
+	}
 
 	UE_CLOG(!SelectedFragments.IsEmpty(), LogInit, Log, TEXT("MatchesRules:Fragment string %s"), *SelectedFragments);
 	TArray<FSelectedFragmentProperties> MatchedFragments = FragmentStringToFragmentProperties(SelectedFragments);

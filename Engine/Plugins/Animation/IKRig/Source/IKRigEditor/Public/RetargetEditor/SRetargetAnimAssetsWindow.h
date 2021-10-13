@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -6,6 +6,7 @@
 #include "IKRetargetBatchOperation.h"
 #include "SEditorViewport.h"
 #include "Settings/SkeletalMeshEditorSettings.h"
+#include "PreviewScene.h"
 
 class UIKRetargeter;
 

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "NodeProcess.h"
 #include "Misc/Paths.h"
+#include "Async/AsyncWork.h"
 
 #include <iostream>
 #include <stdlib.h>

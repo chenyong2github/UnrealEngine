@@ -140,9 +140,6 @@ extern bool TrackTextureEvent( FStreamingRenderAsset* StreamingTexture, UStreama
 
 void FTexture2DMipMap::Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx)
 {
-	bool bCooked = Ar.IsCooking();
-	Ar << bCooked;
-
 #if WITH_EDITORONLY_DATA
 	BulkData.Serialize(Ar, Owner, MipIdx, false, FileRegionType);
 #else
@@ -154,7 +151,7 @@ void FTexture2DMipMap::Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx)
 	Ar << SizeZ;
 
 #if WITH_EDITORONLY_DATA
-	if (!bCooked)
+	if (!Ar.IsFilterEditorOnly())
 	{
 		Ar << FileRegionType;
 		Ar << bPagedToDerivedData;
@@ -170,7 +167,6 @@ uint32 FTexture2DMipMap::StoreInDerivedDataCache(const FString& InDerivedDataKey
 
 	TArray<uint8> DerivedData;
 	FMemoryWriter Ar(DerivedData, /*bIsPersistent=*/ true);
-	Ar << BulkDataSizeInBytes;
 	{
 		void* BulkMipData = BulkData.Lock(LOCK_READ_ONLY);
 		Ar.Serialize(BulkMipData, BulkDataSizeInBytes);

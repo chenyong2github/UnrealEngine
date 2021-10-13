@@ -161,6 +161,9 @@ namespace UsdUtils
 	/** Returns the time code for non-timesampled values. Usually a quiet NaN. */
 	USDUTILITIES_API double GetDefaultTimeCode();
 
+	/** Returns the earliest possible timecode. Use it to always fetch the first frame of an animated attribute */
+	USDUTILITIES_API double GetEarliestTimeCode();
+
 	USDUTILITIES_API UUsdAssetImportData* GetAssetImportData( UObject* Asset );
 
 	/** Adds a reference on Prim to the layer at AbsoluteFilePath */
@@ -180,6 +183,15 @@ namespace UsdUtils
 	 * @return True if we managed to rename
 	 */
 	USDUTILITIES_API bool RenamePrim( UE::FUsdPrim& Prim, const TCHAR* NewPrimName );
+
+	/**
+	 * Appends numbered suffixes to Name until the result is not contained in UsedNames, and returns it.
+	 * Does not add the result to UsedNames before returning (as it is const).
+	 * @param Name - Received string to make unique (e.g. "MyName")
+	 * @param UsedNames - Strings that cannot be used for the result
+	 * @return Modified Name so that it doesn't match anything in UsedNames (e.g. "MyName" again, or "MyName_0" or "MyName_423")
+	 */
+	USDUTILITIES_API FString GetUniqueName( FString Name, const TSet<FString>& UsedNames );
 
 	/**
 	 * Returns a modified version of InIdentifier that can be used as a USD prim or property name.

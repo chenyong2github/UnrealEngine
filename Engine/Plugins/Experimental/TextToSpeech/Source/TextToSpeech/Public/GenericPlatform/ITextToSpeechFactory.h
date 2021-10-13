@@ -7,7 +7,7 @@ class FTextToSpeechBase;
 
 /**
  * Abstract base class for all factories that create text to speech objects.
- * Platform default factories have already been provided for all whitelisted platforms for this plugin.
+ * Platform default factories have already been provided for all allowed platforms for this plugin.
  * Inherit from this class and register it with the text to speech module to create your own custom text to speech objects
 * See ITextToSpeechModule.h for more details. 
  */

@@ -43,6 +43,7 @@
 #include "LandscapeDataAccess.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "Editor.h"
+#include "Editor/EditorEngine.h"
 #include "LandscapeSubsystem.h"
 #include "SPrimaryButton.h"
 #include "Widgets/Input/SSegmentedControl.h"
@@ -239,18 +240,18 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 	.MinDesiredWidth(125.0f * 3.0f) // copied from FComponentTransformDetails
 	.MaxDesiredWidth(125.0f * 3.0f)
 	[
-		SNew(SVectorInputBox)
+		SNew(SNumericVectorInputBox<FVector::FReal>)
 		.bColorAxisLabels(true)
 		.Font(DetailBuilder.GetDetailFont())
-		.X_Static(&GetOptionalPropertyValue<float>, PropertyHandle_Location_X)
-		.Y_Static(&GetOptionalPropertyValue<float>, PropertyHandle_Location_Y)
-		.Z_Static(&GetOptionalPropertyValue<float>, PropertyHandle_Location_Z)
-		.OnXCommitted_Static(&SetPropertyValue<float>, PropertyHandle_Location_X)
-		.OnYCommitted_Static(&SetPropertyValue<float>, PropertyHandle_Location_Y)
-		.OnZCommitted_Static(&SetPropertyValue<float>, PropertyHandle_Location_Z)
-		.OnXChanged_Lambda([=](float NewValue) { ensure(PropertyHandle_Location_X->SetValue(NewValue, EPropertyValueSetFlags::InteractiveChange) == FPropertyAccess::Success); })
-		.OnYChanged_Lambda([=](float NewValue) { ensure(PropertyHandle_Location_Y->SetValue(NewValue, EPropertyValueSetFlags::InteractiveChange) == FPropertyAccess::Success); })
-		.OnZChanged_Lambda([=](float NewValue) { ensure(PropertyHandle_Location_Z->SetValue(NewValue, EPropertyValueSetFlags::InteractiveChange) == FPropertyAccess::Success); })
+		.X_Static(&GetOptionalPropertyValue<FVector::FReal>, PropertyHandle_Location_X)
+		.Y_Static(&GetOptionalPropertyValue<FVector::FReal>, PropertyHandle_Location_Y)
+		.Z_Static(&GetOptionalPropertyValue<FVector::FReal>, PropertyHandle_Location_Z)
+		.OnXCommitted_Static(&SetPropertyValue<FVector::FReal>, PropertyHandle_Location_X)
+		.OnYCommitted_Static(&SetPropertyValue<FVector::FReal>, PropertyHandle_Location_Y)
+		.OnZCommitted_Static(&SetPropertyValue<FVector::FReal>, PropertyHandle_Location_Z)
+		.OnXChanged_Lambda([=](FVector::FReal NewValue) { ensure(PropertyHandle_Location_X->SetValue(NewValue, EPropertyValueSetFlags::InteractiveChange) == FPropertyAccess::Success); })
+		.OnYChanged_Lambda([=](FVector::FReal NewValue) { ensure(PropertyHandle_Location_Y->SetValue(NewValue, EPropertyValueSetFlags::InteractiveChange) == FPropertyAccess::Success); })
+		.OnZChanged_Lambda([=](FVector::FReal NewValue) { ensure(PropertyHandle_Location_Z->SetValue(NewValue, EPropertyValueSetFlags::InteractiveChange) == FPropertyAccess::Success); })
 		.AllowSpin(true)
 	];
 
@@ -293,18 +294,18 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 	.MinDesiredWidth(125.0f * 3.0f) // copied from FComponentTransformDetails
 	.MaxDesiredWidth(125.0f * 3.0f)
 	[
-		SNew(SVectorInputBox)
+		SNew(SNumericVectorInputBox<FVector::FReal>)
 		.bColorAxisLabels(true)
 		.Font(DetailBuilder.GetDetailFont())
-		.X_Static(&GetOptionalPropertyValue<float>, PropertyHandle_Scale_X)
-		.Y_Static(&GetOptionalPropertyValue<float>, PropertyHandle_Scale_Y)
-		.Z_Static(&GetOptionalPropertyValue<float>, PropertyHandle_Scale_Z)
+		.X_Static(&GetOptionalPropertyValue<FVector::FReal>, PropertyHandle_Scale_X)
+		.Y_Static(&GetOptionalPropertyValue<FVector::FReal>, PropertyHandle_Scale_Y)
+		.Z_Static(&GetOptionalPropertyValue<FVector::FReal>, PropertyHandle_Scale_Z)
 		.OnXCommitted_Static(&SetScale, PropertyHandle_Scale_X)
 		.OnYCommitted_Static(&SetScale, PropertyHandle_Scale_Y)
 		.OnZCommitted_Static(&SetScale, PropertyHandle_Scale_Z)
-		.OnXChanged_Lambda([=](float NewValue) { ensure(PropertyHandle_Scale_X->SetValue(NewValue, EPropertyValueSetFlags::InteractiveChange) == FPropertyAccess::Success); })
-		.OnYChanged_Lambda([=](float NewValue) { ensure(PropertyHandle_Scale_Y->SetValue(NewValue, EPropertyValueSetFlags::InteractiveChange) == FPropertyAccess::Success); })
-		.OnZChanged_Lambda([=](float NewValue) { ensure(PropertyHandle_Scale_Z->SetValue(NewValue, EPropertyValueSetFlags::InteractiveChange) == FPropertyAccess::Success); })
+		.OnXChanged_Lambda([=](FVector::FReal NewValue) { ensure(PropertyHandle_Scale_X->SetValue(NewValue, EPropertyValueSetFlags::InteractiveChange) == FPropertyAccess::Success); })
+		.OnYChanged_Lambda([=](FVector::FReal NewValue) { ensure(PropertyHandle_Scale_Y->SetValue(NewValue, EPropertyValueSetFlags::InteractiveChange) == FPropertyAccess::Success); })
+		.OnZChanged_Lambda([=](FVector::FReal NewValue) { ensure(PropertyHandle_Scale_Z->SetValue(NewValue, EPropertyValueSetFlags::InteractiveChange) == FPropertyAccess::Success); })
 		.AllowSpin(true)
 	];
 
@@ -574,9 +575,9 @@ FText FLandscapeEditorDetailCustomization_NewLandscape::GetOverallResolutionTool
 	: LOCTEXT("NewLandscape_OverallResolution", "Overall final resolution of the new landscape in vertices");
 }
 
-void FLandscapeEditorDetailCustomization_NewLandscape::SetScale(float NewValue, ETextCommit::Type, TSharedRef<IPropertyHandle> PropertyHandle)
+void FLandscapeEditorDetailCustomization_NewLandscape::SetScale(FVector::FReal NewValue, ETextCommit::Type, TSharedRef<IPropertyHandle> PropertyHandle)
 {
-	float OldValue = 0;
+	FVector::FReal OldValue = 0;
 	PropertyHandle->GetValue(OldValue);
 
 	if (NewValue == 0)
@@ -852,6 +853,8 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 
 		ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo();
 		check(LandscapeInfo);
+
+		FActorLabelUtilities::SetActorLabelUnique(Landscape, ALandscape::StaticClass()->GetName());
 
 		LandscapeInfo->UpdateLayerInfoMap(Landscape);
 

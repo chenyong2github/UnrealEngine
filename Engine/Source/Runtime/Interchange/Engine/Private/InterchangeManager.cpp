@@ -645,6 +645,9 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 
 	const UInterchangeProjectSettings* InterchangeProjectSettings = GetDefault<UInterchangeProjectSettings>();
 	UInterchangePipelineConfigurationBase* RegisteredPipelineConfiguration = nullptr;
+
+	//In runtime we do not have any pipeline configurator
+#if WITH_EDITORONLY_DATA
 	TSoftClassPtr <UInterchangePipelineConfigurationBase> PipelineConfigurationDialogClass = InterchangeProjectSettings->PipelineConfigurationDialogClass;
 	if (PipelineConfigurationDialogClass.IsValid())
 	{
@@ -654,15 +657,22 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 			RegisteredPipelineConfiguration = NewObject<UInterchangePipelineConfigurationBase>(GetTransientPackage(), PipelineConfigurationClass, NAME_None, RF_NoFlags);
 		}
 	}
+#endif
 
 
 	if ( ImportAssetParameters.OverridePipelines.Num() == 0 )
 	{
 		const bool bIsUnattended = FApp::IsUnattended() || GIsAutomationTesting;
 
+#if WITH_EDITORONLY_DATA
 		const bool bShowPipelineStacksConfigurationDialog = !bIsUnattended
 															&& InterchangeProjectSettings->bShowPipelineStacksConfigurationDialog
 															&& !bImportAllWithDefault;
+#else
+		const bool bShowPipelineStacksConfigurationDialog = false;
+#endif
+															
+
 
 		const FName DefaultPipelineStackName = [ImportType, &InterchangeProjectSettings]()
 		{

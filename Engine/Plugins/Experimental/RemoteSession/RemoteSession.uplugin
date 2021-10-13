@@ -20,7 +20,7 @@
 			"Name": "RemoteSession",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"BlacklistPlatforms": [
+			"PlatformDenyList": [
 				"TVOS"
 			]
 		},
@@ -28,7 +28,7 @@
 			"Name": "RemoteSessionEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"BlacklistPlatforms": [
+			"PlatformDenyList": [
 				"TVOS"
 			]
 		}

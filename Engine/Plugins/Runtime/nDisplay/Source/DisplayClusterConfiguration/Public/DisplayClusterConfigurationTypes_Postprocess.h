@@ -278,11 +278,11 @@ struct FDisplayClusterConfigurationViewport_AllNodesColorGrading
 	bool bEnableInnerFrustumAllNodesColorGrading = true;
 
 	/** Optionally include Entire Cluster Color Grading settings specified on the root actor in nDisplay's color grading stack for the inner frustum. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Color Grading", meta = (DisplayName = "Include Entire Cluster Color Grading"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Color Grading", meta = (DisplayName = "Include Entire Cluster Color Grading", EditCondition = "bEnableInnerFrustumAllNodesColorGrading"))
 	bool bEnableEntireClusterColorGrading = true;
 
 	/** Color Grading */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Color Grading"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Color Grading", EditCondition = "bEnableInnerFrustumAllNodesColorGrading"))
 	FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings ColorGradingSettings;
 };
 

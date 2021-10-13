@@ -21,7 +21,7 @@
 			"Name": "LocationServicesAndroidImpl",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Android"
 			]
 		}

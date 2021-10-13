@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "RigVMCore/RigVMExecuteContext.h"
+#include "RigVMCore/RigVM.h"
 #include "RigHierarchyElements.h"
 #include "RigHierarchyPose.h"
 #include "UObject/WeakObjectPtrTemplates.h"
@@ -97,6 +99,9 @@ class CONTROLRIG_API URigHierarchy : public UObject
 
 public:
 
+	typedef TMap<int32, TArray<int32>> TElementDependencyMap;
+	typedef TPair<int32, TArray<int32>> TElementDependencyMapPair;
+
 	URigHierarchy();
 	virtual ~URigHierarchy();
 
@@ -144,9 +149,9 @@ public:
 	void CopyPose(URigHierarchy* InHierarchy, bool bCurrent, bool bInitial);
 
 	/**
-	 * Update all elements that depend on external sockets
+	 * Update all elements that depend on external references
 	 */
-	void UpdateSockets(const FRigUnitContext* InContext);
+	void UpdateReferences(const FRigUnitContext* InContext);
 
 	/**
 	 * Resets the current pose of a filtered lost if elements to the initial / ref pose.
@@ -725,22 +730,22 @@ public:
 	}
 
 	/**
-	 * Returns all sockets
+	 * Returns all references
 	 * @param bTraverse Returns the elements in order of a depth first traversal
 	 */
-	FORCEINLINE TArray<FRigSocketElement*> GetSockets(bool bTraverse = false) const
+	FORCEINLINE TArray<FRigReferenceElement*> GetReferences(bool bTraverse = false) const
 	{
-		return GetElementsOfType<FRigSocketElement>(bTraverse);
+		return GetElementsOfType<FRigReferenceElement>(bTraverse);
 	}
 
 	/**
-	 * Returns all sockets
+	 * Returns all references
 	 * @param bTraverse Returns the elements in order of a depth first traversal
 	 */
-	UFUNCTION(BlueprintCallable, Category = URigHierarchy, meta = (DisplayName = "Get Sockets", ScriptName = "GetSockets"))
-    FORCEINLINE TArray<FRigElementKey> GetSocketKeys(bool bTraverse = true) const
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy, meta = (DisplayName = "Get References", ScriptName = "GetReferences"))
+    FORCEINLINE TArray<FRigElementKey> GetReferenceKeys(bool bTraverse = true) const
 	{
-		return GetKeysOfType<FRigSocketElement>(bTraverse);
+		return GetKeysOfType<FRigReferenceElement>(bTraverse);
 	}
 
 	/**
@@ -1741,10 +1746,11 @@ public:
 	* Determines if the element can be switched to a provided parent
 	* @param InChild The key of the multi parented element
 	* @param InParent The key of the parent to look up the weight for
+    * @param InDependencyMap An additional map of dependencies to respect
 	* @param OutFailureReason An optional pointer to retrieve the reason for failure
 	* @return Returns true if changing the weight was successful
 	*/
-	bool CanSwitchToParent(FRigElementKey InChild, FRigElementKey InParent, FString* OutFailureReason = nullptr);
+	bool CanSwitchToParent(FRigElementKey InChild, FRigElementKey InParent, const TElementDependencyMap& InDependencyMap = TElementDependencyMap(), FString* OutFailureReason = nullptr);
 
 	/**
 	 * Switches a multi parent element to a single parent.
@@ -1754,15 +1760,14 @@ public:
 	 * @param InParent The key of the parent to look up the weight for
 	 * @param bInitial If true the initial weights will be used
 	 * @param bAffectChildren If set to false children will not move (maintain global).
-	 * @param OutFailureReason An optional pointer to retrieve the reason for failure
 	 * @return Returns true if changing the weight was successful
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
 	bool SwitchToParent(FRigElementKey InChild, FRigElementKey InParent, bool bInitial = false, bool bAffectChildren = true)
 	{
-		return SwitchToParent(InChild, InParent, bInitial, bAffectChildren, nullptr);
+		return SwitchToParent(InChild, InParent, bInitial, bAffectChildren, TElementDependencyMap(), nullptr);
 	}
-	bool SwitchToParent(FRigElementKey InChild, FRigElementKey InParent, bool bInitial, bool bAffectChildren, FString* OutFailureReason);
+	bool SwitchToParent(FRigElementKey InChild, FRigElementKey InParent, bool bInitial, bool bAffectChildren, const TElementDependencyMap& InDependencyMap, FString* OutFailureReason);
 
 	/**
 	 * Switches a multi parent element to a single parent.
@@ -1772,10 +1777,11 @@ public:
 	 * @param InParent The parent to look up the weight for
 	 * @param bInitial If true the initial weights will be used
 	 * @param bAffectChildren If set to false children will not move (maintain global).
+     * @param InDependencyMap An additional map of dependencies to respect
 	 * @param OutFailureReason An optional pointer to retrieve the reason for failure
 	 * @return Returns true if changing the weight was successful
 	 */
-	bool SwitchToParent(FRigBaseElement* InChild, FRigBaseElement* InParent, bool bInitial = false, bool bAffectChildren = true, FString* OutFailureReason = nullptr);
+	bool SwitchToParent(FRigBaseElement* InChild, FRigBaseElement* InParent, bool bInitial = false, bool bAffectChildren = true, const TElementDependencyMap& InDependencyMap = TElementDependencyMap(), FString* OutFailureReason = nullptr);
 
 	/**
 	 * Switches a multi parent element to a single parent.
@@ -1812,7 +1818,7 @@ public:
 
 	/**
 	 * Switches a multi parent element to world space.
-	 * This injects a world space socket.
+	 * This injects a world space reference.
 	 * @param InChild The key of the multi parented element
 	 * @param bInitial If true the initial weights will be used
 	 * @param bAffectChildren If set to false children will not move (maintain global).
@@ -1823,7 +1829,7 @@ public:
 
 	/**
 	* Switches a multi parent element to world space.
-	* This injects a world space socket.
+	* This injects a world space reference.
 	* @param InChild The multi parented element
 	* @param bInitial If true the initial weights will be used
 	* @param bAffectChildren If set to false children will not move (maintain global).
@@ -1832,12 +1838,12 @@ public:
 	bool SwitchToWorldSpace(FRigBaseElement* InChild, bool bInitial = false, bool bAffectChildren = true);
 
 	/**
-	 * Adds the world space socket or returns it
+	 * Adds the world space reference or returns it
 	 */
-	FRigElementKey GetOrAddWorldSpaceSocket();
+	FRigElementKey GetOrAddWorldSpaceReference();
 	
-	static FRigElementKey GetDefaultParentSocketKey();
-	static FRigElementKey GetWorldSpaceSocketKey();
+	static FRigElementKey GetDefaultParentKey();
+	static FRigElementKey GetWorldSpaceReferenceKey();
 
 	/**
 	 * Returns true if an element is parented to another element
@@ -1855,13 +1861,14 @@ public:
 	 * Returns true if an element is parented to another element
 	 * @param InChildIndex The index of the child element to check for a parent
 	 * @param InParentIndex The index of the parent element to check for
+	 * @param InDependencyMap An additional map of dependencies to respect
 	 * @return True if the child is parented to the parent
 	 */
-    FORCEINLINE bool IsParentedTo(int32 InChildIndex, int32 InParentIndex) const
+    FORCEINLINE bool IsParentedTo(int32 InChildIndex, int32 InParentIndex, const TElementDependencyMap& InDependencyMap = TElementDependencyMap()) const
 	{
 		if(Elements.IsValidIndex(InChildIndex) && Elements.IsValidIndex(InParentIndex))
 		{
-			return IsParentedTo(Elements[InChildIndex], Elements[InParentIndex]);
+			return IsParentedTo(Elements[InChildIndex], Elements[InParentIndex], InDependencyMap);
 		}
 		return false;
 	}
@@ -2406,10 +2413,20 @@ public:
 	 * Returns true if an element is parented to another element
 	 * @param InChild The child element to check for a parent
 	 * @param InParent The parent element to check for
+	 * @param InDependencyMap An additional map of dependencies to respect
 	 * @return True if the child is parented to the parent
 	 */
-	bool IsParentedTo(FRigBaseElement* InChild, FRigBaseElement* InParent) const;
-	
+	bool IsParentedTo(FRigBaseElement* InChild, FRigBaseElement* InParent, const TElementDependencyMap& InDependencyMap = TElementDependencyMap()) const;
+
+	/**
+	 * Returns true if an element is affected to another element
+	 * @param InDependent The dependent element to check for a dependency
+	 * @param InDependency The dependency element to check for
+	 * @param InDependencyMap An additional map of dependencies to respect
+	 * @return True if the child is parented to the parent
+	 */
+	bool IsDependentOn(FRigBaseElement* InDependent, FRigBaseElement* InDependency, const TElementDependencyMap& InDependencyMap = TElementDependencyMap()) const;
+
 	/**
 	 * Returns a reference to the suspend notifications flag
 	 */
@@ -2715,7 +2732,7 @@ protected:
 			{
 				return 4;
 			}
-			case ERigElementType::Socket:
+			case ERigElementType::Reference:
 			{
 				return 5;
 			}
@@ -2760,7 +2777,7 @@ protected:
 			}
 			case 5:
 			{
-				return ERigElementType::Socket;
+				return ERigElementType::Reference;
 			}
 			case 6:
 			{
@@ -2776,7 +2793,7 @@ protected:
 		return ERigElementType::None;
 	}
 
-	FTransform GetWorldTransformForSocket(const FRigUnitContext* InContext, const FRigElementKey& InKey, bool bInitial);
+	FTransform GetWorldTransformForReference(const FRigUnitContext* InContext, const FRigElementKey& InKey, bool bInitial);
 	
 	FORCEINLINE static float GetWeightForLerp(const float WeightA, const float WeightB)
 	{
@@ -2874,11 +2891,26 @@ protected:
 private:
 	
 	void EnsureCacheValidityImpl();
+
+#if WITH_EDITOR
+	const FRigVMExecuteContext* ExecuteContext;
+	mutable bool bRecordTransformsPerInstruction;
+	mutable TArray<TArray<TArray<int32>>> ReadTransformsPerInstructionPerSlice;
+	mutable TArray<TArray<TArray<int32>>> WrittenTransformsPerInstructionPerSlice;
+
+public:
+
+	TElementDependencyMap GetDependenciesForVM(URigVM* InVM, FName InEventName = NAME_None);
+
+private:
 	
+#endif
+
 	friend class URigHierarchyController;
 	friend class UControlRig;
 	friend class FControlRigEditor;
 	friend struct FRigHierarchyValidityBracket;
+	friend struct FControlRigVisualGraphUtils;
 };
 
 struct CONTROLRIG_API FRigHierarchyValidityBracket

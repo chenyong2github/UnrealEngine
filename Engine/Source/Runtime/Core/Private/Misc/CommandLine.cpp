@@ -73,7 +73,7 @@ bool FCommandLine::Set(const TCHAR* NewCommandLine)
 	FCString::Strncpy( CmdLine, NewCommandLine, UE_ARRAY_COUNT(CmdLine) );
 	FCString::Strncpy(LoggingCmdLine, NewCommandLine, UE_ARRAY_COUNT(LoggingCmdLine));
 	// If configured as part of the build, strip out any unapproved args
-	WhitelistCommandLines();
+	ApplyCommandLineAllowList();
 
 	bIsInitialized = true;
 
@@ -96,7 +96,7 @@ void FCommandLine::Append(const TCHAR* AppendString)
 {
 	FCString::Strncat( CmdLine, AppendString, UE_ARRAY_COUNT(CmdLine) );
 	// If configured as part of the build, strip out any unapproved args
-	WhitelistCommandLines();
+	ApplyCommandLineAllowList();
 }
 
 bool FCommandLine::IsCommandLineLoggingFiltered()
@@ -108,19 +108,26 @@ bool FCommandLine::IsCommandLineLoggingFiltered()
 #endif
 }
 
-#if WANTS_COMMANDLINE_WHITELIST
+#if UE_COMMAND_LINE_USES_ALLOW_LIST
 TArray<FString> FCommandLine::ApprovedArgs;
 TArray<FString> FCommandLine::FilterArgsForLogging;
 
-#ifdef OVERRIDE_COMMANDLINE_WHITELIST
+#ifndef UE_OVERRIDE_COMMAND_LINE_ALLOW_LIST
+	#ifdef OVERRIDE_COMMANDLINE_WHITELIST
+		#pragma message("Use UE_OVERRIDE_COMMAND_LINE_ALLOW_LIST instead")
+		#define UE_OVERRIDE_COMMAND_LINE_ALLOW_LIST OVERRIDE_COMMANDLINE_WHITELIST
+	#endif
+#endif
+
+#ifdef UE_OVERRIDE_COMMAND_LINE_ALLOW_LIST
 /**
  * When overriding this setting make sure that your define looks like the following in your .cs file:
  *
- *		GlobalDefinitions.Add("OVERRIDE_COMMANDLINE_WHITELIST=\"-arg1 -arg2 -arg3 -arg4\"");
+ *		GlobalDefinitions.Add("UE_OVERRIDE_COMMAND_LINE_ALLOW_LIST=\"-arg1 -arg2 -arg3 -arg4\"");
  *
  * The important part is the \" as they quotes get stripped off by the compiler without them
  */
-const TCHAR* OverrideList = TEXT(OVERRIDE_COMMANDLINE_WHITELIST);
+const TCHAR* OverrideList = TEXT(UE_OVERRIDE_COMMAND_LINE_ALLOW_LIST);
 #else
 // Default list most conservative restrictions
 const TCHAR* OverrideList = TEXT("-fullscreen /windowed");
@@ -139,7 +146,7 @@ const TCHAR* FilterForLoggingList = TEXT(FILTER_COMMANDLINE_LOGGING);
 const TCHAR* FilterForLoggingList = TEXT("");
 #endif
 
-void FCommandLine::WhitelistCommandLines()
+void FCommandLine::ApplyCommandLineAllowList()
 {
 	if (ApprovedArgs.Num() == 0)
 	{
@@ -153,16 +160,16 @@ void FCommandLine::WhitelistCommandLines()
 	}
 	// Process the original command line
 	TArray<FString> OriginalList = FilterCommandLine(OriginalCmdLine);
-	BuildWhitelistCommandLine(OriginalCmdLine, UE_ARRAY_COUNT(OriginalCmdLine), OriginalList);
+	BuildCommandLineAllowList(OriginalCmdLine, UE_ARRAY_COUNT(OriginalCmdLine), OriginalList);
 	// Process the current command line
 	TArray<FString> CmdList = FilterCommandLine(CmdLine);
-	BuildWhitelistCommandLine(CmdLine, UE_ARRAY_COUNT(CmdLine), CmdList);
+	BuildCommandLineAllowList(CmdLine, UE_ARRAY_COUNT(CmdLine), CmdList);
 	// Process the command line for logging purposes
 	TArray<FString> LoggingCmdList = FilterCommandLineForLogging(LoggingCmdLine);
-	BuildWhitelistCommandLine(LoggingCmdLine, UE_ARRAY_COUNT(LoggingCmdLine), LoggingCmdList);
+	BuildCommandLineAllowList(LoggingCmdLine, UE_ARRAY_COUNT(LoggingCmdLine), LoggingCmdList);
 	// Process the original command line for logging purposes
 	TArray<FString> LoggingOriginalCmdList = FilterCommandLineForLogging(LoggingOriginalCmdLine);
-	BuildWhitelistCommandLine(LoggingOriginalCmdLine, UE_ARRAY_COUNT(LoggingOriginalCmdLine), LoggingOriginalCmdList);
+	BuildCommandLineAllowList(LoggingOriginalCmdLine, UE_ARRAY_COUNT(LoggingOriginalCmdLine), LoggingOriginalCmdList);
 }
 
 TArray<FString> FCommandLine::FilterCommandLine(TCHAR* CommandLine)
@@ -214,7 +221,7 @@ TArray<FString> FCommandLine::FilterCommandLineForLogging(TCHAR* CommandLine)
 	return ParsedList;
 }
 
-void FCommandLine::BuildWhitelistCommandLine(TCHAR* CommandLine, uint32 ArrayCount, const TArray<FString>& FilteredArgs)
+void FCommandLine::BuildCommandLineAllowList(TCHAR* CommandLine, uint32 ArrayCount, const TArray<FString>& FilteredArgs)
 {
 	check(ArrayCount > 0);
 	// Zero the whole string

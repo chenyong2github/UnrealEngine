@@ -66,7 +66,7 @@ void FSelectedRigidBodyCustomization::CustomizeHeader(TSharedRef<IPropertyHandle
 				.OnCheckStateChanged(this, &FSelectedRigidBodyCustomization::OnPick, PropertyHandleId, PropertyHandleSolver)
 				[ 
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("PropertyWindow.Button_PickActorInteractive"))
+					.Image(FEditorStyle::GetBrush("Icons.EyeDropper"))
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]

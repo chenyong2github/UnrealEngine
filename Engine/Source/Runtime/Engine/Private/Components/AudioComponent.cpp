@@ -455,6 +455,12 @@ void UAudioComponent::PlayQuantized(
 		InClockHandle
 	};
 
+	// Guard against a null clock handle
+	if (InClockHandle == nullptr)
+	{
+		return;
+	}
+
 	// Decide if we need to queue up the command to play at a later date (and not take up a voice slot) or if we can execute the command immediately
 
 	// Make new audio component command info struct

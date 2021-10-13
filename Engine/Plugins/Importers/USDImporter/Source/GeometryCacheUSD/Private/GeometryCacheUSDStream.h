@@ -10,7 +10,7 @@ struct FGeometryCacheUsdStreamReadRequest;
 class FGeometryCacheUsdStream : public IGeometryCacheStream
 {
 public:
-	FGeometryCacheUsdStream(UGeometryCacheTrackUsd* InUsdTrack, FReadUsdMeshFunction InReadFunc, const FString& InPrimPath);
+	FGeometryCacheUsdStream( TWeakObjectPtr<UGeometryCacheTrackUsd> InUsdTrack, FReadUsdMeshFunction InReadFunc );
 	virtual ~FGeometryCacheUsdStream();
 
 	//~ Begin IGeometryCacheStream Interface
@@ -26,7 +26,7 @@ private:
 
 	void LoadFrameData(int32 FrameIndex);
 
-	UGeometryCacheTrackUsd* UsdTrack;
+	TWeakObjectPtr<UGeometryCacheTrackUsd> UsdTrack;
 	FReadUsdMeshFunction ReadFunc;
 
 	TArray<int32> ReadIndices;
@@ -41,6 +41,5 @@ private:
 	FCriticalSection CriticalSection;
 
 	TAtomic<bool> bCancellationRequested;
-
-	FString PrimPath;
 };
+

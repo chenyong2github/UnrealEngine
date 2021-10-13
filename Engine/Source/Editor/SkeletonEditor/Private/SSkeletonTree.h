@@ -47,7 +47,7 @@ enum class EBlendProfileMode : uint8;
 // SSkeletonTree
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-class SSkeletonTree : public ISkeletonTree, public FEditorUndoClient, public FGCObject
+class SSkeletonTree : public ISkeletonTree, public FSelfRegisteringEditorUndoClient, public FGCObject
 {
 public:
 	SLATE_BEGIN_ARGS( SSkeletonTree )
@@ -106,7 +106,7 @@ public:
 	virtual TSharedPtr<SWidget> GetSearchWidget() const override { return NameFilterBox; }
 	virtual TSharedPtr<IPinnedCommandList> GetPinnedCommandList() const override { return PinnedCommands; }
 
-	/** FEditorUndoClient interface */
+	/** FSelfRegisteringEditorUndoClient interface */
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;
 
@@ -167,6 +167,9 @@ public:
 
 	/** Update preview scene and tree after a socket duplication */
 	void PostDuplicateSocket(UObject* InAttachedObject, const FName& InSocketName);
+
+	/** Update tree after a socket changes parent */
+	void PostSetSocketParent();
 
 private:
 	/** Binds the commands in FSkeletonTreeCommands to functions in this class */

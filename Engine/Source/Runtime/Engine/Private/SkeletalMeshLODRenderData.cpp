@@ -373,7 +373,7 @@ void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LO
 				for (int32 DeltaIndex = 0; DeltaIndex < NumSrcDeltas; DeltaIndex++)
 				{
 					const auto& MorphDelta = MorphDeltas[DeltaIndex];
-					const FVector3f TangentZDelta = VertexNeedsTangents[MorphDelta.SourceIdx] ? MorphDelta.TangentZDelta : FVector3f::ZeroVector;
+					const FVector3f TangentZDelta = (VertexNeedsTangents.IsValidIndex(MorphDelta.SourceIdx) && VertexNeedsTangents[MorphDelta.SourceIdx]) ? MorphDelta.TangentZDelta : FVector3f::ZeroVector;
 
 					// when import, we do check threshold, and also when adding weight, we do have threshold for how smaller weight can fit in
 					// so no reason to check here another threshold

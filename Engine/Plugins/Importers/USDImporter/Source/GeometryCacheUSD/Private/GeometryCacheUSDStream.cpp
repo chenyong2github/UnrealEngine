@@ -15,11 +15,10 @@ struct FGeometryCacheUsdStreamReadRequest
 	bool Completed;
 };
 
-FGeometryCacheUsdStream::FGeometryCacheUsdStream(UGeometryCacheTrackUsd* InUsdTrack, FReadUsdMeshFunction InReadFunc, const FString& InPrimPath)
+FGeometryCacheUsdStream::FGeometryCacheUsdStream(TWeakObjectPtr<UGeometryCacheTrackUsd> InUsdTrack, FReadUsdMeshFunction InReadFunc)
 : UsdTrack(InUsdTrack)
 , ReadFunc(InReadFunc)
 , bCancellationRequested(false)
-, PrimPath(InPrimPath)
 {
 	for (int32 Index = 0; Index < kUsdReadConcurrency; ++Index)
 	{
@@ -110,7 +109,7 @@ bool FGeometryCacheUsdStream::RequestFrameData(int32 FrameIndex)
 			{
 				if (!bCancellationRequested)
 				{
-					ReadFunc(*ReadRequest->MeshData, PrimPath, ReadRequest->FrameIndex);
+					ReadFunc( UsdTrack, ReadRequest->FrameIndex, *ReadRequest->MeshData );
 				}
 				ReadRequest->Completed = true;
 			});
@@ -125,6 +124,10 @@ void FGeometryCacheUsdStream::UpdateRequestStatus(TArray<int32>& OutFramesComple
 	check(IsInGameThread());
 
 	FScopeLock Lock(&CriticalSection);
+
+	UGeometryCacheTrackUsd* Track = UsdTrack.Get();
+
+	bool bCompletedARequest = false;
 
 	// Check the completion status of the read requests in progress
 	TArray<FGeometryCacheUsdStreamReadRequest*> CompletedRequests;
@@ -144,6 +147,8 @@ void FGeometryCacheUsdStream::UpdateRequestStatus(TArray<int32>& OutFramesComple
 
 			// Output the completed frame
 			OutFramesCompleted.Add(ReadRequest->FrameIndex);
+
+			bCompletedARequest = true;
 		}
 	}
 
@@ -151,12 +156,32 @@ void FGeometryCacheUsdStream::UpdateRequestStatus(TArray<int32>& OutFramesComple
 	{
 		FramesRequested.Remove(ReadRequest);
 	}
+
+	// We're fully done fetching what we need from USD for now, we can drop the track's strong stage reference so that the stage
+	// can close if needed. The track can reopen the stage whenever needed though (it will also notify the user on the output
+	// log if it did so: check CreateGeometryCache in USDGeomMeshTranslator.cpp).
+	// This is not exactly ideal, as the closed stage may have changes that the reopened stage doesn't, but the
+	// alternative would leave the stage open indefinitely (as the transaction buffer will keep the track alive for undo/redo),
+	// which can lead to even more strange behavior (like changes that persist even if you close and open the stage, etc.).
+	// Whenever the track reopens the stage it will use the stage cache anyway, so if that stage is open for any other reason
+	// (e.g. we did an undo and the stage actor reopened it) then the operation will just retrieve the stage from the cache,
+	// which is cheap.
+	if ( bCompletedARequest && FramesNeeded.Num() == 0 && FramesRequested.Num() == 0 && Track )
+	{
+		Track->CurrentStage = UE::FUsdStage();
+	}
 }
 
 void FGeometryCacheUsdStream::Prefetch(int32 StartFrameIndex, int32 NumFrames)
 {
-	const int32 StartIndex = UsdTrack->GetStartFrameIndex();
-	const int32 EndIndex = UsdTrack->GetEndFrameIndex();
+	UGeometryCacheTrackUsd* ValidUsdTrack = UsdTrack.Get();
+	if ( !ValidUsdTrack )
+	{
+		return;
+	}
+
+	const int32 StartIndex = ValidUsdTrack->GetStartFrameIndex();
+	const int32 EndIndex = ValidUsdTrack->GetEndFrameIndex();
 	const int32 MaxNumFrames = EndIndex - StartIndex;
 
 	// Validate the number of frames to be loaded
@@ -204,6 +229,18 @@ bool FGeometryCacheUsdStream::GetFrameData(int32 FrameIndex, FGeometryCacheMeshD
 		OutMeshData = **MeshDataPtr;
 		return true;
 	}
+	// If the user requested a frame that isn't loaded yet, synchronously fetch it right away
+	// or else UGeometryCacheTrackUsd::GetSampleInfo may return invalid bounding boxes that may lead
+	// to issues, and wouldn't otherwise be updated until that frame is requested again.
+	// It may lead to a bit of stuttering when animating through an unloaded section with the sequencer
+	// or by dragging the Time property of the stage actor, but the alternative would be a spam of
+	// warnings on the output log and glitchy bounding boxes on the level
+	else if ( IsInGameThread() )
+	{
+		LoadFrameData( FrameIndex );
+		return GetFrameData( FrameIndex, OutMeshData );
+	}
+
 	return false;
 }
 
@@ -211,14 +248,20 @@ void FGeometryCacheUsdStream::LoadFrameData(int32 FrameIndex)
 {
 	check(IsInGameThread());
 
-	if (FramesAvailable.Contains(FrameIndex))
+	if ( FramesAvailable.Contains( FrameIndex ) )
+	{
+		return;
+	}
+
+	UGeometryCacheTrackUsd* Track = UsdTrack.Get();
+	if ( !Track )
 	{
 		return;
 	}
 
 	// Synchronously load the requested frame data
 	FGeometryCacheMeshData* MeshData = new FGeometryCacheMeshData;
-	ReadFunc(*MeshData, PrimPath, FrameIndex);
+	ReadFunc( UsdTrack, FrameIndex, *MeshData );
 
 	FramesAvailable.Add(FrameIndex, MeshData);
 }

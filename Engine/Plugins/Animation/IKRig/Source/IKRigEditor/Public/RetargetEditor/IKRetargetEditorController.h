@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "IPersonaToolkit.h"
-
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
 
 class SIKRetargetChainMapList;
 class UIKRetargetAnimInstance;

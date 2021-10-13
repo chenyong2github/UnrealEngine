@@ -306,10 +306,17 @@ void FStaticMeshCompilingManager::PostCompilation(UStaticMesh* StaticMesh)
 			Component->PostStaticMeshCompilation();
 		}
 
-		// Generate an empty property changed event, to force the asset registry tag
-		// to be refreshed now that RenderData is available.
-		FPropertyChangedEvent EmptyPropertyChangedEvent(nullptr);
-		FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(StaticMesh, EmptyPropertyChangedEvent);
+		// Calling this delegate during app exit might be quite dangerous and lead to crash
+		// if the content browser wants to refresh a thumbnail it might try to load a package
+		// which will then fail due to various reasons related to the editor shutting down.
+		// Triggering this callback while garbage collecting can also result in listeners trying to look up objects
+		if (!GExitPurge && !IsGarbageCollecting())
+		{
+			// Generate an empty property changed event, to force the asset registry tag
+			// to be refreshed now that RenderData is available.
+			FPropertyChangedEvent EmptyPropertyChangedEvent(nullptr);
+			FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(StaticMesh, EmptyPropertyChangedEvent);
+		}
 	}
 }
 

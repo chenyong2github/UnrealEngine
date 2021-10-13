@@ -617,11 +617,11 @@ EVisibility SPluginTile::GetAuthoringButtonsVisibility() const
 {
 	if (FApp::IsEngineInstalled() && Plugin->GetLoadedFrom() == EPluginLoadedFrom::Engine)
 	{
-		return EVisibility::Hidden;
+		return EVisibility::Collapsed;
 	}
 	if (FApp::IsInstalled() && Plugin->GetType() != EPluginType::Mod)
 	{
-		return EVisibility::Hidden;
+		return EVisibility::Collapsed;
 	}
 	return EVisibility::Visible;
 }

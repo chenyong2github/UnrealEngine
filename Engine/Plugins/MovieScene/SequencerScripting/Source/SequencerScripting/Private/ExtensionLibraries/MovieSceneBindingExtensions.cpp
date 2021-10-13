@@ -230,7 +230,9 @@ UClass* UMovieSceneBindingExtensions::GetPossessedObjectClass(const FSequencerBi
 		FMovieScenePossessable* Possessable = MovieScene->FindPossessable(InBinding.BindingID);
 		if (Possessable)
 		{
+#if WITH_EDITORONLY_DATA
 			return const_cast<UClass*>(Possessable->GetPossessedObjectClass());
+#endif
 		}
 	}
 	return nullptr;

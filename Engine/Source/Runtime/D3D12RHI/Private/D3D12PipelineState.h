@@ -257,18 +257,6 @@ template <> struct equality_pipeline_state_desc<FD3D12ComputePipelineStateDesc>
 		// collision is ~ 1 in 10^18. so only do a full check on debug builds
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(CSHash)
 
-#if UE_BUILD_DEBUG
-		if (lhs.Desc.CS.pShaderBytecode != rhs.Desc.CS.pShaderBytecode &&
-			lhs.Desc.CS.pShaderBytecode != nullptr &&
-			lhs.Desc.CS.BytecodeLength)
-		{
-			if (FMemory::Memcmp(lhs.Desc.CS.pShaderBytecode, rhs.Desc.CS.pShaderBytecode, lhs.Desc.CS.BytecodeLength) != 0)
-			{
-				return false;
-			}
-		}
-#endif
-
 #if PLATFORM_WINDOWS
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(Extensions)
 #endif

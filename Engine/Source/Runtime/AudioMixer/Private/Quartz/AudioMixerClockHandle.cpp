@@ -140,7 +140,7 @@ void UQuartzClockHandle::BeginDestroy()
 	{
 		QuartzSubsystem->UnsubscribeFromQuartzTick(this);
 
-		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetManagerForClock(GetWorld(), GetClockName());
+		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetManagerForClock(QuartzGetWorld(), GetClockName());
 
 		if (ClockManager)
 		{
