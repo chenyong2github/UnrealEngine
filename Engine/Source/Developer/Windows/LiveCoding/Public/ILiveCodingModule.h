@@ -8,6 +8,8 @@
 
 #define LIVE_CODING_MODULE_NAME "LiveCoding"
 
+class FText;
+
 class ILiveCodingModule : public IModuleInterface
 {
 public:
@@ -17,7 +19,7 @@ public:
 	virtual void EnableForSession(bool bEnabled) = 0;
 	virtual bool IsEnabledForSession() const = 0;
 	virtual bool CanEnableForSession() const = 0;
-	virtual FText GetEnableErrorText() const = 0;
+	virtual const FText& GetEnableErrorText() const = 0;
 	virtual bool AutomaticallyCompileNewClasses() const = 0;
 
 	virtual bool HasStarted() const = 0;
