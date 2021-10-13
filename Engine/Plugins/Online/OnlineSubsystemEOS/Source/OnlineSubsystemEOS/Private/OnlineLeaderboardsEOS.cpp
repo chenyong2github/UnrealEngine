@@ -309,7 +309,7 @@ bool FOnlineLeaderboardsEOS::ReadLeaderboardsAroundRank(int32 Rank, uint32 Range
 
 	EOS_Leaderboards_QueryLeaderboardRanks(EOSSubsystem->LeaderboardsHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
 
-	return false;
+	return true;
 }
 
 bool FOnlineLeaderboardsEOS::ReadLeaderboardsAroundUser(FUniqueNetIdRef Player, uint32 Range, FOnlineLeaderboardReadRef& ReadObject)
