@@ -774,7 +774,7 @@ public:
 			MaxVertexIndex = HairVertexCount * 6;
 			#endif
 			bUseCulling = Instance->Strands.bIsCullingEnabled;
-			NumPrimitive = bUseCulling ? 0 : HairVertexCount * 2 * 3;
+			NumPrimitive = bUseCulling ? 0 : HairVertexCount * 2;
 			if (MaterialRenderProxy == nullptr)
 			{
 				MaterialRenderProxy = HairGroupMaterialProxies[GroupIndex].Strands;
@@ -861,7 +861,7 @@ public:
 		#if USE_HAIR_TRIANGLE_STRIP
 		Mesh.Type = GeometryType == EHairGeometryType::Strands ? PT_TriangleStrip : PT_TriangleList;
 		#else
-		Mesh.Type = GeometryType == PT_TriangleList;
+		Mesh.Type = PT_TriangleList;
 		#endif
 		Mesh.DepthPriorityGroup = SDPG_World;
 		Mesh.bCanApplyViewModeOverrides = false;
