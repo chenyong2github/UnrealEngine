@@ -349,10 +349,14 @@ public:
 #if WITH_EDITOR
 		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FRemoteControlModule::HandleEnginePostInit);
 #endif
+
+		FCoreUObjectDelegates::PreLoadMap.AddRaw(this, &FRemoteControlModule::HandleMapPreLoad);
 	}
 
 	virtual void ShutdownModule() override
 	{
+		FCoreUObjectDelegates::PreLoadMap.RemoveAll(this);
+
 #if WITH_EDITOR
 		UnregisterEditorDelegates();
 		FCoreDelegates::OnPostEngineInit.RemoveAll(this);
@@ -1283,6 +1287,12 @@ private:
 	{
 		CachePresets();
 		RegisterEditorDelegates();
+	}
+
+	void HandleMapPreLoad(const FString& MapName)
+	{
+		constexpr bool bForceFinalizeChange = true;
+		TestOrFinalizeOngoingChange(bForceFinalizeChange);
 	}
 
 	void RegisterEditorDelegates()
