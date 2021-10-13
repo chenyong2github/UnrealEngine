@@ -49,7 +49,7 @@ static FAutoConsoleVariableRef CVarUseProxyLocalToWorld(TEXT("r.HairStrands.UseP
 
 #define LOCTEXT_NAMESPACE "GroomComponent"
 
-#define USE_HAIR_TRIANGLE_STRIP 1
+#define USE_HAIR_TRIANGLE_STRIP 0
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -774,7 +774,7 @@ public:
 			MaxVertexIndex = HairVertexCount * 6;
 			#endif
 			bUseCulling = Instance->Strands.bIsCullingEnabled;
-			NumPrimitive = bUseCulling ? 0 : HairVertexCount * 2;
+			NumPrimitive = bUseCulling ? 0 : HairVertexCount * 2 * 3;
 			if (MaterialRenderProxy == nullptr)
 			{
 				MaterialRenderProxy = HairGroupMaterialProxies[GroupIndex].Strands;
