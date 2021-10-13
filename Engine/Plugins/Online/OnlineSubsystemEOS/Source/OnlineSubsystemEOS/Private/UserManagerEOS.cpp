@@ -1217,6 +1217,18 @@ ELoginStatus::Type FUserManagerEOS::GetLoginStatus(const FUniqueNetIdEOS& UserId
 		return ELoginStatus::NotLoggedIn;
 	}
 
+	FEOSSettings Settings = UEOSSettings::GetSettings();
+	// If the user isn't using EAS, then only check for a product user id
+	if (!Settings.bUseEAS)
+	{
+		EOS_ProductUserId ProductUserId = StringToProductUserIdMap[UserId.UniqueNetIdStr];
+		if (ProductUserId != nullptr)
+		{
+			return ELoginStatus::LoggedIn;
+		}
+		return ELoginStatus::NotLoggedIn;
+	}
+
 	EOS_EpicAccountId AccountId = StringToAccountIdMap[UserId.UniqueNetIdStr];
 	if (AccountId == nullptr)
 	{
