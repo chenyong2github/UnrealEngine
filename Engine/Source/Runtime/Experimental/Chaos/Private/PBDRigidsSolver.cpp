@@ -994,44 +994,47 @@ namespace Chaos
 		//need to create new particle handles
 		DirtyProxiesData->ForEachProxy([this,&ProcessProxyPT](int32 DataIdx,FDirtyProxy& Dirty)
 		{
-			switch(Dirty.Proxy->GetType())
+			if(Dirty.Proxy->GetIgnoreDataOnStep_Internal() != CurrentFrame)
 			{
-				case EPhysicsProxyType::SingleParticleProxy:
+				switch(Dirty.Proxy->GetType())
 				{
-					auto Proxy = static_cast<FSingleParticlePhysicsProxy*>(Dirty.Proxy);
-					ProcessProxyPT(Proxy, DataIdx, Dirty, [this, &Dirty](const FUniqueIdx* UniqueIdx) -> TGeometryParticleHandle<FReal,3>*
+					case EPhysicsProxyType::SingleParticleProxy:
 					{
-						switch (Dirty.PropertyData.GetParticleBufferType())
+						auto Proxy = static_cast<FSingleParticlePhysicsProxy*>(Dirty.Proxy);
+						ProcessProxyPT(Proxy, DataIdx, Dirty, [this, &Dirty](const FUniqueIdx* UniqueIdx) -> TGeometryParticleHandle<FReal,3>*
 						{
-							case EParticleType::Static: return Particles.CreateStaticParticles(1, UniqueIdx)[0];
-							case EParticleType::Kinematic: return Particles.CreateKinematicParticles(1, UniqueIdx)[0];
-							case EParticleType::Rigid: return Particles.CreateDynamicParticles(1, UniqueIdx)[0];
-							default: check(false); return nullptr;
-						}
-					});
-					break;
-				}
+							switch (Dirty.PropertyData.GetParticleBufferType())
+							{
+								case EParticleType::Static: return Particles.CreateStaticParticles(1, UniqueIdx)[0];
+								case EParticleType::Kinematic: return Particles.CreateKinematicParticles(1, UniqueIdx)[0];
+								case EParticleType::Rigid: return Particles.CreateDynamicParticles(1, UniqueIdx)[0];
+								default: check(false); return nullptr;
+							}
+						});
+						break;
+					}
 			
-				case EPhysicsProxyType::GeometryCollectionType:
-				{
-					auto Proxy = static_cast<FGeometryCollectionPhysicsProxy*>(Dirty.Proxy);
-					Proxy->PushToPhysicsState();
-					// Currently no push needed for geometry collections and they handle the particle creation internally
-					// #TODO This skips the rewind data push so GC will not be rewindable until resolved.
-					Dirty.Proxy->ResetDirtyIdx();
-					break;
-				}
-				case EPhysicsProxyType::JointConstraintType:
-				case EPhysicsProxyType::SuspensionConstraintType:
-				{
-					// Pass until after all bodies are created. 
-					break;
-				}
-				default:
-				{
-					ensure(0 && TEXT("Unknown proxy type in physics solver."));
-					//Can't use, but we can still mark as "clean"
-					Dirty.Proxy->ResetDirtyIdx();
+					case EPhysicsProxyType::GeometryCollectionType:
+					{
+						auto Proxy = static_cast<FGeometryCollectionPhysicsProxy*>(Dirty.Proxy);
+						Proxy->PushToPhysicsState();
+						// Currently no push needed for geometry collections and they handle the particle creation internally
+						// #TODO This skips the rewind data push so GC will not be rewindable until resolved.
+						Dirty.Proxy->ResetDirtyIdx();
+						break;
+					}
+					case EPhysicsProxyType::JointConstraintType:
+					case EPhysicsProxyType::SuspensionConstraintType:
+					{
+						// Pass until after all bodies are created. 
+						break;
+					}
+					default:
+					{
+						ensure(0 && TEXT("Unknown proxy type in physics solver."));
+						//Can't use, but we can still mark as "clean"
+						Dirty.Proxy->ResetDirtyIdx();
+					}
 				}
 			}
 		});
@@ -1039,44 +1042,47 @@ namespace Chaos
 		//need to create new constraint handles
 		DirtyProxiesData->ForEachProxy([this, &ProcessProxyPT, Manager, RewindData](int32 DataIdx, FDirtyProxy& Dirty)
 		{
-			switch (Dirty.Proxy->GetType())
+			if (Dirty.Proxy->GetIgnoreDataOnStep_Internal() != CurrentFrame)
 			{
-			case EPhysicsProxyType::JointConstraintType:
-			{
-				auto JointProxy = static_cast<FJointConstraintPhysicsProxy*>(Dirty.Proxy);
-				const bool bIsNew = !JointProxy->IsInitialized();
-				if (bIsNew)
+				switch (Dirty.Proxy->GetType())
 				{
-					JointConstraintPhysicsProxies_Internal.Add(JointProxy);
-					JointProxy->InitializeOnPhysicsThread(this, *Manager, DataIdx, Dirty.PropertyData);
-					JointProxy->SetInitialized(GetCurrentFrame());
-				}
+				case EPhysicsProxyType::JointConstraintType:
+				{
+					auto JointProxy = static_cast<FJointConstraintPhysicsProxy*>(Dirty.Proxy);
+					const bool bIsNew = !JointProxy->IsInitialized();
+					if (bIsNew)
+					{
+						JointConstraintPhysicsProxies_Internal.Add(JointProxy);
+						JointProxy->InitializeOnPhysicsThread(this, *Manager, DataIdx, Dirty.PropertyData);
+						JointProxy->SetInitialized(GetCurrentFrame());
+					}
 
-				//TODO: if we support predicting creation / destruction of joints need to handle null joint case
-				if (RewindData)
-				{
-					RewindData->PushGTDirtyData(*Manager, DataIdx, Dirty, nullptr);
-				}
+					//TODO: if we support predicting creation / destruction of joints need to handle null joint case
+					if (RewindData)
+					{
+						RewindData->PushGTDirtyData(*Manager, DataIdx, Dirty, nullptr);
+					}
 				
-				JointProxy->PushStateOnPhysicsThread(this, *Manager, DataIdx, Dirty.PropertyData);
-				Dirty.Proxy->ResetDirtyIdx();
-				break;
-			}
-
-			case EPhysicsProxyType::SuspensionConstraintType:
-			{
-				auto SuspensionProxy = static_cast<FSuspensionConstraintPhysicsProxy*>(Dirty.Proxy);
-				const bool bIsNew = !SuspensionProxy->IsInitialized();
-				if (bIsNew)
-				{
-					SuspensionProxy->InitializeOnPhysicsThread(this, *Manager, DataIdx, Dirty.PropertyData);
-					SuspensionProxy->SetInitialized();
+					JointProxy->PushStateOnPhysicsThread(this, *Manager, DataIdx, Dirty.PropertyData);
+					Dirty.Proxy->ResetDirtyIdx();
+					break;
 				}
-				SuspensionProxy->PushStateOnPhysicsThread(this, *Manager, DataIdx, Dirty.PropertyData);
-				Dirty.Proxy->ResetDirtyIdx();
-				break;
-			}
 
+				case EPhysicsProxyType::SuspensionConstraintType:
+				{
+					auto SuspensionProxy = static_cast<FSuspensionConstraintPhysicsProxy*>(Dirty.Proxy);
+					const bool bIsNew = !SuspensionProxy->IsInitialized();
+					if (bIsNew)
+					{
+						SuspensionProxy->InitializeOnPhysicsThread(this, *Manager, DataIdx, Dirty.PropertyData);
+						SuspensionProxy->SetInitialized();
+					}
+					SuspensionProxy->PushStateOnPhysicsThread(this, *Manager, DataIdx, Dirty.PropertyData);
+					Dirty.Proxy->ResetDirtyIdx();
+					break;
+				}
+
+				}
 			}
 		});
 

@@ -587,6 +587,108 @@ namespace ChaosTest {
 			});
 	}
 
+	GTEST_TEST(AllTraits, RewindTest_SpawnEarlierCorrection2)
+	{
+		// Test resim when object spawned earlier as part of correction
+		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
+			{
+				FSingleParticlePhysicsProxy* SpawnedProxy = nullptr;
+				FSingleParticlePhysicsProxy* SpawnedProxyNoCorrection = nullptr;
+
+				bool bHasResimmed = false;
+
+				FRewindCallbackTestHelper* Helper = RegisterCallbackHelper(Solver);
+				Helper->TriggerRewindFunc = [&SpawnedProxy, &SpawnedProxyNoCorrection, &bHasResimmed](int32 PhysicsStep) -> int32
+				{
+					
+					if(!bHasResimmed && SpawnedProxy)
+					{
+						bHasResimmed = true;
+						return 0;
+					}
+					
+					return INDEX_NONE;
+				};
+
+				Helper->ProcessInputsFunc = [RewindData = Solver->GetRewindData(), SimDt, &SpawnedProxy, &SpawnedProxyNoCorrection, &bHasResimmed](int32 PhysicsStep, bool bIsResimming)
+				{
+					const FReal Time = PhysicsStep * SimDt;
+
+					if (bIsResimming && SpawnedProxy)
+					{
+						if (PhysicsStep == 10)
+						{
+							RewindData->SpawnProxyIfNeeded(*SpawnedProxy);
+							SpawnedProxy->GetPhysicsThreadAPI()->SetX(FVec3(500, 0, 100.0));
+							
+						}
+					}
+
+					if (SpawnedProxy && SpawnedProxyNoCorrection)
+					{
+						auto PT0 = SpawnedProxy->GetPhysicsThreadAPI();
+						auto PT1 = SpawnedProxyNoCorrection->GetPhysicsThreadAPI();
+						
+						// After we've applied the correction and simmed past frame 10, we expect the first proxy to be "ahead" of the second one that didn't get corrected
+						if (bHasResimmed && PhysicsStep > 10)
+						{
+							EXPECT_LT(PT0->X()[2], PT1->X()[2]);
+						}
+					}					
+				};
+
+				const int32 LastGameStep = 32;
+				
+				auto SphereGeom = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
+
+				auto& Particle = Proxy->GetGameThreadAPI();
+				Particle.SetGravityEnabled(false);
+				Particle.SetV(FVec3(0, 0, -1));
+				Particle.SetX(FVec3(0, 0, 14.5));
+
+				ChaosTest::SetParticleSimDataToCollide({ Proxy->GetParticle_LowLevel() });
+
+				for (int Step = 0; Step <= LastGameStep; ++Step)
+				{
+					TickSolverHelper(Solver);
+
+					//spawn floor way late to ensure no collision on first run
+					if (Step == 12)
+					{
+
+						// Make particles. E.g:
+						//	we just found out from the server these were spawned and these are the latest positions replicated from the server.
+						//	but actually these positions are the server positions from frame 10. Lets see if we can correct this.
+						{
+							SpawnedProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
+							auto& GT = SpawnedProxy->GetGameThreadAPI();
+
+							GT.SetV(FVec3(0, 0, 0.0));
+							GT.SetX(FVec3(500, 0, 100.0));
+
+							GT.SetGeometry(SphereGeom);
+							Solver->RegisterObject(SpawnedProxy);
+							ChaosTest::SetParticleSimDataToCollide({ SpawnedProxy->GetParticle_LowLevel() });
+						}
+
+						{
+							SpawnedProxyNoCorrection = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
+							auto& GT = SpawnedProxyNoCorrection->GetGameThreadAPI();
+
+							GT.SetV(FVec3(0, 0, 0.0));
+							GT.SetX(FVec3(100, 0, 100.0));
+
+							GT.SetGeometry(SphereGeom);
+							Solver->RegisterObject(SpawnedProxyNoCorrection);
+							ChaosTest::SetParticleSimDataToCollide({ SpawnedProxyNoCorrection->GetParticle_LowLevel() });
+						}
+						
+
+					}
+				}
+			});
+	}
+
 	GTEST_TEST(AllTraits, RewindTest_MovingToNotMovingInterpolation)
 	{
 		//
