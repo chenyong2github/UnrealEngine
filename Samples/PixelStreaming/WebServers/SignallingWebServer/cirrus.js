@@ -244,8 +244,21 @@ if (config.UseHTTPS) {
 
 console.logColor(logging.Cyan, `Running Cirrus - The Pixel Streaming reference implementation signalling server for Unreal Engine 4.27.`);
 
+/////////////////////////////////////////////////////////////////////////
+// Create Websocket server for UE "streamer" to communicate with Cirrus.
+/////////////////////////////////////////////////////////////////////////
+
 let WebSocket = require('ws');
-let streamerServer = new WebSocket.Server({ port: streamerPort, backlog: 1 });
+
+let streamerServerOptions = !config.UseHTTPS ? {} : {
+	key: fs.readFileSync(path.join(__dirname, './certificates/client-key.pem')),
+	cert: fs.readFileSync(path.join(__dirname, './certificates/client-cert.pem')) //note this cert must be full chain (i.e. contain domain cert and CA cert)
+};
+
+var streamerHttpServer = require(config.UseHTTPS ? 'https' : 'http').Server(streamerServerOptions);
+streamerHttpServer.listen(streamerPort);
+let streamerServer = new WebSocket.Server({ server: streamerHttpServer, backlog: 1 });
+
 console.logColor(logging.Green, `WebSocket listening to Streamer connections on :${streamerPort}`)
 let streamer; // WebSocket connected to Streamer
 
@@ -328,6 +341,10 @@ streamerServer.on('connection', function (ws, req) {
 
 	streamer.send(JSON.stringify(clientConfig));
 });
+
+//////////////////////////////////////////////////////////////////////////////
+// Create Websocket server for players (browsers) to communicate with Cirrus.
+//////////////////////////////////////////////////////////////////////////////
 
 let playerServer = new WebSocket.Server({ server: config.UseHTTPS ? https : http});
 console.logColor(logging.Green, `WebSocket listening to Players connections on :${httpPort}`)
