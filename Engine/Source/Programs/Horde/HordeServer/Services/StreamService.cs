@@ -99,12 +99,13 @@ namespace HordeServer.Services
 		{
 			for (; Stream != null; Stream = await GetStreamAsync(Stream.Id))
 			{
-				if (await Streams.TryUpdatePauseStateAsync(Stream, NewPausedUntil, NewPauseComment))
+				IStream? NewStream = await Streams.TryUpdatePauseStateAsync(Stream, NewPausedUntil, NewPauseComment);
+				if (NewStream != null)
 				{
-					break;
+					return NewStream;
 				}
 			}
-			return Stream;
+			return null;
 		}
 
 		/// <summary>
@@ -133,12 +134,15 @@ namespace HordeServer.Services
 				}
 
 				List<ObjectId> NewActiveJobs = TemplateRef.Schedule.ActiveJobs.Except(RemoveJobs).Union(AddJobs).ToList();
-				if (await Streams.TryUpdateScheduleTriggerAsync(NewStream, TemplateRefId, LastTriggerTime, LastTriggerChange, NewActiveJobs))
+
+				NewStream = await Streams.TryUpdateScheduleTriggerAsync(NewStream, TemplateRefId, LastTriggerTime, LastTriggerChange, NewActiveJobs);
+
+				if (NewStream != null)
 				{
 					return NewStream;
 				}
 
-				NewStream = await Streams.GetAsync(NewStream.Id);
+				NewStream = await Streams.GetAsync(Stream.Id);
 			}
 			return null;
 		}

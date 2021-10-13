@@ -646,46 +646,6 @@ namespace HordeServer.Models
 		}
 
 		/// <summary>
-		/// Checks the stream definition for consistency
-		/// </summary>
-		/// <param name="Stream">The stream object</param>
-		public static void Validate(this IStream Stream)
-		{
-			// Check the default preflight template is valid
-			if (Stream.DefaultPreflight != null)
-			{
-				if (Stream.DefaultPreflight.TemplateRefId != null && !Stream.Templates.ContainsKey(Stream.DefaultPreflight.TemplateRefId.Value))
-				{
-					throw new InvalidStreamException($"Default preflight template was listed as '{Stream.DefaultPreflight.TemplateRefId.Value}', but no template was found by that name");
-				}
-			}
-
-			// Check that all the templates are referenced by a tab
-			HashSet<TemplateRefId> RemainingTemplates = new HashSet<TemplateRefId>(Stream.Templates.Keys);
-			foreach(JobsTab JobsTab in Stream.Tabs.OfType<JobsTab>())
-			{
-				if (JobsTab.Templates != null)
-				{
-					RemainingTemplates.ExceptWith(JobsTab.Templates);
-				}
-			}
-			if(RemainingTemplates.Count > 0)
-			{
-				throw new InvalidStreamException(String.Join("\n", RemainingTemplates.Select(x => $"Template '{x}' is not listed on any tab for {Stream.Id}")));
-			}
-
-			// Check that all the agent types reference valid workspace names
-			foreach (KeyValuePair<string, AgentType> Pair in Stream.AgentTypes)
-			{
-				string? WorkspaceTypeName = Pair.Value.Workspace;
-				if (WorkspaceTypeName != null && !Stream.WorkspaceTypes.ContainsKey(WorkspaceTypeName))
-				{
-					throw new InvalidStreamException($"Agent type '{Pair.Key}' references undefined workspace type '{Pair.Value.Workspace}' in {Stream.Id}");
-				}
-			}
-		}
-
-		/// <summary>
 		/// Converts to a public response object
 		/// </summary>
 		/// <param name="Stream">The stream object</param>
