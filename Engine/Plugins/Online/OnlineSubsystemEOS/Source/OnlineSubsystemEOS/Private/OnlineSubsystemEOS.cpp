@@ -142,6 +142,8 @@ struct FEOSPlatformOptions :
 
 FPlatformEOSHelpersPtr FOnlineSubsystemEOS::EOSHelpersPtr;
 
+bool FCallbackBase::bShouldCancelAllCallbacks = false;
+
 void FOnlineSubsystemEOS::ModuleInit()
 {
 	EOSHelpersPtr = MakeShareable(new FPlatformEOSHelpers());
@@ -392,6 +394,7 @@ bool FOnlineSubsystemEOS::Shutdown()
 {
 	UE_LOG_ONLINE(VeryVerbose, TEXT("FOnlineSubsystemEOS::Shutdown()"));
 
+	FCallbackBase::CancelAllCallbacks();
 	StopTicker();
 	FOnlineSubsystemImpl::Shutdown();
 	SocketSubsystem->Shutdown();
