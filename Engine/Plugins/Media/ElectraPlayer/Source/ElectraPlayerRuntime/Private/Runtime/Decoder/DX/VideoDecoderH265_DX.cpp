@@ -1084,10 +1084,6 @@ void FVideoDecoderH265::HandleApplicationWillEnterBackground()
 {
 	ApplicationSuspendConfirmedSignal.Reset();
 	ApplicationRunningSignal.Reset();
-	if (!ApplicationSuspendConfirmedSignal.WaitTimeoutAndReset(1000 * 500))
-	{
-		UE_LOG(LogElectraPlayer, Log, TEXT("FVideoDecoderH265(%p): Did not suspend in time"), this);
-	}
 }
 
 
