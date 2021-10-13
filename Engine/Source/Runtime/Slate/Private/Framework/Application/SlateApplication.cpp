@@ -6641,6 +6641,11 @@ bool FSlateApplication::ProcessDragEnterEvent( TSharedRef<SWindow> WindowEntered
 	SetLastUserInteractionTime(this->GetCurrentTime());
 	
 	FWidgetPath WidgetsUnderCursor = LocateWindowUnderMouse( DragDropEvent.GetScreenSpacePosition(), GetInteractiveTopLevelWindows(), false, DragDropEvent.GetUserIndex());
+	// There are no "interactable" widget under the cursor.
+	if (!WidgetsUnderCursor.IsValid())
+	{
+		return false;
+	}
 
 	// Switch worlds for widgets in the current path
 	FScopedSwitchWorldHack SwitchWorld( WidgetsUnderCursor );
