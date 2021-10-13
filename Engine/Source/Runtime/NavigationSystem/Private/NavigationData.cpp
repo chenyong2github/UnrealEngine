@@ -219,12 +219,6 @@ void ANavigationData::PostLoad()
 {
 	Super::PostLoad();
 
-	if ((GetLinkerUEVersion() < VER_UE4_ADD_MODIFIERS_RUNTIME_GENERATION) &&
-		(RuntimeGeneration == ERuntimeGenerationType::LegacyGeneration))
-	{
-		RuntimeGeneration = bRebuildAtRuntime_DEPRECATED ? ERuntimeGenerationType::Dynamic : ERuntimeGenerationType::Static;
-	}
-
 	InstantiateAndRegisterRenderingComponent();
 
 	bNetLoadOnClient = FNavigationSystem::ShouldLoadNavigationOnClient(*this);
