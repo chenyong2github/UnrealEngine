@@ -147,12 +147,12 @@ struct FHairCardsInterpolationFormat
 
 struct FHairOrientedBound
 {
-	FVector Center;
-	FVector ExtentX;
-	FVector ExtentY;
-	FVector ExtentZ;
+	FVector3f Center;
+	FVector3f ExtentX;
+	FVector3f ExtentY;
+	FVector3f ExtentZ;
 
-	FVector& Extent(uint8 Axis)
+	FVector3f& Extent(uint8 Axis)
 	{
 		if (Axis == 0) return ExtentX;
 		if (Axis == 1) return ExtentY;
@@ -160,7 +160,7 @@ struct FHairOrientedBound
 		return ExtentX;
 	}
 
-	const FVector& Extent(uint8 Axis) const
+	const FVector3f& Extent(uint8 Axis) const
 	{
 		if (Axis == 0) return ExtentX;
 		if (Axis == 1) return ExtentY;
@@ -177,9 +177,9 @@ struct FHairCardsGeometry
 {
 	// Geometry
 	TArray<FVector4> UVs;
-	TArray<FVector>  Normals;
-	TArray<FVector>  Tangents;
-	TArray<FVector>  Positions;
+	TArray<FVector3f>Normals;
+	TArray<FVector3f>Tangents;
+	TArray<FVector3f>Positions;
 	TArray<uint32>   Indices;
 	TArray<float>    CoordU; // Transient data storing [0..1] parametric value along main axis. This is used for generating guides & interpolation data
 
@@ -293,8 +293,8 @@ struct FHairCardsVoxel
 	FRDGExternalBuffer NormalBuffer;
 	FRDGExternalBuffer DensityBuffer;
 	FIntVector	Resolution;
-	FVector		MinBound;
-	FVector		MaxBound;
+	FVector3f	MinBound;
+	FVector3f	MaxBound;
 	float		VoxelSize;
 };
 
@@ -344,12 +344,12 @@ struct FHairCardsProceduralAtlas
 		FIntPoint Resolution = FIntPoint(0, 0);
 		uint32 VertexOffset = 0;
 		uint32 VertexCount = 0;
-		FVector MinBound = FVector::ZeroVector;
-		FVector MaxBound = FVector::ZeroVector;
+		FVector3f MinBound = FVector3f::ZeroVector;
+		FVector3f MaxBound = FVector3f::ZeroVector;
 
-		FVector RasterAxisX = FVector::ZeroVector;
-		FVector RasterAxisY = FVector::ZeroVector;
-		FVector RasterAxisZ = FVector::ZeroVector;
+		FVector3f RasterAxisX = FVector3f::ZeroVector;
+		FVector3f RasterAxisY = FVector3f::ZeroVector;
+		FVector3f RasterAxisZ = FVector3f::ZeroVector;
 
 		float CardWidth = 0;
 		float CardLength = 0;
@@ -407,9 +407,9 @@ struct FHairMeshes
 {
 	// Geometry
 	TArray<FVector2D> UVs;
-	TArray<FVector>   Normals;
-	TArray<FVector>   Tangents;
-	TArray<FVector>   Positions;
+	TArray<FVector3f> Normals;
+	TArray<FVector3f> Tangents;
+	TArray<FVector3f> Positions;
 	TArray<uint32>    Indices;
 
 	FBox BoundingBox;

@@ -91,7 +91,7 @@ FVector4f ComputeDeepShadowLayerDepths(float LayerDistribution)
 
 struct FHairStrandsTransmittanceLightParams
 {
-	FVector LightDirection = FVector::ZeroVector;
+	FVector3f LightDirection = FVector3f::ZeroVector;
 	FVector4f LightPosition = FVector4f(0, 0, 0, 0);
 	uint32 LightChannelMask = 0;
 	float LightRadius = 0;
@@ -454,7 +454,7 @@ IMPLEMENT_GLOBAL_SHADER(FHairStrandsVoxelShadowMaskPS, "/Engine/Private/HairStra
 struct FHairStrandsVoxelShadowParams
 {
 	bool			bIsWholeSceneLight = false;
-	FVector			Voxel_LightDirection = FVector::ZeroVector;
+	FVector3f		Voxel_LightDirection = FVector3f::ZeroVector;
 	FVector4f		Voxel_LightPosition = FVector4f(0, 0, 0, 0);
 	uint32			Voxel_MacroGroupId;
 };

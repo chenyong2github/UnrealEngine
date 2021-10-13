@@ -169,7 +169,7 @@ void ComputeWorldToLightClip(
 	WorldToClipTransform = FMatrix::Identity;
 	if (LightType == LightType_Directional)
 	{
-		const FVector LightDirection = LightProxy.GetDirection();
+		const FVector3f LightDirection = LightProxy.GetDirection();
 		FReversedZOrthoMatrix OrthoMatrix(SphereRadius, SphereRadius, 1.f / (2 * SphereRadius), 0);
 		FLookAtMatrix LookAt(SphereBound.Center - LightDirection * SphereRadius, SphereBound.Center, FVector(0, 0, 1));
 		WorldToClipTransform = LookAt * OrthoMatrix;
@@ -181,7 +181,6 @@ void ComputeWorldToLightClip(
 	}
 	else if (LightType == LightType_Spot || LightType == LightType_Point)
 	{
-		const FVector LightDirection = LightPosition - PrimitivesBounds.GetSphere().Center;
 		const float SphereDistance = FVector::Distance(LightPosition, SphereBound.Center);
 		float HalfFov = asin(SphereRadius / SphereDistance);
 		HalfFov = FMath::Min(HalfFov, MaxDeepShadowFrustumHalfAngleInRad);
@@ -193,7 +192,6 @@ void ComputeWorldToLightClip(
 	}
 	else if (LightType == LightType_Rect)
 	{
-		const FVector LightDirection = LightPosition - PrimitivesBounds.GetSphere().Center;
 		const float SphereDistance = FVector::Distance(LightPosition, SphereBound.Center);
 		float HalfFov = asin(SphereRadius / SphereDistance);
 		HalfFov = FMath::Min(HalfFov, MaxDeepShadowFrustumHalfAngleInRad);
