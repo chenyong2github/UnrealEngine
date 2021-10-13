@@ -105,7 +105,7 @@ PACKAGE_SCOPE:
 	{
 		TArray<FString> AccountIds;
 		UniqueNetIdStr.ParseIntoArray(AccountIds, EOS_ID_SEPARATOR, false);
-		if (AccountIds.Num() > 0)
+		if (AccountIds.Num() > 0 && AccountIds[0].Len() > 0)
 		{
 			EpicAccountIdStr = AccountIds[0];
 		}
@@ -114,7 +114,7 @@ PACKAGE_SCOPE:
 			EpicAccountIdStr = EMPTY_EASID;
 		}
 		AddToBuffer(RawBytes, EpicAccountIdStr);
-		if (AccountIds.Num() > 1)
+		if (AccountIds.Num() > 1 && AccountIds[1].Len() > 0)
 		{
 			ProductUserIdStr = AccountIds[1];
 		}
