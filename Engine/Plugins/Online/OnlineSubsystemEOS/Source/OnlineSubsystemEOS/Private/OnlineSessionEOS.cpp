@@ -3346,9 +3346,12 @@ void FOnlineSessionEOS::SetLobbyAttributes(EOS_HLobbyModification LobbyModificat
 	// The second will let us find it on lobby searches
 	FString Keyword;
 	Session->SessionSettings.Get(SEARCH_KEYWORDS, Keyword);
-	const FString SearchKeywords(TEXT("FOSS=") + SEARCH_KEYWORDS.ToString());
-	const FLobbyAttributeOptions SearchKeywordsAttribute(TCHAR_TO_UTF8(*SearchKeywords), TCHAR_TO_UTF8(*Keyword));
-	AddLobbyAttribute(LobbyModificationHandle, &SearchKeywordsAttribute);
+	if (!Keyword.IsEmpty())
+	{
+		const FString SearchKeywords(TEXT("FOSS=") + SEARCH_KEYWORDS.ToString());
+		const FLobbyAttributeOptions SearchKeywordsAttribute(TCHAR_TO_UTF8(*SearchKeywords), TCHAR_TO_UTF8(*Keyword));
+		AddLobbyAttribute(LobbyModificationHandle, &SearchKeywordsAttribute);
+	}
 
 	// We set the session's owner id and name
 	const FLobbyAttributeOptions OwnerId("OwningUserId", TCHAR_TO_UTF8(*Session->OwningUserId->ToString()));
