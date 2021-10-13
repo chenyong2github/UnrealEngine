@@ -78,6 +78,9 @@ public:
 	void SetResimSmoothing(bool ResimSmoothing) { bResimSmoothing = ResimSmoothing; }
 	bool IsResimSmoothing() const { return bResimSmoothing; }
 
+	int32 GetInterpChannel_External() const { return InterpChannel_External; }
+	void SetInterpChannel_External(int32 Channel) { InterpChannel_External = Channel; }
+
 	int32 GetPullDataInterpIdx_External() const { return PullDataInterpIdx_External; }
 
 	FORCEINLINE FRigidBodyHandle_External& GetGameThreadAPI()
@@ -180,7 +183,7 @@ private:
 
 	//Used by interpolation code
 	int32 PullDataInterpIdx_External;
-
+	int32 InterpChannel_External = 0;
 	bool bResimSmoothing = false;
 
 	//use static Create

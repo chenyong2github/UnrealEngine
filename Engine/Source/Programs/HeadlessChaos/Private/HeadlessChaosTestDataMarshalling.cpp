@@ -223,9 +223,9 @@ namespace ChaosTest
 				const FReal StartTime = ExternalTime;	//external time we would have kicked the sim task off with
 				ExternalTime += ExternalDt;
 				MarshallingManager.FinalizePullData_Internal(Step, StartTime, ExternalDt);
-				const FChaosInterpolationResults& Results = ResultsManager.PullAsyncPhysicsResults_External(ExternalTime);
-				EXPECT_EQ(Results.Alpha, 1);	//async mode but no buffer so no interpolation
-				EXPECT_EQ(Results.Next->ExternalStartTime, StartTime);	//async mode but no buffer so should appear the same as sync
+				TArray<const FChaosInterpolationResults*> Results = ResultsManager.PullAsyncPhysicsResults_External(ExternalTime);
+				EXPECT_EQ(Results[0]->Alpha, 1);	//async mode but no buffer so no interpolation
+				EXPECT_EQ(Results[0]->Next->ExternalStartTime, StartTime);	//async mode but no buffer so should appear the same as sync
 			}
 		}
 
@@ -244,18 +244,18 @@ namespace ChaosTest
 				ExternalTime += ExternalDt;
 				const FReal RenderTime = ExternalTime - Delay;
 				MarshallingManager.FinalizePullData_Internal(Step, StartTime, ExternalDt);
-				FChaosInterpolationResults Results = ResultsManager.PullAsyncPhysicsResults_External(RenderTime);
+				TArray<const FChaosInterpolationResults*> Results = ResultsManager.PullAsyncPhysicsResults_External(RenderTime);
 				if(RenderTime < 0)
 				{
 					EXPECT_LT(Step, 2);	//first two frames treat as sync mode since we don't have enough delay
-					EXPECT_EQ(Results.Alpha, 1);
-					EXPECT_EQ(Results.Next, nullptr);
+					EXPECT_EQ(Results[0]->Alpha, 1);
+					EXPECT_EQ(Results[0]->Next, nullptr);
 				}
 				else
 				{
 					//after first two frames we have enough to interpolate
 					EXPECT_GE(Step, 2);
-					EXPECT_GT(Results.Next->ExternalEndTime, RenderTime);
+					EXPECT_GT(Results[0]->Next->ExternalEndTime, RenderTime);
 				}
 
 				PreTime = StartTime;
@@ -285,18 +285,18 @@ namespace ChaosTest
 					MarshallingManager.FinalizePullData_Internal(InnerStepTotal++, StartTime + InnerDt * InnerStep, InnerDt);
 				}
 
-				FChaosInterpolationResults Results = ResultsManager.PullAsyncPhysicsResults_External(RenderTime);
+				TArray<const FChaosInterpolationResults*> Results = ResultsManager.PullAsyncPhysicsResults_External(RenderTime);
 				if (RenderTime < 0)
 				{
 					EXPECT_LT(Step, 2);	//first two frames treat as sync mode since we don't have enough delay
-					EXPECT_EQ(Results.Alpha, 1);
-					EXPECT_EQ(Results.Next, nullptr);	//until we have enough results we just use the first result
+					EXPECT_EQ(Results[0]->Alpha, 1);
+					EXPECT_EQ(Results[0]->Next, nullptr);	//until we have enough results we just use the first result
 				}
 				else
 				{
 					//after first two frames we have enough to interpolate
 					EXPECT_GE(Step, 2);
-					EXPECT_GT(Results.Next->ExternalEndTime, RenderTime);
+					EXPECT_GT(Results[0]->Next->ExternalEndTime, RenderTime);
 				}
 
 				PreTime = StartTime;

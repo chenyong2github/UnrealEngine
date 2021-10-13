@@ -32,21 +32,26 @@ namespace Chaos
 			//case 4: prev has no dirty data and next does. In this case interpolate from gt data to next
 			//case 5: prev has no dirty data and next was overwritten. In this case do nothing as the overwritten data wins, and also particle may be deleted
 
-			const FChaosInterpolationResults& Results = PullResultsManager->PullAsyncPhysicsResults_External(ResultsTime);
-			LatestData = Results.Next;
-			//todo: go wide
-			const int32 SolverTimestamp = Results.Next ? Results.Next->SolverTimestamp : INDEX_NONE;
-			for(const FChaosRigidInterpolationData& RigidInterp : Results.RigidInterpolations)
+			TArray<const FChaosInterpolationResults*> ResultsPerChannel = PullResultsManager->PullAsyncPhysicsResults_External(ResultsTime);
+			for(int32 ChannelIdx = 0; ChannelIdx < ResultsPerChannel.Num(); ++ChannelIdx)
 			{
-				if(FSingleParticlePhysicsProxy* Proxy = RigidInterp.Prev.GetProxy())
+				const FChaosInterpolationResults& Results = *ResultsPerChannel[ChannelIdx];
+				LatestData = Results.Next;
+				//todo: go wide
+				const int32 SolverTimestamp = Results.Next ? Results.Next->SolverTimestamp : INDEX_NONE;
+				for (const FChaosRigidInterpolationData& RigidInterp : Results.RigidInterpolations)
 				{
-					if (Proxy->PullFromPhysicsState(RigidInterp.Prev, SolverTimestamp, &RigidInterp.Next, &Results.Alpha))
+					if (FSingleParticlePhysicsProxy* Proxy = RigidInterp.Prev.GetProxy())
 					{
-						RigidFunc(Proxy);
+						if (Proxy->PullFromPhysicsState(RigidInterp.Prev, SolverTimestamp, &RigidInterp.Next, &Results.Alpha))
+						{
+							RigidFunc(Proxy);
+						}
 					}
+
 				}
-				
 			}
+			
 		}
 		else
 		{

@@ -7,6 +7,9 @@ namespace Chaos
 {
 	class FChaosMarshallingManager;
 	
+	extern FRealSingle SecondChannelDelay;
+	extern int32 DefaultNumActiveChannels;
+
 	struct CHAOS_API FChaosRigidInterpolationData
 	{
 		FDirtyRigidParticleData Prev;
@@ -21,6 +24,17 @@ namespace Chaos
 		{
 		}
 
+		FChaosInterpolationResults(const FChaosInterpolationResults& Other) = delete;
+		FChaosInterpolationResults(FChaosInterpolationResults&& Other)
+			: RigidInterpolations(MoveTemp(Other.RigidInterpolations))
+			, Prev(Other.Prev)
+			, Next(Other.Next)
+			, Alpha(Other.Alpha)
+		{
+			Other.Prev = nullptr;
+			Other.Next = nullptr;
+		}
+
 		void Reset();
 		
 		TArray<FChaosRigidInterpolationData> RigidInterpolations;
@@ -29,38 +43,63 @@ namespace Chaos
 		FRealSingle Alpha;
 	};
 
+	struct FChaosResultsChannel;
+
 	class CHAOS_API FChaosResultsManager
 	{
 	public:
 		FChaosResultsManager(FChaosMarshallingManager& InMarshallingManager);
+		FChaosResultsManager(const FChaosResultsManager& Other) = delete;
+		FChaosResultsManager(FChaosResultsManager&& Other) = default;
 		
 		~FChaosResultsManager();
 
 		const FChaosInterpolationResults& PullSyncPhysicsResults_External();
-		const FChaosInterpolationResults& PullAsyncPhysicsResults_External(const FReal ResultsTime);
+		TArray<const FChaosInterpolationResults*> PullAsyncPhysicsResults_External(const FReal ResultsTime);
 
 		void RemoveProxy_External(FSingleParticlePhysicsProxy* Proxy);
-		void SetLastExternalDt_External(const FReal InExternalDt) { LastExternalDt = InExternalDt; }
+
 	private:
 
-		const FChaosInterpolationResults& UpdateInterpAlpha_External(const FReal ResultsTime, const FReal GlobalAlpha);
-		void ProcessResimResult_External();
-		bool AdvanceResult();
-		void CollapseResultsToLatest();
+		friend FChaosResultsChannel;
 
-		enum class ESetPrevNextDataMode
+		FPullPhysicsData* PopPullData_External(int32 ChannelIdx);
+		void FreePullData_External(FPullPhysicsData* PullData, int32 ChannelIdx);
+
+		TArray<FChaosResultsChannel*> Channels;
+		FChaosMarshallingManager& MarshallingManager;
+
+		static constexpr int32 MaxNumChannels = 2;
+
+		struct FPullDataQueueInfo
 		{
-			Prev,
-			Next,
+			FPullDataQueueInfo(FPullPhysicsData* Data, int32 NumActiveChannels)
+			: PullData(Data)
+			{
+				for(int32 Idx = 0; Idx < NumActiveChannels; ++Idx)
+				{
+					bHasPopped[Idx] = false;
+					bPendingFree[Idx] = false;
+				}
+
+				//inactive channels are treated like they've already consumed the data
+				for (int32 Idx = NumActiveChannels; Idx < MaxNumChannels; ++Idx)
+				{
+					bHasPopped[Idx] = true;
+					bPendingFree[Idx] = true;
+				}
+			}
+
+			FPullDataQueueInfo(FPullDataQueueInfo& Other) = delete;
+			FPullDataQueueInfo(FPullDataQueueInfo&& Other) = default;
+
+			FPullPhysicsData* PullData;
+			bool bHasPopped[MaxNumChannels];
+			bool bPendingFree[MaxNumChannels];
 		};
 
-		template <ESetPrevNextDataMode Mode>
-		void SetPrevNextDataHelper(const FPullPhysicsData& PullData);
-
-		FChaosInterpolationResults Results;
-		FReal LatestTimeSeen = 0;	//we use this to know when resim results are being pushed
-		FChaosMarshallingManager& MarshallingManager;
-		FReal LastExternalDt = 0;
-		TMap<FSingleParticlePhysicsProxy*, FDirtyRigidParticleData> ParticleToResimTarget;
+		TArray<FPullDataQueueInfo> InternalQueue;
+		int32 NumActiveChannels;
+		TArray<FRealSingle> PerChannelTimeDelay;
 	};
 }

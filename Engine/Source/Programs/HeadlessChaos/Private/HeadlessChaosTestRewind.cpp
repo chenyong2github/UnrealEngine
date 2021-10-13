@@ -4201,4 +4201,63 @@ namespace ChaosTest {
 		EXPECT_EQ(MaxAngularError, 0);
 	}
 
+
+	GTEST_TEST(AllTraits, RewindTest_InterpolatedTwoChannels)
+	{
+		int32 PrevNumActiveChannels = Chaos::DefaultNumActiveChannels;
+		Chaos::DefaultNumActiveChannels = 2;
+		//Have two moving particles, one in each channel to see that there's a delay in time on second channel
+		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
+		{
+			if (!Solver->IsUsingAsyncResults()) { return; }
+			auto& Particle = Proxy->GetGameThreadAPI();
+			Particle.SetV(FVec3(0, 0, 1));
+			Particle.SetGravityEnabled(false);
+
+			auto Proxy2 = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
+			auto& Particle2 = Proxy2->GetGameThreadAPI();
+
+			auto Sphere2 = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
+			Particle2.SetGeometry(Sphere2);
+			Particle2.SetV(FVec3(0, 0, 1));
+			Particle2.SetGravityEnabled(false);
+			Proxy2->SetInterpChannel_External(1);
+			Solver->RegisterObject(Proxy2);
+
+			FReal Time = 0;
+			const FReal GtDt = 1;
+			for (int Step = 0; Step < 32; ++Step)
+			{
+				TickSolverHelper(Solver);
+
+				Time += GtDt;
+				const FReal InterpolatedTime0 = Time - SimDt * Chaos::AsyncInterpolationMultiplier;
+				const FReal InterpolatedTime1 = InterpolatedTime0 - Chaos::SecondChannelDelay;
+
+				if (InterpolatedTime0 < 0)
+				{
+					//No movement yet
+					EXPECT_NEAR(Particle.X()[2], 0, 1e-2);
+				}
+				else
+				{
+					EXPECT_NEAR(Particle.X()[2], InterpolatedTime0, 1e-2);
+				}
+
+				if (InterpolatedTime1 < 0)
+				{
+					//No movement yet
+					EXPECT_NEAR(Particle2.X()[2], 0, 1e-2);
+				}
+				else
+				{
+					EXPECT_NEAR(Particle2.X()[2], InterpolatedTime1, 1e-2);
+				}
+			}
+		});
+
+		Chaos::DefaultNumActiveChannels = PrevNumActiveChannels;
+	}
+
+
 }
