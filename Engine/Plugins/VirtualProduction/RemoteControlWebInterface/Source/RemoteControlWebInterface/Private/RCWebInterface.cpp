@@ -7,11 +7,11 @@
 #include "RemoteControlSettings.h"
 #include "IWebRemoteControlModule.h"
 #include "Misc/CommandLine.h"
+#include "Misc/CoreDelegates.h"
 #include "Misc/Parse.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
-#include "Misc/CoreDelegates.h"
 #include "RCWebInterfaceCustomizations.h"
 #endif
 
