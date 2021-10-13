@@ -118,6 +118,7 @@ bool FRecomputeUVsOp::CalculateResult_Basic(FProgressCancel* Progress)
 	}
 
 	// find group-connected-components
+	bool bUseExisingUVTopology = false;
 	FMeshConnectedComponents ConnectedComponents(ResultMesh.Get());
 	if (IslandMode == ERecomputeUVsIslandMode::PolyGroups)
 	{
@@ -139,6 +140,7 @@ bool FRecomputeUVsOp::CalculateResult_Basic(FProgressCancel* Progress)
 		ConnectedComponents.FindConnectedTriangles([&](int32 Triangle0, int32 Triangle1) {
 			return UseOverlay->AreTrianglesConnected(Triangle0, Triangle1);
 		});
+		bUseExisingUVTopology = true;
 	}
 
 	if (Progress && Progress->Cancelled())
@@ -169,7 +171,7 @@ bool FRecomputeUVsOp::CalculateResult_Basic(FProgressCancel* Progress)
 		break;
 
 		case ERecomputeUVsUnwrapType::ConformalFreeBoundary:
-			bComponentSolved[k] = UVEditor.SetTriangleUVsFromFreeBoundaryConformal(ComponentTris);
+			bComponentSolved[k] = UVEditor.SetTriangleUVsFromFreeBoundaryConformal(ComponentTris, bUseExisingUVTopology);
 			if (bComponentSolved[k])
 			{
 				UVEditor.ScaleUVAreaTo3DArea(ComponentTris, true);

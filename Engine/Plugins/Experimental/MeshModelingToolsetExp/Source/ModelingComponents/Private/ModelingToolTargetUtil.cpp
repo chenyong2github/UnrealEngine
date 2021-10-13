@@ -332,10 +332,9 @@ UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitDynamicMeshUVUpda
 	IPersistentDynamicMeshSource* DynamicMeshSource = Cast<IPersistentDynamicMeshSource>(Target);
 	if (DynamicMeshSource)
 	{
+		// just do a full mesh update for now
 		// todo actually only update UVs? 
-		UDynamicMesh* DynamicMesh = DynamicMeshSource->GetDynamicMeshContainer();
-		DynamicMesh->EditMesh([&](FDynamicMesh3& EditMesh) { EditMesh = *UpdatedMesh; });
-		return EDynamicMeshUpdateResult::Ok;
+		return CommitDynamicMeshUpdate(Target, *UpdatedMesh, true);
 	}
 
 	IDynamicMeshCommitter* DynamicMeshCommitter = Cast<IDynamicMeshCommitter>(Target);

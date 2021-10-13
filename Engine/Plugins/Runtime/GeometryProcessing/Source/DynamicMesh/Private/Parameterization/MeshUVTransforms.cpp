@@ -142,7 +142,11 @@ void UE::MeshUVTransforms::MakeSeamsDisjoint(FDynamicMeshUVOverlay* UVOverlay)
 	for (int32 elemid : UVOverlay->ElementIndicesItr())
 	{
 		int32 ParentVtxID = UVOverlay->GetParentVertex(elemid);
-		checkSlow(ParentVtxID != FDynamicMesh3::InvalidID);
+		if (ParentVtxID == FDynamicMesh3::InvalidID)
+		{
+			checkSlow(false);
+			continue;
+		}
 		int32 SeamListIndex = SeamVerticesMap[ParentVtxID];
 		if (SeamListIndex == -1)
 		{
@@ -153,11 +157,11 @@ void UE::MeshUVTransforms::MakeSeamsDisjoint(FDynamicMeshUVOverlay* UVOverlay)
 		// the position becomes unique
 		FVector2f UVPos = UVOverlay->GetElement(elemid);
 		int32 TryCounter = 0;
-		float JitterScale = 0.005;
+		float JitterScale = 0.0001f;
 		while (SeamUVPositions[SeamListIndex].Contains(UVPos) && TryCounter++ < 25)
 		{
 			UVPos = UVOverlay->GetElement(elemid) + GetRandomUVJitter(JitterScale);
-			JitterScale *= 2.0;
+			JitterScale *= 2.0f;
 		}
 
 		SeamUVPositions[SeamListIndex].Add(UVPos);
