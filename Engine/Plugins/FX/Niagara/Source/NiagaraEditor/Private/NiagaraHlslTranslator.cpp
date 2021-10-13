@@ -6612,16 +6612,31 @@ void FHlslNiagaraTranslator::ProcessCustomHlsl(const FString& InCustomHlsl, ENia
 			TEXT("PreViewTranslation"),
 			TEXT("PrevPreViewTranslation"),
 		};
+		static const FString ViewNamespace(TEXT("View."));
 
 		for (FString& Token : Tokens)
 		{
-			if (Token.StartsWith(TEXT("View."), ESearchCase::CaseSensitive))
+			if (Token.StartsWith(ViewNamespace, ESearchCase::CaseSensitive))
 			{
+				FStringView TokenMemberName = FStringView(Token).Mid(ViewNamespace.Len());
+				FStringView TokenPostfix;
+
+				int32 MemberEnd = INDEX_NONE;
+				if (TokenMemberName.FindChar(TCHAR('.'), MemberEnd))
+				{
+					TokenPostfix = TokenMemberName.Mid(MemberEnd);
+					TokenMemberName = TokenMemberName.Mid(0, MemberEnd);
+				}
+
 				for (const TCHAR* LWCMember : LWCViewMembers)
 				{
-					if (Token.Equals(FString(TEXT("View.")) + LWCMember))
+					if (TokenMemberName.Equals(LWCMember, ESearchCase::CaseSensitive))
 					{
 						Token = FString::Printf(TEXT("LWCToFloat(PrimaryView.%s)"), LWCMember);
+						if (TokenPostfix.Len() > 0)
+						{
+							Token.Append(TokenPostfix);
+						}
 						break;
 					}
 				}
