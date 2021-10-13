@@ -20,6 +20,12 @@ if [[ ! -z "$2" ]]; then
 	GIT_REPO="$2"
 fi
 
+# Determine whether the user specified a changelist number to set in Build.version
+CHANGELIST_OVERRIDE=""
+if [[ ! -z "$3" ]]; then
+	CHANGELIST_OVERRIDE="$3"
+fi
+
 # Verify that the user has placed their GitHub username in the file `username.txt`
 if [ ! -f ./username.txt ]; then
 	echo 'Please place your GitHub username in a text file called `username.txt` in the current directory.'
@@ -39,6 +45,7 @@ args=(
 	--build-arg 'BASEIMAGE=nvidia/opengl:1.0-glvnd-devel-ubuntu18.04'
 	--build-arg "GIT_REPO=${GIT_REPO}"
 	--build-arg "GIT_BRANCH=${GIT_BRANCH}"
+	--build-arg "CHANGELIST=${CHANGELIST_OVERRIDE}"
 	--secret id=username,src=username.txt
 	--secret id=password,src=password.txt
 	--progress=plain
