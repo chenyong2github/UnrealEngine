@@ -196,6 +196,9 @@ protected:
 	double CurHeight;
 	bool bPathIsClosed = false;		// If true, CurPathPoints are assumed to define a closed path
 
+	TArray<FVector3d> CurPolyLoop;
+	TArray<FVector3d> SecondPolyLoop;
+
 	UPROPERTY()
 	TObjectPtr<UPolyEditPreviewMesh> EditPreview;
 
