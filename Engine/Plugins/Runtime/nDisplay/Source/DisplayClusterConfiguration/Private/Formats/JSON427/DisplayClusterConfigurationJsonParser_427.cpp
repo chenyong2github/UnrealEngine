@@ -236,6 +236,13 @@ namespace JSON427
 					Viewport->ProjectionPolicy.Type = CfgViewport.Value.ProjectionPolicy.Type;
 					Viewport->ProjectionPolicy.Parameters = CfgViewport.Value.ProjectionPolicy.Parameters;
 
+					Viewport->RenderSettings.Overscan.Mode = DisplayClusterConfigurationJsonHelpers::FromString<EDisplayClusterConfigurationViewportOverscanMode>(CfgViewport.Value.Overscan.Mode);
+					Viewport->RenderSettings.Overscan.bOversize = CfgViewport.Value.Overscan.Oversize;
+					Viewport->RenderSettings.Overscan.Left = CfgViewport.Value.Overscan.Left;
+					Viewport->RenderSettings.Overscan.Right = CfgViewport.Value.Overscan.Right;
+					Viewport->RenderSettings.Overscan.Top = CfgViewport.Value.Overscan.Top;
+					Viewport->RenderSettings.Overscan.Bottom = CfgViewport.Value.Overscan.Bottom;
+
 					// Add this viewport
 					Node->Viewports.Emplace(CfgViewport.Key, Viewport);
 				}
@@ -413,6 +420,14 @@ namespace JSON427
 					Viewport.ProjectionPolicy.Type = CfgViewport.Value->ProjectionPolicy.Type;
 					Viewport.ProjectionPolicy.Parameters = CfgViewport.Value->ProjectionPolicy.Parameters;
 
+					// Overscan
+					Viewport.Overscan.Mode = DisplayClusterConfigurationJsonHelpers::ToString(CfgViewport.Value->RenderSettings.Overscan.Mode);
+					Viewport.Overscan.Oversize = CfgViewport.Value->RenderSettings.Overscan.bOversize;
+					Viewport.Overscan.Left = CfgViewport.Value->RenderSettings.Overscan.Left;
+					Viewport.Overscan.Right = CfgViewport.Value->RenderSettings.Overscan.Right;
+					Viewport.Overscan.Top = CfgViewport.Value->RenderSettings.Overscan.Top;
+					Viewport.Overscan.Bottom = CfgViewport.Value->RenderSettings.Overscan.Bottom;
+					
 					// Save this viewport
 					Node.Viewports.Emplace(CfgViewport.Key, Viewport);
 				}

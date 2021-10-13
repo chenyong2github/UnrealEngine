@@ -377,6 +377,31 @@ struct FDisplayClusterConfigurationJsonProjectionPolicy_427
 };
 
 USTRUCT()
+struct FDisplayClusterConfigurationJsonOverscan_427
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY()
+	FString Mode = "";
+
+	UPROPERTY()
+	int32 Left = 0;
+
+	UPROPERTY()
+	int32 Right = 0;
+
+	UPROPERTY()
+	int32 Top = 0;
+
+	UPROPERTY()
+	int32 Bottom = 0;
+
+	UPROPERTY()
+	bool Oversize = 0;
+};
+
+USTRUCT()
 struct FDisplayClusterConfigurationJsonViewport_427
 {
 	GENERATED_BODY()
@@ -396,6 +421,9 @@ public:
 
 	UPROPERTY()
 	bool IsShared;
+
+	UPROPERTY()
+	FDisplayClusterConfigurationJsonOverscan_427 Overscan;
 
 	UPROPERTY()
 	FDisplayClusterConfigurationJsonRectangle_427 Region;
