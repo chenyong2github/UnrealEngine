@@ -298,7 +298,7 @@ bool FLiveCodingModule::IsEnabledForSession() const
 	return bEnabledForSession;
 }
 
-FText FLiveCodingModule::GetEnableErrorText() const
+const FText& FLiveCodingModule::GetEnableErrorText() const
 {
 	return EnableErrorText;
 }
