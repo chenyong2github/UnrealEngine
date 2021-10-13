@@ -1083,7 +1083,12 @@ void FLevelEditorActionCallbacks::RecompileGameCode_Clicked()
 		}
 		else
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NoLiveCodingCompileAfterHotReload", "Live Coding cannot be enabled while hot-reloaded modules are active. Please close the editor and build from your IDE before restarting."));
+			FText EnableErrorText = LiveCoding->GetEnableErrorText();
+			if (EnableErrorText.IsEmpty())
+			{
+				EnableErrorText = LOCTEXT("NoLiveCodingCompileAfterHotReload", "Live Coding cannot be enabled while hot-reloaded modules are active. Please close the editor and build from your IDE before restarting.");
+			}
+			FMessageDialog::Open(EAppMsgType::Ok, EnableErrorText);
 		}
 		return;
 	}

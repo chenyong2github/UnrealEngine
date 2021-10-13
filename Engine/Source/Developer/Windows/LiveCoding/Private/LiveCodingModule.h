@@ -33,6 +33,7 @@ public:
 	virtual bool IsEnabledByDefault() const override;
 	virtual void EnableForSession(bool bInEnabled) override;
 	virtual bool IsEnabledForSession() const override;
+	virtual FText GetEnableErrorText() const override;
 	virtual bool AutomaticallyCompileNewClasses() const override;
 	virtual bool CanEnableForSession() const override;
 	virtual bool HasStarted() const override;
@@ -59,6 +60,8 @@ private:
 	bool bHasPatchBeenLoaded = false;
 	TSet<FName> ConfiguredModules;
 	TArray<void*> LppPendingTokens;
+
+	FText EnableErrorText;
 
 	const FString FullEnginePluginsDir;
 	const FString FullProjectDir;

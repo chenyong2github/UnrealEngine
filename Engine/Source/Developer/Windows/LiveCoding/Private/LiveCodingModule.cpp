@@ -269,6 +269,7 @@ void FLiveCodingModule::EnableForSession(bool bEnable)
 {
 	if (bEnable)
 	{
+		EnableErrorText = FText::GetEmpty();
 		if(!bStarted)
 		{
 			StartLiveCoding();
@@ -295,6 +296,11 @@ void FLiveCodingModule::EnableForSession(bool bEnable)
 bool FLiveCodingModule::IsEnabledForSession() const
 {
 	return bEnabledForSession;
+}
+
+FText FLiveCodingModule::GetEnableErrorText() const
+{
+	return EnableErrorText;
 }
 
 bool FLiveCodingModule::CanEnableForSession() const
@@ -597,11 +603,13 @@ ILiveCodingModule::FOnPatchCompleteDelegate& FLiveCodingModule::GetOnPatchComple
 
 bool FLiveCodingModule::StartLiveCoding()
 {
+	EnableErrorText = FText::GetEmpty();
 	if(!bStarted)
 	{
 		// Make sure there aren't any hot reload modules already active
 		if (!CanEnableForSession())
 		{
+			EnableErrorText = LOCTEXT("NoLiveCodingCompileAfterHotReload", "Live Coding cannot be enabled while hot-reloaded modules are active. Please close the editor and build from your IDE before restarting.");
 			UE_LOG(LogLiveCoding, Error, TEXT("Unable to start live coding session. Some modules have already been hot reloaded."));
 			return false;
 		}
@@ -610,6 +618,10 @@ bool FLiveCodingModule::StartLiveCoding()
 		GLiveCodingConsolePath = ConsolePathVariable->GetString();
 		if (!FPaths::FileExists(GLiveCodingConsolePath))
 		{
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("Executable"), FText::FromString(GLiveCodingConsolePath));
+			const static FText FormatString = LOCTEXT("LiveCodingMissingExecutable", "Unable to start live coding session. Missing executable '{Executable}'. Use the LiveCoding.ConsolePath console variable to modify.");
+			EnableErrorText = FText::Format(FormatString, Args);
 			UE_LOG(LogLiveCoding, Error, TEXT("Unable to start live coding session. Missing executable '%s'. Use the LiveCoding.ConsolePath console variable to modify."), *GLiveCodingConsolePath);
 			return false;
 		}
@@ -618,6 +630,10 @@ bool FLiveCodingModule::StartLiveCoding()
 		FString SourceProject = SourceProjectVariable->GetString();
 		if (SourceProject.Len() > 0 && !FPaths::FileExists(SourceProject))
 		{
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("ProjectFile"), FText::FromString(SourceProject));
+			const static FText FormatString = LOCTEXT("LiveCodingMissingProjectFile", "Unable to start live coding session. Unable to find source project file '{ProjectFile}'.");
+			EnableErrorText = FText::Format(FormatString, Args);
 			UE_LOG(LogLiveCoding, Error, TEXT("Unable to start live coding session. Unable to find source project file '%s'."), *SourceProject);
 			return false;
 		}
