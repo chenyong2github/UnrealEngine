@@ -19,6 +19,8 @@
 #include "Selection/ToolSelectionUtil.h"
 #include "Operations/ExtrudeMesh.h"
 #include "DynamicMesh/MeshNormals.h"
+#include "MeshBoundaryLoops.h"
+#include "ToolDataVisualizer.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -407,6 +409,33 @@ void UDrawPolyPathTool::Render(IToolsContextRenderAPI* RenderAPI)
 	{
 		SurfacePathMechanic->Render(RenderAPI);
 	}
+
+	if (CurPolyLoop.Num() > 0)
+	{
+		FToolDataVisualizer LineRenderer;
+		LineRenderer.LineColor = LinearColors::DarkOrange3f();
+		LineRenderer.LineThickness = 4.0f;
+		LineRenderer.bDepthTested = false;
+
+		LineRenderer.BeginFrame(RenderAPI);
+
+		int32 NumPoints = CurPolyLoop.Num();
+		for (int32 k = 0; k < NumPoints; ++k)
+		{
+			LineRenderer.DrawLine( CurPolyLoop[k], CurPolyLoop[ (k+1) % NumPoints ] );
+		}
+		if (SecondPolyLoop.Num() > 0)
+		{
+			NumPoints = SecondPolyLoop.Num();
+			for (int32 k = 0; k < NumPoints; ++k)
+			{
+				LineRenderer.DrawLine( SecondPolyLoop[k], SecondPolyLoop[ (k+1) % NumPoints ] );
+			}
+		}
+
+		LineRenderer.EndFrame();
+	}
+
 }
 
 
@@ -578,6 +607,9 @@ void UDrawPolyPathTool::UpdatePathPreview()
 
 void UDrawPolyPathTool::GeneratePathMesh(FDynamicMesh3& Mesh)
 {
+	CurPolyLoop.Reset();
+	SecondPolyLoop.Reset();
+
 	Mesh.Clear();
 	int32 NumPoints = CurPathPoints.Num();
 	if (NumPoints > 1)
@@ -631,6 +663,16 @@ void UDrawPolyPathTool::GeneratePathMesh(FDynamicMesh3& Mesh)
 		}
 
 		FMeshNormals::QuickRecomputeOverlayNormals(Mesh);
+
+		FMeshBoundaryLoops Loops(&Mesh, true);
+		if (Loops.Loops.Num() > 0)
+		{
+			Loops.Loops[0].GetVertices<FVector3d>(CurPolyLoop);
+			if (Loops.Loops.Num() > 1)
+			{
+				Loops.Loops[1].GetVertices<FVector3d>(SecondPolyLoop);
+			}
+		}
 	}
 }
 
@@ -707,6 +749,9 @@ void UDrawPolyPathTool::ClearPreview()
 		EditPreview->Disconnect();
 		EditPreview = nullptr;
 	}
+
+	CurPolyLoop.Reset();
+	SecondPolyLoop.Reset();
 }
 
 
@@ -789,6 +834,9 @@ void UDrawPolyPathTool::EmitNewObject(EDrawPolyPathOutputMode OutputMode)
 	}
 
 	GetToolManager()->EndUndoTransaction();
+
+	CurPolyLoop.Reset();
+	SecondPolyLoop.Reset();
 }
 
 
