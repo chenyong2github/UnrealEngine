@@ -2065,7 +2065,7 @@ namespace UnrealBuildTool
 					{
 						// We were asked to exclude engine modules from the generated projects
 						WantProjectFileForModule = false;
-						break;
+						continue;
 					}
 				}
 
