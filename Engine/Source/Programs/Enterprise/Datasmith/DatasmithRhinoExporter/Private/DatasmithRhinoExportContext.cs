@@ -583,10 +583,7 @@ namespace DatasmithRhino
 
 		public bool IsSupported()
 		{
-			return (RhinoTexture.Enabled 
-				&& (RhinoTexture.TextureType == TextureType.Bitmap 
-					|| RhinoTexture.TextureType == TextureType.Bump 
-					|| RhinoTexture.TextureType == TextureType.Transparency));
+			return DatasmithRhinoUtilities.IsTextureSupported(RhinoTexture);
 		}
 	}
 
@@ -1833,7 +1830,7 @@ namespace DatasmithRhino
 				for (int TextureIndex = 0; TextureIndex < MaterialTextures.Length; ++TextureIndex)
 				{
 					Texture RhinoTexture = MaterialTextures[TextureIndex];
-					if(RhinoTexture != null)
+					if (RhinoTexture != null && DatasmithRhinoUtilities.IsTextureSupported(RhinoTexture))
 					{
 						string TextureHash = DatasmithRhinoUtilities.GetTextureHash(RhinoTexture);
 						TextureHashes.Add(TextureHash);
