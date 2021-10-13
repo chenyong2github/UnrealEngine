@@ -310,7 +310,6 @@ namespace Chaos
 		const bool bSubstepping = MMaxSubSteps > 1;
 		SetSolverSubstep_External(bSubstepping);
 		const FReal DtWithPause = bPaused_External ? 0.0f : InDt;
-		PullResultsManager->SetLastExternalDt_External(DtWithPause);
 		FReal InternalDt = DtWithPause;
 		int32 NumSteps = 1;
 
