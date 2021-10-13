@@ -1399,49 +1399,17 @@ void UMeshPaintingSubsystem::ApplyVertexColorsToAllLODs(IMeshPaintComponentAdapt
 
 TSharedPtr<IMeshPaintComponentAdapter> UMeshPaintingSubsystem::GetAdapterForComponent(const UMeshComponent* InComponent) const
 {
-	FString ComponentActorString;
-	
-	if (const UStaticMeshComponent* InStaticMeshComponent = Cast<UStaticMeshComponent>(InComponent))
-	{
-		ComponentActorString = InStaticMeshComponent->GetStaticMesh()->GetName();
-	}
-	else if (const USkeletalMeshComponent* InSkeletalMeshComponent = Cast<USkeletalMeshComponent>(InComponent))
-	{
-		ComponentActorString = InSkeletalMeshComponent->SkeletalMesh->GetName();
-	} 
-	else
-	{
-		return TSharedPtr<IMeshPaintComponentAdapter>();
-	}
-	ComponentActorString += TEXT("_") + InComponent->GetOwner()->GetName();
-	const FName ComponentActorName = FName(ComponentActorString);
-	const TSharedPtr<IMeshPaintComponentAdapter>* MeshAdapterPtr = ComponentToAdapterMap.Find(ComponentActorName);
-	return MeshAdapterPtr ? *MeshAdapterPtr : TSharedPtr<IMeshPaintComponentAdapter>();
+	return InComponent ? ComponentToAdapterMap.FindRef(InComponent->GetPathName()) : TSharedPtr<IMeshPaintComponentAdapter>{};
 }
 
 void UMeshPaintingSubsystem::AddToComponentToAdapterMap(const UMeshComponent* InComponent, const TSharedPtr<IMeshPaintComponentAdapter> InAdapter) 
 {
-	if (!InAdapter)
+	if (!InAdapter || !InComponent)
 	{
 		return;
 	}
 
-	FString ComponentActorString;
-	if (const UStaticMeshComponent* InStaticMeshComponent = Cast<UStaticMeshComponent>(InComponent))
-	{
-		ComponentActorString = InStaticMeshComponent->GetStaticMesh()->GetName();
-	}
-	else if (const USkeletalMeshComponent* InSkeletalMeshComponent = Cast<USkeletalMeshComponent>(InComponent))
-	{
-		ComponentActorString = InSkeletalMeshComponent->SkeletalMesh->GetName();
-	}
-	else
-	{
-		ComponentActorString = InComponent->GetName();
-	}
-	ComponentActorString += TEXT("_") + InComponent->GetOwner()->GetName();
-	const FName ComponentActorName = FName(ComponentActorString);
-	ComponentToAdapterMap.Add(ComponentActorName, InAdapter);
+	ComponentToAdapterMap.Add(InComponent->GetPathName(), InAdapter);
 }
 
 TArray<UMeshComponent*> UMeshPaintingSubsystem::GetSelectedMeshComponents() const

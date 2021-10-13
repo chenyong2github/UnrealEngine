@@ -273,7 +273,7 @@ private:
 
 private:
 	/** Map of geometry adapters for each selected mesh component */
-	TMap<FName, TSharedPtr<IMeshPaintComponentAdapter>> ComponentToAdapterMap;
+	TMap<FString, TSharedPtr<IMeshPaintComponentAdapter>> ComponentToAdapterMap;
 	TArray<UMeshComponent*> SelectedMeshComponents;
 	/** Mesh components within the current selection which are eligible for painting */
 	TArray<UMeshComponent*> PaintableComponents;
