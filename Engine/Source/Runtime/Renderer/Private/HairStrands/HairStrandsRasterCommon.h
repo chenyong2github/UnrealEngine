@@ -48,6 +48,6 @@ void AddHairDeepShadowRasterPass(
 	const FIntRect& ViewportRect,
 	const FVector4f& HairRenderInfo,
 	const uint32 HairRenderInfoBits,
-	const FVector& LightDirection,
+	const FVector3f& LightDirection,
 	FHairDeepShadowRasterPassParameters* PassParameters,
 	FInstanceCullingManager& InstanceCullingManager);

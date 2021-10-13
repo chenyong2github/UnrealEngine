@@ -261,7 +261,7 @@ void AddHairStrandsRasterPass(
 	const FIntRect& ViewportRect,
 	const FVector4f& HairRenderInfo,
 	const uint32 HairRenderInfoBits,
-	const FVector& RasterDirection,
+	const FVector3f& RasterDirection,
 	TPassParameter* PassParameters,
 	FInstanceCullingManager& InstanceCullingManager)
 {
@@ -280,7 +280,7 @@ void AddHairStrandsRasterPass(
 		ViewInfo->CachedViewUniformShaderParameters->HairRenderInfo = HairRenderInfo;
 		ViewInfo->CachedViewUniformShaderParameters->HairRenderInfoBits = HairRenderInfoBits;
 
-		const FVector SavedViewForward = ViewInfo->CachedViewUniformShaderParameters->ViewForward;
+		const FVector3f SavedViewForward = ViewInfo->CachedViewUniformShaderParameters->ViewForward;
 		ViewInfo->CachedViewUniformShaderParameters->ViewForward = RasterDirection;
 		PassParameters->View = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*ViewInfo->CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
 		ViewInfo->CachedViewUniformShaderParameters->ViewForward = SavedViewForward;
@@ -329,7 +329,7 @@ void AddHairDeepShadowRasterPass(
 	const FIntRect& ViewportRect,
 	const FVector4f& HairRenderInfo,
 	const uint32 HairRenderInfoBits,
-	const FVector& LightDirection,
+	const FVector3f& LightDirection,
 	FHairDeepShadowRasterPassParameters* PassParameters,
 	FInstanceCullingManager& InstanceCullingManager)
 {

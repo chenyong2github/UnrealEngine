@@ -301,10 +301,10 @@ struct HAIRSTRANDSCORE_API FHairStrandsInterpolationDatas
 	TArray<FIntVector> PointsSimCurvesVertexIndex;
 
 	/** Lerp value between the closest vertex indices and the next one, ordered by closest influence */
-	TArray<FVector> PointsSimCurvesVertexLerp;
+	TArray<FVector3f> PointsSimCurvesVertexLerp;
 
 	/** Weight of vertex indices on simulation curve, ordered by closest influence */
-	TArray<FVector>	PointsSimCurvesVertexWeights;
+	TArray<FVector3f>	PointsSimCurvesVertexWeights;
 
 	/** True, if interpolation data are built using a single guide */
 	bool bUseUniqueGuide = false;

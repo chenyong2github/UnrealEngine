@@ -119,8 +119,8 @@ struct FHairStrandsVisibilityData
 
 struct FHairStrandsVoxelNodeDesc
 {
-	FVector WorldMinAABB = FVector::ZeroVector;
-	FVector WorldMaxAABB = FVector::ZeroVector;
+	FVector3f WorldMinAABB = FVector3f::ZeroVector;
+	FVector3f WorldMaxAABB = FVector3f::ZeroVector;
 	FIntVector PageIndexResolution = FIntVector::ZeroValue;
 	FMatrix WorldToClip;
 };
@@ -132,10 +132,10 @@ struct FPackedVirtualVoxelNodeDesc
 	const static uint32 ComponentCount = 2;
 
 	// Shader View is struct { uint4; uint4; }
-	FVector	MinAABB;
-	uint32	PackedPageIndexResolution;
-	FVector	MaxAABB;
-	uint32	PageIndexOffset;
+	FVector3f	MinAABB;
+	uint32		PackedPageIndexResolution;
+	FVector3f	MaxAABB;
+	uint32		PageIndexOffset;
 };
 
 // PixelRadiusAtDepth1 shouldn't be stored into this structure should be view independent, 
@@ -223,7 +223,7 @@ struct FHairStrandsDeepShadowData
 	FIntPoint ShadowResolution = FIntPoint::ZeroValue;
 	uint32 LightId = ~0;
 	bool bIsLightDirectional = false;
-	FVector  LightDirection;
+	FVector3f LightDirection;
 	FVector4f LightPosition;
 	FLinearColor LightLuminance;
 	float LayerDistribution;
@@ -322,20 +322,20 @@ struct FHairStrandsDebugData
 
 	struct ShadingInfo
 	{
-		FVector BaseColor;
-		float	Roughness;
-		FVector T;
-		uint32	SampleCount;
-		FVector V;
-		float	SampleOffset;
+		FVector3f	BaseColor;
+		float		Roughness;
+		FVector3f	T;
+		uint32		SampleCount;
+		FVector3f	V;
+		float		SampleOffset;
 	};
 
 	struct Sample
 	{
-		FVector Direction;
-		float	Pdf;
-		FVector Weights;
-		float	Pad;
+		FVector3f	Direction;
+		float		Pdf;
+		FVector3f	Weights;
+		float		Pad;
 	};
 	static const uint32 MaxShadingPointCount = 32;
 	static const uint32 MaxSampleCount = 1024 * 32;
