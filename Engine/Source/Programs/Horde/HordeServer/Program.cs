@@ -151,8 +151,9 @@ namespace HordeServer
 
 			if (HordeSettings.WithDatadog)
 			{
+				using var _ = Datadog.Trace.Tracer.Instance.StartActive("Trace Test");
 				Serilog.Log.Logger.Information("Enabling datadog tracing");
-				GlobalTracer.Register(Datadog.Trace.OpenTracing.OpenTracingTracerFactory.CreateTracer());
+				GlobalTracer.Register(Datadog.Trace.OpenTracing.OpenTracingTracerFactory.WrapTracer(Datadog.Trace.Tracer.Instance));
 			}
 
 			if (Arguments.HasOption("-UpdateSchemas"))
