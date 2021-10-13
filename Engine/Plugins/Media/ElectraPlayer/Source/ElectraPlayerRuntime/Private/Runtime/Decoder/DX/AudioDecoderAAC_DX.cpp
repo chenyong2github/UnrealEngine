@@ -979,7 +979,6 @@ namespace Electra
 	{
 		ApplicationSuspendConfirmedSignal.Reset();
 		ApplicationRunningSignal.Reset();
-		ApplicationSuspendConfirmedSignal.WaitTimeoutAndReset(1000 * 500);
 	}
 
 	
