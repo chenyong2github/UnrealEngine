@@ -3819,10 +3819,9 @@ void USceneComponent::UpdateNavigationData()
 
 	if (IsRegistered())
 	{
-		UWorld* MyWorld = GetWorld();
-		if ((MyWorld != nullptr) && (!MyWorld->IsGameWorld() || !MyWorld->IsNetMode(ENetMode::NM_Client)))
+		if (GetWorld() != nullptr)
 		{
-			// use propagated component's transform update in editor OR server game with additional navsys check
+			// use propagated component's transform update in editor OR game with additional navsys check
 			FNavigationSystem::UpdateComponentData(*this);
 		}
 	}
