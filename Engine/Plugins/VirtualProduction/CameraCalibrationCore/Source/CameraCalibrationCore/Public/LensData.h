@@ -27,6 +27,7 @@ public:
 		return LensModelName == Other.LensModelName
 			&& LensSerialNumber == Other.LensSerialNumber
 			&& LensModel == Other.LensModel
+			&& ImageDimensions == Other.ImageDimensions
 			&& SensorDimensions == Other.SensorDimensions;
 	}
 	
