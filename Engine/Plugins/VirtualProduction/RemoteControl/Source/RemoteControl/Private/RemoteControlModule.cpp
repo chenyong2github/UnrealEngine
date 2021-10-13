@@ -348,16 +348,16 @@ public:
 
 #if WITH_EDITOR
 		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FRemoteControlModule::HandleEnginePostInit);
+		FCoreUObjectDelegates::PreLoadMap.AddRaw(this, &FRemoteControlModule::HandleMapPreLoad);
 #endif
 
-		FCoreUObjectDelegates::PreLoadMap.AddRaw(this, &FRemoteControlModule::HandleMapPreLoad);
 	}
 
 	virtual void ShutdownModule() override
 	{
-		FCoreUObjectDelegates::PreLoadMap.RemoveAll(this);
 
 #if WITH_EDITOR
+		FCoreUObjectDelegates::PreLoadMap.RemoveAll(this);
 		UnregisterEditorDelegates();
 		FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 #endif
