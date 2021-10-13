@@ -527,8 +527,6 @@ bool FDynamicMeshUVEditor::SetTriangleUVsFromFreeBoundaryConformal(const TArray<
 	if (ensure(UVOverlay) == false) return false;
 	if (Triangles.Num() == 0) return false;
 
-	ResetUVs(Triangles);
-
 	FDynamicMesh3 Submesh(EMeshComponents::None);
 	TMap<int32, int32> BaseToSubmeshV;
 	TArray<int32> SubmeshToBaseV;
@@ -622,6 +620,9 @@ bool FDynamicMeshUVEditor::SetTriangleUVsFromFreeBoundaryConformal(const TArray<
 	}
 	else
 	{
+		// clear existing triangles
+		ResetUVs(Triangles);
+
 		// copy back to target UVOverlay
 		TArray<int32> VtxElementIDs;
 		TArray<int32> NewElementIDs;
