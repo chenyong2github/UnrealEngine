@@ -44,6 +44,7 @@ namespace UE_NETWORK_PHYSICS
 	NP_DEVCVAR_FLOAT(W, 1.0f, "np2.Tolerance.W", "Rotational Velocity Tolerance");
 
 	NP_DEVCVAR_INT(ResimCacheEnabled, 1, "np2.ResimCacheEnabled", "Debug mode for in world drawing");
+	NP_DEVCVAR_INT(SpawnProxyIfNeededEnabled, 1, "np2.SpawnProxyIfNeededEnabled", "Call SpawnProxyIfNeededEnabled to deal with spawning issues");
 
 	NP_DEVCVAR_INT(Debug, 0, "np2.Debug", "Debug mode for in world drawing");
 	NP_DEVCVAR_INT(DebugTolerance, 1, "np2.Debug.Tolerance", "If enabled, only draw large corrections in world.");
@@ -417,6 +418,11 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 						npEnsure(CorrectionState.Physics.LinearVelocity.ContainsNaN() == false);
 						npEnsure(CorrectionState.Physics.AngularVelocity.ContainsNaN() == false);
 
+						if (UE_NETWORK_PHYSICS::SpawnProxyIfNeededEnabled > 0)
+						{
+							RewindData->SpawnProxyIfNeeded(*CorrectionState.Proxy);
+						}
+
 						PT->SetX(CorrectionState.Physics.Location, false);
 						PT->SetV(CorrectionState.Physics.LinearVelocity, false);
 						PT->SetR(CorrectionState.Physics.Rotation, false);
@@ -425,6 +431,10 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 						ensure(CorrectionState.Physics.ObjectState != Chaos::EObjectStateType::Uninitialized);
 						UE_CLOG(UE_NETWORK_PHYSICS::LogCorrections > 0 && PT->ObjectState() != CorrectionState.Physics.ObjectState, LogNetworkPhysics, Log, TEXT("Applying Correction State %d"), CorrectionState.Physics.ObjectState);
 						PT->SetObjectState(CorrectionState.Physics.ObjectState);
+					}
+					else
+					{
+						UE_LOG(LogNetworkPhysics, Warning, TEXT("No valid PT available for proxy."));
 					}
 				}
 			}
