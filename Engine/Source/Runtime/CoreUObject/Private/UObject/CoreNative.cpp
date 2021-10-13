@@ -129,9 +129,9 @@ UObject* FObjectInstancingGraph::GetInstancedSubobject( UObject* SourceSubobject
 
 	UObject* InstancedSubobject = INVALID_OBJECT;
 
-	if ( SourceSubobject != nullptr && CurrentValue != nullptr )
+	if ( SourceSubobject != nullptr && CurrentValue != nullptr && !CurrentValue->IsIn(CurrentObject))
 	{
-		bool bAllowedSelfReference = bAllowSelfReference && SourceSubobject == SourceRoot;
+		const bool bAllowedSelfReference = bAllowSelfReference && SourceSubobject == SourceRoot;
 
 		bool bShouldInstance = bAllowedSelfReference || SourceSubobject->IsIn(SourceRoot);
 		if ( !bShouldInstance && CurrentValue->GetOuter() == CurrentObject->GetArchetype() )
@@ -164,8 +164,8 @@ UObject* FObjectInstancingGraph::GetInstancedSubobject( UObject* SourceSubobject
 					//		at runtime (editinline export properties, for example).  If that is the case, CurrentValue will be an instance that is not linked
 					//		to the component template referenced by CurrentObject's archetype, and in this case, we also don't want to re-instance the component template
 
-					bool bIsRuntimeInstance = CurrentValue != SourceSubobject && CurrentValue->GetOuter() == CurrentObject;
-					if ( bDoNotCreateNewInstance || bIsRuntimeInstance )
+					const bool bIsRuntimeInstance = CurrentValue != SourceSubobject && CurrentValue->GetOuter() == CurrentObject;
+					if (bIsRuntimeInstance )
 					{
 						InstancedSubobject = CurrentValue; 
 					}
