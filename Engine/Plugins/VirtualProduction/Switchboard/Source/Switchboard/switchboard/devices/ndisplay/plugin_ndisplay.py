@@ -477,7 +477,7 @@ class DevicenDisplay(DeviceUnreal):
             attr_name='disable_ensures',
             nice_name="Disable Ensures",
             value=True,
-            tool_tip="Does not handle ensure errors, which are non-fatal and may cause hitches."
+            tool_tip="When checked, disables the handling of ensure errors - which are non-fatal and may cause hitches."
         ),
     }
 
