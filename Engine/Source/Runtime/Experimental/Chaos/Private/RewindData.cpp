@@ -327,6 +327,14 @@ void FRewindData::DumpHistory_Internal(const int32 FramePrintOffset, const FStri
 				FGeometryParticleState State = GetPastStateAtFrame(*Info.GetObjectPtr(), Frame, (FFrameAndPhase::EParticleHistoryPhase)Phase);
 				Out.Logf(TEXT("%s\n"), *State.ToString());
 			}
+
+			for (const FDirtyJointInfo& Info : DirtyJoints)
+			{
+				Out.Logf(TEXT("Frame:%d Phase:%d\n"), Frame + FramePrintOffset, Phase);
+
+				FJointState State = GetPastJointStateAtFrame(*Info.GetObjectPtr(), Frame, (FFrameAndPhase::EParticleHistoryPhase)Phase);
+				Out.Logf(TEXT("%s\n"), *State.ToString()); 
+			}
 		}
 	}
 
