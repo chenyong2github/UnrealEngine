@@ -117,6 +117,7 @@ public:
 						TAsncFrameSnapshot<AsyncModelDef>& FutureSnapshot = DataStore->Frames[Frame];
 
 						NpResizeForIndex(FutureSnapshot.InputCmds, idx);
+						NpResizeForIndex(FutureSnapshot.NetStates, idx);
 						FutureSnapshot.InputCmds[idx] = SourceInput;
 					}
 				}
