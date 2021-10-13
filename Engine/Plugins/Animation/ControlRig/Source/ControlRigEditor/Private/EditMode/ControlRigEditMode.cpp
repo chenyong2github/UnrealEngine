@@ -1984,6 +1984,7 @@ void FControlRigEditMode::FrameSelection()
 			Bounds += Sphere.Center + FVector::OneVector * Sphere.W;
 			Bounds += Sphere.Center - FVector::OneVector * Sphere.W;
 			CurrentViewportClient->FocusViewportOnBox(Bounds);
+			return;
 		}
     }
 
