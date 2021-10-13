@@ -1268,7 +1268,14 @@ bool FOnlineSessionEOS::StartSession(FName SessionName)
 		{
 			if (!Session->SessionSettings.bIsLANMatch)
 			{
-				Result = StartEOSSession(Session);
+				if (Session->SessionSettings.bUseLobbiesIfAvailable)
+				{
+					Result = StartLobbySession(Session);
+				}
+				else
+				{
+					Result = StartEOSSession(Session);
+				}
 			}
 			else
 			{
@@ -1335,6 +1342,20 @@ uint32 FOnlineSessionEOS::StartEOSSession(FNamedOnlineSession* Session)
 	};
 
 	EOS_Sessions_StartSession(EOSSubsystem->SessionsHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
+
+	return ONLINE_IO_PENDING;
+}
+
+uint32 FOnlineSessionEOS::StartLobbySession(FNamedOnlineSession* Session)
+{
+	Session->SessionState = EOnlineSessionState::Starting;
+
+	EOSSubsystem->ExecuteNextTick([this, Session]()
+	{
+		Session->SessionState = EOnlineSessionState::InProgress;
+
+		TriggerOnStartSessionCompleteDelegates(Session->SessionName, true);
+	});
 
 	return ONLINE_IO_PENDING;
 }
