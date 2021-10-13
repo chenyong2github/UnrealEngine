@@ -118,7 +118,7 @@ void FDisplayClusterRender_MeshGeometry::CreatePassthrough()
 bool FDisplayCluster_MeshGeometryLoaderOBJ::Load(const FString& FullPathFileName)
 {
 	return CreateFromFile(FullPathFileName);
-	}
+}
 
 bool FDisplayCluster_MeshGeometryLoaderOBJ::CreateFromFile(const FString& FullPathFileName)
 {	
@@ -258,28 +258,28 @@ bool FDisplayCluster_MeshGeometryLoaderOBJ::ExtractFaceVertex(const FString& Lin
 	{
 		const int32 InVertexIndex = FCString::Atoi(*Data[0]) - 1;
 		if (InVertexIndex < 0 || InVertexIndex >= InVertex.Num())
-{
-			UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshGeometryLoaderOBJ: broken vertex index. Line: '%s'"), *Line);
-			Target.Vertices.Add(FVector(0,0,0));
-	}
+		{
+				UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshGeometryLoaderOBJ: broken vertex index. Line: '%s'"), *Line);
+				Target.Vertices.Add(FVector(0,0,0));
+		}
 		else
-	{
-			Target.Vertices.Add(InVertex[InVertexIndex]);
-	}
+		{
+				Target.Vertices.Add(InVertex[InVertexIndex]);
+		}
 
 		const int32 InUVIndex = FCString::Atoi(*Data[1]) - 1;
 		if (InUVIndex < 0 || InUVIndex >= InUV.Num())
-	{
-			UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshGeometryLoaderOBJ: broken uv index. Line: '%s'"), *Line);
-			Target.UV.Add(FVector2D(0, 0));
-	}
+		{
+				UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshGeometryLoaderOBJ: broken uv index. Line: '%s'"), *Line);
+				Target.UV.Add(FVector2D(0, 0));
+		}
 		else
-{
+		{
 			Target.UV.Add(FVector2D(InUV[InUVIndex].X, InUV[InUVIndex].Y));
 		}
 
 		return true;
-}
+	}
 
 	return false;
 }
