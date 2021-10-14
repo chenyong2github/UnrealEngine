@@ -29,7 +29,7 @@ struct FRemoteControlTestStructInnerSimle
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = "RC")
-	int32 Int32Value;
+	int32 Int32Value = 0;
 };
 
 USTRUCT()
