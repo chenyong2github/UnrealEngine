@@ -14,7 +14,6 @@ class FControlRigEditor;
 class URigVMGraph;
 class URigVMNode;
 class URigVMPin;
-class UEdGraph;
 class SRigHierarchy;
 
 USTRUCT(BlueprintType)

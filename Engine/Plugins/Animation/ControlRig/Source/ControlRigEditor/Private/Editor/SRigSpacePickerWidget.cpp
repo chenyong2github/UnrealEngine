@@ -14,6 +14,7 @@
 #include "FrameNumberDetailsCustomization.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "SRigSpacePickerWidget"
 
