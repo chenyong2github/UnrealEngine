@@ -32,8 +32,10 @@ struct FPhysicsEffectsExternalState
 {
 	FPhysicsEffectCmd PendingEffectCmd;
 	FPhysicsEffectNetState PhysicsEffectState;
+	
 	int32 CachedLastPlayedSimFrame = 0;
-	int32 CachedWindUpSimFrame = 0;
+	uint8 CachedActiveTypeID = 0;
+	uint8 CachedWindUpTypeID = 0;
 };
 
 USTRUCT(BlueprintType, meta=(ShowOnlyInnerProperties))
@@ -81,8 +83,14 @@ public:
 	// Notify that a PE has executed (on the PT) and its output/side effects/(whatever it did) has been marshaled back (to the GT)
 	virtual void OnPhysicsEffectExecuted(uint8 TypeID) { };
 
+	// Notify that a PE has executed (on the PT) and its output/side effects/(whatever it did) has been marshaled back (to the GT)
+	virtual void OnPhysicsEffectEnd(uint8 TypeID) { };
+
 	// Notify a PE is pending execute but hasn't been marshaled back to the GT yet
 	virtual void OnPhysicsEffectWindUp(uint8 TypeID) { };
+
+	// Notify a PE windup is "done" which could mean it actually executed (OnPhysicsEffectExecuted) will be called or not (It was cleared or misprediction, etc)
+	virtual void OnPhysicsEffectWindUpEnd(uint8 TypeID) { };
 
 	// Call in InitializeComponent() or anytime after the NP Async Proxy has been registered
 	void InitializePhysicsEffects(FPhysicsEffectLocalState&& LocalState);
@@ -118,8 +126,7 @@ public:
 	virtual void ApplyImpulse(float Radius, float Magnitude, FTransform RelativeOffset, float FudgeVelocityZ, const FPhysicsEffectParams& Params);
 
 private:
-
-	void UpdatePendingWindUp(int32 Frame, uint8 TypeID);
+	
 	void ApplyPhysicsEffectDef(FPhysicsEffectDef&& Effect, const FPhysicsEffectParams& Params);
 };
 

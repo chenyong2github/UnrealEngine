@@ -15,6 +15,7 @@
 #include "DrawDebugHelpers.h"
 
 NP_DEVCVAR_INT(PhysicsEffectsDefaultFrameDelay, 5, "np2.pe.FrameDelay", "Default Frame delay for Physics Effects");
+NP_DEVCVAR_INT(PhysicsEffectsDefaultExecuteWindow, 10, "np2.pe.ExecuteWindow", "Consider PEs to be active within this window if they are new to us. Covers low replication rate.");
 
 struct FPhysicsEffectSimulation
 {
@@ -105,12 +106,6 @@ void FPhysicsEffectSimulation::Tick_Internal(FNetworkPredictionAsyncTickContext&
 						}
 					}
 				}
-
-			}
-			else
-			{
-				// Effect is finished, reset the state
-				NetState.ActiveEffect = FPhysicsEffectDef();
 			}
 		}
 	}
@@ -129,63 +124,68 @@ void IPhysicsEffectsInterface::SyncPhysicsEffects()
 	FNetworkPredictionAsyncProxy& NetworkPredictionProxy = GetNetworkPredictionAsyncProxy();
 	FPhysicsEffectsExternalState& State = GetPhysicsEffectsExternalState();
 
-	// This is a crude way to determine when a PhysicsEffect has been played and its results have first been detected on the GT
-	// This covers both GT->PT latency and Remote client replication. This lets us tie cosmetic effects to Physics Effects.
-	// The "NetSimCue" system in Network Prediction can replace this with something more robust.
 	const int32 StartFrame = State.PhysicsEffectState.ActiveEffect.StartFrame;
-	if (StartFrame != INDEX_NONE && StartFrame != State.CachedWindUpSimFrame)
-	{
-		UpdatePendingWindUp(StartFrame, State.PhysicsEffectState.ActiveEffect.TypeID);
-	}
-
-	if (State.PhysicsEffectState.LastPlayedSimFrame != State.CachedLastPlayedSimFrame)
-	{
-		State.CachedLastPlayedSimFrame = State.PhysicsEffectState.LastPlayedSimFrame;
-		OnPhysicsEffectExecuted(State.PhysicsEffectState.LastPlayedEffectTypeID);
-	}
-}
-
-void IPhysicsEffectsInterface::UpdatePendingWindUp(int32 Frame, uint8 TypeID)
-{
-	FPhysicsEffectsExternalState& State = GetPhysicsEffectsExternalState();
-
-	if (Frame > State.CachedWindUpSimFrame)
-	{
-		State.CachedWindUpSimFrame = Frame;
-		OnPhysicsEffectWindUp(TypeID);
-	}
-}
-
-void IPhysicsEffectsInterface::ApplyPhysicsEffectDef(FPhysicsEffectDef&& Effect, const FPhysicsEffectParams& Params)
-{
-	FNetworkPredictionAsyncProxy& NetworkPredictionProxy = GetNetworkPredictionAsyncProxy();
-	FPhysicsEffectsExternalState& State = GetPhysicsEffectsExternalState();
-
-	const int32 DelayFrames = Params.DelaySeconds > 0.f ? (Params.DelaySeconds * 30.f) : 0;
-	Effect.StartFrame = NetworkPredictionProxy.GetNextSimFrame() + PhysicsEffectsDefaultFrameDelay + DelayFrames;
+	const int32 EndFrame = State.PhysicsEffectState.ActiveEffect.EndFrame;
+	const int32 LatestFrame = NetworkPredictionProxy.GetLatestOutputSimFrame();
 	
-	if (Params.DurationSeconds >= 0.f)
+	// WindUp
 	{
-		Effect.EndFrame = Effect.StartFrame + (Params.DurationSeconds * 30.f); // Fixme: what is fast way to access this without having to cache it off locally/per instance (it can't change at runtime but is config var)
-	}
-	else
-	{
-		Effect.EndFrame = -1;
-	}
-
-	if (IsController())
-	{
-		State.PendingEffectCmd.PendingEffect = MoveTemp(Effect);
-	}
-	else
-	{
-		NetworkPredictionProxy.ModifyNetState<FPhysicsEffectsAsyncModelDef>([CapturedEffect = MoveTemp(Effect)](FPhysicsEffectNetState& NetState)
+		uint8 ActiveWindUpTypeID = 0;
+		if ((StartFrame != INDEX_NONE) && (LatestFrame < StartFrame) && (StartFrame >= EndFrame))
 		{
-			NetState.ActiveEffect = CapturedEffect;
-		});
+			ActiveWindUpTypeID = State.PhysicsEffectState.ActiveEffect.TypeID;
+		}
+
+		if (State.CachedWindUpTypeID != ActiveWindUpTypeID)
+		{
+			if (State.CachedWindUpTypeID != 0)
+			{
+				OnPhysicsEffectWindUpEnd(State.CachedWindUpTypeID);
+			}
+
+			if (ActiveWindUpTypeID != 0)
+			{
+				OnPhysicsEffectWindUp(ActiveWindUpTypeID);
+			}
+
+			State.CachedWindUpTypeID = ActiveWindUpTypeID;
+		}
 	}
 
-	UpdatePendingWindUp(Effect.StartFrame, Effect.TypeID);
+	// Active
+	{
+		uint8 ActiveTypeID = 0;
+		if ((StartFrame != INDEX_NONE) && (LatestFrame >= StartFrame))
+		{
+			const bool bIsStillPlaying = (LatestFrame <= EndFrame || EndFrame == INDEX_NONE);
+			
+			// We want to detect if an effect is new to us (the GT) but maybe didn't "just happen" due to low replication frequency
+			// (E.,g we don't expect every physics frame results to rep to everyone but as long as you find out about an effect within this window, pretend it "just happened")
+			const bool bNewToUs = State.CachedLastPlayedSimFrame < StartFrame && (LatestFrame <= EndFrame + PhysicsEffectsDefaultExecuteWindow);
+			State.CachedLastPlayedSimFrame = StartFrame;
+
+			if (bIsStillPlaying || bNewToUs)
+			{
+				ActiveTypeID = State.PhysicsEffectState.ActiveEffect.TypeID;
+			}
+		}
+
+		if (ActiveTypeID != State.CachedActiveTypeID)
+		{
+			if (State.CachedActiveTypeID != 0)
+			{
+				OnPhysicsEffectEnd(State.CachedActiveTypeID);
+			}
+
+			if (ActiveTypeID != 0)
+			{
+				OnPhysicsEffectExecuted(ActiveTypeID);
+			}
+
+			State.CachedActiveTypeID = ActiveTypeID;
+			State.CachedLastPlayedSimFrame = LatestFrame;
+		}
+	}
 }
 
 FPhysicsEffectNetState IPhysicsEffectsInterface::Debug_ReadActivePhysicsEffect() const
@@ -233,6 +233,36 @@ void IPhysicsEffectsInterface::ClearPhysicsEffects()
 		NetworkPredictionProxy.ModifyNetState<FPhysicsEffectsAsyncModelDef>([](FPhysicsEffectNetState& NetState)
 		{
 			NetState.ActiveEffect.EndFrame = 0;
+		});
+	}
+}
+
+void IPhysicsEffectsInterface::ApplyPhysicsEffectDef(FPhysicsEffectDef&& Effect, const FPhysicsEffectParams& Params)
+{
+	FNetworkPredictionAsyncProxy& NetworkPredictionProxy = GetNetworkPredictionAsyncProxy();
+	FPhysicsEffectsExternalState& State = GetPhysicsEffectsExternalState();
+
+	const int32 DelayFrames = Params.DelaySeconds > 0.f ? (Params.DelaySeconds * 30.f) : 0;
+	Effect.StartFrame = NetworkPredictionProxy.GetNextSimFrame() + PhysicsEffectsDefaultFrameDelay + DelayFrames;
+	
+	if (Params.DurationSeconds >= 0.f)
+	{
+		Effect.EndFrame = Effect.StartFrame + (Params.DurationSeconds * 30.f); // Fixme: what is fast way to access this without having to cache it off locally/per instance (it can't change at runtime but is config var)
+	}
+	else
+	{
+		Effect.EndFrame = -1;
+	}
+
+	if (IsController())
+	{
+		State.PendingEffectCmd.PendingEffect = MoveTemp(Effect);
+	}
+	else
+	{
+		NetworkPredictionProxy.ModifyNetState<FPhysicsEffectsAsyncModelDef>([CapturedEffect = MoveTemp(Effect)](FPhysicsEffectNetState& NetState)
+		{
+			NetState.ActiveEffect = CapturedEffect;
 		});
 	}
 }
