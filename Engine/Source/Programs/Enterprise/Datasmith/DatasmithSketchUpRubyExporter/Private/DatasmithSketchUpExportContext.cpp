@@ -523,6 +523,12 @@ FMaterialOccurrence* FMaterialCollection::RegisterGeometry(FMaterialIDType Mater
 
 void FMaterialCollection::UnregisterGeometry(DatasmithSketchUp::FEntitiesGeometry* EntitiesGeometry)
 {
+	if (!EntitiesGeometry)
+	{
+		return;
+
+	}
+
 	TSet<FMaterialIDType>& MaterialsUsed = EntitiesGeometry->MaterialsUsed;
 
 	for (FMaterialIDType MaterialID : MaterialsUsed)

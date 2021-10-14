@@ -240,6 +240,11 @@ void FNodeOccurence::RemoveOccurrence(FExportContext& Context)
 
 	Entity.EntityOccurrenceVisible(this, false);
 
+	if (MaterialOverride)
+	{
+		MaterialOverride->UnregisterInstance(this);
+	}
+
 	for (FNodeOccurence* Child : Children)
 	{
 		Child->RemoveOccurrence(Context);
@@ -570,6 +575,7 @@ void FComponentDefinition::RemoveComponentDefinition(FExportContext& Context)
 			DatasmithSketchUpUtils::GetGroupID(GroupRef));
 	}
 
+	Context.Materials.UnregisterGeometry(GetEntities().EntitiesGeometry.Get());
 	Context.EntitiesObjects.UnregisterEntities(GetEntities());
 }
 
