@@ -14,6 +14,15 @@ class UDynamicMesh;
 class AVolume;
 
 
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGEDITOR_API FGeometryScriptUniqueAssetNameOptions
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	int32 UniqueIDDigits = 6;
+};
+
 
 USTRUCT(BlueprintType)
 struct GEOMETRYSCRIPTINGEDITOR_API FGeometryScriptCreateNewVolumeFromMeshOptions
@@ -63,6 +72,18 @@ class GEOMETRYSCRIPTINGEDITOR_API UGeometryScriptLibrary_CreateNewAssetFunctions
 {
 	GENERATED_BODY()
 public:
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|AssetManagement", meta = (ExpandEnumAsExecs = "Outcome"))
+	static void
+	CreateUniqueNewAssetPathName(
+		FString AssetFolderPath,
+		FString BaseAssetName,
+		FString& UniqueAssetPathAndName,
+		FString& UniqueAssetName,
+		FGeometryScriptUniqueAssetNameOptions Options,
+		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+		UGeometryScriptDebug* Debug = nullptr);
+
 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|AssetManagement", meta = (ExpandEnumAsExecs = "Outcome"))
 	static UPARAM(DisplayName = "Volume Actor") AVolume* 

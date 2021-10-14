@@ -47,6 +47,7 @@ public class GeometryScriptingEditor : ModuleRules
 				"MeshConversion",
 				"GeometryAlgorithms",
 				"ModelingOperators",
+				"ModelingComponents",
 				"ModelingComponentsEditorOnly",
 				"EditorFramework",
 				"UnrealEd",
