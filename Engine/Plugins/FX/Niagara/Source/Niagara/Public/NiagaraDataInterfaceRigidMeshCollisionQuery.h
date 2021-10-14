@@ -8,7 +8,7 @@
 #include "NiagaraDataInterfaceRigidMeshCollisionQuery.generated.h"
 
 // Forward declaration
-class AStaticMeshActor;
+class AActor;
 
 /** Element offsets in the array list */
 struct FElementOffset
@@ -153,7 +153,7 @@ struct FNDIRigidMeshCollisionData
 	FNDIRigidMeshCollisionArrays *AssetArrays = nullptr;
 
 	/** Static Mesh Components **/
-	TArray<AStaticMeshActor*> StaticMeshActors;
+	TArray<AActor*> Actors;
 };
 
 /** Data Interface for the Collisions */
