@@ -1,7 +1,7 @@
 {
 	"FileVersion": 3,
 	"Version": 1,
-	"VersionName": "1.0",
+	"VersionName": "0.4",
 	"FriendlyName": "MassAI",
 	"Description": "AI-specific functionality extenting MassGameplay",
 	"Category": "AI",
