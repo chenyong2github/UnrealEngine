@@ -11,6 +11,46 @@
 namespace CrossCompiler
 {
 
+	/** Shader model version for HLSL input language. */
+	struct SHADERCOMPILERCOMMON_API FHlslShaderModel
+	{
+		/** Major shader model version (e.g. 6 in SM6.2). */
+		uint16 Major;
+
+		/** Minor shader model version (e.g. 2 in SM6.2). */
+		uint16 Minor;
+
+		FORCEINLINE bool operator == (const FHlslShaderModel& Rhs) const
+		{
+			return Major == Rhs.Major && Minor == Rhs.Minor;
+		}
+
+		FORCEINLINE bool operator != (const FHlslShaderModel& Rhs) const
+		{
+			return !(*this == Rhs);
+		}
+
+		FORCEINLINE bool operator < (const FHlslShaderModel& Rhs) const
+		{
+			return Major < Rhs.Major || (Major == Rhs.Major && Minor < Rhs.Minor);
+		}
+
+		FORCEINLINE bool operator <= (const FHlslShaderModel& Rhs) const
+		{
+			return *this < Rhs || *this == Rhs;
+		}
+
+		FORCEINLINE bool operator > (const FHlslShaderModel& Rhs) const
+		{
+			return Rhs < *this;
+		}
+
+		FORCEINLINE bool operator >= (const FHlslShaderModel& Rhs) const
+		{
+			return *this > Rhs || *this == Rhs;
+		}
+	};
+
 	/** Wrapper structure to pass options descriptor to ShaderConductor. This is mapped to <struct ShaderConductor::Compiler::Options>. */
 	struct SHADERCOMPILERCOMMON_API FShaderConductorOptions
 	{
@@ -32,8 +72,8 @@ namespace CrossCompiler
 		/** Enable a pass that converts floating point MUL+ADD pairs into FMAs to avoid re-association. */
 		bool bEnableFMAPass = false;
 
-		/** Target shader profile. By default HCT_FeatureLevelSM5. */
-		EHlslCompileTarget TargetProfile = HCT_FeatureLevelSM5;
+		/** Shader model version of the input language. By default SM6.2. */
+		FHlslShaderModel ShaderModel = { 6, 2 };
 	};
 
 	/** Target high level languages for ShaderConductor output. */

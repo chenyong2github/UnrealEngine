@@ -1949,7 +1949,6 @@ static bool CompileWithShaderConductor(
 	const FString&			EntryPointName,
 	EShaderFrequency		Frequency,
 	const FCompilerInfo&	CompilerInfo,
-	EHlslCompileTarget		HlslCompilerTarget,
 	FShaderCompilerOutput&	Output,
 	FVulkanBindingTable&	BindingTable,
 	bool					bStripReflect)
@@ -1976,7 +1975,6 @@ static bool CompileWithShaderConductor(
 
 	// Initialize compilation options for ShaderConductor
 	CrossCompiler::FShaderConductorOptions Options;
-	Options.TargetProfile = HlslCompilerTarget;
 
 	if (bRewriteHlslSource)
 	{
@@ -2064,21 +2062,15 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 
 	FString PreprocessedShader;
 	FShaderCompilerDefinitions AdditionalDefines;
-	EHlslCompileTarget HlslCompilerTarget = HCT_FeatureLevelES3_1Ext;
-	EHlslCompileTarget HlslCompilerTargetES = HCT_FeatureLevelES3_1Ext;
 	AdditionalDefines.SetDefine(TEXT("COMPILER_HLSLCC"), 1);
 	AdditionalDefines.SetDefine(TEXT("COMPILER_VULKAN"), 1);
 	if(bIsMobile)
 	{
-		HlslCompilerTarget = HCT_FeatureLevelES3_1Ext;
-		HlslCompilerTargetES = HCT_FeatureLevelES3_1Ext;
 		AdditionalDefines.SetDefine(TEXT("ES3_1_PROFILE"), 1);
 		AdditionalDefines.SetDefine(TEXT("VULKAN_PROFILE"), 1);
 	}
 	else if (bIsSM5)
 	{
-		HlslCompilerTarget = HCT_FeatureLevelSM5;
-		HlslCompilerTargetES = HCT_FeatureLevelSM5;
 		AdditionalDefines.SetDefine(TEXT("VULKAN_PROFILE_SM5"), 1);
 	}
 	AdditionalDefines.SetDefine(TEXT("row_major"), TEXT(""));
@@ -2177,7 +2169,7 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 
 #if PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
 	// Cross-compile shader via ShaderConductor (DXC, SPIRV-Tools, SPIRV-Cross)
-	bSuccess = CompileWithShaderConductor(PreprocessedShaderSource, EntryPointName, Frequency, CompilerInfo, HlslCompilerTarget, Output, BindingTable, bStripReflect);
+	bSuccess = CompileWithShaderConductor(PreprocessedShaderSource, EntryPointName, Frequency, CompilerInfo, Output, BindingTable, bStripReflect);
 #endif // PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
 	
 	ShaderParameterParser.ValidateShaderParameterTypes(Input, Output);
