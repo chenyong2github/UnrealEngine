@@ -39,10 +39,15 @@ public:
 	FOnPhysicsEffect NotifyPhysicsEffectExecuted;
 	void OnPhysicsEffectExecuted(uint8 TypeID) override { NotifyPhysicsEffectExecuted.Broadcast(TypeID); };
 
-	// Delegate to inform the GT/bp  that a PE will take place soon but not hasn't happened yet
+	// Delegate to inform the GT/bp that a PE will take place soon but not hasn't happened yet
 	UPROPERTY(BlueprintAssignable, Category = "Physics Effect")
 	FOnPhysicsEffect NotifyPhysicsEffectWindUp;
 	void OnPhysicsEffectWindUp(uint8 TypeID) override { NotifyPhysicsEffectWindUp.Broadcast(TypeID); };
+
+	// Delegate to inform the GT/bp that a PE wind up has ended
+	UPROPERTY(BlueprintAssignable, Category = "Physics Effect")
+	FOnPhysicsEffect NotifyPhysicsEffectWindUpEnd;
+	void OnPhysicsEffectWindUpEnd(uint8 TypeID) override { NotifyPhysicsEffectWindUpEnd.Broadcast(TypeID); };
 
 private:
 
