@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "InteractiveToolObjects.h"
 #include "Drawing/LineSetComponent.h"
+#include "Drawing/PointSetComponent.h"
 
 #include "PreviewGeometryActor.generated.h"
 
@@ -163,6 +164,83 @@ public:
 		TFunctionRef<void(int32 Index, TArray<FRenderableLine>& LinesOut)> LineGenFunc,
 		int32 LinesPerIndexHint = -1);
 
+	//
+	// Point Sets
+	//
+
+	/** Create a new point set with the given PointSetIdentifier and return it */
+	UFUNCTION()
+	UPointSetComponent* AddPointSet(const FString& PointSetIdentifier);
+
+	/** @return the PointSetComponent with the given PointSetIdentifier, or nullptr if not found */
+	UFUNCTION()
+	UPointSetComponent* FindPointSet(const FString& PointSetIdentifier);
+
+	/** 
+	 * Remove the PointSetComponent with the given PointSetIdentifier
+	 * @param bDestroy if true, component will unregistered and destroyed. 
+	 * @return true if the PointSetComponent was found and removed
+	 */
+	UFUNCTION()
+	bool RemovePointSet(const FString& PointSetIdentifier, bool bDestroy = true);
+
+	/**
+	 * Remove all PointSetComponents
+	 * @param bDestroy if true, the components will unregistered and destroyed.
+	 */
+	UFUNCTION()
+	void RemoveAllPointSets(bool bDestroy = true);
+
+	/**
+	 * Set the visibility of the PointSetComponent with the given PointSetIdentifier
+	 * @return true if the PointSetComponent was found and updated
+	 */
+	UFUNCTION()
+	bool SetPointSetVisibility(const FString& PointSetIdentifier, bool bVisible);
+
+	/**
+	 * Set the Material of the PointSetComponent with the given PointSetIdentifier
+	 * @return true if the PointSetComponent was found and updated
+	 */
+	UFUNCTION()
+	bool SetPointSetMaterial(const FString& PointSetIdentifier, UMaterialInterface* NewMaterial);
+
+	/**
+	 * Set the Material of all PointSetComponents
+	 */
+	UFUNCTION()
+	void SetAllPointSetsMaterial(UMaterialInterface* Material);
+
+
+
+	//
+	// Point Set Utilities
+	//
+
+	/**
+	 * Find the identified point set and call UpdateFuncType(UPointSetComponent*)
+	 */
+	template<typename UpdateFuncType>
+	void UpdatePointSet(const FString& PointSetIdentifier, UpdateFuncType UpdateFunc)
+	{
+		UPointSetComponent* PointSet = FindPointSet(PointSetIdentifier);
+		if (PointSet)
+		{
+			UpdateFunc(PointSet);
+		}
+	}
+
+	/**
+	 * call UpdateFuncType(UPointSetComponent*) for all existing Point Sets
+	 */
+	template<typename UpdateFuncType>
+	void UpdateAllPointSets(UpdateFuncType UpdateFunc)
+	{
+		for (TPair<FString, TObjectPtr<UPointSetComponent>> Entry : PointSets)
+		{
+			UpdateFunc(Entry.Value);
+		}
+	}
 
 public:
 
@@ -178,7 +256,11 @@ public:
 	UPROPERTY()
 	TMap<FString, TObjectPtr<ULineSetComponent>> LineSets;
 
-
+	/**
+	 * PointSetComponents created and owned by the UPreviewGeometry, and added as child components of the ParentActor
+	 */
+	UPROPERTY()
+	TMap<FString, TObjectPtr<UPointSetComponent>> PointSets;
 
 protected:
 
