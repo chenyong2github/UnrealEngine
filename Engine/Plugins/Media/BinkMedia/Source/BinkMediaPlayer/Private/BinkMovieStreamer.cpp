@@ -219,7 +219,7 @@ bool FBinkMovieStreamer::OpenNextMovie()
 
 	FString MoviePathTbl[] = 
 	{
-		StoredMoviePaths[MovieIndex] + TEXT(".bk2"),
+		StoredMoviePaths[MovieIndex] + TEXT(".bk2")
 	};
 	for (int i = 0; i < sizeof(MoviePathTbl) / sizeof(MoviePathTbl[0]) && !bnk; ++i) 
 	{
