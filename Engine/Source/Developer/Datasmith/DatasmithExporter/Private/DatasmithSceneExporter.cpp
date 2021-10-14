@@ -23,6 +23,13 @@
 #include "Misc/SecureHash.h"
 #include "UObject/GarbageCollection.h"
 
+// Hash function to use FMD5Hash in TMap
+inline uint32 GetTypeHash(const FMD5Hash& Hash)
+{
+	uint32* HashAsInt32 = (uint32*)Hash.GetBytes();
+	return HashAsInt32[0] ^ HashAsInt32[1] ^ HashAsInt32[2] ^ HashAsInt32[3];
+}
+
 class FDatasmithSceneExporterImpl
 {
 public:
@@ -67,7 +74,7 @@ void FDatasmithSceneExporterImpl::UpdateTextureElements( TSharedRef< IDatasmithS
 	}
 
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-	TSet<FString> ExportedTextures;
+	TMap<FMD5Hash, FString> HashFilePathMap;
 	FDatasmithUniqueNameProvider TextureFileNameProvider;
 
 	for (int32 i = 0; i < DatasmithScene->GetTexturesCount(); i++)
@@ -82,21 +89,23 @@ void FDatasmithSceneExporterImpl::UpdateTextureElements( TSharedRef< IDatasmithS
 			ProgressManager->ProgressEvent(RatioDone, *FPaths::GetBaseFilename( TextureFileName ));
 		}
 
-		FString UniqueFileName = TextureFileNameProvider.GenerateUniqueName( FPaths::GetBaseFilename( TextureFileName ) );
-		TextureFileNameProvider.AddExistingName( UniqueFileName );
-		FString FileExtension = FPaths::GetExtension( TextureFileName, /*bIncludeDot=*/true );
-		FString NewFilename = FPaths::Combine( AssetsOutputPath, UniqueFileName + FileExtension );
+		FString& NewFilename = HashFilePathMap.FindOrAdd(TextureElement->GetFileHash());
+		
+		// If this texture has not been exported yet, find a unique name for it and copy its file to the asset output path.
+		if (NewFilename.IsEmpty())
+		{
+			const FString UniqueFileName = TextureFileNameProvider.GenerateUniqueName( FPaths::GetBaseFilename( TextureFileName ) );
+			TextureFileNameProvider.AddExistingName( UniqueFileName );
+			const FString FileExtension = FPaths::GetExtension(TextureFileName, /*bIncludeDot=*/true);
+			NewFilename = FPaths::Combine(AssetsOutputPath, UniqueFileName + FileExtension);
 
-		// Update texture element and copy image file to new location if applicable
+			// Copy image file to new location
+			PlatformFile.CopyFile(*NewFilename, *TextureFileName);
+		}
+
+		// Update texture element
 		if (TextureFileName != NewFilename)
 		{
-			// Copy image file to new location if necessary
-			if (!ExportedTextures.Find(NewFilename))
-			{
-				PlatformFile.CopyFile(*NewFilename, *TextureFileName);
-				ExportedTextures.Add(NewFilename);
-			}
-
 			TextureElement->SetFile(*NewFilename);
 		}
 	}
