@@ -15,3 +15,7 @@
 #if !defined(UE_TRACE_ENABLED)
 #	define UE_TRACE_ENABLED 0
 #endif
+
+#if UE_TRACE_ENABLED
+#	define TRACE_PRIVATE_PROTOCOL_5
+#endif
