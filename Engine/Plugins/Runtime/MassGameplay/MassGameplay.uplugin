@@ -59,6 +59,10 @@
 		{
 			"Name": "MassGameplayDebug",
 			"Type": "UncookedOnly"
+		},
+		{
+			"Name": "MassGameplayEditor",
+			"Type": "Editor"
 		}
 	],
 	"Plugins": [
