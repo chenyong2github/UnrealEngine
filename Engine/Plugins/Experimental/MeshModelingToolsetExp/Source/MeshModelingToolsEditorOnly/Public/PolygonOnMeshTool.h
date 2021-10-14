@@ -97,7 +97,7 @@ public:
 	float Height = 50.0f;
 
 	/** Corner Ratio of RoundRect Polygon */
-	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "0.0", UIMax = "1.0", EditCondition = "Shape == EPolygonType::RoundRect"))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "0.01", ClampMin = "0.00001", ClampMax = "1.0", EditCondition = "Shape == EPolygonType::RoundRect"))
 	float CornerRatio = 0.5f;
 
 	/** Number of sides in Circle or RoundRect Corner */
