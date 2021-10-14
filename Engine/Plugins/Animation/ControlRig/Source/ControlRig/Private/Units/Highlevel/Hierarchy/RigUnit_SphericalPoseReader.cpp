@@ -26,17 +26,23 @@ FRigUnit_SphericalPoseReader_Execute()
 
 	// remap/clamp inputs
 	RemapAndConvertInputs(
-		InnerRegion, OuterRegion,
-		ActiveRegionSize, PositiveWidth, NegativeWidth, PositiveHeight, NegativeHeight,
-		FalloffSize, PositiveWidthFalloff, NegativeWidthFalloff, PositiveHeightFalloff, NegativeHeightFalloff);
+		InnerRegion,
+		OuterRegion,
+		ActiveRegionSize,
+		ActiveRegionScaleFactors,
+		FalloffSize,
+		FalloffRegionScaleFactors,
+		FlipWidthScaling,
+		FlipHeightScaling);
 	
-	// get the world offset
-	const FTransform LocalDriverTransformInit = Hierarchy->GetInitialLocalTransform(DriverItem);
+	// get local rotation space of driver
+	FTransform LocalDriverTransformInit = Hierarchy->GetInitialLocalTransform(DriverItem);
+	// apply static offset in local space
+	FQuat RotationOffsetQuat = FQuat::MakeFromEuler(RotationOffset);
+	LocalDriverTransformInit.SetRotation(LocalDriverTransformInit.GetRotation() * RotationOffsetQuat);
+	// put into global space
 	const FTransform GlobalDriverParentTransform = Hierarchy->GetParentTransform(DriverItem);
 	FTransform WorldOffset = LocalDriverTransformInit * GlobalDriverParentTransform;
-	// rotate by optional static offset
-	FQuat RotationOffsetQuat = FQuat::MakeFromEuler(RotationOffset);
-	WorldOffset.SetRotation(WorldOffset.GetRotation()*RotationOffsetQuat);
 
 	// get driver axis
 	const FTransform GlobalDriverTransform = Hierarchy->GetGlobalTransform(DriverItem);
@@ -90,45 +96,50 @@ void FRigUnit_SphericalPoseReader::RemapAndConvertInputs(
 	FSphericalRegion& InnerRegion,
 	FSphericalRegion& OuterRegion,
 	const float ActiveRegionSize,
-	const float PositiveWidth,
-	const float NegativeWidth,
-	const float PositiveHeight,
-	const float NegativeHeight,
+	const FRegionScaleFactors& ActiveRegionScaleFactors,
 	const float FalloffSize,
-	const float PositiveWidthFalloff,
-	const float NegativeWidthFalloff,
-	const float PositiveHeightFalloff,
-	const float NegativeHeightFalloff)
+	const FRegionScaleFactors& FalloffRegionScaleFactors,
+	const bool FlipWidth,
+	const bool FlipHeight)
 {
 	// remap normalized inputs to angles
 	float RegionAngle = ActiveRegionSize * 180.0f;
 	RegionAngle = FMath::Min(FMath::Max(0.5f, RegionAngle), 178.0f);
 
 	InnerRegion.RegionAngleRadians = FMath::DegreesToRadians(RegionAngle);
-	InnerRegion.PosWidth = PositiveWidth;
-	InnerRegion.NegWidth = NegativeWidth;
-	InnerRegion.PosHeight = PositiveHeight;
-	InnerRegion.NegHeight = NegativeHeight;
+	InnerRegion.ScaleFactors = ActiveRegionScaleFactors;
 
 	// clamp outer falloff angle to always be greater than inner
-	float FalloffAngle = RegionAngle + (FalloffSize * 180.0f);
-	FalloffAngle = FMath::Min(FMath::Max(1.0f, FalloffAngle), 179.0f);
+	float FalloffAngle = FalloffSize * 180.0f;
+	FalloffAngle = FMath::Min(FMath::Max(RegionAngle+1.0f, FalloffAngle), 179.0f);
 	OuterRegion.RegionAngleRadians = FMath::DegreesToRadians(FalloffAngle);
 
 	// clamp falloff to always be outside inner angle
 	const float InvOuterAngleRadians = 1.0f / OuterRegion.RegionAngleRadians;
 	//
-	const float PosWidthMin = (InnerRegion.RegionAngleRadians * PositiveWidth) * InvOuterAngleRadians;
-	OuterRegion.PosWidth = FMath::Lerp(PosWidthMin, 1.0f, PositiveWidthFalloff);
+	const float PosWidthMin = (InnerRegion.RegionAngleRadians * ActiveRegionScaleFactors.PositiveWidth) * InvOuterAngleRadians;
+	OuterRegion.ScaleFactors.PositiveWidth = FMath::Lerp(PosWidthMin, 1.0f, FalloffRegionScaleFactors.PositiveWidth);
 	//
-	const float NegWidthMin = (InnerRegion.RegionAngleRadians * NegativeWidth) * InvOuterAngleRadians;
-	OuterRegion.NegWidth = FMath::Lerp(NegWidthMin, 1.0f, NegativeWidthFalloff);
+	const float NegWidthMin = (InnerRegion.RegionAngleRadians * ActiveRegionScaleFactors.NegativeWidth) * InvOuterAngleRadians;
+	OuterRegion.ScaleFactors.NegativeWidth = FMath::Lerp(NegWidthMin, 1.0f, FalloffRegionScaleFactors.NegativeWidth);
 	//
-	const float PosHeightMin = (InnerRegion.RegionAngleRadians * PositiveHeight) * InvOuterAngleRadians;
-	OuterRegion.PosHeight = FMath::Lerp(PosHeightMin, 1.0f, PositiveHeightFalloff);
+	const float PosHeightMin = (InnerRegion.RegionAngleRadians * ActiveRegionScaleFactors.PositiveHeight) * InvOuterAngleRadians;
+	OuterRegion.ScaleFactors.PositiveHeight = FMath::Lerp(PosHeightMin, 1.0f, FalloffRegionScaleFactors.PositiveHeight);
 	//
-	const float NegHeightMin = (InnerRegion.RegionAngleRadians * NegativeHeight) * InvOuterAngleRadians;
-	OuterRegion.NegHeight = FMath::Lerp(NegHeightMin, 1.0f, NegativeHeightFalloff);
+	const float NegHeightMin = (InnerRegion.RegionAngleRadians * ActiveRegionScaleFactors.NegativeHeight) * InvOuterAngleRadians;
+	OuterRegion.ScaleFactors.NegativeHeight = FMath::Lerp(NegHeightMin, 1.0f, FalloffRegionScaleFactors.NegativeHeight);
+
+	// optionally flip the scaling factors to better support mirrored setups
+	if (FlipWidth)
+	{
+		Swap(InnerRegion.ScaleFactors.PositiveWidth, InnerRegion.ScaleFactors.NegativeWidth);
+		Swap(OuterRegion.ScaleFactors.PositiveWidth, OuterRegion.ScaleFactors.NegativeWidth);
+	}
+	if (FlipHeight)
+	{
+		Swap(InnerRegion.ScaleFactors.PositiveHeight, InnerRegion.ScaleFactors.NegativeHeight);
+		Swap(OuterRegion.ScaleFactors.PositiveHeight, OuterRegion.ScaleFactors.NegativeHeight);
+	}
 }
 
 float FRigUnit_SphericalPoseReader::CalcOutputParam(
