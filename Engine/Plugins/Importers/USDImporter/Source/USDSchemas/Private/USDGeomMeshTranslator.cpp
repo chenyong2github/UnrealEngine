@@ -30,6 +30,7 @@
 #include "Misc/SecureHash.h"
 #include "Modules/ModuleManager.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "RHI.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
 #include "StaticMeshResources.h"
@@ -505,7 +506,7 @@ namespace UsdGeomMeshTranslatorImpl
 		StaticMesh.CreateBodySetup();
 	}
 
-	bool BuildStaticMesh( UStaticMesh& StaticMesh, TArray<FMeshDescription*>& LODIndexToMeshDescription )
+	bool BuildStaticMesh( UStaticMesh& StaticMesh, const FStaticFeatureLevel& FeatureLevel, TArray<FMeshDescription*>& LODIndexToMeshDescription )
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE( UsdGeomMeshTranslatorImpl::BuildStaticMesh );
 
@@ -520,7 +521,7 @@ namespace UsdGeomMeshTranslatorImpl
 		{
 			if ( StaticMaterial.MaterialInterface )
 			{
-				if ( RequiresAdjacencyInformation( StaticMaterial.MaterialInterface, nullptr, GWorld->FeatureLevel ) )
+				if ( RequiresAdjacencyInformation( StaticMaterial.MaterialInterface, nullptr, FeatureLevel ) )
 				{
 					for ( FStaticMeshSourceModel& SourceModel : StaticMesh.GetSourceModels() )
 					{
@@ -921,7 +922,19 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 				MeshDescriptionPtrs.Add( &MeshDescription );
 			}
 
-			if ( !UsdGeomMeshTranslatorImpl::BuildStaticMesh( *StaticMesh, MeshDescriptionPtrs ) )
+			FStaticFeatureLevel FeatureLevel = GMaxRHIFeatureLevel;
+
+			UWorld* World = Context->Level ? Context->Level->GetWorld() : nullptr;
+			if ( !World )
+			{
+				World = GWorld;
+			}
+			if ( World )
+			{
+				FeatureLevel = World->FeatureLevel;
+			}
+
+			if ( !UsdGeomMeshTranslatorImpl::BuildStaticMesh( *StaticMesh, FeatureLevel, MeshDescriptionPtrs ) )
 			{
 				// Build failed, discard the mesh
 				StaticMesh = nullptr;
@@ -1156,6 +1169,18 @@ USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 				);
 
 #if WITH_EDITOR
+				FStaticFeatureLevel FeatureLevel = GMaxRHIFeatureLevel;
+
+				UWorld* World = Context->Level ? Context->Level->GetWorld() : nullptr;
+				if ( !World )
+				{
+					World = GWorld;
+				}
+				if ( World )
+				{
+					FeatureLevel = World->FeatureLevel;
+				}
+
 				// Enable adjacency buffer if we're using a material override that requires it.
 				// This is currently editor-only because UStaticMesh::BuildFromMeshDescription doesn't
 				// build the adjacency buffer anyway, and that's what we use to build at runtime.
@@ -1166,7 +1191,7 @@ USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 				// material overrides at runtime
 				for ( UMaterialInterface* Material : StaticMeshComponent->OverrideMaterials )
 				{
-					if ( RequiresAdjacencyInformation( Material, nullptr, GWorld->FeatureLevel ) )
+					if ( RequiresAdjacencyInformation( Material, nullptr, FeatureLevel ) )
 					{
 						FStaticMeshComponentRecreateRenderStateContext RecreateContext{ StaticMesh };
 
@@ -1180,7 +1205,7 @@ USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 
 						// Rebuild the mesh if we know we need adjacency buffer info
 						UsdGeomMeshTranslatorImpl::PreBuildStaticMesh( *StaticMesh );
-						UsdGeomMeshTranslatorImpl::BuildStaticMesh( *StaticMesh, LODIndexToMeshDescriptionPtr );
+						UsdGeomMeshTranslatorImpl::BuildStaticMesh( *StaticMesh, FeatureLevel, LODIndexToMeshDescriptionPtr );
 						UsdGeomMeshTranslatorImpl::PostBuildStaticMesh( *StaticMesh, LODIndexToMeshDescriptionPtr );
 
 						break;
