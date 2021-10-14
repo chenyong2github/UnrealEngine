@@ -384,8 +384,7 @@ namespace VulkanRHI
 		}
 
 		bool SupportsMemoryType(VkMemoryPropertyFlags Properties) const;
-		void GetHostMemoryStatus(uint64* Allocated, uint64* Total);
-		bool IsHostMemory(uint32 MemoryTypeIndex) const;
+		void GetPrimaryHeapStatus(uint64& OutAllocated, uint64& OutLimit);
 
 		VkResult GetMemoryTypeFromProperties(uint32 TypeBits, VkMemoryPropertyFlags Properties, uint32* OutTypeIndex);
 		VkResult GetMemoryTypeFromPropertiesExcluding(uint32 TypeBits, VkMemoryPropertyFlags Properties, uint32 ExcludeTypeIndex, uint32* OutTypeIndex);
@@ -402,15 +401,16 @@ namespace VulkanRHI
 		uint64 GetTotalMemory(bool bGPU) const;
 		VkDeviceSize GetBaseHeapSize(uint32 HeapIndex) const;
 		uint32 GetHeapIndex(uint32 MemoryTypeIndex);
+
 	protected:
 		void FreeInternal(FDeviceMemoryAllocation* Allocation);
 		void TrimMemory(bool bFullTrim);
 		friend class FMemoryManager;
 		void GetMemoryDump(TArray<FResourceHeapStats>& OutDeviceHeapsStats);
 		void DumpMemory();
+		void PrintMemInfo() const;
 
-
-		double MemoryUpdateTime = 0.0;
+		double MemoryUpdateTime;
 		VkPhysicalDeviceMemoryBudgetPropertiesEXT MemoryBudget;
 		VkPhysicalDeviceMemoryProperties MemoryProperties;
 		VkDevice DeviceHandle;
@@ -422,13 +422,11 @@ namespace VulkanRHI
 
 		struct FHeapInfo
 		{
-			VkDeviceSize TotalSize;
 			VkDeviceSize UsedSize;
 			VkDeviceSize PeakSize;
 			TArray<FDeviceMemoryAllocation*> Allocations;
 
 			FHeapInfo() :
-				TotalSize(0),
 				UsedSize(0),
 				PeakSize(0)
 			{
@@ -436,11 +434,10 @@ namespace VulkanRHI
 		};
 
 		TArray<FHeapInfo> HeapInfos;
-		int32 PrimaryHostHeap; // memory usage of this heap will decide when to evict.
 
-
-		void SetupAndPrintMemInfo();
+		int32 PrimaryHeapIndex; // memory usage of this heap will decide when to evict.
 	};
+
 	struct FRange
 	{
 		uint32 Offset;
@@ -804,9 +801,6 @@ namespace VulkanRHI
 
 		void HandleOOM(bool bCanResume = false, VkResult Result = VK_SUCCESS, uint64 AllocationSize = 0, uint32 MemoryTypeIndex = 0);
 		bool UpdateEvictThreshold(bool bLog);
-
-
-		void* Hotfix = nullptr;
 
 	protected:
 		FDeviceMemoryManager* DeviceMemoryManager;
