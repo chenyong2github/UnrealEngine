@@ -2,7 +2,7 @@
 
 #include "Trace/Config.h"
 
-#if UE_TRACE_ENABLED
+#if UE_TRACE_ENABLED && PLATFORM_APPLE
 
 #include <arpa/inet.h>
 #include <errno.h>
