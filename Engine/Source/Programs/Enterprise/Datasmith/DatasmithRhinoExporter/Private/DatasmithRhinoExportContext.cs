@@ -632,7 +632,7 @@ namespace DatasmithRhino
 		public DatasmithRhinoExportOptions ExportOptions { get; private set; }
 		public bool bIsParsed { get; private set; } = false;
 		public bool bIsDirty { get; private set; } = true;
-		private bool bExportedOnce = false;
+		public bool bExportedOnce { get; private set; } = false;
 		public bool bIsInWorksession {
 			get {
 				//Only check for worksession on Windows, the feature is not implemented on Mac and calling the API throws exception.
