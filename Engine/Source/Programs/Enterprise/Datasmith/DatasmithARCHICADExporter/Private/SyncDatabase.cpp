@@ -588,6 +588,8 @@ void FSyncDatabase::SetSceneInfo()
 	TheScene.SetVendor(TEXT("Graphisoft"));
 	TheScene.SetProductName(TEXT("ARCHICAD"));
 	TheScene.SetProductVersion(UTF8_TO_TCHAR(UE_AC_STRINGIZE(AC_VERSION)));
+	TheScene.SetExporterVersion(TEXT("4.27.2"));
+	TheScene.SetExporterSDKVersion(TEXT("4.27.2"));
 }
 
 void FSyncDatabase::ResetMeshClasses()
