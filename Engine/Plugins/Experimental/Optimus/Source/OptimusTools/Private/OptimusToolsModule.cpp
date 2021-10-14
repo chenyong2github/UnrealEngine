@@ -70,9 +70,8 @@ void FOptimusToolsModule::RegisterMenusAndToolbars()
 			{
 				InSection.AddEntry(FToolMenuEntry::InitToolBarButton(
 				    FOptimusToolsCommands::Get().ToggleModelingToolsMode,
-					LOCTEXT("ModelingToolsMode", "Modeling Tools"),
-				    // TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &FOptimusToolsModule::GetPaintToolsButtonText, Context->SkeletalMeshEditor)),
-				    FText(),
+					LOCTEXT("SkeletalMeshEditorModelingMode", "Modeling Tools"),
+				    LOCTEXT("SkeletalMeshEditorModelingModeTooltip", "Opens the Modeling Tools palette that provides selected mesh modification tools."),
 				    FSlateIcon("ModelingToolsStyle", "LevelEditor.ModelingToolsMode")));
 			}
 		}));
