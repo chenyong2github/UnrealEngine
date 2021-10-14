@@ -193,19 +193,6 @@ namespace CrossCompiler
 		return ShaderConductor::ShaderStage::NumShaderStages;
 	}
 
-	static ShaderConductor::Compiler::ShaderModel ToShaderConductorShaderModel(EHlslCompileTarget Target)
-	{
-		switch (Target)
-		{
-		case HCT_FeatureLevelSM4:		return { 4, 0 };
-		case HCT_FeatureLevelES3_1Ext:	return { 4, 0 };
-		case HCT_FeatureLevelSM5:		return { 5, 0 };
-		case HCT_FeatureLevelES3_1:		return { 4, 0 };
-		default: checkf(0, TEXT("Invalid input shader target for enum <EHlslCompileTarget>."));
-		}
-		return { 6,0 };
-	}
-
 	// Wrapper structure to hold all intermediate buffers for ShaderConductor
 	struct FShaderConductorContext::FShaderConductorIntermediates
 	{
@@ -397,22 +384,24 @@ namespace CrossCompiler
 
 	static void ConvertScOptions(const FShaderConductorOptions& InOptions, ShaderConductor::Compiler::Options& OutOptions, const TArray<ANSICHAR const*>& ExtraDxcArgRefs)
 	{
+		// Validate input shader model with respect to certain language features.
+		checkf(
+			(!InOptions.bEnable16bitTypes || InOptions.ShaderModel >= FHlslShaderModel{ 6, 2 }),
+			TEXT("DXC option '-enable-16bit-types' only supported with SM6.2+ but SM%u.%u was specified"),
+			InOptions.ShaderModel.Major, InOptions.ShaderModel.Minor
+		);
+
 		OutOptions.removeUnusedGlobals = InOptions.bRemoveUnusedGlobals;
 		OutOptions.packMatricesInRowMajor = InOptions.bPackMatricesInRowMajor;
 		OutOptions.enable16bitTypes = InOptions.bEnable16bitTypes;
 		OutOptions.enableDebugInfo = InOptions.bEnableDebugInfo;
 		OutOptions.disableOptimizations = InOptions.bDisableOptimizations;
 		OutOptions.enableFMAPass = InOptions.bEnableFMAPass;
-
-		if (OutOptions.enable16bitTypes)
+		OutOptions.shaderModel = ShaderConductor::Compiler::ShaderModel
 		{
-			// 16-bit types only supports with SM 6.2+
-			OutOptions.shaderModel = ShaderConductor::Compiler::ShaderModel{ 6, 2 };
-		}
-		else
-		{
-			OutOptions.shaderModel = ToShaderConductorShaderModel(InOptions.TargetProfile);
-		}
+			static_cast<uint8>(InOptions.ShaderModel.Major),
+			static_cast<uint8>(InOptions.ShaderModel.Minor)
+		};
 
 		if (ExtraDxcArgRefs.Num() > 0)
 		{

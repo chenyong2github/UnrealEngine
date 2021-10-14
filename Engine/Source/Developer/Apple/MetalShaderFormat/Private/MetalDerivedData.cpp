@@ -163,7 +163,7 @@ bool FMetalShaderBytecodeCooker::Build(TArray<uint8>& OutData)
 	return bSuccess;
 }
 
-FMetalShaderOutputCooker::FMetalShaderOutputCooker(const FShaderCompilerInput& _Input, FShaderCompilerOutput& _Output, const FString& _WorkingDirectory, FString _PreprocessedShader, FSHAHash _GUIDHash, uint8 _VersionEnum, uint32 _CCFlags, EHlslCompileTarget _HlslCompilerTarget, EHlslCompileTarget _MetalCompilerTarget, EMetalGPUSemantics _Semantics, EMetalTypeBufferMode _TypeMode, uint32 _MaxUnrollLoops, EShaderFrequency _Frequency, bool _bDumpDebugInfo, FString _Standard, FString _MinOSVersion)
+FMetalShaderOutputCooker::FMetalShaderOutputCooker(const FShaderCompilerInput& _Input, FShaderCompilerOutput& _Output, const FString& _WorkingDirectory, FString _PreprocessedShader, FSHAHash _GUIDHash, uint8 _VersionEnum, uint32 _CCFlags, EMetalGPUSemantics _Semantics, EMetalTypeBufferMode _TypeMode, uint32 _MaxUnrollLoops, EShaderFrequency _Frequency, bool _bDumpDebugInfo, FString _Standard, FString _MinOSVersion)
 	: Input(_Input)
 	, Output(_Output)
 	, WorkingDirectory(_WorkingDirectory)
@@ -172,8 +172,6 @@ FMetalShaderOutputCooker::FMetalShaderOutputCooker(const FShaderCompilerInput& _
 	, VersionEnum(_VersionEnum)
 	, CCFlags(_CCFlags)
 	, IABTier(0)
-	, HlslCompilerTarget(_HlslCompilerTarget)
-	, MetalCompilerTarget(_MetalCompilerTarget)
 	, Semantics(_Semantics)
 	, TypeMode(_TypeMode)
 	, MaxUnrollLoops(_MaxUnrollLoops)
