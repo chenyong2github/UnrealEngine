@@ -144,7 +144,7 @@ struct FUserDefinedStructureCompilerInner
 		}
 	}
 
-	static UObject* CleanAndSanitizeStruct(UUserDefinedStruct* StructToClean)
+	static void CleanAndSanitizeStruct(UUserDefinedStruct* StructToClean)
 	{
 		check(StructToClean);
 
@@ -153,23 +153,8 @@ struct FUserDefinedStructureCompilerInner
 			EditorData->CleanDefaultInstance();
 		}
 
-		UUserDefinedStruct* TransientStruct = nullptr;
-
 		if (FStructureEditorUtils::FStructEditorManager::ActiveChange != FStructureEditorUtils::EStructureEditorChangeInfo::DefaultValueChanged)
 		{
-			const FString TransientString = FString::Printf(TEXT("TRASHSTRUCT_%s"), *StructToClean->GetName());
-			const FName TransientName = MakeUniqueObjectName(GetTransientPackage(), UUserDefinedStruct::StaticClass(), FName(*TransientString));
-			TransientStruct = NewObject<UUserDefinedStruct>(GetTransientPackage(), TransientName, RF_Public | RF_Transient);
-			TransientStruct->PrepareCppStructOps();
-
-			TArray<UObject*> SubObjects;
-			GetObjectsWithOuter(StructToClean, SubObjects, true);
-			SubObjects.Remove(StructToClean->EditorData);
-			for (UObject* CurrSubObj : SubObjects)
-			{
-				FLinkerLoad::InvalidateExport(CurrSubObj);
-			}
-
 			StructToClean->SetSuperStruct(nullptr);
 			StructToClean->Children = nullptr;
 			StructToClean->DestroyChildPropertiesAndResetPropertyLinks();
@@ -179,8 +164,6 @@ struct FUserDefinedStructureCompilerInner
 			StructToClean->ErrorMessage.Empty();
 			StructToClean->SetStructTrashed(true);
 		}
-
-		return TransientStruct;
 	}
 
 	static void LogError(UUserDefinedStruct* Struct, FCompilerResultsLog& MessageLog, const FString& ErrorMsg)
