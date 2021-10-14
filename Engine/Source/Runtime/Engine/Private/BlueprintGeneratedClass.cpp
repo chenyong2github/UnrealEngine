@@ -23,6 +23,7 @@
 #include "UObject/CoreObjectVersion.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "UObject/CoreObjectVersion.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 
