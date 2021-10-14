@@ -335,7 +335,7 @@ struct GeodesicSingleTriangleUtils::FTraceResult
 	FVector3d Barycentric;                     // Surface point as Barycentric coords.  Can be reconstructed with FDynamicMesh::GetTriBaryPoint(TriID, Barycentric[0], Barycentric[1], Barycentric[2]);
 	bool bIsEdgePoint;                         // Duplicate description of the surface point in the case of edge termination
 	int32 EdgeID = IndexConstants::InvalidID;  // In the case of Edge termination, SurfaceDirection.EdgeID = EdgeID
-	double EdgeAlpha = -1.;                    // When edge point, locates position between the vertices lerping parameter, e.g. Alpha Edge.A + ( 1-Alpha) Edge.B
+	double EdgeAlpha = -1.;                    // When edge point: locates position between the vertices as (1-Alpha) Edge.A + Alpha Edge.B
 };
 
 bool GeodesicSingleTriangleUtils::IsTerminated(const FTraceResult& Result)
