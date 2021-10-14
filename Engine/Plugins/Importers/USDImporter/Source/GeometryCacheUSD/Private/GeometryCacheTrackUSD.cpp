@@ -71,21 +71,30 @@ const FGeometryCacheTrackSampleInfo& UGeometryCacheTrackUsd::GetSampleInfo(float
 	}
 
 	// The sample info index must start from 0, while the sample index is between the range of the animation
-	const int32 SampleInfoIndex = FindSampleIndexFromTime(Time, bLooping) - StartFrameIndex;
+	const int32 SampleIndex = FindSampleIndexFromTime( Time, bLooping );
+	const int32 SampleInfoIndex = SampleIndex - StartFrameIndex;
 
 	FGeometryCacheTrackSampleInfo& CurrentSampleInfo = SampleInfos[SampleInfoIndex];
 
 	if (CurrentSampleInfo.SampleTime == 0.0f && CurrentSampleInfo.NumVertices == 0 && CurrentSampleInfo.NumIndices == 0)
 	{
 		FGeometryCacheMeshData TempMeshData;
-		GetMeshData(SampleInfoIndex, TempMeshData);
-
-		CurrentSampleInfo = FGeometryCacheTrackSampleInfo(
-			Time,
-			MeshData.BoundingBox,
-			MeshData.Positions.Num(),
-			MeshData.Indices.Num()
-		);
+		if ( GetMeshData( SampleIndex, TempMeshData ) )
+		{
+			CurrentSampleInfo = FGeometryCacheTrackSampleInfo(
+				Time,
+				(FBox) TempMeshData.BoundingBox,
+				TempMeshData.Positions.Num(),
+				TempMeshData.Indices.Num()
+			);
+		}
+		else
+		{
+			// This shouldn't really happen but if it does make sure this is initialized,
+			// as it can crash/throw ensures depending on the uninitialized memory values,
+			// while it will only be slightly visually glitchy with a zero bounding box
+			CurrentSampleInfo.BoundingBox.Init();
+		}
 	}
 
 	return CurrentSampleInfo;
