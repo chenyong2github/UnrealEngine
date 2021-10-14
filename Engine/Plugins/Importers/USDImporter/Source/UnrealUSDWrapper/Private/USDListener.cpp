@@ -145,6 +145,27 @@ namespace UsdToUnreal
 		ConvertPathRange( InNotice.GetChangedInfoOnlyPaths(), OutInfoChanges );
 		ConvertPathRange( InNotice.GetResyncedPaths(), OutResyncChanges );
 
+		// Upgrade info changes with content reloads into resync changes
+		for ( TPair< FString, TArray<UsdUtils::FObjectChangeNotice> >& InfoPair : OutInfoChanges )
+		{
+			const FString& PrimPath = InfoPair.Key;
+			TArray< UsdUtils::FObjectChangeNotice >* AnalogueResyncChanges = nullptr;
+
+			for ( TArray<UsdUtils::FObjectChangeNotice>::TIterator ChangeIt = InfoPair.Value.CreateIterator(); ChangeIt; ++ChangeIt )
+			{
+				if ( ChangeIt->Flags.bDidReloadContent )
+				{
+					if ( !AnalogueResyncChanges )
+					{
+						AnalogueResyncChanges = &OutResyncChanges.FindOrAdd( PrimPath );
+					}
+
+					AnalogueResyncChanges->Add( *ChangeIt );
+					ChangeIt.RemoveCurrent();
+				}
+			}
+		}
+
 		return true;
 	}
 #endif // USE_USD_SDK
