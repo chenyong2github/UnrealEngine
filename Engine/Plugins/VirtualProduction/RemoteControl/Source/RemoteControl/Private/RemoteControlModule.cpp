@@ -369,8 +369,11 @@ void FRemoteControlModule::ShutdownModule()
 	// Unregister the interceptor feature on module shutdown
 	IModularFeatures::Get().UnregisterModularFeature(IRemoteControlInterceptionFeatureProcessor::GetName(), RCIProcessor.Get());
 
-	// Unregister Property Factories
-	UnregisterEntityFactory(FRemoteControlInstanceMaterial::StaticStruct()->GetFName());
+	if (UObjectInitialized())
+	{
+		// Unregister Property Factories
+		UnregisterEntityFactory(FRemoteControlInstanceMaterial::StaticStruct()->GetFName());
+	}
 }
 
 IRemoteControlModule::FOnPresetRegistered& FRemoteControlModule::OnPresetRegistered()
