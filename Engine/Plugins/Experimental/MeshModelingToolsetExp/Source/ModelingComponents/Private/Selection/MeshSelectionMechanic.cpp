@@ -7,6 +7,8 @@
 #include "Drawing/LineSetComponent.h"
 #include "Drawing/PointSetComponent.h"
 #include "Drawing/PreviewGeometryActor.h"
+#include "Intersection/IntrTriangle2AxisAlignedBox2.h"
+#include "Intersection/IntersectionQueries2.h"
 #include "InteractiveToolManager.h"
 #include "Polyline3.h"
 #include "Selections/MeshConnectedComponents.h"
@@ -89,6 +91,92 @@ namespace MeshSelectionMechanicLocals
 		}
 		checkNoEntry();
 		return UE::Geometry::FDynamicMeshSelection::EType::Vertex;
+	}
+
+	template <typename Real>
+	TVector2<FVector::FReal> XY(const TVector<Real>& Point)
+	{
+		return {static_cast<FVector::FReal>(Point.X), static_cast<FVector::FReal>(Point.Y)};
+	}
+
+	// Returns the marquee selection rectangle, obtained from the given CameraRectangle, projected to the XY plane
+	FCameraRectangle::FAxisAlignedBox2 GetRectangleXY(const FCameraRectangle& CameraRectangle)
+	{
+		ensure(CameraRectangle.bIsInitialized);
+		
+		double Offset = CameraRectangle.SelectionDomain.Plane.DistanceTo(FVector::ZeroVector);
+		FCameraRectangle::FRectangleInPlane Domain = CameraRectangle.ProjectSelectionDomain(Offset);
+		FCameraRectangle::FAxisAlignedBox2 RectangleXY;
+		
+		// This works because we know the UV axes are aligned with the XY axes, see the comment in UUVEditorMode::InitializeTargets
+		RectangleXY.Contain(XY(CameraRectangle.PointUVToPoint3D(Domain.Plane, Domain.Rectangle.Min)));
+		RectangleXY.Contain(XY(CameraRectangle.PointUVToPoint3D(Domain.Plane, Domain.Rectangle.Max)));
+	
+		return RectangleXY;
+	}
+
+	// Returns the points of the given mesh that lie inside the given rectangle. Assumptions:
+	// - Mesh vertices lie in the XY plane (have zero Z coordinate)
+	// - The camera is above the mesh and looking in the -Z direction (so no clip testing is needed)
+	TArray<int32> FindProjectedVerticesInRectangleXY0(const FCameraRectangle& CameraRectangle, const FDynamicMesh3& MeshXY0)
+	{
+		FCameraRectangle::FAxisAlignedBox2 RectangleXY = GetRectangleXY(CameraRectangle);
+		
+		TArray<int32> Result;
+		for (int32 VertexIndex : MeshXY0.VertexIndicesItr())
+		{
+			if (RectangleXY.Contains(XY(MeshXY0.GetVertex(VertexIndex))))
+			{
+				Result.Add(VertexIndex);
+			}
+		}
+
+		return Result;
+	}
+	
+	// Returns the edges of the given mesh that lie inside the given rectangle. Assumptions:
+	// - Mesh vertices lie in the XY plane (have zero Z coordinate)
+	// - The camera is above the mesh and looking in the -Z direction (so no clip testing is needed)
+	TArray<int32> FindProjectedEdgesInRectangleXY0(const FCameraRectangle& CameraRectangle, const FDynamicMesh3& MeshXY0)
+	{
+		FCameraRectangle::FAxisAlignedBox2 RectangleXY = GetRectangleXY(CameraRectangle);
+		
+		TArray<int32> Result;
+		for (int32 EdgeIndex : MeshXY0.EdgeIndicesItr())
+		{
+			const FDynamicMesh3::FEdge& Edge = MeshXY0.GetEdgeRef(EdgeIndex);
+			FCameraRectangle::FSegment2 SegmentXY(XY(MeshXY0.GetVertex(Edge.Vert.A)),
+												  XY(MeshXY0.GetVertex(Edge.Vert.B)));
+			if (TestIntersection(SegmentXY, RectangleXY))
+			{
+				Result.Add(EdgeIndex);
+			}
+		}
+		return Result;
+	}
+	
+	// Returns the triangles of the given mesh that lie inside the given rectangle. Assumptions:
+	// - Mesh vertices lie in the XY plane (have zero Z coordinate)
+	// - The camera is above the mesh and looking in the -Z direction (so no clip testing is needed)
+	TArray<int32> FindProjectedTrianglesInRectangleXY0(const FCameraRectangle& CameraRectangle, const FDynamicMesh3& MeshXY0)
+	{
+		FCameraRectangle::FAxisAlignedBox2 RectangleXY = GetRectangleXY(CameraRectangle);
+		
+		TArray<int32> Result;
+		for (int32 TriangleIndex : MeshXY0.TriangleIndicesItr())
+		{
+			const FIndex3i& Triangle = MeshXY0.GetTriangleRef(TriangleIndex);
+			const TTriangle2<FVector::FReal> TriangleXY(XY(MeshXY0.GetVertex(Triangle.A)),
+														XY(MeshXY0.GetVertex(Triangle.B)),
+														XY(MeshXY0.GetVertex(Triangle.C)));
+
+			// Check with bTriangleIsOriented = false since some triangles maybe oriented away from the camera
+			if (TIntrTriangle2AxisAlignedBox2<FVector::FReal> Intersects(TriangleXY, RectangleXY, false); Intersects.Test())
+			{
+				Result.Add(TriangleIndex);
+			}
+		}
+		return Result;
 	}
 } // namespace MeshSelectionMechanicLocals
 
@@ -459,7 +547,8 @@ void UMeshSelectionMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 				TArray<int32> SeedTriangles;
 				SeedTriangles.Add(HitTid);
 				MeshSelectedComponent.FindTrianglesConnectedToSeeds(SeedTriangles);
-				ClickSelectedIDs = TSet<int32>(SeedTriangles);	
+				ensure(MeshSelectedComponent.Components.Num() == 1); // Expect each triangle to only be in a single component
+				ClickSelectedIDs.Append(MoveTemp(MeshSelectedComponent.Components[0].Indices));
 			}
 			else if (SelectionMode == EMeshSelectionMechanicMode::Edge)
 			{
@@ -558,6 +647,11 @@ void UMeshSelectionMechanic::OnDragRectangleChanged(const FCameraRectangle& Curr
 			for (int32 MeshIndex = 0; MeshIndex < MeshSpatials.Num(); ++MeshIndex)
 			{
 				const FDynamicMesh3& Mesh = *(MeshSpatials[MeshIndex]->GetMesh());
+
+				// TODO UMeshSelectionMechanic is currently assuming that the provided mesh transform is identity, which is
+				//  the case in the UV editor, this restriction should be lifted. When we do this we should also apply the
+				//  (inverse) tranform to the CurrentRectangle query rays. Search :ApplyTransformToQuery
+				ensure(MeshTransforms[MeshIndex].Identical(&FTransform::Identity, 0));
 				AddIDsToSelection(Mesh, MeshTransforms[MeshIndex], RectangleSelectedIDs);
 	
 				if (!RectangleSelectedIDs.IsEmpty())
@@ -573,8 +667,11 @@ void UMeshSelectionMechanic::OnDragRectangleChanged(const FCameraRectangle& Curr
 		{
 			ensure(CurrentSelectionIndex != IndexConstants::InvalidID);
 			ensure(CurrentSelection.Mesh == MeshSpatials[CurrentSelectionIndex]->GetMesh());
-			
+
 			const FDynamicMesh3& Mesh = *(MeshSpatials[CurrentSelectionIndex]->GetMesh());
+
+			// TODO See :ApplyTransformToQuery
+			ensure(MeshTransforms[CurrentSelectionIndex].Identical(&FTransform::Identity, 0));
 			AddIDsToSelection(Mesh, MeshTransforms[CurrentSelectionIndex], RectangleSelectedIDs);
 		}
 
@@ -587,14 +684,8 @@ void UMeshSelectionMechanic::OnDragRectangleChanged(const FCameraRectangle& Curr
 		auto AddVertexIDsToSelection = [this, &CurrentRectangle]
 			(const FDynamicMesh3& Mesh, const FTransform& Transform, TSet<int32>& OutSelectedIDs)
 		{
-			for (int32 VertexIndex : Mesh.VertexIndicesItr())
-			{
-				FVector3d Point = Transform.InverseTransformPosition(Mesh.GetVertex(VertexIndex));
-				if (CurrentRectangle.IsProjectedPointInRectangle(Point))
-				{
-					OutSelectedIDs.Add(VertexIndex);
-				}
-			}
+			TArray<int32> SelectedIDs = MeshSelectionMechanicLocals::FindProjectedVerticesInRectangleXY0(CurrentRectangle, Mesh);
+			OutSelectedIDs.Append(MoveTemp(SelectedIDs));
 		};
 	
 		RectangleSelectedIDs = FindIDsInsideCurrentRectangle(AddVertexIDsToSelection);
@@ -604,32 +695,55 @@ void UMeshSelectionMechanic::OnDragRectangleChanged(const FCameraRectangle& Curr
 		auto AddEdgeIDsToSelection = [this, &CurrentRectangle]
 			(const FDynamicMesh3& Mesh, const FTransform& Transform, TSet<int32>& OutSelectedIDs)
 		{
-			for (int32 EdgeIndex : Mesh.EdgeIndicesItr())
-			{
-				const FDynamicMesh3::FEdge& Edge = Mesh.GetEdgeRef(EdgeIndex);
-				FVector3d StartPoint = Transform.InverseTransformPosition(Mesh.GetVertex(Edge.Vert.A));
-				FVector3d EndPoint = Transform.InverseTransformPosition(Mesh.GetVertex(Edge.Vert.B));
-   				
-				if (CurrentRectangle.IsProjectedSegmentIntersectingRectangle(StartPoint, EndPoint))
-				{
-					OutSelectedIDs.Add(EdgeIndex);
-				}
-			}
+			TArray<int32> SelectedIDs = MeshSelectionMechanicLocals::FindProjectedEdgesInRectangleXY0(CurrentRectangle, Mesh);
+			OutSelectedIDs.Append(MoveTemp(SelectedIDs));
 		};
 
 		RectangleSelectedIDs = FindIDsInsideCurrentRectangle(AddEdgeIDsToSelection);
 	}
 	else if (SelectionMode == EMeshSelectionMechanicMode::Triangle)
 	{
-		// TODO Implement me
+		auto AddTriangleIDsToSelection = [this, &CurrentRectangle]
+			(const FDynamicMesh3& Mesh, const FTransform& Transform, TSet<int32>& OutSelectedIDs)
+		{
+			TArray<int32> SelectedIDs = MeshSelectionMechanicLocals::FindProjectedTrianglesInRectangleXY0(CurrentRectangle, Mesh);
+			OutSelectedIDs.Append(MoveTemp(SelectedIDs));
+		};
+	
+		RectangleSelectedIDs = FindIDsInsideCurrentRectangle(AddTriangleIDsToSelection);
 	}
 	else if (SelectionMode == EMeshSelectionMechanicMode::Component)
 	{
-		// TODO Implement me
+		auto AddTriangleIDsToSelection = [this, &CurrentRectangle]
+			(const FDynamicMesh3& Mesh, const FTransform& Transform, TSet<int32>& OutSelectedIDs)
+		{
+			TArray<int32> SeedTriangles = MeshSelectionMechanicLocals::FindProjectedTrianglesInRectangleXY0(CurrentRectangle, Mesh);
+			FMeshConnectedComponents MeshSelectedComponent(&Mesh);
+			MeshSelectedComponent.FindTrianglesConnectedToSeeds(SeedTriangles);
+			for (int ComponentIndex = 0; ComponentIndex < MeshSelectedComponent.Components.Num(); ComponentIndex++)
+			{
+				OutSelectedIDs.Append(MoveTemp(MeshSelectedComponent.Components[ComponentIndex].Indices));
+			}
+		};
+	
+		RectangleSelectedIDs = FindIDsInsideCurrentRectangle(AddTriangleIDsToSelection);
 	}
 	else if (SelectionMode == EMeshSelectionMechanicMode::Mesh)
 	{
-		// TODO Implement me
+		auto AddAllMeshTriangleIDsToSelection = [this, &CurrentRectangle]
+			(const FDynamicMesh3& Mesh, const FTransform& Transform, TSet<int32>& OutSelectedIDs)
+		{
+			TArray<int32> SelectedIDs = MeshSelectionMechanicLocals::FindProjectedTrianglesInRectangleXY0(CurrentRectangle, Mesh);
+			if (!SelectedIDs.IsEmpty())
+			{
+				for (int32 Tid : Mesh.TriangleIndicesItr())
+				{
+					OutSelectedIDs.Add(Tid);
+				}
+			}
+		};
+
+		RectangleSelectedIDs = FindIDsInsideCurrentRectangle(AddAllMeshTriangleIDsToSelection);
 	}
 	else
 	{

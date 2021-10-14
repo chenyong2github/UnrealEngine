@@ -35,18 +35,27 @@ struct MODELINGCOMPONENTS_API FCameraRectangle
 	FViewCameraState CameraState;
 	FInputDeviceRay RectangleStartRay = FInputDeviceRay(FRay());
 	FInputDeviceRay RectangleEndRay = FInputDeviceRay(FRay());
-	FPlane3 CameraPlane;
-	FAxisAlignedBox2 RectangleInCameraPlane;
+	
+	struct FRectangleInPlane
+	{
+		// Rectangle is defined in the UV-coordinate system of Plane. See PlaneCoordinates
+		FPlane3 Plane;
+		FAxisAlignedBox2 Rectangle; // Region of marquee selection
+	};
+
+	FRectangleInPlane SelectionDomain;
 
 	// This function must be called before other member functions whenever camera state or start/end rays are updated
 	void Initialize();
 	
 	bool bIsInitialized = false;
 
-	// Return an axis aligned box (the region of a marquee selection) in the UV-coordinate system of a plane offset from
-	// CameraPlane by the given distance in the CameraPlane normal direction. This function was added in order to
-	// implement optimizations (avoid projecting points) when selecting UV editor meshes, which lie in the XY plane
-	FAxisAlignedBox2 GetSelectionRectangleUV(double OffsetFromCameraPlane = 0.) const;
+	// Returns the SelectionDomain projected onto a plane offset from SelectionDomain.Plane by the given distance in the
+	// SelectionDomain.Plane.Normal direction.
+	//
+	// Note: This function is in the public API to optimize selection in the UV editor where meshes are known to lie in
+	// the XY plane in front of the camera (so point projection/camera plane clipping is unnecessary)
+	FRectangleInPlane ProjectSelectionDomain(double OffsetFromCameraPlane = 0.) const;
 
 	// Return true if the given 3D geometry projected to the camera plane is inside or intersecting the rectangle, and
 	// false otherwise
@@ -69,17 +78,29 @@ struct MODELINGCOMPONENTS_API FCameraRectangle
 		return FMath::RayPlaneIntersection(CameraState.Position, Point - CameraState.Position, (FPlane)Plane);
 	}
 
-	// Given a 3D point lying in the given plane, return the UV coordinates of the point expressed in the following a
-	// two dimensional parameterization of the given plane:
+	// Given a 3D point lying in the given Plane, return the UV coordinates of the point expressed in the following a
+	// two dimensional parameterization of the given Plane:
 	// - the 2D origin (0,0) is located at the foot of the projection of cartesian point (0,0,0) onto the plane
 	// - the U basis vector is the camera right vector
 	// - the V basis vector is the camera up vector
-	FVector2 PlaneCoordinates(const FPlane3& Plane, const FVector& PointInPlane) const
+	FVector2 Point3DToPointUV(const FPlane3& Plane, const FVector& Point3DInPlane) const
 	{
 		ensure(bIsInitialized);
-		FVector::FReal U = FVector::DotProduct(PointInPlane - ((FPlane)Plane).GetOrigin(), CameraState.Right());
-		FVector::FReal V = FVector::DotProduct(PointInPlane - ((FPlane)Plane).GetOrigin(), CameraState.Up());
-		return FVector2{U, V};
+		FVector2 PointUV;
+		PointUV[0] = FVector::DotProduct(Point3DInPlane - ((FPlane)Plane).GetOrigin(), CameraState.Right());
+		PointUV[1] = FVector::DotProduct(Point3DInPlane - ((FPlane)Plane).GetOrigin(), CameraState.Up());
+		return PointUV;
+	}
+	
+	// Given a 2D point in the UV space of the given Plane, return the coordinates of the 3D point lying in the Plane.
+	// This function is the inverse of Point3DToPointUV.
+	FVector PointUVToPoint3D(const FPlane3& Plane, const FVector2& PointUV) const
+	{
+		ensure(bIsInitialized);
+		FVector Point3DInPlane = ((FPlane)Plane).GetOrigin();
+		Point3DInPlane += PointUV[0] * CameraState.Right();
+		Point3DInPlane += PointUV[1] * CameraState.Up();
+		return Point3DInPlane;
 	}
 };
 
