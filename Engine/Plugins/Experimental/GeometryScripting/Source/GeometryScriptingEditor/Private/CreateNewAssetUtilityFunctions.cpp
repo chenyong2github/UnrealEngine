@@ -19,16 +19,55 @@
 #include "BSPOps.h"		// in UnrealEd
 #include "Editor/EditorEngine.h"		// for FActorLabelUtilities
 #include "Editor.h"
+#include "AssetRegistryModule.h"
+#include "Misc/Paths.h"
 
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
 #include "ConversionUtils/DynamicMeshToVolume.h"
 #include "AssetUtils/CreateStaticMeshUtil.h"
+#include "ModelingObjectsCreationAPI.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_CreateNewAssetUtilityFunctions"
+
+
+
+
+
+
+void UGeometryScriptLibrary_CreateNewAssetFunctions::CreateUniqueNewAssetPathName(
+	FString AssetFolderPath,
+	FString BaseAssetName,
+	FString& UniqueAssetPathAndName,
+	FString& UniqueAssetName,
+	FGeometryScriptUniqueAssetNameOptions Options,
+	TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+	UGeometryScriptDebug* Debug)
+{
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+
+	Outcome = EGeometryScriptOutcomePins::Failure;
+	int Attempts = 0;
+	while (Attempts++ < 10)
+	{
+		FString UUID = UE::Modeling::GenerateRandomShortHexString(Options.UniqueIDDigits);
+		UniqueAssetName = FString::Printf(TEXT("%s_%s"), *BaseAssetName, *UUID);
+		UniqueAssetPathAndName = FPaths::Combine(AssetFolderPath, UniqueAssetName);
+
+		// if asset does not exist at this path, we can use it
+		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*UniqueAssetPathAndName);
+		if (AssetData.IsValid() == false)
+		{
+			Outcome = EGeometryScriptOutcomePins::Success;
+			return;
+		}
+	}
+
+	UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::OperationFailed, LOCTEXT("CreateUniqueNewAssetPathName_Failed", "Failed to find available unique Asset Path/Name"));
+}
 
 
 AVolume* UGeometryScriptLibrary_CreateNewAssetFunctions::CreateNewVolumeFromMesh(
@@ -163,6 +202,9 @@ UStaticMesh* UGeometryScriptLibrary_CreateNewAssetFunctions::CreateNewStaticMesh
 	NewStaticMesh->PostEditChange();
 
 	GEditor->EndTransaction();
+
+	// publish new asset so that asset editor updates
+	FAssetRegistryModule::AssetCreated(NewStaticMesh);
 
 	Outcome = EGeometryScriptOutcomePins::Success;
 	return NewStaticMesh;

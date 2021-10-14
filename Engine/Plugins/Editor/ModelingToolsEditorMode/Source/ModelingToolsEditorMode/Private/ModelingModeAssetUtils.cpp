@@ -8,6 +8,7 @@
 #include "AssetToolsModule.h"
 #include "FileHelpers.h"
 #include "Misc/Paths.h"
+#include "ModelingObjectsCreationAPI.h"
 
 // for content-browser things
 #include "ContentBrowserModule.h"
@@ -20,49 +21,6 @@ namespace UE
 {
 namespace Local
 {
-
-/**
- * Generate a N-letter GUID string that contains only hex digits,
- * and contains at least one letter and one number
- */
-static FString GenerateRandomShortHexString(int32 NumChars = 8)
-{
-	int32 FailCount = 0;
-	while (FailCount++ < 10)
-	{
-		FGuid Guid = FGuid::NewGuid();
-		FString GuidString = Guid.ToString(EGuidFormats::UniqueObjectGuid).ToUpper();
-		FString Result;
-		int32 Digits = 0, Letters = 0;
-		for (int32 k = 0; k < GuidString.Len(); ++k)
-		{
-			TCHAR Character = GuidString[k];
-			if (FChar::IsHexDigit(Character))
-			{
-				Result.AppendChar(Character);
-				if (FChar::IsDigit(Character))
-				{
-					Digits++;
-				}
-				else
-				{
-					Letters++;
-				}
-			}
-			if (Result.Len() == NumChars)
-			{
-				if (Digits > 0 && Letters > 0)
-				{
-					return Result;
-				}
-				break;		// exit loop
-			}
-		}
-	}
-	return TEXT("BADGUID1");
-}
-
-
 
 FString GetWorldRelativeAssetRootPath(const UWorld* World)
 {
@@ -204,7 +162,7 @@ FString UE::Modeling::GetNewAssetPathName(const FString& BaseNameIn, const UWorl
 	FString UseBaseName = ObjectBaseName;
 	if (Settings->bAppendRandomStringToName)
 	{
-		FString GuidString = UE::Local::GenerateRandomShortHexString();
+		FString GuidString = UE::Modeling::GenerateRandomShortHexString();
 		UseBaseName = FString::Printf(TEXT("%s_%s"), *UseBaseName, *GuidString);
 	}
 
