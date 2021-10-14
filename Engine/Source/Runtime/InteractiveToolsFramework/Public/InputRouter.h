@@ -47,10 +47,6 @@ public:
 	/** Remove Behaviors from this Source from the active set */
 	virtual void DeregisterSource(IInputBehaviorSource* Source);
 
-	/** Add a new InputBehavior to the active behavior set, with optional Source and GroupName */
-	virtual void RegisterBehavior(UInputBehavior* Behavior, void* Source = nullptr, const FString& GroupName = "");
-
-
 	/** Insert a new input event which is used to check for new captures, or forwarded to active capture */
 	virtual bool PostInputEvent(const FInputDeviceState& Input);
 

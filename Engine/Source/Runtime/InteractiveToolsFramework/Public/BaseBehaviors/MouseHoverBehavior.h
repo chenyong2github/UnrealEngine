@@ -45,3 +45,56 @@ protected:
 };
 
 
+/**
+ * An implementation of UMouseHoverBehavior that also implements IHoverBehaviorTarget directly, via a set 
+ * of local lambda functions. To use/customize this class, the client replaces the lambda functions with their own.
+ * This avoids having to create a separate IHoverBehaviorTarget implementation for trivial use-cases.
+ */
+UCLASS()
+class INTERACTIVETOOLSFRAMEWORK_API ULocalMouseHoverBehavior : public UMouseHoverBehavior, public IHoverBehaviorTarget
+{
+	GENERATED_BODY()
+protected:
+	using UMouseHoverBehavior::Initialize;
+
+public:
+	/** Call this to initialize the class */
+	virtual void Initialize()
+	{
+		this->Initialize(this);
+	}
+
+	/** lambda implementation of BeginHoverSequenceHitTest */
+	TUniqueFunction<FInputRayHit(const FInputDeviceRay& PressPos)> BeginHitTestFunc = [](const FInputDeviceRay&) { return FInputRayHit(); };
+
+	/** lambda implementation of OnBeginHover */
+	TUniqueFunction<void(const FInputDeviceRay& PressPos)> OnBeginHoverFunc = [](const FInputDeviceRay&) {};
+
+	/** lambda implementation of OnUpdateHover */
+	TUniqueFunction<bool(const FInputDeviceRay& PressPos)> OnUpdateHoverFunc = [](const FInputDeviceRay&) { return false; };
+
+	/** lambda implementation of OnEndHover */
+	TUniqueFunction<void()> OnEndHoverFunc = []() {};
+
+public:
+	// IHoverBehaviorTarget implementation
+	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos) override
+	{
+		return BeginHitTestFunc(PressPos);
+	}
+
+	virtual void OnBeginHover(const FInputDeviceRay& DevicePos) override
+	{
+		OnBeginHoverFunc(DevicePos);
+	}
+
+	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override
+	{
+		return OnUpdateHoverFunc(DevicePos);
+	}
+
+	virtual void OnEndHover() override
+	{
+		OnEndHoverFunc();
+	}
+};

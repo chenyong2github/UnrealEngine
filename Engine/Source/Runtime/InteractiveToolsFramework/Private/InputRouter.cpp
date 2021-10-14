@@ -48,12 +48,6 @@ void UInputRouter::DeregisterSource(IInputBehaviorSource* Source)
 }
 
 
-void UInputRouter::RegisterBehavior(UInputBehavior* Behavior, void* Source, const FString& GroupName)
-{
-	ActiveInputBehaviors->Add(Behavior, Source, GroupName);
-}
-
-
 bool UInputRouter::PostInputEvent(const FInputDeviceState& Input)
 {
 	if (ActiveInputBehaviors->IsEmpty())
