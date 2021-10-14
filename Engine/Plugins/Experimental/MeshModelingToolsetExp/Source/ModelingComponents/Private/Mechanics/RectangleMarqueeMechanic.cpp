@@ -6,8 +6,8 @@
 #include "CanvasItem.h"
 #include "ToolSceneQueriesUtil.h"
 
+#include "Intersection/IntersectionQueries2.h"
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
-#include "Intersection/IntrSegment2Segment2.h"
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "URectangleMarqueeMechanic"
@@ -15,27 +15,27 @@ using namespace UE::Geometry;
 void FCameraRectangle::Initialize()
 {
 	bIsInitialized = true;
-	CameraPlane = FPlane3(CameraState.Forward(), CameraState.Position + CameraState.Forward());
-	RectangleInCameraPlane = GetSelectionRectangleUV();
+	SelectionDomain.Plane = FPlane3(CameraState.Forward(), CameraState.Position + CameraState.Forward());
+	SelectionDomain.Rectangle = ProjectSelectionDomain().Rectangle;
 }
 
-FCameraRectangle::FAxisAlignedBox2 FCameraRectangle::GetSelectionRectangleUV(double OffsetFromCameraPlane) const
+FCameraRectangle::FRectangleInPlane FCameraRectangle::ProjectSelectionDomain(double OffsetFromSelectionDomain) const
 {
 	ensure(bIsInitialized);
 	
-	FAxisAlignedBox2 Result;
+	FRectangleInPlane Result;
 
-	FPlane3 SelectionPlane = CameraPlane;
-	SelectionPlane.Constant += OffsetFromCameraPlane;
+	Result.Plane = SelectionDomain.Plane;
+	Result.Plane.Constant += OffsetFromSelectionDomain;
 	
-	FVector ProjectedStart = FMath::RayPlaneIntersection(RectangleStartRay.WorldRay.Origin, RectangleStartRay.WorldRay.Direction, (FPlane)SelectionPlane);
-	FVector ProjectedEnd = FMath::RayPlaneIntersection(RectangleEndRay.WorldRay.Origin, RectangleEndRay.WorldRay.Direction, (FPlane)SelectionPlane);
-	FVector2 StartUV = PlaneCoordinates(SelectionPlane, ProjectedStart);
-	FVector2 EndUV = PlaneCoordinates(SelectionPlane, ProjectedEnd);
+	FVector ProjectedStart = FMath::RayPlaneIntersection(RectangleStartRay.WorldRay.Origin, RectangleStartRay.WorldRay.Direction, (FPlane)Result.Plane);
+	FVector ProjectedEnd = FMath::RayPlaneIntersection(RectangleEndRay.WorldRay.Origin, RectangleEndRay.WorldRay.Direction, (FPlane)Result.Plane);
+	FVector2 StartUV = Point3DToPointUV(Result.Plane, ProjectedStart);
+	FVector2 EndUV = Point3DToPointUV(Result.Plane, ProjectedEnd);
 
 	// Initialize this way so we don't have to care about min/max
-	Result.Contain(StartUV);
-	Result.Contain(EndUV);
+	Result.Rectangle.Contain(StartUV);
+	Result.Rectangle.Contain(EndUV);
 
 	return Result;
 }
@@ -47,20 +47,20 @@ bool FCameraRectangle::IsProjectedPointInRectangle(const FVector& Point) const
 	FVector ProjectedPoint;
 	if (CameraState.bIsOrthographic)
 	{
-		ProjectedPoint = OrthographicProjection(CameraPlane, Point);
+		ProjectedPoint = OrthographicProjection(SelectionDomain.Plane, Point);
 	}
 	else
 	{
 		// If it's not in front of the camera plane, its not contained in the camera rectangle
-		if (CameraPlane.DistanceTo(Point) <= 0)
+		if (SelectionDomain.Plane.DistanceTo(Point) <= 0)
 		{
 			return false;
 		}
-		ProjectedPoint = PerspectiveProjection(CameraPlane, Point);
+		ProjectedPoint = PerspectiveProjection(SelectionDomain.Plane, Point);
 	}
 
-	FVector2 PointUV = PlaneCoordinates(CameraPlane, ProjectedPoint);
-	return RectangleInCameraPlane.Contains(PointUV);
+	FVector2 PointUV = Point3DToPointUV(SelectionDomain.Plane, ProjectedPoint);
+	return SelectionDomain.Rectangle.Contains(PointUV);
 }
 
 bool FCameraRectangle::IsProjectedSegmentIntersectingRectangle(const FVector& Endpoint1, const FVector& Endpoint2) const
@@ -72,8 +72,8 @@ bool FCameraRectangle::IsProjectedSegmentIntersectingRectangle(const FVector& En
 
 	if (CameraState.bIsOrthographic)
 	{
-		ProjectedEndpoint1 = OrthographicProjection(CameraPlane, Endpoint1);
-		ProjectedEndpoint2 = OrthographicProjection(CameraPlane, Endpoint2);
+		ProjectedEndpoint1 = OrthographicProjection(SelectionDomain.Plane, Endpoint1);
+		ProjectedEndpoint2 = OrthographicProjection(SelectionDomain.Plane, Endpoint2);
 	}
 	else
 	{
@@ -81,7 +81,7 @@ bool FCameraRectangle::IsProjectedSegmentIntersectingRectangle(const FVector& En
 		ProjectedEndpoint2 = Endpoint2;
 
 		// We have to crop the segment to the portion in front of the camera plane
-		FPlane3::EClipSegmentType ClipType = CameraPlane.ClipSegment(ProjectedEndpoint1, ProjectedEndpoint2);
+		FPlane3::EClipSegmentType ClipType = SelectionDomain.Plane.ClipSegment(ProjectedEndpoint1, ProjectedEndpoint2);
 		
 		// Since the selection plane is identical to the clipping plane there's no need to reproject clipped points
 		switch (ClipType)
@@ -89,47 +89,24 @@ bool FCameraRectangle::IsProjectedSegmentIntersectingRectangle(const FVector& En
 			case FPlane3::FullyClipped:
 				return false; // Segment is behind the camera plane hence not in the camera rectangle
 			case FPlane3::FirstClipped:
-				ProjectedEndpoint2 = PerspectiveProjection(CameraPlane, ProjectedEndpoint2);
+				ProjectedEndpoint2 = PerspectiveProjection(SelectionDomain.Plane, ProjectedEndpoint2);
 				break;
 			case FPlane3::SecondClipped:
-				ProjectedEndpoint1 = PerspectiveProjection(CameraPlane, ProjectedEndpoint1);
+				ProjectedEndpoint1 = PerspectiveProjection(SelectionDomain.Plane, ProjectedEndpoint1);
 				break;
 			case FPlane3::NotClipped:
 			default:
-				ProjectedEndpoint1 = PerspectiveProjection(CameraPlane, ProjectedEndpoint1);
-				ProjectedEndpoint2 = PerspectiveProjection(CameraPlane, ProjectedEndpoint2);
+				ProjectedEndpoint1 = PerspectiveProjection(SelectionDomain.Plane, ProjectedEndpoint1);
+				ProjectedEndpoint2 = PerspectiveProjection(SelectionDomain.Plane, ProjectedEndpoint2);
+				break;
 		}
 	}
 
-	// TODO Port Wild Magic IntrSegment2Box2 (which requires porting IntrLine2Box2) so we can call segment-box intersection here
-
-	FVector2 Endpoint1UV = PlaneCoordinates(CameraPlane, ProjectedEndpoint1);
-	FVector2 Endpoint2UV = PlaneCoordinates(CameraPlane, ProjectedEndpoint2);
+	FVector2 Endpoint1UV = Point3DToPointUV(SelectionDomain.Plane, ProjectedEndpoint1);
+	FVector2 Endpoint2UV = Point3DToPointUV(SelectionDomain.Plane, ProjectedEndpoint2);
 	FSegment2 ProjectedSegmentUV(Endpoint1UV, Endpoint2UV);
 
-	// If either endpoint is inside, then definitely (at least partially) contained
-	if (RectangleInCameraPlane.Contains(ProjectedSegmentUV.StartPoint()) ||
-		RectangleInCameraPlane.Contains(ProjectedSegmentUV.EndPoint()))
-	{
-		return true;
-	}
-
-	// If both outside, have to do some intersections with the box sides
-
-	if (ProjectedSegmentUV.Intersects(FSegment2(RectangleInCameraPlane.GetCorner(0), RectangleInCameraPlane.GetCorner(1))))
-	{
-		return true;
-	}
-
-	if (ProjectedSegmentUV.Intersects(FSegment2(RectangleInCameraPlane.GetCorner(1), RectangleInCameraPlane.GetCorner(2))))
-	{
-		return true;
-	}
-
-	return ProjectedSegmentUV.Intersects(FSegment2(RectangleInCameraPlane.GetCorner(3), RectangleInCameraPlane.GetCorner(2)));
-
-	// Don't need to intersect with the fourth side because segment would have to intersect two sides
-	// of box if both endpoints are outside the box.
+	return TestIntersection(ProjectedSegmentUV, SelectionDomain.Rectangle);
 }
 
 // ---------------------------------------
