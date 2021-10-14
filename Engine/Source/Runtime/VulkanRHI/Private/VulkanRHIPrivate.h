@@ -78,6 +78,18 @@ struct FInputAttachmentData;
 class FValidationContext;
 
 
+template<typename BitsType>
+constexpr bool VKHasAllFlags(VkFlags Flags, BitsType Contains)
+{
+	return (Flags & Contains) == Contains;
+}
+
+template<typename BitsType>
+constexpr bool VKHasAnyFlags(VkFlags Flags, BitsType Contains)
+{
+	return (Flags & Contains) != 0;
+}
+
 inline VkShaderStageFlagBits UEFrequencyToVKStageBit(EShaderFrequency InStage)
 {
 	switch (InStage)
