@@ -1,7 +1,7 @@
 {
 	"FileVersion": 1,
 	"Version": 1,
-	"VersionName": "1.0",
+	"VersionName": "0.4",
 	"FriendlyName": "MassCrowd",
 	"Description": "Spline based AI crowd system",
 	"Category": "AI",
