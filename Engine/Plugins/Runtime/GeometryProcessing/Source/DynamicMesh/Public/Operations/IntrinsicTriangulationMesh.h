@@ -376,12 +376,21 @@ public:
 		return ExtrinsicMesh;
 	}
 	
-	// vertex information
-
-
+	/** Location relative to the surface mesh : a surface mesh vertex, surface mesh edge - crossing or barycentric coords */
 	struct FSurfacePoint;
+
 	/**
-	* return FSurfacePoint information used to map an intrinsic vertex to the surface of the original mesh.
+	* @return Array of FSurfacePoints relative to the ExtrinsicMesh that represent the specified intrinsic mesh edge.
+	* This is directed from vertex EdgeV.A to vertex EdgeV.B unless bReverse is true
+	*
+	* @param CoalesceThreshold - in barycentric units [0,1], edge crossings with in this threshold are snapped to the nearest vertex.
+	*                            and any resulting repetitions of vertex surface points are replaced with a single vertex surface point.
+	* @param bReverse          - if true, trace edge from EdgeV.B to EdgeV.A
+	*/
+	TArray<FIntrinsicTriangulation::FSurfacePoint> TraceEdge(int32 EID, double CoalesceThreshold = 0., bool bReverse = false) const;
+
+	/**
+	* @return FSurfacePoint for the specified intrinsic vertex.
 	*/
 	const FIntrinsicTriangulation::FSurfacePoint& GetVertexSurfacePoint(int32 VID) const
 	{
@@ -481,6 +490,13 @@ public:
 
 		EPositionType PositionType;      // Position type, needed to correctly interpret the Position union
 		FSurfacePositionUnion Position;  // Position relative to vertex, edge, or triangle. 
+
+		/**
+		* @return the R3 postition of this surface point as applied to the input Mesh
+		* on return bValidPoint will be false if the edge / vertex / triangle ID referenced by this surface
+		* point is not an element of the mesh in question
+		*/
+		FVector3d AsR3Position(const FDynamicMesh3& Mesh, bool& bValidPoint) const;
 	};
 
 protected:

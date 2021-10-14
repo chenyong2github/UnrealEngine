@@ -759,6 +759,57 @@ FIntrinsicTriangulation::FSurfacePoint::FSurfacePoint(int32 TriID, const FVector
 	Position.TriPosition.BarycentricCoords[2] = BaryCentrics[2];
 }
 
+FVector3d FIntrinsicTriangulation::FSurfacePoint::FSurfacePoint::AsR3Position(const FDynamicMesh3& Mesh, bool& bIsValid) const
+{
+	FVector3d Result(0., 0., 0.);
+	switch (PositionType)
+	{
+		case FSurfacePoint::EPositionType::Vertex:
+		{
+			const int32 SurfaceVID = Position.VertexPosition.VID;
+			bIsValid = Mesh.IsVertex(SurfaceVID);
+			if (bIsValid)
+			{
+				Result = Mesh.GetVertex(SurfaceVID);
+			}
+		}
+		break;
+		case FSurfacePoint::EPositionType::Edge:
+		{
+			const int32 SurfaceEID = Position.EdgePosition.EdgeID;
+			double Alpha = Position.EdgePosition.Alpha;
+			bIsValid = Mesh.IsEdge(SurfaceEID);
+			if (bIsValid)
+			{
+				const FIndex2i SurfaceEdgeV = Mesh.GetEdgeV(SurfaceEID);
+				Result = Alpha * (Mesh.GetVertex(SurfaceEdgeV.A)) + (1. - Alpha) * (Mesh.GetVertex(SurfaceEdgeV.B));
+			}
+		}
+		break;
+		case FSurfacePoint::EPositionType::Triangle:
+		{
+			const int32 SurfaceTID = Position.TriPosition.TriID;
+			bIsValid = Mesh.IsTriangle(SurfaceTID);
+
+			if (bIsValid)
+			{
+				Result = Mesh.GetTriBaryPoint(SurfaceTID,
+					Position.TriPosition.BarycentricCoords[0],
+					Position.TriPosition.BarycentricCoords[1],
+					Position.TriPosition.BarycentricCoords[2]);
+			}
+
+		}
+		break;
+		default:
+		{
+			bIsValid = false;
+			// shouldn't be able to reach this point
+			check(0);
+		}
+	}
+	return Result;
+}
 
 UE::Geometry::FIntrinsicTriangulation::FIntrinsicTriangulation(const FDynamicMesh3& SrcMesh)
 	: MyBase(SrcMesh)
@@ -778,13 +829,35 @@ UE::Geometry::FIntrinsicTriangulation::FIntrinsicTriangulation(const FDynamicMes
 		{
 			if (ExtrinsicMesh->IsVertex(VID))
 			{
-				int32 FirstEID = -1;
-				for (int32 EID : ExtrinsicMesh->VtxEdgesItr(VID))
+				int32 RefEID = FDynamicMesh3::InvalidID;
+				if (ExtrinsicMesh->IsBoundaryVertex(VID) && !ExtrinsicMesh->IsBowtieVertex(VID))
 				{
-					FirstEID = EID;
-					break;
+					// vertex is on the mesh boundary, 
+					// choose the boundary edge such that traveling CCW (about the vertex) moves into the mesh
+					for (int32 EID : ExtrinsicMesh->VtxEdgesItr(VID))
+					{
+						if (ExtrinsicMesh->IsBoundaryEdge(EID))
+						{
+							const int32 TID = ExtrinsicMesh->GetEdgeT(EID).A;
+							const int32 IndexOf = ExtrinsicMesh->GetTriEdges(TID).IndexOf(EID);
+							if (ExtrinsicMesh->GetTriangle(TID)[IndexOf] == VID)
+							{
+								RefEID = EID;
+								break;
+							}
+						}
+					}
 				}
-				VIDToReferenceEID[VID] = FirstEID;
+				else
+				{
+					// vertex isn't on a mesh boundary, just pick the first adj edge to be the reference edge
+					for (int32 EID : ExtrinsicMesh->VtxEdgesItr(VID))
+					{
+						RefEID = EID;
+						break;
+					}
+				}
+				VIDToReferenceEID[VID] = RefEID;
 			}
 		}
 		for (int32 TID = 0; TID < MaxTriangleID; ++TID)
@@ -925,6 +998,182 @@ UE::Geometry::FIntrinsicTriangulation::FIntrinsicTriangulation(const FDynamicMes
 
 }
 
+TArray<FIntrinsicTriangulation::FSurfacePoint> UE::Geometry::FIntrinsicTriangulation::TraceEdge(int32 EID, double CoalesceThreshold, bool bReverse) const
+{
+	TArray<FIntrinsicTriangulation::FSurfacePoint> SurfacePoints;
+	if (!IsEdge(EID))
+	{
+		return SurfacePoints;
+	}
+
+
+	const FDynamicMesh3* SurfaceMesh = GetExtrinsicMesh();
+	const double IntrinsicEdgeLength = GetEdgeLength(EID);
+	const FIndex2i EdgeV = GetEdgeV(EID);
+	int32 StartVID = EdgeV.A;
+	int32 EndVID = EdgeV.B;
+	if (bReverse)
+	{
+		StartVID = EdgeV.B;
+		EndVID = EdgeV.A;
+	}
+
+
+	FIndex2i AdjTIDs = GetEdgeT(EID);
+
+	// look-up the polar angle of this edge as it leaves StartVID ( this angle is relative to a specified reference mesh edge )
+	const double PolarAngle = 
+		[&]{
+			const int32 AdjTID = AdjTIDs.A;
+			const int32 IndexOf = GetTriEdges(AdjTID).IndexOf(EID);
+			checkSlow(IndexOf > -1);
+			if (GetTriangle(AdjTID)[IndexOf] == StartVID)
+			{
+				// IntrinsicEdgeAngles hold the local angle of each out-going edge relative to the vertex the edge exits
+				return IntrinsicEdgeAngles[AdjTID][IndexOf];
+			}
+			else
+			{
+				const double ToRadians = GeometricVertexInfo[StartVID].ToRadians;
+				// polar angle of prev edge just before (clockwise) the edge we want
+				const double PrevPolarAngle = IntrinsicEdgeAngles[AdjTID][(IndexOf + 1) % 3];
+				// angle between previous edge and this one
+				const double InternalAngle = InternalAngles[AdjTID][(IndexOf + 1) % 3];
+				// add the internal angle to rotate from Prev Edge to this edge
+				return ToRadians * InternalAngle + PrevPolarAngle;
+			}
+		}();
+
+	// Trace the surface mesh from the intrinsic StartVID, in the PolarAngle direction, a distance of IntrinsicEdgeLength.
+	// 
+	// Note: this intrisic vertex may or may not correspond to a vertex in the surface mesh if vertices were added to the intrinsic mesh
+	// by doing an edge split or a triangle poke.
+	FMeshGeodesicSurfaceTracer SurfaceTracer(*SurfaceMesh);
+	{
+		const FSurfacePoint& StartSurfacePoint = GetVertexSurfacePoint(StartVID);
+		const FSurfacePoint::FSurfacePositionUnion& SurfacePosition = StartSurfacePoint.Position;
+		switch (StartSurfacePoint.PositionType)
+		{
+			case FSurfacePoint::EPositionType::Vertex:
+			{
+				const int32 SurfaceVID = SurfacePosition.VertexPosition.VID;
+				const int32 RefSurfaceEID = VIDToReferenceEID[SurfaceVID];
+
+				FMeshGeodesicSurfaceTracer::FMeshTangentDirection TangentAtVertex = { SurfaceVID, RefSurfaceEID, PolarAngle };
+				SurfaceTracer.TraceMeshFromVertex(TangentAtVertex, IntrinsicEdgeLength);
+			}
+			break;
+			case FSurfacePoint::EPositionType::Edge:
+			{
+				const int32 RefSurfaceEID = SurfacePosition.EdgePosition.EdgeID;
+				double Alpha = SurfacePosition.EdgePosition.Alpha;
+				// convert to BC
+				const int32 SurfaceTID = SurfaceMesh->GetEdgeT(RefSurfaceEID).A;
+				const FIndex2i SurfaceEdgeV = SurfaceMesh->GetEdgeV(RefSurfaceEID);
+				const int32 IndexOf = SurfaceMesh->GetTriEdges(SurfaceTID).IndexOf(RefSurfaceEID);
+				const bool bSameOrientation = (SurfaceMesh->GetTriangle(SurfaceTID)[IndexOf] == SurfaceEdgeV.A);
+				FVector3d BaryPoint(0., 0., 0.);
+				if (!bSameOrientation)
+				{
+					Alpha = 1. - Alpha;
+				}
+				BaryPoint[IndexOf] = Alpha;
+				BaryPoint[(IndexOf + 1) % 3] = 1. - Alpha;
+
+				FMeshGeodesicSurfaceTracer::FMeshSurfaceDirection DirectionOnSurface(RefSurfaceEID, PolarAngle);
+				SurfaceTracer.TraceMeshFromBaryPoint(SurfaceTID, BaryPoint, DirectionOnSurface, IntrinsicEdgeLength);
+			}
+			break;
+			case FSurfacePoint::EPositionType::Triangle:
+			{
+				const int32 SurfaceTID = SurfacePosition.TriPosition.TriID;
+
+				const FVector3d BaryPoint(SurfacePosition.TriPosition.BarycentricCoords[0],
+					SurfacePosition.TriPosition.BarycentricCoords[1],
+					SurfacePosition.TriPosition.BarycentricCoords[2]);
+				const int32 RefSurfaceEID = TIDToReferenceEID[SurfaceTID];
+
+				FMeshGeodesicSurfaceTracer::FMeshSurfaceDirection DirectionOnSurface(RefSurfaceEID, PolarAngle);
+				SurfaceTracer.TraceMeshFromBaryPoint(SurfaceTID, BaryPoint, DirectionOnSurface, IntrinsicEdgeLength);
+			}
+			break;
+			default:
+			{
+				// shouldn't be able to reach this point
+				check(0);
+			}
+		}
+	}
+
+	// util to convert the trace result to a surface point, potentially snapping to a vertex if within the coalesce threshold 
+	auto TraceResultToSurfacePoint = [CoalesceThreshold, SurfaceMesh](const FMeshGeodesicSurfaceTracer::FTraceResult& TraceResult)->FSurfacePoint
+	{
+
+	
+		if (TraceResult.bIsEdgePoint)
+		{
+			// TraceResult alpha is defined as EdgeV.A * (1-Alpha) + EdgeV.B Alpha;  This is the complement of what we want
+			const double Alpha = FMath::Clamp((1. - TraceResult.EdgeAlpha), 0., 1.);
+			const int32 EID = TraceResult.EdgeID;
+
+			if (Alpha <= 0.5 && Alpha < CoalesceThreshold)
+			{
+				return FSurfacePoint(SurfaceMesh->GetEdgeV(EID).B);
+			}
+			else if (Alpha > 0.5 && (1. - Alpha) < CoalesceThreshold)
+			{
+				return FSurfacePoint(SurfaceMesh->GetEdgeV(EID).A);
+			}
+
+			return FSurfacePoint(EID, Alpha);
+		}
+		else
+		{
+			// TODO - should snap to vertex / edge if close?
+			const int32 TID = TraceResult.TriID;
+			const FVector3d BC = TraceResult.Barycentric;
+			return FSurfacePoint(TID, BC);
+		}
+	};
+
+	// Add surface point to the outgoing array, but don't allow for duplicate vertex points
+	auto AddSurfacePoint = [&SurfacePoints](const FSurfacePoint& PointA)
+	{
+		if (SurfacePoints.Num() == 0)
+		{
+			SurfacePoints.Add(PointA);
+		}
+		else
+		{
+			const FSurfacePoint& PointB = SurfacePoints.Last();
+			const bool bAreSameVertexPoint = ( PointA.PositionType == FSurfacePoint::EPositionType::Vertex &&
+				                               PointB.PositionType == FSurfacePoint::EPositionType::Vertex &&
+				                               PointA.Position.VertexPosition.VID == PointB.Position.VertexPosition.VID );
+			if (!bAreSameVertexPoint)
+			{
+				SurfacePoints.Add(PointA);
+			}
+		}
+	};
+
+	// package the surface trace results as series of surface points.  Note, because this is a trace along an intrinsic edge
+	// the first and last result will be an intrinsic vertex (StartVID and EndVID)
+	TArray<FMeshGeodesicSurfaceTracer::FTraceResult>& TraceResults = SurfaceTracer.GetTraceResults();
+	{
+		int32 NumTraceResults = TraceResults.Num();
+		AddSurfacePoint(GetVertexSurfacePoint(StartVID));
+		for (int32 i = 1; i < NumTraceResults - 1; ++i)
+		{
+			FMeshGeodesicSurfaceTracer::FTraceResult& TraceResult = TraceResults[i];
+			FSurfacePoint SurfacePoint = TraceResultToSurfacePoint(TraceResult);
+			AddSurfacePoint(SurfacePoint);
+		}
+		AddSurfacePoint(GetVertexSurfacePoint(EndVID));
+	}
+
+
+	return SurfacePoints;
+}
 
 EMeshResult UE::Geometry::FIntrinsicTriangulation::FlipEdge(int32 EID, FEdgeFlipInfo& EdgeFlipInfo)
 {

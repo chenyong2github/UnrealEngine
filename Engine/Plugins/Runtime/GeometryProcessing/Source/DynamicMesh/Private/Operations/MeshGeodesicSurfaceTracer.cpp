@@ -347,7 +347,7 @@ GeodesicSingleTriangleUtils::FTraceResult  GeodesicSingleTriangleUtils::TraceTan
 		const FVector2d RotatedRayDir = TangentTri2.ChangeBasis(RayDir, HitEdgeIndex);
 
 		// populate trace result
-		TraceResult.Classification = ETraceClassification::Continuing;
+		TraceResult.Classification = (FMath::Abs(RayDistance - MaxDistance) < TMathUtilConstants<double>::ZeroTolerance) ? ETraceClassification::DistanceTerminated : ETraceClassification::Continuing;
 		TraceResult.TraceDist = RayDistance;
 		TraceResult.TriID = TangentTri2.Tri3ID;
 
@@ -500,102 +500,62 @@ GeodesicSingleTriangleUtils::FTraceResult GeodesicSingleTriangleUtils::TraceFrom
 }
 GeodesicSingleTriangleUtils::FTraceResult GeodesicSingleTriangleUtils::TraceFromVertex(const FDynamicMesh3& Mesh, int32 VID, const FMeshSurfaceDirection& Direction, FTangentTri2& ScratchTangentTri2, double MaxDistance)
 {
-
-	int32 EID = Direction.EdgeID;
-	FIndex2i Edge = Mesh.GetEdgeV(EID);
-	check(Edge.A == VID || Edge.B == VID);
-
-	// This doesn't work at a bowtie, or a boundary vertex. 
+	// This doesn't work at a bowtie
+	// [todo] make this work form a bowtie, potentially returning an immediately terminated trace
 	check(!Mesh.IsBowtieVertex(VID));
-	check(!Mesh.IsBoundaryVertex(VID));
 
-	// @todo: return a boundary terminated result in place of the checks
-
-
-
-	// Compute local tangent plane information. 
-	struct FInternalAngle
-	{
-		int32 TriID;
-		double Angle; // internal angle
-		double OffsetAngle; // sum of prior internal angles.
-	};
-
+	// Find total angle around the vertex.
 	double TotalAngle = 0;
-	TArray<FInternalAngle> InternalAngles;
-	FIndex2i FirstLastTri = Mesh.GetEdgeT(EID);
-
-	// Travel counter clockwise around the vertex, visiting each triangle in order.
-	// Start with the first triangle we visit when traveling counter clockwise around VID, starting with edge EID.
-	int CurTriID = FirstLastTri.A;
-	if (GetPermutedEdges(Mesh, FirstLastTri.B, VID).A == EID)
+	const bool bIsBoundaryVertex = Mesh.IsBoundaryVertex(VID);
+	const int32 RefEID = Direction.EdgeID;
 	{
-		CurTriID = FirstLastTri.B;
-	}
-	int32 FirstTriID = CurTriID;
-	do
-	{
-		FIndex3i TriVIDS = Mesh.GetTriangle(CurTriID);
-
-		const int32 TriIndex = IndexUtil::FindTriIndex(VID, TriVIDS);
-		const double AngleR = Mesh.GetTriInternalAngleR(CurTriID, TriIndex);
-
-
-		FInternalAngle& InternalAngle = InternalAngles.AddDefaulted_GetRef();
-		InternalAngle.TriID = CurTriID;
-		InternalAngle.Angle = AngleR;
-		InternalAngle.OffsetAngle = TotalAngle;
-
-		CurTriID = NextCCWTriangle(Mesh, CurTriID, VID);
-		TotalAngle += AngleR;
-
-	} while (CurTriID != FirstTriID && CurTriID != FDynamicMesh3::InvalidID);
-
-	// The direction of the ray was encoded as RayDir by assuming the edge is directed from Edge.A to Edge.B
-	// and aligned with the x-axis.
-	// if we trace from the vertex Edge.B, we need to flip the ray
-	const FVector2d RayDir = (VID == Edge.B) ? -Direction.Dir : Direction.Dir;
-
-
-	FVector2d InComingRay = -RayDir;
-	double IndicentAngle = FMath::Atan2(InComingRay.Y, InComingRay.X); // angle on a triangle face, not the tangent plane
-
-	double ExitPolarAngle = IndicentAngle * (TMathUtilConstants<double>::TwoPi / TotalAngle) + TMathUtilConstants<double>::Pi;
-	ExitPolarAngle = AsZeroToTwoPi(ExitPolarAngle);
-
-	double ExitAngle = ExitPolarAngle * (TotalAngle / TMathUtilConstants<double>::TwoPi);
-
-	// find the triangle that the ray enters, and angle from reference to the first side of that triangle
-	int32 DstTriID = FDynamicMesh3::InvalidID;
-	double DstOffsetAngle = 0;
-	for (const FInternalAngle& AngleData : InternalAngles)
-	{
-		if (AngleData.OffsetAngle <= ExitAngle && (AngleData.OffsetAngle + AngleData.Angle) >= ExitAngle)
+		int32 FirstEID = RefEID;
+		if (bIsBoundaryVertex)
 		{
-			DstTriID = AngleData.TriID;
-			DstOffsetAngle = AngleData.OffsetAngle;
-			break;
+			// vertex is on the mesh boundary, 
+			// choose the boundary edge such that traveling CCW (about the vertex) moves into the mesh
+
+			for (int32 EID : Mesh.VtxEdgesItr(VID))
+			{
+				if (Mesh.IsBoundaryEdge(EID))
+				{
+					const int32 TID = Mesh.GetEdgeT(EID).A;
+					const int32 IndexOf = Mesh.GetTriEdges(TID).IndexOf(EID);
+					if (Mesh.GetTriangle(TID)[IndexOf] == VID)
+					{
+						FirstEID = EID;
+						break;
+					}
+				}
+			}
 		}
+		const FIndex2i FirstLastTri = Mesh.GetEdgeT(FirstEID);
+
+		// Travel counter-clockwise around the vertex, visiting each triangle in order.
+		// Start with the first triangle we visit when traveling counter clockwise around VID, starting with edge EID.
+		int CurTriID = FirstLastTri.A;
+		if (!bIsBoundaryVertex && GetPermutedEdges(Mesh, FirstLastTri.B, VID).A == RefEID)
+		{
+			CurTriID = FirstLastTri.B;
+		}
+		int FirstTriID = CurTriID;
+		do
+		{
+			const FIndex3i TriVIDS = Mesh.GetTriangle(CurTriID);
+			const int32 TriIndex = IndexUtil::FindTriIndex(VID, TriVIDS);
+			const double AngleR = Mesh.GetTriInternalAngleR(CurTriID, TriIndex);
+
+			CurTriID = NextCCWTriangle(Mesh, CurTriID, VID);
+			TotalAngle += AngleR;
+
+		} while (CurTriID != FirstTriID && CurTriID != FDynamicMesh3::InvalidID);
 	}
-	checkSlow(DstTriID != FDynamicMesh3::InvalidID);
 
-	// What is the first edge of the Dst Tri?
-	const FIndex3i PermutedDstEdges = GetPermutedEdges(Mesh, DstTriID, VID);
-	int DstEdgeID = PermutedDstEdges.A; // First Edge.
-
-	double AngleEdgeToRay = ExitAngle - DstOffsetAngle;
-
-	// ray relative to edge exiting VID
-	double DstAlpha = 0.;
-	FVector2d DstRayDir(FMath::Cos(AngleEdgeToRay), FMath::Sin(AngleEdgeToRay));
-	FIndex2i DstEdge = Mesh.GetEdgeV(DstEdgeID);
-	if (DstEdge.B == VID)
-	{
-		DstAlpha = 1. - DstAlpha;
-		DstRayDir = -DstRayDir;
-	}
-	FMeshSurfaceDirection OutGoingDirection(DstEdgeID, DstRayDir);
-	return TraceTriangleFromEdge(Mesh, DstTriID, DstAlpha, OutGoingDirection, ScratchTangentTri2, MaxDistance);
+	//convert input from a vector defined relative to a surface tri to a vector on the tangent plane.
+	const double ToRadians = TMathUtilConstants<double>::TwoPi / FMath::Max(TotalAngle, TMathUtilConstants<double>::ZeroTolerance);
+	const double PolarAngleR = AsZeroToTwoPi(ToRadians * FMath::Atan2(Direction.Dir[1], Direction.Dir[0]));
+	FMeshTangentDirection TangentDirAtVertex = { VID, RefEID, PolarAngleR };
+	return TraceFromVertex(Mesh, TangentDirAtVertex, ScratchTangentTri2, MaxDistance);
 }
 
 
@@ -607,15 +567,16 @@ GeodesicSingleTriangleUtils::FTraceResult  GeodesicSingleTriangleUtils::TraceFro
 }
 GeodesicSingleTriangleUtils::FTraceResult  GeodesicSingleTriangleUtils::TraceFromVertex(const FDynamicMesh3& Mesh, const FMeshTangentDirection& TangentDirection, FTangentTri2& ScratchTangentTri2, double MaxDistance)
 {
-	int32 EID = TangentDirection.EdgeID;
-	int32 VID = TangentDirection.VID;
+	const int32 RefEID = TangentDirection.EdgeID;
+	const int32 VID    = TangentDirection.VID;
 
-	FIndex2i EdgeV = Mesh.GetEdgeV(EID);
-	check(EdgeV.A == VID || EdgeV.B == VID);
-	// This doesn't work at a bowtie, or a boundary vertex. 
-	// @todo: return a boundary terminated result in place of the checks
+	FIndex2i RefEdgeV = Mesh.GetEdgeV(RefEID);
+	check(RefEdgeV.A == VID || RefEdgeV.B == VID);
+
+	// This doesn't work at a bowtie
+	// [todo] make this work form a bowtie, potentially returning an imediately terminated trace
 	check(!Mesh.IsBowtieVertex(VID));
-	check(!Mesh.IsBoundaryVertex(VID));
+	const bool bIsBoundaryVertex = Mesh.IsBoundaryVertex(VID);
 
 
 	// Compute local tangent plane information. 
@@ -626,39 +587,68 @@ GeodesicSingleTriangleUtils::FTraceResult  GeodesicSingleTriangleUtils::TraceFro
 		double OffsetAngle; // sum of prior internal angles.
 	};
 
+	int32 FirstEID = RefEID;
+	if (bIsBoundaryVertex)
+	{
+		// vertex is on the mesh boundary, 
+		// choose the boundary edge such that traveling CCW (about the vertex) moves into the mesh
+
+		for (int32 EID : Mesh.VtxEdgesItr(VID))
+		{
+			if (Mesh.IsBoundaryEdge(EID))
+			{
+				const int32 TID = Mesh.GetEdgeT(EID).A;
+				const int32 IndexOf = Mesh.GetTriEdges(TID).IndexOf(EID);
+				if (Mesh.GetTriangle(TID)[IndexOf] == VID)
+				{
+					FirstEID = EID;
+					break;
+				}
+			}
+		}
+	}
+	const FIndex2i FirstLastTri = Mesh.GetEdgeT(FirstEID);
 	double TotalAngle = 0;
 	TArray<FInternalAngle> InternalAngles;
-	FIndex2i FirstLastTri = Mesh.GetEdgeT(EID);
-
 	// Travel counter-clockwise around the vertex, visiting each triangle in order.
 	// Start with the first triangle we visit when traveling counter clockwise around VID, starting with edge EID.
 	int CurTriID = FirstLastTri.A;
-	if (GetPermutedEdges(Mesh, FirstLastTri.B, VID).A == EID)
+	if (!bIsBoundaryVertex && GetPermutedEdges(Mesh, FirstLastTri.B, VID).A == RefEID)
 	{
 		CurTriID = FirstLastTri.B;
 	}
 	int FirstTriID = CurTriID;
+	double AngleOfRefEID = 0.; // to be computed. the offset from the first edge to the reference edge.
 	do
 	{
 		FIndex3i TriVIDS = Mesh.GetTriangle(CurTriID);
 
 		const int32 TriIndex = IndexUtil::FindTriIndex(VID, TriVIDS);
+		const int32 CurEID = Mesh.GetTriEdges(CurTriID)[TriIndex];
 		const double AngleR = Mesh.GetTriInternalAngleR(CurTriID, TriIndex);
 
 
 		FInternalAngle& InternalAngle = InternalAngles.AddDefaulted_GetRef();
 		InternalAngle.TriID = CurTriID;
 		InternalAngle.Angle = AngleR;
-		InternalAngle.OffsetAngle = TotalAngle;
+		InternalAngle.OffsetAngle = TotalAngle; // counting from FirstEID;
+		if (CurEID == RefEID)
+		{
+			AngleOfRefEID = TotalAngle;
+		}
 
 		CurTriID = NextCCWTriangle(Mesh, CurTriID, VID);
 		TotalAngle += AngleR;
 
 	} while (CurTriID != FirstTriID && CurTriID != FDynamicMesh3::InvalidID);
 
+	for (FInternalAngle& InternalAngle : InternalAngles)
+	{
+		InternalAngle.OffsetAngle -= AngleOfRefEID;
+	}
 	const double ToSurfaceAngle = TotalAngle / TMathUtilConstants<double>::TwoPi;
 	// if the edge "ends" at VID then it aligns with Pi in the tangent space (i.e. the vector A->B aligns with 0 radians, and the vector B->A aligns with pi )
-	double PolarAngle = (EdgeV.B == VID) ? TangentDirection.PolarAngle + TMathUtilConstants<double>::Pi : TangentDirection.PolarAngle;
+	double PolarAngle = (RefEdgeV.B == VID) ? TangentDirection.PolarAngle + TMathUtilConstants<double>::Pi : TangentDirection.PolarAngle;
 	const double SurfaceAngle = AsZeroToTwoPi(PolarAngle) * ToSurfaceAngle;
 
 
@@ -674,7 +664,21 @@ GeodesicSingleTriangleUtils::FTraceResult  GeodesicSingleTriangleUtils::TraceFro
 			break;
 		}
 	}
-	checkSlow(DstTriID != FDynamicMesh3::InvalidID);
+
+	if (DstTriID == FDynamicMesh3::InvalidID)
+	{
+		// this case should only happen if we are exiting the mesh
+		check(bIsBoundaryVertex);
+
+		GeodesicSingleTriangleUtils::FTraceResult TraceResult;
+		TraceResult.Classification = ETraceClassification::BoundaryTerminated;
+		TraceResult.TraceDist = 0.;
+		TraceResult.bIsEdgePoint = true;
+		TraceResult.EdgeID = RefEID;
+		TraceResult.EdgeAlpha = (RefEdgeV.A == VID) ? 0. : 1.;
+
+		return TraceResult;
+	}
 
 	// What is the first edge of the Dst Tri?
 	const FIndex3i PermutedDstEdges = GetPermutedEdges(Mesh, DstTriID, VID);
