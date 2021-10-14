@@ -704,6 +704,12 @@ AUsdStageActor::AUsdStageActor()
 				{
 					UE_LOG( LogUsd, Verbose, TEXT("Reloading animations because layer '%s' was added/removed/reloaded"), *ChangeVecItem );
 					ReloadAnimations();
+
+					// Make sure our PrimsToAnimate and the LevelSequenceHelper are kept in sync, because we'll use PrimsToAnimate to
+					// check whether we need to call LevelSequenceHelper::AddPrim within AUsdStageActor::ExpandPrim. Without this reset
+					// our prims would already be in here by the time we're checking if we need to add tracks or not, and we wouldn't re-add
+					// the tracks
+					PrimsToAnimate.Reset();
 					return;
 				}
 			}
@@ -1496,6 +1502,12 @@ void AUsdStageActor::LoadUsdStage()
 	}
 
 	ReloadAnimations();
+
+	// Make sure our PrimsToAnimate and the LevelSequenceHelper are kept in sync, because we'll use PrimsToAnimate to
+	// check whether we need to call LevelSequenceHelper::AddPrim within AUsdStageActor::ExpandPrim. Without this reset
+	// our prims would already be in here by the time we're checking if we need to add tracks or not, and we wouldn't re-add
+	// the tracks
+	PrimsToAnimate.Reset();
 
 	TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, RootTwin->PrimPath );
 
