@@ -528,7 +528,17 @@ namespace UnrealBuildTool
 			ProjectDirs.Add(EngineExtras);
 			DiscoverCSharpProgramProjectsRecursively(EngineExtras, FoundProjects);
 
-			List<DirectoryReference> AllEngineDirectories = Unreal.GetExtensionDirs(Unreal.EngineDirectory, "Source/Programs");
+			List<DirectoryReference> AllEngineDirectories =
+				Unreal.GetExtensionDirs(Unreal.EngineDirectory, "Source/Programs").Where(x =>
+				{
+					if (x.ContainsAnyNames(UnsupportedPlatformNames, Unreal.EngineDirectory))
+					{
+						Log.TraceLog($"Skipping any C# project files in \"{x}\" due to unsupported platform");
+						return false;
+					}
+					return true;
+				}).ToList();
+			
 			ProjectDirs = ProjectDirs.Union(AllEngineDirectories).ToList();
 			foreach (DirectoryReference EngineDir in AllEngineDirectories)
 			{
@@ -561,6 +571,10 @@ namespace UnrealBuildTool
 
 							AddExistingProjectFile(Project, bForceDevelopmentConfiguration: false);
 							ProgramsFolder.ChildProjects.Add(Project);
+						}
+						else
+						{
+							Log.TraceLog($"Skipping C# project \"{FoundProject}\" due to unsupported platform");
 						}
 						break;
 					}
