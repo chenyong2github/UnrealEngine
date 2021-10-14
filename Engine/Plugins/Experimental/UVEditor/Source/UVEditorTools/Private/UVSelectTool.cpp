@@ -5,7 +5,6 @@
 #include "Algo/Unique.h"
 #include "BaseGizmos/CombinedTransformGizmo.h"
 #include "ContextObjectStore.h"
-#include "DynamicMesh/DynamicMeshChangeTracker.h"
 #include "Drawing/LineSetComponent.h"
 #include "Drawing/MeshElementsVisualizer.h"
 #include "Drawing/PreviewGeometryActor.h"
@@ -14,6 +13,7 @@
 #include "ToolTargets/UVEditorToolMeshInput.h"
 #include "InteractiveToolManager.h"
 #include "MeshOpPreviewHelpers.h" // UMeshOpPreviewWithBackgroundCompute
+#include "Parameterization/DynamicMeshUVEditor.h"
 #include "PreviewMesh.h"
 #include "Selection/MeshSelectionMechanic.h"
 #include "Selection/DynamicMeshSelection.h"
@@ -133,10 +133,6 @@ namespace UVSelectToolLocals
 		{
 			UnwrapCanonicalMeshChange->Apply(UVToolInputObject->UnwrapCanonical.Get(), false);
 			UVToolInputObject->UpdateFromCanonicalUnwrapUsingMeshChange(*UnwrapCanonicalMeshChange);
-			
-			// This is a little wasteful because we're going to reset the gizmo transform, 
-			// but it updates the AABBTree for us.
-			UVToolInputObject->OnUndoRedo.Broadcast(false);
 
 			UUVSelectToolChangeRouter* ChangeRouter = Cast<UUVSelectToolChangeRouter>(Object);
 			if (ensure(ChangeRouter) && ChangeRouter->CurrentSelectTool.IsValid())
@@ -150,10 +146,6 @@ namespace UVSelectToolLocals
 		{
 			UnwrapCanonicalMeshChange->Apply(UVToolInputObject->UnwrapCanonical.Get(), true);
 			UVToolInputObject->UpdateFromCanonicalUnwrapUsingMeshChange(*UnwrapCanonicalMeshChange);
-			
-			// This is a little wasteful because we're going to reset the gizmo transform, 
-			// but it updates the AABBTree for us.
-			UVToolInputObject->OnUndoRedo.Broadcast(false);
 
 			UUVSelectToolChangeRouter* ChangeRouter = Cast<UUVSelectToolChangeRouter>(Object);
 			if (ensure(ChangeRouter) && ChangeRouter->CurrentSelectTool.IsValid())
@@ -211,7 +203,7 @@ UInteractiveTool* UUVSelectToolBuilder::BuildTool(const FToolBuilderState& Scene
 
 void  USelectToolActionPropertySet::Sew()
 {
-	PostAction(ESelectToolAction::Sew); 
+	PostAction(ESelectToolAction::Sew);
 }
 
 void USelectToolActionPropertySet::PostAction(ESelectToolAction Action)
@@ -289,18 +281,7 @@ void UUVSelectTool::Setup()
 		{
 			Tree = MakeShared<FDynamicMeshAABBTree3>();
 			Tree->SetMesh(Target->UnwrapCanonical.Get());
-			TreeStore->Set(Target->UnwrapCanonical.Get(), Tree);
-		}
-		// TODO: We currently can't do this check because the aabb tree checks the mesh
-		// changestamp, and that gets (arguably incorrectly) reset if we do an update
-		// that involves a clear. So, for instance, after a layout operation, the changestamp
-		// frequently ends up matching the original and incorrectly passes the check.
-		// All this means that storing the tree is currently pointless because
-		// we rebuild it each time we switch back to this tool, but we keep the code
-		// until we fix the change stamp thing or give a workaround.
-		//if (!Tree->IsValid(false))
-		{
-			Tree->Build();
+			TreeStore->Set(Target->UnwrapCanonical.Get(), Tree, Target);
 		}
 		AABBTrees.Add(Tree);
 	}
@@ -312,32 +293,15 @@ void UUVSelectTool::Setup()
 			Targets[i]->UnwrapPreview->PreviewMesh->GetTransform());
 	}
 
-	// Remove trees that are no longer relevant (because their layer is not displayed)
-	TreeStore->RemoveByPredicate([this](TPair<FDynamicMesh3*, TSharedPtr<FDynamicMeshAABBTree3>> Pair)
-	{
-		for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
-		{
-			if (Target->UnwrapCanonical.Get() == Pair.Key)
-			{
-				return false;
-			}
-		}
-		return true;
-	});
-
-	// Make sure that if we receive undo/redo events on the meshes, we update the tree structures
-	// and the selection mechanic drawn elements. Note that we mainly have to worry about this
-	// because the select tool is the default UV editor tool, and as such it can receive undo
-	// transactions from other tools and from other select tool invocations. Other tools typically
-	// only need to worry about their own transactions, since we undo other tool invocations before
-	// we get to unrelated transactions, and we can't redo out of the default tool.
+	// Make sure that if undo/redo events act on the meshes, we update our state.
+	// The trees will be updated by the tree store, which listens to the same broadcasts.
 	for (int32 i = 0; i < Targets.Num(); ++i)
 	{
-		Targets[i]->OnUndoRedo.AddWeakLambda(this, [this, i](bool bRevert) {
-			AABBTrees[i]->Build();
+		Targets[i]->OnCanonicalModified.AddWeakLambda(this, [this, i]
+		(UUVEditorToolMeshInput* InputObject, const UUVEditorToolMeshInput::FCanonicalModifiedInfo& Info) {
 			UpdateGizmo();
 			SelectionMechanic->RebuildDrawnElements(TransformGizmo->GetGizmoTransform());
-			});
+		});
 	}
 
 	// Gizmo setup
@@ -391,7 +355,7 @@ void UUVSelectTool::Shutdown(EToolShutdownType ShutdownType)
 
 	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
 	{
-		Target->OnUndoRedo.RemoveAll(this);
+		Target->OnCanonicalModified.RemoveAll(this);
 	}
 
 	Settings->SaveProperties(this);
@@ -675,11 +639,13 @@ void UUVSelectTool::GizmoTransformEnded(UTransformProxy* Proxy)
 	if (Settings->bUpdatePreviewDuringDrag)
 	{
 		// Both previews must already be updated, so only need to update canonical
-		Targets[SelectionTargetIndex]->UpdateCanonicalFromPreviews(&MovingVids);
+		Targets[SelectionTargetIndex]->UpdateCanonicalFromPreviews(&MovingVids, 
+			UUVEditorToolMeshInput::NONE_CHANGED_ARG);
 	}
 	else
 	{
-		Targets[SelectionTargetIndex]->UpdateAllFromUnwrapPreview(&MovingVids, nullptr, &SelectedTids);
+		Targets[SelectionTargetIndex]->UpdateAllFromUnwrapPreview(&MovingVids, 
+			UUVEditorToolMeshInput::NONE_CHANGED_ARG, &SelectedTids);
 	}
 
 	if (!AABBTrees[SelectionTargetIndex]->IsValid(false))
@@ -688,12 +654,10 @@ void UUVSelectTool::GizmoTransformEnded(UTransformProxy* Proxy)
 	}
 
 	const FText TransactionName(LOCTEXT("DragCompleteTransactionName", "Move Items"));
-	EmitChangeAPI->BeginUndoTransaction(TransactionName);
 	EmitChangeAPI->EmitToolIndependentChange(ChangeRouter, MakeUnique<UVSelectToolLocals::FGizmoMeshChange>(
 		Targets[SelectionTargetIndex], ChangeTracker.EndChange(), 
 		InitialGizmoFrame.ToFTransform(), TransformGizmo->GetGizmoTransform()),
 		TransactionName);
-	EmitChangeAPI->EndUndoTransaction();
 
 	TransformGizmo->SetNewChildScale(FVector::One());
 	SelectionMechanic->RebuildDrawnElements(TransformGizmo->GetGizmoTransform());
@@ -720,13 +684,15 @@ void UUVSelectTool::ApplyGizmoTransform()
 					MeshIn.SetVertex(MovingVids[i], TransformToApply.TransformPosition(MovingVertOriginalPositions[i]));
 				}
 			}, false);
-		Targets[SelectionTargetIndex]->UpdateUnwrapPreviewOverlayFromPositions(&MovingVids, nullptr, &SelectedTids);
+		Targets[SelectionTargetIndex]->UpdateUnwrapPreviewOverlayFromPositions(&MovingVids, 
+			UUVEditorToolMeshInput::NONE_CHANGED_ARG, &SelectedTids);
 
 		SelectionMechanic->SetDrawnElementsTransform((FTransform)TransformToApply);
 
 		if (Settings->bUpdatePreviewDuringDrag)
 		{
-			Targets[SelectionTargetIndex]->UpdateAppliedPreviewFromUnwrapPreview(&MovingVids, nullptr, &SelectedTids);
+			Targets[SelectionTargetIndex]->UpdateAppliedPreviewFromUnwrapPreview(&MovingVids, 
+				UUVEditorToolMeshInput::NONE_CHANGED_ARG, &SelectedTids);
 		}
 
 		bGizmoTransformNeedsApplication = false;
@@ -791,6 +757,5 @@ void UUVSelectTool::ApplyAction(ESelectToolAction ActionType)
 		break;
 	}
 }
-
 
 #undef LOCTEXT_NAMESPACE

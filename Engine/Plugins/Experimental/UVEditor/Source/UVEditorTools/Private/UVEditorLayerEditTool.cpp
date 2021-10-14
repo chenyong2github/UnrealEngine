@@ -49,7 +49,7 @@ namespace UUVEditorChannelEditLocals
 				Target->AppliedPreview->PreviewMesh->UpdatePreview(Target->AppliedCanonical.Get());
 
 				AssetAndChannelAPI->NotifyOfAssetChannelCountChange(Target->AssetID);
-				Target->OnUndoRedo.Broadcast(false);
+				Target->OnCanonicalModified.Broadcast(Target, UUVEditorToolMeshInput::FCanonicalModifiedInfo());
 			}
 
 		}
@@ -63,7 +63,7 @@ namespace UUVEditorChannelEditLocals
 			int32 NewChannelIndex = DynamicMeshUVEditor.RemoveUVLayer();
 			Target->AppliedPreview->PreviewMesh->UpdatePreview(Target->AppliedCanonical.Get());
 			AssetAndChannelAPI->NotifyOfAssetChannelCountChange(Target->AssetID);
-			Target->OnUndoRedo.Broadcast(true);		
+			Target->OnCanonicalModified.Broadcast(Target, UUVEditorToolMeshInput::FCanonicalModifiedInfo());
 		}
 
 		virtual bool HasExpired(UObject* Object) const override
@@ -100,7 +100,6 @@ namespace UUVEditorChannelEditLocals
 			FDynamicMeshUVEditor DynamicMeshUVEditor(Target->AppliedCanonical.Get(), TargetUVChannelIndex, false);
 			DynamicMeshUVEditor.CopyUVLayer(Target->AppliedCanonical->Attributes()->GetUVLayer(SourceUVChannelIndex));
 			Target->UpdateAllFromAppliedCanonical();
-			Target->OnUndoRedo.Broadcast(false);
 		}
 
 		virtual void Revert(UObject* Object) override
@@ -111,7 +110,6 @@ namespace UUVEditorChannelEditLocals
 			FDynamicMeshUVEditor DynamicMeshUVEditor(Target->AppliedCanonical.Get(), TargetUVChannelIndex, false);
 			DynamicMeshUVEditor.CopyUVLayer(&OriginalUVChannel);
 			Target->UpdateAllFromAppliedCanonical();
-			Target->OnUndoRedo.Broadcast(true);
 		}
 
 		virtual bool HasExpired(UObject* Object) const override
@@ -158,8 +156,8 @@ namespace UUVEditorChannelEditLocals
 			TArray<int32> ChannelPerAsset = AssetAndChannelAPI->GetCurrentChannelVisibility();
 			ChannelPerAsset[Target->AssetID] = DeletedUVChannelIndex;
 			AssetAndChannelAPI->RequestChannelVisibilityChange(ChannelPerAsset, false, false);
-
-			Target->OnUndoRedo.Broadcast(false);
+			
+			Target->OnCanonicalModified.Broadcast(Target, UUVEditorToolMeshInput::FCanonicalModifiedInfo());
 		}
 
 		virtual void Revert(UObject* Object) override
@@ -183,8 +181,8 @@ namespace UUVEditorChannelEditLocals
 			TArray<int32> ChannelPerAsset = AssetAndChannelAPI->GetCurrentChannelVisibility();
 			ChannelPerAsset[Target->AssetID] = DeletedUVChannelIndex;
 			AssetAndChannelAPI->RequestChannelVisibilityChange(ChannelPerAsset, true, false);
-
-			Target->OnUndoRedo.Broadcast(true);
+			
+			Target->OnCanonicalModified.Broadcast(Target, UUVEditorToolMeshInput::FCanonicalModifiedInfo());
 		}
 
 		virtual bool HasExpired(UObject* Object) const override
@@ -457,9 +455,10 @@ void UUVEditorChannelEditTool::Setup()
 
 	for (int32 i = 0; i < Targets.Num(); ++i)
 	{
-		Targets[i]->OnUndoRedo.AddWeakLambda(this, [this, i](bool bRevert) {
+		Targets[i]->OnCanonicalModified.AddWeakLambda(this, [this, i]
+		(UUVEditorToolMeshInput* InputObject, const UUVEditorToolMeshInput::FCanonicalModifiedInfo&) {
 			UpdateChannelSelectionProperties(i);
-			});
+		});
 	}
 }
 
@@ -467,7 +466,7 @@ void UUVEditorChannelEditTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
 	{
-		Target->OnUndoRedo.RemoveAll(this);
+		Target->OnCanonicalModified.RemoveAll(this);
 	}
 
 	Targets.Empty();

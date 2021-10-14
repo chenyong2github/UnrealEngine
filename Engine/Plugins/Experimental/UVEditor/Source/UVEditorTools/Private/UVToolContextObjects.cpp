@@ -14,8 +14,8 @@ namespace UVToolContextObjectLocals
 {
 
 	/**
-	 * A wrapper change that applies a given change to the unwrap canonical mesh of an input, uses that to update the
-	 * other views, and issues an OnUndoRedo broadcast.
+	 * A wrapper change that applies a given change to the unwrap canonical mesh of an input, and uses that
+	 * to update the other views. Causes a broadcast of OnCanonicalModified.
 	 */
 	class  FUVEditorMeshChange : public FToolCommandChange
 	{
@@ -32,14 +32,12 @@ namespace UVToolContextObjectLocals
 		{
 			UnwrapCanonicalMeshChange->Apply(UVToolInputObject->UnwrapCanonical.Get(), false);
 			UVToolInputObject->UpdateFromCanonicalUnwrapUsingMeshChange(*UnwrapCanonicalMeshChange);
-			UVToolInputObject->OnUndoRedo.Broadcast(false);
 		}
 
 		virtual void Revert(UObject* Object) override
 		{
 			UnwrapCanonicalMeshChange->Apply(UVToolInputObject->UnwrapCanonical.Get(), true);
 			UVToolInputObject->UpdateFromCanonicalUnwrapUsingMeshChange(*UnwrapCanonicalMeshChange);
-			UVToolInputObject->OnUndoRedo.Broadcast(true);
 		}
 
 		virtual bool HasExpired(UObject* Object) const override
@@ -77,35 +75,62 @@ void UUVToolEmitChangeAPI::EmitToolDependentChange(UObject* TargetObject, TUniqu
 	ToolManager->EmitObjectChange(TargetObject, MoveTemp(Change), Description);
 }
 
-void UUVToolLivePreviewAPI::Initialize(UWorld* WorldIn, UInputRouter* RouterIn)
+void UUVToolLivePreviewAPI::Initialize(UWorld* WorldIn, UInputRouter* RouterIn,
+	TUniqueFunction<void(FViewCameraState& CameraStateOut)> GetLivePreviewCameraStateFuncIn)
 {
 	World = WorldIn;
 	InputRouter = RouterIn;
+	GetLivePreviewCameraStateFunc = MoveTemp(GetLivePreviewCameraStateFuncIn);
 }
 
-void UUVToolAABBTreeStorage::Set(FDynamicMesh3* MeshKey, TSharedPtr<FDynamicMeshAABBTree3> Tree)
+void UUVToolAABBTreeStorage::Set(FDynamicMesh3* MeshKey, TSharedPtr<FDynamicMeshAABBTree3> Tree, 
+	UUVEditorToolMeshInput* InputObject)
 {
-	AABBTrees.Add(MeshKey, Tree);
+	AABBTreeStorage.Add(MeshKey, TreeInputObjectPair(Tree, InputObject));
+	InputObject->OnCanonicalModified.AddWeakLambda(this, [MeshKey, Tree]
+	(UUVEditorToolMeshInput* InputObject, const UUVEditorToolMeshInput::FCanonicalModifiedInfo& Info) {
+		if (InputObject->UnwrapCanonical.Get() == MeshKey
+			|| (Info.bAppliedMeshShapeChanged && InputObject->AppliedCanonical.Get() == MeshKey))
+		{
+			Tree->Build();
+		}
+	});
 }
 
 TSharedPtr<FDynamicMeshAABBTree3> UUVToolAABBTreeStorage::Get(FDynamicMesh3* MeshKey)
 {
-	TSharedPtr<FDynamicMeshAABBTree3>* FoundPtr = AABBTrees.Find(MeshKey);
-	return FoundPtr ? *FoundPtr : nullptr;
+	TreeInputObjectPair* FoundPtr = AABBTreeStorage.Find(MeshKey);
+	return FoundPtr ? FoundPtr->Key : nullptr;
 }
 
 void UUVToolAABBTreeStorage::Remove(FDynamicMesh3* MeshKey)
 {
-	AABBTrees.Remove(MeshKey);
+	TreeInputObjectPair* Result = AABBTreeStorage.Find(MeshKey);
+	if (!Result)
+	{
+		return;
+	}
+	if (Result->Value.IsValid())
+	{
+		Result->Value->OnCanonicalModified.RemoveAll(this);
+	}
+
+	AABBTreeStorage.Remove(MeshKey);
 }
 
 void UUVToolAABBTreeStorage::RemoveByPredicate(TUniqueFunction<
-	bool(const TPair<FDynamicMesh3*, TSharedPtr<FDynamicMeshAABBTree3>>&)> Predicate)
+	bool(const FDynamicMesh3* Mesh, TWeakObjectPtr<UUVEditorToolMeshInput> InputObject,
+		TSharedPtr<FDynamicMeshAABBTree3> Tree)> Predicate)
 {
-	for (auto It = AABBTrees.CreateIterator(); It; ++It)
+	for (auto It = AABBTreeStorage.CreateIterator(); It; ++It)
 	{
-		if (Predicate(*It))
+		TWeakObjectPtr<UUVEditorToolMeshInput> InputObject = It->Value.Value;
+		if (Predicate(It->Key, InputObject, It->Value.Key)) // mesh, object, tree
 		{
+			if (InputObject.IsValid())
+			{
+				InputObject->OnCanonicalModified.RemoveAll(this);
+			}
 			It.RemoveCurrent();
 		}
 	}
@@ -113,5 +138,20 @@ void UUVToolAABBTreeStorage::RemoveByPredicate(TUniqueFunction<
 
 void UUVToolAABBTreeStorage::Empty()
 {
-	AABBTrees.Empty();
+	for (TPair<FDynamicMesh3*, TreeInputObjectPair>& MapPair : AABBTreeStorage)
+	{
+		TWeakObjectPtr<UUVEditorToolMeshInput> InputObject = MapPair.Value.Value;
+		if (InputObject.IsValid())
+		{
+			InputObject->OnCanonicalModified.RemoveAll(this);
+		}
+	}
+	AABBTreeStorage.Empty();
+}
+
+void UUVToolAABBTreeStorage::BeginDestroy()
+{
+	Empty();
+
+	Super::BeginDestroy();
 }
