@@ -5,10 +5,6 @@
 #include "Trace/Config.h"
 
 ////////////////////////////////////////////////////////////////////////////////
-#if UE_TRACE_ENABLED
-#	define TRACE_PRIVATE_PROTOCOL_5
-#endif
-
 #if defined(_MSC_VER)
 	#pragma warning(push)
 	#pragma warning(disable : 4200) // non-standard zero-sized array
