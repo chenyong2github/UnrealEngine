@@ -36,6 +36,12 @@ public:
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 
+	/** Get the list of default overlay names */
+	TArray<FName> GetDefaultCalibrationOverlayNames() const;
+
+	/** Get the default MaterialInterface associated with the input overlay name */
+	UMaterialInterface* GetDefaultCalibrationOverlayMaterial(const FName OverlayName) const;
+
 	/** Gets a multicast delegate which is called whenever the displacement map resolution project setting changes */
 	FOnDisplacementMapResolutionChanged& OnDisplacementMapResolutionChanged();
 
@@ -103,6 +109,12 @@ private:
 	/** Map of Lens Distortion Model Handler classes to the default lens distortion post-process material used by that class */
 	UPROPERTY(config)
 	TMap<TSubclassOf<ULensDistortionModelHandlerBase>, TSoftObjectPtr<UMaterialInterface>> DefaultDistortionMaterials;
+
+#if WITH_EDITORONLY_DATA
+	/** Map of overlay names to default overlay materials */
+	UPROPERTY(config, EditAnywhere, Category = "Overlays")
+	TMap<FName, TSoftObjectPtr<UMaterialInterface>> DefaultCalibrationOverlayMaterials;
+#endif
 };
 
 /**
@@ -136,7 +148,7 @@ struct FLensDataCategoryEditorColor
 			return FColor::Black;
 		}
 	}
-	
+
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	FColor Focus = FColor::Red;
 
@@ -169,14 +181,15 @@ class CAMERACALIBRATIONCORE_API UCameraCalibrationEditorSettings : public UDevel
 	GENERATED_BODY()
 
 public:
+	UCameraCalibrationEditorSettings();
 
-		//~ Begin UDevelopperSettings interface
-		virtual FName GetCategoryName() const;
+	//~ Begin UDeveloperSettings interface
+	virtual FName GetCategoryName() const;
 #if WITH_EDITOR
-		virtual FText GetSectionText() const override;
-		virtual FName GetSectionName() const override;
+	virtual FText GetSectionText() const override;
+	virtual FName GetSectionName() const override;
 #endif
-		//~ End UDevelopperSettings interface
+	//~ End UDeveloperSettings interface
 
 public:
 

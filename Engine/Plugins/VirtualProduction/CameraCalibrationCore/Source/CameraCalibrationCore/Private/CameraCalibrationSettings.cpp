@@ -78,6 +78,29 @@ void UCameraCalibrationSettings::PostEditChangeChainProperty(struct FPropertyCha
 	}
 }
 
+TArray<FName> UCameraCalibrationSettings::GetDefaultCalibrationOverlayNames() const
+{
+	TArray<FName> OutKeys;
+#if WITH_EDITORONLY_DATA
+	DefaultCalibrationOverlayMaterials.GetKeys(OutKeys);
+#endif
+	return OutKeys;
+}
+
+UMaterialInterface* UCameraCalibrationSettings::GetDefaultCalibrationOverlayMaterial(const FName OverlayName) const
+{
+#if WITH_EDITORONLY_DATA
+	const TSoftObjectPtr<UMaterialInterface>* OverlayMaterial = DefaultCalibrationOverlayMaterials.Find(OverlayName);
+	if (!OverlayMaterial)
+	{
+		return nullptr;
+	}
+	return OverlayMaterial->LoadSynchronous();
+#else 
+	return nullptr;
+#endif
+}
+
 FOnDisplacementMapResolutionChanged& UCameraCalibrationSettings::OnDisplacementMapResolutionChanged()
 {
 	return DisplacementMapResolutionChangedDelegate;
@@ -88,6 +111,10 @@ FOnCalibrationInputToleranceChanged& UCameraCalibrationSettings::OnCalibrationIn
 	return CalibrationInputToleranceChangedDelegate;
 }
 #endif
+
+UCameraCalibrationEditorSettings::UCameraCalibrationEditorSettings()
+{
+}
 
 FName UCameraCalibrationEditorSettings::GetCategoryName() const
 {

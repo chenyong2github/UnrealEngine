@@ -52,6 +52,9 @@ public:
 	/** Returns the render target of the Media Plate */
 	UTextureRenderTarget2D* GetMediaPlateRenderTarget() const;
 
+	/** Returns the size of the render target used by the Comp */
+	FIntPoint GetCompRenderTargetSize() const;
+
 	/** Creates a way to read the media plate pixels for processing by any calibration step */
 	void CreateMediaPlateOutput();
 
@@ -118,6 +121,39 @@ public:
 	/** Reads the pixels in the media plate */
 	bool ReadMediaPixels(TArray<FColor>& Pixels, FIntPoint& Size, ETextureRenderTargetFormat& PixelFormat, FText& OutErrorMessage) const;
 
+	/** Returns true if the overlay transform pass is currently enabled */
+	bool IsOverlayEnabled() const;
+
+	/** Sets the enabled state of the overlay transform pass */
+	void SetOverlayEnabled(const bool bEnabled = true);
+
+	/** Sets the overlay material to be used by the overlay transform pass */
+	void SetOverlayMaterial(UMaterialInterface* OverlayMaterial, bool bShowOverlay = true);
+
+	/** Gets the overlay material currently used by the overlay transform pass */
+	const UMaterialInterface* const GetOverlayMaterial() const;
+
+	/** Get the current value of the input parameter from the overlay material */
+	bool GetOverlayScalarParameterValue(const FName& ParameterName, float& OutValue) const;
+
+	/** Get the min value of the input parameter from the overlay material */
+	bool GetOverlayScalarParameterMinMax(const FName& ParameterName, float& OutMinValue, float& OutMaxValue) const;
+
+	/** Get the value of the input parameter from the overlay material */
+	bool GetOverlayVectorParameterValue(const FName& ParameterName, FLinearColor& OutValue) const;
+
+	/** Get the value of the input parameter from the overlay material */
+	bool GetOverlayTextureParameterValue(const FName& ParameterName, UTexture*& OutValue) const;
+
+	/** Set the value of the input scalar parameter on the overlay material */
+	void SetOverlayScalarParameter(const FName& ParameterName, const float NewValue);
+
+	/** Set the value of the input vector parameter on the overlay material */
+	void SetOverlayVectorParameter(const FName& ParameterName, const FLinearColor& NewValue);
+
+	/** Set the value of the input texture parameter on the overlay material */
+	void SetOverlayTextureParameter(const FName& ParameterName, UTexture* NewValue);
+
 public:
 
 	/** Called by the UI when the Simulcam Viewport is clicked */
@@ -160,6 +196,9 @@ private:
 	/** Pointer to the camera calibration toolkit */
 	TWeakPtr<FCameraCalibrationToolkit> CameraCalibrationToolkit;
 
+	/** Size to use when creating the render targets for the comp and media output */
+	FIntPoint RenderTargetSize;
+
 	/** Array of the calibration steps that this controller is managing */
 	TArray<TStrongObjectPtr<UCameraCalibrationStep>> CalibrationSteps;
 
@@ -189,6 +228,9 @@ private:
 
 	/** The material pass the does the CG + MediaPlate composite with a wiper weight */
 	TWeakObjectPtr<UCompositingElementMaterialPass> MaterialPass;
+
+	/** The material pass that renders an overlay on top of the composite */
+	TWeakObjectPtr<UCompositingElementMaterialPass> OverlayPass;
 
 	/** The currently selected camera */
 	TWeakObjectPtr<ACameraActor> Camera;

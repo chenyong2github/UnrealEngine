@@ -108,6 +108,7 @@ namespace CameraCalibrationStepsController
 
 FCameraCalibrationStepsController::FCameraCalibrationStepsController(TWeakPtr<FCameraCalibrationToolkit> InCameraCalibrationToolkit, ULensFile* InLensFile)
 	: CameraCalibrationToolkit(InCameraCalibrationToolkit)
+	, RenderTargetSize(FIntPoint(1920, 1080))
 	, LensFile(TWeakObjectPtr<ULensFile>(InLensFile))
 {
 	check(CameraCalibrationToolkit.IsValid());
@@ -328,6 +329,11 @@ UWorld* FCameraCalibrationStepsController::GetWorld() const
 UTextureRenderTarget2D* FCameraCalibrationStepsController::GetRenderTarget() const
 {
 	return RenderTarget.Get();
+}
+
+FIntPoint FCameraCalibrationStepsController::GetCompRenderTargetSize() const
+{
+	return RenderTargetSize;
 }
 
 void FCameraCalibrationStepsController::CreateComp()
@@ -554,6 +560,21 @@ void FCameraCalibrationStepsController::CreateComp()
 	MaterialPass->SetParameterMapping(TEXT("CG"), *CGLayer->GetActorLabel());
 	MaterialPass->SetParameterMapping(TEXT("MediaPlate"), *MediaPlate->GetActorLabel());
 
+	// Create new overlay transform pass
+	OverlayPass = CastChecked<UCompositingElementMaterialPass>(
+		Comp->CreateNewTransformPass(TEXT("Overlay"), UCompositingElementMaterialPass::StaticClass())
+		);
+
+	if (!OverlayPass.IsValid())
+	{
+		UE_LOG(LogCameraCalibrationEditor, Warning, TEXT("Failed to create 'Overlay' UCompositingElementMaterialPass"));
+		Cleanup();
+		return;
+	}
+
+	// The overlay pass should be disabled until an overlay material is set
+	OverlayPass->SetPassEnabled(false);
+
 	URenderTargetCompositingOutput* RTOutput = Cast<URenderTargetCompositingOutput>(Comp->CreateNewOutputPass(
 		TEXT("SimulcamCalOutput"),
 		URenderTargetCompositingOutput::StaticClass())
@@ -582,7 +603,7 @@ void FCameraCalibrationStepsController::CreateComp()
 	RenderTarget->RenderTargetFormat = RTF_RGBA16f;
 	RenderTarget->ClearColor = FLinearColor::Black;
 	RenderTarget->bAutoGenerateMips = true;
-	RenderTarget->InitAutoFormat(1920, 1080);
+	RenderTarget->InitAutoFormat(RenderTargetSize.X, RenderTargetSize.Y);
 	RenderTarget->UpdateResourceImmediate(true);
 
 	// Assign the RT to the compositing output
@@ -596,6 +617,127 @@ void FCameraCalibrationStepsController::CreateComp()
 	else
 	{
 		SetCamera(Comp->FindTargetCamera());
+	}
+}
+
+bool FCameraCalibrationStepsController::IsOverlayEnabled() const
+{
+	if (UCompositingElementMaterialPass* OverlayPassPtr = OverlayPass.Get())
+	{
+		return OverlayPassPtr->IsPassEnabled();
+	}
+
+	return false;
+}
+
+void FCameraCalibrationStepsController::SetOverlayEnabled(const bool bEnabled)
+{
+	if (UCompositingElementMaterialPass* OverlayPassPtr = OverlayPass.Get())
+	{
+		OverlayPassPtr->SetPassEnabled(bEnabled);
+	}
+}
+
+void FCameraCalibrationStepsController::SetOverlayMaterial(UMaterialInterface* OverlayMaterial, bool bShowOverlay)
+{
+	if (UCompositingElementMaterialPass* OverlayPassPtr = OverlayPass.Get())
+	{
+		OverlayPassPtr->SetMaterialInterface(OverlayMaterial);
+		OverlayPassPtr->SetPassEnabled(bShowOverlay);
+	}
+}
+
+const UMaterialInterface* const FCameraCalibrationStepsController::GetOverlayMaterial() const
+{
+	if (UCompositingElementMaterialPass* OverlayPassPtr = OverlayPass.Get())
+	{
+		if (OverlayPassPtr->IsPassEnabled())
+		{
+			return OverlayPassPtr->Material.Material;
+		}
+	}
+
+	return nullptr;
+}
+
+bool FCameraCalibrationStepsController::GetOverlayScalarParameterValue(const FName& ParameterName, float& OutValue) const
+{
+	bool Result = false;
+
+	if (UCompositingElementMaterialPass* OverlayPassPtr = OverlayPass.Get())
+	{
+		const UMaterialInstanceDynamic* const OverlayMID = OverlayPassPtr->Material.GetMID();
+		Result = OverlayMID->GetScalarParameterValue(ParameterName, OutValue);
+	}
+
+	return Result;
+}
+
+bool FCameraCalibrationStepsController::GetOverlayScalarParameterMinMax(const FName& ParameterName, float& OutMinValue, float& OutMaxValue) const
+{
+	bool Result = false;
+
+	if (UCompositingElementMaterialPass* OverlayPassPtr = OverlayPass.Get())
+	{
+		const UMaterialInstanceDynamic* const OverlayMID = OverlayPassPtr->Material.GetMID();
+		Result = OverlayMID->GetScalarParameterSliderMinMax(ParameterName, OutMinValue, OutMaxValue);
+	}
+
+	return Result;
+}
+
+bool FCameraCalibrationStepsController::GetOverlayVectorParameterValue(const FName& ParameterName, FLinearColor& OutValue) const
+{
+	bool Result = false;
+
+	if (UCompositingElementMaterialPass* OverlayPassPtr = OverlayPass.Get())
+	{
+		const UMaterialInstanceDynamic* const OverlayMID = OverlayPassPtr->Material.GetMID();
+		Result = OverlayMID->GetVectorParameterValue(ParameterName, OutValue);
+	}
+
+	return Result;
+}
+
+bool FCameraCalibrationStepsController::GetOverlayTextureParameterValue(const FName& ParameterName, UTexture*& OutValue) const
+{
+	bool Result = false;
+
+	if (UCompositingElementMaterialPass* OverlayPassPtr = OverlayPass.Get())
+	{
+		Result = OverlayPassPtr->Material.GetTextureOverride(ParameterName, OutValue);
+
+		if (!Result)
+		{
+			const UMaterialInstanceDynamic* const OverlayMID = OverlayPassPtr->Material.GetMID();
+			Result = OverlayMID->GetTextureParameterValue(ParameterName, OutValue);
+		}
+	}
+
+	return Result;
+}
+
+void FCameraCalibrationStepsController::SetOverlayScalarParameter(const FName& ParameterName, const float NewValue)
+{
+	if (UCompositingElementMaterialPass* OverlayPassPtr = OverlayPass.Get())
+	{
+		OverlayPassPtr->Material.SetScalarOverride(ParameterName, NewValue);
+	}
+}
+
+void FCameraCalibrationStepsController::SetOverlayVectorParameter(const FName& ParameterName, const FLinearColor& NewValue)
+{
+	if (UCompositingElementMaterialPass* OverlayPassPtr = OverlayPass.Get())
+	{
+		OverlayPassPtr->Material.SetVectorOverride(ParameterName, NewValue);
+	}
+}
+
+void FCameraCalibrationStepsController::SetOverlayTextureParameter(const FName& ParameterName, UTexture* NewValue)
+{
+	if (UCompositingElementMaterialPass* OverlayPassPtr = OverlayPass.Get())
+	{
+		OverlayPassPtr->Material.SetTextureOverride(ParameterName, NewValue);
 	}
 }
 
@@ -634,7 +776,7 @@ void FCameraCalibrationStepsController::CreateMediaPlateOutput()
 	MediaPlateRenderTarget->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RGBA8;
 	MediaPlateRenderTarget->ClearColor = FLinearColor::Black;
 	MediaPlateRenderTarget->bAutoGenerateMips = true;
-	MediaPlateRenderTarget->InitAutoFormat(1920, 1080);
+	MediaPlateRenderTarget->InitAutoFormat(RenderTargetSize.X, RenderTargetSize.Y);
 	MediaPlateRenderTarget->UpdateResourceImmediate(true);
 
 	// Assign the RT to the compositing output

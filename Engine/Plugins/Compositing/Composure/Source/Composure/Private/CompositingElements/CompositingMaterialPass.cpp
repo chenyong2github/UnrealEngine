@@ -45,6 +45,11 @@ bool FCompositingMaterial::ApplyParamOverrides(const ICompositingTextureLookupTa
 				MatInstance->SetVectorParameterValue(VecOverride.Key, VecOverride.Value);
 			}
 
+			for (TPair<FName, TObjectPtr<UTexture>>& TextureOverride : TextureParamOverrides)
+			{
+				MatInstance->SetTextureParameterValue(TextureOverride.Key, TextureOverride.Value.Get());
+			}
+
 			bParamsModified = false;
 		}
 
@@ -215,6 +220,40 @@ void FCompositingMaterial::ResetVectorOverride(const FName ParamName)
 	if (CachedMID && CachedMID->GetVectorParameterDefaultValue(ParamName, DefaultVal))
 	{
 		CachedMID->SetVectorParameterValue(ParamName, DefaultVal);
+	}
+}
+
+void FCompositingMaterial::SetTextureOverride(const FName ParamName, UTexture* ParamVal)
+{
+	TextureParamOverrides.Add(ParamName, ParamVal);
+	if (CachedMID)
+	{
+		CachedMID->SetTextureParameterValue(ParamName, ParamVal);
+	}
+	else
+	{
+		bParamsModified = true;
+	}
+}
+
+bool FCompositingMaterial::GetTextureOverride(const FName ParamName, UTexture*& OutParamVal)
+{
+	if (TObjectPtr<UTexture>* ExistingOverride = TextureParamOverrides.Find(ParamName))
+	{
+		OutParamVal = *ExistingOverride;
+		return true;
+	}
+	return false;
+}
+
+void FCompositingMaterial::ResetTextureOverride(const FName ParamName)
+{
+	TextureParamOverrides.Remove(ParamName);
+
+	UTexture* DefaultVal;
+	if (CachedMID && CachedMID->GetTextureParameterDefaultValue(ParamName, DefaultVal))
+	{
+		CachedMID->SetTextureParameterValue(ParamName, DefaultVal);
 	}
 }
 

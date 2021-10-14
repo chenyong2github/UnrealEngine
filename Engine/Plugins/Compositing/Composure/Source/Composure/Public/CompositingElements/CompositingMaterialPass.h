@@ -3,7 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/Texture.h"
 #include "UObject/ObjectMacros.h"
+
 #include "CompositingMaterialPass.generated.h"
 
 class UMaterialInterface;
@@ -18,11 +20,17 @@ struct COMPOSURE_API FCompositingParamPayload
 {
 	GENERATED_USTRUCT_BODY();
 
+	/** Map of scalar material parameter names to their corresponding override values */
 	UPROPERTY()
 	TMap<FName, float> ScalarParamOverrides;
 
+	/** Map of vector material parameter names to their corresponding override values */
 	UPROPERTY()
 	TMap<FName, FLinearColor> VectorParamOverrides;
+
+	/** Map of texture material parameter names to their corresponding override values */
+	UPROPERTY()
+	TMap<FName, TObjectPtr<UTexture>> TextureParamOverrides;
 };
 
 /* FNamedCompMaterialParam
@@ -120,6 +128,15 @@ public:
 	void SetVectorOverride(const FName ParamName, const FLinearColor ParamVal);
 	bool GetVectorOverride(const FName ParamName, FLinearColor& OutParamVal);
 	void ResetVectorOverride(const FName ParamName);
+
+	/** Set the override UTexture value for the named input material parameter */
+	void SetTextureOverride(const FName ParamName, UTexture* ParamVal);
+
+	/** Get the override UTexture value for the named input material parameter */
+	bool GetTextureOverride(const FName ParamName, UTexture*& OutParamVal);
+
+	/** Remove the override for the named input material parameter and reset its value to the default */
+	void ResetTextureOverride(const FName ParamName);
 
 	void ResetAllParamOverrides();
 
