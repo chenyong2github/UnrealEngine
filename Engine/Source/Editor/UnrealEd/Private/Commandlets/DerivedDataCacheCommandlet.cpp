@@ -40,28 +40,17 @@ void UDerivedDataCacheCommandlet::MaybeMarkPackageAsAlreadyLoaded(UPackage *Pack
 	}
 }
 
-int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
+static void WaitForCurrentShaderCompilationToFinish(bool& bInOutHadActivity)
 {
-	TArray<FString> Tokens, Switches;
-	ParseCommandLine(*Params, Tokens, Switches);
-
-	bool bFillCache = Switches.Contains("FILL");   // do the equivalent of a "loadpackage -all" to fill the DDC
-	bool bStartupOnly = Switches.Contains("STARTUPONLY");   // regardless of any other flags, do not iterate packages
-
-															// Subsets for parallel processing
-	uint32 SubsetMod = 0;
-	uint32 SubsetTarget = MAX_uint32;
-	FParse::Value(*Params, TEXT("SubsetMod="), SubsetMod);
-	FParse::Value(*Params, TEXT("SubsetTarget="), SubsetTarget);
-	bool bDoSubset = SubsetMod > 0 && SubsetTarget < SubsetMod;
-	double FindProcessedPackagesTime = 0.0;
-	double GCTime = 0.0;
-
-	auto WaitForCurrentShaderCompilationToFinish = []()
+	if (GShaderCompilingManager->IsCompiling())
 	{
-		int32 NumCompletedShadersSinceLastLog = 0;
+		bInOutHadActivity = true;
 		int32 CachedShaderCount = GShaderCompilingManager->GetNumRemainingJobs();
-		UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("Waiting for %d shaders to finish."), CachedShaderCount);
+		if (CachedShaderCount > 0)
+		{
+			UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("Waiting for %d shaders to finish."), CachedShaderCount);
+		}
+		int32 NumCompletedShadersSinceLastLog = 0;
 		while (GShaderCompilingManager->IsCompiling())
 		{
 			const int32 CurrentShaderCount = GShaderCompilingManager->GetNumRemainingJobs();
@@ -79,18 +68,55 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 			GDistanceFieldAsyncQueue->ProcessAsyncTasks();
 		}
 		GShaderCompilingManager->FinishAllCompilation(); // Final blocking check as IsCompiling() may be non-deterministic
-		GDistanceFieldAsyncQueue->BlockUntilAllBuildsComplete();
 		UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("Done waiting for shaders to finish."));
-	};
+	}
 
+	// these shouldn't be predicated on whether the shaders were being compiled
+	GDistanceFieldAsyncQueue->BlockUntilAllBuildsComplete();
+}
 
-	auto WaitForCurrentTextureBuildingToFinish = []()
+static void WaitForCurrentTextureBuildingToFinish(bool& bInOutHadActivity)
+{
+	for (TObjectIterator<UTexture> Texture; Texture; ++Texture)
 	{
-		for ( TObjectIterator<UTexture> Texture; Texture; ++Texture )
-		{
-			Texture->FinishCachePlatformData();
-		}
-	};
+		Texture->FinishCachePlatformData();
+	}
+};
+
+static void PumpAsync(bool* bInOutHadActivity = nullptr)
+{
+	bool bHadActivity = false;
+	WaitForCurrentShaderCompilationToFinish(bHadActivity);
+	WaitForCurrentTextureBuildingToFinish(bHadActivity);
+	if (bInOutHadActivity)
+	{
+		*bInOutHadActivity = *bInOutHadActivity || bHadActivity;
+	}
+}
+
+int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
+{
+	TArray<FString> Tokens, Switches;
+	ParseCommandLine(*Params, Tokens, Switches);
+
+	bool bFillCache = Switches.Contains("FILL");   // do the equivalent of a "loadpackage -all" to fill the DDC
+	bool bStartupOnly = Switches.Contains("STARTUPONLY");   // regardless of any other flags, do not iterate packages
+
+	// Subsets for parallel processing
+	uint32 SubsetMod = 0;
+	uint32 SubsetTarget = MAX_uint32;
+	FParse::Value(*Params, TEXT("SubsetMod="), SubsetMod);
+	FParse::Value(*Params, TEXT("SubsetTarget="), SubsetTarget);
+	bool bDoSubset = SubsetMod > 0 && SubsetTarget < SubsetMod;
+
+	// Timing variables
+	double DDCCommandletMaxWaitSeconds = 60. * 10.;
+	GConfig->GetDouble(TEXT("CookSettings"), TEXT("DDCCommandletMaxWaitSeconds"), DDCCommandletMaxWaitSeconds, GEditorIni);
+
+	double FindProcessedPackagesTime = 0.0;
+	double GCTime = 0.0;
+	double FinishCacheTime = 0.;
+	double BeginCacheTime = 0.;
 
 	if (!bStartupOnly && bFillCache)
 	{
@@ -232,6 +258,9 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 			UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("%d packages to load..."), PackagePaths.Num());
 		}
 
+		TArray<UObject*> CachingObjects;
+		TArray<UObject*> ObjectBuffer;
+		TArray<UPackage*> NewPackages;
 		for (int32 PackageIndex = PackagePaths.Num() - 1; PackageIndex >= 0; PackageIndex-- )
 		{
 			{
@@ -268,65 +297,112 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 			// even if the load failed this could be the first time through the loop so it might have all the startup packages to resolve
 			GRedirectCollector.ResolveAllSoftObjectPaths();
 
-			// cache all the resources for this platform
-			for (TObjectIterator<UObject> It; It; ++It)
+			// Find any new packages and cache all the objects in each package
 			{
-				if ((PackageFilter&NORMALIZE_ExcludeEnginePackages) == 0 || !It->GetOutermost()->GetName().StartsWith(TEXT("/Engine")))
+				const double BeginCacheTimeStart = FPlatformTime::Seconds();
+				CachingObjects.Reset();
+				NewPackages.Reset();
+				for (TObjectIterator<UPackage> PackageIter; PackageIter; ++PackageIter)
 				{
-					if (!ProcessedPackages.Contains(It->GetOutermost()->GetFName()))
+					UPackage* ExistingPackage = *PackageIter;
+					if ((PackageFilter & NORMALIZE_ExcludeEnginePackages) == 0 || !ExistingPackage->GetName().StartsWith(TEXT("/Engine")))
 					{
-						check((It->GetOutermost()->GetPackageFlags() & PKG_ReloadingForCooker) == 0);
-						for (auto Platform : Platforms)
+						FName ExistingPackageName = ExistingPackage->GetFName();
+						if (!ProcessedPackages.Contains(ExistingPackageName))
 						{
-							It->BeginCacheForCookedPlatformData(Platform);
-						}
-					}
-				}
-			}
+							ProcessedPackages.Add(ExistingPackageName);
+							NewPackages.Add(ExistingPackage);
+							check((ExistingPackage->GetPackageFlags() & PKG_ReloadingForCooker) == 0);
 
-
-			// Keep track of which packages have already been processed along with the map.
-			{
-				const double FindProcessedPackagesStartTime = FPlatformTime::Seconds();
-				TArray<UObject *> AllPackages;
-				GetObjectsOfClass(UPackage::StaticClass(), AllPackages);
-				for (int32 Index = 0; Index < AllPackages.Num(); Index++)
-				{
-					UPackage* Pkg = Cast<UPackage>(AllPackages[Index]);
-					if (!Pkg || Pkg->GetOuter())
-					{
-						continue;
-					}
-					if (!ProcessedPackages.Contains(Pkg->GetFName()))
-						{
-						ProcessedPackages.Add(Pkg->GetFName());
-							Pkg->SetPackageFlags(PKG_ReloadingForCooker);
+							ObjectBuffer.Reset();
+							GetObjectsWithOuter(ExistingPackage, ObjectBuffer, true /* bIncludeNestedObjects */, RF_ClassDefaultObject /* ExclusionFlags */);
+							for (UObject* Object : ObjectBuffer)
 							{
-								TArray<UObject *> ObjectsInPackage;
-								GetObjectsWithOuter(Pkg, ObjectsInPackage, true);
-								for (int32 IndexPackage = 0; IndexPackage < ObjectsInPackage.Num(); IndexPackage++)
+								for (auto Platform : Platforms)
 								{
-									for (auto Platform : Platforms)
-									{
-										ObjectsInPackage[IndexPackage]->IsCachedCookedPlatformDataLoaded(Platform);
-									}
-									ObjectsInPackage[IndexPackage]->WillNeverCacheCookedPlatformDataAgain();
-									ObjectsInPackage[IndexPackage]->ClearAllCachedCookedPlatformData();
+									Object->BeginCacheForCookedPlatformData(Platform);
 								}
+								CachingObjects.Add(Object);
 							}
 						}
 					}
-				FindProcessedPackagesTime += FPlatformTime::Seconds() - FindProcessedPackagesStartTime;
+				}
+				PumpAsync();
+				BeginCacheTime += FPlatformTime::Seconds() - BeginCacheTimeStart;
 			}
 
-			// Process any asynchronous shader compile results that are ready, limit execution time
-			GShaderCompilingManager->ProcessAsyncResults(true, false);
+			{
+				const double FinishCacheTimeStart = FPlatformTime::Seconds();
+				ObjectBuffer.Reset();
+				ObjectBuffer.Append(CachingObjects);
+
+				double LastActivityTime = FinishCacheTimeStart;
+				const double WaitingForCacheSleepTime = 0.050;
+				while (ObjectBuffer.Num() > 0)
+				{
+					bool bHadActivity = false;
+					for (int32 ObjectIndex = 0; ObjectIndex < ObjectBuffer.Num();)
+					{
+						UObject* Object = ObjectBuffer[ObjectIndex];
+						bool bIsFinished = true;
+						for (auto Platform : Platforms)
+						{
+							bIsFinished = Object->IsCachedCookedPlatformDataLoaded(Platform) && bIsFinished;
+						}
+						if (bIsFinished)
+						{
+							ObjectBuffer.RemoveAtSwap(ObjectIndex);
+							bHadActivity = true;
+						}
+						else
+						{
+							++ObjectIndex;
+						}
+					}
+
+					double CurrentTime = FPlatformTime::Seconds();
+					if (!bHadActivity)
+					{
+						PumpAsync(&bHadActivity);
+					}
+					if (!bHadActivity)
+					{
+						if (CurrentTime - LastActivityTime >= DDCCommandletMaxWaitSeconds)
+						{
+							UE_LOG(LogDerivedDataCacheCommandlet, Error, TEXT("Timed out for %.2lfs waiting for %d objects to finish caching. First object: %s."),
+								DDCCommandletMaxWaitSeconds, ObjectBuffer.Num(), *ObjectBuffer[0]->GetFullName());
+							ObjectBuffer.Reset();
+						}
+						else
+						{
+							FPlatformProcess::Sleep(WaitingForCacheSleepTime);
+						}
+					}
+					else
+					{
+						LastActivityTime = CurrentTime;
+					}
+				}
+
+				// Tear down all of the Cached data; we do this only after all objects have finished because we need to not
+				// tear down any object until all objects in its package have finished
+				for (UObject* Object : CachingObjects)
+				{
+					Object->WillNeverCacheCookedPlatformDataAgain();
+					Object->ClearAllCachedCookedPlatformData();
+				}
+				// Mark the packages as processed
+				for (UPackage* NewPackage : NewPackages)
+				{
+					NewPackage->SetPackageFlags(PKG_ReloadingForCooker);
+				}
+
+				PumpAsync();
+				FinishCacheTime += FPlatformTime::Seconds() - FinishCacheTimeStart;
+			}
 
 			if (NumProcessedSinceLastGC >= GCInterval || PackageIndex < 0 || bLastPackageWasMap)
 			{
-				WaitForCurrentShaderCompilationToFinish();
-				WaitForCurrentTextureBuildingToFinish();
-
 				const double StartGCTime = FPlatformTime::Seconds();
 				if (NumProcessedSinceLastGC >= GCInterval || PackageIndex < 0)
 				{
@@ -346,11 +422,9 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 		}
 	}
 
-	WaitForCurrentShaderCompilationToFinish();
-	WaitForCurrentTextureBuildingToFinish();
 	GetDerivedDataCacheRef().WaitForQuiescence(true);
 
-	UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("%.2lfs spent looking for processed packages, %.2lfs spent on GC."), FindProcessedPackagesTime, GCTime);
+	UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("BeginCacheTime=%.2lfs, FinishCacheTime=%.2lfs, GCTime=%.2lfs."), BeginCacheTime, FinishCacheTime, GCTime);
 
 	return 0;
 }
