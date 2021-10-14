@@ -92,7 +92,7 @@ bool UConvertLevelsToExternalActorsCommandlet::CheckExternalActors(const FString
 			DuplicatedActorFiles.Add(AssetData.ObjectPath, AssetData.PackageName);			
 		});
 
-		AssetRegistry.ScanPathsSynchronous({LevelExternalPathActors}, /*bForceRescan*/true, /*bIgnoreBlackListScanFilters*/true);
+		AssetRegistry.ScanPathsSynchronous({LevelExternalPathActors}, /*bForceRescan*/true, /*bIgnoreDenyListScanFilters*/true);
 
 		AssetRegistry.OnAssetAdded().Remove(AddedCheckHandle);
 		AssetRegistry.OnAssetUpdated().Remove(UpdatedCheckHandle);

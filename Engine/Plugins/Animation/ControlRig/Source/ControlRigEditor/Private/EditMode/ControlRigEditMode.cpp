@@ -141,7 +141,6 @@ FControlRigEditMode::FControlRigEditMode()
 	, CurrentViewportClient(nullptr)
 	, bIsChangingCoordSystem(false)
 {
-	Settings = NewObject<UControlRigEditModeSettings>(GetTransientPackage(), NAME_None);
 	ControlProxy = NewObject<UControlRigDetailPanelControlProxies>(GetTransientPackage(), NAME_None);
 	ControlProxy->SetFlags(RF_Transactional);
 
@@ -238,7 +237,7 @@ void FControlRigEditMode::SetUpDetailPanel()
 			{
 				SelectedObjects.Add(Proxy);
 			}
-			SelectedObjects.Add(Settings);
+			SelectedObjects.Add(GetMutableDefault<UControlRigEditModeSettings>());
 		}
 		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetSequencer(WeakSequencer.Pin());
 		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetDetailsObjects(SelectedObjects);
@@ -626,6 +625,8 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 	{
 		return;
 	}
+
+	const UControlRigEditModeSettings* Settings = GetDefault<UControlRigEditModeSettings>();
 
 	bool bRender = !Settings->bHideManipulators;
 
@@ -1147,7 +1148,9 @@ bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 		return true;
 	}
 
-	if (Settings  &&  Settings->bOnlySelectRigControls)
+	const UControlRigEditModeSettings* Settings = GetDefault<UControlRigEditModeSettings>();
+
+	if (Settings && Settings->bOnlySelectRigControls)
 	{
 		return true;
 	}
@@ -1448,6 +1451,7 @@ bool FControlRigEditMode::InputDelta(FEditorViewportClient* InViewportClient, FV
 			}
 			else
 			{
+				const UControlRigEditModeSettings* Settings = GetDefault<UControlRigEditModeSettings>();
 				bool bDoLocal = (CoordSystem == ECoordSystem::COORD_Local && Settings && Settings->bLocalTransformsInEachLocalSpace);
 				bool bUseLocal = false;
 				bool bCalcLocal = bDoLocal;
@@ -1567,10 +1571,6 @@ bool FControlRigEditMode::IsCompatibleWith(FEditorModeID OtherModeID) const
 
 void FControlRigEditMode::AddReferencedObjects( FReferenceCollector& Collector )
 {
-	if (Settings)
-	{
-		Collector.AddReferencedObject(Settings);
-	}
 	if (GizmoActors.Num() > 0)
 	{
 		for (AControlRigGizmoActor* GizmoActor : GizmoActors)
@@ -1795,6 +1795,7 @@ void FControlRigEditMode::RecalcPivotTransform()
 		}
 		else
 		{
+			const UControlRigEditModeSettings* Settings = GetDefault<UControlRigEditModeSettings>();
 			for (const AControlRigGizmoActor* GizmoActor : GizmoActors)
 			{
 				if (GizmoActor->IsSelected())
@@ -2048,18 +2049,21 @@ void FControlRigEditMode::FrameItems(const TArray<FRigElementKey>& InItems)
 
 void FControlRigEditMode::IncreaseGizmoSize()
 {
+	UControlRigEditModeSettings* Settings = GetMutableDefault<UControlRigEditModeSettings>();
 	Settings->GizmoScale += 0.1f;
 	GetModeManager()->SetWidgetScale(Settings->GizmoScale);
 }
 
 void FControlRigEditMode::DecreaseGizmoSize()
 {
+	UControlRigEditModeSettings* Settings = GetMutableDefault<UControlRigEditModeSettings>();
 	Settings->GizmoScale -= 0.1f;
 	GetModeManager()->SetWidgetScale(Settings->GizmoScale);
 }
 
 void FControlRigEditMode::ResetGizmoSize()
 {
+	UControlRigEditModeSettings* Settings = GetMutableDefault<UControlRigEditModeSettings>();
 	Settings->GizmoScale = 1.0f;
 	GetModeManager()->SetWidgetScale(Settings->GizmoScale);
 }
@@ -2128,7 +2132,8 @@ void FControlRigEditMode::OpenSpacePickerWidget()
 		else
 		{
 			const FTransform Transform = InHierarchy->GetGlobalTransform(InControlKey);
-			InHierarchy->SwitchToParent(InControlKey, InSpaceKey);
+			URigHierarchy::TElementDependencyMap Dependencies = InHierarchy->GetDependenciesForVM(RuntimeRig->GetVM());
+			InHierarchy->SwitchToParent(InControlKey, InSpaceKey, false, true, Dependencies, nullptr);
 			InHierarchy->SetGlobalTransform(InControlKey, Transform);
 		}
 		
@@ -2208,6 +2213,7 @@ FText FControlRigEditMode::GetToggleGizmoTransformEditHotKey() const
 void FControlRigEditMode::ToggleManipulators()
 {
 	// Toggle flag (is used in drawing code)
+	UControlRigEditModeSettings* Settings = GetMutableDefault<UControlRigEditModeSettings>();
 	Settings->bHideManipulators = !Settings->bHideManipulators;
 }
 
@@ -2442,7 +2448,7 @@ void FControlRigEditMode::OnHierarchyModified(ERigHierarchyNotification InNotif,
             	case ERigElementType::Curve:
             	case ERigElementType::Control:
             	case ERigElementType::RigidBody:
-            	case ERigElementType::Socket:
+            	case ERigElementType::Reference:
 				{
 					const bool bSelected = InNotif == ERigHierarchyNotification::ElementSelected;
 					
@@ -2521,6 +2527,7 @@ void FControlRigEditMode::OnControlModified(UControlRig* Subject, FRigControlEle
 
 void FControlRigEditMode::OnWidgetModeChanged(UE::Widget::EWidgetMode InWidgetMode)
 {
+	const UControlRigEditModeSettings* Settings = GetDefault<UControlRigEditModeSettings>();
 	if (Settings && Settings->bCoordSystemPerWidgetMode)
 	{
 		TGuardValue<bool> ReentrantGuardSelf(bIsChangingCoordSystem, true);
@@ -2933,6 +2940,7 @@ bool FControlRigEditMode::ModeSupportedByGizmoActor(const AControlRigGizmoActor*
 
 void FControlRigEditMode::TickGizmo(AControlRigGizmoActor* GizmoActor, const FTransform& ComponentTransform)
 {
+	UControlRigEditModeSettings* Settings = GetMutableDefault<UControlRigEditModeSettings>();
 	if (GizmoActor)
 	{
 		if (UControlRig* ControlRig = GetControlRig(true, GizmoActor->ControlRigIndex))
@@ -2944,7 +2952,10 @@ void FControlRigEditMode::TickGizmo(AControlRigGizmoActor* GizmoActor, const FTr
 			{
 				GizmoActor->SetGizmoColor(ControlElement->Settings.GizmoColor);
 				GizmoActor->SetIsTemporarilyHiddenInEditor(!ControlElement->Settings.bGizmoVisible || Settings->bHideManipulators);
-				GizmoActor->SetSelectable(ControlElement->Settings.bGizmoVisible && !Settings->bHideManipulators && ControlElement->Settings.bAnimatable);
+				if (!IsInLevelEditor()) //don't change this in level editor otherwise we can never select it
+				{
+					GizmoActor->SetSelectable(ControlElement->Settings.bGizmoVisible && !Settings->bHideManipulators && ControlElement->Settings.bAnimatable);
+				}
 			}
 		}
 	}
@@ -3172,11 +3183,13 @@ void FControlRigEditMode::PostPoseUpdate()
 }
 void FControlRigEditMode::SetOnlySelectRigControls(bool Val)
 {
+	UControlRigEditModeSettings* Settings = GetMutableDefault<UControlRigEditModeSettings>();
 	Settings->bOnlySelectRigControls = Val;
 }
 
 bool FControlRigEditMode::GetOnlySelectRigControls()const
 {
+	const UControlRigEditModeSettings* Settings = GetDefault<UControlRigEditModeSettings>();
 	return Settings->bOnlySelectRigControls;
 }
 

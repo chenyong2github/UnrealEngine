@@ -91,6 +91,64 @@ void UStreamableRenderAsset::TickMipLevelChangeCallbacks(TArray<UStreamableRende
 	}
 }
 
+#if WITH_EDITOR
+struct FResourceSizeNeedsUpdating
+{
+	static FResourceSizeNeedsUpdating& Get()
+	{
+		static FResourceSizeNeedsUpdating Singleton;
+		return Singleton;
+	}
+
+	void Add(UObject* InObject)
+	{
+		TWeakObjectPtr<UObject> NewValue(InObject);
+		const uint32 NewHash = GetTypeHash(NewValue);
+
+		FScopeLock ScopeLock(&Lock);
+		const int32 OriginalNum = Pending.Num();
+		Pending.AddByHash(NewHash, MoveTemp(NewValue));
+
+		// Schedule update to occur when not in the middle of a TickStreaming call
+		// TickStreaming can be called by multiple threads
+		// TickStreaming may also possibly be called where OnObjectPropertyChanged could cause problems
+		if (OriginalNum == 0)
+		{
+			FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FResourceSizeNeedsUpdating::BroadcastOnObjectPropertyChanged));
+		}
+	}
+
+private:
+
+	bool BroadcastOnObjectPropertyChanged(float DeltaTime)
+	{
+		check(IsInGameThread());
+		if (IsInGameThread())
+		{
+			FScopeLock ScopeLock(&Lock);
+			if (Pending.Num() > 0)
+			{
+				FPropertyChangedEvent EmptyPropertyChangedEvent(nullptr);
+				for (const TWeakObjectPtr<UObject>& WeakObjectPtr : Pending)
+				{
+					if (UObject* Obj = WeakObjectPtr.Get())
+					{
+						FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(Obj, EmptyPropertyChangedEvent);
+					}
+				}
+				Pending.Empty();
+			}
+		}
+
+		// Return false because we only wanted one tick
+		return false;
+	}
+
+	FCriticalSection Lock;
+	TSet<TWeakObjectPtr<UObject>> Pending;
+};
+#endif // WITH_EDITOR
+
 void UStreamableRenderAsset::TickStreaming(bool bSendCompletionEvents, TArray<UStreamableRenderAsset*>* DeferredTickCBAssets)
 {
 	// if resident and requested mip counts match then no pending request is in flight
@@ -118,8 +176,7 @@ void UStreamableRenderAsset::TickStreaming(bool bSendCompletionEvents, TArray<US
 			{
 				// When all the requested mips are streamed in, generate an empty property changed event, to force the
 				// ResourceSize asset registry tag to be recalculated.
-				FPropertyChangedEvent EmptyPropertyChangedEvent(nullptr);
-				FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(this, EmptyPropertyChangedEvent);
+				FResourceSizeNeedsUpdating::Get().Add(this);
 			}
 #endif
 		}

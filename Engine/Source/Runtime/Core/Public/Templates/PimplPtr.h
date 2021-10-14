@@ -50,7 +50,7 @@ enum class EPimplPtrMode : uint8
 template<typename T, EPimplPtrMode Mode = EPimplPtrMode::NoCopy> struct TPimplPtr;
 
 
-namespace UE4PimplPtr_Private
+namespace UE::Core::Private::PimplPtr
 {
 	constexpr SIZE_T RequiredAlignment = 16;
 
@@ -148,7 +148,7 @@ private:
 	template <typename U, EPimplPtrMode M, typename... ArgTypes>
 	friend TPimplPtr<U, M> MakePimpl(ArgTypes&&... Args);
 
-	explicit TPimplPtr(UE4PimplPtr_Private::TPimplHeapObjectImpl<T>* Impl)
+	explicit TPimplPtr(UE::Core::Private::PimplPtr::TPimplHeapObjectImpl<T>* Impl)
 		: Ptr(&Impl->Val)
 	{
 	}
@@ -164,7 +164,7 @@ public:
 	{
 		if (Ptr)
 		{
-			UE4PimplPtr_Private::CallDeleter(this->Ptr);
+			UE::Core::Private::PimplPtr::CallDeleter(this->Ptr);
 		}
 	}
 
@@ -187,7 +187,7 @@ public:
 			Other.Ptr = nullptr;
 			if (LocalPtr)
 			{
-				UE4PimplPtr_Private::CallDeleter(LocalPtr);
+				UE::Core::Private::PimplPtr::CallDeleter(LocalPtr);
 			}
 		}
 		return *this;
@@ -229,7 +229,7 @@ public:
 		if (T* LocalPtr = this->Ptr)
 		{
 			this->Ptr = nullptr;
-			UE4PimplPtr_Private::CallDeleter(LocalPtr);
+			UE::Core::Private::PimplPtr::CallDeleter(LocalPtr);
 		}
 	}
 
@@ -257,7 +257,7 @@ public:
 	{
 		if (A.IsValid())
 		{
-			this->Ptr = (T*)UE4PimplPtr_Private::CallCopier(A.Ptr);
+			this->Ptr = (T*)UE::Core::Private::PimplPtr::CallCopier(A.Ptr);
 		}
 	}
 
@@ -272,7 +272,7 @@ public:
 
 			if (A.IsValid())
 			{
-				this->Ptr = (T*)UE4PimplPtr_Private::CallCopier(A.Ptr);
+				this->Ptr = (T*)UE::Core::Private::PimplPtr::CallCopier(A.Ptr);
 			}
 		}
 
@@ -317,14 +317,14 @@ template <typename T, EPimplPtrMode Mode> FORCEINLINE bool operator!=(TYPE_OF_NU
 template <typename T, EPimplPtrMode Mode = EPimplPtrMode::NoCopy, typename... ArgTypes>
 FORCEINLINE TPimplPtr<T, Mode> MakePimpl(ArgTypes&&... Args)
 {
-	using FHeapType = UE4PimplPtr_Private::TPimplHeapObjectImpl<T>;
+	using FHeapType = UE::Core::Private::PimplPtr::TPimplHeapObjectImpl<T>;
 	using FHeapConstructType = typename std::conditional<Mode == EPimplPtrMode::NoCopy, typename FHeapType::ENoCopyType,
 															typename FHeapType::EDeepCopyType>::type;
 
 	static_assert(Mode != EPimplPtrMode::DeepCopy ||
 					std::is_copy_constructible<T>::value, "T must be a copyable type, to use with EPimplPtrMode::DeepCopy");
 	static_assert(sizeof(T) > 0, "T must be a complete type");
-	static_assert(alignof(T) <= UE4PimplPtr_Private::RequiredAlignment, "T cannot be aligned more than 16 bytes");
+	static_assert(alignof(T) <= UE::Core::Private::PimplPtr::RequiredAlignment, "T cannot be aligned more than 16 bytes");
 
 	return TPimplPtr<T, Mode>(new FHeapType(FHeapConstructType::ConstructType, Forward<ArgTypes>(Args)...));
 }

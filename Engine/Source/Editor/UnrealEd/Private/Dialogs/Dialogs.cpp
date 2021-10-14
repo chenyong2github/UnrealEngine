@@ -58,113 +58,139 @@ public:
 		TSharedPtr<SUniformGridPanel> ButtonBox;
 
 		this->ChildSlot
-			[	
-				SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		[	
+			SNew(SBorder)
+			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.Padding(16.f)
+			[
+				SNew(SVerticalBox)
+
+				+ SVerticalBox::Slot()
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Fill)
+				.FillHeight(1.0f)
+				.MaxHeight(550)
+				[
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Top)
+					.HAlign(HAlign_Left)
 					[
-						SNew(SVerticalBox)
-
-						+ SVerticalBox::Slot()
-							.HAlign(HAlign_Fill)
-							.VAlign(VAlign_Fill)
-							.FillHeight(1.0f)
-							.MaxHeight(550)
-							.Padding(12.0f)
-							[
-								SNew(SScrollBox)
-
-								+ SScrollBox::Slot()
-									[
-										SNew(STextBlock)
-											.Text(MyMessage)
-											.Font(MessageFont)
-											.WrapTextAt(InArgs._WrapMessageAt)
-									]
-							]
-
-						+SVerticalBox::Slot()
-							.AutoHeight()
-							.Padding(0.0f)
-							[
-								SNew(SHorizontalBox)
-
-								+ SHorizontalBox::Slot()
-									.FillWidth(1.0f)
-									.HAlign(HAlign_Left)
-									.VAlign(VAlign_Bottom)
-									.Padding(12.0f)
-									[
-										SNew(SHyperlink)
-											.OnNavigate(this, &SChoiceDialog::HandleCopyMessageHyperlinkNavigate)
-											.Text( NSLOCTEXT("SChoiceDialog", "CopyMessageHyperlink", "Copy Message") )
-											.ToolTipText( NSLOCTEXT("SChoiceDialog", "CopyMessageTooltip", "Copy the text in this message to the clipboard (CTRL+C)") )
-									]
-
-								+ SHorizontalBox::Slot()
-									.AutoWidth()
-									.HAlign(HAlign_Right)
-									.VAlign(VAlign_Bottom)
-									.Padding(2.f)
-									[
-										SAssignNew( ButtonBox, SUniformGridPanel )
-											.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-											.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-											.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
-									]
-							]
+						SNew(SImage)
+						.DesiredSizeOverride(FVector2D(24.f, 24.f))
+						.Image(FAppStyle::Get().GetBrush("Icons.WarningWithColor.Large"))
 					]
-			];
+
+					+SHorizontalBox::Slot()
+					.Padding(16.f, 0.f, 0.f, 0.f)
+					[
+						SNew(SScrollBox)
+						+ SScrollBox::Slot()
+						.HAlign(HAlign_Left)
+						.VAlign(VAlign_Center)
+						[
+							SNew(STextBlock)
+							.Text(MyMessage)
+							.Font(MessageFont)
+							.WrapTextAt(InArgs._WrapMessageAt)
+						]
+					]
+				]
+
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(SHorizontalBox)
+
+					+ SHorizontalBox::Slot()
+					.FillWidth(1.0f)
+					.HAlign(HAlign_Left)
+					.VAlign(VAlign_Center)
+					[
+						SNew(SHyperlink)
+							.OnNavigate(this, &SChoiceDialog::HandleCopyMessageHyperlinkNavigate)
+							.Text( NSLOCTEXT("SChoiceDialog", "CopyMessageHyperlink", "Copy Message") )
+							.ToolTipText( NSLOCTEXT("SChoiceDialog", "CopyMessageTooltip", "Copy the text in this message to the clipboard (CTRL+C)") )
+					]
+
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.HAlign(HAlign_Right)
+					.VAlign(VAlign_Center)
+					[
+						SAssignNew( ButtonBox, SUniformGridPanel )
+						.SlotPadding(FMargin(16.f, 0.f, 0.f, 0.f))
+						.MinDesiredSlotWidth(FAppStyle::Get().GetFloat("StandardDialog.MinDesiredSlotWidth"))
+						.MinDesiredSlotHeight(FAppStyle::Get().GetFloat("StandardDialog.MinDesiredSlotHeight"))
+					]
+				]
+			]
+		];
 
 		int32 SlotIndex = 0;
 
 #define ADD_SLOT(Button)\
 		ButtonBox->AddSlot(SlotIndex++,0)\
 		[\
-		SNew( SButton )\
-		.Text( EAppReturnTypeToText(EAppReturnType::Button) )\
-		.OnClicked( this, &SChoiceDialog::HandleButtonClicked, EAppReturnType::Button )\
-		.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))\
-		.HAlign(HAlign_Center)\
+			SNew( SButton )\
+			.VAlign(VAlign_Center)\
+			.HAlign(HAlign_Center)\
+			.Text( EAppReturnTypeToText(EAppReturnType::Button) )\
+			.OnClicked( this, &SChoiceDialog::HandleButtonClicked, EAppReturnType::Button )\
 		];
+
+#define ADD_SLOT_PRIMARY(Button)\
+		ButtonBox->AddSlot(SlotIndex++,0)\
+		[\
+			SNew( SButton )\
+			.VAlign(VAlign_Center)\
+			.HAlign(HAlign_Center)\
+			.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("PrimaryButton"))\
+			.Text( EAppReturnTypeToText(EAppReturnType::Button) )\
+			.OnClicked( this, &SChoiceDialog::HandleButtonClicked, EAppReturnType::Button )\
+		];
+
+
 
 		switch ( InArgs._MessageType.Get() )
 		{	
 		case EAppMsgType::Ok:
-			ADD_SLOT(Ok)
+			ADD_SLOT_PRIMARY(Ok)
 			break;
 		case EAppMsgType::YesNo:
-			ADD_SLOT(Yes)
+			ADD_SLOT_PRIMARY(Yes)
 			ADD_SLOT(No)
 			break;
 		case EAppMsgType::OkCancel:
-			ADD_SLOT(Ok)
+			ADD_SLOT_PRIMARY(Ok)
 			ADD_SLOT(Cancel)
 			break;
 		case EAppMsgType::YesNoCancel:
-			ADD_SLOT(Yes)
+			ADD_SLOT_PRIMARY(Yes)
 			ADD_SLOT(No)
 			ADD_SLOT(Cancel)
 			break;
 		case EAppMsgType::CancelRetryContinue:
-			ADD_SLOT(Cancel)
+			ADD_SLOT_PRIMARY(Continue)
 			ADD_SLOT(Retry)
-			ADD_SLOT(Continue)
+			ADD_SLOT(Cancel)
 			break;
 		case EAppMsgType::YesNoYesAllNoAll:
-			ADD_SLOT(Yes)
+			ADD_SLOT_PRIMARY(Yes)
 			ADD_SLOT(No)
 			ADD_SLOT(YesAll)
 			ADD_SLOT(NoAll)
 			break;
 		case EAppMsgType::YesNoYesAllNoAllCancel:
-			ADD_SLOT(Yes)
+			ADD_SLOT_PRIMARY(Yes)
 			ADD_SLOT(No)
 			ADD_SLOT(YesAll)
 			ADD_SLOT(NoAll)
 			ADD_SLOT(Cancel)
 			break;
 		case EAppMsgType::YesNoYesAll:
-			ADD_SLOT(Yes)
+			ADD_SLOT_PRIMARY(Yes)
 			ADD_SLOT(No)
 			ADD_SLOT(YesAll)
 			break;

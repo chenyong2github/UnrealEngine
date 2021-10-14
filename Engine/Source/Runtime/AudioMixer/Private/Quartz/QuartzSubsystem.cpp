@@ -30,6 +30,11 @@ FAutoConsoleVariableRef CVarSimulateNoAudioDevice(
 
 static FAudioDevice* GetAudioDeviceUsingWorldContext(const UObject* WorldContextObject)
 {
+	if (nullptr == WorldContextObject)
+	{
+		return nullptr;
+	}
+
 	UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 	if (!ThisWorld || !ThisWorld->bAllowAudioPlayback || ThisWorld->GetNetMode() == NM_DedicatedServer)
 	{
@@ -375,6 +380,7 @@ void UQuartzSubsystem::DeleteClockByName(const UObject* WorldContextObject, FNam
 	}
 
 	ClockManager->RemoveClock(ClockName);
+	ClockManagerTypeMap.Remove(ClockName);
 }
 
 void UQuartzSubsystem::DeleteClockByHandle(const UObject* WorldContextObject, UQuartzClockHandle*& InClockHandle)
@@ -544,6 +550,11 @@ Audio::FQuartzClockManager* UQuartzSubsystem::GetManagerForClock(const UObject* 
 {
 	// if the enum has changed, the logic in this function needs to be updated
 	ensure((int32)EQuarztClockManagerType::Count == 2);
+	if (!WorldContextObject)
+	{
+		// Do not mutate the ClockManagerTypeMap if we do not have a world context yet
+		return nullptr;
+	}
 
 	Audio::FMixerDevice* MixerDevice = nullptr;
 	if (!SimulateNoAudioDeviceCvar)

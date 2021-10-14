@@ -980,7 +980,7 @@ bool FCurlHttpRequest::ProcessRequest()
 	bool bStarted = false;
 	if (!FHttpModule::Get().GetHttpManager().IsDomainAllowed(URL))
 	{
-		UE_LOG(LogHttp, Warning, TEXT("ProcessRequest failed. URL '%s' is not using a whitelisted domain. %p"), *URL, this);
+		UE_LOG(LogHttp, Warning, TEXT("ProcessRequest failed. URL '%s' is not using an allowed domain. %p"), *URL, this);
 	}
 	else if (!SetupRequest())
 	{
@@ -1337,7 +1337,7 @@ void FCurlHttpRequest::FinishedRequest()
 		// Call delegate with failure
 		OnProcessRequestComplete().ExecuteIfBound(SharedThis(this), Response, false);
 
-		//Delegate needs to know about the errors -- so nuke Response (since connection failed) afterwards...
+		//Delegate needs to know about the errors -- so clear out Response (since connection failed) afterwards...
 		Response = nullptr;
 	}
 }

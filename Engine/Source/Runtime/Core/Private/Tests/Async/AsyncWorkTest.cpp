@@ -7,7 +7,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAsyncWorkEnsureCompletionBusyWaitDeadLockTest, "System.Core.AsyncWork.EnsureCompletionBusyWaitDeadlockTest", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAsyncWorkEnsureCompletionBusyWaitDeadLockTest, "System.Core.AsyncWork.EnsureCompletionBusyWaitDeadlockTest", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled)
 
 namespace AsyncWorkTestImpl
 {

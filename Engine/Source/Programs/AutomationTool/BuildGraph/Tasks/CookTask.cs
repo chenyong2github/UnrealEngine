@@ -3,11 +3,14 @@
 using AutomationTool;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using EpicGames.Core;
+using OpenTracing;
+using OpenTracing.Util;
 using UnrealBuildTool;
 
 namespace BuildGraph.Tasks
@@ -101,8 +104,10 @@ namespace BuildGraph.Tasks
 			}
 
 			// Execute the cooker
-			using(TelemetryStopwatch CookStopwatch = new TelemetryStopwatch("Cook.{0}.{1}", (ProjectFile == null)? "UE4" : ProjectFile.GetFileNameWithoutExtension(), Parameters.Platform))
+			using (IScope Scope = GlobalTracer.Instance.BuildSpan("Cook").StartActive())
 			{
+				Scope.Span.SetTag("project", ProjectFile == null ? "UE4" : ProjectFile.GetFileNameWithoutExtension());
+				Scope.Span.SetTag("platform", Parameters.Platform);
 				string[] Maps = (Parameters.Maps == null)? null : Parameters.Maps.Split(new char[]{ '+' });
 				string Arguments = (Parameters.Versioned ? "" : "-Unversioned ") + "-LogCmds=\"LogSavePackage Warning\" " + Parameters.Arguments;
 				string EditorExe = (string.IsNullOrWhiteSpace(Parameters.EditorExe) ? "UnrealEditor-Cmd.exe" : Parameters.EditorExe);

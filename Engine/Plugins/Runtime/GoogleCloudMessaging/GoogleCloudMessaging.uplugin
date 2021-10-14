@@ -14,7 +14,7 @@
 			"Name": "GoogleCloudMessaging",
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Android"
 			]
 		}

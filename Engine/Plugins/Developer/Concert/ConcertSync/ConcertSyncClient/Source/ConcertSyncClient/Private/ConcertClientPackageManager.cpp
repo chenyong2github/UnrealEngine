@@ -529,6 +529,15 @@ void FConcertClientPackageManager::DeletePackageFile(const FConcertPackageInfo& 
 	}
 }
 
+bool FConcertClientPackageManager::IsReloadingPackage(FName PackageName) const
+{
+	if (bHotReloading)
+	{
+		return Algo::Find(PackagesPendingHotReload,PackageName) != nullptr;
+	}
+	return false;
+}
+
 bool FConcertClientPackageManager::CanHotReloadOrPurge() const
 {
 	return ConcertSyncClientUtil::CanPerformBlockingAction() && !LiveSession->GetSession().IsSuspended();
@@ -539,6 +548,7 @@ void FConcertClientPackageManager::HotReloadPendingPackages()
 	SCOPED_CONCERT_TRACE(FConcertClientPackageManager_HotReloadPendingPackages);
 	if (CanHotReloadOrPurge())
 	{
+		TGuardValue<bool> HotReloadGuard(bHotReloading, true);
 		LiveSession->GetSessionDatabase().FlushAsynchronousTasks();
 		ConcertSyncClientUtil::HotReloadPackages(PackagesPendingHotReload);
 		PackagesPendingHotReload.Reset();

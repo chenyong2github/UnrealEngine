@@ -558,7 +558,7 @@ protected:
 	static void PackQuaternionToStream(
 		TArray<uint8>& ByteStream,
 		AnimationCompressionFormat Format,
-		const FQuat& Quat,
+		const FQuat4f& Quat,
 		const float* Mins,
 		const float* Ranges);
 

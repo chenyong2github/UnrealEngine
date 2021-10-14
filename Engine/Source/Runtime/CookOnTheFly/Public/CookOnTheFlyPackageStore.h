@@ -30,7 +30,7 @@ struct FPackageStoreData
 
 struct FCookPackageRequest
 {
-	FName PackageName;
+	FPackageId PackageId;
 	
 	COOKONTHEFLY_API friend FArchive& operator<<(FArchive& Ar, FCookPackageRequest& Request);
 };

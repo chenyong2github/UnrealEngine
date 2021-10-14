@@ -71,10 +71,13 @@ struct FFormatArgumentData
 	FText ArgumentValue;
 
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category=ArgumentValue)
-	int32 ArgumentValueInt;
+	int64 ArgumentValueInt;
 
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category=ArgumentValue)
 	float ArgumentValueFloat;
+	
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category=ArgumentValue)
+	double ArgumentValueDouble;
 
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category=ArgumentValue)
 	ETextGender ArgumentValueGender;
@@ -201,6 +204,10 @@ class ENGINE_API UKismetTextLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "To Text (Integer64)", AdvancedDisplay = "1", BlueprintAutocast), Category = "Utilities|Text")
 	static FText Conv_Int64ToText(int64 Value, bool bAlwaysSign = false, bool bUseGrouping = true, int32 MinimumIntegralDigits = 1, int32 MaximumIntegralDigits = 324);
 
+	/** Converts a passed in double to text based on formatting options */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "To Text (Double)", AdvancedDisplay = "1", BlueprintAutocast), Category = "Utilities|Text")
+	static FText Conv_DoubleToText(double InDouble, TEnumAsByte<ERoundingMode> RoundingMode, bool bAlwaysSign = false, bool bUseGrouping = true, int32 MinimumIntegralDigits = 1, int32 MaximumIntegralDigits = 324, int32 MinimumFractionalDigits = 0, int32 MaximumFractionalDigits = 3);
+	
 	// Default values are duplicated from FNumberFormattingOptions and should be replicated in all functions and in the struct when changed!
 	/** Converts a passed in float to text based on formatting options */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "To Text (Float)", AdvancedDisplay = "1", BlueprintAutocast), Category="Utilities|Text")

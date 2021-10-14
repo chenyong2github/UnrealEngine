@@ -9,7 +9,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTSTickerTest, "System.Core.Containers.TSTicker", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTSTickerTest, "System.Core.Containers.TSTicker", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
 
 template<uint32 NumDelegates, uint32 NumTicks>
 void TickerPerfTest()
@@ -245,8 +245,8 @@ bool FTSTickerTest::RunTest(const FString& Parameters)
 		verify(Wait(Tasks, FTimespan::FromSeconds(3)));
 	}
 
-	UE_BENCHMARK(5, TickerPerfTest<1000, 1000>);
-	UE_BENCHMARK(5, TSTickerPerfTest<1000, 1000>);
+	UE_BENCHMARK(5, TickerPerfTest<200, 200>);
+	UE_BENCHMARK(5, TSTickerPerfTest<200, 200>);
 
 	return true;
 }

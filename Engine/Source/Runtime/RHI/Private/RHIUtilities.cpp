@@ -263,7 +263,7 @@ public:
 
 	static void Shutdown()
 	{
-		// PS4 calls shutdown before initialize has been called, so bail out if that happens
+		// Some platforms call shutdown before initialize has been called, so bail out if that happens
 		if (!bInitialized)
 		{
 			return;

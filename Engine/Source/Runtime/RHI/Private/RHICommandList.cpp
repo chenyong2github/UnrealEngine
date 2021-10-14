@@ -206,61 +206,6 @@ void GetRenderThreadSublistDispatchTaskDebugInfo(bool& bIsNull, bool& bIsComplet
 }
 #endif
 
-#if RHI_WANT_BREADCRUMB_EVENTS
-struct FRHIBreadcrumbState
-{
-	TArray<TCHAR, TInlineAllocator<1024>> NameBuffer;
-	TArray<int32, TInlineAllocator<8>> NameOffsets;
-};
-
-void FRHICommandListBase::ExportBreadcrumbState(FRHIBreadcrumbState& State)
-{
-	FRHIBreadcrumb* Breadcrumb = BreadcrumbStackTop;
-	while (Breadcrumb)
-	{
-		const int32 NameLen = FCString::Strlen(Breadcrumb->Name);
-
-		const int32 NameOffset = State.NameBuffer.Num();
-
-		State.NameBuffer.Append(Breadcrumb->Name, NameLen + 1);
-		State.NameOffsets.Add(NameOffset);
-
-		Breadcrumb = Breadcrumb->Parent;
-		PopBreadcrumb_Internal();
-	}
-	check(BreadcrumbStackTop == nullptr);
-}
-
-void FRHICommandListBase::ImportBreadcrumbState(const FRHIBreadcrumbState& State)
-{
-	const int32 NameCount = State.NameOffsets.Num();
-	for (int32 i = 0; i < NameCount; ++i)
-	{
-		const int32 NameOffset = State.NameOffsets[NameCount - 1 - i];
-		const TCHAR* BreadcrumbName = &State.NameBuffer[NameOffset];
-		PushBreadcrumb_Internal(BreadcrumbName);
-	}
-}
-
-void FRHIComputeCommandList::InheritBreadcrumbs(const FRHIComputeCommandList& Parent)
-{
-	// We have to do a deep copy of each breadcrumb since their data lives inside each command list.
-	FRHIBreadcrumb* Breadcrumb = Parent.BreadcrumbStackTop;
-	TArray<const TCHAR*, TInlineAllocator<8>> BreadcrumbStack;
-	while (Breadcrumb)
-	{
-		BreadcrumbStack.Add(Breadcrumb->Name);
-		Breadcrumb = Breadcrumb->Parent;
-	}
-
-	int32 Size = BreadcrumbStack.Num();
-	for (int32 i = 0; i < Size; ++i)
-	{
-		PushBreadcrumb(BreadcrumbStack[Size - 1 - i]);
-	}
-}
-#endif // RHI_WANT_BREADCRUMB_EVENTS
-
 FRHICOMMAND_MACRO(FRHICommandStat)
 {
 	TStatId CurrentExecuteStat;
@@ -345,6 +290,7 @@ void FRHIAsyncComputeCommandListImmediate::ImmediateDispatch(FRHIAsyncComputeCom
 
 			// Once executed, the memory containing the breadcrumbs will be freed, so any open markers are popped and stored into BreadcrumbState
 			SwapCmdList->ExportBreadcrumbState(BreadcrumbState);
+			SwapCmdList->ResetBreadcrumbs();
 
 			// And then pushed into the newly opened list.
 			RHIComputeCmdList.ImportBreadcrumbState(BreadcrumbState);
@@ -477,7 +423,7 @@ void FRHICommandListExecutor::ExecuteInner_DoExecute(FRHICommandListBase& CmdLis
 
 		// if we can't fit a next stack in, we have to stomp the top one, the show must go on.
 
-		LocalContext->RHISetBreadcrumbStackTop(CmdList.PopFirstUnsubmittedBreadcrumb());
+		LocalContext->RHISetBreadcrumbStackTop(CmdList.BreadcrumbStack.PopFirstUnsubmittedBreadcrumb());
 
 		CrashState.BreadcrumbStack = &LocalContext->BreadcrumbStackTop[0];
 		CrashState.BreadcrumbStackIndex = LocalContext->BreadcrumbStackIndex;
@@ -675,6 +621,7 @@ void FRHICommandListExecutor::ExecuteInner(FRHICommandListBase& CmdList)
 	FRHIBreadcrumbState BreadcrumbState;
 	// Once executed, the memory containing the breadcrumbs will be freed, so any open markers are popped and stored into BreadcrumbState
 	ComputeCommandList.ExportBreadcrumbState(BreadcrumbState);
+	ComputeCommandList.ResetBreadcrumbs();
 
 	ON_SCOPE_EXIT
 	{
@@ -1179,11 +1126,8 @@ void FRHICommandListBase::Reset()
 	InitialGPUMask = GPUMask;
 
 #if RHI_WANT_BREADCRUMB_EVENTS
-	check(BreadcrumbStackTop == nullptr);
-	BreadcrumbStackTop = nullptr;
-	// Should be null if we submitted
-	checkf(FirstUnsubmittedBreadcrumb == nullptr, TEXT("RHI breadcrumb not submitted. Name:%s"), FirstUnsubmittedBreadcrumb->Name);
-	FirstUnsubmittedBreadcrumb = nullptr;
+	BreadcrumbStack.ValidateEmpty();
+	BreadcrumbStack.Reset();
 #endif
 }
 

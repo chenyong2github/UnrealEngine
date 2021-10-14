@@ -126,6 +126,7 @@ public:
 		ArIsModifyingWeakAndStrongReferences = true;
 		ArIgnoreOuterRef = true;
 		ArNoDelta = true;
+		SetIsSaving(true);
 	}
 
 	virtual ~FReplaceObjectReferencesArchive()

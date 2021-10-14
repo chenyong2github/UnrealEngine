@@ -189,6 +189,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FIcvfxPixelShaderParameters, )
 
 	SHADER_PARAMETER(FVector4f, InnerCameraSoftEdge)
 
+	SHADER_PARAMETER(FVector4f, InnerCameraBorderColor)
+	SHADER_PARAMETER(float, InnerCameraBorderThickness)
+	SHADER_PARAMETER(float, InnerCameraFrameAspectRatio)
+
 	SHADER_PARAMETER(FVector4f, ChromakeyColor)
 	SHADER_PARAMETER(FVector4f, ChromakeyMarkerColor)
 
@@ -553,6 +557,10 @@ public:
 
 		RenderPassData.PSParameters.InnerCameraProjectionMatrix = InnerCameraProjectionMatrix;
 		RenderPassData.PSParameters.InnerCameraSoftEdge = Camera.SoftEdge;
+
+		RenderPassData.PSParameters.InnerCameraBorderColor = Camera.InnerCameraBorderColor;
+		RenderPassData.PSParameters.InnerCameraBorderThickness = Camera.InnerCameraBorderThickness;
+		RenderPassData.PSParameters.InnerCameraFrameAspectRatio = Camera.InnerCameraFrameAspectRatio;
 
 		return true;
 	}

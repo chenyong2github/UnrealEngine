@@ -989,7 +989,7 @@ void FAudioTrackEditor::Resize(float NewSize, UMovieSceneTrack* InTrack)
 
 bool FAudioTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEvent, FSequencerDragDropParams& DragDropParams)
 {
-	if (!DragDropParams.Track->IsA(UMovieSceneAudioTrack::StaticClass()))
+	if (!DragDropParams.Track.IsValid() || !DragDropParams.Track.Get()->IsA(UMovieSceneAudioTrack::StaticClass()))
 	{
 		return false;
 	}
@@ -1020,7 +1020,7 @@ bool FAudioTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEvent, FSequen
 
 FReply FAudioTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent, const FSequencerDragDropParams& DragDropParams)
 {
-	if (!DragDropParams.Track->IsA(UMovieSceneAudioTrack::StaticClass()))
+	if (!DragDropParams.Track.IsValid() || !DragDropParams.Track.Get()->IsA(UMovieSceneAudioTrack::StaticClass()))
 	{
 		return FReply::Unhandled();
 	}

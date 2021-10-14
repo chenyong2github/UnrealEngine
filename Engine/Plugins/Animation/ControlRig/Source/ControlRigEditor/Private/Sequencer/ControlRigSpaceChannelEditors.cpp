@@ -50,6 +50,8 @@
 #include "ControlRig.h"
 #include "IControlRigObjectBinding.h"
 #include "ControlRigSpaceChannelCurveModel.h"
+#include "ScopedTransaction.h"
+
 #define LOCTEXT_NAMESPACE "ControlRigEditMode"
 
 
@@ -270,11 +272,11 @@ FKeyHandle FControlRigSpaceChannelHelpers::SequencerKeyControlRigSpaceChannel(UC
 	EvaluateChannel(Channel, Time, ExistingValue);
 	FMovieSceneControlRigSpaceBaseKey Value = ExistingValue;
 
-	if (SpaceKey == RigHierarchy->GetWorldSpaceSocketKey())
+	if (SpaceKey == RigHierarchy->GetWorldSpaceReferenceKey())
 	{
 		Value.SpaceType = EMovieSceneControlRigSpaceType::World;
 	}
-	else if (SpaceKey == RigHierarchy->GetDefaultParentSocketKey())
+	else if (SpaceKey == RigHierarchy->GetDefaultParentKey())
 	{
 		Value.SpaceType = EMovieSceneControlRigSpaceType::Parent;
 	}
@@ -361,7 +363,9 @@ FKeyHandle FControlRigSpaceChannelHelpers::SequencerKeyControlRigSpaceChannel(UC
 			Context.LocalTime = TickResolution.AsSeconds(FFrameTime(Time - 1));
 			ControlRig->SetControlGlobalTransform(ControlKey.Name, ControlWorldTransforms[0], true, Context);
 		}
-		ControlRig->GetHierarchy()->SwitchToParent(ControlKey, SpaceKey);
+
+		URigHierarchy::TElementDependencyMap Dependencies = ControlRig->GetHierarchy()->GetDependenciesForVM(ControlRig->GetVM());
+		ControlRig->GetHierarchy()->SwitchToParent(ControlKey, SpaceKey, false, true, Dependencies, nullptr);
 		int32 FramesIndex = 0;
 		for (const FFrameNumber& Frame : Frames)
 		{
@@ -421,7 +425,8 @@ void  FControlRigSpaceChannelHelpers::SequencerSpaceChannelKeyDeleted(UControlRi
 			RigHierarchy->SwitchToWorldSpace(ControlKey);
 			break;
 		case EMovieSceneControlRigSpaceType::ControlRig:
-			RigHierarchy->SwitchToParent(ControlKey, PreviousValue.ControlRigElement);
+			URigHierarchy::TElementDependencyMap Dependencies = RigHierarchy->GetDependenciesForVM(ControlRig->GetVM());
+			RigHierarchy->SwitchToParent(ControlKey, PreviousValue.ControlRigElement, false, true, Dependencies, nullptr);
 			break;
 		}
 		int32 FramesIndex = 0;
@@ -612,11 +617,11 @@ void FControlRigSpaceChannelHelpers::SequencerBakeControlInSpace(UControlRig* Co
 		EvaluateChannel(Channel, EndFrame, EndFrameValue);
 
 		FMovieSceneControlRigSpaceBaseKey Value;
-		if (Settings.TargetSpace == RigHierarchy->GetWorldSpaceSocketKey())
+		if (Settings.TargetSpace == RigHierarchy->GetWorldSpaceReferenceKey())
 		{
 			Value.SpaceType = EMovieSceneControlRigSpaceType::World;
 		}
-		else if (Settings.TargetSpace == RigHierarchy->GetDefaultParentSocketKey())
+		else if (Settings.TargetSpace == RigHierarchy->GetDefaultParentKey())
 		{
 			Value.SpaceType = EMovieSceneControlRigSpaceType::Parent;
 		}
@@ -654,7 +659,8 @@ void FControlRigSpaceChannelHelpers::SequencerBakeControlInSpace(UControlRig* Co
 		Context.SetKey = EControlRigSetKey::Always;
 		FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
 
-		RigHierarchy->SwitchToParent(ControlKey, Settings.TargetSpace);
+		URigHierarchy::TElementDependencyMap Dependencies = RigHierarchy->GetDependenciesForVM(ControlRig->GetVM());
+		RigHierarchy->SwitchToParent(ControlKey, Settings.TargetSpace, false, true, Dependencies, nullptr);
 		ControlRig->Evaluate_AnyThread();
 
 		for (int32 Index = 0; Index < Frames.Num(); ++Index)
@@ -678,7 +684,7 @@ void FControlRigSpaceChannelHelpers::SequencerBakeControlInSpace(UControlRig* Co
 				RigHierarchy->SwitchToWorldSpace(ControlKey);
 				break;
 			case EMovieSceneControlRigSpaceType::ControlRig:
-				RigHierarchy->SwitchToParent(ControlKey, EndFrameValue.ControlRigElement);
+				RigHierarchy->SwitchToParent(ControlKey, EndFrameValue.ControlRigElement, false, true, Dependencies, nullptr);
 				break;
 			}
 			ControlRig->Evaluate_AnyThread();
@@ -895,7 +901,8 @@ void FControlRigSpaceChannelHelpers::CompensateIfNeeded(UControlRig* ControlRig,
 								RigHierarchy->SwitchToWorldSpace(ControlKey);
 								break;
 							case EMovieSceneControlRigSpaceType::ControlRig:
-								RigHierarchy->SwitchToParent(ControlKey, PreviousValue.ControlRigElement);
+								URigHierarchy::TElementDependencyMap Dependencies = RigHierarchy->GetDependenciesForVM(ControlRig->GetVM());
+								RigHierarchy->SwitchToParent(ControlKey, PreviousValue.ControlRigElement, false, true, Dependencies, nullptr);
 								break;
 							}
 							//now set time -1 frame value
@@ -990,7 +997,7 @@ FReply FControlRigSpaceChannelHelpers::OpenBakeDialog(ISequencer* Sequencer, FMo
 			FMovieSceneControlRigSpaceBaseKey Value;
 
 			URigHierarchy* RigHierarchy = ControlRig->GetHierarchy();
-			Settings.TargetSpace = URigHierarchy::GetDefaultParentSocketKey();
+			Settings.TargetSpace = URigHierarchy::GetDefaultParentKey();
 
 			TRange<FFrameNumber> Range = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange();
 			Settings.StartFrame = Range.GetLowerBoundValue();
@@ -1034,9 +1041,11 @@ FReply FControlRigSpaceChannelHelpers::OpenBakeDialog(ISequencer* Sequencer, FMo
 					for (const FRigElementKey& ControlKey : InControls)
 					{
 						FSpaceChannelAndSection SpaceChannelAndSection = FControlRigSpaceChannelHelpers::FindSpaceChannelAndSectionForControl(ControlRig, ControlKey.Name, Sequencer, false /*bCreateIfNeeded*/);
-
-						FControlRigSpaceChannelHelpers::SequencerBakeControlInSpace(ControlRig, Sequencer, SpaceChannelAndSection.SpaceChannel, SpaceChannelAndSection.SectionToKey,
-							Frames, InHierarchy, ControlKey, InSettings);
+						if (SpaceChannelAndSection.SpaceChannel)
+						{
+							FControlRigSpaceChannelHelpers::SequencerBakeControlInSpace(ControlRig, Sequencer, SpaceChannelAndSection.SpaceChannel, SpaceChannelAndSection.SectionToKey,
+								Frames, InHierarchy, ControlKey, InSettings);
+						}
 					}
 					return FReply::Handled();
 				});

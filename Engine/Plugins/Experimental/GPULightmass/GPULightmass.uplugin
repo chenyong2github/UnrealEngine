@@ -20,7 +20,7 @@
 			"Name" : "GPULightmass",
 			"Type" : "UncookedOnly",
 			"LoadingPhase" : "PostConfigInit",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64"
 			]
 		},		
@@ -28,7 +28,7 @@
 			"Name" : "GPULightmassEditor",
 			"Type" : "Editor",
 			"LoadingPhase" : "Default",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64"
 			]
 		}

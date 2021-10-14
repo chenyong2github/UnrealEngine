@@ -18,7 +18,7 @@
 			"Name": "RemoteControlProtocolMIDI",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"Mac"
 			]
@@ -27,7 +27,7 @@
 			"Name": "RemoteControlProtocolMIDIEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"Mac"
 			]

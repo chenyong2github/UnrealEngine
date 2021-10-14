@@ -3083,7 +3083,7 @@ FUniqueNetIdPtr FOnlineSessionEOS::CreateSessionIdFromString(const FString& Sess
 	FUniqueNetIdPtr SessionId;
 	if (!SessionIdStr.IsEmpty())
 	{
-		SessionId = FUniqueNetIdString::Create(SessionIdStr);
+		SessionId = FUniqueNetIdEOS::Create(SessionIdStr);
 	}
 	return SessionId;
 }

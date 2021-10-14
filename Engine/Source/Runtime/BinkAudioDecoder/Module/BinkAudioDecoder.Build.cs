@@ -26,10 +26,6 @@ public class BinkAudioDecoder : ModuleRules
         {
             return Path.Combine(ModuleDirectory, "..", "SDK", "BinkAudio", "Lib", "libbinka_ue_decode_ios_static.a");
         }
-        if (Target.Platform == UnrealTargetPlatform.Android)
-        {
-            return Path.Combine(ModuleDirectory, "..", "SDK", "BinkAudio", "Lib", "libbinka_ue_decode_androidarm64_static.a");
-        }        
         return null;
     }
 
@@ -48,17 +44,27 @@ public class BinkAudioDecoder : ModuleRules
 
         PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, "..", "SDK", "BinkAudio", "Include"));
 
-        string Library = GetLibrary(Target);
-        if (Library != null)
-        {
-			// We have to have this because some audio mixers are shared across platforms
-			// that we don't have libs for (e.g. hololens).
-            PublicDefinitions.Add("WITH_BINK_AUDIO=1");
-            PublicAdditionalLibraries.Add(Library);
-        }
-        else
-        {
-            PublicDefinitions.Add("WITH_BINK_AUDIO=0");
-        }
+		if (Target.Platform == UnrealTargetPlatform.Android)
+		{
+			// For Android each architecture is registered and unneeded one is filtered out
+			PublicDefinitions.Add("WITH_BINK_AUDIO=1");
+			PublicAdditionalLibraries.Add(Path.Combine(ModuleDirectory, "..", "SDK", "BinkAudio", "Lib", "Android", "ARM64", "libbinka_ue_decode_androidarm64_static.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(ModuleDirectory, "..", "SDK", "BinkAudio", "Lib", "Android", "x64", "libbinka_ue_decode_androidx64_static.a"));
+		}
+		else
+		{
+			string Library = GetLibrary(Target);
+			if (Library != null)
+			{
+				// We have to have this because some audio mixers are shared across platforms
+				// that we don't have libs for (e.g. hololens).
+				PublicDefinitions.Add("WITH_BINK_AUDIO=1");
+				PublicAdditionalLibraries.Add(Library);
+			}
+			else
+			{
+				PublicDefinitions.Add("WITH_BINK_AUDIO=0");
+			}
+		}
     }
 }

@@ -92,14 +92,14 @@ bool UPlacementBrushToolBase::FindHitResultWithStartAndEndTraceVectors(FHitResul
 			const bool bAllowFoliage = PlacementSettings->bFoliage;
 			const bool bAllowTranslucent = PlacementSettings->bTranslucent;
 
-			// Whitelist
+			// allow list
 			bool bAllowed =
 				(bAllowLandscape && InComponent->IsA(ULandscapeHeightfieldCollisionComponent::StaticClass())) ||
 				(bAllowStaticMesh && InComponent->IsA(UStaticMeshComponent::StaticClass()) && !InComponent->IsA(UFoliageInstancedStaticMeshComponent::StaticClass()) && !bFoliageOwned) ||
 				(bAllowBSP && (InComponent->IsA(UBrushComponent::StaticClass()) || InComponent->IsA(UModelComponent::StaticClass()))) ||
 				(bAllowFoliage && (InComponent->IsA(UFoliageInstancedStaticMeshComponent::StaticClass()) || bFoliageOwned));
 
-			// Blacklist
+			// deny list
 			bAllowed &=
 				(bAllowTranslucent || !(InComponent->GetMaterial(0) && IsTranslucentBlendMode(InComponent->GetMaterial(0)->GetBlendMode())));
 

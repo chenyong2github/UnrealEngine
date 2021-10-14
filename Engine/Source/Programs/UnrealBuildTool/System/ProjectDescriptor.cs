@@ -135,7 +135,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="RawObject">Raw JSON object to parse</param>
 		/// <param name="BaseDir">Base directory for resolving relative paths</param>
-		public ProjectDescriptor(JsonObject RawObject, DirectoryReference BaseDir)
+		/// <param name="JsonFilePath"></param>
+		public ProjectDescriptor(JsonObject RawObject, DirectoryReference BaseDir, FileReference JsonFilePath)
 		{
 			// Read the version
 			if (!RawObject.TryGetIntegerField("FileVersion", out FileVersion))
@@ -163,7 +164,7 @@ namespace UnrealBuildTool
 			JsonObject[] ModulesArray;
 			if (RawObject.TryGetObjectArrayField("Modules", out ModulesArray))
 			{
-				Modules = Array.ConvertAll(ModulesArray, x => ModuleDescriptor.FromJsonObject(x));
+				Modules = Array.ConvertAll(ModulesArray, x => ModuleDescriptor.FromJsonObject(x, JsonFilePath));
 			}
 
 			// Read the plugins
@@ -208,7 +209,7 @@ namespace UnrealBuildTool
 			JsonObject RawObject = JsonObject.Read(FileName);
 			try
 			{
-				ProjectDescriptor Descriptor = new ProjectDescriptor(RawObject, FileName.Directory);
+				ProjectDescriptor Descriptor = new ProjectDescriptor(RawObject, FileName.Directory, FileName);
 				if(Descriptor.Modules != null)
 				{
 					foreach (ModuleDescriptor Module in Descriptor.Modules)

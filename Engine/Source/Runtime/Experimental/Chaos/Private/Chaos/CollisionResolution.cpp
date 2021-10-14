@@ -101,6 +101,9 @@ FAutoConsoleVariableRef CVarAlwaysAddSweptConstraints(TEXT("p.Chaos.Constraints.
 int32 CCDAllowForceDisable = 1;
 FAutoConsoleVariableRef CVarCCDAllowForceDisable(TEXT("p.Chaos.CCD.AllowForceDisable"), CCDAllowForceDisable, TEXT("Allow force disable CCD."));
 
+int32 CCDManualForceDisable = 0;
+FAutoConsoleVariableRef CVarCCDManualForceDisable(TEXT("p.Chaos.CCD.ManualForceDisable"), CCDManualForceDisable, TEXT("For debugging, manually disable CCD always."));
+
 bool bChaos_Collision_AllowLevelsetManifolds = false;
 FAutoConsoleVariableRef CVarChaosCollisionAllowLevelsetManifolds(TEXT("p.Chaos.Collision.AllowLevelsetManifolds"), bChaos_Collision_AllowLevelsetManifolds, TEXT("Use incremental manifolds for levelset-levelset collision. This does not work well atm - too much rotation in the small pieces"));
 
@@ -164,6 +167,11 @@ namespace Chaos
 		// Determines if body should use CCD. If using CCD, computes Dir and Length of sweep.
 		bool UseCCD(const TGeometryParticleHandle<FReal, 3>* SweptParticle, const TGeometryParticleHandle<FReal, 3>* OtherParticle, const FImplicitObject* Implicit, FVec3& Dir, FReal& Length, const bool bForceDisableCCD)
 		{
+			if (CCDManualForceDisable)
+			{
+				return false;
+			}
+
 			if (CCDAllowForceDisable > 0 && bForceDisableCCD)
 			{
 				return false;

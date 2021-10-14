@@ -203,7 +203,7 @@ protected:
 	TArray<FName> SavedPackagesToValidate;
 
 	UPROPERTY(Transient)
-	TMap<TObjectPtr<UClass>, TObjectPtr<UEditorValidatorBase>> Validators;
+	TMap<FString, TObjectPtr<UEditorValidatorBase>> Validators;
 
 	/** Specifies whether or not to validate assets on save when saving for a cook */
 	UPROPERTY(config)

@@ -157,11 +157,11 @@ public:
 					UPackage* MovieScenePackageToSave = MovieSceneToSave->GetOuter()->GetOutermost();
 					if (MovieScenePackageToSave->IsDirty())
 					{
-						return FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.SaveAsterisk");
+						return FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SaveChanged");
 					}
 				}
 
-				return FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Save");
+				return FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save");
 				}));
 
 			if (WeakSequencer.Pin()->GetHostCapabilities().bSupportsSaveMovieSceneAsset)
@@ -504,6 +504,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 			// Grid lines match the color specified in FSequencerTimeSliderController::OnPaintViewArea
 			.GridLineTint(FLinearColor(0.f, 0.f, 0.f, 0.3f))
 			.ExternalTimeSliderController(CurveEditorTimeSliderController)
+			.MinimumViewPanelHeight(0.f)
 			.TabManager(InSequencer->GetToolkitHost()->GetTabManager())
 			.DisabledTimeSnapTooltip(LOCTEXT("CurveEditorTimeSnapDisabledTooltip", "Time Snapping is currently driven by Sequencer."))
 			.TreeContent()
@@ -1020,12 +1021,6 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 					]
 
 					+ SGridPanel::Slot(Column1, Row2, SGridPanel::Layer(40))
-					.Padding(ResizeBarPadding)
-					[
-						SAssignNew(TickResolutionOverlay, SSequencerTimePanel, SequencerPtr)
-					]
-
-					+ SGridPanel::Slot(Column1, Row2, SGridPanel::Layer(50))
 						.Padding(ResizeBarPadding)
 						.HAlign(HAlign_Left)
 						.VAlign(VAlign_Top)
@@ -1095,8 +1090,6 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 	];
 
 	ApplySequencerCustomization(RootCustomization);
-
-	HideTickResolutionOverlay();
 
 	InSequencer->GetSelection().GetOnKeySelectionChanged().AddSP(this, &SSequencer::HandleKeySelectionChanged);
 	InSequencer->GetSelection().GetOnSectionSelectionChanged().AddSP(this, &SSequencer::HandleSectionSelectionChanged);
@@ -1186,14 +1179,34 @@ void SSequencer::BindCommands(TSharedRef<FUICommandList> SequencerCommandBinding
 	);
 }
 
-void SSequencer::ShowTickResolutionOverlay()
+void SSequencer::OpenTickResolutionOptions()
 {
-	TickResolutionOverlay->SetVisibility(EVisibility::Visible);
-}
+	if (TSharedPtr<SWindow> Window = WeakTickResolutionOptionsWindow.Pin())
+	{
+		Window->DrawAttention(FWindowDrawAttentionParameters());
+		return;
+	}
 
-void SSequencer::HideTickResolutionOverlay()
-{
-	TickResolutionOverlay->SetVisibility(EVisibility::Collapsed);
+	TSharedRef<SWindow> TickResolutionOptionsWindow = SNew(SWindow)
+		.Title(LOCTEXT("TickResolutionOptions_Title", "Advanced Time Properties"))
+		.SupportsMaximize(false)
+		.ClientSize(FVector2D(600.f, 500.f))
+		.Content()
+		[
+			SNew(SSequencerTimePanel, SequencerPtr)
+		];
+
+	TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
+	if (ParentWindow)
+	{
+		FSlateApplication::Get().AddWindowAsNativeChild(TickResolutionOptionsWindow, ParentWindow.ToSharedRef());
+	}
+	else
+	{
+		FSlateApplication::Get().AddWindow(TickResolutionOptionsWindow);
+	}
+
+	WeakTickResolutionOptionsWindow = TickResolutionOptionsWindow;
 }
 
 const ISequencerEditTool* SSequencer::GetEditTool() const
@@ -1380,10 +1393,10 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 					UPackage* MovieScenePackageToSave = MovieSceneToSave->GetOuter()->GetOutermost();
 					if (MovieScenePackageToSave->IsDirty())
 					{
-						return FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.SaveAsterisk");
+						return FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SaveChanged");
 					}
 				}
-				return FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Save");
+				return FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save");
 			}));
 
 			if (SequencerPtr.Pin()->GetHostCapabilities().bSupportsSaveMovieSceneAsset)
@@ -1397,12 +1410,12 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 				);
 			}
 
-			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().FindInContentBrowser );
+			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().FindInContentBrowser, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::Get().GetStyleSetName(), "SystemWideCommands.FindInContentBrowser") );
 			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().CreateCamera );
 
 			if (SequencerPtr.Pin()->GetHostCapabilities().bSupportsRenderMovie)
 			{
-				ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().RenderMovie );
+				ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().RenderMovie, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.OpenCinematic"));
 				
 				ToolBarBuilder.AddComboButton(
 					FUIAction(),
@@ -1417,7 +1430,7 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 			if (RootSequence->GetTypedOuter<UBlueprint>() == nullptr)
 			{
 				// Only show this button where it makes sense (ie, if the sequence is not contained within a blueprint already)
-				ToolBarBuilder.AddToolBarButton(FSequencerCommands::Get().OpenDirectorBlueprint);
+				ToolBarBuilder.AddToolBarButton(FSequencerCommands::Get().OpenDirectorBlueprint, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::Get().GetStyleSetName(), "LevelEditor.OpenLevelBlueprint"));
 			}
 
 			ToolBarBuilder.AddSeparator("Level Sequence Separator");
@@ -1436,7 +1449,7 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 			FOnGetContent::CreateSP(this, &SSequencer::MakeViewMenu),
 			LOCTEXT("ViewOptions", "View Options"),
 			LOCTEXT("ViewOptionsToolTip", "View Options"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.ViewOptions")
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Visibility")
 		);
 
 		ToolBarBuilder.AddComboButton(
@@ -1588,7 +1601,7 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 		// Only add the button if supported
 		if (SequencerPtr.Pin()->GetHostCapabilities().bSupportsCurveEditor)
 		{
-			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().ToggleShowCurveEditor );
+			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().ToggleShowCurveEditor, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCurveEditor"));
 		}
 	}
 	ToolBarBuilder.EndSection();
@@ -1979,7 +1992,7 @@ TSharedRef<SWidget> SSequencer::MakeActionsMenu()
 		if (RootSequence->GetTypedOuter<UBlueprint>() == nullptr)
 		{
 			// Only show this button where it makes sense (ie, if the sequence is not contained within a blueprint already)
-			MenuBuilder.AddMenuEntry(FSequencerCommands::Get().OpenDirectorBlueprint);
+			MenuBuilder.AddMenuEntry(FSequencerCommands::Get().OpenDirectorBlueprint, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::Get().GetStyleSetName(), "LevelEditor.OpenLevelBlueprint"));
 		}
 
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().OpenTaggedBindingManager);

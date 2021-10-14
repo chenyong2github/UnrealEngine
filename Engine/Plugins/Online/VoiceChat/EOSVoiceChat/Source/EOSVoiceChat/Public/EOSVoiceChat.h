@@ -123,6 +123,8 @@ public:
 	virtual FOnVoiceChatPlayerTalkingUpdatedDelegate& OnVoiceChatPlayerTalkingUpdated() override;
 	virtual void SetPlayerMuted(const FString& PlayerName, bool bMuted) override;
 	virtual bool IsPlayerMuted(const FString& PlayerName) const override;
+	virtual void SetChannelPlayerMuted(const FString& ChannelName, const FString& PlayerName, bool bMuted) override;
+	virtual bool IsChannelPlayerMuted(const FString& ChannelName, const FString& PlayerName) const override;
 	virtual FOnVoiceChatPlayerMuteUpdatedDelegate& OnVoiceChatPlayerMuteUpdated() override;
 	virtual void SetPlayerVolume(const FString& PlayerName, float Volume) override;
 	virtual float GetPlayerVolume(const FString& PlayerName) const override;

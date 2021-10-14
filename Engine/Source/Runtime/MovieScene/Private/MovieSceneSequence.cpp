@@ -124,6 +124,11 @@ void UMovieSceneSequence::PreSave(FObjectPreSaveContext ObjectSaveContext)
 			}
 			NetworkMask = OverrideNetworkMask(NetworkMask);
 
+			if (ObjectSaveContext.IsCooking())
+			{
+				OptimizeForCook();
+			}
+	
 			UMovieSceneCompiledDataManager::GetPrecompiledData(NetworkMask)->CopyCompiledData(this);
 		}
 		else if (CompiledData)
@@ -144,6 +149,130 @@ void UMovieSceneSequence::Serialize(FArchive& Ar)
 
 	Super::Serialize(Ar);
 }
+
+#if WITH_EDITOR
+
+bool UMovieSceneSequence::OptimizeForCook()
+{
+	UMovieScene* MovieScene = GetMovieScene();
+	if (!MovieScene)
+	{
+		return false;
+	}
+
+	bool bModified = false;
+
+	for (int32 MasterTrackIndex = 0; MasterTrackIndex < MovieScene->GetMasterTracks().Num(); )
+	{
+		UMovieSceneTrack* MasterTrack = MovieScene->GetMasterTracks()[MasterTrackIndex];
+		if (MasterTrack && MasterTrack->GetCookOptimizationFlags() == ECookOptimizationFlags::RemoveTrack)
+		{				
+			MasterTrack->RemoveForCook();
+			MovieScene->RemoveMasterTrack(*MasterTrack);
+			UE_LOG(LogMovieScene, Display, TEXT("Removing muted track: %s from: %s"), *MasterTrack->GetDisplayName().ToString(), *GetPathName());
+			bModified = true;
+			continue;
+		}
+		++MasterTrackIndex;
+	}
+
+	// Go through the tracks again and look at sections
+	for (int32 MasterTrackIndex = 0; MasterTrackIndex < MovieScene->GetMasterTracks().Num(); ++MasterTrackIndex)
+	{
+		UMovieSceneTrack* MasterTrack =  MovieScene->GetMasterTracks()[MasterTrackIndex];
+		if (MasterTrack)
+		{
+			for (int32 MasterSectionIndex = 0; MasterSectionIndex < MasterTrack->GetAllSections().Num(); )
+			{
+				UMovieSceneSection* MasterSection = MasterTrack->GetAllSections()[MasterSectionIndex];
+				if (MasterSection && MasterSection->GetCookOptimizationFlags() == ECookOptimizationFlags::RemoveSection)
+				{
+					MasterSection->RemoveForCook();
+					MasterTrack->RemoveSection(*MasterSection);
+					UE_LOG(LogMovieScene, Display, TEXT("Removing muted section: %s from: %s"), *MasterSection->GetPathName(), *MasterTrack->GetDisplayName().ToString());
+					bModified = true;
+					continue;
+				}
+				++MasterSectionIndex;
+			}
+		}
+	}
+
+	for (int32 ObjectBindingIndex = 0; ObjectBindingIndex < MovieScene->GetBindings().Num(); )
+	{
+		bool bRemoveObject = false;
+
+		// First, look to remove the object
+		for (int32 TrackIndex = 0; TrackIndex < MovieScene->GetBindings()[ObjectBindingIndex].GetTracks().Num(); ++TrackIndex)
+		{
+			UMovieSceneTrack* Track = MovieScene->GetBindings()[ObjectBindingIndex].GetTracks()[TrackIndex];
+			if (Track && Track->GetCookOptimizationFlags() == ECookOptimizationFlags::RemoveObject)
+			{
+				bRemoveObject = true;
+				break;
+			}
+		}
+
+		// Look to remove tracks
+		for (int32 TrackIndex = 0; TrackIndex < MovieScene->GetBindings()[ObjectBindingIndex].GetTracks().Num(); )
+		{
+			UMovieSceneTrack* Track = MovieScene->GetBindings()[ObjectBindingIndex].GetTracks()[TrackIndex];
+			if (Track && (Track->GetCookOptimizationFlags() == ECookOptimizationFlags::RemoveTrack || bRemoveObject))
+			{
+				Track->RemoveForCook();
+				MovieScene->RemoveTrack(*Track);
+				UE_LOG(LogMovieScene, Display, TEXT("Removing muted track: %s from: %s"), *Track->GetDisplayName().ToString(), *GetPathName());
+				bModified = true;
+				continue;
+			}
+			++TrackIndex;
+		}
+
+		// Go through the tracks again and look at sections
+		for (int32 TrackIndex = 0; TrackIndex < MovieScene->GetBindings()[ObjectBindingIndex].GetTracks().Num(); ++TrackIndex)
+		{
+			UMovieSceneTrack* Track = MovieScene->GetBindings()[ObjectBindingIndex].GetTracks()[TrackIndex];
+			if (Track)
+			{
+				for (int32 SectionIndex = 0; SectionIndex < Track->GetAllSections().Num(); )
+				{
+					UMovieSceneSection* Section = Track->GetAllSections()[SectionIndex];
+					if (Section && (Section->GetCookOptimizationFlags() == ECookOptimizationFlags::RemoveSection || bRemoveObject))
+					{
+						Section->RemoveForCook();
+						Track->RemoveSection(*Section);
+						UE_LOG(LogMovieScene, Display, TEXT("Removing muted section: %s from: %s"), *Section->GetPathName(), *Track->GetDisplayName().ToString());
+						bModified = true;
+						continue;
+					}
+					++SectionIndex;
+				}
+			}
+		}
+		
+		if (bRemoveObject)
+		{
+			UE_LOG(LogMovieScene, Display, TEXT("Removing muted object: %s from: %s"), *MovieScene->GetBindings()[ObjectBindingIndex].GetName(), *GetPathName());
+			FGuid GuidToRemove = MovieScene->GetBindings()[ObjectBindingIndex].GetObjectGuid();
+			bModified |= MovieScene->RemoveSpawnable(GuidToRemove);
+			bModified |= MovieScene->RemovePossessable(GuidToRemove);
+		}
+		else
+		{
+			++ObjectBindingIndex;
+		}
+	}
+
+	if (bModified)
+	{
+		Modify();
+		MovieScene->Modify();
+	}
+
+	return bModified;
+}
+
+#endif
 
 UMovieSceneCompiledData* UMovieSceneSequence::GetCompiledData() const
 {

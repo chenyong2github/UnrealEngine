@@ -47,6 +47,9 @@ public:
 	void RemoveCookedPackages(TArrayView<const FName> PackageNamesToRemove) override;
 	void RemoveCookedPackages() override;
 	void MarkPackagesUpToDate(TArrayView<const FName> UpToDatePackages) override;
+	bool GetPreviousCookedBytes(FName PackageName, const ITargetPlatform* InTargetPlatform,
+		const TCHAR* SandboxFilename, FPreviousCookedBytesData& OutData) override;
+	void SetCookOutputLocation(EOutputLocation location) override;
 
 private:
 

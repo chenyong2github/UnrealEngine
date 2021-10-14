@@ -603,7 +603,11 @@ public:
 
 	void ForceRebuild() { bNeedsRebuild = true; }
 
-	void AddSpatialRebuildBlacklistClass(UClass* Class) { RebuildSpatialBlacklistMap.Set(Class, true); }
+	// Marks a class as preventing spatial rebuilds when an instance leaves the grid
+	void AddToClassRebuildDenyList(UClass* Class) { ClassRebuildDenyList.Set(Class, true); }
+
+	UE_DEPRECATED(5.0, "Use AddToClassRebuildDenyList instead")
+	void AddSpatialRebuildBlacklistClass(UClass* Class) { AddToClassRebuildDenyList(Class); }
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	TArray<FString> DebugActorNames;
@@ -633,7 +637,7 @@ private:
 	FBox GridBounds;
 
 	// Classmap of actor classes which CANNOT force a rebuild of the spatialization tree. They will be clamped instead. E.g, projectiles.
-	TClassMap<bool> RebuildSpatialBlacklistMap;
+	TClassMap<bool> ClassRebuildDenyList;
 	
 	struct FActorCellInfo
 	{
@@ -1182,7 +1186,8 @@ public:
 
 	// Stored list of dormant actors in a previous cell when it's been left - this is for
 	// the dormant dynamic actor destruction feature.
-	FActorRepListRefView PrevDormantActorList;
+	// This property doesn't support multiple spatialization grids and has been switched to use PrevDormantActorListPerNode.
+	//FActorRepListRefView PrevDormantActorList;
 
 #if REPGRAPH_DETAILS
 	bool bEnableFullActorPrioritizationDetails = false;
@@ -1240,7 +1245,15 @@ public:
 	/** Generates a set of all the visible level names for this connection and its subconnections (if any) */
 	virtual void GetClientVisibleLevelNames(TSet<FName>& OutLevelNames) const;
 
+	FActorRepListRefView& GetPrevDormantActorListForNode(const UReplicationGraphNode* GridNode);
+
+	void RemoveActorFromAllPrevDormantActorLists(AActor* InActor);
+
 private:
+
+	// Stored list of dormant actors in a previous cell when it's been left - this is for
+	// the dormant dynamic actor destruction feature.
+	TMap<TObjectKey<UReplicationGraphNode>, FActorRepListRefView> PrevDormantActorListPerNode;
 
 	friend UReplicationGraph;
 

@@ -57,6 +57,9 @@ FUsdRenderContextRegistry::FUsdRenderContextRegistry()
 #if USE_USD_SDK
 	UniversalRenderContext = FName( UsdToUnreal::ConvertToken( pxr::UsdShadeTokens->universalRenderContext ) );
 	Register( UniversalRenderContext );
+
+	UnrealRenderContext = FName( UsdToUnreal::ConvertToken( UnrealIdentifiers::Unreal ) );
+	Register( UnrealRenderContext );
 #endif // #if USE_USD_SDK
 }
 

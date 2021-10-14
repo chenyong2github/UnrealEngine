@@ -82,11 +82,12 @@ TSharedRef<SWidget> SProjectLauncherProjectPicker::MakeProjectWidget()
 {
 	TSharedRef<SWidget> Widget = SNew(SBorder)
 		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-		.Padding(4.0)
+		.Padding(0)
 		[
 			SNew(SHorizontalBox)
 
 			+ SHorizontalBox::Slot()
+				.Padding(16, 0, 12, 0)
 				.AutoWidth()
 				[
 					SNew(SProjectLauncherFormLabel)
@@ -100,12 +101,13 @@ TSharedRef<SWidget> SProjectLauncherProjectPicker::MakeProjectWidget()
 				[
 					// project selector
 					SNew(SComboButton)
+					.ComboButtonStyle(FAppStyle::Get(), "Launcher.ComboButton")
 					.ButtonContent()
 					[
 						SNew(STextBlock)
 						.Text(this, &SProjectLauncherProjectPicker::HandleProjectComboButtonText)
 					]
-					.ContentPadding(FMargin(4.0f, 2.0f))
+					.ContentPadding(FMargin(4.0f, 0.0f, 4.0f, 0.0f))
 					.MenuContent()
 					[
 						MakeProjectMenuWidget()

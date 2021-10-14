@@ -100,6 +100,12 @@ public:
 	 */
 	FOnConcertClientPackageTooLargeError& OnConcertClientPackageTooLargeError() { return OnPackageTooLargeErrorDelegate; }
 
+
+	/**
+	 * Returns true if the named package is participating in a package reload.
+	 */
+	bool IsReloadingPackage(FName PackageName) const;
+
 private:
 
 	/**
@@ -176,6 +182,11 @@ private:
 	 * Package bridge used by this manager.
 	 */
 	IConcertClientPackageBridge* PackageBridge;
+
+	/**
+	 * Indicates if we are currently hot reloading.
+	 */
+	bool bHotReloading = false;
 
 	/**
 	 * Flag to indicate package dirty event should be ignored.

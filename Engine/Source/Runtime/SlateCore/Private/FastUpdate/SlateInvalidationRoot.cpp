@@ -12,6 +12,7 @@
 #include "Input/HittestGrid.h"
 #include "Layout/Children.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "ProfilingDebugging/ScopedTimers.h"
 #include "Trace/SlateTrace.h"
 #include "Types/ReflectionMetadata.h"
 #include "Types/SlateAttributeMetaData.h"
@@ -187,6 +188,7 @@ FSlateInvalidationRoot::FSlateInvalidationRoot()
 	, bProcessingChildOrderInvalidation(false)
 #if WITH_SLATE_DEBUGGING
 	, LastPaintType(ESlateInvalidationPaintType::None)
+	, PerformanceStat()
 #endif
 {
 	InvalidationRootHandle = FSlateInvalidationRootHandle(GSlateInvalidationRootListInstance.AddInvalidationRoot(this));
@@ -879,6 +881,10 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 {
 	SCOPED_NAMED_EVENT(Slate_InvalidationProcessing, FColor::Blue);
 	CSV_SCOPED_TIMING_STAT(Slate, InvalidationProcessing);
+#if WITH_SLATE_DEBUGGING
+	PerformanceStat = FPerformanceStat();
+	FScopedDurationTimer TmpPerformance_ProcessInvalidation(PerformanceStat.InvalidationProcessing);
+#endif
 
 	TGuardValue<bool> OnFastPathGuard(GSlateIsOnFastProcessInvalidation, true);
 
@@ -891,6 +897,10 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 		check(WidgetsNeedingPostUpdate);
 
 		SCOPED_NAMED_EVENT(Slate_InvalidationProcessing_PreUpdate, FColor::Blue);
+#if WITH_SLATE_DEBUGGING
+		FScopedDurationTimer TmpPerformance(PerformanceStat.WidgetsPreUpdate);
+#endif
+
 		ProcessPreUpdate();
 
 #if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING
@@ -904,6 +914,9 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 	if (!bNeedsSlowPath)
 	{
 		SCOPED_NAMED_EVENT(Slate_InvalidationProcessing_AttributeUpdate, FColor::Blue);
+#if WITH_SLATE_DEBUGGING
+		FScopedDurationTimer TmpPerformance(PerformanceStat.WidgetsAttribute);
+#endif
 
 		ProcessAttributeUpdate();
 	}
@@ -931,6 +944,10 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 	if (!bNeedsSlowPath)
 	{
 		SCOPED_NAMED_EVENT(Slate_InvalidationProcessing_PrepassUpdate, FColor::Blue);
+#if WITH_SLATE_DEBUGGING
+		FScopedDurationTimer TmpPerformance(PerformanceStat.WidgetsPrepass);
+#endif
+
 		ProcessPrepassUpdate();
 	}
 
@@ -939,6 +956,10 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 		FinalUpdateList.Reset(WidgetsNeedingPostUpdate->Num());
 
 		SCOPED_NAMED_EVENT(Slate_InvalidationProcessing_PostUpdate, FColor::Blue);
+#if WITH_SLATE_DEBUGGING
+		FScopedDurationTimer TmpPerformance(PerformanceStat.WidgetsUpdate);
+#endif
+
 		bWidgetsNeedRepaint = ProcessPostUpdate();
 	}
 	

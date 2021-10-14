@@ -421,14 +421,14 @@ void FPluginManager::ReadAllPlugins(TMap<FString, TSharedRef<FPlugin>>& Plugins,
 				{
 					if (ParentModule.Name == ChildModule.Name && ParentModule.Type == ChildModule.Type)
 					{
-						// we only need to whitelist the platform if the parent had a whitelist (otherwise, we could mistakenly remove all other platforms)
-						if (ParentModule.bHasExplicitPlatforms || ParentModule.WhitelistPlatforms.Num() > 0)
+						// we only need to add the platform to an allow list if the parent had an allow list (otherwise, we could mistakenly remove all other platforms)
+						if (ParentModule.bHasExplicitPlatforms || ParentModule.PlatformAllowList.Num() > 0)
 						{
-							ParentModule.WhitelistPlatforms.Append(ChildModule.WhitelistPlatforms);
+							ParentModule.PlatformAllowList.Append(ChildModule.PlatformAllowList);
 						}
 
-						// if we want to blacklist a platform, add it even if the parent didn't have a blacklist. this won't cause problems with other platforms
-						ParentModule.BlacklistPlatforms.Append(ChildModule.BlacklistPlatforms);
+						// if we want to deny a platform, add it even if the parent didn't have a deny list. this won't cause problems with other platforms
+						ParentModule.PlatformDenyList.Append(ChildModule.PlatformDenyList);
 					}
 				}
 			}

@@ -982,11 +982,11 @@ bool UModelingToolsEditorMode::ComputeBoundingBoxForViewportFocus(AActor* Actor,
 				float MaxDimension = InOutBox.GetExtent().GetMax();
 				if (MaxDimension > SMALL_NUMBER)
 				{
-					InOutBox.ExpandBy(MaxDimension * 0.2f);
+					InOutBox = InOutBox.ExpandBy(MaxDimension * 0.2f);
 				}
 				else
 				{
-					InOutBox.ExpandBy(25);
+					InOutBox = InOutBox.ExpandBy(25);
 				}
 				return true;
 			}

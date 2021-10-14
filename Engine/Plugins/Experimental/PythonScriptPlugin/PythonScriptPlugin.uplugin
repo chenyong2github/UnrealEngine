@@ -30,7 +30,7 @@
 		{
 			"Name": "ContentBrowserFileDataSource",
 			"Enabled": true,
-			"WhitelistTargets": [
+			"TargetAllowList": [
 				"Editor"
 			]
 		}

@@ -50,7 +50,7 @@
 			"Name": "InterchangeFbxParser",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"Linux",
 				"Mac"

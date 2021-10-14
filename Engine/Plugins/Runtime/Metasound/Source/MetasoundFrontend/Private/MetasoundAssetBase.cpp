@@ -536,14 +536,7 @@ bool FMetasoundAssetBase::AddingReferenceCausesLoop(const FSoftObjectPath& InRef
 Metasound::FSendAddress FMetasoundAssetBase::CreateSendAddress(uint64 InInstanceID, const Metasound::FVertexName& InVertexName, const FName& InDataTypeName) const
 
 {
-	using namespace Metasound;
-
-	FSendAddress Address;
-
-	Address.Subsystem = GetSubsystemNameForSendScope(ETransmissionScope::Global);
-	Address.ChannelName = FName(FString::Printf(TEXT("%d:%s:%s"), InInstanceID, *InVertexName.ToString(), *InDataTypeName.ToString()));
-
-	return Address;
+	return Metasound::FSendAddress(InVertexName, InDataTypeName, InInstanceID);
 }
 
 void FMetasoundAssetBase::ConvertFromPreset()
@@ -687,11 +680,11 @@ Metasound::Frontend::FNodeHandle FMetasoundAssetBase::AddInputPinForSendAddress(
 	FMetasoundFrontendClassInput Description;
 	FGuid VertexID = FGuid::NewGuid();
 
-	Description.Name = InSendInfo.Address.ChannelName;
+	Description.Name = InSendInfo.Address.GetChannelName();
 	Description.TypeName = Metasound::GetMetasoundDataTypeName<Metasound::FSendAddress>();
 	Description.Metadata.Description = FText::GetEmpty();
 	Description.VertexID = VertexID;
-	Description.DefaultLiteral.Set(InSendInfo.Address.ChannelName.ToString());
+	Description.DefaultLiteral.Set(InSendInfo.Address.GetChannelName().ToString());
 
 	return InGraph->AddInputVertex(Description);
 }

@@ -8,7 +8,6 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 
-
 #define LOCTEXT_NAMESPACE "SProjectLauncherProfileNameDescEditor"
 
 
@@ -26,11 +25,12 @@ void SProjectLauncherProfileNameDescEditor::Construct(const FArguments& InArgs, 
 
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
+			.Padding(23, 0, 27, 0)
 			.VAlign(VAlign_Center)
 			[
 				SNew(SBox)
-				.WidthOverride(40)
-				.HeightOverride(40)
+				.WidthOverride(20)
+				.HeightOverride(20)
 				[
 					SNew(SImage)
 					.Image(this, &SProjectLauncherProfileNameDescEditor::HandleProfileImage)
@@ -40,6 +40,7 @@ void SProjectLauncherProfileNameDescEditor::Construct(const FArguments& InArgs, 
 			+ SHorizontalBox::Slot()
 				.FillWidth(1)
 				.VAlign(VAlign_Center)
+				.Padding(0, 6, 0, 6)
 				[
 					SNew(SVerticalBox)
 
@@ -59,7 +60,7 @@ void SProjectLauncherProfileNameDescEditor::Construct(const FArguments& InArgs, 
 						[
 							SNew(SInlineEditableTextBlock)
 							.Text(this, &SProjectLauncherProfileNameDescEditor::OnGetDescriptionText)
-							.Style(FCoreStyle::Get(), "InlineEditableTextBlockSmallStyle")
+							.ColorAndOpacity(FSlateColor::UseSubduedForeground())
 							.OnTextCommitted(this, &SProjectLauncherProfileNameDescEditor::OnDescriptionTextCommitted)
 							.Cursor(EMouseCursor::TextEditBeam)
 						]

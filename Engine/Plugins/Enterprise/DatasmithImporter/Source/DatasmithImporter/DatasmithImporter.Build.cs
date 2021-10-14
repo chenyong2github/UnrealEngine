@@ -65,6 +65,8 @@ namespace UnrealBuildTool.Rules
 					"DatasmithCore",
 					"DatasmithTranslator",
 					"DatasmithContentEditor",
+					"DirectLinkExtension",
+					"ExternalSource",
 				}
 			);
 		}

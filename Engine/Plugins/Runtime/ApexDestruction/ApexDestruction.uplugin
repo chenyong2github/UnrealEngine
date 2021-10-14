@@ -20,7 +20,7 @@
 			"Name": "ApexDestruction",
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault",
-			"BlacklistPlatforms": [
+			"PlatformDenyList": [
 				"HoloLens"
 			]
 		},

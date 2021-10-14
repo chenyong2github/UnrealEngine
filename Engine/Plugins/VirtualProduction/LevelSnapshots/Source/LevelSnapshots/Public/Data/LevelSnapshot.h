@@ -25,20 +25,29 @@ public:
 	/* Captures the current state of the given world. */
 	bool SnapshotWorld(UWorld* TargetWorld);
 
-	
 
-	/* Checks whether the original actor has any properties that changed since the snapshot was taken.  */
-	bool HasOriginalChangedPropertiesSinceSnapshotWasTaken(AActor* SnapshotActor, AActor* WorldActor) const;
 	/**
-	* Checks whether the snapshot and original property value should be considered equal.
-	* Primitive properties are trivial. Special support is needed for object references.
-	*/
-	bool AreSnapshotAndOriginalPropertiesEquivalent(const FProperty* LeafProperty, void* SnapshotContainer, void* WorldContainer, AActor* SnapshotActor, AActor* WorldActor) const;
+	 * Checks whether the given actor has changes to the snapshot version. First compares hashes and then proceeds comparing
+	 * property values.
+	 *
+	 * In most cases, this function is faster than HasOriginalChangedPropertiesSinceSnapshotWasTaken because it tries to
+	 * slow calls to GetDeserializedActor by comparing hashes first.
+	 */
+	bool HasChangedSinceSnapshotWasTaken(AActor* WorldActor);
+
+	/**
+	 * Checks whether the original actor has any properties that changed since the snapshot was taken by comparing properties.
+	 *
+	 * Use this function instead of HasChangedSinceSnapshotWasTaken if you've already called GetDeserializedActor. Otherwise
+	 * HasChangedSinceSnapshotWasTaken should be faster in most cases.
+	 */
+	bool HasOriginalChangedPropertiesSinceSnapshotWasTaken(AActor* SnapshotActor, AActor* WorldActor) const;
 	
 	
 	
 	/* Given an actor path in the world, gets the equivalent actor from the snapshot. */
 	TOptional<AActor*> GetDeserializedActor(const FSoftObjectPath& OriginalActorPath);
+	
 	
 	int32 GetNumSavedActors() const;
 	/**
@@ -79,30 +88,35 @@ private:
 	void EnsureWorldInitialised();
 	void DestroyWorld();
 
+#if WITH_EDITOR
+	/** Clears FActorSnapshotData::bHasBeenDiffed */
+	void ClearCachedDiffFlag(UObject* ModifiedObject);
+#endif
 	
-	/* The world we will be adding temporary actors to */
+	/** The world we will be adding temporary actors to */
 	UPROPERTY(Transient)
 	UWorld* SnapshotContainerWorld;
-	/* Callback to destroy our world when editor (editor build) or play (game builds) world is destroyed. */
-	FDelegateHandle OnWorldDestroyed;
-	
+	/** Callback to destroy our world when editor (editor build) or play (game builds) world is destroyed. */
+	FDelegateHandle Handle;
+	/** Callback to when an object is modified. Clears FActorSnapshotData::bHasBeenDiffed */
+	FDelegateHandle OnObjectModifiedHandle;
 
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
 	FWorldSnapshotData SerializedData;
 
-	/* Path of the map that the snapshot was taken in */
+	/** Path of the map that the snapshot was taken in */
 	UPROPERTY(VisibleAnywhere, BlueprintGetter = "GetMapPath", AssetRegistrySearchable, Category = "Snapshot")
 	FSoftObjectPath MapPath;
 	
-	/* UTC Time that the snapshot was taken */
+	/** UTC Time that the snapshot was taken */
 	UPROPERTY(AssetRegistrySearchable, BlueprintGetter = "GetCaptureTime", VisibleAnywhere, Category = "Snapshot")
 	FDateTime CaptureTime;
 
-	/* User defined name for the snapshot, can differ from the actual asset name. */
+	/** User defined name for the snapshot, can differ from the actual asset name. */
 	UPROPERTY(AssetRegistrySearchable, BlueprintGetter = "GetSnapshotName", EditAnywhere, Category = "Snapshot")
 	FName SnapshotName;
 	
-	/* User defined description of the snapshot */
+	/** User defined description of the snapshot */
 	UPROPERTY(AssetRegistrySearchable, BlueprintGetter = "GetSnapshotDescription", EditAnywhere, Category = "Snapshot")
 	FString SnapshotDescription;
 };

@@ -695,7 +695,11 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 		TBSettings.MipGenSettings = TMGS_NoMipmaps;
 		TBSettings.bForceAlphaChannel = BuildSettingsForLayer.bForceAlphaChannel;
 		TBSettings.bVirtualStreamable = true;
-		TBSettings.FastTextureEncode = BuildSettingsForLayer.FastTextureEncode;
+
+		// Encode speed must be resolved before we get here.
+		TBSettings.OodleEncodeEffort = BuildSettingsForLayer.OodleEncodeEffort;
+		TBSettings.LossyCompressionAmount = BuildSettingsForLayer.LossyCompressionAmount;
+		TBSettings.OodleUniversalTiling = BuildSettingsForLayer.OodleUniversalTiling;
 
 		check(TBSettings.GetGammaSpace() == BuildSettingsForLayer.GetGammaSpace());
  

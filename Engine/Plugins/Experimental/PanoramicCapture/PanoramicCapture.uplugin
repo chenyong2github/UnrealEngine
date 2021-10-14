@@ -19,7 +19,7 @@
 			"Name": "PanoramicCapture",
 			"Type": "UncookedOnly",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64"
 			]
 		}

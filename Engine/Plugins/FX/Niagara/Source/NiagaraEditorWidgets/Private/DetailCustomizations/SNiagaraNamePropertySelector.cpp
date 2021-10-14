@@ -2,6 +2,7 @@
 
 #include "SNiagaraNamePropertySelector.h"
 #include "NiagaraDataInterfaceDetails.h"
+#include "NiagaraEditorWidgetsStyle.h"
 #include "PropertyCustomizationHelpers.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -191,11 +192,11 @@ TSharedRef<ITableRow> SNiagaraNamePropertySelector::GenerateAddElementRow(TShare
 		.ShowSelection(true)
 		[
 			SNew(SBox)
-			.Padding(1.f)
+			.Padding(2.f)
 			[
 				SNew(STextBlock)
 				.Text(FText::FromString(Entry->ToString()))
-				.TextStyle(FEditorStyle::Get(), TEXT("Menu.Heading"))
+				.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.NamePropertySelectionEntry")
 				.HighlightText(this, &SNiagaraNamePropertySelector::GetCurrentSearchString)
 			]
 		];

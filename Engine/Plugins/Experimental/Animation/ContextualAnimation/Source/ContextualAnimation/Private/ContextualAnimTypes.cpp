@@ -146,7 +146,7 @@ float FContextualAnimData::FindBestAnimStartTime(const FVector& LocalLocation) c
 	if (ActualDistToSyncPointSq < PerfectDistToSyncPointSq)
 	{
 		float BestDistance = MAX_FLT;
-		TArrayView<const FVector> PosKeys(AlignmentData.Tracks.AnimationTracks[0].PosKeys.GetData(), AlignmentData.Tracks.AnimationTracks[0].PosKeys.Num());
+		TArrayView<const FVector3f> PosKeys(AlignmentData.Tracks.AnimationTracks[0].PosKeys.GetData(), AlignmentData.Tracks.AnimationTracks[0].PosKeys.Num());
 
 		//@TODO: Very simple search for now. Replace with Distance Matching + Pose Matching
 		for (int32 Idx = 0; Idx < PosKeys.Num(); Idx++)

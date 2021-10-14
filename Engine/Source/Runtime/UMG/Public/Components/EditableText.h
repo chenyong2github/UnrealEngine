@@ -182,6 +182,8 @@ public:
 
 	void SetClearKeyboardFocusOnCommit(bool bInClearKeyboardFocusOnCommit);
 
+	void SetKeyboardType(EVirtualKeyboardType::Type Type);
+
 public:
 	
 	//~ Begin UWidget Interface

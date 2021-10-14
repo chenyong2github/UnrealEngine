@@ -116,7 +116,7 @@ void SMemTagTreeView::Construct(const FArguments& InArgs, TSharedPtr<SMemoryProf
 		// Tree view
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
-		.Padding(0.0f, 6.0f, 0.0f, 0.0f)
+		.Padding(0.0f, 2.0f, 0.0f, 0.0f)
 		[
 			SNew(SHorizontalBox)
 
@@ -124,27 +124,21 @@ void SMemTagTreeView::Construct(const FArguments& InArgs, TSharedPtr<SMemoryProf
 			.FillWidth(1.0f)
 			.Padding(0.0f)
 			[
-				SNew(SScrollBox)
-				.Orientation(Orient_Horizontal)
-
-				+ SScrollBox::Slot()
-				[
-					SAssignNew(TreeView, STreeView<FMemTagNodePtr>)
-					.ExternalScrollbar(ExternalScrollbar)
-					.SelectionMode(ESelectionMode::Multi)
-					.TreeItemsSource(&FilteredGroupNodes)
-					.OnGetChildren(this, &SMemTagTreeView::TreeView_OnGetChildren)
-					.OnGenerateRow(this, &SMemTagTreeView::TreeView_OnGenerateRow)
-					.OnSelectionChanged(this, &SMemTagTreeView::TreeView_OnSelectionChanged)
-					.OnMouseButtonDoubleClick(this, &SMemTagTreeView::TreeView_OnMouseButtonDoubleClick)
-					.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &SMemTagTreeView::TreeView_GetMenuContent))
-					.ItemHeight(12.0f)
-					.HeaderRow
-					(
-						SAssignNew(TreeViewHeaderRow, SHeaderRow)
-						.Visibility(EVisibility::Visible)
-					)
-				]
+				SAssignNew(TreeView, STreeView<FMemTagNodePtr>)
+				.ExternalScrollbar(ExternalScrollbar)
+				.SelectionMode(ESelectionMode::Multi)
+				.TreeItemsSource(&FilteredGroupNodes)
+				.OnGetChildren(this, &SMemTagTreeView::TreeView_OnGetChildren)
+				.OnGenerateRow(this, &SMemTagTreeView::TreeView_OnGenerateRow)
+				.OnSelectionChanged(this, &SMemTagTreeView::TreeView_OnSelectionChanged)
+				.OnMouseButtonDoubleClick(this, &SMemTagTreeView::TreeView_OnMouseButtonDoubleClick)
+				.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &SMemTagTreeView::TreeView_GetMenuContent))
+				.ItemHeight(16.0f)
+				.HeaderRow
+				(
+					SAssignNew(TreeViewHeaderRow, SHeaderRow)
+					.Visibility(EVisibility::Visible)
+				)
 			]
 
 			+ SHorizontalBox::Slot()
@@ -206,13 +200,13 @@ TSharedRef<SWidget> SMemTagTreeView::ConstructTagsFilteringWidgetArea()
 	//	SNew(SCheckBox)
 	//	.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
 	//	.HAlign(HAlign_Center)
-	//	.Padding(2.0f)
+	//	.Padding(3.0f)
 	//	.OnCheckStateChanged(this, &SMemTagTreeView::FilterOutZeroCountMemTags_OnCheckStateChanged)
 	//	.IsChecked(this, &SMemTagTreeView::FilterOutZeroCountMemTags_IsChecked)
 	//	.ToolTipText(LOCTEXT("FilterOutZeroCountMemTags_Tooltip", "Filter out the LLM tags having zero total instance count (aggregated stats)."))
 	//	[
-	//		SNew(STextBlock)
-	//		.Text(LOCTEXT("FilterOutZeroCountMemTags_Button", " !0 "))
+	//		SNew(SImage)
+	//		.Image(FInsightsStyle::Get().GetBrush("ZeroCountFilter.Icon.Small"))
 	//	]
 	//]
 
@@ -273,7 +267,7 @@ TSharedRef<SWidget> SMemTagTreeView::ConstructTagsGroupingWidgetArea()
 	+ SHorizontalBox::Slot()
 	.AutoWidth()
 	.VAlign(VAlign_Center)
-	.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+	.Padding(4.0f, 0.0f, 4.0f, 0.0f)
 	[
 		SNew(STextBlock)
 		.MinDesiredWidth(60.0f)
@@ -1625,20 +1619,20 @@ void SMemTagTreeView::ShowColumn(const FName ColumnId)
 	ColumnArgs
 		.ColumnId(Column.GetId())
 		.DefaultLabel(Column.GetShortName())
-		.HAlignHeader(HAlign_Fill)
-		.VAlignHeader(VAlign_Fill)
-		.HeaderContentPadding(FMargin(2.0f))
+		.ToolTip(SMemTagTreeViewTooltip::GetColumnTooltip(Column))
+		.HAlignHeader(Column.GetHorizontalAlignment())
+		.VAlignHeader(VAlign_Center)
 		.HAlignCell(HAlign_Fill)
 		.VAlignCell(VAlign_Fill)
 		.SortMode(this, &SMemTagTreeView::GetSortModeForColumn, Column.GetId())
 		.OnSort(this, &SMemTagTreeView::OnSortModeChanged)
-		.ManualWidth(Column.GetInitialWidth())
-		.FixedWidth(Column.IsFixedWidth() ? Column.GetInitialWidth() : TOptional<float>())
+		.FillWidth(Column.GetInitialWidth())
+		//.FixedWidth(Column.IsFixedWidth() ? Column.GetInitialWidth() : TOptional<float>())
 		.HeaderContent()
 		[
 			SNew(SBox)
-			.ToolTip(SMemTagTreeViewTooltip::GetColumnTooltip(Column))
-			.HAlign(Column.GetHorizontalAlignment())
+			.HeightOverride(24.0f)
+			.Padding(FMargin(0.0f))
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)

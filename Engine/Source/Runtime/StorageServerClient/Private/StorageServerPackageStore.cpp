@@ -36,28 +36,21 @@ bool FStorageServerPackageStore::DoesPackageExist(FPackageId PackageId)
 	return PackageId.IsValid() && StoreEntriesMap.Contains(PackageId);
 }
 
-FPackageStoreEntryHandle FStorageServerPackageStore::GetPackageEntryHandle(FPackageId PackageId, const FName& PackageName)
+EPackageStoreEntryStatus FStorageServerPackageStore::GetPackageStoreEntry(FPackageId PackageId, FPackageStoreEntry& OutPackageStoreEntry)
 {
 	const FFilePackageStoreEntry* FindEntry = StoreEntriesMap.FindRef(PackageId);
-	const uint64 Handle = reinterpret_cast<uint64>(FindEntry);
-	return FPackageStoreEntryHandle::Create(Handle, Handle ? EPackageStoreEntryStatus::Ok : EPackageStoreEntryStatus::Missing);
-}
-
-FPackageStoreEntry FStorageServerPackageStore::GetPackageEntry(FPackageStoreEntryHandle Handle)
-{
-	check(Handle.IsValid());
-	const FFilePackageStoreEntry* Entry = reinterpret_cast<const FFilePackageStoreEntry*>(Handle.Value());
-	check(Entry);
-	return FPackageStoreEntry
+	if (FindEntry)
 	{
-		FPackageStoreExportInfo
-		{
-			Entry->ExportCount,
-			Entry->ExportBundleCount
-		},
-		MakeArrayView(Entry->ImportedPackages.Data(), Entry->ImportedPackages.Num()),
-		MakeArrayView(Entry->ShaderMapHashes.Data(), Entry->ShaderMapHashes.Num())
-	};
+		OutPackageStoreEntry.ExportInfo.ExportCount = FindEntry->ExportCount;
+		OutPackageStoreEntry.ExportInfo.ExportBundleCount = FindEntry->ExportBundleCount;
+		OutPackageStoreEntry.ImportedPackageIds = MakeArrayView(FindEntry->ImportedPackages.Data(), FindEntry->ImportedPackages.Num());
+		OutPackageStoreEntry.ShaderMapHashes = MakeArrayView(FindEntry->ShaderMapHashes.Data(), FindEntry->ShaderMapHashes.Num());
+		return EPackageStoreEntryStatus::Ok;
+	}
+	else
+	{
+		return EPackageStoreEntryStatus::Missing;
+	}
 }
 
 #endif

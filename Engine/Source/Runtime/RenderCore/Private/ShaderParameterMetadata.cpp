@@ -452,7 +452,7 @@ void FShaderParametersMetadata::InitializeLayout(FRHIUniformBufferLayoutInitiali
 	/** Resource array are currently only supported for shader parameter structures. */
 	const bool bAllowResourceArrays = UseCase == EUseCase::ShaderParameterStruct;
 
-	/** White list all use cases that inline a structure within another. Data driven are not known to inline structures. */
+	/** Allow all use cases that inline a structure within another. Data driven are not known to inline structures. */
 	const bool bAllowStructureInlining = UseCase == EUseCase::ShaderParameterStruct || UseCase == EUseCase::UniformBuffer;
 
 	for (int32 i = 0; i < MemberStack.Num(); ++i)

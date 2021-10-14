@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+#include "Misc/CoreMiscDefines.h"
+
 struct FNiagaraSimStageData
 {
 	FNiagaraSimStageData()

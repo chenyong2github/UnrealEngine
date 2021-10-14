@@ -1560,7 +1560,7 @@ bool FSplineComponentVisualizer::HasFocusOnSelectionBoundingBox(FBox& OutBoundin
 				OutBoundingBox += Pos;
 			}
 
-			OutBoundingBox.ExpandBy(50.f);
+			OutBoundingBox = OutBoundingBox.ExpandBy(50.f);
 			return true;
 		}
 	}

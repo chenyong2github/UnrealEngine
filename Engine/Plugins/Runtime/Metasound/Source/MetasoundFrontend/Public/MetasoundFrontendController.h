@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "MetasoundAccessPtr.h"
 #include "MetasoundBuilderInterface.h"
 #include "MetasoundFrontend.h"
@@ -43,6 +42,7 @@ namespace Metasound
 		// Forward declare 
 		class IInputController;
 		class IOutputController;
+		class IVariableController;
 		class INodeController;
 		class IGraphController;
 		class IDocumentController;
@@ -52,6 +52,8 @@ namespace Metasound
 		using FConstInputHandle = TSharedRef<const IInputController>;
 		using FOutputHandle = TSharedRef<IOutputController>;
 		using FConstOutputHandle = TSharedRef<const IOutputController>;
+		using FVariableHandle = TSharedRef<IVariableController>;
+		using FConstVariableHandle = TSharedRef<const IVariableController>;
 		using FNodeHandle = TSharedRef<INodeController>;
 		using FConstNodeHandle = TSharedRef<const INodeController>;
 		using FGraphHandle = TSharedRef<IGraphController>;
@@ -229,6 +231,60 @@ namespace Metasound
 
 		};
 
+		class METASOUNDFRONTEND_API IVariableController : public TSharedFromThis<IVariableController>, public IDocumentAccessor
+		{
+		public:
+			static FVariableHandle GetInvalidHandle();
+
+			IVariableController() = default;
+			virtual ~IVariableController() = default;
+
+			/** Returns true if the controller is in a valid state. */
+			virtual bool IsValid() const = 0;
+
+			/** Returns the variable ID. */
+			virtual FGuid GetID() const = 0;
+			
+			/** Returns the data type name associated with this variable. */
+			virtual const FName& GetDataType() const = 0;
+			
+			/** Returns the human readable name associated with this variable. */
+			virtual FText GetDisplayName() const = 0;
+
+			/** Sets the human readable name associated with this variable. */
+			virtual void SetDisplayName(const FText& InDisplayName) = 0;
+
+			/** Returns the mutator node associated with this variable. */
+			virtual FNodeHandle FindMutatorNode() = 0;
+
+			/** Returns the mutator node associated with this variable. */
+			virtual FConstNodeHandle FindMutatorNode() const = 0;
+
+			/** Returns the accessor nodes associated with this variable. */
+			virtual TArray<FNodeHandle> FindAccessorNodes() = 0;
+
+			/** Returns the accessor nodes associated with this variable. */
+			virtual TArray<FConstNodeHandle> FindAccessorNodes() const = 0;
+
+			/** Returns the deferred accessor nodes associated with this variable. */
+			virtual TArray<FNodeHandle> FindDeferredAccessorNodes() = 0;
+
+			/** Returns the deferred accessor nodes associated with this variable. */
+			virtual TArray<FConstNodeHandle> FindDeferredAccessorNodes() const = 0;
+			
+			/** Returns a FGraphHandle to the node which owns this variable. */
+			virtual FGraphHandle GetOwningGraph() = 0;
+			
+			/** Returns a FConstGraphHandle to the node which owns this variable. */
+			virtual FConstGraphHandle GetOwningGraph() const = 0;
+
+			/** Returns the value for the given variable instance if set. */
+			virtual const FMetasoundFrontendLiteral& GetLiteral() const = 0;
+
+			/** Sets the value for the given variable instance */
+			virtual bool SetLiteral(const FMetasoundFrontendLiteral& InLiteral) = 0;
+		};
+
 		/* An IInputController provides methods for querying and manipulating a metasound input vertex. */
 		class METASOUNDFRONTEND_API IInputController : public TSharedFromThis<IInputController>, public IDocumentAccessor
 		{
@@ -361,8 +417,8 @@ namespace Metasound
 			/** Returns number of node outputs. */
 			virtual int32 GetNumOutputs() const = 0;
 
-			virtual TArray<FInputHandle> GetInputsWithVertexName(const FVertexName& InName) = 0;
-			virtual TArray<FConstInputHandle> GetConstInputsWithVertexName(const FVertexName& InName) const = 0;
+			virtual FInputHandle GetInputWithVertexName(const FVertexName& InName) = 0;
+			virtual FConstInputHandle GetConstInputWithVertexName(const FVertexName& InName) const = 0;
 
 			/** Returns all node outputs. */
 			virtual TArray<FOutputHandle> GetOutputs() = 0;
@@ -370,8 +426,8 @@ namespace Metasound
 			/** Returns all node outputs. */
 			virtual TArray<FConstOutputHandle> GetConstOutputs() const = 0;
 
-			virtual TArray<FOutputHandle> GetOutputsWithVertexName(const FVertexName& InName) = 0;
-			virtual TArray<FConstOutputHandle> GetConstOutputsWithVertexName(const FVertexName& InName) const = 0;
+			virtual FOutputHandle GetOutputWithVertexName(const FVertexName& InName) = 0;
+			virtual FConstOutputHandle GetConstOutputWithVertexName(const FVertexName& InName) const = 0;
 
 			/** Returns true if node is required to satisfy the document archetype. */
 			virtual bool IsRequired() const = 0;
@@ -413,13 +469,12 @@ namespace Metasound
 			 */
 			virtual FConstOutputHandle GetOutputWithID(FGuid InVertexID) const = 0;
 
-			virtual bool CanAddInput(const FString& InVertexName) const = 0;
-			virtual FInputHandle AddInput(const FString& InVertexName, const FMetasoundFrontendLiteral* InDefault) = 0;
+			virtual bool CanAddInput(const FVertexName& InVertexName) const = 0;
+			virtual FInputHandle AddInput(const FVertexName& InVertexName, const FMetasoundFrontendLiteral* InDefault) = 0;
 			virtual bool RemoveInput(FGuid InVertexID) = 0;
 
-			// TODO: VertexID -> PinID? VertexID? SlotID? RefID? 
-			virtual bool CanAddOutput(const FString& InVertexName) const = 0;
-			virtual FInputHandle AddOutput(const FString& InVertexName, const FMetasoundFrontendLiteral* InDefault) = 0;
+			virtual bool CanAddOutput(const FVertexName& InVertexName) const = 0;
+			virtual FInputHandle AddOutput(const FVertexName& InVertexName, const FMetasoundFrontendLiteral* InDefault) = 0;
 			virtual bool RemoveOutput(FGuid InVertexID) = 0;
 
 			// Returns an input's default literal if set, null if not.
@@ -507,6 +562,12 @@ namespace Metasound
 			/** Sets the metadata for the current graph. */
 			virtual void SetGraphMetadata(const FMetasoundFrontendClassMetadata& InMetadata) = 0;
 
+			// Returns graph style.
+			virtual const FMetasoundFrontendGraphStyle& GetGraphStyle() const = 0;
+
+			// Sets graph style.
+			virtual void SetGraphStyle(const FMetasoundFrontendGraphStyle& InStyle) = 0;
+
 			/** Return the display name of the graph. */
 			virtual FText GetDisplayName() const = 0;
 
@@ -528,12 +589,6 @@ namespace Metasound
 			/** Returns all output nodes in the graph. */
 			virtual TArray<FNodeHandle> GetOutputNodes() = 0;
 
-			// Returns graph style.
-			virtual const FMetasoundFrontendGraphStyle& GetGraphStyle() const = 0;
-
-			// Sets graph style.
-			virtual void SetGraphStyle(const FMetasoundFrontendGraphStyle& InStyle) = 0;
-
 			/** Returns all output nodes in the graph. */
 			virtual TArray<FConstNodeHandle> GetConstOutputNodes() const = 0;
 
@@ -542,6 +597,51 @@ namespace Metasound
 
 			/** Returns all input nodes in the graph. */
 			virtual TArray<FConstNodeHandle> GetConstInputNodes() const = 0;
+
+			/** Adds a new variable to the graph */
+			virtual FVariableHandle AddVariable(const FName& InDataTypeName) = 0;
+
+			/** Finds a variable by ID. 
+			 *
+			 * @param InVariableID - ID of existing variable.
+			 */
+			virtual FVariableHandle FindVariable(const FGuid& InVariableID) = 0;
+
+			/** Finds a variable by ID. 
+			 *
+			 * @param InVariableID - ID of existing variable.
+			 */
+			virtual FConstVariableHandle FindVariable(const FGuid& InVariableID) const = 0;
+
+			/** Removes the variable with the given ID. 
+			 *
+			 * @param InVariableID - ID of existing variable.
+			 */
+			virtual bool RemoveVariable(const FGuid& InVariableID) = 0;
+
+			/* Returns an array of all variables associated with the graph. */
+			virtual TArray<FVariableHandle> GetVariables() = 0;
+
+			/* Returns an array of all variables associated with the graph. */
+			virtual TArray<FConstVariableHandle> GetVariables() const = 0;
+
+			/** Returns the variable mutator node. If none exist, one is created. 
+			 *
+			 * @param InVariableID - ID of existing variable.
+			 */
+			virtual FNodeHandle FindOrAddVariableMutatorNode(const FGuid& InVariableID) = 0;
+
+			/** Creates and returns a variable accessor node. 
+			 *
+			 * @param InVariableID - ID of existing variable.
+			 */
+			virtual FNodeHandle AddVariableAccessorNode(const FGuid& InVariableID) = 0;
+
+			/** Creates and returns a variable deferred accessor node. 
+			 *
+			 * @param InVariableID - ID of existing variable.
+			 */
+			virtual FNodeHandle AddVariableDeferredAccessorNode(const FGuid& InVariableID) = 0;
 
 			/** Clears the graph, its associated interface, and synchronizes removed dependencies with the owning graph. */
 			virtual void ClearGraph() = 0;
@@ -555,9 +655,25 @@ namespace Metasound
 			/** Returns true if an output vertex with the given Name exists.
 			 *
 			 * @param InName - Name of vertex.
-			 * @return True if the vertex exists, false otherwise. 
+			 * @param InTypeName - DataType Name of vertex.
+			 * @return True if the vertex exists, false otherwise.
+			 */
+			virtual bool ContainsOutputVertex(const FVertexName& InName, const FName& InTypeName) const = 0;
+
+			/** Returns true if an output vertex with the given Name exists.
+			 *
+			 * @param InName - Name of vertex.
+			 * @param InTypeName - DataType Name of vertex.
+			 * @return True if the vertex exists, false otherwise.
 			 */
 			virtual bool ContainsOutputVertexWithName(const FVertexName& InName) const = 0;
+
+			/** Returns true if an input vertex with the given Name exists.
+			 *
+			 * @param InName - Name of vertex.
+			 * @return True if the vertex exists, false otherwise.
+			 */
+			virtual bool ContainsInputVertex(const FVertexName& InName, const FName& InTypeName) const = 0;
 
 			/** Returns true if an input vertex with the given Name exists.
 			 *
@@ -691,18 +807,22 @@ namespace Metasound
 			/** Add a new node to this graph from the node registry.
 			 *
 			 * @param InKey - Registry key for node.
+			 * @param InNodeGuid - (Optional) Explicit guid for the new node. Must be unique within the graph.
+			 * Only useful to specify explicitly when caller is managing or tracking the graph's guids (ex. replacing removed node).
 			 * 
-			 * @return Node handle for class. On error, an invalid handle is returned. 
+			 * @return Node handle for class. On error, an invalid handle is returned.
 			 */
-			virtual FNodeHandle AddNode(const FNodeRegistryKey& InKey) = 0;
+			virtual FNodeHandle AddNode(const FNodeRegistryKey& InKey, FGuid InNodeGuid = FGuid::NewGuid()) = 0;
 
 			/** Add a new node to this graph.
 			 *
 			 * @param InClassMetadata - Info for node class.
-			 * 
-			 * @return Node handle for class. On error, an invalid handle is returned. 
+			 * @param InNodeGuid - (Optional) Explicit guid for the new node. Must be unique within the graph.
+			 * Only useful to specify explicitly when caller is managing or tracking the graph's guids (ex. replacing removed node).
+			 *
+			 * @return Node handle for class. On error, an invalid handle is returned.
 			 */
-			virtual FNodeHandle AddNode(const FMetasoundFrontendClassMetadata& InClassMetadata) = 0;
+			virtual FNodeHandle AddNode(const FMetasoundFrontendClassMetadata& InClassMetadata, FGuid InNodeGuid = FGuid::NewGuid()) = 0;
 
 			/** Add a new node to this graph by duplicating the supplied node.
 			 * The new node has the same interface and node class as the supplied node.

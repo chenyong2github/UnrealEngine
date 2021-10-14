@@ -15,15 +15,10 @@
 #include "NiagaraDataInterface.h"
 #include "IPythonScriptPlugin.h"
 #include "NiagaraClipboard.h"
-#include "NiagaraComponent.h"
-#include "NiagaraConstants.h"
-#include "NiagaraCustomVersion.h"
 #include "NiagaraEditorSettings.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraGraph.h"
 #include "NiagaraEditorModule.h"
-#include "NiagaraEditorSettings.h"
-#include "NiagaraEditorStyle.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraNodeInput.h"
 #include "NiagaraNodeOutput.h"
@@ -36,46 +31,26 @@
 #include "NiagaraScriptSource.h"
 #include "NiagaraSimulationStageBase.h"
 #include "NiagaraStackEditorData.h"
-#include "NiagaraOverviewNode.h"
-#include "NiagaraNodeParameterMapSet.h"
-#include "NiagaraNodeStaticSwitch.h"
-#include "NiagaraOverviewNode.h"
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
-#include "AssetRegistryModule.h"
 #include "ViewModels/NiagaraParameterDefinitionsSubscriberViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
-#include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "ViewModels/NiagaraScratchPadUtilities.h"
 #include "ViewModels/NiagaraScriptViewModel.h"
-#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "Widgets/SNiagaraParameterName.h"
 
-#include "AssetRegistryModule.h"
-#include "AssetToolsModule.h"
-#include "ContentBrowserModule.h"
 #include "EdGraph/EdGraphPin.h"
 #include "Editor/EditorEngine.h"
-#include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "HAL/PlatformFileManager.h"
-#include "IContentBrowserSingleton.h"
 #include "Interfaces/IPluginManager.h"
-#include "NiagaraScript.h"
-#include "NiagaraScriptSource.h"
-#include "NiagaraSimulationStageBase.h"
-#include "NiagaraStackEditorData.h"
 #include "NiagaraSystem.h"
 #include "NiagaraSystemEditorData.h"
 #include "ScopedTransaction.h"
 #include "UpgradeNiagaraScriptResults.h"
-#include "EdGraph/EdGraphPin.h"
-#include "Editor/EditorEngine.h"
-#include "Framework/Notifications/NotificationManager.h"
-#include "HAL/PlatformFileManager.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/FileHelper.h"
 #include "Misc/ScopeExit.h"
@@ -87,30 +62,19 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/Text/STextBlock.h"
-#include "UObject/StructOnScope.h"
 #include "UObject/TextProperty.h"
-#include "Editor/EditorEngine.h"
-#include "Widgets/Notifications/SNotificationList.h"
-#include "Styling/CoreStyle.h"
-#include "Framework/Notifications/NotificationManager.h"
-#include "NiagaraSimulationStageBase.h"
-#include "NiagaraEditorSettings.h"
-#include "Widgets/SNiagaraParameterName.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
-#include "ViewModels/NiagaraOverviewGraphViewModel.h"
-#include "ViewModels/NiagaraScratchPadUtilities.h"
-#include "ViewModels/NiagaraSystemSelectionViewModel.h"
-#include "ViewModels/NiagaraSystemViewModel.h"
-#include "ViewModels/Stack/NiagaraParameterHandle.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/SNiagaraParameterName.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Notifications/SNotificationList.h"
-#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraEditorUtilities"
+
+static int GNiagaraDeletePythonFilesOnError = 1;
+static FAutoConsoleVariableRef CVarDeletePythonFilesOnError(
+	TEXT("fx.Niagara.DeletePythonFilesOnError"),
+	GNiagaraDeletePythonFilesOnError,
+	TEXT("This determines whether we keep the intermediate python used by module versioning around when they were executed and resulted in an error."),
+	ECVF_Default
+);
 
 TSet<FName> FNiagaraEditorUtilities::GetSystemConstantNames()
 {
@@ -3033,7 +2997,10 @@ void FNiagaraEditorUtilities::RunPythonUpgradeScripts(UNiagaraNodeFunctionCall* 
 			ON_SCOPE_EXIT
 			{
 				// Delete temp script file
-				PlatformFile.DeleteFile(*TempScriptFile);
+				if (GNiagaraDeletePythonFilesOnError || !Results->bCancelledByPythonError)
+				{
+					PlatformFile.DeleteFile(*TempScriptFile);
+				}
 			};
 			if (!FFileHelper::SaveStringToFile(FString::Format(*PythonUpgradeScriptStub, {Results->GetPathName(), PythonScript}), *TempScriptFile))
 			{
@@ -3052,7 +3019,7 @@ void FNiagaraEditorUtilities::RunPythonUpgradeScripts(UNiagaraNodeFunctionCall* 
 
 			if (Results->bCancelledByPythonError)
 			{
-				UE_LOG(LogNiagaraEditor, Error, TEXT("%s\n\nPython script:\n%s"), *PythonCommand.CommandResult, *PythonCommand.Command);
+				UE_LOG(LogNiagaraEditor, Error, TEXT("%s\n\nPython script:\n%s\nTo keep the intermediate script around, set fx.Niagara.DeletePythonFilesOnError to 0."), *PythonCommand.CommandResult, *PythonCommand.Command);
 				AddStackWarning(PreviousData->Version, NewData->Version, "Python script ended with error!", bLoggedWarning, OutWarnings);
 			}
 			else

@@ -649,7 +649,7 @@ void RenderDirectLightIntoLumenCards(
 		LightFunctionMaterialProxy = UMaterial::GetDefaultMaterial(MD_LightFunction)->GetRenderProxy();
 	}
 
-	const bool bUseCloudTransmittance = SetupLightCloudTransmittanceParameters(Scene, View, GLumenDirectLightingCloudTransmittance != 0 ? LumenLight.LightSceneInfo : nullptr, PassParameters->PS.LightCloudTransmittanceParameters);
+	const bool bUseCloudTransmittance = SetupLightCloudTransmittanceParameters(GraphBuilder, Scene, View, GLumenDirectLightingCloudTransmittance != 0 ? LumenLight.LightSceneInfo : nullptr, PassParameters->PS.LightCloudTransmittanceParameters);
 
 	FLumenCardDirectLightingPS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FLumenCardDirectLightingPS::FLightType>(LumenLight.Type);

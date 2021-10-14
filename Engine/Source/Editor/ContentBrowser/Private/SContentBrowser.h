@@ -541,7 +541,6 @@ private:
 	SSplitter::ESizeRule GetPathAreaSizeRule() const;
 	SSplitter::ESizeRule GetCollectionsAreaSizeRule() const;
 
-	float GetSearchBoxFillWidth() const;
 private:
 
 	/** The tab that contains this browser */

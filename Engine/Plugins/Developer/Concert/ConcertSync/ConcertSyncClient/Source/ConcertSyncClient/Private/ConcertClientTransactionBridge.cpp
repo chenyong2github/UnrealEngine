@@ -24,7 +24,7 @@
 namespace ConcertClientTransactionBridgeUtil
 {
 
-static TAutoConsoleVariable<int32> CVarIgnoreTransactionIncludeFilter(TEXT("Concert.IgnoreTransactionFilters"), 0, TEXT("Ignore Transaction Object Whitelist Filtering"));
+static TAutoConsoleVariable<int32> CVarIgnoreTransactionIncludeFilter(TEXT("Concert.IgnoreTransactionFilters"), 0, TEXT("Ignore Transaction Object Allow List Filtering"));
 
 bool RunTransactionFilters(const TArray<FTransactionClassFilter>& InFilters, UObject* InObject)
 {

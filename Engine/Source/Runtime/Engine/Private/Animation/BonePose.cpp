@@ -147,11 +147,11 @@ FTransform ExtractTransformForKey(int32 Key, const FRawAnimSequenceTrack &TrackT
 	if (bHasScaleKey)
 	{
 		const int32 ScaleKeyIndex = FMath::Min(Key, TrackToExtract.ScaleKeys.Num() - 1);
-		return FTransform(TrackToExtract.RotKeys[RotKeyIndex], TrackToExtract.PosKeys[PosKeyIndex], TrackToExtract.ScaleKeys[ScaleKeyIndex]);
+		return FTransform(FQuat(TrackToExtract.RotKeys[RotKeyIndex]), FVector(TrackToExtract.PosKeys[PosKeyIndex]), FVector(TrackToExtract.ScaleKeys[ScaleKeyIndex]));
 	}
 	else
 	{
-		return FTransform(TrackToExtract.RotKeys[RotKeyIndex], TrackToExtract.PosKeys[PosKeyIndex], DefaultScale3D);
+		return FTransform(FQuat(TrackToExtract.RotKeys[RotKeyIndex]), FVector(TrackToExtract.PosKeys[PosKeyIndex]), FVector(DefaultScale3D));
 	}
 }
 

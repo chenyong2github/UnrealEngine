@@ -53,9 +53,7 @@ bool FSnapshotVersionInfo::IsInitialized() const
 
 void FSnapshotVersionInfo::ApplyToArchive(FArchive& Archive) const
 {
-	if (ensure(Archive.IsLoading()))
-	{
-		FPackageFileVersion UEVersion(FileVersion.FileVersion, (EUnrealEngineObjectUE5Version)FileVersion.FileVersionUE5);
+	FPackageFileVersion UEVersion(FileVersion.FileVersion, (EUnrealEngineObjectUE5Version)FileVersion.FileVersionUE5);
 
 		Archive.SetUEVer(UEVersion);
 		Archive.SetLicenseeUEVer(FileVersion.FileVersionLicensee);
@@ -67,7 +65,6 @@ void FSnapshotVersionInfo::ApplyToArchive(FArchive& Archive) const
 			EngineCustomVersions.SetVersion(CustomVersion.Key, CustomVersion.Version, CustomVersion.FriendlyName);
 		}
 		Archive.SetCustomVersions(EngineCustomVersions);
-	}
 }
 
 int32 FSnapshotVersionInfo::GetSnapshotCustomVersion() const

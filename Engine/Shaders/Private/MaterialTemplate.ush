@@ -128,6 +128,8 @@
 
 #define MATERIALBLENDING_ANY_TRANSLUCENT (MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE || MATERIALBLENDING_MODULATE)
 
+#define IS_MATERIAL_TRANSLUCENT_AND_LIT  (MATERIALBLENDING_TRANSLUCENT)
+
 #define IS_MESHPARTICLE_FACTORY (PARTICLE_MESH_FACTORY || NIAGARA_MESH_FACTORY)
 
 #define HAS_INSTANCE_LOCAL_TO_WORLD_PS	(NEEDS_INSTANCE_LOCAL_TO_WORLD_PS && (USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY))
@@ -1557,6 +1559,25 @@ float3 MaterialExpressionPostSkinOffset(FMaterialVertexParameters Parameters)
 	return Parameters.PostSkinOffset;
 #else
 	return 0;
+#endif
+}
+
+// We use a forward declaration towards the real implementation of functions we need. This is always defined for base passes (opaque and translucent)
+#if defined(IS_BASE_PASS) && IS_MOBILE_BASE_PASS==0
+float3 GetSkyLightReflectionSupportingBlend(float3 ReflectionVector, float Roughness, out float OutSkyAverageBrightness);
+#elif defined(IS_BASE_PASS) && IS_MOBILE_BASE_PASS==1
+half3 GetMobileSkyLightReflection(half3 ReflectionVector, half Roughness, half CubemapMaxMip);
+#endif
+
+float3 MaterialExpressionSkyLightEnvMapSample(float3 Direction, float Roughness)
+{
+#if defined(IS_BASE_PASS) && IS_MOBILE_BASE_PASS==0
+	float SkyAverageBrightness = 1.0f;
+	return GetSkyLightReflectionSupportingBlend(Direction, Roughness, SkyAverageBrightness);
+#elif defined(IS_BASE_PASS) && IS_MOBILE_BASE_PASS==1
+	return GetMobileSkyLightReflection(Direction, Roughness, MobileReflectionCapture.Params.y);
+#else 
+	return 0.0f;
 #endif
 }
 

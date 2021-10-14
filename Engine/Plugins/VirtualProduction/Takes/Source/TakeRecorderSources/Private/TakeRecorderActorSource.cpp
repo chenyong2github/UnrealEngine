@@ -1203,7 +1203,7 @@ void UTakeRecorderActorSource::RebuildRecordedPropertyMapRecursive(const FFieldV
 		UE_LOG(LogTakesCore, Log, TEXT("Component: %s EditorOnly: %d Transient: %d"), *Component->GetFName().ToString(), Component->IsEditorOnly(), Component->HasAnyFlags(RF_Transient));
 		// takerecorder-todo: When merged with Dev Framework, CL 4279185, switch this to checking against
 		// IsVisualizationComponent() so that we can exclude things like default component billboards.
-		// We also need a blacklist of classes, such as those that derive from the input framework that are
+		// We also need a deny list of classes, such as those that derive from the input framework that are
 		// added at runtime, we don't want to record those.
 		if (Component->IsEditorOnly())
 		{

@@ -12,6 +12,10 @@
 
 #include "DatasmithImportFactory.generated.h"
 
+namespace UE::DatasmithImporter
+{
+	class FExternalSource;
+}
 
 namespace DatasmithImportFactoryImpl
 {
@@ -43,6 +47,7 @@ public:
 	virtual UClass* ResolveSupportedClass() override;
 	virtual void CleanUp() override;
 	virtual UObject* FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, const FString& Filename, const TCHAR* InParms, FFeedbackContext* Warn, bool& bOutOperationCanceled) override;
+	UObject* CreateFromExternalSource(UClass* InClass, UObject* InParent, FName InName, EObjectFlags InFlags, const TSharedRef<UE::DatasmithImporter::FExternalSource>& InExternalSource, const TCHAR* InParms, FFeedbackContext* InWarn, bool& bOutOperationCanceled);
 	virtual IImportSettingsParser* GetImportSettingsParser() override { return this; }
 	//~ End UFactory Interface
 

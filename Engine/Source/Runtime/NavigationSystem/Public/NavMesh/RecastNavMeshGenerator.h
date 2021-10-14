@@ -336,7 +336,7 @@ protected:
 	/** Gather geometry */
 	virtual void GatherGeometry(const FRecastNavMeshGenerator& ParentGenerator, bool bGeometryChanged);
 	/** Gather geometry sources to be processed later by the GatherGeometryFromSources */
-	void PrepareGeometrySources(const FRecastNavMeshGenerator& ParentGenerator, bool bGeometryChanged);
+	virtual void PrepareGeometrySources(const FRecastNavMeshGenerator& ParentGenerator, bool bGeometryChanged);
 	/** Gather geometry from the prefetched sources */
 	void GatherGeometryFromSources();
 	/** Gather geometry from the prefetched sources time sliced version */

@@ -6,6 +6,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Notifications/SNotificationList.h"
 #include "Animation/CurveSequence.h"
 #include "Framework/Commands/Commands.h"
 
@@ -55,14 +56,11 @@ private:
 	EActiveTimerReturnType		UpdateBusyIndicator(double InCurrentTime, float InDeltaTime);
 	EActiveTimerReturnType		UpdateWarnings(double InCurrentTime, float InDeltaTime);
 
-	double LastDDCGetTime = 0;
-	double LastDDCPutTime = 0;
+	double ElapsedDownloadTime = 0;
+	double ElapsedUploadTime = 0;
+	double ElapsedBusyTime = 0;
 
-	bool bGetActive = false;
-	bool bPutActive = false;
 	bool bBusy = false;
 
-	FCurveSequence BusyPulseSequence;
-	FCurveSequence FadeGetSequence;
-	FCurveSequence FadePutSequence;
+	TSharedPtr<SNotificationItem> NotificationItem;
 };

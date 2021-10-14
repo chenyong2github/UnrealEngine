@@ -255,6 +255,8 @@ private:
 	FName SourceName;
 	FString Region;
 
+	TOptional<FZenPackageVersioningInfo> VersioningInfo;
+
 	FPackageStoreNameMapBuilder NameMapBuilder;
 	TArray<FPackageObjectIndex> Imports;
 	TArray<FExport> Exports;
@@ -275,6 +277,7 @@ private:
 	uint64 ExportBundleEntriesSize = 0;
 	uint64 GraphDataSize = 0;
 	uint64 NameMapSize = 0;
+	uint64 VersioningInfoSize = 0;
 	uint32 LoadOrder = 0;
 	
 	TArray<FExportBundleGraphNode> ExportBundleGraphNodes;
@@ -321,7 +324,7 @@ public:
 		return TotalScriptObjectCount;
 	}
 
-	IOSTOREUTILITIES_API void Initialize(const ITargetPlatform* TargetPlatform);
+	IOSTOREUTILITIES_API void Initialize();
 	void Initialize(const FIoBuffer& ScriptObjectsBuffer);
 
 	FPackageStorePackage* CreateMissingPackage(const FName& Name) const;
@@ -357,7 +360,8 @@ private:
 
 	struct FPackageStoreHeaderData
 	{
-		FPackageSummary Summary;
+		FZenPackageSummary Summary;
+		TOptional<FZenPackageVersioningInfo> VersioningInfo;
 		TArray<FPackageId> ImportedPackageIds;
 		TArray<FNameEntryId> NameMap;
 		TArray<FPackageObjectIndex> Imports;
@@ -389,8 +393,8 @@ private:
 	void CreateExportBundles(FPackageStorePackage* Package) const;
 	bool VerifyRedirect(const FPackageStorePackage* SourcePackage, FPackageStorePackage& TargetPackage, bool bIsBuildingDLC) const;
 	void FinalizePackageHeader(FPackageStorePackage* Package) const;
-	void FindScriptObjectsRecursive(FPackageObjectIndex OuterIndex, UObject* Object, EObjectMark ExcludedObjectMarks, const ITargetPlatform* TargetPlatform);
-	void FindScriptObjects(const ITargetPlatform* TargetPlatform);
+	void FindScriptObjectsRecursive(FPackageObjectIndex OuterIndex, UObject* Object);
+	void FindScriptObjects();
 
 	TMap<FPackageObjectIndex, FScriptObjectData> ScriptObjectsMap;
 	uint64 TotalPackageCount = 0;

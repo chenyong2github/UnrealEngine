@@ -458,23 +458,20 @@ public:
 	/** find and return redirection object for given object*/
 	static UObject* FindRedirection(const UObject* Object);
 
-	/** blocks all categories from logging. It can be bypassed with white list for categories */
+	/** blocks all categories from logging. It can be bypassed with the category allow list */
 	void BlockAllCategories(bool InBlock) { bBlockedAllCategories = InBlock; }
 
 	/** checks if all categories are blocked */
 	bool IsBlockedForAllCategories() const { return !!bBlockedAllCategories; }
 
-	/** Returns white list for modifications */
-	const TArray<FName>& GetWhiteList() const { return CategoriesWhitelist; }
+	/** Returns category allow list for logging */
+	const TArray<FName>& GetCategoryAllowList() const { return CategoryAllowList; }
 
-	bool IsWhiteListed(const FName& Name) const { return CategoriesWhitelist.Find(Name) != INDEX_NONE; }
+	bool IsCategoryAllowed(const FName& Name) const { return CategoryAllowList.Find(Name) != INDEX_NONE; }
 
-	void AddCategoryToWhitelist(FName Category) { CategoriesWhitelist.AddUnique(Category); }
+	void AddCategoryToAllowList(FName Category) { CategoryAllowList.AddUnique(Category); }
 
-	UE_DEPRECATED(4.12, "Please use the AddCategoryToWhitelist instead")
-	void AddCategortyToWhiteList(FName Category) { AddCategoryToWhitelist(Category); }
-
-	void ClearWhiteList() { CategoriesWhitelist.Reset(); }
+	void ClearCategoryAllowList() { CategoryAllowList.Reset(); }
 
 	/** Generates and returns Id unique for given timestamp - used to connect different logs between (ex. text log with geometry shape) */
 	int32 GetUniqueId(float Timestamp);
@@ -548,12 +545,24 @@ public:
 	typedef TMap<FObjectKey, TWeakObjectPtr<const UWorld> > FObjectToWorldMapType;
 	FObjectToWorldMapType& GetObjectToWorldMap() { return ObjectToWorldMap; }
 
-	void AddWhitelistedClass(UClass& InClass);
-	bool IsClassWhitelisted(const UClass& InClass) const;
+	void AddClassToAllowList(UClass& InClass);
+	bool IsClassAllowed(const UClass& InClass) const;
 
-	void AddWhitelistedObject(const UObject& InObject);
-	void ClearObjectWhitelist();
-	bool IsObjectWhitelisted(const UObject* InObject) const;
+	void AddObjectToAllowList(const UObject& InObject);
+	void ClearObjectAllowList();
+	bool IsObjectAllowed(const UObject* InObject) const;
+
+	UE_DEPRECATED(5.0, "Use AddCategoryToAllowList instead")
+	void AddCategoryToWhitelist(FName Category) { AddCategoryToAllowList(Category); }
+	
+	UE_DEPRECATED(5.0, "Use ClearCategoryAllowList instead")
+	void ClearWhiteList() { ClearCategoryAllowList(); }
+
+	UE_DEPRECATED(5.0, "Use AddObjectToAllowList instead")
+	void AddWhitelistedClass(UClass& InClass) { AddClassToAllowList(InClass); }
+
+	UE_DEPRECATED(5.0, "Use AddObjectToAllowList instead")
+	void AddWhitelistedObject(const UObject& InObject) { AddObjectToAllowList(InObject); }
 
 private:
 	FVisualLogger();
@@ -565,17 +574,18 @@ protected:
 	// Map for inter-objects redirections
 	static TMap<const UWorld*, FOwnerToChildrenRedirectionMap> WorldToRedirectionMap;
 
-	// white-listed classes - only instances of these classes will be logged. 
-	// if ClassWhitelist is empty (default) everything will log
-	TArray<UClass*> ClassWhitelist;
+	// allowed classes - only instances of these classes will be logged. 
+	// if ClassAllowList is empty (default) everything will log
+	TArray<UClass*> ClassAllowList;
 
-	// white-listed objects - takes priority over class whitelist and should be used to create exceptions in it
-	// if ObjectWhitelist is empty (default) everything will log
+	// allowed objects - takes priority over class allow list and should be used to create exceptions in it
+	// if ObjectAllowList is empty (default) everything will log
 	// do NOT read from those pointers, they can be invalid!
-	TSet<FObjectKey> ObjectWhitelist;
+	TSet<FObjectKey> ObjectAllowList;
 
-	// white list of categories to bypass blocking
-	TArray<FName>	CategoriesWhitelist;
+	// list of categories that are still allowed to be logged when logging is blocking
+	TArray<FName> CategoryAllowList;
+
 	// Visual Logger extensions map
 	TMap<FName, FVisualLogExtensionInterface*> AllExtensions;
 	// last generated unique id for given times tamp

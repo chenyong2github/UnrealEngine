@@ -415,6 +415,15 @@ FTraceHandle UWorld::AsyncOverlapByObjectType(const FVector& Pos, const FQuat& R
 	return StartNewTrace(AsyncTraceState, FOverlapDatum(this, CollisionShape, Params, FCollisionResponseParams::DefaultResponseParam, ObjectQueryParams, DefaultCollisionChannel, UserData, Pos, Rot, InDelegate, AsyncTraceState.CurrentFrame));
 }
 
+FTraceHandle UWorld::AsyncOverlapByProfile(const FVector& Pos, const FQuat& Rot, FName ProfileName, const FCollisionShape& CollisionShape, const FCollisionQueryParams& Params /* = FCollisionQueryParams::DefaultQueryParam */, FOverlapDelegate* InDelegate /* = NULL */, uint32 UserData /* = 0 */)
+{
+	ECollisionChannel TraceChannel;
+	FCollisionResponseParams ResponseParam;
+	GetCollisionProfileChannelAndResponseParams(ProfileName, TraceChannel, ResponseParam);
+
+	return StartNewTrace(AsyncTraceState, FOverlapDatum(this, CollisionShape, Params, ResponseParam, FCollisionObjectQueryParams::DefaultObjectQueryParam, TraceChannel, UserData, Pos, Rot, InDelegate, AsyncTraceState.CurrentFrame));
+}
+
 bool UWorld::IsTraceHandleValid(const FTraceHandle& Handle, bool bOverlapTrace)
 {
 	// only valid if it's previous frame or current frame

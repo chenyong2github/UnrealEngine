@@ -222,9 +222,12 @@ static void AddTimingEventToBuilder(ITimingEventsTrackDrawStateBuilder& Builder,
 		case Insights::ETimingEventsColoringMode::ByDuration:
 		{
 			const double EventDuration = EventEndTime - EventStartTime;
-			EventColor = (EventDuration > 0.01) ? 0xFF883333 :
-						 (EventDuration > 0.001) ? 0xFF998833 :
-						 (EventDuration > 0.0001) ? 0xFF338833 : 0xFF333388;
+			EventColor = (EventDuration >= 0.01)     ? 0xFF883333 : // red:    >= 10ms
+						 (EventDuration >= 0.001)    ? 0xFF998833 : // yellow: [1ms .. 10ms)
+						 (EventDuration >= 0.0001)   ? 0xFF338833 : // green:  [100us .. 1ms)
+						 (EventDuration >= 0.00001)  ? 0xFF338888 : // cyan:   [10us .. 100us)
+						 (EventDuration >= 0.000001) ? 0xFF333388 : // blue:   [1us .. 10us)
+						                               0xFF888888;  // grey:   < 1us
 			break;
 		}
 		default:

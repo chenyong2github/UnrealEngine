@@ -51,6 +51,7 @@ public class Sequencer : ModuleRules
                 "ViewportInteraction",
                 "SerializedRecorderInterface",
 				"ToolMenus",
+				"ToolWidgets",
 			}
 		);
 

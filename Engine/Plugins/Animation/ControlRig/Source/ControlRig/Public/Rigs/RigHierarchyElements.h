@@ -10,7 +10,7 @@ struct FRigUnitContext;
 struct FRigBaseElement;
 class URigHierarchy;
 
-DECLARE_DELEGATE_RetVal_ThreeParams(FTransform, FRigSocketGetWorldTransformDelegate, const FRigUnitContext*, const FRigElementKey& /* Key */, bool /* bInitial */);
+DECLARE_DELEGATE_RetVal_ThreeParams(FTransform, FRigReferenceGetWorldTransformDelegate, const FRigUnitContext*, const FRigElementKey& /* Key */, bool /* bInitial */);
 
 #define DECLARE_RIG_ELEMENT_METHODS(ElementType) \
 template<typename T> \
@@ -581,7 +581,7 @@ protected:
 			InElement->GetType() == ERigElementType::Null ||
 			InElement->GetType() == ERigElementType::Control ||
 			InElement->GetType() == ERigElementType::RigidBody ||
-			InElement->GetType() == ERigElementType::Socket;
+			InElement->GetType() == ERigElementType::Reference;
 	}
 
 public:
@@ -627,7 +627,7 @@ protected:
 	{
 		return InElement->GetType() == ERigElementType::Bone ||
 			InElement->GetType() == ERigElementType::RigidBody ||
-			InElement->GetType() == ERigElementType::Socket;
+			InElement->GetType() == ERigElementType::Reference;
 	}
 
 	friend struct FRigBaseElement;
@@ -1123,37 +1123,37 @@ protected:
 };
 
 USTRUCT(BlueprintType)
-struct CONTROLRIG_API FRigSocketElement : public FRigSingleParentElement
+struct CONTROLRIG_API FRigReferenceElement : public FRigSingleParentElement
 {
 public:
 	
 	GENERATED_BODY()
-	DECLARE_RIG_ELEMENT_METHODS(FRigSocketElement)
+	DECLARE_RIG_ELEMENT_METHODS(FRigReferenceElement)
 
-    FRigSocketElement()
+    FRigReferenceElement()
         : FRigSingleParentElement()
 	{
-		Key.Type = ERigElementType::Socket;
+		Key.Type = ERigElementType::Reference;
 	}
 	
-	virtual ~FRigSocketElement(){}
+	virtual ~FRigReferenceElement(){}
 
 	virtual void Save(FArchive& A, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase) override;
 	virtual void Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase) override;
 
-	FTransform GetSocketWorldTransform(const FRigUnitContext* InContext, bool bInitial) const;
+	FTransform GetReferenceWorldTransform(const FRigUnitContext* InContext, bool bInitial) const;
 
 	virtual void CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial) override;
 
 protected:
 
-	FRigSocketGetWorldTransformDelegate GetWorldTransformDelegate;
+	FRigReferenceGetWorldTransformDelegate GetWorldTransformDelegate;
 
 	virtual void CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy) override;
 
 	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
 	{
-		return InElement->GetType() == ERigElementType::Socket;
+		return InElement->GetType() == ERigElementType::Reference;
 	}
 
 	friend struct FRigBaseElement;

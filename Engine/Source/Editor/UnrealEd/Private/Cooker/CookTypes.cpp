@@ -81,8 +81,8 @@ void SetIsSchedulerThread(bool bValue)
 }
 
 FCookSavePackageContext::FCookSavePackageContext(const ITargetPlatform* InTargetPlatform,
-	ICookedPackageWriter* InPackageWriter, bool bInForceLegacyOffsets, FStringView InWriterDebugName)
-	: SaveContext(InTargetPlatform, InPackageWriter->GetCookCapabilities().bSavePackageSupported ? InPackageWriter : nullptr, bInForceLegacyOffsets)
+	ICookedPackageWriter* InPackageWriter, FStringView InWriterDebugName)
+	: SaveContext(InTargetPlatform, InPackageWriter->GetCookCapabilities().bSavePackageSupported ? InPackageWriter : nullptr)
 	, WriterDebugName(InWriterDebugName)
 	, PackageWriter(InPackageWriter)
 {

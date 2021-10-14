@@ -1111,8 +1111,10 @@ bool FLiveLinkClient::IsSubjectTimeSynchronized(FLiveLinkSubjectName InSubjectNa
 	return false;
 }
 
-TSubclassOf<ULiveLinkRole> FLiveLinkClient::GetSubjectRole(const FLiveLinkSubjectKey& InSubjectKey) const
+TSubclassOf<ULiveLinkRole> FLiveLinkClient::GetSubjectRole_AnyThread(const FLiveLinkSubjectKey& InSubjectKey) const
 {
+	FScopeLock Lock(&CollectionAccessCriticalSection);
+
 	if (const FLiveLinkCollectionSubjectItem* SubjectItem = Collection->FindSubject(InSubjectKey))
 	{
 		return SubjectItem->GetSubject()->GetRole();
@@ -1121,8 +1123,10 @@ TSubclassOf<ULiveLinkRole> FLiveLinkClient::GetSubjectRole(const FLiveLinkSubjec
 	return TSubclassOf<ULiveLinkRole>();
 }
 
-TSubclassOf<ULiveLinkRole> FLiveLinkClient::GetSubjectRole(FLiveLinkSubjectName InSubjectName) const
+TSubclassOf<ULiveLinkRole> FLiveLinkClient::GetSubjectRole_AnyThread(FLiveLinkSubjectName InSubjectName) const
 {
+	FScopeLock Lock(&CollectionAccessCriticalSection);
+
 	if (const FLiveLinkCollectionSubjectItem* SubjectItem = Collection->FindEnabledSubject(InSubjectName))
 	{
 		return SubjectItem->GetSubject()->GetRole();
@@ -1131,8 +1135,10 @@ TSubclassOf<ULiveLinkRole> FLiveLinkClient::GetSubjectRole(FLiveLinkSubjectName 
 	return TSubclassOf<ULiveLinkRole>();
 }
 
-bool FLiveLinkClient::DoesSubjectSupportsRole(const FLiveLinkSubjectKey& InSubjectKey, TSubclassOf<ULiveLinkRole> InSupportedRole) const
+bool FLiveLinkClient::DoesSubjectSupportsRole_AnyThread(const FLiveLinkSubjectKey& InSubjectKey, TSubclassOf<ULiveLinkRole> InSupportedRole) const
 {
+	FScopeLock Lock(&CollectionAccessCriticalSection);
+
 	if (const FLiveLinkCollectionSubjectItem* SubjectItem = Collection->FindSubject(InSubjectKey))
 	{
 		return SubjectItem->GetSubject()->SupportsRole(InSupportedRole);
@@ -1141,8 +1147,10 @@ bool FLiveLinkClient::DoesSubjectSupportsRole(const FLiveLinkSubjectKey& InSubje
 	return false;
 }
 
-bool FLiveLinkClient::DoesSubjectSupportsRole(FLiveLinkSubjectName InSubjectName, TSubclassOf<ULiveLinkRole> InSupportedRole) const
+bool FLiveLinkClient::DoesSubjectSupportsRole_AnyThread(FLiveLinkSubjectName InSubjectName, TSubclassOf<ULiveLinkRole> InSupportedRole) const
 {
+	FScopeLock Lock(&CollectionAccessCriticalSection);
+
 	if (const FLiveLinkCollectionSubjectItem* SubjectItem = Collection->FindEnabledSubject(InSubjectName))
 	{
 		return SubjectItem->GetSubject()->SupportsRole(InSupportedRole);
@@ -1764,14 +1772,24 @@ void FLiveLinkClient_Base_DEPRECATED::ClearAllSubjectsFrames()
 	ClearAllSubjectsFrames_AnyThread();
 }
 
-void FLiveLinkClient_Base_DEPRECATED::AddSourceToSubjectWhiteList(FName SubjectName, FGuid SourceGuid)
+TSubclassOf<ULiveLinkRole> FLiveLinkClient_Base_DEPRECATED::GetSubjectRole(const FLiveLinkSubjectKey& SubjectKey) const
 {
-	SetSubjectEnabled({ SourceGuid, SubjectName }, true);
+	return GetSubjectRole_AnyThread(SubjectKey);
 }
 
-void FLiveLinkClient_Base_DEPRECATED::RemoveSourceFromSubjectWhiteList(FName SubjectName, FGuid SourceGuid)
+TSubclassOf<ULiveLinkRole> FLiveLinkClient_Base_DEPRECATED::GetSubjectRole(FLiveLinkSubjectName SubjectName) const
 {
-	SetSubjectEnabled({ SourceGuid, SubjectName}, false);
+	return GetSubjectRole_AnyThread(SubjectName);
+}
+
+bool FLiveLinkClient_Base_DEPRECATED::DoesSubjectSupportsRole(const FLiveLinkSubjectKey& SubjectKey, TSubclassOf<ULiveLinkRole> SupportedRole) const
+{
+	return DoesSubjectSupportsRole_AnyThread(SubjectKey, SupportedRole);
+}
+
+bool FLiveLinkClient_Base_DEPRECATED::DoesSubjectSupportsRole(FLiveLinkSubjectName SubjectName, TSubclassOf<ULiveLinkRole> SupportedRole) const
+{
+	return DoesSubjectSupportsRole_AnyThread(SubjectName, SupportedRole);
 }
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

@@ -165,7 +165,7 @@ namespace UnrealBuildTool
 		public bool bInstalled;
 
 		/// <summary>
-		/// For plugins that are under a platform folder (eg. /PS4/), determines whether compiling the plugin requires the build platform and/or SDK to be available
+		/// For plugins that are under a platform folder (eg. /IOS/), determines whether compiling the plugin requires the build platform and/or SDK to be available
 		/// </summary>
 		public bool bRequiresBuildPlatform;
 
@@ -206,8 +206,9 @@ namespace UnrealBuildTool
 		/// Reads a plugin descriptor from a json object
 		/// </summary>
 		/// <param name="RawObject">The object to read from</param>
+		/// <param name="PluginPath"></param>
 		/// <returns>New plugin descriptor</returns>
-		public PluginDescriptor(JsonObject RawObject)
+		public PluginDescriptor(JsonObject RawObject, FileReference PluginPath)
 		{
 			// Read the version
 			if (!RawObject.TryGetIntegerField("FileVersion", out FileVersion))
@@ -265,7 +266,7 @@ namespace UnrealBuildTool
 					}
 					else
 					{
-						Log.TraceWarning("Unknown platform {0} listed in plugin with FriendlyName {1}", TargetPlatformName, FriendlyName);
+						Log.TraceWarningTask(PluginPath, $"Unknown platform {TargetPlatformName} listed in plugin with FriendlyName \"{FriendlyName}\"");
 					}
 				}
 			}
@@ -273,7 +274,7 @@ namespace UnrealBuildTool
 			JsonObject[] ModulesArray;
 			if (RawObject.TryGetObjectArrayField("Modules", out ModulesArray))
 			{
-				Modules = Array.ConvertAll(ModulesArray, x => ModuleDescriptor.FromJsonObject(x)).ToList();
+				Modules = Array.ConvertAll(ModulesArray, x => ModuleDescriptor.FromJsonObject(x, PluginPath)).ToList();
 			}
 
 			JsonObject[] LocalizationTargetsArray;
@@ -324,7 +325,7 @@ namespace UnrealBuildTool
 			JsonObject RawObject = JsonObject.Read(FileName);
 			try
 			{
-				PluginDescriptor Descriptor = new PluginDescriptor(RawObject);
+				PluginDescriptor Descriptor = new PluginDescriptor(RawObject, FileName);
 				if (Descriptor.Modules != null)
 				{
 					foreach (ModuleDescriptor Module in Descriptor.Modules)

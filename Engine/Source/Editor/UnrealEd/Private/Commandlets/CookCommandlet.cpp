@@ -155,11 +155,11 @@ namespace DetailedCookStats
 					));
 
 					TArray<FString> CookStatsToSend;
-					const bool bUseWhitelist = GConfig->GetArray(TEXT("CookAnalytics"), TEXT("CookStats"), CookStatsToSend, GEngineIni) > 0;
+					const bool bFilterStats = GConfig->GetArray(TEXT("CookAnalytics"), TEXT("CookStats"), CookStatsToSend, GEngineIni) > 0;
 					// Sends each cook stat to the analytics provider.
-					auto SendCookStatsToAnalytics = [CookAnalytics, &CookStatsToSend, bUseWhitelist](const FString& StatName, const TArray<FCookStatsManager::StringKeyValue>& StatAttributes)
+					auto SendCookStatsToAnalytics = [CookAnalytics, &CookStatsToSend, bFilterStats](const FString& StatName, const TArray<FCookStatsManager::StringKeyValue>& StatAttributes)
 					{
-						if (!bUseWhitelist || CookStatsToSend.Contains(StatName))
+						if (!bFilterStats || CookStatsToSend.Contains(StatName))
 						{
 							// convert filtered stats directly to an analytics event
 							TArray<FAnalyticsEventAttribute> StatAttrs;
@@ -172,7 +172,7 @@ namespace DetailedCookStats
 						}
 						else
 						{
-							UE_LOG(LogCookCommandlet, Verbose, TEXT("[%s] not present on cook analytics whitelist"), *StatName);
+							UE_LOG(LogCookCommandlet, Verbose, TEXT("[%s] not present in analytics CookStats filter"), *StatName);
 						}
 					};
 					FCookStatsManager::LogCookStats(SendCookStatsToAnalytics);

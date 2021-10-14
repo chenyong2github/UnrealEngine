@@ -192,9 +192,11 @@ void UK2Node_GetInputActionValue::GetMenuActions(FBlueprintActionDatabaseRegistr
 			UBlueprintNodeSpawner* NodeSpawner = UBlueprintNodeSpawner::Create(GetClass());
 			check(NodeSpawner != nullptr);
 
-			const UInputAction* Action = Cast<const UInputAction>(ActionAsset.GetAsset());
-			NodeSpawner->CustomizeNodeDelegate = UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateStatic(CustomizeInputNodeLambda, TWeakObjectPtr<const UInputAction>(Action));
-			ActionRegistrar.AddBlueprintAction(Action, NodeSpawner);
+			if (const UInputAction* Action = Cast<const UInputAction>(ActionAsset.GetAsset()))
+			{
+				NodeSpawner->CustomizeNodeDelegate = UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateStatic(CustomizeInputNodeLambda, TWeakObjectPtr<const UInputAction>(Action));
+				ActionRegistrar.AddBlueprintAction(Action, NodeSpawner);
+			}
 		}
 	}
 	else if (const UInputAction* Action = Cast<const UInputAction>(ActionRegistrar.GetActionKeyFilter()))

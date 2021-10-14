@@ -15,8 +15,8 @@
 			"Name": "PixWinPlugin",
 			"Type": "DeveloperTool",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [ "Win64" ],
-			"BlacklistTargets": [ "Server" ]
+			"PlatformAllowList": [ "Win64" ],
+			"TargetDenyList": [ "Server" ]
 		}
 	]
 }

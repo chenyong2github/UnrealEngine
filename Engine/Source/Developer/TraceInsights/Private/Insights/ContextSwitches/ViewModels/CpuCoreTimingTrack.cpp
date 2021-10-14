@@ -52,7 +52,7 @@ void FCpuCoreTimingTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Bui
 			const uint32 SystemThreadId = CpuCoreEvent.SystemThreadId;
 
 			Builder.AddEvent(CpuCoreEvent.Start, CpuCoreEvent.End, EventDepth, EventColor,
-				[SystemThreadId](float Width) -> const FString
+				[SystemThreadId, &CpuCoreEvent](float Width) -> const FString
 				{
 					const TCHAR* ThreadName = nullptr;
 
@@ -72,14 +72,24 @@ void FCpuCoreTimingTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Bui
 						}
 					}
 
+					FString EventName;
+
 					if (ThreadName)
 					{
-						return FString(ThreadName);
+						EventName = ThreadName;
 					}
 					else
 					{
-						return FString::Printf(TEXT("Unknown %d"), SystemThreadId);
+						EventName = FString::Printf(TEXT("Unknown %d"), SystemThreadId);
 					}
+
+					if (Width > EventName.Len() * 4.0f + 32.0f)
+					{
+						const double Duration = CpuCoreEvent.End - CpuCoreEvent.Start;
+						FTimingEventsTrackDrawStateBuilder::AppendDurationToEventName(EventName, Duration);
+					}
+
+					return EventName;
 				});
 
 			return TraceServices::EContextSwitchEnumerationResult::Continue;

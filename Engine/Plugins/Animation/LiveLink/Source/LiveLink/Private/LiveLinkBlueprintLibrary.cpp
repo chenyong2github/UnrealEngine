@@ -239,7 +239,7 @@ TSubclassOf<ULiveLinkRole> ULiveLinkBlueprintLibrary::GetSpecificLiveLinkSubject
 	if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
 	{
 		ILiveLinkClient& LiveLinkClient = ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
-		return LiveLinkClient.GetSubjectRole(SubjectKey);
+		return LiveLinkClient.GetSubjectRole_AnyThread(SubjectKey);
 	}
 	return TSubclassOf<ULiveLinkRole>();
 }
@@ -250,7 +250,7 @@ TSubclassOf<ULiveLinkRole> ULiveLinkBlueprintLibrary::GetLiveLinkSubjectRole(con
 	if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
 	{
 		ILiveLinkClient& LiveLinkClient = ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
-		return LiveLinkClient.GetSubjectRole(SubjectName);
+		return LiveLinkClient.GetSubjectRole_AnyThread(SubjectName);
 	}
 	return TSubclassOf<ULiveLinkRole>();
 }

@@ -14,7 +14,7 @@ void UOptimusNode_GetResource::ConstructNode()
 		AddPinDirect(
 			Res->ResourceName,
 			EOptimusNodePinDirection::Output,
-			FOptimusNodePinStorageConfig({Optimus::ContextName::Vertex}),
+			FOptimusNodePinStorageConfig({Optimus::DomainName::Vertex}),
 			Res->DataType);
 	}
 }

@@ -91,7 +91,7 @@ bool ULiveLinkAnimationVirtualSubject::AreSubjectsValid(const TArray<FLiveLinkSu
 				return (SubjectData.SubjectName == SubjectName);
 			});
 
-		bValid = FoundPtr != nullptr && LiveLinkClient->DoesSubjectSupportsRole(*FoundPtr, GetRole());
+		bValid = FoundPtr != nullptr && LiveLinkClient->DoesSubjectSupportsRole_AnyThread(*FoundPtr, GetRole());
 		if (!bValid)
 		{
 			break;

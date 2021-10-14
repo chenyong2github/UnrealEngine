@@ -23,7 +23,7 @@
 			"Name": "SteamVR",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"Linux"
 			]
@@ -32,7 +32,7 @@
 			"Name": "SteamVRInput",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64"
 			]
 		},
@@ -40,7 +40,7 @@
 			"Name": "SteamVRInputDevice",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64"
 			]
 		},
@@ -48,7 +48,7 @@
 			"Name": "SteamVREditor",
 			"Type": "UncookedOnly",
 			"LoadingPhase": "PostEngineInit",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64"
 			]
 		}

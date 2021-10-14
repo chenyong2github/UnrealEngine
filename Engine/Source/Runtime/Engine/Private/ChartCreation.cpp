@@ -126,15 +126,19 @@ void FDumpFPSChartToEndpoint::HandleHitchBucket(const FHistogram& HitchHistogram
 void FDumpFPSChartToEndpoint::HandleHitchSummary(int32 TotalHitchCount, double TotalTimeSpentInHitchBuckets)
 {
 	PrintToEndpoint(FString::Printf(TEXT("Total hitch count:  %i"), TotalHitchCount));
+	PrintToEndpoint(FString::Printf(TEXT("Total hitch time:  %.2f s (%0.2f %%)"), TotalTimeSpentInHitchBuckets, Chart.GetPercentHitchTime()));
 
 	const double ReciprocalNumHitches = (TotalHitchCount > 0) ? (1.0 / (double)TotalHitchCount) : 0.0;
-	PrintToEndpoint(FString::Printf(TEXT("Hitch frames bound by game thread:  %i  (%0.1f percent)"), Chart.TotalGameThreadBoundHitchCount, ReciprocalNumHitches * Chart.TotalGameThreadBoundHitchCount));
-	PrintToEndpoint(FString::Printf(TEXT("Hitch frames bound by render thread:  %i  (%0.1f percent)"), Chart.TotalRenderThreadBoundHitchCount, ReciprocalNumHitches * Chart.TotalRenderThreadBoundHitchCount));
-	PrintToEndpoint(FString::Printf(TEXT("Hitch frames bound by RHI thread:  %i  (%0.1f percent)"), Chart.TotalRHIThreadBoundHitchCount, ReciprocalNumHitches * Chart.TotalRHIThreadBoundHitchCount));
-	PrintToEndpoint(FString::Printf(TEXT("Hitch frames bound by GPU:  %i  (%0.1f percent)"), Chart.TotalGPUBoundHitchCount, ReciprocalNumHitches * Chart.TotalGPUBoundHitchCount));
+	PrintToEndpoint(FString::Printf(TEXT("Hitch frames bound by game thread:  %i  (%0.1f %%)"), Chart.TotalGameThreadBoundHitchCount, ReciprocalNumHitches * Chart.TotalGameThreadBoundHitchCount));
+	PrintToEndpoint(FString::Printf(TEXT("Hitch frames bound by render thread:  %i  (%0.1f %%)"), Chart.TotalRenderThreadBoundHitchCount, ReciprocalNumHitches * Chart.TotalRenderThreadBoundHitchCount));
+	PrintToEndpoint(FString::Printf(TEXT("Hitch frames bound by RHI thread:  %i  (%0.1f %%)"), Chart.TotalRHIThreadBoundHitchCount, ReciprocalNumHitches * Chart.TotalRHIThreadBoundHitchCount));
+	PrintToEndpoint(FString::Printf(TEXT("Hitch frames bound by GPU:  %i  (%0.1f %%)"), Chart.TotalGPUBoundHitchCount, ReciprocalNumHitches * Chart.TotalGPUBoundHitchCount));
 	PrintToEndpoint(FString::Printf(TEXT("Hitches / min:  %.2f"), Chart.GetAvgHitchesPerMinute()));
-	PrintToEndpoint(FString::Printf(TEXT("Time spent in hitch buckets:  %.2f s"), TotalTimeSpentInHitchBuckets));
-	PrintToEndpoint(FString::Printf(TEXT("Avg. hitch frame length:  %.2f s"), Chart.GetAvgHitchFrameLength()));
+
+	if (TotalHitchCount > 0)
+	{
+		PrintToEndpoint(FString::Printf(TEXT("Avg. hitch frame length:  %.2f s"), Chart.GetAvgHitchFrameLength()));
+	}
 }
 
 void FDumpFPSChartToEndpoint::HandleFPSThreshold(int32 TargetFPS, float PctMissedFrames)
@@ -254,8 +258,8 @@ void FDumpFPSChartToEndpoint::DumpChart(double InWallClockTimeFromStartOfChartin
 			HandleHitchBucket(Chart.HitchTimeHistogram, BinIndex);
 		}
 
-		const double TotalTimeSpentInHitchBuckets = Chart.HitchTimeHistogram.GetSumOfAllMeasures();
-		const int32 TotalHitchCount = Chart.HitchTimeHistogram.GetNumMeasurements();
+		const double TotalTimeSpentInHitchBuckets = Chart.GetTotalHitchFrameTime();
+		const int32 TotalHitchCount = Chart.GetNumHitches();
 
 		HandleHitchSummary(TotalHitchCount, TotalTimeSpentInHitchBuckets);
 
@@ -336,21 +340,7 @@ protected:
 		}
 		ParamArray.Add(FAnalyticsEventAttribute(TEXT("TotalTimeInHitchFrames"), TotalTimeSpentInHitchBuckets));
 		ParamArray.Add(FAnalyticsEventAttribute(TEXT("HitchesPerMinute"), Chart.GetAvgHitchesPerMinute()));
-
-		// Determine how much time was spent 'above and beyond' regular frame time in frames that landed in hitch buckets
-		const float EngineTargetMS = FEnginePerformanceTargets::GetTargetFrameTimeThresholdMS();
-		const float HitchThresholdMS = FEnginePerformanceTargets::GetHitchFrameTimeThresholdMS();
-
-		const float AcceptableFramePortionMS = (HitchThresholdMS > EngineTargetMS) ? EngineTargetMS : 0.0f;
-
-		const float MSToSeconds = 1.0f / 1000.0f;
-		const double RegularFramePortionForHitchFrames = AcceptableFramePortionMS * MSToSeconds * TotalHitchCount;
-
-		const double TimeSpentHitching = TotalTimeSpentInHitchBuckets - RegularFramePortionForHitchFrames;
-		ensure(TimeSpentHitching >= 0.0);
-
-		const double PercentSpentHitching = (Chart.GetTotalTime() > 0.0) ? (100.0 * TimeSpentHitching / Chart.GetTotalTime()) : 0.0;
-		ParamArray.Add(FAnalyticsEventAttribute(TEXT("PercentSpentHitching"), PercentSpentHitching));
+		ParamArray.Add(FAnalyticsEventAttribute(TEXT("PercentSpentHitching"), Chart.GetPercentHitchTime()));
 	}
 
 	virtual void HandleFPSThreshold(int32 TargetFPS, float PctMissedFrames) override
@@ -617,6 +607,7 @@ void FPerformanceTrackingChart::Reset(const FDateTime& InStartTime)
 	AccumulatedChartTime = 0.0;
 	TimeDisregarded = 0.0;
 	FramesDisregarded = 0;
+	NumFramesAtCriticalMemoryPressure = 0;
 	MaxPhysicalMemory = 0;
 	MaxVirtualMemory = 0;
 	MinPhysicalMemory = ULONG_MAX;
@@ -701,6 +692,7 @@ void FPerformanceTrackingChart::AccumulateWith(const FPerformanceTrackingChart& 
 	TimeDisregarded += Chart.TimeDisregarded;
 	FramesDisregarded += Chart.FramesDisregarded;
 	CaptureStartTime = FMath::Min(CaptureStartTime, Chart.CaptureStartTime);
+	NumFramesAtCriticalMemoryPressure += Chart.NumFramesAtCriticalMemoryPressure;
 	MaxPhysicalMemory = FMath::Max(MaxPhysicalMemory, Chart.MaxPhysicalMemory);
 	MaxVirtualMemory = FMath::Min(MaxVirtualMemory, Chart.MaxVirtualMemory);
 	MinPhysicalMemory = FMath::Min(MinPhysicalMemory, Chart.MinPhysicalMemory);
@@ -708,6 +700,19 @@ void FPerformanceTrackingChart::AccumulateWith(const FPerformanceTrackingChart& 
 	MinAvailablePhysicalMemory = FMath::Min(MinAvailablePhysicalMemory, Chart.MinAvailablePhysicalMemory);
 	TotalPhysicalMemoryUsed += Chart.TotalPhysicalMemoryUsed;
 	TotalVirtualMemoryUsed += Chart.TotalVirtualMemoryUsed;
+}
+
+double FPerformanceTrackingChart::GetTotalHitchFrameTime(bool bSubtractHitchThreshold/*=true*/) const
+{
+	double TotalHitchTime = HitchTimeHistogram.GetSumOfAllMeasures();
+
+	if (bSubtractHitchThreshold && HitchTimeHistogram.GetNumBins() > 0)
+	{
+		const double HitchThreshold = FMath::Max(HitchTimeHistogram.GetBinLowerBound(0), FEnginePerformanceTargets::GetHitchFrameTimeThresholdMS() / 1000.0);
+		TotalHitchTime -= (HitchThreshold * HitchTimeHistogram.GetNumMeasurements());
+	}
+
+	return TotalHitchTime;
 }
 
 void FPerformanceTrackingChart::StartCharting()
@@ -803,6 +808,7 @@ void FPerformanceTrackingChart::ProcessFrame(const FFrameData& FrameData)
 		MinAvailablePhysicalMemory = FMath::Min(MinAvailablePhysicalMemory, static_cast<uint64>(MemoryStats.GetAvailablePhysical(true)));
 		TotalPhysicalMemoryUsed += MemoryStats.UsedPhysical;
 		TotalVirtualMemoryUsed += MemoryStats.UsedVirtual;
+		NumFramesAtCriticalMemoryPressure += MemoryStats.GetMemoryPressureStatus() == FGenericPlatformMemoryStats::EMemoryPressureStatus::Critical ? 1 : 0;
 
 		// Handle hitching
 		if (FrameData.HitchStatus != EFrameHitchType::NoHitch)

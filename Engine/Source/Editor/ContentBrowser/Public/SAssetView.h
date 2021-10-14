@@ -22,10 +22,10 @@
 #include "AssetViewSortManager.h"
 #include "AssetViewTypes.h"
 #include "HistoryManager.h"
-#include "Misc/BlacklistNames.h"
+#include "Misc/NamePermissionList.h"
 
 class FMenuBuilder;
-class FBlacklistPaths;
+class FPathPermissionList;
 class FWeakWidgetPath;
 class FWidgetPath;
 class SAssetColumnView;
@@ -852,9 +852,9 @@ private:
 	/** The current base source filter for the view */
 	FSourcesData SourcesData;
 	FARFilter BackendFilter;
-	TSharedPtr<FBlacklistNames> AssetClassBlacklist;
-	TSharedPtr<FBlacklistPaths> FolderBlacklist;
-	TSharedPtr<FBlacklistPaths> WritableFolderBlacklist;
+	TSharedPtr<FNamePermissionList> AssetClassPermissionList;
+	TSharedPtr<FPathPermissionList> FolderPermissionList;
+	TSharedPtr<FPathPermissionList> WritableFolderPermissionList;
 	TSharedPtr<FAssetFilterCollectionType> FrontendFilters;
 
 	/** Show path view filters submenu in view options menu  */

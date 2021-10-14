@@ -1259,8 +1259,17 @@ void UEditMeshPolygonsTool::ApplyRetriangulate()
 			Filler.Fill(GroupID);
 
 			// Throw away any of the old verts that are still isolated (they were in the interior of the group)
-			Algo::ForEachIf(OldVertices, [Mesh](int32 Vid) { return !Mesh->IsReferencedVertex(Vid); },
-				[Mesh](int32 Vid) { Mesh->RemoveVertex(Vid, false, false); } // Don't try to remove attached tris, don't care about bowties
+			Algo::ForEachIf(OldVertices, 
+				[Mesh](int32 Vid) 
+			{ 
+				return !Mesh->IsReferencedVertex(Vid); 
+			},
+				[Mesh](int32 Vid) 
+			{
+				checkSlow(!Mesh->IsReferencedVertex(Vid));
+				constexpr bool bPreserveManifold = false;
+				Mesh->RemoveVertex(Vid, bPreserveManifold);
+			}
 			);
 
 			if (Mesh->HasAttributes())

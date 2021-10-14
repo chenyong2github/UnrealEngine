@@ -80,46 +80,6 @@ namespace EpicGames.Core
 	}
 
 	/// <summary>
-	/// Contents of a legacy log message
-	/// </summary>
-	public struct LogMessage
-	{
-		/// <summary>
-		/// Number of stack frames to skip
-		/// </summary>
-		public int StackFramesToSkip;
-
-		/// <summary>
-		/// Whether to only output this message once
-		/// </summary>
-		public bool bWriteOnce;
-
-		/// <summary>
-		/// Options for formatting the message
-		/// </summary>
-		public LogFormatOptions FormatOptions;
-
-		/// <summary>
-		/// Format string
-		/// </summary>
-		public string Format;
-
-		/// <summary>
-		/// Argument list
-		/// </summary>
-		public object[] Args;
-
-		/// <summary>
-		/// Convert the message to a single string
-		/// </summary>
-		/// <returns></returns>
-		public override string ToString()
-		{
-			return String.Format(Format, Args);
-		}
-	}
-
-	/// <summary>
 	/// UAT/UBT Custom log system.
 	/// 
 	/// This lets you use any TraceListeners you want, but you should only call the static 
@@ -148,8 +108,8 @@ namespace EpicGames.Core
 		/// </summary>
 		public static LogEventType OutputLevel
 		{
-			get => DefaultLogger.OutputLevel;
-			set => DefaultLogger.OutputLevel = value;
+			get => (LogEventType)DefaultLogger.OutputLevel;
+			set => DefaultLogger.OutputLevel = (LogLevel)value;
 		}
 
 		/// <summary>
@@ -162,40 +122,14 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
-		/// When true, warnings and errors will have a WARNING: or ERROR: prexifx, respectively.
+		/// When true, warnings and errors will have a WARNING: or ERROR: prefix, respectively.
 		/// </summary>
-		public static bool IncludeSeverityPrefix
-		{
-			get => DefaultLogger.IncludeSeverityPrefix;
-			set => DefaultLogger.IncludeSeverityPrefix = value;
-		}
+		public static bool IncludeSeverityPrefix { get; set; } = true;
 
 		/// <summary>
 		/// When true, warnings and errors will have a prefix suitable for display by MSBuild (avoiding error messages showing as (EXEC : Error : ")
 		/// </summary>
-		public static bool IncludeProgramNameWithSeverityPrefix
-		{
-			get => DefaultLogger.IncludeProgramNameWithSeverityPrefix;
-			set => DefaultLogger.IncludeProgramNameWithSeverityPrefix = value;
-		}
-
-		/// <summary>
-		/// When true, logs will have the calling mehod prepended to the output as MethodName:
-		/// </summary>
-		public static bool IncludeCallingMethod
-		{
-			get => DefaultLogger.IncludeCallingMethod;
-			set => DefaultLogger.IncludeCallingMethod = value;
-		}
-
-		/// <summary>
-		/// When true, console output will have the calling mehod prepended to the output as MethodName:
-		/// </summary>
-		public static bool IncludeCallingMethodForConsole
-		{
-			get => DefaultLogger.IncludeCallingMethodForConsole;
-			set => DefaultLogger.IncludeCallingMethodForConsole = value;
-		}
+		public static bool IncludeProgramNameWithSeverityPrefix { get; set; }
 
 		/// <summary>
 		/// When true, will detect warnings and errors and set the console output color to yellow and red.
@@ -219,6 +153,12 @@ namespace EpicGames.Core
 		/// Path to the log file being written to. May be null.
 		/// </summary>
 		public static FileReference OutputFile => DefaultLogger.OutputFile;
+
+
+		/// <summary>
+		/// A collection of strings that have been already written once
+		/// </summary>
+		private static HashSet<string> WriteOnceSet = new HashSet<string>();
 
 		/// <summary>
 		/// Adds a trace listener that writes to a log file
@@ -258,25 +198,102 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Converts a LogEventType into a log prefix. Only used when bLogSeverity is true.
+		/// </summary>
+		/// <param name="Severity"></param>
+		/// <returns></returns>
+		private static string GetSeverityPrefix(LogEventType Severity)
+		{
+			switch (Severity)
+			{
+				case LogEventType.Fatal:
+					return "FATAL ERROR: ";
+				case LogEventType.Error:
+					return "ERROR: ";
+				case LogEventType.Warning:
+					return "WARNING: ";
+				case LogEventType.Console:
+					return "";
+				case LogEventType.Verbose:
+					return "VERBOSE: ";
+				default:
+					return "";
+			}
+		}
+
+		/// <summary>
 		/// Writes a formatted message to the console. All other functions should boil down to calling this method.
 		/// </summary>
-		/// <param name="StackFramesToSkip">Number of frames to skip to get to the originator of the log request.</param>
 		/// <param name="bWriteOnce">If true, this message will be written only once</param>
 		/// <param name="Verbosity">Message verbosity level. We only meaningfully use values up to Verbose</param>
 		/// <param name="FormatOptions">Options for formatting messages</param>
 		/// <param name="Format">Message format string.</param>
 		/// <param name="Args">Optional arguments</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		[StringFormatMethod("Format")]
-		private static void WriteLinePrivate(int StackFramesToSkip, bool bWriteOnce, LogEventType Verbosity, LogFormatOptions FormatOptions, string Format, params object[] Args)
+		private static void WriteLinePrivate(bool bWriteOnce, LogEventType Verbosity, LogFormatOptions FormatOptions, string Format, params object[] Args)
 		{
-			LogMessage Message = new LogMessage();
-			Message.StackFramesToSkip = StackFramesToSkip;
-			Message.bWriteOnce = bWriteOnce;
-			Message.FormatOptions = FormatOptions;
-			Message.Format = Format;
-			Message.Args = Args;
-			Logger.Log((LogLevel)Verbosity, new EventId(), Message, null, (State, Ex) => State.ToString());
+			if (Logger.IsEnabled((LogLevel)Verbosity))
+			{
+				StringBuilder Message = new StringBuilder();
+
+				// Get the severity prefix for this message
+				if (IncludeSeverityPrefix && ((FormatOptions & LogFormatOptions.NoSeverityPrefix) == 0))
+				{
+					Message.Append(GetSeverityPrefix(Verbosity));
+					if (Message.Length > 0 && IncludeProgramNameWithSeverityPrefix)
+					{
+						// Include the executable name when running inside MSBuild. If unspecified, MSBuild re-formats them with an "EXEC :" prefix.
+						Message.Insert(0, $"{Path.GetFileNameWithoutExtension(Assembly.GetEntryAssembly().Location)}: ");
+					}
+				}
+
+				// Append the formatted string
+				int IndentLen = Message.Length;
+				if (Args.Length == 0)
+				{
+					Message.Append(Format);
+				}
+				else
+				{
+					Message.AppendFormat(Format, Args);
+				}
+
+				// Replace any Windows \r\n sequences with \n
+				Message.Replace("\r\n", "\n");
+
+				// Remove any trailing whitespace
+				int TrimLen = Message.Length;
+				while (TrimLen > 0 && " \t\r\n".Contains(Message[TrimLen - 1]))
+				{
+					TrimLen--;
+				}
+				Message.Remove(TrimLen, Message.Length - TrimLen);
+
+				// Update the indent length to include any whitespace at the start of the message
+				while (IndentLen < Message.Length && Message[IndentLen] == ' ')
+				{
+					IndentLen++;
+				}
+
+				// If there are multiple lines, insert a prefix at the start of each one
+				for (int Idx = 0; Idx < Message.Length; Idx++)
+				{
+					if (Message[Idx] == '\n')
+					{
+						Message.Insert(Idx + 1, " ", IndentLen);
+						Idx += IndentLen;
+					}
+				}
+
+				// if we want this message only written one time, check if it was already written out
+				if (bWriteOnce && !WriteOnceSet.Add(Message.ToString()))
+				{
+					return;
+				}
+
+				// Forward it on to the internal logger
+				Logger.Log((LogLevel)Verbosity, new EventId(), Message, null, (Message, Ex) => Message.ToString());
+			}
 		}
 
 		/// <summary>
@@ -286,13 +303,12 @@ namespace EpicGames.Core
 		/// <param name="Verbosity"></param>
 		/// <param name="Format"></param>
 		/// <param name="Args"></param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		[StringFormatMethod("Format")]
 		public static void WriteLineIf(bool Condition, LogEventType Verbosity, string Format, params object[] Args)
 		{
 			if (Condition)
 			{
-				WriteLinePrivate(1, false, Verbosity, LogFormatOptions.None, Format, Args);
+				WriteLinePrivate(false, Verbosity, LogFormatOptions.None, Format, Args);
 			}
 		}
 
@@ -303,11 +319,11 @@ namespace EpicGames.Core
 		/// <param name="Verbosity"></param>
 		/// <param name="Format"></param>
 		/// <param name="Args"></param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
+		[Obsolete("StackFramesToSkip is no longer supported. Please call an override without this parameter")]
 		[StringFormatMethod("Format")]
 		public static void WriteLine(int StackFramesToSkip, LogEventType Verbosity, string Format, params object[] Args)
 		{
-			WriteLinePrivate(StackFramesToSkip + 1, false, Verbosity, LogFormatOptions.None, Format, Args);
+			WriteLinePrivate(false, Verbosity, LogFormatOptions.None, Format, Args);
 		}
 
 		/// <summary>
@@ -318,11 +334,11 @@ namespace EpicGames.Core
 		/// <param name="FormatOptions"></param>
 		/// <param name="Format"></param>
 		/// <param name="Args"></param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
+		[Obsolete("StackFramesToSkip is no longer used. Please call an override without this parameter")]
 		[StringFormatMethod("Format")]
 		public static void WriteLine(int StackFramesToSkip, LogEventType Verbosity, LogFormatOptions FormatOptions, string Format, params object[] Args)
 		{
-			WriteLinePrivate(StackFramesToSkip + 1, false, Verbosity, FormatOptions, Format, Args);
+			WriteLinePrivate(false, Verbosity, FormatOptions, Format, Args);
 		}
 
 		/// <summary>
@@ -331,11 +347,10 @@ namespace EpicGames.Core
 		/// <param name="Verbosity"></param>
 		/// <param name="Format"></param>
 		/// <param name="Args"></param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		[StringFormatMethod("Format")]
 		public static void WriteLine(LogEventType Verbosity, string Format, params object[] Args)
 		{
-			WriteLinePrivate(1, false, Verbosity, LogFormatOptions.None, Format, Args);
+			WriteLinePrivate(false, Verbosity, LogFormatOptions.None, Format, Args);
 		}
 
 		/// <summary>
@@ -345,11 +360,10 @@ namespace EpicGames.Core
 		/// <param name="FormatOptions"></param>
 		/// <param name="Format"></param>
 		/// <param name="Args"></param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		[StringFormatMethod("Format")]
 		public static void WriteLine(LogEventType Verbosity, LogFormatOptions FormatOptions, string Format, params object[] Args)
 		{
-			WriteLinePrivate(1, false, Verbosity, FormatOptions, Format, Args);
+			WriteLinePrivate(false, Verbosity, FormatOptions, Format, Args);
 		}
 
 		/// <summary>
@@ -371,11 +385,10 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Format">Message format string</param>
 		/// <param name="Args">Optional arguments</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		[StringFormatMethod("Format")]
 		public static void TraceError(string Format, params object[] Args)
 		{
-			WriteLinePrivate(1, false, LogEventType.Error, LogFormatOptions.None, Format, Args);
+			WriteLinePrivate(false, LogEventType.Error, LogFormatOptions.None, Format, Args);
 		}
 
 		/// <summary>
@@ -384,11 +397,10 @@ namespace EpicGames.Core
 		/// <param name="File">The file containing the error</param>
 		/// <param name="Format">Message format string</param>
 		/// <param name="Args">Optional arguments</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		[StringFormatMethod("Format")]
-		public static void TraceError(FileReference File, string Format, params object[] Args)
+		public static void TraceErrorTask(FileReference File, string Format, params object[] Args)
 		{
-			WriteLinePrivate(1, false, LogEventType.Error, LogFormatOptions.NoSeverityPrefix, "{0}: error: {1}", File, String.Format(Format, Args));
+			WriteLinePrivate(false, LogEventType.Error, LogFormatOptions.NoSeverityPrefix, "{0}: error: {1}", File, String.Format(Format, Args));
 		}
 
 		/// <summary>
@@ -398,11 +410,10 @@ namespace EpicGames.Core
 		/// <param name="Line">Line number of the error</param>
 		/// <param name="Format">Message format string</param>
 		/// <param name="Args">Optional arguments</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		[StringFormatMethod("Format")]
-		public static void TraceError(FileReference File, int Line, string Format, params object[] Args)
+		public static void TraceErrorTask(FileReference File, int Line, string Format, params object[] Args)
 		{
-			WriteLinePrivate(1, false, LogEventType.Error, LogFormatOptions.NoSeverityPrefix, "{0}({1}): error: {2}", File, Line, String.Format(Format, Args));
+			WriteLinePrivate(false, LogEventType.Error, LogFormatOptions.NoSeverityPrefix, "{0}({1}): error: {2}", File, Line, String.Format(Format, Args));
 		}
 
 		/// <summary>
@@ -411,11 +422,10 @@ namespace EpicGames.Core
 		/// <param name="Format">Message format string</param>
 		/// <param name="Args">Optional arguments</param>
 		[Conditional("TRACE")]
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		[StringFormatMethod("Format")]
 		public static void TraceVerbose(string Format, params object[] Args)
 		{
-			WriteLinePrivate(1, false, LogEventType.Verbose, LogFormatOptions.None, Format, Args);
+			WriteLinePrivate(false, LogEventType.Verbose, LogFormatOptions.None, Format, Args);
 		}
 
 		/// <summary>
@@ -423,11 +433,10 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Format">Message format string</param>
 		/// <param name="Args">Optional arguments</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		[StringFormatMethod("Format")]
 		public static void TraceInformation(string Format, params object[] Args)
 		{
-			WriteLinePrivate(1, false, LogEventType.Console, LogFormatOptions.None, Format, Args);
+			WriteLinePrivate(false, LogEventType.Console, LogFormatOptions.None, Format, Args);
 		}
 
 		/// <summary>
@@ -435,39 +444,49 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Format">Message format string</param>
 		/// <param name="Args">Optional arguments</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		[StringFormatMethod("Format")]
 		public static void TraceWarning(string Format, params object[] Args)
 		{
-			WriteLinePrivate(1, false, LogEventType.Warning, LogFormatOptions.None, Format, Args);
+			WriteLinePrivate(false, LogEventType.Warning, LogFormatOptions.None, Format, Args);
 		}
 
 		/// <summary>
-		/// Writes a warning message to the console.
+		/// Writes a warning message to the console, in a format suitable for Visual Studio to parse.
 		/// </summary>
-		/// <param name="File">The file containing the error</param>
+		/// <param name="File">The file containing the warning</param>
 		/// <param name="Format">Message format string</param>
 		/// <param name="Args">Optional arguments</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		[StringFormatMethod("Format")]
-		public static void TraceWarning(FileReference File, string Format, params object[] Args)
+		public static void TraceWarningTask(FileReference File, string Format, params object[] Args)
 		{
-			WriteLinePrivate(1, false, LogEventType.Warning, LogFormatOptions.NoSeverityPrefix, "{0}: warning: {1}", File, String.Format(Format, Args));
+			WriteLinePrivate(false, LogEventType.Warning, LogFormatOptions.NoSeverityPrefix, "{0}: warning: {1}", File, String.Format(Format, Args));
 		}
 
 		/// <summary>
-		/// Writes a warning message to the console.
+		/// Writes a warning message to the console, in a format suitable for Visual Studio to parse.
 		/// </summary>
-		/// <param name="File">The file containing the error</param>
-		/// <param name="Line">Line number of the error</param>
+		/// <param name="File">The file containing the warning</param>
+		/// <param name="Line">Line number of the warning</param>
 		/// <param name="Format">Message format string</param>
 		/// <param name="Args">Optional arguments</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		[StringFormatMethod("Format")]
-		public static void TraceWarning(FileReference File, int Line, string Format, params object[] Args)
+		public static void TraceWarningTask(FileReference File, int Line, string Format, params object[] Args)
 		{
-			WriteLinePrivate(1, false, LogEventType.Warning, LogFormatOptions.NoSeverityPrefix, "{0}({1}): warning: {2}", File, Line, String.Format(Format, Args));
+			WriteLinePrivate(false, LogEventType.Warning, LogFormatOptions.NoSeverityPrefix, "{0}({1}): warning: {2}", File, Line, String.Format(Format, Args));
 		}
+
+		/// <summary>
+		/// Writes a message to the console.
+		/// </summary>
+		/// <param name="File">The file containing the message</param>
+		/// <param name="Line">Line number of the message</param>
+		/// <param name="Format">Message format string</param>
+		/// <param name="Args">Optional arguments</param>
+		public static void TraceConsoleTask(FileReference File, int Line, string Format, params object[] Args)
+		{
+			WriteLinePrivate(false, LogEventType.Console, LogFormatOptions.NoSeverityPrefix, "{0}({1}): {2}", File, Line, String.Format(Format, Args));
+		}
+
 
 		/// <summary>
 		/// Writes a very verbose message to the console.
@@ -475,11 +494,10 @@ namespace EpicGames.Core
 		/// <param name="Format">Message format string</param>
 		/// <param name="Args">Optional arguments</param>
 		[Conditional("TRACE")]
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		[StringFormatMethod("Format")]
 		public static void TraceVeryVerbose(string Format, params object[] Args)
 		{
-			WriteLinePrivate(1, false, LogEventType.VeryVerbose, LogFormatOptions.None, Format, Args);
+			WriteLinePrivate(false, LogEventType.VeryVerbose, LogFormatOptions.None, Format, Args);
 		}
 
 		/// <summary>
@@ -488,11 +506,10 @@ namespace EpicGames.Core
 		/// <param name="Format">Message format string</param>
 		/// <param name="Args">Optional arguments</param>
 		[Conditional("TRACE")]
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		[StringFormatMethod("Format")]
 		public static void TraceLog(string Format, params object[] Args)
 		{
-			WriteLinePrivate(1, false, LogEventType.Log, LogFormatOptions.None, Format, Args);
+			WriteLinePrivate(false, LogEventType.Log, LogFormatOptions.None, Format, Args);
 		}
 
 		/// <summary>
@@ -501,11 +518,10 @@ namespace EpicGames.Core
 		/// <param name="Verbosity"></param>
 		/// <param name="Format"></param>
 		/// <param name="Args"></param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		[StringFormatMethod("Format")]
 		public static void WriteLineOnce(LogEventType Verbosity, string Format, params object[] Args)
 		{
-			WriteLinePrivate(1, true, Verbosity, LogFormatOptions.None, Format, Args);
+			WriteLinePrivate(true, Verbosity, LogFormatOptions.None, Format, Args);
 		}
 
 		/// <summary>
@@ -515,11 +531,10 @@ namespace EpicGames.Core
 		/// <param name="Options"></param>
 		/// <param name="Format"></param>
 		/// <param name="Args"></param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		[StringFormatMethod("Format")]
 		public static void WriteLineOnce(LogEventType Verbosity, LogFormatOptions Options, string Format, params object[] Args)
 		{
-			WriteLinePrivate(1, true, Verbosity, Options, Format, Args);
+			WriteLinePrivate(true, Verbosity, Options, Format, Args);
 		}
 
 		/// <summary>
@@ -527,11 +542,10 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Format">Message format string</param>
 		/// <param name="Args">Optional arguments</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		[StringFormatMethod("Format")]
 		public static void TraceErrorOnce(string Format, params object[] Args)
 		{
-			WriteLinePrivate(1, true, LogEventType.Error, LogFormatOptions.None, Format, Args);
+			WriteLinePrivate(true, LogEventType.Error, LogFormatOptions.None, Format, Args);
 		}
 
 		/// <summary>
@@ -540,11 +554,10 @@ namespace EpicGames.Core
 		/// <param name="Format">Message format string</param>
 		/// <param name="Args">Optional arguments</param>
 		[Conditional("TRACE")]
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		[StringFormatMethod("Format")]
 		public static void TraceVerboseOnce(string Format, params object[] Args)
 		{
-			WriteLinePrivate(1, true, LogEventType.Verbose, LogFormatOptions.None, Format, Args);
+			WriteLinePrivate(true, LogEventType.Verbose, LogFormatOptions.None, Format, Args);
 		}
 
 		/// <summary>
@@ -552,11 +565,10 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Format">Message format string</param>
 		/// <param name="Args">Optional arguments</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		[StringFormatMethod("Format")]
 		public static void TraceInformationOnce(string Format, params object[] Args)
 		{
-			WriteLinePrivate(1, true, LogEventType.Console, LogFormatOptions.None, Format, Args);
+			WriteLinePrivate(true, LogEventType.Console, LogFormatOptions.None, Format, Args);
 		}
 
 		/// <summary>
@@ -564,11 +576,10 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Format">Message format string</param>
 		/// <param name="Args">Optional arguments</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		[StringFormatMethod("Format")]
 		public static void TraceWarningOnce(string Format, params object[] Args)
 		{
-			WriteLinePrivate(1, true, LogEventType.Warning, LogFormatOptions.None, Format, Args);
+			WriteLinePrivate(true, LogEventType.Warning, LogFormatOptions.None, Format, Args);
 		}
 
 		/// <summary>
@@ -577,11 +588,10 @@ namespace EpicGames.Core
 		/// <param name="File">The file containing the error</param>
 		/// <param name="Format">Message format string</param>
 		/// <param name="Args">Optional arguments</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		[StringFormatMethod("Format")]
 		public static void TraceWarningOnce(FileReference File, string Format, params object[] Args)
 		{
-			WriteLinePrivate(1, true, LogEventType.Warning, LogFormatOptions.NoSeverityPrefix, "{0}: warning: {1}", File, String.Format(Format, Args));
+			WriteLinePrivate( true, LogEventType.Warning, LogFormatOptions.NoSeverityPrefix, "{0}: warning: {1}", File, String.Format(Format, Args));
 		}
 
 		/// <summary>
@@ -591,11 +601,10 @@ namespace EpicGames.Core
 		/// <param name="Line">Line number of the error</param>
 		/// <param name="Format">Message format string</param>
 		/// <param name="Args">Optional arguments</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		[StringFormatMethod("Format")]
 		public static void TraceWarningOnce(FileReference File, int Line, string Format, params object[] Args)
 		{
-			WriteLinePrivate(1, true, LogEventType.Warning, LogFormatOptions.NoSeverityPrefix, "{0}({1}): warning: {2}", File, Line, String.Format(Format, Args));
+			WriteLinePrivate(true, LogEventType.Warning, LogFormatOptions.NoSeverityPrefix, "{0}({1}): warning: {2}", File, Line, String.Format(Format, Args));
 		}
 
 		/// <summary>
@@ -604,11 +613,10 @@ namespace EpicGames.Core
 		/// <param name="Format">Message format string</param>
 		/// <param name="Args">Optional arguments</param>
 		[Conditional("TRACE")]
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		[StringFormatMethod("Format")]
 		public static void TraceVeryVerboseOnce(string Format, params object[] Args)
 		{
-			WriteLinePrivate(1, true, LogEventType.VeryVerbose, LogFormatOptions.None, Format, Args);
+			WriteLinePrivate(true, LogEventType.VeryVerbose, LogFormatOptions.None, Format, Args);
 		}
 
 		/// <summary>
@@ -617,11 +625,10 @@ namespace EpicGames.Core
 		/// <param name="Format">Message format string</param>
 		/// <param name="Args">Optional arguments</param>
 		[Conditional("TRACE")]
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		[StringFormatMethod("Format")]
 		public static void TraceLogOnce(string Format, params object[] Args)
 		{
-			WriteLinePrivate(1, true, LogEventType.Log, LogFormatOptions.None, Format, Args);
+			WriteLinePrivate(true, LogEventType.Log, LogFormatOptions.None, Format, Args);
 		}
 
 		/// <summary>
@@ -630,7 +637,6 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Message">The status message</param>
 		[Conditional("TRACE")]
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void PushStatus(string Message)
 		{
 			DefaultLogger.PushStatus(Message);
@@ -641,7 +647,6 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Message">The status message</param>
 		[Conditional("TRACE")]
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void UpdateStatus(string Message)
 		{
 			DefaultLogger.UpdateStatus(Message);
@@ -652,7 +657,6 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Message"></param>
 		[Conditional("TRACE")]
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void PopStatus()
 		{
 			DefaultLogger.PopStatus();
@@ -692,9 +696,9 @@ namespace EpicGames.Core
 		private object SyncObject = new object();
 
 		/// <summary>
-		/// When true, verbose logging is enabled.
+		/// Minimum level for outputting messages
 		/// </summary>
-		public LogEventType OutputLevel
+		public LogLevel OutputLevel
 		{
 			get; set;
 		}
@@ -703,38 +707,6 @@ namespace EpicGames.Core
 		/// Whether to include timestamps on each line of log output
 		/// </summary>
 		public bool IncludeTimestamps
-		{
-			get; set;
-		}
-
-		/// <summary>
-		/// When true, warnings and errors will have a WARNING: or ERROR: prexifx, respectively.
-		/// </summary>
-		public bool IncludeSeverityPrefix
-		{
-			get; set;
-		}
-
-		/// <summary>
-		/// When true, warnings and errors will have a prefix suitable for display by MSBuild (avoiding error messages showing as (EXEC : Error : ")
-		/// </summary>
-		public bool IncludeProgramNameWithSeverityPrefix
-		{
-			get; set;
-		}
-
-		/// <summary>
-		/// When true, logs will have the calling mehod prepended to the output as MethodName:
-		/// </summary>
-		public bool IncludeCallingMethod
-		{
-			get; set;
-		}
-
-		/// <summary>
-		/// When true, console output will have the calling mehod prepended to the output as MethodName:
-		/// </summary>
-		public bool IncludeCallingMethodForConsole
 		{
 			get; set;
 		}
@@ -778,11 +750,6 @@ namespace EpicGames.Core
 		private Stopwatch Timer = Stopwatch.StartNew();
 
 		/// <summary>
-		/// A collection of strings that have been already written once
-		/// </summary>
-		private HashSet<string> WriteOnceSet = new HashSet<string>();
-
-		/// <summary>
 		/// Stack of status scope information.
 		/// </summary>
 		private Stack<StatusMessage> StatusMessageStack = new Stack<StatusMessage>();
@@ -802,11 +769,7 @@ namespace EpicGames.Core
 		/// </summary>
 		public DefaultLogger()
 		{
-			OutputLevel = LogEventType.Log;
-			IncludeSeverityPrefix = true;
-			IncludeProgramNameWithSeverityPrefix = false;
-			IncludeCallingMethod = true;
-			IncludeCallingMethodForConsole = false;
+			OutputLevel = LogLevel.Debug;
 			ColorConsoleOutput = true;
 			IncludeStartingTimestamp = true;
 		}
@@ -816,7 +779,6 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="OutputFile">The file to write to</param>
 		/// <returns>The created trace listener</returns>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public TextWriterTraceListener AddFileWriter(string Name, FileReference OutputFile)
 		{
 			try
@@ -841,7 +803,6 @@ namespace EpicGames.Core
 		/// Adds a <see cref="TraceListener"/> to the collection in a safe manner.
 		/// </summary>
 		/// <param name="TraceListener">The <see cref="TraceListener"/> to add.</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public void AddTraceListener(TraceListener TraceListener)
 		{
 			lock (SyncObject)
@@ -857,13 +818,12 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Write a timestamp to the log, once. To be called when a new listener is added.
 		/// </summary>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		private void WriteInitialTimestamp()
 		{
 			if (IncludeStartingTimestamp && !IncludeStartingTimestampWritten)
 			{
 				DateTime Now = DateTime.Now;
-				WriteLinePrivate(2, false, LogEventType.Log, LogFormatOptions.NoConsoleOutput, $"Log started at {DateTime.Now} ({DateTime.Now.ToUniversalTime():yyyy-MM-ddTHH\\:mm\\:ssZ})");
+				this.LogDebug("{Message}", $"Log started at {Now} ({Now.ToUniversalTime():yyyy-MM-ddTHH\\:mm\\:ssZ})");
 				IncludeStartingTimestampWritten = true;
 			}
 		}
@@ -899,94 +859,6 @@ namespace EpicGames.Core
 			return false;
 		}
 
-		/// <summary>
-		/// Gets the name of the Method N levels deep in the stack frame. Used to trap what method actually made the logging call.
-		/// Only used when bLogSources is true.
-		/// </summary>
-		/// <param name="StackFramesToSkip"></param>
-		/// <returns>ClassName.MethodName</returns>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
-		private static string GetSource(int StackFramesToSkip)
-		{
-			StackFrame Frame = new StackFrame(2 + StackFramesToSkip);
-			System.Reflection.MethodBase Method = Frame.GetMethod();
-			return String.Format("{0}.{1}", Method.DeclaringType.Name, Method.Name);
-		}
-
-		/// <summary>
-		/// Converts a LogEventType into a log prefix. Only used when bLogSeverity is true.
-		/// </summary>
-		/// <param name="Severity"></param>
-		/// <returns></returns>
-		private static string GetSeverityPrefix(LogEventType Severity)
-		{
-			switch (Severity)
-			{
-				case LogEventType.Fatal:
-					return "FATAL ERROR: ";
-				case LogEventType.Error:
-					return "ERROR: ";
-				case LogEventType.Warning:
-					return "WARNING: ";
-				case LogEventType.Console:
-					return "";
-				case LogEventType.Verbose:
-					return "VERBOSE: ";
-				default:
-					return "";
-			}
-		}
-
-		/// <summary>
-		/// Formats message for logging. Enforces the configured options.
-		/// </summary>
-		/// <param name="StackFramesToSkip">Number of frames to skip to get to the originator of the log request.</param>
-		/// <param name="Verbosity">Message verbosity level</param>
-		/// <param name="Options">Options for formatting this string</param>
-		/// <param name="bForConsole">Whether the message is intended for console output</param>
-		/// <param name="Format">Message text format string</param>
-		/// <param name="Args">Message text parameters</param>
-		/// <returns>Formatted message</returns>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
-		[StringFormatMethod("Format")]
-		private List<string> FormatMessage(int StackFramesToSkip, LogEventType Verbosity, LogFormatOptions Options, bool bForConsole, string Format, params object[] Args)
-		{
-			string TimePrefix = (!bForConsole || IncludeTimestamps) ? String.Format("[{0:hh\\:mm\\:ss\\.fff}] ", Timer.Elapsed) : "";
-			string SourcePrefix = (bForConsole ? IncludeCallingMethodForConsole : IncludeCallingMethod) ? string.Format("{0}: ", GetSource(StackFramesToSkip)) : "";
-			string SeverityPrefix = (IncludeSeverityPrefix && ((Options & LogFormatOptions.NoSeverityPrefix) == 0)) ? GetSeverityPrefix(Verbosity) : "";
-
-			// Include the executable name when running inside MSBuild. If unspecified, MSBuild re-formats them with an "EXEC :" prefix.
-			if (SeverityPrefix.Length > 0 && IncludeProgramNameWithSeverityPrefix)
-			{
-				SeverityPrefix = String.Format("{0}: {1}", Path.GetFileNameWithoutExtension(Assembly.GetEntryAssembly().Location), SeverityPrefix);
-			}
-
-			// If there are no extra args, don't try to format the string, in case it has any format control characters in it (our LOCTEXT strings tend to).
-			string[] Lines = ((Args.Length > 0) ? String.Format(Format, Args) : Format).TrimEnd(' ', '\t', '\r', '\n').Split('\n');
-
-			string Indent = LogIndent.Current;
-
-			List<string> FormattedLines = new List<string>();
-			FormattedLines.Add(String.Format("{0}{1}{2}{3}{4}", TimePrefix, SourcePrefix, Indent, SeverityPrefix, Lines[0].TrimEnd('\r')));
-
-			if (Lines.Length > 1)
-			{
-				int PaddingLength = 0;
-				while (PaddingLength < Lines[0].Length && Char.IsWhiteSpace(Lines[0][PaddingLength]))
-				{
-					PaddingLength++;
-				}
-
-				string Padding = new string(' ', SeverityPrefix.Length) + Lines[0].Substring(0, PaddingLength);
-				for (int Idx = 1; Idx < Lines.Length; Idx++)
-				{
-					FormattedLines.Add(String.Format("{0}{1}{2}{3}{4}", TimePrefix, SourcePrefix, Indent, Padding, Lines[Idx].TrimEnd('\r')));
-				}
-			}
-
-			return FormattedLines;
-		}
-
 		public IDisposable BeginScope<TState>(TState State)
 		{
 			throw new NotImplementedException();
@@ -994,108 +866,76 @@ namespace EpicGames.Core
 
 		public bool IsEnabled(LogLevel LogLevel)
 		{
-			throw new NotImplementedException();
+			return LogLevel >= OutputLevel;
 		}
 
 		public void Log<TState>(LogLevel LogLevel, EventId EventId, TState State, Exception Exception, Func<TState, Exception, string> Formatter)
 		{
-			LogMessage? Message = State as LogMessage?;
-			if (Message != null)
+			string[] Lines = Formatter(State, Exception).Split('\n');
+			lock (SyncObject)
 			{
-				WriteLinePrivate(Message.Value.StackFramesToSkip, Message.Value.bWriteOnce, (LogEventType)LogLevel, Message.Value.FormatOptions, Message.Value.Format, Message.Value.Args);
-			}
-			else
-			{
-				WriteLinePrivate(1, false, (LogEventType)LogLevel, LogFormatOptions.None, Formatter(State, Exception));
-			}
-		}
-
-		/// <summary>
-		/// Writes a formatted message to the console. All other functions should boil down to calling this method.
-		/// </summary>
-		/// <param name="StackFramesToSkip">Number of frames to skip to get to the originator of the log request.</param>
-		/// <param name="bWriteOnce">If true, this message will be written only once</param>
-		/// <param name="Verbosity">Message verbosity level. We only meaningfully use values up to Verbose</param>
-		/// <param name="FormatOptions">Options for formatting messages</param>
-		/// <param name="Format">Message format string.</param>
-		/// <param name="Args">Optional arguments</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
-		[StringFormatMethod("Format")]
-		private void WriteLinePrivate(int StackFramesToSkip, bool bWriteOnce, LogEventType Verbosity, LogFormatOptions FormatOptions, string Format, params object[] Args)
-		{
-			// if we want this message only written one time, check if it was already written out
-			if (bWriteOnce)
-			{
-				string Formatted = string.Format(Format, Args);
-				if (WriteOnceSet.Contains(Formatted))
+				// Output to all the other trace listeners
+				string TimePrefix = String.Format("[{0:hh\\:mm\\:ss\\.fff}] ", Timer.Elapsed);
+				foreach (TraceListener Listener in Trace.Listeners)
 				{
-					return;
+					string TimePrefixActual = 
+						IncludeTimestamps &&
+						!(Listener is DefaultTraceListener) // no timestamps when writing to the Visual Studio debug window
+						? TimePrefix
+						: String.Empty;
+
+					foreach (string Line in Lines)
+					{
+						string LineWithTime = TimePrefixActual + Line;
+						Listener.WriteLine(Line);
+						Listener.Flush();
+					}
 				}
 
-				WriteOnceSet.Add(Formatted);
-			}
-
-			if (Verbosity >= OutputLevel)
-			{
-				lock (SyncObject)
+				// Handle the console output separately; we format things differently
+				if (LogLevel >= LogLevel.Information)
 				{
-					// Output to all the other trace listeners
-					List<string> Lines = FormatMessage(StackFramesToSkip + 1, Verbosity, FormatOptions, false, Format, Args);
-					foreach (TraceListener Listener in Trace.Listeners)
+					FlushStatusHeading();
+
+					bool bResetConsoleColor = false;
+					if (ColorConsoleOutput)
+					{
+						if (LogLevel == LogLevel.Warning)
+						{
+							Console.ForegroundColor = ConsoleColor.Yellow;
+							bResetConsoleColor = true;
+						}
+						if (LogLevel >= LogLevel.Error)
+						{
+							Console.ForegroundColor = ConsoleColor.Red;
+							bResetConsoleColor = true;
+						}
+					}
+					try
 					{
 						foreach (string Line in Lines)
 						{
-							Listener.WriteLine(Line);
+							Console.WriteLine(Line);
 						}
-						Listener.Flush();
+					}
+					catch (IOException)
+					{
+						// Potential file access/sharing issue on std out
+						// This can occur on some versions of mono (e.g. macOS 6.12.0) if writing to a full pipe
+						// during IPC when the reader isn't consuming it quick enough
+					}
+					finally
+					{
+						// make sure we always put the console color back.
+						if (bResetConsoleColor)
+						{
+							Console.ResetColor();
+						}
 					}
 
-					// Handle the console output separately; we format things differently
-					if (Verbosity > LogEventType.Log && (FormatOptions & LogFormatOptions.NoConsoleOutput) == 0)
+					if (StatusMessageStack.Count > 0 && AllowStatusUpdates)
 					{
-						FlushStatusHeading();
-
-						bool bResetConsoleColor = false;
-						if (ColorConsoleOutput)
-						{
-							if (Verbosity == LogEventType.Warning)
-							{
-								Console.ForegroundColor = ConsoleColor.Yellow;
-								bResetConsoleColor = true;
-							}
-							if (Verbosity >= LogEventType.Error)
-							{
-								Console.ForegroundColor = ConsoleColor.Red;
-								bResetConsoleColor = true;
-							}
-						}
-						try
-						{
-							List<string> ConsoleLines = FormatMessage(StackFramesToSkip + 1, Verbosity, FormatOptions, true, Format, Args);
-							foreach (string ConsoleLine in ConsoleLines)
-							{
-								Console.WriteLine(ConsoleLine);
-							}
-						}
-						catch (IOException)
-						{
-							// Potential file access/sharing issue on std out
-							// This can occur on some versions of mono (e.g. macOS 6.12.0) if writing to a full pipe
-							// during IPC when the reader isn't consuming it quick enough
-						}
-						finally
-						{
-							// make sure we always put the console color back.
-							if (bResetConsoleColor)
-							{
-								Console.ResetColor();
-							}
-						}
-
-						if (StatusMessageStack.Count > 0 && AllowStatusUpdates)
-						{
-							SetStatusText(StatusMessageStack.Peek().CurrentText);
-						}
+						SetStatusText(StatusMessageStack.Peek().CurrentText);
 					}
 				}
 			}
@@ -1129,7 +969,6 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Message">The status message</param>
 		[Conditional("TRACE")]
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public void PushStatus(string Message)
 		{
 			lock (SyncObject)
@@ -1145,7 +984,7 @@ namespace EpicGames.Core
 
 				if (Message.Length > 0)
 				{
-					WriteLinePrivate(1, false, LogEventType.Log, LogFormatOptions.NoConsoleOutput, "{0}", Message);
+					this.LogDebug("{Message}", Message);
 					SetStatusText(Message);
 				}
 			}
@@ -1156,7 +995,6 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Message">The status message</param>
 		[Conditional("TRACE")]
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public void UpdateStatus(string Message)
 		{
 			lock (SyncObject)
@@ -1177,7 +1015,6 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Message"></param>
 		[Conditional("TRACE")]
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public void PopStatus()
 		{
 			lock (SyncObject)

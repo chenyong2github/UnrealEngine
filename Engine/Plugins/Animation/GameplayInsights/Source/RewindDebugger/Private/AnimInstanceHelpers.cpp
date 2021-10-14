@@ -15,6 +15,7 @@
 
 #define LOCTEXT_NAMESPACE "SRewindDebuggerAnimBPTools"
 
+#if OBJECT_TRACE_ENABLED
 static bool OpenBlueprintAndAttachDebugger(const TraceServices::IAnalysisSession* Session, uint64 ObjectId)
 {
 	TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session);
@@ -53,14 +54,17 @@ static bool OpenBlueprintAndAttachDebugger(const TraceServices::IAnalysisSession
 	}
 	return false;
 }
+#endif
 
 bool FAnimInstanceDoubleClickHandler::HandleDoubleClick(IRewindDebugger* RewindDebugger)
 {
+#if OBJECT_TRACE_ENABLED
 	TSharedPtr<FDebugObjectInfo> SelectedObject = RewindDebugger->GetSelectedComponent();
 	if (SelectedObject.IsValid())
 	{
 		return OpenBlueprintAndAttachDebugger(RewindDebugger->GetAnalysisSession(), SelectedObject->ObjectId);
 	}
+#endif
 	return false;
 }
 
@@ -72,6 +76,7 @@ FName FAnimInstanceDoubleClickHandler::GetTargetTypeName() const
 
 void FAnimInstanceMenu::Register()
 {
+#if OBJECT_TRACE_ENABLED
 	UToolMenu* Menu = UToolMenus::Get()->FindMenu("RewindDebugger.ComponentContextMenu");
 	FToolMenuSection& Section = Menu->FindOrAddSection("Blueprint");
 	FToolMenuEntry& Entry = Section.AddDynamicEntry("DebugAnimInstanceEntry", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
@@ -91,6 +96,7 @@ void FAnimInstanceMenu::Register()
 							}));
 		}
 	}));
+#endif
 }
 
 #undef LOCTEXT_NAMESPACE

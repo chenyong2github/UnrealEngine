@@ -61,6 +61,7 @@ public:
 		, _AssetTypeColorOverride()
 		, _Padding(0)
 		, _GenericThumbnailSize(64)
+		, _ColorStripOrientation(EThumbnailColorStripOrientation::HorizontalBottomEdge)
 		{}
 
 		SLATE_ARGUMENT(FName, Style)
@@ -78,6 +79,7 @@ public:
 		SLATE_ARGUMENT(TOptional<FLinearColor>, AssetTypeColorOverride)
 		SLATE_ARGUMENT(FMargin, Padding)
 		SLATE_ATTRIBUTE(int32, GenericThumbnailSize)
+		SLATE_ARGUMENT(EThumbnailColorStripOrientation, ColorStripOrientation)
 
 	SLATE_END_ARGS()
 
@@ -97,6 +99,7 @@ public:
 		WidthLastFrame = 0;
 		GenericThumbnailBorderPadding = 2.f;
 		GenericThumbnailSize = InArgs._GenericThumbnailSize;
+		ColorStripOrientation = InArgs._ColorStripOrientation;
 
 		AssetThumbnail->OnAssetDataChanged().AddSP(this, &SAssetThumbnail::OnAssetDataChanged);
 
@@ -242,8 +245,8 @@ public:
 
 		// The asset color strip
 		OverlayWidget->AddSlot()
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Bottom)
+		.HAlign(ColorStripOrientation == EThumbnailColorStripOrientation::HorizontalBottomEdge ? HAlign_Fill : HAlign_Right)
+		.VAlign(ColorStripOrientation == EThumbnailColorStripOrientation::HorizontalBottomEdge ? VAlign_Bottom : VAlign_Fill)
 		[
 			SAssignNew(AssetColorStripWidget, SBorder)
 			.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
@@ -427,15 +430,24 @@ private:
 		return bHasRenderedThumbnail ? EVisibility::Visible : EVisibility::Collapsed;
 	}
 
-	float GetAssetColorStripHeight() const
+	/** The height of the color strip (if it's oriented along the bottom edge) or its width (if it's oriented along the right edge) */
+	float GetAssetColorStripThickness() const
 	{
 		return 2.0f;
 	}
 
 	FMargin GetAssetColorStripPadding() const
 	{
-		const float Height = GetAssetColorStripHeight();
-		return FMargin(0,Height,0,0);
+		if (ColorStripOrientation == EThumbnailColorStripOrientation::HorizontalBottomEdge)
+		{
+			const float Height = GetAssetColorStripThickness();
+			return FMargin(0, Height, 0, 0);
+		}
+		else
+		{
+			const float Width = GetAssetColorStripThickness();
+			return FMargin(Width, 0, 0, 0);
+		}
 	}
 
 	const FSlateBrush* GetClassThumbnailBrush() const
@@ -479,8 +491,16 @@ private:
 
 	FMargin GetClassIconPadding() const
 	{
-		const float Height = GetAssetColorStripHeight();
-		return FMargin(0,0,0,Height);
+		if (ColorStripOrientation == EThumbnailColorStripOrientation::HorizontalBottomEdge)
+		{
+			const float Height = GetAssetColorStripThickness();
+			return FMargin(0, 0, 0, Height);
+		}
+		else
+		{
+			const float Width = GetAssetColorStripThickness();
+			return FMargin(0, 0, Width, 0);
+		}
 	}
 
 	EVisibility GetHintTextVisibility() const
@@ -719,6 +739,7 @@ private:
 
 	TAttribute< FLinearColor > HintColorAndOpacity;
 	TAttribute<int32> GenericThumbnailSize;
+	EThumbnailColorStripOrientation ColorStripOrientation;
 
 	bool bAllowHintText;
 	bool bAllowRealTimeOnHovered;
@@ -856,7 +877,8 @@ TSharedRef<SWidget> FAssetThumbnail::MakeThumbnailWidget( const FAssetThumbnailC
 		.AllowAssetSpecificThumbnailOverlay(InConfig.bAllowAssetSpecificThumbnailOverlay)
 		.AssetTypeColorOverride(InConfig.AssetTypeColorOverride)
 		.Padding(InConfig.Padding)
-		.GenericThumbnailSize(InConfig.GenericThumbnailSize);
+		.GenericThumbnailSize(InConfig.GenericThumbnailSize)
+		.ColorStripOrientation(InConfig.ColorStripOrientation);
 }
 
 void FAssetThumbnail::RefreshThumbnail()

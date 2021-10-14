@@ -20,7 +20,7 @@
 			"Name" : "OpenImageDenoise",
 			"Type" : "RuntimeAndProgram",
 			"LoadingPhase" : "Default",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64"
 			]
 		}

@@ -547,7 +547,8 @@ void SDockTab::Construct( const FArguments& InArgs )
 	this->TabLabelSuffix = InArgs._LabelSuffix;
 	this->bShouldAutosize = InArgs._ShouldAutosize;
 	this->TabColorScale = InArgs._TabColorScale;
-	
+	this->IconColor = InArgs._IconColor;
+
 	OnTabDrawerClosedEvent = InArgs._OnTabDrawerClosed;
 	OnTabRelocated = InArgs._OnTabRelocated;
 	OnTabDraggedOverDockArea = InArgs._OnTabDraggedOverDockArea;
@@ -626,7 +627,7 @@ void SDockTab::Construct( const FArguments& InArgs )
 					.BorderBackgroundColor(this, &SDockTab::GetTabColor)
 					[
 						SAssignNew(IconWidget, SImage)
-						.ColorAndOpacity(FSlateColor::UseForeground())
+						.ColorAndOpacity(this, &SDockTab::GetIconColor)
 						.Image(this, &SDockTab::GetTabIcon)
 						.DesiredSizeOverride(this, &SDockTab::GetTabIconSize)
 					]
@@ -791,23 +792,26 @@ EVisibility SDockTab::GetActiveTabIndicatorVisibility() const
 	return IsActive() && GetVisualTabRole() != ETabRole::MajorTab ? EVisibility::HitTestInvisible : EVisibility::Collapsed;
 }
 
-FSlateColor SDockTab::GetTabColor() const
+FSlateColor SDockTab::GetIconColor() const
 {
-	FLinearColor BaseColor = TabColorScale.Get();
-	
-	FSlateColor FinalColor;
+	if (!IconColor.IsSet())
+	{
+		return FSlateColor::UseForeground();
+	}
 
-	// 50% Black Icon if the tab is active, slightly dimmed to 60% black otherwise
 	if (this->IsForeground() || this->IsHovered())
 	{
-		FinalColor = BaseColor.CopyWithNewOpacity(0.5);
+		return IconColor.Get();
 	}
-	else
+	else //  Dim to 30% if not active
 	{
-		FinalColor = BaseColor.CopyWithNewOpacity(0.4);
+		return IconColor.Get().CopyWithNewOpacity(0.7);
 	}
 
-	return FinalColor;
+}
+FSlateColor SDockTab::GetTabColor() const
+{
+	return TabColorScale.Get();
 }
 
 
@@ -885,6 +889,11 @@ void SDockTab::SetTabIcon( const TAttribute<const FSlateBrush*> InTabIcon )
 bool SDockTab::ShouldAutosize() const
 {
 	return bShouldAutosize;
+}
+
+void SDockTab::SetShouldAutosize(const bool bNewShouldAutosize)
+{
+	bShouldAutosize = bNewShouldAutosize;
 }
 
 FReply SDockTab::OnCloseButtonClicked()

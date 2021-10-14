@@ -261,52 +261,67 @@ static struct FChaosMode
 	{
 		NumSamples = 45771
 	};
-	FThreadSafeCounter Current;
-	float DelayTimes[NumSamples + 1]; 
-	int32 Enabled;
 
-	FChaosMode()
-		: Enabled(0)
+	struct FState
 	{
-		FRandomStream Stream((int32)FPlatformTime::Cycles());
-		for (int32 Index = 0; Index < NumSamples; Index++)
+		FThreadSafeCounter Current;
+		float DelayTimes[NumSamples + 1]; 
+		int32 Enabled;
+
+		FState()
+			: Enabled(0)
 		{
-			DelayTimes[Index] = Stream.GetFraction();
-		}
-		// ave = .5
-		for (int32 Cube = 0; Cube < 2; Cube++)
-		{
+			FRandomStream Stream((int32)FPlatformTime::Cycles());
 			for (int32 Index = 0; Index < NumSamples; Index++)
 			{
-				DelayTimes[Index] *= Stream.GetFraction();
+				DelayTimes[Index] = Stream.GetFraction();
 			}
+			// ave = .5
+			for (int32 Cube = 0; Cube < 2; Cube++)
+			{
+				for (int32 Index = 0; Index < NumSamples; Index++)
+				{
+					DelayTimes[Index] *= Stream.GetFraction();
+				}
+			}
+			// ave = 1/8
+			for (int32 Index = 0; Index < NumSamples; Index++)
+			{
+				DelayTimes[Index] *= 0.00001f;
+			}
+			// ave = 0.00000125s
+			for (int32 Zeros = 0; Zeros < NumSamples / 20; Zeros++)
+			{
+				int32 Index = Stream.RandHelper(NumSamples);
+				DelayTimes[Index] = 0.0f;
+			}
+			// 95% the samples are now zero
+			for (int32 Zeros = 0; Zeros < NumSamples / 100; Zeros++)
+			{
+				int32 Index = Stream.RandHelper(NumSamples);
+				DelayTimes[Index] = .00005f;
+			}
+			// .001% of the samples are 5ms
 		}
-		// ave = 1/8
-		for (int32 Index = 0; Index < NumSamples; Index++)
+	};
+	std::atomic<FState*> State;
+
+	~FChaosMode()
+	{
+		if (FState* LocalState = State.load(std::memory_order_relaxed))
 		{
-			DelayTimes[Index] *= 0.00001f;
+			delete LocalState;
 		}
-		// ave = 0.00000125s
-		for (int32 Zeros = 0; Zeros < NumSamples / 20; Zeros++)
-		{
-			int32 Index = Stream.RandHelper(NumSamples);
-			DelayTimes[Index] = 0.0f;
-		}
-		// 95% the samples are now zero
-		for (int32 Zeros = 0; Zeros < NumSamples / 100; Zeros++)
-		{
-			int32 Index = Stream.RandHelper(NumSamples);
-			DelayTimes[Index] = .00005f;
-		}
-		// .001% of the samples are 5ms
 	}
+
 	FORCEINLINE void Delay()
 	{
-		if (Enabled)
+		FState* LocalState = State.load(std::memory_order_acquire);
+		if (LocalState && LocalState->Enabled)
 		{
-			uint32 MyIndex = (uint32)Current.Increment();
+			uint32 MyIndex = (uint32)LocalState->Current.Increment();
 			MyIndex %= NumSamples;
-			float DelayS = DelayTimes[MyIndex];
+			float DelayS = LocalState->DelayTimes[MyIndex];
 			if (DelayS > 0.0f)
 			{
 				FPlatformProcess::Sleep(DelayS);
@@ -317,8 +332,14 @@ static struct FChaosMode
 
 static void EnableRandomizedThreads(const TArray<FString>& Args)
 {
-	GChaosMode.Enabled = !GChaosMode.Enabled;
-	if (GChaosMode.Enabled)
+	FChaosMode::FState* LocalState = GChaosMode.State.load(std::memory_order_acquire);
+	if (!LocalState)
+	{
+		LocalState = new FChaosMode::FState();
+		GChaosMode.State.store(LocalState, std::memory_order_release);
+	}
+	LocalState->Enabled = !LocalState->Enabled;
+	if (LocalState->Enabled)
 	{
 		UE_LOG(LogConsoleResponse, Display, TEXT("Random sleeps are enabled."));
 	}

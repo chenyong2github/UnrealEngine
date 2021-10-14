@@ -4,6 +4,10 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/TextureRenderTarget2D.h"
 
+extern TAutoConsoleVariable<int32> CVarWaterEnabled;
+extern TAutoConsoleVariable<int32> CVarWaterMeshEnabled;
+extern TAutoConsoleVariable<int32> CVarWaterMeshEnableRendering;
+
 UMaterialInstanceDynamic* FWaterUtils::GetOrCreateTransientMID(UMaterialInstanceDynamic* InMID, FName InMIDName, UMaterialInterface* InMaterialInterface, EObjectFlags InAdditionalObjectFlags)
 {
 	if (!IsValid(InMaterialInterface))
@@ -91,4 +95,19 @@ FGuid FWaterUtils::StringToGuid(const FString& InStr)
 	// have a collision with other implicitly-generated GUIDs.
 	Digest[1] |= 0x80000000;
 	return FGuid(Digest[0], Digest[1], Digest[2], Digest[3]);
+}
+
+bool FWaterUtils::IsWaterEnabled(bool bIsRenderThread)
+{
+	return !!(bIsRenderThread ? CVarWaterEnabled.GetValueOnRenderThread() : CVarWaterEnabled.GetValueOnGameThread());
+}
+
+bool FWaterUtils::IsWaterMeshEnabled(bool bIsRenderThread)
+{
+	return IsWaterEnabled(bIsRenderThread) && !!(bIsRenderThread ? CVarWaterMeshEnabled.GetValueOnRenderThread() : CVarWaterMeshEnabled.GetValueOnGameThread());
+}
+
+bool FWaterUtils::IsWaterMeshRenderingEnabled(bool bIsRenderThread)
+{
+	return IsWaterMeshEnabled(bIsRenderThread) && !!(bIsRenderThread ? CVarWaterMeshEnableRendering.GetValueOnRenderThread() : CVarWaterMeshEnableRendering.GetValueOnGameThread());
 }

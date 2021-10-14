@@ -32,14 +32,14 @@ enum class EAISenseNotifyType : uint8
 	OnPerceptionChange,
 };
 
-struct FPerceptionChannelWhitelist
+struct FPerceptionChannelAllowList
 {
 	typedef int32 FFlagsContainer;
 
 	FFlagsContainer AcceptedChannelsMask;
 
 	// by default accept all
-	FPerceptionChannelWhitelist() : AcceptedChannelsMask()
+	FPerceptionChannelAllowList() : AcceptedChannelsMask()
 	{}
 
 	void Clear()
@@ -52,13 +52,13 @@ struct FPerceptionChannelWhitelist
 		return (AcceptedChannelsMask == 0);
 	}
 
-	FORCEINLINE FPerceptionChannelWhitelist& FilterOutChannel(FAISenseID Channel)
+	FORCEINLINE FPerceptionChannelAllowList& FilterOutChannel(FAISenseID Channel)
 	{
 		AcceptedChannelsMask &= ~(1 << Channel);
 		return *this;
 	}
 
-	FORCEINLINE_DEBUGGABLE FPerceptionChannelWhitelist& AcceptChannel(FAISenseID Channel)
+	FORCEINLINE_DEBUGGABLE FPerceptionChannelAllowList& AcceptChannel(FAISenseID Channel)
 	{
 		AcceptedChannelsMask |= (1 << Channel);
 		return *this;
@@ -69,7 +69,7 @@ struct FPerceptionChannelWhitelist
 		return (AcceptedChannelsMask & (1 << Channel)) != 0;
 	}
 
-	FORCEINLINE FPerceptionChannelWhitelist& MergeFilterIn(const FPerceptionChannelWhitelist& OtherFilter)
+	FORCEINLINE FPerceptionChannelAllowList& MergeFilterIn(const FPerceptionChannelAllowList& OtherFilter)
 	{
 		AcceptedChannelsMask |= OtherFilter.AcceptedChannelsMask;
 		return *this;
@@ -84,12 +84,13 @@ struct FPerceptionChannelWhitelist
 	{
 	private:
 		FFlagsContainer RemainingChannelsToTest;
-		const FPerceptionChannelWhitelist& Whitelist;
+		const FPerceptionChannelAllowList& AllowList;
 		int32 CurrentIndex;
 
 	public:
-		FConstIterator(const FPerceptionChannelWhitelist& InWhitelist)
-			: RemainingChannelsToTest((FFlagsContainer)-1), Whitelist(InWhitelist)
+		FConstIterator(const FPerceptionChannelAllowList& InAllowList)
+			: RemainingChannelsToTest((FFlagsContainer)-1)
+			, AllowList(InAllowList)
 			, CurrentIndex(INDEX_NONE)
 		{
 			FindNextAcceptedChannel();
@@ -97,7 +98,7 @@ struct FPerceptionChannelWhitelist
 
 		FORCEINLINE void FindNextAcceptedChannel()
 		{
-			const FFlagsContainer& Flags = Whitelist.GetAcceptedChannelsMask();
+			const FFlagsContainer& Flags = AllowList.GetAcceptedChannelsMask();
 
 			while ((RemainingChannelsToTest & Flags) != 0 && ((1 << ++CurrentIndex) | Flags) == 0)
 			{
@@ -107,7 +108,7 @@ struct FPerceptionChannelWhitelist
 
 		FORCEINLINE explicit operator bool() const
 		{
-			return (RemainingChannelsToTest & Whitelist.GetAcceptedChannelsMask()) != 0;
+			return (RemainingChannelsToTest & AllowList.GetAcceptedChannelsMask()) != 0;
 		}
 
 		FORCEINLINE int32 operator*() const
@@ -244,7 +245,7 @@ struct AIMODULE_API FPerceptionListener
 {
 	TWeakObjectPtr<UAIPerceptionComponent> Listener;
 
-	FPerceptionChannelWhitelist Filter;
+	FPerceptionChannelAllowList Filter;
 
 	FVector CachedLocation;
 	FVector CachedDirection;
@@ -296,7 +297,7 @@ private:
 struct AIMODULE_API FPerceptionStimuliSource
 {
 	TWeakObjectPtr<AActor> SourceActor;
-	FPerceptionChannelWhitelist RelevantSenses;
+	FPerceptionChannelAllowList RelevantSenses;
 };
 
 namespace AIPerception

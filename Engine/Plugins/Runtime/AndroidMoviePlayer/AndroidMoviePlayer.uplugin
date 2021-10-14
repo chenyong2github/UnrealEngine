@@ -19,7 +19,7 @@
 			"Name": "AndroidMoviePlayer",
 			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "PreLoadingScreen",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Android"
 			]
 		}

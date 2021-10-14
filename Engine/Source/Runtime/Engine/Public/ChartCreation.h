@@ -228,6 +228,7 @@ public:
 	bool bIsChartingPaused;
 	
 	// memory stats
+	uint32 NumFramesAtCriticalMemoryPressure;
 	uint64 MaxPhysicalMemory;
 	uint64 MaxVirtualMemory;
 	uint64 MinPhysicalMemory;
@@ -266,9 +267,17 @@ public:
 		return HitchTimeHistogram.GetNumMeasurements();
 	}
 
-	int64 GetTotalHitchFrameTime() const
+	/**
+	 * Sum of all recorded hitch lengths (in seconds)
+	 * @param bSubtractHitchThreshold Bias towards larger hitches by removing "acceptable" frame time
+	 **/
+	double GetTotalHitchFrameTime(bool bSubtractHitchThreshold = true) const;
+
+	double GetPercentHitchTime(bool bSubtractHitchThreshold = true) const
 	{
-		return HitchTimeHistogram.GetNumMeasurements();
+		const double TotalTime = GetTotalTime();
+		const double TotalHitchTime = GetTotalHitchFrameTime(bSubtractHitchThreshold);
+		return (TotalTime > 0.0) ? ((TotalHitchTime * 100.0) / TotalTime) : 0.0;
 	}
 
 	double GetPercentMissedVSync(int32 TargetFPS) const
@@ -288,10 +297,7 @@ public:
 
 	double GetAvgHitchFrameLength() const
 	{
-		const double TotalTime = GetTotalTime();
-		const int32 TotalHitchFrameTime = GetTotalHitchFrameTime();
-
-		return (TotalTime > 0.0) ? (TotalHitchFrameTime / TotalTime) : 0.0;
+		return HitchTimeHistogram.GetAverageOfAllMeasures();
 	}
 
 	void ChangeLabel(const FString& NewLabel)

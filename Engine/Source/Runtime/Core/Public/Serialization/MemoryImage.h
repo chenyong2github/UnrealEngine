@@ -188,7 +188,7 @@ struct FMemoryImageResult
 
 	CORE_API void SaveToArchive(FArchive& Ar) const;
 	CORE_API void ApplyPatches(void* FrozenObject) const;
-	CORE_API static FMemoryImageObject LoadFromArchive(FArchive& Ar, const FTypeLayoutDesc& TypeDesc, FPointerTableBase* PointerTable);
+	CORE_API static FMemoryImageObject LoadFromArchive(FArchive& Ar, const FTypeLayoutDesc& TypeDesc, FPointerTableBase* PointerTable, FPlatformTypeLayoutParameters& OutLayoutParameters);
 };
 
 class CORE_API FMemoryImageSection : public FRefCountedObject
@@ -403,7 +403,7 @@ namespace Freeze
 		{
 			// Compile-time type of the thing we're pointing to
 			const FTypeLayoutDesc& StaticTypeDesc = StaticGetTypeLayoutDesc<T>();
-
+			
 			// Actual run-time type of the thing we're pointing to
 			const FTypeLayoutDesc* DerivedTypeDesc = Context.GetDerivedTypeDesc(StaticTypeDesc, Object.GetFrozenTypeIndex());
 			if (!DerivedTypeDesc && Context.bIsFrozenForCurrentPlatform)
@@ -413,15 +413,20 @@ namespace Freeze
 				// If we're NOT unfreezing data for current platform, we can't access the frozen object, so we'll fail in that case
 				DerivedTypeDesc = &GetTypeLayoutDesc(Context.PrevPointerTable, *RawPtr);
 			}
-			checkf(DerivedTypeDesc, TEXT("Can't get DerivedTypeDesc for TMemoryImagePtr<%s>, unfreezing for a different platform, and type dependencies are not availiable"), StaticTypeDesc.Name);
+			if (DerivedTypeDesc)
+			{
+				// 'this' offset to adjust from the compile-time type to the run-time type
+				const uint32 OffsetToBase = DerivedTypeDesc->GetOffsetToBase(StaticTypeDesc);
 
-			// 'this' offset to adjust from the compile-time type to the run-time type
-			const uint32 OffsetToBase = DerivedTypeDesc->GetOffsetToBase(StaticTypeDesc);
-
-			void* UnfrozenMemory = ::operator new(DerivedTypeDesc->Size);
-			Context.UnfreezeObject((uint8*)RawPtr - OffsetToBase, *DerivedTypeDesc, UnfrozenMemory);
-			T* UnfrozenObject = (T*)((uint8*)UnfrozenMemory + OffsetToBase);
-			new(OutDst) TMemoryImagePtr<T>(UnfrozenObject);
+				void* UnfrozenMemory = ::operator new(DerivedTypeDesc->Size);
+				Context.UnfreezeObject((uint8*)RawPtr - OffsetToBase, *DerivedTypeDesc, UnfrozenMemory);
+				T* UnfrozenObject = (T*)((uint8*)UnfrozenMemory + OffsetToBase);
+				new(OutDst) TMemoryImagePtr<T>(UnfrozenObject);
+			}
+			else
+			{
+				new(OutDst) TMemoryImagePtr<T>(nullptr);
+			}
 		}
 		else
 		{

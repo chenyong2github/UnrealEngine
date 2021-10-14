@@ -8,5 +8,5 @@
 
 struct CONTROLRIGDEVELOPER_API FControlRigVisualGraphUtils
 {
-	static FString DumpRigHierarchyToDotGraph(URigHierarchy* InHierarchy);
+	static FString DumpRigHierarchyToDotGraph(URigHierarchy* InHierarchy, const FName& InEventName = NAME_None);
 };

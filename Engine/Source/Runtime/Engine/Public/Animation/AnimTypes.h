@@ -854,32 +854,32 @@ struct ENGINE_API FRawAnimSequenceTrack
 	GENERATED_USTRUCT_BODY()
 
 	/** Position keys. */
-	UPROPERTY(BlueprintReadOnly, Category=TrackData)
-	TArray<FVector> PosKeys;
+	UPROPERTY()
+	TArray<FVector3f> PosKeys;
 
 	/** Rotation keys. */
-	UPROPERTY(BlueprintReadOnly, Category = TrackData)
-	TArray<FQuat> RotKeys;
+	UPROPERTY()
+	TArray<FQuat4f> RotKeys;
 
 	/** Scale keys. */
-	UPROPERTY(BlueprintReadOnly, Category = TrackData)
-	TArray<FVector> ScaleKeys;
+	UPROPERTY()
+	TArray<FVector3f> ScaleKeys;
 
 	// Serializer.
 	friend FArchive& operator<<(FArchive& Ar, FRawAnimSequenceTrack& T)
 	{
-		T.PosKeys.BulkSerialize(Ar, !UE_LARGE_WORLD_COORDINATES_DISABLED);	// LWC_TODO: Need to force per element with LWC-on as we're serializing FVector arrays.
-		T.RotKeys.BulkSerialize(Ar, !UE_LARGE_WORLD_COORDINATES_DISABLED);	// LWC_TODO: Not necessary! Just a safety measure in case FQuat gets LWCified.
+		T.PosKeys.BulkSerialize(Ar);
+		T.RotKeys.BulkSerialize(Ar);
 
 		if (Ar.UEVer() >= VER_UE4_ANIM_SUPPORT_NONUNIFORM_SCALE_ANIMATION)
 		{
-			T.ScaleKeys.BulkSerialize(Ar, !UE_LARGE_WORLD_COORDINATES_DISABLED);
+			T.ScaleKeys.BulkSerialize(Ar);
 		}
 
 		return Ar;
 	}
 
-	static const uint32 SingleKeySize = sizeof(FVector) + sizeof(FQuat) + sizeof(FVector);
+	static const uint32 SingleKeySize = sizeof(FVector3f) + sizeof(FQuat4f) + sizeof(FVector3f);
 };
 
 

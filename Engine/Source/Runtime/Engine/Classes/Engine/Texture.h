@@ -321,7 +321,8 @@ struct FTextureSource
 	FORCEINLINE bool IsLongLatCubemap() const { return bLongLatCubemap; }
 	FORCEINLINE int64 GetSizeOnDisk() const { return BulkData.GetPayloadSize(); }
 	inline bool HasPayloadData() const { return BulkData.HasPayloadData(); }
-	FORCEINLINE bool IsBulkDataLoaded() const { return BulkData.IsDataLoaded(); }
+	/** Returns true if the texture's bulkdata payload is either already in memory or if the payload is 0 bytes in length. It will return false if the payload needs to load from disk */
+	FORCEINLINE bool IsBulkDataLoaded() const { return BulkData.DoesPayloadNeedLoading(); }
 
 	ENGINE_API void OperateOnLoadedBulkData(TFunctionRef<void (const FSharedBuffer& BulkDataBuffer)> Operation);
 
@@ -657,11 +658,21 @@ struct FTexturePlatformData
 			return BuildDefinitionKey != Other.BuildDefinitionKey || SourceGuid != Other.SourceGuid || CompositeSourceGuid != Other.CompositeSourceGuid;
 		}
 	};
-	/** The key used when comparing this derived data key to another reference key. */
-	TVariant<FString, FStructuredDerivedDataKey> ComparisonDerivedDataKey;
+
+	/** This is the key for the FetchOrBuild variant of our Cache. We assume that uniqueness
+	*	for that is equivalent to uniqueness if we use both FetchFirst and FetchOrBuild. This
+	*	is used as the key in to CookedPlatformData, as well as to determine if we are already
+	*	cooking the data the editor needs in CachePlatformData. 
+	*	Note that since this is read on the game thread constantly in CachePlatformData, it
+	*	must be written to on the game thread to avoid false recaches.
+	*/
+	TVariant<FString, FStructuredDerivedDataKey> FetchOrBuildDerivedDataKey;
 
 	/** Async cache task if one is outstanding. */
 	struct FTextureAsyncCacheDerivedDataTask* AsyncTask;
+
+	// Which encode speed we ended up using. Must be either ETextureEncodeSpeed::Final or ETextureEncodeSpeed::Fast.
+	uint8 UsedEncodeSpeed;
 #endif
 
 	/** Default constructor. */
@@ -754,9 +765,23 @@ public:
 #if WITH_EDITOR
 	static bool IsUsingNewDerivedData();
 	bool IsAsyncWorkComplete() const;
+
+	// Compresses the texture using the given compressor and adds the result to the DDC.
+	// This might not be synchronous, and might be called from a worker thread!
+	//
+	// If Compressor is 0, uses the default texture compressor module. Must be nonzero
+	// if called from a worker thread.
+	//
+	// InFlags are ETextureCacheFlags.
+	// InSettingsPerLayerFetchFirst can be nullptr - if not, then the caceh will check if
+	// the corresponding texture exists in the DDC before trying the FetchOrBuild settings.
+	// FetchFirst is ignored if forcerebuild is passed as a flag.
+	// InSettingsPerLayerFetchOrBuild is required. If a texture matching the settings exists
+	// in the ddc, it is used, otherwise it is built.
 	void Cache(
 		class UTexture& InTexture,
-		const struct FTextureBuildSettings* InSettingsPerLayer,
+		const struct FTextureBuildSettings* InSettingsPerLayerFetchFirst,
+		const struct FTextureBuildSettings* InSettingsPerLayerFetchOrBuild,
 		uint32 InFlags,
 		class ITextureCompressorModule* Compressor);
 	void FinishCache();
@@ -781,6 +806,10 @@ public:
 	// Only because we don't want to expose FVirtualTextureBuiltData
 	ENGINE_API int32 GetNumVTMips() const;
 	ENGINE_API EPixelFormat GetLayerPixelFormat(uint32 LayerIndex) const;
+
+private:
+
+	bool CanUseCookedDataPath() const;
 };
 
 /**
@@ -884,14 +913,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Compression, meta=(DisplayName="Compress Without Alpha"))
 	uint32 CompressionNoAlpha:1;
 
+	/** If true, force the texture to be uncompressed no matter the format. */
 	UPROPERTY()
 	uint32 CompressionNone:1;
 
-	/** If enabled, defer compression of the texture until save. */
+	/** If enabled, defer compression of the texture until save or manually compressed in the texture editor. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Compression, meta=(NoResetToDefault))
 	uint32 DeferCompression:1;
 
-	/** How aggressively should any relevant lossy compression be applied. */
+	/** How aggressively should any relevant lossy compression be applied. For compressors that support EncodeSpeed (i.e. Oodle), this is only
+	*	applied if enabled (see Project Settings -> Texture Encoding). Note that this is *in addition* to any
+	*	unavoidable loss due to the target format - selecting "No Lossy Compression" will not result in zero distortion for BCn formats.
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Compression, AdvancedDisplay)
 	TEnumAsByte<ETextureLossyCompressionAmount> LossyCompressionAmount;
 
@@ -899,8 +932,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Compression, meta=(DisplayName="Maximum Texture Size", ClampMin = "0.0"), AdvancedDisplay)
 	int32 MaxTextureSize;
 
-	/** The compression quality for generated textures. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Compression, meta = (DisplayName = "Compression Quality"), AdvancedDisplay)
+	/** The compression quality for generated ASTC textures (i.e. mobile platform textures). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Compression, meta = (DisplayName = "ASTC Compression Quality"), AdvancedDisplay)
 	TEnumAsByte<enum ETextureCompressionQuality> CompressionQuality;
 
 	/** When true, the alpha channel of mip-maps and the base image are dithered for smooth LOD transitions. */
@@ -1166,7 +1199,9 @@ public:
 	 * @param bAsyncCache spawn a thread to cache the platform data 
 	 * @param bAllowAsyncBuild allow building the DDC file in the thread if missing.
 	 * @param bAllowAsyncLoading allow loading source data in the thread if missing (the data won't be reusable for later use though)
-	 * @param Compressor optional compressor as the texture compressor can not be get from an async thread.
+	 * @param Compressor optional compressor as the texture compressor can not be retrieved from an async thread.
+	 * 
+	 * This is called optionally from worker threads via the FAsyncEncode class (LightMaps, ShadowMaps)
 	 */
 	void CachePlatformData(bool bAsyncCache = false, bool bAllowAsyncBuild = false, bool bAllowAsyncLoading = false, class ITextureCompressorModule* Compressor = nullptr);
 
@@ -1218,8 +1253,11 @@ public:
 
 	/**
 	 * Forces platform data to be rebuilt.
+	 * @param InEncodeSpeedOverride		Optionally force a specific encode speed 
+	 * 									using the ETextureEncodeSpeedOverride enum.
+	 * 									Type hidden to keep out of Texture.h
 	 */
-	ENGINE_API void ForceRebuildPlatformData();
+	ENGINE_API void ForceRebuildPlatformData(uint8 InEncodeSpeedOverride=255);
 
 	/**
 	 * Get an estimate of the peak amount of memory required to build this texture.

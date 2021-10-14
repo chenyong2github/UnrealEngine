@@ -43,7 +43,6 @@ public class VCamCore : ModuleRules
 				"UMG",
 				"CinematicCamera",
 				"GameplayTags",
-				"LiveLink",
 				"LiveLinkInterface",
 				"MediaIOCore",
 				"RemoteSession",

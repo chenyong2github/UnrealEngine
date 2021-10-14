@@ -108,7 +108,6 @@ public:
 	//~ Begin AActor Interface
 #if WITH_EDITOR
 	virtual void CheckForErrors() override;
-	virtual bool GetReferencedContentObjects( TArray<UObject*>& Objects ) const override;
 	virtual void EditorApplyTranslation(const FVector& DeltaTranslation, bool bAltDown, bool bShiftDown, bool bCtrlDown) override;
 	virtual void EditorApplyRotation(const FRotator& DeltaRotation, bool bAltDown, bool bShiftDown, bool bCtrlDown) override;
 	virtual void EditorApplyScale(const FVector& DeltaScale, const FVector* PivotLocation, bool bAltDown, bool bShiftDown, bool bCtrlDown) override;
@@ -130,6 +129,7 @@ public:
 
 	/** Add instances to this LODActor. */
 	void AddInstances(const UStaticMesh* InStaticMesh, const UMaterialInterface* InMaterial, const TArray<FTransform>& InTransforms);
+	void AddInstances(const UStaticMesh* InStaticMesh, const UMaterialInterface* InMaterial, const TArray<FTransform>& InTransforms, const TArray<FCustomPrimitiveData>& InCustomPrimitiveData);
 
 	UE_DEPRECATED(4.27, "Use AddInstances() instead. ")
 	void SetupImposters(const UMaterialInterface* InImposterMaterial, UStaticMesh* InStaticMesh, const TArray<FTransform>& InTransforms);

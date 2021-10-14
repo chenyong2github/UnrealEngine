@@ -34,7 +34,7 @@ public:
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Debug")
 	void DEBUG_Spawn();
 
-	/** Nuke all the entities */
+	/** Remove all the entities */
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Debug")
 	void DEBUG_Clear();
 #endif // WITH_EDITOR

@@ -20,6 +20,8 @@ public:
 
 struct FAuthLogin
 {
+	static constexpr TCHAR Name[] = TEXT("Login");
+
 	struct Params
 	{
 		int32 LocalUserNum;
@@ -37,6 +39,8 @@ struct FAuthLogin
 
 struct FAuthLogout
 {
+	static constexpr TCHAR Name[] = TEXT("Logout");
+
 	struct Params
 	{
 		FAccountId LocalUserId;
@@ -50,6 +54,8 @@ struct FAuthLogout
 
 struct FAuthGenerateAuth
 {
+	static constexpr TCHAR Name[] = TEXT("GenerateAuth");
+
 	struct Params
 	{
 		FAccountId LocalUserId;
@@ -64,6 +70,8 @@ struct FAuthGenerateAuth
 
 struct FAuthGetAccountByLocalUserNum
 {
+	static constexpr TCHAR Name[] = TEXT("GetAccountByLocalUserNum");
+
 	struct Params
 	{
 		int32 LocalUserNum;
@@ -77,6 +85,8 @@ struct FAuthGetAccountByLocalUserNum
 
 struct FAuthGetAccountByAccountId
 {
+	static constexpr TCHAR Name[] = TEXT("GetAccountByAccountId");
+
 	struct Params
 	{
 		FAccountId LocalUserId;

@@ -2,11 +2,14 @@
 
 #include "Archive/ClassDefaults/ApplyClassDefaulDataArchive.h"
 
+#include "LevelSnapshotsModule.h"
 #include "ObjectSnapshotData.h"
 #include "WorldSnapshotData.h"
 
 void FApplyClassDefaulDataArchive::SerializeClassDefaultObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InCDO)
 {
+	check(!FLevelSnapshotsModule::GetInternalModuleInstance().IsClassDefaultBlacklisted(InCDO->GetClass()));
+	
 	FApplyClassDefaulDataArchive Archive(InObjectData, InSharedData, InCDO, ESerialisationMode::RestoringCDO);
 	InCDO->Serialize(Archive);
 }

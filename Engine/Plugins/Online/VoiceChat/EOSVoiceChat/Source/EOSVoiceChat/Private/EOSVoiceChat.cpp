@@ -771,6 +771,16 @@ bool FEOSVoiceChat::IsPlayerMuted(const FString& PlayerName) const
 	return GetVoiceChatUser().IsPlayerMuted(PlayerName);
 }
 
+void FEOSVoiceChat::SetChannelPlayerMuted(const FString& ChannelName, const FString& PlayerName, bool bMuted)
+{
+	GetVoiceChatUser().SetChannelPlayerMuted(ChannelName, PlayerName, bMuted);
+}
+
+bool FEOSVoiceChat::IsChannelPlayerMuted(const FString& ChannelName, const FString& PlayerName) const
+{
+	return GetVoiceChatUser().IsChannelPlayerMuted(ChannelName, PlayerName);
+}
+
 FOnVoiceChatPlayerMuteUpdatedDelegate& FEOSVoiceChat::OnVoiceChatPlayerMuteUpdated()
 {
 	return GetVoiceChatUser().OnVoiceChatPlayerMuteUpdated();

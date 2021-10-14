@@ -173,17 +173,16 @@ void FPolicyParameterInfo::UpdateCustomParameterValueText(const FString& NewValu
 		
 		uint8* MapContainer = StructProperty->ContainerPtrToValuePtr<uint8>(ConfigurationViewport);
 		DisplayClusterConfiguratorPropertyUtils::AddKeyValueToMap(MapContainer, PropertyHandle, Key, NewValue);
-
-		if (bNotify)
-		{
-			if (FDisplayClusterConfiguratorBlueprintEditor* BlueprintEditor = FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(BlueprintOwnerPtr.Get()))
-			{
-				BlueprintEditor->ClusterChanged(true);
-				BlueprintEditor->RefreshDisplayClusterPreviewActor();
-			}
-		}
 	}
 
+	if (bNotify && bHasChanged)
+	{
+		if (FDisplayClusterConfiguratorBlueprintEditor* BlueprintEditor = FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(BlueprintOwnerPtr.Get()))
+		{
+			BlueprintEditor->ClusterChanged(true);
+			BlueprintEditor->RefreshDisplayClusterPreviewActor();
+		}
+	}
 	if (!bHasChanged)
 	{
 		Transaction.Cancel();
@@ -238,6 +237,7 @@ void FPolicyParameterInfoCombo::CreateCustomRowWidget(IDetailChildrenBuilder& In
 		[
 			SNew(STextBlock)
 			.Text(this, &FPolicyParameterInfoCombo::GetOrAddCustomParameterValueText)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
 		]
 	];
 }
@@ -249,7 +249,9 @@ void FPolicyParameterInfoCombo::SetOnSelectedDelegate(FOnItemSelected InDelegate
 
 TSharedRef<SWidget> FPolicyParameterInfoCombo::MakeCustomParameterValueComboWidget(TSharedPtr<FString> InItem)
 {
-	return SNew(STextBlock).Text(FText::FromString(*InItem));
+	return SNew(STextBlock)
+		.Text(FText::FromString(*InItem))
+		.Font(IDetailLayoutBuilder::GetDetailFont());
 }
 
 void FPolicyParameterInfoCombo::OnCustomParameterValueSelected(TSharedPtr<FString> InValue, ESelectInfo::Type SelectInfo)

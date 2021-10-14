@@ -206,11 +206,16 @@ void UUserWidget::DuplicateAndInitializeFromWidgetTree(UWidgetTree* InWidgetTree
 		// After using the widget tree as a template, we need to loop over the instanced sub-objects and
 		// initialize any UserWidgets, so that they can repeat the process for their children.
 		ObjectInstancingGraph.ForEachObjectInstance([this](UObject* Instanced) {
+			// Make sure all widgets inherit the designer flags.
+#if WITH_EDITOR
+			if (UWidget* InstancedWidget = Cast<UWidget>(Instanced))
+			{
+				InstancedWidget->SetDesignerFlags(GetDesignerFlags());
+			}
+#endif
+
 			if (UUserWidget* InstancedSubUserWidget = Cast<UUserWidget>(Instanced))
 			{
-#if WITH_EDITOR
-				InstancedSubUserWidget->SetDesignerFlags(GetDesignerFlags());
-#endif
 				InstancedSubUserWidget->SetPlayerContext(GetPlayerContext());
 				InstancedSubUserWidget->Initialize();
 			}

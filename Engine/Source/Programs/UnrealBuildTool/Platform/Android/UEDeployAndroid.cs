@@ -2650,8 +2650,11 @@ namespace UnrealBuildTool
 			Text.AppendLine("\t<application android:label=\"@string/app_name\"");
 			Text.AppendLine("\t             android:icon=\"@drawable/icon\"");
 
+			bool bForceCompressNativeLibs = false;
+			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bForceCompressNativeLibs", out bForceCompressNativeLibs);
+
 			AndroidToolChain.ClangSanitizer Sanitizer = ToolChain.BuildWithSanitizer();
-			if (Sanitizer != AndroidToolChain.ClangSanitizer.None && Sanitizer != AndroidToolChain.ClangSanitizer.HwAddress)
+			if ((Sanitizer != AndroidToolChain.ClangSanitizer.None && Sanitizer != AndroidToolChain.ClangSanitizer.HwAddress) || bForceCompressNativeLibs)
 			{
 				Text.AppendLine("\t             android:extractNativeLibs=\"true\"");
 			}
@@ -3849,7 +3852,7 @@ namespace UnrealBuildTool
 						Log.TraceInformation("Cleaning up file {0}", filename);
 						SafeDeleteFile(filename, false);
 
-						// Check to see if this file also exists in our target destination, and if so nuke it too
+						// Check to see if this file also exists in our target destination, and if so delete it too
 						string DestFilename = Path.Combine(ImmediateBaseDir, Utils.MakePathRelativeTo(filename, CleanUpBaseDir));
 						if (File.Exists(DestFilename))
 						{

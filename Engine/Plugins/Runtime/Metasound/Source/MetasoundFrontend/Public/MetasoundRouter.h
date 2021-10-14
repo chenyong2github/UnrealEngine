@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "DSP/Dsp.h"
 #include "DSP/MultithreadedPatching.h"
 #include "MetasoundAudioBuffer.h"
@@ -15,6 +13,7 @@
 #include "MetasoundOperatorSettings.h"
 #include "MetasoundTrigger.h"
 #include "Misc/Guid.h"
+#include "Templates/TypeHash.h"
 #include "UObject/NameTypes.h"
 
 #include <atomic>
@@ -47,75 +46,60 @@
 
 namespace Metasound
 {
-	// Enum for which scope to use 
-	enum class ETransmissionScope : uint8
+	class METASOUNDFRONTEND_API FSendAddress
 	{
-		ThisInstanceOnly,
-		Global,
-		Extension // This means that this metasound router talks to an implentation of IMetasoundTransmissionListener.
-	};
-	/* TODO: Rename "Subsystem" to "Protocol".  A "Protocol" defines how data is moved around
-	 * and can be used by multiple APIs. 
-	 */
+	public:
+		FSendAddress() = default;
 
-	// This converts an ETransmissionScope into an FName that can be used in FSendAddress::Subsystem.
-	// For ETransmissionScope::Extension, the FName of that extension should be used instead.
-	FORCEINLINE FName GetSubsystemNameForSendScope(ETransmissionScope InScope)
-	{
-		switch (InScope)
+		// Create an address without a data type or instance ID
+		FSendAddress(const FString& InChannelName);
+
+		// Create an address with a channel name, data type and optionally an instance ID. 
+		FSendAddress(const FName& InChannelName, const FName& InDataType, uint64 InInstanceID=INDEX_NONE);
+
+		friend uint32 GetTypeHash(const FSendAddress& InAddress)
 		{
-			case ETransmissionScope::ThisInstanceOnly:
-			{
-				static FName SubsystemName = TEXT("This Instance Only");
-				return SubsystemName;
-			}
-			case ETransmissionScope::Global:
-			{
-				static FName SubsystemName = TEXT("All Metasounds");
-				return SubsystemName;
-			}
-			default:
-			{
-				checkNoEntry();
-				return FName();
-			}
-		}
-	}
-
-	struct METASOUNDFRONTEND_API FSendAddress
-	{
-		// The specific subsystem this send should be broadcast to.
-		// This can be either local to this instance, or global to all metasounds, or a specific subsystem.
-		FName Subsystem;
-
-		// This is the name for the channel itself.
-		FName ChannelName;
-
-		// For instance-specific addresses, this FName is the instance of this metasound.
-		uint64 MetasoundInstanceID = INDEX_NONE;
-
-		friend uint32 GetTypeHash(const FSendAddress& Address)
-		{
-			uint32 HashedChannel = HashCombine(GetTypeHash(Address.Subsystem), GetTypeHash(Address.ChannelName));
-			uint32 HashedMetasoundInstance = HashCombine(HashedChannel, static_cast<uint32>(Address.MetasoundInstanceID % TNumericLimits<uint32>::Max()));
-			return HashedMetasoundInstance;
+			uint32 HashedChannel = HashCombineFast(::GetTypeHash(InAddress.DataType), ::GetTypeHash(InAddress.ChannelName));
+			HashedChannel = HashCombineFast(HashedChannel, ::GetTypeHash(InAddress.InstanceID));
+			return HashedChannel;
 		}
 
 		FORCEINLINE bool operator==(const FSendAddress& Other) const
 		{
-			return ChannelName == Other.ChannelName;
+			return (InstanceID == Other.InstanceID) && (ChannelName == Other.ChannelName) && (DataType == Other.DataType); /*&& (Subsystem == Other.Subsystem);*/
 		}
 
-		FSendAddress(const FString& InAddress)
-			: Subsystem(GetSubsystemNameForSendScope(ETransmissionScope::Global))
-			, ChannelName(*InAddress)
+		FORCEINLINE bool operator!=(const FSendAddress& Other) const
 		{
+			return !(*this == Other);
 		}
 
-		FSendAddress()
-			: Subsystem(GetSubsystemNameForSendScope(ETransmissionScope::Global))
-			, ChannelName(FName(TEXT("Default Channel")))
-		{}
+		const FName& GetDataType() const
+		{
+			return DataType;
+		}
+
+		const FName& GetChannelName() const
+		{
+			return ChannelName;
+		}
+
+		uint64 GetInstanceID() const
+		{
+			return InstanceID;
+		}
+
+		FString ToString() const
+		{
+			return FString::Format(TEXT("SendAddress {0}:{1}[Type={2}]"), {ChannelName.ToString(), InstanceID, DataType.ToString()});
+		}
+
+	private:
+		FName ChannelName;
+		FName DataType;
+
+		// For instance-specific addresses, this uint64 is the instance of this metasound.
+		uint64 InstanceID = INDEX_NONE;
 	};
 
 	// Base class that defines shared state and utilities for senders, receivers, and the shared channel state.
@@ -964,39 +948,44 @@ namespace Metasound
 	{
 
 	public:
-		using FDataChannelKey = FString;
 
-		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> FindDataChannel(const FName& InDataTypeName, const FName& InChannelName);
-		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> GetDataChannel(const FName& InDataTypeName, const FName& InChannelName, const FOperatorSettings& InOperatorSettings);
+		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> FindDataChannel(const FSendAddress& InAddress);
+		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> GetDataChannel(const FSendAddress& InAddress, const FOperatorSettings& InOperatorSettings);
 
-		TUniquePtr<ISender> RegisterNewSender(const FName& InDataTypeName, const FName& InChannelName, const FSenderInitParams& InitParams);
-		TUniquePtr<IReceiver> RegisterNewReceiver(const FName& InDataTypeName, const FName& InChannelName, const FReceiverInitParams& InitParams);
+		TUniquePtr<ISender> RegisterNewSender(const FSendAddress& InAddress, const FSenderInitParams& InitParams);
+		TUniquePtr<IReceiver> RegisterNewReceiver(const FSendAddress& InAddress, const FReceiverInitParams& InitParams);
 
 		template<typename TDataType>
-		TReceiverPtr<TDataType> RegisterNewReceiver(const FName& InChannelName, const FReceiverInitParams& InitParams)
+		TReceiverPtr<TDataType> RegisterNewReceiver(const FSendAddress& InAddress, const FReceiverInitParams& InitParams)
 		{
 			TReceiverPtr<TDataType> Receiver;
 
-			TUniquePtr<IReceiver> ReceiverBase = RegisterNewReceiver(GetMetasoundDataTypeName<TDataType>(), InChannelName, InitParams);
-
-			if (ReceiverBase.IsValid())
+			const bool bIsMatchingDataType = GetMetasoundDataTypeName<TDataType>() == InAddress.GetDataType();
+			if (ensure(bIsMatchingDataType))
 			{
-				Receiver = Downcast<TDataType>(MoveTemp(ReceiverBase));
+				TUniquePtr<IReceiver> ReceiverBase = RegisterNewReceiver(InAddress, InitParams);
+				if (ReceiverBase.IsValid())
+				{
+					Receiver = Downcast<TDataType>(MoveTemp(ReceiverBase));
+				}
 			}
 
 			return MoveTemp(Receiver);
 		}
 
 		template<typename TDataType>
-		TSenderPtr<TDataType> RegisterNewSender(const FName& InChannelName, const FSenderInitParams& InitParams)
+		TSenderPtr<TDataType> RegisterNewSender(const FSendAddress& InAddress, const FSenderInitParams& InitParams)
 		{
 			TSenderPtr<TDataType> Sender;
 
-			TUniquePtr<ISender> SenderBase = RegisterNewSender(GetMetasoundDataTypeName<TDataType>(), InChannelName, InitParams);
-
-			if (SenderBase.IsValid())
+			const bool bIsMatchingDataType = GetMetasoundDataTypeName<TDataType>() == InAddress.GetDataType();
+			if (ensure(bIsMatchingDataType))
 			{
-				Sender = Downcast<TDataType>(MoveTemp(SenderBase));
+				TUniquePtr<ISender> SenderBase = RegisterNewSender(InAddress, InitParams);
+				if (SenderBase.IsValid())
+				{
+					Sender = Downcast<TDataType>(MoveTemp(SenderBase));
+				}
 			}
 
 			return MoveTemp(Sender);
@@ -1004,7 +993,9 @@ namespace Metasound
 
 		bool PushLiteral(const FName& InDataTypeName, const FName& InChannelName, const FLiteral& InParam)
 		{
-			TSharedPtr<IDataChannel, ESPMode::ThreadSafe> Channel = FindDataChannel(InDataTypeName, InChannelName);
+			FSendAddress Address{ InChannelName, InDataTypeName };
+
+			TSharedPtr<IDataChannel, ESPMode::ThreadSafe> Channel = FindDataChannel(Address);
 			if (Channel.IsValid())
 			{
 				return Channel->PushLiteral(InParam);
@@ -1015,8 +1006,8 @@ namespace Metasound
 			}
 		}
 
-		bool UnregisterDataChannel(const FName& InDataTypeName, const FName& InChannelName);
-		bool UnregisterDataChannelIfUnconnected(const FName& InDataTypeName, const FName& InChannelName);
+		bool UnregisterDataChannel(const FSendAddress& InAddress);
+		bool UnregisterDataChannelIfUnconnected(const FSendAddress& InAddress);
 
 		FAddressRouter(const FAddressRouter& Other)
 			: DataChannelMap(Other.DataChannelMap)
@@ -1027,125 +1018,24 @@ namespace Metasound
 		{}
 
 	private:
-		FDataChannelKey GetDataChannelKey(const FName& InDataTypeName, const FName& InChannelName) const;
 
-		TMap<FDataChannelKey, TSharedRef<IDataChannel, ESPMode::ThreadSafe>> DataChannelMap;
+		TMap<FSendAddress, TSharedRef<IDataChannel, ESPMode::ThreadSafe>> DataChannelMap;
 		FCriticalSection DataChannelMapMutationLock;
 	};
 
-	// this class is simply a container of a map of instances to FAddressRouters.
-	class FInstanceLocalRouter
-	{
-	public:
-
-		TUniquePtr<ISender> RegisterNewSender(uint64 InInstanceID, const FName& InDataTypeName, const FName& InChannelName, const FSenderInitParams& InitParams);
-
-		template<typename TDataType>
-		TSenderPtr<TDataType> RegisterNewSender(uint64 InInstanceID, FName InChannelName, const FSenderInitParams& InitParams)
-		{
-			TSenderPtr<TDataType> Sender;
-
-			TUniquePtr<ISender> SenderBase = RegisterNewSender(InInstanceID, GetMetasoundDataTypeName<TDataType>(), InChannelName, InitParams);
-
-			if (SenderBase.IsValid())
-			{
-				Sender = Downcast<TDataType>(SenderBase);
-			}
-
-			return MoveTemp(Sender);
-		}
-
-		TUniquePtr<IReceiver> RegisterNewReceiver(uint64 InInstanceID, const FName& InDataTypeName, const FName& InChannelName, const FReceiverInitParams& InitParams);
-
-		template<typename TDataType>
-		TReceiverPtr<TDataType> RegisterNewReceiver(uint64 InInstanceID, FName InChannelName, const FReceiverInitParams& InitParams)
-		{
-			TReceiverPtr<TDataType> Receiver;
-
-			TUniquePtr<IReceiver> ReceiverBase = RegisterNewReceiver(InInstanceID, GetMetasoundDataTypeName<TDataType>(), InChannelName, InitParams);
-
-			if (ReceiverBase.IsValid())
-			{
-				Receiver = Downcast<TDataType>(ReceiverBase);
-			}
-
-			return MoveTemp(ReceiverBase);
-		}
-
-	private:
-		TMap<uint64, FAddressRouter> InstanceRouterMap;
-		FCriticalSection InstanceRouterMapMutationLock;
-	};
-
-	// Interface for any subsystem that wants to register as an independently addressable subsystem.
-	// The name provided to the ITransmissionSubsystem constructor will appear in the drop down menu for metasound send and receive nodes,
-	// and your implementation of ITransmissionSubsystem will be notified whenever a new send or receive is created for it's subsystem.
-	class METASOUNDFRONTEND_API ITransmissionSubsystem
-	{
-	public:
-		virtual ~ITransmissionSubsystem();
-
-	protected:
-
-		ITransmissionSubsystem() = delete;
-		
-		// Invoked by the implementing class. Automatically registers this subsystem with the FDataTransmissionCenter singleton.
-		ITransmissionSubsystem(FName InSubsystemName);
-
-		virtual void OnNewSendRegistered(const FSendAddress& SendAddress, FName DataType) {};
-		virtual void OnNewReceiverRegistered(const FSendAddress& SendAddress, FName DataType) {};
-		virtual bool CanSupportDataType(FName DataType) { return true; }
-
-	private:
-		FName SubsystemName;
-
-		friend class FDataTransmissionCenter;
-	};
 
 	// Main entry point for all sender/receiver registration.
 	class METASOUNDFRONTEND_API FDataTransmissionCenter
 	{
-		struct FSubsystemData
-		{
-			ITransmissionSubsystem* SubsystemPtr;
-			FAddressRouter AddressRouter;
-
-			FSubsystemData(ITransmissionSubsystem* InSystemPtr)
-				: SubsystemPtr(InSystemPtr)
-			{}
-		};
 
 	public:
 
 		// Returns the universal router.
 		static FDataTransmissionCenter& Get();
 
-		template<typename TDataType>
-		bool DoesSubsytemSupportDatatype(FName InSubsystem)
-		{
-			if (InSubsystem == GetSubsystemNameForSendScope(ETransmissionScope::ThisInstanceOnly) || InSubsystem == GetSubsystemNameForSendScope(ETransmissionScope::Global))
-			{
-				return true;
-			}
-			else if (FSubsystemData* FoundSubsystem = SubsystemRouters.Find(InSubsystem))
-			{
-				ITransmissionSubsystem* SubsystemInterface = FoundSubsystem->SubsystemPtr;
-				check(SubsystemInterface);
-
-				// Ensure that this subsystem can support this send type.
-				return SubsystemInterface->CanSupportDataType(GetMetasoundDataTypeName<TDataType>());
-			}
-			else
-			{
-				// Otherwise, the subsystem FName was invalid.
-				ensureAlways(false);
-				return false;
-			}
-		}
-
 		// Creates a new object to push data to an address.
 		// Returns a new sender, or nullptr if registration failed.
-		TUniquePtr<ISender> RegisterNewSender(const FName& InDataTypeName, const FSendAddress& InAddress, const FSenderInitParams& InitParams);
+		TUniquePtr<ISender> RegisterNewSender(const FSendAddress& InAddress, const FSenderInitParams& InitParams);
 
 		// Creates a new object to push data to an address.
 		// Returns a new sender, or nullptr if registration failed.
@@ -1154,11 +1044,15 @@ namespace Metasound
 		{
 			TSenderPtr<TDataType> Sender;
 			
-			TUniquePtr<ISender> SenderBase = RegisterNewSender(GetMetasoundDataTypeName<TDataType>(), InAddress, InitParams);
-
-			if (SenderBase.IsValid())
+			const bool bIsMatchingDataType = GetMetasoundDataTypeName<TDataType>() == InAddress.GetDataType();
+			if (ensure(bIsMatchingDataType))
 			{
-				Sender = Downcast<TDataType>(MoveTemp(SenderBase));
+				TUniquePtr<ISender> SenderBase = RegisterNewSender(InAddress, InitParams);
+
+				if (SenderBase.IsValid())
+				{
+					Sender = Downcast<TDataType>(MoveTemp(SenderBase));
+				}
 			}
 
 			return Sender;
@@ -1166,7 +1060,7 @@ namespace Metasound
 
 		// Registers a new object to poll data from an address.
 		// Returns a new receiver, or nullptr if registration failed.
-		TUniquePtr<IReceiver> RegisterNewReceiver(const FName& InDataTypeName, const FSendAddress& InAddress, const FReceiverInitParams& InitParams);
+		TUniquePtr<IReceiver> RegisterNewReceiver(const FSendAddress& InAddress, const FReceiverInitParams& InitParams);
 
 		// Registers a new object to poll data from an address.
 		// Returns a new receiver, or nullptr if registration failed.
@@ -1175,21 +1069,25 @@ namespace Metasound
 		{
 			TReceiverPtr<TDataType> Receiver;
 
-			TUniquePtr<IReceiver> ReceiverBase = RegisterNewReceiver(GetMetasoundDataTypeName<TDataType>(), InAddress, InitParams);
-
-			if (ReceiverBase.IsValid())
+			const bool bIsMatchingDataType = GetMetasoundDataTypeName<TDataType>() == InAddress.GetDataType();
+			if (ensure(bIsMatchingDataType))
 			{
-				Receiver = Downcast<TDataType>(MoveTemp(ReceiverBase));
+				TUniquePtr<IReceiver> ReceiverBase = RegisterNewReceiver(InAddress, InitParams);
+
+				if (ReceiverBase.IsValid())
+				{
+					Receiver = Downcast<TDataType>(MoveTemp(ReceiverBase));
+				}
 			}
 
 			return Receiver;
 		}
 
 		// Unregisters DataChannel irrespective of number of receivers or senders still active.
-		bool UnregisterDataChannel(const FName& InDataTypeName, const FSendAddress& InAddress);
+		bool UnregisterDataChannel(const FSendAddress& InAddress);
 
 		// Unregister a data channel if there are no senders or receivers
-		bool UnregisterDataChannelIfUnconnected(const FName& InDataTypeName, const FSendAddress& InAddress);
+		bool UnregisterDataChannelIfUnconnected(const FSendAddress& InAddress);
 
 		// Pushes a literal parameter to a specific data channel in the global router.
 		// returns false if the literal type isn't supported.
@@ -1199,20 +1097,7 @@ namespace Metasound
 		// Single map of FNames to IDataChannels
 		FAddressRouter GlobalRouter;
 
-		// Map of instance IDs to FAddressRouter instances:
-		FInstanceLocalRouter InstanceRouter;
-
-		// Map of Subsystem Names to FAddressRouter instances.
-		TMap<FName, FSubsystemData> SubsystemRouters;
-		FCriticalSection SubsystemRoutersMutationLock;
-
-		// These are used by the constructor and destructor of implementations of ITransmissionSubsystem.
-		void RegisterSubsystem(ITransmissionSubsystem* InSystem, FName InSubsytemName);
-		void UnregisterSubsystem(FName InSubsystemName);
-
 		FDataTransmissionCenter() = default;
-
-		friend class ITransmissionSubsystem;
 	};
 
 	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FSendAddress, METASOUNDFRONTEND_API, FSendAddressTypeInfo, FSendAddressReadRef, FSendAddressWriteRef)

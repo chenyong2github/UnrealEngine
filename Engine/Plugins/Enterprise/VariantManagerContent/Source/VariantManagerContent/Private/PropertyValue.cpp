@@ -29,6 +29,66 @@
 
 DEFINE_LOG_CATEGORY(LogVariantContent);
 
+namespace UE
+{
+	namespace PropertyValue
+	{
+		namespace Private
+		{
+			template<typename OldType, typename NewType>
+			void ConvertRecordedValueSizes( size_t TargetStructSize, bool& bHasRecordedData, TArray<uint8>& ValueBytes )
+			{
+				const int32 NumElements = ValueBytes.Num() / sizeof( OldType );
+				ensure( ValueBytes.Num() % sizeof( OldType ) == 0 );
+				ensure( TargetStructSize == NumElements * sizeof( NewType ) );
+
+				TArray<uint8> ConvertedRecordedData;
+				ConvertedRecordedData.SetNumZeroed( TargetStructSize );
+
+				const OldType* OldValues = reinterpret_cast< const OldType* >( ValueBytes.GetData() );
+				NewType* NewValues = reinterpret_cast< NewType* >( ConvertedRecordedData.GetData() );
+
+				for ( int32 ElementIndex = 0; ElementIndex < NumElements; ++ElementIndex )
+				{
+					*NewValues++ = static_cast< NewType >( *OldValues++ );
+				}
+
+				ValueBytes = MoveTemp( ConvertedRecordedData );
+				bHasRecordedData = true;
+			}
+
+			// The purpose of this function is to upgrade ValueBytes to the correct size/values if we last saved our e.g. FVector
+			// recorded data when FVector contained floats, but now it should hold doubles (i.e. ValueBytes holds 12 bytes, but
+			// it should really hold 24 now). This change can happen both ways because UE_LARGE_WORLD_COORDINATES_DISABLED can be defined or not.
+			void UpdateRecordedDataSizesIfNeeded( UScriptStruct* StructClass, bool& bHasRecordedData, TArray<uint8>& ValueBytes )
+			{
+				if ( StructClass && bHasRecordedData )
+				{
+					FName StructName = StructClass->GetFName();
+					if ( StructName == NAME_Vector || StructName == NAME_Quat )
+					{
+						const size_t TargetStructSize = StructClass->GetCppStructOps()->GetSize();
+
+						// If these sizes are different we need to update our RecordedData
+						if ( TargetStructSize != ValueBytes.Num() )
+						{
+							const size_t NewElementSize = StructName == NAME_Vector ? sizeof( FVector().X ) : sizeof( FQuat().X );
+							if ( NewElementSize == sizeof( double ) )
+							{
+								ConvertRecordedValueSizes<float, double>( TargetStructSize, bHasRecordedData, ValueBytes );
+							}
+							else if ( NewElementSize == sizeof( float ) )
+							{
+								ConvertRecordedValueSizes<double, float>( TargetStructSize, bHasRecordedData, ValueBytes );
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 // Non-asserting way of checking if an Index is valid for an enum.
 // Warning: This will claim that the _MAX entry's index is also invalid
 bool IsEnumIndexValid(UEnum* Enum, int32 Index)
@@ -426,6 +486,8 @@ bool UPropertyValue::Resolve(UObject* Object)
 		return false;
 	}
 
+	const bool bStartedUnresolved = !HasValidResolve();
+
 	ParentContainerObject = Object;
 	if (!ResolvePropertiesRecursive(Object->GetClass(), Object, 0))
 	{
@@ -467,6 +529,13 @@ bool UPropertyValue::Resolve(UObject* Object)
 				}
 			}
 		}
+	}
+
+	if ( bStartedUnresolved && HasValidResolve() )
+	{
+		// We can only do this after we resolve because we need to know the struct property's struct class, which also
+		// means we can't do it on Serialize()
+		UE::PropertyValue::Private::UpdateRecordedDataSizesIfNeeded( GetStructPropertyStruct(), bHasRecordedData, ValueBytes );
 	}
 
 	return true;

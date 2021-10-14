@@ -11,6 +11,7 @@
 #include "IO/PackageId.h"
 #include "Serialization/Archive.h"
 #include "Serialization/MappedName.h"
+#include "Serialization/CustomVersion.h"
 
 class FArchive;
 class IAsyncPackageLoader;
@@ -223,11 +224,30 @@ enum class EExportFilterFlags : uint8
 	NotForServer
 };
 
+enum class EZenPackageVersion : uint32
+{
+	Initial,
+
+	LatestPlusOne,
+	Latest = LatestPlusOne - 1
+};
+
+struct FZenPackageVersioningInfo
+{
+	EZenPackageVersion ZenVersion;
+	FPackageFileVersion PackageVersion;
+	int32 LicenseeVersion;
+	FCustomVersionContainer CustomVersions;
+
+	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FZenPackageVersioningInfo& ExportBundleEntry);
+};
+
 /**
  * Package summary.
  */
-struct FPackageSummary
+struct FZenPackageSummary
 {
+	uint32 bHasVersioningInfo;
 	uint32 HeaderSize;
 	FMappedName Name;
 	uint32 PackageFlags;
@@ -236,7 +256,6 @@ struct FPackageSummary
 	int32 ExportMapOffset;
 	int32 ExportBundleEntriesOffset;
 	int32 GraphDataOffset;
-	int32 Pad = 0;
 };
 
 /**
@@ -298,7 +317,7 @@ struct FExportMapEntry
 	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FExportMapEntry& ExportMapEntry);
 };
 
-COREUOBJECT_API void FindAllRuntimeScriptPackages(TArray<UPackage*>& OutPackages, bool bAllowEditorOnlyPackages);
+COREUOBJECT_API void FindAllRuntimeScriptPackages(TArray<UPackage*>& OutPackages);
 
 #ifndef WITH_ASYNCLOADING2
 #define WITH_ASYNCLOADING2 (WITH_IOSTORE_IN_EDITOR || !WITH_EDITORONLY_DATA)

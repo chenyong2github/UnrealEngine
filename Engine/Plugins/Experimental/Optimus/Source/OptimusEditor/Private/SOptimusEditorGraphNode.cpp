@@ -386,6 +386,40 @@ void SOptimusEditorGraphNode::EndUserInteraction() const
 }
 
 
+void SOptimusEditorGraphNode::CreateStandardPinWidget(UEdGraphPin* CurPin)
+{
+	const bool bShowPin = ShouldPinBeHidden(CurPin);
+
+	if (bShowPin)
+	{
+		// Do we have this pin in our list of pins to keep?
+		TSharedRef<SGraphPin>* RecycledPin = PinsToKeep.Find(CurPin);
+		TSharedPtr<SGraphPin> NewPin;
+		if (!RecycledPin)
+		{
+			NewPin = CreatePinWidget(CurPin);
+			check(NewPin.IsValid());
+			
+			AddPin(NewPin.ToSharedRef());
+		}
+		else
+		{
+			NewPin = *RecycledPin;
+		}
+
+		PinWidgetMap.Add(CurPin, NewPin);
+		if (CurPin->Direction == EGPD_Input)
+		{
+			InputPins.Add(NewPin.ToSharedRef());
+		}
+		else
+		{
+			OutputPins.Add(NewPin.ToSharedRef());
+		}
+	}
+}
+
+
 void SOptimusEditorGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd)
 {
 	PinToAdd->SetShowLabel(false);
@@ -419,15 +453,6 @@ void SOptimusEditorGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd)
 		}
 
 		PinToAdd->SetOwner(SharedThis(this));
-		PinWidgetMap.Add(EdPinObj, PinToAdd);
-		if (EdPinObj->Direction == EGPD_Input)
-		{
-			InputPins.Add(PinToAdd);
-		}
-		else
-		{
-			OutputPins.Add(PinToAdd);
-		}
 	}
 }
 
@@ -526,11 +551,23 @@ void SOptimusEditorGraphNode::SyncPinWidgetsWithGraphPins()
 		LocalPinsToDelete.Add(GraphPin->GetPinObj());
 	}
 
+	check(PinsToKeep.IsEmpty());
+
 	UOptimusEditorGraphNode* EditorGraphNode = GetEditorGraphNode();
 	for (const UEdGraphPin* LivePin: EditorGraphNode->Pins)
 	{
+		TWeakPtr<SGraphPin>* PinWidgetPtr = PinWidgetMap.Find(LivePin);
+		if (PinWidgetPtr)
+		{
+			TSharedPtr<SGraphPin> PinWidget = PinWidgetPtr->Pin();
+			if (PinWidget.IsValid())
+			{
+				PinsToKeep.Add(LivePin, PinWidget.ToSharedRef());
+			}
+		}
 		LocalPinsToDelete.Remove(LivePin);
 	}
+
 	for (const UEdGraphPin* DeletingPin: LocalPinsToDelete)
 	{
 		TWeakPtr<SGraphPin>* PinWidgetPtr = PinWidgetMap.Find(DeletingPin);
@@ -553,6 +590,9 @@ void SOptimusEditorGraphNode::SyncPinWidgetsWithGraphPins()
 	PinWidgetMap.Reset();
 
 	CreatePinWidgets();
+
+	// Nix any pins left in this map. They're most likely hidden sub-pins.
+	PinsToKeep.Reset();
 
 	InputTree->RequestTreeRefresh();
 	OutputTree->RequestTreeRefresh();

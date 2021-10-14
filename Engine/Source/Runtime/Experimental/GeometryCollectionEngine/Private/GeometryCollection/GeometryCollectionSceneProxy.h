@@ -280,6 +280,8 @@ public:
 	/** virtual destructor */
 	virtual ~FGeometryCollectionSceneProxy();
 
+	void DestroyRenderThreadResources()override;
+
 	/** Current number of vertices to render */
 	int32 GetRequiredVertexCount() const { return NumVertices; }
 
@@ -297,6 +299,14 @@ public:
 
 	/** Called on render thread to setup dynamic geometry for rendering */
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
+
+#if RHI_RAYTRACING
+	virtual bool					IsRayTracingRelevant() const { return true; }
+	virtual bool					IsRayTracingStaticRelevant() const { return false; }
+	virtual void					GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<struct FRayTracingInstance>& OutRayTracingInstances) override;
+
+	void UpdatingRayTracingGeometry_RenderingThread(FGeometryCollectionIndexBuffer* IndexBuffer);
+#endif
 
 	/** Manage the view assignment */
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
@@ -322,6 +332,8 @@ public:
 #endif
 
 	void GetPreSkinnedLocalBounds(FBoxSphereBounds& OutBounds) const override;
+
+	void SetupVertexFactory(FGeometryCollectionVertexFactory& GeometryCollectionVertexFactory) const;
 
 protected:
 
@@ -359,6 +371,12 @@ private:
 
 	/** Release subsections by emptying the associated arrays. */
 	void ReleaseSubSections_RenderThread();
+#endif
+
+#if RHI_RAYTRACING
+	bool bGeometryResourceUpdated = false;
+	FRayTracingGeometry RayTracingGeometry;
+	FRWBuffer RayTracingDynamicVertexBuffer;
 #endif
 };
 

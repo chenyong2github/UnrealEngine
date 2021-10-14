@@ -10,6 +10,8 @@
 
 void FPropertyTraceMenu::Register()
 {
+#if OBJECT_TRACE_ENABLED
+
 	UToolMenu* Menu = UToolMenus::Get()->FindMenu("RewindDebugger.ComponentContextMenu");
 	FToolMenuSection& Section = Menu->FindOrAddSection("Object");
 	FToolMenuEntry& Entry = Section.AddDynamicEntry("AssetManagerEditorViewCommands", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
@@ -55,6 +57,7 @@ void FPropertyTraceMenu::Register()
 			);
 		}
 	}));
+#endif
 }
 
 #undef LOCTEXT_NAMESPACE

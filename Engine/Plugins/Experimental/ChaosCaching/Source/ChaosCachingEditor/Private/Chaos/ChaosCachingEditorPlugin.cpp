@@ -73,19 +73,19 @@ void IChaosCachingEditorPlugin::RegisterMenus()
 	FToolMenuSection* Section = Menu->FindSection("Chaos");
 	if(!Section)
 	{
-		Section = &Menu->AddSection("Chaos", LOCTEXT("ChaosSectionLabel", "Chaos"));
+		Section = &Menu->AddSection("Chaos");
 	}
 
-	Section->InitSection("Chaos", LOCTEXT("ChaosSectionLabel", "Chaos"), FToolMenuInsert());
+	Section->InitSection("Chaos", TAttribute<FText>(), FToolMenuInsert("ActorUETools", EToolMenuInsertType::After));
 
 	Section->AddSubMenu("CachingSub",
-						LOCTEXT("SubMenu_Caching", "Caching"),
+						LOCTEXT("ChaosSectionLabel", "Chaos"),
 						LOCTEXT("Tooltip_Caching", "Options for manipulating cache managers and their observed components"),
 						FNewToolMenuDelegate::CreateLambda([this](UToolMenu* InMenu) {
-							FToolMenuSection& CacheSubMenuSection = InMenu->AddSection("Caching");
+							FToolMenuSection& CacheSubMenuSection = InMenu->AddSection("Caching", LOCTEXT("SubMenu_Caching", "Caching"));
 							RegisterCachingSubMenu(InMenu, &CacheSubMenuSection);
 						}),
-						FUIAction(FExecuteAction(), FCanExecuteAction(), FIsActionChecked(), FIsActionButtonVisible::CreateLambda([]() -> bool 
+						FUIAction(FExecuteAction(), FCanExecuteAction::CreateLambda([]() -> bool 
 						{
 							return IsCreateCacheManagerVisible() || IsSetAllPlayVisible() || IsSetAllRecordVisible();
 						})),

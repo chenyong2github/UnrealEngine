@@ -365,7 +365,7 @@ struct FGPUDriverInfo
 };
 
 // one entry in the Hardware.ini file
-struct FBlackListEntry
+struct FDriverDenyListEntry
 {
 	// optional, e.g. "<=223.112.21.1", might includes comparison operators, later even things multiple ">12.22 <=12.44"
 	FString DriverVersionString;
@@ -396,7 +396,7 @@ struct FBlackListEntry
 		ensure(!Reason.IsEmpty());
 	}
 
-	// test if the given driver version is mentioned in the this blacklist entry
+	// test if the given driver version is mentioned in the this entry
 	// @return true:yes, inform used, false otherwise
 	bool Test(const FGPUDriverInfo& Info) const
 	{
@@ -458,19 +458,19 @@ struct FBlackListEntry
 	}
 
 	/**
-	 * Returns true if the latest version of the driver is blacklisted by this entry,
+	 * Returns true if the latest version of the driver is denied by this entry,
 	 * i.e. the comparison op is > or >=.
 	 */
-	bool IsLatestBlacklisted() const
+	bool IsLatestDenied() const
 	{
-		bool bLatestBlacklisted = false;
+		bool bLatestDenied = false;
 		if (IsValid())
 		{
 			const TCHAR* DriverVersionTchar = !DriverVersionString.IsEmpty() ? *DriverVersionString : *DriverDateString;
 			EComparisonOp ComparisonOp = ParseComparisonOp(DriverVersionTchar);
-			bLatestBlacklisted = (ComparisonOp == ECO_Larger) || (ComparisonOp == ECO_LargerThan);
+			bLatestDenied = (ComparisonOp == ECO_Larger) || (ComparisonOp == ECO_LargerThan);
 		}
-		return bLatestBlacklisted;
+		return bLatestDenied;
 	}
 };
 
@@ -605,20 +605,20 @@ struct FGPUHardware
 	}
 
 	// @return 0 if there is none
-	FBlackListEntry FindDriverBlacklistEntry() const
+	FDriverDenyListEntry FindDriverDenyListEntry() const
 	{
 		const TCHAR* Section = GetVendorSectionName();
 
 		if(Section)
 		{
-			TArray<FString> BlacklistStrings;
-			GConfig->GetArray(GetVendorSectionName(), TEXT("Blacklist"), BlacklistStrings, GHardwareIni);
+			TArray<FString> DenyListStrings;
+			GConfig->GetArray(GetVendorSectionName(), TEXT("DriverDenyList"), DenyListStrings, GHardwareIni);
 
-			for(int32 i = 0; i < BlacklistStrings.Num(); ++i)
+			for(int32 i = 0; i < DenyListStrings.Num(); ++i)
 			{
-				FBlackListEntry Entry;
+				FDriverDenyListEntry Entry;
 
-				const TCHAR* Line = *BlacklistStrings[i];
+				const TCHAR* Line = *DenyListStrings[i];
 			
 				ensure(Line[0] == TCHAR('('));
 
@@ -631,36 +631,36 @@ struct FGPUHardware
 			}
 		}
 
-		return FBlackListEntry();
+		return FDriverDenyListEntry();
 	}
 
 	/**
-	 * Returns true if the latest version of the driver has been blacklisted.
+	 * Returns true if the latest version of the driver is on the deny list.
 	 */
-	bool IsLatestBlacklisted() const
+	bool IsLatestDenied() const
 	{
-		bool bLatestBlacklisted = false;
+		bool bLatestDenied = false;
 		const TCHAR* Section = GetVendorSectionName();
 
 		if(Section)
 		{
-			TArray<FString> BlacklistStrings;
-			GConfig->GetArray(GetVendorSectionName(), TEXT("Blacklist"), BlacklistStrings, GHardwareIni);
+			TArray<FString> DenyListStrings;
+			GConfig->GetArray(GetVendorSectionName(), TEXT("DriverDenyList"), DenyListStrings, GHardwareIni);
 
-			for(int32 i = 0; !bLatestBlacklisted && i < BlacklistStrings.Num(); ++i)
+			for(int32 i = 0; !bLatestDenied && i < DenyListStrings.Num(); ++i)
 			{
-				FBlackListEntry Entry;
+				FDriverDenyListEntry Entry;
 
-				const TCHAR* Line = *BlacklistStrings[i];
+				const TCHAR* Line = *DenyListStrings[i];
 			
 				ensure(Line[0] == TCHAR('('));
 
 				Entry.LoadFromINIString(&Line[1]);
 
-				bLatestBlacklisted |= Entry.IsLatestBlacklisted();
+				bLatestDenied |= Entry.IsLatestDenied();
 			}
 		}
-		return bLatestBlacklisted;
+		return bLatestDenied;
 	}
 
 	// to get a section name in the Hardware.ini file

@@ -400,13 +400,14 @@ bool FTranslucencyDepthPassMeshProcessor::TryAddMeshBatch(
 	// Determine the mesh's material and blend mode.
 	const EBlendMode BlendMode = Material.GetBlendMode();
 	const float MaterialTranslucentShadowStartOffset = Material.GetTranslucentShadowStartOffset();
+	const bool MaterialCastDynamicShadowAsMasked = Material.GetCastDynamicShadowAsMasked();
 	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
 	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
 	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material, OverrideSettings);
 	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
 
 	// Only render translucent meshes into the Fourier opacity maps
-	if (bIsTranslucent && ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain()))
+	if (bIsTranslucent && ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain()) && !MaterialCastDynamicShadowAsMasked)
 	{
 		if (bDirectionalLight)
 		{
@@ -564,9 +565,16 @@ void FProjectedShadowInfo::RenderTranslucencyDepths(FRDGBuilder& GraphBuilder, F
 
 		if (ViewRelevance.bDrawRelevance && ViewRelevance.bStaticRelevance)
 		{
+			int8 MinLOD, MaxLOD;
+			PrimitiveSceneInfo->GetStaticMeshesLODRange(MinLOD, MaxLOD);
+			// For any primitive, we only render LOD0 meshes since we do not have FSceneView available to use ComputeLODForMeshes.
 			for (int32 MeshIndex = 0; MeshIndex < PrimitiveSceneInfo->StaticMeshes.Num(); MeshIndex++)
 			{
 				const FStaticMeshBatch& StaticMeshBatch = PrimitiveSceneInfo->StaticMeshes[MeshIndex];
+				if (StaticMeshBatch.LODIndex != MinLOD)
+				{
+					continue;
+				}
 				const uint64 DefaultBatchElementMask = ~0ul;
 				TranslucencyDepthPassMeshProcessor.AddMeshBatch(StaticMeshBatch, DefaultBatchElementMask, StaticMeshBatch.PrimitiveSceneInfo->Proxy, StaticMeshBatch.Id);
 			}

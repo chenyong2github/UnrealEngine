@@ -747,7 +747,7 @@ private:
 	FString MountPoint;
 	/** Info on all files stored in pak. */
 	TArray<FPakEntry> Files;
-	/** Pak Index organized as a map of directories to support searches by path.  This Index is pruned at runtime of all FileNames and Paths that are not whitelisted in DirectoryIndexKeepFiles */
+	/** Pak Index organized as a map of directories to support searches by path.  This Index is pruned at runtime of all FileNames and Paths that are not allowed by DirectoryIndexKeepFiles */
 	FDirectoryIndex DirectoryIndex;
 #if ENABLE_PAKFILE_RUNTIME_PRUNING
 	/** Temporary-lifetime copy of the Pruned DirectoryIndex; all Pruned files have been removed form this copy.  This copy is used for validation that no queries are missing during runtime, and will be swapped into the DirectoryIndex when Pak Mounting is complete */

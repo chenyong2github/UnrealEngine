@@ -61,6 +61,8 @@ void UChaosCache::PostLoad()
 						if (ParticleIdx < NumParticles)
 						{ 
 							const FTransform& MassToLocal = CollectionMassToLocal[ParticleIdx];
+							FTransform MassToLocalInverse = MassToLocal.Inverse();
+							FTransform3f MassToLocalInversef(FQuat4f(MassToLocalInverse.GetRotation()), FVector3f(MassToLocalInverse.GetTranslation()), FVector3f(MassToLocalInverse.GetScale3D()));
 
 							FParticleTransformTrack& TransformData = ParticleTracks[TrackIdx].TransformData;
 							FRawAnimSequenceTrack& AnimTrack = TransformData.RawTransformTrack;
@@ -70,10 +72,10 @@ void UChaosCache::PostLoad()
 								int32 NumKeys = AnimTrack.PosKeys.Num();
 								for (int32 KeyIdx = 0; KeyIdx < NumKeys; ++KeyIdx)
 								{
-									FTransform MassTransform(AnimTrack.RotKeys[KeyIdx], AnimTrack.PosKeys[KeyIdx], AnimTrack.ScaleKeys[KeyIdx]);
-									FTransform LocalTransform = MassToLocal.Inverse() * MassTransform;
-									FQuat LocalRotation = LocalTransform.GetRotation();
-									FVector LocalTranslation = LocalTransform.GetTranslation();
+									FTransform3f MassTransform(AnimTrack.RotKeys[KeyIdx], AnimTrack.PosKeys[KeyIdx], AnimTrack.ScaleKeys[KeyIdx]);
+									FTransform3f LocalTransform = MassToLocalInversef * MassTransform;
+									const FQuat4f& LocalRotation = LocalTransform.GetRotation();
+									const FVector3f& LocalTranslation = LocalTransform.GetTranslation();
 
 									AnimTrack.RotKeys[KeyIdx] = LocalRotation;
 									AnimTrack.PosKeys[KeyIdx] = LocalTranslation;
@@ -144,9 +146,9 @@ void UChaosCache::FlushPendingFrames()
 
 				// Append the transform (ignoring scale)
 				FRawAnimSequenceTrack& RawTrack = PTrack.RawTransformTrack;
-				RawTrack.ScaleKeys.Add(FVector(1.0f));
-				RawTrack.PosKeys.Add(ParticleData.PendingTransform.GetTranslation());
-				RawTrack.RotKeys.Add(ParticleData.PendingTransform.GetRotation());
+				RawTrack.ScaleKeys.Add(FVector3f(1.0f));
+				RawTrack.PosKeys.Add(FVector3f(ParticleData.PendingTransform.GetTranslation()));
+				RawTrack.RotKeys.Add(FQuat4f(ParticleData.PendingTransform.GetRotation()));
 
 				for(TPair<FName, float> CurveKeyPair : ParticleData.PendingCurveData)
 				{
@@ -542,19 +544,19 @@ FTransform FParticleTransformTrack::Evaluate(float InCacheTime) const
 		if(InCacheTime < BeginOffset)
 		{
 			// Take first key
-			return FTransform(RawTransformTrack.RotKeys[0], RawTransformTrack.PosKeys[0]);
+			return FTransform(FQuat(RawTransformTrack.RotKeys[0]), FVector(RawTransformTrack.PosKeys[0]));
 		}
 		else if(InCacheTime > KeyTimestamps.Last())
 		{
 			// Take last key
-			return FTransform(RawTransformTrack.RotKeys.Last(), RawTransformTrack.PosKeys.Last());
+			return FTransform(FQuat(RawTransformTrack.RotKeys.Last()), FVector(RawTransformTrack.PosKeys.Last()));
 		}
 		else
 		{
 			// Valid in-range, evaluate
 			if(NumKeys == 1)
 			{
-				return FTransform(RawTransformTrack.RotKeys[0], RawTransformTrack.PosKeys[0]);
+				return FTransform(FQuat(RawTransformTrack.RotKeys[0]), FVector(RawTransformTrack.PosKeys[0]));
 			}
 
 			// Find the first key with a timestamp greater than InCacheTIme
@@ -567,7 +569,7 @@ FTransform FParticleTransformTrack::Evaluate(float InCacheTime) const
 			if(IndexBeyond == INDEX_NONE || IndexBeyond >= KeyTimestamps.Num())
 			{
 				// Must be equal to the last key
-				return FTransform(RawTransformTrack.RotKeys.Last(), RawTransformTrack.PosKeys.Last());
+				return FTransform(FQuat(RawTransformTrack.RotKeys.Last()), FVector(RawTransformTrack.PosKeys.Last()));
 			}
 
 			const int32 IndexBefore = IndexBeyond - 1;
@@ -575,7 +577,7 @@ FTransform FParticleTransformTrack::Evaluate(float InCacheTime) const
 			if(IndexBefore == INDEX_NONE)
 			{
 				// Must have been equal to first key
-				return FTransform(RawTransformTrack.RotKeys[0], RawTransformTrack.PosKeys[0]);
+				return FTransform(FQuat(RawTransformTrack.RotKeys[0]), FVector(RawTransformTrack.PosKeys[0]));
 			}
 
 			// Need to interpolate
@@ -583,8 +585,8 @@ FTransform FParticleTransformTrack::Evaluate(float InCacheTime) const
 			const float Fraction = (InCacheTime - KeyTimestamps[IndexBefore]) / Interval;
 
 			// Slerp rotation - lerp translation
-			return FTransform(FQuat::Slerp(RawTransformTrack.RotKeys[IndexBefore], RawTransformTrack.RotKeys[IndexBeyond], Fraction),
-							  FMath::Lerp(RawTransformTrack.PosKeys[IndexBefore], RawTransformTrack.PosKeys[IndexBeyond], Fraction));
+			return FTransform(FQuat(FQuat4f::Slerp(RawTransformTrack.RotKeys[IndexBefore], RawTransformTrack.RotKeys[IndexBeyond], Fraction)),
+							  FVector(FMath::Lerp(RawTransformTrack.PosKeys[IndexBefore], RawTransformTrack.PosKeys[IndexBeyond], Fraction)));
 		}
 	}
 

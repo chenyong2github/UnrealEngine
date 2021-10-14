@@ -32,7 +32,7 @@ void USlateScreenReaderEngineSubsystem::Initialize(FSubsystemCollectionBase& Col
 	Super::Initialize(Collection);
 	// By the time this is called, Slate is all set up
 	// I.e Platform applications already have subscribed to the delegate in the accessible
-	// message handler. So any platform stuff e.g OSX trees and cache are all set up.  That needs to get nuked somehow when we subscribe to accessible events here
+	// message handler. So any platform stuff e.g OSX trees and cache are all set up.  That needs to get removed somehow when we subscribe to accessible events here
 	FSlateApplication& SlateApplication = FSlateApplication::Get();
 	SlateApplication.GetPlatformApplication()->GetAccessibleMessageHandler()->UnbindAccessibleEventDelegate();
 	// @TODOAccessibility: We've unbound from the event, but we need to clean up the OS resources that are allocated for accessibility as well. 

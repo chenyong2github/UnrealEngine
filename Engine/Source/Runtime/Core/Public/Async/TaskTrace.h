@@ -21,6 +21,8 @@ namespace ENamedThreads
 
 namespace TaskTrace
 {
+	UE_TRACE_CHANNEL_EXTERN(TaskChannel);
+
 	using FId = uint32;
 
 	const FId InvalidId = ~FId(0);
@@ -46,6 +48,16 @@ namespace TaskTrace
 		~FWaitingScope();
 	};
 
+	struct CORE_API FTaskTimingEventScope
+	{
+		FTaskTimingEventScope(TaskTrace::FId InTaskId);
+		~FTaskTimingEventScope();
+
+	private:
+		bool bIsActive = false;
+		TaskTrace::FId TaskId = InvalidId;
+	};
+
 #if !UE_TASK_TRACE_ENABLED
 	// NOOP implementation
 	inline FId GenerateTaskId() { return InvalidId; }
@@ -61,6 +73,8 @@ namespace TaskTrace
 	inline FWaitingScope::FWaitingScope(const TArray<FId>& Tasks) {}
 	inline FWaitingScope::FWaitingScope(FId TaskId) {}
 	inline FWaitingScope::~FWaitingScope() {}
+	inline FTaskTimingEventScope::FTaskTimingEventScope(TaskTrace::FId InTaskId) {}
+	inline FTaskTimingEventScope::~FTaskTimingEventScope() {}
 #endif // UE_TASK_TRACE_ENABLED
 }
 

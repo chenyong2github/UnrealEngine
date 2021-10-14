@@ -78,6 +78,11 @@ public:
 	  */
 	DERIVEDDATACACHE_API void Reset();
 
+	/**
+	 * Initializes a previously-allocated FZenHttpRequest with the options that can vary between requests
+	 */
+	DERIVEDDATACACHE_API void Initialize(bool bInLogErrors);
+
 	/** Returns the HTTP response code.*/
 	inline const int GetResponseCode() const
 	{
@@ -259,10 +264,11 @@ private:
 struct FZenScopedRequestPtr
 {
 public:
-	FZenScopedRequestPtr(FZenHttpRequestPool* InPool)
+	FZenScopedRequestPtr(FZenHttpRequestPool* InPool, bool bLogErrors=true)
 	:	Request(InPool->WaitForFreeRequest())
 	,	Pool(InPool)
 	{
+		Request->Initialize(bLogErrors);
 	}
 
 	~FZenScopedRequestPtr()

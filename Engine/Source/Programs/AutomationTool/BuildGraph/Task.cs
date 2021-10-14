@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using EpicGames.Core;
+using OpenTracing;
 using UnrealBuildBase;
 using UnrealBuildTool;
 
@@ -209,6 +210,17 @@ namespace AutomationTool
 		{
 			Span.AddMetadata(Prefix + "source.file", SourceLocation.Item1.MakeRelativeTo(Unreal.RootDirectory));
 			Span.AddMetadata(Prefix + "source.line", SourceLocation.Item2.ToString());
+		}
+		
+		/// <summary>
+		/// Get properties to include in tracing info
+		/// </summary>
+		/// <param name="Span">The scope to add properties to</param>
+		/// <param name="Prefix">Prefix for metadata entries</param>
+		public virtual void GetTraceMetadata(ISpan Span, string Prefix)
+		{
+			Span.SetTag(Prefix + "source.file", SourceLocation.Item1.MakeRelativeTo(Unreal.RootDirectory));
+			Span.SetTag(Prefix + "source.line", SourceLocation.Item2);
 		}
 
 		/// <summary>

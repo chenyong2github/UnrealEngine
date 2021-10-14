@@ -169,15 +169,15 @@ private:
 
 
 USTRUCT()
-struct FOptimusNodeAction_SetPinResourceContexts :
+struct FOptimusNodeAction_SetPinDataDomain :
 	public FOptimusAction
 {
 	GENERATED_BODY()
 
 public:
-	FOptimusNodeAction_SetPinResourceContexts() = default;
+	FOptimusNodeAction_SetPinDataDomain() = default;
 
-	FOptimusNodeAction_SetPinResourceContexts(
+	FOptimusNodeAction_SetPinDataDomain(
 		UOptimusNodePin *InPin,
 		const TArray<FName>& InContextNames
 		);
@@ -187,7 +187,7 @@ protected:
 	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
 	
 private:
-	bool SetPinResourceContext(
+	bool SetPinDataDomain(
 		IOptimusNodeGraphCollectionOwner* InRoot,
 		const TArray<FName>& InContextNames
 		) const;

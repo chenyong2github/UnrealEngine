@@ -1955,9 +1955,9 @@ void UnFbx::FFbxImporter::ImportBoneTracks(USkeleton* Skeleton, FAnimCurveImport
 					break;
 				}
 
-				RawTrack.ScaleKeys.Add(LocalTransform.GetScale3D());
-				RawTrack.PosKeys.Add(LocalTransform.GetTranslation());
-				RawTrack.RotKeys.Add(LocalTransform.GetRotation());
+				RawTrack.ScaleKeys.Add(FVector3f(LocalTransform.GetScale3D()));
+				RawTrack.PosKeys.Add(FVector3f(LocalTransform.GetTranslation()));
+				RawTrack.RotKeys.Add(FQuat4f(LocalTransform.GetRotation()));
 
 				NewDebugData.RecalculatedLocalTransform.Add(LocalTransform);
 				++NumKeysForTrack;

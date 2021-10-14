@@ -234,7 +234,7 @@ struct FLightmassMaterialCompiler : public FProxyMaterialCompiler
 class FLightmassMaterialProxy : public FMaterial, public FMaterialRenderProxy
 {
 public:
-	FLightmassMaterialProxy(): FMaterial()
+	FLightmassMaterialProxy(): FMaterial(), FMaterialRenderProxy(TEXT("FLightmassMaterialProxy"))
 	{
 		SetQualityLevelProperties(GMaxRHIFeatureLevel);
 	}

@@ -19,13 +19,13 @@
 			"Name": "SourceFilteringTrace",
 			"Type": "Runtime",
 			"LoadingPhase": "PostEngineInit",
-			"BlacklistTargetConfigurations": [ "Shipping" ]
+			"TargetConfigurationDenyList": [ "Shipping" ]
 		},
 		{
 			"Name": "SourceFilteringCore",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"BlacklistTargetConfigurations": [ "Shipping" ]
+			"TargetConfigurationDenyList": [ "Shipping" ]
 		},
 		{
 			"Name": "SourceFilteringEditor",

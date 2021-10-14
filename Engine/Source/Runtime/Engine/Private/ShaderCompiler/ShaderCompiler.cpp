@@ -4551,6 +4551,10 @@ void FShaderCompilingManager::PrintStats(bool bForceLogIgnoringTimeInverval)
 	{
 		return;
 	}
+	if (!AllowShaderCompiling())
+	{
+		return;
+	}
 
 	UE_LOG(LogShaderCompilers, Display, TEXT("================================================"));
 
@@ -5736,6 +5740,12 @@ void GlobalBeginCompileShader(
 	}
 
 	{
+		static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SupportCloudShadowOnForwardLitTranslucent"));
+		const bool bSupportCloudShadowOnForwardLitTranslucent = CVar && CVar->GetInt() > 0;
+		Input.Environment.SetDefine(TEXT("SUPPORT_CLOUD_SHADOW_ON_FORWARD_LIT_TRANSLUCENT"), bSupportCloudShadowOnForwardLitTranslucent ? 1 : 0);
+	}
+
+	{
 		static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Strata"));
 		const bool bStrata = CVar && CVar->GetInt() != 0;
 		Input.Environment.SetDefine(TEXT("PROJECT_STRATA"), bStrata ? 1 : 0);
@@ -6310,10 +6320,6 @@ void VerifyGlobalShaders(EShaderPlatform Platform, const ITargetPlatform* Target
 	check(!FPlatformProperties::IsServerOnly());
 	check(GGlobalShaderMap[Platform]);
 
-	FPlatformTypeLayoutParameters LayoutParams;
-	LayoutParams.InitializeForPlatform(TargetPlatform);
-	const EShaderPermutationFlags PermutationFlags = GetShaderPermutationFlags(LayoutParams);
-
 	UE_LOG(LogMaterial, Verbose, TEXT("Verifying Global Shaders for %s (%s)"), *LegacyShaderPlatformToShaderFormat(Platform).ToString(), *ShaderCompiler::GetTargetPlatformName(TargetPlatform));
 
 	// Ensure that the global shader map contains all global shader types.
@@ -6322,6 +6328,18 @@ void VerifyGlobalShaders(EShaderPlatform Platform, const ITargetPlatform* Target
 	if (bEmptyMap)
 	{
 		UE_LOG(LogShaders, Log, TEXT("	Empty global shader map, recompiling all global shaders"));
+	}
+
+	FPlatformTypeLayoutParameters LayoutParams;
+	LayoutParams.InitializeForPlatform(TargetPlatform);
+	EShaderPermutationFlags PermutationFlags = GetShaderPermutationFlags(LayoutParams);
+
+	// if the target is the current platform, then we are not cooking for another platform, in which case we want to use
+	// the loaded permutation flags that are in the shader map (or the current platform's permutation if it wasn't loaded, 
+	// see the FShaderMapBase constructor)
+	if (bLoadedFromCacheFile)
+	{
+		PermutationFlags = GlobalShaderMap->GetFirstSection()->GetPermutationFlags();
 	}
 
 	bool bErrorOnMissing = bLoadedFromCacheFile;
@@ -6566,11 +6584,11 @@ FString SaveGlobalShaderFile(EShaderPlatform Platform, FString SavePath, class I
 }
 
 
-static inline bool ShouldCacheGlobalShaderTypeName(const FGlobalShaderType* GlobalShaderType, int32 PermutationId, const TCHAR* TypeNameSubstring, EShaderPlatform Platform)
+static inline bool ShouldCacheGlobalShaderTypeName(const FGlobalShaderType* GlobalShaderType, int32 PermutationId, const TCHAR* TypeNameSubstring, EShaderPlatform Platform, EShaderPermutationFlags PermutationFlags)
 {
 	return GlobalShaderType
 		&& (TypeNameSubstring == nullptr || (FPlatformString::Strstr(GlobalShaderType->GetName(), TypeNameSubstring) != nullptr))
-		&& GlobalShaderType->ShouldCompilePermutation(Platform, PermutationId, GetCurrentShaderPermutationFlags());
+		&& GlobalShaderType->ShouldCompilePermutation(Platform, PermutationId, PermutationFlags);
 };
 
 
@@ -6582,8 +6600,17 @@ bool IsGlobalShaderMapComplete(const TCHAR* TypeNameSubstring)
 
 		FGlobalShaderMap* GlobalShaderMap = GGlobalShaderMap[Platform];
 
+		// look at any shadermap in the GlobalShaderMap for the permutation flags, as they will all be the same
 		if (GlobalShaderMap)
 		{
+			const FGlobalShaderMapSection* FirstShaderMap = GlobalShaderMap->GetFirstSection();
+			if (FirstShaderMap == nullptr)
+			{
+				// if we had no sections at all, we know we aren't complete
+				return false;
+			}
+			EShaderPermutationFlags GlobalShaderPermutation = FirstShaderMap->GetPermutationFlags();
+
 			// Check if the individual shaders are complete
 			for (TLinkedList<FShaderType*>::TIterator ShaderTypeIt(FShaderType::GetTypeList()); ShaderTypeIt; ShaderTypeIt.Next())
 			{
@@ -6591,7 +6618,7 @@ bool IsGlobalShaderMapComplete(const TCHAR* TypeNameSubstring)
 				int32 PermutationCount = GlobalShaderType ? GlobalShaderType->GetPermutationCount() : 1;
 				for (int32 PermutationId = 0; PermutationId < PermutationCount; PermutationId++)
 				{
-					if (ShouldCacheGlobalShaderTypeName(GlobalShaderType, PermutationId, TypeNameSubstring, Platform))
+					if (ShouldCacheGlobalShaderTypeName(GlobalShaderType, PermutationId, TypeNameSubstring, Platform, GlobalShaderPermutation))
 					{
 						if (!GlobalShaderMap->HasShader(GlobalShaderType, PermutationId))
 						{
@@ -6612,7 +6639,7 @@ bool IsGlobalShaderMapComplete(const TCHAR* TypeNameSubstring)
 					for (const FShaderType* Shader : Stages)
 					{
 						const FGlobalShaderType* GlobalShaderType = Shader->GetGlobalShaderType();
-						if (ShouldCacheGlobalShaderTypeName(GlobalShaderType, kUniqueShaderPermutationId, TypeNameSubstring, Platform))
+						if (ShouldCacheGlobalShaderTypeName(GlobalShaderType, kUniqueShaderPermutationId, TypeNameSubstring, Platform, GlobalShaderPermutation))
 						{
 							++NumStagesNeeded;
 						}

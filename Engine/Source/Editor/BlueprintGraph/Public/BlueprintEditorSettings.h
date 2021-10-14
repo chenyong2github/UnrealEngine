@@ -116,7 +116,8 @@ public:
 	bool bHideConstructionScriptComponentsInDetailsView;
 
 	/** If set, the global Find in Blueprints command (CTRL-SHIFT-F) will be hosted in a standalone tab. This tab can remain open after the Blueprint Editor context is closed. */
-	UPROPERTY(EditAnywhere, config, Category = Workflow)
+	UE_DEPRECATED(5.0, "This is now the default behavior (true). As a result, this flag is no longer used/exposed, and it will eventually be removed.")
+	UPROPERTY(config)
 	bool bHostFindInBlueprintsInGlobalTab;
 
 	/** If set, double clicking on a call function node will attempt to navigate an open C++ editor to the native source definition */
@@ -131,9 +132,9 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Workflow)
 	bool bEnableTypePromotion;
 
-	/** If a pin type is within this blacklist, then it will never be marked as a possible promotable function. */
+	/** If a pin type is within this list, then it will never be marked as a possible promotable function. */
 	UPROPERTY(config, EditAnywhere, Category = Workflow, meta=(EditCondition="bEnableTypePromotion"))
-	TSet<FName> TypePromotionPinBlacklist;
+	TSet<FName> TypePromotionPinDenyList;
 
 	/** How to handle previously-set breakpoints on reload. */
 	UPROPERTY(config, EditAnywhere, Category = Workflow)

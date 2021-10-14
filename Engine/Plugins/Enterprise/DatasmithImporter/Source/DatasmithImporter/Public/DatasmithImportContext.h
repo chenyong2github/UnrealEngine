@@ -45,6 +45,10 @@ class SDatasmithImportOptions;
 class UDatasmithImportOptions;
 class IDatasmithTranslator;
 
+namespace UE::DatasmithImporter
+{
+	class FExternalSource;
+}
 
 /**
  * Provides unique actor label.
@@ -204,12 +208,11 @@ struct DATASMITHIMPORTER_API FDatasmithAssetsImportContext
 
 struct DATASMITHIMPORTER_API FDatasmithImportContext
 {
-	/**
-	 * @param FileName		The path and name of the file to import
-	 * @param bLoadConfig	Loads the last user options from the config file
-	 */
-	FDatasmithImportContext(const FString& FileName, bool bLoadConfig, const FName& LoggerName, const FText& LoggerLabel, TSharedPtr<IDatasmithTranslator> InSceneTranslator=nullptr);
+	UE_DEPRECATED(5.0, "Please use constructor using ExternalSource")
+	FDatasmithImportContext(const FString& InFileName, bool bLoadConfig, const FName& LoggerName, const FText& LoggerLabel, TSharedPtr<IDatasmithTranslator> InSceneTranslator = nullptr);
 
+	FDatasmithImportContext(const TSharedRef<UE::DatasmithImporter::FExternalSource>& InExternalSource, bool bLoadConfig, const FName& LoggerName, const FText& LoggerLabel);
+	
 	/** Cached MD5 hash value for faster processing */
 	FMD5Hash FileHash;
 
@@ -296,10 +299,22 @@ public:
 	 * @param InParent	The package in which we are
 	 * @param bSilent	Doesn't display the options dialog and skips other user input requests
 	 */
+	UE_DEPRECATED(5.0, "The options initialization should not require a scene. Please use other implemetantion of Init() and call InitScene() individually.")
 	bool Init(TSharedRef< IDatasmithScene > InScene, const FString& InImportPath, EObjectFlags InFlags, FFeedbackContext* InWarn, const TSharedPtr<FJsonObject>& ImportSettingsJson, bool bSilent);
 
 	/**
-	 * First part of the Init process, replaces Init, and requires a call to SetupDestination after that.
+	 * Initialize members required before loading anything, must call InitScene() independendly when using this function.
+	 *
+	 * @param InImportPath			The path where the scene will be imported
+	 * @param InFlags				Flags applied to all generated objects during the following import
+	 * @param InWarn				Feedback context for the following import
+	 * @param ImportSettingsJson	When bSilent, options as json
+	 * @param bSilent				Doesn't display the options dialog and skips other user input requests
+	 */
+	bool Init(const FString& InImportPath, EObjectFlags InFlags, FFeedbackContext* InWarn, const TSharedPtr<FJsonObject>& ImportSettingsJson, bool bSilent);
+	
+	/**
+	 * First part of the Init process, replaces Init, requires a call to SetupDestination and InitScene after that.
 	 * Displays the options to the end-user (blocking call), and updates translator accordingly.
 	 * When silent, Json options are parsed instead.
 	 *
@@ -308,19 +323,39 @@ public:
 	 * @param bSilent              Flag that prevents options to be displayed and edited
 	 * @return false if the user canceled -> import should not occurs in that case.
 	 */
+	UE_DEPRECATED(5.0, "Please use other InitOptions() implementations, having a valid scene should not be a requirement for initializing the options.")
 	bool InitOptions(TSharedRef< IDatasmithScene > InScene, const TSharedPtr<FJsonObject>& ImportSettingsJson, bool bSilent);
 
 	/**
-	 * Second part of the Init process, replaces Init, and requires a call to InitOptions before that.
+	 * First part of the Init process, requires a call to SetupDestination and InitScene after that.
+	 * Displays the options to the end-user (blocking call), and updates translator accordingly.
+	 * When silent, Json options are parsed instead.
+	 *
+	 * @param ImportSettingsJson   When bSilent, options as json
+	 * @param InImportPath         Optional import path displayed when bSilent is false.
+	 * @param bSilent              Flag that prevents options to be displayed and edited
+	 * @return false if the user canceled -> import should not occurs in that case.
+	 */
+	bool InitOptions(const TSharedPtr<FJsonObject>& ImportSettingsJson, const TOptional<FString>& InImportPath, bool bSilent);
+
+	/**
+	 * Second part of the Init process, replaces Init, requires a call to InitOptions before that.
 	 * Setup destination packages
 	 *
 	 * @param InImportPath   Destination package's name
-	 * @param InFlags        Flags applyed to all generated objects durring the following import
+	 * @param InFlags        Flags applied to all generated objects during the following import
 	 * @param InWarn         Feedback context for the following import
 	 * @param bSilent        When false, prompt the user to save dirty packages
 	 * @return false if the user canceled -> import should not occurs in that case.
 	 */
 	bool SetupDestination(const FString& InImportPath, EObjectFlags InFlags, FFeedbackContext* InWarn, bool bSilent);
+
+	/**
+	 * Set the scene and initialize related members. Should be called before starting the import process.
+	 *
+	 * @param InScene	Scene that will be used for the import, it should already be translated/loaded.
+	 */
+	void InitScene(const TSharedRef<IDatasmithScene>& InScene);
 
 	/**
 	 * Replace or add options based on it's UClass.

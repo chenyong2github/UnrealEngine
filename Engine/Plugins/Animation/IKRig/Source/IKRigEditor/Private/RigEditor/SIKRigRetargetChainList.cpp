@@ -11,6 +11,7 @@
 #include "IPersonaToolkit.h"
 #include "SKismetInspector.h"
 #include "Dialogs/Dialogs.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "SEditorHeaderButton.h"
 

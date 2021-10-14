@@ -18,7 +18,7 @@
 #include "Framework/Docking/SDockingTabStack.h"
 #include "Framework/Docking/SDockingTabWell.h"
 #include "Framework/Docking/LayoutExtender.h"
-#include "Misc/BlacklistNames.h"
+#include "Misc/NamePermissionList.h"
 #include "HAL/PlatformApplicationMisc.h"
 #if PLATFORM_MAC
 #include "../MultiBox/Mac/MacMenu.h"
@@ -1542,7 +1542,7 @@ FTabManager::FTabManager( const TSharedPtr<SDockTab>& InOwnerTab, const TSharedR
 , LastDocumentUID( 0 )
 , bIsSavingVisualState( false )
 , bCanDoDragOperation( true )
-, TabBlacklist( MakeShareable(new FBlacklistNames()) )
+, TabPermissionList( MakeShareable(new FNamePermissionList()) )
 {
 	LocalWorkspaceMenuRoot = FWorkspaceItem::NewGroup(LOCTEXT("LocalWorkspaceRoot", "Local Workspace Root"));
 }
@@ -1850,9 +1850,9 @@ bool FTabManager::HasTabSpawner(FName TabId) const
 	return Spawner != nullptr;
 }
 
-TSharedRef<FBlacklistNames>& FTabManager::GetTabBlacklist()
+TSharedRef<FNamePermissionList>& FTabManager::GetTabPermissionList()
 {
-	return TabBlacklist;
+	return TabPermissionList;
 }
 
 bool FTabManager::IsValidTabForSpawning( const FTab& SomeTab ) const
@@ -1874,7 +1874,7 @@ bool FTabManager::IsAllowedTab(const FTabId& TabId) const
 
 bool FTabManager::IsAllowedTabType(const FName TabType) const
 {
-	const bool bIsAllowed = TabType == NAME_None || TabBlacklist->PassesFilter(TabType);
+	const bool bIsAllowed = TabType == NAME_None || TabPermissionList->PassesFilter(TabType);
 	if (!bIsAllowed)
 	{
 		UE_LOG(LogSlate, Verbose, TEXT("Disallowed Tab: %s"), *TabType.ToString());

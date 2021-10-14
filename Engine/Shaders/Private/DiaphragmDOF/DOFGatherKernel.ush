@@ -392,7 +392,7 @@ void GatherRingSamples(
 	// Iterate over the batch of samples.
 	for (uint BatchId = 0; BatchId < BatchCount; BatchId++)
 	#if defined(WORKARROUND_UE_58394)
-		WORKARROUND_UE_58394 // TODO: nuke that guy once original issue is fixed.
+		WORKARROUND_UE_58394 // TODO: delete once original issue is fixed.
 	#endif
 	{
 		// Rotate the samples position along the ring.

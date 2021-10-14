@@ -45,7 +45,7 @@ void FMLDeformerInstance::Init(UMLDeformerAsset* Asset, USkeletalMeshComponent* 
 FString FMLDeformerInstance::CheckCompatibility(USkeletalMeshComponent* InSkelMeshComponent, bool LogIssues) const
 {
 	// If we're not compatible, generate a compatibility string.
-	USkeletalMesh* SkelMesh = InSkelMeshComponent ? InSkelMeshComponent->SkeletalMesh : nullptr;
+	USkeletalMesh* SkelMesh = InSkelMeshComponent ? InSkelMeshComponent->SkeletalMesh.Get() : nullptr;
 	if (SkelMesh && !DeformerAsset->GetInputInfo().IsCompatible(SkelMesh))
 	{
 		const FString ErrorText = DeformerAsset->GetInputInfo().GenerateCompatibilityErrorString(SkelMesh);

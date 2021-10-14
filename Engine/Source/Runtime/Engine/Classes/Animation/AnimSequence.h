@@ -99,7 +99,7 @@ struct ENGINE_API FRotationTrack
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	TArray<FQuat> RotKeys;
+	TArray<FQuat4f> RotKeys;
 
 	UPROPERTY()
 	TArray<float> Times;

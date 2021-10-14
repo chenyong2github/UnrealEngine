@@ -856,7 +856,7 @@ void AWorldSettings::AdjustNumberOfBookmarks()
 {
 	if (MaxNumberOfBookmarks < 0)
 	{
-		UE_LOG(LogWorldSettings, Warning, TEXT("%s: MaxNumberOfBookmarks cannot be below 0 (Value=%d). Defaulting to 10"), *GetPathName(this), MaxNumberOfBookmarks);
+		UE_LOG(LogWorldSettings, Warning, TEXT("%s: MaxNumberOfBookmarks cannot be below 0 (Value=%d). Defaulting to 10"), *GetPathNameSafe(this), MaxNumberOfBookmarks);
 		MaxNumberOfBookmarks = NumMappedBookmarks;
 	}
 
@@ -905,12 +905,12 @@ void AWorldSettings::SanitizeBookmarkClasses()
 
 		if (bFoundInvalidBookmarks)
 		{
-			UE_LOG(LogWorldSettings, Warning, TEXT("%s: Bookmarks found with invalid classes"), *GetPathName(this));
+			UE_LOG(LogWorldSettings, Warning, TEXT("%s: Bookmarks found with invalid classes"), *GetPathNameSafe(this));
 		}
 	}
 	else
 	{
-		UE_LOG(LogWorldSettings, Warning, TEXT("%s: Invalid bookmark class, clearing existing bookmarks."), *GetPathName(this));
+		UE_LOG(LogWorldSettings, Warning, TEXT("%s: Invalid bookmark class, clearing existing bookmarks."), *GetPathNameSafe(this));
 		DefaultBookmarkClass = UBookMark::StaticClass();
 		SanitizeBookmarkClasses();
 	}

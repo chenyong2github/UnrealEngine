@@ -182,6 +182,10 @@ IMPLEMENT_GLOBAL_SHADER(FComposeSeparateTranslucencyPS, "/Engine/Private/Compose
 
 extern bool GetUseTranslucencyNearestDepthNeighborUpsample(float DownsampleScale);
 
+#if DEBUG_POST_PROCESS_VOLUME_ENABLE
+FScreenPassTexture AddFinalPostProcessDebugInfoPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture& ScreenPassSceneColor);
+#endif
+
 FRDGTextureRef AddTranslucencyCompositionPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
@@ -381,6 +385,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		VisualizeDepthOfField,
 		VisualizeStationaryLightOverlap,
 		VisualizeLightCulling,
+		VisualizePostProcessStack,
 		VisualizeLevelInstance,
 		SelectionOutline,
 		EditorPrimitive,
@@ -422,6 +427,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		TEXT("VisualizeDepthOfField"),
 		TEXT("VisualizeStationaryLightOverlap"),
 		TEXT("VisualizeLightCulling"),
+		TEXT("VisualizePostProcessStack"),
 		TEXT("VisualizeLevelInstance"),
 		TEXT("SelectionOutline"),
 		TEXT("EditorPrimitive"),
@@ -444,6 +450,9 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 	PassSequence.SetNames(PassNames, UE_ARRAY_COUNT(PassNames));
 	PassSequence.SetEnabled(EPass::VisualizeStationaryLightOverlap, EngineShowFlags.StationaryLightOverlap);
 	PassSequence.SetEnabled(EPass::VisualizeLightCulling, EngineShowFlags.VisualizeLightCulling);
+#if DEBUG_POST_PROCESS_VOLUME_ENABLE
+	PassSequence.SetEnabled(EPass::VisualizePostProcessStack, EngineShowFlags.VisualizePostProcessStack);
+#endif
 #if WITH_EDITOR
 	PassSequence.SetEnabled(EPass::VisualizeLevelInstance, GIsEditor && EngineShowFlags.EditingLevelInstance && EngineShowFlags.VisualizeLevelInstanceEditing && !bVisualizeHDR);
 	PassSequence.SetEnabled(EPass::SelectionOutline, GIsEditor && EngineShowFlags.Selection && EngineShowFlags.SelectionOutline && !EngineShowFlags.Wireframe && !bVisualizeHDR && !IStereoRendering::IsStereoEyeView(View));
@@ -1067,6 +1076,16 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 
 		SceneColor = AddVisualizeComplexityPass(GraphBuilder, View, PassInputs);
 	}
+
+#if DEBUG_POST_PROCESS_VOLUME_ENABLE
+	if (PassSequence.IsEnabled(EPass::VisualizePostProcessStack))
+	{
+		FScreenPassRenderTarget OverrideOutput;
+		PassSequence.AcceptOverrideIfLastPass(EPass::VisualizePostProcessStack, OverrideOutput);
+		OverrideOutput = OverrideOutput.IsValid() ? OverrideOutput : FScreenPassRenderTarget::CreateFromInput(GraphBuilder, SceneColor, View.GetOverwriteLoadAction(), TEXT("VisualizeComplexity"));
+		SceneColor = AddFinalPostProcessDebugInfoPasses(GraphBuilder, View, OverrideOutput);
+	}
+#endif
 
 #if WITH_EDITOR
 	if (PassSequence.IsEnabled(EPass::VisualizeLevelInstance))
@@ -2440,3 +2459,70 @@ FRDGTextureRef AddProcessPlanarReflectionPass(
 		return SceneColorTexture;
 	}
 }
+
+#if DEBUG_POST_PROCESS_VOLUME_ENABLE
+FScreenPassTexture AddFinalPostProcessDebugInfoPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture& ScreenPassSceneColor)
+{
+	RDG_EVENT_SCOPE(GraphBuilder, "FinalPostProcessDebugInfo");
+
+	FRDGTextureRef SceneColor = ScreenPassSceneColor.Texture;
+
+	AddDrawCanvasPass(GraphBuilder, RDG_EVENT_NAME("PostProcessDebug"), View, FScreenPassRenderTarget(SceneColor, View.ViewRect, ERenderTargetLoadAction::ELoad),
+		[&View](FCanvas& Canvas)
+		{
+			FLinearColor TextColor(FLinearColor::White);
+			FLinearColor GrayTextColor(FLinearColor::Gray);
+			FLinearColor GreenTextColor(FLinearColor::Green);
+			FString Text;
+
+			const float ViewPortWidth = float(View.ViewRect.Width());
+			const float ViewPortHeight = float(View.ViewRect.Height());
+
+			const float CRHeight = 20.0f;
+			const float PrintX_CR = ViewPortWidth * 0.1f;
+
+			float PrintX = PrintX_CR;
+			float PrintY = ViewPortHeight * 0.2f;
+
+			Text = FString::Printf(TEXT("Post-processing volume debug (count = %i)"), View.FinalPostProcessDebugInfo.Num());
+			Canvas.DrawShadowedString(PrintX, PrintY, *Text, GetStatsFont(), GreenTextColor);					PrintX = PrintX_CR; PrintY += CRHeight * 1.5;
+
+			Canvas.DrawShadowedString(PrintX, PrintY, *FString("Name"), GetStatsFont(), GrayTextColor);				PrintX += 256.0f;
+			Canvas.DrawShadowedString(PrintX, PrintY, *FString("IsEnabled"), GetStatsFont(), GrayTextColor);		PrintX += 96.0f;
+			Canvas.DrawShadowedString(PrintX, PrintY, *FString("Priority"), GetStatsFont(), GrayTextColor);			PrintX += 96.0f;
+			Canvas.DrawShadowedString(PrintX, PrintY, *FString("CurrentWeight"), GetStatsFont(), GrayTextColor);	PrintX += 96.0f;
+			Canvas.DrawShadowedString(PrintX, PrintY, *FString("bIsUnbound"), GetStatsFont(), GrayTextColor);		PrintX += 96.0f;
+			
+			PrintY += CRHeight;
+			PrintX = PrintX_CR;
+
+			const int32 PPDebugInfoCount = View.FinalPostProcessDebugInfo.Num() - 1;
+			for (int32 i = PPDebugInfoCount; i >= 0 ; --i)
+			{
+				const FPostProcessSettingsDebugInfo& PPDebugInfo = View.FinalPostProcessDebugInfo[i];
+
+				Text = FString::Printf(TEXT("%s"), *PPDebugInfo.Name.Left(40)); // Clamp the name to a reasonable length
+				Canvas.DrawShadowedString(PrintX, PrintY, *Text, GetStatsFont(), TextColor); PrintX += 256.0f;
+
+				Text = FString::Printf(TEXT("%d"), PPDebugInfo.bIsEnabled ? 1 : 0);
+				Canvas.DrawShadowedString(PrintX+32.0f, PrintY, *Text, GetStatsFont(), TextColor); PrintX += 96.0f;
+
+				Text = FString::Printf(TEXT("%.3f"), PPDebugInfo.Priority);
+				Canvas.DrawShadowedString(PrintX, PrintY, *Text, GetStatsFont(), TextColor); PrintX += 96.0f;
+
+				Text = FString::Printf(TEXT("%3.3f"), PPDebugInfo.CurrentBlendWeight);
+				Canvas.DrawShadowedString(PrintX+32.0f, PrintY, *Text, GetStatsFont(), TextColor); PrintX += 96.0f;
+
+				Text = FString::Printf(TEXT("%d"), PPDebugInfo.bIsUnbound ? 1 : 0);
+				Canvas.DrawShadowedString(PrintX+32.0f, PrintY, *Text, GetStatsFont(), TextColor); PrintX += 96.0f;
+
+				Canvas.DrawShadowedString(PrintX_CR, PrintY+3.0f, *FString("______________________________________________________________________________________________________________"), GetStatsFont(), TextColor);
+
+				PrintX = PrintX_CR;
+				PrintY += CRHeight;
+			}
+		});
+
+	return MoveTemp(ScreenPassSceneColor);
+}
+#endif

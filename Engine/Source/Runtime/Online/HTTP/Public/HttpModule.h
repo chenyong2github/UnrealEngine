@@ -280,7 +280,7 @@ public:
 	}
 
 	/**
-	 * @returns the list of allowed domains for applying whitelist
+	 * @returns the list of domains allowed to be visited in a shipping build
 	 */
 	inline const TArray<FString>& GetAllowedDomains() const
 	{
@@ -351,6 +351,6 @@ private:
 	FString ProxyAddress;
 	/** Whether or not the http implementation we are using supports dynamic proxy setting. */
 	bool bSupportsDynamicProxy;
-	/** Whitelist for domains that can be accessed. If Empty then no whitelist is applied */
+	/** List of domains that can be accessed. If Empty then no filtering is applied */
 	TArray<FString> AllowedDomains;
 };

@@ -2353,8 +2353,11 @@ FSharedBuffer FTextureSource::FMipAllocation::Release()
 
 void FTextureSource::FMipAllocation::CreateReadWriteBuffer(const void* SrcData, int64 DataLength)
 {
-	ReadWriteBuffer = TUniquePtr<uint8, FDeleterFree>((uint8*)FMemory::Malloc(DataLength));
-	FMemory::Memcpy(ReadWriteBuffer.Get(), SrcData, DataLength);
+	if (DataLength > 0)
+	{
+		ReadWriteBuffer = TUniquePtr<uint8, FDeleterFree>((uint8*)FMemory::Malloc(DataLength));
+		FMemory::Memcpy(ReadWriteBuffer.Get(), SrcData, DataLength);
+	}
 
 	ReadOnlyReference = FSharedBuffer::MakeView(ReadWriteBuffer.Get(), DataLength);
 }

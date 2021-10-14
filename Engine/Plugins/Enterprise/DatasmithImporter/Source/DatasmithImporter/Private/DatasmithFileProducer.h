@@ -19,6 +19,11 @@
 
 class IDetailLayoutBuilder;
 
+namespace UE::DatasmithImporter
+{
+	class FExternalSource;
+}
+
 UCLASS(Experimental, HideCategories = (DatasmithProducer_Internal))
 class DATASMITHIMPORTER_API UDatasmithFileProducer : public UDataprepContentProducer
 {
@@ -83,8 +88,8 @@ private:
 
 private:
 	TUniquePtr< FDatasmithImportContext > ImportContextPtr;
-	TUniquePtr< FDatasmithTranslatableSceneSource > TranslatableSourcePtr;
 	TUniquePtr< FDataprepWorkReporter > ProgressTaskPtr;
+	TSharedPtr< UE::DatasmithImporter::FExternalSource > ExternalSourcePtr;
 
 	UPROPERTY( Transient, DuplicateTransient )
 	UDatasmithScene* DatasmithScene;

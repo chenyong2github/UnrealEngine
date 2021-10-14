@@ -2325,7 +2325,7 @@ public:
 	mutable FImmutableSamplerState ImmutableSamplerState;
 
 	/** Default constructor. */
-	ENGINE_API FMaterialRenderProxy();
+	ENGINE_API FMaterialRenderProxy(FString InMaterialName);
 
 	/** Destructor. */
 	ENGINE_API virtual ~FMaterialRenderProxy();
@@ -2435,12 +2435,16 @@ public:
 	}
 
 	int32 GetExpressionCacheSerialNumber() const { return UniformExpressionCacheSerialNumber; }
+
+	const FString& GetMaterialName() const { return MaterialName; }
+
 private:
 	IAllocatedVirtualTexture* GetPreallocatedVTStack(const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, const FMaterialVirtualTextureStack& VTStack) const;
 	IAllocatedVirtualTexture* AllocateVTStack(const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, const FMaterialVirtualTextureStack& VTStack) const;
 
 	/** 0 if not set, game thread pointer, do not dereference, only for comparison */
 	const USubsurfaceProfile* SubsurfaceProfileRT;
+	FString MaterialName;
 
 	/** Incremented each time UniformExpressionCache is modified */
 	mutable int32 UniformExpressionCacheSerialNumber = 0;
@@ -2481,6 +2485,7 @@ public:
 
 	/** Initialization constructor. */
 	FColoredMaterialRenderProxy(const FMaterialRenderProxy* InParent,const FLinearColor& InColor, FName InColorParamName = NAME_Color):
+		FMaterialRenderProxy(InParent ? InParent->GetMaterialName() : TEXT("FColoredMaterialRenderProxy")),
 		Parent(InParent),
 		Color(InColor),
 		ColorParamName(InColorParamName)
@@ -2526,6 +2531,7 @@ public:
 
 	/** Initialization constructor. */
 	FOverrideSelectionColorMaterialRenderProxy(const FMaterialRenderProxy* InParent, const FLinearColor& InSelectionColor) :
+		FMaterialRenderProxy(InParent ? InParent->GetMaterialName() : TEXT("FOverrideSelectionColorMaterialRenderProxy")),
 		Parent(InParent),
 		SelectionColor(FLinearColor(InSelectionColor.R, InSelectionColor.G, InSelectionColor.B, 1))
 	{

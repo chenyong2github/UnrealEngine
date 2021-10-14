@@ -74,9 +74,24 @@ bool FLooseCookedPackageWriter::WriteAdditionalFile(const FAdditionalFileInfo& I
 
 void FLooseCookedPackageWriter::WriteLinkerAdditionalData(const FLinkerAdditionalDataInfo& Info, const FIoBuffer& Data, const TArray<FFileRegion>& FileRegions)
 {
-	// Should not be called because IsLinkerAdditionalDataInSeparateArchive returned false
+	// LinkerAdditionalData is not yet implemented in this writer; it is only used for VirtualizedBulkData which is not used in cooked content
 	checkNoEntry();
 }
+
+bool FLooseCookedPackageWriter::GetPreviousCookedBytes(FName PackageName, const ITargetPlatform* InTargetPlatform,
+	const TCHAR* SandboxFilename, FPreviousCookedBytesData& OutData)
+{
+	// Not yet implemented
+	checkNoEntry();
+	return false;
+}
+
+void FLooseCookedPackageWriter::SetCookOutputLocation(EOutputLocation location)
+{
+	// Not yet implemented
+	checkNoEntry();
+}
+
 
 FDateTime FLooseCookedPackageWriter::GetPreviousCookTime() const
 {
@@ -94,7 +109,7 @@ void FLooseCookedPackageWriter::BeginCook(const FCookInfo& Info)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(SaveScriptObjects);
 		FPackageStoreOptimizer PackageStoreOptimizer;
-		PackageStoreOptimizer.Initialize(&TargetPlatform);
+		PackageStoreOptimizer.Initialize();
 		FIoBuffer ScriptObjectsBuffer = PackageStoreOptimizer.CreateScriptObjectsBuffer();
 		FFileHelper::SaveArrayToFile(
 			MakeArrayView(ScriptObjectsBuffer.Data(), ScriptObjectsBuffer.DataSize()),

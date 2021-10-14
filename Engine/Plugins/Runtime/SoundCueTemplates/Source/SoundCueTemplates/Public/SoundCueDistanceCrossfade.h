@@ -51,11 +51,8 @@ public:
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
-	/** Whitelisted categories, which allows hiding default
-	  * categories from the editor on the inherited SoundCue
-	  * as desired.
-	  */
-	static TSet<FName>& GetWhitelistedCategories();
+	/** List of categories to allow showing on the inherited SoundCue. */
+	static TSet<FName>& GetCategoryAllowList();
 
 	/** Overload with logic to rebuild the node graph when
 	  * user-facing properties are changed

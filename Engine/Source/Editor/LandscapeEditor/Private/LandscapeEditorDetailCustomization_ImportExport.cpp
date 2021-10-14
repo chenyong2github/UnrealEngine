@@ -177,7 +177,7 @@ void FLandscapeEditorDetailCustomization_ImportExport::CustomizeDetails(IDetailL
 		[
 			SNew(SBox)
 			.VAlign(VAlign_Center)
-			.Padding(FMargin(2))
+			.Padding(FMargin(0, 0, 2, 0))
 			[
 				SNew(STextBlock)
 				.Font(DetailBuilder.GetDetailFont())

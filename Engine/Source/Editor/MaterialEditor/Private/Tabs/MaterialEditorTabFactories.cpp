@@ -7,7 +7,7 @@
 
 #include "WorkflowOrientedApp/ApplicationMode.h"
 #include "Framework/Docking/TabManager.h"
-#include "Misc/BlacklistNames.h"
+#include "Misc/NamePermissionList.h"
 
 #include "Widgets/Docking/SDockTab.h"
 

@@ -388,7 +388,7 @@ bool UUnitTestManager::QueueUnitTest(UClass* UnitTestClass, bool bRequeued/*=fal
 		ELogType StatusType = ELogType::StyleBold;
 
 		// @todo #JohnBAutomation: This should be enabled by default instead, so automation testing does give an error when a game doesn't
-		//				have a unit test environment. You should probably setup a whitelist of 'known-unsupported-games' somewhere,
+		//				have a unit test environment. You should probably setup an allow list of 'known-unsupported-games' somewhere,
 		//				to keep track of what games need support added, without breaking automation testing (but without breaking the
 		//				flow of setting-up/running automation tests)
 		if (!GIsAutomationTesting)

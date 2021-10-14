@@ -315,7 +315,7 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 
 					const Chaos::FVec3 Extents(Bounds.Max - Bounds.Min);
 					const Chaos::FReal LocalMaxExtent = Bounds.GetExtent().GetMax();
-					Bounds.ExpandBy(Extents.Size() / 10);
+					Bounds = Bounds.ExpandBy(Extents.Size() / 10);
 
 					//TODO: this gets used later which is incorrect. However, it was already broken because it passed a view and then moved the underlying data.
 					//Keeping as is for now, needs fixing

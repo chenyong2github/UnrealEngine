@@ -38,7 +38,7 @@ namespace CADKernel
 	{
 	private:
 
-		TSharedRef<FSession> Session;
+		FSession& Session;
 		const double GeometricTolerance;
 		const double SquareGeometricTolerance;
 		const double SquareJoiningVertexTolerance;
@@ -48,7 +48,7 @@ namespace CADKernel
 		TArray<TSharedPtr<FCriterion>> Criteria;
 
 	public:
-		FCoreTechBridge(TSharedRef<FSession>& InSession);
+		FCoreTechBridge(FSession& InSession);
 
 		TSharedRef<FBody> AddBody(CT_OBJECT_ID CTBodyId);
 

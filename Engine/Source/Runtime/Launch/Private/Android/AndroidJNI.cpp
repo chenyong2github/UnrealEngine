@@ -2080,10 +2080,36 @@ JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeOnThermalStatusChan
 	FAndroidStats::OnThermalStatusChanged(Status);
 }
 
+static void OnTrimMessage(int MemoryTrimValue)
+{
+	FAndroidPlatformMemory::UpdateOSMemoryStatus(FAndroidPlatformMemory::EOSMemoryStatusCategory::OSTrim, MemoryTrimValue);
+	FAndroidStats::OnTrimMemory(MemoryTrimValue);
+}
+
+#if !UE_BUILD_SHIPPING
+FAutoConsoleCommand TestTrimMessage(
+	TEXT("android.TestTrimMessage"),
+	TEXT("testing only, android.TestTrimMessage int \n")
+	TEXT("int value must match expected values from android OS (see ComponentCallbacks2 api)\n")
+	TEXT("eg. android.TestTrimMessage 15")
+	,
+	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
+		{
+			if(Args.Num() > 0)
+			{
+				uint64 MemoryTrimValue = 0;
+				LexFromString(MemoryTrimValue, *Args[0]);
+				if(MemoryTrimValue)
+				{
+					OnTrimMessage(MemoryTrimValue);
+				}
+			}
+		}));
+#endif
+
 JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeOnTrimMemory(JNIEnv* jenv, jobject thiz, jint MemoryTrimValue)
 {
-	FAndroidMisc::UpdateOSMemoryStatus(FAndroidMisc::EOSMemoryStatusCategory::OSTrim, MemoryTrimValue);
-	FAndroidStats::OnTrimMemory(MemoryTrimValue);
+	OnTrimMessage(MemoryTrimValue);
 }
 
 

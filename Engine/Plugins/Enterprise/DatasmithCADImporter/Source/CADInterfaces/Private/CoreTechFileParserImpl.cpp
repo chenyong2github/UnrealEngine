@@ -33,6 +33,7 @@
 
 #include "CADKernel/Topo/Model.h"
 #include "CADKernel/Topo/Body.h"
+#include "CADKernel/Topo/Joiner.h"
 
 #include "HAL/FileManager.h"
 #include "Internationalization/Text.h"
@@ -185,6 +186,7 @@ namespace CADLibrary
 	FCoreTechFileParser::FCoreTechFileParser(FCADFileData& InCADData, const FString& EnginePluginsPath)
 		: CADFileData(InCADData)
 		, FileDescription(InCADData.GetCADFileDescription())
+		, LastHostIdUsed(1<<30)
 	{
 	}
 
@@ -380,6 +382,7 @@ namespace CADLibrary
 			Flags |= CT_LOAD_FLAG_SEARCH_NEW_TOPOLOGY;
 			break;
 		}
+
 		default:
 			break;
 		}
@@ -465,27 +468,43 @@ namespace CADLibrary
 			}
 		}
 
+		// in the case that a subset of bodies are tessellated body
 		for (CT_OBJECT_ID BodyId : Bodies)
 		{
 			CT_FLAGS BodyProperties;
 			CT_BODY_IO::AskProperties(BodyId, BodyProperties);
-
 			if (FImportParameters::bGDisableCADKernelTessellation || !(BodyProperties & CT_BODY_PROP_EXACT))
 			{
-				if (ReadKioBody(BodyId, ComponentId, DefaultMaterialHash, false))
-				{
-					Component.Children.Add(BodyId);
-				}
-			}
-			else
-			{
-				if (ReadBody(BodyId, ComponentId, DefaultMaterialHash, false))
+				if (BuildStaticMeshDataWithKio(BodyId, ComponentId, DefaultMaterialHash))
 				{
 					Component.Children.Add(BodyId);
 				}
 			}
 		}
 
+		if (!FImportParameters::bGDisableCADKernelTessellation)
+		{   
+			if (CADFileData.GetImportParameters().GetStitchingTechnique() == EStitchingTechnique::StitchingSew)
+			{
+				ReadAndSewBodies(Bodies, ComponentId, DefaultMaterialHash, Component.Children);
+			}
+			else
+			{
+				for (CT_OBJECT_ID BodyId : Bodies)
+				{
+					CT_FLAGS BodyProperties;
+					CT_BODY_IO::AskProperties(BodyId, BodyProperties);
+
+					if (BodyProperties & CT_BODY_PROP_EXACT)
+					{
+						if (BuildStaticMeshData(BodyId, ComponentId, DefaultMaterialHash))
+						{
+							Component.Children.Add(BodyId);
+						}
+					}
+				}
+			}
+		}
 		return true;
 	}
 
@@ -506,8 +525,18 @@ namespace CADLibrary
 		}
 
 		// Ask the transformation of the instance
-		if (CT_INSTANCE_IO::AskTransformation(InstanceNodeId, (double*)Instance.TransformMatrix.M) == IO_OK)
+		double Matrix[16];
+		if (CT_INSTANCE_IO::AskTransformation(InstanceNodeId, Matrix) == IO_OK)
 		{
+			int32 Index = 0;
+			for (int32 Andex = 0; Andex < 4; ++Andex)
+			{
+				for (int32 Bndex = 0; Bndex < 4; ++Bndex, ++Index)
+				{
+					Instance.TransformMatrix.M[Andex][Bndex] = Matrix[Index];
+				}
+			}
+
 			if (Instance.TransformMatrix.ContainsNaN())
 			{
 				Instance.TransformMatrix.SetIdentity();
@@ -585,7 +614,7 @@ namespace CADLibrary
 		return ReadComponent(ReferenceNodeId, DefaultMaterialHash);
 	}
 
-	bool FCoreTechFileParser::ReadKioBody(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, uint32 DefaultMaterialHash, bool bNeedRepair)
+	bool FCoreTechFileParser::BuildStaticMeshDataWithKio(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, uint32 DefaultMaterialHash)
 	{
 		if (CADFileData.HasBodyOfId(BodyId))
 		{
@@ -627,8 +656,8 @@ namespace CADLibrary
 		{
 			CT_LIST_IO ObjectList;
 			ObjectList.PushBack(BodyId);
-			FString BodyFile = FString::Printf(TEXT("UEx%08x"), Body.MeshActorName);
-			CT_KERNEL_IO::SaveFile(ObjectList, *FPaths::Combine(CADFileData.GetCADCachePath(), TEXT("body"), BodyFile + TEXT(".ct")), L"Ct");
+			FString BodyFile = CADFileData.GetBodyCachePath(Body.MeshActorName);
+			CT_KERNEL_IO::SaveFile(ObjectList, *BodyFile, L"Ct");
 		}
 
 		FObjectDisplayDataId BodyMaterial;
@@ -660,7 +689,7 @@ namespace CADLibrary
 #ifdef CORETECHBRIDGE_DEBUG
 	static int32 CoretechBridgeBodyIndex = 0;
 #endif
-	bool FCoreTechFileParser::ReadBody(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, uint32 DefaultMaterialHash, bool bNeedRepair)
+	bool FCoreTechFileParser::BuildStaticMeshData(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, uint32 DefaultMaterialHash)
 	{
 		// Is this body a constructive geometry ?
 		CT_LIST_IO FaceList;
@@ -688,25 +717,33 @@ namespace CADLibrary
 		}
 
 		{
-			TSharedRef<CADKernel::FSession> CADKernelSession = MakeShared<CADKernel::FSession>(0.00001 / CADFileData.GetImportParameters().GetMetricUnit());
+			CADKernel::FSession CADKernelSession(0.00001 / CADFileData.GetImportParameters().GetMetricUnit());
 
-			TSharedRef<CADKernel::FModel> CADKernelModel = CADKernelSession->GetModel();
+			TSharedRef<CADKernel::FModel> CADKernelModel = CADKernelSession.GetModel();
 
 			CADKernel::FCoreTechBridge CoreTechBridge(CADKernelSession);
 
 			TSharedRef<CADKernel::FBody> CADKernelBody = CoreTechBridge.AddBody(BodyId);
 			CADKernelModel->Add(CADKernelBody);
 
+			// Repair if needed
+			if(CADFileData.GetImportParameters().GetStitchingTechnique() != EStitchingTechnique::StitchingNone)
+			{
+				double Tolerance = CADFileData.GetImportParameters().ConvertMMToImportUnit(0.1); // mm
+				CADKernel::FJoiner Joiner(CADKernelSession, CADKernelModel, Tolerance);
+				Joiner.JoinFaces();
+			}
+
 #ifdef CORETECHBRIDGE_DEBUG
 			FString FolderName = FPaths::GetCleanFilename(FileDescription.GetFileName());
-			CADKernelSession->SaveDatabase(*FPaths::Combine(CADFileData.GetCachePath(), TEXT("CADKernel"), FolderName, FString::Printf(TEXT("%06d_"), CoretechBridgeBodyIndex++) + FileDescription.GetFileName() + TEXT(".ugeom")));
+			CADKernelSession.SaveDatabase(*FPaths::Combine(CADFileData.GetCachePath(), TEXT("CADKernel"), FolderName, FString::Printf(TEXT("%06d_"), CoretechBridgeBodyIndex++) + FileDescription.GetFileName() + TEXT(".ugeom")));
 #endif
 
 			// Save Body in CADKernelArchive file for re-tessellation
 			if (CADFileData.IsCacheDefined())
 			{
 				FString BodyFilePath = CADFileData.GetBodyCachePath(ArchiveBody.MeshActorName);
-				CADKernelSession->SaveDatabase(*BodyFilePath);
+				CADKernelSession.SaveDatabase(*BodyFilePath);
 			}
 
 			// Tessellate the body
@@ -725,12 +762,96 @@ namespace CADLibrary
 
 			FCADKernelTools::GetBodyTessellation(CADKernelModelMesh, CADKernelBody, BodyMesh, DefaultMaterialHash, ProcessFace);
 
-			CADKernelSession->Clear();
+			CADKernelSession.Clear();
 		}
 
 		ArchiveBody.ColorFaceSet = BodyMesh.ColorSet;
 		ArchiveBody.MaterialFaceSet = BodyMesh.MaterialSet;
 		return true;
+	}
+
+	void FCoreTechFileParser::BuildStaticMeshData(CADKernel::FSession& CADKernelSession, TSharedRef<CADKernel::FBody> CADKernelBody, CT_OBJECT_ID ParentId, uint32 DefaultMaterialHash)
+	{
+		int32 Index = CADFileData.AddBody(CADKernelBody->GetHostId());
+		FArchiveBody& ArchiveBody = CADFileData.GetBodyAt(Index);
+
+		CADKernelBody->GetMetaData(ArchiveBody.MetaData);
+
+		FBodyMesh& BodyMesh = CADFileData.AddBodyMesh(CADKernelBody->GetHostId(), ArchiveBody);
+		if (uint32 MaterialHash = GetObjectMaterial(ArchiveBody))
+		{
+			DefaultMaterialHash = MaterialHash;
+		}
+
+#ifdef CORETECHBRIDGE_DEBUG
+		FString FolderName = FPaths::GetCleanFilename(FileDescription.GetFileName());
+		CADKernelSession.SaveDatabase(*FPaths::Combine(CADFileData.GetCachePath(), TEXT("CADKernel"), FolderName, FString::Printf(TEXT("%06d_"), CoretechBridgeBodyIndex++) + FileDescription.GetFileName() + TEXT(".ugeom")));
+#endif
+
+		// Save Body in CADKernelArchive file for re-tessellation
+		if (CADFileData.IsCacheDefined())
+		{
+			FString BodyFilePath = CADFileData.GetBodyCachePath(ArchiveBody.MeshActorName);
+			CADKernelSession.SaveDatabase(*BodyFilePath);
+		}
+
+		// Tessellate the body
+		TSharedRef<CADKernel::FModelMesh> CADKernelModelMesh = CADKernel::FEntity::MakeShared<CADKernel::FModelMesh>();
+
+		FCADKernelTools::DefineMeshCriteria(CADKernelModelMesh, CADFileData.GetImportParameters());
+
+		CADKernel::FParametricMesher Mesher(CADKernelModelMesh);
+		Mesher.MeshEntity(CADKernelBody);
+
+		TFunction<void(FObjectDisplayDataId, FObjectDisplayDataId, int32)> ProcessFace;
+		ProcessFace = [&](FObjectDisplayDataId FaceMaterial, FObjectDisplayDataId BodyMaterial, int32 Index)
+		{
+			SetFaceMainMaterial(FaceMaterial, BodyMaterial, BodyMesh, Index);
+		};
+
+		FCADKernelTools::GetBodyTessellation(CADKernelModelMesh, CADKernelBody, BodyMesh, DefaultMaterialHash, ProcessFace);
+
+		ArchiveBody.ColorFaceSet = BodyMesh.ColorSet;
+		ArchiveBody.MaterialFaceSet = BodyMesh.MaterialSet;
+	}
+
+	void FCoreTechFileParser::ReadAndSewBodies(const TArray<CT_OBJECT_ID>& Bodies, CT_OBJECT_ID ParentId, uint32 ParentMaterialHash, TArray<FCadId>& OutChildren)
+	{
+		double GeometricTolerance = CADFileData.GetImportParameters().ConvertMMToImportUnit(0.01); // mm
+		CADKernel::FSession CADKernelSession(GeometricTolerance);
+		CADKernelSession.SetFirstNewHostId(LastHostIdUsed);
+		TSharedRef<CADKernel::FModel> CADKernelModel = CADKernelSession.GetModel();
+
+		CADKernel::FCoreTechBridge CoreTechBridge(CADKernelSession);
+
+		for(CT_OBJECT_ID BodyId : Bodies)
+		{
+			TSharedRef<CADKernel::FBody> CADKernelBody = CoreTechBridge.AddBody(BodyId);
+			CADKernelModel->Add(CADKernelBody);
+		}
+
+		// Repair if needed
+		if (CADFileData.GetImportParameters().GetStitchingTechnique() != EStitchingTechnique::StitchingNone)
+		{
+			double Tolerance = CADFileData.GetImportParameters().ConvertMMToImportUnit(0.1); // mm
+			CADKernel::FJoiner Joiner(CADKernelSession, CADKernelModel, Tolerance);
+			Joiner.JoinFaces();
+			Joiner.SplitIntoConnectedShell();
+		}
+
+		// Get CADKernel new bodies
+		for(const TSharedPtr<CADKernel::FBody>& CADKernelBody : CADKernelModel->GetBodies())
+		{
+			if (!CADKernelBody.IsValid())
+			{
+				continue;
+			}
+
+			BuildStaticMeshData(CADKernelSession, CADKernelBody.ToSharedRef(), ParentId, ParentMaterialHash);
+			OutChildren.Add(CADKernelBody->GetHostId());
+		}
+
+		LastHostIdUsed = CADKernelSession.GetLastHostId();
 	}
 
 	void FCoreTechFileParser::GetAttributeValue(CT_ATTRIB_TYPE AttributType, int IthField, FString& Value)

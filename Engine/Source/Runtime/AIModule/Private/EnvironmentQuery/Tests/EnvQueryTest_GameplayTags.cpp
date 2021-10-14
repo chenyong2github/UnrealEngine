@@ -18,6 +18,8 @@ UEnvQueryTest_GameplayTags::UEnvQueryTest_GameplayTags(const FObjectInitializer&
 	// To search for GameplayTags, currently we require the item type to be an actor.  Certainly it must at least be a
 	// class of some sort to be able to find the interface required.
 	ValidItemType = UEnvQueryItemType_ActorBase::StaticClass();
+	
+	bRejectIncompatibleItems = false;
 }
 
 void UEnvQueryTest_GameplayTags::PreSave(const class ITargetPlatform* TargetPlatform)
@@ -74,7 +76,7 @@ void UEnvQueryTest_GameplayTags::PostLoad()
 	Super::PostLoad();
 }
 
-bool UEnvQueryTest_GameplayTags::SatisfiesTest(IGameplayTagAssetInterface* ItemGameplayTagAssetInterface) const
+bool UEnvQueryTest_GameplayTags::SatisfiesTest(const IGameplayTagAssetInterface* ItemGameplayTagAssetInterface) const
 {
 	// Currently we're requiring that the test only be run on items that implement the interface.  In theory, we could
 	// (instead of checking) support correctly passing or failing on items that don't implement the interface or
@@ -99,12 +101,14 @@ void UEnvQueryTest_GameplayTags::RunTest(FEnvQueryInstance& QueryInstance) const
 	BoolValue.BindData(QueryOwner, QueryInstance.QueryID);
 	bool bWantsValid = BoolValue.GetValue();
 
+	// If no GameplayTagAssetInterface is found then defer to the user preferred behavior
+	const EEnvItemStatus::Type IncompatibleStatus = bRejectIncompatibleItems ? EEnvItemStatus::Failed : EEnvItemStatus::Passed;
+
 	// loop through all items
 	for (FEnvQueryInstance::ItemIterator It(this, QueryInstance); It; ++It)
 	{
-		AActor* ItemActor = GetItemActor(QueryInstance, It.GetIndex());
-		IGameplayTagAssetInterface* GameplayTagAssetInterface = Cast<IGameplayTagAssetInterface>(ItemActor);
-		if (GameplayTagAssetInterface != NULL)
+		const AActor* ItemActor = GetItemActor(QueryInstance, It.GetIndex());
+		if (const IGameplayTagAssetInterface* GameplayTagAssetInterface = Cast<const IGameplayTagAssetInterface>(ItemActor))
 		{
 			bool bSatisfiesTest = SatisfiesTest(GameplayTagAssetInterface);
 
@@ -112,9 +116,9 @@ void UEnvQueryTest_GameplayTags::RunTest(FEnvQueryInstance& QueryInstance) const
 			// rename to make these more consistent.
 			It.SetScore(TestPurpose, FilterType, bSatisfiesTest, bWantsValid);
 		}
-		else // If no GameplayTagAssetInterface is found, this test doesn't apply at all, so just skip the item.
-		{	 // Currently 
-			It.ForceItemState(EEnvItemStatus::Passed);
+		else 
+		{
+			It.ForceItemState(IncompatibleStatus);
 		}
 	}
 }

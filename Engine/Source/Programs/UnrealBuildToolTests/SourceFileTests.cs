@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using OpenTracing.Util;
 using UnrealBuildBase;
 using UnrealBuildTool;
 
@@ -42,7 +43,7 @@ namespace UnrealBuildToolTests
 			}
 
 			ConcurrentBag<SourceFile> SourceFiles = new ConcurrentBag<SourceFile>();
-			using(Timeline.ScopeEvent("Scanning source files"))
+			using (GlobalTracer.Instance.BuildSpan("Scanning source files").StartActive())
 			{
 				using(ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
 				{
@@ -58,7 +59,7 @@ namespace UnrealBuildToolTests
 			FileReference TempDataFile = FileReference.Combine(Unreal.EngineDirectory, "Intermediate", "Temp", "SourceFileTests.bin");
 			DirectoryReference.CreateDirectory(TempDataFile.Directory);
 
-			using(Timeline.ScopeEvent("Writing source file data"))
+			using (GlobalTracer.Instance.BuildSpan("Writing source file data").StartActive())
 			{
 				using(BinaryArchiveWriter Writer = new BinaryArchiveWriter(TempDataFile))
 				{
@@ -67,7 +68,7 @@ namespace UnrealBuildToolTests
 			}
 
 			List<SourceFile> ReadSourceFiles = new List<SourceFile>();
-			using(Timeline.ScopeEvent("Reading source file data"))
+			using (GlobalTracer.Instance.BuildSpan("Reading source file data").StartActive())
 			{
 				using(BinaryArchiveReader Reader = new BinaryArchiveReader(TempDataFile))
 				{

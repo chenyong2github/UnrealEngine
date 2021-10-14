@@ -517,7 +517,7 @@ void AWaterBrushManager::UpdateTransform(const FTransform& Transform)
 	MarkRenderTargetsDirty();
 }
 
-bool AWaterBrushManager::SetupRiverSplineRenderMIDs(const FBrushActorRenderContext& BrushActorRenderContext, bool bClearMIDs)
+bool AWaterBrushManager::SetupRiverSplineRenderMIDs(const FBrushActorRenderContext& BrushActorRenderContext, bool bRestoreMIDs, TArray<UMaterialInterface*>& InOutMIDs)
 {
 	AWaterBody* WaterBody = BrushActorRenderContext.GetActorAs<AWaterBody>();
 	check(WaterBody->GetWaterBodyType() == EWaterBodyType::River);
@@ -541,13 +541,22 @@ bool AWaterBrushManager::SetupRiverSplineRenderMIDs(const FBrushActorRenderConte
 		RiverSplineMIDs.SetNumZeroed(NumSplineMids);
 	}
 
+	if (bRestoreMIDs)
+	{
+		check(InOutMIDs.Num() == NumSplineMids);
+	}
+	else
+	{
+		InOutMIDs.SetNumZeroed(NumSplineMids);
+	}
+
 	for (int32 MIDIndex = 0; MIDIndex < NumSplineMids; ++MIDIndex)
 	{
 		USplineMeshComponent* SplineMeshComponent = SplineMeshComponents[MIDIndex];
 		check(SplineMeshComponent != nullptr);
-		if (bClearMIDs)
+		if (bRestoreMIDs)
 		{
-			SplineMeshComponent->SetMaterial(0, nullptr);
+			SplineMeshComponent->SetMaterial(0, InOutMIDs[MIDIndex]);
 		}
 		else
 		{
@@ -562,6 +571,8 @@ bool AWaterBrushManager::SetupRiverSplineRenderMIDs(const FBrushActorRenderConte
 				TempMID->SetScalarParameterValue(FName(TEXT("VelA")), SplineComponent->GetFloatPropertyAtSplinePoint(MIDIndex, FName(TEXT("WaterVelocityScalar"))));
 				TempMID->SetScalarParameterValue(FName(TEXT("VelB")), SplineComponent->GetFloatPropertyAtSplinePoint(MIDIndex + 1, FName(TEXT("WaterVelocityScalar"))));
 
+				// Save the previous material for restoring it further on : 
+				InOutMIDs[MIDIndex] = (SplineMeshComponent->GetMaterial(0));
 				SplineMeshComponent->SetMaterial(0, TempMID);
 			}
 			else
@@ -577,7 +588,8 @@ bool AWaterBrushManager::SetupRiverSplineRenderMIDs(const FBrushActorRenderConte
 
 void AWaterBrushManager::CaptureRiverDepthAndVelocity(const FBrushActorRenderContext& BrushActorRenderContext)
 {
-	if (!SetupRiverSplineRenderMIDs(BrushActorRenderContext, /*bClearMIDs = */false))
+	TArray<UMaterialInterface*> MIDsToRestore;
+	if (!SetupRiverSplineRenderMIDs(BrushActorRenderContext, /*bRestoreMIDs  = */false, MIDsToRestore))
 	{
 		UE_LOG(LogWaterEditor, Error, TEXT("Error in setup River spline render material for Water Brush. Aborting CaptureRiverDepthAndVelocity."));
 		return;
@@ -603,7 +615,7 @@ void AWaterBrushManager::CaptureRiverDepthAndVelocity(const FBrushActorRenderCon
 	WaterBody->SetIsTemporarilyHiddenInEditor(Hidden);
 
 	// Cleanup the spline components at the end (we're not supposed to have modified the water actors) :
-	SetupRiverSplineRenderMIDs(BrushActorRenderContext, /*bClearMIDs = */true);
+	SetupRiverSplineRenderMIDs(BrushActorRenderContext, /*bRestoreMIDs  = */true, MIDsToRestore);
 }
 
 void AWaterBrushManager::DrawCanvasShape(const FBrushActorRenderContext& BrushActorRenderContext)
@@ -1293,7 +1305,8 @@ void AWaterBrushManager::RenderBrushActorContext(FBrushRenderContext& BrushRende
 
 	if (WaterBody != nullptr)
 	{
-		WaterBody->GetWaterBodyComponent()->UpdateComponentVisibility();
+		// rebuilding the water mesh is expensive and not necessary : 
+		WaterBody->GetWaterBodyComponent()->UpdateComponentVisibility(/* bAllowWaterMeshRebuild = */false);
 	}
 
 	ApplyToCompositeWaterBodyTexture(BrushRenderContext, BrushActorRenderContext);
@@ -1373,6 +1386,8 @@ void AWaterBrushManager::SetupDefaultMaterials()
 
 UTextureRenderTarget2D* AWaterBrushManager::Render_Native(bool InIsHeightmap, UTextureRenderTarget2D* InCombinedResult, FName const& InWeightmapLayerName)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(AWaterBrushManager_Render_Native);
+
 	LandscapeRTRef = InCombinedResult;
 
 	FBrushRenderContext BrushRenderContext;
@@ -1410,6 +1425,7 @@ UTextureRenderTarget2D* AWaterBrushManager::Render_Native(bool InIsHeightmap, UT
 
 	for (AWaterBody* WaterBody : WaterBodies)
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(RenderWaterBody);
 		FBrushActorRenderContext BrushActorRenderContext(WaterBody);
 		RenderBrushActorContext(BrushRenderContext, BrushActorRenderContext);
 	}
@@ -1420,6 +1436,7 @@ UTextureRenderTarget2D* AWaterBrushManager::Render_Native(bool InIsHeightmap, UT
 
 	for (AWaterBodyIsland* WaterBodyIsland : WaterbodyIslands)
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(RenderWaterIsland);
 		FBrushActorRenderContext BrushActorRenderContext(WaterBodyIsland);
 		RenderBrushActorContext(BrushRenderContext, BrushActorRenderContext);
 	}

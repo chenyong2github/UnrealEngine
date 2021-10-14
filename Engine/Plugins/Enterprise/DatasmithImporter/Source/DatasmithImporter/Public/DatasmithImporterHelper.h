@@ -2,6 +2,11 @@
 #pragma once
 #include "CoreMinimal.h"
 
+namespace UE::DatasmithImporter
+{
+	class FExternalSource;
+}
+
 class UFactory;
 
 class DATASMITHIMPORTER_API FDatasmithImporterHelper
@@ -18,6 +23,14 @@ public:
 	{
 		ImportInternal(GetTypedDefaultObject<TFactory>());
 	}
+
+	template <class TFactory>
+	static void Import(const TSharedRef<UE::DatasmithImporter::FExternalSource>& ExternalSource)
+	{
+		ImportInternal(GetTypedDefaultObject<TFactory>(), ExternalSource);
+	}
+
+	static TSharedPtr<UE::DatasmithImporter::FExternalSource> TryGetExternalSourceFromFilepath(const FString& Filepath);
 
 	template <class TFactory>
 	static FString GetFilter()
@@ -42,5 +55,6 @@ private:
 	}
 
 	static void ImportInternal(UFactory* Factory);
+	static void ImportInternal(UFactory* Factory, const TSharedRef<UE::DatasmithImporter::FExternalSource>& ExternalSource);
 	static FString GetFilterStringInternal(UFactory* Factory);
 };

@@ -91,43 +91,57 @@ void SCreateAssetFromObject::Construct(const FArguments& InArgs, TSharedPtr<SWin
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
-			.AutoWidth()
+			SNew(SBorder)
+			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
+			.Padding(16.f)
 			[
-				SNew(STextBlock)
-				.Text(HeadingText)
-			]
-			+ SHorizontalBox::Slot()
-			.FillWidth(1.0f)
-			[
-				SAssignNew(FileNameWidget, SEditableTextBox)
-				.Text(FText::FromString(AssetName))
-				.OnTextChanged(this, &SCreateAssetFromObject::OnFilenameChanged)
-			]
-		]
-		+ SVerticalBox::Slot()
-		.HAlign(HAlign_Right)
-		.Padding(0, 20, 0, 0)
-		.AutoHeight()
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.Padding(0, 2, 6, 5)
-			.AutoWidth()
-			[
-				SNew(SPrimaryButton)
-				.OnClicked(this, &SCreateAssetFromObject::OnCreateAssetFromActorClicked)
-				.Text(CreateButtonText)
-			]
-			+ SHorizontalBox::Slot()
-			.Padding(0, 2, 10, 5)
-			.AutoWidth()
-			[
-				SNew(SButton)
-				.Text(LOCTEXT("CancelButtonText", "Cancel"))
-				.OnClicked(this, &SCreateAssetFromObject::OnCancelCreateAssetFromActor)
+				SNew(SVerticalBox)
+
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.Padding(0.0f, 0.0f, 8.0f, 0.0f)
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(HeadingText)
+					]
+
+					+ SHorizontalBox::Slot()
+					.FillWidth(1.0f)
+					[
+						SAssignNew(FileNameWidget, SEditableTextBox)
+						.Text(FText::FromString(AssetName))
+						.OnTextChanged(this, &SCreateAssetFromObject::OnFilenameChanged)
+					]
+				]
+
+				+ SVerticalBox::Slot()
+				.HAlign(HAlign_Right)
+				.AutoHeight()
+				.Padding(0.f, 16.f, 0.f, 0.f)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(SPrimaryButton)
+						.OnClicked(this, &SCreateAssetFromObject::OnCreateAssetFromActorClicked)
+						.Text(CreateButtonText)
+					]
+
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(16.f, 0.f, 0.f, 0.f)
+					[
+						SNew(SButton)
+						.Text(LOCTEXT("CancelButtonText", "Cancel"))
+						.OnClicked(this, &SCreateAssetFromObject::OnCancelCreateAssetFromActor)
+					]
+				]
 			]
 		]
 	];

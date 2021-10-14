@@ -785,7 +785,7 @@ bool UClientUnitTest::ValidateUnitTestSettings(bool bCDOCheck/*=false*/)
 	UNIT_ASSERT(!(UnitTestFlags & EUnitTestFlags::LaunchClient) || BaseClientParameters.Len() > 0);
 
 
-	// You can't specify an allowed actors whitelist, without the AcceptActors flag
+	// You can't specify an allowed actors list, without the AcceptActors flag
 	UNIT_ASSERT(AllowedClientActors.Num() == 0 || !!(MinClientFlags & EMinClientFlags::AcceptActors));
 
 #if UE_BUILD_SHIPPING

@@ -1097,7 +1097,7 @@ namespace Audio
 		return 0;
 	}
 
-	void FMixerSourceManager::AddPatchOutputForAudioBus(uint32 InAudioBusId, FPatchOutputStrongPtr& InPatchOutputStrongPtr)
+	void FMixerSourceManager::AddPatchOutputForAudioBus(uint32 InAudioBusId, const FPatchOutputStrongPtr& InPatchOutputStrongPtr)
 	{
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 		TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(InAudioBusId);
@@ -1107,11 +1107,11 @@ namespace Audio
 		}
 	}
 
-	void FMixerSourceManager::AddPatchOutputForAudioBus_AudioThread(uint32 InAudioBusId, FPatchOutputStrongPtr& InPatchOutputStrongPtr)
+	void FMixerSourceManager::AddPatchOutputForAudioBus_AudioThread(uint32 InAudioBusId, const FPatchOutputStrongPtr& InPatchOutputStrongPtr)
 	{
-		AudioMixerThreadCommand([this, InAudioBusId, InPatchOutputStrongPtr]() mutable
+		AudioMixerThreadCommand([this, InAudioBusId, NewPatchPtr = InPatchOutputStrongPtr]() mutable
 		{
-			AddPatchOutputForAudioBus(InAudioBusId, InPatchOutputStrongPtr);
+			AddPatchOutputForAudioBus(InAudioBusId, NewPatchPtr);
 		});
 	}
 

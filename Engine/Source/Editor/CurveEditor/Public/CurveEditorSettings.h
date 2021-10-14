@@ -62,6 +62,16 @@ public:
 	/** Sets whether or not the curve editor auto frames the selected curves. */
 	void SetAutoFrameCurveEditor(bool InbAutoFrameCurveEditor);
 
+	/** Gets the number of pixels to pad input framing */
+	int32 GetFrameInputPadding() const;
+	/** Sets the number of pixels to pad input framing */
+	void SetFrameInputPadding(int32 InFrameInputPadding);
+
+	/** Gets the number of pixels to pad output framing */
+	int32 GetFrameOutputPadding() const;
+	/** Sets the number of pixels to pad output framing */
+	void SetFrameOutputPadding(int32 InFrameOutputPadding);
+
 	/** Gets whether or not to show curve tool tips in the curve editor. */
 	bool GetShowCurveEditorCurveToolTips() const;
 	/** Sets whether or not to show curve tool tips in the curve editor. */
@@ -90,6 +100,14 @@ public:
 protected:
 	UPROPERTY( config, EditAnywhere, Category="Curve Editor" )
 	bool bAutoFrameCurveEditor;
+
+	/* Number of pixels to add as padding in the input axis when framing curve keys */
+	UPROPERTY( config, EditAnywhere, Category="Curve Editor", meta=(ClampMin=0) )
+	int32 FrameInputPadding;
+
+	/* Number of pixels to add as padding in the output axis when framing curve keys */
+	UPROPERTY( config, EditAnywhere, Category="Curve Editor", meta=(ClampMin=0) )
+	int32 FrameOutputPadding;
 
 	UPROPERTY( config, EditAnywhere, Category="Curve Editor" )
 	bool bShowCurveEditorCurveToolTips;

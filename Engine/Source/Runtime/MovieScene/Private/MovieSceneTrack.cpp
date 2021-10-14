@@ -285,9 +285,7 @@ bool UMovieSceneTrack::FixRowIndices()
 
 ECookOptimizationFlags UMovieSceneTrack::GetCookOptimizationFlags() const
 {
-	const int RemoveMutedTracksOnCook = CVarMovieSceneRemoveMutedTracksOnCook->GetInt();
-
-	if (RemoveMutedTracksOnCook && IsEvalDisabled())
+	if (RemoveMutedTracksOnCook() && IsEvalDisabled())
 	{
 		return ECookOptimizationFlags::RemoveTrack;
 	}
@@ -296,23 +294,21 @@ ECookOptimizationFlags UMovieSceneTrack::GetCookOptimizationFlags() const
 
 void UMovieSceneTrack::RemoveForCook()
 {
+	Modify();
+
 	for (UMovieSceneSection* Section : GetAllSections())
 	{
 		if (Section)
 		{
-			for (const FMovieSceneChannelEntry& Entry : Section->GetChannelProxy().GetAllEntries())
-			{
-				for (FMovieSceneChannel* Channel : Entry.GetChannels())
-				{
-					if (Channel)
-					{
-						Channel->Reset();
-					}
-				}
-			}
+			Section->RemoveForCook();
 		}
 	}
 	RemoveAllAnimationData();
+}
+
+bool UMovieSceneTrack::RemoveMutedTracksOnCook()
+{
+	return CVarMovieSceneRemoveMutedTracksOnCook->GetInt() != 0;
 }
 
 #endif

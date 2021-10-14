@@ -1004,6 +1004,7 @@ public:
 	/** Initialization constructor. */
 	FLandscapeDebugMaterialRenderProxy(const FMaterialRenderProxy* InParent, const UTexture2D* TexR, const UTexture2D* TexG, const UTexture2D* TexB,
 		const FLinearColor& InR, const FLinearColor& InG, const FLinearColor& InB) :
+		FMaterialRenderProxy(InParent->GetMaterialName()),
 		Parent(InParent),
 		RedTexture(TexR),
 		GreenTexture(TexG),
@@ -1077,6 +1078,7 @@ public:
 
 	/** Initialization constructor. */
 	FLandscapeSelectMaterialRenderProxy(const FMaterialRenderProxy* InParent, const UTexture2D* InTexture) :
+		FMaterialRenderProxy(InParent->GetMaterialName()),
 		Parent(InParent),
 		SelectTexture(InTexture)
 	{}
@@ -1125,6 +1127,7 @@ public:
 
 	/** Initialization constructor. */
 	FLandscapeMaskMaterialRenderProxy(const FMaterialRenderProxy* InParent, const UTexture2D* InTexture, const bool InbInverted) :
+		FMaterialRenderProxy(InParent->GetMaterialName()),
 		Parent(InParent),
 		SelectTexture(InTexture),
 		bInverted(InbInverted)
@@ -1174,7 +1177,8 @@ class FLandscapeLayerUsageRenderProxy : public FMaterialRenderProxy
 	float Rotation;
 public:
 	FLandscapeLayerUsageRenderProxy(const FMaterialRenderProxy* InParent, int32 InComponentSizeVerts, const TArray<FLinearColor>& InLayerColors, float InRotation)
-	: Parent(InParent)
+	: FMaterialRenderProxy(InParent->GetMaterialName())
+	, Parent(InParent)
 	, ComponentSizeVerts(InComponentSizeVerts)
 	, LayerColors(InLayerColors)
 	, Rotation(InRotation)

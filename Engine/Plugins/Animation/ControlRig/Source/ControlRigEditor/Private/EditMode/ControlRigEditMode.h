@@ -23,7 +23,6 @@ struct FViewportClick;
 class UControlRig;
 class FControlRigInteractionScope;
 class ISequencer;
-class UControlRigEditModeSettings;
 class UControlManipulator;
 class FUICommandList;
 class FPrimitiveDrawInterface;
@@ -120,9 +119,6 @@ public:
 
 	/** Refresh our internal object list (they may have changed) */
 	void RefreshObjects();
-
-	/** Get the settings we are using */
-	UControlRigEditModeSettings* GetSettings() const { return Settings; }
 
 	/** Find the edit mode corresponding to the specified world context */
 	static FControlRigEditMode* GetEditModeFromWorldContext(UWorld* InWorldContext);
@@ -235,9 +231,6 @@ private:
 protected:
 
 	TWeakPtr<ISequencer> WeakSequencer;
-
-	/** Settings object used to insert controls into the details panel */
-	UControlRigEditModeSettings* Settings;
 
 	/** The scope for the interaction */
 	FControlRigInteractionScope* InteractionScope;

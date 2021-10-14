@@ -13,7 +13,7 @@ class ITextToSpeechFactory;
 *  The module for text to speech. 
 * Access this class via the singleton Get() convenience function.
 * Use this class to get and set text to speech factories for creating text to speech objects.
-* A platform default text to speech factory will be created for all whitelisted platforms for this plugin.
+* A platform default text to speech factory will be created for all allowed platforms for this plugin.
 * Users can subclass from ITextToSpeechFactory and set their own custom factory if desired.
 * Samples:
 * TSharedRef<FTextToSpeechBase> MyPlatformTTS = ITextToSpeechModule::Get().GetPlatformFactory()->Create();
@@ -32,7 +32,7 @@ public:
 	}
 	/**
 	*  Returns the factory that creates the platform default text to speech object.
-	* For all white listed platforms, this is guaranteed to be valid. 
+	* For all allowed platforms, this is guaranteed to be valid. 
 	*/
 	virtual TSharedPtr<ITextToSpeechFactory> GetPlatformFactory() const = 0;
 	/**

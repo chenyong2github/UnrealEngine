@@ -21,11 +21,11 @@
 			"Name" : "VisualStudioSourceCodeAccess",
 			"Type" : "UncookedOnly",
 			"LoadingPhase" : "Default",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"Win64",
 			],
-			"WhitelistPrograms" : [ "UnrealFrontend", "UnrealInsights" ]
+			"ProgramAllowList" : [ "UnrealFrontend", "UnrealInsights" ]
 		}
 	]
 }

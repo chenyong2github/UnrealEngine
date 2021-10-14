@@ -268,7 +268,7 @@ public:
 				return DiffEntry.Identifier.ResolvePath(InOldObject);
 			});
 
-		OldDetails.DetailsWidget()->UpdatePropertiesWhitelist(PropertyPaths);
+		OldDetails.DetailsWidget()->UpdatePropertyAllowList(PropertyPaths);
 
 		PropertyPaths.Reset();
 		Algo::Transform(DifferingProperties, PropertyPaths,
@@ -277,7 +277,7 @@ public:
 				return DiffEntry.Identifier.ResolvePath(InNewObject);
 			});
 
-		NewDetails.DetailsWidget()->UpdatePropertiesWhitelist(PropertyPaths);
+		NewDetails.DetailsWidget()->UpdatePropertyAllowList(PropertyPaths);
 	}
 
 	virtual void GenerateTreeEntries(TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences) override

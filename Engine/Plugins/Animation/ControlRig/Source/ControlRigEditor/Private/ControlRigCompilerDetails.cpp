@@ -14,6 +14,7 @@
 #include "IPythonScriptPlugin.h"
 #include "RigVMPythonUtils.h"
 #include "ControlRigVisualGraphUtils.h"
+#include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigCompilerDetails"
 
@@ -198,7 +199,13 @@ FReply FRigVMCompileSettingsDetails::OnCopyHierarchyGraphClicked()
 	{
 		if(UControlRig* ControlRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged()))
 		{
-			FString DotGraphContent = FControlRigVisualGraphUtils::DumpRigHierarchyToDotGraph(ControlRig->GetHierarchy());
+			FName EventName = FRigUnit_BeginExecution::EventName;
+			if(!ControlRig->GetEventQueue().IsEmpty())
+			{
+				EventName = ControlRig->GetEventQueue()[0];
+			}
+			
+			const FString DotGraphContent = FControlRigVisualGraphUtils::DumpRigHierarchyToDotGraph(ControlRig->GetHierarchy(), EventName);
 			FPlatformApplicationMisc::ClipboardCopy(*DotGraphContent);
 		}
 	}

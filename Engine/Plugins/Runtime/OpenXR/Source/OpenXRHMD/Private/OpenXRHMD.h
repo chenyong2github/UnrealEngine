@@ -142,12 +142,12 @@ public:
 
 	virtual void SetTrackingOrigin(EHMDTrackingOrigin::Type NewOrigin) override
 	{
-		TrackingSpaceType = (NewOrigin == EHMDTrackingOrigin::Floor && StageSpace != XR_NULL_HANDLE) ? XR_REFERENCE_SPACE_TYPE_STAGE : XR_REFERENCE_SPACE_TYPE_LOCAL;
+		TrackingSpaceType = (NewOrigin == EHMDTrackingOrigin::Eye || StageSpace == XR_NULL_HANDLE) ? XR_REFERENCE_SPACE_TYPE_LOCAL : XR_REFERENCE_SPACE_TYPE_STAGE;
 	}
 
 	virtual EHMDTrackingOrigin::Type GetTrackingOrigin() const override
 	{
-		return (TrackingSpaceType == XR_REFERENCE_SPACE_TYPE_STAGE) ? EHMDTrackingOrigin::Floor : EHMDTrackingOrigin::Eye;
+		return (TrackingSpaceType == XR_REFERENCE_SPACE_TYPE_LOCAL) ? EHMDTrackingOrigin::Eye : EHMDTrackingOrigin::Stage;
 	}
 
 	virtual class IHeadMountedDisplay* GetHMDDevice() override

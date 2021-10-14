@@ -6,21 +6,21 @@
 #include "Input/Reply.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWindow.h"
+#include "IDetailCustomization.h"
+#include "AnimationRecorderParameters.h"
 
-class SCreateAnimationDlg: public SWindow
+class SCreateAnimationDlg : public SWindow
 {
 public:
 	SLATE_BEGIN_ARGS(SCreateAnimationDlg)
-	{
-	}
+	{}
 	
 	SLATE_ARGUMENT(FText, DefaultAssetPath)
 	SLATE_END_ARGS()
 
-		SCreateAnimationDlg()
+	SCreateAnimationDlg()
 		: UserResponse(EAppReturnType::Cancel)
-	{
-		}
+	{}
 
 	void Construct(const FArguments& InArgs);
 
@@ -36,6 +36,10 @@ public:
 
 	/** Gets the resulting full asset path (path+'/'+name) */
 	FString GetFullAssetPath();
+
+	/** Gets the resulting sample rate and recording duration */
+	UAnimationRecordingParameters* GetRecordingParameters() const { return GetMutableDefault<UAnimationRecordingParameters>(); }
+
 
 protected:
 	void OnPathChange(const FString& NewPath);

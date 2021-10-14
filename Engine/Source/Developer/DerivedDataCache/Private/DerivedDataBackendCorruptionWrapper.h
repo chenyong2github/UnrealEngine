@@ -85,6 +85,12 @@ public:
 	}
 
 	/** Return a name for this interface */
+	virtual FString GetDisplayName() const override
+	{
+		return FString(TEXT("CorruptionWrapper"));
+	}
+
+	/** Return a name for this interface */
 	virtual FString GetName() const override
 	{
 		return FString::Printf(TEXT("CorruptionWrapper (%s)"), *InnerBackend->GetName());

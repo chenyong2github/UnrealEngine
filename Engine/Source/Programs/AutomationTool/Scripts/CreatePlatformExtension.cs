@@ -18,7 +18,7 @@ using System.Linq;
 [Help("P4", "Create a changelist for the new files")]
 class CreatePlatformExtension : BuildCommand
 {
-	readonly List<ModuleHostType> ModuleTypeBlacklist = new List<ModuleHostType>
+	readonly List<ModuleHostType> ModuleTypeDenyList = new List<ModuleHostType>
 	{
 		ModuleHostType.Developer,
 		ModuleHostType.Editor, 
@@ -201,8 +201,9 @@ class CreatePlatformExtension : BuildCommand
 		}
 
 		// load the plugin & find suitable modules, if required
-		PluginDescriptor ParentPlugin = PluginDescriptor.FromFile(PluginPath); //NOTE: if the PluginPath is itself a child plugin, not all whitelist, blacklist & supported platform information will be available.
+		PluginDescriptor ParentPlugin = PluginDescriptor.FromFile(PluginPath); //NOTE: if the PluginPath is itself a child plugin, not all allow list, deny list & supported platform information will be available.
 		List<ModuleDescriptor> ParentModuleDescs = new List<ModuleDescriptor>();
+		List<PluginReferenceDescriptor> ParentPluginDescs = new List<PluginReferenceDescriptor>();
 		Dictionary<ModuleDescriptor, FileReference> ParentModuleRules = new Dictionary<ModuleDescriptor, FileReference>();
 		if (!bSkipPluginModules && ParentPlugin.Modules != null)
 		{
@@ -220,6 +221,10 @@ class CreatePlatformExtension : BuildCommand
 					ParentModuleRules.Add(ModuleDesc, ModuleRule);
 				}
 			}
+		}
+		if (ParentPlugin.Plugins != null)
+		{
+			ParentPluginDescs = ParentPlugin.Plugins.Where(PluginDesc => CanCreatePlatformExtensionForPluginReference(PluginDesc)).ToList();
 		}
 
 		// generate the platform extension files
@@ -243,7 +248,7 @@ class CreatePlatformExtension : BuildCommand
 				bool bHasPlatform = UnrealTargetPlatform.TryParse(PlatformName, out Platform);
 
 				// a platform reference is needed if there are already platforms listed in the parent, or the parent requires an explicit platform list
-				bool NeedsPlatformReference( List<UnrealTargetPlatform> ParentPlatforms, bool bHasExplicitPlatforms )
+				bool NeedsPlatformReference<T>( List<T> ParentPlatforms, bool bHasExplicitPlatforms )
 				{
 					return (bHasPlatform && ((ParentPlatforms != null && ParentPlatforms.Count > 0) || bHasExplicitPlatforms));
 				}
@@ -257,8 +262,8 @@ class CreatePlatformExtension : BuildCommand
 					ChildPlugin.WriteStringArrayField("SupportedTargetPlatforms", new string[]{ Platform.ToString() } );
 				}
 
-				// select all modules that are not blacklisted
-				IEnumerable<ModuleDescriptor> ModuleDescs = ParentModuleDescs.Where( ModuleDesc => !(bHasPlatform && ModuleDesc.BlacklistPlatforms != null && ModuleDesc.BlacklistPlatforms.Contains(Platform)) );
+				// select all modules that are not denied
+				IEnumerable<ModuleDescriptor> ModuleDescs = ParentModuleDescs.Where( ModuleDesc => !(bHasPlatform && ModuleDesc.PlatformDenyList != null && ModuleDesc.PlatformDenyList.Contains(Platform)) );
 				if (ModuleDescs.Any() )
 				{
 					ChildPlugin.WriteArrayStart("Modules");
@@ -268,10 +273,9 @@ class CreatePlatformExtension : BuildCommand
 						ChildPlugin.WriteObjectStart();
 						ChildPlugin.WriteValue("Name", ParentModuleDesc.Name);
 						ChildPlugin.WriteValue("Type", ParentModuleDesc.Type.ToString());
-						ChildPlugin.WriteValue("LoadingPhase", ParentModuleDesc.LoadingPhase.ToString());
-						if (NeedsPlatformReference(ParentModuleDesc.WhitelistPlatforms, ParentModuleDesc.bHasExplicitPlatforms))
+						if (NeedsPlatformReference(ParentModuleDesc.PlatformAllowList, ParentModuleDesc.bHasExplicitPlatforms))
 						{
-							ChildPlugin.WriteStringArrayField("WhitelistPlatforms", new string[] { Platform.ToString() } );
+							ChildPlugin.WriteStringArrayField("PlatformAllowList", new string[] { Platform.ToString() } );
 						}
 						ChildPlugin.WriteObjectEnd();
 
@@ -282,6 +286,27 @@ class CreatePlatformExtension : BuildCommand
 							GenerateModulePlatformExtension(ParentModuleRule, new string[] { PlatformName });
 						}
 					}
+					ChildPlugin.WriteArrayEnd();
+				}
+
+				// select all plugins that are not defnied
+				IEnumerable<PluginReferenceDescriptor> PluginDescs = ParentPluginDescs.Where( PluginDesc => !(bHasPlatform && PluginDesc.PlatformDenyList != null && PluginDesc.PlatformDenyList.ToList().Contains(Platform.ToString())) );
+				if (PluginDescs.Any() )
+				{
+					ChildPlugin.WriteArrayStart("Plugins");
+					foreach (PluginReferenceDescriptor ParentPluginDesc in PluginDescs)
+					{
+						// create the child plugin reference
+						ChildPlugin.WriteObjectStart();
+						ChildPlugin.WriteValue("Name", ParentPluginDesc.Name );
+						ChildPlugin.WriteValue("Enabled", ParentPluginDesc.bEnabled);
+						if (NeedsPlatformReference(ParentPluginDesc.PlatformAllowList.ToList(), ParentPluginDesc.bHasExplicitPlatforms))
+						{
+							ChildPlugin.WriteStringArrayField("PlatformAllowList", new string[] { Platform.ToString() } );
+						}
+						ChildPlugin.WriteObjectEnd();
+					}
+
 					ChildPlugin.WriteArrayEnd();
 				}
 				ChildPlugin.WriteObjectEnd();
@@ -415,7 +440,7 @@ class CreatePlatformExtension : BuildCommand
 	private bool CanCreatePlatformExtensionForPluginModule( ModuleDescriptor ModuleDesc )
 	{
 		// make sure it's a type that is usually associated with platform extensions
-		if (ModuleTypeBlacklist.Contains(ModuleDesc.Type))
+		if (ModuleTypeDenyList.Contains(ModuleDesc.Type))
 		{
 			return false;
 		}
@@ -426,13 +451,36 @@ class CreatePlatformExtension : BuildCommand
 			return true;
 		}
 
-		// the module has a non-empty whitelist platform list so we must create a child reference
-		if (ModuleDesc.WhitelistPlatforms != null && ModuleDesc.WhitelistPlatforms.Count >= 0)
+		// the module has a non-empty platform allow list so we must create a child reference
+		if (ModuleDesc.PlatformAllowList != null && ModuleDesc.PlatformAllowList.Count >= 0)
 		{
 			return true;
 		}
 
-		// the module has an empty whitelist platform list so no explicit platform reference is needed
+		// the module has an empty platform allow list so no explicit platform reference is needed
+		return false;
+	}
+
+	/// <summary>
+	/// Determines whether we should attempt to add this dependent plugin module to the child plugin references
+	/// </summary>
+	/// <param name="PluginDesc"></param>
+	/// <returns></returns>
+	private bool CanCreatePlatformExtensionForPluginReference( PluginReferenceDescriptor PluginDesc )
+	{
+		// this plugin reference must have supported platforms explicitly listed so we must create a child reference
+		if (PluginDesc.bHasExplicitPlatforms)
+		{
+			return true;
+		}
+
+		// the plugin reference has a non-empty platform allow list so we must create a child reference
+		if (PluginDesc.PlatformAllowList != null && PluginDesc.PlatformAllowList.Length >= 0)
+		{
+			return true;
+		}
+
+		// the plugin reference has an empty platform allow list so no explicit platform reference is needed
 		return false;
 	}
 

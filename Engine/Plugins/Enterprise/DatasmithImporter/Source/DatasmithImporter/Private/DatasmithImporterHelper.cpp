@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithImporterHelper.h"
+#include "DatasmithImportFactory.h"
 #include "Utility/DatasmithImporterUtils.h"
 
 #include "AssetRegistryModule.h"
@@ -11,15 +12,19 @@
 #include "Editor.h"
 #include "Editor/UnrealEdEngine.h"
 #include "EditorDirectories.h"
+#include "ExternalSource.h"
+#include "ExternalSourceModule.h"
 #include "Factories/Factory.h"
 #include "FileHelpers.h"
 #include "Framework/Application/SlateApplication.h"
 #include "IContentBrowserSingleton.h"
 #include "ISourceControlModule.h"
+#include "IUriManager.h"
 #include "Logging/LogMacros.h"
 #include "Logging/MessageLog.h"
 #include "Misc/MessageDialog.h"
 #include "ObjectTools.h"
+#include "SourceUri.h"
 #include "UnrealEdGlobals.h"
 
 #define LOCTEXT_NAMESPACE "DatasmithImporter"
@@ -27,11 +32,11 @@
 namespace DatasmithImporterHelperInternal
 {
 	// Patterned on UAssetToolsImpl::ImportAssets/ImportAssetsInternal, but simplified to handle only the given Factory
-	TArray<UObject*> ImportAssets(const TArray<FString>& OpenFilenames, const FString& DestinationPath, UFactory* Factory)
+	TArray<UObject*> ImportAssets(const TArray<TSharedRef<UE::DatasmithImporter::FExternalSource>>& Sources, const FString& DestinationPath, UFactory* Factory)
 	{
 		TArray<UObject*> ReturnObjects;
 
-		if (OpenFilenames.Num() > 0)
+		if (Sources.Num() > 0)
 		{
 			const bool bAutomatedImport = Factory->IsAutomatedImport();
 
@@ -50,12 +55,12 @@ namespace DatasmithImporterHelperInternal
 				CorrectPath.RemoveAt(CorrectPath.Len() - 1);
 			}
 
-			for (const FString& Filename : OpenFilenames)
+			for (const TSharedRef<UE::DatasmithImporter::FExternalSource>& Source : Sources)
 			{
-				FString Name = ObjectTools::SanitizeObjectName(FPaths::GetBaseFilename(Filename));
+				FString Name = ObjectTools::SanitizeObjectName(Source->GetSourceName());
 				FString PackageName = ObjectTools::SanitizeInvalidChars(FPaths::Combine( *CorrectPath, *Name ), INVALID_LONGPACKAGE_CHARACTERS);
 
-				UPackage* Pkg = CreatePackage(*PackageName);
+				TStrongObjectPtr<UPackage> Pkg(CreatePackage(*PackageName));
 				if (!ensure(Pkg))
 				{
 					// Failed to create the package to hold this asset for some reason
@@ -63,7 +68,17 @@ namespace DatasmithImporterHelperInternal
 				}
 
 				UClass* ImportAssetType = Factory->ResolveSupportedClass();
-				UObject* Result = Factory->ImportObject(ImportAssetType, Pkg, FName(*Name), RF_Public | RF_Standalone | RF_Transactional, Filename, nullptr, bImportWasCancelled);
+				UObject* Result;
+				if (UDatasmithImportFactory* DatasmithFactory = Cast<UDatasmithImportFactory>(Factory))
+				{
+					// Only UDatasmithImportFactory can directly import FExternalSource objects.
+					Result = DatasmithFactory->CreateFromExternalSource(ImportAssetType, Pkg.Get(), FName(*Name), RF_Public | RF_Standalone | RF_Transactional, Source, nullptr, GWarn, bImportWasCancelled);
+				}
+				else
+				{
+					FString FilePath = Source->GetFallbackFilepath();
+					Result = Factory->ImportObject(ImportAssetType, Pkg.Get(), FName(*Name), RF_Public | RF_Standalone | RF_Transactional, FilePath, nullptr, bImportWasCancelled);
+				}
 
 				// Do not report any error if the operation was canceled.
 				if (!bImportWasCancelled)
@@ -80,7 +95,8 @@ namespace DatasmithImporterHelperInternal
 					}
 					else
 					{
-						const FText Message = FText::Format(LOCTEXT("ImportFailed_Generic", "Failed to import '{0}'. Failed to create asset '{1}'.\nPlease see Output Log for details."), FText::FromString(Filename), FText::FromString(Name));
+						FString SourceLocation = Source->GetSourceUri().ToString();
+						const FText Message = FText::Format(LOCTEXT("ImportFailed_Generic", "Failed to import '{0}'. Failed to create asset '{1}'.\nPlease see Output Log for details."), FText::FromString(SourceLocation), FText::FromString(Name));
 						if (!bAutomatedImport)
 						{
 							FMessageDialog::Open(EAppMsgType::Ok, Message);
@@ -101,7 +117,7 @@ namespace DatasmithImporterHelperInternal
 	}
 
 	// Patterned on FEditorFileUtils::Import, but using the given Factory instead of deducing the factory from the file extension
-	void Import(const TArray<FString>& InFilenames, UFactory* Factory)
+	void Import(const TArray<TSharedRef<UE::DatasmithImporter::FExternalSource>>& InExternalSources, UFactory* Factory)
 	{
 		const FScopedBusyCursor BusyCursor;
 
@@ -124,7 +140,7 @@ namespace DatasmithImporterHelperInternal
 				Path = PickContentPathDlg->GetPath().ToString() + "/";
 			}
 
-			ImportAssets(InFilenames, Path, Factory);
+			ImportAssets(InExternalSources, Path, Factory);
 		}
 
 		if(GUnrealEd != nullptr)
@@ -135,7 +151,6 @@ namespace DatasmithImporterHelperInternal
 			GUnrealEd->RedrawLevelEditingViewports();
 		}
 
-		FEditorDirectories::Get().SetLastDirectory(ELastDirectory::GENERIC_IMPORT, FPaths::GetPath(InFilenames[0])); // Save path as default for next time.
 
 		FEditorDelegates::RefreshAllBrowsers.Broadcast();
 	}
@@ -173,21 +188,57 @@ namespace DatasmithImporterHelperInternal
 // Patterned on FEditorFileUtils::Import(), but using the given Factory instead of deducing the factory from the file extension
 void FDatasmithImporterHelper::ImportInternal(UFactory* FactoryCDO)
 {
+	using namespace UE::DatasmithImporter;
+
 	if (!FactoryCDO)
 	{
 		return;
 	}
 
-	TStrongObjectPtr<UFactory> Factory(NewObject< UFactory >( (UObject*)GetTransientPackage(), FactoryCDO->GetClass() ) );
+	TStrongObjectPtr<UFactory> Factory(NewObject< UFactory >((UObject*)GetTransientPackage(), FactoryCDO->GetClass()));
 	Factory->ConfigureProperties();
-
 	TArray<FString> OpenedFiles;
 	FString DefaultLocation(FEditorDirectories::Get().GetLastDirectory(ELastDirectory::GENERIC_IMPORT));
 
 	if (DatasmithImporterHelperInternal::OpenFiles(LOCTEXT("ImportDatasmithTitle", "Import Datasmith").ToString(), GetFilterStringInternal(Factory.Get()), DefaultLocation, EFileDialogFlags::Multiple, OpenedFiles))
 	{
-		DatasmithImporterHelperInternal::Import(OpenedFiles, Factory.Get());
+		TArray<TSharedRef<FExternalSource>> Sources;
+		Sources.Reserve(OpenedFiles.Num());
+		IUriManager* UriManager = IExternalSourceModule::Get().GetManager();
+
+		for (const FString& OpenedFile : OpenedFiles)
+		{
+			FSourceUri SourceUri = FSourceUri::FromFilePath(OpenedFile);
+			if (TSharedPtr<FExternalSource> FileExternalSource = UriManager->GetOrCreateExternalSource(SourceUri))
+			{
+				Sources.Add(FileExternalSource.ToSharedRef());
+			}
+		}
+
+		if (Sources.Num() > 0)
+		{
+			FEditorDirectories::Get().SetLastDirectory(ELastDirectory::GENERIC_IMPORT, FPaths::GetPath(Sources[0]->GetFallbackFilepath())); // Save path as default for next time.
+			DatasmithImporterHelperInternal::Import(Sources, Factory.Get());
+		}
 	}
+
+	Factory->CleanUp();
+}
+
+// Patterned on FEditorFileUtils::Import(), but using the given Factory instead of deducing the factory from the file extension
+void FDatasmithImporterHelper::ImportInternal(UFactory* FactoryCDO, const TSharedRef<UE::DatasmithImporter::FExternalSource>& ExternalSource)
+{
+	if (!FactoryCDO)
+	{
+		return;
+	}
+
+	checkf(FactoryCDO->IsA(UDatasmithImportFactory::StaticClass()), TEXT("While prototyping we should only use ExternalSource with UDatasmithImportFactory."));
+	TStrongObjectPtr<UFactory> Factory(NewObject< UFactory >( (UObject*)GetTransientPackage(), FactoryCDO->GetClass() ) );
+	Factory->ConfigureProperties();
+
+	TArray<TSharedRef<UE::DatasmithImporter::FExternalSource>> Sources{ ExternalSource };
+	DatasmithImporterHelperInternal::Import(Sources, Factory.Get());
 
 	Factory->CleanUp();
 }
@@ -205,6 +256,19 @@ FString FDatasmithImporterHelper::GetFilterStringInternal(UFactory* Factory)
 	ObjectTools::GenerateFactoryFileExtensions(Factories, FileTypes, AllExtensions, FilterIndexToFactory);
 
 	return FString::Printf(TEXT("All Files (%s)|%s|%s"), *AllExtensions, *AllExtensions, *FileTypes);
+}
+
+TSharedPtr<UE::DatasmithImporter::FExternalSource> FDatasmithImporterHelper::TryGetExternalSourceFromFilepath(const FString& Filepath)
+{
+	using namespace UE::DatasmithImporter;
+
+	if (IUriManager* Manager = IExternalSourceModule::Get().GetManager())
+	{
+		FSourceUri SourceUri = FSourceUri::FromFilePath(Filepath);
+		return Manager->GetOrCreateExternalSource(SourceUri);
+	}
+
+	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

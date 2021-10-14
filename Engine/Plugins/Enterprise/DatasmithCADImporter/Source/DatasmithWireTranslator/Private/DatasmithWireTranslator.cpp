@@ -1808,9 +1808,13 @@ TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(T
 		AliasBRepConverter->AddBRep(*DagNode, ObjectReference);
 	}
 
+	CADModelConverter->RepairTopology();
+
 	CADModelConverter->SaveBRep(*OutputPath, MeshElement);
 
 	FMeshDescription MeshDescription;
+	DatasmithMeshHelper::PrepareAttributeForStaticMesh(MeshDescription);
+
 	CADModelConverter->Tessellate(MeshParameters, MeshDescription);
 
 	return MoveTemp(MeshDescription);

@@ -125,7 +125,7 @@ FORCEINLINE TSharedRef< CastToType, Mode > StaticCastSharedRef( TSharedRef< Cast
 }
 
 
-namespace UE4SharedPointer_Private
+namespace UE::Core::Private::SharedPointer
 {
 	// Needed to work around an Android compiler bug - we need to construct a TSharedRef
 	// from MakeShared without making MakeShared a friend in order to access the private constructor.
@@ -611,7 +611,7 @@ private:
 		#pragma warning(disable : 4396) // warning: the inline specifier cannot be used when a friend declaration refers to a specialization of a function template
 	#endif
 
-	friend TSharedRef UE4SharedPointer_Private::MakeSharedRef<ObjectType, Mode>(ObjectType* InObject, SharedPointerInternals::TReferenceControllerBase<Mode>* InSharedReferenceCount);
+	friend TSharedRef UE::Core::Private::SharedPointer::MakeSharedRef<ObjectType, Mode>(ObjectType* InObject, SharedPointerInternals::TReferenceControllerBase<Mode>* InSharedReferenceCount);
 
 	#ifdef _MSC_VER
 		#pragma warning(pop)
@@ -2027,7 +2027,7 @@ template <typename InObjectType, ESPMode InMode = ESPMode::ThreadSafe, typename.
 FORCEINLINE TSharedRef<InObjectType, InMode> MakeShared(InArgTypes&&... Args)
 {
 	SharedPointerInternals::TIntrusiveReferenceController<InObjectType, InMode>* Controller = SharedPointerInternals::NewIntrusiveReferenceController<InMode, InObjectType>(Forward<InArgTypes>(Args)...);
-	return UE4SharedPointer_Private::MakeSharedRef<InObjectType, InMode>(Controller->GetObjectPtr(), (SharedPointerInternals::TReferenceControllerBase<InMode>*)Controller);
+	return UE::Core::Private::SharedPointer::MakeSharedRef<InObjectType, InMode>(Controller->GetObjectPtr(), (SharedPointerInternals::TReferenceControllerBase<InMode>*)Controller);
 }
 
 

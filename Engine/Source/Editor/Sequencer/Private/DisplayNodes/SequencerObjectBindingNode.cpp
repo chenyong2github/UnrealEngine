@@ -862,7 +862,7 @@ FText FSequencerObjectBindingNode::GetDisplayNameToolTipText() const
 
 	if ( BoundObjects.Num() == 0 )
 	{
-		return LOCTEXT("InvalidBoundObjectToolTip", "The object bound to this track is missing.");
+		return FText::Format(LOCTEXT("InvalidBoundObjectToolTip", "The object bound to this track is missing (BindingID: {0})."), FText::FromString(LexToString(ObjectBinding)));
 	}
 	else
 	{
@@ -895,7 +895,7 @@ FText FSequencerObjectBindingNode::GetDisplayNameToolTipText() const
 			}
 		}
 
-		// If only 1 bound object, no need to display tooltip
+		// If only 1 bound object, display a simpler tooltip.
 		if (ValidBoundObjectLabels.Num() == 1 && NumMissing == 0)
 		{
 			if (BindingType == EObjectBindingType::Spawnable)
@@ -903,14 +903,14 @@ FText FSequencerObjectBindingNode::GetDisplayNameToolTipText() const
 				const UClass* ClassForObjectBinding = GetClassForObjectBinding();
 				if (ClassForObjectBinding)
 				{
-					return FText::FromString(TEXT("Spawnable Class: ") + ClassForObjectBinding->GetFName().ToString());
+					return FText::Format(LOCTEXT("SpawnableBoundObjectToolTip", "Spawnable Class: {0} (BindingID: {1})"), FText::FromName(ClassForObjectBinding->GetFName()), FText::FromString(LexToString(ObjectBinding)));
 				}
 			}
-			return FText();
+			return FText::Format(LOCTEXT("PossessableBoundObjectToolTip", "(BindingID: {0}"), FText::FromString(LexToString(ObjectBinding)));
 		}
 		else if (ValidBoundObjectLabels.Num() == 0 && NumMissing == 1)
 		{
-			return LOCTEXT("InvalidBoundObjectToolTip", "The object bound to this track is missing.");
+			return FText::Format(LOCTEXT("InvalidBoundObjectToolTip", "The object bound to this track is missing (BindingID: {0})."), FText::FromString(LexToString(ObjectBinding)));
 		}
 
 		FString MultipleBoundObjectLabel = FString::Join(ValidBoundObjectLabels, TEXT(", "));
@@ -924,7 +924,7 @@ FText FSequencerObjectBindingNode::GetDisplayNameToolTipText() const
 			MultipleBoundObjectLabel += FString::Printf(TEXT(" (%d missing)"), NumMissing);
 		}
 
-		return FText::FromString(MultipleBoundObjectLabel);
+		return FText::FromString(MultipleBoundObjectLabel + FString::Printf(TEXT(" (BindingID: %s)"), *LexToString(ObjectBinding)));
 	}
 }
 

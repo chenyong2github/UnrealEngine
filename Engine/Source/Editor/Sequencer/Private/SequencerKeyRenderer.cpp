@@ -467,7 +467,7 @@ void FKeyRenderer::FKeyDrawBatch::UpdateViewDependentData(FSequencer* Sequencer,
 		if (ChannelTypeName == FloatChannelTypeName)
 		{
 			FMovieSceneFloatChannel* FloatChannel = ThisKeyArea.Get()->GetChannel().Cast<FMovieSceneFloatChannel>().Get();
-			if (!FloatChannel->GetShowCurve())
+			if (!FloatChannel || !FloatChannel->GetShowCurve())
 			{
 				continue;
 			}
@@ -507,7 +507,7 @@ void FKeyRenderer::FKeyDrawBatch::UpdateViewDependentData(FSequencer* Sequencer,
 		else if (ChannelTypeName == DoubleChannelTypeName)
 		{
 			FMovieSceneDoubleChannel* DoubleChannel = ThisKeyArea.Get()->GetChannel().Cast<FMovieSceneDoubleChannel>().Get();
-			if (!DoubleChannel->GetShowCurve())
+			if (!DoubleChannel || !DoubleChannel->GetShowCurve())
 			{
 				continue;
 			}

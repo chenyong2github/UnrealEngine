@@ -52,6 +52,8 @@ public:
 	 */
 	bool IsUsable() const { return bIsUsable; }
 
+	bool IsRemote() const { return true; }
+
 	/** return true if this cache is writable **/
 	virtual bool IsWritable() const override
 	{
@@ -66,6 +68,7 @@ public:
 	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override;
 	
 	virtual FString GetName() const override;
+	virtual FString GetDisplayName() const override;
 	virtual bool TryToPrefetch(TConstArrayView<FString> CacheKeys) override;
 	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override;
 	virtual ESpeedClass GetSpeedClass() const override;

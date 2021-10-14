@@ -2406,7 +2406,7 @@ void UPackageMapClient::SetHasQueuedBunches(const FNetworkGUID& NetGUID, bool bH
 #if CSV_PROFILER
 							if (bAboveOwnerQueuedTime && GuidCache->IsTrackingOwnerOrPawn())
 							{
-								CSV_EVENT(PackageMap, TEXT("Owner Net Stall Queued Actor (QueueTime=%.2f)"), *ObjectClass.ToString(), QueuedTime);
+								CSV_EVENT(PackageMap, TEXT("Owner Net Stall Queued Actor (QueueTime=%.2f)"), QueuedTime);
 							}
 #endif
 						}

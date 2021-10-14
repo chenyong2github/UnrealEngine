@@ -13,9 +13,7 @@ namespace UnrealBuildTool.Rules
 			PublicDependencyModuleNames.AddRange(
 			   new string[]
 			   {
-					"InputDevice",
-					"LiveLink",
-					"LiveLinkInterface"
+					"InputDevice"
 			   }
 		   );
 
@@ -31,17 +29,15 @@ namespace UnrealBuildTool.Rules
                 {
                     "Core",
                     "CoreUObject",
-					//"ApplicationCore",
                     "Engine",
-                    //"InputDevice",
-                    "InputCore",
-					"Slate",
 					"HeadMountedDisplay",
-					"SlateCore",
-					"LiveLink",
+                    "InputCore",
+					"LiveLinkAnimationCore",
 					"LiveLinkInterface",
 					"OpenXRHMD",
-					"OpenXRInput"
+					"OpenXRInput",
+					"Slate",
+					"SlateCore",
 				}
 				);
 

@@ -24,38 +24,22 @@ UWaterBodyCustomComponent::UWaterBodyCustomComponent(const FObjectInitializer& O
 
 TArray<UPrimitiveComponent*> UWaterBodyCustomComponent::GetCollisionComponents() const
 {
-	AActor* Owner = GetOwner();
-	check(Owner);
-	
-	TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents;
-	Owner->GetComponents(PrimitiveComponents);
 	TArray<UPrimitiveComponent*> Result;
-	Result.Reserve(PrimitiveComponents.Num());
-	for (UPrimitiveComponent* Comp : PrimitiveComponents)
+	if ((MeshComp != nullptr) && (MeshComp->GetCollisionEnabled() != ECollisionEnabled::NoCollision))
 	{
-		if (Comp->GetCollisionEnabled() != ECollisionEnabled::NoCollision)
-		{
-			Result.Add(Comp);
-		}
+		Result.Add(MeshComp);
 	}
 	return Result;
 }
 
-void UWaterBodyCustomComponent::UpdateComponentVisibility()
+TArray<UPrimitiveComponent*> UWaterBodyCustomComponent::GetStandardRenderableComponents() const 
 {
-	if (UWorld* World = GetWorld())
+	TArray<UPrimitiveComponent*> Result;
+	if (MeshComp != nullptr)
 	{
-		// If water rendering is enabled we dont need the components to do the rendering
-		const bool bIsWaterRenderingEnabled = UWaterSubsystem::GetWaterSubsystem(World)->IsWaterRenderingEnabled();
-
-		TInlineComponentArray<UStaticMeshComponent*> MeshComponents;
-		GetOwner()->GetComponents(MeshComponents);
-		for (UStaticMeshComponent* Component : MeshComponents)
-		{
-			Component->SetVisibility(bIsWaterRenderingEnabled);
-			Component->SetHiddenInGame(!bIsWaterRenderingEnabled);
-		}
+		Result.Add(MeshComp);
 	}
+	return Result;
 }
 
 void UWaterBodyCustomComponent::Reset()
@@ -122,8 +106,9 @@ void UWaterBodyCustomComponent::BeginUpdateWaterBody()
 	UMaterialInstanceDynamic* WaterMaterialInstance = GetWaterMaterialInstance();
 	if (WaterMaterialInstance && MeshComp)
 	{
-		// We need to get(or create) the water MID at runtime and apply it to the static mesh component of the custom generator
+		// We need to get(or create) the water MID at runtime and apply it to the static mesh component 
 		// The MID is transient so it will not make it through serialization, apply it here (at runtime)
 		MeshComp->SetMaterial(0, WaterMaterialInstance);
 	}
 }
+

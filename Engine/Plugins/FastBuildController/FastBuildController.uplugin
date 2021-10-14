@@ -21,7 +21,7 @@
 			"Name" : "FastBuildController",
 			"Type" : "UncookedOnly",
 			"LoadingPhase" : "EarliestPossible",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"Mac",
 				"Linux"

@@ -262,7 +262,7 @@ void FTaskGraphProfilerManager::ShowTaskRelations(const TraceServices::FTaskInfo
 {
 	check(Task != nullptr);
 
-	if (!bShowRelations)
+	if (!GetShowAnyRelations())
 	{
 		return;
 	}
@@ -283,7 +283,10 @@ void FTaskGraphProfilerManager::ShowTaskRelations(const TraceServices::FTaskInfo
 	{
 		GetSingleTaskRelationsForAll(Task->Prerequisites);
 	}
-	GetSingleTaskRelations(Task, TasksProvider, InSelectedEvent);
+	if (bShowRelations)
+	{
+		GetSingleTaskRelations(Task, TasksProvider, InSelectedEvent);
+	}
 	if (bShowNestedTasks)
 	{
 		GetSingleTaskRelationsForAll(Task->NestedTasks);
@@ -291,6 +294,10 @@ void FTaskGraphProfilerManager::ShowTaskRelations(const TraceServices::FTaskInfo
 	if (bShowSubsequents)
 	{
 		GetSingleTaskRelationsForAll(Task->Subsequents);
+	}
+	if (bShowCriticalPath)
+	{
+		GetRelationsOnCriticalPath(Task);
 	}
 }
 
@@ -346,6 +353,49 @@ void FTaskGraphProfilerManager::GetSingleTaskRelations(const TraceServices::FTas
 	if (Task->FinishedTimestamp != Task->CompletedTimestamp || Task->CompletedThreadId != Task->StartedThreadId)
 	{
 		AddRelation(InSelectedEvent, Task->FinishedTimestamp, Task->StartedThreadId, ExecutionStartedDepth, Task->CompletedTimestamp, Task->StartedThreadId, -1,  ETaskEventType::Completed);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTaskGraphProfilerManager::GetRelationsOnCriticalPath(const TraceServices::FTaskInfo* Task)
+{
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (!Session.IsValid())
+	{
+		return;
+	}
+
+	TArray<FTaskGraphRelation> Relations;
+	{
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+
+		const TraceServices::ITasksProvider* TasksProvider = TraceServices::ReadTasksProvider(*Session.Get());
+
+		if (TasksProvider == nullptr)
+		{
+			return;
+		}
+
+		TSharedPtr<class STimingProfilerWindow> TimingWindow = FTimingProfilerManager::Get()->GetProfilerWindow();
+		if (!TimingWindow.IsValid())
+		{
+			return;
+		}
+
+		TSharedPtr<STimingView> TimingView = TimingWindow->GetTimingView();
+		if (!TimingView.IsValid())
+		{
+			return;
+		}
+
+		GetRelationsOnCriticalPathAscendingRec(Task, TasksProvider, Relations);
+		GetRelationsOnCriticalPathDescendingRec(Task, TasksProvider, Relations);
+	}
+
+	for (FTaskGraphRelation& Relation : Relations)
+	{
+		AddRelation(nullptr, Relation.GetSourceTime(), Relation.GetSourceThreadId(), Relation.GetSourceDepth(), Relation.GetTargetTime(), Relation.GetTargetThreadId(), Relation.GetTargetDepth(), ETaskEventType::CriticalPath);
 	}
 }
 
@@ -434,6 +484,7 @@ void FTaskGraphProfilerManager::InitializeColorCode()
 	ColorCode[static_cast<uint32>(ETaskEventType::NestedCompleted)] = FLinearColor::Red;
 	ColorCode[static_cast<uint32>(ETaskEventType::Subsequent)] = FLinearColor::Red;
 	ColorCode[static_cast<uint32>(ETaskEventType::Completed)] = FLinearColor::Yellow;
+	ColorCode[static_cast<uint32>(ETaskEventType::CriticalPath)] = FLinearColor(FColor::Purple);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -609,6 +660,160 @@ int32 FTaskGraphProfilerManager::GetDepthOfTaskExecution(double TaskStartedTime,
 	}
 
 	return Depth;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+double FTaskGraphProfilerManager::GetRelationsOnCriticalPathAscendingRec(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, TArray<FTaskGraphRelation>& Relations)
+{
+	double MaxChainDuration = 0;
+	int32 InitialRelationNum = Relations.Num();
+	const TraceServices::FTaskInfo* NextTaskInChain = nullptr;
+
+	if (Task->Prerequisites.Num() > 0)
+	{
+		TArray<FTaskGraphRelation> AscendingRelations;
+
+		for (const TraceServices::FTaskInfo::FRelationInfo& PrerequisiteTaskRelation : Task->Prerequisites)
+		{
+			const TraceServices::FTaskInfo* PrerequisiteTaskInfo = TasksProvider->TryGetTask(PrerequisiteTaskRelation.RelativeId);
+			if (PrerequisiteTaskInfo != nullptr)
+			{
+				double ChainDuration = GetRelationsOnCriticalPathAscendingRec(PrerequisiteTaskInfo, TasksProvider, AscendingRelations);
+				if (ChainDuration > MaxChainDuration)
+				{
+					MaxChainDuration = ChainDuration;
+					NextTaskInChain = PrerequisiteTaskInfo;
+					// Remove the relations from the shorter branch.
+					if (Relations.Num() > InitialRelationNum)
+					{
+						Relations.RemoveAt(InitialRelationNum, Relations.Num() - InitialRelationNum, false);
+					}
+
+					Relations.Append(AscendingRelations);
+				}
+				AscendingRelations.Empty(AscendingRelations.Max());
+			}
+		}
+	}
+
+	if (Task->ParentOfNestedTask.IsValid())
+	{
+		const TraceServices::FTaskInfo* ParentTaskInfo = TasksProvider->TryGetTask(Task->ParentOfNestedTask->RelativeId);
+
+		if (ParentTaskInfo != nullptr)
+		{
+			TArray<FTaskGraphRelation> AscendingRelations;
+
+			double ChainDuration = GetRelationsOnCriticalPathAscendingRec(ParentTaskInfo, TasksProvider, AscendingRelations);
+			if (ChainDuration > MaxChainDuration)
+			{
+				MaxChainDuration = ChainDuration;
+				NextTaskInChain = ParentTaskInfo;
+				// Remove the relations from the shorter branch.
+				if (Relations.Num() > InitialRelationNum)
+				{
+					Relations.RemoveAt(InitialRelationNum, Relations.Num() - InitialRelationNum, false);
+				}
+
+				Relations.Append(AscendingRelations);
+			}
+			AscendingRelations.Empty(AscendingRelations.Max());
+		}
+	}
+
+	if (NextTaskInChain)
+	{
+		int32 SourceDepth = GetDepthOfTaskExecution(NextTaskInChain->StartedTimestamp, NextTaskInChain->FinishedTimestamp, NextTaskInChain->StartedThreadId);
+		int32 TargetDepth = GetDepthOfTaskExecution(Task->StartedTimestamp, Task->FinishedTimestamp, Task->StartedThreadId);
+		FTaskGraphRelation& NewRelation = Relations.Emplace_GetRef(NextTaskInChain->FinishedTimestamp, NextTaskInChain->StartedThreadId, Task->StartedTimestamp, Task->StartedThreadId, ETaskEventType::CriticalPath);
+		NewRelation.SetSourceDepth(SourceDepth);
+		NewRelation.SetTargetDepth(TargetDepth);
+	}
+	else
+	{
+		int32 TargetDepth = GetDepthOfTaskExecution(Task->StartedTimestamp, Task->FinishedTimestamp, Task->StartedThreadId);
+		FTaskGraphRelation& NewRelation = Relations.Emplace_GetRef(Task->CreatedTimestamp, Task->CreatedThreadId, Task->StartedTimestamp, Task->StartedThreadId, ETaskEventType::CriticalPath);
+		NewRelation.SetTargetDepth(TargetDepth);
+	}
+
+	double TaskDuration = Task->FinishedTimestamp - Task->StartedTimestamp;
+	return MaxChainDuration + TaskDuration;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+double FTaskGraphProfilerManager::GetRelationsOnCriticalPathDescendingRec(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, TArray<FTaskGraphRelation>& Relations)
+{
+	double MaxChainDuration = 0;
+	const TraceServices::FTaskInfo* NextTaskInChain = nullptr;
+	int32 InitialRelationNum = Relations.Num();
+
+	if (Task->Subsequents.Num() > 0)
+	{
+		TArray<FTaskGraphRelation> DescendingRelations;
+
+		for (const TraceServices::FTaskInfo::FRelationInfo& SubsequentTaskRelation : Task->Subsequents)
+		{
+			const TraceServices::FTaskInfo* SubsequentTaskInfo = TasksProvider->TryGetTask(SubsequentTaskRelation.RelativeId);
+			if (SubsequentTaskInfo != nullptr)
+			{
+				double ChainDuration = GetRelationsOnCriticalPathDescendingRec(SubsequentTaskInfo, TasksProvider, DescendingRelations);
+				if (ChainDuration > MaxChainDuration)
+				{
+					MaxChainDuration = ChainDuration;
+					NextTaskInChain = SubsequentTaskInfo;
+					// Remove the relations from the shorter branch.
+					if (Relations.Num() > InitialRelationNum)
+					{
+						Relations.RemoveAt(InitialRelationNum, Relations.Num() - InitialRelationNum, false);
+					}
+
+					Relations.Append(DescendingRelations);
+				}
+				DescendingRelations.Empty(DescendingRelations.Max());
+			}
+		}
+	}
+
+	if (Task->NestedTasks.Num() > 0)
+	{
+		TArray<FTaskGraphRelation> DescendingRelations;
+
+		for (const TraceServices::FTaskInfo::FRelationInfo& NestedTaskRelation : Task->NestedTasks)
+		{
+			const TraceServices::FTaskInfo* NestedTaskInfo = TasksProvider->TryGetTask(NestedTaskRelation.RelativeId);
+			if (NestedTaskInfo != nullptr)
+			{
+				double ChainDuration = GetRelationsOnCriticalPathDescendingRec(NestedTaskInfo, TasksProvider, DescendingRelations);
+				if (ChainDuration > MaxChainDuration)
+				{
+					MaxChainDuration = ChainDuration;
+					NextTaskInChain = NestedTaskInfo;
+					// Remove the relations from the shorter branch.
+					if (Relations.Num() > InitialRelationNum)
+					{
+						Relations.RemoveAt(InitialRelationNum, Relations.Num() - InitialRelationNum, false);
+					}
+
+					Relations.Append(DescendingRelations);
+				}
+				DescendingRelations.Empty(DescendingRelations.Max());
+			}
+		}
+	}
+
+	if (NextTaskInChain)
+	{
+		int32 SourceDepth = GetDepthOfTaskExecution(Task->StartedTimestamp, Task->FinishedTimestamp, Task->StartedThreadId);
+		int32 TargetDepth = GetDepthOfTaskExecution(NextTaskInChain->StartedTimestamp, NextTaskInChain->FinishedTimestamp, NextTaskInChain->StartedThreadId);
+		FTaskGraphRelation& NewRelation = Relations.Emplace_GetRef(FTaskGraphRelation(Task->FinishedTimestamp, Task->StartedThreadId, NextTaskInChain->StartedTimestamp, NextTaskInChain->StartedThreadId, ETaskEventType::CriticalPath));
+		NewRelation.SetSourceDepth(SourceDepth);
+		NewRelation.SetTargetDepth(TargetDepth);
+	}
+
+	double TaskDuration = Task->FinishedTimestamp - Task->StartedTimestamp;
+	return MaxChainDuration + TaskDuration;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

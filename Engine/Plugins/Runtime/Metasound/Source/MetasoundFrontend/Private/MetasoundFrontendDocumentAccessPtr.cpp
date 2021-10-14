@@ -219,6 +219,20 @@ namespace Metasound
 			 	const TArray<FMetasoundFrontendNode>& operator()(const FMetasoundFrontendGraphClass& InGraphClass) const { return InGraphClass.Graph.Nodes; }
 			};
 
+			/** A callable object for accessing arrays of variables from a graph class. */
+			/*
+			struct FGetGraphClassVariables
+			{
+			 	TMap<FGuid, FMetasoundFrontendVariable>& operator()(FMetasoundFrontendGraphClass& InGraphClass) const { return InGraphClass.Graph.Variables; }
+			 	const TMap<FGuid, FMetasoundFrontendVariable>& operator()(const FMetasoundFrontendGraphClass& InGraphClass) const { return InGraphClass.Graph.Variables; }
+			};
+			*/
+			struct FGetGraphClassVariables
+			{
+			 	TArray<FMetasoundFrontendVariable>& operator()(FMetasoundFrontendGraphClass& InGraphClass) const { return InGraphClass.Graph.Variables; }
+			 	const TArray<FMetasoundFrontendVariable>& operator()(const FMetasoundFrontendGraphClass& InGraphClass) const { return InGraphClass.Graph.Variables; }
+			};
+
 			/** A callable object for accessing arrays of subgraphs from a document. */
 			struct FGetDocumentSubgraphs
 			{
@@ -295,6 +309,23 @@ namespace Metasound
 
 			private:
 				FGuid NodeID;
+			};
+
+			/** A callable object for testing whether a variable contains a matching ID. */
+			struct FIsVariableWithID
+			{
+				FIsVariableWithID(const FGuid& InVariableID)
+				: VariableID(InVariableID)
+				{
+				}
+
+				bool operator() (const FMetasoundFrontendVariable& InVariable) const
+				{
+					return InVariable.ID == VariableID;
+				}
+
+			private:
+				FGuid VariableID;
 			};
 
 			/** A callable object for testing whether a node contains a matching ID. */
@@ -606,6 +637,16 @@ namespace Metasound
 			return GetMemberAccessPtr<FClassOutputAccessPtr>(Finder);
 		}
 
+		FVariableAccessPtr FGraphClassAccessPtr::GetVariableWithID(const FGuid& InID)
+		{
+			using namespace MetasoundFrontendDocumentAccessPtrPrivate;
+
+			using FFinder= TFindInArray<FMetasoundFrontendGraphClass, FMetasoundFrontendVariable, FGetGraphClassVariables, FIsVariableWithID>;
+			FFinder Finder{FGetGraphClassVariables(), FIsVariableWithID(InID)};
+
+			return GetMemberAccessPtr<FVariableAccessPtr>(Finder);
+		}
+
 		FNodeAccessPtr FGraphClassAccessPtr::GetNodeWithNodeID(const FGuid& InNodeID)
 		{
 			using namespace MetasoundFrontendDocumentAccessPtrPrivate;
@@ -668,6 +709,16 @@ namespace Metasound
 			return GetMemberAccessPtr<FConstClassOutputAccessPtr>(Finder);
 		}
 
+		FConstVariableAccessPtr FGraphClassAccessPtr::GetVariableWithID(const FGuid& InID) const
+		{
+			using namespace MetasoundFrontendDocumentAccessPtrPrivate;
+
+			using FFinder= TFindInArray<const FMetasoundFrontendGraphClass, const FMetasoundFrontendVariable, FGetGraphClassVariables, FIsVariableWithID>;
+			FFinder Finder{FGetGraphClassVariables(), FIsVariableWithID(InID)};
+
+			return GetMemberAccessPtr<FConstVariableAccessPtr>(Finder);
+		}
+
 		FConstNodeAccessPtr FGraphClassAccessPtr::GetNodeWithNodeID(const FGuid& InNodeID) const
 		{
 			using namespace MetasoundFrontendDocumentAccessPtrPrivate;
@@ -728,6 +779,16 @@ namespace Metasound
 			FFinder Finder{FGetClassOutputArray(), FIsClassOutputWithNodeID(InNodeID)};
 
 			return GetMemberAccessPtr<FConstClassOutputAccessPtr>(Finder);
+		}
+
+		FConstVariableAccessPtr FConstGraphClassAccessPtr::GetVariableWithID(const FGuid& InID) const
+		{
+			using namespace MetasoundFrontendDocumentAccessPtrPrivate;
+
+			using FFinder= TFindInArray<const FMetasoundFrontendGraphClass, const FMetasoundFrontendVariable, FGetGraphClassVariables, FIsVariableWithID>;
+			FFinder Finder{FGetGraphClassVariables(), FIsVariableWithID(InID)};
+
+			return GetMemberAccessPtr<FConstVariableAccessPtr>(Finder);
 		}
 
 		FConstNodeAccessPtr FConstGraphClassAccessPtr::GetNodeWithNodeID(const FGuid& InNodeID) const

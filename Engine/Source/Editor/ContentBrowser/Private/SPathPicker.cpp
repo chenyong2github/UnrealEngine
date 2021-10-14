@@ -40,7 +40,7 @@ void SPathPicker::Construct( const FArguments& InArgs )
 		.AllowClassesFolder(InArgs._PathPickerConfig.bAllowClassesFolder)
 		.AllowReadOnlyFolders(InArgs._PathPickerConfig.bAllowReadOnlyFolders)
 		.SelectionMode(ESelectionMode::Single)
-		.CustomFolderBlacklist(InArgs._PathPickerConfig.CustomFolderBlacklist)
+		.CustomFolderPermissionList(InArgs._PathPickerConfig.CustomFolderPermissionList)
 	];
 
 	const FString& DefaultPath = InArgs._PathPickerConfig.DefaultPath;

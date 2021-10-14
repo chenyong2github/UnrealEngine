@@ -50,6 +50,7 @@ class FMatExpressionPreview : public FMaterial, public FMaterialRenderProxy
 public:
 	FMatExpressionPreview()
 	: FMaterial()
+	, FMaterialRenderProxy(TEXT("FMatExpressionPreview"))
 	, UnrelatedNodesOpacity(1.0f)
 	{
 		// Register this FMaterial derivative with AddEditorLoadedMaterialResource since it does not have a corresponding UMaterialInterface
@@ -59,6 +60,7 @@ public:
 
 	FMatExpressionPreview(UMaterialExpression* InExpression)
 	: FMaterial()
+	, FMaterialRenderProxy(GetPathNameSafe(InExpression->Material))
 	, UnrelatedNodesOpacity(1.0f)
 	, Expression(InExpression)
 	{

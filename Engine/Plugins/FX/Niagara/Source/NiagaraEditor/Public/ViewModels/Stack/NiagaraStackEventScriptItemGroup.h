@@ -77,6 +77,7 @@ public:
 	virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const override;
 	virtual void Delete() override;
 
+	const TObjectPtr<UNiagaraStackEventHandlerPropertiesItem>& GetEventHandlerPropertiesItem() const { return EventHandlerProperties; }
 	FGuid GetEventSourceEmitterId() const {return EventSourceEmitterId; };
 
 protected:

@@ -75,7 +75,7 @@ FGuid FMovieSceneObjectCache::FindObjectId(UObject& InObject, IMovieScenePlayer&
 
 	if (!bReentrantUpdate)
 	{
-		// @todo: Currently we nuke the entire object cache when attempting to find an object's ID to ensure that we do a 
+		// @todo: Currently we delete the entire object cache when attempting to find an object's ID to ensure that we do a 
 		// complete lookup from scratch. This is required for UMG as it interchanges content slots without notifying sequencer.
 		Clear(Player);
 	}
@@ -351,6 +351,13 @@ void FMovieSceneObjectCache::UpdateBindings(const FGuid& InGuid, IMovieScenePlay
 					for (UObject* Object : FoundObjects)
 					{
 						Bindings->Objects.Add(Object);
+
+#if WITH_EDITORONLY_DATA
+						if (!Object->GetClass()->IsChildOf(Possessable->GetPossessedObjectClass()))
+						{
+							UE_LOG(LogMovieScene, Error, TEXT("Mismatch in %s with possessed object class for: %s, Expected: %s, but was: %s"), *GetNameSafe(Sequence), *Possessable->GetName(), *GetNameSafe(Possessable->GetPossessedObjectClass()), *GetNameSafe(Object->GetClass()));
+						}
+#endif
 					}
 				}
 			}
@@ -362,6 +369,13 @@ void FMovieSceneObjectCache::UpdateBindings(const FGuid& InGuid, IMovieScenePlay
 				for (UObject* Object : FoundObjects)
 				{
 					Bindings->Objects.Add(Object);
+
+#if WITH_EDITORONLY_DATA
+					if (!Object->GetClass()->IsChildOf(Possessable->GetPossessedObjectClass()))
+					{
+						UE_LOG(LogMovieScene, Error, TEXT("Mismatch in %s with possessed object class for: %s, Expected: %s, but was: %s"), *GetNameSafe(Sequence), *Possessable->GetName(), *GetNameSafe(Possessable->GetPossessedObjectClass()), *GetNameSafe(Object->GetClass()));
+					}
+#endif
 				}
 			}
 		}

@@ -29,9 +29,9 @@ UScriptStruct* FRigBaseElement::GetElementStruct() const
 		{
 			return FRigCurveElement::StaticStruct();
 		}
-		case ERigElementType::Socket:
+		case ERigElementType::Reference:
 		{
-			return FRigSocketElement::StaticStruct();
+			return FRigReferenceElement::StaticStruct();
 		}
 		case ERigElementType::RigidBody:
 		{
@@ -760,28 +760,28 @@ void FRigRigidBodyElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement*
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// FRigSocketElement
+// FRigReferenceElement
 ////////////////////////////////////////////////////////////////////////////////
 
-void FRigSocketElement::Save(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase)
+void FRigReferenceElement::Save(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase)
 {
 	Super::Save(Ar, Hierarchy, SerializationPhase);
 }
 
-void FRigSocketElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase)
+void FRigReferenceElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase)
 {
 	Super::Load(Ar, Hierarchy, SerializationPhase);
 }
 
-void FRigSocketElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy)
+void FRigReferenceElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy)
 {
 	Super::CopyFrom(InHierarchy, InOther, InOtherHierarchy);
 	
-	const FRigSocketElement* Source = CastChecked<FRigSocketElement>(InOther);
+	const FRigReferenceElement* Source = CastChecked<FRigReferenceElement>(InOther);
 	GetWorldTransformDelegate = Source->GetWorldTransformDelegate;
 }
 
-FTransform FRigSocketElement::GetSocketWorldTransform(const FRigUnitContext* InContext, bool bInitial) const
+FTransform FRigReferenceElement::GetReferenceWorldTransform(const FRigUnitContext* InContext, bool bInitial) const
 {
 	if(GetWorldTransformDelegate.IsBound())
 	{
@@ -790,11 +790,11 @@ FTransform FRigSocketElement::GetSocketWorldTransform(const FRigUnitContext* InC
 	return FTransform::Identity;
 }
 
-void FRigSocketElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial)
+void FRigReferenceElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial)
 {
 	Super::CopyPose(InOther, bCurrent, bInitial);
 	
-	if(FRigSocketElement* Other = Cast<FRigSocketElement>(InOther))
+	if(FRigReferenceElement* Other = Cast<FRigReferenceElement>(InOther))
 	{
 		if(Other->GetWorldTransformDelegate.IsBound())
 		{

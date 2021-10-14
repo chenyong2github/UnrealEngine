@@ -95,8 +95,8 @@ public:
  */
 enum class ERPCBlockState : uint8
 {
-	Unchecked,		// The whitelist status for this RPC has not been checked
-	Whitelisted,	// The RPC is whitelisted and can't be blocked
+	Unchecked,		// The status for this RPC has not been checked
+	OnAllowList,	// The RPC is allow listed and can't be blocked
 	NotBlocked,		// The RPC is not blocked
 	Blocked			// The RPC is blocked
 };
@@ -821,7 +821,7 @@ private:
 	int32 HitchSuspendDetectionTimeMS								= 0;
 
 	/** List of RPC's which should never be blocked */
-	TArray<FName> RPCBlockWhitelist;
+	TArray<FName> RPCBlockAllowList;
 
 	/** If the related CVar is set, the name of the RPC which should forcibly enable tracking. */
 	FName ForcedRPCTracking;

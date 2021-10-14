@@ -38,13 +38,15 @@ TArray<UPrimitiveComponent*> UWaterBodyRiverComponent::GetCollisionComponents() 
 {
 	TArray<UPrimitiveComponent*> Result;
 	Result.Reserve(SplineMeshComponents.Num());
-	for (USplineMeshComponent* Comp : SplineMeshComponents)
-	{
-		if ((Comp != nullptr) && (Comp->GetCollisionEnabled() != ECollisionEnabled::NoCollision))
-		{
-			Result.Add(Comp);
-		}
-	}
+	Algo::TransformIf(SplineMeshComponents, Result, [](USplineMeshComponent* SplineComp) { return ((SplineComp != nullptr) && (SplineComp->GetCollisionEnabled() != ECollisionEnabled::NoCollision)); }, [](USplineMeshComponent* SplineComp) { return SplineComp; });
+	return Result;
+}
+
+TArray<UPrimitiveComponent*> UWaterBodyRiverComponent::GetStandardRenderableComponents() const
+{
+	TArray<UPrimitiveComponent*> Result;
+	Result.Reserve(SplineMeshComponents.Num());
+	Algo::TransformIf(SplineMeshComponents, Result, [](USplineMeshComponent* SplineComp) { return (SplineComp != nullptr); }, [](USplineMeshComponent* SplineComp) { return SplineComp; });
 	return Result;
 }
 
@@ -202,8 +204,14 @@ void UWaterBodyRiverComponent::UpdateSplineMesh(USplineMeshComponent* MeshComp, 
 		const int32 StartSplinePointIndex = SplinePointIndex;
 		const int32 StopSplinePointIndex = WaterSpline->IsClosedLoop() && StartSplinePointIndex == NumSplinePoints - 1 ? 0 : StartSplinePointIndex + 1;
 
-		MeshComp->SetStaticMesh(WaterMeshOverride ? WaterMeshOverride : UWaterSubsystem::StaticClass()->GetDefaultObject<UWaterSubsystem>()->DefaultRiverMesh);
-		MeshComp->SetMaterial(0, GetWaterMaterial());
+		UStaticMesh* StaticMesh = GetWaterMeshOverride();
+		if (StaticMesh == nullptr)
+		{
+			StaticMesh = UWaterSubsystem::StaticClass()->GetDefaultObject<UWaterSubsystem>()->DefaultRiverMesh;
+		}
+		check(StaticMesh != nullptr);
+		MeshComp->SetStaticMesh(StaticMesh);
+		MeshComp->SetMaterial(0, GetWaterMaterialInstance());
 		MeshComp->SetCollisionProfileName(GetCollisionProfileName());
 		// In the case of rivers, the USplineMeshComponent acts as both collision and visual component so we simply disable collision on them : 
 		MeshComp->SetGenerateOverlapEvents(bGenerateCollisions);
@@ -219,8 +227,14 @@ void UWaterBodyRiverComponent::UpdateSplineMesh(USplineMeshComponent* MeshComp, 
 		const FVector StartScale = WaterSpline->GetScaleAtSplinePoint(StartSplinePointIndex);
 		const FVector EndScale = WaterSpline->GetScaleAtSplinePoint(StopSplinePointIndex);
 
-		MeshComp->SetStartScale(FVector2D(StartScale), bUpdateMesh);
-		MeshComp->SetEndScale(FVector2D(EndScale), bUpdateMesh);
+		// Scale the water mesh so that it is the size of the bounds
+		FVector StaticMeshExtent = 2.0f * StaticMesh->GetBounds().BoxExtent;
+		StaticMeshExtent.X = FMath::Max(StaticMeshExtent.X, 0.0001f);
+		StaticMeshExtent.Y = FMath::Max(StaticMeshExtent.Y, 0.0001f);
+		StaticMeshExtent.Z = 1.0f;
+
+		MeshComp->SetStartScale(FVector2D(StartScale / StaticMeshExtent), bUpdateMesh);
+		MeshComp->SetEndScale(FVector2D(EndScale / StaticMeshExtent), bUpdateMesh);
 
 		FVector StartPos, StartTangent;
 		WaterSpline->GetLocationAndTangentAtSplinePoint(StartSplinePointIndex, StartPos, StartTangent, ESplineCoordinateSpace::Local);
@@ -261,7 +275,6 @@ void UWaterBodyRiverComponent::UpdateSplineMesh(USplineMeshComponent* MeshComp, 
 #endif
 	}
 }
-
 
 #if WITH_EDITOR
 void UWaterBodyRiverComponent::OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent, bool& bShapeOrPositionChanged, bool& bWeightmapSettingsChanged)

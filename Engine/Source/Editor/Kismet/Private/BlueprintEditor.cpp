@@ -774,9 +774,9 @@ bool FBlueprintEditor::OnRequestClose()
 
 void FBlueprintEditor::OnClose()
 {
-	// Also close the Find Results tab if we're not in full edit mode and the option to host Global Find Results is enabled.
+	// Also close the Find Results tab if we're not in full edit mode.
 	TSharedPtr<SDockTab> FindResultsTab = TabManager->FindExistingLiveTab(FBlueprintEditorTabs::FindResultsID);
-	if (FindResultsTab.IsValid() && !IsInAScriptingMode() && GetDefault<UBlueprintEditorSettings>()->bHostFindInBlueprintsInGlobalTab)
+	if (FindResultsTab.IsValid() && !IsInAScriptingMode())
 	{
 		FindResultsTab->RequestCloseTab();
 	}
@@ -1046,8 +1046,7 @@ void FBlueprintEditor::SummonSearchUI(bool bSetFindWithinBlueprint, FString NewS
 {
 	TSharedPtr<SFindInBlueprints> FindResultsToUse;
 
-	if (bSetFindWithinBlueprint
-		|| !GetDefault<UBlueprintEditorSettings>()->bHostFindInBlueprintsInGlobalTab)
+	if (bSetFindWithinBlueprint)
 	{
 		FindResultsToUse = FindResults;
 		TabManager->TryInvokeTab(FBlueprintEditorTabs::FindResultsID);
@@ -2517,12 +2516,6 @@ void FBlueprintEditor::PostLayoutBlueprintEditorInitialization()
 				TabPtr->RequestCloseTab();
 			}
 		}
-	}
-
-	if (!GetDefault<UBlueprintEditorSettings>()->bHostFindInBlueprintsInGlobalTab)
-	{
-		// Close any docked global FiB tabs that may have been restored with a saved layout.
-		FFindInBlueprintSearchManager::Get().CloseOrphanedGlobalFindResultsTabs(TabManager);
 	}
 }
 

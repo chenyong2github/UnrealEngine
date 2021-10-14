@@ -8,6 +8,7 @@
 
 class UObject;
 class FControlFlowTask_Branch;
+class FControlFlowTask_BranchLegacy;
 
 /**
  *  System/Tool to queue (asynchronous or synchronous) functions for modularity implemented via delegates.
@@ -24,8 +25,11 @@ class FControlFlowTask_Branch;
  *
  *  'QueueControlFlow': Queues a 'void (TSharedRef<FControlFlow> Subflow, ...)' function.
  * 
+ *  'QueueControlFlowBranch': Queues a 'int32(TSharedRef<FControlFlowBranch> Branch, ...)' function. TODO: Allow any return-type for branch selection, and not restricted to only int32.
+ * 
  *  'QueueStep': Usable in #UObject's or classes that derive from #TSharedFromThis<UserClass>. The Control Flow will automatically deduce if this is a
- *				 '#QueueFunction', '#QueueWait', or '#QueueControlFlow' based on the function signature.
+ *				 '#QueueFunction', '#QueueWait', '#QueueControlFlow', '#QueueControlFlowBranch' based on the function signature.
+ *				 Returns a ref to the ControlFlow - enables chained step queue-ing.
  *
  *  Using the auto-deduction of 'QueueStep', you can change the queue from a synchronous function (QueueFunction) to an asynchronous one (QueueWait) or vice-versa
  *  by adding/removing the 'FControlFlowNodeRef FlowHandle' as your first parameter. And you can change it to (QueueControlFlow) if need be as well!
@@ -35,10 +39,11 @@ class FControlFlowTask_Branch;
  *  void MyFunction(...);
  *  void MyFunction(FControlFlowNodeRef FlowHandle, ...);
  *  void MyFunction(TSharedRef<FControlFlow> Subflow, ...);
+ *  void MyFunction(int32(TSharedRef<FControlFlowBranch> Branch, ...);
  * 
- *  ControlFlowInstance->QueueStep(this, &UserClass:MyFunction1, ...);
- *  ControlFlowInstance->QueueStep(this, &UserClass:MyFunction2, ...);
- *  ControlFlowInstance->QueueStep(this, &UserClass:MyFunction3, ...);
+ *  ControlFlowInstance->QueueStep(this, &UserClass:MyFunction1, ...)
+ *		.QueueStep(this, &UserClass:MyFunction2, ...)
+ *		.QueueStep(this, &UserClass:MyFunction3, ...);
  * 
  *  This allow ease of going from Synchronous Functionality to Asynchronously Functionality to Subflows as you build out your Flow.
  */
@@ -58,122 +63,127 @@ public:
 	/** Will cancel ALL flows, both child ControlFlows and ControlFlows who owns this Flow. You've been warned. */
 	void CancelFlow();
 
-private:
-	typedef UObject BindUObjectType;
-
 public:
 
-#define QueueFunction_Signature TMemFunPtrType<false, BindingObjectClassType, void(VarTypes...)>
+	template<typename...ArgsT>
+	FControlFlow& QueueStep(const FString& NodeName, ArgsT...Params)
+	{
+		QueueStep_Internal(FormatOrGetNewNodeDebugName(NodeName), Params...);
+		return *this;
+	}
 
-	//#Delegate 'QueueFunction'
+	template<typename...ArgsT>
+	FControlFlow& QueueStep(const TCHAR* NodeName, ArgsT...Params)
+	{
+		QueueStep_Internal(FormatOrGetNewNodeDebugName(NodeName), Params...);
+		return *this;
+	}
+
+	template<typename...ArgsT>
+	FControlFlow& QueueStep(const char* NodeName, ArgsT...Params)
+	{
+		QueueStep_Internal(FormatOrGetNewNodeDebugName(NodeName), Params...);
+		return *this;
+	}
+
+	template<typename...ArgsT>
+	FControlFlow& QueueStep(ArgsT...Params)
+	{
+		QueueStep_Internal(FormatOrGetNewNodeDebugName(), Params...);
+		return *this;
+	}
+
+public:
+	template<typename FunctionT, typename...ArgsT>
+	FControlFlow& BranchFlow(FunctionT InBranchLambda, ArgsT...Params)
+	{
+		QueueControlFlowBranch(FormatOrGetNewNodeDebugName()).BindLambda(InBranchLambda, Params...);
+		return *this;
+	}
+
+public:
 	FSimpleDelegate& QueueFunction(const FString& FlowNodeDebugName = TEXT(""));
-
-	//#UObject 'QueueFunction'
-	template <typename BindingObjectClassType, typename BindUObjectType, typename... VarTypes>
-	FControlFlow& QueueStep(const FString& FlowNodeDebugName, BindingObjectClassType* InBindingObject, typename QueueFunction_Signature::Type InFunc, VarTypes... Vars)
-	{
-		QueueFunction(FlowNodeDebugName).BindUObject(InBindingObject, InFunc, Vars...);
-		return *this;
-	}
-
-	//#TSharedFromThis 'QueueFunction'
-	template <typename BindingObjectClassType, typename... VarTypes>
-	FControlFlow& QueueStep(const FString& FlowNodeDebugName, TSharedRef<BindingObjectClassType> InBindingObject, typename QueueFunction_Signature::Type InFunc, VarTypes... Vars)
-	{
-		QueueFunction(FlowNodeDebugName).BindSP(InBindingObject, InFunc, Vars...);
-		return *this;
-	}
-
-#undef QueueFunction_Signature
-
-public:
-
-#define QueueWait_Signature TMemFunPtrType<false, BindingObjectClassType, void(FControlFlowNodeRef FlowHandleRef, VarTypes...)>
-
-	//#Delegate 'QueueWait'
 	FControlFlowWaitDelegate& QueueWait(const FString& FlowNodeDebugName = TEXT(""));
-
-	//#UObject 'QueueWait'
-	template <typename BindingObjectClassType, typename BindUObjectType, typename... VarTypes>
-	FControlFlow& QueueStep(const FString& FlowNodeDebugName, BindingObjectClassType* InBindingObject, typename QueueWait_Signature::Type InFunc, VarTypes... Vars)
-	{
-		QueueWait(FlowNodeDebugName).BindUObject(InBindingObject, InFunc, Vars...);
-		return *this;
-	}
-
-	//#TSharedFromThis 'QueueWait'
-	template <typename BindingObjectClassType, typename... VarTypes>
-	FControlFlow& QueueStep(const FString& FlowNodeDebugName, TSharedRef<BindingObjectClassType> InBindingObject, typename QueueWait_Signature::Type InFunc, VarTypes... Vars)
-	{
-		QueueWait(FlowNodeDebugName).BindSP(InBindingObject, InFunc, Vars...);
-		return *this;
-	}
-
-#undef QueueWait_Signature
-
-public:
-	/* Subflows can be used to setup branches or loops or simply re-organize your flow to be more readable. */
-
-#define QueueControlFlow_Signature TMemFunPtrType<false, BindingObjectClassType, void(TSharedRef<FControlFlow> SubFlow, VarTypes...)>
-	
-	//#Delegate 'QueueWait'
 	FControlFlowPopulator& QueueControlFlow(const FString& TaskName = TEXT(""), const FString& FlowNodeDebugName = TEXT(""));
+	FControlFlowBranchDefiner& QueueControlFlowBranch(const FString& TaskName = TEXT(""), const FString& FlowNodeDebugName = TEXT(""));
+
+private:
+	template<typename BindingObjectT, typename...PayloadParamsT>
+	void QueueStep_Internal(const FString& InDebugName, TSharedRef<BindingObjectT> InBindingObject, PayloadParamsT...Params)
+	{
+		//ensureMsgf(false, TEXT("Deprecated. Pass the raw pointer of the TSharedFromThis Binding Object (e.g. 'this') into QueueStep."));
+
+		QueueStep_Internal_TSharedFromThis(InDebugName, InBindingObject, Params...);
+	}
+
+	template<typename BindingObjectT, typename...ArgsT>
+	void QueueStep_Internal(const FString& InDebugName, BindingObjectT* InBindingObject, ArgsT...Params)
+	{
+		QueueStep_Internal_DeduceBindingObject<BindingObjectT>(InDebugName, InBindingObject, Params...);
+	}
+
+private:
+	template<typename BindingObjectClassT, typename...ArgsT>
+	void QueueStep_Internal_DeduceBindingObject(const FString& InDebugName, typename TEnableIf<TIsDerivedFrom<BindingObjectClassT, TSharedFromThis<BindingObjectClassT>>::IsDerived, BindingObjectClassT*>::Type InBindingObject, ArgsT...Params)
+	{
+		QueueStep_Internal_TSharedFromThis(InDebugName, InBindingObject->AsShared(), Params...);
+	}
+
+	template<typename BindingObjectClassT, typename...ArgsT>
+	void QueueStep_Internal_DeduceBindingObject(const FString& InDebugName, typename TEnableIf<TIsDerivedFrom<BindingObjectClassT, UObject>::IsDerived, BindingObjectClassT*>::Type InBindingObject, ArgsT...Params)
+	{
+		QueueStep_Internal_UObject<BindingObjectClassT>(InDebugName, InBindingObject, Params...);
+	}
+
+private:
 	
-	//#UObject 'QueueWait'
-	template <typename BindingObjectClassType, typename BindUObjectType, typename... VarTypes>
-	FControlFlow& QueueStep(const FString& FlowNodeDebugName, BindingObjectClassType* InBindingObject, typename QueueControlFlow_Signature::Type InFunc, VarTypes... Vars)
+	template<typename BindingObjectClassT, typename...PayloadParamsT>
+	void QueueStep_Internal_TSharedFromThis(const FString& InDebugName, TSharedRef<BindingObjectClassT> InBindingObject, typename TMemFunPtrType<false, BindingObjectClassT, int32(TSharedRef<FControlFlowBranch>, PayloadParamsT...)>::Type InFunction, PayloadParamsT...Params)
 	{
-		QueueControlFlow(FlowNodeDebugName, FlowNodeDebugName).BindUObject(InBindingObject, InFunc, Vars...);
-		return *this;
-	}
-	
-	//#TSharedFromThis 'QueueWait'
-	template <typename BindingObjectClassType, typename... VarTypes>
-	FControlFlow& QueueStep(const FString& FlowNodeDebugName, TSharedRef<BindingObjectClassType> InBindingObject, typename QueueControlFlow_Signature::Type InFunc, VarTypes... Vars)
-	{
-		QueueControlFlow(FlowNodeDebugName, FlowNodeDebugName).BindSP(InBindingObject, InFunc, Vars...);
-		return *this;
+		QueueControlFlowBranch(InDebugName).BindSP(InBindingObject, InFunction, Params...);
 	}
 
-#undef QueueControlFlow_Signature
-
-public:
-	//#UObject deduction
-	template <typename BindingObjectClassType, typename... VarTypes>
-	FControlFlow& QueueStep(const FString& FlowNodeDebugName,
-		typename TEnableIf<TIsDerivedFrom<BindingObjectClassType, UObject>::IsDerived, BindingObjectClassType*>::Type InBindingObject,
-		VarTypes... Vars)
+	template<typename BindingObjectClassT, typename...PayloadParamsT>
+	void QueueStep_Internal_TSharedFromThis(const FString& InDebugName, TSharedRef<BindingObjectClassT> InBindingObject, typename TMemFunPtrType<false, BindingObjectClassT, void(FControlFlowNodeRef, PayloadParamsT...)>::Type InFunction, PayloadParamsT...Params)
 	{
-		return QueueStep<BindingObjectClassType, BindUObjectType>(FlowNodeDebugName, InBindingObject, Vars...);
+		QueueWait(InDebugName).BindSP(InBindingObject, InFunction, Params...);
 	}
 
-	//#TSharedFromThis deduction
-	template <typename BindingObjectClassType, typename... VarTypes>
-	FControlFlow& QueueStep(const FString& FlowNodeDebugName,
-		typename TEnableIf<TIsDerivedFrom<BindingObjectClassType, TSharedFromThis<BindingObjectClassType>>::IsDerived, BindingObjectClassType*>::Type InBindingObject,
-		VarTypes... Vars)
+	template<typename BindingObjectClassT, typename...PayloadParamsT>
+	void QueueStep_Internal_TSharedFromThis(const FString& InDebugName, TSharedRef<BindingObjectClassT> InBindingObject, typename TMemFunPtrType<false, BindingObjectClassT, void(TSharedRef<FControlFlow>, PayloadParamsT...)>::Type InFunction, PayloadParamsT...Params)
 	{
-		return QueueStep<BindingObjectClassType>(FlowNodeDebugName, InBindingObject->AsShared(), Vars...);
+		QueueControlFlow(InDebugName).BindSP(InBindingObject, InFunction, Params...);
 	}
 
-public:
-	/** Optional Debug Name for 'QueueStep'. TODO: Do we make a Variadic Macro to grab the function name and use that as the debug name? */
+	template<typename BindingObjectClassT, typename...PayloadParamsT>
+	void QueueStep_Internal_TSharedFromThis(const FString& InDebugName, TSharedRef<BindingObjectClassT> InBindingObject, typename TMemFunPtrType<false, BindingObjectClassT, void(PayloadParamsT...)>::Type InFunction, PayloadParamsT...Params)
+	{
+		QueueFunction(InDebugName).BindSP(InBindingObject, InFunction, Params...);
+	}
 
-	template <typename BindingObjectClassType, typename... VarTypes>
-	typename TEnableIf<!TIsCharType<typename TRemoveConst<BindingObjectClassType>::Type>::Value,
-		FControlFlow&>::Type QueueStep(BindingObjectClassType* InBindingObject, VarTypes... Vars)
+private:
+	template<typename BindingObjectClassT, typename...PayloadParamsT>
+	void QueueStep_Internal_UObject(const FString& InDebugName, BindingObjectClassT* InBindingObject, typename TMemFunPtrType<false, BindingObjectClassT, int32(TSharedRef<FControlFlowBranch>, PayloadParamsT...)>::Type InFunction, PayloadParamsT...Params)
 	{
-		return QueueStep<BindingObjectClassType>(FormatOrGetNewNodeDebugName(), InBindingObject, Forward<VarTypes>(Vars)...);
+		QueueControlFlowBranch(InDebugName).BindUObject(InBindingObject, InFunction, Params...);
 	}
-	template <typename BindingObjectClassType, typename... VarTypes>
-	FControlFlow& QueueStep(const char* NodeDebugName, BindingObjectClassType* InBindingObject, VarTypes... Vars)
+
+	template<typename BindingObjectClassT, typename...PayloadParamsT>
+	void QueueStep_Internal_UObject(const FString& InDebugName, BindingObjectClassT* InBindingObject, typename TMemFunPtrType<false, BindingObjectClassT, void(FControlFlowNodeRef, PayloadParamsT...)>::Type InFunction, PayloadParamsT...Params)
 	{
-		return QueueStep<BindingObjectClassType>(FormatOrGetNewNodeDebugName(FString(NodeDebugName)), InBindingObject, Vars...);
+		QueueWait(InDebugName).BindUObject(InBindingObject, InFunction, Params...);
 	}
-	template <typename BindingObjectClassType, typename... VarTypes>
-	FControlFlow& QueueStep(const TCHAR* NodeDebugName, BindingObjectClassType* InBindingObject, VarTypes... Vars)
+
+	template<typename BindingObjectClassT, typename...PayloadParamsT>
+	void QueueStep_Internal_UObject(const FString& InDebugName, BindingObjectClassT* InBindingObject, typename TMemFunPtrType<false, BindingObjectClassT, void(TSharedRef<FControlFlow>, PayloadParamsT...)>::Type InFunction, PayloadParamsT...Params)
 	{
-		return QueueStep<BindingObjectClassType>(FormatOrGetNewNodeDebugName(FString(NodeDebugName)), InBindingObject, Vars...);
+		QueueControlFlow(InDebugName).BindUObject(InBindingObject, InFunction, Params...);
+	}
+
+	template<typename BindingObjectClassT, typename...PayloadParamsT>
+	void QueueStep_Internal_UObject(const FString& InDebugName, BindingObjectClassT* InBindingObject, typename TMemFunPtrType<false, BindingObjectClassT, void(PayloadParamsT...)>::Type InFunction, PayloadParamsT...Params)
+	{
+		QueueFunction(InDebugName).BindUObject(InBindingObject, InFunction, Params...);
 	}
 
 private:
@@ -182,16 +192,13 @@ private:
 	friend class FControlFlowNode_SelfCompleting;
 	friend class FControlFlowSimpleSubTask;
 	friend class FControlFlowTask_Loop;
+	friend class FControlFlowTask_BranchLegacy;
 	friend class FControlFlowTask_Branch;
 
 public:
 	/** These work, but they are a bit clunky to use. The heart of the issue is that it requires the caller to define two functions. We want only the caller to use one function.
 	  * Not making templated versions of them until a better API is figured out. */	
-
-	//TODO:: Implement "#define QueueBranch_Signature TMemFunPtrType<false, BindingObjectClassType, int32(TMap<int32, TSharedRef<FControlFlow>> FlowBranches, VarTypes...)>" and delete QueueBranch
-
-	/** Adds a branch to your flow. The flow will use FControlFlowBranchDecider to determine which flow branch to execute */
-	TSharedRef<FControlFlowTask_Branch> QueueBranch(FControlFlowBranchDecider& BranchDecider, const FString& TaskName = TEXT(""), const FString& FlowNodeDebugName = TEXT(""));
+	TSharedRef<FControlFlowTask_BranchLegacy> QueueBranch(FControlFlowBranchDecider_Legacy& BranchDecider, const FString& TaskName = TEXT(""), const FString& FlowNodeDebugName = TEXT(""));
 
 	//TODO: Implement #define QueueLoop_Signature TMemFunPtrType<false, BindingObjectClassType, bool(TSharedRef<FControlFlow> SubFlow, VarTypes...)> and delete
 

@@ -18,40 +18,36 @@
 
 void UK2Node_AnimNodeReference::ExpandNode(FKismetCompilerContext& InCompilerContext, UEdGraph* InSourceGraph)
 {
-	bool bFound = false;
-	
+	UAnimGraphNode_Base* LabelledNode = nullptr;
 	UAnimBlueprintExtension_Tag* Extension = UAnimBlueprintExtension::FindExtension<UAnimBlueprintExtension_Tag>(Cast<UAnimBlueprint>(GetBlueprint()));
 	if(Extension)
 	{
-		bFound = true;
-		
-		if(UAnimGraphNode_Base* LabelledNode = Extension->FindTaggedNode(Tag))
-		{
-			// Expand to function call
-			UK2Node_CallFunction* CallFunctionNode = InCompilerContext.SpawnIntermediateNode<UK2Node_CallFunction>(this, InSourceGraph);
-			CallFunctionNode->SetFromFunction(GetDefault<UAnimExecutionContextLibrary>()->FindFunctionChecked(GET_FUNCTION_NAME_CHECKED(UAnimExecutionContextLibrary, GetAnimNodeReference)));
-			CallFunctionNode->AllocateDefaultPins();
-
-			UEdGraphPin* ValuePin = FindPinChecked(TEXT("Value"), EGPD_Output);
-
-			if(UEdGraphPin* IndexPin = CallFunctionNode->FindPin(TEXT("Index"), EGPD_Input))
-			{
-				FAnimBlueprintCompilerContext& AnimBlueprintCompilerContext = static_cast<FAnimBlueprintCompilerContext&>(InCompilerContext);
-
-				const int32 NodeIndex = AnimBlueprintCompilerContext.GetAllocationIndexOfNode(LabelledNode);
-				IndexPin->DefaultValue = FString::FromInt(NodeIndex);
-			}
-
-			if(UEdGraphPin* ReturnValuePin = CallFunctionNode->FindPin(TEXT("ReturnValue"), EGPD_Output))
-			{
-				InCompilerContext.MovePinLinksToIntermediate(*ValuePin, *ReturnValuePin);
-			}
-		}
+		LabelledNode = Extension->FindTaggedNode(Tag);
 	}
 
-	if(!bFound)
+	// Expand to function call
+	UK2Node_CallFunction* CallFunctionNode = InCompilerContext.SpawnIntermediateNode<UK2Node_CallFunction>(this, InSourceGraph);
+	CallFunctionNode->SetFromFunction(GetDefault<UAnimExecutionContextLibrary>()->FindFunctionChecked(GET_FUNCTION_NAME_CHECKED(UAnimExecutionContextLibrary, GetAnimNodeReference)));
+	CallFunctionNode->AllocateDefaultPins();
+
+	UEdGraphPin* ValuePin = FindPinChecked(TEXT("Value"), EGPD_Output);
+
+	if(UEdGraphPin* IndexPin = CallFunctionNode->FindPin(TEXT("Index"), EGPD_Input))
 	{
-		InCompilerContext.MessageLog.Error(*FText::Format(LOCTEXT("MissingTaggedNodeError", "@@ cannot find referenced node with tag '{0}'"), FText::FromName(Tag)).ToString(), this);
+		FAnimBlueprintCompilerContext& AnimBlueprintCompilerContext = static_cast<FAnimBlueprintCompilerContext&>(InCompilerContext);
+
+		const int32 NodeIndex = LabelledNode ? AnimBlueprintCompilerContext.GetAllocationIndexOfNode(LabelledNode) : INDEX_NONE;
+		IndexPin->DefaultValue = FString::FromInt(NodeIndex);
+	}
+
+	if(UEdGraphPin* ReturnValuePin = CallFunctionNode->FindPin(TEXT("ReturnValue"), EGPD_Output))
+	{
+		InCompilerContext.MovePinLinksToIntermediate(*ValuePin, *ReturnValuePin);
+	}
+
+	if(LabelledNode == nullptr)
+	{
+		InCompilerContext.MessageLog.Error(*FText::Format(LOCTEXT("MissingTaggedNodeError", "@@ cannot find referenced node with tag '{0}', ensure it is present and connected to the graph"), FText::FromName(Tag)).ToString(), this);
 	}
 }
 

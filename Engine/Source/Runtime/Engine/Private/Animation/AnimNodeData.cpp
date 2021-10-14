@@ -17,6 +17,10 @@ FNodeDataId::FNodeDataId(FName InPropertyName, const FAnimNode_Base* InNode, con
 
 	if(InNode->NodeData)
 	{
+#if WITH_EDITORONLY_DATA
+		check(InNode->NodeData->GetAnimClassInterface().IsDataLayoutValid());
+#endif
+		
 		Index = InNode->NodeData->GetAnimClassInterface().GetAnimNodePropertyIndex(InNodeStruct, InPropertyName);
 		check(InNode->NodeData->Entries.IsValidIndex(Index));
 		check(InNode->NodeData->Entries[Index] != ANIM_NODE_DATA_INVALID_ENTRY);	
@@ -119,3 +123,10 @@ int32 FAnimNodeStructData::GetNumProperties() const
 {
 	return NumProperties;
 }
+
+#if WITH_EDITORONLY_DATA
+bool FAnimNodeStructData::DoesLayoutMatch(const FAnimNodeStructData& InOther) const
+{
+	return NameToIndexMap.OrderIndependentCompareEqual(InOther.NameToIndexMap);
+}
+#endif

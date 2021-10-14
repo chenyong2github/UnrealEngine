@@ -8,6 +8,7 @@
 #include "Containers/Map.h"
 #include "Templates/UniquePtr.h"
 #include "Async/Future.h"
+#include "Async/Async.h"
 
 namespace UE::Online {
 
@@ -20,13 +21,17 @@ namespace Errors
 }
 // END TEMP
 
+class FOnlineAsyncOp;
 template <typename OpType> class TOnlineAsyncOp;
 template <typename OpType, typename T> class TOnlineChainableAsyncOp;
 
-enum class EOnlineAsyncExecutionPolicy
+enum class EOnlineAsyncExecutionPolicy : uint8
 {
-	RunOnGameThread
-	// TODO: Add/implement others
+	RunOnGameThread,	// Run on the game thread, will execute immediately if we are already on the game thread
+	RunOnNextTick,		// Run on the game thread next time we tick
+	RunOnThreadPool,	// Run on a specified thread pool
+	RunOnTaskGraph,		// Run on the task graph
+	RunImmediately		// Call immediately, in the current thread
 };
 
 // TODO
@@ -39,8 +44,12 @@ public:
 	}
 
 	static FOnlineAsyncExecutionPolicy RunOnGameThread() { return FOnlineAsyncExecutionPolicy(EOnlineAsyncExecutionPolicy::RunOnGameThread); }
+	static FOnlineAsyncExecutionPolicy RunOnNextTick() { return FOnlineAsyncExecutionPolicy(EOnlineAsyncExecutionPolicy::RunOnNextTick); }
+	static FOnlineAsyncExecutionPolicy RunOnThreadPool() { return FOnlineAsyncExecutionPolicy(EOnlineAsyncExecutionPolicy::RunOnThreadPool); } // TODO: allow thread pool to be specified
+	static FOnlineAsyncExecutionPolicy RunOnTaskGraph() { return FOnlineAsyncExecutionPolicy(EOnlineAsyncExecutionPolicy::RunOnTaskGraph); }
+	static FOnlineAsyncExecutionPolicy RunImmediately() { return FOnlineAsyncExecutionPolicy(EOnlineAsyncExecutionPolicy::RunImmediately); }
 
-	EOnlineAsyncExecutionPolicy GetExecutionPolicy() const { return ExecutionPolicy; }
+	const EOnlineAsyncExecutionPolicy& GetExecutionPolicy() const { return ExecutionPolicy; }
 
 private:
 	EOnlineAsyncExecutionPolicy ExecutionPolicy;
@@ -146,162 +155,388 @@ inline uint32 GetTypeHash(const FOnlineOperationData::FOperationDataKey& Key)
 	return HashCombine(GetTypeHash(Key.TypeName), GetTypeHash(Key.Key));
 }
 
-template <typename T>
-struct TUnwrapFuture
+template <typename... Params>
+struct TOnlineAsyncOpCallableTraitsHelper2
 {
-	using Type = T;
 };
 
-template <typename T>
-struct TUnwrapFuture<TFuture<T>>
+template <typename TResultType, typename OpType>
+struct TOnlineAsyncOpCallableTraitsHelper2<TResultType, OpType&>
 {
-	using Type = T;
+	using ParamType = void;
+	using ResultType = TResultType;
+	static constexpr bool bAsyncResult = false;
+	static constexpr bool bRequiresPromise = false;
 };
 
-template <typename T>
-using TUnwrapFuture_T = typename TUnwrapFuture<T>::Type;
+template <typename TResultType, typename OpType, typename TParamType>
+struct TOnlineAsyncOpCallableTraitsHelper2<TResultType, OpType&, TParamType>
+{
+	using ParamType = TParamType;
+	using ResultType = TResultType;
+	static constexpr bool bAsyncResult = false;
+	static constexpr bool bRequiresPromise = false;
+};
 
-template<typename ResultType>
-inline void SetPromiseValue(TPromise<ResultType>& Promise, TFuture<ResultType>&& Future)
+template <typename TResultType, typename OpType>
+struct TOnlineAsyncOpCallableTraitsHelper2<TFuture<TResultType>, OpType&>
 {
-	Promise.SetValue(Future.Get());
-}
+	using ParamType = void;
+	using ResultType = TResultType;
+	static constexpr bool bAsyncResult = true;
+	static constexpr bool bRequiresPromise = false;
+};
 
-template <typename T>
-inline void SetPromiseValue(TPromise<void>& Promise, TFuture<T>&& Future)
+template <typename TResultType, typename OpType, typename TParamType>
+struct TOnlineAsyncOpCallableTraitsHelper2<TFuture<TResultType>, OpType&, TParamType>
 {
-	Promise.SetValue();
-}
+	using ParamType = TParamType;
+	using ResultType = TResultType;
+	static constexpr bool bAsyncResult = true;
+	static constexpr bool bRequiresPromise = false;
+};
 
-template<typename Func, typename... ParamTypes, typename ResultType>
-inline void SetPromiseValueFromCallable(TPromise<ResultType>& Promise, Func& Function, ParamTypes&&... Params)
+template <typename TResultType, typename OpType>
+struct TOnlineAsyncOpCallableTraitsHelper2<void, OpType&, TPromise<TResultType>&&>
 {
-	Promise.SetValue(Function(Forward<ParamTypes>(Params)...));
-}
-template<typename Func, typename... ParamTypes>
-inline void SetPromiseValueFromCallable(TPromise<void>& Promise, Func& Function, ParamTypes&&... Params)
-{
-	Function(Forward<ParamTypes>(Params)...);
-	Promise.SetValue();
-}
+	using ParamType = void;
+	using ResultType = TResultType;
+	static constexpr bool bAsyncResult = true;
+	static constexpr bool bRequiresPromise = true;
+};
 
-template <typename T>
-struct TAsyncOpHelper
+template <typename TResultType, typename OpType, typename TParamType>
+struct TOnlineAsyncOpCallableTraitsHelper2<void, OpType&, TParamType, TPromise<TResultType>&&>
 {
-	template<typename Func, typename AsyncOpType, typename FutureValueType>
-	inline static auto Call(Func& Function, AsyncOpType& Op, TFuture<FutureValueType>& Value) -> decltype(Invoke(Function, Op, Value.Get()))
+	using ParamType = TParamType;
+	using ResultType = TResultType;
+	static constexpr bool bAsyncResult = true;
+	static constexpr bool bRequiresPromise = true;
+};
+
+template <typename CallableType>
+struct TOnlineAsyncOpCallableTraitsHelper
+{
+};
+
+template <typename ReturnType, typename... ParamTypes>
+struct TOnlineAsyncOpCallableTraitsHelper<ReturnType(ParamTypes...)>
+	: public TOnlineAsyncOpCallableTraitsHelper2<ReturnType, ParamTypes...>
+{
+};
+
+template <typename ReturnType, typename ObjectType, typename... ParamTypes>
+struct TOnlineAsyncOpCallableTraitsHelper<ReturnType(ObjectType::*)(ParamTypes...)>
+	: public TOnlineAsyncOpCallableTraitsHelper2<ReturnType, ParamTypes...>
+{
+};
+
+template <typename ReturnType, typename ObjectType, typename... ParamTypes>
+struct TOnlineAsyncOpCallableTraitsHelper<ReturnType(ObjectType::*)(ParamTypes...) const>
+	: public TOnlineAsyncOpCallableTraitsHelper2<ReturnType, ParamTypes...>
+{
+};
+
+template <typename CallableType, typename = void>
+struct TOnlineAsyncOpCallableTraits
+{
+};
+
+// function pointers
+template <typename CallableFunction>
+struct TOnlineAsyncOpCallableTraits<CallableFunction, std::enable_if_t<std::is_function_v<std::remove_pointer_t<CallableFunction>>, void>>
+	: public TOnlineAsyncOpCallableTraitsHelper<CallableFunction>
+{
+};
+
+// lambdas, TFunction, functor objects (anything with operator())
+template <typename CallableObject>
+struct TOnlineAsyncOpCallableTraits<CallableObject, std::enable_if_t<!std::is_function_v<std::remove_pointer_t<CallableObject>>, void>>
+	: public TOnlineAsyncOpCallableTraitsHelper<decltype(&std::remove_reference_t<CallableObject>::operator())>
+{
+};
+
+
+class IStep
+{
+public:
+	virtual ~IStep() {}
+	virtual const FOnlineAsyncExecutionPolicy& GetExecutionPolicy() const = 0;
+	virtual void Execute() = 0;
+};
+
+template <typename ResultType>
+class TStep : public IStep
+{
+public:
+	TStep(FOnlineAsyncExecutionPolicy&& InExecutionPolicy)
+		: ExecutionPolicy(MoveTemp(InExecutionPolicy))
 	{
-		return Invoke(Function, Op, Value.Get());
 	}
-};
 
-template <>
-struct TAsyncOpHelper<void>
-{
-	template<typename Func, typename AsyncOpType, typename FutureValueType>
-	inline static auto Call(Func& Function, AsyncOpType& Op, TFuture<FutureValueType>& Value) -> decltype(Invoke(Function, Op))
+	template <typename OpType, typename LastResultType, typename CallableType>
+	void SetExecFunction(TOnlineAsyncOp<OpType>& InOperation, LastResultType&& InLastResult, CallableType&& InCallable)
 	{
-		return Invoke(Function, Op);
-	}
-};
-
-template <typename CallableType, typename... ParamTypes>
-struct TChainableAsyncOpCallableResultHelper
-{
-	using Type = TInvokeResult_T<CallableType, ParamTypes...>;
-};
-
-template <typename CallableType, typename OpType>
-struct TChainableAsyncOpCallableResultHelper<CallableType, TOnlineAsyncOp<OpType>&, void>
-{
-	using Type = TInvokeResult_T<CallableType, TOnlineAsyncOp<OpType>&>;
-};
-
-template <typename CallableType, typename... ParamTypes>
-using TChainableAsyncOpCallableResultHelper_T = typename TChainableAsyncOpCallableResultHelper<CallableType, ParamTypes...>::Type;
-
-template <typename OpType, typename CallableType, typename LastResultType>
-TOnlineChainableAsyncOp<OpType, Private::TUnwrapFuture_T<TChainableAsyncOpCallableResultHelper_T<CallableType, TOnlineAsyncOp<OpType>&, LastResultType>>> CreateChainableAsyncOp(TOnlineAsyncOp<OpType>& Op, TFuture<LastResultType>& LastResult, CallableType&& InCallable, FOnlineAsyncExecutionPolicy ExecutionPolicy)
-{
-	using ReturnType = TChainableAsyncOpCallableResultHelper_T<CallableType, TOnlineAsyncOp<OpType>&, LastResultType>;
-	using UnwrappedReturnType = Private::TUnwrapFuture_T<ReturnType>;
-
-	TPromise<UnwrappedReturnType> Promise;
-	TFuture<UnwrappedReturnType> Future = Promise.GetFuture();
-
-	using LastResultContinuationFutureType = std::conditional_t<std::is_same_v<void, LastResultType>, TFuture<int>, TFuture<LastResultType>>;
-	LastResult.Then([ExecutionPolicy, Callable = MoveTemp(InCallable), WeakOp = TWeakPtr<TOnlineAsyncOp<OpType>>(Op.AsShared()), MovedPromise = MoveTemp(Promise)](LastResultContinuationFutureType&& Result) mutable // mutable so we can set the promise value
-	{
-		TSharedPtr<TOnlineAsyncOp<OpType>> PinnedOp = WeakOp.Pin();
-		if (PinnedOp && !PinnedOp->IsComplete())
+		ExecFunction = [this, WeakOperation = TWeakPtr<TOnlineAsyncOp<OpType>>(InOperation.AsShared()), &LastResult = InLastResult, Callable = MoveTemp(InCallable)]() mutable
 		{
-			PinnedOp->GetServices().Execute(ExecutionPolicy, [Callable2 = MoveTemp(Callable), WeakOp, MovedPromise2 = MoveTemp(MovedPromise), MovedResult = MoveTemp(Result)]() mutable // mutable so we can set the promise value
+			TSharedPtr<TOnlineAsyncOp<OpType>> PinnedOperation = WeakOperation.Pin();
+			if (PinnedOperation)
 			{
-				TSharedPtr<TOnlineAsyncOp<OpType>> PinnedOp2 = WeakOp.Pin();
-				if (PinnedOp2 && !PinnedOp2->IsComplete())
+				if constexpr (TOnlineAsyncOpCallableTraits<CallableType>::bRequiresPromise)
 				{
-					if constexpr (std::is_same_v<ReturnType, TFuture<UnwrappedReturnType>>) // return type is a future
-					{
-						using ContinuationFutureType = std::conditional_t<std::is_same_v<void, UnwrappedReturnType>, TFuture<int>, TFuture<UnwrappedReturnType>>; // TFuture<void> continuation uses a TFuture<int>
-						TAsyncOpHelper<LastResultType>::Call(Callable2, *PinnedOp2, MovedResult).Then([WeakOp, MovedPromise3 = MoveTemp(MovedPromise2)](ContinuationFutureType&& Value) mutable // mutable so we can set the promise value
+					TPromise<ResultType> Promise;
+					// set promise continuation before calling the callable so that we will complete the step as soon as the value is set
+					Promise.GetFuture()
+						.Next([this, WeakOperation](const ResultType& Value)
 						{
-							TSharedPtr<TOnlineAsyncOp<OpType>> PinnedOp3 = WeakOp.Pin();
-							if (PinnedOp3 && !PinnedOp3->IsComplete())
+							TSharedPtr<TOnlineAsyncOp<OpType>> PinnedOperation2 = WeakOperation.Pin();
+							if (PinnedOperation2)
 							{
-								Private::SetPromiseValue(MovedPromise3, MoveTemp(Value));
+								Result = Value;
+								PinnedOperation2->ExecuteNextStep();
 							}
 						});
-					}
-					else
-					{
-						if constexpr (std::is_same_v<void, LastResultType>)
-						{
-							Private::SetPromiseValueFromCallable(MovedPromise2, Callable2, *PinnedOp2);
-						}
-						else
-						{
-							Private::SetPromiseValueFromCallable(MovedPromise2, Callable2, *PinnedOp2, Forward<LastResultType>(MovedResult.Get()));
-						}
-					}
-				}
-			});
-		}
-	});
 
-	return TOnlineChainableAsyncOp<OpType, UnwrappedReturnType>(Op, MoveTemp(Future));
-}
+					Callable(*PinnedOperation, MoveTempIfPossible(LastResult), MoveTemp(Promise));
+				}
+				else if constexpr (TOnlineAsyncOpCallableTraits<CallableType>::bAsyncResult)
+				{
+					Callable(*PinnedOperation, MoveTempIfPossible(LastResult))
+						.Next([this, WeakOperation](const ResultType& Value)
+						{
+							TSharedPtr<TOnlineAsyncOp<OpType>> PinnedOperation2 = WeakOperation.Pin();
+							if (PinnedOperation2)
+							{
+								Result = Value;
+								PinnedOperation2->ExecuteNextStep();
+							}
+						});
+				}
+				else
+				{
+					Result = Callable(*PinnedOperation, MoveTempIfPossible(LastResult));
+					PinnedOperation->ExecuteNextStep();
+				}
+			}
+		};
+	}
+
+	template <typename OpType, typename CallableType>
+	void SetExecFunction(TOnlineAsyncOp<OpType>& InOperation, CallableType&& InCallable)
+	{
+		ExecFunction = [this, WeakOperation = TWeakPtr<TOnlineAsyncOp<OpType>>(InOperation.AsShared()), Callable = MoveTemp(InCallable)]() mutable
+		{
+			TSharedPtr<TOnlineAsyncOp<OpType>> PinnedOperation = WeakOperation.Pin();
+			if (PinnedOperation)
+			{
+				if constexpr (TOnlineAsyncOpCallableTraits<CallableType>::bRequiresPromise)
+				{
+					TPromise<ResultType> Promise;
+					// set promise continuation before calling the callable so that we will complete the step as soon as the value is set
+					Promise.GetFuture()
+						.Next([this, WeakOperation](const ResultType& Value)
+						{
+							TSharedPtr<TOnlineAsyncOp<OpType>> PinnedOperation2 = WeakOperation.Pin();
+							if (PinnedOperation2)
+							{
+								Result = Value;
+								PinnedOperation2->ExecuteNextStep();
+							}
+						});
+
+					Callable(*PinnedOperation, MoveTemp(Promise));
+				}
+				else if constexpr (TOnlineAsyncOpCallableTraits<CallableType>::bAsyncResult)
+				{
+					Callable(*PinnedOperation)
+						.Next([this, WeakOperation](const ResultType& Value)
+						{
+							TSharedPtr<TOnlineAsyncOp<OpType>> PinnedOperation2 = WeakOperation.Pin();
+							if (PinnedOperation2)
+							{
+								Result = Value;
+								PinnedOperation2->ExecuteNextStep();
+							}
+						});
+				}
+				else
+				{
+					Result = Callable(*PinnedOperation);
+					PinnedOperation->ExecuteNextStep();
+				}
+			}
+		};
+	}
+
+	virtual const FOnlineAsyncExecutionPolicy& GetExecutionPolicy() const override
+	{
+		return ExecutionPolicy;
+	}
+
+	virtual void Execute() override
+	{
+		check(ExecFunction)
+		ExecFunction();
+	}
+
+
+	ResultType& GetResultRef()
+	{
+		return Result;
+	}
+
+private:
+	FOnlineAsyncExecutionPolicy ExecutionPolicy;
+	TUniqueFunction<void()> ExecFunction;
+	ResultType Result;
+};
+
+
+template <>
+class TStep<void> : public IStep
+{
+public:
+	TStep(FOnlineAsyncExecutionPolicy&& InExecutionPolicy)
+		: ExecutionPolicy(MoveTemp(InExecutionPolicy))
+	{
+	}
+
+	template <typename OpType, typename LastResultType, typename CallableType>
+	void SetExecFunction(TOnlineAsyncOp<OpType>& InOperation, LastResultType&& InLastResult, CallableType&& InCallable)
+	{
+		ExecFunction = [this, WeakOperation = TWeakPtr<TOnlineAsyncOp<OpType>>(InOperation.AsShared()), &LastResult = InLastResult, Callable = MoveTemp(InCallable)]() mutable
+		{
+			TSharedPtr<TOnlineAsyncOp<OpType>> PinnedOperation = WeakOperation.Pin();
+			if (PinnedOperation)
+			{
+				if constexpr (TOnlineAsyncOpCallableTraits<CallableType>::bAsyncResult)
+				{
+					Callable(*PinnedOperation, MoveTempIfPossible(LastResult))
+						.Next([this, WeakOperation](const int& Value)
+						{
+							TSharedPtr<TOnlineAsyncOp<OpType>> PinnedOperation2 = WeakOperation.Pin();
+							if (PinnedOperation2)
+							{
+								PinnedOperation2->ExecuteNextStep();
+							}
+						});
+				}
+				else
+				{
+					Callable(*PinnedOperation, MoveTempIfPossible(LastResult));
+					PinnedOperation->ExecuteNextStep();
+				}
+			}
+		};
+	}
+
+	template <typename OpType, typename CallableType>
+	void SetExecFunction(TOnlineAsyncOp<OpType>& InOperation, CallableType&& InCallable)
+	{
+		ExecFunction = [this, WeakOperation = TWeakPtr<TOnlineAsyncOp<OpType>>(InOperation.AsShared()), Callable = MoveTemp(InCallable)]() mutable
+		{
+			TSharedPtr<TOnlineAsyncOp<OpType>> PinnedOperation = WeakOperation.Pin();
+			if (PinnedOperation)
+			{
+				if constexpr (TOnlineAsyncOpCallableTraits<CallableType>::bAsyncResult)
+				{
+					Callable(*PinnedOperation)
+						.Next([this, WeakOperation](const int& Value)
+						{
+							TSharedPtr<TOnlineAsyncOp<OpType>> PinnedOperation2 = WeakOperation.Pin();
+							if (PinnedOperation2)
+							{
+								PinnedOperation2->ExecuteNextStep();
+							}
+						});
+				}
+				else
+				{
+					Callable(*PinnedOperation);
+					PinnedOperation->ExecuteNextStep();
+				}
+			}
+		};
+	}
+
+	virtual const FOnlineAsyncExecutionPolicy& GetExecutionPolicy() const override
+	{
+		return ExecutionPolicy;
+	}
+
+	virtual void Execute() override
+	{
+		check(ExecFunction)
+		ExecFunction();
+	}
+
+private:
+	FOnlineAsyncExecutionPolicy ExecutionPolicy;
+	TUniqueFunction<void()> ExecFunction;
+};
+
+// Provides Then continuation for both TOnlineAsyncOp and TOnlineChainableAsyncOp
+template <typename Outer, typename OpType, typename LastResultType>
+class TOnlineAsyncOpBase
+{
+public:
+	// Callable can take one of the following forms, where the second form is used when an asynchronous
+	//     call can set the promise with a value that is only valid for the duration of the Callable call
+	//   ResultType(AsyncOp, LastResult)
+	//     AsyncOp is a FOnlineAsyncOp& or TOnlineAsyncOp<OpType>&
+	//     LastResult is a LastResultType or const LastResultType&
+	//     ResultType is any type, or a TFuture to allow for an asynchronous result
+	//   void(AsyncOp, LastResult, TPromise<ResultType>&&)
+	//     AsyncOp is a FOnlineAsyncOp& or TOnlineAsyncOp<OpType>&
+	//     LastResult is a LastResultType or const LastResultType&
+	//     ResultType is any non-void type
+	template <typename CallableType>
+	auto Then(CallableType&& Callable, FOnlineAsyncExecutionPolicy ExecutionPolicy = FOnlineAsyncExecutionPolicy::RunOnGameThread());
+
+protected:
+	LastResultType* LastResult;
+};
+
+template <typename Outer, typename OpType>
+class TOnlineAsyncOpBase<Outer, OpType, void>
+{
+public:
+	// Callable can take one of the following forms, where the second form is used when an asynchronous
+	//     call can set the promise with a value that is only valid for the duration of the Callable call
+	//   ResultType(AsyncOp)
+	//     AsyncOp is a FOnlineAsyncOp& or TOnlineAsyncOp<OpType>&
+	//     ResultType is any type, or a TFuture to allow for an asynchronous result
+	//   void(AsyncOp, TPromise<ResultType>&&)
+	//     AsyncOp is a FOnlineAsyncOp& or TOnlineAsyncOp<OpType>&
+	//     ResultType is any non-void type
+	template <typename CallableType>
+	auto Then(CallableType&& Callable, FOnlineAsyncExecutionPolicy ExecutionPolicy = FOnlineAsyncExecutionPolicy::RunOnGameThread());
+};
+
 
 /* Private */ }
 
 template <typename OpType, typename T>
-class TOnlineChainableAsyncOp
+class TOnlineChainableAsyncOp : public Private::TOnlineAsyncOpBase<TOnlineChainableAsyncOp<OpType, T>, OpType, T>
 {
 public:
-	TOnlineChainableAsyncOp(TOnlineAsyncOp<OpType>& InOwningOperation, TFuture<T>&& InLastResult)
+	TOnlineChainableAsyncOp(TOnlineAsyncOp<OpType>& InOwningOperation, const T* InLastResult)
 		: OwningOperation(InOwningOperation)
-		, LastResult(MoveTemp(InLastResult))
+		, LastResult(InLastResult)
 	{
 	}
 
 	TOnlineChainableAsyncOp(TOnlineChainableAsyncOp&& Other)
 		: OwningOperation(Other.OwningOperation)
-		, LastResult(MoveTemp(Other.LastResult))
+		, LastResult(Other.LastResult)
 	{
 	}
 
 	TOnlineChainableAsyncOp& operator=(TOnlineChainableAsyncOp&& Other)
 	{
 		check(&OwningOperation == &Other.OwningOperation); // Can't reassign this
-		LastResult = MoveTemp(Other.LastResult);
+		LastResult = Other.LastResult;
 		return *this;
-	}
-
-	// Callable that takes a FOnlineAsyncOp& or TOnlineAsyncOp<OpType>& and a const T& and returns a Type or TFuture<Type>
-	template <typename CallableType>
-	TOnlineChainableAsyncOp<OpType, Private::TUnwrapFuture_T<Private::TChainableAsyncOpCallableResultHelper_T<CallableType, TOnlineAsyncOp<OpType>&, T>>>
-		Then(CallableType&& InCallable, FOnlineAsyncExecutionPolicy ExecutionPolicy = FOnlineAsyncExecutionPolicy::RunOnGameThread())
-	{
-		return Private::CreateChainableAsyncOp<OpType>(OwningOperation, LastResult, InCallable, ExecutionPolicy);
 	}
 
 	// placeholder
@@ -312,9 +547,14 @@ public:
 		OwningOperation.Enqueue();
 	}
 
+	TOnlineAsyncOp<OpType>& GetOwningOperation()
+	{
+		return OwningOperation;
+	}
+
 protected:
 	TOnlineAsyncOp<OpType>& OwningOperation;
-	TFuture<T> LastResult;
+	const T* LastResult;
 };
 
 class FOnlineAsyncOp
@@ -331,7 +571,8 @@ public:
 // There may be one or more handles pointing to one instance
 template <typename OpType>
 class TOnlineAsyncOp 
-	: public FOnlineAsyncOp
+	: public Private::TOnlineAsyncOpBase<TOnlineAsyncOp<OpType>, OpType, void>
+	, public FOnlineAsyncOp
 	, public TSharedFromThis<TOnlineAsyncOp<OpType>>
 {
 public:
@@ -363,18 +604,14 @@ public:
 		return SharedState->Params;
 	}
 
-	// Callable that takes a FOnlineAsyncOp& or TOnlineAsyncOp<OpType>& and returns a Type or TFuture<Type>
-	template <typename CallableType>
-	TOnlineChainableAsyncOp<OpType, Private::TUnwrapFuture_T<TInvokeResult_T<CallableType, TOnlineAsyncOp<OpType>&>>>
-		Then(CallableType&& InCallable, FOnlineAsyncExecutionPolicy ExecutionPolicy = FOnlineAsyncExecutionPolicy::RunOnGameThread())
+	TOnlineAsyncOp<OpType>& GetOwningOperation()
 	{
-		TFuture<void> StartExecutionFuture = StartExecutionPromise.GetFuture();
-		return Private::CreateChainableAsyncOp<OpType>(*this, StartExecutionFuture, InCallable, ExecutionPolicy);
+		return *this;
 	}
 
 	operator TOnlineChainableAsyncOp<OpType, void>()
 	{
-		return TOnlineChainableAsyncOp<OpType, void>(*this, StartExecutionPromise.GetFuture());
+		return TOnlineChainableAsyncOp<OpType, void>(*this, nullptr);
 	}
 
 	static TOnlineAsyncOp<OpType> CreateError(const FOnlineError& Error) { return TOnlineAsyncOp<OpType>(); }
@@ -412,7 +649,68 @@ public:
 	void Enqueue(U&&...)
 	{
 		// placeholder
-		StartExecutionPromise.SetValue();
+		SharedState->State = EAsyncOpState::Queued;
+		SharedState->State = EAsyncOpState::Running;
+		ExecuteNextStep();
+	}
+
+	void ExecuteNextStep()
+	{
+		if (!IsComplete())
+		{
+			if (NextStep < Steps.Num())
+			{
+				Execute(Steps[NextStep]->GetExecutionPolicy(),
+					[this, StepToExecute = NextStep, WeakThis = TWeakPtr<TOnlineAsyncOp<OpType>>(this->AsShared())]()
+					{
+						TSharedPtr<TOnlineAsyncOp<OpType>> PinnedThis = WeakThis.Pin();
+						if (PinnedThis)
+						{
+							Steps[StepToExecute]->Execute();
+						}
+					});
+			}
+			++NextStep;
+		}
+	}
+
+	void AddStep(TUniquePtr<Private::IStep>&& Step)
+	{
+		Steps.Add(MoveTemp(Step));
+	}
+
+	template <typename CallableType>
+	void Execute(FOnlineAsyncExecutionPolicy ExecutionPolicy, CallableType&& Callable)
+	{
+		switch (ExecutionPolicy.GetExecutionPolicy())
+		{
+		case EOnlineAsyncExecutionPolicy::RunOnGameThread:
+			if (IsInGameThread())
+			{
+				Callable();
+			}
+			else
+			{
+				Async(EAsyncExecution::TaskGraphMainThread, MoveTemp(Callable));
+			}
+			break;
+
+		case EOnlineAsyncExecutionPolicy::RunOnNextTick:
+			Async(EAsyncExecution::TaskGraphMainThread, MoveTemp(Callable));
+			break;
+
+		case EOnlineAsyncExecutionPolicy::RunOnThreadPool:
+			Async(EAsyncExecution::ThreadPool, MoveTemp(Callable));
+			break;
+
+		case EOnlineAsyncExecutionPolicy::RunOnTaskGraph:
+			Async(EAsyncExecution::TaskGraph, MoveTemp(Callable));
+			break;
+
+		case EOnlineAsyncExecutionPolicy::RunImmediately:
+			Callable();
+			break;
+		}
 	}
 
 protected:
@@ -425,6 +723,8 @@ protected:
 		{
 			SharedHandleState->TriggerOnComplete(Result);
 		}
+
+		OnCompleteEvent.Broadcast(Result);
 	}
 
 	class FAsyncOpSharedState
@@ -539,7 +839,64 @@ protected:
 
 	TSharedRef<FAsyncOpSharedState> SharedState;
 	TArray<TSharedRef<FAsyncOpSharedHandleState>> SharedHandleStates;
+	TArray<TUniquePtr<Private::IStep>> Steps;
 	TPromise<void> StartExecutionPromise;
+	TOnlineEventCallable<void(const TOnlineResult<ResultType>&)> OnCompleteEvent;
+	int NextStep = 0;
+
+	friend class FOnlineAsyncOpCache;
 };
+
+namespace Private {
+
+template <typename Outer, typename OpType, typename LastResultType>
+template <typename CallableType>
+auto TOnlineAsyncOpBase<Outer, OpType, LastResultType>::Then(CallableType&& InCallable, FOnlineAsyncExecutionPolicy ExecutionPolicy)
+{
+	using ResultType = typename TOnlineAsyncOpCallableTraits<CallableType>::ResultType;
+
+	TOnlineAsyncOp<OpType>& Op = static_cast<Outer*>(this)->GetOwningOperation();
+
+	TStep<ResultType>* Step = new TStep<ResultType>(MoveTemp(ExecutionPolicy));
+	TUniquePtr<IStep> StepPtr(Step);
+	Step->SetExecFunction(Op, *LastResult, MoveTemp(InCallable));
+
+	Op.AddStep(MoveTemp(StepPtr));
+
+	if constexpr (std::is_same_v<ResultType, void>)
+	{
+		return TOnlineChainableAsyncOp<OpType, ResultType>(Op, nullptr);
+	}
+	else
+	{
+		return TOnlineChainableAsyncOp<OpType, ResultType>(Op, &Step->GetResultRef());
+	}
+}
+
+template <typename Outer, typename OpType>
+template <typename CallableType>
+auto TOnlineAsyncOpBase<Outer, OpType, void>::Then(CallableType&& InCallable, FOnlineAsyncExecutionPolicy ExecutionPolicy)
+{
+	using ResultType = typename TOnlineAsyncOpCallableTraits<CallableType>::ResultType;
+
+	TOnlineAsyncOp<OpType>& Op = static_cast<Outer*>(this)->GetOwningOperation();
+
+	TStep<ResultType>* Step = new TStep<ResultType>(MoveTemp(ExecutionPolicy));
+	TUniquePtr<IStep> StepPtr(Step);
+	Step->SetExecFunction(Op, MoveTemp(InCallable));
+
+	Op.AddStep(MoveTemp(StepPtr));
+
+	if constexpr (std::is_same_v<ResultType, void>)
+	{
+		return TOnlineChainableAsyncOp<OpType, ResultType>(Op, nullptr);
+	}
+	else
+	{
+		return TOnlineChainableAsyncOp<OpType, ResultType>(Op, &Step->GetResultRef());
+	}
+}
+
+/* Private */ }
 
 /* UE::Online */ }

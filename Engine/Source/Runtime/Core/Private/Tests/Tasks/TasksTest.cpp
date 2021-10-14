@@ -19,7 +19,7 @@ namespace UE { namespace TasksTests
 	{
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksBasicTest, "System.Core.Tasks.Basic", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksBasicTest, "System.Core.Tasks.Basic", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
 
 	template<uint32 SpawnerGroupsNum, uint32 SpawnersPerGroupNum>
 	void BasicStressTest()
@@ -383,12 +383,12 @@ namespace UE { namespace TasksTests
 		//	verify(Parent.Wait());
 		//}
 
-		UE_BENCHMARK(5, BasicStressTest<1000, 1000>);
+		UE_BENCHMARK(5, BasicStressTest<100, 100>);
 
 		return true;
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksPipeTest, "System.Core.Tasks.Pipe", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksPipeTest, "System.Core.Tasks.Pipe", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
 
 	template<uint32 SpawnerGroupsNum, uint32 SpawnersPerGroupNum>
 	void PipeStressTest();
@@ -505,7 +505,7 @@ namespace UE { namespace TasksTests
 			Task.Wait();
 		}
 
-		UE_BENCHMARK(5, PipeStressTest<500, 500>);
+		UE_BENCHMARK(5, PipeStressTest<200, 100>);
 
 		return true;
 	}
@@ -615,7 +615,7 @@ namespace UE { namespace TasksTests
 		TlsValue = Dummy;
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTlsTest, "System.Core.Tls", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTlsTest, "System.Core.Tls", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
 
 	bool FTlsTest::RunTest(const FString& Parameters)
 	{
@@ -625,7 +625,7 @@ namespace UE { namespace TasksTests
 		return true;
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksDependenciesTest, "System.Core.Tasks.Dependencies", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksDependenciesTest, "System.Core.Tasks.Dependencies", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
 
 	template<uint64 NumBranches, uint64 NumLoops, uint64 NumTasks>
 	void DependenciesPerfTest()
@@ -804,7 +804,7 @@ namespace UE { namespace TasksTests
 			Task.Wait();
 		}
 
-		UE_BENCHMARK(5, DependenciesPerfTest<200, 10, 1000>);
+		UE_BENCHMARK(5, DependenciesPerfTest<50, 5, 50>);
 
 		return true;
 	}
@@ -870,7 +870,7 @@ namespace UE { namespace TasksTests
 			N11.IsCompleted() && N12.IsCompleted() && N21.IsCompleted() && N22.IsCompleted());
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksDeepRetractionTest, "System.Core.Tasks.DeepRetraction", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksDeepRetractionTest, "System.Core.Tasks.DeepRetraction", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
 
 	bool FTasksDeepRetractionTest::RunTest(const FString& Parameters)
 	{
@@ -952,11 +952,11 @@ namespace UE { namespace TasksTests
 		}
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksDeepRetractionStressTest, "System.Core.Tasks.DeepRetraction.Stress", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksDeepRetractionStressTest, "System.Core.Tasks.DeepRetraction.Stress", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
 
 	bool FTasksDeepRetractionStressTest::RunTest(const FString& Parameters)
 	{
-		UE_BENCHMARK(5, DeepRetractionStressTest<10000>);
+		UE_BENCHMARK(5, DeepRetractionStressTest<1000>);
 
 		return true;
 	}
@@ -978,7 +978,7 @@ namespace UE { namespace TasksTests
 		}
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksNestedTasksStressTest, "System.Core.Tasks.NestedTasks.Stress", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksNestedTasksStressTest, "System.Core.Tasks.NestedTasks.Stress", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
 
 	bool FTasksNestedTasksStressTest::RunTest(const FString& Parameters)
 	{
@@ -1169,23 +1169,19 @@ namespace UE { namespace TasksTests
 		}
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksPerfTest, "System.Core.Tasks.PerfTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksPerfTest, "System.Core.Tasks.PerfTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
 
 	bool FTasksPerfTest::RunTest(const FString& Parameters)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(TaskGraphTests_PerfTest);
 
-		//UE_BENCHMARK(1, TestSpawning<100000>);
-		//return true;
-
-		UE_BENCHMARK(5, TestPerfBasic<100000>);
-		UE_BENCHMARK(5, TestPerfBatch<100000, 100>);
-		UE_BENCHMARK(5, TestPerfBatchOptimised<100000, 100>);
-		UE_BENCHMARK(5, TestLatency<10000>);
-		//UE_BENCHMARK(5, TestFGraphEventPerf<100000>); // stack overflow
-		UE_BENCHMARK(5, TestWorkStealing<100, 1000>);
-		UE_BENCHMARK(5, TestSpawning<100000>);
-		UE_BENCHMARK(5, TestBatchSpawning<100000>);
+		UE_BENCHMARK(5, TestPerfBasic<10000>);
+		UE_BENCHMARK(5, TestPerfBatch<10000, 100>);
+		UE_BENCHMARK(5, TestPerfBatchOptimised<10000, 100>);
+		UE_BENCHMARK(5, TestLatency<1000>);
+		UE_BENCHMARK(5, TestWorkStealing<100, 100>);
+		UE_BENCHMARK(5, TestSpawning<10000>);
+		UE_BENCHMARK(5, TestBatchSpawning<10000>);
 
 		return true;
 	}

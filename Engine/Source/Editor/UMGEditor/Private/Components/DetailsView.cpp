@@ -78,7 +78,7 @@ void UDetailsView::BuildContentWidget()
 			DetailViewWidget = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 			
 			DetailViewWidget->SetCustomFilterLabel(LOCTEXT("ShowAllParameters", "Show All Parameters"));
-			DetailViewWidget->SetCustomFilterDelegate(FSimpleDelegate::CreateUObject(this, &UDetailsView::ToggleWhitelistedProperties));
+			DetailViewWidget->SetCustomFilterDelegate(FSimpleDelegate::CreateUObject(this, &UDetailsView::ToggleShowingOnlyAllowedProperties));
 			DetailViewWidget->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateUObject(this, &UDetailsView::GetIsPropertyVisible));
 			DetailViewWidget->SetIsCustomRowVisibleDelegate(FIsCustomRowVisible::CreateUObject(this, &UDetailsView::GetIsRowVisible));
 			DetailViewWidget->SetObject(ViewedObject);
@@ -149,9 +149,9 @@ void UDetailsView::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 }
 
 
-void UDetailsView::ToggleWhitelistedProperties()
+void UDetailsView::ToggleShowingOnlyAllowedProperties()
 {
-	bShowOnlyWhitelisted = !bShowOnlyWhitelisted;
+	bShowOnlyAllowed = !bShowOnlyAllowed;
 	if (DetailViewWidget.IsValid())
 	{
 		DetailViewWidget->ForceRefresh();
@@ -160,7 +160,7 @@ void UDetailsView::ToggleWhitelistedProperties()
 
 bool UDetailsView::IsRowVisibilityFiltered() const
 {
-	return bShowOnlyWhitelisted && (PropertiesToShow.Num() > 0 || CategoriesToShow.Num() > 0);
+	return bShowOnlyAllowed && (PropertiesToShow.Num() > 0 || CategoriesToShow.Num() > 0);
 }
 
 bool UDetailsView::GetIsPropertyVisible(const FPropertyAndParent& PropertyAndParent) const

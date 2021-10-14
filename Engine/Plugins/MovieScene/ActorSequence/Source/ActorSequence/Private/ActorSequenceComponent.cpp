@@ -28,11 +28,24 @@ void UActorSequenceComponent::BeginPlay()
 	if (Sequence != nullptr)
 	{
 		SequencePlayer = NewObject<UActorSequencePlayer>(this, "SequencePlayer");
+
+		SequencePlayer->SetPlaybackClient(this);
+
+		// Initialize this player for tick as soon as possible to ensure that a persistent
+		// reference to the tick manager is maintained
+		SequencePlayer->InitializeForTick(this);
+
 		SequencePlayer->Initialize(Sequence, PlaybackSettings);
 
 		if (PlaybackSettings.bAutoPlay)
 		{
 			SequencePlayer->Play();
+		}
+
+		UMovieSceneSequenceTickManager* TickManager = SequencePlayer->GetTickManager();
+		if (ensure(TickManager))
+		{
+			TickManager->RegisterSequenceActor(GetOwner(), this);
 		}
 	}
 }
@@ -44,18 +57,26 @@ void UActorSequenceComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		// Stop the internal sequence player during EndPlay when it's safer
 		// to modify other actor's state during state restoration.
 		SequencePlayer->Stop();
+
+		if (UMovieSceneSequenceTickManager* TickManager = SequencePlayer->GetTickManager())
+		{
+			TickManager->UnregisterSequenceActor(GetOwner(), this);
+		}
 	}
 	
 	Super::EndPlay(EndPlayReason);
 }
 
-
 void UActorSequenceComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	Super::TickComponent(DeltaSeconds, TickType, ThisTickFunction);
+}
 
+void UActorSequenceComponent::TickFromSequenceTickManager(float DeltaSeconds)
+{
 	if (SequencePlayer)
 	{
-		SequencePlayer->Update(DeltaSeconds);
+		SequencePlayer->UpdateAsync(DeltaSeconds);
 	}
 }
+

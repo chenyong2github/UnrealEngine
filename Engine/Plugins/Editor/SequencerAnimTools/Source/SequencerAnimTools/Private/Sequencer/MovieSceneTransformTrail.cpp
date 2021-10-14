@@ -24,7 +24,6 @@
 #include "IControlRigObjectBinding.h"
 #include "LevelSequence.h"
 #include "LevelSequenceActor.h"
-#include "LevelSequencePlayer.h"
 #include "Evaluation/MovieScenePlayback.h"
 #include "Tools/ControlRigSnapSettings.h"
 #include "ScopedTransaction.h"
@@ -43,10 +42,9 @@ namespace SequencerAnimTools
 *****************************************************************************************************************/
 
 
-FMovieSceneTransformTrail::FMovieSceneTransformTrail(USceneComponent* InOwner, const FLinearColor& InColor, const bool bInIsVisible, TWeakObjectPtr<UMovieSceneTrack> InWeakTrack, TSharedPtr<class ISequencer> InSequencer, ULevelSequencePlayer* InSequencePlayer)
+FMovieSceneTransformTrail::FMovieSceneTransformTrail(USceneComponent* InOwner, const FLinearColor& InColor, const bool bInIsVisible, TWeakObjectPtr<UMovieSceneTrack> InWeakTrack, TSharedPtr<class ISequencer> InSequencer)
 	: FTrail(InOwner)
 	, WeakSequencer(InSequencer)
-	, LevelSequencePlayer(InSequencePlayer)
 	, CachedEffectiveRange(TRange<double>::Empty())
 	, bIsSelected(false)
 	, TrajectoryCache()
@@ -575,8 +573,8 @@ bool FMovieSceneComponentTransformTrail::HandleAltClick( FEditorViewportClient* 
 *
 *****************************************************************************************************************/
 
-FMovieSceneControlRigTransformTrail::FMovieSceneControlRigTransformTrail(USceneComponent* SceneComponent, const FLinearColor& InColor, const bool bInIsVisible, TWeakObjectPtr<UMovieSceneTrack> InWeakTrack, TSharedPtr<ISequencer> InSequencer, ULevelSequencePlayer* InPlayer, const FName& InControlName)
-: FMovieSceneTransformTrail(SceneComponent, InColor, bInIsVisible, InWeakTrack, InSequencer, InPlayer)
+FMovieSceneControlRigTransformTrail::FMovieSceneControlRigTransformTrail(USceneComponent* SceneComponent, const FLinearColor& InColor, const bool bInIsVisible, TWeakObjectPtr<UMovieSceneTrack> InWeakTrack, TSharedPtr<ISequencer> InSequencer,  const FName& InControlName)
+: FMovieSceneTransformTrail(SceneComponent, InColor, bInIsVisible, InWeakTrack, InSequencer)
 , ControlName(InControlName)
 {
 }

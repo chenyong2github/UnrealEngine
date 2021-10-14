@@ -49,7 +49,7 @@ class FArchive;
 template <typename... Types>
 struct TTuple;
 
-namespace UE4Tuple_Private
+namespace UE::Core::Private::Tuple
 {
 	enum EForwardingConstructor { ForwardingConstructor };
 	enum EOtherTupleConstructor { OtherTupleConstructor };
@@ -669,36 +669,36 @@ namespace UE4Tuple_Private
 }
 
 template <typename... Types>
-struct TTuple : UE4Tuple_Private::TTupleBase<TMakeIntegerSequence<uint32, sizeof...(Types)>, Types...>
+struct TTuple : UE::Core::Private::Tuple::TTupleBase<TMakeIntegerSequence<uint32, sizeof...(Types)>, Types...>
 {
 private:
-	typedef UE4Tuple_Private::TTupleBase<TMakeIntegerSequence<uint32, sizeof...(Types)>, Types...> Super;
+	typedef UE::Core::Private::Tuple::TTupleBase<TMakeIntegerSequence<uint32, sizeof...(Types)>, Types...> Super;
 
 public:
 	template <
 		typename... ArgTypes,
-		decltype(UE4Tuple_Private::ConstructibleConceptCheck<Types...>(DeclVal<ArgTypes&&>()...))* = nullptr
+		decltype(UE::Core::Private::Tuple::ConstructibleConceptCheck<Types...>(DeclVal<ArgTypes&&>()...))* = nullptr
 	>
 	explicit TTuple(ArgTypes&&... Args)
-		: Super(UE4Tuple_Private::ForwardingConstructor, Forward<ArgTypes>(Args)...)
+		: Super(UE::Core::Private::Tuple::ForwardingConstructor, Forward<ArgTypes>(Args)...)
 	{
 	}
 
 	template <
 		typename... OtherTypes,
-		decltype(UE4Tuple_Private::ConstructibleConceptCheck<Types...>(DeclVal<OtherTypes&&>()...))* = nullptr
+		decltype(UE::Core::Private::Tuple::ConstructibleConceptCheck<Types...>(DeclVal<OtherTypes&&>()...))* = nullptr
 	>
 	TTuple(TTuple<OtherTypes...>&& Other)
-		: Super(UE4Tuple_Private::OtherTupleConstructor, MoveTemp(Other))
+		: Super(UE::Core::Private::Tuple::OtherTupleConstructor, MoveTemp(Other))
 	{
 	}
 
 	template <
 		typename... OtherTypes,
-		decltype(UE4Tuple_Private::ConstructibleConceptCheck<Types...>(DeclVal<const OtherTypes&>()...))* = nullptr
+		decltype(UE::Core::Private::Tuple::ConstructibleConceptCheck<Types...>(DeclVal<const OtherTypes&>()...))* = nullptr
 	>
 	TTuple(const TTuple<OtherTypes...>& Other)
-		: Super(UE4Tuple_Private::OtherTupleConstructor, Other)
+		: Super(UE::Core::Private::Tuple::OtherTupleConstructor, Other)
 	{
 	}
 
@@ -710,21 +710,21 @@ public:
 
 	template <
 		typename... OtherTypes,
-		decltype(UE4Tuple_Private::AssignableConceptCheck<Types&...>(DeclVal<const OtherTypes&>()...))* = nullptr
+		decltype(UE::Core::Private::Tuple::AssignableConceptCheck<Types&...>(DeclVal<const OtherTypes&>()...))* = nullptr
 	>
 	TTuple& operator=(const TTuple<OtherTypes...>& Other)
 	{
-		UE4Tuple_Private::Assign(*this, Other, TMakeIntegerSequence<uint32, sizeof...(Types)>{});
+		UE::Core::Private::Tuple::Assign(*this, Other, TMakeIntegerSequence<uint32, sizeof...(Types)>{});
 		return *this;
 	}
 
 	template <
 		typename... OtherTypes,
-		decltype(UE4Tuple_Private::AssignableConceptCheck<Types&...>(DeclVal<OtherTypes&&>()...))* = nullptr
+		decltype(UE::Core::Private::Tuple::AssignableConceptCheck<Types&...>(DeclVal<OtherTypes&&>()...))* = nullptr
 	>
 	TTuple& operator=(TTuple<OtherTypes...>&& Other)
 	{
-		UE4Tuple_Private::Assign(*this, MoveTemp(Other), TMakeIntegerSequence<uint32, sizeof...(OtherTypes)>{});
+		UE::Core::Private::Tuple::Assign(*this, MoveTemp(Other), TMakeIntegerSequence<uint32, sizeof...(OtherTypes)>{});
 		return *this;
 	}
 
@@ -744,7 +744,7 @@ public:
 template <typename... Types>
 FORCEINLINE uint32 GetTypeHash(const TTuple<Types...>& Tuple)
 {
-	return UE4Tuple_Private::TGetTupleHashHelper<1u, sizeof...(Types)>::Do(GetTypeHash(Tuple.template Get<0>()), Tuple);
+	return UE::Core::Private::Tuple::TGetTupleHashHelper<1u, sizeof...(Types)>::Do(GetTypeHash(Tuple.template Get<0>()), Tuple);
 }
 
 FORCEINLINE uint32 GetTypeHash(const TTuple<>& Tuple)
@@ -791,7 +791,7 @@ DECLARE_TEMPLATE_INTRINSIC_TYPE_LAYOUT((template <typename KeyType, typename Val
  * Traits class which calculates the number of elements in a tuple.
  */
 template <typename TupleType>
-struct TTupleArity : UE4Tuple_Private::TCVTupleArity<const volatile TupleType>
+struct TTupleArity : UE::Core::Private::Tuple::TCVTupleArity<const volatile TupleType>
 {
 };
 
@@ -804,7 +804,7 @@ struct TTupleArity : UE4Tuple_Private::TCVTupleArity<const volatile TupleType>
  * TTupleIndex<Type, Tuple>::Value will be 2.
  */
 template <typename Type, typename TupleType>
-using TTupleIndex = UE4Tuple_Private::TCVTupleIndex<Type, const volatile TupleType>;
+using TTupleIndex = UE::Core::Private::Tuple::TCVTupleIndex<Type, const volatile TupleType>;
 
 
 /**
@@ -815,7 +815,7 @@ using TTupleIndex = UE4Tuple_Private::TCVTupleIndex<Type, const volatile TupleTy
  * TTupleElement<Index, Tuple>::Type will be float.
  */
 template <uint32 Index, typename TupleType>
-using TTupleElement = UE4Tuple_Private::TCVTupleElement<Index, const volatile TupleType>;
+using TTupleElement = UE::Core::Private::Tuple::TCVTupleElement<Index, const volatile TupleType>;
 
 
 /**
@@ -836,7 +836,7 @@ using TTupleElement = UE4Tuple_Private::TCVTupleElement<Index, const volatile Tu
 template <typename... Types>
 FORCEINLINE TTuple<typename TDecay<Types>::Type...> MakeTuple(Types&&... Args)
 {
-	return UE4Tuple_Private::MakeTupleImpl(Forward<Types>(Args)...);
+	return UE::Core::Private::Tuple::MakeTupleImpl(Forward<Types>(Args)...);
 }
 
 
@@ -864,13 +864,13 @@ FORCEINLINE TTuple<typename TDecay<Types>::Type...> MakeTuple(Types&&... Args)
 template <typename FuncType, typename... Types>
 FORCEINLINE decltype(auto) TransformTuple(TTuple<Types...>&& Tuple, FuncType Func)
 {
-	return UE4Tuple_Private::TTransformTuple_Impl<TMakeIntegerSequence<uint32, sizeof...(Types)>>::Do(MoveTemp(Tuple), MoveTemp(Func));
+	return UE::Core::Private::Tuple::TTransformTuple_Impl<TMakeIntegerSequence<uint32, sizeof...(Types)>>::Do(MoveTemp(Tuple), MoveTemp(Func));
 }
 
 template <typename FuncType, typename... Types>
 FORCEINLINE decltype(auto) TransformTuple(const TTuple<Types...>& Tuple, FuncType Func)
 {
-	return UE4Tuple_Private::TTransformTuple_Impl<TMakeIntegerSequence<uint32, sizeof...(Types)>>::Do(Tuple, MoveTemp(Func));
+	return UE::Core::Private::Tuple::TTransformTuple_Impl<TMakeIntegerSequence<uint32, sizeof...(Types)>>::Do(Tuple, MoveTemp(Func));
 }
 
 
@@ -895,7 +895,7 @@ FORCEINLINE decltype(auto) TransformTuple(const TTuple<Types...>& Tuple, FuncTyp
 template <typename FuncType, typename FirstTupleType, typename... TupleTypes>
 FORCEINLINE void VisitTupleElements(FuncType&& Func, FirstTupleType&& FirstTuple, TupleTypes&&... Tuples)
 {
-	UE4Tuple_Private::TVisitTupleElements_Impl<TMakeIntegerSequence<uint32, TTupleArity<typename TDecay<FirstTupleType>::Type>::Value>>::Do(Forward<FuncType>(Func), Forward<FirstTupleType>(FirstTuple), Forward<TupleTypes>(Tuples)...);
+	UE::Core::Private::Tuple::TVisitTupleElements_Impl<TMakeIntegerSequence<uint32, TTupleArity<typename TDecay<FirstTupleType>::Type>::Value>>::Do(Forward<FuncType>(Func), Forward<FirstTupleType>(FirstTuple), Forward<TupleTypes>(Tuples)...);
 }
 
 /**

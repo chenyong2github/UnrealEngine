@@ -9,6 +9,8 @@ using UnrealBuildTool;
 using AutomationTool;
 using System.Xml;
 using EpicGames.Core;
+using OpenTracing;
+using OpenTracing.Util;
 using UnrealBuildBase;
 
 namespace AutomationTool
@@ -160,7 +162,7 @@ namespace AutomationTool
 			HashSet<FileReference> BuildProducts = TagNameToFileSet[DefaultOutput.TagName];
 			for(int Idx = 0; Idx < Tasks.Count; Idx++)
 			{
-				using (ITraceSpan Span = TraceSpan.Create("Task", Tasks[Idx].GetTraceName()))
+				using (IScope Scope = GlobalTracer.Instance.BuildSpan("Task").WithTag("resource", Tasks[Idx].GetTraceName()).StartActive())
 				{
 					ITaskExecutor Executor = Tasks[Idx].GetExecutor();
 					if (Executor == null)
@@ -168,7 +170,7 @@ namespace AutomationTool
 						// Execute this task directly
 						try
 						{
-							Tasks[Idx].GetTraceMetadata(Span, "");
+							Tasks[Idx].GetTraceMetadata(Scope.Span, "");
 							Tasks[Idx].Execute(Job, BuildProducts, TagNameToFileSet);
 						}
 						catch (Exception Ex)
@@ -183,14 +185,14 @@ namespace AutomationTool
 					}
 					else
 					{
-						Tasks[Idx].GetTraceMetadata(Span, "1.");
+						Tasks[Idx].GetTraceMetadata(Scope.Span, "1.");
 
 						// The task has a custom executor, which may be able to execute several tasks simultaneously. Try to add the following tasks.
 						int FirstIdx = Idx;
 						while (Idx + 1 < Tasks.Count && Executor.Add(Tasks[Idx + 1]))
 						{
 							Idx++;
-							Tasks[Idx].GetTraceMetadata(Span, string.Format("{0}.", 1 + Idx - FirstIdx));
+							Tasks[Idx].GetTraceMetadata(Scope.Span, string.Format("{0}.", 1 + Idx - FirstIdx));
 						}
 						try
 						{

@@ -151,11 +151,12 @@ static void WriteBuildSettings(FCbWriter& Writer, const FTextureBuildSettings& B
 	WriteCbFieldWithDefault(Writer, "VirtualTextureBorderSize", BuildSettings.VirtualTextureBorderSize, DefaultSettings.VirtualTextureBorderSize);
 	WriteCbFieldWithDefault<bool>(Writer, "bVirtualTextureEnableCompressZlib", BuildSettings.bVirtualTextureEnableCompressZlib, DefaultSettings.bVirtualTextureEnableCompressZlib);
 	WriteCbFieldWithDefault<bool>(Writer, "bVirtualTextureEnableCompressCrunch", BuildSettings.bVirtualTextureEnableCompressCrunch, DefaultSettings.bVirtualTextureEnableCompressCrunch);
-	// FastTextureEncode trinary field is changed to binary on/off
-	WriteCbFieldWithDefault<uint8>(Writer, "FastTextureEncode", 
-		(BuildSettings.FastTextureEncode == ETextureFastEncode::Off) ? (uint8)ETextureFastEncode::Off : (uint8)ETextureFastEncode::Forced,
-		(DefaultSettings.FastTextureEncode == ETextureFastEncode::Off) ? (uint8)ETextureFastEncode::Off : (uint8)ETextureFastEncode::Forced);
+	WriteCbFieldWithDefault<uint8>(Writer, "OodleEncodeEffort", (uint8)BuildSettings.OodleEncodeEffort, (uint8)DefaultSettings.OodleEncodeEffort);	
+	WriteCbFieldWithDefault<uint8>(Writer, "OodleUniversalTiling", (uint8)BuildSettings.OodleUniversalTiling, (uint8)DefaultSettings.OodleUniversalTiling);
+	WriteCbFieldWithDefault<uint8>(Writer, "OodleRDO", BuildSettings.OodleRDO, DefaultSettings.OodleRDO);
+	WriteCbFieldWithDefault<bool>(Writer, "bOodleUsesRDO", BuildSettings.bOodleUsesRDO, DefaultSettings.bOodleUsesRDO);
 
+	
 	Writer.EndObject();
 }
 
@@ -178,7 +179,14 @@ static void WriteSource(FCbWriter& Writer, const UTexture& Texture, int32 LayerI
 
 	Writer.BeginObject();
 
-	Writer.AddInteger("CompressionFormat", Source.GetSourceCompression());
+	ETextureSourceCompressionFormat CompressionFormat = Source.GetSourceCompression();
+	if ((CompressionFormat == ETextureSourceCompressionFormat::TSCF_PNG) && !Source.IsPNGCompressed())
+	{
+		// CompressionFormat might mismatch with IsPNGCompressed.  In that case IsPNGCompressed is authoritative.
+		// This behavior matches FTextureSource::Decompress
+		CompressionFormat = ETextureSourceCompressionFormat::TSCF_None;
+	}
+	Writer.AddInteger("CompressionFormat", CompressionFormat);
 	Writer.AddInteger("SourceFormat", Source.GetFormat(LayerIndex));
 	Writer.AddInteger("GammaSpace", static_cast<uint8>(GammaSpace));
 	Writer.AddInteger("NumSlices", Source.GetNumSlices());
@@ -200,14 +208,14 @@ static void WriteSource(FCbWriter& Writer, const UTexture& Texture, int32 LayerI
 	Writer.EndObject();
 }
 
-bool TryFindTextureBuildFunction(FStringBuilderBase& OutFunctionName, const FTextureBuildSettings& BuildSettings)
+bool TryFindTextureBuildFunction(FStringBuilderBase& OutFunctionName, const FName& TextureFormatName)
 {
 	FName TextureFormatModuleName;
 
 	if (ITextureFormatManagerModule* TFM = GetTextureFormatManager())
 	{
 		ITextureFormatModule* TextureFormatModule = nullptr;
-		if (!TFM->FindTextureFormatAndModule(BuildSettings.TextureFormatName, TextureFormatModuleName, TextureFormatModule))
+		if (!TFM->FindTextureFormatAndModule(TextureFormatName, TextureFormatModuleName, TextureFormatModule))
 		{
 			return false;
 		}

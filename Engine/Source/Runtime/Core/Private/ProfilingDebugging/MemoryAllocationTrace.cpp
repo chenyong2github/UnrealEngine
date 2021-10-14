@@ -2,8 +2,17 @@
 
 #include "ProfilingDebugging/MemoryAllocationTrace.h"
 #include "HAL/PlatformTime.h"
+#include "ProfilingDebugging/TraceMalloc.h"
 
 #if UE_MEMORY_TRACE_ENABLED
+
+////////////////////////////////////////////////////////////////////////////////
+namespace
+{
+	constexpr uint32 MarkerSamplePeriod	= (4 << 10) - 1;
+	constexpr uint32 SizeShift = 3;
+	constexpr uint32 HeapShift = 60;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 namespace UE {
@@ -117,6 +126,8 @@ void FAllocationTrace::Initialize() const
 	check(SystemRootHeap == EMemoryTraceRootHeap::SystemMemory);
 	const HeapId VideoRootHeap = RootHeapSpec(TEXT("Video memory"));
 	check(VideoRootHeap == EMemoryTraceRootHeap::VideoMemory);
+	const HeapId TraceRootHeap = RootHeapSpec(TEXT("Trace"));
+	check(TraceRootHeap == EMemoryTraceRootHeap::Trace);
 
 	static_assert((1 << SizeShift) - 1 <= MIN_ALIGNMENT, "Not enough bits to pack size fields");
 }
@@ -312,3 +323,93 @@ void FAllocationTrace::UnmarkAllocAsHeap(void* Address, HeapId Heap)
 	Update();
 }
 #endif // UE_MEMORY_TRACE_ENABLED
+
+/////////////////////////////////////////////////////////////////////////////
+
+thread_local bool GDoNotTrace;
+
+/////////////////////////////////////////////////////////////////////////////
+FTraceMalloc::FTraceMalloc(FMalloc* InMalloc)
+{
+	WrappedMalloc = InMalloc;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+FTraceMalloc::~FTraceMalloc()
+{
+}
+
+/////////////////////////////////////////////////////////////////////////////
+void* FTraceMalloc::Malloc(SIZE_T Count, uint32 Alignment)
+{
+	void* NewPtr;
+	{
+		TGuardValue<bool> _(GDoNotTrace, true);
+		NewPtr = WrappedMalloc->Malloc(Count, Alignment);
+	}
+	
+#if UE_MEMORY_TRACE_ENABLED
+	const uint64 Size = Count;
+	const uint32 AlignmentPow2 = uint32(FPlatformMath::CountTrailingZeros(Alignment));
+	const uint32 Alignment_SizeLower = (AlignmentPow2 << SizeShift) | uint32(Size & ((1 << SizeShift) - 1));
+	
+	UE_TRACE_LOG(Memory, Alloc, MemAllocChannel)
+		<< Alloc.CallstackId(0)
+		<< Alloc.Address(uint64(NewPtr))
+		<< Alloc.RootHeap(uint8(EMemoryTraceRootHeap::Trace))
+		<< Alloc.Size(uint32(Size >> SizeShift))
+		<< Alloc.AlignmentPow2_SizeLower(uint8(Alignment_SizeLower));
+#endif //UE_MEMORY_TRACE_ENABLED
+	
+	return NewPtr;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+void* FTraceMalloc::Realloc(void* Original, SIZE_T Count, uint32 Alignment)
+{
+	void* NewPtr;
+	{
+		TGuardValue<bool> _(GDoNotTrace, true);
+		NewPtr = WrappedMalloc->Realloc(Original, Count, Alignment);
+	}
+	
+#if UE_MEMORY_TRACE_ENABLED
+	const uint64 Size = Count;
+	const uint32 AlignmentPow2 = uint32(FPlatformMath::CountTrailingZeros(Alignment));
+	const uint32 Alignment_SizeLower = (AlignmentPow2 << SizeShift) | uint32(Size & ((1 << SizeShift) - 1));
+	const uint64 Original_RootHeap = uint64(Original) | (uint64(EMemoryTraceRootHeap::Trace) << HeapShift);
+	
+	UE_TRACE_LOG(Memory, ReallocFree, MemAllocChannel)
+		<< ReallocFree.Address_RootHeap(Original_RootHeap);
+	
+	UE_TRACE_LOG(Memory, ReallocAlloc, MemAllocChannel)
+		<< ReallocAlloc.CallstackId(0)
+		<< ReallocAlloc.Address(uint64(NewPtr))
+		<< ReallocAlloc.RootHeap(uint8(EMemoryTraceRootHeap::Trace))
+		<< ReallocAlloc.Size(uint32(Size >> SizeShift))
+		<< ReallocAlloc.AlignmentPow2_SizeLower(uint8(Alignment_SizeLower));
+#endif //UE_MEMORY_TRACE_ENABLED
+	
+	return NewPtr;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+void FTraceMalloc::Free(void* Original)
+{
+	{
+		TGuardValue<bool> _(GDoNotTrace, true);
+		WrappedMalloc->Free(Original);
+	}
+	
+#if UE_MEMORY_TRACE_ENABLED
+	UE_TRACE_LOG(Memory, Free, MemAllocChannel)
+		<< Free.Address(uint64(Original))
+		<< Free.RootHeap(uint8(EMemoryTraceRootHeap::Trace));
+#endif //UE_MEMORY_TRACE_ENABLED
+}
+
+/////////////////////////////////////////////////////////////////////////////
+bool FTraceMalloc::ShouldTrace()
+{
+	return !GDoNotTrace;
+}

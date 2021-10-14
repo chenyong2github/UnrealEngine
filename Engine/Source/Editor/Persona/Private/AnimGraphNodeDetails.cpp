@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraphNodeDetails.h"
+#include "AnimationGraphSchema.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UnrealType.h"
 #include "Widgets/Text/STextBlock.h"
@@ -1215,7 +1216,6 @@ void FAnimGraphNodeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetR
 	TArray<UAnimGraphNode_Base*> AnimGraphNodes;
 	Algo::Transform(OuterObjects, AnimGraphNodes, [](UObject* InObject){ return Cast<UAnimGraphNode_Base>(InObject); });
 
-
 	FProperty* AnimNodeProperty = InPropertyHandle->GetProperty();
 	TSharedPtr<IPropertyHandle> ParentHandle = InPropertyHandle->GetParentHandle();
 	FProperty* ParentProperty = ParentHandle.IsValid() ? ParentHandle->GetProperty() : nullptr;
@@ -1237,13 +1237,14 @@ void FAnimGraphNodeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetR
 	TSharedRef<IPropertyHandle> ShowPinPropertyHandle = InDetailBuilder.GetProperty(OptionalPinArrayEntryName, UAnimGraphNode_Base::StaticClass());
 	ShowPinPropertyHandle->MarkHiddenByCustomization();
 
-	UAnimGraphNode_Base::FAnimPropertyBindingWidgetArgs Args(AnimGraphNodes, AnimNodeProperty, PropertyName, OptionalPinIndex);
-	Args.bOnGraphNode = false;
-	
-	InWidgetRow.ExtensionContent()
-	[
-		UAnimGraphNode_Base::MakePropertyBindingWidget(Args)
-	];
+	TSharedPtr<SWidget> BindingWidget = UAnimationGraphSchema::MakeBindingWidgetForPin(AnimGraphNodes, PropertyName, false, true);
+	if(BindingWidget.IsValid())
+	{
+		InWidgetRow.ExtensionContent()
+		[
+			BindingWidget.ToSharedRef()
+		];
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -22,7 +22,7 @@
 #define LOCTEXT_NAMESPACE "MoviePipelinePIEExecutor"
 
 
-const TArray<FString> UMoviePipelinePIEExecutor::FValidationMessageGatherer::Whitelist = { "LogMovieRenderPipeline", "LogMovieRenderPipelineIO", "LogMoviePipelineExecutor", "LogImageWriteQueue", "LogAppleProResMedia", "LogAvidDNxMedia"};
+const TArray<FString> UMoviePipelinePIEExecutor::FValidationMessageGatherer::AllowList = { "LogMovieRenderPipeline", "LogMovieRenderPipelineIO", "LogMoviePipelineExecutor", "LogImageWriteQueue", "LogAppleProResMedia", "LogAvidDNxMedia"};
 
 UMoviePipelinePIEExecutor::FValidationMessageGatherer::FValidationMessageGatherer()
 	: FOutputDevice()
@@ -41,9 +41,9 @@ UMoviePipelinePIEExecutor::FValidationMessageGatherer::FValidationMessageGathere
 
 void UMoviePipelinePIEExecutor::FValidationMessageGatherer::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category)
 {
-	for (const FString& WhiteCategory : Whitelist)
+	for (const FString& AllowedCategory : AllowList)
 	{
-		if (Category.ToString().Equals(WhiteCategory))
+		if (Category.ToString().Equals(AllowedCategory))
 		{
 			if (Verbosity == ELogVerbosity::Warning)
 			{

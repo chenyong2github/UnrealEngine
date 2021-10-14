@@ -110,6 +110,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Collision)
 	virtual TArray<UPrimitiveComponent*> GetCollisionComponents() const { return TArray<UPrimitiveComponent*>(); }
 
+	/** Retrieves the list of primitive components that this water body uses when not being rendered by the water mesh (e.g. the static mesh component used when WaterMeshOverride is specified) */
+	UFUNCTION(BlueprintCallable, Category = Rendering)
+	virtual TArray<UPrimitiveComponent*> GetStandardRenderableComponents() const { return TArray<UPrimitiveComponent*>(); }
+
 	/** Returns the body's collision component bounds */
 	virtual FBox GetCollisionComponentBounds() const;
 
@@ -258,16 +262,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Wave)
 	float GetMaxWaveHeight() const;
 
-	/** Sets the dynamic parameters needed by the material instance for rendering */
-	virtual void SetDynamicParametersOnMID(UMaterialInstanceDynamic* InMID);
+	/** Sets the dynamic parameters needed by the material instance for rendering. Returns true if the operation was successfull */
+	virtual bool SetDynamicParametersOnMID(UMaterialInstanceDynamic* InMID);
 
-	/** Sets the dynamic parameters needed by the underwater post process material instance for rendering */
-	virtual void SetDynamicParametersOnUnderwaterPostProcessMID(UMaterialInstanceDynamic* InMID);
+	/** Sets the dynamic parameters needed by the underwater post process material instance for rendering. Returns true if the operation was successfull */
+	virtual bool SetDynamicParametersOnUnderwaterPostProcessMID(UMaterialInstanceDynamic* InMID);
 
 	/** Returns true if the location is within one of this water body's exclusion volumes */
 	bool IsWorldLocationInExclusionVolume(const FVector& InWorldLocation) const;
 
-	virtual void UpdateComponentVisibility();
+	/** Updates the bVisible/bHiddenInGame flags on the component and eventually the child renderable components (e.g. custom water body)
+	 - bAllowWaterMeshRebuild : if true, the function will request a rebuild of the water mesh (expensive), which is necessary to take into account visibility changes
+	*/
+	virtual void UpdateComponentVisibility(bool bAllowWaterMeshRebuild);
 
 	/** Creates/Destroys/Updates necessary MIDS */
 	virtual void UpdateMaterialInstances();
@@ -280,12 +287,25 @@ public:
 
 	virtual ALandscapeProxy* FindLandscape() const;
 
+	/** Returns what can be considered the single water depth of the water surface.
+	Only really make sense for EWaterBodyType::Transition water bodies for which we don't really have a way to evaluate depth. */
+	virtual float GetConstantDepth() const;
+
+	/** Returns what can be considered the single water velocity of the water surface.
+	Only really make sense for EWaterBodyType::Transition water bodies for which we don't really have a way to evaluate velocity. */
+	virtual FVector GetConstantVelocity() const;
+
 	/** Returns what can be considered the single base Z of the water surface.
 	Doesn't really make sense for non-flat water bodies like EWaterBodyType::Transition or EWaterBodyType::River but can still be useful when using FixedZ for post-process, for example. */
 	virtual float GetConstantSurfaceZ() const;
 
 	virtual void Reset() {}
+
 protected:
+	//~ Begin USceneComponent Interface.
+	virtual void OnVisibilityChanged();
+	virtual void OnHiddenInGameChanged();
+	//~ End USceneComponent Interface.
 
 	/** Returns whether the body has a flat surface or not */
 	virtual bool IsFlatSurface() const;
@@ -306,10 +326,6 @@ protected:
 	virtual void UpdateWaterBody(bool bWithExclusionVolumes);
 
 	virtual void OnUpdateBody(bool bWithExclusionVolumes) {}
-
-	/** Returns what can be considered the single water depth of the water surface.
-	Only really make sense for EWaterBodyType::Transition water bodies for which we don't really have a way to evaluate depth. */
-	virtual float GetConstantDepth() const;
 
 	/** Returns navigation area class */
 	TSubclassOf<UNavAreaBase> GetNavAreaClass() const { return WaterNavAreaClass; }
@@ -376,7 +392,8 @@ public:
 	static const FName WaterVelocityAndHeightName;
 	static const FName GlobalOceanHeightName;
 	static const FName FixedZHeightName;
-	static const FName OverriddenWaterDepthName;
+	static const FName FixedVelocityName;
+	static const FName FixedWaterDepthName;
 
 	UPROPERTY(EditDefaultsOnly, Category = Collision, meta = (EditCondition = "bGenerateCollisions"))
 	UPhysicalMaterial* PhysicalMaterial;

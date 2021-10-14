@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+class IAssetRegistry;
+
 namespace UE { namespace Cook
 {
 
@@ -15,6 +17,6 @@ struct FIoStoreCookOnTheFlyServerOptions
 	int32 Port = -1; // -1 indicates the default COTF serving port
 };
 
-TUniquePtr<ICookOnTheFlyRequestManager> MakeIoStoreCookOnTheFlyRequestManager(ICookOnTheFlyServer& CookOnTheFlyServer, FIoStoreCookOnTheFlyServerOptions Options);
+TUniquePtr<ICookOnTheFlyRequestManager> MakeIoStoreCookOnTheFlyRequestManager(ICookOnTheFlyServer& CookOnTheFlyServer, const IAssetRegistry* AssetRegistry, FIoStoreCookOnTheFlyServerOptions Options);
 
 }} // namespace UE::Cook

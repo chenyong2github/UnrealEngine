@@ -875,17 +875,37 @@ public:
 
 	FName Type = NAME_Unset;
 	
-	template<typename... TArgs>
-	static FUniqueNetIdStringRef Create(TArgs&&... Args)
+	UE_DEPRECATED(5.0, "This FUniqueNetIdString Create method is deprecated. Please use Create(const FString& InUniqueNetId, const FName InType)")
+	static FUniqueNetIdStringRef Create(const FString& InUniqueNetId)
 	{
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return MakeShareable(new FUniqueNetIdString(Forward<TArgs>(Args)...));
+		return MakeShareable(new FUniqueNetIdString(InUniqueNetId, NAME_Unset));
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	UE_DEPRECATED(5.0, "This FUniqueNetIdString Create method is deprecated. Please use Create(FString&& InUniqueNetId, const FName InType)")
+	static FUniqueNetIdStringRef Create(FString&& InUniqueNetId)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return MakeShareable(new FUniqueNetIdString(MoveTemp(InUniqueNetId), NAME_Unset));
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	static FUniqueNetIdStringRef Create(const FString& InUniqueNetId, const FName InType)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return MakeShareable(new FUniqueNetIdString(InUniqueNetId, InType));
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	static FUniqueNetIdStringRef Create(FString&& InUniqueNetId, const FName InType)
+	{
+		return MakeShareable(new FUniqueNetIdString(MoveTemp(InUniqueNetId), InType));
 	}
 
 	static FUniqueNetIdStringRef& EmptyId()
 	{
-		static FUniqueNetIdStringRef EmptyId(Create());
+		static FUniqueNetIdStringRef EmptyId(Create(FString(), NAME_Unset));
 		return EmptyId;
 	}
 
@@ -937,7 +957,7 @@ public:
 	}
 
 public:
-	UE_DEPRECATED(5.0, "Public constructors of FUniqueNetId types are deprecated. Please use the ::Create(Args) method instead to create a FUniqueNetIdRef")
+	UE_DEPRECATED(5.0, "Public constructors of FUniqueNetId types are deprecated. Please use the corresponding Create method instead to create a FUniqueNetIdRef")
 	FUniqueNetIdString() = default;
 
 	/**
@@ -945,7 +965,7 @@ public:
 	 *
 	 * @param InUniqueNetId the id to set ours to
 	 */
-	UE_DEPRECATED(5.0, "Public constructors of FUniqueNetId types are deprecated. Please use the ::Create(Args) method instead to create a FUniqueNetIdRef")
+	UE_DEPRECATED(5.0, "Public constructors of FUniqueNetId types are deprecated. Please use the corresponding Create method instead to create a FUniqueNetIdRef")
 	explicit FUniqueNetIdString(const FString& InUniqueNetId)
 		: UniqueNetIdStr(InUniqueNetId)
 		, Type(NAME_Unset)
@@ -957,7 +977,7 @@ public:
 	 *
 	 * @param InUniqueNetId the id to set ours to
 	 */
-	UE_DEPRECATED(5.0, "Public constructors of FUniqueNetId types are deprecated. Please use the ::Create(Args) method instead to create a FUniqueNetIdRef")
+	UE_DEPRECATED(5.0, "Public constructors of FUniqueNetId types are deprecated. Please use the corresponding Create method instead to create a FUniqueNetIdRef")
 	explicit FUniqueNetIdString(FString&& InUniqueNetId)
 		: UniqueNetIdStr(MoveTemp(InUniqueNetId))
 		, Type(NAME_Unset)
@@ -969,7 +989,7 @@ public:
 	 *
 	 * @param Src the id to copy
 	 */
-	UE_DEPRECATED(5.0, "Public constructors of FUniqueNetId types are deprecated. Please use the ::Create(Args) method instead to create a FUniqueNetIdRef")
+	UE_DEPRECATED(5.0, "Public constructors of FUniqueNetId types are deprecated. Please use the corresponding Create method instead to create a FUniqueNetIdRef")
 	explicit FUniqueNetIdString(const FUniqueNetId& Src)
 		: UniqueNetIdStr(Src.ToString())
 		, Type(Src.GetType())
@@ -979,9 +999,16 @@ public:
 	/**
 	* don.eubanks - Including a constructor that allows for type passing to make transitioning easier, if we determine we want to abstract-ify this class, this constructor will be removed
 	*/
-	UE_DEPRECATED(5.0, "Public constructors of FUniqueNetId types are deprecated. Please use the ::Create(Args) method instead to create a FUniqueNetIdRef")
+	UE_DEPRECATED(5.0, "Public constructors of FUniqueNetId types are deprecated. Please use the corresponding Create method instead to create a FUniqueNetIdRef")
 	FUniqueNetIdString(const FString& InUniqueNetId, const FName InType)
 		: UniqueNetIdStr(InUniqueNetId)
+		, Type(InType)
+	{
+	}
+
+protected:
+	FUniqueNetIdString(FString&& InUniqueNetId, const FName InType)
+		: UniqueNetIdStr(MoveTemp(InUniqueNetId))
 		, Type(InType)
 	{
 	}

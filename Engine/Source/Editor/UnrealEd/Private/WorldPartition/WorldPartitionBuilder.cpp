@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Editor.h"
+#include "EditorWorldUtils.h"
 #include "Misc/ConfigCacheIni.h"
 #include "HAL/PlatformFileManager.h"
 #include "StaticMeshCompiler.h"
@@ -69,52 +70,16 @@ bool UWorldPartitionBuilder::RunBuilder(UWorldPartitionBuilder* Builder, UWorld*
 		return false;
 	}
 
-	bool bWorldWasRooted = World->IsRooted();
-	if (!bWorldWasRooted)
-	{
-		World->AddToRoot();
-	}
-
-	// Setup the world if needed
-	const bool bWorldWasInitialized = World->bIsWorldInitialized;
-	if (!bWorldWasInitialized)
-	{
-		World->WorldType = EWorldType::Editor;
-
-		UWorld::InitializationValues IVS;
-		IVS.RequiresHitProxies(false);
-		IVS.ShouldSimulatePhysics(false);
-		IVS.EnableTraceCollision(false);
-		IVS.CreateNavigation(false);
-		IVS.CreateAISystem(false);
-		IVS.AllowAudioPlayback(false);
-		IVS.CreatePhysicsScene(true);
-
-		World->InitWorld(UWorld::InitializationValues(IVS));
-		World->PersistentLevel->UpdateModelComponents();
-		World->UpdateWorldComponents(true /*bRerunConstructionScripts*/, false /*bCurrentLevelOnly*/);
-	}
-	else
-	{
-		check(World->WorldType == EWorldType::Editor);
-	}
-
-	// Cleanup
-	ON_SCOPE_EXIT
-	{
-		// Restore world to previous state
-		if (!bWorldWasInitialized)
-		{
-			World->ClearWorldComponents();
-			World->CleanupWorld();
-		}
-
-		// Unroot world if required
-		if (!bWorldWasRooted)
-		{
-			World->RemoveFromRoot();
-		}
-	};
+	// Setup the world
+	UWorld::InitializationValues IVS;
+	IVS.RequiresHitProxies(false);
+	IVS.ShouldSimulatePhysics(false);
+	IVS.EnableTraceCollision(false);
+	IVS.CreateNavigation(false);
+	IVS.CreateAISystem(false);
+	IVS.AllowAudioPlayback(false);
+	IVS.CreatePhysicsScene(true);
+	FScopedEditorWorld EditorWorld(World, IVS);
 
 	// Make sure the world is partitioned
 	bool bResult = true;

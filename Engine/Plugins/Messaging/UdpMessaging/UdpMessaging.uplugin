@@ -28,10 +28,10 @@
 			"Name" : "UdpMessaging",
 			"Type" : "RuntimeAndProgram",
 			"LoadingPhase" : "PreDefault",
-			"BlacklistPlatforms" :
+			"PlatformDenyList" :
 			[
 			],
-			"WhitelistPrograms": [
+			"ProgramAllowList": [
 				"UnrealFrontend",
 				"UnrealMultiUserServer",
 				"UnrealRecoverySvc",

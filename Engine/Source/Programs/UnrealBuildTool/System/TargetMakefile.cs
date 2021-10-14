@@ -10,6 +10,7 @@ using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using OpenTracing.Util;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -321,7 +322,7 @@ namespace UnrealBuildTool
 		public static TargetMakefile? Load(FileReference MakefilePath, FileReference? ProjectFile, UnrealTargetPlatform Platform, string[] Arguments, out string? ReasonNotLoaded)
 		{
 			FileInfo MakefileInfo;
-			using(Timeline.ScopeEvent("Checking dependent timestamps"))
+			using (GlobalTracer.Instance.BuildSpan("Checking dependent timestamps").StartActive())
 			{
 				// Check the directory timestamp on the project files directory.  If the user has generated project files more recently than the makefile, then we need to consider the file to be out of date
 				MakefileInfo = new FileInfo(MakefilePath.FullName);
@@ -380,7 +381,7 @@ namespace UnrealBuildTool
 			}
 
 			TargetMakefile Makefile;
-			using(Timeline.ScopeEvent("Loading makefile"))
+			using (GlobalTracer.Instance.BuildSpan("Loading makefile").StartActive())
 			{
 				try
 				{
@@ -404,7 +405,7 @@ namespace UnrealBuildTool
 				}
 			}
 
-			using(Timeline.ScopeEvent("Checking makefile validity"))
+			using (GlobalTracer.Instance.BuildSpan("Checking makefile validity").StartActive())
 			{
 				// Check if the arguments are different
 				if(!Enumerable.SequenceEqual(Makefile.AdditionalArguments, Arguments))
@@ -447,7 +448,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the makefile is valid, false otherwise</returns>
 		public static bool IsValidForSourceFiles(TargetMakefile Makefile, FileReference? ProjectFile, UnrealTargetPlatform Platform, ISourceFileWorkingSet WorkingSet, out string? ReasonNotLoaded)
 		{
-			using(Timeline.ScopeEvent("TargetMakefile.IsValidForSourceFiles()"))
+			using (GlobalTracer.Instance.BuildSpan("TargetMakefile.IsValidForSourceFiles()").StartActive())
 			{
 				// Get the list of excluded folder names for this platform
 				ReadOnlyHashSet<string> ExcludedFolderNames = UEBuildPlatform.GetBuildPlatform(Platform).GetExcludedFolderNames();

@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 #include "MetasoundBuilderInterface.h"
 #include "MetasoundDataFactory.h"
 #include "MetasoundExecutableOperator.h"
@@ -17,7 +16,7 @@
 
 namespace Metasound
 {
-	namespace VariableNodeVertexNames
+	namespace VariableNames
 	{
 		/** Input vertex name for data */
 		METASOUNDGRAPHCORE_API const FVertexName& GetInputDataName();
@@ -30,23 +29,66 @@ namespace Metasound
 		
 		/** Output vertex name for variables */
 		METASOUNDGRAPHCORE_API const FVertexName& GetOutputVariableName();
+
+		/** Class name for variable node. */
+		METASOUNDGRAPHCORE_API FNodeClassName GetVariableNodeClassName(const FName& InDataTypeName);
+
+		/** Class name for variable mutator node. */
+		METASOUNDGRAPHCORE_API FNodeClassName GetVariableMutatorNodeClassName(const FName& InDataTypeName);
+
+		/** Class name for variable accessor node */
+		METASOUNDGRAPHCORE_API FNodeClassName GetVariableAccessorNodeClassName(const FName& InDataTypeName);
+
+		/** Class name for variable deferred accessor node. */
+		METASOUNDGRAPHCORE_API FNodeClassName GetVariableDeferredAccessorNodeClassName(const FName& InDataTypeName);
+
+		/** Class name for variable node. */
+		template<typename DataType>
+		const FNodeClassName& GetVariableNodeClassName()
+		{
+			static const FNodeClassName ClassName = GetVariableNodeClassName(GetMetasoundDataTypeName<DataType>());
+			return ClassName;
+		}
+
+		/** Class name for variable mutator node. */
+		template<typename DataType>
+		const FNodeClassName& GetVariableMutatorNodeClassName()
+		{
+			static const FNodeClassName ClassName = GetVariableMutatorNodeClassName(GetMetasoundDataTypeName<DataType>());
+			return ClassName;
+		}
+
+		/** Class name for variable accessor node */
+		template<typename DataType>
+		const FNodeClassName& GetVariableAccessorNodeClassName()
+		{
+			static const FNodeClassName ClassName = GetVariableAccessorNodeClassName(GetMetasoundDataTypeName<DataType>());
+			return ClassName;
+		}
+
+		/** Class name for variable deferred accessor node. */
+		template<typename DataType>
+		const FNodeClassName& GetVariableDeferredAccessorNodeClassName()
+		{
+			static const FNodeClassName ClassName = GetVariableDeferredAccessorNodeClassName(GetMetasoundDataTypeName<DataType>());
+			return ClassName;
+		}
+
 	}
 
-	/** Init Variable nodes initialize variable values. The output of a InitVariableNode
-	 * is a TDelayedVariable. This provides access to a variable's value before it is set
-	 * by using the TGetDelayedVariableNode.
-	 */
+	/** Variable nodes initialize variable values. The output of a VariableNode
+	 * is a TVariable.  */
 	template<typename DataType>
-	class TInitVariableNode : public FNode
+	class TVariableNode : public FNode
 	{
-		using FDelayedVariable = TDelayedVariable<DataType>;
+		using FVariable = TVariable<DataType>;
 
 		class FOperator : public TExecutableOperator<FOperator>
 		{
 			using Super = TExecutableOperator<FOperator>;
 
 		public:
-			FOperator(TDataWriteReference<FDelayedVariable> InVariable)
+			FOperator(TDataWriteReference<FVariable> InVariable)
 			: Variable(InVariable)
 			{
 			}
@@ -62,7 +104,7 @@ namespace Metasound
 			virtual FDataReferenceCollection GetOutputs() const override
 			{
 				FDataReferenceCollection Collection;
-				Collection.AddDataWriteReference(VariableNodeVertexNames::GetOutputVariableName(), Variable);
+				Collection.AddDataWriteReference(VariableNames::GetOutputVariableName(), Variable);
 				return Collection;
 			}
 
@@ -73,7 +115,7 @@ namespace Metasound
 
 		private:
 
-			TDataWriteReference<FDelayedVariable> Variable;
+			TDataWriteReference<FVariable> Variable;
 		};
 
 		class FFactory : public IOperatorFactory
@@ -89,7 +131,7 @@ namespace Metasound
 			virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override
 			{
 				TDataWriteReference<DataType> Data = TDataWriteReferenceLiteralFactory<DataType>::CreateExplicitArgs(InParams.OperatorSettings, Literal);
-				return MakeUnique<FOperator>(TDataWriteReference<FDelayedVariable>::CreateNew(Data));
+				return MakeUnique<FOperator>(TDataWriteReference<FVariable>::CreateNew(Data));
 			}
 		private:
 			FLiteral Literal;
@@ -102,7 +144,7 @@ namespace Metasound
 				FInputVertexInterface(
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<FDelayedVariable>(VariableNodeVertexNames::GetOutputVariableName(), FText::GetEmpty())
+					TOutputDataVertexModel<FVariable>(VariableNames::GetOutputVariableName(), FText::GetEmpty())
 				)
 			);
 		}
@@ -111,7 +153,7 @@ namespace Metasound
 		{
 			FNodeClassMetadata Info;
 
-			Info.ClassName = { "InitVariable", GetMetasoundDataTypeName<DataType>(), FName() };
+			Info.ClassName = VariableNames::GetVariableNodeClassName<DataType>();
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
 			Info.Description = LOCTEXT("Metasound_InitVariableNodeDescription", "Initialize a variable of a MetaSound graph.");
@@ -125,7 +167,7 @@ namespace Metasound
 
 	public:
 
-		TInitVariableNode(const FVertexName& InNodeName, const FGuid& InInstanceID, FLiteral&& InLiteral)
+		TVariableNode(const FVertexName& InNodeName, const FGuid& InInstanceID, FLiteral&& InLiteral)
 		: FNode(InNodeName, InInstanceID, GetNodeMetadata())
 		, Interface(DeclareVertexInterface())
 		, Factory(MakeShared<FFactory>(MoveTemp(InLiteral)))
@@ -158,14 +200,11 @@ namespace Metasound
 		FOperatorFactorySharedRef Factory;
 	};
 
-	/** TSetVariableNode allows variable values to be set. It converts TDelayedVariables
-	 * into TVariables and assigns TDelayedVariable references.
-	 */
+	/** TVariableMutatorNode allows variable values to be set.  */
 	template<typename DataType>
-	class TSetVariableNode : public FNodeFacade
+	class TVariableMutatorNode : public FNodeFacade
 	{
 		using FVariable = TVariable<DataType>;
-		using FDelayedVariable = TDelayedVariable<DataType>;
 
 		class FOperator : public FNoOpOperator 
 		{
@@ -184,7 +223,7 @@ namespace Metasound
 			virtual FDataReferenceCollection GetOutputs() const override
 			{
 				FDataReferenceCollection Collection;
-				Collection.AddDataReadReference<FVariable>(VariableNodeVertexNames::GetOutputVariableName(), Variable);
+				Collection.AddDataReadReference<FVariable>(VariableNames::GetOutputVariableName(), Variable);
 				return Collection;
 			}
 
@@ -193,43 +232,43 @@ namespace Metasound
 		};
 
 	public:
-		TSetVariableNode(const FVertexName& InNodeName, const FGuid& InInstanceID)
+		TVariableMutatorNode(const FVertexName& InNodeName, const FGuid& InInstanceID)
 		: FNodeFacade(InNodeName, InInstanceID, TFacadeOperatorClass<FOperator>())
 		{
 		}
 
-		TSetVariableNode(const FNodeInitData& InInitData)
-		: TSetVariableNode(InInitData.InstanceName, InInitData.InstanceID)
+		TVariableMutatorNode(const FNodeInitData& InInitData)
+		: TVariableMutatorNode(InInitData.InstanceName, InInitData.InstanceID)
 		{}
 	};
 
 	template<typename DataType>
-	TUniquePtr<IOperator> TSetVariableNode<DataType>::FOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) 
+	TUniquePtr<IOperator> TVariableMutatorNode<DataType>::FOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) 
 	{
-		using namespace VariableNodeVertexNames;
+		using namespace VariableNames;
 
 		const FDataReferenceCollection& Inputs = InParams.InputDataReferences;
 
-		// Update delayed variable.
-		if (Inputs.ContainsDataWriteReference<FDelayedVariable>(GetInputVariableName()))
+		if (Inputs.ContainsDataWriteReference<FVariable>(GetInputVariableName()))
 		{
-			TDataWriteReference<FDelayedVariable> Delayed = Inputs.GetDataWriteReference<FDelayedVariable>(GetInputVariableName());
+			// If a variable is provided, set the reference to read.
+			TDataWriteReference<FVariable> Variable = Inputs.GetDataWriteReference<FVariable>(GetInputVariableName());
 			if (Inputs.ContainsDataReadReference<DataType>(GetInputDataName()))
 			{
-				// Update the delayed variable with the data reference to copy from.
+				// Update the input variable with the data reference to copy from.
 				TDataReadReference InputData = Inputs.GetDataReadReference<DataType>(GetInputDataName());
-				Delayed->SetDataReference(InputData);
+				Variable->SetDataReference(InputData);
 			}
 
-			// Create variable with matching reference to delayed variable.
-			TDataReadReference<FVariable> Variable = TDataReadReference<FVariable>::CreateNew(Delayed->GetDataReference());
 			return MakeUnique<FOperator>(Variable);
 		}
 		else if (Inputs.ContainsDataReadReference<DataType>(GetInputDataName()))
 		{
-			// Create Variable without DelayedVariable
-			TDataReadReference InputData = Inputs.GetDataReadReference<DataType>(GetInputDataName());
-			TDataReadReference<FVariable> Variable = TDataReadReference<FVariable>::CreateNew(InputData);
+			// If no input variable is provided create Variable with input variable
+			TDataReadReference<DataType> InputData = Inputs.GetDataReadReference<DataType>(GetInputDataName());
+			TDataWriteReference<DataType> InitData = TDataWriteReference<DataType>::CreateNew(*InputData);
+			TDataWriteReference<FVariable> Variable = TDataWriteReference<FVariable>::CreateNew(InitData);
+			Variable->SetDataReference(InputData);
 			return MakeUnique<FOperator>(Variable);
 		}
 		else 
@@ -240,31 +279,31 @@ namespace Metasound
 	}
 
 	template<typename DataType>
-	FVertexInterface TSetVariableNode<DataType>::FOperator::DeclareVertexInterface()
+	FVertexInterface TVariableMutatorNode<DataType>::FOperator::DeclareVertexInterface()
 	{
 		return FVertexInterface(
 			FInputVertexInterface(
-				TInputDataVertexModel<DataType>(VariableNodeVertexNames::GetInputDataName(), FText::GetEmpty()), 
-				TInputDataVertexModel<FDelayedVariable>(VariableNodeVertexNames::GetInputVariableName(), FText::GetEmpty())
+				TInputDataVertexModel<DataType>(VariableNames::GetInputDataName(), FText::GetEmpty()), 
+				TInputDataVertexModel<FVariable>(VariableNames::GetInputVariableName(), FText::GetEmpty())
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FVariable>(VariableNodeVertexNames::GetOutputVariableName(), FText::GetEmpty())
+				TOutputDataVertexModel<FVariable>(VariableNames::GetOutputVariableName(), FText::GetEmpty())
 			)
 		);
 	}
 
 	template<typename DataType>
-	const FNodeClassMetadata& TSetVariableNode<DataType>::FOperator::GetNodeInfo()
+	const FNodeClassMetadata& TVariableMutatorNode<DataType>::FOperator::GetNodeInfo()
 	{
 		auto CreateNodeClassMetadata = []()
 		{
 			FNodeClassMetadata Info;
 
-			Info.ClassName = {"SetVariable", GetMetasoundDataTypeName<DataType>(), ""};
+			Info.ClassName = VariableNames::GetVariableMutatorNodeClassName<DataType>();
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = FText::Format(LOCTEXT("Metasound_SetVariableNodeDisplayNameFormat", "Set {0}"), GetMetasoundDataTypeDisplayText<DataType>());
-			Info.Description = LOCTEXT("Metasound_SetVariableNodeDescription", "Set variable on MetaSound graph.");
+			Info.DisplayName = FText::Format(LOCTEXT("Metasound_VariableMutatorNodeDisplayNameFormat", "Set {0}"), GetMetasoundDataTypeDisplayText<DataType>());
+			Info.Description = LOCTEXT("Metasound_VariableMutatorNodeDescription", "Set variable on MetaSound graph.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();
@@ -277,14 +316,14 @@ namespace Metasound
 		return Metadata;
 	}
 
-	/** TGetDelayedVariableNode provides access to the prior executions variable value.
-	 * TGetDelayedVariableNodes must always be before TSetVariableNodes in the dependency
+	/** TVariableDeferredAccessorNode provides access to the prior executions variable value.
+	 * TVariableDeferredAccessorNodes must always be before TVariableMutatorNodes in the dependency
 	 * order.
 	 */
 	template<typename DataType>
-	class TGetDelayedVariableNode : public FNodeFacade
+	class TVariableDeferredAccessorNode : public FNodeFacade
 	{
-		using FDelayedVariable = TDelayedVariable<DataType>;
+		using FVariable = TVariable<DataType>;
 
 		class FOperator : public FNoOpOperator 
 		{
@@ -293,7 +332,7 @@ namespace Metasound
 			static FVertexInterface DeclareVertexInterface();
 			static const FNodeClassMetadata& GetNodeInfo();
 
-			FOperator(TDataWriteReference<FDelayedVariable> InDelayedVariable)
+			FOperator(TDataWriteReference<FVariable> InDelayedVariable)
 			: DelayedVariable(InDelayedVariable)
 			, DelayedData(DelayedVariable->GetDelayedDataReference())
 			{
@@ -304,38 +343,38 @@ namespace Metasound
 			virtual FDataReferenceCollection GetOutputs() const override
 			{
 				FDataReferenceCollection Collection;
-				Collection.AddDataWriteReference<FDelayedVariable>(VariableNodeVertexNames::GetOutputVariableName(), DelayedVariable);
-				Collection.AddDataReadReference<DataType>(VariableNodeVertexNames::GetOutputDataName(), DelayedVariable->GetDelayedDataReference());
+				Collection.AddDataWriteReference<FVariable>(VariableNames::GetOutputVariableName(), DelayedVariable);
+				Collection.AddDataReadReference<DataType>(VariableNames::GetOutputDataName(), DelayedVariable->GetDelayedDataReference());
 				return Collection;
 			}
 
 		private:
-			TDataWriteReference<FDelayedVariable> DelayedVariable;
+			TDataWriteReference<FVariable> DelayedVariable;
 			TDataReadReference<DataType> DelayedData;
 		};
 
 	public:
 
-		TGetDelayedVariableNode(const FVertexName& InNodeName, const FGuid& InInstanceID)
+		TVariableDeferredAccessorNode(const FVertexName& InNodeName, const FGuid& InInstanceID)
 		: FNodeFacade(InNodeName, InInstanceID, TFacadeOperatorClass<FOperator>())
 		{
 		}
 
-		TGetDelayedVariableNode(const FNodeInitData& InInitData)
-		: TGetDelayedVariableNode(InInitData.InstanceName, InInitData.InstanceID)
+		TVariableDeferredAccessorNode(const FNodeInitData& InInitData)
+		: TVariableDeferredAccessorNode(InInitData.InstanceName, InInitData.InstanceID)
 		{}
 	};
 
 	template<typename DataType>
-	TUniquePtr<IOperator> TGetDelayedVariableNode<DataType>::FOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) 
+	TUniquePtr<IOperator> TVariableDeferredAccessorNode<DataType>::FOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) 
 	{
-		using namespace VariableNodeVertexNames;
+		using namespace VariableNames;
 
 		const FDataReferenceCollection& Inputs = InParams.InputDataReferences;
 
-		if (ensure(Inputs.ContainsDataWriteReference<FDelayedVariable>(GetInputVariableName())))
+		if (ensure(Inputs.ContainsDataWriteReference<FVariable>(GetInputVariableName())))
 		{
-			TDataWriteReference<FDelayedVariable> DelayedVariable = Inputs.GetDataWriteReference<FDelayedVariable>(GetInputVariableName());
+			TDataWriteReference<FVariable> DelayedVariable = Inputs.GetDataWriteReference<FVariable>(GetInputVariableName());
 
 			return MakeUnique<FOperator>(DelayedVariable);
 		}
@@ -348,31 +387,31 @@ namespace Metasound
 	}
 
 	template<typename DataType>
-	FVertexInterface TGetDelayedVariableNode<DataType>::FOperator::DeclareVertexInterface()
+	FVertexInterface TVariableDeferredAccessorNode<DataType>::FOperator::DeclareVertexInterface()
 	{
 		return FVertexInterface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FDelayedVariable>(VariableNodeVertexNames::GetInputVariableName(), FText::GetEmpty())
+				TInputDataVertexModel<FVariable>(VariableNames::GetInputVariableName(), FText::GetEmpty())
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FDelayedVariable>(VariableNodeVertexNames::GetOutputVariableName(), FText::GetEmpty()),
-				TOutputDataVertexModel<DataType>(VariableNodeVertexNames::GetOutputDataName(), FText::GetEmpty())
+				TOutputDataVertexModel<FVariable>(VariableNames::GetOutputVariableName(), FText::GetEmpty()),
+				TOutputDataVertexModel<DataType>(VariableNames::GetOutputDataName(), FText::GetEmpty())
 			)
 		);
 	}
 
 	template<typename DataType>
-	const FNodeClassMetadata& TGetDelayedVariableNode<DataType>::FOperator::GetNodeInfo()
+	const FNodeClassMetadata& TVariableDeferredAccessorNode<DataType>::FOperator::GetNodeInfo()
 	{
 		auto CreateNodeClassMetadata = []()
 		{
 			FNodeClassMetadata Info;
 
-			Info.ClassName = {"GetDelayedVariable", GetMetasoundDataTypeName<DataType>(), ""};
+			Info.ClassName = VariableNames::GetVariableDeferredAccessorNodeClassName<DataType>();
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = FText::Format(LOCTEXT("Metasound_GetDelayedVariableNodeDisplayNameFormat", "Get Delayed {0}"), GetMetasoundDataTypeDisplayText<DataType>());
-			Info.Description = LOCTEXT("Metasound_GetDelayedVariableNodeDescription", "Get a delayed variable on MetaSound graph.");
+			Info.DisplayName = FText::Format(LOCTEXT("Metasound_VariableDeferredAccessorNodeDisplayNameFormat", "Get Delayed {0}"), GetMetasoundDataTypeDisplayText<DataType>());
+			Info.Description = LOCTEXT("Metasound_VariableDeferredAccessorNodeDescription", "Get a delayed variable on MetaSound graph.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();
@@ -387,7 +426,7 @@ namespace Metasound
 
 	/** FGetVariable node provides delay free, cpu free access to a set variable. */
 	template<typename DataType>
-	class TGetVariableNode : public FNodeFacade
+	class TVariableAccessorNode : public FNodeFacade
 	{
 		using FVariable = TVariable<DataType>;
 
@@ -398,8 +437,8 @@ namespace Metasound
 			static FVertexInterface DeclareVertexInterface();
 			static const FNodeClassMetadata& GetNodeInfo();
 
-			FOperator(TDataReadReference<DataType> InData)
-			: Data(InData)
+			FOperator(TDataReadReference<FVariable> InVariable)
+			: Variable(InVariable)
 			{
 			}
 
@@ -408,29 +447,30 @@ namespace Metasound
 			virtual FDataReferenceCollection GetOutputs() const override
 			{
 				FDataReferenceCollection Collection;
-				Collection.AddDataReadReference<DataType>(VariableNodeVertexNames::GetOutputDataName(), Data);
+				Collection.AddDataReadReference<DataType>(VariableNames::GetOutputDataName(), Variable->GetDataReference());
+				Collection.AddDataReadReference<FVariable>(VariableNames::GetOutputVariableName(), Variable);
 				return Collection;
 			}
 
 		private:
-			TDataReadReference<DataType> Data;
+			TDataReadReference<FVariable> Variable;
 		};
 	public:
 
-		TGetVariableNode(const FVertexName& InNodeName, const FGuid& InInstanceID)
+		TVariableAccessorNode(const FVertexName& InNodeName, const FGuid& InInstanceID)
 		: FNodeFacade(InNodeName, InInstanceID, TFacadeOperatorClass<FOperator>())
 		{
 		}
 
-		TGetVariableNode(const FNodeInitData& InInitData)
-		: TGetVariableNode(InInitData.InstanceName, InInitData.InstanceID)
+		TVariableAccessorNode(const FNodeInitData& InInitData)
+		: TVariableAccessorNode(InInitData.InstanceName, InInitData.InstanceID)
 		{}
 	};
 
 	template<typename DataType>
-	TUniquePtr<IOperator> TGetVariableNode<DataType>::FOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) 
+	TUniquePtr<IOperator> TVariableAccessorNode<DataType>::FOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) 
 	{
-		using namespace VariableNodeVertexNames;
+		using namespace VariableNames;
 
 		const FDataReferenceCollection& Inputs = InParams.InputDataReferences;
 
@@ -438,7 +478,12 @@ namespace Metasound
 		if (Inputs.ContainsDataReadReference<FVariable>(GetInputVariableName()))
 		{
 			TDataReadReference<FVariable> Variable = Inputs.GetDataReadReference<FVariable>(GetInputVariableName());
-			return MakeUnique<FOperator>(Variable->GetDataReference());
+			return MakeUnique<FOperator>(Variable);
+		}
+		else if (Inputs.ContainsDataWriteReference<FVariable>(GetInputVariableName()))
+		{
+			TDataReadReference<FVariable> Variable = Inputs.GetDataWriteReference<FVariable>(GetInputVariableName());
+			return MakeUnique<FOperator>(Variable);
 		}
 		else 
 		{
@@ -449,30 +494,31 @@ namespace Metasound
 	}
 
 	template<typename DataType>
-	FVertexInterface TGetVariableNode<DataType>::FOperator::DeclareVertexInterface()
+	FVertexInterface TVariableAccessorNode<DataType>::FOperator::DeclareVertexInterface()
 	{
 		return FVertexInterface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FVariable>(VariableNodeVertexNames::GetInputVariableName(), FText::GetEmpty())
+				TInputDataVertexModel<FVariable>(VariableNames::GetInputVariableName(), FText::GetEmpty())
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<DataType>(VariableNodeVertexNames::GetOutputDataName(), FText::GetEmpty())
+				TOutputDataVertexModel<DataType>(VariableNames::GetOutputDataName(), FText::GetEmpty()),
+				TOutputDataVertexModel<FVariable>(VariableNames::GetOutputVariableName(), FText::GetEmpty())
 			)
 		);
 	}
 
 	template<typename DataType>
-	const FNodeClassMetadata& TGetVariableNode<DataType>::FOperator::GetNodeInfo()
+	const FNodeClassMetadata& TVariableAccessorNode<DataType>::FOperator::GetNodeInfo()
 	{
 		auto CreateNodeClassMetadata = []()
 		{
 			FNodeClassMetadata Info;
 
-			Info.ClassName = {"GetVariable", GetMetasoundDataTypeName<DataType>(), ""};
+			Info.ClassName = VariableNames::GetVariableAccessorNodeClassName<DataType>();
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = FText::Format(LOCTEXT("Metasound_GetVariableNodeDisplayNameFormat", "Get {0}"), GetMetasoundDataTypeDisplayText<DataType>());
-			Info.Description = LOCTEXT("Metasound_GetVariableNodeDescription", "Get variable on MetaSound graph.");
+			Info.DisplayName = FText::Format(LOCTEXT("Metasound_VariableAccessorNodeDisplayNameFormat", "Get {0}"), GetMetasoundDataTypeDisplayText<DataType>());
+			Info.Description = LOCTEXT("Metasound_VariableAccessorNodeDescription", "Get variable on MetaSound graph.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();

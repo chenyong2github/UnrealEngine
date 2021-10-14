@@ -371,7 +371,8 @@ bool FMeshPlaneCut::Cut()
 	{
 		if (VID < Signs.Num() && Signs[VID] > PlaneTolerance)
 		{
-			Mesh->RemoveVertex(VID, true, false);
+			constexpr bool bPreserveManifold = false;
+			Mesh->RemoveVertex(VID, bPreserveManifold);
 		}
 	}
 

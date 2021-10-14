@@ -64,12 +64,15 @@ namespace UnrealBuildTool
 
 		public override bool TryConvertVersionToInt(string StringValue, out UInt64 OutValue)
 		{
-			// Example: v11_clang-5.0.0-centos7
-			string FullVersionPattern = @"^v([0-9]+)_.*$";
-			Match Result = Regex.Match(StringValue, FullVersionPattern);
-			if (Result.Success)
+			if (StringValue != null)
 			{
-				return UInt64.TryParse(Result.Groups[1].Value, out OutValue);
+				// Example: v11_clang-5.0.0-centos7
+				string FullVersionPattern = @"^v([0-9]+)_.*$";
+				Match Result = Regex.Match(StringValue, FullVersionPattern);
+				if (Result.Success)
+				{
+					return UInt64.TryParse(Result.Groups[1].Value, out OutValue);
+				}
 			}
 
 			OutValue = 0;

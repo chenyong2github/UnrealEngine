@@ -430,13 +430,10 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::CreateParentItem(const FSceneOutliner
 		{
 			if (AActor* ParentActor = Actor->GetSceneOutlinerParent())
 			{
-				return Mode->CreateItemFor<FActorTreeItem>(ParentActor, true);
-			}
-
-			// if this item belongs in a folder
-			if (Mode->ShouldShowFolders() && !ActorTreeItem->Actor->GetFolderPath().IsNone())
-			{
-				return Mode->CreateItemFor<FActorFolderTreeItem>(FActorFolderTreeItem(ActorTreeItem->Actor->GetFolderPath(), ActorTreeItem->Actor->GetWorld()), true);
+				if (ParentActor->IsListedInSceneOutliner())
+				{
+					return Mode->CreateItemFor<FActorTreeItem>(ParentActor, true);
+				}
 			}
 
 			// If item belongs to a LevelInstance
@@ -451,6 +448,12 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::CreateParentItem(const FSceneOutliner
 						return Mode->CreateItemFor<FActorTreeItem>(ParentLevelInstance, true);
 					}
 				}
+			}
+
+			// if this item belongs in a folder
+			if (Mode->ShouldShowFolders() && !ActorTreeItem->Actor->GetFolderPath().IsNone())
+			{
+				return Mode->CreateItemFor<FActorFolderTreeItem>(FActorFolderTreeItem(ActorTreeItem->Actor->GetFolderPath(), ActorTreeItem->Actor->GetWorld()), true);
 			}
 
 			// Default to the world

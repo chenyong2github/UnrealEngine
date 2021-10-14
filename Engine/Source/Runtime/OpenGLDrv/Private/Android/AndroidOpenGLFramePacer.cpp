@@ -16,6 +16,50 @@
 #include "swappy/swappyGL.h"
 #include "swappy/swappyGL_extra.h"
 #include "swappy/swappy_common.h"
+#include "HAL/Thread.h"
+#include "Misc/ScopeRWLock.h"
+
+struct FSwappyThreadManager : public SwappyThreadFunctions
+{
+	static FRWLock SwappyThreadManagerMutex;
+	static TMap<uint64, TUniquePtr<FThread>> Threads;
+	FSwappyThreadManager()
+	{
+		start = [](SwappyThreadId* thread_id, void* (*thread_func)(void*),
+			void* user_data)
+		{
+			FRWScopeLock Lock(SwappyThreadManagerMutex, SLT_Write);
+			static int ThreadCount = 0;
+			TUniquePtr<FThread> NewThread = MakeUnique<FThread>(*FString::Printf(TEXT("SwappyThread%d"), ThreadCount++), [thread_func, user_data]() {thread_func(user_data); });
+			if (NewThread->GetThreadId())
+			{
+				*thread_id = NewThread->GetThreadId();
+				Threads.Add(*thread_id, MoveTemp(NewThread));
+				return 0;
+			}			
+			return -1;
+		};
+
+		join = [](SwappyThreadId thread_id)
+		{
+			FRWScopeLock Lock(SwappyThreadManagerMutex, SLT_Write);
+			TUniquePtr<FThread> ThreadPtr;
+			if(ensure(Threads.RemoveAndCopyValue(thread_id, ThreadPtr)))
+			{
+				ThreadPtr->Join();
+			}
+		};
+
+		joinable = [](SwappyThreadId thread_id)
+		{
+			FRWScopeLock Lock(SwappyThreadManagerMutex, SLT_ReadOnly);
+			return Threads[thread_id]->IsJoinable();
+		};
+	}	
+}SwappyThreads;
+TMap<uint64, TUniquePtr<FThread>> FSwappyThreadManager::Threads;
+FRWLock FSwappyThreadManager::SwappyThreadManagerMutex;
+
 #endif
 
 #include "AndroidEGL.h"
@@ -49,6 +93,10 @@ void FAndroidOpenGLFramePacer::InitSwappy()
 {
 	if (!bSwappyInit)
 	{
+		if( !FParse::Param(FCommandLine::Get(), TEXT("UseSwappyThreads")) )
+		{
+			Swappy_setThreadFunctions(&SwappyThreads);
+		}
 		// initialize Swappy
 		JNIEnv* Env = FAndroidApplication::GetJavaEnv();
 		if (ensure(Env))

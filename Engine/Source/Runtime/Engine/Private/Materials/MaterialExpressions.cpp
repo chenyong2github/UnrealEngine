@@ -249,6 +249,7 @@
 #include "Materials/MaterialExpressionSkyAtmosphereLightIlluminance.h"
 #include "Materials/MaterialExpressionSkyAtmosphereLightDirection.h"
 #include "Materials/MaterialExpressionSkyAtmosphereViewLuminance.h"
+#include "Materials/MaterialExpressionSkyLightEnvMapSample.h"
 #include "Materials/MaterialExpressionMaterialLayerOutput.h"
 #include "Materials/MaterialExpressionCurveAtlasRowParameter.h"
 #include "Materials/MaterialExpressionMapARPassthroughCameraUV.h"
@@ -22009,5 +22010,42 @@ void UMaterialExpressionSetLocal::GetCaption(TArray<FString>& OutCaptions) const
 	OutCaptions.Add(FString::Printf(TEXT("Set %s"), *LocalName.ToString()));
 }
 #endif
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionSkyLightEnvMapSample
+///////////////////////////////////////////////////////////////////////////////
+UMaterialExpressionSkyLightEnvMapSample::UMaterialExpressionSkyLightEnvMapSample(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Sky;
+		FConstructorStatics()
+			: NAME_Sky(LOCTEXT("Sky", "Sky"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Sky);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionSkyLightEnvMapSample::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	int32 DirectionCodeChunk = Direction.GetTracedInput().Expression ? Direction.Compile(Compiler) : Compiler->Constant3(0.0f, 0.0f, 1.0f);
+	int32 RoughnessCodeChunk = Roughness.GetTracedInput().Expression ? Roughness.Compile(Compiler) : Compiler->Constant(0.0f);
+
+	return Compiler->SkyLightEnvMapSample(DirectionCodeChunk, RoughnessCodeChunk);
+}
+
+void UMaterialExpressionSkyLightEnvMapSample::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Sky Light Env Map Sample"));
+}
+#endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE

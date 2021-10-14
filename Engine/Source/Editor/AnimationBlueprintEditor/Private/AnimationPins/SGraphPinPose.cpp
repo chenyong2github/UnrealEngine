@@ -137,122 +137,124 @@ void SGraphPinPose::ReconfigureWidgetForAttributes()
 {
 	AttributeInfos.Empty();
 
-	UAnimGraphNode_Base* AnimGraphNode = CastChecked<UAnimGraphNode_Base>(GraphPinObj->GetOwningNode());
-	if(UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(FBlueprintEditorUtils::FindBlueprintForNode(AnimGraphNode)))
+	if(UAnimGraphNode_Base* AnimGraphNode = Cast<UAnimGraphNode_Base>(GraphPinObj->GetOwningNode()))
 	{
-
-		auto AddAttributes = [this, AnimBlueprint, AnimGraphNode](TArrayView<const FName> InUsedAttributes, TArrayView<const FName> InUnusedAttributes, TArrayView<const FName> InPassThroughAttributes)
+		if(UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(FBlueprintEditorUtils::FindBlueprintForNode(AnimGraphNode)))
 		{
-			auto AddAttribute = [this, AnimBlueprint, AnimGraphNode](FName InAttribute, EAttributeUsage InUsage)
+
+			auto AddAttributes = [this, AnimBlueprint, AnimGraphNode](TArrayView<const FName> InUsedAttributes, TArrayView<const FName> InUnusedAttributes, TArrayView<const FName> InPassThroughAttributes)
 			{
-				const FAnimGraphAttributeDesc* AttributeDesc = GetDefault<UAnimGraphAttributes>()->FindAttributeDesc(InAttribute);
-
-				// Early out if we don't want to display this attribute
-				if(AttributeDesc)
+				auto AddAttribute = [this, AnimBlueprint, AnimGraphNode](FName InAttribute, EAttributeUsage InUsage)
 				{
-					if(AttributeDesc->DisplayMode == EAnimGraphAttributesDisplayMode::HideOnPins)
-					{
-						return;
-					}
+					const FAnimGraphAttributeDesc* AttributeDesc = GetDefault<UAnimGraphAttributes>()->FindAttributeDesc(InAttribute);
 
-					// Only store cached attributes for wires on used pins
-					if(InUsage != EAttributeUsage::Unused)
+					// Early out if we don't want to display this attribute
+					if(AttributeDesc)
 					{
-						AttributeInfos.Emplace(InAttribute, AttributeDesc->Color.GetSpecifiedColor(), AttributeDesc->Blend, AttributeDesc->SortOrder);
-
-						// Skip displaying passthrough attributes on pins
-						if(InUsage != EAttributeUsage::Passthrough && AnimGraphNode->ShouldShowAttributesOnPins())
+						if(AttributeDesc->DisplayMode == EAnimGraphAttributesDisplayMode::HideOnPins)
 						{
-							const UAnimGraphNode_Base* ProxyGraphNode = AnimGraphNode->GetProxyNodeForAttributes();
+							return;
+						}
 
-							GetLabelAndValue()->AddSlot()
-							.Padding(2.0f, 0.0f, 0.0f, 0.0f)
-							[
-								SNew(SAttributeIndicator, AnimBlueprint, AttributeDesc, GraphPinObj, InUsage, ProxyGraphNode)
-							];
+						// Only store cached attributes for wires on used pins
+						if(InUsage != EAttributeUsage::Unused)
+						{
+							AttributeInfos.Emplace(InAttribute, AttributeDesc->Color.GetSpecifiedColor(), AttributeDesc->Blend, AttributeDesc->SortOrder);
+
+							// Skip displaying passthrough attributes on pins
+							if(InUsage != EAttributeUsage::Passthrough && AnimGraphNode->ShouldShowAttributesOnPins())
+							{
+								const UAnimGraphNode_Base* ProxyGraphNode = AnimGraphNode->GetProxyNodeForAttributes();
+
+								GetLabelAndValue()->AddSlot()
+								.Padding(2.0f, 0.0f, 0.0f, 0.0f)
+								[
+									SNew(SAttributeIndicator, AnimBlueprint, AttributeDesc, GraphPinObj, InUsage, ProxyGraphNode)
+								];
+							}
 						}
 					}
+				};
+
+				for(const FName& Attribute : InUsedAttributes)
+				{
+					AddAttribute(Attribute, EAttributeUsage::Used);
+				}
+
+				for(const FName& Attribute : InUnusedAttributes)
+				{
+					AddAttribute(Attribute, EAttributeUsage::Unused);
+				}
+
+				for(const FName& Attribute : InPassThroughAttributes)
+				{
+					AddAttribute(Attribute, EAttributeUsage::Passthrough);
 				}
 			};
 
-			for(const FName& Attribute : InUsedAttributes)
+			UAnimBlueprintGeneratedClass* AnimBlueprintClass = (UAnimBlueprintGeneratedClass*)(*(AnimBlueprint->GeneratedClass));
+
+			UAnimGraphNode_Base::FNodeAttributeArray PinAttributes;
+			switch(GraphPinObj->Direction)
 			{
-				AddAttribute(Attribute, EAttributeUsage::Used);
+			case EGPD_Input:
+				AnimGraphNode->GetInputLinkAttributes(PinAttributes);
+				break;
+			case EGPD_Output:
+				AnimGraphNode->GetOutputLinkAttributes(PinAttributes);
+				break;
 			}
 
-			for(const FName& Attribute : InUnusedAttributes)
+			UAnimGraphNode_Base::FNodeAttributeArray NodeAttributes;
+			AnimGraphNode->GetInputLinkAttributes(NodeAttributes);
+			AnimGraphNode->GetOutputLinkAttributes(NodeAttributes);
+
+			// Unlinked pins display attributes if they are inputs and the node takes them as inputs
+			if(GraphPinObj->LinkedTo.Num() == 0)
 			{
-				AddAttribute(Attribute, EAttributeUsage::Unused);
+				AddAttributes(TArrayView<const FName>(), PinAttributes, TArrayView<const FName>());
 			}
-
-			for(const FName& Attribute : InPassThroughAttributes)
+			else if(GraphPinObj->LinkedTo.Num() > 0)
 			{
-				AddAttribute(Attribute, EAttributeUsage::Passthrough);
-			}
-		};
-
-		UAnimBlueprintGeneratedClass* AnimBlueprintClass = (UAnimBlueprintGeneratedClass*)(*(AnimBlueprint->GeneratedClass));
-
-		UAnimGraphNode_Base::FNodeAttributeArray PinAttributes;
-		switch(GraphPinObj->Direction)
-		{
-		case EGPD_Input:
-			AnimGraphNode->GetInputLinkAttributes(PinAttributes);
-			break;
-		case EGPD_Output:
-			AnimGraphNode->GetOutputLinkAttributes(PinAttributes);
-			break;
-		}
-
-		UAnimGraphNode_Base::FNodeAttributeArray NodeAttributes;
-		AnimGraphNode->GetInputLinkAttributes(NodeAttributes);
-		AnimGraphNode->GetOutputLinkAttributes(NodeAttributes);
-
-		// Unlinked pins display attributes if they are inputs and the node takes them as inputs
-		if(GraphPinObj->LinkedTo.Num() == 0)
-		{
-			AddAttributes(TArrayView<const FName>(), PinAttributes, TArrayView<const FName>());
-		}
-		else if(GraphPinObj->LinkedTo.Num() > 0)
-		{
-			TArrayView<const FName> CompilerGeneratedAttributes = AnimBlueprintClass->GetAnimBlueprintDebugData().GetNodeAttributes(AnimGraphNode);
-			UAnimGraphNode_Base::FNodeAttributeArray UsedAttributes;
-			UAnimGraphNode_Base::FNodeAttributeArray UnusedAttributes;
-			if(PinAttributes.Num() > 0)
-			{
-				for(const FName& Name : PinAttributes)
+				TArrayView<const FName> CompilerGeneratedAttributes = AnimBlueprintClass->GetAnimBlueprintDebugData().GetNodeAttributes(AnimGraphNode);
+				UAnimGraphNode_Base::FNodeAttributeArray UsedAttributes;
+				UAnimGraphNode_Base::FNodeAttributeArray UnusedAttributes;
+				if(PinAttributes.Num() > 0)
 				{
-					if(CompilerGeneratedAttributes.Contains(Name))
+					for(const FName& Name : PinAttributes)
 					{
-						UsedAttributes.Add(Name);
-					}
-					else
-					{
-						UnusedAttributes.Add(Name);
+						if(CompilerGeneratedAttributes.Contains(Name))
+						{
+							UsedAttributes.Add(Name);
+						}
+						else
+						{
+							UnusedAttributes.Add(Name);
+						}
 					}
 				}
-			}
 
-			UAnimGraphNode_Base::FNodeAttributeArray PassthroughAttributes;
-			for(const FName& Name : CompilerGeneratedAttributes)
-			{
-				if(!PinAttributes.Contains(Name))
+				UAnimGraphNode_Base::FNodeAttributeArray PassthroughAttributes;
+				for(const FName& Name : CompilerGeneratedAttributes)
 				{
-					PassthroughAttributes.Add(Name);
+					if(!PinAttributes.Contains(Name))
+					{
+						PassthroughAttributes.Add(Name);
+					}
 				}
+
+				AddAttributes(UsedAttributes, UnusedAttributes, PassthroughAttributes);
 			}
 
-			AddAttributes(UsedAttributes, UnusedAttributes, PassthroughAttributes);
+			// sort pin attributes
+			Algo::Sort(AttributeInfos, [](const FAttributeInfo& InValue0, const FAttributeInfo& InValue1)
+			{
+				return InValue0.SortOrder < InValue1.SortOrder;
+			});
+
+			// overrides attribute set in the base class Construct()
+			SetToolTipText(MakeAttributeSP(this, &SGraphPinPose::GetAttributeTooltipText));
 		}
-
-		// sort pin attributes
-		Algo::Sort(AttributeInfos, [](const FAttributeInfo& InValue0, const FAttributeInfo& InValue1)
-		{
-			return InValue0.SortOrder < InValue1.SortOrder;
-		});
-
-		// overrides attribute set in the base class Construct()
-		SetToolTipText(MakeAttributeSP(this, &SGraphPinPose::GetAttributeTooltipText));
 	}
 }
 

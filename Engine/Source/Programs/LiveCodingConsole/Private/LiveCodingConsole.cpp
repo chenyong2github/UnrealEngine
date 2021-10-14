@@ -287,7 +287,7 @@ private:
 		FString ModulesFileName = FPaths::ConvertRelativePathToFull(FPaths::EngineIntermediateDir() / TEXT("LiveCodingModules.txt"));
 		FFileHelper::SaveStringArrayToFile(ValidModules, *ModulesFileName);
 
-		// Delete the output file for non-whitelisted modules
+		// Delete the output file for non-allowed modules
 		FString ModulesOutputFileName = ModulesFileName + TEXT(".out");
 		IFileManager::Get().Delete(*ModulesOutputFileName);
 

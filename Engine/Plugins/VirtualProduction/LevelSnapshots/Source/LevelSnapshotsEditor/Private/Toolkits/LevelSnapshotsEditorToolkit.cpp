@@ -18,6 +18,7 @@
 #include "Stats/StatsMisc.h"
 #include "Util/TakeSnapshotUtil.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SBorder.h"
@@ -215,12 +216,34 @@ TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_CustomToolbar(const 
 			.HAlign(HAlign_Fill)
 	        [
 				SNew(SHorizontalBox)
+
+				// Show/Hide Input button
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(2.f, 2.f)
+				[
+					SNew(SButton)
+					.VAlign(EVerticalAlignment::VAlign_Center)
+					.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+					.ToolTipText(LOCTEXT("InputPanelToggleTooltip", "Show or hide the input panel"))
+					.ContentPadding(FMargin(1, 0))
+					.ForegroundColor(FSlateColor::UseForeground())
+					.OnClicked(this, &FLevelSnapshotsEditorToolkit::InputPanelExpandClicked)
+					[
+						SNew(SImage)
+						.Image_Lambda([this] ()
+						{
+							return FEditorStyle::GetBrush(bInputPanelExpanded ? "ContentBrowser.HideSourcesView" : "ContentBrowser.ShowSourcesView");
+						})
+					]
+				]
 				
 				// Take snapshot
 				+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.HAlign(HAlign_Left)
-					.Padding(2.f, 2.f)
+				.AutoWidth()
+				.HAlign(HAlign_Left)
+				.Padding(2.f, 2.f)
 				[
 					SNew(SButton)
 					.VAlign(VAlign_Center)
@@ -265,13 +288,13 @@ TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_CustomToolbar(const 
 
 TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_Input(const FSpawnTabArgs& Args)
 {	
-	TSharedPtr<SDockTab> DetailsTab = SNew(SDockTab)
+	InputTab = SNew(SDockTab)
 		.Label(LOCTEXT("Levelsnapshots.Toolkit.InputTitle", "Input"))
 		[
 			EditorInput->GetOrCreateWidget()
 		];
 
-	return DetailsTab.ToSharedRef();
+	return InputTab.ToSharedRef();
 }
 
 TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_Filter(const FSpawnTabArgs& Args)
@@ -299,6 +322,19 @@ TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_Results(const FSpawn
 FReply FLevelSnapshotsEditorToolkit::OnClickTakeSnapshot()
 {
 	SnapshotEditor::TakeSnapshotWithOptionalForm();
+	return FReply::Handled();
+}
+
+FReply FLevelSnapshotsEditorToolkit::InputPanelExpandClicked()
+{
+	bInputPanelExpanded = !bInputPanelExpanded;
+
+	if (InputTab.IsValid() && EditorInput.IsValid())
+	{
+		InputTab->SetShouldAutosize(!bInputPanelExpanded);
+		EditorInput->ShowOrHideInputPanel(bInputPanelExpanded);
+	}
+
 	return FReply::Handled();
 }
 

@@ -13,6 +13,7 @@
 #include "Framework/Commands/UICommandInfo.h"
 #include "BaseGizmos/TransformProxy.h"
 #include "BaseSequencerAnimTool.h"
+#include "EditorStyleSet.h"
 #include "SequencerAnimEditPivotTool.generated.h"
 
 class USingleClickInputBehavior;
@@ -22,6 +23,7 @@ class ULevelSequence;
 class UControlRig;
 struct FRigControlElement;
 class ISequencer;
+class FUICommandList;
 
 /*
 *  The way this sequencer pivot tool works is that

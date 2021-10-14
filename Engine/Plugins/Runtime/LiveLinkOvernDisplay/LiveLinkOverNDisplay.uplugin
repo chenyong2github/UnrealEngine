@@ -20,7 +20,7 @@
 			"Name": "LiveLinkOverNDisplay",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64"
 			]
 		}
@@ -28,10 +28,6 @@
 	"Plugins": [
 		{
 			"Name": "nDisplay",
-			"Enabled": true
-		},
-		{
-			"Name": "LiveLink",
 			"Enabled": true
 		}
 	]

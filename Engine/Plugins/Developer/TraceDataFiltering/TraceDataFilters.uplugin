@@ -20,7 +20,7 @@
 			"Name": "TraceDataFiltering",
 			"Type": "EditorAndProgram",
 			"LoadingPhase": "PreDefault",
-			"WhitelistPrograms": [
+			"ProgramAllowList": [
 				"UnrealInsights"
 			]
 		}

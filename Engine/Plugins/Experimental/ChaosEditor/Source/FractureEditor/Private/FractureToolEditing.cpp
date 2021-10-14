@@ -8,7 +8,7 @@
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 #include "FractureToolContext.h"
-
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "FractureToolEditing"
 

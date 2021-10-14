@@ -31,7 +31,7 @@ public:
 	void Call(UObject* InObject, void* InParameters = nullptr) const;
 
 	// Set the function via name
-	void SetFromFunctionName(FName InName) { FunctionName = InName; }
+	void SetFromFunctionName(FName InName) { FunctionName = InName; ClassName = NAME_None; }
 
 	// Set the function via a function
 	void SetFromFunction(UFunction* InFunction);
@@ -45,6 +45,12 @@ public:
 	// Check if we reference a valid function
 	bool IsValid() const { return Function != nullptr; }
 
+	// Override operator== as we only need to compare class/function names
+	bool operator==(const FAnimNodeFunctionRef& InOther) const
+	{
+		return ClassName == InOther.ClassName && FunctionName == InOther.FunctionName;
+	}
+	
 private:
 	// The name of the class to call the function with. If this is NAME_None, we assume this is a 'thiscall', if it is valid then we assume (and verify) we should call the function on a function library CDO.
 	UPROPERTY()
@@ -61,6 +67,15 @@ private:
 	// The function to call, recovered by looking for a function of name FunctionName
 	UPROPERTY(Transient)
 	TObjectPtr<UFunction> Function = nullptr;
+};
+
+template<>
+struct TStructOpsTypeTraits<FAnimNodeFunctionRef> : public TStructOpsTypeTraitsBase2<FAnimNodeFunctionRef>
+{
+	enum
+	{
+		WithIdenticalViaEquality = true,
+	};
 };
 
 namespace UE { namespace Anim {

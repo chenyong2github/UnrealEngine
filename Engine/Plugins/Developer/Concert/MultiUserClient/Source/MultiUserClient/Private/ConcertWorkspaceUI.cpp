@@ -13,7 +13,6 @@
 #include "Algo/Transform.h"
 #include "Modules/ModuleManager.h"
 #include "ContentBrowserModule.h"
-#include "LevelEditor.h"
 #include "UObject/Package.h"
 #include "ISourceControlState.h"
 #include "ISourceControlProvider.h"
@@ -31,6 +30,9 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/Notifications/NotificationManager.h"
+
+#include "ToolMenuContext.h"
+#include "ToolMenus.h"
 
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SConcertSandboxPersistWidget.h"
@@ -548,12 +550,26 @@ void FConcertWorkspaceUI::InstallWorkspaceExtensions(TWeakPtr<IConcertClientWork
 			.Add_GetRef(FContentBrowserMenuExtender_SelectedAssets::CreateSP(this, &FConcertWorkspaceUI::OnExtendContentBrowserAssetSelectionMenu)).GetHandle();
 	}
 
+	FToolMenuOwnerScoped SourceControlMenuOwner("ConcertSourceControlMenu");
+
 	// Setup Concert Source Control Extension
-	if (FLevelEditorModule* LevelEditorModule = FModuleManager::Get().GetModulePtr<FLevelEditorModule>(TEXT("LevelEditor")))
-	{
-		SourceControlExtensionDelegateHandle = LevelEditorModule->GetAllLevelEditorToolbarSourceControlMenuExtenders()
-			.Add_GetRef(FLevelEditorModule::FLevelEditorMenuExtender::CreateSP(this, &FConcertWorkspaceUI::OnExtendLevelEditorSourceControlMenu)).GetHandle();
-	}
+	UToolMenu* SourceControlMenu = UToolMenus::Get()->ExtendMenu("StatusBar.ToolBar.SourceControl");
+	FToolMenuSection& Section = SourceControlMenu->FindOrAddSection("SourceControlMenu");
+
+	TWeakPtr<FConcertWorkspaceUI> Weak = AsShared();
+	Section.AddMenuEntry(
+		"ConcertPersistSessionChanges",
+		LOCTEXT("ConcertWVPersist", "Persist Session Changes..."),
+		LOCTEXT("ConcertWVPersistTooltip", "Persist the session changes and prepare the files for source control submission."),
+		FSlateIcon(FConcertFrontendStyle::GetStyleSetName(), "Concert.Persist"),
+		FUIAction(FExecuteAction::CreateLambda([Weak]()
+			{
+				if (TSharedPtr<FConcertWorkspaceUI> PinThis = Weak.Pin())
+				{
+					PinThis->PromptPersistSessionChanges(); // Required to adapt the function signature.
+				}
+			}))
+		);
 
 	// Register for the "MarkPackageDirty" callback to catch packages that have been modified so we can acquire lock or warn
 	UPackage::PackageMarkedDirtyEvent.AddRaw(this, &FConcertWorkspaceUI::OnMarkPackageDirty);
@@ -569,12 +585,7 @@ void FConcertWorkspaceUI::UninstallWorspaceExtensions()
 		ContentBrowserAssetExtenderDelegateHandle.Reset();
 	}
 
-	FLevelEditorModule* LevelEditorModule = FModuleManager::Get().GetModulePtr<FLevelEditorModule>(TEXT("LevelEditor"));
-	if (SourceControlExtensionDelegateHandle.IsValid() && LevelEditorModule)
-	{
-		LevelEditorModule->GetAllLevelEditorToolbarSourceControlMenuExtenders().RemoveAll([DelegateHandle = SourceControlExtensionDelegateHandle](const FLevelEditorModule::FLevelEditorMenuExtender& Extender) { return Extender.GetHandle() == DelegateHandle; });
-		SourceControlExtensionDelegateHandle.Reset();
-	}
+	UToolMenus::Get()->UnregisterOwnerByName("ConcertSourceControlMenu");
 
 	// Remove package dirty hook
 	UPackage::PackageMarkedDirtyEvent.RemoveAll(this);
@@ -959,33 +970,6 @@ void FConcertWorkspaceUI::GenerateConcertAssetContextMenu(FMenuBuilder& MenuBuil
 	}
 
 	MenuBuilder.EndSection();
-}
-
-TSharedRef<FExtender> FConcertWorkspaceUI::OnExtendLevelEditorSourceControlMenu(const TSharedRef<FUICommandList>)
-{
-	TWeakPtr<FConcertWorkspaceUI> Weak = AsShared();
-	TSharedRef<FExtender> Extender = MakeShared<FExtender>();
-	Extender->AddMenuExtension(
-		"SourceControlConnectionSeparator",
-		EExtensionHook::After,
-		nullptr,
-		FMenuExtensionDelegate::CreateLambda([Weak](FMenuBuilder& MenuBuilder)
-		{
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("ConcertWVPersist", "Persist Session Changes..."),
-				LOCTEXT("ConcertWVPersistTooltip", "Persist the session changes and prepare the files for source control submission."),
-				FSlateIcon(FConcertFrontendStyle::GetStyleSetName(), "Concert.Persist"),
-				FUIAction(FExecuteAction::CreateLambda([Weak]()
-				{
-					if (TSharedPtr<FConcertWorkspaceUI> PinThis = Weak.Pin())
-					{
-						PinThis->PromptPersistSessionChanges(); // Required to adapt the function signature.
-					}
-				}))
-			);
-		})
-	);
-	return Extender;
 }
 
 TSharedRef<SWidget> FConcertWorkspaceUI::OnGenerateAssetViewLockStateIcons(const FAssetData& AssetData)

@@ -96,6 +96,12 @@ namespace
 					continue;
 				}
 
+				const bool bShouldSkipProperties = SelectionMap.IsSubobjectMarkedForReferenceRestorationOnly(EditorSubobject); 
+				if (bShouldSkipProperties)
+				{
+					continue;
+				}
+
 				if (const FPropertySelection* SelectedProperties = SelectionMap.GetObjectSelection(EditorSubobject).GetPropertySelection())
 				{
 					// Recursively check whether subobjects also have a registered ICustomObjectSnapshotSerializer

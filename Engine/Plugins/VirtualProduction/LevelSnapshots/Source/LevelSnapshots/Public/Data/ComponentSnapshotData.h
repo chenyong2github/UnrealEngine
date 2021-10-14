@@ -22,5 +22,5 @@ struct LEVELSNAPSHOTS_API FComponentSnapshotData
 	
 	/* Describes how the component was created */
 	UPROPERTY()
-	EComponentCreationMethod CreationMethod;
+	EComponentCreationMethod CreationMethod{};
 };

@@ -8,7 +8,7 @@
 #include "CollectionManagerModule.h"
 #include "ICollectionManager.h"
 #include "Misc/StringBuilder.h"
-#include "Misc/BlacklistNames.h"
+#include "Misc/NamePermissionList.h"
 #include "UObject/UObjectHash.h"
 #include "ToolMenus.h"
 #include "NewClassContextMenu.h"
@@ -88,7 +88,7 @@ void UContentBrowserClassDataSource::CompileFilter(const FName InPath, const FCo
 	const FContentBrowserDataClassFilter* ClassFilter = InFilter.ExtraFilters.FindFilter<FContentBrowserDataClassFilter>();
 	const FContentBrowserDataCollectionFilter* CollectionFilter = InFilter.ExtraFilters.FindFilter<FContentBrowserDataCollectionFilter>();
 
-	const FBlacklistNames* ClassBlacklist = ClassFilter && ClassFilter->ClassBlacklist && ClassFilter->ClassBlacklist->HasFiltering() ? ClassFilter->ClassBlacklist.Get() : nullptr;
+	const FNamePermissionList* ClassPermissionList = ClassFilter && ClassFilter->ClassPermissionList && ClassFilter->ClassPermissionList->HasFiltering() ? ClassFilter->ClassPermissionList.Get() : nullptr;
 
 	const bool bIncludeFolders = EnumHasAnyFlags(InFilter.ItemTypeFilter, EContentBrowserItemTypeFilter::IncludeFolders);
 	const bool bIncludeFiles = EnumHasAnyFlags(InFilter.ItemTypeFilter, EContentBrowserItemTypeFilter::IncludeFiles);
@@ -268,7 +268,7 @@ void UContentBrowserClassDataSource::CompileFilter(const FName InPath, const FCo
 	// If we are filtering all classes, then we can bail now as we won't return any file items
 	if ((ClassFilter && (ClassFilter->ClassNamesToInclude.Num() > 0 && !ClassFilter->ClassNamesToInclude.Contains(NAME_Class))) ||
 		(ClassFilter && (ClassFilter->ClassNamesToExclude.Num() > 0 &&  ClassFilter->ClassNamesToExclude.Contains(NAME_Class))) ||
-		(ClassBlacklist && (ClassBlacklist->IsBlacklistAll() || !ClassBlacklist->PassesFilter(NAME_Class)))
+		(ClassPermissionList && (ClassPermissionList->IsDenyListAll() || !ClassPermissionList->PassesFilter(NAME_Class)))
 		)
 	{
 		return;
@@ -298,9 +298,9 @@ void UContentBrowserClassDataSource::CompileFilter(const FName InPath, const FCo
 			for (UClass* ChildClassObject : ChildClassObjects)
 			{
 				const bool bPassesInclusiveFilter = ClassPathsToInclude.Num() == 0 || ClassPathsToInclude.Contains(*ChildClassObject->GetPathName());
-				const bool bPassesBlacklistFilter = !ClassBlacklist || ClassBlacklist->PassesFilter(ChildClassObject->GetFName());
+				const bool bPassesPermissionCheck = !ClassPermissionList || ClassPermissionList->PassesFilter(ChildClassObject->GetFName());
 
-				if (bPassesInclusiveFilter && bPassesBlacklistFilter)
+				if (bPassesInclusiveFilter && bPassesPermissionCheck)
 				{
 					ClassDataFilter.ValidClasses.Add(ChildClassObject);
 				}
@@ -345,6 +345,7 @@ void UContentBrowserClassDataSource::EnumerateItemsMatchingFilter(const FContent
 			}
 		}
 	}
+
 }
 
 void UContentBrowserClassDataSource::EnumerateItemsAtPath(const FName InPath, const EContentBrowserItemTypeFilter InItemTypeFilter, TFunctionRef<bool(FContentBrowserItemData&&)> InCallback)

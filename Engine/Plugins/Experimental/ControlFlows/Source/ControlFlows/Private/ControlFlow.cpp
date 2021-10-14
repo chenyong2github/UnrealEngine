@@ -102,7 +102,6 @@ void FControlFlow::HandleControlFlowNodeCompleted(TSharedRef<const FControlFlowN
 
 FString FControlFlow::GetFlowPath() const
 {
-	static FString SingleFlowFormat = TEXT("{0}(x1).");
 	static FString DuplicateFlowFormat = TEXT("{0}(x{1}).");
 
 	FString FlowPath;
@@ -251,9 +250,24 @@ FControlFlowPopulator& FControlFlow::QueueControlFlow(const FString& TaskName /*
 	return NewTask->GetTaskPopulator();
 }
 
-TSharedRef<FControlFlowTask_Branch> FControlFlow::QueueBranch(FControlFlowBranchDecider& BranchDecider, const FString& TaskName /*= TEXT("")*/, const FString& FlowNodeDebugName /*= TEXT("")*/)
+FControlFlowBranchDefiner& FControlFlow::QueueControlFlowBranch(const FString& TaskName /*= TEXT("")*/, const FString& FlowNodeDebugName /*= TEXT("")*/)
 {
-	TSharedRef<FControlFlowTask_Branch> NewTask = MakeShared<FControlFlowTask_Branch>(BranchDecider, TaskName);
+	TSharedRef<FControlFlowTask_Branch> NewTask = MakeShared<FControlFlowTask_Branch>(TaskName);
+	TSharedRef<FControlFlowNode_Task> NewNode = MakeShared<FControlFlowNode_Task>(SharedThis(this), NewTask, FormatOrGetNewNodeDebugName(FlowNodeDebugName));
+
+	NewNode->OnExecute().BindSP(SharedThis(this), &FControlFlow::HandleTaskNodeExecuted);
+	NewNode->OnCancelRequested().BindSP(SharedThis(this), &FControlFlow::HandleTaskNodeCancelled);
+
+	FlowQueue.Add(NewNode);
+
+	return NewTask->GetDelegate();
+}
+
+TSharedRef<FControlFlowTask_BranchLegacy> FControlFlow::QueueBranch(FControlFlowBranchDecider_Legacy& BranchDecider, const FString& TaskName /*= TEXT("")*/, const FString& FlowNodeDebugName /*= TEXT("")*/)
+{
+	ensureAlwaysMsgf(false, TEXT("Deprecated. Use 'QueueControlFlowBranch'"));
+
+	TSharedRef<FControlFlowTask_BranchLegacy> NewTask = MakeShared<FControlFlowTask_BranchLegacy>(BranchDecider, TaskName);
 	TSharedRef<FControlFlowNode_Task> NewNode = MakeShared<FControlFlowNode_Task>(SharedThis(this), NewTask, FormatOrGetNewNodeDebugName(FlowNodeDebugName));
 
 	NewNode->OnExecute().BindSP(SharedThis(this), &FControlFlow::HandleTaskNodeExecuted);

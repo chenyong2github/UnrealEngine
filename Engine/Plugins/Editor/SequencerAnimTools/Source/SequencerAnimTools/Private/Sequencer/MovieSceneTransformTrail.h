@@ -10,7 +10,6 @@
 class ISequencer;
 class UMovieScene3DTransformTrack;
 class UMovieScene3DTransformSection;
-class ULevelSequencePlayer;
 class UMovieSceneTrack;
 class USceneComponent;
 
@@ -23,7 +22,7 @@ namespace SequencerAnimTools
 class FMovieSceneTransformTrail : public FTrail
 {
 public:
-	FMovieSceneTransformTrail(USceneComponent* SceneComponent,const FLinearColor& InColor, const bool bInIsVisible, TWeakObjectPtr<UMovieSceneTrack> InWeakTrack, TSharedPtr<ISequencer> InSequencer, ULevelSequencePlayer* InLevelSequencePlayer);
+	FMovieSceneTransformTrail(USceneComponent* SceneComponent,const FLinearColor& InColor, const bool bInIsVisible, TWeakObjectPtr<UMovieSceneTrack> InWeakTrack, TSharedPtr<ISequencer> InSequencer);
 	// Begin FTrail interface
 	virtual ETrailCacheState UpdateTrail(const FSceneContext& InSceneContext) override;
 	virtual FTrajectoryCache* GetTrajectoryTransforms() override { return TrajectoryCache.Get(); }
@@ -53,7 +52,6 @@ public:
 
 public:
 	TWeakPtr<ISequencer> WeakSequencer;
-	TWeakObjectPtr<ULevelSequencePlayer> LevelSequencePlayer;
 	// Begin FMovieSceneTransformTrail interface
 	virtual void UpdateCacheTimes(const FSceneContext& InSceneContext) = 0;
 protected:
@@ -87,8 +85,8 @@ class FMovieSceneComponentTransformTrail : public FMovieSceneTransformTrail
 {
 public:
 
-	FMovieSceneComponentTransformTrail(USceneComponent* InComponent, const FLinearColor& InColor, const bool bInIsVisible, TWeakObjectPtr<UMovieSceneTrack> InWeakTrack, TSharedPtr<ISequencer> InSequencer, ULevelSequencePlayer* InLevelSequencePlayer)
-		: FMovieSceneTransformTrail(InComponent, InColor, bInIsVisible, InWeakTrack, InSequencer, InLevelSequencePlayer),
+	FMovieSceneComponentTransformTrail(USceneComponent* InComponent, const FLinearColor& InColor, const bool bInIsVisible, TWeakObjectPtr<UMovieSceneTrack> InWeakTrack, TSharedPtr<ISequencer> InSequencer)
+		: FMovieSceneTransformTrail(InComponent, InColor, bInIsVisible, InWeakTrack, InSequencer),
 		Component(InComponent)
 		
 	{
@@ -115,7 +113,7 @@ class FMovieSceneControlRigTransformTrail : public FMovieSceneTransformTrail
 {
 public:
 
-	FMovieSceneControlRigTransformTrail(USceneComponent* SceneComponent, const FLinearColor& InColor, const bool bInIsVisible, TWeakObjectPtr<UMovieSceneTrack> InWeakTrack, TSharedPtr<ISequencer> InSequencer, ULevelSequencePlayer* InLevelSequencePlayer, const FName& InControlName);
+	FMovieSceneControlRigTransformTrail(USceneComponent* SceneComponent, const FLinearColor& InColor, const bool bInIsVisible, TWeakObjectPtr<UMovieSceneTrack> InWeakTrack, TSharedPtr<ISequencer> InSequencer, const FName& InControlName);
 
 	virtual void UpdateCacheTimes(const FSceneContext& InSceneContext) override;
 	virtual bool StartTracking() override;

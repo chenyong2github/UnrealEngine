@@ -38,4 +38,8 @@ struct FWaterUtils
 		const FLinearColor& InClearColor = FLinearColor::Black, bool bInAutoGenerateMipMaps = false);
 
 	static FGuid StringToGuid(const FString& InStr);
+
+	static WATER_API bool IsWaterEnabled(bool bIsRenderThread);
+	static WATER_API bool IsWaterMeshEnabled(bool bIsRenderThread);
+	static WATER_API bool IsWaterMeshRenderingEnabled(bool bIsRenderThread);
 };

@@ -929,7 +929,7 @@ bool ULandscapeComponent::MaterialHasGrass() const
 
 bool ULandscapeComponent::IsGrassMapOutdated() const
 {
-	if (GrassData->HasData())
+	if (GrassData->HasValidData())
 	{
 		// check material / instances haven't changed
 		const auto& MaterialStateIds = GrassData->MaterialStateIds;
@@ -975,7 +975,18 @@ bool ULandscapeComponent::CanRenderGrassMap() const
 	FMaterialResource* MaterialResource = MaterialInstance != nullptr ? MaterialInstance->GetMaterialResource(ComponentWorld->FeatureLevel) : nullptr;
 
 	// Check we can render the material
-	if (MaterialResource == nullptr || !MaterialResource->HasValidGameThreadShaderMap())
+	if (MaterialResource == nullptr)
+	{
+		return false;
+	}
+
+	// We only need the GrassWeight shaders on the fixed grid vertex factory to render grass maps : 
+	FMaterialShaderTypes ShaderTypes;
+	ShaderTypes.AddShaderType<FLandscapeGrassWeightVS>();
+	ShaderTypes.AddShaderType<FLandscapeGrassWeightPS>();
+
+	FVertexFactoryType* LandscapeGrassVF = FindVertexFactoryType(FName(TEXT("FLandscapeFixedGridVertexFactory"), FNAME_Find));
+	if (!MaterialResource->HasShaders(ShaderTypes, LandscapeGrassVF))
 	{
 		return false;
 	}
@@ -1090,8 +1101,14 @@ TArray<uint16> ULandscapeComponent::RenderWPOHeightmap(int32 LOD)
 
 void ULandscapeComponent::RemoveGrassMap()
 {
-	GrassData = MakeShareable(new FLandscapeComponentGrassData());
+	*GrassData = FLandscapeComponentGrassData();
+
 	GrassData->bIsDirty = true;
+	if (!MaterialHasGrass())
+	{
+		// Mark grass data as valid but empty if it just doesn't support grass because nothing will ever trigger a RenderGrassMaps on it, which would leave NumElements unset (which is considered as invalid data) :
+		GrassData->NumElements = 0;
+	}
 }
 
 void ALandscapeProxy::RenderGrassMaps(const TArray<ULandscapeComponent*>& InLandscapeComponents, const TArray<ULandscapeGrassType*>& GrassTypes)
@@ -1356,18 +1373,46 @@ SIZE_T FLandscapeComponentGrassData::GetAllocatedSize() const
 }
 
 bool FLandscapeComponentGrassData::HasWeightData() const
-	{
+{
 	return !!WeightOffsets.Num();
+}
+
+bool FLandscapeComponentGrassData::HasValidData() const
+{
+	// If NumElements < 0, its data wasn't computed. 
+	// If == 0, its data was computed (i.e. is valid), but removed (for saving space) because its weight data is all zero : 
+	// If > 0, its data was computed and contains non-zero weight data
+	return (NumElements >= 0);
+}
+
+bool FLandscapeComponentGrassData::HasData() const
+{
+	if (HasValidData())
+	{
+		int32 LocalNumElements = HeightWeightData.Num();
+#if WITH_EDITORONLY_DATA
+		if (LocalNumElements == 0)
+		{
+			LocalNumElements = HeightMipData.Num();
+		}
+#endif
+		return LocalNumElements > 0;
 	}
+
+	return false;
+}
 
 TArrayView<uint8> FLandscapeComponentGrassData::GetWeightData(const ULandscapeGrassType* GrassType)
 {
-	if (int32* OffsetPtr = WeightOffsets.Find(GrassType))
+	if (HasData())
 	{
-		int32 Offset = *OffsetPtr;
-		check(Offset + NumElements <= HeightWeightData.Num());
-		check(NumElements);
-		return MakeArrayView<uint8>(&HeightWeightData[Offset], NumElements);
+		if (int32* OffsetPtr = WeightOffsets.Find(GrassType))
+		{
+			int32 Offset = *OffsetPtr;
+			check(Offset + NumElements <= HeightWeightData.Num());
+			check(NumElements);
+			return MakeArrayView<uint8>(&HeightWeightData[Offset], NumElements);
+		}
 	}
 
 	return TArrayView<uint8>();
@@ -1380,11 +1425,12 @@ bool FLandscapeComponentGrassData::Contains(ULandscapeGrassType* GrassType) cons
 
 TArrayView<uint16> FLandscapeComponentGrassData::GetHeightData()
 {
-	check(NumElements <= HeightWeightData.Num());
-	if (NumElements == 0)
+	if (!HasData())
 	{
 		return TArrayView<uint16>();
 	}
+
+	check(NumElements <= HeightWeightData.Num());
 	return MakeArrayView<uint16>((uint16*)&HeightWeightData[0], NumElements);
 }
 
@@ -1519,6 +1565,7 @@ FArchive& operator<<(FArchive& Ar, FLandscapeComponentGrassData& Data)
 
 void FLandscapeComponentGrassData::ConditionalDiscardDataOnLoad()
 {
+	//check(HasValidData());
 	if (!GIsEditor && GGrassDiscardDataOnLoad)
 	{
 		bool bRemoved = false;
@@ -1536,8 +1583,9 @@ void FLandscapeComponentGrassData::ConditionalDiscardDataOnLoad()
 		if (WeightOffsets.Num() == 0)
 		{
 			*this = FLandscapeComponentGrassData();
+			NumElements = 0;
 		}
-		else if (bRemoved)
+		else if (bRemoved) 
 		{
 			TMap<ULandscapeGrassType*, int32> PreviousOffsets(MoveTemp(WeightOffsets));
 			TArray<uint8> PreviousHeightWeightData(MoveTemp(HeightWeightData));
@@ -2475,7 +2523,7 @@ void ALandscapeProxy::UpdateGrassDataStatus(TSet<UTexture2D*>* OutCurrentForcedS
 
 			if (bHasGrassTypes || bBakeMaterialPositionOffsetIntoCollision)
 			{
-				if (Component->IsGrassMapOutdated() || !Component->GrassData->HasData() || GGrassUpdateAllOnRebuild != 0)
+				if (Component->IsGrassMapOutdated() || !Component->GrassData->HasValidData() || GGrassUpdateAllOnRebuild != 0)
 				{
 					if (OutComponentsNeedingGrassMapRender)
 					{
@@ -2907,7 +2955,7 @@ void ALandscapeProxy::UpdateGrass(const TArray<FVector>& Cameras, int32& InOutNu
 
 #if WITH_EDITOR
 										// render grass data if we don't have any
-										if (!Component->GrassData->HasData())
+										if (!Component->GrassData->HasValidData())
 										{
 											if (!Component->CanRenderGrassMap())
 											{

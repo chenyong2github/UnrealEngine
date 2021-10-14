@@ -59,6 +59,8 @@ public:
 	virtual void AddWorkspaceCanProcessPackagesDelegate(FName InDelegateName, FCanProcessPendingPackages Delegate) override;
 	virtual void RemoveWorkspaceCanProcessPackagesDelegate(FName InDelegateName) override;
 
+	virtual bool IsReloadingPackage(FName PackageName) const override;
+
 	/** Indicates if we can process any pending package updates. */
 	bool CanProcessPendingPackages() const;
 

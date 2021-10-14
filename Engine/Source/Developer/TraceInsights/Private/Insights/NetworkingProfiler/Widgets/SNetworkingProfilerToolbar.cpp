@@ -87,9 +87,11 @@ void SNetworkingProfilerToolbar::Construct(const FArguments& InArgs, TSharedPtr<
 	TSharedPtr<FUICommandList> CommandList = ProfilerWindow->GetCommandList();
 
 	FSlimHorizontalToolBarBuilder ToolbarBuilder(CommandList.ToSharedRef(), FMultiBoxCustomization::None);
+	ToolbarBuilder.SetStyle(&FInsightsStyle::Get(), "PrimaryToolbar");
 	Local::FillViewToolbar(ProfilerWindow, ToolbarBuilder);
 
 	FSlimHorizontalToolBarBuilder RightSideToolbarBuilder(CommandList.ToSharedRef(), FMultiBoxCustomization::None);
+	RightSideToolbarBuilder.SetStyle(&FInsightsStyle::Get(), "PrimaryToolbar");
 	Local::FillRightSideToolbar(RightSideToolbarBuilder);
 
 	ChildSlot

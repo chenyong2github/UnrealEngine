@@ -747,7 +747,8 @@
 	#if ( defined(__clang__) || defined(__GNUC__) ) && (PLATFORM_UNIX)	// effect of these on non-Linux platform has not been analyzed as of 2016-03-21
 		#define LIKELY(x)			__builtin_expect(!!(x), 1)
 	#else
-		#define LIKELY(x)			(x)
+		// the additional "!!" is added to silence "warning: equality comparison with exteraneous parenthese" messages on android
+		#define LIKELY(x)			(!!(x))
 	#endif
 #endif
 
@@ -755,7 +756,8 @@
 	#if ( defined(__clang__) || defined(__GNUC__) ) && (PLATFORM_UNIX)	// effect of these on non-Linux platform has not been analyzed as of 2016-03-21
 		#define UNLIKELY(x)			__builtin_expect(!!(x), 0)
 	#else
-		#define UNLIKELY(x)			(x)
+		// the additional "!!" is added to silence "warning: equality comparison with exteraneous parenthese" messages on android
+		#define UNLIKELY(x)			(!!(x))
 	#endif
 #endif
 

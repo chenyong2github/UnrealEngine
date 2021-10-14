@@ -762,7 +762,7 @@ void UVCamComponent::GetLiveLinkDataForCurrentFrame(FLiveLinkCameraBlueprintData
 
 		if (FoundSubjectKey)
 		{
-			if (LiveLinkClient.DoesSubjectSupportsRole(*FoundSubjectKey, ULiveLinkCameraRole::StaticClass()))
+			if (LiveLinkClient.DoesSubjectSupportsRole_AnyThread(*FoundSubjectKey, ULiveLinkCameraRole::StaticClass()))
 			{
 				if (LiveLinkClient.EvaluateFrame_AnyThread(LiveLinkSubject, ULiveLinkCameraRole::StaticClass(), EvaluatedFrame))
 				{
@@ -770,7 +770,7 @@ void UVCamComponent::GetLiveLinkDataForCurrentFrame(FLiveLinkCameraBlueprintData
 					GetDefault<ULiveLinkCameraRole>()->InitializeBlueprintData(EvaluatedFrame, WrappedBlueprintData);
 				}
 			}
-			else if (LiveLinkClient.DoesSubjectSupportsRole(*FoundSubjectKey, ULiveLinkTransformRole::StaticClass()))
+			else if (LiveLinkClient.DoesSubjectSupportsRole_AnyThread(*FoundSubjectKey, ULiveLinkTransformRole::StaticClass()))
 			{
 				if (LiveLinkClient.EvaluateFrame_AnyThread(LiveLinkSubject, ULiveLinkTransformRole::StaticClass(), EvaluatedFrame))
 				{

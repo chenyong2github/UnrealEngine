@@ -12,8 +12,30 @@ FArchive& operator<<(FArchive& Ar, FIoContainerHeaderPackageRedirect& Redirect)
 	return Ar;
 }
 
+FArchive& operator<<(FArchive& Ar, FIoContainerHeaderLocalizedPackage& LocalizedPackage)
+{
+	Ar << LocalizedPackage.SourcePackageId;
+	Ar << LocalizedPackage.SourcePackageName;
+
+	return Ar;
+}
+
 FArchive& operator<<(FArchive& Ar, FIoContainerHeader& ContainerHeader)
 {
+	uint32 Signature = FIoContainerHeader::Signature;
+	Ar << Signature;
+	if (Ar.IsLoading() && Signature != FIoContainerHeader::Signature)
+	{
+		Ar.SetError();
+		return Ar;
+	}
+	EIoContainerHeaderVersion Version = EIoContainerHeaderVersion::Latest;
+	Ar << Version;
+	if (Ar.IsLoading() && Version != EIoContainerHeaderVersion::Latest)
+	{
+		Ar.SetError();
+		return Ar;
+	}
 	Ar << ContainerHeader.ContainerId;
 	Ar << ContainerHeader.PackageCount;
 	Ar << ContainerHeader.PackageIds;
@@ -30,7 +52,7 @@ FArchive& operator<<(FArchive& Ar, FIoContainerHeader& ContainerHeader)
 		check(false);
 #endif
 	}
-	Ar << ContainerHeader.CulturePackageMap;
+	Ar << ContainerHeader.LocalizedPackages;
 	Ar << ContainerHeader.PackageRedirects;
 
 	return Ar;

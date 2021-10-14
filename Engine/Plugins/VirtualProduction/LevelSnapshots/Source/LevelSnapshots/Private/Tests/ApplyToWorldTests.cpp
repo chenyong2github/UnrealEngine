@@ -3,14 +3,14 @@
 #include "PropertySelectionMap.h"
 #include "SnapshotTestRunner.h"
 #include "SnapshotTestActor.h"
+#include "Util/EquivalenceUtil.h"
 
 #include "Components/PointLightComponent.h"
 #include "Engine/PointLight.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
-#include "Materials/MaterialInterface.h"
 #include "Misc/AutomationTest.h"
-#include "Util/EquivalenceUtil.h"
+#include "PreviewScene.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRestoreSimpleProperties, "VirtualProduction.LevelSnapshots.Snapshot.RestoreSimpleProperties", (EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter));
 bool FRestoreSimpleProperties::RunTest(const FString& Parameters)
@@ -92,13 +92,13 @@ bool FRestoreReferenceProperties::RunTest(const FString& Parameters)
 	FSnapshotTestRunner()
 		.ModifyWorld([&](UWorld* World)
 		{
-			FirstActor = World->SpawnActor<ASnapshotTestActor>();
-			SecondActor = World->SpawnActor<ASnapshotTestActor>();
-			PointToSelfActor = World->SpawnActor<ASnapshotTestActor>();
-			FromWorldToExternal = World->SpawnActor<ASnapshotTestActor>();
-			FromExternalToWorld = World->SpawnActor<ASnapshotTestActor>();
+			FirstActor = ASnapshotTestActor::Spawn(World, "FirstActor");
+			SecondActor = ASnapshotTestActor::Spawn(World, "SecondActor");
+			PointToSelfActor = ASnapshotTestActor::Spawn(World, "PointToSelfActor");
+			FromWorldToExternal = ASnapshotTestActor::Spawn(World, "FromWorldToExternal");
+			FromExternalToWorld = ASnapshotTestActor::Spawn(World, "FromExternalToWorld");
 			
-			MaterialAndMesh = World->SpawnActor<ASnapshotTestActor>();
+			MaterialAndMesh = ASnapshotTestActor::Spawn(World, "MaterialAndMesh");
 			
 			FirstActor->SetObjectReference(SecondActor);
 			SecondActor->SetObjectReference(FirstActor);

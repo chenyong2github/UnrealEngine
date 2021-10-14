@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "IRestorationListener.h"
-
+#include "Restorability/IRestorationListener.h"
+#include "Restorability/ISnapshotLoader.h"
 #include "Restorability/IPropertyComparer.h"
 #include "Restorability/ISnapshotRestorabilityOverrider.h"
 #include "Serialization/ICustomObjectSnapshotSerializer.h"
@@ -53,11 +53,13 @@ public:
 	/** Queries the attached snapshot delegate and determines if we can take a snapshot.*/
 	virtual bool CanTakeSnapshot(const FPreTakeSnapshotEventData& Event) const = 0;
 
+	
 
 	/** Snapshots will no longer capture nor restore subobjects of this class. Subclasses are implicitly blacklisted. */
 	virtual void AddBlacklistedSubobjectClasses(const TSet<UClass*>& Classes) = 0;
 	virtual void RemoveBlacklistedSubobjectClasses(const TSet<UClass*>& Classes) = 0;
 	
+
 	
 	/* Registers callbacks that override which actors, components, and properties are restored by default. */
 	virtual void RegisterRestorabilityOverrider(TSharedRef<ISnapshotRestorabilityOverrider> Overrider) = 0;
@@ -65,10 +67,12 @@ public:
 	virtual void UnregisterRestorabilityOverrider(TSharedRef<ISnapshotRestorabilityOverrider> Overrider) = 0;
 
 	
+	
 	/* Registers a callback for deciding whether a property should be considered changed. Applies to all sub-classes. */
 	virtual void RegisterPropertyComparer(UClass* Class, TSharedRef<IPropertyComparer> Comparer) = 0;
 	virtual void UnregisterPropertyComparer(UClass* Class, TSharedRef<IPropertyComparer> Comparer) = 0;
 
+	
 	
 	/**
 	 * Registers callbacks for snapshotting / restoring certain classes. There can only be one per class. The typical use case using  Level Snapshots for restoring subobjects
@@ -81,6 +85,11 @@ public:
 	virtual void RegisterCustomObjectSerializer(UClass* Class, TSharedRef<ICustomObjectSnapshotSerializer> CustomSerializer, bool bIncludeBlueprintChildClasses = true) = 0;
 	virtual void UnregisterCustomObjectSerializer(UClass* Class) = 0;
 
+
+	/** Register an object that will receive callbacks when a snapshot is loaded */
+	virtual void RegisterSnapshotLoader(TSharedRef<ISnapshotLoader> Loader) = 0;
+	virtual void UnregisterSnapshotLoader(TSharedRef<ISnapshotLoader> Loader) = 0;
+	
 	
 	/** Registers an object that will receive callbacks when a snapshot is applied. */
 	virtual void RegisterRestorationListener(TSharedRef<IRestorationListener> Listener) = 0;
@@ -100,6 +109,24 @@ public:
 	 */
 	virtual void AddBlacklistedProperties(const TSet<const FProperty*>& Properties) = 0;
 	virtual void RemoveBlacklistedProperties(const TSet<const FProperty*>& Properties) = 0;
+
+
+	/**
+	 * Disable CDO serialization for a class and all of its subclasses.
+	 *
+	 * Snapshots saves the CDO of every saved object class.
+	 * Actors use it as Template when spawned. For all other objects (i.e. subobjects), Serialize(FArchive&) is called with the saved CDO data and then
+	 * Serialize(FArchive&) is called again with the actual object's data. This is so changes to CDOs can be detected.
+	 *
+	 * This function disables the above process. You would use it e.g. when your class implements a custom Serialize(FArchive&) function which
+	 * conditionally serializes data depending on whether the serialized object has the RF_ClassDefaultObject flag. Doing so would trigger an ensure in
+	 * the snapshot archive code because the data would not be read in the same order as it was written.
+	 *
+	 * Note: Level Snapshots will no longer detect changes made to the class default values of blacklisted classes.
+	 */
+	virtual void AddBlacklistedClassDefault(const UClass* Class) = 0;
+	virtual void RemoveBlacklistedClassDefault(const UClass* Class) = 0;
+	virtual bool IsClassDefaultBlacklisted(const UClass* Class) const = 0;
 
 protected:
 

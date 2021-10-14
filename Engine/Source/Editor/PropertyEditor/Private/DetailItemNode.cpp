@@ -9,7 +9,7 @@
 #include "ObjectPropertyNode.h"
 #include "SConstrainedBox.h"
 #include "PropertyCustomizationHelpers.h"
-#include "PropertyEditorWhitelist.h"
+#include "PropertyEditorPermissionList.h"
 #include "SDetailCategoryTableRow.h"
 #include "SDetailSingleItemRow.h"
 
@@ -409,14 +409,14 @@ void FDetailItemNode::GenerateChildren( bool bUpdateFilteredNodes )
 		Customization.DetailGroup->OnGenerateChildren( Children );
 	}
 
-	// Discard generated nodes that don't pass the property whitelist, as well as generated categories who no longer contain any children
+	// Discard generated nodes that don't pass the property allow list, as well as generated categories who no longer contain any children
 	// Searching backwards guarantees that a category's children will be culled before the category itself.
 	for (int32 i = Children.Num() - 1; i >= 0; --i)
 	{
 		Children[i]->SetParentNode(AsShared());
 		if (Children[i]->GetNodeType() == EDetailNodeType::Object || Children[i]->GetNodeType() == EDetailNodeType::Item)
 		{
-			if (!FPropertyEditorWhitelist::Get().DoesPropertyPassFilter(Children[i]->GetParentBaseStructure(), Children[i]->GetNodeName()))
+			if (!FPropertyEditorPermissionList::Get().DoesPropertyPassFilter(Children[i]->GetParentBaseStructure(), Children[i]->GetNodeName()))
 			{
 				Children.RemoveAt(i);
 			}
@@ -589,7 +589,7 @@ static bool PassesAllFilters( FDetailItemNode* ItemNode, const FDetailLayoutCust
 
 	if( InFilter.FilterStrings.Num() > 0 || 
 		InFilter.bShowOnlyModified == true || 
-		InFilter.bShowOnlyWhitelisted == true || 
+		InFilter.bShowOnlyAllowed == true ||
 		InFilter.bShowOnlyKeyable == true || 
 		InFilter.bShowOnlyAnimated == true)
 	{
@@ -609,7 +609,7 @@ static bool PassesAllFilters( FDetailItemNode* ItemNode, const FDetailLayoutCust
 
 			const bool bPassesSearchFilter = bPassesCategoryFilter || bPassesValueFilter || bSearchFilterIsEmpty || ( bIsNotBeingFiltered || bIsSeenDueToFiltering || bIsParentSeenDueToFiltering );
 			const bool bPassesModifiedFilter = bPassesSearchFilter && ( InFilter.bShowOnlyModified == false || PropertyNodePin->GetDiffersFromDefault() == true );
-			const bool bPassesWhitelistedFilter = InFilter.bShowOnlyWhitelisted ? InFilter.WhitelistedProperties.Contains(*FPropertyNode::CreatePropertyPath(PropertyNodePin.ToSharedRef())) : true;
+			const bool bPassesAllowListFilter = InFilter.bShowOnlyAllowed ? InFilter.PropertyAllowList.Contains(*FPropertyNode::CreatePropertyPath(PropertyNodePin.ToSharedRef())) : true;
 
 			bool bPassesKeyableFilter = true;
 			if (InFilter.bShowOnlyKeyable)
@@ -628,7 +628,7 @@ static bool PassesAllFilters( FDetailItemNode* ItemNode, const FDetailLayoutCust
 			const bool bPassesAnimatedFilter = (InFilter.bShowOnlyAnimated == false || Local::ItemIsAnimated(ItemNode, PropertyNodePin));
 
 			// The property node is visible (note categories are never visible unless they have a child that is visible )
-			bPassesAllFilters = bPassesSearchFilter && bPassesModifiedFilter && bPassesWhitelistedFilter && bPassesKeyableFilter && bPassesAnimatedFilter;
+			bPassesAllFilters = bPassesSearchFilter && bPassesModifiedFilter && bPassesAllowListFilter && bPassesKeyableFilter && bPassesAnimatedFilter;
 		}
 		else if (InCustomization.HasCustomWidget())
 		{

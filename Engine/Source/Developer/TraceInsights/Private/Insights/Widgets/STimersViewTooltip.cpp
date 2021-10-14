@@ -114,6 +114,34 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetRowTooltip(const TSharedPtr<FTimerNo
 	TSharedPtr<SGridPanel> GridPanel;
 	TSharedPtr<SHorizontalBox> HBox;
 
+	FText SourcePrefix;
+	FText SourceSuffix;
+	GetSource(TimerNodePtr, SourcePrefix, SourceSuffix);
+
+	TSharedPtr<SVerticalBox> SourceWidget = SNew(SVerticalBox);
+	if (!SourcePrefix.IsEmptyOrWhitespace())
+	{
+		SourceWidget->AddSlot()
+			.AutoHeight()
+			[
+				SNew(STextBlock)
+				.Text(SourcePrefix)
+				.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+			];
+	}
+	if (!SourceSuffix.IsEmptyOrWhitespace())
+	{
+		SourceWidget->AddSlot()
+			.AutoHeight()
+			[
+				SNew(STextBlock)
+				.Text(SourceSuffix)
+				.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
+			];
+	}
+
 	TSharedPtr<SToolTip> TableCellTooltip =
 		SNew(SToolTip)
 		[
@@ -166,44 +194,40 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetRowTooltip(const TSharedPtr<FTimerNo
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
-						.WrapTextAt(512.0f)
+						.WrapTextAt(1024.0f)
 						.WrappingPolicy(ETextWrappingPolicy::AllowPerCharacterWrapping)
 						.Text(FText::FromName(TimerNodePtr->GetName()))
 						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
 					]
 
-					//// Group: [MetaGroupName]
-					//+ SGridPanel::Slot(0, 2)
-					//.Padding(2.0f)
-					//[
-					//	SNew(STextBlock)
-					//	.Text(LOCTEXT("TT_Group", "Group:"))
-					//	.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
-					//]
-					//+ SGridPanel::Slot(1, 2)
-					//.Padding(2.0f)
-					//[
-					//	SNew(STextBlock)
-					//	.WrapTextAt(512.0f)
-					//	.WrappingPolicy(ETextWrappingPolicy::AllowPerCharacterWrapping)
-					//	.Text(FText::FromName(TimerNodePtr->GetMetaGroupName()))
-					//	.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
-					//]
-
 					// Timer Type: [Type]
-					+ SGridPanel::Slot(0, 3)
+					+ SGridPanel::Slot(0, 2)
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("TT_Type", "Type:"))
 						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
 					]
-					+ SGridPanel::Slot(1, 3)
+					+ SGridPanel::Slot(1, 2)
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
 						.Text(TimerNodeTypeHelper::ToText(TimerNodePtr->GetType()))
 						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+					]
+
+					// Source: [Source]
+					+ SGridPanel::Slot(0, 3)
+					.Padding(2.0f)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("TT_Source", "Source:"))
+						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+					]
+					+ SGridPanel::Slot(1, 3)
+					.Padding(2.0f)
+					[
+						SourceWidget.ToSharedRef()
 					]
 				]
 
@@ -325,6 +349,36 @@ void STimersViewTooltip::AddStatsRow(TSharedPtr<SGridPanel> Grid, int32& Row, co
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimersViewTooltip::GetSource(const TSharedPtr<FTimerNode> TreeNodePtr, FText& OutSourcePrefix, FText& OutSourceSuffix)
+{
+	bool bIsSourceFileValid = false;
+	if (TreeNodePtr.IsValid())
+	{
+		FString File;
+		uint32 Line;
+		bIsSourceFileValid = TreeNodePtr->GetSourceFileAndLine(File, Line);
+		if (bIsSourceFileValid)
+		{
+			int32 Index = -1;
+			if (!File.FindLastChar('\\', Index))
+			{
+				File.FindLastChar('/', Index);
+			}
+			++Index;
+			OutSourcePrefix = FText::FromString(*File.Left(Index));
+			OutSourceSuffix = FText::FromString(*FString::Printf(TEXT("%s (%u)"), *File.RightChop(Index), Line));
+		}
+	}
+	if (!bIsSourceFileValid)
+	{
+		OutSourcePrefix = LOCTEXT("Source_NA", "N/A");
+		OutSourceSuffix = FText::GetEmpty();
+	}
+	return bIsSourceFileValid;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -78,7 +78,7 @@
 // Events
 #define CSV_EVENT(Category, Format, ...) \
 	FCsvProfiler::RecordEventf( CSV_CATEGORY_INDEX(Category), Format, ##__VA_ARGS__ ); \
-	TRACE_BOOKMARK(Format, ##__VA_ARGS__)
+	TRACE_BOOKMARK(TEXT(PREPROCESSOR_TO_STRING(Category)) TEXT("/") Format, ##__VA_ARGS__)
 
 #define CSV_EVENT_GLOBAL(Format, ...) \
 	FCsvProfiler::RecordEventf( CSV_CATEGORY_INDEX_GLOBAL, Format, ##__VA_ARGS__ ); \

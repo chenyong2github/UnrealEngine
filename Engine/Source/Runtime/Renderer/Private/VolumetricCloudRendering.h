@@ -67,12 +67,12 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 BEGIN_SHADER_PARAMETER_STRUCT(FLightCloudTransmittanceParameters, )
 	SHADER_PARAMETER(FMatrix44f, CloudShadowmapWorldToLightClipMatrix)
 	SHADER_PARAMETER(float, CloudShadowmapFarDepthKm)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CloudShadowmapTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, CloudShadowmapTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, CloudShadowmapSampler)
 	SHADER_PARAMETER(float, CloudShadowmapStrength)
 END_SHADER_PARAMETER_STRUCT()
 
-bool SetupLightCloudTransmittanceParameters(const FScene* Scene, const FViewInfo& View, const FLightSceneInfo* LightSceneInfo, FLightCloudTransmittanceParameters& OutParameters);
+bool SetupLightCloudTransmittanceParameters(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View, const FLightSceneInfo* LightSceneInfo, FLightCloudTransmittanceParameters& OutParameters);
 
 /** Contains render data created render side for a FVolumetricCloudSceneProxy objects. */
 class FVolumetricCloudRenderSceneInfo

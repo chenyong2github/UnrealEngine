@@ -210,20 +210,6 @@ void SGameplayTagWidget::Construct(const FArguments& InArgs, const TArray<FEdita
 				.Visibility(this, &SGameplayTagWidget::DetermineAddNewSourceWidgetVisibility)
 			]
 
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.VAlign(VAlign_Top)
-			[
-				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryMiddle"))
-				.Padding(FMargin(0.0f, 3.0f, 0.0f, 0.0f))
-				.Visibility(this, &SGameplayTagWidget::DetermineAddNewTagWidgetVisibility)
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("DetailsView.AdvancedDropdownBorder.Open"))
-				]
-			]
-
 			// Gameplay Tag Tree controls
 			+SVerticalBox::Slot()
 			.AutoHeight()

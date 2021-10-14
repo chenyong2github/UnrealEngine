@@ -55,6 +55,7 @@ namespace UnrealBuildTool.Rules
                         "PropertyEditor",
                         "RigVMDeveloper",
 						"GraphEditor",
+						"ApplicationCore",
 					}
                 );
 

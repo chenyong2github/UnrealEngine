@@ -1727,7 +1727,7 @@ void FAssetFileContextMenu::ExecuteShowAssetMetaData()
 bool FAssetFileContextMenu::CanModifyPath(const FString& InPath) const
 {
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	if (!AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(InPath))
+	if (!AssetToolsModule.Get().GetWritableFolderPermissionList()->PassesStartsWithFilter(InPath))
 	{
 		return false;
 	}

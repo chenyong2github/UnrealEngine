@@ -249,6 +249,7 @@ private:
 	void CleanGarbage();
 
 	void OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources);
+	void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
 
 	virtual void BeginDestroy() override;
 

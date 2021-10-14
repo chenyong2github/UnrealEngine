@@ -20,7 +20,7 @@
 			"Name" : "CLionSourceCodeAccess",
 			"Type" : "UncookedOnly",
 			"LoadingPhase" : "Default",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"Mac",
 				"Linux",

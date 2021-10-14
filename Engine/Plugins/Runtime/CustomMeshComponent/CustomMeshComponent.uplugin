@@ -20,7 +20,7 @@
 			"Name" : "CustomMeshComponent",
 			"Type" : "Runtime",
 			"LoadingPhase" : "Default",
-			"BlacklistPlatforms" :
+			"PlatformDenyList" :
 			[
 			]
 		}

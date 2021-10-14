@@ -23,7 +23,7 @@
 		{
 			"Name": "AzureSpatialAnchorsForWMR",
 			"Type": "Runtime",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"HoloLens"
 			]
@@ -33,7 +33,7 @@
 		{
 			"Name": "AzureSpatialAnchors",
 			"Enabled": true,
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"HoloLens"
 			]
@@ -41,7 +41,7 @@
 		{
 			"Name": "WindowsMixedReality",
 			"Enabled": true,
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"HoloLens"
 			]

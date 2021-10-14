@@ -305,7 +305,7 @@ bool UTextAssetCommandlet::DoTextAssetProcessing(const FProcessingArgs& InArgs)
 
 	RepairDamagedFiles();
 
-	TArray<FString> Blacklist;
+	TArray<FString> DenyList;
 
 	switch (InArgs.ProcessingMode)
 	{
@@ -394,9 +394,9 @@ bool UTextAssetCommandlet::DoTextAssetProcessing(const FProcessingArgs& InArgs)
 
 		bIgnore = bIgnore || (InputAssetFilename.Contains(TEXT("_BuiltData")));
 
-		for (const FString& BlacklistItem : Blacklist)
+		for (const FString& DeniedItem : DenyList)
 		{
-			if (InputAssetFilename.Contains(BlacklistItem))
+			if (InputAssetFilename.Contains(DeniedItem))
 			{
 				bIgnore = true;
 				break;

@@ -87,6 +87,7 @@ SHeaderRow::FColumn::FArguments FTypeInfoColumn::ConstructHeaderRowColumn()
 	return SHeaderRow::Column( GetColumnID() )
 		.FillWidth(2)
 		.HeaderComboVisibility(EHeaderComboVisibility::OnHover)
+		.DefaultTooltip(MakeComboToolTipText())
 		.HeaderContent()
 		[
 			SNew( SHorizontalBox )

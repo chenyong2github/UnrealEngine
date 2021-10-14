@@ -190,7 +190,7 @@ namespace HoloLens.Automation
 						while (!LogReader.EndOfStream)
 						{
 							string LogLine = LogReader.ReadLine();
-							Log.WriteLine(1, SpewVerbosity, "{0} : {1}", LogName, LogLine);
+							Log.WriteLine(SpewVerbosity, "{0} : {1}", LogName, LogLine);
 						}
 					}
 				}
@@ -242,7 +242,7 @@ namespace HoloLens.Automation
 				{
 					if (EtwEvent["ProviderName"] == FriendlyName)
 					{
-						Log.WriteLine(1, GetLogVerbosityFromEventLevel(EtwEvent.Level), "{0} : {1}", FriendlyName, EtwEvent["StringMessage"].Trim('\"'));
+						Log.WriteLine(GetLogVerbosityFromEventLevel(EtwEvent.Level), "{0} : {1}", FriendlyName, EtwEvent["StringMessage"].Trim('\"'));
 					}
 				}
 			}

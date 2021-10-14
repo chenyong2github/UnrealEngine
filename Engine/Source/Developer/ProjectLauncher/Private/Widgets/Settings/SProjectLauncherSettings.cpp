@@ -305,8 +305,7 @@ TSharedRef<SWidget> SProjectLauncherSettings::MakeToolbar(const TSharedRef<FUICo
 
 	ToolBarBuilder.BeginSection("Tasks");
 	{
-		//ToolBarBuilder.AddToolBarButton(FProjectLauncherCommands::Get().DeleteProfile, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), TEXT("Launcher.Delete")));
-		ToolBarBuilder.AddToolBarButton(FProjectLauncherCommands::Get().CloseSettings, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), TEXT("Launcher.Back")));
+		ToolBarBuilder.AddToolBarButton(FProjectLauncherCommands::Get().CloseSettings, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), TEXT("Icons.Previous")));
 	}
 
 	return ToolBarBuilder.MakeWidget();

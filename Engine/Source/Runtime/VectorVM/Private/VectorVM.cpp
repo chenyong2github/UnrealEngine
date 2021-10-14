@@ -76,7 +76,7 @@ namespace VectorVMConstants
 	};
 };
 
-// helper function wrapping the SSE3 shuffle operation.  Currently implemented for PS4/XB1/Neon, the
+// helper function wrapping the SSE3 shuffle operation.  Currently implemented for some platforms, the
 // rest will just use the FPU version so as to not push the requirements up to SSE3 (currently SSE2)
 #if PLATFORM_ENABLE_VECTORINTRINSICS && PLATFORM_ALWAYS_HAS_SSE4_1
 #define VectorIntShuffle( Vec, Mask )	_mm_shuffle_epi8( (Vec), (Mask) )

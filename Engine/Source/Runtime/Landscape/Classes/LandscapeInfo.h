@@ -173,6 +173,8 @@ public:
 
 	// @todo document 
 	// all below.
+	LANDSCAPE_API bool SupportsLandscapeEditing() const;
+
 	LANDSCAPE_API bool AreAllComponentsRegistered() const;
 	LANDSCAPE_API void GetComponentsInRegion(int32 X1, int32 Y1, int32 X2, int32 Y2, TSet<ULandscapeComponent*>& OutComponents, bool bOverlap = true) const;
 	LANDSCAPE_API bool HasUnloadedComponentsInRegion(int32 X1, int32 Y1, int32 X2, int32 Y2) const;
@@ -251,8 +253,8 @@ public:
 	 */
 	LANDSCAPE_API void FixupProxiesTransform(bool bDirty = false);
 	
-	// Update per-component layer whitelists to include the currently painted layers
-	LANDSCAPE_API void UpdateComponentLayerWhitelist();
+	// Update per-component layer allow list to include the currently painted layers
+	LANDSCAPE_API void UpdateComponentLayerAllowList();
 
 	LANDSCAPE_API void RecreateCollisionComponents();
 

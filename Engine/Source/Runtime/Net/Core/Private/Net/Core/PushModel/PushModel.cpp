@@ -368,12 +368,42 @@ namespace UEPushModelPrivate
 			return false;
 		}
 
-	private:
+		uint32 CountBytes() const
+		{
+			FArchiveCountPushModelMem Ar;
 
+			ObjectKeyToInternalId.CountBytes(Ar);
+			PerObjectStates.CountBytes(Ar);
+
+			for (TSparseArray<FPushModelPerObjectState>::TConstIterator It = PerObjectStates.CreateConstIterator(); It; ++It)
+			{
+				It->CountBytes(Ar);
+			}
+
+			return sizeof(*this) + Ar.GetMem();
+		}
+
+	private:
 		int32 NewObjectLookupPosition = 0;
 		TMap<FObjectKey, FNetPushObjectId> ObjectKeyToInternalId;
 		TSparseArray<FPushModelPerObjectState> PerObjectStates;
 		FDelegateHandle PostGarbageCollectHandle;
+
+		class FArchiveCountPushModelMem : public FArchive
+		{
+		public:
+			FArchiveCountPushModelMem() : Mem(0) 
+			{ 
+				ArIsCountingMemory = true; 
+			}
+
+			virtual void CountBytes(SIZE_T InNum, SIZE_T InMax) override { Mem += InMax; }
+
+			SIZE_T GetMem() const { return Mem; }
+
+		private:
+			SIZE_T Mem;
+		};
 	};
 
 	static FPushModelObjectManager_CustomId PushObjectManager;
@@ -455,6 +485,13 @@ namespace UEPushModelPrivate
 	bool ValidateObjectIdReassignment(FNetPushObjectId CurrentId, FNetPushObjectId NewId)
 	{
 		return PushObjectManager.ValidateObjectIdReassignment(CurrentId, NewId);
+	}
+
+	void LogMemory(FOutputDevice& Ar)
+	{
+		uint32 Count = PushObjectManager.CountBytes();
+
+		Ar.Logf(TEXT("  Push Model Memory: %u"), Count);
 	}
 }
 

@@ -36,8 +36,10 @@ void UMovieSceneGenericBoundObjectInstantiator::OnRun(FSystemTaskPrerequisites& 
 
 	struct FGenericBoundObjectBatch : FObjectFactoryBatch
 	{
-		virtual void ResolveObjects(FInstanceRegistry* InstanceRegistry, FInstanceHandle InstanceHandle, int32 InEntityIndex, const FGuid& ObjectBinding) override
+		virtual EResolveError ResolveObjects(FInstanceRegistry* InstanceRegistry, FInstanceHandle InstanceHandle, int32 InEntityIndex, const FGuid& ObjectBinding) override
 		{
+			EResolveError Error = EResolveError::UnresolvedBinding;
+
 			FSequenceInstance& SequenceInstance = InstanceRegistry->MutateInstance(InstanceHandle);
 			for (TWeakObjectPtr<> WeakObject : SequenceInstance.GetPlayer()->FindBoundObjects(ObjectBinding, SequenceInstance.GetSequenceID()))
 			{
@@ -50,8 +52,11 @@ void UMovieSceneGenericBoundObjectInstantiator::OnRun(FSystemTaskPrerequisites& 
 
 					// Make a child entity for this resolved binding
 					Add(InEntityIndex, Object);
+					Error = EResolveError::None;
 				}
 			}
+
+			return Error;
 		}
 	};
 
@@ -62,6 +67,6 @@ void UMovieSceneGenericBoundObjectInstantiator::OnRun(FSystemTaskPrerequisites& 
 	.ReadEntityIDs()
 	.Read(Components->InstanceHandle)
 	.Read(Components->GenericObjectBinding)
-	.FilterAll({ Components->Tags.NeedsLink })
+	.FilterAny({ Components->Tags.NeedsLink, Components->Tags.HasUnresolvedBinding })
 	.RunInline_PerAllocation(&Linker->EntityManager, BoundObjectTask);
 }

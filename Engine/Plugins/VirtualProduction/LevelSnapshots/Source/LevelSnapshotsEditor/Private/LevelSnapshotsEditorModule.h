@@ -39,8 +39,6 @@ private:
 	
 	void PostEngineInit();
 
-	void SetupReminderToEnableSupportPlugins();
-
 	void RegisterMenuItem();
 	bool RegisterProjectSettings();
 	bool HandleModifiedProjectSettings();

@@ -1449,11 +1449,11 @@ void FMoveKeysAndSections::HandleKeyMovement(TOptional<FFrameNumber> MaxDeltaX, 
 		}
 	}
 
-	for (UMovieSceneSection* Section : ModifiedNonSelectedSections)
+	for (TWeakObjectPtr<UMovieSceneSection> Section : ModifiedNonSelectedSections)
 	{
-		if (Section)
+		if (Section.Get())
 		{
-			Section->MarkAsChanged();
+			Section.Get()->MarkAsChanged();
 		}
 	}
 }

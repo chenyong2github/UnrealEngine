@@ -261,6 +261,16 @@ namespace IncludeTool
 			PreprocessorTests.Run(false);
 			PreprocessorExpressionTests.Run();
 
+			// Apply all the custom mutators
+			foreach (Type Type in Assembly.GetExecutingAssembly().GetTypes())
+			{
+				if (Type.IsClass && !Type.IsAbstract && Type.IsSubclassOf(typeof(RulesMutator)))
+				{
+					RulesMutator Instance = (RulesMutator)Activator.CreateInstance(Type);
+					Instance.Run();
+				}
+			}
+
 			// Parse the command line options
 			CommandLineOptions Options = new CommandLineOptions();
 			if(!CommandLine.Parse(Args, Options))

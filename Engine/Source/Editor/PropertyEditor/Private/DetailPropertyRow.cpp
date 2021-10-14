@@ -754,7 +754,7 @@ void FDetailPropertyRow::MakeNameOrKeyWidget( FDetailWidgetRow& Row, const TShar
 	TSharedRef<SHorizontalBox> NameHorizontalBox = SNew(SHorizontalBox)
 		.Clipping(EWidgetClipping::OnDemand);
 	
-	TSharedPtr<SWidget> NameWidget;
+	TSharedPtr<SWidget> NameWidget = SNullWidget::NullWidget;
 
 	// Key nodes take precedence over custom rows
 	if (bHasKeyNode)
@@ -788,7 +788,7 @@ void FDetailPropertyRow::MakeNameOrKeyWidget( FDetailWidgetRow& Row, const TShar
 				InCustomRow->NameWidget.Widget
 			];
 	}
-	else
+	else if (PropertyEditor.IsValid())
 	{
 		NameWidget = 
 			SNew( SPropertyNameWidget, PropertyEditor )
@@ -832,43 +832,40 @@ void FDetailPropertyRow::MakeValueWidget( FDetailWidgetRow& Row, const TSharedPt
 	TOptional<float> MinWidth;
 	TOptional<float> MaxWidth;
 
-	if( InCustomRow.IsValid() )
-	{
-		VerticalAlignment = InCustomRow->ValueWidget.VerticalAlignment;
-		HorizontalAlignment = InCustomRow->ValueWidget.HorizontalAlignment;
-	}
-
 	TAttribute<bool> IsEnabledAttrib = TAttribute<bool>::CreateSP( this, &FDetailPropertyRow::GetEnabledState );
 
 	TSharedRef<SHorizontalBox> ValueWidget = 
 		SNew( SHorizontalBox )
 		.IsEnabled( IsEnabledAttrib );
 
-	TSharedPtr<SPropertyValueWidget> PropertyValue;
-
-	if( InCustomRow.IsValid() )
+	if (InCustomRow.IsValid())
 	{
+		VerticalAlignment = InCustomRow->ValueWidget.VerticalAlignment;
+		HorizontalAlignment = InCustomRow->ValueWidget.HorizontalAlignment;
 		MinWidth = InCustomRow->ValueWidget.MinWidth;
 		MaxWidth = InCustomRow->ValueWidget.MaxWidth;
+
 		ValueWidget->AddSlot()
 		[
 			InCustomRow->ValueWidget.Widget
 		];
 	}
-	else
+	else if (PropertyEditor.IsValid())
 	{
+		TSharedPtr<SPropertyValueWidget> PropertyValue;
 		ValueWidget->AddSlot()
 		[
 			SAssignNew( PropertyValue, SPropertyValueWidget, PropertyEditor, GetPropertyUtilities() )
 			.ShowPropertyButtons( false ) // We handle this ourselves
 		];
+		
 		MinWidth = PropertyValue->GetMinDesiredWidth();
 		MaxWidth = PropertyValue->GetMaxDesiredWidth();
 	}
 
-	if( bAddWidgetDecoration )
+	if (bAddWidgetDecoration && PropertyEditor.IsValid())
 	{
-		if( bShowPropertyButtons )
+		if (bShowPropertyButtons)
 		{
 			TArray< TSharedRef<SWidget> > RequiredButtons;
 			PropertyEditorHelpers::MakeRequiredPropertyButtons( PropertyEditor.ToSharedRef(), /*OUT*/RequiredButtons );

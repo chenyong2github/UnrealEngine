@@ -63,13 +63,6 @@ struct FColorAdjustmentParameters
 	}
 };
 
-enum class ETextureFastEncode : uint8
-{
-	Off = 0,   // Fast Cook Off  (use slow cook)
-	TryOffEncodeFast  = 1,   // Fast Cook On when needed, but prefer to fetch slow cook if possible
-	Forced = 2 // Fast Cook On Forced (do not try to fetch slow cook)
-};
-
 /**
  * Texture build settings.
  */
@@ -165,10 +158,22 @@ struct FTextureBuildSettings
 	FColor ChromaKeyColor;
 	/** The threshold that components have to match for the texel to be considered equal to the ChromaKeyColor when chroma keying (<=, set to 0 to require a perfect exact match) */
 	float ChromaKeyThreshold;
-	/** The quality of the compression algorithm (min 0 - lowest quality, highest cook speed, 4 - highest quality, lowest cook speed)*/
+	/** The quality of the compression algorithm (min 0 - lowest quality, highest cook speed, 4 - highest quality, lowest cook speed)
+	* only used by ASTC formats right now.
+	*/
 	int32 CompressionQuality;
-	/** ETextureLossyCompressionAmount */
+
+	// ETextureLossyCompressionAmount - oodle resolves this to RDO lambda during fast/final resolution.
 	int32 LossyCompressionAmount;
+
+	/** Encoding settings resolved from fast/final.
+	* Enums aren't accessible from this module:
+	* ETextureEncodeEffort, ETextureUniversalTiling. */	
+	uint8 OodleRDO;
+	uint8 OodleEncodeEffort;
+	uint8 OodleUniversalTiling;
+	bool bOodleUsesRDO;
+
 	/** Values > 1.0 will scale down source texture. Ignored for textures with mips */
 	float Downscale;
 	/** ETextureDownscaleOptions */
@@ -184,8 +189,12 @@ struct FTextureBuildSettings
 	uint32 bVirtualTextureEnableCompressZlib : 1;
 	/** Is crunch compression enabled */
 	uint32 bVirtualTextureEnableCompressCrunch : 1;
-	/** Should faster cook option be used */
-	ETextureFastEncode FastTextureEncode;
+
+	// Which encode speed this build settings represents.
+	// This is not sent to the build worker, it is used to
+	// return what was done to the UI.
+	// ETextureEncodeSpeed, either Final or Fast.
+	uint8 RepresentsEncodeSpeedNoSend;
 
 	/** Default settings. */
 	FTextureBuildSettings()
@@ -232,7 +241,11 @@ struct FTextureBuildSettings
 		, ChromaKeyColor(FColorList::Magenta)
 		, ChromaKeyThreshold(1.0f / 255.0f)
 		, CompressionQuality(-1)
-		, LossyCompressionAmount(0)
+		, LossyCompressionAmount(0 /* TLCA_Default */)
+		, OodleRDO(30)
+		, OodleEncodeEffort(0 /* ETextureEncodeEffort::Default */)
+		, OodleUniversalTiling(0 /* ETextureUniversalTiling::Disabled */)
+		, bOodleUsesRDO(false)
 		, Downscale(0.0)
 		, DownscaleOptions(0)
 		, VirtualAddressingModeX(0)
@@ -241,7 +254,6 @@ struct FTextureBuildSettings
 		, VirtualTextureBorderSize(0)
 		, bVirtualTextureEnableCompressZlib(false)
 		, bVirtualTextureEnableCompressCrunch(false)
-		, FastTextureEncode(ETextureFastEncode::Off)
 	{
 	}
 
@@ -272,7 +284,7 @@ public:
 	 * @param BuildSettings - Build settings.
 	 * @param OutCompressedMips - The compressed mips built by the compressor.
 	 * @param OutNumMipsInTail - The number of mips that are joined into a single mip tail mip
-	 * @param OutCompressedMips - Extra data that the runtime may need
+	 * @param OutExtData - Extra data that the runtime may need
 	 * @returns true on success
 	 */
 	virtual bool BuildTexture(

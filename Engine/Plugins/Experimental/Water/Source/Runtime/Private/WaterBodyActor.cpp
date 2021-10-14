@@ -614,6 +614,53 @@ void AWaterBody::PostRegisterAllComponents()
 	}
 }
 
+#if WITH_EDITOR
+void AWaterBody::SetActorHiddenInGame(bool bNewHidden)
+{
+	// It's kinda sad that being hidden in game for the actor doesn't end up calling OnHiddenInGameChanged on the component but intercepting it on the actor, we can inform the component that it needs
+	//  to update its (internal components') visibility :
+	if (IsHidden() != bNewHidden)
+	{
+		Super::SetActorHiddenInGame(bNewHidden);
+
+		if (WaterBodyComponent)
+		{
+			WaterBodyComponent->UpdateComponentVisibility(/* bAllowWaterMeshRebuild = */true);
+		}
+	}
+}
+
+void AWaterBody::SetIsTemporarilyHiddenInEditor(bool bIsHidden)
+{
+	// It's kinda sad that there's no way for the component to override a virtual function for when it becomes hidden in editor but intercepting it on the actor, we can inform the component that it needs
+	//  to update its (internal components') visibility :
+	if (IsTemporarilyHiddenInEditor() != bIsHidden)
+	{
+		Super::SetIsTemporarilyHiddenInEditor(bIsHidden);
+
+		if (WaterBodyComponent)
+		{
+			WaterBodyComponent->UpdateComponentVisibility(/* bAllowWaterMeshRebuild = */true);
+		}
+	}
+}
+
+bool AWaterBody::SetIsHiddenEdLayer(bool bIsHiddenEdLayer)
+{
+	// It's kinda sad that there's no way for the component to override a virtual function for when its layer becomes hidden but intercepting it on the actor, we can inform the component that it needs
+	//  to update its (internal components') visibility :
+	if (Super::SetIsHiddenEdLayer(bIsHiddenEdLayer))
+	{
+		if (WaterBodyComponent)
+		{
+			WaterBodyComponent->UpdateComponentVisibility(/* bAllowWaterMeshRebuild = */true);
+		}
+		return true;
+	}
+	return false;
+}
+#endif // WITH_EDITOR
+
 void AWaterBody::UnregisterAllComponents(bool bForReregister)
 {
 	if (WaterBodyComponent)

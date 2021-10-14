@@ -39,7 +39,7 @@ const FRDGSystemTextures& FRDGSystemTextures::Create(FRDGBuilder& GraphBuilder)
 	SystemTextures.VolumetricBlack = Register(GSystemTextures.VolumetricBlackDummy);
 	SystemTextures.VolumetricBlackAlphaOne = Register(GSystemTextures.VolumetricBlackAlphaOneDummy);
 	SystemTextures.VolumetricBlackUint = Register(GSystemTextures.VolumetricBlackUintDummy);
-	SystemTextures.StencilDummySRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SystemTextures.DepthDummy));
+	SystemTextures.StencilDummySRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SystemTextures.StencilDummy));
 	return SystemTextures;
 }
 

@@ -841,9 +841,9 @@ void FPythonScriptPlugin::InitializePython()
 			auto PyItemPassesFilter = [](const FName InFilePath, const FString& InFilename, const FContentBrowserDataFilter& InFilter, const bool bIsFile)
 			{
 				const FContentBrowserDataPackageFilter* PackageFilter = InFilter.ExtraFilters.FindFilter<FContentBrowserDataPackageFilter>();
-				if (PackageFilter && PackageFilter->PathBlacklist && PackageFilter->PathBlacklist->HasFiltering())
+				if (PackageFilter && PackageFilter->PathPermissionList && PackageFilter->PathPermissionList->HasFiltering())
 				{
-					return PackageFilter->PathBlacklist->PassesStartsWithFilter(InFilePath, /*bAllowParentPaths*/!bIsFile);
+					return PackageFilter->PathPermissionList->PassesStartsWithFilter(InFilePath, /*bAllowParentPaths*/!bIsFile);
 				}
 
 				return true;

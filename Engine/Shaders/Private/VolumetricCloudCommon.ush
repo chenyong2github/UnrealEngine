@@ -81,7 +81,16 @@ float4 GetCloudLuminanceTransmittanceOverFog(
 {
 	float2 ScreenUv = (NDC.xy / NDC.ww) * float2(0.5f, -0.5f) + 0.5f;
 
+
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
+	// When depth is reprojected using bilinear filtering, it can leave some trails that are visible when doing binary depth testing.
+	// Fixing the reprojection is costly and also not perfect so instead we workaround that issue but using the min of the gathered cloud front depth (being MaxHalf when no clouds have been traced)
+	float4 FrontDepth4 = VolumetricCloudDepth.Gather(VolumetricCloudDepthSampler, ScreenUv, int2(0, 0));
+	const float CloudFrontDepthKm = min(min(FrontDepth4.x, FrontDepth4.y), min(FrontDepth4.z, FrontDepth4.w));
+#else
 	const float CloudFrontDepthKm = Texture2DSample(VolumetricCloudDepth, VolumetricCloudDepthSampler, ScreenUv).r;
+#endif
+
 	const float DistanceFromCameraKm = length(SampledWorldPos.xyz - CameraWorldPos) * CENTIMETER_TO_KILOMETER;
 	const float DepthInsideKm = DistanceFromCameraKm - CloudFrontDepthKm;
 	float4 FinalFog = CurrentVertexFog;

@@ -34,18 +34,36 @@ void FRedirectCollector::OnSoftObjectPathLoaded(const FSoftObjectPath& InPath, F
 
 	ThreadContext.GetSerializationOptions(PackageName, PropertyName, CollectType, SerializeType, InArchive);
 
-	if (CollectType == ESoftObjectPathCollectType::NeverCollect)
+	if (CollectType == ESoftObjectPathCollectType::NonPackage)
 	{
 		// Do not track
 		return;
 	}
 
 	const bool bReferencedByEditorOnlyProperty = (CollectType == ESoftObjectPathCollectType::EditorOnlyCollect);
-	FSoftObjectPathProperty SoftObjectPathProperty(InPath.GetAssetPathName(), PropertyName, bReferencedByEditorOnlyProperty);
+	FName AssetPathName = InPath.GetAssetPathName();
 
 	FScopeLock ScopeLock(&CriticalSection);
+	if (CollectType != ESoftObjectPathCollectType::NeverCollect)
+	{
+		// Add this reference to the soft object inclusion list for the cook's iterative traversal of the soft dependency graph
+		FSoftObjectPathProperty SoftObjectPathProperty(AssetPathName, PropertyName, bReferencedByEditorOnlyProperty);
+		SoftObjectPathMap.FindOrAdd(PackageName).Add(SoftObjectPathProperty);
+	}
 
-	SoftObjectPathMap.FindOrAdd(PackageName).Add(SoftObjectPathProperty);
+	if (ShouldTrackPackageReferenceTypes())
+	{
+		// Add the referenced package to the potential-exclusion list for the cook's up-front traversal of the soft dependency graph
+		TStringBuilder<256> AssetPathString;
+		AssetPathName.ToString(AssetPathString);
+		FName ReferencedPackageName = FName(FPackageName::ObjectPathToPackageName(AssetPathString));
+		if (PackageName != ReferencedPackageName)
+		{
+			TMap<FName, ESoftObjectPathCollectType>& PackageReferences = PackageReferenceTypes.FindOrAdd(PackageName);
+			ESoftObjectPathCollectType& ExistingCollectType = PackageReferences.FindOrAdd(ReferencedPackageName, ESoftObjectPathCollectType::NeverCollect);
+			ExistingCollectType = FMath::Max(ExistingCollectType, CollectType);
+		}
+	}
 }
 
 void FRedirectCollector::CollectSavedSoftPackageReferences(FName ReferencingPackage, const TSet<FName>& PackageNames, bool bEditorOnlyReferences)
@@ -131,6 +149,7 @@ void FRedirectCollector::ResolveAllSoftObjectPaths(FName FilterPackage)
 			}
 		}
 	}
+	PackageReferenceTypes.Empty();
 
 	check(SoftObjectPathMap.Num() == 0);
 	// Add any non processed packages back into the global map for the next time this is called
@@ -141,17 +160,19 @@ void FRedirectCollector::ResolveAllSoftObjectPaths(FName FilterPackage)
 
 void FRedirectCollector::ProcessSoftObjectPathPackageList(FName FilterPackage, bool bGetEditorOnly, TSet<FName>& OutReferencedPackages)
 {
-	FScopeLock ScopeLock(&CriticalSection);
-
-	TSet<FSoftObjectPathProperty>* SoftObjectPathProperties = SoftObjectPathMap.Find(FilterPackage);
-	if (!SoftObjectPathProperties)
+	TSet<FSoftObjectPathProperty> SoftObjectPathProperties;
 	{
-		return;
+		FScopeLock ScopeLock(&CriticalSection);
+		// always remove all data for the processed FilterPackage, in addition to processing it to populate OutReferencedPackages
+		if (!SoftObjectPathMap.RemoveAndCopyValue(FilterPackage, SoftObjectPathProperties))
+		{
+			return;
+		}
 	}
 
 	// potentially add soft object path package names to OutReferencedPackages
-	OutReferencedPackages.Reserve(SoftObjectPathProperties->Num());
-	for (const FSoftObjectPathProperty& SoftObjectPathProperty : *SoftObjectPathProperties)
+	OutReferencedPackages.Reserve(SoftObjectPathProperties.Num());
+	for (const FSoftObjectPathProperty& SoftObjectPathProperty : SoftObjectPathProperties)
 	{
 		if (!SoftObjectPathProperty.GetReferencedByEditorOnlyProperty() || bGetEditorOnly)
 		{
@@ -160,9 +181,45 @@ void FRedirectCollector::ProcessSoftObjectPathPackageList(FName FilterPackage, b
 			OutReferencedPackages.Add(FName(*PackageNameString));
 		}
 	}
+}
 
-	// always remove all data for the processed FilterPackage
-	SoftObjectPathMap.Remove(FilterPackage);
+bool FRedirectCollector::RemoveAndCopySoftObjectPathExclusions(FName PackageName, TSet<FName>& OutExcludedReferences)
+{
+	OutExcludedReferences.Reset();
+	FScopeLock ScopeLock(&CriticalSection);
+	TMap<FName, ESoftObjectPathCollectType> PackageTypes;
+	if (!PackageReferenceTypes.RemoveAndCopyValue(PackageName, PackageTypes))
+	{
+		return false;
+	}
+
+	for (TPair<FName, ESoftObjectPathCollectType>& Pair : PackageTypes)
+	{
+		if (Pair.Value < ESoftObjectPathCollectType::AlwaysCollect)
+		{
+			OutExcludedReferences.Add(Pair.Key);
+		}
+	}
+	return OutExcludedReferences.Num() != 0;
+}
+
+void FRedirectCollector::OnStartupPackageLoadComplete()
+{
+	// When startup packages are done loading, we never track any more regardless whether we were before
+	FScopeLock ScopeLock(&CriticalSection);
+	TrackingReferenceTypesState = ETrackingReferenceTypesState::Disabled;
+}
+
+bool FRedirectCollector::ShouldTrackPackageReferenceTypes()
+{
+	// Called from within CriticalSection
+	if (TrackingReferenceTypesState == ETrackingReferenceTypesState::Uninitialized)
+	{
+		// OnStartupPackageLoadComplete has not been called yet. Turn tracking on/off depending on whether the
+		// run mode needs it.
+		TrackingReferenceTypesState = IsRunningCookCommandlet() ? ETrackingReferenceTypesState::Enabled : ETrackingReferenceTypesState::Disabled;
+	}
+	return TrackingReferenceTypesState == ETrackingReferenceTypesState::Enabled;
 }
 
 void FRedirectCollector::AddAssetPathRedirection(FName OriginalPath, FName RedirectedPath)

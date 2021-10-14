@@ -21,7 +21,7 @@
 			"Name" : "XGEController",
 			"Type" : "UncookedOnly",
 			"LoadingPhase" : "EarliestPossible",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64"
 			]
 		}

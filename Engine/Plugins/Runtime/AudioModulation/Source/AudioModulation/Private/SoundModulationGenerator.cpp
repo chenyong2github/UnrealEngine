@@ -11,12 +11,12 @@
 
 namespace AudioModulation
 {
-	void IGenerator::AudioRenderThreadCommand(TUniqueFunction<void()>&& InCommand)
+	void FGeneratorBase::AudioRenderThreadCommand(TUniqueFunction<void()>&& InCommand)
 	{
 		CommandQueue.Enqueue(MoveTemp(InCommand));
 	}
 
-	void IGenerator::PumpCommands()
+	void FGeneratorBase::PumpCommands()
 	{
 		TUniqueFunction<void()> Cmd;
 		while (!CommandQueue.IsEmpty())
@@ -30,10 +30,14 @@ namespace AudioModulation
 #if WITH_EDITOR
 void USoundModulationGenerator::PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent)
 {
-	AudioModulation::IterateModulationImpl([this](AudioModulation::FAudioModulation& OutModulation)
+	// Guards against slamming the modulation system with changes when using sliders.
+	if (InPropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
-		OutModulation.UpdateModulator(*this);
-	});
+		AudioModulation::IterateModulationImpl([this](AudioModulation::FAudioModulation& OutModulation)
+		{
+			OutModulation.UpdateModulator(*this);
+		});
+	}
 
 	Super::PostEditChangeProperty(InPropertyChangedEvent);
 }

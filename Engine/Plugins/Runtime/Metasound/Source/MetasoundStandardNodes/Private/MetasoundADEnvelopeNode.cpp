@@ -42,10 +42,10 @@ namespace Metasound
 			int32 CurrentSampleIndex = INDEX_NONE;
 
 			// Number of samples for attack
-			int32 AttackSampleCount = 0;
+			int32 AttackSampleCount = 1;
 
 			// Number of samples for Decay
-			int32 DecaySampleCount = 0;
+			int32 DecaySampleCount = 1;
 
 			// Curve factors for attack/Decay
 			float AttackCurveFactor = 0.0f;
@@ -326,8 +326,8 @@ namespace Metasound
 		{
 			float AttackTimeSeconds = AttackTime->GetSeconds();
 			float DecayTimeSeconds = DecayTime->GetSeconds();
-			EnvState.AttackSampleCount = SampleRate * FMath::Max(0.0f, AttackTimeSeconds);
-			EnvState.DecaySampleCount = SampleRate * FMath::Max(0.0f, DecayTimeSeconds);
+			EnvState.AttackSampleCount = FMath::Max(1, SampleRate * AttackTimeSeconds);
+			EnvState.DecaySampleCount = FMath::Max(1, SampleRate * DecayTimeSeconds);
 			EnvState.AttackCurveFactor = FMath::Max(KINDA_SMALL_NUMBER, *AttackCurveFactor);
 			EnvState.DecayCurveFactor = FMath::Max(KINDA_SMALL_NUMBER, *DecayCurveFactor);
 			EnvState.bLooping = *bLooping;

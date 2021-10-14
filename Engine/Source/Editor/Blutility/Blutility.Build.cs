@@ -42,6 +42,7 @@ public class Blutility : ModuleRules
 				"ToolMenus",
 				"RHI",
 				"RenderCore",
+				"ImageWrapper",
 				"ImageWriteQueue"
 			}
 			);

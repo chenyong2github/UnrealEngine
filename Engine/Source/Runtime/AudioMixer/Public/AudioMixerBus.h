@@ -23,7 +23,7 @@ namespace Audio
 	{
 	public:
 		// Allow anybody to add a pre-existing patch output object to the audio bus
-		void AddNewPatchOutput(FPatchOutputStrongPtr& InPatchOutputStrongPtr);
+		void AddNewPatchOutput(const FPatchOutputStrongPtr& InPatchOutputStrongPtr);
 
 		// Allow anybody to write audio into this audio bus from any thread.
 		void AddNewPatchInput(FPatchInput& InPatchInput);

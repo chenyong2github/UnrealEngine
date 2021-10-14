@@ -95,7 +95,7 @@ FScreenReaderReply FScreenReaderUser::MuteSpeech()
 {
 	if (IsActive())
 	{
-
+		return AnnouncementChannel->MuteSpeech();
 	}
 	return FScreenReaderReply::Unhandled();
 }

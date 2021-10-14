@@ -8,7 +8,7 @@
 #include "ControlRigEditModeSettings.generated.h"
 
 /** Settings object used to show useful information in the details panel */
-UCLASS()
+UCLASS(config=EditorPerProjectUserSettings, MinimalAPI)
 class UControlRigEditModeSettings : public UObject
 {
 	GENERATED_BODY()
@@ -34,40 +34,38 @@ class UControlRigEditModeSettings : public UObject
 public:
 
 	/** Whether to show all bones in the hierarchy */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Animation")
 	bool bDisplayHierarchy;
 
 	/** Whether to show all nulls in the hierarchy */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Animation")
 	bool bDisplayNulls;
 
 	/** Should we always hide manipulators in viewport */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Animation")
 	bool bHideManipulators;
 
 	/** Should we show axes for the selected elements */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Animation")
 	bool bDisplayAxesOnSelection;
 
 	/** The scale for axes to draw on the selection */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Animation")
 	float AxisScale;
 
 	/** If true we restore the coordinate space when changing Widget Modes in the Viewport*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Animation")
 	bool bCoordSystemPerWidgetMode;
 
 	/** If true we can only select Rig Controls in the scene not other Actors. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Animation")
 	bool bOnlySelectRigControls;
 
 	/** If true when we transform multiple selected objects in the viewport they each transforms along their own local transform space */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Animation")
 	bool bLocalTransformsInEachLocalSpace;
 	
 	/** The scale for Gizmos */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Animation")
 	float GizmoScale;
-
-	
 };

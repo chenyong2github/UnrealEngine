@@ -1389,6 +1389,12 @@ private:
 
 public:
 
+	virtual ~FForkableThread()
+	{
+		delete RealThread;
+		RealThread = nullptr;
+	}
+
 	virtual void Tick() override
 	{
 		// Tick in single-thread mode when the real thread isn't created yet

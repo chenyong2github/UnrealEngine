@@ -940,8 +940,9 @@ struct CORE_API FFormatArgumentData
 	// It's used as a marshaller to create a real FFormatArgumentValue when performing a format
 	TEnumAsByte<EFormatArgumentType::Type> ArgumentValueType;
 	FText ArgumentValue;
-	int32 ArgumentValueInt;
+	int64 ArgumentValueInt;
 	float ArgumentValueFloat;
+	double ArgumentValueDouble;
 	ETextGender ArgumentValueGender;
 };
 

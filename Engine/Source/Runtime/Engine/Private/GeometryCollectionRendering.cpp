@@ -11,6 +11,7 @@
 IMPLEMENT_TYPE_LAYOUT(FGeometryCollectionVertexFactoryShaderParameters);
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FGeometryCollectionVertexFactoryUniformShaderParameters, "GeometryCollectionVF");
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FGCBoneLooseParameters, "GCBoneLooseParameters");
 
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FGeometryCollectionVertexFactory, SF_Vertex, FGeometryCollectionVertexFactoryShaderParameters);
 
@@ -21,6 +22,8 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FGeometryCollectionVertexFactory, "/Engine/Private
 	| EVertexFactoryFlags::SupportsPrecisePrevWorldPos
 	| EVertexFactoryFlags::SupportsPositionOnly
 	| EVertexFactoryFlags::SupportsPrimitiveIdStream
+	| EVertexFactoryFlags::SupportsRayTracing
+	| EVertexFactoryFlags::SupportsRayTracingDynamicGeometry
 );
 
 bool FGeometryCollectionVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
@@ -220,7 +223,17 @@ void FGeometryCollectionVertexFactory::InitRHI()
 
 		UniformParameters.VertexFetch_Parameters = { ColorIndexMask, NumTexCoords, LightMapCoordinateIndex, 0 };
 
-		UniformBuffer = TUniformBufferRef<FGeometryCollectionVertexFactoryUniformShaderParameters>::CreateUniformBufferImmediate(UniformParameters, UniformBuffer_MultiFrame);
+		EUniformBufferUsage UniformBufferUsage = EnableLooseParameter ? UniformBuffer_SingleFrame : UniformBuffer_MultiFrame;
+
+		UniformBuffer = TUniformBufferRef<FGeometryCollectionVertexFactoryUniformShaderParameters>::CreateUniformBufferImmediate(UniformParameters, UniformBufferUsage);
+		
+		FGCBoneLooseParameters LooseParameters;
+
+		LooseParameters.VertexFetch_BoneTransformBuffer = GetBoneTransformSRV();
+		LooseParameters.VertexFetch_BonePrevTransformBuffer = GetBonePrevTransformSRV();
+		LooseParameters.VertexFetch_BoneMapBuffer = GetBoneMapSRV();
+
+		LooseParameterUniformBuffer = FGCBoneLooseParametersRef::CreateUniformBufferImmediate(LooseParameters, UniformBufferUsage);
 	}
 
 	check(IsValidRef(GetDeclaration()));
@@ -229,6 +242,7 @@ void FGeometryCollectionVertexFactory::InitRHI()
 void FGeometryCollectionVertexFactory::ReleaseRHI()
 {
 	UniformBuffer.SafeRelease();
+	LooseParameterUniformBuffer.SafeRelease();
 	FVertexFactory::ReleaseRHI();
 }
 
@@ -259,8 +273,13 @@ void FGeometryCollectionVertexFactoryShaderParameters::GetElementShaderBindings(
 	// We only want to set the SRV parameters if we support manual vertex fetch.
 	if (bSupportsManualFetch)
 	{
-		ShaderBindings.Add(VertexFetch_BoneTransformBufferParameter, TypedVertexFactory->GetBoneTransformSRV());
-		ShaderBindings.Add(VertexFetch_BonePrevTransformBufferParameter, TypedVertexFactory->GetBonePrevTransformSRV());
-		ShaderBindings.Add(VertexFetch_BoneMapBufferParameter, TypedVertexFactory->GetBoneMapSRV());
+		FUniformBufferRHIRef LooseParameterBuffer = TypedVertexFactory->GetLooseParameterBuffer();
+		check(LooseParameterBuffer != nullptr);
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FGCBoneLooseParameters>(), LooseParameterBuffer);
 	}
 }
+
+#if RHI_RAYTRACING
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FGeometryCollectionVertexFactory, SF_RayHitGroup, FGeometryCollectionVertexFactoryShaderParameters);
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FGeometryCollectionVertexFactory, SF_Compute, FGeometryCollectionVertexFactoryShaderParameters);
+#endif // RHI_RAYTRACING

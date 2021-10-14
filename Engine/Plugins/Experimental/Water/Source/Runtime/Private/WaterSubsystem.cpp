@@ -16,6 +16,7 @@
 #include "WaterBodyIslandActor.h"
 #include "WaterBodyExclusionVolume.h"
 #include "WaterSplineComponent.h"
+#include "WaterUtils.h"
 #include "CollisionShape.h"
 #include "Interfaces/Interface_PostProcessVolume.h"
 #include "SceneView.h"
@@ -36,7 +37,7 @@ DECLARE_CYCLE_STAT(TEXT("IsUnderwater Test"), STAT_WaterIsUnderwater, STATGROUP_
 // ----------------------------------------------------------------------------------
 
 // General purpose CVars:
-static TAutoConsoleVariable<int32> CVarWaterEnabled(
+TAutoConsoleVariable<int32> CVarWaterEnabled(
 	TEXT("r.Water.Enabled"),
 	1,
 	TEXT("If all water rendering is enabled or disabled"),
@@ -108,12 +109,8 @@ static FAutoConsoleVariableRef CVarShallowWaterSimulationRenderTargetSize(
 	ECVF_Scalability
 );
 
-// ----------------------------------------------------------------------------------
-
-bool IsWaterEnabled(bool bIsRenderThread)
-{
-	return !!(bIsRenderThread ? CVarWaterEnabled.GetValueOnRenderThread() : CVarWaterEnabled.GetValueOnGameThread());
-}
+extern TAutoConsoleVariable<int32> CVarWaterMeshEnabled;
+extern TAutoConsoleVariable<int32> CVarWaterMeshEnableRendering;
 
 
 // ----------------------------------------------------------------------------------
@@ -254,8 +251,10 @@ void UWaterSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	CVarShallowWaterSim->SetOnChangedCallback(NotifyWaterScalabilityChanged);
 	CVarShallowWaterSimulationRenderTargetSize->SetOnChangedCallback(NotifyWaterScalabilityChanged);
 
-	FConsoleVariableDelegate NotifyWaterEnabledChanged = FConsoleVariableDelegate::CreateUObject(this, &UWaterSubsystem::NotifyWaterEnabledChangedInternal);
-	CVarWaterEnabled->SetOnChangedCallback(NotifyWaterEnabledChanged);
+	FConsoleVariableDelegate NotifyWaterVisibilityChanged = FConsoleVariableDelegate::CreateUObject(this, &UWaterSubsystem::NotifyWaterVisibilityChangedInternal);
+	CVarWaterEnabled->SetOnChangedCallback(NotifyWaterVisibilityChanged);
+	CVarWaterMeshEnabled->SetOnChangedCallback(NotifyWaterVisibilityChanged);
+	CVarWaterMeshEnableRendering->SetOnChangedCallback(NotifyWaterVisibilityChanged);
 
 #if WITH_EDITOR
 	GetDefault<UWaterRuntimeSettings>()->OnSettingsChange.AddUObject(this, &UWaterSubsystem::ApplyRuntimeSettings);
@@ -292,6 +291,8 @@ void UWaterSubsystem::Deinitialize()
 	CVarShallowWaterSimulationRenderTargetSize->SetOnChangedCallback(NullCallback);
 	CVarShallowWaterSim->SetOnChangedCallback(NullCallback);
 	CVarWaterEnabled->SetOnChangedCallback(NullCallback);
+	CVarWaterMeshEnabled->SetOnChangedCallback(NullCallback);
+	CVarWaterMeshEnableRendering->SetOnChangedCallback(NullCallback);
 
 	World->OnBeginPostProcessSettings.RemoveAll(this);
 	World->RemovePostProcessVolume(&UnderwaterPostProcessVolume);
@@ -389,7 +390,7 @@ int32 UWaterSubsystem::GetShallowWaterSimulationRenderTargetSize()
 
 bool UWaterSubsystem::IsWaterRenderingEnabled() const
 {
-	return IsWaterEnabled(/*bIsRenderThread = */ false);
+	return FWaterUtils::IsWaterEnabled(/*bIsRenderThread = */ false);
 }
 
 float UWaterSubsystem::GetWaterTimeSeconds() const
@@ -518,12 +519,12 @@ void UWaterSubsystem::NotifyWaterScalabilityChangedInternal(IConsoleVariable* CV
 	OnWaterScalabilityChanged.Broadcast();
 }
 
-void UWaterSubsystem::NotifyWaterEnabledChangedInternal(IConsoleVariable* CVar)
+void UWaterSubsystem::NotifyWaterVisibilityChangedInternal(IConsoleVariable* CVar)
 {
-	// Water body visibility depends on CVarWaterEnabled
+	// Water body visibility depends on various CVars. All need to update the visibility in water body components : 
 	WaterBodyManager.ForEachWaterBodyComponent([](UWaterBodyComponent* WaterBodyComponent)
 	{
-		WaterBodyComponent->UpdateComponentVisibility();
+		WaterBodyComponent->UpdateComponentVisibility(/* bAllowWaterMeshRebuild = */true);
 		return true;
 	});
 }
@@ -614,7 +615,7 @@ void UWaterSubsystem::ComputeUnderwaterPostProcess(FVector ViewLocation, FSceneV
 				check(WaterBodyComponent);
 				
 				// Don't consider water bodies with no post process material : 
-				if (WaterBodyComponent->UnderwaterPostProcessMaterial != nullptr)
+				if (WaterBodyComponent->ShouldRender() && (WaterBodyComponent->UnderwaterPostProcessMaterial != nullptr))
 				{
 					// Base water body info needed : 
 					EWaterBodyQueryFlags QueryFlags = EWaterBodyQueryFlags::ComputeImmersionDepth

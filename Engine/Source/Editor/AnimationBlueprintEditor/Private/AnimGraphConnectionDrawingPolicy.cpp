@@ -35,20 +35,21 @@ void FAnimGraphConnectionDrawingPolicy::BuildExecutionRoadmap()
 		{
 			return;
 		}
-
-		TMap<FProperty*, UObject*> PropertySourceMap;
-		AnimBlueprintClass->GetDebugData().GenerateReversePropertyMap(/*out*/ PropertySourceMap);
-
+		
 		FAnimBlueprintDebugData& DebugInfo = AnimBlueprintClass->GetAnimBlueprintDebugData();
 		for (auto VisitIt = DebugInfo.UpdatedNodesThisFrame.CreateIterator(); VisitIt; ++VisitIt)
 		{
 			const FAnimBlueprintDebugData::FNodeVisit& VisitRecord = *VisitIt;
 
-			if ((VisitRecord.SourceID >= 0) && (VisitRecord.SourceID < AnimBlueprintClass->GetAnimNodeProperties().Num()) && (VisitRecord.TargetID >= 0) && (VisitRecord.TargetID < AnimBlueprintClass->AnimNodeProperties.Num()))
+			const int32 NumAnimNodeProperties = AnimBlueprintClass->GetAnimNodeProperties().Num();
+			if ((VisitRecord.SourceID >= 0) && (VisitRecord.SourceID < NumAnimNodeProperties) && (VisitRecord.TargetID >= 0) && (VisitRecord.TargetID < NumAnimNodeProperties))
 			{
-				if (UAnimGraphNode_Base* SourceNode = Cast<UAnimGraphNode_Base>(PropertySourceMap.FindRef(AnimBlueprintClass->GetAnimNodeProperties()[VisitRecord.SourceID])))
+				const int32 ReverseSourceID = NumAnimNodeProperties - 1 - VisitRecord.SourceID;
+				const int32 ReverseTargetID = NumAnimNodeProperties - 1 - VisitRecord.TargetID;
+				
+				if (const UAnimGraphNode_Base* SourceNode = Cast<const UAnimGraphNode_Base>(DebugInfo.NodePropertyIndexToNodeMap.FindRef(ReverseSourceID)))
 				{
-					if (UAnimGraphNode_Base* TargetNode = Cast<UAnimGraphNode_Base>(PropertySourceMap.FindRef(AnimBlueprintClass->GetAnimNodeProperties()[VisitRecord.TargetID])))
+					if (const UAnimGraphNode_Base* TargetNode = Cast<const UAnimGraphNode_Base>(DebugInfo.NodePropertyIndexToNodeMap.FindRef(ReverseTargetID)))
 					{
 						UEdGraphPin* PoseNet = NULL;
 

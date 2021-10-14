@@ -27,7 +27,10 @@ namespace Metasound
 				static const FString InputType(TEXT("Input"));
 				static const FString OutputType(TEXT("Output"));
 				static const FString ExternalType(TEXT("External"));
+				static const FString VariableAccessorType(TEXT("VariableAccessor"));
+				static const FString VariableMutatorType(TEXT("VariableMutator"));
 				static const FString VariableType(TEXT("Variable"));
+				static const FString LiteralType(TEXT("Literal"));
 				static const FString GraphType(TEXT("Graph"));
 				static const FString InvalidType(TEXT("Invalid"));
 
@@ -42,14 +45,23 @@ namespace Metasound
 					case EMetasoundFrontendClassType::External:
 						return ExternalType;
 
+					case EMetasoundFrontendClassType::Literal:
+						return LiteralType;
+
 					case EMetasoundFrontendClassType::Variable:
 						return VariableType;
+						
+					case EMetasoundFrontendClassType::VariableAccessor:
+						return VariableAccessorType;
+
+					case EMetasoundFrontendClassType::VariableMutator:
+						return VariableMutatorType;
 
 					case EMetasoundFrontendClassType::Graph:
 						return GraphType;
 
 					default:
-						static_assert(static_cast<uint8>(EMetasoundFrontendClassType::Invalid) == 5, "Missing EMetasoundFrontendClassType case coverage");
+						static_assert(static_cast<uint8>(EMetasoundFrontendClassType::Invalid) == 8, "Missing EMetasoundFrontendClassType case coverage");
 						return InvalidType;
 				}
 			}

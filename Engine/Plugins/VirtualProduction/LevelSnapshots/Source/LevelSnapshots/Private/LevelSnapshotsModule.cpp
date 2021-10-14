@@ -6,7 +6,7 @@
 #include "LevelSnapshotsEditorProjectSettings.h"
 #include "LevelSnapshotsLog.h"
 #include "Restorability/PropertyComparisonParams.h"
-#include "Restorability/StaticMeshCollisionPropertyComparer.h"
+#include "Restorability/CollisionRestoration.h"
 
 #include "Algo/AllOf.h"
 #include "Components/ActorComponent.h"
@@ -40,9 +40,11 @@ namespace
 		// These properties are not visible by default because they're not CPF_Edit
 		const FProperty* AttachParent = USceneComponent::StaticClass()->FindPropertyByName(FName("AttachParent"));
 		const FProperty* AttachSocketName = USceneComponent::StaticClass()->FindPropertyByName(FName("AttachSocketName"));
+		// RootComponent is usually set automatically but sometimes not... for example spawning AActor with instanced components only
+		const FProperty* RootComponent = AActor::StaticClass()->FindPropertyByName(FName("RootComponent"));
 		if (ensure(AttachParent && AttachSocketName))
 		{
-			Module.AddWhitelistedProperties({ AttachParent, AttachSocketName });
+			Module.AddWhitelistedProperties({ AttachParent, AttachSocketName, RootComponent });
 		}
 	}
 
@@ -110,7 +112,7 @@ void FLevelSnapshotsModule::StartupModule()
 	DisableIrrelevantMaterialInstanceProperties(*this);
 
 	// Interact with special engine features
-	FStaticMeshCollisionPropertyComparer::Register(*this);
+	FCollisionRestoration::Register(*this);
 }
 
 void FLevelSnapshotsModule::ShutdownModule()
@@ -119,16 +121,6 @@ void FLevelSnapshotsModule::ShutdownModule()
 	PropertyComparers.Reset();
 	CustomSerializers.Reset();
 	RestorationListeners.Reset();
-}
-
-void FLevelSnapshotsModule::AddCanTakeSnapshotDelegate(FName DelegateName, FCanTakeSnapshot Delegate)
-{
-	CanTakeSnapshotDelegates.FindOrAdd(DelegateName) = Delegate;
-}
-
-void FLevelSnapshotsModule::RemoveCanTakeSnapshotDelegate(FName DelegateName)
-{
-	CanTakeSnapshotDelegates.Remove(DelegateName);
 }
 
 void FLevelSnapshotsModule::RegisterRestorabilityOverrider(TSharedRef<ISnapshotRestorabilityOverrider> Overrider)
@@ -213,6 +205,16 @@ void FLevelSnapshotsModule::UnregisterCustomObjectSerializer(UClass* Class)
 	CustomSerializers.Remove(Class);
 }
 
+void FLevelSnapshotsModule::RegisterSnapshotLoader(TSharedRef<ISnapshotLoader> Loader)
+{
+	SnapshotLoaders.AddUnique(Loader);
+}
+
+void FLevelSnapshotsModule::UnregisterSnapshotLoader(TSharedRef<ISnapshotLoader> Loader)
+{
+	SnapshotLoaders.RemoveSingle(Loader);
+}
+
 void FLevelSnapshotsModule::RegisterRestorationListener(TSharedRef<IRestorationListener> Listener)
 {
 	RestorationListeners.AddUnique(Listener);
@@ -221,6 +223,170 @@ void FLevelSnapshotsModule::RegisterRestorationListener(TSharedRef<IRestorationL
 void FLevelSnapshotsModule::UnregisterRestorationListener(TSharedRef<IRestorationListener> Listener)
 {
 	RestorationListeners.RemoveSingle(Listener);
+}
+
+void FLevelSnapshotsModule::AddWhitelistedProperties(const TSet<const FProperty*>& Properties)
+{
+	for (const FProperty* Property : Properties)
+	{
+		WhitelistedProperties.Add(Property);
+	}
+}
+
+void FLevelSnapshotsModule::RemoveWhitelistedProperties(const TSet<const FProperty*>& Properties)
+{
+	for (const FProperty* Property : Properties)
+	{
+		WhitelistedProperties.Remove(Property);
+	}
+}
+
+void FLevelSnapshotsModule::AddBlacklistedProperties(const TSet<const FProperty*>& Properties)
+{
+	for (const FProperty* Property : Properties)
+	{
+		BlacklistedProperties.Add(Property);
+	}
+}
+
+void FLevelSnapshotsModule::RemoveBlacklistedProperties(const TSet<const FProperty*>& Properties)
+{
+	for (const FProperty* Property : Properties)
+	{
+		BlacklistedProperties.Remove(Property);
+	}
+}
+
+void FLevelSnapshotsModule::AddBlacklistedClassDefault(const UClass* Class)
+{
+	BlacklistedCDOs.Add(Class);
+}
+
+void FLevelSnapshotsModule::RemoveBlacklistedClassDefault(const UClass* Class)
+{
+	BlacklistedCDOs.Remove(Class);
+}
+
+bool FLevelSnapshotsModule::IsClassDefaultBlacklisted(const UClass* Class) const
+{
+	for (const UClass* CurrentClass = Class; CurrentClass; CurrentClass = CurrentClass->GetSuperClass())
+	{
+		if (BlacklistedCDOs.Contains(CurrentClass))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FLevelSnapshotsModule::IsSubobjectClassBlacklisted(const UClass* Class) const
+{
+	if (Class->IsChildOf(UActorComponent::StaticClass()))
+	{
+		return false;
+	}
+
+	bool bFoundBlacklistedClass = false;
+	for (const UClass* CurrentClass = Class; !bFoundBlacklistedClass && CurrentClass; CurrentClass = CurrentClass->GetSuperClass())
+	{
+		bFoundBlacklistedClass = BlacklistedSubobjectClasses.Contains(CurrentClass);
+	}
+
+	return bFoundBlacklistedClass;
+}
+
+const TArray<TSharedRef<ISnapshotRestorabilityOverrider>>& FLevelSnapshotsModule::GetOverrides() const
+{
+	return Overrides;
+}
+
+bool FLevelSnapshotsModule::IsPropertyWhitelisted(const FProperty* Property) const
+{
+	return WhitelistedProperties.Contains(Property);
+}
+
+bool FLevelSnapshotsModule::IsPropertyBlacklisted(const FProperty* Property) const
+{
+	return BlacklistedProperties.Contains(Property);
+}
+
+FPropertyComparerArray FLevelSnapshotsModule::GetPropertyComparerForClass(UClass* Class) const
+{
+	FPropertyComparerArray Result;
+	for (UClass* CurrentClass = Class; CurrentClass; CurrentClass = CurrentClass->GetSuperClass())
+	{
+		const TArray<TSharedRef<IPropertyComparer>>* Comparers = PropertyComparers.Find(CurrentClass);
+		if (Comparers)
+		{
+			Result.Append(*Comparers);
+		}
+	}
+	return Result;
+}
+
+IPropertyComparer::EPropertyComparison FLevelSnapshotsModule::ShouldConsiderPropertyEqual(const FPropertyComparerArray& Comparers, const FPropertyComparisonParams& Params) const
+{
+	for (const TSharedRef<IPropertyComparer>& Comparer : Comparers)
+	{
+		const IPropertyComparer::EPropertyComparison Result = Comparer->ShouldConsiderPropertyEqual(Params);
+		if (Result != IPropertyComparer::EPropertyComparison::CheckNormally)
+		{
+			return Result;
+		}
+	}
+	return IPropertyComparer::EPropertyComparison::CheckNormally;
+}
+
+TSharedPtr<ICustomObjectSnapshotSerializer> FLevelSnapshotsModule::GetCustomSerializerForClass(UClass* Class) const
+{
+	// Walk to first native parent
+	const bool bPassedInBlueprint = Class->IsInBlueprint();
+	while (Class && Class->IsInBlueprint())
+	{
+		Class = Class->GetSuperClass();
+	}
+
+	if (ensureAlways(Class))
+	{
+		const FCustomSerializer* Result = CustomSerializers.Find(Class);
+		return (Result && (!bPassedInBlueprint || Result->bIncludeBlueprintChildren)) ? Result->Serializer : TSharedPtr<ICustomObjectSnapshotSerializer>();
+	}
+
+	return nullptr;
+}
+
+void FLevelSnapshotsModule::AddCanTakeSnapshotDelegate(FName DelegateName, FCanTakeSnapshot Delegate)
+{
+	CanTakeSnapshotDelegates.FindOrAdd(DelegateName) = Delegate;
+}
+
+void FLevelSnapshotsModule::RemoveCanTakeSnapshotDelegate(FName DelegateName)
+{
+	CanTakeSnapshotDelegates.Remove(DelegateName);
+}
+
+
+bool FLevelSnapshotsModule::CanTakeSnapshot(const FPreTakeSnapshotEventData& Event) const
+{
+	return Algo::AllOf(CanTakeSnapshotDelegates, [&Event](const TTuple<FName,FCanTakeSnapshot>& Pair)
+		{
+			if (Pair.Get<1>().IsBound())
+			{
+				return Pair.Get<1>().Execute(Event);
+			}
+			return true;
+		});
+}
+
+void FLevelSnapshotsModule::OnPostLoadSnapshotObject(const FPostLoadSnapshotObjectParams& Params)
+{
+	SCOPED_SNAPSHOT_CORE_TRACE(SnapshotLoaders);
+	
+	for (const TSharedRef<ISnapshotLoader>& Loader : SnapshotLoaders)
+	{
+		Loader->PostLoadSnapshotObject(Params);
+	}
 }
 
 void FLevelSnapshotsModule::OnPreApplySnapshotProperties(const FApplySnapshotPropertiesParams& Params)
@@ -301,126 +467,6 @@ void FLevelSnapshotsModule::OnPostRemoveComponent(const FPostRemoveComponentPara
 	{
 		Listener->PostRemoveComponent(Params);
 	}
-}
-
-void FLevelSnapshotsModule::AddWhitelistedProperties(const TSet<const FProperty*>& Properties)
-{
-	for (const FProperty* Property : Properties)
-	{
-		WhitelistedProperties.Add(Property);
-	}
-}
-
-void FLevelSnapshotsModule::RemoveWhitelistedProperties(const TSet<const FProperty*>& Properties)
-{
-	for (const FProperty* Property : Properties)
-	{
-		WhitelistedProperties.Remove(Property);
-	}
-}
-
-void FLevelSnapshotsModule::AddBlacklistedProperties(const TSet<const FProperty*>& Properties)
-{
-	for (const FProperty* Property : Properties)
-	{
-		BlacklistedProperties.Add(Property);
-	}
-}
-
-void FLevelSnapshotsModule::RemoveBlacklistedProperties(const TSet<const FProperty*>& Properties)
-{
-	for (const FProperty* Property : Properties)
-	{
-		BlacklistedProperties.Remove(Property);
-	}
-}
-
-bool FLevelSnapshotsModule::IsSubobjectClassBlacklisted(const UClass* Class) const
-{
-	if (Class->IsChildOf(UActorComponent::StaticClass()))
-	{
-		return false;
-	}
-
-	bool bFoundBlacklistedClass = false;
-	for (const UClass* CurrentClass = Class; !bFoundBlacklistedClass && CurrentClass; CurrentClass = CurrentClass->GetSuperClass())
-	{
-		bFoundBlacklistedClass = BlacklistedSubobjectClasses.Contains(CurrentClass);
-	}
-
-	return bFoundBlacklistedClass;
-}
-
-bool FLevelSnapshotsModule::CanTakeSnapshot(const FPreTakeSnapshotEventData& Event) const
-{
-	return Algo::AllOf(CanTakeSnapshotDelegates, [&Event](const TTuple<FName,FCanTakeSnapshot>& Pair)
-		{
-			if (Pair.Get<1>().IsBound())
-			{
-				return Pair.Get<1>().Execute(Event);
-			}
-			return true;
-		});
-}
-
-const TArray<TSharedRef<ISnapshotRestorabilityOverrider>>& FLevelSnapshotsModule::GetOverrides() const
-{
-	return Overrides;
-}
-
-bool FLevelSnapshotsModule::IsPropertyWhitelisted(const FProperty* Property) const
-{
-	return WhitelistedProperties.Contains(Property);
-}
-
-bool FLevelSnapshotsModule::IsPropertyBlacklisted(const FProperty* Property) const
-{
-	return BlacklistedProperties.Contains(Property);
-}
-
-FPropertyComparerArray FLevelSnapshotsModule::GetPropertyComparerForClass(UClass* Class) const
-{
-	FPropertyComparerArray Result;
-	for (UClass* CurrentClass = Class; CurrentClass; CurrentClass = CurrentClass->GetSuperClass())
-	{
-		const TArray<TSharedRef<IPropertyComparer>>* Comparers = PropertyComparers.Find(CurrentClass);
-		if (Comparers)
-		{
-			Result.Append(*Comparers);
-		}
-	}
-	return Result;
-}
-
-IPropertyComparer::EPropertyComparison FLevelSnapshotsModule::ShouldConsiderPropertyEqual(const FPropertyComparerArray& Comparers, const FPropertyComparisonParams& Params) const
-{
-	for (const TSharedRef<IPropertyComparer>& Comparer : Comparers)
-	{
-		const IPropertyComparer::EPropertyComparison Result = Comparer->ShouldConsiderPropertyEqual(Params);
-		if (Result != IPropertyComparer::EPropertyComparison::CheckNormally)
-		{
-			return Result;
-		}
-	}
-	return IPropertyComparer::EPropertyComparison::CheckNormally;
-}
-
-TSharedPtr<ICustomObjectSnapshotSerializer> FLevelSnapshotsModule::GetCustomSerializerForClass(UClass* Class) const
-{
-	// Walk to first native parent
-	const bool bPassedInBlueprint = Class->IsInBlueprint();
-	while (Class && Class->IsInBlueprint())
-	{
-		Class = Class->GetSuperClass();
-	}
-
-	if (ensureAlways(Class))
-	{
-		const FCustomSerializer* Result = CustomSerializers.Find(Class);
-		return (Result && (!bPassedInBlueprint || Result->bIncludeBlueprintChildren)) ? Result->Serializer : TSharedPtr<ICustomObjectSnapshotSerializer>();
-	}
-
-	return nullptr;
 }
 
 IMPLEMENT_MODULE(FLevelSnapshotsModule, LevelSnapshots)

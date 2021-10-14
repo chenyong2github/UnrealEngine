@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundVariable.h"
 
@@ -33,10 +32,8 @@
 	DECLARE_METASOUND_DATA_REFERENCE_CORE_TYPE(DataType, ModuleApi); \
 	DECLARE_METASOUND_DATA_REFERENCE_ALIAS_TYPES(DataType, DataTypeInfoTypeName, DataReadReferenceTypeName, DataWriteReferenceTypeName); \
 	DECLARE_METASOUND_DATA_REFERENCE_CORE_TYPE(::Metasound::TVariable<DataType>, ModuleApi); \
-	DECLARE_METASOUND_DATA_REFERENCE_CORE_TYPE(::Metasound::TDelayedVariable<DataType>, ModuleApi); \
 	DECLARE_METASOUND_DATA_REFERENCE_CORE_TYPE(TArray<DataType>, ModuleApi); \
-	DECLARE_METASOUND_DATA_REFERENCE_CORE_TYPE(::Metasound::TVariable<TArray<DataType>>, ModuleApi); \
-	DECLARE_METASOUND_DATA_REFERENCE_CORE_TYPE(::Metasound::TDelayedVariable<TArray<DataType>>, ModuleApi);
+	DECLARE_METASOUND_DATA_REFERENCE_CORE_TYPE(::Metasound::TVariable<TArray<DataType>>, ModuleApi);
 
 
 #define DEFINE_METASOUND_DATA_REFERENCE_CORE_TYPE(DataType, DataTypeName, DataTypeLoctextKey) \
@@ -54,8 +51,6 @@
 #define DEFINE_METASOUND_DATA_TYPE(DataType, DataTypeName) \
 	DEFINE_METASOUND_DATA_REFERENCE_CORE_TYPE(DataType, DataTypeName, DataTypeName); \
 	DEFINE_METASOUND_DATA_REFERENCE_CORE_TYPE(::Metasound::TVariable<DataType>, DataTypeName":Variable", DataTypeName"_Variable"); \
-	DEFINE_METASOUND_DATA_REFERENCE_CORE_TYPE(::Metasound::TDelayedVariable<DataType>, DataTypeName":DelayedVariable", DataTypeName"_DelayedVariable"); \
 	DEFINE_METASOUND_DATA_REFERENCE_CORE_TYPE(TArray<DataType>, DataTypeName":Array", DataTypeName"_Array"); \
-	DEFINE_METASOUND_DATA_REFERENCE_CORE_TYPE(::Metasound::TVariable<TArray<DataType>>, DataTypeName":Array:Variable", DataTypeName"_Array_Variable"); \
-	DEFINE_METASOUND_DATA_REFERENCE_CORE_TYPE(::Metasound::TDelayedVariable<TArray<DataType>>, DataTypeName":Array:DelayedVariable", DataTypeName"_Array_DelayedVariable"); 
+	DEFINE_METASOUND_DATA_REFERENCE_CORE_TYPE(::Metasound::TVariable<TArray<DataType>>, DataTypeName":Array:Variable", DataTypeName"_Array_Variable"); 
 

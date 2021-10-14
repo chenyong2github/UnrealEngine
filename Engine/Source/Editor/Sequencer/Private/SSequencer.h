@@ -339,8 +339,7 @@ public:
 	/** Access the currently active track area edit tool */
 	const ISequencerEditTool* GetEditTool() const;
 
-	void ShowTickResolutionOverlay();
-	void HideTickResolutionOverlay();
+	void OpenTickResolutionOptions();
 
 	/** Sets the play time for the sequence but clamped by the working range. This is useful for cases where we can't clamp via the UI control. */
 	void SetPlayTimeClampedByWorkingRange(double Frame);
@@ -773,7 +772,7 @@ private:
 
 	FString NodePathToRename;
 
-	TSharedPtr<SWidget> TickResolutionOverlay;
+	TWeakPtr<SWindow> WeakTickResolutionOptionsWindow;
 
 	/** All possible track filter objects */
 	TArray< TSharedRef<FSequencerTrackFilter> > AllTrackFilters;

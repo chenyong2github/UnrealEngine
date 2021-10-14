@@ -388,7 +388,7 @@ struct FClassInheritanceContext
 struct FScanPathContext
 {
 	FScanPathContext(FEventContext& InEventContext, const TArray<FString>& InDirs, const TArray<FString>& InFiles,
-		bool bInForceRescan = false, bool bInIgnoreBlackListScanFilters = false, TArray<FName>* FoundAssets = nullptr);
+		bool bInForceRescan = false, bool bInIgnoreDenyListScanFilters = false, TArray<FName>* FoundAssets = nullptr);
 
 	TArray<FString> PackageDirs;
 	TArray<FString> LocalDirs;
@@ -399,7 +399,7 @@ struct FScanPathContext
 	TArray<FName>* OutFoundAssets = nullptr;
 	int32 NumFoundAssets = 0;
 	bool bForceRescan = false;
-	bool bIgnoreBlackListScanFilters = false;
+	bool bIgnoreDenyListScanFilters = false;
 	bool bIdle = false;
 };
 

@@ -25,7 +25,7 @@ class FSourcesSearch;
 struct FHistoryData;
 class FTreeItem;
 class FContentBrowserSingleton;
-class FBlacklistPaths;
+class FPathPermissionList;
 class UToolMenu;
 
 typedef TTextFilter< const FString& > FolderTextFilter;
@@ -90,8 +90,8 @@ public:
 		/** Optional external search. Will hide and replace our internal search UI */
 		SLATE_ARGUMENT( TSharedPtr<FSourcesSearch>, ExternalSearch )
 
-		/** Optional Custom Folder Blacklist to be used to filter folders. */
-		SLATE_ARGUMENT( TSharedPtr<FBlacklistPaths>, CustomFolderBlacklist)
+		/** Optional Custom Folder permission list to be used to filter folders. */
+		SLATE_ARGUMENT( TSharedPtr<FPathPermissionList>, CustomFolderPermissionList)
 
 		/** The plugin filter collection */
 		SLATE_ARGUMENT( TSharedPtr<FPluginFilterCollectionType>, PluginPathFilters)
@@ -174,6 +174,14 @@ public:
 	/** Loads any settings to config that should be persistent between editor sessions */
 	virtual void LoadSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString);
 
+	/**
+	 * Return true if passes path block lists
+	 * 
+	 *	@param InInternalPath			- Internal Path (e.g. /Game)
+	 *	@param InAlreadyCheckedDepth	- Folder depth that has already been checked, 0 if no parts of path already checked
+	*/
+	bool InternalPathPassesBlockLists(const FStringView InInternalPath, const int32 InAlreadyCheckedDepth = 0) const;
+
 	/** Populates the tree with all folders that are not filtered out */
 	virtual void Populate(const bool bIsRefreshingFilter = false);
 
@@ -195,6 +203,12 @@ public:
 
 	/** Get list of root path item names */
 	TArray<FName> GetRootPathItemNames() const;	
+
+	/** Get current item category filter enum */
+	EContentBrowserItemCategoryFilter GetContentBrowserItemCategoryFilter() const;
+
+	/** Get current item attribute filter enum */
+	EContentBrowserItemAttributeFilter GetContentBrowserItemAttributeFilter() const;
 
 protected:
 	/** Expands all parents of the specified item */
@@ -375,16 +389,16 @@ protected:
 
 	TSharedPtr<SWidget> PathViewWidget;
 
-	/** Blacklist filter to hide folders */
-	TSharedPtr<FBlacklistPaths> FolderBlacklist;
+	/** Permission filter to hide folders */
+	TSharedPtr<FPathPermissionList> FolderPermissionList;
 
 	/** Writable folder filter */
-	TSharedPtr<FBlacklistPaths> WritableFolderBlacklist;
+	TSharedPtr<FPathPermissionList> WritableFolderPermissionList;
 
 	TMap<FName, TWeakPtr<FTreeItem>> TreeItemLookup;
 
-	/** Custom Folder Blacklist*/
-	TSharedPtr<FBlacklistPaths> CustomFolderBlacklist;
+	/** Custom Folder permissions */
+	TSharedPtr<FPathPermissionList> CustomFolderPermissionList;
 
 private:
 	/** Used to track if the list of last expanded path should be updated */

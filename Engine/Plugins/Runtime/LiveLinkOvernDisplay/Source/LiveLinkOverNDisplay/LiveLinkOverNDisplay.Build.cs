@@ -19,7 +19,6 @@ public class LiveLinkOverNDisplay : ModuleRules
 			{
 				"DisplayCluster",
 				"Engine",
-				"LiveLink",
 				"LiveLinkInterface",
 			});
 

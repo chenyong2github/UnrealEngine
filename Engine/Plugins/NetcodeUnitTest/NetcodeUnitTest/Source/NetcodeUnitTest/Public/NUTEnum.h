@@ -15,7 +15,7 @@ enum class EMinClientFlags : uint32
 	None					= 0x00000000,	// No flags
 
 	/** Minimal-client netcode functionality */
-	AcceptActors			= 0x00000001,	// Whether or not to accept actor channels (acts as whitelist-only with NotifyAllowNetActor)
+	AcceptActors			= 0x00000001,	// Whether or not to accept actor channels (acts as allowlist-only with NotifyAllowNetActor)
 	AcceptRPCs				= 0x00000002,	// Whether or not to accept execution of any actor RPC's (they are all blocked by default)
 	SendRPCs				= 0x00000004,	// Whether or not to allow RPC sending (NOT blocked by default, @todo JohnB: Add send hook)
 	AcceptRepNotifies		= 0x00000008,	// Whether or not to accept execution of RepNotify's on Actors (blocked by default)

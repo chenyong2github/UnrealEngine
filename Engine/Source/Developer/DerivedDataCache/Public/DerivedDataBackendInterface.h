@@ -103,6 +103,12 @@ public:
 	/** return true if this cache is writable **/
 	virtual bool IsWritable() const = 0;
 
+	/** Is this interface remote */
+	virtual bool IsRemote() const { return false; }
+
+	/** Is this a wrapper */
+	virtual bool IsWrapper() const { return false; }
+
 	/** 
 	 * return true if hits on this cache should propagate to lower cache level. Typically false for a PAK file. 
 	 * Caution! This generally isn't propagated, so the thing that returns false must be a direct child of the heirarchical cache.

@@ -18,6 +18,10 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogSaveGameReplay, Log, All);
 
+#ifndef PLATFORM_MOVE_REQUIRES_LOWERCASE
+#define PLATFORM_MOVE_REQUIRES_LOWERCASE 0
+#endif // PLATFORM_MOVE_REQUIRES_LOWERCASE
+
 TAutoConsoleVariable<FString> CVarSaveGameFilterEventGroup(
 	TEXT("demo.SaveGameEventFilter"),
 	FString(),
@@ -490,7 +494,7 @@ namespace SaveGameReplay
 			{
 				ReplayFileName.RemoveFromEnd(LocalFileExt);
 
-#if PLATFORM_PS4
+#if PLATFORM_MOVE_REQUIRES_LOWERCASE
 				if (ReplayFileName.Compare(ReplayFileName.ToLower(), ESearchCase::CaseSensitive) != 0)
 				{
 					UE_LOG(LogSaveGameReplay, Warning, TEXT("FSaveGameMoveFileHelper::MoveFilesLocalInternal - Replay file %s is not lowercase, import will fail."), *ReplayFileName);

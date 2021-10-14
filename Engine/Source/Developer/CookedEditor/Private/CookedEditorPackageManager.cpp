@@ -50,7 +50,7 @@ void ICookedEditorPackageManager::AddPackagesFromPath(TArray<FName>& Packages, c
 	}
 }
 
-void ICookedEditorPackageManager::GatherAllPackages(TArray<FName>& PackageNames) const
+void ICookedEditorPackageManager::GatherAllPackages(TArray<FName>& PackageNames, const ITargetPlatform* TargetPlatform) const
 {
 	GetEnginePackagesToCook(PackageNames);
 	GetProjectPackagesToCook(PackageNames);
@@ -74,12 +74,18 @@ void ICookedEditorPackageManager::GatherAllPackages(TArray<FName>& PackageNames)
 			if (bShouldCook)
 			{
 				UE_LOG(LogCookedEditorTargetPlatform, Display, TEXT("Adding enabled plugin with content: %s"), *Plugin->GetName());
-//				AddPackagesFromPath(PackageNames, *FString::Printf(TEXT("/%s"), *Plugin->GetName()), EPackageSearchMode::Recurse);
 				AddPackagesFromPath(PackageNames, *Plugin->GetMountedAssetPath(), EPackageSearchMode::Recurse);
 				
 			}
 		}
 	}
+
+	FilterGatheredPackages(PackageNames);
+}
+
+void ICookedEditorPackageManager::FilterGatheredPackages(TArray<FName>& PackageNames) const
+{
+
 }
 
 
@@ -88,6 +94,7 @@ FIniCookedEditorPackageManager::FIniCookedEditorPackageManager()
 {
 	GConfig->GetArray(TEXT("CookedEditorSettings"), TEXT("EngineAssetPaths"), EngineAssetPaths, GGameIni);
 	GConfig->GetArray(TEXT("CookedEditorSettings"), TEXT("ProjectAssetPaths"), ProjectAssetPaths, GGameIni);
+	GConfig->GetArray(TEXT("CookedEditorSettings"), TEXT("DisallowedPathsToGather"), DisallowedPathsToGather, GGameIni);
 
 	TArray<FString> DisallowedObjectClassNamesToLoad;
 	GConfig->GetArray(TEXT("CookedEditorSettings"), TEXT("DisallowedObjectClassesToLoad"), DisallowedObjectClassNamesToLoad, GGameIni);
@@ -110,6 +117,21 @@ FIniCookedEditorPackageManager::FIniCookedEditorPackageManager()
 	}
 }
 
+void FIniCookedEditorPackageManager::FilterGatheredPackages(TArray<FName>& PackageNames) const
+{
+	// now filter based on ini settings
+	PackageNames.RemoveAll([this](FName& AssetPath)
+		{
+			for (const FString& Path : DisallowedPathsToGather)
+			{
+				if (AssetPath.ToString().StartsWith(Path))
+				{
+					return true;
+				}
+			}
+			return false;
+		});
+}
 
 void FIniCookedEditorPackageManager::GetEnginePackagesToCook(TArray<FName>& PackagesToCook) const
 {

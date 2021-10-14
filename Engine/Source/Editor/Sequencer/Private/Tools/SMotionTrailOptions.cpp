@@ -36,7 +36,7 @@ void SMotionTrailOptions::Construct(const FArguments& InArgs)
 			SNew(SVerticalBox)
 			
 				+ SVerticalBox::Slot()
-				.AutoHeight()
+				.FillHeight(1.0f)
 				.HAlign(HAlign_Fill)
 				[
 					DetailsView.ToSharedRef()

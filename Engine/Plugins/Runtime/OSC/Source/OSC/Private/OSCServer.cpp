@@ -78,25 +78,25 @@ void UOSCServer::BeginDestroy()
 void UOSCServer::SetWhitelistClientsEnabled(bool bEnabled)
 {
 	check(ServerProxy.IsValid());
-	ServerProxy->SetWhitelistClientsEnabled(bEnabled);
+	ServerProxy->SetFilterClientsByAllowList(bEnabled);
 }
 
 void UOSCServer::AddWhitelistedClient(const FString& InIPAddress)
 {
 	check(ServerProxy.IsValid());
-	ServerProxy->AddWhitelistedClient(InIPAddress);
+	ServerProxy->AddClientToAllowList(InIPAddress);
 }
 
 void UOSCServer::RemoveWhitelistedClient(const FString& InIPAddress)
 {
 	check(ServerProxy.IsValid());
-	ServerProxy->RemoveWhitelistedClient(InIPAddress);
+	ServerProxy->RemoveClientFromAllowList(InIPAddress);
 }
 
 void UOSCServer::ClearWhitelistedClients()
 {
 	check(ServerProxy.IsValid());
-	ServerProxy->ClearWhitelistedClients();
+	ServerProxy->ClearClientAllowList();
 }
 
 FString UOSCServer::GetIpAddress(bool bIncludePort) const
@@ -122,7 +122,7 @@ int32 UOSCServer::GetPort() const
 TSet<FString> UOSCServer::GetWhitelistedClients() const
 {
 	check(ServerProxy.IsValid());
-	return ServerProxy->GetWhitelistedClients();
+	return ServerProxy->GetClientAllowList();
 }
 
 void UOSCServer::BindEventToOnOSCAddressPatternMatchesPath(const FOSCAddress& InOSCAddressPattern, const FOSCDispatchMessageEventBP& InEvent)

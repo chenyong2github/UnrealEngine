@@ -27,7 +27,7 @@
 #include "ScopedTransaction.h"
 #include "SDetailNameArea.h"
 #include "SDetailsView.h"
-#include "PropertyEditorWhitelist.h"
+#include "PropertyEditorPermissionList.h"
 
 #include "ThumbnailRendering/ThumbnailManager.h"
 
@@ -42,7 +42,7 @@ SDetailsViewBase::SDetailsViewBase() :
 	UDetailsConfig* DetailsConfig = GetMutableDefault<UDetailsConfig>();
 	DetailsConfig->LoadEditorConfig();
 
-	const FDetailsViewConfig* ViewConfig = DetailsConfig->Views.Find(DetailsViewArgs.ViewIdentifier);
+	const FDetailsViewConfig* ViewConfig = GetConstViewConfig();
 	if (ViewConfig != nullptr)
 	{
 		CurrentFilter.bShowAllAdvanced = ViewConfig->bShowAllAdvanced;
@@ -52,14 +52,14 @@ SDetailsViewBase::SDetailsViewBase() :
 		CurrentFilter.bShowOnlyModified = ViewConfig->bShowOnlyModified;
 	}
 
-	PropertyWhitelistedChangedDelegate = FPropertyEditorWhitelist::Get().WhitelistUpdatedDelegate.AddLambda([this](TSoftObjectPtr<UStruct> Struct, FName Owner) { ForceRefresh(); });
-	PropertyWhitelistedEnabledDelegate = FPropertyEditorWhitelist::Get().WhitelistEnabledDelegate.AddRaw(this, &SDetailsViewBase::ForceRefresh);
+	PropertyPermissionListChangedDelegate = FPropertyEditorPermissionList::Get().PermissionListUpdatedDelegate.AddLambda([this](TSoftObjectPtr<UStruct> Struct, FName Owner) { ForceRefresh(); });
+	PropertyPermissionListEnabledDelegate = FPropertyEditorPermissionList::Get().PermissionListEnabledDelegate.AddRaw(this, &SDetailsViewBase::ForceRefresh);
 }
 
 SDetailsViewBase::~SDetailsViewBase()
 {
-	FPropertyEditorWhitelist::Get().WhitelistUpdatedDelegate.Remove(PropertyWhitelistedChangedDelegate);
-	FPropertyEditorWhitelist::Get().WhitelistEnabledDelegate.Remove(PropertyWhitelistedEnabledDelegate);
+	FPropertyEditorPermissionList::Get().PermissionListUpdatedDelegate.Remove(PropertyPermissionListChangedDelegate);
+	FPropertyEditorPermissionList::Get().PermissionListUpdatedDelegate.Remove(PropertyPermissionListEnabledDelegate);
 }
 
 void SDetailsViewBase::OnGetChildrenForDetailTree(TSharedRef<FDetailTreeNode> InTreeNode, TArray< TSharedRef<FDetailTreeNode> >& OutChildren)
@@ -434,7 +434,7 @@ void SDetailsViewBase::UpdateSinglePropertyMap(TSharedPtr<FComplexPropertyNode> 
 
 	// Ask for custom detail layouts, unless disabled. One reason for disabling custom layouts is that the custom layouts
 	// inhibit our ability to find a single property's tree node. This is problematic for the diff and merge tools, that need
-	// to display and highlight each changed property for the user. We could whitelist 'good' customizations here if 
+	// to display and highlight each changed property for the user. We could allow 'known good' customizations here if 
 	// we can make them work with the diff/merge tools.
 	if (!bDisableCustomDetailLayouts)
 	{
@@ -625,13 +625,24 @@ TSharedPtr<IPropertyUtilities> SDetailsViewBase::GetPropertyUtilities()
 
 const FDetailsViewConfig* SDetailsViewBase::GetConstViewConfig() const 
 {
-	return GetDefault<UDetailsConfig>()->Views.Find(DetailsViewArgs.ViewIdentifier);
+	if (DetailsViewArgs.ViewIdentifier.IsNone())
+	{
+		return nullptr;
+	}
+
+	const UDetailsConfig* DetailsConfig = GetDefault<UDetailsConfig>();
+	return DetailsConfig->Views.Find(DetailsViewArgs.ViewIdentifier);
 }
 
-FDetailsViewConfig& SDetailsViewBase::GetMutableViewConfig()
-{
+FDetailsViewConfig* SDetailsViewBase::GetMutableViewConfig()
+{ 
+	if (DetailsViewArgs.ViewIdentifier.IsNone())
+	{
+		return nullptr;
+	}
+
 	UDetailsConfig* DetailsConfig = GetMutableDefault<UDetailsConfig>();
-	return DetailsConfig->Views.FindOrAdd(DetailsViewArgs.ViewIdentifier);
+	return &DetailsConfig->Views.FindOrAdd(DetailsViewArgs.ViewIdentifier);
 }
 
 void SDetailsViewBase::SaveViewConfig()
@@ -643,8 +654,12 @@ void SDetailsViewBase::OnShowOnlyModifiedClicked()
 {
 	CurrentFilter.bShowOnlyModified = !CurrentFilter.bShowOnlyModified;
 
-	GetMutableViewConfig().bShowOnlyModified = CurrentFilter.bShowOnlyModified;
-	SaveViewConfig();
+	FDetailsViewConfig* ViewConfig = GetMutableViewConfig();
+	if (ViewConfig != nullptr)
+	{
+		ViewConfig->bShowOnlyModified = CurrentFilter.bShowOnlyModified;
+		SaveViewConfig();
+	}
 
 	UpdateFilteredDetails();
 }
@@ -662,15 +677,19 @@ void SDetailsViewBase::OnShowAllAdvancedClicked()
 {
 	CurrentFilter.bShowAllAdvanced = !CurrentFilter.bShowAllAdvanced;
 
-	GetMutableViewConfig().bShowAllAdvanced = CurrentFilter.bShowAllAdvanced;
-	SaveViewConfig();
+	FDetailsViewConfig* ViewConfig = GetMutableViewConfig();
+	if (ViewConfig != nullptr)
+	{
+		ViewConfig->bShowAllAdvanced = CurrentFilter.bShowAllAdvanced;
+		SaveViewConfig();
+	}
 
 	UpdateFilteredDetails();
 }
 
-void SDetailsViewBase::OnShowOnlyWhitelistedClicked()
+void SDetailsViewBase::OnShowOnlyAllowedClicked()
 {
-	CurrentFilter.bShowOnlyWhitelisted = !CurrentFilter.bShowOnlyWhitelisted;
+	CurrentFilter.bShowOnlyAllowed = !CurrentFilter.bShowOnlyAllowed;
 
 	UpdateFilteredDetails();
 }
@@ -679,8 +698,12 @@ void SDetailsViewBase::OnShowAllChildrenIfCategoryMatchesClicked()
 {
 	CurrentFilter.bShowAllChildrenIfCategoryMatches = !CurrentFilter.bShowAllChildrenIfCategoryMatches;
 
-	GetMutableViewConfig().bShowAllChildrenIfCategoryMatches = CurrentFilter.bShowAllChildrenIfCategoryMatches;
-	SaveViewConfig();
+	FDetailsViewConfig* ViewConfig = GetMutableViewConfig();
+	if (ViewConfig != nullptr)
+	{
+		ViewConfig->bShowAllChildrenIfCategoryMatches = CurrentFilter.bShowAllChildrenIfCategoryMatches;
+		SaveViewConfig();
+	}
 
 	UpdateFilteredDetails();
 }
@@ -689,9 +712,12 @@ void SDetailsViewBase::OnShowKeyableClicked()
 {
 	CurrentFilter.bShowOnlyKeyable = !CurrentFilter.bShowOnlyKeyable;
 
-	GetMutableViewConfig().bShowOnlyKeyable = CurrentFilter.bShowOnlyKeyable;
-	SaveViewConfig();
-
+	FDetailsViewConfig* ViewConfig = GetMutableViewConfig();
+	if (ViewConfig != nullptr)
+	{
+		ViewConfig->bShowOnlyKeyable = CurrentFilter.bShowOnlyKeyable;
+		SaveViewConfig();
+	}
 	UpdateFilteredDetails();
 }
 
@@ -699,8 +725,12 @@ void SDetailsViewBase::OnShowAnimatedClicked()
 {
 	CurrentFilter.bShowOnlyAnimated = !CurrentFilter.bShowOnlyAnimated;
 
-	GetMutableViewConfig().bShowOnlyAnimated = CurrentFilter.bShowOnlyAnimated;
-	SaveViewConfig();
+	FDetailsViewConfig* ViewConfig = GetMutableViewConfig();
+	if (ViewConfig != nullptr)
+	{
+		ViewConfig->bShowOnlyAnimated = CurrentFilter.bShowOnlyAnimated;
+		SaveViewConfig();
+	}
 
 	UpdateFilteredDetails();
 }
@@ -875,10 +905,11 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 {
 	HandlePendingCleanup();
 
-	FDetailsViewConfig& ViewConfig = GetMutableViewConfig();
-	if (ViewConfig.ValueColumnWidth != ColumnSizeData.ValueColumnWidth.Get(0))
+	FDetailsViewConfig* ViewConfig = GetMutableViewConfig();
+	if (ViewConfig != nullptr &&
+		ViewConfig->ValueColumnWidth != ColumnSizeData.ValueColumnWidth.Get(0))
 	{
-		ViewConfig.ValueColumnWidth = ColumnSizeData.ValueColumnWidth.Get(0);
+		ViewConfig->ValueColumnWidth = ColumnSizeData.ValueColumnWidth.Get(0);
 		SaveViewConfig();
 	}
 
@@ -1292,14 +1323,6 @@ void SDetailsViewBase::UpdateFilteredDetails()
 	FDetailNodeList InitialRootNodeList;
 	
 	NumVisibleTopLevelObjectNodes = 0;
-
-	CurrentFilter.bShowAllAdvanced = false;
-
-	const FDetailsViewConfig* DetailsViewConfig = GetMutableDefault<UDetailsConfig>()->Views.Find(DetailsViewArgs.ViewIdentifier);
-	if (DetailsViewConfig != nullptr)
-	{
-		CurrentFilter.bShowAllAdvanced = DetailsViewConfig->bShowAllAdvanced;
-	}
 	
 	FRootPropertyNodeList& RootPropertyNodes = GetRootNodes();
 	for(int32 RootNodeIndex = 0; RootNodeIndex < RootPropertyNodes.Num(); ++RootNodeIndex)

@@ -19,15 +19,22 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FGeometryCollectionVertexFactoryUniformShad
 	SHADER_PARAMETER_SRV(Buffer<float4>, VertexFetch_ColorComponentsBuffer)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
+typedef TUniformBufferRef<FGeometryCollectionVertexFactoryUniformShaderParameters> FGeometryCollectionVertexFactoryUniformShaderParametersRef;
+
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FGCBoneLooseParameters, ENGINE_API)
+	SHADER_PARAMETER_SRV(Buffer<float4>, VertexFetch_BoneTransformBuffer)
+	SHADER_PARAMETER_SRV(Buffer<float4>, VertexFetch_BonePrevTransformBuffer)
+	SHADER_PARAMETER_SRV(Buffer<uint>, VertexFetch_BoneMapBuffer)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
+typedef TUniformBufferRef<FGCBoneLooseParameters> FGCBoneLooseParametersRef;
+
 class FGeometryCollectionVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
 {
 	DECLARE_TYPE_LAYOUT(FGeometryCollectionVertexFactoryShaderParameters, NonVirtual);
 public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
-		VertexFetch_BoneTransformBufferParameter.Bind(ParameterMap, TEXT("VertexFetch_BoneTransformBuffer"));
-		VertexFetch_BonePrevTransformBufferParameter.Bind(ParameterMap, TEXT("VertexFetch_BonePrevTransformBuffer"));
-		VertexFetch_BoneMapBufferParameter.Bind(ParameterMap, TEXT("VertexFetch_BoneMapBuffer"));
 	}	
 
 	void GetElementShaderBindings(
@@ -41,10 +48,6 @@ public:
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams) const;
 
-private:
-	LAYOUT_FIELD(FShaderResourceParameter, VertexFetch_BoneTransformBufferParameter);
-	LAYOUT_FIELD(FShaderResourceParameter, VertexFetch_BonePrevTransformBufferParameter);
-	LAYOUT_FIELD(FShaderResourceParameter, VertexFetch_BoneMapBufferParameter);
 };
 
 /**
@@ -55,8 +58,10 @@ struct ENGINE_API FGeometryCollectionVertexFactory : public FVertexFactory
 	DECLARE_VERTEX_FACTORY_TYPE(FGeometryCollectionVertexFactory);
 
 public:
-	FGeometryCollectionVertexFactory(ERHIFeatureLevel::Type InFeatureLevel)
+	FGeometryCollectionVertexFactory(ERHIFeatureLevel::Type InFeatureLevel, bool EnableLooseParameter = false)
 	: FVertexFactory(InFeatureLevel)
+	, LooseParameterUniformBuffer(nullptr)
+	, EnableLooseParameter(EnableLooseParameter)
 	{
 		bSupportsManualVertexFetch = true;
 	}
@@ -152,6 +157,11 @@ public:
 		return UniformBuffer.GetReference();
 	}
 
+	FUniformBufferRHIRef GetLooseParameterBuffer() const
+	{
+		return LooseParameterUniformBuffer;
+	}
+
 	inline void SetBoneTransformSRV(FRHIShaderResourceView* BoneTransformSRV)
 	{
 		Data.BoneTransformSRV = BoneTransformSRV;
@@ -172,11 +182,19 @@ public:
 		return Data.BonePrevTransformSRV;
 	}
 
+	inline void SetBoneMapSRV(FRHIShaderResourceView* BoneMapSRV)
+	{
+		Data.BoneMapSRV = BoneMapSRV;
+	}
+
 	inline FRHIShaderResourceView* GetBoneMapSRV() const
 	{
 		return Data.BoneMapSRV;
 	}
-	
+
+	FUniformBufferRHIRef LooseParameterUniformBuffer;
+	bool EnableLooseParameter;
+
 private:
 	FDataType Data;
 	TUniformBufferRef<FGeometryCollectionVertexFactoryUniformShaderParameters> UniformBuffer;

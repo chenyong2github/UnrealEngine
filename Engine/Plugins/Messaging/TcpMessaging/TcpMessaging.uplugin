@@ -21,10 +21,10 @@
 			"Name" : "TcpMessaging",
 			"Type" : "Runtime",
 			"LoadingPhase" : "PreDefault",
-			"BlacklistPlatforms" :
+			"PlatformDenyList" :
 			[
 			],
-			"WhitelistPrograms" : [ "UnrealFrontend" ]
+			"ProgramAllowList" : [ "UnrealFrontend" ]
 	    }
 	]
 }

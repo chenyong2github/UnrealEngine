@@ -5,6 +5,10 @@
 #include "AssetTypeCategories.h"
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
+#include "Editor.h"
+#include "EditorStyleSet.h"
+#include "Widgets/SWindow.h"
+#include "Widgets/Layout/SBorder.h"
 
 #define LOCTEXT_NAMESPACE "IKRetargeterFactory"
 

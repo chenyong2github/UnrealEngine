@@ -41,7 +41,7 @@ void FMediaFrameworkUtilitiesEditorStyle::Register()
 	MediaFrameworkUtilitiesStyle::StyleInstance->Set("ToolbarIcon.Apply", new IMAGE_BRUSH("Apply_40x", MediaFrameworkUtilitiesStyle::Icon40x40));
 
 	MediaFrameworkUtilitiesStyle::StyleInstance->Set("TabIcons.MediaCapture.Small", new IMAGE_BRUSH_SVG("MediaCapture", MediaFrameworkUtilitiesStyle::Icon16x16));
-	MediaFrameworkUtilitiesStyle::StyleInstance->Set("MediaCapture.Capture", new IMAGE_BRUSH("CaptureCameraViewport_Capture_40x", MediaFrameworkUtilitiesStyle::Icon40x40));
+	MediaFrameworkUtilitiesStyle::StyleInstance->Set("MediaCapture.Capture", new IMAGE_BRUSH("PlayControlsRecord", MediaFrameworkUtilitiesStyle::Icon20x20));
 	MediaFrameworkUtilitiesStyle::StyleInstance->Set("MediaCapture.Stop", new IMAGE_BRUSH("CaptureCameraViewport_Stop_40x", MediaFrameworkUtilitiesStyle::Icon40x40));
 	MediaFrameworkUtilitiesStyle::StyleInstance->Set("MediaCapture.Settings", new IMAGE_BRUSH("Settings_40x", MediaFrameworkUtilitiesStyle::Icon40x40));
 

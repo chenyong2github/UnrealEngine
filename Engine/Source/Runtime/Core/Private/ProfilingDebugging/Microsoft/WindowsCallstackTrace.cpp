@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if defined(PLATFORM_SUPPORTS_TRACE_WIN32_CALLSTACK)
+#include "ProfilingDebugging/CallstackTracePrivate.h"
+
+#if defined(PLATFORM_SUPPORTS_TRACE_WIN32_CALLSTACK) && UE_CALLSTACK_TRACE_ENABLED
 
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
@@ -20,7 +22,6 @@
 #include "HAL/Runnable.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/ScopeLock.h"
-#include "ProfilingDebugging/CallstackTrace.h"
 #include "Experimental/Containers/GrowOnlyLockFreeHash.h"
 
 #include <atomic>
@@ -724,7 +725,7 @@ void Modules_Subscribe(void (*)(bool, void*, const TCHAR*));
 void Modules_Initialize();
 
 ////////////////////////////////////////////////////////////////////////////////
-void Backtracer_Create(FMalloc* Malloc)
+void CallstackTrace_CreateInternal(FMalloc* Malloc)
 {
 	if (FBacktracer::Get() != nullptr)
 	{
@@ -753,25 +754,15 @@ void Backtracer_Create(FMalloc* Malloc)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void Backtracer_Initialize()
+void CallstackTrace_InitializeInternal()
 {
 	Modules_Initialize();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-int32 Backtracer_GetFrameSize(void* FunctionAddress)
+uint32 CallstackTrace_GetCurrentId()
 {
-	if (FBacktracer* Instance = FBacktracer::Get())
-	{
-		return Instance->GetFrameSize(FunctionAddress);
-	}
-
-	return -1;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-uint32 Backtracer_GetBacktraceId(void* AddressOfReturnAddress)
-{
+	void* AddressOfReturnAddress = PLATFORM_RETURN_ADDRESS_POINTER();
 	if (FBacktracer* Instance = FBacktracer::Get())
 	{
 		return Instance->GetBacktraceId(AddressOfReturnAddress);
@@ -780,4 +771,4 @@ uint32 Backtracer_GetBacktraceId(void* AddressOfReturnAddress)
 	return 0;
 }
 
-#endif // defined(PLATFORM_SUPPORTS_TRACE_WIN32_CALLSTACK)
+#endif // defined(PLATFORM_SUPPORTS_TRACE_WIN32_CALLSTACK) && UE_CALLSTACK_TRACE_ENABLED

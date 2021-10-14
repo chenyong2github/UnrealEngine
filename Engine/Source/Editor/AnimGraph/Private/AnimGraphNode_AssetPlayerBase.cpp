@@ -237,11 +237,20 @@ void UAnimGraphNode_AssetPlayerBase::SetupNewNode(UEdGraphNode* InNewNode, bool 
 	}
 }
 
-void UAnimGraphNode_AssetPlayerBase::GetMenuActionsHelper(FBlueprintActionDatabaseRegistrar& InActionRegistrar, TSubclassOf<UAnimGraphNode_Base> InNodeClass, const TArray<TSubclassOf<UObject>>& InAssetTypes, const TArray<TSubclassOf<UObject>>& InExcludedAssetTypes, const TFunctionRef<FText(const FAssetData&, UClass*)>& InMenuNameFunction, const TFunctionRef<FText(const FAssetData&, UClass*)>& InMenuTooltipFunction, const TFunction<void(UEdGraphNode*, bool, const FAssetData)>& InSetupNewNodeFromAssetFunction, const TFunction<void(UEdGraphNode*, bool, TSubclassOf<UObject>)>& InSetupNewNodeFromClassFunction)
+void UAnimGraphNode_AssetPlayerBase::GetMenuActionsHelper(
+	FBlueprintActionDatabaseRegistrar& InActionRegistrar,
+	TSubclassOf<UAnimGraphNode_Base> InNodeClass,
+	const TArray<TSubclassOf<UObject>>& InAssetTypes,
+	const TArray<TSubclassOf<UObject>>& InExcludedAssetTypes,
+	const TFunctionRef<FText(const FAssetData&, UClass*)>& InMenuNameFunction,
+	const TFunctionRef<FText(const FAssetData&, UClass*)>& InMenuTooltipFunction,
+	const TFunction<void(UEdGraphNode*, bool, const FAssetData)>& InSetupNewNodeFromAssetFunction,
+	const TFunction<void(UEdGraphNode*, bool, TSubclassOf<UObject>)>& InSetupNewNodeFromClassFunction,
+	const TFunction<FText(const FAssetData&)>& InMenuCategoryFunction)
 {
-	auto MakeActionFromAsset = [&InActionRegistrar, &InMenuNameFunction, &InMenuTooltipFunction, InSetupNewNodeFromAssetFunction, InNodeClass](const FAssetData& InAssetData)
+	auto MakeActionFromAsset = [&InActionRegistrar, &InMenuNameFunction, &InMenuTooltipFunction, InSetupNewNodeFromAssetFunction, InNodeClass, InMenuCategoryFunction](const FAssetData& InAssetData)
 	{
-		auto AssetSetup = [InSetupNewNodeFromAssetFunction, InAssetData](UEdGraphNode* InNewNode, bool bInIsTemplateNode)
+		auto AssetSetup = [InSetupNewNodeFromAssetFunction, InAssetData, InMenuCategoryFunction](UEdGraphNode* InNewNode, bool bInIsTemplateNode)
 		{
 			InSetupNewNodeFromAssetFunction(InNewNode, bInIsTemplateNode, InAssetData);
 		};
@@ -249,6 +258,7 @@ void UAnimGraphNode_AssetPlayerBase::GetMenuActionsHelper(FBlueprintActionDataba
 		UBlueprintNodeSpawner* NodeSpawner = UBlueprintNodeSpawner::Create(InNodeClass.Get());
 		NodeSpawner->CustomizeNodeDelegate = UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateLambda(AssetSetup);
 		NodeSpawner->DefaultMenuSignature.MenuName = InMenuNameFunction(InAssetData, InAssetData.GetClass());
+		NodeSpawner->DefaultMenuSignature.Category = InMenuCategoryFunction != nullptr ? InMenuCategoryFunction(InAssetData) : FText::GetEmpty();
 		NodeSpawner->DefaultMenuSignature.Tooltip = InMenuTooltipFunction(InAssetData, InAssetData.GetClass());
 		InActionRegistrar.AddBlueprintAction(InAssetData, NodeSpawner);
 	};

@@ -17,8 +17,10 @@
 #include "ImageCore.h"
 #include "Misc/EnumClassFlags.h"
 #include "TextureCompressorModule.h"
+#include "TextureEncodingSettings.h"
 
 #endif // WITH_EDITOR
+
 
 enum
 {
@@ -79,7 +81,7 @@ struct FTextureSourceData
 		, bValid(false)
 	{}
 
-	void Init(UTexture& InTexture, const FTextureBuildSettings* InBuildSettingsPerLayer, bool bAllowAsyncLoading);
+	void Init(UTexture& InTexture, TextureMipGenSettings InMipGenSettings, bool bInCubeMap, bool bInTextureArray, bool bInVolumeTexture, bool bAllowAsyncLoading);
 	bool IsValid() const { return bValid; }
 
 	void GetSourceMips(FTextureSource& Source, IImageWrapperModule* InImageWrapper);
@@ -104,7 +106,10 @@ struct FTextureSourceData
 };
 
 /**
- * Worker used to cache texture derived data.
+ * DDC1 texture fetch/build class.
+ * 
+ * This class is only used directly when we _aren't_ async, however the async
+ * class will still route through this for doing the actual fetch/build.
  */
 class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 {
@@ -114,12 +119,21 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 	IImageWrapperModule* ImageWrapper;
 	/** Where to store derived data. */
 	FTexturePlatformData* DerivedData;
-	/** The texture for which derived data is being cached. */
+	/** The texture for which derived data is being cached. 
+	*	We are likely off the main thread so be very careful with this! 
+	*	AFAICT it's only used for debug GetPathName... 
+	*/
 	UTexture& Texture;
-	/** Compression settings. */
-	TArray<FTextureBuildSettings> BuildSettingsPerLayer;
-	/** Derived data key suffix. */
+
+	/** Compression settings. We need two for when we are in the fallback case. We have
+	*	to do this out here so that we can generate keys before knowing which one we'll use */
+	TArray<FTextureBuildSettings> BuildSettingsPerLayerFetchFirst;
+	TArray<FTextureBuildSettings> BuildSettingsPerLayerFetchOrBuild;
+
+
+	/** Derived data key suffix that we ended up using. */
 	FString KeySuffix;
+
 	/** Source mip images. */
 	FTextureSourceData TextureData;
 	/** Source mip images of the composite texture (e.g. normal map for compute roughness). Not necessarily in RGBA32F, usually only top mip as other mips need to be generated first */
@@ -134,10 +148,12 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 	/** true if caching has succeeded. */
 	bool bSucceeded;
 	/** true if the derived data was pulled from DDC */
-	bool bLoadedFromDDC = false;
+	bool bLoadedFromDDC = false;	
+	/** what speed we ended up using, based on whether we used the fetchfirst or fetchorbuild settings */
+	ETextureEncodeSpeed UsedEncodeSpeed;
 
 	/** Build the texture. This function is safe to call from any thread. */
-	void BuildTexture(bool bReplaceExistingDDC = false);
+	void BuildTexture(TArray<FTextureBuildSettings>& InBuildSettingsPerLayer, bool bReplaceExistingDDC = false);
 public:
 
 	/** Initialization constructor. */
@@ -145,7 +161,8 @@ public:
 		ITextureCompressorModule* InCompressor,
 		FTexturePlatformData* InDerivedData,
 		UTexture* InTexture,
-		const FTextureBuildSettings* InSettingsPerLayer,
+		const FTextureBuildSettings* InSettingsPerLayerFetchFirst, // can be nullptr
+		const FTextureBuildSettings* InSettingsPerLayerFetchOrBuild,
 		ETextureCacheFlags InCacheFlags);
 
 	/** Does the work to cache derived data. Safe to call from any thread. */
@@ -172,6 +189,11 @@ public:
 		return bLoadedFromDDC;
 	}
 
+	ETextureEncodeSpeed GetUsedEncodeSpeed() const
+	{
+		return UsedEncodeSpeed;
+	}
+
 	FORCEINLINE TStatId GetStatId() const
 	{
 		RETURN_QUICK_DECLARE_CYCLE_STAT(FTextureCacheDerivedDataWorker, STATGROUP_ThreadPoolAsyncTasks);
@@ -181,7 +203,7 @@ public:
 struct FTextureAsyncCacheDerivedDataTask
 {
 	virtual ~FTextureAsyncCacheDerivedDataTask() = default;
-	virtual void Finalize(bool& bOutFoundInCache, uint64& OutProcessedByteCount) = 0;
+	virtual void Finalize(bool& bOutFoundInCache, ETextureEncodeSpeed& OutUsedEncodeSpeed, uint64& OutProcessedByteCount) = 0;
 	virtual EQueuedWorkPriority GetPriority() const = 0;
 	virtual bool SetPriority(EQueuedWorkPriority QueuedWorkPriority) = 0;
 	virtual bool Cancel() = 0;
@@ -190,6 +212,9 @@ struct FTextureAsyncCacheDerivedDataTask
 	virtual bool Poll() const = 0;
 };
 
+//
+// DDC1 async texture fetch/build task.
+//
 class FTextureAsyncCacheDerivedDataWorkerTask final : public FTextureAsyncCacheDerivedDataTask, public FAsyncTask<FTextureCacheDerivedDataWorker>
 {
 public:
@@ -198,23 +223,26 @@ public:
 		ITextureCompressorModule* InCompressor,
 		FTexturePlatformData* InDerivedData,
 		UTexture* InTexture,
-		const FTextureBuildSettings* InSettingsPerLayer,
+		const FTextureBuildSettings* InSettingsPerLayerFetchFirst,
+		const FTextureBuildSettings* InSettingsPerLayerFetchOrBuild,
 		ETextureCacheFlags InCacheFlags
 		)
 		: FAsyncTask<FTextureCacheDerivedDataWorker>(
 			InCompressor,
 			InDerivedData,
 			InTexture,
-			InSettingsPerLayer,
+			InSettingsPerLayerFetchFirst,
+			InSettingsPerLayerFetchOrBuild,
 			InCacheFlags
 			)
 		, QueuedPool(InQueuedPool)
 	{
 	}
 
-	void Finalize(bool& bOutFoundInCache, uint64& OutProcessedByteCount) final
+	void Finalize(bool& bOutFoundInCache, ETextureEncodeSpeed& OutUsedEncodeSpeed, uint64& OutProcessedByteCount) final
 	{
 		GetTask().Finalize();
+		OutUsedEncodeSpeed = GetTask().GetUsedEncodeSpeed();
 		bOutFoundInCache = GetTask().WasLoadedFromDDC();
 		OutProcessedByteCount = GetTask().GetBytesCached();
 	}
@@ -253,10 +281,12 @@ private:
 	FQueuedThreadPool* QueuedPool;
 };
 
+// Creates the DDC2 texture fetch/build task.
 FTextureAsyncCacheDerivedDataTask* CreateTextureBuildTask(
 	UTexture& Texture,
 	FTexturePlatformData& DerivedData,
-	const FTextureBuildSettings& Settings,
+	const FTextureBuildSettings* SettingsFetchFirst, // can be nullptr
+	const FTextureBuildSettings& SettingsFetchOrBuild,
 	EQueuedWorkPriority Priority,
 	ETextureCacheFlags Flags);
 

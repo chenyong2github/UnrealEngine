@@ -19,7 +19,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.65";
+        private static string VersionString = "4.66";
 
         public static string Get() { return VersionString; }
     };
@@ -141,6 +141,7 @@ namespace PerfReportTool
 			"       -csvLinkRootPath : Make CSV file links relative to this\n" +
 			"       -weightByColumn : weight collated table averages by this column (overrides value specified in the report XML)\n" +
 			"       -noWeightedAvg : Don't use weighted averages for the collated table\n" +
+			"       -minFrameCount : ignore CSVs without at least this number of valid frames\n" +
 			"\n" +
 			"Performance args for bulk mode:\n" +
 			"       -precacheCount <n> : number of CSV files to precache in the lookahead cache (0 for no precache)\n" +
@@ -411,6 +412,7 @@ namespace PerfReportTool
 			bool bSummaryTableCacheUseOnlyCsvID = GetBoolArg("summaryTableCacheUseOnlyCsvID");
 			bool bRequireMetadata = GetBoolArg("requireMetadata");
 			bool bListFilesMode = GetBoolArg("listFiles");
+			int frameCountThreshold = GetIntArg("minFrameCount", 0);
 			if (bListFilesMode)
 			{
 				writeDetailedReports = false;
@@ -477,6 +479,7 @@ namespace PerfReportTool
 							{
 								GenerateReport(cachedCsvFile, outputDir, bBulkMode, rowData, bBatchedGraphs, writeDetailedReports, bReadAllStats || bWriteToSummaryTableCache, cachedCsvFile.reportTypeInfo, csvDir);
 								perfLog.LogTiming("  GenerateReport");
+
 								if (rowData != null && bWriteToSummaryTableCache)
 								{
 									if (rowData.WriteToCache(summaryTableCacheDir, cachedCsvFile.summaryTableCacheId))
@@ -492,9 +495,20 @@ namespace PerfReportTool
 						{
 							summaryTableCacheStats.HitCount++;
 						}
+
 						if (rowData != null)
                         {
-                            summaryTable.AddRowData(rowData, bReadAllStats, bShowHiddenStats);
+							// Filter row based on framecount if minFrameCount is specified
+							bool bIncludeRowData = true;
+							if (frameCountThreshold > 0 && rowData.GetFrameCount() < frameCountThreshold)
+							{
+								Console.WriteLine("CSV frame count below the threshold. Excluding from summary table:" + cachedCsvFile.filename);
+								bIncludeRowData = false;
+							}
+							if (bIncludeRowData)
+							{
+								summaryTable.AddRowData(rowData, bReadAllStats, bShowHiddenStats);
+							}
 							perfLog.LogTiming("  AddRowData");
 						}
 					}

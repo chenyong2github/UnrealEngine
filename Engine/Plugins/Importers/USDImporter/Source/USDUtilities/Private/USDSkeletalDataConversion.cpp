@@ -479,7 +479,7 @@ namespace SkelDataConversionImpl
 	 */
 	TArray<FRichCurve> ResolveWeightsForBlendShapeCurve( const UsdUtils::FUsdBlendShape& PrimaryBlendShape, const FRichCurve& ChannelWeightCurve )
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE( SkelDataConversionImpl::ConvertSkinnedMesh );
+		TRACE_CPUPROFILER_EVENT_SCOPE( SkelDataConversionImpl::ResolveWeightsForBlendShapeCurve );
 
 		int32 NumInbetweens = PrimaryBlendShape.Inbetweens.Num();
 		if ( NumInbetweens == 0 )
@@ -1137,7 +1137,7 @@ bool UsdToUnreal::ConvertSkeleton(const pxr::UsdSkelSkeletonQuery& SkeletonQuery
 	return true;
 }
 
-bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQuery, const FTransform& AdditionalTransform, FSkeletalMeshImportData& SkelMeshImportData, TArray< UsdUtils::FUsdPrimMaterialSlot >& MaterialAssignments, const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames )
+bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQuery, const FTransform& AdditionalTransform, FSkeletalMeshImportData& SkelMeshImportData, TArray< UsdUtils::FUsdPrimMaterialSlot >& MaterialAssignments, const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames, const pxr::TfToken& RenderContext )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( UsdToUnreal::ConvertSkinnedMesh );
 
@@ -1220,7 +1220,8 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 	SkelMeshImportData.Faces.Reserve( NumFaces * 2 );
 
 	// Material assignments
-	UsdUtils::FUsdPrimMaterialAssignmentInfo LocalInfo = UsdUtils::GetPrimMaterialAssignments( SkinningPrim );
+	const bool bProvideMaterialIndices = true;
+	UsdUtils::FUsdPrimMaterialAssignmentInfo LocalInfo = UsdUtils::GetPrimMaterialAssignments( SkinningPrim, pxr::UsdTimeCode::EarliestTime(), bProvideMaterialIndices, RenderContext );
 	TArray< UsdUtils::FUsdPrimMaterialSlot >& LocalMaterialSlots = LocalInfo.Slots;
 	TArray< int32 >& FaceMaterialIndices = LocalInfo.MaterialIndices;
 
@@ -1752,9 +1753,9 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 				FTransform UEJointTransform = UsdToUnreal::ConvertMatrix( StageInfo, UsdJointTransform );
 
 				FRawAnimSequenceTrack& JointTrack = JointTracks[ BoneIndex ];
-				JointTrack.PosKeys.Add( UEJointTransform.GetTranslation() );
-				JointTrack.RotKeys.Add( UEJointTransform.GetRotation() );
-				JointTrack.ScaleKeys.Add( UEJointTransform.GetScale3D() );
+				JointTrack.PosKeys.Add( FVector3f(UEJointTransform.GetTranslation()) );
+				JointTrack.RotKeys.Add( FQuat4f(UEJointTransform.GetRotation()) );
+				JointTrack.ScaleKeys.Add( FVector3f(UEJointTransform.GetScale3D()) );
 			}
 		}
 

@@ -307,8 +307,8 @@ void URootMotionModifier_AdjustmentBlendWarp::AdjustmentBlendWarp(const FBoneCon
 		Track.PosKeys.Reserve(TotalFrames);
 		Track.RotKeys.Reserve(TotalFrames);
 
-		Track.PosKeys.Add(MotionDeltaTrack.BoneTransformTrack[0].GetLocation());
-		Track.RotKeys.Add(MotionDeltaTrack.BoneTransformTrack[0].GetRotation());
+		Track.PosKeys.Add(FVector3f(MotionDeltaTrack.BoneTransformTrack[0].GetLocation()));
+		Track.RotKeys.Add(FQuat4f(MotionDeltaTrack.BoneTransformTrack[0].GetRotation()));
 
 		Track.ScaleKeys.Add(FVector(1));
 
@@ -327,13 +327,13 @@ void URootMotionModifier_AdjustmentBlendWarp::AdjustmentBlendWarp(const FBoneCon
 			// Translation Key
 			const FVector DeltaTranslation = MotionDeltaTrack.DeltaTranslationTrack[FrameIdx];
 			const FVector CurrentAdditiveTranslation = CalculateAdditive(MotionDeltaTrack.TotalTranslation, DeltaTranslation, TotalAdditiveTranslation, PrevAdditiveTranslation, Alpha);
-			Output.AnimationTracks[BoneIndex].PosKeys.Add(BoneTransform.GetTranslation() + CurrentAdditiveTranslation);
+			Output.AnimationTracks[BoneIndex].PosKeys.Add(FVector3f(BoneTransform.GetTranslation() + CurrentAdditiveTranslation));
 			PrevAdditiveTranslation = CurrentAdditiveTranslation;
 
 			// Rotation Key
 			const FVector DeltaRotation = MotionDeltaTrack.DeltaRotationTrack[FrameIdx].Euler();
 			const FVector CurrentAdditiveRotation = CalculateAdditive(MotionDeltaTrack.TotalRotation.Euler(), DeltaRotation, TotalAdditiveRotation, PrevAdditiveRotation, Alpha);
-			Output.AnimationTracks[BoneIndex].RotKeys.Add(FRotator::MakeFromEuler(BoneTransform.GetRotation().Rotator().Euler() + CurrentAdditiveRotation).Quaternion());
+			Output.AnimationTracks[BoneIndex].RotKeys.Add(FQuat4f(FRotator::MakeFromEuler(BoneTransform.GetRotation().Rotator().Euler() + CurrentAdditiveRotation).Quaternion()));
 			PrevAdditiveRotation = CurrentAdditiveRotation;
 		}
 	}

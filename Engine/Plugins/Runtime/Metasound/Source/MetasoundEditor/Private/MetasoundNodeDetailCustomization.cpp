@@ -80,6 +80,94 @@ namespace Metasound
 				"Audio:Mono",
 				"Audio:Stereo"
 			};
+		} // namespace VariableCustomizationPrivate
+
+		FMetasoundFloatLiteralCustomization::~FMetasoundFloatLiteralCustomization()
+		{
+			if (FloatLiteral.IsValid())
+			{
+				FloatLiteral->OnClampInputChanged.Remove(OnClampInputChangedDelegateHandle);
+				FloatLiteral->OnRangeChanged.Remove(InputWidgetOnRangeChangedDelegateHandle);
+			}
+		}
+
+		void FMetasoundFloatLiteralCustomization::CustomizeLiteral(UMetasoundEditorGraphInputLiteral& InLiteral, TSharedPtr<IPropertyHandle> InDefaultValueHandle)
+		{
+			check(InputCategoryBuilder);
+
+			UMetasoundEditorGraphInputFloat* InputFloat = Cast<UMetasoundEditorGraphInputFloat>(&InLiteral);
+			if (!ensure(InputFloat))
+			{
+				return;
+			}
+			FloatLiteral = InputFloat;
+
+			if (IDetailPropertyRow* Row = InputCategoryBuilder->AddExternalObjectProperty(TArray<UObject*>({ InputFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphInputFloat, ClampDefault)))
+			{
+				// If clamping or using slider, clamp default value to given range 
+				if (InputFloat->ClampDefault || InputFloat->InputWidgetType == EMetasoundInputWidget::Slider)
+				{
+					FVector2D Range = InputFloat->GetRange();
+					InDefaultValueHandle->SetInstanceMetaData("ClampMin", FString::Printf(TEXT("%f"), Range.X));
+					InDefaultValueHandle->SetInstanceMetaData("ClampMax", FString::Printf(TEXT("%f"), Range.Y));
+				}
+				else // Stop clamping
+				{
+					InDefaultValueHandle->SetInstanceMetaData("ClampMin", "");
+					InDefaultValueHandle->SetInstanceMetaData("ClampMax", "");
+				}
+
+				InputFloat->OnClampInputChanged.Remove(OnClampInputChangedDelegateHandle);
+				OnClampInputChangedDelegateHandle = InputFloat->OnClampInputChanged.AddLambda([this](bool ClampInput)
+				{
+					if (FloatLiteral.IsValid())
+					{
+						FloatLiteral->OnClampInputChanged.Remove(OnClampInputChangedDelegateHandle);
+						TSharedPtr<FEditor> ParentEditor = FGraphBuilder::GetEditorForMetasound(*FloatLiteral->GetOutermostObject());
+						if (ParentEditor.IsValid())
+						{
+							ParentEditor->RefreshDetails();
+						}
+					}
+				});
+			}
+			if (IDetailPropertyRow* Row = InputCategoryBuilder->AddExternalObjectProperty(TArray<UObject*>({ InputFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphInputFloat, Range)))
+			{
+				TSharedPtr<IPropertyHandle> RangeHandle = Row->GetPropertyHandle();
+				if (RangeHandle.IsValid())
+				{
+					TWeakObjectPtr<UMetasoundEditorGraphInput> Input = Cast<UMetasoundEditorGraphInput>(FloatLiteral->GetOuter());
+					FSimpleDelegate UpdateDocumentInput = FSimpleDelegate::CreateLambda([Input]()
+					{
+						if (Input.IsValid())
+						{
+							Input->UpdateDocumentInput();
+						}
+					});
+					RangeHandle->SetOnPropertyValueChanged(UpdateDocumentInput);
+					RangeHandle->SetOnChildPropertyValueChanged(UpdateDocumentInput);
+
+					// If the range is changed, we want to update these details in case we now need to clamp the value
+					if (!InputWidgetOnRangeChangedDelegateHandle.IsValid())
+					{
+						InputWidgetOnRangeChangedDelegateHandle = InputFloat->OnRangeChanged.AddLambda([this](FVector2D Range)
+						{
+							if (FloatLiteral.IsValid())
+							{
+								FloatLiteral->OnRangeChanged.Remove(InputWidgetOnRangeChangedDelegateHandle);
+								TSharedPtr<FEditor> ParentEditor = FGraphBuilder::GetEditorForMetasound(*FloatLiteral->GetOutermostObject());
+								if (ParentEditor.IsValid())
+								{
+									ParentEditor->RefreshDetails();
+								}
+							}
+						});
+					}
+				}
+			}
+			InputCategoryBuilder->AddExternalObjectProperty(TArray<UObject*>({ InputFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphInputFloat, InputWidgetType));
+			InputCategoryBuilder->AddExternalObjectProperty(TArray<UObject*>({ InputFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphInputFloat, InputWidgetOrientation));
+			InputCategoryBuilder->AddExternalObjectProperty(TArray<UObject*>({ InputFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphInputFloat, InputWidgetValueType));
 		}
 
 		void FMetasoundInputBoolDetailCustomization::CacheProxyData(TSharedPtr<IPropertyHandle> ProxyHandle)
@@ -440,17 +528,17 @@ namespace Metasound
 				}
 			}
 
-			FSimpleDelegate OnLiteralChanged = FSimpleDelegate::CreateLambda([InInputs = Inputs]()
+			FSimpleDelegate UpdateDocumentInput = FSimpleDelegate::CreateLambda([InInputs = Inputs]()
 			{
 				for (const TWeakObjectPtr<UMetasoundEditorGraphInput>& GraphInput : InInputs)
 				{
 					if (GraphInput.IsValid())
 					{
-						GraphInput->OnLiteralChanged();
+						GraphInput->UpdateDocumentInput();
 					}
 				}
 			});
-			StructPropertyHandle->SetOnChildPropertyValueChanged(OnLiteralChanged);
+			StructPropertyHandle->SetOnChildPropertyValueChanged(UpdateDocumentInput);
 
 			ValueRow.ValueContent()
 			[
@@ -671,17 +759,18 @@ namespace Metasound
 			}
 
 			IDetailCategoryBuilder& DefaultCategoryBuilder = DetailLayout.EditCategory("DefaultValue");
-
 			TSharedPtr<IPropertyHandle> LiteralHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphInput, Literal));
 			if (ensure(GraphVariable.IsValid()) && ensure(LiteralHandle.IsValid()))
 			{
-				TSharedPtr<IPropertyHandle> DefaultValueHandle;
 				UObject* LiteralObject = nullptr;
 				if (LiteralHandle->GetValue(LiteralObject) == FPropertyAccess::Success)
 				{
 					if (ensure(LiteralObject))
 					{
 						LiteralHandle->MarkHiddenByCustomization();
+
+						TSharedPtr<IPropertyHandle> DefaultValueHandle;
+
 						if (IDetailPropertyRow* Row = DefaultCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ LiteralObject }), "Default"))
 						{
 							DefaultValueHandle = Row->GetPropertyHandle();
@@ -689,23 +778,30 @@ namespace Metasound
 							{
 								SetDefaultPropertyMetaData(DefaultValueHandle.ToSharedRef());
 
-								FSimpleDelegate OnLiteralChanged = FSimpleDelegate::CreateLambda([GraphVariable = this->GraphVariable]()
+								FSimpleDelegate UpdateDocumentInput = FSimpleDelegate::CreateLambda([GraphVariable = this->GraphVariable]()
 								{
 									if (GraphVariable.IsValid())
 									{
-										GraphVariable->OnLiteralChanged();
+										GraphVariable->UpdateDocumentInput();
 									}
 								});
 
-								DefaultValueHandle->SetOnPropertyValueChanged(OnLiteralChanged);
-								DefaultValueHandle->SetOnChildPropertyValueChanged(OnLiteralChanged);
+								DefaultValueHandle->SetOnPropertyValueChanged(UpdateDocumentInput);
+								DefaultValueHandle->SetOnChildPropertyValueChanged(UpdateDocumentInput);
 
 								TSharedPtr<IPropertyHandleArray> DefaultValueArray = DefaultValueHandle->AsArray();
 								if (DefaultValueArray.IsValid())
 								{
-									DefaultValueArray->SetOnNumElementsChanged(OnLiteralChanged);
+									DefaultValueArray->SetOnNumElementsChanged(UpdateDocumentInput);
 								}
 							}
+						}
+
+						IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
+						LiteralCustomization = EditorModule.CreateInputLiteralCustomization(*LiteralObject->GetClass(), DefaultCategoryBuilder);
+						if (LiteralCustomization.IsValid())
+						{
+							LiteralCustomization->CustomizeLiteral(*CastChecked<UMetasoundEditorGraphInputLiteral>(LiteralObject), DefaultValueHandle);
 						}
 					}
 					else

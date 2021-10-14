@@ -536,14 +536,12 @@ void FViewMatrices::Init(const FMinimalInitializer& Initializer)
 	{
 		this->ViewOrigin = LocalViewOrigin;
 	}
-#if WITH_EDITOR
 	else if (Initializer.bUseFauxOrthoViewPos)
 	{
 		auto DistanceToViewOrigin = WORLD_MAX;
 		ViewOrigin = FVector(InvViewMatrix.TransformVector(FVector(0, 0, -1).GetSafeNormal())) * DistanceToViewOrigin + LocalViewOrigin;
 		bViewOriginIsFudged = true;
 	}
-#endif
 	else
 	{
 		this->ViewOrigin = FVector(InvViewMatrix.TransformVector(FVector(0, 0, -1).GetSafeNormal()));
@@ -627,9 +625,7 @@ FViewMatrices::FViewMatrices(const FSceneViewInitOptions& InitOptions) : FViewMa
 	Initializer.ViewOrigin           = InitOptions.ViewOrigin;
 	Initializer.ConstrainedViewRect  = InitOptions.GetConstrainedViewRect();
 	Initializer.StereoPass           = InitOptions.StereoPass;
-#if WITH_EDITOR
 	Initializer.bUseFauxOrthoViewPos = InitOptions.bUseFauxOrthoViewPos;
-#endif
 
 	Init(Initializer);
 }

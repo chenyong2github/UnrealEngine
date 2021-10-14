@@ -23,6 +23,7 @@ public class KismetWidgets : ModuleRules
 				"ContentBrowserData",
 				"ClassViewer",
 				"ToolWidgets",
+				"EditorWidgets",
 			}
 		);
 

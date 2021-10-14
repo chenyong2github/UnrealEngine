@@ -83,6 +83,7 @@
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "Materials/MaterialExpressionDoubleVectorParameter.h"
 #include "Materials/MaterialExpressionStaticBoolParameter.h"
+#include "Materials/MaterialExpressionCustomOutput.h"
 #include "Materials/MaterialFunction.h"
 #include "Materials/MaterialFunctionInstance.h"
 #include "Materials/MaterialParameterCollection.h"
@@ -1588,7 +1589,7 @@ void FMaterialEditor::OnFinishedChangingParametersFromOverview(const FPropertyCh
 		FStructProperty* StructProperty = CastField<FStructProperty>(PropertyChangedEvent.Property);
 		if (!StructProperty || StructProperty->Struct->GetFName() != "LinearColor")
 		{
-		MaterialDetailsView->SetObjects(SelectedObjects, true);
+			MaterialDetailsView->SetObjects(SelectedObjects, true);
 		}
 		Material->MarkPackageDirty();
 		SetMaterialDirty();
@@ -6286,7 +6287,7 @@ void FMaterialEditor::RefreshExpressionPreview(UMaterialExpression* MaterialExpr
 FMatExpressionPreview* FMaterialEditor::GetExpressionPreview(UMaterialExpression* MaterialExpression, bool& bNewlyCreated)
 {
 	bNewlyCreated = false;
-	if (!MaterialExpression->bHidePreviewWindow && !MaterialExpression->bCollapsed)
+	if (!MaterialExpression->bHidePreviewWindow && !MaterialExpression->bCollapsed && !MaterialExpression->IsA<UMaterialExpressionCustomOutput>())
 	{
 		FMatExpressionPreview* Preview = NULL;
 		for( int32 PreviewIndex = 0 ; PreviewIndex < ExpressionPreviews.Num() ; ++PreviewIndex )

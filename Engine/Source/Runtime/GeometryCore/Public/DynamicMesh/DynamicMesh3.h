@@ -1121,15 +1121,16 @@ public:
 	EMeshResult ReverseTriOrientation(int TriangleID);
 
 	/**
-	 * Remove vertex vID, and all connected triangles if bRemoveAllTriangles = true
-	 * Returns Failed_VertexStillReferenced if vertex is still referenced by triangles.
-	 * if bPreserveManifold, checks that we will not create a bow tie vertex first
+	 * Remove vertex VertexID and all connected triangles. 
+	 * Returns Failed_VertexStillReferenced if VertexID is still referenced by any triangles.
+	 * If bPreserveManifold is true, checks that we will not create a bowtie vertex first.
+	 * In this case, returns Failed_WouldCreateBowtie if removing the triangles would create a bowtie.
 	 */
-	EMeshResult RemoveVertex(int VertexID, bool bRemoveAllTriangles = true, bool bPreserveManifold = false);
+	EMeshResult RemoveVertex(int VertexID, bool bPreserveManifold = false);
 
 	/**
 	* Remove a triangle from the mesh. Also removes any unreferenced edges after tri is removed.
-	* If bRemoveIsolatedVertices is false, then if you remove all tris from a vert, that vert is also removed.
+	* If bRemoveIsolatedVertices is true, then if you remove all tris from a vert, that vert is also removed.
 	* If bPreserveManifold, we check that you will not create a bow tie vertex (and return false).
 	* If this check is not done, you have to make sure you don't create a bow tie, because other
 	* code assumes we don't have bow ties, and will not handle it properly

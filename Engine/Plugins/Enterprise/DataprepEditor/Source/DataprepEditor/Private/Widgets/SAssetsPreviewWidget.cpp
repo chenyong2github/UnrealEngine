@@ -23,6 +23,15 @@ namespace AssetPreviewWidget
 	class FAssetPreviewDefaultColumn : public IAssetPreviewColumn
 	{
 	public:
+
+		FAssetPreviewDefaultColumn()
+		{
+			FolderOpenBrush = FEditorStyle::GetBrush("ContentBrowser.AssetTreeFolderOpen");
+			FolderClosedBrush = FEditorStyle::GetBrush("ContentBrowser.AssetTreeFolderClosed");
+			AssetIconBrush = FEditorStyle::GetBrush("ContentBrowser.ColumnViewAssetIcon");
+		}
+
+
 		virtual uint8 GetCulumnPositionPriorityIndex() const override
 		{
 			return 128;
@@ -121,17 +130,14 @@ namespace AssetPreviewWidget
 
 	private:
 		/** Brushes for the different folder states */
-		static const FSlateBrush* FolderOpenBrush;
-		static const FSlateBrush* FolderClosedBrush;
-		static const FSlateBrush* AssetIconBrush;
+		const FSlateBrush* FolderOpenBrush;
+		const FSlateBrush* FolderClosedBrush;
+		const FSlateBrush* AssetIconBrush;
 
 		TWeakPtr<SAssetsPreviewWidget> PreviewWidgetWeakPtr;
 	};
 
 	const FName FAssetPreviewDefaultColumn::ColumnID =  FName("DefaultColumn");
-	const FSlateBrush* FAssetPreviewDefaultColumn::FolderOpenBrush = FEditorStyle::GetBrush("ContentBrowser.AssetTreeFolderOpen");
-	const FSlateBrush* FAssetPreviewDefaultColumn::FolderClosedBrush = FEditorStyle::GetBrush("ContentBrowser.AssetTreeFolderClosed");
-	const FSlateBrush* FAssetPreviewDefaultColumn::AssetIconBrush = FEditorStyle::GetBrush("ContentBrowser.ColumnViewAssetIcon");
 
 
 	/** Represents a row in the AssetPreview's tree view */

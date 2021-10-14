@@ -86,9 +86,27 @@ public:
 	template <typename CallableType>
 	void Execute(FOnlineAsyncExecutionPolicy ExecutionPolicy, CallableType&& Callable)
 	{
-		if (ExecutionPolicy.GetExecutionPolicy() == EOnlineAsyncExecutionPolicy::RunOnGameThread)
+		switch (ExecutionPolicy.GetExecutionPolicy())
 		{
-			ExecuteOnGameThread(MoveTempIfPossible(Callable));
+			case EOnlineAsyncExecutionPolicy::RunOnGameThread:
+				ExecuteOnGameThread(MoveTemp(Callable));
+				break;
+
+			case EOnlineAsyncExecutionPolicy::RunOnNextTick:
+				Async(EAsyncExecution::TaskGraphMainThread, MoveTemp(Callable));
+				break;
+
+			case EOnlineAsyncExecutionPolicy::RunOnThreadPool:
+				Async(EAsyncExecution::ThreadPool, MoveTemp(Callable));
+				break;
+
+			case EOnlineAsyncExecutionPolicy::RunOnTaskGraph:
+				Async(EAsyncExecution::TaskGraph, MoveTemp(Callable));
+				break;
+
+			case EOnlineAsyncExecutionPolicy::RunImmediately:
+				Callable();
+				break;
 		}
 	}
 
@@ -137,6 +155,21 @@ public:
 	 */
 	const FString& GetConfigName() const { return ConfigName; }
 
+	TArray<FString> GetConfigSectionHeiarchy(const FString& OperationName = FString())
+	{
+		TArray<FString> SectionHeiarchy;
+		FString SectionName = TEXT("OnlineServices");
+		SectionHeiarchy.Add(SectionName);
+		SectionName += TEXT(".") + GetConfigName();
+		SectionHeiarchy.Add(SectionName);
+		if (!OperationName.IsEmpty())
+		{
+			SectionName += TEXT(".") + OperationName;
+			SectionHeiarchy.Add(SectionName);
+		}
+		return SectionHeiarchy;
+	}
+
 	/**
 	 * Load a config struct for an interface + operation
 	 * Will load values from the following sections:
@@ -163,13 +196,35 @@ public:
 		{
 			SectionName += TEXT(".") + InterfaceName;
 			SectionHeiarchy.Add(SectionName);
-			if (!InterfaceName.IsEmpty())
+			if (!OperationName.IsEmpty())
 			{
 				SectionName += TEXT(".") + OperationName;
 				SectionHeiarchy.Add(SectionName);
 			}
 		}
 		return LoadConfig(Struct, SectionHeiarchy);
+	}
+
+	/**
+	 * Get an array of a config section with the overrides added in
+	 * 
+	 * @param SectionHeiarchy Array of config sections to load values from
+	 * 
+	 * @return Array of the sections with overrides for values to be loaded from
+	 */
+	TArray<FString> GetConfigSectionHeirachWithOverrides(const TArray<FString>& SectionHeiarchy)
+	{
+		TArray<FString> SectionHeiarchyWithOverrides;
+		for (const FString& Section : SectionHeiarchy)
+		{
+			for (const FString& Override : ConfigSectionOverrides)
+			{
+				FString OverrideSection = Section + TEXT(" ") + Override;
+				SectionHeiarchyWithOverrides.Add(OverrideSection);
+			}
+		}
+
+		return SectionHeiarchyWithOverrides;
 	}
 
 	/**
@@ -183,17 +238,51 @@ public:
 	template <typename StructType>
 	bool LoadConfig(StructType& Struct, const TArray<FString>& SectionHeiarchy)
 	{
-		bool bLoadedConfig = false;
-		for (const FString& Section : SectionHeiarchy)
-		{
-			bLoadedConfig |= LoadConfig(*ConfigProvider, Section, Struct);
-			for (const FString& Override : ConfigSectionOverrides)
-			{
-				FString OverrideSection = Section + TEXT(" ") + Override;
-				bLoadedConfig |= LoadConfig(*ConfigProvider, OverrideSection, Struct);
-			}
-		}
-		return bLoadedConfig;
+		return ::UE::Online::LoadConfig(*ConfigProvider, GetConfigSectionHeirachWithOverrides(SectionHeiarchy), Struct);
+	}
+
+	template <typename OpType>
+	bool LoadOperationConfig(FOperationConfig& OutConfig, const FString& InterfaceName = FString(), const FString& OperationName = FString())
+	{
+		return false;
+	}
+
+	/* Get op (OnlineServices) */
+	template <typename OpType>
+	TOnlineAsyncOp<OpType>& GetOp(typename OpType::Params&& Params)
+	{
+		return OpCache.GetOp<OpType>(MoveTemp(Params), GetConfigSectionHeiarchy());
+	}
+
+	template <typename OpType, typename ParamsFuncsType = TJoinableOpParamsFuncs<OpType>>
+	TOnlineAsyncOp<OpType>& GetJoinableOp(typename OpType::Params&& Params)
+	{
+		return OpCache.GetJoinableOp<OpType, ParamsFuncsType>(MoveTemp(Params), GetConfigSectionHeiarchy());
+	}
+
+	template <typename OpType, typename ParamsFuncsType = TMergeableOpParamsFuncs<OpType>>
+	TOnlineAsyncOp<OpType>& GetMergeableOp(typename OpType::Params&& Params)
+	{
+		return OpCache.GetMergeableOp<OpType, ParamsFuncsType>(MoveTemp(Params), GetConfigSectionHeiarchy());
+	}
+
+	/* Get op (Interface) */
+	template <typename OpType>
+	TOnlineAsyncOp<OpType>& GetOp(typename OpType::Params&& Params, const TArray<FString> ConfigSectionHeiarchy)
+	{
+		return OpCache.GetOp<OpType>(MoveTemp(Params), ConfigSectionHeiarchy);
+	}
+
+	template <typename OpType, typename ParamsFuncsType /*= TJoinableOpParamsFuncs<OpType>*/>
+	TOnlineAsyncOp<OpType>& GetJoinableOp(typename OpType::Params&& Params, const TArray<FString> ConfigSectionHeiarchy)
+	{
+		return OpCache.GetJoinableOp<OpType, ParamsFuncsType>(MoveTemp(Params), ConfigSectionHeiarchy);
+	}
+
+	template <typename OpType, typename ParamsFuncsType /*= TMergeableOpParamsFuncs<OpType>*/>
+	TOnlineAsyncOp<OpType>& GetMergeableOp(typename OpType::Params&& Params, const TArray<FString> ConfigSectionHeiarchy)
+	{
+		return OpCache.GetMergeableOp<OpType, ParamsFuncsType>(MoveTemp(Params), ConfigSectionHeiarchy);
 	}
 
 	FOnlineAsyncOpCache OpCache;

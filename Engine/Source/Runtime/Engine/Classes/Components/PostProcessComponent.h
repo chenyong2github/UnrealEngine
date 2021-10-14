@@ -62,6 +62,12 @@ class UPostProcessComponent : public USceneComponent, public IInterface_PostProc
 		Ret.Settings = &Settings;
 		return Ret;
 	}
+#if DEBUG_POST_PROCESS_VOLUME_ENABLE
+	ENGINE_API virtual FString GetDebugName() const override
+	{
+		return GetName();
+	}
+#endif
 	//~ End IInterface_PostProcessVolume Interface
 
 	/** Adds an Blendable (implements IBlendableInterface) to the array of Blendables (if it doesn't exist) and update the weight */

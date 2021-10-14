@@ -187,10 +187,10 @@ public:
 	FDisplayClusterConfigurationViewport_ICVFX ICVFX;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration", meta = (nDisplayHidden))
+	UPROPERTY(EditDefaultsOnly, Category = "Configuration", meta = (HideProperty))
 	bool bIsEnabled = true;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration", meta = (nDisplayHidden))
+	UPROPERTY(EditDefaultsOnly, Category = "Configuration", meta = (HideProperty))
 	bool bIsVisible = true;
 #endif
 

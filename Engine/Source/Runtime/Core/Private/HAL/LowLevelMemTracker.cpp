@@ -3708,7 +3708,7 @@ namespace LLMPrivate
 		const FDateTime FileDate = FDateTime::Now();
 #if PLATFORM_DESKTOP
 		FString PlatformName = FPlatformProperties::PlatformName();
-#else // Use the CPU for consoles so we can differentiate things like PS4 vs. PS4 Pro
+#else // Use the CPU for consoles so we can differentiate things like different SKUs of a console generation
 		FString PlatformName = FPlatformMisc::GetCPUBrand().TrimStartAndEnd();
 #endif
 		PlatformName.ReplaceCharInline(' ', '_');

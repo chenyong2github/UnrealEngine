@@ -24,6 +24,7 @@ namespace UnrealBuildTool.Rules
 					"InputCore",
 					"KismetCompiler",
 					"LiveLink",
+					"LiveLinkAnimationCore",
 					"LiveLinkInterface",
 					"Persona",
 					"SlateCore",

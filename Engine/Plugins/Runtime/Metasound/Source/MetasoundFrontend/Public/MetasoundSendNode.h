@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 #include "MetasoundBuilderInterface.h"
 #include "MetasoundNode.h"
 #include "MetasoundNodeInterface.h"
@@ -83,8 +82,9 @@ namespace Metasound
 					, SendAddress(InSendAddress)
 					, CachedSendAddress(*InSendAddress)
 					, CachedSenderParams({InOperatorSettings, 0.0f})
-					, Sender(FDataTransmissionCenter::Get().RegisterNewSender<TDataType>(CachedSendAddress, CachedSenderParams))
+					, Sender(nullptr)
 				{
+					Sender = CreateNewSender();
 				}
 
 				virtual ~TSendOperator() 
@@ -107,11 +107,11 @@ namespace Metasound
 
 				void Execute()
 				{
-					if (SendAddress->ChannelName != CachedSendAddress.ChannelName)
+					if (*SendAddress != CachedSendAddress)
 					{
 						ResetSenderAndCleanupChannel();
 						CachedSendAddress = *SendAddress;
-						Sender = FDataTransmissionCenter::Get().RegisterNewSender<TDataType>(CachedSendAddress, CachedSenderParams);
+						Sender = CreateNewSender();
 						check(Sender.IsValid());
 					}
 
@@ -119,10 +119,21 @@ namespace Metasound
 				}
 
 			private:
+
+				TSenderPtr<TDataType> CreateNewSender() const
+				{
+					if (ensure(SendAddress->GetDataType().IsNone() || (GetMetasoundDataTypeName<TDataType>() == SendAddress->GetDataType())))
+					{
+						FSendAddress DataChannelKey(SendAddress->GetChannelName(), GetMetasoundDataTypeName<TDataType>(), SendAddress->GetInstanceID());
+						return FDataTransmissionCenter::Get().RegisterNewSender<TDataType>(DataChannelKey, CachedSenderParams);
+					}
+					return TSenderPtr<TDataType>(nullptr);
+				}
+
 				void ResetSenderAndCleanupChannel()
 				{
 					Sender.Reset();
-					FDataTransmissionCenter::Get().UnregisterDataChannelIfUnconnected(GetMetasoundDataTypeName<TDataType>(), CachedSendAddress);
+					FDataTransmissionCenter::Get().UnregisterDataChannelIfUnconnected(CachedSendAddress);
 				}
 
 				TDataReadReference<TDataType> InputData;

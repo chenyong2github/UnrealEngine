@@ -56,15 +56,3 @@ bool FSaveContext::IsUnsaveable(UObject* InObject) const
 	}
 	return false;	
 }
-
-bool FSaveContext::IsAdditionalFilesNeedLinkerSize() const
-{
-	if (SaveArgs.SavePackageContext && SaveArgs.SavePackageContext->PackageWriter)
-	{
-		return SaveArgs.SavePackageContext->PackageWriterCapabilities.bAdditionalFilesNeedLinkerSize;
-	}
-	else
-	{
-		return false;
-	}
-}

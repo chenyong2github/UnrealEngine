@@ -36,9 +36,7 @@ struct LEVELSNAPSHOTS_API FWorldSnapshotData
 	int32 GetNumSavedActors() const;
 	void ForEachOriginalActor(TFunction<void(const FSoftObjectPath& ActorPath, const FActorSnapshotData& SavedData)> HandleOriginalActorPath) const;
 	bool HasMatchingSavedActor(const FSoftObjectPath& OriginalObjectPath) const;
-
-	/** Allocates a snapshot actor for the given editor world actor but does not serialize any data into it. */
-	TOptional<AActor*> GetPreallocatedActor(const FSoftObjectPath& OriginalObjectPath);
+	
 	/** Same as GetPreallocatedActor, only that all data will be serialized into it. */
 	TOptional<AActor*> GetDeserializedActor(const FSoftObjectPath& OriginalObjectPath, UPackage* LocalisationSnapshotPackage);
 	/* Gets the state of the CDO from when the snapshot was taken. CDO is saved when a snapshot is taken so CDO changes can be detected. */

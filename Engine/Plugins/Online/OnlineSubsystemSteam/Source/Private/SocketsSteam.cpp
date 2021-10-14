@@ -191,6 +191,13 @@ bool FSocketSteam::RecvFrom(uint8* Data, int32 BufferSize, int32& BytesRead, FIn
 	SteamAddr.SteamChannel = SteamChannel;
 	BytesRead = (int32)MessageSize;
 
+	if (BytesRead > BufferSize)
+	{
+		UE_LOG(LogSockets, Error, TEXT("FSocketSteam::RecvFrom: Failed to deserialize a packet (length of %d exceeds buffer length of %d), discarding!"), BytesRead, BufferSize);
+		SocketSubsystem->LastSocketError = SE_EMSGSIZE;
+		return false;
+	}
+
 	return bSuccess;
 }
 

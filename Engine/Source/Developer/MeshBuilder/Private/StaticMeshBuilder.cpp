@@ -681,6 +681,12 @@ bool FStaticMeshBuilder::BuildMeshVertexPositions(
 				const uint32 I1 = VertexIndices[TriangleIndex * 3 + 1];
 				const uint32 I2 = VertexIndices[TriangleIndex * 3 + 2];
 
+				if (!ensureMsgf(I0 != INDEX_NONE && I1 != INDEX_NONE && I2 != INDEX_NONE,
+					TEXT("Mesh '%s' has triangles with uninitialized vertex indices"), *StaticMesh->GetName()))
+				{
+					continue;
+				}
+
 				const FVector3f V0 = BuiltVertices[I0];
 				const FVector3f V1 = BuiltVertices[I1];
 				const FVector3f V2 = BuiltVertices[I2];

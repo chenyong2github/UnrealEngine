@@ -10,7 +10,7 @@
 #include "ToolMenus.h"
 #include "EditorStyleSet.h"
 #include "AssetToolsModule.h"
-#include "Misc/BlacklistNames.h"
+#include "Misc/NamePermissionList.h"
 
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "ContentBrowserUtils.h"

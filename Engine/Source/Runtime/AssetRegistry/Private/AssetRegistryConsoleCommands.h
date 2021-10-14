@@ -56,7 +56,7 @@ public:
 		FConsoleCommandWithArgsDelegate::CreateRaw( this, &FAssetRegistryConsoleCommands::FindInvalidUAssets ) )
 	, ScanPathCommand(
 		TEXT("AssetRegistry.ScanPath"),
-		*LOCTEXT("CommandText_ScanPath", "Scan the given filename or directoryname for package files and load them into the assetregistry. Extra string parameters: -forcerescan, -ignoreblacklists, -asfile, -asdir").ToString(),
+		*LOCTEXT("CommandText_ScanPath", "Scan the given filename or directoryname for package files and load them into the assetregistry. Extra string parameters: -forcerescan, -ignoreDenyLists, -asfile, -asdir").ToString(),
 		FConsoleCommandWithArgsDelegate::CreateRaw(this, &FAssetRegistryConsoleCommands::ScanPath ) )
 	{}
 
@@ -210,7 +210,7 @@ public:
 	void ScanPath(const TArray<FString>& Args)
 	{
 		bool bForceRescan = false;
-		bool bIgnoreBlacklists = false;
+		bool bIgnoreDenyList = false;
 		bool bAsFile = false;
 		bool bAsDir = false;
 
@@ -220,7 +220,7 @@ public:
 			if (Arg.StartsWith(TEXT("-")))
 			{
 				bForceRescan = bForceRescan || Arg.Equals(TEXT("-forcerescan"), ESearchCase::IgnoreCase);
-				bIgnoreBlacklists = bIgnoreBlacklists || Arg.Equals(TEXT("-ignoreblacklists"), ESearchCase::IgnoreCase);
+				bIgnoreDenyList = bIgnoreDenyList || Arg.Equals(TEXT("-ignoreDenyLists"), ESearchCase::IgnoreCase);
 				bAsDir = bAsDir || Arg.Equals(TEXT("-asdir"), ESearchCase::IgnoreCase);
 				bAsFile = bAsFile || Arg.Equals(TEXT("-asfile"), ESearchCase::IgnoreCase);
 			}
@@ -231,7 +231,7 @@ public:
 		}
 		if (InPath.IsEmpty())
 		{
-			UE_LOG(LogAssetRegistry, Log, TEXT("Usage: AssetRegistry.ScanPath [-forcerescan] [-ignoreblacklists] [-asfile] [-asdir] FileOrDirectoryPath"));
+			UE_LOG(LogAssetRegistry, Log, TEXT("Usage: AssetRegistry.ScanPath [-forcerescan] [-ignoreDenyLists] [-asfile] [-asdir] FileOrDirectoryPath"));
 			return;
 		}
 
@@ -259,7 +259,7 @@ public:
 		}
 		if (bAsDir)
 		{
-			IAssetRegistry::GetChecked().ScanPathsSynchronous({ InPath }, bForceRescan, bIgnoreBlacklists);
+			IAssetRegistry::GetChecked().ScanPathsSynchronous({ InPath }, bForceRescan, bIgnoreDenyList);
 		}
 		else
 		{

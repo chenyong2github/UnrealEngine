@@ -22,8 +22,9 @@ class FThreadTrackEvent;
 namespace Insights
 {
 
-class STaskTableTreeView;
+class FTaskGraphRelation;
 class FTaskTimingSharedState;
+class STaskTableTreeView;
 
 struct FTaskGraphProfilerTabs
 {
@@ -44,6 +45,7 @@ enum class ETaskEventType : uint32
 	NestedCompleted,
 	Subsequent,
 	Completed,
+	CriticalPath,
 	
 	NumTaskEventTypes,
 };
@@ -113,6 +115,11 @@ public:
 
 	bool GetShowNestedTasks() const { return bShowNestedTasks; }
 	void SetShowNestedTasks(bool bInValue) { bShowNestedTasks = bInValue; }
+	
+	bool GetShowCriticalPath() const { return bShowCriticalPath; }
+	void SetShowCriticalPath(bool bInValue) { bShowCriticalPath = bInValue; }
+
+	bool GetShowAnyRelations() const { return GetShowRelations() || GetShowPrerequisites() || GetShowSubsequents() || GetShowNestedTasks() || GetShowCriticalPath(); }
 
 	int32 GetDepthOfTaskExecution(double TaskStartedTime, double TaskFinishedTime, uint32 ThreadId);
 
@@ -124,6 +131,10 @@ private:
 
 	void ShowTaskRelations(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, const FThreadTrackEvent* InSelectedEvent);
 	void GetSingleTaskRelations(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, const FThreadTrackEvent* InSelectedEvent);
+	void GetRelationsOnCriticalPath(const TraceServices::FTaskInfo* Task);
+
+	double GetRelationsOnCriticalPathAscendingRec(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, TArray<FTaskGraphRelation>& Relations);
+	double GetRelationsOnCriticalPathDescendingRec(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, TArray<FTaskGraphRelation>& Relations);
 
 	void InitializeColorCode();
 	int32 GetRelationDisplayDepth(TSharedPtr<const FThreadTimingTrack> Track, double Time, int32 KnownDepth);
@@ -153,6 +164,7 @@ private:
 	bool bShowPrerequisites = false;
 	bool bShowSubsequents = false;
 	bool bShowNestedTasks = false;
+	bool bShowCriticalPath = false;
 };
 
 } // namespace Insights

@@ -58,9 +58,6 @@ namespace UE::Zen {
 		curl_easy_cleanup(Curl);
 	}
 
-	/**
-	 * Resets all options on the request except those that should always be set.
-	 */
 	void FZenHttpRequest::Reset()
 	{
 		Headers.Reset();
@@ -97,6 +94,11 @@ namespace UE::Zen {
 		curl_easy_setopt(Curl, CURLOPT_DEBUGFUNCTION, StaticDebugCallback);
 		curl_easy_setopt(Curl, CURLOPT_VERBOSE, 1L);
 #endif
+	}
+
+	void FZenHttpRequest::Initialize(bool bInLogErrors)
+	{
+		bLogErrors = bInLogErrors;
 	}
 
 	void FZenHttpRequest::AddHeader(FStringView Header, FStringView Value)
@@ -400,6 +402,20 @@ namespace UE::Zen {
 		return PerformBlocking(Uri, RequestVerb::Delete, 0u);
 	}
 
+	static const char* GetSessionIdHeader() {
+		static FCbObjectId SessionId = FCbObjectId::NewObjectId();
+
+		static const char* HeaderString = [&] {
+			static TAnsiStringBuilder<64> SessionIdHeader;
+			SessionIdHeader << "UE-Session: " << SessionId;
+			return SessionIdHeader.GetData(); 
+		}();
+
+		return HeaderString;
+	}
+
+	static std::atomic<int> RequestId{1};
+
 	FZenHttpRequest::Result FZenHttpRequest::PerformBlocking(FStringView Uri, RequestVerb Verb, uint32 ContentLength)
 	{
 		// Strip any leading slashes because we compose the prefix and the suffix with a separating slash below
@@ -408,8 +424,12 @@ namespace UE::Zen {
 			Uri.RightChopInline(1);
 		}
 
-		static const char* CommonHeaders[] = {
-			"User-Agent: UE",
+		TAnsiStringBuilder<32> RequestIdHeader;
+		RequestIdHeader << "UE-Request: " << RequestId++;
+
+		const char* CommonHeaders[] = {
+			GetSessionIdHeader(),
+			RequestIdHeader.GetData(),
 			nullptr
 		};
 
@@ -728,7 +748,7 @@ namespace UE::Zen {
 		for (uint8 i = 0; i < Pool.Num(); ++i)
 		{
 			Pool[i].IsAllocated = 0u;
-			Pool[i].Request = new FZenHttpRequest(InServiceUrl, true);
+			Pool[i].Request = new FZenHttpRequest(InServiceUrl, true /* bLogErrors */);
 		}
 	}
 

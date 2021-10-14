@@ -337,7 +337,7 @@
 #endif
 
 
-//------------------------------------------------------- COMPILATION WHITE LISTING
+//------------------------------------------------------- COMPILATION CONFIGURATION
 
 #define COMPILE_BOX_KERNEL 1
 
@@ -1120,7 +1120,7 @@ void TemporallyAccumulate(
 	// Romoves NaN and negative numbers
 	// HistorySample = Minus(Min(Minus(HistorySample), CreateSignalSampleFromScalarValue(0.0)));
 	
-	// Whitelists what should be outputed to ensure the compiler compiles out evreything that ends up unneeded.
+	// Masks what should be outputed to ensure the compiler compiles out everything that ends up unneeded.
 	uint MultiplexCount = 1;
 	FSSDSignalArray OutputSamples = CreateSignalArrayFromScalarValue(0.0);
 	FSSDSignalFrequencyArray OutputFrequencies = CreateInvalidSignalFrequencyArray();

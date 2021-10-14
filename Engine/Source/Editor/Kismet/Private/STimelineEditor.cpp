@@ -381,6 +381,14 @@ void STimelineEdTrack::Construct(const FArguments& InArgs, TSharedPtr<FTimelineE
 		//Inform track widget about the curve and whether it is editable or not.
 		TrackWidget->SetZoomToFit(bZoomToFit, bZoomToFit);
 		TrackWidget->SetCurveOwner(CurveBasePtr, !TrackBase->bIsExternalCurve);
+
+		// In case the user has disabled auto frame in their settings, make sure to still adjust the zoom if we don't have an input
+		// range yet.
+		if (!TrackWidget->GetAutoFrame() && bZoomToFit)
+		{
+			TrackWidget->ZoomToFitVertical();
+			TrackWidget->ZoomToFitHorizontal();
+		}
 	}
 
 	InTrack->OnRenameRequest.BindSP(InlineTextBlock.Get(), &SInlineEditableTextBlock::EnterEditingMode);

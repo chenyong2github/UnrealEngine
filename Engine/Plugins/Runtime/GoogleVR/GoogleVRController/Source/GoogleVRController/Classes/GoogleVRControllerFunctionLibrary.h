@@ -18,7 +18,7 @@ enum class EGoogleVRControllerAPIStatus : uint8
 	// low, or other required feature not present).
 	Unsupported = 1,
 	// This app was not authorized to use the service (e.g., missing permissions,
-	// the app is blacklisted by the underlying service, etc).
+	// the app is on a deny list by the underlying service, etc).
 	NotAuthorized = 2,
 	// The underlying VR service is not present.
 	Unavailable = 3,

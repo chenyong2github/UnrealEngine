@@ -3776,4 +3776,41 @@ bool FBitCastTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMathWrapTest, "System.Core.Math.Wrap", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+bool FMathWrapTest::RunTest(const FString& Parameters)
+{
+	for (int Val = -5; Val != 5; ++Val)
+	{
+		for (int Min = -5; Min != 5; ++Min)
+		{
+			// Size == 0
+			{
+				int Wrap = FMath::Wrap(Val, Min, Min);
+
+				TestTrue(TEXT("Wrapped value should be in the empty range"), Wrap == Min);
+			}
+
+			for (int Size = 1; Size != 5; ++Size)
+			{
+				int Max = Min + Size;
+				int Wrap = FMath::Wrap(Val, Min, Max);
+
+				TestTrue(TEXT("Wrapped value should be in the non-empty range"), Wrap >= Min && Wrap <= Max);
+				TestTrue(FString::Printf(TEXT("Wrapped value should be at a distance which is an exact multiple of the range size: (Val: %d, Min: %d, Max: %d, Wrap: %d, Mod: %d)"), Val, Min, Max, Wrap, (Wrap - Val) % Size), (Wrap - Val) % Size == 0);
+
+				if (Val < Min)
+				{
+					TestNotEqual(TEXT("Wrapping a value from below a non-empty range should never give the max"), Wrap, Max);
+				}
+				else if (Val > Max)
+				{
+					TestNotEqual(TEXT("Wrapping a value from above a non-empty range should never give the min"), Wrap, Min);
+				}
+			}
+		}
+	}
+
+	return true;
+}
+
 #endif //WITH_DEV_AUTOMATION_TESTS

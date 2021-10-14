@@ -32,11 +32,11 @@
 struct FMallocLeakDetectionStatics
 {
 	uint32 ContextsTLSID = 0;
-	uint32 WhitelistTLSID = 0;
+	uint32 SuppressDetectionCountTLSID = 0;
 
 	FMallocLeakDetectionStatics()
 	{
-		WhitelistTLSID = FPlatformTLS::AllocTlsSlot();
+		SuppressDetectionCountTLSID = FPlatformTLS::AllocTlsSlot();
 		ContextsTLSID = FPlatformTLS::AllocTlsSlot();
 	}
 
@@ -66,22 +66,22 @@ FMallocLeakDetection& FMallocLeakDetection::Get()
 FMallocLeakDetection::~FMallocLeakDetection()
 {	
 	OpenPointers.Empty(); // clean up the state
-	SetAllocationCollection(false); // disable colletion to avoid a call back to this instance when its members are destroyed
+	SetAllocationCollection(false); // disable collection to avoid a call back to this instance when its members are destroyed
 }
 
 
 void FMallocLeakDetection::SetDisabledForThisThread(const bool Disabled)
 {
-	int Count = (int)(size_t)FPlatformTLS::GetTlsValue(FMallocLeakDetectionStatics::Get().WhitelistTLSID);
+	int Count = (int)(size_t)FPlatformTLS::GetTlsValue(FMallocLeakDetectionStatics::Get().SuppressDetectionCountTLSID);
 	Count += Disabled ? 1 : -1;
 	check(Count >= 0);
 
-	FPlatformTLS::SetTlsValue(FMallocLeakDetectionStatics::Get().WhitelistTLSID, (void*)(size_t)Count);
+	FPlatformTLS::SetTlsValue(FMallocLeakDetectionStatics::Get().SuppressDetectionCountTLSID, (void*)(size_t)Count);
 }
 
 bool FMallocLeakDetection::IsDisabledForThisThread() const
 {
-	return !!FPlatformTLS::GetTlsValue(FMallocLeakDetectionStatics::Get().WhitelistTLSID);
+	return !!FPlatformTLS::GetTlsValue(FMallocLeakDetectionStatics::Get().SuppressDetectionCountTLSID);
 }
 
 void FMallocLeakDetection::PushContext(const TCHAR* Context)

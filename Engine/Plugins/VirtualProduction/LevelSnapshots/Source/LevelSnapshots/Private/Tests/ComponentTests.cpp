@@ -2,10 +2,11 @@
 
 #include "Data/PropertySelection.h"
 #include "PropertySelectionMap.h"
-#include "Tests/SnapshotTestRunner.h"
-#include "Tests/SnapshotTestActor.h"
+#include "SnapshotTestRunner.h"
+#include "SnapshotTestActor.h"
 
 #include "Components/PointLightComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "EngineUtils.h"
@@ -13,9 +14,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "Misc/AutomationTest.h"
-
-// TODO: FExistingSubobjectHasDifferentClass > Change a subobject's class and try to restore into it
-// TODO: FAttachementRestoration
+#include "Util/EquivalenceUtil.h"
 
 /**
  * Checks that instanced and native components are diffed correctly:
@@ -123,8 +122,8 @@ bool FAddedAndRemovedComponentsCorrectOnSnapshotActorAndGenerateDiff::RunTest(co
 				return;
 			}
 
-			TestTrue(TEXT("ActorWithAddedComponent: HasOriginalChangedPropertiesSinceSnapshotWasTaken"), Snapshot->HasOriginalChangedPropertiesSinceSnapshotWasTaken(*SnapshotActorWithAddedComponent , ActorWithAddedComponent));
-			TestTrue(TEXT("ActorWithRemovedComponent: HasOriginalChangedPropertiesSinceSnapshotWasTaken"), Snapshot->HasOriginalChangedPropertiesSinceSnapshotWasTaken(*SnapshotActorWithRemovedComponent , ActorWithRemovedComponent));
+			TestTrue(TEXT("ActorWithAddedComponent: HasOriginalChangedPropertiesSinceSnapshotWasTaken"), SnapshotUtil::HasOriginalChangedPropertiesSinceSnapshotWasTaken(Snapshot->GetSerializedData(), *SnapshotActorWithAddedComponent , ActorWithAddedComponent));
+			TestTrue(TEXT("ActorWithRemovedComponent: HasOriginalChangedPropertiesSinceSnapshotWasTaken"), SnapshotUtil::HasOriginalChangedPropertiesSinceSnapshotWasTaken(Snapshot->GetSerializedData(), *SnapshotActorWithRemovedComponent , ActorWithRemovedComponent));
 		});
 	
 	return true;
@@ -378,6 +377,117 @@ bool FRecreatedActorHasAllComponents::RunTest(const FString& Parameters)
 			
 			TestEqual(TEXT("Instance Component had properties restored"), Cast<UStaticMeshComponent>(*InstancedComp)->GetRelativeLocation(), FVector(10,20,30));
 			TestEqual(TEXT("Native Component had properties restored"), Cast<UStaticMeshComponent>(*NativeComp)->GetRelativeLocation(), FVector(11,22,33));
+		});
+	
+	return true;
+}
+
+/**
+ * Usually components have the owning actor as outer.
+ * Some applications, such as USD, create components that have other components as outers. It may even happen that components have duplicate names (with different outers though).
+ */
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FComponentsHaveComponentsAsOuters, "VirtualProduction.LevelSnapshots.Snapshot.Component.ComponentsHaveComponentsAsOuters", (EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter));
+bool FComponentsHaveComponentsAsOuters::RunTest(const FString& Parameters)
+{
+	struct Local
+	{
+		static FSnapshotTestRunner CreateDuplicateComponentNameTest(ASnapshotTestActor*& CorrectComponentOrder, ASnapshotTestActor*& OutOfOrder)
+		{
+			FSnapshotTestRunner Result;
+			Result.ModifyWorld([&](UWorld* World)
+			{
+				CorrectComponentOrder = ASnapshotTestActor::Spawn(World, "CorrectComponentOrder");
+				{
+					UStaticMeshComponent* ComponentWithActorAsOuter = NewObject<UStaticMeshComponent>(CorrectComponentOrder, UStaticMeshComponent::StaticClass(), "DuplicateName");
+					ComponentWithActorAsOuter->SetupAttachment(CorrectComponentOrder->GetRootComponent());
+					ComponentWithActorAsOuter->SetRelativeLocation(FVector(10.f));
+					UStaticMeshComponent* ComponentWithComponentAsOuter = NewObject<UStaticMeshComponent>(ComponentWithActorAsOuter, UStaticMeshComponent::StaticClass(), "DuplicateName");
+					ComponentWithComponentAsOuter->SetupAttachment(ComponentWithActorAsOuter);
+					ComponentWithComponentAsOuter->SetRelativeLocation(FVector(20.f));
+
+					// Makes finding easier in test
+					CorrectComponentOrder->ObjectArray.Add(ComponentWithActorAsOuter);
+					CorrectComponentOrder->ObjectArray.Add(ComponentWithComponentAsOuter);
+				}
+				
+				OutOfOrder = ASnapshotTestActor::Spawn(World, "OutOfOrder");
+				{
+					UStaticMeshComponent* ComponentWithActorAsOuter = NewObject<UStaticMeshComponent>(OutOfOrder, UStaticMeshComponent::StaticClass(), "DuplicateName");
+					ComponentWithActorAsOuter->SetupAttachment(OutOfOrder->GetRootComponent());
+					ComponentWithActorAsOuter->SetRelativeLocation(FVector(10.f));
+					UStaticMeshComponent* ComponentWithComponentAsOuter = NewObject<UStaticMeshComponent>(ComponentWithActorAsOuter, UStaticMeshComponent::StaticClass(), "DuplicateName");
+					ComponentWithComponentAsOuter->SetupAttachment(ComponentWithActorAsOuter);
+					ComponentWithComponentAsOuter->SetRelativeLocation(FVector(20.f));
+					
+					// Makes finding easier in test
+					OutOfOrder->ObjectArray.Add(ComponentWithActorAsOuter);
+					OutOfOrder->ObjectArray.Add(ComponentWithComponentAsOuter);
+
+					OutOfOrder->RemoveOwnedComponent(ComponentWithActorAsOuter);
+					OutOfOrder->RemoveOwnedComponent(ComponentWithComponentAsOuter);
+
+					OutOfOrder->AddOwnedComponent(ComponentWithComponentAsOuter);
+					OutOfOrder->AddOwnedComponent(ComponentWithActorAsOuter);
+				}
+			});
+
+			return MoveTemp(Result);
+		}
+
+		static void TestRecreatedActor(UWorld* World, FAutomationTestBase& Test)
+		{
+			ASnapshotTestActor* Actor = FindObject<ASnapshotTestActor>(World->PersistentLevel, TEXT("CorrectComponentOrder"));
+			if (Actor)
+			{
+				const bool bObjectArrayWasRestored = Actor && Actor->ObjectArray.Num() == 2 && Actor->ObjectArray[0] != nullptr && Actor->ObjectArray[1] != nullptr && Actor->ObjectArray[0] != Actor->ObjectArray[1];
+				if (!bObjectArrayWasRestored)
+				{
+					Test.AddError(TEXT("ObjectArray was not restored"));
+					return;
+				}
+				
+				UStaticMeshComponent* ComponentWithActorAsOuter = Cast<UStaticMeshComponent>(Actor->ObjectArray[0]);
+				UStaticMeshComponent* ComponentWithComponentAsOuter = Cast<UStaticMeshComponent>(Actor->ObjectArray[1]);
+				const bool bComponentsAreValid = ComponentWithActorAsOuter && ComponentWithComponentAsOuter;
+				if (!bComponentsAreValid)
+				{
+					Test.AddError(TEXT("Components were not recreated"));
+					return;
+				}
+
+				Test.TestTrue(TEXT("Component names are equal"), ComponentWithActorAsOuter->GetFName() == ComponentWithComponentAsOuter->GetFName());
+				Test.TestTrue(TEXT("Component are different instances"), ComponentWithActorAsOuter != ComponentWithComponentAsOuter);
+
+				Test.TestTrue(TEXT("ComponentWithActorAsOuter->GetAttachParent() == Actor->GetRootComponent()"), ComponentWithActorAsOuter->GetAttachParent() == Actor->GetRootComponent());
+				Test.TestTrue(TEXT("ComponentWithComponentAsOuter->GetAttachParent() == ComponentWithActorAsOuter"), ComponentWithComponentAsOuter->GetAttachParent() == ComponentWithActorAsOuter);
+
+				Test.TestEqual(TEXT("ComponentWithActorAsOuter->RelativeLocation"), ComponentWithActorAsOuter->GetRelativeLocation(), FVector(10.f));
+				Test.TestEqual(TEXT("ComponentWithActorAsOuter->RelativeLocation"), ComponentWithComponentAsOuter->GetRelativeLocation(), FVector(20.f));
+			}
+			else
+			{
+				Test.AddError(TEXT("Actor was not recreated"));
+			}
+		}
+	};
+	
+	ASnapshotTestActor* CorrectComponentOrder = nullptr;
+	ASnapshotTestActor* OutOfOrder = nullptr;
+	
+	Local::CreateDuplicateComponentNameTest(CorrectComponentOrder, OutOfOrder)
+		.TakeSnapshot()
+		.ModifyWorld([&](UWorld* World)
+		{
+			World->DestroyActor(CorrectComponentOrder);
+			World->DestroyActor(OutOfOrder);
+			CorrectComponentOrder = nullptr;
+			OutOfOrder = nullptr;
+		})
+		.ApplySnapshot()
+		.ModifyWorld([this](UWorld* World)
+		{
+			Local::TestRecreatedActor(World, *this);
+			Local::TestRecreatedActor(World, *this);
 		});
 	
 	return true;

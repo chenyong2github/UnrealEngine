@@ -27,7 +27,7 @@
 #include "AssetToolsModule.h"
 #include "FrontendFilters.h"
 #include "ContentBrowserFrontEndFilterExtension.h"
-#include "Misc/BlacklistNames.h"
+#include "Misc/NamePermissionList.h"
 #include "ToolMenus.h"
 #include "ContentBrowserMenuContexts.h"
 #include "Widgets/Images/SImage.h"
@@ -271,6 +271,28 @@ public:
 		return AssetTypeActions;
 	}
 
+	/** Returns the display name for this filter */
+	FText GetFilterName() const
+	{
+		FText FilterName;
+		if (AssetTypeActions.IsValid())
+		{
+			TSharedPtr<IAssetTypeActions> TypeActions = AssetTypeActions.Pin();
+			FilterName = TypeActions->GetName();
+		}
+		else if (FrontendFilter.IsValid())
+		{
+			FilterName = FrontendFilter->GetDisplayName();
+		}
+
+		if (FilterName.IsEmpty())
+		{
+			FilterName = LOCTEXT("UnknownFilter", "???");
+		}
+
+		return FilterName;
+	}
+
 private:
 	/** Handler for when the filter checkbox is clicked */
 	void FilterToggled(ECheckBoxState NewState)
@@ -437,29 +459,6 @@ private:
 		return ToggleButtonPtr->IsPressed() ? FMargin(4,2,4,0) : FMargin(4,1,4,1);
 	}
 
-
-	/** Returns the display name for this filter */
-	FText GetFilterName() const
-	{
-		FText FilterName;
-		if ( AssetTypeActions.IsValid() )
-		{
-			TSharedPtr<IAssetTypeActions> TypeActions = AssetTypeActions.Pin();
-			FilterName = TypeActions->GetName();
-		}
-		else if ( FrontendFilter.IsValid() )
-		{
-			FilterName = FrontendFilter->GetDisplayName();
-		}
-
-		if ( FilterName.IsEmpty() )
-		{
-			FilterName = LOCTEXT("UnknownFilter", "???");
-		}
-
-		return FilterName;
-	}
-
 private:
 	/** Invoked when the filter toggled */
 	SFilterList::FOnFilterChanged OnFilterChanged;
@@ -497,6 +496,34 @@ private:
 	/** The color of the checkbox for this filter */
 	FLinearColor FilterColor;
 };
+
+/** Helper that creates a toolbar with all the given SFilter's as toolbar items. Filters that don't fit appear in the overflow menu as toggles. */
+static TSharedRef<SWidget> MakeFilterToolBarWidget(const TArray<TSharedRef<SFilter>>& Filters)
+{
+	FSlimHorizontalToolBarBuilder ToolbarBuilder(TSharedPtr<const FUICommandList>(), FMultiBoxCustomization::None, TSharedPtr<FExtender>(), true);
+	ToolbarBuilder.SetLabelVisibility(EVisibility::Collapsed);
+	ToolbarBuilder.SetStyle(&FAppStyle::Get(), "ContentBrowser.FilterToolBar");
+
+	for (const TSharedRef<SFilter>& Filter : Filters)
+	{
+		ToolbarBuilder.AddWidget(Filter, NAME_None, true, EHorizontalAlignment::HAlign_Fill, FNewMenuDelegate::CreateLambda([Filter](FMenuBuilder& MenuBuilder)
+		{
+			FUIAction Action;
+			Action.GetActionCheckState = FGetActionCheckState::CreateLambda([Filter]()
+			{
+				return Filter->IsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+			});
+			Action.ExecuteAction = FExecuteAction::CreateLambda([Filter]()
+			{
+				Filter->SetEnabled(!Filter->IsEnabled());
+			});
+
+			MenuBuilder.AddMenuEntry(Filter->GetFilterName(), FText::GetEmpty(), FSlateIcon(), Action, NAME_None, EUserInterfaceActionType::ToggleButton);
+		}));
+	}
+
+	return ToolbarBuilder.MakeWidget();
+}
 
 
 /////////////////////
@@ -574,14 +601,6 @@ void SFilterList::Construct( const FArguments& InArgs )
 		// Auto add all inverse filters
 		SetFrontendFilterActive(Filter, false);
 	}
-
-	FilterBox = SNew(SWrapBox)
-		.UseAllottedSize(true);
-
-	ChildSlot
-	[
-		FilterBox.ToSharedRef()
-	];
 }
 
 FReply SFilterList::OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
@@ -723,8 +742,12 @@ void SFilterList::RemoveAllFilters()
 				SetFrontendFilterActive(FrontendFilter.ToSharedRef(), false); // Deactivate.
 			}
 		}
+		
+		ChildSlot
+		[
+			SNullWidget::NullWidget
+		];
 
-		FilterBox->ClearChildren();
 		Filters.Empty();
 
 		// Notify that a filter has changed
@@ -747,7 +770,6 @@ void SFilterList::RemoveAllButThis(const TSharedRef<SFilter>& FilterToKeep)
 		}
 	}
 
-	FilterBox->ClearChildren();
 	Filters.Empty();
 
 	AddFilter(FilterToKeep);
@@ -1082,11 +1104,10 @@ TSharedRef<SFilter> SFilterList::AddFilter(const TSharedRef<FFrontendFilter>& Fr
 void SFilterList::AddFilter(const TSharedRef<SFilter>& FilterToAdd)
 {
 	Filters.Add(FilterToAdd);
-
-	FilterBox->AddSlot()
-	.Padding(3, 0)
+	
+	ChildSlot
 	[
-		FilterToAdd
+		MakeFilterToolBarWidget(Filters)
 	];
 }
 
@@ -1158,7 +1179,6 @@ void SFilterList::RemoveFilter(const TSharedRef<FFrontendFilter>& FrontendFilter
 
 void SFilterList::RemoveFilter(const TSharedRef<SFilter>& FilterToRemove)
 {
-	FilterBox->RemoveSlot(FilterToRemove);
 	Filters.Remove(FilterToRemove);
 
 	if (const TSharedPtr<FFrontendFilter>& FrontendFilter = FilterToRemove->GetFrontendFilter()) // Is valid?
@@ -1167,6 +1187,11 @@ void SFilterList::RemoveFilter(const TSharedRef<SFilter>& FilterToRemove)
 		SetFrontendFilterActive(FrontendFilter.ToSharedRef(), false);
 		OnFilterChanged.ExecuteIfBound();
 	}
+
+	ChildSlot
+	[
+		MakeFilterToolBarWidget(Filters)
+	];
 }
 
 void SFilterList::RemoveFilterAndUpdate(const TSharedRef<SFilter>& FilterToRemove)
@@ -1332,7 +1357,7 @@ void SFilterList::PopulateAddFilterMenu(UToolMenu* Menu)
 	};
 	AssetTypeActionsList.Sort( FCompareIAssetTypeActions() );
 
-	TSharedRef<FBlacklistNames> AssetClassBlacklist = AssetToolsModule.Get().GetAssetClassBlacklist();
+	TSharedRef<FNamePermissionList> AssetClassPermissionList = AssetToolsModule.Get().GetAssetClassPermissionList();
 
 	// For every asset type, move it into all the categories it should appear in
 	for (int32 ClassIdx = 0; ClassIdx < AssetTypeActionsList.Num(); ++ClassIdx)
@@ -1344,7 +1369,7 @@ void SFilterList::PopulateAddFilterMenu(UToolMenu* Menu)
 			if ( ensure(TypeActions.IsValid()) && TypeActions->CanFilter() )
 			{
 				UClass* SupportedClass = TypeActions->GetSupportedClass();
-				if ((!SupportedClass || AssetClassBlacklist->PassesFilter(SupportedClass->GetFName())) && !IsFilteredByPicker(InitialClassFilters, SupportedClass))
+				if ((!SupportedClass || AssetClassPermissionList->PassesFilter(SupportedClass->GetFName())) && !IsFilteredByPicker(InitialClassFilters, SupportedClass))
 				{
 					for ( auto MenuIt = CategoryToMenuMap.CreateIterator(); MenuIt; ++MenuIt )
 					{
@@ -1604,7 +1629,7 @@ void SFilterList::GetTypeActionsForCategory(EAssetTypeCategories::Type Category,
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
 	TArray<TWeakPtr<IAssetTypeActions>> AssetTypeActionsList;
 	AssetToolsModule.Get().GetAssetTypeActionsList(AssetTypeActionsList);
-	TSharedRef<FBlacklistNames> AssetClassBlacklist = AssetToolsModule.Get().GetAssetClassBlacklist();
+	TSharedRef<FNamePermissionList> AssetClassPermissionList = AssetToolsModule.Get().GetAssetClassPermissionList();
 
 	// Find all asset type actions that match the category
 	for (int32 ClassIdx = 0; ClassIdx < AssetTypeActionsList.Num(); ++ClassIdx)
@@ -1614,7 +1639,7 @@ void SFilterList::GetTypeActionsForCategory(EAssetTypeCategories::Type Category,
 
 		if (ensure(AssetTypeActions.IsValid()) && AssetTypeActions->CanFilter() && AssetTypeActions->GetCategories() & Category)
 		{
-			if (AssetTypeActions->GetSupportedClass() == nullptr || AssetClassBlacklist->PassesFilter(AssetTypeActions->GetSupportedClass()->GetFName()))
+			if (AssetTypeActions->GetSupportedClass() == nullptr || AssetClassPermissionList->PassesFilter(AssetTypeActions->GetSupportedClass()->GetFName()))
 			{
 				TypeActions.Add(WeakTypeActions);
 			}

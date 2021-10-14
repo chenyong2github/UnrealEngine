@@ -380,6 +380,20 @@ auto LoadConfigValue(IOnlineConfigProvider& Provider, const TCHAR* Section, cons
 	return Provider.GetValue(Section, Key, Value) > 0;
 }
 
+template <typename T>
+auto LoadConfigValue(IOnlineConfigProvider& Provider, const TCHAR* Section, const TCHAR* Key, T& Value)
+	-> std::enable_if_t<std::is_enum_v<T>, bool>
+{
+	FString StringValue;
+	if (Provider.GetValue(Section, Key, StringValue))
+	{
+		using ::LexFromString;
+		LexFromString(Value, *StringValue);
+		return true;
+	}
+	return false;
+}
+
 /* Private */ }
 
 /**
@@ -401,6 +415,17 @@ bool LoadConfig(IOnlineConfigProvider& Provider, const FString& Section, StructT
 		{
 			bLoadedValue |= Private::LoadConfigValue(Provider, *Section, FieldName, Field);
 		});
+	return bLoadedValue;
+}
+
+template <typename StructType>
+bool LoadConfig(IOnlineConfigProvider& Provider, const TArray<FString>& SectionHeiarchy, StructType& Struct)
+{
+	bool bLoadedValue = false;
+	for (const FString& Section : SectionHeiarchy)
+	{
+		LoadConfig(Provider, Section, Struct);
+	}
 	return bLoadedValue;
 }
 

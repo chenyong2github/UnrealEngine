@@ -7,6 +7,7 @@
 #include "PhysicsEngine/ConvexElem.h"
 #include "Engine/StaticMesh.h"
 #include "LakeCollisionComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 #if WITH_EDITOR
 #include "WaterIconHelper.h"
@@ -29,6 +30,16 @@ TArray<UPrimitiveComponent*> UWaterBodyLakeComponent::GetCollisionComponents() c
 	if (LakeCollision != nullptr)
 	{
 		Result.Add(LakeCollision);
+	}
+	return Result;
+}
+
+TArray<UPrimitiveComponent*> UWaterBodyLakeComponent::GetStandardRenderableComponents() const 
+{
+	TArray<UPrimitiveComponent*> Result;
+	if (LakeMeshComp != nullptr)
+	{
+		Result.Add(LakeMeshComp);
 	}
 	return Result;
 }
@@ -110,7 +121,7 @@ void UWaterBodyLakeComponent::OnUpdateBody(bool bWithExclusionVolumes)
 			LakeMeshComp->SetWorldRotation(FQuat::Identity);
 			LakeMeshComp->SetAbsolute(false, false, true);
 			LakeMeshComp->SetStaticMesh(WaterMesh);
-			LakeMeshComp->SetMaterial(0, GetWaterMaterial());
+			LakeMeshComp->SetMaterial(0, GetWaterMaterialInstance());
 			LakeMeshComp->SetCastShadow(false);
 			LakeMeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		}

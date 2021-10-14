@@ -17,6 +17,14 @@ namespace AudioModulation
 
 	FModulatorGeneratorProxy& FModulatorGeneratorProxy::operator =(const FModulationGeneratorSettings& InSettings)
 	{
+		if (IGenerator* OtherGenerator = InSettings.Generator.Get())
+		{
+			if (Generator->UpdateGenerator(*OtherGenerator))
+			{
+				return *this;
+			}
+		}
+
 		Generator = InSettings.Generator;
 		return *this;
 	}

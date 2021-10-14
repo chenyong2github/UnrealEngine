@@ -28,7 +28,7 @@ void SPropertyEditorSceneDepthPicker::Construct(const FArguments& InArgs)
 		.IsFocusable(false)
 		[ 
 			SNew( SImage )
-			.Image( FEditorStyle::GetBrush("PropertyWindow.Button_PickActorInteractive") )
+			.Image( FEditorStyle::GetBrush("Icons.EyeDropper") )
 			.ColorAndOpacity( FSlateColor::UseForeground() )
 		]
 	);

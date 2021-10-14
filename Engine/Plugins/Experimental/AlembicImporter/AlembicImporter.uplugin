@@ -20,7 +20,7 @@
 			"Name" : "AlembicImporter",
 			"Type" : "Editor",
 			"LoadingPhase" : "Default",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"Win64",
 				"Mac",
@@ -31,7 +31,7 @@
 			"Name" : "AlembicLibrary",
 			"Type" : "Editor",
 			"LoadingPhase" : "Default",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"Win64",
 				"Mac",

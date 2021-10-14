@@ -1154,8 +1154,14 @@ void UTakeRecorder::Stop()
 	}
 	else if (Parameters.TakeRecorderMode == ETakeRecorderMode::RecordNewSequence)
 	{
-		// Recording was canceled before it started, so delete the asset
-		FAssetRegistryModule::AssetDeleted(SequenceAsset);
+		if (GIsEditor)
+		{
+			// Recording was canceled before it started, so delete the asset. Note we can only do this on editor
+			// nodes. On -game nodes, this cannot be performed. This can only happen with Mult-user and -game node
+			// recording.
+			//
+			FAssetRegistryModule::AssetDeleted(SequenceAsset);
+		}
 
 		// Move the asset to the transient package so that new takes with the same number can be created in its place
 		FName DeletedPackageName = MakeUniqueObjectName(nullptr, UPackage::StaticClass(), *(FString(TEXT("/Temp/") + SequenceAsset->GetName() + TEXT("_Cancelled"))));

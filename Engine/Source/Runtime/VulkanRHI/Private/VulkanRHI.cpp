@@ -678,7 +678,30 @@ void FVulkanDynamicRHI::SelectAndInitDevice()
 	}
 
 	const VkPhysicalDeviceProperties& Props = Device->GetDeviceProperties();
-	GRHIVendorId = Props.vendorID;
+	bool bUseVendorIdAsIs = true;
+	if (Props.vendorID > 0xffff)
+	{
+		bUseVendorIdAsIs = false;
+		VkVendorId VendorId = (VkVendorId)Props.vendorID;
+		switch (VendorId)
+		{
+		case VK_VENDOR_ID_VIV:		GRHIVendorId = (uint32)EGpuVendorId::Vivante; break;
+		case VK_VENDOR_ID_VSI:		GRHIVendorId = (uint32)EGpuVendorId::VeriSilicon; break;
+		case VK_VENDOR_ID_KAZAN:	GRHIVendorId = (uint32)EGpuVendorId::Kazan; break;
+		case VK_VENDOR_ID_CODEPLAY:	GRHIVendorId = (uint32)EGpuVendorId::Codeplay; break;
+		case VK_VENDOR_ID_MESA:		GRHIVendorId = (uint32)EGpuVendorId::Mesa; break;
+		default:
+			// Unhandled case
+			UE_LOG(LogVulkanRHI, Warning, TEXT("Unhandled VkVendorId %d"), (int32)VendorId);
+			bUseVendorIdAsIs = true;
+			break;
+		}
+	}
+
+	if (bUseVendorIdAsIs)
+	{
+		GRHIVendorId = Props.vendorID;
+	}
 	GRHIAdapterName = ANSI_TO_TCHAR(Props.deviceName);
 
 	FVulkanPlatform::CheckDeviceDriver(DeviceIndex, Device->GetVendorId(), Props);

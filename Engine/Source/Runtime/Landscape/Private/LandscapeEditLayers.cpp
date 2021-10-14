@@ -48,6 +48,8 @@ LandscapeEditLayers.cpp: Landscape editing layers mode
 #include "Editor.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "ObjectCacheContext.h"
+#include "Components/RuntimeVirtualTextureComponent.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "Landscape"
@@ -152,7 +154,7 @@ private:
 		auto& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(GWorld);
 		for (TPair<FGuid, ULandscapeInfo*>& Pair : LandscapeInfoMap.Map)
 		{
-			if (Pair.Value)
+			if (Pair.Value && Pair.Value->SupportsLandscapeEditing())
 			{
 				Pair.Value->ClearDirtyData();
 			}
@@ -185,8 +187,8 @@ struct FTextureToComponentHelper
 			}
 
 			{
-				TArray<UTexture2D*>& WeightmapTextures = Component->GetWeightmapTextures();
-				TArray<FWeightmapLayerAllocationInfo>& AllocInfos = Component->GetWeightmapLayerAllocations();
+				const TArray<UTexture2D*>& WeightmapTextures = Component->GetWeightmapTextures();
+				const TArray<FWeightmapLayerAllocationInfo>& AllocInfos = Component->GetWeightmapLayerAllocations();
 
 				for (FWeightmapLayerAllocationInfo const& AllocInfo : AllocInfos)
 				{
@@ -1398,6 +1400,7 @@ void ALandscape::HideEditLayersResourcesNotification(TWeakPtr<SNotificationItem>
 
 bool ALandscape::IsTextureReady(UTexture2D* InTexture, bool bInWaitForStreaming) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(Landscape_IsTextureReady);
 	check(InTexture);
 	InTexture->bForceMiplevelsToBeResident = true;
 	if (bInWaitForStreaming && !InTexture->IsFullyStreamedIn())
@@ -2754,7 +2757,135 @@ void ALandscape::PrintLayersDebugTextureResource(const FString& InContext, FText
 	}
 }
 
-bool ALandscape::PrepareLayersBrushResources(bool bInWaitForStreaming, bool bHeightmap) const
+bool ALandscape::PrepareTextureResources(bool bInWaitForStreaming)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_PrepareTextureResources);
+
+	ULandscapeInfo* Info = GetLandscapeInfo();
+	if (Info == nullptr)
+	{
+		return false;
+	}
+
+	TSet<TObjectPtr<UTexture2D>> StreamingInTexturesBefore(MoveTemp(TrackedStreamingInTextures));
+
+	bool bIsReady = true;
+	Info->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
+	{
+		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
+		{
+			UTexture2D* ComponentHeightmap = Component->GetHeightmap();
+
+			{
+				bool bIsTextureReady = IsTextureReady(ComponentHeightmap, bInWaitForStreaming);
+				if (!bIsTextureReady)
+				{
+					TrackedStreamingInTextures.Add(ComponentHeightmap);
+				}
+				bIsReady &= bIsTextureReady;
+			}
+
+			for (UTexture2D* ComponentWeightmap : Component->GetWeightmapTextures())
+			{
+				bool bIsTextureReady = IsTextureReady(ComponentWeightmap, bInWaitForStreaming);
+				// If the texture is not ready, start tracking its state changes to be notified when it's fully streamed in : 
+				if (!bIsTextureReady)
+				{
+					TrackedStreamingInTextures.Add(ComponentWeightmap);
+				}
+				bIsReady &= bIsTextureReady;
+			}
+		}
+	});
+
+	// The assets that were streaming in before and are not anymore can be considered streamed in: 
+	TSet<TObjectPtr<UTexture2D>> StreamedInTextures = StreamingInTexturesBefore.Difference(TrackedStreamingInTextures);
+	InvalidateRVTForTextures(StreamedInTextures);
+
+	return bIsReady;
+}
+
+// Note: this approach is generic, because FObjectCacheContextScope is a fast texture->material interface->primitive component lookup. 
+// If FObjectCacheContextScope was available at runtime, it could become an efficient way to automatically invalidate RVT areas corresponding to primitive components that use textures that are being streamed in:
+void ALandscape::InvalidateRVTForTextures(const TSet<TObjectPtr<UTexture2D>>& InTextures)
+{
+#if WITH_EDITOR
+	TRACE_CPUPROFILER_EVENT_SCOPE(ALandscape_InvalidateRVTForTextures);
+
+	if (!InTextures.IsEmpty())
+	{
+		// Retrieve all primitive components that use this texture through a RVT-writing material, using FObjectCacheContextScope, which is a fast texture->material interface->primitive component lookup
+		FObjectCacheContextScope ObjectCacheScope;
+		TSet<UPrimitiveComponent*> PrimitiveComponentsToInvalidate;
+
+		for (UTexture2D* Texture : InTextures)
+		{
+			// First, find all the materials referencing this texture that are writing to the RVT in order to invalidate the primitive components referencing them when the texture 
+			//  gets fully streamed in so that we're not left with low-res mips being rendered in the RVT tiles : 
+			for (UMaterialInterface* MaterialInterface : ObjectCacheScope.GetContext().GetMaterialsAffectedByTexture(Texture))
+			{
+				if (MaterialInterface->GetMaterial()->GetCachedExpressionData().bHasRuntimeVirtualTextureOutput)
+				{
+					for (UPrimitiveComponent* PrimitiveComponent : ObjectCacheScope.GetContext().GetPrimitivesAffectedByMaterial(MaterialInterface))
+					{
+						PrimitiveComponentsToInvalidate.Add(PrimitiveComponent);
+					}
+				}
+			}
+		}
+
+		if (!PrimitiveComponentsToInvalidate.IsEmpty())
+		{
+			// Now invalidate the RVT regions that correspond to these components :
+			for (TObjectIterator<URuntimeVirtualTextureComponent> It; It; ++It)
+			{
+				for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponentsToInvalidate)
+				{
+					if (PrimitiveComponent->GetRuntimeVirtualTextures().Contains(It->GetVirtualTexture()))
+					{
+						It->Invalidate(FBoxSphereBounds(PrimitiveComponent->Bounds));
+					}
+				}
+			}
+		}
+	}
+#endif // WITH_EDITOR
+}
+
+bool ALandscape::PrepareLayersTextureResources(bool bInWaitForStreaming)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_PrepareLayersTextureResources);
+
+	ULandscapeInfo* Info = GetLandscapeInfo();
+	if (Info == nullptr)
+	{
+		return false;
+	}
+
+	bool bIsReady = true;
+	Info->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
+	{
+		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
+		{
+			for (const FLandscapeLayer& Layer : LandscapeLayers)
+			{
+				if (FLandscapeLayerComponentData* ComponentLayerData = Component->GetLayerData(Layer.Guid))
+				{
+					bIsReady &= IsTextureReady(ComponentLayerData->HeightmapData.Texture, bInWaitForStreaming);
+
+					for (UTexture2D* LayerWeightmap : ComponentLayerData->WeightmapData.Textures)
+					{
+						bIsReady &= IsTextureReady(LayerWeightmap, bInWaitForStreaming);
+					}
+				}
+			}
+		}
+	});
+
+	return bIsReady;
+}
+
+bool ALandscape::PrepareLayersBrushResources(bool bInWaitForStreaming)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_PrepareLayersBrushTextureResources);
 	TSet<UObject*> Dependencies;
@@ -2764,7 +2895,7 @@ bool ALandscape::PrepareLayersBrushResources(bool bInWaitForStreaming, bool bHei
 		{
 			if (ALandscapeBlueprintBrushBase* LandscapeBrush = Brush.GetBrush())
 			{
-				if ((LandscapeBrush->IsAffectingWeightmap() && !bHeightmap) || (LandscapeBrush->IsAffectingHeightmap() && bHeightmap))
+				if (LandscapeBrush->IsAffectingWeightmap() || LandscapeBrush->IsAffectingHeightmap())
 				{
 					LandscapeBrush->GetRenderDependencies(Dependencies);
 				}
@@ -2798,42 +2929,6 @@ bool ALandscape::PrepareLayersBrushResources(bool bInWaitForStreaming, bool bHei
 	}
 
 	return true;
-}
-
-bool ALandscape::PrepareLayersHeightmapTextureResources(bool bInWaitForStreaming) const
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_PrepareLayersHeightmapTextureResources);
-	ULandscapeInfo* Info = GetLandscapeInfo();
-
-	if (Info == nullptr)
-	{
-		return false;
-	}
-
-	bool IsReady = true;
-
-	Info->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
-	{
-		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
-		{
-			UTexture2D* ComponentHeightmap = Component->GetHeightmap();
-
-			IsReady &= IsTextureReady(ComponentHeightmap, bInWaitForStreaming);
-
-			for (const FLandscapeLayer& Layer : LandscapeLayers)
-			{
-				FLandscapeLayerComponentData* ComponentLayerData = Component->GetLayerData(Layer.Guid);
-
-				IsReady &= ComponentLayerData != nullptr;
-				if (ComponentLayerData != nullptr)
-				{
-					IsReady &= IsTextureReady(ComponentLayerData->HeightmapData.Texture, bInWaitForStreaming);
-				}
-			}
-		}
-	});
-
-	return IsReady;
 }
 
 int32 ALandscape::RegenerateLayersHeightmaps(FTextureToComponentHelper const& MapHelper, const TArray<ULandscapeComponent*>& InLandscapeComponentsToRender, const TArray<ULandscapeComponent*>& InLandscapeComponentsToResolve)
@@ -3114,11 +3209,13 @@ int32 ALandscape::RegenerateLayersHeightmaps(FTextureToComponentHelper const& Ma
 
 void ALandscape::UpdateForChangedHeightmaps(ULandscapeComponent* InComponent, const FLandscapeEditLayerReadbackResult& InReadbackResult)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_UpdateForChangedHeightmaps);
+
 	// If the source data has changed, mark the component as needing a collision data update:
 	//  - If ELandscapeComponentUpdateFlag::Component_Update_Heightmap_Collision is passed, it will be done immediately
 	//  - If not, at least the component's collision data will still get updated eventually, when the flag is finally passed :
 	if (InReadbackResult.bModified)
-	{
+{
 		InComponent->SetPendingCollisionDataUpdate(true);
 	}
 
@@ -3132,8 +3229,8 @@ void ALandscape::UpdateForChangedHeightmaps(ULandscapeComponent* InComponent, co
 			InComponent->UpdateCachedBounds();
 			InComponent->UpdateComponentToWorld();
 
-			// Avoid updating height field if we are going to recreate collision in this update
-			bool bUpdateHeightfieldRegion = !IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Recreate_Collision, HeightUpdateMode);
+		// Avoid updating height field if we are going to recreate collision in this update
+		bool bUpdateHeightfieldRegion = !IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Recreate_Collision, HeightUpdateMode);
 			InComponent->UpdateCollisionData(bUpdateHeightfieldRegion);
 			InComponent->SetPendingCollisionDataUpdate(false);
 		}
@@ -3387,6 +3484,8 @@ bool ALandscape::ResolveLayersTexture(
 	const int32 CompletedReadbackNum = InCPUReadback->GetCompletedResultNum();
 	if (CompletedReadbackNum > 0)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_PerformReadbacks);
+
 		// Copy final result to texture source.
 		TArray<TArray<FColor>> const& OutMipsData = InCPUReadback->GetResult(CompletedReadbackNum - 1);
 
@@ -3854,50 +3953,6 @@ void ALandscape::InitializeLayersWeightmapResources()
 	// We make the final copy out of this to a PF_R8G8B8A8 target with CopyTexturePS() instead of CopyLayersTexture() because a pixel shader will automatically handle the channel swizzling (where a RHICopyTexture won't)
 	WeightmapScratchPackLayerTextureResource = new FLandscapeTexture2DResource(FirstWeightmapRT->SizeX, FirstWeightmapRT->SizeY, PF_R8G8B8A8, MipCount, true);
 	BeginInitResource(WeightmapScratchPackLayerTextureResource);
-}
-
-bool ALandscape::PrepareLayersWeightmapTextureResources(bool bInWaitForStreaming) const
-{
-	ULandscapeInfo* Info = GetLandscapeInfo();
-
-	if (Info == nullptr)
-	{
-		return false;
-	}
-
-	bool IsReady = true;
-
-	Info->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
-	{
-		for (const FLandscapeLayer& Layer : LandscapeLayers)
-		{
-			for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
-			{
-				for (UTexture2D* ComponentWeightmap : Component->GetWeightmapTextures())
-				{
-					if (!IsTextureReady(ComponentWeightmap, bInWaitForStreaming))
-					{
-						IsReady = false;
-						break;
-					}
-				}
-
-				FLandscapeLayerComponentData* ComponentLayerData = Component->GetLayerData(Layer.Guid);
-
-				IsReady &= ComponentLayerData != nullptr;
-
-				if (ComponentLayerData != nullptr)
-				{
-					for (UTexture2D* LayerWeightmap : ComponentLayerData->WeightmapData.Textures)
-					{
-						IsReady &= IsTextureReady(LayerWeightmap, bInWaitForStreaming);
-					}
-				}
-			}
-		}
-	});
-
-	return IsReady;
 }
 
 int32 ALandscape::RegenerateLayersWeightmaps(FTextureToComponentHelper const& MapHelper, const TArray<ULandscapeComponent*>& InLandscapeComponentsToRender, const TArray<ULandscapeComponent*>& InLandscapeComponentsToResolve)
@@ -4948,15 +5003,6 @@ void ALandscape::GetLandscapeComponentWeightmapsToRender(ULandscapeComponent* La
 	}
 }
 
-bool ALandscape::AreLayersResourcesReady(bool bInWaitForStreaming) const
-{
-	const bool bHeightmapReady = PrepareLayersHeightmapTextureResources(bInWaitForStreaming);
-	const bool bWeightmapReady = PrepareLayersWeightmapTextureResources(bInWaitForStreaming);
-	const bool bBrushHeightmapReady = PrepareLayersBrushResources(bInWaitForStreaming, /* bHeightmap = */ true);
-	const bool bBrushWeightmapReady = PrepareLayersBrushResources(bInWaitForStreaming, /* bHeightmap = */ false);
-	return bHeightmapReady && bWeightmapReady && bBrushHeightmapReady && bBrushWeightmapReady;
-}
-
 void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonitorLandscapeEdModeChanges, bool bIntermediateRender, bool bFlushRender)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_UpdateLayersContent);
@@ -4971,6 +5017,9 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 			WaitingForResourcesStartTime = -1.0;
 		}
 	};
+
+	// Note : no early-out allowed before this : even if not actually updating edit layers, we need to poll our resources in order to make sure we register to streaming events when needed: 
+	bool bResourcesReady = PrepareTextureResources(bInWaitForStreaming);
 
 	ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
 	if (LandscapeInfo == nullptr || !CanHaveLayersContent() || !LandscapeInfo->AreAllComponentsRegistered())
@@ -5015,8 +5064,11 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 		return;
 	}
 
-	// We need to wait until texture resources are ready to initialize the landscape to avoid taking the sizes and format of the default texture:
-	if (!AreLayersResourcesReady(bInWaitForStreaming))
+	// We need to wait until layers texture resources are ready to initialize the landscape to avoid taking the sizes and format of the default texture:
+	bResourcesReady &= PrepareLayersTextureResources(bInWaitForStreaming);
+	// We need to wait until brushes texture/shader resources are ready to process the edit layers:
+	bResourcesReady &= PrepareLayersBrushResources(bInWaitForStreaming);
+	if (!bResourcesReady)
 	{
 		if (!bInWaitForStreaming)
 		{
@@ -5206,6 +5258,8 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 	{
 		LandscapeEdMode->PostUpdateLayerContent();
 	}
+
+	FLandscapeEditLayerReadback::GarbageCollectTasks();
 }
 
 // not thread safe
@@ -5413,8 +5467,6 @@ void ALandscape::TickLayers(float DeltaTime)
 
 		UpdateLayersContent();
 	}
-
-	FLandscapeEditLayerReadback::GarbageCollectTasks();
 }
 
 #endif

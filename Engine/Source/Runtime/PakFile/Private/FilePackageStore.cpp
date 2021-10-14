@@ -20,11 +20,11 @@ FFilePackageStore::FFilePackageStore()
 
 void FFilePackageStore::Initialize()
 {
-	// Setup culture
-	FInternationalization& Internationalization = FInternationalization::Get();
-	FString CurrentCulture = Internationalization.GetCurrentCulture()->GetName();
-	FParse::Value(FCommandLine::Get(), TEXT("CULTURE="), CurrentCulture);
-	CurrentCultureNames = Internationalization.GetPrioritizedCultureNames(CurrentCulture);
+	FInternationalization::Get().OnCultureChanged().AddLambda([this]
+	{
+		FWriteScopeLock Lock(EntriesLock);
+		bNeedsUpdate = true;
+	});
 }
 
 void FFilePackageStore::Lock()
@@ -50,30 +50,22 @@ bool FFilePackageStore::DoesPackageExist(FPackageId PackageId)
 	return PackageId.IsValid() && StoreEntriesMap.Contains(PackageId);
 }
 
-FPackageStoreEntryHandle FFilePackageStore::GetPackageEntryHandle(FPackageId PackageId, const FName& PackageName)
+EPackageStoreEntryStatus FFilePackageStore::GetPackageStoreEntry(FPackageId PackageId, FPackageStoreEntry& OutPackageStoreEntry)
 {
 	check(bIsLockedOnThread);
 	const FFilePackageStoreEntry* FindEntry = StoreEntriesMap.FindRef(PackageId);
-	const uint64 Handle = reinterpret_cast<uint64>(FindEntry);
-	return FPackageStoreEntryHandle::Create(Handle, Handle ? EPackageStoreEntryStatus::Ok : EPackageStoreEntryStatus::Missing);
-}
-
-FPackageStoreEntry FFilePackageStore::GetPackageEntry(FPackageStoreEntryHandle Handle)
-{
-	check(bIsLockedOnThread);
-	check(Handle.IsValid());
-	const FFilePackageStoreEntry* Entry = reinterpret_cast<const FFilePackageStoreEntry*>(Handle.Value());
-	check(Entry);
-	return FPackageStoreEntry
+	if (FindEntry)
 	{
-		FPackageStoreExportInfo
-		{
-			Entry->ExportCount,
-			Entry->ExportBundleCount
-		},
-		MakeArrayView(Entry->ImportedPackages.Data(), Entry->ImportedPackages.Num()),
-		MakeArrayView(Entry->ShaderMapHashes.Data(), Entry->ShaderMapHashes.Num())
-	};
+		OutPackageStoreEntry.ExportInfo.ExportCount = FindEntry->ExportCount;
+		OutPackageStoreEntry.ExportInfo.ExportBundleCount = FindEntry->ExportBundleCount;
+		OutPackageStoreEntry.ImportedPackageIds = MakeArrayView(FindEntry->ImportedPackages.Data(), FindEntry->ImportedPackages.Num());
+		OutPackageStoreEntry.ShaderMapHashes = MakeArrayView(FindEntry->ShaderMapHashes.Data(), FindEntry->ShaderMapHashes.Num());
+		return EPackageStoreEntryStatus::Ok;
+	}
+	else
+	{
+		return EPackageStoreEntryStatus::Missing;
+	}
 }
 
 bool FFilePackageStore::GetPackageRedirectInfo(FPackageId PackageId, FName& OutSourcePackageName, FPackageId& OutRedirectedToPackageId)
@@ -156,26 +148,13 @@ void FFilePackageStore::Update()
 			++Index;
 		}
 
+		for (const FIoContainerHeaderLocalizedPackage& LocalizedPackage : ContainerHeader->LocalizedPackages)
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageStoreLocalization);
-			const FSourceToLocalizedPackageIdMap* LocalizedPackages = nullptr;
-			for (const FString& CultureName : CurrentCultureNames)
+			FName& SourcePackageName = AllLocalizedPackages.FindOrAdd(LocalizedPackage.SourcePackageId);
+			if (SourcePackageName.IsNone())
 			{
-				LocalizedPackages = ContainerHeader->CulturePackageMap.Find(CultureName);
-				if (LocalizedPackages)
-				{
-					break;
-				}
-			}
-
-			if (LocalizedPackages)
-			{
-				for (const FIoContainerHeaderPackageRedirect& Redirect : *LocalizedPackages)
-				{
-					FNameEntryId NameEntry = ContainerHeader->RedirectsNameMap[Redirect.SourcePackageName.GetIndex()];
-					FName SourcePackageName = FName::CreateFromDisplayId(NameEntry, Redirect.SourcePackageName.GetNumber());
-					RedirectsPackageMap.Emplace(Redirect.SourcePackageId, MakeTuple(SourcePackageName, Redirect.TargetPackageId));
-				}
+				FNameEntryId NameEntry = ContainerHeader->RedirectsNameMap[LocalizedPackage.SourcePackageName.GetIndex()];
+				SourcePackageName = FName::CreateFromDisplayId(NameEntry, LocalizedPackage.SourcePackageName.GetNumber());
 			}
 		}
 

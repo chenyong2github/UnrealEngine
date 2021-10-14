@@ -843,6 +843,7 @@ bool UUnrealEdEngine::DeleteComponents(const TArray<UActorComponent*>& InCompone
 
 bool UUnrealEdEngine::DeleteActors(const TArray<AActor*>& InActorsToDelete, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const bool bVerifyDeletionCanHappen, const bool bWarnAboutReferences, const bool bWarnAboutSoftReferences)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UUnrealEdEngine::DeleteActors);
 	if (bVerifyDeletionCanHappen)
 	{
 		// TODO: Bubble up error message?
@@ -866,7 +867,9 @@ bool UUnrealEdEngine::DeleteActors(const TArray<AActor*>& InActorsToDelete, UWor
 
 	// Get a list of all the deletable actors
 	TArray<AActor*> ActorsToDelete;
+	TArray<FSoftObjectPath> ActorsToDeletePaths;
 	ActorsToDelete.Reserve(InActorsToDelete.Num());
+	ActorsToDeletePaths.Reserve(InActorsToDelete.Num());
 	for (AActor* ActorToDelete : InActorsToDelete)
 	{
 		FText ErrorMsg;
@@ -877,10 +880,11 @@ bool UUnrealEdEngine::DeleteActors(const TArray<AActor*>& InActorsToDelete, UWor
 		}
 
 		ActorsToDelete.Add(ActorToDelete);
+		ActorsToDeletePaths.Add(ActorToDelete);
 	}
 
 	TMap<AActor*, TArray<AActor*>> ReferencingActorsMap;
-	TMap<AActor*, TArray<UObject*>> SoftReferencingObjectsMap;
+	TMap<FSoftObjectPath, TArray<UObject*>> SoftReferencingObjectsMap;
 	{
 		TArray<UClass*> ClassTypesToIgnore;
 		ClassTypesToIgnore.Add(ALevelScriptActor::StaticClass());
@@ -895,25 +899,11 @@ bool UUnrealEdEngine::DeleteActors(const TArray<AActor*>& InActorsToDelete, UWor
 
 			if (bWarnAboutSoftReferences)
 			{
-				FScopedSlowTask SlowTask(ActorsToDelete.Num(), LOCTEXT("ComputeActorSoftReferences", "Computing References"));
+				FScopedSlowTask SlowTask(ActorsToDeletePaths.Num(), LOCTEXT("ComputeActorSoftReferences", "Computing References"));
 				SlowTask.MakeDialogDelayed(1.0f);
 
 				FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
-
-				for (int32 ActorIndex = 0; ActorIndex < ActorsToDelete.Num(); ++ActorIndex)
-				{
-					SlowTask.EnterProgressFrame();
-
-					TArray<UObject*> SoftReferencingObjects;
-					AActor* Actor = ActorsToDelete[ActorIndex];
-
-					AssetToolsModule.Get().FindSoftReferencesToObject(Actor, SoftReferencingObjects);
-
-					if (SoftReferencingObjects.Num() > 0)
-					{
-						SoftReferencingObjectsMap.Add(Actor, SoftReferencingObjects);
-					}
-				}
+				AssetToolsModule.Get().FindSoftReferencesToObjects(ActorsToDeletePaths, SoftReferencingObjectsMap);
 			}
 		}
 	}

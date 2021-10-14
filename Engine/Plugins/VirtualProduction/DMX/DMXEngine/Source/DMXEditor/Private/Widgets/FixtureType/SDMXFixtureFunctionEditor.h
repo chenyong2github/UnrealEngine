@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/NotifyHook.h"
+#include "ScopedTransaction.h"
 
 class FDMXEditor;
 struct FDMXFixtureFunction;
@@ -14,7 +15,6 @@ class FDMXFixtureTypeSharedData;
 class UDMXEntityFixtureType;
 
 struct FPropertyAndParent;
-class FScopedTransaction;
 class IStructureDetailsView;
 class SBorder;
 

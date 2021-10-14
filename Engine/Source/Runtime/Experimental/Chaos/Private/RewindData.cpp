@@ -5,6 +5,7 @@
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "HAL/IConsoleManager.h"
 #include "Chaos/PBDJointConstraints.h"
+#include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 

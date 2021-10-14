@@ -10,7 +10,9 @@
 #include "MetasoundAssetBase.h"
 #include "MetasoundEditorGraphNode.h"
 #include "MetasoundEditorGraphInputNodes.h"
+#include "MetasoundEditorModule.h"
 #include "MetasoundUObjectRegistry.h"
+#include "PropertyHandle.h"
 #include "ScopedTransaction.h"
 #include "Types/SlateEnums.h"
 #include "UObject/NameTypes.h"
@@ -31,6 +33,37 @@ namespace Metasound
 {
 	namespace Editor
 	{
+		class FMetasoundFloatLiteralCustomization : public IMetaSoundInputLiteralCustomization
+		{
+			IDetailCategoryBuilder* InputCategoryBuilder = nullptr;
+			TWeakObjectPtr<UMetasoundEditorGraphInputFloat> FloatLiteral;
+
+			// Delegate for updating the clamp min/max of the input value when the slider range is changed 
+			FDelegateHandle InputWidgetOnRangeChangedDelegateHandle;
+
+			// Delegate for clamping the input value or not
+			FDelegateHandle OnClampInputChangedDelegateHandle;
+
+		public:
+			FMetasoundFloatLiteralCustomization(IDetailCategoryBuilder& InInputCategoryBuilder)
+				: InputCategoryBuilder(&InInputCategoryBuilder)
+			{
+			}
+
+			virtual ~FMetasoundFloatLiteralCustomization();
+
+			virtual void CustomizeLiteral(UMetasoundEditorGraphInputLiteral& InLiteral, TSharedPtr<IPropertyHandle> InDefaultValueHandle) override;
+		};
+
+		class FMetasoundFloatLiteralCustomizationFactory : public IMetaSoundInputLiteralCustomizationFactory
+		{
+		public:
+			virtual TUniquePtr<IMetaSoundInputLiteralCustomization> CreateLiteralCustomization(IDetailCategoryBuilder& DefaultCategoryBuilder) const override
+			{
+				return TUniquePtr<IMetaSoundInputLiteralCustomization>(new FMetasoundFloatLiteralCustomization(DefaultCategoryBuilder));
+			}
+		};
+
 		class FMetasoundInputArrayDetailCustomizationBase : public IPropertyTypeCustomization
 		{
 		public:
@@ -275,6 +308,7 @@ namespace Metasound
 				: TMetasoundVariableDetailCustomization<UMetasoundEditorGraphInput>(LOCTEXT("InputVariableLabel", "Input"))
 			{
 			}
+			virtual ~FMetasoundInputDetailCustomization() = default;
 
 			// IDetailCustomization interface
 			virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
@@ -284,6 +318,8 @@ namespace Metasound
 			void SetDefaultPropertyMetaData(TSharedRef<IPropertyHandle> InDefaultPropertyHandle) const;
 
 			FName GetLiteralDataType() const;
+
+			TUniquePtr<IMetaSoundInputLiteralCustomization> LiteralCustomization;
 		};
 
 		class FMetasoundOutputDetailCustomization : public TMetasoundVariableDetailCustomization<UMetasoundEditorGraphOutput>

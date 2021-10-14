@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InsightsStyle.h"
+#include "Styling/AppStyle.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Styling/ToolBarStyle.h"
 
 #define IMAGE_BRUSH(RelativePath, ...)  FSlateImageBrush (Style.RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
 #define BOX_BRUSH(RelativePath, ...)    FSlateBoxBrush   (Style.RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
@@ -189,10 +191,75 @@ TSharedRef<FSlateStyleSet> FInsightsStyle::Create()
 
 	Style.Set("Icon.Bug", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/bug", Icon24x24));
 
-	Style.Set("Icon.AutoScroll", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/MainToolbar/play", Icon24x24));
+	Style.Set("AutoScroll.Icon.Small", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/MainToolbar/play", Icon16x16));
+
 	Style.Set("Icon.AllTracksMenu", new CORE_IMAGE_BRUSH_SVG("Starship/Common/menu", Icon24x24));
 	Style.Set("Icon.CpuGpuTracksMenu", new CORE_IMAGE_BRUSH_SVG("Starship/Common/menu", Icon24x24));
 	Style.Set("Icon.OtherTracksMenu", new CORE_IMAGE_BRUSH_SVG("Starship/Common/menu", Icon24x24));
+
+	Style.Set("ZeroCountFilter.Icon.Small", new CORE_IMAGE_BRUSH_SVG("Starship/Common/filter", Icon16x16));
+
+	// PrimaryToolbar
+	{
+		FToolBarStyle PrimaryToolbarStyle = FAppStyle::Get().GetWidgetStyle<FToolBarStyle>("SlimToolBar");
+
+		Style.Set("PrimaryToolbar", PrimaryToolbarStyle);
+
+		Style.Set("PrimaryToolbar.MinUniformToolbarSize", 40.0f);
+		Style.Set("PrimaryToolbar.MaxUniformToolbarSize", 40.0f);
+	}
+
+	// SecondaryToolbar
+	{
+		FToolBarStyle SecondaryToolbarStyle = FAppStyle::Get().GetWidgetStyle<FToolBarStyle>("SlimToolBar");
+
+		SecondaryToolbarStyle.SetBackgroundPadding(         FMargin(4.0f, 4.0f));
+		SecondaryToolbarStyle.SetBlockPadding(              FMargin(2.0f, 0.0f));
+		SecondaryToolbarStyle.SetButtonPadding(             FMargin(0.0f, 0.0f));
+		SecondaryToolbarStyle.SetCheckBoxPadding(           FMargin(2.0f, 0.0f));
+		SecondaryToolbarStyle.SetComboButtonPadding(        FMargin(0.0f, 0.0f));
+		SecondaryToolbarStyle.SetIndentedBlockPadding(      FMargin(2.0f, 0.0f));
+		SecondaryToolbarStyle.SetLabelPadding(              FMargin(2.0f, 0.0f));
+		SecondaryToolbarStyle.SetSeparatorPadding(          FMargin(2.0f, -3.0f));
+
+		SecondaryToolbarStyle.ToggleButton.SetPadding(      FMargin(0.0f, 0.0f));
+
+		SecondaryToolbarStyle.ButtonStyle.SetNormalPadding( FMargin(6.0f, 2.0f, 4.0f, 2.0f));
+		SecondaryToolbarStyle.ButtonStyle.SetPressedPadding(FMargin(6.0f, 2.0f, 4.0f, 2.0f));
+
+		//SecondaryToolbarStyle.IconSize.Set(16.0f, 16.0f);
+
+		Style.Set("SecondaryToolbar", SecondaryToolbarStyle);
+
+		Style.Set("SecondaryToolbar.MinUniformToolbarSize", 32.0f);
+		Style.Set("SecondaryToolbar.MaxUniformToolbarSize", 32.0f);
+	}
+
+	// SecondaryToolbar2 (used by AutoScroll and NetPacketContentView toolbars)
+	{
+		FToolBarStyle SecondaryToolbarStyle = FAppStyle::Get().GetWidgetStyle<FToolBarStyle>("SlimToolBar");
+
+		SecondaryToolbarStyle.SetBackgroundPadding(         FMargin(4.0f, 2.0f));
+		SecondaryToolbarStyle.SetBlockPadding(              FMargin(2.0f, 2.0f));
+		SecondaryToolbarStyle.SetButtonPadding(             FMargin(0.0f, 2.0f));
+		SecondaryToolbarStyle.SetCheckBoxPadding(           FMargin(2.0f, 2.0f));
+		SecondaryToolbarStyle.SetComboButtonPadding(        FMargin(0.0f, 2.0f));
+		SecondaryToolbarStyle.SetIndentedBlockPadding(      FMargin(2.0f, 2.0f));
+		SecondaryToolbarStyle.SetLabelPadding(              FMargin(2.0f, 2.0f));
+		SecondaryToolbarStyle.SetSeparatorPadding(          FMargin(2.0f, -1.0f));
+
+		SecondaryToolbarStyle.ToggleButton.SetPadding(      FMargin(0.0f, 0.0f));
+
+		SecondaryToolbarStyle.ButtonStyle.SetNormalPadding( FMargin(3.0f, 0.0f, -1.0f, 0.0f));
+		SecondaryToolbarStyle.ButtonStyle.SetPressedPadding(FMargin(3.0f, 0.0f, -1.0f, 0.0f));
+
+		//SecondaryToolbarStyle.IconSize.Set(16.0f, 16.0f);
+
+		Style.Set("SecondaryToolbar2", SecondaryToolbarStyle);
+
+		Style.Set("SecondaryToolbar2.MinUniformToolbarSize", 32.0f);
+		Style.Set("SecondaryToolbar2.MaxUniformToolbarSize", 32.0f);
+	}
 
 	return StyleRef;
 }

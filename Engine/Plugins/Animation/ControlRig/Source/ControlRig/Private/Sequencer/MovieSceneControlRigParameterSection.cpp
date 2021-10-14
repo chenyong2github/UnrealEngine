@@ -1148,18 +1148,26 @@ void UMovieSceneControlRigParameterSection::AddTransformParameter(FName InParame
 
 void UMovieSceneControlRigParameterSection::AddSpaceChannel(FName InControlName, bool bReconstructChannel)
 {
-	if (!HasSpaceChannel(InControlName))
+	//only add it if it's the first section since we can't blend them
+	if (UMovieSceneControlRigParameterTrack* Track = GetTypedOuter<UMovieSceneControlRigParameterTrack>())
 	{
-		SpaceChannels.Add(FSpaceControlNameAndChannel(InControlName));
-		if (OnSpaceChannelAdded.IsBound())
+		const TArray<UMovieSceneSection*>& Sections = Track->GetAllSections();
+		if (Sections[0] == this)
 		{
-			FSpaceControlNameAndChannel& NameAndChannel = SpaceChannels[SpaceChannels.Num() - 1];
-			OnSpaceChannelAdded.Broadcast(this, &NameAndChannel.SpaceCurve);
+			if (!HasSpaceChannel(InControlName))
+			{
+				SpaceChannels.Add(FSpaceControlNameAndChannel(InControlName));
+				if (OnSpaceChannelAdded.IsBound())
+				{
+					FSpaceControlNameAndChannel& NameAndChannel = SpaceChannels[SpaceChannels.Num() - 1];
+					OnSpaceChannelAdded.Broadcast(this, &NameAndChannel.SpaceCurve);
+				}
+			}
+			if (bReconstructChannel)
+			{
+				ReconstructChannelProxy();
+			}
 		}
-	}
-	if (bReconstructChannel)
-	{
-		ReconstructChannelProxy();
 	}
 }
 
@@ -1928,12 +1936,13 @@ void UMovieSceneControlRigParameterSection::RecreateWithThisControlRig(UControlR
 		case ERigControlType::Bool:
 		{
 			TOptional<bool> DefaultValue;
+			//only add bools,int, enums and space onto first sections, which is the same as the default one
 			if (bSetDefault)
 			{
-				//or use IntialValue?
 				DefaultValue = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<bool>();
+				AddBoolParameter(ControlElement->GetName(), DefaultValue, false);
+
 			}
-			AddBoolParameter(ControlElement->GetName(), DefaultValue, false);
 			break;
 		}
 		case ERigControlType::Integer:
@@ -1941,22 +1950,22 @@ void UMovieSceneControlRigParameterSection::RecreateWithThisControlRig(UControlR
 			if (ControlElement->Settings.ControlEnum)
 			{
 				TOptional<uint8> DefaultValue;
+				//only add bools,int, enums and space onto first sections, which is the same as the default one
 				if (bSetDefault)
 				{
-					//or use IntialValue?
 					DefaultValue = (uint8)ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<int32>();
+					AddEnumParameter(ControlElement->GetName(), ControlElement->Settings.ControlEnum, DefaultValue, false);
 				}
-				AddEnumParameter(ControlElement->GetName(), ControlElement->Settings.ControlEnum, DefaultValue, false);
 			}
 			else
 			{
 				TOptional<int32> DefaultValue;
+				//only add bools,int, enums and space onto first sections, which is the same as the default one
 				if (bSetDefault)
 				{
-					//or use IntialValue?
 					DefaultValue = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<int32>();
+					AddIntegerParameter(ControlElement->GetName(), DefaultValue, false);
 				}
-				AddIntegerParameter(ControlElement->GetName(), DefaultValue, false);
 			}
 			break;
 		}

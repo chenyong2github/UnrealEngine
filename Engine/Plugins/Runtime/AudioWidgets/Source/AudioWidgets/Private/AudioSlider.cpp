@@ -12,7 +12,9 @@ UAudioSliderBase::UAudioSliderBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	Value = 0.0f;
-	AlwaysShowLabel = false;
+	AlwaysShowLabel = true;
+	ShowUnitsText = true;
+	Orientation = Orient_Vertical;
 	LabelBackgroundColor = FLinearColor(0.01033f, 0.01033f, 0.01033f);
 	SliderBackgroundColor = FLinearColor(0.01033f, 0.01033f, 0.01033f);
 	SliderBarColor = FLinearColor::Black;
@@ -30,7 +32,9 @@ void UAudioSliderBase::SynchronizeProperties()
 	Super::SynchronizeProperties();
 	
 	MyAudioSlider->SetAlwaysShowLabel(AlwaysShowLabel);
+	MyAudioSlider->SetShowUnitsText(ShowUnitsText);
 	MyAudioSlider->SetLabelBackgroundColor(LabelBackgroundColor);
+	MyAudioSlider->SetOrientation(Orientation);
 	MyAudioSlider->SetSliderBackgroundColor(SliderBackgroundColor);
 	MyAudioSlider->SetSliderBarColor(SliderBarColor);
 	MyAudioSlider->SetSliderThumbColor(SliderThumbColor);
@@ -49,15 +53,21 @@ void UAudioSliderBase::HandleOnValueChanged(float InValue)
 	OnValueChanged.Broadcast(InValue);
 }
 
-void UAudioSliderBase::SetTextReadOnly(const bool bIsReadOnly)
+void UAudioSliderBase::SetAllTextReadOnly(const bool bIsReadOnly)
 {
-	MyAudioSlider->SetTextReadOnly(bIsReadOnly);
+	MyAudioSlider->SetAllTextReadOnly(bIsReadOnly);
 }
 
 void UAudioSliderBase::SetAlwaysShowLabel(const bool bSetAlwaysShowLabel)
 {
 	AlwaysShowLabel = bSetAlwaysShowLabel;
 	MyAudioSlider->SetAlwaysShowLabel(bSetAlwaysShowLabel);
+}
+
+void UAudioSliderBase::SetShowUnitsText(const bool bShowUnitsText)
+{
+	ShowUnitsText = bShowUnitsText;
+	MyAudioSlider->SetShowUnitsText(bShowUnitsText);
 }
 
 void UAudioSliderBase::SetUnitsText(const FText Units)

@@ -31,7 +31,7 @@
 		{
 			"Name": "GameplayInsights",
 			"Enabled": true,
-			"WhitelistTargets": [
+			"TargetAllowList": [
 				"Editor"
 			]
 		}

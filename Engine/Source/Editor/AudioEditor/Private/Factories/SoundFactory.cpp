@@ -379,11 +379,6 @@ UObject* USoundFactory::CreateObject
 			Sound->ChannelSizes.Reset();
 		}
 
-		Sound->CompressionQuality = 100;
-		Sound->bStreaming = true;
-		Sound->bSeekableStreaming = true;
-
-
 		int32 SizeOfSample = (*WaveInfo.pBitsPerSample) / 8;
 
 		int32 NumSamples = WaveInfo.SampleDataSize / SizeOfSample;

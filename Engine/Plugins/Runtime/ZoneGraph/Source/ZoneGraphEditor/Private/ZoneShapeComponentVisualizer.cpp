@@ -1032,7 +1032,7 @@ bool FZoneShapeComponentVisualizer::HasFocusOnSelectionBoundingBox(FBox& OutBoun
 				OutBoundingBox += WorldPos;
 			}
 
-			OutBoundingBox.ExpandBy(50.f);
+			OutBoundingBox = OutBoundingBox.ExpandBy(50.f);
 			return true;
 		}
 	}

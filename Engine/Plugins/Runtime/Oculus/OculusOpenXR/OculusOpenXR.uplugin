@@ -23,7 +23,7 @@
 			"Name": "OculusOpenXRHMD",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"Android"
 			]

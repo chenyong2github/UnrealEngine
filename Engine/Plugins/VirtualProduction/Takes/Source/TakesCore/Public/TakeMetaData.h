@@ -297,9 +297,11 @@ private:
 	UPROPERTY(config)
 	TSoftObjectPtr<UTakePreset> PresetOrigin;
 
+#if WITH_EDITORONLY_DATA
 	/** The level map used to create this recording */
 	UPROPERTY()
 	TSoftObjectPtr<ULevel> LevelOrigin;
+#endif // WITH_EDITORONLY_DATA
 
 	/** Whether or not we get or frame rate from Timecode, default to true */
 	UPROPERTY()

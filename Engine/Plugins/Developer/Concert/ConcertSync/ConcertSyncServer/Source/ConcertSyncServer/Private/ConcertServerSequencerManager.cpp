@@ -74,7 +74,7 @@ void FConcertServerSequencerManager::HandleSequencerCloseEvent(const FConcertSes
 		// Forward a normal close event to clients
 		const int32 NumOpen = SequencerState->ClientEndpointIds.Num();
 		FConcertSequencerCloseEvent CloseEvent;
-		CloseEvent.bMasterClose = NumOpen != 0 && InEvent.bMasterClose;
+		CloseEvent.bControllerClose = NumOpen != 0 && InEvent.bControllerClose;
 		CloseEvent.EditorsWithSequencerOpened = NumOpen;
 		CloseEvent.SequenceObjectPath = InEvent.SequenceObjectPath;
 		LiveSession->GetSession().SendCustomEvent(CloseEvent, LiveSession->GetSession().GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered | EConcertMessageFlags::UniqueId);

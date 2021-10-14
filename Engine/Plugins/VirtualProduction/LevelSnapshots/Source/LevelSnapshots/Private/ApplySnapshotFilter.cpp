@@ -10,12 +10,14 @@
 #include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsModule.h"
 #include "PropertyComparisonParams.h"
+#include "SnapshotConsoleVariables.h"
 #include "SnapshotCustomVersion.h"
 #include "Restorability/SnapshotRestorability.h"
 
 #include "Components/ActorComponent.h"
 #include "GameFramework/Actor.h"
 #include "Modules/ModuleManager.h"
+#include "Stats/StatsMisc.h"
 #include "Util/EquivalenceUtil.h"
 
 namespace
@@ -24,6 +26,33 @@ namespace
 	{
 		return (WorldObject && FSnapshotRestorability::IsSubobjectDesirableForCapture(WorldObject))
 			|| (SnapshotObject && FSnapshotRestorability::IsSubobjectDesirableForCapture(SnapshotObject));
+	}
+
+	class FConditionalHeaderAndFooterLog
+	{
+	public:
+		FConditionalHeaderAndFooterLog(AActor* Actor)
+		{
+			const bool bLog = SnapshotCVars::CVarLogSelectionMap.GetValueOnAnyThread();
+			if (bLog)
+			{
+				UE_LOG(LogLevel, Log, TEXT("=============== %s ==============="), *Actor->GetName());
+				UE_LOG(LogLevel, Log, TEXT("Path: %s"), *Actor->GetPathName());
+			}
+		}
+	};
+	
+	void ConditionallyLogSelectionSet(const UObject* ForObject, const FPropertySelection& PropertySelection)
+	{
+		const bool bLog = SnapshotCVars::CVarLogSelectionMap.GetValueOnAnyThread();
+		if (bLog)
+		{
+			UE_LOG(LogLevel, Log, TEXT("\t%s"), *ForObject->GetPathName());
+			for (const FLevelSnapshotPropertyChain& PropertyChain : PropertySelection.GetSelectedProperties())
+			{
+				UE_LOG(LogLevel, Log, TEXT("\t\t%s"), *PropertyChain.ToString());
+			}
+		}
 	}
 }
 
@@ -38,6 +67,9 @@ void FApplySnapshotFilter::ApplyFilterToFindSelectedProperties(FPropertySelectio
 	
 	if (EnsureParametersAreValid() && FSnapshotRestorability::IsActorDesirableForCapture(WorldActor) && EFilterResult::CanInclude(Filter->IsActorValid({ DeserializedSnapshotActor, WorldActor })))
 	{
+		const FConditionalHeaderAndFooterLog ConditionalHeader(WorldActor);
+		const FConditionalScopeLogTime LogTime(SnapshotCVars::CVarLogSelectionMap.GetValueOnAnyThread(), TEXT("Total Time"));
+		
 		FilterActorPair(MapToAddTo);
 		AnalyseComponentProperties(MapToAddTo);
 	}
@@ -152,6 +184,7 @@ void FApplySnapshotFilter::FilterActorPair(FPropertySelectionMap& MapToAddTo)
 	if (!ActorSelection.IsEmpty())
 	{
 		MapToAddTo.AddObjectProperties(WorldActor, ActorSelection);
+		ConditionallyLogSelectionSet(WorldActor, ActorSelection);
 	}
 }
 
@@ -199,6 +232,7 @@ FApplySnapshotFilter::EPropertySearchResult FApplySnapshotFilter::FilterSubobjec
 		}
 		
 		MapToAddTo.AddObjectProperties(WorldSubobject, SubobjectSelection);
+		ConditionallyLogSelectionSet(WorldSubobject, SubobjectSelection);
 		return true;
 	}();
 	EPropertySearchResult Result = bAddedProperties ? EPropertySearchResult::FoundProperties : EPropertySearchResult::NoPropertiesFound;
@@ -289,7 +323,7 @@ void FApplySnapshotFilter::AnalyseRootProperties(FPropertyContainerContext& Cont
 	for (TFieldIterator<FProperty> FieldIt(ContainerContext.ContainerClass); FieldIt; ++FieldIt)
 	{
 		// Ask external modules about the property
-		const FPropertyComparisonParams Params { ContainerContext.RootClass, *FieldIt, ContainerContext.SnapshotContainer, ContainerContext.WorldContainer, SnapshotObject, WorldObject, DeserializedSnapshotActor, WorldActor} ;
+		const FPropertyComparisonParams Params { Snapshot->GetSerializedData(), ContainerContext.RootClass, *FieldIt, ContainerContext.SnapshotContainer, ContainerContext.WorldContainer, SnapshotObject, WorldObject, DeserializedSnapshotActor, WorldActor} ;
 		const IPropertyComparer::EPropertyComparison ComparisonResult = Module.ShouldConsiderPropertyEqual(PropertyComparers, Params);
 
 		bool bSkipEqualityTest = false;
@@ -631,5 +665,5 @@ bool FApplySnapshotFilter::ArePropertyValuesIdentical(FPropertyContainerContext&
 		return *SubobjectResult == EPropertySearchResult::NoPropertiesFound;
 	}
 
-	return Snapshot->AreSnapshotAndOriginalPropertiesEquivalent(PropertyInCommon, ContainerContext.SnapshotContainer, ContainerContext.WorldContainer, DeserializedSnapshotActor, WorldActor);
+	return SnapshotUtil::AreSnapshotAndOriginalPropertiesEquivalent(Snapshot->GetSerializedData(), PropertyInCommon, ContainerContext.SnapshotContainer, ContainerContext.WorldContainer, DeserializedSnapshotActor, WorldActor);
 }

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
+#include "EdGraph/EdGraph.h"
 #include "Rigs/RigHierarchyDefines.h"
 
 #include "ControlRigContextMenuContext.generated.h"

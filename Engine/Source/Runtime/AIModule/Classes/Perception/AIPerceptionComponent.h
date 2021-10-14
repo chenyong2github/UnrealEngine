@@ -227,8 +227,8 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<AAIController> AIOwner;
 
-	/** @todo this field is misnamed. It's a whitelist. */
-	FPerceptionChannelWhitelist PerceptionFilter;
+	/** @todo this field is misnamed. It's an allow list. */
+	FPerceptionChannelAllowList PerceptionFilter;
 
 private:
 	FPerceptionListenerID PerceptionListenerId;
@@ -274,7 +274,7 @@ public:
 	const AActor* GetBodyActor() const;
 	AActor* GetMutableBodyActor();
 
-	FORCEINLINE const FPerceptionChannelWhitelist GetPerceptionFilter() const { return PerceptionFilter; }
+	FORCEINLINE const FPerceptionChannelAllowList GetPerceptionFilter() const { return PerceptionFilter; }
 
 	FGenericTeamId GetTeamIdentifier() const;
 	FORCEINLINE FPerceptionListenerID GetListenerId() const { return PerceptionListenerId; }
@@ -311,7 +311,14 @@ public:
 	void RequestStimuliListenerUpdate();
 
 	/** Allows toggling senses on and off */
-	void UpdatePerceptionWhitelist(const FAISenseID Channel, const bool bNewValue);
+	void UpdatePerceptionAllowList(const FAISenseID Channel, const bool bNewValue);
+
+	UE_DEPRECATED(5.0, "Use UpdatePerceptionAllowList instead")
+	void UpdatePerceptionWhitelist(const FAISenseID Channel, const bool bNewValue)
+	{
+		UpdatePerceptionAllowList(Channel, bNewValue);
+	}
+	
 
 	void RegisterStimulus(AActor* Source, const FAIStimulus& Stimulus);
 	void ProcessStimuli();
@@ -401,7 +408,7 @@ public:
 	FActorPerceptionInfoUpdatedDelegate OnTargetPerceptionInfoUpdated;
 
 protected:
-	UE_DEPRECATED(4.11, "Function has been renamed and made public. Please use UpdatePerceptionWhitelist instead")
+	UE_DEPRECATED(4.11, "Function has been renamed and made public. Please use UpdatePerceptionAllowList instead")
 	void UpdatePerceptionFilter(FAISenseID Channel, bool bNewValue);
 
 	FActorPerceptionContainer& GetPerceptualData() { return PerceptualData; }

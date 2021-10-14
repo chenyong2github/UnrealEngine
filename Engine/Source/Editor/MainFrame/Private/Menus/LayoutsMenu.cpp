@@ -636,7 +636,7 @@ void FPrivateLayoutsMenu::SaveExportLayoutCommon(const FString& InDefaultDirecto
 			LayoutDescriptions = SaveLayoutDialogParams->LayoutDescriptions;
 
 			// Update GEditorLayoutIni file if LayoutNames or LayoutDescriptions were modified by the user
-			if (bWasDialogOpened && LayoutNames.Num() > 0 && LayoutDescriptions.Num() > 0 && (LayoutNames[0].ToString().Len() > 0 || LayoutDescriptions[0].ToString().Len() > 0))
+			if (bWereFilesSelected && LayoutNames.Num() > 0 && LayoutDescriptions.Num() > 0 && (LayoutNames[0].ToString().Len() > 0 || LayoutDescriptions[0].ToString().Len() > 0))
 			{
 				checkf(LayoutNames.Num() == LayoutDescriptions.Num(), TEXT("There should be the same number of LayoutNames and LayoutDescriptions."));
 				for (int32 Index = 0; Index < LayoutNames.Num(); ++Index)

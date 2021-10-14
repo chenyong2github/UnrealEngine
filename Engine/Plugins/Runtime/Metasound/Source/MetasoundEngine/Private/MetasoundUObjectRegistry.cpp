@@ -85,7 +85,7 @@ void UMetaSoundAssetSubsystem::PostEngineInit()
 	if (UAssetManager* AssetManager = UAssetManager::GetIfValid())
 	{
 		AssetManager->CallOrRegister_OnCompletedInitialScan(FSimpleMulticastDelegate::FDelegate::CreateUObject(this, &UMetaSoundAssetSubsystem::PostInitAssetScan));
-		RebuildBlacklistCache(*AssetManager);
+		RebuildDenyListCache(*AssetManager);
 	}
 	else
 	{
@@ -190,22 +190,22 @@ bool UMetaSoundAssetSubsystem::CanAutoUpdate(const FMetasoundFrontendClassName& 
 		return false;
 	}
 
-	return !AutoUpdateBlacklistCache.Contains(InClassName.GetFullName());
+	return !AutoUpdateDenyListCache.Contains(InClassName.GetFullName());
 }
 
-void UMetaSoundAssetSubsystem::RebuildBlacklistCache(const UAssetManager& InAssetManager)
+void UMetaSoundAssetSubsystem::RebuildDenyListCache(const UAssetManager& InAssetManager)
 {
 	const UMetaSoundSettings* Settings = GetDefault<UMetaSoundSettings>();
-	if (Settings->BlacklistCacheChangeID == AutoUpdateBlacklistChangeID)
+	if (Settings->DenyListCacheChangeID == AutoUpdateDenyListChangeID)
 	{
 		return;
 	}
 
-	AutoUpdateBlacklistCache.Reset();
+	AutoUpdateDenyListCache.Reset();
 
 	for (const FMetasoundFrontendClassName& ClassName : Settings->AutoUpdateBlacklist)
 	{
-		AutoUpdateBlacklistCache.Add(ClassName.GetFullName());
+		AutoUpdateDenyListCache.Add(ClassName.GetFullName());
 	}
 
 	for (const FDefaultMetaSoundAssetAutoUpdateSettings& UpdateSettings : Settings->AutoUpdateAssetBlacklist)
@@ -219,20 +219,20 @@ void UMetaSoundAssetSubsystem::RebuildBlacklistCache(const UAssetManager& InAsse
 				if (AssetData.GetTagValue(Metasound::AssetTags::AssetClassID, AssetClassID))
 				{
 					const FMetasoundFrontendClassName ClassName = { FName(), *AssetClassID, FName() };
-					AutoUpdateBlacklistCache.Add(ClassName.GetFullName());
+					AutoUpdateDenyListCache.Add(ClassName.GetFullName());
 				}
 			}
 		}
 	}
 
-	AutoUpdateBlacklistChangeID = Settings->BlacklistCacheChangeID;
+	AutoUpdateDenyListChangeID = Settings->DenyListCacheChangeID;
 }
 
-void UMetaSoundAssetSubsystem::RescanAutoUpdateBlacklist()
+void UMetaSoundAssetSubsystem::RescanAutoUpdateDenyList()
 {
 	if (const UAssetManager* AssetManager = UAssetManager::GetIfValid())
 	{
-		RebuildBlacklistCache(*AssetManager);
+		RebuildDenyListCache(*AssetManager);
 	}
 }
 

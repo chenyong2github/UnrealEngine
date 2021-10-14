@@ -318,6 +318,9 @@ public:
 		FComponentTypeID NeedsLink;
 		FComponentTypeID NeedsUnlink;
 
+		/** Tag that is added to imported entities with a GenericObjectBinding or SceneComponentBinding whose binding did not resolve */
+		FComponentTypeID HasUnresolvedBinding;
+
 		FComponentTypeID MigratedFromFastPath;
 
 		FComponentTypeID ImportedEntity;

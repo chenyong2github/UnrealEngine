@@ -1085,6 +1085,15 @@ void FConcertClientWorkspace::RemoveWorkspaceCanProcessPackagesDelegate(FName In
 	CanProcessPendingDelegates.Remove(InDelegateName);
 }
 
+bool FConcertClientWorkspace::IsReloadingPackage(FName PackageName) const
+{
+	if (PackageManager)
+	{
+		return PackageManager->IsReloadingPackage(MoveTemp(PackageName));
+	}
+	return false;
+}
+
 bool FConcertClientWorkspace::CanProcessPendingPackages() const
 {
 	return Algo::AllOf(CanProcessPendingDelegates, [](const TTuple<FName,FCanProcessPendingPackages>& Pair)

@@ -933,9 +933,9 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	
 	if (!IsRunningCommandlet())
 	{
-		TArray<FString> Blacklist;
-		Blacklist.Emplace(TEXT("/Niagara/Enums/ENiagaraCoordinateSpace.ENiagaraCoordinateSpace"));
-		Blacklist.Emplace(TEXT("/Niagara/Enums/ENiagaraOrientationAxis.ENiagaraOrientationAxis"));
+		TArray<FString> DenyList;
+		DenyList.Emplace(TEXT("/Niagara/Enums/ENiagaraCoordinateSpace.ENiagaraCoordinateSpace"));
+		DenyList.Emplace(TEXT("/Niagara/Enums/ENiagaraOrientationAxis.ENiagaraOrientationAxis"));
 		
 		const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
 		check(Settings);
@@ -954,8 +954,10 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 		{
 			FName AssetRefPathNamePreResolve = AssetRef.GetAssetPathName();
 
-			if (Blacklist.Contains(AssetRefPathNamePreResolve.ToString()))
+			if (DenyList.Contains(AssetRefPathNamePreResolve.ToString()))
+			{
 				continue;
+			}
 
 			UObject* Obj = AssetRef.ResolveObject();
 			if (Obj == nullptr)
@@ -1002,8 +1004,10 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 			FName AssetRefPathNamePreResolve = AssetRef.GetAssetPathName();
 			UObject* Obj = AssetRef.ResolveObject();
 
-			if (Blacklist.Contains(AssetRefPathNamePreResolve.ToString()))
+			if (DenyList.Contains(AssetRefPathNamePreResolve.ToString()))
+			{
 				continue;
+			}
 
 			if (Obj == nullptr)
 			{

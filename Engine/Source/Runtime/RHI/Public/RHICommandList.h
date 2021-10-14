@@ -571,59 +571,15 @@ public:
 	FORCEINLINE const FRHIGPUMask& GetGPUMask() const { return GPUMask; }
 
 #if RHI_WANT_BREADCRUMB_EVENTS
-	void ExportBreadcrumbState(FRHIBreadcrumbState& State);
-	void ImportBreadcrumbState(const FRHIBreadcrumbState& State);
-#endif
+	template <typename AllocatorType>
+	void ExportBreadcrumbState(TRHIBreadcrumbState<AllocatorType>& State) const { BreadcrumbStack.ExportBreadcrumbState(State); }
 
-protected:
-#if RHI_WANT_BREADCRUMB_EVENTS
-	FRHIBreadcrumb* PushBreadcrumb_Internal(const TCHAR* InText, int32 InLen = 0)
-	{
-		FRHIBreadcrumb* NewBreadcrumb = (FRHIBreadcrumb*)MemManager.Alloc(sizeof(FRHIBreadcrumb), alignof(FRHIBreadcrumb));
+	template <typename AllocatorType>
+	void ImportBreadcrumbState(const TRHIBreadcrumbState<AllocatorType>& State) { BreadcrumbStack.ImportBreadcrumbState(GetAllocator(), State); }
 
-		int32 Len = (InLen > 0 ? InLen : FCString::Strlen(InText)) + 1;
-		TCHAR* NewName = (TCHAR*)MemManager.Alloc(Len * sizeof(TCHAR), alignof(TCHAR));
-		FCString::Strcpy(NewName, Len, InText);
+	void ResetBreadcrumbs() { BreadcrumbStack.Reset(); }
 
-		NewBreadcrumb->Parent = BreadcrumbStackTop;
-		NewBreadcrumb->Name = NewName;
-
-		BreadcrumbStackTop = NewBreadcrumb;
-		if (FirstUnsubmittedBreadcrumb == nullptr)
-		{
-			FirstUnsubmittedBreadcrumb = NewBreadcrumb;
-		}
-		return NewBreadcrumb;
-	}
-
-	FRHIBreadcrumb* PushBreadcrumbPrintf_Internal(const TCHAR* InFormat, ...)
-	{
-		TCHAR BreadcrumbString[1024];
-		int32 WrittenLength = 0;
-
-		GET_VARARGS_RESULT(BreadcrumbString, UE_ARRAY_COUNT(BreadcrumbString), UE_ARRAY_COUNT(BreadcrumbString) - 1, InFormat, InFormat, WrittenLength);
-
-		return PushBreadcrumb_Internal(BreadcrumbString, WrittenLength);
-	}
-
-	FRHIBreadcrumb* PopBreadcrumb_Internal()
-	{
-		check(BreadcrumbStackTop != nullptr); // popping more than pushing
-		BreadcrumbStackTop = BreadcrumbStackTop->Parent;
-		return BreadcrumbStackTop;
-	}
-
-	FRHIBreadcrumb* GetBreadcrumbStackTop() const
-	{
-		return BreadcrumbStackTop;
-	}
-
-	FRHIBreadcrumb* PopFirstUnsubmittedBreadcrumb()
-	{
-		FRHIBreadcrumb* Breadcrumb = FirstUnsubmittedBreadcrumb;
-		FirstUnsubmittedBreadcrumb = nullptr;
-		return Breadcrumb;
-	}
+	const FRHIBreadcrumbStack& GetBreadcrumbStack() const { return BreadcrumbStack; }
 #endif // RHI_WANT_BREADCRUMB_EVENTS
 
 private:
@@ -644,9 +600,10 @@ private:
 protected:
 	FRHICommandListBase(FRHIGPUMask InGPUMask);
 
+	FMemStackBase& GetAllocator() { return MemManager; }
+
 #if RHI_WANT_BREADCRUMB_EVENTS
-	FRHIBreadcrumb* BreadcrumbStackTop{};
-	FRHIBreadcrumb* FirstUnsubmittedBreadcrumb{};
+	FRHIBreadcrumbStack BreadcrumbStack;
 #endif
 
 	bool bAsyncPSOCompileAllowed;
@@ -2842,7 +2799,7 @@ public:
 	FORCEINLINE_DEBUGGABLE void PushBreadcrumb(const TCHAR* InText)
 	{
 #if RHI_WANT_BREADCRUMB_EVENTS
-		FRHIBreadcrumb* Breadcrumb = PushBreadcrumb_Internal(InText);
+		FRHIBreadcrumb* Breadcrumb = BreadcrumbStack.PushBreadcrumb(GetAllocator(), InText);
 		if (Bypass())
 		{
 			GetComputeContext().RHISetBreadcrumbStackTop(Breadcrumb);
@@ -2856,7 +2813,7 @@ public:
 	FORCEINLINE_DEBUGGABLE void PushBreadcrumbPrintf(const TCHAR* Format, Types... Arguments)
 	{
 #if RHI_WANT_BREADCRUMB_EVENTS
-		FRHIBreadcrumb* Breadcrumb = PushBreadcrumbPrintf_Internal(Format, Arguments...);
+		FRHIBreadcrumb* Breadcrumb = BreadcrumbStack.PushBreadcrumbPrintf(GetAllocator(), Format, Arguments...);
 		if (Bypass())
 		{
 			GetComputeContext().RHISetBreadcrumbStackTop(Breadcrumb);
@@ -2869,7 +2826,7 @@ public:
 	FORCEINLINE_DEBUGGABLE void PopBreadcrumb()
 	{
 #if RHI_WANT_BREADCRUMB_EVENTS
-		FRHIBreadcrumb* Breadcrumb = PopBreadcrumb_Internal();
+		FRHIBreadcrumb* Breadcrumb = BreadcrumbStack.PopBreadcrumb();
 		if (Bypass())
 		{
 			GetComputeContext().RHISetBreadcrumbStackTop(Breadcrumb);
@@ -3041,7 +2998,7 @@ public:
 #endif
 
 #if RHI_WANT_BREADCRUMB_EVENTS
-	void InheritBreadcrumbs(const FRHIComputeCommandList& Parent);
+	void InheritBreadcrumbs(const FRHIComputeCommandList& Parent) { BreadcrumbStack.DeepCopy(GetAllocator(), Parent.BreadcrumbStack); }
 #endif
 
 	FORCEINLINE_DEBUGGABLE void PostExternalCommandsReset()

@@ -23,7 +23,7 @@ FText UFractureToolUniform::GetDisplayText() const
 
 FText UFractureToolUniform::GetTooltipText() const 
 { 
-	return FText(NSLOCTEXT("Fracture", "FractureToolUniformTooltip", "Uniform Fracture will create pieces of approximately the same volume.  Specify minimum and maximum number of cites.  Using the same Random Seed will produce the same fracture.")); 
+	return FText(NSLOCTEXT("Fracture", "FractureToolUniformTooltip", "Uniform Fracture will create pieces of approximately the same volume.  Specify minimum and maximum number of sites.  Using the same Random Seed will produce the same fracture.")); 
 }
 
 FSlateIcon UFractureToolUniform::GetToolIcon() const 
@@ -33,7 +33,7 @@ FSlateIcon UFractureToolUniform::GetToolIcon() const
 
 void UFractureToolUniform::RegisterUICommand( FFractureEditorCommands* BindingContext ) 
 {
-	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Uniform", "Uniform", "Uniform Voronoi Fracture", EUserInterfaceActionType::ToggleButton, FInputChord() );
+	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Uniform", "Uniform", "Fracture using a Voronoi diagram with a uniform random pattern, creating fracture pieces of similar volume across the shape.", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	BindingContext->Uniform = UICommandInfo;
 }
 

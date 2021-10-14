@@ -218,12 +218,14 @@ EOS_EResult FEOSSDKManager::Initialize()
 	}
 }
 
-IEOSPlatformHandlePtr FEOSSDKManager::CreatePlatform(const EOS_Platform_Options& PlatformOptions)
+IEOSPlatformHandlePtr FEOSSDKManager::CreatePlatform(EOS_Platform_Options& PlatformOptions)
 {
 	IEOSPlatformHandlePtr SharedPlatform;
 
 	if (IsInitialized())
 	{
+		OnPreCreatePlatform.Broadcast(PlatformOptions);
+
 		const EOS_HPlatform PlatformHandle = EOS_Platform_Create(&PlatformOptions);
 		if (PlatformHandle)
 		{

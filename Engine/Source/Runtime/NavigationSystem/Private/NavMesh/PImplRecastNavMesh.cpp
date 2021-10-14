@@ -26,10 +26,7 @@
 static_assert(sizeof(NavNodeRef) == sizeof(dtPolyRef), "NavNodeRef and dtPolyRef should be the same size.");
 static_assert(RECAST_MAX_AREAS <= DT_MAX_AREAS, "Number of allowed areas cannot exceed DT_MAX_AREAS.");
 static_assert(RECAST_STRAIGHTPATH_OFFMESH_CONNECTION == DT_STRAIGHTPATH_OFFMESH_CONNECTION, "Path flags values differ.");
-// @todo ps4 compile issue: FLT_MAX constexpr issue
-#if !PLATFORM_PS4
 static_assert(RECAST_UNWALKABLE_POLY_COST == DT_UNWALKABLE_POLY_COST, "Unwalkable poly cost differ.");
-#endif
 
 /// Helper for accessing navigation query from different threads
 #define INITIALIZE_NAVQUERY_SIMPLE(NavQueryVariable, NumNodes)	\

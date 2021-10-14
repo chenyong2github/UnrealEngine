@@ -20,7 +20,7 @@
 			"Name": "AudioCaptureTimecodeProvider",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [ "Win64" ]
+			"PlatformAllowList": [ "Win64" ]
 		}
 	],
 	"Plugins":
@@ -28,12 +28,12 @@
 		{
 			"Name": "AudioCapture",
 			"Enabled": true,
-			"WhitelistPlatforms": [ "Win64" ]
+			"PlatformAllowList": [ "Win64" ]
 		},
 		{
 			"Name": "LinearTimecode",
 			"Enabled": true,
-			"WhitelistPlatforms": [ "Win64" ]
+			"PlatformAllowList": [ "Win64" ]
 		}
 	]
 }

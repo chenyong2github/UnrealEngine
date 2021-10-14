@@ -36,15 +36,15 @@ constexpr uint32 CountEPriority = static_cast<uint32>(EPriority::Normal) + 1;
 struct FSetPathProperties
 {
 	/** The path (usually a plugin's root content path) has been requested for scanning through e.g. ScanPathsSynchronous */
-	TOptional<bool> IsWhitelisted;
+	TOptional<bool> IsOnAllowList;
 	/**
-	 * Set whether the given directory matches a blacklist entry.
+	 * Set whether the given directory matches a deny list entry.
 	 */
-	TOptional<bool> MatchesBlacklist;
+	TOptional<bool> MatchesDenyList;
 	/**
-	 * Set whether the given directory should ignore blacklist, even if it or its parent matches a blacklist entry.
+	 * Set whether the given directory should ignore the deny list, even if it or its parent matches a deny list entry.
 	 */
-	TOptional<bool> IgnoreBlacklist;
+	TOptional<bool> IgnoreDenyList;
 	/**
 	 * The directory's list of direct file/subdirectory children has been scanned through a call to
 	 * IFileManager::IterateDirectoryStat after process start or the last request to rescan it
@@ -59,8 +59,8 @@ struct FSetPathProperties
 	/** Used to early-exit from tree traversal when all properties have finished being handled */
 	bool IsSet() const
 	{
-		return IsWhitelisted.IsSet() | HasScanned.IsSet() | MatchesBlacklist.IsSet() | //-V792
-			IgnoreBlacklist.IsSet() | Priority.IsSet(); //-V792
+		return IsOnAllowList.IsSet() | HasScanned.IsSet() | MatchesDenyList.IsSet() | //-V792
+			IgnoreDenyList.IsSet() | Priority.IsSet(); //-V792
 	}
 };
 
@@ -261,16 +261,16 @@ public:
 	{
 		FInherited() = default;
 
-		/** Whether the ScanDir has been whitelisted. */
-		bool bIsWhitelisted = false;
-		/** Whether the ScanDir is under one of the blacklisted folders. */
-		bool bMatchesBlacklist = false;
-		/** Whether the ScanDir has been set to ignore blacklist. */
-		bool bIgnoreBlacklist = false;
+		/** Whether the ScanDir is in the allow list. */
+		bool bIsOnAllowList = false;
+		/** Whether the ScanDir is under one of the folders on the deny list. */
+		bool bMatchesDenyList = false;
+		/** Whether the ScanDir has been set to ignore the deny list. */
+		bool bIgnoreDenyList = false;
 
 		bool IsMonitored() const;
-		bool IsBlacklisted() const;
-		bool IsWhitelisted() const;
+		bool IsOnDenyList() const;
+		bool IsOnAllowList() const;
 		bool HasSetting() const;
 		FInherited(const FInherited& Parent, const FInherited& Child);
 	};
@@ -305,11 +305,11 @@ public:
 	FString GetMountRelPath() const;
 
 	/**
-	 * Report whether the given RelPath is whitelisted and blacklisted, based on parent data and
+	 * Report whether the given RelPath is allow listed and not deny listed, based on parent data and
 	 * on the discovered settings on Stem ScanDirs between *this and the leaf path.
 	 */
 	void GetMonitorData(FStringView InRelPath, const FInherited& ParentData, FInherited& OutData) const;
-	/** Return whether this scandir is whitelisted and not blacklisted and hence needs to be or has been scanned. */
+	/** Return whether this scandir is allow listed and not deny listed and hence needs to be or has been scanned. */
 	bool IsMonitored(const FInherited& ParentData) const;
 
 	/** Report whether this ScanDir will be scanned in the current or future Tick. */
@@ -387,7 +387,7 @@ protected:
 	 */
 	void SetComplete(bool bInIsComplete);
 	/** 
-	 * Return whether this ScanDir has direct settings (whitelist, blacklist, etc) that we need to preserve on it
+	 * Return whether this ScanDir has direct settings (allow list, deny list, etc) that we need to preserve on it
 	 * even if has finished scanning.
 	 */
 	bool HasPersistentSettings() const;
@@ -471,10 +471,10 @@ public:
 	/** Return this MountDir's Priority, which is the maximum of any of its ScanDirs' priorities. */
 	EPriority GetPriority() const;
 
-	/** Report the collapsed data for the scandir - whitelist, blacklist, etc. Returns false data for non child paths. */
+	/** Report the collapsed data for the scandir - allow list, deny list, etc. Returns false data for non child paths. */
 	void GetMonitorData(FStringView InLocalAbsPath, FScanDir::FInherited& OutData) const;
 	/**
-	 * Return whether the given path is a child path of *this and is whitelisted and is not blacklisted, which means
+	 * Return whether the given path is a child path of *this and is allow listed and is not deny listed, which means
 	 * it will be or has been scanned.
 	 */
 	bool IsMonitored(FStringView InLocalAbsPath) const;
@@ -518,8 +518,8 @@ public:
 	TArray<FMountDir*> GetChildMounts() const;
 
 protected:
-	/** Inspect the Discovery's blacklists and add the ones applicable to this MountDir into this MountDir's set of Blacklists. */
-	void UpdateBlacklist();
+	/** Inspect the Discovery's deny lists and add the ones applicable to this MountDir into this MountDir's set of deny lists. */
+	void UpdateDenyList();
 	/** Mark that given path needs to be reconsidered by Update. */
 	void MarkDirty(FStringView MountRelPath);
 
@@ -534,9 +534,9 @@ protected:
 	TArray<FString> ChildMountPaths;
 	/**
 	 * Set of relative path from the MountDir paths that should not be scanned, because they were requested
-	 * blacklisted by clients or because a childmount owns them.
+	 * deny listed by clients or because a childmount owns them.
 	 */
-	TSet<FString> BlacklistedRelPaths;
+	TSet<FString> RelPathsDenyList;
 	/** Absolute path to the root of the MountDir in the local file system. */
 	FString LocalAbsPath;
 	/** LongPackageName that was assigned to the MountDir in FPackageName. */
@@ -562,8 +562,8 @@ protected:
 class FAssetDataDiscovery : public FRunnable
 {
 public:
-	FAssetDataDiscovery(const TArray<FString>& InBlacklistLongPackageNames,
-		const TArray<FString>& InBlacklistMountRelativePaths, bool bInIsSynchronous);
+	FAssetDataDiscovery(const TArray<FString>& InLongPackageNamesDenyList,
+		const TArray<FString>& InMountRelativePathsDenyList, bool bInIsSynchronous);
 	virtual ~FAssetDataDiscovery();
 
 
@@ -588,13 +588,13 @@ public:
 	/** Wait (joining in on the tick) until all currently monitored paths have been scanned. */
 	void WaitForIdle();
 	/** Optionally set some scan properties for the given path and then wait for the scan of it to finish. */
-	void SetPropertiesAndWait(FPathExistence& QueryPath, bool bAddToWhitelist, bool bForceRescan,
-		bool bIgnoreBlackListScanFilters);
-	/** Return whether the given path is whitelisted due to e.g. TrySetDirectoryProperties with IsWhitelisted. */
-	bool IsWhitelisted(FStringView LocalAbsPath) const;
-	/** Return whether the given path matches blacklist and has not been marked IgnoreBlacklist. */
-	bool IsBlacklisted(FStringView LocalAbsPath) const;
-	/** Return whether the given path should or has been scanned because it is whitelisted and not blacklisted. */
+	void SetPropertiesAndWait(FPathExistence& QueryPath, bool bAddToAllowList, bool bForceRescan,
+		bool bIgnoreDenyListScanFilters);
+	/** Return whether the given path is allowed due to e.g. TrySetDirectoryProperties with IsOnAllowList. */
+	bool IsOnAllowList(FStringView LocalAbsPath) const;
+	/** Return whether the given path matches the deny list and has not been marked IgnoreDenyList. */
+	bool IsOnDenyList(FStringView LocalAbsPath) const;
+	/** Return whether the given path should or has been scanned because it is on the allow list and not on the deny list. */
 	bool IsMonitored(FStringView LocalAbsPath) const;
 	/** Return the memory used by *this. sizeof(*this) is not included. */
 	SIZE_T GetAllocatedSize() const;
@@ -602,12 +602,12 @@ public:
 	// Events and setting of properties (possibly while tick is running)
 	/**
 	 * Register the given LocalAbsPath/LongPackageName pair that came from FPackageName's list of mount points as
-	 * a mountpoint to track. Will not be scanned until whitelisted.
+	 * a mountpoint to track. Will not be scanned until allow listed.
 	 */
 	void AddMountPoint(const FString& LocalAbsPath, FStringView LongPackageName);
 	/** Remove the mountpoint because FPackageName has removed it. */
 	void RemoveMountPoint(const FString& LocalAbsPath);
-	/** Set properties on the directory, called when files are requested whitelisted, blacklisted, or rescanned. */
+	/** Set properties on the directory, called when files are requested to be on an allow/deny list or rescanned. */
 	bool TrySetDirectoryProperties(const FString& LocalAbsPath,
 		const UE::AssetDataGather::Private::FSetPathProperties& Properties, bool bConfirmedExists);
 	/** Event called from the directory watcher when a directory is created. It will be scanned if IsMonitored. */
@@ -696,15 +696,15 @@ private:
 	// Variable section for variables that are constant during threading.
 
 	/**
-	 * Blacklisted full absolute paths. Child paths will not be scanned unless requested to ignore blacklists.
+	 * Deny list of full absolute paths. Child paths will not be scanned unless requested to ignore deny lists.
 	 * Constant during threading.
 	 */
-	TArray<FString> BlacklistLongPackageNames;
+	TArray<FString> LongPackageNamesDenyList;
 	/**
-	 * Blacklisted relative paths in each mount. Child paths will not be scanned unless requested to ignore blacklists.
+	 * Deny list of relative paths in each mount. Child paths will not be scanned unless requested to ignore deny lists.
 	 * Constant during threading.
 	 */
-	TArray<FString> BlacklistMountRelativePaths;
+	TArray<FString> MountRelativePathsDenyList;
 	/** LongPackageNames for directories that should not be reported, see ShouldDirBeReported. Constant during threading. */
 	TSet<FString> DirLongPackageNamesToNotReport;
 	/** Thread to run the discovery FRunnable on. Read-only while threading is possible. Constant during threading. */

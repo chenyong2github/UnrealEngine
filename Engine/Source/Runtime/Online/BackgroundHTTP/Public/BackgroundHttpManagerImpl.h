@@ -49,7 +49,7 @@ protected:
 	virtual bool CheckForExistingCompletedDownload(const FBackgroundHttpRequestPtr Request, FString& ExistingFilePathOut, int64& ExistingFileSizeOut);
 	virtual void ActivatePendingRequests();
 	
-	//Different from DeleteAllTemporaryFiles as this doesn't nuke all files but rather cleans up specific bad files that have gone stale
+	//Different from DeleteAllTemporaryFiles as this doesn't delete all files but rather cleans up specific bad files that have gone stale
 	virtual void DeleteStaleTempFiles();
 	
 	//Gets a list of full filenames for all temp files.

@@ -20,7 +20,7 @@
 			"Name" : "DummyMeshReconstructor",
 			"Type" : "Runtime",
 			"LoadingPhase" : "PostConfigInit",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"Android",
 				"Win64"

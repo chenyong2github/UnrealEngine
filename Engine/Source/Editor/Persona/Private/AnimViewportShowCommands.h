@@ -75,6 +75,12 @@ public:
 	/** Show only selected bones and their parents */
 	TSharedPtr< FUICommandInfo > ShowBoneDrawSelectedAndParents;
 
+	/** Show only selected bones and their children */
+	TSharedPtr< FUICommandInfo > ShowBoneDrawSelectedAndChildren;
+
+	/** Show only selected bones and their parents and children */
+	TSharedPtr< FUICommandInfo > ShowBoneDrawSelectedAndParentsAndChildren;
+
 	/** Show all bones */
 	TSharedPtr< FUICommandInfo > ShowBoneDrawAll;
 

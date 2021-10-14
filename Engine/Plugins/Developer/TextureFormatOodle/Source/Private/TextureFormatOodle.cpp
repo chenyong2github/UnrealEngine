@@ -29,19 +29,14 @@
 
 /**********
 
-Oodle Texture can do both RDO (rate distortion optimization) and non-RDO encoding to BC1-7
+Oodle Texture can do both RDO (rate distortion optimization) and non-RDO encoding to BC1-7.
 
-by default this plugin enables RDO with a moderate quality level (lambda=30).
-Set DefaultRDOLambda=40 for smaller compressed sizes.
+This is controlled using the project texture compression settings and the corresponding
+Compress Speed.
 
-quality can be controlled at three levels :
-
-1. Each Texture can choose an individual setting with LossyCompressionAmount
-2. If that is "Default", the setting is looked up in the LODGroup
-3. If that is not set, the global default is used (DefaultRDOLambda)
-
-Lambda up to 40 usually produces very high quality.  The need to for per-Texture adjustment should be rare
-and is mainly for when textures are used in unusual ways (not just diffuse color or normal maps).
+The texture property Lossy Compression Amount is converted to an RDO Lambda to use.
+This property can be adjusted via LODGroup or per texture. If not set in either place,
+the project settings provide a default value.
 
 Oodle Texture can encode BC1-7.  It does not currently encode ASTC or other mobile formats.
 
@@ -79,26 +74,10 @@ The INI settings block looks like :
 
 [TextureFormatOodleSettings]
 bForceAllBC23ToBC7=False
-bForceRDOOff_FastEncode=False
-bForceRDOOff_NoFastEncode=False
 bDebugColor=False
-DefaultRDOLambda=30
 GlobalLambdaMultiplier=1.0
-EncodeEffortLevel_NoFastEncode=High
-EncodeEffortLevel_FastEncode=Normal
 
 The sense of the bools is set so that all-false is default behavior.
-
-TextureFormatOodle by default tries to exactly reproduce the legacy behavior of
-TextureFormatDXT+TextureFormatISPC , just with Oodle Texture RDO encoding.
-
-The behavior of the options is :
-
-EncodeEffortLevel_NoFastEncode :
-EncodeEffortLevel_FastEncode :
-
-Sets how much time Oodle should spend finding good results. Values are
-from the OodleTex_EncodeEffortLevel enum - Default, Low, Normal, High.
 
 bForceAllBC23ToBC7 :
 
@@ -108,17 +87,12 @@ On DX11 games, BC7 usualy has higher quality and takes the same space in memory 
 
 For example in Unreal, "AutoDXT" selects DXT1 (BC1) for opaque textures and DXT5 (BC3)
 for textures with alpha.  If you turn on this option, the BC3 will change to BC7, so
-"AutoDXT" will now select BC1 for opaque and BC7 for alpha.
+"AutoDXT" will now select BC1 for opaque and BC7 for alpha. Note that BC7 with alpha will
+likely introduce color distortion that doesn't exist with DXT5 because DXT5 has the
+alpha and color planes separate, where they are combine with BC7 - so the encoder can try
+and swap color for alpha unlike DXT5.
 
 It is off by default to make default behavior match the old encoders.
-
-bForceRDOOff_FastEncode :
-bForceRDOOff_NoFastEncode :
-
-Force Oodle Texture to use non-RDO encoding.  This sets lambda to 0 for all encodes.
-(this is different than setting DefaultRDOLambda=0 because it also applies to textures
-that have per-texture lambda overrides set). When EditorOnly data is present _FastEncode
-is used to facilitate iteration times.
 
 bDebugColor :
 
@@ -129,11 +103,6 @@ be solid color.  (for example I found that lots of the Unreal demo content uses 
 which is an uncompressed format, instead of "HDRCompressed" (BC6))  The color indicates
 the actual compressed format output (BC1-7).
 
-DefaultRDOLambda :
-
-global default lambda value that is used if no per-texture lambda is set.
-(see next section)
-
 GlobalLambdaMultiplier :
 
 Takes all lambdas and scales them by this multiplier, so it affects the global default
@@ -142,9 +111,6 @@ and the per-texture lambdas.
 It is recommended to leave this at 1.0 until you get near shipping your final game, at
 which point you could tweak it to 0.9 or 1.1 to adjust your package size without having
 to edit lots of per-texture lambdas.
-
-
-
 
 Oodle Texture lambda
 ----------------------
@@ -180,17 +146,17 @@ TextureLODGroups=(Group=TEXTUREGROUP_World,MinLODSize=1,MaxLODSize=8192,LODBias=
 
 
 If the LossyCompressionAmount is not set on the LODGroup (which is the default), 
-then it falls through to the global default, which is "DefaultRDOLambda" from our
-INI block.  eg. for "WorldSpecular" above it would use the DefaultRDOLambda setting.
+then it falls through to the global default, which is set in the texture compression
+project settings.
 
 At each stage, TLCA_Default means "inherit from parent".
 
-TLCA_None means disable RDO entirely.  We do not recommend this, use TLCA_Lowest 
+TLCA_None means disable RDO entirely. We do not recommend this, use TLCA_Lowest 
 instead when you need very high quality.
 
-Note that the Unreal Editor texture dialog shows live compression results (if bEnableInEditor is true).
+Note that the Unreal Editor texture dialog shows live compression results.
 When you're in the editor and you adjust the LossyCompressionAmount or import a 
-new texture, it shows the Oodle Texture encoded result in the texture preview. 
+new texture, it shows the Oodle Texture encoded result in the texture preview.
 
 
 
@@ -364,13 +330,7 @@ public:
 
 	FTextureFormatOodleConfig() :
 		bForceAllBC23ToBC7(false),
-		bForceRDOOff_NoFastEncode(true),
-		bForceRDOOff_FastEncode(true),
-		EncodeEffortLevel_NoFastEncode(OodleTex_EncodeEffortLevel_High),
-		EncodeEffortLevel_FastEncode(OodleTex_EncodeEffortLevel_Normal),
-		RDOUniversalTiling(OodleTex_RDO_UniversalTiling_Disable),
 		bDebugColor(false),
-		DefaultRDOLambda(OodleTex_RDOLagrangeLambda_Default),
 		GlobalLambdaMultiplier(1.f)
 	{
 	}
@@ -378,65 +338,7 @@ public:
 	const FLocalDebugConfig& GetLocalDebugConfig() const
 	{
 		return LocalDebugConfig;
-	}
-
-	static const TCHAR* EffortLevelToString(OodleTex_EncodeEffortLevel InEffortLevel)
-	{
-		switch (InEffortLevel)
-		{
-		case OodleTex_EncodeEffortLevel_Default:
-			{
-				return TEXT("Default");
-			}
-		case OodleTex_EncodeEffortLevel_Low:
-			{
-				return TEXT("Low");
-			}
-		case OodleTex_EncodeEffortLevel_Normal:
-			{
-				return TEXT("Normal");
-			}
-		case OodleTex_EncodeEffortLevel_High:
-			{
-				return TEXT("High");
-			}
-		}
-		UE_LOG(LogTextureFormatOodle, Warning, TEXT("Invalid Oodle effort level passed to ToString: %d -- returning \"Default\""), InEffortLevel);
-		return TEXT("Default");
-	}
-
-	static bool EffortLevelFromConfig(const TCHAR* InSection, const TCHAR* InKey, OodleTex_EncodeEffortLevel& OutEffortLevel)
-	{
-		FString EffortLevel_String;
-		if (GConfig->GetString(InSection, InKey, EffortLevel_String, GEngineIni))
-		{
-			OodleTex_EncodeEffortLevel Result;
-			if (EffortLevel_String.Compare(TEXT("Default"), ESearchCase::IgnoreCase) == 0)
-			{
-				Result = OodleTex_EncodeEffortLevel_Default;
-			}
-			else if (EffortLevel_String.Compare(TEXT("Low"), ESearchCase::IgnoreCase) == 0)
-			{
-				Result = OodleTex_EncodeEffortLevel_Low;
-			}
-			else if (EffortLevel_String.Compare(TEXT("Normal"), ESearchCase::IgnoreCase) == 0)
-			{
-				Result = OodleTex_EncodeEffortLevel_Normal;
-			}
-			else if (EffortLevel_String.Compare(TEXT("High"), ESearchCase::IgnoreCase) == 0)
-			{
-				Result = OodleTex_EncodeEffortLevel_High;
-			}
-			else
-			{
-				UE_LOG(LogTextureFormatOodle, Warning, TEXT("Invalid %s specified: %s, using defaults."), InKey, *EffortLevel_String);
-				return false;
-			}
-			OutEffortLevel = Result;
-			return true;
-		}
-		return false;
-	}
+	}	
 
 	void ImportFromConfigCache()
 	{
@@ -450,16 +352,10 @@ public:
 		if (!GConfig->DoesSectionExist(OODLETEXTURE_INI_SECTION, GEngineIni))
 		{
 			GConfig->SetBool(OODLETEXTURE_INI_SECTION, TEXT("bForceAllBC23ToBC7"), bForceAllBC23ToBC7, GEngineIni);
-			GConfig->SetBool(OODLETEXTURE_INI_SECTION, TEXT("bForceRDOOff_NoFastEncode"), bForceRDOOff_NoFastEncode, GEngineIni);
-			GConfig->SetBool(OODLETEXTURE_INI_SECTION, TEXT("bForceRDOOff_FastEncode"), bForceRDOOff_FastEncode, GEngineIni);
-			GConfig->SetString(OODLETEXTURE_INI_SECTION, TEXT("EncodeEffortLevel_NoFastEncode"), EffortLevelToString(EncodeEffortLevel_NoFastEncode), GEngineIni);
-			GConfig->SetString(OODLETEXTURE_INI_SECTION, TEXT("EncodeEffortLevel_FastEncode"), EffortLevelToString(EncodeEffortLevel_FastEncode), GEngineIni);
 			GConfig->SetBool(OODLETEXTURE_INI_SECTION, TEXT("bDebugColor"), bDebugColor, GEngineIni);
 			GConfig->SetBool(OODLETEXTURE_INI_SECTION, TEXT("bDebugDump"), bDebugDump, GEngineIni);
 			GConfig->SetInt(OODLETEXTURE_INI_SECTION, TEXT("LogVerbosity"), LogVerbosity, GEngineIni);
 			GConfig->SetFloat(OODLETEXTURE_INI_SECTION, TEXT("GlobalLambdaMultiplier"), GlobalLambdaMultiplier, GEngineIni);
-			GConfig->SetInt(OODLETEXTURE_INI_SECTION, TEXT("DefaultRDOLambda"), DefaultRDOLambda, GEngineIni);
-			GConfig->SetInt(OODLETEXTURE_INI_SECTION, TEXT("RDOUniversalTiling"), (int32)RDOUniversalTiling, GEngineIni);
 
 			GConfig->Flush(false);
 		}
@@ -473,39 +369,20 @@ public:
 		
 		// Class config variables
 		GConfig->GetBool(IniSection, TEXT("bForceAllBC23ToBC7"), bForceAllBC23ToBC7, GEngineIni);
-		GConfig->GetBool(IniSection, TEXT("bForceRDOOff_NoFastEncode"), bForceRDOOff_NoFastEncode, GEngineIni);
-		GConfig->GetBool(IniSection, TEXT("bForceRDOOff_FastEncode"), bForceRDOOff_FastEncode, GEngineIni);
 		GConfig->GetBool(IniSection, TEXT("bDebugColor"), bDebugColor, GEngineIni);
 		GConfig->GetBool(IniSection, TEXT("bDebugDump"), LocalDebugConfig.bDebugDump, GEngineIni);
 		GConfig->GetInt(IniSection, TEXT("LogVerbosity"), LocalDebugConfig.LogVerbosity, GEngineIni);
 		GConfig->GetFloat(IniSection, TEXT("GlobalLambdaMultiplier"), GlobalLambdaMultiplier, GEngineIni);
-		GConfig->GetInt(IniSection, TEXT("DefaultRDOLambda"), DefaultRDOLambda, GEngineIni);
-		GConfig->GetInt(IniSection, TEXT("RDOUniversalTiling"), (int32&)RDOUniversalTiling, GEngineIni);
 
-		EffortLevelFromConfig(IniSection, TEXT("EncodeEffortLevel_NoFastEncode"), EncodeEffortLevel_NoFastEncode);
-		EffortLevelFromConfig(IniSection, TEXT("EncodeEffortLevel_FastEncode"), EncodeEffortLevel_FastEncode);
 
 		// sanitize config values :
-		DefaultRDOLambda = FMath::Clamp(DefaultRDOLambda,0,100);
-
 		if ( GlobalLambdaMultiplier <= 0.f )
 		{
 			GlobalLambdaMultiplier = 1.f;
 		}
 
-		if (RDOUniversalTiling < 0 ||
-			RDOUniversalTiling > OodleTex_RDO_UniversalTiling_Max)
-		{
-			UE_LOG(LogTextureFormatOodle, Warning, TEXT("Invalid RDOUniversalTiling value supplied: %d, using 0 (Disabled)"), RDOUniversalTiling);
-			RDOUniversalTiling = OodleTex_RDO_UniversalTiling_Disable;
-		}
-
-		UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture %s init {cook RDO %s %s, Editor RDO %s %s} with DefaultRDOLambda=%d, RDOUniversalTiling=%d"),
-			TEXT(OodleTextureVersion),
-			bForceRDOOff_NoFastEncode ? TEXT("Off") : TEXT("On"), EffortLevelToString(EncodeEffortLevel_NoFastEncode),
-			bForceRDOOff_FastEncode ? TEXT("Off") : TEXT("On"), EffortLevelToString(EncodeEffortLevel_FastEncode),
-			DefaultRDOLambda,
-			(int32)RDOUniversalTiling
+		UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture %s init"),
+			TEXT(OodleTextureVersion)
 			);
 		#ifdef DO_FORCE_UNIQUE_DDC_KEY_PER_BUILD
 		UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture DO_FORCE_UNIQUE_DDC_KEY_PER_BUILD"));
@@ -514,14 +391,12 @@ public:
 
 	FCbObject ExportToCb(const FTextureBuildSettings& BuildSettings) const
 	{
-		int RDOLambda;
-		OodleTex_EncodeEffortLevel EffortLevel;
-		OodleTex_RDO_UniversalTiling LocalRDOUniversalTiling;
-		EPixelFormat CompressedPixelFormat;
-		bool bLocalDebugColor;
-		const bool bHasAlpha = !BuildSettings.bForceNoAlphaChannel; 
-		
-		GetOodleCompressParameters(&CompressedPixelFormat,&RDOLambda,&EffortLevel, &bLocalDebugColor,&LocalRDOUniversalTiling,BuildSettings,bHasAlpha);
+		//
+		// Here we write config stuff to the packet that gets sent to the build
+		// workers.
+		//
+		// This is only for stuff that isn't already part of the build settings.
+		//
 
 		FCbWriter Writer;
 		Writer.BeginObject("TextureFormatOodleSettings");
@@ -533,15 +408,13 @@ public:
 		{
 			Writer.AddBool("bForceAllBC23ToBC7", bForceAllBC23ToBC7);
 		}
-		Writer.AddInteger("RDOLambda", RDOLambda);
-		Writer.AddInteger("EffortLevel", EffortLevel);
-		Writer.AddBool("bDebugColor", bLocalDebugColor);
-
-		// Don't write if default to maintain compat with any outstanding texture
-		// build workers.
-		if (LocalRDOUniversalTiling != OodleTex_RDO_UniversalTiling_Disable)
+		if (bDebugColor)
 		{
-			Writer.AddInteger("RDOUniversalTiling", LocalRDOUniversalTiling);
+			Writer.AddBool("bDebugColor", bDebugColor);
+		}
+		if (GlobalLambdaMultiplier != 1.f)
+		{
+			Writer.AddFloat("GlobalLambdaMultipler", GlobalLambdaMultiplier);
 		}
 
 		Writer.EndObject();
@@ -619,63 +492,18 @@ public:
 
 		*OutCompressedPixelFormat = CompressedPixelFormat;
 
-		if (InBuildSettings.FormatConfigOverride)
+		// Use the DDC2 provided value if it exists.
+		bool bUseDebugColor = InBuildSettings.FormatConfigOverride.FindView("bDebugColor").AsBool(bDebugColor);
+
+		float UseGlobalLambdaMultiplier = InBuildSettings.FormatConfigOverride.FindView("GlobalLambdaMultipler").AsFloat(GlobalLambdaMultiplier);
+
+		//
+		// Convert general build settings in to oodle relevant values.
+		//
+		int RDOLambda = InBuildSettings.OodleRDO;
+		if (RDOLambda > 0 && UseGlobalLambdaMultiplier != 1.f)
 		{
-			// If we have an explicit format config, then use it directly
-			FCbFieldView FieldView;
-
-			// RDOUniversalTiling is only set if not default, so fall back to defaults if it doesn't exist.
-			// Note that in this case, we're a texture build worker, so our defaults are not
-			// changed by GConfig.
-			*OutRDOUniversalTiling = (OodleTex_RDO_UniversalTiling)InBuildSettings.FormatConfigOverride.FindView("RDOUniversalTiling").AsUInt32(RDOUniversalTiling);
-
-			FieldView = InBuildSettings.FormatConfigOverride.FindView("RDOLambda");
-			checkf(FieldView.HasValue(), TEXT("Missing RDOLambda key from FormatConfigOverride"));
-			*OutRDOLambda = FieldView.AsInt32();
-			checkf(!FieldView.HasError(), TEXT("Failed to parse RDOLambda value from FormatConfigOverride"));
-
-			FieldView = InBuildSettings.FormatConfigOverride.FindView("EffortLevel");
-			checkf(FieldView.HasValue(), TEXT("Missing EffortLevel key from FormatConfigOverride"));
-			*OutEffortLevel = (OodleTex_EncodeEffortLevel)FieldView.AsUInt32();
-			checkf(!FieldView.HasError(), TEXT("Failed to parse EffortLevel value from FormatConfigOverride"));
-
-			FieldView = InBuildSettings.FormatConfigOverride.FindView("bDebugColor");
-			checkf(FieldView.HasValue(), TEXT("Missing bDebugColor key from FormatConfigOverride"));
-			*bOutDebugColor = FieldView.AsBool();
-			checkf(!FieldView.HasError(), TEXT("Failed to parse bDebugColor value from FormatConfigOverride"));
-
-			return;
-		}
-
-
-		int RDOLambda = -1;
-
-		// LossyCompressionAmount for per-Texture override
-		//	also inherits from LODGroup if not set per-Texture
-		int32 LossyCompressionAmount = InBuildSettings.LossyCompressionAmount;
-
-		switch (LossyCompressionAmount)
-		{
-			default:
-			case TLCA_Default: break;         // "Default"
-			case TLCA_None:    RDOLambda = 0; break;    // "No lossy compression"
-			case TLCA_Lowest:  RDOLambda = 1; break;   // "Lowest (Best Image quality, largest filesize)"
-			case TLCA_Low:     RDOLambda = 10; break;   // "Low"
-			case TLCA_Medium:  RDOLambda = 20; break;   // "Medium"
-			case TLCA_High:    RDOLambda = 30; break;   // "High"
-			case TLCA_Highest: RDOLambda = 40; break;   // "Highest (Worst Image quality, smallest filesize)"
-		}
-
-		if ( RDOLambda == -1 )
-		{
-			// not set
-			// get global default from config
-			RDOLambda = DefaultRDOLambda;
-		}
-
-		if ( RDOLambda > 0 && GlobalLambdaMultiplier != 1.f )
-		{
-			RDOLambda = (int)( GlobalLambdaMultiplier * RDOLambda + 0.5f );
+			RDOLambda = (int)(UseGlobalLambdaMultiplier * RDOLambda + 0.5f );
 			// don't let it change to 0 :
 			if ( RDOLambda <= 0 )
 			{
@@ -685,46 +513,54 @@ public:
 
 		RDOLambda = FMath::Clamp(RDOLambda,0,100);
 
-		// ini option to force non-RDO encoding :
-		bool bForceRDOOff = (InBuildSettings.FastTextureEncode != ETextureFastEncode::Off) ? bForceRDOOff_FastEncode : bForceRDOOff_NoFastEncode;
-		if ( bForceRDOOff )
-		{
-			RDOLambda = 0;
-		}
-			
-		// "Normal" is medium quality/speed
-		OodleTex_EncodeEffortLevel EffortLevel = (InBuildSettings.FastTextureEncode != ETextureFastEncode::Off) ? EncodeEffortLevel_FastEncode : EncodeEffortLevel_NoFastEncode;
 		// EffortLevel might be set to faster modes for previewing vs cooking or something
 		//	but I don't see people setting that per-Texture or in lod groups or any of that
 		//  it's more about cook mode (fast vs final bake)	
-		
-		bool bDoDebugColor = bDebugColor;
+		OodleTex_EncodeEffortLevel EffortLevel = (OodleTex_EncodeEffortLevel)InBuildSettings.OodleEncodeEffort;
+		if (EffortLevel != OodleTex_EncodeEffortLevel_Default &&
+			EffortLevel != OodleTex_EncodeEffortLevel_Low &&
+			EffortLevel != OodleTex_EncodeEffortLevel_Normal &&
+			EffortLevel != OodleTex_EncodeEffortLevel_High)
+		{
+			UE_LOG(LogTextureFormatOodle, Error, TEXT("Invalid effort level passed to texture format oodle: %d is invalid, using default"), (uint32)EffortLevel);
+			EffortLevel = OodleTex_EncodeEffortLevel_Default;
+		}
+
+		OodleTex_RDO_UniversalTiling UniversalTiling = (OodleTex_RDO_UniversalTiling)InBuildSettings.OodleUniversalTiling;
+		if (UniversalTiling != OodleTex_RDO_UniversalTiling_Disable &&
+			UniversalTiling != OodleTex_RDO_UniversalTiling_256KB &&
+			UniversalTiling != OodleTex_RDO_UniversalTiling_64KB)
+		{
+			UE_LOG(LogTextureFormatOodle, Error, TEXT("Invalid universal tiling value passed to texture format oodle: %d is invalid, disabling"), (uint32)UniversalTiling);
+			UniversalTiling = OodleTex_RDO_UniversalTiling_Disable;
+		}
+
+		if (RDOLambda == 0)
+		{
+			// Universal tiling doesn't make sense without RDO.
+			UniversalTiling = OodleTex_RDO_UniversalTiling_Disable;
+		}
 
 		#if 0
-		// turn this on to only debug color with RDO
-		if ( RDOLambda == 0 )
+		// leave this if 0 block for developers to toggle for debugging
+		// Debug Color any non-RDO
+		//  easy way to make sure you're seeing RDO textures
+		if (RDOLambda == 0)
 		{
-			bDoDebugColor = false;
+			bUseDebugColor = true;
 		}
 		#endif
 
-		*bOutDebugColor = bDoDebugColor;
+		*bOutDebugColor = bUseDebugColor;
 		*OutRDOLambda = RDOLambda;
 		*OutEffortLevel = EffortLevel;
-		*OutRDOUniversalTiling = RDOUniversalTiling;
+		*OutRDOUniversalTiling = UniversalTiling;
 	}
 
 private:
 	// the sense of these bools is set so that default behavior = all false
 	bool bForceAllBC23ToBC7; // change BC2 & 3 (aka DXT3 and DXT5) to BC7 
-	bool bForceRDOOff_NoFastEncode; // use Oodle Texture but without RDO ; for debugging/testing , use LossyCompresionAmount to do this per-Texture
-	bool bForceRDOOff_FastEncode; // bForceRDOOff in Editor
-	OodleTex_EncodeEffortLevel EncodeEffortLevel_NoFastEncode; // how much time to spend encoding to get higher quality 
-	OodleTex_EncodeEffortLevel EncodeEffortLevel_FastEncode; // EncodeEffortLevel in Editor
-	OodleTex_RDO_UniversalTiling RDOUniversalTiling; // whether to use universal tiling, and at what block size.
 	bool bDebugColor; // color textures by their BCN, for data discovery
-	// if no lambda is set on Texture or lodgroup, fall through to this global default :
-	int DefaultRDOLambda;
 	// after lambda is set, multiply by this scale factor :
 	//	(multiplies the default and per-Texture overrides)
 	//	is intended to let you do last minute whole-game adjustment
@@ -748,6 +584,11 @@ public:
 	}
 	
 	virtual bool AllowParallelBuild() const override
+	{
+		return true;
+	}
+
+	virtual bool SupportsEncodeSpeed(FName Format) const override
 	{
 		return true;
 	}
@@ -803,9 +644,6 @@ public:
 		bool bHasAlpha = !InBuildSettings.bForceNoAlphaChannel; 
 		
 		GlobalFormatConfig.GetOodleCompressParameters(&CompressedPixelFormat,&RDOLambda,&EffortLevel,&bDebugColor,&RDOUniversalTiling,InBuildSettings,bHasAlpha);
-
-		// store the actual lambda in DDC key (rather than "LossyCompressionAmount")
-		// that way any changes in how LossyCompressionAmount maps to lambda get rebuilt
 
 		int icpf = (int)CompressedPixelFormat;
 

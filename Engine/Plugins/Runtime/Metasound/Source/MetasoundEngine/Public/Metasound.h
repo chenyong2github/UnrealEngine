@@ -30,7 +30,6 @@ public:
 	virtual bool IsEditorOnly() const override { return true; }
 	virtual bool NeedsLoadForEditorGame() const override { return false; }
 
-	virtual bool Synchronize() { return false; }
 	virtual bool Validate(bool bInClearUpdateNotes) { return false; }
 	virtual void RegisterGraphWithFrontend() { }
 };

@@ -138,7 +138,7 @@ private:
 
 	private:
 		TUniquePtr<FMessageLog> ExecutorLog;
-		const static TArray<FString> Whitelist;
+		const static TArray<FString> AllowList;
 	};
 
 	FValidationMessageGatherer ValidationMessageGatherer;

@@ -92,11 +92,5 @@ namespace AudioModulation
 			return Generator->GetDebugName();
 		}
 #endif // !UE_BUILD_SHIPPING
-
-	private:
-		void Init(const FModulationGeneratorSettings& InSettings)
-		{
-			Generator = InSettings.Generator;
-		}
 	};
 } // namespace AudioModulation

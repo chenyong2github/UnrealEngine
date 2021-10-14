@@ -1221,6 +1221,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 	ViewInitOptions.OverrideFarClippingPlaneDistance = FarPlane;
 	ViewInitOptions.CursorPos = CurrentMousePos;
 
+#if !UE_BUILD_SHIPPING
 	{
 		static const auto CVarVSync = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Test.ConstrainedView"));
 		int32 Value = CVarVSync->GetValueOnGameThread();
@@ -1277,6 +1278,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 			ViewInitOptions.SetConstrainedViewRectangle(ConstrainedViewRect);
 		}
 	}
+#endif
 
 	FSceneView* View = new FSceneView(ViewInitOptions);
 

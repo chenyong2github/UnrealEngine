@@ -39,6 +39,15 @@ enum class EThumbnailSize : uint8
 	MAX
 };
 
+/** The edge of the thumbnail along which to display the color strip */
+enum class EThumbnailColorStripOrientation : uint8
+{
+	/** Display the color strip as a horizontal line along the bottom edge */
+	HorizontalBottomEdge,
+	/** Display the color strip as a vertical line along the right edge */
+	VerticalRightEdge,
+};
+
 /** A struct containing details about how the asset thumbnail should behave */
 struct FAssetThumbnailConfig
 {
@@ -69,6 +78,7 @@ struct FAssetThumbnailConfig
 	TOptional< FLinearColor > AssetTypeColorOverride;
 	FMargin Padding;
 	TAttribute<int32> GenericThumbnailSize = 64;
+	EThumbnailColorStripOrientation ColorStripOrientation = EThumbnailColorStripOrientation::HorizontalBottomEdge;
 };
 
 

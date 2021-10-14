@@ -67,7 +67,7 @@ void SPropertyMenuAssetPicker::Construct( const FArguments& InArgs )
 				MenuBuilder.AddMenuEntry(
 					LOCTEXT("EditAsset", "Edit"),
 					LOCTEXT("EditAsset_Tooltip", "Edit this asset"),
-					FSlateIcon(),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(),"Icons.Edit"),
 					FUIAction(FExecuteAction::CreateSP(this, &SPropertyMenuAssetPicker::OnEdit)));
 			}
 
@@ -76,14 +76,14 @@ void SPropertyMenuAssetPicker::Construct( const FArguments& InArgs )
 				MenuBuilder.AddMenuEntry(
 					LOCTEXT("CopyAsset", "Copy"),
 					LOCTEXT("CopyAsset_Tooltip", "Copies the asset to the clipboard"),
-					FSlateIcon(),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(),"GenericCommands.Copy"),
 					FUIAction(FExecuteAction::CreateSP(this, &SPropertyMenuAssetPicker::OnCopy))
 				);
 
 				MenuBuilder.AddMenuEntry(
 					LOCTEXT("PasteAsset", "Paste"),
 					LOCTEXT("PasteAsset_Tooltip", "Pastes an asset from the clipboard to this field"),
-					FSlateIcon(),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(),"GenericCommands.Paste"),
 					FUIAction(
 						FExecuteAction::CreateSP(this, &SPropertyMenuAssetPicker::OnPaste),
 						FCanExecuteAction::CreateSP(this, &SPropertyMenuAssetPicker::CanPaste))
@@ -95,7 +95,7 @@ void SPropertyMenuAssetPicker::Construct( const FArguments& InArgs )
 				MenuBuilder.AddMenuEntry(
 					LOCTEXT("ClearAsset", "Clear"),
 					LOCTEXT("ClearAsset_ToolTip", "Clears the asset set on this field"),
-					FSlateIcon(),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(),"GenericCommands.Delete"),
 					FUIAction(FExecuteAction::CreateSP(this, &SPropertyMenuAssetPicker::OnClear))
 				);
 			}

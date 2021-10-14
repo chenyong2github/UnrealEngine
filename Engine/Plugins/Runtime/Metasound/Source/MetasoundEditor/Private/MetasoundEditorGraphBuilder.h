@@ -31,6 +31,7 @@ namespace Metasound
 	{
 		// Forward Declarations
 		class FEditor;
+		class IMetasoundEditorModule;
 
 		class FGraphBuilder
 		{
@@ -176,6 +177,9 @@ namespace Metasound
 
 			// Synchronizes literal for a given input with the EdGraph's pin value.
 			static bool SynchronizePinLiteral(UEdGraphPin& InPin);
+
+			// Synchronizes pin type for a given pin with that registered with the MetaSound editor module provided.
+			static bool SynchronizePinType(const IMetasoundEditorModule& InEditorModule, UEdGraphPin& InPin, const FName InDataType);
 
 			// Synchronizes inputs and outputs for the given MetaSound.
 			//

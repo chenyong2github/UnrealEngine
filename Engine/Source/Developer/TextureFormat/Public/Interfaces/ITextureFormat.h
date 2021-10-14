@@ -42,6 +42,15 @@ public:
 		return false;
 	}
 
+	/** 
+		Exposes whether the format supports the fast/final encode speed switching in project settings. 
+		Needs the Format so that we can thunk through the child texture formats correctly.
+	*/
+	virtual bool SupportsEncodeSpeed(FName Format) const
+	{
+		return false;
+	}
+
 	/**
 	 * Gets the current version of the specified texture format.
 	 *
@@ -244,6 +253,9 @@ public:
 
 	/**
 	 * Obtains the current global format config object for this texture format.
+	 * 
+	 * This is only ever called during task creation - never in a build worker
+	 * (FormatConfigOverride is empty)
 	 * 
 	 * @param BuildSettings Build settings.
 	 * @returns The current format config object or an empty object if no format config is defined for this texture format.

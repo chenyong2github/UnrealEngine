@@ -586,7 +586,7 @@ private:
 			[
 				SNew(STextBlock)
 				.Text(this, InValueTextFn)
-				.WrapTextAt(512.0f)
+				.WrapTextAt(1024.0f)
 				.WrappingPolicy(ETextWrappingPolicy::AllowPerCharacterWrapping)
 				.ColorAndOpacity(FSlateColor(EStyleColor::Foreground))
 			];

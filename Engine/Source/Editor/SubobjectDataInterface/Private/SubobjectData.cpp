@@ -780,52 +780,6 @@ FText FSubobjectData::GetActorDisplayText() const
 	return FText::GetEmpty();
 }
 
-FLinearColor FSubobjectData::GetColorTintForIcon() const
-{
-	// A blue-ish tint
-	static const FLinearColor InheritedBlueprintComponentColor(0.08f, 0.35f, 0.6f);
-	
-	static const FLinearColor InstancedInheritedBlueprintComponentColor(0.08f, 0.35f, 0.6f);
-	// A green-ish tint
-	static const FLinearColor InheritedNativeComponentColor(0.7f, 0.9f, 0.7f);
-	
-	static const FLinearColor IntroducedHereColor(FLinearColor::White);
-
-	if (IsInheritedComponent())
-	{
-		// Native C++ components will be tinted green
-		if (IsNativeComponent())
-		{
-			return InheritedNativeComponentColor;
-		}
-		else if (IsInstancedComponent())
-		{
-			return InstancedInheritedBlueprintComponentColor;
-		}
-		else if(IsInheritedSCSNode())
-		{
-			return InheritedBlueprintComponentColor;
-		}
-	}
-	// If we have an SCS but are not Inherited, then this is just a regular blueprint and we should be blue
-	else if(GetSCSNode() != nullptr)
-	{
-		// If it's inherited BP color then it should be blue (i.e. this is a BP component that came from a BP generated class)
-		if(IsInheritedSCSNode() || IsInstancedComponent())
-		{
-			return InheritedBlueprintComponentColor;			
-		}
-		// Otherwise this is just a regular SCS node inside of the BP editor
-		else
-		{
-			return IntroducedHereColor;
-		}
-	}
-
-	// By default, this node will appear white to represent being introduced here
-	return IntroducedHereColor;
-}
-
 bool FSubobjectData::IsInstancedActor() const
 {
 	if (const AActor* Actor = GetObject<AActor>())

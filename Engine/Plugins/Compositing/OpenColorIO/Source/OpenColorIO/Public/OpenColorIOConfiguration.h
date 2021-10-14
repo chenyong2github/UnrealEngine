@@ -23,7 +23,7 @@ struct FFileChangeData;
 class SNotificationItem;
 
 /**
- * Asset to manage whitelisted OpenColorIO color spaces. This will create required transform objects.
+ * Asset to manage allowed OpenColorIO color spaces. This will create required transform objects.
  */
 UCLASS(BlueprintType)
 class OPENCOLORIO_API UOpenColorIOConfiguration : public UObject

@@ -163,9 +163,9 @@ namespace UnrealBuildTool
 		public List<UEBuildModule>? DynamicallyLoadedModules;
 
 		/// <summary>
-		/// Set of all whitelisted restricted folder references
+		/// Set of all allowed restricted folder references
 		/// </summary>
-		private readonly HashSet<DirectoryReference> WhitelistRestrictedFolders;
+		private readonly HashSet<DirectoryReference> RestrictedFoldersAllowList;
 
 		/// <summary>
 		/// Set of aliased restricted folder references
@@ -248,7 +248,7 @@ namespace UnrealBuildTool
 				PrivateIncludePaths = CreateDirectoryHashSet(Rules.PrivateIncludePaths);
 			}
 
-			WhitelistRestrictedFolders = new HashSet<DirectoryReference>(Rules.WhitelistRestrictedFolders.Select(x => DirectoryReference.Combine(ModuleDirectory, x)));
+			RestrictedFoldersAllowList = new HashSet<DirectoryReference>(Rules.WhitelistRestrictedFolders.Select(x => DirectoryReference.Combine(ModuleDirectory, x)));
 			AliasRestrictedFolders = new Dictionary<string, string>(Rules.AliasRestrictedFolders);
 
 			// get the module directories from the module
@@ -339,7 +339,7 @@ namespace UnrealBuildTool
 					}
 					else
 					{
-						Log.WriteLineOnce(LogEventType.Warning, LogFormatOptions.NoSeverityPrefix, "{0}: warning: Referenced directory '{1}' does not exist.", RulesFile, Dir);
+						Log.TraceWarningTask(RulesFile, $"Referenced directory '{Dir}' does not exist.");
 					}
 				}
 			}
@@ -389,10 +389,10 @@ namespace UnrealBuildTool
 				HashSet<DirectoryReference> ReferencedDirs = new HashSet<DirectoryReference>();
 				GetReferencedDirectories(ReferencedDirs);
 
-				// Remove all the whitelisted folders
-				ReferencedDirs.ExceptWith(WhitelistRestrictedFolders);
-				ReferencedDirs.ExceptWith(PublicDependencyModules.SelectMany(x => x.WhitelistRestrictedFolders));
-				ReferencedDirs.ExceptWith(PrivateDependencyModules.SelectMany(x => x.WhitelistRestrictedFolders));
+				// Remove all the allow listed folders
+				ReferencedDirs.ExceptWith(RestrictedFoldersAllowList);
+				ReferencedDirs.ExceptWith(PublicDependencyModules.SelectMany(x => x.RestrictedFoldersAllowList));
+				ReferencedDirs.ExceptWith(PrivateDependencyModules.SelectMany(x => x.RestrictedFoldersAllowList));
 
 				// Add flags for each of them
 				foreach(DirectoryReference ReferencedDir in ReferencedDirs)

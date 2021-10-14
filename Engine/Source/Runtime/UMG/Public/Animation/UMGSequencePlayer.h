@@ -98,6 +98,9 @@ private:
 	/** Internal play function with a verbose parameter set */
 	void PlayInternal(double StartAtTime, double EndAtTime, int32 InNumLoopsToPlay, EUMGSequencePlayMode::Type InPlayMode, float InPlaybackSpeed, bool bRestoreState);
 
+	/** Internal update function */
+	void UpdateInternal(FFrameTime LastTimePosition, FFrameTime NextTimePosition, bool bHasJumped);
+
 	bool NeedsQueueLatentAction() const;
 	void QueueLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate);
 	void ApplyLatentActions();
@@ -115,6 +118,7 @@ private:
 	/** The resolution at which all FFrameNumbers are stored */
 	FFrameRate AnimationResolution;
 
+	/** Start frame for the sequence playback range */
 	FFrameNumber AbsolutePlaybackStart;
 
 	/** The current time cursor position within the sequence, between 0 and Duration */

@@ -369,6 +369,8 @@ public:
 	static bool IsPipelineFileCacheEnabled();
 	static bool LogPSOtoFileCache();
     static bool ReportNewPSOs();
+	/* Report additional data about new PSOs to the log. */
+	static bool LogPSODetails();
 	
 	/**
 	 * Define the Current Game Usage Mask and a comparison function to compare this mask against the recorded mask in each PSO

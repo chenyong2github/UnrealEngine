@@ -8,6 +8,7 @@
 
 #include "Editor.h"
 #include "Engine/World.h"
+#include "EditorWorldUtils.h"
 #include "SourceControlHelpers.h"
 #include "PackageSourceControlHelper.h"
 #include "WorldPartition/ActorDescList.h"
@@ -169,23 +170,15 @@ int32 UWorldPartitionRenameCommandlet::Main(const FString& Params)
 	}
 
 	// Setup the world
-	World->WorldType = EWorldType::Editor;
-	World->AddToRoot();
-	if (!World->bIsWorldInitialized)
-	{
-		UWorld::InitializationValues IVS;
-		IVS.RequiresHitProxies(false);
-		IVS.ShouldSimulatePhysics(false);
-		IVS.EnableTraceCollision(false);
-		IVS.CreateNavigation(false);
-		IVS.CreateAISystem(false);
-		IVS.AllowAudioPlayback(false);
-		IVS.CreatePhysicsScene(true);
-
-		World->InitWorld(UWorld::InitializationValues(IVS));
-		World->PersistentLevel->UpdateModelComponents();
-		World->UpdateWorldComponents(true /*bRerunConstructionScripts*/, false /*bCurrentLevelOnly*/);
-	}
+	UWorld::InitializationValues IVS;
+	IVS.RequiresHitProxies(false);
+	IVS.ShouldSimulatePhysics(false);
+	IVS.EnableTraceCollision(false);
+	IVS.CreateNavigation(false);
+	IVS.CreateAISystem(false);
+	IVS.AllowAudioPlayback(false);
+	IVS.CreatePhysicsScene(true);
+	FScopedEditorWorld EditorWorld(World, IVS);
 
 	// Make sure the world is partitioned
 	UWorldPartition* WorldPartition = World->GetWorldPartition();
@@ -194,11 +187,6 @@ int32 UWorldPartitionRenameCommandlet::Main(const FString& Params)
 		UE_LOG(LogWorldPartitionRenameCommandlet, Error, TEXT("Commandlet only works on partitioned maps."));
 		return 1;
 	}
-
-	// Init world
-	FWorldContext& WorldContext = GEditor->GetEditorWorldContext(true /*bEnsureIsGWorld*/);
-	WorldContext.SetCurrentWorld(World);
-	GWorld = World;
 
 	// Soft object paths remappings
 	TMap<FString, FString> RemapSoftObjectPaths;
@@ -284,11 +272,6 @@ int32 UWorldPartitionRenameCommandlet::Main(const FString& Params)
 	}
 
 	UPackage::WaitForAsyncFileWrites();
-
-	// Cleanup
-	World->RemoveFromRoot();
-	WorldContext.SetCurrentWorld(nullptr);
-	GWorld = nullptr;
 
 	return 0;
 }

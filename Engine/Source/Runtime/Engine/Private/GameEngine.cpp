@@ -1476,8 +1476,7 @@ bool UGameEngine::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		}
 		else
 		{
-			// ignore command on xbox one and ps4 as it will cause a crash
-			// ttp:321126
+			// ignore command on remaining platforms as it will cause a crash
 			return true;
 		}
 	}

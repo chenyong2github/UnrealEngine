@@ -1060,6 +1060,31 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 		return {};
 	};
 
+	auto FetchMaterialFromUnrealRenderContextPrim = [ &RenderContext ]( const pxr::UsdPrim& UsdPrim )->TOptional<FString>
+	{
+		pxr::UsdShadeMaterialBindingAPI BindingAPI( UsdPrim );
+		pxr::UsdShadeMaterial ShadeMaterial = BindingAPI.ComputeBoundMaterial();
+		if ( !ShadeMaterial )
+		{
+			return {};
+		}
+
+		// Ignore this material if UsdToUnreal::ConvertMaterial would as well
+		pxr::UsdShadeShader SurfaceShader = ShadeMaterial.ComputeSurfaceSource( RenderContext );
+		if ( !SurfaceShader )
+		{
+			return {};
+		}
+
+		pxr::SdfAssetPath AssetPath;
+		if ( SurfaceShader.GetSourceAsset( &AssetPath, RenderContext ) )
+		{
+			return UsdToUnreal::ConvertString( AssetPath.GetAssetPath() );
+		}
+
+		return {};
+	};
+
 	auto FetchMaterialByComputingBoundMaterial = [ &RenderContext ]( const pxr::UsdPrim& UsdPrim ) -> TOptional<FString>
 	{
 		pxr::UsdShadeMaterialBindingAPI BindingAPI( UsdPrim );
@@ -1120,9 +1145,10 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 				{
 					FUsdLogManager::LogMessage(
 						EMessageSeverity::Warning,
-						FText::Format( LOCTEXT( "IgnoringMaterialSurface", "Ignoring material '{0}' bound to prim '{1}' as it contains no valid surface shader source" ),
+						FText::Format( LOCTEXT( "IgnoringMaterialSurface", "Ignoring material '{0}' bound to prim '{1}' as it contains no valid surface shader source for render context '{2}'" ),
 							FText::FromString( UsdToUnreal::ConvertPath( TargetMaterialPrimPath ) ),
-							FText::FromString( UsdToUnreal::ConvertPath( UsdPrim.GetPath() ) )
+							FText::FromString( UsdToUnreal::ConvertPath( UsdPrim.GetPath() ) ),
+							FText::FromString( RenderContext == pxr::UsdShadeTokens->universalRenderContext ? TEXT( "universal" ) : UsdToUnreal::ConvertToken( RenderContext ) )
 						)
 					);
 					return {};
@@ -1172,14 +1198,28 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 		}
 	}
 
-	// Priority 1: unrealMaterial attribute directly on the prim
-	if ( TOptional<FString> UnrealMaterial = FetchFirstUEMaterialFromAttribute( UsdPrim, TimeCode ) )
+	// Priority 1: Material is an unreal asset
+	if ( RenderContext == UnrealIdentifiers::Unreal )
 	{
-		FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
-		Slot.MaterialSource = UnrealMaterial.GetValue();
-		Slot.AssignmentType = UsdUtils::EPrimAssignmentType::UnrealMaterial;
+		// Priority 1.1: unreal rendercontext material prim
+		if ( TOptional<FString> UnrealMaterial = FetchMaterialFromUnrealRenderContextPrim( UsdPrim ) )
+		{
+			FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
+			Slot.MaterialSource = UnrealMaterial.GetValue();
+			Slot.AssignmentType = UsdUtils::EPrimAssignmentType::UnrealMaterial;
 
-		return Result;
+			return Result;
+		}
+
+		// Priority 1.2: unrealMaterial attribute directly on the prim
+		if ( TOptional<FString> UnrealMaterial = FetchFirstUEMaterialFromAttribute( UsdPrim, TimeCode ) )
+		{
+			FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
+			Slot.MaterialSource = UnrealMaterial.GetValue();
+			Slot.AssignmentType = UsdUtils::EPrimAssignmentType::UnrealMaterial;
+
+			return Result;
+		}
 	}
 
 	// Priority 2: material binding directly on the prim
@@ -1224,13 +1264,26 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 			const pxr::UsdGeomSubset& GeomSubset = GeomSubsets[ GeomSubsetIndex ];
 			bool bHasAssignment = false;
 
-			// Priority 4.1: unrealMaterial partitions
-			if ( TOptional<FString> UnrealMaterial = FetchFirstUEMaterialFromAttribute( GeomSubset.GetPrim(), TimeCode ) )
+			// Priority 4.1: Material is an unreal asset
+			if ( RenderContext == UnrealIdentifiers::Unreal )
 			{
-				FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
-				Slot.MaterialSource = UnrealMaterial.GetValue();
-				Slot.AssignmentType = UsdUtils::EPrimAssignmentType::UnrealMaterial;
-				bHasAssignment = true;
+				// Priority 4.1.1: Partition has an unreal rendercontext material prim binding
+				if ( TOptional<FString> UnrealMaterial = FetchMaterialFromUnrealRenderContextPrim( GeomSubset.GetPrim() ) )
+				{
+					FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
+					Slot.MaterialSource = UnrealMaterial.GetValue();
+					Slot.AssignmentType = UsdUtils::EPrimAssignmentType::UnrealMaterial;
+					bHasAssignment = true;
+				}
+
+				// Priority 4.1.2: Partitition has an unrealMaterial attribute directly on it
+				if ( TOptional<FString> UnrealMaterial = FetchFirstUEMaterialFromAttribute( GeomSubset.GetPrim(), TimeCode ) )
+				{
+					FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
+					Slot.MaterialSource = UnrealMaterial.GetValue();
+					Slot.AssignmentType = UsdUtils::EPrimAssignmentType::UnrealMaterial;
+					bHasAssignment = true;
+				}
 			}
 
 			// Priority 4.2: computing bound material

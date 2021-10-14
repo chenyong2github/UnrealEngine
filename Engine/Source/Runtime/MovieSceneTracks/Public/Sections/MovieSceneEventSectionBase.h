@@ -28,12 +28,14 @@ public:
 
 	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
+	virtual void RemoveForCook() override;
 
 	MOVIESCENETRACKS_API void AttemptUpgrade();
 
 	DECLARE_MULTICAST_DELEGATE_FourParams(FFixupPayloadParameterNameEvent, UMovieSceneEventSectionBase*, UK2Node*, FName, FName);
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FUpgradeLegacyEventEndpoint, UMovieSceneEventSectionBase*);
 	DECLARE_DELEGATE_RetVal_OneParam(void, FPostDuplicateEvent, UMovieSceneEventSectionBase*);
+	DECLARE_DELEGATE_RetVal_OneParam(void, FRemoveForCookEvent, UMovieSceneEventSectionBase*);
 
 	/**
 	 * Handler should be invoked when an event endpoint that is referenced from this section has one of its pins renamed
@@ -63,6 +65,11 @@ public:
 	 * Delegate that is used to ensure that a blueprint compile hook exists for this event section after it has been duplicated.
 	 */
 	MOVIESCENETRACKS_API static FPostDuplicateEvent PostDuplicateSectionEvent;
+
+	/**
+	 * Delegate that is used to ensure that a hook exists for this event section before it has been removed for cook.
+	 */
+	MOVIESCENETRACKS_API static FRemoveForCookEvent RemoveForCookEvent;
 
 private:
 

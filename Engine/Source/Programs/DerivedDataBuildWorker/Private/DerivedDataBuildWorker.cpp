@@ -85,7 +85,7 @@ bool FBuildWorkerProgram::ParseCommandLine(const TCHAR* CommandLine)
 
 	for (FString Token; FParse::Token(CommandLine, Token, /*UseEscape*/ false);)
 	{
-		Token.TrimQuotesInline();
+		Token.ReplaceInline(TEXT("\""), TEXT(""));
 		const auto GetSwitchValues = [Token = FStringView(Token)](FStringView Match, TArray<FString>& OutValues)
 		{
 			if (Token.StartsWith(Match))
@@ -193,6 +193,10 @@ bool FBuildWorkerProgram::ReportVersions()
 		if (TUniquePtr<FArchive> Ar{IFileManager::Get().CreateFileWriter(*FPaths::ConvertRelativePathToFull(FPaths::LaunchDir(), VersionPath))})
 		{
 			Writer.Save(*Ar);
+		}
+		else
+		{
+			UE_LOG(LogDerivedDataBuildWorker, Error, TEXT("Unable to open %s for writing"), *VersionPath);
 		}
 	}
 

@@ -116,13 +116,13 @@ namespace EngineTestMetasoundSourcePrivate
 		// Make connections:
 
 		// frequency input "Frequency" -> oscillator "Frequency"
-		FOutputHandle OutputToConnect = FrequencyInputNode->GetOutputsWithVertexName("Frequency")[0];
-		FInputHandle InputToConnect = OscNode->GetInputsWithVertexName("Frequency")[0];
+		FOutputHandle OutputToConnect = FrequencyInputNode->GetOutputWithVertexName("Frequency");
+		FInputHandle InputToConnect = OscNode->GetInputWithVertexName("Frequency");
 		ensure(InputToConnect->Connect(*OutputToConnect));
 
 		// oscillator to output
-		OutputToConnect = OscNode->GetOutputsWithVertexName("Audio")[0];
-		InputToConnect = OutputAudioNode->GetInputsWithVertexName("Audio:0")[0];
+		OutputToConnect = OscNode->GetOutputWithVertexName("Audio");
+		InputToConnect = OutputAudioNode->GetInputWithVertexName("Audio:0");
 		ensure(InputToConnect->Connect(*OutputToConnect));
 
 		return Document;

@@ -170,7 +170,7 @@ public:
 	* Enumerates all the registered engine installations.
 	*
 	* @param	OutInstallations	Map of identifier/root-directory pairs for all known installations. Identifiers are typically
-	*								version strings for canonical UE4 releases or GUID strings for GitHub releases.
+	*								version strings for canonical UE releases or GUID strings for GitHub releases.
 	*/
 	virtual void EnumerateEngineInstallations(TMap<FString, FString>& OutInstallations) = 0;
 
@@ -426,15 +426,6 @@ public:
 	 * @return Array of TargetInfo objects
 	 */
 	virtual const TArray<FTargetInfo>& GetTargetsForCurrentProject() const = 0;
-
-	/**
-	* Gets the path to the solution for the current project
-	*
-	* @param OutSolutionPath	Receives the string 
-	* @return True if a solution file exists and OutSolutionPath has been updated
-	*/
-	UE_DEPRECATED(4.24, "The IDesktopPlatform::GetSolutionPath() method has been deprecated. Use the ISourceCodeAccessor interface for cross-IDE support instead.")
-	virtual bool GetSolutionPath(FString& OutSolutionPath) = 0;
 
 	/**
 	 * Gets the path to the user's temporary directory

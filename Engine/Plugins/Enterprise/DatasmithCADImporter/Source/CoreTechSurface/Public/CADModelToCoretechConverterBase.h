@@ -21,12 +21,8 @@ public:
 
 	virtual bool Tessellate(const CADLibrary::FMeshParameters& InMeshParameters, FMeshDescription& OutMeshDescription) override
 	{
-		// Apply stitching if applicable
-		TopoFixes(1.);
-
 		// Perform tessellation
 		DatasmithMeshHelper::PrepareAttributeForStaticMesh(OutMeshDescription);
-
 		return CoreTechSurface::Tessellate(MainObjectId, ImportParams, InMeshParameters, OutMeshDescription);
 	}
 

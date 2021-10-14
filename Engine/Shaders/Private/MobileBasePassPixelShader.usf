@@ -245,6 +245,13 @@ half3 GetLookupVectorForSphereCaptureMobile(half3 ReflectionVector, half3 WorldP
 	return ProjectedCaptureVector;
 }
 
+half3 GetMobileSkyLightReflection(half3 ReflectionVector, half Roughness, half CubemapMaxMip)
+{
+	half AbsoluteSpecularMip = ComputeReflectionCaptureMipFromRoughness(Roughness, CubemapMaxMip);
+	half3 Reflection = MobileReflectionCapture.Texture.SampleLevel(MobileReflectionCapture.TextureSampler, ReflectionVector, AbsoluteSpecularMip);
+	return Reflection * ResolvedView.SkyLightColor.rgb;
+}
+
 void GatherSpecularIBL(FMaterialPixelParameters MaterialParameters
 	, TextureCube ReflectionCube
 	, SamplerState ReflectionSampler
@@ -305,13 +312,10 @@ void GatherSpecularIBL(FMaterialPixelParameters MaterialParameters
 	{
 		// Apply sky colour if the reflection map is the sky.
 #if HQ_REFLECTIONS
-		half AbsoluteSpecularMip = ComputeReflectionCaptureMipFromRoughness(Roughness, ReflectionAverageBrigtness.w);
-		half4 SpecularIBLSample = ReflectionCube.SampleLevel(ReflectionSampler, ProjectedCaptureVector, AbsoluteSpecularMip);
-		ExtraIndirectSpecular = SpecularIBLSample.rgb * ResolvedView.SkyLightColor.rgb;
+		ExtraIndirectSpecular = GetMobileSkyLightReflection(ProjectedCaptureVector, Roughness, ReflectionAverageBrigtness.w);
 #else
-		half AbsoluteSpecularMip = ComputeReflectionCaptureMipFromRoughness(Roughness, MobileReflectionCapture.Params.y);
-		half4 SpecularIBLSample = ReflectionCube.SampleLevel(ReflectionSampler, ProjectedCaptureVector, AbsoluteSpecularMip);
-		ImageBasedReflections.rgb = SpecularIBLSample.rgb * ResolvedView.SkyLightColor.rgb * ImageBasedReflections.a;
+		half3 SpecularIBLSample = GetMobileSkyLightReflection(ProjectedCaptureVector, Roughness, MobileReflectionCapture.Params.y);
+		ImageBasedReflections.rgb = SpecularIBLSample * ImageBasedReflections.a;
 #endif
 	}
 	else

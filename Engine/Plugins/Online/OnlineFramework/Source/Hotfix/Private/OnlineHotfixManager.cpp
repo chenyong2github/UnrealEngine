@@ -348,7 +348,7 @@ struct FHotfixFileSortPredicate
 				{
 					Priority = 30;
 				}
-				// Other INIs whitelisted in game override of WantsHotfixProcessing will trump all other INIs
+				// Other INIs listed in game override of WantsHotfixProcessing will trump all other INIs
 				else
 				{
 					Priority = 40;

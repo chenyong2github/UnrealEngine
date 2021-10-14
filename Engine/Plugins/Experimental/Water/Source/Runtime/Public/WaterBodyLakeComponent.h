@@ -22,6 +22,7 @@ public:
 	/** UWaterBodyComponent Interface */
 	virtual EWaterBodyType GetWaterBodyType() const override { return EWaterBodyType::Lake; }
 	virtual TArray<UPrimitiveComponent*> GetCollisionComponents() const override;
+	virtual TArray<UPrimitiveComponent*> GetStandardRenderableComponents() const override;
 
 protected:
 	/** UWaterBodyComponent Interface */

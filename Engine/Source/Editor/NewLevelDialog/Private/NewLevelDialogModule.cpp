@@ -9,6 +9,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/PackageName.h"
+#include "Misc/Paths.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SScrollBorder.h"
@@ -294,7 +295,8 @@ private:
 			TSharedPtr<FNewLevelTemplateItem> Item = MakeShareable(new FNewLevelTemplateItem());
 			Item->TemplateMapInfo = TemplateMapInfo;
 			Item->Type = FNewLevelTemplateItem::NewLevelType::Template;
-
+			Item->Name = TemplateMapInfo.DisplayName;
+			
 			if (const TObjectPtr<UTexture2D>& ThumbnailTexture = TemplateMapInfo.ThumbnailTexture)
 			{
 				// Level with thumbnail
@@ -311,6 +313,11 @@ private:
 			{
 				// Level with no thumbnail
 				Item->ThumbnailBrush = MakeUnique<FSlateBrush>(*FEditorStyle::GetBrush("NewLevelDialog.Default"));
+
+				if (Item->Name.IsEmpty())
+				{
+					Item->Name = FText::FromString(FPaths::GetBaseFilename(TemplateMapInfo.Map));
+				}
 			}
 
 			check(Item->ThumbnailBrush);

@@ -27,7 +27,7 @@ class ENGINE_API ALevelInstance : public AActor
 protected:
 #if WITH_EDITORONLY_DATA
 	/** Level LevelInstance */
-	UPROPERTY(EditAnywhere, Category = LevelInstance, meta = (NoCreate))
+	UPROPERTY(EditAnywhere, Category = LevelInstance, meta = (NoCreate, DisplayName="Level"))
 	TSoftObjectPtr<UWorld> WorldAsset;
 #endif
 

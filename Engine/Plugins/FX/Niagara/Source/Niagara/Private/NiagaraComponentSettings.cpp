@@ -5,8 +5,8 @@
 int32 UNiagaraComponentSettings::bAllowSuppressActivation = 0;
 int32 UNiagaraComponentSettings::bAllowForceAutoPooling = 0;
 int32 UNiagaraComponentSettings::bUseSuppressEmitterList = 0;
-int32 UNiagaraComponentSettings::bUseGpuEmitterWhitelist = 0;
-int32 UNiagaraComponentSettings::bUseGpuDataInterfaceBlacklist = 0;
+int32 UNiagaraComponentSettings::bUseGpuEmitterAllowList = 0;
+int32 UNiagaraComponentSettings::bUseGpuDataInterfaceDenyList = 0;
 
 static FAutoConsoleVariableRef CVarNiagaraUseSupressActivateList(
 	TEXT("fx.Niagara.UseSupressActivateList"),
@@ -29,17 +29,17 @@ static FAutoConsoleVariableRef CVarNiagaraUseEmitterSupressList(
 	ECVF_Default
 );
 
-static FAutoConsoleVariableRef CVarNiagaraUseGpuEmitterWhitelist(
-	TEXT("fx.Niagara.UseGpuEmitterWhitelist"),
-	UNiagaraComponentSettings::bUseGpuEmitterWhitelist,
-	TEXT("When enabled only whitelisted GPU emitters are allowed to run."),
+static FAutoConsoleVariableRef CVarNiagaraUseGpuEmitterAllowList(
+	TEXT("fx.Niagara.UseGpuEmitterAllowList"),
+	UNiagaraComponentSettings::bUseGpuEmitterAllowList,
+	TEXT("When enabled only GPU emitters on the allow list are allowed to run."),
 	ECVF_Default
 );
 
-static FAutoConsoleVariableRef CVarNiagaraUseGpuDataInterfaceBlacklist(
-	TEXT("fx.Niagara.UseGpuDataInterfaceBlacklist"),
-	UNiagaraComponentSettings::bUseGpuDataInterfaceBlacklist,
-	TEXT("When enabled GPU emitters will be disabled if they use the blacklisted data interface."),
+static FAutoConsoleVariableRef CVarNiagaraUseGpuDataInterfaceDenyList(
+	TEXT("fx.Niagara.UseGpuDataInterfaceDenyList"),
+	UNiagaraComponentSettings::bUseGpuDataInterfaceDenyList,
+	TEXT("When enabled GPU emitters will be disabled if they use a data interface on the deny list."),
 	ECVF_Default
 );
 

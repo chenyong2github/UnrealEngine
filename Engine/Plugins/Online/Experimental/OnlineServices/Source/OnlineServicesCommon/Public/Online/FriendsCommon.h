@@ -22,8 +22,6 @@ public:
 	virtual TOnlineEvent<void(const FFriendsListUpdated&)> OnFriendsListUpdated() override;
 
 protected:
-	FOnlineServicesCommon& Services;
-
 	TOnlineEventCallable<void(const FFriendsListUpdated&)> OnFriendsListUpdatedEvent;
 };
 

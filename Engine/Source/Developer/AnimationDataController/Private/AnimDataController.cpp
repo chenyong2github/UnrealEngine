@@ -1480,10 +1480,22 @@ bool UAnimDataController::SetBoneTrackKeys(FName BoneName, const TArray<FVector>
 			{
 				CONDITIONAL_ACTION(UE::Anim::FSetTrackKeysAction, *TrackPtr);
 
-				TrackPtr->InternalTrackData.PosKeys = PositionalKeys;
-				TrackPtr->InternalTrackData.RotKeys = RotationalKeys;
-				TrackPtr->InternalTrackData.ScaleKeys = ScalingKeys;
 
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED
+				TrackPtr->InternalTrackData.PosKeys.SetNum(MaxNumKeys);
+				TrackPtr->InternalTrackData.ScaleKeys.SetNum(MaxNumKeys);
+				TrackPtr->InternalTrackData.RotKeys.SetNum(MaxNumKeys);
+				for(int KeyIndex = 0; KeyIndex<MaxNumKeys; KeyIndex++)
+				{
+					TrackPtr->InternalTrackData.PosKeys[KeyIndex] = FVector3f(PositionalKeys[KeyIndex]);
+					TrackPtr->InternalTrackData.ScaleKeys[KeyIndex] = FVector3f(ScalingKeys[KeyIndex]);
+					TrackPtr->InternalTrackData.RotKeys[KeyIndex] = FQuat4f(RotationalKeys[KeyIndex]);
+				}
+#else
+				TrackPtr->InternalTrackData.PosKeys = PositionalKeys;
+				TrackPtr->InternalTrackData.ScaleKeys = ScalingKeys;
+				TrackPtr->InternalTrackData.RotKeys = RotationalKeys;
+#endif
 
 				FAnimationTrackChangedPayload Payload;
 				Payload.Name = BoneName;
@@ -1509,6 +1521,62 @@ bool UAnimDataController::SetBoneTrackKeys(FName BoneName, const TArray<FVector>
 
 	return false;
 }
+
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED
+bool UAnimDataController::SetBoneTrackKeys(FName BoneName, const TArray<FVector3f>& PositionalKeys, const TArray<FQuat4f>& RotationalKeys, const TArray<FVector3f>& ScalingKeys, bool bShouldTransact /*= true*/)
+{
+	if (!CheckOuterClass(UAnimSequence::StaticClass()))
+	{
+		return false;
+	}
+
+	CONDITIONAL_TRANSACTION(LOCTEXT("SetTrackKeysTransaction", "Setting Animation Data Track keys"));
+
+	// Validate key format
+	const int32 MaxNumKeys = FMath::Max(FMath::Max(PositionalKeys.Num(), RotationalKeys.Num()), ScalingKeys.Num());
+
+	if (MaxNumKeys > 0)
+	{
+		const bool bValidPosKeys = PositionalKeys.Num() == MaxNumKeys;
+		const bool bValidRotKeys = RotationalKeys.Num() == MaxNumKeys;
+		const bool bValidScaleKeys = ScalingKeys.Num() == MaxNumKeys;
+
+		if (bValidPosKeys && bValidRotKeys && bValidScaleKeys)
+		{
+			if (FBoneAnimationTrack* TrackPtr = Model->FindMutableBoneTrackByName(BoneName))
+			{
+				CONDITIONAL_ACTION(UE::Anim::FSetTrackKeysAction, *TrackPtr);
+
+				TrackPtr->InternalTrackData.PosKeys = PositionalKeys;
+				TrackPtr->InternalTrackData.RotKeys = RotationalKeys;
+				TrackPtr->InternalTrackData.ScaleKeys = ScalingKeys;
+
+				FAnimationTrackChangedPayload Payload;
+				Payload.Name = BoneName;
+
+				Model->Notify(EAnimDataModelNotifyType::TrackChanged, Payload);
+
+				return true;
+			}
+			else
+			{
+				ReportWarningf(LOCTEXT("InvalidTrackNameWarning", "Track with name {0} does not exist"), FText::FromName(BoneName));
+			}
+		}
+		else
+		{
+			ReportErrorf(LOCTEXT("InvalidTrackKeyDataError", "Invalid track key data, expected uniform data: number of positional keys {0}, number of rotational keys {1}, number of scaling keys {2}"), FText::AsNumber(PositionalKeys.Num()), FText::AsNumber(RotationalKeys.Num()), FText::AsNumber(ScalingKeys.Num()));
+		}
+	}
+	else
+	{
+		ReportErrorf(LOCTEXT("MissingTrackKeyDataError", "Missing track key data, expected uniform data: number of positional keys {0}, number of rotational keys {1}, number of scaling keys {2}"), FText::AsNumber(PositionalKeys.Num()), FText::AsNumber(RotationalKeys.Num()), FText::AsNumber(ScalingKeys.Num()));
+	}
+
+	return false;
+}
+#endif
+
 
 void UAnimDataController::ResizeCurves(float NewLength, bool bInserted, float T0, float T1, bool bShouldTransact /*= true*/)
 {

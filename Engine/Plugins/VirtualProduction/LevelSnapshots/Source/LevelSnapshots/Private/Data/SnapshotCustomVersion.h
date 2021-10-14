@@ -15,6 +15,9 @@ struct LEVELSNAPSHOTS_API FSnapshotCustomVersion
 		/** When subobject support was added. Specifically, USceneComponent::AttachParent were not captured. */
 		SubobjectSupport = 1,
 
+		/** FSnapshotActorData now stores actor hash data to facilitate checking whether an actor has changed without loading the actor */
+		ActorHash = 2,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

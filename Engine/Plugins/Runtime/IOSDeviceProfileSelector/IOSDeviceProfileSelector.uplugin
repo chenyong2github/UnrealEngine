@@ -20,7 +20,7 @@
 			"Name" : "IOSDeviceProfileSelector",
 			"Type" : "RuntimeNoCommandlet",
 			"LoadingPhase" : "PostConfigInit",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"IOS",
 				"TVOS"

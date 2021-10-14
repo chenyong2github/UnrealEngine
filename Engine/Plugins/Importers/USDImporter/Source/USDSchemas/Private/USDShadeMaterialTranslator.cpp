@@ -36,7 +36,7 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 	FString MaterialHashString = UsdUtils::HashShadeMaterial( ShadeMaterial ).ToString();
 
 	UMaterialInterface* ConvertedMaterial = nullptr;
-	
+
 	if ( Context->AssetCache )
 	{
 		ConvertedMaterial = Cast< UMaterialInterface >( Context->AssetCache->GetCachedAsset( MaterialHashString ) );
@@ -78,14 +78,15 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 					TMap<FString, int32> Unused;
 					TMap<FString, int32>& PrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex ? Context->MaterialToPrimvarToUVIndex->FindOrAdd( PrimPath.GetString() ) : Unused;
 
-					UsdToUnreal::ConvertMaterial( ShadeMaterial, *NewMaterial, Context->AssetCache.Get(), PrimvarToUVIndex );
+					if ( UsdToUnreal::ConvertMaterial( ShadeMaterial, *NewMaterial, Context->AssetCache.Get(), PrimvarToUVIndex, *Context->RenderContext.ToString() ) )
+					{
+						FMaterialUpdateContext UpdateContext( FMaterialUpdateContext::EOptions::Default, GMaxRHIShaderPlatform );
+						UpdateContext.AddMaterialInstance( NewMaterial );
+						NewMaterial->PreEditChange( nullptr );
+						NewMaterial->PostEditChange();
 
-					FMaterialUpdateContext UpdateContext( FMaterialUpdateContext::EOptions::Default, GMaxRHIShaderPlatform );
-					UpdateContext.AddMaterialInstance( NewMaterial );
-					NewMaterial->PreEditChange( nullptr );
-					NewMaterial->PostEditChange();
-
-					ConvertedMaterial = NewMaterial;
+						ConvertedMaterial = NewMaterial;
+					}
 				}
 #endif // WITH_EDITOR
 			}
@@ -94,9 +95,10 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 				TMap<FString, int32> Unused;
 				TMap<FString, int32>& PrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex ? Context->MaterialToPrimvarToUVIndex->FindOrAdd( PrimPath.GetString() ) : Unused;
 
-				UsdToUnreal::ConvertMaterial( ShadeMaterial, *NewMaterial, Context->AssetCache.Get(), PrimvarToUVIndex );
-
-				ConvertedMaterial = NewMaterial;
+				if ( UsdToUnreal::ConvertMaterial( ShadeMaterial, *NewMaterial, Context->AssetCache.Get(), PrimvarToUVIndex, *Context->RenderContext.ToString() ) )
+				{
+					ConvertedMaterial = NewMaterial;
+				}
 			}
 		}
 	}

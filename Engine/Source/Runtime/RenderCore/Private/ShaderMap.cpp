@@ -28,10 +28,21 @@
 #include "Interfaces/IShaderFormat.h"
 #endif
 
+static EShaderPermutationFlags GetCurrentShaderPermutationFlags()
+{
+	EShaderPermutationFlags Result = EShaderPermutationFlags::None;
+#if WITH_EDITORONLY_DATA 
+	Result |= EShaderPermutationFlags::HasEditorOnlyData;
+#endif
+	return Result;
+}
+
 FShaderMapBase::FShaderMapBase()
 	: PointerTable(nullptr)
 	, NumFrozenShaders(0u)
-{}
+{
+	PermutationFlags = GetCurrentShaderPermutationFlags();
+}
 
 FShaderMapBase::~FShaderMapBase()
 {
@@ -188,7 +199,9 @@ bool FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 		check(!PointerTable);
 		PointerTable = CreatePointerTable();
 
-		FMemoryImageObject LoadedContent = FMemoryImageResult::LoadFromArchive(Ar, GetContentTypeDesc(), PointerTable);
+		FPlatformTypeLayoutParameters LayoutParameters;
+		FMemoryImageObject LoadedContent = FMemoryImageResult::LoadFromArchive(Ar, GetContentTypeDesc(), PointerTable, LayoutParameters);
+		PermutationFlags = GetShaderPermutationFlags(LayoutParameters);
 
 		bool bShareCode = false;
 		Ar << bShareCode;

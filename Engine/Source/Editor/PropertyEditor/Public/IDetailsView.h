@@ -215,7 +215,7 @@ public:
 	/**
 	 * Sets the set of properties that are considered differing, used when filtering out identical properties
 	 */
-	virtual void UpdatePropertiesWhitelist(const TSet<FPropertyPath> InWhitelistedProperties) = 0;
+	virtual void UpdatePropertyAllowList(const TSet<FPropertyPath> InAllowedProperties) = 0;
 
 	/** Returns the name area widget used to display object naming functionality so it can be placed in a custom location.  Note FDetailsViewArgs.bCustomNameAreaLocation must be true */
 	virtual TSharedPtr<SWidget> GetNameAreaWidget() = 0;

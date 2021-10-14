@@ -48,10 +48,10 @@ public:
 
 
 	private:
-		mutable TWeakPtr<FSoundWaveProxy, ESPMode::ThreadSafe> SoundWaveProxyWeakPtr;
+		TWeakPtr<FSoundWaveProxy, ESPMode::ThreadSafe> SoundWaveProxyWeakPtr;
 
 	public:
-		mutable FName SoundWaveName = FName(); // mutable for GetTypeHash()
+		FName SoundWaveName = FName();
 		uint32 ChunkIndex = INDEX_NONE;
 		FObjectKey ObjectKey = FObjectKey();
 
@@ -74,7 +74,12 @@ public:
 		/** Hash function */
 		friend uint32 GetTypeHash(const FChunkKey& InChunkKey)
 		{
-			return HashCombine(InChunkKey.SoundWaveName.GetNumber(), InChunkKey.ChunkIndex);
+			// We can use HashCombineFast since we're hashing FName and they won't give the same result across different engine restart anyway.
+			uint32 Hash = HashCombineFast(HashCombineFast(GetTypeHash(InChunkKey.SoundWaveName), InChunkKey.ChunkIndex), GetTypeHash(InChunkKey.ObjectKey));
+#if WITH_EDITOR
+			Hash = HashCombineFast(Hash, InChunkKey.ChunkRevision);
+#endif
+			return Hash;
 		}
 	};
 
@@ -99,7 +104,8 @@ public:
 		/** Hash function */
 		friend uint32 GetTypeHash(const FCacheMissEntry& InCacheMissEntry)
 		{
-			return HashCombine(InCacheMissEntry.SoundWaveName.GetNumber(), InCacheMissEntry.ChunkIndex);
+			// We can use HashCombineFast since we're hashing FName and they won't give the same result across different engine restart anyway.
+			return HashCombineFast(GetTypeHash(InCacheMissEntry.SoundWaveName), InCacheMissEntry.ChunkIndex);
 		}
 	};
 

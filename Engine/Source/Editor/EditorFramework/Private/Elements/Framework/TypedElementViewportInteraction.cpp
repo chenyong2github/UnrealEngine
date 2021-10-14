@@ -226,15 +226,23 @@ void UTypedElementViewportInteraction::MirrorElement(const FTypedElementHandle& 
 bool UTypedElementViewportInteraction::GetFocusBounds(FTypedElementListConstRef InElements, FBoxSphereBounds& OutBounds)
 {
 	bool bAnyHaveBounds = false;
-	InElements->ForEachElementHandle([this, &OutBounds, &bAnyHaveBounds](const FTypedElementHandle& InElementToMove)
+	FBox TotalBounds(ForceInit);
+	InElements->ForEachElementHandle([this, &TotalBounds, &bAnyHaveBounds](const FTypedElementHandle& InElementToMove)
 	{
 		FTypedElementViewportInteractionElement ViewportInteractionElement = ResolveViewportInteractionElement(InElementToMove);
 		if (ViewportInteractionElement)
 		{
-			bAnyHaveBounds = ViewportInteractionElement.GetFocusBounds(OutBounds) || bAnyHaveBounds;
+			FBoxSphereBounds ElementBounds;
+			if (ViewportInteractionElement.GetFocusBounds(ElementBounds))
+			{
+				bAnyHaveBounds = true;
+				TotalBounds += ElementBounds.GetBox();
+			}
 		}
 		return true;
 	});
+
+	OutBounds = TotalBounds;
 	return bAnyHaveBounds;
 }
 

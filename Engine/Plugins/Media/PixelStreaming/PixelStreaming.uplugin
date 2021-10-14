@@ -19,15 +19,15 @@
 			"Name": "PixelStreaming",
 			"Type": "Runtime",
 			"LoadingPhase": "PostDefault",
-			"WhitelistPlatforms": [ "Win64" ],
-			"BlacklistTargets": [ "Server" ]
+			"PlatformAllowList": [ "Win64" ],
+			"TargetDenyList": [ "Server" ]
 		}
 	],
 	"Plugins": [
 		{
 			"Name": "WmfMedia",
 			"Enabled": true,
-			"BlacklistPlatforms": [ "Linux" ]
+			"PlatformDenyList": [ "Linux" ]
 		}
 	]
 }

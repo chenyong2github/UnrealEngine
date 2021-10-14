@@ -332,7 +332,7 @@ void FTestLeaderboardInterface::ReadLeaderboardsUser(const FUniqueNetId& InUserI
 
 void FTestLeaderboardInterface::ReadLeaderboardsUser(int32 Range)
 {
-	FUniqueNetIdStringRef FindUser(FUniqueNetIdString::Create(FindRankUserId));
+	FUniqueNetIdRef FindUser = OnlineSub->GetIdentityInterface()->CreateUniquePlayerId(FindRankUserId).ToSharedRef();
 	ReadLeaderboardsUser(*FindUser, Range);
 }
 

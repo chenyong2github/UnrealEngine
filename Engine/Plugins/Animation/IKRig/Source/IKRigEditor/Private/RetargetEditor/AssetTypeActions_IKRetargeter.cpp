@@ -2,6 +2,7 @@
 
 #include "RetargetEditor/AssetTypeActions_IKRetargeter.h"
 
+#include "Animation/AnimationAsset.h"
 #include "ContentBrowserMenuContexts.h"
 #include "ToolMenus.h"
 #include "RetargetEditor/IKRetargetEditor.h"

@@ -5,6 +5,7 @@
 #include "MeshPaintingToolsetTypes.h"
 #include "IMeshPaintComponentAdapter.h"
 #include "MeshPaintAdapterFactory.h"
+#include "Components/SplineMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
@@ -1482,6 +1483,10 @@ bool UMeshPaintingSubsystem::FindHitResult(const FRay Ray, FHitResult& BestTrace
 		for (UMeshComponent* MeshComponent : PaintableComponents)
 		{
 			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = GetAdapterForComponent(MeshComponent);
+			if (!MeshAdapter.IsValid())
+			{
+				continue;
+			}
 
 			// Ray trace
 			FHitResult TraceHitResult(1.0f);

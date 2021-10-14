@@ -233,6 +233,15 @@ public:
 	void SaveShaderStableKeys(EShaderPlatform TargetShaderPlatform);
 #endif // WITH_EDITOR
 
+	const FGlobalShaderMapSection* GetFirstSection()
+	{
+		for (auto It : SectionMap)
+		{
+			return It.Value;
+		}
+		return nullptr;
+	}
+
 private:
 	TMap<FHashedName, FGlobalShaderMapSection*> SectionMap;
 	EShaderPlatform Platform;

@@ -131,17 +131,17 @@ class FLandscapeToolStrokePaint : public FLandscapeToolStrokePaintBase<FWeightma
 
 	TMap<FIntPoint, float> TotalInfluenceMap; // amount of time and weight the brush has spent on each vertex.
 
-	bool bIsWhitelistMode;
-	bool bAddToWhitelist;
+	bool bIsAllowListMode;
+	bool bAddToAllowList;
 public:
 	// Heightmap sculpt tool will continuously sculpt in the same location, weightmap paint tool doesn't
 	enum { UseContinuousApply = false };
 
 	FLandscapeToolStrokePaint(FEdModeLandscape* InEdMode, FEditorViewportClient* InViewportClient, const FLandscapeToolTarget& InTarget)
 		: FLandscapeToolStrokePaintBase<FWeightmapToolTarget>(InEdMode, InViewportClient, InTarget)
-		, bIsWhitelistMode(EdMode->UISettings->PaintingRestriction == ELandscapeLayerPaintingRestriction::UseComponentWhitelist &&
+		, bIsAllowListMode(EdMode->UISettings->PaintingRestriction == ELandscapeLayerPaintingRestriction::UseComponentAllowList &&
 		                   (InViewportClient->Viewport->KeyState(EKeys::Equals) || InViewportClient->Viewport->KeyState(EKeys::Hyphen)))
-		, bAddToWhitelist(bIsWhitelistMode && InViewportClient->Viewport->KeyState(EKeys::Equals))
+		, bAddToAllowList(bIsAllowListMode && InViewportClient->Viewport->KeyState(EKeys::Equals))
 	{
 	}
 
@@ -151,7 +151,7 @@ public:
 		bool bInvert = InteractorPositions.Last().bModifierPressed;
 		UE_LOG(LogLandscapeTools, VeryVerbose, TEXT("bInvert = %d"), bInvert);
 
-		if (bIsWhitelistMode)
+		if (bIsAllowListMode)
 		{
 			// Get list of components to delete from brush
 			// TODO - only retrieve bounds as we don't need the vert data
@@ -173,11 +173,11 @@ public:
 				Component->Modify();
 			}
 
-			if (bAddToWhitelist)
+			if (bAddToAllowList)
 			{
 				for (ULandscapeComponent* Component : SelectedComponents)
 				{
-					Component->LayerWhitelist.AddUnique(Target.LayerInfo.Get());
+					Component->LayerAllowList.AddUnique(Target.LayerInfo.Get());
 				}
 			}
 			else
@@ -185,7 +185,7 @@ public:
 				FLandscapeEditDataInterface LandscapeEdit(LandscapeInfo);
 				for (ULandscapeComponent* Component : SelectedComponents)
 				{
-					Component->LayerWhitelist.RemoveSingle(Target.LayerInfo.Get());
+					Component->LayerAllowList.RemoveSingle(Target.LayerInfo.Get());
 					Component->DeleteLayer(Target.LayerInfo.Get(), LandscapeEdit);
 				}
 			}
@@ -323,9 +323,9 @@ public:
 
 	virtual void EnterTool()
 	{
-		if (EdMode->UISettings->PaintingRestriction == ELandscapeLayerPaintingRestriction::UseComponentWhitelist)
+		if (EdMode->UISettings->PaintingRestriction == ELandscapeLayerPaintingRestriction::UseComponentAllowList)
 		{
-			EdMode->UISettings->UpdateComponentLayerWhitelist();
+			EdMode->UISettings->UpdateComponentLayerAllowList();
 		}
 
 		FLandscapeToolPaintBase::EnterTool();

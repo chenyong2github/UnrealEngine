@@ -78,8 +78,8 @@ bool TryCreateKey(FName PackageName, TArrayView<FName> SortedBuildDependencies, 
 	FCbWriter KeyBuilder;
 	UE::EditorDomain::EPackageDigestResult Result;
 	FString ErrorMessage;
-	bool bBlacklisted;
-	Result = UE::EditorDomain::AppendPackageDigest(*AssetRegistry, PackageName, KeyBuilder, bBlacklisted, ErrorMessage);
+	bool bEditorDomainEnabled;
+	Result = UE::EditorDomain::AppendPackageDigest(*AssetRegistry, PackageName, KeyBuilder, bEditorDomainEnabled, ErrorMessage);
 	if (Result != UE::EditorDomain::EPackageDigestResult::Success)
 	{
 		if (OutErrorMessage) *OutErrorMessage = MoveTemp(ErrorMessage);
@@ -88,7 +88,7 @@ bool TryCreateKey(FName PackageName, TArrayView<FName> SortedBuildDependencies, 
 
 	for (FName DependencyName : SortedBuildDependencies)
 	{
-		Result = UE::EditorDomain::AppendPackageDigest(*AssetRegistry, DependencyName, KeyBuilder, bBlacklisted, ErrorMessage);
+		Result = UE::EditorDomain::AppendPackageDigest(*AssetRegistry, DependencyName, KeyBuilder, bEditorDomainEnabled, ErrorMessage);
 		if (Result != UE::EditorDomain::EPackageDigestResult::Success)
 		{
 			if (OutErrorMessage)
@@ -388,6 +388,7 @@ bool IsIterativeEnabled(FName PackageName)
 TArray<const UTF8CHAR*> FEditorDomainOplog::ReservedOplogKeys;
 
 FEditorDomainOplog::FEditorDomainOplog()
+: HttpClient(UE::Zen::DefaultNoLaunch)
 {
 	StaticInit();
 
@@ -621,7 +622,7 @@ void UtilsInitialize(bool bEditorDomainEnabled)
 			GEditorDomainOplog = MakeUnique<FEditorDomainOplog>();
 			if (!GEditorDomainOplog->IsValid())
 			{
-				UE_LOG(LogEditorDomain, Warning, TEXT("Failed to connect to ZenServer; EditorDomain oplog is unavailable."));
+				UE_LOG(LogEditorDomain, Display, TEXT("Failed to connect to ZenServer; EditorDomain oplog is unavailable."));
 				GEditorDomainOplog.Reset();
 			}
 		}

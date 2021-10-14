@@ -7,7 +7,7 @@
 #include "ObjectTools.h"
 #include "FileHelpers.h"
 #include "EditorReimportHandler.h"
-#include "Misc/BlacklistNames.h"
+#include "Misc/NamePermissionList.h"
 #include "InterchangeManager.h"
 #include "InterchangeFactoryBase.h"
 
@@ -147,7 +147,7 @@ void UImportSubsystem::Deinitialize()
 void UImportSubsystem::ImportNextTick(const TArray<FString>& Files, const FString& DestinationPath)
 {
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	if (!AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(DestinationPath))
+	if (!AssetToolsModule.Get().GetWritableFolderPermissionList()->PassesStartsWithFilter(DestinationPath))
 	{
 		AssetToolsModule.Get().NotifyBlockedByWritableFolderFilter();
 		return;

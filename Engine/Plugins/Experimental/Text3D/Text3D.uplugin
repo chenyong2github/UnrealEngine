@@ -17,7 +17,7 @@
       "Name": "Text3D",
       "Type": "Runtime",
       "LoadingPhase": "Default",
-	  "BlacklistTargets": [ "Server" ]
+	  "TargetDenyList": [ "Server" ]
     },
 	{
 	  "Name":  "Text3DEditor",
@@ -29,7 +29,7 @@
     {
       "Name": "GeometryProcessing",
       "Enabled": true,
-	  "BlacklistTargets": [ "Server" ]
+	  "TargetDenyList": [ "Server" ]
     }
   ]
 }

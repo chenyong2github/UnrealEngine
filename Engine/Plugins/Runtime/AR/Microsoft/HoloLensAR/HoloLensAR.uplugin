@@ -22,7 +22,7 @@
 			"Name": "HoloLensPlatformEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64"
 			]
 		},
@@ -30,7 +30,7 @@
 			"Name": "HoloLensTargetPlatform",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64"
 			]
 		}

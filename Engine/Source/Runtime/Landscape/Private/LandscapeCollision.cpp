@@ -481,7 +481,7 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 
 #if WITH_EDITOR
 				// Create a shape for a heightfield which is used only by the landscape editor
-				if(!GetWorld()->IsGameWorld())
+				if(!GetWorld()->IsGameWorld() && !GetOutermost()->bIsCookedForEditor)
 				{
 					TUniquePtr<Chaos::FPerShapeData> NewEditorShape = Chaos::FPerShapeData::CreatePerShapeData(ShapeArray.Num());
 
@@ -710,7 +710,7 @@ void ULandscapeHeightfieldCollisionComponent::CreateCollisionObject()
 
 #if WITH_EDITOR
 				// Create heightfield for the landscape editor (no holes in it)
-				if(!World->IsGameWorld())
+				if(!World->IsGameWorld() && !GetOutermost()->bIsCookedForEditor)
 				{
 					TArray<UPhysicalMaterial*> CookedMaterialsEd;
 					if(CookCollisionData(PhysicsFormatName, true, bCheckDDC, CookedCollisionDataEd, CookedMaterialsEd))
@@ -842,6 +842,11 @@ TArray<PxHeightFieldSample> ConvertHeightfieldDataForPhysx(
 
 bool ULandscapeHeightfieldCollisionComponent::CookCollisionData(const FName& Format, bool bUseDefMaterial, bool bCheckDDC, TArray<uint8>& OutCookedData, TArray<UPhysicalMaterial*>& InOutMaterials) const
 {
+	if (GetOutermost()->bIsCookedForEditor)
+	{
+		return true;
+	}
+
 	// Use existing cooked data unless !bCheckDDC in which case the data must be rebuilt.
 	if (bCheckDDC && OutCookedData.Num() > 0)
 	{

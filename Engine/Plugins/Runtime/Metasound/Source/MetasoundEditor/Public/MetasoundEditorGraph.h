@@ -67,7 +67,7 @@ public:
 	bool CanRename(const FText& InNewName, FText& OutError) const;
 	bool IsRequired() const;
 	TArray<UMetasoundEditorGraphNode*> GetNodes() const;
-	void SetDataType(FName InNewType);
+	void SetDataType(FName InNewType, bool bPostTransaction = true, bool bRegisterParentGraph = true);
 	void SetDescription(const FText& InDescription);
 	void SetDisplayName(const FText& InNewName);
 	void SetNodeName(const FName& InNewName);
@@ -117,11 +117,11 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = DefaultValue)
 	UMetasoundEditorGraphInputLiteral* Literal;
 
-	void UpdateDocumentInput(bool bPostTransaction = true);
 	void UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterInterface>& InParameterInterface) const;
 
 	void OnDataTypeChanged() override;
-	void OnLiteralChanged(bool bPostTransaction = true);
+
+	void UpdateDocumentInput(bool bPostTransaction = true);
 
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
@@ -162,7 +162,6 @@ public:
 	void SetPreviewID(uint32 InPreviewID);
 	bool IsPreviewing() const;
 
-	virtual bool Synchronize() override;
 	virtual bool Validate(bool bInClearUpdateNotes) override;
 
 	virtual void RegisterGraphWithFrontend() override;

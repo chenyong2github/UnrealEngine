@@ -110,26 +110,29 @@ void FAnimNode_ModifyCurve::Evaluate_AnyThread(FPoseContext& Output)
 
 void FAnimNode_ModifyCurve::ProcessCurveOperation(const EModifyCurveApplyMode& InApplyMode, FPoseContext& Output, const SmartName::UID_Type& NameUID, float CurrentValue, float NewValue)
 {
+	float UseNewValue = CurrentValue;
+
 	// Use ApplyMode enum to decide how to apply
 	if (InApplyMode == EModifyCurveApplyMode::Add)
 	{
-		Output.Curve.Set(NameUID, CurrentValue + NewValue);
+		UseNewValue = CurrentValue + NewValue;
 	}
 	else if (InApplyMode == EModifyCurveApplyMode::Scale)
 	{
-		Output.Curve.Set(NameUID, CurrentValue * NewValue);
+		UseNewValue = CurrentValue * NewValue;
 	}
 	else if (InApplyMode == EModifyCurveApplyMode::RemapCurve)
 	{
 		const float RemapScale = 1.f / FMath::Max(1.f - NewValue, 0.01f);
-		const float RemappedValue = FMath::Min(FMath::Max(CurrentValue - NewValue, 0.f) * RemapScale, 1.f);
-		Output.Curve.Set(NameUID, RemappedValue);
+		UseNewValue = FMath::Min(FMath::Max(CurrentValue - NewValue, 0.f) * RemapScale, 1.f);
 	}
 	else if (InApplyMode == EModifyCurveApplyMode::Blend)
 	{
-		float UseAlpha = FMath::Clamp(Alpha, 0.f, 1.f);
-		Output.Curve.Set(NameUID, FMath::Lerp(CurrentValue, NewValue, UseAlpha));
+		UseNewValue = NewValue;
 	}
+
+	float UseAlpha = FMath::Clamp(Alpha, 0.f, 1.f);
+	Output.Curve.Set(NameUID, FMath::Lerp(CurrentValue, UseNewValue, UseAlpha));
 }
 
 

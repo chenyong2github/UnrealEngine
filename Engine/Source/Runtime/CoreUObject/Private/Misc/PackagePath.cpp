@@ -924,15 +924,15 @@ FStringView FPackagePath::GetCustomExtension() const
 void FPackagePath::SetStringData(FStringView PathData, FStringView PackageNameRoot, FStringView FilePathRoot, FStringView CustomExtension) const
 {
 	checkf(PathData.Len() <= TNumericLimits<decltype(PathDataLen)>::Max(),
-		TEXT("Maximum length for FPackageData::PathData is %d"),
+		TEXT("Maximum length for FPackagePath::PathData is %d"),
 		TNumericLimits<decltype(PathDataLen)>::Max());
 	checkf(PackageNameRoot.Len() <= TNumericLimits<decltype(PackageNameRootLen)>::Max(),
-		TEXT("Maximum length for FPackageData::PackageNameRoot is %d"),
+		TEXT("Maximum length for FPackagePath::PackageNameRoot is %d"),
 		TNumericLimits<decltype(PackageNameRootLen)>::Max());
 	checkf(FilePathRoot.Len() <= TNumericLimits<decltype(FilePathRootLen)>::Max(),
-		TEXT("Maximum length for FPackageData::FilePathRoot is %d"), TNumericLimits<decltype(FilePathRootLen)>::Max());
+		TEXT("Maximum length for FPackagePath::FilePathRoot is %d"), TNumericLimits<decltype(FilePathRootLen)>::Max());
 	checkf(CustomExtension.Len() <= TNumericLimits<decltype(ExtensionLen)>::Max(),
-		TEXT("Maximum length for FPackageData::CustomExtension is %d"), TNumericLimits<decltype(ExtensionLen)>::Max());
+		TEXT("Maximum length for FPackagePath::CustomExtension is %d"), TNumericLimits<decltype(ExtensionLen)>::Max());
 	PathDataLen = static_cast<uint16>(PathData.Len());
 	PackageNameRootLen = static_cast<uint16>(PackageNameRoot.Len());
 	FilePathRootLen = static_cast<uint16>(FilePathRoot.Len());

@@ -108,11 +108,11 @@ static TAutoConsoleVariable<int32> CVarPSOFileCacheReportPSO(
 														   ECVF_Default | ECVF_RenderThreadSafe
 														   );
 
-static int32 GPSOFileCachePrintNewPSODescriptors = !UE_BUILD_SHIPPING;
+static int32 GPSOFileCachePrintNewPSODescriptors = UE_BUILD_SHIPPING ? 0 : 1;
 static FAutoConsoleVariableRef CVarPSOFileCachePrintNewPSODescriptors(
 														   TEXT("r.ShaderPipelineCache.PrintNewPSODescriptors"),
 														   GPSOFileCachePrintNewPSODescriptors,
-														   TEXT("1 prints descriptions for all new PSO entries to the log/console while 0 does not. Defaults to 0 in *Shipping* builds, otherwise 1."),
+														   TEXT("1 prints descriptions for all new PSO entries to the log/console while 0 does not. 2 prints additional details about the PSO. Defaults to 0 in *Shipping* builds, otherwise 1."),
 														   ECVF_Default
 														   );
 
@@ -2955,6 +2955,20 @@ bool FPipelineFileCache::ReportNewPSOs()
     return (bCmdLineForce || CVarPSOFileCacheReportPSO.GetValueOnAnyThread() == 1);
 }
 
+bool FPipelineFileCache::LogPSODetails()
+{
+    static bool bOnce = false;
+    static bool bCmdLineOption = false;
+#if !UE_BUILD_SHIPPING
+    if (!bOnce)
+    {
+        bOnce = true;
+        bCmdLineOption = FParse::Param(FCommandLine::Get(), TEXT("logpsodetails"));
+    }
+#endif
+	return bCmdLineOption;
+}
+
 void FPipelineFileCache::Initialize(uint32 InGameVersion)
 {
 	ClearOSPipelineCache();
@@ -3267,9 +3281,14 @@ void FPipelineFileCache::CacheGraphicsPSO(uint32 RunTimeHash, FGraphicsPipelineS
 							if (GPSOFileCachePrintNewPSODescriptors > 0)
 							{
 								UE_LOG(LogRHI, Display, TEXT("New Graphics PSO (%u)"), PSOHash);
-#if !UE_BUILD_SHIPPING
-								UE_LOG(LogRHI, Display, TEXT("%s"), *NewEntry.ToStringReadable());
-#endif
+								if (LogPSODetails() || GPSOFileCachePrintNewPSODescriptors > 1)
+								{
+									UE_LOG(LogRHI, Display, TEXT("%s"), *NewEntry.ToStringReadable());
+								}
+								else
+								{
+									UE_LOG(LogRHI, Display, TEXT("%s"), *NewEntry.GraphicsDesc.ToString());
+								}
 							}
 							if (LogPSOtoFileCache())
 							{

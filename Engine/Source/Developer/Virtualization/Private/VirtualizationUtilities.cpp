@@ -31,4 +31,24 @@ FString PayloadIdToPath(const FPayloadId& Id)
 	return FString(Path);
 }
 
+void GetFormattedSystemError(FStringBuilderBase& SystemErrorMessage)
+{
+	SystemErrorMessage.Reset();
+
+	const uint32 SystemError = FPlatformMisc::GetLastError();
+	// If we have a system error we can give a more informative error message but don't output it if the error is zero as 
+	// this can lead to very confusing error messages.
+	if (SystemError != 0)
+	{
+		TCHAR SystemErrorMsg[MAX_SPRINTF] = { 0 };
+		FPlatformMisc::GetSystemErrorMessage(SystemErrorMsg, sizeof(SystemErrorMsg), SystemError);
+
+		SystemErrorMessage.Appendf(TEXT("'%s' (%d)"), SystemErrorMsg, SystemError);
+	}
+	else
+	{
+		SystemErrorMessage << TEXT("'unknown reason' (0)");
+	}
+}
+
 } // namespace UE::Virtualization::Utils

@@ -140,7 +140,7 @@ protected:
 	friend struct FOptimusNodeAction_AddRemovePin;
 	friend struct FOptimusNodeAction_SetPinType;
 	friend struct FOptimusNodeAction_SetPinName;
-	friend struct FOptimusNodeAction_SetPinResourceContexts;
+	friend struct FOptimusNodeAction_SetPinDataDomain;
 
 	// Return the action stack for this node.
 	UOptimusActionStack* GetActionStack() const;
@@ -207,14 +207,14 @@ protected:
 		);
 
 	/** Set the pin's resource context names. */
-	bool SetPinResourceContexts(
+	bool SetPinDataDomain(
 		UOptimusNodePin* InPin,
-		const TArray<FName>& InResourceContexts
+		const TArray<FName>& InDataDomainLevelNames
 		);
 
-	bool SetPinResourceContextsDirect(
+	bool SetPinDataDomainDirect(
 		UOptimusNodePin* InPin,
-		const TArray<FName>& InResourceContexts
+		const TArray<FName>& InDataDomainLevelNames
 		);
 	
 	void SetPinExpanded(const UOptimusNodePin* InPin, bool bInExpanded);

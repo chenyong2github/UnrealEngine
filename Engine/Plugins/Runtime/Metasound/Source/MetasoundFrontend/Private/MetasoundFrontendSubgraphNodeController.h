@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "MetasoundFrontendStandardController.h"
+#include "MetasoundFrontendController.h"
+#include "MetasoundFrontendNodeController.h"
 
 namespace Metasound
 {
@@ -50,28 +51,31 @@ namespace Metasound
 
 			bool IsValid() const override;
 
-			int32 GetNumInputs() const override;
+			virtual int32 GetNumInputs() const override;
 
-			int32 GetNumOutputs() const override;
+			virtual int32 GetNumOutputs() const override;
 
 		protected:
-			FDocumentAccess ShareAccess() override;
-			FConstDocumentAccess ShareAccess() const override;
+			using FInputControllerParams = FBaseNodeController::FInputControllerParams;
+			using FOutputControllerParams = FBaseNodeController::FOutputControllerParams;
 
-			TArray<FBaseNodeController::FInputControllerParams> GetInputControllerParams() const override;
-			TArray<FBaseNodeController::FOutputControllerParams> GetOutputControllerParams() const override;
+			virtual FDocumentAccess ShareAccess() override;
+			virtual FConstDocumentAccess ShareAccess() const override;
 
-			TArray<FBaseNodeController::FInputControllerParams> GetInputControllerParamsWithVertexName(const FVertexName& InName) const override;
-			TArray<FBaseNodeController::FOutputControllerParams> GetOutputControllerParamsWithVertexName(const FVertexName& InName) const override;
+			virtual TArray<FInputControllerParams> GetInputControllerParams() const override;
+			virtual TArray<FOutputControllerParams> GetOutputControllerParams() const override;
 
-			bool FindInputControllerParamsWithID(FGuid InVertexID, FInputControllerParams& OutParams) const override;
-			bool FindOutputControllerParamsWithID(FGuid InVertexID, FOutputControllerParams& OutParams) const override;
+			virtual bool FindInputControllerParamsWithVertexName(const FVertexName& InName, FInputControllerParams& OutParams) const override;
+			virtual bool FindOutputControllerParamsWithVertexName(const FVertexName& InName, FOutputControllerParams& OutParams) const override;
+
+			virtual bool FindInputControllerParamsWithID(FGuid InVertexID, FInputControllerParams& OutParams) const override;
+			virtual bool FindOutputControllerParamsWithID(FGuid InVertexID, FOutputControllerParams& OutParams) const override;
 
 		private:
 			void ConformNodeInterfaceToClassInterface();
 
-			FInputHandle CreateInputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const override;
-			FOutputHandle CreateOutputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const override;
+			virtual FInputHandle CreateInputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const override;
+			virtual FOutputHandle CreateOutputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const override;
 
 			FGraphAccessPtr GraphPtr;
 		};

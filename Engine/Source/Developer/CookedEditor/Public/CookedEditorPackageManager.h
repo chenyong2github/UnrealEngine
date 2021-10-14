@@ -107,12 +107,17 @@ protected:
 	 */
 	void AddPackagesFromPath(TArray<FName>& Packages, const TCHAR* Path, EPackageSearchMode SearchMode) const;
 
+	/**
+	 * Allow a subclass to remove packages found in GatherAllPackages
+	 */
+	virtual void FilterGatheredPackages(TArray<FName>& PackageNames) const;
+
 public:
 
 	/**
 	 * Meat of this class, this calls other functions that generally will be overridden, but this can be overridden if nededed
 	 */
-	virtual void GatherAllPackages(TArray<FName>& PackageNames) const;
+	virtual void GatherAllPackages(TArray<FName>& PackageNames, const ITargetPlatform* TargetPlatform) const;
 };
 
 
@@ -127,11 +132,12 @@ class COOKEDEDITOR_API FIniCookedEditorPackageManager : public ICookedEditorPack
 	TArray<FString> ProjectAssetPaths;
 	TArray<UClass*> DisallowedObjectClassesToLoad;
 	TArray<UClass*> DisallowedAssetClassesToGather;
-
+	TArray<FString> DisallowedPathsToGather;
 public:
 
 	FIniCookedEditorPackageManager();
 
+	virtual void FilterGatheredPackages(TArray<FName>& PackageNames) const override;
 	virtual void GetEnginePackagesToCook(TArray<FName>& PackagesToCook) const override;
 	virtual void GetProjectPackagesToCook(TArray<FName>& PackagesToCook) const override;
 	virtual bool AllowObjectToBeCooked(const class UObject* Obj) const override;

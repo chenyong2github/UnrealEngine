@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraphNode_CallFunction.h"
 
@@ -126,8 +126,7 @@ void UAnimGraphNode_CallFunction::ExpandNode(FKismetCompilerContext& CompilerCon
 
 		UAnimBlueprintExtension_CallFunction* Extension = UAnimBlueprintExtension::GetExtension<UAnimBlueprintExtension_CallFunction>(GetAnimBlueprint());
 		
-		const FName EventName = Extension->AddCustomEventName(this);
-		Node.Function.SetFromFunctionName(EventName);
+		const FName EventName = Extension->GetCustomEventName(this);
 
 		UK2Node_CustomEvent* CustomEventNode = CompilerContext.SpawnIntermediateEventNode<UK2Node_CustomEvent>(this, nullptr, CompilerContext.ConsolidatedEventGraph);
 		CustomEventNode->bInternalEvent = true;
@@ -192,7 +191,7 @@ void UAnimGraphNode_CallFunction::BindDelegates()
 	}
 }
 
-bool UAnimGraphNode_CallFunction::IsFunctionBlacklisted(const UFunction* InFunction) const
+bool UAnimGraphNode_CallFunction::IsFunctionDenied(const UFunction* InFunction) const
 {
 	return InFunction->GetFName() == GET_FUNCTION_NAME_CHECKED(UAnimInstance, BlueprintThreadSafeUpdateAnimation);
 }
@@ -246,9 +245,9 @@ bool UAnimGraphNode_CallFunction::ValidateFunction(const UFunction* InFunction, 
 		InvalidateMessage(LOCTEXT("FunctionInternalError", "@@ uses an internal-only function"));
 	}
 
-	if(IsFunctionBlacklisted(InFunction))
+	if(IsFunctionDenied(InFunction))
 	{
-		InvalidateMessage(LOCTEXT("FunctionBlacklistedError", "@@ uses a blacklisted function"));
+		InvalidateMessage(LOCTEXT("FunctionDenyListError", "@@ uses a denied function"));
 	}
 	
 	return bValid;
@@ -346,6 +345,14 @@ void UAnimGraphNode_CallFunction::ValidateNodeDuringCompilation(FCompilerResults
 			ValidateFunction(Function, &MessageLog);
 		}
 	}
+}
+
+void UAnimGraphNode_CallFunction::OnProcessDuringCompilation(IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
+{
+	UAnimBlueprintExtension_CallFunction* Extension = UAnimBlueprintExtension::GetExtension<UAnimBlueprintExtension_CallFunction>(GetAnimBlueprint());
+
+	const FName EventName = Extension->AddCustomEventName(this);
+	Node.Function.SetFromFunctionName(EventName);
 }
 
 #undef LOCTEXT_NAMESPACE

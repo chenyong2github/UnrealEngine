@@ -173,12 +173,12 @@ public:
 	* @param SkeletalMeshComponent The SkeletalMeshComponent
 	* @param Frame Time to get the transform
 	* @param TimeUnit Unit for frame values, either in display rate or tick resolution
-	* @param SocketName Optional name of the socket
+	* @param ReferenceName Optional name of the referencer
 	* @return Returns World Transform
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
 	static FTransform GetSkeletalMeshComponentWorldTransform(ULevelSequence* LevelSequence, USkeletalMeshComponent* SkeletalMeshComponent, FFrameNumber Frame,
-		ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate,FName SocketName = NAME_None);
+		ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate,FName ReferenceName = NAME_None);
 
 	/**
 	* Get SkeletalMeshComponents World Transforms at specific times
@@ -186,12 +186,12 @@ public:
 	* @param SkeletalMeshComponent The SkeletalMeshComponent
 	* @param Frames Times to get the transform
 	* @param TimeUnit Unit for frame values, either in display rate or tick resolution
-	* @param SocketName Optional name of the socket
+	* @param ReferenceName Optional name of the referencer
 	* @return Returns World Transforms
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
 	static TArray<FTransform> GetSkeletalMeshComponentWorldTransforms(ULevelSequence* LevelSequence, USkeletalMeshComponent* SkeletalMeshComponent, const TArray<FFrameNumber>& Frames, 
-		ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate,FName SocketName = NAME_None);
+		ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate,FName ReferenceName = NAME_None);
 
 	/**
 	* Get ControlRig Control's World Transform at a specific time

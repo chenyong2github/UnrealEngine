@@ -14,39 +14,14 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "AssetTypeActions/AssetTypeActions_LevelSnapshot.h"
-#include "GameProjectGenerationModule.h"
 #include "IAssetTools.h"
-#include "ILevelSnapshotsModule.h"
-#include "Interfaces/IProjectManager.h"
 #include "ISettingsModule.h"
 #include "LevelEditor.h"
 #include "Util/TakeSnapshotUtil.h"
-#include "UnrealEdMisc.h"
 #include "ToolMenus.h"
 #include "Misc/ScopeExit.h"
-#include "Misc/MessageDialog.h"
 
 #define LOCTEXT_NAMESPACE "FLevelSnapshotsEditorModule"
-
-namespace
-{
-	bool EnableSupportPlugin(const FString& PluginName)
-	{
-		FText FailMessage = FText::GetEmpty();
-		bool bSuccess = IProjectManager::Get().SetPluginEnabled(PluginName, true, FailMessage);
-		if (bSuccess && IProjectManager::Get().IsCurrentProjectDirty())
-		{
-			FGameProjectGenerationModule::Get().TryMakeProjectFileWriteable(FPaths::GetProjectFilePath());
-			bSuccess = IProjectManager::Get().SaveCurrentProjectToDisk(FailMessage);
-		}
-
-		if (!bSuccess)
-		{
-			FMessageDialog::Open(EAppMsgType::Ok, FailMessage);
-		}
-		return bSuccess;
-	}
-}
 
 FLevelSnapshotsEditorModule& FLevelSnapshotsEditorModule::Get()
 {
@@ -120,67 +95,12 @@ void FLevelSnapshotsEditorModule::SetUseCreationForm(bool bInUseCreationForm)
 void FLevelSnapshotsEditorModule::PostEngineInit()
 {
 	RegisterMenuItem();
-	SetupReminderToEnableSupportPlugins();
 
 	if (RegisterProjectSettings() && ProjectSettingsObjectPtr->bEnableLevelSnapshotsToolbarButton)
 	{
 		// todo: Skip toolbar for UE5 for now; we will reimplement toolbar at a later date
 		//RegisterEditorToolbar();
 	}
-}
-
-void FLevelSnapshotsEditorModule::SetupReminderToEnableSupportPlugins()
-{
-	ILevelSnapshotsModule& Module = ILevelSnapshotsModule::Get();
-	Module.AddCanTakeSnapshotDelegate(
-		"HasSupportPlugins",
-		ILevelSnapshotsModule::FCanTakeSnapshot::CreateLambda([](const FPreTakeSnapshotEventData&)
-		{
-			FModuleManager& ModuleManager = FModuleManager::Get();
-			bool bDidAnyPluginFail = false;
-			bool bNeedsToRestartEditor = false;
-			
-			const bool bShouldEnablenDisplaySupport =
-				ModuleManager.IsModuleLoaded("DisplayCluster")
-				&& !ModuleManager.IsModuleLoaded("nDisplaySupportForLevelSnapshots");
-			if (bShouldEnablenDisplaySupport)
-			{
-				const EAppReturnType::Type DialogResult = FMessageDialog::Open(
-					EAppMsgType::YesNoCancel,
-					LOCTEXT("EnableSupportFornDisplay", "The nDisplay plugin is enabled. To support snapshots of nDisplay actors that the scene may contain, you must enable the \"nDisplay Support For Level Snapshots\" plugin.\n\nDo you want to enable the plugin?")
-					);
-				if (DialogResult == EAppReturnType::Cancel)
-				{
-					// Cancel saving snapshot: this will stop saving the snapshot
-					return false;
-				}
-				if (DialogResult == EAppReturnType::Yes)
-				{
-					const bool bSuccess = EnableSupportPlugin("nDisplaySupportForLevelSnapshots");
-					bDidAnyPluginFail |= !bSuccess;
-					bNeedsToRestartEditor |= bSuccess;
-				}
-			}
-
-			if (bNeedsToRestartEditor)
-			{
-				FText RestartEditorTitle = LOCTEXT("RestartEditorTitle", "Restart required");
-				const EAppReturnType::Type RestartEditorResult = FMessageDialog::Open(
-					EAppMsgType::YesNo,
-					LOCTEXT("RestartEditor", "The editor needs to be restarted to enable the required plugin(s).\n\nRestart the editor now?"),
-					&RestartEditorTitle
-					);
-				if (RestartEditorResult == EAppReturnType::Yes)
-				{
-					const bool bWarn = false;
-					FUnrealEdMisc::Get().RestartEditor(bWarn);
-				}
-			}
-
-			// Editor restart does not start immediately: cancel saving the snapshot if restart is required
-			return !bDidAnyPluginFail && !bNeedsToRestartEditor;
-		})
-		);
 }
 
 void FLevelSnapshotsEditorModule::RegisterMenuItem()

@@ -1,0 +1,22 @@
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Helpers/ReferenceSubobjectSerializer.h"
+
+class ILevelSnapshotsModule;
+
+class FDisplayClusterRootActorSerializer : public TReferenceSubobjectSerializer<FDisplayClusterRootActorSerializer>
+{
+	static UClass* GetSupportedClass();
+	static void BlacklistCustomProperties(ILevelSnapshotsModule& Module);
+
+public:
+
+	static void Register(ILevelSnapshotsModule& Module);
+
+	//~ Begin FDisplayClusterRootActorSerializer Interface
+	UObject* FindSubobject(UObject* Owner) const;
+	//~ End FDisplayClusterRootActorSerializer Interface
+};

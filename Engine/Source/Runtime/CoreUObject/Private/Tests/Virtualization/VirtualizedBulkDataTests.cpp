@@ -2,6 +2,8 @@
 
 #include "Algo/AllOf.h"
 #include "Memory/SharedBuffer.h"
+#include "Serialization/LargeMemoryReader.h"
+#include "Serialization/LargeMemoryWriter.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 #include "Templates/UniquePtr.h"
@@ -89,7 +91,7 @@ bool FVirtualizationWrapperTestEmpty::RunTest(const FString& Parameters)
 	// Validate the general accessors
 	TestEqual(TEXT("Return value of ::GetBulkDataSize()"), BulkData.GetPayloadSize(), (int64)0);
 	TestTrue(TEXT("Payload key is invalid"), !BulkData.GetPayloadId().IsValid());
-	TestFalse(TEXT("Return value of ::IsDataLoaded()"), BulkData.IsDataLoaded());
+	TestFalse(TEXT("Return value of ::DoesPayloadNeedLoading()"), BulkData.DoesPayloadNeedLoading());
 
 	// Validate the payload accessors
 	FSharedBuffer Payload = BulkData.GetPayload().Get();
@@ -456,6 +458,50 @@ bool FVirtualizationWrapperTestIdentifiers::RunTest(const FString& Parameters)
 
 		DstData.UpdatePayload(FUniqueBuffer::Alloc(32).MoveToShared());
 		TestEqual(TEXT("After adding a new payload the object should have the original identifier"), DstData.GetIdentifier(), OriginalIdentifier);
+	}
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualizationWrapperTestZeroSizedAllocs, TEXT("System.Core.Virtualization.BulkData.ZeroSizedAllocs"), TestFlags)
+bool FVirtualizationWrapperTestZeroSizedAllocs::RunTest(const FString& Parameters)
+{
+	{
+		FByteVirtualizedBulkData Empty;
+		TestNull(TEXT("Empty bulkdata returning a payload"), Empty.GetPayload().Get().GetData());
+		TestNull(TEXT("Empty bulkdata returning a compressed payload"), Empty.GetCompressedPayload().Get().Decompress().GetData());
+
+		TestFalse(TEXT("Empty payload has payload data"), Empty.HasPayloadData());
+		TestFalse(TEXT("Empty payload needs loading"), Empty.DoesPayloadNeedLoading());
+	}
+
+	{
+		FByteVirtualizedBulkData EmptySrc;
+		
+		FLargeMemoryWriter ArWrite(0, true);
+		EmptySrc.Serialize(ArWrite, nullptr);
+
+		FByteVirtualizedBulkData EmptyDst;
+
+		FLargeMemoryReader ArRead(ArWrite.GetData(), ArWrite.TotalSize(), ELargeMemoryReaderFlags::Persistent);
+		EmptyDst.Serialize(ArRead, nullptr);
+
+		TestNull(TEXT("Serialized bulkdata returning a payload"), EmptyDst.GetPayload().Get().GetData());
+		TestNull(TEXT("Serialized bulkdata returning a compressed payload"), EmptyDst.GetCompressedPayload().Get().Decompress().GetData());
+
+		TestFalse(TEXT("Serialized payload has payload data"), EmptyDst.HasPayloadData());
+		TestFalse(TEXT("Serialized payload needs loading"), EmptyDst.DoesPayloadNeedLoading());
+	}
+
+	{
+		FByteVirtualizedBulkData ZeroAlloc;
+		ZeroAlloc.UpdatePayload(FUniqueBuffer::Alloc(0).MoveToShared());
+
+		TestNull(TEXT("ZeroAlloc bulkdata returning a payload"), ZeroAlloc.GetPayload().Get().GetData());
+		TestNull(TEXT("ZeroAlloc bulkdata returning a compressed payload"), ZeroAlloc.GetCompressedPayload().Get().Decompress().GetData());
+
+		TestFalse(TEXT("ZeroAlloc payload has payload data"), ZeroAlloc.HasPayloadData());
+		TestFalse(TEXT("ZeroAlloc payload needs loading"), ZeroAlloc.DoesPayloadNeedLoading());
 	}
 
 	return true;

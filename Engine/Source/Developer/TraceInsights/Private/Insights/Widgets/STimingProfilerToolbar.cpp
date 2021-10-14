@@ -77,9 +77,11 @@ void STimingProfilerToolbar::Construct(const FArguments& InArgs)
 	TSharedPtr<FUICommandList> CommandList = FInsightsManager::Get()->GetCommandList();
 
 	FSlimHorizontalToolBarBuilder ToolbarBuilder(CommandList.ToSharedRef(), FMultiBoxCustomization::None);
+	ToolbarBuilder.SetStyle(&FInsightsStyle::Get(), "PrimaryToolbar");
 	Local::FillViewToolbar(ToolbarBuilder);
 
 	FSlimHorizontalToolBarBuilder RightSideToolbarBuilder(CommandList.ToSharedRef(), FMultiBoxCustomization::None);
+	RightSideToolbarBuilder.SetStyle(&FInsightsStyle::Get(), "PrimaryToolbar");
 	Local::FillRightSideToolbar(RightSideToolbarBuilder);
 
 	ChildSlot

@@ -10,7 +10,7 @@
 #include "EditorStyleSet.h"
 #include "WorkflowOrientedApp/WorkflowUObjectDocuments.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Misc/BlacklistNames.h"
+#include "Misc/NamePermissionList.h"
 
 /////////////////////////////////////////////////////
 // FTabInfo
@@ -814,7 +814,7 @@ TSharedPtr<FDocumentTabFactory> FDocumentTracker::FindSupportingFactory(TSharedR
 	{
 		TSharedPtr<FDocumentTabFactory> Factory = FactoryIt.Value();
 
-		if (Factory->IsPayloadSupported(Payload) && TabManager->GetTabBlacklist()->PassesFilter(Factory->GetIdentifier()))
+		if (Factory->IsPayloadSupported(Payload) && TabManager->GetTabPermissionList()->PassesFilter(Factory->GetIdentifier()))
 		{
 			return Factory;
 		}

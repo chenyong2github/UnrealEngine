@@ -246,14 +246,15 @@ void UEditorEngine::StartPlayUsingLauncherSession(FRequestPlaySessionParams& InR
 	}
 
 	if (CurrentLauncherCookMode == ELauncherProfileCookModes::OnTheFlyInEditor ||
-		CurrentLauncherCookMode == ELauncherProfileCookModes::OnTheFly ||
 		CurrentLauncherCookMode == ELauncherProfileCookModes::ByTheBookInEditor)
 	{
 		// For now World Partition doesn't these cook modes
 		FWorldContext& EditorContext = GetEditorWorldContext();
 		if (EditorContext.World()->IsPartitionedWorld())
 		{
-			FString ErrorMsg = FString::Printf(TEXT("Error launching map %s : Quick launch %s doesn't yet support partitioned worlds."), *EditorContext.World()->GetOutermost()->GetName(), (CurrentLauncherCookMode == ELauncherProfileCookModes::ByTheBookInEditor) ? TEXT("cook by the book") : TEXT("cook on the fly"));
+			FString ErrorMsg = FString::Printf(TEXT("Error launching map %s : Quick launch with WorldPartition doesn't yet support cooking in the editor process.\n")
+				TEXT("To launch this map using Quick launch, set EditorPerProjectUserSettings.ini:[/Script/UnrealEd.EditorExperimentalSettings]:bDisableCookInEditor=true and relaunch the editor."),
+				*EditorContext.World()->GetOutermost()->GetName());
 			UE_LOG(LogPlayLevel, Error, TEXT("%s"), *ErrorMsg);
 			FMessageLog("EditorErrors").Error(FText::FromString(ErrorMsg));
 			FMessageLog("EditorErrors").Open();

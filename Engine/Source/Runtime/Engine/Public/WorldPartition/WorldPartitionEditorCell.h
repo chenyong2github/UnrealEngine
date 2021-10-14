@@ -46,6 +46,11 @@ public:
 			return *Handle;
 		}
 
+		inline bool IsValid() const
+		{
+			return Handle.IsValid();
+		}
+
 		inline bool operator==(const TActorHandle& Other) const
 		{
 			return (Source == Other.Source) && (Handle == Other.Handle);

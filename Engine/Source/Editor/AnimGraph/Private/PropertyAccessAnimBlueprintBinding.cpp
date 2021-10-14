@@ -4,6 +4,7 @@
 
 #include "AnimBlueprintExtension_PropertyAccess.h"
 #include "AnimPropertyAccessUtils.h"
+#include "ScopedTransaction.h"
 #include "Animation/AnimBlueprint.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
@@ -43,6 +44,7 @@ TSharedPtr<FExtender> FPropertyAccessAnimBlueprintBinding::MakeBindingMenuExtend
 								FUIAction(
 									FExecuteAction::CreateLambda([InArgs, InContextId]()
 									{
+										FScopedTransaction Transaction(LOCTEXT("SetCallSiteTransaction", "Set Call Site"));
 										InArgs.OnSetPropertyAccessContextId.ExecuteIfBound(InContextId);
 									}),
 									FCanExecuteAction::CreateLambda([InArgs, InContextId]()

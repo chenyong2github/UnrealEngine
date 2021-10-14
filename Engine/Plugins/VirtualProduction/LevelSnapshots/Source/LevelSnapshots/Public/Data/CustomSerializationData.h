@@ -13,7 +13,7 @@ struct LEVELSNAPSHOTS_API FCustomSubbjectSerializationData : public FObjectSnaps
 
 	/* Valid index to FWorldSnapshotData::SerializedObjectReferences */
 	UPROPERTY()
-	int32 ObjectPathIndex;
+	int32 ObjectPathIndex = INDEX_NONE;
 
 	/* Additional custom data saved by ICustomSnapshotSerializationData */
 	UPROPERTY()

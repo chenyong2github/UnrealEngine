@@ -271,7 +271,7 @@ private:
 	virtual bool AllocateRTs();
 	virtual void SetMPCParams();
 	virtual void UpdateTransform(const FTransform& Transform);
-	virtual bool SetupRiverSplineRenderMIDs(const FBrushActorRenderContext& BrushActorRenderContext, bool bClearMIDs);
+	virtual bool SetupRiverSplineRenderMIDs(const FBrushActorRenderContext& BrushActorRenderContext, bool bRestoreMIDs, TArray<UMaterialInterface*>& InOutMIDs);
 	virtual void CaptureMeshDepth(const TArrayView<UStaticMeshComponent*>& MeshComponents);
 	virtual void CacheBrushDistanceField(const FBrushActorRenderContext& BrushActorRenderContext);
 	virtual void DrawCanvasShape(const FBrushActorRenderContext& BrushActorRenderContext);

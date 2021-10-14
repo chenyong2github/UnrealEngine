@@ -265,7 +265,10 @@ void UWidgetBlueprintGeneratedClass::InitializeWidgetStatic(UUserWidget* UserWid
 		InitializeBindingsStatic(UserWidget, InBindings);
 
 		// Bind any delegates on widgets
-		UBlueprintGeneratedClass::BindDynamicDelegates(InClass, UserWidget);
+		if (!UserWidget->IsDesignTime())
+		{
+			UBlueprintGeneratedClass::BindDynamicDelegates(InClass, UserWidget);
+		}
 
 		//TODO UMG Add OnWidgetInitialized?
 	}

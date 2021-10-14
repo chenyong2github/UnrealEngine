@@ -15,12 +15,14 @@
 
 #include "UsdWrappers/SdfPath.h"
 #include "UsdWrappers/UsdPrim.h"
+#include "UsdWrappers/UsdStage.h"
 
 #include "Async/Async.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
 #include "GeometryCache.h"
+#include "GeometryCacheComponent.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Materials/Material.h"
@@ -336,7 +338,7 @@ namespace UsdGeomMeshTranslatorImpl
 	// Note that these other LODs will be hidden in other variants, and won't show up on traversal unless we actively switch the variants (which we do here).
 	// We use a separate function for this because there is a very specific set of conditions where we successfully can do this, and we
 	// want to fall back to just parsing UsdMesh as a simple single-LOD mesh if we fail.
-	bool TryLoadingMultipleLODs( const pxr::UsdTyped& UsdMesh, TArray<FMeshDescription>& OutLODIndexToMeshDescription, TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& OutLODIndexToMaterialInfo, const TMap< FString, TMap< FString, int32 > >& InMaterialToPrimvarToUVIndex, const pxr::UsdTimeCode InTimeCode )
+	bool TryLoadingMultipleLODs( const pxr::UsdTyped& UsdMesh, TArray<FMeshDescription>& OutLODIndexToMeshDescription, TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& OutLODIndexToMaterialInfo, const TMap< FString, TMap< FString, int32 > >& InMaterialToPrimvarToUVIndex, const pxr::UsdTimeCode InTimeCode, const pxr::TfToken& RenderContext )
 	{
 		FScopedUsdAllocs Allocs;
 
@@ -363,7 +365,7 @@ namespace UsdGeomMeshTranslatorImpl
 			FStaticMeshAttributes StaticMeshAttributes( TempMeshDescription );
 			StaticMeshAttributes.Register();
 
-			bool bSuccess = UsdToUnreal::ConvertGeomMesh( LODMesh, TempMeshDescription, TempMaterialInfo, FTransform::Identity, InMaterialToPrimvarToUVIndex, InTimeCode );
+			bool bSuccess = UsdToUnreal::ConvertGeomMesh( LODMesh, TempMeshDescription, TempMaterialInfo, FTransform::Identity, InMaterialToPrimvarToUVIndex, InTimeCode, RenderContext );
 			if ( bSuccess )
 			{
 				LODIndexToMeshDescriptionMap.Add( LODIndex, MoveTemp( TempMeshDescription ) );
@@ -396,10 +398,16 @@ namespace UsdGeomMeshTranslatorImpl
 			return;
 		}
 
+		pxr::TfToken RenderContextToken = pxr::UsdShadeTokens->universalRenderContext;
+		if ( !RenderContext.IsNone() )
+		{
+			RenderContextToken = UnrealToUsd::ConvertToken( *RenderContext.ToString() ).Get();
+		}
+
 		bool bInterpretedLODs = false;
 		if ( bInterpretLODs )
 		{
-			bInterpretedLODs = TryLoadingMultipleLODs( UsdMesh, OutLODIndexToMeshDescription, OutLODIndexToMaterialInfo, MaterialToPrimvarToUVIndex, TimeCode );
+			bInterpretedLODs = TryLoadingMultipleLODs( UsdMesh, OutLODIndexToMeshDescription, OutLODIndexToMaterialInfo, MaterialToPrimvarToUVIndex, TimeCode, RenderContextToken );
 		}
 
 		if ( !bInterpretedLODs )
@@ -409,12 +417,6 @@ namespace UsdGeomMeshTranslatorImpl
 
 			FStaticMeshAttributes StaticMeshAttributes( TempMeshDescription );
 			StaticMeshAttributes.Register();
-
-			pxr::TfToken RenderContextToken = pxr::UsdShadeTokens->universalRenderContext;
-			if ( !RenderContext.IsNone() )
-			{
-				RenderContextToken = UnrealToUsd::ConvertToken( *RenderContext.ToString() ).Get();
-			}
 
 			bool bSuccess = UsdToUnreal::ConvertGeomMesh( UsdMesh, TempMeshDescription, TempMaterialInfo, FTransform::Identity, MaterialToPrimvarToUVIndex, TimeCode, RenderContextToken );
 
@@ -607,39 +609,62 @@ namespace UsdGeomMeshTranslatorImpl
 			const FName AssetName = MakeUniqueObjectName( GetTransientPackage(), UGeometryCache::StaticClass(), *FPaths::GetBaseFilename( InPrimPath ) );
 			GeometryCache = NewObject< UGeometryCache >( GetTransientPackage(), AssetName, Context->ObjectFlags | EObjectFlags::RF_Public );
 
+			const UE::FUsdStage& Stage = Context->Stage;
+
+			TMap< FString, TMap< FString, int32 > > Unused;
+			TMap< FString, TMap< FString, int32 > >* MaterialToPrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex ? Context->MaterialToPrimvarToUVIndex : &Unused;
+
 			// Create and configure a new USDTrack to be added to the GeometryCache
 			UGeometryCacheTrackUsd* UsdTrack = NewObject< UGeometryCacheTrackUsd >( GeometryCache );
-
-			// Pull out this data from the Context because the translation context itself cannot ever go into the read function, since it also holds
-			// a strong pointer to the asset cache. If that cache can't be collected we can't ever delete the stage actor that owns it, or the read function closure.
-			// Note that the read function closure *will* get discarded as soon as the UGeometryCache that owns the track is collected, but moving the data out of the
-			// context like this prevents the AssetCache from being pinned, and allows UGeometryCacheTrackUsd's to run, which will unregister itself and
-			// cause the closure to be destroyed in the first place
-			const UE::FUsdStage Stage = Context->Stage;
-			const FName RenderContext = Context->RenderContext;
-			const bool bAllowInterpretingLODs = Context->bAllowInterpretingLODs;
-			const TMap< FString, TMap< FString, int32 > > MaterialToPrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex
-				? *Context->MaterialToPrimvarToUVIndex
-				: TMap< FString, TMap< FString, int32 > >{};
-
-			UsdTrack->Initialize( [ = ]( FGeometryCacheMeshData& OutMeshData, const FString& InPrimPath, float Time )
+			UsdTrack->Initialize(
+				Stage,
+				InPrimPath,
+				Context->RenderContext,
+				*MaterialToPrimvarToUVIndex,
+				Stage.GetStartTimeCode(),
+				Stage.GetEndTimeCode(),
+				[InPrimPath]( const TWeakObjectPtr<UGeometryCacheTrackUsd> TrackPtr, float Time, FGeometryCacheMeshData& OutMeshData )
 				{
+					UGeometryCacheTrackUsd* Track = TrackPtr.Get();
+					if ( !Track )
+					{
+						return;
+					}
+
+					if ( !Track->CurrentStage )
+					{
+						if ( !Track->StageRootLayerPath.IsEmpty() )
+						{
+							const bool bUseStageCache = true;
+							Track->CurrentStage = UnrealUSDWrapper::OpenStage( *Track->StageRootLayerPath, EUsdInitialLoadSet::LoadAll, bUseStageCache );
+							UE_LOG( LogUsd, Warning, TEXT( "UGeometryCacheTrackUsd is reopening the stage '%s' to stream in frames for the geometry cache generated for prim '%s'" ), *Track->StageRootLayerPath, *InPrimPath );
+						}
+					}
+					if ( !Track->CurrentStage )
+					{
+						return;
+					}
+
+					UE::FUsdPrim Prim = Track->CurrentStage.GetPrimAtPath( UE::FSdfPath{ *Track->PrimPath } );
+					if ( !Prim )
+					{
+						return;
+					}
+
 					// Get MeshDescription associated with the prim
 					// #ueent_todo: Replace MeshDescription with RawMesh to optimize
 					TArray< FMeshDescription > LODIndexToMeshDescription;
 					TArray< UsdUtils::FUsdPrimMaterialAssignmentInfo > LODIndexToMaterialInfo;
-
-					UE::FSdfPath PrimPath( *InPrimPath );
-					UE::FUsdPrim Prim = Stage.GetPrimAtPath( PrimPath );
+					const bool bAllowInterpretingLODs = false;  // GeometryCaches don't have LODs, so we will never do this
 
 					UsdGeomMeshTranslatorImpl::LoadMeshDescriptions(
 						pxr::UsdTyped( Prim ),
 						LODIndexToMeshDescription,
 						LODIndexToMaterialInfo,
-						MaterialToPrimvarToUVIndex,
+						Track->MaterialToPrimvarToUVIndex,
 						pxr::UsdTimeCode( Time ),
 						bAllowInterpretingLODs,
-						RenderContext
+						Track->RenderContext
 					);
 
 					// Convert the MeshDescription to MeshData
@@ -651,7 +676,7 @@ namespace UsdGeomMeshTranslatorImpl
 							const float ComparisonThreshold = THRESH_POINTS_ARE_SAME;
 
 							// This function make sure the Polygon Normals Tangents Binormals are computed and also remove degenerated triangle from the render mesh description.
-							FStaticMeshOperations::ComputeTriangleTangentsAndNormals(MeshDescription, ComparisonThreshold);
+							FStaticMeshOperations::ComputeTriangleTangentsAndNormals( MeshDescription, ComparisonThreshold );
 
 							// Compute any missing normals or tangents.
 							// Static meshes always blend normals of overlapping corners.
@@ -662,15 +687,9 @@ namespace UsdGeomMeshTranslatorImpl
 							FStaticMeshOperations::ComputeTangentsAndNormals( MeshDescription, ComputeNTBsOptions );
 
 							UsdGeomMeshTranslatorImpl::GeometryCacheDataForMeshDescription( OutMeshData, MeshDescription );
-
-							return true;
 						}
 					}
-					return false;
-				},
-				InPrimPath,
-				Stage.GetStartTimeCode(),
-				Stage.GetEndTimeCode()
+				}
 			);
 
 			GeometryCache->AddTrack( UsdTrack );
@@ -995,18 +1014,15 @@ void FGeometryCacheCreateAssetsTaskChain::SetupTasks()
 {
 	FScopedUnrealAllocs UnrealAllocs;
 
-	// To parse all LODs we need to actively switch variant sets to other variants (triggering prim loading/unloading and notices),
-	// which could cause race conditions if other async translation tasks are trying to access those prims
-	ESchemaTranslationLaunchPolicy LaunchPolicy = ESchemaTranslationLaunchPolicy::Async;
-	if ( Context->bAllowInterpretingLODs && UsdUtils::IsGeomMeshALOD( GetPrim() ) )
-	{
-		LaunchPolicy = ESchemaTranslationLaunchPolicy::ExclusiveSync;
-	}
-
 	// Create mesh descriptions (Async or ExclusiveSync)
-	Do( LaunchPolicy,
+	Do( ESchemaTranslationLaunchPolicy::Async,
 		[ this ]() -> bool
 		{
+			// Always hash the mesh at the same time because it may be animated, and
+			// otherwise we may think it's a new asset just because the context is at a different timecode (e.g. if we reload)
+			// TODO: Hash all timecodes, or else our mesh may change at t=5 and we never reload it because we only hash t=0
+			const double TimeCode = UsdUtils::GetEarliestTimeCode();
+			const bool bAllowInterpretingLODs = false;  // GeometryCaches don't have LODs
 			TMap< FString, TMap< FString, int32 > > Unused;
 			TMap< FString, TMap< FString, int32 > >* MaterialToPrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex ? Context->MaterialToPrimvarToUVIndex : &Unused;
 
@@ -1015,8 +1031,8 @@ void FGeometryCacheCreateAssetsTaskChain::SetupTasks()
 				LODIndexToMeshDescription,
 				LODIndexToMaterialInfo,
 				*MaterialToPrimvarToUVIndex,
-				pxr::UsdTimeCode( Context->Time ),
-				Context->bAllowInterpretingLODs,
+				pxr::UsdTimeCode( TimeCode ),
+				bAllowInterpretingLODs,
 				Context->RenderContext
 			);
 
@@ -1088,24 +1104,25 @@ void FUsdGeomMeshTranslator::CreateAssets()
 
 USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 {
+	TOptional< TSubclassOf< USceneComponent > > ComponentType;
+
 #if WITH_EDITOR
-	// Animated meshes as GeometryCache
+	// Force animated meshes as GeometryCache
 	if ( GUseGeometryCacheUSD && UsdGeomMeshTranslatorImpl::IsAnimated( GetPrim() ) )
 	{
-		TOptional< TSubclassOf< USceneComponent > > GeometryCacheComponent( UGeometryCacheUsdComponent::StaticClass() );
-		return CreateComponentsEx( GeometryCacheComponent, {} );
+		ComponentType = UGeometryCacheUsdComponent::StaticClass();
 	}
 #endif // WITH_EDITOR
 
-	// Animated and static meshes as StaticMesh
-	USceneComponent* SceneComponent = CreateComponentsEx( {}, {} );
+	USceneComponent* SceneComponent = CreateComponentsEx( ComponentType, {} );
+
+	const FString PrimPathString = PrimPath.GetString();
 
 	// Handle material overrides
-	// #ueent_todo: Do the analogue for geometry cache
 	// Note: This can be here and not in USDGeomXformableTranslator because there is no way that a collapsed mesh prim could end up with a material override
 	if ( UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>( SceneComponent ) )
 	{
-		if ( UStaticMesh* StaticMesh = Cast< UStaticMesh >( Context->AssetCache->GetAssetForPrim( PrimPath.GetString() ) ) )
+		if ( UStaticMesh* StaticMesh = Cast< UStaticMesh >( Context->AssetCache->GetAssetForPrim( PrimPathString ) ) )
 		{
 			TArray<UMaterialInterface*> ExistingAssignments;
 			for ( FStaticMaterial& StaticMaterial : StaticMesh->GetStaticMaterials() )
@@ -1121,6 +1138,25 @@ USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 				Context->Time,
 				Context->ObjectFlags,
 				Context->bAllowInterpretingLODs,
+				Context->RenderContext
+			);
+		}
+	}
+	else if ( UGeometryCacheComponent* Component = Cast<UGeometryCacheComponent>( SceneComponent ) )
+	{
+		if ( UGeometryCache* GeometryCache = Cast< UGeometryCache >( Context->AssetCache->GetAssetForPrim( PrimPathString ) ) )
+		{
+			// Geometry caches don't support LODs
+			const bool bAllowInterpretingLODs = false;
+
+			MeshTranslationImpl::SetMaterialOverrides(
+				GetPrim(),
+				GeometryCache->Materials,
+				*Component,
+				*Context->AssetCache.Get(),
+				Context->Time,
+				Context->ObjectFlags,
+				bAllowInterpretingLODs,
 				Context->RenderContext
 			);
 		}
@@ -1153,8 +1189,11 @@ void FUsdGeomMeshTranslator::UpdateComponents( USceneComponent* SceneComponent )
 	{
 		UGeometryCache* GeometryCache = Cast< UGeometryCache >( Context->AssetCache->GetAssetForPrim( PrimPath.GetString() ) );
 
+		bool bShouldRegister = false;
 		if ( GeometryCache != GeometryCacheUsdComponent->GetGeometryCache() )
 		{
+			bShouldRegister = true;
+
 			if ( GeometryCacheUsdComponent->IsRegistered() )
 			{
 				GeometryCacheUsdComponent->UnregisterComponent();
@@ -1162,13 +1201,21 @@ void FUsdGeomMeshTranslator::UpdateComponents( USceneComponent* SceneComponent )
 
 			// Skip the extra handling in SetGeometryCache
 			GeometryCacheUsdComponent->GeometryCache = GeometryCache;
-
-			GeometryCacheUsdComponent->RegisterComponent();
 		}
-		else
+
+		// This is the main call responsible for animating the geometry cache.
+		// It needs to happen after setting the geometry cache and before registering, because we must force the
+		// geometry cache to register itself at Context->Time so that it will synchronously load that frame right away.
+		// Otherwise the geometry cache will start at t=0 regardless of Context->Time
+		GeometryCacheUsdComponent->SetManualTick( true );
+		GeometryCacheUsdComponent->TickAtThisTime( Context->Time, true, false, true );
+
+		// Note how we should only register if our geometry cache changed: If we did this every time we would
+		// register too early during the process of duplicating into PIE, and that would prevent a future RegisterComponent
+		// call from naturally creating the required render state
+		if ( bShouldRegister && !GeometryCacheUsdComponent->IsRegistered() )
 		{
-			GeometryCacheUsdComponent->SetManualTick( true );
-			GeometryCacheUsdComponent->TickAtThisTime( Context->Time, true, false, true );
+			GeometryCacheUsdComponent->RegisterComponent();
 		}
 	}
 #endif // WITH_EDITOR

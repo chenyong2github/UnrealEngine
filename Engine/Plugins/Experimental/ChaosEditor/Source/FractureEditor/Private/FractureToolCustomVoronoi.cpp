@@ -97,7 +97,7 @@ FSlateIcon UFractureToolCustomVoronoi::GetToolIcon() const
 
 void UFractureToolCustomVoronoi::RegisterUICommand( FFractureEditorCommands* BindingContext ) 
 {
-	UI_COMMAND_EXT( BindingContext, UICommandInfo, "CustomVoronoi", "Custom", "Custom Voronoi Fracture", EUserInterfaceActionType::ToggleButton, FInputChord() );
+	UI_COMMAND_EXT( BindingContext, UICommandInfo, "CustomVoronoi", "Custom", "Fracture with a customizable Voronoi diagram. Transform and layer arrangements of Voronoi sites to design your own fracture pattern.", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	BindingContext->CustomVoronoi = UICommandInfo;
 }
 

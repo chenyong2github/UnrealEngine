@@ -974,14 +974,13 @@ private:
 		}
 		
 		TTask& Task = *(TTask*)&TaskStorage;
-		TaskTrace::Started(GetTraceId());
 		{
-			FScopeCycleCounter Scope(Task.GetStatId(), true); 
+			TaskTrace::FTaskTimingEventScope TaskEventScope(GetTraceId());
+			FScopeCycleCounter Scope(Task.GetStatId(), true);
 			Task.DoTask(CurrentThread, Subsequents);
 			Task.~TTask();
 			checkThreadGraph(ENamedThreads::GetThreadIndex(CurrentThread) <= ENamedThreads::GetRenderThread() || FMemStack::Get().IsEmpty()); // you must mark and pop memstacks if you use them in tasks! Named threads are excepted.
 		}
-		TaskTrace::Finished(GetTraceId());
 		
 		TaskConstructed = false;
 

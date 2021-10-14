@@ -31,7 +31,6 @@ public class AppleARKitFaceSupport : ModuleRules
                 "HeadMountedDisplay",
                 "AugmentedReality",
                 "ProceduralMeshComponent",
-                "LiveLink",
                 "LiveLinkInterface",
 //                "OnlineSubsystem",
                 "Sockets",

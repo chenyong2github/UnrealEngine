@@ -77,6 +77,7 @@ private:
 	static void FixupPayloadParameterNameForSection(UMovieSceneEventSectionBase* Section, UK2Node* InNode, FName OldPinName, FName NewPinName);
 	static bool UpgradeLegacyEventEndpointForSection(UMovieSceneEventSectionBase* Section);
 	static void PostDuplicateEventSection(UMovieSceneEventSectionBase* Section);
+	static void RemoveForCookEventSection(UMovieSceneEventSectionBase* Section);
 
 private:
 

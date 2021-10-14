@@ -410,12 +410,14 @@ class FExportMaterialProxy : public FMaterial, public FMaterialRenderProxy
 public:
 	FExportMaterialProxy()
 		: FMaterial()
+		, FMaterialRenderProxy(TEXT("FExportMaterialProxy"))
 	{
 		SetQualityLevelProperties(GMaxRHIFeatureLevel);
 	}
 
 	FExportMaterialProxy(UMaterialInterface* InMaterialInterface, EMaterialProperty InPropertyToCompile)
 		: FMaterial()
+		, FMaterialRenderProxy(GetPathNameSafe(InMaterialInterface->GetMaterial()))
 		, MaterialInterface(InMaterialInterface)
 		, PropertyToCompile(InPropertyToCompile)
 	{

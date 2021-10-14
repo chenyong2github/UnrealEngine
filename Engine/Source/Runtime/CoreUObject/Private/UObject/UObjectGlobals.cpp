@@ -758,15 +758,16 @@ bool ResolveName(UObject*& InPackage, FString& InOutName, bool Create, bool Thro
 			Create         = false;
 		}
 
-		FName* ScriptPackageName = nullptr;
+		bool bIsScriptPackage = false;
 		if (!bSubobjectPath)
 		{
 			// In case this is a short script package name, convert to long name before passing to CreatePackage/FindObject.
-			ScriptPackageName = FPackageName::FindScriptPackageName(*PartialName);
+			FName* ScriptPackageName = FPackageName::FindScriptPackageName(*PartialName);
 			if (ScriptPackageName)
 			{
 				PartialName = ScriptPackageName->ToString();
 			}
+			bIsScriptPackage = ScriptPackageName || FPackageName::IsScriptPackage(PartialName);
 		}
 
 		// Process any package redirects before calling CreatePackage/FindObject
@@ -795,13 +796,17 @@ bool ResolveName(UObject*& InPackage, FString& InOutName, bool Create, bool Thro
 		{
 			// Try to find the package in memory first, should be faster than attempting to load or create
 			InPackage = StaticFindObjectFast(UPackage::StaticClass(), InPackage, *PartialName);
-			if (!ScriptPackageName && !InPackage)
+			if (!bIsScriptPackage && !InPackage)
 			{
 				InPackage = LoadPackage(Cast<UPackage>(InPackage), *PartialName, LoadFlags, nullptr, InstancingContext);
 			}
 			if (!InPackage)
 			{
 				InPackage = CreatePackage(*PartialName);
+				if (bIsScriptPackage)
+				{
+					Cast<UPackage>(InPackage)->SetPackageFlags(PKG_CompiledIn);
+				}
 			}
 
 			check(InPackage);
@@ -1178,9 +1183,9 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 			{
 				FlushAsyncLoading(RequestID);
 			}
-		}
 
-		return (InOuter ? InOuter : FindObjectFast<UPackage>(nullptr, PackageName));
+			return (InOuter ? InOuter : FindObjectFast<UPackage>(nullptr, PackageName));
+		}
 	}
 
 	UPackage* Result = nullptr;
@@ -3537,11 +3542,19 @@ void FScopedObjectFlagMarker::RestoreObjectFlags()
 		UObject* Object = It.Key();
 		FStoredObjectFlags& PreviousObjectFlags = It.Value();
 
-		// clear all flags
+		// clear all flags, frist clear the PendingKill flag as we don't allow clearing it through ClearFlags
+		Object->ClearPendingKill();
 		Object->ClearFlags(RF_AllFlags);
 		Object->ClearInternalFlags(EInternalObjectFlags::AllFlags);
 
-		// then reset the ones that were originally set
+		// then reset the ones that were originally set, start with PendingKill as we don't allow setting it through SetFlags
+		if ((PreviousObjectFlags.InternalFlags & EInternalObjectFlags::PendingKill) == EInternalObjectFlags::PendingKill)
+		{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			checkf((PreviousObjectFlags.Flags & RF_PendingKill) == RF_PendingKill, TEXT("Object %s had EInternalObjectFlags::PendingKill flag set but no RF_PendingKill"), *Object->GetFullName());
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			Object->MarkPendingKill();
+		}
 		Object->SetFlags(PreviousObjectFlags.Flags);
 		Object->SetInternalFlags(PreviousObjectFlags.InternalFlags);
 	}

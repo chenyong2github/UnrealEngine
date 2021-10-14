@@ -380,6 +380,7 @@ private:
 	static void CreateAssetContextMenu(FToolMenuSection& InSection);
 	void OnExtendContentBrowserCommands(TSharedRef<FUICommandList> CommandList, FOnContentBrowserGetSelection GetSelectionDelegate);
 	void OnExtendLevelEditorCommands(TSharedRef<FUICommandList> CommandList);
+	void RegisterMenus();
 	void ExtendContentBrowserAssetSelectionMenu();
 	void ExtendContentBrowserPathSelectionMenu();
 	TSharedRef<FExtender> OnExtendAssetEditor(const TSharedRef<FUICommandList> CommandList, const TArray<UObject*> ContextSensitiveObjects);
@@ -473,10 +474,6 @@ void FAssetManagerEditorModule::StartupModule()
 
 		// Register content browser hook
 		FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
-		
-		ExtendContentBrowserAssetSelectionMenu();
-
-		ExtendContentBrowserPathSelectionMenu();
 
 		TArray<FContentBrowserCommandExtender>& CBCommandExtenderDelegates = ContentBrowserModule.GetAllContentBrowserCommandExtenders();
 		CBCommandExtenderDelegates.Add(FContentBrowserCommandExtender::CreateRaw(this, &FAssetManagerEditorModule::OnExtendContentBrowserCommands));
@@ -493,8 +490,6 @@ void FAssetManagerEditorModule::StartupModule()
 
 		TSharedRef<FUICommandList> CommandList = LevelEditorModule.GetGlobalLevelEditorActions();
 		OnExtendLevelEditorCommands(CommandList);
-
-		ExtendLevelEditorActorContextMenu();
 
 		// Add nomad tabs
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(AssetAuditTabName, FOnSpawnTab::CreateRaw(this, &FAssetManagerEditorModule::SpawnAssetAuditTab))
@@ -521,6 +516,10 @@ void FAssetManagerEditorModule::StartupModule()
 		FEditorDelegates::OnOpenSizeMap.AddRaw(this, &FAssetManagerEditorModule::OpenSizeMapUI);
 		FEditorDelegates::OnOpenAssetAudit.AddRaw(this, &FAssetManagerEditorModule::OpenAssetAuditUI);
 		FEditorDelegates::OnEditAssetIdentifiers.AddRaw(this, &FAssetManagerEditorModule::OnEditAssetIdentifiers);
+
+		// Register callback for extending tool menus
+		UToolMenus::RegisterStartupCallback(
+			FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FAssetManagerEditorModule::RegisterMenus));
 	}
 }
 
@@ -592,6 +591,10 @@ void FAssetManagerEditorModule::ShutdownModule()
 		FEditorDelegates::OnOpenSizeMap.RemoveAll(this);
 		FEditorDelegates::OnOpenAssetAudit.RemoveAll(this);
 		FEditorDelegates::OnEditAssetIdentifiers.RemoveAll(this);
+
+		// Cleanup tool menus
+		UToolMenus::UnRegisterStartupCallback(this);
+		UToolMenus::UnregisterOwner(this);
 	}
 }
 
@@ -892,6 +895,15 @@ void FAssetManagerEditorModule::OnExtendLevelEditorCommands(TSharedRef<FUIComman
 	);
 }
 
+void FAssetManagerEditorModule::RegisterMenus()
+{
+	FToolMenuOwnerScoped OwnerScoped(this);
+
+	ExtendContentBrowserAssetSelectionMenu();
+	ExtendContentBrowserPathSelectionMenu();
+	ExtendLevelEditorActorContextMenu();
+}
+
 void FAssetManagerEditorModule::ExtendContentBrowserAssetSelectionMenu()
 {
 	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu");
@@ -980,15 +992,10 @@ void FAssetManagerEditorModule::ExtendAssetEditorMenu()
 
 void FAssetManagerEditorModule::ExtendLevelEditorActorContextMenu()
 {
-	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.ActorContextMenu");
-	FToolMenuSection& Section = Menu->FindOrAddSection("ActorAsset");
-	FToolMenuEntry& Entry = Section.AddDynamicEntry("AssetManagerEditorViewCommands", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
-	{
-		if (GEditor->CanSyncToContentBrowser() && GEditor->GetSelectedComponentCount() == 0 && GEditor->GetSelectedActorCount() > 0)
-		{
-			FAssetManagerEditorModule::CreateAssetContextMenu(InSection);
-		}
-	}));
+	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.ActorContextMenu.AssetToolsSubMenu");
+
+	FToolMenuSection& Section = Menu->AddSection("AssetManagerEditorViewCommands", TAttribute<FText>(), FToolMenuInsert(NAME_None, EToolMenuInsertType::First));
+	FAssetManagerEditorModule::CreateAssetContextMenu(Section);
 }
 
 void FAssetManagerEditorModule::OnReloadComplete(EReloadCompleteReason Reason)

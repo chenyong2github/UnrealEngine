@@ -425,7 +425,8 @@ namespace SavePackageUtilities
 	ESavePackageResult AppendAdditionalData(FLinkerSave& Linker, int64& InOutDataStartOffset, FSavePackageContext* SavePackageContext);
 	
 	/** Used to create the sidecar file (.upayload) from payloads that have been added to the linker */
-	ESavePackageResult CreatePayloadSidecarFile(FLinkerSave& Linker, const FPackagePath& PackagePath, const bool bSaveAsync, const bool bWriteToDisk, FSavePackageOutputFileArray& AdditionalPackageFiles);
+	ESavePackageResult CreatePayloadSidecarFile(FLinkerSave& Linker, const FPackagePath& PackagePath, const bool bSaveToMemory,
+		const bool bWriteToDisk, FSavePackageOutputFileArray& AdditionalPackageFiles, FSavePackageContext* SavePackageContext);
 	
 	void SaveWorldLevelInfo(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FRecord Record);
 	EObjectMark GetExcludedObjectMarksForTargetPlatform(const class ITargetPlatform* TargetPlatform);

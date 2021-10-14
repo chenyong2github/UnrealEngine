@@ -501,7 +501,7 @@ void FIntroTutorials::GoToNextStage(TWeakPtr<SWindow> InNavigationWindow)
 
 TSharedRef<SWidget> FIntroTutorials::CreateTutorialsWidget(FName InContext, TWeakPtr<SWindow> InContextWindow) const
 {
-	if (FGlobalTabmanager::Get()->GetTabBlacklist()->PassesFilter(TEXT("TutorialsBrowser")))
+	if (FGlobalTabmanager::Get()->GetTabPermissionList()->PassesFilter(TEXT("TutorialsBrowser")))
 	{
 		return SNew(STutorialButton)
 				.Context(InContext)

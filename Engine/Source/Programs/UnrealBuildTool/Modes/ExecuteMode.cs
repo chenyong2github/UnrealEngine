@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using OpenTracing.Util;
 
 #nullable disable
 
@@ -45,19 +46,19 @@ namespace UnrealBuildTool
 
 			// Read the actions file
 			List<LinkedAction> Actions;
-			using(Timeline.ScopeEvent("ActionGraph.ReadActions()"))
+			using (GlobalTracer.Instance.BuildSpan("ActionGraph.ReadActions()").StartActive())
 			{
 				Actions = ActionGraph.ImportJson(ActionsFile).ConvertAll(x => new LinkedAction(x));
 			}
 
 			// Link the action graph
-			using(Timeline.ScopeEvent("ActionGraph.Link()"))
+			using (GlobalTracer.Instance.BuildSpan("ActionGraph.Link()").StartActive())
 			{
 				ActionGraph.Link(Actions);
 			}
 
 			// Execute the actions
-			using (Timeline.ScopeEvent("ActionGraph.ExecuteActions()"))
+			using (GlobalTracer.Instance.BuildSpan("ActionGraph.ExecuteActions()").StartActive())
 			{
 				ActionGraph.ExecuteActions(BuildConfiguration, Actions);
 			}

@@ -194,6 +194,6 @@ protected:
 	static FString DefaultInitialLoadingGroupIdentifier;
 
     // Singleton Instance -- This is only not a TSharedPtr as it needs to be cleaned up by a deferredcleanup call which directly
-    // nukes the underlying object, causing a SharedPtr crash at shutdown.
+    // destroys the underlying object, causing a SharedPtr crash at shutdown.
     static FPreLoadSettingsContainerBase* Instance;
 };

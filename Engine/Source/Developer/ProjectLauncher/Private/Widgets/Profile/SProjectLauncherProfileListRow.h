@@ -17,6 +17,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Shared/SProjectLauncherProfileLaunchButton.h"
 #include "Widgets/Shared/SProjectLauncherProfileNameDescEditor.h"
+#include "Widgets/Layout/SSeparator.h"
 
 #define LOCTEXT_NAMESPACE "SProjectLauncherSimpleDeviceListRow"
 
@@ -75,11 +76,11 @@ public:
 
 			+ SHorizontalBox::Slot()
 			.FillWidth(1)
-			.Padding(0, 2, 0, 2)
+			.Padding(1)
 			[
 				SNew(SBorder)
-				.Padding(2)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.Padding(0)
+				.BorderImage(FEditorStyle::GetBrush("Brushes.Panel"))
 				[
 					SNew(SHorizontalBox)
 
@@ -99,19 +100,28 @@ public:
 						SNew(SButton)
 						.OnClicked(this, &SProjectLauncherProfileListRow::OnEditClicked)
 						.ToolTipText(LOCTEXT("EditProfileToolTipText", "Edit profile."))
-						.HAlign(HAlign_Center)
-						.VAlign(VAlign_Center)
-						.ContentPadding(0)
+						.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SimpleButton"))
 						[
 							SNew(SImage)
+							.ColorAndOpacity(FSlateColor::UseForeground())
 							.Image(this, &SProjectLauncherProfileListRow::GetEditIcon)
 						]
 					]
 
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
+					.Padding(12, 5, 0, 5)
+					[
+						SNew(SSeparator)
+						.Orientation(Orient_Vertical)
+						.Thickness(1.f)
+					]
+
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
 					.VAlign(VAlign_Center)
-					.Padding(4, 0, 0, 0)
+					.HAlign(HAlign_Left)
+					.Padding(24, 0, 20, 0)
 					[
 						SNew(SProjectLauncherProfileLaunchButton, false)
 						.LaunchProfile(this, &SProjectLauncherProfileListRow::GetLaunchProfile)
@@ -176,7 +186,7 @@ private:
 	// Get the SlateIcon for Launch Button
 	const FSlateBrush* GetEditIcon() const
 	{
-		return FEditorStyle::GetBrush("Launcher.EditSettings");
+		return FAppStyle::Get().GetBrush("Icons.Toolbar.Settings");
 	}
 
 private:

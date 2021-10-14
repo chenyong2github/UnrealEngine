@@ -900,6 +900,9 @@ namespace UF
 
 		/// [FunctionMetadata] Indicates that a particular function parameter is for internal use only, which means it will be both hidden and not connectible.
 		InternalUseParam, 
+
+		/// [FunctionMetadata] Indicates that the function should be ignored when considered for blueprint type promotion
+		IgnoreTypePromotion,
 	};
 }
 

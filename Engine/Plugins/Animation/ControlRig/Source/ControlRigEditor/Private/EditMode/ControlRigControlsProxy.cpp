@@ -760,8 +760,11 @@ void UControlRigDetailPanelControlProxies::RemoveAllProxies()
 	for (TPair<FName, TObjectPtr<UControlRigControlsProxy> >Pair : AllProxies)
 	{
 		UControlRigControlsProxy* ExistingProxy = Pair.Value;
-		ExistingProxy->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders);
-		ExistingProxy->MarkPendingKill();
+		if (ExistingProxy)
+		{
+			ExistingProxy->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders);
+			ExistingProxy->MarkPendingKill();
+		}
 	}
 	AllProxies.Empty();
 	SelectedProxies.SetNum(0);

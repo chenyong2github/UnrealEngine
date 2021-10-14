@@ -55,7 +55,7 @@ TArray<UObject*> UFractureToolAutoCluster::GetSettingsObjects() const
 
 void UFractureToolAutoCluster::RegisterUICommand( FFractureEditorCommands* BindingContext )
 {
-	UI_COMMAND_EXT( BindingContext, UICommandInfo, "AutoCluster", "Auto", "Auto Cluster", EUserInterfaceActionType::ToggleButton, FInputChord() );
+	UI_COMMAND_EXT( BindingContext, UICommandInfo, "AutoCluster", "Auto", "Automatically group pieces of a fractured mesh into a specified number of clusters.", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	BindingContext->AutoCluster = UICommandInfo;
 }
 

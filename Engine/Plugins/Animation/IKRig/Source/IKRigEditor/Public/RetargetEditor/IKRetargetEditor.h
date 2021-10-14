@@ -9,6 +9,7 @@
 #include "IKRetargetMode.h"
 #include "IPersonaPreviewScene.h"
 #include "PersonaAssetEditorToolkit.h"
+#include "EditorUndoClient.h"
 
 class IAnimationSequenceBrowser;
 class UIKRetargetSkeletalMeshComponent;
@@ -19,6 +20,7 @@ class FIKRetargetToolbar;
 class SIKRetargetViewportTabBody;
 class FIKRetargetPreviewScene;
 struct FIKRetargetPose;
+class SEditableTextBox;
 
 namespace IKRetargetEditorModes
 {

@@ -14,6 +14,7 @@
 #include "WaterMeshSceneProxy.h"
 #include "WaterSubsystem.h"
 #include "WaterModule.h"
+#include "WaterUtils.h"
 #include "Math/NumericLimits.h"
 #include "Algo/Transform.h"
 
@@ -48,7 +49,7 @@ static TAutoConsoleVariable<int32> CVarWaterMeshForceRebuildMeshPerFrame(
 	ECVF_Default
 );
 
-static TAutoConsoleVariable<int32> CVarWaterMeshEnabled(
+TAutoConsoleVariable<int32> CVarWaterMeshEnabled(
 	TEXT("r.Water.WaterMesh.Enabled"),
 	1,
 	TEXT("If the water mesh is enabled or disabled. This affects both rendering and the water tile generation"),
@@ -59,11 +60,6 @@ extern TAutoConsoleVariable<float> CVarWaterSplineResampleMaxDistance;
 
 
 // ----------------------------------------------------------------------------------
-
-bool IsWaterMeshEnabled(bool bIsRenderThread)
-{
-	return IsWaterEnabled(bIsRenderThread) && !!(bIsRenderThread ? CVarWaterMeshEnabled.GetValueOnRenderThread() : CVarWaterMeshEnabled.GetValueOnGameThread());
-}
 
 UWaterMeshComponent::UWaterMeshComponent()
 {
@@ -204,6 +200,12 @@ void UWaterMeshComponent::RebuildWaterMesh(float InTileSize, const FIntPoint& In
 		FWaterBodyRenderData RenderData;
 
 		const EWaterBodyType WaterBodyType = WaterBodyComponent->GetWaterBodyType();
+
+		// Skip invisible water bodies : 
+		if (!WaterBodyComponent->ShouldRender())
+		{
+			return true;
+		}
 
 		// No need to generate anything in the case of a custom water
 		if (!WaterBodyComponent->ShouldGenerateWaterMeshTile())
@@ -534,8 +536,7 @@ void UWaterMeshComponent::RebuildWaterMesh(float InTileSize, const FIntPoint& In
 
 void UWaterMeshComponent::Update()
 {
-	// For now, the CVar determines the enabled state
-	bIsEnabled = IsWaterEnabled(/*bIsRenderThread = */false) && IsWaterMeshEnabled(/*bIsRenderThread = */false);
+	bIsEnabled = FWaterUtils::IsWaterMeshEnabled(/*bIsRenderThread = */false);
 
 	// Early out
 	if (!bIsEnabled)

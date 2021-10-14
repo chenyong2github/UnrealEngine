@@ -268,10 +268,8 @@ namespace PlmXml
 			
 			if(FilePaths.IsValidIndex(Id))
 			{
-				FString Filename = FPaths::GetCleanFilename(FilePaths[Id]);
-
 				// Make sure file was loaded
-				SceneGraphBuilder->FillAnchorActor(ActorElement, Filename);
+				SceneGraphBuilder->FillAnchorActor(ActorElement, FilePaths[Id]);
 			}
 
 			return ActorElement;

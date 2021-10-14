@@ -35,7 +35,7 @@ void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName, TFunc
 
 		// Do a synchronous scan of the level external actors path.			
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-		AssetRegistry.ScanPathsSynchronous({ LevelExternalActorsPath }, /*bForceRescan*/false, /*bIgnoreBlackListScanFilters*/false);
+		AssetRegistry.ScanPathsSynchronous({ LevelExternalActorsPath }, /*bForceRescan*/false, /*bIgnoreDenyListScanFilters*/false);
 
 		FARFilter Filter;
 		Filter.bRecursivePaths = true;

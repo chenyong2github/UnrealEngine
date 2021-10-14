@@ -161,9 +161,9 @@ FCompressibleAnimData::FCompressibleAnimData(class UAnimSequence* InSeq, const b
 
 	auto IsRawTrackValidForRemoval = [IsKeyArrayValidForRemoval](const FRawAnimSequenceTrack& Track) -> bool
 	{
-		return IsKeyArrayValidForRemoval(Track.PosKeys, FVector::ZeroVector) &&
-			IsKeyArrayValidForRemoval(Track.RotKeys, FQuat::Identity) &&
-			IsKeyArrayValidForRemoval(Track.ScaleKeys, FVector::ZeroVector);
+		return IsKeyArrayValidForRemoval(Track.PosKeys, FVector3f::ZeroVector) &&
+			IsKeyArrayValidForRemoval(Track.RotKeys, FQuat4f::Identity) &&
+			IsKeyArrayValidForRemoval(Track.ScaleKeys, FVector3f::ZeroVector);
 	};
 
 	// Verify bone track names and data, removing any bone that does not exist on the skeleton

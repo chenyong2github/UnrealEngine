@@ -8,7 +8,6 @@
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundVertex.h"
 
-
 namespace Metasound
 {
 	namespace Frontend
@@ -69,9 +68,15 @@ namespace Metasound
 			FMetasoundFrontendVersion ArchetypeVersion;
 		};
 
+		/** Completely rebuilds the graph connecting a preset's inputs to the reference
+		 * document's root graph. It maintains previously set input values entered upon 
+		 * the presets wrapping graph. */
 		class METASOUNDFRONTEND_API FRebuildPresetRootGraph : public IDocumentTransform
 		{
 		public:
+			/** Create transform.
+			 * @param InReferenceDocument - The document containing the wrapped MetaSound graph.
+			 */
 			FRebuildPresetRootGraph(FConstDocumentHandle InReferencedDocument)
 				: ReferencedDocument(InReferencedDocument)
 			{
@@ -80,6 +85,20 @@ namespace Metasound
 			bool Transform(FDocumentHandle InDocument) const override;
 
 		private:
+
+			// Get the class inputs needed for this preset. Input literals set on 
+			// the parent graph will be used if they exist. 
+			TArray<FMetasoundFrontendClassInput> GenerateRequiredClassInputs(const FConstGraphHandle& InParentGraph) const;
+
+			// Get the class Outputs needed for this preset.
+			TArray<FMetasoundFrontendClassOutput> GenerateRequiredClassOutputs(const FConstGraphHandle& InParentGraph) const;
+
+			// Add inputs to parent graph and connect to wrapped graph node.
+			void AddAndConnectInputs(const TArray<FMetasoundFrontendClassInput>& InClassInputs, FGraphHandle& InParentGraphHandle, FNodeHandle& InReferencedNode) const;
+
+			// Add outputs to parent graph and connect to wrapped graph node.
+			void AddAndConnectOutputs(const TArray<FMetasoundFrontendClassOutput>& InClassOutputs, FGraphHandle& InParentGraphHandle, FNodeHandle& InReferencedNode) const;
+
 			FConstDocumentHandle ReferencedDocument;
 		};
 

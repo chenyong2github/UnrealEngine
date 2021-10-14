@@ -14,14 +14,14 @@
 
 #define LOCTEXT_NAMESPACE "OptimusDeformer"
 
-static FString FormatResourceContexts(
-	const TArray<FName>& InContextNames
+static FString FormatDataDomain(
+	const FOptimusMultiLevelDataDomain& InDataDomain
 	)
 {
 	TArray<FString> Names;
-	for (FName ContextName: InContextNames)
+	for (FName DomainLevelName: InDataDomain.LevelNames)
 	{
-		Names.Add(ContextName.ToString());
+		Names.Add(DomainLevelName.ToString());
 	}
 	return FString::Join(Names, *FString(UTF8TEXT(" › ")));
 }
@@ -121,9 +121,9 @@ FText UOptimusNodePin::GetTooltipText() const
 	}
 	else
 	{
-		return FText::FormatOrdered(LOCTEXT("OptimusNodePin_Tooltip_Resource", "Name:\t{0}\nType:\t{1} ({2})\nStorage:\tResource\nContext:\t{3}"),
+		return FText::FormatOrdered(LOCTEXT("OptimusNodePin_Tooltip_Resource", "Name:\t{0}\nType:\t{1} ({2})\nStorage:\tResource\nDomain:\t{3}"),
 			FText::FromString(GetName()), DataType->DisplayName, FText::FromString(DataType->ShaderValueType->ToString()),
-			FText::FromString(FormatResourceContexts(ResourceContexts)));
+			FText::FromString(FormatDataDomain(DataDomain)));
 	}
 }
 
@@ -443,12 +443,12 @@ bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* Out
 	if (OutputPin->StorageType == EOptimusNodePinStorageType::Resource &&
 		InputPin->StorageType == EOptimusNodePinStorageType::Resource)
 	{
-		if (OutputPin->ResourceContexts != InputPin->ResourceContexts)
+		if (OutputPin->DataDomain.LevelNames != InputPin->DataDomain.LevelNames)
 		{
 			if (OutReason)
 			{
-				*OutReason = FString::Printf(TEXT("Can't connect resources with different context types (%s vs %s)."),
-					*FormatResourceContexts(OutputPin->ResourceContexts), *FormatResourceContexts(InputPin->ResourceContexts));
+				*OutReason = FString::Printf(TEXT("Can't connect resources with different data domain types (%s vs %s)."),
+					*FormatDataDomain(OutputPin->DataDomain), *FormatDataDomain(InputPin->DataDomain));
 			}			
 		}
 	}
@@ -475,9 +475,9 @@ void UOptimusNodePin::PostLoad()
 {
 	Super::PostLoad();
 
-	if (ResourceContexts.IsEmpty() && !ResourceContext_DEPRECATED.IsNone())
+	if (DataDomain.LevelNames.IsEmpty() && !ResourceContext_DEPRECATED.IsNone())
 	{
-		ResourceContexts.Add(ResourceContext_DEPRECATED);
+		DataDomain = FOptimusMultiLevelDataDomain(ResourceContext_DEPRECATED);
 		ResourceContext_DEPRECATED = NAME_None;
 	}
 }
@@ -493,7 +493,7 @@ void UOptimusNodePin::Initialize(
 	StorageType = InStorageConfig.Type;
 	if (StorageType == EOptimusNodePinStorageType::Resource)
 	{
-		ResourceContexts = InStorageConfig.ResourceContexts;
+		DataDomain = InStorageConfig.DataDomain;
 	}
 	DataType = InDataTypeRef;
 }

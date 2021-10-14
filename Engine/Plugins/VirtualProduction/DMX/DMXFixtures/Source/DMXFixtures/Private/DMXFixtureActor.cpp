@@ -201,6 +201,77 @@ void ADMXFixtureActor::InterpolateDMXComponents(float DeltaSeconds)
 	}
 }
 
+void ADMXFixtureActor::SetLightIntensityMax(float NewLightIntensityMax)
+{
+	LightIntensityMax = NewLightIntensityMax;
+
+	if (DynamicMaterialBeam)
+	{
+		DynamicMaterialBeam->SetScalarParameterValue("DMX Max Light Intensity", LightIntensityMax * SpotlightIntensityScale);
+	}
+
+	if (DynamicMaterialLens)
+	{
+		DynamicMaterialLens->SetScalarParameterValue("DMX Max Light Intensity", LightIntensityMax * SpotlightIntensityScale);
+	}
+
+	SpotLight->SetIntensity(LightIntensityMax * SpotlightIntensityScale);
+	PointLight->SetIntensity(LightIntensityMax * PointlightIntensityScale);
+}
+
+void ADMXFixtureActor::SetLightDistanceMax(float NewLightDistanceMax)
+{
+	LightDistanceMax = NewLightDistanceMax;
+
+	if (DynamicMaterialBeam)
+	{
+		DynamicMaterialBeam->SetScalarParameterValue("DMX Max Light Distance", LightDistanceMax);
+	}
+
+	SpotLight->SetAttenuationRadius(LightDistanceMax);
+	PointLight->SetAttenuationRadius(LightDistanceMax);
+}
+
+void ADMXFixtureActor::SetLightColorTemp(float NewLightColorTemp)
+{
+	LightColorTemp = NewLightColorTemp;
+
+	SpotLight->SetTemperature(LightColorTemp);
+	PointLight->SetTemperature(LightColorTemp);
+}
+
+void ADMXFixtureActor::SetSpotlightIntensityScale(float NewSpotlightIntensityScale)
+{
+	SpotlightIntensityScale = NewSpotlightIntensityScale;
+
+	if (DynamicMaterialBeam)
+	{
+		DynamicMaterialBeam->SetScalarParameterValue("DMX Max Light Intensity", LightIntensityMax * SpotlightIntensityScale);
+	}
+
+	if (DynamicMaterialLens)
+	{
+		DynamicMaterialLens->SetScalarParameterValue("DMX Max Light Intensity", LightIntensityMax * SpotlightIntensityScale);
+	}
+
+	SpotLight->SetIntensity(LightIntensityMax * SpotlightIntensityScale);
+}
+
+void ADMXFixtureActor::SetPointlightIntensityScale(float NewPointlightIntensityScale)
+{
+	PointlightIntensityScale = NewPointlightIntensityScale;
+
+	PointLight->SetIntensity(LightIntensityMax * PointlightIntensityScale);
+}
+
+void ADMXFixtureActor::SetLightCastShadow(bool bLightShouldCastShadow)
+{
+	LightCastShadow = bLightShouldCastShadow;
+
+	SpotLight->SetCastShadows(bLightShouldCastShadow);
+	PointLight->SetCastShadows(bLightShouldCastShadow);
+}
+
 void ADMXFixtureActor::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttributeValueMap& ValuePerAttribute)
 {
 	SCOPE_CYCLE_COUNTER(STAT_FixtureActorPushNormalizedValuesPerAttribute);

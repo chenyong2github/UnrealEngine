@@ -425,6 +425,11 @@ private:
 
 	// Pointers to each subsystem, for easier debugging
 	TArray<const FAnimSubsystem*> Subsystems;
+
+#if WITH_EDITORONLY_DATA
+	// Flag indicating the persistent result of calling VerifyNodeDataLayout() on load/compile
+	bool bDataLayoutValid = true;
+#endif
 	
 public:
 	// IAnimClassInterface interface
@@ -469,13 +474,23 @@ private:
 	virtual void ForEachSubsystem(UObject* InObject, TFunctionRef<EAnimSubsystemEnumeration(const FAnimSubsystemInstanceContext&)> InFunction) const override;
 	virtual const FAnimSubsystem* FindSubsystem(UScriptStruct* InSubsystemType) const override;
 
+#if WITH_EDITORONLY_DATA
+	virtual bool IsDataLayoutValid() const override { return bDataLayoutValid; };
+#endif
+	
 	// Called internally post-load defaults and by the compiler after compilation is completed 
 	void OnPostLoadDefaults(UObject* Object);
 
 	// Called by the compiler to make sure that data tables are initialized. This is needed to patch the sparse class
 	// data for child anim BP overrides 
 	void InitializeAnimNodeData(UObject* DefaultObject, bool bForce);
-	
+
+#if WITH_EDITORONLY_DATA
+	// Verify that the serialized NodeTypeMap can be used with the current set of native node data layouts
+	// Sets internal bDataLayoutValid flag
+	bool VerifyNodeDataLayout();
+#endif
+
 public:
 #if WITH_EDITORONLY_DATA
 	FAnimBlueprintDebugData AnimBlueprintDebugData;

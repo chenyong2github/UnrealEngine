@@ -5,7 +5,10 @@
 #include "AssetTypeCategories.h"
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
+#include "Editor.h"
+#include "Engine/SkeletalMesh.h"
 #include "RigEditor/IKRigController.h"
+#include "Widgets/SWindow.h"
 
 #define LOCTEXT_NAMESPACE "IKRigDefinitionFactory"
 

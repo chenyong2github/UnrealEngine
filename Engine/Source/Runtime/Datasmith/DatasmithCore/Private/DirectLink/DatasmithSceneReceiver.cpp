@@ -40,7 +40,7 @@ FDatasmithSceneReceiver::FDatasmithSceneReceiver()
 }
 
 
-TSharedPtr<IDatasmithScene> FDatasmithSceneReceiver::GetScene()
+TSharedPtr<IDatasmithScene> FDatasmithSceneReceiver::GetScene() const
 {
 	return Current->Scene;
 }

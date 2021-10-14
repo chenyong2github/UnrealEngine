@@ -28,7 +28,7 @@
 			"Name" : "ScriptPlugin",
 			"Type" : "Runtime",
 			"LoadingPhase" : "PreDefault",
-			"BlacklistPlatforms" :
+			"PlatformDenyList" :
 			[
 				"Linux"
 			]
@@ -37,7 +37,7 @@
 			"Name" : "ScriptEditorPlugin",
 			"Type" : "Editor",
 			"LoadingPhase" : "Default",
-			"BlacklistPlatforms" :
+			"PlatformDenyList" :
 			[
 				"Linux"
 			]

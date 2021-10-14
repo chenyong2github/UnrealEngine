@@ -963,6 +963,8 @@ protected:
 	virtual int32 SkyAtmosphereAerialPerspective(int32 WorldPosition) override;
 	virtual int32 SkyAtmosphereDistantLightScatteredLuminance() override;
 
+	virtual int32 SkyLightEnvMapSample(int32 DirectionCodeChunk, int32 RoughnessCodeChunk) override;
+
 	// Water
 	virtual int32 SceneDepthWithoutWater(int32 Offset, int32 ViewportUV, bool bUseOffset, float FallbackDepth) override;
 

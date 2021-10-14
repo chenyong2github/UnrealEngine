@@ -147,8 +147,17 @@ protected:
 
 public:
 
-	// Should global time dilation be applied to the held duration?
-	UPROPERTY(BlueprintReadWrite, Category = "Trigger Settings")
+	/**
+	 * Should global time dilation be applied to the held duration?
+	 * Default is set to false.
+	 * 
+	 * If this is set to true, then the owning Player Controller's actor time dialtion
+	 * will be used when calculating the HeldDuration.
+	 * 
+	 * @see UInputTriggerTimedBase::CalculateHeldDuration
+	 * @see AWorldSettings::GetEffectiveTimeDilation
+	 */
+	UPROPERTY(EditAnywhere, Config, BlueprintReadWrite, Category = "Trigger Settings")
 	bool bAffectedByTimeDilation = false;
 
 	virtual FString GetDebugState() const override { return HeldDuration ? FString::Printf(TEXT("Held:%.2f"), HeldDuration) : FString(); }

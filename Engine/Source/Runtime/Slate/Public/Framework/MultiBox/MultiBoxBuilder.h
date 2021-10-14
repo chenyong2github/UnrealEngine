@@ -414,7 +414,7 @@ public:
 	FToolBarBuilder(TSharedPtr< const FUICommandList > InCommandList, FMultiBoxCustomization InCustomization, TSharedPtr<FExtender> InExtender, EOrientation Orientation, const bool InForceSmallIcons = false, const bool bUniform = false)
 		: FMultiBoxBuilder(bUniform ? EMultiBoxType::UniformToolBar : (Orientation == Orient_Horizontal) ? EMultiBoxType::ToolBar : EMultiBoxType::VerticalToolBar, InCustomization, false, InCommandList, InExtender)
 		, bSectionNeedsToBeApplied(false)
-		, bIsFocusable(false)
+		, bIsFocusable(true)
 		, bForceSmallIcons(InForceSmallIcons)
 	{
 	}
@@ -427,14 +427,15 @@ public:
 	FToolBarBuilder(TSharedPtr<const FUICommandList> InCommandList, FMultiBoxCustomization InCustomization, TSharedPtr<FExtender> InExtender = nullptr, const bool InForceSmallIcons = false)
 		: FMultiBoxBuilder(EMultiBoxType::ToolBar, InCustomization, false, InCommandList, InExtender)
 		, bSectionNeedsToBeApplied(false)
-		, bIsFocusable(false)
+		, bIsFocusable(true)
 		, bForceSmallIcons(InForceSmallIcons)
 	{
+		MultiBox->bIsFocusable = bIsFocusable;
 	}
 
 	void SetLabelVisibility( EVisibility InLabelVisibility ) { LabelVisibility  = InLabelVisibility ; }
 
-	void SetIsFocusable( bool bInIsFocusable ) { bIsFocusable = bInIsFocusable; }
+	void SetIsFocusable(bool bInIsFocusable);
 
 	/**
 	 * Adds a tool bar button

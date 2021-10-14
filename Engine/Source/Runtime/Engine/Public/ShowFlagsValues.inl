@@ -375,6 +375,8 @@ SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeCalibrationColor, SFG_Developer, NSLOCTEX
 SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeCalibrationGrayscale, SFG_Developer, NSLOCTEXT("UnrealEd", "VisualizeCalibrationGrayscaleSF", "Visualize Calibration Grayscale"))
 /** Shows a full-screen calibration custom post process material defined in renderer config  */
 SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeCalibrationCustom, SFG_Developer, NSLOCTEXT("UnrealEd", "VisualizeCalibrationCustomSF", "Visualize Calibration Custom"))
+/** Visualise information about the post processes stacked on screen */
+SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizePostProcessStack, SFG_Visualize, NSLOCTEXT("UnrealEd", "VisualizePostProcessStackSF", "Visualize Post Process Stack"))
 
 /** Draw in the main pass the primitives that would normally only contribute to runtime virtual textures. */
 SHOWFLAG_FIXED_IN_SHIPPING(0, VirtualTexturePrimitives, SFG_Developer, NSLOCTEXT("UnrealEd", "VirtualTexturePrimitivesSF", "Virtual Texture Primitives"))

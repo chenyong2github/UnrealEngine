@@ -371,9 +371,13 @@ FReply FSequencerEditTool_Movement::OnMouseButtonUp(SWidget& OwnerWidget, const 
 
 void FSequencerEditTool_Movement::OnMouseCaptureLost()
 {
-	DelayedDrag.Reset();
-	DragOperation = nullptr;
-	CursorDecorator = nullptr;
+	// Delaying nulling out until next tick because this could be invoked during OnMouseMove()
+	GEditor->GetTimerManager()->SetTimerForNextTick([this]()
+	{
+		DelayedDrag.Reset();
+		DragOperation = nullptr;
+		CursorDecorator = nullptr;
+	});
 }
 
 

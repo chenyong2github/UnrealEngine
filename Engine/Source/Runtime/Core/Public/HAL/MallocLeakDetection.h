@@ -194,7 +194,7 @@ public:
 	/** Removes allocated pointer from list */
 	void Free(void* Ptr);	
 
-	/** Disabled allocation tracking for this thread. Used by MALLOCLEAK_WHITELIST_SCOPE macros */
+	/** Disabled allocation tracking for this thread, @see MALLOCLEAK_IGNORE_SCOPE and FMallocLeakDetectionIgnoreScope. */
 	void SetDisabledForThisThread(const bool Disabled);
 
 	/** Returns true of allocation tracking for this thread is  */
@@ -216,27 +216,27 @@ public:
 };
 
 /**
- *	Helper class that can be used to whitelist allocations from a specific scope. Use this
- *	carefully and only if you know that a portion of code is throwing up either false
- *	positives or can be ignored. (e.g. one example is the FName table which never shrinks
+ *	Helper class that can be used to ignore allocations from a specific scope for leak detection.
+ *	Use this carefully and only if you know that a portion of code is throwing up either false
+ *	positives or can be ignored. (e.g., one example is the FName table which never shrinks
  *	and eventually reaches a max that is relatively inconsequential).
  */
-class FMallocLeakScopeWhitelist
+class FMallocLeakDetectionIgnoreScope
 {
 public:
-	FMallocLeakScopeWhitelist()
+	FMallocLeakDetectionIgnoreScope()
 	{
 		FMallocLeakDetection::Get().SetDisabledForThisThread(true);
 	}
 
-	~FMallocLeakScopeWhitelist()
+	~FMallocLeakDetectionIgnoreScope()
 	{
 		FMallocLeakDetection::Get().SetDisabledForThisThread(false);
 	}
 
 	// Non-copyable
-	FMallocLeakScopeWhitelist(const FMallocLeakScopeWhitelist&) = delete;
-	FMallocLeakScopeWhitelist& operator=(const FMallocLeakScopeWhitelist&) = delete;
+	FMallocLeakDetectionIgnoreScope(const FMallocLeakDetectionIgnoreScope&) = delete;
+	FMallocLeakDetectionIgnoreScope& operator=(const FMallocLeakDetectionIgnoreScope&) = delete;
 };
 
 class FMallocLeakScopedContext
@@ -258,15 +258,15 @@ public:
 	FMallocLeakScopedContext& operator=(const FMallocLeakScopedContext&) = delete;
 };
 
-#define MALLOCLEAK_WHITELIST_SCOPE() \
-	FMallocLeakScopeWhitelist ANONYMOUS_VARIABLE(ScopeWhitelist)
+#define MALLOCLEAK_IGNORE_SCOPE() \
+	FMallocLeakDetectionIgnoreScope ANONYMOUS_VARIABLE(DetectionShouldIgnoreScope)
 
 #define MALLOCLEAK_SCOPED_CONTEXT(Context) \
 	FMallocLeakScopedContext ANONYMOUS_VARIABLE(ScopedContext)(Context)
 
 #else // MALLOC_LEAKDETECTION 0
 
-#define MALLOCLEAK_WHITELIST_SCOPE()
+#define MALLOCLEAK_IGNORE_SCOPE()
 #define MALLOCLEAK_SCOPED_CONTEXT(Context)
 
 #endif // MALLOC_LEAKDETECTION

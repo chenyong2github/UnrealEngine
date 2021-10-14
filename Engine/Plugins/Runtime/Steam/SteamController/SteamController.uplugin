@@ -20,7 +20,7 @@
 			"Name" : "SteamController",
 			"Type" : "Runtime",
 			"LoadingPhase" : "Default",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"Win64",
 				"Linux"

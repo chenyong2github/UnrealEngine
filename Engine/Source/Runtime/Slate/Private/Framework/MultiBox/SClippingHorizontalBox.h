@@ -20,11 +20,13 @@ public:
 	SLATE_BEGIN_ARGS(SClippingHorizontalBox) 
 		: _StyleSet(&FCoreStyle::Get())
 		, _StyleName(NAME_None)
+		, _IsFocusable(true)
 		{ }
 
 		SLATE_ARGUMENT(FOnGetContent, OnWrapButtonClicked)
 		SLATE_ARGUMENT(const ISlateStyle*, StyleSet)
 		SLATE_ARGUMENT(FName, StyleName)
+		SLATE_ARGUMENT(bool, IsFocusable)
 	SLATE_END_ARGS()
 
 	/** SWidget interface */
@@ -62,6 +64,9 @@ private:
 	mutable int32 NumClippedChildren;
 
 	TSharedPtr<FActiveTimerHandle> WrapButtonOpenTimer;
+
+	/** Can the wrap button be focused? */
+	bool bIsFocusable;
 
 	/** The style to use */
 	const ISlateStyle* StyleSet;

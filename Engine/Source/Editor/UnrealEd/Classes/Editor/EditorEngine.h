@@ -2439,18 +2439,16 @@ public:
 	FOnMakeAssetReferenceFilter& OnMakeAssetReferenceFilter() { return OnMakeAssetReferenceFilterDelegate; }
 	TSharedPtr<IAssetReferenceFilter> MakeAssetReferenceFilter(const FAssetReferenceFilterContext& Context) { return OnMakeAssetReferenceFilterDelegate.IsBound() ? OnMakeAssetReferenceFilterDelegate.Execute(Context) : nullptr; }
 
-public:
+	DECLARE_DELEGATE_RetVal(ULevelEditorDragDropHandler*, FOnCreateLevelEditorDragDropHandler);
+	FOnCreateLevelEditorDragDropHandler& OnCreateLevelEditorDragDropHandler() { return OnCreateLevelEditorDragDropHandlerDelegate; }
 	ULevelEditorDragDropHandler* GetLevelEditorDragDropHandler() const;
-protected:
-	virtual ULevelEditorDragDropHandler* CreateLevelEditorDragDropHandler();
+
 private:
 	UPROPERTY()
 	mutable TObjectPtr<ULevelEditorDragDropHandler> DragDropHandler;
 
-protected:
-
-	/** Returns a filter to restruct what assets show up in asset pickers based on what the selection is used for (i.e. what will reference the assets) */
 	FOnMakeAssetReferenceFilter OnMakeAssetReferenceFilterDelegate;
+	FOnCreateLevelEditorDragDropHandler OnCreateLevelEditorDragDropHandlerDelegate;
 
 public:
 

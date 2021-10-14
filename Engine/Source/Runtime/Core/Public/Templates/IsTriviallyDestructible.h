@@ -2,7 +2,7 @@
 
 #pragma once
 
-namespace UE4IsTriviallyDestructible_Private
+namespace UE::Core::Private::IsTriviallyDestructible
 {
 	// We have this specialization for enums to avoid the need to have a full definition of
 	// the type.
@@ -25,5 +25,5 @@ namespace UE4IsTriviallyDestructible_Private
 template <typename T>
 struct TIsTriviallyDestructible
 {
-	enum { Value = UE4IsTriviallyDestructible_Private::TImpl<T>::Value };
+	enum { Value = UE::Core::Private::IsTriviallyDestructible::TImpl<T>::Value };
 };

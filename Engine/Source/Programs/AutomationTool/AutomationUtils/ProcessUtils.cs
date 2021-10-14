@@ -289,10 +289,9 @@ namespace AutomationTool
         /// </summary>
         /// <param name="Verbosity"></param>
         /// <param name="Message"></param>
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
 		private void LogOutput(LogEventType Verbosity, string Message)
 		{
-            Log.WriteLine(1, Verbosity, Message);
+            Log.WriteLine(Verbosity, Message);
 		}
        
 		/// <summary>

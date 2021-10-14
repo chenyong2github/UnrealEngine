@@ -11,14 +11,13 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
-#include "TraceServices/ITraceServicesModule.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Trace/StoreClient.h"
 #include "Stats/Stats.h"
 #include "ObjectPropertyTrace.h"
-#include "SAnimGraphSchematicView.h"
 #include "SAnimationCurvesView.h"
 #include "SBlendWeightsView.h"
+#include "SMontageView.h"
 #include "SObjectPropertiesView.h"
 #include "SNotifiesView.h"
 
@@ -26,7 +25,6 @@
 #include "IAnimationBlueprintEditorModule.h"
 #include "Editor.h"
 #include "ToolMenus.h"
-#include "LevelEditorMenuContext.h"
 #include "Engine/Selection.h"
 #include "SubobjectEditorMenuContext.h"
 #include "GameplayInsightsStyle.h"
@@ -72,6 +70,8 @@ void FGameplayInsightsModule::StartupModule()
 	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerViewCreator::ModularFeatureName, &AnimGraphSchematicViewCreator);
 	static FBlendWeightsViewCreator BlendWeightsViewCreator;
 	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerViewCreator::ModularFeatureName, &BlendWeightsViewCreator);
+	static FMontageViewCreator MontageViewCreator;
+	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerViewCreator::ModularFeatureName, &MontageViewCreator);
 	static FNotifiesViewCreator NotifiesViewCreator;
 	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerViewCreator::ModularFeatureName, &NotifiesViewCreator);
 	static FAnimationCurvesViewCreator AnimationCurvesViewCreator;
@@ -259,84 +259,6 @@ void FGameplayInsightsModule::RegisterMenus()
 	FToolMenuOwnerScoped OwnerScoped(this);
 
 #if OBJECT_PROPERTY_TRACE_ENABLED
-	{
-		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.ActorContextMenu");
-		FToolMenuSection& Section = Menu->AddSection("GameplayInsights", LOCTEXT("GameplayInsights", "Gameplay Insights"));
-
-		auto GetCheckState = []()
-		{
-			if ((GEditor->GetSelectedComponentCount() > 0 || GEditor->GetSelectedActorCount() > 0) && FObjectPropertyTrace::IsEnabled())
-			{
-				USelection* SelectedActors = GEditor->GetSelectedActors();
-
-				int32 TotalObjectCount = SelectedActors->Num();
-				int32 RegisteredObjectCount = 0;
-				
-				for(int32 ActorIndex = 0; ActorIndex < SelectedActors->Num(); ++ActorIndex)
-				{
-					UObject* SelectedActor = SelectedActors->GetSelectedObject(ActorIndex);
-					if(FObjectPropertyTrace::IsObjectRegistered(SelectedActor))
-					{
-						RegisteredObjectCount++;
-					}
-					else
-					{
-						break;
-					}
-				}
-
-				if(RegisteredObjectCount == TotalObjectCount)
-				{
-					return ECheckBoxState::Checked;
-				}
-				else
-				{
-					return ECheckBoxState::Unchecked;
-				}
-			}
-
-			return ECheckBoxState::Unchecked;
-		};
-
-		FToolUIAction Action;
-		Action.ExecuteAction = FToolMenuExecuteAction::CreateLambda([GetCheckState](const FToolMenuContext& InContext)
-		{
-			if ((GEditor->GetSelectedComponentCount() > 0 || GEditor->GetSelectedActorCount() > 0) && FObjectPropertyTrace::IsEnabled())
-			{
-				ECheckBoxState CheckState = GetCheckState();
-
-				USelection* SelectedActors = GEditor->GetSelectedActors();
-				for(int32 ActorIndex = 0; ActorIndex < SelectedActors->Num(); ++ActorIndex)
-				{
-					UObject* SelectedActor = SelectedActors->GetSelectedObject(ActorIndex);
-					if(CheckState == ECheckBoxState::Unchecked)
-					{
-						FObjectPropertyTrace::RegisterObject(SelectedActor);
-					}
-					else
-					{
-						FObjectPropertyTrace::UnregisterObject(SelectedActor);
-					}
-				}
-			}
-		});
-		Action.CanExecuteAction = FToolMenuCanExecuteAction::CreateLambda([](const FToolMenuContext& InContext)
-		{
-			return ((GEditor->GetSelectedActorCount() > 0) && FObjectPropertyTrace::IsEnabled());
-		});
-		Action.GetActionCheckState = FToolMenuGetActionCheckState::CreateLambda([GetCheckState](const FToolMenuContext& InContext)
-		{
-			return GetCheckState();
-		});
-
-		FToolMenuEntry& Entry = Section.AddMenuEntry(
-			"TraceObjectProperties",
-			LOCTEXT("TraceObjectProperties", "Trace Object Properties"),
-			LOCTEXT("TraceObjectPropertiesTooltip", "Trace the properties of this object to be viewed in Insights"),
-			FSlateIcon(),
-			Action,
-			EUserInterfaceActionType::ToggleButton);
-	}
 	{
 		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("Kismet.SubobjectEditorContextMenu");
 

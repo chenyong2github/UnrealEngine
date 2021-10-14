@@ -70,6 +70,14 @@ namespace CADLibrary
 		{
 		}
 	
+		/**
+		 * @param ValueInMM, the value in millimeter to convert into the scene metric unit 
+		 */
+		double ConvertMMToImportUnit(double ValueInMM) const
+		{
+			return ValueInMM * 0.001 / MetricUnit;
+		}
+
 		void SetTesselationParameters(double InChordTolerance, double InMaxEdgeLength, double InMaxNormalAngle, CADLibrary::EStitchingTechnique InStitchingTechnique)
 		{
 			ChordTolerance = InChordTolerance;
@@ -118,20 +126,6 @@ namespace CADLibrary
 			Ar << ImportParameters.bGEnableTimeControl;
 			Ar << ImportParameters.bGEnableCADCache;
 			return Ar;
-		}
-
-		FString DefineCADFilePath(const TCHAR* FolderPath, const TCHAR* InFileName) const
-		{
-			FString OutFileName = FPaths::Combine(FolderPath, InFileName);
-			if (bGDisableCADKernelTessellation)
-			{
-				OutFileName += TEXT(".ct");
-			}
-			else
-			{
-				OutFileName += TEXT(".ugeom");
-			}
-			return OutFileName;
 		}
 
 		double GetMetricUnit() const
@@ -207,6 +201,22 @@ namespace CADLibrary
 		CADTOOLS_API friend uint32 GetTypeHash(const FImportParameters& ImportParameters);
 
 	};
+
+	inline FString BuildCacheFilePath(const TCHAR* CachePath, const TCHAR* Folder, uint32 BodyHash)
+	{
+		FString BodyFileName = FString::Printf(TEXT("UEx%08x"), BodyHash);
+		FString OutFileName = FPaths::Combine(CachePath, Folder, BodyFileName);
+
+		if (FImportParameters::bGDisableCADKernelTessellation)
+		{
+			OutFileName += TEXT(".ct");
+		}
+		else
+		{
+			OutFileName += TEXT(".ugeom");
+		}
+		return OutFileName;
+	}
 
 	struct FMeshParameters
 	{

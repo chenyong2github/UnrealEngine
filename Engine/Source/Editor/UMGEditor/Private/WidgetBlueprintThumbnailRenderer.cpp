@@ -182,8 +182,8 @@ void UWidgetBlueprintThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, 
 			{
 				UWorld* World = GEditor->GetEditorWorldContext().World();
 				ThumbnailInstance.Widget = NewObject<UUserWidget>(World, ClassToGenerate, NAME_None, RF_Transient);
-				ThumbnailInstance.Widget->Initialize();
 				ThumbnailInstance.Widget->SetDesignerFlags(EWidgetDesignFlags::Designing | EWidgetDesignFlags::ExecutePreConstruct);
+				ThumbnailInstance.Widget->Initialize();
 
 				WidgetInstance = ThumbnailInstance.Widget.Get();
 			}

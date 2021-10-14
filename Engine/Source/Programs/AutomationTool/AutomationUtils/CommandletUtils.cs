@@ -455,21 +455,31 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="ParamValues">List of parameters (must not be empty)</param>
 		/// <returns>Combined param</returns>
-		public static string CombineCommandletParams(string[] ParamValues, string Separator = "+")
+		public static string CombineCommandletParams(IEnumerable<string> ParamValues, string Separator = "+")
 		{
-			if (!IsNullOrEmpty(ParamValues))
+			string CombinedParams = String.Empty;
+			if (ParamValues != null)
 			{
-				var CombinedParams = ParamValues[0];
-				for (int Index = 1; Index < ParamValues.Length; ++Index)
+				var Iter = ParamValues.GetEnumerator();
+				while (Iter.MoveNext())
 				{
-                    CombinedParams += Separator + ParamValues[Index];
+					if (!String.IsNullOrEmpty(Iter.Current))
+					{
+						CombinedParams += Iter.Current;
+						break;
+					}
 				}
-				return CombinedParams;
+
+				while (Iter.MoveNext())
+				{
+					if (!String.IsNullOrEmpty(Iter.Current))
+					{
+						CombinedParams += Separator + Iter.Current;
+					}
+				}
 			}
-			else
-			{
-				return String.Empty;
-			}
+
+			return CombinedParams;
 		}
 
 		/// <summary>

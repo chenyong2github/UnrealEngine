@@ -82,6 +82,14 @@ struct MOVIESCENETOOLS_API FMovieSceneEventUtils
 	 */
 	static void BindEventSectionToBlueprint(UMovieSceneEventSectionBase* EventSection, UBlueprint* DirectorBP);
 
+	/**
+	 * Remove all event end points for the given event section
+	 *
+	 * @param EventSection           (Required, non-null) The event section to remove event endpoints from
+	 * @param DirectorBP             (Required, non-null) The owning blueprint from which to remove the event section's entry points
+	 */
+	static void RemoveEndpointsForEventSection(UMovieSceneEventSectionBase* EventSection, UBlueprint* DirectorBP);
+
 public:
 
 	/**

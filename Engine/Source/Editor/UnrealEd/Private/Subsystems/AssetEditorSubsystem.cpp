@@ -23,7 +23,7 @@
 #include "Interfaces/IAnalyticsProvider.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Misc/BlacklistNames.h"
+#include "Misc/NamePermissionList.h"
 #include "StudioAnalytics.h"
 #include "EditorModeRegistry.h"
 #include "Tools/UEdMode.h"
@@ -308,7 +308,7 @@ bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMod
 			return false;
 		}
 
-		if (!AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(Package->GetName()))
+		if (!AssetToolsModule.Get().GetWritableFolderPermissionList()->PassesStartsWithFilter(Package->GetName()))
 		{
 			AssetToolsModule.Get().NotifyBlockedByWritableFolderFilter();
 			return false;

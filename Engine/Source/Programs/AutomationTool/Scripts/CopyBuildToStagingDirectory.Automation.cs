@@ -381,7 +381,7 @@ namespace AutomationScripts
 
 		private static bool ShouldStageLocalizationTarget(DeploymentContext SC, ConfigHierarchy PlatformGameConfig, string LocalizationTarget)
 		{
-			if (SC.BlacklistLocalizationTargets.Contains(LocalizationTarget))
+			if (SC.LocalizationTargetsDenyList.Contains(LocalizationTarget))
 			{
 				return false;
 			}
@@ -975,12 +975,12 @@ namespace AutomationScripts
 
 					if (!bSkipMovies && !SC.DedicatedServer)
 					{
-						List<string> MovieBlackList;
-						PlatformGameConfig.GetArray("/Script/UnrealEd.ProjectPackagingSettings", "MovieBlacklist", out MovieBlackList);
-						if (MovieBlackList == null)
+						List<string> MovieDenyList;
+						PlatformGameConfig.GetArray("/Script/UnrealEd.ProjectPackagingSettings", "MovieBlacklist", out MovieDenyList);
+						if (MovieDenyList == null)
 						{
 							// Make an empty list to avoid having to null check below
-							MovieBlackList = new List<string>();
+							MovieDenyList = new List<string>();
 						}
 
 						// UFS is required when using a file server
@@ -990,14 +990,14 @@ namespace AutomationScripts
 						if (DirectoryReference.Exists(EngineMoviesDir))
 						{
 							List<FileReference> MovieFiles = SC.FindFilesToStage(EngineMoviesDir, StageFilesSearch.AllDirectories);
-							SC.StageFiles(MovieFileType, MovieFiles.Where(x => !x.HasExtension(".uasset") && !x.HasExtension(".umap") && !MovieBlackList.Contains(x.GetFileNameWithoutAnyExtensions())));
+							SC.StageFiles(MovieFileType, MovieFiles.Where(x => !x.HasExtension(".uasset") && !x.HasExtension(".umap") && !MovieDenyList.Contains(x.GetFileNameWithoutAnyExtensions())));
 						}
 
 						DirectoryReference ProjectMoviesDir = DirectoryReference.Combine(SC.ProjectRoot, "Content", "Movies");
 						if (DirectoryReference.Exists(ProjectMoviesDir))
 						{
 							List<FileReference> MovieFiles = SC.FindFilesToStage(ProjectMoviesDir, StageFilesSearch.AllDirectories);
-							SC.StageFiles(MovieFileType, MovieFiles.Where(x => !x.HasExtension(".uasset") && !x.HasExtension(".umap") && !MovieBlackList.Contains(x.GetFileNameWithoutAnyExtensions())));
+							SC.StageFiles(MovieFileType, MovieFiles.Where(x => !x.HasExtension(".uasset") && !x.HasExtension(".umap") && !MovieDenyList.Contains(x.GetFileNameWithoutAnyExtensions())));
 						}
 					}
 					else if (!SC.DedicatedServer)
@@ -1312,7 +1312,7 @@ namespace AutomationScripts
 				RestrictedFiles.UnionWith(SC.FilesToStage.NonUFSDebugFiles.Keys.Where(x => x.ContainsName(RestrictedName)));
 				RestrictedFiles.UnionWith(SC.CrashReporterUFSFiles.Keys.Where(x => x.ContainsName(RestrictedName)));
 			}
-			RestrictedFiles.RemoveWhere(RestrictedFile => SC.WhitelistDirectories.Any(WhitelistDirectory => RestrictedFile.Directory.IsUnderDirectory(WhitelistDirectory)));
+			RestrictedFiles.RemoveWhere(RestrictedFile => SC.DirectoriesAllowList.Any(TestDirectory => RestrictedFile.Directory.IsUnderDirectory(TestDirectory)));
 
 			if (RestrictedFiles.Count > 0)
 			{
@@ -1341,7 +1341,7 @@ namespace AutomationScripts
 				Message.Append("\n+RemapDirectories=(From=\"Foo/NoRedist\", To=\"Foo\")");
 				if (RestrictedNames.Any(x => x != "NotForLicensees" && x != "NoRedist")) // We don't ever want internal stuff white-listing folders like this
 				{
-					Message.Append("\nAlternatively, whitelist them using this syntax in DefaultGame.ini:");
+					Message.Append("\nAlternatively, allow list them using this syntax in DefaultGame.ini:");
 					Message.Append("\n[Staging]");
 					Message.Append("\n+WhitelistDirectories=MyGame/Content/Foo");
 				}
@@ -1363,7 +1363,7 @@ namespace AutomationScripts
 				Nullable<bool> ShouldStage = ShouldStageConfigFile(SC, ConfigDir, ConfigFile, PlatformExtensionName);
 				if (ShouldStage == null)
 				{
-					CommandUtils.LogWarning("The config file '{0}' will be staged, but is not whitelisted or blacklisted. Add +WhitelistConfigFiles={0} or +BlacklistConfigFiles={0} to the [Staging] section of DefaultGame.ini", SC.GetStagedFileLocation(ConfigFile));
+					CommandUtils.LogWarning("The config file '{0}' will be staged, but is not explicitly allowed or denied. Add +WhitelistConfigFiles={0} or +BlacklistConfigFiles={0} to the [Staging] section of DefaultGame.ini", SC.GetStagedFileLocation(ConfigFile));
 				}
 
 				if (ShouldStage ?? true)
@@ -1409,11 +1409,11 @@ namespace AutomationScripts
 		static Nullable<bool> ShouldStageConfigFile(DeploymentContext SC, DirectoryReference ConfigDir, FileReference ConfigFile, string PlatformExtensionName)
 		{
 			StagedFileReference StagedConfigFile = SC.GetStagedFileLocation(ConfigFile);
-			if (SC.WhitelistConfigFiles.Contains(StagedConfigFile))
+			if (SC.ConfigFilesAllowList.Contains(StagedConfigFile))
 			{
 				return true;
 			}
-			if (SC.BlacklistConfigFiles.Contains(StagedConfigFile))
+			if (SC.ConfigFilesDenyList.Contains(StagedConfigFile))
 			{
 				return false;
 			}
@@ -1563,12 +1563,12 @@ namespace AutomationScripts
 		/// <returns>True if the suffix should be staged, false if not, null if unknown</returns>
 		static Nullable<bool> ShouldStageConfigSuffix(DeploymentContext SC, FileReference ConfigFile, string InvariantSuffix)
 		{
-			if (SC.IniSuffixWhitelist != null && SC.IniSuffixWhitelist.Contains(InvariantSuffix))
+			if (SC.IniSuffixAllowList != null && SC.IniSuffixAllowList.Contains(InvariantSuffix))
 			{
 				return true;
 			}
 
-			if (SC.IniSuffixBlacklist != null && SC.IniSuffixBlacklist.Contains(InvariantSuffix))
+			if (SC.IniSuffixDenyList != null && SC.IniSuffixDenyList.Contains(InvariantSuffix))
 			{
 				return false;
 			}
@@ -1703,7 +1703,7 @@ namespace AutomationScripts
 					FileReference Dest = FileReference.Combine(SC.StageDirectory, Pair.Key.Name);
 					if (Src != Dest)  // special case for things created in the staging directory, like the pak file
 					{
-						CopyFileIncremental(Src, Dest, IniKeyBlacklist: SC.IniKeyBlacklist, IniSectionBlacklist: SC.IniSectionBlacklist);
+						CopyFileIncremental(Src, Dest, IniKeyDenyList: SC.IniKeyDenyList, IniSectionDenyList: SC.IniSectionDenyList);
 					}
 				}
 			}
@@ -2141,28 +2141,28 @@ namespace AutomationScripts
 		/// <returns></returns>
 		private static Dictionary<string, string> CreatePakResponseFileFromStagingManifest(DeploymentContext SC, Dictionary<StagedFileReference, FileReference> FilesToStage)
 		{
-			// look for optional packaging blacklist if only one config active
-			List<string> Blacklist = null;
+			// look for optional packaging deny list if only one config active
+			List<string> DenyList = null;
 			if (SC.StageTargetConfigurations.Count == 1)
 			{
-				FileReference PakBlacklistFilename = FileReference.Combine(SC.ProjectRoot, "Platforms", SC.PlatformDir, "Build", string.Format("PakBlacklist-{0}.txt", SC.StageTargetConfigurations[0].ToString()));
-				if (!FileReference.Exists(PakBlacklistFilename))
+				FileReference PakDenyListFilename = FileReference.Combine(SC.ProjectRoot, "Platforms", SC.PlatformDir, "Build", string.Format("PakBlacklist-{0}.txt", SC.StageTargetConfigurations[0].ToString()));
+				if (!FileReference.Exists(PakDenyListFilename))
 				{
-					PakBlacklistFilename = FileReference.Combine(SC.ProjectRoot, "Build", SC.PlatformDir, string.Format("PakBlacklist-{0}.txt", SC.StageTargetConfigurations[0].ToString()));
+					PakDenyListFilename = FileReference.Combine(SC.ProjectRoot, "Build", SC.PlatformDir, string.Format("PakBlacklist-{0}.txt", SC.StageTargetConfigurations[0].ToString()));
 				}
-				if (FileReference.Exists(PakBlacklistFilename))
+				if (FileReference.Exists(PakDenyListFilename))
 				{
-					LogInformation("Applying PAK blacklist file {0}. This is deprecated in favor of DefaultPakFileRules.ini", PakBlacklistFilename);
-					string[] BlacklistContents = FileReference.ReadAllLines(PakBlacklistFilename);
-					foreach (string Candidate in BlacklistContents)
+					LogInformation("Applying PAK deny list file {0}. This is deprecated in favor of DefaultPakFileRules.ini", PakDenyListFilename);
+					string[] DenyListContents = FileReference.ReadAllLines(PakDenyListFilename);
+					foreach (string Candidate in DenyListContents)
 					{
 						if (Candidate.Trim().Length > 0)
 						{
-							if (Blacklist == null)
+							if (DenyList == null)
 							{
-								Blacklist = new List<string>();
+								DenyList = new List<string>();
 							}
-							Blacklist.Add(Candidate);
+							DenyList.Add(Candidate);
 						}
 					}
 				}
@@ -2176,10 +2176,10 @@ namespace AutomationScripts
 
 				Dest = CombinePaths(PathSeparator.Slash, SC.PakFileInternalRoot, Dest);
 
-				if (Blacklist != null)
+				if (DenyList != null)
 				{
 					bool bExcludeFile = false;
-					foreach (string ExcludePath in Blacklist)
+					foreach (string ExcludePath in DenyList)
 					{
 						if (Dest.StartsWith(ExcludePath))
 						{
@@ -2208,7 +2208,7 @@ namespace AutomationScripts
 					string SubFolder = Pair.Key.Name.Replace('/', Path.DirectorySeparatorChar);
 					FileReference NewIniFilename = FileReference.Combine(SC.ProjectRoot, "Saved", "Temp", SC.PlatformDir, SubFolder);
 					InternalUtils.SafeCreateDirectory(NewIniFilename.Directory.FullName, true);
-					InternalUtils.SafeCopyFile(Src.FullName, NewIniFilename.FullName, IniKeyBlacklist:SC.IniKeyBlacklist, IniSectionBlacklist:SC.IniSectionBlacklist);
+					InternalUtils.SafeCopyFile(Src.FullName, NewIniFilename.FullName, IniKeyDenyList: SC.IniKeyDenyList, IniSectionDenyList: SC.IniSectionDenyList);
 					Src = NewIniFilename;
 				}
 
@@ -2823,12 +2823,6 @@ namespace AutomationScripts
 						Dictionary<string, string> UnrealPakResponseFile = PakParams.UnrealPakResponseFile;
 						if (ShouldCreateIoStoreContainerFiles(Params, SC))
 						{
-							bool bLegacyBulkDataOffsets = false;
-							if (PlatformEngineConfig.GetBool("Core.System", "LegacyBulkDataOffsets", out bLegacyBulkDataOffsets) && bLegacyBulkDataOffsets)
-							{
-								throw new AutomationException("'LegacyBulkDataOffsets' is enabled, this needs to be disabled and the data recooked in order for IoStore to work");
-							}
-
 							bool bAllowBulkDataInIoStore = true;
 							if(!PlatformEngineConfig.GetBool("Core.System", "AllowBulkDataInIoStore", out bAllowBulkDataInIoStore))
 							{

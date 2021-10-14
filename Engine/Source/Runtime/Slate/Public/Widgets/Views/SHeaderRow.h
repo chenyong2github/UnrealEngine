@@ -103,6 +103,7 @@ public:
 			: _ColumnId()
 			, _DefaultLabel()
 			, _DefaultTooltip()
+			, _ToolTip()
 			, _FillWidth( 1.0f )
 			, _FixedWidth()
 			, _ManualWidth()
@@ -121,6 +122,7 @@ public:
 			SLATE_ARGUMENT( FName, ColumnId )
 			SLATE_ATTRIBUTE( FText, DefaultLabel )
 			SLATE_ATTRIBUTE( FText, DefaultTooltip )
+			SLATE_ATTRIBUTE( TSharedPtr< IToolTip >, ToolTip )
 
 			/** Set the Column Size Mode to Fill. It's a fraction between 0 and 1 */
 			SLATE_ATTRIBUTE( float, FillWidth )
@@ -155,6 +157,7 @@ public:
 			: ColumnId( InArgs._ColumnId )
 			, DefaultText( InArgs._DefaultLabel )
 			, DefaultTooltip( InArgs._DefaultTooltip )
+			, ToolTip(InArgs._ToolTip)
 			, Width( 1.0f )
 			, DefaultWidth( 1.0f )
 			, OnWidthChanged( InArgs._OnWidthChanged)
@@ -225,6 +228,9 @@ public:
 
 		/** Default tooltip to use if no widget is passed in */
 		TAttribute< FText > DefaultTooltip;
+
+		/** Custom tooltip to use */
+		TAttribute< TSharedPtr< IToolTip > > ToolTip;
 
 		/** A column width in Slate Units */
 		TAttribute< float > Width;

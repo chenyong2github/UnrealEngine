@@ -10,6 +10,7 @@
 class FViewInfo;
 class FSortedIndexBuffer;
 struct FMeshBatchElementDynamicIndexBuffer;
+class FViewInfo;
 
 struct FSortedTriangleData
 {

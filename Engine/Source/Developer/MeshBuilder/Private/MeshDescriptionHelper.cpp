@@ -40,9 +40,16 @@ void FMeshDescriptionHelper::SetupRenderMeshDescription(UObject* Owner, FMeshDes
 	const bool bNaniteBuildEnabled = StaticMesh->NaniteSettings.bEnabled;
 	float ComparisonThreshold = (BuildSettings->bRemoveDegenerates && !bNaniteBuildEnabled) ? THRESH_POINTS_ARE_SAME : 0.0f;
 	
+	// Compact the mesh description prior to performing operations
+	if (RenderMeshDescription.Triangles().GetArraySize() != RenderMeshDescription.Triangles().Num() ||
+		RenderMeshDescription.Vertices().GetArraySize() != RenderMeshDescription.Vertices().Num())
+	{
+		FElementIDRemappings Remappings;
+		RenderMeshDescription.Compact(Remappings);
+	}
+
 	//This function make sure the Polygon Normals Tangents Binormals are computed and also remove degenerated triangle from the render mesh description.
 	FStaticMeshOperations::ComputeTriangleTangentsAndNormals(RenderMeshDescription, ComparisonThreshold);
-	//OutRenderMeshDescription->ComputePolygonTangentsAndNormals(BuildSettings->bRemoveDegenerates ? SMALL_NUMBER : 0.0f);
 
 	FVertexInstanceArray& VertexInstanceArray = RenderMeshDescription.VertexInstances();
 

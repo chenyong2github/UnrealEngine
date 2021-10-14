@@ -385,6 +385,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "NotVisible")
 	FString FilePath;
 
+	UPROPERTY(BlueprintReadWrite, Category = "NotVisible")
+	FString SourceUri;
+
 	/** Whether to use or not the same options when loading multiple files. Default false */
 	bool bUseSameOptions;
 

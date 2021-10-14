@@ -149,7 +149,11 @@ static FTextureBuildSettings ReadBuildSettingsFromCompactBinary(const FCbObjectV
 	ReadCbField(Object["VirtualTextureBorderSize"], BuildSettings.VirtualTextureBorderSize);
 	BuildSettings.bVirtualTextureEnableCompressZlib = Object["bVirtualTextureEnableCompressZlib"].AsBool(BuildSettings.bVirtualTextureEnableCompressZlib);
 	BuildSettings.bVirtualTextureEnableCompressCrunch = Object["bVirtualTextureEnableCompressCrunch"].AsBool(BuildSettings.bVirtualTextureEnableCompressCrunch);
-	BuildSettings.FastTextureEncode = (ETextureFastEncode) Object["FastTextureEncode"].AsUInt8((uint8)BuildSettings.FastTextureEncode);
+	BuildSettings.OodleEncodeEffort = Object["OodleEncodeEffort"].AsUInt8(BuildSettings.OodleEncodeEffort);
+	BuildSettings.OodleUniversalTiling = Object["OodleUniversalTiling"].AsUInt8(BuildSettings.OodleUniversalTiling);
+	BuildSettings.bOodleUsesRDO = Object["bOodleUsesRDO"].AsBool(BuildSettings.bOodleUsesRDO);
+	BuildSettings.OodleRDO = Object["OodleRDO"].AsUInt8(BuildSettings.OodleRDO);
+
 	return BuildSettings;
 }
 

@@ -44,7 +44,7 @@ class UWorldPartitionStreamingPolicy : public UObject
 public:
 	virtual void UpdateStreamingState();
 	virtual void SetTargetStateForCells(EWorldPartitionRuntimeCellState TargetState, const TSet<const UWorldPartitionRuntimeCell*>& Cells);
-	virtual class ULevel* GetPreferredLoadedLevelToAddToWorld() const;
+	virtual bool CanAddLoadedLevelToWorld(class ULevel* InLevel) const;
 	virtual FVector2D GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize);
 	virtual void DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasSize, FVector2D& Offset);
 	virtual void DrawRuntimeHash3D();
@@ -81,6 +81,7 @@ protected:
 	virtual void UpdateStreamingSources();
 	void UpdateStreamingPerformance(const TSet<const UWorldPartitionRuntimeCell*>& CellsToActivate);
 	bool ShouldSkipCellForPerformance(const UWorldPartitionRuntimeCell* Cell) const;
+	bool IsInBlockTillLevelStreamingCompleted(bool bIsCausedByBadStreamingPerformance = false) const;
 
 	const UWorldPartition* WorldPartition;
 	TSet<const UWorldPartitionRuntimeCell*> LoadedCells;
@@ -93,8 +94,8 @@ protected:
 	UWorldPartitionRuntimeHash::FStreamingSourceCells FrameActivateCells;
 	UWorldPartitionRuntimeHash::FStreamingSourceCells FrameLoadCells;
 	
-	int32 UpdateStreamingStateEpoch;
-	mutable int32 SortedAddToWorldCellsEpoch;
+	bool bCriticalPerformanceRequestedBlockTillOnWorld;
+	int32 CriticalPerformanceBlockTillLevelStreamingCompletedEpoch;
 	mutable TArray<const UWorldPartitionRuntimeCell*, TInlineAllocator<256>> SortedAddToWorldCells;
 
 	int32 DataLayersStatesServerEpoch;

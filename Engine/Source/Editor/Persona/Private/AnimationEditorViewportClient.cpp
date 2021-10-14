@@ -165,16 +165,24 @@ FAnimationViewportClient::~FAnimationViewportClient()
 		ScenePtr->UnregisterOnPreTick(this);
 		ScenePtr->UnregisterOnPostTick(this);
 
-		if (OnPhysicsCreatedDelegateHandle.IsValid())
+		if (UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene()->GetPreviewMeshComponent())
 		{
-			UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene()->GetPreviewMeshComponent();
-			if (PreviewMeshComponent)
+			if (OnPhysicsCreatedDelegateHandle.IsValid())
 			{
 				PreviewMeshComponent->UnregisterOnPhysicsCreatedDelegate(OnPhysicsCreatedDelegateHandle);
+			}
+
+			if (OnMeshChangedDelegateHandle.IsValid())
+			{
+				if (USkeletalMesh* SkelMesh = PreviewMeshComponent->SkeletalMesh)
+				{
+					SkelMesh->GetOnMeshChanged().Remove(OnMeshChangedDelegateHandle);
+				}
 			}
 		}
 	}
 	OnPhysicsCreatedDelegateHandle.Reset();
+	OnMeshChangedDelegateHandle.Reset();
 
 	UAssetViewerSettings::Get()->OnAssetViewerSettingsChanged().RemoveAll(this);
 }
@@ -369,6 +377,21 @@ static void DisableAllBodiesSimulatePhysics(UDebugSkelMeshComponent* PreviewMesh
 
 void FAnimationViewportClient::HandleSkeletalMeshChanged(USkeletalMesh* OldSkeletalMesh, USkeletalMesh* NewSkeletalMesh)
 {
+	// Set up our notifications that the mesh we're watching has changed from some external source (like undo/redo)
+	if (OldSkeletalMesh)
+	{
+		OldSkeletalMesh->GetOnMeshChanged().Remove(OnMeshChangedDelegateHandle);
+	}
+
+	if (NewSkeletalMesh)
+	{
+		OnMeshChangedDelegateHandle = NewSkeletalMesh->GetOnMeshChanged().AddLambda([this]()
+		{
+			UpdateCameraSetup();
+			Invalidate();
+		});
+	}
+
 	if (OldSkeletalMesh != NewSkeletalMesh || NewSkeletalMesh == nullptr)
 	{
 		if (!bInitiallyFocused)
@@ -1364,18 +1387,48 @@ void FAnimationViewportClient::DrawMeshBones(UDebugSkelMeshComponent * MeshCompo
 
 void FAnimationViewportClient::DrawBones(const TArray<FBoneIndexType>& RequiredBones, const FReferenceSkeleton& RefSkeleton, const TArray<FTransform> & WorldTransforms, const TArray<int32>& InSelectedBones, FPrimitiveDrawInterface* PDI, const TArray<FLinearColor>& BoneColours, float BoundRadius, float LineThickness/*=0.f*/, bool bForceDraw/*=false*/, float InBoneRadius/*=1.f*/) const
 {
-	TArray<int32> SelectedBones = InSelectedBones;
-	if(InSelectedBones.Num() > 0 && GetBoneDrawMode() == EBoneDrawMode::SelectedAndParents)
+	TBitArray<> SelectedBones(false, RefSkeleton.GetNum());
+
+	if (InSelectedBones.Num() > 0)
 	{
-		int32 BoneIndex = InSelectedBones[0];
-		while (BoneIndex != INDEX_NONE)
+		// Add the selected bones
+		if (GetBoneDrawMode() == EBoneDrawMode::Selected || GetBoneDrawMode() == EBoneDrawMode::SelectedAndParents || GetBoneDrawMode() == EBoneDrawMode::SelectedAndChildren || GetBoneDrawMode() == EBoneDrawMode::SelectedAndParentsAndChildren)
 		{
-			int32 ParentIndex = RefSkeleton.GetParentIndex(BoneIndex);
-			if (ParentIndex != INDEX_NONE)
+			for (int32 BoneIndex : InSelectedBones)
 			{
-				SelectedBones.AddUnique(ParentIndex);
+				if (BoneIndex != INDEX_NONE)
+				{
+					SelectedBones[BoneIndex] = true;
+				}
 			}
-			BoneIndex = ParentIndex;
+		}
+
+		// Add the children of the selected bones
+		if (GetBoneDrawMode() == EBoneDrawMode::SelectedAndChildren || GetBoneDrawMode() == EBoneDrawMode::SelectedAndParentsAndChildren)
+		{
+			for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetNum(); ++BoneIndex)
+			{
+				int32 ParentIndex = RefSkeleton.GetParentIndex(BoneIndex);
+				if (ParentIndex != INDEX_NONE && SelectedBones[ParentIndex])
+				{
+					SelectedBones[BoneIndex] = true;
+				}
+			}
+		}
+
+		// Add the parents of the selected bones
+		if (GetBoneDrawMode() == EBoneDrawMode::SelectedAndParents || GetBoneDrawMode() == EBoneDrawMode::SelectedAndParentsAndChildren)
+		{
+			for (int32 BoneIndex : InSelectedBones)
+			{
+				if (BoneIndex != INDEX_NONE)
+				{
+					for (int ParentIndex = RefSkeleton.GetParentIndex(BoneIndex); ParentIndex != INDEX_NONE; ParentIndex = RefSkeleton.GetParentIndex(ParentIndex))
+					{
+						SelectedBones[ParentIndex] = true;
+					}
+				}
+			}
 		}
 	}
 
@@ -1386,36 +1439,35 @@ void FAnimationViewportClient::DrawBones(const TArray<FBoneIndexType>& RequiredB
 	{
 		const int32 BoneIndex = RequiredBones[Index];
 
-		if (bForceDraw ||
-			(GetBoneDrawMode() == EBoneDrawMode::All) ||
-			((GetBoneDrawMode() == EBoneDrawMode::Selected || GetBoneDrawMode() == EBoneDrawMode::SelectedAndParents) && SelectedBones.Contains(BoneIndex) )
-			)
+		if (bForceDraw || GetBoneDrawMode() == EBoneDrawMode::All || SelectedBones[BoneIndex])
 		{
 			const int32 ParentIndex = RefSkeleton.GetParentIndex(BoneIndex);
 			FVector Start, End;
+			float Radius;
 			FLinearColor LineColor = BoneColours[BoneIndex];
 
 			if (ParentIndex >= 0)
 			{
 				Start = WorldTransforms[ParentIndex].GetLocation();
 				End = WorldTransforms[BoneIndex].GetLocation();
+				// Scale the radius proportionally to the bone length (clamped by bound to not be too long or big)
+				const float BoneLength = (End - Start).Size();
+				Radius = FMath::Clamp(BoneLength * 0.05f, 0.1f, MaxDrawRadius) * InBoneRadius;
 			}
 			else
 			{
 				Start = FVector::ZeroVector;
 				End = WorldTransforms[BoneIndex].GetLocation();
+				// Set the radius to a constant size (rather than proportional to bone length)
+				Radius = FMath::Min(1.0f, MaxDrawRadius) * InBoneRadius;
 			}
 
-			const float BoneLength = (End - Start).Size();
-
-			// clamp by bound, we don't want too long or big
-			const float Radius = FMath::Clamp(BoneLength * 0.05f, 0.1f, MaxDrawRadius) * InBoneRadius;
 			//Render Sphere for bone end point and a cone between it and its parent.
 			SkeletalDebugRendering::DrawWireBone(PDI, Start, End, LineColor, SDPG_Foreground, Radius);
 
 			// draw gizmo
 			if ((GetLocalAxesMode() == ELocalAxesMode::All) ||
-				((GetLocalAxesMode() == ELocalAxesMode::Selected) && SelectedBones.Contains(BoneIndex))
+				(GetLocalAxesMode() == ELocalAxesMode::Selected && InSelectedBones.Contains(BoneIndex))
 				)
 			{
 				// we want to say 10 % of bone length is good
@@ -1751,23 +1803,13 @@ float FAnimationViewportClient::GetFloorOffset() const
 	return 0.0f;
 }
 
-void FAnimationViewportClient::SetFloorOffset( float NewValue, bool bCommitted )
+void FAnimationViewportClient::SetFloorOffset( float NewValue )
 {
 	USkeletalMesh* Mesh = GetPreviewScene()->GetPreviewMeshComponent()->SkeletalMesh;
 
 	if ( Mesh )
 	{
-		if (bCommitted)
-		{
-			PendingTransaction.Reset();
-		}
-		else if (!PendingTransaction.IsValid())
-		{
-			// This value is saved in a UPROPERTY for the mesh, so changes are transactional
-			PendingTransaction = MakeUnique<FScopedTransaction>( LOCTEXT( "SetFloorOffset", "Set Floor Offset" ) );
-			Mesh->Modify();
-		}
-
+		Mesh->Modify();
 		Mesh->SetFloorOffset(NewValue);
 		UpdateCameraSetup(); // This does the actual moving of the floor mesh
 		Invalidate();

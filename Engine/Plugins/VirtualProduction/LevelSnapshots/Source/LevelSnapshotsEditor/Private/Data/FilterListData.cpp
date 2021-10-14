@@ -89,31 +89,29 @@ void FFilterListData::HandleActorExistsInWorldAndSnapshot(const FSoftObjectPath&
 	}
 
 	AActor* WorldActor = Cast<AActor>(ResolvedWorldActor);
-	if (ensureAlwaysMsgf(WorldActor, TEXT("A path that was previously associated with an actor no longer refers to an actor. Something is wrong.")))
+	if (ensureAlwaysMsgf(WorldActor, TEXT("A path that was previously associated with an actor no longer refers to an actor. Something is wrong."))
+		&& RelatedSnapshot->HasChangedSinceSnapshotWasTaken(WorldActor))
 	{
 		TOptional<AActor*> DeserializedSnapshotActor = RelatedSnapshot->GetDeserializedActor(OriginalActorPath);
 		if (!ensureAlwaysMsgf(DeserializedSnapshotActor.Get(nullptr), TEXT("Failed to get TMap value for key %s. Is the snapshot corrupted?"), *OriginalActorPath.ToString()))
 		{
 			return;
 		}
-        	
-		if (RelatedSnapshot->HasOriginalChangedPropertiesSinceSnapshotWasTaken(*DeserializedSnapshotActor, WorldActor))
+			
+		const EFilterResult::Type ActorInclusionResult = FilterToApply->IsActorValid(FIsActorValidParams(*DeserializedSnapshotActor, WorldActor));
+		if (EFilterResult::CanInclude(ActorInclusionResult))
 		{
-			const EFilterResult::Type ActorInclusionResult = FilterToApply->IsActorValid(FIsActorValidParams(*DeserializedSnapshotActor, WorldActor));
-			if (EFilterResult::CanInclude(ActorInclusionResult))
-			{
-				ModifiedWorldActors_AllowedByFilter.Add(WorldActor);
-			}
-			else
-			{
-				ModifiedWorldActors_DisallowedByFilter.Add(WorldActor);
-			}
+			ModifiedWorldActors_AllowedByFilter.Add(WorldActor);
+		}
+		else
+		{
+			ModifiedWorldActors_DisallowedByFilter.Add(WorldActor);
 		}
 	}
 }
 
 void FFilterListData::HandleActorWasRemovedFromWorld(const FSoftObjectPath& OriginalActorPath, ULevelSnapshotFilter* FilterToApply)
-{
+{	
 	const EFilterResult::Type FilterResult = FilterToApply->IsDeletedActorValid(
 		FIsDeletedActorValidParams(
 			OriginalActorPath,

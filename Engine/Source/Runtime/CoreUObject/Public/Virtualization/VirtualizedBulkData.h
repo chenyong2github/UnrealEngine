@@ -148,19 +148,28 @@ public:
 	FGuid GetIdentifier() const;
 
 	/** Returns an unique identifier for the content of the payload. */
-	const FPayloadId& GetPayloadId() const { return PayloadContentId; }
+	const FPayloadId& GetPayloadId() const 
+	{ 
+		return PayloadContentId; 
+	}
 
 	/** Returns the size of the payload in bytes. */
-	int64 GetPayloadSize() const { return PayloadSize; }
+	int64 GetPayloadSize() const 
+	{ 
+		return PayloadSize; 
+	}
 
 	/** Returns true if the bulkdata object contains a valid payload greater than zero bytes in size. */
-	bool HasPayloadData() const { return PayloadSize > 0; }
+	bool HasPayloadData() const 
+	{ 
+		return PayloadSize > 0; 
+	}
 
-	// TODO: This (IsDataLoaded) is only needed for TextureDerivedData.cpp (which assumes that the data 
-	// needs to be loaded in order to be able to run on a background thread. Since FVirtualizedUntypedBulkData 
-	// will aim to be thread safe we could change TextureDerivedData and remove this.
-	/** Returns if the data is being held in memory (true) or will be loaded from disk (false) */
-	bool IsDataLoaded() const { return !Payload.IsNull(); }
+	/** Returns if the payload would require loading in order to be accessed. Returns false if the payload is already in memory or of zero length */
+	bool DoesPayloadNeedLoading() const
+	{
+		return Payload.IsNull() && PayloadSize > 0; 
+	}
 
 	/** Returns an immutable FCompressedBuffer reference to the payload data. */
 	TFuture<FSharedBuffer> GetPayload() const;
@@ -266,7 +275,10 @@ public:
 	void TearOff();
 
 	/** Make a torn-off copy of this bulk data. */
-	FVirtualizedUntypedBulkData CopyTornOff() const { return FVirtualizedUntypedBulkData(*this, ETornOff()); }
+	FVirtualizedUntypedBulkData CopyTornOff() const 
+	{ 
+		return FVirtualizedUntypedBulkData(*this, ETornOff()); 
+	}
 
 	// Functions used by the BulkDataRegistry
 
@@ -348,9 +360,20 @@ private:
 	void RecompressForSerialization(FCompressedBuffer& InOutPayload, EFlags PayloadFlags) const;
 	EFlags BuildFlagsForSerialization(FArchive& Ar, bool bUpgradeLegacyData) const;
 
-	bool IsDataVirtualized() const { return EnumHasAnyFlags(Flags, EFlags::IsVirtualized); }
-	bool HasPayloadSidecarFile() const { return EnumHasAnyFlags(Flags, EFlags::HasPayloadSidecarFile); }
-	bool IsReferencingOldBulkData() const { return EnumHasAnyFlags(Flags, EFlags::ReferencesLegacyFile); }
+	bool IsDataVirtualized() const 
+	{ 
+		return EnumHasAnyFlags(Flags, EFlags::IsVirtualized); 
+	}
+
+	bool HasPayloadSidecarFile() const 
+	{ 
+		return EnumHasAnyFlags(Flags, EFlags::HasPayloadSidecarFile); 
+	}
+
+	bool IsReferencingOldBulkData() const 
+	{ 
+		return EnumHasAnyFlags(Flags, EFlags::ReferencesLegacyFile); 
+	}
 
 	void Register(UObject* Owner);
 	void Unregister();

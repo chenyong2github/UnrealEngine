@@ -97,7 +97,7 @@ void UMetasoundEditorGraphInputNode::PostEditUndo()
 
 	if (Input)
 	{
-		Input->OnLiteralChanged(false /* bPostTransaction */);
+		Input->UpdateDocumentInput(false /* bPostTransaction */);
 	}
 }
 #endif // WITH_EDITORONLY_DATA
@@ -226,6 +226,67 @@ void UMetasoundEditorGraphInputFloat::SetFromLiteral(const FMetasoundFrontendLit
 void UMetasoundEditorGraphInputFloat::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterInterface>& InParameterInterface) const
 {
 	InParameterInterface->SetFloatParameter(InParameterName, Default);
+}
+
+void UMetasoundEditorGraphInputFloat::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.GetPropertyName().IsEqual(GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphInputFloat, Default)))
+	{
+		OnDefaultValueChanged.Broadcast(Default);
+	}
+	else if (PropertyChangedEvent.GetPropertyName().IsEqual(GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphInputFloat, InputWidgetType)) || PropertyChangedEvent.GetPropertyName().IsEqual(GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphInputFloat, InputWidgetValueType)))
+	{
+		if (InputWidgetValueType == EMetasoundInputWidgetValueType::Linear)
+		{
+			Range = FVector2D(0.0f, 1.0f);
+		}
+		else if (InputWidgetValueType == EMetasoundInputWidgetValueType::Frequency)
+		{
+			Range = FVector2D(20.0f, 20000.0f);
+		}
+		else if (InputWidgetValueType == EMetasoundInputWidgetValueType::Volume)
+		{
+			Range = FVector2D(-100.0f, 12.0f);
+		}
+		OnRangeChanged.Broadcast(Range);
+		// If the widget type is changed to none, we need to refresh clamping the value or not, since if the widget was a slider before, the value was clamped
+		OnClampInputChanged.Broadcast(ClampDefault);
+	}
+	else if (PropertyChangedEvent.MemberProperty->GetFName().IsEqual(GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphInputFloat, Range)))
+	{
+		if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
+		{
+			float Min = Range.X;
+			float Max = Range.Y;
+			if (Min < Max)
+			{
+				OnRangeChanged.Broadcast(Range);
+				SetDefault(FMath::Clamp(Default, Min, Max));
+			}
+		}
+	}
+	else if (PropertyChangedEvent.GetPropertyName().IsEqual(GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphInputFloat, ClampDefault)))
+	{
+		// set range to reasonable limit given current value
+		Range = FVector2D(FMath::Min(0.0f, Default), FMath::Max(0.0f, Default));
+		OnClampInputChanged.Broadcast(ClampDefault);
+	}
+}
+
+void UMetasoundEditorGraphInputFloat::SetDefault(const float InDefault)
+{
+	Default = InDefault;
+	OnDefaultValueChanged.Broadcast(InDefault);
+}
+
+float UMetasoundEditorGraphInputFloat::GetDefault()
+{
+	return Default;
+}
+
+FVector2D UMetasoundEditorGraphInputFloat::GetRange()
+{
+	return Range;
 }
 
 FMetasoundFrontendLiteral UMetasoundEditorGraphInputFloatArray::GetDefault() const

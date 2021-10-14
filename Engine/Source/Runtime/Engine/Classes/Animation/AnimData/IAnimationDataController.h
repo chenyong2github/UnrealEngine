@@ -196,6 +196,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = AnimationData)
 	virtual void RemoveAllBoneTracks(bool bShouldTransact = true) = 0;
 
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED
+	/**
+	* Removes an existing bone animation track with the provided name. Broadcasts a EAnimDataModelNotifyType::TrackChanged notify if successful.
+	* The provided number of keys provided is expected to match for each component, and be non-zero.
+	*
+	* @param	BoneName			Bone name of the track for which the keys should be set
+	* @param	PositionalKeys		Array of keys for the translation component
+	* @param	RotationalKeys		Array of keys for the rotation component
+	* @param	ScalingKeys			Array of keys for the scale component
+	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
+	*
+	* @return	Whether or not the keys were successfully set
+	*/
+	virtual bool SetBoneTrackKeys(FName BoneName, const TArray<FVector3f>& PositionalKeys, const TArray<FQuat4f>& RotationalKeys, const TArray<FVector3f>& ScalingKeys, bool bShouldTransact = true) = 0;
+#endif
+
 	/**
 	* Removes an existing bone animation track with the provided name. Broadcasts a EAnimDataModelNotifyType::TrackChanged notify if successful.
 	* The provided number of keys provided is expected to match for each component, and be non-zero.

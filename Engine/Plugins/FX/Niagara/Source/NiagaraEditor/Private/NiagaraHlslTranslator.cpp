@@ -1943,14 +1943,10 @@ void FHlslNiagaraTranslator::HandleSimStageSetupAndTeardown(int32 InWhichStage, 
 
 	// Ok, we're iterating over a known iteration source. Let's find it in the parameter map history so we know type/etc.
 	FNiagaraVariable IterationSourceVar;
-	for (int32 i = 0; i < OtherOutputParamMapHistories.Num(); i++)
+	const FNiagaraVariable* FoundVar = CompileData->EncounteredVariables.FindByPredicate([&](const FNiagaraVariable& VarInfo) { return VarInfo.GetName() == TranslationStage.IterationSource; });
+	if (FoundVar != nullptr)
 	{
-		FNiagaraVariable* FoundVar = OtherOutputParamMapHistories[i].Variables.FindByPredicate([&](const FNiagaraVariable& VarInfo) { return VarInfo.GetName() == TranslationStage.IterationSource; });
-		if (FoundVar != nullptr)
-		{
-			IterationSourceVar = *FoundVar;
-			break;
-		}
+		IterationSourceVar = *FoundVar;
 	}
 
 	if (!IterationSourceVar.IsValid())

@@ -199,8 +199,14 @@ void UAnimBlueprintExtension_Base::HandleStartCompilingClass(const UClass* InCla
 						{
 							CopyRecord.LibraryCompiledHandle = PropertyAccessExtension->GetCompiledHandle(CopyRecord.LibraryHandle);
 
-							// Push compiled desc back to origial node for feedback
-							if(FAnimGraphNodePropertyBinding* Binding = OriginalNode->PropertyBindings.Find(CopyRecord.DestProperty->GetFName()))
+							// Push compiled desc back to original node for feedback
+							FName BindingName = CopyRecord.DestProperty->GetFName();
+							if(CopyRecord.DestArrayIndex != INDEX_NONE)
+							{
+								BindingName.SetNumber(CopyRecord.DestArrayIndex + 1);
+							}
+
+							if(FAnimGraphNodePropertyBinding* Binding = OriginalNode->PropertyBindings.Find(BindingName))
 							{
 								if(CopyRecord.LibraryCompiledHandle.IsValid())
 								{
@@ -346,8 +352,6 @@ void UAnimBlueprintExtension_Base::ProcessNodePins(UAnimGraphNode_Base* InNode, 
 		{
 			FEvaluationHandlerRecord& EvalHandler = PerNodeStructEvalHandlers.FindOrAdd(InNode);
 			EvalHandler.AnimGraphNode = InNode;
-			EvalHandler.NodeVariableProperty = NodeProperty;
-			EvalHandler.bServicesNodeProperties = true;
 
 			// for array properties we need to account for the extra FName number 
 			FName ComparisonName = PropertyBinding.Key;
@@ -355,7 +359,15 @@ void UAnimBlueprintExtension_Base::ProcessNodePins(UAnimGraphNode_Base* InNode, 
 
 			if (FProperty* Property = FindFProperty<FProperty>(NodeProperty->Struct, ComparisonName))
 			{
+				EvalHandler.NodeVariableProperty = NodeProperty;
+				EvalHandler.bServicesNodeProperties = true;
 				EvalHandler.RegisterPropertyBinding(Property, PropertyBinding.Value);
+			}
+			else if(FProperty* ClassProperty = FindFProperty<FProperty>(InCompilationContext.GetBlueprint()->SkeletonGeneratedClass, PropertyBinding.Value.PropertyName))
+			{
+				EvalHandler.NodeVariableProperty = NodeProperty;
+				EvalHandler.bServicesInstanceProperties = true;
+				EvalHandler.RegisterPropertyBinding(ClassProperty, PropertyBinding.Value);
 			}
 			else
 			{
@@ -407,7 +419,8 @@ struct FInternalOptionalPinManager : public FOptionalPinManager
 		{
 			if(const IAnimBlueprintCompilationContext::FFoldedPropertyRecord* FoldedPropertyRecord = CompilationContext.GetFoldedPropertyRecord(Node, It->GetFName()))
 			{
-				if(!FoldedPropertyRecord->bIsOnClass)
+				// Dont expose array properties here - they are handled by a struct member get-by-ref
+				if(!FoldedPropertyRecord->bIsOnClass && !FoldedPropertyRecord->GeneratedProperty->IsA<FArrayProperty>())
 				{
 					FOptionalPinFromProperty& OptionalPin = Properties[Properties.Num() - 1 - FoldedPropertyRecord->PropertyIndex];
 				
@@ -501,32 +514,35 @@ void UAnimBlueprintExtension_Base::CreateEvaluationHandler(IAnimBlueprintCompila
 			{
 				for (FPropertyCopyRecord& CopyRecord : PropHandler.CopyRecords)
 				{
-					// New set node for the property
-					UK2Node_VariableSet* VarAssignNode = InCompilationContext.SpawnIntermediateNode<UK2Node_VariableSet>(InNode, InCompilationContext.GetConsolidatedEventGraph());
-					VarAssignNode->VariableReference.SetSelfMember(CopyRecord.DestProperty->GetFName());
-					VarAssignNode->AllocateDefaultPins();
-					Record.CustomEventNodes.Add(VarAssignNode);
-
-					// Wire up the exec line, and update the end of the chain
-					UEdGraphPin* ExecVariablesIn = K2Schema->FindExecutionPin(*VarAssignNode, EGPD_Input);
-					ExecChain->MakeLinkTo(ExecVariablesIn);
-					ExecChain = K2Schema->FindExecutionPin(*VarAssignNode, EGPD_Output);
-
-					// Find the property pin on the set node and configure
-					for (UEdGraphPin* TargetPin : VarAssignNode->Pins)
+					if(CopyRecord.DestPin)
 					{
-						FName PinPropertyName(TargetPin->PinName);
+						// New set node for the property
+						UK2Node_VariableSet* VarAssignNode = InCompilationContext.SpawnIntermediateNode<UK2Node_VariableSet>(InNode, InCompilationContext.GetConsolidatedEventGraph());
+						VarAssignNode->VariableReference.SetSelfMember(CopyRecord.DestProperty->GetFName());
+						VarAssignNode->AllocateDefaultPins();
+						Record.CustomEventNodes.Add(VarAssignNode);
 
-						if (PinPropertyName == PropertyName)
+						// Wire up the exec line, and update the end of the chain
+						UEdGraphPin* ExecVariablesIn = K2Schema->FindExecutionPin(*VarAssignNode, EGPD_Input);
+						ExecChain->MakeLinkTo(ExecVariablesIn);
+						ExecChain = K2Schema->FindExecutionPin(*VarAssignNode, EGPD_Output);
+
+						// Find the property pin on the set node and configure
+						for (UEdGraphPin* TargetPin : VarAssignNode->Pins)
 						{
-							// This is us, wire up the variable
-							UEdGraphPin* DestPin = CopyRecord.DestPin;
+							FName PinPropertyName(TargetPin->PinName);
 
-							// Copy the data (link up to the source nodes)
-							TargetPin->CopyPersistentDataFromOldPin(*DestPin);
-							InCompilationContext.GetMessageLog().NotifyIntermediatePinCreation(TargetPin, DestPin);
-							
-							break;
+							if (PinPropertyName == PropertyName)
+							{
+								// This is us, wire up the variable
+								UEdGraphPin* DestPin = CopyRecord.DestPin;
+
+								// Copy the data (link up to the source nodes)
+								TargetPin->CopyPersistentDataFromOldPin(*DestPin);
+								InCompilationContext.GetMessageLog().NotifyIntermediatePinCreation(TargetPin, DestPin);
+								
+								break;
+							}
 						}
 					}
 				}
@@ -596,22 +612,29 @@ void UAnimBlueprintExtension_Base::CreateEvaluationHandler(IAnimBlueprintCompila
 
 				if(FoldedPropertyRecord != nullptr)
 				{
-					// We only support per-instance members here. If this is held on the class then something is wrong
-					check(!FoldedPropertyRecord->bIsOnClass);
+					// We only support per-instance members here.
+					if(!FoldedPropertyRecord->bIsOnClass)
+					{
+						// We must have created an assignment node for the mutable data block by now
+						check(InstanceAssignmentNode != nullptr);
 
-					// We must have created an assignment node for the mutable data block by now
-					check(InstanceAssignmentNode != nullptr);
+						// Redirect to the instance's mutable data area assignment node
+						PropertyName = FoldedPropertyRecord->GeneratedProperty->GetFName();
 
-					// Redirect to the instance's mutable data area assignment node
-					TargetPin = InstanceAssignmentNode->FindPinChecked(FoldedPropertyRecord->GeneratedProperty->GetFName());
+						// We dont need to handle arrays with a member set, as they use a member get-by-ref
+						if(!TargetPin->PinType.IsArray())
+						{
+							TargetPin = InstanceAssignmentNode->FindPinChecked(FoldedPropertyRecord->GeneratedProperty->GetFName());
+						}
+					}
 				}
 
 				if (TargetPin->PinType.IsArray())
 				{
 					// Grab the array that we need to set members for
 					UK2Node_StructMemberGet* FetchArrayNode = InCompilationContext.SpawnIntermediateNode<UK2Node_StructMemberGet>(InNode, InCompilationContext.GetConsolidatedEventGraph());
-					FetchArrayNode->VariableReference.SetSelfMember(Record.NodeVariableProperty->GetFName());
-					FetchArrayNode->StructType = Record.NodeVariableProperty->Struct;
+					FetchArrayNode->VariableReference.SetSelfMember(FoldedPropertyRecord ? MutableDataProperty->GetFName() : Record.NodeVariableProperty->GetFName());
+					FetchArrayNode->StructType = FoldedPropertyRecord ? MutableDataProperty->Struct : Record.NodeVariableProperty->Struct;
 					FetchArrayNode->AllocatePinsForSingleMemberGet(PropertyName);
 					Record.CustomEventNodes.Add(FetchArrayNode);
 
@@ -869,7 +892,12 @@ void UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::RegisterPropertyBin
 	// Prepend the destination property with the node's member property if the property is not on a UClass
 	if(Cast<UClass>(InProperty->Owner.ToUObject()) == nullptr)
 	{
+		Handler.bInstanceIsTarget = false;
 		DestPropertyPath.Add(NodeVariableProperty->GetName());
+	}
+	else
+	{
+		Handler.bInstanceIsTarget = true;
 	}
 
 	if(InBinding.ArrayIndex != INDEX_NONE)
@@ -1011,7 +1039,7 @@ bool UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::CheckForLogicalNot(
 }
 
 /** The functions that we can safely native-break */
-static const FName NativeBreakFunctionNameWhitelist[] =
+static const FName NativeBreakFunctionNameAllowList[] =
 {
 	FName(TEXT("BreakVector")),
 	FName(TEXT("BreakVector2D")),
@@ -1019,9 +1047,9 @@ static const FName NativeBreakFunctionNameWhitelist[] =
 };
 
 /** Check whether a native break function can be safely used in the fast-path copy system (ie. source and dest data will be the same) */
-static bool IsWhitelistedNativeBreak(const FName& InFunctionName)
+static bool IsNativeBreakAllowed(const FName& InFunctionName)
 {
-	for(const FName& FunctionName : NativeBreakFunctionNameWhitelist)
+	for(const FName& FunctionName : NativeBreakFunctionNameAllowList)
 	{
 		if(InFunctionName == FunctionName)
 		{
@@ -1033,7 +1061,7 @@ static bool IsWhitelistedNativeBreak(const FName& InFunctionName)
 }
 
 /** The functions that we can safely native-make */
-static const FName NativeMakeFunctionNameWhitelist[] =
+static const FName NativeMakeFunctionNameAllowList[] =
 {
 	FName(TEXT("MakeVector")),
 	FName(TEXT("MakeVector2D")),
@@ -1041,9 +1069,9 @@ static const FName NativeMakeFunctionNameWhitelist[] =
 };
 
 /** Check whether a native break function can be safely used in the fast-path copy system (ie. source and dest data will be the same) */
-static bool IsWhitelistedNativeMake(const FName& InFunctionName)
+static bool IsNativeMakeAllowed(const FName& InFunctionName)
 {
-	for(const FName& FunctionName : NativeMakeFunctionNameWhitelist)
+	for(const FName& FunctionName : NativeMakeFunctionNameAllowList)
 	{
 		if(InFunctionName == FunctionName)
 		{
@@ -1075,7 +1103,7 @@ bool UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::CheckForStructMembe
 		else if(UK2Node_CallFunction* NativeBreakNode = Cast<UK2Node_CallFunction>(FollowKnots(DestPin, SourcePin)))
 		{
 			UFunction* Function = NativeBreakNode->FunctionReference.ResolveMember<UFunction>(UKismetMathLibrary::StaticClass());
-			if(Function && Function->HasMetaData(TEXT("NativeBreakFunc")) && IsWhitelistedNativeBreak(Function->GetFName()))
+			if(Function && Function->HasMetaData(TEXT("NativeBreakFunc")) && IsNativeBreakAllowed(Function->GetFName()))
 			{
 				if(UEdGraphPin* InputPin = FindFirstInputPin(NativeBreakNode))
 				{
@@ -1127,7 +1155,7 @@ bool UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::CheckForSplitPinAcc
 		else if(UK2Node_CallFunction* NativeMakeNode = Cast<UK2Node_CallFunction>(FollowKnots(DestPin, SourcePin)))
 		{
 			UFunction* Function = NativeMakeNode->FunctionReference.ResolveMember<UFunction>(UKismetMathLibrary::StaticClass());
-			if(Function && Function->HasMetaData(TEXT("NativeMakeFunc")) && IsWhitelistedNativeMake(Function->GetFName()))
+			if(Function && Function->HasMetaData(TEXT("NativeMakeFunc")) && IsNativeMakeAllowed(Function->GetFName()))
 			{
 				// Idea here is to account for split pins, so we want to narrow the scope to not also include user-placed makes
 				UObject* SourceObject = Context.MessageLog.FindSourceObject(NativeMakeNode);

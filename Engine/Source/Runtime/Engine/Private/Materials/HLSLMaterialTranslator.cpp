@@ -9025,6 +9025,15 @@ int32 FHLSLMaterialTranslator::SkyAtmosphereDistantLightScatteredLuminance()
 	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionSkyAtmosphereDistantLightScatteredLuminance(Parameters)"));
 }
 
+int32 FHLSLMaterialTranslator::SkyLightEnvMapSample(int32 DirectionCodeChunk, int32 RoughnessCodeChunk)
+{
+	if (Material->GetMaterialDomain() != MD_Surface)
+	{
+		return Errorf(TEXT("The SkyLightEnvMapSample node can only be used when material Domain is set to Surface."));
+	}
+	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionSkyLightEnvMapSample(%s, %s)"), *GetParameterCode(DirectionCodeChunk), *GetParameterCode(RoughnessCodeChunk));
+}
+
 int32 FHLSLMaterialTranslator::SceneDepthWithoutWater(int32 Offset, int32 ViewportUV, bool bUseOffset, float FallbackDepth)
 {
 	if (ShaderFrequency == SF_Vertex)

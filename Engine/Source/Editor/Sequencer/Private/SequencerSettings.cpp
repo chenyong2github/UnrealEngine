@@ -27,7 +27,7 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	bSnapPlayTimeToDraggedKey = true;
 	CurveValueSnapInterval = 0.1f;
 	GridSpacing = TOptional<float>();
-	bSnapCurveValueToInterval = true;
+	bSnapCurveValueToInterval = false;
 	bShowSelectedNodesOnly = false;
 	ZoomPosition = ESequencerZoomPosition::SZP_CurrentTime;
 	bAutoScrollEnabled = false;

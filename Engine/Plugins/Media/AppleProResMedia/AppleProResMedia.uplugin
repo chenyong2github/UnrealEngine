@@ -17,8 +17,8 @@
 			"Name": "AppleProResMedia",
 			"Type": "Runtime",
 			"LoadingPhase": "PostEngineInit",
-			"WhitelistPlatforms": [ "Win64" ],
-			"BlacklistTargets": [ "Server" ]
+			"PlatformAllowList": [ "Win64" ],
+			"TargetDenyList": [ "Server" ]
 		}
 	],
 	"Plugins": [

@@ -94,6 +94,8 @@ public:
 	virtual FOnVoiceChatPlayerTalkingUpdatedDelegate& OnVoiceChatPlayerTalkingUpdated() override { return VoiceChatUser.OnVoiceChatPlayerTalkingUpdated(); }
 	virtual void SetPlayerMuted(const FString& PlayerName, bool bMuted) override { VoiceChatUser.SetPlayerMuted(PlayerName, bMuted); }
 	virtual bool IsPlayerMuted(const FString& PlayerName) const override { return VoiceChatUser.IsPlayerMuted(PlayerName); }
+	virtual void SetChannelPlayerMuted(const FString& ChannelName, const FString& PlayerName, bool bMuted) override { VoiceChatUser.SetChannelPlayerMuted(ChannelName, PlayerName, bMuted); }
+	virtual bool IsChannelPlayerMuted(const FString& ChannelName, const FString& PlayerName) const override { return VoiceChatUser.IsChannelPlayerMuted(ChannelName, PlayerName); }
 	virtual FOnVoiceChatPlayerMuteUpdatedDelegate& OnVoiceChatPlayerMuteUpdated() override { return VoiceChatUser.OnVoiceChatPlayerMuteUpdated(); }
 	virtual void SetPlayerVolume(const FString& PlayerName, float Volume) override { VoiceChatUser.SetPlayerVolume(PlayerName, Volume); }
 	virtual float GetPlayerVolume(const FString& PlayerName) const override { return VoiceChatUser.GetPlayerVolume(PlayerName); }
@@ -413,9 +415,13 @@ bool FOnlineSubsystemEOS::Shutdown()
 {
 	UE_LOG_ONLINE(VeryVerbose, TEXT("FOnlineSubsystemEOS::Shutdown()"));
 
+	// EOS-22677 workaround: Make sure tick is called at least once before shutting down.
+	EOS_Platform_Tick(*EOSPlatformHandle);
+
 	StopTicker();
-	FOnlineSubsystemImpl::Shutdown();
+
 	SocketSubsystem->Shutdown();
+	SocketSubsystem = nullptr;
 
 	// Release our ref to the interfaces. May still exist since they can be aggregated
 	UserManager = nullptr;
@@ -426,7 +432,7 @@ bool FOnlineSubsystemEOS::Shutdown()
 	StoreInterfacePtr = nullptr;
 	TitleFileInterfacePtr = nullptr;
 	UserCloudInterfacePtr = nullptr;
-	
+
 #if WITH_EOS_RTC
 	for (TPair<FUniqueNetIdRef, FOnlineSubsystemEOSVoiceChatUserWrapperRef>& Pair : LocalVoiceChatUsers)
 	{
@@ -436,10 +442,10 @@ bool FOnlineSubsystemEOS::Shutdown()
 	LocalVoiceChatUsers.Reset();
 	VoiceChatInterface = nullptr;
 #endif
-	
+
 	EOSPlatformHandle = nullptr;
 
-	return true;
+	return FOnlineSubsystemImpl::Shutdown();
 }
 
 bool FOnlineSubsystemEOS::Tick(float DeltaTime)
@@ -485,6 +491,37 @@ bool FOnlineSubsystemEOS::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice&
 	}
 
 	return bWasHandled;
+}
+
+void FOnlineSubsystemEOS::ReloadConfigs(const TSet<FString>& ConfigSections)
+{
+	UE_LOG_ONLINE(Verbose, TEXT("FOnlineSubsystemEOS::ReloadConfigs"));
+
+	// There is currently no granular reloading, so just restart the subsystem to pick up new config.
+	const bool bWasInitialized = EOSPlatformHandle != nullptr;
+	const bool bConfigChanged = ConfigSections.Find(GetDefault<UEOSSettings>()->GetClass()->GetPathName()) != nullptr;
+	const bool bRestartRequired = bWasInitialized && bConfigChanged;
+
+	if (bRestartRequired)
+	{
+		UE_LOG_ONLINE(Verbose, TEXT("FOnlineSubsystemEOS::ReloadConfigs: Restarting subsystem to pick up changes."));
+		PreUnload();
+		Shutdown();
+	}
+
+	// Notify user code so that overrides may be applied.
+	TriggerOnConfigChangedDelegates(ConfigSections);
+
+	// Reload config objects.
+	if (bConfigChanged)
+	{
+		GetMutableDefault<UEOSSettings>()->ReloadConfig();
+	}
+
+	if (bRestartRequired)
+	{
+		Init();
+	}
 }
 
 FString FOnlineSubsystemEOS::GetAppId() const

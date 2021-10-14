@@ -28,27 +28,27 @@ struct PROJECTS_API FPluginReferenceDescriptor
 	FString MarketplaceURL;
 
 	/** If enabled, list of platforms for which the plugin should be enabled (or all platforms if blank). */
-	TArray<FString> WhitelistPlatforms;
+	TArray<FString> PlatformAllowList;
 
 	/** If enabled, list of platforms for which the plugin should be disabled. */
-	TArray<FString> BlacklistPlatforms;
+	TArray<FString> PlatformDenyList;
  
 	/** If enabled, list of target configurations for which the plugin should be enabled (or all target configurations if blank). */
-	TArray<EBuildConfiguration> WhitelistTargetConfigurations;
+	TArray<EBuildConfiguration> TargetConfigurationAllowList;
 
 	/** If enabled, list of target configurations for which the plugin should be disabled. */
-	TArray<EBuildConfiguration> BlacklistTargetConfigurations;
+	TArray<EBuildConfiguration> TargetConfigurationDenyList;
 
 	/** If enabled, list of targets for which the plugin should be enabled (or all targets if blank). */
-	TArray<EBuildTargetType> WhitelistTargets;
+	TArray<EBuildTargetType> TargetAllowList;
 
 	/** If enabled, list of targets for which the plugin should be disabled. */
-	TArray<EBuildTargetType> BlacklistTargets;
+	TArray<EBuildTargetType> TargetDenyList;
 
-	/** The list of supported target platforms for this plugin. This field is copied from the plugin descriptor, and supplements the user's whitelisted and blacklisted platforms. */
+	/** The list of supported target platforms for this plugin. This field is copied from the plugin descriptor, and supplements the user's allowed/denied platforms. */
 	TArray<FString> SupportedTargetPlatforms;
 
-	/** When true, empty SupportedTargetPlatforms and WhitelistPlatforms are interpeted as 'no platforms' with the expectation that explict platforms will be added in plugin platform extensions */
+	/** When true, empty SupportedTargetPlatforms and PlatformAllowList are interpreted as 'no platforms' with the expectation that explicit platforms will be added in plugin platform extensions */
 	bool bHasExplicitPlatforms;
 
 

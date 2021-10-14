@@ -27,23 +27,6 @@ namespace UE
 namespace SequencerAnimTools
 {
 
-void FSequencerTrailHierarchy::AssignLevelSequencePlayer()
-{
-	if (LevelSequencePlayer == nullptr)
-	{
-		LevelSequencePlayer = NewObject<ULevelSequencePlayer>();
-	}
-
-	UWorld* World = GEditor->GetEditorWorldContext().World();
-	FMovieSceneSequencePlaybackSettings Settings;
-	FLevelSequenceCameraSettings CameraSettings;
-	FMovieSceneSequenceIDRef Template = MovieSceneSequenceID::Root;
-	FMovieSceneSequenceTransform RootToLocalTransform;
-	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
-	ULevelSequence* LevelSequence = Cast<ULevelSequence>(Sequencer->GetFocusedMovieSceneSequence());
-	LevelSequencePlayer->Initialize(LevelSequence, World->PersistentLevel, Settings, CameraSettings);
-	LevelSequencePlayer->State.AssignSequence(MovieSceneSequenceID::Root, *LevelSequence, *LevelSequencePlayer);
-}
 
 void FSequencerTrailHierarchy::Initialize()
 {
@@ -52,7 +35,6 @@ void FSequencerTrailHierarchy::Initialize()
 	{
 		return;
 	}
-	AssignLevelSequencePlayer();
 	UpdateViewAndEvalRange();
 
 	TArray<FGuid> SequencerSelectedObjects;
@@ -178,11 +160,6 @@ void FSequencerTrailHierarchy::OnActorsChangedSomehow(TArray<AActor*>& InActors)
 	}
 }
 
-void FSequencerTrailHierarchy::AddReferencedObjects(FReferenceCollector& Collector)
-{
-	Collector.AddReferencedObject(LevelSequencePlayer);
-}
-
 double FSequencerTrailHierarchy::GetSecondsPerSegment() const 
 { 
 	double SecondsPerFrame =  WeakSequencer.Pin()->GetFocusedDisplayRate().AsInterval();
@@ -276,7 +253,7 @@ void FSequencerTrailHierarchy::UpdateControlRig(const FTrailEvaluateTimes& Evalu
 		FLevelSequenceCameraSettings CameraSettings;
 		FMovieSceneSequenceIDRef Template = MovieSceneSequenceID::Root;
 		FMovieSceneSequenceTransform RootToLocalTransform;
-		IMovieScenePlayer* Player = LevelSequencePlayer;
+		IMovieScenePlayer* Player = Sequencer.Get();
 		ULevelSequence* LevelSequence = Cast<ULevelSequence>(Sequencer->GetFocusedMovieSceneSequence());
 
 		USceneComponent* Component = Cast<USceneComponent>(ObjectBinding->GetBoundObject());
@@ -631,7 +608,7 @@ void FSequencerTrailHierarchy::AddComponentToHierarchy(USceneComponent* CompToAd
 	
 	const FGuid CurTrailGuid = ObjectsTracked.FindOrAdd(CompToAdd, FGuid::NewGuid());
 
-	TUniquePtr<FTrail> CurTrail = MakeUnique<FMovieSceneComponentTransformTrail>(CompToAdd,UMotionTrailToolOptions::GetTrailOptions()->TrailColor, false, TransformTrack, Sequencer, LevelSequencePlayer);
+	TUniquePtr<FTrail> CurTrail = MakeUnique<FMovieSceneComponentTransformTrail>(CompToAdd,UMotionTrailToolOptions::GetTrailOptions()->TrailColor, false, TransformTrack, Sequencer);
 	if (AllTrails.Contains(ObjectsTracked[CompToAdd])) 
 	{
 		AllTrails.Remove(ObjectsTracked[CompToAdd]);
@@ -690,7 +667,7 @@ void FSequencerTrailHierarchy::AddControlRigTrail(USkeletalMeshComponent* Compon
 		{
 			const FGuid ControlGuid = ControlsTracked.Find(ControlRig)->FindOrAdd(ControlName, FGuid::NewGuid());
 
-			TUniquePtr<FTrail> CurTrail = MakeUnique<FMovieSceneControlRigTransformTrail>(Component, UMotionTrailToolOptions::GetTrailOptions()->TrailColor, false, CRParameterTrack, Sequencer, LevelSequencePlayer, ControlName);
+			TUniquePtr<FTrail> CurTrail = MakeUnique<FMovieSceneControlRigTransformTrail>(Component, UMotionTrailToolOptions::GetTrailOptions()->TrailColor, false, CRParameterTrack, Sequencer, ControlName);
 			if (AllTrails.Contains(ControlGuid))
 			{
 				AllTrails.Remove(ControlGuid);

@@ -167,6 +167,7 @@ struct FNiagaraSystemUpdateDesiredAgeExecutionToken : IMovieSceneExecutionToken
 						}
 					}
 					NiagaraComponent->Activate();
+					SystemInstanceController = NiagaraComponent->GetSystemInstanceController();
 				}
 			}
 			else if (Context.GetTime() < SpawnSectionEndFrame)
@@ -176,6 +177,7 @@ struct FNiagaraSystemUpdateDesiredAgeExecutionToken : IMovieSceneExecutionToken
 					if (NiagaraComponent->IsActive() == false)
 					{
 						NiagaraComponent->Activate();
+						SystemInstanceController = NiagaraComponent->GetSystemInstanceController();
 					}
 					
 					// TODO: Once ACTUALLY deferred, should just be a component call

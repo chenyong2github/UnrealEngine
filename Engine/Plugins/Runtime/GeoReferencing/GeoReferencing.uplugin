@@ -19,7 +19,7 @@
 			"Name": "GeoReferencing",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Android",
 				"HoloLens",
 				"IOS",
@@ -32,7 +32,7 @@
 			"Name": "GeoReferencingEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Android",
 				"HoloLens",
 				"IOS",

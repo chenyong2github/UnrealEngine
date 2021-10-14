@@ -1849,7 +1849,10 @@ bool UNiagaraGraph::SynchronizeScriptVariable(const UNiagaraScriptVariable* Sour
 		{ 
 			DestScriptVar->DefaultMode = SourceScriptVar->DefaultMode;
 			DestScriptVar->DefaultBinding = SourceScriptVar->DefaultBinding;
-			DestScriptVar->SetDefaultValueData(SourceScriptVar->GetDefaultValueData());
+			if (SourceScriptVar->GetDefaultValueData() != nullptr)
+			{
+				DestScriptVar->SetDefaultValueData(SourceScriptVar->GetDefaultValueData());
+			}
 		}
 		DestScriptVar->SetChangeId(SourceScriptVar->GetChangeId());
 

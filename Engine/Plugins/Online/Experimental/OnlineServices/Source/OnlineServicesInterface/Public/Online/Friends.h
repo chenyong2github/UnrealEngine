@@ -10,6 +10,8 @@ namespace UE::Online {
 
 struct FQueryFriends
 {
+	static constexpr TCHAR Name[] = TEXT("QueryFriends");
+
 	/** Input struct for Friends::QueryFriends */
 	struct Params
 	{
@@ -25,6 +27,8 @@ struct FQueryFriends
 
 struct FGetFriends
 {
+	static constexpr TCHAR Name[] = TEXT("GetFriends");
+
 	/** Input struct for Friends::GetFriends */
 	struct Params
 	{

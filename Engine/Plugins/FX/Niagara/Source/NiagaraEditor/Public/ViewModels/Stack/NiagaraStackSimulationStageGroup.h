@@ -64,7 +64,7 @@ public:
 		UNiagaraSimulationStageBase* InSimulationStage);
 
 	UNiagaraSimulationStageBase* GetSimulationStage() const;
-
+	const TObjectPtr<UNiagaraStackSimulationStagePropertiesItem>& GetSimulationStagePropertiesItem() const { return SimulationStageProperties; }
 	void SetOnModifiedSimulationStages(FOnModifiedSimulationStages OnModifiedSimulationStages);
 
 	virtual bool SupportsDelete() const override { return true; }

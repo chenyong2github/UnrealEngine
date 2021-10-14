@@ -24,7 +24,7 @@
 			"Name": "LidarPointCloudRuntime",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"Mac",
 				"Linux"
@@ -33,7 +33,7 @@
 		{
 			"Name": "LidarPointCloudEditor",
 			"Type": "Editor",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"Mac",
 				"Linux"

@@ -2667,7 +2667,7 @@ int32 FDynamicMeshCollection::CutWithCellMeshes(const FInternalSurfaceMaterials&
 #if !UE_BUILD_DEBUG
 		ProcessingParams.bDoValidation = false;
 #endif
-		Collection->RemoveElements(FGeometryCollection::GeometryGroup, GeometryForRemoval);
+		Collection->RemoveElements(FGeometryCollection::GeometryGroup, GeometryForRemoval, ProcessingParams);
 	}
 
 	return FirstIdx - GeometryForRemoval.Num();

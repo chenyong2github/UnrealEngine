@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Diagnostics;
 using UnrealBuildTool;
 using EpicGames.Core;
+using OpenTracing.Util;
 using UnrealBuildBase;
 
 namespace AutomationTool
@@ -72,6 +73,7 @@ namespace AutomationTool
 
 				// Get the path to the telemetry file, if present
 				string TelemetryFile = GlobalCommandLine.TelemetryPath;
+				JsonTracer Tracer = JsonTracer.TryRegisterAsGlobalTracer();
 
 				// should we kill processes on exit
 				ShouldKillProcesses = !GlobalCommandLine.NoKill;
@@ -119,7 +121,7 @@ namespace AutomationTool
 				}
 
 				// Compile scripts.
-				using (TelemetryStopwatch ScriptLoadStopwatch = new TelemetryStopwatch("ScriptLoad"))
+				using (GlobalTracer.Instance.BuildSpan("ScriptLoad").StartActive())
 				{
 					ScriptManager.LoadScriptAssemblies(ScriptModuleAssemblies);
 				}
@@ -161,6 +163,11 @@ namespace AutomationTool
 				{
 					// Flush any timing data
 					TraceSpan.Flush();
+					
+					if (Tracer != null)
+					{
+						Tracer.Flush();
+					}
 				}
 			}
 			catch (AutomationException Ex)

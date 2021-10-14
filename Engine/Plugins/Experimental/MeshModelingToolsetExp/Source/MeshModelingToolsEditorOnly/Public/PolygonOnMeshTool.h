@@ -89,7 +89,7 @@ public:
 	float PolygonScale = 1.0f;
 
 	/** Width of Polygon */
-	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "0.001", UIMax = "1000.0", ClampMin = "0.00001", ClampMax = "10000"))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "0.001", UIMax = "1000.0", ClampMin = "0.00001", ClampMax = "10000", EditCondition = "Shape != EPolygonType::Custom"))
 	float Width = 100.0f;
 		
 	/** Height of Polygon */

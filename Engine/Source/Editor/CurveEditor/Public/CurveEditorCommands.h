@@ -79,6 +79,8 @@ public:
 	TSharedPtr<FUICommandInfo> SetViewModeNormalized;
 
 	TSharedPtr<FUICommandInfo> DeactivateCurrentTool;
+
+	TSharedPtr<FUICommandInfo> SelectAllKeys;
 	TSharedPtr<FUICommandInfo> DeselectAllKeys;
 
 	TSharedPtr<FUICommandInfo> BufferVisibleCurves;

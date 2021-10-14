@@ -823,7 +823,7 @@ void DrawSurfels(const TArray<FLumenCardBuildDebugData::FSurfel>& Surfels, const
 	if (SurfelType == FLumenCardBuildDebugData::ESurfelType::Cluster 
 		&& GVisualizeLumenCardGenerationMaxSurfel >= 0)
 	{
-		LocalBounds.ExpandBy(1.0f);
+		LocalBounds = LocalBounds.ExpandBy(1.0f);
 
 		DrawWireBox(&ViewPDI, PrimitiveToWorld, LocalBounds, FLinearColor::Yellow, DepthPriority);
 

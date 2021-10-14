@@ -459,6 +459,7 @@ void FDatasmithImporter::CreateStaticMeshAssetImportData(FDatasmithImportContext
 		// #ueent_todo FH: piggybacking off of the SourceData file hash for now, until we have custom derived AssetImportData properly serialize to the AssetRegistry
 		FMD5Hash Hash = MeshElement->CalculateElementHash( false );
 		MeshImportData->Update( InContext.Options->FilePath, &Hash );
+		MeshImportData->SourceUri = InContext.Options->SourceUri;
 
 		// Set the final outer // #ueent_review: propagate flags of outer?
 		for (UDatasmithAdditionalData* Data: AdditionalData)
@@ -773,6 +774,7 @@ UMaterialInterface* FDatasmithImporter::ImportMaterial( FDatasmithImportContext&
 
 	AssetImportData->Update(ImportContext.Options->FilePath, ImportContext.FileHash.IsValid() ? &ImportContext.FileHash : nullptr);
 	AssetImportData->AssetImportOptions = ImportContext.Options->BaseOptions.AssetOptions;
+	AssetImportData->SourceUri = ImportContext.Options->SourceUri;
 
 	// Record requirements on mesh building for this material
 	ImportContext.AssetsContext.MaterialsRequirements.Add( MaterialElement->GetName(), FDatasmithMaterialImporter::GetMaterialRequirements( ImportedMaterial ) );

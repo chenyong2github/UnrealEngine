@@ -15,6 +15,9 @@ namespace SnapshotUtil
 	/** If path contains an actor, return subobject path to that actor. */
 	TOptional<FSoftObjectPath> ExtractActorFromPath(const FSoftObjectPath& OriginalObjectPath, bool& bIsPathToActorSubobject);
 
+	/** Given a path such as "/Game/MapName.MapName:PersistentLevel.StaticMeshActor_42.SomeComponent" returns the index of "S" in "SomeComponent" */
+	TOptional<int32> FindDotAfterActorName(const FSoftObjectPath& OriginalObjectPath);
+
 	/**
 	 * If Path contains a path to an actor, returns that actor.
 	 * Example: /Game/MapName.MapName:PersistentLevel.StaticMeshActor_42.StaticMeshComponent returns StaticMeshActor_42's data

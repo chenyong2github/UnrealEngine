@@ -188,6 +188,11 @@ public:
 		FVector3f Y = TransformRows[1];
 		FVector3f Z = TransformRows[2];
 
+		if (X.IsZero() || Y.IsZero())
+		{
+			return;
+		}
+
 		// Modified Gram-Schmidt orthogonalization
 		Y -= (Y | X) / (X | X) * X;
 		Z -= (Z | X) / (X | X) * X;

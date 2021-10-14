@@ -15,7 +15,6 @@ Field.h: Declares FField property system fundamentals
 #include "Math/RandomStream.h"
 #include "UObject/GarbageCollection.h"
 #include "UObject/CoreNative.h"
-#include "Templates/HasGetTypeHash.h"
 #include "Templates/IsAbstract.h"
 #include "Templates/IsEnum.h"
 #include "Misc/Optional.h"

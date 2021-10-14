@@ -1,0 +1,109 @@
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Restorability/CollisionRestoration.h"
+
+#include "PropertyComparisonParams.h"
+
+#include "Components/PrimitiveComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "UObject/UnrealType.h"
+#include "Util/EquivalenceUtil.h"
+
+void FCollisionRestoration::Register(FLevelSnapshotsModule& Module)
+{
+	const TSharedRef<FCollisionRestoration> CollisionPropertyFix = MakeShared<FCollisionRestoration>();
+	
+	Module.RegisterSnapshotLoader(CollisionPropertyFix);
+	Module.RegisterRestorationListener(CollisionPropertyFix);
+	Module.RegisterPropertyComparer(UStaticMeshComponent::StaticClass(), CollisionPropertyFix);
+}
+
+FCollisionRestoration::FCollisionRestoration()
+{
+	BodyInstanceProperty = FindFProperty<FProperty>(UPrimitiveComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(UPrimitiveComponent, BodyInstance));
+	ObjectTypeProperty = FindFProperty<FProperty>(FBodyInstance::StaticStruct(), FName("ObjectType"));
+	CollisionEnabledProperty = FindFProperty<FProperty>(FBodyInstance::StaticStruct(), FName("CollisionEnabled"));
+	CollisionResponsesProperty = FindFProperty<FProperty>(FBodyInstance::StaticStruct(), FName("CollisionResponses"));
+	check(BodyInstanceProperty && ObjectTypeProperty && CollisionEnabledProperty && CollisionResponsesProperty);
+}
+
+IPropertyComparer::EPropertyComparison FCollisionRestoration::ShouldConsiderPropertyEqual(const FPropertyComparisonParams& Params) const
+{
+	if (Params.LeafProperty == BodyInstanceProperty)
+	{
+		UStaticMeshComponent* SnapshotObject = Cast<UStaticMeshComponent>(Params.SnapshotObject);
+		UStaticMeshComponent* WorldObject = Cast<UStaticMeshComponent>(Params.WorldObject);
+#if UE_BUILD_DEBUG
+		// Should never fail, double-check on debug builds
+		check(SnapshotObject);
+		check(WorldObject);
+#endif
+
+		const FBodyInstance& SnapshotBody = SnapshotObject->BodyInstance;
+		const FBodyInstance& WorldBody = WorldObject->BodyInstance;
+		if (HaveNonDefaultCollisionPropertiesChanged(Params, SnapshotObject, WorldObject, SnapshotBody, WorldBody))
+		{
+			return EPropertyComparison::CheckNormally;
+		}
+
+		// These properties may have different values but they do not matter if UStaticMeshComponent::bUseDefaultCollision == true
+		const bool bDidDefaultCollisionPropertiesChange =
+			SnapshotBody.GetCollisionEnabled() != WorldBody.GetCollisionEnabled()
+			|| SnapshotBody.GetObjectType() != WorldBody.GetObjectType()
+			|| SnapshotBody.GetCollisionResponse() != WorldBody.GetCollisionResponse();
+
+		const bool bDefaultCollisionConfigIsEqual = SnapshotObject->bUseDefaultCollision == WorldObject->bUseDefaultCollision;
+		const bool bUseDefaultCollision = SnapshotObject->bUseDefaultCollision;
+		return bDefaultCollisionConfigIsEqual && (bUseDefaultCollision || !bDidDefaultCollisionPropertiesChange) 
+			? EPropertyComparison::TreatEqual : EPropertyComparison::CheckNormally;
+	}
+
+	return EPropertyComparison::CheckNormally;
+}
+
+namespace
+{
+	void UpdateCollisionProfile(UPrimitiveComponent* PrimitiveComponent)
+	{
+#if WITH_EDITOR
+		PrimitiveComponent->UpdateCollisionProfile();
+#else
+		PrimitiveComponent->BodyInstance.LoadProfileData(false);
+#endif
+	}
+}
+
+void FCollisionRestoration::PostLoadSnapshotObject(const FPostLoadSnapshotObjectParams& Params)
+{
+	if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(Params.SnapshotObject))
+	{
+		// This is needed to restore transient collision profile data.
+		UpdateCollisionProfile(PrimitiveComponent);
+	}
+}
+
+void FCollisionRestoration::PostApplySnapshotProperties(const FApplySnapshotPropertiesParams& Params)
+{
+	if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(Params.Object))
+	{
+		// This is needed to restore transient collision profile data.
+		// Technically, we need to check whether collision profile was modified ... calling it always is easier though
+		UpdateCollisionProfile(PrimitiveComponent);
+	}
+}
+
+bool FCollisionRestoration::HaveNonDefaultCollisionPropertiesChanged(const FPropertyComparisonParams& Params, UStaticMeshComponent* SnapshotObject, UStaticMeshComponent* WorldObject, const FBodyInstance& SnapshotBody, const FBodyInstance& WorldBody) const
+{
+	void* SnapshotValuePtr = BodyInstanceProperty->ContainerPtrToValuePtr<void>(SnapshotObject);
+	void* EditorValuePtr = BodyInstanceProperty->ContainerPtrToValuePtr<void>(WorldObject);
+	for (TFieldIterator<FProperty> FieldIt(FBodyInstance::StaticStruct()); FieldIt; ++FieldIt)
+	{
+		const FProperty* Property = *FieldIt;
+		const bool bIsAffectedByDefaultCollision = Property == ObjectTypeProperty || Property == CollisionEnabledProperty || Property == CollisionResponsesProperty;
+		if (!bIsAffectedByDefaultCollision && !SnapshotUtil::AreSnapshotAndOriginalPropertiesEquivalent(Params.WorldData, Property, SnapshotValuePtr, EditorValuePtr, SnapshotObject->GetOwner(), WorldObject->GetOwner()))
+		{
+			return true;
+		}
+	}
+	return false;
+}

@@ -27,6 +27,7 @@ SHeaderRow::FColumn::FArguments FSequencerSpawnableColumn::ConstructHeaderRowCol
 		.VAlignHeader(VAlign_Center)
 		.HAlignCell(HAlign_Left) // Note the icon has some baked in right alignment, so we are compensating here
 		.VAlignCell(VAlign_Center)
+		.DefaultTooltip(FText::FromName(GetColumnID()))
 		.HeaderContentPadding(FMargin(0.0))
 		[
 			SNew(SImage)

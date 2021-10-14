@@ -410,14 +410,6 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 #endif
 			GPUExecContext->MainDataSet = ParticleDataSet;
 			GPUExecContext->GPUScript_RT = CachedEmitter->GetGPUComputeScript()->GetRenderThreadScript();
-
-			SpawnExecContext.Parameters.Bind(&GPUExecContext->CombinedParamStore);
-			UpdateExecContext.Parameters.Bind(&GPUExecContext->CombinedParamStore);
-
-			for (int32 i = 0; i < CachedEmitter->GetSimulationStages().Num(); i++)
-			{
-				CachedEmitter->GetSimulationStages()[i]->Script->RapidIterationParameters.Bind(&GPUExecContext->CombinedParamStore);
-			}
 		}
 	}
 

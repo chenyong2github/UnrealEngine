@@ -230,7 +230,7 @@ public:
 
 			SetDefaultValue(InSection, DefaultValue);
 
-			// If recording to a possessable, this section can only be removed if the CDO value is the same and it's not on the whitelist of default property tracks
+			// If recording to a possessable, this section can only be removed if the CDO value is the same and it's not on the allow list of default property tracks
 			if (TrackRecorderSettings.bRecordToPossessable)
 			{
 				bRemoveSection = false;

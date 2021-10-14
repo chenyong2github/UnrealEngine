@@ -248,10 +248,9 @@ TSharedRef<FExtender> FShotgunUIManagerImpl::OnExtendLevelEditor(const TSharedRe
 
 	if (SelectedActors.Num() > 0)
 	{
-		Extender->AddMenuExtension("LevelViewportAttach", EExtensionHook::After, nullptr, FMenuExtensionDelegate::CreateLambda(
+		Extender->AddMenuExtension("ActorUETools", EExtensionHook::After, nullptr, FMenuExtensionDelegate::CreateLambda(
 			[this, SelectedActors](FMenuBuilder& MenuBuilder)
 			{
-				MenuBuilder.AddMenuSeparator();
 				MenuBuilder.AddSubMenu(
 					LOCTEXT("Shotgun_ContextMenu", "Shotgun"),
 					FText(),

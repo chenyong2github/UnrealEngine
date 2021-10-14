@@ -5,7 +5,7 @@
 #include "Modules/ModuleManager.h"
 #include "UObject/Object.h"
 #include "Misc/Guid.h"
-#include "Misc/BlacklistNames.h"
+#include "Misc/NamePermissionList.h"
 #include "UObject/Class.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
@@ -74,9 +74,9 @@ TOptional<FLinearColor> GetBasicShapeColorOverride()
 }
 
 FPlacementModeModule::FPlacementModeModule()
-	: CategoryBlacklist(MakeShareable(new FBlacklistNames()))
+	: CategoryPermissionList(MakeShareable(new FNamePermissionList()))
 {
-	CategoryBlacklist->OnFilterChanged().AddRaw(this, &FPlacementModeModule::OnCategoryBlacklistChanged);
+	CategoryPermissionList->OnFilterChanged().AddRaw(this, &FPlacementModeModule::OnCategoryPermissionListChanged);
 }
 
 void FPlacementModeModule::StartupModule()
@@ -502,7 +502,7 @@ void FPlacementModeModule::GetSortedCategories(TArray<FPlacementCategoryInfo>& O
 	OutCategories.Reset(Categories.Num());
 	for (const FName& Name : SortedNames)
 	{
-		if (CategoryBlacklist->PassesFilter(Name))
+		if (CategoryPermissionList->PassesFilter(Name))
 		{
 			OutCategories.Add(Categories[Name]);
 		}
@@ -803,7 +803,7 @@ bool FPlacementModeModule::PassesFilters(const TSharedPtr<FPlaceableItem>& Item)
 	return false;
 }
 
-void FPlacementModeModule::OnCategoryBlacklistChanged()
+void FPlacementModeModule::OnCategoryPermissionListChanged()
 {
 	PlacementModeCategoryListChanged.Broadcast();
 }

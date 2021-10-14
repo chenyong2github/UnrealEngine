@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MetasoundFrontendSubgraphNodeController.h"
+#include "MetasoundFrontendInputController.h"
+#include "MetasoundFrontendOutputController.h"
 
 #include "Algo/Transform.h"
 
@@ -88,7 +90,7 @@ namespace Metasound
 					}
 				}
 			}
-			return FInvalidNodeController::GetInvalid();
+			return INodeController::GetInvalidHandle();
 		}
 
 		FConstNodeHandle FSubgraphNodeController::CreateConstNodeHandle(const FSubgraphNodeController::FInitParams& InParams)
@@ -108,7 +110,7 @@ namespace Metasound
 					}
 				}
 			}
-			return FInvalidNodeController::GetInvalid();
+			return INodeController::GetInvalidHandle();
 		}
 
 		bool FSubgraphNodeController::IsValid() const
@@ -152,24 +154,22 @@ namespace Metasound
 			return Super::GetOutputControllerParams();
 		}
 
-		TArray<FBaseNodeController::FInputControllerParams> FSubgraphNodeController::GetInputControllerParamsWithVertexName(const FVertexName& InName) const
+		bool FSubgraphNodeController::FindInputControllerParamsWithVertexName(const FVertexName& InName, FInputControllerParams& OutParams) const
 		{
 			// TODO: Trigger ConformNodeInterfaceToClassInterface() on an
 			// event callback rather than on every call to this function.
 			const_cast<FSubgraphNodeController*>(this)->ConformNodeInterfaceToClassInterface();
 
-			return Super::GetInputControllerParamsWithVertexName(InName);
+			return Super::FindInputControllerParamsWithVertexName(InName, OutParams);
 		}
 
-		TArray<FBaseNodeController::FOutputControllerParams> FSubgraphNodeController::GetOutputControllerParamsWithVertexName(const FVertexName& InName) const
+		bool FSubgraphNodeController::FindOutputControllerParamsWithVertexName(const FVertexName& InName, FOutputControllerParams& OutParams) const
 		{
-			TArray<FBaseNodeController::FOutputControllerParams> Outputs;
-
 			// TODO: Trigger ConformNodeInterfaceToClassInterface() on an
 			// event callback rather than on every call to this function.
 			const_cast<FSubgraphNodeController*>(this)->ConformNodeInterfaceToClassInterface();
 
-			return Super::GetOutputControllerParamsWithVertexName(InName);
+			return Super::FindOutputControllerParamsWithVertexName(InName, OutParams);
 		}
 
 		bool FSubgraphNodeController::FindInputControllerParamsWithID(FGuid InVertexID, FInputControllerParams& OutParams) const

@@ -157,6 +157,43 @@ namespace Metasound
 		NodeStorage.Add(InNode);
 	}
 
+	TUniquePtr<INode> FFrontendGraphBuilder::CreateVariableNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendGraph& InGraph)
+	{
+		using namespace Metasound::Frontend;
+
+		const FMetasoundFrontendVariable* FrontendVariable = FindVariableForVariableNode(InNode, InGraph);
+
+		if (nullptr != FrontendVariable)
+		{
+			IDataTypeRegistry& DataTypeRegistry = IDataTypeRegistry::Get();
+			const bool IsLiteralParsableByDataType = DataTypeRegistry.IsLiteralTypeSupported(FrontendVariable->TypeName, FrontendVariable->Literal.GetType());
+
+			if (IsLiteralParsableByDataType)
+			{
+				FLiteral Literal = FrontendVariable->Literal.ToLiteral(FrontendVariable->TypeName);
+
+				FVariableNodeConstructorParams InitParams =
+				{
+					InNode.Name,
+					InNode.GetID(),
+					MoveTemp(Literal)
+				};
+
+				return DataTypeRegistry.CreateVariableNode(FrontendVariable->TypeName, MoveTemp(InitParams));
+			}
+			else
+			{
+				UE_LOG(LogMetaSound, Error, TEXT("Cannot create variable node [NodeID:%s]. [Variable:%s] cannot be constructed with the provided literal type."), *InNode.GetID().ToString(), *FrontendVariable->DisplayName.ToString());
+			}
+		}
+		else
+		{
+			UE_LOG(LogMetaSound, Error, TEXT("Cannot create variable node [NodeID:%s]. No variable found for variable node."), *InNode.GetID().ToString());
+		}
+
+		return TUniquePtr<INode>(nullptr);
+	}
+
 	TUniquePtr<INode> FFrontendGraphBuilder::CreateInputNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass, const FMetasoundFrontendClassInput& InOwningGraphClassInput)
 	{
 		using namespace Metasound::Frontend;
@@ -234,7 +271,6 @@ namespace Metasound
 
 	TUniquePtr<INode> FFrontendGraphBuilder::CreateExternalNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass, FBuildGraphContext& InGraphContext)
 	{
-		check(InClass.Metadata.GetType() == EMetasoundFrontendClassType::External);
 		check(InNode.ClassID == InClass.ID);
 
 		const FNodeInitData InitData = FrontendGraphPrivate::CreateNodeInitData(InNode);
@@ -298,6 +334,12 @@ namespace Metasound
 			}
 		}
 		return nullptr;
+	}
+
+	const FMetasoundFrontendVariable* FFrontendGraphBuilder::FindVariableForVariableNode(const FMetasoundFrontendNode& InVariableNode, const FMetasoundFrontendGraph& InGraph)
+	{
+		const FGuid& DesiredID = InVariableNode.GetID();
+		return InGraph.Variables.FindByPredicate([&](const FMetasoundFrontendVariable& InVar) { return InVar.VariableNodeID == DesiredID; });
 	}
 
 	const FMetasoundFrontendLiteral* FFrontendGraphBuilder::FindInputLiteralForInputNode(const FMetasoundFrontendNode& InInputNode, const FMetasoundFrontendClass& InInputNodeClass, const FMetasoundFrontendClassInput& InOwningGraphClassInput)
@@ -398,13 +440,6 @@ namespace Metasound
 					}
 					break;
 
-					case EMetasoundFrontendClassType::Variable:
-					{
-						ensureAlwaysMsgf(false, TEXT("TODO: Implement ability to create variables directly in Frontend"));
-					}
-
-					break;
-
 					case EMetasoundFrontendClassType::Graph:
 					{
 						const TSharedPtr<const INode> SubgraphPtr = InGraphContext.BuildContext.Graphs.FindRef(Node.ClassID);
@@ -420,6 +455,20 @@ namespace Metasound
 					}
 					break;
 
+					case EMetasoundFrontendClassType::Literal:
+					{
+						checkNoEntry(); // Unsupported.
+					}
+
+					case EMetasoundFrontendClassType::Variable:
+					{
+						TSharedPtr<const INode> VariableNode(CreateVariableNode(Node, InGraphContext.GraphClass.Graph).Release());
+						InGraphContext.Graph->AddNode(Node.GetID(), VariableNode);
+					}
+					break;
+
+					case EMetasoundFrontendClassType::VariableAccessor:
+					case EMetasoundFrontendClassType::VariableMutator:
 					case EMetasoundFrontendClassType::External:
 					default:
 					{

@@ -418,6 +418,14 @@ void FDetailCustomizationsModule::RegisterSectionMappings()
 	static const FName PropertyEditor("PropertyEditor");
 	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>(PropertyEditor);
 
+	// Object
+	{
+		{
+			TSharedRef<FPropertySection> Section = PropertyModule.FindOrCreateSection("Object", "General", LOCTEXT("General", "General"));
+			Section->AddCategory("Default"); // default category for BP instance editable variables
+		}
+	}
+
 	// Actor
 	{
 		{

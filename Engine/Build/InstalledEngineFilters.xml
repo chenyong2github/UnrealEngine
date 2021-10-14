@@ -399,6 +399,8 @@
 		Engine/Source/ThirdParty/Oculus/OVRPlugin/*.tps
 	</Property>
 	<Property Name="CopyWin64Exceptions">
+		Engine/Source/Programs/UnrealBuildTool/obj/...
+		Engine/Source/Programs/Shared/*/obj/...
 	</Property>
 	
 	<!-- Mac -->
@@ -410,6 +412,8 @@
 		Engine/Source/ThirdParty/PLCrashReporter/lib/lib-Xcode-12.4/Mac/...
 	</Property>
 	<Property Name="CopyMacExceptions">
+		Engine/Source/Programs/UnrealBuildTool/obj/...
+		Engine/Source/Programs/Shared/*/obj/...
 	</Property>
 
 	<!-- Android -->

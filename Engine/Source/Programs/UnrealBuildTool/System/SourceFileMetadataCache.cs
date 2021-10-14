@@ -10,6 +10,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using OpenTracing.Util;
 using UnrealBuildBase;
 
 #nullable enable
@@ -127,7 +128,7 @@ namespace UnrealBuildTool
 
 			if(FileReference.Exists(Location))
 			{
-				using(Timeline.ScopeEvent("Reading source file metadata cache"))
+				using (GlobalTracer.Instance.BuildSpan("Reading source file metadata cache").StartActive())
 				{
 					Read();
 				}

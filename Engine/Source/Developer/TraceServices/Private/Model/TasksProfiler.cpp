@@ -233,6 +233,12 @@ namespace TraceServices
 	void FTasksProvider::NestedAdded(TaskTrace::FId TaskId, TaskTrace::FId NestedId, double Timestamp, uint32 ThreadId)
 	{
 		AddRelative(TEXT("Nested"), TaskId, &FTaskInfo::NestedTasks, NestedId, Timestamp, ThreadId);
+
+		FTaskInfo* Task = TryGetTask(NestedId);
+		if (Task != nullptr)
+		{
+			Task->ParentOfNestedTask = MakeUnique<FTaskInfo::FRelationInfo>(TaskId, Timestamp, ThreadId);
+		}
 	}
 
 	void FTasksProvider::TaskFinished(TaskTrace::FId TaskId, double Timestamp)

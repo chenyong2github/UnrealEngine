@@ -15,7 +15,7 @@ namespace Geometry
 using namespace UE::Math;
 
 /**
- * Compute intersection a 2D triangle and a 2D axis-aligned box
+ * Compute intersection between a 2D triangle and a 2D axis-aligned box
  */
 template <typename Real>
 class TIntrTriangle2AxisAlignedBox2

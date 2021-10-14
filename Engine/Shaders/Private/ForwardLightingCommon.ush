@@ -31,6 +31,10 @@
 #include "VirtualShadowMaps/ProjectionCommon.ush"
 #endif
 
+#if SUPPORT_CLOUD_SHADOW_ON_FORWARD_LIT_TRANSLUCENT
+#include "VolumetricCloudCommon.ush" 
+#endif
+
 float PrevSceneColorPreExposureInv;
 
 void UpdateNearestSample(float Z, float2 UV, float FullResZ, inout float MinDist, inout float2 NearestUV)
@@ -114,7 +118,7 @@ float GetIndirectOcclusion(float2 ScreenUV, FGBufferData GBufferData)
 	return IndirectOcclusion;
 }
 
-FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 WorldPosition, float3 CameraVector, FGBufferData GBufferData, float2 ScreenUV, uint PrimitiveId, uint EyeIndex, float Dither, inout float OutDirectionalLightShadow)
+FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 WorldPosition, float3 CameraVector, FGBufferData GBufferData, float2 ScreenUV, uint PrimitiveId, uint EyeIndex, float Dither, float InDirectionalLightCloudShadow, inout float OutDirectionalLightShadow)
 {
 	float4 DynamicShadowFactors = 1;
 
@@ -200,6 +204,12 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 Worl
 		FLATTEN
 		if ((DirectionalLightData.DirectionalLightShadowMapChannelMask >> 8) & LightingChannelMask)
 		{
+		#if SUPPORT_CLOUD_SHADOW_ON_FORWARD_LIT_TRANSLUCENT
+			// This cannot go into LightAttenuation due to some distance based attenuation math being applied.
+			NewLighting.DiffuseLighting *= InDirectionalLightCloudShadow;
+			NewLighting.SpecularLighting *= InDirectionalLightCloudShadow;
+		#endif
+
 			DirectLighting.DiffuseLighting += NewLighting.DiffuseLighting;
 			DirectLighting.SpecularLighting += NewLighting.SpecularLighting;
 		}
@@ -278,14 +288,14 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 Worl
 	return DirectLighting;
 }
 
-float3 GetForwardDirectLighting(uint GridIndex, float3 WorldPosition, float3 CameraVector, FGBufferData GBufferData, float2 ScreenUV, uint PrimitiveId, uint EyeIndex, float Dither, inout float OutDirectionalLightShadow)
+float3 GetForwardDirectLighting(uint GridIndex, float3 WorldPosition, float3 CameraVector, FGBufferData GBufferData, float2 ScreenUV, uint PrimitiveId, uint EyeIndex, float Dither, float InDirectionalLightCloudShadow, inout float OutDirectionalLightShadow)
 {
-	FDeferredLightingSplit Ret = GetForwardDirectLightingSplit(GridIndex, WorldPosition, CameraVector, GBufferData, ScreenUV, PrimitiveId, EyeIndex, Dither, OutDirectionalLightShadow);
+	FDeferredLightingSplit Ret = GetForwardDirectLightingSplit(GridIndex, WorldPosition, CameraVector, GBufferData, ScreenUV, PrimitiveId, EyeIndex, Dither, InDirectionalLightCloudShadow, OutDirectionalLightShadow);
 
 	return Ret.DiffuseLighting.rgb + Ret.SpecularLighting.rgb;
 }
 
-float3 GetForwardDirectLightingForVertexLighting(uint GridIndex, float3 WorldPosition, float SceneDepth, float3 WorldNormal, uint EyeIndex)
+float3 GetForwardDirectLightingForVertexLighting(uint GridIndex, float3 WorldPosition, float SceneDepth, float3 WorldNormal, uint EyeIndex, float InDirectionalLightCloudShadow)
 {
 	float3 DirectLighting = 0;
 	// Using white for diffuse color, real diffuse color will be incorporated per-pixel
@@ -309,6 +319,10 @@ float3 GetForwardDirectLightingForVertexLighting(uint GridIndex, float3 WorldPos
 		float ShadowFactor = ComputeDirectionalLightStaticShadowing(WorldPosition);
 		bool bUnused = false;
 		ShadowFactor *= ComputeDirectionalLightDynamicShadowing(WorldPosition, SceneDepth, bUnused);
+
+	#if SUPPORT_CLOUD_SHADOW_ON_FORWARD_LIT_TRANSLUCENT
+		ShadowFactor *= InDirectionalLightCloudShadow;
+	#endif
 
 		// No specular for vertex lighting
 		float3 DiffuseLighting = Diffuse_Lambert(DiffuseColor);

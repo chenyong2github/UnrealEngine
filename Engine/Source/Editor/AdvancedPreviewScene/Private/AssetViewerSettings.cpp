@@ -71,7 +71,12 @@ void UAssetViewerSettings::Save()
 	LocalProfilesObject->SaveConfig();
 
 	SharedProfilesObject->SaveConfig();
-	SharedProfilesObject->UpdateDefaultConfigFile();
+
+	FString DefaultConfigPath = SharedProfilesObject->GetDefaultConfigFilename();
+	if (FPaths::FileExists(DefaultConfigPath) && !IFileManager::Get().IsReadOnly(*DefaultConfigPath))
+	{
+		SharedProfilesObject->UpdateDefaultConfigFile();
+	}
 }
 
 void UAssetViewerSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)

@@ -355,6 +355,14 @@ FReply SSaveLayoutDialog::OnConfirmClicked()
 FReply SSaveLayoutDialog::OnCancelClicked()
 {
 	bLastInputValidityCheckSuccessful = false;
+	if (SaveLayoutDialogParams.IsValid())
+	{
+		SaveLayoutDialogParams->bWereFilesSelected = false;
+		SaveLayoutDialogParams->LayoutFilePaths.Empty();
+		SaveLayoutDialogParams->LayoutNames.Empty();
+		SaveLayoutDialogParams->LayoutDescriptions.Empty();
+	}
+	
 	CloseDialog();
 	return FReply::Handled();
 }

@@ -22,7 +22,6 @@
 #include "SMyBlueprint.h"
 #include "SReplaceNodeReferences.h"
 #include "Widgets/Input/SHyperlink.h"
-#include "BlueprintEditorSettings.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintEditor"
 
@@ -451,15 +450,7 @@ FFindResultsSummoner::FFindResultsSummoner(TSharedPtr<class FAssetEditorToolkit>
 	bIsSingleton = true;
 
 	ViewMenuDescription = LOCTEXT("FindResultsView", "Find Results");
-
-	if (GetDefault<UBlueprintEditorSettings>()->bHostFindInBlueprintsInGlobalTab)
-	{
-		ViewMenuTooltip = LOCTEXT("FindResultsView_ToolTip", "Show find results for searching in this blueprint");
-	}
-	else
-	{
-		ViewMenuTooltip = LOCTEXT("FindResultsViewAllBlueprints_ToolTip", "Show find results for searching in this blueprint or all blueprints");
-	}
+	ViewMenuTooltip = LOCTEXT("FindResultsView_ToolTip", "Show find results for searching in this blueprint");
 }
 
 TSharedRef<SWidget> FFindResultsSummoner::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const

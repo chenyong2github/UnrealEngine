@@ -144,31 +144,31 @@ void FAssetRegistryState::Reset()
 	CachedPackageData.Empty();
 }
 
-void FAssetRegistryState::FilterTags(const FAssetDataTagMapSharedView& InTagsAndValues, FAssetDataTagMap& OutTagsAndValues, const TSet<FName>* ClassSpecificFilterlist, const FAssetRegistrySerializationOptions& Options)
+void FAssetRegistryState::FilterTags(const FAssetDataTagMapSharedView& InTagsAndValues, FAssetDataTagMap& OutTagsAndValues, const TSet<FName>* ClassSpecificFilterList, const FAssetRegistrySerializationOptions& Options)
 {
 	static FName WildcardName(TEXT("*"));
-	const TSet<FName>* AllClassesFilterlist = Options.CookFilterlistTagsByClass.Find(WildcardName);
+	const TSet<FName>* AllClassesFilterList = Options.CookFilterlistTagsByClass.Find(WildcardName);
 
-	// Exclude blacklisted tags or include only white listed tags, based on how we were configured in ini
+	// Exclude denied tags or include only allowed tags, based on how we were configured in ini
 	for (const auto& TagPair : InTagsAndValues)
 	{
-		const bool bInAllClasseslist = AllClassesFilterlist && (AllClassesFilterlist->Contains(TagPair.Key) || AllClassesFilterlist->Contains(WildcardName));
-		const bool bInClassSpecificlist = ClassSpecificFilterlist && (ClassSpecificFilterlist->Contains(TagPair.Key) || ClassSpecificFilterlist->Contains(WildcardName));
-		if (Options.bUseAssetRegistryTagsWhitelistInsteadOfBlacklist)
+		const bool bInAllClassesList = AllClassesFilterList && (AllClassesFilterList->Contains(TagPair.Key) || AllClassesFilterList->Contains(WildcardName));
+		const bool bInClassSpecificList = ClassSpecificFilterList && (ClassSpecificFilterList->Contains(TagPair.Key) || ClassSpecificFilterList->Contains(WildcardName));
+		if (Options.bUseAssetRegistryTagsAllowListInsteadOfDenyList)
 		{
-			// It's a white list, only include it if it is in the all classes list or in the class specific list
-			if (bInAllClasseslist || bInClassSpecificlist)
+			// It's an allow list, only include it if it is in the all classes list or in the class specific list
+			if (bInAllClassesList || bInClassSpecificList)
 			{
-				// It is in the white list. Keep it.
+				// It is in the allow list. Keep it.
 				OutTagsAndValues.Add(TagPair.Key, TagPair.Value.ToLoose());
 			}
 		}
 		else
 		{
-			// It's a blacklist, include it unless it is in the all classes list or in the class specific list
-			if (!bInAllClasseslist && !bInClassSpecificlist)
+			// It's a deny list, include it unless it is in the all classes list or in the class specific list
+			if (!bInAllClassesList && !bInClassSpecificList)
 			{
-				// It isn't in the blacklist. Keep it.
+				// It isn't in the deny list. Keep it.
 				OutTagsAndValues.Add(TagPair.Key, TagPair.Value.ToLoose());
 			}
 		}
@@ -627,8 +627,8 @@ bool FAssetRegistryState::EnumerateAssets(const FARCompiledFilter& Filter, const
 		return false;
 	}
 
-	const uint32 FilterWithoutPackageFlags = Filter.WithoutPackageFlags; // -V561
-	const uint32 FilterWithPackageFlags = Filter.WithPackageFlags; // -V561
+	const uint32 FilterWithoutPackageFlags = Filter.WithoutPackageFlags;
+	const uint32 FilterWithPackageFlags = Filter.WithPackageFlags;
 
 	// The assets that match each filter
 	TArray<TArray<FAssetData*>, TInlineAllocator<5>> FilterResults;
@@ -669,9 +669,12 @@ bool FAssetRegistryState::EnumerateAssets(const FARCompiledFilter& Filter, const
 	// On disk tags and values
 	if (Filter.TagsAndValues.Num() > 0)
 	{
-		TArray<FAssetData*>& TagAndValuesFilter = FilterResults.Emplace_GetRef();
+		TSet<FAssetData*> TagAndValuesFilter;
 		// Sometimes number of assets matching this filter is correlated to number of assets matching previous filters 
-		TagAndValuesFilter.Reserve(FilterResults[0].Num());
+		if (FilterResults.Num())
+		{
+			TagAndValuesFilter.Reserve(FilterResults[0].Num());
+		}
 
 		for (auto FilterTagIt = Filter.TagsAndValues.CreateConstIterator(); FilterTagIt; ++FilterTagIt)
 		{
@@ -701,6 +704,8 @@ bool FAssetRegistryState::EnumerateAssets(const FARCompiledFilter& Filter, const
 				}
 			}
 		}
+
+		FilterResults.Emplace(TagAndValuesFilter.Array());
 	}
 
 	// Perform callback for assets that match all filters
@@ -736,6 +741,7 @@ bool FAssetRegistryState::EnumerateAssets(const FARCompiledFilter& Filter, const
 			for (TPair<FAssetData*, uint32> PassCount : PassCounts)
 			{
 				const FAssetData* AssetData = PassCount.Key;
+				check(PassCount.Value <= (uint32)FilterResults.Num());
 				if (PassCount.Value != FilterResults.Num() || SkipAssetData(AssetData))
 				{
 					continue;
@@ -1117,7 +1123,7 @@ bool FAssetRegistryState::Load(FArchive& OriginalAr, const FAssetRegistryLoadOpt
 	FAssetRegistryVersion::Type Version = FAssetRegistryVersion::LatestVersion;
 	FAssetRegistryVersion::SerializeVersion(OriginalAr, Version);
 
-	FSoftObjectPathSerializationScope SerializationScope(NAME_None, NAME_None, ESoftObjectPathCollectType::NeverCollect, ESoftObjectPathSerializeType::AlwaysSerialize);
+	FSoftObjectPathSerializationScope SerializationScope(NAME_None, NAME_None, ESoftObjectPathCollectType::NonPackage, ESoftObjectPathSerializeType::AlwaysSerialize);
 
 	if (Version < FAssetRegistryVersion::RemovedMD5Hash)
 	{

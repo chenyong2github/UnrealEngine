@@ -26,7 +26,7 @@
 			"Name" : "WinDualShock",
 			"Type" : "RuntimeNoCommandlet",
 			"LoadingPhase" : "Default",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"Win64"
 			]

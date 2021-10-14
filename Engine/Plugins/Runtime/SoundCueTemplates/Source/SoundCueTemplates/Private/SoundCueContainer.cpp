@@ -222,7 +222,7 @@ int32 USoundCueContainer::GetMaxVariations(const FSoundCueTemplateQualitySetting
 	return MaxVariations;
 }
 
-TSet<FName>& USoundCueContainer::GetWhitelistedCategories()
+TSet<FName>& USoundCueContainer::GetCategoryAllowList()
 {
 	static TSet<FName> Categories;
 	if (Categories.Num() == 0)
@@ -244,10 +244,10 @@ void FSoundCueContainerDetailCustomization::CustomizeDetails(IDetailLayoutBuilde
 	TArray<FName> CategoryNames;
 	DetailLayout.GetCategoryNames(CategoryNames);
 
-	const TSet<FName>& Whitelist = USoundCueContainer::GetWhitelistedCategories();
+	const TSet<FName>& AllowList = USoundCueContainer::GetCategoryAllowList();
 	for (FName CategoryName : CategoryNames)
 	{
-		if (!Whitelist.Contains(CategoryName))
+		if (!AllowList.Contains(CategoryName))
 		{
 			DetailLayout.HideCategory(CategoryName);
 		}

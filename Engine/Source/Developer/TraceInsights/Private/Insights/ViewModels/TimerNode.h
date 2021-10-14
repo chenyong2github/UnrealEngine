@@ -114,6 +114,8 @@ public:
 	bool IsHotPath() const { return bIsHotPath; }
 	void SetIsHotPath(bool bOnOff) { bIsHotPath = bOnOff; }
 
+	bool GetSourceFileAndLine(FString& OutFile, uint32& OutLine) const;
+
 private:
 	/** The timer id provided by analyzer. It can also be used as an index. */
 	const uint32 TimerId;

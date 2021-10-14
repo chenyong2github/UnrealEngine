@@ -174,7 +174,7 @@ namespace CADLibrary
 		// TODO for SW //void TraverseConfigurationSet(const A3DAsmProductOccurrence* ConfigurationSet, FEntityData& ParentMetaData);
 		// TODO for SW //void TraverseConfiguration(const A3DAsmProductOccurrence* OccurrConfigurationence, FEntityData& ParentMetaData);
 		FCadId TraverseOccurrence(const A3DAsmProductOccurrence* Occurrence);
-		void TraversePrototype(const A3DAsmProductOccurrence* Prototype, FEntityMetaData& MetaData);
+		void TraversePrototype(const A3DAsmProductOccurrence* InPrototype, FEntityMetaData& OutMetaData, FMatrix& OutPrototypeMatrix);
 		FCadId TraversePartDefinition(const A3DAsmPartDefinition* PartDefinition);
 		FCadId TraverseRepresentationSet(const A3DRiSet* pSet);
 		FCadId TraverseRepresentationItem(A3DRiRepresentationItem* RepresentationItem);
@@ -198,10 +198,10 @@ namespace CADLibrary
 		void TraverseLayer(const A3DAsmProductOccurrence* Occurrence);
 
 		// Transform
-		void TraverseCoordinateSystem(const A3DRiCoordinateSystem* CoordinateSystem);
-		void TraverseTransformation(const A3DMiscCartesianTransformation* Transformation3d);
-		void TraverseGeneralTransformation(const A3DMiscGeneralTransformation* GeneralTransformation);
-		void TraverseTransformation3D(const A3DMiscCartesianTransformation* CartesianTransformation);
+		FMatrix TraverseCoordinateSystem(const A3DRiCoordinateSystem* CoordinateSystem);
+		FMatrix TraverseTransformation(const A3DMiscCartesianTransformation* Transformation3d);
+		FMatrix TraverseGeneralTransformation(const A3DMiscGeneralTransformation* GeneralTransformation);
+		FMatrix TraverseTransformation3D(const A3DMiscCartesianTransformation* CartesianTransformation);
 
 		FFileDescriptor GetOccurrenceFileName(const A3DAsmProductOccurrence* OccurrencePtr);
 

@@ -68,6 +68,11 @@ struct FGameFeaturePluginTemplateDescription : public FPluginTemplateDescription
 		Descriptor.bExplicitlyLoaded = true;
 		Descriptor.AdditionalFieldsToWrite.FindOrAdd(TEXT("BuiltInInitialFeatureState")) = MakeShared<FJsonValueString>(TEXT("Active"));
 		Descriptor.Category = TEXT("Game Features");
+
+		if (Descriptor.Modules.Num() > 0)
+		{
+			Descriptor.Modules[0].Name = FName(*(Descriptor.Modules[0].Name.ToString() + TEXT("Runtime")));
+		}
 	}
 
 	virtual void OnPluginCreated(TSharedPtr<IPlugin> NewPlugin) override
@@ -140,6 +145,12 @@ class FGameFeaturesEditorModule : public FDefaultModuleImpl
 				PluginTemplateDir / TEXT("GameFeaturePluginContentOnly")
 			));
 
+			WithCodeTemplate = MakeShareable(new FGameFeaturePluginTemplateDescription(
+				LOCTEXT("PluginWizard_NewGFPWithCodeLabel", "Game Feature (with C++)"),
+				LOCTEXT("PluginWizard_NewGFPWithCodeDesc", "Create a new Game Feature Plugin with a minimal amount of code."),
+				PluginTemplateDir / TEXT("GameFeaturePluginWithCode")
+			));
+
 			IModularFeatures& ModularFeatures = IModularFeatures::Get();
 			ModularFeatures.OnModularFeatureRegistered().AddRaw(this, &FGameFeaturesEditorModule::OnModularFeatureRegistered);
 			ModularFeatures.OnModularFeatureUnregistered().AddRaw(this, &FGameFeaturesEditorModule::OnModularFeatureUnregistered);
@@ -172,6 +183,7 @@ class FGameFeaturesEditorModule : public FDefaultModuleImpl
 			{
 				OnModularFeatureUnregistered(EditorFeatures::PluginsEditor, &ModularFeatures.GetModularFeature<IPluginsEditorFeature>(EditorFeatures::PluginsEditor));
 			}
+			WithCodeTemplate.Reset();
 			ContentOnlyTemplate.Reset();
 		}
 	}
@@ -183,6 +195,7 @@ class FGameFeaturesEditorModule : public FDefaultModuleImpl
 		{
 			IPluginsEditorFeature& PluginEditor = *static_cast<IPluginsEditorFeature*>(ModularFeature);
 			PluginEditor.RegisterPluginTemplate(ContentOnlyTemplate.ToSharedRef());
+			PluginEditor.RegisterPluginTemplate(WithCodeTemplate.ToSharedRef());
 			PluginEditorExtensionDelegate = PluginEditor.RegisterPluginEditorExtension(FOnPluginBeingEdited::CreateRaw(this, &FGameFeaturesEditorModule::CustomizePluginEditing));
 		}
 	}
@@ -193,6 +206,7 @@ class FGameFeaturesEditorModule : public FDefaultModuleImpl
 		{
 			IPluginsEditorFeature& PluginEditor = *static_cast<IPluginsEditorFeature*>(ModularFeature);
 			PluginEditor.UnregisterPluginTemplate(ContentOnlyTemplate.ToSharedRef());
+			PluginEditor.UnregisterPluginTemplate(WithCodeTemplate.ToSharedRef());
 			PluginEditor.UnregisterPluginEditorExtension(PluginEditorExtensionDelegate);
 		}
 	}
@@ -295,6 +309,7 @@ class FGameFeaturesEditorModule : public FDefaultModuleImpl
 	}
 private:
 	TSharedPtr<FPluginTemplateDescription> ContentOnlyTemplate;
+	TSharedPtr<FPluginTemplateDescription> WithCodeTemplate;
 	FPluginEditorExtensionHandle PluginEditorExtensionDelegate;
 };
 

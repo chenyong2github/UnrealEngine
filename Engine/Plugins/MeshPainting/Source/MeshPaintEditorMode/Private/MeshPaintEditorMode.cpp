@@ -42,6 +42,10 @@ protected:
 
 void FMeshPaintEditorModeModule::Register()
 {
+	// Note: factories must be registered in the order of most to least specialized!!
+	// The factory lookup currently uses first found rather than determining most specialized. Due to this, the SplineMesh factory must be 
+	// registered *before* the StaticMesh factory, since both factories will succeed in constructing adapters for USplineMeshComponent
+	// since it derives from UStaticMeshComponent.
 	RegisterGeometryAdapterFactory(MakeShareable(new FMeshPaintSplineMeshComponentAdapterFactory));
 	RegisterGeometryAdapterFactory(MakeShareable(new FMeshPaintStaticMeshComponentAdapterFactory));
 	RegisterGeometryAdapterFactory(MakeShareable(new FMeshPaintSkeletalMeshComponentAdapterFactory));

@@ -10,7 +10,7 @@
 #include "IDocumentation.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Framework/Docking/TabManager.h"
-#include "Misc/BlacklistNames.h"
+#include "Misc/NamePermissionList.h"
 
 /////////////////////////////////////////////////////
 // FWorkflowTabFactory
@@ -122,7 +122,7 @@ bool FWorkflowTabFactory::CanSpawnTab(const FSpawnTabArgs& SpawnArgs, TWeakPtr<F
 	TSharedPtr<FTabManager> TabManager = WeakTabManager.Pin();
 	if (TabManager.IsValid())
 	{
-		return TabManager->GetTabBlacklist()->PassesFilter(SpawnArgs.GetTabId().TabType);
+		return TabManager->GetTabPermissionList()->PassesFilter(SpawnArgs.GetTabId().TabType);
 	}
 
 	return true;

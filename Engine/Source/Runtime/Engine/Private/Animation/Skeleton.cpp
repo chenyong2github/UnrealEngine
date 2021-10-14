@@ -1859,12 +1859,12 @@ void USkeleton::RenameSlotName(const FName& OldName, const FName& NewName)
 
 #if WITH_EDITOR
 
-bool USkeleton::AddSmartNameAndModify(FName ContainerName, FName NewDisplayName, FSmartName& NewName)
+bool USkeleton::AddSmartNameAndModify(FName ContainerName, FName NewDisplayName, FSmartName& OutNewName)
 {
 	if (NewDisplayName != NAME_None)
 	{
-		NewName.DisplayName = NewDisplayName;
-		const bool bAdded = VerifySmartNameInternal(ContainerName, NewName);
+		OutNewName.DisplayName = NewDisplayName;
+		const bool bAdded = VerifySmartNameInternal(ContainerName, OutNewName);
 
 		if (bAdded)
 		{

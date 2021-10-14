@@ -84,6 +84,7 @@ public:
 	virtual FText GetOnlineServiceName() const override;
 	virtual IOnlineStatsPtr GetStatsInterface() const override;
 	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	virtual void ReloadConfigs(const TSet<FString>& ConfigSections) override;
 
 	virtual IOnlineGroupsPtr GetGroupsInterface() const override { return nullptr; }
 	virtual IOnlinePartyPtr GetPartyInterface() const override { return nullptr; }

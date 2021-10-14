@@ -532,14 +532,15 @@ namespace UE { namespace Tasks
 				// complete it before the execution finishes
 
 				FTaskBase* PrevTask = ExchangeCurrentTask(this);
-				TaskTrace::Started(GetTraceId());
-				StartPipeExecution();
+				{
+					TaskTrace::FTaskTimingEventScope TaskEventScope(GetTraceId());
+					StartPipeExecution();
 
-				TaskBody();
-				TaskBody.Reset();
+					TaskBody();
+					TaskBody.Reset();
 
-				FinishPipeExecution();
-				TaskTrace::Finished(GetTraceId());
+					FinishPipeExecution();
+				}
 				ExchangeCurrentTask(PrevTask);
 				
 				uint32 LocalNumLocks = NumLocks.fetch_sub(1, std::memory_order_relaxed) - 1;

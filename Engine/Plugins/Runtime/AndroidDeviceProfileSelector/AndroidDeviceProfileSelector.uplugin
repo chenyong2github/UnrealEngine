@@ -30,7 +30,7 @@
 			"Name" : "AndroidDeviceProfileSelectorRuntime",
 			"Type" : "RuntimeNoCommandlet",
 			"LoadingPhase" : "PostConfigInit",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"Android"
 			]

@@ -24,7 +24,7 @@
 			"Name": "Shotgun",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms":
+			"PlatformAllowList":
 			[
 				"Win64"
 			]

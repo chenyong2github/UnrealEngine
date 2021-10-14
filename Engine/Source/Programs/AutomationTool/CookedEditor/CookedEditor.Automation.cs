@@ -108,7 +108,7 @@ public class ModifyStageContext
 		// stage the processed NonUFSFiles
 		SC.StageFiles(StagedFileType.NonUFS, StagedNonUFSFiles.Values);
 
-		// now remove or whitelist restricted files
+		// now remove or allow restricted files
 		HandleRestrictedFiles(SC, ref SC.FilesToStage.UFSFiles);
 		HandleRestrictedFiles(SC, ref SC.FilesToStage.NonUFSFiles);
 	}
@@ -131,6 +131,22 @@ public class ModifyStageContext
 		{
 			RootDir = EngineDirectory;
 			return Project.ApplyDirectoryRemap(SC, new StagedFileReference( "Engine/" + Ref.MakeRelativeTo(EngineDirectory).Replace('\\', '/')));
+		}
+		throw new Exception();
+	}
+
+	private FileReference UnmakeRelativeStagedReference(DeploymentContext SC, StagedFileReference Ref)
+	{
+		// paths will be in the form "Engine/Foo" or "{ProjectName}/Foo" (or something that we don't handle, so assert)
+		// So, replace the Engine/ with {EngineDir} and {ProjectName}/ with {ProjectDir}, and then append Foo
+		if (Ref.Name.StartsWith("Engine/"))
+		{
+			// skip over "Engine/" which is 7 chars long
+			return FileReference.Combine(EngineDirectory, Ref.Name.Substring(7));
+		}
+		else if (Ref.Name.StartsWith(ProjectName + "/"))
+		{
+			return FileReference.Combine(ProjectDirectory, Ref.Name.Substring(ProjectName.Length + 1));
 		}
 		throw new Exception();
 	}
@@ -185,11 +201,11 @@ public class ModifyStageContext
 //				Console.WriteLine("{0} is restricted", FileRef.FullName);
 				if (bStageRestrictedDirs)
 				{
-					// if we want to stage restricted files, then we need to whitelist the folder
-					if (!SC.WhitelistDirectories.Contains(StagedFile.Directory))
+					// if we want to stage restricted files, then we need to add the folder to the allow list
+					if (!SC.DirectoriesAllowList.Contains(StagedFile.Directory))
 					{
-						Console.WriteLine("Whitelisting dir {0}", StagedFile.Directory.Name);
-						SC.WhitelistDirectories.Add(StagedFile.Directory);
+						Console.WriteLine("Allowing dir {0}", StagedFile.Directory.Name);
+						SC.DirectoriesAllowList.Add(StagedFile.Directory);
 					}
 				}
 				else
@@ -215,8 +231,8 @@ public class ModifyStageContext
 			{
 				if (SC.RestrictedFolderNames.Any(x => Pair.Key.ContainsName(x)))
 				{
-					Console.WriteLine("Whitelisting dir {0}", Pair.Value.Directory.FullName);
-					SC.WhitelistDirectories.Add(Pair.Key.Directory);
+					Console.WriteLine("Allowing dir {0}", Pair.Value.Directory.FullName);
+					SC.DirectoriesAllowList.Add(Pair.Key.Directory);
 				}
 			}
 		}
@@ -232,11 +248,11 @@ public class ModifyStageContext
 		//		//				Console.WriteLine("{0} is restricted", FileRef.FullName);
 		//		if (bStageRestrictedDirs)
 		//		{
-		//			// if we want to stage restricted files, then we need to whitelist the folder
-		//			if (!SC.WhitelistDirectories.Contains(StagedFile.Directory))
+		//			// if we want to stage restricted files, then we need to explicitly allow the folder
+		//			if (!SC.DirectoriesAllowList.Contains(StagedFile.Directory))
 		//			{
-		//				Console.WriteLine("Whitelisting dir {0}", StagedFile.Directory.Name);
-		//				SC.WhitelistDirectories.Add(StagedFile.Directory);
+		//				Console.WriteLine("Allowing dir {0}", StagedFile.Directory.Name);
+		//				SC.DirectoriesAllowList.Add(StagedFile.Directory);
 		//			}
 		//		}
 		//		else
@@ -251,7 +267,8 @@ public class ModifyStageContext
 
 	private void UncookMaps(DeploymentContext SC)
 	{
-		FilesToUncook.AddRange(SC.FilesToStage.UFSFiles.Values.Where(x => x.GetExtension() == ".umap"));
+		// remove maps from SC and Context (SC has path to the cooked map, so we have to come back from Staged refernece that doesn't have the Cooked dir in it)
+		FilesToUncook.AddRange(SC.FilesToStage.UFSFiles.Keys.Where(x => x.HasExtension("umap")).Select(y => UnmakeRelativeStagedReference(SC, y)));
 		FilesToUncook.AddRange(UFSFilesToStage.Where(x => x.GetExtension() == ".umap"));
 	}
 
@@ -320,25 +337,34 @@ public class MakeCookedEditor : BuildCommand
 		}
 	}
 
-	protected virtual void StagePluginDirectory(DirectoryReference PluginDir, ModifyStageContext Context)
+	protected virtual void StagePluginDirectory(DirectoryReference PluginDir, ModifyStageContext Context, bool bStageUncookedContent)
 	{
 		foreach (DirectoryReference Subdir in DirectoryReference.EnumerateDirectories(PluginDir))
 		{
-			StagePluginSubdirectory(Subdir, Context);
+			StagePluginSubdirectory(Subdir, Context, bStageUncookedContent);
 		}
 	}
 
-	protected virtual void StagePluginSubdirectory(DirectoryReference PluginSubdir, ModifyStageContext Context)
+	protected virtual void StagePluginSubdirectory(DirectoryReference PluginSubdir, ModifyStageContext Context, bool bStageUncookedContent)
 	{
 		string DirNameLower = PluginSubdir.GetDirectoryName().ToLower();
 
-		if (DirNameLower == "content" || DirNameLower == "resources" || 
-			DirNameLower == "config" || DirNameLower == "scripttemplates")
+		if (DirNameLower == "content")
+		{
+			if (bStageUncookedContent)
+			{
+				Context.FilesToUncook.AddRange(DirectoryReference.EnumerateFiles(PluginSubdir, "*", SearchOption.AllDirectories));
+			}
+			else
+			{
+				Context.UFSFilesToStage.AddRange(DirectoryReference.EnumerateFiles(PluginSubdir, "*", SearchOption.AllDirectories));
+			}
+		}
+		else if (DirNameLower == "resources" || DirNameLower == "config" || DirNameLower == "scripttemplates")
 		{
 			Context.UFSFilesToStage.AddRange(DirectoryReference.EnumerateFiles(PluginSubdir, "*", SearchOption.AllDirectories));
 		}
-
-		if (DirNameLower == "shaders" && Context.bStageShaderDirs)
+		else if (DirNameLower == "shaders" && Context.bStageShaderDirs)
 		{
 			Context.NonUFSFilesToStage.AddRange(DirectoryReference.EnumerateFiles(PluginSubdir, "*", SearchOption.AllDirectories));
 		}
@@ -483,7 +509,12 @@ public class MakeCookedEditor : BuildCommand
 
 		foreach (FileReference ActivePlugin in ActivePlugins)
 		{
-			StagePluginDirectory(ActivePlugin.Directory, Context);
+			PluginInfo Plugin = new PluginInfo(ActivePlugin, bEnginePlugins ? PluginType.Engine : PluginType.Project);
+			// we don't cook for unsupported target platforms, but the plugin may still need to be used in the editor, so
+			// stage uncooked assets for these plugins
+			bool bStageUncookedContent = (!Plugin.Descriptor.SupportsTargetPlatform(SC.StageTargetPlatform.PlatformType));
+
+			StagePluginDirectory(ActivePlugin.Directory, Context, bStageUncookedContent);
 		}
 
 	}
@@ -584,16 +615,22 @@ public class MakeCookedEditor : BuildCommand
 		);
 
 		string TargetPlatformType = "CookedEditor";
-		string TargetPlatformName = ProjectPath.GetFileNameWithoutAnyExtensions() + TargetPlatformType;
+		string TargetName;
+
+		// look to see if ini overrides tgarget name
+		ConfigHierarchy GameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, ProjectPath.Directory, BuildHostPlatform.Current.Platform);
+		if (!GameConfig.GetString("CookedEditorSettings", "CookedEditorTargetName", out TargetName))
+		{
+			// if not, then use ProjectCookedEditor
+			TargetName = ProjectPath.GetFileNameWithoutAnyExtensions() + TargetPlatformType;
+		}
 
 		// cook the cooked editor targetplatorm as the "client"
 		Params.ClientCookedTargets.Clear();
-		Params.ClientCookedTargets.Add(TargetPlatformName);
+		Params.ClientCookedTargets.Add(TargetName);
 		//Params.ClientCookedTargets.Add("CrashReportClientEditor");
 		Params.ClientTargetPlatforms = new List<TargetPlatformDescriptor>() { new TargetPlatformDescriptor(Params.ClientTargetPlatforms[0].Type, TargetPlatformType) };
 
-//		Params.EditorTargets.Clear();
-//		Params.EditorTargets.Add(TargetPlatformName);
 		Params.ServerCookedTargets.Clear();
 
 		// when making cooked editors, we some special commandline options to override some assumptions about editor data

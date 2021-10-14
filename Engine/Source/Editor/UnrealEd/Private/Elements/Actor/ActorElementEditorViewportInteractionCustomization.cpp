@@ -84,12 +84,44 @@ bool FActorElementEditorViewportInteractionCustomization::GetFocusBounds( const 
 		const FBox DefaultSizeBox(Actor->GetActorLocation() - DefaultExtent, Actor->GetActorLocation() + DefaultExtent);
 		BoundingBox += DefaultSizeBox;
 	}
-
-	BoundingBox += Actor->GetComponentsBoundingBox(/*bNonColliding*/true, /*bIncludeFromChildActors*/true);
-	
-	if (USceneComponent* RootComponent = Actor->GetRootComponent())
+	else if (USceneComponent* RootComponent = Actor->GetRootComponent())
 	{
-		BoundingBox += RootComponent->GetComponentLocation();
+		TArray<USceneComponent*> SceneComponents;
+		RootComponent->GetChildrenComponents(true, SceneComponents);
+		SceneComponents.Add(RootComponent);
+
+		bool bHasAtLeastOnePrimitiveComponent = false;
+		for (USceneComponent* SceneComponent : SceneComponents)
+		{
+			UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(SceneComponent);
+
+			if (PrimitiveComponent && PrimitiveComponent->IsRegistered())
+			{
+				// Some components can have huge bounds but are not visible.  Ignore these components unless it is the only component on the actor 
+				const bool bIgnore = SceneComponents.Num() > 1 && PrimitiveComponent->IgnoreBoundsForEditorFocus();
+
+				if (!bIgnore)
+				{
+					FBox LocalBox(ForceInit);
+					if (GLevelEditorModeTools().ComputeBoundingBoxForViewportFocus(Actor, PrimitiveComponent, LocalBox))
+					{
+						BoundingBox += LocalBox;
+					}
+					else
+					{
+						BoundingBox += PrimitiveComponent->Bounds.GetBox();
+					}
+
+					bHasAtLeastOnePrimitiveComponent = true;
+				}
+			}
+		}
+
+		if (!bHasAtLeastOnePrimitiveComponent)
+		{
+			BoundingBox += RootComponent->GetComponentLocation();
+		}
+
 	}
 	
 	OutBounds = BoundingBox;

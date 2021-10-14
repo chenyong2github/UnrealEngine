@@ -183,10 +183,7 @@ int32 FTexture2DMipDataProvider_DDC::GetMips(
 
 						// The result must be read from a memory reader!
 						FMemoryReader Ar(DerivedMipData, true);
-						int32 MipSize = 0;
-						Ar << MipSize;
-						check(MipSize == (DerivedMipData.Num() - sizeof(int32)));
-						if (SerializeMipInfo(Context, Ar, MipIndex, MipSize, MipInfo))
+						if (SerializeMipInfo(Context, Ar, MipIndex, DerivedMipData.Num(), MipInfo))
 						{
 							bSuccess = true;
 						}

@@ -18,24 +18,24 @@
 			"Name": "ModelingToolsEditorMode",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [ "Win64" ]
+			"PlatformAllowList": [ "Win64" ]
 		}
 	],
 	"Plugins": [
 		{
 			"Name": "MeshModelingToolset",
 			"Enabled": true,
-			"WhitelistTargets": [ "Editor" ]
+			"TargetAllowList": [ "Editor" ]
 		},
 		{
 			"Name": "MeshModelingToolsetExp",
 			"Enabled": true,
-			"WhitelistTargets": [ "Editor" ]
+			"TargetAllowList": [ "Editor" ]
 		},
 		{
 			"Name": "MeshLODToolset",
 			"Enabled": true,
-			"WhitelistTargets": [ "Editor" ]
+			"TargetAllowList": [ "Editor" ]
 		},
 		{
 			"Name": "StylusInput",

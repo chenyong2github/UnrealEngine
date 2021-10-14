@@ -1271,8 +1271,8 @@ int32 USummarizeTraceCommandlet::Main(const FString& CmdLineParams)
 		return 1;
 	}
 
-	// load the stats file to know which event name and statistic name to generate in the telementry csv
-	// the telemetry csv is ingested completely, so this just whitelists specific data elements we want to track
+	// load the stats file to know which event name and statistic name to generate in the telemetry csv
+	// the telemetry csv is ingested completely, so this just highlights specific data elements we want to track
 	TMultiMap<FString, StatisticDefinition> NameToDefinitionMap;
 	FString GlobalStatisticsFileName = FPaths::RootDir() / TEXT("Engine") / TEXT("Build") / TEXT("EditorPerfStats.csv");
 	if (FPaths::FileExists(GlobalStatisticsFileName))
@@ -1477,7 +1477,7 @@ int32 USummarizeTraceCommandlet::Main(const FString& CmdLineParams)
 		CsvHandle = nullptr;
 	}
 
-	// if we were asked to generate a telememtry file, generate it
+	// if we were asked to generate a telemetry file, generate it
 	if (!NameToDefinitionMap.IsEmpty())
 	{
 		FString TelemetryCsvFileName = TraceFileBasename + TEXT("Telemetry");

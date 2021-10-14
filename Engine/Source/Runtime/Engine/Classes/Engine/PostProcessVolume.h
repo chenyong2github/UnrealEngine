@@ -63,6 +63,12 @@ class ENGINE_API APostProcessVolume : public AVolume, public IInterface_PostProc
 		Ret.Settings = &Settings;
 		return Ret;
 	}
+#if DEBUG_POST_PROCESS_VOLUME_ENABLE
+	virtual FString GetDebugName() const override
+	{
+		return GetName();
+	}
+#endif
 	//~ End IInterface_PostProcessVolume Interface
 
 

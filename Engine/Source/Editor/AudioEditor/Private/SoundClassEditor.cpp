@@ -405,10 +405,14 @@ void FSoundClassEditor::ToggleSolo()
 bool FSoundClassEditor::CanExcuteToggleSolo() const
 {
 #if ENABLE_AUDIO_DEBUG
-	// Enable solo if we are not Muted	
+	// Enable solo if we are in PIE and not Muted 
 	if (Debugger)
 	{
-		return !Debugger->IsMuteSoundClass(SoundClass->GetFName());
+		bool bIsInPIE = (GEditor != nullptr && GEditor->PlayWorld != nullptr) || GIsPlayInEditorWorld;
+		if (bIsInPIE) 
+		{
+			return !Debugger->IsMuteSoundClass(SoundClass->GetFName());
+		}
 	}
 #endif
 	return false;
@@ -438,10 +442,14 @@ void FSoundClassEditor::ToggleMute()
 bool FSoundClassEditor::CanExcuteToggleMute() const
 {
 #if ENABLE_AUDIO_DEBUG
-	// Enable mute if we are not Soloed
+	// Enable mute if we are in PIE and not Soloed
 	if (Debugger)
 	{
-		return !Debugger->IsSoloSoundClass(SoundClass->GetFName());
+		bool bIsInPIE = (GEditor != nullptr && GEditor->PlayWorld != nullptr) || GIsPlayInEditorWorld;
+		if (bIsInPIE)
+		{
+			return !Debugger->IsSoloSoundClass(SoundClass->GetFName());
+		}
 	}
 #endif
 	return false;

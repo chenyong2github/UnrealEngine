@@ -6,7 +6,7 @@
 #include "Templates/RemoveCV.h"
 #include "Templates/RemoveReference.h"
 
-namespace UE4Decay_Private
+namespace UE::Core::Private::Decay
 {
 	template <typename T>
 	struct TDecayNonReference
@@ -42,5 +42,5 @@ namespace UE4Decay_Private
 template <typename T>
 struct TDecay
 {
-	typedef typename UE4Decay_Private::TDecayNonReference<typename TRemoveReference<T>::Type>::Type Type;
+	typedef typename UE::Core::Private::Decay::TDecayNonReference<typename TRemoveReference<T>::Type>::Type Type;
 };

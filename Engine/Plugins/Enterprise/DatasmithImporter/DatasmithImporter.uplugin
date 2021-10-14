@@ -16,6 +16,11 @@
 	"Installed" : false,
 	"Modules": [
 		{
+			"Name": "DatasmithExternalSource",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		},
+		{
 			"Name": "DatasmithImporter",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
@@ -27,6 +32,16 @@
 		},
 		{
 			"Name": "DatasmithNativeTranslator",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "DirectLinkExtension",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "ExternalSource",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		},

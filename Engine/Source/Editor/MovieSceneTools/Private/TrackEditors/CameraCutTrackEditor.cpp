@@ -277,7 +277,7 @@ const FSlateBrush* FCameraCutTrackEditor::GetIconBrush() const
 
 bool FCameraCutTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEvent, FSequencerDragDropParams& DragDropParams)
 {
-	if (!DragDropParams.Track->IsA(UMovieSceneCameraCutTrack::StaticClass()))
+	if (!DragDropParams.Track.IsValid() || !DragDropParams.Track.Get()->IsA(UMovieSceneCameraCutTrack::StaticClass()))
 	{
 		return false;
 	}
@@ -289,7 +289,7 @@ bool FCameraCutTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEvent, FSe
 		return false;
 	}
 	
-	UMovieSceneCameraCutTrack* CameraCutTrack = Cast<UMovieSceneCameraCutTrack>(DragDropParams.Track);
+	UMovieSceneCameraCutTrack* CameraCutTrack = Cast<UMovieSceneCameraCutTrack>(DragDropParams.Track.Get());
 
 	TSharedPtr<FActorDragDropGraphEdOp> DragDropOp = StaticCastSharedPtr<FActorDragDropGraphEdOp>( Operation );
 
@@ -315,7 +315,7 @@ bool FCameraCutTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEvent, FSe
 
 FReply FCameraCutTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent, const FSequencerDragDropParams& DragDropParams)
 {
-	if (!DragDropParams.Track->IsA(UMovieSceneCameraCutTrack::StaticClass()))
+	if (!DragDropParams.Track.IsValid() || !DragDropParams.Track.Get()->IsA(UMovieSceneCameraCutTrack::StaticClass()))
 	{
 		return FReply::Unhandled();
 	}

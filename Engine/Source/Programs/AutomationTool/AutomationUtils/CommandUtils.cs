@@ -20,6 +20,7 @@ using System.Xml;
 using System.Xml.Serialization;
 using System.IO.Compression;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -101,24 +102,27 @@ namespace AutomationTool
 		}
 
 		/// <summary>
+		/// Provides access to the structured logging interface
+		/// </summary>
+		public ILogger Logger => Log.Logger;
+
+		/// <summary>
 		/// Writes formatted text to log (with LogEventType.Console).
 		/// </summary>
 		/// <param name="Format">Format string</param>
 		/// <param name="Args">Parameters</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogInformation(string Format, params object[] Args)
 		{
-			EpicGames.Core.Log.WriteLine(1, EpicGames.Core.LogEventType.Console, Format, Args);
+			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.Console, Format, Args);
 		}
 
 		/// <summary>
 		/// Writes formatted text to log (with LogEventType.Console).
 		/// </summary>
 		/// <param name="Message">Text</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogInformation(string Message)
 		{
-			EpicGames.Core.Log.WriteLine(1, EpicGames.Core.LogEventType.Console, Message);
+			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.Console, Message);
 		}
 
 		/// <summary>
@@ -126,20 +130,18 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="Format">Format string</param>
 		/// <param name="Args">Parameters</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogError(string Format, params object[] Args)
 		{
-			EpicGames.Core.Log.WriteLine(1, EpicGames.Core.LogEventType.Error, Format, Args);
+			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.Error, Format, Args);
 		}
 
 		/// <summary>
 		/// Writes formatted text to log (with LogEventType.Error).
 		/// </summary>
 		/// <param name="Message">Text</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogError(string Message)
 		{
-			EpicGames.Core.Log.WriteLine(1, EpicGames.Core.LogEventType.Error, Message);
+			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.Error, Message);
 		}
 
 		/// <summary>
@@ -147,20 +149,18 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="Format">Format string</param>
 		/// <param name="Args">Parameters</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogWarning(string Format, params object[] Args)
 		{
-			EpicGames.Core.Log.WriteLine(1, EpicGames.Core.LogEventType.Warning, Format, Args);
+			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.Warning, Format, Args);
 		}
 
 		/// <summary>
 		/// Writes a message to log (with LogEventType.Warning).
 		/// </summary>
 		/// <param name="Message">Text</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogWarning(string Message)
 		{
-			EpicGames.Core.Log.WriteLine(1, EpicGames.Core.LogEventType.Warning, Message);
+			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.Warning, Message);
 		}
 
 		/// <summary>
@@ -168,20 +168,18 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="Foramt">Format string</param>
 		/// <param name="Args">Arguments</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogVerbose(string Format, params object[] Args)
 		{
-			EpicGames.Core.Log.WriteLine(1, EpicGames.Core.LogEventType.Verbose, Format, Args);
+			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.Verbose, Format, Args);
 		}
 
 		/// <summary>
 		/// Writes formatted text to log (with LogEventType.Verbose).
 		/// </summary>
 		/// <param name="Message">Text</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogVerbose(string Message)
 		{
-			EpicGames.Core.Log.WriteLine(1, EpicGames.Core.LogEventType.Verbose, Message);
+			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.Verbose, Message);
 		}
 
 		/// <summary>
@@ -189,20 +187,18 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="Foramt">Format string</param>
 		/// <param name="Args">Arguments</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogVeryVerbose(string Format, params object[] Args)
 		{
-			EpicGames.Core.Log.WriteLine(1, EpicGames.Core.LogEventType.VeryVerbose, Format, Args);
+			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.VeryVerbose, Format, Args);
 		}
 
 		/// <summary>
 		/// Writes formatted text to log (with LogEventType.VeryVerbose).
 		/// </summary>
 		/// <param name="Message">Text</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogVeryVerbose(string Message)
 		{
-			EpicGames.Core.Log.WriteLine(1, EpicGames.Core.LogEventType.VeryVerbose, Message);
+			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.VeryVerbose, Message);
 		}
 
 		/// <summary>
@@ -210,20 +206,18 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="Foramt">Format string</param>
 		/// <param name="Args">Arguments</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogLog(string Format, params object[] Args)
 		{
-			EpicGames.Core.Log.WriteLine(1, EpicGames.Core.LogEventType.Log, Format, Args);
+			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.Log, Format, Args);
 		}
 
 		/// <summary>
 		/// Writes formatted text to log (with LogEventType.Log).
 		/// </summary>
 		/// <param name="Message">Text</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogLog(string Message)
 		{
-			EpicGames.Core.Log.WriteLine(1, LogEventType.Log, Message);
+			EpicGames.Core.Log.WriteLine(LogEventType.Log, Message);
 		}
 
 		/// <summary>
@@ -232,10 +226,9 @@ namespace AutomationTool
 		/// <param name="Verbosity">Verbosity</param>
 		/// <param name="Format">Format string</param>
 		/// <param name="Args">Arguments</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogWithVerbosity(EpicGames.Core.LogEventType Verbosity, string Format, params object[] Args)
 		{
-            EpicGames.Core.Log.WriteLine(1, Verbosity, Format, Args);
+            EpicGames.Core.Log.WriteLine(Verbosity, Format, Args);
 		}
 
 		/// <summary>
@@ -243,10 +236,9 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="Verbosity">Verbosity</param>
 		/// <param name="Message">Text</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogWithVerbosity(EpicGames.Core.LogEventType Verbosity, string Message)
 		{
-            EpicGames.Core.Log.WriteLine(1, Verbosity, Message);
+            EpicGames.Core.Log.WriteLine(Verbosity, Message);
 		}
 
 		/// <summary>
@@ -254,10 +246,9 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="Verbosity">Verbosity</param>
 		/// <param name="Ex">Exception</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogWithVerbosity(EpicGames.Core.LogEventType Verbosity, Exception Ex)
 		{
-            EpicGames.Core.Log.WriteLine(1, Verbosity, LogUtils.FormatException(Ex));
+            EpicGames.Core.Log.WriteLine(Verbosity, LogUtils.FormatException(Ex));
 		}
 
 		public static void LogPushProgress(bool bShowProgress, int Numerator, int Denominator)
@@ -1388,7 +1379,7 @@ namespace AutomationTool
 		/// <param name="Dest">The full path to the destination file</param>
 		/// <param name="bAllowDifferingTimestamps">If true, will always skip a file if the destination exists, even if timestamp differs; defaults to false</param>
 		/// <returns>True if the operation was successful, false otherwise.</returns>
-		public static void CopyFileIncremental(FileReference Source, FileReference Dest, bool bAllowDifferingTimestamps = false, List<string> IniKeyBlacklist = null, List<string> IniSectionBlacklist = null)
+		public static void CopyFileIncremental(FileReference Source, FileReference Dest, bool bAllowDifferingTimestamps = false, List<string> IniKeyDenyList = null, List<string> IniSectionDenyList = null)
 		{
 			if (InternalUtils.SafeFileExists(Dest.FullName, true))
 			{
@@ -1416,7 +1407,7 @@ namespace AutomationTool
 			{
 				throw new AutomationException("Failed to delete {0} for copy", Dest);
 			}
-			if (!InternalUtils.SafeCopyFile(Source.FullName, Dest.FullName, IniKeyBlacklist:IniKeyBlacklist, IniSectionBlacklist:IniSectionBlacklist))
+			if (!InternalUtils.SafeCopyFile(Source.FullName, Dest.FullName, IniKeyDenyList: IniKeyDenyList, IniSectionDenyList: IniSectionDenyList))
 			{
 				throw new AutomationException("Failed to copy {0} to {1}", Source, Dest);
 			}

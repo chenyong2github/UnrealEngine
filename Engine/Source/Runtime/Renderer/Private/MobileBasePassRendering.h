@@ -242,6 +242,11 @@ public:
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		// This define simply lets the compilation environment know that we are using a Base Pass PixelShader.
+		OutEnvironment.SetDefine(TEXT("IS_BASE_PASS"), 1);
+		OutEnvironment.SetDefine(TEXT("IS_MOBILE_BASE_PASS"), 1);
+
 		// Modify compilation environment depending upon material shader quality level settings.
 		ModifyCompilationEnvironmentForQualityLevel(Parameters.Platform, Parameters.MaterialParameters.QualityLevel, OutEnvironment);
 	}

@@ -1031,6 +1031,7 @@ void FJoiner::SplitIntoConnectedShell()
 			Body->AddShell(Shell);
 			Body->SetName(FaceSubset.MainName);
 			Body->SetColorId(FaceSubset.MainColor);
+			Body->SetHostId(Session.NewHostId());
 
 			Shell->Add(FaceSubset.Faces);
 			Shell->SetName(FaceSubset.MainName);

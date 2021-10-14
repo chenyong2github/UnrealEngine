@@ -71,8 +71,8 @@ protected:
 	FReply HandleGotoBindingClicked();
 
 private:
-	bool IsClassBlackListed(UClass* OwnerClass) const;
-	bool IsFieldFromBlackListedClass(FFieldVariant Field) const;
+	bool IsClassDenied(UClass* OwnerClass) const;
+	bool IsFieldFromDeniedClass(FFieldVariant Field) const;
 	bool HasBindableProperties(UStruct* InStruct) const;
 	bool HasBindablePropertiesRecursive(UStruct* InStruct, TSet<UStruct*>& VisitedStructs, const int32 RecursionDepth) const;
 	

@@ -5,6 +5,7 @@
 #include "WaterVertexFactory.h"
 #include "WaterInstanceDataBuffer.h"
 #include "WaterSubsystem.h"
+#include "WaterUtils.h"
 #include "SceneManagement.h"
 #include "Engine/Engine.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -39,7 +40,7 @@ static TAutoConsoleVariable<int32> CVarWaterMeshShowWireframeAtBaseHeight(
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarWaterMeshEnableRendering(
+TAutoConsoleVariable<int32> CVarWaterMeshEnableRendering(
 	TEXT("r.Water.WaterMesh.EnableRendering"),
 	1,
 	TEXT("Turn off all water rendering from within the scene proxy"),
@@ -72,16 +73,6 @@ static TAutoConsoleVariable<int32> CVarWaterMeshPreAllocStagingInstanceMemory(
 	0,
 	TEXT("Pre-allocates staging instance data memory according to historical max. This reduces the overhead when the array needs to grow but may use more memory"),
 	ECVF_RenderThreadSafe);
-
-
-// ----------------------------------------------------------------------------------
-
-bool IsWaterMeshRenderingEnabled_RenderThread()
-{
-	return IsWaterEnabled(/*bIsRenderThread = */true)
-		&& IsWaterMeshEnabled(/*bIsRenderThread = */true)
-		&& !!CVarWaterMeshEnableRendering.GetValueOnRenderThread();
-}
 
 
 // ----------------------------------------------------------------------------------
@@ -168,7 +159,7 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 	}
 #endif // WITH_WATER_SELECTION_SUPPORT
 
-	if (WaterQuadTree.GetNodeCount() == 0 || DensityCount == 0 || !IsWaterMeshRenderingEnabled_RenderThread())
+	if (WaterQuadTree.GetNodeCount() == 0 || DensityCount == 0 || !FWaterUtils::IsWaterMeshRenderingEnabled(/*bIsRenderThread = */true))
 	{
 		return;
 	}

@@ -40,10 +40,10 @@ public:
 private:
 	double SourceTime;
 	int32 SourceThreadId;
-	int32 SourceDepth = 0;
+	int32 SourceDepth = -1;
 	double TargetTime;
 	int32 TargetThreadId;
-	int32 TargetDepth = 0;
+	int32 TargetDepth = -1;
 	ETaskEventType Type;
 
 	TWeakPtr<const FBaseTimingTrack> SourceTrack;

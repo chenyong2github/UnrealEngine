@@ -393,9 +393,11 @@ protected:
 	TSharedRef<SWidget> MakeViewModeMenu();
 
 	void CreateDepthLimitMenu(FMenuBuilder& MenuBuilder);
+	FText GetEventDepthLimitKeybindingText(uint32 DepthLimit) const;
+	uint32 GetNextEventDepthLimit(uint32 DepthLimit) const;
 	void ChooseNextEventDepthLimit();
 	void SetEventDepthLimit(uint32 DepthLimit);
-	bool CheckEventDepthLimit(uint32 DepthLimit);
+	bool CheckEventDepthLimit(uint32 DepthLimit) const;
 
 	void CreateCpuThreadTrackColoringModeMenu(FMenuBuilder& MenuBuilder);
 	void ChooseNextCpuThreadTrackColoringMode();

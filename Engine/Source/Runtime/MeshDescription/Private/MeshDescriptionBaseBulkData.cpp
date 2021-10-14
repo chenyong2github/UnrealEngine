@@ -19,7 +19,7 @@ void UMeshDescriptionBaseBulkData::Serialize(FArchive& Ar)
 #if WITH_EDITORONLY_DATA
 	Super::Serialize(Ar);
 
-	if (!Ar.IsCooking())
+	if (!Ar.IsFilterEditorOnly())
 	{
 		check(BulkData.IsValid());
 		BulkData->Serialize(Ar, GetOuter());

@@ -325,7 +325,27 @@ public:
 	}
 
 	/** Serializes a struct to a Sting */
-	static TOptional<FString> SerializeStructToString(const UStruct* StructClass, const void* StructData);
+	template <typename StructType>
+	static TOptional<FString> SerializeStructToString(const StructType& Struct)
+	{
+		TSharedRef<FJsonObject> RootJsonObject = MakeShareable(new FJsonObject());
+
+		FJsonObjectConverter::UStructToJsonObject(StructType::StaticStruct(), &Struct, RootJsonObject, 0, 0);
+
+		typedef TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>> FStringWriter;
+		typedef TJsonWriterFactory<TCHAR, TPrettyJsonPrintPolicy<TCHAR>> FStringWriterFactory;
+
+		FString CopyStr;
+		TSharedRef<FStringWriter> Writer = FStringWriterFactory::Create(&CopyStr);
+		FJsonSerializer::Serialize(RootJsonObject, Writer);
+
+		if (!CopyStr.IsEmpty())
+		{
+			return CopyStr;
+		}
+
+		return TOptional<FString>();
+	}
 
 	// can't instantiate this class
 	FDMXRuntimeUtils() = delete;

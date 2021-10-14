@@ -17,12 +17,12 @@
 			"Name": "WebMMedia",
 			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "PostEngineInit",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"Linux",
 				"Mac"
 			],
-			"BlacklistTargets": [
+			"TargetDenyList": [
 				"Server"
 			]
 		},
@@ -40,12 +40,12 @@
 			"Name": "WebMMediaFactory",
 			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "PostEngineInit",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"Linux",
 				"Mac"
 			],
-			"BlacklistTargets": [
+			"TargetDenyList": [
 				"Server"
 			]
 		}

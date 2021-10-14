@@ -35,6 +35,7 @@ struct TOOLMENUS_API FToolMenuContext
 public:
 
 	using FContextObjectCleanup = TFunction<void(UObject*)>;
+	using FContextCleanup = TFunction<void()>;
 
 	FToolMenuContext() = default;
 	FToolMenuContext(UObject* InContext);
@@ -77,6 +78,8 @@ public:
 	void AddObject(UObject* InObject);
 	void AddObject(UObject* InObject, FContextObjectCleanup&& InCleanup);
 
+	void AddCleanup(FContextCleanup&& InCleanup);
+
 	void CleanupObjects();
 
 	friend class UToolMenus;
@@ -96,6 +99,8 @@ private:
 	TArray<TObjectPtr<UObject>> ContextObjects;
 
 	TSortedMap<TObjectPtr<UObject>, FContextObjectCleanup> ContextObjectCleanupFuncs;
+
+	TArray<FContextCleanup> ContextCleanupFuncs;
 
 	TArray<TSharedPtr<FUICommandList>> CommandLists;
 

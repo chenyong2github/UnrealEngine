@@ -24,6 +24,24 @@ namespace Private
 		auto Requires(T&& Object) -> decltype(Object->AsShared());
 	};
 
+	template <typename T>
+	struct TIsSharedPtrOrRef
+	{
+		static inline constexpr bool value = false;
+	};
+
+	template <typename T, ESPMode SPMode>
+	struct TIsSharedPtrOrRef<TSharedPtr<T, SPMode>>
+	{
+		static inline constexpr bool value = true;
+	};
+
+	template <typename T, ESPMode SPMode>
+	struct TIsSharedPtrOrRef<TSharedRef<T, SPMode>>
+	{
+		static inline constexpr bool value = true;
+	};
+
 	template <typename ObjectType, typename = void>
 	struct TSharedPtrHelper
 	{
@@ -42,6 +60,15 @@ namespace Private
 	};
 
 	template <typename T, ESPMode SPMode>
+	struct TSharedPtrHelper2<TSharedPtr<T, SPMode>>
+	{
+		static inline constexpr bool bIsThreadSafe = SPMode == ESPMode::ThreadSafe;
+		static inline constexpr bool bIsSharedPtr = true;
+		using WeakPtrType = TWeakPtr<T, SPMode>;
+		static inline WeakPtrType GetWeak(const TSharedPtr<T, SPMode>& Ptr) { return Ptr; }
+	};
+
+	template <typename T, ESPMode SPMode>
 	struct TSharedPtrHelper2<TSharedRef<T, SPMode>>
 	{
 		static inline constexpr bool bIsThreadSafe = SPMode == ESPMode::ThreadSafe;
@@ -51,7 +78,17 @@ namespace Private
 	};
 
 	template <typename T>
-	struct TSharedPtrHelper<T, std::enable_if_t<TModels<CAsSharedCallable, T>::Value, void>> : public TSharedPtrHelper2<T>
+	struct TSharedPtrHelper<T, std::enable_if_t<TModels<CAsSharedCallable, T>::Value && !TIsSharedPtrOrRef<T>::value, void>> : public TSharedPtrHelper2<T>
+	{
+	};
+
+	template <typename T, ESPMode SPMode>
+	struct TSharedPtrHelper<TSharedPtr<T, SPMode>, void> : public TSharedPtrHelper2<TSharedPtr<T, SPMode>>
+	{
+	};
+
+	template <typename T, ESPMode SPMode>
+	struct TSharedPtrHelper<TSharedRef<T, SPMode>, void> : public TSharedPtrHelper2<TSharedRef<T, SPMode>>
 	{
 	};
 
@@ -159,7 +196,7 @@ public:
 	template<typename... ConstructDelegateParamTypes>
 	void Bind(ConstructDelegateParamTypes&&... Params)
 	{
-		Delegate = Private::ConstructDelegate<DelegateSignature>(Forward<ConstructDelegateParamTypes...>(Params)...);
+		Delegate = Private::ConstructDelegate<DelegateSignature>(Forward<ConstructDelegateParamTypes>(Params)...);
 	}
 
 	/**
@@ -175,7 +212,7 @@ public:
 	 */
 	void ExecuteIfBound(ParamTypes&&... Params)
 	{
-		Delegate.ExecuteIfBound(Forward<ParamTypes...>(Params)...);
+		Delegate.ExecuteIfBound(Forward<ParamTypes>(Params)...);
 	}
 
 private:
@@ -188,6 +225,18 @@ private:
 class FOnlineEventDelegateHandle
 {
 public:
+	FOnlineEventDelegateHandle() = default;
+	FOnlineEventDelegateHandle(FOnlineEventDelegateHandle&& Other)
+	{
+		DelegateUnbinder = MoveTemp(Other.DelegateUnbinder);
+	}
+
+	FOnlineEventDelegateHandle& operator=(FOnlineEventDelegateHandle&& Other)
+	{
+		DelegateUnbinder = MoveTemp(Other.DelegateUnbinder);
+		return *this;
+	}
+
 	/**
 	 *
 	 */
@@ -229,7 +278,7 @@ private:
 	FOnlineEventDelegateHandle(const FOnlineEventDelegateHandle&) = delete;
 	FOnlineEventDelegateHandle& operator=(const FOnlineEventDelegateHandle&) = delete;
 
-	TFunction<void()> DelegateUnbinder;
+	TUniqueFunction<void()> DelegateUnbinder;
 };
 
 template<typename DelegateSignature>
@@ -262,8 +311,8 @@ public:
 	template<typename... ConstructDelegateParamTypes>
 	FOnlineEventDelegateHandle Add(ConstructDelegateParamTypes&&... Params)
 	{
-		FDelegateHandle Handle = DelegateRef->Add(Private::ConstructDelegate<DelegateSignature>(Forward<ConstructDelegateParamTypes...>(Params)...));
-		return FOnlineEventDelegateHandle(DelegateRef, Handle);
+		FDelegateHandle Handle = DelegateRef->Add(Private::ConstructDelegate<DelegateSignature>(Forward<ConstructDelegateParamTypes>(Params)...));
+		return FOnlineEventDelegateHandle(Handle, DelegateRef);
 	}
 
 	/**
@@ -271,7 +320,7 @@ public:
 	 */
 	void Broadcast(ParamTypes&&... Params)
 	{
-		DelegateRef->Broadcast(Forward<ParamTypes...>(Params)...);
+		DelegateRef->Broadcast(Forward<ParamTypes>(Params)...);
 	}
 
 private:
@@ -299,7 +348,7 @@ public:
 	template<typename... ConstructDelegateParamTypes>
 	FOnlineEventDelegateHandle Add(ConstructDelegateParamTypes&&... Params)
 	{
-		return Event.Add(Forward<ConstructDelegateParamTypes...>(Params)...);
+		return Event.Add(Forward<ConstructDelegateParamTypes>(Params)...);
 	}
 
 private:

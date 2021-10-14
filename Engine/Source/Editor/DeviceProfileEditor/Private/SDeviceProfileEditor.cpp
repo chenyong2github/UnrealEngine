@@ -162,8 +162,7 @@ void SDeviceProfileSourceControl::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderBackgroundColor(FLinearColor::Yellow)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::Get().GetBrush("RoundedWarning"))
 		.Padding(8.0f)
 		[
 			SNew(SBox)
@@ -309,6 +308,7 @@ void SDeviceProfileEditor::Construct( const FArguments& InArgs )
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot()
 			.AutoHeight()
+			.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
 			[
 				SNew(SDeviceProfileSourceControl)
 			]

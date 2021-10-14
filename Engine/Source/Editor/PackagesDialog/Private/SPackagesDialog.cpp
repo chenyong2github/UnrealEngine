@@ -40,21 +40,7 @@ UObject* FPackageItem::GetPackageObject() const
 	UObject* FoundObject = nullptr;
 	if ( !FileName.StartsWith(TEXT("/Temp/Untitled")) )
 	{
-		TArray<UObject*> ObjectsInPackage;
-		GetObjectsWithPackage(Package, ObjectsInPackage, false);
-		for (UObject* Obj : ObjectsInPackage)
-		{
-			// Don't filter pending kill objects here as we need to determine if the package contains
-			// a single, pending kill object to properly show it in the save dialog.
-			// Still choose non pending kill objects over pending kill objects.
-			if (Obj->IsAsset() && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(Obj))
-			{
-				if (!FoundObject || (!IsValidChecked(FoundObject) && IsValidChecked(Obj)))
-				{
-					FoundObject = Obj;
-				}
-			}
-		}
+		FoundObject = Package->FindAssetInPackage();
 	}
 	return FoundObject;
 }
@@ -64,26 +50,16 @@ bool FPackageItem::HasMultipleAssets() const
 	bool bHasMultipleAssets = false;
 	if ( !FileName.StartsWith(TEXT("/Temp/Untitled")) )
 	{
-		TArray<UObject*> ObjectsInPackage;
-		GetObjectsWithPackage(Package, ObjectsInPackage, false);
-		UObject* FirstObj = nullptr;
-		for (UObject* Obj : ObjectsInPackage)
-		{
-			// Filter pending kill objects here because we don't want the case where a package contains
-			// an actor and a deleted actor to be reported as multiple assets.
-			if (Obj->IsAsset() && IsValidChecked(Obj) && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(Obj))
+		int32 NumAssets = 0;
+		ForEachObjectWithPackage(Package, [&NumAssets](UObject* Obj)
 			{
-				if(FirstObj == nullptr)
+				if (Obj->IsAsset() && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(Obj))
 				{
-					FirstObj = Obj;
+					++NumAssets;
 				}
-				else
-				{
-					bHasMultipleAssets = true;
-					break;
-				}
-			}
-		}
+				return true;
+			}, false /*bIncludeNestedObjects*/);
+		bHasMultipleAssets = NumAssets > 1;
 	}
 	return bHasMultipleAssets;
 }

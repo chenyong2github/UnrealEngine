@@ -534,9 +534,6 @@ public:
 
 	virtual void SetExternalData(const uint8* Src, const int32 NumBits) = 0;
 
-	UE_DEPRECATED(4.26, "Will be removed in a future release.")
-	virtual bool IsReplay() const = 0;
-
 	/**
 	* Used when tracking memory to gather the total size of a given instance.
 	* This should include the dynamically allocated data, as well as the classes size.

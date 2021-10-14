@@ -21,17 +21,17 @@
 
 TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* InPin) const
 {
-	if(const UEdGraphNode* OwningNode = InPin->GetOwningNode())
-	{
-		// only create pins within control rig graphs
-		if(Cast<UControlRigGraph>(OwningNode->GetGraph()) == nullptr)
-		{
-			return nullptr;
-		}
-	}
-	
 	if (InPin)
 	{
+		if (const UEdGraphNode* OwningNode = InPin->GetOwningNode())
+		{
+			// only create pins within control rig graphs
+			if (Cast<UControlRigGraph>(OwningNode->GetGraph()) == nullptr)
+			{
+				return nullptr;
+			}
+		}
+
 		if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(InPin->GetOwningNode()))
 		{
 			UControlRigGraph* RigGraph = Cast<UControlRigGraph>(RigNode->GetGraph());

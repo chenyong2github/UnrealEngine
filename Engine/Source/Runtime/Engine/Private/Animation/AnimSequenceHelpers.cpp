@@ -55,11 +55,11 @@ FTransform ExtractTransformForKey(int32 Key, const FRawAnimSequenceTrack& TrackT
 	if (bHasScaleKey)
 	{
 		const int32 ScaleKeyIndex = FMath::Min(Key, TrackToExtract.ScaleKeys.Num() - 1);
-		return FTransform(TrackToExtract.RotKeys[RotKeyIndex], TrackToExtract.PosKeys[PosKeyIndex], TrackToExtract.ScaleKeys[ScaleKeyIndex]);
+		return FTransform(FQuat(TrackToExtract.RotKeys[RotKeyIndex]), FVector(TrackToExtract.PosKeys[PosKeyIndex]), FVector(TrackToExtract.ScaleKeys[ScaleKeyIndex]));
 	}
 	else
 	{
-		return FTransform(TrackToExtract.RotKeys[RotKeyIndex], TrackToExtract.PosKeys[PosKeyIndex], DefaultScale3D);
+		return FTransform(FQuat(TrackToExtract.RotKeys[RotKeyIndex]), FVector(TrackToExtract.PosKeys[PosKeyIndex]), FVector(DefaultScale3D));
 	}
 }
 
@@ -302,12 +302,12 @@ void GetBoneTransformFromModel(const UAnimDataModel* Model, FTransform& OutTrans
 	const int32 RotKeyIndex = FMath::Min(KeyIndex, RawTrack.RotKeys.Num() - 1);
 	static const FVector DefaultScale3D = FVector(1.f);
 
-	OutTransform.SetTranslation(RawTrack.PosKeys[PosKeyIndex]);
-	OutTransform.SetRotation(RawTrack.RotKeys[RotKeyIndex]);
+	OutTransform.SetTranslation(FVector(RawTrack.PosKeys[PosKeyIndex]));
+	OutTransform.SetRotation(FQuat(RawTrack.RotKeys[RotKeyIndex]));
 	if (RawTrack.ScaleKeys.Num() > 0)
 	{
 		const int32 ScaleKeyIndex = FMath::Min(KeyIndex, RawTrack.ScaleKeys.Num() - 1);
-		OutTransform.SetScale3D(RawTrack.ScaleKeys[ScaleKeyIndex]);
+		OutTransform.SetScale3D(FVector(RawTrack.ScaleKeys[ScaleKeyIndex]));
 	}
 	else
 	{
@@ -369,12 +369,12 @@ void CopyCurveDataToModel(const FRawCurveTracks& CurveData, const USkeleton* Ske
 	const int32 RotKeyIndex = FMath::Min(KeyIndex, RawTrack.RotKeys.Num() - 1);
 	static const FVector DefaultScale3D = FVector(1.f);
 
-	OutTransform.SetTranslation(RawTrack.PosKeys[PosKeyIndex]);
-	OutTransform.SetRotation(RawTrack.RotKeys[RotKeyIndex]);
+	OutTransform.SetTranslation(FVector(RawTrack.PosKeys[PosKeyIndex]));
+	OutTransform.SetRotation(FQuat(RawTrack.RotKeys[RotKeyIndex]));
 	if (RawTrack.ScaleKeys.Num() > 0)
 	{
 		const int32 ScaleKeyIndex = FMath::Min(KeyIndex, RawTrack.ScaleKeys.Num() - 1);
-		OutTransform.SetScale3D(RawTrack.ScaleKeys[ScaleKeyIndex]);
+		OutTransform.SetScale3D(FVector(RawTrack.ScaleKeys[ScaleKeyIndex]));
 	}
 	else
 	{
@@ -633,11 +633,11 @@ bool Compression::CompressRawAnimSequenceTrack(FRawAnimSequenceTrack& RawTrack, 
 	// Check variation of rotational keys
 	if ((RawTrack.RotKeys.Num() > 1) && (MaxAngleDiff >= 0.0f))
 	{
-		FQuat FirstRot = RawTrack.RotKeys[0];
+		FQuat4f FirstRot = RawTrack.RotKeys[0];
 		bool bFramesIdentical = true;
 		for (int32 j = 1; j < RawTrack.RotKeys.Num() && bFramesIdentical; j++)
 		{
-			if (FQuat::Error(FirstRot, RawTrack.RotKeys[j]) > MaxAngleDiff)
+			if (FQuat4f::Error(FirstRot, RawTrack.RotKeys[j]) > MaxAngleDiff)
 			{
 				bFramesIdentical = false;
 			}
@@ -688,7 +688,7 @@ void Compression::SanitizeRawAnimSequenceTrack(FRawAnimSequenceTrack& RawTrack)
 	// compression can't handle that much precision. 
 	for (auto ScaleIter = RawTrack.ScaleKeys.CreateIterator(); ScaleIter; ++ScaleIter)
 	{
-		FVector& Scale3D = *ScaleIter;
+		FVector3f& Scale3D = *ScaleIter;
 		if (FMath::IsNearlyZero(Scale3D.X))
 		{
 			Scale3D.X = 0.f;
@@ -706,7 +706,7 @@ void Compression::SanitizeRawAnimSequenceTrack(FRawAnimSequenceTrack& RawTrack)
 	// make sure Rotation part is normalized before compress
 	for (auto RotIter = RawTrack.RotKeys.CreateIterator(); RotIter; ++RotIter)
 	{
-		FQuat& Rotation = *RotIter;
+		FQuat4f& Rotation = *RotIter;
 		if (!Rotation.IsNormalized())
 		{
 			Rotation.Normalize();

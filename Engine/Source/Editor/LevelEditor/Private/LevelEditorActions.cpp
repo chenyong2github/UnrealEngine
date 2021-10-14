@@ -1190,8 +1190,14 @@ void FLevelEditorActionCallbacks::LiveCoding_Settings_Clicked()
 
 void FLevelEditorActionCallbacks::GoToCodeForActor_Clicked()
 {
-	const auto& SelectedActorInfo = AssetSelectionUtils::GetSelectedActorInfo();
+	const FSelectedActorInfo SelectedActorInfo = AssetSelectionUtils::GetSelectedActorInfo();
 	FSourceCodeNavigation::NavigateToClass(SelectedActorInfo.SelectionClass);
+}
+
+bool FLevelEditorActionCallbacks::GoToCodeForActor_CanExecute()
+{
+	const FSelectedActorInfo SelectedActorInfo = AssetSelectionUtils::GetSelectedActorInfo();
+	return FSourceCodeNavigation::CanNavigateToClass(SelectedActorInfo.SelectionClass);
 }
 
 void FLevelEditorActionCallbacks::GoToDocsForActor_Clicked()
@@ -1210,6 +1216,11 @@ void FLevelEditorActionCallbacks::GoToDocsForActor_Clicked()
 void FLevelEditorActionCallbacks::FindInContentBrowser_Clicked()
 {
 	GEditor->SyncToContentBrowser();
+}
+
+bool FLevelEditorActionCallbacks::FindInContentBrowser_CanExecute()
+{
+	return GEditor->CanSyncToContentBrowser();
 }
 
 void FLevelEditorActionCallbacks::EditAsset_Clicked( const EToolkitMode::Type ToolkitMode, TWeakPtr< SLevelEditor > LevelEditor, bool bConfirmMultiple )
@@ -1257,6 +1268,20 @@ void FLevelEditorActionCallbacks::EditAsset_Clicked( const EToolkitMode::Type To
 	}
 }
 
+bool FLevelEditorActionCallbacks::EditAsset_CanExecute()
+{
+	if (GEditor->GetSelectedActorCount() > 0)
+	{
+		TArray< UObject* > ReferencedAssets;
+		const bool bIgnoreOtherAssetsIfBPReferenced = true;
+		GEditor->GetReferencedAssetsForEditorSelection(ReferencedAssets, bIgnoreOtherAssetsIfBPReferenced);
+
+		return ReferencedAssets.Num() > 0;
+	}
+
+	return false;
+}
+
 void FLevelEditorActionCallbacks::LockActorMovement_Clicked()
 {
 	GEditor->ToggleSelectedActorMovementLock();
@@ -1265,6 +1290,12 @@ void FLevelEditorActionCallbacks::LockActorMovement_Clicked()
 void FLevelEditorActionCallbacks::DetachActor_Clicked()
 {
 	GEditor->DetachSelectedActors();
+}
+
+bool FLevelEditorActionCallbacks::DetachActor_CanExecute()
+{
+	FSelectedActorInfo SelectionInfo = AssetSelectionUtils::GetSelectedActorInfo();
+	return SelectionInfo.NumSelected > 0 && SelectionInfo.bHaveAttachedActor;
 }
 
 void FLevelEditorActionCallbacks::AttachSelectedActors()
@@ -1828,8 +1859,7 @@ void FLevelEditorActionCallbacks::OnSelectAllActorsOfClass( bool bArchetype )
 
 bool FLevelEditorActionCallbacks::CanSelectAllActorsOfClass()
 {
-	FSelectedActorInfo SelectionInfo = AssetSelectionUtils::GetSelectedActorInfo();
-	return SelectionInfo.NumSelected > 0 && SelectionInfo.bAllSelectedActorsOfSameType;
+	return GEditor->GetSelectedActorCount() > 0;
 }
 
 void FLevelEditorActionCallbacks::OnSelectComponentOwnerActor()

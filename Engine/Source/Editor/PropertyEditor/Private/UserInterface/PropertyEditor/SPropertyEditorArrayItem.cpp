@@ -6,6 +6,59 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Presentation/PropertyEditor/PropertyEditor.h"
 
+/*static*/ TSharedPtr<FTitleMetadataFormatter> FTitleMetadataFormatter::TryParse(TSharedPtr<IPropertyHandle> RootProperty, const FString& TitlePropertyRaw)
+{
+	if (RootProperty.IsValid() && !TitlePropertyRaw.IsEmpty())
+	{
+		TSharedRef<FTitleMetadataFormatter> TitleFormatter = MakeShared<FTitleMetadataFormatter>();
+
+		// Simple solution to quickly discover if we need to do the more complex scan for FText formatting, or if
+		// we can just take what's there and use it directly.
+		if (TitlePropertyRaw.Contains(TEXT("{")))
+		{
+			TitleFormatter->Format = FText::FromString(TitlePropertyRaw);
+
+			TArray<FString> OutParameterNames;
+			FText::GetFormatPatternParameters(TitleFormatter->Format, OutParameterNames);
+			for (const FString& ParameterName : OutParameterNames)
+			{
+				TitleFormatter->PropertyHandles.Add(RootProperty->GetChildHandle(FName(*ParameterName), false));
+			}
+		}
+		else // Support the old style where it was just a name of a property with no formatting.
+		{
+			TitleFormatter->PropertyHandles.Add(RootProperty->GetChildHandle(FName(*TitlePropertyRaw), false));
+			TitleFormatter->Format = FText::FromString(TEXT("{") + TitlePropertyRaw + TEXT("}"));
+		}
+
+		return TitleFormatter;
+	}
+
+	return TSharedPtr<FTitleMetadataFormatter>();
+}
+
+FPropertyAccess::Result FTitleMetadataFormatter::GetDisplayText(FText& OutText) const
+{
+	FFormatNamedArguments FormatArgs;
+	for(TSharedPtr<IPropertyHandle> PropertyHandle : PropertyHandles)
+	{
+		FText ReplaceValue;
+		FPropertyAccess::Result Result = PropertyHandle->GetValueAsDisplayText(ReplaceValue);
+		if (Result == FPropertyAccess::Success)
+		{
+			FormatArgs.Add(PropertyHandle->GetProperty()->GetName(), ReplaceValue);
+		}
+		else
+		{
+			return Result;
+		}
+	}
+
+	OutText = FText::Format(Format, FormatArgs);
+
+	return FPropertyAccess::Success;
+}
+
 void SPropertyEditorArrayItem::Construct( const FArguments& InArgs, const TSharedRef< class FPropertyEditor>& InPropertyEditor )
 {
 	static const FName TitlePropertyFName = FName(TEXT("TitleProperty"));
@@ -29,12 +82,7 @@ void SPropertyEditorArrayItem::Construct( const FArguments& InArgs, const TShare
 		const FProperty* ArrayProperty = MainProperty ? MainProperty->GetOwner<const FProperty>() : nullptr;
 		if (ArrayProperty) // should always be true
 		{
-			// see if this structure has a TitleProperty we can use to summarize
-			const FString& RepPropertyName = ArrayProperty->GetMetaData(TitlePropertyFName);
-			if (!RepPropertyName.IsEmpty())
-			{
-				TitlePropertyHandle = PropertyEditor->GetPropertyHandle()->GetChildHandle(FName(*RepPropertyName), false);
-			}
+			TitlePropertyFormatter = FTitleMetadataFormatter::TryParse(PropertyEditor->GetPropertyHandle(), ArrayProperty->GetMetaData(TitlePropertyFName));
 		}
 	}
 }
@@ -69,10 +117,10 @@ bool SPropertyEditorArrayItem::Supports( const TSharedRef< class FPropertyEditor
 
 FText SPropertyEditorArrayItem::GetValueAsString() const
 {
-	if (TitlePropertyHandle.IsValid())
+	if (TitlePropertyFormatter.IsValid())
 	{
 		FText TextOut;
-		if (FPropertyAccess::Success == TitlePropertyHandle->GetValueAsDisplayText(TextOut))
+		if (FPropertyAccess::Success == TitlePropertyFormatter->GetDisplayText(TextOut))
 		{
 			return TextOut;
 		}

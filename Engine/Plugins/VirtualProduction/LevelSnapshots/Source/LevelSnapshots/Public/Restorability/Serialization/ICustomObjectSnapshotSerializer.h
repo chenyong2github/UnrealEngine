@@ -12,10 +12,13 @@ struct FPropertySelectionMap;
  * External modules can implement this interface to customise how specific classes are snapshot and restored.
  * Implementations of this interface can be registered with the Level Snapshots module.
  * 
- * Typically one instance handles on type of class.
+ * One instance handles on type of class.
  * 
  * ISnapshotObjectSerializer handles the serialisation of the object you're registered to. You can use it to add custom
- * annotation data you need to restoring object info. You can also save & restore subobjects you wish to manually restore.
+ * annotation data you need to restoring object info. You can also save & restore subobjects you wish to manually restore,
+ * provided they're not automatically restored by Level Snapshots. The following subobjects are handled by default:
+ *  - Actor components
+ *  - UProperty exposed UObject* references or collections with CPF_Edit flag, e.g. e.g. UPROPERTY(EditAnywhere) TArray<UObject*>.
  */
 class LEVELSNAPSHOTS_API ICustomObjectSnapshotSerializer
 {
@@ -30,7 +33,7 @@ public:
 	 * @param EditorObject The object being snapshotted. Same as DataStorage->GetSerializedObject().
 	 * @param DataStorage Data to save for EditorObject: serialize extra data about EditorObject and add subobjects.  
 	 */
-	virtual void OnTakeSnapshot(UObject* EditorObject, ICustomSnapshotSerializationData& DataStorage) = 0;
+	virtual void OnTakeSnapshot(UObject* EditorObject, ICustomSnapshotSerializationData& DataStorage) {}
 
 
 	
@@ -46,7 +49,8 @@ public:
      * 
      * @result The found or recreated subobject. If null, the subobject is skipped.
      */
-	virtual UObject* FindOrRecreateSubobjectInSnapshotWorld(UObject* SnapshotObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) = 0;
+	virtual UObject* FindOrRecreateSubobjectInSnapshotWorld(UObject* SnapshotObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) 
+	{ checkf(false, TEXT("If you register subobjects in OnTakeSnapshot, you must implement this function.")); return nullptr; }
 	
 	/**
 	 * Called when applying into the editor world. This is called for every subobject added using ISnapshotObjectSerializer::AddSubobjectDependency.
@@ -60,7 +64,8 @@ public:
 	 * 
      * @result The found or recreated subobject. If null, the subobject is skipped.
 	 */
-	virtual UObject* FindOrRecreateSubobjectInEditorWorld(UObject* EditorObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) = 0;
+	virtual UObject* FindOrRecreateSubobjectInEditorWorld(UObject* EditorObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage)
+	{ checkf(false, TEXT("If you register subobjects in OnTakeSnapshot, you must implement this function.")); return nullptr; }
 
 	/**
 	 * Similar to FindOrRecreateSubobjectInEditorWorld, only that the subobject is not recreated if not present. Called when diffing against the world.
@@ -71,7 +76,8 @@ public:
 	 * 
 	 * @result The subobject in the editor world. If you return null, the subobject will be recreated.
 	 */
-	virtual UObject* FindSubobjectInEditorWorld(UObject* EditorObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) = 0;
+	virtual UObject* FindSubobjectInEditorWorld(UObject* EditorObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) 
+	{ checkf(false, TEXT("If you register subobjects in OnTakeSnapshot, you must implement this function.")); return nullptr; }
 
 
 	

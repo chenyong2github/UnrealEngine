@@ -18,7 +18,7 @@ struct FHitResult;
  *	Helpful utility function for working with gameplay cues.
  */
 UCLASS()
-class UGameplayCueFunctionLibrary : public UBlueprintFunctionLibrary
+class GAMEPLAYABILITIES_API UGameplayCueFunctionLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 

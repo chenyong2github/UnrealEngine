@@ -7,7 +7,7 @@
 #include "Templates/RemoveCV.h"
 #include "Templates/LosesQualifiersFromTo.h"
 
-namespace UE4PointerIsConvertibleFromTo_Private
+namespace UE::Core::Private::PointerIsConvertibleFromTo
 {
 	template <typename From, typename To, typename NoCVFrom = typename TRemoveCV<From>::Type, typename NoCVTo = typename TRemoveCV<To>::Type>
 	struct TImpl
@@ -56,7 +56,7 @@ namespace UE4PointerIsConvertibleFromTo_Private
  * Tests if a From* is convertible to a To*
  **/
 template <typename From, typename To>
-struct TPointerIsConvertibleFromTo : UE4PointerIsConvertibleFromTo_Private::TImpl<From, To>
+struct TPointerIsConvertibleFromTo : UE::Core::Private::PointerIsConvertibleFromTo::TImpl<From, To>
 {
 };
 

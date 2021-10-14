@@ -50,38 +50,6 @@ struct FEnvelopeFollowerGeneratorParams
 	float ReleaseTime = 0.100f;
 };
 
-namespace AudioModulation
-{
-	class AUDIOMODULATION_API FEnvelopeFollowerGenerator : public IGenerator
-	{
-	public:
-		FEnvelopeFollowerGenerator(const FEnvelopeFollowerGeneratorParams& InParams, Audio::FDeviceId InDeviceId);
-		virtual ~FEnvelopeFollowerGenerator() = default;
-
-		virtual float GetValue() const override;
-		virtual bool IsBypassed() const override;
-		virtual void Update(double InElapsed) override;
-
-#if !UE_BUILD_SHIPPING
-		static const FString DebugName;
-
-		virtual void GetDebugCategories(TArray<FString>& OutDebugCategories) const override;
-		virtual void GetDebugValues(TArray<FString>& OutDebugValues) const override;
-		virtual const FString& GetDebugName() const override;
-#endif // !UE_BUILD_SHIPPING
-
-	protected:
-		FEnvelopeFollowerGeneratorParams Params;
-
-	private:
-		Audio::FPatchOutputStrongPtr AudioBusPatch;
-		Audio::FAlignedFloatBuffer TempBuffer;
-		Audio::FEnvelopeFollower EnvelopeFollower;
-
-		float CurrentValue = 0.0f;
-	};
-} // namespace AudioModulation
-
 UCLASS(hidecategories = Object, BlueprintType, editinlinenew, meta = (DisplayName = "Envelope Follower Generator"))
 class AUDIOMODULATION_API USoundModulationGeneratorEnvelopeFollower : public USoundModulationGenerator
 {
@@ -91,27 +59,5 @@ public:
 	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite, meta = (ShowOnlyInnerProperties))
 	FEnvelopeFollowerGeneratorParams Params;
 
-#if !UE_BUILD_SHIPPING
-	static const TArray<FString>& GetDebugCategories()
-	{
-		static const TArray<FString> Categories =
-		{
-			TEXT("Value"),
-			TEXT("Gain"),
-			TEXT("Attack"),
-			TEXT("Release"),
-		};
-		return Categories;
-	}
-
-	static const FString& GetDebugName();
-#endif // !UE_BUILD_SHIPPING
-
-	virtual AudioModulation::FGeneratorPtr CreateInstance(Audio::FDeviceId InDeviceId) const override
-	{
-		using namespace AudioModulation;
-
-		auto NewGenerator = MakeShared<FEnvelopeFollowerGenerator, ESPMode::ThreadSafe>(Params, InDeviceId);
-		return StaticCastSharedRef<AudioModulation::IGenerator>(NewGenerator);
-	}
+	virtual AudioModulation::FGeneratorPtr CreateInstance(Audio::FDeviceId InDeviceId) const override;
 };

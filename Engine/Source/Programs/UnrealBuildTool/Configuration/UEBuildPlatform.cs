@@ -9,6 +9,7 @@ using System.Linq;
 using EpicGames.Core;
 using System.Reflection;
 using System.Diagnostics.CodeAnalysis;
+using OpenTracing.Util;
 
 namespace UnrealBuildTool
 {
@@ -68,14 +69,14 @@ namespace UnrealBuildTool
 		public static void RegisterPlatforms(bool bIncludeNonInstalledPlatforms, bool bHostPlatformOnly)
 		{
 			// Initialize the installed platform info
-			using(Timeline.ScopeEvent("Initializing InstalledPlatformInfo"))
+			using (GlobalTracer.Instance.BuildSpan("Initializing InstalledPlatformInfo").StartActive())
 			{
 				InstalledPlatformInfo.Initialize();
 			}
 
 			// Find and register all tool chains and build platforms that are present
 			Type[] AllTypes;
-			using(Timeline.ScopeEvent("Querying types"))
+			using (GlobalTracer.Instance.BuildSpan("Querying types").StartActive())
 			{
 				AllTypes = Assembly.GetExecutingAssembly().GetTypes();
 			}
@@ -88,7 +89,7 @@ namespace UnrealBuildTool
 					if (CheckType.IsSubclassOf(typeof(UEBuildPlatformFactory)))
 					{
 						Log.TraceVerbose("    Registering build platform: {0}", CheckType.ToString());
-						using(Timeline.ScopeEvent(CheckType.Name))
+						using (GlobalTracer.Instance.BuildSpan(CheckType.Name).StartActive())
 						{
 							UEBuildPlatformFactory TempInst = (UEBuildPlatformFactory)Activator.CreateInstance(CheckType)!;
 							

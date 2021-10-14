@@ -20,7 +20,7 @@
 			"Name" : "AvfMedia",
 			"Type" : "RuntimeNoCommandlet",
 			"LoadingPhase" : "PreLoadingScreen",
-			"WhitelistPlatforms" : [ "IOS", "Mac", "TVOS" ]
+			"PlatformAllowList" : [ "IOS", "Mac", "TVOS" ]
 		},
 		{
 			"Name" : "AvfMediaEditor",
@@ -36,7 +36,7 @@
 			"Name" : "AvfMediaFactory",
 			"Type" : "RuntimeNoCommandlet",
 			"LoadingPhase" : "PostEngineInit",
-			"WhitelistPlatforms" : [ "IOS", "Linux", "Mac", "TVOS", "Win64" ]
+			"PlatformAllowList" : [ "IOS", "Linux", "Mac", "TVOS", "Win64" ]
 		}
 	]
 }

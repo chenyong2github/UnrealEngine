@@ -9,8 +9,8 @@
 #include "CollectionManagerTypes.h"
 #include "ContentBrowserDataFilter.generated.h"
 
-class FBlacklistNames;
-class FBlacklistPaths;
+class FNamePermissionList;
+class FPathPermissionList;
 class UContentBrowserDataSource;
 
 /** Flags controlling which item types should be included */
@@ -248,7 +248,7 @@ public:
 	bool bRecursivePackagePathsToExclude = false;
 
 	/** Optional set of additional path filtering */
-	TSharedPtr<FBlacklistPaths> PathBlacklist;
+	TSharedPtr<FPathPermissionList> PathPermissionList;
 };
 
 /**
@@ -278,7 +278,7 @@ public:
 	bool bRecursiveClassNamesToExclude = false;
 
 	/** Optional set of additional class filtering */
-	TSharedPtr<FBlacklistNames> ClassBlacklist;
+	TSharedPtr<FNamePermissionList> ClassPermissionList;
 };
 
 /**

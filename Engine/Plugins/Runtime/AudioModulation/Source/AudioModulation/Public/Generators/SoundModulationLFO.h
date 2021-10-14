@@ -57,62 +57,6 @@ struct FSoundModulationLFOParams
 };
 
 
-namespace AudioModulation
-{
-	class FLFOGenerator : public IGenerator
-	{
-		public:
-			FLFOGenerator(const FSoundModulationLFOParams& InParams)
-				: Params(InParams)
-			{
-				LFO.SetGain(Params.Amplitude);
-				LFO.SetFrequency(Params.Frequency);
-				LFO.SetMode(Params.bLooping ? Audio::ELFOMode::Type::Sync : Audio::ELFOMode::OneShot);
-
-				static_assert(static_cast<int32>(ESoundModulationLFOShape::COUNT) == static_cast<int32>(Audio::ELFO::Type::NumLFOTypes), "LFOShape/ELFO Type mismatch");
-				LFO.SetType(static_cast<Audio::ELFO::Type>(Params.Shape));
-				LFO.Start();
-			}
-
-			virtual ~FLFOGenerator() = default;
-
-			virtual float GetValue() const override
-			{
-				return Value;
-			}
-
-			virtual bool IsBypassed() const override
-			{
-				return Params.bBypass;
-			}
-
-			virtual void Update(double InElapsed) override
-			{
-				if (InElapsed > 0.0f && LFO.GetFrequency() > 0.0f)
-				{
-					const float SampleRate = static_cast<float>(1.0 / InElapsed);
-					LFO.SetSampleRate(SampleRate);
-					LFO.Update();
-					Value = LFO.Generate() + Params.Offset;
-				}
-			}
-
-#if !UE_BUILD_SHIPPING
-		static const FString DebugName;
-
-		virtual void GetDebugCategories(TArray<FString>& OutDebugCategories) const override;
-		virtual void GetDebugValues(TArray<FString>& OutDebugValues) const override;
-		virtual const FString& GetDebugName() const override;
-#endif // !UE_BUILD_SHIPPING
-
-	protected:
-		Audio::FLFO LFO;
-		float Value = 1.0f;
-		FSoundModulationLFOParams Params;
-	};
-} // namespace AudioModulation
-
-
 UCLASS(BlueprintType, hidecategories = Object, editinlinenew, MinimalAPI)
 class USoundModulationGeneratorLFO : public USoundModulationGenerator
 {
@@ -122,28 +66,5 @@ public:
 	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite, meta = (ShowOnlyInnerProperties))
 	FSoundModulationLFOParams Params;
 
-#if !UE_BUILD_SHIPPING
-	static const TArray<FString>& GetDebugCategories()
-	{
-		static const TArray<FString> Categories =
-		{
-			TEXT("Value"),
-			TEXT("Gain"),
-			TEXT("Frequency"),
-			TEXT("Offset"),
-			TEXT("Curve")
-		};
-		return Categories;
-	}
-
-	static const FString& GetDebugName();
-#endif // !UE_BUILD_SHIPPING
-
-
-	virtual AudioModulation::FGeneratorPtr CreateInstance(Audio::FDeviceId InDeviceId) const override
-	{
-		using namespace AudioModulation;
-		auto NewGenerator = MakeShared<FLFOGenerator, ESPMode::ThreadSafe>(Params);
-		return StaticCastSharedRef<IGenerator>(NewGenerator);
-	}
+	virtual AudioModulation::FGeneratorPtr CreateInstance(Audio::FDeviceId InDeviceId) const override;
 };

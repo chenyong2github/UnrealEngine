@@ -3135,6 +3135,14 @@ bool UNetDriver::HandleDumpRepLayoutFlagsCommand(const TCHAR* Cmd, FOutputDevice
 	return true;
 }
 
+bool UNetDriver::HandlePushModelMemCommand(const TCHAR* Cmd, FOutputDevice& Ar)
+{
+#if WITH_PUSH_MODEL
+	UEPushModelPrivate::LogMemory(Ar);
+#endif
+	return true;
+}
+
 #endif // !UE_BUILD_SHIPPING
 
 void UNetDriver::HandlePacketLossBurstCommand( int32 DurationInMilliseconds )
@@ -3258,6 +3266,11 @@ bool UNetDriver::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 	else if (FParse::Command(&Cmd, TEXT("DUMPREPLAYOUTFLAGS")))
 	{
 		HandleDumpRepLayoutFlagsCommand(Cmd, Ar);
+		return true;
+	}
+	else if (FParse::Command(&Cmd, TEXT("PUSHMODELMEM")))
+	{
+		HandlePushModelMemCommand(Cmd, Ar);
 		return true;
 	}
 	else

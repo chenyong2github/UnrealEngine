@@ -28,8 +28,8 @@ FString UTransientBufferDataInterface::GetDisplayName() const
 TArray<FOptimusCDIPinDefinition> UTransientBufferDataInterface::GetPinDefinitions() const
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
-	Defs.Add({"ValueIn", "ReadValue", Context, "ReadNumValues"});
-	Defs.Add({"ValueOut", "WriteValue", Context, "ReadNumValues"});
+	Defs.Add({"ValueIn", "ReadValue", DataDomain.Name, "ReadNumValues"});
+	Defs.Add({"ValueOut", "WriteValue", DataDomain.Name, "ReadNumValues"});
 	return Defs;
 }
 

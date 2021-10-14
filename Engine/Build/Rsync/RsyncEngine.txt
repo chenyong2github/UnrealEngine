@@ -136,10 +136,10 @@ protect /Saved/
 # Source
 + /Source/
 
-# Source/Runtime: Blacklist specific folders
+# Source/Runtime: Deny specific folders
 - /Source/Runtime/Navmesh/RecastDemo/
 
-# Source/Programs: Whitelist specific programs
+# Source/Programs: Allow specific programs
 + /Source/Programs/
 + /Source/Programs/AutomationTool/
 + /Source/Programs/DotNETCommon/
@@ -164,7 +164,7 @@ protect /Source/Programs/Shared/EpicGames.Core/bin/**
 protect /Source/Programs/Shared/EpicGames.Build/obj/**
 protect /Source/Programs/Shared/EpicGames.Build/bin/**
 
-# Source/ThirdParty: Whitelist specific file types
+# Source/ThirdParty: Allow specific file types
 + /Source/ThirdParty/**/
 + /Source/ThirdParty/**.cs
 + /Source/ThirdParty/**.h

@@ -69,7 +69,7 @@ void SFilterConfigurator::Construct(const FArguments& InArgs, TSharedPtr<FFilter
 				.TreeItemsSource(&GroupNodes)
 				.OnGetChildren(this, &SFilterConfigurator::TreeView_OnGetChildren)
 				.OnGenerateRow(this, &SFilterConfigurator::TreeView_OnGenerateRow)
-				.ItemHeight(12.0f)
+				.ItemHeight(20.0f)
 				.HeaderRow
 				(
 					SAssignNew(TreeViewHeaderRow, SHeaderRow)

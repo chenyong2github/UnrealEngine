@@ -87,5 +87,5 @@ private:
 	 * @param Menu		The menu to add items to.
 	 * @param SelectedActorInfo	Information about the selected actors.
 	 */
-	static void BuildGroupMenu(UToolMenu* Menu, const struct FSelectedActorInfo& SelectedActorInfo);
+	static void BuildGroupMenu(FToolMenuSection& Section, const struct FSelectedActorInfo& SelectedActorInfo);
 };

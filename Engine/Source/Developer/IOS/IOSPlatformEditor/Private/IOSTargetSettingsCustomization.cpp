@@ -1337,8 +1337,8 @@ FReply FIOSTargetSettingsCustomization::OnGenerateImageClicked(const FString Tar
 
 	if (ensure(FPaths::FileExists(*GenerateImageSourcePath)))
 	{
-		FFreeImageWrapper::FreeImage_Initialise();
-		if (!FFreeImageWrapper::IsValid())
+		FUEFreeImageWrapper::FreeImage_Initialise();
+		if (!FUEFreeImageWrapper::IsValid())
 		{
 			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("Generate_FreeImageFailure", "The FreeImage library could not be correctly initialized."));
 			return FReply::Unhandled();

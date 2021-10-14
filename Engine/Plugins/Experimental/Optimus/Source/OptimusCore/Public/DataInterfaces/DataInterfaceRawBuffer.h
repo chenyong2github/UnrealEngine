@@ -3,6 +3,7 @@
 #pragma once
 
 #include "OptimusComputeDataInterface.h"
+#include "OptimusDataDomain.h"
 #include "ComputeFramework/ComputeDataProvider.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "DataInterfaceRawBuffer.generated.h"
@@ -57,7 +58,7 @@ public:
 	FShaderValueTypeHandle ValueType;
 
 	UPROPERTY()
-	FName Context;
+	FOptimusDataDomain DataDomain;
 private:
 	bool SupportsAtomics() const;
 };

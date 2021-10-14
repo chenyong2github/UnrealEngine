@@ -130,7 +130,7 @@ static int32 TryAddParameter(FMaterialCachedParameters& CachedParameters,
 		EditorInfo.Group = InEditorInfo.Group;
 		EditorInfo.SortPriority = InEditorInfo.SortPriority;
 	}
-
+	
 	// Still return INDEX_NONE, to signify this parameter was already added (don't want to add it again)
 	return INDEX_NONE;
 }
@@ -154,7 +154,6 @@ bool FMaterialCachedExpressionData::UpdateForFunction(const FMaterialCachedExpre
 			if (Index != INDEX_NONE)
 			{
 				Parameters.ScalarValues.Insert(Param.ParameterValue, Index);
-				Parameters.ScalarPrimitiveDataIndexValues.Insert(INDEX_NONE, Index);
 				Parameters.ScalarMinMaxValues.Insert(FVector2D(), Index);
 				if (Param.AtlasData.bIsUsedAsAtlasPosition)
 				{
@@ -176,7 +175,6 @@ bool FMaterialCachedExpressionData::UpdateForFunction(const FMaterialCachedExpre
 			if (Index != INDEX_NONE)
 			{
 				Parameters.VectorValues.Insert(Param.ParameterValue, Index);
-				Parameters.VectorPrimitiveDataIndexValues.Insert(INDEX_NONE, Index);
 				Parameters.VectorChannelNameValues.Insert(FParameterChannelNames(), Index);
 				Parameters.VectorUsedAsChannelMaskValues.Insert(false, Index);
 			}
@@ -360,7 +358,6 @@ void FMaterialCachedParameters_UpdateForLayerParameters(FMaterialCachedParameter
 				if (Index != INDEX_NONE)
 				{
 					Parameters.ScalarValues.Insert(Param.ParameterValue, Index);
-					Parameters.ScalarPrimitiveDataIndexValues.Insert(INDEX_NONE, Index);
 					Parameters.ScalarMinMaxValues.Insert(FVector2D(), Index);
 					if (Param.AtlasData.bIsUsedAsAtlasPosition)
 					{
@@ -385,7 +382,6 @@ void FMaterialCachedParameters_UpdateForLayerParameters(FMaterialCachedParameter
 				if (Index != INDEX_NONE)
 				{
 					Parameters.VectorValues.Insert(Param.ParameterValue, Index);
-					Parameters.VectorPrimitiveDataIndexValues.Insert(INDEX_NONE, Index);
 					Parameters.VectorChannelNameValues.Insert(FParameterChannelNames(), Index);
 					Parameters.VectorUsedAsChannelMaskValues.Insert(false, Index);
 				}
@@ -508,15 +504,15 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedEx
 					Parameters.ScalarMinMaxValues.Insert(FVector2D(ParameterMeta.ScalarMin, ParameterMeta.ScalarMax), Index);
 					Parameters.ScalarPrimitiveDataIndexValues.Insert(ParameterMeta.PrimitiveDataIndex, Index);
 					if (ParameterMeta.bUsedAsAtlasPosition)
-					{
+				{
 						Parameters.ScalarCurveValues.Insert(ParameterMeta.ScalarCurve.Get(), Index);
 						Parameters.ScalarCurveAtlasValues.Insert(ParameterMeta.ScalarAtlas.Get(), Index);
-					}
+				}
 					else
-					{
+		{
 						Parameters.ScalarCurveValues.Insert(nullptr, Index);
 						Parameters.ScalarCurveAtlasValues.Insert(nullptr, Index);
-					}
+			}
 					break;
 				case EMaterialParameterType::Vector:
 					Parameters.VectorValues.Insert(ParameterMeta.Value.AsLinearColor(), Index);
@@ -547,7 +543,7 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedEx
 				default:
 					checkNoEntry();
 					break;
-				}
+		}
 			}
 		}
 
@@ -659,9 +655,9 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedEx
 					SetMaterialAttributePropertyConnected(MaterialProperty, AttributeInput.Expression ? true : false);
 				}
 			}
-		}
-		else if (UMaterialExpressionMakeMaterialAttributes* MakeMatAttributes = Cast<UMaterialExpressionMakeMaterialAttributes>(Expression))
-		{
+			}
+			else if (UMaterialExpressionMakeMaterialAttributes* MakeMatAttributes = Cast<UMaterialExpressionMakeMaterialAttributes>(Expression))
+			{
 			// Only set the material property if it hasn't been set yet.  We want to specifically avoid a Set Material Attributes node which doesn't have a 
 			// attribute set from disabling the attribute from a different Set Material Attributes node which does have it enabled.
 			auto SetMatAttributeConditionally = [&](EMaterialProperty InMaterialProperty, bool InIsConnected)
@@ -758,13 +754,17 @@ int32 FMaterialCachedParameters::FindParameterIndex(EMaterialParameterType Type,
 void FMaterialCachedParameters::GetParameterValueByIndex(EMaterialParameterType Type, int32 ParameterIndex, FMaterialParameterMetadata& OutResult) const
 {
 	const FMaterialCachedParameterEntry& Entry = GetParameterTypeEntry(Type);
-
+	
 #if WITH_EDITORONLY_DATA
-	const FMaterialCachedParameterEditorInfo& EditorInfo = Entry.EditorInfo[ParameterIndex];
-	OutResult.ExpressionGuid = EditorInfo.ExpressionGuid;
-	OutResult.Description = EditorInfo.Description;
-	OutResult.Group = EditorInfo.Group;
-	OutResult.SortPriority = EditorInfo.SortPriority;
+	const bool bIsEditorOnlyDataStripped = Entry.EditorInfo.Num() == 0;
+	if (!bIsEditorOnlyDataStripped)
+	{
+		const FMaterialCachedParameterEditorInfo& EditorInfo = Entry.EditorInfo[ParameterIndex];
+		OutResult.ExpressionGuid = EditorInfo.ExpressionGuid;
+		OutResult.Description = EditorInfo.Description;
+		OutResult.Group = EditorInfo.Group;
+		OutResult.SortPriority = EditorInfo.SortPriority;
+	}
 #endif
 
 	switch (Type)
@@ -774,16 +774,19 @@ void FMaterialCachedParameters::GetParameterValueByIndex(EMaterialParameterType 
 		OutResult.PrimitiveDataIndex = ScalarPrimitiveDataIndexValues[ParameterIndex];
 
 #if WITH_EDITORONLY_DATA
-		OutResult.ScalarMin = ScalarMinMaxValues[ParameterIndex].X;
-		OutResult.ScalarMax = ScalarMinMaxValues[ParameterIndex].Y;
+		if (!bIsEditorOnlyDataStripped)
 		{
-			UCurveLinearColor* Curve = ScalarCurveValues[ParameterIndex];
-			UCurveLinearColorAtlas* Atlas = ScalarCurveAtlasValues[ParameterIndex];
-			if (Curve && Atlas)
+			OutResult.ScalarMin = ScalarMinMaxValues[ParameterIndex].X;
+			OutResult.ScalarMax = ScalarMinMaxValues[ParameterIndex].Y;
 			{
-				OutResult.ScalarCurve = Curve;
-				OutResult.ScalarAtlas = Atlas;
-				OutResult.bUsedAsAtlasPosition = true;
+				UCurveLinearColor* Curve = ScalarCurveValues[ParameterIndex];
+				UCurveLinearColorAtlas* Atlas = ScalarCurveAtlasValues[ParameterIndex];
+				if (Curve && Atlas)
+				{
+					OutResult.ScalarCurve = Curve;
+					OutResult.ScalarAtlas = Atlas;
+					OutResult.bUsedAsAtlasPosition = true;
+				}
 			}
 		}
 #endif // WITH_EDITORONLY_DATA
@@ -793,8 +796,11 @@ void FMaterialCachedParameters::GetParameterValueByIndex(EMaterialParameterType 
 		OutResult.PrimitiveDataIndex = VectorPrimitiveDataIndexValues[ParameterIndex];
 
 #if  WITH_EDITORONLY_DATA
-		OutResult.ChannelNames = VectorChannelNameValues[ParameterIndex];
-		OutResult.bUsedAsChannelMask = VectorUsedAsChannelMaskValues[ParameterIndex];
+		if (!bIsEditorOnlyDataStripped)
+		{
+			OutResult.ChannelNames = VectorChannelNameValues[ParameterIndex];
+			OutResult.bUsedAsChannelMask = VectorUsedAsChannelMaskValues[ParameterIndex];
+		}
 #endif // WITH_EDITORONLY_DATA
 		break;
 	case EMaterialParameterType::DoubleVector:
@@ -803,7 +809,10 @@ void FMaterialCachedParameters::GetParameterValueByIndex(EMaterialParameterType 
 	case EMaterialParameterType::Texture:
 		OutResult.Value = TextureValues[ParameterIndex];
 #if WITH_EDITORONLY_DATA
-		OutResult.ChannelNames = TextureChannelNameValues[ParameterIndex];
+		if (!bIsEditorOnlyDataStripped)
+		{
+			OutResult.ChannelNames = TextureChannelNameValues[ParameterIndex];
+		}
 #endif // WITH_EDITORONLY_DATA
 		break;
 	case EMaterialParameterType::RuntimeVirtualTexture:
@@ -814,10 +823,16 @@ void FMaterialCachedParameters::GetParameterValueByIndex(EMaterialParameterType 
 		break;
 #if WITH_EDITORONLY_DATA
 	case EMaterialParameterType::StaticSwitch:
-		OutResult.Value = StaticSwitchValues[ParameterIndex];
+		if (!bIsEditorOnlyDataStripped)
+		{
+			OutResult.Value = StaticSwitchValues[ParameterIndex];
+		}
 		break;
 	case EMaterialParameterType::StaticComponentMask:
-		OutResult.Value = StaticComponentMaskValues[ParameterIndex];
+		if (!bIsEditorOnlyDataStripped)
+		{
+			OutResult.Value = StaticComponentMaskValues[ParameterIndex];
+		}
 		break;
 #endif // WITH_EDITORONLY_DATA
 	default:
@@ -871,10 +886,16 @@ void FMaterialCachedParameters::GetAllParameterInfoOfType(EMaterialParameterType
 	{
 		OutParameterInfo.Add(*It);
 #if WITH_EDITORONLY_DATA
-		OutParameterIds.Add(Entry.EditorInfo[It.GetId().AsInteger()].ExpressionGuid);
-#else
-		OutParameterIds.Add(FGuid());
+		// cooked materials can strip out expression guids
+		if (Entry.EditorInfo.Num() != 0)
+		{
+			OutParameterIds.Add(Entry.EditorInfo[It.GetId().AsInteger()].ExpressionGuid);
+		}
+		else
 #endif
+		{
+			OutParameterIds.Add(FGuid());
+		}
 	}
 }
 
@@ -892,10 +913,16 @@ void FMaterialCachedParameters::GetAllGlobalParameterInfoOfType(EMaterialParamet
 		{
 			OutParameterInfo.Add(ParameterInfo);
 #if WITH_EDITORONLY_DATA
-			OutParameterIds.Add(Entry.EditorInfo[It.GetId().AsInteger()].ExpressionGuid);
-#else
-			OutParameterIds.Add(FGuid());
+			// cooked materials can strip out expression guids
+			if (Entry.EditorInfo.Num() != 0)
+			{
+				OutParameterIds.Add(Entry.EditorInfo[It.GetId().AsInteger()].ExpressionGuid);
+			}
+			else
 #endif
+			{
+				OutParameterIds.Add(FGuid());
+			}
 		}
 	}
 }

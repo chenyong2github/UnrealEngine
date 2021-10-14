@@ -52,7 +52,7 @@ FAutoConsoleVariableRef CVarAudioVisualizeActiveSoundsMode(
 	TEXT("au.3dVisualize.ActiveSounds"),
 	ActiveSoundVisualizeModeCVar,
 	TEXT("Visualization mode for active sounds. \n")
-	TEXT("0: Not Enabled, 1: Volume (Lin), 2: Volume (dB), 3: Distance, 4: Random color"),
+	TEXT("0: Not Enabled, 1: Volume (Lin), 2: Volume (dB), 3: Distance, 4: Random color, 5: Occlusion"),
 	ECVF_Default);
 
 static int32 ActiveSoundVisualizeListenersCVar = 0;
@@ -1080,6 +1080,7 @@ namespace Audio
 
 		const float PlaybackTime = ActiveSound.PlaybackTime;
 		const float PlaybackTimeNonVirtualized = ActiveSound.PlaybackTimeNonVirtualized;
+		const bool bOccluded = ActiveSound.bIsOccluded;
 
 		// Sounds requiring culling can start and immediately stop repeatedly when subscribed
 		// concurrency is flooded, so don't show the initial frame.
@@ -1111,6 +1112,7 @@ namespace Audio
 			FColor TextColor = FColor::White;
 			const float CurMaxDistance = ActiveSound.MaxDistance;
 			float DisplayValue = 0.0f;
+			float FilterValue = 0.0f;
 			if (ActiveSoundVisualizeModeCVar == 1 || ActiveSoundVisualizeModeCVar == 2)
 			{
 				for (FWaveInstance* WaveInstance : ThisSoundsWaveInstances)
@@ -1129,9 +1131,14 @@ namespace Audio
 			{
 				TextColor = ActiveSound.DebugColor;
 			}
+			else if (ActiveSoundVisualizeModeCVar == 5)
+			{
+				DisplayValue = ActiveSound.CurrentOcclusionVolumeAttenuation.GetValue();
+				FilterValue = ActiveSound.CurrentOcclusionFilterFrequency.GetValue();
+			}
 
 			TWeakObjectPtr<UWorld> WorldPtr = ActiveSound.GetWeakWorld();
-			FAudioThread::RunCommandOnGameThread([Name, TextColor, CurTransform, DisplayValue, WorldPtr, CurMaxDistance, PlaybackTime, PlaybackTimeNonVirtualized, DeltaTime]()
+			FAudioThread::RunCommandOnGameThread([Name, TextColor, CurTransform, DisplayValue, WorldPtr, CurMaxDistance, PlaybackTime, PlaybackTimeNonVirtualized, bOccluded, FilterValue, DeltaTime]()
 			{
 				if (WorldPtr.IsValid())
 				{
@@ -1165,6 +1172,18 @@ namespace Audio
 						Descriptor = FString::Printf(TEXT(" (Dist: %.3f, Max: %.3f)"), DisplayValue * CurMaxDistance, CurMaxDistance);
 						const float Hue = FMath::Lerp(ColorGreenHue, ColorRedHue, DisplayValue);
 						Color = FLinearColor::MakeFromHSV8(static_cast<uint8>(FMath::Clamp(Hue, 0.0f, 255.f)), 255u, 255u).ToFColor(true);
+					}
+					else if (ActiveSoundVisualizeModeCVar == 5)
+					{
+						Descriptor = FString::Printf(TEXT(" (Occlusion Volume: %.3f, Occlusion Filter: %.3f)"), DisplayValue, FilterValue);
+						if (bOccluded)
+						{
+							Color = FColor::Red;
+						}
+						else
+						{
+							Color = FColor::Green;
+						}
 					}
 
 					const FString Description = FString::Printf(TEXT("%s%s"), *Name, *Descriptor);

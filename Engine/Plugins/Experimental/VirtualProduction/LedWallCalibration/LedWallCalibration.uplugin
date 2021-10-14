@@ -19,7 +19,7 @@
 			"Name": "LedWallCalibrationEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"Linux",
 				"Mac"
@@ -29,7 +29,7 @@
 			"Name": "LedWallCalibration",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"Linux",
 				"Mac"

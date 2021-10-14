@@ -316,7 +316,7 @@ TSharedRef<SWidget> SSequencerPlayRateCombo::OnCreateMenu()
 		LOCTEXT("AdvancedOptions_Description", "Open advanced time-related properties for this sequence"),
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateSP(SequencerWidget.Get(), &SSequencer::ShowTickResolutionOverlay)
+			FExecuteAction::CreateSP(SequencerWidget.Get(), &SSequencer::OpenTickResolutionOptions)
 		)
 	);
 

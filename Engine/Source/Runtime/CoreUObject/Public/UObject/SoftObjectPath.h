@@ -356,6 +356,8 @@ typedef FSoftClassPath FStringClassReference;
 /** Options for how to set soft object path collection */
 enum class ESoftObjectPathCollectType : uint8
 {
+	/** The SoftObjectPath being loaded is not in a package, so we do not need to record it in inclusion or exclusion lists*/
+	NonPackage,
 	/** References is not tracked in any situation, transient reference */
 	NeverCollect,
 	/** Editor only reference, this is tracked for redirector fixup but not for cooking */

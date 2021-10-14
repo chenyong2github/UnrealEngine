@@ -215,7 +215,8 @@ enum class EFiBCacheBarWidget
 	CacheAllUnindexedButton,
 	CurrentAssetNameText,
 	UnresponsiveEditorWarningText,
-	ShowCacheFailuresButton
+	ShowCacheFailuresButton,
+	ShowCacheStatusText
 };
 
 // Search bar widgets.
@@ -305,12 +306,6 @@ private:
 	/*Called when user changes commits text to the search box */
 	void OnSearchTextCommitted(const FText& Text, ETextCommit::Type CommitType);
 
-	/** Called when the find mode checkbox is hit */
-	void OnFindModeChanged(ECheckBoxState CheckState);
-
-	/** Called to check what the find mode is for the checkbox */
-	ECheckBoxState OnGetFindModeChecked() const;
-
 	/* Get the children of a row */
 	void OnGetChildren( FSearchResult InItem, TArray< FSearchResult >& OutChildren );
 
@@ -364,9 +359,6 @@ private:
 
 	/** Returns TRUE if Blueprint caching is in progress */
 	bool IsCacheInProgress() const;
-
-	/** Returns the color of the cache bar */
-	FSlateColor GetCacheBarColor() const;
 
 	/** Returns the BG image used for the cache bar */
 	const FSlateBrush* GetCacheBarImage() const;

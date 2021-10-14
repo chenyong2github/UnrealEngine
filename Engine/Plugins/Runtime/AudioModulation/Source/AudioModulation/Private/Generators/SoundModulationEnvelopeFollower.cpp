@@ -10,124 +10,203 @@
 
 namespace AudioModulation
 {
-#if !UE_BUILD_SHIPPING
-	const FString FEnvelopeFollowerGenerator::DebugName = TEXT("EnvelopeFollower");
-
-	void FEnvelopeFollowerGenerator::GetDebugCategories(TArray<FString>& OutDebugCategories) const
+	namespace GeneratorEnvelopeFollowerPrivate
 	{
-		OutDebugCategories = USoundModulationGeneratorEnvelopeFollower::GetDebugCategories();
-	}
-#endif // !UE_BUILD_SHIPPING
-
-	FEnvelopeFollowerGenerator::FEnvelopeFollowerGenerator(const FEnvelopeFollowerGeneratorParams& InParams, Audio::FDeviceId InDeviceId)
-		: IGenerator(InDeviceId)
-		, Params(InParams)
-	{
-		using namespace Audio;
-
-		if (Params.AudioBus)
+		static const TArray<FString> DebugCategories =
 		{
-			AudioRenderThreadCommand([this, DeviceId = InDeviceId, NumChannels = Params.AudioBus->GetNumChannels(), BusId = Params.AudioBus->GetUniqueID()]()
+			TEXT("Value"),
+			TEXT("Gain"),
+			TEXT("Attack"),
+			TEXT("Release"),
+		};
+
+		static const FString DebugName = TEXT("EnvelopeFollower");
+	}
+
+	class AUDIOMODULATION_API FEnvelopeFollowerGenerator : public FGeneratorBase
+	{
+	public:
+		FEnvelopeFollowerGenerator() = default;
+
+		FEnvelopeFollowerGenerator(const FEnvelopeFollowerGeneratorParams& InGeneratorParams, Audio::FDeviceId InDeviceId)
+			: FGeneratorBase(InDeviceId)
+			, Gain(InGeneratorParams.Gain)
+			, bBypass(InGeneratorParams.bBypass ? 1 : 0)
+			, bInvert(InGeneratorParams.bInvert ? 1 : 0)
+			, bInitialized(0)
+		{
+			if (UAudioBus* AudioBus = InGeneratorParams.AudioBus)
+			{
+				BusId = AudioBus->GetUniqueID();
+				InitParams.NumChannels = AudioBus->GetNumChannels();
+			}
+
+			if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+			{
+				FAudioDevice* AudioDevice = DeviceManager->GetAudioDeviceRaw(InDeviceId);
+				if (Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(AudioDevice))
+				{
+					InitParams.SampleRate = MixerDevice->SampleRate;
+				}
+			}
+
+			InitParams.AttackTimeMsec = InGeneratorParams.AttackTime * 1000.0f;
+			InitParams.ReleaseTimeMsec = InGeneratorParams.ReleaseTime * 1000.0f;
+			InitParams.Mode = Audio::EPeakMode::Peak;
+
+			EnvelopeFollower = Audio::FEnvelopeFollower(InitParams);
+
+			if (bInvert)
+			{
+				CurrentValue = 1.0f;
+			}
+		}
+
+		virtual ~FEnvelopeFollowerGenerator()
+		{
+			AudioBusPatch.Reset();
+		}
+
+	#if !UE_BUILD_SHIPPING
+		virtual void GetDebugCategories(TArray<FString>& OutDebugCategories) const override
+		{
+			OutDebugCategories = GeneratorEnvelopeFollowerPrivate::DebugCategories;
+		}
+
+		virtual const FString& GetDebugName() const override
+		{
+			return GeneratorEnvelopeFollowerPrivate::DebugName;
+		}
+
+		virtual void GetDebugValues(TArray<FString>& OutDebugValues) const override
+		{
+			const float AttackTime = EnvelopeFollower.GetAttackTimeMsec() / 1000.f;
+			const float ReleaseTime = EnvelopeFollower.GetReleaseTimeMsec() / 1000.f;
+
+			OutDebugValues.Add(FString::Printf(TEXT("%.4f"), GetValue()));
+			OutDebugValues.Add(FString::Printf(TEXT("%.4f"), Gain));
+			OutDebugValues.Add(FString::Printf(TEXT("%.4f"), AttackTime));
+			OutDebugValues.Add(FString::Printf(TEXT("%.4f"), ReleaseTime));
+		}
+
+	#endif // !UE_BUILD_SHIPPING
+
+		virtual bool UpdateGenerator(const IGenerator& InGenerator) override
+		{
+			const FEnvelopeFollowerGenerator& NewGenerator = static_cast<const FEnvelopeFollowerGenerator&>(InGenerator);
+			AudioRenderThreadCommand([this, bNewInvert = NewGenerator.bInvert, bNewBypass = NewGenerator.bBypass, NewGain = NewGenerator.Gain, NewInitParams = NewGenerator.InitParams, NewBusId = NewGenerator.BusId]()
+			{
+				bBypass = bNewBypass;
+				bInvert = bNewInvert;
+
+				EnvelopeFollower.SetAnalog(NewInitParams.bIsAnalog);
+				EnvelopeFollower.SetAttackTime(NewInitParams.AttackTimeMsec);
+				EnvelopeFollower.SetMode(NewInitParams.Mode);
+				EnvelopeFollower.SetNumChannels(NewInitParams.NumChannels);
+				EnvelopeFollower.SetReleaseTime(NewInitParams.ReleaseTimeMsec);
+
+				if (NewBusId != BusId || !FMath::IsNearlyEqual(Gain, NewGain))
+				{
+					BusId = NewBusId;
+					Gain = NewGain;
+					bInitialized = false;
+				}
+			});
+
+			return true;
+		}
+
+		virtual float GetValue() const override
+		{
+			return CurrentValue;
+		}
+
+		void InitBus()
+		{
+			if (BusId != INDEX_NONE)
 			{
 				if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
 				{
-					FAudioDevice* AudioDevice = DeviceManager->GetAudioDeviceRaw(DeviceId);
-					if (FMixerDevice* MixerDevice = static_cast<FMixerDevice*>(AudioDevice))
+					FAudioDevice* AudioDevice = DeviceManager->GetAudioDeviceRaw(AudioDeviceId);
+					if (Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(AudioDevice))
 					{
-						AudioBusPatch = MixerDevice->AddPatchForAudioBus(BusId, Params.Gain);
-
-						FEnvelopeFollowerInitParams EnvelopeFollowerInitParams;
-						EnvelopeFollowerInitParams.SampleRate = MixerDevice->SampleRate;
-						EnvelopeFollowerInitParams.NumChannels = NumChannels;
-						EnvelopeFollowerInitParams.AttackTimeMsec = Params.AttackTime;
-						EnvelopeFollowerInitParams.ReleaseTimeMsec = Params.ReleaseTime;
-						EnvelopeFollowerInitParams.Mode = EPeakMode::Peak;
-
-						EnvelopeFollower = FEnvelopeFollower(EnvelopeFollowerInitParams);
-
-						if (Params.bInvert)
-						{
-							CurrentValue = 1.0f;
-						}
-						else
-						{
-							CurrentValue = 0.f;
-						}
+						AudioBusPatch = MixerDevice->AddPatchForAudioBus(BusId, Gain);
+						bInitialized = true;
 					}
 				}
-			});
+			}
 		}
-	}
 
-	float FEnvelopeFollowerGenerator::GetValue() const
-	{
-		return CurrentValue;
-	}
-
-	bool FEnvelopeFollowerGenerator::IsBypassed() const
-	{
-		return Params.bBypass;
-	}
-
-	void FEnvelopeFollowerGenerator::Update(double InElapsed)
-	{
-		if (AudioBusPatch.IsValid())
+		virtual bool IsBypassed() const override
 		{
-			const int32 NumSamples = AudioBusPatch->GetNumSamplesAvailable();
-			const int32 NumFrames = NumSamples / EnvelopeFollower.GetNumChannels();
+			return bBypass;
+		}
 
-			if (NumSamples > 0)
+		virtual void Update(double InElapsed) override
+		{
+			if (!bInitialized)
 			{
-				TempBuffer.Reset();
-				TempBuffer.AddZeroed(NumSamples);
-
-				AudioBusPatch->PopAudio(TempBuffer.GetData(), NumSamples, true /* bUseLatestAudio */);
-
-				EnvelopeFollower.ProcessAudio(TempBuffer.GetData(), NumFrames);
+				InitBus();
 			}
 
-			float MaxValue = 0.f;
-			if (const float* MaxEnvelopePtr = Algo::MaxElement(EnvelopeFollower.GetEnvelopeValues()))
+			if (AudioBusPatch.IsValid())
 			{
-				MaxValue = FMath::Clamp(*MaxEnvelopePtr, 0.f, 1.f);
-			}
+				const int32 NumSamples = AudioBusPatch->GetNumSamplesAvailable();
+				const int32 NumFrames = NumSamples / EnvelopeFollower.GetNumChannels();
 
-			if (Params.bInvert)
-			{
-				CurrentValue = 1.0f - MaxValue;
+				if (NumSamples > 0)
+				{
+					TempBuffer.Reset();
+					TempBuffer.AddZeroed(NumSamples);
+
+					AudioBusPatch->PopAudio(TempBuffer.GetData(), NumSamples, true /* bUseLatestAudio */);
+
+					EnvelopeFollower.ProcessAudio(TempBuffer.GetData(), NumFrames);
+				}
+
+				float MaxValue = 0.f;
+				if (const float* MaxEnvelopePtr = Algo::MaxElement(EnvelopeFollower.GetEnvelopeValues()))
+				{
+					MaxValue = FMath::Clamp(*MaxEnvelopePtr, 0.f, 1.f);
+				}
+
+				if (bInvert)
+				{
+					CurrentValue = 1.0f - MaxValue;
+				}
+				else
+				{
+					CurrentValue = MaxValue;
+				}
 			}
 			else
 			{
-				CurrentValue = MaxValue;
+				bInitialized = false;
+				CurrentValue = 0.f;
 			}
-		}
-		else
-		{
-			CurrentValue = 0.f;
+
 		}
 
-	}
+	private:
+		Audio::FPatchOutputStrongPtr AudioBusPatch;
+		Audio::FAlignedFloatBuffer TempBuffer;
+		Audio::FEnvelopeFollower EnvelopeFollower;
 
-#if !UE_BUILD_SHIPPING
-	void FEnvelopeFollowerGenerator::GetDebugValues(TArray<FString>& OutDebugValues) const
-	{
-		OutDebugValues.Add(FString::Printf(TEXT("%.4f"), GetValue()));
-		OutDebugValues.Add(FString::Printf(TEXT("%.4f"), Params.Gain));
-		OutDebugValues.Add(FString::Printf(TEXT("%.4f"), Params.AttackTime));
-		OutDebugValues.Add(FString::Printf(TEXT("%.4f"), Params.ReleaseTime));
-	}
+		Audio::FEnvelopeFollowerInitParams InitParams;
 
-	const FString& FEnvelopeFollowerGenerator::GetDebugName() const
-	{
-		return DebugName;
-	}
-#endif // !UE_BUILD_SHIPPING
+		uint32 BusId = INDEX_NONE;
+		float CurrentValue = 0.0f;
+		float Gain = 1.0f;
+		uint8 bBypass : 1;
+		uint8 bInvert : 1;
+		uint8 bInitialized : 1;
+	};
 } // namespace AudioModulation
 
-#if !UE_BUILD_SHIPPING
-const FString& USoundModulationGeneratorEnvelopeFollower::GetDebugName()
+AudioModulation::FGeneratorPtr USoundModulationGeneratorEnvelopeFollower::CreateInstance(Audio::FDeviceId InDeviceId) const
 {
 	using namespace AudioModulation;
-	return FEnvelopeFollowerGenerator::DebugName;
+
+	auto NewGenerator = MakeShared<FEnvelopeFollowerGenerator, ESPMode::ThreadSafe>(Params, InDeviceId);
+	return StaticCastSharedRef<IGenerator>(NewGenerator);
 }
-#endif // !UE_BUILD_SHIPPING

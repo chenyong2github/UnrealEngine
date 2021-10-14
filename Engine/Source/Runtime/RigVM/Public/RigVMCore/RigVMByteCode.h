@@ -1022,6 +1022,34 @@ public:
 	static uint32 GetCallstackHash(const TArray<UObject*>& InCallstack);
 	static uint32 GetCallstackHash(const TArrayView<UObject* const>& InCallstack);
 
+	// returns the input operands of a given instruction
+	FORCEINLINE_DEBUGGABLE FRigVMOperandArray GetInputOperands(int32 InInstructionIndex)
+	{
+		if(InputOperandsPerInstruction.IsValidIndex(InInstructionIndex))
+		{
+			if(InputOperandsPerInstruction[InInstructionIndex].Num() > 0)
+			{
+				return FRigVMOperandArray((FRigVMOperand*)(InputOperandsPerInstruction[InInstructionIndex].GetData()), InputOperandsPerInstruction[InInstructionIndex].Num());
+			}
+		}
+		return FRigVMOperandArray();
+	}
+
+	// returns the output operands of a given instruction
+	FORCEINLINE_DEBUGGABLE FRigVMOperandArray GetOutputOperands(int32 InInstructionIndex)
+	{
+		if(OutputOperandsPerInstruction.IsValidIndex(InInstructionIndex))
+		{
+			if(OutputOperandsPerInstruction[InInstructionIndex].Num() > 0)
+			{
+				return FRigVMOperandArray((FRigVMOperand*)(OutputOperandsPerInstruction[InInstructionIndex].GetData()), OutputOperandsPerInstruction[InInstructionIndex].Num());
+			}
+		}
+		return FRigVMOperandArray();
+	}
+
+	void SetOperandsForInstruction(int32 InInstructionIndex, const FRigVMOperandArray& InputOperands, const FRigVMOperandArray& OutputOperands);
+
 #endif
 
 private:
@@ -1055,6 +1083,8 @@ private:
 	TArray<TArray<UObject*>> CallstackPerInstruction;
 	TMap<uint32, TArray<int32>> CallstackHashToInstructions;
 	TArray<uint32> CallstackHashPerInstruction;
+	TArray<TArray<FRigVMOperand>> InputOperandsPerInstruction;
+	TArray<TArray<FRigVMOperand>> OutputOperandsPerInstruction;
 
 #endif
 

@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RetargetEditor/SRetargetAnimAssetsWindow.h"
 
@@ -13,6 +13,7 @@
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Retargeter/IKRetargeter.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 #define LOCTEXT_NAMESPACE "RetargetAnimAssetWindow"

@@ -274,6 +274,8 @@ private:
 	 */
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
+	void OpenSourceFileInIDE(FTimerNodePtr InNode) const;
+
 private:
 	/** Table view model. */
 	TSharedPtr<Insights::FTable> Table;

@@ -5,6 +5,7 @@
 
 #include "ZenBackendUtils.h"
 #include "ZenServerHttp.h"
+#include "ZenSerialization.h"
 
 #include "HAL/FileManager.h"
 #include "HAL/Platform.h"
@@ -36,7 +37,7 @@ FScopeZenService::FScopeZenService(FStringView InstanceURL)
 {
 	if (!InstanceURL.IsEmpty() && !InstanceURL.Equals(TEXT("<DefaultInstance>")))
 	{
-		UniqueNonDefaultInstance = MakeUnique<FZenServiceInstance>(InstanceURL);
+		UniqueNonDefaultInstance = MakeUnique<FZenServiceInstance>(Default, InstanceURL);
 		ServiceInstance = UniqueNonDefaultInstance.Get();
 	}
 	else
@@ -55,7 +56,7 @@ FScopeZenService::FScopeZenService(FStringView InstanceHostName, uint16 Instance
 		URL.AppendAnsi(":");
 		URL << InstancePort;
 
-		UniqueNonDefaultInstance = MakeUnique<FZenServiceInstance>(URL);
+		UniqueNonDefaultInstance = MakeUnique<FZenServiceInstance>(Default, URL);
 		ServiceInstance = UniqueNonDefaultInstance.Get();
 	}
 	else
@@ -64,7 +65,28 @@ FScopeZenService::FScopeZenService(FStringView InstanceHostName, uint16 Instance
 	}
 }
 
-FZenServiceInstance::FZenServiceInstance(FStringView InstanceURL)
+FScopeZenService::FScopeZenService(EServiceMode Mode)
+{
+	switch (Mode)
+	{
+		case Default:
+		{
+			ServiceInstance = &GetDefaultServiceInstance();
+		}
+		break;
+		case DefaultNoLaunch:
+		{
+			UniqueNonDefaultInstance = MakeUnique<FZenServiceInstance>(Mode, FStringView());
+			ServiceInstance = UniqueNonDefaultInstance.Get();
+		}
+		break;
+		default:
+		unimplemented();
+	}
+
+}
+
+FZenServiceInstance::FZenServiceInstance(EServiceMode Mode, FStringView InstanceURL)
 {
 	Settings.AutoLaunchSettings.DataPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::EngineVersionAgnosticUserDir(), TEXT("Zen")));
 	Settings.AutoLaunchSettings.WorkspaceDataPath = Settings.AutoLaunchSettings.DataPath;
@@ -72,7 +94,17 @@ FZenServiceInstance::FZenServiceInstance(FStringView InstanceURL)
 
 	if (Settings.bAutoLaunch)
 	{
-		bHasLaunchedLocal = AutoLaunch();
+		if (Mode == DefaultNoLaunch)
+		{
+			Settings.bAutoLaunch = false;
+			HostName = TEXT("localhost");
+			Port = (AutoLaunchedPort != 0) ? AutoLaunchedPort : Settings.AutoLaunchSettings.DesiredPort;
+		}
+		else
+		{
+			bHasLaunchedLocal = AutoLaunch();
+			AutoLaunchedPort = Port;
+		}
 	}
 	else
 	{
@@ -240,6 +272,13 @@ FZenServiceInstance::PopulateSettings(FStringView InstanceURL)
 
 		ReadUInt16FromConfig(AutoLaunchConfigSection, TEXT("DesiredPort"), Settings.AutoLaunchSettings.DesiredPort, GEngineIni);
 		GConfig->GetBool(AutoLaunchConfigSection, TEXT("Hidden"), Settings.AutoLaunchSettings.bHidden, GEngineIni);
+
+		FString LogCommandLineOverrideValue;
+		if (FParse::Value(FCommandLine::Get(), TEXT("ZenLogPath="), LogCommandLineOverrideValue))
+		{
+			Settings.AutoLaunchSettings.LogPath = LogCommandLineOverrideValue;
+			UE_LOG(LogZenServiceInstance, Log, TEXT("Found command line override ZenLogPath=%s"), *LogCommandLineOverrideValue);
+		}
 	}
 
 	// ConnectExisting settings
@@ -306,6 +345,12 @@ FZenServiceInstance::AutoLaunch()
 		FPlatformProcess::GetCurrentProcessId(),
 		Settings.AutoLaunchSettings.DesiredPort,
 		*Settings.AutoLaunchSettings.DataPath);
+
+	if (!Settings.AutoLaunchSettings.LogPath.IsEmpty())
+	{
+		Parms.Appendf(TEXT(" --abslog \"%s\""),
+			*FPaths::ConvertRelativePathToFull(Settings.AutoLaunchSettings.LogPath));
+	}
 
 	if (!Settings.AutoLaunchSettings.ExtraArgs.IsEmpty())
 	{
@@ -388,6 +433,84 @@ FZenServiceInstance::AutoLaunch()
 
 	return Proc.IsValid();
 }
+
+bool 
+FZenServiceInstance::GetStats( FZenStats& stats ) const
+{
+	TStringBuilder<128> ZenDomain;
+	ZenDomain << HostName << TEXT(":") << Port;
+	UE::Zen::FZenHttpRequest Request(ZenDomain.ToString(), false);
+
+	TArray64<uint8> GetBuffer;
+	FZenHttpRequest::Result Result = Request.PerformBlockingDownload(TEXT("/stats/z$"_SV), &GetBuffer, Zen::EContentType::CbObject);
+
+	if (Result == Zen::FZenHttpRequest::Result::Success && Request.GetResponseCode() == 200)
+	{
+		FCbObjectView RootObjectView(GetBuffer.GetData());
+
+		FCbObjectView RequestsObjectView = RootObjectView["requests"].AsObjectView();
+		FZenRequestStats& RequestStats = stats.RequestStats;
+		
+		RequestStats.Count = RequestsObjectView["count"].AsInt64();
+		RequestStats.RateMean = RequestsObjectView["rate_mean"].AsDouble();
+		RequestStats.TAverage = RequestsObjectView["t_avg"].AsDouble();
+		RequestStats.TMin = RequestsObjectView["t_min"].AsDouble();
+		RequestStats.TMax = RequestsObjectView["t_max"].AsDouble();
+
+		FCbObjectView CacheObjectView = RootObjectView["cache"].AsObjectView();
+		FZenCacheStats& CacheStats = stats.CacheStats;
+
+		CacheStats.Hits = CacheObjectView["hits"].AsInt64();
+		CacheStats.Misses = CacheObjectView["misses"].AsInt64();
+		CacheStats.HitRatio = CacheObjectView["hit_ratio"].AsDouble();
+		CacheStats.UpstreamHits = CacheObjectView["upstream_hits"].AsInt64();
+		CacheStats.UpstreamRatio = CacheObjectView["upstream_ratio"].AsDouble();
+
+		FCbObjectView UpstreamObjectView = RootObjectView["upstream"].AsObjectView();
+		FZenUpstreamStats& UpstreamStats = stats.UpstreamStats;
+
+		UpstreamStats.Reading = UpstreamObjectView["reading"].AsBool();
+		UpstreamStats.Writing = UpstreamObjectView["writing"].AsBool();
+		UpstreamStats.WorkerThreads = UpstreamObjectView["worker_threads"].AsInt64();
+		UpstreamStats.QueueCount = UpstreamObjectView["queue_count"].AsInt64();
+		UpstreamStats.TotalUploadedMB = 0.0;
+		UpstreamStats.TotalDownloadedMB = 0.0;
+
+		FCbObjectView UpstreamGetsObjectView = RootObjectView["upstream_gets"].AsObjectView();
+		FZenRequestStats& UpstreamGetsStats = stats.UpstreamGetsStats;
+
+		UpstreamGetsStats.Count = UpstreamGetsObjectView["count"].AsInt64();
+		UpstreamGetsStats.RateMean = UpstreamGetsObjectView["rate_mean"].AsDouble();
+		UpstreamGetsStats.TAverage = UpstreamGetsObjectView["t_avg"].AsDouble();
+		UpstreamGetsStats.TMin = UpstreamGetsObjectView["t_min"].AsDouble();
+		UpstreamGetsStats.TMax = UpstreamGetsObjectView["t_max"].AsDouble();
+
+		FCbArrayView EndpPointArrayView = UpstreamObjectView["endpoints"].AsArrayView();
+
+		for (FCbFieldView FieldView : EndpPointArrayView)
+		{
+			FCbObjectView EndPointView = FieldView.AsObjectView();
+			FZenEndPointStats EndPointStats;
+
+			EndPointStats.Name = FString(EndPointView["name"].AsString());
+			EndPointStats.Health = FString(EndPointView["health"].AsString());
+			EndPointStats.HitRatio = EndPointView["hit_ratio"].AsDouble();
+			EndPointStats.UploadedMB = EndPointView["uploaded_mb"].AsDouble();
+			EndPointStats.DownloadedMB = EndPointView["downloaded_mb"].AsDouble();
+			EndPointStats.ErrorCount = EndPointView["error_count"].AsInt64();
+
+			UpstreamStats.TotalUploadedMB += EndPointStats.UploadedMB;
+			UpstreamStats.TotalDownloadedMB += EndPointStats.DownloadedMB;
+
+			UpstreamStats.EndPointStats.Push(EndPointStats);
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 
 }
 

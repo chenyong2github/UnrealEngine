@@ -63,7 +63,7 @@ namespace ClothingMeshUtils
 		{
 			check((uint32) OutPositions.Num() >= NumVerts + ArrayOffset);
 			check((uint32) OutNormals.Num() >= NumVerts + ArrayOffset);
-			// PS4 performance note: It is faster to zero the memory first instead of changing this function to work with uninitialized memory
+			// It is faster on some platforms to zero the memory first instead of changing this function to work with uninitialized memory
 			FMemory::Memzero((uint8*)OutPositions.GetData() + ArrayOffset * sizeof(FVector3f), NumVerts * sizeof(FVector3f));
 			FMemory::Memzero((uint8*)OutNormals.GetData() + ArrayOffset * sizeof(FVector3f), NumVerts * sizeof(FVector3f));
 		}

@@ -2,7 +2,7 @@
 
 #include "DataInterfaces/DataInterfaceSkinCacheWrite.h"
 
-#include "OptimusContextNames.h"
+#include "OptimusDataDomain.h"
 
 #include "Components/SkeletalMeshComponent.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
@@ -19,7 +19,7 @@ FString USkeletalMeshSkinCacheDataInterface::GetDisplayName() const
 
 TArray<FOptimusCDIPinDefinition> USkeletalMeshSkinCacheDataInterface::GetPinDefinitions() const
 {
-	using namespace Optimus::ContextName;
+	using namespace Optimus::DomainName;
 	
 	TArray<FOptimusCDIPinDefinition> Defs;
 	Defs.Add({"Position", "WritePosition", Vertex, "ReadNumVertices"});

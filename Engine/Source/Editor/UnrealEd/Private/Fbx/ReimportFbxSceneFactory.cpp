@@ -661,6 +661,10 @@ EReimportResult::Type UReimportFbxSceneFactory::Reimport(UObject* Obj)
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 	ContentBrowserModule.Get().SyncBrowserToAssets(AssetToSyncContentBrowser);
 
+	//No asset should have the pending kill flags before starting a delete operation, since the dependencies GC will store and restore UObject flags
+	//And it will assert when restoring Pending kill flag.
+	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+
 	if (AssetDataToDelete.Num() > 0)
 	{
 		bool AbortDelete = false;
@@ -1022,7 +1026,6 @@ UBlueprint *UReimportFbxSceneFactory::UpdateOriginalBluePrint(FString &BluePrint
 		}
 		//We want to avoid name reservation so we compile the blueprint after removing all node
 		FKismetEditorUtilities::CompileBlueprint(BluePrint);
-		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 
 		//Create the new nodes from the hierarchy actor
 		FKismetEditorUtilities::FAddComponentsToBlueprintParams Params;
@@ -1031,6 +1034,9 @@ UBlueprint *UReimportFbxSceneFactory::UpdateOriginalBluePrint(FString &BluePrint
 		
 		UWorld* World = HierarchyActor->GetWorld();
 		World->DestroyActor(HierarchyActor);
+		
+		//Make sure we do not leave any pending kill assets
+		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 
 		GEngine->BroadcastLevelActorListChanged();
 

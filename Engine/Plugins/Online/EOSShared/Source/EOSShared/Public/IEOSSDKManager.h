@@ -13,6 +13,7 @@
 #include "eos_types.h"
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FEOSSDKManagerOnPreInitializeSDK, EOS_InitializeOptions& Options);
+DECLARE_MULTICAST_DELEGATE_OneParam(FEOSSDKManagerOnPreCreatePlatform, EOS_Platform_Options& Options);
 
 class IEOSPlatformHandle
 {
@@ -52,12 +53,13 @@ public:
 	virtual EOS_EResult Initialize() = 0;
 	virtual bool IsInitialized() const = 0;
 
-	virtual IEOSPlatformHandlePtr CreatePlatform(const EOS_Platform_Options& PlatformOptions) = 0;
+	virtual IEOSPlatformHandlePtr CreatePlatform(EOS_Platform_Options& PlatformOptions) = 0;
 
 	virtual FString GetProductName() const = 0;
 	virtual FString GetProductVersion() const = 0;
 
 	FEOSSDKManagerOnPreInitializeSDK OnPreInitializeSDK;
+	FEOSSDKManagerOnPreCreatePlatform OnPreCreatePlatform;
 };
 
 #endif // WITH_EOS_SDK

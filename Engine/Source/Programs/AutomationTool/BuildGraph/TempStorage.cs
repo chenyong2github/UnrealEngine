@@ -14,6 +14,8 @@ using System.Xml.Serialization;
 using UnrealBuildTool;
 using AutomationTool;
 using EpicGames.Core;
+using OpenTracing;
+using OpenTracing.Util;
 
 namespace AutomationTool
 {
@@ -822,7 +824,7 @@ namespace AutomationTool
 		/// <returns>The created manifest instance (which has already been saved to disk).</returns>
 		public TempStorageManifest Archive(string NodeName, string BlockName, FileReference[] BuildProducts, bool bPushToRemote = true)
 		{
-			using(TelemetryStopwatch TelemetryStopwatch = new TelemetryStopwatch("StoreToTempStorage"))
+			using (IScope Scope = GlobalTracer.Instance.BuildSpan("StoreToTempStorage").StartActive())
 			{
 				// Create a manifest for the given build products
 				FileInfo[] Files = BuildProducts.Select(x => new FileInfo(x.FullName)).ToArray();
@@ -856,7 +858,11 @@ namespace AutomationTool
 
 				// Update the stats
 				long ZipFilesTotalSize = (Manifest.ZipFiles == null)? 0 : Manifest.ZipFiles.Sum(x => x.Length);
-				TelemetryStopwatch.Finish(string.Format("StoreToTempStorage.{0}.{1}.{2}.{3}.{4}.{5}.{6}", Files.Length, Manifest.GetTotalSize(), ZipFilesTotalSize, bRemote? "Remote" : "Local", 0, 0, BlockName));
+				Scope.Span.SetTag("numFiles", Files.Length);
+				Scope.Span.SetTag("manifestSize", Manifest.GetTotalSize());
+				Scope.Span.SetTag("manifestZipFilesSize", ZipFilesTotalSize);
+				Scope.Span.SetTag("isRemote", bRemote);
+				Scope.Span.SetTag("blockName", BlockName);
 				return Manifest;
 			}
 		}
@@ -869,7 +875,7 @@ namespace AutomationTool
 		/// <returns>Manifest of the files retrieved</returns>
 		public TempStorageManifest Retreive(string NodeName, string OutputName)
 		{
-			using(var TelemetryStopwatch = new TelemetryStopwatch("RetrieveFromTempStorage"))
+			using (IScope Scope = GlobalTracer.Instance.BuildSpan("RetrieveFromTempStorage").StartActive())
 			{
 				// Get the path to the local manifest
 				FileReference LocalManifestFile = GetManifestLocation(LocalDir, NodeName, OutputName);
@@ -932,7 +938,11 @@ namespace AutomationTool
 				}
 
 				// Update the stats and return
-				TelemetryStopwatch.Finish(string.Format("RetrieveFromTempStorage.{0}.{1}.{2}.{3}.{4}.{5}.{6}", Manifest.Files.Length, Manifest.Files.Sum(x => x.Length), bLocal? 0 : Manifest.ZipFiles.Sum(x => x.Length), bLocal? "Local" : "Remote", 0, 0, OutputName));
+				Scope.Span.SetTag("numFiles", Manifest.Files.Length);
+				Scope.Span.SetTag("manifestSize", Manifest.Files.Sum(x => x.Length));
+				Scope.Span.SetTag("manifestZipFilesSize", bLocal? 0 : Manifest.ZipFiles.Sum(x => x.Length));
+				Scope.Span.SetTag("isRemote", !bLocal);
+				Scope.Span.SetTag("outputName", OutputName);
 				return Manifest;
 			}
 		}
@@ -1126,7 +1136,7 @@ namespace AutomationTool
 		}
 
 		/// <summary>
-		/// Checks whether the given path is whitelisted as a build product that can be produced by more than one node (timestamps may be modified, etc..). Used to suppress
+		/// Checks whether the given path is allowed as a build product that can be produced by more than one node (timestamps may be modified, etc..). Used to suppress
 		/// warnings about build products being overwritten.
 		/// </summary>
 		/// <param name="LocalFile">File name to check</param>

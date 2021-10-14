@@ -1971,8 +1971,8 @@ void UAnimSequence::FlipRotationWForNonRoot(USkeletalMesh* SkelMesh)
 			// Only apply to non-root bones
 			if (Track.BoneTreeIndex > 0)
 			{
-				TArray<FQuat> NewRotationalKeys = Track.InternalTrackData.RotKeys;
-				for (FQuat& RotationalKey : NewRotationalKeys)
+				TArray<FQuat4f> NewRotationalKeys = Track.InternalTrackData.RotKeys;
+				for (FQuat4f& RotationalKey : NewRotationalKeys)
 				{
 					RotationalKey.W *= -1.f;
 				}
@@ -2208,7 +2208,7 @@ bool UAnimSequence::DoesSequenceContainZeroScale() const
 	const TArray<FBoneAnimationTrack>& BoneAnimationTracks = DataModel->GetBoneAnimationTracks();
 	for (const FBoneAnimationTrack& Track : BoneAnimationTracks)
 	{
-		for (const FVector& ScaleKey : Track.InternalTrackData.ScaleKeys)
+		for (const FVector3f& ScaleKey : Track.InternalTrackData.ScaleKeys)
 		{
 			if (ScaleKey.IsZero())
 			{
@@ -2229,10 +2229,10 @@ FGuid UAnimSequence::GenerateGuidFromRawData() const
 
 void CopyTransformToRawAnimationData(const FTransform& BoneTransform, FRawAnimSequenceTrack& Track, int32 Frame)
 {
-	Track.PosKeys[Frame] = BoneTransform.GetTranslation();
-	Track.RotKeys[Frame] = BoneTransform.GetRotation();
+	Track.PosKeys[Frame] = FVector3f(BoneTransform.GetTranslation());
+	Track.RotKeys[Frame] = FQuat4f(BoneTransform.GetRotation());
 	Track.RotKeys[Frame].Normalize();
-	Track.ScaleKeys[Frame] = BoneTransform.GetScale3D();
+	Track.ScaleKeys[Frame] = FVector3f(BoneTransform.GetScale3D());
 }
 
 struct FByFramePoseEvalContext
@@ -2414,14 +2414,24 @@ void UAnimSequence::BakeOutVirtualBoneTracks(TArray<FRawAnimSequenceTrack>& NewR
 	}
 }
 
-bool IsIdentity(const FVector& Pos)
+bool IsIdentity(const FVector3d& Pos)
 {
-	return Pos.Equals(FVector::ZeroVector);
+	return Pos.Equals(FVector3d::ZeroVector);
 }
 
-bool IsIdentity(const FQuat& Rot)
+bool IsIdentity(const FVector3f& Pos)
 {
-	return Rot.Equals(FQuat::Identity);
+	return Pos.Equals(FVector3f::ZeroVector);
+}
+
+bool IsIdentity(const FQuat4d& Rot)
+{
+	return Rot.Equals(FQuat4d::Identity);
+}
+
+bool IsIdentity(const FQuat4f& Rot)
+{
+	return Rot.Equals(FQuat4f::Identity);
 }
 
 template<class KeyType>
@@ -3077,9 +3087,9 @@ void UAnimSequence::RemapTracksToNewSkeleton( USkeleton* NewSkeleton, bool bConv
 
 				for(int32 Key=0; Key<NumKeys; ++Key)
 				{
-					RawAnimation.PosKeys[Key] = ConvertedLocalSpaceAnimations[SrcTrackIndex][Key].GetLocation();
-					RawAnimation.RotKeys[Key] = ConvertedLocalSpaceAnimations[SrcTrackIndex][Key].GetRotation();
-					RawAnimation.ScaleKeys[Key] = ConvertedLocalSpaceAnimations[SrcTrackIndex][Key].GetScale3D();
+					RawAnimation.PosKeys[Key] = FVector3f(ConvertedLocalSpaceAnimations[SrcTrackIndex][Key].GetLocation());
+					RawAnimation.RotKeys[Key] = FQuat4f(ConvertedLocalSpaceAnimations[SrcTrackIndex][Key].GetRotation());
+					RawAnimation.ScaleKeys[Key] = FVector3f(ConvertedLocalSpaceAnimations[SrcTrackIndex][Key].GetScale3D());
 
 					// normalize rotation
 					RawAnimation.RotKeys[Key].Normalize();
@@ -3225,9 +3235,9 @@ void UAnimSequence::RemapTracksToNewSkeleton( USkeleton* NewSkeleton, bool bConv
 				}
 			}
 
-			TArray<FVector> PosKeys;
-			TArray<FQuat> RotKeys;
-			TArray<FVector> ScaleKeys;
+			TArray<FVector3f> PosKeys;
+			TArray<FQuat4f> RotKeys;
+			TArray<FVector3f> ScaleKeys;
 
 			// now apply the theta back to the animated space bases
 			for(int32 BoneIndex=0; BoneIndex<NumBones; ++BoneIndex)
@@ -3274,9 +3284,9 @@ void UAnimSequence::RemapTracksToNewSkeleton( USkeleton* NewSkeleton, bool bConv
 
 					for(int32 Key=0; Key<NumKeys; ++Key)
 					{
-						PosKeys[Key] = ConvertedLocalSpaces[BoneIndex][Key].GetLocation();
-						RotKeys[Key] = ConvertedLocalSpaces[BoneIndex][Key].GetRotation();
-						ScaleKeys[Key] = ConvertedLocalSpaces[BoneIndex][Key].GetScale3D();
+						PosKeys[Key] = FVector3f(ConvertedLocalSpaces[BoneIndex][Key].GetLocation());
+						RotKeys[Key] = FQuat4f(ConvertedLocalSpaces[BoneIndex][Key].GetRotation());
+						ScaleKeys[Key] = FVector3f(ConvertedLocalSpaces[BoneIndex][Key].GetScale3D());
 					}
 
 					Controller->SetBoneTrackKeys(BoneName, PosKeys, RotKeys, ScaleKeys);
@@ -3475,9 +3485,9 @@ int32 UAnimSequence::InsertTrack(const FName& BoneName)
 		const TArray<FTransform>& RefPose = RefSkeleton.GetRefBonePose();
 
 		FRawAnimSequenceTrack RawTrack;
-		RawTrack.PosKeys.Add(RefPose[BoneIndex].GetTranslation());
-		RawTrack.RotKeys.Add(RefPose[BoneIndex].GetRotation());
-		RawTrack.ScaleKeys.Add(RefPose[BoneIndex].GetScale3D());
+		RawTrack.PosKeys.Add(FVector3f(RefPose[BoneIndex].GetTranslation()));
+		RawTrack.RotKeys.Add(FQuat4f(RefPose[BoneIndex].GetRotation()));
+		RawTrack.ScaleKeys.Add(FVector3f(RefPose[BoneIndex].GetScale3D()));
 
 		// now insert to the track
 		Controller->InsertBoneTrack(BoneName, NewTrackIndex);
@@ -3606,7 +3616,7 @@ int32 UAnimSequence::GetSpaceBasedAnimationData(TArray< TArray<FTransform> >& An
 								{
 									for(int32 Key = 0; Key < NumKeys; ++Key)
 									{
-										ComponentRotation = AnimationDataInComponentSpace[ParentBoneIndex][Key].GetRotation() * RiggingAnimationData->AnimationTracks[NodeIndex].RotKeys[Key];
+										ComponentRotation = AnimationDataInComponentSpace[ParentBoneIndex][Key].GetRotation() * FQuat(RiggingAnimationData->AnimationTracks[NodeIndex].RotKeys[Key]);
 										AnimationDataInComponentSpace[BoneIndex][Key].SetRotation(ComponentRotation);
 									}
 
@@ -3617,7 +3627,7 @@ int32 UAnimSequence::GetSpaceBasedAnimationData(TArray< TArray<FTransform> >& An
 							{
 								for(int32 Key = 0; Key < NumKeys; ++Key)
 								{
-									ComponentRotation = RiggingAnimationData->AnimationTracks[NodeIndex].RotKeys[Key];
+									ComponentRotation = FQuat(RiggingAnimationData->AnimationTracks[NodeIndex].RotKeys[Key]);
 									AnimationDataInComponentSpace[BoneIndex][Key].SetRotation(ComponentRotation);
 								}
 
@@ -3819,7 +3829,7 @@ bool UAnimSequence::ConvertAnimationDataToRiggingData(FAnimSequenceTrackContaine
 								{
 									FTransform ParentTransform = AnimationDataInComponentSpace[ParentBoneIndex][KeyIndex];
 									FTransform RelativeTransform = AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetRelativeTransform(ParentTransform);
-									Track.RotKeys[KeyIndex] = RelativeTransform.GetRotation();
+									Track.RotKeys[KeyIndex] = FQuat4f(RelativeTransform.GetRotation());
 								}
 							}
 							else
@@ -3827,7 +3837,7 @@ bool UAnimSequence::ConvertAnimationDataToRiggingData(FAnimSequenceTrackContaine
 								// if no rig control, component space is used
 								for (int32 KeyIndex = 0; KeyIndex < NumModelKeys; ++KeyIndex)
 								{
-									Track.RotKeys[KeyIndex] = AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetRotation();
+									Track.RotKeys[KeyIndex] = FQuat4f(AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetRotation());
 								}
 							}
 						}
@@ -3836,7 +3846,7 @@ bool UAnimSequence::ConvertAnimationDataToRiggingData(FAnimSequenceTrackContaine
 							// if no rig control, component space is used
 							for (int32 KeyIndex = 0; KeyIndex < NumModelKeys; ++KeyIndex)
 							{
-								Track.RotKeys[KeyIndex] = AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetRotation();
+								Track.RotKeys[KeyIndex] = FQuat4f(AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetRotation());
 							}
 						}
 
@@ -3882,9 +3892,9 @@ bool UAnimSequence::ConvertAnimationDataToRiggingData(FAnimSequenceTrackContaine
 						// if no rig control, component space is used
 						for (int32 KeyIndex = 0; KeyIndex < NumModelKeys; ++KeyIndex)
 						{
-							Track.PosKeys[KeyIndex] = AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetTranslation();
-							Track.RotKeys[KeyIndex] = AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetRotation();
-							Track.ScaleKeys[KeyIndex] = AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetScale3D();
+							Track.PosKeys[KeyIndex] = FVector3f(AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetTranslation());
+							Track.RotKeys[KeyIndex] = FQuat4f(AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetRotation());
+							Track.ScaleKeys[KeyIndex] = FVector3f(AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetScale3D());
 						}
 					}
 				}
@@ -3928,9 +3938,9 @@ bool UAnimSequence::ConvertRiggingDataToAnimationData(FAnimSequenceTrackContaine
 		Controller->RemoveAllBoneTracks();
 
 		// Reused track data arrays
-		TArray<FVector> PosKeys;
-		TArray<FQuat> RotKeys;
-		TArray<FVector> ScaleKeys;
+		TArray<FVector3f> PosKeys;
+		TArray<FQuat4f> RotKeys;
+		TArray<FVector3f> ScaleKeys;
 
 		const int32 NumModelKeys = DataModel->GetNumberOfKeys();
 		const FReferenceSkeleton& RefSkeleton = MySkeleton->GetReferenceSkeleton();
@@ -3957,9 +3967,9 @@ bool UAnimSequence::ConvertRiggingDataToAnimationData(FAnimSequenceTrackContaine
 					{
 						const FTransform LocalTransform = AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetRelativeTransform(AnimationDataInComponentSpace[ParentBoneIndex][KeyIndex]);
 
-						PosKeys[KeyIndex] = LocalTransform.GetTranslation();
-						RotKeys[KeyIndex] = LocalTransform.GetRotation();
-						ScaleKeys[KeyIndex] = LocalTransform.GetScale3D();
+						PosKeys[KeyIndex] = FVector3f(LocalTransform.GetTranslation());
+						RotKeys[KeyIndex] = FQuat4f(LocalTransform.GetRotation());
+						ScaleKeys[KeyIndex] = FVector3f(LocalTransform.GetScale3D());
 					}
 				}
 				else
@@ -3968,9 +3978,9 @@ bool UAnimSequence::ConvertRiggingDataToAnimationData(FAnimSequenceTrackContaine
 					{
 						const FTransform LocalTransform = AnimationDataInComponentSpace[BoneIndex][KeyIndex];
 
-						PosKeys[KeyIndex] = LocalTransform.GetTranslation();
-						RotKeys[KeyIndex] = LocalTransform.GetRotation();
-						ScaleKeys[KeyIndex] = LocalTransform.GetScale3D();
+						PosKeys[KeyIndex] = FVector3f(LocalTransform.GetTranslation());
+						RotKeys[KeyIndex] = FQuat4f(LocalTransform.GetRotation());
+						ScaleKeys[KeyIndex] = FVector3f(LocalTransform.GetScale3D());
 					}
 				}
 
@@ -4035,9 +4045,9 @@ void UAnimSequence::BakeTrackCurvesToRawAnimationTracks(TArray<FRawAnimSequenceT
 				const TArray<FTransform>& RefPose = RefSkeleton.GetRefBonePose();
 
 				FRawAnimSequenceTrack& RawTrack = InOutNewRawTracks.InsertDefaulted_GetRef(NewTrackIndex);
-				RawTrack.PosKeys.Add(RefPose[BoneIndex].GetTranslation());
-				RawTrack.RotKeys.Add(RefPose[BoneIndex].GetRotation());
-				RawTrack.ScaleKeys.Add(RefPose[BoneIndex].GetScale3D());
+				RawTrack.PosKeys.Add(FVector3f(RefPose[BoneIndex].GetTranslation()));
+				RawTrack.RotKeys.Add(FQuat4f(RefPose[BoneIndex].GetRotation()));
+				RawTrack.ScaleKeys.Add(FVector3f(RefPose[BoneIndex].GetScale3D()));
 
 				InOutNewTrackToSkeletonMapTable.Insert(BoneIndex, NewTrackIndex);
 				InOutNewTrackNames.Insert(BoneName, NewTrackIndex);
@@ -4094,7 +4104,7 @@ void UAnimSequence::BakeTrackCurvesToRawAnimationTracks(TArray<FRawAnimSequenceT
 
 				if (RawTrack.RotKeys.Num() == 1)
 				{
-					FQuat OneKey = RawTrack.RotKeys[0];
+					FQuat4f OneKey = RawTrack.RotKeys[0];
 					RawTrack.RotKeys.Init(OneKey, NumberOfSampledKeys);
 				}
 				else
@@ -4120,10 +4130,10 @@ void UAnimSequence::BakeTrackCurvesToRawAnimationTracks(TArray<FRawAnimSequenceT
 				{
 					// now evaluate
 					FTransform AdditiveTransform = Curve.Evaluate(KeyIndex * Interval, 1.0);
-						FTransform LocalTransform(RawTrack.RotKeys[KeyIndex], RawTrack.PosKeys[KeyIndex], RawTrack.ScaleKeys[KeyIndex]);
-						RawTrack.RotKeys[KeyIndex] = LocalTransform.GetRotation() * AdditiveTransform.GetRotation();
-						RawTrack.PosKeys[KeyIndex] = LocalTransform.TransformPosition(AdditiveTransform.GetTranslation());
-						RawTrack.ScaleKeys[KeyIndex] = LocalTransform.GetScale3D() * AdditiveTransform.GetScale3D();
+						FTransform LocalTransform(FQuat(RawTrack.RotKeys[KeyIndex]), FVector(RawTrack.PosKeys[KeyIndex]), FVector(RawTrack.ScaleKeys[KeyIndex]));
+						RawTrack.RotKeys[KeyIndex] = FQuat4f(LocalTransform.GetRotation() * AdditiveTransform.GetRotation());
+						RawTrack.PosKeys[KeyIndex] = FVector3f(LocalTransform.TransformPosition(AdditiveTransform.GetTranslation()));
+						RawTrack.ScaleKeys[KeyIndex] = FVector3f(LocalTransform.GetScale3D() * AdditiveTransform.GetScale3D());
 				}
 
 				// Apply PostProcess behaviour in-place
@@ -4200,7 +4210,7 @@ bool UAnimSequence::CreateAnimation(USkeletalMesh* Mesh)
 		{
 			const FName& BoneName = RefSkeleton.GetBoneName(BoneIndex);
 			Controller->AddBoneTrack(BoneName);
-			Controller->SetBoneTrackKeys(BoneName, { RefBonePose[BoneIndex].GetTranslation() }, { RefBonePose[BoneIndex].GetRotation() }, { RefBonePose[BoneIndex].GetScale3D() });
+			Controller->SetBoneTrackKeys(BoneName, { FVector3f(RefBonePose[BoneIndex].GetTranslation()) }, { FQuat4f(RefBonePose[BoneIndex].GetRotation()) }, { FVector3f(RefBonePose[BoneIndex].GetScale3D()) });
 		}
 
 		Controller->NotifyPopulated();
@@ -4237,7 +4247,7 @@ bool UAnimSequence::CreateAnimation(USkeletalMeshComponent* MeshComponent)
 		{
 			const FName& BoneName = RefSkeleton.GetBoneName(BoneIndex);
 			Controller->AddBoneTrack(BoneName);
-			Controller->SetBoneTrackKeys(BoneName, { BoneSpaceTransforms[BoneIndex].GetTranslation() }, { BoneSpaceTransforms[BoneIndex].GetRotation() }, { BoneSpaceTransforms[BoneIndex].GetScale3D() });
+			Controller->SetBoneTrackKeys(BoneName, TArray<FVector>{ BoneSpaceTransforms[BoneIndex].GetTranslation() }, { BoneSpaceTransforms[BoneIndex].GetRotation() }, TArray<FVector>{ BoneSpaceTransforms[BoneIndex].GetScale3D() });
 		}
 
 		Controller->NotifyPopulated();
@@ -5543,13 +5553,13 @@ void UAnimSequence::PopulateModel()
 			ensure(Keys.Num() == NumKeys);
 		};
 
-		TArray<FVector> PosKeys = SequenceTracks[TrackIndex].PosKeys;
+		TArray<FVector3f> PosKeys = SequenceTracks[TrackIndex].PosKeys;
 		GenerateUniformKeys(PosKeys, FVector::ZeroVector);
 
-		TArray<FQuat> RotKeys = SequenceTracks[TrackIndex].RotKeys;
-		GenerateUniformKeys(RotKeys, FQuat::Identity);
+		TArray<FQuat4f> RotKeys = SequenceTracks[TrackIndex].RotKeys;
+		GenerateUniformKeys(RotKeys, FQuat4f::Identity);
 
-		TArray<FVector> ScaleKeys = SequenceTracks[TrackIndex].ScaleKeys;
+		TArray<FVector3f> ScaleKeys = SequenceTracks[TrackIndex].ScaleKeys;
 		GenerateUniformKeys(ScaleKeys, FVector::OneVector);
 
 		Controller->SetBoneTrackKeys(TempAnimationTrackNames[TrackIndex], PosKeys, RotKeys, ScaleKeys);
@@ -5819,9 +5829,9 @@ void UAnimSequence::ResampleAnimationTrackData()
 
 				UE::Anim::GetBoneTransformFromModel(DataModel, Transform, TrackIndex, SampleTime, EAnimInterpolationType::Linear);
 
-				TrackData.InternalTrackData.PosKeys[FrameIndex] = Transform.GetLocation();
-				TrackData.InternalTrackData.RotKeys[FrameIndex] = Transform.GetRotation();
-				TrackData.InternalTrackData.ScaleKeys[FrameIndex] = Transform.GetScale3D();
+				TrackData.InternalTrackData.PosKeys[FrameIndex] = FVector3f(Transform.GetLocation());
+				TrackData.InternalTrackData.RotKeys[FrameIndex] = FQuat4f(Transform.GetRotation());
+				TrackData.InternalTrackData.ScaleKeys[FrameIndex] = FVector3f(Transform.GetScale3D());
 			}
 		}
 	}

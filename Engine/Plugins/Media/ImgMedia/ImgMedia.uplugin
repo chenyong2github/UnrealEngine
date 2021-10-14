@@ -45,13 +45,13 @@
 			"Name" : "OpenExrWrapper",
 			"Type" : "RuntimeNoCommandlet",
 			"LoadingPhase" : "PostEngineInit",
-			"WhitelistPlatforms" : [ "Mac", "Win64" ]
+			"PlatformAllowList" : [ "Mac", "Win64" ]
 		},
 		{
 			"Name" : "ExrReaderGpu",
 			"Type" : "Runtime",
 			"LoadingPhase" : "PostConfigInit",
-			"WhitelistPlatforms" : [ "Win64" ]
+			"PlatformAllowList" : [ "Win64" ]
 		}
 	]
 }

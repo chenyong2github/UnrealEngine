@@ -27,7 +27,7 @@ FFractureEditorStyle::FFractureEditorStyle()
 	Set("FractureEditor.Planar",               new IMAGE_BRUSH_SVG("FracturePlanarCut", IconSize));
 	Set("FractureEditor.Brick",                new IMAGE_BRUSH_SVG("FractureBrick", IconSize));
 	Set("FractureEditor.Texture",              new IMAGE_BRUSH_SVG("FractureTexture", IconSize));
-	Set("FractureEditor.Mesh",                 new IMAGE_BRUSH_SVG("FractureTexture", IconSize));
+	Set("FractureEditor.Mesh",                 new IMAGE_BRUSH_SVG("FractureMesh", IconSize));
 
 	// This is a bit of magic.  When you pass a command your Builder.AddToolBarButton, it will automatically try to find 
 	// and Icon with the same name as the command and TCommand<> Context Name.  
@@ -37,7 +37,7 @@ FFractureEditorStyle::FFractureEditorStyle()
 	Set("FractureEditor.SelectParent",		   new IMAGE_BRUSH_SVG("FractureSelectParent", IconSize));
 	Set("FractureEditor.SelectChildren",       new IMAGE_BRUSH_SVG("FractureSelectChildren", IconSize));
 	Set("FractureEditor.SelectSiblings",       new IMAGE_BRUSH_SVG("FractureSelectSiblings", IconSize));
-	Set("FractureEditor.SelectAllInLevel",     new IMAGE_BRUSH_SVG("FractureSelectAllInLevel", IconSize));
+	Set("FractureEditor.SelectAllInLevel",     new IMAGE_BRUSH_SVG("FractureSelectLevel", IconSize));
 	Set("FractureEditor.SelectInvert",         new IMAGE_BRUSH_SVG("FractureSelectInvert", IconSize));
 
 	Set("FractureEditor.AutoCluster",          new IMAGE_BRUSH_SVG("FractureAutoCluster", IconSize));
@@ -51,7 +51,7 @@ FFractureEditorStyle::FFractureEditorStyle()
 
 	Set("FractureEditor.AddEmbeddedGeometry",  new IMAGE_BRUSH_SVG("FractureEmbed", IconSize));
 	Set("FractureEditor.AutoEmbedGeometry",    new IMAGE_BRUSH_SVG("FractureAutoEmbed", IconSize));
-	Set("FractureEditor.FlushEmbedGeometry",   new IMAGE_BRUSH_SVG("FractureFlushEmbed", IconSize));
+	Set("FractureEditor.FlushEmbeddedGeometry",new IMAGE_BRUSH_SVG("FractureFlush", IconSize));
 
 	Set("FractureEditor.AutoUV",               new IMAGE_BRUSH_SVG("FractureAutoUV", IconSize));
 
@@ -64,6 +64,10 @@ FFractureEditorStyle::FFractureEditorStyle()
 
 	Set("FractureEditor.ToMesh",        	   new CORE_IMAGE_BRUSH_SVG("../Editor/Slate/Starship/Common/MakeStaticMesh", IconSize));
 	Set("FractureEditor.Validate",        	   new CORE_IMAGE_BRUSH_SVG("../Editor/Slate/Starship/Common/Test", IconSize));
+
+	Set("FractureEditor.Convex",        	   new IMAGE_BRUSH_SVG("FractureConvex", IconSize));
+	Set("FractureEditor.CustomVoronoi",        new IMAGE_BRUSH_SVG("FractureCustom", IconSize));
+	Set("FractureEditor.FixTinyGeo",	       new IMAGE_BRUSH_SVG("FractureGeoMerge", IconSize));
 
 	// View Settings
 	Set("FractureEditor.Exploded",             new IMAGE_BRUSH_SVG("FractureMiniExploded", LabelIconSize));

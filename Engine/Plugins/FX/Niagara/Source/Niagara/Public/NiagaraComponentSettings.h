@@ -77,7 +77,7 @@ public:
 
 	FORCEINLINE static bool ShouldSuppressEmitterActivation(const FNiagaraEmitterInstance* EmitterInstance)
 	{
-		if ( bUseSuppressEmitterList || bUseGpuEmitterWhitelist || bUseGpuDataInterfaceBlacklist)
+		if ( bUseSuppressEmitterList || bUseGpuEmitterAllowList || bUseGpuDataInterfaceDenyList)
 		{
 			const UNiagaraComponentSettings* ComponentSettings = GetDefault<UNiagaraComponentSettings>();
 
@@ -94,18 +94,18 @@ public:
 				return true;
 			}
 
-			if (bUseGpuEmitterWhitelist && (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim) && !ComponentSettings->GPUEmitterWhitelist.Contains(EmitterRef))
+			if (bUseGpuEmitterAllowList && (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim) && !ComponentSettings->GPUEmitterAllowList.Contains(EmitterRef))
 			{
 				return true;
 			}
 
-			if ( bUseGpuDataInterfaceBlacklist && (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim) )
+			if ( bUseGpuDataInterfaceDenyList && (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim) )
 			{
 				if (const UNiagaraScript* GPUComputeScript = CachedEmitter->GetGPUComputeScript())
 				{
 					for (const FNiagaraScriptDataInterfaceInfo& DefaultDIInfo : GPUComputeScript->GetCachedDefaultDataInterfaces())
 					{
-						if (ComponentSettings->GpuDataInterfaceBlacklist.Contains(DefaultDIInfo.Type.GetFName()))
+						if (ComponentSettings->GpuDataInterfaceDenyList.Contains(DefaultDIInfo.Type.GetFName()))
 						{
 							return true;
 						}
@@ -126,20 +126,20 @@ public:
 		Config file to tweak individual emitters being disabled. Syntax is as follows for the config file:
 		[/Script/Niagara.NiagaraComponentSettings]
 		SuppressEmitterList=((SystemName="BasicSpriteSystem",EmitterName="BasicSprite001"))
-		+GpuDataInterfaceBlacklist=("NiagaraDataInterfaceCollisionQuery")
+		+GpuDataInterfaceDenyList=("NiagaraDataInterfaceCollisionQuery")
 	*/
 	UPROPERTY(config)
 	TSet<FNiagaraEmitterNameSettingsRef> SuppressEmitterList;
 
 	UPROPERTY(config)
-	TSet<FNiagaraEmitterNameSettingsRef> GPUEmitterWhitelist;
+	TSet<FNiagaraEmitterNameSettingsRef> GPUEmitterAllowList;
 
 	UPROPERTY(config)
-	TSet<FName> GpuDataInterfaceBlacklist;
+	TSet<FName> GpuDataInterfaceDenyList;
 
 	static int32 bAllowSuppressActivation;
 	static int32 bAllowForceAutoPooling;
 	static int32 bUseSuppressEmitterList;
-	static int32 bUseGpuEmitterWhitelist;
-	static int32 bUseGpuDataInterfaceBlacklist;
+	static int32 bUseGpuEmitterAllowList;
+	static int32 bUseGpuDataInterfaceDenyList;
 };

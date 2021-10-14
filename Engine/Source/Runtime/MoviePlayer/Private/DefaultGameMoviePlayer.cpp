@@ -189,7 +189,6 @@ void FDefaultGameMoviePlayer::Initialize(FSlateRenderer& InSlateRenderer, TShare
 	
 	// Shutdown the movie player if the app is exiting
 	FCoreDelegates::OnPreExit.AddRaw( this, &FDefaultGameMoviePlayer::Shutdown );
-	FMoviePlayerProxy::RegisterServer(this);
 
 	FPlatformSplash::Hide();
 
@@ -1055,6 +1054,19 @@ void FDefaultGameMoviePlayer::Resume()
 
 void FDefaultGameMoviePlayer::SetIsPlayOnBlockingEnabled(bool bIsEnabled)
 {
-	bIsPlayOnBlockingEnabled = true;
+	if (bIsPlayOnBlockingEnabled != bIsEnabled)
+	{
+		bIsPlayOnBlockingEnabled = bIsEnabled;
+
+		if (bIsPlayOnBlockingEnabled)
+		{
+			FMoviePlayerProxy::RegisterServer(this);
+		}
+		else
+		{
+			BlockingFinished();
+			FMoviePlayerProxy::UnregisterServer();
+		}
+	}
 }
 

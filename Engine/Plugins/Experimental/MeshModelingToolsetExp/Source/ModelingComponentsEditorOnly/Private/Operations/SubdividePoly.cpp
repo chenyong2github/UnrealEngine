@@ -673,9 +673,11 @@ bool FSubdividePoly::ComputeSubdividedMesh(FDynamicMesh3& OutMesh)
 	{
 		if (OutMesh.IsVertex(Vid) && !OutMesh.IsReferencedVertex(Vid))
 		{
-			OutMesh.RemoveVertex(Vid, false, false);
+			constexpr bool bPreserveManifold = false;
+			OutMesh.RemoveVertex(Vid, bPreserveManifold);
 		}
 	}
+
 #else	// HAVE_OPENSUBDIV
 
 	OutMesh = OriginalMesh;

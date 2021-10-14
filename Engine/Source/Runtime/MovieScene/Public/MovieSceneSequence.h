@@ -278,6 +278,10 @@ public:
 
 private:
 
+#if WITH_EDITOR
+	bool OptimizeForCook();
+#endif
+
 	/** Serialized compiled data - should only be used through UMovieSceneCompiledDataManager */
 	UPROPERTY(Instanced)
 	TObjectPtr<UMovieSceneCompiledData> CompiledData;

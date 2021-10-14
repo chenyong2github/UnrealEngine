@@ -19,7 +19,7 @@
 #include "AppleARKitSettings.h"
 #include "ARTrackable.h"
 
-#include "LiveLinkClient.h"
+#include "ILiveLinkClient.h"
 
 #include "Animation/PoseAsset.h"
 

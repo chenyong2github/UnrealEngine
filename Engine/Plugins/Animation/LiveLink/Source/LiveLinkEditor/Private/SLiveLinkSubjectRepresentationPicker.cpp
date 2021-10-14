@@ -536,7 +536,7 @@ void SLiveLinkSubjectRepresentationPicker::BuildSubjectRepDataList()
 					SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole SrcSubRole;
 					SrcSubRole.Source = SubjectKey.Source;
 					SrcSubRole.Subject = SubjectKey.SubjectName;
-					SrcSubRole.Role = LiveLinkClient.GetSubjectRole(SubjectKey);
+					SrcSubRole.Role = LiveLinkClient.GetSubjectRole_AnyThread(SubjectKey);
 					SubjectRepData.Add(MakeShared<FLiveLinkSubjectRepresentationPickerEntry>(SrcSubRole, UniqueSources[SubjectKey.Source], bEnabled));
 				}
 			}
@@ -575,7 +575,7 @@ void SLiveLinkSubjectRepresentationPicker::BuildSubjectRepDataList()
 
 				SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole SrcSubRole;
 				SrcSubRole.Subject = Item.Key;
-				SrcSubRole.Role = LiveLinkClient.GetSubjectRole(Item.Key);
+				SrcSubRole.Role = LiveLinkClient.GetSubjectRole_AnyThread(Item.Key);
 
 				if (SrcSubRole.Role == nullptr && Item.Value != 1)
 				{
@@ -584,7 +584,7 @@ void SLiveLinkSubjectRepresentationPicker::BuildSubjectRepDataList()
 					{
 						if (Key.SubjectName == Item.Key)
 						{
-							 TSubclassOf<ULiveLinkRole> NewRole = LiveLinkClient.GetSubjectRole(Key);
+							 TSubclassOf<ULiveLinkRole> NewRole = LiveLinkClient.GetSubjectRole_AnyThread(Key);
 							 if (!bIsFirstEntry && SrcSubRole.Role != NewRole)
 							 {
 								 SrcSubRole.Role = nullptr;

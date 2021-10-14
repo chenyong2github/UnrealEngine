@@ -198,9 +198,9 @@ FORCEINLINE void AEFConstantKeyLerp<FORMAT>::GetBoneAtomRotation(FTransform& Out
 	if (NumRotKeys == 1)
 	{
 		// For a rotation track of n=1 keys, the single key is packed as an FQuatFloat96NoW.
-		FQuat R0;
+		FQuat4f R0;
 		DecompressRotation<ACF_Float96NoW>( R0, RotStream, RotStream );
-		OutAtom.SetRotation(R0);
+		OutAtom.SetRotation( FQuat(R0) );
 	}
 	else
 	{
@@ -216,24 +216,24 @@ FORCEINLINE void AEFConstantKeyLerp<FORMAT>::GetBoneAtomRotation(FTransform& Out
 			// unpack and lerp between the two nearest keys
 			const uint8* RESTRICT KeyData0= RotStream + RotationStreamOffset +(Index0*CompressedRotationStrides[FORMAT]*CompressedRotationNum[FORMAT]);
 			const uint8* RESTRICT KeyData1= RotStream + RotationStreamOffset +(Index1*CompressedRotationStrides[FORMAT]*CompressedRotationNum[FORMAT]);
-			FQuat R0;
-			FQuat R1;
+			FQuat4f R0;
+			FQuat4f R1;
 			DecompressRotation<FORMAT>( R0, RotStream, KeyData0 );
 			DecompressRotation<FORMAT>( R1, RotStream, KeyData1 );
 
 			// Fast linear quaternion interpolation.
-			FQuat BlendedQuat = FQuat::FastLerp(R0, R1, Alpha);
+			FQuat4f BlendedQuat = FQuat4f::FastLerp(R0, R1, Alpha);
 			BlendedQuat.Normalize();
-			OutAtom.SetRotation( BlendedQuat );
+			OutAtom.SetRotation( FQuat(BlendedQuat) );
 		}
 		else // (Index0 == Index1)
 		{
 			
 			// unpack a single key
 			const uint8* RESTRICT KeyData= RotStream + RotationStreamOffset +(Index0*CompressedRotationStrides[FORMAT]*CompressedRotationNum[FORMAT]);
-			FQuat R0;
+			FQuat4f R0;
 			DecompressRotation<FORMAT>( R0, RotStream, KeyData );
-			OutAtom.SetRotation( R0 );
+			OutAtom.SetRotation( FQuat(R0) );
 		}
 	}
 }

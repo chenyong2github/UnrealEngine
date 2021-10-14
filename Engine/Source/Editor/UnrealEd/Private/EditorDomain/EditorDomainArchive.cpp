@@ -356,6 +356,8 @@ void FEditorDomainPackageSegments::OnRecordRequestComplete(UE::DerivedData::FCac
 		}
 	}
 
+	UE_LOG(LogEditorDomain, Verbose, TEXT("Loading from %s: %s."),
+		NewAsyncSource == ESource::Segments ? TEXT("EditorDomain") : TEXT("WorkspaceDomain"), *PackagePath.GetDebugName());
 	if (NewAsyncSource == ESource::Uninitialized)
 	{
 		FScopeLock DomainScopeLock(&EditorDomainLocks->Lock);

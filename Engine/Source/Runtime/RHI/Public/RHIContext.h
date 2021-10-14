@@ -16,6 +16,7 @@
 #include "Math/ScaleMatrix.h"
 #include "Math/Float16Color.h"
 #include "Modules/ModuleInterface.h"
+#include "RHIBreadcrumbs.h"
 
 class FRHIDepthRenderTargetView;
 class FRHIRenderTargetView;
@@ -31,20 +32,6 @@ struct FRayTracingLocalShaderBindings;
 enum class EAsyncComputeBudget;
 
 #define VALIDATE_UNIFORM_BUFFER_STATIC_BINDINGS (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
-
-#if !defined(RHI_WANT_BREADCRUMB_EVENTS)
-	#define RHI_WANT_BREADCRUMB_EVENTS 0
-#endif
-
-#if RHI_WANT_BREADCRUMB_EVENTS
-struct FRHIBreadcrumb
-{
-	FRHIBreadcrumb* Parent{};
-	const TCHAR* Name{};
-};
-
-struct FRHIBreadcrumbState;
-#endif
 
 /** A list of static uniform buffer bindings. */
 class FUniformBufferStaticBindings

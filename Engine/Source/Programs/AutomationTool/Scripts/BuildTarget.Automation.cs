@@ -13,10 +13,10 @@ namespace AutomationTool
 {
 
 	[Help("Builds the specified targets and configurations for the specified project.")]
-	[Help("Example BuildTarget -project=QAGame -target=Editor+Game -platform=PS4+XboxOne -configuration=Development.")]
+	[Help("Example BuildTarget -project=QAGame -target=Editor+Game -platform=Win64+Android -configuration=Development.")]
 	[Help("Note: Editor will only ever build for the current platform in a Development config and required tools will be included")]
 	[Help("project=<QAGame>", "Project to build. Will search current path and paths in ueprojectdirs. If omitted will build vanilla UnrealEditor")]
-	[Help("platform=PS4+XboxOne", "Platforms to build, join multiple platforms using +")]
+	[Help("platform=Win64+Android", "Platforms to build, join multiple platforms using +")]
 	[Help("configuration=Development+Test", "Configurations to build, join multiple configurations using +")]
 	[Help("target=Editor+Game", "Targets to build, join multiple targets using +")]
 	[Help("notools", "Don't build any tools (UnrealPak, Lightmass, ShaderCompiler, CrashReporter")]
@@ -304,9 +304,9 @@ namespace AutomationTool
 	}
 
 	[Help("Builds the game for the specified project.")]
-	[Help("Example BuildGame -project=QAGame -platform=PS4+XboxOne -configuration=Development.")]
+	[Help("Example BuildGame -project=QAGame -platform=Win64+Android -configuration=Development.")]
 	[Help("project=<QAGame>", "Project to build. Will search current path and paths in ueprojectdirs.")]
-	[Help("platform=PS4+XboxOne", "Platforms to build, join multiple platforms using +")]
+	[Help("platform=Wind64+Android", "Platforms to build, join multiple platforms using +")]
 	[Help("configuration=Development+Test", "Configurations to build, join multiple configurations using +")]
 	[Help("notools", "Don't build any tools (UHT, ShaderCompiler, CrashReporter")]
 	class BuildGame : BuildTarget

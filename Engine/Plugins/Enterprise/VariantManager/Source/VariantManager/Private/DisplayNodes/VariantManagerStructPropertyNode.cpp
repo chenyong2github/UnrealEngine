@@ -125,7 +125,7 @@ void ExtractNumericMetadata(FProperty* Property, TOptional<NumericType>& MinValu
 #define GET_OR_EMPTY(Optional, type) Optional.IsSet()? static_cast<type>(Optional.GetValue()) : TOptional<type>()
 
 template <typename F>
-TSharedRef<SWidget> FVariantManagerStructPropertyNode::GenerateFloatEntryBox(FNumericProperty* Prop, int32 Offset)
+TSharedRef<SWidget> FVariantManagerStructPropertyNode::GenerateFloatEntryBox(FNumericProperty* Prop, int32 RecordedElementSize, int32 Offset)
 {
 	TOptional<F> MinValue, MaxValue, SliderMinValue, SliderMaxValue;
 	F SliderExponent, Delta;
@@ -139,9 +139,9 @@ TSharedRef<SWidget> FVariantManagerStructPropertyNode::GenerateFloatEntryBox(FNu
 	.AllowSpin(true)
 	.Font( FEditorStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
 	.OnBeginSliderMovement(this, &FVariantManagerStructPropertyNode::OnBeginSliderMovement, Prop)
-	.OnEndSliderMovement(this, &FVariantManagerStructPropertyNode::OnFloatEndSliderMovement, Prop, Offset)
+	.OnEndSliderMovement(this, &FVariantManagerStructPropertyNode::OnFloatEndSliderMovement, Prop, RecordedElementSize, Offset)
 	.OnValueChanged(this, &FVariantManagerStructPropertyNode::OnFloatValueChanged, Prop)
-	.OnValueCommitted(this, &FVariantManagerStructPropertyNode::OnFloatPropCommitted, Prop, Offset)
+	.OnValueCommitted(this, &FVariantManagerStructPropertyNode::OnFloatPropCommitted, Prop, RecordedElementSize, Offset)
 	.Value(this, &FVariantManagerStructPropertyNode::GetFloatValueFromCache, Prop)
 	.UndeterminedString(LOCTEXT("MultipleValuesLabel", "Multiple Values"))
 	.ShiftMouseMovePixelPerDelta(ShiftMouseMovePixelPerDelta)
@@ -296,9 +296,6 @@ TSharedPtr<SWidget> FVariantManagerStructPropertyNode::GetPropertyValueWidget()
 	{
 		static UPackage* CoreUObjectPkg = FindObjectChecked<UPackage>(nullptr, TEXT("/Script/CoreUObject"));
 		StructClassToEdit = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Vector"));
-
-		// This is not likely to change but this would all break horribly if it did
-		ensure(sizeof(FVector) == sizeof(FRotator));
 	}
 
 	TSharedPtr<SHorizontalBox> HorizBox = SNew(SHorizontalBox);
@@ -323,20 +320,22 @@ TSharedPtr<SWidget> FVariantManagerStructPropertyNode::GetPropertyValueWidget()
 		bool bSameValue = true;
 
 		// For rotators, this widget will display an actual vector so we need to switch up
-		// the offsets
+		// the size and offsets
+		const size_t RotatorElementSize = sizeof(FRotator().Roll);
 		if (bIsRotator)
 		{
-			static const size_t F = sizeof(float);
+			const size_t VectorElementSize = sizeof( FVector().X );
+
 			switch (Offset)
 			{
 			case 0: // Edit to X --> modify roll
-				Offset = 2*F;
+				Offset = 2 * RotatorElementSize;
 				break;
-			case F: // Edit to Y --> modify pitch
+			case VectorElementSize: // Edit to Y --> modify pitch
 				Offset = 0;
 				break;
-			case 2*F: // Edit to Z --> modify yaw
-				Offset = F;
+			case VectorElementSize * 2: // Edit to Z --> modify yaw
+				Offset = RotatorElementSize;
 				break;
 			default:
 				check(false);
@@ -344,21 +343,25 @@ TSharedPtr<SWidget> FVariantManagerStructPropertyNode::GetPropertyValueWidget()
 			}
 		}
 
+		// This is not trivial because if we're a rotator property the standard is to actually show a vector
+		// widget, but the vector widget expects to read/write from doubles, while rotators still hold floats
+		const size_t RecordedElementSize = bIsRotator ? RotatorElementSize : Prop->ElementSize;
+
 		FMargin& MarginToUse = (Prop == LastProp) ? LastMargin : CommonMargin;
 
 		if (Prop->IsFloatingPoint())
 		{
 			TOptional<double>& StoredValue = FloatValues.FindOrAdd(Prop);
-			StoredValue = GetFloatValueFromPropertyValue(Prop, Offset);
+			StoredValue = GetFloatValueFromPropertyValue(Prop, RecordedElementSize, Offset);
 
 			TSharedPtr<SWidget> EntryBox = nullptr;
 			switch (Size)
 			{
 			case sizeof(float):
-				EntryBox = GenerateFloatEntryBox<float>(Prop, Offset);
+				EntryBox = GenerateFloatEntryBox<float>(Prop, RecordedElementSize, Offset);
 				break;
 			case sizeof(double):
-				EntryBox = GenerateFloatEntryBox<double>(Prop, Offset);
+				EntryBox = GenerateFloatEntryBox<double>(Prop, RecordedElementSize, Offset);
 				break;
 			default:
 				break;
@@ -450,7 +453,7 @@ TSharedPtr<SWidget> FVariantManagerStructPropertyNode::GetPropertyValueWidget()
 			];
 }
 
-void FVariantManagerStructPropertyNode::OnFloatPropCommitted(double InValue, ETextCommit::Type InCommitType, FNumericProperty* Prop, int32 Offset)
+void FVariantManagerStructPropertyNode::OnFloatPropCommitted(double InValue, ETextCommit::Type InCommitType, FNumericProperty* Prop, int32 RecordedElementSize, int32 Offset)
 {
 	if (!Prop || PropertyValues.Num() < 1 || !PropertyValues[0].IsValid())
 	{
@@ -458,34 +461,41 @@ void FVariantManagerStructPropertyNode::OnFloatPropCommitted(double InValue, ETe
 	}
 
 	UPropertyValue* FirstPropertyValue = PropertyValues[0].Get();
-	int32 Size = Prop->ElementSize;
-	TArray<uint8> InValueBytes;
-	InValueBytes.SetNumUninitialized(Size);
 
-	// Don't create a transaction or re-copy the data if its the same
 	const TArray<uint8>& RecordedBytes = FirstPropertyValue->GetRecordedData();
-	float OldValue = Prop->GetFloatingPointPropertyValue(RecordedBytes.GetData() + Offset);
-	if (OldValue == InValue)
-	{
-		return;
-	}
 
-	switch (Size)
+	TArray<uint8> InValueBytes;
+	InValueBytes.SetNumUninitialized( RecordedElementSize );
+
+	switch ( RecordedElementSize )
 	{
 	case sizeof(float):
 	{
-		float CastValue = static_cast<float>(InValue);
-		FMemory::Memcpy(InValueBytes.GetData(), (uint8*)(&CastValue), Size);
+		const float OldValue = *( reinterpret_cast< const float* >( RecordedBytes.GetData() + Offset ) );
+		const float CastValue = static_cast< float >( InValue );
+
+		if ( OldValue == CastValue )
+		{
+			return;
+		}
+
+		FMemory::Memcpy(InValueBytes.GetData(), (uint8*)(&CastValue), RecordedElementSize );
 		break;
 	}
 	case sizeof(double):
 	{
-		double CastValue = static_cast<double>(InValue);
-		FMemory::Memcpy(InValueBytes.GetData(), (uint8*)(&CastValue), Size);
+		const double OldValue = *( reinterpret_cast< const double* >( RecordedBytes.GetData() + Offset ) );
+
+		if ( OldValue == InValue )
+		{
+			return;
+		}
+
+		FMemory::Memcpy(InValueBytes.GetData(), (uint8*)(&InValue), RecordedElementSize );
 		break;
 	}
 	default:
-		UE_LOG(LogVariantManager, Error, TEXT("Float property has unhandled size %d!"), Size);
+		UE_LOG(LogVariantManager, Error, TEXT("Float property has unhandled size %d!"), RecordedElementSize );
 		return;
 	}
 
@@ -500,7 +510,7 @@ void FVariantManagerStructPropertyNode::OnFloatPropCommitted(double InValue, ETe
 	{
 		if (PropertyValue.IsValid())
 		{
-			PropertyValue.Get()->SetRecordedData(InValueBytes.GetData(), Size, Offset);
+			PropertyValue.Get()->SetRecordedData(InValueBytes.GetData(), RecordedElementSize, Offset);
 		}
 	}
 
@@ -646,15 +656,13 @@ void FVariantManagerStructPropertyNode::OnUnsignedPropCommitted(uint64 InValue, 
 	ResetButton->SetVisibility(GetResetButtonVisibility());
 }
 
-TOptional<double> FVariantManagerStructPropertyNode::GetFloatValueFromPropertyValue(FNumericProperty* Prop, int32 Offset) const
+TOptional<double> FVariantManagerStructPropertyNode::GetFloatValueFromPropertyValue(FNumericProperty* Prop, int32 RecordedElementSize, int32 Offset) const
 {
 	int32 NumPropVals = PropertyValues.Num();
 	if (Prop == nullptr || NumPropVals < 1)
 	{
 		return TOptional<double>();
 	}
-
-	int32 Size = Prop->ElementSize;
 
 	const TArray<uint8>* FirstRecordedData = nullptr;
 
@@ -673,13 +681,15 @@ TOptional<double> FVariantManagerStructPropertyNode::GetFloatValueFromPropertyVa
 		{
 			FirstRecordedData = &RecordedData;
 		}
-
-		for (int32 Index = 0; Index < Size; Index++)
+		else
 		{
-			if ((*FirstRecordedData)[Offset + Index] != RecordedData[Offset + Index])
+			for (int32 Index = 0; Index < RecordedElementSize; Index++)
 			{
-				bSameValue = false;
-				break;
+				if ((*FirstRecordedData)[Offset + Index] != RecordedData[Offset + Index])
+				{
+					bSameValue = false;
+					break;
+				}
 			}
 		}
 
@@ -690,14 +700,19 @@ TOptional<double> FVariantManagerStructPropertyNode::GetFloatValueFromPropertyVa
 		}
 	}
 
-	if (FirstRecordedData == nullptr)
+	if ( FirstRecordedData )
 	{
-		return TOptional<double>();
+		if ( RecordedElementSize == sizeof( float ) )
+		{
+			return *( reinterpret_cast< const float* >( FirstRecordedData->GetData() + Offset ) );
+		}
+		else if ( RecordedElementSize == sizeof( double ) )
+		{
+			return *( reinterpret_cast< const double* >( FirstRecordedData->GetData() + Offset ) );
+		}
 	}
-	else
-	{
-		return Prop->GetFloatingPointPropertyValue(FirstRecordedData->GetData() + Offset);
-	}
+
+	return TOptional<double>();
 }
 
 TOptional<int64> FVariantManagerStructPropertyNode::GetSignedValueFromPropertyValue(FNumericProperty* Prop, int32 Offset) const
@@ -727,13 +742,15 @@ TOptional<int64> FVariantManagerStructPropertyNode::GetSignedValueFromPropertyVa
 		{
 			FirstRecordedData = &RecordedData;
 		}
-
-		for (int32 Index = 0; Index < Size; Index++)
+		else
 		{
-			if ((*FirstRecordedData)[Offset + Index] != RecordedData[Offset + Index])
+			for (int32 Index = 0; Index < Size; Index++)
 			{
-				bSameValue = false;
-				break;
+				if ((*FirstRecordedData)[Offset + Index] != RecordedData[Offset + Index])
+				{
+					bSameValue = false;
+					break;
+				}
 			}
 		}
 
@@ -781,13 +798,15 @@ TOptional<uint64> FVariantManagerStructPropertyNode::GetUnsignedValueFromPropert
 		{
 			FirstRecordedData = &RecordedData;
 		}
-
-		for (int32 Index = 0; Index < Size; Index++)
+		else
 		{
-			if ((*FirstRecordedData)[Offset + Index] != RecordedData[Offset + Index])
+			for (int32 Index = 0; Index < Size; Index++)
 			{
-				bSameValue = false;
-				break;
+				if ((*FirstRecordedData)[Offset + Index] != RecordedData[Offset + Index])
+				{
+					bSameValue = false;
+					break;
+				}
 			}
 		}
 
@@ -843,10 +862,10 @@ void FVariantManagerStructPropertyNode::OnBeginSliderMovement(FNumericProperty* 
 	bIsUsingSlider = true;
 }
 
-void FVariantManagerStructPropertyNode::OnFloatEndSliderMovement(double LastValue, FNumericProperty* Prop, int32 Offset)
+void FVariantManagerStructPropertyNode::OnFloatEndSliderMovement(double LastValue, FNumericProperty* Prop, int32 RecordedElementSize, int32 Offset)
 {
 	bIsUsingSlider = false;
-	OnFloatPropCommitted(LastValue, ETextCommit::Type::Default, Prop, Offset);
+	OnFloatPropCommitted(LastValue, ETextCommit::Type::Default, Prop, RecordedElementSize, Offset);
 }
 
 void FVariantManagerStructPropertyNode::OnSignedEndSliderMovement(int64 LastValue, FNumericProperty* Prop, int32 Offset)

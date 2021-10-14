@@ -204,7 +204,7 @@ protected:
 	TArray<FInitialRowIndex> InitialSectionRowIndicies;
 
 	/** Array of sections that we called Modify on because we're editing keys that belong to these sections, but not actually moving these sections. */
-	TArray<UMovieSceneSection*> ModifiedNonSelectedSections;
+	TArray<TWeakObjectPtr<UMovieSceneSection> > ModifiedNonSelectedSections;
 
 	/** Optional snap field to use when dragging */
 	TOptional<FSequencerSnapField> SnapField;

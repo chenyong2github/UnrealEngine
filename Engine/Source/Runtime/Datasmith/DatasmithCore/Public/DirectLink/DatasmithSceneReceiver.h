@@ -35,7 +35,7 @@ public:
 	void SetChangeListener(ISceneChangeListener* Listener) { ChangeListener = Listener; }
 
 	// Get the reconstructed DatasmithScene. Can be null.
-	TSharedPtr<IDatasmithScene> GetScene();
+	TSharedPtr<IDatasmithScene> GetScene() const;
 
 private: // DirectLink::ISceneReceiver API
 	virtual void FinalSnapshot(const DirectLink::FSceneSnapshot& SceneSnapshot) override;

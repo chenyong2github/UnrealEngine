@@ -8,6 +8,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using OpenTracing;
+using OpenTracing.Util;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -55,7 +57,7 @@ namespace UnrealBuildTool
 
 		public void Clean(List<TargetDescriptor> TargetDescriptors, BuildConfiguration BuildConfiguration)
 		{
-			using ITimelineEvent ScopeEvent = Timeline.ScopeEvent("CleanMode.Clean()");
+			using IScope Scope = GlobalTracer.Instance.BuildSpan("CleanMode.Clean()").StartActive();
 
 			if (TargetDescriptors.Count == 0)
 			{

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "MetasoundEnum.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendRegistries.h"
@@ -20,6 +18,8 @@ namespace Metasound
 		{
 			// The name of the data type.
 			FName DataTypeName;
+
+			FText DataTypeDisplayText;
 
 			// The preferred constructor argument type for creating instances of the data type.
 			ELiteralType PreferredLiteralType = ELiteralType::Invalid;
@@ -129,7 +129,7 @@ namespace Metasound
 			virtual const FMetasoundFrontendClass& GetFrontendOutputClass() const = 0;
 
 			/** Return an FMetasoundFrontendClass representing an init variable node of the data type. */
-			virtual const FMetasoundFrontendClass& GetFrontendInitVariableClass() const = 0;
+			virtual const FMetasoundFrontendClass& GetFrontendVariableClass() const = 0;
 
 			/** Return an FMetasoundFrontendClass representing an set variable node of the data type. */
 			virtual const FMetasoundFrontendClass& GetFrontendSetVariableClass() const = 0;
@@ -156,16 +156,16 @@ namespace Metasound
 			 *
 			 *  @param InInitParams - Contains a literal used to create the variable.
 			 */
-			virtual TUniquePtr<INode> CreateInitVariableNode(FInitVariableNodeConstructorParams&& InInitParams) const = 0;
+			virtual TUniquePtr<INode> CreateVariableNode(FVariableNodeConstructorParams&& InInitParams) const = 0;
 
 			/** Create a set variable node for this data type. */
-			virtual TUniquePtr<INode> CreateSetVariableNode(const FNodeInitData&) const = 0;
+			virtual TUniquePtr<INode> CreateVariableMutatorNode(const FNodeInitData&) const = 0;
 
 			/** Create a get variable node for this data type. */
-			virtual TUniquePtr<INode> CreateGetVariableNode(const FNodeInitData&) const = 0;
+			virtual TUniquePtr<INode> CreateVariableAccessorNode(const FNodeInitData&) const = 0;
 
 			/** Create a get delayed variable node for this data type. */
-			virtual TUniquePtr<INode> CreateGetDelayedVariableNode(const FNodeInitData&) const = 0;
+			virtual TUniquePtr<INode> CreateVariableDeferredAccessorNode(const FNodeInitData&) const = 0;
 
 			/** Create a proxy from a UObject. If this data type does not support
 			 * UObject proxies, return a nullptr. */
@@ -228,7 +228,7 @@ namespace Metasound
 			virtual bool GetFrontendOutputClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const = 0;
 
 			/** Return an FMetasoundFrontendClass representing an init variable node of the data type. */
-			virtual bool GetFrontendInitVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const = 0;
+			virtual bool GetFrontendVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const = 0;
 
 			/** Return an FMetasoundFrontendClass representing an set variable node of the data type. */
 			virtual bool GetFrontendSetVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const = 0;
@@ -244,10 +244,10 @@ namespace Metasound
 			virtual TUniquePtr<INode> CreateLiteralNode(const FName& InLiteralType, FLiteralNodeConstructorParams&& InParams) const = 0;
 			virtual TUniquePtr<INode> CreateOutputNode(const FName& InOutputType, FOutputNodeConstructorParams&& InParams) const = 0;
 			virtual TUniquePtr<INode> CreateReceiveNode(const FName& InDataType, const FNodeInitData&) const = 0;
-			virtual TUniquePtr<INode> CreateInitVariableNode(const FName& InDataType, FInitVariableNodeConstructorParams&& InParams) const = 0;
-			virtual TUniquePtr<INode> CreateSetVariableNode(const FName& InDataType, const FNodeInitData& InParams) const = 0;
-			virtual TUniquePtr<INode> CreateGetVariableNode(const FName& InDataType, const FNodeInitData& InParams) const = 0;
-			virtual TUniquePtr<INode> CreateGetDelayedVariableNode(const FName& InDataType, const FNodeInitData& InParams) const = 0;
+			virtual TUniquePtr<INode> CreateVariableNode(const FName& InDataType, FVariableNodeConstructorParams&& InParams) const = 0;
+			virtual TUniquePtr<INode> CreateVariableMutatorNode(const FName& InDataType, const FNodeInitData& InParams) const = 0;
+			virtual TUniquePtr<INode> CreateVariableAccessorNode(const FName& InDataType, const FNodeInitData& InParams) const = 0;
+			virtual TUniquePtr<INode> CreateVariableDeferredAccessorNode(const FName& InDataType, const FNodeInitData& InParams) const = 0;
 		};
 	}
 }

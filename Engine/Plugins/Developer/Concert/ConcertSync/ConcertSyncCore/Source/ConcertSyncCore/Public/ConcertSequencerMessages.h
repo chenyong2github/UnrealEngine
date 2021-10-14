@@ -78,7 +78,7 @@ struct FConcertSequencerCloseEvent
 	FString SequenceObjectPath;
 
 	UPROPERTY()
-	bool bMasterClose = false;
+	bool bControllerClose = false;
 
 	UPROPERTY()
 	int32 EditorsWithSequencerOpened = -1;

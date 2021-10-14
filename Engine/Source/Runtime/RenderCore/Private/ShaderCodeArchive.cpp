@@ -1075,7 +1075,7 @@ FIoStoreShaderCodeArchive* FIoStoreShaderCodeArchive::Create(EShaderPlatform InP
 		IoBatch.IssueAndTriggerEvent(Event);
 		Event->Wait();
 		FPlatformProcess::ReturnSynchEventToPool(Event);
-		const FIoBuffer& IoBuffer = IoRequest.GetResult().ValueOrDie();
+		const FIoBuffer& IoBuffer = IoRequest.GetResultOrDie();
 		FMemoryReaderView Ar(MakeArrayView(IoBuffer.Data(), IoBuffer.DataSize()));
 		uint32 Version = 0;
 		Ar << Version;
@@ -1316,7 +1316,7 @@ TRefCountPtr<FRHIShader> FIoStoreShaderCodeArchive::CreateShader(int32 Index)
 		FTaskGraphInterface::Get().WaitUntilTaskCompletes(Event);
 	}
 
-	const uint8* ShaderCode = ShaderPreloadEntry.IoRequest.GetResult().ValueOrDie().Data();
+	const uint8* ShaderCode = ShaderPreloadEntry.IoRequest.GetResultOrDie().Data();
 
 	FMemStackBase& MemStack = FMemStack::Get();
 	FMemMark Mark(MemStack);

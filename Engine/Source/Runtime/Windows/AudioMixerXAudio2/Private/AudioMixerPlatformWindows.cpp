@@ -12,7 +12,7 @@
 
 #if PLATFORM_WINDOWS
 
-#include "Microsoft/COMPointer.h"
+#include "Windows/COMPointer.h"
 #include "ScopedCom.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"

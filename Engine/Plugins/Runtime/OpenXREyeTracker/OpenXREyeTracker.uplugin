@@ -25,7 +25,7 @@
 			"Name": "OpenXREyeTracker",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"Linux",
 				"HoloLens",
@@ -37,7 +37,7 @@
 		{
 			"Name": "OpenXR",
 			"Enabled": true,
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"Linux",
 				"HoloLens",

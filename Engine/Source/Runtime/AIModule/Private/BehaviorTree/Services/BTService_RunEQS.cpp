@@ -85,7 +85,7 @@ void UBTService_RunEQS::OnQueryFinished(TSharedPtr<FEnvQueryResult> Result)
 	check(MyMemory);
 	ensure(MyMemory->RequestID != INDEX_NONE);
 
-	bool bSuccess = (Result->Items.Num() >= 1);
+	bool bSuccess = Result->IsSuccessful() && (Result->Items.Num() >= 1);
 	if (bSuccess)
 	{
 		UBlackboardComponent* MyBlackboard = BTComp->GetBlackboardComponent();

@@ -338,7 +338,7 @@ struct FUsdStageActorImpl
 		return bOwnedByStageActor;
 	}
 
-	static void WhitelistComponentHierarchy( USceneComponent* Component, TSet<UObject*>& VisitedObjects )
+	static void AllowListComponentHierarchy( USceneComponent* Component, TSet<UObject*>& VisitedObjects )
 	{
 		if ( !Component || VisitedObjects.Contains( Component ) )
 		{
@@ -366,7 +366,7 @@ struct FUsdStageActorImpl
 		// tracked by a prim twin
 		for ( USceneComponent* Child : Component->GetAttachChildren() )
 		{
-			WhitelistComponentHierarchy( Child, VisitedObjects );
+			AllowListComponentHierarchy( Child, VisitedObjects );
 		}
 	}
 
@@ -648,7 +648,7 @@ AUsdStageActor::AUsdStageActor()
 	// c.f. doc comment on FRecompilationTracker for more info.
 
 	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
-	RenderContext = UsdSchemasModule.GetRenderContextRegistry().GetUniversalRenderContext();
+	RenderContext = UsdSchemasModule.GetRenderContextRegistry().GetUnrealRenderContext();
 
 	Transactor = NewObject<UUsdTransactor>( this, TEXT( "Transactor" ), EObjectFlags::RF_Transactional );
 	Transactor->Initialize( this );
@@ -753,6 +753,12 @@ AUsdStageActor::AUsdStageActor()
 				{
 					UE_LOG( LogUsd, Verbose, TEXT("Reloading animations because layer '%s' was added/removed/reloaded"), *ChangeVecItem );
 					ReloadAnimations();
+
+					// Make sure our PrimsToAnimate and the LevelSequenceHelper are kept in sync, because we'll use PrimsToAnimate to
+					// check whether we need to call LevelSequenceHelper::AddPrim within AUsdStageActor::ExpandPrim. Without this reset
+					// our prims would already be in here by the time we're checking if we need to add tracks or not, and we wouldn't re-add
+					// the tracks
+					PrimsToAnimate.Reset();
 					return;
 				}
 			}
@@ -1504,7 +1510,7 @@ void AUsdStageActor::OnLevelActorDeleted( AActor* DeletedActor )
 	{
 		// DeletedActor is already detached from our hierarchy, so we must tag it directly
 		TSet<UObject*> VisitedObjects;
-		FUsdStageActorImpl::WhitelistComponentHierarchy( DeletedActor->GetRootComponent(), VisitedObjects );
+		FUsdStageActorImpl::AllowListComponentHierarchy( DeletedActor->GetRootComponent(), VisitedObjects );
 	}
 }
 
@@ -1546,6 +1552,12 @@ void AUsdStageActor::LoadUsdStage()
 	}
 
 	ReloadAnimations();
+
+	// Make sure our PrimsToAnimate and the LevelSequenceHelper are kept in sync, because we'll use PrimsToAnimate to
+	// check whether we need to call LevelSequenceHelper::AddPrim within AUsdStageActor::ExpandPrim. Without this reset
+	// our prims would already be in here by the time we're checking if we need to add tracks or not, and we wouldn't re-add
+	// the tracks
+	PrimsToAnimate.Reset();
 
 	TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, RootTwin->PrimPath );
 
@@ -1692,10 +1704,6 @@ void AUsdStageActor::ReloadAnimations()
 
 		// We need to guarantee we'll record our change of LevelSequence into the transaction, as Init() will create a new one
 		Modify();
-
-		// Make sure our PrimsToAnimate and the LevelSequenceHelper are kept in sync, because we'll use PrimsToAnimate to
-		// check whether we need to call LevelSequenceHelper::AddPrim within AUsdStageActor::ExpandPrim
-		PrimsToAnimate.Reset();
 
 		LevelSequence = LevelSequenceHelper.Init( UsdStage );
 		LevelSequenceHelper.BindToUsdStageActor( this );
@@ -2127,7 +2135,7 @@ void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPro
 	if ( RootLayer.FilePath == OldRootLayer.FilePath && FUsdStageActorImpl::ObjectNeedsMultiUserTag( ObjectBeingModified, this ) )
 	{
 		TSet<UObject*> VisitedObjects;
-		FUsdStageActorImpl::WhitelistComponentHierarchy( GetRootComponent(), VisitedObjects );
+		FUsdStageActorImpl::AllowListComponentHierarchy( GetRootComponent(), VisitedObjects );
 	}
 
 	UObject* PrimObject = ObjectBeingModified;

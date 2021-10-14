@@ -18,7 +18,7 @@
 			"Name": "UVEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [ "Win64" ]
+			"PlatformAllowList": [ "Win64" ]
 		},
 		{
 			"Name": "UVEditorTools",
@@ -29,7 +29,7 @@
 			"Name": "UVEditorToolsEditorOnly",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-            "WhitelistPlatforms": [ "Win64" ]
+			"PlatformAllowList": [ "Win64" ]
 		}
 	],
 	"Plugins": [
@@ -40,7 +40,7 @@
 		{
 			"Name": "MeshModelingToolsetExp",
 			"Enabled": true,
-			"WhitelistTargets": [ "Editor" ]
+			"TargetAllowList": [ "Editor" ]
 		}
 	]
 }

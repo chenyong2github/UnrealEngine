@@ -1940,18 +1940,6 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 		NewStatDelegate.Broadcast(EngineStat.CommandName, EngineStat.CategoryName, EngineStat.DescriptionString);
 	}
 
-	// Command line option for enabling named events
-	if (FParse::Param(FCommandLine::Get(), TEXT("statnamedevents")))
-	{
-		GCycleStatsShouldEmitNamedEvents = 1;
-	}
-
-	if (FParse::Param(FCommandLine::Get(), TEXT("verbosenamedevents")))
-	{
-		GCycleStatsShouldEmitNamedEvents = 1;
-		GShouldEmitVerboseNamedEvents = 1;
-	}
-
 #if UE_NET_TRACE_ENABLED
 	uint32 NetTraceVerbosity;
 	if(FParse::Value(FCommandLine::Get(), TEXT("NetTrace="), NetTraceVerbosity))
@@ -11261,7 +11249,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	// draw debug properties
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if !UE_BUILD_SHIPPING
 
 	auto DrawDebugPropertiesForWorld = [Canvas, CanvasObject, &DebugProperties](UWorld* DebugWorld, int32& X, int32& Y)
 	{
@@ -13762,7 +13750,14 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 
 	if (FAudioDevice* AudioDevice = WorldContext.World()->GetAudioDeviceRaw())
 	{
-		AudioDevice->SetDefaultBaseSoundMix(WorldContext.World()->GetWorldSettings()->DefaultBaseSoundMix);
+		if (AWorldSettings* WorldSettings = WorldContext.World()->GetWorldSettings())
+		{
+			AudioDevice->SetDefaultBaseSoundMix(WorldSettings->DefaultBaseSoundMix);
+		}
+		else
+		{
+			UE_LOG(LogInit, Warning, TEXT("Unable to get world settings. Can't initialize default base soundmix."));
+		}
 	}
 
 	// Listen for clients.

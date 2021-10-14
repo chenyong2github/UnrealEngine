@@ -176,7 +176,7 @@ namespace Audio
 		return MixedSourceData[!CurrentBufferIndex].GetData();
 	}
 
-	void FMixerAudioBus::AddNewPatchOutput(FPatchOutputStrongPtr& InPatchOutputStrongPtr)
+	void FMixerAudioBus::AddNewPatchOutput(const FPatchOutputStrongPtr& InPatchOutputStrongPtr)
 	{
 		PatchMixerSplitter.AddNewOutput(InPatchOutputStrongPtr);
 	}

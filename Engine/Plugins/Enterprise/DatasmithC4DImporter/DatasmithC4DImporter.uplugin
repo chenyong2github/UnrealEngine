@@ -25,7 +25,7 @@
 			"Name" : "DatasmithC4DTranslator",
 			"Type" : "Editor",
 			"LoadingPhase" : "PostDefault",
-			"WhitelistPlatforms" :
+			"PlatformAllowList" :
 			[
 				"Win64",
 				"Mac"
@@ -35,7 +35,7 @@
 			"Name": "DatasmithC4DDynamicImporter",
 			"Type": "Editor",
 			"LoadingPhase": "PostDefault",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"Mac"
 			]

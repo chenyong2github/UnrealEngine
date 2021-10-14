@@ -108,9 +108,6 @@ private:
 	/** Called to generate concert asset context menu. */
 	void GenerateConcertAssetContextMenu(FMenuBuilder& MenuBuilder, TArray<FName> AssetObjectPaths);
 
-	/** Delegate to extend the source control menu. */
-	TSharedRef<class FExtender> OnExtendLevelEditorSourceControlMenu(const TSharedRef<class FUICommandList>);
-
 	/** Delegate to generate an extra lock state indicator on content browser assets. */
 	TSharedRef<SWidget> OnGenerateAssetViewLockStateIcons(const FAssetData& AssetData);
 

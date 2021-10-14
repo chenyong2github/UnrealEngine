@@ -58,8 +58,8 @@ static FAutoConsoleVariableRef CVarBlockOnSlowStreaming(
 
 UWorldPartitionStreamingPolicy::UWorldPartitionStreamingPolicy(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer) 
-, UpdateStreamingStateEpoch(0)
-, SortedAddToWorldCellsEpoch(INT_MIN)
+, bCriticalPerformanceRequestedBlockTillOnWorld(false)
+, CriticalPerformanceBlockTillLevelStreamingCompletedEpoch(0)
 , DataLayersStatesServerEpoch(INT_MIN)
 , StreamingPerformance(EWorldPartitionStreamingPerformance::Good)
 #if !UE_BUILD_SHIPPING
@@ -195,6 +195,19 @@ UE_SUPPRESS(LogWorldPartition, Verbosity, \
 	} \
 }) \
 
+bool UWorldPartitionStreamingPolicy::IsInBlockTillLevelStreamingCompleted(bool bIsCausedByBadStreamingPerformance /* = false*/) const
+{
+	const UWorld* World = WorldPartition->GetWorld();
+	const bool bIsInBlockTillLevelStreamingCompleted = World->GetIsInBlockTillLevelStreamingCompleted();
+	if (bIsCausedByBadStreamingPerformance)
+	{
+		return bIsInBlockTillLevelStreamingCompleted &&
+				(StreamingPerformance != EWorldPartitionStreamingPerformance::Good) &&
+				(CriticalPerformanceBlockTillLevelStreamingCompletedEpoch == World->GetBlockTillLevelStreamingCompletedEpoch());
+	}
+	return bIsInBlockTillLevelStreamingCompleted;
+}
+
 void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::UpdateStreamingState);
@@ -202,8 +215,12 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 	UWorld* World = WorldPartition->GetWorld();
 	check(World && World->IsGameWorld());
 
-	// Increment/dirty UpdateStreamingStateEpoch
-	++UpdateStreamingStateEpoch;
+	// Dermine if the World's BlockTillLevelStreamingCompleted was triggered by WorldPartitionStreamingPolicy
+	if (bCriticalPerformanceRequestedBlockTillOnWorld && IsInBlockTillLevelStreamingCompleted())
+	{
+		bCriticalPerformanceRequestedBlockTillOnWorld = false;
+		CriticalPerformanceBlockTillLevelStreamingCompletedEpoch = World->GetBlockTillLevelStreamingCompletedEpoch();
+	}
 	
 	// Update streaming sources
 	UpdateStreamingSources();
@@ -237,8 +254,6 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 
 		const UDataLayerSubsystem* DataLayerSubsystem = WorldPartition->GetWorld()->GetSubsystem<UDataLayerSubsystem>();
 		DataLayersStatesServerEpoch = AWorldDataLayers::GetDataLayersStateEpoch();
-
-		const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers();
 
 		// Non Data Layer Cells + Active Data Layers
 		WorldPartition->RuntimeHash->GetAllStreamingCells(ActivateStreamingCells, /*bAllDataLayers=*/ false, /*bDataLayersOnly=*/ false, DataLayerSubsystem->GetActiveDataLayerNames());
@@ -301,6 +316,32 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 		SetTargetStateForCells(EWorldPartitionRuntimeCellState::Loaded, ToLoadCells);
 	}
 
+	// Sort cells and update streaming priority 
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::SortCellsAndUpdateStreamingPriority);
+		TSet<const UWorldPartitionRuntimeCell*> AddToWorldCells;
+		for (const UWorldPartitionRuntimeCell* ActivatedCell : ActivatedCells)
+		{
+			if (!ActivatedCell->IsAddedToWorld() && !ActivatedCell->IsAlwaysLoaded())
+			{
+				AddToWorldCells.Add(ActivatedCell);
+			}
+		}
+		WorldPartition->RuntimeHash->SortStreamingCellsByImportance(AddToWorldCells, StreamingSources, SortedAddToWorldCells);
+
+		// Update level streaming priority so that UWorld::UpdateLevelStreaming will naturally process the levels in the correct order
+		const int32 MaxPrio = SortedAddToWorldCells.Num();
+		int32 Prio = MaxPrio;
+		const ULevel* CurrentPendingVisibility = GetWorld()->GetCurrentLevelPendingVisibility();
+		for (const UWorldPartitionRuntimeCell* Cell : SortedAddToWorldCells)
+		{
+			// Current pending visibility level is the most important
+			const bool bIsCellPendingVisibility = CurrentPendingVisibility && (Cell->GetLevel() == CurrentPendingVisibility);
+			const int32 SortedPriority = bIsCellPendingVisibility ? MaxPrio + 1 : Prio--;
+			Cell->SetStreamingPriority(SortedPriority);
+		}
+	}
+
 	// Evaluate streaming performance based on cells that should be activated
 	UpdateStreamingPerformance(ActivateStreamingCells);
 	
@@ -335,7 +376,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingPerformance(const TSet<const
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::UpdateStreamingPerformance);
 	UWorld* World = GetWorld();
 	// If we are currently in a blocked loading just reset the on screen message time and return
-	if (StreamingPerformance == EWorldPartitionStreamingPerformance::Critical && World->GetIsInBlockTillLevelStreamingCompleted())
+	if (StreamingPerformance == EWorldPartitionStreamingPerformance::Critical && IsInBlockTillLevelStreamingCompleted())
 	{
 #if !UE_BUILD_SHIPPING
 		OnScreenMessageStartTime = FPlatformTime::Seconds();
@@ -366,9 +407,10 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingPerformance(const TSet<const
 	if (StreamingPerformance == EWorldPartitionStreamingPerformance::Critical)
 	{
 		// This is a first very simple standalone implementation of handling of critical streaming conditions.
-		if (GBlockOnSlowStreaming && !World->GetIsInBlockTillLevelStreamingCompleted() && World->GetNetMode() == NM_Standalone)
+		if (GBlockOnSlowStreaming && !IsInBlockTillLevelStreamingCompleted() && World->GetNetMode() == NM_Standalone)
 		{
 			World->bRequestedBlockOnAsyncLoading = true;
+			bCriticalPerformanceRequestedBlockTillOnWorld = true;
 		}
 	}
 }
@@ -402,7 +444,16 @@ void UWorldPartitionStreamingPolicy::GetOnScreenMessages(FCoreDelegates::FSeveri
 bool UWorldPartitionStreamingPolicy::ShouldSkipCellForPerformance(const UWorldPartitionRuntimeCell* Cell) const
 {
 	// When performance is degrading start skipping non blocking cells
-	return StreamingPerformance != EWorldPartitionStreamingPerformance::Good && !Cell->GetBlockOnSlowLoading();
+	if (!Cell->GetBlockOnSlowLoading())
+	{
+		UWorld* World = WorldPartition->GetWorld();
+		const ENetMode NetMode = World->GetNetMode();
+		if (NetMode == NM_Standalone || NetMode == NM_Client)
+		{
+			return IsInBlockTillLevelStreamingCompleted(/*bIsCausedByBadStreamingPerformance*/true);
+		}
+	}
+	return false;
 }
 
 int32 UWorldPartitionStreamingPolicy::GetMaxCellsToLoad() const
@@ -412,7 +463,7 @@ int32 UWorldPartitionStreamingPolicy::GetMaxCellsToLoad() const
 	const ENetMode NetMode = World->GetNetMode();
 	if (NetMode == NM_Standalone || NetMode == NM_Client)
 	{
-		return !World->GetIsInBlockTillLevelStreamingCompleted() ? (GMaxLoadingStreamingCells - GetCellLoadingCount()) : MAX_int32;
+		return !IsInBlockTillLevelStreamingCompleted() ? (GMaxLoadingStreamingCells - GetCellLoadingCount()) : MAX_int32;
 	}
 
 	// Always allow max on server to make sure StreamingLevels are added before clients update the visibility
@@ -524,42 +575,32 @@ void UWorldPartitionStreamingPolicy::SetCellsStateToUnloaded(const TSet<const UW
 	}
 }
 
-ULevel* UWorldPartitionStreamingPolicy::GetPreferredLoadedLevelToAddToWorld() const
+bool UWorldPartitionStreamingPolicy::CanAddLoadedLevelToWorld(ULevel* InLevel) const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::GetPreferredLoadedLevelToAddToWorld);
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::CanAddLoadedLevelToWorld);
 
 	check(WorldPartition->IsInitialized());
 	UWorld* World = WorldPartition->GetWorld();
+
+	// Always allow AddToWorld in DedicatedServer
 	if (World->GetNetMode() == NM_DedicatedServer)
 	{
-		return nullptr;
+		return true;
 	}
 
-	// Sort activated cells based on importance only if CellState changed
-	if (SortedAddToWorldCellsEpoch != UpdateStreamingStateEpoch)
+	// Always allow AddToWorld when not inside UWorld::BlockTillLevelStreamingCompleted that was not triggered by bad streaming performance
+	if (!IsInBlockTillLevelStreamingCompleted(/*bIsCausedByBadStreamingPerformance*/true))
 	{
-		SortedAddToWorldCellsEpoch = UpdateStreamingStateEpoch;
-		TSet<const UWorldPartitionRuntimeCell*> AddToWorldCells;
-		for (const UWorldPartitionRuntimeCell* ActivatedCell : ActivatedCells)
-		{
-			if (!ActivatedCell->IsAddedToWorld())
-			{
-				AddToWorldCells.Add(ActivatedCell);
-			}
-		}
-		WorldPartition->RuntimeHash->SortStreamingCellsByImportance(AddToWorldCells, StreamingSources, SortedAddToWorldCells);
+		return true;
 	}
 
-	// Find first cell with a streaming level in MakingVisible state
-	for (const UWorldPartitionRuntimeCell* Cell : SortedAddToWorldCells)
+	const UWorldPartitionRuntimeCell** Cell = Algo::FindByPredicate(SortedAddToWorldCells, [InLevel](const UWorldPartitionRuntimeCell* ItCell) { return ItCell->GetLevel() == InLevel; });
+	if (Cell && ShouldSkipCellForPerformance(*Cell))
 	{
-		if (Cell->CanAddToWorld())
-		{
-			check(!Cell->IsAddedToWorld());
-			return Cell->GetLevel();
-		}
+		return false;
 	}
-	return nullptr;
+ 
+	return true;
 }
 
 bool UWorldPartitionStreamingPolicy::IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState) const

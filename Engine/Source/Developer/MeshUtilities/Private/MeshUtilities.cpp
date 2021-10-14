@@ -6295,27 +6295,29 @@ TSharedRef<FExtender> FMeshUtilities::GetLevelViewportContextMenuExtender(const 
 
 	if (InActors.Num() > 0)
 	{
-		TArray<UMeshComponent*> Components;
-		GetSkinnedAndStaticMeshComponentsFromActors(InActors, Components);
-		if (Components.Num() > 0)
-		{
-			FText ActorName = InActors.Num() == 1 ? FText::Format(LOCTEXT("ActorNameSingular", "\"{0}\""), FText::FromString(InActors[0]->GetActorLabel())) : LOCTEXT("ActorNamePlural", "Actors");
+		FText ActorName = InActors.Num() == 1 ? FText::Format(LOCTEXT("ActorNameSingular", "\"{0}\""), FText::FromString(InActors[0]->GetActorLabel())) : LOCTEXT("ActorNamePlural", "Actors");
 
-			FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-			TSharedRef<FUICommandList> LevelEditorCommandBindings = LevelEditor.GetGlobalLevelEditorActions();
+		FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+		TSharedRef<FUICommandList> LevelEditorCommandBindings = LevelEditor.GetGlobalLevelEditorActions();
 
-			Extender->AddMenuExtension("ActorControl", EExtensionHook::After, LevelEditorCommandBindings, FMenuExtensionDelegate::CreateLambda(
-				[this, ActorName, InActors](FMenuBuilder& MenuBuilder) {
+		// Note: ActorConvert extension point appears only in the pulldown Actor menu.
+		Extender->AddMenuExtension("ActorConvert", EExtensionHook::After, LevelEditorCommandBindings, FMenuExtensionDelegate::CreateLambda(
+			[this, ActorName, InActors](FMenuBuilder& MenuBuilder) {
 
-				MenuBuilder.AddMenuEntry(
-					FText::Format(LOCTEXT("ConvertSelectedActorsToStaticMeshText", "Convert {0} To Static Mesh"), ActorName),
-					LOCTEXT("ConvertSelectedActorsToStaticMeshTooltip", "Convert the selected actor's meshes to a new Static Mesh asset. Supports static and skeletal meshes."),
-					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateRaw(this, &FMeshUtilities::ConvertActorMeshesToStaticMeshUIAction, InActors))
-				);
-			})
+			TArray<UMeshComponent*> Components;
+			GetSkinnedAndStaticMeshComponentsFromActors(InActors, Components);
+
+			const bool bCanExecute = Components.Num() > 0;
+
+			MenuBuilder.AddMenuEntry(
+				FText::Format(LOCTEXT("ConvertSelectedActorsToStaticMeshText", "Convert {0} To Static Mesh"), ActorName),
+				LOCTEXT("ConvertSelectedActorsToStaticMeshTooltip", "Convert the selected actor's meshes to a new Static Mesh asset. Supports static and skeletal meshes."),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateRaw(this, &FMeshUtilities::ConvertActorMeshesToStaticMeshUIAction, InActors),
+					FCanExecuteAction::CreateLambda([bCanExecute]() { return bCanExecute; }))
 			);
-		}
+		}));
 	}
 
 	return Extender;

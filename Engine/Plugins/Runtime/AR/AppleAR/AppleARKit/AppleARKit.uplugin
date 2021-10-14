@@ -21,13 +21,13 @@
 			"Name": "AppleARKit",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms" : [ "Mac", "IOS", "Win64" ]
+			"PlatformAllowList" : [ "Mac", "IOS", "Win64" ]
 		},
 		{
 			"Name": "AppleARKitPoseTrackingLiveLink",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms" : [ "Mac", "IOS", "Win64" ]
+			"PlatformAllowList" : [ "Mac", "IOS", "Win64" ]
 
 		}
 	],
@@ -36,10 +36,6 @@
             "Name": "AppleImageUtils",
             "Enabled": true
 		},
-		{
-            "Name": "LiveLink",
-            "Enabled": true
-        },
 		{
             "Name": "ARUtilities",
             "Enabled": true

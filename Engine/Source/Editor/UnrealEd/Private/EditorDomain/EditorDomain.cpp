@@ -49,6 +49,7 @@ public:
 			{
 				UE_LOG(LogEditorDomain, Error, TEXT("Editor.ini:[CookSettings]:EditorDomainEnabled is deprecated, use Editor.ini:[EditorDomain]:EditorDomainEnabled instead."));
 			}
+			UE_LOG(LogEditorDomain, Display, TEXT("EditorDomain is %s"), bEditorDomainEnabled ? TEXT("Enabled") : TEXT("Disabled"));
 			UE::EditorDomain::UtilsInitialize();
 			UE::TargetDomain::UtilsInitialize(bEditorDomainEnabled);
 			if (bEditorDomainEnabled)
@@ -303,7 +304,7 @@ FOpenPackageResult FEditorDomain::OpenReadPackage(const FPackagePath& PackagePat
 		return Workspace->OpenReadPackage(PackagePath, PackageSegment, OutUpdatedPath);
 	}
 	TRefCountPtr<FPackageSource> PackageSource;
-	if (!TryFindOrAddPackageSource(PackagePath, PackageSource) ||	(PackageSource->Source == EPackageSource::Workspace))
+	if (!TryFindOrAddPackageSource(PackagePath, PackageSource) || (PackageSource->Source == EPackageSource::Workspace))
 	{
 		return Workspace->OpenReadPackage(PackagePath, PackageSegment, OutUpdatedPath);
 	}

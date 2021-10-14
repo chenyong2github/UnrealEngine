@@ -258,7 +258,7 @@ void FClothingSimulationMesh::SkinPhysicsMesh(int32 LODIndex, const FVec3& Local
 	ComponentToLocalSpace.AddToTranslation(-LocalSpaceLocation);
 
 	// Zero out positions & normals
-	FMemory::Memzero((uint8*)OutPositions, NumPoints * sizeof(FVec3));  // PS4 performance note: It is faster to zero the memory first
+	FMemory::Memzero((uint8*)OutPositions, NumPoints * sizeof(FVec3));  // It is faster on some platforms to zero the memory first
 	FMemory::Memzero((uint8*)OutNormals, NumPoints * sizeof(FVec3));    // instead of changing this function to work with uninitialized memory
 
 	const int32* const RESTRICT BoneMap = Asset->UsedBoneIndices.GetData();

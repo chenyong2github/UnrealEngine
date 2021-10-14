@@ -594,9 +594,23 @@ bool UGameViewportClient::TryToggleFullscreenOnInputKey(FKey Key, EInputEvent Ev
 	return false;
 }
 
-bool UGameViewportClient::InputKey(const FInputKeyEventArgs& EventArgs)
+void UGameViewportClient::RemapControllerInput(FInputKeyEventArgs& InOutEventArgs)
 {
-	int32 ControllerId = EventArgs.ControllerId;
+	const int32 NumLocalPlayers = World ? World->GetGameInstance()->GetNumLocalPlayers() : 0;
+
+	if (NumLocalPlayers > 1 && InOutEventArgs.Key.IsGamepadKey() && GetDefault<UGameMapsSettings>()->bOffsetPlayerGamepadIds)
+	{
+		InOutEventArgs.ControllerId++;
+	}
+	else if (InOutEventArgs.Viewport->IsPlayInEditorViewport() && InOutEventArgs.Key.IsGamepadKey())
+	{
+		GEngine->RemapGamepadControllerIdForPIE(this, InOutEventArgs.ControllerId);
+	}
+}
+
+bool UGameViewportClient::InputKey(const FInputKeyEventArgs& InEventArgs)
+{
+	FInputKeyEventArgs EventArgs = InEventArgs;
 
 	if (TryToggleFullscreenOnInputKey(EventArgs.Key, EventArgs.Event))
 	{
@@ -608,20 +622,11 @@ bool UGameViewportClient::InputKey(const FInputKeyEventArgs& EventArgs)
 		GEngine->SetFlashIndicatorLatencyMarker(GFrameCounter);
 	}
 
+	RemapControllerInput(EventArgs);
+
 	if (IgnoreInput())
 	{
-		return ViewportConsole ? ViewportConsole->InputKey(ControllerId, EventArgs.Key, EventArgs.Event, EventArgs.AmountDepressed, EventArgs.IsGamepad()) : false;
-	}
-
-	const int32 NumLocalPlayers = World ? World->GetGameInstance()->GetNumLocalPlayers() : 0;
-
-	if (NumLocalPlayers > 1 && EventArgs.Key.IsGamepadKey() && GetDefault<UGameMapsSettings>()->bOffsetPlayerGamepadIds)
-	{
-		++ControllerId;
-	}
-	else if (EventArgs.Viewport->IsPlayInEditorViewport() && EventArgs.Key.IsGamepadKey())
-	{
-		GEngine->RemapGamepadControllerIdForPIE(this, ControllerId);
+		return ViewportConsole ? ViewportConsole->InputKey(EventArgs.ControllerId, EventArgs.Key, EventArgs.Event, EventArgs.AmountDepressed, EventArgs.IsGamepad()) : false;
 	}
 
 	OnInputKeyEvent.Broadcast(EventArgs);
@@ -638,11 +643,17 @@ bool UGameViewportClient::InputKey(const FInputKeyEventArgs& EventArgs)
 #endif
 
 	// route to subsystems that care
-	bool bResult = ( ViewportConsole ? ViewportConsole->InputKey(ControllerId, EventArgs.Key, EventArgs.Event, EventArgs.AmountDepressed, EventArgs.IsGamepad()) : false );
+	bool bResult = ( ViewportConsole ? ViewportConsole->InputKey(EventArgs.ControllerId, EventArgs.Key, EventArgs.Event, EventArgs.AmountDepressed, EventArgs.IsGamepad()) : false );
+
+	// Try the override callback, this may modify event args
+	if (!bResult && OnOverrideInputKeyEvent.IsBound())
+	{
+		bResult = OnOverrideInputKeyEvent.Execute(EventArgs);
+	}
 
 	if (!bResult)
 	{
-		ULocalPlayer* const TargetPlayer = GEngine->GetLocalPlayerFromControllerId(this, ControllerId);
+		ULocalPlayer* const TargetPlayer = GEngine->GetLocalPlayerFromControllerId(this, EventArgs.ControllerId);
 		if (TargetPlayer && TargetPlayer->PlayerController)
 		{
 			bResult = TargetPlayer->PlayerController->InputKey(EventArgs.Key, EventArgs.Event, EventArgs.AmountDepressed, EventArgs.IsGamepad());
@@ -658,13 +669,14 @@ bool UGameViewportClient::InputKey(const FInputKeyEventArgs& EventArgs)
 #if WITH_EDITOR
 	// For PIE, let the next PIE window handle the input if none of our players did
 	// (this allows people to use multiple controllers to control each window)
-	if (!bResult && ControllerId > NumLocalPlayers - 1 && EventArgs.Viewport->IsPlayInEditorViewport())
+	const int32 NumLocalPlayers = World ? World->GetGameInstance()->GetNumLocalPlayers() : 0;
+	if (!bResult && EventArgs.ControllerId > NumLocalPlayers - 1 && EventArgs.Viewport->IsPlayInEditorViewport())
 	{
 		UGameViewportClient* NextViewport = GEngine->GetNextPIEViewport(this);
 		if (NextViewport)
 		{
 			FInputKeyEventArgs NextViewportEventArgs = EventArgs;
-			NextViewportEventArgs.ControllerId = ControllerId - NumLocalPlayers;
+			NextViewportEventArgs.ControllerId = EventArgs.ControllerId - NumLocalPlayers;
 			bResult = NextViewport->InputKey(NextViewportEventArgs);
 		}
 	}
@@ -681,18 +693,11 @@ bool UGameViewportClient::InputAxis(FViewport* InViewport, int32 ControllerId, F
 		return false;
 	}
 
-	const int32 NumLocalPlayers = World ? World->GetGameInstance()->GetNumLocalPlayers() : 0;
+	// Handle mapping controller id and key if needed
+	FInputKeyEventArgs EventArgs(InViewport, ControllerId, Key, IE_Axis);
+	RemapControllerInput(EventArgs);
 
-	if (NumLocalPlayers > 1 && Key.IsGamepadKey() && GetDefault<UGameMapsSettings>()->bOffsetPlayerGamepadIds)
-	{
-		++ControllerId;
-	}
-	else if (InViewport->IsPlayInEditorViewport() && Key.IsGamepadKey())
-	{
-		GEngine->RemapGamepadControllerIdForPIE(this, ControllerId);
-	}
-
-	OnInputAxisEvent.Broadcast(InViewport, ControllerId, Key, Delta, DeltaTime, NumSamples, bGamepad);
+	OnInputAxisEvent.Broadcast(InViewport, EventArgs.ControllerId, EventArgs.Key, Delta, DeltaTime, NumSamples, EventArgs.IsGamepad());
 	
 	bool bResult = false;
 
@@ -704,27 +709,37 @@ bool UGameViewportClient::InputAxis(FViewport* InViewport, int32 ControllerId, F
 		// route to subsystems that care
 		if (ViewportConsole != NULL)
 		{
-			bResult = ViewportConsole->InputAxis(ControllerId, Key, Delta, DeltaTime, NumSamples, bGamepad);
+			bResult = ViewportConsole->InputAxis(EventArgs.ControllerId, EventArgs.Key, Delta, DeltaTime, NumSamples, EventArgs.IsGamepad());
 		}
+		
+		// Try the override callback, this may modify event args
+		if (!bResult && OnOverrideInputAxisEvent.IsBound())
+		{
+			bResult = OnOverrideInputAxisEvent.Execute(EventArgs, Delta, DeltaTime, NumSamples);
+		}
+
 		if (!bResult)
 		{
-			ULocalPlayer* const TargetPlayer = GEngine->GetLocalPlayerFromControllerId(this, ControllerId);
+			ULocalPlayer* const TargetPlayer = GEngine->GetLocalPlayerFromControllerId(this, EventArgs.ControllerId);
 			if (TargetPlayer && TargetPlayer->PlayerController)
 			{
-				bResult = TargetPlayer->PlayerController->InputAxis(Key, Delta, DeltaTime, NumSamples, bGamepad);
+				bResult = TargetPlayer->PlayerController->InputAxis(EventArgs.Key, Delta, DeltaTime, NumSamples, EventArgs.IsGamepad());
 			}
 		}
 
+#if WITH_EDITOR
+		const int32 NumLocalPlayers = World && World->GetGameInstance() ? World->GetGameInstance()->GetNumLocalPlayers() : 0;
 		// For PIE, let the next PIE window handle the input if none of our players did
 		// (this allows people to use multiple controllers to control each window)
-		if (!bResult && ControllerId > NumLocalPlayers - 1 && InViewport->IsPlayInEditorViewport())
+		if (!bResult && EventArgs.ControllerId > NumLocalPlayers - 1 && InViewport->IsPlayInEditorViewport())
 		{
 			UGameViewportClient *NextViewport = GEngine->GetNextPIEViewport(this);
 			if (NextViewport)
 			{
-				bResult = NextViewport->InputAxis(InViewport, ControllerId - NumLocalPlayers, Key, Delta, DeltaTime, NumSamples, bGamepad);
+				bResult = NextViewport->InputAxis(InViewport, EventArgs.ControllerId - NumLocalPlayers, EventArgs.Key, Delta, DeltaTime, NumSamples, EventArgs.IsGamepad());
 			}
 		}
+#endif
 
 		if( InViewport->IsSlateViewport() && InViewport->IsPlayInEditorViewport() )
 		{

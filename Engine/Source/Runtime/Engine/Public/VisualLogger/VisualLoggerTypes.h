@@ -163,8 +163,8 @@ struct ENGINE_API FVisualLogEntry
 #if ENABLE_VISUAL_LOG
 	float TimeStamp;
 	FVector Location;
-	uint8 bIsClassWhitelisted : 1;
-	uint8 bIsObjectWhitelisted : 1;	
+	uint8 bPassedClassAllowList : 1;
+	uint8 bPassedObjectAllowList : 1;	
 	uint8 bIsAllowedToLog : 1;
 
 	TArray<FVisualLogEvent> Events;

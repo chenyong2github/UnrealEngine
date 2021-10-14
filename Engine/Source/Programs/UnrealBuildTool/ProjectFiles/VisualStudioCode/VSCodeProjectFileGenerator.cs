@@ -1604,10 +1604,10 @@ namespace UnrealBuildTool
 
 		private void GetExcludePathsCPP(DirectoryReference BaseDir, List<string> PathsToExclude)
 		{
-			string[] DirWhiteList = { "Binaries", "Build", "Config", "Plugins", "Source", "Private", "Public", "Internal", "Classes", "Resources" };
+			string[] DirAllowList = { "Binaries", "Build", "Config", "Plugins", "Source", "Private", "Public", "Internal", "Classes", "Resources" };
 			foreach (DirectoryReference SubDir in DirectoryReference.EnumerateDirectories(BaseDir, "*", SearchOption.TopDirectoryOnly))
 			{
-				if (Array.Find(DirWhiteList, Dir => Dir == SubDir.GetDirectoryName()) == null)
+				if (Array.Find(DirAllowList, Dir => Dir == SubDir.GetDirectoryName()) == null)
 				{
 					string NewSubDir = SubDir.ToString();
 					if (!PathsToExclude.Contains(NewSubDir))
@@ -1620,15 +1620,15 @@ namespace UnrealBuildTool
 
 		private void GetExcludePathsCSharp(string BaseDir, List<string> PathsToExclude)
 		{
-			string[] BlackList =
+			string[] DenyList =
 			{
 				"obj",
 				"bin"
 			};
 
-			foreach (string BlackListDir in BlackList)
+			foreach (string DenyListDir in DenyList)
 			{
-				string ExcludePath = Path.Combine(BaseDir, BlackListDir);
+				string ExcludePath = Path.Combine(BaseDir, DenyListDir);
 				if (!PathsToExclude.Contains(ExcludePath))
 				{
 					PathsToExclude.Add(ExcludePath);

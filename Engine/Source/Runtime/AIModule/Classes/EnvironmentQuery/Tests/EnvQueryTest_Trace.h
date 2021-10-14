@@ -14,8 +14,8 @@
 class AActor;
 struct FCollisionQueryParams;
 
-UCLASS(MinimalAPI)
-class UEnvQueryTest_Trace : public UEnvQueryTest
+UCLASS()
+class AIMODULE_API UEnvQueryTest_Trace : public UEnvQueryTest
 {
 	GENERATED_UCLASS_BODY()
 

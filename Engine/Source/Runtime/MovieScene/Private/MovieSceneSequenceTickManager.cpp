@@ -45,12 +45,29 @@ void UMovieSceneSequenceTickManager::RegisterSequenceActor(AActor* InActor)
 	}
 }
 
+void UMovieSceneSequenceTickManager::RegisterSequenceActor(AActor* InActor, TScriptInterface<IMovieSceneSequenceActor> InActorInterface)
+{
+	if (ensure(InActor && InActorInterface))
+	{
+		SequenceActors.Add(FMovieSceneSequenceActorPointers{ InActor, InActorInterface });
+	}
+}
+
 void UMovieSceneSequenceTickManager::UnregisterSequenceActor(AActor* InActor)
 {
 	TScriptInterface<IMovieSceneSequenceActor> SequenceActorInterface(InActor);
 	if (ensureMsgf(SequenceActorInterface, TEXT("The given actor doesn't implement the IMovieSceneSequenceActor interface!")))
 	{
 		int32 NumRemoved = SequenceActors.RemoveAll([=](FMovieSceneSequenceActorPointers& Item) { return Item.SequenceActor == InActor; });
+		ensureMsgf(NumRemoved > 0, TEXT("The given sequence actor wasn't registered"));
+	}
+}
+
+void UMovieSceneSequenceTickManager::UnregisterSequenceActor(AActor* InActor, TScriptInterface<IMovieSceneSequenceActor> InActorInterface)
+{
+	if (ensure(InActor && InActorInterface))
+	{
+		int32 NumRemoved = SequenceActors.RemoveAll([=](const FMovieSceneSequenceActorPointers& Item) { return Item.SequenceActor == InActor && Item.SequenceActorInterface == InActorInterface; });
 		ensureMsgf(NumRemoved > 0, TEXT("The given sequence actor wasn't registered"));
 	}
 }

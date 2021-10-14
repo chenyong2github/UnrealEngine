@@ -344,10 +344,10 @@ private:
 	int32 UpdateCollisionAndClients(TMap<ULandscapeComponent*, FLandscapeEditLayerReadbackResult> const& Components);
 	int32 UpdateAfterReadbackResolves(TMap<ULandscapeComponent*, FLandscapeEditLayerReadbackResult> const& Components);
 
-	bool AreLayersResourcesReady(bool bInWaitForStreaming) const;
-	bool PrepareLayersBrushResources(bool bInWaitForStreaming, bool bHeightmap) const;
-	bool PrepareLayersHeightmapTextureResources(bool bInWaitForStreaming) const;
-	bool PrepareLayersWeightmapTextureResources(bool bInWaitForStreaming) const;
+	bool PrepareTextureResources(bool bInWaitForStreaming);
+	bool PrepareLayersTextureResources(bool bInWaitForStreaming);
+	bool PrepareLayersBrushResources(bool bInWaitForStreaming);
+	void InvalidateRVTForTextures(const TSet<TObjectPtr<UTexture2D>>& InTextures);
 
 	void UpdateLayersMaterialInstances(const TArray<ULandscapeComponent*>& InLandscapeComponents);
 
@@ -429,6 +429,10 @@ public:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextureRenderTarget2D>> WeightmapRTList;
+
+	/** List of textures that are not fully streamed in yet (updated every frame to track textures that have finished streaming in) */
+	UPROPERTY(Transient, DuplicateTransient, TextExportTransient)	
+	TSet<TObjectPtr<UTexture2D>> TrackedStreamingInTextures;
 
 private:
 	FLandscapeBlueprintBrushChangedDelegate LandscapeBlueprintBrushChangedDelegate;

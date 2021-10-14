@@ -28,12 +28,7 @@ namespace Metasound
 
 	FSendAddress FMetaSoundParameterTransmitter::CreateSendAddressFromInstanceID(uint64 InInstanceID, const FVertexName& InVertexName, const FName& InTypeName)
 	{
-		FSendAddress Address;
-
-		Address.Subsystem = GetSubsystemNameForSendScope(ETransmissionScope::Global);
-		Address.ChannelName = *FString::Format(TEXT("{0}:{1}:{2}"), { InInstanceID, InVertexName.ToString(), InTypeName.ToString() });
-
-		return Address;
+		return FSendAddress(InVertexName, InTypeName, InInstanceID);
 	}
 
 	FMetaSoundParameterTransmitter::FMetaSoundParameterTransmitter(const FMetaSoundParameterTransmitter::FInitParams& InInitParams)
@@ -49,7 +44,7 @@ namespace Metasound
 
 		for (const FSendInfo& SendInfo : SendInfos)
 		{
-			bSuccess &= FDataTransmissionCenter::Get().UnregisterDataChannel(SendInfo.TypeName, SendInfo.Address);
+			bSuccess &= FDataTransmissionCenter::Get().UnregisterDataChannel(SendInfo.Address);
 		}
 
 		return bSuccess;
@@ -184,8 +179,8 @@ namespace Metasound
 		const float DelayTimeInSeconds = 0.1f; // This not used for non-audio routing.
 		const FSenderInitParams InitParams = { OperatorSettings, DelayTimeInSeconds };
 
-		TUniquePtr<ISender> Sender = FDataTransmissionCenter::Get().RegisterNewSender(InInfo.TypeName, InInfo.Address, InitParams);
-		if (ensureMsgf(Sender.IsValid(), TEXT("Failed to create sender [DataType:%s, Address:%s]"), *InInfo.TypeName.ToString(), *InInfo.Address.ChannelName.ToString()))
+		TUniquePtr<ISender> Sender = FDataTransmissionCenter::Get().RegisterNewSender(InInfo.Address, InitParams);
+		if (ensureMsgf(Sender.IsValid(), TEXT("Failed to create sender [Address:%s]"), *InInfo.Address.ToString()))
 		{
 			ISender* Ptr = Sender.Get();
 			InputSends.Add(InInfo.ParameterName, MoveTemp(Sender));

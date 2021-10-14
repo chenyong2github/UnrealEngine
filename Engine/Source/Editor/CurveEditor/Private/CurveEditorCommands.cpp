@@ -72,8 +72,9 @@ void FCurveEditorCommands::RegisterCommands()
 	// User Implementable Filter window
 	UI_COMMAND(OpenUserImplementableFilterWindow, "Filter...", "Opens a window which lets you choose from user implementable filter classes with advanced settings.", EUserInterfaceActionType::Button, FInputChord());
 	
+	UI_COMMAND(SelectAllKeys, "Select All Keys", "Select all keys.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::A));
 	// Deselect any keys that the user has selected.
-	UI_COMMAND(DeselectAllKeys, "Deselect Keys", "Clears your current key selection.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::D));
+	UI_COMMAND(DeselectAllKeys, "Deselect All Keys", "Clears your current key selection.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::D));
 
 	// Buffer and Apply Curves. Like copy and paste, but with multiple curve support.
 	UI_COMMAND(BufferVisibleCurves, "Store Curves", "Stores a copy of the visible curves which can be applied onto other curve sets.", EUserInterfaceActionType::Button, FInputChord());

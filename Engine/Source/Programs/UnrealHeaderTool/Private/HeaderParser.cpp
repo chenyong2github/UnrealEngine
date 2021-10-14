@@ -169,7 +169,7 @@ namespace
 			}
 		}
 
-		// We look for at least one underscore as a convenient way of whitelisting many known macros
+		// We look for at least one underscore as a convenient way of allowing many known macros
 		// like FORCEINLINE and CONSTEXPR, and non-macros like FPOV and TCHAR.
 		if (UnderscoreCount == 0)
 		{

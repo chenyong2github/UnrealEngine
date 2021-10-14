@@ -114,8 +114,6 @@ void FDMXFixtureTypeSharedData::SetFunctionAndMatrixSelection(const TArray<int32
 
 bool FDMXFixtureTypeSharedData::CanCopyModesToClipboard() const
 {
-	UE_LOG(LogTemp, Warning, TEXT("Test can copy"));
-
 	if (SelectedModeIndices.Num() == 0)
 	{
 		return false;
@@ -152,7 +150,7 @@ void FDMXFixtureTypeSharedData::CopyModesToClipboard()
 					const FDMXFixtureMode& Mode = FixtureType->Modes[ModeIndex];
 					if (FixtureType->Modes.IsValidIndex(ModeIndex))
 					{
-						const TOptional<FString> CopyStr = FDMXRuntimeUtils::SerializeStructToString(FDMXFixtureMode::StaticStruct(), (void*)&Mode);
+						const TOptional<FString> CopyStr = FDMXRuntimeUtils::SerializeStructToString<FDMXFixtureMode>(Mode);
 						if (CopyStr.IsSet())
 						{
 							ModesClipboard.Add(CopyStr.GetValue());
@@ -302,7 +300,7 @@ void FDMXFixtureTypeSharedData::CopyFunctionsToClipboard()
 					{
 						if (Mode.Functions.IsValidIndex(FunctionIndex))
 						{
-							const TOptional<FString> CopyStr = FDMXRuntimeUtils::SerializeStructToString(FDMXFixtureFunction::StaticStruct(), &Mode.Functions[FunctionIndex]);
+							const TOptional<FString> CopyStr = FDMXRuntimeUtils::SerializeStructToString<FDMXFixtureFunction>(Mode.Functions[FunctionIndex]);
 							if (CopyStr.IsSet())
 							{
 								FunctionsClipboard.Add(CopyStr.GetValue());

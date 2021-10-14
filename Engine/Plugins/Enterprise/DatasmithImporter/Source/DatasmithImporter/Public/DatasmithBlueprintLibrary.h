@@ -129,7 +129,7 @@ public:
 	void DestroyScene();
 
 private:
-	TUniquePtr<FDatasmithTranslatableSceneSource> SourcePtr; // #ueent_todo move to context
+	TSharedPtr<UE::DatasmithImporter::FExternalSource> ExternalSourcePtr;
 	TUniquePtr<FDatasmithImportContext> ImportContextPtr;
 	bool bTranslated = false;
 

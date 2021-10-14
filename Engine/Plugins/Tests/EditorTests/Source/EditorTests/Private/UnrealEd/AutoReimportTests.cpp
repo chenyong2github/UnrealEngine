@@ -78,7 +78,7 @@ struct FAutoReimportTestPayload
 	}
 	~FAutoReimportTestPayload()
 	{
-		// Avoid writing out the file after we've nuked the directory
+		// Avoid writing out the file after we've deleted the directory
 		FileCache = nullptr;
 		if (!IFileManager::Get().DeleteDirectory(*WorkingDir, false, true))
 		{

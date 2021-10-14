@@ -243,6 +243,7 @@ bool FMultiBlock::GetSearchable() const
  */
 FMultiBox::FMultiBox(const EMultiBoxType InType, FMultiBoxCustomization InCustomization, const bool bInShouldCloseWindowAfterMenuSelection)
 	: bHasSearchWidget(false)
+	, bIsFocusable(true)
 	, CommandLists()
 	, Blocks()
 	, StyleSet( &FCoreStyle::Get() )
@@ -1003,6 +1004,7 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 		{
 			MainWidget = HorizontalBox = ClippedHorizontalBox = SNew(SClippingHorizontalBox)
 				.OnWrapButtonClicked(FOnGetContent::CreateSP(this, &SMultiBoxWidget::OnWrapButtonClicked))
+				.IsFocusable(MultiBox->bIsFocusable)
 				.StyleSet(StyleSet)
 				.StyleName(StyleName);
 		}
@@ -1501,7 +1503,7 @@ FReply SMultiBoxWidget::OnDrop( const FGeometry& MyGeometry, const FDragDropEven
 
 bool SMultiBoxWidget::SupportsKeyboardFocus() const
 {
-	return true;
+	return MultiBox->bIsFocusable;
 }
 
 FReply SMultiBoxWidget::FocusNextWidget(EUINavigation NavigationType)

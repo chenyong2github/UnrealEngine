@@ -26,6 +26,7 @@
 #include "Widgets/Shared/SProjectLauncherCookModeSelector.h"
 #include "Widgets/Shared/SProjectLauncherProfileLaunchButton.h"
 #include "Widgets/Shared/SProjectLauncherVariantSelector.h"
+#include "Widgets/Layout/SSeparator.h"
 
 #define LOCTEXT_NAMESPACE "SProjectLauncherSimpleDeviceListRow"
 
@@ -100,21 +101,22 @@ public:
 
 			+ SHorizontalBox::Slot()
 			.FillWidth(1)
-			.Padding(0,2,0,2)
+			.Padding(0,0,0,1)
 			[
 				SNew(SBorder)
 				.Padding(2)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
 				[
 					SNew(SHorizontalBox)
 
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
-					.VAlign(VAlign_Top)
+					.VAlign(VAlign_Center)
+					.Padding(14, 0, 12, 0)
 					[
 						SNew(SBox)
-						.WidthOverride(40)
-						.HeightOverride(40)
+						.WidthOverride(44)
+						.HeightOverride(44)
 						[
 							SNew(SImage)
 							.Image(this, &SProjectLauncherSimpleDeviceListRow::HandleDeviceImage)
@@ -123,13 +125,13 @@ public:
 
 					+ SHorizontalBox::Slot()
 					.FillWidth(1)
-					.VAlign(VAlign_Top)
+					.VAlign(VAlign_Center)
 					[
 						SNew(SVerticalBox)
 
 						+ SVerticalBox::Slot()
 						.AutoHeight()
-						.Padding(2,4,2,4)
+						.Padding(2,9,2,4)
 						[
 							SNew(STextBlock)
 							.Text(this, &SProjectLauncherSimpleDeviceListRow::HandleDeviceNameText)
@@ -137,7 +139,7 @@ public:
 
 						+ SVerticalBox::Slot()
 						.AutoHeight()
-						.Padding(2, 4, 2, 4)
+						.Padding(2, 4, 2, 9)
 						[
 							SNew(STextBlock)
 							.Text(this, &SProjectLauncherSimpleDeviceListRow::HandleHostPlatformText)
@@ -146,6 +148,7 @@ public:
 
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
+					.VAlign(VAlign_Center)
 					[
 						// This Vertical box ensures the NameGrid spans only the vertical space the ValueGrid forces.
 						SNew(SVerticalBox)
@@ -158,14 +161,13 @@ public:
 
 							+ SHorizontalBox::Slot()
 							.AutoWidth()
-							.Padding(2, 0, 4, 0)
+							.Padding(0, 0, 30, 0)
 							[
 								NameGrid
 							]
 
 							+ SHorizontalBox::Slot()
 							.AutoWidth()
-							.VAlign(VAlign_Top)
 							[
 								ValueGrid
 							]
@@ -174,8 +176,17 @@ public:
 
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
+					.Padding(12, 5, 0, 5)
+					[
+						SNew(SSeparator)
+						.Orientation(Orient_Vertical)
+						.Thickness(1.f)
+					]
+
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
 					.VAlign(VAlign_Center)
-					.Padding(4,0,0,0)
+					.Padding(20, 0, 20, 0)
 					[
 						SNew(SProjectLauncherProfileLaunchButton, true)
 						.LaunchProfile(this, &SProjectLauncherSimpleDeviceListRow::GetLaunchProfile)

@@ -106,12 +106,22 @@ void SRichTextBlock::OnArrangeChildren(const FGeometry& AllottedGeometry, FArran
 
 void SRichTextBlock::SetText( const TAttribute<FText>& InTextAttr )
 {
+	if (!BoundText.IsBound() && !InTextAttr.IsBound() && InTextAttr.Get().IdenticalTo(BoundText.Get(), ETextIdenticalModeFlags::DeepCompare | ETextIdenticalModeFlags::LexicalCompareInvariants))
+	{
+		return;
+	}
+
 	BoundText = InTextAttr;
-	Invalidate(EInvalidateWidget::LayoutAndVolatility|EInvalidateWidgetReason::Prepass);
+	Invalidate(EInvalidateWidget::LayoutAndVolatility | EInvalidateWidgetReason::Prepass);
 }
 
 void SRichTextBlock::SetHighlightText( const TAttribute<FText>& InHighlightText )
 {
+	if (!HighlightText.IsBound() && !InHighlightText.IsBound() && InHighlightText.Get().IdenticalTo(HighlightText.Get(), ETextIdenticalModeFlags::DeepCompare | ETextIdenticalModeFlags::LexicalCompareInvariants))
+	{
+		return;
+	}
+
 	HighlightText = InHighlightText;
 	Invalidate(EInvalidateWidget::LayoutAndVolatility);
 }
@@ -191,8 +201,11 @@ void SRichTextBlock::SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflow
 
 void SRichTextBlock::SetTextBlockScale(const float NewTextBlockScale)
 {
-	TextBlockScale = NewTextBlockScale;
-	Invalidate(EInvalidateWidget::Prepass);
+	if (TextBlockScale != NewTextBlockScale)
+	{
+		TextBlockScale = NewTextBlockScale;
+		Invalidate(EInvalidateWidget::Prepass);
+	}
 }
 
 void SRichTextBlock::Refresh()

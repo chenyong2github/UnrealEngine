@@ -24,9 +24,16 @@ static FString PrepareLayoutStringForIni(const FString& LayoutString)
 		.Replace(TEXT("\t"), TEXT(""));
 }
 
-static FString GetLayoutStringFromIni(const FString& LayoutString)
+static FString GetLayoutStringFromIni(const FString& LayoutString, bool& bOutIsJson)
 {
+	if (FTextStringHelper::IsComplexText(*LayoutString))
+	{
+		bOutIsJson = false;
+		return LayoutString;
+	}
+
 	// Revert parenthesis to braces, from ini readable to Json readable
+	bOutIsJson = true;
 	return LayoutString
 		.Replace(TEXT("("), TEXT("{"))
 		.Replace(TEXT(")"), TEXT("}"))
@@ -49,15 +56,24 @@ static TSharedPtr<FJsonObject> ConvertSectionToJson(const TArray<FString>& Secti
 		FString Key, Value;
 		if (SectionPair.Split(TEXT("="), &Key, &Value))
 		{
-			Value = GetLayoutStringFromIni(Value);
+			bool bIsJson = true;
+			Value = GetLayoutStringFromIni(Value, bIsJson);
 
-			TSharedPtr<FJsonObject> ChildObject = MakeShared<FJsonObject>();
-			TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Value);
-			if (FJsonSerializer::Deserialize(Reader, ChildObject))
+			if (bIsJson)
 			{
-				RootObject->SetObjectField(Key, ChildObject);
+				TSharedPtr<FJsonObject> ChildObject = MakeShared<FJsonObject>();
+				TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Value);
+				if (FJsonSerializer::Deserialize(Reader, ChildObject))
+				{
+					RootObject->SetObjectField(Key, ChildObject);
+				}
+				else
+				{
+					bIsJson = false;
+				}
 			}
-			else
+			
+			if (!bIsJson)
 			{
 				RootObject->SetStringField(Key, Value);
 			}
@@ -176,7 +192,8 @@ TSharedRef<FTabManager::FLayout> FLayoutSaveRestore::LoadFromConfigPrivate(const
 		FString IniLayoutString;
 		// If the Key (InDefaultLayout->GetLayoutName()) already exists in the section EditorLayoutsSectionName of the file InConfigFileName, try to load the layout from that file
 		GConfig->GetString(EditorLayoutsSectionName, *LayoutNameString, IniLayoutString, InConfigFileName);
-		UserLayout = FTabManager::FLayout::NewFromString( GetLayoutStringFromIni( IniLayoutString ) );
+		bool bIsJson = false;
+		UserLayout = FTabManager::FLayout::NewFromString( GetLayoutStringFromIni( IniLayoutString, bIsJson ) );
 	}
 
 	if (UserLayout.IsValid())

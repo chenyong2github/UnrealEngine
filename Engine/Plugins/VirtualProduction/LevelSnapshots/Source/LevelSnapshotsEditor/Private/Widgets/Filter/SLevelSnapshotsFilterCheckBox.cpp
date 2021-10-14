@@ -3,6 +3,7 @@
 #include "Widgets/Filter/SLevelSnapshotsFilterCheckBox.h"
 
 #include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"
 
@@ -16,7 +17,6 @@ void SLevelSnapshotsFilterCheckBox::Construct(const FArguments& Args)
 
 	TSharedPtr<SImage> Image;
 	
-	const FCheckBoxStyle& CheckBoxStyle = FEditorStyle::GetWidgetStyle<FCheckBoxStyle>("ContentBrowser.FilterButton");
 	ChildSlot
     [
         SNew(SHorizontalBox)
@@ -25,7 +25,7 @@ void SLevelSnapshotsFilterCheckBox::Construct(const FArguments& Args)
         .AutoWidth()
         [
             SAssignNew(Image, SImage)
-            .Image(&CheckBoxStyle.CheckedImage)
+            .Image(FAppStyle::Get().GetBrush("ContentBrowser.FilterImage"))
             .ColorAndOpacity(Args._ForegroundColor)
         ]
         + SHorizontalBox::Slot()

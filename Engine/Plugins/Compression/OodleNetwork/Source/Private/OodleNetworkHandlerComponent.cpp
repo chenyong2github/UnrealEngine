@@ -30,7 +30,7 @@ DEFINE_LOG_CATEGORY(OodleNetworkHandlerComponentLog);
 #endif
 
 #ifndef OODLE_USE_FALLBACK_DICTIONARY
-	#define OODLE_USE_FALLBACK_DICTIONARY !(PLATFORM_PS4 || PLATFORM_SWITCH)
+	#define OODLE_USE_FALLBACK_DICTIONARY PLATFORM_DESKTOP
 #endif
 
 // @todo #JohnB: You're not taking into account, the overhead of sending 'DecompressedLength', in the stats

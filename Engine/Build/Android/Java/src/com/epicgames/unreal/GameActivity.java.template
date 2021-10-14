@@ -176,6 +176,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.TimeZone;
 import java.util.UUID;
+import java.io.ByteArrayOutputStream;
 
 import com.epicgames.unreal.GooglePlayLicensing;
 
@@ -790,43 +791,46 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		}
 	}
 
+	private static byte[] getByteArrayFromInputStream(InputStream inStream) throws IOException 
+	{
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+		byte[] buffer = new byte[(int)16384];
+		int readBytes = 0;
+		while((readBytes = inStream.read(buffer)) > 0)
+		{
+			output.write(buffer, 0, readBytes);
+		}
+		return output.size() > 0 ? output.toByteArray() : null;
+	}
+
 	public static byte[] getByteArrayFromFile(String filename)
 	{
-		try
+		File file = new File(filename);
+		if (file.exists())
 		{
-			File file = new File(filename);
-			if (file.exists())
+			try(InputStream inStream = new FileInputStream(file))
 			{
-				long fileLength = file.length();
-				byte[] buffer = new byte[(int)fileLength];
-				InputStream inStream = new FileInputStream(file);
-				inStream.read(buffer);
-				inStream.close();
+				byte[] buffer = getByteArrayFromInputStream(inStream);
 				return buffer;
 			}
-		}
-		catch (IOException e)
-		{
+			catch(Exception e)
+			{
+				Log.debug("failed to get bytes from file "+e.toString());
+			}				
 		}
 		return null;
 	}
 
 	private byte[] getByteArrayFromAssets(String filename)
 	{
-		InputStream stream = null;
-		try
+		try(InputStream  inStream = AssetManagerReference.open(filename))
 		{
-			stream = AssetManagerReference.open("configrules.bin.png");
-			byte[] fileBytes = new byte[stream.available()];
-			stream.read(fileBytes);
-			stream.close();
-			return fileBytes;
+			byte[] buffer = getByteArrayFromInputStream(inStream);
+			return buffer;
 		}
-		catch (FileNotFoundException fe)
+		catch(Exception e)
 		{
-		}
-		catch (IOException ie)
-		{
+			Log.debug("failed to get bytes from asset "+e.toString());
 		}
 		return null;
 	}
@@ -891,6 +895,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		int signature = buffer.getShort();
 		if (signature != 0x39d8)
 		{
+			Log.debug("failed sig ");
 			return null;
 		}
 		int version = buffer.getInt();
@@ -915,11 +920,13 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			inflater.end();
 			if (resultLength != sizeUncompressed)
 			{
+				Log.debug("1 unexpected size ("+resultLength+", "+sizeUncompressed+")");
 				return null;
 			}
 		}
 		catch (Exception e)
 		{
+			Log.debug("failed "+e.toString());
 			// decompress it without decrypting
 			try
 			{
@@ -929,11 +936,13 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				inflater.end();
 				if (resultLength != sizeUncompressed)
 				{
+					Log.debug("2 unexpected size ("+resultLength+", "+sizeUncompressed+")");
 					return null;
 				}
 			}
 			catch (Exception ee)
 			{
+				Log.debug("failed "+ee.toString());
 				return null;
 			}
 		}
@@ -947,6 +956,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		}
 		catch (Exception e)
 		{
+			Log.debug("failed "+e.toString());
         }
 		return null;
 	}
@@ -985,6 +995,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			result = getConfigRulesDecompressed(configBytesInternal);
 			if (result == null && assetsVersion != -1)
 			{
+				Log.debug("using assets rule: ");
+				File internalconfigFile = new File(InternalFilesDir + "configrules.bin.png");
+				internalconfigFile.delete();
 				result = getConfigRulesDecompressed(configBytesAssets);
 			}
 		}

@@ -289,9 +289,9 @@ void UAIPerceptionComponent::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-void UAIPerceptionComponent::UpdatePerceptionWhitelist(const FAISenseID Channel, const bool bNewValue)
+void UAIPerceptionComponent::UpdatePerceptionAllowList(const FAISenseID Channel, const bool bNewValue)
 {
-	// Return if we don't have a Sense Config as it doesn't make sense to update the perception white list.
+	// Return if we don't have a Sense Config as it doesn't make sense to update the perception allow list.
 	// Also modifying this often requires the Sense Config further along the call stack.
 	if (GetSenseConfig(Channel) == nullptr)
 	{
@@ -819,7 +819,7 @@ void UAIPerceptionComponent::SetSenseEnabled(TSubclassOf<UAISense> SenseClass, c
 	const FAISenseID SenseID = UAISense::GetSenseID(SenseClass);
 	if (SenseID.IsValid())
 	{
-		UpdatePerceptionWhitelist(SenseID, bEnable);
+		UpdatePerceptionAllowList(SenseID, bEnable);
 	}
 }
 
@@ -879,7 +879,7 @@ void UAIPerceptionComponent::DescribeSelfToVisLog(FVisualLogEntry* Snapshot) con
 //----------------------------------------------------------------------//
 void UAIPerceptionComponent::UpdatePerceptionFilter(FAISenseID Channel, bool bNewValue)
 {
-	UpdatePerceptionWhitelist(Channel, bNewValue);
+	UpdatePerceptionAllowList(Channel, bNewValue);
 }
 
 void UAIPerceptionComponent::GetPerceivedActors(TSubclassOf<UAISense> SenseToUse, TArray<AActor*>& OutActors) const

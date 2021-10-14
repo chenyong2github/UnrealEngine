@@ -604,7 +604,7 @@ public:
 	FString GetBuildTargetForPlatform(FName PlatformName) const;
 	void SetBuildTargetForPlatform(FName PlatformName, FString BuildTargetName);
 
-	const FTargetInfo* GetBuildTargetInfoForPlatform(FName PlatformName) const;
+	const FTargetInfo* GetBuildTargetInfoForPlatform(FName PlatformName, bool& bOutIsProjectTarget) const;
 
 private:
 	/** Per platform build configuration */

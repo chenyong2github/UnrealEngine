@@ -66,6 +66,10 @@ public:
 	TArray< TObjectPtr<UAssetUserData> > AssetUserData;
 #endif // #if WITH_EDITORONLY_DATA
 
+	//~ Begin UObject Interface
+	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+	//~ End UObject Interface
+
 	/** Register the DatasmithScene to the PreWorldRename callback as needed*/
 	void RegisterPreWorldRenameCallback();
 

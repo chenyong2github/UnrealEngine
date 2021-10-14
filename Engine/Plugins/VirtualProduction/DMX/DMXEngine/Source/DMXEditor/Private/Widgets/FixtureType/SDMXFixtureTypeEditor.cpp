@@ -14,7 +14,7 @@
 #include "Library/DMXImport.h"
 #include "Library/DMXLibrary.h"
 #include "Library/DMXEntityFixtureType.h"
-
+#include "Modules/ModuleManager.h"
 #include "Widgets/Layout/SSplitter.h"
 
 

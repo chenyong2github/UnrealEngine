@@ -124,6 +124,8 @@ public:
 	void RemoveBindings(const TArray<FUIActionBindingHandle>& WidgetBindings);
 	void RemoveBinding(FUIActionBindingHandle ActionHandle);
 
+	bool HasHoldBindings() const { return HoldBindingsCount > 0; }
+
 	const TArray<FUIActionBindingHandle>& GetActionBindings() const { return ActionBindings; }
 	
 protected:
@@ -148,6 +150,8 @@ protected:
 private:
 	//Slate application sends repeat actions only for the last pressed key, so we have to keep track of this last held binding and clear it when we get a new key to hold
 	mutable FUIActionBindingHandle CurrentlyHeldBinding;
+
+	int32 HoldBindingsCount = 0;
 };
 
 //////////////////////////////////////////////////////////////////////////

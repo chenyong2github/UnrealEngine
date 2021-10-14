@@ -21,11 +21,11 @@ FString SnapshotUtil::ExtractLastSubobjectName(const FSoftObjectPath& ObjectPath
 	return SubPathString.RightChop(LastDotIndex + 1);
 }
 
-/* If the path contains an actor, returns a new path to that actor. */
 TOptional<FSoftObjectPath> SnapshotUtil::ExtractActorFromPath(const FSoftObjectPath& OriginalObjectPath, bool& bIsPathToActorSubobject)
 {
 	const static FString PersistentLevelString("PersistentLevel.");
 	const int32 PersistentLevelStringLength = PersistentLevelString.Len();
+	// /Game/MapName.MapName:PersistentLevel.StaticMeshActor_42.StaticMeshComponent becomes PersistentLevel.StaticMeshActor_42.StaticMeshComponent
 	const FString& SubPathString = OriginalObjectPath.GetSubPathString();
 	const int32 IndexOfPersistentLevelInfo = SubPathString.Find(PersistentLevelString, ESearchCase::CaseSensitive);
 	if (IndexOfPersistentLevelInfo == INDEX_NONE)
@@ -33,6 +33,7 @@ TOptional<FSoftObjectPath> SnapshotUtil::ExtractActorFromPath(const FSoftObjectP
 		return {};
 	}
 
+	// Example: /Game/MapName.MapName:PersistentLevel.StaticMeshActor_42.StaticMeshComponent
 	const int32 DotAfterActorNameIndex = SubPathString.Find(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromStart, IndexOfPersistentLevelInfo + PersistentLevelStringLength);
 	const bool bPathIsToActor = DotAfterActorNameIndex == INDEX_NONE;
 	
@@ -45,9 +46,23 @@ TOptional<FSoftObjectPath> SnapshotUtil::ExtractActorFromPath(const FSoftObjectP
 		FSoftObjectPath(OriginalObjectPath.GetAssetPathName(), SubPathString.Left(DotAfterActorNameIndex));
 }
 
-/* If Path contains a path to an actor, returns that actor.
- * Example: /Game/MapName.MapName:PersistentLevel.StaticMeshActor_42.StaticMeshComponent returns StaticMeshActor_42's data
- */
+TOptional<int32> SnapshotUtil::FindDotAfterActorName(const FSoftObjectPath& OriginalObjectPath)
+{
+	const static FString PersistentLevelString("PersistentLevel.");
+	const int32 PersistentLevelStringLength = PersistentLevelString.Len();
+	// /Game/MapName.MapName:PersistentLevel.StaticMeshActor_42.StaticMeshComponent becomes PersistentLevel.StaticMeshActor_42.StaticMeshComponent
+	const FString& SubPathString = OriginalObjectPath.GetSubPathString();
+	const int32 IndexOfPersistentLevelInfo = SubPathString.Find(PersistentLevelString, ESearchCase::CaseSensitive);
+	if (IndexOfPersistentLevelInfo == INDEX_NONE)
+	{
+		return {};
+	}
+
+	// Example: /Game/MapName.MapName:PersistentLevel.StaticMeshActor_42.StaticMeshComponent
+	const int32 DotAfterActorNameIndex = SubPathString.Find(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromStart, IndexOfPersistentLevelInfo + PersistentLevelStringLength);
+	return DotAfterActorNameIndex != INDEX_NONE ? DotAfterActorNameIndex : TOptional<int32>();
+}
+
 TOptional<FActorSnapshotData*> SnapshotUtil::FindSavedActorDataUsingObjectPath(TMap<FSoftObjectPath, FActorSnapshotData>& ActorData, const FSoftObjectPath& OriginalObjectPath, bool& bIsPathToActorSubobject)
 {
 	const TOptional<FSoftObjectPath> PathToActor = SnapshotUtil::ExtractActorFromPath(OriginalObjectPath, bIsPathToActorSubobject);

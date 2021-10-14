@@ -24,7 +24,7 @@
 			"Name": "MDLImporter",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
+			"PlatformAllowList": [
 				"Win64",
 				"Mac",
 				"Linux"

@@ -472,7 +472,7 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	 *	Exit the current game 
 	 * @param	SpecificPlayer	The specific player to quit the game. If not specified, player 0 will quit.
 	 * @param	QuitPreference	Form of quitting.
-	 * @param	bIgnorePlatformRestrictions	Ignores and best-practices based on platform (e.g PS4 games should never quit). Non-shipping only
+	 * @param	bIgnorePlatformRestrictions	Ignores and best-practices based on platform (e.g on some consoles, games should never quit). Non-shipping only
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game",meta=(WorldContext="WorldContextObject", CallableWithoutWorldContext))
 	static void QuitGame(const UObject* WorldContextObject, class APlayerController* SpecificPlayer, TEnumAsByte<EQuitPreference::Type> QuitPreference, bool bIgnorePlatformRestrictions);

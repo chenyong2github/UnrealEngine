@@ -258,6 +258,10 @@ FDisplayClusterShaderParameters_ICVFX::FCameraSettings FDisplayClusterViewportCo
 	Result.SoftEdge.Y = CameraSettings.SoftEdge.Vertical;
 	Result.SoftEdge.Z = 0;
 
+	Result.InnerCameraBorderColor = CameraSettings.Border.Color;
+	Result.InnerCameraBorderThickness = CameraSettings.Border.Enable ? CameraSettings.Border.Thickness : 0.0f;
+	Result.InnerCameraFrameAspectRatio = (float)CameraSettings.RenderSettings.CustomFrameSize.CustomWidth / (float)CameraSettings.RenderSettings.CustomFrameSize.CustomHeight;
+
 	const FString InnerFrustumID = InCameraComponent.GetCameraUniqueId();
 	const int CameraRenderOrder = RootActor.GetInnerFrustumPriority(InnerFrustumID);
 

@@ -1591,20 +1591,19 @@ void FNiagaraSystemViewModel::RequestResetSystem()
 	bResetRequestPending = true;
 }
 
-void GetCompiledScriptAndEmitterNameFromInputNode(UNiagaraNode& StackNode, UNiagaraSystem& OwningSystem, UNiagaraScript*& OutCompiledScript, FString& OutEmitterName)
+void GetCompiledScriptsAndEmitterNameFromInputNode(UNiagaraNode& StackNode, UNiagaraSystem& OwningSystem, TArray<UNiagaraScript*>& OutCompiledScripts, FString& OutEmitterName)
 {
-	OutCompiledScript = nullptr;
 	OutEmitterName = FString();
 	UNiagaraNodeOutput* OutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(StackNode);
 	if (OutputNode != nullptr)
 	{
 		if (OutputNode->GetUsage() == ENiagaraScriptUsage::SystemSpawnScript)
 		{
-			OutCompiledScript = OwningSystem.GetSystemSpawnScript();
+			OutCompiledScripts.Add(OwningSystem.GetSystemSpawnScript());
 		}
 		else if (OutputNode->GetUsage() == ENiagaraScriptUsage::SystemUpdateScript)
 		{
-			OutCompiledScript = OwningSystem.GetSystemUpdateScript();
+			OutCompiledScripts.Add(OwningSystem.GetSystemUpdateScript());
 		}
 		else
 		{
@@ -1619,16 +1618,20 @@ void GetCompiledScriptAndEmitterNameFromInputNode(UNiagaraNode& StackNode, UNiag
 				switch (OutputNode->GetUsage())
 				{
 				case ENiagaraScriptUsage::EmitterSpawnScript:
-					OutCompiledScript = OwningSystem.GetSystemSpawnScript();
+					OutCompiledScripts.Add(OwningSystem.GetSystemSpawnScript());
 					break;
 				case ENiagaraScriptUsage::EmitterUpdateScript:
-					OutCompiledScript = OwningSystem.GetSystemUpdateScript();
+					OutCompiledScripts.Add(OwningSystem.GetSystemUpdateScript());
 					break;
 				case ENiagaraScriptUsage::ParticleSpawnScript:
 				case ENiagaraScriptUsage::ParticleUpdateScript:
 				case ENiagaraScriptUsage::ParticleEventScript:
 				case ENiagaraScriptUsage::ParticleSimulationStageScript:
-					OutCompiledScript = OwningEmitterHandle->GetInstance()->GetScript(OutputNode->GetUsage(), OutputNode->GetUsageId());
+					OutCompiledScripts.Add(OwningEmitterHandle->GetInstance()->GetScript(OutputNode->GetUsage(), OutputNode->GetUsageId()));
+					if (OwningEmitterHandle->GetInstance()->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+					{
+						OutCompiledScripts.Add(OwningEmitterHandle->GetInstance()->GetScript(ENiagaraScriptUsage::ParticleGPUComputeScript, FGuid()));
+					}
 					break;
 				}
 			}
@@ -1661,14 +1664,17 @@ void FNiagaraSystemViewModel::UpdateCompiledDataInterfaces(UNiagaraDataInterface
 		}
 
 		// If the data interface was owned by an input node, then we need to try to update the compiled version.
-		UNiagaraScript* CompiledScript;
+		TArray<UNiagaraScript*> CompiledScripts;
 		FString EmitterName;
-		GetCompiledScriptAndEmitterNameFromInputNode(*OuterInputNode, GetSystem(), CompiledScript, EmitterName);
-		if (ensureMsgf(CompiledScript != nullptr, TEXT("Could not find owning script for data interface input node.")))
+		GetCompiledScriptsAndEmitterNameFromInputNode(*OuterInputNode, GetSystem(), CompiledScripts, EmitterName);
+		if (ensureMsgf(CompiledScripts.Num() > 0, TEXT("Could not find compiled scripts for data interface input node.")))
 		{
-			bool bIsParameterMapDataInterface = false;
-			FName DataInterfaceName = FHlslNiagaraTranslator::GetDataInterfaceName(OuterInputNode->Input.GetName(), EmitterName, bIsParameterMapDataInterface);
-			UpdateCompiledDataInterfacesForScript(*CompiledScript, DataInterfaceName, *ChangedDataInterface);
+			for(UNiagaraScript* CompiledScript : CompiledScripts)
+			{
+				bool bIsParameterMapDataInterface = false;
+				FName DataInterfaceName = FHlslNiagaraTranslator::GetDataInterfaceName(OuterInputNode->Input.GetName(), EmitterName, bIsParameterMapDataInterface);
+				UpdateCompiledDataInterfacesForScript(*CompiledScript, DataInterfaceName, *ChangedDataInterface);
+			}
 		}
 	}
 	else

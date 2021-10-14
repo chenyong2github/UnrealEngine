@@ -27,6 +27,15 @@ UClass* FAssetTypeActions_AnimSequence::GetSupportedClass() const
 	return UAnimSequence::StaticClass(); 
 }
 
+int32 GEnableAnimStreamable = 0;
+static const TCHAR* AnimStreamableCVarName = TEXT("a.EnableAnimStreamable");
+
+static FAutoConsoleVariableRef CVarEnableAnimStreamable(
+	AnimStreamableCVarName,
+	GEnableAnimStreamable,
+	TEXT("1 = Enables ability to make Anim Streamable assets. 0 = off"));
+
+
 void FAssetTypeActions_AnimSequence::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto Sequences = GetTypedWeakObjectPtrs<UAnimSequence>(InObjects);
@@ -157,16 +166,18 @@ void FAssetTypeActions_AnimSequence::FillCreateMenu(FMenuBuilder& MenuBuilder, c
 			)
 		);
 
-	// Not supported, streamable animation logic will be ported to UAnimSequence
-	/*MenuBuilder.AddMenuEntry(
-		LOCTEXT("AnimSequence_NewAnimStreamable", "Create AnimStreamable"),
-		LOCTEXT("AnimSequence_NewAnimStreamableTooltip", "Creates an AnimStreamable using the selected anim sequence."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.AnimMontage"),
-		FUIAction(
-			FExecuteAction::CreateSP(this, &FAssetTypeActions_AnimSequence::ExecuteNewAnimStreamable, Sequences),
-			FCanExecuteAction()
-		)
-	);*/
+	if(GEnableAnimStreamable == 1)
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("AnimSequence_NewAnimStreamable", "Create AnimStreamable"),
+			LOCTEXT("AnimSequence_NewAnimStreamableTooltip", "Creates an AnimStreamable using the selected anim sequence."),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.AnimMontage"),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &FAssetTypeActions_AnimSequence::ExecuteNewAnimStreamable, Sequences),
+				FCanExecuteAction()
+			)
+		);
+	}
 
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AnimSequence_NewPoseAsset", "Create PoseAsset"),

@@ -630,7 +630,7 @@ void USocialManager::JoinParty(const USocialUser& UserToJoin, const FOnlineParty
 	else
 	{
 		// We don't do the standard FinishJoinAttempt here because this entry isn't actually in our map of join attempts yet
-		// It's possible that this attempt failed immediately because a join is already in progress, in which case we don't want to nuke the legitimate attempt with the same ID
+		// It's possible that this attempt failed immediately because a join is already in progress, in which case we don't want to replace the legitimate attempt with the same ID
 		OnJoinPartyAttemptCompleteInternal(NewAttempt, ValidationResult);
 		NewAttempt.OnJoinComplete.ExecuteIfBound(ValidationResult);
 	}

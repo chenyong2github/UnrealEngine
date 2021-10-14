@@ -311,7 +311,7 @@ TSharedRef<FExtender> FRemoteControlUIModule::ExtendLevelViewportContextMenuForR
 
 	if (SelectedActors.Num() == 1)
 	{
-		Extender->AddMenuExtension("ActorControl", EExtensionHook::After, CommandList,
+		Extender->AddMenuExtension("ActorTypeTools", EExtensionHook::After, CommandList,
 			FMenuExtensionDelegate::CreateRaw(this, &FRemoteControlUIModule::AddGetPathOption, SelectedActors[0]));
 	}
 

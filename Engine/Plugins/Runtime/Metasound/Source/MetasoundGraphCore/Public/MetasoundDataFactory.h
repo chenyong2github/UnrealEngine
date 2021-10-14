@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundLiteral.h"
 #include "MetasoundOperatorSettings.h"

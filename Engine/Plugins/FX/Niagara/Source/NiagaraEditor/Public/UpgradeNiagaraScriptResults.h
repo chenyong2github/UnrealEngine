@@ -92,7 +92,7 @@ public:
 	
 	// Whether the converter process was cancelled due to an unrecoverable error in the python script process.
 	UPROPERTY(BlueprintReadWrite, Category = "Scripting")
-	bool bCancelledByPythonError;
+	bool bCancelledByPythonError = false;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Scripting")
 	TArray<TObjectPtr<UNiagaraPythonScriptModuleInput>> OldInputs;

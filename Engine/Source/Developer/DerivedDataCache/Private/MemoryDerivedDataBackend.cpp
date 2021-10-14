@@ -8,6 +8,7 @@
 #include "Misc/ScopeExit.h"
 #include "Serialization/CompactBinary.h"
 #include "Templates/UniquePtr.h"
+#include "Misc/ScopeRWLock.h"
 
 namespace UE::DerivedData::Backends
 {
@@ -30,7 +31,6 @@ FMemoryDerivedDataBackend::~FMemoryDerivedDataBackend()
 
 bool FMemoryDerivedDataBackend::IsWritable() const
 {
-	FScopeLock ScopeLock(&SynchronizationObject);
 	return !bDisabled;
 }
 
@@ -59,7 +59,7 @@ bool FMemoryDerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
 		return false;
 	}
 
-	FScopeLock ScopeLock(&SynchronizationObject);
+	FReadScopeLock ScopeLock(SynchronizationObject);
 	bool Result = CacheItems.Contains(FString(CacheKey));
 	if (Result)
 	{
@@ -79,11 +79,14 @@ bool FMemoryDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint
 	
 	if (!bDisabled)
 	{
-		FScopeLock ScopeLock(&SynchronizationObject);
+		FReadScopeLock ScopeLock(SynchronizationObject);
 
 		FCacheValue* Item = CacheItems.FindRef(FString(CacheKey));
 		if (Item)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(FMemoryDerivedDataBackend::GetCachedData);
+			FReadScopeLock ItemLock(Item->DataLock);
+
 			OutData = Item->Data;
 			Item->Age = 0;
 			check(OutData.Num());
@@ -112,78 +115,111 @@ bool FMemoryDerivedDataBackend::WouldCache(const TCHAR* CacheKey, TArrayView<con
 
 FDerivedDataBackendInterface::EPutStatus FMemoryDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMemoryDerivedDataBackend::PutCachedData);
 	COOK_STAT(auto Timer = UsageStats.TimePut());
-	FScopeLock ScopeLock(&SynchronizationObject);
 
-	if (ShouldSimulateMiss(CacheKey))
+	FString Key;
 	{
-		return EPutStatus::Skipped;
+		FReadScopeLock ReadScopeLock(SynchronizationObject);
+
+		if (ShouldSimulateMiss(CacheKey))
+		{
+			return EPutStatus::Skipped;
+		}
+
+		// Should never hit this as higher level code should be checking..
+		if (!WouldCache(CacheKey, InData))
+		{
+			//UE_LOG(LogDerivedDataCache, Warning, TEXT("WouldCache was not called prior to attempted Put!"));
+			return EPutStatus::NotCached;
+		}
+
+		Key = CacheKey;
+		FCacheValue* Item = CacheItems.FindRef(Key);
+		if (Item)
+		{
+			//check(Item->Data == InData); // any second attempt to push data should be identical data
+			return EPutStatus::Cached;
+		}
 	}
 	
-	// Should never hit this as higher level code should be checking..
-	if (!WouldCache(CacheKey, InData))
+	// Compute the size of the cache before copying the data to avoid alloc/memcpy of something we might throw away
+	// if we bust the cache size.
+	int32 CacheValueSize = CalcSerializedCacheValueSize(Key, InData);
+
+	FCacheValue* Val = nullptr;
+
 	{
-		//UE_LOG(LogDerivedDataCache, Warning, TEXT("WouldCache was not called prior to attempted Put!"));
-		return EPutStatus::NotCached;
-	}
-	
-	FString Key(CacheKey);
-	FCacheValue* Item = CacheItems.FindRef(FString(CacheKey));
-	if (Item)
-	{
-		//check(Item->Data == InData); // any second attempt to push data should be identical data
-		return EPutStatus::Cached;
-	}
-	else
-	{
-		FCacheValue* Val = new FCacheValue(InData);
-		int32 CacheValueSize = CalcCacheValueSize(Key, *Val);
+		FWriteScopeLock WriteScopeLock(SynchronizationObject);
 
 		// check if we haven't exceeded the MaxCacheSize
 		if (MaxCacheSize > 0 && (CurrentCacheSize + CacheValueSize) > MaxCacheSize)
 		{
-			delete Val;
 			UE_LOG(LogDerivedDataCache, Display, TEXT("Failed to cache data. Maximum cache size reached. CurrentSize %d kb / MaxSize: %d kb"), CurrentCacheSize / 1024, MaxCacheSize / 1024);
 			bMaxSizeExceeded = true;
 			return EPutStatus::NotCached;
 		}
-		else
-		{
-			COOK_STAT(Timer.AddHit(InData.Num()));
-			CacheItems.Add(Key, Val);
-			CalcCacheValueSize(Key, *Val);
 
-			CurrentCacheSize += CacheValueSize;
+		if (CacheItems.Contains(Key))
+		{
+			// Another thread already beat us, just return.
 			return EPutStatus::Cached;
 		}
+
+		COOK_STAT(Timer.AddHit(InData.Num()));
+		Val = new FCacheValue(InData.Num());
+		// Make sure no other thread can access the data until we finish copying it
+		Val->DataLock.WriteLock();
+		CacheItems.Add(Key, Val);
+
+		CurrentCacheSize += CacheValueSize;
 	}
+
+	// Data is copied outside of the lock so that we only lock
+	// for this specific key instead of always locking all keys by default.
+	Val->Data = InData;
+	// It is now safe for other thread to access this data, unlock
+	Val->DataLock.WriteUnlock();
+
+	return EPutStatus::Cached;
 }
 
 void FMemoryDerivedDataBackend::RemoveCachedData(const TCHAR* CacheKey, bool bTransient)
 {
-	FScopeLock ScopeLock(&SynchronizationObject);
 	if (bDisabled || bTransient)
 	{
 		return;
 	}
-	FString Key(CacheKey);
-	FCacheValue* Item = NULL;
-	if (CacheItems.RemoveAndCopyValue(Key, Item))
-	{
-		CurrentCacheSize -= CalcCacheValueSize(Key, *Item);
-		bMaxSizeExceeded = false;
 
-		check(Item);
-		delete Item;
-	}
-	else
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMemoryDerivedDataBackend::RemoveCachedData);
+	FString Key(CacheKey);
+	FCacheValue* Item = nullptr;
 	{
-		check(!Item);
+		FWriteScopeLock WriteScopeLock(SynchronizationObject);
+		
+		if (CacheItems.RemoveAndCopyValue(Key, Item))
+		{
+			CurrentCacheSize -= CalcSerializedCacheValueSize(Key, *Item);
+			bMaxSizeExceeded = false;
+		}
+	}
+
+	if (Item)
+	{
+		// Just make sure any other thread has finished writing or reading the data before deleting.
+		Item->DataLock.WriteLock();
+
+		// Avoid deleting the item with a locked FRWLock, unlocking is safe because
+		// the item is now unreachable from other threads
+		Item->DataLock.WriteUnlock();
+		delete Item;
 	}
 }
 
 bool FMemoryDerivedDataBackend::SaveCache(const TCHAR* Filename)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMemoryDerivedDataBackend::SaveCache);
+
 	double StartTime = FPlatformTime::Seconds();
 	TUniquePtr<FArchive> SaverArchive(IFileManager::Get().CreateFileWriter(Filename, FILEWRITE_EvenIfReadOnly));
 	if (!SaverArchive)
@@ -197,12 +233,13 @@ bool FMemoryDerivedDataBackend::SaveCache(const TCHAR* Filename)
 	Saver << Magic;
 	const int64 DataStartOffset = Saver.Tell();
 	{
-		FScopeLock ScopeLock(&SynchronizationObject);
+		FWriteScopeLock ScopeLock(SynchronizationObject);
 		check(!bDisabled);
 		for (TMap<FString, FCacheValue*>::TIterator It(CacheItems); It; ++It )
 		{
 			Saver << It.Key();
 			Saver << It.Value()->Age;
+			FReadScopeLock ReadScopeLock(It.Value()->DataLock);
 			Saver << It.Value()->Data;
 		}
 	}
@@ -220,6 +257,8 @@ bool FMemoryDerivedDataBackend::SaveCache(const TCHAR* Filename)
 
 bool FMemoryDerivedDataBackend::LoadCache(const TCHAR* Filename)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMemoryDerivedDataBackend::LoadCache);
+
 	double StartTime = FPlatformTime::Seconds();
 	const int64 FileSize = IFileManager::Get().FileSize(Filename);
 	if (FileSize < 0)
@@ -291,7 +330,7 @@ bool FMemoryDerivedDataBackend::LoadCache(const TCHAR* Filename)
 	Loader.Seek(sizeof(uint32));
 	{
 		TArray<uint8> Working;
-		FScopeLock ScopeLock(&SynchronizationObject);
+		FWriteScopeLock ScopeLock(SynchronizationObject);
 		check(!bDisabled);
 		while (Loader.Tell() < DataSize)
 		{
@@ -303,7 +342,7 @@ bool FMemoryDerivedDataBackend::LoadCache(const TCHAR* Filename)
 			Loader << Working;
 			if (Age < MaxAge)
 			{
-				CacheItems.Add(Key, new FCacheValue(Working, Age));
+				CacheItems.Add(Key, new FCacheValue(Working.Num(), Age))->Data = MoveTemp(Working);
 			}
 			Working.Reset();
 		}
@@ -319,10 +358,11 @@ bool FMemoryDerivedDataBackend::LoadCache(const TCHAR* Filename)
 			Size = (int64)Size32;
 		}
 		Loader << Crc;
+
+		CurrentCacheSize = FileSize;
+		CacheFilename = Filename;
 	}
-		
-	CurrentCacheSize = FileSize;
-	CacheFilename = Filename;
+
 	UE_LOG(LogDerivedDataCache, Log, TEXT("Loaded boot cache %4.2fs %lldMB %s."), float(FPlatformTime::Seconds() - StartTime), DataSize / (1024 * 1024), Filename);
 	return true;
 }
@@ -330,7 +370,7 @@ bool FMemoryDerivedDataBackend::LoadCache(const TCHAR* Filename)
 void FMemoryDerivedDataBackend::Disable()
 {
 	check(bCanBeDisabled || bShuttingDown);
-	FScopeLock ScopeLock(&SynchronizationObject);
+	FWriteScopeLock ScopeLock(SynchronizationObject);
 	bDisabled = true;
 	for (TMap<FString,FCacheValue*>::TIterator It(CacheItems); It; ++It )
 	{
@@ -462,7 +502,7 @@ void FMemoryDerivedDataBackend::Put(
 
 		if (!Value && Attachments.IsEmpty())
 		{
-			FScopeLock ScopeLock(&SynchronizationObject);
+			FWriteScopeLock ScopeLock(SynchronizationObject);
 			if (bDisabled)
 			{
 				continue;
@@ -479,7 +519,7 @@ void FMemoryDerivedDataBackend::Put(
 			COOK_STAT(auto Timer = UsageStats.TimePut());
 			const int64 RecordSize = CalcSerializedCacheRecordSize(Record);
 
-			FScopeLock ScopeLock(&SynchronizationObject);
+			FWriteScopeLock ScopeLock(SynchronizationObject);
 			Status = CacheRecords.Contains(Key) ? EStatus::Ok : EStatus::Error;
 			if (bDisabled || Status == EStatus::Ok)
 			{
@@ -518,7 +558,7 @@ void FMemoryDerivedDataBackend::Get(
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
 				*GetName(), *WriteToString<96>(Key), Context.Len(), Context.GetData());
 		}
-		else if (FScopeLock ScopeLock(&SynchronizationObject); const FCacheRecord* CacheRecord = CacheRecords.Find(Key))
+		else if (FWriteScopeLock ScopeLock(SynchronizationObject); const FCacheRecord* CacheRecord = CacheRecords.Find(Key))
 		{
 			Status = EStatus::Ok;
 			Record = *CacheRecord;
@@ -584,7 +624,7 @@ void FMemoryDerivedDataBackend::GetChunks(
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
 				*GetName(), *WriteToString<96>(Chunk.Key, '/', Chunk.Id), Context.Len(), Context.GetData());
 		}
-		else if (FScopeLock ScopeLock(&SynchronizationObject); const FCacheRecord* Record = CacheRecords.Find(Chunk.Key))
+		else if (FWriteScopeLock ScopeLock(SynchronizationObject); const FCacheRecord* Record = CacheRecords.Find(Chunk.Key))
 		{
 			Payload = Record->GetAttachmentPayload(Chunk.Id);
 		}

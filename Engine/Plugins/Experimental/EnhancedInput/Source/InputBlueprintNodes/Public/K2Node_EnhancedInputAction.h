@@ -33,6 +33,8 @@ class INPUTBLUEPRINTNODES_API UK2Node_EnhancedInputAction : public UK2Node, publ
 	//virtual FText GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
 	virtual bool IsCompatibleWithGraph(UEdGraph const* Graph) const override;
+	virtual UObject* GetJumpTargetForDoubleClick() const override;
+	virtual void JumpToDefinition() const override;
 	//~ End UEdGraphNode Interface.
 
 	//~ Begin UK2Node Interface

@@ -17,7 +17,7 @@
 			"Name": "OnlineSubsystemGameCircle",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": 
+			"PlatformAllowList": 
 			[
 				"Android"
 			]
@@ -26,7 +26,7 @@
 			"Name": "GameCircleRuntimeSettings",
 			"Type" : "Runtime",
 			"LoadingPhase" : "Default",
-			"WhitelistPlatforms": 
+			"PlatformAllowList": 
 			[
 				"Win64",
 				"Mac",

@@ -6,6 +6,7 @@
 #include "USDConversionUtils.h"
 #include "USDLayerUtils.h"
 #include "USDLightConversion.h"
+#include "USDLog.h"
 #include "USDSkeletalDataConversion.h"
 #include "USDTypesConversion.h"
 
@@ -54,10 +55,110 @@
 #include "pxr/usd/usdGeom/xformable.h"
 #include "pxr/usd/usdGeom/xformCommonAPI.h"
 #include "pxr/usd/usdLux/light.h"
+#include "pxr/usd/usdShade/connectableAPI.h"
+#include "pxr/usd/usdShade/material.h"
+#include "pxr/usd/usdShade/shader.h"
+#include "pxr/usd/usdShade/materialBindingAPI.h"
+#include "pxr/usd/usdShade/tokens.h"
 #include "pxr/usd/usdSkel/animation.h"
 #include "pxr/usd/usdSkel/root.h"
 
 #include "USDIncludesEnd.h"
+
+namespace UE
+{
+	namespace USDPrimConversionImpl
+	{
+		namespace Private
+		{
+			// Writes UEMaterialAssetPath as a material binding for MeshPrim, either by reusing a Material binding if
+			// it already has an 'unreal' render context output and the expected structure, or by creating a new Material prim
+			// that fulfills those requirements.
+			// Doesn't write to 'unrealMaterial' at all, as we intend on deprecating it in the future.
+			void AuthorMaterialOverride( pxr::UsdPrim& MeshPrim, const pxr::SdfAssetPath& UEMaterialAssetPath )
+			{
+				if ( !MeshPrim )
+				{
+					return;
+				}
+
+				pxr::UsdShadeMaterialBindingAPI BindingAPI( MeshPrim );
+
+				// If this mesh prim already has a binding to a *child* material with the 'unreal' render context,
+				// just write our material there and early out
+				if ( pxr::UsdShadeMaterial ShadeMaterial = BindingAPI.ComputeBoundMaterial() )
+				{
+					// We need to try reusing these materials or else we'd write a new material prim every time we change
+					// the override in UE, but we also run the risk of modifying a material that is used by multiple prims
+					// (and here we just want to set the override for this Mesh prim). The compromise is to only reuse the
+					// material if it is a child of MeshPrim already, and always to author our material prims as children
+					std::string MaterialPath = ShadeMaterial.GetPrim().GetPath().GetString();
+					std::string MeshPrimPath = MeshPrim.GetPath().GetString();
+					if ( MaterialPath.rfind( MeshPrimPath, 0 ) == 0 )
+					{
+						if ( pxr::UsdShadeShader ExistingShader = ShadeMaterial.ComputeSurfaceSource( UnrealIdentifiers::Unreal ) )
+						{
+							ExistingShader.SetSourceAsset( UEMaterialAssetPath, UnrealIdentifiers::Unreal );
+							return;
+						}
+					}
+				}
+
+				// Find a unique name for our child material prim
+				FString ChildMaterialName = TEXT( "UnrealMaterial" );
+				if ( pxr::UsdPrim ExistingPrim = MeshPrim.GetChild( UnrealToUsd::ConvertToken( *ChildMaterialName ).Get() ) )
+				{
+					// Get a unique name for a new prim. Don't even try checking if this prim is usable as the material binding,
+					// because if it was the material binding for this mesh we would have already used it above, when fetching the ExistingShader.
+					// If we're here, we don't know what this prim is about
+					TSet<FString> UsedNames;
+					for ( pxr::UsdPrim Child : MeshPrim.GetFilteredChildren( pxr::UsdTraverseInstanceProxies( pxr::UsdPrimAllPrimsPredicate ) ) )
+					{
+						UsedNames.Add( UsdToUnreal::ConvertToken( Child.GetName() ) );
+					}
+
+					ChildMaterialName = UsdUtils::GetUniqueName( ChildMaterialName, UsedNames );
+				}
+
+				pxr::UsdStageRefPtr Stage = MeshPrim.GetStage();
+				pxr::SdfPath MeshPath = MeshPrim.GetPath();
+				pxr::SdfPath MaterialPath = MeshPath.AppendChild( UnrealToUsd::ConvertToken( *ChildMaterialName ).Get() );
+				pxr::SdfPath ShaderPath = MaterialPath.AppendChild( UnrealToUsd::ConvertToken( TEXT( "UnrealShader" ) ).Get() );
+
+				pxr::UsdShadeMaterial ChildMaterial = pxr::UsdShadeMaterial::Define( Stage, MaterialPath );
+				if ( !ChildMaterial )
+				{
+					UE_LOG(LogUsd, Warning, TEXT("Failed to author material prim '%s' when trying to write '%s's material override '%s' to USD"),
+						*UsdToUnreal::ConvertPath( MaterialPath ),
+						*UsdToUnreal::ConvertPath( MeshPrim.GetPath() ),
+						*UsdToUnreal::ConvertString( UEMaterialAssetPath.GetAssetPath() )
+					);
+					return;
+				}
+
+				pxr::UsdShadeShader UnrealShader = pxr::UsdShadeShader::Define( Stage, ShaderPath );
+				if ( !UnrealShader )
+				{
+					UE_LOG( LogUsd, Warning, TEXT( "Failed to author shader prim '%s' when trying to write '%s's material override '%s' to USD" ),
+						*UsdToUnreal::ConvertPath( ShaderPath ),
+						*UsdToUnreal::ConvertPath( MeshPrim.GetPath() ),
+						*UsdToUnreal::ConvertString( UEMaterialAssetPath.GetAssetPath() )
+					);
+					return;
+				}
+
+				UnrealShader.CreateImplementationSourceAttr( pxr::VtValue{ pxr::UsdShadeTokens->sourceAsset } );
+				UnrealShader.SetSourceAsset( UEMaterialAssetPath, UnrealIdentifiers::Unreal );
+				pxr::UsdShadeOutput ShaderOutput = UnrealShader.CreateOutput( UnrealToUsd::ConvertToken( TEXT( "out" ) ).Get(), pxr::SdfValueTypeNames->Token );
+
+				pxr::UsdShadeOutput MaterialOutput = ChildMaterial.CreateSurfaceOutput( UnrealIdentifiers::Unreal );
+				pxr::UsdShadeConnectableAPI::ConnectToSource( MaterialOutput, ShaderOutput );
+
+				BindingAPI.Bind( ChildMaterial );
+			}
+		}
+	}
+}
 
 bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr::UsdTyped& Schema, FTransform& OutTransform, double EvalTime )
 {
@@ -401,11 +502,9 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 
 			pxr::SdfPath OverridePrimPath = UsdPrim.GetPath();
 
-			pxr::UsdPrim OverridePrim = Stage->OverridePrim( OverridePrimPath );
-			if ( pxr::UsdAttribute UnrealMaterialAttr = OverridePrim.CreateAttribute( UnrealIdentifiers::MaterialAssignment, pxr::SdfValueTypeNames->String ) )
-			{
-				UnrealMaterialAttr.Set( UnrealToUsd::ConvertString( *Override->GetPathName() ).Get() );
-			}
+			pxr::UsdPrim MeshPrim = Stage->OverridePrim( OverridePrimPath );
+			std::string UEMaterialOverridePath = UnrealToUsd::ConvertString( *Override->GetPathName() ).Get();
+			UE::USDPrimConversionImpl::Private::AuthorMaterialOverride( MeshPrim, pxr::SdfAssetPath{ UEMaterialOverridePath } );
 		}
 	}
 	else if ( const UStaticMeshComponent* StaticMeshComponent = Cast<const UStaticMeshComponent>( MeshComponent ) )
@@ -424,6 +523,8 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 				{
 					continue;
 				}
+
+				std::string UEMaterialOverridePath = UnrealToUsd::ConvertString( *Override->GetPathName() ).Get();
 
 				for ( int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex )
 				{
@@ -453,14 +554,20 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 						// assignment there
 						if ( bHasSubsets )
 						{
-							OverridePrimPath = OverridePrimPath.AppendPath( UnrealToUsd::ConvertPath( *FString::Printf( TEXT( "Section%d" ), SectionIndex ) ).Get() );
+							// Assume the UE sections are in the same order as the USD ones
+							std::vector<pxr::UsdGeomSubset> GeomSubsets = pxr::UsdShadeMaterialBindingAPI( UsdPrim ).GetMaterialBindSubsets();
+							if ( SectionIndex < GeomSubsets.size() )
+							{
+								OverridePrimPath = OverridePrimPath.AppendChild( GeomSubsets[ SectionIndex ].GetPrim().GetName() );
+							}
+							else
+							{
+								OverridePrimPath = OverridePrimPath.AppendPath( UnrealToUsd::ConvertPath( *FString::Printf( TEXT( "Section%d" ), SectionIndex ) ).Get() );
+							}
 						}
 
-						pxr::UsdPrim OverridePrim = Stage->OverridePrim( OverridePrimPath );
-						if ( pxr::UsdAttribute UnrealMaterialAttr = OverridePrim.CreateAttribute( UnrealIdentifiers::MaterialAssignment, pxr::SdfValueTypeNames->String ) )
-						{
-							UnrealMaterialAttr.Set( UnrealToUsd::ConvertString( *Override->GetPathName() ).Get() );
-						}
+						pxr::UsdPrim MeshPrim = Stage->OverridePrim( OverridePrimPath );
+						UE::USDPrimConversionImpl::Private::AuthorMaterialOverride( MeshPrim, pxr::SdfAssetPath{ UEMaterialOverridePath } );
 					}
 				}
 			}
@@ -513,6 +620,8 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 					continue;
 				}
 
+				std::string UEMaterialOverridePath = UnrealToUsd::ConvertString( *Override->GetPathName() ).Get();
+
 				for ( int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex )
 				{
 					if ( !LodRenderData.IsValidIndex( LODIndex ) )
@@ -560,16 +669,20 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 						// assignment there
 						if ( bHasSubsets )
 						{
-							OverridePrimPath = OverridePrimPath.AppendPath( UnrealToUsd::ConvertPath( *FString::Printf( TEXT( "Section%d" ), SectionIndex ) ).Get() );
-						}
-
-						if ( pxr::UsdPrim OverridePrim = Stage->OverridePrim( OverridePrimPath ) )
-						{
-							if ( pxr::UsdAttribute UnrealMaterialAttr = OverridePrim.CreateAttribute( UnrealIdentifiers::MaterialAssignment, pxr::SdfValueTypeNames->String ) )
+							// Assume the UE sections are in the same order as the USD ones
+							std::vector<pxr::UsdGeomSubset> GeomSubsets = pxr::UsdShadeMaterialBindingAPI( UsdPrim ).GetMaterialBindSubsets();
+							if ( SectionIndex < GeomSubsets.size() )
 							{
-								UnrealMaterialAttr.Set( UnrealToUsd::ConvertString( *Override->GetPathName() ).Get() );
+								OverridePrimPath = OverridePrimPath.AppendChild( GeomSubsets[ SectionIndex ].GetPrim().GetName() );
+							}
+							else
+							{
+								OverridePrimPath = OverridePrimPath.AppendPath( UnrealToUsd::ConvertPath( *FString::Printf( TEXT( "Section%d" ), SectionIndex ) ).Get() );
 							}
 						}
+
+						pxr::UsdPrim MeshPrim = Stage->OverridePrim( OverridePrimPath );
+						UE::USDPrimConversionImpl::Private::AuthorMaterialOverride( MeshPrim, pxr::SdfAssetPath{ UEMaterialOverridePath } );
 					}
 				}
 			}

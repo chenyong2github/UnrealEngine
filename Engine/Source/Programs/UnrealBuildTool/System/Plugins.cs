@@ -339,7 +339,7 @@ namespace UnrealBuildTool
 			string PlatformName = Tokens[1];
 			if (!IsValidChildPluginSuffix(PlatformName))
 			{
-				Log.TraceWarning("Ignoring child plugin: {0} - Unknown suffix \"{1}\". Expected valid platform or group", Child.File.GetFileName(), PlatformName);
+				Log.TraceWarningTask(Filename, $"Ignoring child plugin: {Child.File.GetFileName()} - Unknown suffix \"{PlatformName}\": expected valid platform or group.");
 				return;
 			}
 
@@ -362,7 +362,7 @@ namespace UnrealBuildTool
 				}
 			}
 
-			// make sure we are whitelisted for any modules we list
+			// make sure we are allowed for any modules we list
 			if (Child.Descriptor.Modules != null)
 			{
 				if (Parent.Descriptor.Modules == null)
@@ -376,27 +376,27 @@ namespace UnrealBuildTool
 						ModuleDescriptor ParentModule = Parent.Descriptor.Modules.FirstOrDefault(x => x.Name.Equals(ChildModule.Name) && x.Type == ChildModule.Type);
 						if (ParentModule != null)
 						{
-							// merge white/blacklists (if the parent had a list, and child didn't specify a list, just add the child platform to the parent list - for white and black!)
-							if (ChildModule.WhitelistPlatforms != null)
+							// merge allow/deny lists (if the parent had a list, and child didn't specify a list, just add the child platform to the parent list - for allow/deny lists!)
+							if (ChildModule.PlatformAllowList != null)
 							{
-								if (ParentModule.WhitelistPlatforms == null)
+								if (ParentModule.PlatformAllowList == null)
 								{
-									ParentModule.WhitelistPlatforms = ChildModule.WhitelistPlatforms;
+									ParentModule.PlatformAllowList = ChildModule.PlatformAllowList;
 								}
 								else
 								{
-									ParentModule.WhitelistPlatforms = ParentModule.WhitelistPlatforms.Union(ChildModule.WhitelistPlatforms).ToList();
+									ParentModule.PlatformAllowList = ParentModule.PlatformAllowList.Union(ChildModule.PlatformAllowList).ToList();
 								}
 							}
-							if (ChildModule.BlacklistPlatforms != null)
+							if (ChildModule.PlatformDenyList != null)
 							{
-								if (ParentModule.BlacklistPlatforms == null)
+								if (ParentModule.PlatformDenyList == null)
 								{
-									ParentModule.BlacklistPlatforms = ChildModule.BlacklistPlatforms;
+									ParentModule.PlatformDenyList = ChildModule.PlatformDenyList;
 								}
 								else
 								{
-									ParentModule.BlacklistPlatforms = ParentModule.BlacklistPlatforms.Union(ChildModule.BlacklistPlatforms).ToList();
+									ParentModule.PlatformDenyList = ParentModule.PlatformDenyList.Union(ChildModule.PlatformDenyList).ToList();
 								}
 							}
 						}
@@ -408,7 +408,7 @@ namespace UnrealBuildTool
 				}
 			}
 
-			// make sure we are whitelisted for any plugins we list
+			// make sure we are allowed for any plugins we list
 			if (Child.Descriptor.Plugins != null)
 			{
 				if (Parent.Descriptor.Plugins == null)
@@ -422,25 +422,25 @@ namespace UnrealBuildTool
 						PluginReferenceDescriptor ParentPluginReference = Parent.Descriptor.Plugins.FirstOrDefault(x => x.Name.Equals(ChildPluginReference.Name));
 						if (ParentPluginReference != null)
 						{
-							// we only need to whitelist the platform if the parent had a whitelist (otherwise, we could mistakenly remove all other platforms)
-							if (ParentPluginReference.WhitelistPlatforms != null)
+							// we only need to explicitly list the platform in an allow list if the parent also had an allow list (otherwise, we could mistakenly remove all other platforms)
+							if (ParentPluginReference.PlatformAllowList != null)
 							{
-								if (ChildPluginReference.WhitelistPlatforms != null)
+								if (ChildPluginReference.PlatformAllowList != null)
 								{
-									ParentPluginReference.WhitelistPlatforms = ParentPluginReference.WhitelistPlatforms.Union(ChildPluginReference.WhitelistPlatforms).ToArray();
+									ParentPluginReference.PlatformAllowList = ParentPluginReference.PlatformAllowList.Union(ChildPluginReference.PlatformAllowList).ToArray();
 								}
 							}
 
-							// if we want to blacklist a platform, add it even if the parent didn't have a blacklist. this won't cause problems with other platforms
-							if (ChildPluginReference.BlacklistPlatforms != null)
+							// if we want to deny a platform, add it even if the parent didn't have a deny list. this won't cause problems with other platforms
+							if (ChildPluginReference.PlatformDenyList != null)
 							{
-								if (ParentPluginReference.BlacklistPlatforms == null)
+								if (ParentPluginReference.PlatformDenyList == null)
 								{
-									ParentPluginReference.BlacklistPlatforms = ChildPluginReference.BlacklistPlatforms;
+									ParentPluginReference.PlatformDenyList = ChildPluginReference.PlatformDenyList;
 								}
 								else
 								{
-									ParentPluginReference.BlacklistPlatforms = ParentPluginReference.BlacklistPlatforms.Union(ChildPluginReference.BlacklistPlatforms).ToArray();
+									ParentPluginReference.PlatformDenyList = ParentPluginReference.PlatformDenyList.Union(ChildPluginReference.PlatformDenyList).ToArray();
 								}
 							}
 						}

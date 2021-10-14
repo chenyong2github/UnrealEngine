@@ -625,9 +625,9 @@ void UContentBrowserFileDataSource::CompileFilter(const FName InPath, const FCon
 	FileDataFilter.bRecursivePaths = InFilter.bRecursivePaths;
 	FileDataFilter.ItemAttributeFilter = InFilter.ItemAttributeFilter;
 	FileDataFilter.FileExtensionsToInclude.Append(FileExtensionsToInclude);
-	if (PackageFilter && PackageFilter->PathBlacklist && PackageFilter->PathBlacklist->HasFiltering())
+	if (PackageFilter && PackageFilter->PathPermissionList && PackageFilter->PathPermissionList->HasFiltering())
 	{
-		FileDataFilter.Blacklist = PackageFilter->PathBlacklist;
+		FileDataFilter.PermissionList = PackageFilter->PathPermissionList;
 	}
 }
 
@@ -1158,9 +1158,9 @@ bool UContentBrowserFileDataSource::DoesItemPassFilter(const FContentBrowserItem
 
 bool UContentBrowserFileDataSource::PassesFilters(const FStringView InPath, const FDiscoveredItem& InDiscoveredItem, const int32 InFolderDepthChecked, const FContentBrowserCompiledFileDataFilter& InFileDataFilter)
 {
-	if (InFileDataFilter.Blacklist.IsValid())
+	if (InFileDataFilter.PermissionList.IsValid())
 	{
-		if (!InFileDataFilter.Blacklist->PassesStartsWithFilter(InPath, /*bAllowParentPaths*/ InDiscoveredItem.Type == UContentBrowserFileDataSource::FDiscoveredItem::EType::File))
+		if (!InFileDataFilter.PermissionList->PassesStartsWithFilter(InPath, /*bAllowParentPaths*/ InDiscoveredItem.Type == UContentBrowserFileDataSource::FDiscoveredItem::EType::File))
 		{
 			return false;
 		}

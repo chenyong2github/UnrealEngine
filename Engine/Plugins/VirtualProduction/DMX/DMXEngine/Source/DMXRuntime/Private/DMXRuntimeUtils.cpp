@@ -152,25 +152,4 @@ FString FDMXRuntimeUtils::GenerateUniqueNameForImportFunction(TMap<FString, uint
 	return FinalName;
 }
 
-TOptional<FString> FDMXRuntimeUtils::SerializeStructToString(const UStruct* StructClass, const void* StructData)
-{
-	TSharedRef<FJsonObject> RootJsonObject = MakeShareable(new FJsonObject());
-
-	FJsonObjectConverter::UStructToJsonObject(StructClass, StructData, RootJsonObject, 0, 0);
-
-	typedef TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>> FStringWriter;
-	typedef TJsonWriterFactory<TCHAR, TPrettyJsonPrintPolicy<TCHAR>> FStringWriterFactory;
-
-	FString CopyStr;
-	TSharedRef<FStringWriter> Writer = FStringWriterFactory::Create(&CopyStr);
-	FJsonSerializer::Serialize(RootJsonObject, Writer);
-
-	if (!CopyStr.IsEmpty())
-	{
-		return CopyStr;
-	}
-
-	return TOptional<FString>();
-}
-
 #undef LOCTEXT_NAMESPACE

@@ -7,6 +7,8 @@
 #include "UObject/Interface.h"
 #include "Interface_PostProcessVolume.generated.h"
 
+#define DEBUG_POST_PROCESS_VOLUME_ENABLE (!(UE_BUILD_SHIPPING))
+
 struct FPostProcessSettings;
 
 struct FPostProcessVolumeProperties
@@ -32,4 +34,7 @@ class IInterface_PostProcessVolume
 
 	ENGINE_API virtual bool EncompassesPoint(FVector Point, float SphereRadius/*=0.f*/, float* OutDistanceToPoint) = 0;
 	ENGINE_API virtual FPostProcessVolumeProperties GetProperties() const = 0;
+#if DEBUG_POST_PROCESS_VOLUME_ENABLE
+	ENGINE_API virtual FString GetDebugName() const = 0;
+#endif
 };

@@ -1136,7 +1136,10 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 	FScopeCycleCounterUObject AdditionalScope(GetSystem(), GET_STATID(STAT_NiagaraOverview_GT_CNC));
 
 	UNiagaraSystem* System = WeakSystem.Get();
+
+#if STATS
 	FScopeCycleCounter SystemStatCounter(System->GetStatID(true, false));
+#endif
 
 	const int32 NumInstances = SystemInstances.Num();
 	PARTICLE_PERF_STAT_CYCLES_WITH_COUNT_GT(FParticlePerfStatsContext(GetWorld(), GetSystem()), TickGameThread, NumInstances);
@@ -1590,7 +1593,9 @@ void FNiagaraSystemSimulation::Tick_Concurrent(FNiagaraSystemSimulationTickConte
 			UE_LOG(LogNiagara, Log, TEXT("=========================================================="));
 		}
 
+#if STATS
 		FScopeCycleCounter SystemStatCounter(Context.System->GetStatID(true, true));
+#endif
 
 		for (FNiagaraSystemInstance* SystemInstance : Context.Instances)
 		{

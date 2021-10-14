@@ -763,22 +763,19 @@ TSharedRef<FExtender> FLevelEditorSequencerIntegration::GetLevelViewportExtender
 	});
 
 	TSharedRef<FUICommandList> LevelEditorCommandBindings  = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetGlobalLevelEditorActions();
-	Extender->AddMenuExtension("ActorControl", EExtensionHook::After, LevelEditorCommandBindings, FMenuExtensionDelegate::CreateLambda(
+	Extender->AddMenuExtension("ActorUETools", EExtensionHook::After, LevelEditorCommandBindings, FMenuExtensionDelegate::CreateLambda(
 		[this, ActorName, Actor = InActors[0], FoundInSequences](FMenuBuilder& MenuBuilder) {
-		MenuBuilder.BeginSection("Sequencer", LOCTEXT("Sequencer", "Sequencer"));
-
-		if (FoundInSequences.Num() > 0)
-		{
-			MenuBuilder.AddSubMenu(
-				LOCTEXT("BrowseToActorInSequencer", "Browse to Actor in Sequencer"),
-				FText(),
-				FNewMenuDelegate::CreateRaw(this, &FLevelEditorSequencerIntegration::MakeBrowseToSelectedActorSubMenu, Actor, FoundInSequences),
-				false,
-				FSlateIcon()
-			);
-		}
-
-		MenuBuilder.EndSection();
+		bool bCanBrowse = FoundInSequences.Num() > 0;
+		MenuBuilder.AddSubMenu(
+			LOCTEXT("BrowseToActorInSequencer", "Browse to Actor in Sequencer"),
+			FText(),
+			FNewMenuDelegate::CreateRaw(this, &FLevelEditorSequencerIntegration::MakeBrowseToSelectedActorSubMenu, Actor, FoundInSequences),
+			FUIAction(FExecuteAction(), FCanExecuteAction::CreateLambda([bCanBrowse]() { return bCanBrowse; })),
+			NAME_None,
+			EUserInterfaceActionType::Button,
+			false,
+			FSlateIcon()
+		);
 	}
 	));
 

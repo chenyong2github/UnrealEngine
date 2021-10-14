@@ -840,7 +840,7 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// List of folders which are whitelisted to be referenced when compiling this binary, without propagating restricted folder names
+		/// List of folders which are allowed to be referenced when compiling this binary, without propagating restricted folder names
 		/// </summary>
 		public List<string> WhitelistRestrictedFolders = new List<string>();
 
