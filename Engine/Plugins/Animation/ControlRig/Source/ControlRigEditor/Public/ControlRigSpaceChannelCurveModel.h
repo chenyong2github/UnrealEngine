@@ -8,6 +8,7 @@
 #include "KeyBarCurveModel.h"
 #include "Sequencer/MovieSceneControlRigSpaceChannel.h"
 #include "Channels/MovieSceneChannelHandle.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 class UMovieSceneSection;
 class ISequencer;
