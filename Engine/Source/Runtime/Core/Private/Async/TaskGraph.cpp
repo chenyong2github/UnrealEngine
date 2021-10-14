@@ -231,7 +231,10 @@ TArray<TaskTrace::FId> GetTraceIds(const FGraphEventArray& Tasks)
 
 	for (const FGraphEventRef& Task : Tasks)
 	{
-		TasksIds.Add(Task->GetTraceId());
+		if (Task.IsValid())
+		{
+			TasksIds.Add(Task->GetTraceId());
+		}
 	}
 
 	return TasksIds;
