@@ -71,6 +71,10 @@ void UPreviewGeometry::SetAllVisible(bool bVisible)
 	{
 		Entry.Value->SetVisibility(bVisible);
 	}
+	for (TPair<FString, TObjectPtr<UPointSetComponent>> Entry : PointSets)
+	{
+		Entry.Value->SetVisibility(bVisible);
+	}
 }
 
 
@@ -131,9 +135,9 @@ bool UPreviewGeometry::RemoveLineSet(const FString& LineSetIdentifier, bool bDes
 
 void UPreviewGeometry::RemoveAllLineSets(bool bDestroy)
 {
-	for (TPair<FString, TObjectPtr<ULineSetComponent>> Entry : LineSets)
+	if (bDestroy)
 	{
-		if (bDestroy)
+		for (TPair<FString, TObjectPtr<ULineSetComponent>> Entry : LineSets)
 		{
 			Entry.Value->UnregisterComponent();
 			Entry.Value->DestroyComponent();
@@ -197,3 +201,96 @@ void UPreviewGeometry::CreateOrUpdateLineSet(const FString& LineSetIdentifier, i
 	LineSet->AddLines(NumIndices, LineGenFunc, LinesPerIndexHint);
 }
 
+
+UPointSetComponent* UPreviewGeometry::AddPointSet(const FString& SetIdentifier)
+{
+	if (PointSets.Contains(SetIdentifier))
+	{
+		check(false);
+		return nullptr;
+	}
+
+	UPointSetComponent* PointSet = NewObject<UPointSetComponent>(ParentActor);
+	PointSet->SetupAttachment(ParentActor->GetRootComponent());
+
+	UMaterialInterface* PointMaterial = ToolSetupUtil::GetDefaultPointComponentMaterial(nullptr);
+	if (PointMaterial != nullptr)
+	{
+		PointSet->SetPointMaterial(PointMaterial);
+	}
+
+	PointSet->RegisterComponent();
+
+	PointSets.Add(SetIdentifier, PointSet);
+	return PointSet;
+}
+
+UPointSetComponent* UPreviewGeometry::FindPointSet(const FString& PointSetIdentifier)
+{
+	TObjectPtr<UPointSetComponent>* Found = PointSets.Find(PointSetIdentifier);
+	if (Found != nullptr)
+	{
+		return *Found;
+	}
+	return nullptr;
+}
+
+bool UPreviewGeometry::RemovePointSet(const FString& PointSetIdentifier, bool bDestroy)
+{
+	TObjectPtr<UPointSetComponent>* Found = PointSets.Find(PointSetIdentifier);
+	if (Found != nullptr)
+	{
+		UPointSetComponent* PointSet = *Found;
+		PointSets.Remove(PointSetIdentifier);
+		if (bDestroy)
+		{
+			PointSet->UnregisterComponent();
+			PointSet->DestroyComponent();
+			PointSet = nullptr;
+		}
+	}
+	return false;
+}
+
+void UPreviewGeometry::RemoveAllPointSets(bool bDestroy)
+{
+	if (bDestroy)
+	{
+		for (TPair<FString, TObjectPtr<UPointSetComponent>> Entry : PointSets)
+		{
+			Entry.Value->UnregisterComponent();
+			Entry.Value->DestroyComponent();
+		}
+	}
+	PointSets.Reset();
+}
+
+bool UPreviewGeometry::SetPointSetVisibility(const FString& PointSetIdentifier, bool bVisible)
+{
+	TObjectPtr<UPointSetComponent>* Found = PointSets.Find(PointSetIdentifier);
+	if (Found != nullptr)
+	{
+		(*Found)->SetVisibility(bVisible);
+		return true;
+	}
+	return false;
+}
+
+bool UPreviewGeometry::SetPointSetMaterial(const FString& PointSetIdentifier, UMaterialInterface* NewMaterial)
+{
+	TObjectPtr<UPointSetComponent>* Found = PointSets.Find(PointSetIdentifier);
+	if (Found != nullptr)
+	{
+		(*Found)->SetPointMaterial(NewMaterial);
+		return true;
+	}
+	return false;
+}
+
+void UPreviewGeometry::SetAllPointSetsMaterial(UMaterialInterface* Material)
+{
+	for (TPair<FString, TObjectPtr<UPointSetComponent>> Entry : PointSets)
+	{
+		Entry.Value->SetPointMaterial(Material);
+	}
+}
