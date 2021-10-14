@@ -2,7 +2,7 @@
 
 #include "Trace/Config.h"
 
-#if UE_TRACE_ENABLED
+#if UE_TRACE_ENABLED && PLATFORM_HOLOLENS
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 #	include "Windows/WindowsHWrapper.h"
