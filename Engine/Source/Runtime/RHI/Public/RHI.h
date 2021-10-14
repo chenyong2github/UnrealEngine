@@ -427,11 +427,11 @@ extern RHI_API bool GRHISupportsDirectGPUMemoryLock;
 /** true if the multi-threaded shader creation is supported by (or desirable for) the RHI. */
 extern RHI_API bool GRHISupportsMultithreadedShaderCreation;
 
-/** The minimum Z value in clip space for the RHI. */
-extern RHI_API float GMinClipZ;
+/** The minimum Z value in clip space for the RHI. This is a constant value to always match D3D clip-space. */
+constexpr float GMinClipZ = 0.0f;
 
-/** The sign to apply to the Y axis of projection matrices. */
-extern RHI_API float GProjectionSignY;
+/** The sign to apply to the Y axis of projection matrices. This is a constant value to always match D3D clip-space. */
+constexpr float GProjectionSignY = 1.0f;
 
 /** Does this RHI need to wait for deletion of resources due to ref counting. */
 extern RHI_API bool GRHINeedsExtraDeletionLatency;

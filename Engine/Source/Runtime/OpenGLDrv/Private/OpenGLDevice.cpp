@@ -876,11 +876,6 @@ static void InitRHICapabilitiesForGL()
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4_REMOVED] = SP_NumPlatforms;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = SP_NumPlatforms;
 
-	// Set to same values as in DX11, as for the time being clip space adjustment are done entirely
-	// in HLSLCC-generated shader code and OpenGLDrv.
-	GMinClipZ = 0.0f;
-	GProjectionSignY = 1.0f;
-
 	// Disable texture streaming on devices with ES3.1 or lower, unless we have the GL_APPLE_copy_texture_levels extension or support for glCopyImageSubData
 	if (GMaxRHIFeatureLevel <= ERHIFeatureLevel::ES3_1)
 	{

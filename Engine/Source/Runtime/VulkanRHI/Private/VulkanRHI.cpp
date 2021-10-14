@@ -830,8 +830,6 @@ void FVulkanDynamicRHI::InitInstance()
 
 		FHardwareInfo::RegisterHardwareInfo(NAME_RHI, TEXT("Vulkan"));
 
-		GProjectionSignY = 1.0f;
-
 		SavePipelineCacheCmd = IConsoleManager::Get().RegisterConsoleCommand(
 			TEXT("r.Vulkan.SavePipelineCache"),
 			TEXT("Save pipeline cache."),
