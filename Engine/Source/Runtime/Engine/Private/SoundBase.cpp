@@ -102,7 +102,7 @@ bool USoundBase::IsLooping()
 bool USoundBase::ShouldApplyInteriorVolumes()
 {
 	USoundClass* SoundClass = GetSoundClass();
-	return (SoundClassObject && SoundClassObject->Properties.bApplyAmbientVolumes);
+	return SoundClass && SoundClass->Properties.bApplyAmbientVolumes;
 }
 
 USoundClass* USoundBase::GetSoundClass() const
@@ -233,19 +233,6 @@ void USoundBase::Serialize(FArchive& Ar)
 		}
 	}
 #endif // WITH_EDITORONLY_DATA
-
-	if (Ar.IsCooking())
-	{
-		if (!SoundClassObject)
-		{
-			SoundClassObject = GetDefault<UAudioSettings>()->GetDefaultSoundClass();
-		}
-
-		if (ConcurrencySet.Num() == 0)
-		{
-			ConcurrencySet.Add(GetDefault<UAudioSettings>()->GetDefaultSoundConcurrency());
-		}
-	}
 }
 
 void USoundBase::AddAssetUserData(UAssetUserData* InUserData)
