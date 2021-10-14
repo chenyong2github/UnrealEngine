@@ -16,6 +16,7 @@
 
 PREDECLARE_GEOMETRY(class FDynamicMesh3);
 class FToolCommandChange;
+struct FViewCameraState;
 class UInputRouter;
 class UWorld;
 class UUVEditorToolMeshInput;
@@ -92,16 +93,27 @@ class UVEDITORTOOLS_API UUVToolLivePreviewAPI : public UUVToolContextObject
 	GENERATED_BODY()
 public:
 
-	void Initialize(UWorld* WorldIn, UInputRouter* RouterIn);
+	void Initialize(UWorld* WorldIn, UInputRouter* RouterIn,
+		TUniqueFunction<void(FViewCameraState& CameraStateOut)> GetLivePreviewCameraStateFuncIn);
 
 	UWorld* GetLivePreviewWorld() { return World.Get(); }
 	UInputRouter* GetLivePreviewInputRouter() { return InputRouter.Get(); }
+	void GetLivePreviewCameraState(FViewCameraState& CameraStateOut) 
+	{ 
+		if (GetLivePreviewCameraStateFunc)
+		{
+			GetLivePreviewCameraStateFunc(CameraStateOut);
+		}
+	}
+
 protected:
 	UPROPERTY()
 	TWeakObjectPtr<UWorld> World;
 
 	UPROPERTY()
 	TWeakObjectPtr<UInputRouter> InputRouter;
+
+	TUniqueFunction<void(FViewCameraState& CameraStateOut)> GetLivePreviewCameraStateFunc;
 };
 
 /**
@@ -191,25 +203,39 @@ public:
 
 };
 
-/** Stores UV mesh AABB trees */
+/** 
+ * Stores AABB trees for UV input object unwrap canonical or applied canonical meshes.
+ * Binds to the input objects' OnCanonicalModified delegate to automatically update 
+ * the tree when necessary.
+ */
 UCLASS()
 class UVEDITORTOOLS_API UUVToolAABBTreeStorage : public UUVToolContextObject
 {
 	GENERATED_BODY()
 public:
+	using FDynamicMesh3 = UE::Geometry::FDynamicMesh3;
+	using FDynamicMeshAABBTree3 = UE::Geometry::FDynamicMeshAABBTree3;
 
-	void Set(UE::Geometry::FDynamicMesh3* MeshKey, TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3> Tree);
 
-	TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3> Get(UE::Geometry::FDynamicMesh3* MeshKey);
+	void Set(FDynamicMesh3* MeshKey, TSharedPtr<FDynamicMeshAABBTree3> Tree,
+		UUVEditorToolMeshInput* InputObject);
 
-	void Remove(UE::Geometry::FDynamicMesh3* MeshKey);
+	TSharedPtr<FDynamicMeshAABBTree3> Get(FDynamicMesh3* MeshKey);
+
+	void Remove(FDynamicMesh3* MeshKey);
 
 	void RemoveByPredicate(TUniqueFunction<
-		bool(const TPair<UE::Geometry::FDynamicMesh3*, TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3>>&)> Predicate);
+		bool(const FDynamicMesh3* Mesh, TWeakObjectPtr<UUVEditorToolMeshInput> InputObject,
+			TSharedPtr<FDynamicMeshAABBTree3> Tree)> Predicate);
 
 	void Empty();
 
+	// UObject
+	virtual void BeginDestroy() override;
+
 protected:
 
-	TMap<UE::Geometry::FDynamicMesh3*, TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3>> AABBTrees;
+	using TreeInputObjectPair = TPair<TSharedPtr<FDynamicMeshAABBTree3>, TWeakObjectPtr<UUVEditorToolMeshInput>>;
+
+	TMap<FDynamicMesh3*, TreeInputObjectPair> AABBTreeStorage;
 };

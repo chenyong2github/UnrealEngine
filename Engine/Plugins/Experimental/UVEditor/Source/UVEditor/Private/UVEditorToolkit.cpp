@@ -11,6 +11,7 @@
 #include "SAssetEditorViewport.h"
 #include "SUVEditor2DViewport.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
+#include "ToolContextInterfaces.h"
 #include "ToolMenus.h"
 #include "UVEditor.h"
 #include "UVEditorMode.h"
@@ -28,6 +29,24 @@
 
 const FName FUVEditorToolkit::InteractiveToolsPanelTabID(TEXT("UVEditor_InteractiveToolsTab"));
 const FName FUVEditorToolkit::LivePreviewTabID(TEXT("UVEditor_LivePreviewTab"));
+
+namespace FUVEditorToolkitLocals {
+	void GetCameraState(const FEditorViewportClient& ViewportClientIn, FViewCameraState& CameraStateOut)
+	{
+		FViewportCameraTransform ViewTransform = ViewportClientIn.GetViewTransform();
+		CameraStateOut.bIsOrthographic = false;
+		CameraStateOut.bIsVR = false;
+		CameraStateOut.Position = ViewTransform.GetLocation();
+		CameraStateOut.HorizontalFOVDegrees = ViewportClientIn.ViewFOV;
+		CameraStateOut.AspectRatio = ViewportClientIn.AspectRatio;
+
+		// if using Orbit camera, the rotation in the ViewTransform is not the current camera rotation, it
+		// is set to a different rotation based on the Orbit. So we have to convert back to camera rotation.
+		FRotator ViewRotation = (ViewportClientIn.bUsingOrbitCamera) ?
+			ViewTransform.ComputeOrbitMatrix().InverseFast().Rotator() : ViewTransform.GetRotation();
+		CameraStateOut.Orientation = ViewRotation.Quaternion();
+	}
+}
 
 FUVEditorToolkit::FUVEditorToolkit(UAssetEditor* InOwningAssetEditor)
 	: FBaseAssetToolkit(InOwningAssetEditor)
@@ -323,7 +342,9 @@ void FUVEditorToolkit::PostInitAssetEditor()
 	// The mode will need to be able to get to the live preview world and input.
 	UContextObjectStore* ContextStore = EditorModeManager->GetInteractiveToolsContext()->ToolManager->GetContextObjectStore();
 	UUVToolLivePreviewAPI* LivePreviewAPI = NewObject<UUVToolLivePreviewAPI>();
-	LivePreviewAPI->Initialize(LivePreviewScene->GetWorld(), LivePreviewInputRouter);
+	LivePreviewAPI->Initialize(LivePreviewScene->GetWorld(), LivePreviewInputRouter,
+		[this](FViewCameraState& CameraStateOut) {
+			FUVEditorToolkitLocals::GetCameraState(*LivePreviewViewportClient, CameraStateOut); });
 	ContextStore->AddContextObject(LivePreviewAPI);
 
 	// It is debatable where the undo/redo api should get initialized, but this seems like a 
@@ -399,7 +420,7 @@ void FUVEditorToolkit::PostInitAssetEditor()
 	{
 		ScaleFactor = UUVEditorMode::GetUVMeshScalingFactor();
 	}
-	ViewportClient->SetViewLocation(FVector(ScaleFactor / 2, ScaleFactor/2, ScaleFactor));
+	ViewportClient->SetViewLocation(FVector(ScaleFactor / 2, ScaleFactor / 2, ScaleFactor));
 	ViewportClient->SetViewRotation(FRotator(-90, 0, 0));
 
 	// If exposure isn't set to fixed, it will flash as we stare into the void

@@ -164,10 +164,6 @@ protected:
 	// Authoritative list of targets that have changes that have not been baked back yet.
 	TSet<int32> ModifiedAssetIDs;
 
-	// Helper array of canonical unwrap changestamps that allows us to detect changes to UVs.
-	// Used to populate ModifiedAssetIDs on tick.
-	TArray<int32> LastSeenChangeStamps;
-
 
 	/** Used as a selector of UV channels/layers of opened assets in the editor. */
 	UPROPERTY()
@@ -180,12 +176,9 @@ protected:
 	// Used with the ToolAssetAndLayerAPI to process tool layer change requests
 	void ForceUpdateDisplayChannel(const TArray<int32>& LayerPerAsset, bool bForceRebuildUnwrap, bool bEmitUndoTransaction);
 
-	// Used to change layers with our current picker approach (we need to remember the previous
-	// layer value so we know which one to remove). Likely to change if we start adding/removing
-	// using some different UI.
-	TArray<int32> PreviousUVLayerIndex;
 	TArray<int32> PendingUVLayerIndex;
-	bool  bPendingUVLayerChangeDestroyTool = true;
+
+	// TODO: Should be removed
 	bool  bForceRebuildUVLayer = false;
 
 
