@@ -3,6 +3,7 @@
 #include "CameraCalibrationSubsystem.h"
 
 #include "CameraCalibrationCoreLog.h"
+#include "CameraCalibrationSettings.h"
 #include "CineCameraComponent.h"
 #include "Engine/TimecodeProvider.h"
 #include "Misc/CoreDelegates.h"
@@ -160,6 +161,16 @@ void UCameraCalibrationSubsystem::UnregisterDistortionModel(TSubclassOf<ULensMod
 	LensModelMap.Remove(LensModel->GetDefaultObject<ULensModel>()->GetModelName());
 }
 
+void UCameraCalibrationSubsystem::RegisterOverlayMaterial(const FName& MaterialName, const FName& MaterialPath)
+{
+	RegisteredOverlayMaterials.Add(MaterialName, TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(MaterialPath)));
+}
+
+void UCameraCalibrationSubsystem::UnregisterOverlayMaterial(const FName& MaterialName)
+{
+	RegisteredOverlayMaterials.Remove(MaterialName);
+}
+
 void UCameraCalibrationSubsystem::UpdateOriginalFocalLength(UCineCameraComponent* Component, float InFocalLength)
 {
 	FCachedFocalLength* CachedFocalLength = CachedFocalLengthMap.Find(Component);
@@ -231,6 +242,31 @@ TArray<FName> UCameraCalibrationSubsystem::GetCameraImageCenterAlgos() const
 {
 	TArray<FName> OutKeys;
 	CameraImageCenterAlgosMap.GetKeys(OutKeys);
+	return OutKeys;
+}
+
+UMaterialInterface* UCameraCalibrationSubsystem::GetOverlayMaterial(const FName& OverlayName) const
+{
+#if WITH_EDITOR
+	if (UMaterialInterface* DefaultMaterial = GetDefault<UCameraCalibrationSettings>()->GetDefaultCalibrationOverlayMaterial(OverlayName))
+	{
+		return DefaultMaterial;
+	}
+#endif
+
+	const TSoftObjectPtr<UMaterialInterface> OverlayMaterial = RegisteredOverlayMaterials.FindRef(OverlayName);
+
+	return OverlayMaterial.LoadSynchronous();
+}
+
+TArray<FName> UCameraCalibrationSubsystem::GetOverlayMaterialNames() const
+{
+	TArray<FName> OutKeys;
+	RegisteredOverlayMaterials.GetKeys(OutKeys);
+
+#if WITH_EDITOR
+	OutKeys.Append(GetDefault<UCameraCalibrationSettings>()->GetDefaultCalibrationOverlayNames());
+#endif
 	return OutKeys;
 }
 

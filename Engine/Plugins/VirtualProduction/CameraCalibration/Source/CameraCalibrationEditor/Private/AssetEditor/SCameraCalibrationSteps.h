@@ -41,8 +41,14 @@ private:
 	/** Builds the UI for the media source picker */
 	TSharedRef<SWidget> BuildMediaSourceWidget();
 
+	/** Builds the UI for the overlay picker */
+	TSharedRef<SWidget> BuildOverlayWidget();
+
 	/** Builds the UI for the calibration step selection */
 	TSharedRef<SWidget> BuildStepSelectionWidget();
+
+	/** Updates the material parameter widget to display the parameters for the currently selected overlay */
+	void UpdateOverlayMaterialParameterWidget();
 
 	/** Refreshes the list of available media sources shown in the MediaSourcesComboBox */
 	void UpdateMediaSourcesOptions();
@@ -60,6 +66,18 @@ private:
 
 	/** The combobox that presents the available media sources */
 	TSharedPtr<SComboBox<TSharedPtr<FString>>> MediaSourcesComboBox;
+
+	/** The combox that presents the available overlays */
+	TSharedPtr<SComboBox<TSharedPtr<FName>>> OverlayComboBox;
+
+	/** The overlay parameter widget that displays a category name and the parameter list */
+	TSharedPtr<SHorizontalBox> OverlayParameterWidget;
+
+	/** The overlay parameter list widget that display the scalar and vector parameters for the currently select overlay */
+	TSharedPtr<SVerticalBox> OverlayParameterListWidget;
+
+	/** List of overlay names for the combox box options */
+	TArray<TSharedPtr<FName>> SharedOverlayNames;
 
 	/** Widget switcher to only display the UI of the selected step */
 	TSharedPtr<SWidgetSwitcher> StepWidgetSwitcher;

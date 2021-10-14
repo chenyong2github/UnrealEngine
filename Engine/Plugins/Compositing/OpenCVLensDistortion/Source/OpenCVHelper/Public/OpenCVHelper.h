@@ -59,6 +59,7 @@ public:
 	 * @return Texture created out of the given OpenCV Mat.
 	 */
 	static UTexture2D* TextureFromCvMat(cv::Mat& Mat, const FString* PackagePath = nullptr, const FName* TextureName = nullptr);
+	static UTexture2D* TextureFromCvMat(cv::Mat& Mat, UTexture2D* InTexture);
 };
 
 #endif //WITH_OPENCV
