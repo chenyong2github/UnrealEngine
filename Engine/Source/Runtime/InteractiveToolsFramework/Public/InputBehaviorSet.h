@@ -171,3 +171,21 @@ public:
 	virtual const UInputBehaviorSet* GetInputBehaviors() const = 0;
 };
 
+
+/**
+ * An implementation of IInputBehaviorSource that forwards to a user provided-lambda, to allow
+ * a tool to supply a behavior source different from the one it is implementing itself. Useful,
+ * for instance, when a tool wants to supply different behaviors to separate input routers.
+ */
+UCLASS(Transient)
+class INTERACTIVETOOLSFRAMEWORK_API ULocalInputBehaviorSource : public UObject, public IInputBehaviorSource
+{
+	GENERATED_BODY()
+
+public:
+
+	TUniqueFunction<const UInputBehaviorSet* ()> GetInputBehaviorsFunc = []() { return nullptr; };
+
+	// IInputBehaviorSource
+	virtual const UInputBehaviorSet* GetInputBehaviors() const override { return GetInputBehaviorsFunc(); };
+};
