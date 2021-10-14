@@ -34,8 +34,6 @@
 
 namespace DatasmithRuntime
 {
-	extern void RenameObject(UObject* Object, const TCHAR* DesiredName);
-
 	bool FSceneImporter::ProcessMeshData(FAssetData& MeshData)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::ProcessMeshData);
@@ -521,14 +519,14 @@ namespace DatasmithRuntime
 				MeshComponent = NewObject< UStaticMeshComponent >(RootComponent->GetOwner(), ComponentName);
 			}
 
-			// #ueent_datasmithruntime: Enable collision after mesh component has been displayed. Can this be multi-threaded?
+			MeshComponent->ComponentTags.Add(RuntimeTag);
+
 			MeshComponent->bAlwaysCreatePhysicsState = ImportOptions.BuildCollisions != ECollisionEnabled::NoCollision;
 			MeshComponent->BodyInstance.SetCollisionEnabled(ImportOptions.BuildCollisions);
 
 			if (MeshComponent->bAlwaysCreatePhysicsState)
 			{
 				MeshComponent->BodyInstance.SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
-				//MeshComponent->BodyInstance.bNotifyRigidBodyCollision = true;
 			}
 			else
 			{
@@ -634,15 +632,6 @@ namespace DatasmithRuntime
 			else if (OverrideMaterials.Num() > 0)
 			{
 				OverrideMaterials.Empty();
-			}
-		}
-
-		if (MeshActorElement->GetTagsCount() > 0)
-		{
-			MeshComponent->ComponentTags.Reserve(MeshActorElement->GetTagsCount());
-			for (int32 Index = 0; Index < MeshActorElement->GetTagsCount(); ++Index)
-			{
-				MeshComponent->ComponentTags.Add(MeshActorElement->GetTag(Index));
 			}
 		}
 

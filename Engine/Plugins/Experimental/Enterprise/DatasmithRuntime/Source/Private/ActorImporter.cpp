@@ -22,8 +22,6 @@ namespace DatasmithRuntime
 	// Used during reset process
 	const FName RuntimeTag("Datasmith.Runtime.Tag");
 
-	void RenameObject(UObject* Object, const TCHAR* DesiredName);
-
 	void DeleteSceneComponent(USceneComponent* SceneComponent);
 
 	// Recursively destroy actor from world. Children are deleted first.
@@ -484,18 +482,15 @@ namespace DatasmithRuntime
 				SceneComponent->ComponentTags.Add(ActorElement->GetTag(Index));
 			}
 
-			// Add runtime tag if scene component is attached to runtime actor's component
-			if (ParentComponent == RootComponent)
-			{
-				SceneComponent->ComponentTags.Add(RuntimeTag);
-			}
-
 			if (ImportOptions.BuildHierarchy != EBuildHierarchyMethod::None)
 			{
-				if (ActorElement->IsAComponent() && ParentComponent && SceneComponent->GetOwner() != ParentComponent->GetOwner())
+				if (ActorElement->IsAComponent())
 				{
-					FName UniqueName = MakeUniqueObjectName(ParentComponent->GetOwner(), SceneComponent->GetClass(), ActorElement->GetName());
-					SceneComponent->Rename(*UniqueName.ToString(), ParentComponent->GetOwner(), REN_NonTransactional | REN_DontCreateRedirectors);
+					RenameObject(SceneComponent, ActorElement->GetName(), ParentComponent->GetOwner());
+				}
+				else if (SceneComponent->GetOwner() == RootComponent->GetOwner() && SceneComponent->GetOwner() != ParentComponent->GetOwner())
+				{
+					RenameObject(SceneComponent, ActorElement->GetName(), ParentComponent->GetOwner());
 				}
 
 				SceneComponent->GetOwner()->AddInstanceComponent(SceneComponent);
@@ -524,8 +519,24 @@ namespace DatasmithRuntime
 
 		for (AActor* ChildActor : ChildActors)
 		{
-			ChildActor->DetachFromActor(FDetachmentTransformRules::KeepRelativeTransform);
-			DeleteActorRecursive(GameWorld, ChildActor);
+			if (ChildActor->ActorHasTag(RuntimeTag))
+			{
+				ChildActor->DetachFromActor(FDetachmentTransformRules::KeepRelativeTransform);
+				DeleteActorRecursive(GameWorld, ChildActor);
+			}
+		}
+
+		if (USceneComponent* RootComponent = Actor->GetRootComponent())
+		{
+			TArray<USceneComponent*> SceneComponents = RootComponent->GetAttachChildren();
+			for (USceneComponent* SceneComponent : SceneComponents)
+			{
+				// Only delete components created by runtime import
+				if (SceneComponent->ComponentHasTag(RuntimeTag))
+				{
+					DeleteSceneComponent(SceneComponent);
+				}
+			}
 		}
 
 		ensure(GameWorld->DestroyActor(Actor));
@@ -561,19 +572,47 @@ namespace DatasmithRuntime
 
 		SceneComponent->ClearFlags(RF_AllFlags);
 		SceneComponent->SetFlags(RF_Transient);
-		SceneComponent->Rename(nullptr, nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
+		//SceneComponent->Rename(nullptr, nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
 		SceneComponent->MarkPendingKill();
 	}
 
-	void RenameObject(UObject* Object, const TCHAR* DesiredName)
+	void RenameObject(UObject* Object, const TCHAR* DesiredName, UObject* NewOwner)
 	{
 		FString ObjectName(DesiredName);
 
-		if (!Object->Rename(DesiredName, nullptr, REN_NonTransactional | REN_DontCreateRedirectors | REN_Test))
+		// Validate desired name does not collide
+		if (!ObjectName.IsEmpty())
 		{
-			ObjectName = MakeUniqueObjectName(Object->GetOuter(), Object->GetClass(), DesiredName).ToString();
+			if (!Object->Rename(DesiredName, NewOwner, REN_Test))
+			{
+				ObjectName = MakeUniqueObjectName(Object->GetOuter(), Object->GetClass(), DesiredName).ToString();
+			}
 		}
 
-		Object->Rename(*ObjectName, nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
+		Object->Rename(ObjectName.IsEmpty() ? nullptr : *ObjectName, NewOwner, REN_NonTransactional | REN_DontCreateRedirectors);
 	}
+
+	USceneComponent* CreateComponent(FActorData& ActorData, UClass* Class, AActor* Owner)
+	{
+		USceneComponent* SceneComponent = ActorData.GetObject<USceneComponent>();
+
+		if (SceneComponent == nullptr)
+		{
+			SceneComponent = NewObject< USceneComponent >(Owner, Class, NAME_None);
+			if (SceneComponent == nullptr)
+			{
+				return nullptr;
+			}
+
+			SceneComponent->SetMobility(EComponentMobility::Movable);
+
+			// Add runtime tag to scene component
+			SceneComponent->ComponentTags.Add(RuntimeTag);
+
+			ActorData.Object = TWeakObjectPtr<UObject>(SceneComponent);
+		}
+
+		return SceneComponent;
+	}
+
 } // End of namespace DatasmithRuntime

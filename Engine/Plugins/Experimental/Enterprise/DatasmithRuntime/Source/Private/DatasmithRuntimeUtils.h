@@ -10,6 +10,7 @@
 #include "DirectLinkCommon.h"
 
 #include "Engine/StaticMesh.h"
+#include "Engine/World.h"
 #include "Misc/SecureHash.h"
 
 #include "DatasmithRuntimeUtils.generated.h"
@@ -128,4 +129,24 @@ namespace DatasmithRuntime
 		static TMap<uint32, TMap<FSceneGraphId,FAssetData>*> SceneMappings;
 	};
 
+	extern const FName RuntimeTag;
+
+	extern void RenameObject(UObject* Object, const TCHAR* DesiredName, UObject* NewOwner = nullptr);
+
+	extern USceneComponent* CreateComponent(FActorData& ActorData, UClass* Class, AActor* Owner);
+
+	template<typename T>
+	T* CreateComponent(FActorData& ActorData, AActor* Owner)
+	{
+		return Cast<T>(CreateComponent(ActorData, T::StaticClass(), Owner));
+	}
+
+	template<typename T>
+	T* CreateActor(UWorld* World)
+	{
+		T* NewActor = Cast<T>(World->SpawnActor(T::StaticClass(), nullptr, nullptr));
+		check(NewActor);
+
+		return NewActor;
+	}
 }

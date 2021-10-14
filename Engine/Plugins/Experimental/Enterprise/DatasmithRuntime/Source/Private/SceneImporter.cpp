@@ -935,19 +935,18 @@ namespace DatasmithRuntime
 
 	void FSceneImporter::IncrementalAdditions(TArray<TSharedPtr<IDatasmithElement>>& Additions, TArray<TSharedPtr<IDatasmithElement>>& Updates)
 	{
-		if (Additions.Num() == 0)
-		{
-			return;
-		}
-
 		const int32 AdditionCount = Additions.Num();
 
-		// Collect set of materials and meshes used in scene
-		// Collect set of textures used in scene
 		TextureElementSet.Empty(AdditionCount);
 		MeshElementSet.Empty(AdditionCount);
 		MaterialElementSet.Empty(AdditionCount);
 
+		if (AdditionCount == 0)
+		{
+			return;
+		}
+
+		// Collect set of new textures, materials and meshes used in scene
 		Elements.Reserve( Elements.Num() + AdditionCount );
 		AssetDataList.Reserve( AssetDataList.Num() + AdditionCount );
 
