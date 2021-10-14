@@ -2174,13 +2174,30 @@ USkeletalMesh* UsdToUnreal::GetSkeletalMeshFromImportData(
 		IMeshUtilities::MeshBuildOptions BuildOptions;
 		BuildOptions.TargetPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
 		// #ueent_todo: Normals and tangents shouldn't need to be recomputed when they are retrieved from USD
-		//BuildOptions.bComputeNormals = !SkelMeshImportData.bHasNormals;
-		//BuildOptions.bComputeTangents = !SkelMeshImportData.bHasTangents;
+		//BuildOptions.bComputeNormals = !LODImportData.bHasNormals;
+		//BuildOptions.bComputeTangents = !LODImportData.bHasTangents;
+		BuildOptions.bUseMikkTSpace = true;
 
 		TArray<FText> WarningMessages;
 		TArray<FName> WarningNames;
 
 		bool bBuildSuccess = MeshUtilities.BuildSkeletalMesh(LODModel, SkeletalMesh->GetPathName(), SkeletalMesh->GetRefSkeleton(), LODInfluences, LODWedges, LODFaces, LODPoints, LODPointToRawMap, BuildOptions, &WarningMessages, &WarningNames );
+
+		for ( int32 WarningIndex = 0; WarningIndex < FMath::Max( WarningMessages.Num(), WarningNames.Num() ); ++WarningIndex )
+		{
+			const FText& Text = WarningMessages.IsValidIndex( WarningIndex ) ? WarningMessages[ WarningIndex ] : FText::GetEmpty();
+			const FName& Name = WarningNames.IsValidIndex( WarningIndex ) ? WarningNames[ WarningIndex ] : NAME_None;
+
+			if ( bBuildSuccess )
+			{
+				UE_LOG( LogUsd, Warning, TEXT( "Warning when trying to build skeletal mesh from USD: '%s': '%s'" ), *Name.ToString(), *Text.ToString() );
+			}
+			else
+			{
+				UE_LOG( LogUsd, Error, TEXT( "Error when trying to build skeletal mesh from USD: '%s': '%s'" ), *Name.ToString(), *Text.ToString() );
+			}
+		}
+
 		if ( !bBuildSuccess )
 		{
 			SkeletalMesh->MarkPendingKill();
