@@ -313,8 +313,11 @@ void UAddPrimitiveTool::UpdatePreviewMesh()
 		NewMesh.SetVertex(vid, Pos);
 	}
 
-
 	PreviewMesh->UpdatePreview(&NewMesh);
+
+	PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
+	const bool CalculateTangentsSuccessful = PreviewMesh->CalculateTangents();
+	checkSlow(CalculateTangentsSuccessful);
 }
 
 void UAddPrimitiveTool::OnClicked(const FInputDeviceRay& DeviceClickPos)

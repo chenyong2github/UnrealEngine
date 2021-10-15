@@ -187,6 +187,13 @@ public:
 	 */
 	void SetTangentsMode(EDynamicMeshComponentTangentsMode TangentsType);
 
+	/**
+	 * Calculate tangents for the underlying component.
+	 * This will calculate and assign tangents for the preview mesh independent of the tangents mode.
+	 * But if the tangents mode is set to AutoCalculated then it will try to use the auto calculated tangents.
+	 * @return true if tangents were successfully calculated and assigned to the underlying mesh
+	 */
+	bool CalculateTangents();
 
 	/**
 	 * Get the current transform on the preview mesh

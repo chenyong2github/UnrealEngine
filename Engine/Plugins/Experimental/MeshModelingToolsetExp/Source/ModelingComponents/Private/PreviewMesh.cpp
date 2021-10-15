@@ -190,7 +190,69 @@ void UPreviewMesh::SetTangentsMode(EDynamicMeshComponentTangentsMode TangentsTyp
 	DynamicMeshComponent->SetTangentsType(TangentsType);
 }
 
+bool UPreviewMesh::CalculateTangents()
+{
+	check(DynamicMeshComponent);
 
+	UDynamicMesh *const DynamicMesh = DynamicMeshComponent->GetDynamicMesh();
+	FDynamicMesh3 *const Mesh = DynamicMesh ? DynamicMesh->GetMeshPtr() : nullptr;
+
+	if (Mesh)
+	{
+		// Holds temporary tangents in case we don't have access to existing tangents and need to compute them within this function.
+		FMeshTangentsf TempTangents;
+
+		const FMeshTangentsf* Tangents = [this, Mesh, &TempTangents]() -> const FMeshTangentsf*
+		{
+			if (DynamicMeshComponent->GetTangentsType() == EDynamicMeshComponentTangentsMode::AutoCalculated)
+			{
+				if (const FMeshTangentsf* AutoCalculatedTangents = DynamicMeshComponent->GetAutoCalculatedTangents())
+				{
+					return AutoCalculatedTangents;
+				}
+			}
+
+			const FDynamicMeshNormalOverlay* NormalOverlay = nullptr;
+			const FDynamicMeshUVOverlay* UVOverlay = nullptr;
+
+			if (const FDynamicMeshAttributeSet* Attributes = Mesh->Attributes())
+			{
+				if (Attributes->NumNormalLayers() > 0)
+				{
+					NormalOverlay = Attributes->GetNormalLayer(0);
+				}
+
+				if (Attributes->NumUVLayers() > 0)
+				{
+					UVOverlay = Attributes->GetUVLayer(0);
+				}
+			}
+
+			if (NormalOverlay && UVOverlay)
+			{
+				TempTangents.ComputeTriVertexTangents(NormalOverlay, UVOverlay, {});
+
+				return &TempTangents;
+			}
+
+			return nullptr;
+		}();
+
+		if (Tangents)
+		{
+			Mesh->Attributes()->EnableTangents();
+			if (Tangents->CopyToOverlays(*Mesh))
+			{
+				DynamicMeshComponent->FastNotifyVertexAttributesUpdated(true, false, false);
+				NotifyWorldPathTracedOutputInvalidated();
+
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
 
 void UPreviewMesh::EnableWireframe(bool bEnable)
 {
