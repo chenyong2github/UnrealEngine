@@ -764,12 +764,11 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateMPCDIPolicy(UDisp
 			ConfigurationViewports));
 	}
 	
-	TSharedPtr<FPolicyParameterInfoCombo> Origin = MakeShared<FPolicyParameterInfoComponentCombo>(
-		"Origin",
-		DisplayClusterProjectionStrings::cfg::mpcdi::Origin,
-		Blueprint,
-		ConfigurationViewports,
-		TArray<TSubclassOf<UActorComponent>>{ USceneComponent::StaticClass() });
+	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoComponentCombo>(
+			"Origin", 
+			DisplayClusterProjectionStrings::cfg::mpcdi::Origin, 
+			Blueprint, ConfigurationViewports, 
+			TArray<TSubclassOf<UActorComponent>>{ USceneComponent::StaticClass() }));
 
 	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoBool>(
 		"Enable Preview",
