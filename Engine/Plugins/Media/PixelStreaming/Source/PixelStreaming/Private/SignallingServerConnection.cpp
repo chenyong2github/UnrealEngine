@@ -23,7 +23,6 @@ DEFINE_LOG_CATEGORY(LogPixelStreamingSS);
 	do\
 	{\
 		UE_LOG(LogPixelStreamingSS, Error, ErrorMsg, ##__VA_ARGS__);\
-		WS->Close(4000, FString::Printf(ErrorMsg, ##__VA_ARGS__));\
 		return;\
 	}\
 	while(false);

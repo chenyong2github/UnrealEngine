@@ -437,7 +437,19 @@ public:
 		return bFakingTouchEvents;
 	}
 
-	void OnMessage(const uint8* Data, uint32 Size);
+	/**
+     * Handle incoming messages
+     * @param Buffer - Incoming data buffer.
+     */
+	void OnMessage(const webrtc::DataBuffer& Buffer);
+
+	/**
+     * How long is the message type specifier and the length specifier in bytes?
+     * @return The number of header bytes in an incoming message what is ignored when it is parsed as string.
+     */
+	static const size_t	GetMessageHeaderOffset() {
+		return MessageHeaderOffset;
+	}
 
 private:
 
@@ -509,4 +521,11 @@ private:
 
 	/** For convenience we keep a reference to the Pixel Streaming plugin. */
 	IPixelStreamingModule* PixelStreamingModule;
+
+	/*
+	 * Padding for string parsing when handling messages.
+	 * 1 character for the actual message and then
+	 * 2 characters for the length which are skipped
+	 */
+	static const size_t MessageHeaderOffset;
 };

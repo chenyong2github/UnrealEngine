@@ -113,6 +113,7 @@ public:
 };
 
 const FVector2D FInputDevice::UnfocusedPos(-1.0f, -1.0f);
+const size_t FInputDevice::MessageHeaderOffset = 3;
 
 FInputDevice::FInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler)
 	: PixelStreamerApplicationWrapper(MakeShareable(new FApplicationWrapper(FSlateApplication::Get().GetPlatformApplication())))
@@ -726,9 +727,12 @@ namespace
 	enum class MouseButtonState	{ Left = 1 << 0, Right = 1 << 1, Middle = 1 << 2, Button4 = 1 << 3, Button5 = 1 << 4, Button6 = 1 << 5, Button7 = 1 << 6, Button8 = 1 << 7 };
 }
 
-void FInputDevice::OnMessage(const uint8* Data, uint32 Size)
+void FInputDevice::OnMessage(const webrtc::DataBuffer& Buffer)
 {
 	using namespace PixelStreamingProtocol;
+
+	const uint8* Data = Buffer.data.data();
+	uint32 Size = (uint32)Buffer.data.size();
 
 	GET(EToStreamerMsg, MsgType);
 
@@ -736,16 +740,14 @@ void FInputDevice::OnMessage(const uint8* Data, uint32 Size)
 	{
 	case EToStreamerMsg::UIInteraction:
 	{
-		FString Descriptor = PixelStreamingProtocol::ParseString(Data, Size);
-		checkf(Size == 0, TEXT("%d, %d"), Size, Descriptor.Len());
+		FString Descriptor = PixelStreamingProtocol::ParseString(Buffer, FInputDevice::GetMessageHeaderOffset());
 		UE_LOG(PixelStreamerInput, Verbose, TEXT("UIInteraction: %s"), *Descriptor);
 		ProcessUIInteraction(Descriptor);
 		break;
 	}
 	case EToStreamerMsg::Command:
 	{
-		FString Descriptor = PixelStreamingProtocol::ParseString(Data, Size);
-		checkf(Size == 0, TEXT("%d, %d"), Size, Descriptor.Len());
+		FString Descriptor = PixelStreamingProtocol::ParseString(Buffer, FInputDevice::GetMessageHeaderOffset());
 		UE_LOG(PixelStreamerInput, Verbose, TEXT("Command: %s"), *Descriptor);
 		ProcessCommand(Descriptor);
 		break;

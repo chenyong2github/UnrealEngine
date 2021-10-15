@@ -45,21 +45,17 @@ void FPixelStreamingDataChannelObserver::OnStateChange()
         
 void FPixelStreamingDataChannelObserver::OnMessage(const webrtc::DataBuffer& Buffer)
 {
-    const uint8* Data = Buffer.data.data();
-	uint32 Size = static_cast<uint32>(Buffer.data.size());
-	PixelStreamingProtocol::EToStreamerMsg MsgType = static_cast<PixelStreamingProtocol::EToStreamerMsg>(Data[0]);
+	PixelStreamingProtocol::EToStreamerMsg MsgType = static_cast<PixelStreamingProtocol::EToStreamerMsg>(Buffer.data.data()[0]);
 
 	if (MsgType == PixelStreamingProtocol::EToStreamerMsg::RequestQualityControl)
 	{
-		check(Size == 1);
+		check(Buffer.data.size() == 1);
 		UE_LOG(PixelStreamer, Log, TEXT("Player %s has requested quality control through the data channel."), *this->PlayerId);
         this->PlayerSessions->SetQualityController(this->PlayerId);
 	}
 	else if(MsgType == PixelStreamingProtocol::EToStreamerMsg::LatencyTest)
 	{
-		// Have to parse even though we already have this so that pointer arithmetic lines up when we parse the rest of the data
-		MsgType = PixelStreamingProtocol::ParseBuffer<PixelStreamingProtocol::EToStreamerMsg>(Data, Size);
-		FString TestStartTimeInBrowserMs = PixelStreamingProtocol::ParseString(Data, Size);
+		FString TestStartTimeInBrowserMs = PixelStreamingProtocol::ParseString(Buffer, FInputDevice::GetMessageHeaderOffset());
 		FLatencyTester::Start(this->PlayerId);
 		FLatencyTester::RecordReceiptTime();
         double NowMs = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles());
@@ -71,7 +67,7 @@ void FPixelStreamingDataChannelObserver::OnMessage(const webrtc::DataBuffer& Buf
 	}
 	else if (!IsEngineExitRequested())
 	{
-		InputDevice.OnMessage(Data, Size);
+		InputDevice.OnMessage(Buffer);
 	}
 }
         
