@@ -3253,6 +3253,7 @@ public enum LatestChangeType
 				else
 				{
 					PossiblePaths.Add(Path.Combine(Path.GetDirectoryName(SelectedFileName), "Binaries", "Win64", String.Format("{0}{1}.target", GetDefaultEditorTargetName(), ConfigSuffix)));
+					PossiblePaths.Add(Path.Combine(Workspace.LocalRootPath, "Engine", "Binaries", "Win64", String.Format("{0}{1}.target", GetDefaultEditorTargetName(), ConfigSuffix)));
 				}
 			}
 			else
