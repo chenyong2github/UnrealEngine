@@ -578,7 +578,7 @@ namespace DatasmithRevitExporter
 			{
 				// Create a new Datasmith light actor.
 				// Hash the Datasmith light actor name to shorten it.
-				string HashedActorName = FDatasmithFacadeElement.GetStringHash("L:" + GetActorName());
+				string HashedActorName = FDatasmithFacadeElement.GetStringHash("L:" + GetActorName(true));
 				FDatasmithFacadeActorLight LightActor = FDatasmithRevitLight.CreateLightActor(CurrentElement, HashedActorName);
 				LightActor.SetLabel(GetActorLabel());
 
@@ -612,7 +612,7 @@ namespace DatasmithRevitExporter
 			{
 				// Create a new Datasmith RPC mesh.
 				// Hash the Datasmith RPC mesh name to shorten it.
-				string HashedName = FDatasmithFacadeElement.GetStringHash("RPCM:" + GetActorName());
+				string HashedName = FDatasmithFacadeElement.GetStringHash("RPCM:" + GetActorName(false));
 				FDatasmithFacadeMesh RPCMesh = new FDatasmithFacadeMesh();
 				RPCMesh.SetName(HashedName);
 				Transform AffineTransform = Transform.Identity;
@@ -703,7 +703,7 @@ namespace DatasmithRevitExporter
 
 				// Create a new Datasmith RPC mesh actor.
 				// Hash the Datasmith RPC mesh actor name to shorten it.
-				string HashedActorName = FDatasmithFacadeElement.GetStringHash("RPC:" + GetActorName());
+				string HashedActorName = FDatasmithFacadeElement.GetStringHash("RPC:" + GetActorName(true));
 				FDatasmithFacadeActor FacadeActor;
 				if (RPCMesh.GetVerticesCount() > 0 && RPCMesh.GetFacesCount() > 0)
 				{
@@ -803,7 +803,7 @@ namespace DatasmithRevitExporter
 				{
 					// Create a new Datasmith mesh actor.
 					// Hash the Datasmith mesh actor name to shorten it.
-					string HashedActorName = FDatasmithFacadeElement.GetStringHash("A:" + GetActorName());
+					string HashedActorName = FDatasmithFacadeElement.GetStringHash("A:" + GetActorName(true));
 					InElement.ElementActor = new FDatasmithFacadeActorMesh(HashedActorName);
 					InElement.ElementActor.SetLabel(GetActorLabel());
 				}
@@ -885,18 +885,26 @@ namespace DatasmithRevitExporter
 				}
 			}
 
-			private string GetActorName()
+			private string GetActorName(bool bEnsureUnique)
 			{
 				string DocumentName = Path.GetFileNameWithoutExtension(CurrentElement.Document.PathName);
+				string ActorName;
 
 				if (InstanceDataStack.Count == 0)
 				{
-					return $"{DocumentName}:{CurrentElement.UniqueId}";
+					ActorName = $"{DocumentName}:{CurrentElement.UniqueId}";
 				}
 				else
 				{
-					return GenerateUniqueInstanceName();
+					ActorName = GenerateUniqueInstanceName();
 				}
+
+				if (bEnsureUnique && DocumentData.DirectLink != null)
+				{
+					ActorName = DocumentData.DirectLink.EnsureUniqueActorName(ActorName);
+				}
+
+				return ActorName;
 			}
 
 			private string GenerateUniqueInstanceName()
