@@ -17,7 +17,8 @@ public class SkeinSourceControl : ModuleRules
 				"Engine",
 				"SourceControl",
 				"AssetRegistry",
-				"UnrealEd"
+				"UnrealEd",
+				"Json",
 			}
 		);
 	}

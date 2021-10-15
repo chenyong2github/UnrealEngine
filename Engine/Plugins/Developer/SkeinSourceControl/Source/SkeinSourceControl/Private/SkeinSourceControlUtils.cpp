@@ -42,7 +42,7 @@ static bool RunCommandInternalRaw(const FString& InCommand, const FString& InSke
 	UE_LOG(LogSourceControl, Log, TEXT("RunCommandInternalRaw: 'skein %s'"), *LoggableCommand);
 #endif
 
-	FPlatformProcess::ExecProcess(*InSkeinBinaryPath, *FullCommand, &ReturnCode, &OutResults, &OutErrors);
+	FPlatformProcess::ExecProcess(*InSkeinBinaryPath, *FullCommand, &ReturnCode, &OutResults, &OutErrors, *InSkeinProjectRoot);
 
 #if UE_BUILD_DEBUG
 
@@ -95,11 +95,11 @@ FString FindSkeinBinaryPath()
 	FString SkeinBinaryPath;
 
 #if PLATFORM_WINDOWS
-	SkeinBinaryPath = FPaths::EngineDir() / TEXT("Binaries") / TEXT("Win64") / TEXT("Skein.exe");
+	SkeinBinaryPath = FPaths::EngineDir() / TEXT("Binaries") / TEXT("Win64") / TEXT("skein.exe");
 #elif PLATFORM_LINUX
-	SkeinBinaryPath = FPaths::EngineDir() / TEXT("Binaries") / TEXT("Linux") / TEXT("Skein");
+	SkeinBinaryPath = FPaths::EngineDir() / TEXT("Binaries") / TEXT("Linux") / TEXT("skein");
 #elif PLATFORM_MAC
-	SkeinBinaryPath = FPaths::EngineDir() / TEXT("Binaries") / TEXT("Mac") / TEXT("Skein");
+	SkeinBinaryPath = FPaths::EngineDir() / TEXT("Binaries") / TEXT("Mac") / TEXT("skein");
 #endif
 
 	bool bBinaryExists = FPlatformFileManager::Get().GetPlatformFile().FileExists(*SkeinBinaryPath);
@@ -111,7 +111,7 @@ FString FindSkeinBinaryPath()
 
 FString FindSkeinProjectRoot(const FString& InPath)
 {
-	FString PathToSkeinProjectRoot = InPath;
+	FString PathToSkeinProjectRoot = FPaths::ConvertRelativePathToFull(InPath);
 	FPaths::NormalizeDirectoryName(PathToSkeinProjectRoot);
 
 	while (!PathToSkeinProjectRoot.IsEmpty())
