@@ -1422,7 +1422,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return true;
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphBlockingWorkersTest, "System.Core.TaskGraph.BlockingWorkers", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphBlockingWorkersTest, "System.Core.TaskGraph.BlockingWorkers", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
 
 	template<uint32 Num, bool bBackgroundWorkersToo>
 	void BlockingWorkersByFEvent();
