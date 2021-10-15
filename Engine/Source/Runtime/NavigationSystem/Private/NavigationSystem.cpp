@@ -897,12 +897,10 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 		else
 		{
 			const bool bIsBuildLocked = IsNavigationBuildingLocked();
-			const bool bAllowRebuild = !bIsBuildLocked && GetIsAutoUpdateEnabled();
+			const bool bCanRebuild = !bIsBuildLocked && GetIsAutoUpdateEnabled();
 
 			if (GetDefaultNavDataInstance(FNavigationSystem::DontCreate) != NULL)
 			{
-				const bool bIsInGame = World->IsGameWorld();
-
 				// trigger navmesh update
 				for (TActorIterator<ANavigationData> It(World); It; ++It)
 				{
@@ -914,7 +912,9 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 
 						if (Result == RegistrationSuccessful)
 						{
-							if (bAllowRebuild && (!bIsInGame || NavData->SupportsRuntimeGeneration()))
+							// allowing full rebuild of the entire navmesh only for the fully dynamic generation modes
+							// other modes partly rely on the serialized data and full rebuild would wipe it out
+							if (bCanRebuild && IsAllowedToRebuild())
 							{
 								NavData->RebuildAll();
 							}
@@ -4132,6 +4132,13 @@ void UNavigationSystemV1::LogNavDataRegistrationResult(ERegistrationResult InRes
 		UE_VLOG_UELOG(this, LogNavigation, Warning, TEXT("Registration not successful default warning."));
 		break;
 	}
+}
+
+bool UNavigationSystemV1::IsAllowedToRebuild() const
+{
+	const UWorld* World = GetWorld();
+	
+	return World && (!World->IsGameWorld() || GetRuntimeGenerationType() == ERuntimeGenerationType::Dynamic);
 }
 
 //----------------------------------------------------------------------//
