@@ -49,11 +49,11 @@ namespace LowLevelTests
 
 		internal class ParsePatterns
 		{
-			internal const string AllCatchTestPassed = @"All tests passed\s\((?<assertions>[\w\d]+)\sassertions\sin\s(?<testcases>[\w\d]+)\stest\scase[s]*\)";
+			internal const string AllCatchTestPassed = @"All tests passed\s\((?<assertions>[\w\d]+)\sassertion[s]?\sin\s(?<testcases>[\w\d]+)\stest\scase[s]?.*\)";
 
-			internal const string CatchTestCaseResults = @"test\scases\:\s+(?<totalcases>[\d]+)\s+\|\s+(?<passed>[\d]+)\s+passed\s+\|\s+(?<failed>[\d]+)\s+failed";
+			internal const string CatchTestCaseResults = @"test\scase[s]?\:\s+(?<totalcases>[\d]+)\s+\|\s+(?<passed>[\d]+)\s+passed\s+\|\s+(?<failed>[\d]+)\s+failed";
 
-			internal const string CatchTestAssertionResults = @"assertions\:\s+(?<totalcases>[\d]+)\s+\|\s+(?<passed>[\d]+)\s+passed\s+\|\s+(?<failed>[\d]+)\s+failed";
+			internal const string CatchTestAssertionResults = @"assertion[s]?\:\s+(?<totalcases>[\d]+)\s+\|\s+(?<passed>[\d]+)\s+passed\s+\|\s+(?<failed>[\d]+)\s+failed";
 
 			internal const string CatchThrowException = "Catch will terminate because it needed to throw an exception.";
 		}

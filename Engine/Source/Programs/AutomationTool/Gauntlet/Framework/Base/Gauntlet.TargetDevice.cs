@@ -92,6 +92,26 @@ namespace Gauntlet
 		string GetPackagedExecutableLocation() { return null; }
 	};
 
+	/// <summary>
+	/// Interface used by TargetDevice* classes to track spawned application running state.
+	/// </summary>
+	public interface IRunningStateOptions
+	{
+		/// <summary>
+		/// Whether or not to sleep after launching an app before querying for its running state.
+		/// </summary>
+		bool WaitForRunningState { get; set; }
+
+		/// <summary>
+		/// The number of seconds to sleep after launching an app before querying for its running state.
+		/// </summary>
+		int SecondsToRunningState { get; set; }
+
+		/// <summary>
+		/// Interval of time between app running state queries, in seconds.
+		/// </summary>
+		int CachedStateRefresh { get; set; }
+	}
 
 	/// <summary>
 	/// Represents a class able to provide devices

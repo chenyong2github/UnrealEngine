@@ -112,7 +112,22 @@ namespace LowLevelTests
 				TestInstance.Kill();
 			}
 
-			LowLevelTestsLogParser LowLevelTestsLogParser = new LowLevelTestsLogParser(TestInstance.StdOut);
+			string StdOut;
+			if (TestInstance is IWithUnfilteredStdOut)
+			{
+				StdOut = ((IWithUnfilteredStdOut)TestInstance).UnfilteredStdOut;
+			}
+			else
+			{
+				StdOut = TestInstance.StdOut;
+			}
+
+			if (StdOut == null || string.IsNullOrEmpty(StdOut.Trim()))
+			{
+				Log.Warning("No StdOut returned from low level test app.");
+			}
+
+			LowLevelTestsLogParser LowLevelTestsLogParser = new LowLevelTestsLogParser(StdOut);
 
 			UnrealProcessResult Result = GetExitCodeAndReason(
 				InReason,
@@ -131,7 +146,7 @@ namespace LowLevelTests
 				{
 					LowLevelTestResult = TestResult.TimedOut;
 				}
-				else if (Result == UnrealProcessResult.TestFailure)
+				else
 				{
 					LowLevelTestResult = TestResult.Failed;
 				}
@@ -190,13 +205,6 @@ namespace LowLevelTests
 			}
 
 			// Then we check for actual test results.
-			if (InCatchResults == null)
-			{
-				ExitReason = "Could not parse Catch2 results.";
-				ExitCode = -1;
-				return UnrealProcessResult.Unknown;
-			}
-
 			if (InCatchResults.Passed)
 			{
 				ExitReason = "All Catch2 tests passed.";

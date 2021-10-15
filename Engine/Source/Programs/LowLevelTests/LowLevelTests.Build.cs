@@ -37,8 +37,13 @@ public class LowLevelTests : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"Core",
+				"Projects",
 				"LowLevelTestsRunner"
 			});
+
+		PrivateIncludePaths.Add("Runtime/Launch/Private");
+		PrivateIncludePathModuleNames.Add("Launch");
 
 		// Platforms specific setup
 		if (Target.Platform == UnrealTargetPlatform.Android)

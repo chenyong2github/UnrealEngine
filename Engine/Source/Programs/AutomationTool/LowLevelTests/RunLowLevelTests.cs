@@ -36,6 +36,11 @@ namespace LowLevelTests
 				return ExitCode.Error_Arguments;
 			}
 
+			if (!Path.IsPathRooted(ContextOptions.Build))
+			{
+				ContextOptions.Build = Path.Combine(Globals.UE4RootDir, ContextOptions.Build);
+			}
+
 			return RunTests(ContextOptions);
 		}
 
@@ -91,6 +96,11 @@ namespace LowLevelTests
 			{
 				Executor.Dispose();
 
+				if (!string.IsNullOrEmpty(Options.Device))
+				{
+					UnrealDeviceReservation.ReleaseDevices();
+				}
+
 				DevicePool.Instance.Dispose();
 
 				if (ParseParam("clean"))
@@ -112,7 +122,7 @@ namespace LowLevelTests
 			Reservation.ReservationDetails = Options.JobDetails;
 
 			DevicePool.Instance.SetLocalOptions(Options.TempDir, Options.Parallel > 1, Options.DeviceURL);
-			DevicePool.Instance.AddLocalDevices(10);
+			DevicePool.Instance.AddLocalDevices(1);
 
 			if (!string.IsNullOrEmpty(Options.Device))
 			{
@@ -197,6 +207,8 @@ namespace LowLevelTests
 
 	public class LowLevelTestsSession : IDisposable
 	{
+		private static int QUERY_STATE_INTERVAL = 1;
+
 		public IAppInstance Instance { get; protected set; }
 		private LowLevelTestsBuildSource BuildSource { get; set; }
 
@@ -225,7 +237,7 @@ namespace LowLevelTests
 
 			// TargetDevice<Platform> classes have a hard dependency on UnrealAppConfig instead of IAppConfig.
 			// More refactoring needed to support non-packaged applications that can be run natively from a path on the device.
-			UnrealAppConfig AppConfig = BuildSource.CreateUnrealAppConfig();
+			UnrealAppConfig AppConfig = BuildSource.GetUnrealAppConfig();
 
 			IEnumerable<ITargetDevice> DevicesToInstallOn = UnrealDeviceReservation.ReservedDevices.ToArray();
 			ITargetDevice Device = DevicesToInstallOn.Where(D => D.IsConnected && D.Platform == BuildSource.Platform).First();
@@ -260,7 +272,15 @@ namespace LowLevelTests
 			{
 				try
 				{
-					Instance = Install.Run();
+					if (Device is IRunningStateOptions)
+					{
+						// Don't wait to detect running state and query for running state every second
+						IRunningStateOptions DeviceWithStateOptions = (IRunningStateOptions)Device;
+						DeviceWithStateOptions.WaitForRunningState = false;
+						DeviceWithStateOptions.CachedStateRefresh = QUERY_STATE_INTERVAL;
+					}
+
+					Instance = Device.Run(Install);
 					IDeviceUsageReporter.RecordStart(Instance.Device.Name, (UnrealTargetPlatform)Instance.Device.Platform, IDeviceUsageReporter.EventType.Test);
 					RunSuccess = true;
 				}
@@ -362,9 +382,79 @@ namespace LowLevelTests
 		}
 	}
 
+	public interface ILowLevelTestsBuildFactory
+	{
+		bool CanSupportPlatform(UnrealTargetPlatform InPlatform);
+
+		LowLevelTestsBuild CreateBuild(UnrealTargetPlatform InPlatform, string InTestApp, string InBuildPath);
+
+		protected static string GetExecutable(UnrealTargetPlatform InPlatform, string InTestApp, string InBuildPath, string FileRegEx)
+		{
+			IEnumerable<string> Executables = DirectoryUtils.FindFiles(InBuildPath, new Regex(FileRegEx));
+			foreach (string Executable in Executables)
+			{
+				if (InBuildPath.ToLower().Contains(InPlatform.ToString().ToLower()))
+				{
+					if (InBuildPath.ToLower().Contains(InTestApp.ToString().ToLower()))
+					{
+						return Path.GetRelativePath(InBuildPath, Executable);
+					}
+				}
+			}
+			throw new AutomationException("Cannot find low level test executable for {0} in build path {1} for {2} using regex \"{3}\"", InPlatform, InBuildPath, InTestApp, FileRegEx);
+		}
+
+		protected static void CleanupUnusedFiles(UnrealTargetPlatform InPlatform, string InBuildPath)
+		{
+			try
+			{
+				string[] BuildFiles = Directory.GetFiles(InBuildPath);
+				foreach (string BuildFile in BuildFiles)
+				{
+					if (new FileInfo(BuildFile).Extension == ".pdb")
+					{
+						File.Delete(BuildFile);
+					}
+				}
+			}
+			catch (Exception cleanupEx)
+			{
+				Log.Error("Could not cleanup files for {0} build: {1}.", InPlatform.ToString(), cleanupEx);
+			}
+		}
+	}
+
+	public class DesktopLowLevelTestsBuildFactory : ILowLevelTestsBuildFactory
+	{
+		public bool CanSupportPlatform(UnrealTargetPlatform InPlatform)
+		{
+			return InPlatform.IsInGroup(UnrealPlatformGroup.Desktop);
+		}
+
+		public LowLevelTestsBuild CreateBuild(UnrealTargetPlatform InPlatform, string InTestApp, string InBuildPath)
+		{
+			string DesktopExecutableRegEx;
+			if (InPlatform == UnrealTargetPlatform.Win64)
+			{
+				DesktopExecutableRegEx = @"\w+Tests.exe$";
+			}
+			else if (InPlatform == UnrealTargetPlatform.Linux || InPlatform == UnrealTargetPlatform.Mac)
+			{
+				DesktopExecutableRegEx = @"\w+Tests$";
+			}
+			else
+			{
+				throw new AutomationException("Cannot create build for non-desktop platform " + InPlatform);
+			}
+			string ExecutablePath = ILowLevelTestsBuildFactory.GetExecutable(InPlatform, InTestApp, InBuildPath, DesktopExecutableRegEx);
+			return new LowLevelTestsBuild(InPlatform, InBuildPath, ExecutablePath);
+		}
+	}
+
 	public class LowLevelTestsBuildSource : IBuildSource
 	{
 		private string TestApp;
+		private UnrealAppConfig CachedConfig = null;
 
 		public UnrealTargetPlatform Platform { get; protected set; }
 		public LowLevelTestsBuild DiscoveredBuild { get; protected set; }
@@ -378,25 +468,31 @@ namespace LowLevelTests
 
 		protected void InitBuildSource(string InTestApp, string InBuildPath, UnrealTargetPlatform InTargetPlatform)
 		{
-			DiscoveredBuild = LowLevelTestsBuild.CreateFromPath(InTargetPlatform, InTestApp, InBuildPath);
+			ILowLevelTestsBuildFactory LowLevelTestsBuildFactory = Gauntlet.Utils.InterfaceHelpers.FindImplementations<ILowLevelTestsBuildFactory>(true)
+				.Where(B => B.CanSupportPlatform(InTargetPlatform))
+				.First();
+			DiscoveredBuild = LowLevelTestsBuildFactory.CreateBuild(InTargetPlatform, InTestApp, InBuildPath);
 			if (DiscoveredBuild == null)
 			{
 				throw new AutomationException("No builds were discovered at path {0} matching test app name {1} and target platform {2}", InBuildPath, InTestApp, InTargetPlatform);
 			}
 		}
 
-		public UnrealAppConfig CreateUnrealAppConfig()
+		public UnrealAppConfig GetUnrealAppConfig()
 		{
-			UnrealAppConfig Config = new UnrealAppConfig();
-			Config.Name = BuildName;
-			Config.ProjectName = TestApp;
-			Config.ProcessType = UnrealTargetRole.Client;
-			Config.Platform = Platform;
-			Config.Configuration = UnrealTargetConfiguration.Development;
-			Config.Build = DiscoveredBuild;
-			Config.Sandbox = "LowLevelTests";
-			Config.FilesToCopy = new List<UnrealFileToCopy>();
-			return Config;
+			if (CachedConfig == null)
+			{
+				CachedConfig = new UnrealAppConfig();
+				CachedConfig.Name = BuildName;
+				CachedConfig.ProjectName = TestApp;
+				CachedConfig.ProcessType = UnrealTargetRole.Client;
+				CachedConfig.Platform = Platform;
+				CachedConfig.Configuration = UnrealTargetConfiguration.Development;
+				CachedConfig.Build = DiscoveredBuild;
+				CachedConfig.Sandbox = "LowLevelTests";
+				CachedConfig.FilesToCopy = new List<UnrealFileToCopy>();
+			}
+			return CachedConfig;
 		}
 
 		public bool CanSupportPlatform(UnrealTargetPlatform Platform)
@@ -404,87 +500,18 @@ namespace LowLevelTests
 			return true;
 		}
 
-		public static string ExeFileRegEx { get { return @"\w+Tests.exe$"; } }
-
-		// To be used when *both* Mac and Linux apps can be launched from Gauntlet
-		public static string PosixFileRegEx { get { return @"\w+Tests$"; } }
-
 		public string BuildName { get { return TestApp; } }
+	}
 
-		public class LooseStagedBuild : StagedBuild
+	public class LowLevelTestsBuild : StagedBuild
+	{
+		public LowLevelTestsBuild(UnrealTargetPlatform InPlatform, string InBuildPath, string InExecutablePath)
+			: base(InPlatform, UnrealTargetConfiguration.Development, UnrealTargetRole.Client, InBuildPath, InExecutablePath)
 		{
-			public LooseStagedBuild(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfig, UnrealTargetRole InRole, string InBuildPath, string InExecutablePath)
-				: base(InPlatform, InConfig, InRole, InBuildPath, InExecutablePath)
-			{
-			}
-		}
-
-		public class LowLevelTestsBuild : LooseStagedBuild
-		{
-			public LowLevelTestsBuild(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfig, UnrealTargetRole InRole, string InBuildPath, string InExecutablePath)
-				: base(InPlatform, InConfig, InRole, InBuildPath, InExecutablePath)
-			{
-				Platform = InPlatform;
-				Configuration = InConfig;
-				Role = InRole;
-				BuildPath = InBuildPath;
-				ExecutablePath = InExecutablePath;
-				Flags = BuildFlags.CanReplaceCommandLine | BuildFlags.CanReplaceExecutable | BuildFlags.Loose;
-			}
-
-			public bool CopyPlatformSpecificFiles()
-			{
-				// TODO
-				
-				return true;
-			}
-
-			public bool CleanupUnusedFiles()
-			{
-				try
-				{
-					string[] BuildFiles = Directory.GetFiles(BuildPath);
-					foreach (string BuildFile in BuildFiles)
-					{
-						if (new FileInfo(BuildFile).Extension == ".pdb")
-						{
-							File.Delete(BuildFile);
-						}
-					}
-
-				}
-				catch (Exception cleanupEx)
-				{
-					Log.Error("Could not cleanup files for {0} build: {1}.", Platform.ToString(), cleanupEx);
-					return false;
-				}
-				return true;
-			}
-
-			public static LowLevelTestsBuild CreateFromPath(UnrealTargetPlatform InPlatform, string InTestApp, string InBuildPath)
-			{
-				LowLevelTestsBuild DiscoveredBuild = null;
-				IEnumerable<string> Executables = new List<string>();
-				if (InPlatform.IsInGroup(UnrealPlatformGroup.Windows))
-				{
-					Executables = DirectoryUtils.FindFiles(InBuildPath, new Regex(ExeFileRegEx));
-				}
-				foreach (string Executable in Executables)
-				{
-					UnrealTargetConfiguration UnrealConfig = UnrealTargetConfiguration.Development;
-					if (InBuildPath.ToLower().Contains(InPlatform.ToString().ToLower()))
-					{
-						if (InBuildPath.ToLower().Contains(InTestApp.ToString().ToLower()))
-						{
-							DiscoveredBuild = new LowLevelTestsBuild(InPlatform, UnrealConfig, UnrealTargetRole.Client, InBuildPath, Executable);
-							DiscoveredBuild.CopyPlatformSpecificFiles();
-							DiscoveredBuild.CleanupUnusedFiles();
-							break;
-						}
-					}
-				}
-				return DiscoveredBuild;
-			}
+			Platform = InPlatform;
+			BuildPath = InBuildPath;
+			ExecutablePath = InExecutablePath;
+			Flags = BuildFlags.CanReplaceCommandLine | BuildFlags.CanReplaceExecutable | BuildFlags.Loose;
 		}
 	}
 }

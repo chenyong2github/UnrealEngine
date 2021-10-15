@@ -12,10 +12,15 @@ int RunTests(int argc, const char* argv[])
 	GGameThreadId = FPlatformTLS::GetCurrentThreadId();
 	GIsGameThreadIdInitialized = true;
 
+#ifdef SLEEP_ON_INIT
+	// Sleep to allow sync with Gauntlet
+	std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+#endif
+
 	Setup();
 
-	//Read command-line from file (if any). Switch does it earlier.
-#if !PLATFORM_SWITCH
+	//Read command-line from file (if any). Some platforms do this earlier.
+#ifndef PLATFORM_SKIP_ADDITIONAL_ARGS
 	int ArgsOverrideNum = 0;
 	const char** ArgsOverride = ReadAndAppendAdditionalArgs(GetProcessExecutablePath(), &ArgsOverrideNum, argv, argc);
 	if (ArgsOverride != nullptr && ArgsOverrideNum > 1)
@@ -81,7 +86,7 @@ int RunTests(int argc, const char* argv[])
 
 	Teardown();
 
-#if (PLATFORM_WINDOWS || PLATFORM_LINUX || PLATFORM_MAC)
+#if PLATFORM_DESKTOP
 	if (bWaitForInputToTerminate)
 	{
 		std::cout << "Press enter to exit..." << std::endl;
