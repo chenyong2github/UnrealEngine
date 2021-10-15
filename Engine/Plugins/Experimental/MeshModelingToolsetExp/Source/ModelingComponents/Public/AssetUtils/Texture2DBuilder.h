@@ -278,6 +278,14 @@ public:
 	 */
 	bool Copy(const TImageBuilder<FVector4f>& SourceImage, const bool bConvertToSRGB = false);
 
+	/**
+	 * Populate Source Data texel values from a floating point SourceImage
+	 * @param SourceImage the image to copy to source data
+	 * @param SourceDataFormat the texture format for the Source Data
+	 * @param bConvertToSRGB if true, SourceImage is assumed to be Linear, and converted to SRGB for the Texture
+	 */
+	bool CopyImageToSourceData(const TImageBuilder<FVector4f>& SourceImage, const ETextureSourceFormat SourceDataFormat, const bool bConvertToSRGB = false);
+
 
 	/**
 	 * copy existing texel values to floating-point DestImage. Assumed to be same color space (eg values are copied without any linear/SRGB conversion)

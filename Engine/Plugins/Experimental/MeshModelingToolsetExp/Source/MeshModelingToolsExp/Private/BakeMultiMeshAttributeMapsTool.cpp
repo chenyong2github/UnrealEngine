@@ -433,6 +433,7 @@ void UBakeMultiMeshAttributeMapsTool::Setup()
 	Settings->WatchProperty(Settings->MapTypes, [this](int32) { bInputsDirty = true; UpdateOnModeChange(); });
 	Settings->WatchProperty(Settings->MapPreview, [this](int32) { UpdateVisualization(); GetToolManager()->PostInvalidation(); });
 	Settings->WatchProperty(Settings->Resolution, [this](EBakeTextureResolution) { bInputsDirty = true; });
+	Settings->WatchProperty(Settings->SourceFormat, [this](EBakeTextureFormat) { bInputsDirty = true; });
 	Settings->WatchProperty(Settings->UVLayer, [this](FString) { bInputsDirty = true; });
 	Settings->WatchProperty(Settings->Thickness, [this](float) { bInputsDirty = true; });
 	Settings->WatchProperty(Settings->Multisampling, [this](EBakeMultisampling) { bInputsDirty = true; });
@@ -560,11 +561,8 @@ void UBakeMultiMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 		const int NumResults = Settings->Result.Num();
 		for (int ResultIdx = 0; ResultIdx < NumResults; ++ResultIdx)
 		{
-			const FTexture2DBuilder::ETextureType TexType = GetTextureType(ResultTypes[ResultIdx]);
 			FString TexName;
 			GetTextureName(ResultTypes[ResultIdx], BaseName, TexName);
-
-			FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[ResultIdx], TexType);
 			bCreatedAssetOK = bCreatedAssetOK && UE::Modeling::CreateTextureObject(GetToolManager(), FCreateTextureObjectParams{ 0, StaticMeshAsset->GetWorld(), StaticMeshAsset, TexName, Settings->Result[ResultIdx] }).IsOK();
 		}
 		ensure(bCreatedAssetOK);
@@ -589,6 +587,7 @@ void UBakeMultiMeshAttributeMapsTool::UpdateResult()
 
 	FBakeCacheSettings BakeCacheSettings;
 	BakeCacheSettings.Dimensions = Dimensions;
+	BakeCacheSettings.SourceFormat = Settings->SourceFormat;
 	BakeCacheSettings.UVLayer = FCString::Atoi(*Settings->UVLayer);
 	BakeCacheSettings.Thickness = Settings->Thickness;
 	BakeCacheSettings.Multisampling = (int32)Settings->Multisampling;
@@ -622,7 +621,7 @@ void UBakeMultiMeshAttributeMapsTool::UpdateResult()
 	{
 		Compute = MakeUnique<TGenericDataBackgroundCompute<FMeshMapBaker>>();
 		Compute->Setup(this);
-		Compute->OnResultUpdated.AddLambda([this](const TUniquePtr<FMeshMapBaker>& NewResult) { OnMapsUpdated(NewResult); });
+		Compute->OnResultUpdated.AddLambda([this](const TUniquePtr<FMeshMapBaker>& NewResult) { OnMapsUpdated(NewResult, CachedBakeCacheSettings.SourceFormat); });
 		Compute->InvalidateResult();
 	}
 	else if (bInvalidate)

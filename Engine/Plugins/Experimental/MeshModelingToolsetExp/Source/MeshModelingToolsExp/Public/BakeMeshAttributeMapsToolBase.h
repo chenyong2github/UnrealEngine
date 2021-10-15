@@ -93,6 +93,14 @@ enum class EBakeTextureResolution
 
 
 UENUM()
+enum class EBakeTextureFormat
+{
+	ChannelBits8 UMETA(DisplayName = "8 bits/channel"),
+	ChannelBits16 UMETA(DisplayName = "16 bits/channel")
+};
+
+
+UENUM()
 enum class EBakeMultisampling
 {
 	None = 1 UMETA(DisplayName = "None"),
@@ -190,6 +198,7 @@ protected:
 	{
 		EBakeMapType BakeMapTypes = EBakeMapType::None;
 		FImageDimensions Dimensions;
+		EBakeTextureFormat SourceFormat = EBakeTextureFormat::ChannelBits8;
 		int32 UVLayer = 0;
 		int32 DetailTimestamp = 0;
 		float Thickness = 3.0;
@@ -199,7 +208,8 @@ protected:
 		{
 			return BakeMapTypes == Other.BakeMapTypes && Dimensions == Other.Dimensions &&
 				UVLayer == Other.UVLayer && DetailTimestamp == Other.DetailTimestamp &&
-				Thickness == Other.Thickness && Multisampling == Other.Multisampling;
+				Thickness == Other.Thickness && Multisampling == Other.Multisampling &&
+				SourceFormat == Other.SourceFormat;
 		}
 	};
 	FBakeCacheSettings CachedBakeCacheSettings;
@@ -221,7 +231,7 @@ protected:
 	 * 
 	 * @param NewResult the resulting FMeshMapBaker from the background Compute
 	 */
-	void OnMapsUpdated(const TUniquePtr<UE::Geometry::FMeshMapBaker>& NewResult);
+	void OnMapsUpdated(const TUniquePtr<UE::Geometry::FMeshMapBaker>& NewResult, EBakeTextureFormat Format);
 
 	/**
 	 * Update the preview material parameters for a given a result index.
@@ -251,7 +261,7 @@ protected:
 	static TArray<EBakeMapType> GetMapTypesArray(const int32& MapTypes);
 
 	/** @return the Texture2D type for a given map type */
-	static UE::Geometry::FTexture2DBuilder::ETextureType GetTextureType(EBakeMapType MapType);
+	static UE::Geometry::FTexture2DBuilder::ETextureType GetTextureType(EBakeMapType MapType, EBakeTextureFormat MapFormat);
 
 	/** @return the texture name given a base name and map type */
 	static void GetTextureName(EBakeMapType MapType, const FString& BaseName, FString& TexName);
