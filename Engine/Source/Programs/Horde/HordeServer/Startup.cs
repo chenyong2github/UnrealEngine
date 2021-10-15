@@ -347,6 +347,7 @@ namespace HordeServer
 			Services.AddSingleton<IObjectCollection, ObjectCollection>();
 			Services.AddSingleton<IRefCollection, RefCollection>();
 
+			Services.AddSingleton(typeof(IAuditLogFactory<>), typeof(AuditLogFactory<>));
 			Services.AddSingleton(typeof(ISingletonDocument<>), typeof(SingletonDocument<>));
 
 			Services.AddSingleton<AutoscaleService>();
