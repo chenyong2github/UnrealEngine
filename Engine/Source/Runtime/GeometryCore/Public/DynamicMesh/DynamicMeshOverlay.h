@@ -642,6 +642,26 @@ public:
 	}
 
 	/**
+	 * Get the Element value associated with a vertex of a triangle.
+	 * @param TriangleID ID of a triangle containing the Element
+	 * @param VertexID ID of the Element's parent vertex 
+	 * @param Value Value contained at the Element
+	 */
+	inline void GetElementAtVertex(int TriangleID, int VertexID, VectorType& Value) const
+	{
+		FIndex3i Triangle = BaseType::GetTriangle(TriangleID);
+		for (int IDX = 0; IDX < 3; ++IDX)
+		{	
+			int ElementID = Triangle[IDX];
+			if (BaseType::ParentVertices[ElementID] == VertexID)
+			{
+				GetElement(ElementID, Value);
+				return;
+			}
+		}
+	}	
+
+	/**
 	 * Get the Element associated with a vertex of a triangle
 	 * @param TriVertexIndex index of vertex in triangle, valid values are 0,1,2
 	 */
