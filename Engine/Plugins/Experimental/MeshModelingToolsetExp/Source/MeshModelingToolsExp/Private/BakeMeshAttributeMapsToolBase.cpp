@@ -223,7 +223,7 @@ void UBakeMeshAttributeMapsToolBase::UpdatePreview(const int PreviewIdx)
 }
 
 
-void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry::FMeshMapBaker>& NewResult)
+void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry::FMeshMapBaker>& NewResult, const EBakeTextureFormat Format)
 {
 	FImageDimensions BakeDimensions = NewResult->GetDimensions();
 	const int32 NumEval = NewResult->NumEvaluators();
@@ -231,20 +231,31 @@ void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry
 	{
 		FMeshMapEvaluator* Eval = NewResult->GetEvaluator(EvalIdx);
 
-		auto UpdateCachedMap = [this, &NewResult, &EvalIdx, &BakeDimensions](const EBakeMapType BakeMapType, const FTexture2DBuilder::ETextureType TexType, const int32 ResultIdx) -> void
+		auto UpdateCachedMap = [this, &NewResult, &EvalIdx, &BakeDimensions](const EBakeMapType MapType, const EBakeTextureFormat MapFormat, const int32 ResultIdx) -> void
 		{
 			// For 8-bit color textures, ensure that the source data is in sRGB.
+			const FTexture2DBuilder::ETextureType TexType = GetTextureType(MapType, MapFormat);
 			const bool bConvertToSRGB = TexType == FTexture2DBuilder::ETextureType::Color;
+			const ETextureSourceFormat SourceDataFormat = MapFormat == EBakeTextureFormat::ChannelBits16 ? TSF_RGBA16F : TSF_BGRA8;
+			
 			FTexture2DBuilder TextureBuilder;
 			TextureBuilder.Initialize(TexType, BakeDimensions);
 			TextureBuilder.Copy(*NewResult->GetBakeResults(EvalIdx)[ResultIdx], bConvertToSRGB);
 			TextureBuilder.Commit(false);
 
+			// Copy image to source data after commit. This will avoid incurring
+			// the cost of hitting the DDC for texture compile while iterating on
+			// bake settings. Since this dirties the texture, the next time the texture
+			// is used after accepting the final texture, the DDC will trigger and
+			// properly recompile the platform data.
+			const bool bConvertSourceToSRGB = bConvertToSRGB && SourceDataFormat == TSF_BGRA8;
+			TextureBuilder.CopyImageToSourceData(*NewResult->GetBakeResults(EvalIdx)[ResultIdx], SourceDataFormat, bConvertSourceToSRGB);
+
 			// The CachedMap & CachedMapIndices can be thrown out of sync if updated during
 			// a background compute. Validate the computed type against our cached maps.
-			if (CachedMapIndices.Contains(BakeMapType))
+			if (CachedMapIndices.Contains(MapType))
 			{
-				CachedMaps[CachedMapIndices[BakeMapType]] = TextureBuilder.GetTexture2D();
+				CachedMaps[CachedMapIndices[MapType]] = TextureBuilder.GetTexture2D();
 			}
 		};
 
@@ -253,7 +264,7 @@ void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry
 		case EMeshMapEvaluatorType::Normal:
 		{
 			constexpr EBakeMapType MapType = EBakeMapType::TangentSpaceNormalMap;
-			UpdateCachedMap(MapType, GetTextureType(MapType), 0);
+			UpdateCachedMap(MapType, Format, 0);
 			break;
 		}
 		case EMeshMapEvaluatorType::Occlusion:
@@ -264,19 +275,19 @@ void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry
 			if ((bool)(OcclusionEval->OcclusionType & EMeshOcclusionMapType::AmbientOcclusion))
 			{
 				constexpr EBakeMapType MapType = EBakeMapType::AmbientOcclusion;
-				UpdateCachedMap(MapType, GetTextureType(MapType), OcclusionIdx++);
+				UpdateCachedMap(MapType, Format, OcclusionIdx++);
 			}
 			if ((bool)(OcclusionEval->OcclusionType & EMeshOcclusionMapType::BentNormal))
 			{
 				constexpr EBakeMapType MapType = EBakeMapType::BentNormal;
-				UpdateCachedMap(MapType, GetTextureType(MapType), OcclusionIdx++);
+				UpdateCachedMap(MapType, Format, OcclusionIdx++);
 			}
 			break;
 		}
 		case EMeshMapEvaluatorType::Curvature:
 		{
 			constexpr EBakeMapType MapType = EBakeMapType::Curvature;
-			UpdateCachedMap(MapType, GetTextureType(MapType), 0);
+			UpdateCachedMap(MapType, Format, 0);
 			break;
 		}
 		case EMeshMapEvaluatorType::Property:
@@ -305,19 +316,19 @@ void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry
 				break;
 			}
 
-			UpdateCachedMap(MapType, GetTextureType(MapType), 0);
+			UpdateCachedMap(MapType, Format, 0);
 			break;
 		}
 		case EMeshMapEvaluatorType::ResampleImage:
 		{
 			constexpr EBakeMapType MapType = EBakeMapType::Texture2DImage;
-			UpdateCachedMap(EBakeMapType::Texture2DImage, GetTextureType(MapType), 0);
+			UpdateCachedMap(EBakeMapType::Texture2DImage, Format, 0);
 			break;
 		}
 		case EMeshMapEvaluatorType::MultiResampleImage:
 		{
 			constexpr EBakeMapType MapType = EBakeMapType::MultiTexture;
-			UpdateCachedMap(MapType, GetTextureType(MapType), 0);
+			UpdateCachedMap(MapType, Format, 0);
 			break;
 		}
 		default:
@@ -357,7 +368,7 @@ TArray<EBakeMapType> UBakeMeshAttributeMapsToolBase::GetMapTypesArray(const int3
 }
 
 
-FTexture2DBuilder::ETextureType UBakeMeshAttributeMapsToolBase::GetTextureType(EBakeMapType MapType)
+FTexture2DBuilder::ETextureType UBakeMeshAttributeMapsToolBase::GetTextureType(const EBakeMapType MapType, const EBakeTextureFormat MapFormat)
 {
 	FTexture2DBuilder::ETextureType TexType = FTexture2DBuilder::ETextureType::Color;
 	switch (MapType)
@@ -382,8 +393,14 @@ FTexture2DBuilder::ETextureType UBakeMeshAttributeMapsToolBase::GetTextureType(E
 		break;
 	case EBakeMapType::MaterialID:
 	case EBakeMapType::VertexColorImage:
+		break;
 	case EBakeMapType::Texture2DImage:
 	case EBakeMapType::MultiTexture:
+		// For texture output with 16-bit source data, output HDR texture
+		if (MapFormat == EBakeTextureFormat::ChannelBits16)
+		{
+			TexType = FTexture2DBuilder::ETextureType::EmissiveHDR;
+		}
 		break;
 	}
 	return TexType;

@@ -74,6 +74,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (TransientToolProperty))
 	EBakeTextureResolution Resolution = EBakeTextureResolution::Resolution256;
 
+	/** The channel bit depth of the source data for the generated textures */
+	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (TransientToolProperty))
+	EBakeTextureFormat SourceFormat = EBakeTextureFormat::ChannelBits8;
+
 	/** The multisampling configuration per texel */
 	UPROPERTY(EditAnywhere, Category = MapSettings)
 	EBakeMultisampling Multisampling = EBakeMultisampling::None;

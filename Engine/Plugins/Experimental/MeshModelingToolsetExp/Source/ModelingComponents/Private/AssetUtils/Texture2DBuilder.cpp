@@ -349,6 +349,66 @@ bool FTexture2DBuilder::Copy(const TImageBuilder<FVector4f>& SourceImage, const 
 }
 
 
+bool FTexture2DBuilder::CopyImageToSourceData(const TImageBuilder<FVector4f>& SourceImage, const ETextureSourceFormat SourceDataFormat, const bool bConvertToSRGB)
+{
+	// source data only exists in Editor
+#if WITH_EDITOR
+	if(!ensure(RawTexture2D))
+	{
+		return false;
+	}
+
+	if (ensure(SourceImage.GetDimensions() == Dimensions) == false)
+	{
+		return false;
+	}
+
+	// Currently only support these source formats.
+	if (!ensure(SourceDataFormat == TSF_BGRA8 || SourceDataFormat == TSF_RGBA16F))
+	{
+		return false;
+	}
+
+	if (SourceDataFormat == TSF_RGBA16F && bConvertToSRGB)
+	{
+		ensure(false);		// not currently supported
+	}
+
+	RawTexture2D->Source.Init2DWithMipChain(Dimensions.GetWidth(), Dimensions.GetHeight(), SourceDataFormat);
+
+	const int64 Num = Dimensions.Num();
+	if (SourceDataFormat == TSF_BGRA8)
+	{
+		FColor* DestData = reinterpret_cast<FColor*>(RawTexture2D->Source.LockMip(0));
+		for (int32 i = 0; i < Num; ++i)
+		{
+			FVector4f Pixel = SourceImage.GetPixel(i);
+			Pixel.X = FMathf::Clamp(Pixel.X, 0.0, 1.0);
+			Pixel.Y = FMathf::Clamp(Pixel.Y, 0.0, 1.0);
+			Pixel.Z = FMathf::Clamp(Pixel.Z, 0.0, 1.0);
+			Pixel.W = FMathf::Clamp(Pixel.W, 0.0, 1.0);
+			const FColor Texel = ToLinearColor(Pixel).ToFColor(bConvertToSRGB);
+			DestData[i] = Texel;
+		}
+	}
+	else if (SourceDataFormat == TSF_RGBA16F)
+	{
+		FFloat16Color* DestData = reinterpret_cast<FFloat16Color*>(RawTexture2D->Source.LockMip(0));
+		for (int32 i = 0; i < Num; ++i)
+		{
+			FVector4f Pixel = SourceImage.GetPixel(i);
+			const FFloat16Color Texel(ToLinearColor(Pixel));
+			DestData[i] = Texel;
+		}
+	}
+
+	RawTexture2D->Source.UnlockMip(0);
+#endif
+	return false;
+}
+
+
+
 bool FTexture2DBuilder::CopyTo(TImageBuilder<FVector4f>& DestImage) const
 {
 	if (ensure(DestImage.GetDimensions() == Dimensions) == false)
