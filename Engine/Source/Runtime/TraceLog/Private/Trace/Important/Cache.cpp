@@ -40,7 +40,7 @@ struct alignas(16) FCacheBuffer
 
 
 ////////////////////////////////////////////////////////////////////////////////
-static const uint32		GCacheBufferSize	= 4 << 10;
+static const uint32		GCacheBufferSize	= 64 << 10;
 static const uint32		GCacheCollectorSize	= 1 << 10;
 static FCacheBuffer*	GCacheCollector;	// = nullptr;
 static FCacheBuffer*	GCacheActiveBuffer;	// = nullptr;
