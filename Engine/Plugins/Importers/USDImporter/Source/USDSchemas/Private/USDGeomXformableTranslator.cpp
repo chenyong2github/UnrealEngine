@@ -436,7 +436,10 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 
 	if ( Model )
 	{
-		bCollapsesChildren = Model.IsKind( pxr::KindTokens->component );
+		// We need KindValidationNone here or else we get inconsistent results when a prim references another prim that is a component.
+		// For example, when referencing a component prim in another file, this returns 'true' if the referencer is a root prim,
+		// but false if the referencer is within another Xform prim, for whatever reason.
+		bCollapsesChildren = Model.IsKind( pxr::KindTokens->component, pxr::UsdModelAPI::KindValidationNone );
 
 		if ( !bCollapsesChildren )
 		{
