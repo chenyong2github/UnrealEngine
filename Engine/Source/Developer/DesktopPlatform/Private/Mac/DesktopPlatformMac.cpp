@@ -387,6 +387,18 @@ bool FDesktopPlatformMac::FileDialogShared(bool bSave, const void* ParentWindowH
 
 			CFStringRef DefaultPathCFString = FPlatformString::TCHARToCFString(*DefaultPath);
 			NSURL* DefaultPathURL = [NSURL fileURLWithPath: (NSString*)DefaultPathCFString];
+			
+			if(bSave)
+			{
+				// If pointing to a file then remove file from the path - Save Panel is expecting a directory URL
+				// Works round crash in Catalina and error messages in Big Sur
+				NSNumber* isDirectoryKey;
+				if([DefaultPathURL getResourceValue:&isDirectoryKey forKey:NSURLIsDirectoryKey error:nil] == NO || [isDirectoryKey boolValue] == NO)
+				{
+					DefaultPathURL = [DefaultPathURL URLByDeletingLastPathComponent];
+				}
+			}
+			
 			[Panel setDirectoryURL: DefaultPathURL];
 			CFRelease(DefaultPathCFString);
 
