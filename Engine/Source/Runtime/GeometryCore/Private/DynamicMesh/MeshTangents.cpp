@@ -261,7 +261,7 @@ void TMeshTangents<RealType>::ComputeTriangleTangents(const FDynamicMeshUVOverla
 
 
 template<typename RealType>
-bool TMeshTangents<RealType>::CopyToOverlays(FDynamicMesh3& MeshToSet)
+bool TMeshTangents<RealType>::CopyToOverlays(FDynamicMesh3& MeshToSet) const
 {
 	if (!MeshToSet.HasAttributes() || MeshToSet.Attributes()->NumNormalLayers() != 3)
 	{
@@ -270,12 +270,12 @@ bool TMeshTangents<RealType>::CopyToOverlays(FDynamicMesh3& MeshToSet)
 
 	// Set aliases to make iterating over tangents and bitangents easier
 	FDynamicMeshNormalOverlay* TangentOverlays[2] = { MeshToSet.Attributes()->PrimaryTangents(), MeshToSet.Attributes()->PrimaryBiTangents() };
-	TArray<TVector<RealType>>* TangentValues[2] = { &Tangents, &Bitangents };
+	const TArray<TVector<RealType>>* TangentValues[2] = { &Tangents, &Bitangents };
 	
 	for (int Idx = 0; Idx < 2; Idx++)
 	{
 		// Create overlay topology
-		TArray<TVector<RealType>>& TV = *TangentValues[Idx];
+		const TArray<TVector<RealType>>& TV = *TangentValues[Idx];
 		TangentOverlays[Idx]->CreateFromPredicate([&MeshToSet, &TV](int ParentVertexIdx, int TriIDA, int TriIDB) -> bool
 		{
 			FIndex3i TriA = MeshToSet.GetTriangle(TriIDA);
@@ -360,6 +360,9 @@ void TMeshTangents<RealType>::ComputeSeparatePerTriangleTangents(const FDynamicM
 template<typename RealType>
 void TMeshTangents<RealType>::ComputeMikkTStyleTangents(const FDynamicMeshNormalOverlay* NormalOverlay, const FDynamicMeshUVOverlay* UVOverlay, const FComputeTangentsOptions& Options)
 {
+	checkSlow(NormalOverlay != nullptr);
+	checkSlow(UVOverlay != nullptr);
+
 	double HardcodedSplitDotThresh = -0.99;
 
 	int32 MaxTriangleID = Mesh->MaxTriangleID();
