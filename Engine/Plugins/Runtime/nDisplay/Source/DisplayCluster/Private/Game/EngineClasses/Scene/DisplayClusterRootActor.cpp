@@ -847,7 +847,9 @@ static void PropagateDefaultMapToInstancedMap(const FMapProperty* MapProperty, U
 	if (bHasChanged)
 	{
 		MapInstanceHelper.Rehash();
+#if WITH_EDITOR
 		InstanceOwner->PostEditChange();
+#endif
 	}
 }
 
