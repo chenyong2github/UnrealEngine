@@ -1187,6 +1187,11 @@ protected:
 	ERuntimeGenerationType GetRuntimeGenerationType() const;
 
 	void LogNavDataRegistrationResult(ERegistrationResult);
+
+	/** Whether Navigation System is allowed to rebuild the navmesh
+	 *  Depends on runtime generation settings of each navigation data, always true in the editor
+	 */
+	bool IsAllowedToRebuild() const;
 	
 	//----------------------------------------------------------------------//
 	// new stuff
