@@ -229,6 +229,10 @@ namespace UE
 				{
 					AppConfig.CommandLine += " -dpcvars=r.RayTracing=1,r.SkinCache.CompileShaders=1,AutomationAllowFrameTraceCapture=0";
 				}
+				else
+				{
+					AppConfig.CommandLine += " -dpcvars=r.RayTracing=0";
+				}
 
 				// Options specific to windows
 				if (ConfigRole.Platform == UnrealTargetPlatform.Win64)
