@@ -59,4 +59,9 @@ namespace Gauntlet
 		int WaitForExit();
 
 	}
+
+	public interface IWithUnfilteredStdOut
+	{
+		string UnfilteredStdOut { get; }
+	}
 }

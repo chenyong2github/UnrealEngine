@@ -1237,6 +1237,12 @@ namespace Gauntlet
 				}
 				
 				string RootPath = Path.GetPathRoot(InPath); // get drive's letter
+
+				if (string.IsNullOrEmpty(RootPath))
+				{
+					return false;
+				}
+
 				DriveInfo driveInfo = new System.IO.DriveInfo(RootPath); // get info about the drive
 				return driveInfo.DriveType == DriveType.Network; // return true if a network drive
 			}

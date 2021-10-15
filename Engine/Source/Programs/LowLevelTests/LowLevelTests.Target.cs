@@ -3,11 +3,12 @@
 using System.IO;
 using UnrealBuildTool;
 
+[SupportedPlatforms(UnrealPlatformClass.All)]
 public class LowLevelTestsTarget : TargetRules
 {
 	public LowLevelTestsTarget(TargetInfo Target) : base(Target)
 	{
-		LaunchModuleName = "LowLevelTests";
+		ExeBinariesSubFolder = LaunchModuleName = "LowLevelTests";
 
 		SolutionDirectory = "Programs/LowLevelTests";
 
@@ -61,10 +62,6 @@ public class LowLevelTestsTarget : TargetRules
 			GlobalDefinitions.Add("USE_ANDROID_OPENGL=0");
 			GlobalDefinitions.Add("USE_ANDROID_LAUNCH=0");
 			GlobalDefinitions.Add("USE_ANDROID_JNI=0");
-		}
-		else if (Target.Platform == UnrealTargetPlatform.Switch)
-		{
-			GlobalDefinitions.Add("SWITCH_FS_ALLOW_HOST_ACCESS=0");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.IOS)
 		{

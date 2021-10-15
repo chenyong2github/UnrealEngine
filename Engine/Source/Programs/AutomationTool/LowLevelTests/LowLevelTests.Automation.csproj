@@ -45,6 +45,11 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="../../../../Platforms/*/Source/Programs/AutomationTool/LowLevelTests/**/*.cs">
+      <Link>Platform/$([System.Text.RegularExpressions.Regex]::Replace(%(Compile.RecursiveDir), [\\/].+$, ``))/%(Compile.FileName).cs</Link>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
     <PackageReference Include="MySql.Data" Version="6.10.9" PrivateAssets="all" />
     <PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />

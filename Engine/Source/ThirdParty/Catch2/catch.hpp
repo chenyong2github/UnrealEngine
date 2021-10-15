@@ -251,6 +251,7 @@ namespace Catch {
 #if defined(_MSC_VER)
 
 #  define CATCH_INTERNAL_START_WARNINGS_SUPPRESSION __pragma( warning(push) )
+#  pragma warning(disable: 4668)
 #  define CATCH_INTERNAL_STOP_WARNINGS_SUPPRESSION  __pragma( warning(pop) )
 
 // Universal Windows platform does not support SEH
