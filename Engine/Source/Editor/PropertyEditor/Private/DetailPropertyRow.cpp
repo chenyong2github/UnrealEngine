@@ -691,7 +691,7 @@ void FDetailPropertyRow::MakeNameOrKeyWidget( FDetailWidgetRow& Row, const TShar
 		];
 	}
 
-	TSharedPtr<SWidget> NameWidget;
+	TSharedPtr<SWidget> NameWidget = SNullWidget::NullWidget;
 
 	// Key nodes take precedence over custom rows
 	if ( bHasKeyNode )
@@ -725,7 +725,7 @@ void FDetailPropertyRow::MakeNameOrKeyWidget( FDetailWidgetRow& Row, const TShar
 				InCustomRow->NameWidget.Widget
 			];
 	}
-	else
+	else if (PropertyEditor.IsValid())
 	{
 		NameWidget = 
 			SNew( SPropertyNameWidget, PropertyEditor )
@@ -801,7 +801,7 @@ void FDetailPropertyRow::MakeValueWidget( FDetailWidgetRow& Row, const TSharedPt
 			const FSlateBrush* DiffersFromDefaultBrush = FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault");
 			ResetWidget = SNew(SSpacer).Size(DiffersFromDefaultBrush != nullptr ? DiffersFromDefaultBrush->ImageSize : FVector2D(8.0f, 8.0f));
 		}
-		else
+		else if (PropertyEditor.IsValid())
 		{
 			SAssignNew(ResetButton, SResetToDefaultPropertyEditor, PropertyEditor->GetPropertyHandle())
 				.IsEnabled(IsEnabledAttrib)
@@ -821,7 +821,7 @@ void FDetailPropertyRow::MakeValueWidget( FDetailWidgetRow& Row, const TSharedPt
 			InCustomRow->ValueWidget.Widget
 		];
 	}
-	else
+	else if (PropertyEditor.IsValid())
 	{
 		ValueWidget->AddSlot()
 		.Padding( 0.0f, 0.0f, 4.0f, 0.0f )
@@ -834,7 +834,7 @@ void FDetailPropertyRow::MakeValueWidget( FDetailWidgetRow& Row, const TSharedPt
 		MaxWidth = PropertyValue->GetMaxDesiredWidth();
 	}
 
-	if(bAddWidgetDecoration)
+	if (bAddWidgetDecoration && PropertyEditor.IsValid())
 	{
 		if( bShowPropertyButtons )
 		{
