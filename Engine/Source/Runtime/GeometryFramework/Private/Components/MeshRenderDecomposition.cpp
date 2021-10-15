@@ -95,7 +95,7 @@ static void CollectSubDecomposition(
 	TArray<int32> SpillSet;
 
 	FDynamicMeshAABBTree3::FTreeTraversal Collector;
-	Collector.BeginBoxTrianglesF = [&](int32 BoxID)
+	Collector.BeginBoxTrianglesF = [&](int, int)
 	{
 		ActiveSet.Reset();
 		ActiveSet.Reserve(MaxTrisPerGroup);
@@ -104,7 +104,7 @@ static void CollectSubDecomposition(
 	{
 		ActiveSet.Add(TriangleID);
 	};
-	Collector.EndBoxTrianglesF = [&](int32 BoxID)
+	Collector.EndBoxTrianglesF = [&](int)
 	{
 		if (ActiveSet.Num() > 0)
 		{
