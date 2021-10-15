@@ -932,7 +932,7 @@ void FUsdLevelSequenceHelperImpl::AddXformTrack( UUsdPrimTwin& PrimTwin, ULevelS
 		else
 		{
 			// Bind component
-			FGuid Binding = MovieScene->AddPossessable( SceneComponent->GetName(), SceneComponent->GetClass( ));
+			FGuid Binding = MovieScene->AddPossessable( FPaths::GetBaseFilename( PrimTwin.PrimPath ), SceneComponent->GetClass() );
 			Sequence.BindPossessableObject( Binding, *SceneComponent, SceneComponent->GetWorld() );
 
 			SceneComponentsBindings.Emplace( &PrimTwin ) = TPair< ULevelSequence*, FGuid >( &Sequence, Binding );
