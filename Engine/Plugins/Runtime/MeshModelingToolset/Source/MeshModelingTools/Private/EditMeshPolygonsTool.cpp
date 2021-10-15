@@ -402,7 +402,10 @@ void UEditMeshPolygonsTool::Setup()
 
 	if (Topology->Groups.Num() < 2)
 	{
-		GetToolManager()->DisplayMessage( LOCTEXT("NoGroupsWarning", "This object has a single PolyGroup. Use the PolyGroups or Select Tool to assign PolyGroups."), EToolMessageLevel::UserWarning);
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("NoGroupsWarning",
+			        "This object has only a single Polygroup. Use the GenGrps, GrpPnt or TriSel (Create Polygroup) tools to modify Polygroups."),
+			EToolMessageLevel::UserWarning);
 	}
 
 	if (PostSetupFunction)
