@@ -3056,6 +3056,7 @@ void CalcMaterialParametersEx(
 	Parameters.SvPosition = SvPosition;
 	Parameters.ScreenPosition = ScreenPosition;
 
+	// CameraVector is a normalised vector representing the "from surface to camera" direction.
 	#if RAYHITGROUPSHADER
 		Parameters.CameraVector = -WorldRayDirection();
 	#else
@@ -3204,7 +3205,7 @@ float ApplyPixelDepthOffsetToMaterialParameters(inout FMaterialPixelParameters M
 	// Update positions used for shading
 	MaterialParameters.ScreenPosition.w += PixelDepthOffset;
 	MaterialParameters.SvPosition.w = MaterialParameters.ScreenPosition.w;
-	MaterialParameters.AbsoluteWorldPosition = LWCAdd(MaterialParameters.AbsoluteWorldPosition, MaterialParameters.CameraVector * PixelDepthOffset);
+	MaterialParameters.AbsoluteWorldPosition = LWCAdd(MaterialParameters.AbsoluteWorldPosition, -MaterialParameters.CameraVector * PixelDepthOffset);
 
 	OutDepth = INVARIANT(DeviceDepth);
 
