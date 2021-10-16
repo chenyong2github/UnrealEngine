@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace EpicGames.Core
@@ -12,6 +13,27 @@ namespace EpicGames.Core
 	/// </summary>
 	public static class AsyncUtils
 	{
+		/// <summary>
+		/// Converts a cancellation token to a waitable task
+		/// </summary>
+		/// <param name="Token">Cancellation token</param>
+		/// <returns></returns>
+		public static Task AsTask(this CancellationToken Token)
+		{
+			return Task.Delay(-1, Token).ContinueWith(x => { });
+		}
+
+		/// <summary>
+		/// Waits for a time period to elapse or the task to be cancelled, without throwing an cancellation exception
+		/// </summary>
+		/// <param name="Time">Time to wait</param>
+		/// <param name="Token">Cancellation token</param>
+		/// <returns></returns>
+		public static Task DelayNoThrow(TimeSpan Time, CancellationToken Token)
+		{
+			return Task.Delay(Time, Token).ContinueWith(x => { });
+		}
+
 		/// <summary>
 		/// Removes all the complete tasks from a list, allowing each to throw exceptions as necessary
 		/// </summary>
