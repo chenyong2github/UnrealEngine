@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using Google.Protobuf;
 using Google.Protobuf.Reflection;
 using Google.Protobuf.WellKnownTypes;
@@ -12,6 +13,7 @@ using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace HordeServer.Tasks.Impl
@@ -25,7 +27,7 @@ namespace HordeServer.Tasks.Impl
 			this.LogService = LogService;
 		}
 
-		public override async Task<ITaskListener?> SubscribeAsync(IAgent Agent)
+		public override async Task<AgentLease?> AssignLeaseAsync(IAgent Agent, CancellationToken CancellationToken)
 		{
 			if (!Agent.RequestShutdown)
 			{
@@ -33,7 +35,7 @@ namespace HordeServer.Tasks.Impl
 			}
 			if (Agent.Leases.Count > 0)
 			{
-				return TaskSubscription.FromResult(null);
+				return AgentLease.Drain;
 			}
 
 			ILogFile Log = await LogService.CreateLogFileAsync(ObjectId.Empty, Agent.SessionId, LogType.Json);
@@ -43,8 +45,7 @@ namespace HordeServer.Tasks.Impl
 
 			byte[] Payload = Any.Pack(Task).ToByteArray();
 
-			AgentLease? Lease = new AgentLease(ObjectId.GenerateNewId(), "Shutdown", null, null, Log.Id, LeaseState.Pending, null, true, Payload);
-			return TaskSubscription.FromResult(Lease);
+			return new AgentLease(ObjectId.GenerateNewId(), "Shutdown", null, null, Log.Id, LeaseState.Pending, null, true, Payload);
 		}
 	}
 }

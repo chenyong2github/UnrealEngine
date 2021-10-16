@@ -38,7 +38,7 @@ namespace HordeServer.Tasks.Impl
 	/// <summary>
 	/// Background service to dispatch pending work to agents in priority order.
 	/// </summary>
-	public class JobTaskSource : TickedBackgroundService, ITaskSource
+	public sealed class JobTaskSource : TaskSourceBase<ExecuteJobTask>, IDisposable
 	{
 		/// <summary>
 		/// An item in the queue to be executed
@@ -147,66 +147,30 @@ namespace HordeServer.Tasks.Impl
 		/// <summary>
 		/// Information about an agent waiting for work
 		/// </summary>
-		class QueueWaiter : ITaskListener
+		class QueueWaiter
 		{
-			/// <summary>
-			/// The dispatch service instance
-			/// </summary>
-			JobTaskSource DispatchService;
-
 			/// <summary>
 			/// The agent performing the wait
 			/// </summary>
 			public IAgent Agent { get; }
 
 			/// <summary>
+			/// Task to wait for a lease to be assigned
+			/// </summary>
+			public Task<AgentLease?> Task => LeaseSource.Task;
+
+			/// <summary>
 			/// Completion source for the waiting agent. If a new queue item becomes available, the result will be passed through this.
 			/// </summary>
-			public TaskCompletionSource<NewLeaseInfo?> LeaseSource { get; } = new TaskCompletionSource<NewLeaseInfo?>();
-
-			/// <inheritdoc/>
-			public bool Accepted { get; set; }
+			public TaskCompletionSource<AgentLease?> LeaseSource { get; } = new TaskCompletionSource<AgentLease?>();
 
 			/// <summary>
 			/// Constructor
 			/// </summary>
-			/// <param name="DispatchService"></param>
 			/// <param name="Agent">The agent waiting for a task</param>
-			public QueueWaiter(JobTaskSource DispatchService, IAgent Agent)
+			public QueueWaiter(IAgent Agent)
 			{
-				this.DispatchService = DispatchService;
 				this.Agent = Agent;
-
-				lock (DispatchService)
-				{
-					DispatchService.Waiters.Add(this);
-				}
-			}
-
-			public Task<NewLeaseInfo?> LeaseTask => LeaseSource.Task;
-
-			public void Accept()
-			{
-				Accepted = true;
-			}
-
-			public async ValueTask DisposeAsync()
-			{
-				lock (DispatchService.LockObject)
-				{
-					DispatchService.Waiters.Remove(this);
-				}
-
-				if (!LeaseSource.TrySetResult(null) && !Accepted)
-				{
-					NewLeaseInfo? NewLeaseInfo = await LeaseSource.Task;
-					if(NewLeaseInfo != null)
-					{
-						Any Any = Any.Parser.ParseFrom(NewLeaseInfo.Lease.Payload);
-						ExecuteJobTask Task = Any.Unpack<ExecuteJobTask>();
-						await DispatchService.CancelLeaseAsync(Agent, Task.JobId.ToObjectId(), Task.BatchId.ToSubResourceId());
-					}
-				}
 			}
 		}
 
@@ -266,11 +230,6 @@ namespace HordeServer.Tasks.Impl
 		IHostApplicationLifetime ApplicationLifetime;
 
 		/// <summary>
-		/// Task which waits for the application stopping event to start
-		/// </summary>
-		CancellationTask StoppingTask;
-
-		/// <summary>
 		/// Settings instance
 		/// </summary>
 		IOptionsMonitor<ServerSettings> Settings;
@@ -316,12 +275,14 @@ namespace HordeServer.Tasks.Impl
 		private Dictionary<StreamId, IStream> Streams = new Dictionary<StreamId, IStream>();
 
 		/// <summary>
+		/// Background tick registration
+		/// </summary>
+		BackgroundTick Ticker;
+
+		/// <summary>
 		/// Interval between querying the database for jobs to execute
 		/// </summary>
 		static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(5.0);
-
-		/// <inheritdoc/>
-		public MessageDescriptor Descriptor => ExecuteJobTask.Descriptor;
 
 		/// <summary>
 		/// Constructor
@@ -340,7 +301,6 @@ namespace HordeServer.Tasks.Impl
 		/// <param name="Settings">Settings for the server</param>
 		/// <param name="Logger">Log writer</param>
 		public JobTaskSource(DatabaseService DatabaseService, IAgentCollection Agents, IJobCollection Jobs, IJobStepRefCollection JobStepRefs, IGraphCollection Graphs, IPoolCollection Pools, IUgsMetadataCollection UgsMetadataCollection, StreamService StreamService, ILogFileService LogFileService, PerforceLoadBalancer PerforceLoadBalancer, IHostApplicationLifetime ApplicationLifetime, IOptionsMonitor<ServerSettings> Settings, ILogger<JobTaskSource> Logger)
-			: base(RefreshInterval, Logger)
 		{
 			this.DatabaseService = DatabaseService;
 			this.AgentsCollection = Agents;
@@ -353,9 +313,21 @@ namespace HordeServer.Tasks.Impl
 			this.LogFileService = LogFileService;
 			this.PerforceLoadBalancer = PerforceLoadBalancer;
 			this.ApplicationLifetime = ApplicationLifetime;
-			this.StoppingTask = new CancellationTask(ApplicationLifetime.ApplicationStopping);
+			this.Ticker = new BackgroundTick(TickAsync, RefreshInterval, Logger);
 			this.Settings = Settings;
 			this.Logger = Logger;
+		}
+
+		/// <inheritdoc/>
+		public async ValueTask DisposeAsync()
+		{
+			await Ticker.DisposeAsync();
+		}
+
+		/// <inheritdoc/>
+		public void Dispose()
+		{
+			Ticker.Dispose();
 		}
 
 		/// <summary>
@@ -404,7 +376,7 @@ namespace HordeServer.Tasks.Impl
 		/// </summary>
 		/// <param name="StoppingToken">Token that indicates that the service should shut down</param>
 		/// <returns>Async task</returns>
-		protected async override Task TickAsync(CancellationToken StoppingToken)
+		async Task TickAsync(CancellationToken StoppingToken)
 		{
 			// Set the NewBatchIdToQueueItem member, so we capture any updated jobs during the DB query.
 			lock (LockObject)
@@ -720,14 +692,38 @@ namespace HordeServer.Tasks.Impl
 		}
 
 		/// <inheritdoc/>
-		public Task<ITaskListener?> SubscribeAsync(IAgent Agent)
+		public override async Task<AgentLease?> AssignLeaseAsync(IAgent Agent, CancellationToken CancellationToken)
 		{
-			QueueWaiter Waiter = new QueueWaiter(this, Agent);
+			QueueWaiter Waiter = new QueueWaiter(Agent);
 			lock (LockObject)
 			{
 				AssignAnyQueueItemToWaiter(Waiter);
+				if (Waiter.LeaseSource.Task.IsCompleted)
+				{
+					return Waiter.Task.Result;
+				}
+				Waiters.Add(Waiter);
 			}
-			return Task.FromResult<ITaskListener?>(Waiter);
+
+			AgentLease? Lease;
+			using (CancellationToken.Register(() => Waiter.LeaseSource.TrySetResult(null)))
+			{
+				Lease = await Waiter.Task;
+			}
+
+			lock (LockObject)
+			{
+				Waiters.Remove(Waiter);
+			}
+
+			return Lease;
+		}
+
+		/// <inheritdoc/>
+		public override Task CancelLeaseAsync(IAgent Agent, ObjectId LeaseId, Any Payload)
+		{
+			ExecuteJobTask Task = Payload.Unpack<ExecuteJobTask>();
+			return CancelLeaseAsync(Agent, Task.JobId.ToObjectId(), Task.BatchId.ToSubResourceId());
 		}
 
 		/// <summary>
@@ -776,7 +772,7 @@ namespace HordeServer.Tasks.Impl
 
 					// Create the lease and try to set it on the waiter. If this fails, the waiter has already moved on, and the lease can be cancelled.
 					AgentLease Lease = new AgentLease(LeaseId, LeaseName.ToString(), Job.StreamId, Item.PoolId, LogId, LeaseState.Pending, null, true, Payload);
-					if (Waiter.LeaseSource.TrySetResult(new NewLeaseInfo(Lease)))
+					if (Waiter.LeaseSource.TrySetResult(Lease))
 					{
 						Logger.LogDebug("Assigned lease {LeaseId} to agent {AgentId}", LeaseId, Agent.Id);
 						return Lease;
@@ -976,7 +972,7 @@ namespace HordeServer.Tasks.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task OnLeaseCompletedAsync(IAgent Agent, ObjectId LeaseId, Any Any, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output)
+		public override async Task OnLeaseFinishedAsync(IAgent Agent, ObjectId LeaseId, Any Any, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output)
 		{
 			if (Outcome != LeaseOutcome.Success)
 			{

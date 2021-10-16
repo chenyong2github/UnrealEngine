@@ -155,7 +155,7 @@ namespace HordeServer.Tasks.Impl
 		}
 
 		/// <inheritdoc/>
-		public override async Task<ITaskListener?> SubscribeAsync(IAgent Agent)
+		public override async Task<AgentLease?> AssignLeaseAsync(IAgent Agent, CancellationToken CancellationToken)
 		{
 			DateTime UtcNow = DateTime.UtcNow;
 			if (!await IsConformPendingAsync(Agent, UtcNow))
@@ -179,14 +179,13 @@ namespace HordeServer.Tasks.Impl
 
 					byte[] Payload = Any.Pack(Task).ToByteArray();
 
-					AgentLease Lease = new AgentLease(LeaseId, "Updating workspaces", null, null, Log.Id, LeaseState.Pending, null, true, Payload);
-					return TaskSubscription.FromResult(Lease);
+					return new AgentLease(LeaseId, "Updating workspaces", null, null, Log.Id, LeaseState.Pending, null, true, Payload);
 				}
 			}
 
 			if (Agent.RequestConform)
 			{
-				return TaskSubscription.FromResult(null);
+				return AgentLease.Drain;
 			}
 
 			return null;
@@ -211,7 +210,7 @@ namespace HordeServer.Tasks.Impl
 		}
 
 		/// <inheritdoc/>
-		public override Task OnLeaseCompletedAsync(IAgent Agent, ObjectId LeaseId, ConformTask Task, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output)
+		public override Task OnLeaseFinishedAsync(IAgent Agent, ObjectId LeaseId, Any Payload, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output)
 		{
 			return ReleaseConformLeaseAsync(LeaseId);
 		}
