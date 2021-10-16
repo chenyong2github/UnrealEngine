@@ -528,7 +528,6 @@ namespace HordeServer
 			Services.AddHostedService(Provider => Provider.GetRequiredService<CommitService>());
 			Services.AddHostedService(Provider => Provider.GetRequiredService<ConsistencyService>());
 			Services.AddHostedService(Provider => (DowntimeService)Provider.GetRequiredService<IDowntimeService>());
-			Services.AddHostedService(Provider => Provider.GetRequiredService<JobTaskSource>());
 			Services.AddHostedService(Provider => Provider.GetRequiredService<IIssueService>());
 			Services.AddHostedService(Provider => (LogFileService)Provider.GetRequiredService<ILogFileService>());
 			Services.AddHostedService(Provider => (NotificationService)Provider.GetRequiredService<INotificationService>());
@@ -545,7 +544,7 @@ namespace HordeServer
 			Services.AddHostedService<TelemetryService>();
 			Services.AddHostedService(Provider => Provider.GetRequiredService<DeviceService>());
 
-			// Task sources. Order of registration is important here; it dictates the order in which sources are served.
+			// Task sources. Order of registration is important here; it dictates the priority in which sources are served.
 			Services.AddSingleton<JobTaskSource>();
 			Services.AddSingleton<ConformTaskSource>();
 			Services.AddSingleton<IComputeService, ComputeService>();
@@ -555,7 +554,7 @@ namespace HordeServer
 			Services.AddSingleton<ITaskSource, RestartTaskSource>();
 			Services.AddSingleton<ITaskSource, ConformTaskSource>(Provider => Provider.GetRequiredService<ConformTaskSource>());
 			Services.AddSingleton<ITaskSource, JobTaskSource>(Provider => Provider.GetRequiredService<JobTaskSource>());
-			Services.AddSingleton<ITaskSource>(Provider => new NewTaskSourceWrapper(Provider.GetRequiredService<IComputeService>()));
+			Services.AddSingleton<ITaskSource, ComputeService>();
 
 			Services.AddHostedService(Provider => Provider.GetRequiredService<ConformTaskSource>());
 

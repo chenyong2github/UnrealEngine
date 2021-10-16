@@ -22,6 +22,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 using HordeServer.Tasks.Impl;
+using System.Threading;
 
 [assembly: InternalsVisibleTo("HordeAgentTests")]
 
@@ -392,7 +393,9 @@ namespace HordeServer.Services
 				}
 
 				// Get a task for moving to the next item. This will only complete once the call has closed.
+				using CancellationTokenSource CancellationSource = new CancellationTokenSource();
 				NextRequestTask = Reader.MoveNext();
+				NextRequestTask = NextRequestTask.ContinueWith(Task => { CancellationSource.Cancel(); return Task.Result; }, TaskScheduler.Current);
 
 				// Get the current agent state
 				IAgent? Agent = await AgentService.GetAgentAsync(new AgentId(Request.AgentId));
@@ -412,15 +415,8 @@ namespace HordeServer.Services
 						GetCapabilities(Request.Capabilities, out Properties, out Resources);
 					}
 
-					// Capture the current agent update index. This allows us to detect if anything has changed.
-					uint UpdateIndex = Agent.UpdateIndex;
-
-					// Update the agent session and return to the caller if anything changes
-					Agent = await AgentService.UpdateSessionAsync(Agent, Request.SessionId.ToObjectId(), Request.Status, Properties, Resources, Request.Leases);
-					if (Agent != null && Agent.UpdateIndex == UpdateIndex && (Agent.Leases.Count > 0 || Agent.Status != AgentStatus.Stopping))
-					{
-						Agent = await AgentService.WaitForLeaseAsync(Agent, NextRequestTask);
-					}
+					// Update the session
+					Agent = await AgentService.UpdateSessionWithWaitAsync(Agent, Request.SessionId.ToObjectId(), Request.Status, Properties, Resources, Request.Leases, CancellationSource.Token);
 				}
 
 				// Handle the invalid agent case
