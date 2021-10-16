@@ -78,7 +78,7 @@ namespace HordeServer.Compute
 	/// <summary>
 	/// Interface for the compute service
 	/// </summary>
-	public interface IComputeService : INewTaskSource
+	public interface IComputeService : ITaskSource
 	{
 		/// <summary>
 		/// Post tasks to be executed to a channel

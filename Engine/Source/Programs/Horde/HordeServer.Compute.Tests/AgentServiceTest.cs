@@ -51,16 +51,6 @@ namespace HordeServerTests
 	        Assert.IsFalse(AgentService.AuthorizeSession(Agent, GetUser(Agent)));
         }
 
-        [TestMethod]
-        public async Task AgentListenerDispose()
-        {
-	        // Test created to verify dispose bug with AgentEventListener
-	        TestSetup TestSetup = await GetTestSetup();
-	        AgentService AgentService = TestSetup.AgentService;
-	        AgentService.AgentEventListener Listener = new AgentService.AgentEventListener(AgentService, new AgentId("test"), ObjectId.GenerateNewId(), () => { });
-	        Listener.Dispose();
-        }
-
         private ClaimsPrincipal GetUser(IAgent Agent)
         {
 	        return new ClaimsPrincipal(new ClaimsIdentity(new List<Claim>

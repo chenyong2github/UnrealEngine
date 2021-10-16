@@ -13,6 +13,7 @@ using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace HordeServer.Tasks.Impl
@@ -32,7 +33,7 @@ namespace HordeServer.Tasks.Impl
 			this.Clock = Clock;
 		}
 
-		public async override Task<ITaskListener?> SubscribeAsync(IAgent Agent)
+		public async override Task<AgentLease?> AssignLeaseAsync(IAgent Agent, CancellationToken CancellationToken)
 		{
 			string? RequiredVersion = await GetRequiredSoftwareVersion(Agent);
 			if (RequiredVersion != null && Agent.Version != RequiredVersion)
@@ -61,7 +62,7 @@ namespace HordeServer.Tasks.Impl
 
 					Lease = new AgentLease(ObjectId.GenerateNewId(), $"Upgrade to {RequiredVersion}", null, null, LogFile.Id, LeaseState.Pending, null, true, Payload);
 				}
-				return TaskSubscription.FromResult(Lease);
+				return Lease;
 			}
 			return null;
 		}

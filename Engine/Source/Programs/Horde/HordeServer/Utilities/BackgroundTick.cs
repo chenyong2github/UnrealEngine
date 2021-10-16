@@ -31,9 +31,9 @@ namespace HordeServer.Utilities
 		{
 			this.TickFunc = TickFunc;
 			this.Interval = Interval;
-			this.BackgroundTask = Task.Run(BackgroundTickAsync);
 			this.CancellationTokenSource = new CancellationTokenSource();
 			this.Logger = Logger;
+			this.BackgroundTask = Task.Run(BackgroundTickAsync);
 		}
 
 		/// <summary>
