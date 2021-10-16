@@ -1056,17 +1056,16 @@ namespace UnrealBuildTool
 									VersionNumber Version;
 									if (VersionNumber.TryParse(VersionString, out Version))
 									{
-										VersionNumber Version2019 = new VersionNumber(16);
-										VersionNumber Version2022 = new VersionNumber(17);
-										if (Compiler == WindowsCompiler.VisualStudio2022 && Version < Version2022)
+										int MajorVersion = Version.GetComponent(0);
+										if (Compiler == WindowsCompiler.VisualStudio2022 && MajorVersion < 17) // Treat any newer versions as 2022, until we have an explicit enum for them
 										{
 											continue;
 										}
-										else if (Compiler == WindowsCompiler.VisualStudio2019 && Version < Version2019)
+										else if (Compiler == WindowsCompiler.VisualStudio2019 && MajorVersion != 16)
 										{
 											continue;
 										}
-										else if(Compiler == WindowsCompiler.VisualStudio2017 && Version >= Version2019)
+										else if (Compiler == WindowsCompiler.VisualStudio2017 && MajorVersion != 15)
 										{
 											continue;
 										}
