@@ -613,65 +613,78 @@ namespace UnrealBuildTool
 		#endregion
 	}
 
-	class WindowsPlatform : UEBuildPlatform
+	/// <summary>
+	/// Information about a particular Visual Studio installation
+	/// </summary>
+	[DebuggerDisplay("{BaseDir}")]
+	class VisualStudioInstallation
 	{
 		/// <summary>
-		/// Information about a particular Visual Studio installation
+		/// Compiler type
 		/// </summary>
-		[DebuggerDisplay("{BaseDir}")]
-		class VisualStudioInstallation
-		{
-			/// <summary>
-			/// Base directory for the installation
-			/// </summary>
-			public DirectoryReference BaseDir;
-
-			/// <summary>
-			/// Whether it's an express edition of Visual Studio. These versions do not contain a 64-bit compiler.
-			/// </summary>
-			public bool bExpress;
-
-			/// <summary>
-			/// Whether it's a pre-release version of the IDE.
-			/// </summary>
-			public bool bPreview;
-
-			/// <summary>
-			/// Constructor
-			/// </summary>
-			/// <param name="BaseDir">Base directory for the installation</param>
-			public VisualStudioInstallation(DirectoryReference BaseDir)
-			{
-				this.BaseDir = BaseDir;
-			}
-		}
+		public WindowsCompiler Compiler { get; }
 
 		/// <summary>
-		/// Information about a particular toolchain installation
+		/// Version number for this installation
 		/// </summary>
-		class ToolChainInstallation
+		public VersionNumber Version { get; }
+
+		/// <summary>
+		/// Base directory for the installation
+		/// </summary>
+		public DirectoryReference BaseDir { get; }
+
+		/// <summary>
+		/// Whether it's an express edition of Visual Studio. These versions do not contain a 64-bit compiler.
+		/// </summary>
+		public bool bExpress { get; }
+
+		/// <summary>
+		/// Whether it's a pre-release version of the IDE.
+		/// </summary>
+		public bool bPreview { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public VisualStudioInstallation(WindowsCompiler Compiler, VersionNumber Version, DirectoryReference BaseDir, bool bExpress, bool bPreview)
 		{
-			/// <summary>
-			/// Base directory for the toolchain
-			/// </summary>
-			public DirectoryReference BaseDir;
-
-			/// <summary>
-			/// Whether it's a pre-release version of the toolchain.
-			/// </summary>
-			public bool bPreview;
-
-			/// <summary>
-			/// Constructor
-			/// </summary>
-			/// <param name="BaseDir">Base directory for the toolchain</param>
-			/// <param name="bPreview">Whether it's a pre-release version of the toolchain</param>
-			public ToolChainInstallation(DirectoryReference BaseDir, bool bPreview)
-			{
-				this.BaseDir = BaseDir;
-				this.bPreview = bPreview;
-			}
+			this.Compiler = Compiler;
+			this.Version = Version;
+			this.BaseDir = BaseDir;
+			this.bExpress = bExpress;
+			this.bPreview = bPreview;
 		}
+	}
+
+	class WindowsPlatform : UEBuildPlatform
+	{
+	    /// <summary>
+	    /// Information about a particular toolchain installation
+	    /// </summary>
+	    class ToolChainInstallation
+	    {
+		    /// <summary>
+		    /// Base directory for the toolchain
+		    /// </summary>
+		    public DirectoryReference BaseDir;
+    
+		    /// <summary>
+		    /// Whether it's a pre-release version of the toolchain.
+		    /// </summary>
+		    public bool bPreview;
+    
+		    /// <summary>
+		    /// Constructor
+		    /// </summary>
+		    /// <param name="BaseDir">Base directory for the toolchain</param>
+		    /// <param name="bPreview">Whether it's a pre-release version of the toolchain</param>
+		    public ToolChainInstallation(DirectoryReference BaseDir, bool bPreview)
+		    {
+			    this.BaseDir = BaseDir;
+			    this.bPreview = bPreview;
+		    }
+	    }
 
 		/// <summary>
 		/// The default compiler version to be used, if installed. 
@@ -699,9 +712,14 @@ namespace UnrealBuildTool
 		};
 
 		/// <summary>
+		/// Visual Studio installations
+		/// </summary>
+		public static IReadOnlyList<VisualStudioInstallation> VisualStudioInstallations => CachedVisualStudioInstallations.Value;
+
+		/// <summary>
 		/// Cache of Visual Studio installation directories
 		/// </summary>
-		private static Dictionary<WindowsCompiler, List<VisualStudioInstallation>> CachedVisualStudioInstallations = new Dictionary<WindowsCompiler, List<VisualStudioInstallation>>();
+		private static Lazy<IReadOnlyList<VisualStudioInstallation>> CachedVisualStudioInstallations = new Lazy<IReadOnlyList<VisualStudioInstallation>>(FindVisualStudioInstallations);
 
 		/// <summary>
 		/// Cache of Visual C++ installation directories
@@ -1009,99 +1027,92 @@ namespace UnrealBuildTool
 
 		/// <summary>
 		/// Read the Visual Studio install directory for the given compiler version. Note that it is possible for the compiler toolchain to be installed without
-		/// Visual Studio.
+		/// Visual Studio, and vice versa.
 		/// </summary>
-		/// <param name="Compiler">Version of the toolchain to look for.</param>
 		/// <returns>List of directories containing Visual Studio installations</returns>
-		static List<VisualStudioInstallation> FindVisualStudioInstallations(WindowsCompiler Compiler)
+		private static IReadOnlyList<VisualStudioInstallation> FindVisualStudioInstallations()
 		{
-			List<VisualStudioInstallation> Installations;
-			if(!CachedVisualStudioInstallations.TryGetValue(Compiler, out Installations))
+			List<VisualStudioInstallation> Installations = new List<VisualStudioInstallation>();
+			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win32)
 			{
-				Installations = new List<VisualStudioInstallation>();
-			    if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win32)
-			    {
-				    if(Compiler == WindowsCompiler.VisualStudio2015_DEPRECATED)
-				    {
-					    // VS2015 just installs one toolchain; use that.
-					    DirectoryReference InstallDir;
-					    if(TryReadInstallDirRegistryKey32("Microsoft\\VisualStudio\\SxS\\VS7", "14.0", out InstallDir))
-					    {
-						    Installations.Add(new VisualStudioInstallation(InstallDir));
-					    }
-				    }
-				    else if(Compiler == WindowsCompiler.VisualStudio2017 || Compiler == WindowsCompiler.VisualStudio2019 || Compiler == WindowsCompiler.VisualStudio2022)
-				    {
-						try
+				try
+				{
+					SetupConfiguration Setup = new SetupConfiguration();
+					IEnumSetupInstances Enumerator = Setup.EnumAllInstances();
+
+					ISetupInstance[] Instances = new ISetupInstance[1];
+					for (; ; )
+					{
+						int NumFetched;
+						Enumerator.Next(1, Instances, out NumFetched);
+
+						if (NumFetched == 0)
 						{
-							SetupConfiguration Setup = new SetupConfiguration();
-							IEnumSetupInstances Enumerator = Setup.EnumAllInstances();
-
-							ISetupInstance[] Instances = new ISetupInstance[1];
-							for(;;)
-							{
-								int NumFetched;
-								Enumerator.Next(1, Instances, out NumFetched);
-
-								if(NumFetched == 0)
-								{
-									break;
-								}
-
-								ISetupInstance2 Instance = (ISetupInstance2)Instances[0];
-								if((Instance.GetState() & InstanceState.Local) == InstanceState.Local)
-								{
-									string VersionString = Instance.GetInstallationVersion();
-
-									VersionNumber Version;
-									if (VersionNumber.TryParse(VersionString, out Version))
-									{
-										int MajorVersion = Version.GetComponent(0);
-										if (Compiler == WindowsCompiler.VisualStudio2022 && MajorVersion < 17) // Treat any newer versions as 2022, until we have an explicit enum for them
-										{
-											continue;
-										}
-										else if (Compiler == WindowsCompiler.VisualStudio2019 && MajorVersion != 16)
-										{
-											continue;
-										}
-										else if (Compiler == WindowsCompiler.VisualStudio2017 && MajorVersion != 15)
-										{
-											continue;
-										}
-									}
-
-									ISetupInstanceCatalog Catalog = Instance as ISetupInstanceCatalog;
-
-									VisualStudioInstallation Installation = new VisualStudioInstallation(new DirectoryReference(Instance.GetInstallationPath()));
-									if (Catalog != null && Catalog.IsPrerelease())
-									{
-										Installation.bPreview = true;
-									}
-
-									string ProductId = Instance.GetProduct().GetId();
-									if (ProductId.Equals("Microsoft.VisualStudio.Product.WDExpress", StringComparison.Ordinal))
-									{
-										Installation.bExpress = true;
-									}
-
-									Log.TraceLog("Found Visual Studio installation: {0} (Product={1}, Version={2})", Instance.GetInstallationPath(), ProductId, VersionString);
-									Installations.Add(Installation);
-								}
-							}
+							break;
 						}
-						catch
+
+						ISetupInstance2 Instance = (ISetupInstance2)Instances[0];
+						if ((Instance.GetState() & InstanceState.Local) != InstanceState.Local)
 						{
+							continue;
 						}
+
+						VersionNumber Version;
+						if (!VersionNumber.TryParse(Instance.GetInstallationVersion(), out Version))
+						{
+							continue;
+						}
+
+						int MajorVersion = Version.GetComponent(0);
+
+						WindowsCompiler Compiler;
+						if (MajorVersion >= 17) // Treat any newer versions as 2022, until we have an explicit enum for them
+						{
+							Compiler = WindowsCompiler.VisualStudio2022;
+						}
+						else if (MajorVersion == 16)
+						{
+							Compiler = WindowsCompiler.VisualStudio2019;
+						}
+						else if (MajorVersion == 15)
+						{
+							Compiler = WindowsCompiler.VisualStudio2017;
+						}
+						else
+						{
+							continue;
+						}
+
+						ISetupInstanceCatalog Catalog = Instance as ISetupInstanceCatalog;
+						bool bPreview = Catalog != null && Catalog.IsPrerelease();
+
+						string ProductId = Instance.GetProduct().GetId();
+						bool bExpress = ProductId.Equals("Microsoft.VisualStudio.Product.WDExpress", StringComparison.Ordinal);
+
+						DirectoryReference BaseDir = new DirectoryReference(Instance.GetInstallationPath());
+						Installations.Add(new VisualStudioInstallation(Compiler, Version, BaseDir, bExpress, bPreview));
+
+						Log.TraceLog("Found Visual Studio installation: {0} (Product={1}, Version={2})", BaseDir, ProductId, Version);
 					}
-					else
-				    {
-					    throw new BuildException("Unsupported compiler version ({0})", Compiler);
-				    }
+
+					Installations = Installations.OrderBy(x => x.bExpress).ThenBy(x => x.bPreview).ThenByDescending(x => x.Version).ToList();
 				}
-				CachedVisualStudioInstallations.Add(Compiler, Installations.OrderBy(x => !x.bExpress).ThenBy(x => !x.bPreview).ToList());
+				catch (Exception Ex)
+				{
+					throw new BuildException(Ex, "Error while enumerating Visual Studio toolchains");
+				}
 			}
 			return Installations;
+		}
+
+		/// <summary>
+		/// Read the Visual Studio install directory for the given compiler version. Note that it is possible for the compiler toolchain to be installed without
+		/// Visual Studio, and vice versa.
+		/// </summary>
+		/// <returns>List of directories containing Visual Studio installations</returns>
+		private static List<VisualStudioInstallation> FindVisualStudioInstallations(WindowsCompiler Compiler)
+		{
+			return VisualStudioInstallations.Where(x => x.Compiler == Compiler).ToList();
 		}
 
 		/// <summary>

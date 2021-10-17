@@ -336,23 +336,30 @@ namespace UnrealBuildTool
 			// ...but only if the user didn't override this via the command-line.
 			if (Settings.ProjectFileFormat == VCProjectFileFormat.Default)
 			{
-				// Pick the best platform installed by default
-				if (WindowsPlatform.HasCompiler(WindowsCompiler.VisualStudio2019) && WindowsPlatform.HasIDE(WindowsCompiler.VisualStudio2019))
+				// Enumerate all the valid installations. This list is already sorted by preference.
+				List<VisualStudioInstallation> Installations = WindowsPlatform.VisualStudioInstallations.Where(x => WindowsPlatform.HasCompiler(x.Compiler)).ToList();
+
+				// Get the corresponding project file format
+				VCProjectFileFormat Format = VCProjectFileFormat.VisualStudio2017;
+				foreach (VisualStudioInstallation Installation in Installations)
 				{
-					Settings.ProjectFileFormat = VCProjectFileFormat.VisualStudio2019;
+					if (Installation.Compiler == WindowsCompiler.VisualStudio2022)
+					{
+						Format = VCProjectFileFormat.VisualStudio2022;
+						break;
+					}
+					else if (Installation.Compiler == WindowsCompiler.VisualStudio2019)
+					{
+						Format = VCProjectFileFormat.VisualStudio2019;
+						break;
+					}
+					else if (Installation.Compiler == WindowsCompiler.VisualStudio2017)
+					{
+						Format = VCProjectFileFormat.VisualStudio2017;
+						break;
+					}
 				}
-				else if (WindowsPlatform.HasCompiler(WindowsCompiler.VisualStudio2017) && WindowsPlatform.HasIDE(WindowsCompiler.VisualStudio2017))
-				{
-					Settings.ProjectFileFormat = VCProjectFileFormat.VisualStudio2017;
-				}
-				else if (WindowsPlatform.HasCompiler(WindowsCompiler.VisualStudio2022) && WindowsPlatform.HasIDE(WindowsCompiler.VisualStudio2022))
-				{
-					Settings.ProjectFileFormat = VCProjectFileFormat.VisualStudio2022;
-				}
-				else if (WindowsPlatform.HasCompiler(WindowsCompiler.VisualStudio2015_DEPRECATED) && WindowsPlatform.HasIDE(WindowsCompiler.VisualStudio2015_DEPRECATED))
-				{
-					Settings.ProjectFileFormat = VCProjectFileFormat.VisualStudio2022;
-				}
+				Settings.ProjectFileFormat = Format;
 
 				// Allow the SDKs to override
 				foreach (UnrealTargetPlatform SupportedPlatform in SupportedPlatforms)
