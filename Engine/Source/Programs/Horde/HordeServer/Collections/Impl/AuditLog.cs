@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using Google.Protobuf.WellKnownTypes;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
@@ -11,24 +12,24 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Text.Json;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 namespace HordeServer.Collections.Impl
 {
-	/// <summary>
-	/// Collection of agent documents
-	/// </summary>
-	class AuditLog<TTargetId> : IAuditLog<TTargetId>
+	class AuditLog<TSubject> : IAuditLog<TSubject>, IAsyncDisposable, IDisposable
 	{
-		class AuditLogMessage : IAuditLogMessage<TTargetId>
+		class AuditLogMessage : IAuditLogMessage<TSubject>
 		{
 			public ObjectId Id { get; set; }
 
-			[BsonElement("tid")]
-			public TTargetId TargetId { get; set; }
+			[BsonElement("s")]
+			public TSubject Subject { get; set; }
 
 			[BsonElement("t")]
 			public DateTime TimeUtc { get; set; }
@@ -41,40 +42,107 @@ namespace HordeServer.Collections.Impl
 
 			public AuditLogMessage()
 			{
-				TargetId = default!;
+				Subject = default!;
 				Data = String.Empty;
 			}
 
-			public AuditLogMessage(IAuditLogMessage<TTargetId> Other)
+			public AuditLogMessage(TSubject Subject, DateTime TimeUtc, LogLevel Level, string Data)
 			{
 				this.Id = ObjectId.GenerateNewId();
-				this.TargetId = Other.TargetId;
-				this.TimeUtc = Other.TimeUtc;
-				this.Level = Other.Level;
-				this.Data = Other.Data;
+				this.Subject = Subject;
+				this.TimeUtc = TimeUtc;
+				this.Level = Level;
+				this.Data = Data;
 			}
 		}
 
-		IMongoCollection<AuditLogMessage> Messages;
-
-		public AuditLog(DatabaseService DatabaseService, string CollectionName)
+		class AuditLogChannel : IAuditLogChannel<TSubject>
 		{
-			Messages = DatabaseService.GetCollection<AuditLogMessage>(CollectionName);
+			public readonly AuditLog<TSubject> Outer;
+			public TSubject Subject { get; }
+
+			public AuditLogChannel(AuditLog<TSubject> Outer, TSubject Subject)
+			{
+				this.Outer = Outer;
+				this.Subject = Subject;
+			}
+
+			public IDisposable? BeginScope<TState>(TState state) => null;
+
+			public bool IsEnabled(LogLevel logLevel) => true;
+
+			public void Log<TState>(LogLevel LogLevel, EventId EventId, TState State, Exception Exception, Func<TState, Exception, string> Formatter)
+			{
+				DateTime Time = DateTime.UtcNow;
+
+				string Data = MessageTemplate.Serialize(LogLevel, EventId, State, Exception, Formatter);
+				AuditLogMessage Message = new AuditLogMessage(Subject, Time, LogLevel, Data);
+				Outer.MessageChannel.Writer.TryWrite(Message);
+
+				using (IDisposable _ = Outer.Logger.BeginScope($"Subject: {{{Outer.SubjectProperty}}}", Subject))
+				{
+					Outer.Logger.Log(LogLevel, EventId, State, Exception, Formatter);
+				}
+			}
+
+			public IAsyncEnumerable<IAuditLogMessage> FindAsync(DateTime? MinTime, DateTime? MaxTime, int? Index, int? Count) => Outer.FindAsync(Subject, MinTime, MaxTime, Index, Count);
+
+			public Task<long> DeleteAsync(DateTime? MinTime, DateTime? MaxTime) => Outer.DeleteAsync(Subject, MinTime, MaxTime);
+		}
+
+		IMongoCollection<AuditLogMessage> Messages;
+		Channel<AuditLogMessage> MessageChannel;
+		string SubjectProperty;
+		ILogger Logger;
+		Task BackgroundTask;
+
+		public IAuditLogChannel<TSubject> this[TSubject Subject] => new AuditLogChannel(this, Subject);
+
+		public AuditLog(DatabaseService DatabaseService, string CollectionName, string SubjectProperty, ILogger Logger)
+		{
+			this.Messages = DatabaseService.GetCollection<AuditLogMessage>(CollectionName);
+			this.MessageChannel = Channel.CreateUnbounded<AuditLogMessage>();
+			this.SubjectProperty = SubjectProperty;
+			this.Logger = Logger;
+
 			if (!DatabaseService.ReadOnlyMode)
 			{
 				Messages.Indexes.CreateOne(new CreateIndexModel<AuditLogMessage>(Builders<AuditLogMessage>.IndexKeys.Ascending(x => x.Id).Descending(x => x.TimeUtc)));
 			}
+
+			BackgroundTask = Task.Run(() => WriteMessagesAsync());
 		}
 
-		public Task AddAsync(NewAuditLogMessage<TTargetId> NewMessage)
+		public async ValueTask DisposeAsync()
 		{
-			AuditLogMessage Message = new AuditLogMessage(NewMessage);
-			return Messages.InsertOneAsync(Message);
+			MessageChannel.Writer.TryComplete();
+			await BackgroundTask;
 		}
 
-		public async IAsyncEnumerable<IAuditLogMessage<TTargetId>> FindAsync(TTargetId Id, DateTime? MinTime = null, DateTime? MaxTime = null, int? Index = null, int? Count = null)
+		public void Dispose()
 		{
-			FilterDefinition<AuditLogMessage> Filter = Builders<AuditLogMessage>.Filter.Eq(x => x.TargetId, Id);
+			DisposeAsync().AsTask().Wait();
+		}
+
+		async Task WriteMessagesAsync()
+		{
+			while (await MessageChannel.Reader.WaitToReadAsync())
+			{
+				List<AuditLogMessage> NewMessages = new List<AuditLogMessage>();
+				while (MessageChannel.Reader.TryRead(out AuditLogMessage? NewMessage))
+				{
+					NewMessages.Add(NewMessage);
+				}
+				if (NewMessages.Count > 0)
+				{
+					await Messages.InsertManyAsync(NewMessages);
+				}
+			}
+		}
+
+		async IAsyncEnumerable<IAuditLogMessage<TSubject>> FindAsync(TSubject Subject, DateTime? MinTime = null, DateTime? MaxTime = null, int? Index = null, int? Count = null)
+		{
+			FilterDefinition<AuditLogMessage> Filter = Builders<AuditLogMessage>.Filter.Eq(x => x.Subject, Subject);
 			if (MinTime != null)
 			{
 				Filter &= Builders<AuditLogMessage>.Filter.Gte(x => x.TimeUtc, MinTime.Value);
@@ -84,7 +152,7 @@ namespace HordeServer.Collections.Impl
 				Filter &= Builders<AuditLogMessage>.Filter.Lte(x => x.TimeUtc, MaxTime.Value);
 			}
 
-			using (IAsyncCursor<AuditLogMessage> Cursor = await Messages.Find(Filter).SortByDescending(x => x.TimeUtc).ToCursorAsync())
+			using (IAsyncCursor<AuditLogMessage> Cursor = await Messages.Find(Filter).SortByDescending(x => x.TimeUtc).Range(Index, Count).ToCursorAsync())
 			{
 				while (await Cursor.MoveNextAsync())
 				{
@@ -96,9 +164,9 @@ namespace HordeServer.Collections.Impl
 			}
 		}
 
-		public async Task<long> DeleteAsync(TTargetId Id, DateTime? MinTime = null, DateTime? MaxTime = null)
+		async Task<long> DeleteAsync(TSubject Subject, DateTime? MinTime = null, DateTime? MaxTime = null)
 		{
-			FilterDefinition<AuditLogMessage> Filter = Builders<AuditLogMessage>.Filter.Eq(x => x.TargetId, Id);
+			FilterDefinition<AuditLogMessage> Filter = Builders<AuditLogMessage>.Filter.Eq(x => x.Subject, Subject);
 			if (MinTime != null)
 			{
 				Filter &= Builders<AuditLogMessage>.Filter.Gte(x => x.TimeUtc, MinTime.Value);
@@ -113,27 +181,20 @@ namespace HordeServer.Collections.Impl
 		}
 	}
 
-	/// <summary>
-	/// Factory for instantiating audit log instances
-	/// </summary>
-	/// <typeparam name="TTargetId"></typeparam>
-	public class AuditLogFactory<TTargetId> : IAuditLogFactory<TTargetId>
+	class AuditLogFactory<TSubject> : IAuditLogFactory<TSubject>
 	{
 		DatabaseService DatabaseService;
+		ILogger<AuditLog<TSubject>> Logger;
 
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="DatabaseService"></param>
-		public AuditLogFactory(DatabaseService DatabaseService)
+		public AuditLogFactory(DatabaseService DatabaseService, ILogger<AuditLog<TSubject>> Logger)
 		{
 			this.DatabaseService = DatabaseService;
+			this.Logger = Logger;
 		}
 
-		/// <inheritdoc/>
-		public IAuditLog<TTargetId> Create(string Name)
+		public IAuditLog<TSubject> Create(string CollectionName, string SubjectProperty)
 		{
-			return new AuditLog<TTargetId>(DatabaseService, Name);
+			return new AuditLog<TSubject>(DatabaseService, CollectionName, SubjectProperty, Logger);
 		}
 	}
 }

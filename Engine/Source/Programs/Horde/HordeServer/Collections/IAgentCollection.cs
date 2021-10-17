@@ -149,5 +149,12 @@ namespace HordeServer.Collections
 		/// <param name="LeaseIdx">Index of the lease</param>
 		/// <returns>New agent state if it succeeded, otherwise null</returns>
 		Task<IAgent?> TryCancelLeaseAsync(IAgent Agent, int LeaseIdx);
+
+		/// <summary>
+		/// Gets the log channel for an agent
+		/// </summary>
+		/// <param name="AgentId"></param>
+		/// <returns></returns>
+		IAuditLogChannel<AgentId> GetLogger(AgentId AgentId);
 	}
 }

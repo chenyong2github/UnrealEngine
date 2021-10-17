@@ -114,16 +114,59 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Serialize a message template to JOSN
 		/// </summary>
-		public static void SerializeJson(Utf8JsonWriter Writer, DateTime Time, LogLevel LogLevel, EventId EventId, string Format, IEnumerable<KeyValuePair<string, object>>? Properties, Exception? Exception = null)
+		public static string Serialize<TState>(LogLevel LogLevel, EventId EventId, TState State, Exception Exception, Func<TState, Exception, string> Formatter)
 		{
-			string Text = Render(Format, Properties);
-			SerializeJson(Writer, Time, LogLevel, Text, EventId, 0, 1, Format, Properties, Exception);
+			ArrayBufferWriter<byte> Buffer = new ArrayBufferWriter<byte>();
+			using (Utf8JsonWriter Writer = new Utf8JsonWriter(Buffer))
+			{
+				Serialize(Writer, LogLevel, EventId, State, Exception, Formatter);
+			}
+			return Encoding.UTF8.GetString(Buffer.WrittenSpan);
+		}
+
+		/// <summary>
+		/// Serialize a message template to JOSN
+		/// </summary>
+		public static void Serialize<TState>(Utf8JsonWriter Writer, LogLevel LogLevel, EventId EventId, TState State, Exception Exception, Func<TState, Exception, string> Formatter)
+		{
+			// Render the message
+			string Text = Formatter(State, Exception);
+
+			// Try to log the event
+			IEnumerable<KeyValuePair<string, object>>? Values = State as IEnumerable<KeyValuePair<string, object>>;
+			if (Values != null)
+			{
+				KeyValuePair<string, object>? Format = Values.FirstOrDefault(x => x.Key.Equals(MessageTemplate.FormatPropertyName, StringComparison.Ordinal));
+				if (Format != null)
+				{
+					// Format all the other values
+					Serialize(Writer, DateTime.UtcNow, LogLevel, EventId, Text, Format.Value.Value?.ToString() ?? String.Empty, Values.Where(x => !x.Key.Equals(MessageTemplate.FormatPropertyName, StringComparison.Ordinal)), Exception);
+				}
+				else
+				{
+					// Include all the data, but don't use the format string
+					Serialize(Writer, DateTime.UtcNow, LogLevel, EventId, Text, null, Values, Exception);
+				}
+			}
+			else
+			{
+				// Format as a string
+				Serialize(Writer, DateTime.UtcNow, LogLevel, EventId, Text, null, null, Exception);
+			}
 		}
 
 		/// <summary>
 		/// Serialize a message template to JSON
 		/// </summary>
-		public static void SerializeJson(Utf8JsonWriter Writer, DateTime Time, LogLevel LogLevel, string Text, EventId EventId, int LineIndex, int LineCount, string? Format, IEnumerable<KeyValuePair<string, object>>? Properties, Exception? Exception = null)
+		public static void Serialize(Utf8JsonWriter Writer, DateTime Time, LogLevel LogLevel, EventId EventId, string Text, string? Format, IEnumerable<KeyValuePair<string, object>>? Properties, Exception? Exception = null)
+		{
+			Serialize(Writer, Time, LogLevel, EventId, Text, 0, 1, Format, Properties, Exception);
+		}
+
+		/// <summary>
+		/// Serialize a message template to JSON
+		/// </summary>
+		public static void Serialize(Utf8JsonWriter Writer, DateTime Time, LogLevel LogLevel, EventId EventId, string Text, int LineIndex, int LineCount, string? Format, IEnumerable<KeyValuePair<string, object>>? Properties, Exception? Exception = null)
 		{
 			Writer.WriteStartObject();
 			Writer.WriteString("time", Time.ToString("s", CultureInfo.InvariantCulture));

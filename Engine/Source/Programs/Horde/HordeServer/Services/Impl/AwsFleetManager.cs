@@ -92,7 +92,7 @@ namespace HordeServer.Services.Impl
 					{
 						if (await AgentCollection.TryUpdateSettingsAsync(NewAgent, bRequestShutdown: true) != null)
 						{
-							Logger.LogInformation("Shutting down agent {AgentId}", Agent.Id);
+							AgentCollection.GetLogger(Agent.Id).LogInformation("Shutting down due to autoscaler");
 							Count--;
 							break;
 						}

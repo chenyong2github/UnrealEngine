@@ -22,6 +22,8 @@ namespace HordeServer.Tasks.Impl
 
 	class UpgradeTaskSource : TaskSourceBase<UpgradeTask>
 	{
+		public override string Type => "Upgrade";
+
 		AgentSoftwareService AgentSoftwareService;
 		ILogFileService LogService;
 		IClock Clock;

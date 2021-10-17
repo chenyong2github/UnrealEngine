@@ -40,6 +40,9 @@ namespace HordeServer.Tasks.Impl
 	/// </summary>
 	public sealed class JobTaskSource : TaskSourceBase<ExecuteJobTask>, IDisposable
 	{
+		/// <inheritdoc/>
+		public override string Type => "Job";
+
 		/// <summary>
 		/// An item in the queue to be executed
 		/// </summary>
@@ -720,9 +723,8 @@ namespace HordeServer.Tasks.Impl
 		}
 
 		/// <inheritdoc/>
-		public override Task CancelLeaseAsync(IAgent Agent, ObjectId LeaseId, Any Payload)
+		public override Task CancelLeaseAsync(IAgent Agent, ObjectId LeaseId, ExecuteJobTask Task)
 		{
-			ExecuteJobTask Task = Payload.Unpack<ExecuteJobTask>();
 			return CancelLeaseAsync(Agent, Task.JobId.ToObjectId(), Task.BatchId.ToSubResourceId());
 		}
 
@@ -972,12 +974,11 @@ namespace HordeServer.Tasks.Impl
 		}
 
 		/// <inheritdoc/>
-		public override async Task OnLeaseFinishedAsync(IAgent Agent, ObjectId LeaseId, Any Any, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output)
+		public override async Task OnLeaseFinishedAsync(IAgent Agent, ObjectId LeaseId, ExecuteJobTask Task, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output, ILogger Logger)
 		{
 			if (Outcome != LeaseOutcome.Success)
 			{
 				AgentId AgentId = Agent.Id;
-				ExecuteJobTask Task = Any.Unpack<ExecuteJobTask>();
 				ObjectId JobId = Task.JobId.ToObjectId();
 				SubResourceId BatchId = Task.BatchId.ToSubResourceId();
 

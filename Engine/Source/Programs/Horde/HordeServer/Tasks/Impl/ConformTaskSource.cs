@@ -26,6 +26,9 @@ namespace HordeServer.Tasks.Impl
 	/// </summary>
 	public sealed class ConformTaskSource : TaskSourceBase<ConformTask>, IHostedService, IDisposable
 	{
+		/// <inheritdoc/>
+		public override string Type => "Conform";
+
 		DatabaseService DatabaseService;
 		IAgentCollection AgentCollection;
 		PoolService PoolService;
@@ -210,7 +213,7 @@ namespace HordeServer.Tasks.Impl
 		}
 
 		/// <inheritdoc/>
-		public override Task OnLeaseFinishedAsync(IAgent Agent, ObjectId LeaseId, Any Payload, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output)
+		public override Task OnLeaseFinishedAsync(IAgent Agent, ObjectId LeaseId, ConformTask Payload, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output, ILogger Logger)
 		{
 			return ReleaseConformLeaseAsync(LeaseId);
 		}
