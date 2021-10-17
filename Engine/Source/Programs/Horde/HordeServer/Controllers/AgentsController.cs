@@ -1,30 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using HordeServer.Api;
+using HordeServer.Collections;
 using HordeServer.Models;
 using HordeServer.Services;
 using HordeServer.Utilities;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
-using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
-using System.Reflection;
-using System.Security.Claims;
-using System.Text.Json;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace HordeServer.Controllers
 {
-	using PoolId = StringId<IPool>;
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
+	using PoolId = StringId<IPool>;
 
 	/// <summary>
 	/// Controller for the /api/v1/agents endpoint
@@ -126,8 +120,6 @@ namespace HordeServer.Controllers
 				return NotFound();
 			}
 
-			List<IPool> Pools = await PoolService.GetPoolsAsync();
-
 			GlobalPermissionsCache Cache = new GlobalPermissionsCache();
 			bool bIncludeAcl = await AgentService.AuthorizeAsync(Agent, AclAction.ViewPermissions, User, Cache);
 			return new GetAgentResponse(Agent, bIncludeAcl).ApplyFilter(Filter);
@@ -143,24 +135,65 @@ namespace HordeServer.Controllers
 		[Route("/api/v1/agents/{AgentId}")]
 		public async Task<ActionResult> UpdateAgentAsync(string AgentId, [FromBody] UpdateAgentRequest Update)
 		{
-			IAgent? Agent = await AgentService.GetAgentAsync(new AgentId(AgentId));
-			if (Agent == null)
-			{
-				return NotFound();
-			}
+			List<PoolId>? UpdatePools = Update.Pools?.ConvertAll(x => new PoolId(x));
+			AgentSoftwareChannelName? Channel = String.IsNullOrEmpty(Update.Channel) ? (AgentSoftwareChannelName?)null : new AgentSoftwareChannelName(Update.Channel);
+
+			string UserName = User.GetUserName() ?? "Unknown";
 
 			GlobalPermissionsCache Cache = new GlobalPermissionsCache();
-			if (!await AgentService.AuthorizeAsync(Agent, AclAction.UpdateAgent, User, Cache))
+			for (; ; )
 			{
-				return Forbid();
-			}
-			if (Update.Acl != null && !await AgentService.AuthorizeAsync(Agent, AclAction.ChangePermissions, User, Cache))
-			{
-				return Forbid();
-			}
+				IAgent? Agent = await AgentService.GetAgentAsync(new AgentId(AgentId));
+				if (Agent == null)
+				{
+					return NotFound();
+				}
+				if (!await AgentService.AuthorizeAsync(Agent, AclAction.UpdateAgent, User, Cache))
+				{
+					return Forbid();
+				}
+				if (Update.Acl != null && !await AgentService.AuthorizeAsync(Agent, AclAction.ChangePermissions, User, Cache))
+				{
+					return Forbid();
+				}
 
-			AgentSoftwareChannelName? Channel = String.IsNullOrEmpty(Update.Channel) ? (AgentSoftwareChannelName?)null : new AgentSoftwareChannelName(Update.Channel);
-			await AgentService.UpdateAgentAsync(Agent, Update.Enabled, Update.RequestConform, Update.RequestRestart, Update.RequestShutdown, Channel, Update.Pools?.ConvertAll(x => new PoolId(x)), Acl.Merge(Agent.Acl, Update.Acl), Update.Comment);
+				IAgent? NewAgent = await AgentService.Agents.TryUpdateSettingsAsync(Agent, Update.Enabled, Update.RequestConform, Update.RequestRestart, Update.RequestShutdown, Channel, Update.Pools?.ConvertAll(x => new PoolId(x)), Acl.Merge(Agent.Acl, Update.Acl), Update.Comment);
+				if (NewAgent == null)
+				{
+					continue;
+				}
+
+				IAuditLogChannel<AgentId> Logger = AgentService.Agents.GetLogger(Agent.Id);
+				if (Agent.Enabled != NewAgent.Enabled)
+				{
+					Logger.LogInformation("Setting changed: Enabled = {State} ({UserName})", NewAgent.Enabled, UserName);
+				}
+				if (Agent.RequestConform != NewAgent.RequestConform)
+				{
+					Logger.LogInformation("Setting changed: RequestConfig = {State} ({UserName})", NewAgent.RequestConform, UserName);
+				}
+				if (Agent.RequestRestart != NewAgent.RequestRestart)
+				{
+					Logger.LogInformation("Setting changed: RequestRestart = {State} ({UserName})", NewAgent.RequestRestart, UserName);
+				}
+				if (Agent.RequestShutdown != NewAgent.RequestShutdown)
+				{
+					Logger.LogInformation("Setting changed: RequestShutdown = {State} ({UserName})", NewAgent.RequestShutdown, UserName);
+				}
+				if (Agent.Comment != NewAgent.Comment)
+				{
+					Logger.LogInformation("Setting changed: Comment = \"{Comment}\" ({UserName})", Update.Comment, UserName);
+				}
+				foreach (PoolId AddedPool in NewAgent.ExplicitPools.Except(Agent.ExplicitPools))
+				{
+					Logger.LogInformation("Added to pool {PoolId} ({UserName})", AddedPool, UserName);
+				}
+				foreach (PoolId RemovedPool in Agent.ExplicitPools.Except(NewAgent.ExplicitPools))
+				{
+					Logger.LogInformation("Removed from pool {PoolId} ({UserName})", RemovedPool, UserName);
+				}
+				break;
+			}
 			return Ok();
 		}
 
@@ -185,6 +218,41 @@ namespace HordeServer.Controllers
 
 			await AgentService.DeleteAgentAsync(Agent);
 			return new OkResult();
+		}
+
+		/// <summary>
+		/// Retrieve historical information about a specific agent
+		/// </summary>
+		/// <param name="AgentId">Id of the agent to get information about</param>
+		/// <param name="MinTime">Minimum time for records to return</param>
+		/// <param name="MaxTime">Maximum time for records to return</param>
+		/// <param name="Index">Offset of the first result</param>
+		/// <param name="Count">Number of records to return</param>
+		/// <returns>Information about the requested agent</returns>
+		[HttpGet]
+		[Route("/api/v1/agents/{AgentId}/history")]
+		[ProducesResponseType(typeof(GetAgentHistoryResponse), 200)]
+		public async Task GetAgentHistoryAsync(string AgentId, [FromQuery] DateTime? MinTime = null, [FromQuery] DateTime? MaxTime = null, [FromQuery] int Index = 0, [FromQuery] int Count = 50)
+		{
+			IAuditLogChannel<AgentId> Channel = AgentService.Agents.GetLogger(AgentId.ToAgentId());
+
+			Response.ContentType = "application/json";
+			Response.StatusCode = 200;
+			await Response.StartAsync();
+
+			string Prefix = "{\n\t\"entries\":\n\t[";
+			await Response.BodyWriter.WriteAsync(Encoding.UTF8.GetBytes(Prefix));
+
+			string Separator = "";
+			await foreach (IAuditLogMessage<AgentId> Message in Channel.FindAsync(MinTime, MaxTime, Index, Count))
+			{
+				string Line = $"{Separator}\n\t\t{Message.Data}";
+				await Response.Body.WriteAsync(Encoding.UTF8.GetBytes(Line));
+				Separator = ",";
+			}
+
+			string Suffix = "\n\t]\n}";
+			await Response.BodyWriter.WriteAsync(Encoding.UTF8.GetBytes(Suffix));
 		}
 
 		/// <summary>

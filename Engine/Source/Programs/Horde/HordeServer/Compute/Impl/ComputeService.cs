@@ -128,9 +128,9 @@ namespace HordeServer.Compute.Impl
 	/// <summary>
 	/// Dispatches remote actions. Does not implement any cross-pod communication to satisfy leases; only agents connected to this server instance will be stored.
 	/// </summary>
-	class ComputeService : IComputeService, IDisposable
+	class ComputeService : TaskSourceBase<ComputeTaskMessage>, IComputeService, IDisposable
 	{
-		public MessageDescriptor Descriptor => ComputeTaskMessage.Descriptor;
+		public override string Type => "Compute";
 
 		public static NamespaceId DefaultNamespaceId { get; } = new NamespaceId("default");
 
@@ -210,7 +210,7 @@ namespace HordeServer.Compute.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<AgentLease?> AssignLeaseAsync(IAgent Agent, CancellationToken CancellationToken)
+		public override async Task<AgentLease?> AssignLeaseAsync(IAgent Agent, CancellationToken CancellationToken)
 		{
 			// If the agent is disabled, just block until we cancel
 			if (!Agent.Enabled)
@@ -247,9 +247,8 @@ namespace HordeServer.Compute.Impl
 		}
 
 		/// <inheritdoc/>
-		public Task CancelLeaseAsync(IAgent Agent, ObjectId LeaseId, Any Payload)
+		public override Task CancelLeaseAsync(IAgent Agent, ObjectId LeaseId, ComputeTaskMessage Message)
 		{
-			ComputeTaskMessage Message = Payload.Unpack<ComputeTaskMessage>();
 			ComputeTaskInfo TaskInfo = new ComputeTaskInfo(Message.Task, new ChannelId(Message.ChannelId));
 			return TaskScheduler.EnqueueAsync(Message.Requirements.Hash, TaskInfo, true);
 		}
@@ -267,19 +266,16 @@ namespace HordeServer.Compute.Impl
 			return Messages.ConvertAll<IComputeTaskStatus>(x => x);
 		}
 
-		public Task OnLeaseStartedAsync(IAgent Agent, ObjectId LeaseId, Any Payload)
+		public override Task OnLeaseStartedAsync(IAgent Agent, ObjectId LeaseId, ComputeTaskMessage ComputeTask, ILogger Logger)
 		{
-			ComputeTaskMessage ComputeTask = Payload.Unpack<ComputeTaskMessage>();
 			Logger.LogInformation("Compute lease started (lease: {LeaseId}, task: {TaskHash}, agent: {AgentId}, channel: {ChannelId})", LeaseId, ComputeTask.Task.Hash, Agent.Id, ComputeTask.ChannelId);
 
 			ComputeTaskStatus Status = new ComputeTaskStatus(ComputeTask.Task, ComputeTaskState.Executing, Agent.Id, LeaseId);
 			return MessageQueue.PostAsync(ComputeTask.ChannelId, Status);
 		}
 
-		public Task OnLeaseFinishedAsync(IAgent Agent, ObjectId LeaseId, Any Payload, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output)
+		public override Task OnLeaseFinishedAsync(IAgent Agent, ObjectId LeaseId, ComputeTaskMessage ComputeTask, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output, ILogger Logger)
 		{
-			ComputeTaskMessage ComputeTask = Payload.Unpack<ComputeTaskMessage>();
-
 			ComputeTaskResultMessage Message = ComputeTaskResultMessage.Parser.ParseFrom(Output.ToArray());
 
 			ComputeTaskStatus Status = new ComputeTaskStatus(ComputeTask.Task, ComputeTaskState.Complete, Agent.Id, LeaseId);

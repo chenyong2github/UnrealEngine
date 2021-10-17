@@ -19,6 +19,8 @@ namespace HordeServer.Tasks.Impl
 {
 	class RestartTaskSource : TaskSourceBase<RestartTask>
 	{
+		public override string Type => "Restart";
+
 		ILogFileService LogService;
 
 		public RestartTaskSource(ILogFileService LogService)

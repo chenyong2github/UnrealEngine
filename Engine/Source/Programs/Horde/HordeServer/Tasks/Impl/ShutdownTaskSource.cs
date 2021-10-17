@@ -20,6 +20,8 @@ namespace HordeServer.Tasks.Impl
 {
 	class ShutdownTaskSource : TaskSourceBase<ShutdownTask>
 	{
+		public override string Type => "Shutdown";
+
 		ILogFileService LogService;
 
 		public ShutdownTaskSource(ILogFileService LogService)

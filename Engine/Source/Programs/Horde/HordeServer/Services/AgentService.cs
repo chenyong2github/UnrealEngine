@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using HordeCommon;
 using HordeServer.Collections;
@@ -58,7 +59,7 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Collection of agent documents
 		/// </summary>
-		IAgentCollection Agents;
+		public IAgentCollection Agents { get; }
 
 		/// <summary>
 		/// Collection of lease documents
@@ -86,6 +87,11 @@ namespace HordeServer.Services
 		IHostApplicationLifetime ApplicationLifetime;
 
 		/// <summary>
+		/// Logger for individual agents
+		/// </summary>
+		IAuditLog<AgentId> AgentLog;
+
+		/// <summary>
 		/// Log output writer
 		/// </summary>
 		ILogger<AgentService> Logger;
@@ -103,18 +109,7 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Agents">Collection of agent documents</param>
-		/// <param name="Leases">Collection of lease documents</param>
-		/// <param name="Sessions">Collection of session documents</param>
-		/// <param name="AclService">The ACL service</param>
-		/// <param name="DowntimeService">The downtime service</param>
-		/// <param name="PoolCollection">Pool collection</param>
-		/// <param name="DogStatsd">The DogStatsd metric client</param>
-		/// <param name="TaskSources">The list of task sources</param>
-		/// <param name="ApplicationLifetime"></param>
-		/// <param name="Logger">Log output writer</param>
-		/// <param name="Clock">Clock</param>
-		public AgentService(IAgentCollection Agents, ILeaseCollection Leases, ISessionCollection Sessions, AclService AclService, IDowntimeService DowntimeService, IPoolCollection PoolCollection, IDogStatsd DogStatsd, IEnumerable<ITaskSource> TaskSources, IHostApplicationLifetime ApplicationLifetime, ILogger<AgentService> Logger, IClock Clock)
+		public AgentService(IAgentCollection Agents, ILeaseCollection Leases, ISessionCollection Sessions, AclService AclService, IDowntimeService DowntimeService, IPoolCollection PoolCollection, IDogStatsd DogStatsd, IEnumerable<ITaskSource> TaskSources, IHostApplicationLifetime ApplicationLifetime, ILogger<AgentService> Logger, IAuditLog<AgentId> AgentLog, IClock Clock)
 			: base(TimeSpan.FromSeconds(30.0), Logger)
 		{
 			this.Agents = Agents;
@@ -126,6 +121,7 @@ namespace HordeServer.Services
 			this.DogStatsd = DogStatsd;
 			this.TaskSources = TaskSources.ToArray();
 			this.ApplicationLifetime = ApplicationLifetime;
+			this.AgentLog = AgentLog;
 			this.Logger = Logger;
 			this.Clock = Clock;
 		}
@@ -177,44 +173,6 @@ namespace HordeServer.Services
 		public Task<List<IAgent>> FindAgentsAsync(ObjectId? Pool, DateTime? ModifiedAfter, int? Index, int? Count)
 		{
 			return Agents.FindAsync(Pool, null, ModifiedAfter, null, Index, Count);
-		}
-
-		/// <summary>
-		/// Update an agent's settings
-		/// </summary>
-		/// <param name="Agent">Agent instance</param>
-		/// <param name="bNewEnabled">Whether the agent is enabled or not</param>
-		/// <param name="bNewRequestConform">Whether to request a conform job be run</param>
-		/// <param name="bNewRequestRestart">Whether to request the machine be restarted</param>
-		/// <param name="bNewRequestShutdown">Whether to request the machine be shutdown</param>
-		/// <param name="NewChannel">Override for the desired client version</param>
-		/// <param name="NewPools">List of pools for the agent</param>
-		/// <param name="NewAcl">New ACL for this agent</param>
-		/// <param name="NewComment">New comment</param>
-		/// <returns>Version of the software that needs to be installed on the agent. Null if the agent is running the correct version.</returns>
-		public async Task<IAgent?> UpdateAgentAsync(IAgent? Agent, bool? bNewEnabled, bool? bNewRequestConform, bool? bNewRequestRestart, bool? bNewRequestShutdown, AgentSoftwareChannelName? NewChannel, List<PoolId>? NewPools, Acl? NewAcl, string? NewComment)
-		{
-			while (Agent != null)
-			{
-				// Apply the update
-				IAgent? NewAgent = await Agents.TryUpdateSettingsAsync(Agent, bNewEnabled, bNewRequestConform, bNewRequestRestart, bNewRequestShutdown, NewChannel, NewPools, NewAcl, NewComment);
-				if (NewAgent != null)
-				{
-					Agent = NewAgent;
-
-					// If we're requesting a conform, allow the agent to break out of a long poll for work immediately to pick it up
-//					if ((bNewRequestConform ?? false) || (bNewRequestRestart ?? false) || (bNewRequestShutdown ?? false))
-//					{
-//						DispatchService.CancelLongPollForAgent(Agent.Id);
-//					}
-
-					return Agent;
-				}
-
-				// Update the agent
-				Agent = await GetAgentAsync(Agent.Id);
-			}
-			return null;
 		}
 
 		/// <summary>
@@ -277,6 +235,8 @@ namespace HordeServer.Services
 		{
 			for (; ; )
 			{
+				IAuditLogChannel<AgentId> AgentLogger = Agents.GetLogger(Agent.Id);
+
 				// Check if there's already a session running for this agent.
 				IAgent? NewAgent;
 				if (Agent.SessionId != null)
@@ -291,7 +251,7 @@ namespace HordeServer.Services
 					// Remove any outstanding leases
 					foreach (AgentLease Lease in Agent.Leases)
 					{
-						Logger.LogDebug("Removing outstanding lease {LeaseId} during session create...", Lease.Id);
+						AgentLogger.LogInformation("Removing outstanding lease {LeaseId}", Lease.Id);
 						await RemoveLeaseAsync(Agent, Lease, UtcNow, LeaseOutcome.Failed, null);
 					}
 
@@ -307,6 +267,7 @@ namespace HordeServer.Services
 					if(NewAgent != null)
 					{
 						Agent = NewAgent;
+						AgentLogger.LogInformation("Session {SessionId} started", NewSession.Id);
 						break;
 					}
 
@@ -456,7 +417,7 @@ namespace HordeServer.Services
 				IAgent? NewAgent = await Agents.TryAddLeaseAsync(Agent, Lease);
 				if (NewAgent != null)
 				{
-					await Source.OnLeaseStartedAsync(NewAgent, Lease.Id, Any.Parser.ParseFrom(Lease.Payload));
+					await Source.OnLeaseStartedAsync(NewAgent, Lease.Id, Any.Parser.ParseFrom(Lease.Payload), Agents.GetLogger(Agent.Id));
 					await CreateLeaseAsync(Agent, Lease);
 					return NewAgent;
 				}
@@ -677,11 +638,12 @@ namespace HordeServer.Services
 				// Remove any outstanding leases
 				foreach(AgentLease Lease in Leases)
 				{
-					Logger.LogDebug("Removing lease {LeaseId} during session terminate...", Lease.Id);
+					Agents.GetLogger(Agent.Id).LogInformation("Removing lease {LeaseId} during session terminate...", Lease.Id);
 					await RemoveLeaseAsync(Agent, Lease, FinishTime, LeaseOutcome.Failed, null);
 				}
 
 				// Update the session document
+				Agents.GetLogger(Agent.Id).LogInformation("Terminated session {SessionId}", SessionId);
 				await Sessions.UpdateAsync(SessionId, FinishTime, Agent.Properties, Agent.Resources);
 				return true;
 			}
@@ -757,7 +719,7 @@ namespace HordeServer.Services
 				{
 					if (Any.Is(TaskSource.Descriptor))
 					{
-						await TaskSource.OnLeaseFinishedAsync(Agent, Lease.Id, Any, Outcome, Output);
+						await TaskSource.OnLeaseFinishedAsync(Agent, Lease.Id, Any, Outcome, Output, Agents.GetLogger(Agent.Id));
 						break;
 					}
 				}

@@ -101,13 +101,6 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService"></param>
-		/// <param name="AgentCollection"></param>
-		/// <param name="PoolCollection"></param>
-		/// <param name="LeaseCollection"></param>
-		/// <param name="FleetManager"></param>
-		/// <param name="DogStatsd"></param>
-		/// <param name="Logger"></param>
 		public AutoscaleService(DatabaseService DatabaseService, IAgentCollection AgentCollection, IPoolCollection PoolCollection, ILeaseCollection LeaseCollection, IFleetManager FleetManager, IDogStatsd DogStatsd, ILogger<AutoscaleService> Logger)
 			: base(DatabaseService, new ObjectId("5fdbadf968de915b2cac0d15"), Logger)
 		{

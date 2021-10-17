@@ -6,6 +6,7 @@ using HordeCommon.Rpc.Tasks;
 using HordeServer.Models;
 using HordeServer.Services;
 using HordeServer.Utilities;
+using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
@@ -131,18 +132,17 @@ namespace HordeServer.Collections.Impl
 			}
 		}
 
-		/// <summary>
-		/// Collection of agent documents
-		/// </summary>
 		readonly IMongoCollection<AgentDocument> Agents;
+		readonly IAuditLog<AgentId> AuditLog;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">The database service instance</param>
-		public AgentCollection(DatabaseService DatabaseService)
+		public AgentCollection(DatabaseService DatabaseService, IAuditLog<AgentId> AuditLog)
 		{
-			Agents = DatabaseService.GetCollection<AgentDocument>("Agents");
+			this.Agents = DatabaseService.GetCollection<AgentDocument>("Agents");
+			this.AuditLog = AuditLog;
+
 			if (!DatabaseService.ReadOnlyMode)
 			{
 				Agents.Indexes.CreateOne(new CreateIndexModel<AgentDocument>(Builders<AgentDocument>.IndexKeys.Ascending(x => x.Deleted).Ascending(x => x.Id).Ascending(x => x.Pools)));
@@ -482,6 +482,12 @@ namespace HordeServer.Collections.Impl
 
 			UpdateDefinition<AgentDocument> Update = Builders<AgentDocument>.Update.Set(x => x.Leases![LeaseIdx].State, LeaseState.Cancelled);
 			return await TryUpdateAsync(Agent, Update);
+		}
+
+		/// <inheritdoc/>
+		public IAuditLogChannel<AgentId> GetLogger(AgentId AgentId)
+		{
+			return AuditLog[AgentId];
 		}
 	}
 }
