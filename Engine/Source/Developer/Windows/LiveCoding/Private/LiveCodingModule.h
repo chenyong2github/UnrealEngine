@@ -6,6 +6,7 @@
 #include "Delegates/Delegate.h"
 #include "Modules/ModuleManager.h"
 #include "Templates/SharedPointer.h"
+#include "Internationalization/Text.h"
 
 struct IConsoleCommand;
 class IConsoleVariable;
