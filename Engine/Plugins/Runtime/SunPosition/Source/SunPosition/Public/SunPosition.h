@@ -16,6 +16,8 @@ struct SUNPOSITION_API FSunPositionData
 
 public:
 
+	FSunPositionData();
+
 	/** Sun Elevation */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Sun Position")
 	float Elevation;

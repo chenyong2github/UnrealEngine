@@ -210,3 +210,11 @@ void TestCalculator()
 		TestExpectedValues(45.0f, -73.0f, -5.0f, false, 2018, 9, 1, 5, 30,  0,  80.308,    1.937,   2.225);
 	}
 }
+
+FSunPositionData::FSunPositionData()
+	: Elevation(0.0f)
+	, CorrectedElevation(0.0f)
+	, Azimuth(0.0f)
+{
+
+}
