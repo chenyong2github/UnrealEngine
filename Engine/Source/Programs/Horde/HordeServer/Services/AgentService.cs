@@ -29,7 +29,7 @@ namespace HordeServer.Services
 	/// <summary>
 	/// Wraps funtionality for manipulating agents
 	/// </summary>
-	public class AgentService : TickedBackgroundService
+	public sealed class AgentService : TickedBackgroundService
 	{
 		/// <summary>
 		/// Maximum time between updates for an agent to be considered online
@@ -87,11 +87,6 @@ namespace HordeServer.Services
 		IHostApplicationLifetime ApplicationLifetime;
 
 		/// <summary>
-		/// Logger for individual agents
-		/// </summary>
-		IAuditLog<AgentId> AgentLog;
-
-		/// <summary>
 		/// Log output writer
 		/// </summary>
 		ILogger<AgentService> Logger;
@@ -107,9 +102,19 @@ namespace HordeServer.Services
 		AsyncCachedValue<List<IPool>> PoolsList;
 
 		/// <summary>
+		/// All the agents currently performing a long poll for work on this server
+		/// </summary>
+		Dictionary<AgentId, CancellationTokenSource> WaitingAgents = new Dictionary<AgentId, CancellationTokenSource>();
+
+		/// <summary>
+		/// Subscription for update events
+		/// </summary>
+		IDisposable Subscription;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
-		public AgentService(IAgentCollection Agents, ILeaseCollection Leases, ISessionCollection Sessions, AclService AclService, IDowntimeService DowntimeService, IPoolCollection PoolCollection, IDogStatsd DogStatsd, IEnumerable<ITaskSource> TaskSources, IHostApplicationLifetime ApplicationLifetime, ILogger<AgentService> Logger, IAuditLog<AgentId> AgentLog, IClock Clock)
+		public AgentService(IAgentCollection Agents, ILeaseCollection Leases, ISessionCollection Sessions, AclService AclService, IDowntimeService DowntimeService, IPoolCollection PoolCollection, IDogStatsd DogStatsd, IEnumerable<ITaskSource> TaskSources, IHostApplicationLifetime ApplicationLifetime, ILogger<AgentService> Logger, IClock Clock)
 			: base(TimeSpan.FromSeconds(30.0), Logger)
 		{
 			this.Agents = Agents;
@@ -121,9 +126,17 @@ namespace HordeServer.Services
 			this.DogStatsd = DogStatsd;
 			this.TaskSources = TaskSources.ToArray();
 			this.ApplicationLifetime = ApplicationLifetime;
-			this.AgentLog = AgentLog;
 			this.Logger = Logger;
 			this.Clock = Clock;
+
+			Subscription = Agents.SubscribeToUpdateEventsAsync(OnAgentUpdate).Result;
+		}
+
+		/// <inheritdoc/>
+		public override void Dispose()
+		{
+			base.Dispose();
+			Subscription.Dispose();
 		}
 
 		/// <summary>
@@ -223,6 +236,21 @@ namespace HordeServer.Services
 		}
 
 		/// <summary>
+		/// Callback for an agents 
+		/// </summary>
+		/// <param name="AgentId"></param>
+		void OnAgentUpdate(AgentId AgentId)
+		{
+			lock (WaitingAgents)
+			{
+				if (WaitingAgents.TryGetValue(AgentId, out CancellationTokenSource? CancellationSource))
+				{
+					CancellationSource.Cancel();
+				}
+			}
+		}
+
+		/// <summary>
 		/// Creates a new agent session
 		/// </summary>
 		/// <param name="Agent">The agent to create a session for</param>
@@ -286,21 +314,6 @@ namespace HordeServer.Services
 			return Agent;
 		}
 
-		static AgentLease? SafeGetLeaseResultInternal(Task<AgentLease?> Task, ILogger Logger)
-		{
-			if (!Task.IsCompleted)
-			{
-				Logger.LogError("Task is not complete");
-				return null;
-			}
-			if (Task.IsFaulted)
-			{
-				Logger.LogError(Task.Exception, "Task has faulted");
-				return null;
-			}
-			return Task.Result;
-		}
-
 		async Task<(ITaskSource, AgentLease)?> GuardedWaitForLeaseAsync(ITaskSource Source, IAgent Agent, CancellationToken CancellationToken)
 		{
 			try
@@ -346,52 +359,69 @@ namespace HordeServer.Services
 				using CancellationTokenSource CancellationSource = CancellationTokenSource.CreateLinkedTokenSource(ApplicationLifetime.ApplicationStopping, CancellationToken);
 				CancellationSource.CancelAfter(MaxWaitTime);
 
-				// If we're in a maintenance window, just wait for the time to expire
-				if (DowntimeService.IsDowntimeActive)
-				{
-					await AsyncUtils.DelayNoThrow(MaxWaitTime, CancellationToken);
-					break;
-				}
-
-				// Create all the tasks to wait for
-				List<Task<(ITaskSource, AgentLease)?>> Tasks = new List<Task<(ITaskSource, AgentLease)?>>();
-				foreach (ITaskSource TaskSource in TaskSources)
-				{
-					Tasks.Add(GuardedWaitForLeaseAsync(TaskSource, Agent, CancellationSource.Token));
-				}
-
-				// Wait for a lease to be available
+				// Assign a new lease
 				(ITaskSource, AgentLease)? Result = null;
-				while (Tasks.Count > 0)
+				try
 				{
-					await Task.WhenAny(Tasks);
-
-					for (int Idx = 0; Idx < Tasks.Count; Idx++)
+					// Add the cancellation source to the set of waiting agents
+					lock (WaitingAgents)
 					{
-						Task<(ITaskSource, AgentLease)?> Task = Tasks[Idx];
-						if (!Task.IsCompleted)
-						{
-							continue;
-						}
+						WaitingAgents[Agent.Id] = CancellationSource;
+					}
 
-						Tasks.RemoveAt(Idx--);
+					// If we're in a maintenance window, just wait for the time to expire
+					if (DowntimeService.IsDowntimeActive)
+					{
+						await AsyncUtils.DelayNoThrow(MaxWaitTime, CancellationToken);
+						break;
+					}
 
-						(ITaskSource, AgentLease)? TaskResult = Task.Result;
-						if (!TaskResult.HasValue)
-						{
-							continue;
-						}
+					// Create all the tasks to wait for
+					List<Task<(ITaskSource, AgentLease)?>> Tasks = new List<Task<(ITaskSource, AgentLease)?>>();
+					foreach (ITaskSource TaskSource in TaskSources)
+					{
+						Tasks.Add(GuardedWaitForLeaseAsync(TaskSource, Agent, CancellationSource.Token));
+					}
 
-						if (Result == null)
+					// Wait for a lease to be available
+					while (Tasks.Count > 0)
+					{
+						await Task.WhenAny(Tasks);
+
+						for (int Idx = 0; Idx < Tasks.Count; Idx++)
 						{
-							Result = TaskResult;
-							CancellationSource.Cancel();
+							Task<(ITaskSource, AgentLease)?> Task = Tasks[Idx];
+							if (!Task.IsCompleted)
+							{
+								continue;
+							}
+
+							Tasks.RemoveAt(Idx--);
+
+							(ITaskSource, AgentLease)? TaskResult = Task.Result;
+							if (!TaskResult.HasValue)
+							{
+								continue;
+							}
+
+							if (Result == null)
+							{
+								Result = TaskResult;
+								CancellationSource.Cancel();
+							}
+							else
+							{
+								(ITaskSource TaskSource, AgentLease TaskLease) = TaskResult.Value;
+								await TaskSource.CancelLeaseAsync(Agent, TaskLease.Id, Any.Parser.ParseFrom(TaskLease.Payload));
+							}
 						}
-						else
-						{
-							(ITaskSource TaskSource, AgentLease TaskLease) = TaskResult.Value;
-							await TaskSource.CancelLeaseAsync(Agent, TaskLease.Id, Any.Parser.ParseFrom(TaskLease.Payload));
-						}
+					}
+				}
+				finally
+				{
+					lock (WaitingAgents)
+					{
+						WaitingAgents.Remove(Agent.Id);
 					}
 				}
 
@@ -453,7 +483,6 @@ namespace HordeServer.Services
 			}
 
 			await Agents.TryCancelLeaseAsync(Agent, Index);
-
 			return true;
 		}
 

@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Redis;
 using HordeServer.Models;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Bson.Serialization.Serializers;
+using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -20,6 +22,7 @@ namespace HordeServer.Utilities
 	/// <summary>
 	/// Normalized hostname of an agent
 	/// </summary>
+	[RedisConverter(typeof(AgentIdRedisConverter))]
 	[BsonSerializer(typeof(AgentIdBsonSerializer))]
 	public struct AgentId : IEquatable<AgentId>
 	{
@@ -123,6 +126,18 @@ namespace HordeServer.Utilities
 		{
 			return !Left.Equals(Right);
 		}
+	}
+
+	/// <summary>
+	/// Converter to/from Redis values
+	/// </summary>
+	public sealed class AgentIdRedisConverter : IRedisConverter<AgentId>
+	{
+		/// <inheritdoc/>
+		public AgentId FromRedisValue(RedisValue Value) => new AgentId((string)Value);
+
+		/// <inheritdoc/>
+		public RedisValue ToRedisValue(AgentId Value) => Value.ToString();
 	}
 
 	/// <summary>
