@@ -2135,6 +2135,18 @@ FString LexToString(ERHIFeatureLevel::Type Level)
 	return TEXT("UnknownFeatureLevel");
 }
 
+const TCHAR* LexToString(ERHIDescriptorHeapType InHeapType)
+{
+	switch (InHeapType)
+	{
+	default: checkNoEntry();                   return TEXT("UnknownDescriptorHeapType");
+	case ERHIDescriptorHeapType::Standard:     return TEXT("Standard");
+	case ERHIDescriptorHeapType::RenderTarget: return TEXT("RenderTarget");
+	case ERHIDescriptorHeapType::DepthStencil: return TEXT("DepthStencil");
+	case ERHIDescriptorHeapType::Sampler:      return TEXT("Sampler");
+	}
+}
+
 const FName LANGUAGE_D3D("D3D");
 const FName LANGUAGE_Metal("Metal");
 const FName LANGUAGE_OpenGL("OpenGL");
@@ -2270,6 +2282,7 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	GET_SECTION_BOOL_HELPER(bOverrideFMaterial_NeedsGBufferEnabled);
 	GET_SECTION_BOOL_HELPER(bSupportsMobileDistanceField);
 	GET_SECTION_BOOL_HELPER(bSupportsFFTBloom);
+	GET_SECTION_BOOL_HELPER(bSupportsBindless);
 #undef GET_SECTION_BOOL_HELPER
 #undef GET_SECTION_INT_HELPER
 

@@ -70,10 +70,10 @@ public:
 	FD3D12LinearQueryHeap* GetCmdListExecTimeQueryHeap();
 
 	inline FD3D12DescriptorHeapManager& GetDescriptorHeapManager() { return DescriptorHeapManager; }
-	inline FD3D12ResourceDescriptorManager& GetResourceDescriptorManager() { return ResourceDescriptorManager; }
-	inline FD3D12OfflineDescriptorManager& GetOfflineDescriptorManager(ED3D12DescriptorHeapType InType)
+	inline FD3D12BindlessDescriptorManager& GetBindlessDescriptorManager() { return BindlessDescriptorManager; }
+	inline FD3D12OfflineDescriptorManager& GetOfflineDescriptorManager(ERHIDescriptorHeapType InType)
 	{
-		check(InType < ED3D12DescriptorHeapType::count);
+		check(InType < ERHIDescriptorHeapType::count);
 		return OfflineDescriptorManagers[static_cast<int>(InType)];
 	}
 
@@ -145,8 +145,8 @@ protected:
 
 	// Must be before the StateCache so that destructor ordering is valid
 	FD3D12DescriptorHeapManager DescriptorHeapManager;
-	FD3D12ResourceDescriptorManager ResourceDescriptorManager;
-	FD3D12OfflineDescriptorManager OfflineDescriptorManagers[static_cast<int>(ED3D12DescriptorHeapType::count)];
+	FD3D12BindlessDescriptorManager BindlessDescriptorManager;
+	FD3D12OfflineDescriptorManager OfflineDescriptorManagers[static_cast<int>(ERHIDescriptorHeapType::count)];
 
 	FD3D12GlobalOnlineSamplerHeap GlobalSamplerHeap;
 	FD3D12OnlineDescriptorManager OnlineDescriptorManager;

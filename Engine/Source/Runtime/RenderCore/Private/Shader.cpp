@@ -596,87 +596,83 @@ void FShader::Finalize(const FShaderMapResourceCode* Code)
 
 void FShader::BuildParameterMapInfo(const TMap<FString, FParameterAllocation>& ParameterMap)
 {
-	for (int32 ParameterTypeIndex = 0; ParameterTypeIndex < (int32)EShaderParameterType::Num; ParameterTypeIndex++)
+	uint32 UniformCount = 0;
+	uint32 SamplerCount = 0;
+	uint32 SRVCount = 0;
+
+	for (TMap<FString, FParameterAllocation>::TConstIterator ParameterIt(ParameterMap); ParameterIt; ++ParameterIt)
 	{
-		EShaderParameterType CurrentParameterType = (EShaderParameterType)ParameterTypeIndex;
+		const FParameterAllocation& ParamValue = ParameterIt.Value();
 
-		if (CurrentParameterType == EShaderParameterType::LooseData)
+		switch (ParamValue.Type)
 		{
-			for (TMap<FString, FParameterAllocation>::TConstIterator ParameterIt(ParameterMap); ParameterIt; ++ParameterIt)
+		case EShaderParameterType::UniformBuffer:
+			UniformCount++;
+			break;
+		case EShaderParameterType::Sampler:
+			SamplerCount++;
+			break;
+		case EShaderParameterType::SRV:
+			SRVCount++;
+			break;
+		}
+	}
+
+	ParameterMapInfo.UniformBuffers.Empty(UniformCount);
+	ParameterMapInfo.TextureSamplers.Empty(SamplerCount);
+	ParameterMapInfo.SRVs.Empty(SRVCount);
+
+	auto GetParameterMap = [this](EShaderParameterType ParameterType) -> TMemoryImageArray<FShaderParameterInfo>*
+	{
+		switch (ParameterType)
+		{
+		case EShaderParameterType::UniformBuffer:
+			return &ParameterMapInfo.UniformBuffers;
+		case EShaderParameterType::Sampler:
+			return &ParameterMapInfo.TextureSamplers;
+		case EShaderParameterType::SRV:
+			return &ParameterMapInfo.SRVs;
+		default:
+			return nullptr;
+		}
+	};
+
+	for (TMap<FString, FParameterAllocation>::TConstIterator ParameterIt(ParameterMap); ParameterIt; ++ParameterIt)
+	{
+		const FParameterAllocation& ParamValue = ParameterIt.Value();
+
+		if (ParamValue.Type == EShaderParameterType::LooseData)
+		{
+			bool bAddedToExistingBuffer = false;
+
+			for (int32 LooseParameterBufferIndex = 0; LooseParameterBufferIndex < ParameterMapInfo.LooseParameterBuffers.Num(); LooseParameterBufferIndex++)
 			{
-				const FParameterAllocation& ParamValue = ParameterIt.Value();
+				FShaderLooseParameterBufferInfo& LooseParameterBufferInfo = ParameterMapInfo.LooseParameterBuffers[LooseParameterBufferIndex];
 
-				if (ParamValue.Type == CurrentParameterType)
+				if (LooseParameterBufferInfo.BaseIndex == ParamValue.BufferIndex)
 				{
-					bool bAddedToExistingBuffer = false;
-
-					for (int32 LooseParameterBufferIndex = 0; LooseParameterBufferIndex < ParameterMapInfo.LooseParameterBuffers.Num(); LooseParameterBufferIndex++)
-					{
-						FShaderLooseParameterBufferInfo& LooseParameterBufferInfo = ParameterMapInfo.LooseParameterBuffers[LooseParameterBufferIndex];
-
-						if (LooseParameterBufferInfo.BaseIndex == ParamValue.BufferIndex)
-						{
-							FShaderParameterInfo ParameterInfo(ParamValue.BaseIndex, ParamValue.Size);
-							LooseParameterBufferInfo.Parameters.Add(ParameterInfo);
-							LooseParameterBufferInfo.Size += ParamValue.Size;
-							bAddedToExistingBuffer = true;
-						}
-					}
-
-					if (!bAddedToExistingBuffer)
-					{
-						FShaderLooseParameterBufferInfo NewParameterBufferInfo(ParamValue.BufferIndex, ParamValue.Size);
-
-						FShaderParameterInfo ParameterInfo(ParamValue.BaseIndex, ParamValue.Size);
-						NewParameterBufferInfo.Parameters.Add(ParameterInfo);
-
-						ParameterMapInfo.LooseParameterBuffers.Add(NewParameterBufferInfo);
-					}
+					FShaderParameterInfo ParameterInfo(ParamValue.BaseIndex, ParamValue.Size);
+					LooseParameterBufferInfo.Parameters.Add(ParameterInfo);
+					LooseParameterBufferInfo.Size += ParamValue.Size;
+					bAddedToExistingBuffer = true;
 				}
+			}
+
+			if (!bAddedToExistingBuffer)
+			{
+				FShaderLooseParameterBufferInfo NewParameterBufferInfo(ParamValue.BufferIndex, ParamValue.Size);
+
+				FShaderParameterInfo ParameterInfo(ParamValue.BaseIndex, ParamValue.Size);
+				NewParameterBufferInfo.Parameters.Add(ParameterInfo);
+
+				ParameterMapInfo.LooseParameterBuffers.Add(NewParameterBufferInfo);
 			}
 		}
-		else if (CurrentParameterType != EShaderParameterType::UAV)
+		else if (TMemoryImageArray<FShaderParameterInfo>* ParameterInfoArray = GetParameterMap(ParamValue.Type))
 		{
-			int32 NumParameters = 0;
-
-			for (TMap<FString, FParameterAllocation>::TConstIterator ParameterIt(ParameterMap); ParameterIt; ++ParameterIt)
-			{
-				const FParameterAllocation& ParamValue = ParameterIt.Value();
-
-				if (ParamValue.Type == CurrentParameterType)
-				{
-					NumParameters++;
-				}
-			}
-
-			TMemoryImageArray<FShaderParameterInfo>* ParameterInfoArray = &ParameterMapInfo.UniformBuffers;
-
-			if (CurrentParameterType == EShaderParameterType::Sampler)
-			{
-				ParameterInfoArray = &ParameterMapInfo.TextureSamplers;
-			}
-			else if (CurrentParameterType == EShaderParameterType::SRV)
-			{
-				ParameterInfoArray = &ParameterMapInfo.SRVs;
-			}
-			else
-			{
-				check(CurrentParameterType == EShaderParameterType::UniformBuffer);
-			}
-
-			ParameterInfoArray->Empty(NumParameters);
-		
-			for (TMap<FString, FParameterAllocation>::TConstIterator ParameterIt(ParameterMap); ParameterIt; ++ParameterIt)
-			{
-				const FParameterAllocation& ParamValue = ParameterIt.Value();
-
-				if (ParamValue.Type == CurrentParameterType)
-				{
-					const uint16 BaseIndex = CurrentParameterType == EShaderParameterType::UniformBuffer ? ParamValue.BufferIndex : ParamValue.BaseIndex;
-					FShaderParameterInfo ParameterInfo(BaseIndex, ParamValue.Size);
-					ParameterInfoArray->Add(ParameterInfo);
-				}
-			}
+			const uint16 BaseIndex = ParamValue.Type == EShaderParameterType::UniformBuffer ? ParamValue.BufferIndex : ParamValue.BaseIndex;
+			FShaderParameterInfo ParameterInfo(BaseIndex, ParamValue.Size);
+			ParameterInfoArray->Add(ParameterInfo);
 		}
 	}
 

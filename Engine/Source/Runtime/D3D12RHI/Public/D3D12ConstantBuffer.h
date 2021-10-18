@@ -43,7 +43,7 @@ public:
 	bool Version(FD3D12ResourceLocation& BufferOut, bool bDiscardSharedConstants);
 
 #if USE_STATIC_ROOT_SIGNATURE
-	inline D3D12_CPU_DESCRIPTOR_HANDLE GetView() const { return View->GetView(); }
+	inline D3D12_CPU_DESCRIPTOR_HANDLE GetOfflineCpuHandle() const { return View->GetOfflineCpuHandle(); }
 #endif
 
 protected:

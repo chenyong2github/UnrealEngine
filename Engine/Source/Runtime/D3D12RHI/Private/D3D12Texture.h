@@ -327,6 +327,11 @@ public:
 
 	bool IsLastMipFirst() const { return bMipOrderDescending; }
 
+	virtual FRHIShaderResourceView* GetDefaultShaderResourceView() const final
+	{
+		return GetShaderResourceView();
+	}
+
 	/** FRHITexture override.  See FRHITexture::GetNativeResource() */
 	virtual void* GetNativeResource() const override final
 	{

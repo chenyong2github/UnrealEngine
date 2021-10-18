@@ -257,6 +257,12 @@ inline RHI_API bool RHISupportsConservativeRasterization(EShaderPlatform Platfor
 	return FDataDrivenShaderPlatformInfo::GetSupportsConservativeRasterization(Platform);
 }
 
+/** True if the given shader platform supports bindless resources/views. */
+inline bool RHISupportsBindless(EShaderPlatform Platform)
+{
+	return FDataDrivenShaderPlatformInfo::GetSupportsBindless(Platform);
+}
+
 // Wrapper for GRHI## global variables, allows values to be overridden for mobile preview modes.
 template <typename TValueType>
 class TRHIGlobal
@@ -849,6 +855,9 @@ extern RHI_API FString LexToString(EShaderPlatform Platform);
 
 /** Stringifies ERHIFeatureLevel */
 extern RHI_API FString LexToString(ERHIFeatureLevel::Type Level);
+
+/** Stringifies ERHIDescriptorHeapType */
+extern RHI_API const TCHAR* LexToString(ERHIDescriptorHeapType InHeapType);
 
 /** Finds a corresponding ERHIShadingPath::Type given an FName, or returns false if one could not be found. */
 extern RHI_API bool GetShadingPathFromName(FName Name, ERHIShadingPath::Type& OutShadingPath);

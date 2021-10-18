@@ -1068,7 +1068,7 @@ void FD3D12CommandContext::RHISetShaderUniformBuffer(FRHIComputeShader* ComputeS
 	DirtyUniformBuffers[SF_Compute] |= (1 << BufferIndex);
 }
 
-void FD3D12CommandContext::RHISetShaderParameter(FRHIGraphicsShader* ShaderRHI, uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue)
+void FD3D12CommandContext::RHISetShaderParameter(FRHIGraphicsShader* ShaderRHI, uint32 BufferIndex, uint32 Offset, uint32 NumBytes, const void* NewValue)
 {
 	checkSlow(BufferIndex == 0);
 
@@ -1078,7 +1078,7 @@ void FD3D12CommandContext::RHISetShaderParameter(FRHIGraphicsShader* ShaderRHI, 
 	{
 		FRHIVertexShader* VertexShaderRHI = static_cast<FRHIVertexShader*>(ShaderRHI);
 		ValidateBoundShader(StateCache, VertexShaderRHI);
-		VSConstantBuffer.UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
+		VSConstantBuffer.UpdateConstant((const uint8*)NewValue, Offset, NumBytes);
 	}
 	break;
 #if PLATFORM_SUPPORTS_MESH_SHADERS
@@ -1086,14 +1086,14 @@ void FD3D12CommandContext::RHISetShaderParameter(FRHIGraphicsShader* ShaderRHI, 
 	{
 		FRHIMeshShader* MeshShaderRHI = static_cast<FRHIMeshShader*>(ShaderRHI);
 		ValidateBoundShader(StateCache, MeshShaderRHI);
-		MSConstantBuffer.UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
+		MSConstantBuffer.UpdateConstant((const uint8*)NewValue, Offset, NumBytes);
 	}
 	break;
 	case SF_Amplification:
 	{
 		FRHIAmplificationShader* AmplificationShaderRHI = static_cast<FRHIAmplificationShader*>(ShaderRHI);
 		ValidateBoundShader(StateCache, AmplificationShaderRHI);
-		ASConstantBuffer.UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
+		ASConstantBuffer.UpdateConstant((const uint8*)NewValue, Offset, NumBytes);
 	}
 	break;
 #endif
@@ -1101,14 +1101,14 @@ void FD3D12CommandContext::RHISetShaderParameter(FRHIGraphicsShader* ShaderRHI, 
 	{
 		FRHIGeometryShader* GeometryShaderRHI = static_cast<FRHIGeometryShader*>(ShaderRHI);
 		ValidateBoundShader(StateCache, GeometryShaderRHI);
-		GSConstantBuffer.UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
+		GSConstantBuffer.UpdateConstant((const uint8*)NewValue, Offset, NumBytes);
 	}
 	break;
 	case SF_Pixel:
 	{
 		FRHIPixelShader* PixelShaderRHI = static_cast<FRHIPixelShader*>(ShaderRHI);
 		ValidateBoundShader(StateCache, PixelShaderRHI);
-		PSConstantBuffer.UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
+		PSConstantBuffer.UpdateConstant((const uint8*)NewValue, Offset, NumBytes);
 	}
 	break;
 	default:
@@ -1116,11 +1116,11 @@ void FD3D12CommandContext::RHISetShaderParameter(FRHIGraphicsShader* ShaderRHI, 
 	}
 }
 
-void FD3D12CommandContext::RHISetShaderParameter(FRHIComputeShader* ComputeShaderRHI, uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue)
+void FD3D12CommandContext::RHISetShaderParameter(FRHIComputeShader* ComputeShaderRHI, uint32 BufferIndex, uint32 Offset, uint32 NumBytes, const void* NewValue)
 {
 	//ValidateBoundShader(StateCache, ComputeShaderRHI);
 	checkSlow(BufferIndex == 0);
-	CSConstantBuffer.UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
+	CSConstantBuffer.UpdateConstant((const uint8*)NewValue, Offset, NumBytes);
 }
 
 void FD3D12CommandContext::ValidateExclusiveDepthStencilAccess(FExclusiveDepthStencil RequestedAccess) const
@@ -2201,7 +2201,7 @@ void FD3D12CommandContext::RHIClearMRTImpl(bool* bClearColorArray, int32 NumClea
 				if (RTView != nullptr && bClearColorArray[TargetIndex])
 				{
 					numClears++;
-					CommandListHandle->ClearRenderTargetView(RTView->GetView(), (float*)&ClearColorArray[TargetIndex], ClearRectCount, pClearRects);
+					CommandListHandle->ClearRenderTargetView(RTView->GetOfflineCpuHandle(), (float*)&ClearColorArray[TargetIndex], ClearRectCount, pClearRects);
 					CommandListHandle.UpdateResidency(RTView->GetResource());
 				}
 			}
@@ -2210,7 +2210,7 @@ void FD3D12CommandContext::RHIClearMRTImpl(bool* bClearColorArray, int32 NumClea
 		if (ClearDSV)
 		{
 			numClears++;
-			CommandListHandle->ClearDepthStencilView(DepthStencilView->GetView(), (D3D12_CLEAR_FLAGS)ClearFlags, Depth, Stencil, ClearRectCount, pClearRects);
+			CommandListHandle->ClearDepthStencilView(DepthStencilView->GetOfflineCpuHandle(), (D3D12_CLEAR_FLAGS)ClearFlags, Depth, Stencil, ClearRectCount, pClearRects);
 			CommandListHandle.UpdateResidency(DepthStencilView->GetResource());
 		}
 
