@@ -417,22 +417,6 @@ namespace HordeServer.Models
 	}
 
 	/// <summary>
-	/// Counter to be updated when executing a template
-	/// </summary>
-	public interface ITemplateCounter
-	{
-		/// <summary>
-		/// Name of the property to set to the counter value
-		/// </summary>
-		string PropertyName { get; }
-
-		/// <summary>
-		/// Name of the counter
-		/// </summary>
-		string CounterName { get; }
-	}
-
-	/// <summary>
 	/// Document describing a job template. These objects are considered immutable once created and uniquely referenced by hash, in order to de-duplicate across all job runs.
 	/// </summary>
 	public interface ITemplate
@@ -466,11 +450,6 @@ namespace HordeServer.Models
 		/// Path to a file within the stream to submit to generate a new changelist for jobs
 		/// </summary>
 		public string? SubmitNewChange { get; }
-
-		/// <summary>
-		/// List of property counters
-		/// </summary>
-		public IReadOnlyList<ITemplateCounter> Counters { get; }
 
 		/// <summary>
 		/// Optional predefined user-defined properties for this job

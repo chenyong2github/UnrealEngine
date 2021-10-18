@@ -318,7 +318,6 @@ namespace HordeServer
 			Services.AddSingleton<IAgentSoftwareCollection, AgentSoftwareCollection>();
 			Services.AddSingleton<IArtifactCollection, ArtifactCollection>();
 			Services.AddSingleton<ICommitCollection, CommitCollection>();
-			Services.AddSingleton<ICounterCollection, CounterCollection>();
 			Services.AddSingleton<IGraphCollection, GraphCollection>();
 			Services.AddSingleton<IIssueCollection, IssueCollection>();
 			Services.AddSingleton<IJobCollection, JobCollection>();

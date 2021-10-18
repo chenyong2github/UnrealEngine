@@ -41,13 +41,12 @@ namespace HordeServer.Services
 		/// <param name="AllowPreflights">Whether to allow preflights of this template</param>
 		/// <param name="InitialAgentType">The initial agent type to parse the BuildGraph script</param>
 		/// <param name="SubmitNewChange">Path to a file within the stream to submit to generate a new changelist for jobs</param>
-		/// <param name="Counters">List of counters for the template</param>
 		/// <param name="Arguments">Common arguments for jobs started from this template</param>
 		/// <param name="Parameters">List of parameters for this template</param>
 		/// <returns>The new template document</returns>
-		public Task<ITemplate> CreateTemplateAsync(string Name, Priority? Priority = null, bool AllowPreflights = true, string? InitialAgentType = null, string? SubmitNewChange = null, List<TemplateCounter>? Counters = null, List<string>? Arguments = null, List<Parameter>? Parameters = null)
+		public Task<ITemplate> CreateTemplateAsync(string Name, Priority? Priority = null, bool AllowPreflights = true, string? InitialAgentType = null, string? SubmitNewChange = null, List<string>? Arguments = null, List<Parameter>? Parameters = null)
 		{
-			return Templates.AddAsync(Name, Priority, AllowPreflights, InitialAgentType, SubmitNewChange, Counters, Arguments, Parameters);
+			return Templates.AddAsync(Name, Priority, AllowPreflights, InitialAgentType, SubmitNewChange, Arguments, Parameters);
 		}
 
 		/// <summary>

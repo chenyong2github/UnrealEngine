@@ -24,27 +24,6 @@ namespace HordeServer.Collections.Impl
 	public sealed class TemplateCollection : ITemplateCollection, IDisposable
 	{
 		/// <summary>
-		/// Counter instance
-		/// </summary>
-		class TemplateCounterDocument : ITemplateCounter
-		{
-			public string PropertyName { get; set; }
-			public string CounterName { get; set; }
-
-			private TemplateCounterDocument()
-			{
-				PropertyName = null!;
-				CounterName = null!;
-			}
-
-			public TemplateCounterDocument(string PropertyName, string CounterName)
-			{
-				this.PropertyName = PropertyName;
-				this.CounterName = CounterName;
-			}
-		}
-
-		/// <summary>
 		/// Document describing a job template. These objects are considered immutable once created and uniquely referenced by hash, in order to de-duplicate across all job runs.
 		/// </summary>
 		class TemplateDocument : ITemplate
@@ -62,11 +41,9 @@ namespace HordeServer.Collections.Impl
 			[BsonIgnoreIfNull]
 			public string? SubmitNewChange { get; set; }
 
-			public List<TemplateCounterDocument> Counters { get; set; } = new List<TemplateCounterDocument>();
 			public List<string> Arguments { get; private set; } = new List<string>();
 			public List<Parameter> Parameters { get; private set; } = new List<Parameter>();
 
-			IReadOnlyList<ITemplateCounter> ITemplate.Counters => Counters;
 			IReadOnlyList<string> ITemplate.Arguments => Arguments;
 			IReadOnlyList<Parameter> ITemplate.Parameters => Parameters;
 
@@ -76,14 +53,13 @@ namespace HordeServer.Collections.Impl
 				Name = null!;
 			}
 
-			public TemplateDocument(string Name, Priority? Priority, bool bAllowPreflights, string? InitialAgentType, string? SubmitNewChange, List<TemplateCounter>? Counters, List<string>? Arguments, List<Parameter>? Parameters)
+			public TemplateDocument(string Name, Priority? Priority, bool bAllowPreflights, string? InitialAgentType, string? SubmitNewChange, List<string>? Arguments, List<Parameter>? Parameters)
 			{
 				this.Name = Name;
 				this.Priority = Priority;
 				this.AllowPreflights = bAllowPreflights;
 				this.InitialAgentType = InitialAgentType;
 				this.SubmitNewChange = SubmitNewChange;
-				this.Counters = (Counters ?? new List<TemplateCounter>()).ConvertAll(x => new TemplateCounterDocument(x.PropertyName, x.CounterName));
 				this.Arguments = Arguments ?? new List<string>();
 				this.Parameters = Parameters ?? new List<Parameter>();
 
@@ -127,9 +103,9 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<ITemplate> AddAsync(string Name, Priority? Priority, bool bAllowPreflights, string? InitialAgentType, string? SubmitNewChange, List<TemplateCounter>? Counters, List<string>? Arguments, List<Parameter>? Parameters)
+		public async Task<ITemplate> AddAsync(string Name, Priority? Priority, bool bAllowPreflights, string? InitialAgentType, string? SubmitNewChange, List<string>? Arguments, List<Parameter>? Parameters)
 		{
-			TemplateDocument Template = new TemplateDocument(Name, Priority, bAllowPreflights, InitialAgentType, SubmitNewChange, Counters, Arguments, Parameters);
+			TemplateDocument Template = new TemplateDocument(Name, Priority, bAllowPreflights, InitialAgentType, SubmitNewChange, Arguments, Parameters);
 			if (await GetAsync(Template.Id) == null)
 			{
 				await Templates.ReplaceOneAsync(x => x.Id == Template.Id, Template, new ReplaceOptions { IsUpsert = true });

@@ -63,7 +63,6 @@ namespace HordeServerTests
 		public IJobStepRefCollection JobStepRefCollection => ServiceProvider.GetRequiredService<IJobStepRefCollection>();
 		public IJobTimingCollection JobTimingCollection => ServiceProvider.GetRequiredService<IJobTimingCollection>();
 		public IUgsMetadataCollection UgsMetadataCollection => ServiceProvider.GetRequiredService<IUgsMetadataCollection>();
-		public ICounterCollection CounterCollection => ServiceProvider.GetRequiredService <ICounterCollection>();
 		public IIssueCollection IssueCollection => ServiceProvider.GetRequiredService <IIssueCollection>();
 		public IPoolCollection PoolCollection => ServiceProvider.GetRequiredService <IPoolCollection>();
 		public ILeaseCollection LeaseCollection => ServiceProvider.GetRequiredService <ILeaseCollection>();
@@ -146,7 +145,6 @@ namespace HordeServerTests
 			Services.AddSingleton<IAgentCollection, AgentCollection>();
 			Services.AddSingleton<IAgentSoftwareCollection, AgentSoftwareCollection>();
 			Services.AddSingleton<IArtifactCollection, ArtifactCollection>();
-			Services.AddSingleton<ICounterCollection, CounterCollection>();
 			Services.AddSingleton<IGraphCollection, GraphCollection>();
 			Services.AddSingleton<IIssueCollection, IssueCollection>();
 			Services.AddSingleton<IJobCollection, JobCollection>();

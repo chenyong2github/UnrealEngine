@@ -54,7 +54,7 @@ namespace HordeServerTests
 			Fg.Labels = new List<ILabel>();
 
 			Template = await TemplateService.CreateTemplateAsync("Test template", null, false, null, null,
-				new List<TemplateCounter>(), new List<string>(), new List<Parameter>());
+				new List<string>(), new List<Parameter>());
 			Graph = await GraphCollection.AddAsync(Template);
 
 			TemplateRefId1 = new TemplateRefId("template1");
@@ -99,7 +99,6 @@ namespace HordeServerTests
 				null,
 				null,
 				null,
-				Counters: Template.Counters,
 				Arguments: new List<string>()
 			);
 			Job1 = (await JobService.GetJobAsync(Job1.Id))!;
@@ -126,7 +125,6 @@ namespace HordeServerTests
 				null,
 				null,
 				null,
-				Template.Counters,
 				Arguments: new List<string>()
 			);
 			Job2 = (await JobService.GetJobAsync(Job2.Id))!;

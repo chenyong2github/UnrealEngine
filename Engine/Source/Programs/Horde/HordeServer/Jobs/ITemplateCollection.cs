@@ -30,10 +30,9 @@ namespace HordeServer.Collections
 		/// <param name="bAllowPreflights">Whether to allow preflights of this job</param>
 		/// <param name="InitialAgentType">The agent type to parse the buildgraph script</param>
 		/// <param name="SubmitNewChange">Path to a file within the stream to submit to generate a new changelist for jobs</param>
-		/// <param name="Counters">List of counters for new jobs</param>
 		/// <param name="Arguments">List of arguments which are always specified</param>
 		/// <param name="Parameters">List of template parameters</param>
-		Task<ITemplate> AddAsync(string Name, Priority? Priority = null, bool bAllowPreflights = true, string? InitialAgentType = null, string? SubmitNewChange = null, List<TemplateCounter>? Counters = null, List<string>? Arguments = null, List<Parameter>? Parameters = null);
+		Task<ITemplate> AddAsync(string Name, Priority? Priority = null, bool bAllowPreflights = true, string? InitialAgentType = null, string? SubmitNewChange = null, List<string>? Arguments = null, List<Parameter>? Parameters = null);
 
 		/// <summary>
 		/// Gets all the available templates

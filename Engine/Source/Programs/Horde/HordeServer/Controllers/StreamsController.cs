@@ -344,7 +344,7 @@ namespace HordeServer.Controllers
 			foreach (CreateTemplateRefRequest Request in Requests)
 			{
 				// Create the template
-				ITemplate NewTemplate = await TemplateService.CreateTemplateAsync(Request.Name, Request.Priority, Request.AllowPreflights, Request.InitialAgentType, Request.SubmitNewChange, Request.Counters, Request.Arguments, Request.Parameters.ConvertAll(x => x.ToModel()));
+				ITemplate NewTemplate = await TemplateService.CreateTemplateAsync(Request.Name, Request.Priority, Request.AllowPreflights, Request.InitialAgentType, Request.SubmitNewChange, Request.Arguments, Request.Parameters.ConvertAll(x => x.ToModel()));
 
 				// Get an identifier for the new template ref
 				TemplateRefId NewTemplateRefId;
