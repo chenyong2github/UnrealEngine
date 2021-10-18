@@ -3744,7 +3744,7 @@ bool DiffFilesInPaks(const FString& InPakFilename1, const FString& InPakFilename
 			FPakEntry EntryInfo1;
 			EntryInfo1.Serialize(PakReader1, PakFile1.GetInfo().Version);
 
-			if (EntryInfo1 != Entry1)
+			if (!EntryInfo1.IndexDataEquals(Entry1))
 			{
 				UE_LOG(LogPakFile, Log, TEXT("PakEntry1Invalid, %s, 0, 0"), *PAK1FileName);
 				continue;
@@ -3767,7 +3767,7 @@ bool DiffFilesInPaks(const FString& InPakFilename1, const FString& InPakFilename
 			PakReader2.Seek(Entry2.Offset);
 			FPakEntry EntryInfo2;
 			EntryInfo2.Serialize(PakReader2, PakFile2.GetInfo().Version);
-			if (EntryInfo2 != Entry2)
+			if (!EntryInfo2.IndexDataEquals(Entry2))
 			{
 				UE_LOG(LogPakFile, Log, TEXT("PakEntry2Invalid, %s, 0, 0"), *PAK1FileName);
 				continue;;
