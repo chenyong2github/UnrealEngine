@@ -369,6 +369,11 @@ namespace HordeServer
 		public string? SlackSocketToken { get; set; }
 
 		/// <summary>
+		/// Filtered list of slack users to send notifications to. Should be Slack user ids, separated by commas.
+		/// </summary>
+		public string? SlackUsers { get; set; }
+
+		/// <summary>
 		/// Channel to send stream notification update failures to
 		/// </summary>
 		public string? UpdateStreamsNotificationChannel { get; set; }
