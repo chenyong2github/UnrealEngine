@@ -50,7 +50,7 @@ bool IsHairStrandsGeometrySupported(const EShaderPlatform Platform)
 bool IsCompatibleWithHairStrands(const FMaterial* Material, const ERHIFeatureLevel::Type FeatureLevel)
 {
 	return
-		ERHIFeatureLevel::SM5 == FeatureLevel &&
+		ERHIFeatureLevel::SM5 <= FeatureLevel &&
 		Material && Material->IsUsedWithHairStrands() && 
 		(Material->GetBlendMode() == BLEND_Opaque || Material->GetBlendMode() == BLEND_Masked);
 }
