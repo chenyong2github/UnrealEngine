@@ -30,7 +30,7 @@ namespace HordeServer.Services
 	/// <summary>
 	/// Wraps functionality for manipulating artifacts
 	/// </summary>
-	public class ArtifactService : IArtifactCollection
+	public class ArtifactCollection : IArtifactCollection
 	{
 		class Artifact : IArtifact
 		{
@@ -72,7 +72,7 @@ namespace HordeServer.Services
 		}
 
 		private readonly IStorageBackend StorageBackend;
-		private readonly ILogger<ArtifactService> Logger;
+		private readonly ILogger<ArtifactCollection> Logger;
 		private readonly IMongoCollection<Artifact> Artifacts;
 
 		/// <summary>
@@ -81,7 +81,7 @@ namespace HordeServer.Services
 		/// <param name="DatabaseService">The database service</param>
 		/// <param name="StorageBackend">The storage backend</param>
 		/// <param name="Logger">Log interface</param>
-		public ArtifactService(DatabaseService DatabaseService, IStorageBackend<ArtifactService> StorageBackend, ILogger<ArtifactService> Logger)
+		public ArtifactCollection(DatabaseService DatabaseService, IStorageBackend<ArtifactCollection> StorageBackend, ILogger<ArtifactCollection> Logger)
 		{
 			this.StorageBackend = StorageBackend;
 			this.Logger = Logger;
