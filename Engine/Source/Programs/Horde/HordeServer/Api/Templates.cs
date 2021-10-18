@@ -388,43 +388,6 @@ namespace HordeServer.Api
 			return new BoolParameter(Label, ArgumentIfEnabled, ArgumentIfDisabled, Default, ToolTip);
 		}
 	}
-	
-	/// <summary>
-	/// Counter for executing a job based on a template
-	/// </summary>
-	public class TemplateCounter
-	{
-		/// <summary>
-		/// The property name
-		/// </summary>
-		[Required]
-		public string PropertyName { get; set; }
-
-		/// <summary>
-		/// The counter name
-		/// </summary>
-		[Required]
-		public string CounterName { get; set; }
-
-		/// <summary>
-		/// Private constructor for serialization
-		/// </summary>
-		private TemplateCounter()
-		{
-			PropertyName = null!;
-			CounterName = null!;
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="Counter">Counter to construct from</param>
-		public TemplateCounter(ITemplateCounter Counter)
-		{
-			this.PropertyName = Counter.PropertyName;
-			this.CounterName = Counter.CounterName;
-		}
-	}
 
 	/// <summary>
 	/// Parameters to create a new template
@@ -456,11 +419,6 @@ namespace HordeServer.Api
 		/// Path to a file within the stream to submit to generate a new changelist for jobs
 		/// </summary>
 		public string? SubmitNewChange { get; set; }
-
-		/// <summary>
-		/// Counters for this template
-		/// </summary>
-		public List<TemplateCounter> Counters { get; set; } = new List<TemplateCounter>();
 
 		/// <summary>
 		/// Fixed arguments for the new job
@@ -504,11 +462,6 @@ namespace HordeServer.Api
 		public string? SubmitNewChange { get; }
 
 		/// <summary>
-		/// List of template counters
-		/// </summary>
-		public List<TemplateCounter> Counters { get; set; }
-
-		/// <summary>
 		/// Parameters for the job.
 		/// </summary>
 		public List<string> Arguments { get; set; }
@@ -525,7 +478,6 @@ namespace HordeServer.Api
 		{
 			this.Name = null!;
 			this.AllowPreflights = true;
-			this.Counters = new List<TemplateCounter>();
 			this.Arguments = new List<string>();
 			this.Parameters = new List<ParameterData>();
 		}
@@ -541,7 +493,6 @@ namespace HordeServer.Api
 			this.AllowPreflights = Template.AllowPreflights;
 			this.InitialAgentType = Template.InitialAgentType;
 			this.SubmitNewChange = Template.SubmitNewChange;
-			this.Counters = Template.Counters.ConvertAll(x => new TemplateCounter(x));
 			this.Arguments = new List<string>(Template.Arguments);
 			this.Parameters = Template.Parameters.ConvertAll(x => x.ToData());
 		}

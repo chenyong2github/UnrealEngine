@@ -102,11 +102,6 @@ namespace HordeServer.Services
 		IUserCollection UserCollection;
 
 		/// <summary>
-		/// Collection of counter documents
-		/// </summary>
-		ICounterCollection CounterCollection;
-
-		/// <summary>
 		/// Collection of notification triggers
 		/// </summary>
 		INotificationTriggerCollection TriggerCollection;
@@ -175,7 +170,6 @@ namespace HordeServer.Services
 		/// <param name="JobStepRefs">The jobsteprefs collection</param>
 		/// <param name="JobTimings">The job timing document collection</param>
 		/// <param name="UserCollection">User profiles</param>
-		/// <param name="CounterCollection">Counter collection</param>
 		/// <param name="TriggerCollection">Trigger collection</param>
 		/// <param name="JobTaskSource">The queue service</param>
 		/// <param name="StreamService">The stream service</param>
@@ -184,7 +178,7 @@ namespace HordeServer.Services
 		/// <param name="PerforceService">The perforce service</param>
 		/// <param name="Settings">Settings instance</param>
 		/// <param name="Logger">Log output</param>
-		public JobService(IJobCollection Jobs, IGraphCollection Graphs, IAgentCollection Agents, IJobStepRefCollection JobStepRefs, IJobTimingCollection JobTimings, IUserCollection UserCollection, ICounterCollection CounterCollection, INotificationTriggerCollection TriggerCollection, JobTaskSource JobTaskSource, StreamService StreamService, TemplateService TemplateService, IIssueService IssueService, IPerforceService PerforceService, IOptionsMonitor<ServerSettings> Settings, ILogger<JobService> Logger)
+		public JobService(IJobCollection Jobs, IGraphCollection Graphs, IAgentCollection Agents, IJobStepRefCollection JobStepRefs, IJobTimingCollection JobTimings, IUserCollection UserCollection, INotificationTriggerCollection TriggerCollection, JobTaskSource JobTaskSource, StreamService StreamService, TemplateService TemplateService, IIssueService IssueService, IPerforceService PerforceService, IOptionsMonitor<ServerSettings> Settings, ILogger<JobService> Logger)
 		{
 			this.Jobs = Jobs;
 			this.Graphs = Graphs;
@@ -192,7 +186,6 @@ namespace HordeServer.Services
 			this.JobStepRefs = JobStepRefs;
 			this.JobTimings = JobTimings;
 			this.UserCollection = UserCollection;
-			this.CounterCollection = CounterCollection;
 			this.TriggerCollection = TriggerCollection;
 			this.JobTaskSource = JobTaskSource;
 			this.StreamService = StreamService;
@@ -234,10 +227,9 @@ namespace HordeServer.Services
 		/// <param name="NotificationChannel">Notification Channel for this job</param>
 		/// <param name="NotificationChannelFilter">Notification Channel filter for this job</param>
 		/// <param name="HelixSwarmCallbackUrl">Helix Swarm callback URL for review, if any</param>
-		/// <param name="Counters">Counters for the job</param>
 		/// <param name="Arguments">Arguments for the job</param>
 		/// <returns>Unique id representing the job</returns>
-		public async Task<IJob> CreateJobAsync(ObjectId? JobId, IStream Stream, TemplateRefId TemplateRefId, ContentHash TemplateHash, IGraph Graph, string Name, int Change, int CodeChange, int? PreflightChange, int? ClonedPreflightChange, ObjectId? StartedByUserId, string? StartedByUserName, Priority? Priority, bool? AutoSubmit, bool? UpdateIssues, List<ChainedJobTemplate>? JobTriggers, bool ShowUgsBadges, bool ShowUgsAlerts, string? NotificationChannel, string? NotificationChannelFilter, string? HelixSwarmCallbackUrl, IReadOnlyList<ITemplateCounter> Counters, IReadOnlyList<string> Arguments)
+		public async Task<IJob> CreateJobAsync(ObjectId? JobId, IStream Stream, TemplateRefId TemplateRefId, ContentHash TemplateHash, IGraph Graph, string Name, int Change, int CodeChange, int? PreflightChange, int? ClonedPreflightChange, ObjectId? StartedByUserId, string? StartedByUserName, Priority? Priority, bool? AutoSubmit, bool? UpdateIssues, List<ChainedJobTemplate>? JobTriggers, bool ShowUgsBadges, bool ShowUgsAlerts, string? NotificationChannel, string? NotificationChannelFilter, string? HelixSwarmCallbackUrl, IReadOnlyList<string> Arguments)
 		{
 			ObjectId JobIdValue = JobId ?? ObjectId.GenerateNewId();
 			using IDisposable Scope = Logger.BeginScope("CreateJobAsync({JobId})", JobIdValue);
@@ -257,14 +249,6 @@ namespace HordeServer.Services
 			Properties["StreamId"] = Stream.Id.ToString();
 			Properties["TemplateId"] = TemplateRefId.ToString();
 			Properties["JobId"] = JobIdValue.ToString();
-
-			foreach (ITemplateCounter Counter in Counters)
-			{
-				string CounterName = StringUtils.ExpandProperties(Counter.CounterName, Properties);
-				int Value = await CounterCollection.IncrementAsync(CounterName);
-				Properties[Counter.PropertyName] = Value.ToString(CultureInfo.InvariantCulture);
-				Properties[$"{Counter.PropertyName}.Suffix"] = (Value == 1) ? String.Empty : $" ({Value})";
-			}
 
 			List<string> ExpandedArguments = new List<string>();
 			if (Arguments != null)
@@ -1137,7 +1121,7 @@ namespace HordeServer.Services
 					IGraph TriggerGraph = await Graphs.AddAsync(Template);
 					Logger.LogInformation("Creating downstream job {ChainedJobId} from job {JobId}", ChainedJobId, Job.Id);
 
-					await CreateJobAsync(ChainedJobId, Stream, JobTrigger.TemplateRefId, TemplateRef.Hash, TriggerGraph, TemplateRef.Name, Job.Change, Job.CodeChange, Job.PreflightChange, Job.ClonedPreflightChange, Job.StartedByUserId, Job.StartedByUser, Template.Priority, null, Job.UpdateIssues, TemplateRef.ChainedJobs, false, false, TemplateRef.NotificationChannel, TemplateRef.NotificationChannelFilter, null, Template.Counters, Template.Arguments);
+					await CreateJobAsync(ChainedJobId, Stream, JobTrigger.TemplateRefId, TemplateRef.Hash, TriggerGraph, TemplateRef.Name, Job.Change, Job.CodeChange, Job.PreflightChange, Job.ClonedPreflightChange, Job.StartedByUserId, Job.StartedByUser, Template.Priority, null, Job.UpdateIssues, TemplateRef.ChainedJobs, false, false, TemplateRef.NotificationChannel, TemplateRef.NotificationChannelFilter, null, Template.Arguments);
 					break;
 				}
 
