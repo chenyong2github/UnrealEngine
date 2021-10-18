@@ -14,7 +14,7 @@ namespace EpicGames.Redis
 	/// <summary>
 	/// Attribute specifying the converter type to use for a class
 	/// </summary>
-	[AttributeUsage(AttributeTargets.Class)]
+	[AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
 	public class RedisConverterAttribute : Attribute
 	{
 		/// <summary>

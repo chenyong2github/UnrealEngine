@@ -156,5 +156,12 @@ namespace HordeServer.Collections
 		/// <param name="AgentId"></param>
 		/// <returns></returns>
 		IAuditLogChannel<AgentId> GetLogger(AgentId AgentId);
+
+		/// <summary>
+		/// Subscribe to notifications on agent states being updated
+		/// </summary>
+		/// <param name="OnUpdate">Callback for updates</param>
+		/// <returns>Disposable subscription object</returns>
+		Task<IDisposable> SubscribeToUpdateEventsAsync(Action<AgentId> OnUpdate);
 	}
 }

@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Redis;
 using Google.Protobuf.WellKnownTypes;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
@@ -134,13 +135,17 @@ namespace HordeServer.Collections.Impl
 
 		readonly IMongoCollection<AgentDocument> Agents;
 		readonly IAuditLog<AgentId> AuditLog;
+		readonly RedisService RedisService;
+		readonly RedisChannel<AgentId> UpdateEventChannel;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public AgentCollection(DatabaseService DatabaseService, IAuditLog<AgentId> AuditLog)
+		public AgentCollection(DatabaseService DatabaseService, RedisService RedisService, IAuditLog<AgentId> AuditLog)
 		{
 			this.Agents = DatabaseService.GetCollection<AgentDocument>("Agents");
+			this.RedisService = RedisService;
+			this.UpdateEventChannel = new RedisChannel<AgentId>("agents/notify");
 			this.AuditLog = AuditLog;
 
 			if (!DatabaseService.ReadOnlyMode)
@@ -307,7 +312,15 @@ namespace HordeServer.Collections.Impl
 			}
 
 			// Apply the update
-			return await TryUpdateAsync(Agent, UpdateBuilder.Combine(Updates));
+			IAgent? NewAgent = await TryUpdateAsync(Agent, UpdateBuilder.Combine(Updates));
+			if (NewAgent != null)
+			{
+				if (NewAgent.RequestRestart != Agent.RequestRestart || NewAgent.RequestConform != Agent.RequestConform || NewAgent.RequestShutdown != Agent.RequestShutdown || NewAgent.Channel != Agent.Channel)
+				{
+					await PublishUpdateEventAsync(Agent.Id);
+				}
+			}
+			return NewAgent;
 		}
 
 		/// <inheritdoc/>
@@ -481,13 +494,30 @@ namespace HordeServer.Collections.Impl
 			AgentDocument Agent = (AgentDocument)AgentInterface;
 
 			UpdateDefinition<AgentDocument> Update = Builders<AgentDocument>.Update.Set(x => x.Leases![LeaseIdx].State, LeaseState.Cancelled);
-			return await TryUpdateAsync(Agent, Update);
+			IAgent? NewAgent = await TryUpdateAsync(Agent, Update);
+			if (NewAgent != null)
+			{
+				await PublishUpdateEventAsync(Agent.Id);
+			}
+			return NewAgent;
 		}
 
 		/// <inheritdoc/>
 		public IAuditLogChannel<AgentId> GetLogger(AgentId AgentId)
 		{
 			return AuditLog[AgentId];
+		}
+
+		/// <inheritdoc/>
+		Task PublishUpdateEventAsync(AgentId AgentId)
+		{
+			return RedisService.Database.PublishAsync(UpdateEventChannel, AgentId);
+		}
+
+		/// <inheritdoc/>
+		public async Task<IDisposable> SubscribeToUpdateEventsAsync(Action<AgentId> OnUpdate)
+		{
+			return await RedisService.Multiplexer.GetSubscriber().SubscribeAsync(UpdateEventChannel, (Channel, AgentId) => OnUpdate(AgentId));
 		}
 	}
 }
