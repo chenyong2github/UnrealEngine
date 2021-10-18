@@ -722,7 +722,7 @@ void USkinWeightsPaintTool::CommitSkinWeights(const IMeshDescriptionCommitter::F
 }
 
 
-USkeleton* USkinWeightsPaintToolProperties::GetSkeleton(bool& bInvalidSkeletonIsError)
+USkeleton* USkinWeightsPaintToolProperties::GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle)
 {
 	bInvalidSkeletonIsError = false;
 	return SkeletalMesh ? SkeletalMesh->GetSkeleton() : nullptr;

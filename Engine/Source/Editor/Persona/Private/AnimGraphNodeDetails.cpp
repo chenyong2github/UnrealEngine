@@ -510,7 +510,7 @@ void FBoneReferenceCustomization::SetEditableSkeleton(TSharedRef<IPropertyHandle
 
 	bEnsureOnInvalidSkeleton = true;
 
-	auto FindSkeletonForObject = [this, &TargetSkeleton, &EditableSkeleton](UObject* InObject)
+	auto FindSkeletonForObject = [this, &TargetSkeleton, &EditableSkeleton, &StructPropertyHandle](UObject* InObject)
 	{
 		for( ; InObject; InObject = InObject->GetOuter())
 		{
@@ -567,7 +567,7 @@ void FBoneReferenceCustomization::SetEditableSkeleton(TSharedRef<IPropertyHandle
 
 			if (IBoneReferenceSkeletonProvider* SkeletonProvider = Cast<IBoneReferenceSkeletonProvider>(InObject))
 			{
-				TargetSkeleton = SkeletonProvider->GetSkeleton(bEnsureOnInvalidSkeleton);
+				TargetSkeleton = SkeletonProvider->GetSkeleton(bEnsureOnInvalidSkeleton, &StructPropertyHandle.Get());
 				break;
 			}
 		}

@@ -736,7 +736,7 @@ UInteractiveTool* USkinWeightsBindingToolBuilder::BuildTool(const FToolBuilderSt
 }
 
 
-USkeleton* USkinWeightsBindingToolProperties::GetSkeleton(bool& bInvalidSkeletonIsError)
+USkeleton* USkinWeightsBindingToolProperties::GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle)
 {
 	bInvalidSkeletonIsError = false;
 	return SkeletalMesh ? SkeletalMesh->GetSkeleton() : nullptr;
