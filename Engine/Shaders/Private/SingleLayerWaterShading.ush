@@ -43,11 +43,7 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 	Output.WaterToSceneTransmittance = 1.0f;
 	Output.WaterToSceneToLightTransmittance = 1.0f;
 
-	// Compute the ViewportUV while making sure the WaterNDC is unaffected by the Pixel-Depth-Offset
-	// which would have affected ScreenPosition.w, See ApplyPixelDepthOffsetToMaterialParameters.
-	const float PixelDepthOffset = GetMaterialPixelDepthOffset(PixelMaterialInputs);
-	float2 WaterNDC = MaterialParameters.ScreenPosition.xy / (MaterialParameters.ScreenPosition.w - PixelDepthOffset);
-	float2 ViewportUV = WaterNDC * ResolvedView.ScreenPositionScaleBias.xy + ResolvedView.ScreenPositionScaleBias.wz;
+	float2 ViewportUV = MaterialParameters.ViewBufferUV;
 
 	if (WaterVisibility > 0.0f)
 	{

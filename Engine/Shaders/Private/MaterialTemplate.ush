@@ -280,6 +280,12 @@ struct FMaterialPixelParameters
 	/** Post projection position reconstructed from SvPosition, before the divide by W. left..top -1..1, bottom..top -1..1  within the viewport, W is the SceneDepth */
 	float4 ScreenPosition;
 
+	/**
+	 * The pixel UV for a view, considering the buffer resolution containing it.
+	 * This is precomputed because when PixelDepthOffset is used, it affects ScreenPosition which would then prevent us from recovering the correct UV later. 
+	 * See ApplyPixelDepthOffsetToMaterialParameters for the details */
+	float2 ViewBufferUV;
+
 #if IS_NANITE_FACTORY
 	float4 PrevScreenPosition;
 #endif
@@ -3055,6 +3061,7 @@ void CalcMaterialParametersEx(
 
 	Parameters.SvPosition = SvPosition;
 	Parameters.ScreenPosition = ScreenPosition;
+	Parameters.ViewBufferUV = ScreenPositionToBufferUV(ScreenPosition);
 
 	// CameraVector is a normalised vector representing the "from surface to camera" direction.
 	#if RAYHITGROUPSHADER
