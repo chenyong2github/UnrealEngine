@@ -757,8 +757,9 @@ enum class EPixelFormatCapabilities : uint32
     BufferStore      = 1ull << 17,
     BufferAtomics    = 1ull << 18,
 
-    TypedUAVLoad     = 1ull << 19,
-    TypedUAVStore    = 1ull << 20,
+	UAV              = 1ull << 19,
+    TypedUAVLoad     = 1ull << 20,
+	TypedUAVStore    = 1ull << 21,
 
 	AnyTexture = Texture1D | Texture2D | Texture3D | TextureCube,
 };
@@ -797,6 +798,11 @@ struct FPixelFormatInfo
 };
 
 extern RHI_API FPixelFormatInfo GPixelFormats[PF_MAX];		// Maps members of EPixelFormat to a FPixelFormatInfo describing the format.
+
+inline bool PixelFormatHasCapabilities(EPixelFormat InFormat, EPixelFormatCapabilities InCapabilities)
+{
+	return EnumHasAllFlags(GPixelFormats[InFormat].Capabilities, InCapabilities);
+}
 
 //
 //	CalculateImageBytes
