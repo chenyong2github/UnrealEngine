@@ -35,17 +35,20 @@ FString FMassEntityTemplate::DebugGetDescription(UMassEntitySubsystem* EntitySub
 #if WITH_MASSGAMEPLAY_DEBUG
 	Ar.SetAutoEmitLineTerminator(true);
 
-	Ar += TEXT("Fragments:\n");
-	FragmentCollection.DebugOutputDescription(Ar);
-
-	Ar += TEXT("\nProcessors:\n");
-	InitializationPipeline.DebugOutputDescription(Ar);
-
 	if (EntitySubsystem)
 	{
-		Ar += TEXT("Archetype detais:\n");
+		Ar += TEXT("Archetype details:\n");
 		Ar += DebugGetArchetypeDescription(*EntitySubsystem);
 	}
+	else
+	{
+		Ar += TEXT("Fragments:\n");
+		FragmentCollection.DebugOutputDescription(Ar);
+	}
+
+	Ar += TEXT("\nInitialization Processors:\n");
+	InitializationPipeline.DebugOutputDescription(Ar);
+	
 #endif // WITH_MASSGAMEPLAY_DEBUG
 	return MoveTemp(Ar);
 }
