@@ -15,6 +15,8 @@ void UMassDebugVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext
 	const UStaticMesh* const DebugMesh = nullptr;
 #endif
 
+	BuildContext.AddTag<FMassDebuggableTag>();
+	
 	if (DebugMesh)
 	{
 #if WITH_EDITORONLY_DATA
@@ -45,6 +47,7 @@ void UMassDebugVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext
 #endif // WITH_EDITORONLY_DATA
 		BuildContext.AddFragmentWithDefaultInitializer<FDataFragment_AgentRadius>();
 	}
+	BuildContext.AddFragmentWithDefaultInitializer<FDataFragment_Transform>();
 #endif // if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 }

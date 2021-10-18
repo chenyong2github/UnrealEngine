@@ -64,6 +64,12 @@ struct FDataFragment_DebugVis : public FMassFragment
 };
 
 USTRUCT()
+struct FMassDebuggableTag : public FMassTag
+{
+	GENERATED_BODY()
+};
+
+USTRUCT()
 struct FAgentDebugVisualization : public FTableRowBase
 {
 	GENERATED_BODY()
