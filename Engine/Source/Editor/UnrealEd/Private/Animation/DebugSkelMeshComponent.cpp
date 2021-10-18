@@ -214,15 +214,7 @@ void UDebugSkelMeshComponent::ConsumeRootMotion(const FVector& FloorMin, const F
 	const float PreviousTime = ConsumeRootMotionPreviousPlaybackTime;
 	ConsumeRootMotionPreviousPlaybackTime = CurrentTime;
 
-	// Ignore Mode: Preview mesh remains in place at the origin regardless of the root motion
-	if (ProcessRootMotionMode == EProcessRootMotionMode::Ignore)
-	{
-		if(!GetRelativeTransform().Equals(FTransform::Identity))
-		{
-			SetRelativeTransform(FTransform::Identity);
-		}
-	}
-	else 
+	if (ProcessRootMotionMode != EProcessRootMotionMode::Ignore && !ShouldBlendPhysicsBones())
 	{
 		if(PreviewInstance->IsPlaying())
 		{
