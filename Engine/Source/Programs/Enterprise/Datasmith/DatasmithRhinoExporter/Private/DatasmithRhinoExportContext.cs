@@ -705,12 +705,13 @@ namespace DatasmithRhino
 					bIsParsed = true;
 					bIsDirty = true;
 				}
-				catch (DatasmithExportCancelledException CancelException)
+				catch (Exception UnexpectedException)
 				{
 					// We can't resume halfway through the scene parsing, just reset the context and start over next time.
 					ResetContext();
-					// throw forward the cancel exception.
-					throw CancelException;
+					// throw forward the exception.
+					
+					throw new Exception(UnexpectedException.Message, UnexpectedException);
 				}
 			}
 			else
@@ -1785,13 +1786,14 @@ namespace DatasmithRhino
 			if (InObject.ObjectType == ObjectType.Brep)
 			{
 				BrepObject InBrepObject = InObject as BrepObject;
-				if(InBrepObject.HasSubobjectMaterials)
+				if (InBrepObject.HasSubobjectMaterials)
 				{
-					RhinoObject[] SubObjects = InBrepObject.GetSubObjects();
 					foreach (ComponentIndex CurrentIndex in InBrepObject.SubobjectMaterialComponents)
 					{
-						int SubObjectMaterialIndex = SubObjects[CurrentIndex.Index].Attributes.MaterialIndex;
-						AddMaterialIndexMapping(SubObjectMaterialIndex);
+						if (InBrepObject.GetMaterial(CurrentIndex) is Material ComponentMaterial)
+						{
+							AddMaterialIndexMapping(ComponentMaterial.Index);
+						}
 					}
 				}
 			}
