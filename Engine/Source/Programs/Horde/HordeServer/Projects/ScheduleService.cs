@@ -275,6 +275,13 @@ namespace HordeServer.Services
 			Stopwatch Timer = Stopwatch.StartNew();
 			ChangeContentFlags? FilterFlags = Schedule.GetFilterFlags();
 
+			// Create a file filter
+			FileFilter? FileFilter = null;
+			if (Schedule.Files != null)
+			{
+				FileFilter = new FileFilter(Schedule.Files);
+			}
+
 			// Start as many jobs as possible
 			List<(int Change, int CodeChange)> TriggerChanges = new List<(int, int)>();
 			while (TriggerChanges.Count < MaxNewChanges)
@@ -301,7 +308,7 @@ namespace HordeServer.Services
 				}
 
 				// Adjust the changelist for the desired filter
-				if(await ShouldBuildChangeAsync(Stream.ClusterName, Stream.Name, Change, FilterFlags))
+				if (await ShouldBuildChangeAsync(Stream.ClusterName, Stream.Name, Change, FilterFlags, FileFilter))
 				{
 					TriggerChanges.Add((Change, CodeChange));
 				}
@@ -367,8 +374,9 @@ namespace HordeServer.Services
 		/// <param name="StreamName"></param>
 		/// <param name="Change"></param>
 		/// <param name="FilterFlags"></param>
+		/// <param name="FileFilter">Filter for the files to trigger a build</param>
 		/// <returns></returns>
-		private async Task<bool> ShouldBuildChangeAsync(string ClusterName, string StreamName, int Change, ChangeContentFlags? FilterFlags)
+		private async Task<bool> ShouldBuildChangeAsync(string ClusterName, string StreamName, int Change, ChangeContentFlags? FilterFlags, FileFilter? FileFilter)
 		{
 			if (FilterFlags != null && FilterFlags.Value != 0)
 			{
@@ -376,6 +384,15 @@ namespace HordeServer.Services
 				if ((Details.GetContentFlags() & FilterFlags.Value) == 0)
 				{
 					Logger.LogDebug("Not building change {Change} ({ChangeFlags}) due to filter flags ({FilterFlags})", Change, Details.GetContentFlags().ToString(), FilterFlags.Value.ToString());
+					return false;
+				}
+			}
+			if (FileFilter != null)
+			{
+				ChangeDetails Details = await Perforce.GetChangeDetailsAsync(ClusterName, StreamName, Change, null);
+				if (!Details.Files.Any(x => FileFilter.Matches(x.Path)))
+				{
+					Logger.LogDebug("Not building change {Change} due to file filter", Change);
 					return false;
 				}
 			}
