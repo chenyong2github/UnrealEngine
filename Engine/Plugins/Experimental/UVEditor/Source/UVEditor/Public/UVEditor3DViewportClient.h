@@ -1,0 +1,51 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+
+#include "EditorViewportClient.h"
+
+
+// Types of camera motion for the UV Editor 3D viewport
+enum EUVEditor3DViewportClientCameraMode {
+	Orbit,
+	Fly
+};
+
+/**
+ * Viewport client for the 3d live preview in the UV editor. Currently same as editor viewport
+ * client but doesn't allow editor gizmos/widgets, and alters orbit camera control.
+ */
+class UVEDITOR_API FUVEditor3DViewportClient : public FEditorViewportClient
+{
+	// Inherit all the same constructors
+	using FEditorViewportClient::FEditorViewportClient;
+
+	// FEditorViewportClient
+	virtual bool ShouldOrbitCamera() const override {
+		switch (CameraMode) {
+		case EUVEditor3DViewportClientCameraMode::Orbit:
+			return true;
+		case EUVEditor3DViewportClientCameraMode::Fly:
+			return FEditorViewportClient::ShouldOrbitCamera();
+		default:
+			ensure(false);
+			return FEditorViewportClient::ShouldOrbitCamera();
+		}
+	}
+	bool CanSetWidgetMode(UE::Widget::EWidgetMode NewMode) const override {	return false; }
+	void SetWidgetMode(UE::Widget::EWidgetMode NewMode) override {}
+	UE::Widget::EWidgetMode GetWidgetMode() const override { return UE::Widget::EWidgetMode::WM_None; }
+
+public:
+
+	void SetCameraMode(EUVEditor3DViewportClientCameraMode CameraModeIn) { CameraMode = CameraModeIn; };
+	EUVEditor3DViewportClientCameraMode GetCameraMode() const { return CameraMode; };
+
+protected:
+
+	// Enforce Orbit camera for UV editor live preview viewport. Use this instead of the base class orbit camera flag
+	// to allow for expected behaviors of the base class when in fly camera mode.
+	EUVEditor3DViewportClientCameraMode CameraMode = EUVEditor3DViewportClientCameraMode::Orbit;
+};

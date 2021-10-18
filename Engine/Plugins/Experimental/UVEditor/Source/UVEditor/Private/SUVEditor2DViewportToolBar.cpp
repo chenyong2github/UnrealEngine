@@ -43,7 +43,7 @@ TSharedRef<SWidget> SUVEditor2DViewportToolBar::MakeToolBar(const TSharedPtr<FEx
 	// The following is modeled after portions of STransformViewportToolBar, which gets 
 	// used in SCommonEditorViewportToolbarBase.
 
-	// The buttons are hooked up to actual functions via command bindings in SUVEditor2DViewport::BindCommands(),
+	// The buttons are hooked up to actual functions via command bindings in SEditorViewport::BindCommands(),
 	// and the toolbar gets built in SUVEditor2DViewport::MakeViewportToolbar().
 
 	FSlimHorizontalToolBarBuilder ToolbarBuilder(CommandList, FMultiBoxCustomization::None, InExtenders);
