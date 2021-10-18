@@ -770,23 +770,16 @@ SIZE_T FMassArchetypeData::GetAllocatedSize() const
 FString FMassArchetypeData::DebugGetDescription() const
 {
 #if WITH_MASSENTITY_DEBUG
-	TStringBuilder<256> ArchetypeDebugName;
+	FStringOutputDevice OutDescription;
+
+	OutDescription += TEXT("Chunk fragments: ");
+	CompositionDescriptor.ChunkFragments.DebugGetStringDesc(OutDescription);
+	OutDescription += TEXT("\nTags: ");
+	CompositionDescriptor.Tags.DebugGetStringDesc(OutDescription);
+	OutDescription += TEXT("\nFragments: ");
+	CompositionDescriptor.Fragments.DebugGetStringDesc(OutDescription);
 	
-	ArchetypeDebugName.Append(TEXT("<"));
-
-	bool bNeedsComma = false;
-	for (const FMassArchetypeFragmentConfig& FragmentConfig : FragmentConfigs)
-	{
-		if (bNeedsComma)
-		{
-			ArchetypeDebugName.Append(TEXT(","));
-		}
-		ArchetypeDebugName.Append(FragmentConfig.FragmentType->GetName());
-		bNeedsComma = true;
-	}
-
-	ArchetypeDebugName.Append(TEXT(">"));
-	return ArchetypeDebugName.ToString();
+	return static_cast<FString>(OutDescription);
 #else
 	return {};
 #endif
