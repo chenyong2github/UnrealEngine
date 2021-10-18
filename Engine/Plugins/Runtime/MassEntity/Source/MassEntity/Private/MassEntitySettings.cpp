@@ -57,7 +57,7 @@ void UMassSettings::BuildPhases()
 		
 		FStringOutputDevice Ar;
 		PhaseConfig.PhaseProcessor->DebugOutputDescription(Ar);
-		PhaseConfig.Description = MoveTemp(Ar);
+		PhaseConfig.Description = FText::FromString(Ar);
 	}
 #endif // WITH_EDITOR
 }
