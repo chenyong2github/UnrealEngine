@@ -13,6 +13,7 @@ namespace AVEncoder
 {
     class FVideoEncoderNVENC_H264 : public FVideoEncoder
     {
+
     public:
         virtual ~FVideoEncoderNVENC_H264() override;
 
@@ -37,6 +38,7 @@ namespace AVEncoder
 
         class FNVENCLayer : public FLayer
         {
+
         public:
             FNVENCLayer(uint32 layerIdx, FLayerConfig const& config, FVideoEncoderNVENC_H264& encoder);
             ~FNVENCLayer();
@@ -48,6 +50,7 @@ namespace AVEncoder
             FString GetError(NVENCSTATUS ForStatus) const;
 			void MaybeReconfigure();
 			void UpdateConfig();
+            void UpdateLastEncodedQP(uint32 InLastEncodedQP);
             void Encode(FVideoEncoderInputFrame const* InFrame, const FEncodeOptions& EncodeOptions);
             void ProcessFramesFunc();
             void Flush();
@@ -68,6 +71,7 @@ namespace AVEncoder
             NV_ENC_CONFIG EncoderConfig;
             FDateTime LastKeyFrameTime = 0;
 			bool bForceNextKeyframe = false;
+            uint32 LastEncodedQP = 0;
 
             struct FInputOutput
             {

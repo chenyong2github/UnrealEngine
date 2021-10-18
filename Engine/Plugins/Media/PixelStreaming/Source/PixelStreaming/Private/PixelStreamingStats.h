@@ -16,6 +16,7 @@ struct FPixelStreamingStats
 		void OnWebRTCDeliverFrameForEncode();
 		void OnEncodingFinished();
 		void OnCaptureFinished();
+		void OnKeyframeEncoded();
 		void SetEncoderLatency(double EncoderLatencyMs);
 		void SetEncoderBitrateMbps(double EncoderBitrateMbps);
 		void SetEncoderQP(double QP);
@@ -40,6 +41,8 @@ struct FPixelStreamingStats
 
 		uint64 LastCaptureTimeCycles = 0;
 		FSmoothedValue<SmoothingPeriod> CaptureFPS;
+
+		uint64 LastKeyFrameTimeCycles = 0;
 
 		
 };

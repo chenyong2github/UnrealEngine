@@ -31,6 +31,7 @@ void FPixelStreamingStats::Tick()
 	}
 
 	double NowMillis = FTimespan::FromSeconds(FPlatformTime::Seconds()).GetTotalMilliseconds();
+	double KeyframeDeltaSecs = LastKeyFrameTimeCycles > 0 ? FPlatformTime::ToSeconds64(FPlatformTime::Cycles() - LastKeyFrameTimeCycles) : 0;
 
 	int Id = 0;
 	EmitStat(++Id, FString::Printf(TEXT("Timestamp: %.0f ms"), NowMillis));
@@ -42,6 +43,7 @@ void FPixelStreamingStats::Tick()
 	EmitStat(++Id, FString::Printf(TEXT("Encoded FPS: %.0f"), EncoderFPS.Get()));
 	EmitStat(++Id, FString::Printf(TEXT("Encoder bitrate: %.3f Mbps"), EncoderBitrateMbps.Get()));
 	EmitStat(++Id, FString::Printf(TEXT("QP: %.0f"), EncoderQP.Get()));
+	EmitStat(++Id, FString::Printf(TEXT("Time since last keyframe: %.3f secs"), KeyframeDeltaSecs));
 	EmitStat(++Id, "------------ Pixel Streaming Stats ------------");
 
 }
@@ -116,6 +118,12 @@ void FPixelStreamingStats::SetEncoderQP(double QP)
 void FPixelStreamingStats::SetCaptureLatency(double InCaptureLatencyMs)
 {
 	this->CaptureLatencyMs.Update(InCaptureLatencyMs);
+}
+
+void FPixelStreamingStats::OnKeyframeEncoded()
+{
+	uint64 NowCycles = FPlatformTime::Cycles();
+	this->LastKeyFrameTimeCycles = NowCycles;
 }
 
 void FPixelStreamingStats::Reset()

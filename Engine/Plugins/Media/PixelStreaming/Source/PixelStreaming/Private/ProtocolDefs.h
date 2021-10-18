@@ -3,6 +3,7 @@
 #pragma once
 
 #include "HAL/Platform.h"
+#include "api/data_channel_interface.h"
 
 namespace PixelStreamingProtocol
 {

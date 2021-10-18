@@ -2,17 +2,17 @@
 
 #include "NVENC_EncoderH264.h"
 #include "HAL/Platform.h"
-
 #include "VideoEncoderCommon.h"
 #include "CodecPacket.h"
 #include "AVEncoderDebug.h"
 #include "RHI.h"
 #include "HAL/Event.h"
 #include "HAL/PlatformTime.h"
+#include "Misc/Timespan.h"
 #include "HAL/PlatformProcess.h"
-
 #include "CudaModule.h"
-
+#include "Misc/ScopedEvent.h"
+#include "Async/Async.h"
 #include <stdio.h>
 
 #define MAX_GPU_INDEXES 50
@@ -79,7 +79,84 @@ namespace
 
 namespace AVEncoder
 {
+	// Console variables for NVENC
+
+	TAutoConsoleVariable<int32>  CVarIntraRefreshPeriodFrames(
+	TEXT("NVENC.IntraRefreshPeriodFrames"),
+	0,
+	TEXT("The total number of frames between each intra refresh. Smallers values will cause intra refresh more often. Default: 0. Values <= 0 will disable intra refresh."),
+	ECVF_Default);
+
+	TAutoConsoleVariable<int32>  CVarIntraRefreshCountFrames(
+	TEXT("NVENC.IntraRefreshCountFrames"),
+	0,
+	TEXT("The total number of frames within the intra refresh period that should be used as 'intra refresh' frames. Smaller values make stream recovery quicker at the cost of more bandwidth usage. Default: 0."),
+	ECVF_Default);
+
+	TAutoConsoleVariable<bool>  CVarKeyframeQPUseLastQP(
+	TEXT("NVENC.KeyframeQPUseLastQP"),
+	true,
+	TEXT("If true QP of keyframes is no worse than the last frame transmitted (may cost latency), if false, it may be keyframe QP may be worse if network conditions require it (lower latency/worse quality). Default: true."),
+	ECVF_Default);
+
+	TAutoConsoleVariable<int32>  CVarKeyframeInterval(
+	TEXT("NVENC.KeyframeInterval"),
+	300,
+	TEXT("Every N frames an IDR frame is sent. Default: 300. Note: A value <= 0 will disable sending of IDR frames on an interval."),
+	ECVF_Default);
+
+	template<typename T>
+	void CommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<T>& CVar)
+	{
+		T Value;
+		if (FParse::Value(FCommandLine::Get(), Match, Value))
+		{
+			CVar->Set(Value, ECVF_SetByCommandline);
+		}
+	};
+
+	void CommandLineParseOption(const TCHAR* Match, TAutoConsoleVariable<bool>& CVar)
+	{
+		FString ValueMatch(Match);
+		ValueMatch.Append(TEXT("="));
+		FString Value;
+		if (FParse::Value(FCommandLine::Get(), *ValueMatch, Value)) {
+			if (Value.Equals(FString(TEXT("true")), ESearchCase::IgnoreCase)) {
+				CVar->Set(true, ECVF_SetByCommandline);
+			}
+			else if (Value.Equals(FString(TEXT("false")), ESearchCase::IgnoreCase)) {
+				CVar->Set(false, ECVF_SetByCommandline);
+			}
+		}
+		else if (FParse::Param(FCommandLine::Get(), Match))
+		{
+			CVar->Set(true, ECVF_SetByCommandline);
+		}
+	}
+
+	void ParseCommandLineFlags()
+	{
+		// CVar changes can only be triggered from the game thread
+		{
+			// We block on our current thread until these CVars are set on the game thread, the settings of these CVars needs to happen before we can proceed.
+            FScopedEvent ThreadBlocker;
+
+			AsyncTask(ENamedThreads::GameThread, [&ThreadBlocker]()
+			{ 
+				CommandLineParseValue(TEXT("-NVENCIntraRefreshPeriodFrames="), CVarIntraRefreshPeriodFrames);
+				CommandLineParseValue(TEXT("-NVENCIntraRefreshCountFrames="), CVarIntraRefreshCountFrames);
+				CommandLineParseOption(TEXT("-NVENCKeyFrameQPUseLastQP="), CVarKeyframeQPUseLastQP);
+				CommandLineParseValue(TEXT("-NVENCKeyframeInterval="), CVarKeyframeInterval);
+
+				// Unblocks the thread
+                ThreadBlocker.Trigger();
+			});
+            // Blocks current thread until game thread calls trigger (indicating it is done)
+        }
+	}
+
 	static bool GetEncoderInfo(FNVENCCommon& NVENC, FVideoEncoderInfo& EncoderInfo);
+	static int GetEncoderCapability(FNVENCCommon& NVENC, void* InEncoder, NV_ENC_CAPS InCapsToQuery);
 
 	bool FVideoEncoderNVENC_H264::GetIsAvailable(const FVideoEncoderInput& InVideoFrameFactory, FVideoEncoderInfo& OutEncoderInfo)
 	{
@@ -143,7 +220,12 @@ namespace AVEncoder
 
 		FLayerConfig mutableConfig = InitConfig;
 		if(mutableConfig.MaxFramerate == 0)
+		{
 			mutableConfig.MaxFramerate = 60;
+		}
+		
+		// Parse NVENC settings from command line (if any relevant ones are passed)
+		ParseCommandLineFlags();
 
 		return AddLayer(mutableConfig);
 	}
@@ -163,9 +245,6 @@ namespace AVEncoder
 
 	void FVideoEncoderNVENC_H264::Encode(FVideoEncoderInputFrame const* InFrame, const FEncodeOptions& EncodeOptions)
 	{
-		// TODO check change is fine
-		// todo: reconfigure encoder
-		// auto const nvencFrame = static_cast<FVideoFrame const*>(InFrame);
 		for(auto&& layer : Layers)
 		{
 			auto const nvencLayer = static_cast<FNVENCLayer*>(layer);
@@ -290,23 +369,58 @@ namespace AVEncoder
 		FMemory::Memcpy(&EncoderConfig, &PresetConfig.presetCfg, sizeof(NV_ENC_CONFIG));
 		EncoderConfig.profileGUID = ConvertH264Profile(CurrentConfig.H264Profile);
 		EncoderConfig.rcParams.version = NV_ENC_RC_PARAMS_VER;
+
 		EncoderInitParams.encodeConfig = &EncoderConfig;
 
-		// h264 specific settings
+		////////////////////////////////
+		// H.264 specific settings
+		////////////////////////////////
 
-		// repeat SPS/PPS with each key-frame for a case when the first frame (with mandatory SPS/PPS)
-		// was dropped by WebRTC
+		/*
+		* Intra refresh - used to stabilise stream on the decoded side when frames are dropped/lost.
+		*/
+		int32 IntraRefreshPeriodFrames = CVarIntraRefreshPeriodFrames.GetValueOnAnyThread();
+		int32 IntraRefreshCountFrames = CVarIntraRefreshCountFrames.GetValueOnAnyThread();
+		bool bIntraRefreshSupported = GetEncoderCapability(NVENC, NVEncoder, NV_ENC_CAPS_SUPPORT_INTRA_REFRESH) > 0; 
+		bool bIntraRefreshEnabled = IntraRefreshPeriodFrames > 0;
+
+		if (bIntraRefreshEnabled && bIntraRefreshSupported) 
+		{
+			EncoderConfig.encodeCodecConfig.h264Config.enableIntraRefresh = 1;
+			EncoderConfig.encodeCodecConfig.h264Config.intraRefreshPeriod = IntraRefreshPeriodFrames;
+			EncoderConfig.encodeCodecConfig.h264Config.intraRefreshCnt = IntraRefreshCountFrames;
+			
+			UE_LOG(LogEncoderNVENC, Log, TEXT("NVENC intra refresh enabled."));
+			UE_LOG(LogEncoderNVENC, Log, TEXT("NVENC intra refresh period set to = %d"), IntraRefreshPeriodFrames);
+			UE_LOG(LogEncoderNVENC, Log, TEXT("NVENC intra refresh count = %d"), IntraRefreshCountFrames);
+		}
+		else if(bIntraRefreshEnabled && !bIntraRefreshSupported)
+		{
+			UE_LOG(LogEncoderNVENC, Error, TEXT("NVENC intra refresh capability is not supported on this device, cannot use this feature"));
+		}
+
+		/*
+		* IDR period - how often to send IDR (instantaneous decode refresh) frames, a.k.a keyframes. This can stabilise a stream that dropped/lost some frames (but at the cost of more bandwidth).
+		*/
+		int32 IdrPeriod = CVarKeyframeInterval.GetValueOnAnyThread();
+		if(IdrPeriod > 0)
+		{
+			EncoderConfig.encodeCodecConfig.h264Config.idrPeriod = IdrPeriod;
+		}
+
+		/*
+		* Repeat SPS/PPS - sends sequence and picture parameter info with every IDR frame - maximum stabilisation of the stream when IDR is sent.
+		*/
 		EncoderConfig.encodeCodecConfig.h264Config.repeatSPSPPS = 1;
 
-		// configure "entire frame as a single slice"
-		// seems WebRTC implementation doesn't work well with slicing, default mode
-		// produces (rarely, but specially under packet loss) grey full screen or just top half of it.
+		/*
+		* Slice mode - set the slice mode to "entire frame as a single slice" because WebRTC implementation doesn't work well with slicing. The default slicing mode
+		* produces (rarely, but especially under packet loss) grey full screen or just top half of it.
+		*/
 		EncoderConfig.encodeCodecConfig.h264Config.sliceMode = 0;
 		EncoderConfig.encodeCodecConfig.h264Config.sliceModeData = 0;
 
-		// update config from CurrentConfig
 		UpdateConfig();
-
 		return true;
 	}
 
@@ -322,12 +436,6 @@ namespace AVEncoder
 				EncoderInitParams.frameRateNum = CurrentConfig.MaxFramerate;
 			}
 
-			// `outputPictureTimingSEI` is used in CBR mode to fill video frame with data to match the requested bitrate.
-			if(CurrentConfig.RateControlMode == AVEncoder::FVideoEncoder::RateControlMode::CBR)
-			{
-				EncoderInitParams.encodeConfig->encodeCodecConfig.h264Config.outputPictureTimingSEI = EncoderInitParams.encodeConfig->rcParams.enableMinQP ? 0 : 1;
-			}
-
 			NVENCStruct(NV_ENC_RECONFIGURE_PARAMS, ReconfigureParams);
 			FMemory::Memcpy(&ReconfigureParams.reInitEncodeParams, &EncoderInitParams, sizeof(EncoderInitParams));
 
@@ -339,36 +447,63 @@ namespace AVEncoder
 		}
 	}
 
+	void FVideoEncoderNVENC_H264::FNVENCLayer::UpdateLastEncodedQP(uint32 InLastEncodedQP)
+	{
+		if(InLastEncodedQP == LastEncodedQP)
+		{
+			// QP is the same, do nothing.
+			return;
+		}
+
+		LastEncodedQP = InLastEncodedQP;
+		NeedsReconfigure = true;
+	}
+
 	void FVideoEncoderNVENC_H264::FNVENCLayer::UpdateConfig()
 	{
 		EncoderInitParams.encodeWidth = EncoderInitParams.darWidth = CurrentConfig.Width;
 		EncoderInitParams.encodeHeight = EncoderInitParams.darHeight = CurrentConfig.Height;
 
-		auto& rateContolParams = EncoderInitParams.encodeConfig->rcParams;
-		rateContolParams.rateControlMode = ConvertRateControlModeNVENC(CurrentConfig.RateControlMode);
-		rateContolParams.averageBitRate = CurrentConfig.TargetBitrate > -1 ? CurrentConfig.TargetBitrate : DEFAULT_BITRATE;
-		rateContolParams.maxBitRate = CurrentConfig.MaxBitrate > -1 ? CurrentConfig.MaxBitrate : DEFAULT_BITRATE; // Not used for CBR
-		rateContolParams.multiPass = ConvertMultipassModeNVENC(CurrentConfig.MultipassMode);
-		auto const minqp = static_cast<uint32_t>(CurrentConfig.QPMin);
-		auto const maxqp = static_cast<uint32_t>(CurrentConfig.QPMax);
-		rateContolParams.minQP = {minqp, minqp, minqp};
-		rateContolParams.maxQP = {maxqp, maxqp, maxqp};
-		rateContolParams.enableMinQP = CurrentConfig.QPMin > -1;
-		rateContolParams.enableMaxQP = CurrentConfig.QPMax > -1;
+		uint32_t const MinQP = static_cast<uint32_t>(CurrentConfig.QPMin);
+		uint32_t const MaxQP = static_cast<uint32_t>(CurrentConfig.QPMax);
+
+		NV_ENC_RC_PARAMS& RateControlParams = EncoderInitParams.encodeConfig->rcParams;
+		RateControlParams.rateControlMode = ConvertRateControlModeNVENC(CurrentConfig.RateControlMode);
+		RateControlParams.averageBitRate = CurrentConfig.TargetBitrate > -1 ? CurrentConfig.TargetBitrate : DEFAULT_BITRATE;
+		RateControlParams.maxBitRate = CurrentConfig.MaxBitrate > -1 ? CurrentConfig.MaxBitrate : DEFAULT_BITRATE; // Not used for CBR
+		RateControlParams.multiPass = ConvertMultipassModeNVENC(CurrentConfig.MultipassMode);
+		RateControlParams.minQP = {MinQP, MinQP, MinQP};
+		RateControlParams.maxQP = {MaxQP, MaxQP, MaxQP}; 
+		RateControlParams.enableMinQP = CurrentConfig.QPMin > -1;
+		RateControlParams.enableMaxQP = CurrentConfig.QPMax > -1;
+
+		// If we have QP ranges turned on use the last encoded QP to guide the max QP for an i-frame, so the i-frame doesn't look too blocky
+		// Note: this does nothing if we have i-frames turned off.
+		if(RateControlParams.enableMaxQP && LastEncodedQP > 0 && CVarKeyframeQPUseLastQP.GetValueOnAnyThread())
+		{
+			RateControlParams.maxQP.qpIntra = LastEncodedQP;
+		}
 
 		EncoderInitParams.encodeConfig->profileGUID = ConvertH264Profile(CurrentConfig.H264Profile);
 
-		auto& h264Config = EncoderInitParams.encodeConfig->encodeCodecConfig.h264Config;
-		h264Config.enableFillerDataInsertion = CurrentConfig.FillData ? 1 : 0;
+		NV_ENC_CONFIG_H264& H264Config = EncoderInitParams.encodeConfig->encodeCodecConfig.h264Config;
+		H264Config.enableFillerDataInsertion = CurrentConfig.FillData ? 1 : 0;
+
+		if(CurrentConfig.RateControlMode == AVEncoder::FVideoEncoder::RateControlMode::CBR && CurrentConfig.FillData)
+		{
+			// `outputPictureTimingSEI` is used in CBR mode to fill video frame with data to match the requested bitrate.
+			H264Config.outputPictureTimingSEI = 1;
+		}
 	}
 
 	void FVideoEncoderNVENC_H264::FNVENCLayer::Encode(FVideoEncoderInputFrame const* InFrame, const FEncodeOptions& EncodeOptions)
 	{
+		uint64 EncodeStartMs = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64());
 		FInputOutput* Buffer = GetOrCreateBuffer(static_cast<const FVideoEncoderInputFrameImpl*>(InFrame->Obtain()));
 
 		if(Buffer)
 		{
-			Buffer->EncodeStartMs = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64());
+			Buffer->EncodeStartMs = EncodeStartMs;
 
 			if(MapInputTexture(*Buffer))
 			{
@@ -526,10 +661,15 @@ namespace AVEncoder
 									UE_LOG(LogEncoderNVENC, Verbose, TEXT("Generated IDR Frame"));
 									Packet.IsKeyFrame = true;
 								}
-								
+								else
+								{
+									// If it is not a keyframe store the QP.
+									UpdateLastEncodedQP(Buffer->FrameAvgQP);
+								}
+
 								Packet.VideoQP = Buffer->FrameAvgQP;
-								Packet.Timings.StartTs = Buffer->EncodeStartMs;
-								Packet.Timings.FinishTs = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64());
+								Packet.Timings.StartTs = FTimespan::FromMilliseconds(Buffer->EncodeStartMs);
+								Packet.Timings.FinishTs = FTimespan::FromMilliseconds(FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64()));
 								Packet.Framerate = EncoderInitParams.frameRateNum;
 
 								// yeet it out
@@ -996,7 +1136,7 @@ namespace AVEncoder
 		NVENCStruct(NV_ENC_CAPS_PARAM, CapsParam);
 		CapsParam.capsToQuery = InCapsToQuery;
 		NVENCSTATUS Result = NVENC.nvEncGetEncodeCaps(InEncoder, NV_ENC_CODEC_H264_GUID, &CapsParam, &CapsValue);
-		//	UE_LOG(LogEncoderNVENC, Error, TEXT("NVENC.nvEncGetEncodeCaps(InEncoder, NV_ENC_CODEC_H264_GUID, &CapsParam, &CapsValue); -> %d"), Result);
+		
 		if(Result != NV_ENC_SUCCESS)
 		{
 			UE_LOG(LogEncoderNVENC, Warning, TEXT("Failed to query for NVENC capability %d (error %d)."), InCapsToQuery, Result);
@@ -1013,7 +1153,7 @@ namespace AVEncoder
 
 		OutSupportedProfiles = 0;
 		NVENCSTATUS Result = NVENC.nvEncGetEncodeProfileGUIDs(InEncoder, NV_ENC_CODEC_H264_GUID, ProfileGUIDs, MaxProfileGUIDs, &NumProfileGUIDs);
-		//	UE_LOG(LogEncoderNVENC, Error, TEXT("NVENC.nvEncGetEncodeProfileGUIDs(InEncoder, NV_ENC_CODEC_H264_GUID, ProfileGUIDs, MaxProfileGUIDs, &NumProfileGUIDs); -> %d"), Result);
+		
 		if(Result != NV_ENC_SUCCESS)
 		{
 			UE_LOG(LogEncoderNVENC, Error, TEXT("Unable to query profiles supported by NvEnc (error: %d)."), Result);

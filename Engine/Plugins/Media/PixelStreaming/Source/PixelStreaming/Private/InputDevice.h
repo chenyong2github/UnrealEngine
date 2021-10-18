@@ -5,6 +5,7 @@
 #include "IInputDevice.h"
 #include "Containers/Queue.h"
 #include "GenericPlatform/GenericApplication.h"
+#include "api/data_channel_interface.h"
 
 class IPixelStreamingModule;
 

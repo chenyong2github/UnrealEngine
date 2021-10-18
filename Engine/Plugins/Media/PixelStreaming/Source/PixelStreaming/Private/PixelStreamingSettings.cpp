@@ -2,6 +2,8 @@
 
 #include "PixelStreamingSettings.h"
 #include "PixelStreamingPrivate.h"
+#include "Async/TaskGraphInterfaces.h"
+#include "Async/Async.h"
 
 template<typename T>
 void CommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<T>& CVar)
@@ -60,14 +62,14 @@ namespace PixelStreamingSettings
 
 	TAutoConsoleVariable<int32> CVarPixelStreamingEncoderMinQP(
 		TEXT("PixelStreaming.Encoder.MinQP"),
-		-1,
-		TEXT("0-51, lower values result in better quality but higher bitrate. Default -1. -1 will disable any hard limit on a minimum QP."),
+		1,
+		TEXT("0-51, lower values result in better quality but higher bitrate. Default: 1. -1 will disable any hard limit on a minimum QP and also disable NVENC.KeyFrameQPUseLastQP."),
 		ECVF_Default);
 
 	TAutoConsoleVariable<int32> CVarPixelStreamingEncoderMaxQP(
 		TEXT("PixelStreaming.Encoder.MaxQP"),
-		-1,
-		TEXT("0-51, lower values result in better quality but higher bitrate. Default -1. -1 will disable any hard limit on a maximum QP."),
+		51,
+		TEXT("0-51, lower values result in better quality but higher bitrate. Default: 51. -1 will disable any hard limit on a maximum QP and also disable NVENC.KeyFrameQPUseLastQP."),
 		ECVF_Default);
 
 	TAutoConsoleVariable<FString> CVarPixelStreamingEncoderRateControl(
@@ -93,6 +95,13 @@ namespace PixelStreamingSettings
 		TEXT("BASELINE"),
 		TEXT("PixelStreaming encoder profile. Supported modes are `AUTO`, `BASELINE`, `MAIN`, `HIGH`, `HIGH444`, `STEREO`, `SVC_TEMPORAL_SCALABILITY`, `PROGRESSIVE_HIGH`, `CONSTRAINED_HIGH`"),
 		ECVF_Default);
+
+	TAutoConsoleVariable<int32> CVarPixelStreamingEncoderKeyframeInterval(
+		TEXT("PixelStreaming.Encoder.KeyframeInterval"),
+		300,
+		TEXT("How many frames before a key frame is sent. Default: 300. Values <=0 will disable sending of periodic key frames. Note: NVENC does not support changing this after encoding has started."),
+		ECVF_Default);
+
 // End Encoder CVars
 
 // Begin Capturer CVars
@@ -241,6 +250,28 @@ namespace PixelStreamingSettings
 			FilteredKeys.Add(FKey(*KeyString));
 		}
 	}
+
+	void OnKeyframeIntervalChanged(IConsoleVariable* Var)
+	{
+		// HACK: Only doing it like this because this a hotfix change and cannot public ABI.
+		// Todo: Fix in next proper engine release.
+		AsyncTask(ENamedThreads::GameThread, [Var]()
+		{ 
+			IConsoleVariable* CVarNVENCKeyframeInterval = IConsoleManager::Get().FindConsoleVariable(TEXT("NVENC.KeyframeInterval"));
+			if(CVarNVENCKeyframeInterval)
+			{
+				CVarNVENCKeyframeInterval->Set(Var->GetInt(), ECVF_SetByCommandline);
+			}
+
+			IConsoleVariable* CVarAMFKeyframeInterval = IConsoleManager::Get().FindConsoleVariable(TEXT("AMF.KeyframeInterval"));
+			if(CVarNVENCKeyframeInterval)
+			{
+				CVarAMFKeyframeInterval->Set(Var->GetInt(), ECVF_SetByCommandline);
+			}
+		});
+		
+	}
+
 // Ends Pixel Streaming Plugin CVars
 
 // Begin utility functions etc.
@@ -317,8 +348,10 @@ namespace PixelStreamingSettings
 		UE_LOG(PixelStreamer, Log, TEXT("Initialising Pixel Streaming settings."));
 
 		PixelStreamingSettings::CVarPixelStreamingKeyFilter.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&PixelStreamingSettings::OnFilteredKeysChanged));
+		PixelStreamingSettings::CVarPixelStreamingEncoderKeyframeInterval.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&PixelStreamingSettings::OnKeyframeIntervalChanged));
 
 		// Values parse from commands line
+		CommandLineParseValue(TEXT("PixelStreamingEncoderKeyframeInterval="), PixelStreamingSettings::CVarPixelStreamingEncoderKeyframeInterval);
 		CommandLineParseValue(TEXT("PixelStreamingEncoderTargetBitrate="), PixelStreamingSettings::CVarPixelStreamingEncoderTargetBitrate);
 		CommandLineParseValue(TEXT("PixelStreamingEncoderMaxBitrate="), PixelStreamingSettings::CVarPixelStreamingEncoderMaxBitrate);
 		CommandLineParseValue(TEXT("PixelStreamingEncoderMinQP="), PixelStreamingSettings::CVarPixelStreamingEncoderMinQP);

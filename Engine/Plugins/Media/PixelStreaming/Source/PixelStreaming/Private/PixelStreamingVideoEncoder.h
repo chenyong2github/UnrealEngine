@@ -47,7 +47,8 @@ public:
 private:
 	void UpdateConfig(AVEncoder::FVideoEncoder::FLayerConfig const& Config);
 	void HandlePendingRateChange();
-	void CreateAVEncoder(TSharedPtr<AVEncoder::FVideoEncoderInput> encoderInput);
+	void CreateAVEncoder(TSharedPtr<AVEncoder::FVideoEncoderInput> EncoderInput);
+	AVEncoder::FVideoEncoder::FLayerConfig CreateEncoderConfigFromCVars(AVEncoder::FVideoEncoder::FLayerConfig BaseEncoderConfig) const;
 
 	// We store this so we can restore back to it if the user decides to use then stop using the PixelStreaming.Encoder.TargetBitrate CVar.
 	int32 WebRtcProposedTargetBitrate = 5000000; 

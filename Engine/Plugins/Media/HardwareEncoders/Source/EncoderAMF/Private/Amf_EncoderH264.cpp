@@ -2,17 +2,15 @@
 
 #include "Amf_EncoderH264.h"
 #include "HAL/Platform.h"
-
 #include "VideoEncoderCommon.h"
 #include "CodecPacket.h"
 #include "AVEncoderDebug.h"
 #include "VulkanRHIBridge.h"
-
 #include "VideoEncoderInput.h"
-
 #include "RHI.h"
-
 #include <stdio.h>
+#include "Misc/ScopedEvent.h"
+#include "Async/Async.h"
 
 #define MAX_GPU_INDEXES 50
 #define DEFAULT_BITRATE 1000000u
@@ -52,6 +50,60 @@ namespace
 
 namespace AVEncoder
 {
+
+	TAutoConsoleVariable<int32>  CVarAMFKeyframeInterval(
+	TEXT("AMF.KeyframeInterval"),
+	300,
+	TEXT("Every N frames an IDR frame is sent. Default: 300. Note: A value <= 0 will disable sending of IDR frames on an interval."),
+	ECVF_Default);
+
+	template<typename T>
+	void CommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<T>& CVar)
+	{
+		T Value;
+		if (FParse::Value(FCommandLine::Get(), Match, Value))
+		{
+			CVar->Set(Value, ECVF_SetByCommandline);
+		}
+	};
+
+	void CommandLineParseOption(const TCHAR* Match, TAutoConsoleVariable<bool>& CVar)
+	{
+		FString ValueMatch(Match);
+		ValueMatch.Append(TEXT("="));
+		FString Value;
+		if (FParse::Value(FCommandLine::Get(), *ValueMatch, Value)) {
+			if (Value.Equals(FString(TEXT("true")), ESearchCase::IgnoreCase)) {
+				CVar->Set(true, ECVF_SetByCommandline);
+			}
+			else if (Value.Equals(FString(TEXT("false")), ESearchCase::IgnoreCase)) {
+				CVar->Set(false, ECVF_SetByCommandline);
+			}
+		}
+		else if (FParse::Param(FCommandLine::Get(), Match))
+		{
+			CVar->Set(true, ECVF_SetByCommandline);
+		}
+	}
+
+	void ParseCommandLineFlags()
+	{
+		// CVar changes can only be triggered from the game thread
+		{
+			// We block on our current thread until these CVars are set on the game thread, the settings of these CVars needs to happen before we can proceed.
+            FScopedEvent ThreadBlocker;
+
+			AsyncTask(ENamedThreads::GameThread, [&ThreadBlocker]()
+			{ 
+				CommandLineParseValue(TEXT("-AMFKeyframeInterval="), CVarAMFKeyframeInterval);
+
+				// Unblocks the thread
+                ThreadBlocker.Trigger();
+			});
+            // Blocks current thread until game thread calls trigger (indicating it is done)
+        }
+	}
+
 	static bool GetEncoderInfo(FAmfCommon& Amf, FVideoEncoderInfo& EncoderInfo);
 
 	bool FVideoEncoderAmf_H264::GetIsAvailable(FVideoEncoderInputImpl& InInput, FVideoEncoderInfo& OutEncoderInfo)
@@ -151,9 +203,13 @@ namespace AVEncoder
 			}
 		}
 
-		FLayerConfig mutableConfig = config;
-		if (mutableConfig.MaxFramerate == 0)
-			mutableConfig.MaxFramerate = 60;
+		ParseCommandLineFlags();
+
+		FLayerConfig MutableConfig = config;
+		if (MutableConfig.MaxFramerate == 0)
+		{
+			MutableConfig.MaxFramerate = 60;
+		}
 
 		return AddLayer(config);
 	}
@@ -285,7 +341,12 @@ namespace AVEncoder
 		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_MAX_QP, CurrentConfig.QPMax > -1 ? FMath::Clamp<amf_int64>(CurrentConfig.QPMax, 0, 51) : 51);
 
 		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_QUERY_TIMEOUT, 16);
-		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_IDR_PERIOD, 60);
+
+		int32 IdrPeriod = CVarAMFKeyframeInterval.GetValueOnAnyThread();
+		if(IdrPeriod > 0)
+		{
+			Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_IDR_PERIOD, IdrPeriod);
+		}
 
 		Result = AmfEncoder->Init(AMF_SURFACE_BGRA, CurrentConfig.Width, CurrentConfig.Height);
 		CurrentWidth = CurrentConfig.Width;

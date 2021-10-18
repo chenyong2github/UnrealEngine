@@ -26,6 +26,7 @@ namespace PixelStreamingSettings
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingEnableFillerData;
 	extern TAutoConsoleVariable<FString> CVarPixelStreamingEncoderMultipass;
 	extern TAutoConsoleVariable<FString> CVarPixelStreamingH264Profile;
+	extern TAutoConsoleVariable<int32> CVarPixelStreamingEncoderKeyFrameInterval;
 // End Encoder CVars
 
 // Begin Capturer CVars
