@@ -10,6 +10,7 @@
 #include "PreviewScene.h"
 #include "SAssetEditorViewport.h"
 #include "SUVEditor2DViewport.h"
+#include "SUVEditor3DViewport.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "ToolContextInterfaces.h"
 #include "ToolMenus.h"
@@ -18,6 +19,7 @@
 #include "UVEditorCommands.h"
 #include "UVEditorSubsystem.h"
 #include "UVEditor2DViewportClient.h"
+#include "UVEditor3DViewportClient.h"
 #include "UVToolContextObjects.h"
 #include "Widgets/Docking/SDockTab.h"
 
@@ -82,7 +84,7 @@ FUVEditorToolkit::FUVEditorToolkit(UAssetEditor* InOwningAssetEditor)
 					FTabManager::NewStack()
 					->SetSizeCoefficient(0.4f)
 					->AddTab(LivePreviewTabID, ETabState::OpenedTab)
-					->SetHideTabWell(false)
+					->SetHideTabWell(true)
 				)
 			)
 		);
@@ -99,12 +101,12 @@ FUVEditorToolkit::FUVEditorToolkit(UAssetEditor* InOwningAssetEditor)
 	LivePreviewInputRouter = LivePreviewEditorModeManager->GetInteractiveToolsContext()->InputRouter;
 
 	LivePreviewTabContent = MakeShareable(new FEditorViewportTabContent());
-	LivePreviewViewportClient = MakeShared<FEditorViewportClient>(
+	LivePreviewViewportClient = MakeShared<FUVEditor3DViewportClient>(
 		LivePreviewEditorModeManager.Get(), LivePreviewScene.Get());
 
 	LivePreviewViewportDelegate = [this](FAssetEditorViewportConstructionArgs InArgs)
 	{
-		return SNew(SAssetEditorViewport, InArgs)
+		return SNew(SUVEditor3DViewport, InArgs)
 			.EditorViewportClient(LivePreviewViewportClient);
 	};
 }
@@ -185,13 +187,13 @@ void FUVEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabM
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
 
 	InTabManager->RegisterTabSpawner(ViewportTabID, FOnSpawnTab::CreateSP(this, &FUVEditorToolkit::SpawnTab_Viewport))
-		.SetDisplayName(LOCTEXT("ViewportTab", "Viewport"))
+		.SetDisplayName(LOCTEXT("ViewportTabUV", "UV Viewport"))
 		.SetGroup(AssetEditorTabsCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Viewports"));
 
 	InTabManager->RegisterTabSpawner(LivePreviewTabID, FOnSpawnTab::CreateSP(this, 
 		&FUVEditorToolkit::SpawnTab_LivePreview))
-		.SetDisplayName(LOCTEXT("ViewportTab", "Viewport"))
+		.SetDisplayName(LOCTEXT("ViewportTabLivePreview", "3D Viewport"))
 		.SetGroup(AssetEditorTabsCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Viewports"));
 }
@@ -433,10 +435,11 @@ void FUVEditorToolkit::PostInitAssetEditor()
 
 	// Adjust our live preview (3D) viewport
 	SetCommonViewportClientOptions(LivePreviewViewportClient.Get());
+	LivePreviewViewportClient->ToggleOrbitCamera(true);
+
 	// TODO: This should not be hardcoded
 	LivePreviewViewportClient->SetViewLocation(FVector(-200, 100, 100));
 	LivePreviewViewportClient->SetLookAtLocation(FVector(0, 0, 0));
-	LivePreviewViewportClient->ToggleOrbitCamera(true);
 }
 
 #undef LOCTEXT_NAMESPACE

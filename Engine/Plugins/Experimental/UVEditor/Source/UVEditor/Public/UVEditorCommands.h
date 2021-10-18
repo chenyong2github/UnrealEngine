@@ -25,4 +25,7 @@ public:
 
 	TSharedPtr<FUICommandInfo> AcceptActiveTool;
 	TSharedPtr<FUICommandInfo> CancelActiveTool;
+
+	TSharedPtr<FUICommandInfo> EnableOrbitCamera;
+	TSharedPtr<FUICommandInfo> EnableFlyCamera;
 };
