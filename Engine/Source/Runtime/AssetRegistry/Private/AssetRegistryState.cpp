@@ -662,9 +662,12 @@ bool FAssetRegistryState::EnumerateAssets(const FARCompiledFilter& Filter, const
 	// On disk tags and values
 	if (Filter.TagsAndValues.Num() > 0)
 	{
-		TArray<FAssetData*>& TagAndValuesFilter = FilterResults.Emplace_GetRef();
+		TSet<FAssetData*> TagAndValuesFilter;
 		// Sometimes number of assets matching this filter is correlated to number of assets matching previous filters 
-		TagAndValuesFilter.Reserve(FilterResults[0].Num());
+		if (FilterResults.Num())
+		{
+			TagAndValuesFilter.Reserve(FilterResults[0].Num());
+		}
 
 		for (auto FilterTagIt = Filter.TagsAndValues.CreateConstIterator(); FilterTagIt; ++FilterTagIt)
 		{
@@ -694,6 +697,8 @@ bool FAssetRegistryState::EnumerateAssets(const FARCompiledFilter& Filter, const
 				}
 			}
 		}
+
+		FilterResults.Emplace(TagAndValuesFilter.Array());
 	}
 
 	// Perform callback for assets that match all filters
@@ -729,6 +734,7 @@ bool FAssetRegistryState::EnumerateAssets(const FARCompiledFilter& Filter, const
 			for (TPair<FAssetData*, uint32> PassCount : PassCounts)
 			{
 				const FAssetData* AssetData = PassCount.Key;
+				check(PassCount.Value <= (uint32)FilterResults.Num());
 				if (PassCount.Value != FilterResults.Num() || SkipAssetData(AssetData))
 				{
 					continue;
