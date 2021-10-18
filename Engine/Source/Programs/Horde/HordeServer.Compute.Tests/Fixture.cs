@@ -33,10 +33,10 @@ namespace HordeServerTests
 		public IAgent Agent1 { get; private set; } = null!;
 		public string Agent1Name { get; private set; } = null!;
 
-		public static async Task<Fixture> Create(bool ForceNewFixture, IGraphCollection GraphCollection, TemplateService TemplateService, JobService JobService, IArtifactCollection ArtifactCollection, StreamService StreamService, AgentService AgentService, IPerforceService PerforceService)
+		public static async Task<Fixture> Create(bool ForceNewFixture, IGraphCollection GraphCollection, ITemplateCollection TemplateCollection, JobService JobService, IArtifactCollection ArtifactCollection, StreamService StreamService, AgentService AgentService, IPerforceService PerforceService)
 		{
 			Fixture _fixture = new Fixture();
-			await _fixture.Populate(GraphCollection, TemplateService, JobService, ArtifactCollection, StreamService, AgentService, PerforceService);
+			await _fixture.Populate(GraphCollection, TemplateCollection, JobService, ArtifactCollection, StreamService, AgentService, PerforceService);
 			
 			(PerforceService as PerforceServiceStub)?.AddChange("//UE5/Main", 112233, "leet.coder", "Did stuff", new []{"file.cpp"});
 			(PerforceService as PerforceServiceStub)?.AddChange("//UE5/Main", 1111, "swarm", "A shelved CL here", new []{"renderer.cpp"});
@@ -44,7 +44,7 @@ namespace HordeServerTests
 			return _fixture;
 		}
 
-		private async Task Populate(IGraphCollection GraphCollection, TemplateService TemplateService, JobService JobService, IArtifactCollection ArtifactCollection, StreamService StreamService, AgentService AgentService, IPerforceService PerforceService)
+		private async Task Populate(IGraphCollection GraphCollection, ITemplateCollection TemplateCollection, JobService JobService, IArtifactCollection ArtifactCollection, StreamService StreamService, AgentService AgentService, IPerforceService PerforceService)
 		{
 			var Fg = new FixtureGraph();
 			Fg.Id = ContentHash.Empty;
@@ -53,7 +53,7 @@ namespace HordeServerTests
 			Fg.Aggregates = new List<IAggregate>();
 			Fg.Labels = new List<ILabel>();
 
-			Template = await TemplateService.CreateTemplateAsync("Test template", null, false, null, null,
+			Template = await TemplateCollection.AddAsync("Test template", null, false, null, null,
 				new List<string>(), new List<Parameter>());
 			Graph = await GraphCollection.AddAsync(Template);
 

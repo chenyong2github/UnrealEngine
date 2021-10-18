@@ -336,6 +336,7 @@ namespace HordeServer
 			Services.AddSingleton<ITemplateCollection, TemplateCollection>();
 			Services.AddSingleton<ITestDataCollection, TestDataCollection>();
 			Services.AddSingleton<ITelemetryCollection, TelemetryCollection>();
+			Services.AddSingleton<ITemplateCollection, TemplateCollection>();
 			Services.AddSingleton<IUgsMetadataCollection, UgsMetadataCollection>();
 			Services.AddSingleton<IUserCollection, UserCollectionV2>();
 			Services.AddSingleton<IDeviceCollection, DeviceCollection>();
@@ -408,7 +409,6 @@ namespace HordeServer
 			Services.AddSingleton<IAvatarService, SlackNotificationSink>(SP => SP.GetRequiredService<SlackNotificationSink>());
 			Services.AddSingleton<INotificationSink, SlackNotificationSink>(SP => SP.GetRequiredService<SlackNotificationSink>());
 			Services.AddSingleton<StreamService>();
-			Services.AddSingleton<TemplateService>();
 			Services.AddSingleton<UpgradeService>();
 
 			Services.AddSingleton<DeviceService>();

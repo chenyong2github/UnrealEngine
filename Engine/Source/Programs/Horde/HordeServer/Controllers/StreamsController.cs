@@ -46,7 +46,7 @@ namespace HordeServer.Controllers
 		/// <summary>
 		/// Singleton instance of the template service
 		/// </summary>
-		private readonly TemplateService TemplateService;
+		private readonly ITemplateCollection TemplateCollection;
 
 		/// <summary>
 		/// Singleton instance of the job service
@@ -69,16 +69,16 @@ namespace HordeServer.Controllers
 		/// <param name="AclService">The ACL service</param>
 		/// <param name="ProjectService">The project service</param>
 		/// <param name="StreamService">The stream service</param>
-		/// <param name="TemplateService">The template service</param>
+		/// <param name="TemplateCollection">The template service</param>
 		/// <param name="JobService">The job service</param>
 		/// <param name="JobStepRefCollection">The jobstep ref collection</param>
 		/// <param name="PerforceService">The perforce service</param>
-		public StreamsController(AclService AclService, ProjectService ProjectService, StreamService StreamService, TemplateService TemplateService, JobService JobService, IJobStepRefCollection JobStepRefCollection, IPerforceService PerforceService)
+		public StreamsController(AclService AclService, ProjectService ProjectService, StreamService StreamService, ITemplateCollection TemplateCollection, JobService JobService, IJobStepRefCollection JobStepRefCollection, IPerforceService PerforceService)
 		{
 			this.AclService = AclService;
 			this.ProjectService = ProjectService;
 			this.StreamService = StreamService;
-			this.TemplateService = TemplateService;
+			this.TemplateCollection = TemplateCollection;
 			this.JobService = JobService;
 			this.JobStepRefCollection = JobStepRefCollection;
 			this.PerforceService = PerforceService;
@@ -156,7 +156,7 @@ namespace HordeServer.Controllers
 			{
 				if (await StreamService.AuthorizeAsync(Stream, Pair.Value, AclAction.ViewTemplate, User, Cache))
 				{
-					ITemplate? Template = await TemplateService.GetTemplateAsync(Pair.Value.Hash);
+					ITemplate? Template = await TemplateCollection.GetAsync(Pair.Value.Hash);
 					if (Template != null)
 					{
 						bool bIncludeTemplateAcl = Pair.Value.Acl != null && await StreamService.AuthorizeAsync(Stream, Pair.Value, AclAction.ViewPermissions, User, Cache);
@@ -336,15 +336,15 @@ namespace HordeServer.Controllers
 		/// </summary>
 		/// <param name="Requests">Request objects</param>
 		/// <param name="Stream">The current stream state</param>
-		/// <param name="TemplateService">The template service</param>
+		/// <param name="TemplateCollection">The template service</param>
 		/// <returns>List of new template references</returns>
-		static async Task<Dictionary<TemplateRefId, TemplateRef>> CreateTemplateRefs(List<CreateTemplateRefRequest> Requests, IStream? Stream, TemplateService TemplateService)
+		static async Task<Dictionary<TemplateRefId, TemplateRef>> CreateTemplateRefs(List<CreateTemplateRefRequest> Requests, IStream? Stream, ITemplateCollection TemplateCollection)
 		{
 			Dictionary<TemplateRefId, TemplateRef> NewTemplateRefs = new Dictionary<TemplateRefId, TemplateRef>();
 			foreach (CreateTemplateRefRequest Request in Requests)
 			{
 				// Create the template
-				ITemplate NewTemplate = await TemplateService.CreateTemplateAsync(Request.Name, Request.Priority, Request.AllowPreflights, Request.InitialAgentType, Request.SubmitNewChange, Request.Arguments, Request.Parameters.ConvertAll(x => x.ToModel()));
+				ITemplate NewTemplate = await TemplateCollection.AddAsync(Request.Name, Request.Priority, Request.AllowPreflights, Request.InitialAgentType, Request.SubmitNewChange, Request.Arguments, Request.Parameters.ConvertAll(x => x.ToModel()));
 
 				// Get an identifier for the new template ref
 				TemplateRefId NewTemplateRefId;
@@ -415,7 +415,7 @@ namespace HordeServer.Controllers
 				return Forbid();
 			}
 
-			ITemplate? Template = await TemplateService.GetTemplateAsync(TemplateRef.Hash);
+			ITemplate? Template = await TemplateCollection.GetAsync(TemplateRef.Hash);
 			if(Template == null)
 			{
 				return NotFound();

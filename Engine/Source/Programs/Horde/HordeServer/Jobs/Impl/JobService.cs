@@ -119,7 +119,7 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Singleton instance of the template service
 		/// </summary>
-		TemplateService TemplateService;
+		ITemplateCollection TemplateCollection;
 
 		/// <summary>
 		/// Singleton instance of the issue service
@@ -173,12 +173,12 @@ namespace HordeServer.Services
 		/// <param name="TriggerCollection">Trigger collection</param>
 		/// <param name="JobTaskSource">The queue service</param>
 		/// <param name="StreamService">The stream service</param>
-		/// <param name="TemplateService">The template service</param>
+		/// <param name="TemplateCollection">The template service</param>
 		/// <param name="IssueService">The issue service</param>
 		/// <param name="PerforceService">The perforce service</param>
 		/// <param name="Settings">Settings instance</param>
 		/// <param name="Logger">Log output</param>
-		public JobService(IJobCollection Jobs, IGraphCollection Graphs, IAgentCollection Agents, IJobStepRefCollection JobStepRefs, IJobTimingCollection JobTimings, IUserCollection UserCollection, INotificationTriggerCollection TriggerCollection, JobTaskSource JobTaskSource, StreamService StreamService, TemplateService TemplateService, IIssueService IssueService, IPerforceService PerforceService, IOptionsMonitor<ServerSettings> Settings, ILogger<JobService> Logger)
+		public JobService(IJobCollection Jobs, IGraphCollection Graphs, IAgentCollection Agents, IJobStepRefCollection JobStepRefs, IJobTimingCollection JobTimings, IUserCollection UserCollection, INotificationTriggerCollection TriggerCollection, JobTaskSource JobTaskSource, StreamService StreamService, ITemplateCollection TemplateCollection, IIssueService IssueService, IPerforceService PerforceService, IOptionsMonitor<ServerSettings> Settings, ILogger<JobService> Logger)
 		{
 			this.Jobs = Jobs;
 			this.Graphs = Graphs;
@@ -189,7 +189,7 @@ namespace HordeServer.Services
 			this.TriggerCollection = TriggerCollection;
 			this.JobTaskSource = JobTaskSource;
 			this.StreamService = StreamService;
-			this.TemplateService = TemplateService;
+			this.TemplateCollection = TemplateCollection;
 			this.IssueService = IssueService;
 			this.PerforceService = PerforceService;
 			this.Settings = Settings;
@@ -1111,7 +1111,7 @@ namespace HordeServer.Services
 						break;
 					}
 
-					ITemplate? Template = await TemplateService.GetTemplateAsync(TemplateRef.Hash);
+					ITemplate? Template = await TemplateCollection.GetAsync(TemplateRef.Hash);
 					if (Template == null)
 					{
 						Logger.LogWarning("Cannot find template {TemplateHash}", TemplateRef.Hash);
