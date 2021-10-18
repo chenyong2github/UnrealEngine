@@ -152,7 +152,8 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 	}
 	else if ( Context->MaterialToPrimvarToUVIndex && Context->AssetCache )
 	{
-		if ( const FString* PrimPathForCachedAsset = Context->AssetCache->GetAssetPrimLinks().FindKey( ConvertedMaterial ) )
+		const TMap<FString, UObject*> AssetPrimLinks = Context->AssetCache->GetAssetPrimLinks();
+		if ( const FString* PrimPathForCachedAsset = AssetPrimLinks.FindKey( ConvertedMaterial ) )
 		{
 			if ( TMap<FString, int32>* PrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex->Find(*PrimPathForCachedAsset) )
 			{
