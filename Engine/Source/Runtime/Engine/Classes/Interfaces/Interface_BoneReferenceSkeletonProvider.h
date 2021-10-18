@@ -21,6 +21,9 @@ class ENGINE_API IBoneReferenceSkeletonProvider
 
 public:
 
+	UE_DEPRECATED(5.0, "Please use GetSkeleton(bool& bInvalidSkeletonIsError, const class IPropertyHandle* PropertyHandle)")
+	virtual class USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError) { return GetSkeleton(bInvalidSkeletonIsError, nullptr); }
+
 	/**
 	 * Called to get the skeleton that FBoneReference's details customization will use to populate
 	 * bone names.
@@ -29,5 +32,5 @@ public:
 	 *
 	 * @return The skeleton we should use.
 	 */
-	virtual class USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError) PURE_VIRTUAL(IBoneReferenceSkeletonProvider::GetSkeleton, return nullptr; );
+	virtual class USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const class IPropertyHandle* PropertyHandle) PURE_VIRTUAL(IBoneReferenceSkeletonProvider::GetSkeleton, return nullptr; );
 };
