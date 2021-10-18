@@ -274,7 +274,7 @@ void UDrawAndRevolveTool::StartPreview()
 
 	Preview->ConfigureMaterials(MaterialProperties->Material.Get(),
 		ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
-	Preview->PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
+	Preview->PreviewMesh->EnableWireframe(MaterialProperties->bShowWireframe);
 
 	Preview->OnMeshUpdated.AddLambda(
 		[this](const UMeshOpPreviewWithBackgroundCompute* UpdatedPreview)
@@ -304,7 +304,7 @@ void UDrawAndRevolveTool::OnPropertyModified(UObject* PropertySet, FProperty* Pr
 				ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 		}
 
-		Preview->PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
+		Preview->PreviewMesh->EnableWireframe(MaterialProperties->bShowWireframe);
 		Preview->InvalidateResult();
 	}
 }

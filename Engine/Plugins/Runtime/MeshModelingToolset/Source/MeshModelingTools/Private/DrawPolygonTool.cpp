@@ -1048,7 +1048,7 @@ void UDrawPolygonTool::UpdateLivePreview()
 	{
 		PreviewMesh->SetTransform(PlaneFrame.ToFTransform());
 		PreviewMesh->SetMaterial(MaterialProperties->Material.Get());
-		PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
+		PreviewMesh->EnableWireframe(MaterialProperties->bShowWireframe);
 		PreviewMesh->UpdatePreview(&Mesh);
 	}
 }

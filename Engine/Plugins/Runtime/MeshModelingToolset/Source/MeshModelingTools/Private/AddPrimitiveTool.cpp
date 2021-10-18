@@ -10,7 +10,6 @@
 #include "ToolSetupUtil.h"
 
 #include "Components/StaticMeshComponent.h"
-#include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 
 #include "Generators/SweepGenerator.h"
@@ -22,8 +21,6 @@
 #include "Generators/StairGenerator.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "FaceGroupUtil.h"
-
-#include "Drawing/MeshDebugDrawing.h"
 
 #include "DynamicMeshEditor.h"
 #include "UObject/PropertyIterator.h"
@@ -90,7 +87,7 @@ UProceduralShapeToolProperties::IsEquivalent( const UProceduralShapeToolProperti
 	{
 		return false;
 	}
-	for ( FProperty* Prop : TFieldRange<FProperty>(Class) )
+	for (const FProperty* Prop : TFieldRange<FProperty>(Class))
 	{
 		if (Prop->HasMetaData(TEXT("ProceduralShapeSetting")) &&
 			(!Prop->Identical_InContainer(this, Other)))
@@ -143,7 +140,7 @@ void UAddPrimitiveTool::Setup()
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(PreviewMesh, nullptr); 
 	PreviewMesh->SetVisible(false);
 	PreviewMesh->SetMaterial(MaterialProperties->Material.Get());
-	PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
+	PreviewMesh->EnableWireframe(MaterialProperties->bShowWireframe);
 
 	UpdatePreviewMesh();
 
@@ -178,7 +175,7 @@ void UAddPrimitiveTool::OnPropertyModified(UObject* PropertySet, FProperty* Prop
 	// So we need to ensure that we handle this case.
 	if (PreviewMesh)
 	{
-		PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
+		PreviewMesh->EnableWireframe(MaterialProperties->bShowWireframe);
 		PreviewMesh->SetMaterial(MaterialProperties->Material.Get());
 		UpdatePreviewMesh();
 	}
@@ -218,9 +215,9 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 	bool bHit = false;
 
 	FPlane DrawPlane(FVector::ZeroVector, FVector(0, 0, 1));
-	if (ShapeSettings->PlaceMode == EMakeMeshPlacementType::GroundPlane)
+	if (ShapeSettings->TargetSurface == EMakeMeshPlacementType::GroundPlane)
 	{
-		FVector3f DrawPlanePos = (FVector3f)FMath::RayPlaneIntersection(ClickPosWorldRay.Origin, ClickPosWorldRay.Direction, DrawPlane);
+		FVector3f DrawPlanePos = FMath::RayPlaneIntersection(ClickPosWorldRay.Origin, ClickPosWorldRay.Direction, DrawPlane);
 		bHit = true;
 		ShapeFrame = FFrame3f(DrawPlanePos);
 	}
@@ -231,18 +228,18 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 		bHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, Result, ClickPosWorldRay);
 		if (bHit)
 		{
-			FVector3f Normal = (FVector3f)Result.ImpactNormal;
-			if (!ShapeSettings->bAlignShapeToPlacementSurface)
+			FVector3f Normal = Result.ImpactNormal;
+			if (!ShapeSettings->bAlignToNormal)
 			{
 				Normal = FVector3f::UnitZ();
 			}
-			ShapeFrame = FFrame3f((FVector3f)Result.ImpactPoint, Normal);
+			ShapeFrame = FFrame3f(Result.ImpactPoint, Normal);
 			ShapeFrame.ConstrainedAlignPerpAxes();
 		}
 		else
 		{
 			// fall back to ground plane if we don't have a scene hit
-			FVector3f DrawPlanePos = (FVector3f)FMath::RayPlaneIntersection(ClickPosWorldRay.Origin, ClickPosWorldRay.Direction, DrawPlane);
+			FVector3f DrawPlanePos = FMath::RayPlaneIntersection(ClickPosWorldRay.Origin, ClickPosWorldRay.Direction, DrawPlane);
 			bHit = true;
 			ShapeFrame = FFrame3f(DrawPlanePos);
 		}
@@ -254,11 +251,11 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 		FSceneSnapQueryRequest Request;
 		Request.RequestType = ESceneSnapQueryType::Position;
 		Request.TargetTypes = ESceneSnapQueryTargetType::Grid;
-		Request.Position = (FVector)ShapeFrame.Origin;
+		Request.Position = ShapeFrame.Origin;
 		TArray<FSceneSnapQueryResult> Results;
 		if (GetToolManager()->GetContextQueriesAPI()->ExecuteSceneSnapQuery(Request, Results))
 		{
-			ShapeFrame.Origin = (FVector3f)Results[0].Position;
+			ShapeFrame.Origin = Results[0].Position;
 		}
 	}
 
@@ -278,7 +275,7 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 	}
 }
 
-void UAddPrimitiveTool::UpdatePreviewMesh()
+void UAddPrimitiveTool::UpdatePreviewMesh() const
 {
 	FDynamicMesh3 NewMesh;
 	GenerateMesh( &NewMesh );
@@ -291,12 +288,12 @@ void UAddPrimitiveTool::UpdatePreviewMesh()
 	if (MaterialProperties->UVScale != 1.0 || MaterialProperties->bWorldSpaceUVScale)
 	{
 		FDynamicMeshEditor Editor(&NewMesh);
-		float WorldUnitsInMetersFactor = MaterialProperties->bWorldSpaceUVScale ? .01f : 1.0f;
+		const float WorldUnitsInMetersFactor = MaterialProperties->bWorldSpaceUVScale ? .01f : 1.0f;
 		Editor.RescaleAttributeUVs(MaterialProperties->UVScale * WorldUnitsInMetersFactor, MaterialProperties->bWorldSpaceUVScale);
 	}
 
 	// set mesh position
-	FAxisAlignedBox3d Bounds = NewMesh.GetBounds(true);
+	const FAxisAlignedBox3d Bounds = NewMesh.GetBounds(true);
 	FVector3d TargetOrigin = Bounds.Center();
 	if (ShapeSettings->PivotLocation == EMakeMeshPivotLocation::Base)
 	{
@@ -306,11 +303,11 @@ void UAddPrimitiveTool::UpdatePreviewMesh()
 	{
 		TargetOrigin.Z = Bounds.Max.Z;
 	}
-	for (int vid : NewMesh.VertexIndicesItr())
+	for (const int Vid : NewMesh.VertexIndicesItr())
 	{
-		FVector3d Pos = NewMesh.GetVertex(vid);
+		FVector3d Pos = NewMesh.GetVertex(Vid);
 		Pos -= TargetOrigin;
-		NewMesh.SetVertex(vid, Pos);
+		NewMesh.SetVertex(Vid, Pos);
 	}
 
 	PreviewMesh->UpdatePreview(&NewMesh);
@@ -320,7 +317,7 @@ void UAddPrimitiveTool::UpdatePreviewMesh()
 	checkSlow(CalculateTangentsSuccessful);
 }
 
-void UAddPrimitiveTool::OnClicked(const FInputDeviceRay& DeviceClickPos)
+void UAddPrimitiveTool::OnClicked(const FInputDeviceRay& ClickPos)
 {
 	UMaterialInterface* Material = PreviewMesh->GetMaterial();
 
@@ -329,7 +326,6 @@ void UAddPrimitiveTool::OnClicked(const FInputDeviceRay& DeviceClickPos)
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("AddPrimitiveToolTransactionName", "Add Primitive Mesh"));
 		FActorSpawnParameters SpawnParameters;
 		SpawnParameters.Template = LastGenerated->Actor;
-		UE::Geometry::FTransform3d CurTransform(PreviewMesh->GetTransform());
 		FRotator Rotation(0.0f, 0.0f, 0.0f);
 		AStaticMeshActor* CloneActor = TargetWorld->SpawnActor<AStaticMeshActor>(FVector::ZeroVector, Rotation, SpawnParameters);
 		// some properties must be manually set on the component because they will not persist reliably through the spawn template (especially if the actor creation was undone)
@@ -348,13 +344,12 @@ void UAddPrimitiveTool::OnClicked(const FInputDeviceRay& DeviceClickPos)
 	LastGenerated = nullptr;
 
 	const FDynamicMesh3* CurMesh = PreviewMesh->GetPreviewDynamicMesh();
-	UE::Geometry::FTransform3d CurTransform(PreviewMesh->GetTransform());
 
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("AddPrimitiveToolTransactionName", "Add Primitive Mesh"));
 
 	FCreateMeshObjectParams NewMeshObjectParams;
 	NewMeshObjectParams.TargetWorld = TargetWorld;
-	NewMeshObjectParams.Transform = (FTransform)CurTransform;
+	NewMeshObjectParams.Transform = PreviewMesh->GetTransform();
 	NewMeshObjectParams.BaseName = AssetName;
 	NewMeshObjectParams.Materials.Add(Material);
 	NewMeshObjectParams.SetMesh(CurMesh);
@@ -389,21 +384,18 @@ UAddBoxPrimitiveTool::UAddBoxPrimitiveTool(const FObjectInitializer& ObjectIniti
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralBoxToolProperties>(TEXT("ShapeSettings")))
 {
 	AssetName = TEXT("Box");
-	SetToolDisplayName(LOCTEXT("BoxToolName", "Create Boxes"));
+	UInteractiveTool::SetToolDisplayName(LOCTEXT("BoxToolName", "Create Box"));
 }
 
 void UAddBoxPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 {
 	FGridBoxMeshGenerator BoxGen;
-	auto* BoxSettings = Cast<UProceduralBoxToolProperties>(ShapeSettings);
+	const UProceduralBoxToolProperties* BoxSettings = Cast<UProceduralBoxToolProperties>(ShapeSettings);
 	BoxGen.Box = UE::Geometry::FOrientedBox3d(FVector3d::Zero(), 0.5*FVector3d(BoxSettings->Depth, BoxSettings->Width, BoxSettings->Height));
 	BoxGen.EdgeVertices = FIndex3i(BoxSettings->DepthSubdivisions + 1,
 								   BoxSettings->WidthSubdivisions + 1,
 								   BoxSettings->HeightSubdivisions + 1);
-	if (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad)
-	{
-		BoxGen.bPolygroupPerQuad = true;
-	}
+	BoxGen.bPolygroupPerQuad = ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad;
 	BoxGen.Generate();
 	OutMesh->Copy(&BoxGen);
 }
@@ -414,13 +406,13 @@ UAddRectanglePrimitiveTool::UAddRectanglePrimitiveTool(const FObjectInitializer&
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralRectangleToolProperties>(TEXT("ShapeSettings")))
 {
 	AssetName = TEXT("Rectangle");
-	SetToolDisplayName(LOCTEXT("RectToolName", "Create Rectangles"));
+	UInteractiveTool::SetToolDisplayName(LOCTEXT("RectToolName", "Create Rectangle"));
 }
 
 void UAddRectanglePrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 {
 	auto* RectangleSettings = Cast<UProceduralRectangleToolProperties>(ShapeSettings);
-	switch (RectangleSettings->RectType)
+	switch (RectangleSettings->RectangleType)
 	{
 	case EProceduralRectType::Rectangle:
 	{
@@ -456,12 +448,12 @@ UAddDiscPrimitiveTool::UAddDiscPrimitiveTool(const FObjectInitializer& ObjectIni
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralDiscToolProperties>(TEXT("ShapeSettings")))
 {
 	AssetName = TEXT("Disc");
-	SetToolDisplayName(LOCTEXT("DiscToolName", "Create Discs"));
+	UInteractiveTool::SetToolDisplayName(LOCTEXT("DiscToolName", "Create Disc"));
 }
 
 void UAddDiscPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 {
-	auto* DiscSettings = Cast<UProceduralDiscToolProperties>(ShapeSettings);
+	const UProceduralDiscToolProperties* DiscSettings = Cast<UProceduralDiscToolProperties>(ShapeSettings);
 	switch (DiscSettings->DiscType)
 	{
 	case EProceduralDiscType::Disc:
@@ -495,25 +487,22 @@ UAddTorusPrimitiveTool::UAddTorusPrimitiveTool(const FObjectInitializer& ObjectI
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralTorusToolProperties>(TEXT("ShapeSettings")))
 {
 	AssetName = TEXT("Torus");
-	SetToolDisplayName(LOCTEXT("TorusToolName", "Create Torii"));
+	UInteractiveTool::SetToolDisplayName(LOCTEXT("TorusToolName", "Create Torus"));
 }
 
 void UAddTorusPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 {
 	FGeneralizedCylinderGenerator Gen;
-	auto* TorusSettings = Cast<UProceduralTorusToolProperties>(ShapeSettings);
-	Gen.CrossSection = FPolygon2d::MakeCircle(TorusSettings->MinorRadius, TorusSettings->CrossSectionSlices);
-	FPolygon2d PathCircle = FPolygon2d::MakeCircle(TorusSettings->MajorRadius, TorusSettings->TubeSlices);
+	const UProceduralTorusToolProperties* TorusSettings = Cast<UProceduralTorusToolProperties>(ShapeSettings);
+	Gen.CrossSection = FPolygon2d::MakeCircle(TorusSettings->MinorRadius, TorusSettings->MinorSlices);
+	FPolygon2d PathCircle = FPolygon2d::MakeCircle(TorusSettings->MajorRadius, TorusSettings->MajorSlices);
 	for (int Idx = 0; Idx < PathCircle.VertexCount(); Idx++)
 	{
 		Gen.Path.Add( FVector3d(PathCircle[Idx].X, PathCircle[Idx].Y, 0) );
 	}
 	Gen.bLoop = true;
 	Gen.bCapped = false;
-	if (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad)
-	{
-		Gen.bPolygroupPerQuad = true;
-	}
+	Gen.bPolygroupPerQuad = ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad;
 	Gen.InitialFrame = FFrame3d(Gen.Path[0]);
 	Gen.Generate();
 	OutMesh->Copy(&Gen);
@@ -525,22 +514,19 @@ UAddCylinderPrimitiveTool::UAddCylinderPrimitiveTool(const FObjectInitializer& O
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralCylinderToolProperties>(TEXT("ShapeSettings")))
 {
 	AssetName = TEXT("Cylinder");
-	SetToolDisplayName(LOCTEXT("CylinderToolName", "Create Cylinders"));
+	UInteractiveTool::SetToolDisplayName(LOCTEXT("CylinderToolName", "Create Cylinder"));
 }
 
 void UAddCylinderPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 {
 	FCylinderGenerator CylGen;
-	auto* CylinderSettings = Cast<UProceduralCylinderToolProperties>(ShapeSettings);
+	const UProceduralCylinderToolProperties* CylinderSettings = Cast<UProceduralCylinderToolProperties>(ShapeSettings);
 	CylGen.Radius[1] = CylGen.Radius[0] = CylinderSettings->Radius;
 	CylGen.Height = CylinderSettings->Height;
 	CylGen.AngleSamples = CylinderSettings->RadialSlices;
 	CylGen.LengthSamples = CylinderSettings->HeightSubdivisions - 1;
 	CylGen.bCapped = true;
-	if (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad)
-	{
-		CylGen.bPolygroupPerQuad = true;
-	}
+	CylGen.bPolygroupPerQuad = ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad;
 	CylGen.Generate();
 	OutMesh->Copy(&CylGen);
 }
@@ -551,24 +537,21 @@ UAddConePrimitiveTool::UAddConePrimitiveTool(const FObjectInitializer& ObjectIni
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralConeToolProperties>(TEXT("ShapeSettings")))
 {
 	AssetName = TEXT("Cone");
-	SetToolDisplayName(LOCTEXT("ConeToolName", "Create Cones"));
+	UInteractiveTool::SetToolDisplayName(LOCTEXT("ConeToolName", "Create Cone"));
 }
 
 void UAddConePrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 {
 	// Unreal's standard cone is just a cylinder with a very small top
 	FCylinderGenerator CylGen;
-	auto* ConeSettings = Cast<UProceduralConeToolProperties>(ShapeSettings);
+	const UProceduralConeToolProperties* ConeSettings = Cast<UProceduralConeToolProperties>(ShapeSettings);
 	CylGen.Radius[0] = ConeSettings->Radius;
 	CylGen.Radius[1] = .01;
 	CylGen.Height = ConeSettings->Height;
 	CylGen.AngleSamples = ConeSettings->RadialSlices;
 	CylGen.LengthSamples = ConeSettings->HeightSubdivisions - 1;
 	CylGen.bCapped = true;
-	if (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad)
-	{
-		CylGen.bPolygroupPerQuad = true;
-	}
+	CylGen.bPolygroupPerQuad = ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad;
 	CylGen.Generate();
 	OutMesh->Copy(&CylGen);
 }
@@ -578,13 +561,13 @@ UAddArrowPrimitiveTool::UAddArrowPrimitiveTool(const FObjectInitializer& ObjectI
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralArrowToolProperties>(TEXT("ShapeSettings")))
 {
 	AssetName = TEXT("Arrow");
-	SetToolDisplayName(LOCTEXT("ArrowToolName", "Create Arrows"));
+	UInteractiveTool::SetToolDisplayName(LOCTEXT("ArrowToolName", "Create Arrow"));
 }
 
 void UAddArrowPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 {
 	FArrowGenerator ArrowGen;
-	auto* ArrowSettings = Cast<UProceduralArrowToolProperties>(ShapeSettings);
+	const UProceduralArrowToolProperties* ArrowSettings = Cast<UProceduralArrowToolProperties>(ShapeSettings);
 	ArrowGen.StickRadius = ArrowSettings->ShaftRadius;
 	ArrowGen.StickLength = ArrowSettings->ShaftHeight;
 	ArrowGen.HeadBaseRadius = ArrowSettings->HeadRadius;
@@ -592,11 +575,14 @@ void UAddArrowPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 	ArrowGen.HeadLength = ArrowSettings->HeadHeight;
 	ArrowGen.AngleSamples = ArrowSettings->RadialSlices;
 	ArrowGen.bCapped = true;
-	if (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad)
+	ArrowGen.bPolygroupPerQuad = ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad;
+	if (ArrowSettings->HeightSubdivisions > 1)
 	{
-		ArrowGen.bPolygroupPerQuad = true;
+		const int AdditionalLengthsSamples = ArrowSettings->HeightSubdivisions - 1;
+		ArrowGen.AdditionalLengthSamples[0] = AdditionalLengthsSamples;
+		ArrowGen.AdditionalLengthSamples[1] = AdditionalLengthsSamples;
+		ArrowGen.AdditionalLengthSamples[2] = AdditionalLengthsSamples;
 	}
-	ArrowGen.DistributeAdditionalLengthSamples(ArrowSettings->TotalSubdivisions);
 	ArrowGen.Generate();
 	OutMesh->Copy(&ArrowGen);
 }
@@ -607,20 +593,20 @@ UAddSpherePrimitiveTool::UAddSpherePrimitiveTool(const FObjectInitializer& Objec
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralSphereToolProperties>(TEXT("ShapeSettings")))
 {
 	AssetName = TEXT("Sphere");
-	SetToolDisplayName(LOCTEXT("SphereToolName", "Create Spheres"));
+	UInteractiveTool::SetToolDisplayName(LOCTEXT("SphereToolName", "Create Sphere"));
 }
 
 void UAddSpherePrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 {
-	auto* SphereSettings = Cast<UProceduralSphereToolProperties>(ShapeSettings);
+	const UProceduralSphereToolProperties* SphereSettings = Cast<UProceduralSphereToolProperties>(ShapeSettings);
 	switch (SphereSettings->SphereType)
 	{
 	case EProceduralSphereType::LatLong:
 	{
 		FSphereGenerator SphereGen;
 		SphereGen.Radius = SphereSettings->Radius;
-		SphereGen.NumTheta = SphereSettings->LongitudeSlices + 1;
-		SphereGen.NumPhi = SphereSettings->LatitudeSlices + 1;
+		SphereGen.NumTheta = SphereSettings->VerticalSlices + 1;
+		SphereGen.NumPhi = SphereSettings->HorizontalSlices + 1;
 		SphereGen.bPolygroupPerQuad = (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad);
 		SphereGen.Generate();
 		OutMesh->Copy(&SphereGen);
@@ -630,7 +616,7 @@ void UAddSpherePrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 	{
 		FBoxSphereGenerator SphereGen;
 		SphereGen.Radius = SphereSettings->Radius;
-		SphereGen.Box = UE::Geometry::FOrientedBox3d(FVector3d::Zero(),
+		SphereGen.Box = FOrientedBox3d(FVector3d::Zero(),
 			0.5 * FVector3d(SphereSettings->Subdivisions + 1,
 				SphereSettings->Subdivisions + 1,
 				SphereSettings->Subdivisions + 1));
@@ -650,12 +636,12 @@ UAddStairsPrimitiveTool::UAddStairsPrimitiveTool(const FObjectInitializer& Objec
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralStairsToolProperties>(TEXT("ShapeSettings")))
 {
 	AssetName = TEXT("Stairs");
-	SetToolDisplayName(LOCTEXT("StairsToolName", "Create Stairs"));
+	UInteractiveTool::SetToolDisplayName(LOCTEXT("StairsToolName", "Create Stairs"));
 }
 
 void UAddStairsPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 {
-	auto* StairSettings = Cast<UProceduralStairsToolProperties>(ShapeSettings);
+	const UProceduralStairsToolProperties* StairSettings = Cast<UProceduralStairsToolProperties>(ShapeSettings);
 	switch (StairSettings->StairsType)
 	{
 	case EProceduralStairsType::Linear:
