@@ -3964,7 +3964,7 @@ void GetAdditionalCurrentIniVersionStrings( const ITargetPlatform* TargetPlatfor
 
 	for (const FString& RValue : VersionedRValues)
 	{
-		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(*RValue);
+		const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(*RValue);
 		if (CVar)
 		{
 			IniVersionMap.Add(*RValue, FString::Printf(TEXT("%d"), CVar->GetValueOnGameThread()));
