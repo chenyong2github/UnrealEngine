@@ -349,9 +349,6 @@ public:
 		return TimestampValidBitsMask;
 	}
 
-	bool IsTextureFormatSupported(VkFormat Format, uint32 RequiredFeatures) const;
-	bool IsBufferFormatSupported(VkFormat Format) const;
-
 	const VkComponentMapping& GetFormatComponentMapping(EPixelFormat UEFormat) const;
 
 	inline VkDevice GetInstanceHandle() const
@@ -517,20 +514,13 @@ public:
 	void*	Hotfix = nullptr;
 
 private:
-	void MapFormatSupport(EPixelFormat UEFormat, VkFormat VulkanFormat);
-	void MapFormatSupportWithFallback(EPixelFormat UEFormat, uint32 TextureRequiredFeatures, VkFormat VulkanFormat, TArrayView<const VkFormat> FallbackTextureFormats);
-	void MapFormatSupport(EPixelFormat UEFormat, VkFormat VulkanFormat, int32 BlockBytes);
-	void SetComponentMapping(EPixelFormat UEFormat, VkComponentSwizzle r, VkComponentSwizzle g, VkComponentSwizzle b, VkComponentSwizzle a);
-
-	FORCEINLINE void MapFormatSupportWithFallback(EPixelFormat UEFormat, VkFormat VulkanFormat, std::initializer_list<VkFormat> FallbackTextureFormats)
-	{
-		MapFormatSupportWithFallback(UEFormat, VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT, VulkanFormat, MakeArrayView(FallbackTextureFormats));
-	}
-	
-	FORCEINLINE void MapFormatSupportWithFallback(EPixelFormat UEFormat, uint32 TextureRequiredFeatures, VkFormat VulkanFormat, std::initializer_list<VkFormat> FallbackTextureFormats)
-	{
-		MapFormatSupportWithFallback(UEFormat, TextureRequiredFeatures, VulkanFormat, MakeArrayView(FallbackTextureFormats));
-	}
+	const VkFormatProperties& GetFormatProperties(VkFormat InFormat);
+	void MapBufferFormatSupport(FPixelFormatInfo& PixelFormatInfo, EPixelFormat UEFormat, VkFormat VulkanFormat);
+	void MapImageFormatSupport(FPixelFormatInfo& PixelFormatInfo, const TArrayView<const VkFormat>& PrioritizedFormats, EPixelFormatCapabilities RequiredCapabilities);
+	void MapFormatSupport(EPixelFormat UEFormat, std::initializer_list<VkFormat> PrioritizedFormats, const VkComponentMapping& ComponentMapping, EPixelFormatCapabilities RequiredCapabilities, int32 BlockBytes);
+	void MapFormatSupport(EPixelFormat UEFormat, std::initializer_list<VkFormat> PrioritizedFormats, const VkComponentMapping& ComponentMapping);
+	void MapFormatSupport(EPixelFormat UEFormat, std::initializer_list<VkFormat> PrioritizedFormats, const VkComponentMapping& ComponentMapping, int32 BlockBytes);
+	void MapFormatSupport(EPixelFormat UEFormat, std::initializer_list<VkFormat> PrioritizedFormats, const VkComponentMapping& ComponentMapping, EPixelFormatCapabilities RequiredCapabilities);
 
 	void SubmitCommands(FVulkanCommandListContext* Context);
 
