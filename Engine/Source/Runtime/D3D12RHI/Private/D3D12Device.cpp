@@ -158,6 +158,16 @@ typedef HRESULT(WINAPI *FDXGIGetDebugInterface1)(UINT, REFIID, void **);
 
 ID3D12CommandQueue* gD3D12CommandQueue;
 
+static D3D12_FEATURE_DATA_FORMAT_SUPPORT GetFormatSupport(ID3D12Device* InDevice, DXGI_FORMAT InFormat)
+{
+	D3D12_FEATURE_DATA_FORMAT_SUPPORT FormatSupport{};
+	FormatSupport.Format = InFormat;
+
+	InDevice->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &FormatSupport, sizeof(FormatSupport));
+
+	return FormatSupport;
+}
+
 void FD3D12Device::SetupAfterDeviceCreation()
 {
 	ID3D12Device* Direct3DDevice = GetParentAdapter()->GetD3DDevice();
@@ -171,57 +181,57 @@ void FD3D12Device::SetupAfterDeviceCreation()
 
 		if (PlatformFormat != DXGI_FORMAT_UNKNOWN)
 		{
-			D3D12_FEATURE_DATA_FORMAT_SUPPORT FormatSupport{};
-			FormatSupport.Format = PlatformFormat;
+			const D3D12_FEATURE_DATA_FORMAT_SUPPORT FormatSupport    = GetFormatSupport(Direct3DDevice, PlatformFormat);
+			const D3D12_FEATURE_DATA_FORMAT_SUPPORT SRVFormatSupport = GetFormatSupport(Direct3DDevice, FindShaderResourceDXGIFormat(PlatformFormat, false));
+			const D3D12_FEATURE_DATA_FORMAT_SUPPORT UAVFormatSupport = GetFormatSupport(Direct3DDevice, FindUnorderedAccessDXGIFormat(PlatformFormat));
+			const D3D12_FEATURE_DATA_FORMAT_SUPPORT RTVFormatSupport = GetFormatSupport(Direct3DDevice, FindShaderResourceDXGIFormat(PlatformFormat, false));
+			const D3D12_FEATURE_DATA_FORMAT_SUPPORT DSVFormatSupport = GetFormatSupport(Direct3DDevice, FindDepthStencilDXGIFormat(PlatformFormat));
 
-			auto ConvertCap1 = [&Capabilities, &FormatSupport](EPixelFormatCapabilities UnrealCap, D3D12_FORMAT_SUPPORT1 InFlags)
+			auto ConvertCap1 = [&Capabilities](const D3D12_FEATURE_DATA_FORMAT_SUPPORT& InSupport, EPixelFormatCapabilities UnrealCap, D3D12_FORMAT_SUPPORT1 InFlags)
 			{
-				if (EnumHasAnyFlags(FormatSupport.Support1, InFlags))
+				if (EnumHasAnyFlags(InSupport.Support1, InFlags))
 				{
 					EnumAddFlags(Capabilities, UnrealCap);
 				}
 			};
-			auto ConvertCap2 = [&Capabilities, &FormatSupport](EPixelFormatCapabilities UnrealCap, D3D12_FORMAT_SUPPORT2 InFlags)
+			auto ConvertCap2 = [&Capabilities](const D3D12_FEATURE_DATA_FORMAT_SUPPORT& InSupport, EPixelFormatCapabilities UnrealCap, D3D12_FORMAT_SUPPORT2 InFlags)
 			{
-				if (EnumHasAnyFlags(FormatSupport.Support2, InFlags))
+				if (EnumHasAnyFlags(InSupport.Support2, InFlags))
 				{
 					EnumAddFlags(Capabilities, UnrealCap);
 				}
 			};
 
-			HRESULT hr = Direct3DDevice->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &FormatSupport, sizeof(FormatSupport));
-			if (SUCCEEDED(hr))
+			ConvertCap1(FormatSupport, EPixelFormatCapabilities::Texture1D,               D3D12_FORMAT_SUPPORT1_TEXTURE1D);
+			ConvertCap1(FormatSupport, EPixelFormatCapabilities::Texture2D,               D3D12_FORMAT_SUPPORT1_TEXTURE2D);
+			ConvertCap1(FormatSupport, EPixelFormatCapabilities::Texture3D,               D3D12_FORMAT_SUPPORT1_TEXTURE3D);
+			ConvertCap1(FormatSupport, EPixelFormatCapabilities::TextureCube,             D3D12_FORMAT_SUPPORT1_TEXTURECUBE);
+			ConvertCap1(FormatSupport, EPixelFormatCapabilities::Buffer,                  D3D12_FORMAT_SUPPORT1_BUFFER);
+			ConvertCap1(FormatSupport, EPixelFormatCapabilities::VertexBuffer,            D3D12_FORMAT_SUPPORT1_IA_VERTEX_BUFFER);
+			ConvertCap1(FormatSupport, EPixelFormatCapabilities::IndexBuffer,             D3D12_FORMAT_SUPPORT1_IA_INDEX_BUFFER);
+
+			if (EnumHasAnyFlags(Capabilities, EPixelFormatCapabilities::AnyTexture))
 			{
-				ConvertCap1(EPixelFormatCapabilities::Texture1D,			D3D12_FORMAT_SUPPORT1_TEXTURE1D);
-				ConvertCap1(EPixelFormatCapabilities::Texture2D,			D3D12_FORMAT_SUPPORT1_TEXTURE2D);
-				ConvertCap1(EPixelFormatCapabilities::Texture3D,			D3D12_FORMAT_SUPPORT1_TEXTURE3D);
-				ConvertCap1(EPixelFormatCapabilities::TextureCube,			D3D12_FORMAT_SUPPORT1_TEXTURECUBE);
-				ConvertCap1(EPixelFormatCapabilities::Buffer,               D3D12_FORMAT_SUPPORT1_BUFFER);
-				ConvertCap1(EPixelFormatCapabilities::VertexBuffer,         D3D12_FORMAT_SUPPORT1_IA_VERTEX_BUFFER);
-				ConvertCap1(EPixelFormatCapabilities::IndexBuffer,          D3D12_FORMAT_SUPPORT1_IA_INDEX_BUFFER);
-
-				if (EnumHasAnyFlags(Capabilities, EPixelFormatCapabilities::AnyTexture))
-				{
-					ConvertCap1(EPixelFormatCapabilities::RenderTarget,     D3D12_FORMAT_SUPPORT1_RENDER_TARGET);
-					ConvertCap1(EPixelFormatCapabilities::DepthStencil,     D3D12_FORMAT_SUPPORT1_DEPTH_STENCIL);
-					ConvertCap1(EPixelFormatCapabilities::TextureMipmaps,   D3D12_FORMAT_SUPPORT1_MIP);
-					ConvertCap1(EPixelFormatCapabilities::TextureLoad,      D3D12_FORMAT_SUPPORT1_SHADER_LOAD);
-					ConvertCap1(EPixelFormatCapabilities::TextureSample,    D3D12_FORMAT_SUPPORT1_SHADER_SAMPLE);
-					ConvertCap1(EPixelFormatCapabilities::TextureGather,    D3D12_FORMAT_SUPPORT1_SHADER_GATHER);
-					ConvertCap2(EPixelFormatCapabilities::TextureAtomics,   D3D12_FORMAT_SUPPORT2_UAV_ATOMIC_EXCHANGE);
-					ConvertCap1(EPixelFormatCapabilities::TextureBlendable, D3D12_FORMAT_SUPPORT1_BLENDABLE);
-				}
-
-				if (EnumHasAnyFlags(Capabilities, EPixelFormatCapabilities::Buffer))
-				{
-					ConvertCap1(EPixelFormatCapabilities::BufferLoad,       D3D12_FORMAT_SUPPORT1_SHADER_LOAD);
-					ConvertCap2(EPixelFormatCapabilities::BufferStore,      D3D12_FORMAT_SUPPORT2_UAV_TYPED_STORE);
-					ConvertCap2(EPixelFormatCapabilities::BufferAtomics,    D3D12_FORMAT_SUPPORT2_UAV_ATOMIC_EXCHANGE);
-				}
-
-				ConvertCap2(EPixelFormatCapabilities::TypedUAVLoad,			D3D12_FORMAT_SUPPORT2_UAV_TYPED_LOAD);
-				ConvertCap2(EPixelFormatCapabilities::TypedUAVStore,		D3D12_FORMAT_SUPPORT2_UAV_TYPED_STORE);
+				ConvertCap1(FormatSupport, EPixelFormatCapabilities::RenderTarget,        D3D12_FORMAT_SUPPORT1_RENDER_TARGET);
+				ConvertCap1(FormatSupport, EPixelFormatCapabilities::DepthStencil,        D3D12_FORMAT_SUPPORT1_DEPTH_STENCIL);
+				ConvertCap1(FormatSupport, EPixelFormatCapabilities::TextureMipmaps,      D3D12_FORMAT_SUPPORT1_MIP);
+				ConvertCap1(SRVFormatSupport, EPixelFormatCapabilities::TextureLoad,      D3D12_FORMAT_SUPPORT1_SHADER_LOAD);
+				ConvertCap1(SRVFormatSupport, EPixelFormatCapabilities::TextureSample,    D3D12_FORMAT_SUPPORT1_SHADER_SAMPLE);
+				ConvertCap1(SRVFormatSupport, EPixelFormatCapabilities::TextureGather,    D3D12_FORMAT_SUPPORT1_SHADER_GATHER);
+				ConvertCap2(UAVFormatSupport, EPixelFormatCapabilities::TextureAtomics,   D3D12_FORMAT_SUPPORT2_UAV_ATOMIC_EXCHANGE);
+				ConvertCap1(SRVFormatSupport, EPixelFormatCapabilities::TextureBlendable, D3D12_FORMAT_SUPPORT1_BLENDABLE);
 			}
+
+			if (EnumHasAnyFlags(Capabilities, EPixelFormatCapabilities::Buffer))
+			{
+				ConvertCap1(SRVFormatSupport, EPixelFormatCapabilities::BufferLoad,       D3D12_FORMAT_SUPPORT1_SHADER_LOAD);
+				ConvertCap2(UAVFormatSupport, EPixelFormatCapabilities::BufferStore,      D3D12_FORMAT_SUPPORT2_UAV_TYPED_STORE);
+				ConvertCap2(UAVFormatSupport, EPixelFormatCapabilities::BufferAtomics,    D3D12_FORMAT_SUPPORT2_UAV_ATOMIC_EXCHANGE);
+			}
+
+			ConvertCap1(UAVFormatSupport, EPixelFormatCapabilities::UAV,                  D3D12_FORMAT_SUPPORT1_TYPED_UNORDERED_ACCESS_VIEW);
+			ConvertCap2(UAVFormatSupport, EPixelFormatCapabilities::TypedUAVLoad,         D3D12_FORMAT_SUPPORT2_UAV_TYPED_LOAD);
+			ConvertCap2(UAVFormatSupport, EPixelFormatCapabilities::TypedUAVStore,        D3D12_FORMAT_SUPPORT2_UAV_TYPED_STORE);
 		}
 
 		PixelFormatInfo.Capabilities = Capabilities;
