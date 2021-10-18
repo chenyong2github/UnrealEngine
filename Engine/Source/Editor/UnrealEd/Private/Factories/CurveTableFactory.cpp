@@ -3,6 +3,7 @@
 #include "Factories/CurveTableFactory.h"
 #include "Engine/CurveTable.h"
 #include "Editor.h"
+#include "SCurveTableOptions.h"
 
 #define LOCTEXT_NAMESPACE "CurveTableFactory"
 
@@ -25,9 +26,54 @@ UObject* UCurveTableFactory::FactoryCreateNew(UClass* Class, UObject* InParent, 
 	return CurveTable;
 }
 
+
+bool UCurveTableFactory::ConfigureProperties()
+{
+
+	ERichCurveInterpMode SelectedInterpMode = ERichCurveInterpMode::RCIM_Linear;
+	bool bDoCreation = false;
+
+	TSharedPtr<SWindow> Window = SNew(SWindow)
+		.Title( LOCTEXT("NewCurveTableWindowTitle", "Curve Table Options" ))
+		.SizingRule( ESizingRule::Autosized );
+
+	Window->SetContent( 
+		SNew(SCurveTableOptions)
+		.OnCancelClicked_Lambda([Window, &bDoCreation]() 
+		{
+			bDoCreation = false;
+			Window->RequestDestroyWindow();	
+		})
+		.OnCreateClicked_Lambda([Window, &bDoCreation, &SelectedInterpMode] (ERichCurveInterpMode InInterpMode) 
+		{
+			SelectedInterpMode = InInterpMode;
+			bDoCreation = true;
+			Window->RequestDestroyWindow();
+		})
+	);
+
+	GEditor->EditorAddModalWindow(Window.ToSharedRef());
+
+	// Store which interpolation mode was selected
+	InterpMode = SelectedInterpMode;
+
+	return bDoCreation;
+}
+
 UCurveTable* UCurveTableFactory::MakeNewCurveTable(UObject* InParent, FName Name, EObjectFlags Flags)
 {
-	return NewObject<UCurveTable>(InParent, Name, Flags);
+	UCurveTable* NewTable = NewObject<UCurveTable>(InParent, Name, Flags);
+	if (InterpMode != ERichCurveInterpMode::RCIM_Cubic)
+	{
+		FSimpleCurve& NewSimpleCurve = NewTable->AddSimpleCurve(FName("Curve"));
+		NewSimpleCurve.SetKeyInterpMode(InterpMode);
+	}
+	else
+	{
+		FRichCurve& NewRichCurve = NewTable->AddRichCurve(FName("Curve"));
+	}
+
+	return NewTable;
 }
 
 #undef LOCTEXT_NAMESPACE 
