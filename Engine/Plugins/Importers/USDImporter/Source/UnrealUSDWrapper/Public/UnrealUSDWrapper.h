@@ -312,6 +312,7 @@ namespace UnrealIdentifiers
 	// Tokens copied from usdImaging, because at the moment it's all we need from it
 	extern UNREALUSDWRAPPER_API const pxr::TfToken UsdPreviewSurface;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken UsdPrimvarReader_float2;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken UsdPrimvarReader_float3;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken UsdUVTexture;
 
 	// Token used to indicate that a material parsed from a material prim should use world space normals

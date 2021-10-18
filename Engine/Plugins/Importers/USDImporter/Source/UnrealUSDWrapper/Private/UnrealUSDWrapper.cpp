@@ -116,6 +116,7 @@ namespace UnrealIdentifiers
 
 	const TfToken UsdPreviewSurface = TfToken( "UsdPreviewSurface" );
 	const TfToken UsdPrimvarReader_float2 = TfToken( "UsdPrimvarReader_float2" );
+	const TfToken UsdPrimvarReader_float3 = TfToken( "UsdPrimvarReader_float3" );
 	const TfToken UsdUVTexture = TfToken( "UsdUVTexture" );
 
 	const TfToken WorldSpaceNormals = TfToken( "worldSpaceNormals" );
