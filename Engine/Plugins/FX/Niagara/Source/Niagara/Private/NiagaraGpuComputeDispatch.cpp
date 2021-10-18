@@ -182,7 +182,7 @@ FNiagaraGpuComputeDispatch::FNiagaraGpuComputeDispatch(ERHIFeatureLevel::Type In
 			GPUSortManager->PostPreRenderEvent.AddLambda(
 				[this](FRHICommandListImmediate& RHICmdList)
 				{
-					GPUInstanceCounterManager.UpdateDrawIndirectBuffers(this, RHICmdList, FeatureLevel, ENiagaraGPUCountUpdatePhase::PreOpaque);
+					GPUInstanceCounterManager.UpdateDrawIndirectBuffers(this, RHICmdList, ENiagaraGPUCountUpdatePhase::PreOpaque);
 #if WITH_MGPU
 					// For PreInitViews we actually need to broadcast here and not in ExecuteAll since
 					// this is the last place the instance count buffer is written to.
@@ -198,7 +198,7 @@ FNiagaraGpuComputeDispatch::FNiagaraGpuComputeDispatch(ERHIFeatureLevel::Type In
 			(
 				[this](FRHICommandListImmediate& RHICmdList)
 				{
-					GPUInstanceCounterManager.UpdateDrawIndirectBuffers(this, RHICmdList, FeatureLevel, ENiagaraGPUCountUpdatePhase::PostOpaque);
+					GPUInstanceCounterManager.UpdateDrawIndirectBuffers(this, RHICmdList, ENiagaraGPUCountUpdatePhase::PostOpaque);
 				}
 			);
 		}
@@ -483,10 +483,10 @@ void FNiagaraGpuComputeDispatch::ProcessPendingTicksFlush(FRHICommandListImmedia
 			FRDGBuilder GraphBuilder(RHICmdList);
 			CreateSystemTextures(GraphBuilder);
 			PreInitViews(GraphBuilder, bAllowGPUParticleUpdate);
-			GPUInstanceCounterManager.UpdateDrawIndirectBuffers(this, RHICmdList, FeatureLevel, ENiagaraGPUCountUpdatePhase::PreOpaque);
+			GPUInstanceCounterManager.UpdateDrawIndirectBuffers(this, RHICmdList, ENiagaraGPUCountUpdatePhase::PreOpaque);
 			PostInitViews(GraphBuilder, DummyViews, bAllowGPUParticleUpdate);
 			PostRenderOpaque(GraphBuilder, DummyViews, bAllowGPUParticleUpdate);
-			GPUInstanceCounterManager.UpdateDrawIndirectBuffers(this, RHICmdList, FeatureLevel, ENiagaraGPUCountUpdatePhase::PostOpaque);
+			GPUInstanceCounterManager.UpdateDrawIndirectBuffers(this, RHICmdList, ENiagaraGPUCountUpdatePhase::PostOpaque);
 			GraphBuilder.Execute();
 			break;
 		}
@@ -828,7 +828,7 @@ void FNiagaraGpuComputeDispatch::UpdateInstanceCountManager(FRHICommandListImmed
 				}
 			}
 		}
-		GPUInstanceCounterManager.ResizeBuffers(RHICmdList, FeatureLevel, TotalDispatchCount);
+		GPUInstanceCounterManager.ResizeBuffers(RHICmdList, TotalDispatchCount);
 	}
 
 	// Consume any pending readbacks that are ready
@@ -1680,7 +1680,7 @@ void FNiagaraGpuComputeDispatch::PreInitViews(FRDGBuilder& GraphBuilder, bool bA
 	}
 	else
 	{
-		GPUInstanceCounterManager.ResizeBuffers(GraphBuilder.RHICmdList, FeatureLevel,  0);
+		GPUInstanceCounterManager.ResizeBuffers(GraphBuilder.RHICmdList, 0);
 		FinishDispatches();
 	}
 }
@@ -1915,7 +1915,7 @@ void FNiagaraGpuComputeDispatch::GenerateSortKeys(FRHICommandListImmediate& RHIC
 	TShaderMapRef<FNiagaraSortKeyGenCS> SortKeyGenCS(GetGlobalShaderMap(FeatureLevel), SortPermutationVector);
 	TShaderMapRef<FNiagaraSortKeyGenCS> SortAndCullKeyGenCS(GetGlobalShaderMap(FeatureLevel), SortAndCullPermutationVector);
 
-	FRWBuffer* CulledCountsBuffer = GPUInstanceCounterManager.AcquireCulledCountsBuffer(RHICmdList, FeatureLevel);
+	FRWBuffer* CulledCountsBuffer = GPUInstanceCounterManager.AcquireCulledCountsBuffer(RHICmdList);
 
 	FNiagaraSortKeyGenCS::FParameters Params;
 	Params.SortKeyMask = KeyGenInfo.SortKeyParams.X;

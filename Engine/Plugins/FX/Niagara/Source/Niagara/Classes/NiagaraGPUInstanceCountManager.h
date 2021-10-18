@@ -55,7 +55,7 @@ public:
 		FORCEINLINE bool IsValid() const { return Offset != INDEX_NONE; }
 	};
 
-	FNiagaraGPUInstanceCountManager();
+	FNiagaraGPUInstanceCountManager(ERHIFeatureLevel::Type FeatureLevel);
 	~FNiagaraGPUInstanceCountManager();
 
 	// Init resource for the first time.
@@ -63,19 +63,21 @@ public:
 	// Free resources.
 	void ReleaseRHI();
 
-	FRWBuffer& GetInstanceCountBuffer()
+	const FRWBuffer& GetInstanceCountBuffer() const
 	{
 		check(UsedInstanceCounts <= AllocatedInstanceCounts); // Can't resize after after the buffer gets bound.
 		return CountBuffer;
 	}
 
+	/** Acquire an entry from the free list, assumes this comes from being presized. */
+	uint32 AcquireEntry();
+	/** Acquire an entry, this will either come from the free list or reallocate the buffer. */
+	uint32 AcquireOrAllocateEntry(FRHICommandListImmediate& RHICmdList);
+
 	/** Free the entry and reset it to INDEX_NONE if valid. */
 	void FreeEntry(uint32& BufferOffset);
-
 	/** Free and array of entries, you are expected to reset or change to INDEX_NONE. */
 	void FreeEntryArray(TConstArrayView<uint32> EntryArray);
-
-	uint32 AcquireEntry();
 
 	bool CanAcquireCulledEntry() const
 	{
@@ -88,7 +90,7 @@ public:
 		return RequiredCulledCounts++;
 	}
 
-	FRWBuffer* AcquireCulledCountsBuffer(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel);
+	FRWBuffer* AcquireCulledCountsBuffer(FRHICommandListImmediate& RHICmdList);
 
 	const uint32* GetGPUReadback();
 	void ReleaseGPUReadback();
@@ -99,12 +101,12 @@ public:
 	FIndirectArgSlot AddDrawIndirect(uint32 InstanceCountBufferOffset, uint32 NumIndicesPerInstance, uint32 StartIndexLocation, bool bIsInstancedStereoEnabled, bool bCulled, ENiagaraGpuComputeTickStage::Type ReadyTickStage);
 
 	// Resize instance count and draw indirect buffers to ensure it is big enough to hold all draw indirect args.
-	void ResizeBuffers(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, int32 ReservedInstanceCounts);
+	void ResizeBuffers(FRHICommandListImmediate& RHICmdList, int32 ReservedInstanceCounts);
 
 	void FlushIndirectArgsPool();
 
 	// Generate the draw indirect buffers, and reset all release counts.
-	void UpdateDrawIndirectBuffers(FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface, FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, ENiagaraGPUCountUpdatePhase::Type CountPhase);
+	void UpdateDrawIndirectBuffers(FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface, FRHICommandList& RHICmdList, ENiagaraGPUCountUpdatePhase::Type CountPhase);
 
 	static const ERHIAccess kCountBufferDefaultState;
 
@@ -123,6 +125,8 @@ protected:
 	using FIndirectArgsPoolEntryPtr = TUniquePtr<FIndirectArgsPoolEntry>;
 
 	void ReleaseCounts();
+
+	ERHIFeatureLevel::Type FeatureLevel;
 
 	/** The current used instance counts allocated from FNiagaraDataBuffer::AllocateGPU() */
 	int32 UsedInstanceCounts = 0;
