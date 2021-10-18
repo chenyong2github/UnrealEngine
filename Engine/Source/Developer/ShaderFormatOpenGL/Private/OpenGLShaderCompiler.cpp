@@ -2135,6 +2135,7 @@ static bool CompileToGlslWithShaderConductor(
 		{
 			// SPIR-V file (Binary)
 			DumpDebugShaderBinary(Input, SpirvData.GetData(), SpirvData.Num() * sizeof(uint32), TEXT("spv"));
+			DumpDebugShaderDisassembledSpirv(Input, SpirvData.GetData(), SpirvData.Num() * sizeof(uint32), TEXT("spvasm"));
 		}
 
 		CrossCompiler::FShaderConductorTarget TargetDesc;
@@ -2159,6 +2160,10 @@ static bool CompileToGlslWithShaderConductor(
 		default:
 			TargetDesc.CompileFlags.SetDefine(TEXT("force_flattened_io_blocks"), 1);
 			TargetDesc.CompileFlags.SetDefine(TEXT("emit_uniform_buffer_as_plain_uniforms"), 1);
+			if (Frequency == SF_Vertex)
+			{
+				TargetDesc.CompileFlags.SetDefine(TEXT("ovr_multiview_view_count"), 2);
+			}
 			TargetDesc.Language = CrossCompiler::EShaderConductorLanguage::Essl;
 			TargetDesc.Version = 320;
 			break;

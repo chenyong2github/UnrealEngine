@@ -106,7 +106,8 @@ static bool ParseSpirvCrossOptionGlsl(spirv_cross::CompilerGLSL::Options& opt, c
     PARSE_SPIRVCROSS_OPTION(define, "emit_uniform_buffer_as_plain_uniforms", opt.emit_uniform_buffer_as_plain_uniforms);
     PARSE_SPIRVCROSS_OPTION(define, "flatten_multidimensional_arrays", opt.flatten_multidimensional_arrays);
     PARSE_SPIRVCROSS_OPTION(define, "force_flattened_io_blocks", opt.force_flattened_io_blocks);
-    return false;
+	PARSE_SPIRVCROSS_OPTION(define, "ovr_multiview_view_count", opt.ovr_multiview_view_count);
+	return false;
 }
 
 static bool ParseSpirvCrossOptionHlsl(spirv_cross::CompilerHLSL::Options& opt, const ShaderConductor::MacroDefine& define)
