@@ -42,7 +42,7 @@ namespace HordeServerTests
 			IProject ? Project = TestSetup.ProjectService.Collection.AddOrUpdateAsync(ProjectId, "", "", 0, new ProjectConfig { Name = "UE5" }).Result;
 			Assert.IsNotNull(Project);
 
-			Template = TestSetup.TemplateService.CreateTemplateAsync("Test template", null, false, null, null, new List<string>(), new List<Parameter>()).Result;
+			Template = TestSetup.TemplateCollection.AddAsync("Test template", null, false, null, null, new List<string>(), new List<Parameter>()).Result;
 
 			InitialJobIds = new HashSet<ObjectId>(TestSetup.JobCollection.FindAsync().Result.Select(x => x.Id));
 
@@ -355,11 +355,11 @@ namespace HordeServerTests
 			TestSetup.Clock.UtcNow = StartTime;
 
 			// Create two templates, the second dependent on the first
-			ITemplate? NewTemplate1 = await TestSetup.TemplateService.CreateTemplateAsync("Test template 1");
+			ITemplate? NewTemplate1 = await TestSetup.TemplateCollection.AddAsync("Test template 1");
 			TemplateRef NewTemplateRef1 = new TemplateRef(NewTemplate1);
 			TemplateRefId NewTemplateRefId1 = new TemplateRefId("new-template-1");
 
-			ITemplate? NewTemplate2 = await TestSetup.TemplateService.CreateTemplateAsync("Test template 2");
+			ITemplate? NewTemplate2 = await TestSetup.TemplateCollection.AddAsync("Test template 2");
 			TemplateRef NewTemplateRef2 = new TemplateRef(NewTemplate2);
 			NewTemplateRef2.Schedule = new Schedule();
 			NewTemplateRef2.Schedule.Gate = new ScheduleGate(NewTemplateRefId1, "TriggerNext");

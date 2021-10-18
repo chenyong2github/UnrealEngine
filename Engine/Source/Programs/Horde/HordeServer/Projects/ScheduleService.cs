@@ -68,7 +68,7 @@ namespace HordeServer.Services
 		/// <summary>
 		/// The template service
 		/// </summary>
-		TemplateService TemplateService;
+		ITemplateCollection TemplateCollection;
 
 		/// <summary>
 		/// The timezone to use for schedules
@@ -95,11 +95,11 @@ namespace HordeServer.Services
 		/// <param name="JobCollection">Job collection singleton</param>
 		/// <param name="JobService">The job service instance</param>
 		/// <param name="StreamService">The stream service instance</param>
-		/// <param name="TemplateService">The template service instance</param>
+		/// <param name="TemplateCollection">The template service instance</param>
 		/// <param name="Clock"></param>
 		/// <param name="Settings">Settings for the server</param>
 		/// <param name="Logger">Logging instance</param>
-		public ScheduleService(DatabaseService DatabaseService, IGraphCollection Graphs, IDowntimeService DowntimeService, IPerforceService Perforce, IJobCollection JobCollection, JobService JobService, StreamService StreamService, TemplateService TemplateService, IClock Clock, IOptionsMonitor<ServerSettings> Settings, ILogger<ScheduleService> Logger)
+		public ScheduleService(DatabaseService DatabaseService, IGraphCollection Graphs, IDowntimeService DowntimeService, IPerforceService Perforce, IJobCollection JobCollection, JobService JobService, StreamService StreamService, ITemplateCollection TemplateCollection, IClock Clock, IOptionsMonitor<ServerSettings> Settings, ILogger<ScheduleService> Logger)
 			: base(DatabaseService, new ObjectId("6035593e6d721d80fb9efa5c"), Logger)
 		{
 			this.Graphs = Graphs;
@@ -108,7 +108,7 @@ namespace HordeServer.Services
 			this.JobCollection = JobCollection;
 			this.JobService = JobService;
 			this.StreamService = StreamService;
-			this.TemplateService = TemplateService;
+			this.TemplateCollection = TemplateCollection;
 			this.Clock = Clock;
 
 			string? ScheduleTimeZone = Settings.CurrentValue.ScheduleTimeZone;
@@ -339,7 +339,7 @@ namespace HordeServer.Services
 			}
 
 			// Get the matching template
-			ITemplate? Template = await TemplateService.GetTemplateAsync(TemplateRef.Hash);
+			ITemplate? Template = await TemplateCollection.GetAsync(TemplateRef.Hash);
 			if (Template == null)
 			{
 				Logger.LogWarning("Unable to find template '{TemplateHash}' for '{TemplateRefId}'", TemplateRef.Hash, TemplateRefId);

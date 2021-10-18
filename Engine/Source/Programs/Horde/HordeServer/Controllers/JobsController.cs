@@ -66,7 +66,7 @@ namespace HordeServer.Controllers
 		/// <summary>
 		/// Instance of the TemplateService singleton
 		/// </summary>
-		private readonly TemplateService TemplateService;
+		private readonly ITemplateCollection TemplateCollection;
 
 		/// <summary>
 		/// 
@@ -86,14 +86,14 @@ namespace HordeServer.Controllers
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public JobsController(AclService AclService, IGraphCollection Graphs, IPerforceService Perforce, StreamService StreamService, JobService JobService, TemplateService TemplateService, IArtifactCollection ArtifactCollection, INotificationService NotificationService, ILogger<JobsController> Logger)
+		public JobsController(AclService AclService, IGraphCollection Graphs, IPerforceService Perforce, StreamService StreamService, JobService JobService, ITemplateCollection TemplateCollection, IArtifactCollection ArtifactCollection, INotificationService NotificationService, ILogger<JobsController> Logger)
 		{
 			this.AclService = AclService;
 			this.Graphs = Graphs;
 			this.Perforce = Perforce;
 			this.StreamService = StreamService;
 			this.JobService = JobService;
-			this.TemplateService = TemplateService;
+			this.TemplateCollection = TemplateCollection;
 			this.ArtifactCollection = ArtifactCollection;
 			this.NotificationService = NotificationService;
 			this.Logger = Logger;
@@ -132,7 +132,7 @@ namespace HordeServer.Controllers
 				return Forbid();
 			}
 
-			ITemplate? Template = await TemplateService.GetTemplateAsync(TemplateRef.Hash);
+			ITemplate? Template = await TemplateCollection.GetAsync(TemplateRef.Hash);
 			if (Template == null)
 			{
 				return BadRequest($"Missing template referenced by {Create.TemplateId}");
@@ -474,7 +474,7 @@ namespace HordeServer.Controllers
 				return Forbid();
 			}
 
-			ITemplate? Template = await TemplateService.GetTemplateAsync(Job.TemplateHash);
+			ITemplate? Template = await TemplateCollection.GetAsync(Job.TemplateHash);
 			if(Template == null)
 			{
 				return NotFound();

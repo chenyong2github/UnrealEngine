@@ -7,6 +7,7 @@ using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using HordeServer;
+using HordeServer.Collections;
 using HordeServer.Collections.Impl;
 using HordeServer.Jobs;
 using HordeServer.Services;
@@ -56,7 +57,7 @@ namespace HordeServerTests
 
             IServiceProvider Services = GetFactory().Services;
             DatabaseService DatabaseService = Services.GetRequiredService<DatabaseService>();
-            TemplateService TemplateService = Services.GetRequiredService<TemplateService>();
+            ITemplateCollection TemplateService = Services.GetRequiredService<ITemplateCollection>();
             JobService JobService = Services.GetRequiredService<JobService>();
             IArtifactCollection ArtifactCollection = Services.GetRequiredService<IArtifactCollection>();
             StreamService StreamService = Services.GetRequiredService<StreamService>();
