@@ -39,7 +39,7 @@ struct FMassProcessingPhaseConfig
 	UMassCompositeProcessor* PhaseProcessor = nullptr;
 
 	UPROPERTY(VisibleAnywhere, Category = Mass, Transient)
-	FString Description;
+	FText Description;
 #endif //WITH_EDITORONLY_DATA
 };
 
