@@ -12,6 +12,7 @@
 FNiagaraGpuComputeDispatchInterface::FNiagaraGpuComputeDispatchInterface(EShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel)
 	: ShaderPlatform(InShaderPlatform)
 	, FeatureLevel(InFeatureLevel)
+	, GPUInstanceCounterManager(InFeatureLevel)
 {
 }
 

@@ -20,6 +20,14 @@ static FAutoConsoleVariableRef CVarNiagaraMinGPUInstanceCount(
 	ECVF_Default
 );
 
+int32 GNiagaraGPUCountManagerAllocateIncrement = 64;
+static FAutoConsoleVariableRef CVarNiagaraGPUCountManagerAllocateIncrement(
+	TEXT("Niagara.GPUCountManager.AllocateIncrement"),
+	GNiagaraGPUCountManagerAllocateIncrement,
+	TEXT("If we run out of space for allocations this is how many allocate rather than a single entry. (default=64)"),
+	ECVF_Default
+);
+
 int32 GNiagaraMinCulledGPUInstanceCount = 2048;
 static FAutoConsoleVariableRef CVarNiagaraMinCulledGPUInstanceCount(
 	TEXT("Niagara.MinCulledGPUInstanceCount"),
@@ -94,7 +102,8 @@ DECLARE_CYCLE_STAT(TEXT("GPU Readback Lock"), STAT_NiagaraGPUReadbackLock, STATG
 
 const ERHIAccess FNiagaraGPUInstanceCountManager::kCountBufferDefaultState = ERHIAccess::SRVMask | ERHIAccess::CopySrc;
 
-FNiagaraGPUInstanceCountManager::FNiagaraGPUInstanceCountManager()
+FNiagaraGPUInstanceCountManager::FNiagaraGPUInstanceCountManager(ERHIFeatureLevel::Type InFeatureLevel)
+	: FeatureLevel(InFeatureLevel)
 {
 }
 
@@ -156,6 +165,27 @@ uint32 FNiagaraGPUInstanceCountManager::AcquireEntry()
 	}
 }
 
+uint32 FNiagaraGPUInstanceCountManager::AcquireOrAllocateEntry(FRHICommandListImmediate& RHICmdList)
+{
+	checkSlow(IsInRenderingThread());
+
+	// Free entries?
+	if (FreeEntries.Num())
+	{
+		return FreeEntries.Pop();
+	}
+	else if (UsedInstanceCounts < AllocatedInstanceCounts)
+	{
+		return UsedInstanceCounts++;
+	}
+
+	// We need to resize
+	ResizeBuffers(RHICmdList, AllocatedInstanceCounts + GNiagaraGPUCountManagerAllocateIncrement);
+
+	check(UsedInstanceCounts < AllocatedInstanceCounts);
+	return UsedInstanceCounts++;
+}
+
 void FNiagaraGPUInstanceCountManager::FreeEntry(uint32& BufferOffset)
 {
 	checkSlow(IsInRenderingThread());
@@ -188,7 +218,7 @@ void FNiagaraGPUInstanceCountManager::FreeEntryArray(TConstArrayView<uint32> Ent
 	}
 }
 
-FRWBuffer* FNiagaraGPUInstanceCountManager::AcquireCulledCountsBuffer(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel)
+FRWBuffer* FNiagaraGPUInstanceCountManager::AcquireCulledCountsBuffer(FRHICommandListImmediate& RHICmdList)
 {
 	if (RequiredCulledCounts > 0)
 	{
@@ -220,7 +250,7 @@ FRWBuffer* FNiagaraGPUInstanceCountManager::AcquireCulledCountsBuffer(FRHIComman
 	return nullptr;
 }
 
-void FNiagaraGPUInstanceCountManager::ResizeBuffers(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, int32 ReservedInstanceCounts)
+void FNiagaraGPUInstanceCountManager::ResizeBuffers(FRHICommandListImmediate& RHICmdList, int32 ReservedInstanceCounts)
 {
 	const int32 RequiredInstanceCounts = UsedInstanceCounts + FMath::Max<int32>(ReservedInstanceCounts - FreeEntries.Num(), 0);
 	if (RequiredInstanceCounts > 0)
@@ -352,7 +382,7 @@ FNiagaraGPUInstanceCountManager::FIndirectArgSlot FNiagaraGPUInstanceCountManage
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffers(FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface, FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, ENiagaraGPUCountUpdatePhase::Type CountPhase)
+void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffers(FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface, FRHICommandList& RHICmdList, ENiagaraGPUCountUpdatePhase::Type CountPhase)
 {
 	// Anything to process?
 	TArray<FNiagaraDrawIndirectArgGenTaskInfo>& ArgTasks = DrawIndirectArgGenTasks[CountPhase];
