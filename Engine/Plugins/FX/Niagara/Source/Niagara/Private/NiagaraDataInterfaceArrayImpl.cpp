@@ -26,30 +26,44 @@ FString FNiagaraDataInterfaceArrayImplHelper::GetBufferSizeName(const FString& I
 #if WITH_EDITORONLY_DATA
 bool FNiagaraDataInterfaceArrayImplHelper::UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature)
 {
-	bool bModified = false;
-
-	static const TPair<FName, FName> NodeRenames[] =
+	// Early out, nothing to do here
+	if ( FunctionSignature.FunctionVersion == FFunctionVersion::LatestVersion )
 	{
-		MakeTuple(FName("GetNum"),			FNiagaraDataInterfaceArrayImplHelper::Function_LengthName),
-		MakeTuple(FName("GetValue"),		FNiagaraDataInterfaceArrayImplHelper::Function_GetName),
-		MakeTuple(FName("Reset"),			FNiagaraDataInterfaceArrayImplHelper::Function_ClearName),
-		MakeTuple(FName("SetNum"),			FNiagaraDataInterfaceArrayImplHelper::Function_ResizeName),
-		MakeTuple(FName("SetValue"),		FNiagaraDataInterfaceArrayImplHelper::Function_SetArrayElemName),
-		MakeTuple(FName("PushValue"),		FNiagaraDataInterfaceArrayImplHelper::Function_AddName),
-		MakeTuple(FName("PopValue"),		FNiagaraDataInterfaceArrayImplHelper::Function_RemoveLastElemName),
-	};
-
-	for (const auto& Pair : NodeRenames)
-	{
-		if (Pair.Key == FunctionSignature.Name)
-		{
-			FunctionSignature.Name = Pair.Value;
-			bModified = true;
-			break;
-		}
+		return false;
 	}
 
-	return bModified;
+	if ( FunctionSignature.FunctionVersion < FFunctionVersion::AddOptionalExecuteToSet )
+	{
+		static const TPair<FName, FName> NodeRenames[] =
+		{
+			MakeTuple(FName("GetNum"),			FNiagaraDataInterfaceArrayImplHelper::Function_LengthName),
+			MakeTuple(FName("GetValue"),		FNiagaraDataInterfaceArrayImplHelper::Function_GetName),
+			MakeTuple(FName("Reset"),			FNiagaraDataInterfaceArrayImplHelper::Function_ClearName),
+			MakeTuple(FName("SetNum"),			FNiagaraDataInterfaceArrayImplHelper::Function_ResizeName),
+			MakeTuple(FName("SetValue"),		FNiagaraDataInterfaceArrayImplHelper::Function_SetArrayElemName),
+			MakeTuple(FName("PushValue"),		FNiagaraDataInterfaceArrayImplHelper::Function_AddName),
+			MakeTuple(FName("PopValue"),		FNiagaraDataInterfaceArrayImplHelper::Function_RemoveLastElemName),
+		};
+
+		for (const auto& Pair : NodeRenames)
+		{
+			if (Pair.Key == FunctionSignature.Name)
+			{
+				FunctionSignature.Name = Pair.Value;
+				break;
+			}
+		}
+
+		FunctionSignature.bExperimental = false;
+
+		if ( FunctionSignature.Name == FNiagaraDataInterfaceArrayImplHelper::Function_SetArrayElemName )
+		{
+			FunctionSignature.Inputs.EmplaceAt(1, FNiagaraTypeDefinition::GetBoolDef(), TEXT("SkipSet"));
+		}
+	}
+	FunctionSignature.FunctionVersion = FFunctionVersion::LatestVersion;
+
+	return true;
 }
 #endif
 

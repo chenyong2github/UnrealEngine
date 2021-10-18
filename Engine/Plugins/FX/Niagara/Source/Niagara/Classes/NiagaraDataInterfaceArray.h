@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "NiagaraDataInterface.h"
+#include "NiagaraDataInterfaceRW.h"
 #include "NiagaraCommon.h"
 #include "NiagaraShared.h"
 #include "NiagaraShader.h"
@@ -32,7 +32,7 @@ struct INiagaraDataInterfaceArrayImpl
 };
 
 UCLASS(abstract, EditInlineNew)
-class NIAGARA_API UNiagaraDataInterfaceArray : public UNiagaraDataInterface
+class NIAGARA_API UNiagaraDataInterfaceArray : public UNiagaraDataInterfaceRWBase
 {
 	GENERATED_UCLASS_BODY()
 
