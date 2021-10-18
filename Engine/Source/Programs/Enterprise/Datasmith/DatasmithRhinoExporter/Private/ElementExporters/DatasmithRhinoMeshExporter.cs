@@ -85,16 +85,17 @@ namespace DatasmithRhino.ElementExporters
 			ElementInfo.MaterialIndices.ForEach((MaterialIndex) => MaterialInfos.Add(ExportContext.GetMaterialInfoFromMaterialIndex(MaterialIndex)));
 
 			DatasmithMeshElement.SetLabel(ElementInfo.UniqueLabel);
-			ParseMesh(DatasmithMeshElement, DatasmithMesh, ElementInfo.RhinoMeshes, MaterialInfos);
+			ParseMesh(DatasmithMeshElement, DatasmithMesh, ElementInfo, MaterialInfos);
 		}
 
-		private static void ParseMesh(FDatasmithFacadeMeshElement DatasmithMeshElement, FDatasmithFacadeMesh DatasmithMesh, List<Mesh> MeshSections, List<DatasmithMaterialInfo> MaterialInfos)
+		private static void ParseMesh(FDatasmithFacadeMeshElement DatasmithMeshElement, FDatasmithFacadeMesh DatasmithMesh, DatasmithMeshInfo MeshInfo, List<DatasmithMaterialInfo> MaterialInfos)
 		{
 			int VertexIndexOffset = 0;
 			int FaceIndexOffset = 0;
 			int UVIndexOffset = 0;
+			List<Mesh> MeshSections = MeshInfo.RhinoMeshes;
 			List<DatasmithMaterialInfo> UniqueMaterialInfo = new List<DatasmithMaterialInfo>();
-			InitializeDatasmithMesh(DatasmithMesh, MeshSections);
+			InitializeDatasmithMesh(DatasmithMesh, MeshSections, MeshInfo.TextureMappings.Count);
 
 			for (int MeshIndex = 0; MeshIndex < MeshSections.Count; ++MeshIndex )
 			{
@@ -165,11 +166,25 @@ namespace DatasmithRhino.ElementExporters
 					}
 				}
 
-				// Add the UV coordinates for the triangles we just added.
-				for (int UVIndex = 0; UVIndex < RhinoMesh.TextureCoordinates.Count; ++UVIndex)
+				for (int UVChannel = 0; UVChannel < MeshInfo.TextureMappings.Count; ++UVChannel)
 				{
-					Point2f UV = RhinoMesh.TextureCoordinates[UVIndex];
-					DatasmithMesh.SetUV(0, UVIndex + UVIndexOffset, UV.X, 1 - UV.Y);
+					// Since we are offsetting the meshes before exporting them, we must apply the same correction to the UV transform.
+					Transform InverveOffsetTranform;
+					MeshInfo.OffsetTransform.TryGetInverse(out InverveOffsetTranform);
+					DatasmithTextureMappingData TextureMappingData = MeshInfo.TextureMappings[UVChannel];
+					Transform CorrectedTransform = InverveOffsetTranform * TextureMappingData.ObjectTransform;
+
+					// Rhino gives no guarantee on the state of the texture mapping in a given mesh.
+					// We must make sure that UV is set to the channel we are exporting.
+					const bool bLazyLoad = false;
+					RhinoMesh.SetTextureCoordinates(TextureMappingData.RhinoTextureMapping, CorrectedTransform, bLazyLoad);
+
+					// Add the UV coordinates for the triangles we just added.
+					for (int UVIndex = 0; UVIndex < RhinoMesh.TextureCoordinates.Count; ++UVIndex)
+					{
+						Point2f UV = RhinoMesh.TextureCoordinates[UVIndex];
+						DatasmithMesh.SetUV(UVChannel, UVIndex + UVIndexOffset, UV.X, 1 - UV.Y);
+					}
 				}
 
 				VertexIndexOffset += RhinoMesh.Vertices.Count;
@@ -178,7 +193,7 @@ namespace DatasmithRhino.ElementExporters
 			}
 		}
 
-		private static void InitializeDatasmithMesh(FDatasmithFacadeMesh DatasmithMesh, List<Mesh> MeshSections)
+		private static void InitializeDatasmithMesh(FDatasmithFacadeMesh DatasmithMesh, List<Mesh> MeshSections, int NumberOfUVChannels)
 		{
 			int TotalNumberOfVertices = 0;
 			int TotalNumberOfFaces = 0;
@@ -193,8 +208,12 @@ namespace DatasmithRhino.ElementExporters
 
 			DatasmithMesh.SetVerticesCount(TotalNumberOfVertices);
 			DatasmithMesh.SetFacesCount(TotalNumberOfFaces);
-			DatasmithMesh.SetUVChannelsCount(1);
-			DatasmithMesh.SetUVCount(0, TotalNumberOfTextureCoordinates);
+			DatasmithMesh.SetUVChannelsCount(NumberOfUVChannels);
+
+			for (int UVChannel = 0; UVChannel < NumberOfUVChannels; ++UVChannel)
+			{
+				DatasmithMesh.SetUVCount(UVChannel, TotalNumberOfTextureCoordinates);
+			}
 		}
 
 		private static void AddNormalsToMesh(FDatasmithFacadeMesh Mesh, int FaceIndex, Vector3f Normal)

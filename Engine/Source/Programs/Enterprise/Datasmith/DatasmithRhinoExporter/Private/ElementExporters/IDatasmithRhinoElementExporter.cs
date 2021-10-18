@@ -167,6 +167,8 @@ namespace DatasmithRhino.ElementExporters
 			}
 			T[] CreatedElementInfos = new T[NumberOfElementsToCreate];
 
+			Rhino.Runtime.HostUtils.DisplayOleAlerts(false);
+
 			// Then execute the Create and Modify asynchronously.
 			int CompletedElements = 0;
 			bool bExportCancelled = false;
@@ -205,6 +207,8 @@ namespace DatasmithRhino.ElementExporters
 					}
 				}
 			});
+
+			Rhino.Runtime.HostUtils.DisplayOleAlerts(true);
 
 			if (bExportCancelled)
 			{

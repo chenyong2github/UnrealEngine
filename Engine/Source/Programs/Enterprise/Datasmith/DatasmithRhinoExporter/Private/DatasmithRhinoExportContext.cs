@@ -586,6 +586,19 @@ namespace DatasmithRhino
 			return DatasmithRhinoUtilities.IsTextureSupported(RhinoTexture);
 		}
 	}
+	public class DatasmithTextureMappingData
+	{
+		public int ChannelId;
+		public Rhino.Render.TextureMapping RhinoTextureMapping;
+		public Transform ObjectTransform;
+
+		public DatasmithTextureMappingData(int InChannelId, Rhino.Render.TextureMapping InTextureMapping, Transform InTransform)
+		{
+			ChannelId = InChannelId;
+			RhinoTextureMapping = InTextureMapping;
+			ObjectTransform = InTransform;
+		}
+	}
 
 	public class DatasmithMeshInfo : DatasmithInfoBase
 	{
@@ -594,18 +607,15 @@ namespace DatasmithRhino
 		public List<Mesh> RhinoMeshes { get; private set; }
 		public Transform OffsetTransform { get; set; }
 		public List<int> MaterialIndices { get; set; }
+		public List<DatasmithTextureMappingData> TextureMappings { get; set; }
 
-		public DatasmithMeshInfo(IEnumerable<Mesh> InRhinoMeshes, Transform InOffset, List<int> InMaterialIndexes, string InName, string InUniqueLabel, string InBaseLabel)
+		public DatasmithMeshInfo(IEnumerable<Mesh> InRhinoMeshes, Transform InOffset, List<int> InMaterialIndexes, List<DatasmithTextureMappingData> InTextureMappings, string InName, string InUniqueLabel, string InBaseLabel)
 			: base(null, InName, InUniqueLabel, InBaseLabel)
 		{
 			RhinoMeshes = new List<Mesh>(InRhinoMeshes);
 			OffsetTransform = InOffset;
 			MaterialIndices = InMaterialIndexes;
-		}
-
-		public DatasmithMeshInfo(Mesh InRhinoMesh, Transform InOffset, int InMaterialIndex, string InName, string InUniqueLabel, string InBaseLabel)
-			: this(new List<Mesh> { InRhinoMesh }, InOffset, new List<int> { InMaterialIndex }, InName, InUniqueLabel, InBaseLabel)
-		{
+			TextureMappings = InTextureMappings;
 		}
 
 		public override void ApplyDiffs(DatasmithInfoBase OtherInfo)
@@ -617,6 +627,7 @@ namespace DatasmithRhino
 				RhinoMeshes = OtherMeshInfo.RhinoMeshes;
 				OffsetTransform = OtherMeshInfo.OffsetTransform;
 				MaterialIndices = OtherMeshInfo.MaterialIndices;
+				TextureMappings = OtherMeshInfo.TextureMappings;
 			}
 			else
 			{
@@ -2096,10 +2107,11 @@ namespace DatasmithRhino
 			if (RenderMeshes != null && RenderMeshes.Length > 0)
 			{
 				Dictionary<Mesh, ObjectAttributes> MeshAttributePairs = GetMeshAttributePairs(InRhinoObject, RenderMeshes);
+				List<DatasmithTextureMappingData> InTextureMappings = GetObjectTextureMappings(InRhinoObject);
 
 				if (MeshAttributePairs.Count > 0)
 				{
-					MeshInfo = GenerateMeshInfo(InRhinoObject.Id, MeshAttributePairs);
+					MeshInfo = GenerateMeshInfo(InRhinoObject.Id, MeshAttributePairs, InTextureMappings);
 				}
 			}
 
@@ -2137,7 +2149,26 @@ namespace DatasmithRhino
 			return MeshAttributePairs;
 		}
 
-		private DatasmithMeshInfo GenerateMeshInfo(Guid ObjectID, IReadOnlyDictionary<Mesh, ObjectAttributes> MeshAttributePairs)
+		private List<DatasmithTextureMappingData> GetObjectTextureMappings(RhinoObject InRhinoObject)
+		{
+			if (InRhinoObject.GetTextureChannels() is int[] TextureChannels)
+			{
+				List<DatasmithTextureMappingData> TextureMappings = new List<DatasmithTextureMappingData>(TextureChannels.Length);
+				foreach (int TextureChannelID in TextureChannels)
+				{
+					if (InRhinoObject.GetTextureMapping(TextureChannelID, out Transform ObjectTransform) is Rhino.Render.TextureMapping ObjectTextureMapping)
+					{
+						TextureMappings.Add(new DatasmithTextureMappingData(TextureChannelID, ObjectTextureMapping, ObjectTransform));
+					}
+				}
+				
+				return TextureMappings;
+			}
+
+			return new List<DatasmithTextureMappingData>();
+		}
+
+		private DatasmithMeshInfo GenerateMeshInfo(Guid ObjectID, IReadOnlyDictionary<Mesh, ObjectAttributes> MeshAttributePairs, List<DatasmithTextureMappingData> TextureMappingList)
 		{
 			DatasmithMeshInfo MeshInfo = null;
 
@@ -2150,7 +2181,7 @@ namespace DatasmithRhino
 				string UniqueLabel = HierarchyActorNode.UniqueLabel;
 				string BaseLabel = HierarchyActorNode.BaseLabel;
 
-				MeshInfo = new DatasmithMeshInfo(MeshAttributePairs.Keys, OffsetTransform, MaterialIndices, Name, UniqueLabel, BaseLabel);
+				MeshInfo = new DatasmithMeshInfo(MeshAttributePairs.Keys, OffsetTransform, MaterialIndices, TextureMappingList, Name, UniqueLabel, BaseLabel);
 			}
 			else
 			{
