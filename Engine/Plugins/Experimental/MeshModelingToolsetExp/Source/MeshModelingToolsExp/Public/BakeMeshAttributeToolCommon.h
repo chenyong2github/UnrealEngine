@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/Classes/Engine/Texture2D.h"
+#include "Engine/Texture2D.h"
 #include "MultiSelectionTool.h"
 #include "Image/ImageBuilder.h"
 #include "Image/ImageDimensions.h"
@@ -12,6 +12,8 @@
 // Pre-declarations
 using UE::Geometry::FImageDimensions;
 using UE::Geometry::TImageBuilder;
+class UStaticMesh;
+class USkeletalMesh;
 
 
 /**
@@ -25,8 +27,11 @@ class MESHMODELINGTOOLSEXP_API UDetailMeshToolProperties : public UInteractiveTo
 	GENERATED_BODY()
 public:
 	/** The detail mesh to sample */
-	UPROPERTY(VisibleAnywhere, Category = DetailMesh, meta = (TransientToolProperty))
-	TObjectPtr<UStaticMesh> DetailMesh = nullptr;
+	UPROPERTY(VisibleAnywhere, Category = DetailMesh, DisplayName = "Detail Mesh", meta = (TransientToolProperty, EditCondition = "DetailStaticMesh != nullptr", EditConditionHides))
+	TObjectPtr<UStaticMesh> DetailStaticMesh = nullptr;
+
+	UPROPERTY(VisibleAnywhere, Category = DetailMesh, DisplayName = "Detail Mesh", meta = (TransientToolProperty, EditCondition = "DetailSkeletalMesh != nullptr", EditConditionHides))
+	TObjectPtr<USkeletalMesh> DetailSkeletalMesh = nullptr;
 
 	/** The detail mesh normal map to sample. If empty, the geometric normals will be used. */
 	UPROPERTY(EditAnywhere, Category = DetailMesh, meta = (TransientToolProperty))
