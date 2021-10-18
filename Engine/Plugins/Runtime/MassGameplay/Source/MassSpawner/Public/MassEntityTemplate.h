@@ -145,6 +145,24 @@ struct MASSSPAWNER_API FMassEntityTemplate
 	FString DebugGetDescription(UMassEntitySubsystem* EntitySubsystem = nullptr) const;
 	FString DebugGetArchetypeDescription(UMassEntitySubsystem& EntitySubsystem) const;
 
+	template<typename T>
+	bool HasFragment() const
+	{
+		return FragmentCollection.GetFragmentBitSet().Contains(*T::StaticStruct());
+	}
+	
+	template<typename T>
+	bool HasTag() const
+	{
+		return TagBitSet.Contains(*T::StaticStruct());
+	}
+
+	template<typename T>
+	bool HasChunkFragment() const
+	{
+		return ChunkFragmentBitSet.Contains(*T::StaticStruct());
+	}
+
 private:
 	FArchetypeHandle Archetype;
 

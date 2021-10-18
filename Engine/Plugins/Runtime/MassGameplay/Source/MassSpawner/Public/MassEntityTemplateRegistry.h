@@ -116,6 +116,24 @@ struct FMassEntityTemplateBuildContext
 		return Template.AddChunkFragment_GetRef<T>();
 	}
 
+	template<typename T>
+	bool HasFragment() const
+	{
+		return Template.HasFragment<T>();
+	}
+	
+	template<typename T>
+	bool HasTag() const
+	{
+		return Template.HasTag<T>();
+	}
+
+	template<typename T>
+	bool HasChunkFragment() const
+	{
+		return Template.HasChunkFragment<T>();
+	}
+
 	//----------------------------------------------------------------------//
 	// Initializers
 	//----------------------------------------------------------------------//
