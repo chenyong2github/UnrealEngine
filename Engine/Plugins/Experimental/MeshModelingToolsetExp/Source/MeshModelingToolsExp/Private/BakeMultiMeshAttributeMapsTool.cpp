@@ -45,7 +45,7 @@ const FToolTargetTypeRequirements& UBakeMultiMeshAttributeMapsToolBuilder::GetTa
 	static FToolTargetTypeRequirements TypeRequirements({
 		UMeshDescriptionProvider::StaticClass(),
 		UPrimitiveComponentBackedTarget::StaticClass(),
-		UStaticMeshBackedTarget::StaticClass(),			// currently only supports StaticMesh targets
+		UStaticMeshBackedTarget::StaticClass(),			// FMeshSceneAdapter currently only supports StaticMesh targets
 		UMaterialProvider::StaticClass()
 		});
 	return TypeRequirements;

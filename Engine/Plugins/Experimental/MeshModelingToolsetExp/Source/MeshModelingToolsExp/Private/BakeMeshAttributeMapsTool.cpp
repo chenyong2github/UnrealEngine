@@ -16,7 +16,6 @@
 
 #include "ImageUtils.h"
 
-#include "AssetUtils/Texture2DBuilder.h"
 #include "AssetUtils/Texture2DUtil.h"
 #include "ModelingObjectsCreationAPI.h"
 
@@ -24,12 +23,16 @@
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "TargetInterfaces/StaticMeshBackedTarget.h"
+#include "TargetInterfaces/SkeletalMeshBackedTarget.h"
 #include "ToolTargetManager.h"
 #include "ModelingToolTargetUtil.h"
 
 // required to pass UStaticMesh asset so we can save at same location
-#include "Engine/Classes/Components/StaticMeshComponent.h"
-#include "Engine/Classes/Engine/StaticMesh.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/SkeletalMesh.h"
+#include "Components/StaticMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Components/DynamicMeshComponent.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -46,7 +49,6 @@ const FToolTargetTypeRequirements& UBakeMeshAttributeMapsToolBuilder::GetTargetR
 	static FToolTargetTypeRequirements TypeRequirements({
 		UMeshDescriptionProvider::StaticClass(),
 		UPrimitiveComponentBackedTarget::StaticClass(),
-		UStaticMeshBackedTarget::StaticClass(),			// currently only supports StaticMesh targets
 		UMaterialProvider::StaticClass()
 		});
 	return TypeRequirements;
@@ -55,7 +57,20 @@ const FToolTargetTypeRequirements& UBakeMeshAttributeMapsToolBuilder::GetTargetR
 bool UBakeMeshAttributeMapsToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	const int32 NumTargets = SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements());
-	return (NumTargets == 1 || NumTargets == 2);
+	if (NumTargets == 1 || NumTargets == 2)
+	{
+		bool bValidTargets = true;
+		SceneState.TargetManager->EnumerateSelectedAndTargetableComponents(SceneState, GetTargetRequirements(),
+			[&bValidTargets](UActorComponent* Component)
+			{
+				UStaticMeshComponent* StaticMesh = Cast<UStaticMeshComponent>(Component);
+				USkeletalMeshComponent* SkeletalMesh = Cast<USkeletalMeshComponent>(Component);
+				UDynamicMeshComponent* DynMesh = Cast<UDynamicMeshComponent>(Component);
+				bValidTargets = bValidTargets && (StaticMesh || SkeletalMesh || DynMesh);
+			});
+		return bValidTargets;
+	}
+	return false;
 }
 
 UInteractiveTool* UBakeMeshAttributeMapsToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
@@ -303,11 +318,14 @@ void UBakeMeshAttributeMapsTool::Setup()
 	UToolTarget* DetailTarget = Targets[bIsBakeToSelf ? 0 : 1];
 	IStaticMeshBackedTarget* DetailStaticMeshTarget = Cast<IStaticMeshBackedTarget>(DetailTarget);
 	UStaticMesh* DetailStaticMesh = DetailStaticMeshTarget ? DetailStaticMeshTarget->GetStaticMesh() : nullptr;
+	ISkeletalMeshBackedTarget* DetailSkeletalMeshTarget = Cast<ISkeletalMeshBackedTarget>(DetailTarget);
+	USkeletalMesh* DetailSkeletalMesh = DetailSkeletalMeshTarget ? DetailSkeletalMeshTarget->GetSkeletalMesh() : nullptr;
 
 	DetailMeshProps = NewObject<UDetailMeshToolProperties>(this);
 	AddToolPropertySource(DetailMeshProps);
 	SetToolPropertySourceEnabled(DetailMeshProps, true);
-	DetailMeshProps->DetailMesh = DetailStaticMesh;
+	DetailMeshProps->DetailStaticMesh = DetailStaticMesh;
+	DetailMeshProps->DetailSkeletalMesh = DetailSkeletalMesh;
 	DetailMeshProps->DetailMeshNormalMap = nullptr;
 	DetailMeshProps->WatchProperty(DetailMeshProps->DetailNormalUVLayer, [this](int) { bInputsDirty = true; });
 	DetailMeshProps->WatchProperty(DetailMeshProps->DetailMeshNormalMap, [this](UTexture2D*)
@@ -478,10 +496,17 @@ void UBakeMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 	}
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
-		UStaticMeshComponent* StaticMeshComponent = CastChecked<UStaticMeshComponent>(UE::ToolTarget::GetTargetComponent(Targets[0]));
-		UStaticMesh* StaticMeshAsset = StaticMeshComponent->GetStaticMesh();
-		check(StaticMeshAsset);
-		FString BaseName = UE::ToolTarget::GetTargetActor(Targets[0])->GetName();
+		// Check if we have a source asset to identify a location to store the texture assets.
+		IStaticMeshBackedTarget* StaticMeshTarget = Cast<IStaticMeshBackedTarget>(Targets[0]);
+		UObject* SourceAsset = StaticMeshTarget ? StaticMeshTarget->GetStaticMesh() : nullptr;
+		if (!SourceAsset)
+		{
+			// Check if our target is a Skeletal Mesh Asset
+			ISkeletalMeshBackedTarget* SkeletalMeshTarget = Cast<ISkeletalMeshBackedTarget>(Targets[0]);
+			SourceAsset = SkeletalMeshTarget ? SkeletalMeshTarget->GetSkeletalMesh() : nullptr;
+		}
+		const UPrimitiveComponent* SourceComponent = UE::ToolTarget::GetTargetComponent(Targets[0]);
+		const FString BaseName = UE::ToolTarget::GetTargetActor(Targets[0])->GetName();
 
 		bool bCreatedAssetOK = true;
 		const int NumResults = Settings->Result.Num();
@@ -489,7 +514,7 @@ void UBakeMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 		{
 			FString TexName;
 			GetTextureName(ResultTypes[ResultIdx], BaseName, TexName);
-			bCreatedAssetOK = bCreatedAssetOK && UE::Modeling::CreateTextureObject(GetToolManager(), FCreateTextureObjectParams{ 0, StaticMeshAsset->GetWorld(), StaticMeshAsset, TexName, Settings->Result[ResultIdx] }).IsOK();
+			bCreatedAssetOK = bCreatedAssetOK && UE::Modeling::CreateTextureObject(GetToolManager(), FCreateTextureObjectParams{ 0, SourceComponent->GetWorld(), SourceAsset, TexName, Settings->Result[ResultIdx] }).IsOK();
 		}
 		ensure(bCreatedAssetOK);
 	}
