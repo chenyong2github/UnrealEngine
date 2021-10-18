@@ -82,6 +82,7 @@ using HordeServer.Compute.Impl;
 using HordeServer.Compute;
 using System.Net.Http.Headers;
 using Serilog.Events;
+using HordeServer.Jobs;
 
 namespace HordeServer
 {
@@ -315,6 +316,7 @@ namespace HordeServer
 
 			Services.AddSingleton<IAgentCollection, AgentCollection>();
 			Services.AddSingleton<IAgentSoftwareCollection, AgentSoftwareCollection>();
+			Services.AddSingleton<IArtifactCollection, ArtifactService>();
 			Services.AddSingleton<ICommitCollection, CommitCollection>();
 			Services.AddSingleton<ICounterCollection, CounterCollection>();
 			Services.AddSingleton<IGraphCollection, GraphCollection>();
@@ -366,7 +368,6 @@ namespace HordeServer
 			Services.AddSingleton<AclService>();
 			Services.AddSingleton<AgentService>();			
 			Services.AddSingleton<AgentSoftwareService>();
-			Services.AddSingleton<ArtifactService>();
 			Services.AddSingleton<ConsistencyService>();
 			Services.AddSingleton<RequestTrackerService>();
 			Services.AddSingleton<CredentialService>();

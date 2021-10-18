@@ -8,6 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using HordeServer;
 using HordeServer.Collections.Impl;
+using HordeServer.Jobs;
 using HordeServer.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -57,14 +58,14 @@ namespace HordeServerTests
             DatabaseService DatabaseService = Services.GetRequiredService<DatabaseService>();
             TemplateService TemplateService = Services.GetRequiredService<TemplateService>();
             JobService JobService = Services.GetRequiredService<JobService>();
-            ArtifactService ArtifactService = Services.GetRequiredService<ArtifactService>();
+            IArtifactCollection ArtifactCollection = Services.GetRequiredService<IArtifactCollection>();
             StreamService StreamService = Services.GetRequiredService<StreamService>();
             AgentService AgentService = Services.GetRequiredService<AgentService>();
             IPerforceService PerforceService = Services.GetRequiredService<IPerforceService>();
             GraphCollection GraphCollection = new GraphCollection(DatabaseService);
 
             _fixture = new Fixture();
-            _fixture = await Fixture.Create(false, GraphCollection, TemplateService, JobService, ArtifactService, StreamService, AgentService, PerforceService);
+            _fixture = await Fixture.Create(false, GraphCollection, TemplateService, JobService, ArtifactCollection, StreamService, AgentService, PerforceService);
             return _fixture;
         }
 

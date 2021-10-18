@@ -57,11 +57,6 @@ namespace HordeServer.Services
 		public IMongoCollection<Credential> Credentials { get; }
 
 		/// <summary>
-		/// Collection of artifact documents
-		/// </summary>
-		public IMongoCollection<Artifact> Artifacts { get; }
-
-		/// <summary>
 		/// Collection of singleton documents
 		/// </summary>
 		public IMongoCollection<BsonDocument> Singletons { get; }
@@ -231,7 +226,6 @@ namespace HordeServer.Services
 				}
 
 				Credentials = GetCollection<Credential>("Credentials");
-				Artifacts = GetCollection<Artifact>("Artifacts");
 			}
 			catch (Exception Ex)
 			{

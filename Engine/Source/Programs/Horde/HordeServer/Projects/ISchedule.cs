@@ -230,6 +230,7 @@ namespace HordeServer.Models
 		/// <param name="RequireSubmittedChange">Whether a change has to be submitted for the schedule to trigger</param>
 		/// <param name="Gate">Reference to another job/target which much succeed for this schedule to trigger</param>
 		/// <param name="Filter">Filter for changes to consider</param>
+		/// <param name="Files">Files that should trigger the schedule</param>
 		/// <param name="TemplateParameters">Parameters for the template to run</param>
 		/// <param name="Patterns">List of patterns for the schedule</param>
 		public Schedule(bool Enabled = true, int MaxActive = 0, int MaxChanges = 0, bool RequireSubmittedChange = true, ScheduleGate? Gate = null, List<ChangeContentFlags>? Filter = null, List<string>? Files = null, Dictionary<string, string>? TemplateParameters = null, List<SchedulePattern>? Patterns = null)

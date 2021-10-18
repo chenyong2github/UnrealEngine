@@ -23,6 +23,7 @@ using System.Text;
 using System.Threading.Tasks;
 using HordeServer.Tasks.Impl;
 using System.Threading;
+using HordeServer.Jobs;
 
 [assembly: InternalsVisibleTo("HordeAgentTests")]
 
@@ -79,7 +80,7 @@ namespace HordeServer.Services
 		/// <summary>
 		/// The artifact service instance
 		/// </summary>
-		ArtifactService ArtifactService;
+		IArtifactCollection ArtifactCollection;
 
 		/// <summary>
 		/// The log file service instance
@@ -131,7 +132,7 @@ namespace HordeServer.Services
 		/// <param name="StreamService">Instance of the StreamService singleton</param>
 		/// <param name="LogFileService">Instance of the LogFileService singleton</param>
 		/// <param name="AgentSoftwareService">Instance of the JobService singleton</param>
-		/// <param name="ArtifactService">Instance of the ArtifactService singleton</param>
+		/// <param name="ArtifactCollection">Instance of the ArtifactService singleton</param>
 		/// <param name="CredentialService">Instance of the CredentialsService singleton</param>
 		/// <param name="PoolService">Instance of the PoolService singleton</param>
 		/// <param name="LifetimeService">The application lifetime</param>
@@ -139,7 +140,7 @@ namespace HordeServer.Services
 		/// <param name="TestData">Collection of testdata</param>
 		/// <param name="ConformTaskSource"></param>
 		/// <param name="Logger">Log writer</param>
-		public RpcService(DatabaseService DatabaseService, AclService AclService, AgentService AgentService, StreamService StreamService, JobService JobService, AgentSoftwareService AgentSoftwareService, ArtifactService ArtifactService, ILogFileService LogFileService, CredentialService CredentialService, PoolService PoolService, LifetimeService LifetimeService, IGraphCollection Graphs, ITestDataCollection TestData, ConformTaskSource ConformTaskSource, ILogger<RpcService> Logger)
+		public RpcService(DatabaseService DatabaseService, AclService AclService, AgentService AgentService, StreamService StreamService, JobService JobService, AgentSoftwareService AgentSoftwareService, IArtifactCollection ArtifactCollection, ILogFileService LogFileService, CredentialService CredentialService, PoolService PoolService, LifetimeService LifetimeService, IGraphCollection Graphs, ITestDataCollection TestData, ConformTaskSource ConformTaskSource, ILogger<RpcService> Logger)
 		{
 			this.DatabaseService = DatabaseService;
 			this.AclService = AclService;
@@ -147,7 +148,7 @@ namespace HordeServer.Services
 			this.StreamService = StreamService;
 			this.JobService = JobService;
 			this.AgentSoftwareService = AgentSoftwareService;
-			this.ArtifactService = ArtifactService;
+			this.ArtifactCollection = ArtifactCollection;
 			this.LogFileService = LogFileService;
 			this.CredentialService = CredentialService;
 			this.PoolService = PoolService;
@@ -998,7 +999,7 @@ namespace HordeServer.Services
 			// Upload the stream
 			using (ArtifactChunkStream InputStream = new ArtifactChunkStream(Reader, Metadata.Length))
 			{
-				Artifact Artifact = await ArtifactService.CreateArtifactAsync(Job.Id, Step.Id, Metadata.Name, Metadata.MimeType, InputStream);
+				IArtifact Artifact = await ArtifactCollection.CreateArtifactAsync(Job.Id, Step.Id, Metadata.Name, Metadata.MimeType, InputStream);
 
 				UploadArtifactResponse Response = new UploadArtifactResponse();
 				Response.Id = Artifact.Id.ToString();

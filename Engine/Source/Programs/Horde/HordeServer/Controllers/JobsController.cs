@@ -23,6 +23,7 @@ using Microsoft.Extensions.Logging;
 using HordeServer.Notifications;
 using OpenTracing.Util;
 using OpenTracing;
+using HordeServer.Jobs;
 
 namespace HordeServer.Controllers
 {
@@ -70,7 +71,7 @@ namespace HordeServer.Controllers
 		/// <summary>
 		/// 
 		/// </summary>
-		private readonly ArtifactService ArtifactService;
+		private readonly IArtifactCollection ArtifactCollection;
 
 		/// <summary>
 		/// Instance of the notification service singleton
@@ -85,16 +86,7 @@ namespace HordeServer.Controllers
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="AclService">Instance of the ACL service</param>
-		/// <param name="Graphs">Collection of graph documents</param>
-		/// <param name="Perforce">The Perforce service instance</param>
-		/// <param name="StreamService">Instance of the stream service</param>
-		/// <param name="JobService">Instance of the JobService singleton</param>
-		/// <param name="TemplateService">Instance of the TemplateService singleton</param>
-		/// <param name="ArtifactService">Instance of the ArtifactService singleton</param>
-		/// <param name="NotificationService">Instance of the NotificationService singelton</param>
-		/// <param name="Logger">The logger instance</param>
-		public JobsController(AclService AclService, IGraphCollection Graphs, IPerforceService Perforce, StreamService StreamService, JobService JobService, TemplateService TemplateService, ArtifactService ArtifactService, INotificationService NotificationService, ILogger<JobsController> Logger)
+		public JobsController(AclService AclService, IGraphCollection Graphs, IPerforceService Perforce, StreamService StreamService, JobService JobService, TemplateService TemplateService, IArtifactCollection ArtifactCollection, INotificationService NotificationService, ILogger<JobsController> Logger)
 		{
 			this.AclService = AclService;
 			this.Graphs = Graphs;
@@ -102,7 +94,7 @@ namespace HordeServer.Controllers
 			this.StreamService = StreamService;
 			this.JobService = JobService;
 			this.TemplateService = TemplateService;
-			this.ArtifactService = ArtifactService;
+			this.ArtifactCollection = ArtifactCollection;
 			this.NotificationService = NotificationService;
 			this.Logger = Logger;
 		}
@@ -1184,14 +1176,14 @@ namespace HordeServer.Controllers
 				return NotFound();
 			}
 
-			List<Artifact> Artifacts = await ArtifactService.GetArtifactsAsync(JobIdValue, StepIdValue, Name);
+			List<IArtifact> Artifacts = await ArtifactCollection.GetArtifactsAsync(JobIdValue, StepIdValue, Name);
 			if (Artifacts.Count == 0)
 			{
 				return NotFound();
 			}
 
-			Artifact Artifact = Artifacts[0];
-			return new FileStreamResult(await ArtifactService.OpenArtifactReadStreamAsync(Artifact), Artifact.MimeType);
+			IArtifact Artifact = Artifacts[0];
+			return new FileStreamResult(await ArtifactCollection.OpenArtifactReadStreamAsync(Artifact), Artifact.MimeType);
 		}
 
 		/// <summary>
@@ -1223,12 +1215,12 @@ namespace HordeServer.Controllers
 				return NotFound();
 			}
 
-			List<Artifact> Artifacts = await ArtifactService.GetArtifactsAsync(JobIdValue, StepIdValue, null);
-			foreach (Artifact Artifact in Artifacts)
+			List<IArtifact> Artifacts = await ArtifactCollection.GetArtifactsAsync(JobIdValue, StepIdValue, null);
+			foreach (IArtifact Artifact in Artifacts)
 			{
 				if (Artifact.Name.Equals("trace.json", StringComparison.OrdinalIgnoreCase))
 				{
-					return new FileStreamResult(await ArtifactService.OpenArtifactReadStreamAsync(Artifact), "text/json");
+					return new FileStreamResult(await ArtifactCollection.OpenArtifactReadStreamAsync(Artifact), "text/json");
 				}
 			}
 			return NotFound();
