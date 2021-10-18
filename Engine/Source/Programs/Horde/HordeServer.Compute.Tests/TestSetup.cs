@@ -12,6 +12,7 @@ using HordeServer;
 using HordeServer.Collections;
 using HordeServer.Collections.Impl;
 using HordeServer.Controllers;
+using HordeServer.Jobs;
 using HordeServer.Logs;
 using HordeServer.Logs.Builder;
 using HordeServer.Logs.Readers;
@@ -85,7 +86,7 @@ namespace HordeServerTests
 		public IIssueService IssueService => ServiceProvider.GetRequiredService<IIssueService>();
 		public JobTaskSource JobTaskSource => ServiceProvider.GetRequiredService<JobTaskSource>();
 		public JobService JobService => ServiceProvider.GetRequiredService<JobService>();
-		public ArtifactService ArtifactService => ServiceProvider.GetRequiredService<ArtifactService>();
+		public IArtifactCollection ArtifactCollection => ServiceProvider.GetRequiredService<IArtifactCollection>();
 		public IDowntimeService DowntimeService => ServiceProvider.GetRequiredService<IDowntimeService>();
 		public RpcService RpcService => ServiceProvider.GetRequiredService<RpcService>();
 		public CredentialService CredentialService => ServiceProvider.GetRequiredService<CredentialService>();
@@ -144,6 +145,7 @@ namespace HordeServerTests
 
 			Services.AddSingleton<IAgentCollection, AgentCollection>();
 			Services.AddSingleton<IAgentSoftwareCollection, AgentSoftwareCollection>();
+			Services.AddSingleton<IArtifactCollection, ArtifactService>();
 			Services.AddSingleton<ICounterCollection, CounterCollection>();
 			Services.AddSingleton<IGraphCollection, GraphCollection>();
 			Services.AddSingleton<IIssueCollection, IssueCollection>();
@@ -172,7 +174,6 @@ namespace HordeServerTests
 			Services.AddSingleton<AclService>();
 			Services.AddSingleton<AgentService>();
 			Services.AddSingleton<AgentSoftwareService>();
-			Services.AddSingleton<ArtifactService>();
 			Services.AddSingleton<AutoscaleService>();
 			Services.AddSingleton<AwsFleetManager, AwsFleetManager>();
 			Services.AddSingleton<ConsistencyService>();
@@ -222,7 +223,7 @@ namespace HordeServerTests
 		{
 			if (!DatabaseService.ReadOnlyMode)
 			{
-				Fixture = await Fixture.Create(ForceNewFixture, GraphCollection, TemplateService, JobService, ArtifactService, StreamService, AgentService, PerforceService);
+				Fixture = await Fixture.Create(ForceNewFixture, GraphCollection, TemplateService, JobService, ArtifactCollection, StreamService, AgentService, PerforceService);
 			}
 		}
 
@@ -230,7 +231,7 @@ namespace HordeServerTests
         {
 			ILogger<JobsController> Logger = ServiceProvider.GetRequiredService<ILogger<JobsController>>();
 			JobsController JobsCtrl = new JobsController(AclService, GraphCollection, PerforceService, StreamService, JobService,
-		        TemplateService, ArtifactService, NotificationService, Logger);
+		        TemplateService, ArtifactCollection, NotificationService, Logger);
 	        JobsCtrl.ControllerContext = GetControllerContext();
 	        return JobsCtrl;
         }

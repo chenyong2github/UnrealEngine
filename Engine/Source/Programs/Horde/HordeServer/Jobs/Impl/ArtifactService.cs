@@ -5,6 +5,7 @@ using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
 using HordeServer.Api;
+using HordeServer.Jobs;
 using HordeServer.Models;
 using HordeServer.Storage;
 using HordeServer.Utilities;
@@ -13,6 +14,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
@@ -28,21 +30,49 @@ namespace HordeServer.Services
 	/// <summary>
 	/// Wraps functionality for manipulating artifacts
 	/// </summary>
-	public class ArtifactService
+	public class ArtifactService : IArtifactCollection
 	{
-		/// <summary>
-		/// Backend storage container
-		/// </summary>
+		class Artifact : IArtifact
+		{
+			[BsonRequired, BsonId]
+			public ObjectId Id { get; set; }
+
+			[BsonRequired]
+			public ObjectId JobId { get; set; }
+
+			[BsonRequired]
+			public string Name { get; set; }
+
+			public SubResourceId? StepId { get; set; }
+
+			[BsonRequired]
+			public long Length { get; set; }
+
+			public string MimeType { get; set; }
+
+			[BsonRequired]
+			public int UpdateIndex { get; set; }
+
+			[BsonConstructor]
+			private Artifact()
+			{
+				this.Name = null!;
+				this.MimeType = null!;
+			}
+
+			public Artifact(ObjectId JobId, SubResourceId? StepId, string Name, long Length, string MimeType)
+			{
+				this.Id = ObjectId.GenerateNewId();
+				this.JobId = JobId;
+				this.StepId = StepId;
+				this.Name = Name;
+				this.Length = Length;
+				this.MimeType = MimeType;
+			}
+		}
+
 		private readonly IStorageBackend StorageBackend;
-
-		/// <summary>
-		/// Information Logger
-		/// </summary>
 		private readonly ILogger<ArtifactService> Logger;
-
-		/// <summary>
-		/// Collection of log documents
-		/// </summary>
 		private readonly IMongoCollection<Artifact> Artifacts;
 
 		/// <summary>
@@ -57,7 +87,7 @@ namespace HordeServer.Services
 			this.Logger = Logger;
 
 			// Initialize Artifacts table
-			Artifacts = DatabaseService.Artifacts;
+			Artifacts = DatabaseService.GetCollection<Artifact>("Artifacts");
 			if (!DatabaseService.ReadOnlyMode)
 			{
 				Artifacts.Indexes.CreateOne(new CreateIndexModel<Artifact>(Builders<Artifact>.IndexKeys.Ascending(x => x.JobId)));
@@ -73,7 +103,7 @@ namespace HordeServer.Services
 		/// <param name="MimeType">Type of artifact</param>
 		/// <param name="Data">The data to write</param>
 		/// <returns>The new log file document</returns>
-		public async Task<Artifact> CreateArtifactAsync(ObjectId JobId, SubResourceId? StepId, string Name, string MimeType, System.IO.Stream Data)
+		public async Task<IArtifact> CreateArtifactAsync(ObjectId JobId, SubResourceId? StepId, string Name, string MimeType, System.IO.Stream Data)
 		{
 			// upload first
 			string ArtifactName = ValidateName(Name);
@@ -92,7 +122,7 @@ namespace HordeServer.Services
 		/// <param name="StepId">Unique id of the Step to query</param>
 		/// <param name="Name">Name of the artifact</param>
 		/// <returns>List of artifact documents</returns>
-		public async Task<List<Artifact>> GetArtifactsAsync(ObjectId? JobId, SubResourceId? StepId, string? Name)
+		public async Task<List<IArtifact>> GetArtifactsAsync(ObjectId? JobId, SubResourceId? StepId, string? Name)
 		{
 			FilterDefinitionBuilder<Artifact> Builder = Builders<Artifact>.Filter;
 
@@ -110,7 +140,7 @@ namespace HordeServer.Services
 				Filter &= Builder.Eq(x => x.Name, Name);
 			}
 
-			return await Artifacts.Find(Filter).ToListAsync();
+			return await Artifacts.Find(Filter).ToListAsync<Artifact, IArtifact>();
 		}
 
 		/// <summary>
@@ -118,14 +148,14 @@ namespace HordeServer.Services
 		/// </summary>
 		/// <param name="ArtifactIds">The list of artifact Ids</param>
 		/// <returns>List of artifact documents</returns>
-		public async Task<List<Artifact>> GetArtifactsAsync(IEnumerable<ObjectId> ArtifactIds)
+		public async Task<List<IArtifact>> GetArtifactsAsync(IEnumerable<ObjectId> ArtifactIds)
 		{
 			FilterDefinitionBuilder<Artifact> Builder = Builders<Artifact>.Filter;
 
 			FilterDefinition<Artifact> Filter = FilterDefinition<Artifact>.Empty;
 			Filter &= Builder.In(x => x.Id, ArtifactIds);
 			
-			return await Artifacts.Find(Filter).ToListAsync();
+			return await Artifacts.Find(Filter).ToListAsync<Artifact, IArtifact>();
 		}
 
 		/// <summary>
@@ -133,7 +163,7 @@ namespace HordeServer.Services
 		/// </summary>
 		/// <param name="ArtifactId">Unique id of the artifact</param>
 		/// <returns>The artifact document</returns>
-		public async Task<Artifact?> GetArtifactAsync(ObjectId ArtifactId)
+		public async Task<IArtifact?> GetArtifactAsync(ObjectId ArtifactId)
 		{
 			return await Artifacts.Find<Artifact>(x => x.Id == ArtifactId).FirstOrDefaultAsync();
 		}
@@ -157,7 +187,7 @@ namespace HordeServer.Services
 		/// <param name="NewMimeType">New mime type</param>
 		/// <param name="NewData">New data</param>
 		/// <returns>Async task</returns>
-		public async Task<bool> UpdateArtifactAsync(Artifact? Artifact, string NewMimeType, System.IO.Stream NewData)
+		public async Task<bool> UpdateArtifactAsync(IArtifact? Artifact, string NewMimeType, System.IO.Stream NewData)
 		{
 			while (Artifact != null)
 			{
@@ -171,7 +201,7 @@ namespace HordeServer.Services
 				string ArtifactName = ValidateName(Artifact.Name);
 				await StorageBackend.WriteAsync(GetPath(Artifact.JobId, Artifact.StepId, ArtifactName), NewData);
 
-				if (await TryUpdateArtifactAsync(Artifact, UpdateBuilder.Combine(Updates)))
+				if (await TryUpdateArtifactAsync((Artifact)Artifact, UpdateBuilder.Combine(Updates)))
 				{
 					return true;
 				}
@@ -186,7 +216,7 @@ namespace HordeServer.Services
 		/// </summary>
 		/// <param name="Artifact">The artifact</param>
 		/// <returns>The chunk data</returns>
-		public async Task<System.IO.Stream> OpenArtifactReadStreamAsync(Artifact Artifact)
+		public async Task<System.IO.Stream> OpenArtifactReadStreamAsync(IArtifact Artifact)
 		{
 			System.IO.Stream? Stream = await StorageBackend.ReadAsync(GetPath(Artifact.JobId, Artifact.StepId, Artifact.Name));
 			if (Stream == null)

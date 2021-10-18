@@ -105,7 +105,7 @@ namespace HordeServer.Api
 		/// </summary>
 		/// <param name="Artifact">The artifact to construct from</param>
 		/// <param name="Code">The direct download code</param>
-		public GetArtifactResponse(Artifact Artifact, string? Code)
+		public GetArtifactResponse(IArtifact Artifact, string? Code)
 		{
 			this.Id = Artifact.Id.ToString();
 			this.Name = Artifact.Name;

@@ -15,6 +15,7 @@ using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
 using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.TemplateRef>;
 using ProjectId = HordeServer.Utilities.StringId<HordeServer.Models.IProject>;
 using HordeServer.Api;
+using HordeServer.Jobs;
 
 namespace HordeServerTests
 {
@@ -27,15 +28,15 @@ namespace HordeServerTests
 		public IStream? Stream { get; private set; }
 		public TemplateRefId TemplateRefId1 { get; private set; }
 		public TemplateRefId TemplateRefId2 { get; private set; }
-		public Artifact Job1Artifact { get; private set; } = null!;
+		public IArtifact Job1Artifact { get; private set; } = null!;
 		public string Job1ArtifactData { get; private set; } = null!;
 		public IAgent Agent1 { get; private set; } = null!;
 		public string Agent1Name { get; private set; } = null!;
 
-		public static async Task<Fixture> Create(bool ForceNewFixture, IGraphCollection GraphCollection, TemplateService TemplateService, JobService JobService, ArtifactService ArtifactService, StreamService StreamService, AgentService AgentService, IPerforceService PerforceService)
+		public static async Task<Fixture> Create(bool ForceNewFixture, IGraphCollection GraphCollection, TemplateService TemplateService, JobService JobService, IArtifactCollection ArtifactCollection, StreamService StreamService, AgentService AgentService, IPerforceService PerforceService)
 		{
 			Fixture _fixture = new Fixture();
-			await _fixture.Populate(GraphCollection, TemplateService, JobService, ArtifactService, StreamService, AgentService, PerforceService);
+			await _fixture.Populate(GraphCollection, TemplateService, JobService, ArtifactCollection, StreamService, AgentService, PerforceService);
 			
 			(PerforceService as PerforceServiceStub)?.AddChange("//UE5/Main", 112233, "leet.coder", "Did stuff", new []{"file.cpp"});
 			(PerforceService as PerforceServiceStub)?.AddChange("//UE5/Main", 1111, "swarm", "A shelved CL here", new []{"renderer.cpp"});
@@ -43,7 +44,7 @@ namespace HordeServerTests
 			return _fixture;
 		}
 
-		private async Task Populate(IGraphCollection GraphCollection, TemplateService TemplateService, JobService JobService, ArtifactService ArtifactService, StreamService StreamService, AgentService AgentService, IPerforceService PerforceService)
+		private async Task Populate(IGraphCollection GraphCollection, TemplateService TemplateService, JobService JobService, IArtifactCollection ArtifactCollection, StreamService StreamService, AgentService AgentService, IPerforceService PerforceService)
 		{
 			var Fg = new FixtureGraph();
 			Fg.Id = ContentHash.Empty;
@@ -131,7 +132,7 @@ namespace HordeServerTests
 			Job2 = (await JobService.GetJobAsync(Job2.Id))!;
 
 			Job1ArtifactData = "For The Horde!";
-			Job1Artifact = await ArtifactService.CreateArtifactAsync(Job1.Id, SubResourceId.Parse("22"), "myFile.txt",
+			Job1Artifact = await ArtifactCollection.CreateArtifactAsync(Job1.Id, SubResourceId.Parse("22"), "myFile.txt",
 				"text/plain", new MemoryStream(Encoding.UTF8.GetBytes(Job1ArtifactData)));
 
 			Agent1Name = "testAgent1";
