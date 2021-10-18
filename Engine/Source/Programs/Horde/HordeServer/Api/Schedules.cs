@@ -119,6 +119,11 @@ namespace HordeServer.Api
 		public List<ChangeContentFlags>? Filter { get; set; }
 
 		/// <summary>
+		/// Files that should cause the job to trigger
+		/// </summary>
+		public List<string>? Files { get; set; }
+
+		/// <summary>
 		/// Parameters for the template
 		/// </summary>
 		public Dictionary<string, string> TemplateParameters { get; set; } = new Dictionary<string, string>();
@@ -134,7 +139,7 @@ namespace HordeServer.Api
 		/// <returns>New model object</returns>
 		public Schedule ToModel()
 		{
-			return new Schedule(Enabled, MaxActive, MaxChanges, RequireSubmittedChange, Gate?.ToModel(), Filter, TemplateParameters, Patterns.ConvertAll(x => x.ToModel()));
+			return new Schedule(Enabled, MaxActive, MaxChanges, RequireSubmittedChange, Gate?.ToModel(), Filter, Files, TemplateParameters, Patterns.ConvertAll(x => x.ToModel()));
 		}
 	}
 

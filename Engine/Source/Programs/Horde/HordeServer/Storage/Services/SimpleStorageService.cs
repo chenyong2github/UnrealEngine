@@ -37,7 +37,7 @@ namespace HordeServer.Storage.Services
 		/// Constructor
 		/// </summary>
 		/// <param name="Backend">The storage backend</param>
-		public SimpleStorageService(IStorageBackend<ArtifactService> Backend)
+		public SimpleStorageService(IStorageBackend<ArtifactCollection> Backend)
 		{
 			this.Backend = Backend;
 		}
