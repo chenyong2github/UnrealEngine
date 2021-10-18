@@ -4424,7 +4424,7 @@ struct FD3D12RayTracingLocalResourceBinder
 		FD3D12ConstantBufferView* BufferView = new FD3D12ConstantBufferView(GetDevice());
 		BufferView->Create(Address, DataSize);
 		ShaderTable.TransientCBVs.Add(BufferView);
-		return BufferView->GetView();
+		return BufferView->GetOfflineCpuHandle();
 	}
 #endif // USE_STATIC_ROOT_SIGNATURE
 
@@ -4523,7 +4523,7 @@ static bool SetRayTracingShaderResources(
 		{
 			FD3D12TextureBase* Texture = FD3D12CommandContext::RetrieveTextureBase(Resource, GPUIndex);
 			FD3D12ShaderResourceView* SRV = Texture->GetShaderResourceView();
-			LocalSRVs[SRVIndex] = SRV->GetView();
+			LocalSRVs[SRVIndex] = SRV->GetOfflineCpuHandle();
 			BoundSRVMask |= 1ull << SRVIndex;
 
 			ReferencedResources.Add({ Texture->GetResource(), Resource });
@@ -4537,7 +4537,7 @@ static bool SetRayTracingShaderResources(
 		if (Resource)
 		{
 			FD3D12ShaderResourceView* SRV = FD3D12CommandContext::RetrieveObject<FD3D12ShaderResourceView>(Resource, GPUIndex);
-			LocalSRVs[SRVIndex] = SRV->GetView();
+			LocalSRVs[SRVIndex] = SRV->GetOfflineCpuHandle();
 			BoundSRVMask |= 1ull << SRVIndex;
 
 			ReferencedResources.Add({ SRV->GetResource(), Resource });
@@ -4552,7 +4552,7 @@ static bool SetRayTracingShaderResources(
 		{
 			FD3D12UniformBuffer* CBV = FD3D12CommandContext::RetrieveObject<FD3D12UniformBuffer>(Resource, GPUIndex);
 		#if USE_STATIC_ROOT_SIGNATURE
-			LocalCBVs[CBVIndex] = CBV->View->GetView();
+			LocalCBVs[CBVIndex] = CBV->View->GetOfflineCpuHandle();
 		#else // USE_STATIC_ROOT_SIGNATURE
 			LocalCBVs[CBVIndex] = CBV->ResourceLocation.GetGPUVirtualAddress();
 		#endif // USE_STATIC_ROOT_SIGNATURE
@@ -4567,7 +4567,7 @@ static bool SetRayTracingShaderResources(
 		FRHISamplerState* Resource = Samplers[SamplerIndex];
 		if (Resource)
 		{
-			LocalSamplers[SamplerIndex] = FD3D12CommandContext::RetrieveObject<FD3D12SamplerState>(Resource, GPUIndex)->Descriptor;
+			LocalSamplers[SamplerIndex] = FD3D12CommandContext::RetrieveObject<FD3D12SamplerState>(Resource, GPUIndex)->OfflineHandle;
 			BoundSamplerMask |= 1ull << SamplerIndex;
 		}
 	}
@@ -4578,7 +4578,7 @@ static bool SetRayTracingShaderResources(
 		if (Resource)
 		{
 			FD3D12UnorderedAccessView* UAV = FD3D12CommandContext::RetrieveObject<FD3D12UnorderedAccessView>(Resource, GPUIndex);
-			LocalUAVs[UAVIndex] = UAV->GetView();
+			LocalUAVs[UAVIndex] = UAV->GetOfflineCpuHandle();
 			BoundUAVMask |= 1ull << UAVIndex;
 
 			ReferencedResources.Add({ UAV->GetResource(), Resource });
@@ -4632,7 +4632,7 @@ static bool SetRayTracingShaderResources(
 					}
 					check(SRV != nullptr);
 
-					LocalSRVs[BindIndex] = SRV->GetView();
+					LocalSRVs[BindIndex] = SRV->GetOfflineCpuHandle();
 					BoundSRVMask |= 1ull << BindIndex;
 
 					ReferencedResources.Add({ SRV->GetResource(), SRV });
@@ -4667,7 +4667,7 @@ static bool SetRayTracingShaderResources(
 					FD3D12ShaderResourceView* SRV = FD3D12CommandContext::RetrieveObject<FD3D12ShaderResourceView>(RHISRV, GPUIndex);
 					check(SRV != nullptr);
 
-					LocalSRVs[BindIndex] = SRV->GetView();
+					LocalSRVs[BindIndex] = SRV->GetOfflineCpuHandle();
 					BoundSRVMask |= 1ull << BindIndex;
 
 					ReferencedResources.Add({ SRV->GetResource(), SRV });
@@ -4702,7 +4702,7 @@ static bool SetRayTracingShaderResources(
 					FD3D12UnorderedAccessView* UAV = FD3D12CommandContext::RetrieveObject<FD3D12UnorderedAccessView>(RHIUAV, GPUIndex);
 					check(UAV != nullptr);
 
-					LocalUAVs[BindIndex] = UAV->GetView();
+					LocalUAVs[BindIndex] = UAV->GetOfflineCpuHandle();
 					BoundUAVMask |= 1ull << BindIndex;
 
 					ReferencedResources.Add({ UAV->GetResource(), UAV });
@@ -4737,7 +4737,7 @@ static bool SetRayTracingShaderResources(
 					FD3D12SamplerState* Sampler = FD3D12CommandContext::RetrieveObject<FD3D12SamplerState>(RHISampler, GPUIndex);
 					check(Sampler != nullptr);
 
-					LocalSamplers[BindIndex] = Sampler->Descriptor;
+					LocalSamplers[BindIndex] = Sampler->OfflineHandle;
 					BoundSamplerMask |= 1ull << BindIndex;
 
 					ResourceInfo = *ResourceInfos++;

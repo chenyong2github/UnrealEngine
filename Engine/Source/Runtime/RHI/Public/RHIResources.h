@@ -600,6 +600,7 @@ class FRHISamplerState : public FRHIResource
 public:
 	FRHISamplerState() : FRHIResource(RRT_SamplerState) {}
 	virtual bool IsImmutable() const { return false; }
+	virtual FRHIDescriptorHandle GetBindlessHandle() const { return FRHIDescriptorHandle(); }
 };
 
 class FRHIRasterizerState : public FRHIResource
@@ -1245,7 +1246,9 @@ public:
 	virtual class FRHITexture3D* GetTexture3D() { return NULL; }
 	virtual class FRHITextureCube* GetTextureCube() { return NULL; }
 	virtual class FRHITextureReference* GetTextureReference() { return NULL; }
-	
+
+	virtual class FRHIShaderResourceView* GetDefaultShaderResourceView() const { return nullptr; }
+
 	// Slower method to get Size X, Y & Z information. Prefer sub-classes' GetSizeX(), etc
 	virtual FIntVector GetSizeXYZ() const = 0;
 
@@ -1841,6 +1844,7 @@ class FRHIUnorderedAccessView : public FRHIResource
 {
 public:
 	FRHIUnorderedAccessView() : FRHIResource(RRT_UnorderedAccessView) {}
+	virtual FRHIDescriptorHandle GetBindlessHandle() const { return FRHIDescriptorHandle(); }
 };
 
 class FRHIShaderResourceView : public FRHIResource 
@@ -1850,6 +1854,7 @@ class FRHIShaderResourceView : public FRHIResource
 {
 public:
 	FRHIShaderResourceView() : FRHIResource(RRT_ShaderResourceView) {}
+	virtual FRHIDescriptorHandle GetBindlessHandle() const { return FRHIDescriptorHandle(); }
 };
 
 

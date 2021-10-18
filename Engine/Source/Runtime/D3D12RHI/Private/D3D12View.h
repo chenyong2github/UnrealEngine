@@ -623,7 +623,7 @@ class FD3D12ViewDescriptorHandle : public FD3D12DeviceChild
 {
 public:
 	FD3D12ViewDescriptorHandle() = delete;
-	FD3D12ViewDescriptorHandle(FD3D12Device* InParentDevice, ED3D12DescriptorHeapType InHeapType);
+	FD3D12ViewDescriptorHandle(FD3D12Device* InParentDevice, ERHIDescriptorHeapType InHeapType);
 	~FD3D12ViewDescriptorHandle();
 
 	void CreateView(const D3D12_RENDER_TARGET_VIEW_DESC& Desc, ID3D12Resource* Resource);
@@ -632,23 +632,23 @@ public:
 	void CreateView(const D3D12_SHADER_RESOURCE_VIEW_DESC& Desc, ID3D12Resource* Resource);
 	void CreateView(const D3D12_UNORDERED_ACCESS_VIEW_DESC& Desc, ID3D12Resource* Resource, ID3D12Resource* CounterResource);
 
-	D3D12_CPU_DESCRIPTOR_HANDLE GetResourceHandle() const;
+	inline D3D12_CPU_DESCRIPTOR_HANDLE GetOfflineCpuHandle() const { return OfflineCpuHandle; }
+	inline uint32                      GetOfflineHeapIndex() const { return OfflineHeapIndex; }
+	inline FRHIDescriptorHandle        GetBindlessHandle()   const { return BindlessHandle;   }
 
-	inline D3D12_CPU_DESCRIPTOR_HANDLE GetOfflineHandle()  const { return OfflineHandle; }
-	inline ED3D12DescriptorHeapType    GetHeapType()       const { return HeapType; }
-	inline uint32                      GetOfflineIndex()   const { return OfflineIndex; }
-	inline uint32                      GetResourceIndex()  const { return ResourceIndex; }
-
-	inline bool IsResourceHandle() const { return GetResourceIndex() != UINT_MAX; }
+	inline bool IsBindless() const { return BindlessHandle.IsValid(); }
 
 private:
 	void AllocateDescriptorSlot();
 	void FreeDescriptorSlot();
 
-	D3D12_CPU_DESCRIPTOR_HANDLE OfflineHandle{};
-	const ED3D12DescriptorHeapType HeapType{};
-	uint32 OfflineIndex{ UINT_MAX };
-	uint32 ResourceIndex{ UINT_MAX };
+	D3D12_CPU_DESCRIPTOR_HANDLE GetBindlessCpuDescriptorHandle() const;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE OfflineCpuHandle{};
+	uint32 OfflineHeapIndex{ UINT_MAX };
+
+	FRHIDescriptorHandle BindlessHandle;
+	const ERHIDescriptorHeapType HeapType;
 };
 
 template <typename TDesc>
@@ -669,7 +669,7 @@ protected:
 	bool bInitialized;
 #endif
 
-	explicit FD3D12View(FD3D12Device* InParent, ED3D12DescriptorHeapType InHeapType, ViewSubresourceSubsetFlags InFlags)
+	explicit FD3D12View(FD3D12Device* InParent, ERHIDescriptorHeapType InHeapType, ViewSubresourceSubsetFlags InFlags)
 		: Descriptor(InParent, InHeapType)
 		, Flags(InFlags)
 		, BaseShaderResource(nullptr)
@@ -754,7 +754,7 @@ public:
 	inline FD3D12Device*					GetParentDevice_Unsafe()	const { return Descriptor.GetParentDevice_Unsafe(); }
 	inline FD3D12ResourceLocation*			GetResourceLocation()		const { return ResourceLocation; }
 	inline const TDesc&						GetDesc()					const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return Desc; }
-	inline D3D12_CPU_DESCRIPTOR_HANDLE		GetView()					const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return Descriptor.GetOfflineHandle(); }
+	inline D3D12_CPU_DESCRIPTOR_HANDLE		GetOfflineCpuHandle()		const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return Descriptor.GetOfflineCpuHandle(); }
 	inline uint32							GetDescriptorHeapIndex()	const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return Descriptor.GetIndex(); }
 	inline FD3D12Resource*					GetResource()				const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return Resource; }
 	inline FD3D12ResidencyHandle*			GetResidencyHandle()		const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return ResidencyHandle; }
@@ -778,7 +778,7 @@ class FD3D12ShaderResourceView : public FRHIShaderResourceView, public FD3D12Vie
 public:
 	// Used for dynamic buffer SRVs, which can be renamed. Must be explicitly Initialize()'d before it can be used.
 	FD3D12ShaderResourceView(FD3D12Device* InParent)
-		: FD3D12View(InParent, ED3D12DescriptorHeapType::Standard, ViewSubresourceSubsetFlags_None)
+		: FD3D12View(InParent, ERHIDescriptorHeapType::Standard, ViewSubresourceSubsetFlags_None)
 		, bContainsDepthPlane(false)
 		, bContainsStencilPlane(false)
 		, bSkipFastClearFinalize(false)
@@ -866,6 +866,8 @@ public:
 	FORCEINLINE bool GetSkipFastClearFinalize()	const { return bSkipFastClearFinalize; }
 	FORCEINLINE bool RequiresResourceStateTracking() const { return bRequiresResourceStateTracking; }
 
+	virtual FRHIDescriptorHandle GetBindlessHandle() const override { return Descriptor.GetBindlessHandle(); }
+
 protected:
 	void PreCreateView(FD3D12ResourceLocation& InResourceLocation, uint32 InStride, uint32 InStartOffsetBytes, bool InSkipFastClearFinalize)
 	{
@@ -944,12 +946,12 @@ class FD3D12UnorderedAccessView : public FRHIUnorderedAccessView, public FD3D12V
 {
 public:
 	FD3D12UnorderedAccessView(FD3D12Device* InParent)
-	: FD3D12View(InParent, ED3D12DescriptorHeapType::Standard, ViewSubresourceSubsetFlags_None)
+	: FD3D12View(InParent, ERHIDescriptorHeapType::Standard, ViewSubresourceSubsetFlags_None)
 	{
 	}
 
 	FD3D12UnorderedAccessView(FD3D12Device* InParent, D3D12_UNORDERED_ACCESS_VIEW_DESC& InDesc, FD3D12BaseShaderResource* InBaseShaderResource, FD3D12Resource* InCounterResource = nullptr)
-		: FD3D12View(InParent, ED3D12DescriptorHeapType::Standard, ViewSubresourceSubsetFlags_None)
+		: FD3D12View(InParent, ERHIDescriptorHeapType::Standard, ViewSubresourceSubsetFlags_None)
 		, CounterResource(InCounterResource)
 	{
 		Initialize(InDesc, InBaseShaderResource, InBaseShaderResource->ResourceLocation, InCounterResource);
@@ -972,6 +974,8 @@ public:
 	void MarkCounterResourceInitialized() { CounterResourceInitialized = true; }
 
 	FD3D12Resource* GetCounterResource() { return CounterResource; }
+
+	virtual FRHIDescriptorHandle GetBindlessHandle() const override { return Descriptor.GetBindlessHandle(); }
 
 protected:
 	void CreateView(FD3D12BaseShaderResource* InBaseShaderResource, FD3D12ResourceLocation& InResourceLocation, FD3D12Resource* InCounterResource)
@@ -1014,7 +1018,7 @@ public:
 	FD3D12ConstantBufferView() = delete;
 	FD3D12ConstantBufferView(FD3D12Device* InParent);
 
-	inline D3D12_CPU_DESCRIPTOR_HANDLE            GetView() const { return Descriptor.GetOfflineHandle(); }
+	inline D3D12_CPU_DESCRIPTOR_HANDLE            GetOfflineCpuHandle() const { return Descriptor.GetOfflineCpuHandle(); }
 	inline const D3D12_CONSTANT_BUFFER_VIEW_DESC& GetDesc() const { return Desc; }
 
 	void Create(D3D12_GPU_VIRTUAL_ADDRESS GPUAddress, const uint32 AlignedSize);
@@ -1028,14 +1032,14 @@ class FD3D12RenderTargetView : public FD3D12View<D3D12_RENDER_TARGET_VIEW_DESC>,
 {
 public:
 	FD3D12RenderTargetView(FD3D12Device* InParent, const D3D12_RENDER_TARGET_VIEW_DESC& InRTVDesc, FD3D12BaseShaderResource* InBaseShaderResource)
-		: FD3D12View(InParent, ED3D12DescriptorHeapType::RenderTarget, ViewSubresourceSubsetFlags_None)
+		: FD3D12View(InParent, ERHIDescriptorHeapType::RenderTarget, ViewSubresourceSubsetFlags_None)
 		, FRHIResource(RRT_None)
 	{
 		Initialize(InRTVDesc, InBaseShaderResource, InBaseShaderResource->ResourceLocation);
 	}
 
 	FD3D12RenderTargetView(FD3D12Device* InParent, const D3D12_RENDER_TARGET_VIEW_DESC& InRTVDesc, FD3D12BaseShaderResource* InBaseShaderResource, FD3D12ResourceLocation& InResourceLocation)
-		: FD3D12View(InParent, ED3D12DescriptorHeapType::RenderTarget, ViewSubresourceSubsetFlags_None)
+		: FD3D12View(InParent, ERHIDescriptorHeapType::RenderTarget, ViewSubresourceSubsetFlags_None)
 		, FRHIResource(RRT_None)
 	{
 		Initialize(InRTVDesc, InBaseShaderResource, InResourceLocation);
@@ -1052,6 +1056,8 @@ public:
 		check(ResourceLocation->GetOffsetFromBaseOfResource() == 0);
 		CreateView(BaseShaderResource, BaseShaderResource->ResourceLocation);
 	}
+
+	inline D3D12_CPU_DESCRIPTOR_HANDLE GetView() const { return GetOfflineCpuHandle(); }
 
 protected:
 	void CreateView(FD3D12BaseShaderResource* InBaseShaderResource, FD3D12ResourceLocation& InResourceLocation)
@@ -1070,7 +1076,7 @@ class FD3D12DepthStencilView : public FD3D12View<D3D12_DEPTH_STENCIL_VIEW_DESC>,
 {
 public:
 	FD3D12DepthStencilView(FD3D12Device* InParent, const D3D12_DEPTH_STENCIL_VIEW_DESC& InDSVDesc, FD3D12BaseShaderResource* InBaseShaderResource, bool InHasStencil)
-		: FD3D12View(InParent, ED3D12DescriptorHeapType::DepthStencil, ViewSubresourceSubsetFlags_DepthAndStencilDsv)
+		: FD3D12View(InParent, ERHIDescriptorHeapType::DepthStencil, ViewSubresourceSubsetFlags_DepthAndStencilDsv)
 		, FRHIResource(RRT_None)
 		, bHasDepth(true)				// Assume all DSVs have depth bits in their format
 		, bHasStencil(InHasStencil)		// Only some DSVs have stencil bits in their format
@@ -1138,6 +1144,8 @@ public:
 		CreateView(BaseShaderResource, BaseShaderResource->ResourceLocation);
 		SetupDepthStencilViewSubresourceSubset();
 	}
+
+	inline D3D12_CPU_DESCRIPTOR_HANDLE GetView() const { return GetOfflineCpuHandle(); }
 
 protected:
 	void CreateView(FD3D12BaseShaderResource* InBaseShaderResource, FD3D12ResourceLocation& InResourceLocation)

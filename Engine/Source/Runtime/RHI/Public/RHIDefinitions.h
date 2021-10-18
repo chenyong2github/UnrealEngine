@@ -375,6 +375,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bOverrideFMaterial_NeedsGBufferEnabled : 1;
 	uint32 bSupportsMobileDistanceField : 1;
 	uint32 bSupportsFFTBloom : 1;
+	uint32 bSupportsBindless : 1;
 
 		
 #if WITH_EDITOR
@@ -770,6 +771,11 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsFFTBloom(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bSupportsFFTBloom;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsBindless(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsBindless;
 	}
 
 #if WITH_EDITOR
@@ -1771,6 +1777,34 @@ enum class EAsyncComputeBudget
 	EBalanced_2,		//Async compute and Gfx share GPU equally.
 	EComputeHeavy_3,	//Async compute can use most of the GPU
 	EAll_4,				//Async compute can use the entire GPU.
+};
+
+enum class ERHIDescriptorHeapType : uint8
+{
+	Standard,
+	Sampler,
+	RenderTarget,
+	DepthStencil,
+	count
+};
+
+struct FRHIDescriptorHandle
+{
+	FRHIDescriptorHandle() = default;
+	FRHIDescriptorHandle(ERHIDescriptorHeapType InType, uint32 InIndex)
+		: Index(InIndex)
+		, Type(InType)
+	{
+	}
+
+	inline uint32                GetIndex() const { return Index; }
+	inline ERHIDescriptorHeapType GetType() const { return Type; }
+
+	inline bool IsValid() const { return Index != UINT_MAX && Type != ERHIDescriptorHeapType::count; }
+
+private:
+	uint32                 Index{ UINT_MAX };
+	ERHIDescriptorHeapType Type{ ERHIDescriptorHeapType::count };
 };
 
 inline bool IsPCPlatform(const FStaticShaderPlatform Platform)

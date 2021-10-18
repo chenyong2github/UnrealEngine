@@ -16,7 +16,7 @@ FD3D12Device::FD3D12Device(FRHIGPUMask InGPUMask, FD3D12Adapter* InAdapter) :
 	AsyncCommandListManager(nullptr),
 	TextureStreamingCommandAllocatorManager(this, D3D12_COMMAND_LIST_TYPE_COPY),
 	DescriptorHeapManager(this),
-	ResourceDescriptorManager(this),
+	BindlessDescriptorManager(this),
 	OfflineDescriptorManagers{
 		FD3D12OfflineDescriptorManager(this),
 		FD3D12OfflineDescriptorManager(this),
@@ -316,6 +316,7 @@ void FD3D12Device::SetupAfterDeviceCreation()
 
 	const D3D12_RESOURCE_BINDING_TIER Tier = GetParentAdapter()->GetResourceBindingTier();
 	uint32 MaximumSupportedHeapSize = NUM_VIEW_DESCRIPTORS_TIER_1;
+	uint32 MaximumSupportedSamplerHeapSize = D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE;
 
 	switch (Tier)
 	{
@@ -333,17 +334,19 @@ void FD3D12Device::SetupAfterDeviceCreation()
 
 	// This value can be tuned on a per app basis. I.e. most apps will never run into descriptor heap pressure so
 	// can make this global heap smaller
-	check((uint32)GGlobalDescriptorHeapSize <= MaximumSupportedHeapSize);
-	check(GOnlineDescriptorHeapSize <= GGlobalDescriptorHeapSize);
-	check(GResourceDescriptorHeapSize <= GGlobalDescriptorHeapSize);
+	check((uint32)GGlobalResourceDescriptorHeapSize <= MaximumSupportedHeapSize);
+	check((uint32)GGlobalSamplerDescriptorHeapSize <= MaximumSupportedSamplerHeapSize);
+	check(GOnlineDescriptorHeapSize <= GGlobalResourceDescriptorHeapSize);
+	check(GResourceDescriptorHeapSize <= GGlobalResourceDescriptorHeapSize);
+	check(GSamplerDescriptorHeapSize <= GGlobalSamplerDescriptorHeapSize);
 
-	DescriptorHeapManager.Init(GGlobalDescriptorHeapSize);
-	ResourceDescriptorManager.Init(GResourceDescriptorHeapSize);
+	DescriptorHeapManager.Init(GGlobalResourceDescriptorHeapSize, GGlobalSamplerDescriptorHeapSize);
+	BindlessDescriptorManager.Init(GResourceDescriptorHeapSize, GSamplerDescriptorHeapSize);
 
 	// Init offline descriptor managers
-	for (uint32 Index = 0; Index < static_cast<uint32>(ED3D12DescriptorHeapType::count); Index++)
+	for (uint32 Index = 0; Index < static_cast<uint32>(ERHIDescriptorHeapType::count); Index++)
 	{
-		OfflineDescriptorManagers[Index].Init(static_cast<ED3D12DescriptorHeapType>(Index));
+		OfflineDescriptorManagers[Index].Init(static_cast<ERHIDescriptorHeapType>(Index));
 	}
 
 	GlobalSamplerHeap.Init(NUM_SAMPLER_DESCRIPTORS);

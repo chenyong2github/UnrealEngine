@@ -532,6 +532,12 @@ void AddUnboundShaderParameterError(
 	AddNoteToDisplayShaderParameterStructureOnCppSide(CompilerInput.RootParametersStructure, CompilerOutput);
 }
 
+inline bool MemberWasPotentiallyMoved(const FShaderParametersMetadata::FMember& InMember)
+{
+	const EUniformBufferBaseType BaseType = InMember.GetBaseType();
+	return BaseType == UBMT_INT32 || BaseType == UBMT_UINT32 || BaseType == UBMT_FLOAT32;
+}
+
 bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 	const FShaderCompilerInput& CompilerInput,
 	FShaderCompilerOutput& CompilerOutput,
@@ -1003,56 +1009,43 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 				const TCHAR* ShaderBindingName,
 				uint16 ByteOffset)
 		{
-			if (
-				Member.GetBaseType() != UBMT_INT32 &&
-				Member.GetBaseType() != UBMT_UINT32 &&
-				Member.GetBaseType() != UBMT_FLOAT32)
+			if (MemberWasPotentiallyMoved(Member))
 			{
-				return;
-			}
-
-			FParsedShaderParameter& ParsedParameter = ParsedParameters[ShaderBindingName];
-
-			if (ParsedParameter.IsFound())
-			{
-				FString HLSLOffset;
+				FParsedShaderParameter* ParsedParameter = ParsedParameters.Find(ShaderBindingName);
+				if (ParsedParameter && ParsedParameter->IsFound())
 				{
-					HLSLOffset = FString::FromInt(ByteOffset / 16);
+					uint32 ConstantRegister = ByteOffset / 16;
+					const TCHAR* ConstantSwizzle = [ByteOffset]()
+						{
+							switch (ByteOffset % 16)
+							{
+							default: unimplemented();
+							case 0:  return TEXT("");
+							case 4:  return TEXT(".y");
+							case 8:  return TEXT(".z");
+							case 12: return TEXT(".w");
+							}
+						}();
 
-					switch (ByteOffset % 16)
+					if (!ParsedParameter->ParsedArraySize.IsEmpty())
 					{
-					case 0:
-						break;
-					case 4:
-						HLSLOffset.Append(TEXT(".y"));
-						break;
-					case 8:
-						HLSLOffset.Append(TEXT(".z"));
-						break;
-					case 12:
-						HLSLOffset.Append(TEXT(".w"));
-						break;
-					default:
-						unimplemented();
+						RootCBufferContent.Append(FString::Printf(
+							TEXT("%s %s[%s] : packoffset(c%d%s);\r\n"),
+							*ParsedParameter->ParsedType,
+							ShaderBindingName,
+							*ParsedParameter->ParsedArraySize,
+							ConstantRegister,
+							ConstantSwizzle));
 					}
-				}
-
-				if (!ParsedParameter.ParsedArraySize.IsEmpty())
-				{
-					RootCBufferContent.Append(FString::Printf(
-						TEXT("%s %s[%s] : packoffset(c%s);\r\n"),
-						*ParsedParameter.ParsedType,
-						ShaderBindingName,
-						*ParsedParameter.ParsedArraySize,
-						*HLSLOffset));
-				}
-				else
-				{
-					RootCBufferContent.Append(FString::Printf(
-						TEXT("%s %s : packoffset(c%s);\r\n"),
-						*ParsedParameter.ParsedType,
-						ShaderBindingName,
-						*HLSLOffset));
+					else
+					{
+						RootCBufferContent.Append(FString::Printf(
+							TEXT("%s %s : packoffset(c%d%s);\r\n"),
+							*ParsedParameter->ParsedType,
+							ShaderBindingName,
+							ConstantRegister,
+							ConstantSwizzle));
+					}
 				}
 			}
 		});

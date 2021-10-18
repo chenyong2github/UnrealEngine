@@ -39,15 +39,15 @@ template void FD3D12DescriptorCache::SetSamplers<SF_Geometry>(const FD3D12RootSi
 template void FD3D12DescriptorCache::SetSamplers<SF_Pixel>(const FD3D12RootSignature* RootSignature, FD3D12SamplerStateCache& Cache, const SamplerSlotMask& SlotsNeededMask, uint32 SlotsNeeded, uint32& HeapSlot);
 template void FD3D12DescriptorCache::SetSamplers<SF_Compute>(const FD3D12RootSignature* RootSignature, FD3D12SamplerStateCache& Cache, const SamplerSlotMask& SlotsNeededMask, uint32 SlotsNeeded, uint32& HeapSlot);
 
-bool FD3D12DescriptorCache::HeapRolledOver(ED3D12DescriptorHeapType InHeapType)
+bool FD3D12DescriptorCache::HeapRolledOver(ERHIDescriptorHeapType InHeapType)
 {
 	// A heap rolled over, so set the descriptor heaps again and return if the heaps actually changed.
 	return SetDescriptorHeaps();
 }
 
-void FD3D12DescriptorCache::HeapLoopedAround(ED3D12DescriptorHeapType InHeapType)
+void FD3D12DescriptorCache::HeapLoopedAround(ERHIDescriptorHeapType InHeapType)
 {
-	if (InHeapType == ED3D12DescriptorHeapType::Sampler)
+	if (InHeapType == ERHIDescriptorHeapType::Sampler)
 	{
 		SamplerMap.Reset();
 	}
@@ -81,7 +81,7 @@ void FD3D12DescriptorCache::Init(FD3D12Device* InParent, FD3D12CommandContext* I
 	// Always Init a local sampler heap as the high level cache will always miss initialy
 	// so we need something to fall back on (The view heap never rolls over so we init that one
 	// lazily as a backup to save memory)
-	LocalSamplerHeap.Init(InNumSamplerDescriptors, ED3D12DescriptorHeapType::Sampler);
+	LocalSamplerHeap.Init(InNumSamplerDescriptors, ERHIDescriptorHeapType::Sampler);
 
 	NumLocalViewDescriptors = InNumLocalViewDescriptors;
 
@@ -97,21 +97,21 @@ void FD3D12DescriptorCache::Init(FD3D12Device* InParent, FD3D12CommandContext* I
 	SRVDesc.Texture2D.MipLevels = 1;
 	SRVDesc.Texture2D.MostDetailedMip = 0;
 	SRVDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-	NullSRV = new FD3D12ViewDescriptorHandle(GetParentDevice(), ED3D12DescriptorHeapType::Standard);
+	NullSRV = new FD3D12ViewDescriptorHandle(GetParentDevice(), ERHIDescriptorHeapType::Standard);
 	NullSRV->CreateView(SRVDesc, nullptr);
 
 	D3D12_RENDER_TARGET_VIEW_DESC RTVDesc = {};
 	RTVDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 	RTVDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
 	RTVDesc.Texture2D.MipSlice = 0;
-	NullRTV = new FD3D12ViewDescriptorHandle(GetParentDevice(), ED3D12DescriptorHeapType::RenderTarget);
+	NullRTV = new FD3D12ViewDescriptorHandle(GetParentDevice(), ERHIDescriptorHeapType::RenderTarget);
 	NullRTV->CreateView(RTVDesc, nullptr);
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc = {};
 	UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 	UAVDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	UAVDesc.Texture2D.MipSlice = 0;
-	NullUAV = new FD3D12ViewDescriptorHandle(GetParentDevice(), ED3D12DescriptorHeapType::Standard);
+	NullUAV = new FD3D12ViewDescriptorHandle(GetParentDevice(), ERHIDescriptorHeapType::Standard);
 	NullUAV->CreateView(UAVDesc, nullptr, nullptr);
 
 #if USE_STATIC_ROOT_SIGNATURE
@@ -315,11 +315,11 @@ void FD3D12DescriptorCache::SetUAVs(const FD3D12RootSignature* RootSignature, FD
 	{
 		if ((SlotIndex < UAVStartSlot) || (UAVs[SlotIndex] == nullptr))
 		{
-			SrcDescriptors[SlotIndex] = NullUAV->GetOfflineHandle();
+			SrcDescriptors[SlotIndex] = NullUAV->GetOfflineCpuHandle();
 		}
 		else
 		{
-			SrcDescriptors[SlotIndex] = UAVs[SlotIndex]->GetView();
+			SrcDescriptors[SlotIndex] = UAVs[SlotIndex]->GetOfflineCpuHandle();
 
 			FD3D12DynamicRHI::TransitionResource(CommandList, UAVs[SlotIndex], D3D12_RESOURCE_STATE_UNORDERED_ACCESS, FD3D12DynamicRHI::ETransitionMode::Validate);
 			CommandList.UpdateResidency(Cache.ResidencyHandles[ShaderStage][SlotIndex]);
@@ -389,18 +389,18 @@ void FD3D12DescriptorCache::SetRenderTargets(FD3D12RenderTargetView** RenderTarg
 	{
 		if (RenderTargetViewArray[i] != NULL)
 		{
-			RTVDescriptors[i] = RenderTargetViewArray[i]->GetView();
+			RTVDescriptors[i] = RenderTargetViewArray[i]->GetOfflineCpuHandle();
 			CommandList.UpdateResidency(RenderTargetViewArray[i]->GetResource());
 		}
 		else
 		{
-			RTVDescriptors[i] = NullRTV->GetOfflineHandle();
+			RTVDescriptors[i] = NullRTV->GetOfflineCpuHandle();
 		}
 	}
 
 	if (DepthStencilTarget != nullptr)
 	{
-		const D3D12_CPU_DESCRIPTOR_HANDLE DSVDescriptor = DepthStencilTarget->GetView();
+		const D3D12_CPU_DESCRIPTOR_HANDLE DSVDescriptor = DepthStencilTarget->GetOfflineCpuHandle();
 		CommandList->OMSetRenderTargets(Count, RTVDescriptors, 0, &DSVDescriptor);
 		CommandList.UpdateResidency(DepthStencilTarget->GetResource());
 	}
@@ -479,11 +479,11 @@ void FD3D12DescriptorCache::SetSamplers(const FD3D12RootSignature* RootSignature
 		{
 			if (Samplers[SlotIndex] != nullptr)
 			{
-				SrcDescriptors[SlotIndex] = Samplers[SlotIndex]->Descriptor;
+				SrcDescriptors[SlotIndex] = Samplers[SlotIndex]->OfflineHandle;
 			}
 			else
 			{
-				SrcDescriptors[SlotIndex] = DefaultSampler->Descriptor;
+				SrcDescriptors[SlotIndex] = DefaultSampler->OfflineHandle;
 			}
 		}
 		FD3D12SamplerStateCache::CleanSlots(CurrentDirtySlotMask, SlotsNeeded);
@@ -553,7 +553,7 @@ void FD3D12DescriptorCache::SetSRVs(const FD3D12RootSignature* RootSignature, FD
 	{
 		if (SRVs[SlotIndex] != nullptr)
 		{
-			SrcDescriptors[SlotIndex] = SRVs[SlotIndex]->GetView();
+			SrcDescriptors[SlotIndex] = SRVs[SlotIndex]->GetOfflineCpuHandle();
 
 			D3D12_RESOURCE_STATES State = (ShaderStage == SF_Compute) ? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 			if (SRVs[SlotIndex]->IsDepthStencilResource())
@@ -573,7 +573,7 @@ void FD3D12DescriptorCache::SetSRVs(const FD3D12RootSignature* RootSignature, FD
 		}
 		else
 		{
-			SrcDescriptors[SlotIndex] = NullSRV->GetOfflineHandle();
+			SrcDescriptors[SlotIndex] = NullSRV->GetOfflineCpuHandle();
 		}
 		check(SrcDescriptors[SlotIndex].ptr != 0);
 	}
@@ -653,7 +653,7 @@ void FD3D12DescriptorCache::SetConstantBuffers(const FD3D12RootSignature* RootSi
 		}
 		else
 		{
-			Device->CopyDescriptorsSimple(1, DestDescriptor, NullCBV->GetView(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			Device->CopyDescriptorsSimple(1, DestDescriptor, NullCBV->GetOfflineCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		}
 
 		DestDescriptorSlot++;
@@ -736,7 +736,7 @@ bool FD3D12DescriptorCache::SwitchToContextLocalViewHeap(const FD3D12CommandList
 		if (LocalViewHeap)
 		{
 			check(NumLocalViewDescriptors);
-			LocalViewHeap->Init(NumLocalViewDescriptors, ED3D12DescriptorHeapType::Standard);
+			LocalViewHeap->Init(NumLocalViewDescriptors, ERHIDescriptorHeapType::Standard);
 		}
 		else
 		{
@@ -853,7 +853,7 @@ Reserve requested amount of descriptor slots - should fit, user has to check wit
 **/
 uint32 FD3D12OnlineHeap::ReserveSlots(uint32 NumSlotsRequested)
 {
-	const ED3D12DescriptorHeapType HeapType = Heap->GetType();
+	const ERHIDescriptorHeapType HeapType = Heap->GetType();
 
 #ifdef VERBOSE_DESCRIPTOR_HEAP_DEBUG
 	FMsg::Logf(__FILE__, __LINE__, TEXT("DescriptorCache"), ELogVerbosity::Log, TEXT("Requesting reservation [TYPE %s] with %d slots, required fence is %d"),
@@ -894,7 +894,7 @@ uint32 FD3D12OnlineHeap::ReserveSlots(uint32 NumSlotsRequested)
 	// Note where to start looking next time
 	NextSlotIndex = SlotAfterReservation;
 
-	if (HeapType == ED3D12DescriptorHeapType::Standard)
+	if (HeapType == ERHIDescriptorHeapType::Standard)
 	{
 		INC_DWORD_STAT_BY(STAT_NumReservedViewOnlineDescriptors, NumSlotsRequested);
 	}
@@ -916,7 +916,7 @@ void FD3D12OnlineHeap::SetNextSlot(uint32 NextSlot)
 	// This is used to correct for the actual number of heap slots used
 	check(NextSlot <= NextSlotIndex);
 
-	check(Heap->GetType() != ED3D12DescriptorHeapType::Standard);
+	check(Heap->GetType() != ERHIDescriptorHeapType::Standard);
 	DEC_DWORD_STAT_BY(STAT_NumReservedSamplerOnlineDescriptors, NextSlotIndex - NextSlot);
 
 	NextSlotIndex = NextSlot;
@@ -939,7 +939,7 @@ void FD3D12GlobalOnlineSamplerHeap::Init(uint32 TotalSize)
 {
 	Heap = GetParentDevice()->GetDescriptorHeapManager().AllocateHeap(
 		TEXT("Device Global - Online Sampler Heap"),
-		ED3D12DescriptorHeapType::Sampler,
+		ERHIDescriptorHeapType::Sampler,
 		TotalSize,
 		D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
 	);
@@ -1056,9 +1056,9 @@ FD3D12LocalOnlineHeap::~FD3D12LocalOnlineHeap() = default;
 /**
 Initialize a thread local online heap
 **/
-void FD3D12LocalOnlineHeap::Init(uint32 InNumDescriptors, ED3D12DescriptorHeapType InHeapType)
+void FD3D12LocalOnlineHeap::Init(uint32 InNumDescriptors, ERHIDescriptorHeapType InHeapType)
 {
-	const TCHAR* DebugName = InHeapType == ED3D12DescriptorHeapType::Standard ? L"Thread Local - Online View Heap" : L"Thread Local - Online Sampler Heap";
+	const TCHAR* DebugName = InHeapType == ERHIDescriptorHeapType::Standard ? L"Thread Local - Online View Heap" : L"Thread Local - Online Sampler Heap";
 	Heap = GetParentDevice()->GetDescriptorHeapManager().AllocateHeap(
 		DebugName,
 		InHeapType,
@@ -1068,7 +1068,7 @@ void FD3D12LocalOnlineHeap::Init(uint32 InNumDescriptors, ED3D12DescriptorHeapTy
 
 	Entry.Heap = Heap;
 
-	if (InHeapType == ED3D12DescriptorHeapType::Standard)
+	if (InHeapType == ERHIDescriptorHeapType::Standard)
 	{
 		INC_DWORD_STAT(STAT_NumViewOnlineDescriptorHeaps);
 		INC_MEMORY_STAT_BY(STAT_ViewOnlineDescriptorHeapMemory, Heap->GetMemorySize());
@@ -1103,10 +1103,10 @@ bool FD3D12LocalOnlineHeap::RollOver()
 
 		//LLM_SCOPE(ELLMTag::DescriptorCache);
 
-		const ED3D12DescriptorHeapType HeapType = Heap->GetType();
+		const ERHIDescriptorHeapType HeapType = Heap->GetType();
 		const uint32 NumDescriptors = Heap->GetNumDescriptors();
 
-		const TCHAR* DebugName = HeapType == ED3D12DescriptorHeapType::Standard ? L"Thread Local - Online View Heap" : L"Thread Local - Online Sampler Heap";
+		const TCHAR* DebugName = HeapType == ERHIDescriptorHeapType::Standard ? L"Thread Local - Online View Heap" : L"Thread Local - Online Sampler Heap";
 		Heap = GetParentDevice()->GetDescriptorHeapManager().AllocateHeap(
 			DebugName,
 			HeapType,
@@ -1114,7 +1114,7 @@ bool FD3D12LocalOnlineHeap::RollOver()
 			D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
 		);
 
-		if (HeapType == ED3D12DescriptorHeapType::Standard)
+		if (HeapType == ERHIDescriptorHeapType::Standard)
 		{
 			INC_DWORD_STAT(STAT_NumViewOnlineDescriptorHeaps);
 			INC_MEMORY_STAT_BY(STAT_ViewOnlineDescriptorHeapMemory, Heap->GetMemorySize());

@@ -264,7 +264,7 @@ public:
 	~FD3D12LocalOnlineHeap();
 
 	// Allocate the actual overflow heap
-	void Init(uint32 InNumDescriptors, ED3D12DescriptorHeapType InHeapType);
+	void Init(uint32 InNumDescriptors, ERHIDescriptorHeapType InHeapType);
 
 	// Override FD3D12OnlineHeap functions
 	virtual bool RollOver() final override;
@@ -380,8 +380,8 @@ public:
 
 	void SetStreamOutTargets(FD3D12Resource **Buffers, uint32 Count, const uint32* Offsets);
 
-	bool HeapRolledOver(ED3D12DescriptorHeapType InHeapType);
-	void HeapLoopedAround(ED3D12DescriptorHeapType InHeapType);
+	bool HeapRolledOver(ERHIDescriptorHeapType InHeapType);
+	void HeapLoopedAround(ERHIDescriptorHeapType InHeapType);
 	void Init(FD3D12Device* InParent, FD3D12CommandContext* InCmdContext, uint32 InNumLocalViewDescriptors, uint32 InNumSamplerDescriptors);
 	void Clear();
 	void BeginFrame();

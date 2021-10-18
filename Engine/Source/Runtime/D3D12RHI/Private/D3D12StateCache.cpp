@@ -13,19 +13,35 @@
 
 // This value defines how many descriptors will be in the device global descriptor heap. This heap contains all shader visible view descriptors.
 // Other shader visible descriptor heaps (e.g. OnlineViewHeap) are allocated from this pool. Non-visible heaps (e.g. LocalViewHeap) are allocated as standalone.
-int32 GGlobalDescriptorHeapSize = 1000 * 1000;
-static FAutoConsoleVariableRef CVarGlobalDescriptorHeapSize(
-	TEXT("D3D12.GlobalDescriptorHeapSize"),
-	GGlobalDescriptorHeapSize,
-	TEXT("Global descriptor heap size"),
+int32 GGlobalResourceDescriptorHeapSize = 1000 * 1000;
+static FAutoConsoleVariableRef CVarGlobalResourceDescriptorHeapSize(
+	TEXT("D3D12.GlobalResourceDescriptorHeapSize"),
+	GGlobalResourceDescriptorHeapSize,
+	TEXT("Global resource descriptor heap size"),
 	ECVF_ReadOnly
 );
 
-int32 GResourceDescriptorHeapSize = 0;// 500 * 1000;
+int32 GGlobalSamplerDescriptorHeapSize = 2048;
+static FAutoConsoleVariableRef CVarGlobalSamplerDescriptorHeapSize(
+	TEXT("D3D12.GlobalSamplerDescriptorHeapSize"),
+	GGlobalSamplerDescriptorHeapSize,
+	TEXT("Global sampler descriptor heap size"),
+	ECVF_ReadOnly
+);
+
+int32 GResourceDescriptorHeapSize = 0;
 static FAutoConsoleVariableRef CVarResourceDescriptorHeapSize(
 	TEXT("D3D12.ResourceDescriptorHeapSize"),
 	GResourceDescriptorHeapSize,
 	TEXT("Resource descriptor heap size"),
+	ECVF_ReadOnly
+);
+
+int32 GSamplerDescriptorHeapSize = 0;
+static FAutoConsoleVariableRef CVarSamplerDescriptorHeapSize(
+	TEXT("D3D12.SamplerDescriptorHeapSize"),
+	GSamplerDescriptorHeapSize,
+	TEXT("Sampler descriptor heap size"),
 	ECVF_ReadOnly
 );
 
@@ -128,7 +144,8 @@ void FD3D12StateCacheBase::Init(FD3D12Device* InParent, FD3D12CommandContext* In
 		ResourceBindingTier == D3D12_RESOURCE_BINDING_TIER_2 ? NUM_VIEW_DESCRIPTORS_TIER_2 :
 		NUM_VIEW_DESCRIPTORS_TIER_1;
 
-	check(GGlobalDescriptorHeapSize <= (int32)MaxDescriptorsForTier);
+	check(GGlobalResourceDescriptorHeapSize <= (int32)MaxDescriptorsForTier);
+	check(GGlobalSamplerDescriptorHeapSize <= (int32)MaxDescriptorsForTier);
 	check(GResourceDescriptorHeapSize <= (int32)MaxDescriptorsForTier);
 	check(GLocalViewHeapSize <= (int32)MaxDescriptorsForTier);
 	check(GOnlineDescriptorHeapSize <= (int32)MaxDescriptorsForTier);

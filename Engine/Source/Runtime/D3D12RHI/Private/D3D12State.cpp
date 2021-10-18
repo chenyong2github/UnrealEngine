@@ -539,19 +539,31 @@ FD3D12SamplerState::FD3D12SamplerState(FD3D12Device* InParent, const D3D12_SAMPL
 	: FD3D12DeviceChild(InParent)
 	, ID(SamplerID)
 {
-	Descriptor.ptr = 0;
-	FD3D12OfflineDescriptorManager& DescriptorAllocator = GetParentDevice()->GetOfflineDescriptorManager(ED3D12DescriptorHeapType::Sampler);
-	Descriptor = DescriptorAllocator.AllocateHeapSlot(DescriptorHeapIndex);
+	FD3D12OfflineDescriptorManager& OfflineAllocator = GetParentDevice()->GetOfflineDescriptorManager(ERHIDescriptorHeapType::Sampler);
+	OfflineHandle = OfflineAllocator.AllocateHeapSlot(OfflineIndex);
 
-	GetParentDevice()->CreateSamplerInternal(Desc, Descriptor);
+	GetParentDevice()->CreateSamplerInternal(Desc, OfflineHandle);
+
+	FD3D12BindlessDescriptorManager& BindlessDescriptorManager = GetParentDevice()->GetBindlessDescriptorManager();
+	BindlessHandle = BindlessDescriptorManager.AllocateDescriptor(ERHIDescriptorHeapType::Sampler);
+
+	if (BindlessHandle.IsValid())
+	{
+		D3D12_CPU_DESCRIPTOR_HANDLE OnlineHandle = BindlessDescriptorManager.GetCpuDescriptorHandle(BindlessHandle);
+		GetParentDevice()->GetDevice()->CopyDescriptorsSimple(1, OnlineHandle, OfflineHandle, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+	}
 }
 
 FD3D12SamplerState::~FD3D12SamplerState()
 {
-	if (Descriptor.ptr)
+	if (OfflineHandle.ptr)
 	{
-		FD3D12OfflineDescriptorManager& DescriptorAllocator = GetParentDevice()->GetOfflineDescriptorManager(ED3D12DescriptorHeapType::Sampler);
-		DescriptorAllocator.FreeHeapSlot(Descriptor, DescriptorHeapIndex);
-		Descriptor.ptr = 0;
+		FD3D12OfflineDescriptorManager& OfflineAllocator = GetParentDevice()->GetOfflineDescriptorManager(ERHIDescriptorHeapType::Sampler);
+		OfflineAllocator.FreeHeapSlot(OfflineHandle, OfflineIndex);
+
+		if (BindlessHandle.IsValid())
+		{
+			GetParentDevice()->GetBindlessDescriptorManager().FreeDescriptor(BindlessHandle);
+		}
 	}
 }
