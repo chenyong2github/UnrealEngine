@@ -441,7 +441,6 @@ public:
 			int SharpNormalIdx = 0;
 			for (int XIdx = 0, NormalXIdx = 0; XIdx < NumX; ++XIdx, ++NormalXIdx)
 			{
-				double Along = AlongPercents[XIdx];
 				double AlongRadius = Radii[XIdx];
 				Vertices[SubIdx + XIdx * AngleSamples] =
 					FVector3d(XVerts[SubIdx].X * AlongRadius, XVerts[SubIdx].Y * AlongRadius, Heights[XIdx]);
@@ -597,28 +596,41 @@ public:
 	/** Generate the mesh */
 	virtual FMeshShapeGenerator& Generate() override
 	{
-		TArray<float> Radii, Heights;
-		TArray<int> SharpNormalsAlongLength;
-		float SrcRadii[] { StickRadius, StickRadius, HeadBaseRadius, HeadTipRadius };
-		float SrcHeights[] { 0, StickLength, StickLength, StickLength + HeadLength };
+		const float SrcRadii[]{StickRadius, StickRadius, HeadBaseRadius, HeadTipRadius};
+		const float SrcHeights[]{0, StickLength, StickLength, StickLength + HeadLength};
 
-		int SegIdx = 0;
-		for (; SegIdx < 3; SegIdx++)
+		TArray<float> Radii, Heights;
+		const int NumVerts = 4 + AdditionalLengthSamples[0] + AdditionalLengthSamples[1] + AdditionalLengthSamples[2];
+		Radii.SetNumUninitialized(NumVerts);
+		Heights.SetNumUninitialized(NumVerts);
+
+		int VertIdx = 0;
+		auto SetVert = [&Radii, &Heights, &VertIdx](float Radius, float Height)
 		{
-			Radii.Add(SrcRadii[SegIdx]);
-			Heights.Add(SrcHeights[SegIdx]);
-			for (int ExtraIdx = 0; ExtraIdx < AdditionalLengthSamples[SegIdx]; ExtraIdx++)
+			Radii[VertIdx] = Radius;
+			Heights[VertIdx] = Height;
+			++VertIdx;
+		};
+
+		for (int SegIdx = 0; true; ++SegIdx)
+		{
+			SetVert(SrcRadii[SegIdx], SrcHeights[SegIdx]);
+
+			if (SegIdx == 3)
 			{
-				float Along = float(ExtraIdx + 1) / float(AdditionalLengthSamples[SegIdx] + 1);
-				Radii.Add(FMath::Lerp(SrcRadii[SegIdx], SrcRadii[SegIdx + 1], Along));
-				Heights.Add(FMath::Lerp(SrcHeights[SegIdx], SrcHeights[SegIdx + 1], Along));
+				break;
+			}
+
+			for (float ExtraSeg = 1, NumExtraSegs = AdditionalLengthSamples[SegIdx] + 1; ExtraSeg < NumExtraSegs; ++ExtraSeg)
+			{
+				const float Along = ExtraSeg / NumExtraSegs;
+				SetVert(FMath::Lerp(SrcRadii[SegIdx], SrcRadii[SegIdx + 1], Along),
+						FMath::Lerp(SrcHeights[SegIdx], SrcHeights[SegIdx + 1], Along));
 			}
 		}
-		SharpNormalsAlongLength.Add(1 + AdditionalLengthSamples[0]);
-		SharpNormalsAlongLength.Add(SharpNormalsAlongLength.Last() + 1 + AdditionalLengthSamples[1]);
-		Radii.Add(SrcRadii[SegIdx]);
-		Heights.Add(SrcHeights[SegIdx]);
-		
+
+		TArray<int> SharpNormalsAlongLength{1 + AdditionalLengthSamples[0], 2 + AdditionalLengthSamples[0] + AdditionalLengthSamples[1]};
+
 		GenerateVerticalCircleSweep(Radii, Heights, SharpNormalsAlongLength);
 
 		return *this;

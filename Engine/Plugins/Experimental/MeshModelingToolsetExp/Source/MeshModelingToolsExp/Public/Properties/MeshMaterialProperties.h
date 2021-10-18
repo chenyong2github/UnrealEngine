@@ -21,23 +21,23 @@ class MESHMODELINGTOOLSEXP_API UNewMeshMaterialProperties : public UInteractiveT
 public:
 	UNewMeshMaterialProperties();
 
-	/** Material for new mesh*/
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Material, meta = (DisplayName = "Material"))
+	/** Material for new mesh */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Material)
 	TWeakObjectPtr<UMaterialInterface> Material;
 
 	/** Scale factor for generated UVs */
 	UPROPERTY(EditAnywhere, Category = Material, meta = (DisplayName = "UV Scale", HideEditConditionToggle, EditConditionHides, EditCondition = "bShowExtendedOptions"))
 	float UVScale = 1.0;
 
-	/** If set, UV scales will be relative to world space so different objects created with the same UV scale should have the same average texel size */
-	UPROPERTY(EditAnywhere, Category = Material, meta = (DisplayName = "UV Scale Relative to World Space", HideEditConditionToggle, EditConditionHides, EditCondition = "bShowExtendedOptions"))
+	/** If true, UV scale will be relative to world space. This means objects of different sizes created with the same UV scale have the same average texel size. */
+	UPROPERTY(EditAnywhere, Category = Material, meta = (DisplayName = "World Space UV Scale", HideEditConditionToggle, EditConditionHides, EditCondition = "bShowExtendedOptions"))
 	bool bWorldSpaceUVScale = false;
 
-	/** Overlay wireframe on preview */
-	UPROPERTY(EditAnywhere, Category = Material, meta = (DisplayName = "Show Wireframe", HideEditConditionToggle, EditConditionHides, EditCondition = "bShowExtendedOptions"))
-	bool bWireframe = false;
+	/** If true, overlays preview with wireframe */
+	UPROPERTY(EditAnywhere, Category = Material, meta = (HideEditConditionToggle, EditConditionHides, EditCondition = "bShowExtendedOptions"))
+	bool bShowWireframe = false;
 
-	// controls visibility of UV/etc properties
+	/** If true, extended options are available */ 
 	UPROPERTY()
 	bool bShowExtendedOptions = true;
 };

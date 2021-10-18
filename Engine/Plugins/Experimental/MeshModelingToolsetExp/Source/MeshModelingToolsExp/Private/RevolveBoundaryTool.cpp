@@ -234,7 +234,7 @@ void URevolveBoundaryTool::StartPreview()
 
 	Preview->ConfigureMaterials(MaterialProperties->Material.Get(),
 		ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
-	Preview->PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
+	Preview->PreviewMesh->EnableWireframe(MaterialProperties->bShowWireframe);
 
 	Preview->OnMeshUpdated.AddLambda(
 		[this](const UMeshOpPreviewWithBackgroundCompute* UpdatedPreview)
@@ -351,7 +351,7 @@ void URevolveBoundaryTool::OnPropertyModified(UObject* PropertySet, FProperty* P
 				ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 		}
 
-		Preview->PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
+		Preview->PreviewMesh->EnableWireframe(MaterialProperties->bShowWireframe);
 		Preview->InvalidateResult();
 	}
 }
