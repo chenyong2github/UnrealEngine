@@ -390,6 +390,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	const bool bForceDepthResolve = (CVarMobileForceDepthResolve.GetValueOnRenderThread() == 1);
 	const bool bSeparateTranslucencyActive = IsMobileSeparateTranslucencyActive(Views.GetData(), Views.Num()); 
 	const bool bPostProcessUsesSceneDepth = PostProcessUsesSceneDepth(Views[0]);
+    const bool bIsSimulatedLDR = (!IsMobileHDR() && IsSimulatedPlatform(ShaderPlatform));
 	bRequiresMultiPass = RequiresMultiPass(RHICmdList, Views[0]);
 	bKeepDepthContent = 
 		bRequiresMultiPass || 
@@ -399,7 +400,9 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		Views[0].bIsReflectionCapture ||
 		(bDeferredShading && bPostProcessUsesSceneDepth) ||
 		bShouldRenderVelocities ||
-		bIsFullPrepassEnabled;
+		bIsFullPrepassEnabled ||
+        bIsSimulatedLDR;
+    
 	// never keep MSAA depth
 	bKeepDepthContent = (NumMSAASamples > 1 ? false : bKeepDepthContent);
 
