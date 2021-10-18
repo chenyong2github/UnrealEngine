@@ -56,7 +56,7 @@ namespace HordeServerTests
 			PerforceService.AddChange("//UE5/Main", 102, "Bob", "", new[] { "content.uasset" });
 		}
 
-		async Task<IStream> SetSchedule(CreateScheduleRequest Schedule)
+		async Task<IStream> SetScheduleAsync(CreateScheduleRequest Schedule)
 		{
 			IStream? Stream = await TestSetup.StreamService.GetStreamAsync(StreamId);
 
@@ -69,8 +69,64 @@ namespace HordeServerTests
 			return (await StreamService.StreamCollection.TryCreateOrReplaceAsync(StreamId, Stream, "", "", ProjectId, Config))!; 
 		}
 
+		public async Task<List<IJob>> FileTestHelperAsync(params string[] Files)
+		{
+			PerforceService.Changes.Clear();
+			PerforceService.AddChange("//UE5/Main", 100, "Bob", "", new[] { "code.cpp" });
+			PerforceService.AddChange("//UE5/Main", 101, "Bob", "", new[] { "content.uasset" });
+			PerforceService.AddChange("//UE5/Main", 102, "Bob", "", new[] { "content.uasset" });
+			PerforceService.AddChange("//UE5/Main", 103, "Bob", "", new[] { "foo/code.cpp" });
+			PerforceService.AddChange("//UE5/Main", 104, "Bob", "", new[] { "bar/code.cpp" });
+			PerforceService.AddChange("//UE5/Main", 105, "Bob", "", new[] { "foo/bar/content.uasset" });
+			PerforceService.AddChange("//UE5/Main", 106, "Bob", "", new[] { "bar/foo/content.uasset" });
+
+			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
+			TestSetup.Clock.UtcNow = StartTime;
+
+			CreateScheduleRequest Schedule = new CreateScheduleRequest();
+			Schedule.Enabled = true;
+			Schedule.MaxChanges = 10;
+			Schedule.Patterns.Add(new CreateSchedulePatternRequest { Interval = 1 });
+			Schedule.Files = Files.ToList();
+			await SetScheduleAsync(Schedule);
+
+			TestSetup.Clock.Advance(TimeSpan.FromHours(1.25));
+			await ScheduleService.TickSharedOnlyForTestingAsync();
+
+			return await GetNewJobs();
+		}
+
 		[TestMethod]
-		public void DayScheduleTestAsync()
+		public async Task FileTest1Async()
+		{
+			List<IJob> Jobs = await FileTestHelperAsync("....cpp");
+			Assert.AreEqual(3, Jobs.Count);
+			Assert.AreEqual(100, Jobs[0].Change);
+			Assert.AreEqual(103, Jobs[1].Change);
+			Assert.AreEqual(104, Jobs[2].Change);
+		}
+
+		[TestMethod]
+		public async Task FileTest2Async()
+		{
+			List<IJob> Jobs = await FileTestHelperAsync("/foo/...");
+			Assert.AreEqual(2, Jobs.Count);
+			Assert.AreEqual(103, Jobs[0].Change);
+			Assert.AreEqual(105, Jobs[1].Change);
+		}
+
+		[TestMethod]
+		public async Task FileTest3Async()
+		{
+			List<IJob> Jobs = await FileTestHelperAsync("....uasset", "-/bar/...");
+			Assert.AreEqual(3, Jobs.Count);
+			Assert.AreEqual(101, Jobs[0].Change);
+			Assert.AreEqual(102, Jobs[1].Change);
+			Assert.AreEqual(105, Jobs[2].Change);
+		}
+
+		[TestMethod]
+		public void DayScheduleTest()
 		{
 			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Utc); // Friday Jan 1, 2021 
 			TestSetup.Clock.UtcNow = StartTime;
@@ -92,7 +148,7 @@ namespace HordeServerTests
 		}
 
 		[TestMethod]
-		public void MulticheduleTestAsync()
+		public void MulticheduleTest()
 		{
 			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Utc); // Friday Jan 1, 2021 
 			TestSetup.Clock.UtcNow = StartTime;
@@ -129,7 +185,7 @@ namespace HordeServerTests
 			Schedule.Enabled = true;
 			Schedule.Patterns.Add(new CreateSchedulePatternRequest { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
 //			Schedule.LastTriggerTime = StartTime;
-			await SetSchedule(Schedule);
+			await SetScheduleAsync(Schedule);
 
 			// Initial tick
 			await ScheduleService.TickSharedOnlyForTestingAsync();
@@ -156,7 +212,7 @@ namespace HordeServerTests
 			CreateScheduleRequest Schedule = new CreateScheduleRequest();
 			Schedule.Enabled = true;
 			Schedule.Patterns.Add(new CreateSchedulePatternRequest { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
-			IStream Stream = await SetSchedule(Schedule);
+			IStream Stream = await SetScheduleAsync(Schedule);
 
 			// Initial tick
 			await ScheduleService.TickSharedOnlyForTestingAsync();
@@ -197,7 +253,7 @@ namespace HordeServerTests
 			Schedule.Patterns.Add(new CreateSchedulePatternRequest { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
 			Schedule.MaxChanges = 2;
 			Schedule.Filter = new List<ChangeContentFlags> { ChangeContentFlags.ContainsCode };
-			await SetSchedule(Schedule);
+			await SetScheduleAsync(Schedule);
 
 			// Initial tick
 			await ScheduleService.TickSharedOnlyForTestingAsync();
@@ -233,7 +289,7 @@ namespace HordeServerTests
 			Schedule.RequireSubmittedChange = false;
 			Schedule.Patterns.Add(new CreateSchedulePatternRequest { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
 			Schedule.MaxActive = 1;
-			await SetSchedule(Schedule);
+			await SetScheduleAsync(Schedule);
 
 			// Trigger a job
 			TestSetup.Clock.Advance(TimeSpan.FromHours(1.25));
@@ -273,7 +329,7 @@ namespace HordeServerTests
 			CreateScheduleRequest Schedule = new CreateScheduleRequest();
 			Schedule.Enabled = true;
 			Schedule.Patterns.Add(new CreateSchedulePatternRequest { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
-			IStream Stream = await SetSchedule(Schedule);
+			IStream Stream = await SetScheduleAsync(Schedule);
 
 			// Trigger a job
 			TestSetup.Clock.Advance(TimeSpan.FromHours(1.25));
@@ -367,7 +423,7 @@ namespace HordeServerTests
 			Schedule.RequireSubmittedChange = false;
 			Schedule.Patterns.Add(new CreateSchedulePatternRequest { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
 			Schedule.MaxActive = 2;
-			await SetSchedule(Schedule);
+			await SetScheduleAsync(Schedule);
 
 			TestSetup.Clock.Advance(TimeSpan.FromHours(1.25));
 			await ScheduleService.TickSharedOnlyForTestingAsync();
@@ -384,7 +440,7 @@ namespace HordeServerTests
 			Assert.AreEqual(Jobs1[0].Id, TemplateRef1.Schedule!.ActiveJobs[0]);
 
 			// Test that another job does not trigger
-			await SetSchedule(Schedule);
+			await SetScheduleAsync(Schedule);
 
 			// Make sure the job is still registered
 			IStream? Stream2 = await TestSetup.StreamService.GetStreamAsync(StreamId);
@@ -402,7 +458,7 @@ namespace HordeServerTests
 			CreateScheduleRequest Schedule = new CreateScheduleRequest();
 			Schedule.Enabled = true;
 			Schedule.Patterns.Add(new CreateSchedulePatternRequest { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
-			IStream Stream = await SetSchedule(Schedule);
+			IStream Stream = await SetScheduleAsync(Schedule);
 
 			IStreamCollection StreamCollection = ServiceProvider.GetRequiredService<IStreamCollection>();
 			await StreamCollection.TryUpdatePauseStateAsync(Stream, NewPausedUntil: StartTime.AddHours(5), NewPauseComment: "testing");

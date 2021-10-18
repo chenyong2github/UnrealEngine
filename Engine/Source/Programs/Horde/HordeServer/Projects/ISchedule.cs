@@ -182,6 +182,11 @@ namespace HordeServer.Models
 		public List<ChangeContentFlags>? Filter { get; set; }
 
 		/// <summary>
+		/// File paths which should trigger this schedule
+		/// </summary>
+		public List<string>? Files { get; set; }
+
+		/// <summary>
 		/// Parameters for the template
 		/// </summary>
 		public Dictionary<string, string> TemplateParameters { get; set; }
@@ -227,7 +232,7 @@ namespace HordeServer.Models
 		/// <param name="Filter">Filter for changes to consider</param>
 		/// <param name="TemplateParameters">Parameters for the template to run</param>
 		/// <param name="Patterns">List of patterns for the schedule</param>
-		public Schedule(bool Enabled = true, int MaxActive = 0, int MaxChanges = 0, bool RequireSubmittedChange = true, ScheduleGate? Gate = null, List<ChangeContentFlags>? Filter = null, Dictionary<string, string>? TemplateParameters = null, List<SchedulePattern>? Patterns = null)
+		public Schedule(bool Enabled = true, int MaxActive = 0, int MaxChanges = 0, bool RequireSubmittedChange = true, ScheduleGate? Gate = null, List<ChangeContentFlags>? Filter = null, List<string>? Files = null, Dictionary<string, string>? TemplateParameters = null, List<SchedulePattern>? Patterns = null)
 		{
 			this.Enabled = Enabled;
 			this.MaxActive = MaxActive;
@@ -235,6 +240,7 @@ namespace HordeServer.Models
 			this.RequireSubmittedChange = RequireSubmittedChange;
 			this.Gate = Gate;
 			this.Filter = Filter;
+			this.Files = Files;
 			this.TemplateParameters = TemplateParameters ?? new Dictionary<string, string>();
 			this.Patterns = Patterns ?? new List<SchedulePattern>();
 			this.LastTriggerTime = DateTimeOffset.Now;
