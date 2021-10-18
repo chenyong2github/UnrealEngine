@@ -69,16 +69,23 @@ void FNiagaraGpuReadbackManager::WaitCompletion(FRHICommandListImmediate& RHICmd
 
 void FNiagaraGpuReadbackManager::EnqueueReadback(FRHICommandList& RHICmdList, FRHIBuffer* Buffer, FCompletionCallback Callback)
 {
+	check(IsInRenderingThread());
+	
+	EnqueueReadback(RHICmdList, Buffer, 0, Buffer->GetSize(), MoveTemp(Callback));
+}
+
+void FNiagaraGpuReadbackManager::EnqueueReadback(FRHICommandList& RHICmdList, FRHIBuffer* Buffer, uint32 Offset, uint32 NumBytes, FCompletionCallback Callback)
+{
 	static const FName FenceName(TEXT("NiagaraGpuReadback"));
 
 	check(IsInRenderingThread());
 
 	FPendingReadback Readback;
-	Readback.StagingBuffers.Emplace(RHICreateStagingBuffer(), Buffer->GetSize());
+	Readback.StagingBuffers.Emplace(RHICreateStagingBuffer(), NumBytes);
 	Readback.Fence = RHICreateGPUFence(FenceName);
 	Readback.Callback = Callback;
 
-	RHICmdList.CopyToStagingBuffer(Buffer, Readback.StagingBuffers[0].Key, 0, Readback.StagingBuffers[0].Value);
+	RHICmdList.CopyToStagingBuffer(Buffer, Readback.StagingBuffers[0].Key, Offset, Readback.StagingBuffers[0].Value);
 
 	Readback.Fence->Clear();
 	RHICmdList.WriteGPUFence(Readback.Fence);
