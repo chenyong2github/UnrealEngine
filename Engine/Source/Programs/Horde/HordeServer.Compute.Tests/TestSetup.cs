@@ -158,7 +158,6 @@ namespace HordeServerTests
 			Services.AddSingleton<IProjectCollection, ProjectCollection>();
 			Services.AddSingleton<ISessionCollection, SessionCollection>();
 			Services.AddSingleton<ISubscriptionCollection, SubscriptionCollection>();
-			Services.AddSingleton<ISoftwareCollection, SoftwareCollection>();
 			Services.AddSingleton<IStreamCollection, StreamCollection>();
 			Services.AddSingleton<ITemplateCollection, TemplateCollection>();
 			Services.AddSingleton<ITestDataCollection, TestDataCollection>();
@@ -196,7 +195,6 @@ namespace HordeServerTests
 			Services.AddSingleton<ProjectService>();
 			Services.AddSingleton<RpcService>();
 			Services.AddSingleton<ScheduleService>();
-			Services.AddSingleton<SoftwareService>();
 			Services.AddSingleton<StreamService>();
 			Services.AddSingleton<TemplateService>();
 			Services.AddSingleton<UpgradeService>();
