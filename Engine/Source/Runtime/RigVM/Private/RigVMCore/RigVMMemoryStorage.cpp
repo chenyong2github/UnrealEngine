@@ -176,7 +176,9 @@ bool FRigVMPropertyDescription::RequiresCPPTypeObject(const FString& InCPPType)
 		TEXT("E"), 
 		TEXT("TArray<E"), 
 		TEXT("U"), 
-		TEXT("TArray<U")
+		TEXT("TArray<U"),
+		TEXT("TObjectPtr<"), 
+		TEXT("TArray<TObjectPtr<")
 	};
 	static const TArray<FString> CPPTypesNotRequiringCPPTypeObject = {
 		TEXT("FString"), 

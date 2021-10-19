@@ -166,6 +166,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	bool IsStructMember() const;
 
+	// Returns true if the data type of the Pin is a uobject
+	UFUNCTION(BlueprintCallable, Category = RigVMPin)
+	bool IsUObject() const;
+
 	// Returns true if the data type of the Pin is an array
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	bool IsArray() const;

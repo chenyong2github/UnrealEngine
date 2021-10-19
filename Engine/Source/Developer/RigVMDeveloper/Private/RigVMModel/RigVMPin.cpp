@@ -4,6 +4,7 @@
 #include "RigVMModel/RigVMNode.h"
 #include "RigVMModel/RigVMGraph.h"
 #include "RigVMModel/RigVMLink.h"
+#include "RigVMModel/RigVMController.h"
 #include "RigVMModel/Nodes/RigVMPrototypeNode.h"
 #include "RigVMCompiler/RigVMCompiler.h"
 #include "RigVMCore/RigVMExecuteContext.h"
@@ -445,9 +446,14 @@ bool URigVMPin::IsStructMember() const
 	return ParentPin->IsStruct();
 }
 
+bool URigVMPin::IsUObject() const
+{
+	return CPPType.StartsWith(URigVMController::TObjectPtrPrefix);
+}
+
 bool URigVMPin::IsArray() const
 {
-	return CPPType.StartsWith(TEXT("TArray"));
+	return CPPType.StartsWith(URigVMController::TArrayPrefix);
 }
 
 bool URigVMPin::IsArrayElement() const
@@ -497,16 +503,7 @@ int32 URigVMPin::GetArraySize() const
 
 FString URigVMPin::GetCPPType() const
 {
-	if(UScriptStruct* ScriptStruct = GetScriptStruct())
-	{
-		const FString StructCPPType = ScriptStruct->GetStructCPPName();
-		if(IsArray())
-		{
-			return FString::Printf(TEXT("TArray<%s>"), *StructCPPType);
-		}
-		return StructCPPType;
-	}
-	return CPPType;
+	return URigVMController::PostProcessCPPType(CPPType, GetCPPTypeObject(), IsArray());
 }
 
 FString URigVMPin::GetArrayElementCppType() const
@@ -648,12 +645,33 @@ bool URigVMPin::IsValidDefaultValue(const FString& InDefaultValue) const
 		DefaultValues.Add(InDefaultValue);
 	}
 
-	FString BaseCPPType = GetCPPType().Replace(TEXT("TArray<"), TEXT("")).Replace(TEXT(">"), TEXT(""));
+	FString BaseCPPType = GetCPPType()
+		.Replace(URigVMController::TArrayPrefix, TEXT(""))
+		.Replace(URigVMController::TObjectPtrPrefix, TEXT(""))
+		.Replace(TEXT(">"), TEXT(""));
 
 	for (const FString& Value : DefaultValues)
 	{
 		// perform single value validation
-		if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(GetCPPTypeObject()))
+		if (UClass* Class = Cast<UClass>(GetCPPTypeObject()))
+		{
+			if(Value.IsEmpty())
+			{
+				return true;
+			}
+			
+			UObject* Object = FindObjectFromCPPTypeObjectPath(Value);
+			if(Object == nullptr)
+			{
+				return false;
+			}
+
+			if(!Object->GetClass()->IsChildOf(Class))
+			{
+				return false;
+			}
+		} 
+		else if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(GetCPPTypeObject()))
 		{
 			FRigVMPinDefaultValueImportErrorContext ErrorPipe;
 			TArray<uint8> TempStructBuffer;
