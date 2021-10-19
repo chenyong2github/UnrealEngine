@@ -25,6 +25,7 @@ struct FInitializeDesc
 {
 	uint32			TailSizeBytes		= 4 << 20;
 	bool			bUseWorkerThread	= true;
+	bool			bUseImportantCache	= true;
 };
 
 typedef void*		AllocFunc(SIZE_T, uint32);
@@ -34,9 +35,9 @@ struct FStatistics
 {
 	uint64		BytesSent;
 	uint64		BytesTraced;
-	uint32		MemoryUsed;
-	uint32		CacheUsed;
-	uint32		CacheWaste;
+	uint64		MemoryUsed;
+	uint32		CacheUsed;		// Important-marked events are
+	uint32		CacheWaste;		// stored in the cache.
 };
 
 UE_TRACE_API void	SetMemoryHooks(AllocFunc Alloc, FreeFunc Free) UE_TRACE_IMPL();

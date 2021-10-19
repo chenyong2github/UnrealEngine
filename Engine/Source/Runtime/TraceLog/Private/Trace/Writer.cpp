@@ -40,6 +40,8 @@ void			Writer_TailOnConnect();
 void			Writer_InitializeSharedBuffers();
 void			Writer_ShutdownSharedBuffers();
 void			Writer_UpdateSharedBuffers();
+void			Writer_InitializeCache();
+void			Writer_ShutdownCache();
 void			Writer_CacheOnConnect();
 void			Writer_InitializePool();
 void			Writer_ShutdownPool();
@@ -173,7 +175,7 @@ void* Writer_MemoryAllocate(SIZE_T Size, uint32 Alignment)
 	}
 
 #if TRACE_PRIVATE_STATISTICS
-	AtomicAddRelaxed(&GTraceStatistics.MemoryUsed, uint32(Size));
+	AtomicAddRelaxed(&GTraceStatistics.MemoryUsed, uint64(Size));
 #endif
 
 	return Ret;
@@ -219,7 +221,7 @@ void Writer_MemoryFree(void* Address, uint32 Size)
 #endif // TRACE_PRIVATE_STOMP
 
 #if TRACE_PRIVATE_STATISTICS
-	AtomicAddRelaxed(&GTraceStatistics.MemoryUsed, uint32(-int64(Size)));
+	AtomicAddRelaxed(&GTraceStatistics.MemoryUsed, uint64(-int64(Size)));
 #endif
 }
 
@@ -258,10 +260,6 @@ void Writer_SendDataRaw(const void* Data, uint32 Size)
 void Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Size)
 {
 	static_assert(ETransport::Active == ETransport::TidPacketSync, "Active should be set to what the compiled code uses. It is used to track places that assume transport packet format");
-
-#if TRACE_PRIVATE_STATISTICS
-	GTraceStatistics.BytesTraced += Size;
-#endif
 
 	if (!GDataHandle)
 	{
@@ -561,6 +559,7 @@ static void Writer_InternalShutdown()
 	Writer_ShutdownControl();
 	Writer_ShutdownPool();
 	Writer_ShutdownSharedBuffers();
+	Writer_ShutdownCache();
 	Writer_ShutdownTail();
 
 	GInitialized = false;
@@ -596,6 +595,11 @@ void Writer_InternalInitialize()
 void Writer_Initialize(const FInitializeDesc& Desc)
 {
 	Writer_InitializeTail(Desc.TailSizeBytes);
+
+	if (Desc.bUseImportantCache)
+	{
+		Writer_InitializeCache();
+	}
 
 	if (Desc.bUseWorkerThread)
 	{

@@ -14,11 +14,12 @@ namespace Trace {
 namespace Private {
 
 ////////////////////////////////////////////////////////////////////////////////
-void			Writer_TailAppend(uint32, uint8* __restrict, uint32, bool);
-FWriteBuffer*	Writer_AllocateBlockFromPool();
-uint32			Writer_GetThreadId();
-void			Writer_FreeBlockListToPool(FWriteBuffer*, FWriteBuffer*);
-extern uint64	GStartCycle;
+void				Writer_TailAppend(uint32, uint8* __restrict, uint32, bool);
+FWriteBuffer*		Writer_AllocateBlockFromPool();
+uint32				Writer_GetThreadId();
+void				Writer_FreeBlockListToPool(FWriteBuffer*, FWriteBuffer*);
+extern uint64		GStartCycle;
+extern FStatistics	GTraceStatistics;
 
 
 
@@ -126,6 +127,10 @@ static bool Writer_DrainBuffer(uint32 ThreadId, FWriteBuffer* Buffer)
 	// Send as much as we can.
 	if (uint32 SizeToReap = uint32(Committed - Buffer->Reaped))
 	{
+#if TRACE_PRIVATE_STATISTICS
+		GTraceStatistics.BytesTraced += SizeToReap;
+#endif
+
 		bool bPartial = (Buffer->Partial == 1);
 		bPartial &= UPTRINT(Buffer->Reaped + Buffer->Size) == UPTRINT(Buffer);
 		Writer_TailAppend(ThreadId, Buffer->Reaped, SizeToReap, bPartial);

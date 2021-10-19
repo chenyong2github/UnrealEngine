@@ -66,6 +66,10 @@ static void Writer_CacheCommit(const FCacheBuffer* Collector)
 	uint32 EncodeMaxSize = GetEncodeMaxSize(InputSize);
 	if (EncodeMaxSize + sizeof(FTidPacketEncoded) > GCacheActiveBuffer->Remaining)
 	{
+#if TRACE_PRIVATE_STATISTICS
+		GTraceStatistics.CacheWaste += GCacheActiveBuffer->Remaining;
+#endif
+
 		// Retire active buffer
 		*(GCacheActiveBuffer->TailNext) = GCacheActiveBuffer;
 		GCacheActiveBuffer->TailNext = nullptr;
@@ -74,10 +78,6 @@ static void Writer_CacheCommit(const FCacheBuffer* Collector)
 		FCacheBuffer* NewBuffer = Writer_CacheCreateBuffer(GCacheBufferSize);
 		NewBuffer->TailNext = &(GCacheActiveBuffer->Next);
 		GCacheActiveBuffer = NewBuffer;
-
-#if TRACE_PRIVATE_STATISTICS
-		GTraceStatistics.CacheWaste += GCacheActiveBuffer->Remaining;
-#endif
 	}
 
 	uint32 Used = GCacheActiveBuffer->Size - GCacheActiveBuffer->Remaining;
@@ -100,6 +100,11 @@ static void Writer_CacheCommit(const FCacheBuffer* Collector)
 void Writer_CacheData(uint8* Data, uint32 Size)
 {
 	Writer_SendData(ETransportTid::Importants, Data, Size);
+
+	if (GCacheCollector == nullptr)
+	{
+		return;
+	}
 
 	while (true)
 	{
@@ -128,6 +133,11 @@ void Writer_CacheData(uint8* Data, uint32 Size)
 ////////////////////////////////////////////////////////////////////////////////
 void Writer_CacheOnConnect()
 {
+	if (GCacheCollector == nullptr)
+	{
+		return;
+	}
+
 	for (FCacheBuffer* Buffer = GCacheHeadBuffer; Buffer != nullptr; Buffer = Buffer->Next)
 	{
 		uint32 Used = Buffer->Size - Buffer->Remaining;
