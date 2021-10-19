@@ -408,7 +408,7 @@ struct FVectorHandler : TPropertyComponentHandler<FVectorPropertyTraits, float, 
 };
 
 
-struct FTransformHandler : TPropertyComponentHandler<FTransformPropertyTraits, float, float, float, float, float, float, float, float, float>
+struct FComponentTransformHandler : TPropertyComponentHandler<FComponentTransformPropertyTraits, float, float, float, float, float, float, float, float, float>
 {
 	TSharedPtr<IPreAnimatedStorage> GetPreAnimatedStateStorage(const FPropertyDefinition& Definition, FPreAnimatedStateExtension* Container) override
 	{
@@ -566,7 +566,7 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 		.AddComposite(BuiltInComponents->FloatResult[7], &FIntermediate3DTransform::S_Y)
 		.AddComposite(BuiltInComponents->FloatResult[8], &FIntermediate3DTransform::S_Z)
 		.SetCustomAccessors(&Accessors.ComponentTransform)
-		.Commit(FTransformHandler());
+		.Commit(FComponentTransformHandler());
 	}
 
 	// --------------------------------------------------------------------------------------------
