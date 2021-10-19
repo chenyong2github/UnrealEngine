@@ -528,6 +528,7 @@ private:
 	static int32 AddCRMemberVariable(UControlRigBlueprint* InBlueprint, const FName& InVarName, FEdGraphPinType InVarType, bool bIsPublic, bool bIsReadOnly, FString InDefaultValue);
 	FName AddCRMemberVariableFromExternal(FRigVMExternalVariable InVariableToCreate, FString InDefaultValue = FString());
 #endif
+	void PatchFunctionReferencesOnLoad();
 	void PatchVariableNodesOnLoad();
 
 	TMap<FName, int32> AddedMemberVariableMap;
