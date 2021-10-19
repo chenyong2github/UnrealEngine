@@ -10,6 +10,7 @@ Class used help debugging Niagara simulations
 #include "NiagaraTypes.h"
 #include "RHICommandList.h"
 #include "NiagaraDebuggerCommon.h"
+#include "NiagaraGPUProfilerInterface.h"
 #include "Particles/ParticlePerfStatsManager.h"
 
 #if WITH_PARTICLE_PERF_STATS
@@ -18,8 +19,9 @@ class FNiagaraDebugHud;
 
 struct FNiagaraDebugHudFrameStat
 {
-	double Time_GT;
-	double Time_RT;
+	double Time_GT = 0.0;
+	double Time_RT = 0.0;
+	double Time_GPU = 0.0;
 };
 
 /** Ring buffer history of stats. */
@@ -27,15 +29,19 @@ struct FNiagaraDebugHudStatHistory
 {
 	TArray<double> GTFrames;
 	TArray<double> RTFrames;
+	TArray<double> GPUFrames;
 
 	int32 CurrFrame = 0;
 	int32 CurrFrameRT = 0;
+	int32 CurrFrameGPU = 0;
 
 	void AddFrame_GT(double Time);
 	void AddFrame_RT(double Time);
+	void AddFrame_GPU(double Time);
 
 	void GetHistoryFrames_GT(TArray<double>& OutHistoryGT);
 	void GetHistoryFrames_RT(TArray<double>& OutHistoryRT);
+	void GetHistoryFrames_GPU(TArray<double>& OutHistoryGPU);
 };
 
 struct FNiagaraDebugHUDPerfStats
@@ -142,6 +148,65 @@ class FNiagaraDebugHud
 		TMap<FName, TArray<FName>>	ParticleVariablesWithErrors;
 	};
 
+	static constexpr int32 SmoothedNumFrames = 32;
+	template<typename TCounterType>
+	struct FSmoothedCounter
+	{
+		uint64			LastFrameSeen = 0;
+		TCounterType	FrameCount[SmoothedNumFrames];
+		uint32			MaxIndex = 0;
+		uint32			CurrentIndex = SmoothedNumFrames - 1;
+
+		void Reset()
+		{
+			LastFrameSeen = 0;
+			MaxIndex = 0;
+			CurrentIndex = SmoothedNumFrames - 1;
+		}
+
+		bool ShouldPrune(uint64 FrameCounter)
+		{
+			return (FrameCounter - LastFrameSeen) >= SmoothedNumFrames;
+		}
+
+		void Accumulate(uint64 InLastFrameSeen, TCounterType Value)
+		{
+			if ( LastFrameSeen != InLastFrameSeen )
+			{
+				LastFrameSeen = InLastFrameSeen;
+				CurrentIndex = (CurrentIndex + 1) % SmoothedNumFrames;
+				FrameCount[CurrentIndex] = TCounterType(0);
+				MaxIndex = FMath::Max(MaxIndex, CurrentIndex + 1);
+			}
+			FrameCount[CurrentIndex] += Value;
+		}
+
+		template<typename TReturnType = TCounterType>
+		TReturnType GetAverage() const
+		{
+			TReturnType Result = 0;
+			if (MaxIndex > 0)
+			{
+				for (uint32 i = 0; i < MaxIndex; ++i)
+				{
+					Result += TReturnType(FrameCount[i]);
+				}
+				Result /= TReturnType(MaxIndex);
+			}
+			return Result;
+		}
+
+		TCounterType GetMax() const
+		{
+			TCounterType Result = 0;
+			for (uint32 i = 0; i < MaxIndex; ++i)
+			{
+				Result = FMath::Max(Result, FrameCount[i]);
+			}
+			return Result;
+		}
+	};
+
 public:
 	FNiagaraDebugHud(class UWorld* World);
 	~FNiagaraDebugHud();
@@ -161,6 +226,8 @@ private:
 
 	void Draw(class FNiagaraWorldManager* WorldManager, class UCanvas* Canvas, class APlayerController* PC);
 	void DrawOverview(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas);
+	void DrawGpuComputeOverriew(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2D& TextLocation);
+	void DrawGlobalBudgetInfo(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2D& TextLocation);
 	void DrawValidation(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2D& TextLocation);
 	void DrawComponents(class FNiagaraWorldManager* WorldManager, class UCanvas* Canvas);
 	void DrawMessages(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2D& TextLocation);
@@ -192,6 +259,42 @@ private:
 
 #if WITH_PARTICLE_PERF_STATS
 	TSharedPtr<FNiagaraDebugHUDStatsListener, ESPMode::ThreadSafe> StatsListener;
+#endif
+
+#if WITH_NIAGARA_GPU_PROFILER
+	FDelegateHandle				GpuProfilerDelegateHandle;
+	FNiagaraGpuFrameResultsPtr	GpuResults;
+	uint64						GpuResultsGameFrameCounter = 0;
+
+	struct FGpuUsagePerStage
+	{
+		FSmoothedCounter<uint32> InstanceCount;
+		FSmoothedCounter<uint64> Microseconds;
+	};
+
+	struct FGpuUsagePerEmitter
+	{
+		FSmoothedCounter<uint32> InstanceCount;
+		FSmoothedCounter<uint64> Microseconds;
+		TMap<FName, FGpuUsagePerStage> Stages;
+	};
+
+	struct FGpuUsagePerSystem
+	{
+		bool bShowDetailed = false;
+		FSmoothedCounter<uint32> InstanceCount;
+		FSmoothedCounter<uint64> Microseconds;
+		TMap<TWeakObjectPtr<UNiagaraEmitter>, FGpuUsagePerEmitter> Emitters;
+	};
+
+	struct FGpuUsagePerEvent
+	{
+		FSmoothedCounter<uint32> InstanceCount;
+		FSmoothedCounter<uint64> Microseconds;
+	};
+
+	TMap<TWeakObjectPtr<UNiagaraSystem>, FGpuUsagePerSystem> GpuUsagePerSystem;
+	TMap<FName, FGpuUsagePerEvent> GpuUsagePerEvent;
 #endif
 
 	float LastDrawTime = 0.0f;

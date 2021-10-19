@@ -535,6 +535,90 @@ FNiagaraDebugHud::FNiagaraDebugHud(UWorld* World)
 		GDebugDrawHandle = UDebugDrawService::Register(TEXT("Particles"), FDebugDrawDelegate::CreateStatic(&FNiagaraDebugHud::DebugDrawCallback));
 	}
 	++GDebugDrawHandleUsers;
+#if WITH_NIAGARA_GPU_PROFILER
+	GpuProfilerDelegateHandle = FNiagaraGPUProfilerInterface::GetOnFrameResults_GameThread().AddLambda(
+		[&](const FNiagaraGpuFrameResultsPtr& InGpuResults)
+		{
+			FNiagaraGpuComputeDispatchInterface* DispatchInterface = FNiagaraGpuComputeDispatchInterface::Get(WeakWorld.Get());
+			if ( InGpuResults->OwnerContext == uintptr_t(DispatchInterface) )
+			{
+				GpuResults = InGpuResults;
+				GpuResultsGameFrameCounter = GFrameCounter;
+
+				for ( const auto& DispatchResult : GpuResults->DispatchResults )
+				{
+					if ( DispatchResult.OwnerEmitter.IsExplicitlyNull() )
+					{
+						FGpuUsagePerEvent& EventUsage = GpuUsagePerEvent.FindOrAdd(DispatchResult.StageName);
+						EventUsage.InstanceCount.Accumulate(GpuResultsGameFrameCounter, 1);
+						EventUsage.Microseconds.Accumulate(GpuResultsGameFrameCounter, DispatchResult.DurationMicroseconds);
+					}
+					else
+					{
+						UNiagaraEmitter* OwnerEmitter = DispatchResult.OwnerEmitter.Get();
+						UNiagaraSystem* OwnerSystem = OwnerEmitter ? OwnerEmitter->GetTypedOuter<UNiagaraSystem>() : nullptr;
+						if (OwnerSystem == nullptr)
+						{
+							continue;
+						}
+
+						FGpuUsagePerSystem& SystemUsage = GpuUsagePerSystem.FindOrAdd(OwnerSystem);
+						SystemUsage.Microseconds.Accumulate(GpuResultsGameFrameCounter, DispatchResult.DurationMicroseconds);
+
+						FGpuUsagePerEmitter& EmitterUsage = SystemUsage.Emitters.FindOrAdd(OwnerEmitter);
+						EmitterUsage.Microseconds.Accumulate(GpuResultsGameFrameCounter, DispatchResult.DurationMicroseconds);
+						EmitterUsage.InstanceCount.Accumulate(GpuResultsGameFrameCounter, 1);
+
+						FGpuUsagePerStage& StageUsage = EmitterUsage.Stages.FindOrAdd(DispatchResult.StageName);
+						StageUsage.Microseconds.Accumulate(GpuResultsGameFrameCounter, DispatchResult.DurationMicroseconds);
+						StageUsage.InstanceCount.Accumulate(GpuResultsGameFrameCounter, 1);
+
+						if ( DispatchResult.bUniqueInstance )
+						{
+							SystemUsage.InstanceCount.Accumulate(GpuResultsGameFrameCounter, 1);
+						}
+					}
+				}
+
+				// Prune data that hasn't been seen in a while
+				constexpr uint64 FramesBeforePrune = SmoothedNumFrames;
+				for ( auto SystemIt=GpuUsagePerSystem.CreateIterator(); SystemIt; ++SystemIt)
+				{
+					if ( SystemIt.Value().Microseconds.ShouldPrune(GpuResultsGameFrameCounter) )
+					{
+						SystemIt.RemoveCurrent();
+						continue;
+					}
+
+					for (auto EmitterIt=SystemIt.Value().Emitters.CreateIterator(); EmitterIt; ++EmitterIt)
+					{
+						if (EmitterIt.Value().Microseconds.ShouldPrune(GpuResultsGameFrameCounter) )
+						{
+							EmitterIt.RemoveCurrent();
+							continue;
+						}
+
+						for (auto StageIt=EmitterIt.Value().Stages.CreateIterator(); StageIt; ++StageIt)
+						{
+							if (StageIt.Value().Microseconds.ShouldPrune(GpuResultsGameFrameCounter))
+							{
+								StageIt.RemoveCurrent();
+							}
+						}
+					}
+				}
+
+				for ( auto EventIt=GpuUsagePerEvent.CreateIterator(); EventIt; ++EventIt)
+				{
+					if (EventIt.Value().Microseconds.ShouldPrune(GpuResultsGameFrameCounter))
+					{
+						EventIt.RemoveCurrent();
+					}
+				}
+			}
+		}
+	);
+#endif
 }
 
 FNiagaraDebugHud::~FNiagaraDebugHud()
@@ -547,6 +631,9 @@ FNiagaraDebugHud::~FNiagaraDebugHud()
 		UDebugDrawService::Unregister(GDebugDrawHandle);
 		GDebugDrawHandle.Reset();
 	}
+#if WITH_NIAGARA_GPU_PROFILER
+	FNiagaraGPUProfilerInterface::GetOnFrameResults_GameThread().Remove(GpuProfilerDelegateHandle);
+#endif
 }
 
 void FNiagaraDebugHud::UpdateSettings(const FNiagaraDebugHUDSettingsData& NewSettings)
@@ -957,6 +1044,14 @@ void FNiagaraDebugHud::Draw(FNiagaraWorldManager* WorldManager, UCanvas* Canvas,
 		}
 	}
 
+#if WITH_NIAGARA_GPU_PROFILER
+	// Kill GPU results that are no longer relevant
+	if ( GpuResults.IsValid() && (GFrameCounter - GpuResultsGameFrameCounter) > SmoothedNumFrames)
+	{
+		GpuResults = nullptr;
+	}
+#endif
+
 	LastDrawTime = CurrTime;
 }
 
@@ -1270,7 +1365,7 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 
 			if (Settings.PerfGraphMode == ENiagaraDebugHUDPerfGraphMode::None)
 			{
-				OverviewColumns.Emplace(TEXT("Game Thread Avg:"), LexToSanitizedString(GlobalPerfStats.Avg.Time_GT), TEXT("GT Avg"), ColumnOffset, Font, TEXT("000.0000"),
+				OverviewColumns.Emplace(TEXT("Game Thread Avg:"), LexToSanitizedString(GlobalPerfStats.Avg.Time_GT), TEXT("GT Avg (us)"), ColumnOffset, Font, TEXT("000.0000"),
 					[&DetailColor, &DetailHighlightColor, &fAdvanceHeight](FCanvas* Canvas, UFont* Font, float X, float Y, FOverviewColumn& Col, const FSystemDebugInfo& SystemInfo)
 					{
 						FLinearColor RowBGColor = SystemInfo.UniqueColor;
@@ -1280,7 +1375,7 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 						Canvas->DrawShadowedString(X, Y, *LexToSanitizedString(SystemInfo.PerfStats ? SystemInfo.PerfStats->Avg.Time_GT : 0.0), Font, RowColor);
 					});
 
-				OverviewColumns.Emplace(TEXT("Game Thread Max:"), LexToSanitizedString(GlobalPerfStats.Max.Time_GT), TEXT("GT Max"), ColumnOffset, Font, TEXT("000.0000"),
+				OverviewColumns.Emplace(TEXT("Game Thread Max:"), LexToSanitizedString(GlobalPerfStats.Max.Time_GT), TEXT("GT Max (us)"), ColumnOffset, Font, TEXT("000.0000"),
 					[&DetailColor, &DetailHighlightColor, &fAdvanceHeight](FCanvas* Canvas, UFont* Font, float X, float Y, FOverviewColumn& Col, const FSystemDebugInfo& SystemInfo)
 					{
 						FLinearColor RowBGColor = SystemInfo.UniqueColor;
@@ -1290,7 +1385,7 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 						Canvas->DrawShadowedString(X, Y, *LexToSanitizedString(SystemInfo.PerfStats ? SystemInfo.PerfStats->Max.Time_GT : 0.0), Font, RowColor);
 					});
 
-				OverviewColumns.Emplace_GetRef(TEXT("Render Thread Avg:"), LexToSanitizedString(GlobalPerfStats.Avg.Time_RT), TEXT("RT Avg"), ColumnOffset, Font, TEXT("000.0000"),
+				OverviewColumns.Emplace_GetRef(TEXT("Render Thread Avg:"), LexToSanitizedString(GlobalPerfStats.Avg.Time_RT), TEXT("RT Avg (us)"), ColumnOffset, Font, TEXT("000.0000"),
 					[&DetailColor, &DetailHighlightColor, &fAdvanceHeight](FCanvas* Canvas, UFont* Font, float X, float Y, FOverviewColumn& Col, const FSystemDebugInfo& SystemInfo)
 					{
 						FLinearColor RowBGColor = SystemInfo.UniqueColor;
@@ -1300,7 +1395,7 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 						Canvas->DrawShadowedString(X, Y, *LexToSanitizedString(SystemInfo.PerfStats ? SystemInfo.PerfStats->Avg.Time_RT : 0.0), Font, RowColor);
 					});
 
-				OverviewColumns.Emplace(TEXT("Render Thread Max:"), LexToSanitizedString(GlobalPerfStats.Max.Time_RT), TEXT("RT Max"), ColumnOffset, Font, TEXT("000.0000"),
+				OverviewColumns.Emplace(TEXT("Render Thread Max:"), LexToSanitizedString(GlobalPerfStats.Max.Time_RT), TEXT("RT Max (us)"), ColumnOffset, Font, TEXT("000.0000"),
 					[&DetailColor, &DetailHighlightColor, &fAdvanceHeight](FCanvas* Canvas, UFont* Font, float X, float Y, FOverviewColumn& Col, const FSystemDebugInfo& SystemInfo)
 					{
 						FLinearColor RowBGColor = SystemInfo.UniqueColor;
@@ -1308,6 +1403,26 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 						Canvas->DrawTile(X, Y, Col.MaxWidth, fAdvanceHeight, 0, 0, 0, 0, RowBGColor);
 						const FLinearColor RowColor = SystemInfo.bShowInWorld ? DetailHighlightColor : DetailColor;
 						Canvas->DrawShadowedString(X, Y, *LexToSanitizedString(SystemInfo.PerfStats ? SystemInfo.PerfStats->Max.Time_RT : 0.0), Font, RowColor);
+					});
+
+				OverviewColumns.Emplace_GetRef(TEXT("Gpu Avg:"), LexToSanitizedString(GlobalPerfStats.Avg.Time_GPU), TEXT("Gpu Avg (us)"), ColumnOffset, Font, TEXT("000.0000"),
+					[&DetailColor, &DetailHighlightColor, &fAdvanceHeight](FCanvas* Canvas, UFont* Font, float X, float Y, FOverviewColumn& Col, const FSystemDebugInfo& SystemInfo)
+					{
+						FLinearColor RowBGColor = SystemInfo.UniqueColor;
+						RowBGColor.A = 0.1f;
+						Canvas->DrawTile(X, Y, Col.MaxWidth, fAdvanceHeight, 0, 0, 0, 0, RowBGColor);
+						const FLinearColor RowColor = SystemInfo.bShowInWorld ? DetailHighlightColor : DetailColor;
+						Canvas->DrawShadowedString(X, Y, *LexToSanitizedString(SystemInfo.PerfStats ? SystemInfo.PerfStats->Avg.Time_GPU : 0.0), Font, RowColor);
+					});
+
+				OverviewColumns.Emplace(TEXT("Gpu Max:"), LexToSanitizedString(GlobalPerfStats.Max.Time_GPU), TEXT("Gpu Max (us)"), ColumnOffset, Font, TEXT("000.0000"),
+					[&DetailColor, &DetailHighlightColor, &fAdvanceHeight](FCanvas* Canvas, UFont* Font, float X, float Y, FOverviewColumn& Col, const FSystemDebugInfo& SystemInfo)
+					{
+						FLinearColor RowBGColor = SystemInfo.UniqueColor;
+						RowBGColor.A = 0.1f;
+						Canvas->DrawTile(X, Y, Col.MaxWidth, fAdvanceHeight, 0, 0, 0, 0, RowBGColor);
+						const FLinearColor RowColor = SystemInfo.bShowInWorld ? DetailHighlightColor : DetailColor;
+						Canvas->DrawShadowedString(X, Y, *LexToSanitizedString(SystemInfo.PerfStats ? SystemInfo.PerfStats->Max.Time_GPU : 0.0), Font, RowColor);
 					});
 			}
 			else
@@ -1323,6 +1438,7 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 			}
 		}
 #endif//WITH_PARTICLE_PERF_STATS
+
 		TotalOverviewWidth = ColumnOffset;
 	}
 
@@ -1430,8 +1546,16 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 		}
 	}
 
+	//-TODO: Improve the column view to allow custom views like this
+#if WITH_NIAGARA_GPU_PROFILER
+	if (Settings.bOverviewEnabled && Settings.OverviewMode == ENiagaraDebugHUDOverviewMode::GpuComputePerformance)
+	{
+		DrawGpuComputeOverriew(WorldManager, DrawCanvas, TextLocation);
+	}
+#endif //WITH_NIAGARA_GPU_PROFILER
+
 	// Display active systems information
-	if (Settings.bOverviewEnabled)
+	if (Settings.bOverviewEnabled && Settings.OverviewMode != ENiagaraDebugHUDOverviewMode::GpuComputePerformance)
 	{
 		TextLocation.Y += fAdvanceHeight;		
 		uint32 NumLines = 1;
@@ -1506,6 +1630,10 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 						{
 							SysInfo.PerfStats->History.GetHistoryFrames_RT(Frames);
 						}
+						else if (Settings.PerfGraphMode == ENiagaraDebugHUDPerfGraphMode::GPU)
+						{
+							SysInfo.PerfStats->History.GetHistoryFrames_GPU(Frames);
+						}
 
 						if (Settings.bEnableSmoothing)
 						{
@@ -1540,89 +1668,344 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 
 	TextLocation.Y += fAdvanceHeight;
 
-	//Display global budget usage information
-	if(Settings.bShowGlobalBudgetInfo)
+	DrawGlobalBudgetInfo(WorldManager, DrawCanvas, TextLocation);
+	DrawValidation(WorldManager, DrawCanvas, TextLocation);
+	DrawMessages(WorldManager, DrawCanvas, TextLocation);
+}
+
+void FNiagaraDebugHud::DrawGpuComputeOverriew(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2D& TextLocation)
+{
+#if WITH_NIAGARA_GPU_PROFILER
+	using namespace NiagaraDebugLocal;
+
+	UFont* Font = GetFont(Settings.OverviewFont);
+	const float fAdvanceHeight = Font->GetMaxCharHeight() + 1.0f;
+
+	const FLinearColor HeadingColor = FLinearColor::Green;
+	const FLinearColor DetailColor = FLinearColor::White;
+	const FLinearColor DetailHighlightColor = FLinearColor::Yellow;
+
+	if (GpuResults == nullptr)
 	{
-		static const float GuessWidth = 400.0f;
-		if (FFXBudget::Enabled())
-		{
-			FFXTimeData Time = FFXBudget::GetTime();
-			FFXTimeData Budget = FFXBudget::GetBudget();
-			FFXTimeData Usage = FFXBudget::GetUsage();
-			FFXTimeData AdjustedUsage = FFXBudget::GetAdjustedUsage();
+		static const FString EnableCVarWarning(TEXT("No GPU data ensure 'fx.NiagaraGpuProfilingEnabled' is enabled"));
 
-			const int32 NumLines = 5;//Header, time, budget, usage and adjusted usage.
-			DrawCanvas->DrawTile(TextLocation.X - 1.0f, TextLocation.Y - 1.0f, GuessWidth + 1.0f, 2.0f + (float(NumLines) * fAdvanceHeight), 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
-
-			FString Temp;
-			DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, TEXT("Global Budget Info"), Font, HeadingColor);
-
-			TextLocation.Y += fAdvanceHeight;
-			FString TimeLabels[] =
-			{
-				TEXT("Time: "),
-				TEXT("Budget: "),
-				TEXT("Usage: "),
-				TEXT("Adjusted: ")
-			};
-
-			int32 LabelSizes[] =
-			{
-				Font->GetStringSize(*TimeLabels[0]),
-				Font->GetStringSize(*TimeLabels[1]),
-				Font->GetStringSize(*TimeLabels[2]),
-				Font->GetStringSize(*TimeLabels[3])
-			};
-			int32 MaxLabelSize = FMath::Max(FMath::Max(LabelSizes[0], LabelSizes[1]), FMath::Max(LabelSizes[2], LabelSizes[3]));
-
-			auto DrawTimeData = [&](FString Heading, FFXTimeData Time, float HighlightThreshold = FLT_MAX)
-			{
-				//Draw Time
-				int32 XOff = 0;
-				int32 AlignSize = 50;
-				FString Text[] = {
-					Heading,
-					FString::Printf(TEXT("GT = %2.3f"), Time.GT),
-					FString::Printf(TEXT("CNC = %2.3f"), Time.GTConcurrent),
-					FString::Printf(TEXT("RT = %2.3f"), Time.RT)
-				};
-				int32 Sizes[] =
-				{
-					MaxLabelSize,
-					Font->GetStringSize(*Text[1]),
-					Font->GetStringSize(*Text[2]),
-					Font->GetStringSize(*Text[3])
-				};
-				DrawCanvas->DrawShadowedString(TextLocation.X + XOff, TextLocation.Y, *Text[0], Font, HeadingColor);
-				XOff = AlignArbitrary(XOff + Sizes[0], AlignSize);
-				DrawCanvas->DrawShadowedString(TextLocation.X + XOff, TextLocation.Y, *Text[1], Font, Time.GT > HighlightThreshold ? DetailHighlightColor : DetailColor);
-				XOff = AlignArbitrary(XOff + Sizes[1], AlignSize);
-				DrawCanvas->DrawShadowedString(TextLocation.X + XOff, TextLocation.Y, *Text[2], Font, Time.GTConcurrent > HighlightThreshold ? DetailHighlightColor : DetailColor);
-				XOff = AlignArbitrary(XOff + Sizes[2], AlignSize);
-				DrawCanvas->DrawShadowedString(TextLocation.X + XOff, TextLocation.Y, *Text[3], Font, Time.RT > HighlightThreshold ? DetailHighlightColor : DetailColor);
-				XOff = AlignArbitrary(XOff + Sizes[3], AlignSize);
-
-				TextLocation.Y += fAdvanceHeight;
-			};
-			DrawTimeData(TimeLabels[0], Time);
-			DrawTimeData(TimeLabels[1], Budget);
-			DrawTimeData(TimeLabels[2], Usage, 1.0f);
-			DrawTimeData(TimeLabels[3], AdjustedUsage, 1.0f);
-		}
-		else
-		{
-			int32 NumLines = 2;
-			DrawCanvas->DrawTile(TextLocation.X - 1.0f, TextLocation.Y - 1.0f, GuessWidth + 1.0f, 2.0f + (float(NumLines) * fAdvanceHeight), 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
-			DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, TEXT("Global Budget Info"), Font, HeadingColor);
-			TextLocation.Y += fAdvanceHeight;
-			DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, TEXT("Global budget tracking is disabled."), Font, DetailHighlightColor);
-			TextLocation.Y += fAdvanceHeight;
-		}
+		const FVector2D StringSize = GetStringSize(Font, *EnableCVarWarning);
+		DrawCanvas->DrawTile(TextLocation.X - 1.0f, TextLocation.Y - 1.0f, StringSize.X + 1.0f, 2.0f + StringSize.Y, 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
+		DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, *EnableCVarWarning, Font, HeadingColor);
+		TextLocation.Y += StringSize.Y;
+		return;
 	}
 
-	DrawValidation(WorldManager, DrawCanvas, TextLocation);
+	struct FSimpleTableDraw
+	{
+		struct FColumn
+		{
+			float				DefaultWidth = 150.0f;
+			FVector2D			MeasuredSize = FVector2D::ZeroVector;
+			float				DrawOffset = 0.0f;
+			TStringBuilder<128>	AllRowsText;
+		};
 
-	DrawMessages(WorldManager, DrawCanvas, TextLocation);
+		void AddColumns(int32 NumToAdd, float DefaultWidth = 150.0f)
+		{
+			for ( int32 i=0; i < NumToAdd; ++i )
+			{
+				FColumn& Column = Columns.AddDefaulted_GetRef();
+				Column.DefaultWidth = DefaultWidth;
+			}
+		}
+
+		TStringBuilder<128>& GetColumnText(int32 Column)
+		{
+			return Columns[Column].AllRowsText;
+		}
+
+		void RowComplete()
+		{
+			for ( int32 i=0; i < Columns.Num(); ++i )
+			{
+				Columns[i].AllRowsText.Append(TEXT('\n'));
+			}
+		}
+
+		void Draw(UFont* Font, FCanvas* DrawCanvas, FVector2D& Location, FLinearColor TextColor)
+		{
+			FVector2D TotalSize = FVector2D::ZeroVector;
+			for ( FColumn& Column : Columns)
+			{
+				Column.MeasuredSize	= GetStringSize(Font, Column.AllRowsText.ToString());
+				Column.DrawOffset	= TotalSize.X;
+
+				const float SpaceBetweenColumns = (&Column == &Columns.Last()) ? 0.0f : DefaultSpaceBetweenColumns;
+				TotalSize.X = Column.DrawOffset + FMath::Max(Column.MeasuredSize.X + SpaceBetweenColumns, Column.DefaultWidth);
+				TotalSize.Y = FMath::Max(TotalSize.Y, Column.MeasuredSize.Y);
+			}
+
+			DrawCanvas->DrawTile(Location.X - 1.0f, Location.Y - 1.0f, TotalSize.X + 1.0f, 2.0f + TotalSize.Y, 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
+			for (FColumn& Column : Columns)
+			{
+				DrawCanvas->DrawShadowedString(Location.X + Column.DrawOffset, Location.Y, Column.AllRowsText.ToString(), Font, TextColor);
+			}
+
+			Location.Y += TotalSize.Y;
+		}
+
+	private:
+		float DefaultSpaceBetweenColumns = 10.0f;
+		TArray<FColumn, TInlineAllocator<16>> Columns;
+	};
+
+	// Display overview of results
+	{
+		int32 TotalDispatches = 0;
+		int32 TotalDispatchGroups = 0;
+		uint64 TotalMicroseconds = 0;
+		for (const auto& StageResult : GpuResults->StageResults)
+		{
+			TotalDispatches += StageResult.NumDispatches;
+			TotalDispatchGroups += StageResult.NumDispatchGroups;
+			TotalMicroseconds += StageResult.DurationMicroseconds;
+		}
+
+		FSimpleTableDraw SimpleTable;
+		SimpleTable.AddColumns(1, 250.0f);
+		SimpleTable.AddColumns(2, 150.0f);
+		SimpleTable.GetColumnText(0).Append(TEXT("Gpu Compute Overview"));
+		SimpleTable.RowComplete();
+
+		SimpleTable.GetColumnText(0).Appendf(TEXT("TotalMicroseconds : %llu"), TotalMicroseconds);
+		SimpleTable.GetColumnText(1).Appendf(TEXT("TotalDispatches : %d"), TotalDispatches);
+		SimpleTable.GetColumnText(2).Appendf(TEXT("TotalDispatchGroups : %d"), TotalDispatchGroups);
+
+		SimpleTable.Draw(Font, DrawCanvas, TextLocation, DetailColor);
+		TextLocation.Y += fAdvanceHeight;
+	}
+
+	// Do a pass to determine what will be detailed view
+	bool bHasDetailedView = false;
+	bool bHasSimpleView = false;
+	for (auto SystemIt = GpuUsagePerSystem.CreateIterator(); SystemIt; ++SystemIt)
+	{
+		// Prune data systems
+		UNiagaraSystem* OwnerSystem = SystemIt.Key().Get();
+		if (OwnerSystem == nullptr)
+		{
+			SystemIt.RemoveCurrent();
+			continue;
+		}
+
+		// Prune dead emitters
+		for (auto EmitterIt = SystemIt.Value().Emitters.CreateIterator(); EmitterIt; ++EmitterIt)
+		{
+			UNiagaraEmitter* OwnerEmitter = EmitterIt.Key().Get();
+			if (OwnerEmitter == nullptr)
+			{
+				SystemIt.RemoveCurrent();
+			}
+		}
+
+		const bool bShowDetailed = Settings.bSystemFilterEnabled && OwnerSystem->GetName().MatchesWildcard(Settings.SystemFilter);
+		SystemIt.Value().bShowDetailed = bShowDetailed;
+		bHasDetailedView |= bShowDetailed;
+		bHasSimpleView |= !bShowDetailed;
+	}
+
+	// Show detailed information first
+	if (bHasDetailedView)
+	{
+		FSimpleTableDraw SimpleTable;
+		SimpleTable.AddColumns(3, 200.0f);
+		SimpleTable.AddColumns(3, 100.0f);
+		SimpleTable.GetColumnText(0).Append(TEXT("SystemName"));
+		SimpleTable.GetColumnText(1).Append(TEXT("EmitterName"));
+		SimpleTable.GetColumnText(2).Append(TEXT("StageName"));
+		SimpleTable.GetColumnText(3).Append(TEXT("Avg Instances"));
+		SimpleTable.GetColumnText(4).Append(TEXT("Avg us"));
+		SimpleTable.GetColumnText(5).Append(TEXT("Max us"));
+		SimpleTable.RowComplete();
+
+		for (auto SystemIt = GpuUsagePerSystem.CreateIterator(); SystemIt; ++SystemIt)
+		{
+			if ( SystemIt.Value().bShowDetailed == false )
+			{
+				continue;
+			}
+
+			UNiagaraSystem* OwnerSystem = SystemIt.Key().Get();
+			check(OwnerSystem);
+			for (auto EmitterIt = SystemIt.Value().Emitters.CreateIterator(); EmitterIt; ++EmitterIt)
+			{
+				UNiagaraEmitter* OwnerEmitter = EmitterIt.Key().Get();
+				check(OwnerEmitter);
+				for (auto StageIt=EmitterIt.Value().Stages.CreateIterator(); StageIt; ++StageIt)
+				{
+					const FGpuUsagePerStage& StageUsage = StageIt.Value();
+					OwnerSystem->GetFName().AppendString(SimpleTable.GetColumnText(0));
+					OwnerEmitter->GetFName().AppendString(SimpleTable.GetColumnText(1));
+					StageIt.Key().AppendString(SimpleTable.GetColumnText(2));
+					SimpleTable.GetColumnText(3).Appendf(TEXT("%4.1f"), StageUsage.InstanceCount.GetAverage<float>());
+					SimpleTable.GetColumnText(4).Appendf(TEXT("%llu"), StageUsage.Microseconds.GetAverage());
+					SimpleTable.GetColumnText(5).Appendf(TEXT("%llu"), StageUsage.Microseconds.GetMax());
+					SimpleTable.RowComplete();
+				}
+			}
+		}
+		SimpleTable.Draw(Font, DrawCanvas, TextLocation, DetailColor);
+		TextLocation.Y += fAdvanceHeight;
+	}
+
+	// Show simple information
+	if (bHasSimpleView)
+	{
+		FSimpleTableDraw SimpleTable;
+		SimpleTable.AddColumns(1, 200.0f);
+		SimpleTable.AddColumns(3, 100.0f);
+		SimpleTable.GetColumnText(0).Append(TEXT("SystemName"));
+		SimpleTable.GetColumnText(1).Append(TEXT("Avg Instances"));
+		SimpleTable.GetColumnText(2).Append(TEXT("Avg us"));
+		SimpleTable.GetColumnText(3).Append(TEXT("Max us"));
+		SimpleTable.RowComplete();
+
+		for (auto SystemIt=GpuUsagePerSystem.CreateIterator(); SystemIt; ++SystemIt)
+		{
+			if (SystemIt.Value().bShowDetailed == true)
+			{
+				continue;
+			}
+
+			UNiagaraSystem* OwnerSystem = SystemIt.Key().Get();
+			check(OwnerSystem);
+
+			const FGpuUsagePerSystem& SystemUsage = SystemIt.Value();
+
+			OwnerSystem->GetFName().AppendString(SimpleTable.GetColumnText(0));
+			SimpleTable.GetColumnText(1).Appendf(TEXT("%4.1f"), SystemUsage.InstanceCount.GetAverage<float>());
+			SimpleTable.GetColumnText(2).Appendf(TEXT("%llu"), SystemUsage.Microseconds.GetAverage());
+			SimpleTable.GetColumnText(3).Appendf(TEXT("%llu"), SystemUsage.Microseconds.GetMax());
+			SimpleTable.RowComplete();
+		}
+		SimpleTable.Draw(Font, DrawCanvas, TextLocation, DetailColor);
+		TextLocation.Y += fAdvanceHeight;
+	}
+
+	// Show events
+	if (GpuUsagePerEvent.Num() > 0)
+	{
+		FSimpleTableDraw SimpleTable;
+		SimpleTable.AddColumns(1, 200.0f);
+		SimpleTable.AddColumns(3, 100.0f);
+		SimpleTable.GetColumnText(0).Append(TEXT("EventName"));
+		SimpleTable.GetColumnText(1).Append(TEXT("Avg Instances"));
+		SimpleTable.GetColumnText(2).Append(TEXT("Avg us"));
+		SimpleTable.GetColumnText(3).Append(TEXT("Max us"));
+		SimpleTable.RowComplete();
+
+		for (auto EventIt=GpuUsagePerEvent.CreateIterator(); EventIt; ++EventIt)
+		{
+			const FGpuUsagePerEvent& EventUsage = EventIt.Value();
+			EventIt.Key().AppendString(SimpleTable.GetColumnText(0));
+			SimpleTable.GetColumnText(1).Appendf(TEXT("%4.1f"), EventUsage.InstanceCount.GetAverage<float>());
+			SimpleTable.GetColumnText(2).Appendf(TEXT("%llu"), EventUsage.Microseconds.GetAverage());
+			SimpleTable.GetColumnText(3).Appendf(TEXT("%llu"), EventUsage.Microseconds.GetMax());
+			SimpleTable.RowComplete();
+		}
+		SimpleTable.Draw(Font, DrawCanvas, TextLocation, DetailColor);
+		TextLocation.Y += fAdvanceHeight;
+	}
+#endif //WITH_NIAGARA_GPU_PROFILER
+}
+
+void FNiagaraDebugHud::DrawGlobalBudgetInfo(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2D& TextLocation)
+{
+	using namespace NiagaraDebugLocal;
+
+	if ( !Settings.bShowGlobalBudgetInfo )
+	{
+		return;
+	}
+
+	static const float GuessWidth = 400.0f;
+
+	UFont* Font = GetFont(Settings.OverviewFont);
+	const float fAdvanceHeight = Font->GetMaxCharHeight() + 1.0f;
+
+	const FLinearColor HeadingColor = FLinearColor::Green;
+	const FLinearColor DetailColor = FLinearColor::White;
+	const FLinearColor DetailHighlightColor = FLinearColor::Yellow;
+
+	if (FFXBudget::Enabled())
+	{
+		const FFXTimeData Time = FFXBudget::GetTime();
+		const FFXTimeData Budget = FFXBudget::GetBudget();
+		const FFXTimeData Usage = FFXBudget::GetUsage();
+		const FFXTimeData AdjustedUsage = FFXBudget::GetAdjustedUsage();
+
+		const int32 NumLines = 5;//Header, time, budget, usage and adjusted usage.
+		DrawCanvas->DrawTile(TextLocation.X - 1.0f, TextLocation.Y - 1.0f, GuessWidth + 1.0f, 2.0f + (float(NumLines) * fAdvanceHeight), 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
+
+		DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, TEXT("Global Budget Info"), Font, HeadingColor);
+
+		TextLocation.Y += fAdvanceHeight;
+		FString TimeLabels[] =
+		{
+			TEXT("Time: "),
+			TEXT("Budget: "),
+			TEXT("Usage: "),
+			TEXT("Adjusted: ")
+		};
+
+		int32 LabelSizes[] =
+		{
+			Font->GetStringSize(*TimeLabels[0]),
+			Font->GetStringSize(*TimeLabels[1]),
+			Font->GetStringSize(*TimeLabels[2]),
+			Font->GetStringSize(*TimeLabels[3])
+		};
+		int32 MaxLabelSize = FMath::Max(FMath::Max(LabelSizes[0], LabelSizes[1]), FMath::Max(LabelSizes[2], LabelSizes[3]));
+
+		auto DrawTimeData = [&](FString Heading, FFXTimeData Time, float HighlightThreshold = FLT_MAX)
+		{
+			//Draw Time
+			int32 XOff = 0;
+			int32 AlignSize = 50;
+			FString Text[] = {
+				Heading,
+				FString::Printf(TEXT("GT = %2.3f"), Time.GT),
+				FString::Printf(TEXT("CNC = %2.3f"), Time.GTConcurrent),
+				FString::Printf(TEXT("RT = %2.3f"), Time.RT)
+			};
+			int32 Sizes[] =
+			{
+				MaxLabelSize,
+				Font->GetStringSize(*Text[1]),
+				Font->GetStringSize(*Text[2]),
+				Font->GetStringSize(*Text[3])
+			};
+			DrawCanvas->DrawShadowedString(TextLocation.X + XOff, TextLocation.Y, *Text[0], Font, HeadingColor);
+			XOff = AlignArbitrary(XOff + Sizes[0], AlignSize);
+			DrawCanvas->DrawShadowedString(TextLocation.X + XOff, TextLocation.Y, *Text[1], Font, Time.GT > HighlightThreshold ? DetailHighlightColor : DetailColor);
+			XOff = AlignArbitrary(XOff + Sizes[1], AlignSize);
+			DrawCanvas->DrawShadowedString(TextLocation.X + XOff, TextLocation.Y, *Text[2], Font, Time.GTConcurrent > HighlightThreshold ? DetailHighlightColor : DetailColor);
+			XOff = AlignArbitrary(XOff + Sizes[2], AlignSize);
+			DrawCanvas->DrawShadowedString(TextLocation.X + XOff, TextLocation.Y, *Text[3], Font, Time.RT > HighlightThreshold ? DetailHighlightColor : DetailColor);
+			XOff = AlignArbitrary(XOff + Sizes[3], AlignSize);
+
+			TextLocation.Y += fAdvanceHeight;
+		};
+		DrawTimeData(TimeLabels[0], Time);
+		DrawTimeData(TimeLabels[1], Budget);
+		DrawTimeData(TimeLabels[2], Usage, 1.0f);
+		DrawTimeData(TimeLabels[3], AdjustedUsage, 1.0f);
+	}
+	else
+	{
+		int32 NumLines = 2;
+		DrawCanvas->DrawTile(TextLocation.X - 1.0f, TextLocation.Y - 1.0f, GuessWidth + 1.0f, 2.0f + (float(NumLines) * fAdvanceHeight), 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
+		DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, TEXT("Global Budget Info"), Font, HeadingColor);
+		TextLocation.Y += fAdvanceHeight;
+		DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, TEXT("Global budget tracking is disabled."), Font, DetailHighlightColor);
+		TextLocation.Y += fAdvanceHeight;
+	}
 }
 
 void FNiagaraDebugHud::DrawValidation(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2D& TextLocation)
@@ -2234,6 +2617,14 @@ void FNiagaraDebugHudStatHistory::AddFrame_RT(double Time)
 	RTFrames[CurrFrameRT] = Time;
 }
 
+void FNiagaraDebugHudStatHistory::AddFrame_GPU(double Time)
+{
+	FScopeLock Lock(&NiagaraDebugLocal::RTFramesGuard);
+	GPUFrames.SetNumZeroed(NiagaraDebugLocal::Settings.PerfHistoryFrames);
+	CurrFrameGPU = FMath::Wrap(CurrFrameGPU + 1, 0, GPUFrames.Num() - 1);
+	GPUFrames[CurrFrameGPU] = Time;
+}
+
 void FNiagaraDebugHudStatHistory::GetHistoryFrames_GT(TArray<double>& OutHistoryGT)
 {
 	if (GTFrames.Num() == 0)
@@ -2265,6 +2656,24 @@ void FNiagaraDebugHudStatHistory::GetHistoryFrames_RT(TArray<double>& OutHistory
 		OutHistoryRT.Add(RTFrames[WriteFrame]);
 		WriteFrame = FMath::Wrap(WriteFrame + 1, 0, RTFrames.Num() - 1);
 	} while (WriteFrame != CurrFrameRT);
+}
+
+void FNiagaraDebugHudStatHistory::GetHistoryFrames_GPU(TArray<double>& OutHistoryGPU)
+{
+	FScopeLock Lock(&NiagaraDebugLocal::RTFramesGuard);
+
+	if (GPUFrames.Num() == 0)
+	{
+		return;
+	}
+
+	OutHistoryGPU.Reserve(GPUFrames.Num());
+	int32 WriteFrame = CurrFrameGPU;
+	do
+	{
+		OutHistoryGPU.Add(GPUFrames[WriteFrame]);
+		WriteFrame = FMath::Wrap(WriteFrame + 1, 0, GPUFrames.Num() - 1);
+	} while (WriteFrame != CurrFrameGPU);
 }
 
 TSharedPtr<FNiagaraDebugHUDPerfStats> FNiagaraDebugHUDStatsListener::GetSystemStats(UNiagaraSystem* System)
@@ -2406,8 +2815,10 @@ void FNiagaraDebugHUDStatsListener::TickRT()
 	FScopeLock Lock(&AccumulatedStatsGuard);
 	FScopeLock SysInfoLock(&SystemStatsGuard);
 
-	double GlobalAvg = 0.0;
-	double GlobalMax = 0.0;
+	double RTGlobalAvg = 0.0;
+	double RTGlobalMax = 0.0;
+	double GPUGlobalAvg = 0.0;
+	double GPUGlobalMax = 0.0;
 	for (auto& WorldStatsPair : AccumulatedWorldStats)
 	{
 		if (const UWorld* World = Cast<UWorld>(WorldStatsPair.Key.Get()))
@@ -2415,18 +2826,23 @@ void FNiagaraDebugHUDStatsListener::TickRT()
 			FAccumulatedParticlePerfStats* Stats = WorldStatsPair.Value.Get();
 			check(Stats);
 
-			GlobalAvg += Stats->GetRenderThreadStats().GetPerFrameAvg();
-			GlobalMax += Stats->GetRenderThreadStats().GetPerFrameMax();
+			RTGlobalAvg += Stats->GetRenderThreadStats().GetPerFrameAvg();
+			RTGlobalMax += Stats->GetRenderThreadStats().GetPerFrameMax();
+			GPUGlobalAvg += Stats->GetGPUStats().GetPerFrameAvgMicroseconds();
+			GPUGlobalMax += Stats->GetGPUStats().GetPerFrameMaxMicroseconds();
 
 			Stats->ResetRT();
 		}
 	}
-	GlobalStats.History.AddFrame_RT(GlobalAvg);
+	GlobalStats.History.AddFrame_RT(RTGlobalAvg);
+	GlobalStats.History.AddFrame_GPU(GPUGlobalAvg);
 
 	if (bPushStats)
 	{
-		GlobalStats.Avg.Time_RT = GlobalAvg;
-		GlobalStats.Max.Time_RT = GlobalMax;
+		GlobalStats.Avg.Time_RT = RTGlobalAvg;
+		GlobalStats.Max.Time_RT = RTGlobalMax;
+		GlobalStats.Avg.Time_GPU = GPUGlobalAvg;
+		GlobalStats.Max.Time_GPU = GPUGlobalMax;
 	}
 
 #if WITH_PER_SYSTEM_PARTICLE_PERF_STATS
@@ -2444,25 +2860,34 @@ void FNiagaraDebugHUDStatsListener::TickRT()
 
 		if (FAccumulatedParticlePerfStats* Stats = GetStats(System))
 		{
-			double SysAvg;
-			double SysMax;
+			double RTSysAvg;
+			double RTSysMax;
+			double GPUSysAvg;
+			double GPUSysMax;
 			if (Settings.PerfSampleMode == ENiagaraDebugHUDPerfSampleMode::FrameTotal)
 			{
-				SysAvg = Stats->GetRenderThreadStats().GetPerFrameAvg();
-				SysMax = Stats->GetRenderThreadStats().GetPerFrameAvg();
+				RTSysAvg = Stats->GetRenderThreadStats().GetPerFrameAvg();
+				RTSysMax = Stats->GetRenderThreadStats().GetPerFrameAvg();
+				GPUSysAvg = Stats->GetGPUStats().GetPerFrameAvgMicroseconds();
+				GPUSysMax = Stats->GetGPUStats().GetPerFrameAvgMicroseconds();
 			}
 			else
 			{
-				SysAvg = Stats->GetRenderThreadStats().GetPerInstanceAvg();
-				SysMax = Stats->GetRenderThreadStats().GetPerInstanceMax();
+				RTSysAvg = Stats->GetRenderThreadStats().GetPerInstanceAvg();
+				RTSysMax = Stats->GetRenderThreadStats().GetPerInstanceMax();
+				GPUSysAvg = Stats->GetGPUStats().GetPerInstanceAvgMicroseconds();
+				GPUSysMax = Stats->GetGPUStats().GetPerInstanceMaxMicroseconds();
 			}
 
-			HUDStats->History.AddFrame_RT(SysAvg);
+			HUDStats->History.AddFrame_RT(RTSysAvg);
+			HUDStats->History.AddFrame_GPU(GPUSysAvg);
 
 			if (bPushStats)
 			{
-				HUDStats->Avg.Time_RT = SysAvg;
-				HUDStats->Max.Time_RT = SysMax;
+				HUDStats->Avg.Time_RT = RTSysAvg;
+				HUDStats->Max.Time_RT = RTSysMax;
+				HUDStats->Avg.Time_GPU = GPUSysAvg;
+				HUDStats->Max.Time_GPU = GPUSysMax;
 			}
 
 			Stats->ResetRT();

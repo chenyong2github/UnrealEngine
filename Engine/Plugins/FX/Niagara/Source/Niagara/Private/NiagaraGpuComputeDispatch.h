@@ -115,6 +115,10 @@ public:
 	/** Get the shared SortManager, used in the rendering loop to call FGPUSortManager::OnPreRender() and FGPUSortManager::OnPostRenderOpaque() */
 	virtual FGPUSortManager* GetGPUSortManager() const override;
 
+#if WITH_NIAGARA_GPU_PROFILER
+	virtual FNiagaraGPUProfilerInterface* GetGPUProfiler() const final { return GPUProfilerPtr.Get(); }
+#endif
+
 	/** When inside a pass returns the active scene textures for the pass, can be nullptr. */
 	class FNiagaraSceneTextureParameters* GetNiagaraSceneTextures() const { return NiagaraSceneTextures; }
 
@@ -186,8 +190,8 @@ private:
 	TUniquePtr<FNiagaraRayTracingHelper> RayTracingHelper;
 #endif
 
-#if STATS
-	FNiagaraGPUProfiler GPUProfiler;
+#if WITH_NIAGARA_GPU_PROFILER
+	TUniquePtr<FNiagaraGPUProfiler> GPUProfilerPtr;
 #endif
 
 	// persistent layouts used to create the constant buffers for the compute sim shader

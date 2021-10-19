@@ -5,6 +5,8 @@
 #include "NiagaraSystem.h"
 #include "NiagaraScriptSourceBase.h"
 
+const FName UNiagaraSimulationStageBase::ParticleSpawnUpdateName("ParticleSpawnUpdate");
+
 bool UNiagaraSimulationStageBase::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
 #if WITH_EDITORONLY_DATA

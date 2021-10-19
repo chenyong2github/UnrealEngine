@@ -123,7 +123,8 @@ void SNiagaraStackRowPerfWidget::Tick(const FGeometry& AllottedGeometry, const d
 	{
 		if (GetUsage() == ENiagaraScriptUsage::ParticleUpdateScript)
 		{
-			GroupOverallTime = CalculateGroupOverallTime("GPU_Stage_SpawnUpdate");
+			static const FString GpuStatName = TEXT("GPU_Stage_") + UNiagaraSimulationStageBase::ParticleSpawnUpdateName.ToString();
+			GroupOverallTime = CalculateGroupOverallTime(GpuStatName);
 		}
 		if (GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript)
 		{

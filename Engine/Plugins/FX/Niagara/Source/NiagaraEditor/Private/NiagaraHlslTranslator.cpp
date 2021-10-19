@@ -1165,7 +1165,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		// Add the spawn / update stage
 		{
 			FSimulationStageMetaData& SimulationStageMetaData = CompilationOutput.ScriptData.SimulationStageMetaData.AddDefaulted_GetRef();
-			SimulationStageMetaData.SimulationStageName = FName("ParticleSpawnUpdate");
+			SimulationStageMetaData.SimulationStageName = UNiagaraSimulationStageBase::ParticleSpawnUpdateName;
 			SimulationStageMetaData.NumIterations = 1;
 			SimulationStageMetaData.bWritesParticles = true;
 			SimulationStageMetaData.bPartialParticleUpdate = false;

@@ -20,6 +20,8 @@ class NIAGARA_API UNiagaraSimulationStageBase : public UNiagaraMergeable
 	GENERATED_BODY()
 
 public:
+	static const FName ParticleSpawnUpdateName;
+
 	UNiagaraSimulationStageBase()
 	{
 		bEnabled = true;

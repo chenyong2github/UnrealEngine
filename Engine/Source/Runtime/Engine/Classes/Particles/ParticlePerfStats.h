@@ -112,8 +112,25 @@ struct ENGINE_API FParticlePerfStats_RT
 		RenderUpdateCycles = 0;
 		GetDynamicMeshElementsCycles = 0;
 	}
-	FORCEINLINE uint64 GetTotalCycles()const { return RenderUpdateCycles + GetDynamicMeshElementsCycles; }
-	FORCEINLINE uint64 GetPerInstanceAvgCycles()const { return NumInstances > 0 ? (RenderUpdateCycles + GetDynamicMeshElementsCycles) / NumInstances : 0; }
+	FORCEINLINE uint64 GetTotalCycles() const { return RenderUpdateCycles + GetDynamicMeshElementsCycles; }
+	FORCEINLINE uint64 GetPerInstanceAvgCycles() const { return NumInstances > 0 ? (RenderUpdateCycles + GetDynamicMeshElementsCycles) / NumInstances : 0; }
+};
+
+/** Stats gathered from the GPU */
+struct ENGINE_API FParticlePerfStats_GPU
+{
+	uint64 NumInstances = 0;
+	uint64 TotalMicroseconds = 0;
+
+	FORCEINLINE uint64 GetTotalMicroseconds() const { return TotalMicroseconds; }
+	FORCEINLINE uint64 GetPerInstanceAvgMicroseconds() const { return NumInstances > 0 ? GetTotalMicroseconds() / NumInstances : 0; }
+
+	FParticlePerfStats_GPU() { Reset(); }
+	FORCEINLINE void Reset()
+	{
+		NumInstances = 0;
+		TotalMicroseconds = 0;
+	}
 };
 
 struct ENGINE_API FParticlePerfStats
@@ -198,6 +215,9 @@ struct ENGINE_API FParticlePerfStats
 	/** Stats on RT work. */
 	FParticlePerfStats_RT RenderThreadStats;
 
+	/** Stats from GPU work. */
+	FParticlePerfStats_GPU GPUStats;
+
 	/** Returns the current frame Game Thread stats. */
 	FORCEINLINE FParticlePerfStats_GT& GetGameThreadStats()
 	{
@@ -210,8 +230,13 @@ struct ENGINE_API FParticlePerfStats
 		return RenderThreadStats;
 	}
 
-private:
+	/** Returns the current frame GPU stats. */
+	FORCEINLINE FParticlePerfStats_GPU& GetGPUStats()
+	{
+		return GPUStats;
+	}
 
+private:
 	static FParticlePerfStats* GetWorldPerfStats(const UWorld* World);
 	static FParticlePerfStats* GetSystemPerfStats(const UFXSystemAsset* FXAsset);
 	static FParticlePerfStats* GetComponentPerfStats(const UFXSystemComponent* FXComponent);

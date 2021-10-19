@@ -141,6 +141,8 @@ public:
 	FName CSVStat_InstAvgGT = NAME_None;
 	FName CSVStat_RT = NAME_None;
 	FName CSVStat_InstAvgRT = NAME_None;
+	FName CSVStat_GPU = NAME_None;
+	FName CSVStat_InstAvgGPU = NAME_None;
 	FName CSVStat_Activation = NAME_None;
 	FName CSVStat_Waits = NAME_None;
 	FName CSVStat_Culled = NAME_None;

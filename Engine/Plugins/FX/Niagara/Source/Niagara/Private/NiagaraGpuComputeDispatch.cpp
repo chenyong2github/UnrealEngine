@@ -15,6 +15,7 @@
 #if NIAGARA_COMPUTEDEBUG_ENABLED
 #include "NiagaraGpuComputeDebug.h"
 #endif
+#include "NiagaraGpuProfilerInterface.h"
 #include "NiagaraGpuReadbackManager.h"
 #include "NiagaraRayTracingHelper.h"
 #include "NiagaraRenderer.h"
@@ -215,6 +216,9 @@ FNiagaraGpuComputeDispatch::FNiagaraGpuComputeDispatch(ERHIFeatureLevel::Type In
 
 #if NIAGARA_COMPUTEDEBUG_ENABLED
 	GpuComputeDebugPtr.Reset(new FNiagaraGpuComputeDebug(FeatureLevel));
+#endif
+#if WITH_NIAGARA_GPU_PROFILER
+	GPUProfilerPtr = MakeUnique<FNiagaraGPUProfiler>(uintptr_t(static_cast<FNiagaraGpuComputeDispatchInterface*>(this)));
 #endif
 	GpuReadbackManagerPtr.Reset(new FNiagaraGpuReadbackManager());
 	EmptyUAVPoolPtr.Reset(new FNiagaraEmptyUAVPool());
@@ -1214,6 +1218,11 @@ void FNiagaraGpuComputeDispatch::ExecuteTicks(FRHICommandList& RHICmdList, FRHIU
 	TArray<FRHITransitionInfo, TMemStackAllocator<>> TransitionsAfter;
 	TArray<FNiagaraDataBuffer*, TMemStackAllocator<>> IDToIndexInit;
 
+#if WITH_NIAGARA_GPU_PROFILER
+	GPUProfilerPtr->BeginStage(RHICmdList, TickStage, DispatchList.DispatchGroups.Num());
+	const int32 StageStartTotalDispatches = TotalDispatchesThisFrame;
+#endif
+
 	for ( const FNiagaraGpuDispatchGroup& DispatchGroup : DispatchList.DispatchGroups )
 	{
 		SCOPED_CONDITIONAL_DRAW_EVENT(RHICmdList, NiagaraDispatchGroup, FNiagaraGpuComputeDispatchLocal::GAddDispatchGroupDrawEvent);
@@ -1315,19 +1324,9 @@ void FNiagaraGpuComputeDispatch::ExecuteTicks(FRHICommandList& RHICmdList, FRHIU
 			{
 				ResetDataInterfaces(RHICmdList, DispatchInstance.Tick, DispatchInstance.InstanceData);
 			}
-#if STATS
-			if (GPUProfiler.IsProfilingEnabled() && DispatchInstance.Tick.bIsFinalTick)
-			{			
-				const TStatId StatId = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraDetailed>("GPU_Stage_" + DispatchInstance.SimStageData.StageMetaData->SimulationStageName.ToString());
-				const int32 TimerHandle = GPUProfiler.StartTimer((uint64)DispatchInstance.InstanceData.Context, StatId, RHICmdList);
-				DispatchStage(RHICmdList, ViewUniformBuffer, DispatchInstance.Tick, DispatchInstance.InstanceData, DispatchInstance.SimStageData);
-				GPUProfiler.EndTimer(TimerHandle, RHICmdList);
-			}
-			else
-#endif
-			{
-				DispatchStage(RHICmdList, ViewUniformBuffer, DispatchInstance.Tick, DispatchInstance.InstanceData, DispatchInstance.SimStageData);
-			}
+
+			FNiagaraGpuProfileScope GpuProfileDispatchScope(RHICmdList, this, DispatchInstance);
+			DispatchStage(RHICmdList, ViewUniformBuffer, DispatchInstance.Tick, DispatchInstance.InstanceData, DispatchInstance.SimStageData);
 		}
 		RHICmdList.EndUAVOverlap(GPUInstanceCounterManager.GetInstanceCountBuffer().UAV);
 
@@ -1408,6 +1407,11 @@ void FNiagaraGpuComputeDispatch::ExecuteTicks(FRHICommandList& RHICmdList, FRHIU
 			TransitionsAfter.Reset();
 		}
 	}
+
+#if WITH_NIAGARA_GPU_PROFILER
+	const int32 StageTotalDispatches = TotalDispatchesThisFrame - StageStartTotalDispatches;
+	GPUProfilerPtr->EndStage(RHICmdList, TickStage, StageTotalDispatches);
+#endif
 
 	// Clear dispatch groups
 	// We do not release the counts as we won't do that until we finish the dispatches
@@ -1576,9 +1580,9 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRHICommandList& RHICmdList, FRHI
 
 	// Optionally submit commands to the GPU
 	// This can be used to avoid accidental TDR detection in the editor especially when issuing multiple ticks in the same frame
+	++TotalDispatchesThisFrame;
 	if (GNiagaraGpuSubmitCommandHint > 0)
 	{
-		++TotalDispatchesThisFrame;
 		if ((TotalDispatchesThisFrame % GNiagaraGpuSubmitCommandHint) == 0)
 		{
 			RHICmdList.SubmitCommandsHint();
@@ -1599,45 +1603,23 @@ void FNiagaraGpuComputeDispatch::PreInitViews(FRDGBuilder& GraphBuilder, bool bA
 	}
 #endif
 
-#if STATS
-	// check if we can process profiling results from previous frames
-	if (GPUProfiler.IsProfilingEnabled())
-	{
-		TArray<FNiagaraGPUTimingResult, TInlineAllocator<16>> ProfilingResults;
-		GPUProfiler.QueryTimingResults(GraphBuilder.RHICmdList, ProfilingResults);
-		TMap<TWeakObjectPtr<UNiagaraEmitter>, TMap<TStatIdData const*, float>> CapturedStats;
-		for (const FNiagaraGPUTimingResult& Result : ProfilingResults)
-		{
-			// map the individual timings to the emitters and source scripts
-			if (Result.ReporterHandle)
-			{
-				FNiagaraComputeExecutionContext* Context = (FNiagaraComputeExecutionContext*)Result.ReporterHandle;
-				if (Context->EmitterPtr.IsValid())
-				{
-					CapturedStats.FindOrAdd(Context->EmitterPtr).FindOrAdd(Result.StatId.GetRawPointer()) += Result.ElapsedMicroseconds;
-				}
-			}
-		}
-		if (CapturedStats.Num() > 0)
-		{
-			// report the captured gpu stats on the game thread
-			uint64 ReporterHandle = (uint64)this;
-			AsyncTask(ENamedThreads::GameThread, [LocalCapturedStats = MoveTemp(CapturedStats), ReporterHandle]
-            {
-                for (auto& Entry : LocalCapturedStats)
-                {
-                    if (Entry.Key.IsValid())
-                    {
-                        Entry.Key->GetStatData().AddStatCapture(TTuple<uint64, ENiagaraScriptUsage>(ReporterHandle, ENiagaraScriptUsage::ParticleGPUComputeScript), Entry.Value);
-                    }
-                }
-            });
-		}
-	}
-#endif
-
 	LLM_SCOPE(ELLMTag::Niagara);
 	TotalDispatchesThisFrame = 0;
+
+	// Add pass to begin the gpu profiler frame
+#if WITH_NIAGARA_GPU_PROFILER
+	{
+		int32* NullParameter = GraphBuilder.AllocParameters<int32>();
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("Niagara::GPUProfiler"),
+			ERDGPassFlags::None,
+			[this](FRHICommandListImmediate& RHICmdList)
+			{
+				GPUProfilerPtr->BeginFrame(RHICmdList);
+			}
+		);
+	}
+#endif
 
 	// Reset the list of GPUSort tasks and release any resources they hold on to.
 	// It might be worth considering doing so at the end of the render to free the resources immediately.
@@ -1765,6 +1747,9 @@ void FNiagaraGpuComputeDispatch::PostRenderOpaque(FRDGBuilder& GraphBuilder, TCo
 			GPUInstanceCounterManager.EnqueueGPUReadback(RHICmdList);
 			bRequiresReadback = false;
 		}
+#if WITH_NIAGARA_GPU_PROFILER
+		GPUProfilerPtr->EndFrame(RHICmdList);
+#endif
 	});
 
 	GNiagaraViewDataManager.ClearSceneTextureParameters();
