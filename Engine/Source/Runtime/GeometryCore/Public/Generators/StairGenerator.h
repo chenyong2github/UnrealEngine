@@ -3,7 +3,6 @@
 
 #include "Generators/MeshShapeGenerator.h"
 #include "IndexTypes.h"
-#include "MathUtil.h"
 
 
 namespace UE
@@ -44,7 +43,9 @@ public:
 	};
 
 public:
-	virtual ~FStairGenerator() {}
+	virtual ~FStairGenerator() override
+	{
+	}
 
 	/** Generate the mesh */
 	virtual FMeshShapeGenerator& Generate() override;
@@ -102,7 +103,7 @@ protected:
 
 protected:
 	/** Reset state data on the generator */
-	virtual void Reset();
+	virtual void ResetData();
 
 	/**
 	 * Returns a vertex position.
@@ -173,7 +174,9 @@ public:
 	{
 		StairStyle = EStairStyle::Solid;
 	}
-	virtual ~FLinearStairGenerator() {}
+	virtual ~FLinearStairGenerator() override
+	{
+	}
 
 protected:
 	typedef FStairGenerator Super;
@@ -195,7 +198,9 @@ public:
 	{
 		StairStyle = EStairStyle::Floating;
 	}
-	virtual ~FFloatingStairGenerator() {}
+	virtual ~FFloatingStairGenerator() override
+	{
+	}
 
 protected:
 	typedef FLinearStairGenerator Super;
@@ -222,7 +227,9 @@ public:
 	{
 		StairStyle = EStairStyle::Solid;
 	}
-	virtual ~FCurvedStairGenerator() {}
+	virtual ~FCurvedStairGenerator() override
+	{
+	}
 
 protected:
 	typedef FStairGenerator Super;
@@ -236,7 +243,7 @@ protected:
 	FVector3f BackNormal = FVector3f::Zero();
 
 protected:
-	virtual void Reset() override;
+	virtual void ResetData() override;
 	virtual FVector3d GenerateVertex(ESide Side, int VertexColumn, int VertexRow) override;
 	virtual FVector3f GenerateNormal(ESide Side, int VertexId) override;
 	virtual FVector2f GenerateUV(ESide Side, int Step, int VertexId, float UVScale) override;
@@ -254,7 +261,9 @@ public:
 	{
 		StairStyle = EStairStyle::Floating;
 	}
-	virtual ~FSpiralStairGenerator() {}
+	virtual ~FSpiralStairGenerator() override
+	{
+	}
 
 protected:
 	typedef FCurvedStairGenerator Super;

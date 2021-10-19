@@ -390,7 +390,7 @@ public:
 	EProceduralStairsType StairsType = EProceduralStairsType::Linear;
 
 	/** Number of steps */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Number of Steps", UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "1000000", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Number of Steps", UIMin = "2", UIMax = "100", ClampMin = "2", ClampMax = "1000000", ProceduralShapeSetting))
 	int NumSteps = 8;
 
 	/** Width of each step */
