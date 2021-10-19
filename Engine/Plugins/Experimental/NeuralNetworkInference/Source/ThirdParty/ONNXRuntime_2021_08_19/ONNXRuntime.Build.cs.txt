@@ -121,6 +121,7 @@ public class ONNXRuntime : ModuleRules
 			PublicDefinitions.Add("THROW_HR(hr)=(hr)");
 			PublicDefinitions.Add("THROW_IF_FAILED(hr)=(hr)");
 			PublicDefinitions.Add("THROW_HR_IF(hr, condition)=(condition)");
+			PublicDefinitions.Add("THROW_HR_IF_NULL_MSG(hr, ptr, fmt)=ptr");
 			PublicDefinitions.Add("THROW_LAST_ERROR_IF(condition)=(condition)");
 			PublicDefinitions.Add("THROW_LAST_ERROR_IF_NULL(ptr)=ptr");
 
