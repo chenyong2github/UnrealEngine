@@ -897,6 +897,7 @@ class DeviceUnreal(Device):
         project_path = CONFIG.UPROJECT_PATH.get_value(self.name)
         engine_dir = CONFIG.ENGINE_DIR.get_value(self.name)
         workspace = CONFIG.SOURCE_CONTROL_WORKSPACE.get_value(self.name)
+        build_engine = CONFIG.BUILD_ENGINE.get_value()
 
         project_name = os.path.basename(os.path.dirname(project_path))
         LOGGER.info(
@@ -916,8 +917,7 @@ class DeviceUnreal(Device):
             # '--log-level=DEBUG '
             'sync '
             f'--project="{project_path}" '
-            f'--engine-dir="{engine_dir}" '
-            '--generate')
+            f'--engine-dir="{engine_dir}"')
 
         if workspace:
             sync_args += f' --p4client={workspace}'
@@ -929,6 +929,9 @@ class DeviceUnreal(Device):
         if project_cl:
             sync_args += f' --project-cl={project_cl} --clobber-project'
             self.inflight_project_cl = project_cl
+
+        if build_engine:
+            sync_args += ' --generate'
 
         puuid, msg = message_protocol.create_start_process_message(
             prog_path=sync_tool,
