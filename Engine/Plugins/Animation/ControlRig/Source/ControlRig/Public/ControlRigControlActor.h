@@ -27,7 +27,7 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void BeginPlay() override { Clear(); }
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-
+	virtual void BeginDestroy() override;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
