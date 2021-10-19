@@ -15,6 +15,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Collections.Impl
 {
+	using JobId = ObjectId<IJob>;
+
 	/// <summary>
 	/// Manages user documents
 	/// </summary>
@@ -34,7 +36,7 @@ namespace HordeServer.Collections.Impl
 			public bool EnableIssueNotifications { get; set; }
 
 			public BsonValue DashboardSettings { get; set; } = BsonNull.Value;
-			public List<ObjectId> PinnedJobIds { get; set; } = new List<ObjectId>();
+			public List<JobId> PinnedJobIds { get; set; } = new List<JobId>();
 
 			string IUser.Name => Claims.FirstOrDefault(x => String.Equals(x.Type, "name", StringComparison.Ordinal))?.Value ?? PrimaryClaim.Value;
 			string IUser.Login => Claims.FirstOrDefault(x => String.Equals(x.Type, ClaimTypes.Name, StringComparison.Ordinal))?.Value ?? PrimaryClaim.Value;
@@ -44,7 +46,7 @@ namespace HordeServer.Collections.Impl
 			IReadOnlyList<IUserClaim> IUserClaims.Claims => Claims;
 
 			ObjectId IUserSettings.UserId => Id;
-			IReadOnlyList<ObjectId> IUserSettings.PinnedJobIds => PinnedJobIds;
+			IReadOnlyList<JobId> IUserSettings.PinnedJobIds => PinnedJobIds;
 		}
 
 		class ClaimDocument : IUserClaim
@@ -150,13 +152,13 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task UpdateSettingsAsync(ObjectId UserId, bool? EnableExperimentalFeatures, bool? EnableIssueNotifications, BsonValue? DashboardSettings = null, IEnumerable<ObjectId>? AddPinnedJobIds = null, IEnumerable<ObjectId>? RemovePinnedJobIds = null)
+		public async Task UpdateSettingsAsync(ObjectId UserId, bool? EnableExperimentalFeatures, bool? EnableIssueNotifications, BsonValue? DashboardSettings = null, IEnumerable<JobId>? AddPinnedJobIds = null, IEnumerable<JobId>? RemovePinnedJobIds = null)
 		{
 			if (AddPinnedJobIds != null)
 			{
-				foreach (ObjectId PinnedJobId in AddPinnedJobIds)
+				foreach (JobId PinnedJobId in AddPinnedJobIds)
 				{
-					FilterDefinition<UserDocument> Filter = Builders<UserDocument>.Filter.Eq(x => x.Id, UserId) & Builders<UserDocument>.Filter.AnyNin<ObjectId>(x => x.PinnedJobIds, new[] { PinnedJobId });
+					FilterDefinition<UserDocument> Filter = Builders<UserDocument>.Filter.Eq(x => x.Id, UserId) & Builders<UserDocument>.Filter.AnyNin<JobId>(x => x.PinnedJobIds, new[] { PinnedJobId });
 					UpdateDefinition<UserDocument> Update = Builders<UserDocument>.Update.PushEach(x => x.PinnedJobIds, new[] { PinnedJobId }, -50);
 					await Users.UpdateOneAsync(Filter, Update);
 				}

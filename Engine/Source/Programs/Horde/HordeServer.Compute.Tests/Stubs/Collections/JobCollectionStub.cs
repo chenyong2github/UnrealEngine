@@ -12,6 +12,8 @@ using System.Threading.Tasks;
 
 namespace HordeServerTests.Stubs.Collections
 {
+	using JobId = ObjectId<IJob>;
+
 	class JobCollectionStub : IJobCollection
 	{
 		public Task AddAsync(Job NewJob)
@@ -19,7 +21,7 @@ namespace HordeServerTests.Stubs.Collections
 			throw new NotImplementedException();
 		}
 
-		public Task AddIssueToJobAsync(ObjectId JobId, ObjectId IssueId)
+		public Task AddIssueToJobAsync(JobId JobId, ObjectId IssueId)
 		{
 			throw new NotImplementedException();
 		}

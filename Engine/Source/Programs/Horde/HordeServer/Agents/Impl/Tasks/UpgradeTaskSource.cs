@@ -19,6 +19,8 @@ using System.Threading.Tasks;
 namespace HordeServer.Tasks.Impl
 {
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
+	using JobId = ObjectId<IJob>;
+	using LeaseId = ObjectId<ILease>;
 
 	class UpgradeTaskSource : TaskSourceBase<UpgradeTask>
 	{
@@ -43,7 +45,7 @@ namespace HordeServer.Tasks.Impl
 				AgentLease? Lease = null;
 				if (Agent.Leases.Count == 0 && (Agent.LastUpgradeTime == null || Agent.LastUpgradeTime.Value + TimeSpan.FromMinutes(5.0) < Clock.UtcNow || Agent.LastUpgradeVersion != RequiredVersion.ToString()))
 				{
-					ILogFile LogFile = await LogService.CreateLogFileAsync(ObjectId.Empty, Agent.SessionId, LogType.Json);
+					ILogFile LogFile = await LogService.CreateLogFileAsync(JobId.Empty, Agent.SessionId, LogType.Json);
 
 					UpgradeTask Task = new UpgradeTask();
 					Task.SoftwareId = RequiredVersion.ToString();
@@ -62,7 +64,7 @@ namespace HordeServer.Tasks.Impl
 						Payload = Any.Pack(Task).ToByteArray();
 					}
 
-					Lease = new AgentLease(ObjectId.GenerateNewId(), $"Upgrade to {RequiredVersion}", null, null, LogFile.Id, LeaseState.Pending, null, true, Payload);
+					Lease = new AgentLease(LeaseId.GenerateNewId(), $"Upgrade to {RequiredVersion}", null, null, LogFile.Id, LeaseState.Pending, null, true, Payload);
 				}
 				return Lease;
 			}

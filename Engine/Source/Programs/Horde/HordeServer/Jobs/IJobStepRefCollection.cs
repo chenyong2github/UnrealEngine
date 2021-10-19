@@ -14,6 +14,7 @@ using HordeServer.Utilities;
 
 namespace HordeServer.Collections
 {
+	using LogId = ObjectId<ILogFile>;
 	using PoolId = StringId<IPool>;
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
@@ -40,7 +41,7 @@ namespace HordeServer.Collections
 		/// <param name="InitTime">Time taken for the batch containing this step to initializer</param>
 		/// <param name="StartTimeUtc">Start time</param>
 		/// <param name="FinishTimeUtc">Finish time for the step, if known</param>
-		Task<IJobStepRef> InsertOrReplaceAsync(JobStepRefId Id, string JobName, string StepName, StreamId StreamId, TemplateRefId TemplateId, int Change, ObjectId? LogId, PoolId? PoolId, AgentId? AgentId, JobStepOutcome? Outcome, float WaitTime, float InitTime, DateTime StartTimeUtc, DateTime? FinishTimeUtc);
+		Task<IJobStepRef> InsertOrReplaceAsync(JobStepRefId Id, string JobName, string StepName, StreamId StreamId, TemplateRefId TemplateId, int Change, LogId? LogId, PoolId? PoolId, AgentId? AgentId, JobStepOutcome? Outcome, float WaitTime, float InitTime, DateTime StartTimeUtc, DateTime? FinishTimeUtc);
 
 		/// <summary>
 		/// Gets the history of a given node

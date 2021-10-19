@@ -2,6 +2,7 @@
 
 using HordeCommon;
 using HordeCommon.Rpc;
+using HordeServer.Utilities;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using System;
@@ -13,6 +14,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Models
 {
+	using LogId = ObjectId<ILogFile>;
+
 	/// <summary>
 	/// Interface for a log event line
 	/// </summary>
@@ -73,7 +76,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Unique id of the log containing this event
 		/// </summary>
-		public ObjectId LogId { get; }
+		public LogId LogId { get; }
 
 		/// <summary>
 		/// Severity of the event
@@ -104,7 +107,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Unique id of the log containing this event
 		/// </summary>
-		public ObjectId LogId { get; set; }
+		public LogId LogId { get; set; }
 
 		/// <summary>
 		/// Severity of the event

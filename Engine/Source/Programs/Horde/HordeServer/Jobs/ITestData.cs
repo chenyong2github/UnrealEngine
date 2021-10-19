@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Models
 {
+	using JobId = ObjectId<IJob>;
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
 
@@ -35,7 +36,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// The job which produced the data
 		/// </summary>
-		ObjectId JobId { get; }
+		JobId JobId { get; }
 
 		/// <summary>
 		/// The step that ran

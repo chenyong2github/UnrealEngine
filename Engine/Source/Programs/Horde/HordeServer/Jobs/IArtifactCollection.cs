@@ -1,12 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using HordeServer.Models;
+using HordeServer.Utilities;
 using MongoDB.Bson;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace HordeServer.Jobs
 {
+	using JobId = ObjectId<IJob>;
+
 	/// <summary>
 	/// Interface for a collection of artifacts
 	/// </summary>
@@ -21,7 +24,7 @@ namespace HordeServer.Jobs
 		/// <param name="MimeType">Type of artifact</param>
 		/// <param name="Data">The data to write</param>
 		/// <returns>The new log file document</returns>
-		Task<IArtifact> CreateArtifactAsync(ObjectId JobId, SubResourceId? StepId, string Name, string MimeType, System.IO.Stream Data);
+		Task<IArtifact> CreateArtifactAsync(JobId JobId, SubResourceId? StepId, string Name, string MimeType, System.IO.Stream Data);
 
 		/// <summary>
 		/// Gets all the available artifacts for a job
@@ -30,7 +33,7 @@ namespace HordeServer.Jobs
 		/// <param name="StepId">Unique id of the Step to query</param>
 		/// <param name="Name">Name of the artifact</param>
 		/// <returns>List of artifact documents</returns>
-		Task<List<IArtifact>> GetArtifactsAsync(ObjectId? JobId, SubResourceId? StepId, string? Name);
+		Task<List<IArtifact>> GetArtifactsAsync(JobId? JobId, SubResourceId? StepId, string? Name);
 
 		/// <summary>
 		/// Gets a specific list of artifacts based on id

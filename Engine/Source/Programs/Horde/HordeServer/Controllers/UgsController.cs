@@ -23,6 +23,7 @@ using Microsoft.Extensions.Logging;
 
 namespace HordeServer.Controllers
 {
+	using LogId = ObjectId<ILogFile>;
 	using StreamId = StringId<IStream>;
 
 	/// <summary>
@@ -291,7 +292,7 @@ namespace HordeServer.Controllers
 		{
 			List<GetUgsIssueDiagnosticResponse> Diagnostics = new List<GetUgsIssueDiagnosticResponse>();
 
-			Dictionary<ObjectId, ILogFile?> LogFiles = new Dictionary<ObjectId, ILogFile?>();
+			Dictionary<LogId, ILogFile?> LogFiles = new Dictionary<LogId, ILogFile?>();
 
 			JobPermissionsCache PermissionsCache = new JobPermissionsCache();
 

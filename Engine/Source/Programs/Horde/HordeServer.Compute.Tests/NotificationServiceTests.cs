@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using HordeServer.Api;
 using HordeServer.Models;
+using HordeServer.Utilities;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Bson;
 using Moq;
@@ -12,12 +13,14 @@ using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
 
 namespace HordeServerTests
 {
+	using JobId = ObjectId<IJob>;
+
 	[TestClass]
 	public class NotificationServiceTests
 	{
 		public IJob CreateJob(StreamId StreamId, int Change, string Name, IGraph Graph)
 		{
-			ObjectId JobId = new ObjectId("5ec16da1774cb4000107c2c1");
+			JobId JobId = new JobId("5ec16da1774cb4000107c2c1");
 
 			List<IJobStepBatch> Batches = new List<IJobStepBatch>();
 			for (int GroupIdx = 0; GroupIdx < Graph.Groups.Count; GroupIdx++)

@@ -32,7 +32,10 @@ using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
 
 namespace HordeServerTests
 {
-    [TestClass]
+	using JobId = ObjectId<IJob>;
+	using LogId = ObjectId<ILogFile>;
+
+	[TestClass]
     public class LogFileServiceTest : DatabaseIntegrationTest
     {
         private readonly LogFileService LogFileService;
@@ -55,7 +58,7 @@ namespace HordeServerTests
 		[TestMethod]
         public async Task WriteLogLifecycleOldTest()
         {
-            ObjectId JobId = ObjectId.GenerateNewId();
+			JobId JobId = JobId.GenerateNewId();
             ILogFile LogFile = await LogFileService.CreateLogFileAsync(JobId, null, LogType.Text);
 
             LogFile = (await ((ILogFileService)LogFileService).WriteLogDataAsync(LogFile, 0, 0, Encoding.ASCII.GetBytes("hello\n"), true))!;
@@ -89,7 +92,7 @@ namespace HordeServerTests
 	        Assert.AreEqual(ExpectedMaxLineIndex, Metadata.MaxLineIndex);
         }
 
-        private static async Task AssertChunk(ILogFileService LogFileService, ObjectId LogFileId, long NumChunks, int ChunkId, long Offset, long Length,
+        private static async Task AssertChunk(ILogFileService LogFileService, LogId LogFileId, long NumChunks, int ChunkId, long Offset, long Length,
 	        long LineIndex)
         {
 	        ILogFile? LogFile = await LogFileService.GetLogFileAsync(LogFileId);
@@ -101,7 +104,7 @@ namespace HordeServerTests
 	        Assert.AreEqual(LineIndex, Chunk.LineIndex);
         }
 
-        private static async Task AssertLineOffset(ILogFileService LogFileService, ObjectId LogFileId, int LineIndex, int ClampedLineIndex, long Offset)
+        private static async Task AssertLineOffset(ILogFileService LogFileService, LogId LogFileId, int LineIndex, int ClampedLineIndex, long Offset)
         {
 	        ILogFile? LogFile = await LogFileService.GetLogFileAsync(LogFileId);
 	        Assert.AreEqual((ClampedLineIndex, Offset), await LogFileService.GetLineOffsetAsync(LogFile!, LineIndex));
@@ -115,7 +118,7 @@ namespace HordeServerTests
         
         public static async Task WriteLogLifecycle(ILogFileService Lfs, int MaxChunkLength)
         {
-	        ObjectId JobId = ObjectId.GenerateNewId();
+			JobId JobId = JobId.GenerateNewId();
             ILogFile LogFile = await Lfs.CreateLogFileAsync(JobId, null, LogType.Text);
 
             string Str1 = "hello\n";
@@ -225,8 +228,8 @@ namespace HordeServerTests
             await GetDatabaseService().Database.DropCollectionAsync("LogFiles");
             Assert.AreEqual(0, (await LogFileService.GetLogFilesAsync()).Count);
 
-            // Will implicitly test GetLogFileAsync(), AddCachedLogFile()
-            ObjectId JobId = ObjectId.GenerateNewId();
+			// Will implicitly test GetLogFileAsync(), AddCachedLogFile()
+			JobId JobId = JobId.GenerateNewId();
             ObjectId SessionId = ObjectId.GenerateNewId();
             ILogFile A = await LogFileService.CreateLogFileAsync(JobId, SessionId, LogType.Text);
             ILogFile B = (await LogFileService.GetCachedLogFileAsync(A.Id))!;
@@ -234,17 +237,17 @@ namespace HordeServerTests
             Assert.AreEqual(A.SessionId, B.SessionId);
             Assert.AreEqual(A.Type, B.Type);
 
-            ILogFile? NotFound = await LogFileService.GetCachedLogFileAsync(ObjectId.GenerateNewId());
+            ILogFile? NotFound = await LogFileService.GetCachedLogFileAsync(LogId.GenerateNewId());
             Assert.IsNull(NotFound);
 
-            await LogFileService.CreateLogFileAsync(ObjectId.GenerateNewId(), ObjectId.GenerateNewId(), LogType.Text);
+            await LogFileService.CreateLogFileAsync(JobId.GenerateNewId(), ObjectId.GenerateNewId(), LogType.Text);
             Assert.AreEqual(2, (await LogFileService.GetLogFilesAsync()).Count);
         }
 
         [TestMethod]
         public async Task AuthorizeForSession()
         {
-            ObjectId JobId = ObjectId.GenerateNewId();
+			JobId JobId = JobId.GenerateNewId();
             ObjectId SessionId = ObjectId.GenerateNewId();
             ILogFile LogFile = await LogFileService.CreateLogFileAsync(JobId, SessionId, LogType.Text);
             ILogFile LogFileNoSession = await LogFileService.CreateLogFileAsync(JobId, null, LogType.Text);
@@ -266,7 +269,7 @@ namespace HordeServerTests
 		[TestMethod]
 		public async Task ChunkSplitting()
 		{
-			ObjectId JobId = ObjectId.GenerateNewId();
+			JobId JobId = JobId.GenerateNewId();
 			ILogFile LogFile = await LogFileService.CreateLogFileAsync(JobId, null, LogType.Text);
 
 			long Offset = 0;

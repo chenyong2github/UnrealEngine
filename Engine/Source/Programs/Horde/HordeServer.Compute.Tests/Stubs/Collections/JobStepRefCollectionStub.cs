@@ -17,6 +17,9 @@ using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
 
 namespace HordeServerTests.Stubs.Collections
 {
+	using JobId = ObjectId<IJob>;
+	using LogId = ObjectId<ILogFile>;
+
 	class JobStepRefStub : IJobStepRef
 	{
 		public JobStepRefId Id { get; set; }
@@ -25,7 +28,7 @@ namespace HordeServerTests.Stubs.Collections
 		public StreamId StreamId { get; set; }
 		public TemplateRefId TemplateId { get; set; }
 		public int Change { get; set; }
-		public ObjectId? LogId { get; set; }
+		public LogId? LogId { get; set; }
 		public PoolId? PoolId { get; set; }
 		public AgentId? AgentId { get; set; }
 		public JobStepOutcome? Outcome { get; set; }
@@ -35,7 +38,7 @@ namespace HordeServerTests.Stubs.Collections
 		public virtual DateTime StartTimeUtc => throw new NotImplementedException();
 		public virtual DateTime? FinishTimeUtc => throw new NotImplementedException();
 
-		public JobStepRefStub(ObjectId JobId, SubResourceId BatchId, SubResourceId StepId, string JobName, string NodeName, StreamId StreamId, TemplateRefId TemplateId, int Change, JobStepOutcome? Outcome)
+		public JobStepRefStub(JobId JobId, SubResourceId BatchId, SubResourceId StepId, string JobName, string NodeName, StreamId StreamId, TemplateRefId TemplateId, int Change, JobStepOutcome? Outcome)
 		{
 			this.Id = new JobStepRefId(JobId, BatchId, StepId);
 			this.JobName = JobName;
@@ -93,7 +96,7 @@ namespace HordeServerTests.Stubs.Collections
 			throw new NotImplementedException();
 		}
 
-		Task<IJobStepRef> IJobStepRefCollection.InsertOrReplaceAsync(JobStepRefId Id, string JobName, string NodeName, StreamId StreamId, TemplateRefId TemplateId, int Change, ObjectId? LogId, PoolId? PoolId, AgentId? AgentId, JobStepOutcome? Outcome, float WaitTime, float InitTime, DateTime StartTime, DateTime? FinishTime)
+		Task<IJobStepRef> IJobStepRefCollection.InsertOrReplaceAsync(JobStepRefId Id, string JobName, string NodeName, StreamId StreamId, TemplateRefId TemplateId, int Change, LogId? LogId, PoolId? PoolId, AgentId? AgentId, JobStepOutcome? Outcome, float WaitTime, float InitTime, DateTime StartTime, DateTime? FinishTime)
 		{
 			throw new NotImplementedException();
 		}

@@ -21,6 +21,9 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Tasks.Impl
 {
+	using JobId = ObjectId<IJob>;
+	using LeaseId = ObjectId<ILease>;
+
 	/// <summary>
 	/// Generates tasks telling agents to sync their workspaces
 	/// </summary>
@@ -92,7 +95,7 @@ namespace HordeServer.Tasks.Impl
 			ConformList List = await ConformList.GetAsync();
 
 			// Update any leases that are older than LastCheckTimeUtc
-			Dictionary<ObjectId, bool> RemoveLeases = new Dictionary<ObjectId, bool>();
+			Dictionary<LeaseId, bool> RemoveLeases = new Dictionary<LeaseId, bool>();
 			foreach (ConformListEntry Entry in Enumerable.Concat(List.Entries, List.Servers.SelectMany(x => x.Entries)))
 			{
 				if (Entry.LastCheckTimeUtc < LastCheckTimeUtc)
@@ -123,7 +126,7 @@ namespace HordeServer.Tasks.Impl
 		/// <param name="List">The list to update</param>
 		/// <param name="UtcNow">Current time</param>
 		/// <param name="RemoveLeases">List of leases to update. Entries with values set to true will be removed, entries with values set to false will have their timestamp updated.</param>
-		static void UpdateConformList(ConformList List, DateTime UtcNow, Dictionary<ObjectId, bool> RemoveLeases)
+		static void UpdateConformList(ConformList List, DateTime UtcNow, Dictionary<LeaseId, bool> RemoveLeases)
 		{
 			UpdateConformList(List.Entries, UtcNow, RemoveLeases);
 			foreach (ConformListServer Server in List.Servers)
@@ -138,7 +141,7 @@ namespace HordeServer.Tasks.Impl
 		/// <param name="Entries">The list to update</param>
 		/// <param name="UtcNow">Current time</param>
 		/// <param name="RemoveLeases">List of leases to update. Entries with values set to true will be removed, entries with values set to false will have their timestamp updated.</param>
-		static void UpdateConformList(List<ConformListEntry> Entries, DateTime UtcNow, Dictionary<ObjectId, bool> RemoveLeases)
+		static void UpdateConformList(List<ConformListEntry> Entries, DateTime UtcNow, Dictionary<LeaseId, bool> RemoveLeases)
 		{
 			for (int Idx = 0; Idx < Entries.Count; Idx++)
 			{
@@ -171,13 +174,13 @@ namespace HordeServer.Tasks.Impl
 				ConformTask Task = new ConformTask();
 				if (await GetWorkspacesAsync(Agent, Task.Workspaces))
 				{
-					ObjectId LeaseId = ObjectId.GenerateNewId();
+					LeaseId LeaseId = LeaseId.GenerateNewId();
 					if (!await AllocateConformLeaseAsync(Agent.Id, Task.Workspaces, LeaseId))
 					{
 						return null;
 					}
 
-					ILogFile Log = await LogService.CreateLogFileAsync(ObjectId.Empty, Agent.SessionId, LogType.Json);
+					ILogFile Log = await LogService.CreateLogFileAsync(JobId.Empty, Agent.SessionId, LogType.Json);
 					Task.LogId = Log.Id.ToString();
 
 					byte[] Payload = Any.Pack(Task).ToByteArray();
@@ -213,7 +216,7 @@ namespace HordeServer.Tasks.Impl
 		}
 
 		/// <inheritdoc/>
-		public override Task OnLeaseFinishedAsync(IAgent Agent, ObjectId LeaseId, ConformTask Payload, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output, ILogger Logger)
+		public override Task OnLeaseFinishedAsync(IAgent Agent, LeaseId LeaseId, ConformTask Payload, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output, ILogger Logger)
 		{
 			return ReleaseConformLeaseAsync(LeaseId);
 		}
@@ -225,7 +228,7 @@ namespace HordeServer.Tasks.Impl
 		/// <param name="Workspaces">List of workspaces that are required</param>
 		/// <param name="LeaseId">The lease id</param>
 		/// <returns>True if the resource was allocated, false otherwise</returns>
-		private async Task<bool> AllocateConformLeaseAsync(AgentId AgentId, IEnumerable<HordeCommon.Rpc.Messages.AgentWorkspace> Workspaces, ObjectId LeaseId)
+		private async Task<bool> AllocateConformLeaseAsync(AgentId AgentId, IEnumerable<HordeCommon.Rpc.Messages.AgentWorkspace> Workspaces, LeaseId LeaseId)
 		{
 			Globals Globals = await DatabaseService.GetGlobalsAsync();
 			for (; ; )
@@ -288,7 +291,7 @@ namespace HordeServer.Tasks.Impl
 		/// </summary>
 		/// <param name="LeaseId">The lease id</param>
 		/// <returns>Async task</returns>
-		public async Task ReleaseConformLeaseAsync(ObjectId LeaseId)
+		public async Task ReleaseConformLeaseAsync(LeaseId LeaseId)
 		{
 			for (; ; )
 			{

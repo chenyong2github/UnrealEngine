@@ -21,6 +21,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Controllers
 {
+	using JobId = ObjectId<IJob>;
+	using LogId = ObjectId<ILogFile>;
 	using StreamId = StringId<IStream>;
 
 	/// <summary>
@@ -101,7 +103,7 @@ namespace HordeServer.Controllers
 		[HttpGet]
 		[Route("/api/v1/issues")]
 		[ProducesResponseType(typeof(List<GetIssueResponse>), 200)]
-		public async Task<ActionResult<object>> FindIssuesAsync([FromQuery(Name = "Id")] int[]? Ids = null, [FromQuery] string? StreamId = null, [FromQuery] int? Change = null, [FromQuery] int? MinChange = null, [FromQuery] int? MaxChange = null, [FromQuery] string? JobId = null, [FromQuery] string? BatchId = null, [FromQuery] string? StepId = null, [FromQuery(Name = "label")] int? LabelIdx = null, [FromQuery] string? UserId = null, [FromQuery] bool? Resolved = null, [FromQuery] int Index = 0, [FromQuery] int Count = 10, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> FindIssuesAsync([FromQuery(Name = "Id")] int[]? Ids = null, [FromQuery] string? StreamId = null, [FromQuery] int? Change = null, [FromQuery] int? MinChange = null, [FromQuery] int? MaxChange = null, [FromQuery] JobId? JobId = null, [FromQuery] string? BatchId = null, [FromQuery] string? StepId = null, [FromQuery(Name = "label")] int? LabelIdx = null, [FromQuery] string? UserId = null, [FromQuery] bool? Resolved = null, [FromQuery] int Index = 0, [FromQuery] int Count = 10, [FromQuery] PropertyFilter? Filter = null)
 		{
 			if(Ids != null && Ids.Length == 0)
 			{
@@ -127,9 +129,7 @@ namespace HordeServer.Controllers
 			}
 			else
 			{
-				ObjectId JobIdValue = JobId.ToObjectId();
-
-				IJob? Job = await JobService.GetJobAsync(JobIdValue);
+				IJob? Job = await JobService.GetJobAsync(JobId.Value);
 				if (Job == null)
 				{
 					return NotFound();
@@ -289,12 +289,12 @@ namespace HordeServer.Controllers
 		[HttpGet]
 		[Route("/api/v1/issues/{IssueId}/events")]
 		[ProducesResponseType(typeof(List<GetLogEventResponse>), 200)]
-		public async Task<ActionResult<List<object>>> GetIssueEventsAsync(int IssueId, [FromQuery] string? JobId = null, [FromQuery] string? BatchId = null, [FromQuery] string? StepId = null, [FromQuery(Name = "label")] int? LabelIdx = null, [FromQuery] string[]? LogIds = null, [FromQuery] int Index = 0, [FromQuery] int Count = 10, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<List<object>>> GetIssueEventsAsync(int IssueId, [FromQuery] JobId? JobId = null, [FromQuery] string? BatchId = null, [FromQuery] string? StepId = null, [FromQuery(Name = "label")] int? LabelIdx = null, [FromQuery] string[]? LogIds = null, [FromQuery] int Index = 0, [FromQuery] int Count = 10, [FromQuery] PropertyFilter? Filter = null)
 		{
-			HashSet<ObjectId> LogIdValues = new HashSet<ObjectId>();
+			HashSet<LogId> LogIdValues = new HashSet<LogId>();
 			if(JobId != null)
 			{
-				IJob? Job = await JobService.GetJobAsync(JobId.ToObjectId());
+				IJob? Job = await JobService.GetJobAsync(JobId.Value);
 				if(Job == null)
 				{
 					return NotFound();
@@ -341,13 +341,13 @@ namespace HordeServer.Controllers
 			}
 			if(LogIds != null)
 			{
-				LogIdValues.UnionWith(LogIds.Select(x => x.ToObjectId()));
+				LogIdValues.UnionWith(LogIds.Select(x => new LogId(x)));
 			}
 
 			List<ILogEvent> Events = await IssueService.FindEventsForIssueAsync(IssueId, LogIdValues.ToArray(), Index, Count);
 
 			JobPermissionsCache PermissionsCache = new JobPermissionsCache();
-			Dictionary<ObjectId, ILogFile?> LogFiles = new Dictionary<ObjectId, ILogFile?>();
+			Dictionary<LogId, ILogFile?> LogFiles = new Dictionary<LogId, ILogFile?>();
 
 			List<object> Responses = new List<object>();
 			foreach (ILogEvent Event in Events)

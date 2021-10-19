@@ -15,6 +15,8 @@ using Google.Protobuf;
 
 namespace HordeServer.Models
 {
+	using LeaseId = ObjectId<ILease>;
+	using LogId = ObjectId<ILogFile>;
 	using PoolId = StringId<IPool>;
 	using StreamId = StringId<IStream>;
 
@@ -26,7 +28,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// The unique id of this lease
 		/// </summary>
-		public ObjectId Id { get; }
+		public LeaseId Id { get; }
 
 		/// <summary>
 		/// Name of this lease
@@ -56,7 +58,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// The log for this lease, if applicable
 		/// </summary>
-		public ObjectId? LogId { get; }
+		public LogId? LogId { get; }
 
 		/// <summary>
 		/// Time at which this lease started

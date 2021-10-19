@@ -20,9 +20,12 @@ using System.Threading.Tasks;
 namespace HordeServer.Models
 {
 	using ReportPlacement = HordeCommon.Rpc.ReportPlacement;
-	using StreamId = StringId<HordeServer.Models.IStream>;
-	using TemplateRefId = StringId<HordeServer.Models.TemplateRef>;
-	using PoolId = StringId<HordeServer.Models.IPool>;
+	using JobId = ObjectId<IJob>;
+	using LeaseId = ObjectId<ILease>;
+	using LogId = ObjectId<ILogFile>;
+	using StreamId = StringId<IStream>;
+	using TemplateRefId = StringId<TemplateRef>;
+	using PoolId = StringId<IPool>;
 
 	/// <summary>
 	/// Report for a job or jobstep
@@ -88,7 +91,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// The log id for this step
 		/// </summary>
-		public ObjectId? LogId { get; }
+		public LogId? LogId { get; }
 
 		/// <summary>
 		/// Unique id for notifications
@@ -178,7 +181,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// The log file id for this batch
 		/// </summary>
-		public ObjectId? LogId { get; }
+		public LogId? LogId { get; }
 
 		/// <summary>
 		/// Index of the group being executed
@@ -218,7 +221,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// The lease that's executing this group
 		/// </summary>
-		public ObjectId? LeaseId { get; }
+		public LeaseId? LeaseId { get; }
 
 		/// <summary>
 		/// The weighted priority of this batch for the scheduler
@@ -474,7 +477,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// The triggered job id
 		/// </summary>
-		public ObjectId? JobId { get; }
+		public JobId? JobId { get; }
 	}
 
 	/// <summary>
@@ -496,7 +499,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Identifier for the job. Randomly generated.
 		/// </summary>
-		public ObjectId Id { get; }
+		public JobId Id { get; }
 
 		/// <summary>
 		/// The stream that this job belongs to

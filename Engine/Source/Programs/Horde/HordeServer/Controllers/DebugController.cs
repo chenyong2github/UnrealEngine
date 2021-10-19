@@ -40,6 +40,7 @@ using JetBrains.Profiler.SelfApi;
 
 namespace HordeServer.Controllers
 {
+	using LogId = ObjectId<ILogFile>;
 	using PoolId = StringId<IPool>;
 	using ProjectId = StringId<IProject>;
 	using TemplateRefId = StringId<TemplateRef>;
@@ -530,14 +531,14 @@ namespace HordeServer.Controllers
 		/// <returns>Information about the requested project</returns>
 		[HttpGet]
 		[Route("/api/v1/debug/logs/{LogFileId}")]
-		public async Task<ActionResult<object>> GetLogAsync(string LogFileId, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> GetLogAsync(LogId LogFileId, [FromQuery] PropertyFilter? Filter = null)
 		{
 			if (!await AclService.AuthorizeAsync(AclAction.AdminRead, User))
 			{
 				return Forbid();
 			}
 
-			ILogFile? LogFile = await LogFileCollection.GetLogFileAsync(LogFileId.ToObjectId());
+			ILogFile? LogFile = await LogFileCollection.GetLogFileAsync(LogFileId);
 			if (LogFile == null)
 			{
 				return NotFound();

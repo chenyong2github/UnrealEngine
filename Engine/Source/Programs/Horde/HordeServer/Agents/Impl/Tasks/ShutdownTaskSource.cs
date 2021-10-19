@@ -9,6 +9,7 @@ using HordeCommon.Rpc.Tasks;
 using HordeServer.Api;
 using HordeServer.Models;
 using HordeServer.Services;
+using HordeServer.Utilities;
 using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
@@ -18,6 +19,9 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Tasks.Impl
 {
+	using JobId = ObjectId<IJob>;
+	using LeaseId = ObjectId<ILease>;
+
 	class ShutdownTaskSource : TaskSourceBase<ShutdownTask>
 	{
 		public override string Type => "Shutdown";
@@ -40,14 +44,14 @@ namespace HordeServer.Tasks.Impl
 				return AgentLease.Drain;
 			}
 
-			ILogFile Log = await LogService.CreateLogFileAsync(ObjectId.Empty, Agent.SessionId, LogType.Json);
+			ILogFile Log = await LogService.CreateLogFileAsync(JobId.Empty, Agent.SessionId, LogType.Json);
 
 			ShutdownTask Task = new ShutdownTask();
 			Task.LogId = Log.Id.ToString();
 
 			byte[] Payload = Any.Pack(Task).ToByteArray();
 
-			return new AgentLease(ObjectId.GenerateNewId(), "Shutdown", null, null, Log.Id, LeaseState.Pending, null, true, Payload);
+			return new AgentLease(LeaseId.GenerateNewId(), "Shutdown", null, null, Log.Id, LeaseState.Pending, null, true, Payload);
 		}
 	}
 }

@@ -16,9 +16,12 @@ using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.Template
 using ProjectId = HordeServer.Utilities.StringId<HordeServer.Models.IProject>;
 using HordeServer.Api;
 using HordeServer.Jobs;
+using HordeServer.Utilities;
 
 namespace HordeServerTests
 {
+	using JobId = ObjectId<IJob>;
+
 	public class Fixture
 	{
 		public IJob Job1 { get; private set; } = null!;
@@ -78,7 +81,7 @@ namespace HordeServerTests
 			);
 			
 			Job1 = await JobService.CreateJobAsync(
-				JobId: new ObjectId("5f283932841e7fdbcafb6ab5"),
+				JobId: new JobId("5f283932841e7fdbcafb6ab5"),
 				Stream: Stream!,
 				TemplateRefId: TemplateRefId1,
 				TemplateHash: Template.Id,
@@ -104,7 +107,7 @@ namespace HordeServerTests
 			Job1 = (await JobService.GetJobAsync(Job1.Id))!;
 
 			Job2 = await JobService.CreateJobAsync(
-				JobId: new ObjectId("5f69ea1b68423e921b035106"),
+				JobId: new JobId("5f69ea1b68423e921b035106"),
 				Stream: Stream!,
 				TemplateRefId: new TemplateRefId("template-id-1"),
 				TemplateHash: ContentHash.MD5("made-up-template-hash"),

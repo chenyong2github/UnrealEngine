@@ -14,6 +14,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Collections.Impl
 {
+	using LeaseId = ObjectId<ILease>;
+	using LogId = ObjectId<ILogFile>;
 	using PoolId = StringId<IPool>;
 	using StreamId = StringId<IStream>;
 
@@ -27,13 +29,13 @@ namespace HordeServer.Collections.Impl
 		/// </summary>
 		class LeaseDocument : ILease
 		{
-			public ObjectId Id { get; set; }
+			public LeaseId Id { get; set; }
 			public string Name { get; set; }
 			public AgentId AgentId { get; set; }
 			public ObjectId SessionId { get; set; }
 			public StreamId? StreamId { get; set; }
 			public PoolId? PoolId { get; set; }
-			public ObjectId? LogId { get; set; }
+			public LogId? LogId { get; set; }
 			public DateTime StartTime { get; set; }
 			public DateTime? FinishTime { get; set; }
 			public byte[] Payload { get; set; }
@@ -52,7 +54,7 @@ namespace HordeServer.Collections.Impl
 				Payload = null!;
 			}
 
-			public LeaseDocument(ObjectId Id, string Name, AgentId AgentId, ObjectId SessionId, StreamId? StreamId, PoolId? PoolId, ObjectId? LogId, DateTime StartTime, byte[] Payload)
+			public LeaseDocument(LeaseId Id, string Name, AgentId AgentId, ObjectId SessionId, StreamId? StreamId, PoolId? PoolId, LogId? LogId, DateTime StartTime, byte[] Payload)
 			{
 				this.Id = Id;
 				this.Name = Name;
@@ -89,7 +91,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<ILease> AddAsync(ObjectId Id, string Name, AgentId AgentId, ObjectId SessionId, StreamId? StreamId, PoolId? PoolId, ObjectId? LogId, DateTime StartTime, byte[] Payload)
+		public async Task<ILease> AddAsync(LeaseId Id, string Name, AgentId AgentId, ObjectId SessionId, StreamId? StreamId, PoolId? PoolId, LogId? LogId, DateTime StartTime, byte[] Payload)
 		{
 			LeaseDocument Lease = new LeaseDocument(Id, Name, AgentId, SessionId, StreamId, PoolId, LogId, StartTime, Payload);
 			await Leases.ReplaceOneAsync(x => x.Id == Id, Lease, new ReplaceOptions { IsUpsert = true });
@@ -97,13 +99,13 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task DeleteAsync(ObjectId LeaseId)
+		public async Task DeleteAsync(LeaseId LeaseId)
 		{
 			await Leases.DeleteOneAsync(x => x.Id == LeaseId);
 		}
 
 		/// <inheritdoc/>
-		public async Task<ILease?> GetAsync(ObjectId LeaseId)
+		public async Task<ILease?> GetAsync(LeaseId LeaseId)
 		{
 			return await Leases.Find(x => x.Id == LeaseId).FirstOrDefaultAsync();
 		}
@@ -143,7 +145,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> TrySetOutcomeAsync(ObjectId LeaseId, DateTime FinishTime, LeaseOutcome Outcome, byte[]? Output)
+		public async Task<bool> TrySetOutcomeAsync(LeaseId LeaseId, DateTime FinishTime, LeaseOutcome Outcome, byte[]? Output)
 		{
 			FilterDefinitionBuilder<LeaseDocument> FilterBuilder = Builders<LeaseDocument>.Filter;
 			FilterDefinition<LeaseDocument> Filter = FilterBuilder.Eq(x => x.Id, LeaseId) & FilterBuilder.Eq(x => x.FinishTime, null);

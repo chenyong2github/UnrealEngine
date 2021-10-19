@@ -14,6 +14,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Logs.Readers
 {
+	using LogId = ObjectId<ILogFile>;
+
 	/// <summary>
 	/// Bulk storage for log file data
 	/// </summary>
@@ -46,7 +48,7 @@ namespace HordeServer.Logs.Readers
 		}
 
 		/// <inheritdoc/>
-		public async Task<LogIndexData?> ReadIndexAsync(ObjectId LogId, long Length)
+		public async Task<LogIndexData?> ReadIndexAsync(LogId LogId, long Length)
 		{
 			Logger.LogDebug("Reading log {LogId} index length {Length} from persistent storage", LogId, Length);
 
@@ -60,7 +62,7 @@ namespace HordeServer.Logs.Readers
 		}
 
 		/// <inheritdoc/>
-		public Task WriteIndexAsync(ObjectId LogId, long Length, LogIndexData IndexData)
+		public Task WriteIndexAsync(LogId LogId, long Length, LogIndexData IndexData)
 		{
 			Logger.LogDebug("Writing log {LogId} index length {Length} to persistent storage", LogId, Length);
 
@@ -70,7 +72,7 @@ namespace HordeServer.Logs.Readers
 		}
 
 		/// <inheritdoc/>
-		public async Task<LogChunkData?> ReadChunkAsync(ObjectId LogId, long Offset, int LineIndex)
+		public async Task<LogChunkData?> ReadChunkAsync(LogId LogId, long Offset, int LineIndex)
 		{
 			Logger.LogDebug("Reading log {LogId} chunk offset {Offset} from persistent storage", LogId, Offset);
 
@@ -93,7 +95,7 @@ namespace HordeServer.Logs.Readers
 		}
 
 		/// <inheritdoc/>
-		public Task WriteChunkAsync(ObjectId LogId, long Offset, LogChunkData ChunkData)
+		public Task WriteChunkAsync(LogId LogId, long Offset, LogChunkData ChunkData)
 		{
 			Logger.LogDebug("Writing log {LogId} chunk offset {Offset} to persistent storage", LogId, Offset);
 

@@ -17,6 +17,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Collections
 {
+	using LogId = ObjectId<ILogFile>;
+
 	/// <summary>
 	/// Interface for a collection of event documents
 	/// </summary>
@@ -41,7 +43,7 @@ namespace HordeServer.Collections
 		/// <param name="Index">Start index within the matching results</param>
 		/// <param name="Count">Maximum number of results to return</param>
 		/// <returns>List of events matching the query</returns>
-		Task<List<ILogEvent>> FindAsync(ObjectId LogId, int? Index = null, int? Count = null);
+		Task<List<ILogEvent>> FindAsync(LogId LogId, int? Index = null, int? Count = null);
 
 		/// <summary>
 		/// Finds a list of events for a set of spans
@@ -51,14 +53,14 @@ namespace HordeServer.Collections
 		/// <param name="Index">Index of the first result to return</param>
 		/// <param name="Count">Number of results to return</param>
 		/// <returns>List of events for this issue</returns>
-		Task<List<ILogEvent>> FindEventsForSpansAsync(IEnumerable<ObjectId> SpanIds, ObjectId[]? LogIds = null, int Index = 0, int Count = 10);
+		Task<List<ILogEvent>> FindEventsForSpansAsync(IEnumerable<ObjectId> SpanIds, LogId[]? LogIds = null, int Index = 0, int Count = 10);
 
 		/// <summary>
 		/// Delete all the events for a log file
 		/// </summary>
 		/// <param name="LogId">Unique id of the log</param>
 		/// <returns>Async task</returns>
-		Task DeleteLogAsync(ObjectId LogId);
+		Task DeleteLogAsync(LogId LogId);
 
 		/// <summary>
 		/// Update the span for an event

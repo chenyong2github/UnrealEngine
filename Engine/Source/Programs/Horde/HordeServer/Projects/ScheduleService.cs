@@ -27,6 +27,7 @@ using TimeZoneConverter;
 
 namespace HordeServer.Services
 {
+	using JobId = ObjectId<IJob>;
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
 
@@ -198,8 +199,8 @@ namespace HordeServer.Services
 			Logger.LogInformation("Schedule {StreamId}/{TemplateRefId} is ready to trigger (last: {Change} at {Time})", Stream.Id, TemplateRefId, Schedule.LastTriggerChange, Schedule.LastTriggerTime);
 
 			// Get a list of jobs that we need to remove
-			List<ObjectId> RemoveJobIds = new List<ObjectId>();
-			foreach (ObjectId ActiveJobId in Schedule.ActiveJobs)
+			List<JobId> RemoveJobIds = new List<JobId>();
+			foreach (JobId ActiveJobId in Schedule.ActiveJobs)
 			{
 				IJob? Job = await JobService.GetJobAsync(ActiveJobId);
 				if (Job == null || Job.Batches.All(x => x.State == JobStepBatchState.Complete))
@@ -210,7 +211,7 @@ namespace HordeServer.Services
 			}
 			if (RemoveJobIds.Count > 0)
 			{
-				await StreamService.UpdateScheduleTriggerAsync(Stream, TemplateRefId, Now, null, new List<ObjectId>(), RemoveJobIds);
+				await StreamService.UpdateScheduleTriggerAsync(Stream, TemplateRefId, Now, null, new List<JobId>(), RemoveJobIds);
 			}
 
 			// Trigger this schedule
@@ -243,7 +244,7 @@ namespace HordeServer.Services
 			if (Schedule.MaxActive != 0 && NumActiveJobs >= Schedule.MaxActive)
 			{
 				Logger.LogInformation("Skipping trigger of {StreamId} template {TemplateRefId} - already have maximum number of jobs running ({NumJobs})", Stream.Id, TemplateRefId, Schedule.MaxActive);
-				foreach (ObjectId JobId in Schedule.ActiveJobs)
+				foreach (JobId JobId in Schedule.ActiveJobs)
 				{
 					Logger.LogInformation("Active job for {StreamId} template {TemplateRefId}: {JobId}", Stream.Id, TemplateRefId, JobId);
 				}
@@ -363,7 +364,7 @@ namespace HordeServer.Services
 				List<string> DefaultArguments = Template.GetDefaultArguments();
 				IJob NewJob = await JobService.CreateJobAsync(null, Stream, TemplateRefId, Template.Id, Graph, Template.Name, Change, CodeChange, null, null, null, null, Template.Priority, null, null, TemplateRef.ChainedJobs, TemplateRef.ShowUgsBadges, TemplateRef.ShowUgsAlerts, TemplateRef.NotificationChannel, TemplateRef.NotificationChannelFilter, null, DefaultArguments);
 				Logger.LogInformation("Started new job for {StreamName} template {TemplateName} at CL {Change} (Code CL {CodeChange}): {JobId}", Stream.Id, TemplateRef.Name, Change, CodeChange, NewJob.Id);
-				await StreamService.UpdateScheduleTriggerAsync(Stream, TemplateRefId, Now, Change, new List<ObjectId> { NewJob.Id }, new List<ObjectId>());
+				await StreamService.UpdateScheduleTriggerAsync(Stream, TemplateRefId, Now, Change, new List<JobId> { NewJob.Id }, new List<JobId>());
 			}
 		}
 

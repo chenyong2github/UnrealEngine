@@ -41,16 +41,19 @@ using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.Template
 
 namespace HordeServerTests
 {
+	using JobId = ObjectId<IJob>;
+	using LogId = ObjectId<ILogFile>;
+
 	[TestClass]
 	public class IssueServiceTests : DatabaseIntegrationTest
 	{
 		class TestJsonLogger : JsonLogger, IAsyncDisposable
 		{
 			ILogFileService LogFileService;
-			ObjectId LogId;
+			LogId LogId;
 			List<(LogLevel, byte[][])> Events = new List<(LogLevel, byte[][])>();
 
-			public TestJsonLogger(ILogFileService LogFileService, ObjectId LogId)
+			public TestJsonLogger(ILogFileService LogFileService, LogId LogId)
 				: base(null, NullLogger.Instance)
 			{
 				this.LogFileService = LogFileService;
@@ -166,7 +169,7 @@ namespace HordeServerTests
 
 		public IJob CreateJob(StreamId StreamId, int Change, string Name, IGraph Graph, TimeSpan Time = default)
 		{
-			ObjectId JobId = ObjectId.GenerateNewId();
+			JobId JobId = JobId.GenerateNewId();
 
 			List<IJobStepBatch> Batches = new List<IJobStepBatch>();
 			for (int GroupIdx = 0; GroupIdx < Graph.Groups.Count; GroupIdx++)
@@ -224,7 +227,7 @@ namespace HordeServerTests
 
 		async Task AddEvent(IJob Job, int BatchIdx, int StepIdx, object Data, EventSeverity Severity = EventSeverity.Error)
 		{
-			ObjectId LogId = Job.Batches[BatchIdx].Steps[StepIdx].LogId!.Value;
+			LogId LogId = Job.Batches[BatchIdx].Steps[StepIdx].LogId!.Value;
 
 			List<byte> Bytes = new List<byte>();
 			Bytes.AddRange(JsonSerializer.SerializeToUtf8Bytes(Data));
@@ -239,7 +242,7 @@ namespace HordeServerTests
 
 		private async Task ParseEventsAsync(IJob Job, int BatchIdx, int StepIdx, string[] Lines)
 		{
-			ObjectId LogId = Job.Batches[BatchIdx].Steps[StepIdx].LogId!.Value;
+			LogId LogId = Job.Batches[BatchIdx].Steps[StepIdx].LogId!.Value;
 
 			LogParserContext Context = new LogParserContext();
 			Context.WorkspaceDir = WorkspaceDir;
@@ -1233,7 +1236,7 @@ namespace HordeServerTests
 			}
 		}
 
-		private async Task ParseAsync(ObjectId LogId, string[] Lines)
+		private async Task ParseAsync(LogId LogId, string[] Lines)
 		{
 			LogParserContext Context = new LogParserContext();
 			Context.WorkspaceDir = DirectoryReference.GetCurrentDirectory();

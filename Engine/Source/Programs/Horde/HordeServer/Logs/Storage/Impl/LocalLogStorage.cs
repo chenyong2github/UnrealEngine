@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using HordeServer.Models;
+using HordeServer.Utilities;
 using Microsoft.Extensions.Caching.Memory;
 using MongoDB.Bson;
 using System;
@@ -10,6 +11,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Logs.Storage
 {
+	using LogId = ObjectId<ILogFile>;
+
 	/// <summary>
 	/// In-memory cache for chunk and index data
 	/// </summary>
@@ -52,7 +55,7 @@ namespace HordeServer.Logs.Storage
 		/// <param name="LogId">The log file to retrieve an index for</param>
 		/// <param name="Length">Length of the file covered by the index</param>
 		/// <returns>Cache key for the index</returns>
-		static string IndexKey(ObjectId LogId, long Length)
+		static string IndexKey(LogId LogId, long Length)
 		{
 			return $"{LogId}/index-{Length}";
 		}
@@ -63,7 +66,7 @@ namespace HordeServer.Logs.Storage
 		/// <param name="LogId">The log file to retrieve an index for</param>
 		/// <param name="Offset">The chunk offset</param>
 		/// <returns>Cache key for the chunk</returns>
-		static string ChunkKey(ObjectId LogId, long Offset)
+		static string ChunkKey(LogId LogId, long Offset)
 		{
 			return $"{LogId}/chunk-{Offset}";
 		}
@@ -116,26 +119,26 @@ namespace HordeServer.Logs.Storage
 		}
 
 		/// <inheritdoc/>
-		public Task<LogIndexData?> ReadIndexAsync(ObjectId LogId, long Length)
+		public Task<LogIndexData?> ReadIndexAsync(LogId LogId, long Length)
 		{
 			return ReadValueAsync(IndexKey(LogId, Length), () => Inner.ReadIndexAsync(LogId, Length));
 		}
 
 		/// <inheritdoc/>
-		public Task WriteIndexAsync(ObjectId LogId, long Length, LogIndexData IndexData)
+		public Task WriteIndexAsync(LogId LogId, long Length, LogIndexData IndexData)
 		{
 			AddEntry(IndexKey(LogId, Length), IndexData);
 			return Inner.WriteIndexAsync(LogId, Length, IndexData);
 		}
 
 		/// <inheritdoc/>
-		public Task<LogChunkData?> ReadChunkAsync(ObjectId LogId, long Offset, int LineIndex)
+		public Task<LogChunkData?> ReadChunkAsync(LogId LogId, long Offset, int LineIndex)
 		{
 			return ReadValueAsync(ChunkKey(LogId, Offset), () => Inner.ReadChunkAsync(LogId, Offset, LineIndex));
 		}
 
 		/// <inheritdoc/>
-		public Task WriteChunkAsync(ObjectId LogId, long Offset, LogChunkData ChunkData)
+		public Task WriteChunkAsync(LogId LogId, long Offset, LogChunkData ChunkData)
 		{
 			AddEntry(ChunkKey(LogId, Offset), ChunkData);
 			return Inner.WriteChunkAsync(LogId, Offset, ChunkData);

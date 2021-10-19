@@ -21,5 +21,10 @@ namespace HordeServer.Utilities
 				return ObjectId.Parse(Text);
 			}
 		}
+
+		public static ObjectId<T> ToObjectId<T>(this string Text)
+		{
+			return new ObjectId<T>(Text.ToObjectId());
+		}
 	}
 }

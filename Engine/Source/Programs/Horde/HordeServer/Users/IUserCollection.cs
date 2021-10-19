@@ -12,6 +12,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Collections
 {
+	using JobId = ObjectId<IJob>;
+
 	/// <summary>
 	/// Manages user documents
 	/// </summary>
@@ -89,7 +91,7 @@ namespace HordeServer.Collections
 		/// <param name="AddPinnedJobIds"></param>
 		/// <param name="RemovePinnedJobIds"></param>
 		/// <returns>Updated user object</returns>
-		Task UpdateSettingsAsync(ObjectId UserId, bool? EnableExperimentalFeatures = null, bool? EnableIssueNotifications = null, BsonValue? DashboardSettings = null, IEnumerable<ObjectId>? AddPinnedJobIds = null, IEnumerable<ObjectId>? RemovePinnedJobIds = null);
+		Task UpdateSettingsAsync(ObjectId UserId, bool? EnableExperimentalFeatures = null, bool? EnableIssueNotifications = null, BsonValue? DashboardSettings = null, IEnumerable<JobId>? AddPinnedJobIds = null, IEnumerable<JobId>? RemovePinnedJobIds = null);
 	}
 
 	/// <summary>

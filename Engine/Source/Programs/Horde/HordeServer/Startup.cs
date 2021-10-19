@@ -86,6 +86,12 @@ using HordeServer.Jobs;
 
 namespace HordeServer
 {
+	using MessageTemplate = EpicGames.Core.MessageTemplate;
+	using JobId = ObjectId<IJob>;
+	using LeaseId = ObjectId<ILease>;
+	using LogId = ObjectId<ILogFile>;
+	using ILogger = Microsoft.Extensions.Logging.ILogger;
+
 	class Startup
 	{
 		class GrpcExceptionInterceptor : Interceptor
@@ -596,8 +602,17 @@ namespace HordeServer
 			}
 
 			ConfigureMongoDbClient();
+			ConfigureFormatters();
 
 			OnAddHealthChecks(Services);
+		}
+
+		public static void ConfigureFormatters()
+		{
+			MessageTemplate.RegisterFormatter(typeof(AgentId), new MessageTemplateTypeNameFormatter("AgentId"));
+			MessageTemplate.RegisterFormatter(typeof(JobId), new MessageTemplateTypeNameFormatter("JobId"));
+			MessageTemplate.RegisterFormatter(typeof(LeaseId), new MessageTemplateTypeNameFormatter("LeaseId"));
+			MessageTemplate.RegisterFormatter(typeof(LogId), new MessageTemplateTypeNameFormatter("LogId"));
 		}
 
 		public static void ConfigureJsonSerializer(JsonSerializerOptions Options)
@@ -740,6 +755,7 @@ namespace HordeServer
 			// Register the custom serializers
 			BsonSerializer.RegisterSerializationProvider(new BsonSerializationProvider());
 			BsonSerializer.RegisterSerializationProvider(new StringIdSerializationProvider());
+			BsonSerializer.RegisterSerializationProvider(new ObjectIdSerializationProvider());
 		}
 
 		private static void OnAddHealthChecks(IServiceCollection Services)

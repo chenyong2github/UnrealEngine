@@ -33,6 +33,9 @@ using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
 
 namespace HordeServerTests
 {
+	using LeaseId = ObjectId<ILease>;
+	using LogId = ObjectId<ILogFile>;
+
 	public class AppLifetimeStub : IHostApplicationLifetime
 	{
 		public CancellationToken ApplicationStarted { get; }
@@ -409,7 +412,7 @@ namespace HordeServerTests
 			// Set the session ID on the job batch to pass auth later
 			Assert.IsTrue(await TestSetup.JobCollection.TryAssignLeaseAsync(TestSetup.Fixture.Job1, 0, new PoolId("foo"),
 				new AgentId("test"), SessionId,
-				ObjectId.GenerateNewId(), ObjectId.GenerateNewId()));
+				LeaseId.GenerateNewId(), LogId.GenerateNewId()));
 /*
 			TestAsyncStreamReader<UploadArtifactRequest> RequestStream = new TestAsyncStreamReader<UploadArtifactRequest>(Context);
 			Task<UploadArtifactResponse> Call = TestSetup.RpcService.UploadArtifact(RequestStream,  Context);

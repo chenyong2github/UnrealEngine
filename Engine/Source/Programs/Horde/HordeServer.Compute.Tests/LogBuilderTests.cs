@@ -3,6 +3,8 @@
 using HordeServer.Api;
 using HordeServer.Logs;
 using HordeServer.Logs.Builder;
+using HordeServer.Models;
+using HordeServer.Utilities;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Bson;
@@ -13,6 +15,8 @@ using System.Threading.Tasks;
 
 namespace HordeServerTests
 {
+	using LogId = ObjectId<ILogFile>;
+
 	[TestClass]
 	public class LogBuilderTests : DatabaseIntegrationTest
 	{
@@ -32,7 +36,7 @@ namespace HordeServerTests
 
 		public async Task TestBuilder(ILogBuilder Builder)
 		{
-			ObjectId LogId = new ObjectId();
+			LogId LogId = LogId.GenerateNewId();
 
 			const long Offset = 100;
 			Assert.IsTrue(await Builder.AppendAsync(LogId, Offset, Offset, 0, 1, Encoding.UTF8.GetBytes("hello\n"), LogType.Text));
@@ -76,7 +80,7 @@ namespace HordeServerTests
 			Assert.AreEqual(16, Chunk3!.GetLineOffsetWithinChunk(3));
 			Assert.AreEqual(20, Chunk3!.GetLineOffsetWithinChunk(4));
 
-			List<(ObjectId, long)> Chunks1 = await Builder.TouchChunksAsync(TimeSpan.Zero);
+			List<(LogId, long)> Chunks1 = await Builder.TouchChunksAsync(TimeSpan.Zero);
 			Assert.AreEqual(1, Chunks1.Count);
 			Assert.AreEqual((LogId, Offset), Chunks1[0]);
 
@@ -85,12 +89,12 @@ namespace HordeServerTests
 			LogChunkData? Chunk4 = await Builder.GetChunkAsync(LogId, Offset, 5);
 			Assert.AreEqual(24, Chunk4!.Length);
 
-			List<(ObjectId, long)> Chunks2 = await Builder.TouchChunksAsync(TimeSpan.Zero);
+			List<(LogId, long)> Chunks2 = await Builder.TouchChunksAsync(TimeSpan.Zero);
 			Assert.AreEqual(1, Chunks2.Count);
 
 			await Builder.RemoveChunkAsync(LogId, Offset);
 
-			List<(ObjectId, long)> Chunks3 = await Builder.TouchChunksAsync(TimeSpan.Zero);
+			List<(LogId, long)> Chunks3 = await Builder.TouchChunksAsync(TimeSpan.Zero);
 			Assert.AreEqual(0, Chunks3.Count);
 		}
 	}

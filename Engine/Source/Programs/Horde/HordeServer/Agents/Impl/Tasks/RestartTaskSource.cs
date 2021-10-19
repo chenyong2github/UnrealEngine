@@ -8,6 +8,7 @@ using HordeCommon.Rpc.Tasks;
 using HordeServer.Api;
 using HordeServer.Models;
 using HordeServer.Services;
+using HordeServer.Utilities;
 using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
@@ -17,6 +18,9 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Tasks.Impl
 {
+	using JobId = ObjectId<IJob>;
+	using LeaseId = ObjectId<ILease>;
+
 	class RestartTaskSource : TaskSourceBase<RestartTask>
 	{
 		public override string Type => "Restart";
@@ -39,14 +43,14 @@ namespace HordeServer.Tasks.Impl
 				return AgentLease.Drain;
 			}
 
-			ILogFile Log = await LogService.CreateLogFileAsync(ObjectId.Empty, Agent.SessionId, LogType.Json);
+			ILogFile Log = await LogService.CreateLogFileAsync(JobId.Empty, Agent.SessionId, LogType.Json);
 
 			RestartTask Task = new RestartTask();
 			Task.LogId = Log.Id.ToString();
 
 			byte[] Payload = Any.Pack(Task).ToByteArray();
 
-			return new AgentLease(ObjectId.GenerateNewId(), "Restart", null, null, Log.Id, LeaseState.Pending, null, true, Payload);
+			return new AgentLease(LeaseId.GenerateNewId(), "Restart", null, null, Log.Id, LeaseState.Pending, null, true, Payload);
 		}
 	}
 }

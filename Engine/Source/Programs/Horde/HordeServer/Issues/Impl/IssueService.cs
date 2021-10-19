@@ -32,6 +32,7 @@ using OpenTracing.Util;
 
 namespace HordeServer.Services.Impl
 {
+	using LogId = ObjectId<ILogFile>;
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
 
@@ -1239,7 +1240,7 @@ namespace HordeServer.Services.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ILogEvent>> FindEventsForIssueAsync(int IssueId, ObjectId[]? LogIds, int Index, int Count)
+		public async Task<List<ILogEvent>> FindEventsForIssueAsync(int IssueId, LogId[]? LogIds, int Index, int Count)
 		{
 			List<IIssueSpan> Spans = await IssueCollection.FindSpansAsync(IssueId);
 			return await LogFileService.FindEventsForSpansAsync(Spans.Select(x => x.Id), LogIds, Index, Count);

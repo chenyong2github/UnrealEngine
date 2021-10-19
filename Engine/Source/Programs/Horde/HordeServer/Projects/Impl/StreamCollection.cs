@@ -17,6 +17,7 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Collections.Impl
 {
+	using JobId = ObjectId<IJob>;
 	using ProjectId = StringId<IProject>;
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
@@ -329,7 +330,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IStream?> TryUpdateScheduleTriggerAsync(IStream StreamInterface, TemplateRefId TemplateRefId, DateTimeOffset? LastTriggerTime, int? LastTriggerChange, List<ObjectId> NewActiveJobs)
+		public async Task<IStream?> TryUpdateScheduleTriggerAsync(IStream StreamInterface, TemplateRefId TemplateRefId, DateTimeOffset? LastTriggerTime, int? LastTriggerChange, List<JobId> NewActiveJobs)
 		{
 			StreamDocument Stream = (StreamDocument)StreamInterface;
 			Schedule Schedule = Stream.Templates[TemplateRefId].Schedule!;
@@ -350,7 +351,7 @@ namespace HordeServer.Collections.Impl
 			}
 			if (NewActiveJobs != null)
 			{
-				FieldDefinition<StreamDocument, List<ObjectId>> Field = $"{nameof(Stream.Templates)}.{TemplateRefId}.{nameof(Schedule)}.{nameof(Schedule.ActiveJobs)}";
+				FieldDefinition<StreamDocument, List<JobId>> Field = $"{nameof(Stream.Templates)}.{TemplateRefId}.{nameof(Schedule)}.{nameof(Schedule.ActiveJobs)}";
 				Updates.Add(Builders<StreamDocument>.Update.Set(Field, NewActiveJobs));
 				Schedule.ActiveJobs = NewActiveJobs;
 			}

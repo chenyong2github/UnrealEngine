@@ -14,6 +14,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Collections
 {
+	using LeaseId = ObjectId<ILease>;
+	using LogId = ObjectId<ILogFile>;
 	using PoolId = StringId<IPool>;
 	using StreamId = StringId<IStream>;
 
@@ -35,21 +37,21 @@ namespace HordeServer.Collections
 		/// <param name="StartTime">Start time of the lease</param>
 		/// <param name="Payload">Payload for the lease</param>
 		/// <returns>Async task</returns>
-		Task<ILease> AddAsync(ObjectId Id, string Name, AgentId AgentId, ObjectId SessionId, StreamId? StreamId, PoolId? PoolId, ObjectId? LogId, DateTime StartTime, byte[] Payload);
+		Task<ILease> AddAsync(LeaseId Id, string Name, AgentId AgentId, ObjectId SessionId, StreamId? StreamId, PoolId? PoolId, LogId? LogId, DateTime StartTime, byte[] Payload);
 
 		/// <summary>
 		/// Deletes a lease from the collection
 		/// </summary>
 		/// <param name="LeaseId">Unique id of the lease</param>
 		/// <returns>Async task</returns>
-		Task DeleteAsync(ObjectId LeaseId);
+		Task DeleteAsync(LeaseId LeaseId);
 
 		/// <summary>
 		/// Gets a specific lease
 		/// </summary>
 		/// <param name="LeaseId">Unique id of the lease</param>
 		/// <returns>The lease that was found, or null if it does not exist</returns>
-		Task<ILease?> GetAsync(ObjectId LeaseId);
+		Task<ILease?> GetAsync(LeaseId LeaseId);
 
 		/// <summary>
 		/// Finds all leases matching a set of criteria
@@ -79,6 +81,6 @@ namespace HordeServer.Collections
 		/// <param name="Outcome">Outcome of the lease</param>
 		/// <param name="Output">Output data from the task</param>
 		/// <returns>True if the lease was updated, false otherwise</returns>
-		Task<bool> TrySetOutcomeAsync(ObjectId LeaseId, DateTime FinishTime, LeaseOutcome Outcome, byte[]? Output);
+		Task<bool> TrySetOutcomeAsync(LeaseId LeaseId, DateTime FinishTime, LeaseOutcome Outcome, byte[]? Output);
 	}
 }

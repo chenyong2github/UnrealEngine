@@ -24,6 +24,7 @@ using Microsoft.Extensions.Logging;
 
 namespace HordeServer.Controllers
 {
+	using LeaseId = ObjectId<ILease>;
 	using PoolId = StringId<IPool>;
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
 
@@ -111,11 +112,9 @@ namespace HordeServer.Controllers
 		/// <returns>Lease matching the given id</returns>
 		[HttpGet]
 		[Route("/api/v1/leases/{LeaseId}")]
-		public async Task<ActionResult<GetAgentLeaseResponse>> GetLeaseAsync(string LeaseId)
+		public async Task<ActionResult<GetAgentLeaseResponse>> GetLeaseAsync(LeaseId LeaseId)
 		{
-			ObjectId LeaseIdValue = LeaseId.ToObjectId();
-
-			ILease? Lease = await AgentService.GetLeaseAsync(LeaseIdValue);
+			ILease? Lease = await AgentService.GetLeaseAsync(LeaseId);
 			if (Lease == null)
 			{
 				return NotFound();
@@ -142,17 +141,15 @@ namespace HordeServer.Controllers
 		/// <returns>Lease matching the given id</returns>
 		[HttpPut]
 		[Route("/api/v1/leases/{LeaseId}")]
-		public async Task<ActionResult> UpdateLeaseAsync(string LeaseId, [FromBody] UpdateLeaseRequest Request)
+		public async Task<ActionResult> UpdateLeaseAsync(LeaseId LeaseId, [FromBody] UpdateLeaseRequest Request)
 		{
-			ObjectId LeaseIdValue = LeaseId.ToObjectId();
-
 			// only update supported right now is abort
 			if (!Request.Aborted.HasValue || !Request.Aborted.Value)
 			{
 				return Ok();
 			}
 
-			ILease? Lease = await AgentService.GetLeaseAsync(LeaseIdValue);
+			ILease? Lease = await AgentService.GetLeaseAsync(LeaseId);
 			if (Lease == null)
 			{
 				return NotFound();
@@ -169,7 +166,7 @@ namespace HordeServer.Controllers
 				return Forbid();
 			}
 
-			AgentLease? AgentLease = Agent.Leases.FirstOrDefault(x => x.Id == LeaseIdValue);
+			AgentLease? AgentLease = Agent.Leases.FirstOrDefault(x => x.Id == LeaseId);
 
 			if (AgentLease == null)
 			{
@@ -182,7 +179,7 @@ namespace HordeServer.Controllers
 				return Ok();
 			}
 
-			await AgentService.CancelLeaseAsync(Agent, LeaseIdValue);
+			await AgentService.CancelLeaseAsync(Agent, LeaseId);
 
 			return Ok();
 		}

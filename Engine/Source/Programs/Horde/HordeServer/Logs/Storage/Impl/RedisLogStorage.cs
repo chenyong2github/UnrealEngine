@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using HordeServer.Models;
+using HordeServer.Utilities;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using StackExchange.Redis;
@@ -11,6 +13,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Logs.Storage.Impl
 {
+	using LogId = ObjectId<ILogFile>;
+
 	/// <summary>
 	/// Redis log file storage
 	/// </summary>
@@ -56,7 +60,7 @@ namespace HordeServer.Logs.Storage.Impl
 		/// <param name="LogId">The log file id</param>
 		/// <param name="Length">Length of the file covered by the index</param>
 		/// <returns>The index key</returns>
-		static string IndexKey(ObjectId LogId, long Length)
+		static string IndexKey(LogId LogId, long Length)
 		{
 			return $"log-{LogId}-index-{Length}";
 		}
@@ -67,7 +71,7 @@ namespace HordeServer.Logs.Storage.Impl
 		/// <param name="LogId">The log file id</param>
 		/// <param name="Offset">Offset of the chunk within the log file</param>
 		/// <returns>The chunk key</returns>
-		static string ChunkKey(ObjectId LogId, long Offset)
+		static string ChunkKey(LogId LogId, long Offset)
 		{
 			return $"log-{LogId}-chunk-{Offset}";
 		}
@@ -123,7 +127,7 @@ namespace HordeServer.Logs.Storage.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<LogIndexData?> ReadIndexAsync(ObjectId LogId, long Length)
+		public async Task<LogIndexData?> ReadIndexAsync(LogId LogId, long Length)
 		{
 			string Key = IndexKey(LogId, Length);
 
@@ -140,13 +144,13 @@ namespace HordeServer.Logs.Storage.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task WriteIndexAsync(ObjectId LogId, long Length, LogIndexData Index)
+		public async Task WriteIndexAsync(LogId LogId, long Length, LogIndexData Index)
 		{
 			await Inner.WriteIndexAsync(LogId, Length, Index);
 		}
 
 		/// <inheritdoc/>
-		public async Task<LogChunkData?> ReadChunkAsync(ObjectId LogId, long Offset, int LineIndex)
+		public async Task<LogChunkData?> ReadChunkAsync(LogId LogId, long Offset, int LineIndex)
 		{
 			string Key = ChunkKey(LogId, Offset);
 
@@ -163,7 +167,7 @@ namespace HordeServer.Logs.Storage.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task WriteChunkAsync(ObjectId LogId, long Offset, LogChunkData ChunkData)
+		public async Task WriteChunkAsync(LogId LogId, long Offset, LogChunkData ChunkData)
 		{
 			await Inner.WriteChunkAsync(LogId, Offset, ChunkData);
 		}

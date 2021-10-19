@@ -17,6 +17,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Collections.Impl
 {
+	using LogId = ObjectId<ILogFile>;
+
 	/// <summary>
 	/// Collection of event documents
 	/// </summary>
@@ -25,7 +27,7 @@ namespace HordeServer.Collections.Impl
 		class LogEventId
 		{
 			[BsonElement("l")]
-			public ObjectId LogId { get; set; }
+			public LogId LogId { get; set; }
 
 			[BsonElement("n")]
 			public int LineIndex { get; set; }
@@ -45,7 +47,7 @@ namespace HordeServer.Collections.Impl
 			[BsonElement("s")]
 			public ObjectId? SpanId { get; set; }
 
-			ObjectId ILogEvent.LogId => Id.LogId;
+			LogId ILogEvent.LogId => Id.LogId;
 			int ILogEvent.LineIndex => Id.LineIndex;
 			int ILogEvent.LineCount => LineCount ?? 1;
 			EventSeverity ILogEvent.Severity => IsWarning ? EventSeverity.Warning : EventSeverity.Error;
@@ -55,7 +57,7 @@ namespace HordeServer.Collections.Impl
 				this.Id = new LogEventId();
 			}
 
-			public LogEventDocument(ObjectId LogId, EventSeverity Severity, int LineIndex, int LineCount, ObjectId? SpanId)
+			public LogEventDocument(LogId LogId, EventSeverity Severity, int LineIndex, int LineCount, ObjectId? SpanId)
 			{
 				this.Id = new LogEventId { LogId = LogId, LineIndex = LineIndex };
 				this.IsWarning = Severity == EventSeverity.Warning;
@@ -74,7 +76,7 @@ namespace HordeServer.Collections.Impl
 			public ObjectId Id { get; set; }
 			public DateTime Time { get; set; }
 			public EventSeverity Severity { get; set; }
-			public ObjectId LogId { get; set; }
+			public LogId LogId { get; set; }
 			public int LineIndex { get; set; }
 			public int LineCount { get; set; }
 
@@ -136,9 +138,9 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ILogEvent>> FindAsync(ObjectId LogId, int? Index = null, int? Count = null)
+		public async Task<List<ILogEvent>> FindAsync(LogId LogId, int? Index = null, int? Count = null)
 		{
-			Logger.LogInformation("Querying for log events for log {LogId} creation time {CreateTime}", LogId, LogId.CreationTime);
+			Logger.LogInformation("Querying for log events for log {LogId} creation time {CreateTime}", LogId, LogId.Value.CreationTime);
 
 			FilterDefinitionBuilder<LogEventDocument> Builder = Builders<LogEventDocument>.Filter;
 
@@ -159,7 +161,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ILogEvent>> FindEventsForSpanAsync(ObjectId SpanId, ObjectId[]? LogIds, int Index, int Count)
+		public async Task<List<ILogEvent>> FindEventsForSpanAsync(ObjectId SpanId, LogId[]? LogIds, int Index, int Count)
 		{
 			FilterDefinition<LogEventDocument> Filter = Builders<LogEventDocument>.Filter.Eq(x => x.SpanId, SpanId);
 			if (LogIds != null && LogIds.Length > 0)
@@ -172,7 +174,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ILogEvent>> FindEventsForSpansAsync(IEnumerable<ObjectId> SpanIds, ObjectId[]? LogIds, int Index, int Count)
+		public async Task<List<ILogEvent>> FindEventsForSpansAsync(IEnumerable<ObjectId> SpanIds, LogId[]? LogIds, int Index, int Count)
 		{
 			FilterDefinition<LogEventDocument> Filter = Builders<LogEventDocument>.Filter.In(x => x.SpanId, SpanIds.Select<ObjectId, ObjectId?>(x => x));
 			if (LogIds != null && LogIds.Length > 0)
@@ -185,7 +187,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task DeleteLogAsync(ObjectId LogId)
+		public async Task DeleteLogAsync(LogId LogId)
 		{
 			await LogEvents.DeleteManyAsync(x => x.Id.LogId == LogId);
 			await LegacyEvents.DeleteManyAsync(x => x.LogId == LogId);

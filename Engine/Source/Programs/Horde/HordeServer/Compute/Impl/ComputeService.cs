@@ -38,6 +38,7 @@ using HordeServer.Collections;
 namespace HordeServer.Compute.Impl
 {
 	using ChannelId = StringId<IComputeChannel>;
+	using LeaseId = ObjectId<ILease>;
 	using NamespaceId = StringId<INamespace>;
 
 	/// <summary>
@@ -105,23 +106,23 @@ namespace HordeServer.Compute.Impl
 		AgentId? IComputeTaskStatus.AgentId => AgentId.IsEmpty ? (AgentId?)null : new AgentId(AgentId.ToString());
 
 		/// <inheritdoc/>
-		public ObjectId? LeaseId
+		public LeaseId? LeaseId
 		{
-			get => (LeaseIdBytes == null || LeaseIdBytes.Length == 0)? (ObjectId?)null : new ObjectId(LeaseIdBytes);
-			set => LeaseIdBytes = value?.ToByteArray();
+			get => (LeaseIdBytes == null || LeaseIdBytes.Length == 0)? (LeaseId?)null : new LeaseId(LeaseIdBytes);
+			set => LeaseIdBytes = (value != null) ? value.Value.Value.ToByteArray() : null;
 		}
 
 		private ComputeTaskStatus()
 		{
 		}
 
-		public ComputeTaskStatus(CbObjectAttachment Task, ComputeTaskState State, AgentId? AgentId, ObjectId? LeaseId)
+		public ComputeTaskStatus(CbObjectAttachment Task, ComputeTaskState State, AgentId? AgentId, LeaseId? LeaseId)
 		{
 			this.Task = Task;
 			this.Time = DateTime.UtcNow;
 			this.State = State;
 			this.AgentId = (AgentId == null)? Utf8String.Empty : AgentId.Value.ToString();
-			this.LeaseIdBytes = LeaseId?.ToByteArray();
+			this.LeaseIdBytes = (LeaseId != null)? LeaseId.Value.Value.ToByteArray() : null;
 		}
 	}
 
@@ -238,7 +239,7 @@ namespace HordeServer.Compute.Impl
 					string LeaseName = $"Remote action ({TaskInfo.TaskHash})";
 					byte[] Payload = Any.Pack(ComputeTask).ToByteArray();
 
-					AgentLease Lease = new AgentLease(ObjectId.GenerateNewId(), LeaseName, null, null, null, LeaseState.Pending, Requirements.Resources, Requirements.Exclusive, Payload);
+					AgentLease Lease = new AgentLease(LeaseId.GenerateNewId(), LeaseName, null, null, null, LeaseState.Pending, Requirements.Resources, Requirements.Exclusive, Payload);
 					Logger.LogDebug("Created lease {LeaseId} for channel {ChannelId} task {TaskHash} req {RequirementsHash}", Lease.Id, ComputeTask.ChannelId, ComputeTask.Task.Hash, ComputeTask.Requirements.Hash);
 					return Lease;
 				}
@@ -247,7 +248,7 @@ namespace HordeServer.Compute.Impl
 		}
 
 		/// <inheritdoc/>
-		public override Task CancelLeaseAsync(IAgent Agent, ObjectId LeaseId, ComputeTaskMessage Message)
+		public override Task CancelLeaseAsync(IAgent Agent, LeaseId LeaseId, ComputeTaskMessage Message)
 		{
 			ComputeTaskInfo TaskInfo = new ComputeTaskInfo(Message.Task, new ChannelId(Message.ChannelId));
 			return TaskScheduler.EnqueueAsync(Message.Requirements.Hash, TaskInfo, true);
@@ -266,7 +267,7 @@ namespace HordeServer.Compute.Impl
 			return Messages.ConvertAll<IComputeTaskStatus>(x => x);
 		}
 
-		public override Task OnLeaseStartedAsync(IAgent Agent, ObjectId LeaseId, ComputeTaskMessage ComputeTask, ILogger Logger)
+		public override Task OnLeaseStartedAsync(IAgent Agent, LeaseId LeaseId, ComputeTaskMessage ComputeTask, ILogger Logger)
 		{
 			Logger.LogInformation("Compute lease started (lease: {LeaseId}, task: {TaskHash}, agent: {AgentId}, channel: {ChannelId})", LeaseId, ComputeTask.Task.Hash, Agent.Id, ComputeTask.ChannelId);
 
@@ -274,7 +275,7 @@ namespace HordeServer.Compute.Impl
 			return MessageQueue.PostAsync(ComputeTask.ChannelId, Status);
 		}
 
-		public override Task OnLeaseFinishedAsync(IAgent Agent, ObjectId LeaseId, ComputeTaskMessage ComputeTask, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output, ILogger Logger)
+		public override Task OnLeaseFinishedAsync(IAgent Agent, LeaseId LeaseId, ComputeTaskMessage ComputeTask, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output, ILogger Logger)
 		{
 			ComputeTaskResultMessage Message = ComputeTaskResultMessage.Parser.ParseFrom(Output.ToArray());
 

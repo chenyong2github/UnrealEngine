@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using HordeServer.Models;
+using HordeServer.Utilities;
 using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
@@ -8,6 +10,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Logs.Storage.Impl
 {
+	using LogId = ObjectId<ILogFile>;
+
 	/// <summary>
 	/// Empty implementation of log storage
 	/// </summary>
@@ -19,25 +23,25 @@ namespace HordeServer.Logs.Storage.Impl
 		}
 
 		/// <inheritdoc/>
-		public Task<LogIndexData?> ReadIndexAsync(ObjectId LogId, long Length)
+		public Task<LogIndexData?> ReadIndexAsync(LogId LogId, long Length)
 		{
 			return Task.FromResult<LogIndexData?>(null);
 		}
 
 		/// <inheritdoc/>
-		public Task WriteIndexAsync(ObjectId LogId, long Length, LogIndexData Index)
+		public Task WriteIndexAsync(LogId LogId, long Length, LogIndexData Index)
 		{
 			return Task.CompletedTask;
 		}
 
 		/// <inheritdoc/>
-		public Task<LogChunkData?> ReadChunkAsync(ObjectId LogId, long Offset, int LineIndex)
+		public Task<LogChunkData?> ReadChunkAsync(LogId LogId, long Offset, int LineIndex)
 		{
 			return Task.FromResult<LogChunkData?>(null);
 		}
 
 		/// <inheritdoc/>
-		public Task WriteChunkAsync(ObjectId LogId, long Offset, LogChunkData ChunkData)
+		public Task WriteChunkAsync(LogId LogId, long Offset, LogChunkData ChunkData)
 		{
 			return Task.CompletedTask;
 		}

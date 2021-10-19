@@ -18,6 +18,7 @@ using System.Threading.Tasks;
 namespace HordeServer.Controllers
 {
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
+	using LeaseId = ObjectId<ILease>;
 	using PoolId = StringId<IPool>;
 
 	/// <summary>
@@ -352,11 +353,9 @@ namespace HordeServer.Controllers
 		/// <returns>Lease matching the given id</returns>
 		[HttpGet]
 		[Route("/api/v1/agents/{AgentId}/leases/{LeaseId}")]
-		public async Task<ActionResult<GetAgentLeaseResponse>> GetLeaseAsync(string AgentId, string LeaseId)
+		public async Task<ActionResult<GetAgentLeaseResponse>> GetLeaseAsync(AgentId AgentId, LeaseId LeaseId)
 		{
-			AgentId AgentIdValue = new AgentId(AgentId);
-
-			IAgent? Agent = await AgentService.GetAgentAsync(AgentIdValue);
+			IAgent? Agent = await AgentService.GetAgentAsync(AgentId);
 			if(Agent == null)
 			{
 				return NotFound();
@@ -366,10 +365,8 @@ namespace HordeServer.Controllers
 				return Forbid();
 			}
 
-			ObjectId LeaseIdValue = LeaseId.ToObjectId();
-
-			ILease? Lease = await AgentService.GetLeaseAsync(LeaseIdValue);
-			if (Lease == null || Lease.AgentId != AgentIdValue)
+			ILease? Lease = await AgentService.GetLeaseAsync(LeaseId);
+			if (Lease == null || Lease.AgentId != AgentId)
 			{
 				return NotFound();
 			}

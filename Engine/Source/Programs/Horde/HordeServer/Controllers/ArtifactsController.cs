@@ -27,6 +27,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Controllers
 {
+	using JobId = ObjectId<IJob>;
+
 	/// <summary>
 	/// Controller for the /api/artifacts endpoint
 	/// </summary>
@@ -75,9 +77,9 @@ namespace HordeServer.Controllers
 		[HttpPost]
 		[Authorize]
 		[Route("/api/v1/artifacts")]
-		public async Task<ActionResult<CreateArtifactResponse>> CreateArtifact([FromQuery]string JobId, [FromQuery]string? StepId, IFormFile File)
+		public async Task<ActionResult<CreateArtifactResponse>> CreateArtifact([FromQuery] JobId JobId, [FromQuery]string? StepId, IFormFile File)
 		{
-			IJob? Job = await JobService.GetJobAsync(JobId.ToObjectId());
+			IJob? Job = await JobService.GetJobAsync(JobId);
 			if(Job == null)
 			{
 				return NotFound();
@@ -146,17 +148,16 @@ namespace HordeServer.Controllers
 		[Authorize]
 		[Route("/api/v1/artifacts")]
 		[ProducesResponseType(typeof(List<GetArtifactResponse>), 200)]
-		public async Task<ActionResult<List<object>>> GetArtifacts([FromQuery] string JobId, [FromQuery] string? StepId = null, [FromQuery] bool Code = false, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<List<object>>> GetArtifacts([FromQuery] JobId JobId, [FromQuery] string? StepId = null, [FromQuery] bool Code = false, [FromQuery] PropertyFilter? Filter = null)
 		{
-			ObjectId JobIdValue = JobId.ToObjectId();
-			if (!await JobService.AuthorizeAsync(JobIdValue, AclAction.DownloadArtifact, User, null))
+			if (!await JobService.AuthorizeAsync(JobId, AclAction.DownloadArtifact, User, null))
 			{
 				return Forbid();
 			}
 
-			string? DownloadCode = Code ? (string?)GetDirectDownloadCodeForJob(JobIdValue) : null;
+			string? DownloadCode = Code ? (string?)GetDirectDownloadCodeForJob(JobId) : null;
 
-			List<IArtifact> Artifacts = await ArtifactCollection.GetArtifactsAsync(JobIdValue, StepId?.ToSubResourceId(), null);
+			List<IArtifact> Artifacts = await ArtifactCollection.GetArtifactsAsync(JobId, StepId?.ToSubResourceId(), null);
 			return Artifacts.ConvertAll(x => new GetArtifactResponse(x, DownloadCode).ApplyFilter(Filter));
 		}
 
@@ -165,7 +166,7 @@ namespace HordeServer.Controllers
 		/// </summary>
 		/// <param name="JobId">The job id</param>
 		/// <returns>The required claim</returns>
-		static Claim GetDirectDownloadClaim(ObjectId JobId)
+		static Claim GetDirectDownloadClaim(JobId JobId)
 		{
 			return new Claim(HordeClaimTypes.JobArtifacts, JobId.ToString());
 		}
@@ -175,7 +176,7 @@ namespace HordeServer.Controllers
 		/// </summary>
 		/// <param name="JobId">The job id</param>
 		/// <returns>The download code</returns>
-		string GetDirectDownloadCodeForJob(ObjectId JobId)
+		string GetDirectDownloadCodeForJob(JobId JobId)
 		{
 			Claim DownloadClaim = GetDirectDownloadClaim(JobId);
 			return AclService.IssueBearerToken(new[] { DownloadClaim }, TimeSpan.FromHours(4.0));
@@ -241,17 +242,16 @@ namespace HordeServer.Controllers
 		/// <returns>Raw artifact data</returns>
 		[HttpGet]
 		[Route("/api/v1/jobs/{JobId}/steps/{StepId}/artifacts/{FileName}/data")]
-		public async Task<ActionResult<object>> GetArtifactDataByFilename(string JobId, string StepId, string Filename)
+		public async Task<ActionResult<object>> GetArtifactDataByFilename(JobId JobId, string StepId, string Filename)
 		{
-			ObjectId JobIdValue = JobId.ToObjectId();
 			SubResourceId StepIdValue = StepId.ToSubResourceId();
 
-			if (!await JobService.AuthorizeAsync(JobIdValue, AclAction.DownloadArtifact, User, null))
+			if (!await JobService.AuthorizeAsync(JobId, AclAction.DownloadArtifact, User, null))
 			{
 				return Forbid();
 			}
 			
-			List<IArtifact> Artifacts = await ArtifactCollection.GetArtifactsAsync(JobIdValue, StepIdValue, Filename);
+			List<IArtifact> Artifacts = await ArtifactCollection.GetArtifactsAsync(JobId, StepIdValue, Filename);
 			if (Artifacts.Count == 0)
 			{
 				return NotFound();
@@ -349,7 +349,7 @@ namespace HordeServer.Controllers
 				return BadRequest("Must specify a JobId");
 			}
 
-			IJob? Job = await JobService.GetJobAsync(ArtifactZipRequest.JobId!.ToObjectId());
+			IJob? Job = await JobService.GetJobAsync(new JobId(ArtifactZipRequest.JobId!));
 			if (Job == null)
 			{
 				return NotFound();

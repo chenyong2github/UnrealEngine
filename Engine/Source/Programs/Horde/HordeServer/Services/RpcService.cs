@@ -32,6 +32,8 @@ namespace HordeServer.Services
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
 	using AgentSoftwareVersion = StringId<IAgentSoftwareCollection>;
 	using IStream = HordeServer.Models.IStream;
+	using JobId = ObjectId<IJob>;
+	using LogId = ObjectId<ILogFile>;
 	using StreamId = StringId<IStream>;
 	using RpcAgentCapabilities = HordeCommon.Rpc.Messages.AgentCapabilities;
 	using RpcDeviceCapabilities = HordeCommon.Rpc.Messages.DeviceCapabilities;
@@ -471,7 +473,7 @@ namespace HordeServer.Services
 		/// <returns>Information about the new agent</returns>
 		public async override Task<GetJobResponse> GetJob(GetJobRequest Request, ServerCallContext Context)
 		{
-			ObjectId JobIdValue = Request.JobId.ToObjectId();
+			JobId JobIdValue = new JobId(Request.JobId.ToObjectId());
 
 			IJob? Job = await JobService.GetJobAsync(JobIdValue);
 			if (Job == null)
@@ -494,7 +496,7 @@ namespace HordeServer.Services
 		/// <returns>Information about the new agent</returns>
 		public async override Task<Empty> UpdateJob(UpdateJobRequest Request, ServerCallContext Context)
 		{
-			ObjectId JobIdValue = Request.JobId.ToObjectId();
+			JobId JobIdValue = new JobId(Request.JobId);
 
 			IJob? Job = await JobService.GetJobAsync(JobIdValue);
 			if (Job == null)
@@ -521,7 +523,7 @@ namespace HordeServer.Services
 			ObjectId JobId = Request.JobId.ToObjectId();
 			SubResourceId BatchId = Request.BatchId.ToSubResourceId();
 
-			IJob? Job = await JobService.GetJobAsync(Request.JobId.ToObjectId());
+			IJob? Job = await JobService.GetJobAsync(new JobId(Request.JobId));
 			if (Job == null)
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Job {JobId} not found", Request.JobId);
@@ -549,7 +551,7 @@ namespace HordeServer.Services
 		/// <returns>Information about the new agent</returns>
 		public async override Task<Empty> FinishBatch(FinishBatchRequest Request, ServerCallContext Context)
 		{
-			IJob? Job = await JobService.GetJobAsync(Request.JobId.ToObjectId());
+			IJob? Job = await JobService.GetJobAsync(new JobId(Request.JobId));
 			if (Job == null)
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Job {JobId} not found", Request.JobId);
@@ -582,7 +584,7 @@ namespace HordeServer.Services
 		async Task<BeginStepResponse?> TryBeginStep(BeginStepRequest Request, Boxed<ILogFile?> Log, ServerCallContext Context)
 		{
 			// Check the job exists and we can access it
-			IJob? Job = await JobService.GetJobAsync(Request.JobId.ToObjectId());
+			IJob? Job = await JobService.GetJobAsync(new JobId(Request.JobId));
 			if (Job == null)
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Job {JobId} not found", Request.JobId);
@@ -728,7 +730,7 @@ namespace HordeServer.Services
 			return true;
 		}
 
-		async Task<IJob> GetJobAsync(ObjectId JobId)
+		async Task<IJob> GetJobAsync(JobId JobId)
 		{
 			IJob? Job = await JobService.GetJobAsync(JobId);
 			if (Job == null)
@@ -767,7 +769,7 @@ namespace HordeServer.Services
 		/// <returns>Information about the new agent</returns>
 		public async override Task<Empty> UpdateStep(UpdateStepRequest Request, ServerCallContext Context)
 		{
-			IJob? Job = await JobService.GetJobAsync(Request.JobId.ToObjectId());
+			IJob? Job = await JobService.GetJobAsync(new JobId(Request.JobId));
 			if (Job == null)
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Job {JobId} not found", Request.JobId);
@@ -787,7 +789,7 @@ namespace HordeServer.Services
 		/// <returns>Information about the step</returns>
 		public async override Task<GetStepResponse> GetStep(GetStepRequest Request, ServerCallContext Context)
 		{
-			IJob Job = await GetJobAsync(Request.JobId.ToObjectId());
+			IJob Job = await GetJobAsync(new JobId(Request.JobId));
 			IJobStepBatch Batch = AuthorizeBatch(Job, Request.BatchId.ToSubResourceId(), Context);
 
 			SubResourceId StepId = Request.StepId.ToSubResourceId();
@@ -840,7 +842,7 @@ namespace HordeServer.Services
 				NewLabels.Add(NewLabel);
 			}
 
-			ObjectId JobIdValue = Request.JobId.ToObjectId();
+			JobId JobIdValue = new JobId(Request.JobId);
 			for (; ; )
 			{
 				IJob? Job = await JobService.GetJobAsync(JobIdValue);
@@ -880,7 +882,7 @@ namespace HordeServer.Services
 			foreach (CreateEventRequest Event in Request.Events)
 			{
 				NewLogEventData NewEvent = new NewLogEventData();
-				NewEvent.LogId = Event.LogId.ToObjectId();
+				NewEvent.LogId = new LogId(Event.LogId);
 				NewEvent.Severity = Event.Severity;
 				NewEvent.LineIndex = Event.LineIndex;
 				NewEvent.LineCount = Event.LineCount;
@@ -898,7 +900,7 @@ namespace HordeServer.Services
 		/// <returns>Information about the new agent</returns>
 		public async override Task<Empty> WriteOutput(WriteOutputRequest Request, ServerCallContext Context)
 		{
-			ILogFile? LogFile = await LogFileService.GetCachedLogFileAsync(Request.LogId.ToObjectId());
+			ILogFile? LogFile = await LogFileService.GetCachedLogFileAsync(new LogId(Request.LogId));
 			if (LogFile == null)
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Resource not found");
@@ -987,7 +989,7 @@ namespace HordeServer.Services
 			}
 
 			// Get the job and step
-			IJob Job = await GetJobAsync(Metadata.JobId.ToObjectId());
+			IJob Job = await GetJobAsync(new JobId(Metadata.JobId));
 			IJobStepBatch Batch = AuthorizeBatch(Job, Metadata.BatchId.ToSubResourceId(), Context);
 
 			IJobStep? Step;
@@ -1022,7 +1024,7 @@ namespace HordeServer.Services
 			{
 				UploadTestDataRequest Request = Reader.Current;
 
-				ObjectId JobId = Request.JobId.ToObjectId();
+				JobId JobId = new JobId(Request.JobId);
 				if (Job == null || JobId != Job.Id)
 				{
 					Job = await JobService.GetJobAsync(JobId);
@@ -1058,7 +1060,7 @@ namespace HordeServer.Services
 		/// <returns></returns>
 		public override async Task<CreateReportResponse> CreateReport(CreateReportRequest Request, ServerCallContext Context)
 		{
-			IJob Job = await GetJobAsync(Request.JobId.ToObjectId());
+			IJob Job = await GetJobAsync(new JobId(Request.JobId));
 			IJobStepBatch Batch = AuthorizeBatch(Job, Request.BatchId.ToSubResourceId(), Context);
 
 			Report NewReport = new Report { Name = Request.Name, Placement = Request.Placement, ArtifactId = Request.ArtifactId.ToObjectId() };
