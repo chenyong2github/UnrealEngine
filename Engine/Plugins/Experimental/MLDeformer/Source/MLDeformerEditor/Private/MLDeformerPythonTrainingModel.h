@@ -9,6 +9,7 @@
 class UMLPytorchDataSetInterface;
 class FMLDeformerEditorData;
 class UMLDeformerAsset;
+class FMLDeformerFrameCache;
 
 /** Training process return codes. */
 UENUM()
@@ -30,6 +31,9 @@ class MLDEFORMEREDITOR_API UMLDeformerPythonTrainingModel : public UObject
 	GENERATED_BODY()
 public:
 	UMLDeformerPythonTrainingModel();
+	~UMLDeformerPythonTrainingModel();
+
+	void Clear();
 
 	UFUNCTION(BlueprintCallable, Category = Python)
 	static UMLDeformerPythonTrainingModel* Get();
@@ -56,7 +60,9 @@ public:
 	UMLPytorchDataSetInterface* DataSetInterface = nullptr;
 
 	void SetEditorData(TSharedPtr<FMLDeformerEditorData> InEditorData);
+	void SetFrameCache(TSharedPtr<FMLDeformerFrameCache> InFrameCache);
 
 private:
 	TSharedPtr<FMLDeformerEditorData> EditorData = nullptr;
+	TSharedPtr<FMLDeformerFrameCache> FrameCache = nullptr;
 };

@@ -6,6 +6,7 @@
 #include "MLDeformer.h"
 #include "MLDeformerEditorData.h"
 #include "MLDeformerAsset.h"
+#include "MLDeformerFrameCache.h"
 
 #include "Animation/DebugSkelMeshComponent.h"
 #include "GeometryCache.h"
@@ -14,9 +15,25 @@ UMLPytorchDataSetInterface::UMLPytorchDataSetInterface()
 {
 }
 
+UMLPytorchDataSetInterface::~UMLPytorchDataSetInterface()
+{
+	Clear();
+}
+
+void UMLPytorchDataSetInterface::Clear()
+{
+	EditorData.Reset();
+	FrameCache.Reset();
+}
+
 void UMLPytorchDataSetInterface::SetEditorData(TSharedPtr<FMLDeformerEditorData> InEditorData)
 {
 	EditorData = InEditorData;
+}
+
+void UMLPytorchDataSetInterface::SetFrameCache(TSharedPtr<FMLDeformerFrameCache> InFrameCache)
+{
+	FrameCache = InFrameCache;
 }
 
 bool UMLPytorchDataSetInterface::IsValid() const
@@ -66,12 +83,11 @@ bool UMLPytorchDataSetInterface::SetCurrentSampleIndex(int32 Index)
 		return false;
 	}
 
-	// Generate and store the deltas.
-	const float DeltaCutoffLength = DeformerAsset->GetDeltaCutoffLength();
-	if (!Data->GenerateTrainingData(0, Index, DeltaCutoffLength, SampleDeltas, SampleBoneTransforms, SampleCurveWeights))
-	{
-		return false;
-	}
+	// Generate and store the training data.
+	const FMLDeformerTrainingFrame& TrainingFrame = FrameCache->GetTrainingFrameForAnimFrame(Index);
+	SampleDeltas = TrainingFrame.GetVertexDeltas();
+	SampleBoneRotations = TrainingFrame.GetBoneRotations();
+	SampleCurveValues = TrainingFrame.GetCurveValues();
 
 	return true;
 }
@@ -85,7 +101,7 @@ bool UMLPytorchDataSetInterface::ComputeDeltasStatistics()
 
 	// Generate and store the deltas.
 	const float DeltaCutoffLength = DeformerAsset->GetDeltaCutoffLength();
-	if (Data->ComputeVertexDeltaStatistics(0, DeltaCutoffLength))
+	if (Data->ComputeVertexDeltaStatistics(0, FrameCache.Get()))
 	{
 		//Update mean vertex delta and vertex data scale.
 		VertexDeltaMean.X = DeformerAsset->VertexDeltaMean.X;

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "MLDeformerAsset.h"
 #include "MLDeformerInputInfo.h"
+#include "MLDeformerFrameCache.h"
 
 class UAnimInstance;
 class UMLDeformerAsset;
@@ -23,6 +24,8 @@ class UMaterial;
 class AActor;
 class UTextRenderComponent;
 class SSimpleTimeSlider;
+class UWorld;
+class FMLDeformerFrameCache;
 struct FMLDeformerTrainingData;
 struct FReferenceSkeleton;
 struct FGeometryCacheMeshData;
@@ -59,6 +62,7 @@ public:
 	void SetEditorToolkit(FMLDeformerEditorToolkit* InToolkit);
 	void SetVizSettingsDetailsView(TSharedPtr<IDetailsView> InDetailsView);
 	void SetTimeSlider(TSharedPtr<SSimpleTimeSlider> InTimeSlider);
+	void SetWorld(UWorld* InWorld);
 
 	int32 GetNumEditorActors() const;
 	void SetEditorActor(EMLDeformerEditorActorIndex Index, const FMLDeformerEditorActor& Actor);
@@ -68,9 +72,8 @@ public:
 	bool IsTrainingActor(EMLDeformerEditorActorIndex Index) const;
 
 	void InitAssets();
-	bool GenerateDeltas(uint32 LODIndex, uint32 FrameNumber, float DeltaCutoffLength, TArray<float>& OutDeltas);
-	bool GenerateTrainingData(uint32 LODIndex, uint32 FrameNumber, float DeltaCutoffLength, TArray<float>& OutDeltas, TArray<FTransform>& OutBoneTransforms, TArray<float>& OutCurveValues);
-	bool ComputeVertexDeltaStatistics(uint32 LODIndex, float DeltaCutoffLength);
+	bool GenerateDeltas(uint32 LODIndex, uint32 FrameNumber, TArray<float>& OutDeltas);
+	bool ComputeVertexDeltaStatistics(uint32 LODIndex, FMLDeformerFrameCache* FrameCache);
 
 	void SetTimeSliderRange(double StartTime, double EndTime);
 	void UpdateTimeSlider();
@@ -88,6 +91,7 @@ public:
 	IDetailsView* GetVizSettingsDetailsView() const;
 	FMLDeformerEditorToolkit* GetEditorToolkit() const;
 	SSimpleTimeSlider* GetTimeSlider() const;
+	UWorld* GetWorld() const;
 
 	float GetDuration() const;
 	float GetSnappedFrameTime(float InTime) const;
@@ -97,24 +101,13 @@ public:
 	/**
 	 *Update mean and scale of vertex deltas.
 	 *
-	 * @param InGeomCachePositions Geometric cache positions
-	 * @param InLinearSkinnedPositions Skinned positions
-	 * @param InDeltaCutoffLength Delta cutoff length
+	 * @param TrainingFrame The training frame that contains the vertex deltas.
 	 * @param InOutMeanVertexDelta Mean vertex delta
 	 * @param InOutVertexDeltaScale Vertex delta scale
 	 * @param InOutCount Count
 	 */
-	void UpdateVertexDeltaMeanAndScale(const TArray<FVector3f>& InGeomCachePositions, const TArray<FVector3f>& InLinearSkinnedPositions,
-		float InDeltaCutoffLength, FVector3f& InOutMeanVertexDelta, FVector3f& InOutVertexDeltaScale, float& InOutCount) const;
+	static void UpdateVertexDeltaMeanAndScale(const FMLDeformerTrainingFrame& TrainingFrame, FVector3f& InOutMeanVertexDelta, FVector3f& InOutVertexDeltaScale, float& InOutCount);
 
-	void ExtractBoneTransforms(TArray<FMatrix44f>& OutBoneMatrices, TArray<FTransform>& OutBoneTransforms) const;
-	void ExtractSkinnedPositions(int32 LODIndex, TArray<FMatrix44f>& InBoneMatrices, TArray<FVector3f>& TempPositions, TArray<FVector3f>& OutPositions, bool bImportedVertices=true) const;
-	void ExtractGeomCachePositions(int32 LODIndex, TArray<FVector3f>& TempPositions, TArray<FVector3f>& OutPositions) const;
-
-	void ExtractInputBoneTransforms(TArray<FTransform>& OutTransforms) const;
-	void ExtractInputCurveValues(TArray<float>& OutValues) const;
-
-	void UpdateDebugPointData();
 	void UpdateTestAnimPlaySpeed();
 	void UpdateDeformerGraph();
 	static FString GetDefaultDeformerGraphAssetPath();
@@ -130,17 +123,14 @@ public:
 	void SetDefaultDeformerGraphIfNeeded();
 	bool IsActorVisible(EMLDeformerEditorActorIndex ActorIndex) const;
 
+	FMLDeformerFrameCache& GetSingleFrameCache() { return SingleFrameCache; }
+	const FMLDeformerFrameCache& GetSingleFrameCache() const { return SingleFrameCache; }
+	
 public:
-	TArray<FMatrix44f> CurrentBoneMatrices;
-	TArray<FTransform> CurrentBoneTransforms;
-	TArray<float> CurrentCurveWeights;
-
 	TArray<FVector3f> LinearSkinnedPositions;
 	TArray<FVector3f> GeomCachePositions;
-	TArray<FVector3f> TempVectorBuffer;
 	TArray<float> VertexDeltas;
 	bool bIsVertexDeltaNormalized = false;
-	TArray<FGeometryCacheMeshData> MeshDatas;
 
 	int32 CurrentFrame = -1;
 
@@ -169,6 +159,12 @@ private:
 	/** The heatmap material. */
 	TObjectPtr<UMaterial> HeatMapMaterial;
 
+	/** The world that our actors are inside. */
+	TObjectPtr<UWorld> World;
+
 	/** The timeline slider widget. */
 	TSharedPtr<SSimpleTimeSlider> TimeSlider;
+
+	/** Single frame cache, used to calculate the training data for the current frame in the timeline. */
+	FMLDeformerFrameCache SingleFrameCache;
 };

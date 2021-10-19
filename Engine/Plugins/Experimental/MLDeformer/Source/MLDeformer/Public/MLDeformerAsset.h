@@ -143,6 +143,7 @@ public:
 	UMLDeformerVizSettings* GetVizSettings() { return VizSettings; }
 
 	int32 GetNumFrames() const;
+	int32 GetCacheSizeInMegabytes() const { return CacheSizeInMegabytes; }
 	float GetDeltaCutoffLength() const { return DeltaCutoffLength; }
 #endif
 
@@ -228,6 +229,10 @@ public:
 	/** The number of epochs to process that include a decay. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Settings", meta = (ClampMin = "1"))
 	int32 EpochsWithDecay = 10;
+
+	/** The maximum allowed size of the training cache in memory, in megabytes. So a value of 1024 would be one gigabyte. The larger the cache size the faster the training. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Settings", meta = (ClampMin = 0))
+	int32 CacheSizeInMegabytes = 2048;
 
 	/** The learning rate used during the model training. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings", meta = (ClampMin = "0.000001", ClampMax = "1.0"))

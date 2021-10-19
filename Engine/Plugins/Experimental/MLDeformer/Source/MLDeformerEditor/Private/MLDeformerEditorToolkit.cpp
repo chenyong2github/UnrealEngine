@@ -172,6 +172,9 @@ void FMLDeformerEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 					{
 						ShowNotification(LOCTEXT("StartTraining", "Starting training process"), SNotificationItem::ECompletionState::CS_Pending, true);
 
+						// Change the interpolation type for the training sequence to step.
+						DeformerAsset->GetAnimSequence()->Interpolation = EAnimInterpolationType::Step;
+
 						// Initialize the training inputs.
 						DeformerAsset->SetInputInfo(DeformerAsset->CreateInputInfo());
 
@@ -179,8 +182,18 @@ void FMLDeformerEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 						// If this triggers, the train button most likely was enabled while it shouldn't be.
 						check(!DeformerAsset->GetInputInfo().IsEmpty());
 
+						// Init the frame cache.
+						const int32 NumFrames = (DeformerAsset->GetGeometryCache()->GetEndFrame() - DeformerAsset->GetGeometryCache()->GetStartFrame()) + 1;
+						FMLDeformerFrameCache::FInitSettings FrameCacheInitSettings;
+						FrameCacheInitSettings.DeformerAsset = DeformerAsset;
+						FrameCacheInitSettings.CacheSizeInBytes = 1024 * 1024 * DeformerAsset->GetCacheSizeInMegabytes();
+						FrameCacheInitSettings.World = EditorData->GetWorld();
+						TSharedPtr<FMLDeformerFrameCache> FrameCache = MakeShared<FMLDeformerFrameCache>();
+						FrameCache->Init(FrameCacheInitSettings);
+
 						// Perform training and load the resulting model.
 						MLDeformerModel->SetEditorData(EditorData);
+						MLDeformerModel->SetFrameCache(FrameCache);
 						MLDeformerModel->CreateDataSetInterface();
 
 						// Train ML deformer model using user-defined parameters.
@@ -192,13 +205,31 @@ void FMLDeformerEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 
 						UDebugSkelMeshComponent* SkelMeshComponent = EditorData->GetEditorActor(EMLDeformerEditorActorIndex::DeformedTest).SkelMeshComponent;
 						EditorData->InitAssets();
+						if (TrainingResult == ETrainingResult::Success || TrainingResult == ETrainingResult::Aborted)
+						{
+							// The InitAssets call above reset the normalized flag, so set it back to true.
+							// This is safe as we finished training, which means we already normalized data.
+							// If we aborted we still have normalized the data. Only when we have AbortedCantUse then we canceled the normalization process.
+							EditorData->bIsVertexDeltaNormalized = true;
+						}
 						EditorData->GetEditorActor(EMLDeformerEditorActorIndex::DeformedTest).MLDeformerComponent->SetupComponent(DeformerAsset, SkelMeshComponent);
 						if (bMarkDirty)
 						{
 							EditorData->GetDeformerAsset()->Modify();
 						}
+						
 						EditorData->GetDetailsView()->ForceRefresh();
 						EditorData->GetVizSettingsDetailsView()->ForceRefresh();
+
+						// Log memory usage.
+						const SIZE_T NumBytes = FrameCache->CalcMemUsageInBytes();;
+						UE_LOG(LogMLDeformer, Display, TEXT("Cache size used = %jd Bytes (%jd Kb or %.2f Mb)"), 
+							NumBytes, 
+							NumBytes / 1024, 
+							NumBytes / (float)(1024*1024));
+
+						// Clear the model internally, so it deletes the frame cache.
+						MLDeformerModel->Clear();
 					}
 					else
 					{
@@ -570,13 +601,16 @@ void FMLDeformerEditorToolkit::HandlePreviewSceneCreated(const TSharedRef<IPerso
 	// Load the default ML deformer graph asset.
 	EditorData->SetDefaultDeformerGraphIfNeeded();
 
+	// Set the world.
+	UWorld* World = InPersonaPreviewScene->GetWorld();
+	EditorData->SetWorld(World);
+
 	// Create the Linear Skinned (Base) actor.
 	const FLinearColor BaseLabelColor = FMLDeformerEditorStyle::Get().GetColor("MLDeformer.BaseMesh.LabelColor");
 	const FLinearColor BaseWireColor = FMLDeformerEditorStyle::Get().GetColor("MLDeformer.BaseMesh.WireframeColor");
 	CreateBaseActor(InPersonaPreviewScene, "Training Base", BaseLabelColor, BaseWireColor);
 
 	// Create the target actor (with Geometry Cache).
-	UWorld* World = InPersonaPreviewScene->GetWorld();
 	const FLinearColor TargetLabelColor = FMLDeformerEditorStyle::Get().GetColor("MLDeformer.TargetMesh.LabelColor");
 	const FLinearColor TargetWireColor = FMLDeformerEditorStyle::Get().GetColor("MLDeformer.TargetMesh.WireframeColor");
 	CreateGeomCacheActor(
@@ -629,7 +663,6 @@ void FMLDeformerEditorToolkit::HandlePreviewSceneCreated(const TSharedRef<IPerso
 
 	VizSettings->SetTempVisualizationMode(VizSettings->GetVisualizationMode());
 	EditorData->GetDeformerAsset()->SetTempTrainingInputs(EditorData->GetDeformerAsset()->GetTrainingInputs());
-	EditorData->UpdateDebugPointData();
 	OnSwitchedVisualizationMode();
 }
 
@@ -679,6 +712,12 @@ void FMLDeformerEditorToolkit::OnFinishedChangingDetails(const FPropertyChangedE
 		EditorData->InitAssets();
 		EditorData->GetDetailsView()->ForceRefresh();
 		EditorData->GetVizSettingsDetailsView()->ForceRefresh();
+	}
+	else
+	if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerAsset, DeltaCutoffLength) ||
+	    Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerAsset, AlignmentTransform))
+	{
+		EditorData->InitAssets();
 	}
 	else
 	if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerAsset, TrainingInputs))

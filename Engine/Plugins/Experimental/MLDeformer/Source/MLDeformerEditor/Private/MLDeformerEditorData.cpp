@@ -7,6 +7,7 @@
 #include "MLDeformerInputInfo.h"
 #include "MLDeformerEditorToolkit.h"
 #include "MLDeformer.h"
+#include "MLDeformerFrameCache.h"
 
 #include "IPersonaToolkit.h"
 #include "IDetailsView.h"
@@ -26,7 +27,7 @@
 #include "GeometryCacheMeshData.h"
 
 #include "Math/NumericLimits.h"
-#include "Misc/SlowTask.h"
+#include "Misc/ScopedSlowTask.h"
 #include "ComputeFramework/ComputeGraphComponent.h"
 #include "ComputeFramework/ComputeGraph.h"
 
@@ -253,7 +254,11 @@ void FMLDeformerEditorData::InitAssets()
 {
 	// Force the training sequence to use Step interpolation and sample raw animation data.
 	UAnimSequence* TrainingAnimSequence = MLDeformerAsset->GetAnimSequence();
-	TrainingAnimSequence->bUseRawDataOnly = true;
+	if (TrainingAnimSequence)
+	{
+		TrainingAnimSequence->bUseRawDataOnly = true;
+		TrainingAnimSequence->Interpolation = EAnimInterpolationType::Step;
+	}
 
 	USkeletalMeshComponent* SkeletalMeshComponent = GetEditorActor(EMLDeformerEditorActorIndex::Base).SkelMeshComponent;
 	SkeletalMeshComponent->SetSkeletalMesh(MLDeformerAsset->GetSkeletalMesh());
@@ -308,105 +313,14 @@ void FMLDeformerEditorData::InitAssets()
 	UpdateTimeSlider();
 	MLDeformerAsset->UpdateCachedNumVertices();
 	UpdateDeformerGraph();
-}
 
-void FMLDeformerEditorData::ExtractBoneTransforms(TArray<FMatrix44f>& OutBoneMatrices, TArray<FTransform>& OutBoneTransforms) const
-{
-	USkeletalMeshComponent* SkelComp = GetEditorActor(EMLDeformerEditorActorIndex::Base).SkelMeshComponent;
-	check(SkelComp);
-
-	SkelComp->CacheRefToLocalMatrices(OutBoneMatrices);
-	OutBoneTransforms = SkelComp->GetBoneSpaceTransforms();
-}
-
-void FMLDeformerEditorData::ExtractSkinnedPositions(int32 LODIndex, TArray<FMatrix44f>& InBoneMatrices, TArray<FVector3f>& TempPositions, TArray<FVector3f>& OutPositions, bool bImportedVertices) const
-{
-	OutPositions.Reset();
-	TempPositions.Reset();
-
-	UDebugSkelMeshComponent* SkelMeshComponent = GetEditorActor(EMLDeformerEditorActorIndex::Base).SkelMeshComponent;
-	if (SkelMeshComponent == nullptr)
-	{
-		return;
-	}
-
-	USkeletalMesh* Mesh = SkelMeshComponent->SkeletalMesh;
-	if (Mesh == nullptr)
-	{
-		return;
-	}
-
-	FSkeletalMeshLODRenderData& SkelMeshLODData = Mesh->GetResourceForRendering()->LODRenderData[LODIndex];
-	FSkinWeightVertexBuffer* SkinWeightBuffer = SkelMeshComponent->GetSkinWeightBuffer(LODIndex);
-	USkeletalMeshComponent::ComputeSkinnedPositions(SkelMeshComponent, TempPositions, InBoneMatrices, SkelMeshLODData, *SkinWeightBuffer);
-
-	if (bImportedVertices)
-	{
-		// Get the originally imported vertex numbers from the DCC.
-		const FSkeletalMeshModel* SkeletalMeshModel = Mesh->GetImportedModel();
-		const TArray<int32>& ImportedVertexNumbers = SkeletalMeshModel->LODModels[/*LODIndex=*/0].MeshToImportVertexMap;
-		if (ImportedVertexNumbers.Num() > 0)
-		{
-			const int32 MaxIndex = SkeletalMeshModel->LODModels[/*LODIndex=*/0].MaxImportVertex;
-
-			// Store the vertex positions for the original imported vertices (8 vertices for a cube).
-			OutPositions.AddZeroed(MaxIndex + 1);
-			for (int32 Index = 0; Index < TempPositions.Num(); ++Index)
-			{
-				const int32 ImportedVertex = ImportedVertexNumbers[Index];
-				OutPositions[ImportedVertex] = TempPositions[Index];
-			}
-		}
-	}
-	else
-	{
-		OutPositions = TempPositions;
-	}
-}
-
-void FMLDeformerEditorData::ExtractGeomCachePositions(int32 LODIndex, TArray<FVector3f>& TempPositions, TArray<FVector3f>& OutPositions) const
-{
-	OutPositions.Reset();
-	TempPositions.Reset();
-
-	UGeometryCacheComponent* GeomCacheComponent = GetEditorActor(EMLDeformerEditorActorIndex::Target).GeomCacheComponent;
-	UGeometryCache* GeomCache = GeomCacheComponent->GetGeometryCache();
-	if (GeomCache == nullptr)
-	{
-		return;
-	}
-
-	const float Time = GeomCacheComponent->GetAnimationTime();
-	TArray<FGeometryCacheMeshData> MeshData;
-	GeomCache->GetMeshDataAtTime(Time, MeshData);
-
-	if (MeshData.Num() > 0)
-	{
-		const TArray<uint32>& ImportedVertexNumbers = MeshData[0].ImportedVertexNumbers;
-		if (ImportedVertexNumbers.Num() > 0)
-		{
-			TempPositions = MeshData[0].Positions;
-
-			// Find the maximum value.
-			int32 MaxIndex = -1;
-			for (int32 Index = 0; Index < ImportedVertexNumbers.Num(); ++Index)
-			{
-				MaxIndex = FMath::Max(static_cast<int32>(ImportedVertexNumbers[Index]), MaxIndex);
-			}
-			check(MaxIndex > -1);
-
-			OutPositions.AddZeroed(MaxIndex + 1);
-
-			// Transform the positions with the alignment transform.
-			const FTransform& Transform = GetDeformerAsset()->AlignmentTransform;
-			for (int32 Index = 0; Index < TempPositions.Num(); ++Index)
-			{
-				const int32 ImportedVertex = static_cast<int32>(ImportedVertexNumbers[Index]);
-				const FVector Pos = TempPositions[Index];
-				OutPositions[ImportedVertex] = Transform.TransformPosition(Pos);
-			}
-		}
-	}
+	// Reinit the single frame cache.
+	FMLDeformerFrameCache::FInitSettings InitSettings;
+	InitSettings.CacheSizeInBytes = 0;	// This makes it just just use one frame, which is the minimum.
+	InitSettings.DeformerAsset = MLDeformerAsset.Get();
+	InitSettings.World = GetWorld();
+	InitSettings.bLogCacheStats = false;
+	SingleFrameCache.Init(InitSettings);
 }
 
 void FMLDeformerEditorData::SetAnimFrame(int32 FrameNumber)
@@ -435,33 +349,6 @@ void FMLDeformerEditorData::SetAnimFrame(int32 FrameNumber)
 	}
 
 	CurrentFrame = FrameNumber;
-}
-
-void FMLDeformerEditorData::UpdateDebugPointData()
-{
-	if (GetDeformerAsset()->GetVizSettings()->GetVisualizationMode() != EMLDeformerVizMode::TrainingData)
-	{
-		return;
-	}
-
-	const FMLDeformerEditorActor& BaseEditorActor = GetEditorActor(EMLDeformerEditorActorIndex::Base);
-	if (BaseEditorActor.SkelMeshComponent == nullptr || BaseEditorActor.SkelMeshComponent->SkeletalMesh == nullptr)
-	{
-		return;
-	}
-
-	// Extract the bone transforms and skinned vertex positions.
-	ExtractBoneTransforms(CurrentBoneMatrices, CurrentBoneTransforms);
-	ExtractSkinnedPositions(/*LODIndex=*/0, CurrentBoneMatrices, TempVectorBuffer, LinearSkinnedPositions);
-
-	const FMLDeformerEditorActor& TargetEditorActor = GetEditorActor(EMLDeformerEditorActorIndex::Target);
-	if (TargetEditorActor.GeomCacheComponent == nullptr || TargetEditorActor.GeomCacheComponent->GetGeometryCache() == nullptr)
-	{
-		return;
-	}
-
-	// Extract Geometry Cache positions.
-	ExtractGeomCachePositions(/*LODIndex=*/0, TempVectorBuffer, GeomCachePositions);
 }
 
 bool FMLDeformerEditorData::IsReadyForTraining() const
@@ -493,99 +380,48 @@ bool FMLDeformerEditorData::IsReadyForTraining() const
 	return true;
 }
 
-bool FMLDeformerEditorData::GenerateTrainingData(uint32 LODIndex, uint32 FrameNumber, float DeltaCutoffLength, TArray<float>& OutDeltas, TArray<FTransform>& OutBoneTransforms, TArray<float>& OutCurveValues)
+bool FMLDeformerEditorData::GenerateDeltas(uint32 LODIndex, uint32 FrameNumber, TArray<float>& OutDeltas)
 {
 	OutDeltas.Reset();
-	OutBoneTransforms.Reset();
-	OutCurveValues.Reset();
 
 	if (!IsReadyForTraining())
 	{
 		return false;
 	}
 
-	// Calculate the number of frames to output.
-	UGeometryCacheComponent* GeometryCacheComponent = GetEditorActor(EMLDeformerEditorActorIndex::Target).GeomCacheComponent;
-	USkeletalMeshComponent* SkelMeshComponent = GetEditorActor(EMLDeformerEditorActorIndex::Base).SkelMeshComponent;
-	const uint32 AnimNumFrames = static_cast<uint32>(GeometryCacheComponent->GetNumberOfFrames());
-	const uint32 FrameIndex = FMath::Min(AnimNumFrames, FrameNumber);
+	const FMLDeformerTrainingFrame& TrainingFrame = SingleFrameCache.GetTrainingFrameForAnimFrame(FrameNumber);
+	OutDeltas = TrainingFrame.GetVertexDeltas();
 
-	// Calculate the vertex positions (and required transforms in order to perform skinning).
-	SetAnimFrame(static_cast<int32>(FrameIndex));
-	ExtractBoneTransforms(CurrentBoneMatrices, OutBoneTransforms);	// We just use our OutBoneTransforms array here, it will later be overwritten again.
-	ExtractSkinnedPositions(LODIndex, CurrentBoneMatrices, TempVectorBuffer, LinearSkinnedPositions);
-	ExtractGeomCachePositions(LODIndex, TempVectorBuffer, GeomCachePositions);
-
-	// Grab the actual required bone transforms
-	ExtractInputBoneTransforms(OutBoneTransforms);	// This internally resizes the output bone transforms array, so we overwrite existing contents from before.
-	ExtractInputCurveValues(OutCurveValues);
-
-	// Calculate the deltas.
-	if (LinearSkinnedPositions.Num() == GeomCachePositions.Num())
-	{
-		const int32 NumVertices = LinearSkinnedPositions.Num();
-		OutDeltas.AddUninitialized(3 * NumVertices);
-
-		for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
-		{
-			const FVector Delta = GeomCachePositions[VertexIndex] - LinearSkinnedPositions[VertexIndex];
-			const int32 ArrayIndex = 3 * VertexIndex;
-			if (Delta.Length() < DeltaCutoffLength)
-			{
-				OutDeltas[ArrayIndex] = Delta.X;
-				OutDeltas[ArrayIndex + 1] = Delta.Y;
-				OutDeltas[ArrayIndex + 2] = Delta.Z;
-			}
-			else
-			{
-				OutDeltas[ArrayIndex] = 0.0f;
-				OutDeltas[ArrayIndex + 1] = 0.0f;
-				OutDeltas[ArrayIndex + 2] = 0.0f;
-			}
-		}
-	}
+	// Let's also directly extract the positions of the vertices, since we already calculated them.
+	const FMLDeformerSamplerData& SamplerData = SingleFrameCache.GetSampler().GetSamplerData();
+	LinearSkinnedPositions = SamplerData.GetSkinnedVertexPositions();
+	GeomCachePositions = SamplerData.GetGeometryCachePositions();
 
 	return true;
 }
 
-bool FMLDeformerEditorData::GenerateDeltas(uint32 LODIndex, uint32 FrameNumber, float DeltaCutoffLength, TArray<float>& OutDeltas)
+void FMLDeformerEditorData::UpdateVertexDeltaMeanAndScale(const FMLDeformerTrainingFrame& TrainingFrame, FVector3f& InOutMeanVertexDelta, FVector3f& InOutVertexDeltaScale, float& InOutCount)
 {
-	return GenerateTrainingData(LODIndex, FrameNumber, DeltaCutoffLength, OutDeltas, CurrentBoneTransforms, CurrentCurveWeights);
-}
-
-void FMLDeformerEditorData::UpdateVertexDeltaMeanAndScale(
-	const TArray<FVector3f>& InGeomCachePositions,
-	const TArray<FVector3f>& InLinearSkinnedPositions,
-	float DeltaCutoffLength,
-	FVector3f& InOutMeanVertexDelta,
-	FVector3f& InOutVertexDeltaScale,
-	float& InOutCount) const
-{
-	const int32 NumVertices = LinearSkinnedPositions.Num();
-	check(InGeomCachePositions.Num() == InLinearSkinnedPositions.Num());
+	check(!TrainingFrame.GetVertexDeltas().IsEmpty());
+	const int32 NumVertices = TrainingFrame.GetNumVertices();
 
 	FVector MeanDelta = FVector::ZeroVector;
 	FVector MinDelta(TNumericLimits<float>::Max());
 	FVector MaxDelta(-TNumericLimits<float>::Max());
-	float ValidVertexCount = 0.0f;
+	const TArray<float>& VertexDeltas = TrainingFrame.GetVertexDeltas();
 	for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
 	{
-		const FVector Delta = GeomCachePositions[VertexIndex] - LinearSkinnedPositions[VertexIndex];
-		if (Delta.Length() < DeltaCutoffLength)
-		{
-			MeanDelta += Delta;
-			ValidVertexCount += 1.0f;
-
-			// Get minimum dimensions.
-			MinDelta = MinDelta.ComponentMin(Delta);
-			// Get maximum dimensions.
-			MaxDelta = MaxDelta.ComponentMax(Delta);
-		}
+		const int Offset = VertexIndex * 3;
+		const FVector Delta(VertexDeltas[Offset], VertexDeltas[Offset+1], VertexDeltas[Offset+2]);
+		MeanDelta += Delta;
+		MinDelta = MinDelta.ComponentMin(Delta);
+		MaxDelta = MaxDelta.ComponentMax(Delta);
 	}
 
-	if (ValidVertexCount > 0.0f)
+	const float ValidVertexCount = (float)NumVertices;
+	if (NumVertices > 0)
 	{
-		MeanDelta /= ValidVertexCount;
+		MeanDelta /= (float)NumVertices;
 	}
 
 	// Update global mean.
@@ -598,8 +434,9 @@ void FMLDeformerEditorData::UpdateVertexDeltaMeanAndScale(
 	InOutVertexDeltaScale = InOutVertexDeltaScale.ComponentMax(TempDiff.GetAbs());
 }
 
-bool FMLDeformerEditorData::ComputeVertexDeltaStatistics(uint32 LODIndex, float DeltaCutoffLength)
+bool FMLDeformerEditorData::ComputeVertexDeltaStatistics(uint32 LODIndex, FMLDeformerFrameCache* InFrameCache)
 {
+	check(InFrameCache);
 	if (!IsReadyForTraining() || bIsVertexDeltaNormalized)
 	{
 		return true;
@@ -610,38 +447,25 @@ bool FMLDeformerEditorData::ComputeVertexDeltaStatistics(uint32 LODIndex, float 
 	const uint32 AnimNumFrames = static_cast<uint32>(GeometryCacheComponent->GetNumberOfFrames());
 
 	// Show some dialog with progress.
-	FSlowTask Task((float)AnimNumFrames, FText::FromString("Calculating data statistics"));
-	Task.Initialize();
+	const FText Title(LOCTEXT("PreprocessTrainingDataMessage", "Calculating data statistics"));
+	FScopedSlowTask Task((float)AnimNumFrames, Title);
 	Task.MakeDialog(true);
 
 	// Initialize mean vertex delta and vertex delta scale.
 	FVector3f VertexDeltaMean = FVector3f::ZeroVector;
 	FVector3f VertexDeltaScale = FVector3f::OneVector;
 	float Count = 0.0f;
-	TArray<FTransform> BoneTransforms;
+	USkeletalMeshComponent* SkeletalMeshComponent = GetEditorActor(EMLDeformerEditorActorIndex::Base).SkelMeshComponent;
 	for (uint32 FrameIndex = 0; FrameIndex < AnimNumFrames; FrameIndex++)
 	{
-		// Set the components to the right time values of the given frame.
-		SetAnimFrame(static_cast<int32>(FrameIndex));
-
-		// Extract the bone transforms.
-		ExtractBoneTransforms(CurrentBoneMatrices, BoneTransforms);
-
-		// Extract the linear skinned positions.
-		ExtractSkinnedPositions(LODIndex, CurrentBoneMatrices, TempVectorBuffer, LinearSkinnedPositions);
-
-		// Extract the geometry cache positions.
-		ExtractGeomCachePositions(LODIndex, TempVectorBuffer, GeomCachePositions);
-
-		// Update mean vertex delta.
-		UpdateVertexDeltaMeanAndScale(GeomCachePositions, LinearSkinnedPositions, DeltaCutoffLength,
-			VertexDeltaMean, VertexDeltaScale, Count);
+		// Get the deltas updated for this frame, and then update the mean and scale.
+		const FMLDeformerTrainingFrame& TrainingFrame = InFrameCache->GetTrainingFrameForAnimFrame(FrameIndex);
+		FMLDeformerEditorData::UpdateVertexDeltaMeanAndScale(TrainingFrame, VertexDeltaMean, VertexDeltaScale, Count);
 
 		// Forward the progress bar and check if we want to cancel.
 		Task.EnterProgressFrame();
 		if (Task.ShouldCancel())
 		{
-			Task.Destroy();
 			return false;
 		}
 	}
@@ -704,39 +528,6 @@ void FMLDeformerEditorData::SetHeatMapMaterialEnabled(bool bEnabled)
 	else
 	{
 		Component->EmptyOverrideMaterials();
-	}
-}
-
-void FMLDeformerEditorData::ExtractInputCurveValues(TArray<float>& OutValues) const
-{
-	USkeletalMeshComponent* SkelMeshComponent = GetEditorActor(EMLDeformerEditorActorIndex::Base).SkelMeshComponent;
-	check(SkelMeshComponent);
-	const FMLDeformerInputInfo& InputInfo = GetDeformerAsset()->GetInputInfo();
-	InputInfo.ExtractCurveValues(SkelMeshComponent->GetAnimInstance(), OutValues);
-}
-
-void FMLDeformerEditorData::ExtractInputBoneTransforms(TArray<FTransform>& OutTransforms) const
-{
-	USkeletalMeshComponent* SkelMeshComponent = GetEditorActor(EMLDeformerEditorActorIndex::Base).SkelMeshComponent;
-	check(SkelMeshComponent);
-
-	// Get a copy of the bone transforms.
-	const TArray<FTransform> BoneTransforms = SkelMeshComponent->GetBoneSpaceTransforms();
-
-	const FMLDeformerInputInfo& InputInfo = GetDeformerAsset()->GetInputInfo();
-	const int32 NumBones = InputInfo.GetNumBones();
-	OutTransforms.Reset(NumBones);
-
-	if (NumBones == BoneTransforms.Num())
-	{
-		OutTransforms.AddUninitialized(NumBones);
-
-		for (int32 Index = 0; Index < NumBones; ++Index)
-		{
-			const FName BoneName = InputInfo.GetBoneName(Index);
-			const int32 SkelMeshBoneIndex = SkelMeshComponent->GetBoneIndex(BoneName);
-			OutTransforms[Index] = BoneTransforms[SkelMeshBoneIndex];
-		}
 	}
 }
 
@@ -939,6 +730,16 @@ void FMLDeformerEditorData::SetDefaultDeformerGraphIfNeeded()
 		UComputeGraph* DefaultGraph = FMLDeformerEditorData::LoadDefaultDeformerGraph();
 		GetDeformerAsset()->GetVizSettings()->SetDeformerGraph(DefaultGraph);
 	}
+}
+
+UWorld* FMLDeformerEditorData::GetWorld() const
+{
+	return World;
+}
+
+void FMLDeformerEditorData::SetWorld(UWorld* InWorld)
+{
+	World = InWorld;
 }
 
 #undef LOCTEXT_NAMESPACE
