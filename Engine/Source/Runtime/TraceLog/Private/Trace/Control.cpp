@@ -15,6 +15,8 @@ namespace UE {
 namespace Trace {
 namespace Private {
 
+#if !defined(TRACE_PRIVATE_CONTROL_ENABLED) || TRACE_PRIVATE_CONTROL_ENABLED
+
 ////////////////////////////////////////////////////////////////////////////////
 bool	Writer_SendTo(const ANSICHAR*, uint32=0);
 bool	Writer_WriteTo(const ANSICHAR*);
@@ -344,6 +346,15 @@ void Writer_ShutdownControl()
 		GControlListen = 0;
 	}
 }
+
+#else
+
+void	Writer_InitializeControl()	{}
+void	Writer_ShutdownControl()	{}
+void	Writer_UpdateControl()		{}
+uint32	Writer_GetControlPort()		{ return ~0u; }
+
+#endif // TRACE_PRIVATE_CONTROL_ENABLED
 
 } // namespace Private
 } // namespace Trace
