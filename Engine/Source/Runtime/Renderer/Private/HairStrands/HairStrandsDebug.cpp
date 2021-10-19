@@ -355,10 +355,11 @@ class FHairDebugPS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, TileIndexTexture)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, NodeData)
 		SHADER_PARAMETER_SRV(Texture2D, DepthStencilTexture)
+		RDG_TEXTURE_ACCESS(DepthStencilTextureAccess, ERHIAccess::SRVGraphics)
 		SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		RENDER_TARGET_BINDING_SLOTS()
-		END_SHADER_PARAMETER_STRUCT()
+	END_SHADER_PARAMETER_STRUCT()
 
 public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
@@ -371,7 +372,8 @@ static void AddDebugHairPass(
 	const FViewInfo* View,
 	const EHairDebugMode InDebugMode,
 	const FHairStrandsVisibilityData& VisibilityData,
-	const FShaderResourceViewRHIRef& InDepthStencilTexture,
+	const FShaderResourceViewRHIRef& InDepthStencilTextureSRV,
+	const FRDGTextureRef& InDepthStencilTexture,
 	FRDGTextureRef& OutTarget)
 {
 	check(OutTarget);
@@ -387,7 +389,7 @@ static void AddDebugHairPass(
 		InDebugMode == EHairDebugMode::Tile);
 
 	if (!VisibilityData.CategorizationTexture || !VisibilityData.NodeIndex || !VisibilityData.NodeData || !VisibilityData.TileIndexTexture) return;
-	if (InDebugMode == EHairDebugMode::TAAResolveType && !InDepthStencilTexture) return;
+	if (InDebugMode == EHairDebugMode::TAAResolveType && !InDepthStencilTextureSRV) return;
 
 	FRDGTextureRef HairCountTexture = VisibilityData.ViewHairCountTexture ? VisibilityData.ViewHairCountTexture : GSystemTextures.GetBlackDummy(GraphBuilder);
 	FRDGTextureRef HairCountUintTexture = VisibilityData.ViewHairCountUintTexture ? VisibilityData.ViewHairCountUintTexture : GSystemTextures.GetBlackDummy(GraphBuilder); 
@@ -421,7 +423,8 @@ static void AddDebugHairPass(
 	Parameters->NodeData = GraphBuilder.CreateSRV(VisibilityData.NodeData);
 	Parameters->TileIndexTexture = VisibilityData.TileIndexTexture;
 	Parameters->TileSize = VisibilityData.TileSize;
-	Parameters->DepthStencilTexture = InDepthStencilTexture;
+	Parameters->DepthStencilTexture = InDepthStencilTextureSRV;
+	Parameters->DepthStencilTextureAccess = InDepthStencilTexture;
 	Parameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	Parameters->DebugMode = InternalDebugMode;
 	Parameters->SampleIndex = GHairStrandsDebugSampleIndex;
@@ -1306,7 +1309,8 @@ void RenderHairStrandsDebugInfo(
 		{
 			const FHairStrandsVisibilityData& VisibilityData = HairDatas->HairVisibilityViews.HairDatas[ViewIndex];
 			const FHairStrandsMacroGroupDatas& MacroGroupDatas = InMacroGroupViews.Views[ViewIndex];
-			AddDebugHairPass(GraphBuilder, &View, HairDebugMode, VisibilityData, SceneTargets.SceneStencilSRV, SceneColorTexture);
+			FRDGTextureRef SceneDepthTexture = GraphBuilder.RegisterExternalTexture(SceneTargets.SceneDepthZ, TEXT("SceneDephtTexture"));
+			AddDebugHairPass(GraphBuilder, &View, HairDebugMode, VisibilityData, SceneTargets.SceneStencilSRV, SceneDepthTexture, SceneColorTexture);
 			AddDebugHairPrintPass(GraphBuilder, &View, HairDebugMode, VisibilityData, MacroGroupDatas, SceneTargets.SceneStencilSRV);
 		}
 	}
