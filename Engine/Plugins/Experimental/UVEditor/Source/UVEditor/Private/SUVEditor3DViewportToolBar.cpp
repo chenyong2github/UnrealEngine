@@ -8,7 +8,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
-
+#include "EditorStyleSet.h"
 
 void SUVEditor3DViewportToolBar::Construct(const FArguments& InArgs)
 {
