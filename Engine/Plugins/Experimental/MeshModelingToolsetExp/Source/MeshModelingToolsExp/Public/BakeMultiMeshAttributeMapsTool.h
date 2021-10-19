@@ -200,6 +200,8 @@ protected:
 	bool bInputsDirty = false;
 	void UpdateOnModeChange();
 
+	void InvalidateResults();
+
 	// Cached detail mesh data
 	FBakeMultiMeshDetailSettings CachedDetailSettings;
 	EBakeOpState UpdateResult_DetailMeshes();

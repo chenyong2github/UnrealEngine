@@ -164,6 +164,8 @@ protected:
 	bool bInputsDirty = false;
 	void UpdateOnModeChange();
 
+	void InvalidateResults();
+
 	FDetailMeshSettings CachedDetailMeshSettings;
 	TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe> CachedDetailNormalMap;
 	EBakeOpState UpdateResult_DetailNormalMap();
