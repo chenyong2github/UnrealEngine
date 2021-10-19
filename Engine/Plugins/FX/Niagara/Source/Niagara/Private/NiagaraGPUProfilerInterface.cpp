@@ -2,7 +2,7 @@
 
 #include "NiagaraGPUProfilerInterface.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
-#include "NiagaraGpuProfiler.h"
+#include "NiagaraGPUProfiler.h"
 #include "NiagaraGPUSystemTick.h"
 #include "NiagaraDataInterfaceBase.h"
 #include "NiagaraComponent.h"
