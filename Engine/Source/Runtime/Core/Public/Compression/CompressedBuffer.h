@@ -109,16 +109,16 @@ public:
 		ECompressedBufferCompressionLevel& OutCompressionLevel) const;
 
 	/**
-	 * Decompress into a memory view that is exactly GetRawSize() bytes.
+	 * Decompress into a memory view that is less or equal to GetRawSize()
 	 */
-	[[nodiscard]] CORE_API bool TryDecompressTo(FMutableMemoryView RawView) const;
+	[[nodiscard]] CORE_API bool TryDecompressTo(FMutableMemoryView RawView, uint64 RawOffset = 0) const;
 
 	/**
 	 * Decompress into an owned buffer.
 	 *
 	 * @return An owned buffer containing the raw data, or null on error.
 	 */
-	[[nodiscard]] CORE_API FSharedBuffer Decompress() const;
+	[[nodiscard]] CORE_API FSharedBuffer Decompress(uint64 RawOffset = 0, uint64 RawSize = MAX_uint64) const;
 
 	/**
 	 * Decompress into an owned composite buffer.

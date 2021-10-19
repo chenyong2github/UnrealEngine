@@ -133,7 +133,7 @@ class FDecoder
 {
 public:
 	virtual FCompositeBuffer Decompress(const FHeader& Header, const FCompositeBuffer& CompressedData) const = 0;
-	virtual bool TryDecompressTo(const FHeader& Header, const FCompositeBuffer& CompressedData, FMutableMemoryView RawView) const = 0;
+	virtual bool TryDecompressTo(const FHeader& Header, const FCompositeBuffer& CompressedData, FMutableMemoryView RawView, uint64 RawOffset) const = 0;
 	virtual uint64 GetHeaderSize(const FHeader& Header) const = 0;
 };
 
@@ -171,14 +171,14 @@ public:
 		return FCompositeBuffer();
 	}
 
-	bool TryDecompressTo(const FHeader& Header, const FCompositeBuffer& CompressedData, FMutableMemoryView RawView) const final
+	bool TryDecompressTo(const FHeader& Header, const FCompositeBuffer& CompressedData, FMutableMemoryView RawView, uint64 RawOffset) const final
 	{
 		if (Header.Method == EMethod::None &&
-			Header.TotalRawSize == RawView.GetSize() &&
+			RawOffset + RawView.GetSize() <= Header.TotalRawSize &&
 			Header.TotalCompressedSize == CompressedData.GetSize() &&
 			Header.TotalCompressedSize == Header.TotalRawSize + sizeof(FHeader))
 		{
-			CompressedData.CopyTo(RawView, sizeof(FHeader));
+			CompressedData.CopyTo(RawView, sizeof(FHeader) + RawOffset);
 			return true;
 		}
 		return false;
@@ -298,7 +298,7 @@ class FBlockDecoder : public FDecoder
 {
 public:
 	FCompositeBuffer Decompress(const FHeader& Header, const FCompositeBuffer& CompressedData) const final;
-	bool TryDecompressTo(const FHeader& Header, const FCompositeBuffer& CompressedData, FMutableMemoryView RawView) const final;
+	bool TryDecompressTo(const FHeader& Header, const FCompositeBuffer& CompressedData, FMutableMemoryView RawView, uint64 RawOffset) const final;
 
 	uint64 GetHeaderSize(const FHeader& Header) const final
 	{
@@ -322,7 +322,7 @@ FCompositeBuffer FBlockDecoder::Decompress(const FHeader& Header, const FComposi
 	if (!CompressedData.IsOwned() || Header.TotalRawSize == 0)
 	{
 		FUniqueBuffer Buffer = FUniqueBuffer::Alloc(Header.TotalRawSize);
-		return TryDecompressTo(Header, CompressedData, Buffer) ? FCompositeBuffer(Buffer.MoveToShared()) : FCompositeBuffer();
+		return TryDecompressTo(Header, CompressedData, Buffer, 0) ? FCompositeBuffer(Buffer.MoveToShared()) : FCompositeBuffer();
 	}
 
 	TArray64<uint32> CompressedBlockSizes;
@@ -422,49 +422,81 @@ FCompositeBuffer FBlockDecoder::Decompress(const FHeader& Header, const FComposi
 	return FCompositeBuffer(MoveTemp(Segments));
 }
 
-bool FBlockDecoder::TryDecompressTo(const FHeader& Header, const FCompositeBuffer& CompressedData, FMutableMemoryView RawView) const
+bool FBlockDecoder::TryDecompressTo(const FHeader& Header, const FCompositeBuffer& CompressedData, FMutableMemoryView RawView, uint64 RawOffset) const
 {
-	if (Header.TotalRawSize != RawView.GetSize() ||
-		Header.TotalCompressedSize != CompressedData.GetSize())
+	if (Header.TotalRawSize < RawOffset + RawView.GetSize() || Header.TotalCompressedSize != CompressedData.GetSize())
 	{
 		return false;
 	}
 
-	TArray64<uint32> CompressedBlockSizes;
-	CompressedBlockSizes.AddUninitialized(Header.BlockCount);
-	CompressedData.CopyTo(MakeMemoryView(CompressedBlockSizes), sizeof(FHeader));
-	Algo::ForEach(CompressedBlockSizes, [](uint32& Size) { Size = NETWORK_ORDER32(Size); });
+	const uint64 BlockSize = uint64(1) << Header.BlockSizeExponent;
+
+	FUniqueBuffer BlockSizeBuffer;
+	FMemoryView BlockSizeView = CompressedData.ViewOrCopyRange(sizeof(FHeader), Header.BlockCount * sizeof(uint32), BlockSizeBuffer);
+	TArrayView64<uint32 const> CompressedBlockSizes(reinterpret_cast<const uint32*>(BlockSizeView.GetData()), Header.BlockCount);
 
 	FUniqueBuffer CompressedBlockCopy;
-	const uint64 BlockSize = uint64(1) << Header.BlockSizeExponent;
-	uint64 CompressedOffset = sizeof(FHeader) + uint64(Header.BlockCount) * sizeof(uint32);
-	uint64 RemainingRawSize = Header.TotalRawSize;
-	uint64 RemainingCompressedSize = CompressedData.GetSize();
-	for (uint32 CompressedBlockSize : CompressedBlockSizes)
-	{
-		if (RemainingCompressedSize < CompressedBlockSize)
-		{
-			return false;
-		}
+	FUniqueBuffer UncompressedBlockCopy;
 
-		const uint64 RawBlockSize = FMath::Min(RemainingRawSize, BlockSize);
-		if (RawBlockSize == CompressedBlockSize)
+	const uint64 FirstBlockIndex	= uint64(RawOffset / BlockSize);
+	const uint64 LastBlockIndex		= uint64((RawOffset + RawView.GetSize() - 1) / BlockSize);
+	const uint64 LastBlockSize		= BlockSize - ((Header.BlockCount * BlockSize) - Header.TotalRawSize);
+	uint64 OffsetInFirstBlock		= RawOffset % BlockSize;
+	uint64 CompressedOffset			= sizeof(FHeader) + uint64(Header.BlockCount) * sizeof(uint32);
+	uint64 RemainingRawSize			= RawView.GetSize();
+
+	for (uint64 BlockIndex = 0; BlockIndex < FirstBlockIndex; BlockIndex++)
+	{
+		const uint32 CompressedBlockSize = NETWORK_ORDER32(CompressedBlockSizes[BlockIndex]);
+		CompressedOffset += CompressedBlockSize;
+	}
+
+	for (uint64 BlockIndex = FirstBlockIndex; BlockIndex <= LastBlockIndex; BlockIndex++)
+	{
+		const uint64 UncompressedBlockSize	= BlockIndex == Header.BlockCount - 1 ? LastBlockSize : BlockSize;
+		const uint32 CompressedBlockSize	= NETWORK_ORDER32(CompressedBlockSizes[BlockIndex]);
+		const bool IsCompressed				= CompressedBlockSize < UncompressedBlockSize;
+
+		const uint64 BytesToUncompress = OffsetInFirstBlock > 0 
+			? FMath::Min<uint64>(RawView.GetSize(), UncompressedBlockSize - OffsetInFirstBlock)
+			: FMath::Min<uint64>(RemainingRawSize, BlockSize);
+
+		FMemoryView CompressedBlock = CompressedData.ViewOrCopyRange(CompressedOffset, CompressedBlockSize, CompressedBlockCopy);
+
+		if (IsCompressed)
 		{
-			CompressedData.CopyTo(RawView.Left(RawBlockSize), CompressedOffset);
-		}
-		else
-		{
-			const FMemoryView CompressedBlock = CompressedData.ViewOrCopyRange(CompressedOffset, CompressedBlockSize, CompressedBlockCopy);
-			if (!DecompressBlock(RawView.Left(RawBlockSize), CompressedBlock))
+			FMutableMemoryView UncompressedBlock = RawView.Left(BytesToUncompress);
+
+			const bool bIsAligned = BytesToUncompress == UncompressedBlockSize;
+			if (!bIsAligned)
+			{
+				// Decompress to a temporary buffer when the first or the last block reads are not aligned with the block boundaries.
+				if (UncompressedBlockCopy.IsNull())
+				{
+					UncompressedBlockCopy = FUniqueBuffer::Alloc(BlockSize);
+				}
+				UncompressedBlock = UncompressedBlockCopy.GetView().Left(UncompressedBlockSize);
+			}
+
+			if (!DecompressBlock(UncompressedBlock, CompressedBlock))
 			{
 				return false;
 			}
+
+			if (!bIsAligned)
+			{
+				RawView.CopyFrom(UncompressedBlock.Mid(OffsetInFirstBlock, BytesToUncompress));
+			}
+		}
+		else
+		{
+			RawView.CopyFrom(CompressedBlock.Mid(OffsetInFirstBlock, BytesToUncompress));
 		}
 
-		RemainingCompressedSize -= CompressedBlockSize;
-		RemainingRawSize -= RawBlockSize;
+		OffsetInFirstBlock = 0;
+		RemainingRawSize -= BytesToUncompress;
 		CompressedOffset += CompressedBlockSize;
-		RawView += RawBlockSize;
+		RawView += BytesToUncompress;
 	}
 
 	return RemainingRawSize == 0;
@@ -751,7 +783,7 @@ bool FCompressedBuffer::TryGetCompressParameters(
 	return false;
 }
 
-bool FCompressedBuffer::TryDecompressTo(FMutableMemoryView RawView) const
+bool FCompressedBuffer::TryDecompressTo(FMutableMemoryView RawView, uint64 RawOffset) const
 {
 	using namespace UE::CompressedBuffer;
 	if (CompressedData)
@@ -759,13 +791,13 @@ bool FCompressedBuffer::TryDecompressTo(FMutableMemoryView RawView) const
 		const FHeader Header = FHeader::Read(CompressedData);
 		if (const FDecoder* const Decoder = GetDecoder(Header.Method))
 		{
-			return Decoder->TryDecompressTo(Header, CompressedData, RawView);
+			return Decoder->TryDecompressTo(Header, CompressedData, RawView, RawOffset);
 		}
 	}
 	return false;
 }
 
-FSharedBuffer FCompressedBuffer::Decompress() const
+FSharedBuffer FCompressedBuffer::Decompress(uint64 RawOffset, uint64 RawSize) const
 {
 	using namespace UE::CompressedBuffer;
 	if (CompressedData)
@@ -773,12 +805,9 @@ FSharedBuffer FCompressedBuffer::Decompress() const
 		const FHeader Header = FHeader::Read(CompressedData);
 		if (const FDecoder* const Decoder = GetDecoder(Header.Method))
 		{
-			if (Header.Method == EMethod::None)
-			{
-				return Decoder->Decompress(Header, CompressedData).ToShared();
-			}
-			FUniqueBuffer RawData = FUniqueBuffer::Alloc(Header.TotalRawSize);
-			if (Decoder->TryDecompressTo(Header, CompressedData, RawData))
+			const uint64 TotalRawSize = RawSize < ~uint64(0) ? RawSize : Header.TotalRawSize - RawOffset;
+			FUniqueBuffer RawData = FUniqueBuffer::Alloc(TotalRawSize);
+			if (Decoder->TryDecompressTo(Header, CompressedData, RawData, RawOffset))
 			{
 				return RawData.MoveToShared();
 			}
