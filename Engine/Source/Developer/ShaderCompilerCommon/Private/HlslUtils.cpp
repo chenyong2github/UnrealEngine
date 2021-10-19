@@ -1414,12 +1414,6 @@ bool RemoveUnusedInputs(FString& InOutSourceCode, const TArray<FString>& InInput
 	return false;
 }
 
-void StripInstancedStereo(FString& ShaderSource)
-{
-	ShaderSource.ReplaceInline(TEXT("ResolvedView = ResolveView();"), TEXT(""));
-	ShaderSource.ReplaceInline(TEXT("ResolvedView"), TEXT("View"));
-}
-
 struct FConvertFP32ToFP16 {
 	FString Filename;
 	FString GeneratedCode;
