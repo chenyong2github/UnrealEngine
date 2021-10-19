@@ -148,12 +148,6 @@ extern SHADERCOMPILERCOMMON_API bool RemoveUnusedInputs(FString& InOutSourceCode
 
 extern SHADERCOMPILERCOMMON_API bool ConvertFromFP32ToFP16(FString& InOutSourceCode, TArray<FString>& OutErrors);
 
-/**
-* Fall back to using the View uniform buffer directly for platforms that don't support instanced stereo.
-* @param ShaderSource - Preprocessed shader source
-*/
-extern SHADERCOMPILERCOMMON_API void StripInstancedStereo(FString& ShaderSource);
-
 extern SHADERCOMPILERCOMMON_API FString CreateShaderCompilerWorkerDirectCommandLine(const FShaderCompilerInput& Input, uint32 CCFlags = 0);
 
 enum class EShaderConductorTarget
