@@ -114,10 +114,19 @@ public:
 
 	/** 
 	 * Extract the curve values for all curves we're interested in.
-	 * @param AnimInstance The anim instance we are grabbing the curve values from.
+	 * @param SkelMeshComponent The skeletal mesh component to sample from.
 	 * @param OutValues The array to write the values to. This array will be reset/resized by this method.
 	 */
-	void ExtractCurveValues(UAnimInstance* AnimInstance, TArray<float>& OutValues) const;
+	void ExtractCurveValues(USkeletalMeshComponent* SkelMeshComponent, TArray<float>& OutValues) const;
+
+	/**
+	 * Extract bone space rotations, as a float array.
+	 * The number of output rotations are NumBones * 4, where the array contains values like: xyzw,xyzw,xyzw,... where each xyzw are the 
+	 * components of the bone's bone space (local space) rotation quaternion.
+	 * @param SkelMeshComponent The skeletal mesh component to sample from.
+	 * @param OutRotations The output rotation values. This array will be resized internally.
+	 */
+	void ExtractBoneRotations(USkeletalMeshComponent* SkelMeshComponent, TArray<float>& OutRotations) const;
 
 	/**
 	 * Get the number of imported vertices in the base mesh.

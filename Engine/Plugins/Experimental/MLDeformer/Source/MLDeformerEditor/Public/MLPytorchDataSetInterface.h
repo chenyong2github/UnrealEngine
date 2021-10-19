@@ -7,6 +7,8 @@
 #include "MLPytorchDataSetInterface.generated.h"
 
 class FMLDeformerEditorData;
+class FMLDeformerFrameCache;
+
 /**
  * 
  */
@@ -16,7 +18,11 @@ class MLDEFORMEREDITOR_API UMLPytorchDataSetInterface : public UObject
 	GENERATED_BODY()
 public:
 	UMLPytorchDataSetInterface(); 
+	~UMLPytorchDataSetInterface();
+
+	void Clear();
 	void SetEditorData(TSharedPtr<FMLDeformerEditorData> InEditorData);
+	void SetFrameCache(TSharedPtr<FMLDeformerFrameCache> InFrameCache);
 
 	/** Get the number of input transforms. */
 	UFUNCTION(BlueprintPure, Category = "Training Data")
@@ -42,13 +48,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Training Data")
 	bool ComputeDeltasStatistics();
 
-	/** The delta values per vertex for this sample. This is updated after SetCurrentSampleIndex is called. */
+	/** The delta values per vertex for this sample. This is updated after SetCurrentSampleIndex is called. Contains an xyz (3 floats) for each vertex. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Data")
 	TArray<float> SampleDeltas;
 
 	/** The curve weights. This is updated after SetCurrentSampleIndex is called. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Data")
-	TArray<float> SampleCurveWeights;
+	TArray<float> SampleCurveValues;
+
+	/** The bone rotations in bone (local) space for this sample. This is updated after SetCurrentSampleIndex is called. Contains an xyzw (4 floats) for each bone. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Data")
+	TArray<float> SampleBoneRotations;
 
 	/** Mean delta computed over the entire dataset. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Data")
@@ -57,10 +67,6 @@ public:
 	/** Vertex delta scale computed over the entire dataset. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Data")
 	FVector VertexDeltaScale = FVector::OneVector;
-
-	/** The bone transformations in component space for this sample. This is updated after SetCurrentSampleIndex is called. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Data")
-	TArray<FTransform> SampleBoneTransforms;
 
 	/** The current sample index. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Training Data")
@@ -71,4 +77,5 @@ private:
 
 private:
 	TSharedPtr<FMLDeformerEditorData> EditorData;
+	TSharedPtr<FMLDeformerFrameCache> FrameCache;
 };

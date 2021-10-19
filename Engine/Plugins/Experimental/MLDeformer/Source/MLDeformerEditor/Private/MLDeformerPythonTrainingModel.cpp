@@ -4,10 +4,27 @@
 #include "UObject/UObjectHash.h"
 #include "MLDeformerAsset.h"
 #include "MLDeformerEditorData.h"
+#include "MLDeformerFrameCache.h"
 #include "MLPytorchDataSetInterface.h"
 
 UMLDeformerPythonTrainingModel::UMLDeformerPythonTrainingModel()
 {
+}
+
+UMLDeformerPythonTrainingModel::~UMLDeformerPythonTrainingModel()
+{
+	Clear();
+}
+
+// Trigger the frame cache to be deleted.
+void UMLDeformerPythonTrainingModel::Clear()
+{
+	if (DataSetInterface)
+	{
+		DataSetInterface->Clear();
+	}
+	EditorData.Reset();
+	FrameCache.Reset();
 }
 
 UMLDeformerPythonTrainingModel* UMLDeformerPythonTrainingModel::Get()
@@ -34,9 +51,15 @@ void UMLDeformerPythonTrainingModel::CreateDataSetInterface()
 		DataSetInterface = NewObject<UMLPytorchDataSetInterface>();
 	}
 	DataSetInterface->SetEditorData(EditorData);
+	DataSetInterface->SetFrameCache(FrameCache);
 }
 
 void UMLDeformerPythonTrainingModel::SetEditorData(TSharedPtr<FMLDeformerEditorData> InEditorData)
 {
 	EditorData = InEditorData;
+}
+
+void UMLDeformerPythonTrainingModel::SetFrameCache(TSharedPtr<FMLDeformerFrameCache> InFrameCache)
+{
+	FrameCache = InFrameCache;
 }

@@ -233,10 +233,11 @@ FString FMLDeformerInputInfo::GenerateCompatibilityErrorString(USkeletalMesh* Sk
 	return ErrorString;
 }
 
-void FMLDeformerInputInfo::ExtractCurveValues(UAnimInstance* AnimInstance, TArray<float>& OutValues) const
+void FMLDeformerInputInfo::ExtractCurveValues(USkeletalMeshComponent* SkelMeshComponent, TArray<float>& OutValues) const
 {
 	check(CurveNames.Num() == CurveNameStrings.Num());
-	
+
+	UAnimInstance* AnimInstance = SkelMeshComponent->GetAnimInstance();
 	const int32 NumCurves = CurveNames.Num();
 	OutValues.Reset(NumCurves);
 	OutValues.AddUninitialized(NumCurves);
@@ -244,6 +245,26 @@ void FMLDeformerInputInfo::ExtractCurveValues(UAnimInstance* AnimInstance, TArra
 	{
 		const FName CurveName = CurveNames[Index];
 		OutValues[Index] = AnimInstance->GetCurveValue(CurveName);
+	}
+}
+
+void FMLDeformerInputInfo::ExtractBoneRotations(USkeletalMeshComponent* SkelMeshComponent, TArray<float>& OutRotations) const
+{
+	const TArray<FTransform>& BoneTransforms = SkelMeshComponent->GetBoneSpaceTransforms();
+	const int32 NumBones = GetNumBones();
+	OutRotations.Reset(NumBones * 4); // xyzw
+	OutRotations.AddUninitialized(NumBones * 4);
+	for (int32 Index = 0; Index < NumBones; ++Index)
+	{
+		const FName BoneName = GetBoneName(Index);
+		const int32 SkelMeshBoneIndex = SkelMeshComponent->GetBoneIndex(BoneName);
+		check(SkelMeshBoneIndex != INDEX_NONE);
+		const int32 Offset = Index * 4;
+		const FQuat Rotation = BoneTransforms[SkelMeshBoneIndex].GetRotation();
+		OutRotations[Offset] = Rotation.X;
+		OutRotations[Offset+1] = Rotation.Y;
+		OutRotations[Offset+2] = Rotation.Z;
+		OutRotations[Offset+3] = Rotation.W;
 	}
 }
 

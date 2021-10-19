@@ -246,19 +246,14 @@ void FMLDeformerEditorMode::Tick(FEditorViewportClient* ViewportClient, float De
 	UMLDeformerAsset* DeformerAsset = Data->GetDeformerAsset();
 	const UMLDeformerVizSettings* VizSettings = DeformerAsset->GetVizSettings();
 
-	// Calculate the vertex positions when needed.
-	if ((VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData) && VizSettings->GetDrawVertex())
-	{
-		Data->UpdateDebugPointData();
-	}
-
 	UpdateActors();
 	UpdateLabels();
 
 	// Calculate the training deltas when needed.
-	if ((VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData) && VizSettings->GetDrawVertexDeltas())
+	if ((VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData) && 
+		(VizSettings->GetDrawVertex() || VizSettings->GetDrawVertexDeltas()))
 	{
-		Data->GenerateDeltas(0, VizSettings->FrameNumber, DeformerAsset->DeltaCutoffLength, Data->VertexDeltas);
+		Data->GenerateDeltas(0, VizSettings->FrameNumber, Data->VertexDeltas);
 	}
 
 	// Force us back into the pose we want to see.
