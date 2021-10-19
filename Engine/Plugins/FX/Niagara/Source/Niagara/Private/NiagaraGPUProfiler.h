@@ -62,7 +62,8 @@ public:
 	void EndDispatch(FRHICommandList& RHICmdList);
 
 private:
-	FGpuFrameData& GetWriteFrame() { return GpuFrames[CurrentWriteFrame]; }
+	FGpuFrameData& GetReadFrame() { check(CurrentReadFrame >= 0 && CurrentReadFrame < UE_ARRAY_COUNT(GpuFrames)); return GpuFrames[CurrentReadFrame]; }
+	FGpuFrameData& GetWriteFrame() { check(CurrentWriteFrame >= 0 && CurrentWriteFrame < UE_ARRAY_COUNT(GpuFrames)); return GpuFrames[CurrentWriteFrame]; }
 	bool ProcessFrame(FRHICommandListImmediate& RHICmdList, FGpuFrameData& ReadFrame);
 
 private:

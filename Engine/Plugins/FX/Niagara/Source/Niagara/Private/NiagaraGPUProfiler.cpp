@@ -49,7 +49,7 @@ void FNiagaraGPUProfiler::BeginFrame(FRHICommandListImmediate& RHICmdList)
 	// Process any frames that are potentially complete
 	while ( CurrentReadFrame != CurrentWriteFrame )
 	{
-		FGpuFrameData& ReadFrame = GpuFrames[CurrentReadFrame];
+		FGpuFrameData& ReadFrame = GetReadFrame();
 		if ( !ProcessFrame(RHICmdList, ReadFrame) )
 		{
 			break;
@@ -66,7 +66,7 @@ void FNiagaraGPUProfiler::BeginFrame(FRHICommandListImmediate& RHICmdList)
 	}
 
 	// Have a processed all previous data?
-	if (GpuFrames[CurrentWriteFrame].EndQuery.GetQuery() != nullptr)
+	if (GetWriteFrame().EndQuery.GetQuery() != nullptr)
 	{
 		return;
 	}
