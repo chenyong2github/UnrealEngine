@@ -6,6 +6,7 @@ PropertyIterrator.h: TPropertyIterator implementation.
 #pragma once
 
 #include "UObject/Field.h"
+#include "UObject/UObjectIterator.h"
 
 /**
  * Iterates over all structs and their properties
