@@ -29,6 +29,10 @@
 #endif
 
 TMap<URigVMController::FControlRigStructPinRedirectorKey, FString> URigVMController::PinPathCoreRedirectors;
+const TCHAR URigVMController::TArrayPrefix[] = TEXT("TArray<");
+const TCHAR URigVMController::TObjectPtrPrefix[] = TEXT("TObjectPtr<");
+const TCHAR URigVMController::TArrayTemplate[] = TEXT("TArray<%s>");
+const TCHAR URigVMController::TObjectPtrTemplate[] = TEXT("TObjectPtr<%s%s>");
 
 FRigVMControllerCompileBracketScope::FRigVMControllerCompileBracketScope(URigVMController* InController)
 : Graph(nullptr), bSuspendNotifications(InController->bSuspendNotifications)
@@ -978,11 +982,7 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 		InCPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPType);
 	}
 
-	FString CPPType = InCPPType;
-	if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InCPPTypeObject))
-	{
-		CPPType = ScriptStruct->GetStructCPPName();
-	}
+	FString CPPType = PostProcessCPPType(InCPPType, InCPPTypeObject, InCPPType.StartsWith(TArrayPrefix));
 	
 	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? FString(TEXT("VariableNode")) : InNodeName);
 	URigVMVariableNode* Node = NewObject<URigVMVariableNode>(Graph, *Name);
@@ -1014,16 +1014,21 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 		ValuePin->CPPTypeObject = ExternalVariable.TypeObject;
 		ValuePin->bIsDynamicArray = ExternalVariable.bIsArray;
 
-		if(ValuePin->bIsDynamicArray && !ValuePin->CPPType.StartsWith(TEXT("TArray<")))
+		if(ValuePin->bIsDynamicArray && !ValuePin->CPPType.StartsWith(TArrayPrefix))
 		{
-			ValuePin->CPPType = FString::Printf(TEXT("TArray<%s>"), *ValuePin->CPPType);
+			ValuePin->CPPType = FString::Printf(TArrayTemplate, *ValuePin->CPPType);
 		}
 	}
 	else
 	{
 		ValuePin->CPPType = CPPType;
 
-		if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InCPPTypeObject))
+		if (UClass* Class = Cast<UClass>(InCPPTypeObject))
+		{
+			ValuePin->CPPTypeObject = Class;
+			ValuePin->CPPTypeObjectPath = *ValuePin->CPPTypeObject->GetPathName();
+		}
+		else if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InCPPTypeObject))
 		{
 			ValuePin->CPPTypeObject = ScriptStruct;
 			ValuePin->CPPTypeObjectPath = *ValuePin->CPPTypeObject->GetPathName();
@@ -1604,28 +1609,18 @@ URigVMParameterNode* URigVMController::AddParameterNode(const FName& InParameter
 
 	if (DefaultValuePin)
 	{
-		DefaultValuePin->CPPType = InCPPType;
-	}
-	ValuePin->CPPType = InCPPType;
-
-	if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InCPPTypeObject))
-	{
-		if (DefaultValuePin)
+		DefaultValuePin->CPPType = PostProcessCPPType(InCPPType, InCPPTypeObject, InCPPType.StartsWith(TArrayPrefix));
+		DefaultValuePin->CPPTypeObject = InCPPTypeObject;
+		if(DefaultValuePin->CPPTypeObject)
 		{
-			DefaultValuePin->CPPTypeObject = ScriptStruct;
 			DefaultValuePin->CPPTypeObjectPath = *DefaultValuePin->CPPTypeObject->GetPathName();
 		}
-		ValuePin->CPPTypeObject = ScriptStruct;
-		ValuePin->CPPTypeObjectPath = *ValuePin->CPPTypeObject->GetPathName();
 	}
-	else if (UEnum* Enum = Cast<UEnum>(InCPPTypeObject))
+	
+	ValuePin->CPPType = PostProcessCPPType(InCPPType, InCPPTypeObject, InCPPType.StartsWith(TArrayPrefix));
+	ValuePin->CPPTypeObject = InCPPTypeObject;
+	if(ValuePin->CPPTypeObject)
 	{
-		if (DefaultValuePin)
-		{
-			DefaultValuePin->CPPTypeObject = Enum;
-			DefaultValuePin->CPPTypeObjectPath = *DefaultValuePin->CPPTypeObject->GetPathName();
-		}
-		ValuePin->CPPTypeObject = Enum;
 		ValuePin->CPPTypeObjectPath = *ValuePin->CPPTypeObject->GetPathName();
 	}
 
@@ -6062,7 +6057,11 @@ bool URigVMController::SetPinDefaultValue(const FString& InPinPath, const FStrin
 bool URigVMController::SetPinDefaultValue(URigVMPin* InPin, const FString& InDefaultValue, bool bResizeArrays, bool bSetupUndoRedo, bool bMergeUndoAction, bool bNotify)
 {
 	check(InPin);
-	ensure(!InDefaultValue.IsEmpty());
+
+	if(!InPin->IsUObject())
+	{
+		ensure(!InDefaultValue.IsEmpty());
+	}
 
 	TGuardValue<bool> Guard(bSuspendNotifications, !bNotify);
 
@@ -7496,7 +7495,7 @@ FName URigVMController::AddExposedPin(const FName& InPinName, ERigVMPinDirection
 	}, false, true);
 
 	URigVMPin* Pin = NewObject<URigVMPin>(LibraryNode, PinName);
-	Pin->CPPType = InCPPType;
+	Pin->CPPType = PostProcessCPPType(InCPPType, CPPTypeObject, InCPPType.StartsWith(TArrayPrefix));
 	Pin->CPPTypeObjectPath = InCPPTypeObjectPath;
 	Pin->bIsConstant = false;
 	Pin->Direction = InDirection;
@@ -9363,7 +9362,6 @@ URigVMIfNode* URigVMController::AddIfNode(const FString& InCPPType, const FName&
 
 	ensure(!InCPPType.IsEmpty());
 
-	FString CPPType = InCPPType;
 	UObject* CPPTypeObject = nullptr;
 	if(!InCPPTypeObjectPath.IsNone())
 	{
@@ -9375,6 +9373,8 @@ URigVMIfNode* URigVMController::AddIfNode(const FString& InCPPType, const FName&
 		}
 	}
 
+	FString CPPType = PostProcessCPPType(InCPPType, CPPTypeObject, InCPPType.StartsWith(TArrayPrefix));
+
 	FString DefaultValue;
 	if(UScriptStruct* ScriptStruct = Cast<UScriptStruct>(CPPTypeObject))
 	{
@@ -9384,8 +9384,6 @@ URigVMIfNode* URigVMController::AddIfNode(const FString& InCPPType, const FName&
 			return nullptr;
 		}
 		CreateDefaultValueForStructIfRequired(ScriptStruct, DefaultValue);
-
-		CPPType = ScriptStruct->GetStructCPPName();
 	}
 	
 	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? FString(TEXT("IfNode")) : InNodeName);
@@ -9479,7 +9477,6 @@ URigVMSelectNode* URigVMController::AddSelectNode(const FString& InCPPType, cons
 
 	ensure(!InCPPType.IsEmpty());
 
-	FString CPPType = InCPPType;
 	UObject* CPPTypeObject = nullptr;
 	if (!InCPPTypeObjectPath.IsNone())
 	{
@@ -9491,6 +9488,8 @@ URigVMSelectNode* URigVMController::AddSelectNode(const FString& InCPPType, cons
 		}
 	}
 
+	FString CPPType = PostProcessCPPType(InCPPType, CPPTypeObject, InCPPType.StartsWith(TArrayPrefix));
+
 	FString DefaultValue;
 	if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(CPPTypeObject))
 	{
@@ -9500,8 +9499,6 @@ URigVMSelectNode* URigVMController::AddSelectNode(const FString& InCPPType, cons
 			return nullptr;
 		}
 		CreateDefaultValueForStructIfRequired(ScriptStruct, DefaultValue);
-
-		CPPType = ScriptStruct->GetStructCPPName();
 	}
 
 	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? FString(TEXT("IfNode")) : InNodeName);
@@ -9514,7 +9511,7 @@ URigVMSelectNode* URigVMController::AddSelectNode(const FString& InCPPType, cons
 	AddNodePin(Node, IndexPin);
 
 	URigVMPin* ValuePin = NewObject<URigVMPin>(Node, *URigVMSelectNode::ValueName);
-	ValuePin->CPPType = FString::Printf(TEXT("TArray<%s>"), *CPPType);
+	ValuePin->CPPType = FString::Printf(TArrayTemplate, *CPPType);
 	ValuePin->CPPTypeObject = CPPTypeObject;
 	ValuePin->CPPTypeObjectPath = InCPPTypeObjectPath;
 	ValuePin->Direction = ERigVMPinDirection::Input;
@@ -9758,11 +9755,7 @@ URigVMArrayNode* URigVMController::AddArrayNode(ERigVMOpCode InOpCode, const FSt
 		InCPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPType);
 	}
 
-	FString CPPType = InCPPType;
-	if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InCPPTypeObject))
-	{
-		CPPType = ScriptStruct->GetStructCPPName();
-	}
+	FString CPPType = PostProcessCPPType(InCPPType, InCPPTypeObject, InCPPType.StartsWith(TArrayPrefix));
 	
 	const FString Name = GetValidNodeName(InNodeName.IsEmpty() ? FString(TEXT("ArrayNode")) : InNodeName);
 	URigVMArrayNode* Node = NewObject<URigVMArrayNode>(Graph, *Name);
@@ -9780,13 +9773,9 @@ URigVMArrayNode* URigVMController::AddArrayNode(ERigVMOpCode InOpCode, const FSt
 			{
 				Pin->CPPTypeObjectPath = *Pin->CPPTypeObject->GetPathName();
 			}
-			if(UScriptStruct* Struct = Cast<UScriptStruct>(Pin->CPPTypeObject))
+			if(bIsArray && !Pin->CPPType.StartsWith(TArrayPrefix))
 			{
-				Pin->CPPType = Struct->GetStructCPPName();
-			}
-			if(bIsArray && !Pin->CPPType.StartsWith(TEXT("TArray<")))
-			{
-				Pin->CPPType = FString::Printf(TEXT("TArray<%s>"), *Pin->CPPType);
+				Pin->CPPType = FString::Printf(TArrayTemplate, *Pin->CPPType);
 			}
 			Pin->Direction = InDirection;
 			Pin->bIsDynamicArray = bIsArray;
@@ -10556,6 +10545,10 @@ void URigVMController::ConfigurePinFromProperty(FProperty* InProperty, URigVMPin
 	if (FStructProperty* StructProperty = CastField<FStructProperty>(PropertyForType))
 	{
 		InOutPin->CPPTypeObject = StructProperty->Struct;
+	}
+	else if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(PropertyForType))
+	{
+		InOutPin->CPPTypeObject = ObjectProperty->PropertyClass;
 	}
 	else if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(PropertyForType))
 	{
@@ -11780,6 +11773,34 @@ void URigVMController::PostProcessDefaultValue(URigVMPin* Pin, FString& OutDefau
 	}
 }
 
+FString URigVMController::PostProcessCPPType(const FString& InCPPType, UObject* InCPPTypeObject, bool bIsArray)
+{
+	FString CPPType = InCPPType;
+	
+	if (const UClass* Class = Cast<UClass>(InCPPTypeObject))
+	{
+		CPPType = FString::Printf(TObjectPtrTemplate, Class->GetPrefixCPP(), *Class->GetName());
+	}
+	else if (const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InCPPTypeObject))
+	{
+		CPPType = ScriptStruct->GetStructCPPName();
+	}
+	else if (UEnum* Enum = Cast<UEnum>(InCPPTypeObject))
+	{
+		CPPType = Enum->CppType;
+	}
+
+	if(bIsArray)
+	{
+		if(!CPPType.StartsWith(TArrayPrefix))
+		{
+			CPPType = FString::Printf(TArrayTemplate, *CPPType);
+		}
+	}
+	
+	return CPPType;
+}
+
 /*
 void URigVMController::PotentiallyResolvePrototypeNode(URigVMPrototypeNode* InNode, bool bSetupUndoRedo)
 {
@@ -11929,7 +11950,7 @@ void URigVMController::ResolveUnknownTypePin(URigVMPin* InPinToResolve, const UR
 	FString ResolvedCPPType = InTemplatePin->IsArray() ? InTemplatePin->GetArrayElementCppType() : InTemplatePin->GetCPPType();
 	if(InPinToResolve->IsArray())
 	{
-		ResolvedCPPType = FString::Printf(TEXT("TArray<%s>"), *ResolvedCPPType);
+		ResolvedCPPType = FString::Printf(TArrayTemplate, *ResolvedCPPType);
 	}
 
 	if(!ChangePinType(InPinToResolve, ResolvedCPPType, InTemplatePin->GetCPPTypeObject(), bSetupUndoRedo, false, false, false))
@@ -12216,18 +12237,7 @@ bool URigVMController::EnsurePinValidity(URigVMPin* InPin, bool bRecursive)
 		}
 	}
 
-	if(const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InPin->GetCPPTypeObject()))
-	{
-		if(InPin->IsArray())
-		{
-			static const TCHAR TemplateTArray[] = TEXT("TArray<%s>");
-			InPin->CPPType = FString::Printf(TemplateTArray, *ScriptStruct->GetStructCPPName());
-		}
-		else
-		{
-			InPin->CPPType = ScriptStruct->GetStructCPPName();
-		}
-	}
+	InPin->CPPType = PostProcessCPPType(InPin->CPPType, InPin->GetCPPTypeObject(), InPin->IsArray());
 
 	if(bRecursive)
 	{

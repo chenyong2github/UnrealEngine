@@ -853,6 +853,7 @@ private:
 	static FLinearColor GetColorFromMetadata(const FString& InMetadata);
 	static void CreateDefaultValueForStructIfRequired(UScriptStruct* InStruct, FString& InOutDefaultValue);
 	static void PostProcessDefaultValue(URigVMPin* Pin, FString& OutDefaultValue);
+	static FString PostProcessCPPType(const FString& InCPPType, UObject* InCPPTypeObject, bool bIsArray);
 
 	/*
 	void PotentiallyResolvePrototypeNode(URigVMPrototypeNode* InNode, bool bSetupUndoRedo);
@@ -887,7 +888,11 @@ private:
 	static FString GetSanitizedPinName(const FString& InName);
 	static FString GetSanitizedPinPath(const FString& InName);
 	static void SanitizeName(FString& InOutName, bool bAllowPeriod, bool bAllowSpace);
-	
+	static const TCHAR TArrayPrefix[];
+	static const TCHAR TObjectPtrPrefix[];
+	static const TCHAR TArrayTemplate[];
+	static const TCHAR TObjectPtrTemplate[];
+
 	UPROPERTY(transient)
 	TArray<TObjectPtr<URigVMGraph>> Graphs;
 
@@ -945,6 +950,7 @@ private:
 	bool bIsRunningUnitTest;
 
 	friend class URigVMGraph;
+	friend class URigVMPin;
 	friend class URigVMActionStack;
 	friend class URigVMCompiler;
 	friend struct FRigVMControllerObjectFactory;

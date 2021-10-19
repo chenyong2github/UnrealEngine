@@ -782,6 +782,10 @@ bool UControlRigGraphSchema::SupportsPinType(UScriptStruct* ScriptStruct) const
 				continue;
 			}
 		}
+		else if (CastField<FObjectProperty>(Property))
+		{
+			continue;
+		}
 	
 		return false;
 	}
@@ -807,6 +811,16 @@ bool UControlRigGraphSchema::SupportsPinType(TWeakPtr<const FEdGraphSchemaAction
 		TypeName == UEdGraphSchema_K2::PC_Enum)
 	{
 		return true;
+	}
+
+	if (PinType.PinCategory == UEdGraphSchema_K2::PC_Object ||
+		PinType.PinCategory == UEdGraphSchema_K2::PC_SoftObject ||
+		PinType.PinCategory == UEdGraphSchema_K2::AllObjectTypes)
+	{
+		if (PinType.PinSubCategoryObject.IsValid())
+		{
+			return PinType.PinSubCategoryObject->IsA<UClass>();
+		}
 	}
 
 	if (PinType.PinCategory == UEdGraphSchema_K2::PC_Struct)

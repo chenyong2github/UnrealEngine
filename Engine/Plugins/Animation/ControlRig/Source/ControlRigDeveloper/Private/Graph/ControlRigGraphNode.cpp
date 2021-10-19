@@ -889,6 +889,19 @@ void UControlRigGraphNode::CopyPinDefaultsToModel(UEdGraphPin* Pin, bool bUndo, 
 		}
 
 		FString DefaultValue = Pin->DefaultValue;
+
+		if(DefaultValue.IsEmpty() && (
+			Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object ||
+			Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_SoftObject ||
+			Pin->PinType.PinCategory == UEdGraphSchema_K2::AllObjectTypes
+			))
+		{
+			if(Pin->DefaultObject)
+			{
+				DefaultValue = Pin->DefaultObject->GetPathName();
+			}
+		}
+		
 		if (DefaultValue == FName(NAME_None).ToString() && Pin->PinType.PinSubCategory == UEdGraphSchema_K2::PC_Name)
 		{
 			DefaultValue = FString();
@@ -1140,6 +1153,11 @@ FEdGraphPinType UControlRigGraphNode::GetPinTypeForModelPin(URigVMPin* InModelPi
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Struct;
 		PinType.PinSubCategoryObject = InModelPin->GetScriptStruct();
+	}
+	else if (InModelPin->IsUObject())
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Object;
+		PinType.PinSubCategoryObject = InModelPin->GetCPPTypeObject();
 	}
 	else if (InModelPin->GetEnum() != nullptr)
 		{

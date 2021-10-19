@@ -118,6 +118,11 @@ public:
 			PinType.PinCategory = UEdGraphSchema_K2::PC_Byte;
 			PinType.PinSubCategoryObject = CPPTypeObject;
 		}
+		else if (Cast<UClass>(CPPTypeObject))
+		{
+			PinType.PinCategory = UEdGraphSchema_K2::PC_Object;
+			PinType.PinSubCategoryObject = CPPTypeObject;
+		}
 
 		return PinType;
 	}
@@ -164,6 +169,16 @@ public:
 			{
 				OutCPPType = Prefix + *Struct->GetStructCPPName() + Suffix;
 				OutCPPTypeObject = Struct;
+			}
+		}
+		else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Object ||
+			InPinType.PinCategory == UEdGraphSchema_K2::PC_SoftObject ||
+			InPinType.PinCategory == UEdGraphSchema_K2::AllObjectTypes)
+		{
+			if (UClass* Class = Cast<UClass>(InPinType.PinSubCategoryObject))
+			{
+				OutCPPType = Prefix + FString::Printf(TEXT("TObjectPtr<%s%s>"), Class->GetPrefixCPP(), *Class->GetName()) + Suffix;
+				OutCPPTypeObject = Class;
 			}
 		}
 		else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Byte ||
