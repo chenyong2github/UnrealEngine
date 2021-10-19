@@ -405,9 +405,8 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 			GPUExecContext = new FNiagaraComputeExecutionContext();
 			GPUExecContext->InitParams(CachedEmitter->GetGPUComputeScript(), CachedEmitter->SimTarget);
 			GPUExecContext->SetDebugSimName(CachedEmitter->GetDebugSimName());
-#if STATS
-			GPUExecContext->EmitterPtr = GetEmitterHandle().GetInstance();
-#endif
+			GPUExecContext->ProfilingComponentPtr = ParentSystemInstance ? ParentSystemInstance->GetAttachComponent() : nullptr;
+			GPUExecContext->ProfilingEmitterPtr = GetEmitterHandle().GetInstance();
 			GPUExecContext->MainDataSet = ParticleDataSet;
 			GPUExecContext->GPUScript_RT = CachedEmitter->GetGPUComputeScript()->GetRenderThreadScript();
 		}

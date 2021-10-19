@@ -143,6 +143,8 @@ void UFXSystemAsset::PostInitProperties()
 	CSVStat_InstAvgGT = *FString::Printf(TEXT("InstAvgGT/%s"), *GetFName().ToString());
 	CSVStat_RT = *FString::Printf(TEXT("RT/%s"), *GetFName().ToString());
 	CSVStat_InstAvgRT = *FString::Printf(TEXT("InstAvgRT/%s"), *GetFName().ToString());
+	CSVStat_GPU = *FString::Printf(TEXT("GPU/%s"), *GetFName().ToString());
+	CSVStat_InstAvgGPU = *FString::Printf(TEXT("InstAvgGPU/%s"), *GetFName().ToString());
 	CSVStat_Count = *FString::Printf(TEXT("Count/%s"), *GetFName().ToString());
 	CSVStat_Activation = *FString::Printf(TEXT("Activation/%s"), *GetFName().ToString());
 	CSVStat_Waits = *FString::Printf(TEXT("Waits/%s"), *GetFName().ToString());

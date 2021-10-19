@@ -541,6 +541,7 @@ void FParticlePerfStats::ResetRT()
 {
 	check(IsInActualRenderingThread());
 	GetRenderThreadStats().Reset();
+	GetGPUStats().Reset();
 }
 
 FParticlePerfStats::FParticlePerfStats()
@@ -580,6 +581,7 @@ void FParticlePerfStats::TickRT()
 {	
 	check(IsInRenderingThread());
 	GetRenderThreadStats().Reset();
+	GetGPUStats().Reset();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -648,6 +650,36 @@ void FAccumulatedParticlePerfStats_RT::Tick(FParticlePerfStats& Stats)
 
 //////////////////////////////////////////////////////////////////////////
 
+FAccumulatedParticlePerfStats_GPU::FAccumulatedParticlePerfStats_GPU()
+{
+	Reset();
+}
+
+void FAccumulatedParticlePerfStats_GPU::Reset()
+{
+	FAccumulatedParticlePerfStats::ResetMaxArray(MaxPerFrameTotalMicroseconds);
+	FAccumulatedParticlePerfStats::ResetMaxArray(MaxPerInstanceMicroseconds);
+
+	NumFrames = 0;
+	AccumulatedStats.Reset();
+}
+
+void FAccumulatedParticlePerfStats_GPU::Tick(FParticlePerfStats& Stats)
+{
+	FParticlePerfStats_GPU& GPUStats = Stats.GetGPUStats();
+	if (GPUStats.NumInstances > 0)
+	{
+		++NumFrames;
+		AccumulatedStats.NumInstances += GPUStats.NumInstances;
+		AccumulatedStats.TotalMicroseconds += GPUStats.TotalMicroseconds;
+
+		FAccumulatedParticlePerfStats::AddMax(MaxPerFrameTotalMicroseconds, GPUStats.GetTotalMicroseconds());
+		FAccumulatedParticlePerfStats::AddMax(MaxPerInstanceMicroseconds, GPUStats.GetPerInstanceAvgMicroseconds());
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+
 FAccumulatedParticlePerfStats::FAccumulatedParticlePerfStats()
 {
 	ResetGT();
@@ -662,6 +694,7 @@ void FAccumulatedParticlePerfStats::ResetGT()
 void FAccumulatedParticlePerfStats::ResetRT()
 {
 	RenderThreadStats.Reset();
+	GPUStats.Reset();
 }
 
 void FAccumulatedParticlePerfStats::Reset(bool bSyncWithRT)
@@ -696,6 +729,7 @@ void FAccumulatedParticlePerfStats::TickRT(FParticlePerfStats& Stats)
 {
 	check(IsInActualRenderingThread());
 	RenderThreadStats.Tick(Stats);
+	GPUStats.Tick(Stats);
 }
 
 void FAccumulatedParticlePerfStats::AddMax(TArray<uint64, TInlineAllocator<ACCUMULATED_PARTICLE_PERF_STAT_MAX_SAMPLES>>& MaxArray, int64 NewValue)
@@ -899,48 +933,48 @@ void FParticlePerfStatsListener_GatherAll::DumpStatsToDevice(FOutputDevice& Ar)
 			return;
 		}
 
-		const FAccumulatedParticlePerfStats_GT& GTSTats = PerfStats->GetGameThreadStats();
-		const FAccumulatedParticlePerfStats_RT& RTSTats = PerfStats->GetRenderThreadStats_GameThread();
+		const FAccumulatedParticlePerfStats_GT& GTStats = PerfStats->GetGameThreadStats();
+		const FAccumulatedParticlePerfStats_RT& RTStats = PerfStats->GetRenderThreadStats();
 
-		if ((GTSTats.NumFrames == 0 && RTSTats.NumFrames == 0) || (GTSTats.AccumulatedStats.NumInstances == 0 && RTSTats.AccumulatedStats.NumInstances == 0))
+		if ((GTStats.NumFrames == 0 && RTStats.NumFrames == 0) || (GTStats.AccumulatedStats.NumInstances == 0 && RTStats.AccumulatedStats.NumInstances == 0))
 		{
 			return;
 		}
 
-		const uint64 TotalGameThread = GTSTats.GetTotalCycles();
-		const uint64 TotalRenderThread = RTSTats.GetTotalCycles();
+		const uint64 TotalGameThread = GTStats.GetTotalCycles();
+		const uint64 TotalRenderThread = RTStats.GetTotalCycles();
 
-		const uint64 MaxPerFrameTotalGameThreadFirst = GTSTats.MaxPerFrameTotalCycles.Num() > 0 ? GTSTats.MaxPerFrameTotalCycles[0] : 0;
-		const uint64 MaxPerFrameTotalGameThreadLast = GTSTats.MaxPerFrameTotalCycles.Num() > 0 ? GTSTats.MaxPerFrameTotalCycles.Last() : 0;
+		const uint64 MaxPerFrameTotalGameThreadFirst = GTStats.MaxPerFrameTotalCycles.Num() > 0 ? GTStats.MaxPerFrameTotalCycles[0] : 0;
+		const uint64 MaxPerFrameTotalGameThreadLast = GTStats.MaxPerFrameTotalCycles.Num() > 0 ? GTStats.MaxPerFrameTotalCycles.Last() : 0;
 
-		const uint64 MaxPerFrameTotalRenderThreadFirst = RTSTats.MaxPerFrameTotalCycles.Num() > 0 ? RTSTats.MaxPerFrameTotalCycles[0] : 0;
-		const uint64 MaxPerFrameTotalRenderThreadLast = RTSTats.MaxPerFrameTotalCycles.Num() > 0 ? RTSTats.MaxPerFrameTotalCycles.Last() : 0;
+		const uint64 MaxPerFrameTotalRenderThreadFirst = RTStats.MaxPerFrameTotalCycles.Num() > 0 ? RTStats.MaxPerFrameTotalCycles[0] : 0;
+		const uint64 MaxPerFrameTotalRenderThreadLast = RTStats.MaxPerFrameTotalCycles.Num() > 0 ? RTStats.MaxPerFrameTotalCycles.Last() : 0;
 		//TODO: Add per instance max?
 
 		tempString.Reset();
 		tempString.Appendf(TEXT(",%s"), *Name);
-		tempString.Appendf(TEXT(",%u"), uint32(FPlatformTime::ToMilliseconds64(GTSTats.GetPerFrameAvgCycles()) * 1000.0));
-		tempString.Appendf(TEXT(",%u"), uint32(FPlatformTime::ToMilliseconds64(GTSTats.GetPerInstanceAvgCycles()) * 1000.0));
-		tempString.Appendf(TEXT(",%u"), uint32(FPlatformTime::ToMilliseconds64(RTSTats.GetPerFrameAvgCycles()) * 1000.0));
-		tempString.Appendf(TEXT(",%u"), uint32(FPlatformTime::ToMilliseconds64(RTSTats.GetPerInstanceAvgCycles()) * 1000.0));
-		tempString.Appendf(TEXT(",%u"), uint32(GTSTats.NumFrames));
-		tempString.Appendf(TEXT(",%u"), uint32(GTSTats.AccumulatedStats.NumInstances));
-		tempString.Appendf(TEXT(",%u"), uint32(FPlatformTime::ToMilliseconds64(GTSTats.AccumulatedStats.TickGameThreadCycles) * 1000.0));
-		tempString.Appendf(TEXT(",%u"), uint32(FPlatformTime::ToMilliseconds64(GTSTats.AccumulatedStats.TickConcurrentCycles) * 1000.0));
-		tempString.Appendf(TEXT(",%u"), uint32(FPlatformTime::ToMilliseconds64(GTSTats.AccumulatedStats.FinalizeCycles) * 1000.0));
-		tempString.Appendf(TEXT(",%u"), uint32(FPlatformTime::ToMilliseconds64(GTSTats.AccumulatedStats.EndOfFrameCycles) * 1000.0));
-		tempString.Appendf(TEXT(",%u"), uint32(FPlatformTime::ToMilliseconds64(RTSTats.AccumulatedStats.RenderUpdateCycles) * 1000.0));
-		tempString.Appendf(TEXT(",%u"), uint32(FPlatformTime::ToMilliseconds64(RTSTats.AccumulatedStats.GetDynamicMeshElementsCycles) * 1000.0));
+		tempString.Appendf(TEXT(",%u"), uint32(FPlatformTime::ToMilliseconds64(GTStats.GetPerFrameAvgCycles()) * 1000.0));
+		tempString.Appendf(TEXT(",%u"), uint32(FPlatformTime::ToMilliseconds64(GTStats.GetPerInstanceAvgCycles()) * 1000.0));
+		tempString.Appendf(TEXT(",%u"), uint32(FPlatformTime::ToMilliseconds64(RTStats.GetPerFrameAvgCycles()) * 1000.0));
+		tempString.Appendf(TEXT(",%u"), uint32(FPlatformTime::ToMilliseconds64(RTStats.GetPerInstanceAvgCycles()) * 1000.0));
+		tempString.Appendf(TEXT(",%u"), uint32(GTStats.NumFrames));
+		tempString.Appendf(TEXT(",%u"), uint32(GTStats.AccumulatedStats.NumInstances));
+		tempString.Appendf(TEXT(",%u"), uint32(FPlatformTime::ToMilliseconds64(GTStats.AccumulatedStats.TickGameThreadCycles) * 1000.0));
+		tempString.Appendf(TEXT(",%u"), uint32(FPlatformTime::ToMilliseconds64(GTStats.AccumulatedStats.TickConcurrentCycles) * 1000.0));
+		tempString.Appendf(TEXT(",%u"), uint32(FPlatformTime::ToMilliseconds64(GTStats.AccumulatedStats.FinalizeCycles) * 1000.0));
+		tempString.Appendf(TEXT(",%u"), uint32(FPlatformTime::ToMilliseconds64(GTStats.AccumulatedStats.EndOfFrameCycles) * 1000.0));
+		tempString.Appendf(TEXT(",%u"), uint32(FPlatformTime::ToMilliseconds64(RTStats.AccumulatedStats.RenderUpdateCycles) * 1000.0));
+		tempString.Appendf(TEXT(",%u"), uint32(FPlatformTime::ToMilliseconds64(RTStats.AccumulatedStats.GetDynamicMeshElementsCycles) * 1000.0));
 
-		tempString.Appendf(TEXT(",%u,[ "), uint32(FPlatformTime::ToMilliseconds64(GTSTats.MaxPerFrameTotalCycles.Num() > 0 ? GTSTats.MaxPerFrameTotalCycles[0] : 0) * 1000.0));
-		for (uint64 v : GTSTats.MaxPerFrameTotalCycles)
+		tempString.Appendf(TEXT(",%u,[ "), uint32(FPlatformTime::ToMilliseconds64(GTStats.MaxPerFrameTotalCycles.Num() > 0 ? GTStats.MaxPerFrameTotalCycles[0] : 0) * 1000.0));
+		for (uint64 v : GTStats.MaxPerFrameTotalCycles)
 		{
 			tempString.Appendf(TEXT("%u "), uint32(FPlatformTime::ToMilliseconds64(v) * 1000.0));
 		}
 		tempString.Append(TEXT("]"));
 
-		tempString.Appendf(TEXT(",%u,[ "), uint32(FPlatformTime::ToMilliseconds64(RTSTats.MaxPerInstanceCycles.Num() > 0 ? RTSTats.MaxPerInstanceCycles[0] : 0) * 1000.0));
-		for (uint64 v : RTSTats.MaxPerFrameTotalCycles)
+		tempString.Appendf(TEXT(",%u,[ "), uint32(FPlatformTime::ToMilliseconds64(RTStats.MaxPerInstanceCycles.Num() > 0 ? RTStats.MaxPerInstanceCycles[0] : 0) * 1000.0));
+		for (uint64 v : RTStats.MaxPerFrameTotalCycles)
 		{
 			tempString.Appendf(TEXT("%u "), uint32(FPlatformTime::ToMilliseconds64(v) * 1000.0));
 		}
@@ -1163,7 +1197,6 @@ bool FParticlePerfStatsListener_CSVProfiler::Tick()
 	return false;
 }
 
-
 void FParticlePerfStatsListener_CSVProfiler::TickRT()
 {
 	FParticlePerfStatsListener_GatherAll::TickRT();
@@ -1175,17 +1208,21 @@ void FParticlePerfStatsListener_CSVProfiler::TickRT()
 			{
 				if (const UFXSystemAsset* System = WeakSystem.Get())
 				{
-					float RTTime = FPlatformTime::ToMilliseconds64(Stats->GetRenderThreadStats().GetTotalCycles()) * 1000.0f;
-					float AvgTime = FPlatformTime::ToMilliseconds64(Stats->GetRenderThreadStats().GetPerInstanceAvgCycles()) * 1000.0f;
+					const float RTTime = FPlatformTime::ToMilliseconds64(Stats->GetRenderThreadStats().GetTotalCycles()) * 1000.0f;
+					const float RTAvgTime = FPlatformTime::ToMilliseconds64(Stats->GetRenderThreadStats().GetPerInstanceAvgCycles()) * 1000.0f;
 					CSVProfiler->RecordCustomStat(System->CSVStat_RT, CSV_CATEGORY_INDEX(Particles), RTTime, ECsvCustomStatOp::Set);
-					CSVProfiler->RecordCustomStat(System->CSVStat_InstAvgRT, CSV_CATEGORY_INDEX(Particles), AvgTime, ECsvCustomStatOp::Set);
+					CSVProfiler->RecordCustomStat(System->CSVStat_InstAvgRT, CSV_CATEGORY_INDEX(Particles), RTAvgTime, ECsvCustomStatOp::Set);
+
+					const float GpuTime = float(Stats->GetGPUStats().GetTotalMicroseconds());
+					const float GpuAvgTime = float(Stats->GetGPUStats().GetPerInstanceAvgMicroseconds());
+					CSVProfiler->RecordCustomStat(System->CSVStat_GPU, CSV_CATEGORY_INDEX(Particles), GpuTime, ECsvCustomStatOp::Set);
+					CSVProfiler->RecordCustomStat(System->CSVStat_InstAvgGPU, CSV_CATEGORY_INDEX(Particles), GpuAvgTime, ECsvCustomStatOp::Set);
 				}
 			}
 		);
 #endif
 	}
 }
-
 
 void FParticlePerfStatsListener_CSVProfiler::End()
 {
@@ -1250,7 +1287,7 @@ int32 FParticlePerfStatsListener_DebugRender::RenderStats(class UWorld* World, c
 		}
 
 		const FAccumulatedParticlePerfStats_GT& GTStats = PerfStats->GetGameThreadStats();
-		const FAccumulatedParticlePerfStats_RT& RTStats = PerfStats->GetRenderThreadStats_GameThread();
+		const FAccumulatedParticlePerfStats_RT& RTStats = PerfStats->GetRenderThreadStats();
 		const UFXSystemAsset* System = it.Key().Get();
 		if (GTStats.NumFrames == 0 || RTStats.NumFrames == 0 || System == nullptr)
 		{

@@ -56,6 +56,11 @@ public:
 	FNiagaraGpuComputeDebug* GetGpuComputeDebug() const { return GpuComputeDebugPtr.Get(); }
 #endif
 
+#if WITH_NIAGARA_GPU_PROFILER
+	/** Access to Niagara's GPU Profiler */
+	virtual class FNiagaraGPUProfilerInterface* GetGPUProfiler() const = 0;
+#endif
+
 	/** Get access to Niagara's GpuReadbackManager. */
 	FNiagaraGpuReadbackManager* GetGpuReadbackManager() const { return GpuReadbackManagerPtr.Get(); }
 

@@ -5,12 +5,14 @@
 #include "CoreMinimal.h"
 #include "Engine/EngineBaseTypes.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "UObject/ObjectMacros.h"
-#include "NiagaraTypes.h"
 #include "Engine/BlueprintGeneratedClass.h"
-#include "NiagaraCore.h"
+#include "Particles/ParticlePerfStats.h"
 #include "UObject/ObjectKey.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/WeakFieldPtr.h"
+
+#include "NiagaraTypes.h"
+#include "NiagaraCore.h"
 #include "NiagaraCommon.generated.h"
 
 class UNiagaraComponent;
@@ -31,6 +33,9 @@ struct FNiagaraParameterStore;
 #ifndef NIAGARA_COMPUTEDEBUG_ENABLED
 	#define NIAGARA_COMPUTEDEBUG_ENABLED WITH_EDITOR
 #endif
+
+#define WITH_NIAGARA_GPU_PROFILER_EDITOR (WITH_EDITOR && STATS)
+#define WITH_NIAGARA_GPU_PROFILER ((WITH_PARTICLE_PERF_STATS && !UE_BUILD_SHIPPING) || WITH_NIAGARA_GPU_PROFILER_EDITOR)
 
 #define INTERPOLATED_PARAMETER_PREFIX TEXT("PREV_")
 

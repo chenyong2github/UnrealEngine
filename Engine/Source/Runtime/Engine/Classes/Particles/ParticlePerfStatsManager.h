@@ -60,7 +60,7 @@ struct ENGINE_API FAccumulatedParticlePerfStats_RT
 	TArray<uint64, TInlineAllocator<ACCUMULATED_PARTICLE_PERF_STAT_MAX_SAMPLES>>	MaxPerInstanceCycles;
 
 	FAccumulatedParticlePerfStats_RT();
-	FORCEINLINE void Reset();
+	void Reset();
 	void Tick(FParticlePerfStats& Stats);
 
 	/** Returns the total cycles used by all RenderThread stats. */
@@ -87,6 +87,28 @@ struct ENGINE_API FAccumulatedParticlePerfStats_RT
 	FORCEINLINE double GetPerInstanceMax(int32 Index = 0)const { return FPlatformTime::ToMilliseconds64(GetPerInstanceMaxCycles(Index)) * 1000.0; }
 };
 
+struct ENGINE_API FAccumulatedParticlePerfStats_GPU
+{
+	uint32 NumFrames;
+	FParticlePerfStats_GPU AccumulatedStats;
+
+	TArray<uint64, TInlineAllocator<ACCUMULATED_PARTICLE_PERF_STAT_MAX_SAMPLES>>	MaxPerFrameTotalMicroseconds;
+	TArray<uint64, TInlineAllocator<ACCUMULATED_PARTICLE_PERF_STAT_MAX_SAMPLES>>	MaxPerInstanceMicroseconds;
+
+	FAccumulatedParticlePerfStats_GPU();
+	void Reset();
+	void Tick(FParticlePerfStats& Stats);
+
+	/** Returns the total microseconds used by GPU. */
+	FORCEINLINE uint64 GetTotalMicroseconds() const { return AccumulatedStats.GetTotalMicroseconds(); }
+
+	FORCEINLINE uint64 GetPerFrameAvgMicroseconds() const { return NumFrames > 0 ? AccumulatedStats.GetTotalMicroseconds() / NumFrames : 0; }
+	FORCEINLINE uint64 GetPerFrameMaxMicroseconds(int32 Index = 0) const { return MaxPerFrameTotalMicroseconds[Index]; }
+
+	FORCEINLINE uint64 GetPerInstanceAvgMicroseconds()const { return AccumulatedStats.GetPerInstanceAvgMicroseconds(); }
+	FORCEINLINE uint64 GetPerInstanceMaxMicroseconds(int32 Index = 0) const { return MaxPerInstanceMicroseconds[Index]; }
+};
+
 /** Utility class for accumulating many frames worth of stats data. */
 struct ENGINE_API FAccumulatedParticlePerfStats
 {
@@ -100,6 +122,7 @@ struct ENGINE_API FAccumulatedParticlePerfStats
 
 	FAccumulatedParticlePerfStats_GT GameThreadStats;
 	FAccumulatedParticlePerfStats_RT RenderThreadStats;
+	FAccumulatedParticlePerfStats_GPU GPUStats;
 
 	static void AddMax(TArray<uint64, TInlineAllocator<ACCUMULATED_PARTICLE_PERF_STAT_MAX_SAMPLES>>& MaxArray, int64 NewValue);
 	static void ResetMaxArray(TArray<uint64, TInlineAllocator<ACCUMULATED_PARTICLE_PERF_STAT_MAX_SAMPLES>>& MaxArray);
@@ -110,25 +133,40 @@ struct ENGINE_API FAccumulatedParticlePerfStats
 		return GameThreadStats;
 	}
 
-	/** Returns the RT stats. Must be called on the Render Thread. */
-	FORCEINLINE FAccumulatedParticlePerfStats_RT& GetRenderThreadStats()
+	/** Returns the RenderThread stats with an optional flush when on the GameThread. */
+	FORCEINLINE FAccumulatedParticlePerfStats_RT& GetRenderThreadStats(bool bFlushForGameThread = false)
 	{
-		return RenderThreadStats;
-	}
-
-	/** Returns the RenderThread stats for use on the GameThread. Optional sync with the RenderThread. */
-	FORCEINLINE const FAccumulatedParticlePerfStats_RT& GetRenderThreadStats_GameThread(bool bSyncRT=false)const
-	{
-		if (bSyncRT)
+		if ( IsInGameThread() )
 		{
-			FlushRenderingCommands();
+			if ( bFlushForGameThread )
+			{
+				FlushRenderingCommands();
+			}
+		}
+		else
+		{
+			ensure(IsInRenderingThread());
 		}
 		return RenderThreadStats;
 	}
-};
 
-// ENGINE_API FString ToStringGT(FAccumulatedParticlePerfStats& Stats);
-// ENGINE_API FString ToStringRT(FAccumulatedParticlePerfStats& Stats);
+	/** Returns the GPU stats with an optional flush when on the GameThread. */
+	FORCEINLINE FAccumulatedParticlePerfStats_GPU& GetGPUStats(bool bFlushForGameThread = false)
+	{
+		if (IsInGameThread())
+		{
+			if (bFlushForGameThread)
+			{
+				FlushRenderingCommands();
+			}
+		}
+		else
+		{
+			ensure(IsInRenderingThread());
+		}
+		return GPUStats;
+	}
+};
 
 class ENGINE_API FParticlePerfStatsListener : public TSharedFromThis<FParticlePerfStatsListener, ESPMode::ThreadSafe>
 {
@@ -266,10 +304,10 @@ public:
 
 	virtual ~FParticlePerfStatsListener_GatherAll() {}
 
-	virtual void Begin()override;
-	virtual void End()override;
-	virtual bool Tick()override;
-	virtual void TickRT()override;
+	virtual void Begin() override;
+	virtual void End() override;
+	virtual bool Tick() override;
+	virtual void TickRT() override;
 
 	virtual void OnAddWorld(const TWeakObjectPtr<const UWorld>& NewWorld)override;
 	virtual void OnRemoveWorld(const TWeakObjectPtr<const UWorld>& World)override;

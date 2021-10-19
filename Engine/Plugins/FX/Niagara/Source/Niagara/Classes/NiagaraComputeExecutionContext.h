@@ -119,9 +119,15 @@ struct FNiagaraComputeExecutionContext
 	}  EmitterInstanceReadback;
 	
 #if !UE_BUILD_SHIPPING
+	FName GetDebugSimFName() const { return DebugSimFName; }
 	const TCHAR* GetDebugSimName() const { return *DebugSimName; }
-	void SetDebugSimName(const TCHAR* InDebugSimName) { DebugSimName = InDebugSimName; }
+	void SetDebugSimName(const TCHAR* InDebugSimName)
+	{
+		DebugSimName = InDebugSimName;
+		DebugSimFName = FName(DebugSimName);
+	}
 #else
+	FName GetDebugSimFName() const { return NAME_None; }
 	const TCHAR* GetDebugSimName() const { return TEXT(""); }
 	void SetDebugSimName(const TCHAR*) { }
 #endif
@@ -133,11 +139,11 @@ public:
 	static uint32 TickCounter;
 
 #if !UE_BUILD_SHIPPING
+	FName DebugSimFName;
 	FString DebugSimName;
 #endif
-#if STATS
-	TWeakObjectPtr<UNiagaraEmitter> EmitterPtr; // emitter pointer used to report captured gpu stats
-#endif
+	TWeakObjectPtr<class USceneComponent>	ProfilingComponentPtr;
+	TWeakObjectPtr<UNiagaraEmitter>			ProfilingEmitterPtr;
 
 	const TArray<UNiagaraDataInterface*>& GetDataInterfaces()const { return CombinedParamStore.GetDataInterfaces(); }
 
