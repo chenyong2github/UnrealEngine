@@ -16,8 +16,6 @@ namespace Private {
 void*	Writer_MemoryAllocate(SIZE_T, uint32);
 void	Writer_MemoryFree(void*, uint32);
 void	Writer_CacheData(uint8*, uint32);
-void	Writer_InitializeCache();
-void	Writer_ShutdownCache();
 
 ////////////////////////////////////////////////////////////////////////////////
 static FSharedBuffer	GNullSharedBuffer	= { 0, FSharedBuffer::RefInit };
@@ -106,6 +104,10 @@ static void Writer_RetireSharedBufferImpl()
 	uint8* Data = (uint8*)GTailBuffer - GTailBuffer->Size + GTailPreSent;
 	if (uint32 SendSize = UPTRINT(GTailBuffer) - UPTRINT(Data) - GTailBuffer->Final)
 	{
+#if TRACE_PRIVATE_STATISTICS
+		GTraceStatistics.BytesTraced += SendSize;
+#endif
+
 		Writer_CacheData(Data, SendSize);
 	}
 
@@ -172,8 +174,6 @@ void Writer_UpdateSharedBuffers()
 ////////////////////////////////////////////////////////////////////////////////
 void Writer_InitializeSharedBuffers()
 {
-	Writer_InitializeCache();
-
 	FSharedBuffer* Buffer = Writer_CreateSharedBuffer();
 
 	GTailBuffer = Buffer;
@@ -185,7 +185,6 @@ void Writer_InitializeSharedBuffers()
 ////////////////////////////////////////////////////////////////////////////////
 void Writer_ShutdownSharedBuffers()
 {
-	Writer_ShutdownCache();
 }
 
 } // namespace Private
