@@ -522,6 +522,11 @@ void CompilerGLSL::find_static_extensions()
 	if (options.separate_shader_objects && !options.es && options.version < 410)
 		require_extension_internal("GL_ARB_separate_shader_objects");
 
+	// UE Change Begin: Enable separate texture types via extensions.
+	if (options.separate_texture_types && !options.vulkan_semantics)
+		require_extension_internal("GL_NV_separate_texture_types");
+	// UE Change End: Enable separate texture types via extensions.
+
 	if (ir.addressing_model == AddressingModelPhysicalStorageBuffer64EXT)
 	{
 		if (!options.vulkan_semantics)
@@ -2017,6 +2022,11 @@ string CompilerGLSL::layout_for_variable(const SPIRVariable &var)
 	if (var.storage == StorageClassShaderRecordBufferKHR)
 		can_use_binding = false;
 
+	// UE Change Begin: Allow disabling explicit binding slots.
+	if (options.disable_explicit_binding)
+		can_use_binding = false;
+	// UE Change End: Allow disabling explicit binding slots.
+
 	if (can_use_binding && flags.get(DecorationBinding))
 		attr.push_back(join("binding = ", get_decoration(var.self, DecorationBinding)));
 
@@ -2025,16 +2035,24 @@ string CompilerGLSL::layout_for_variable(const SPIRVariable &var)
 		attr.push_back(join("offset = ", get_decoration(var.self, DecorationOffset)));
 	// UE Change End: Offsets not supported fully in ESSL.
 
+	// UE Change Begin: Allow disabling block layout for SSBOs and force UBO to std140.
 	// Instead of adding explicit offsets for every element here, just assume we're using std140 or std430.
 	// If SPIR-V does not comply with either layout, we cannot really work around it.
 	if (can_use_buffer_blocks && (ubo_block || emulated_ubo))
 	{
-		attr.push_back(buffer_to_packing_standard(type, false));
+		if (options.force_ubo_std140_layout)
+		{
+			set_extended_decoration(type.self, SPIRVCrossDecorationExplicitOffset);
+			attr.push_back("std140");
+		}
+		else
+			attr.push_back(buffer_to_packing_standard(type, false));
 	}
-	else if (can_use_buffer_blocks && (push_constant_block || ssbo_block))
+	else if (can_use_buffer_blocks && (push_constant_block || (ssbo_block && !options.disable_ssbo_block_layout)))
 	{
 		attr.push_back(buffer_to_packing_standard(type, true));
 	}
+	// UE Change End: Allow disabling block layout for SSBOs and force UBO to std140.
 
 	// For images, the type itself adds a layout qualifer.
 	// Only emit the format for storage images.
@@ -2114,8 +2132,12 @@ string CompilerGLSL::buffer_to_packing_standard(const SPIRType &type, bool suppo
 	}
 	else
 	{
-		SPIRV_CROSS_THROW("Buffer block cannot be expressed as any of std430, std140, scalar, even with enhanced "
+		// UE Change Begin: Report type name on block layout error
+		const auto& type_name = get_name(type.self);
+		SPIRV_CROSS_THROW("Buffer block \"" + type_name +
+		                  "\" cannot be expressed as any of std430, std140, scalar, even with enhanced "
 		                  "layouts. You can try flattening this block to support a more flexible layout.");
+		// UE Change End: Report type name on block layout error
 	}
 }
 
@@ -2304,7 +2326,13 @@ void CompilerGLSL::emit_buffer_block_native(const SPIRVariable &var)
 	bool is_coherent = ssbo && flags.get(DecorationCoherent);
 
 	// Block names should never alias, but from HLSL input they kind of can because block types are reused for UAVs ...
-	auto buffer_name = to_name(type.self, false);
+	// UE Change Begin: Enable buffer blocks to be named after block alias
+	string buffer_name;
+	if (options.emit_ssbo_alias_type_name)
+		buffer_name = "type_" + to_name(var.self);
+	else
+		buffer_name = to_name(type.self, false);
+	// UE Change End: Enable buffer blocks to be named after block alias
 
 	auto &block_namespace = ssbo ? block_ssbo_names : block_ubo_names;
 
@@ -3528,7 +3556,10 @@ void CompilerGLSL::emit_resources()
 		}
 	});
 
-	bool skip_separate_image_sampler = !combined_image_samplers.empty() || !options.vulkan_semantics;
+	// UE Change Begin: Enable separate texture types via extensions.
+	bool skip_separate_image_sampler =
+	    !combined_image_samplers.empty() || !(options.vulkan_semantics || options.separate_texture_types);
+	// UE Change End: Enable separate texture types via extensions.
 
 	// Output Uniform Constants (values, samplers, images, etc).
 	ir.for_each_typed_id<SPIRVariable>([&](uint32_t, SPIRVariable &var) {
@@ -6542,7 +6573,9 @@ bool CompilerGLSL::is_supported_subgroup_op_in_opengl(spv::Op op)
 
 void CompilerGLSL::emit_sampled_image_op(uint32_t result_type, uint32_t result_id, uint32_t image_id, uint32_t samp_id)
 {
-	if (options.vulkan_semantics && combined_image_samplers.empty())
+	// UE Change Begin: Enable separate texture types via extensions.
+	if ((options.vulkan_semantics || options.separate_texture_types) && combined_image_samplers.empty())
+	// UE Change End: Enable separate texture types via extensions.
 	{
 		emit_binary_func_op(result_type, result_id, image_id, samp_id,
 		                    type_to_glsl(get<SPIRType>(result_type), result_id).c_str());
@@ -7011,9 +7044,14 @@ std::string CompilerGLSL::convert_separate_image_to_expression(uint32_t id)
 	if (var)
 	{
 		auto &type = get<SPIRType>(var->basetype);
-		if (type.basetype == SPIRType::Image && type.image.sampled == 1 && type.image.dim != DimBuffer)
+		// UE Change Begin: Enable textureBuffer over samplerBuffer.
+		if (type.basetype == SPIRType::Image && type.image.sampled == 1 &&
+		    (type.image.dim != DimBuffer || options.enable_texture_buffer))
+		// UE Change End: Enable textureBuffer over samplerBuffer.
 		{
-			if (options.vulkan_semantics)
+			// UE Change Begin: Enable separate texture types via extensions.
+			if (options.vulkan_semantics || options.separate_texture_types)
+			// UE Change End: Enable separate texture types via extensions.
 			{
 				if (dummy_sampler_id)
 				{
@@ -13387,7 +13425,14 @@ string CompilerGLSL::image_type_glsl(const SPIRType &type, uint32_t id)
 	{
 		// Sampler buffers are always declared as samplerBuffer even though they might be separate images in the SPIR-V.
 		if (type.image.dim == DimBuffer && type.image.sampled == 1)
-			res += "sampler";
+		{
+			// UE Change Begin: Enbale textureBuffer over samplerBuffer.
+			if (options.enable_texture_buffer)
+				res += "texture";
+			else
+				res += "sampler";
+			// UE Change End: Enbale textureBuffer over samplerBuffer.
+		}
 		else
 			res += type.image.sampled == 2 ? "image" : "texture";
 	}

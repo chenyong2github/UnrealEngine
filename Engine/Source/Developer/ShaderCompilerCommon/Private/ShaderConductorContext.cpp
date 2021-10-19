@@ -259,10 +259,15 @@ namespace CrossCompiler
 	{
 		switch (Version)
 		{
+		//ESSL
 		case 310: return "310";
 		case 320: return "320";
+		//GLSL
 		case 330: return "330";
 		case 430: return "430";
+		case 440: return "440";
+		case 450: return "450";
+		case 460: return "460";
 		default: return nullptr;
 		}
 	}
@@ -397,6 +402,7 @@ namespace CrossCompiler
 		OutOptions.enableDebugInfo = InOptions.bEnableDebugInfo;
 		OutOptions.disableOptimizations = InOptions.bDisableOptimizations;
 		OutOptions.enableFMAPass = InOptions.bEnableFMAPass;
+		OutOptions.enableSeparateSamplers = InOptions.bEnableSeparateSamplersInGlsl;
 		OutOptions.shaderModel = ShaderConductor::Compiler::ShaderModel
 		{
 			static_cast<uint8>(InOptions.ShaderModel.Major),

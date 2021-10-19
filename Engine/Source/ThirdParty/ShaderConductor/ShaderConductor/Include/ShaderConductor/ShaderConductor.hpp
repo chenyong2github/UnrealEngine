@@ -187,6 +187,9 @@ namespace ShaderConductor
             // UE Change Begin: Specify the Fused-Multiply-Add pass for Metal - we'll define it away later when we can.
             bool enableFMAPass = false;
             // UE Change End: Specify the Fused-Multiply-Add pass for Metal - we'll define it away later when we can.
+			// UE Change Begin: Allow separate samplers in GLSL via extensions.
+            bool enableSeparateSamplers = false;
+            // UE Change End: Allow separate samplers in GLSL via extensions.
             // UE Change Begin: Support for specifying direct arguments to DXC
             uint32_t numDXCArgs = 0;
             const char** DXCArgs = nullptr;
