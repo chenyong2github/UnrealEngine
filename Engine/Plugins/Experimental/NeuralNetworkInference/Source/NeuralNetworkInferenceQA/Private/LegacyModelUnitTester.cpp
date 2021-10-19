@@ -2,7 +2,7 @@
 
 #include "LegacyModelUnitTester.h"
 #include "ModelProtoFileReaderTester.h"
-#include "NeuralNetworkInferenceQATimer.h"
+#include "NeuralNetworkInferenceTimer.h"
 #include "NeuralNetworkInferenceQAUtils.h"
 #include "Misc/Paths.h"
 
@@ -262,7 +262,7 @@ bool FLegacyModelUnitTester::ModelSpeedTest(const FString& InUAssetPath, const i
 	InputArray.Init(1.f, NetworkSize);
 	TArray<float> OutputArrayGPU;
 	// Speed profiling
-	FNeuralNetworkInferenceQATimer Timer;
+	FNeuralNetworkInferenceTimer Timer;
 	// CPU
 	InOutNetwork->SetDeviceType(ENeuralDeviceType::CPU);
 	LEGACY_MODEL_UNIT_TESTER_SPEED_TEST(CPUCopyTimer1, CPUNetworkTimer1, DummyCPU1, 1, /*bIsGPU*/false);

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ModelUnitTester.h"
-#include "NeuralNetworkInferenceQATimer.h"
+#include "NeuralNetworkInferenceTimer.h"
 #include "NeuralNetworkInferenceQAUtils.h"
 #include "Misc/Paths.h"
 
@@ -416,7 +416,7 @@ bool FModelUnitTester::ModelSpeedTest(const FString& InUAssetPath, const ENeural
 	InputArray.Init(1.f, NetworkSize);
 	TArray<float> CPUGPUCPUOutput;
 	// Speed profiling
-	FNeuralNetworkInferenceQATimer Timer;
+	FNeuralNetworkInferenceTimer Timer;
 	// Run profiling 1 time
 	InOutNetwork->SetDeviceType(InDeviceType);
 	MODEL_UNIT_TESTER_SPEED_TEST(CopyTimer1, NetworkTimer1, 1, /*bIsGPU*/false);
