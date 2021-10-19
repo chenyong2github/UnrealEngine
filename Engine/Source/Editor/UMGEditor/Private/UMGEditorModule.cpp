@@ -218,6 +218,12 @@ public:
 		return &WidgetBlueprintCompiler;
 	}
 
+	/** Register common tabs */
+	virtual FOnRegisterTabs& OnRegisterTabsForEditor() override
+	{
+		return RegisterTabsForEditor;
+	}
+
 private:
 	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)
 	{
@@ -271,6 +277,9 @@ private:
 
 	/** Compiler customization for Widgets */
 	FWidgetBlueprintCompiler WidgetBlueprintCompiler;
+
+	/** */
+	FOnRegisterTabs RegisterTabsForEditor;
 
 	bool bThumbnailRenderersRegistered;
 	bool bOnPostEngineInitHandled;

@@ -106,8 +106,8 @@ FWidgetDesignerApplicationMode::FWidgetDesignerApplicationMode(TSharedPtr<FWidge
 	TabFactories.RegisterFactory(MakeShareable(new FCompilerResultsSummoner(InWidgetEditor)));
 	TabFactories.RegisterFactory(MakeShareable(new FNavigationTabSummoner(InWidgetEditor)));
 
-	// setup toolbar - clear existing toolbar extender from the BP mode
-	//@TODO: Keep this in sync with BlueprintEditorModes.cpp
+	IUMGEditorModule& EditorModule = FModuleManager::GetModuleChecked<IUMGEditorModule>("UMGEditor");
+	EditorModule.OnRegisterTabsForEditor().Broadcast(*this, TabFactories);
 
 	//Make sure we start with our existing list of extenders instead of creating a new one
 	IUMGEditorModule& UMGEditorModule = FModuleManager::LoadModuleChecked<IUMGEditorModule>("UMGEditor");

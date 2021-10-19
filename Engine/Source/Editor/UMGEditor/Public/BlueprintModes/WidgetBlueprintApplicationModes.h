@@ -8,7 +8,7 @@
 // FWidgetBlueprintApplicationModes
 
 // This is the list of IDs for widget blueprint editor modes
-struct FWidgetBlueprintApplicationModes
+struct UMGEDITOR_API FWidgetBlueprintApplicationModes
 {
 	// Mode constants
 	static const FName DesignerMode;
@@ -17,5 +17,5 @@ struct FWidgetBlueprintApplicationModes
 	static FText GetLocalizedMode(const FName InMode);
 
 private:
-	FWidgetBlueprintApplicationModes() {}
+	FWidgetBlueprintApplicationModes() = delete;
 };

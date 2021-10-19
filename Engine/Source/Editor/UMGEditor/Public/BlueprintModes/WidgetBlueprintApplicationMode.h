@@ -12,19 +12,16 @@ class UWidgetBlueprint;
 /////////////////////////////////////////////////////
 // FWidgetBlueprintApplicationMode
 
-class FWidgetBlueprintApplicationMode : public FBlueprintEditorApplicationMode
+class UMGEDITOR_API FWidgetBlueprintApplicationMode : public FBlueprintEditorApplicationMode
 {
 public:
 	FWidgetBlueprintApplicationMode(TSharedPtr<class FWidgetBlueprintEditor> InWidgetEditor, FName InModeName);
 
-	// FApplicationMode interface
-	// End of FApplicationMode interface
+public:
+	TSharedPtr<class FWidgetBlueprintEditor> GetBlueprintEditor() const;
+	UWidgetBlueprint* GetBlueprint() const;
 
 protected:
-	UWidgetBlueprint* GetBlueprint() const;
-	
-	TSharedPtr<class FWidgetBlueprintEditor> GetBlueprintEditor() const;
-
 	TWeakPtr<class FWidgetBlueprintEditor> MyWidgetBlueprintEditor;
 
 	// Set of spawnable tabs in the mode

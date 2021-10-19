@@ -14,6 +14,7 @@
 #include "Blueprint/WidgetBlueprintGeneratedClass.h"
 #include "Animation/UMGSequencePlayer.h"
 #include "Animation/UMGSequenceTickManager.h"
+#include "Extensions/WidgetBlueprintGeneratedClassExtension.h"
 #include "UObject/UnrealType.h"
 #include "Blueprint/WidgetNavigation.h"
 #include "Animation/WidgetAnimation.h"
@@ -1343,22 +1344,55 @@ void UUserWidget::BindToAnimationEvent(UWidgetAnimation* InAnimation, FWidgetAni
 
 void UUserWidget::NativeOnInitialized()
 {
+	if (UWidgetBlueprintGeneratedClass* Class = GetWidgetTreeOwningClass())
+	{
+		Class->ForEachExtension([this](UWidgetBlueprintGeneratedClassExtension* Extension)
+			{
+				Extension->Initialize(this);
+			});
+	}
+
 	OnInitialized();
 }
 
 void UUserWidget::NativePreConstruct()
 {
-	PreConstruct(IsDesignTime());
+	const bool bIsDesignTime = IsDesignTime();
+	if (UWidgetBlueprintGeneratedClass* Class = GetWidgetTreeOwningClass())
+	{
+		Class->ForEachExtension([this, bIsDesignTime](UWidgetBlueprintGeneratedClassExtension* Extension)
+			{
+				Extension->PreConstruct(this, bIsDesignTime);
+			});
+	}
+
+	PreConstruct(bIsDesignTime);
 }
 
 void UUserWidget::NativeConstruct()
 {
+	if (UWidgetBlueprintGeneratedClass* Class = GetWidgetTreeOwningClass())
+	{
+		Class->ForEachExtension([this](UWidgetBlueprintGeneratedClassExtension* Extension)
+			{
+				Extension->Construct(this);
+			});
+	}
+
 	Construct();
 	UpdateCanTick();
 }
 
 void UUserWidget::NativeDestruct()
 {
+	if (UWidgetBlueprintGeneratedClass* Class = GetWidgetTreeOwningClass())
+	{
+		Class->ForEachExtension([this](UWidgetBlueprintGeneratedClassExtension* Extension)
+		{
+			Extension->Destruct(this);
+		});
+	}
+
 	StopListeningForAllInputActions();
 	Destruct();
 }

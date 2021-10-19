@@ -5,6 +5,7 @@
 #include "BlueprintEditorTabs.h"
 #include "SBlueprintEditorToolbar.h"
 
+#include "UMGEditorModule.h"
 #include "WidgetBlueprintEditorToolbar.h"
 #include "BlueprintModes/WidgetBlueprintApplicationModes.h"
 #include "ToolMenus.h"
@@ -68,8 +69,9 @@ FWidgetGraphApplicationMode::FWidgetGraphApplicationMode(TSharedPtr<FWidgetBluep
 			)
 		);
 	
-	// setup toolbar
-	//@TODO: Keep this in sync with AnimBlueprintMode.cpp
+	IUMGEditorModule& EditorModule = FModuleManager::GetModuleChecked<IUMGEditorModule>("UMGEditor");
+	EditorModule.OnRegisterTabsForEditor().Broadcast(*this, TabFactories);
+
 	ToolbarExtender = MakeShareable(new FExtender);
 	InWidgetEditor->GetWidgetToolbarBuilder()->AddWidgetBlueprintEditorModesToolbar(ToolbarExtender);
 
