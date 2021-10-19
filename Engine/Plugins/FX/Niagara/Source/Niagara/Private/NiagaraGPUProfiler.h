@@ -8,7 +8,7 @@
 #include "RHIResources.h"
 #include "HAL/Platform.h"
 #include "Misc/Build.h"
-#include "Particles//ParticlePerfStats.h"
+#include "Particles/ParticlePerfStats.h"
 
 #include "NiagaraGPUProfilerInterface.h"
 
