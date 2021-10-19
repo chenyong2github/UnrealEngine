@@ -72,6 +72,9 @@ namespace CrossCompiler
 		/** Enable a pass that converts floating point MUL+ADD pairs into FMAs to avoid re-association. */
 		bool bEnableFMAPass = false;
 
+		/** Enables separate samplers in GLSL via extensions. */
+		bool bEnableSeparateSamplersInGlsl = false;
+
 		/** Shader model version of the input language. By default SM6.2. */
 		FHlslShaderModel ShaderModel = { 6, 2 };
 	};

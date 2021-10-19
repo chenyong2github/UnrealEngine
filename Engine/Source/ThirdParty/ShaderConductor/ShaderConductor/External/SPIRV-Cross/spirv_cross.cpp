@@ -2560,6 +2560,14 @@ bool Compiler::DummySamplerForCombinedImageHandler::handle(Op opcode, const uint
 		bool separate_image =
 		    type.basetype == SPIRType::Image && type.image.sampled == 1 && type.image.dim != DimBuffer;
 
+		// UE Change Begin: Enbale textureBuffer over samplerBuffer.
+		if (type.basetype == SPIRType::Image && type.image.sampled == 1 && type.image.dim == DimBuffer)
+		{
+			need_dummy_sampler = true;
+			return true;
+		}
+		// UE Change End: Enbale textureBuffer over samplerBuffer.
+
 		// If not separate image, don't bother.
 		if (!separate_image)
 			return true;

@@ -107,7 +107,13 @@ static bool ParseSpirvCrossOptionGlsl(spirv_cross::CompilerGLSL::Options& opt, c
     PARSE_SPIRVCROSS_OPTION(define, "flatten_multidimensional_arrays", opt.flatten_multidimensional_arrays);
     PARSE_SPIRVCROSS_OPTION(define, "force_flattened_io_blocks", opt.force_flattened_io_blocks);
 	PARSE_SPIRVCROSS_OPTION(define, "ovr_multiview_view_count", opt.ovr_multiview_view_count);
-	return false;
+	PARSE_SPIRVCROSS_OPTION(define, "emit_ssbo_alias_type_name", opt.emit_ssbo_alias_type_name);
+    PARSE_SPIRVCROSS_OPTION(define, "separate_texture_types", opt.separate_texture_types);
+    PARSE_SPIRVCROSS_OPTION(define, "disable_ssbo_block_layout", opt.disable_ssbo_block_layout);
+    PARSE_SPIRVCROSS_OPTION(define, "force_ubo_std140_layout", opt.force_ubo_std140_layout);
+    PARSE_SPIRVCROSS_OPTION(define, "disable_explicit_binding", opt.disable_explicit_binding);
+    PARSE_SPIRVCROSS_OPTION(define, "enable_texture_buffer", opt.enable_texture_buffer);
+    return false;
 }
 
 static bool ParseSpirvCrossOptionHlsl(spirv_cross::CompilerHLSL::Options& opt, const ShaderConductor::MacroDefine& define)
@@ -1061,7 +1067,9 @@ namespace
         case ShadingLanguage::Glsl:
         case ShadingLanguage::Essl:
             compiler = std::make_unique<spirv_cross::CompilerGLSL>(spirvIr, spirvSize);
-            combinedImageSamplers = true;
+            // UE Change Begin: Allow separate samplers in GLSL via extensions.
+            combinedImageSamplers = !options.enableSeparateSamplers;
+            // UE Change End: Allow separate samplers in GLSL via extensions.
             buildDummySampler = true;
 
             // Legacy GLSL fixups
@@ -1164,7 +1172,7 @@ namespace
         compiler->set_common_options(opts);
 
         // UE Change Begin: Allow variable typenames to be renamed to support samplerExternalOES in ESSL.
-		if (target.language == ShadingLanguage::Essl)
+        if (target.language == ShadingLanguage::Glsl || target.language == ShadingLanguage::Essl)
         {
             auto* glslCompiler = static_cast<spirv_cross::CompilerGLSL*>(compiler.get());
             auto glslOpts = glslCompiler->get_common_options();
