@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Generators/StairGenerator.h"
+#include "MathUtil.h"
 
 using namespace UE::Geometry;
 
@@ -10,7 +11,7 @@ using namespace UE::Geometry;
 
 FMeshShapeGenerator& FStairGenerator::Generate()
 {
-	Reset();
+	ResetData();
 
 	switch (StairStyle)
 	{
@@ -28,15 +29,18 @@ FMeshShapeGenerator& FStairGenerator::Generate()
  * Stair topology composition. (side view cross section)
  *
  * (EStairStyle::Solid)
- *                  .___.
+ *                  C___C
  *                  |   |          | z (height)
- *              .___|___|          |
+ *              C___C___I          |
  *              |   |   |          |_____ x (depth)
- *          .___|___|___|           \
+ *          C___C___|___I           \
  *          |   |   |   |            \ y (width)
- *  Row --> |___|___|___|
+ *  Row --> C___I___I___C
  *
  *          ^-- Column
+ *
+ *          C = corner vertex
+ *          I = interior connect quad vertex
  *
  */
 FMeshShapeGenerator& FStairGenerator::GenerateSolidStairs()
@@ -46,22 +50,27 @@ FMeshShapeGenerator& FStairGenerator::GenerateSolidStairs()
 		return (x * (x + 1) / 2);
 	};
 
+	// Number of quads that connect the left & right sides.
 	const int NumConnectQuads = 4 * NumSteps;
+	// Number of verts whose adjacent edges on the left & right sides are not parallel.
 	const int NumCornerVerts = 4 * (NumSteps + 1);
 	NumVertsPerSide = TriangleNumber(NumSteps + 1) + NumSteps;
 	NumVerts = 2 * NumVertsPerSide;
 	NumQuadsPerSide = TriangleNumber(NumSteps);
 	NumQuads = 2 * NumQuadsPerSide + NumConnectQuads;
 
+	// Number of mesh attributes for the side quads assuming sharing.
 	const int NumSideQuadAttrs = NumVerts;
+	// Number of mesh attributes for the corner vertices.
 	const int NumConnectQuadCornerAttrs = 2 * NumCornerVerts;
+	// Number of mesh attributes for the interior vertices of the bottom and back connect quads.
 	const int NumConnectQuadInteriorAttrs = 4 * (NumSteps - 1);
 	NumAttrs = NumConnectQuadCornerAttrs + NumConnectQuadInteriorAttrs + NumSideQuadAttrs;
 	SetBufferSizes(NumVerts, 2 * NumQuads, NumAttrs, NumAttrs);
 
 	// Ordered Side lists for iteration.
-	const ESide RightLeftSides[2] = { ESide::Right, ESide::Left };
-	const ESide AllSides[6] = { ESide::Right, ESide::Left, ESide::Front, ESide::Top, ESide::Back, ESide::Bottom };
+	constexpr ESide RightLeftSides[2] = { ESide::Right, ESide::Left };
+	constexpr ESide AllSides[6] = { ESide::Right, ESide::Left, ESide::Front, ESide::Top, ESide::Back, ESide::Bottom };
 
 	// Generate vertices by vertical column per Right/Left side.
 	LeftSideColumnId = (NumSteps + 1);
@@ -363,35 +372,43 @@ FMeshShapeGenerator& FStairGenerator::GenerateSolidStairs()
  * Stair topology composition. (side view cross section)
  *
  * (EStairStyle::Floating)
- *                  .___.
+ *                  C___C
  *                  |   |          | z (height)
- *              .___|___|          |
+ *              C___C___I          |
  *              |   |   |          |_____ x (depth)
- *          .___|___|___|           \
+ *          C___C___C___C           \
  *          |   |   |                \ y (width)
- *  Row --> |___|___|
+ *  Row --> C___I___C
  *
  *          ^-- Column
  *
+ *          C = corner vertex
+ *          I = interior connect quad vertex.
  */
 FMeshShapeGenerator& FStairGenerator::GenerateFloatingStairs()
 {
+	// Number of quads that connect the left & right sides.
 	const int NumConnectQuads = 4 * NumSteps;
+	// Number of verts whose adjacent edges on the left & right sides are not parallel.
 	const int NumCornerVerts = 8 * NumSteps - 4;
+	
 	NumVertsPerSide = 4 * NumSteps;
 	NumVerts = 2 * NumVertsPerSide;
 	NumQuadsPerSide = 2 * NumSteps - 1;
 	NumQuads = 2 * NumQuadsPerSide + NumConnectQuads;
 
+	// Number of mesh attributes for the side quads assuming sharing.
 	const int NumSideQuadAttrs = NumVerts;
+	// Number of mesh attributes for the corner vertices.
 	const int NumConnectQuadCornerAttrs = 2 * NumCornerVerts;
-	const int NumConnectQuadInteriorAttrs = 2 * (NumSteps - 1);
+	// Number of mesh attributes for the interior vertices of the bottom and back connect quads.
+	constexpr int NumConnectQuadInteriorAttrs = 4;
 	NumAttrs = NumConnectQuadCornerAttrs + NumConnectQuadInteriorAttrs + NumSideQuadAttrs;
 	SetBufferSizes(NumVerts, 2 * NumQuads, NumAttrs, NumAttrs);
 
 	// Ordered Side lists for iteration.
-	const ESide RightLeftSides[2] = { ESide::Right, ESide::Left };
-	const ESide AllSides[6] = { ESide::Right, ESide::Left, ESide::Front, ESide::Top, ESide::Back, ESide::Bottom };
+	constexpr ESide RightLeftSides[2] = { ESide::Right, ESide::Left };
+	constexpr ESide AllSides[6] = { ESide::Right, ESide::Left, ESide::Front, ESide::Top, ESide::Back, ESide::Bottom };
 
 	// Generate vertices by vertical column per Right/Left side.
 	LeftSideColumnId = (NumSteps + 1);
@@ -816,11 +833,11 @@ FStairGenerator::ESide FStairGenerator::FaceToSide(int FaceId)
  *
  * This is invoked at the head of the Generate() method.
  */
-void FStairGenerator::Reset()
+void FStairGenerator::ResetData()
 {
-	if (NumSteps <= 0)
+	if (NumSteps < 2)
 	{
-		NumSteps = 1;
+		NumSteps = 2;
 	}
 
 	VertexIds.Reset();
@@ -1025,9 +1042,9 @@ FVector2f FFloatingStairGenerator::GenerateUV(ESide Side, int Step, int VertexId
  * FCurvedStairGenerator
  */
 
-void FCurvedStairGenerator::Reset()
+void FCurvedStairGenerator::ResetData()
 {
-	Super::Reset();
+	Super::ResetData();
 
 	bIsClockwise = CurveAngle > 0.0f;
 	CurveRadians = CurveAngle * TMathUtilConstants<float>::DegToRad;
