@@ -124,19 +124,19 @@ namespace HordeServer
 	public class ServerSettings
 	{
 		/// <summary>
-		/// Main port for serving HTTP
+		/// Main port for serving HTTP. Uses the default Kestrel port (5000) if not specified.
 		/// </summary>
-		public int HttpPort { get; set; } = 80;
-		
+		public int HttpPort { get; set; }
+
 		/// <summary>
-		/// Port for serving only HTTP/2
+		/// Port for serving HTTP with TLS enabled. Uses the default Kestrel port (5001) if not specified.
 		/// </summary>
-		public int Http2Port { get; set; } = 52103;
-		
+		public int HttpsPort { get; set; }
+
 		/// <summary>
-		/// Port for serving HTTP with TLS enabled
+		/// Dedicated port for serving only HTTP/2.
 		/// </summary>
-		public int HttpsPort { get; set; } = 443;
+		public int Http2Port { get; set; }
 
 		/// <summary>
 		/// Whether the server is running as a single instance or with multiple instances, such as in k8s
