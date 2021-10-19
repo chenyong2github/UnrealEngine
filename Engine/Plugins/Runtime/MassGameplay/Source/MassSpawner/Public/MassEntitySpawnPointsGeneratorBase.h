@@ -13,7 +13,7 @@ DECLARE_DELEGATE_OneParam(FFinishedGeneratingSpawnPointsSignature, const TArray<
  * A Mass Spawn Points Generator can be of several type (EQS, ZoneGraph, Volume, Area, etc.)
  * The concept is to override the GenerateSpawnPoints() method and requesting a certain number of Spawn Point Locations to the method.
  */
-UCLASS(Abstract, Blueprintable)
+UCLASS(Abstract, Blueprintable, EditInlineNew)
 class MASSSPAWNER_API UMassEntitySpawnPointsGeneratorBase : public UObject
 {
 	GENERATED_BODY()
