@@ -71,6 +71,7 @@ public:
 			{
 				SubpassDesc.SetShadingRateAttachment(&FragmentShadingRateAttachmentInfo);
 			}
+			SubpassDesc.SetMultiViewMask(MultiviewMask);
 #endif
 		}
 
@@ -101,6 +102,7 @@ public:
 			{
 				SubpassDesc.SetShadingRateAttachment(&FragmentShadingRateAttachmentInfo);
 			}
+			SubpassDesc.SetMultiViewMask(MultiviewMask);
 #endif
 			
 			TSubpassDependencyClass& SubpassDep = SubpassDependencies[NumDependencies++];
@@ -139,6 +141,7 @@ public:
 				{
 					SubpassDesc.SetShadingRateAttachment(&FragmentShadingRateAttachmentInfo);
 				}
+				SubpassDesc.SetMultiViewMask(MultiviewMask);
 #endif
 				
 				// depth as Input0
@@ -180,6 +183,7 @@ public:
 				{
 					SubpassDesc.SetShadingRateAttachment(&FragmentShadingRateAttachmentInfo);
 				}
+				SubpassDesc.SetMultiViewMask(MultiviewMask);
 #endif
 
 				TSubpassDependencyClass& SubpassDep = SubpassDependencies[NumDependencies++];
@@ -223,6 +227,9 @@ public:
 		*/
 		const uint32_t CorrelationMask = MultiviewMask;
 
+#if VULKAN_SUPPORTS_RENDERPASS2
+		CreateInfo.SetCorrelationMask(&CorrelationMask);
+#else
 		VkRenderPassMultiviewCreateInfo MultiviewInfo;
 		if (RTLayout.GetIsMultiView())
 		{
@@ -238,6 +245,7 @@ public:
 
 			CreateInfo.pNext = &MultiviewInfo;
 		}
+#endif
 
 		VkRenderPassFragmentDensityMapCreateInfoEXT FragDensityCreateInfo;
 		if (Device.GetOptionalExtensions().HasEXTFragmentDensityMap && RTLayout.GetHasFragmentDensityAttachment())

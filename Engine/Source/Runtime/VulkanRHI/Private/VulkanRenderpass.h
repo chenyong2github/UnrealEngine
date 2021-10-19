@@ -132,6 +132,11 @@ struct FVulkanSubpassDescription<VkSubpassDescription>
 	{
 		// No-op without VK_KHR_create_renderpass2
 	}
+
+	void SetMultiViewMask(uint32_t Mask)
+	{
+		// No-op without VK_KHR_create_renderpass2
+	}
 };
 
 #if VULKAN_SUPPORTS_RENDERPASS2
@@ -175,6 +180,11 @@ struct FVulkanSubpassDescription<VkSubpassDescription2>
 	void SetShadingRateAttachment(void* ShadingRateAttachmentInfo)
 	{
 		pNext = ShadingRateAttachmentInfo;
+	}
+
+	void SetMultiViewMask(uint32_t Mask)
+	{
+		viewMask = Mask;
 	}
 };
 #endif
@@ -276,6 +286,11 @@ struct FVulkanRenderPassCreateInfo<VkRenderPassCreateInfo>
 		ZeroVulkanStruct(*this, VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO);
 	}
 
+	void SetCorrelationMask(const uint32_t* MaskPtr)
+	{
+		// No-op without VK_KHR_create_renderpass2
+	}
+
 	VkRenderPass Create(FVulkanDevice& Device)
 	{
 		VkRenderPass Handle = VK_NULL_HANDLE;
@@ -292,6 +307,12 @@ struct FVulkanRenderPassCreateInfo<VkRenderPassCreateInfo2>
 	FVulkanRenderPassCreateInfo()
 	{
 		ZeroVulkanStruct(*this, VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO_2);
+	}
+
+	void SetCorrelationMask(const uint32_t* MaskPtr)
+	{
+		correlatedViewMaskCount = 1;
+		pCorrelatedViewMasks = MaskPtr;
 	}
 
 	VkRenderPass Create(FVulkanDevice& Device)

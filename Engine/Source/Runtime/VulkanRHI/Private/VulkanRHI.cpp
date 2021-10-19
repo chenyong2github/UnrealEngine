@@ -826,7 +826,7 @@ void FVulkanDynamicRHI::InitInstance()
 #endif
 
 #if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
-		GRHISupportsAttachmentVariableRateShading = GetDevice()->GetOptionalExtensions().HasKHRFragmentShadingRate && Device->GetFragmentShadingRateFeatures().attachmentFragmentShadingRate;
+		GRHISupportsAttachmentVariableRateShading |= GetDevice()->GetOptionalExtensions().HasKHRFragmentShadingRate && Device->GetFragmentShadingRateFeatures().attachmentFragmentShadingRate;
 #endif
 
 		FVulkanPlatform::SetupFeatureLevels();
