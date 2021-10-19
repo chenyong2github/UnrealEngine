@@ -116,6 +116,21 @@ void AMassSpawner::PostInitProperties()
 	}
 }
 
+void AMassSpawner::PostLoad()
+{
+	Super::PostLoad();
+
+	for (FMassSpawnPointGenerator& SpawnPointsGenerator : SpawnPointsGenerators)
+	{
+		if (SpawnPointsGenerator.GeneratorClass)
+		{
+			SpawnPointsGenerator.GeneratorInstance = NewObject<UMassEntitySpawnPointsGeneratorBase>(this, SpawnPointsGenerator.GeneratorClass);
+			SpawnPointsGenerator.GeneratorClass = nullptr;
+			MarkPackageDirty();
+		}
+	}
+}
+
 void AMassSpawner::PostRegisterAllComponents()
 {
 	Super::PostRegisterAllComponents();
@@ -221,7 +236,6 @@ void AMassSpawner::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void AMassSpawner::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	static const FName SpawnSetsName = GET_MEMBER_NAME_CHECKED(AMassSpawner, SpawnSets);
-	static const FName EQSRequestName = GET_MEMBER_NAME_CHECKED(AMassSpawner, EQSRequest);
 	static const FName EntityTypesName = GET_MEMBER_NAME_CHECKED(AMassSpawner, EntityTypes);
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -233,21 +247,11 @@ void AMassSpawner::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 		{
 			ValidateSpawnSets();
 		}
-		else if (PropName == EQSRequestName)
-		{
-			EQSRequest.InitForOwnerAndBlackboard(*this, /*BBAsset=*/nullptr);
-		}
 		else if (PropName == EntityTypesName)
 		{
 			// TODO: Should optimize this, i.e. set a dirty flag and update only when needed.
 			RegisterEntityTemplates();
 		}
-	}
-
-	if (PropertyChangedEvent.MemberProperty &&
-		PropertyChangedEvent.MemberProperty->GetFName() == EQSRequestName)
-	{
-		EQSRequest.PostEditChangeProperty(*this, PropertyChangedEvent);
 	}
 }
 
@@ -281,15 +285,13 @@ void AMassSpawner::RegisterEntityTemplates()
 
 void AMassSpawner::DoSpawning()
 {
-	if (bUseSpawnPointsGenerators)
-	{
 		const int32 SpawnCount = GetSpawnCount();
 		if (SpawnCount > 0)
 		{
 			float TotalProportion = 0.0f;
 			for (FMassSpawnPointGenerator& SpawnPointsGenerator : SpawnPointsGenerators)
 			{
-				if (SpawnPointsGenerator.GeneratorClass.GetDefaultObject())
+			if (SpawnPointsGenerator.GeneratorInstance)
 				{
 					SpawnPointsGenerator.bPointsGenerated = false;
 					TotalProportion += SpawnPointsGenerator.Proportion;
@@ -315,14 +317,14 @@ void AMassSpawner::DoSpawning()
 					continue;
 				}
 
-				if(const UMassEntitySpawnPointsGeneratorBase* Generator = SpawnPointsGenerator.GeneratorClass.GetDefaultObject())
+			if (SpawnPointsGenerator.GeneratorInstance)
 				{
 					const float ProportionRatio = FMath::Min(SpawnPointsGenerator.Proportion / ProportionRemaining, 1.0f);
 					const int32 SpawnPointCount = FMath::CeilToInt(SpawnPointCountRemaining * ProportionRatio);
 					if(SpawnPointCount > 0)
 					{
 						FFinishedGeneratingSpawnPointsSignature Delegate = FFinishedGeneratingSpawnPointsSignature::CreateUObject(this, &AMassSpawner::OnSpawnPointGenerationFinished, &SpawnPointsGenerator);
-						Generator->GenerateSpawnPoints(*this, SpawnPointCount, Delegate);
+					SpawnPointsGenerator.GeneratorInstance->GenerateSpawnPoints(*this, SpawnPointCount, Delegate);
 						SpawnPointCountRemaining -= SpawnPointCount;
 						ProportionRemaining -= SpawnPointsGenerator.Proportion;
 					}
@@ -330,24 +332,6 @@ void AMassSpawner::DoSpawning()
 			}
 		}
 	}
-	else
-	{
-		if (EQSRequest.IsValid() == false)
-		{
-			EQSRequest.InitForOwnerAndBlackboard(*this, /*BBAsset=*/nullptr);
-		}
-
-		FQueryFinishedSignature Delegate = FQueryFinishedSignature::CreateUObject(this, &AMassSpawner::OnEQSQueryFinished);
-		const int32 SpawnLocationsQueryIndex = EQSRequest.Execute(*this, /*BlackboardComponent=*/nullptr, Delegate);
-		if (SpawnLocationsQueryIndex == INDEX_NONE)
-		{
-			UE_VLOG_UELOG(this, LogMassSpawner, Error, TEXT("Requesting EQS query to generate spawn locations failed. Make sure the query asset is set. Falling back to spawner\'s location."));
-
-			const TArray<FVector> DummyLocations = { GetActorLocation() };
-			SpawnAtLocations(DummyLocations);
-		}
-	}
-}
 
 void AMassSpawner::OnSpawnPointGenerationFinished(const TArray<FVector>& Locations, FMassSpawnPointGenerator* FinishedGenerator)
 {
@@ -392,20 +376,6 @@ int32 AMassSpawner::GetSpawnCount() const
 		}
 		return int32(FinalSpawningCountScale * OldCount);
 	}
-}
-
-void AMassSpawner::OnEQSQueryFinished(TSharedPtr<FEnvQueryResult> Result)
-{
-	if (Result.IsValid() == false || Result->IsSuccessful() == false)
-	{
-		UE_VLOG_UELOG(this, LogMassSpawner, Error, TEXT("EQS query failed or result is invalid"));
-		return;
-	}
-	
-	TArray<FVector> Locations;
-	Result->GetAllAsLocations(Locations);
-
-	SpawnAtLocations(Locations);
 }
 
 void AMassSpawner::SpawnAtLocations(const TArray<FVector>& Locations)

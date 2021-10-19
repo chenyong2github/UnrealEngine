@@ -12,10 +12,12 @@
  */
 UCLASS(BlueprintType, meta=(DisplayName="EQS SpawnPoints Generator"))
 class MASSSPAWNER_API UMassEntityEQSSpawnPointsGenerator : public UMassEntitySpawnPointsGeneratorBase
-{
+{	
 	GENERATED_BODY()
 
 public:
+	UMassEntityEQSSpawnPointsGenerator();
+	
 	virtual void GenerateSpawnPoints(UObject& QueryOwner, int32 Count, FFinishedGeneratingSpawnPointsSignature& FinishedGeneratingSpawnPointsDelegate) const override;
 
 protected:

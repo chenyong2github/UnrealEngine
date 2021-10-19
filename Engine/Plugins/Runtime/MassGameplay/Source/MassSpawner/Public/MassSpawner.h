@@ -24,6 +24,7 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void PostInitProperties() override;
+	virtual void PostLoad() override;
 	virtual void PostRegisterAllComponents() override;
 	virtual void BeginDestroy() override;
 
@@ -81,7 +82,6 @@ public:
 	void ScaleSpawningCount(float Scale) { SpawningCountScale = Scale; }
 
 protected:
-	void OnEQSQueryFinished(TSharedPtr<FEnvQueryResult> Result);
 	void OnAdjustTickSchematics(UWorld* World, TArray<TSoftObjectPtr<UMassSchematic>>& InOutTickSchematics);
 	void OnPostWorldInit(UWorld* World, const UWorld::InitializationValues);
 	void SpawnAtLocations(const TArray<FVector>& Locations);
@@ -110,15 +110,9 @@ protected:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Mass|Spawn", meta = (EditCondition = "bUseEntityConfig"))
 	TArray<FMassSpawnedEntityType> EntityTypes;
 
-	UPROPERTY(EditAnywhere, Category = "Mass|Spawn")
-	bool bUseSpawnPointsGenerators = false;
-
 	/** Asset that describes the way we want to generate SpawnPoints of the entity */
-	UPROPERTY(EditAnywhere, Category = "Mass|Spawn", meta = (EditCondition = "bUseSpawnPointsGenerators"))
+	UPROPERTY(EditAnywhere, Category = "Mass|Spawn")
 	TArray<FMassSpawnPointGenerator> SpawnPointsGenerators;
-
-	UPROPERTY(Category = "Mass|Spawn", EditAnywhere, meta = (EditCondition = "!bUseSpawnPointsGenerators"))
-	FEQSParametrizedQueryExecutionRequest EQSRequest;
 
 	UPROPERTY(Category = "Mass|Spawn", EditAnywhere)
 	uint32 bAutoSpawnOnBeginPlay : 1;

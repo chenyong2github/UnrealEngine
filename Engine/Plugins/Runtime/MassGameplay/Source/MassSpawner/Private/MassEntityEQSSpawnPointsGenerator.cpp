@@ -4,6 +4,12 @@
 #include "MassSpawnerTypes.h"
 #include "VisualLogger/VisualLogger.h"
 
+
+UMassEntityEQSSpawnPointsGenerator::UMassEntityEQSSpawnPointsGenerator()
+{
+	EQSRequest.RunMode = EEnvQueryRunMode::AllMatching; 
+}
+
 void UMassEntityEQSSpawnPointsGenerator::GenerateSpawnPoints(UObject& QueryOwner, int32 Count, FFinishedGeneratingSpawnPointsSignature& FinishedGeneratingSpawnPointsDelegate) const
 {
 	// Need to copy the request as it is called inside a CDO and CDO states cannot be changed.
