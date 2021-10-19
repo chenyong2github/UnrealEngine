@@ -23,6 +23,8 @@ using System.Transactions;
 
 namespace HordeServer.Collections
 {
+	using JobId = ObjectId<IJob>;
+	using LogId = ObjectId<ILogFile>;
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
 
@@ -194,7 +196,7 @@ namespace HordeServer.Collections
 		/// <summary>
 		/// The unique job id
 		/// </summary>
-		public ObjectId JobId { get; set; }
+		public JobId JobId { get; set; }
 
 		/// <summary>
 		/// Batch id for the step
@@ -214,7 +216,7 @@ namespace HordeServer.Collections
 		/// <summary>
 		/// The log id for this step
 		/// </summary>
-		public ObjectId? LogId { get; set; }
+		public LogId? LogId { get; set; }
 
 		/// <summary>
 		/// Whether to notify suspects for this step
@@ -233,7 +235,7 @@ namespace HordeServer.Collections
 		/// <param name="StepTime">Time that the step started</param>
 		/// <param name="LogId">Unique id of the log file for this step</param>
 		/// <param name="NotifySuspects">Whether to notify suspects for this step</param>
-		public NewIssueStepData(int Change, IssueSeverity Severity, string JobName, ObjectId JobId, SubResourceId BatchId, SubResourceId StepId, DateTime StepTime, ObjectId? LogId, bool NotifySuspects)
+		public NewIssueStepData(int Change, IssueSeverity Severity, string JobName, JobId JobId, SubResourceId BatchId, SubResourceId StepId, DateTime StepTime, LogId? LogId, bool NotifySuspects)
 		{
 			this.Change = Change;
 			this.Severity = Severity;
@@ -537,7 +539,7 @@ namespace HordeServer.Collections
 		/// <param name="BatchId">The batch id</param>
 		/// <param name="StepId">The step id</param>
 		/// <returns>List of steps</returns>
-		Task<List<IIssueStep>> FindStepsAsync(ObjectId JobId, SubResourceId? BatchId, SubResourceId? StepId);
+		Task<List<IIssueStep>> FindStepsAsync(JobId JobId, SubResourceId? BatchId, SubResourceId? StepId);
 
 		#endregion
 	}

@@ -13,6 +13,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Logs
 {
+	using LogId = ObjectId<ILogFile>;
+
 	/// <summary>
 	/// Caching interface for reading and writing log data.
 	/// </summary>
@@ -24,7 +26,7 @@ namespace HordeServer.Logs
 		/// <param name="LogId">Unique id of the log file</param>
 		/// <param name="Length">Length of the file covered by the index</param>
 		/// <returns>Index for the log file</returns>
-		Task<LogIndexData?> ReadIndexAsync(ObjectId LogId, long Length);
+		Task<LogIndexData?> ReadIndexAsync(LogId LogId, long Length);
 
 		/// <summary>
 		/// Log file to write an index for
@@ -33,7 +35,7 @@ namespace HordeServer.Logs
 		/// <param name="Length">Length of the file covered by the index</param>
 		/// <param name="Index">The log file index</param>
 		/// <returns>Async task</returns>
-		Task WriteIndexAsync(ObjectId LogId, long Length, LogIndexData Index);
+		Task WriteIndexAsync(LogId LogId, long Length, LogIndexData Index);
 
 		/// <summary>
 		/// Retrieves an item from the cache
@@ -42,7 +44,7 @@ namespace HordeServer.Logs
 		/// <param name="Offset">Offset of the chunk to read</param>
 		/// <param name="LineIndex">First line of the chunk</param>
 		/// <returns>Data for the given key, or null if it's not present</returns>
-		Task<LogChunkData?> ReadChunkAsync(ObjectId LogId, long Offset, int LineIndex);
+		Task<LogChunkData?> ReadChunkAsync(LogId LogId, long Offset, int LineIndex);
 
 		/// <summary>
 		/// Writes a chunk to storage
@@ -51,6 +53,6 @@ namespace HordeServer.Logs
 		/// <param name="Offset">Offset of the chunk to write</param>
 		/// <param name="ChunkData">Information about the chunk data</param>
 		/// <returns>Async task</returns>
-		Task WriteChunkAsync(ObjectId LogId, long Offset, LogChunkData ChunkData);
+		Task WriteChunkAsync(LogId LogId, long Offset, LogChunkData ChunkData);
 	}
 }

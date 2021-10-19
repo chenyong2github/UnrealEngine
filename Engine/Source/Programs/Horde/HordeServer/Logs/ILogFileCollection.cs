@@ -3,6 +3,7 @@
 using HordeServer.Api;
 using HordeServer.Models;
 using HordeServer.Services;
+using HordeServer.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
@@ -14,6 +15,9 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Collections
 {
+	using JobId = ObjectId<IJob>;
+	using LogId = ObjectId<ILogFile>;
+
 	/// <summary>
 	/// Updates a log file chunk
 	/// </summary>
@@ -60,7 +64,7 @@ namespace HordeServer.Collections
 		/// <param name="SessionId">Agent session allowed to update the log</param>
 		/// <param name="Type">Type of events to be stored in the log</param>
 		/// <returns>The new log file document</returns>
-		Task<ILogFile> CreateLogFileAsync(ObjectId JobId, ObjectId? SessionId, LogType Type);
+		Task<ILogFile> CreateLogFileAsync(JobId JobId, ObjectId? SessionId, LogType Type);
 
 		/// <summary>
 		/// Adds a new chunk
@@ -92,7 +96,7 @@ namespace HordeServer.Collections
 		/// </summary>
 		/// <param name="LogFileId">Unique id of the log file</param>
 		/// <returns>The logfile document</returns>
-		Task<ILogFile?> GetLogFileAsync(ObjectId LogFileId);
+		Task<ILogFile?> GetLogFileAsync(LogId LogFileId);
 
 		/// <summary>
 		/// Gets all the log files

@@ -32,6 +32,9 @@ using EpicGames.Horde.Compute;
 
 namespace HordeServer.Tasks.Impl
 {
+	using JobId = ObjectId<IJob>;
+	using LeaseId = ObjectId<ILease>;
+	using LogId = ObjectId<ILogFile>;
 	using PoolId = StringId<IPool>;
 	using StreamId = StringId<IStream>;
 
@@ -89,7 +92,7 @@ namespace HordeServer.Tasks.Impl
 			/// <summary>
 			/// Returns an identifier describing this unique batch
 			/// </summary>
-			public (ObjectId, SubResourceId) Id
+			public (JobId, SubResourceId) Id
 			{
 				get { return (Job.Id, Batch.Id); }
 			}
@@ -255,7 +258,7 @@ namespace HordeServer.Tasks.Impl
 		/// <summary>
 		/// Map from batch id to the corresponding queue item
 		/// </summary>
-		Dictionary<(ObjectId, SubResourceId), QueueItem> BatchIdToQueueItem = new Dictionary<(ObjectId, SubResourceId), QueueItem>();
+		Dictionary<(JobId, SubResourceId), QueueItem> BatchIdToQueueItem = new Dictionary<(JobId, SubResourceId), QueueItem>();
 
 		/// <summary>
 		/// Set of long-poll tasks waiting to be satisfied 
@@ -421,7 +424,7 @@ namespace HordeServer.Tasks.Impl
 
 			// New list of queue items
 			SortedSet<QueueItem> NewQueue = new SortedSet<QueueItem>(Queue.Comparer);
-			Dictionary<(ObjectId, SubResourceId), QueueItem> NewBatchIdToQueueItem = new Dictionary<(ObjectId, SubResourceId), QueueItem>();
+			Dictionary<(JobId, SubResourceId), QueueItem> NewBatchIdToQueueItem = new Dictionary<(JobId, SubResourceId), QueueItem>();
 
 			// Query for a new list of jobs for the queue
 			List<IJob> NewJobs = await Jobs.GetDispatchQueueAsync();
@@ -723,9 +726,9 @@ namespace HordeServer.Tasks.Impl
 		}
 
 		/// <inheritdoc/>
-		public override Task CancelLeaseAsync(IAgent Agent, ObjectId LeaseId, ExecuteJobTask Task)
+		public override Task CancelLeaseAsync(IAgent Agent, LeaseId LeaseId, ExecuteJobTask Task)
 		{
-			return CancelLeaseAsync(Agent, Task.JobId.ToObjectId(), Task.BatchId.ToSubResourceId());
+			return CancelLeaseAsync(Agent, new JobId(Task.JobId), Task.BatchId.ToSubResourceId());
 		}
 
 		/// <summary>
@@ -742,13 +745,13 @@ namespace HordeServer.Tasks.Impl
 			Logger.LogDebug("Assigning job {JobId}, batch {BatchId} to waiter (agent {AgentID})", Job.Id, Batch.Id, Agent.Id);
 
 			// Generate a new unique id for the lease
-			ObjectId LeaseId = ObjectId.GenerateNewId();
+			LeaseId LeaseId = LeaseId.GenerateNewId();
 
 			// The next time to try assigning to another agent
 			DateTime BackOffTime = DateTime.UtcNow + TimeSpan.FromMinutes(1.0);
 
 			// Try to update the job with this agent id
-			ObjectId LogId = (await LogFileService.CreateLogFileAsync(Job.Id, Agent.SessionId, LogType.Json)).Id;
+			LogId LogId = (await LogFileService.CreateLogFileAsync(Job.Id, Agent.SessionId, LogType.Json)).Id;
 			if (await Jobs.TryAssignLeaseAsync(Item.Job, Item.BatchIdx, Item.PoolId, Agent.Id, Agent.SessionId!.Value, LeaseId, LogId))
 			{
 				// Get the lease name
@@ -816,7 +819,7 @@ namespace HordeServer.Tasks.Impl
 			return null;
 		}
 
-		async Task<ExecuteJobTask?> CreateExecuteJobTaskAsync(IStream Stream, IJob Job, IJobStepBatch Batch, IAgent Agent, AgentWorkspace Workspace, ObjectId LogId)
+		async Task<ExecuteJobTask?> CreateExecuteJobTaskAsync(IStream Stream, IJob Job, IJobStepBatch Batch, IAgent Agent, AgentWorkspace Workspace, LogId LogId)
 		{
 			// Get the lease name
 			StringBuilder LeaseName = new StringBuilder($"{Stream.Name} - ");
@@ -974,12 +977,12 @@ namespace HordeServer.Tasks.Impl
 		}
 
 		/// <inheritdoc/>
-		public override async Task OnLeaseFinishedAsync(IAgent Agent, ObjectId LeaseId, ExecuteJobTask Task, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output, ILogger Logger)
+		public override async Task OnLeaseFinishedAsync(IAgent Agent, LeaseId LeaseId, ExecuteJobTask Task, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output, ILogger Logger)
 		{
 			if (Outcome != LeaseOutcome.Success)
 			{
 				AgentId AgentId = Agent.Id;
-				ObjectId JobId = Task.JobId.ToObjectId();
+				JobId JobId = new JobId(Task.JobId);
 				SubResourceId BatchId = Task.BatchId.ToSubResourceId();
 
 				// Update the batch
@@ -1029,7 +1032,7 @@ namespace HordeServer.Tasks.Impl
 		/// <param name="JobId"></param>
 		/// <param name="BatchId"></param>
 		/// <returns></returns>
-		async Task CancelLeaseAsync(IAgent Agent, ObjectId JobId, SubResourceId BatchId)
+		async Task CancelLeaseAsync(IAgent Agent, JobId JobId, SubResourceId BatchId)
 		{
 			Logger.LogDebug("Cancelling lease for job {JobId}, batch {BatchId}", JobId, BatchId);
 

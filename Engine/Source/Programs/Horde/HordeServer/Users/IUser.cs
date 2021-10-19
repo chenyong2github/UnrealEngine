@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using HordeServer.Utilities;
 using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
@@ -9,6 +10,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Models
 {
+	using JobId = ObjectId<IJob>;
+
 	/// <summary>
 	/// Document which collates information about a user, and their personal settings
 	/// </summary>
@@ -79,6 +82,6 @@ namespace HordeServer.Models
 		/// <summary>
 		/// List of pinned jobs
 		/// </summary>
-		public IReadOnlyList<ObjectId> PinnedJobIds { get; }
+		public IReadOnlyList<JobId> PinnedJobIds { get; }
 	}
 }

@@ -10,6 +10,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Models
 {
+	using LeaseId = ObjectId<ILease>;
+
 	/// <summary>
 	/// Entry to the conform list
 	/// </summary>
@@ -25,7 +27,7 @@ namespace HordeServer.Models
 		/// The lease id
 		/// </summary>
 		[BsonElement("l")]
-		public ObjectId LeaseId { get; set; }
+		public LeaseId LeaseId { get; set; }
 
 		/// <summary>
 		/// Last timestamp that the lease was checked for validity 

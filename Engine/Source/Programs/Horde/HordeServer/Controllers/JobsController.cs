@@ -27,6 +27,7 @@ using HordeServer.Jobs;
 
 namespace HordeServer.Controllers
 {
+	using JobId = ObjectId<IJob>;
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
 
@@ -190,7 +191,7 @@ namespace HordeServer.Controllers
 
 			// Create the job
 			IJob Job = await JobService.CreateJobAsync(null, Stream, TemplateRefId, Template.Id, Graph, Name, Change, CodeChange, Create.PreflightChange, null, User.GetUserId(), User.GetUserName(), Priority, Create.AutoSubmit, Create.UpdateIssues, TemplateRef.ChainedJobs, TemplateRef.ShowUgsBadges, TemplateRef.ShowUgsAlerts, TemplateRef.NotificationChannel, TemplateRef.NotificationChannelFilter, null, Arguments);
-			await UpdateNotificationsAsync(Job.Id.ToString(), new UpdateNotificationsRequest { Slack = true });
+			await UpdateNotificationsAsync(Job.Id, new UpdateNotificationsRequest { Slack = true });
 			return new CreateJobResponse(Job.Id.ToString());
 		}
 
@@ -224,9 +225,9 @@ namespace HordeServer.Controllers
 		/// <returns>Async task</returns>
 		[HttpDelete]
 		[Route("/api/v1/jobs/{JobId}")]
-		public async Task<ActionResult> DeleteJobAsync(string JobId)
+		public async Task<ActionResult> DeleteJobAsync(JobId JobId)
 		{
-			IJob? Job = await JobService.GetJobAsync(JobId.ToObjectId());
+			IJob? Job = await JobService.GetJobAsync(JobId);
 			if (Job == null)
 			{
 				return NotFound();
@@ -250,9 +251,9 @@ namespace HordeServer.Controllers
 		/// <returns>Async task</returns>
 		[HttpPut]
 		[Route("/api/v1/jobs/{JobId}")]
-		public async Task<ActionResult> UpdateJobAsync(string JobId, [FromBody] UpdateJobRequest Request)
+		public async Task<ActionResult> UpdateJobAsync(JobId JobId, [FromBody] UpdateJobRequest Request)
 		{
-			IJob? Job = await JobService.GetJobAsync(JobId.ToObjectId());
+			IJob? Job = await JobService.GetJobAsync(JobId);
 			if (Job == null)
 			{
 				return NotFound();
@@ -296,9 +297,9 @@ namespace HordeServer.Controllers
 		/// <returns>Information about the requested job</returns>
 		[HttpPut]
 		[Route("/api/v1/jobs/{JobId}/notifications")]
-		public async Task<ActionResult> UpdateNotificationsAsync(string JobId, [FromBody] UpdateNotificationsRequest Request)
+		public async Task<ActionResult> UpdateNotificationsAsync(JobId JobId, [FromBody] UpdateNotificationsRequest Request)
 		{
-			IJob? Job = await JobService.GetJobAsync(JobId.ToObjectId());
+			IJob? Job = await JobService.GetJobAsync(JobId);
 			if (Job == null)
 			{
 				return NotFound();
@@ -325,9 +326,9 @@ namespace HordeServer.Controllers
 		/// <returns>Information about the requested job</returns>
 		[HttpGet]
 		[Route("/api/v1/jobs/{JobId}/notifications")]
-		public async Task<ActionResult<GetNotificationResponse>> GetNotificationsAsync(string JobId)
+		public async Task<ActionResult<GetNotificationResponse>> GetNotificationsAsync(JobId JobId)
 		{
-			IJob? Job = await JobService.GetJobAsync(JobId.ToObjectId());
+			IJob? Job = await JobService.GetJobAsync(JobId);
 			if (Job == null)
 			{
 				return NotFound();
@@ -359,9 +360,9 @@ namespace HordeServer.Controllers
 		[HttpGet]
 		[Route("/api/v1/jobs/{JobId}")]
 		[ProducesResponseType(typeof(GetJobResponse), 200)]
-		public async Task<ActionResult<object>> GetJobAsync(string JobId, [FromQuery] DateTimeOffset? ModifiedAfter = null, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> GetJobAsync(JobId JobId, [FromQuery] DateTimeOffset? ModifiedAfter = null, [FromQuery] PropertyFilter? Filter = null)
 		{
-			IJob? Job = await JobService.GetJobAsync(JobId.ToObjectId());
+			IJob? Job = await JobService.GetJobAsync(JobId);
 			if (Job == null)
 			{
 				return NotFound();
@@ -391,9 +392,9 @@ namespace HordeServer.Controllers
 		[HttpGet]
 		[Route("/api/v1/jobs/{JobId}/graph")]
 		[ProducesResponseType(typeof(GetGraphResponse), 200)]
-		public async Task<ActionResult<object>> GetJobGraphAsync(string JobId, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> GetJobGraphAsync(JobId JobId, [FromQuery] PropertyFilter? Filter = null)
 		{
-			IJob? Job = await JobService.GetJobAsync(JobId.ToObjectId());
+			IJob? Job = await JobService.GetJobAsync(JobId);
 			if (Job == null)
 			{
 				return NotFound();
@@ -416,9 +417,9 @@ namespace HordeServer.Controllers
 		[HttpGet]
 		[Route("/api/v1/jobs/{JobId}/timing")]
 		[ProducesResponseType(typeof(GetJobTimingResponse), 200)]
-		public async Task<ActionResult<object>> GetJobTimingAsync(string JobId, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> GetJobTimingAsync(JobId JobId, [FromQuery] PropertyFilter? Filter = null)
 		{
-			IJob? Job = await JobService.GetJobAsync(JobId.ToObjectId());
+			IJob? Job = await JobService.GetJobAsync(JobId);
 			if (Job == null)
 			{
 				return NotFound();
@@ -462,9 +463,9 @@ namespace HordeServer.Controllers
 		[HttpGet]
 		[Route("/api/v1/jobs/{JobId}/template")]
 		[ProducesResponseType(typeof(GetTemplateResponse), 200)]
-		public async Task<ActionResult<object>> GetJobTemplateAsync(string JobId, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> GetJobTemplateAsync(JobId JobId, [FromQuery] PropertyFilter? Filter = null)
 		{
-			IJob? Job = await JobService.GetJobAsync(JobId.ToObjectId());
+			IJob? Job = await JobService.GetJobAsync(JobId);
 			if (Job == null || Job.TemplateHash == null)
 			{
 				return NotFound();
@@ -532,7 +533,7 @@ namespace HordeServer.Controllers
 			[FromQuery] int Index = 0,
 			[FromQuery] int Count = 100)
 		{
-			ObjectId[]? JobIdValues = (Ids == null) ? (ObjectId[]?)null : Array.ConvertAll(Ids, x => x.ToObjectId());
+			JobId[]? JobIdValues = (Ids == null) ? (JobId[]?)null : Array.ConvertAll(Ids, x => new JobId(x));
 			StreamId? StreamIdValue = (StreamId == null)? (StreamId?)null : new StreamId(StreamId);
 			
 			TemplateRefId[]? TemplateRefIds = (Templates != null && Templates.Length > 0) ? Templates.Select(x => new TemplateRefId(x)).ToArray() : null;
@@ -609,14 +610,13 @@ namespace HordeServer.Controllers
 		/// <returns>Id of the new job</returns>
 		[HttpPost]
 		[Route("/api/v1/jobs/{JobId}/groups")]
-		public async Task<ActionResult> CreateGroupsAsync(string JobId, [FromBody] List<NewGroup> Requests)
+		public async Task<ActionResult> CreateGroupsAsync(JobId JobId, [FromBody] List<NewGroup> Requests)
 		{
 			Dictionary<string, int> ExpectedDurationCache = new Dictionary<string, int>();
 
-			ObjectId JobIdValue = JobId.ToObjectId();
 			for (; ; )
 			{
-				IJob? Job = await JobService.GetJobAsync(JobIdValue);
+				IJob? Job = await JobService.GetJobAsync(JobId);
 				if (Job == null)
 				{
 					return NotFound();
@@ -645,9 +645,9 @@ namespace HordeServer.Controllers
 		[HttpGet]
 		[Route("/api/v1/jobs/{JobId}/groups")]
 		[ProducesResponseType(typeof(List<GetGroupResponse>), 200)]
-		public async Task<ActionResult<List<object>>> GetGroupsAsync(string JobId, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<List<object>>> GetGroupsAsync(JobId JobId, [FromQuery] PropertyFilter? Filter = null)
 		{
-			IJob? Job = await JobService.GetJobAsync(JobId.ToObjectId());
+			IJob? Job = await JobService.GetJobAsync(JobId);
 			if (Job == null)
 			{
 				return NotFound();
@@ -671,9 +671,9 @@ namespace HordeServer.Controllers
 		[HttpGet]
 		[Route("/api/v1/jobs/{JobId}/groups/{GroupIdx}")]
 		[ProducesResponseType(typeof(GetGroupResponse), 200)]
-		public async Task<ActionResult<object>> GetGroupAsync(string JobId, int GroupIdx, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> GetGroupAsync(JobId JobId, int GroupIdx, [FromQuery] PropertyFilter? Filter = null)
 		{
-			IJob? Job = await JobService.GetJobAsync(JobId.ToObjectId());
+			IJob? Job = await JobService.GetJobAsync(JobId);
 			if (Job == null)
 			{
 				return NotFound();
@@ -701,9 +701,9 @@ namespace HordeServer.Controllers
 		[HttpGet]
 		[Route("/api/v1/jobs/{JobId}/groups/{GroupIdx}/nodes")]
 		[ProducesResponseType(typeof(List<GetNodeResponse>), 200)]
-		public async Task<ActionResult<List<object>>> GetNodesAsync(string JobId, int GroupIdx, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<List<object>>> GetNodesAsync(JobId JobId, int GroupIdx, [FromQuery] PropertyFilter? Filter = null)
 		{
-			IJob? Job = await JobService.GetJobAsync(JobId.ToObjectId());
+			IJob? Job = await JobService.GetJobAsync(JobId);
 			if (Job == null)
 			{
 				return NotFound();
@@ -732,9 +732,9 @@ namespace HordeServer.Controllers
 		[HttpGet]
 		[Route("/api/v1/jobs/{JobId}/groups/{GroupIdx}/nodes/{NodeIdx}")]
 		[ProducesResponseType(typeof(GetNodeResponse), 200)]
-		public async Task<ActionResult<object>> GetNodeAsync(string JobId, int GroupIdx, int NodeIdx, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> GetNodeAsync(JobId JobId, int GroupIdx, int NodeIdx, [FromQuery] PropertyFilter? Filter = null)
 		{
-			IJob? Job = await JobService.GetJobAsync(JobId.ToObjectId());
+			IJob? Job = await JobService.GetJobAsync(JobId);
 			if (Job == null)
 			{
 				return NotFound();
@@ -762,11 +762,9 @@ namespace HordeServer.Controllers
 		[HttpGet]
 		[Route("/api/v1/jobs/{JobId}/batches")]
 		[ProducesResponseType(typeof(List<GetBatchResponse>), 200)]
-		public async Task<ActionResult<List<object>>> GetBatchesAsync(string JobId, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<List<object>>> GetBatchesAsync(JobId JobId, [FromQuery] PropertyFilter? Filter = null)
 		{
-			ObjectId JobIdValue = JobId.ToObjectId();
-
-			IJob? Job = await JobService.GetJobAsync(JobIdValue);
+			IJob? Job = await JobService.GetJobAsync(JobId);
 			if (Job == null)
 			{
 				return NotFound();
@@ -794,12 +792,11 @@ namespace HordeServer.Controllers
 		/// <param name="Request">Updates to apply to the node</param>
 		[HttpPut]
 		[Route("/api/v1/jobs/{JobId}/batches/{BatchId}")]
-		public async Task<ActionResult> UpdateBatchAsync(string JobId, string BatchId, [FromBody] UpdateBatchRequest Request)
+		public async Task<ActionResult> UpdateBatchAsync(JobId JobId, string BatchId, [FromBody] UpdateBatchRequest Request)
 		{
-			ObjectId JobIdValue = JobId.ToObjectId();
 			SubResourceId BatchIdValue = BatchId.ToSubResourceId();
 
-			IJob? Job = await JobService.GetJobAsync(JobIdValue);
+			IJob? Job = await JobService.GetJobAsync(JobId);
 			if (Job == null)
 			{
 				return NotFound();
@@ -815,7 +812,7 @@ namespace HordeServer.Controllers
 				return Forbid();
 			}
 
-			if (!await JobService.UpdateBatchAsync(Job, BatchIdValue, Request.LogId?.ToObjectId(), Request.State))
+			if (!await JobService.UpdateBatchAsync(Job, BatchIdValue, Request.LogId?.ToObjectId<ILogFile>(), Request.State))
 			{
 				return NotFound();
 			}
@@ -832,12 +829,11 @@ namespace HordeServer.Controllers
 		[HttpGet]
 		[Route("/api/v1/jobs/{JobId}/batches/{BatchId}")]
 		[ProducesResponseType(typeof(GetBatchResponse), 200)]
-		public async Task<ActionResult<object>> GetBatchAsync(string JobId, string BatchId, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> GetBatchAsync(JobId JobId, string BatchId, [FromQuery] PropertyFilter? Filter = null)
 		{
-			ObjectId JobIdValue = JobId.ToObjectId();
 			SubResourceId BatchIdValue = BatchId.ToSubResourceId();
 
-			IJob? Job = await JobService.GetJobAsync(JobIdValue);
+			IJob? Job = await JobService.GetJobAsync(JobId);
 			if (Job == null)
 			{
 				return NotFound();
@@ -869,12 +865,11 @@ namespace HordeServer.Controllers
 		[HttpGet]
 		[Route("/api/v1/jobs/{JobId}/batches/{BatchId}/steps")]
 		[ProducesResponseType(typeof(List<GetStepResponse>), 200)]
-		public async Task<ActionResult<List<object>>> GetStepsAsync(string JobId, string BatchId, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<List<object>>> GetStepsAsync(JobId JobId, string BatchId, [FromQuery] PropertyFilter? Filter = null)
 		{
-			ObjectId JobIdValue = JobId.ToObjectId();
 			SubResourceId BatchIdValue = BatchId.ToSubResourceId();
 
-			IJob? Job = await JobService.GetJobAsync(JobIdValue);
+			IJob? Job = await JobService.GetJobAsync(JobId);
 			if (Job == null)
 			{
 				return NotFound();
@@ -912,13 +907,12 @@ namespace HordeServer.Controllers
 		/// <param name="Request">Updates to apply to the node</param>
 		[HttpPut]
 		[Route("/api/v1/jobs/{JobId}/batches/{BatchId}/steps/{StepId}")]
-		public async Task<ActionResult<UpdateStepResponse>> UpdateStepAsync(string JobId, string BatchId, string StepId, [FromBody] UpdateStepRequest Request)
+		public async Task<ActionResult<UpdateStepResponse>> UpdateStepAsync(JobId JobId, string BatchId, string StepId, [FromBody] UpdateStepRequest Request)
 		{
-			ObjectId JobIdValue = JobId.ToObjectId();
 			SubResourceId BatchIdValue = BatchId.ToSubResourceId();
 			SubResourceId StepIdValue = StepId.ToSubResourceId();
 
-			IJob? Job = await JobService.GetJobAsync(JobIdValue);
+			IJob? Job = await JobService.GetJobAsync(JobId);
 			if (Job == null)
 			{
 				return NotFound();
@@ -957,7 +951,7 @@ namespace HordeServer.Controllers
 
 			try
 			{
-				IJob? NewJob = await JobService.UpdateStepAsync(Job, BatchIdValue, StepIdValue, Request.State, Request.Outcome, Request.AbortRequested, AbortByUser, Request.LogId?.ToObjectId(), null, RetryByUser, Request.Priority, null, Request.Properties);
+				IJob? NewJob = await JobService.UpdateStepAsync(Job, BatchIdValue, StepIdValue, Request.State, Request.Outcome, Request.AbortRequested, AbortByUser, Request.LogId?.ToObjectId<ILogFile>(), null, RetryByUser, Request.Priority, null, Request.Properties);
 				if (NewJob == null)
 				{
 					return NotFound();
@@ -1022,13 +1016,12 @@ namespace HordeServer.Controllers
 		[HttpGet]
 		[Route("/api/v1/jobs/{JobId}/batches/{BatchId}/steps/{StepId}")]
 		[ProducesResponseType(typeof(GetStepResponse), 200)]
-		public async Task<ActionResult<object>> GetStepAsync(string JobId, string BatchId, string StepId, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> GetStepAsync(JobId JobId, string BatchId, string StepId, [FromQuery] PropertyFilter? Filter = null)
 		{
-			ObjectId JobIdValue = JobId.ToObjectId();
 			SubResourceId BatchIdValue = BatchId.ToSubResourceId();
 			SubResourceId StepIdValue = StepId.ToSubResourceId();
 
-			IJob? Job = await JobService.GetJobAsync(JobIdValue);
+			IJob? Job = await JobService.GetJobAsync(JobId);
 			if (Job == null)
 			{
 				return NotFound();
@@ -1067,13 +1060,12 @@ namespace HordeServer.Controllers
 		/// <returns>Information about the requested job</returns>
 		[HttpPut]
 		[Route("/api/v1/jobs/{JobId}/batches/{BatchId}/steps/{StepId}/notifications")]
-		public async Task<ActionResult> UpdateStepNotificationsAsync(string JobId, string BatchId, string StepId, [FromBody] UpdateNotificationsRequest Request)
+		public async Task<ActionResult> UpdateStepNotificationsAsync(JobId JobId, string BatchId, string StepId, [FromBody] UpdateNotificationsRequest Request)
 		{
-			ObjectId JobIdValue = JobId.ToObjectId();
 			SubResourceId BatchIdValue = BatchId.ToSubResourceId();
 			SubResourceId StepIdValue = StepId.ToSubResourceId();
 
-			IJob? Job = await JobService.GetJobAsync(JobIdValue);
+			IJob? Job = await JobService.GetJobAsync(JobId);
 			if (Job == null)
 			{
 				return NotFound();
@@ -1116,9 +1108,9 @@ namespace HordeServer.Controllers
 		/// <returns>Information about the requested job</returns>
 		[HttpGet]
 		[Route("/api/v1/jobs/{JobId}/batches/{BatchId}/steps/{StepId}/notifications")]
-		public async Task<ActionResult<GetNotificationResponse>> GetStepNotificationsAsync(string JobId, string BatchId, string StepId)
+		public async Task<ActionResult<GetNotificationResponse>> GetStepNotificationsAsync(JobId JobId, string BatchId, string StepId)
 		{
-			IJob? Job = await JobService.GetJobAsync(JobId.ToObjectId());
+			IJob? Job = await JobService.GetJobAsync(JobId);
 			if (Job == null)
 			{
 				return NotFound();
@@ -1156,13 +1148,12 @@ namespace HordeServer.Controllers
 		/// <returns>List of nodes to be executed</returns>
 		[HttpGet]
 		[Route("/api/v1/jobs/{JobId}/batches/{BatchId}/steps/{StepId}/artifacts/{*Name}")]
-		public async Task<ActionResult> GetArtifactAsync(string JobId, string BatchId, string StepId, string Name)
+		public async Task<ActionResult> GetArtifactAsync(JobId JobId, string BatchId, string StepId, string Name)
 		{
-			ObjectId JobIdValue = JobId.ToObjectId();
 			SubResourceId BatchIdValue = BatchId.ToSubResourceId();
 			SubResourceId StepIdValue = StepId.ToSubResourceId();
 
-			IJob? Job = await JobService.GetJobAsync(JobIdValue);
+			IJob? Job = await JobService.GetJobAsync(JobId);
 			if (Job == null)
 			{
 				return NotFound();
@@ -1176,7 +1167,7 @@ namespace HordeServer.Controllers
 				return NotFound();
 			}
 
-			List<IArtifact> Artifacts = await ArtifactCollection.GetArtifactsAsync(JobIdValue, StepIdValue, Name);
+			List<IArtifact> Artifacts = await ArtifactCollection.GetArtifactsAsync(JobId, StepIdValue, Name);
 			if (Artifacts.Count == 0)
 			{
 				return NotFound();
@@ -1195,13 +1186,12 @@ namespace HordeServer.Controllers
 		/// <returns>List of nodes to be executed</returns>
 		[HttpGet]
 		[Route("/api/v1/jobs/{JobId}/batches/{BatchId}/steps/{StepId}/trace")]
-		public async Task<ActionResult> GetStepTraceAsync(string JobId, string BatchId, string StepId)
+		public async Task<ActionResult> GetStepTraceAsync(JobId JobId, string BatchId, string StepId)
 		{
-			ObjectId JobIdValue = JobId.ToObjectId();
 			SubResourceId BatchIdValue = BatchId.ToSubResourceId();
 			SubResourceId StepIdValue = StepId.ToSubResourceId();
 
-			IJob? Job = await JobService.GetJobAsync(JobIdValue);
+			IJob? Job = await JobService.GetJobAsync(JobId);
 			if (Job == null)
 			{
 				return NotFound();
@@ -1215,7 +1205,7 @@ namespace HordeServer.Controllers
 				return NotFound();
 			}
 
-			List<IArtifact> Artifacts = await ArtifactCollection.GetArtifactsAsync(JobIdValue, StepIdValue, null);
+			List<IArtifact> Artifacts = await ArtifactCollection.GetArtifactsAsync(JobId, StepIdValue, null);
 			foreach (IArtifact Artifact in Artifacts)
 			{
 				if (Artifact.Name.Equals("trace.json", StringComparison.OrdinalIgnoreCase))
@@ -1234,14 +1224,12 @@ namespace HordeServer.Controllers
 		/// <param name="Request">The notification request</param>
 		[HttpPut]
 		[Route("/api/v1/jobs/{JobId}/labels/{LabelIndex}/notifications")]
-		public async Task<ActionResult> UpdateLabelNotificationsAsync(string JobId, int LabelIndex, [FromBody] UpdateNotificationsRequest Request)
+		public async Task<ActionResult> UpdateLabelNotificationsAsync(JobId JobId, int LabelIndex, [FromBody] UpdateNotificationsRequest Request)
 		{
-			ObjectId JobIdValue = JobId.ToObjectId();
-
 			ObjectId TriggerId;
 			for (; ; )
 			{
-				IJob? Job = await JobService.GetJobAsync(JobIdValue);
+				IJob? Job = await JobService.GetJobAsync(JobId);
 				if (Job == null)
 				{
 					return NotFound();
@@ -1278,9 +1266,9 @@ namespace HordeServer.Controllers
 		/// <returns>Notification info for the requested label in the job</returns>
 		[HttpGet]
 		[Route("/api/v1/jobs/{JobId}/labels/{LabelIndex}/notifications")]
-		public async Task<ActionResult<GetNotificationResponse>> GetLabelNotificationsAsync(string JobId, int LabelIndex)
+		public async Task<ActionResult<GetNotificationResponse>> GetLabelNotificationsAsync(JobId JobId, int LabelIndex)
 		{
-			IJob? Job = await JobService.GetJobAsync(JobId.ToObjectId());
+			IJob? Job = await JobService.GetJobAsync(JobId);
 			if (Job == null)
 			{
 				return NotFound();

@@ -2,6 +2,7 @@
 
 using HordeServer.Api;
 using HordeServer.Models;
+using HordeServer.Utilities;
 using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
@@ -10,6 +11,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Logs
 {
+	using LogId = ObjectId<ILogFile>;
+
 	/// <summary>
 	/// Interface for the log file write cache
 	/// </summary>
@@ -31,7 +34,7 @@ namespace HordeServer.Logs
 		/// <param name="Data">Data to be appended</param>
 		/// <param name="Type">Type of data stored in this log file</param>
 		/// <returns>True if the data was appended to the given chunk. False if the chunk has been completed.</returns>
-		Task<bool> AppendAsync(ObjectId LogId, long ChunkOffset, long WriteOffset, int WriteLineIndex, int WriteLineCount, ReadOnlyMemory<byte> Data, LogType Type);
+		Task<bool> AppendAsync(LogId LogId, long ChunkOffset, long WriteOffset, int WriteLineIndex, int WriteLineCount, ReadOnlyMemory<byte> Data, LogType Type);
 
 		/// <summary>
 		/// Finish the current sub chunk
@@ -39,7 +42,7 @@ namespace HordeServer.Logs
 		/// <param name="LogId">The log file id</param>
 		/// <param name="Offset">Offset of the chunk within the log file</param>
 		/// <returns>Async task</returns>
-		Task CompleteSubChunkAsync(ObjectId LogId, long Offset);
+		Task CompleteSubChunkAsync(LogId LogId, long Offset);
 
 		/// <summary>
 		/// Finish the current chunk
@@ -47,7 +50,7 @@ namespace HordeServer.Logs
 		/// <param name="LogId">The log file id</param>
 		/// <param name="Offset">Offset of the chunk within the log file</param>
 		/// <returns>Async task</returns>
-		Task CompleteChunkAsync(ObjectId LogId, long Offset);
+		Task CompleteChunkAsync(LogId LogId, long Offset);
 
 		/// <summary>
 		/// Remove a complete chunk from the builder
@@ -55,7 +58,7 @@ namespace HordeServer.Logs
 		/// <param name="LogId">The log file id</param>
 		/// <param name="Offset">Offset of the chunk within the log file</param>
 		/// <returns>Async task</returns>
-		Task RemoveChunkAsync(ObjectId LogId, long Offset);
+		Task RemoveChunkAsync(LogId LogId, long Offset);
 
 		/// <summary>
 		/// Gets the current chunk for the given log file
@@ -64,13 +67,13 @@ namespace HordeServer.Logs
 		/// <param name="Offset">Offset of the chunk within the log file</param>
 		/// <param name="LineIndex">Line index of the chunk within the log file</param>
 		/// <returns></returns>
-		Task<LogChunkData?> GetChunkAsync(ObjectId LogId, long Offset, int LineIndex);
+		Task<LogChunkData?> GetChunkAsync(LogId LogId, long Offset, int LineIndex);
 
 		/// <summary>
 		/// Touches the timestamps of all the chunks after the given age, and returns them. Used for flushing the builder.
 		/// </summary>
 		/// <param name="MinAge">Minimum age of the chunks to enumerate. If specified, only chunks last modified longer than this period will be returned.</param>
 		/// <returns>List of chunks, identified by log id and chunk index</returns>
-		Task<List<(ObjectId, long)>> TouchChunksAsync(TimeSpan MinAge);
+		Task<List<(LogId, long)>> TouchChunksAsync(TimeSpan MinAge);
 	}
 }

@@ -19,9 +19,37 @@ namespace EpicGames.Core
 	public interface IMessageTemplateFormatter
 	{
 		/// <summary>
+		/// The type name to serialize
+		/// </summary>
+		public string Name { get; }
+
+		/// <summary>
 		/// Serializes the given value. The state of the supplied JSON writer will be within a JSON object; named properties should typically be serialized directly here.
 		/// </summary>
 		public void Write(Utf8JsonWriter Writer, object Value);
+	}
+
+	/// <summary>
+	/// Implementation of <see cref="IMessageTemplateFormatter"/> that just serializes a type name
+	/// </summary>
+	public class MessageTemplateTypeNameFormatter : IMessageTemplateFormatter
+	{
+		/// <inheritdoc/>
+		public string Name { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Name">The type name</param>
+		public MessageTemplateTypeNameFormatter(string Name)
+		{
+			this.Name = Name;
+		}
+
+		/// <inheritdoc/>
+		public void Write(Utf8JsonWriter Writer, object Value)
+		{
+		}
 	}
 
 	/// <summary>
@@ -29,12 +57,10 @@ namespace EpicGames.Core
 	/// </summary>
 	public class MessageTemplateFormatterAttribute : Attribute
 	{
-		public string Name { get; }
 		public Type Type { get; }
 
-		public MessageTemplateFormatterAttribute(string Name, Type Type)
+		public MessageTemplateFormatterAttribute(Type Type)
 		{
-			this.Name = Name;
 			this.Type = Type;
 		}
 	}
@@ -52,7 +78,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Static cache of formatters for property values
 		/// </summary>
-		static ConcurrentDictionary<Type, IMessageTemplateFormatter> TypeToWriter = new ConcurrentDictionary<Type, IMessageTemplateFormatter>();
+		static ConcurrentDictionary<Type, IMessageTemplateFormatter?> TypeToFormatter = new ConcurrentDictionary<Type, IMessageTemplateFormatter?>();
 
 		/// <summary>
 		/// Register a formatter for the given type
@@ -61,7 +87,7 @@ namespace EpicGames.Core
 		/// <param name="Formatter"></param>
 		public static void RegisterFormatter(Type Type, IMessageTemplateFormatter Formatter)
 		{
-			TypeToWriter.TryAdd(Type, Formatter);
+			TypeToFormatter.TryAdd(Type, Formatter);
 		}
 
 		/// <summary>
@@ -318,18 +344,21 @@ namespace EpicGames.Core
 		/// <param name="JsonWriter">The writer to output to</param>
 		static void WriteComplexPropertyValue(object Value, Type ValueType, Utf8JsonWriter JsonWriter)
 		{
-			MessageTemplateFormatterAttribute? Attribute = ValueType.GetCustomAttribute<MessageTemplateFormatterAttribute>();
-			if (Attribute != null)
+			IMessageTemplateFormatter? Formatter;
+			if (!TypeToFormatter.TryGetValue(ValueType, out Formatter))
 			{
-				IMessageTemplateFormatter? Formatter;
-				if (!TypeToWriter.TryGetValue(Attribute.Type, out Formatter))
+				MessageTemplateFormatterAttribute? Attribute = ValueType.GetCustomAttribute<MessageTemplateFormatterAttribute>();
+				if (Attribute != null)
 				{
 					Formatter = (IMessageTemplateFormatter)Activator.CreateInstance(Attribute.Type)!;
-					TypeToWriter.TryAdd(Attribute.Type, Formatter);
 				}
+				TypeToFormatter.TryAdd(ValueType, Formatter);
+			}
 
+			if (Formatter != null)
+			{
 				JsonWriter.WriteStartObject();
-				JsonWriter.WriteString("$type", Attribute.Name);
+				JsonWriter.WriteString("$type", Formatter.Name);
 				JsonWriter.WriteString("$text", Value.ToString());
 				Formatter.Write(JsonWriter, Value);
 				JsonWriter.WriteEndObject();

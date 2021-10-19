@@ -14,6 +14,9 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Models
 {
+	using JobId = ObjectId<IJob>;
+	using LogId = ObjectId<ILogFile>;
+
 	/// <summary>
 	/// Information about a log file chunk
 	/// </summary>
@@ -48,12 +51,12 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Identifier for the LogFile. Randomly generated.
 		/// </summary>
-		public ObjectId Id { get; }
+		public LogId Id { get; }
 
 		/// <summary>
 		/// Unique id of the job containing this log
 		/// </summary>
-		public ObjectId JobId { get; }
+		public JobId JobId { get; }
 
 		/// <summary>
 		/// The session allowed to write to this log

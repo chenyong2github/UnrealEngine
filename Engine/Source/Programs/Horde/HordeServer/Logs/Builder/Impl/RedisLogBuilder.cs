@@ -2,6 +2,7 @@
 
 using EpicGames.Core;
 using HordeServer.Api;
+using HordeServer.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
 using MongoDB.Bson;
@@ -12,12 +13,13 @@ using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using HordeServer.Utilities;
 using OpenTracing;
 using OpenTracing.Util;
+using HordeServer.Models;
 
 namespace HordeServer.Logs.Builder
 {
+	using LogId = ObjectId<ILogFile>;
 	using Condition = StackExchange.Redis.Condition;
 
 	/// <summary>
@@ -37,17 +39,17 @@ namespace HordeServer.Logs.Builder
 			public string SubChunkData => $"{Prefix}-subchunk";
 			public string Complete => $"{Prefix}-complete";
 
-			public ChunkKeys(ObjectId LogId, long Offset)
+			public ChunkKeys(LogId LogId, long Offset)
 			{
 				Prefix = $"log-{LogId}-chunk-{Offset}-builder";
 			}
 
-			public static bool TryParse(string Prefix, out ObjectId LogId, out long Offset)
+			public static bool TryParse(string Prefix, out LogId LogId, out long Offset)
 			{
 				Match Match = Regex.Match(Prefix, "log-([^-]+)-chunk-([^-]+)-builder");
-				if (!Match.Success || !ObjectId.TryParse(Match.Groups[1].Value, out LogId) || !long.TryParse(Match.Groups[2].Value, out Offset))
+				if (!Match.Success || !LogId.TryParse(Match.Groups[1].Value, out LogId) || !long.TryParse(Match.Groups[2].Value, out Offset))
 				{
-					LogId = new ObjectId();
+					LogId = LogId.Empty;
 					Offset = 0;
 					return false;
 				}
@@ -80,7 +82,7 @@ namespace HordeServer.Logs.Builder
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> AppendAsync(ObjectId LogId, long ChunkOffset, long WriteOffset, int WriteLineIndex, int WriteLineCount, ReadOnlyMemory<byte> Data, LogType Type)
+		public async Task<bool> AppendAsync(LogId LogId, long ChunkOffset, long WriteOffset, int WriteLineIndex, int WriteLineCount, ReadOnlyMemory<byte> Data, LogType Type)
 		{
 			IDatabase RedisDb = RedisConnectionPool.GetDatabase();
 			ChunkKeys Keys = new ChunkKeys(LogId, ChunkOffset);
@@ -131,7 +133,7 @@ namespace HordeServer.Logs.Builder
 		}
 
 		/// <inheritdoc/>
-		public async Task CompleteSubChunkAsync(ObjectId LogId, long Offset)
+		public async Task CompleteSubChunkAsync(LogId LogId, long Offset)
 		{
 			IDatabase RedisDb = RedisConnectionPool.GetDatabase();
 			ChunkKeys Keys = new ChunkKeys(LogId, Offset);
@@ -174,7 +176,7 @@ namespace HordeServer.Logs.Builder
 		}
 
 		/// <inheritdoc/>
-		public async Task CompleteChunkAsync(ObjectId LogId, long Offset)
+		public async Task CompleteChunkAsync(LogId LogId, long Offset)
 		{
 			IDatabase RedisDb = RedisConnectionPool.GetDatabase();
 			using IScope Scope = GlobalTracer.Instance.BuildSpan("Redis.CompleteChunk").StartActive();
@@ -196,7 +198,7 @@ namespace HordeServer.Logs.Builder
 		}
 
 		/// <inheritdoc/>
-		public async Task RemoveChunkAsync(ObjectId LogId, long Offset)
+		public async Task RemoveChunkAsync(LogId LogId, long Offset)
 		{
 			IDatabase RedisDb = RedisConnectionPool.GetDatabase();
 			using IScope Scope = GlobalTracer.Instance.BuildSpan("Redis.RemoveChunk").StartActive();
@@ -218,7 +220,7 @@ namespace HordeServer.Logs.Builder
 		}
 
 		/// <inheritdoc/>
-		public async Task<LogChunkData?> GetChunkAsync(ObjectId LogId, long Offset, int LineIndex)
+		public async Task<LogChunkData?> GetChunkAsync(LogId LogId, long Offset, int LineIndex)
 		{
 			IDatabase RedisDb = RedisConnectionPool.GetDatabase();
 			ChunkKeys Keys = new ChunkKeys(LogId, Offset);
@@ -274,7 +276,7 @@ namespace HordeServer.Logs.Builder
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<(ObjectId, long)>> TouchChunksAsync(TimeSpan MinAge)
+		public async Task<List<(LogId, long)>> TouchChunksAsync(TimeSpan MinAge)
 		{
 			IDatabase RedisDb = RedisConnectionPool.GetDatabase();
 			
@@ -283,10 +285,10 @@ namespace HordeServer.Logs.Builder
 			SortedSetEntry[] Entries = await RedisDb.SortedSetRangeByScoreWithScoresAsync(ItemsKey, stop: (UtcNow - MinAge).Ticks);
 
 			// Update the score for each element in a transaction. If it succeeds, we can write the chunk. Otherwise another pod has beat us to it.
-			List<(ObjectId, long)> Results = new List<(ObjectId, long)>();
+			List<(LogId, long)> Results = new List<(LogId, long)>();
 			foreach (SortedSetEntry Entry in Entries)
 			{
-				if (ChunkKeys.TryParse(Entry.Element.ToString(), out ObjectId LogId, out long Offset))
+				if (ChunkKeys.TryParse(Entry.Element.ToString(), out LogId LogId, out long Offset))
 				{
 					ITransaction Transaction = RedisDb.CreateTransaction();
 					Transaction.AddCondition(Condition.SortedSetEqual(ItemsKey, Entry.Element, Entry.Score));

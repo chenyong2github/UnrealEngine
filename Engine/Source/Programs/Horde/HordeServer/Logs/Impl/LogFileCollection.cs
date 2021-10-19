@@ -3,6 +3,7 @@
 using HordeServer.Api;
 using HordeServer.Models;
 using HordeServer.Services;
+using HordeServer.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
@@ -14,6 +15,9 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Collections.Impl
 {
+	using JobId = ObjectId<IJob>;
+	using LogId = ObjectId<ILogFile>;
+
 	/// <summary>
 	/// Wrapper around the jobs collection in a mongo DB
 	/// </summary>
@@ -50,10 +54,10 @@ namespace HordeServer.Collections.Impl
 		class LogFileDocument : ILogFile
 		{
 			[BsonRequired, BsonId]
-			public ObjectId Id { get; set; }
+			public LogId Id { get; set; }
 
 			[BsonRequired]
-			public ObjectId JobId { get; set; }
+			public JobId JobId { get; set; }
 
 			public ObjectId? SessionId { get; set; }
 			public LogType Type { get; set; }
@@ -76,9 +80,9 @@ namespace HordeServer.Collections.Impl
 			{
 			}
 
-			public LogFileDocument(ObjectId JobId, ObjectId? SessionId, LogType Type)
+			public LogFileDocument(JobId JobId, ObjectId? SessionId, LogType Type)
 			{
-				this.Id = ObjectId.GenerateNewId();
+				this.Id = LogId.GenerateNewId();
 				this.JobId = JobId;
 				this.SessionId = SessionId;
 				this.Type = Type;
@@ -114,7 +118,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<ILogFile> CreateLogFileAsync(ObjectId JobId, ObjectId? SessionId, LogType Type)
+		public async Task<ILogFile> CreateLogFileAsync(JobId JobId, ObjectId? SessionId, LogType Type)
 		{
 			LogFileDocument NewLogFile = new LogFileDocument(JobId, SessionId, Type);
 			await LogFiles.InsertOneAsync(NewLogFile);
@@ -204,7 +208,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<ILogFile?> GetLogFileAsync(ObjectId LogFileId)
+		public async Task<ILogFile?> GetLogFileAsync(LogId LogFileId)
 		{
 			LogFileDocument LogFile = await LogFiles.Find<LogFileDocument>(x => x.Id == LogFileId).FirstOrDefaultAsync();
 			return LogFile;

@@ -20,6 +20,8 @@ using Microsoft.Extensions.Options;
 
 namespace HordeServerTests
 {
+	using JobId = ObjectId<IJob>;
+
     /// <summary>
     /// Tests aimed to be run from an IDE while debugging against real databases
     /// Uncomment the [Ignore] tag to run
@@ -63,7 +65,7 @@ namespace HordeServerTests
         {
 	        TestSetup TestSetup = await GetTestSetupExternal();
 	        
-	        HordeServer.Models.IJob? Job = await TestSetup.JobService.GetJobAsync(new ObjectId("5f98da1d98cf40000141344c"));
+	        HordeServer.Models.IJob? Job = await TestSetup.JobService.GetJobAsync(new JobId("5f98da1d98cf40000141344c"));
 	        Console.WriteLine("Job is " + Job);
         }
         

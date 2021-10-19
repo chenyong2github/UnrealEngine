@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Models
 {
+	using JobId = ObjectId<IJob>;
 	using TemplateRefId = StringId<TemplateRef>;
 
 	/// <summary>
@@ -209,7 +210,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// List of jobs that are currently active
 		/// </summary>
-		public List<ObjectId> ActiveJobs { get; set; } = new List<ObjectId>();
+		public List<JobId> ActiveJobs { get; set; } = new List<JobId>();
 
 		/// <summary>
 		/// Private constructor for serializtaion

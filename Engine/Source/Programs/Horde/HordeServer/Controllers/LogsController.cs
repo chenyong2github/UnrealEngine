@@ -24,6 +24,9 @@ using MongoDB.Bson;
 
 namespace HordeServer.Controllers
 {
+	using JobId = ObjectId<IJob>;
+	using LogId = ObjectId<ILogFile>;
+
 	/// <summary>
 	/// Format for the returned data
 	/// </summary>
@@ -92,9 +95,9 @@ namespace HordeServer.Controllers
 		[HttpGet]
 		[Route("/api/v1/logs/{LogFileId}")]
 		[ProducesResponseType(typeof(GetLogFileResponse), 200)]
-		public async Task<ActionResult<object>> GetLog(string LogFileId, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> GetLog(LogId LogFileId, [FromQuery] PropertyFilter? Filter = null)
 		{
-			ILogFile? LogFile = await LogFileService.GetLogFileAsync(LogFileId.ToObjectId());
+			ILogFile? LogFile = await LogFileService.GetLogFileAsync(LogFileId);
 			if (LogFile == null)
 			{
 				return NotFound();
@@ -120,9 +123,9 @@ namespace HordeServer.Controllers
 		/// <returns>Raw log data for the requested range</returns>
 		[HttpGet]
 		[Route("/api/v1/logs/{LogFileId}/data")]
-		public async Task<ActionResult> GetLogData(string LogFileId, [FromQuery] LogOutputFormat Format = LogOutputFormat.Raw, [FromQuery] long Offset = 0, [FromQuery] long Length = long.MaxValue, [FromQuery] string? FileName = null, [FromQuery] bool Download = false)
+		public async Task<ActionResult> GetLogData(LogId LogFileId, [FromQuery] LogOutputFormat Format = LogOutputFormat.Raw, [FromQuery] long Offset = 0, [FromQuery] long Length = long.MaxValue, [FromQuery] string? FileName = null, [FromQuery] bool Download = false)
 		{
-			ILogFile? LogFile = await LogFileService.GetLogFileAsync(LogFileId.ToObjectId());
+			ILogFile? LogFile = await LogFileService.GetLogFileAsync(LogFileId);
 			if (LogFile == null)
 			{
 				return NotFound();
@@ -154,9 +157,9 @@ namespace HordeServer.Controllers
 		/// <returns>Information about the requested project</returns>
 		[HttpGet]
 		[Route("/api/v1/logs/{LogFileId}/lines")]
-		public async Task<ActionResult> GetLogLines(string LogFileId, [FromQuery] int Index = 0, [FromQuery] int Count = int.MaxValue)
+		public async Task<ActionResult> GetLogLines(LogId LogFileId, [FromQuery] int Index = 0, [FromQuery] int Count = int.MaxValue)
 		{
-			ILogFile? LogFile = await LogFileService.GetLogFileAsync(LogFileId.ToObjectId());
+			ILogFile? LogFile = await LogFileService.GetLogFileAsync(LogFileId);
 			if (LogFile == null)
 			{
 				return NotFound();
@@ -284,9 +287,9 @@ namespace HordeServer.Controllers
 		/// <returns>Raw log data for the requested range</returns>
 		[HttpGet]
 		[Route("/api/v1/logs/{LogFileId}/search")]
-		public async Task<ActionResult<SearchLogFileResponse>> SearchLogFileAsync(string LogFileId, [FromQuery] string Text, [FromQuery] int FirstLine = 0, [FromQuery] int Count = 5)
+		public async Task<ActionResult<SearchLogFileResponse>> SearchLogFileAsync(LogId LogFileId, [FromQuery] string Text, [FromQuery] int FirstLine = 0, [FromQuery] int Count = 5)
 		{
-			ILogFile? LogFile = await LogFileService.GetLogFileAsync(LogFileId.ToObjectId());
+			ILogFile? LogFile = await LogFileService.GetLogFileAsync(LogFileId);
 			if (LogFile == null)
 			{
 				return NotFound();
@@ -312,9 +315,9 @@ namespace HordeServer.Controllers
 		[HttpGet]
 		[Route("/api/v1/logs/{LogFileId}/events")]
 		[ProducesResponseType(typeof(List<GetLogEventResponse>), 200)]
-		public async Task<ActionResult<List<GetLogEventResponse>>> GetEventsAsync(string LogFileId, [FromQuery] int? Index = null, [FromQuery] int? Count = null)
+		public async Task<ActionResult<List<GetLogEventResponse>>> GetEventsAsync(LogId LogFileId, [FromQuery] int? Index = null, [FromQuery] int? Count = null)
 		{
-			ILogFile? LogFile = await LogFileService.GetLogFileAsync(LogFileId.ToObjectId());
+			ILogFile? LogFile = await LogFileService.GetLogFileAsync(LogFileId);
 			if (LogFile == null)
 			{
 				return NotFound();
@@ -355,9 +358,9 @@ namespace HordeServer.Controllers
 		/// <returns>Http result code</returns>
 		[HttpPost]
 		[Route("/api/v1/logs/{LogFileId}")]
-		public async Task<ActionResult> WriteData(string LogFileId, [FromQuery] long Offset, [FromQuery] int LineIndex)
+		public async Task<ActionResult> WriteData(LogId LogFileId, [FromQuery] long Offset, [FromQuery] int LineIndex)
 		{
-			ILogFile? LogFile = await LogFileService.GetLogFileAsync(LogFileId.ToObjectId());
+			ILogFile? LogFile = await LogFileService.GetLogFileAsync(LogFileId);
 			if (LogFile == null)
 			{
 				return NotFound();
@@ -385,7 +388,7 @@ namespace HordeServer.Controllers
 		/// <returns>True if the action is authorized</returns>
 		async Task<bool> AuthorizeAsync(ILogFile LogFile, AclAction Action, ClaimsPrincipal User, JobPermissionsCache? PermissionsCache)
 		{
-			if (LogFile.JobId != ObjectId.Empty && await JobService.AuthorizeAsync(LogFile.JobId, Action, User, PermissionsCache))
+			if (LogFile.JobId != JobId.Empty && await JobService.AuthorizeAsync(LogFile.JobId, Action, User, PermissionsCache))
 			{
 				return true;
 			}

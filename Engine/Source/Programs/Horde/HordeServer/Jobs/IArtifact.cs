@@ -7,6 +7,8 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace HordeServer.Models
 {
+	using JobId = ObjectId<IJob>;
+
 	/// <summary>
 	/// Information about an artifact
 	/// </summary>
@@ -20,7 +22,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Unique id of the job containing this artifact
 		/// </summary>
-		public ObjectId JobId { get; }
+		public JobId JobId { get; }
 
 		/// <summary>
 		/// Unique id of the job containing this artifact

@@ -12,6 +12,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Models
 {
+	using JobId = ObjectId<IJob>;
+	using LogId = ObjectId<ILogFile>;
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
 	using PoolId = StringId<IPool>;
@@ -25,7 +27,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// The job id
 		/// </summary>
-		public ObjectId JobId { get; set; }
+		public JobId JobId { get; set; }
 
 		/// <summary>
 		/// The batch id within the job
@@ -43,7 +45,7 @@ namespace HordeServer.Models
 		/// <param name="JobId">The job id</param>
 		/// <param name="BatchId">The batch id within the job</param>
 		/// <param name="StepId">The step id</param>
-		public JobStepRefId(ObjectId JobId, SubResourceId BatchId, SubResourceId StepId)
+		public JobStepRefId(JobId JobId, SubResourceId BatchId, SubResourceId StepId)
 		{
 			this.JobId = JobId;
 			this.BatchId = BatchId;
@@ -58,7 +60,7 @@ namespace HordeServer.Models
 		public static JobStepRefId Parse(string Text)
 		{
 			string[] Components = Text.Split(':');
-			return new JobStepRefId(ObjectId.Parse(Components[0]), SubResourceId.Parse(Components[1]), SubResourceId.Parse(Components[2]));
+			return new JobStepRefId(JobId.Parse(Components[0]), SubResourceId.Parse(Components[1]), SubResourceId.Parse(Components[2]));
 		}
 
 		/// <summary>
@@ -145,7 +147,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Log for this step
 		/// </summary>
-		public ObjectId? LogId { get; }
+		public LogId? LogId { get; }
 
 		/// <summary>
 		/// The agent type

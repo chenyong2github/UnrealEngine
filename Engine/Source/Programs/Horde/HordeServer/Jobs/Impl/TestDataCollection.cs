@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Collections.Impl
 {
+	using JobId = ObjectId<IJob>;
 	using ProjectId = StringId<IProject>;
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
@@ -31,7 +32,7 @@ namespace HordeServer.Collections.Impl
 			public ObjectId Id { get; set; }
 			public StreamId StreamId { get; set; }
 			public TemplateRefId TemplateRefId { get; set; }
-			public ObjectId JobId { get; set; }
+			public JobId JobId { get; set; }
 			public SubResourceId StepId { get; set; }
 			public int Change { get; set; }
 			public string Key { get; set; }
@@ -91,7 +92,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ITestData>> FindAsync(StreamId? StreamId, int? MinChange, int? MaxChange, ObjectId? JobId, SubResourceId? StepId, string? Key = null, int Index = 0, int Count = 10)
+		public async Task<List<ITestData>> FindAsync(StreamId? StreamId, int? MinChange, int? MaxChange, JobId? JobId, SubResourceId? StepId, string? Key = null, int Index = 0, int Count = 10)
 		{
 			FilterDefinition<TestDataDocument> Filter = FilterDefinition<TestDataDocument>.Empty;
 			if (StreamId != null)

@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using HordeServer.Utilities;
 using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
@@ -10,6 +11,9 @@ using SubResourceId = HordeServer.Models.SubResourceId;
 
 namespace HordeServer.Models
 {
+	using JobId = ObjectId<IJob>;
+	using LogId = ObjectId<ILogFile>;
+
 	/// <summary>
 	/// Identifies a particular changelist and job that contributes to a span
 	/// </summary>
@@ -38,7 +42,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// The unique job id
 		/// </summary>
-		public ObjectId JobId { get; }
+		public JobId JobId { get; }
 
 		/// <summary>
 		/// Unique id of the batch within the job
@@ -63,6 +67,6 @@ namespace HordeServer.Models
 		/// <summary>
 		/// The log id for this step
 		/// </summary>
-		public ObjectId? LogId { get; }
+		public LogId? LogId { get; }
 	}
 }

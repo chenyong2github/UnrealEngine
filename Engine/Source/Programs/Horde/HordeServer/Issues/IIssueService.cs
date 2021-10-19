@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Services
 {
+	using LogId = ObjectId<ILogFile>;
 	using StreamId = StringId<IStream>;
 
 	/// <summary>
@@ -122,7 +123,7 @@ namespace HordeServer.Services
 		/// <param name="Index">Index of the first event to return</param>
 		/// <param name="Count">Number of issues to return</param>
 		/// <returns>List of log events</returns>
-		Task<List<ILogEvent>> FindEventsForIssueAsync(int IssueId, ObjectId[]? LogIds = null, int Index = 0, int Count = 10);
+		Task<List<ILogEvent>> FindEventsForIssueAsync(int IssueId, LogId[]? LogIds = null, int Index = 0, int Count = 10);
 
 		/// <summary>
 		/// Updates the state of an issue

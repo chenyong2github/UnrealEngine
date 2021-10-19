@@ -7,9 +7,12 @@ using HordeServer.Models;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Bson;
 using Moq;
+using HordeServer.Utilities;
 
 namespace HordeServerTests
 {
+	using JobId = ObjectId<IJob>;
+
 	[TestClass]
 	public class GetLabelStatesTests
 	{
@@ -62,7 +65,7 @@ namespace HordeServerTests
 
 		public static IJob CreateGetLabelStatesJob(string Name, IGraph Graph, List<(JobStepState, JobStepOutcome)> JobStepData)
 		{
-			ObjectId JobId = new ObjectId("5ec16da1774cb4000107c2c1");
+			JobId JobId = JobId.Parse("5ec16da1774cb4000107c2c1");
 			List<IJobStepBatch> Batches = new List<IJobStepBatch>();
 			int DataIdx = 0;
 			for (int GroupIdx = 0; GroupIdx < Graph.Groups.Count; GroupIdx++)

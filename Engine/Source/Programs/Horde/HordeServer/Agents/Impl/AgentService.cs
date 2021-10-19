@@ -24,6 +24,7 @@ using System.Threading.Tasks;
 namespace HordeServer.Services
 {
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
+	using LeaseId = ObjectId<ILease>;
 	using PoolId = StringId<IPool>;
 
 	/// <summary>
@@ -464,7 +465,7 @@ namespace HordeServer.Services
 		/// <param name="Agent">Agent to cancel the lease on</param>
 		/// <param name="LeaseId">The lease id to cancel</param>
 		/// <returns></returns>
-		public async Task<bool> CancelLeaseAsync(IAgent Agent, ObjectId LeaseId)
+		public async Task<bool> CancelLeaseAsync(IAgent Agent, LeaseId LeaseId)
 		{		
 			int Index = 0;
 			while (Index < Agent.Leases.Count && Agent.Leases[Index].Id != LeaseId)
@@ -571,7 +572,7 @@ namespace HordeServer.Services
 				List<AgentLease> Leases = new List<AgentLease>(Agent.Leases);
 
 				// Remove any completed leases from the agent
-				Dictionary<ObjectId, HordeCommon.Rpc.Messages.Lease> LeaseIdToNewState = NewLeases.ToDictionary(x => x.Id.ToObjectId(), x => x);
+				Dictionary<LeaseId, HordeCommon.Rpc.Messages.Lease> LeaseIdToNewState = NewLeases.ToDictionary(x => new LeaseId(x.Id), x => x);
 				for (int Idx = 0; Idx < Leases.Count; Idx++)
 				{
 					AgentLease Lease = Leases[Idx];
@@ -718,7 +719,7 @@ namespace HordeServer.Services
 		/// </summary>
 		/// <param name="LeaseId">Unique id of the lease</param>
 		/// <returns>The lease that was found, or null if it does not exist</returns>
-		public Task<ILease?> GetLeaseAsync(ObjectId LeaseId)
+		public Task<ILease?> GetLeaseAsync(LeaseId LeaseId)
 		{
 			return Leases.GetAsync(LeaseId);
 		}

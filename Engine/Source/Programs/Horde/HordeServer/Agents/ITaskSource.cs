@@ -6,6 +6,7 @@ using Google.Protobuf.WellKnownTypes;
 using HordeCommon;
 using HordeServer.Models;
 using HordeServer.Services;
+using HordeServer.Utilities;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using System;
@@ -18,6 +19,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Tasks
 {
+	using LeaseId = ObjectId<ILease>;
+
 	/// <summary>
 	/// Handler for a certain lease type
 	/// </summary>
@@ -48,7 +51,7 @@ namespace HordeServer.Tasks
 		/// <param name="LeaseId">The lease id</param>
 		/// <param name="Payload">Payload for the lease</param>
 		/// <returns></returns>
-		Task CancelLeaseAsync(IAgent Agent, ObjectId LeaseId, Any Payload);
+		Task CancelLeaseAsync(IAgent Agent, LeaseId LeaseId, Any Payload);
 
 		/// <summary>
 		/// Notification that a lease has been started
@@ -57,7 +60,7 @@ namespace HordeServer.Tasks
 		/// <param name="LeaseId">The lease id</param>
 		/// <param name="Payload">Payload for the lease</param>
 		/// <param name="Logger">Logger for the agent</param>
-		Task OnLeaseStartedAsync(IAgent Agent, ObjectId LeaseId, Any Payload, ILogger Logger);
+		Task OnLeaseStartedAsync(IAgent Agent, LeaseId LeaseId, Any Payload, ILogger Logger);
 
 		/// <summary>
 		/// Notification that a task has completed
@@ -68,7 +71,7 @@ namespace HordeServer.Tasks
 		/// <param name="Outcome">Outcome of the lease</param>
 		/// <param name="Output">Output from the task</param>
 		/// <param name="Logger">Logger for the agent</param>
-		Task OnLeaseFinishedAsync(IAgent Agent, ObjectId LeaseId, Any Payload, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output, ILogger Logger);
+		Task OnLeaseFinishedAsync(IAgent Agent, LeaseId LeaseId, Any Payload, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output, ILogger Logger);
 	}
 	
 	/// <summary>
@@ -89,26 +92,26 @@ namespace HordeServer.Tasks
 		public abstract Task<AgentLease?> AssignLeaseAsync(IAgent Agent, CancellationToken CancellationToken);
 
 		/// <inheritdoc/>
-		public Task CancelLeaseAsync(IAgent Agent, ObjectId LeaseId, Any Payload) => CancelLeaseAsync(Agent, LeaseId, Payload.Unpack<TMessage>());
+		public Task CancelLeaseAsync(IAgent Agent, LeaseId LeaseId, Any Payload) => CancelLeaseAsync(Agent, LeaseId, Payload.Unpack<TMessage>());
 
 		/// <inheritdoc/>
-		public Task OnLeaseStartedAsync(IAgent Agent, ObjectId LeaseId, Any Payload, ILogger Logger) => OnLeaseStartedAsync(Agent, LeaseId, Payload.Unpack<TMessage>(), Logger);
+		public Task OnLeaseStartedAsync(IAgent Agent, LeaseId LeaseId, Any Payload, ILogger Logger) => OnLeaseStartedAsync(Agent, LeaseId, Payload.Unpack<TMessage>(), Logger);
 
 		/// <inheritdoc/>
-		public Task OnLeaseFinishedAsync(IAgent Agent, ObjectId LeaseId, Any Payload, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output, ILogger Logger) => OnLeaseFinishedAsync(Agent, LeaseId, Payload.Unpack<TMessage>(), Outcome, Output, Logger);
+		public Task OnLeaseFinishedAsync(IAgent Agent, LeaseId LeaseId, Any Payload, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output, ILogger Logger) => OnLeaseFinishedAsync(Agent, LeaseId, Payload.Unpack<TMessage>(), Outcome, Output, Logger);
 
-		/// <inheritdoc cref="ITaskSource.CancelLeaseAsync(IAgent, ObjectId, Any)"/>
-		public virtual Task CancelLeaseAsync(IAgent Agent, ObjectId LeaseId, TMessage Payload) => Task.CompletedTask;
+		/// <inheritdoc cref="ITaskSource.CancelLeaseAsync(IAgent, LeaseId, Any)"/>
+		public virtual Task CancelLeaseAsync(IAgent Agent, LeaseId LeaseId, TMessage Payload) => Task.CompletedTask;
 
-		/// <inheritdoc cref="ITaskSource.OnLeaseStartedAsync(IAgent, ObjectId, Any, ILogger)"/>
-		public virtual Task OnLeaseStartedAsync(IAgent Agent, ObjectId LeaseId, TMessage Payload, ILogger Logger)
+		/// <inheritdoc cref="ITaskSource.OnLeaseStartedAsync(IAgent, LeaseId, Any, ILogger)"/>
+		public virtual Task OnLeaseStartedAsync(IAgent Agent, LeaseId LeaseId, TMessage Payload, ILogger Logger)
 		{
 			LogLeaseStartedInfo<TMessage>(LeaseId, Payload, Logger);
 			return Task.CompletedTask;
 		}
 
-		/// <inheritdoc cref="ITaskSource.OnLeaseFinishedAsync(IAgent, ObjectId, Any, LeaseOutcome, ReadOnlyMemory{byte}, ILogger)"/>
-		public virtual Task OnLeaseFinishedAsync(IAgent Agent, ObjectId LeaseId, TMessage Payload, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output, ILogger Logger)
+		/// <inheritdoc cref="ITaskSource.OnLeaseFinishedAsync(IAgent, LeaseId, Any, LeaseOutcome, ReadOnlyMemory{byte}, ILogger)"/>
+		public virtual Task OnLeaseFinishedAsync(IAgent Agent, LeaseId LeaseId, TMessage Payload, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output, ILogger Logger)
 		{
 			Logger.LogInformation("Lease {LeaseId} complete", LeaseId);
 			return Task.CompletedTask;
@@ -138,7 +141,7 @@ namespace HordeServer.Tasks
 		/// <param name="LeaseId"></param>
 		/// <param name="Payload"></param>
 		/// <param name="Logger"></param>
-		protected void LogLeaseStartedInfo<T>(ObjectId LeaseId, T Payload, ILogger Logger)
+		protected void LogLeaseStartedInfo<T>(LeaseId LeaseId, T Payload, ILogger Logger)
 		{
 			PropertyInfo[] Properties = TypeInfo<T>.Properties;
 

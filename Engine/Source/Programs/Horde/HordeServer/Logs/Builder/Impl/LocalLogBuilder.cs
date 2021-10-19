@@ -13,6 +13,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Logs.Builder
 {
+	using LogId = ObjectId<ILogFile>;
+
 	/// <summary>
 	/// In-memory implementation of a log write buffer
 	/// </summary>
@@ -109,13 +111,13 @@ namespace HordeServer.Logs.Builder
 		/// <summary>
 		/// Current log chunk state
 		/// </summary>
-		ConcurrentDictionary<(ObjectId, long), PendingChunk> PendingChunks = new ConcurrentDictionary<(ObjectId, long), PendingChunk>();
+		ConcurrentDictionary<(LogId, long), PendingChunk> PendingChunks = new ConcurrentDictionary<(LogId, long), PendingChunk>();
 
 		/// <inheritdoc/>
 		public bool FlushOnShutdown => true;
 
 		/// <inheritdoc/>
-		public Task<bool> AppendAsync(ObjectId LogId, long ChunkOffset, long WriteOffset, int WriteLineIndex, int WriteLineCount, ReadOnlyMemory<byte> Data, LogType Type)
+		public Task<bool> AppendAsync(LogId LogId, long ChunkOffset, long WriteOffset, int WriteLineIndex, int WriteLineCount, ReadOnlyMemory<byte> Data, LogType Type)
 		{
 			PendingChunk? PendingChunk;
 			while (!PendingChunks.TryGetValue((LogId, ChunkOffset), out PendingChunk))
@@ -146,7 +148,7 @@ namespace HordeServer.Logs.Builder
 		}
 
 		/// <inheritdoc/>
-		public Task CompleteSubChunkAsync(ObjectId LogId, long Offset)
+		public Task CompleteSubChunkAsync(LogId LogId, long Offset)
 		{
 			PendingChunk? PendingChunk;
 			if (PendingChunks.TryGetValue((LogId, Offset), out PendingChunk))
@@ -160,7 +162,7 @@ namespace HordeServer.Logs.Builder
 		}
 
 		/// <inheritdoc/>
-		public Task CompleteChunkAsync(ObjectId LogId, long Offset)
+		public Task CompleteChunkAsync(LogId LogId, long Offset)
 		{
 			PendingChunk? PendingChunk;
 			if (PendingChunks.TryGetValue((LogId, Offset), out PendingChunk))
@@ -178,14 +180,14 @@ namespace HordeServer.Logs.Builder
 		}
 
 		/// <inheritdoc/>
-		public Task RemoveChunkAsync(ObjectId LogId, long Offset)
+		public Task RemoveChunkAsync(LogId LogId, long Offset)
 		{
 			PendingChunks.TryRemove((LogId, Offset), out _);
 			return Task.CompletedTask;
 		}
 
 		/// <inheritdoc/>
-		public Task<LogChunkData?> GetChunkAsync(ObjectId LogId, long Offset, int LineIndex)
+		public Task<LogChunkData?> GetChunkAsync(LogId LogId, long Offset, int LineIndex)
 		{
 			PendingChunk? PendingChunk;
 			if (PendingChunks.TryGetValue((LogId, Offset), out PendingChunk))
@@ -216,12 +218,12 @@ namespace HordeServer.Logs.Builder
 		}
 
 		/// <inheritdoc/>
-		public Task<List<(ObjectId, long)>> TouchChunksAsync(TimeSpan MinAge)
+		public Task<List<(LogId, long)>> TouchChunksAsync(TimeSpan MinAge)
 		{
 			DateTime UtcNow = DateTime.UtcNow;
 
-			List<(ObjectId, long)> Chunks = new List<(ObjectId, long)>();
-			foreach (KeyValuePair<(ObjectId, long), PendingChunk> PendingChunk in PendingChunks.ToArray())
+			List<(LogId, long)> Chunks = new List<(LogId, long)>();
+			foreach (KeyValuePair<(LogId, long), PendingChunk> PendingChunk in PendingChunks.ToArray())
 			{
 				lock (PendingChunk.Value)
 				{

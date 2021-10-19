@@ -25,6 +25,8 @@ using HordeServer.Collections.Impl;
 
 namespace HordeServerTests
 {
+	using JobId = ObjectId<IJob>;
+
 	[TestClass]
 	public class LogIndexingTests : DatabaseIntegrationTest
 	{
@@ -53,7 +55,7 @@ namespace HordeServerTests
 		[TestMethod]
 		public async Task IndexTests()
 		{
-			ObjectId JobId = ObjectId.GenerateNewId();
+			JobId JobId = JobId.GenerateNewId();
 			ILogFile LogFile = await LogFileService.CreateLogFileAsync(JobId, null, LogType.Text);
 
 			// Write the test data to the log file in blocks
@@ -124,7 +126,7 @@ namespace HordeServerTests
 		[TestMethod]
 		public async Task PartialTokenTests()
 		{
-			ObjectId JobId = ObjectId.GenerateNewId();
+			JobId JobId = JobId.GenerateNewId();
 			ILogFile LogFile = await LogFileService.CreateLogFileAsync(JobId, null, LogType.Text);
 
 			string[] Lines =
@@ -166,7 +168,7 @@ namespace HordeServerTests
 		[TestMethod]
 		public async Task AppendIndexTests()
 		{
-			ObjectId JobId = ObjectId.GenerateNewId();
+			JobId JobId = JobId.GenerateNewId();
 			ILogFile LogFile = await LogFileService.CreateLogFileAsync(JobId, null, LogType.Text);
 
 			LogFile = await WriteLogDataAsync(LogFile, 0, 0, Encoding.UTF8.GetBytes("abc\n"), true);

@@ -19,6 +19,7 @@ using System.Threading.Tasks;
 namespace HordeServer.Compute
 {
 	using ChannelId = StringId<IComputeChannel>;
+	using LeaseId = ObjectId<ILease>;
 	using NamespaceId = StringId<INamespace>;
 
 	/// <summary>
@@ -62,7 +63,7 @@ namespace HordeServer.Compute
 		/// <summary>
 		/// The lease id
 		/// </summary>
-		public ObjectId? LeaseId { get; }
+		public LeaseId? LeaseId { get; }
 
 		/// <summary>
 		/// Hash of the result, if complete

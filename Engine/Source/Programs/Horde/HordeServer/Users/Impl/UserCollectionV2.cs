@@ -17,6 +17,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Collections.Impl
 {
+	using JobId = ObjectId<IJob>;
+
 	/// <summary>
 	/// Manages user documents
 	/// </summary>
@@ -95,10 +97,10 @@ namespace HordeServer.Collections.Impl
 			public bool EnableIssueNotifications { get; set; } = true;
 
 			public BsonValue DashboardSettings { get; set; } = BsonNull.Value;
-			public List<ObjectId> PinnedJobIds { get; set; } = new List<ObjectId>();
+			public List<JobId> PinnedJobIds { get; set; } = new List<JobId>();
 
 			ObjectId IUserSettings.UserId => Id;
-			IReadOnlyList<ObjectId> IUserSettings.PinnedJobIds => PinnedJobIds;
+			IReadOnlyList<JobId> IUserSettings.PinnedJobIds => PinnedJobIds;
 
 			[BsonConstructor]
 			private UserSettingsDocument()
@@ -116,7 +118,7 @@ namespace HordeServer.Collections.Impl
 				this.EnableExperimentalFeatures = Other.EnableExperimentalFeatures;
 				this.EnableIssueNotifications = Other.EnableIssueNotifications;
 				this.DashboardSettings = Other.DashboardSettings;
-				this.PinnedJobIds = new List<ObjectId>(Other.PinnedJobIds);
+				this.PinnedJobIds = new List<JobId>(Other.PinnedJobIds);
 			}
 		}
 
@@ -300,7 +302,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task UpdateSettingsAsync(ObjectId UserId, bool? EnableExperimentalFeatures = null, bool? EnableIssueNotifications = null, BsonValue? DashboardSettings = null, IEnumerable<ObjectId>? AddPinnedJobIds = null, IEnumerable<ObjectId>? RemovePinnedJobIds = null)
+		public async Task UpdateSettingsAsync(ObjectId UserId, bool? EnableExperimentalFeatures = null, bool? EnableIssueNotifications = null, BsonValue? DashboardSettings = null, IEnumerable<JobId>? AddPinnedJobIds = null, IEnumerable<JobId>? RemovePinnedJobIds = null)
 		{
 			List<UpdateDefinition<UserSettingsDocument>> Updates = new List<UpdateDefinition<UserSettingsDocument>>();
 			if (EnableExperimentalFeatures != null)

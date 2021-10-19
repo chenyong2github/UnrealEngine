@@ -23,6 +23,7 @@ namespace HordeServer.Services
 	using DeviceId = StringId<IDevice>;
 	using DevicePlatformId = StringId<IDevicePlatform>;
 	using DevicePoolId = StringId<IDevicePool>;
+	using JobId = ObjectId<IJob>;
 
 	/// <summary>
 	/// Platform map required by V1 API
@@ -314,7 +315,7 @@ namespace HordeServer.Services
 
 				if (JobId != null)
 				{
-					Job = await JobService.GetJobAsync(new ObjectId(JobId));
+					Job = await JobService.GetJobAsync(new JobId(JobId));
 
 					if (Job != null)
 					{

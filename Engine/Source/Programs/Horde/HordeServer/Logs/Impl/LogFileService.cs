@@ -37,6 +37,9 @@ using OpenTracing;
 
 namespace HordeServer.Services
 {
+	using JobId = ObjectId<IJob>;
+	using LogId = ObjectId<ILogFile>;
+
 	/// <summary>
 	/// Metadata about a log file
 	/// </summary>
@@ -65,21 +68,21 @@ namespace HordeServer.Services
 		/// <param name="SessionId">Agent session allowed to update the log</param>
 		/// <param name="Type">Type of events to be stored in the log</param>
 		/// <returns>The new log file document</returns>
-		Task<ILogFile> CreateLogFileAsync(ObjectId JobId, ObjectId? SessionId, LogType Type);
+		Task<ILogFile> CreateLogFileAsync(JobId JobId, ObjectId? SessionId, LogType Type);
 
 		/// <summary>
 		/// Gets a logfile by ID
 		/// </summary>
 		/// <param name="LogFileId">Unique id of the log file</param>
 		/// <returns>The logfile document</returns>
-		Task<ILogFile?> GetLogFileAsync(ObjectId LogFileId);
+		Task<ILogFile?> GetLogFileAsync(LogId LogFileId);
 
 		/// <summary>
 		/// Gets a logfile by ID, returning a cached copy if available. This should only be used to retrieve constant properties set at creation, such as the session or job it's associated with.
 		/// </summary>
 		/// <param name="LogFileId">Unique id of the log file</param>
 		/// <returns>The logfile document</returns>
-		Task<ILogFile?> GetCachedLogFileAsync(ObjectId LogFileId);
+		Task<ILogFile?> GetCachedLogFileAsync(LogId LogFileId);
 
 		/// <summary>
 		/// Returns a list of log files
@@ -141,7 +144,7 @@ namespace HordeServer.Services
 		/// <param name="Index">Index within the events for results to return</param>
 		/// <param name="Count">Number of results to return</param>
 		/// <returns>Async task</returns>
-		Task<List<ILogEvent>> FindEventsForSpansAsync(IEnumerable<ObjectId> SpanIds, ObjectId[]? LogIds, int Index, int Count);
+		Task<List<ILogEvent>> FindEventsForSpansAsync(IEnumerable<ObjectId> SpanIds, LogId[]? LogIds, int Index, int Count);
 
 		/// <summary>
 		/// Gets the data for an event
@@ -317,7 +320,7 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Set of chunks which is currently being written to
 		/// </summary>
-		private HashSet<(ObjectId, long)> WriteChunks = new HashSet<(ObjectId, long)>();
+		private HashSet<(LogId, long)> WriteChunks = new HashSet<(LogId, long)>();
 
 		/// <summary>
 		/// Cache of session ids for each log
@@ -512,13 +515,13 @@ namespace HordeServer.Services
 		}
 
 		/// <inheritdoc/>
-		public Task<ILogFile> CreateLogFileAsync(ObjectId JobId, ObjectId? SessionId, LogType Type)
+		public Task<ILogFile> CreateLogFileAsync(JobId JobId, ObjectId? SessionId, LogType Type)
 		{
 			return LogFiles.CreateLogFileAsync(JobId, SessionId, Type);
 		}
 
 		/// <inheritdoc/>
-		public async Task<ILogFile?> GetLogFileAsync(ObjectId LogFileId)
+		public async Task<ILogFile?> GetLogFileAsync(LogId LogFileId)
 		{
 			ILogFile? LogFile = await LogFiles.GetLogFileAsync(LogFileId);
 			if(LogFile != null)
@@ -543,7 +546,7 @@ namespace HordeServer.Services
 		/// </summary>
 		/// <param name="LogFileId">The log file id</param>
 		/// <returns>New log file, or null if not found</returns>
-		public async Task<ILogFile?> GetCachedLogFileAsync(ObjectId LogFileId)
+		public async Task<ILogFile?> GetCachedLogFileAsync(LogId LogFileId)
 		{
 			object? LogFile;
 			if (!LogFileCache.TryGetValue(LogFileId, out LogFile))
@@ -871,7 +874,7 @@ namespace HordeServer.Services
 		}
 
 		/// <inheritdoc/>
-		public Task<List<ILogEvent>> FindEventsForSpansAsync(IEnumerable<ObjectId> SpanIds, ObjectId[]? LogIds, int Index, int Count)
+		public Task<List<ILogEvent>> FindEventsForSpansAsync(IEnumerable<ObjectId> SpanIds, LogId[]? LogIds, int Index, int Count)
 		{
 			return LogEvents.FindEventsForSpansAsync(SpanIds, LogIds, Index, Count);
 		}
@@ -1019,11 +1022,11 @@ namespace HordeServer.Services
 		private async Task IncrementalFlush()
 		{
 			// Get all the chunks older than 20 minutes
-			List<(ObjectId, long)> FlushChunks = await Builder.TouchChunksAsync(TimeSpan.FromMinutes(10.0));
+			List<(LogId, long)> FlushChunks = await Builder.TouchChunksAsync(TimeSpan.FromMinutes(10.0));
 			Logger.LogDebug("Performing incremental flush of log builder ({NumChunks} chunks)", FlushChunks.Count);
 
 			// Mark them all as complete
-			foreach ((ObjectId LogId, long Offset) in FlushChunks)
+			foreach ((LogId LogId, long Offset) in FlushChunks)
 			{
 				await Builder.CompleteChunkAsync(LogId, Offset);
 			}
@@ -1057,7 +1060,7 @@ namespace HordeServer.Services
 			Logger.LogInformation("Forcing flush of pending log chunks...");
 
 			// Mark everything in the cache as complete
-			List<(ObjectId, long)> WriteChunks = await Builder.TouchChunksAsync(TimeSpan.Zero);
+			List<(LogId, long)> WriteChunks = await Builder.TouchChunksAsync(TimeSpan.Zero);
 			WriteCompleteChunks(WriteChunks, true);
 
 			// Wait for everything to flush
@@ -1095,11 +1098,11 @@ namespace HordeServer.Services
 		/// </summary>
 		/// <param name="ChunksToWrite">List of chunks to write</param>
 		/// <param name="bCreateIndex">Create an index for the log</param>
-		private void WriteCompleteChunks(List<(ObjectId, long)> ChunksToWrite, bool bCreateIndex)
+		private void WriteCompleteChunks(List<(LogId, long)> ChunksToWrite, bool bCreateIndex)
 		{
-			foreach (IGrouping<ObjectId, long> Group in ChunksToWrite.GroupBy(x => x.Item1, x => x.Item2))
+			foreach (IGrouping<LogId, long> Group in ChunksToWrite.GroupBy(x => x.Item1, x => x.Item2))
 			{
-				ObjectId LogId = Group.Key;
+				LogId LogId = Group.Key;
 
 				// Find offsets of new chunks to write
 				List<long> Offsets = new List<long>();
@@ -1133,7 +1136,7 @@ namespace HordeServer.Services
 		/// <param name="Offsets">Chunks to write</param>
 		/// <param name="bCreateIndex">Whether to create the index for this log</param>
 		/// <returns>Async task</returns>
-		private async Task<ILogFile?> WriteCompleteChunksForLogAsync(ObjectId LogId, List<long> Offsets, bool bCreateIndex)
+		private async Task<ILogFile?> WriteCompleteChunksForLogAsync(LogId LogId, List<long> Offsets, bool bCreateIndex)
 		{
 			ILogFile? LogFile = await LogFiles.GetLogFileAsync(LogId);
 			if(LogFile != null)
@@ -1427,7 +1430,7 @@ namespace HordeServer.Services
 		/// <param name="LineIndex">First line index of the chunk</param>
 		/// <returns>Chunk daata</returns>
 		[SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
-		private async Task<LogChunkData?> WriteChunkAsync(ObjectId LogFileId, long Offset, int LineIndex)
+		private async Task<LogChunkData?> WriteChunkAsync(LogId LogFileId, long Offset, int LineIndex)
 		{
 			// Write the chunk to storage
 			LogChunkData? ChunkData = await Builder.GetChunkAsync(LogFileId, Offset, LineIndex);
@@ -1489,7 +1492,7 @@ namespace HordeServer.Services
 		/// <param name="Index">Index to write</param>
 		/// <returns>Async task</returns>
 		[SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
-		private async Task WriteIndexAsync(ObjectId LogFileId, long Length, LogIndexData Index)
+		private async Task WriteIndexAsync(LogId LogFileId, long Length, LogIndexData Index)
 		{
 			try
 			{

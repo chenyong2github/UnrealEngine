@@ -20,6 +20,7 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Controllers
 {
+	using JobId = ObjectId<IJob>;
 	using StreamId = StringId<IStream>;
 
 	/// <summary>
@@ -59,7 +60,7 @@ namespace HordeServer.Controllers
 		[Route("/api/v1/testdata")]
 		public async Task<ActionResult<CreateTestDataResponse>> CreateAsync(CreateTestDataRequest Request)
 		{
-			IJob? Job = await JobService.GetJobAsync(Request.JobId.ToObjectId());
+			IJob? Job = await JobService.GetJobAsync(new JobId(Request.JobId));
 			if (Job == null)
 			{
 				return NotFound();
@@ -107,7 +108,7 @@ namespace HordeServer.Controllers
 
 			List<object> Results = new List<object>();
 
-			List<ITestData> Documents = await TestDataCollection.FindAsync(StreamIdValue, MinChange, MaxChange, JobId?.ToObjectId(), JobStepId?.ToSubResourceId(), Key, Index, Count);
+			List<ITestData> Documents = await TestDataCollection.FindAsync(StreamIdValue, MinChange, MaxChange, JobId?.ToObjectId<IJob>(), JobStepId?.ToSubResourceId(), Key, Index, Count);
 			foreach (ITestData Document in Documents)
 			{
 				if (await JobService.AuthorizeAsync(Document.JobId, AclAction.ViewJob, User, Cache))

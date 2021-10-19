@@ -27,6 +27,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Services
 {
+	using JobId = ObjectId<IJob>;
+
 	/// <summary>
 	/// Wraps functionality for manipulating artifacts
 	/// </summary>
@@ -38,7 +40,7 @@ namespace HordeServer.Services
 			public ObjectId Id { get; set; }
 
 			[BsonRequired]
-			public ObjectId JobId { get; set; }
+			public JobId JobId { get; set; }
 
 			[BsonRequired]
 			public string Name { get; set; }
@@ -60,7 +62,7 @@ namespace HordeServer.Services
 				this.MimeType = null!;
 			}
 
-			public Artifact(ObjectId JobId, SubResourceId? StepId, string Name, long Length, string MimeType)
+			public Artifact(JobId JobId, SubResourceId? StepId, string Name, long Length, string MimeType)
 			{
 				this.Id = ObjectId.GenerateNewId();
 				this.JobId = JobId;
@@ -103,7 +105,7 @@ namespace HordeServer.Services
 		/// <param name="MimeType">Type of artifact</param>
 		/// <param name="Data">The data to write</param>
 		/// <returns>The new log file document</returns>
-		public async Task<IArtifact> CreateArtifactAsync(ObjectId JobId, SubResourceId? StepId, string Name, string MimeType, System.IO.Stream Data)
+		public async Task<IArtifact> CreateArtifactAsync(JobId JobId, SubResourceId? StepId, string Name, string MimeType, System.IO.Stream Data)
 		{
 			// upload first
 			string ArtifactName = ValidateName(Name);
@@ -122,7 +124,7 @@ namespace HordeServer.Services
 		/// <param name="StepId">Unique id of the Step to query</param>
 		/// <param name="Name">Name of the artifact</param>
 		/// <returns>List of artifact documents</returns>
-		public async Task<List<IArtifact>> GetArtifactsAsync(ObjectId? JobId, SubResourceId? StepId, string? Name)
+		public async Task<List<IArtifact>> GetArtifactsAsync(JobId? JobId, SubResourceId? StepId, string? Name)
 		{
 			FilterDefinitionBuilder<Artifact> Builder = Builders<Artifact>.Filter;
 
@@ -233,7 +235,7 @@ namespace HordeServer.Services
 		/// <param name="StepId"></param>
 		/// <param name="Name"></param>
 		/// <returns></returns>
-		private static string GetPath(ObjectId JobId, SubResourceId? StepId, string Name)
+		private static string GetPath(JobId JobId, SubResourceId? StepId, string Name)
 		{
 			if (StepId == null)
 			{

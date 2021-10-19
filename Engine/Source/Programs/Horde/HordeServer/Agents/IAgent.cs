@@ -25,6 +25,8 @@ using EpicGames.Horde.Common;
 
 namespace HordeServer.Models
 {
+	using LeaseId = ObjectId<ILease>;
+	using LogId = ObjectId<ILogFile>;
 	using PoolId = StringId<IPool>;
 	using StreamId = StringId<IStream>;
 	using AgentSoftwareVersion = StringId<IAgentSoftwareCollection>;
@@ -185,13 +187,13 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Lease returned when a task source wants to run, but needs to wait for other tasks to finish first.
 		/// </summary>
-		public static AgentLease Drain { get; } = new AgentLease(ObjectId.Empty, String.Empty, null, null, null, LeaseState.Pending, null, true, null);
+		public static AgentLease Drain { get; } = new AgentLease(LeaseId.Empty, String.Empty, null, null, null, LeaseState.Pending, null, true, null);
 
 		/// <summary>
 		/// Name of this lease
 		/// </summary>
 		[BsonRequired]
-		public ObjectId Id { get; set; }
+		public LeaseId Id { get; set; }
 
 		/// <summary>
 		/// Name of this lease
@@ -216,7 +218,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Optional log for this lease
 		/// </summary>
-		public ObjectId? LogId { get; set; }
+		public LogId? LogId { get; set; }
 
 		/// <summary>
 		/// Time at which the lease started
@@ -270,7 +272,7 @@ namespace HordeServer.Models
 		/// <param name="Resources">Resources required for this lease</param>
 		/// <param name="Exclusive">Whether to reserve the entire device</param>
 		/// <param name="Payload">Encoded "any" protobuf describing the contents of the payload</param>
-		public AgentLease(ObjectId Id, string Name, StreamId? StreamId, PoolId? PoolId, ObjectId? LogId, LeaseState State, IReadOnlyDictionary<string, int>? Resources, bool Exclusive, byte[]? Payload)
+		public AgentLease(LeaseId Id, string Name, StreamId? StreamId, PoolId? PoolId, LogId? LogId, LeaseState State, IReadOnlyDictionary<string, int>? Resources, bool Exclusive, byte[]? Payload)
 		{
 			this.Id = Id;
 			this.Name = Name;

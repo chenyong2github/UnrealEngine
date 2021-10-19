@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Collections
 {
+	using JobId = ObjectId<IJob>;
 	using ProjectId = StringId<IProject>;
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
@@ -52,7 +53,7 @@ namespace HordeServer.Collections
 		/// <param name="Index">Offset within the results to return</param>
 		/// <param name="Count">Number of results to return</param>
 		/// <returns>The stream document</returns>
-		Task<List<ITestData>> FindAsync(StreamId? StreamId, int? MinChange, int? MaxChange, ObjectId? JobId, SubResourceId? StepId, string? Key = null, int Index = 0, int Count = 10);
+		Task<List<ITestData>> FindAsync(StreamId? StreamId, int? MinChange, int? MaxChange, JobId? JobId, SubResourceId? StepId, string? Key = null, int Index = 0, int Count = 10);
 
 		/// <summary>
 		/// Delete the test data

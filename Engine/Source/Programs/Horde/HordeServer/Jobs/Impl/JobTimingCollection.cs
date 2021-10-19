@@ -16,6 +16,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Collections.Impl
 {
+	using JobId = ObjectId<IJob>;
+
 	/// <summary>
 	/// Concrete implementation of IJobTimingCollection
 	/// </summary>
@@ -51,7 +53,7 @@ namespace HordeServer.Collections.Impl
 		/// </summary>
 		class JobTimingDocument : IJobTiming
 		{
-			public ObjectId Id { get; set; }
+			public JobId Id { get; set; }
 			public List<JobStepTimingDocument> Steps { get; set; } = new List<JobStepTimingDocument>();
 			public int UpdateIndex { get; set; }
 
@@ -91,7 +93,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IJobTiming?> TryAddAsync(ObjectId JobId, List<JobStepTimingData> Steps)
+		public async Task<IJobTiming?> TryAddAsync(JobId JobId, List<JobStepTimingData> Steps)
 		{
 			JobTimingDocument JobTiming = new JobTimingDocument();
 			JobTiming.Id = JobId;
@@ -117,7 +119,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IJobTiming?> TryGetAsync(ObjectId JobId)
+		public async Task<IJobTiming?> TryGetAsync(JobId JobId)
 		{
 			return await Collection.Find(x => x.Id == JobId).FirstOrDefaultAsync();
 		}

@@ -16,6 +16,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Collections
 {
+	using JobId = ObjectId<IJob>;
+
 	/// <summary>
 	/// Average timing information for a node
 	/// </summary>
@@ -80,14 +82,14 @@ namespace HordeServer.Collections
 		/// <param name="JobId">The job id</param>
 		/// <param name="Steps">List of timing info for each step</param>
 		/// <returns>New timing document</returns>
-		Task<IJobTiming?> TryAddAsync(ObjectId JobId, List<JobStepTimingData> Steps);
+		Task<IJobTiming?> TryAddAsync(JobId JobId, List<JobStepTimingData> Steps);
 
 		/// <summary>
 		/// Attempts to get the timing information for a particular job
 		/// </summary>
 		/// <param name="JobId">The unique job id</param>
 		/// <returns>Timing info for the requested jbo</returns>
-		Task<IJobTiming?> TryGetAsync(ObjectId JobId);
+		Task<IJobTiming?> TryGetAsync(JobId JobId);
 
 		/// <summary>
 		/// Adds timing information for the particular job

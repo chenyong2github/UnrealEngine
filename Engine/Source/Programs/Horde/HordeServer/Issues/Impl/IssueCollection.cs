@@ -20,6 +20,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Collections.Impl
 {
+	using JobId = ObjectId<IJob>;
+	using LogId = ObjectId<ILogFile>;
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
 
@@ -393,7 +395,7 @@ namespace HordeServer.Collections.Impl
 			public string JobName { get; set; }
 
 			[BsonRequired]
-			public ObjectId JobId { get; set; }
+			public JobId JobId { get; set; }
 
 			[BsonRequired]
 			public SubResourceId BatchId { get; set; }
@@ -403,7 +405,7 @@ namespace HordeServer.Collections.Impl
 
 			public DateTime StepTime { get; set; }
 
-			public ObjectId? LogId { get; set; }
+			public LogId? LogId { get; set; }
 
 			public bool NotifySuspects { get; set; }
 
@@ -1264,7 +1266,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public Task<List<IIssueStep>> FindStepsAsync(ObjectId JobId, SubResourceId? BatchId, SubResourceId? StepId)
+		public Task<List<IIssueStep>> FindStepsAsync(JobId JobId, SubResourceId? BatchId, SubResourceId? StepId)
 		{
 			FilterDefinition<IssueStep> Filter = Builders<IssueStep>.Filter.Eq(x => x.JobId, JobId);
 			if (BatchId != null)

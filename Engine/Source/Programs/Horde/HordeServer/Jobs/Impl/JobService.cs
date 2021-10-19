@@ -30,6 +30,9 @@ using OpenTracing;
 
 namespace HordeServer.Services
 {
+	using JobId = ObjectId<IJob>;
+	using LeaseId = ObjectId<ILease>;
+	using LogId = ObjectId<ILogFile>;
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
 
@@ -62,7 +65,7 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Map of job id to permissions for that job
 		/// </summary>
-		public Dictionary<ObjectId, IJobPermissions?> Jobs { get; set; } = new Dictionary<ObjectId, IJobPermissions?>();
+		public Dictionary<JobId, IJobPermissions?> Jobs { get; set; } = new Dictionary<JobId, IJobPermissions?>();
 	}
 
 	/// <summary>
@@ -229,9 +232,9 @@ namespace HordeServer.Services
 		/// <param name="HelixSwarmCallbackUrl">Helix Swarm callback URL for review, if any</param>
 		/// <param name="Arguments">Arguments for the job</param>
 		/// <returns>Unique id representing the job</returns>
-		public async Task<IJob> CreateJobAsync(ObjectId? JobId, IStream Stream, TemplateRefId TemplateRefId, ContentHash TemplateHash, IGraph Graph, string Name, int Change, int CodeChange, int? PreflightChange, int? ClonedPreflightChange, ObjectId? StartedByUserId, string? StartedByUserName, Priority? Priority, bool? AutoSubmit, bool? UpdateIssues, List<ChainedJobTemplate>? JobTriggers, bool ShowUgsBadges, bool ShowUgsAlerts, string? NotificationChannel, string? NotificationChannelFilter, string? HelixSwarmCallbackUrl, IReadOnlyList<string> Arguments)
+		public async Task<IJob> CreateJobAsync(JobId? JobId, IStream Stream, TemplateRefId TemplateRefId, ContentHash TemplateHash, IGraph Graph, string Name, int Change, int CodeChange, int? PreflightChange, int? ClonedPreflightChange, ObjectId? StartedByUserId, string? StartedByUserName, Priority? Priority, bool? AutoSubmit, bool? UpdateIssues, List<ChainedJobTemplate>? JobTriggers, bool ShowUgsBadges, bool ShowUgsAlerts, string? NotificationChannel, string? NotificationChannelFilter, string? HelixSwarmCallbackUrl, IReadOnlyList<string> Arguments)
 		{
-			ObjectId JobIdValue = JobId ?? ObjectId.GenerateNewId();
+			JobId JobIdValue = JobId ?? HordeServer.Utilities.ObjectId<IJob>.GenerateNewId();
 			using IDisposable Scope = Logger.BeginScope("CreateJobAsync({JobId})", JobIdValue);
 
 			if (PreflightChange != null && ShouldClonePreflightChange(Stream.Id))
@@ -404,7 +407,7 @@ namespace HordeServer.Services
 		/// <param name="AgentId">The agent to retreive</param>
 		/// <param name="LeaseId">The lease id to update</param>
 		/// <returns></returns>
-		async Task CancelLeaseAsync(AgentId AgentId, ObjectId LeaseId)
+		async Task CancelLeaseAsync(AgentId AgentId, LeaseId LeaseId)
 		{
 			for (; ; )
 			{
@@ -444,7 +447,7 @@ namespace HordeServer.Services
 		/// </summary>
 		/// <param name="JobId">Job id to search for</param>
 		/// <returns>Information about the given job</returns>
-		public Task<IJob?> GetJobAsync(ObjectId JobId)
+		public Task<IJob?> GetJobAsync(JobId JobId)
 		{
 			return Jobs.GetAsync(JobId);
 		}
@@ -464,7 +467,7 @@ namespace HordeServer.Services
 		/// </summary>
 		/// <param name="JobId">Unique id of the job</param>
 		/// <returns>The job document</returns>
-		public Task<IJobPermissions?> GetJobPermissionsAsync(ObjectId JobId)
+		public Task<IJobPermissions?> GetJobPermissionsAsync(JobId JobId)
 		{
 			return Jobs.GetPermissionsAsync(JobId);
 		}
@@ -491,7 +494,7 @@ namespace HordeServer.Services
 		/// <param name="Index">Index of the first result to return</param>
 		/// <param name="Count">Number of results to return</param>
 		/// <returns>List of jobs matching the given criteria</returns>
-		public async Task<List<IJob>> FindJobsAsync(ObjectId[]? JobIds = null, StreamId? StreamId = null, string? Name = null, TemplateRefId[]? Templates = null, int? MinChange = null, int? MaxChange = null, int? PreflightChange = null, ObjectId ? PreflightStartedByUser = null, ObjectId? StartedByUser = null, DateTimeOffset ? MinCreateTime = null, DateTimeOffset? MaxCreateTime = null, string? Target = null, JobStepState[]? State = null, JobStepOutcome[]? Outcome = null, DateTimeOffset? ModifiedBefore = null, DateTimeOffset? ModifiedAfter = null, int? Index = null, int? Count = null)
+		public async Task<List<IJob>> FindJobsAsync(JobId[]? JobIds = null, StreamId? StreamId = null, string? Name = null, TemplateRefId[]? Templates = null, int? MinChange = null, int? MaxChange = null, int? PreflightChange = null, ObjectId ? PreflightStartedByUser = null, ObjectId? StartedByUser = null, DateTimeOffset ? MinCreateTime = null, DateTimeOffset? MaxCreateTime = null, string? Target = null, JobStepState[]? State = null, JobStepOutcome[]? Outcome = null, DateTimeOffset? ModifiedBefore = null, DateTimeOffset? ModifiedAfter = null, int? Index = null, int? Count = null)
 		{
 			if (Target == null && (State == null || State.Length == 0) && (Outcome == null || Outcome.Length == 0))
 			{
@@ -681,7 +684,7 @@ namespace HordeServer.Services
 		/// <param name="NewLogId">The new log file id</param>
 		/// <param name="NewState">New state of the jobstep</param>
 		/// <returns>True if the job was updated, false if it was deleted</returns>
-		public async Task<bool> UpdateBatchAsync(IJob Job, SubResourceId BatchId, ObjectId? NewLogId = null, JobStepBatchState? NewState = null)
+		public async Task<bool> UpdateBatchAsync(IJob Job, SubResourceId BatchId, LogId? NewLogId = null, JobStepBatchState? NewState = null)
 		{
 			using IDisposable Scope = Logger.BeginScope("UpdateBatchAsync({JobId})", Job.Id);
 
@@ -759,7 +762,7 @@ namespace HordeServer.Services
 		/// <param name="NewState">New state of the jobstep</param>
 		/// <param name="NewError">New error state</param>
 		/// <returns>The updated job, otherwise null</returns>
-		public async Task<bool> TryUpdateBatchAsync(IJob Job, SubResourceId BatchId, ObjectId? NewLogId = null, JobStepBatchState? NewState = null, JobStepBatchError? NewError = null)
+		public async Task<bool> TryUpdateBatchAsync(IJob Job, SubResourceId BatchId, LogId? NewLogId = null, JobStepBatchState? NewState = null, JobStepBatchError? NewError = null)
 		{
 			IGraph Graph = await GetGraphAsync(Job);
 			if (!await Jobs.TryUpdateBatchAsync(Job, Graph, BatchId, NewLogId, NewState, NewError))
@@ -786,7 +789,7 @@ namespace HordeServer.Services
 		/// <param name="NewReports">New list of reports</param>
 		/// <param name="NewProperties">Property changes. Any properties with a null value will be removed.</param>
 		/// <returns>True if the job was updated, false if it was deleted in the meantime</returns>
-		public async Task<IJob?> UpdateStepAsync(IJob Job, SubResourceId BatchId, SubResourceId StepId, JobStepState NewState = JobStepState.Unspecified, JobStepOutcome NewOutcome = JobStepOutcome.Unspecified, bool? NewAbortRequested = null, string? NewAbortByUser = null, ObjectId? NewLogId = null, ObjectId? NewNotificationTriggerId = null, string? NewRetryByUser = null, Priority? NewPriority = null, List<Report>? NewReports = null, Dictionary<string, string?>? NewProperties = null)
+		public async Task<IJob?> UpdateStepAsync(IJob Job, SubResourceId BatchId, SubResourceId StepId, JobStepState NewState = JobStepState.Unspecified, JobStepOutcome NewOutcome = JobStepOutcome.Unspecified, bool? NewAbortRequested = null, string? NewAbortByUser = null, LogId? NewLogId = null, ObjectId? NewNotificationTriggerId = null, string? NewRetryByUser = null, Priority? NewPriority = null, List<Report>? NewReports = null, Dictionary<string, string?>? NewProperties = null)
 		{
 			using IDisposable Scope = Logger.BeginScope("UpdateStepAsync({JobId})", Job.Id);
 			for (; ;)
@@ -823,7 +826,7 @@ namespace HordeServer.Services
 		/// <param name="NewReports">New reports</param>
 		/// <param name="NewProperties">Property changes. Any properties with a null value will be removed.</param>
 		/// <returns>True if the job was updated, false if it was deleted in the meantime</returns>
-		public async Task<bool> TryUpdateStepAsync(IJob Job, SubResourceId BatchId, SubResourceId StepId, JobStepState NewState = JobStepState.Unspecified, JobStepOutcome NewOutcome = JobStepOutcome.Unspecified, bool? NewAbortRequested = null, string? NewAbortByUser = null, ObjectId? NewLogId = null, ObjectId? NewTriggerId = null, string? NewRetryByUser = null, Priority? NewPriority = null, List<Report>? NewReports = null, Dictionary<string, string?>? NewProperties = null)
+		public async Task<bool> TryUpdateStepAsync(IJob Job, SubResourceId BatchId, SubResourceId StepId, JobStepState NewState = JobStepState.Unspecified, JobStepOutcome NewOutcome = JobStepOutcome.Unspecified, bool? NewAbortRequested = null, string? NewAbortByUser = null, LogId? NewLogId = null, ObjectId? NewTriggerId = null, string? NewRetryByUser = null, Priority? NewPriority = null, List<Report>? NewReports = null, Dictionary<string, string?>? NewProperties = null)
 		{
 			using IDisposable Scope = Logger.BeginScope("TryUpdateStepAsync({JobId})", Job.Id);
 
@@ -1094,8 +1097,8 @@ namespace HordeServer.Services
 			for (; ; )
 			{
 				// Update the job
-				ObjectId ChainedJobId = ObjectId.GenerateNewId();
-				if (await Jobs.TryUpdateJobAsync(Job, Graph, JobTrigger: new KeyValuePair<TemplateRefId, ObjectId>(JobTrigger.TemplateRefId, ChainedJobId)))
+				JobId ChainedJobId = JobId.GenerateNewId();
+				if (await Jobs.TryUpdateJobAsync(Job, Graph, JobTrigger: new KeyValuePair<TemplateRefId, JobId>(JobTrigger.TemplateRefId, ChainedJobId)))
 				{
 					IStream? Stream = await StreamService.GetStreamAsync(Job.StreamId);
 					if(Stream == null)
@@ -1180,7 +1183,7 @@ namespace HordeServer.Services
 		/// <param name="User">The principal to authorize</param>
 		/// <param name="Cache">Cache of job permissions</param>
 		/// <returns>True if the action is authorized</returns>
-		public async Task<bool> AuthorizeAsync(ObjectId JobId, AclAction Action, ClaimsPrincipal User, JobPermissionsCache? Cache)
+		public async Task<bool> AuthorizeAsync(JobId JobId, AclAction Action, ClaimsPrincipal User, JobPermissionsCache? Cache)
 		{
 			IJobPermissions? Permissions;
 			if (Cache == null)
