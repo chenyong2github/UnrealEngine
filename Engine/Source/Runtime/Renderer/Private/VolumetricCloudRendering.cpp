@@ -203,9 +203,15 @@ static bool ShouldPipelineCompileVolumetricCloudShader(EShaderPlatform ShaderPla
 	return RHISupportsComputeShaders(ShaderPlatform);
 }
 
-static bool ShouldUseComputeForCloudTracing()
+static bool ShouldUseComputeForCloudTracing(const FStaticFeatureLevel InFeatureLevel)
 {
-	return !CVarVolumetricCloudDisableCompute.GetValueOnRenderThread() && GDynamicRHI->RHIIsTypedUAVLoadSupported(PF_FloatRGBA) && GDynamicRHI->RHIIsTypedUAVLoadSupported(PF_G16R16F);
+	// When capturing a non-real-time sky light, the reflection cube face is first rendered in the scene texture 
+	// before it is copied to the corresponding cubemap face. 
+	// We cannot create UAV on a MSAA texture for the compute shader.
+	// So in this case, when capturing such a sky light, we must disabled the compute path.
+	const bool bMSAAEnabled = FSceneRenderTargets::GetNumSceneColorMSAASamples(InFeatureLevel) > 1;
+
+	return !CVarVolumetricCloudDisableCompute.GetValueOnRenderThread() && GDynamicRHI->RHIIsTypedUAVLoadSupported(PF_FloatRGBA) && GDynamicRHI->RHIIsTypedUAVLoadSupported(PF_G16R16F) && !bMSAAEnabled;
 }
 
 bool ShouldRenderVolumetricCloud(const FScene* Scene, const FEngineShowFlags& EngineShowFlags)
@@ -1875,7 +1881,7 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 	TUniformBufferRef<FViewUniformShaderParameters> ViewUniformBuffer = CloudRC.ViewUniformBuffer;
 	TRDGUniformBufferRef<FRenderVolumetricCloudGlobalParameters> CloudPassUniformBuffer = CreateCloudPassUniformBuffer(GraphBuilder, CloudRC);
 
-	if (ShouldUseComputeForCloudTracing())
+	if (ShouldUseComputeForCloudTracing(Scene->GetFeatureLevel()))
 	{
 		FRDGTextureRef CloudColorCubeTexture;
 		FRDGTextureRef CloudColorTexture;
@@ -2141,10 +2147,16 @@ bool FSceneRenderer::RenderVolumetricCloud(
 								TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV), TEXT("RGBCloudIntermediate"));
 					}
 
+					// Create a texture for cloud depth data that will be dropped out just after.
+					// This texture must also match the MSAA sample count of the color buffer in case this direct to SceneColor rendering happens 
+					// while capturing a non-real-time sky light. This is because, in this case, the capture scene rendering happens in the scene color which can have MSAA NumSamples > 1.
+					uint8 DepthNumMips = 1;
+					uint8 DepthNumSamples = bShouldUseHighQualityAerialPerspective ? IntermediateRT->Desc.NumSamples : DestinationRT->Desc.NumSamples;
+					ETextureCreateFlags DepthTexCreateFlags = ETextureCreateFlags(TexCreate_ShaderResource | TexCreate_RenderTargetable | (DepthNumSamples > 1 ? TexCreate_None : TexCreate_UAV));
 					DestinationRTDepth = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(FIntPoint(RtSize.X, RtSize.Y), PF_G16R16F, FClearValueBinding::Black,
-						TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV), TEXT("DummyDepth"));
+						DepthTexCreateFlags, DepthNumMips, DepthNumSamples), TEXT("Cloud.DummyDepth"));
 
-					if (bShouldUseHighQualityAerialPerspective && ShouldUseComputeForCloudTracing())
+					if (bShouldUseHighQualityAerialPerspective && ShouldUseComputeForCloudTracing(Scene->GetFeatureLevel()))
 					{
 						// If using the compute path, we then need to clear the intermediate render target manually as RDG won't do it for us in this case.
 						AddClearRenderTargetPass(GraphBuilder, IntermediateRT);
