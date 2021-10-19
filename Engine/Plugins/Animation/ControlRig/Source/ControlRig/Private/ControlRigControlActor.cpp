@@ -119,6 +119,15 @@ void AControlRigControlActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
+void AControlRigControlActor::BeginDestroy()
+{
+	// since end play is not always called, we have to clear the delegate here
+	// clearing it at destructor might be too late as in some cases, the control rig was already GCed
+	RemoveUnbindDelegate();
+	ControlRig = nullptr;
+	Super::BeginDestroy();
+}
+
 void AControlRigControlActor::Refresh()
 {
 	if (ActorToTrack == nullptr)
