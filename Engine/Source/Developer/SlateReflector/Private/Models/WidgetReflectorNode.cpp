@@ -145,6 +145,11 @@ FText FLiveWidgetReflectorNode::GetWidgetClippingText() const
 	return FWidgetReflectorNodeUtils::GetWidgetClippingText(Widget.Pin());
 }
 
+int32 FLiveWidgetReflectorNode::GetWidgetLayerId() const
+{
+	return FWidgetReflectorNodeUtils::GetWidgetLayerId(Widget.Pin());
+}
+
 bool FLiveWidgetReflectorNode::GetWidgetFocusable() const
 {
 	return FWidgetReflectorNodeUtils::GetWidgetFocusable(Widget.Pin());
@@ -269,6 +274,7 @@ FSnapshotWidgetReflectorNode::FSnapshotWidgetReflectorNode(const FArrangedWidget
 	, bCachedWidgetIsInvalidationRoot(FWidgetReflectorNodeUtils::GetWidgetIsInvalidationRoot(InArrangedWidget.Widget))
 	, bCachedWidgetEnabled(FWidgetReflectorNodeUtils::GetWidgetEnabled(InArrangedWidget.Widget))
 	, CachedWidgetClippingText(FWidgetReflectorNodeUtils::GetWidgetClippingText(InArrangedWidget.Widget))
+	, CachedWidgetLayerId(FWidgetReflectorNodeUtils::GetWidgetLayerId(InArrangedWidget.Widget))
 	, CachedWidgetReadableLocation(FWidgetReflectorNodeUtils::GetWidgetReadableLocation(InArrangedWidget.Widget))
 	, CachedWidgetFile(FWidgetReflectorNodeUtils::GetWidgetFile(InArrangedWidget.Widget))
 	, CachedWidgetLineNumber(FWidgetReflectorNodeUtils::GetWidgetLineNumber(InArrangedWidget.Widget))
@@ -324,6 +330,11 @@ bool FSnapshotWidgetReflectorNode::GetWidgetVisibilityInherited() const
 FText FSnapshotWidgetReflectorNode::GetWidgetClippingText() const
 {
 	return CachedWidgetClippingText;
+}
+
+int32 FSnapshotWidgetReflectorNode::GetWidgetLayerId() const
+{
+	return CachedWidgetLayerId;
 }
 
 bool FSnapshotWidgetReflectorNode::GetWidgetNeedsTick() const
@@ -506,6 +517,7 @@ TSharedRef<FJsonValue> FSnapshotWidgetReflectorNode::ToJson(const TSharedRef<FSn
 	RootJsonObject->SetBoolField(TEXT("WidgetIsInvalidationRoot"), RootSnapshotNode->bCachedWidgetIsInvalidationRoot);
 	RootJsonObject->SetBoolField(TEXT("WidgetEnabled"), RootSnapshotNode->bCachedWidgetEnabled);
 	RootJsonObject->SetStringField(TEXT("WidgetClippingText"), RootSnapshotNode->CachedWidgetClippingText.ToString());
+	RootJsonObject->SetNumberField(TEXT("WidgetLayerId"), RootSnapshotNode->CachedWidgetLayerId);
 	RootJsonObject->SetStringField(TEXT("WidgetReadableLocation"), RootSnapshotNode->CachedWidgetReadableLocation.ToString());
 	RootJsonObject->SetStringField(TEXT("WidgetFile"), RootSnapshotNode->CachedWidgetFile);
 	RootJsonObject->SetNumberField(TEXT("WidgetLineNumber"), RootSnapshotNode->CachedWidgetLineNumber);
@@ -678,6 +690,7 @@ TSharedRef<FSnapshotWidgetReflectorNode> FSnapshotWidgetReflectorNode::FromJson(
 	RootSnapshotNode->bCachedWidgetIsInvalidationRoot = RootJsonObject->GetBoolField(TEXT("WidgetIsInvalidationRoot"));
 	RootSnapshotNode->bCachedWidgetEnabled = RootJsonObject->GetBoolField(TEXT("WidgetEnabled"));
 	RootSnapshotNode->CachedWidgetClippingText = FText::FromString(RootJsonObject->GetStringField(TEXT("WidgetClippingText")));
+	RootSnapshotNode->CachedWidgetLayerId = RootJsonObject->GetIntegerField(TEXT("WidgetLayerId"));
 	RootSnapshotNode->CachedWidgetReadableLocation = FText::FromString(RootJsonObject->GetStringField(TEXT("WidgetReadableLocation")));
 	RootSnapshotNode->CachedWidgetFile = RootJsonObject->GetStringField(TEXT("WidgetFile"));
 	RootSnapshotNode->CachedWidgetLineNumber = RootJsonObject->GetIntegerField(TEXT("WidgetLineNumber"));
@@ -997,6 +1010,11 @@ FText FWidgetReflectorNodeUtils::GetWidgetClippingText(const TSharedPtr<const SW
 	}
 
 	return FText::GetEmpty();
+}
+
+int32 FWidgetReflectorNodeUtils::GetWidgetLayerId(const TSharedPtr<const SWidget>& InWidget)
+{
+	return (InWidget.IsValid()) ? InWidget->GetPersistentState().LayerId : -1;
 }
 
 FText FWidgetReflectorNodeUtils::GetWidgetReadableLocation(const TSharedPtr<const SWidget>& InWidget)

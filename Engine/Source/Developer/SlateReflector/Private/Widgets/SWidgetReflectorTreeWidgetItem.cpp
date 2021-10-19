@@ -20,6 +20,7 @@ FName SReflectorTreeWidgetItem::NAME_Enabled(TEXT("Enabled"));
 FName SReflectorTreeWidgetItem::NAME_Volatile(TEXT("Volatile"));
 FName SReflectorTreeWidgetItem::NAME_HasActiveTimer(TEXT("HasActiveTimer"));
 FName SReflectorTreeWidgetItem::NAME_Clipping(TEXT("Clipping"));
+FName SReflectorTreeWidgetItem::NAME_LayerId(TEXT("LayerId"));
 FName SReflectorTreeWidgetItem::NAME_ForegroundColor(TEXT("ForegroundColor"));
 FName SReflectorTreeWidgetItem::NAME_ActualSize(TEXT("ActualSize"));
 FName SReflectorTreeWidgetItem::NAME_Address(TEXT("Address"));
@@ -138,6 +139,17 @@ TSharedRef<SWidget> SReflectorTreeWidgetItem::GenerateWidgetForColumn(const FNam
 			[
 				SNew(STextBlock)
 				.Text(WidgetInfo->GetWidgetClippingText())
+			];
+	}
+	else if (ColumnName == NAME_LayerId)
+	{
+		return SNew(SBox)
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			.Padding(FMargin(2.0f, 0.0f))
+			[
+				SNew(STextBlock)
+				.Text(FText::AsNumber(WidgetInfo->GetWidgetLayerId()))
 			];
 	}
 	else if (ColumnName == NAME_ForegroundColor )

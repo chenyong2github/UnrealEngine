@@ -27,6 +27,7 @@ public:
 	static FName NAME_Volatile;
 	static FName NAME_HasActiveTimer;
 	static FName NAME_Clipping;
+	static FName NAME_LayerId;
 	static FName NAME_ForegroundColor;
 	static FName NAME_Address;
 	static FName NAME_ActualSize;
