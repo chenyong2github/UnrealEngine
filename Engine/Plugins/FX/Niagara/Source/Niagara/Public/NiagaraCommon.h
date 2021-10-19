@@ -86,6 +86,19 @@ enum class ENiagaraGpuBufferFormat : uint8
 };
 
 UENUM()
+enum class ENiagaraGpuSyncMode
+{
+	/** Data will not be automatically pushed and could diverge between Cpu & Gpu. */
+	None,
+	/** Cpu modifications will be pushed to the Gpu. */
+	SyncCpuToGpu,
+	/** Gpu will continuously push back to the Cpu, this will incur a performance penalty. */
+	SyncGpuToCpu,
+	/** Gpu will continuously push back to the Cpu and Cpu modifications will be pushed to the Gpu. */
+	SyncBoth,
+};
+
+UENUM()
 enum class ENiagaraMipMapGeneration : uint8
 {
 	/** Mips will not be created or automatically generated. */
@@ -1210,6 +1223,18 @@ namespace FNiagaraUtilities
 
 	// Helper function to detect if SRVs are always created for buffers or not
 	bool AreBufferSRVsAlwaysCreated(EShaderPlatform ShaderPlatform);
+
+	// Helper function to determine if we should sync data from CPU to GPU
+	FORCEINLINE bool ShouldSyncCpuToGpu(ENiagaraGpuSyncMode SyncMode)
+	{
+		return SyncMode == ENiagaraGpuSyncMode::SyncBoth || SyncMode == ENiagaraGpuSyncMode::SyncCpuToGpu;
+	}
+
+	// Helper function to determine if we should sync data from GPU to CPU
+	FORCEINLINE bool ShouldSyncGpuToCpu(ENiagaraGpuSyncMode SyncMode)
+	{
+		return SyncMode == ENiagaraGpuSyncMode::SyncBoth || SyncMode == ENiagaraGpuSyncMode::SyncGpuToCpu;
+	}
 
 	ENiagaraCompileUsageStaticSwitch NIAGARA_API ConvertScriptUsageToStaticSwitchUsage(ENiagaraScriptUsage ScriptUsage);
 	ENiagaraScriptContextStaticSwitch NIAGARA_API ConvertScriptUsageToStaticSwitchContext(ENiagaraScriptUsage ScriptUsage);
