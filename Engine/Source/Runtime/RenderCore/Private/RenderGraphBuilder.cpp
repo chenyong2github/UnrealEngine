@@ -711,6 +711,11 @@ FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 		{
 			Texture->AccessFinal |= ERHIAccess::CopyDest;
 		}
+
+		if (EnumHasAnyFlags(Desc.Flags, TexCreate_Foveation))
+		{
+			Texture->AccessFinal |= ERHIAccess::ShadingRateSource;
+		}
 	}
 
 	FRDGTextureSubresourceState& TextureState = Texture->GetState();
