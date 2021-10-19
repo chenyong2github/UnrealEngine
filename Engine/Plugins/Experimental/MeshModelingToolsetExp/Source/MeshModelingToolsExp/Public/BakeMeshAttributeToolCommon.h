@@ -43,32 +43,12 @@ public:
 };
 
 
-UENUM()
-enum class ENormalMapSpace
-{
-	/** Tangent space */
-	Tangent UMETA(DisplayName = "Tangent space"),
-	/** Object space */
-	Object UMETA(DisplayName = "Object space")
-};
-
-
 UCLASS()
 class MESHMODELINGTOOLSEXP_API UBakedNormalMapToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
 
-};
-
-
-UENUM()
-enum class EOcclusionMapDistribution
-{
-	/** Uniform occlusion rays */
-	Uniform UMETA(DisplayName = "Uniform"),
-	/** Cosine weighted occlusion rays */
-	Cosine UMETA(DisplayName = "Cosine")
 };
 
 
@@ -89,17 +69,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = OcclusionMap, meta = (UIMin = "0", UIMax = "180.0", ClampMin = "0", ClampMax = "180.0"))
 	float SpreadAngle = 180.0;
 
-	/** Angular distribution of occlusion rays in the spread angle. */
-	UPROPERTY(EditAnywhere, Category = OcclusionMap)
-	EOcclusionMapDistribution Distribution = EOcclusionMapDistribution::Cosine;
-
 	/** Contribution of AO rays that are within this angle (degrees) from horizontal are attenuated. This reduces faceting artifacts. */
-	UPROPERTY(EditAnywhere, Category = "OcclusionMap|Ambient Occlusion", meta = (UIMin = "0", UIMax = "45.0", ClampMin = "0", ClampMax = "89.9"))
+	UPROPERTY(EditAnywhere, Category = OcclusionMap, meta = (UIMin = "0", UIMax = "45.0", ClampMin = "0", ClampMax = "89.9"))
 	float BiasAngle = 15.0;
-
-	/** Coordinate space of the bent normal map. */
-	UPROPERTY(EditAnywhere, Category = "OcclusionMap|Bent Normal")
-	ENormalMapSpace NormalSpace = ENormalMapSpace::Tangent;
 };
 
 
@@ -248,9 +220,7 @@ struct FOcclusionMapSettings
 	int32 OcclusionRays;
 	float MaxDistance;
 	float SpreadAngle;
-	EOcclusionMapDistribution Distribution;
 	float BiasAngle;
-	ENormalMapSpace NormalSpace;
 
 	bool operator==(const FOcclusionMapSettings& Other) const
 	{
@@ -258,9 +228,7 @@ struct FOcclusionMapSettings
 			OcclusionRays == Other.OcclusionRays &&
 			MaxDistance == Other.MaxDistance &&
 			SpreadAngle == Other.SpreadAngle &&
-			Distribution == Other.Distribution &&
-			BiasAngle == Other.BiasAngle &&
-			NormalSpace == Other.NormalSpace;
+			BiasAngle == Other.BiasAngle;
 	}
 };
 

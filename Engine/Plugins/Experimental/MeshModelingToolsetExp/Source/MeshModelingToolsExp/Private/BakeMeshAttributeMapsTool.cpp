@@ -173,25 +173,6 @@ public:
 				OcclusionEval->SpreadAngle = OcclusionSettings.SpreadAngle;
 				OcclusionEval->BiasAngleDeg = OcclusionSettings.BiasAngle;
 
-				switch (OcclusionSettings.Distribution)
-				{
-				case EOcclusionMapDistribution::Cosine:
-					OcclusionEval->Distribution = FMeshOcclusionMapEvaluator::EDistribution::Cosine;
-					break;
-				case EOcclusionMapDistribution::Uniform:
-					OcclusionEval->Distribution = FMeshOcclusionMapEvaluator::EDistribution::Uniform;
-					break;
-				}
-
-				switch (OcclusionSettings.NormalSpace)
-				{
-				case ENormalMapSpace::Tangent:
-					OcclusionEval->NormalSpace = FMeshOcclusionMapEvaluator::ESpace::Tangent;
-					break;
-				case ENormalMapSpace::Object:
-					OcclusionEval->NormalSpace = FMeshOcclusionMapEvaluator::ESpace::Object;
-					break;
-				}
 				Baker->AddEvaluator(OcclusionEval);
 				break;
 			}
@@ -352,9 +333,7 @@ void UBakeMeshAttributeMapsTool::Setup()
 	OcclusionMapProps->WatchProperty(OcclusionMapProps->OcclusionRays, [this](int32) { bInputsDirty = true; });
 	OcclusionMapProps->WatchProperty(OcclusionMapProps->MaxDistance, [this](float) { bInputsDirty = true; });
 	OcclusionMapProps->WatchProperty(OcclusionMapProps->SpreadAngle, [this](float) { bInputsDirty = true; });
-	OcclusionMapProps->WatchProperty(OcclusionMapProps->Distribution, [this](EOcclusionMapDistribution) { bInputsDirty = true; });
 	OcclusionMapProps->WatchProperty(OcclusionMapProps->BiasAngle, [this](float) { bInputsDirty = true; });
-	OcclusionMapProps->WatchProperty(OcclusionMapProps->NormalSpace, [this](ENormalMapSpace) { bInputsDirty = true; });
 
 
 	CurvatureMapProps = NewObject<UBakedCurvatureMapToolProperties>(this);
@@ -759,9 +738,7 @@ EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_Occlusion()
 	OcclusionMapSettings.MaxDistance = (OcclusionMapProps->MaxDistance == 0) ? TNumericLimits<float>::Max() : OcclusionMapProps->MaxDistance;
 	OcclusionMapSettings.OcclusionRays = OcclusionMapProps->OcclusionRays;
 	OcclusionMapSettings.SpreadAngle = OcclusionMapProps->SpreadAngle;
-	OcclusionMapSettings.Distribution = OcclusionMapProps->Distribution;
 	OcclusionMapSettings.BiasAngle = OcclusionMapProps->BiasAngle;
-	OcclusionMapSettings.NormalSpace = OcclusionMapProps->NormalSpace;
 
 	if ( !(CachedOcclusionMapSettings == OcclusionMapSettings) )
 	{

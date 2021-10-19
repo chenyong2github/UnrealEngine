@@ -112,26 +112,6 @@ public:
 			OcclusionEval->MaxDistance = OcclusionSettings.MaxDistance;
 			OcclusionEval->SpreadAngle = OcclusionSettings.SpreadAngle;
 			OcclusionEval->BiasAngleDeg = OcclusionSettings.BiasAngle;
-
-			switch (OcclusionSettings.Distribution)
-			{
-			case EOcclusionMapDistribution::Cosine:
-				OcclusionEval->Distribution = FMeshOcclusionMapEvaluator::EDistribution::Cosine;
-				break;
-			case EOcclusionMapDistribution::Uniform:
-				OcclusionEval->Distribution = FMeshOcclusionMapEvaluator::EDistribution::Uniform;
-				break;
-			}
-
-			switch (OcclusionSettings.NormalSpace)
-			{
-			case ENormalMapSpace::Tangent:
-				OcclusionEval->NormalSpace = FMeshOcclusionMapEvaluator::ESpace::Tangent;
-				break;
-			case ENormalMapSpace::Object:
-				OcclusionEval->NormalSpace = FMeshOcclusionMapEvaluator::ESpace::Object;
-				break;
-			}
 		};
 
 		auto InitCurvatureEvaluator = [this] (FMeshCurvatureMapEvaluator* CurvatureEval)
@@ -342,9 +322,7 @@ void UBakeMeshAttributeVertexTool::Setup()
 	OcclusionSettings->WatchProperty(OcclusionSettings->OcclusionRays, [this](int32) { OpState = EBakeOpState::Evaluate; });
 	OcclusionSettings->WatchProperty(OcclusionSettings->MaxDistance, [this](float) { OpState = EBakeOpState::Evaluate; });
 	OcclusionSettings->WatchProperty(OcclusionSettings->SpreadAngle, [this](float) { OpState = EBakeOpState::Evaluate; });
-	OcclusionSettings->WatchProperty(OcclusionSettings->Distribution, [this](EOcclusionMapDistribution) { OpState = EBakeOpState::Evaluate; });
 	OcclusionSettings->WatchProperty(OcclusionSettings->BiasAngle, [this](float) { OpState = EBakeOpState::Evaluate; });
-	OcclusionSettings->WatchProperty(OcclusionSettings->NormalSpace, [this](ENormalMapSpace) { OpState = EBakeOpState::Evaluate; });
 
 	CurvatureSettings = NewObject<UBakedCurvatureMapToolProperties>(this);
 	CurvatureSettings->RestoreProperties(this);
@@ -779,9 +757,7 @@ EBakeOpState UBakeMeshAttributeVertexTool::UpdateResult_Occlusion()
 	OcclusionMapSettings.MaxDistance = (OcclusionSettings->MaxDistance == 0) ? TNumericLimits<float>::Max() : OcclusionSettings->MaxDistance;
 	OcclusionMapSettings.OcclusionRays = OcclusionSettings->OcclusionRays;
 	OcclusionMapSettings.SpreadAngle = OcclusionSettings->SpreadAngle;
-	OcclusionMapSettings.Distribution = OcclusionSettings->Distribution;
 	OcclusionMapSettings.BiasAngle = OcclusionSettings->BiasAngle;
-	OcclusionMapSettings.NormalSpace = OcclusionSettings->NormalSpace;
 
 	if (!(CachedOcclusionMapSettings == OcclusionMapSettings))
 	{
