@@ -68,7 +68,7 @@ public:
 protected:
 	const TriangleMeshType* Mesh;
 	uint64 MeshChangeStamp = 0;
-	int TopDownLeafMaxTriCount = 4;
+	int TopDownLeafMaxTriCount = 3;
 
 	static GetSplitAxisFunc MakeDefaultSplitAxisFunc()
 	{
