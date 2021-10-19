@@ -110,6 +110,12 @@ public:
 	 */
 	bool IsDuringMassProcessing() const { return CurrentPhase != EMassProcessingPhase::MAX && ProcessingPhases[int(CurrentPhase)].IsDuringMassProcessing(); }
 
+	/**
+	 *  Sets the composite processor used for Phase processing phase. Using PhaseProcessor == nullptr results in
+	 *  clearing the Phase's processor out effectively making the Phase perform no calculations. 
+	 */
+	void SetPhaseProcessor(const EMassProcessingPhase Phase, UMassCompositeProcessor* PhaseProcessor);
+
 protected:
 	virtual void PostInitProperties() override;
 	virtual void BeginDestroy() override;
