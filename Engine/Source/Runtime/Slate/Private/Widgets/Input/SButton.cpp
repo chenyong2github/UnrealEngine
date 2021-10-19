@@ -33,6 +33,7 @@ void SButton::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeIni
 			}));
 
 	AttributeInitializer.OverrideInvalidationReason("EnabledState", FSlateAttributeDescriptor::FInvalidateWidgetReasonAttribute{EInvalidateWidgetReason::Layout|EInvalidateWidgetReason::Paint});
+	AttributeInitializer.OverrideInvalidationReason("Hovered", FSlateAttributeDescriptor::FInvalidateWidgetReasonAttribute{EInvalidateWidgetReason::Layout|EInvalidateWidgetReason::Paint});
 
 	AttributeInitializer.OverrideOnValueChanged("EnabledState"
 		, FSlateAttributeDescriptor::ECallbackOverrideType::ExecuteAfterPrevious
