@@ -7,6 +7,7 @@
 #include "Animation/WidgetAnimation.h"
 #include "Serialization/TextReferenceCollector.h"
 #include "Engine/UserInterfaceSettings.h"
+#include "Extensions/WidgetBlueprintGeneratedClassExtension.h"
 #include "UMGPrivate.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "UObject/EditorObjectVersion.h"
@@ -16,6 +17,7 @@
 #include "UObject/Package.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
+
 
 #if WITH_EDITOR
 #include "Engine/Blueprint.h"
@@ -114,11 +116,12 @@ namespace
 /////////////////////////////////////////////////////
 // UWidgetBlueprintGeneratedClass
 
-UWidgetBlueprintGeneratedClass::UWidgetBlueprintGeneratedClass(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
+UWidgetBlueprintGeneratedClass::UWidgetBlueprintGeneratedClass()
 {
 #if WITH_EDITORONLY_DATA
-	{ static const FAutoRegisterTextReferenceCollectorCallback AutomaticRegistrationOfTextReferenceCollector(UWidgetBlueprintGeneratedClass::StaticClass(), &CollectWidgetBlueprintGeneratedClassTextReferences); }
+	{
+		static const FAutoRegisterTextReferenceCollectorCallback AutomaticRegistrationOfTextReferenceCollector(UWidgetBlueprintGeneratedClass::StaticClass(), &CollectWidgetBlueprintGeneratedClassTextReferences);
+	}
 	bCanCallPreConstruct = true;
 #endif
 }
@@ -239,11 +242,8 @@ void UWidgetBlueprintGeneratedClass::InitializeWidgetStatic(UUserWidget* UserWid
 			Widget->WidgetGeneratedBy = InClass->ClassGeneratedBy;
 #endif
 
-			// TODO UMG Make this an FName
-			FString VariableName = Widget->GetName();
-
 			// Find property with the same name as the template and assign the new widget to it.
-			FObjectPropertyBase* Prop = FindFProperty<FObjectPropertyBase>(WidgetBlueprintClass, *VariableName);
+			FObjectPropertyBase* Prop = FindFProperty<FObjectPropertyBase>(WidgetBlueprintClass, Widget->GetFName());
 			if (Prop)
 			{
 				Prop->SetObjectPropertyValue_InContainer(UserWidget, Widget);
@@ -269,8 +269,6 @@ void UWidgetBlueprintGeneratedClass::InitializeWidgetStatic(UUserWidget* UserWid
 		{
 			UBlueprintGeneratedClass::BindDynamicDelegates(InClass, UserWidget);
 		}
-
-		//TODO UMG Add OnWidgetInitialized?
 	}
 }
 
@@ -437,6 +435,33 @@ UWidgetBlueprintGeneratedClass* UWidgetBlueprintGeneratedClass::FindWidgetTreeOw
 	}
 
 	return nullptr;
+}
+
+
+UWidgetBlueprintGeneratedClassExtension* UWidgetBlueprintGeneratedClass::GetExtension(TSubclassOf<UWidgetBlueprintGeneratedClassExtension> InExtensionType)
+{
+	for (UWidgetBlueprintGeneratedClassExtension* Extension : Extensions)
+	{
+		if (Extension->IsA(InExtensionType))
+		{
+			return Extension;
+		}
+	}
+	return nullptr;
+}
+
+
+TArray<UWidgetBlueprintGeneratedClassExtension*> UWidgetBlueprintGeneratedClass::GetExtensions(TSubclassOf<UWidgetBlueprintGeneratedClassExtension> InExtensionType)
+{
+	TArray<UWidgetBlueprintGeneratedClassExtension*> Result;
+	for (UWidgetBlueprintGeneratedClassExtension* Extension : Extensions)
+	{
+		if (Extension->IsA(InExtensionType))
+		{
+			Result.Add(Extension);
+		}
+	}
+	return Result;
 }
 
 #undef LOCTEXT_NAMESPACE

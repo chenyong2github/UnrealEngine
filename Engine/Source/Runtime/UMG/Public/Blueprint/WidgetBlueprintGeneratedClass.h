@@ -11,6 +11,7 @@
 
 class UUserWidget;
 class UWidgetAnimation;
+class UWidgetBlueprintGeneratedClassExtension;
 class UWidgetTree;
 
 UENUM()
@@ -56,13 +57,21 @@ struct FDelegateRuntimeBinding
 UCLASS()
 class UMG_API UWidgetBlueprintGeneratedClass : public UBlueprintGeneratedClass
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
+	friend class FWidgetBlueprintCompilerContext;
+
+public:
+	UWidgetBlueprintGeneratedClass();
 
 private:
 
 	/** A tree of the widget templates to be created */
 	UPROPERTY()
 	TObjectPtr<UWidgetTree> WidgetTree;
+
+	/** The extension that are considered static to the class */
+	UPROPERTY()
+	TArray<TObjectPtr<UWidgetBlueprintGeneratedClassExtension>> Extensions;
 
 #if WITH_EDITORONLY_DATA
 
@@ -113,8 +122,6 @@ public:
 	 */
 	void InitializeWidget(UUserWidget* UserWidget) const;
 
-	static void InitializeBindingsStatic(UUserWidget* UserWidget, const TArray< FDelegateRuntimeBinding >& InBindings);
-
 	static void InitializeWidgetStatic(UUserWidget* UserWidget
 		, const UClass* InClass
 		, UWidgetTree* InWidgetTree
@@ -127,6 +134,30 @@ public:
 	void SetClassRequiresNativeTick(bool InClassRequiresNativeTick);
 #endif
 
+	/** Find the first extension of the requested type. */
+	template<typename ExtensionType>
+	ExtensionType* GetExtension()
+	{
+		return Cast<ExtensionType>(GetExtension(ExtensionType::StaticClass()));
+	}
+
+	/** Find the first extension of the requested type. */
+	UWidgetBlueprintGeneratedClassExtension* GetExtension(TSubclassOf<UWidgetBlueprintGeneratedClassExtension> InExtensionType);
+
+	/** Find the extensions of the requested type. */
+	TArray<UWidgetBlueprintGeneratedClassExtension*> GetExtensions(TSubclassOf<UWidgetBlueprintGeneratedClassExtension> InExtensionType);
+
+	template<typename Predicate>
+	void ForEachExtension(Predicate Pred) const
+	{
+		for (UWidgetBlueprintGeneratedClassExtension* Extension : Extensions)
+		{
+			check(Extension);
+			Pred(Extension);
+		}
+	}
+
 private:
+	static void InitializeBindingsStatic(UUserWidget* UserWidget, const TArray< FDelegateRuntimeBinding >& InBindings);
 	static void BindAnimations(UUserWidget* Instance, const TArray< UWidgetAnimation* >& InAnimations);
 };

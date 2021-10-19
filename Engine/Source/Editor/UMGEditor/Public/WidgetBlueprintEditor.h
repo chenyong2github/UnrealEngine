@@ -37,6 +37,9 @@ struct FNamedSlotSelection
  */
 class UMGEDITOR_API FWidgetBlueprintEditor : public FBlueprintEditor
 {
+private:
+	using Super = FBlueprintEditor;
+
 public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnHoveredWidgetSet, const FWidgetReference&)
 	DECLARE_MULTICAST_DELEGATE(FOnHoveredWidgetCleared);
@@ -59,14 +62,24 @@ public:
 
 	void InitWidgetBlueprintEditor(const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, const TArray<UBlueprint*>& InBlueprints, bool bShouldOpenInDefaultsMode);
 
-	/** FBlueprintEditor interface */
+	//~ Begin FBlueprintEditor interface
 	virtual void Tick(float DeltaTime) override;
 	virtual void PostUndo(bool bSuccessful) override;
 	virtual void PostRedo(bool bSuccessful) override;
 	virtual void Compile() override;
+	//~ End Begin FBlueprintEditor interface
 
-	/** FGCObjectInterface */
+	//~ Begin FGCObjectInterface interface
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	//~ end FGCObjectInterface interface
+
+	//~ Begin IToolkit interface
+	virtual FName GetToolkitFName() const override;
+	virtual FText GetBaseToolkitName() const override;
+	virtual FString GetWorldCentricTabPrefix() const override;
+	virtual FLinearColor GetWorldCentricTabColorScale() const override;
+	virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
+	//~ End IToolkit interface
 
 	/** @return The widget blueprint currently being edited in this editor */
 	class UWidgetBlueprint* GetWidgetBlueprintObj() const;
@@ -265,11 +278,11 @@ protected:
 	void OnCreateNativeBaseClassSuccessfully(const FString& InClassName, const FString& InClassPath, const FString& InModuleName);
 	TSharedPtr<ISequencer> CreateSequencerWidgetInternal();
 
-	// Begin FBlueprintEditor
+	//~ Begin FBlueprintEditor interface
 	virtual void RegisterApplicationModes(const TArray<UBlueprint*>& InBlueprints, bool bShouldOpenInDefaultsMode, bool bNewlyCreated = false) override;
 	virtual FGraphAppearanceInfo GetGraphAppearance(class UEdGraph* InGraph) const override;
 	virtual TSubclassOf<UEdGraphSchema> GetDefaultSchemaClass() const override;
-	// End FBlueprintEditor
+	//~ End FBlueprintEditor interface
 
 private:
 	bool CanDeleteSelectedWidgets();

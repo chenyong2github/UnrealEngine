@@ -76,6 +76,9 @@ protected:
 
 	void VerifyEventReplysAreNotEmpty(FKismetFunctionContext& Context);
 
+public:
+	void AddExtension(UWidgetBlueprintGeneratedClass* Class, UWidgetBlueprintGeneratedClassExtension* Extension);
+
 protected:
 	void FixAbandonedWidgetTree(UWidgetBlueprint* WidgetBP);
 

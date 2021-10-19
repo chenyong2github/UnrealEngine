@@ -15,6 +15,7 @@
 #include "WidgetBlueprint.h"
 #include "StatusBarSubsystem.h"
 #include "Editor.h"
+#include "WidgetBlueprintToolMenuContext.h"
 
 #if WITH_EDITOR
 	#include "EditorStyleSet.h"
@@ -189,7 +190,7 @@ void FWidgetBlueprintEditor::InitWidgetBlueprintEditor(const EToolkitMode::Type 
 
 void FWidgetBlueprintEditor::InitalizeExtenders()
 {
-	FBlueprintEditor::InitalizeExtenders();
+	Super::InitalizeExtenders();
 
 	IUMGEditorModule& UMGEditorModule = FModuleManager::LoadModuleChecked<IUMGEditorModule>("UMGEditor");
 	AddMenuExtender(UMGEditorModule.GetMenuExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
@@ -380,8 +381,6 @@ void FWidgetBlueprintEditor::TakeSnapshot()
 			}
 		}
 	}
-
-
 }
 
 void FWidgetBlueprintEditor::CaptureThumbnail()
@@ -426,6 +425,35 @@ bool FWidgetBlueprintEditor::IsImageUsedAsThumbnail()
 bool FWidgetBlueprintEditor::IsPreviewWidgetInitialized()
 {
 	return GetPreview() != nullptr;
+}
+
+FName FWidgetBlueprintEditor::GetToolkitFName() const
+{
+	return FName("WidgetBlueprintEditor");
+}
+
+FText FWidgetBlueprintEditor::GetBaseToolkitName() const
+{
+	return LOCTEXT("AppLabel", "Widget Editor");
+}
+
+FString FWidgetBlueprintEditor::GetWorldCentricTabPrefix() const
+{
+	return LOCTEXT("WorldCentricTabPrefix", "Widget Editor ").ToString();
+}
+
+FLinearColor FWidgetBlueprintEditor::GetWorldCentricTabColorScale() const
+{
+	return FLinearColor(0.3f, 0.25f, 0.35f, 0.5f);
+}
+
+void FWidgetBlueprintEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
+{
+	Super::InitToolMenuContext(MenuContext);
+
+	UWidgetBlueprintToolMenuContext* Context = NewObject<UWidgetBlueprintToolMenuContext>();
+	Context->WidgetBlueprintEditor = SharedThis(this);
+	MenuContext.AddObject(Context);
 }
 
 void FWidgetBlueprintEditor::SetCreateOnCompileSetting(EDisplayOnCompile InCreateOnCompile)
@@ -477,7 +505,7 @@ void FWidgetBlueprintEditor::OnCreateNativeBaseClassSuccessfully(const FString& 
 
 void FWidgetBlueprintEditor::RegisterApplicationModes(const TArray<UBlueprint*>& InBlueprints, bool bShouldOpenInDefaultsMode, bool bNewlyCreated/* = false*/)
 {
-	//FBlueprintEditor::RegisterApplicationModes(InBlueprints, bShouldOpenInDefaultsMode);
+	//Super::RegisterApplicationModes(InBlueprints, bShouldOpenInDefaultsMode);
 
 	if ( InBlueprints.Num() == 1 )
 	{
@@ -659,7 +687,7 @@ void FWidgetBlueprintEditor::OnBlueprintChangedImpl(UBlueprint* InBlueprint, boo
 {
 	DestroyPreview();
 
-	FBlueprintEditor::OnBlueprintChangedImpl(InBlueprint, bIsJustBeingCompiled);
+	Super::OnBlueprintChangedImpl(InBlueprint, bIsJustBeingCompiled);
 
 	if ( InBlueprint )
 	{
@@ -820,7 +848,7 @@ void FWidgetBlueprintEditor::DuplicateSelectedWidgets()
 
 void FWidgetBlueprintEditor::Tick(float DeltaTime)
 {
-	FBlueprintEditor::Tick(DeltaTime);
+	Super::Tick(DeltaTime);
 
 	// Tick the preview scene world.
 	if ( !GIntraFrameDebuggingGameThread )
@@ -936,7 +964,7 @@ static bool MigratePropertyValue(UObject* SourceObject, UObject* DestinationObje
 
 void FWidgetBlueprintEditor::AddReferencedObjects( FReferenceCollector& Collector )
 {
-	FBlueprintEditor::AddReferencedObjects( Collector );
+	Super::AddReferencedObjects( Collector );
 
 	UUserWidget* Preview = GetPreview();
 	Collector.AddReferencedObject( Preview );
@@ -978,14 +1006,14 @@ void FWidgetBlueprintEditor::MigrateFromChain(FEditPropertyChain* PropertyThatCh
 
 void FWidgetBlueprintEditor::PostUndo(bool bSuccessful)
 {
-	FBlueprintEditor::PostUndo(bSuccessful);
+	Super::PostUndo(bSuccessful);
 
 	OnWidgetBlueprintTransaction.Broadcast();
 }
 
 void FWidgetBlueprintEditor::PostRedo(bool bSuccessful)
 {
-	FBlueprintEditor::PostRedo(bSuccessful);
+	Super::PostRedo(bSuccessful);
 
 	OnWidgetBlueprintTransaction.Broadcast();
 }
@@ -1513,7 +1541,7 @@ void FWidgetBlueprintEditor::UpdatePreview(UBlueprint* InBlueprint, bool bInForc
 
 FGraphAppearanceInfo FWidgetBlueprintEditor::GetGraphAppearance(UEdGraph* InGraph) const
 {
-	FGraphAppearanceInfo AppearanceInfo = FBlueprintEditor::GetGraphAppearance(InGraph);
+	FGraphAppearanceInfo AppearanceInfo = Super::GetGraphAppearance(InGraph);
 
 	if ( GetBlueprintObj()->IsA(UWidgetBlueprint::StaticClass()) )
 	{
