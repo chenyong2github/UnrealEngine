@@ -42,12 +42,15 @@ void AControlRigControlActor::RemoveUnbindDelegate()
 {
 	if (ControlRig)
 	{
-		if (TSharedPtr<IControlRigObjectBinding> Binding = ControlRig->GetObjectBinding())
+		if (!ControlRig->HasAllFlags(RF_BeginDestroyed))
 		{
-			if (OnUnbindDelegate.IsValid())
+			if (TSharedPtr<IControlRigObjectBinding> Binding = ControlRig->GetObjectBinding())
 			{
-				Binding->OnControlRigUnbind().Remove(OnUnbindDelegate);
-				OnUnbindDelegate.Reset();
+				if (OnUnbindDelegate.IsValid())
+				{
+					Binding->OnControlRigUnbind().Remove(OnUnbindDelegate);
+					OnUnbindDelegate.Reset();
+				}
 			}
 		}
 	}
