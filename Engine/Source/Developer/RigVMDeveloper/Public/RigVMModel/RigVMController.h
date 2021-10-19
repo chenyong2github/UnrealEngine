@@ -137,7 +137,7 @@ public:
 	FRigVMGraphModifiedEvent& OnModified();
 
 	// Submits an event to the graph for broadcasting.
-	void Notify(ERigVMGraphNotifType InNotifType, UObject* InSubject);
+	void Notify(ERigVMGraphNotifType InNotifType, UObject* InSubject) const;
 
 	// Resends all notifications
 	void ResendAllNotifications();
@@ -741,9 +741,9 @@ public:
 
 	const FRigVMByteCode* GetCurrentByteCode() const;
 
-	void ReportWarning(const FString& InMessage);
-	void ReportError(const FString& InMessage);
-	void ReportAndNotifyError(const FString& InMessage);
+	void ReportWarning(const FString& InMessage) const;
+	void ReportError(const FString& InMessage) const;
+	void ReportAndNotifyError(const FString& InMessage) const;
 
 	template <typename FmtType, typename... Types>
 	void ReportWarningf(const FmtType& Fmt, Types... Args)
@@ -785,11 +785,13 @@ private:
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
 
 	FString GetValidNodeName(const FString& InPrefix);
-	bool IsValidGraph();
+	bool IsValidGraph() const;
 	bool IsValidNodeForGraph(URigVMNode* InNode);
 	bool IsValidPinForGraph(URigVMPin* InPin);
 	bool IsValidLinkForGraph(URigVMLink* InLink);
 	bool CanAddNode(URigVMNode* InNode, bool bReportErrors, bool bIgnoreFunctionEntryReturnNodes = false);
+	TObjectPtr<URigVMNode> FindEventNode(const UScriptStruct* InScriptStruct) const;
+	bool CanAddEventNode(UScriptStruct* InScriptStruct, const bool bReportErrors) const;
 	bool CanAddFunctionRefForDefinition(URigVMLibraryNode* InFunctionDefinition, bool bReportErrors);
 	void AddPinsForStruct(UStruct* InStruct, URigVMNode* InNode, URigVMPin* InParentPin, ERigVMPinDirection InPinDirection, const FString& InDefaultValue, bool bAutoExpandArrays, bool bNotify = false);
 	void AddPinsForArray(FArrayProperty* InArrayProperty, URigVMNode* InNode, URigVMPin* InParentPin, ERigVMPinDirection InPinDirection, const TArray<FString>& InDefaultValues, bool bAutoExpandArrays);
