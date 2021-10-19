@@ -551,7 +551,9 @@ bool FAjaMediaPlayer::OnInputFrameReceived(const AJA::AJAInputFrameData& InInput
 		DecodedTimecodeF2 = DecodedTimecode;
 		++DecodedTimecodeF2->Frames;
 
-		FTimespan TimecodeDecodedTime = DecodedTimecode.GetValue().ToTimespan(VideoFrameRate);
+		const FFrameNumber ConvertedFrameNumber = DecodedTimecode.GetValue().ToFrameNumber(VideoFrameRate);
+		const double NumberOfSeconds = ConvertedFrameNumber.Value * VideoFrameRate.AsInterval();
+		const FTimespan TimecodeDecodedTime = FTimespan::FromSeconds(NumberOfSeconds);
 		if (bUseTimeSynchronization)
 		{
 			DecodedTime = TimecodeDecodedTime;

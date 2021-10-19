@@ -215,7 +215,9 @@ namespace BlackmagicMediaPlayerHelpers
 					DecodedTimecodeF2 = DecodedTimecode;
 					++DecodedTimecodeF2->Frames;
 
-					const FTimespan TimecodeDecodedTime = DecodedTimecode->ToTimespan(MediaPlayer->VideoFrameRate);
+					const FFrameNumber ConvertedFrameNumber = DecodedTimecode.GetValue().ToFrameNumber(MediaPlayer->VideoFrameRate);
+					const double NumberOfSeconds = ConvertedFrameNumber.Value * MediaPlayer->VideoFrameRate.AsInterval();
+					const FTimespan TimecodeDecodedTime = FTimespan::FromSeconds(NumberOfSeconds);
 					if (MediaPlayer->bUseTimeSynchronization)
 					{
 						DecodedTime = TimecodeDecodedTime;
