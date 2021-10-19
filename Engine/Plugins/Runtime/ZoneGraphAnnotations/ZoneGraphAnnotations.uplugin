@@ -1,7 +1,7 @@
 {
 	"FileVersion": 1,
 	"Version": 1,
-	"VersionName": "1.0",
+	"VersionName": "0.5",
 	"FriendlyName": "ZoneGraph Annotations",
 	"Description": "Annotations for Zone Graph",
 	"Category": "AI",
@@ -13,7 +13,7 @@
 	"EnabledByDefault" : false,
 	"CanContainContent": true,
 	"IsBetaVersion": false,
-	"IsExperimentalVersion": false,
+	"IsExperimentalVersion": true,
 	"Installed": false,
 	"Modules": [
 		{
