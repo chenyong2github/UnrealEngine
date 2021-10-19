@@ -1,7 +1,7 @@
 {
 	"FileVersion" : 3,
 	"Version" : 1,
-	"VersionName" : "1.0",
+	"VersionName" : "0.5",
 	"FriendlyName" : "ZoneGraph",
 	"Description" : "Description missing.",
 	"Category" : "AI",
@@ -12,7 +12,8 @@
 	"SupportURL" : "",
 	"EnabledByDefault" : false,
 	"CanContainContent" : false,
-	"IsBetaVersion" : false,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": true,
 	"Installed" : false,
 	"Modules" :
 	[
