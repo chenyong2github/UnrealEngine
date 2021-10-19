@@ -2,6 +2,8 @@
 
 #include "Operations/GeodesicPath.h"
 #include "Math/UnrealMathVectorCommon.h"
+#include "Operations/MeshGeodesicSurfaceTracer.h" 
+
 
 using namespace UE::Geometry;
 
@@ -194,8 +196,8 @@ bool VisitWedgeTriangles(const FIntrinsicEdgeFlipMesh& EdgeFlipMesh, const int32
 // -- Deformable Edge Path --//
 
 
-FDeformableEdgePath::FDeformableEdgePath(const FDynamicMesh3& SurfaceMesh, const TArray<FEdgePath::FDirectedSegment>& PathAsDirectedSegments)
-	: EdgeFlipMesh(SurfaceMesh)
+FDeformableEdgePath::FDeformableEdgePath(const FDynamicMesh3& SurfaceMeshIn, const TArray<FEdgePath::FDirectedSegment>& PathAsDirectedSegments)
+	: EdgeFlipMesh(SurfaceMeshIn)
 	, PathLength(0.)
 	, NumFlips(0)
 {
@@ -620,4 +622,69 @@ void FDeformableEdgePath::ComputeWedgeAngles(int32 IncomingEID,
 
 	LeftSideAngle  = (bLeftContainsBoundary)  ? TMathUtilConstants<double>::MaxReal : LeftWedgeAngle;
 	RightSideAngle = (bRightContainsBoundary) ? TMathUtilConstants<double>::MaxReal : RightWedgeAngle;
+}
+
+TArray<FDeformableEdgePath::FSurfacePoint> FDeformableEdgePath::AsSurfacePoints(double CoalesceThreshold) const
+{
+	TArray<FIntrinsicTriangulation::FSurfacePoint> PathSurfacePoints;
+
+	const int32 NumIntrinsicPathSegments = EdgePath.NumSegments();
+	
+	// empty path case
+	if (NumIntrinsicPathSegments == 0)
+	{
+		return PathSurfacePoints;
+	}
+
+	int32 SID = EdgePath.GetHeadSegmentID();
+	while (SID != InvalidID)
+	{ 
+	
+		const int32 NextSID = EdgePath.GetNextSegmentID(SID);
+		const bool bIsLastSegment = (NextSID == InvalidID);
+		
+		const int32 EID = EdgePath.GetSegment(SID).EID;
+		const bool bReverseEdge = (EdgePath.GetSegment(SID).HeadIndex == 0);
+
+		// get intrinsic edge as a sequence of surface points, note each segment starts and ends at a surface mesh vertex but may cross several surface mesh edges.
+		TArray<FIntrinsicTriangulation::FSurfacePoint> SegmentSurfacePoints = EdgeFlipMesh.TraceEdge(EID, CoalesceThreshold, bReverseEdge);
+
+		PathSurfacePoints.Append(MoveTemp(SegmentSurfacePoints));
+		if (!bIsLastSegment)
+		{
+			// delete last element since it will be the same as the first element in the next segment
+			PathSurfacePoints.Pop(); 
+		}
+		
+		SID = NextSID;
+	}
+	
+	return MoveTemp(PathSurfacePoints);
+}
+
+double UE::Geometry::SumPathLength(const FDeformableEdgePath& DeformableEdgePath)
+{
+	double TotalPathLength = 0;
+	const FEdgePath& EdgePath = DeformableEdgePath.GetEdgePath();
+	const FIntrinsicTriangulation& EdgeFlipMesh = DeformableEdgePath.GetIntrinsicMesh();
+
+	const int32 NumIntrinsicPathSegments = EdgePath.NumSegments();
+
+	// empty path case
+	if (NumIntrinsicPathSegments == 0)
+	{
+		return TotalPathLength;
+	}
+
+	int32 SID = EdgePath.GetHeadSegmentID();
+	while (SID != FDeformableEdgePath::InvalidID)
+	{
+		const int32 EID = EdgePath.GetSegment(SID).EID;
+		const double SegmentLength = EdgeFlipMesh.GetEdgeLength(EID);
+		TotalPathLength += SegmentLength;
+			
+		SID = EdgePath.GetNextSegmentID(SID);
+	}
+
+	return TotalPathLength;
 }

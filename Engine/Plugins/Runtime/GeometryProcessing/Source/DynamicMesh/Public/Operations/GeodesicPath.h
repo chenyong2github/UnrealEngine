@@ -114,7 +114,7 @@ public:
 	/**
 	* Constructor assumes the directed segments are ordered from tail (at index 0) to head
 	*/
-	FDeformableEdgePath(const FDynamicMesh3& SurfaceMesh, const TArray<FEdgePath::FDirectedSegment>& OriginalPathAsDirectedSegments);
+	FDeformableEdgePath(const FDynamicMesh3& SurfaceMeshIn, const TArray<FEdgePath::FDirectedSegment>& OriginalPathAsDirectedSegments);
 	
 	virtual ~FDeformableEdgePath(){}
 
@@ -153,7 +153,24 @@ public:
 	/**
 	* @return const reference to the intrinsic mesh on which the EdgePath is defined.
 	*/ 
-	inline const FIntrinsicEdgeFlipMesh& GetIntrinsicMesh() const;
+	inline const FIntrinsicTriangulation& GetIntrinsicMesh() const;
+
+	/**
+	* struct that references a point on a mesh, by vertex, by edge-crossing, or barycentric coords
+	*/ 
+	using FSurfacePoint =  FIntrinsicTriangulation::FSurfacePoint;
+	/**
+	* @return an array of surface points relative to the SurfaceMesh that define this path.
+	* Note the first and last surfacepoints correspond to the start and end vertex, but all 
+	* other surface points may be either edge crossings or vertex points.
+	* 
+	* @param CoalesceThreshold - In barycentric units [0,1], edge-crossings within this threshold are snapped to the nearest vertex
+	*                            and any resulting repitition of vertex surface points are replaced with a single vertex surface point.
+	*                            Due to numerical precision issues, a path that 'should' intersect a surface mesh vertex may appear
+	*                            as a sequence of vertex adjacent edge-crossings very close to the vertex.. the threshold is applied in
+	*                            a post-process coalesce those crossings into a single vertex crossing.
+	*/
+	TArray<FSurfacePoint> AsSurfacePoints(double CoalesceThreshold = 0.) const;
 
 protected:
 	
@@ -241,8 +258,8 @@ protected:
 	                        double& LeftSideAngle, double& RightSideAngle) const ;
 	
 protected:
-
-	FIntrinsicEdgeFlipMesh         EdgeFlipMesh;        // Intrinsic mesh with the same vertices as the original surface mesh. The geodesic path is comprised of edges in this mesh.
+     
+	FIntrinsicTriangulation        EdgeFlipMesh;        // Intrinsic mesh with the same vertices as the original surface mesh. The geodesic path is comprised of edges in this mesh.
 
 	double                         PathLength;          // Total length of the path
 	int32                          NumFlips;            // Count of the number of edge flips performed in shortening the path.
@@ -254,6 +271,13 @@ protected:
 	
 };
 
+/**
+* @return the length of the path, computed by suming the path segment lengths.  Primarily for testing
+* as the result should match FDeformableEdgePath::GetPathLength()
+*/ 
+double SumPathLength(const FDeformableEdgePath& DeformableEdgePath);
+
+
 const FEdgePath& FDeformableEdgePath::GetEdgePath() const
 {
 	return EdgePath;
@@ -264,7 +288,7 @@ double  FDeformableEdgePath::GetPathLength() const
 	return PathLength;
 }
 
-const FIntrinsicEdgeFlipMesh& FDeformableEdgePath::GetIntrinsicMesh() const
+const FIntrinsicTriangulation& FDeformableEdgePath::GetIntrinsicMesh() const
 {
 	return EdgeFlipMesh;
 }
