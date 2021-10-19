@@ -58,5 +58,6 @@ private:
 
 	friend class URigVMController;
 	friend class FRigVMParserAST;
+	friend class UControlRigBlueprint;
 };
 

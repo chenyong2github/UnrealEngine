@@ -422,6 +422,7 @@ void UControlRigBlueprint::PostLoad()
 
 		InitializeModelIfRequired(false /* recompile vm */);
 
+		PatchFunctionReferencesOnLoad();
 		PatchVariableNodesOnLoad();
 
 #if WITH_EDITOR
@@ -3301,6 +3302,46 @@ FName UControlRigBlueprint::AddCRMemberVariableFromExternal(FRigVMExternalVariab
 	}
 
 	return NAME_None;
+}
+
+void UControlRigBlueprint::PatchFunctionReferencesOnLoad()
+{
+	// If the asset was copied from one project to another, the function referenced might have a different
+	// path, even if the function is internal to the contorl rig. In that case, let's try to find the function
+	// in the local function library.
+	
+	TArray<URigVMNode*> Nodes = Model->GetNodes();
+	for (URigVMLibraryNode* Library : FunctionLibrary->GetFunctions())
+	{
+		Nodes.Append(Library->GetContainedNodes());
+	}
+	
+	for (URigVMNode* Node : Nodes)
+	{
+		if (URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(Node))
+		{
+			if (!FunctionReferenceNode->GetReferencedNode())
+			{
+				if(FunctionLibrary)
+				{
+					FString FunctionPath = FunctionReferenceNode->ReferencedNodePtr.ToSoftObjectPath().GetSubPathString();
+					
+					FString Left, Right;
+					if(FunctionPath.Split(TEXT("."), &Left, &Right))
+					{
+						FString LibraryNodePath = FunctionLibrary->GetNodePath();
+						if(Left == FunctionLibrary->GetName())
+						{
+							if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(FunctionLibrary->FindNode(Right)))
+							{
+								FunctionReferenceNode->SetReferencedNode(LibraryNode);
+							}
+						}
+					}
+				}				
+			}
+		}
+	}
 }
 
 #endif
