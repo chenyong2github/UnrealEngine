@@ -168,6 +168,12 @@ UEdGraphNode* UControlRigVariableNodeSpawner::Invoke(UEdGraph* ParentGraph, FBin
 			}
 			Controller->CloseUndoBracket();
 		}
+		else
+		{
+			// similar to UBlueprintNodeSpawner::Invoke -> UBlueprintNodeSpawner::SpawnEdGraphNode
+			// we simply want the node, but not actually adding it to a graph
+			Controller->RemoveNode(ModelNode, false);
+		}
 	}
 	else
 	{
