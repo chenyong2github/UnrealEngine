@@ -6,6 +6,8 @@
 #include "Serialization/ArchiveUObject.h"
 #include "GameFramework/Actor.h"
 #include "Components/ActorComponent.h"
+#include "UObject/UObjectHash.h"
+#include "UObject/UObjectIterator.h"
 
 #if WITH_EDITOR
 
