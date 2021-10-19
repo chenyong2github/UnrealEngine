@@ -1229,6 +1229,39 @@ bool FViewport::TakeHighResScreenShot()
 	}
 }
 
+static void HighResScreenshotBeginFrame(FDummyViewport* DummyViewport)
+{
+	GFrameCounter++;
+	ENQUEUE_RENDER_COMMAND(BeginFrameCommand)(
+		[DummyViewport, CurrentFrameCounter = GFrameCounter](FRHICommandListImmediate& RHICmdList)
+	{
+		GFrameCounterRenderThread = CurrentFrameCounter;
+		GFrameNumberRenderThread++;
+		GPU_STATS_BEGINFRAME(RHICmdList);
+		RHICmdList.BeginFrame();
+		FCoreDelegates::OnBeginFrameRT.Broadcast();
+		if (DummyViewport)
+		{
+			DummyViewport->BeginRenderFrame(RHICmdList);
+		}
+	});
+}
+
+static void HighResScreenshotEndFrame(FDummyViewport* DummyViewport)
+{
+	ENQUEUE_RENDER_COMMAND(EndFrameCommand)(
+		[DummyViewport](FRHICommandListImmediate& RHICmdList)
+	{
+		if (DummyViewport)
+		{
+			DummyViewport->EndRenderFrame(RHICmdList, false, false);
+		}
+		FCoreDelegates::OnEndFrameRT.Broadcast();
+		RHICmdList.EndFrame();
+		GPU_STATS_ENDFRAME(RHICmdList);
+	});
+}
+
 void FViewport::HighResScreenshot()
 {
 	if (!ViewportClient->GetEngineShowFlags())
@@ -1264,6 +1297,7 @@ void FViewport::HighResScreenshot()
 	const int32 OldSceneColorFormat = SceneColorFormatVar->GetInt();
 	const int32 OldPostColorFormat = PostColorFormatVar->GetInt();
 	const int32 OldForceLOD = ForceLODVar ? ForceLODVar->GetInt() : -1;
+
 	if (GetHighResScreenshotConfig().bForce128BitRendering)
 	{
 		SceneColorFormatVar->Set(5, ECVF_SetByCode);
@@ -1281,9 +1315,14 @@ void FViewport::HighResScreenshot()
 	const uint32 DefaultScreenshotDelay = 4;
 	uint32 FrameDelay = HighResScreenshotDelay ? FMath::Max(HighResScreenshotDelay->GetValueOnGameThread(), 1) : DefaultScreenshotDelay;
 
+	// End the frame that was started before HighResScreenshot() was called. Pass nullptr for the viewport because there's no need to
+	// call EndRenderFrame on the real viewport, as BeginRenderFrame hasn't been called yet.
+	HighResScreenshotEndFrame(nullptr);
+
+	// Perform run-up.
 	while (FrameDelay)
 	{
-		DummyViewport->EnqueueBeginRenderFrame(false);
+		HighResScreenshotBeginFrame(DummyViewport);
 
 		FCanvas Canvas(DummyViewport, NULL, ViewportClient->GetWorld(), ViewportClient->GetWorld()->FeatureLevel);
 		{
@@ -1293,6 +1332,9 @@ void FViewport::HighResScreenshot()
 
 		// Draw the debug canvas
 		DummyViewport->GetDebugCanvas()->Flush_GameThread(true);
+
+		HighResScreenshotEndFrame(DummyViewport);
+		
 		FlushRenderingCommands();
 
 		--FrameDelay;
@@ -1310,9 +1352,8 @@ void FViewport::HighResScreenshot()
 	}
 
 	ENQUEUE_RENDER_COMMAND(EndDrawingCommand)(
-		[DummyViewport, RestoreSize](FRHICommandListImmediate& RHICmdList)
+		[RestoreSize](FRHICommandListImmediate& RHICmdList)
 		{
-			DummyViewport->EndRenderFrame(RHICmdList, false, false);
 			GetRendererModule().SceneRenderTargetsSetBufferSize(RestoreSize.X, RestoreSize.Y);
 		});
 
@@ -1344,6 +1385,10 @@ void FViewport::HighResScreenshot()
 		FSlateNotificationManager::Get().AddNotification(Info);
 		UE_LOG(LogClient, Log, TEXT("%s %s"), *Message.ToString(), *HyperLinkText);
 	}
+
+	// Start a new frame for the real viewport. Same as above, pass nullptr because BeginRenderFrame will be called
+	// after this function returns.
+	HighResScreenshotBeginFrame(nullptr);
 }
 
 struct FEndDrawingCommandParams
