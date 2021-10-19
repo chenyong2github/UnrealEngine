@@ -77,6 +77,11 @@ public:
 	virtual FText GetWidgetClippingText() const = 0;
 
 	/**
+	 * @return The LayerId the widget were painted from
+	 */
+	virtual int32 GetWidgetLayerId() const = 0;
+
+	/**
 	 * @return The bool indicating whether or not the widget we were initialized from reports as Focusable
 	 */
 	virtual bool GetWidgetFocusable() const = 0;
@@ -281,6 +286,7 @@ public:
 	virtual bool GetWidgetVisible() const override;
 	virtual bool GetWidgetVisibilityInherited() const override;
 	virtual FText GetWidgetClippingText() const override;
+	virtual int32 GetWidgetLayerId() const override;
 	virtual bool GetWidgetFocusable() const override;
 	virtual bool GetWidgetNeedsTick() const override;
 	virtual bool GetWidgetIsVolatile() const override;
@@ -339,6 +345,7 @@ public:
 	virtual FText GetWidgetTypeAndShortName() const override;
 	virtual FText GetWidgetVisibilityText() const override;
 	virtual FText GetWidgetClippingText() const override;
+	virtual int32 GetWidgetLayerId() const override;
 	virtual bool GetWidgetVisible() const override;
 	virtual bool GetWidgetVisibilityInherited() const override;
 	virtual bool GetWidgetFocusable() const override;
@@ -416,6 +423,9 @@ private:
 	
 	/** The clipping string of the widget at the point it was passed to Initialize */
 	FText CachedWidgetClippingText;
+
+	/** The LayerId of the widget */
+	int32 CachedWidgetLayerId;
 
 	/** The human readable location (source file for C++ widgets, asset name for UMG widgets) of the widget at the point it was passed to Initialize */
 	FText CachedWidgetReadableLocation;
@@ -558,6 +568,11 @@ public:
 	 * @return The current clipping string for the given widget
 	 */
 	static FText GetWidgetClippingText(const TSharedPtr<const SWidget>& InWidget);
+
+	/**
+	 * @return The current LayerId for the given widget
+	 */
+	static int32 GetWidgetLayerId(const TSharedPtr<const SWidget>& InWidget);
 
 	/**
 	* @return The current focusability for the given widget

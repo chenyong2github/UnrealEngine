@@ -466,6 +466,7 @@ void SWidgetReflector::Construct( const FArguments& InArgs )
 	HiddenReflectorTreeColumns.Add(SReflectorTreeWidgetItem::NAME_Volatile.ToString());
 	HiddenReflectorTreeColumns.Add(SReflectorTreeWidgetItem::NAME_HasActiveTimer.ToString());
 	HiddenReflectorTreeColumns.Add(SReflectorTreeWidgetItem::NAME_ActualSize.ToString());
+	HiddenReflectorTreeColumns.Add(SReflectorTreeWidgetItem::NAME_LayerId.ToString());
 
 	LoadSettings();
 
@@ -904,6 +905,10 @@ TSharedRef<SDockTab> SWidgetReflector::SpawnWidgetHierarchyTab(const FSpawnTabAr
 						+SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_Clipping)
 						.DefaultLabel(LOCTEXT("Clipping", "Clipping" ))
 						.FillSized(100.0f)
+
+						+ SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_LayerId)
+						.DefaultLabel(LOCTEXT("LayerId", "LayerId"))
+						.FillSized(35.f)
 
 						+ SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_ActualSize)
 						.DefaultLabel(LOCTEXT("ActualSize", "Size"))
