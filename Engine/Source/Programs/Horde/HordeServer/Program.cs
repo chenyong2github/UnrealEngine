@@ -240,14 +240,14 @@ namespace HordeServer
 				{
 					WebBuilder.ConfigureKestrel(Options =>
 					{
+						Options.ListenAnyIP(ServerSettings.HttpPort, Configure => { Configure.Protocols = HttpProtocols.Http1AndHttp2; });
+							
+						// To serve HTTP/2 with gRPC *without* TLS enabled, a separate port for HTTP/2 must be used.
+						// This is useful when having a load balancer in front that terminates TLS.
+						Options.ListenAnyIP(ServerSettings.Http2Port, Configure => { Configure.Protocols = HttpProtocols.Http2; });
+
 						if (SslCert != null)
 						{
-							Options.ListenAnyIP(ServerSettings.HttpPort, Configure => { Configure.Protocols = HttpProtocols.Http1AndHttp2; });
-							
-							// To serve HTTP/2 with gRPC *without* TLS enabled, a separate port for HTTP/2 must be used.
-							// This is useful when having a load balancer in front that terminates TLS.
-							Options.ListenAnyIP(ServerSettings.Http2Port, Configure => { Configure.Protocols = HttpProtocols.Http2; });
-							
 							Options.ListenAnyIP(ServerSettings.HttpsPort, Configure => { Configure.UseHttps(SslCert); });
 						}
 					});
