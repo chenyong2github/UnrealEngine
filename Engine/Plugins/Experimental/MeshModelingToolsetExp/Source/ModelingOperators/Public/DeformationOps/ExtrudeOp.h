@@ -6,37 +6,6 @@
 #include "UObject/ObjectMacros.h"
 #include "ModelingOperators.h"
 
-UENUM()
-enum class EPolyEditExtrudeDirectionMode
-{
-	// Take the angle-weighed average of the selected triangles around each
-	// extruded vertex to determine vertex movement direction.
-	SelectedTriangleNormals,
-	
-	// Like Selected Triangle Normals, but also adjusts the distances moved in
-	// an attempt to keep triangles parallel to their original facing.
-	SelectedTriangleNormalsEven,
-
-	// Vertex normals, regardless of selection.
-	VertexNormals,
-
-	// Extrude all triangles in the same direction regardless of their facing.
-	SingleDirection,
-};
-
-UENUM()
-enum class EPolyEditExtrudeMode
-{
-	// Performs extrusion by shifting the selected faces as stitching them
-	// to the border left behind.
-	MoveAndStitch,
-	
-	// Performs the extrusion by extruding selected faces into a closed mesh
-	// first, and then performing a boolean with the original mesh. This allows
-	// the extrusion to cut holes through the mesh or to bridge sections.
-	Boolean
-};
-
 namespace UE {
 namespace Geometry {
 
@@ -46,14 +15,44 @@ class FDynamicMeshChangeTracker;
 class MODELINGOPERATORS_API FExtrudeOp : public FDynamicMeshOperator
 {
 public:
+	enum class EExtrudeMode
+	{
+		// Performs extrusion by shifting the selected faces as stitching them
+		// to the border left behind.
+		MoveAndStitch,
+
+		// Performs the extrusion by extruding selected faces into a closed mesh
+		// first, and then performing a boolean with the original mesh. This allows
+		// the extrusion to cut holes through the mesh or to bridge sections.
+		Boolean
+	};
+
+	enum class EDirectionMode
+	{
+		// Take the angle-weighed average of the selected triangles around each
+		// extruded vertex to determine vertex movement direction.
+		SelectedTriangleNormals = 0,
+
+		// Like Selected Triangle Normals, but also adjusts the distances moved in
+		// an attempt to keep triangles parallel to their original facing.
+		SelectedTriangleNormalsEven = 1,
+
+		// Vertex normals, regardless of selection.
+		VertexNormals = 2,
+
+		// Extrude all triangles in the same direction regardless of their facing.
+		SingleDirection = 3,
+	};
+
+
 	virtual ~FExtrudeOp() {}
 
 	// Inputs:
 	TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 	TArray<int32> TriangleSelection;
 	double ExtrudeDistance = 0;
-	EPolyEditExtrudeMode ExtrudeMode = EPolyEditExtrudeMode::MoveAndStitch;
-	EPolyEditExtrudeDirectionMode DirectionMode = EPolyEditExtrudeDirectionMode::SelectedTriangleNormalsEven;
+	EExtrudeMode ExtrudeMode = EExtrudeMode::MoveAndStitch;
+	EDirectionMode DirectionMode = EDirectionMode::SelectedTriangleNormalsEven;
 	// Only used if DirectionMode is SingleDirection
 	FVector3d MeshSpaceExtrudeDirection;
 	// Used when setting groups for the sides when the extrusion includes a mesh border. When true,
