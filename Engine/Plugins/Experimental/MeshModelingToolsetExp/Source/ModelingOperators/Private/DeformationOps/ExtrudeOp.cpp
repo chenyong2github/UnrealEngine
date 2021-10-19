@@ -57,7 +57,7 @@ void FExtrudeOp::CalculateResult(FProgressCancel* Progress)
 	// Reset result
 	ResultMesh->Copy(*OriginalMesh, true, true, true, true);
 
-	if (ExtrudeMode == EPolyEditExtrudeMode::Boolean)
+	if (ExtrudeMode == EExtrudeMode::Boolean)
 	{
 		BooleanExtrude(Progress);
 	}
@@ -107,7 +107,7 @@ bool FExtrudeOp::BooleanExtrude(FProgressCancel* Progress)
 	};
 
 	Extruder.UVScaleFactor = UVScaleFactor;
-	if (DirectionMode == EPolyEditExtrudeDirectionMode::SingleDirection)
+	if (DirectionMode == EDirectionMode::SingleDirection)
 	{
 		Extruder.OffsetPositionFunc = [this](const FVector3d& Pos, const FVector3d& VertexVector, int32 VertexID)
 		{
@@ -122,9 +122,9 @@ bool FExtrudeOp::BooleanExtrude(FProgressCancel* Progress)
 	}
 
 	Extruder.ExtrusionVectorType =
-		DirectionMode == EPolyEditExtrudeDirectionMode::VertexNormals ? FOffsetMeshRegion::EVertexExtrusionVectorType::VertexNormal
-		: DirectionMode == EPolyEditExtrudeDirectionMode::SelectedTriangleNormals ? FOffsetMeshRegion::EVertexExtrusionVectorType::SelectionTriNormalsAngleWeightedAverage
-		: DirectionMode == EPolyEditExtrudeDirectionMode::SelectedTriangleNormalsEven ? FOffsetMeshRegion::EVertexExtrusionVectorType::SelectionTriNormalsAngleWeightedAdjusted
+		DirectionMode == EDirectionMode::VertexNormals ? FOffsetMeshRegion::EVertexExtrusionVectorType::VertexNormal
+		: DirectionMode == EDirectionMode::SelectedTriangleNormals ? FOffsetMeshRegion::EVertexExtrusionVectorType::SelectionTriNormalsAngleWeightedAverage
+		: DirectionMode == EDirectionMode::SelectedTriangleNormalsEven ? FOffsetMeshRegion::EVertexExtrusionVectorType::SelectionTriNormalsAngleWeightedAdjusted
 		: FOffsetMeshRegion::EVertexExtrusionVectorType::Zero;
 
 	Extruder.bIsPositiveOffset = (ExtrudeDistance > 0);
@@ -216,7 +216,7 @@ bool FExtrudeOp::MoveAndStitchExtrude(FProgressCancel* Progress)
 	};
 
 	Extruder.UVScaleFactor = UVScaleFactor;
-	if (DirectionMode == EPolyEditExtrudeDirectionMode::SingleDirection)
+	if (DirectionMode == EDirectionMode::SingleDirection)
 	{
 		Extruder.OffsetPositionFunc = [this](const FVector3d& Pos, const FVector3d& VertexVector, int32 VertexID)
 		{
@@ -231,9 +231,9 @@ bool FExtrudeOp::MoveAndStitchExtrude(FProgressCancel* Progress)
 	}
 
 	Extruder.ExtrusionVectorType =
-		DirectionMode == EPolyEditExtrudeDirectionMode::VertexNormals ? FOffsetMeshRegion::EVertexExtrusionVectorType::VertexNormal
-		: DirectionMode == EPolyEditExtrudeDirectionMode::SelectedTriangleNormals ? FOffsetMeshRegion::EVertexExtrusionVectorType::SelectionTriNormalsAngleWeightedAverage
-		: DirectionMode == EPolyEditExtrudeDirectionMode::SelectedTriangleNormalsEven ? FOffsetMeshRegion::EVertexExtrusionVectorType::SelectionTriNormalsAngleWeightedAdjusted
+		DirectionMode == EDirectionMode::VertexNormals ? FOffsetMeshRegion::EVertexExtrusionVectorType::VertexNormal
+		: DirectionMode == EDirectionMode::SelectedTriangleNormals ? FOffsetMeshRegion::EVertexExtrusionVectorType::SelectionTriNormalsAngleWeightedAverage
+		: DirectionMode == EDirectionMode::SelectedTriangleNormalsEven ? FOffsetMeshRegion::EVertexExtrusionVectorType::SelectionTriNormalsAngleWeightedAdjusted
 		: FOffsetMeshRegion::EVertexExtrusionVectorType::Zero;
 
 	Extruder.bIsPositiveOffset = (ExtrudeDistance > 0);

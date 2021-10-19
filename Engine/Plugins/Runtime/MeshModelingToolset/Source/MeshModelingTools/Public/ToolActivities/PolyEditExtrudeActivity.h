@@ -30,26 +30,91 @@ enum class EPolyEditExtrudeDirection
 	LocalZ
 };
 
+// There is a lot of overlap in the options for Extrude, Offset, and Push/Pull, and they map to
+// the same op behind the scenes. However, we want to keep them as separate buttons to keep some
+// amount of shallowness in the UI, to make it more likely that new users will find the setting
+// they are looking for.
+// A couple of settings are entirely replicated: namely, doing an offset or "extrude" with SelectedTriangleNormals
+// or SelectedTriangleNormalsEven as the movement direction is actually equivalent. Properly speaking, these
+// two should only be options under Offset, not Extrude, but we keep them as (non-default) options 
+// in both because an "extrude along local normals" is a common operation that some users are likely
+// to look for under extrude, regardless of it not lining up with the physical meaning of extrusion.
+
+// We use different property set objects so that we can customize category names, etc, as well as
+// have different defaults and saved settings.
+
+UENUM()
+enum class EPolyEditExtrudeModeOptions
+{
+	// Extrude all triangles in the same direction regardless of their facing.
+	SingleDirection = static_cast<int>(UE::Geometry::FExtrudeOp::EDirectionMode::SingleDirection),
+
+	// Take the angle-weighed average of the selected triangles around each
+	// extruded vertex to determine vertex movement direction.
+	SelectedTriangleNormals = static_cast<int>(UE::Geometry::FExtrudeOp::EDirectionMode::SelectedTriangleNormals),
+
+	// Like Selected Triangle Normals, but also adjusts the distances moved in
+	// an attempt to keep triangles parallel to their original facing.
+	SelectedTriangleNormalsEven = static_cast<int>(UE::Geometry::FExtrudeOp::EDirectionMode::SelectedTriangleNormalsEven),
+};
+
+UENUM()
+enum class EPolyEditOffsetModeOptions
+{
+	// Vertex normals, regardless of selection.
+	VertexNormals = static_cast<int>(UE::Geometry::FExtrudeOp::EDirectionMode::VertexNormals),
+
+	// Take the angle-weighed average of the selected triangles around
+	// offset vertex to determine vertex movement direction.
+	SelectedTriangleNormals = static_cast<int>(UE::Geometry::FExtrudeOp::EDirectionMode::SelectedTriangleNormals),
+
+	// Like Selected Triangle Normals, but also adjusts the distances moved in
+	// an attempt to keep triangles parallel to their original facing.
+	SelectedTriangleNormalsEven = static_cast<int>(UE::Geometry::FExtrudeOp::EDirectionMode::SelectedTriangleNormalsEven),
+};
+
+UENUM()
+enum class EPolyEditPushPullModeOptions
+{
+	// Take the angle-weighed average of the selected triangles around
+	// offset vertex to determine vertex movement direction.
+	SelectedTriangleNormals = static_cast<int>(EPolyEditOffsetModeOptions::SelectedTriangleNormals),
+
+	// Like Selected Triangle Normals, but also adjusts the distances moved in
+	// an attempt to keep triangles parallel to their original facing.
+	SelectedTriangleNormalsEven = static_cast<int>(UE::Geometry::FExtrudeOp::EDirectionMode::SelectedTriangleNormalsEven),
+
+	// Move all triangles in the same direction regardless of their facing.
+	SingleDirection = static_cast<int>(UE::Geometry::FExtrudeOp::EDirectionMode::SingleDirection),
+
+	// Vertex normals, regardless of selection.
+	VertexNormals = static_cast<int>(UE::Geometry::FExtrudeOp::EDirectionMode::VertexNormals),
+};
+
 UCLASS()
 class MESHMODELINGTOOLS_API UPolyEditExtrudeProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
 public:
-	// Not visible in details panel because we decided that we would use a separate "Push/Pull" button.
-	EPolyEditExtrudeMode ExtrudeMode = EPolyEditExtrudeMode::MoveAndStitch;
 
-	/** Which way to move vertices during the extrude */
-	UPROPERTY(EditAnywhere, Category = ExtrusionOptions)
-	EPolyEditExtrudeDirectionMode DirectionMode = EPolyEditExtrudeDirectionMode::SelectedTriangleNormalsEven;
+	/** Direction in which to extrude. */
+	UPROPERTY(EditAnywhere, Category = Extrude,
+		meta = (EditConditionHides, EditCondition = "DirectionMode == EPolyEditExtrudeModeOptions::SingleDirection"))
+	EPolyEditExtrudeDirection Direction = EPolyEditExtrudeDirection::SelectionNormal;
 
-	/** What axis to measure the extrusion distance along. When the direction mode is Single Direction, also controls the direction. */
-	UPROPERTY(EditAnywhere, Category = ExtrusionOptions, AdvancedDisplay)
+	/** What axis to measure the extrusion distance along. */
+	UPROPERTY(EditAnywhere, Category = Extrude, AdvancedDisplay,
+		meta = (EditConditionHides, EditCondition = "DirectionMode != EPolyEditExtrudeModeOptions::SingleDirection"))
 	EPolyEditExtrudeDirection MeasureDirection = EPolyEditExtrudeDirection::SelectionNormal;
 
 	/** Controls whether extruding an entire open-border patch should create a solid or an open shell */
-	UPROPERTY(EditAnywhere, Category = ExtrusionOptions)
+	UPROPERTY(EditAnywhere, Category = Extrude)
 	bool bShellsToSolids = true;
+
+	/** How to move the vertices during the extrude */
+	UPROPERTY(EditAnywhere, Category = Extrude)
+	EPolyEditExtrudeModeOptions DirectionMode = EPolyEditExtrudeModeOptions::SingleDirection;
 
 	/** 
 	 * When extruding regions that touch the mesh border, assign the side groups (groups on the 
@@ -58,6 +123,62 @@ public:
 	 * one connected group.
 	 */
 	UPROPERTY(EditAnywhere, Category = Extrude, AdvancedDisplay)
+	bool bUseColinearityForSettingBorderGroups = true;
+};
+
+UCLASS()
+class MESHMODELINGTOOLS_API UPolyEditOffsetProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+
+public:
+	/** Which way to move vertices during the offset */
+	UPROPERTY(EditAnywhere, Category = Offset)
+	EPolyEditOffsetModeOptions DirectionMode = EPolyEditOffsetModeOptions::VertexNormals;
+
+	/** Controls whether offseting an entire open-border patch should create a solid or an open shell */
+	UPROPERTY(EditAnywhere, Category = Offset)
+	bool bShellsToSolids = true;
+
+	/** What axis to measure the extrusion distance along. When the direction mode is Single Direction, also controls the direction. */
+	UPROPERTY(EditAnywhere, Category = Offset, AdvancedDisplay)
+	EPolyEditExtrudeDirection MeasureDirection = EPolyEditExtrudeDirection::SelectionNormal;
+
+	/**
+	 * When offseting regions that touch the mesh border, assign the side groups (groups on the
+	 * stitched side of the extrude) in a way that considers edge colinearity. For instance, when
+	 * true, extruding a flat rectangle will give four different groups on its sides rather than
+	 * one connected group.
+	 */
+	UPROPERTY(EditAnywhere, Category = Offset, AdvancedDisplay)
+	bool bUseColinearityForSettingBorderGroups = true;
+};
+
+UCLASS()
+class MESHMODELINGTOOLS_API UPolyEditPushPullProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+
+public:
+	/** Which way to move vertices during the offset */
+	UPROPERTY(EditAnywhere, Category = ExtrusionOptions)
+	EPolyEditPushPullModeOptions DirectionMode = EPolyEditPushPullModeOptions::SelectedTriangleNormals;
+
+	/** Controls whether offseting an entire open-border patch should create a solid or an open shell */
+	UPROPERTY(EditAnywhere, Category = ExtrusionOptions)
+	bool bShellsToSolids = true;
+
+	/** What axis to measure the extrusion distance along. When the direction mode is Single Direction, also controls the direction. */
+	UPROPERTY(EditAnywhere, Category = ExtrusionOptions, AdvancedDisplay)
+	EPolyEditExtrudeDirection MeasureDirection = EPolyEditExtrudeDirection::SelectionNormal;
+
+	/**
+	 * When offseting regions that touch the mesh border, assign the side groups (groups on the
+	 * stitched side of the extrude) in a way that considers edge colinearity. For instance, when
+	 * true, extruding a flat rectangle will give four different groups on its sides rather than
+	 * one connected group.
+	 */
+	UPROPERTY(EditAnywhere, Category = ExtrusionOptions, AdvancedDisplay)
 	bool bUseColinearityForSettingBorderGroups = true;
 };
 
@@ -73,6 +194,20 @@ class MESHMODELINGTOOLS_API UPolyEditExtrudeActivity : public UInteractiveToolAc
 	GENERATED_BODY()
 
 public:
+	using FExtrudeOp = UE::Geometry::FExtrudeOp;
+
+	enum class EPropertySetToUse
+	{
+		Extrude,
+		Offset,
+		PushPull
+	};
+
+	// Set to different values depending on whether we're using this activity on behalf of
+	// extrude, offset, or push/pull
+	FExtrudeOp::EExtrudeMode ExtrudeMode = FExtrudeOp::EExtrudeMode::MoveAndStitch;
+	EPropertySetToUse PropertySetToUse = EPropertySetToUse::Extrude;
+
 	// IInteractiveToolActivity
 	virtual void Setup(UInteractiveTool* ParentTool) override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -98,9 +233,16 @@ public:
 	virtual void OnEndHover() override {}
 
 	UPROPERTY()
-	TObjectPtr<UPolyEditExtrudeProperties> ExtrudeProperties;
+	TObjectPtr<UPolyEditExtrudeProperties> ExtrudeProperties = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UPolyEditOffsetProperties> OffsetProperties = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UPolyEditPushPullProperties> PushPullProperties = nullptr;
 
 protected:
+
 	FVector3d GetExtrudeDirection() const;
 	virtual void BeginExtrude();
 	virtual void ApplyExtrude();

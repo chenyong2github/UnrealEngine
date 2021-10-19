@@ -5,7 +5,6 @@
 #include "BaseBehaviors/SingleClickBehavior.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "ContextObjectStore.h"
-#include "DeformationOps/ExtrudeOp.h"
 #include "Drawing/PolyEditPreviewMesh.h"
 #include "DynamicMesh/MeshNormals.h"
 #include "DynamicMesh/MeshTransforms.h"
@@ -33,16 +32,41 @@ namespace PolyEditExtrudeActivityLocals
 			(int32)(EMeshComponents::FaceGroups) | (int32)(EMeshComponents::VertexNormals), true);
 		return MakeShared<FDynamicMesh3>(MoveTemp(Submesh.GetSubmesh()));
 	}
+
+	template <typename EnumType>
+	FExtrudeOp::EDirectionMode ToOpDirectionMode(EnumType Value)
+	{
+		return static_cast<FExtrudeOp::EDirectionMode>(static_cast<int>(Value));
+	}
 }
 
 TUniquePtr<FDynamicMeshOperator> UPolyEditExtrudeActivity::MakeNewOperator()
 {
+	using namespace PolyEditExtrudeActivityLocals;
 	using UE::Geometry::FTransform3d;
 
 	TUniquePtr<FExtrudeOp> Op = MakeUnique<FExtrudeOp>();
 	Op->OriginalMesh = ActivityContext->CurrentMesh;
-	Op->ExtrudeMode = ExtrudeProperties->ExtrudeMode;
-	Op->DirectionMode = ExtrudeProperties->DirectionMode;
+	Op->ExtrudeMode = ExtrudeMode;
+
+	switch (PropertySetToUse)
+	{
+	case EPropertySetToUse::Extrude:
+		Op->DirectionMode = ToOpDirectionMode(ExtrudeProperties->DirectionMode);
+		Op->bShellsToSolids = ExtrudeProperties->bShellsToSolids;
+		Op->bUseColinearityForSettingBorderGroups = ExtrudeProperties->bUseColinearityForSettingBorderGroups;
+		break;
+	case EPropertySetToUse::Offset:
+		Op->DirectionMode = ToOpDirectionMode(OffsetProperties->DirectionMode);
+		Op->bShellsToSolids = OffsetProperties->bShellsToSolids;
+		Op->bUseColinearityForSettingBorderGroups = OffsetProperties->bUseColinearityForSettingBorderGroups;
+		break;
+	case EPropertySetToUse::PushPull:
+		Op->DirectionMode = ToOpDirectionMode(PushPullProperties->DirectionMode);
+		Op->bShellsToSolids = PushPullProperties->bShellsToSolids;
+		Op->bUseColinearityForSettingBorderGroups = PushPullProperties->bUseColinearityForSettingBorderGroups;
+		break;
+	}
 
 	ActivityContext->CurrentTopology->GetSelectedTriangles(ActiveSelection, Op->TriangleSelection);
 
@@ -53,8 +77,6 @@ TUniquePtr<FDynamicMeshOperator> UPolyEditExtrudeActivity::MakeNewOperator()
 	Op->SetResultTransform(WorldTransform);
 	
 	Op->MeshSpaceExtrudeDirection = WorldTransform.InverseTransformVector(GetExtrudeDirection());
-	Op->bShellsToSolids = ExtrudeProperties->bShellsToSolids;
-	Op->bUseColinearityForSettingBorderGroups = ExtrudeProperties->bUseColinearityForSettingBorderGroups;
 
 	return Op;
 }
@@ -67,29 +89,72 @@ void UPolyEditExtrudeActivity::Setup(UInteractiveTool* ParentToolIn)
 	ExtrudeProperties->RestoreProperties(ParentTool.Get());
 	AddToolPropertySource(ExtrudeProperties);
 	SetToolPropertySourceEnabled(ExtrudeProperties, false);
+	ExtrudeProperties->WatchProperty(ExtrudeProperties->Direction,
+	[this](EPolyEditExtrudeDirection) { 
+		if (bIsRunning && ExtrudeProperties->DirectionMode == EPolyEditExtrudeModeOptions::SingleDirection)
+		{
+			ReinitializeExtrudeHeightMechanic();
+			ActivityContext->Preview->InvalidateResult();
+		}
+	});
 	ExtrudeProperties->WatchProperty(ExtrudeProperties->MeasureDirection,
-		[this](EPolyEditExtrudeDirection) { 
-			if (bIsRunning)
-			{
-				ReinitializeExtrudeHeightMechanic();
-				ActivityContext->Preview->InvalidateResult();
-			}
-		});
+	[this](EPolyEditExtrudeDirection) {
+		if (bIsRunning && ExtrudeProperties->DirectionMode != EPolyEditExtrudeModeOptions::SingleDirection)
+		{
+			ReinitializeExtrudeHeightMechanic();
+			ActivityContext->Preview->InvalidateResult();
+		}
+	});
 	ExtrudeProperties->WatchProperty(ExtrudeProperties->DirectionMode,
-		[this](EPolyEditExtrudeDirectionMode) {
-			if (bIsRunning)
-			{
-				ReinitializeExtrudeHeightMechanic();
-				ActivityContext->Preview->InvalidateResult();
-			}
-		});
-	ExtrudeProperties->WatchProperty(ExtrudeProperties->ExtrudeMode,
-		[this](EPolyEditExtrudeMode) {
-			if (bIsRunning)
-			{
-				ActivityContext->Preview->InvalidateResult();
-			}
-		});
+	[this](EPolyEditExtrudeModeOptions) {
+		if (bIsRunning)
+		{
+			ReinitializeExtrudeHeightMechanic();
+			ActivityContext->Preview->InvalidateResult();
+		}
+	});
+
+	OffsetProperties = NewObject<UPolyEditOffsetProperties>();
+	OffsetProperties->RestoreProperties(ParentTool.Get());
+	AddToolPropertySource(OffsetProperties);
+	SetToolPropertySourceEnabled(OffsetProperties, false);
+	OffsetProperties->WatchProperty(OffsetProperties->MeasureDirection,
+	[this](EPolyEditExtrudeDirection) {
+		if (bIsRunning)
+		{
+			ReinitializeExtrudeHeightMechanic();
+			ActivityContext->Preview->InvalidateResult();
+		}
+	});
+	OffsetProperties->WatchProperty(OffsetProperties->DirectionMode,
+	[this](EPolyEditOffsetModeOptions) {
+		if (bIsRunning)
+		{
+			ReinitializeExtrudeHeightMechanic();
+			ActivityContext->Preview->InvalidateResult();
+		}
+	});
+
+	PushPullProperties = NewObject<UPolyEditPushPullProperties>();
+	PushPullProperties->RestoreProperties(ParentTool.Get());
+	AddToolPropertySource(PushPullProperties);
+	SetToolPropertySourceEnabled(PushPullProperties, false);
+	PushPullProperties->WatchProperty(PushPullProperties->MeasureDirection,
+	[this](EPolyEditExtrudeDirection) {
+		if (bIsRunning)
+		{
+			ReinitializeExtrudeHeightMechanic();
+			ActivityContext->Preview->InvalidateResult();
+		}
+	});
+	PushPullProperties->WatchProperty(PushPullProperties->DirectionMode,
+	[this](EPolyEditPushPullModeOptions) {
+		if (bIsRunning)
+		{
+			ReinitializeExtrudeHeightMechanic();
+			ActivityContext->Preview->InvalidateResult();
+		}
+	});
 
 	// Register ourselves to receive clicks and hover
 	USingleClickInputBehavior* ClickBehavior = NewObject<USingleClickInputBehavior>();
@@ -110,8 +175,12 @@ void UPolyEditExtrudeActivity::Shutdown(EToolShutdownType ShutdownType)
 	}
 
 	ExtrudeProperties->SaveProperties(ParentTool.Get());
+	OffsetProperties->SaveProperties(ParentTool.Get());
+	PushPullProperties->SaveProperties(ParentTool.Get());
 
 	ExtrudeProperties = nullptr;
+	OffsetProperties = nullptr;
+	PushPullProperties = nullptr;
 	ParentTool = nullptr;
 	ActivityContext = nullptr;
 }
@@ -131,7 +200,7 @@ EToolActivityStartResult UPolyEditExtrudeActivity::Start()
 	if (!CanStart())
 	{
 		ParentTool->GetToolManager()->DisplayMessage(
-			LOCTEXT("OnExtrudeFailedMesssage", "Cannot extrude without face selection."),
+			LOCTEXT("OnExtrudeFailedMesssage", "Action requires face selection."),
 			EToolMessageLevel::UserWarning);
 		return EToolActivityStartResult::FailedStart;
 	}
@@ -144,7 +213,18 @@ EToolActivityStartResult UPolyEditExtrudeActivity::Start()
 			NewSelectionGids = Op->ExtrudedFaceNewGids;
 		});
 
-	SetToolPropertySourceEnabled(ExtrudeProperties, true);
+	switch (PropertySetToUse)
+	{
+	case EPropertySetToUse::Extrude:
+		SetToolPropertySourceEnabled(ExtrudeProperties, true); 
+		break;
+	case EPropertySetToUse::Offset:
+		SetToolPropertySourceEnabled(OffsetProperties, true);
+		break;
+	case EPropertySetToUse::PushPull:
+		SetToolPropertySourceEnabled(PushPullProperties, true);
+		break;
+	}
 
 	// Set up the basics of the extrude height mechanic.
 	// TODO: Allow option to use a gizmo instead
@@ -295,6 +375,8 @@ void UPolyEditExtrudeActivity::EndInternal()
 	ExtrudeHeightMechanic->Shutdown();
 	ExtrudeHeightMechanic = nullptr;
 	SetToolPropertySourceEnabled(ExtrudeProperties, false);
+	SetToolPropertySourceEnabled(OffsetProperties, false);
+	SetToolPropertySourceEnabled(PushPullProperties, false);
 	bIsRunning = false;
 }
 
@@ -323,7 +405,7 @@ void UPolyEditExtrudeActivity::ApplyExtrude()
 	// doesn't currently track changed triangles.
 	FDynamicMeshChangeTracker ChangeTracker(ActivityContext->CurrentMesh.Get());
 	ChangeTracker.BeginChange();
-	if (ExtrudeProperties->ExtrudeMode == EPolyEditExtrudeMode::MoveAndStitch)
+	if (ExtrudeMode == FExtrudeOp::EExtrudeMode::MoveAndStitch)
 	{
 		TArray<int32> ActiveTriangleSelection;
 		ActivityContext->CurrentTopology->GetSelectedTriangles(
@@ -382,7 +464,22 @@ FVector3d UPolyEditExtrudeActivity::GetExtrudeDirection() const
 {
 	using UE::Geometry::FTransform3d;
 
-	switch (ExtrudeProperties->MeasureDirection)
+	EPolyEditExtrudeDirection DirectionToUse = EPolyEditExtrudeDirection::SelectionNormal;
+	switch (PropertySetToUse)
+	{
+	case EPropertySetToUse::Extrude:
+		DirectionToUse = ExtrudeProperties->DirectionMode == EPolyEditExtrudeModeOptions::SingleDirection ?
+			ExtrudeProperties->Direction : ExtrudeProperties->MeasureDirection;
+		break;
+	case EPropertySetToUse::Offset:
+		DirectionToUse = OffsetProperties->MeasureDirection;
+		break;
+	case EPropertySetToUse::PushPull:
+		DirectionToUse = PushPullProperties->MeasureDirection;
+		break;
+	}
+
+	switch (DirectionToUse)
 	{
 	default:
 	case EPolyEditExtrudeDirection::SelectionNormal:

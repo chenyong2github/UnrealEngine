@@ -838,13 +838,22 @@ void UEditMeshPolygonsTool::OnTick(float DeltaTime)
 		//Interactive operations:
 		case EEditMeshPolygonsToolActions::Extrude:
 		{
-			ExtrudeActivity->ExtrudeProperties->ExtrudeMode = EPolyEditExtrudeMode::MoveAndStitch;
+			ExtrudeActivity->ExtrudeMode = FExtrudeOp::EExtrudeMode::MoveAndStitch;
+			ExtrudeActivity->PropertySetToUse = UPolyEditExtrudeActivity::EPropertySetToUse::Extrude;
 			StartActivity(ExtrudeActivity);
 			break;
 		}
 		case EEditMeshPolygonsToolActions::PushPull:
 		{
-			ExtrudeActivity->ExtrudeProperties->ExtrudeMode = EPolyEditExtrudeMode::Boolean;
+			ExtrudeActivity->ExtrudeMode = FExtrudeOp::EExtrudeMode::Boolean;
+			ExtrudeActivity->PropertySetToUse = UPolyEditExtrudeActivity::EPropertySetToUse::PushPull;
+			StartActivity(ExtrudeActivity);
+			break;
+		}
+		case EEditMeshPolygonsToolActions::Offset:
+		{
+			ExtrudeActivity->ExtrudeMode = FExtrudeOp::EExtrudeMode::MoveAndStitch;
+			ExtrudeActivity->PropertySetToUse = UPolyEditExtrudeActivity::EPropertySetToUse::Offset;
 			StartActivity(ExtrudeActivity);
 			break;
 		}
