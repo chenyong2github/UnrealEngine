@@ -611,6 +611,7 @@ void UBakeMultiMeshAttributeMapsTool::UpdateResult()
 	// Early exit if op input parameters are invalid.
 	if ((bool)(OpState & EBakeOpState::Invalid))
 	{
+		InvalidateResults();
 		return;
 	}
 
@@ -749,9 +750,15 @@ void UBakeMultiMeshAttributeMapsTool::UpdateOnModeChange()
 		}
 	}
 	
+	InvalidateResults();
+}
+
+void UBakeMultiMeshAttributeMapsTool::InvalidateResults()
+{
 	Settings->Result.Empty();
 	Settings->Result.SetNum(ResultTypes.Num());
 }
+
 
 
 #undef LOCTEXT_NAMESPACE
