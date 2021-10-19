@@ -17,15 +17,15 @@ public class Vulkan : ModuleRules
         {
             // Check if the installed SDK is newer or the same than the provided headers distributed with the Engine
             int ThirdPartyVersion = GetThirdPartyVersion();
-            string VulkanSDKHeaderPath = Path.Combine(VulkanSDKPath, "include");
+            string VulkanSDKIncludePath = GetSDKIncludePath(VulkanSDKPath);
 
-            int SDKVersion = GetSDKVersion(VulkanSDKHeaderPath);
+            int SDKVersion = GetSDKVersion(VulkanSDKIncludePath);
             if (SDKVersion >= ThirdPartyVersion)
             {
                 // If the user has an installed SDK, use that instead
-                PublicSystemIncludePaths.Add(VulkanSDKHeaderPath);
+                PublicSystemIncludePaths.Add(VulkanSDKIncludePath);
                 // Older SDKs have an extra subfolder
-                PublicSystemIncludePaths.Add(VulkanSDKHeaderPath + "/vulkan");
+                PublicSystemIncludePaths.Add(VulkanSDKIncludePath + "/vulkan");
 
                 bUseThirdParty = false;
             }
@@ -83,15 +83,15 @@ public class Vulkan : ModuleRules
         return -1;
     }
 
-    internal static int GetSDKVersion(string VulkanSDKPath)
+    internal static int GetSDKVersion(string VulkanSDKIncludePath)
     {
         try
         {
             // Extract current version on the SDK folder. Newer SDKs store the version in vulkan_core.h
-            string Header = Path.Combine(VulkanSDKPath, "Include/vulkan/vulkan_core.h");
+            string Header = Path.Combine(VulkanSDKIncludePath, "vulkan/vulkan_core.h");
             if (!File.Exists(Header))
             {
-                Header = Path.Combine(VulkanSDKPath, "Include/vulkan/vulkan.h");
+                Header = Path.Combine(VulkanSDKIncludePath, "vulkan/vulkan.h");
             }
             string Text = File.ReadAllText(Header);
             return GetVersionFromString(Text);
@@ -102,4 +102,23 @@ public class Vulkan : ModuleRules
 
         return -1;
     }
+
+	internal static string GetSDKIncludePath(string VulkanSDKPath)
+	{
+		try
+		{
+			// For Linux, support both versions of include path with/without a capital I
+			string IncludePath = Path.Combine(VulkanSDKPath, "Include");
+			if (!Directory.Exists(IncludePath))
+			{
+				IncludePath = Path.Combine(VulkanSDKPath, "include");
+			}
+			return IncludePath;
+		}
+		catch (Exception)
+		{
+		}
+
+		return "";
+	}
 }
