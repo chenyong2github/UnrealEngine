@@ -19,9 +19,14 @@ namespace HordeServer.Api
 		public int Number { get; set; }
 
 		/// <summary>
-		/// Name of the user that authored this change
+		/// Name of the user that authored this change [DEPRECATED]
 		/// </summary>
 		public string Author { get; set; }
+
+		/// <summary>
+		/// Information about the change author
+		/// </summary>
+		public GetThinUserInfoResponse AuthorInfo { get; set; }
 
 		/// <summary>
 		/// The description text
@@ -35,7 +40,8 @@ namespace HordeServer.Api
 		public GetChangeSummaryResponse(ChangeSummary ChangeSummary)
 		{
 			this.Number = ChangeSummary.Number;
-			this.Author = ChangeSummary.Author;
+			this.Author = ChangeSummary.Author.Name;
+			this.AuthorInfo = new GetThinUserInfoResponse(ChangeSummary.Author);
 			this.Description = ChangeSummary.Description;
 		}
 	}
@@ -51,9 +57,14 @@ namespace HordeServer.Api
 		public int Number { get; set; }
 
 		/// <summary>
-		/// Name of the user that authored this change
+		/// Name of the user that authored this change [DEPRECATED]
 		/// </summary>
 		public string Author { get; set; }
+
+		/// <summary>
+		/// Information about the user that authored this change
+		/// </summary>
+		public GetThinUserInfoResponse AuthorInfo { get; set; }
 
 		/// <summary>
 		/// The description text
@@ -72,7 +83,8 @@ namespace HordeServer.Api
 		public GetChangeDetailsResponse(ChangeDetails ChangeDetails)
 		{
 			this.Number = ChangeDetails.Number;
-			this.Author = ChangeDetails.Author;
+			this.Author = ChangeDetails.Author.Name;
+			this.AuthorInfo = new GetThinUserInfoResponse(ChangeDetails.Author);
 			this.Description = ChangeDetails.Description;
 			this.Files = ChangeDetails.Files.ConvertAll(x => x.Path);
 		}

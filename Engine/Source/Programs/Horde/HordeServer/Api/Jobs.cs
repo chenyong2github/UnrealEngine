@@ -246,19 +246,29 @@ namespace HordeServer.Api
 		public string? GraphHash { get; set; }
 
 		/// <summary>
-		/// The user that started this job
+		/// The user that started this job [DEPRECATED]
 		/// </summary>
 		public string? StartedByUserId { get; set; }
 
 		/// <summary>
-		/// The user that started this job
+		/// The user that started this job [DEPRECATED]
 		/// </summary>
 		public string? StartedByUser { get; set; }
 
 		/// <summary>
-		/// The user that aborted this job
+		/// The user that started this job
+		/// </summary>
+		public GetThinUserInfoResponse? StartedByUserInfo { get; set; }
+
+		/// <summary>
+		/// The user that aborted this job [DEPRECATED]
 		/// </summary>
 		public string? AbortedByUser { get; set; }
+
+		/// <summary>
+		/// The user that aborted this job
+		/// </summary>
+		public GetThinUserInfoResponse? AbortedByUserInfo { get; set; }
 
 		/// <summary>
 		/// Priority of the job
@@ -329,8 +339,10 @@ namespace HordeServer.Api
 		/// Constructor
 		/// </summary>
 		/// <param name="Job">Job to create a response for</param>
+		/// <param name="StartedByUserInfo">User that started this job</param>
+		/// <param name="AbortedByUserInfo">User that aborted this job</param>
 		/// <param name="AclResponse">The ACL response object</param>
-		public GetJobResponse(IJob Job, GetAclResponse? AclResponse)
+		public GetJobResponse(IJob Job, GetThinUserInfoResponse? StartedByUserInfo, GetThinUserInfoResponse? AbortedByUserInfo, GetAclResponse? AclResponse)
 		{
 			this.Id = Job.Id.ToString();
 			this.StreamId = Job.StreamId.ToString();
@@ -344,7 +356,9 @@ namespace HordeServer.Api
 			this.GraphHash = Job.GraphHash.ToString();
 			this.StartedByUserId = Job.StartedByUserId?.ToString();
 			this.StartedByUser = Job.StartedByUser;
+			this.StartedByUserInfo = StartedByUserInfo;
 			this.AbortedByUser = Job.AbortedByUser;
+			this.AbortedByUserInfo = AbortedByUserInfo;
 			this.CreateTime = new DateTimeOffset(Job.CreateTimeUtc);
 			this.State = Job.GetState();
 			this.Priority = Job.Priority;
@@ -473,14 +487,24 @@ namespace HordeServer.Api
 		public bool AbortRequested { get; set; }
 		
 		/// <summary>
-		/// Name of the user that requested the abort of this step
+		/// Name of the user that requested the abort of this step [DEPRECATED]
 		/// </summary>
 		public string? AbortByUser { get; set; }
 
 		/// <summary>
-		/// Name of the user that requested this step be run again
+		/// The user that requested this step be run again 
+		/// </summary>
+		public GetThinUserInfoResponse? AbortedByUserInfo { get; set; }
+
+		/// <summary>
+		/// Name of the user that requested this step be run again [DEPRECATED]
 		/// </summary>
 		public string? RetryByUser { get; set; }
+
+		/// <summary>
+		/// The user that requested this step be run again 
+		/// </summary>
+		public GetThinUserInfoResponse? RetriedByUserInfo { get; set; }
 
 		/// <summary>
 		/// The log id for this step
@@ -516,7 +540,9 @@ namespace HordeServer.Api
 		/// Constructor
 		/// </summary>
 		/// <param name="Step">The step to construct from</param>
-		public GetStepResponse(IJobStep Step)
+		/// <param name="AbortedByUserInfo">User that aborted this step</param>
+		/// <param name="RetriedByUserInfo">User that retried this step</param>
+		public GetStepResponse(IJobStep Step, GetThinUserInfoResponse? AbortedByUserInfo, GetThinUserInfoResponse? RetriedByUserInfo)
 		{
 			this.Id = Step.Id.ToString();
 			this.NodeIdx = Step.NodeIdx;
@@ -524,7 +550,9 @@ namespace HordeServer.Api
 			this.Outcome = Step.Outcome;
 			this.AbortRequested = Step.AbortRequested;
 			this.AbortByUser = Step.AbortByUser;
+			this.AbortedByUserInfo = AbortedByUserInfo;
 			this.RetryByUser = Step.RetryByUser;
+			this.RetriedByUserInfo = RetriedByUserInfo;
 			this.LogId = Step.LogId?.ToString();
 			this.ReadyTime = Step.ReadyTimeUtc;
 			this.StartTime = Step.StartTimeUtc;
@@ -717,15 +745,16 @@ namespace HordeServer.Api
 		/// Converts this batch into a public response object
 		/// </summary>
 		/// <param name="Batch">The batch to construct from</param>
+		/// <param name="Steps">Steps in this batch</param>
 		/// <returns>Response instance</returns>
-		public GetBatchResponse(IJobStepBatch Batch)
+		public GetBatchResponse(IJobStepBatch Batch, List<GetStepResponse> Steps)
 		{
 			this.Id = Batch.Id.ToString();
 			this.LogId = Batch.LogId?.ToString();
 			this.GroupIdx = Batch.GroupIdx;
 			this.State = Batch.State;
 			this.Error = Batch.Error;
-			this.Steps = Batch.Steps.ConvertAll(x => new GetStepResponse(x));
+			this.Steps = Steps;
 			this.AgentId = Batch.AgentId?.ToString();
 			this.SessionId = Batch.SessionId?.ToString();
 			this.LeaseId = Batch.LeaseId?.ToString();

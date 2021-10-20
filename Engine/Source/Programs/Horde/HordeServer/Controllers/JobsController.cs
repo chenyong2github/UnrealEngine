@@ -40,55 +40,21 @@ namespace HordeServer.Controllers
 	[Route("[controller]")]
 	public class JobsController : ControllerBase
 	{
-		/// <summary>
-		/// Instance of the ACL service
-		/// </summary>
 		private readonly AclService AclService;
-
-		/// <summary>
-		/// Collection of graphs
-		/// </summary>
 		private readonly IGraphCollection Graphs;
-
-		/// <summary>
-		/// The perforce service instance
-		/// </summary>
 		private readonly IPerforceService Perforce;
-
-		/// <summary>
-		/// Instance of the stream service
-		/// </summary>
 		private readonly StreamService StreamService;
-
-		/// <summary>
-		/// Instance of the JobService singleton
-		/// </summary>
 		private readonly JobService JobService;
-
-		/// <summary>
-		/// Instance of the TemplateService singleton
-		/// </summary>
 		private readonly ITemplateCollection TemplateCollection;
-
-		/// <summary>
-		/// 
-		/// </summary>
 		private readonly IArtifactCollection ArtifactCollection;
-
-		/// <summary>
-		/// Instance of the notification service singleton
-		/// </summary>
+		private readonly IUserCollection UserCollection;
 		private readonly INotificationService NotificationService;
-
-		/// <summary>
-		/// Logger instance
-		/// </summary>
 		private ILogger<JobsController> Logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public JobsController(AclService AclService, IGraphCollection Graphs, IPerforceService Perforce, StreamService StreamService, JobService JobService, ITemplateCollection TemplateCollection, IArtifactCollection ArtifactCollection, INotificationService NotificationService, ILogger<JobsController> Logger)
+		public JobsController(AclService AclService, IGraphCollection Graphs, IPerforceService Perforce, StreamService StreamService, JobService JobService, ITemplateCollection TemplateCollection, IArtifactCollection ArtifactCollection, IUserCollection UserCollection, INotificationService NotificationService, ILogger<JobsController> Logger)
 		{
 			this.AclService = AclService;
 			this.Graphs = Graphs;
@@ -97,6 +63,7 @@ namespace HordeServer.Controllers
 			this.JobService = JobService;
 			this.TemplateCollection = TemplateCollection;
 			this.ArtifactCollection = ArtifactCollection;
+			this.UserCollection = UserCollection;
 			this.NotificationService = NotificationService;
 			this.Logger = Logger;
 		}
@@ -381,7 +348,113 @@ namespace HordeServer.Controllers
 
 			IGraph Graph = await JobService.GetGraphAsync(Job);
 			bool bIncludeAcl = await JobService.AuthorizeAsync(Job, AclAction.ViewPermissions, User, Cache);
-			return Job.ToResponse(Graph, bIncludeAcl, Filter);
+			return await CreateJobResponseAsync(Job, Graph, bIncludeAcl, Filter);
+		}
+
+		/// <summary>
+		/// Creates a response containing information about this object
+		/// </summary>
+		/// <param name="Job">The job document</param>
+		/// <param name="Graph">The graph for this job</param>
+		/// <param name="bIncludeAcl">Whether to include the ACL in the response</param>
+		/// <param name="Filter">Filter for the properties to return</param>
+		/// <returns>Object containing the requested properties</returns>
+		async Task<object> CreateJobResponseAsync(IJob Job, IGraph Graph, bool bIncludeAcl, PropertyFilter? Filter)
+		{
+			if (Filter == null)
+			{
+				return await CreateJobResponseAsync(Job, Graph, true, true, bIncludeAcl);
+			}
+			else
+			{
+				return Filter.ApplyTo(await CreateJobResponseAsync(Job, Graph, Filter.Includes(nameof(GetJobResponse.Batches)), Filter.Includes(nameof(GetJobResponse.Labels)) || Filter.Includes(nameof(GetJobResponse.DefaultLabel)), bIncludeAcl));
+			}
+		}
+
+		/// <summary>
+		/// Creates a response containing information about this object
+		/// </summary>
+		/// <param name="Job">The job document</param>
+		/// <param name="Graph">The graph definition</param>
+		/// <param name="bIncludeBatches">Whether to include the job batches in the response</param>
+		/// <param name="bIncludeLabels">Whether to include the job aggregates in the response</param>
+		/// <param name="bIncludeAcl">Whether to include the ACL in the response</param>
+		/// <returns>The response object</returns>
+		async ValueTask<GetJobResponse> CreateJobResponseAsync(IJob Job, IGraph Graph, bool bIncludeBatches, bool bIncludeLabels, bool bIncludeAcl)
+		{
+			GetThinUserInfoResponse? StartedByUserInfo = null;
+			if (Job.StartedByUserId != null)
+			{
+				StartedByUserInfo = new GetThinUserInfoResponse(await UserCollection.GetCachedUserAsync(Job.StartedByUserId.Value));
+			}
+
+			GetThinUserInfoResponse? AbortedByUserInfo = null;
+			if (Job.AbortedByUser != null)
+			{
+				AbortedByUserInfo = new GetThinUserInfoResponse(await UserCollection.FindOrAddUserByLoginAsync(Job.AbortedByUser));
+			}
+
+			GetAclResponse? AclResponse = null;
+			if (bIncludeAcl && Job.Acl != null)
+			{
+				AclResponse = new GetAclResponse(Job.Acl);
+			}
+
+			GetJobResponse Response = new GetJobResponse(Job, StartedByUserInfo, AbortedByUserInfo, AclResponse);
+			if (bIncludeBatches || bIncludeLabels)
+			{
+				if (bIncludeBatches)
+				{
+					Response.Batches = new List<GetBatchResponse>();
+					foreach (IJobStepBatch Batch in Job.Batches)
+					{
+						Response.Batches.Add(await CreateBatchResponseAsync(Batch));
+					}
+				}
+				if (bIncludeLabels)
+				{
+					Response.Labels = new List<GetLabelStateResponse>();
+					Response.DefaultLabel = Job.GetLabelStateResponses(Graph, Response.Labels);
+				}
+			}
+			return Response;
+		}
+
+		/// <summary>
+		/// Get the response object for a batch
+		/// </summary>
+		/// <param name="Batch"></param>
+		/// <returns></returns>
+		async ValueTask<GetBatchResponse> CreateBatchResponseAsync(IJobStepBatch Batch)
+		{
+			List<GetStepResponse> Steps = new List<GetStepResponse>();
+			foreach (IJobStep Step in Batch.Steps)
+			{
+				Steps.Add(await CreateStepResponseAsync(Step));
+			}
+			return new GetBatchResponse(Batch, Steps);
+		}
+
+		/// <summary>
+		/// Get the response object for a step
+		/// </summary>
+		/// <param name="Step"></param>
+		/// <returns></returns>
+		async ValueTask<GetStepResponse> CreateStepResponseAsync(IJobStep Step)
+		{
+			GetThinUserInfoResponse? AbortedByUserInfo = null;
+			if (Step.AbortByUser != null)
+			{
+				AbortedByUserInfo = new GetThinUserInfoResponse(await UserCollection.FindOrAddUserByLoginAsync(Step.AbortByUser));
+			}
+
+			GetThinUserInfoResponse? RetriedByUserInfo = null;
+			if (Step.RetryByUser != null)
+			{
+				RetriedByUserInfo = new GetThinUserInfoResponse(await UserCollection.FindOrAddUserByLoginAsync(Step.RetryByUser));
+			}
+
+			return new GetStepResponse(Step, AbortedByUserInfo, RetriedByUserInfo);
 		}
 
 		/// <summary>
@@ -596,7 +669,7 @@ namespace HordeServer.Controllers
 
 					using (IScope _ = GlobalTracer.Instance.BuildSpan("CreateResponse").StartActive())
 					{
-						Responses.Add(Job.ToResponse(Graph, bIncludeAcl, Filter));
+						Responses.Add(await CreateJobResponseAsync(Job, Graph, bIncludeAcl, Filter));
 					}
 				}
 			}
@@ -780,7 +853,8 @@ namespace HordeServer.Controllers
 			List<object> Responses = new List<object>();
 			foreach (IJobStepBatch Batch in Job.Batches)
 			{
-				Responses.Add(new GetBatchResponse(Batch).ApplyFilter(Filter));
+				GetBatchResponse Response = await CreateBatchResponseAsync(Batch);
+				Responses.Add(Response.ApplyFilter(Filter));
 			}
 			return Responses;
 		}
@@ -849,7 +923,8 @@ namespace HordeServer.Controllers
 			{
 				if (Batch.Id == BatchIdValue)
 				{
-					return new GetBatchResponse(Batch).ApplyFilter(Filter);
+					GetBatchResponse Response = await CreateBatchResponseAsync(Batch);
+					return Response.ApplyFilter(Filter);
 				}
 			}
 
@@ -890,7 +965,8 @@ namespace HordeServer.Controllers
 					List<object> Responses = new List<object>();
 					foreach (IJobStep Step in Batch.Steps)
 					{
-						Responses.Add(new GetStepResponse(Step).ApplyFilter(Filter));
+						GetStepResponse Response = await CreateStepResponseAsync(Step);
+						Responses.Add(Response.ApplyFilter(Filter));
 					}
 					return Responses;
 				}
@@ -1032,7 +1108,6 @@ namespace HordeServer.Controllers
 				return Forbid();
 			}
 
-			IGraph Graph = await JobService.GetGraphAsync(Job);
 			foreach (IJobStepBatch Batch in Job.Batches)
 			{
 				if (Batch.Id == BatchIdValue)
@@ -1041,7 +1116,8 @@ namespace HordeServer.Controllers
 					{
 						if (Step.Id == StepIdValue)
 						{
-							return new GetStepResponse(Step).ApplyFilter(Filter);
+							GetStepResponse Response = await CreateStepResponseAsync(Step);
+							return Response.ApplyFilter(Filter);
 						}
 					}
 					break;

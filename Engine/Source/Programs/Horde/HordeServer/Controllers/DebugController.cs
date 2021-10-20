@@ -699,7 +699,7 @@ namespace HordeServer.Controllers
 			}
 			else
 			{
-				Results.Add("GetUserInfoAsync", $"{UserInfo.Name} : {UserInfo.Email}");
+				Results.Add("GetUserInfoAsync", $"{UserInfo.Login} : {UserInfo.Email}");
 			}
 
 			// changes

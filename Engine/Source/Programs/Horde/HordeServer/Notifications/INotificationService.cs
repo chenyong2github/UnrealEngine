@@ -61,7 +61,7 @@ namespace HordeServer.Notifications
 		/// <param name="Change">Latest change number of the file</param>
 		/// <param name="Author">Author of the change, if found from p4 service</param>
 		/// <param name="Description">Description of the change, if found from p4 service</param>
-		void NotifyConfigUpdateFailure(string ErrorMessage, string FileName, int? Change = null, string? Author = null, string? Description = null);
+		void NotifyConfigUpdateFailure(string ErrorMessage, string FileName, int? Change = null, IUser? Author = null, string? Description = null);
 
 		/// <summary>
 		/// Sends a notification to a user regarding a build health issue.

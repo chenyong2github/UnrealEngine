@@ -1412,54 +1412,6 @@ namespace HordeServer.Models
 		}
 
 		/// <summary>
-		/// Creates a response containing information about this object
-		/// </summary>
-		/// <param name="Job">The job document</param>
-		/// <param name="Graph">The graph definition</param>
-		/// <param name="bIncludeBatches">Whether to include the job batches in the response</param>
-		/// <param name="bIncludeLabels">Whether to include the job aggregates in the response</param>
-		/// <param name="bIncludeAcl">Whether to include the ACL in the response</param>
-		/// <returns>The response object</returns>
-		public static GetJobResponse ToResponse(this IJob Job, IGraph Graph, bool bIncludeBatches, bool bIncludeLabels, bool bIncludeAcl)
-		{
-			GetAclResponse? AclResponse = (bIncludeAcl && Job.Acl != null) ? new GetAclResponse(Job.Acl) : null;
-			GetJobResponse Response = new GetJobResponse(Job, AclResponse);
-			if (bIncludeBatches || bIncludeLabels)
-			{
-				if (bIncludeBatches)
-				{
-					Response.Batches = Job.Batches.ConvertAll(x => new GetBatchResponse(x));
-				}
-				if (bIncludeLabels)
-				{
-					Response.Labels = new List<GetLabelStateResponse>();
-					Response.DefaultLabel = GetLabelStateResponses(Job, Graph, Response.Labels);
-				}
-			}
-			return Response;
-		}
-
-		/// <summary>
-		/// Creates a response containing information about this object
-		/// </summary>
-		/// <param name="Job">The job document</param>
-		/// <param name="Graph">The graph for this job</param>
-		/// <param name="bIncludeAcl">Whether to include the ACL in the response</param>
-		/// <param name="Filter">Filter for the properties to return</param>
-		/// <returns>Object containing the requested properties</returns>
-		public static object ToResponse(this IJob Job, IGraph Graph, bool bIncludeAcl, PropertyFilter? Filter)
-		{
-			if(Filter == null)
-			{
-				return Job.ToResponse(Graph, true, true, bIncludeAcl);
-			}
-			else
-			{
-				return Filter.ApplyTo(Job.ToResponse(Graph, Filter.Includes(nameof(GetJobResponse.Batches)), Filter.Includes(nameof(GetJobResponse.Labels)) || Filter.Includes(nameof(GetJobResponse.DefaultLabel)), bIncludeAcl));
-			}
-		}
-
-		/// <summary>
 		/// Creates an RPC response object
 		/// </summary>
 		/// <param name="Job">The job document</param>
