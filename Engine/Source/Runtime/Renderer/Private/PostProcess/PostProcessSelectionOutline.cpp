@@ -148,6 +148,13 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 		});
 	}
 
+
+	// Render HairStrands outlines
+	if (HairStrands::HasViewHairStrandsData(View))
+	{
+		HairStrands::DrawEditorSelection(GraphBuilder, View, DepthStencilTexture);
+	}
+
 	FScreenPassRenderTarget Output = Inputs.OverrideOutput;
 
 	if (!Output.IsValid())

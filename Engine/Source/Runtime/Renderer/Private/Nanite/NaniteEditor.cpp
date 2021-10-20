@@ -133,7 +133,7 @@ void DrawHitProxies(
 		FPixelShaderUtils::AddFullscreenPass(
 			GraphBuilder,
 			View.ShaderMap,
-			RDG_EVENT_NAME("Emit HitProxy Id"),
+			RDG_EVENT_NAME("Nanite::EmitHitProxyId"),
 			PixelShader,
 			PassParameters,
 			View.ViewRect,
