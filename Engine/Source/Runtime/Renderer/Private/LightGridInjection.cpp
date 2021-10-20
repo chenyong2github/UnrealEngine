@@ -502,6 +502,12 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 								for (int32 ShadowIndex = 0; ShadowIndex < DirectionalLightShadowInfos.Num(); ShadowIndex++)
 								{
 									const FProjectedShadowInfo* ShadowInfo = DirectionalLightShadowInfos[ShadowIndex];
+
+									if (ShadowInfo->DependentView && ShadowInfo->DependentView != &View)
+									{
+										continue;
+									}
+
 									const int32 CascadeIndex = ShadowInfo->CascadeSettings.ShadowSplitIndex;
 
 									if (ShadowInfo->IsWholeSceneDirectionalShadow() && ShadowInfo->bAllocated && CascadeIndex < GMaxForwardShadowCascades)
