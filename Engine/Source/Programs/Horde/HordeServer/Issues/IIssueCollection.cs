@@ -542,5 +542,12 @@ namespace HordeServer.Collections
 		Task<List<IIssueStep>> FindStepsAsync(JobId JobId, SubResourceId? BatchId, SubResourceId? StepId);
 
 		#endregion
+
+		/// <summary>
+		/// Gets the logger for a particular issue
+		/// </summary>
+		/// <param name="IssueId">The issue id</param>
+		/// <returns>Logger for this issue</returns>
+		IAuditLogChannel<int> GetLogger(int IssueId);
 	}
 }

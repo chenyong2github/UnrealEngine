@@ -436,9 +436,10 @@ namespace HordeServer.Collections.Impl
 		IMongoCollection<IssueSpan> IssueSpans;
 		IMongoCollection<IssueStep> IssueSteps;
 		IMongoCollection<IssueSuspect> IssueSuspects;
+		IAuditLog<int> AuditLog;
 		ILogger Logger;
 
-		public IssueCollection(DatabaseService DatabaseService, ILogger<IssueCollection> Logger)
+		public IssueCollection(DatabaseService DatabaseService, IAuditLogFactory<int> AuditLogFactory, ILogger<IssueCollection> Logger)
 		{
 			this.Logger = Logger;
 
@@ -448,7 +449,8 @@ namespace HordeServer.Collections.Impl
 			IssueSpans = DatabaseService.GetCollection<IssueSpan>("IssuesV2.Spans");
 			IssueSteps = DatabaseService.GetCollection<IssueStep>("IssuesV2.Steps");
 			IssueSuspects = DatabaseService.GetCollection<IssueSuspect>("IssuesV2.Suspects");
-			
+			AuditLog = AuditLogFactory.Create("IssuesV2.History", "IssueId");
+
 			if (!DatabaseService.ReadOnlyMode)
 			{
 				Issues.Indexes.CreateOne(new CreateIndexModel<Issue>(Builders<Issue>.IndexKeys.Ascending(x => x.ResolvedAt)));
@@ -573,8 +575,119 @@ namespace HordeServer.Collections.Impl
 				return null;
 			}
 
+			ILogger IssueLogger = GetLogger(NewIssue.Id);
+			IssueLogger.LogInformation("Created issue {IssueId}", NewIssue.Id);
+			LogSpanInfo(IssueLogger, Span);
+
 			await TokenValue.FlushAsync();
 			return NewIssue;
+		}
+
+		static void LogIssueChanges(ILogger IssueLogger, Issue OldIssue, Issue NewIssue)
+		{
+			if (NewIssue.Severity != OldIssue.Severity)
+			{
+				IssueLogger.LogInformation("Changed severity to {Severity}", NewIssue.Severity);
+			}
+			if (NewIssue.Summary != OldIssue.Summary)
+			{
+				IssueLogger.LogInformation("Changed summary to \"{Summary}\"", NewIssue.Summary);
+			}
+			if (NewIssue.OwnerId != OldIssue.OwnerId)
+			{
+				if (NewIssue.NominatedById != null)
+				{
+					IssueLogger.LogInformation("User {UserId} was nominated by {NominatedByUserId}", NewIssue.OwnerId, NewIssue.NominatedById);
+				}
+				else
+				{
+					IssueLogger.LogInformation("User {UserId} was nominated by default", NewIssue.OwnerId);
+				}
+			}
+			if (NewIssue.AcknowledgedAt != OldIssue.AcknowledgedAt)
+			{
+				if (NewIssue.AcknowledgedAt == null)
+				{
+					IssueLogger.LogInformation("Issue was un-acknowledged by {UserId}", OldIssue.OwnerId);
+				}
+				else
+				{
+					IssueLogger.LogInformation("Issue was acknowledged by {UserId}", OldIssue.OwnerId);
+				}
+			}
+			if (NewIssue.FixChange != OldIssue.FixChange)
+			{
+				if (NewIssue.FixChange == 0)
+				{
+					IssueLogger.LogInformation("Issue was marked as not fixed");
+				}
+				else
+				{
+					IssueLogger.LogInformation("Issue was marked as fixed in {Change}", NewIssue.FixChange);
+				}
+			}
+			if (NewIssue.ResolvedById != OldIssue.ResolvedById)
+			{
+				if (NewIssue.ResolvedById == null)
+				{
+					IssueLogger.LogInformation("Marking as unresolved");
+				}
+				else
+				{
+					IssueLogger.LogInformation("Resolved by {UserId}", NewIssue.ResolvedById);
+				}
+			}
+			if (NewIssue.NotifySuspects != OldIssue.NotifySuspects)
+			{
+				IssueLogger.LogInformation("Notify suspects set to {Value}", NewIssue.NotifySuspects);
+			}
+
+			HashSet<StreamId> OldFixStreams = new HashSet<StreamId>(OldIssue.Streams.Where(x => x.ContainsFix ?? false).Select(x => x.StreamId));
+			HashSet<StreamId> NewFixStreams = new HashSet<StreamId>(NewIssue.Streams.Where(x => x.ContainsFix ?? false).Select(x => x.StreamId));
+			foreach (StreamId StreamId in NewFixStreams.Where(x => !OldFixStreams.Contains(x)))
+			{
+				IssueLogger.LogInformation("Marking stream {StreamId} as fixed", StreamId);
+			}
+			foreach (StreamId StreamId in OldFixStreams.Where(x => !NewFixStreams.Contains(x)))
+			{
+				IssueLogger.LogInformation("Marking stream {StreamId} as not fixed", StreamId);
+			}
+
+			HashSet<(ObjectId, int)> OldSuspects = new HashSet<(ObjectId, int)>(OldIssue.Suspects.Select(x => (x.AuthorId, x.Change)));
+			HashSet<(ObjectId, int)> NewSuspects = new HashSet<(ObjectId, int)>(NewIssue.Suspects.Select(x => (x.AuthorId, x.Change)));
+			foreach ((ObjectId UserId, int Change) in NewSuspects.Where(x => !OldSuspects.Contains(x)))
+			{
+				IssueLogger.LogInformation("Added suspect {UserId} for change {Change}", UserId, Change);
+			}
+			foreach ((ObjectId UserId, int Change) in OldSuspects.Where(x => !NewSuspects.Contains(x)))
+			{
+				IssueLogger.LogInformation("Removed suspect {UserId} for change {Change}", UserId, Change);
+			}
+
+			HashSet<ObjectId> OldDeclinedBy = new HashSet<ObjectId>(NewIssue.Suspects.Where(x => x.DeclinedAt != null).Select(x => x.AuthorId));
+			HashSet<ObjectId> NewDeclinedBy = new HashSet<ObjectId>(NewIssue.Suspects.Where(x => x.DeclinedAt != null).Select(x => x.AuthorId));
+			foreach (ObjectId AddDeclinedBy in NewDeclinedBy.Where(x => !OldDeclinedBy.Contains(x)))
+			{
+				IssueLogger.LogInformation("Declined by {UserId}", AddDeclinedBy);
+			}
+			foreach (ObjectId RemoveDeclinedBy in OldDeclinedBy.Where(x => !NewDeclinedBy.Contains(x)))
+			{
+				IssueLogger.LogInformation("Un-declined by {UserId}", RemoveDeclinedBy);
+			}
+		}
+
+		static void LogSpanInfo(ILogger IssueLogger, IIssueSpan Span)
+		{
+			IssueLogger.LogInformation("Added span {SpanId} in {StreamId}", Span.Id, Span.StreamId);
+			IssueLogger.LogInformation("Span {SpanId} first failure: CL {Change} ({JobId})", Span.Id, Span.FirstFailure.Change, Span.FirstFailure.JobId);
+			if (Span.LastSuccess != null)
+			{
+				IssueLogger.LogInformation("Span {SpanId} last success: CL {Change} ({JobId})", Span.Id, Span.LastSuccess.Change, Span.LastSuccess.JobId);
+			}
+			if (Span.NextSuccess != null)
+			{
+				IssueLogger.LogInformation("Span {SpanId} next success: CL {Change} ({JobId})", Span.Id, Span.NextSuccess.Change, Span.NextSuccess.JobId);
+			}
 		}
 
 		/// <inheritdoc/>
@@ -921,11 +1034,16 @@ namespace HordeServer.Collections.Impl
 			{
 				return IssueDocument;
 			}
-			else
+
+			Issue? NewIssue = await TryUpdateIssueAsync(Issue, Builders<Issue>.Update.Combine(Updates));
+			if(NewIssue == null)
 			{
-				return await TryUpdateIssueAsync(Issue, Builders<Issue>.Update.Combine(Updates));
+				return null;
 			}
 
+			ILogger IssueLogger = GetLogger(Issue.Id);
+			LogIssueChanges(IssueLogger, IssueDocument, NewIssue);
+			return NewIssue;
 		}
 
 		public async Task<IIssue?> UpdateIssueDerivedDataAsync(IIssue Issue)
@@ -1083,6 +1201,10 @@ namespace HordeServer.Collections.Impl
 				return null;
 			}
 
+			// Log any changes
+			ILogger IssueLogger = GetLogger(Issue.Id);
+			LogIssueChanges(IssueLogger, Issue, NewIssue);
+
 			// Clear the modified flag on any spans
 			for (int Idx = 0; Idx < Spans.Count; Idx++)
 			{
@@ -1178,9 +1300,28 @@ namespace HordeServer.Collections.Impl
 			}
 
 			IssueSpan? NewSpan = await TryUpdateSpanAsync(Span, Builders<IssueSpan>.Update.Combine(Updates));
-			if (NewSpan != null && NewFailure != null)
+			if (NewSpan != null)
 			{
-				await AddStepAsync(NewSpan.Id, NewFailure);
+				if (NewFailure != null)
+				{
+					await AddStepAsync(NewSpan.Id, NewFailure);
+				}
+				if (NewSpan.IssueId != null)
+				{
+					ILogger Logger = GetLogger(NewSpan.IssueId.Value);
+					if (NewLastSuccess != null)
+					{
+						Logger.LogInformation("Set last success for span {SpanId} to job {JobId} at CL {Change}", NewSpan.Id, NewLastSuccess.JobId, NewLastSuccess.Change);
+					}
+					if (NewNextSuccess != null)
+					{
+						Logger.LogInformation("Set next success for span {SpanId} to job {JobId} at CL {Change}", NewSpan.Id, NewNextSuccess.JobId, NewNextSuccess.Change);
+					}
+					if (NewFailure != null)
+					{
+						Logger.LogInformation("Added failure for span {SpanId} in job {JobId} at CL {Change}", NewSpan.Id, NewFailure.JobId, NewFailure.Change);
+					}
+				}
 			}
 			return NewSpan;
 		}
@@ -1237,6 +1378,7 @@ namespace HordeServer.Collections.Impl
 				return false;
 			}
 
+			LogSpanInfo(GetLogger(Issue.Id), Span);
 			await TokenValue.FlushAsync();
 			return true;
 		}
@@ -1281,5 +1423,11 @@ namespace HordeServer.Collections.Impl
 		}
 
 		#endregion
+
+		/// <inheritdoc/>
+		public IAuditLogChannel<int> GetLogger(int IssueId)
+		{
+			return AuditLog[IssueId];
+		}
 	}
 }
