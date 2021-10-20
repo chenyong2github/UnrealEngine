@@ -156,30 +156,6 @@ void FMainMenu::RegisterEditMenu()
 				FGlobalTabmanager::Get()->PopulateTabSpawnerMenu(InBuilder, "PluginsEditor");
 			}
 		}));
-
-		Section.AddDynamicEntry("ConnectToSourceControl", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
-		{
-			ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
-			
-			if (ISourceControlModule::Get().IsEnabled() && ISourceControlModule::Get().GetProvider().IsAvailable())
-			{
-				InSection.AddMenuEntry(
-					FMainFrameCommands::Get().ChangeSourceControlSettings,
-					TAttribute<FText>(),
-					TAttribute<FText>(),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.ChangeSettings")
-				);
-			}
-			else
-			{
-				InSection.AddMenuEntry(
-					FMainFrameCommands::Get().ConnectToSourceControl,
-					TAttribute<FText>(),
-					TAttribute<FText>(),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Connect")
-				);
-			}
-		}));
 	}
 }
 
@@ -553,6 +529,45 @@ void FMainMenu::RegisterToolsMenu()
 		}
 	}
 
+	FToolMenuSection& SourceControlSection = Menu->AddSection("Source Control", LOCTEXT("SourceControlHeading", "Source Control"));
+
+	SourceControlSection.AddMenuEntry(
+		FMainFrameCommands::Get().ViewChangelists,
+		TAttribute<FText>(),
+		TAttribute<FText>(),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.ChangelistsTab")
+	);
+
+	SourceControlSection.AddMenuEntry(
+		FMainFrameCommands::Get().SubmitContent,
+		TAttribute<FText>(),
+		TAttribute<FText>(),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Submit")
+	);
+
+	SourceControlSection.AddDynamicEntry("ConnectToSourceControl", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+	{
+		ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
+
+		if (ISourceControlModule::Get().IsEnabled() && ISourceControlModule::Get().GetProvider().IsAvailable())
+		{
+			InSection.AddMenuEntry(
+				FMainFrameCommands::Get().ChangeSourceControlSettings,
+				TAttribute<FText>(),
+				TAttribute<FText>(),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.ChangeSettings")
+			);
+		}
+		else
+		{
+			InSection.AddMenuEntry(
+				FMainFrameCommands::Get().ConnectToSourceControl,
+				TAttribute<FText>(),
+				TAttribute<FText>(),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Connect")
+			);
+		}
+	}));
 }
 
 void FMainMenu::RegisterExitMenuItems()

@@ -14,6 +14,7 @@
 #include "EditorStyleSet.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Images/SImage.h"
+#include "LevelEditorActions.h"
 
 #define LOCTEXT_NAMESPACE "SourceControlCommands"
 
@@ -34,10 +35,11 @@ FSourceControlCommands::FSourceControlCommands()
  */
 void FSourceControlCommands::RegisterCommands()
 {
-	UI_COMMAND(ConnectToSourceControl, "Connect to Source Control...", "Opens a dialog to connect to source control.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ConnectToSourceControl, "Connect to Source Control...", "Connect to source control to allow source control operations to be performed on content and levels.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ChangeSourceControlSettings, "Change Source Control Settings...", "Opens a dialog to change source control settings.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(ViewChangelists, "View Changelists...", "Open the Source Control Changelist tab.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(CheckOutModifiedFiles, "Check Out Modified Files...", "Opens a dialog to check out any assets which have been modified.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ViewChangelists, "View Changelists", "Opens a dialog displaying current changelists.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(SubmitContent, "Submit Content", "Opens a dialog with check in options for content and levels.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(CheckOutModifiedFiles, "Check Out Modified Files", "Opens a dialog to check out any assets which have been modified.", EUserInterfaceActionType::Button, FInputChord());
 
 	ActionList->MapAction(
 		ConnectToSourceControl,
@@ -53,6 +55,12 @@ void FSourceControlCommands::RegisterCommands()
 		ViewChangelists,
 		FExecuteAction::CreateStatic(&FSourceControlCommands::ViewChangelists_Clicked),
 		FCanExecuteAction::CreateStatic(&FSourceControlCommands::ViewChangelists_CanExecute)
+	);
+
+	ActionList->MapAction(
+		SubmitContent,
+		FExecuteAction::CreateLambda([]() { FSourceControlWindows::ChoosePackagesToCheckIn(); }),
+		FCanExecuteAction::CreateStatic(&FSourceControlWindows::CanChoosePackagesToCheckIn)
 	);
 
 	ActionList->MapAction(
@@ -131,31 +139,6 @@ TSharedRef<SWidget> FSourceControlMenuHelpers::GenerateSourceControlMenuContent(
 
 	FToolMenuSection& Section = SourceControlMenu->AddSection("SourceControlActions", LOCTEXT("SourceControlMenuHeadingActions", "Actions"));
 
-	Section.AddDynamicEntry("ConnectToSourceControl", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
-		{
-			ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
-			if (ISourceControlModule::Get().IsEnabled() && ISourceControlModule::Get().GetProvider().IsAvailable())
-			{
-				InSection.AddMenuEntry(
-					FSourceControlCommands::Get().ChangeSourceControlSettings,
-					TAttribute<FText>(),
-					TAttribute<FText>(),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.ChangeSettings")
-				);
-			}
-			else
-			{
-				InSection.AddMenuEntry(
-					FSourceControlCommands::Get().ConnectToSourceControl,
-					TAttribute<FText>(),
-					TAttribute<FText>(),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Connect")
-				);
-			}
-		}));
-
-	Section.AddSeparator("SourceControlConnectionSeparator");
-
 	Section.AddMenuEntry(
 		FSourceControlCommands::Get().ViewChangelists,
 		TAttribute<FText>(),
@@ -164,11 +147,41 @@ TSharedRef<SWidget> FSourceControlMenuHelpers::GenerateSourceControlMenuContent(
 	);
 
 	Section.AddMenuEntry(
+		FSourceControlCommands::Get().SubmitContent,
+		TAttribute<FText>(),
+		TAttribute<FText>(),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Submit")
+	);
+
+	Section.AddMenuEntry(
 		FSourceControlCommands::Get().CheckOutModifiedFiles,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.CheckOut")
 	);
+
+	Section.AddDynamicEntry("ConnectToSourceControl", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+	{
+		ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
+		if (ISourceControlModule::Get().IsEnabled() && ISourceControlModule::Get().GetProvider().IsAvailable())
+		{
+			InSection.AddMenuEntry(
+				FSourceControlCommands::Get().ChangeSourceControlSettings,
+				TAttribute<FText>(),
+				TAttribute<FText>(),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.ChangeSettings")
+			);
+		}
+		else
+		{
+			InSection.AddMenuEntry(
+				FSourceControlCommands::Get().ConnectToSourceControl,
+				TAttribute<FText>(),
+				TAttribute<FText>(),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Connect")
+			);
+		}
+	}));
 
 	return UToolMenus::Get()->GenerateWidget("StatusBar.ToolBar.SourceControl", FToolMenuContext(FSourceControlCommands::ActionList));
 }

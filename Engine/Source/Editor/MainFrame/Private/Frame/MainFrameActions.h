@@ -27,6 +27,7 @@ public:
 	TSharedPtr< FUICommandInfo > Exit;
 	TSharedPtr< FUICommandInfo > ChooseFilesToSave;
 	TSharedPtr< FUICommandInfo > ViewChangelists;
+	TSharedPtr< FUICommandInfo > SubmitContent;
 	TSharedPtr< FUICommandInfo > ConnectToSourceControl;
 	TSharedPtr< FUICommandInfo > ChangeSourceControlSettings;
 	TSharedPtr< FUICommandInfo > NewProject;
