@@ -6,17 +6,25 @@
 
 namespace Chaos
 {
-class FParticleUniqueIndices
+class IParticleUniqueIndices
 {
 public:
-	FParticleUniqueIndices()
+	virtual ~IParticleUniqueIndices() = default;
+	virtual FUniqueIdx GenerateUniqueIdx() = 0;
+	virtual void ReleaseIdx(FUniqueIdx Unique) = 0;
+};
+
+class FParticleUniqueIndicesMultithreaded: public IParticleUniqueIndices
+{
+public:
+	FParticleUniqueIndicesMultithreaded()
 		: Block(0)
 	{
 		//Note: tune this so that all allocation is done at initialization
 		AddPageAndAcquireNextId(/*bAcquireNextId = */ false);
 	}
 
-	FUniqueIdx GenerateUniqueIdx()
+	FUniqueIdx GenerateUniqueIdx() override
 	{
 		while(true)
 		{
@@ -42,7 +50,7 @@ public:
 		}
 	}
 
-	void ReleaseIdx(FUniqueIdx Unique)
+	void ReleaseIdx(FUniqueIdx Unique) override
 	{
 		ensure(Unique.IsValid());
 		int32 PageIdx = Unique.Idx / IndicesPerPage;
@@ -51,7 +59,7 @@ public:
 		FreeIndices.Push(&Page.Indices[Entry]);
 	}
 
-	~FParticleUniqueIndices()
+	~FParticleUniqueIndicesMultithreaded()
 	{
 		//Make sure queue is empty, memory management of actual pages is handled automatically by TUniquePtr
 		while(FreeIndices.Pop())
@@ -89,6 +97,8 @@ private:
 	TLockFreePointerListFIFO<FUniqueIdx,0> FreeIndices;
 	volatile int8 Block;
 };
+
+using FParticleUniqueIndices = FParticleUniqueIndicesMultithreaded;
 
 template <typename TParticleType>
 class TParticleMapArray
@@ -180,7 +190,8 @@ private:
 class FPBDRigidsSOAs
 {
 public:
-	FPBDRigidsSOAs()
+	FPBDRigidsSOAs(IParticleUniqueIndices& InUniqueIndices)
+		: UniqueIndices(InUniqueIndices)
 	{
 #if CHAOS_DETERMINISTIC
 		BiggestParticleID = 0;
@@ -1159,7 +1170,7 @@ private:
 	//Auxiliary data synced with particle handles
 	TGeometryParticleHandles<FReal, 3> ParticleHandles;
 
-	FParticleUniqueIndices UniqueIndices;
+	IParticleUniqueIndices& UniqueIndices;
 
 #if CHAOS_DETERMINISTIC
 	int32 BiggestParticleID;
