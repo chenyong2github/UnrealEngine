@@ -81,6 +81,12 @@ TUniquePtr<FImplicitObject> FImplicitObject::Copy() const
 	return nullptr;
 }
 
+TUniquePtr<FImplicitObject> FImplicitObject::CopyWithScale(const FVec3& Scale) const
+{
+	check(false);
+	return nullptr;
+}
+
 bool FImplicitObject::IsUnderlyingUnion() const
 {
 	return Type == ImplicitObjectType::Union;

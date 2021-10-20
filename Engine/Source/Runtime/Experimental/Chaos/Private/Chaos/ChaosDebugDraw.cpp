@@ -350,7 +350,13 @@ namespace Chaos
 			case ImplicitObjectType::Union:
 				break;
 			case ImplicitObjectType::LevelSet:
+			{
+				const TImplicitObjectScaled<FLevelSet, bInstanced>* Scaled = Shape->template GetObject<TImplicitObjectScaled<FLevelSet, bInstanced>>();
+				// even though thhe levelset is scaled, the debugdraw uses the collisionParticles  that are pre-scaled
+				// so no need to pass the scaled transform and just extract the wrapped LevelSet
+				DrawShapesImpl(Particle, ShapeTransform, Scaled->GetUnscaledObject(), Scaled->GetMargin(), Color, Settings);
 				break;
+			}
 			case ImplicitObjectType::Unknown:
 				break;
 			case ImplicitObjectType::Convex:

@@ -170,7 +170,9 @@ FLevelSet::FLevelSet(FLevelSet&& Other)
     : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::LevelSet)
     , MGrid(MoveTemp(Other.MGrid))
     , MPhi(MoveTemp(Other.MPhi))
+	, MNormals(MoveTemp(Other.MNormals))
     , MLocalBoundingBox(MoveTemp(Other.MLocalBoundingBox))
+	, MOriginalLocalBoundingBox(MoveTemp(Other.MOriginalLocalBoundingBox))
     , MBandWidth(Other.MBandWidth)
 {
 }
@@ -189,6 +191,19 @@ TUniquePtr<FImplicitObject> FLevelSet::DeepCopy() const
 	Copy->MOriginalLocalBoundingBox = MOriginalLocalBoundingBox;
 	Copy->MBandWidth = MBandWidth;
 	return TUniquePtr<FImplicitObject>(Copy);
+}
+
+TUniquePtr<FImplicitObject> FLevelSet::DeepCopyWithScale(const FVec3& Scale) const
+{
+	FLevelSet Copy;
+	Copy.MGrid = MGrid;
+	Copy.MPhi.Copy(MPhi);
+	Copy.MNormals.Copy(MNormals);
+	Copy.MLocalBoundingBox = MLocalBoundingBox;
+	Copy.MOriginalLocalBoundingBox = MOriginalLocalBoundingBox;
+	Copy.MBandWidth = MBandWidth;
+	TSharedPtr<FLevelSet, ESPMode::ThreadSafe> LevelSetCopy = MakeShared<FLevelSet, ESPMode::ThreadSafe>(MoveTemp(Copy));
+	return TUniquePtr<FImplicitObject>(new TImplicitObjectScaled<FLevelSet>(LevelSetCopy, Scale));
 }
 
 bool FLevelSet::ComputeMassProperties(FReal& OutVolume, FVec3& OutCOM, FMatrix33& OutInertia, FRotation3& OutRotationOfMass) const

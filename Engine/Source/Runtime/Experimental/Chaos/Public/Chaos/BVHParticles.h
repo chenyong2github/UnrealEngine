@@ -35,7 +35,7 @@ namespace Chaos
 	    CHAOS_API FBVHParticles& operator=(const FBVHParticles& Other);
 	    CHAOS_API FBVHParticles& operator=(FBVHParticles&& Other);
 
-		CHAOS_API FBVHParticles* NewCopy()
+		CHAOS_API FBVHParticles* NewCopy() const
 		{
 			return new FBVHParticles(*this);
 		}

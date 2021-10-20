@@ -351,6 +351,11 @@ namespace Chaos
 			return TUniquePtr<FImplicitObject>(new TSphere<T,d>(Center, GetRadius()));
 		}
 
+		virtual TUniquePtr<FImplicitObject> CopyWithScale(const FVec3& Scale) const override
+		{
+			return  TUniquePtr<FImplicitObject>(new TSphere<T, d>(Center * Scale, GetRadius() * Scale.Min()));
+		}
+
 	private:
 		void SetRadius(FReal InRadius) { SetMargin(InRadius); }
 

@@ -30,6 +30,7 @@ namespace Chaos
 			, bool bGenerateConnectionGraphIn = true, EConnectionMethod ConnectionMethodIn = EConnectionMethod::MinimalSpanningSubsetDelaunayTriangulation
 			, FBVHParticles* CollisionParticlesIn = nullptr
 			, Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal,3>* ClusterParticleHandleIn = nullptr
+			, const FVec3& ScaleIn = FVec3::OneVector
 		)
 			: CoillisionThicknessPercent(CoillisionThicknessPercentIn)
 			, MaxNumConnections(MaxNumConnectionsIn)
@@ -39,6 +40,7 @@ namespace Chaos
 			, ConnectionMethod(ConnectionMethodIn)
 			, CollisionParticles(CollisionParticlesIn)
 			, ClusterParticleHandle(ClusterParticleHandleIn)
+			, Scale(ScaleIn)
 		{}
 
 		FReal CoillisionThicknessPercent;
@@ -49,5 +51,6 @@ namespace Chaos
 		EConnectionMethod ConnectionMethod;
 		FBVHParticles* CollisionParticles;
 		Chaos::FPBDRigidClusteredParticleHandle* ClusterParticleHandle;
+		FVec3 Scale;
 	};
 }
