@@ -890,11 +890,14 @@ private:
 	static FString GetSanitizedPinName(const FString& InName);
 	static FString GetSanitizedPinPath(const FString& InName);
 	static void SanitizeName(FString& InOutName, bool bAllowPeriod, bool bAllowSpace);
+
+public:
 	static const TCHAR TArrayPrefix[];
 	static const TCHAR TObjectPtrPrefix[];
 	static const TCHAR TArrayTemplate[];
 	static const TCHAR TObjectPtrTemplate[];
 
+private: 
 	UPROPERTY(transient)
 	TArray<TObjectPtr<URigVMGraph>> Graphs;
 
