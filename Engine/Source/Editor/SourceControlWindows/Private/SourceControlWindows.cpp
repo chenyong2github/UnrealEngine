@@ -129,7 +129,11 @@ bool FSourceControlWindows::ChoosePackagesToCheckIn(const FSourceControlWindowsO
 
 bool FSourceControlWindows::CanChoosePackagesToCheckIn()
 {
-	return !ChoosePackagesToCheckInNotification.IsValid();
+	ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
+	
+	return ISourceControlModule::Get().IsEnabled() &&
+		ISourceControlModule::Get().GetProvider().IsAvailable() &&
+		!ChoosePackagesToCheckInNotification.IsValid();
 }
 
 

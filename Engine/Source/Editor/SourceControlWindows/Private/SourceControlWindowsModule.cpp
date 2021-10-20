@@ -61,10 +61,10 @@ void FSourceControlWindowsModule::StartupModule()
 	// Create a Source Control group under the Tools category
 	const FSlateIcon SourceControlIcon(FEditorStyle::GetStyleSetName(), "SourceControl.ChangelistsTab");
 
-	// Register the changlist tab spawner
-	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(SourceControlChangelistsTabName, FOnSpawnTab::CreateRaw(this, &FSourceControlWindowsModule::CreateChangelistsTab))
-		.SetDisplayName(LOCTEXT("ChangelistsTabTitle", "Changelists"))
-		.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory())
+	// Register the changelist tab spawner
+	FGlobalTabmanager::Get()->RegisterTabSpawner(SourceControlChangelistsTabName, FOnSpawnTab::CreateRaw(this, &FSourceControlWindowsModule::CreateChangelistsTab))
+		.SetDisplayName(LOCTEXT("ChangelistsTabTitle", "View Changelists"))
+		.SetTooltipText(LOCTEXT("ChangelistsTabTooltip", "Opens a dialog displaying current changelists."))
 		.SetIcon(SourceControlIcon);
 
 #if WITH_RELOAD
@@ -80,7 +80,7 @@ void FSourceControlWindowsModule::ShutdownModule()
 {
 	if (FSlateApplication::IsInitialized())
 	{
-		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(SourceControlChangelistsTabName);
+		FGlobalTabmanager::Get()->UnregisterTabSpawner(SourceControlChangelistsTabName);
 
 		if (ChangelistsTab.IsValid())
 		{
