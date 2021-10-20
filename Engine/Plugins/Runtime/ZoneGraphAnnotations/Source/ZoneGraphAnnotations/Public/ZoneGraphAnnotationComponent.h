@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Components/PrimitiveComponent.h"
+#include "Debug/DebugDrawComponent.h"
 #include "DebugRenderSceneProxy.h"
 #include "ZoneGraphTypes.h"
 #include "ZoneGraphAnnotationComponent.generated.h"
@@ -15,7 +15,7 @@ struct FInstancedStructStream;
 struct FZoneGraphAnnotationTagLookup;
 struct FZoneGraphAnnotationTagContainer;
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if UE_ENABLE_DEBUG_DRAWING
 class ZONEGRAPHANNOTATIONS_API FZoneGraphAnnotationSceneProxy final : public FDebugRenderSceneProxy
 {
 public:
@@ -31,8 +31,8 @@ private:
 #endif
 
 
-UCLASS(Abstract, HideCategories = (Physics, Collision, Lighting, Rendering, Mobile, HLOD, AssetUserData, Cooking, Navigation, Activation, Tags))
-class ZONEGRAPHANNOTATIONS_API UZoneGraphAnnotationComponent : public UPrimitiveComponent
+UCLASS(Abstract)
+class ZONEGRAPHANNOTATIONS_API UZoneGraphAnnotationComponent : public UDebugDrawComponent
 {
 	GENERATED_BODY()
 
@@ -57,7 +57,7 @@ public:
 	/** Called when new ZoneGraph data is removed. */ 
 	virtual void PreZoneGraphDataRemoved(const AZoneGraphData& ZoneGraphData) {}
 	
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if UE_ENABLE_DEBUG_DRAWING
 	/** Called when scene proxy is rebuilt. */
 	virtual void DebugDraw(FZoneGraphAnnotationSceneProxy* DebugProxy) {}
 
@@ -75,23 +75,17 @@ protected:
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 
-	//~ Begin UPrimitiveComponent Interface
 	virtual void OnRegister()  override;
 	virtual void OnUnregister()  override;
-	virtual void DestroyRenderState_Concurrent() override;
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
-	//~ End UPrimitiveComponent Interface
 
-	//~ Begin USceneComponent Interface
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
-	//~ End USceneComponent Interface
 
 	FDelegateHandle OnPostZoneGraphDataAddedHandle;
 	FDelegateHandle OnPreZoneGraphDataRemovedHandle;
 	FDelegateHandle OnPostWorldInitDelegateHandle;
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	FDebugDrawDelegateHelper DebugDrawDelegateHelper;
+#if UE_ENABLE_DEBUG_DRAWING
+	virtual FDebugRenderSceneProxy* CreateDebugSceneProxy() override;
 	FDelegateHandle CanvasDebugDrawDelegateHandle;
 #endif
 	

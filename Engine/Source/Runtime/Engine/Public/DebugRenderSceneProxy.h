@@ -261,7 +261,7 @@ protected:
 	typedef TArray<FDebugRenderSceneProxy::FText3d> TextArray;
 
 public:
-	virtual void InitDelegateHelper(const FDebugRenderSceneProxy* InSceneProxy)
+	void InitDelegateHelper(const FDebugRenderSceneProxy* InSceneProxy)
 	{
 		check(IsInParallelGameThread() || IsInGameThread());
 
@@ -272,21 +272,39 @@ public:
 		State = (State == UndefinedState) ? InitializedState : State;
 	}
 
-	UE_DEPRECATED(5.0, "This method is deprecated. Use RegisterDebugDrawDelegate instead.")
-	ENGINE_API virtual void RegisterDebugDrawDelgate() { RegisterDebugDrawDelegate(); }
+	UE_DEPRECATED(5.0, "This method is deprecated. Call RequestRegisterDebugDrawDelegate or override RegisterDebugDrawDelegateInternal instead.")
+	ENGINE_API virtual void RegisterDebugDrawDelgate() final { RegisterDebugDrawDelegateInternal(); }
 	UE_DEPRECATED(5.0, "This method is deprecated. Use UnregisterDebugDrawDelegate instead.")
 	ENGINE_API virtual void UnregisterDebugDrawDelgate() { UnregisterDebugDrawDelegate(); }
 	UE_DEPRECATED(5.0, "This method is deprecated. Use ReregisterDebugDrawDelegate instead.")
 	ENGINE_API void ReregisterDebugDrawDelgate() { ReregisterDebugDrawDelegate(); }
+	UE_DEPRECATED(5.0, "This method is deprecated. Call RequestRegisterDebugDrawDelegate or override RegisterDebugDrawDelegateInternal instead.")
+	ENGINE_API virtual void RegisterDebugDrawDelegate() final { RegisterDebugDrawDelegateInternal(); }
 
-	/** called to set up debug drawing delegate in UDebugDrawService if you want to draw labels */
-	ENGINE_API virtual void RegisterDebugDrawDelegate();
+	/**
+	 * Method that should be called at render state creation (i.e. CreateRenderState_Concurrent).
+	 * It will either call `RegisterDebugDrawDelegate` when deferring context is not provided
+	 * or mark for deferred registration that should be flushed by calling `ProcessDeferredRegister`
+	 * on scene proxy creation.
+	 * @param Context valid context is provided when primitives are batched for deferred 'add'
+	 */
+	ENGINE_API void RequestRegisterDebugDrawDelegate(FRegisterComponentContext* Context);
+
+	/**
+	 * Method that should be called when creating scene proxy (i.e. CreateSceneProxy) to process any pending registration that might have
+	 * been requested from deferred primitive batching (i.e. CreateRenderState_Concurrent(FRegisterComponentContext != nullptr)).
+	 */
+	ENGINE_API void ProcessDeferredRegister();
+
 	/** called to clean up debug drawing delegate in UDebugDrawService */
 	ENGINE_API virtual void UnregisterDebugDrawDelegate();
 
 	ENGINE_API void ReregisterDebugDrawDelegate();
 
 protected:
+	/** called to set up debug drawing delegate in UDebugDrawService if you want to draw labels */
+	ENGINE_API virtual void RegisterDebugDrawDelegateInternal();
+
 	ENGINE_API virtual void DrawDebugLabels(UCanvas* Canvas, APlayerController*);
 	ENGINE_API void ResetTexts() { Texts.Reset(); }
 
@@ -299,6 +317,8 @@ protected:
 		InitializedState,
 		RegisteredState,
 	} State;
+
+	bool bDeferredRegister = false;
 
 private:
 	TextArray Texts;

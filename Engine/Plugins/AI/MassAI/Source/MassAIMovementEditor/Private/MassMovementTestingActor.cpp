@@ -189,14 +189,9 @@ void UMassMovementTestingComponent::ClearPinnedLane()
 	UpdateTests();
 }
 
-#if !UE_BUILD_SHIPPING
-void UMassMovementTestingComponent::DestroyRenderState_Concurrent()
-{
-	DebugDrawDelegateHelper.UnregisterDebugDrawDelegate();
-	Super::DestroyRenderState_Concurrent();
-}
+#if UE_ENABLE_DEBUG_DRAWING
 
-FPrimitiveSceneProxy* UMassMovementTestingComponent::CreateSceneProxy()
+FDebugRenderSceneProxy* UMassMovementTestingComponent::CreateDebugSceneProxy()
 {
 	FMassMovementTestingSceneProxy* DebugProxy = new FMassMovementTestingSceneProxy(*this);
 
@@ -289,12 +284,9 @@ FPrimitiveSceneProxy* UMassMovementTestingComponent::CreateSceneProxy()
 		}
 	}
 
-	DebugDrawDelegateHelper.InitDelegateHelper(DebugProxy);
-	DebugDrawDelegateHelper.RegisterDebugDrawDelegate();
-
 	return DebugProxy;
 }
-#endif // !UE_BUILD_SHIPPING
+#endif // UE_ENABLE_DEBUG_DRAWING
 
 //////////////////////////////////////////////////////////////////////////
 // UMassMovementTestingComponent

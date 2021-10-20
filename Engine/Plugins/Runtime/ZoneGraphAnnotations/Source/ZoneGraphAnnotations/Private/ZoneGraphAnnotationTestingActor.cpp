@@ -22,7 +22,7 @@ FBoxSphereBounds UZoneGraphAnnotationTestingComponent::CalcBounds(const FTransfo
 {
 	FBox CombinedBounds(ForceInit);
 	
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if UE_ENABLE_DEBUG_DRAWING
 	for (const UZoneGraphAnnotationTest* Test : Tests)
 	{
 		if (Test != nullptr)
@@ -68,7 +68,7 @@ void UZoneGraphAnnotationTestingComponent::OnRegister()
 			}
 		}
 	
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if UE_ENABLE_DEBUG_DRAWING
 		CanvasDebugDrawDelegateHandle = UDebugDrawService::Register(TEXT("ZoneGraph"), FDebugDrawDelegate::CreateUObject(this, &UZoneGraphAnnotationTestingComponent::DebugDrawCanvas));
 #endif
 	}
@@ -78,7 +78,7 @@ void UZoneGraphAnnotationTestingComponent::OnUnregister()
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if UE_ENABLE_DEBUG_DRAWING
 		UDebugDrawService::Unregister(CanvasDebugDrawDelegateHandle);
 #endif
 	}
@@ -86,34 +86,14 @@ void UZoneGraphAnnotationTestingComponent::OnUnregister()
 	Super::OnUnregister();
 }
 
-void UZoneGraphAnnotationTestingComponent::DestroyRenderState_Concurrent()
+#if UE_ENABLE_DEBUG_DRAWING
+FDebugRenderSceneProxy* UZoneGraphAnnotationTestingComponent::CreateDebugSceneProxy()
 {
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	DebugDrawDelegateHelper.UnregisterDebugDrawDelegate();
-#endif
-
-	Super::DestroyRenderState_Concurrent();
-}
-
-FPrimitiveSceneProxy* UZoneGraphAnnotationTestingComponent::CreateSceneProxy()
-{
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	
 	FZoneGraphAnnotationSceneProxy* DebugProxy = new FZoneGraphAnnotationSceneProxy(*this, FZoneGraphAnnotationSceneProxy::WireMesh);
-
 	DebugDraw(DebugProxy);
-
-	DebugDrawDelegateHelper.InitDelegateHelper(DebugProxy);
-	DebugDrawDelegateHelper.RegisterDebugDrawDelegate();
-
 	return DebugProxy;
-
-#else
-	return nullptr;
-#endif //!UE_BUILD_SHIPPING && !UE_BUILD_TEST
 }
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 void UZoneGraphAnnotationTestingComponent::DebugDraw(FDebugRenderSceneProxy* DebugProxy)
 {
 	for (UZoneGraphAnnotationTest* Test : Tests)
@@ -135,7 +115,7 @@ void UZoneGraphAnnotationTestingComponent::DebugDrawCanvas(UCanvas* Canvas, APla
 		}
 	}
 }
-#endif // !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#endif // UE_ENABLE_DEBUG_DRAWING
 
 /////////////////////////////////////////////////////
 // AZoneGraphAnnotationTestingActor

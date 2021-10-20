@@ -3,7 +3,7 @@
 #pragma once
 
 #include "GameFramework/Actor.h"
-#include "Components/PrimitiveComponent.h"
+#include "Debug/DebugDrawComponent.h"
 #include "DebugRenderSceneProxy.h"
 #include "ZoneGraphAnnotationTestingActor.generated.h"
 
@@ -19,7 +19,7 @@ class ZONEGRAPHANNOTATIONS_API UZoneGraphAnnotationTest : public UObject
 public:
 	virtual void Trigger() {}
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if UE_ENABLE_DEBUG_DRAWING
 	virtual FBox CalcBounds(const FTransform& LocalToWorld) const { return FBox(ForceInit); };
 	virtual void DebugDraw(FDebugRenderSceneProxy* DebugProxy) {}
 	virtual void DebugDrawCanvas(UCanvas* Canvas, APlayerController*) {}
@@ -37,8 +37,8 @@ protected:
 
 
 /** Debug component to test Mass ZoneGraph Annotations. Handles tests and rendering. */
-UCLASS(ClassGroup = Custom, HideCategories = (Physics, Collision, Lighting, Rendering, Mobile))
-class ZONEGRAPHANNOTATIONS_API UZoneGraphAnnotationTestingComponent : public UPrimitiveComponent
+UCLASS(ClassGroup = Debug)
+class ZONEGRAPHANNOTATIONS_API UZoneGraphAnnotationTestingComponent : public UDebugDrawComponent
 {
 	GENERATED_BODY()
 public:
@@ -54,25 +54,20 @@ protected:
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif
 
-	//~ Begin UPrimitiveComponent Interface.
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
-	virtual void DestroyRenderState_Concurrent() override;
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
-	//~ End UPrimitiveComponent Interface.
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+
+#if UE_ENABLE_DEBUG_DRAWING
+	virtual FDebugRenderSceneProxy* CreateDebugSceneProxy() override;
 	virtual void DebugDraw(FDebugRenderSceneProxy* DebugProxy);
 	virtual void DebugDrawCanvas(UCanvas* Canvas, APlayerController*);
-#endif
-	
-	UPROPERTY(EditAnywhere, Category = "Test", Instanced)
-	TArray<UZoneGraphAnnotationTest*> Tests;
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	FDebugDrawDelegateHelper DebugDrawDelegateHelper;
 	FDelegateHandle CanvasDebugDrawDelegateHandle;
 #endif
+
+	UPROPERTY(EditAnywhere, Category = "Test", Instanced)
+	TArray<UZoneGraphAnnotationTest*> Tests;
 };
 
 

@@ -13,7 +13,7 @@
 #endif
 
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if UE_ENABLE_DEBUG_DRAWING
 //////////////////////////////////////////////////////////////////////////
 // FZoneGraphAnnotationSceneProxy
 
@@ -46,13 +46,13 @@ uint32 FZoneGraphAnnotationSceneProxy::GetMemoryFootprint(void) const
 	return sizeof(*this) + FDebugRenderSceneProxy::GetAllocatedSize();
 }
 
-#endif // !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#endif // UE_ENABLE_DEBUG_DRAWING
 
 
 //////////////////////////////////////////////////////////////////////////
 // UZoneGraphAnnotationComponent
 UZoneGraphAnnotationComponent::UZoneGraphAnnotationComponent(const FObjectInitializer& ObjectInitializer)
-	: UPrimitiveComponent(ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 	SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
@@ -108,7 +108,7 @@ void UZoneGraphAnnotationComponent::OnRegister()
 		OnPostWorldInitDelegateHandle = FWorldDelegates::OnPostWorldInitialization.AddUObject(this, &UZoneGraphAnnotationComponent::OnPostWorldInit);
 	}
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if UE_ENABLE_DEBUG_DRAWING
 	CanvasDebugDrawDelegateHandle = UDebugDrawService::Register(TEXT("ZoneGraph"), FDebugDrawDelegate::CreateUObject(this, &UZoneGraphAnnotationComponent::DebugDrawCanvas));
 #endif
 }
@@ -178,7 +178,7 @@ void UZoneGraphAnnotationComponent::OnUnregister()
 	UE::ZoneGraphDelegates::OnPostZoneGraphDataAdded.Remove(OnPostZoneGraphDataAddedHandle);
 	UE::ZoneGraphDelegates::OnPreZoneGraphDataRemoved.Remove(OnPreZoneGraphDataRemovedHandle);
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if UE_ENABLE_DEBUG_DRAWING
 	UDebugDrawService::Unregister(CanvasDebugDrawDelegateHandle);
 #endif
 	
@@ -207,35 +207,17 @@ void UZoneGraphAnnotationComponent::OnPreZoneGraphDataRemoved(const AZoneGraphDa
 	PreZoneGraphDataRemoved(*ZoneGraphData);
 }
 
-void UZoneGraphAnnotationComponent::DestroyRenderState_Concurrent()
+#if UE_ENABLE_DEBUG_DRAWING
+FDebugRenderSceneProxy* UZoneGraphAnnotationComponent::CreateDebugSceneProxy()
 {
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	DebugDrawDelegateHelper.UnregisterDebugDrawDelegate();
-#endif
-
-	Super::DestroyRenderState_Concurrent();
-}
-
-FPrimitiveSceneProxy* UZoneGraphAnnotationComponent::CreateSceneProxy()
-{
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	
 	FZoneGraphAnnotationSceneProxy* DebugProxy = new FZoneGraphAnnotationSceneProxy(*this);
-
-	if(bEnableDebugDrawing)
+	if (bEnableDebugDrawing)
 	{
 		DebugDraw(DebugProxy);
 	}
-
-	DebugDrawDelegateHelper.InitDelegateHelper(DebugProxy);
-	DebugDrawDelegateHelper.RegisterDebugDrawDelegate();
-	
 	return DebugProxy;
-
-#else
-	return nullptr;
-#endif //!UE_BUILD_SHIPPING && !UE_BUILD_TEST
 }
+#endif // UE_ENABLE_DEBUG_DRAWING
 
 FBoxSphereBounds UZoneGraphAnnotationComponent::CalcBounds(const FTransform& LocalToWorld) const
 {

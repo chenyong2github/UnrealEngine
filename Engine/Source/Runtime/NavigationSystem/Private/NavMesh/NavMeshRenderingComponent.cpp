@@ -1075,6 +1075,7 @@ FNavMeshSceneProxy::FNavMeshSceneProxy(const UPrimitiveComponent* InComponent, F
 	, bForceRendering(ForceToRender)
 {
 	DrawType = EDrawType::SolidAndWireMeshes;
+	ViewFlagName = TEXT("Navigation");
 
 	if (InProxyData)
 	{
@@ -1147,30 +1148,6 @@ FNavMeshSceneProxy::~FNavMeshSceneProxy()
 	IndexBuffer.ReleaseResource();
 	VertexFactory.ReleaseResource();
 }
-
-#if WITH_RECAST && UE_ENABLE_DEBUG_DRAWING
-void FNavMeshDebugDrawDelegateHelper::RegisterDebugDrawDelegate()
-{
-	ensureMsgf(State != RegisteredState, TEXT("RegisterDebugDrawDelegate is already Registered!"));
-	if (State == InitializedState)
-	{
-		DebugTextDrawingDelegate = FDebugDrawDelegate::CreateRaw(this, &FNavMeshDebugDrawDelegateHelper::DrawDebugLabels);
-		DebugTextDrawingDelegateHandle = UDebugDrawService::Register(TEXT("Navigation"), DebugTextDrawingDelegate);
-		State = RegisteredState;
-	}
-}
-
-void FNavMeshDebugDrawDelegateHelper::UnregisterDebugDrawDelegate()
-{
-	ensureMsgf(State != InitializedState, TEXT("UnegisterDebugDrawDelegate is in an invalid State: %i !"), State);
-	if (State == RegisteredState)
-	{
-		check(DebugTextDrawingDelegate.IsBound());
-		UDebugDrawService::Unregister(DebugTextDrawingDelegateHandle);
-		State = InitializedState;
-	}
-}
-#endif
 
 void FNavMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const
 {
@@ -1493,7 +1470,7 @@ void UNavMeshRenderingComponent::OnRegister()
 {
 	Super::OnRegister();
 
-#if WITH_RECAST && !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if WITH_RECAST && UE_ENABLE_DEBUG_DRAWING
 	// it's a kind of HACK but there is no event or other information that show flag was changed by user => we have to check it periodically
 #if WITH_EDITOR
 	if (GEditor)
@@ -1505,12 +1482,12 @@ void UNavMeshRenderingComponent::OnRegister()
 	{
 		GetWorld()->GetTimerManager().SetTimer(TimerHandle, FTimerDelegate::CreateUObject(this, &UNavMeshRenderingComponent::TimerFunction), 1, true);
 	}
-#endif //WITH_RECAST && !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#endif //WITH_RECAST && UE_ENABLE_DEBUG_DRAWING
 }
 
 void UNavMeshRenderingComponent::OnUnregister()
 {
-#if WITH_RECAST && !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if WITH_RECAST && UE_ENABLE_DEBUG_DRAWING
 	// it's a kind of HACK but there is no event or other information that show flag was changed by user => we have to check it periodically
 #if WITH_EDITOR
 	if (GEditor)
@@ -1522,7 +1499,7 @@ void UNavMeshRenderingComponent::OnUnregister()
 	{
 		GetWorld()->GetTimerManager().ClearTimer(TimerHandle);
 	}
-#endif //WITH_RECAST && !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#endif //WITH_RECAST && UE_ENABLE_DEBUG_DRAWING
 	Super::OnUnregister();
 }
 
@@ -1533,9 +1510,10 @@ void UNavMeshRenderingComponent::GatherData(const ARecastNavMesh& NavMesh, FNavM
 	OutProxyData.GatherData(&NavMesh, DetailFlags, EmptyTileSet);
 }
 
-FPrimitiveSceneProxy* UNavMeshRenderingComponent::CreateSceneProxy()
+#if UE_ENABLE_DEBUG_DRAWING
+  FDebugRenderSceneProxy* UNavMeshRenderingComponent::CreateDebugSceneProxy()
 {
-#if WITH_RECAST && !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if WITH_RECAST
 	FNavMeshSceneProxy* NavMeshSceneProxy = nullptr;
 
 	const bool bShowNavigation = IsNavigationShowFlagSet(GetWorld());
@@ -1551,28 +1529,16 @@ FPrimitiveSceneProxy* UNavMeshRenderingComponent::CreateSceneProxy()
 			GatherData(*NavMesh, ProxyData);
 
 			NavMeshSceneProxy = new FNavMeshSceneProxy(this, &ProxyData);
+			NavMeshDebugDrawDelegateManager.SetupFromProxy(NavMeshSceneProxy);
 		}
 	}
 
-	if (NavMeshSceneProxy)
-	{
-		NavMeshDebugDrawDelegateManager.InitDelegateHelper(NavMeshSceneProxy);
-		NavMeshDebugDrawDelegateManager.RegisterDebugDrawDelegate();
-	}
 	return NavMeshSceneProxy;
 #else
 	return nullptr;
-#endif //WITH_RECAST && !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#endif // WITH_RECAST
 }
-
-void UNavMeshRenderingComponent::DestroyRenderState_Concurrent()
-{
-#if WITH_RECAST && !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	NavMeshDebugDrawDelegateManager.UnregisterDebugDrawDelegate();
 #endif
-
-	Super::DestroyRenderState_Concurrent();
-}
 
 FBoxSphereBounds UNavMeshRenderingComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
