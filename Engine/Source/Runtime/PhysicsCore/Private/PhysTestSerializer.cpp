@@ -29,6 +29,7 @@ using namespace Chaos;
 FPhysTestSerializer::FPhysTestSerializer()
 	: bDiskDataIsChaos(false)
 	, bChaosDataReady(false)
+	, Particles(UniqueIndices)
 {
 }
 

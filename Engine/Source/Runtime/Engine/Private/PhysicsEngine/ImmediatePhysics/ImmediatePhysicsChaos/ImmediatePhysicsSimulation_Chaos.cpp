@@ -215,6 +215,37 @@ FAutoConsoleVariableRef CVarChaosImmPhysScale(TEXT("p.Chaos.ImmPhys.DebugDraw.Sc
 
 namespace ImmediatePhysics_Chaos
 {
+
+	class FSimpleParticleUniqueIndices : public Chaos::IParticleUniqueIndices
+	{
+	public:
+		Chaos::FUniqueIdx GenerateUniqueIdx() override
+		{
+			if (FreeIndices.Num())
+			{
+				const int32 FreeIndex = FreeIndices.Pop();
+				return Chaos::FUniqueIdx(FreeIndex);
+			}
+
+			Chaos::FUniqueIdx NewUniqueIndex(NextUniqueIndex);
+			NextUniqueIndex++;
+			return NewUniqueIndex;
+		}
+
+		void ReleaseIdx(Chaos::FUniqueIdx Unique) override
+		{
+			ensure(Unique.IsValid());
+			FreeIndices.Add(Unique.Idx);
+		}
+
+		~FSimpleParticleUniqueIndices() = default;
+
+	private:
+		int32 NextUniqueIndex; // this includes all valid and freed indices
+		TArray<int32> FreeIndices;
+	};
+
+
 	struct FSimulation::FImplementation
 	{
 	public:
@@ -225,7 +256,7 @@ namespace ImmediatePhysics_Chaos
 		using FRigidParticleSOAs = Chaos::FPBDRigidsSOAs;
 
 		FImplementation()
-			: Particles()
+			: Particles(UniqueIndices)
 			, Joints()
 			, Collisions(Particles, CollidedParticles, ParticleMaterials, PerParticleMaterials, 0, 0, ChaosImmediate_Collision_CullDistance)
 			, BroadPhase(&ActivePotentiallyCollidingPairs, nullptr, nullptr, ChaosImmediate_Collision_CullDistance)
@@ -265,6 +296,7 @@ namespace ImmediatePhysics_Chaos
 		Chaos::TArrayCollectionArray<Chaos::FRotation3> ParticlePrevRs;
 
 		FRigidParticleSOAs Particles;
+		FSimpleParticleUniqueIndices UniqueIndices;
 		Chaos::FPBDJointConstraints Joints;
 		FCollisionConstraints Collisions;
 		Chaos::FParticlePairBroadPhase BroadPhase;

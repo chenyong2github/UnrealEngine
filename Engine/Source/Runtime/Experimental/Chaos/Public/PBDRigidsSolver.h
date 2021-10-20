@@ -320,6 +320,7 @@ namespace Chaos
 		FReal FloorHeight;
 
 		FParticlesType Particles;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
 		TUniquePtr<FPBDRigidsEvolution> MEvolution;
 		TUniquePtr<FEventManager> MEventManager;
 		TUniquePtr<FSolverEventFilters> MSolverEventFilters;
