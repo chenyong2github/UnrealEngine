@@ -1035,7 +1035,7 @@ public:
 				bBuildKicked = true;
 				this->UsedEncodeSpeed = (ETextureEncodeSpeed)InSettingsFetchFirst->RepresentsEncodeSpeedNoSend;
 
-				BuildSession.Get().Build(FetchDefinition, EBuildPolicy::Cache, *Owner,
+				BuildSession.Get().Build(FetchDefinition, {}, EBuildPolicy::Cache, *Owner,
 					[this, FetchOrBuildDefinition = MoveTemp(FetchOrBuildDefinition), Flags, FetchOrBuildEncodeSpeed = (ETextureEncodeSpeed)InSettingsFetchOrBuild.RepresentsEncodeSpeedNoSend](FBuildCompleteParams&& Params)
 					{
 						switch (Params.Status)
@@ -1084,9 +1084,9 @@ private:
 		EBuildPolicy BuildPolicy = EBuildPolicy::Default;
 		if (EnumHasAnyFlags(Flags, ETextureCacheFlags::ForceRebuild))
 		{
-			BuildPolicy &= ~EBuildPolicy::CacheQuery;
+			EnumRemoveFlags(BuildPolicy, EBuildPolicy::CacheQuery);
 		}
-		BuildSession.Get().Build(Definition, BuildPolicy, *Owner,
+		BuildSession.Get().Build(Definition, {}, BuildPolicy, *Owner,
 			[this](FBuildCompleteParams&& Params)
 			{
 				EndBuild(Params.CacheKey, MoveTemp(Params.Output), Params.BuildStatus);

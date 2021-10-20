@@ -6,27 +6,20 @@
 #include "Containers/StringView.h"
 #include "DerivedDataBuildKey.h"
 #include "DerivedDataBuildTypes.h"
-#include "DerivedDataRequestTypes.h"
 #include "Templates/Function.h"
 #include "Templates/UniquePtr.h"
 
 namespace UE::DerivedData { class FBuildAction; }
 namespace UE::DerivedData { class FBuildDefinition; }
-namespace UE::DerivedData { class FBuildOutput; }
 namespace UE::DerivedData { class FBuildSession; }
 namespace UE::DerivedData { class FOptionalBuildInputs; }
 namespace UE::DerivedData { class FPayload; }
 namespace UE::DerivedData { class IRequestOwner; }
-namespace UE::DerivedData { struct FBuildActionCompleteParams; }
-namespace UE::DerivedData { struct FBuildCompleteParams; }
 namespace UE::DerivedData { struct FBuildPayloadCompleteParams; }
-namespace UE::DerivedData { struct FCacheKey; }
 
 namespace UE::DerivedData
 {
 
-using FOnBuildComplete = TUniqueFunction<void (FBuildCompleteParams&& Params)>;
-using FOnBuildActionComplete = TUniqueFunction<void (FBuildActionCompleteParams&& Params)>;
 using FOnBuildPayloadComplete = TUniqueFunction<void (FBuildPayloadCompleteParams&& Params)>;
 
 } // UE::DerivedData
@@ -41,15 +34,16 @@ public:
 	virtual FStringView GetName() const = 0;
 	virtual void Build(
 		const FBuildDefinition& Definition,
-		EBuildPolicy Policy,
+		const FOptionalBuildInputs& Inputs,
+		const FBuildPolicy& Policy,
 		IRequestOwner& Owner,
 		FOnBuildComplete&& OnComplete) = 0;
-	virtual void BuildAction(
+	virtual void Build(
 		const FBuildAction& Action,
 		const FOptionalBuildInputs& Inputs,
-		EBuildPolicy Policy,
+		const FBuildPolicy& Policy,
 		IRequestOwner& Owner,
-		FOnBuildActionComplete&& OnComplete) = 0;
+		FOnBuildComplete&& OnComplete) = 0;
 	virtual void BuildPayload(
 		const FBuildPayloadKey& Payload,
 		EBuildPolicy Policy,
@@ -86,17 +80,19 @@ public:
 	 * The callback will always be called, and may be called from an arbitrary thread.
 	 *
 	 * @param Definition   The build function to execute and references to its inputs.
-	 * @param Policy       Flags to control the behavior of the request. See EBuildPolicy.
+	 * @param Inputs       The build inputs referenced by the definition, if it has any. Optional.
+	 * @param Policy       Flags to control the behavior of the request. See FBuildPolicy.
 	 * @param Owner        The owner to execute the build within.
 	 * @param OnComplete   A callback invoked when the build completes or is canceled.
 	 */
 	inline void Build(
 		const FBuildDefinition& Definition,
-		EBuildPolicy Policy,
+		const FOptionalBuildInputs& Inputs,
+		const FBuildPolicy& Policy,
 		IRequestOwner& Owner,
 		FOnBuildComplete&& OnComplete)
 	{
-		Session->Build(Definition, Policy, Owner, MoveTemp(OnComplete));
+		Session->Build(Definition, Inputs, Policy, Owner, MoveTemp(OnComplete));
 	}
 
 	/**
@@ -105,19 +101,19 @@ public:
 	 * The callback will always be called, and may be called from an arbitrary thread.
 	 *
 	 * @param Action       The build function to execute and references to its inputs.
-	 * @param Inputs       The build inputs referenced by the action, if it has any.
-	 * @param Policy       Flags to control the behavior of the request. See EBuildPolicy.
+	 * @param Inputs       The build inputs referenced by the action, if it has any. Optional.
+	 * @param Policy       Flags to control the behavior of the request. See FBuildPolicy.
 	 * @param Owner        The owner to execute the build within.
 	 * @param OnComplete   A callback invoked when the build completes or is canceled.
 	 */
-	inline void BuildAction(
+	inline void Build(
 		const FBuildAction& Action,
 		const FOptionalBuildInputs& Inputs,
-		EBuildPolicy Policy,
+		const FBuildPolicy& Policy,
 		IRequestOwner& Owner,
-		FOnBuildActionComplete&& OnComplete)
+		FOnBuildComplete&& OnComplete)
 	{
-		Session->BuildAction(Action, Inputs, Policy, Owner, MoveTemp(OnComplete));
+		Session->Build(Action, Inputs, Policy, Owner, MoveTemp(OnComplete));
 	}
 
 	/**
@@ -177,56 +173,6 @@ public:
 	inline explicit operator bool() const { return IsValid(); }
 
 	inline void Reset() { *this = FOptionalBuildSession(); }
-};
-
-/** Parameters for the completion callback for build requests. */
-struct FBuildCompleteParams
-{
-	/** Key for the build request that completed or was canceled. */
-	const FBuildKey& BuildKey;
-
-	/** Key for the build in the cache. Empty if the build completes before the key is assigned. */
-	const FCacheKey& CacheKey;
-
-	/**
-	 * Output for the build request that completed or was canceled.
-	 *
-	 * The name, function, and diagnostics are always populated.
-	 *
-	 * The payloads are populated when Status is Ok, but with null data if skipped by the policy.
-	 */
-	FBuildOutput&& Output;
-
-	/** Detailed status of the build request. */
-	EBuildStatus BuildStatus = EBuildStatus::None;
-
-	/** Basic status of the build request. */
-	EStatus Status = EStatus::Error;
-};
-
-/** Parameters for the completion callback for build action requests. */
-struct FBuildActionCompleteParams
-{
-	/** Key for the build action request that completed or was canceled. */
-	FBuildActionKey BuildKey;
-
-	/** Key for the build in the cache. Empty if the build completes before the key is assigned. */
-	const FCacheKey& CacheKey;
-
-	/**
-	 * Output for the build action request that completed or was canceled.
-	 *
-	 * The name, function, and diagnostics are always populated.
-	 *
-	 * The payloads are populated when Status is Ok, but with null data if skipped by the policy.
-	 */
-	FBuildOutput&& Output;
-
-	/** Detailed status of the build request. */
-	EBuildStatus BuildStatus = EBuildStatus::None;
-
-	/** Basic status of the build request. */
-	EStatus Status = EStatus::Error;
 };
 
 /** Parameters for the completion callback for build payload requests. */

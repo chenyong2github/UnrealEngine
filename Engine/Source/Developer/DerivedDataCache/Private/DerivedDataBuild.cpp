@@ -2,6 +2,7 @@
 
 #include "DerivedDataBuild.h"
 
+#include "Algo/Accumulate.h"
 #include "DerivedDataBuildAction.h"
 #include "DerivedDataBuildDefinition.h"
 #include "DerivedDataBuildFunctionRegistry.h"
@@ -10,6 +11,7 @@
 #include "DerivedDataBuildPrivate.h"
 #include "DerivedDataBuildScheduler.h"
 #include "DerivedDataBuildSession.h"
+#include "DerivedDataBuildTypes.h"
 #include "DerivedDataBuildWorkerRegistry.h"
 #include "DerivedDataCache.h"
 #include "Misc/Guid.h"
@@ -128,3 +130,84 @@ IBuild* CreateBuild(ICache& Cache)
 }
 
 } // UE::DerivedData::Private
+
+namespace UE::DerivedData::Private { class FBuildPolicyShared; }
+
+namespace UE::DerivedData
+{
+
+class Private::FBuildPolicyShared final : public Private::IBuildPolicyShared
+{
+public:
+	inline void AddRef() const final
+	{
+		ReferenceCount.fetch_add(1, std::memory_order_relaxed);
+	}
+
+	inline void Release() const final
+	{
+		if (ReferenceCount.fetch_sub(1, std::memory_order_acq_rel) == 1)
+		{
+			delete this;
+		}
+	}
+
+	inline TConstArrayView<FBuildPayloadPolicy> GetPayloadPolicies() const final
+	{
+		return Payloads;
+	}
+
+	inline void AddPayloadPolicy(const FBuildPayloadPolicy& Policy) final
+	{
+		Payloads.Add(Policy);
+	}
+
+	inline void Build() final
+	{
+		Algo::SortBy(Payloads, &FBuildPayloadPolicy::Id);
+	}
+
+private:
+	TArray<FBuildPayloadPolicy, TInlineAllocator<14>> Payloads;
+	mutable std::atomic<uint32> ReferenceCount{0};
+};
+
+EBuildPolicy FBuildPolicy::GetPayloadPolicy(const FPayloadId& Id) const
+{
+	if (Shared)
+	{
+		if (TConstArrayView<FBuildPayloadPolicy> Payloads = Shared->GetPayloadPolicies(); !Payloads.IsEmpty())
+		{
+			if (int32 Index = Algo::BinarySearchBy(Payloads, Id, &FBuildPayloadPolicy::Id); Index != INDEX_NONE)
+			{
+				return Payloads[Index].Policy;
+			}
+		}
+	}
+	return DefaultPayloadPolicy;
+}
+
+void FBuildPolicyBuilder::AddPayloadPolicy(const FBuildPayloadPolicy& Policy)
+{
+	if (!Shared)
+	{
+		Shared = new Private::FBuildPolicyShared;
+	}
+	Shared->AddPayloadPolicy(Policy);
+}
+
+FBuildPolicy FBuildPolicyBuilder::Build()
+{
+	FBuildPolicy Policy(BasePolicy);
+	if (Shared)
+	{
+		Shared->Build();
+		const auto PolicyOr = [](EBuildPolicy A, EBuildPolicy B) { return A | (B & EBuildPolicy::Default); };
+		const TConstArrayView<FBuildPayloadPolicy> Payloads = Shared->GetPayloadPolicies();
+		Policy.CombinedPolicy = Algo::TransformAccumulate(Payloads, &FBuildPayloadPolicy::Policy, BasePolicy, PolicyOr);
+		Policy.Shared = MoveTemp(Shared);
+	}
+	return Policy;
+}
+
+} // UE::DerivedData

@@ -97,8 +97,8 @@ public:
 	virtual void AddPayload(const FPayloadId& Id, const FSharedBuffer& Buffer) = 0;
 	virtual void AddPayload(const FPayloadId& Id, const FCbObject& Object) = 0;
 
-	/** Overrides the default cache policy used when writing this build in the cache. */
-	virtual void SetCachePolicy(ECachePolicy Policy) = 0;
+	/** Overrides the cache policy mask used when writing this build in the cache. */
+	virtual void SetCachePolicyMask(ECachePolicy Policy) = 0;
 
 	/**
 	 * Make this an asynchronous build by making the caller responsible for completing the build.
@@ -137,27 +137,29 @@ public:
 	/** Overrides the cache bucket used when reading or writing this build in the cache. */
 	virtual void SetCacheBucket(FCacheBucket Bucket) = 0;
 
-	/** Returns the cache policy used when reading or writing this build in the cache. */
-	virtual ECachePolicy GetCachePolicy() const = 0;
+	/** Returns the cache policy mask used when reading or writing this build in the cache. */
+	virtual ECachePolicy GetCachePolicyMask() const = 0;
 
 	/**
-	 * Overrides the cache policy used when reading or writing this build in the cache.
+	 * Overrides the cache policy mask used when reading or writing this build in the cache.
 	 *
-	 * Always set the cache policy by modifying the policy returned by GetCachePolicy(), to maintain
-	 * the state of other flags. Changes to Skip* and KeepAlive flags are not allowed.
+	 * Allows Query and Store flags to be cleared for this build by removing them from the mask.
+	 *
+	 * Set the mask to the bitwise complement of the flags to be cleared: ~ECachePolicy::Remote.
 	 */
-	virtual void SetCachePolicy(ECachePolicy Policy) = 0;
+	virtual void SetCachePolicyMask(ECachePolicy Policy) = 0;
 
-	/** Returns the build policy used when executing this build. */
-	virtual EBuildPolicy GetBuildPolicy() const = 0;
+	/** Returns the build policy mask used when executing this build. */
+	virtual EBuildPolicy GetBuildPolicyMask() const = 0;
 
 	/**
-	 * Overrides the build policy used when executing this build.
+	 * Overrides the build policy mask used when executing this build.
 	 *
-	 * Always set the build policy by modifying the policy returned by GetBuildPolicy(), to maintain
-	 * the state of other flags. Changes to Cache* and Skip* flags are not allowed.
+	 * Allows Build flags to be cleared for this build by removing them from the mask.
+	 *
+	 * Set the mask to the bitwise complement of the flags to be cleared: ~EBuildPolicy::BuildRemote.
 	 */
-	virtual void SetBuildPolicy(EBuildPolicy Policy) = 0;
+	virtual void SetBuildPolicyMask(EBuildPolicy Policy) = 0;
 
 	/** Sets the estimated peak memory required to execute the build, excluding input size. */
 	virtual void SetRequiredMemory(uint64 RequiredMemory) = 0;

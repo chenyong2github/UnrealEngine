@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Containers/StringFwd.h"
+#include "DerivedDataBuildTypes.h"
 #include "Logging/LogMacros.h"
 #include "Misc/AsciiSet.h"
 
@@ -16,6 +17,7 @@ namespace UE::DerivedData { class FBuildDefinition; }
 namespace UE::DerivedData { class FBuildDefinitionBuilder; }
 namespace UE::DerivedData { class FBuildInputsBuilder; }
 namespace UE::DerivedData { class FBuildOutputBuilder; }
+namespace UE::DerivedData { class FBuildPolicy; }
 namespace UE::DerivedData { class FBuildSession; }
 namespace UE::DerivedData { class FOptionalBuildInputs; }
 namespace UE::DerivedData { class IBuild; }
@@ -25,10 +27,7 @@ namespace UE::DerivedData { class IBuildScheduler; }
 namespace UE::DerivedData { class IBuildWorkerRegistry; }
 namespace UE::DerivedData { class ICache; }
 namespace UE::DerivedData { class IRequestOwner; }
-namespace UE::DerivedData { struct FBuildJobCompleteParams; }
 namespace UE::DerivedData { struct FBuildKey; }
-namespace UE::DerivedData { enum class EBuildPolicy : uint32; }
-namespace UE::DerivedData { using FOnBuildJobComplete = TUniqueFunction<void (FBuildJobCompleteParams&& Params)>; }
 
 namespace UE::DerivedData::Private
 {
@@ -75,11 +74,24 @@ struct FBuildJobCreateParams
 	IBuildScheduler& Scheduler;
 	IBuildInputResolver* InputResolver{};
 	IRequestOwner& Owner;
-	EBuildPolicy Policy{};
 };
-void CreateBuildJob(const FBuildJobCreateParams& Params, const FBuildKey& Key, FOnBuildJobComplete&& OnComplete);
-void CreateBuildJob(const FBuildJobCreateParams& Params, const FBuildDefinition& Definition, FOnBuildJobComplete&& OnComplete);
-void CreateBuildJob(const FBuildJobCreateParams& Params, const FBuildAction& Action, const FOptionalBuildInputs& Inputs, FOnBuildJobComplete&& OnComplete);
+void CreateBuildJob(
+	const FBuildJobCreateParams& Params,
+	const FBuildKey& Key,
+	const FBuildPolicy& Policy,
+	FOnBuildComplete&& OnComplete);
+void CreateBuildJob(
+	const FBuildJobCreateParams& Params,
+	const FBuildDefinition& Definition,
+	const FOptionalBuildInputs& Inputs,
+	const FBuildPolicy& Policy,
+	FOnBuildComplete&& OnComplete);
+void CreateBuildJob(
+	const FBuildJobCreateParams& Params,
+	const FBuildAction& Action,
+	const FOptionalBuildInputs& Inputs,
+	const FBuildPolicy& Policy,
+	FOnBuildComplete&& OnComplete);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

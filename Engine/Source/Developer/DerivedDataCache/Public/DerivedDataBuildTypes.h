@@ -3,10 +3,22 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "DerivedDataPayloadId.h"
+#include "DerivedDataRequestTypes.h"
 #include "Misc/EnumClassFlags.h"
+#include "Templates/RefCounting.h"
+
+#define UE_API DERIVEDDATACACHE_API
+
+namespace UE::DerivedData { class FBuildOutput; }
+namespace UE::DerivedData { struct FBuildCompleteParams; }
+namespace UE::DerivedData { struct FCacheKey; }
+namespace UE::DerivedData::Private { class IBuildPolicyShared; }
 
 namespace UE::DerivedData
 {
+
+using FOnBuildComplete = TUniqueFunction<void (FBuildCompleteParams&& Params)>;
 
 /**
  * Flags to control the behavior of build requests.
@@ -24,33 +36,121 @@ namespace UE::DerivedData
 enum class EBuildPolicy : uint32
 {
 	/** A value without any flags set. */
-	None            = 0,
+	None                = 0,
 
 	/** Allow local execution of the build function. */
-	BuildLocal      = 1 << 0,
+	BuildLocal          = 1 << 0,
 	/** Allow remote execution of the build function if it has a registered build worker. */
-	BuildRemote     = 1 << 1,
+	BuildRemote         = 1 << 1,
 	/** Allow local and remote execution of the build function. */
-	Build           = BuildLocal | BuildRemote,
+	Build               = BuildLocal | BuildRemote,
 
 	/** Allow a cache query to avoid having to build. */
-	CacheQuery      = 1 << 2,
+	CacheQuery          = 1 << 2,
+	/** Allow a cache store to persist the build output when another cache store contains it. */
+	CacheStoreOnQuery   = 1 << 3,
+	/** Allow a cache store to persist the build output when the build function executes. */
+	CacheStoreOnBuild   = 1 << 4,
 	/** Allow a cache store to persist the build output. */
-	CacheStore      = 1 << 3,
+	CacheStore          = CacheStoreOnQuery | CacheStoreOnBuild,
 	/** Allow a cache query and a cache store for the build. */
-	Cache           = CacheQuery | CacheStore,
+	Cache               = CacheQuery | CacheStore,
 
 	/** Keep records in the cache for at least the duration of the session. */
-	CacheKeepAlive  = 1 << 4,
+	CacheKeepAlive      = 1 << 5,
 
-	/** Skip fetching the payload data from the cache. */
-	SkipData        = 1 << 5,
+	/** Skip fetching or returning data for the payloads. */
+	SkipData            = 1 << 6,
 
 	/** Allow cache query+store, allow local+remote build when missed or skipped, and fetch the payload(s). */
-	Default         = Build | Cache,
+	Default             = Build | Cache,
 };
 
 ENUM_CLASS_FLAGS(EBuildPolicy);
+
+/** A payload ID and the build policy to use for that payload. */
+struct FBuildPayloadPolicy
+{
+	FPayloadId Id;
+	EBuildPolicy Policy = EBuildPolicy::Default;
+};
+
+/** Interface for the private implementation of the build policy. */
+class Private::IBuildPolicyShared
+{
+public:
+	virtual ~IBuildPolicyShared() = default;
+	virtual void AddRef() const = 0;
+	virtual void Release() const = 0;
+	virtual TConstArrayView<FBuildPayloadPolicy> GetPayloadPolicies() const = 0;
+	virtual void AddPayloadPolicy(const FBuildPayloadPolicy& Policy) = 0;
+	virtual void Build() = 0;
+};
+
+/** Flags to control the behavior of build requests, with optional overrides by payload. */
+class FBuildPolicy
+{
+public:
+	/** Construct a build policy that uses the default policy. */
+	FBuildPolicy() = default;
+
+	/** Construct a build policy with a single policy for every payload. */
+	inline FBuildPolicy(EBuildPolicy Policy)
+		: CombinedPolicy(Policy)
+		, DefaultPayloadPolicy(Policy)
+	{
+	}
+
+	/** Returns true if every payload uses the same build policy. */
+	inline bool IsUniform() const { return !Shared; }
+
+	/** Returns the build policy combined from the payload policies. */
+	inline EBuildPolicy GetCombinedPolicy() const { return CombinedPolicy; }
+
+	/** Returns the build policy to use for the payload. */
+	UE_API EBuildPolicy GetPayloadPolicy(const FPayloadId& Id) const;
+
+	/** Returns the build policy to use for payloads with no override. */
+	inline EBuildPolicy GetDefaultPayloadPolicy() const { return DefaultPayloadPolicy; }
+
+	/** Returns the array of build policy overrides for payloads, sorted by ID. */
+	inline TConstArrayView<FBuildPayloadPolicy> GetPayloadPolicies() const
+	{
+		return Shared ? Shared->GetPayloadPolicies() : TConstArrayView<FBuildPayloadPolicy>();
+	}
+
+private:
+	friend class FBuildPolicyBuilder;
+
+	EBuildPolicy CombinedPolicy = EBuildPolicy::Default;
+	EBuildPolicy DefaultPayloadPolicy = EBuildPolicy::Default;
+	TRefCountPtr<const Private::IBuildPolicyShared> Shared;
+};
+
+/** A build policy builder is used to construct a build policy. */
+class FBuildPolicyBuilder
+{
+public:
+	/** Construct a policy builder that uses the default policy. */
+	FBuildPolicyBuilder() = default;
+
+	/** Construct a policy builder that uses the provided policy for payloads with no override. */
+	inline explicit FBuildPolicyBuilder(EBuildPolicy Policy)
+		: BasePolicy(Policy)
+	{
+	}
+
+	/** Adds a build policy override for a payload. */
+	UE_API void AddPayloadPolicy(const FBuildPayloadPolicy& Policy);
+	inline void AddPayloadPolicy(const FPayloadId& Id, EBuildPolicy Policy) { AddPayloadPolicy({Id, Policy}); }
+
+	/** Build a build policy, which makes this builder subsequently unusable. */
+	UE_API FBuildPolicy Build();
+
+private:
+	EBuildPolicy BasePolicy = EBuildPolicy::Default;
+	TRefCountPtr<Private::IBuildPolicyShared> Shared;
+};
 
 /** Flags for build request completion callbacks. */
 enum class EBuildStatus : uint32
@@ -86,4 +186,28 @@ enum class EBuildStatus : uint32
 
 ENUM_CLASS_FLAGS(EBuildStatus);
 
+/** Parameters for the completion callback for build requests. */
+struct FBuildCompleteParams
+{
+	/** Key for the build in the cache. Empty if the build completes before the key is assigned. */
+	const FCacheKey& CacheKey;
+
+	/**
+	 * Output for the build request that completed or was canceled.
+	 *
+	 * The name, function, and diagnostics are always populated.
+	 *
+	 * The payloads are populated when Status is Ok, but with null data if skipped by the policy.
+	 */
+	FBuildOutput&& Output;
+
+	/** Detailed status of the build request. */
+	EBuildStatus BuildStatus = EBuildStatus::None;
+
+	/** Basic status of the build request. */
+	EStatus Status = EStatus::Error;
+};
+
 } // UE::DerivedData
+
+#undef UE_API
