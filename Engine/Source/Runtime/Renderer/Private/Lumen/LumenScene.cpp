@@ -653,14 +653,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 		{
 			const TConstArrayView<FPrimitiveInstance> InstanceSceneData = ScenePrimitiveInfo->Proxy->GetInstanceSceneData();
 
-			int32 NumInstances = FMath::Max(InstanceSceneData.Num(), 1);
-
-			// #lumen_todo: Remove after non-Nanite per instance ISM capture is fixed (now every instance draws entire ISM)
-			if (!ScenePrimitiveInfo->Proxy->IsNaniteMesh())
-			{
-				NumInstances = 1;
-			}
-
+			const int32 NumInstances = FMath::Max(InstanceSceneData.Num(), 1);
 			bool bAnyInstanceValid = false;
 			{
 				const FMatrix& PrimitiveToWorld = ScenePrimitiveInfo->Proxy->GetLocalToWorld();
