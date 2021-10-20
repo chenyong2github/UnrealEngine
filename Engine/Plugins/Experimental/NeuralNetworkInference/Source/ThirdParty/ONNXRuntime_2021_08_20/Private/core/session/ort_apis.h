@@ -69,9 +69,7 @@ ORT_API_STATUS_IMPL(SetSessionGraphOptimizationLevel, _In_ OrtSessionOptions* op
 ORT_API_STATUS_IMPL(SetIntraOpNumThreads, _Inout_ OrtSessionOptions* options, int intra_op_num_threads);
 ORT_API_STATUS_IMPL(SetInterOpNumThreads, _Inout_ OrtSessionOptions* options, int inter_op_num_threads);
 
-#ifdef WITH_UE
-ORT_API_STATUS_IMPL(SetPriorityOpThreads, _Inout_ OrtSessionOptions* options, EThreadPriority ThreadPri);
-#endif //WITH_UE
+ORT_API_STATUS_IMPL(SetPriorityOpThreads, _Inout_ OrtSessionOptions* options, EThreadPriority ThreadPri); // WITH_UE
 
 ORT_API_STATUS_IMPL(CreateCustomOpDomain, _In_ const char* domain, _Outptr_ OrtCustomOpDomain** out);
 ORT_API_STATUS_IMPL(CustomOpDomain_Add, _Inout_ OrtCustomOpDomain* custom_op_domain, _In_ const OrtCustomOp* op);
