@@ -68,10 +68,10 @@ public:
 	static const FName ExecutionIndexToUnitFunctionName;
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "false", EditConditionHides))
 	TSet<int> OutputShaderStages;
 
-	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "false", EditConditionHides))
 	TSet<int> IterationShaderStages;
 
 public:
@@ -131,23 +131,23 @@ class NIAGARA_API UNiagaraDataInterfaceGrid3D : public UNiagaraDataInterfaceRWBa
 
 public:
 	// Number of cells
-	UPROPERTY(EditAnywhere, Category = "Grid")
+	UPROPERTY(EditAnywhere, Category = "Grid", meta=(EditCondition = "false", EditConditionHides))
 	FIntVector NumCells;
 
 	// World space size of a cell
-	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "false", EditConditionHides))
 	float CellSize;
 
 	// Number of cells on the longest axis
-	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "false", EditConditionHides))
 	int32 NumCellsMaxAxis;
 
 	// Method for setting the grid resolution
-	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "false", EditConditionHides))
 	ESetResolutionMethod SetResolutionMethod;
 	
 	// World size of the grid
-	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "false", EditConditionHides))
 	FVector WorldBBoxSize;
 
 public:
@@ -181,15 +181,15 @@ class NIAGARA_API UNiagaraDataInterfaceGrid2D : public UNiagaraDataInterfaceRWBa
 
 public:
 	// Number of cells in X
-	UPROPERTY(EditAnywhere, Category = "Grid")
+	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "false", EditConditionHides))
 	int32 NumCellsX;
 
 	// Number of cells in Y
-	UPROPERTY(EditAnywhere, Category = "Grid")
+	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "false", EditConditionHides))
 	int32 NumCellsY;
 	
 	// Number of cells on the longest axis
-	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "false", EditConditionHides))
 	int32 NumCellsMaxAxis;
 
 	// Number of Attributes
@@ -197,11 +197,11 @@ public:
 	int32 NumAttributes;
 
 	// Set grid resolution according to longest axis
-	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "false", EditConditionHides))
 	bool SetGridFromMaxAxis;	
 
 	// World size of the grid
-	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "false", EditConditionHides))
 	FVector2D WorldBBoxSize;
 
 
