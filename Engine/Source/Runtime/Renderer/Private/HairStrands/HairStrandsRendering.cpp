@@ -119,7 +119,7 @@ void RenderHairPrePass(
 		}
 
 		//SCOPED_GPU_STAT(RHICmdList, HairRendering);
-		CreateHairStrandsMacroGroups(GraphBuilder, Scene, View);
+		CreateHairStrandsMacroGroups(GraphBuilder, Scene, View, View.HairStrandsViewData);
 		GraphBuilder.AddDispatchHint();
 
 		// Voxelization and Deep Opacity Maps
@@ -224,6 +224,18 @@ bool HasViewHairStrandsData(const FViewInfo& View)
 bool HasViewHairStrandsVoxelData(const FViewInfo& View)
 {
 	return View.HairStrandsViewData.bIsValid && View.HairStrandsViewData.VirtualVoxelResources.IsValid();
+}
+
+bool HasViewHairStrandsData(const TArray<FViewInfo>& Views)
+{
+	for (const FViewInfo& View : Views)
+	{
+		if (View.HairStrandsViewData.bIsValid)
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 bool HasViewHairStrandsData(const TArrayView<FViewInfo>& Views)

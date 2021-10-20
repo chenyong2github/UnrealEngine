@@ -32,6 +32,7 @@
 #include "GroomCacheStreamingManager.h"
 #include "GroomPluginSettings.h"
 #include "Async/ParallelFor.h"
+#include "PrimitiveSceneInfo.h"
 
 static int32 GHairEnableAdaptiveSubsteps = 0;  
 static FAutoConsoleVariableRef CVarHairEnableAdaptiveSubsteps(TEXT("r.HairStrands.EnableAdaptiveSubsteps"), GHairEnableAdaptiveSubsteps, TEXT("Enable adaptive solver substeps"));
@@ -822,7 +823,9 @@ public:
 		int32 SingleCaptureIndex;
 		bool bOutputVelocity = GeometryType == EHairGeometryType::Cards || GeometryType == EHairGeometryType::Meshes;
 		bool bDrawVelocity = bOutputVelocity; // Velocity vector is done in a custom fashion
-		GetScene().GetPrimitiveUniformShaderParameters_RenderThread(GetPrimitiveSceneInfo(), bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex, bOutputVelocity);
+
+		FPrimitiveSceneInfo* PrimSceneInfo = GetPrimitiveSceneInfo();
+		GetScene().GetPrimitiveUniformShaderParameters_RenderThread(PrimSceneInfo, bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex, bOutputVelocity);
 
 		const bool bUseProxy = UseProxyLocalToWorld(Instance);
 
@@ -865,6 +868,7 @@ public:
 		#endif
 		Mesh.DepthPriorityGroup = SDPG_World;
 		Mesh.bCanApplyViewModeOverrides = false;
+		Mesh.BatchHitProxyId = PrimSceneInfo->DefaultDynamicHitProxyId;
 
 		return &Mesh;
 	}

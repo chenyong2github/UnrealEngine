@@ -16,6 +16,7 @@
 #include "MeshPassProcessor.inl"
 #include "ScenePrivate.h"
 #include "SceneTextureReductions.h"
+#include "PixelShaderUtils.h"
 
 DECLARE_GPU_STAT(HairStrandsVisibility);
 
@@ -3137,6 +3138,249 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Selection outline
+
+class FHairStrandsEmitSelectionPS : public FNaniteShader
+{
+	DECLARE_GLOBAL_SHADER(FHairStrandsEmitSelectionPS);
+	SHADER_USE_PARAMETER_STRUCT(FHairStrandsEmitSelectionPS, FNaniteShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(uint32, MaxMaterialCount)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VisNodeIndex)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedHairVis>, VisNodeData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, SelectionMaterialIdBuffer)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SHADER_SELECTION"), 1);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FHairStrandsEmitSelectionPS, "/Engine/Private/HairStrands/HairStrandsHitProxy.usf", "EmitPS", SF_Pixel);
+
+void AddHairStrandsSelectionOutlinePass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	FRDGTextureRef VisNodeIndex,
+	FRDGBufferRef VisNodeData,
+	FRDGTextureRef SelectionDepthTexture)
+{
+#if WITH_EDITOR
+	// Create mapping table between PrimitiveId and BatchId
+	TArray<uint32> SelectionMaterialId;
+	SelectionMaterialId.Reserve(View.HairStrandsMeshElements.Num());
+	for (const FMeshBatchAndRelevance& MeshBatch : View.HairStrandsMeshElements)
+	{
+		const uint32 bSelected = MeshBatch.PrimitiveSceneProxy->IsSelected() ? 1u : 0u;
+		SelectionMaterialId.Add(bSelected);
+	}
+
+	FRDGBufferRef SelectionMaterialIdBuffer = CreateUploadBuffer(GraphBuilder, TEXT("Hair.MaterialIdToHitProxyIdBuffer"), sizeof(uint32), SelectionMaterialId.Num(), SelectionMaterialId.GetData(), sizeof(uint32) * SelectionMaterialId.Num());
+	auto* PassParameters = GraphBuilder.AllocParameters<FHairStrandsEmitSelectionPS::FParameters>();
+	PassParameters->View = View.ViewUniformBuffer;
+	PassParameters->MaxMaterialCount = SelectionMaterialId.Num();
+	PassParameters->VisNodeIndex = VisNodeIndex;
+	PassParameters->VisNodeData = GraphBuilder.CreateSRV(VisNodeData);
+	PassParameters->SelectionMaterialIdBuffer = GraphBuilder.CreateSRV(SelectionMaterialIdBuffer, PF_R32_UINT);
+	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SelectionDepthTexture, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
+
+	auto PixelShader = View.ShaderMap->GetShader<FHairStrandsEmitSelectionPS>();
+
+	FPixelShaderUtils::AddFullscreenPass(
+		GraphBuilder,
+		View.ShaderMap,
+		RDG_EVENT_NAME("HairStrands::EmitSelection"),
+		PixelShader,
+		PassParameters,
+		View.ViewRect,
+		TStaticBlendState<>::GetRHI(),
+		TStaticRasterizerState<>::GetRHI(),
+		TStaticDepthStencilState<true, CF_DepthNearOrEqual, true, CF_Always, SO_Keep, SO_Keep, SO_Replace>::GetRHI(), 
+		3);
+#endif
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// HitProxyId
+
+class FHairStrandsEmitHitProxyIdPS : public FNaniteShader
+{
+	DECLARE_GLOBAL_SHADER(FHairStrandsEmitHitProxyIdPS);
+	SHADER_USE_PARAMETER_STRUCT(FHairStrandsEmitHitProxyIdPS, FNaniteShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(uint32, MaxMaterialCount)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VisNodeIndex)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedHairVis>, VisNodeData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, MaterialIdToHitProxyIdBuffer)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SHADER_HITPROXY_ID"), 1);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FHairStrandsEmitHitProxyIdPS, "/Engine/Private/HairStrands/HairStrandsHitProxy.usf", "EmitPS", SF_Pixel);
+
+void AddHairStrandsHitProxyIdPass(
+	FRDGBuilder& GraphBuilder,
+	const FScene& Scene,
+	const FViewInfo& View,	
+	FRDGTextureRef VisNodeIndex,
+	FRDGBufferRef VisNodeData,
+	FRDGTextureRef HitProxyTexture,
+	FRDGTextureRef HitProxyDepthTexture)
+{
+#if WITH_EDITOR
+	// Create mapping table between PrimitiveId and BatchId
+	TArray<uint32> MaterialIdToHitProxyId;
+	MaterialIdToHitProxyId.Reserve(View.HairStrandsMeshElements.Num());
+	for (const FMeshBatchAndRelevance& MeshBatch : View.HairStrandsMeshElements)
+	{
+		uint32 HitColor = MeshBatch.Mesh->BatchHitProxyId.GetColor().DWColor();
+		MaterialIdToHitProxyId.Add(HitColor);
+	}
+
+	FRDGBufferRef MaterialIdToHitProxyIdBuffer = CreateUploadBuffer(GraphBuilder, TEXT("Hair.MaterialIdToHitProxyIdBuffer"), sizeof(uint32), MaterialIdToHitProxyId.Num(), MaterialIdToHitProxyId.GetData(), sizeof(uint32) * MaterialIdToHitProxyId.Num());
+	auto* PassParameters = GraphBuilder.AllocParameters<FHairStrandsEmitHitProxyIdPS::FParameters>();
+	PassParameters->View = View.ViewUniformBuffer;
+	PassParameters->MaxMaterialCount = MaterialIdToHitProxyId.Num();
+	PassParameters->VisNodeIndex = VisNodeIndex;
+	PassParameters->VisNodeData = GraphBuilder.CreateSRV(VisNodeData);
+	PassParameters->MaterialIdToHitProxyIdBuffer = GraphBuilder.CreateSRV(MaterialIdToHitProxyIdBuffer, PF_R32_UINT);
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(HitProxyTexture, ERenderTargetLoadAction::ELoad);
+	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(HitProxyDepthTexture, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
+
+	auto PixelShader = View.ShaderMap->GetShader<FHairStrandsEmitHitProxyIdPS>();
+
+	FPixelShaderUtils::AddFullscreenPass(
+		GraphBuilder,
+		View.ShaderMap,
+		RDG_EVENT_NAME("HairStrands::EmitHitProxyId"),
+		PixelShader,
+		PassParameters,
+		View.ViewRect,
+		TStaticBlendState<>::GetRHI(),
+		TStaticRasterizerState<>::GetRHI(),
+		TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
+#endif
+}
+
+namespace HairStrands
+{
+
+void DrawEditorSelection(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SelectionDepthTexture)
+{
+	AddHairStrandsSelectionOutlinePass(
+		GraphBuilder,
+		View,
+		View.HairStrandsViewData.VisibilityData.NodeIndex,
+		View.HairStrandsViewData.VisibilityData.NodeVisData,
+		SelectionDepthTexture);
+}
+
+void DrawHitProxies(
+	FRDGBuilder& GraphBuilder,
+	const FScene& Scene,
+	const FViewInfo& View,
+	FInstanceCullingManager& InstanceCullingManager,
+	FRDGTextureRef HitProxyTexture,
+	FRDGTextureRef HitProxyDepthTexture)
+{
+	// The hit proxy view reuse data generated by regular view. This means it assumes LOD selection, simulation, and interpolation has run. 
+	// Geometry won't be updated for proxy view
+	const FIntPoint Resolution = HitProxyTexture->Desc.Extent;
+	FHairStrandsViewData HairStrandsViewData;
+	CreateHairStrandsMacroGroups(GraphBuilder, &Scene, View, HairStrandsViewData);
+
+	// We don't compute the transmittance texture as there is no need for picking.
+	FRDGTextureRef DummyTransmittanceTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(Resolution, PF_R32_FLOAT, FClearValueBinding::White, ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV), TEXT("Hair.DummyTransmittanceTextureForHitProxyId"));
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(DummyTransmittanceTexture), 1.0f);
+
+	FHairStrandsTiles TileData;
+	const FHairStrandsMacroGroupDatas& MacroGroupDatas = HairStrandsViewData.MacroGroupDatas;
+	FHairPrimaryTransmittance ViewTransmittance;
+
+	FRDGTextureRef SceneDepthTexture = HitProxyDepthTexture;
+	FRDGTextureRef VisDepthTexture = AddHairVisibilityFillOpaqueDepth(
+		GraphBuilder,
+		View,
+		Resolution,
+		MacroGroupDatas,
+		TileData,
+		SceneDepthTexture);
+
+	FRDGTextureRef VisIdTexture = nullptr;
+	AddHairVisibilityMSAAPass(
+		GraphBuilder,
+		&Scene,
+		&View,
+		MacroGroupDatas,
+		Resolution,
+		TileData,
+		InstanceCullingManager,
+		VisIdTexture,
+		VisDepthTexture);
+
+
+	FHairVisibilityPrimitiveIdCompactionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairVisibilityPrimitiveIdCompactionCS::FParameters>();
+	PassParameters->MSAA_DepthTexture = VisDepthTexture;
+	PassParameters->MSAA_IDTexture = VisIdTexture;
+	PassParameters->ViewTransmittanceTexture = DummyTransmittanceTexture;
+
+	const uint32 NodeGroupSize = GetVendorOptimalGroupSize1D();
+	const uint32 MaxSampleCount = 4;
+
+	FRDGTextureRef NodeCounter = nullptr;
+	FRDGTextureRef VisNodeIndex = nullptr;
+	FRDGBufferRef  VisNodeData = nullptr;
+	FRDGBufferRef  VisNodeCoord = nullptr;
+	FRDGBufferRef  IndirectArgsBuffer = nullptr;
+	FRDGTextureRef ResolveMaskTexture = nullptr;
+	FRDGTextureRef CoverageTexture = nullptr;
+
+	uint32 OutMaxNodeCount = 0;
+	AddHairVisibilityPrimitiveIdCompactionPass(
+		false, // bUsePPLL
+		GraphBuilder,
+		View,
+		SceneDepthTexture,
+		MacroGroupDatas,
+		NodeGroupSize,
+		TileData,
+		PassParameters,
+		NodeCounter,
+		VisNodeIndex,
+		VisNodeData,
+		VisNodeCoord,
+		CoverageTexture,
+		nullptr, // Velocity output is only needed for PPLL
+		IndirectArgsBuffer,
+		OutMaxNodeCount);
+
+	AddHairStrandsHitProxyIdPass(GraphBuilder, Scene, View, VisNodeIndex, VisNodeData, HitProxyTexture, HitProxyDepthTexture);
+}
+
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 bool GetHairStrandsSkyLightingEnable();
 
 void RenderHairStrandsVisibilityBuffer(
@@ -3473,6 +3717,7 @@ void RenderHairStrandsVisibilityBuffer(
 					VisibilityData.CoverageTexture		= CoverageTexture;
 					VisibilityData.HairOnlyDepthTexture	= HairOnlyDepthTexture;
 					VisibilityData.NodeData				= CompactNodeData;
+					VisibilityData.NodeVisData			= CompactNodeVis;
 					VisibilityData.NodeCoord			= CompactNodeCoord;
 					VisibilityData.NodeIndirectArg		= IndirectArgsBuffer;
 					VisibilityData.NodeCount			= NodeCounter;

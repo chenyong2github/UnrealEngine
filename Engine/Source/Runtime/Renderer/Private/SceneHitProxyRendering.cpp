@@ -29,6 +29,7 @@
 #include "VT/VirtualTextureSystem.h"
 #include "SceneRenderingUtils.h"
 #include "InstanceCulling/InstanceCullingManager.h"
+#include "HairStrands/HairStrandsData.h"
 
 class FHitProxyShaderElementData : public FMeshMaterialShaderElementData
 {
@@ -221,7 +222,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 static void AddViewMeshElementsPass(const TIndirectArray<FMeshBatch> &MeshElements, FRDGBuilder& GraphBuilder, FHitProxyPassParameters* PassParameters, const FScene* Scene, const FViewInfo& View, const FMeshPassProcessorRenderState& DrawRenderState, FInstanceCullingManager& InstanceCullingManager)
 {
-	AddSimpleMeshPass(GraphBuilder, PassParameters, Scene, View, &InstanceCullingManager, RDG_EVENT_NAME("HitProxyMeshElementsPass"), View.ViewRect,
+	AddSimpleMeshPass(GraphBuilder, PassParameters, Scene, View, &InstanceCullingManager, RDG_EVENT_NAME("HitProxy::MeshElementsPass"), View.ViewRect,
 		[&View, Scene, DrawRenderState, &MeshElements](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 		{
 			FHitProxyMeshProcessor PassMeshProcessor(
@@ -261,7 +262,7 @@ static void DoRenderHitProxies(
 		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(HitProxyDepthTexture, ERenderTargetLoadAction::EClear, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("ClearHitProxies"),
+			RDG_EVENT_NAME("HitProxies::Clear"),
 			PassParameters,
 			ERDGPassFlags::Raster,
 			[&Views, HitProxyTextureExtent](FRHICommandList& RHICmdList)
@@ -278,11 +279,21 @@ static void DoRenderHitProxies(
 		});
 	}
 
+	// Nanite hit proxies
 	if (NaniteRasterResults.Num() == Views.Num())
 	{
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 		{
 			Nanite::DrawHitProxies(GraphBuilder, *SceneRenderer->Scene, Views[ViewIndex], NaniteRasterResults[ViewIndex], HitProxyTexture, HitProxyDepthTexture);
+		}
+	}
+
+	// HairStrands hit proxies
+	for (const FViewInfo& View : Views)
+	{		
+		if (View.HairStrandsMeshElements.Num() > 0)
+		{
+			HairStrands::DrawHitProxies(GraphBuilder, *SceneRenderer->Scene, View, InstanceCullingManager, HitProxyTexture, HitProxyDepthTexture);
 		}
 	}
 
@@ -310,7 +321,7 @@ static void DoRenderHitProxies(
 		PassParameters->SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, SceneRenderer->FeatureLevel, ESceneTextureSetupMode::None);
 
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("RenderHitProxies"),
+			RDG_EVENT_NAME("HitProxies::Render"),
 			PassParameters,
 			ERDGPassFlags::Raster,
 			[SceneRenderer, &View, LocalScene, FeatureLevel, bNeedToSwitchVerticalAxis, PassParameters](FRHICommandListImmediate& RHICmdList)
@@ -467,7 +478,7 @@ static void DoRenderHitProxies(
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(ViewFamilyTexture, ERenderTargetLoadAction::ELoad);
 
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("HitProxies"),
+			RDG_EVENT_NAME("HitProxies::CopyOutput"),
 			PassParameters,
 			ERDGPassFlags::Raster,
 			[&Views, HitProxyTextureExtent, HitProxyTexture, ViewFamilyTexture, FeatureLevel, bNeedToSwitchVerticalAxis](FRHICommandListImmediate& RHICmdList)

@@ -98,6 +98,7 @@ struct FHairStrandsVisibilityData
 	FRDGTextureRef	NodeCount = nullptr;
 	FRDGTextureRef	NodeIndex = nullptr;
 	FRDGBufferRef	NodeData = nullptr;
+	FRDGBufferRef	NodeVisData = nullptr;
 	FRDGBufferRef	NodeCoord = nullptr;
 	FRDGBufferRef	NodeIndirectArg = nullptr;
 	uint32			NodeGroupSize = 0;
@@ -407,7 +408,12 @@ namespace HairStrands
 	TRDGUniformBufferRef<FHairStrandsViewUniformParameters> CreateDefaultHairStrandsViewUniformBuffer(FRDGBuilder& GraphBuilder, FViewInfo& View);
 	TRDGUniformBufferRef<FHairStrandsViewUniformParameters> BindHairStrandsViewUniformParameters(const FViewInfo& View);
 	TRDGUniformBufferRef<FVirtualVoxelParameters> BindHairStrandsVoxelUniformParameters(const FViewInfo& View);
+
 	bool HasViewHairStrandsData(const FViewInfo& View);
+	bool HasViewHairStrandsData(const TArray<FViewInfo>& Views);
 	bool HasViewHairStrandsData(const TArrayView<FViewInfo>& Views);
 	bool HasViewHairStrandsVoxelData(const FViewInfo& View);
+
+	void DrawHitProxies(FRDGBuilder& GraphBuilder, const FScene& Scene, const FViewInfo& View, FInstanceCullingManager& InstanceCullingManager, FRDGTextureRef HitProxyTexture, FRDGTextureRef HitProxyDepthTexture);
+	void DrawEditorSelection(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SelectionDepthTexture);
 }

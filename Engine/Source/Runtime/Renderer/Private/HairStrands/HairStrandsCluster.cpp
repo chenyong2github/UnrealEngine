@@ -162,7 +162,8 @@ static void InternalUpdateMacroGroup(FHairStrandsMacroGroupData& MacroGroup, int
 void CreateHairStrandsMacroGroups(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
-	FViewInfo& View)
+	const FViewInfo& View, 
+	FHairStrandsViewData& OutHairStrandsViewData)
 {
 	if (!View.Family || View.HairStrandsMeshElements.Num() == 0 || View.bIsPlanarReflection || View.bIsReflectionCapture)
 	{
@@ -171,7 +172,7 @@ void CreateHairStrandsMacroGroups(
 
 	static const FVertexFactoryType* CompatibleVF = FVertexFactoryType::GetVFByName(TEXT("FHairStrandsVertexFactory"));
 
-	TArray<FHairStrandsMacroGroupData, SceneRenderingAllocator>& MacroGroups = View.HairStrandsViewData.MacroGroupDatas;
+	TArray<FHairStrandsMacroGroupData, SceneRenderingAllocator>& MacroGroups = OutHairStrandsViewData.MacroGroupDatas;
 
 	int32 MaterialId = 0;
 
@@ -248,7 +249,7 @@ void CreateHairStrandsMacroGroups(
 	check(MacroGroups.Num() <= FHairStrandsMacroGroupData::MaxMacroGroupCount);
 
 	// Build hair macro group AABBB
-	FHairStrandsMacroGroupResources& MacroGroupResources = View.HairStrandsViewData.MacroGroupResources;
+	FHairStrandsMacroGroupResources& MacroGroupResources = OutHairStrandsViewData.MacroGroupResources;
 	const uint32 MacroGroupCount = MacroGroups.Num();
 	if (MacroGroupCount > 0)
 	{
