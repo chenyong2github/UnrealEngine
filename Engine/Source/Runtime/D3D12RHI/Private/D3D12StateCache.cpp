@@ -29,19 +29,19 @@ static FAutoConsoleVariableRef CVarGlobalSamplerDescriptorHeapSize(
 	ECVF_ReadOnly
 );
 
-int32 GResourceDescriptorHeapSize = 0;
-static FAutoConsoleVariableRef CVarResourceDescriptorHeapSize(
-	TEXT("D3D12.ResourceDescriptorHeapSize"),
-	GResourceDescriptorHeapSize,
-	TEXT("Resource descriptor heap size"),
+int32 GBindlessResourceDescriptorHeapSize = 0;
+static FAutoConsoleVariableRef CVarBindlessResourceDescriptorHeapSize(
+	TEXT("D3D12.Bindless.ResourceDescriptorHeapSize"),
+	GBindlessResourceDescriptorHeapSize,
+	TEXT("Bindless resource descriptor heap size"),
 	ECVF_ReadOnly
 );
 
-int32 GSamplerDescriptorHeapSize = 0;
-static FAutoConsoleVariableRef CVarSamplerDescriptorHeapSize(
-	TEXT("D3D12.SamplerDescriptorHeapSize"),
-	GSamplerDescriptorHeapSize,
-	TEXT("Sampler descriptor heap size"),
+int32 GBindlessSamplerDescriptorHeapSize = 0;
+static FAutoConsoleVariableRef CVarBindlessSamplerDescriptorHeapSize(
+	TEXT("D3D12.Bindless.SamplerDescriptorHeapSize"),
+	GBindlessSamplerDescriptorHeapSize,
+	TEXT("Bindless sampler descriptor heap size"),
 	ECVF_ReadOnly
 );
 
@@ -52,6 +52,14 @@ static FAutoConsoleVariableRef CVarLocalViewHeapSize(
 	TEXT("D3D12.LocalViewHeapSize"),
 	GLocalViewHeapSize,
 	TEXT("Local view heap size"),
+	ECVF_ReadOnly
+);
+
+int32 GGlobalSamplerHeapSize = 2048;
+static FAutoConsoleVariableRef CVarGlobalSamplerHeapSize(
+	TEXT("D3D12.GlobalSamplerHeapSize"),
+	GGlobalSamplerHeapSize,
+	TEXT("Global sampler descriptor heap size"),
 	ECVF_ReadOnly
 );
 
@@ -135,22 +143,20 @@ void FD3D12StateCacheBase::Init(FD3D12Device* InParent, FD3D12CommandContext* In
 	Parent = InParent;
 	CmdContext = InCmdContext;
 
+	FD3D12Adapter* Adapter = InParent->GetParentAdapter();
+
 	// Cache the resource binding tier
-	ResourceBindingTier = GetParentDevice()->GetParentAdapter()->GetResourceBindingTier();
+	ResourceBindingTier = Adapter->GetResourceBindingTier();
 
-	// Init the descriptor heaps
-	const uint32 MaxDescriptorsForTier =
-		ResourceBindingTier == D3D12_RESOURCE_BINDING_TIER_3 ? INT_MAX :
-		ResourceBindingTier == D3D12_RESOURCE_BINDING_TIER_2 ? NUM_VIEW_DESCRIPTORS_TIER_2 :
-		NUM_VIEW_DESCRIPTORS_TIER_1;
+	const int32 MaximumResourceHeapSize = Adapter->GetMaxDescriptorsForHeapType(ERHIDescriptorHeapType::Standard);
+	const int32 MaximumSamplerHeapSize = Adapter->GetMaxDescriptorsForHeapType(ERHIDescriptorHeapType::Sampler);
 
-	check(GGlobalResourceDescriptorHeapSize <= (int32)MaxDescriptorsForTier);
-	check(GGlobalSamplerDescriptorHeapSize <= (int32)MaxDescriptorsForTier);
-	check(GResourceDescriptorHeapSize <= (int32)MaxDescriptorsForTier);
-	check(GLocalViewHeapSize <= (int32)MaxDescriptorsForTier);
-	check(GOnlineDescriptorHeapSize <= (int32)MaxDescriptorsForTier);
+	check(GLocalViewHeapSize <= MaximumResourceHeapSize || MaximumResourceHeapSize < 0);
+	check(GOnlineDescriptorHeapSize <= MaximumResourceHeapSize);
 
 	const uint32 NumSamplerDescriptors = NUM_SAMPLER_DESCRIPTORS;
+	check(NumSamplerDescriptors <= MaximumSamplerHeapSize);
+
 	DescriptorCache.Init(InParent, InCmdContext, GLocalViewHeapSize, NumSamplerDescriptors);
 
 	if (AncestralState)
