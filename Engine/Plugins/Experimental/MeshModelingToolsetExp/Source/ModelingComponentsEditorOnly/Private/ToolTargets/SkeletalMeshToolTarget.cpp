@@ -211,7 +211,14 @@ USkeletalMesh* USkeletalMeshToolTarget::GetSkeletalMesh() const
 
 bool USkeletalMeshToolTargetFactory::CanBuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& Requirements) const
 {
-	return Cast<USkeletalMesh>(SourceObject) 
+	// We are using an exact cast here to prevent subclasses, which might not meet all
+	// requirements for functionality such as the deprecated DestructibleMesh, from 
+	// being caught up as valid targets.
+	// If you want to make the tool target work with some subclass of USkeletalMesh,
+	// just add another factory that allows that class specifically (but make sure that
+	// GetMeshDescription and such work properly)
+
+	return ExactCast<USkeletalMesh>(SourceObject) 
 		&& Requirements.AreSatisfiedBy(USkeletalMeshToolTarget::StaticClass());
 }
 
