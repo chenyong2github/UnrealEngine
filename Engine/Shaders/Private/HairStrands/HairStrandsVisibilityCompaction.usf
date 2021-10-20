@@ -284,6 +284,8 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 #define MERGE_SAMPLE 0
 
+Texture2D<float> SceneDepthTexture;
+
 #if PERMUTATION_MSAACOUNT > 1
 void ComputeUniqueSamplesWithoutDepthTest(
 	inout uint4 OutSamples[PERMUTATION_MSAACOUNT],
@@ -459,7 +461,7 @@ void MainCS(
 
 	FSampleSetDesc SampleDesc;
 
-	const float OpaqueDepth = SceneTexturesStruct.SceneDepthTexture.Load(uint3(PixelCoord, 0)).r;
+	const float OpaqueDepth = SceneDepthTexture.Load(uint3(PixelCoord, 0)).r;
 	uint4 Samples[PERMUTATION_MSAACOUNT];		// x:PrimitiveId|MaterialId, y:Weight, z:SampleIt, w:Depth (as uint)
 	ComputeUniqueSamplesWithoutDepthTest(
 		Samples,
