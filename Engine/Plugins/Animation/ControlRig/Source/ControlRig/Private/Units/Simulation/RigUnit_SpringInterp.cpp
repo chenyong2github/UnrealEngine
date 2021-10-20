@@ -5,10 +5,60 @@
 
 namespace RigUnitSpringInterpConstants
 {
+	static const float FixedTimeStep = 1.0f / 60.0f;
+	static const float MaxTimeStep = 0.1f;
 	static const float Mass = 1.0f;
 }
 
 FRigUnit_SpringInterp_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+ 
+	if (Context.State == EControlRigState::Init)
+	{
+		SpringState.Reset();
+	}
+	else
+	{
+		// Clamp to avoid large time deltas.
+		float RemainingTime = FMath::Min(Context.DeltaTime, RigUnitSpringInterpConstants::MaxTimeStep);
+ 
+		Result = Current;
+		while (RemainingTime >= RigUnitSpringInterpConstants::FixedTimeStep)
+		{
+			Result = UKismetMathLibrary::FloatSpringInterp(Result, Target, SpringState, Stiffness, CriticalDamping, RigUnitSpringInterpConstants::FixedTimeStep, Mass);
+			RemainingTime -= RigUnitSpringInterpConstants::FixedTimeStep;
+		}
+ 
+		Result = UKismetMathLibrary::FloatSpringInterp(Result, Target, SpringState, Stiffness, CriticalDamping, RemainingTime, Mass);
+	}
+}
+ 
+FRigUnit_SpringInterpVector_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+ 
+	if (Context.State == EControlRigState::Init)
+	{
+		SpringState.Reset();
+	}
+	else
+	{
+		// Clamp to avoid large time deltas.
+		float RemainingTime = FMath::Min(Context.DeltaTime, RigUnitSpringInterpConstants::MaxTimeStep);
+ 
+		Result = Current;
+		while (RemainingTime >= RigUnitSpringInterpConstants::FixedTimeStep)
+		{
+			Result = UKismetMathLibrary::VectorSpringInterp(Result, Target, SpringState, Stiffness, CriticalDamping, RigUnitSpringInterpConstants::FixedTimeStep, Mass);
+			RemainingTime -= RigUnitSpringInterpConstants::FixedTimeStep;
+		}
+ 
+		Result = UKismetMathLibrary::VectorSpringInterp(Result, Target, SpringState, Stiffness, CriticalDamping, RemainingTime, Mass);
+	}
+}
+
+FRigUnit_SpringInterpV2_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
@@ -41,7 +91,7 @@ FRigUnit_SpringInterp_Execute()
 	}
 }
 
-FRigUnit_SpringInterpVector_Execute()
+FRigUnit_SpringInterpVectorV2_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
@@ -73,7 +123,7 @@ FRigUnit_SpringInterpVector_Execute()
 	Velocity = SpringState.Velocity;
 }
 
-FRigUnit_SpringInterpQuaternion_Execute()
+FRigUnit_SpringInterpQuaternionV2_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 

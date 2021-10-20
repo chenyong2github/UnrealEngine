@@ -9,12 +9,96 @@
 /**
  * Uses a simple spring model to interpolate a float from Current to Target.
  */
-USTRUCT(meta=(DisplayName="Spring Interpolate", Keywords="Alpha,SpringInterpolate,Verlet", PrototypeName = "SpringInterp"))
+USTRUCT(meta=(DisplayName="Spring Interpolate", Keywords="Alpha,SpringInterpolate", PrototypeName = "SpringInterp", Deprecated="5.0"))
 struct CONTROLRIG_API FRigUnit_SpringInterp : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
-
+ 
 	FRigUnit_SpringInterp()
+	{
+		Current = Target = Result = 0.0f;
+		Stiffness = 10.0f;
+		CriticalDamping = 2.0f;
+		Mass = 10.0f;
+		SpringState = FFloatSpringState();
+	}
+ 
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+ 
+	UPROPERTY(meta = (Input))
+	float Current;
+ 
+	UPROPERTY(meta=(Input))
+	float Target;
+ 
+	UPROPERTY(meta=(Input))
+	float Stiffness;
+ 
+	UPROPERTY(meta=(Input))
+	float CriticalDamping;
+ 
+	UPROPERTY(meta=(Input))
+	float Mass;
+ 
+	UPROPERTY(meta=(Output))
+	float Result;
+ 
+	UPROPERTY()
+	FFloatSpringState SpringState;
+};
+ 
+/**
+ * Uses a simple spring model to interpolate a vector from Current to Target.
+ */
+USTRUCT(meta=(DisplayName="Spring Interpolate", Keywords="Alpha,SpringInterpolate", PrototypeName = "SpringInterp", MenuDescSuffix = "(Vector)", Deprecated="5.0"))
+struct CONTROLRIG_API FRigUnit_SpringInterpVector : public FRigUnit_SimBase
+{
+	GENERATED_BODY()
+	
+	FRigUnit_SpringInterpVector()
+	{
+		Current = Target = Result = FVector::ZeroVector;
+		Stiffness = 10.0f;
+		CriticalDamping = 2.0f;
+		Mass = 10.0f;
+		SpringState = FVectorSpringState();
+	}
+ 
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+ 
+	UPROPERTY(meta = (Input))
+	FVector Current;
+ 
+	UPROPERTY(meta=(Input))
+	FVector Target;
+ 
+	UPROPERTY(meta=(Input))
+	float Stiffness;
+ 
+	UPROPERTY(meta=(Input))
+	float CriticalDamping;
+ 
+	UPROPERTY(meta=(Input))
+	float Mass;
+ 
+	UPROPERTY(meta=(Output))
+	FVector Result;
+ 
+	UPROPERTY()
+	FVectorSpringState SpringState;
+};
+
+/**
+ * Uses a simple spring model to interpolate a float from Current to Target.
+ */
+USTRUCT(meta=(DisplayName="Spring Interpolate", Keywords="Alpha,SpringInterpolate,Verlet", PrototypeName = "SpringInterp"))
+struct CONTROLRIG_API FRigUnit_SpringInterpV2 : public FRigUnit_SimBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_SpringInterpV2()
 	{
 		bUseCurrentInput = false;
 		Current = Target = Velocity = Result = SimulatedResult = 0.0f;
@@ -100,11 +184,11 @@ struct CONTROLRIG_API FRigUnit_SpringInterp : public FRigUnit_SimBase
  * Uses a simple spring model to interpolate a vector from Current to Target.
  */
 USTRUCT(meta=(DisplayName="Spring Interpolate", Keywords="Alpha,SpringInterpolate,Verlet", PrototypeName = "SpringInterp", MenuDescSuffix = "(Vector)"))
-struct CONTROLRIG_API FRigUnit_SpringInterpVector : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_SpringInterpVectorV2 : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 	
-	FRigUnit_SpringInterpVector()
+	FRigUnit_SpringInterpVectorV2()
 	{
 		bUseCurrentInput = false;
 		Current = Target = Velocity = Result = SimulatedResult = FVector::ZeroVector;
@@ -190,11 +274,11 @@ struct CONTROLRIG_API FRigUnit_SpringInterpVector : public FRigUnit_SimBase
  * Uses a simple spring model to interpolate a quaternion from Current to Target.
  */
 USTRUCT(meta=(DisplayName="Spring Interpolate", Keywords="Alpha,SpringInterpolate,Verlet", PrototypeName = "SpringInterp", MenuDescSuffix = "(Quaternion)"))
-struct CONTROLRIG_API FRigUnit_SpringInterpQuaternion : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_SpringInterpQuaternionV2 : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 	
-	FRigUnit_SpringInterpQuaternion()
+	FRigUnit_SpringInterpQuaternionV2()
 	{
 		bUseCurrentInput = false;
 		Current = Target = Result = SimulatedResult = FQuat::Identity;
