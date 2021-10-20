@@ -167,10 +167,10 @@ ORT_API_STATUS_IMPL(OrtApis::SetPriorityOpThreads, _Inout_ OrtSessionOptions* op
 	std::cout << "WARNING: Since openmp is enabled in this build, this API cannot be used to configure"
 		" priority of threads. Please use the openmp environment variables to control"
 		" the priority of threads.\n";
-#else
+#else //_OPENMP
 	options->value.intra_op_param.ThreadPri = ThreadPri;
 	options->value.inter_op_param.ThreadPri = ThreadPri;
-#endif
+#endif //_OPENMP
 	return nullptr;
 }
 #endif //WITH_UE
