@@ -1772,9 +1772,21 @@ namespace Chaos
 
 		if (ProxyGeometry)
 		{
+			const FVector Scale = Parameters.Scale;
+			auto DeepCopyImplicit = [&Scale](const TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>& ImplicitToCopy) -> TUniquePtr<Chaos::FImplicitObject>
+			{
+				if (Scale.Equals(FVector::OneVector))
+				{
+					return ImplicitToCopy->DeepCopy();
+				}
+				else
+				{
+					return ImplicitToCopy->DeepCopyWithScale(Scale);
+				}
+			};
 			//ensureMsgf(false, TEXT("Checking usage with proxy"));
 			//@coverage {production}
-			Parent->SetSharedGeometry(TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(ProxyGeometry->DeepCopy().Release()));
+			Parent->SetSharedGeometry(TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(DeepCopyImplicit(ProxyGeometry).Release()));
 		}
 		else if (Objects.Num() == 0)
 		{

@@ -100,6 +100,11 @@ namespace Chaos
 			return TUniquePtr<FImplicitObject>(new TBox<T,d>(*this));
 		}
 
+		virtual TUniquePtr<FImplicitObject> CopyWithScale(const FVec3& Scale) const override
+		{
+			return TUniquePtr<FImplicitObject>(new TBox<T, d>(AABB.Min() * Scale, AABB.Max() * Scale, Margin * Scale.Min()));
+		}
+
 		FReal GetRadius() const
 		{
 			return 0.0f;

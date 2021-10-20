@@ -2,11 +2,18 @@
 #include "Chaos/Convex.h"
 #include "Chaos/GJK.h"
 #include "Chaos/Sphere.h"
+#include "Chaos/ImplicitObjectScaled.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
 namespace Chaos
 {
+	TUniquePtr<FImplicitObject> FConvex::CopyWithScale(const FVec3& Scale) const
+	{
+		TSharedPtr<FConvex, ESPMode::ThreadSafe> ConvexCopy = MakeShared<FConvex, ESPMode::ThreadSafe>(GetVertices(), GetMargin());
+		return  TUniquePtr<FImplicitObject>(new TImplicitObjectScaled<FConvex>(ConvexCopy, Scale));
+	}
+
 	bool FConvex::Raycast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const
 	{
 		OutFaceIndex = INDEX_NONE;	//finding face is expensive, should be called directly by user

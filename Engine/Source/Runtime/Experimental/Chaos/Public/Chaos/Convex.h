@@ -151,6 +151,7 @@ namespace Chaos
 			return TUniquePtr<FImplicitObject>(new FConvex(GetVertices(), GetMargin()));
 		}
 
+		virtual TUniquePtr<FImplicitObject> CopyWithScale(const FVec3& Scale) const override;
 
 		void MovePlanesAndRebuild(FReal InDelta);
 

@@ -392,6 +392,11 @@ namespace Chaos
 			return TUniquePtr<FImplicitObject>(new FCapsule(*this));
 		}
 
+		virtual TUniquePtr<FImplicitObject> CopyWithScale(const FVec3& Scale) const override
+		{
+			return  TUniquePtr<FImplicitObject>(new FCapsule(GetX1() * Scale, GetX2() * Scale, GetRadius() * Scale.Min()));
+		}
+
 		FReal GetHeight() const { return MSegment.GetLength(); }
 		/** Returns the bottommost point on the capsule. */
 		const FVec3 GetOrigin() const { return GetX1() + GetAxis() * -GetRadius(); }
