@@ -1815,7 +1815,8 @@ void UControlRigBlueprint::PostTransacted(const FTransactionObjectEvent& Transac
 
 	if (TransactionEvent.GetEventType() == ETransactionObjectEventType::UndoRedo)
 	{
-		if (TransactionEvent.GetChangedProperties().Contains(TEXT("HierarchyContainer")))
+		TArray<FName> PropertiesChanged = TransactionEvent.GetChangedProperties();
+		if (PropertiesChanged.Contains(TEXT("HierarchyContainer")))
 		{
 			int32 TransactionIndex = GEditor->Trans->FindTransactionIndex(TransactionEvent.GetTransactionId());
 			const FTransaction* Transaction = GEditor->Trans->GetTransaction(TransactionIndex);
@@ -1843,14 +1844,23 @@ void UControlRigBlueprint::PostTransacted(const FTransactionObjectEvent& Transac
 			MarkPackageDirty();
 		}
 
-		else if (TransactionEvent.GetChangedProperties().Contains(TEXT("DrawContainer")))
+		else if (PropertiesChanged.Contains(TEXT("DrawContainer")))
 		{
 			PropagateDrawInstructionsFromBPToInstances();
 		}
 
-		else if (TransactionEvent.GetChangedProperties().Contains(TEXT("VMRuntimeSettings")))
+		else if (PropertiesChanged.Contains(TEXT("VMRuntimeSettings")))
 		{
 			PropagateRuntimeSettingsFromBPToInstances();
+		}
+
+		else if (PropertiesChanged.Contains(TEXT("NewVariables")))
+		{
+			if (RefreshEditorEvent.IsBound())
+			{
+				RefreshEditorEvent.Broadcast(this);
+			}
+			MarkPackageDirty();			
 		}
 	}
 }
