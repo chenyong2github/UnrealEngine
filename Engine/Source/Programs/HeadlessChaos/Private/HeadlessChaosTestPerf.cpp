@@ -34,7 +34,8 @@ namespace ChaosTest {
 
 	GTEST_TEST(AllEvolutions, PerfTests_Sim)
 	{
-		FPBDRigidsSOAs Particles;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs Particles(UniqueIndices);
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		FPBDRigidsEvolutionGBF Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);

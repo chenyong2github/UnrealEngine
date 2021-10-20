@@ -61,7 +61,8 @@ namespace ChaosTest {
 
 	GTEST_TEST(AllEvolutions, SimTests_SphereSphereSimTest)
 	{
-		FPBDRigidsSOAs Particles;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs Particles(UniqueIndices);
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		FPBDRigidsEvolutionGBF Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);
@@ -104,7 +105,8 @@ namespace ChaosTest {
 
 	GTEST_TEST(AllEvolutions, SimTests_BoxBoxSimTest)
 	{
-		FPBDRigidsSOAs Particles;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs Particles(UniqueIndices);
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		FPBDRigidsEvolutionGBF Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);
@@ -148,7 +150,8 @@ namespace ChaosTest {
 	//
 	GTEST_TEST(AllEvolutions, DISABLED_SimTests_VeryLowInertiaSimTest)
 	{
-		FPBDRigidsSOAs Particles;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs Particles(UniqueIndices);
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		FPBDRigidsEvolutionGBF Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);
@@ -179,7 +182,8 @@ namespace ChaosTest {
 
 	GTEST_TEST(AllEvolutions, SimTests_SleepAndWakeSimTest)
 	{
-		FPBDRigidsSOAs Particles;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs Particles(UniqueIndices);
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		FPBDRigidsEvolutionGBF Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);
@@ -311,7 +315,8 @@ namespace ChaosTest {
 
 	GTEST_TEST(AllEvolutions, SimTests_SleepAndWakeSimTest3)
 	{
-		FPBDRigidsSOAs Particles;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs Particles(UniqueIndices);
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		FPBDRigidsEvolutionGBF Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);
