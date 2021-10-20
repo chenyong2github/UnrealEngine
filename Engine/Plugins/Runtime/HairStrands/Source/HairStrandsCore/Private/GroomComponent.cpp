@@ -1361,6 +1361,7 @@ void UGroomComponent::CreateHairSimulation(const int32 GroupIndex, const int32 L
 			{
 				NiagaraComponent = NewObject<UNiagaraComponent>(this, NAME_None, RF_Transient);
 				NiagaraComponent->SetVisibleFlag(SimulationSettings.SimulationSetup.bDebugSimulation);
+				NiagaraComponent->bUseAttachParentBound = true;
 			}
 			if (GetWorld() && GetWorld()->bIsWorldInitialized)
 			{
