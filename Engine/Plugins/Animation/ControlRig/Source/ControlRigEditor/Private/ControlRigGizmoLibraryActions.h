@@ -8,7 +8,7 @@
 
 class FMenuBuilder;
 
-class FControlRigGizmoLibraryActions : public FAssetTypeActions_Base
+class FControlRigShapeLibraryActions : public FAssetTypeActions_Base
 {
 public:
 	// IAssetTypeActions Implementation
@@ -17,9 +17,9 @@ public:
 		return true;
 	}
 	virtual void GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder) override;
-	virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_ControlRigGizmoLibrary", "Gizmo Library"); }
+	virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_ControlRigShapeLibrary", "Control Rig Shape Library"); }
 	virtual FColor GetTypeColor() const override { return FColor(100,100,255); }
-	virtual UClass* GetSupportedClass() const override { return UControlRigGizmoLibrary::StaticClass(); }
+	virtual UClass* GetSupportedClass() const override { return UControlRigShapeLibrary::StaticClass(); }
 	virtual bool CanFilter() override { return true; }
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Animation; }
 };

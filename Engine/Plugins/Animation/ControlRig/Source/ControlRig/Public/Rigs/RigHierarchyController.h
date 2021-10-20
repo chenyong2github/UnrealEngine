@@ -108,7 +108,7 @@ public:
 	 * @param InSettings All of the control's settings
 	 * @param InValue The value to use for the control
 	 * @param InOffsetTransform The transform to use for the offset
-	 * @param InGizmoTransform The transform to use for the gizmo
+	 * @param InShapeTransform The transform to use for the shape
 	 * @param bSetupUndo If set to true the stack will record the change for undo / redo
 	 * @param bPrintPythonCommand If set to true a python command equivalent to this call will be printed out
 	 * @return The key for the newly created control.
@@ -119,7 +119,7 @@ public:
     	FRigControlSettings InSettings,
     	FRigControlValue InValue,
     	FTransform InOffsetTransform = FTransform::Identity,
-        FTransform InGizmoTransform = FTransform::Identity,
+        FTransform InShapeTransform = FTransform::Identity,
         bool bSetupUndo = true,
         bool bPrintPythonCommand = false
         );
@@ -515,7 +515,7 @@ public:
 	
 	TArray<FString> GetSetControlOffsetTransformPythonCommands(const FRigControlElement* Control, const FTransform& Offset, bool bInitial = false, bool bAffectChildren = true) const;
 	
-	TArray<FString> GetSetControlGizmoTransformPythonCommands(const FRigControlElement* Control, const FTransform& Transform, bool bInitial = false) const;
+	TArray<FString> GetSetControlShapeTransformPythonCommands(const FRigControlElement* Control, const FTransform& Transform, bool bInitial = false) const;
 #endif
 	
 private:

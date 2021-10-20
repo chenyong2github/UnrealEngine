@@ -22,7 +22,7 @@ class UControlRigEditModeSettings : public UObject
 		, bCoordSystemPerWidgetMode(true)
 		, bOnlySelectRigControls(false)
 		, bLocalTransformsInEachLocalSpace(true)
-		, GizmoScale(1.0f)
+		, ShapeScale(1.0f)
 	{}
 
 	// UObject interface
@@ -67,5 +67,5 @@ public:
 	
 	/** The scale for Gizmos */
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Animation")
-	float GizmoScale;
+	float ShapeScale;
 };

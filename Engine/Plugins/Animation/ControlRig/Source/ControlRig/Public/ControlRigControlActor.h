@@ -74,7 +74,7 @@ private:
 	TArray<FName> ControlNames;
 
 	UPROPERTY(transient)
-	TArray<FTransform> GizmoTransforms;
+	TArray<FTransform> ShapeTransforms;
 
 	UPROPERTY(transient)
 	TArray<TObjectPtr<UStaticMeshComponent>> Components;

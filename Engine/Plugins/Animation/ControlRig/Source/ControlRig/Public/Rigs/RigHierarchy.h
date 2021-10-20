@@ -34,7 +34,7 @@ enum ERigTransformStackEntryType
 {
 	TransformPose,
 	ControlOffset,
-	ControlGizmo,
+	ControlShape,
 	CurveValue
 };
 
@@ -1077,31 +1077,31 @@ public:
 	}
 
 	/**
-	 * Returns the global gizmo transform for a given control element.
+	 * Returns the global shape transform for a given control element.
 	 * @param InKey The key of the control to retrieve the transform for
 	 * @param bInitial If true the initial transform will be used
-	 * @return The global gizmo transform
+	 * @return The global shape transform
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
-    FORCEINLINE_DEBUGGABLE FTransform GetGlobalControlGizmoTransform(FRigElementKey InKey, bool bInitial = false) const
+    FORCEINLINE_DEBUGGABLE FTransform GetGlobalControlShapeTransform(FRigElementKey InKey, bool bInitial = false) const
 	{
-		return GetGlobalControlGizmoTransformByIndex(GetIndex(InKey), bInitial);
+		return GetGlobalControlShapeTransformByIndex(GetIndex(InKey), bInitial);
 	}
 
 	/**
-	 * Returns the global gizmo transform for a given control element.
+	 * Returns the global shape transform for a given control element.
 	 * @param InElementIndex The index of the control to retrieve the transform for
 	 * @param bInitial If true the initial transform will be used
-	 * @return The global gizmo transform
+	 * @return The global shape transform
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
-    FORCEINLINE_DEBUGGABLE FTransform GetGlobalControlGizmoTransformByIndex(int32 InElementIndex, bool bInitial = false) const
+    FORCEINLINE_DEBUGGABLE FTransform GetGlobalControlShapeTransformByIndex(int32 InElementIndex, bool bInitial = false) const
 	{
 		if(Elements.IsValidIndex(InElementIndex))
 		{
 			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(Elements[InElementIndex]))
 			{
-				return GetControlGizmoTransform(ControlElement, bInitial ? ERigTransformType::InitialGlobal : ERigTransformType::CurrentGlobal);
+				return GetControlShapeTransform(ControlElement, bInitial ? ERigTransformType::InitialGlobal : ERigTransformType::CurrentGlobal);
 			}
 		}
 		return FTransform::Identity;
@@ -1440,33 +1440,33 @@ public:
 	}
 
 	/**
-	 * Sets the gizmo transform for a given control element by key
-	 * @param InKey The key of the control element to set the gizmo transform for
-	 * @param InTransform The new gizmo transform value to set
+	 * Sets the shape transform for a given control element by key
+	 * @param InKey The key of the control element to set the shape transform for
+	 * @param InTransform The new shape transform value to set
 	 * @param bInitial If true the initial value will be used
 	 * @param bSetupUndo If true the transform stack will be setup for undo / redo
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
-    FORCEINLINE_DEBUGGABLE void SetControlGizmoTransform(FRigElementKey InKey, FTransform InTransform, bool bInitial = false, bool bSetupUndo = false)
+    FORCEINLINE_DEBUGGABLE void SetControlShapeTransform(FRigElementKey InKey, FTransform InTransform, bool bInitial = false, bool bSetupUndo = false)
 	{
-		return SetControlGizmoTransformByIndex(GetIndex(InKey), InTransform, bInitial, bSetupUndo);
+		return SetControlShapeTransformByIndex(GetIndex(InKey), InTransform, bInitial, bSetupUndo);
 	}
 
 	/**
-	 * Sets the local gizmo transform for a given control element by index
-	 * @param InElementIndex The index of the control element to set the gizmo transform for
-	 * @param InTransform The new local gizmo transform value to set
+	 * Sets the local shape transform for a given control element by index
+	 * @param InElementIndex The index of the control element to set the shape transform for
+	 * @param InTransform The new local shape transform value to set
 	 * @param bInitial If true the initial value will be used
 	 * @param bSetupUndo If true the transform stack will be setup for undo / redo
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
-    FORCEINLINE_DEBUGGABLE void SetControlGizmoTransformByIndex(int32 InElementIndex, FTransform InTransform, bool bInitial = false, bool bSetupUndo = false)
+    FORCEINLINE_DEBUGGABLE void SetControlShapeTransformByIndex(int32 InElementIndex, FTransform InTransform, bool bInitial = false, bool bSetupUndo = false)
 	{
 		if(Elements.IsValidIndex(InElementIndex))
 		{
 			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(Elements[InElementIndex]))
 			{
-				SetControlGizmoTransform(ControlElement, InTransform, bInitial ? ERigTransformType::InitialLocal : ERigTransformType::CurrentLocal, bSetupUndo);
+				SetControlShapeTransform(ControlElement, InTransform, bInitial ? ERigTransformType::InitialLocal : ERigTransformType::CurrentLocal, bSetupUndo);
 			}
 		}
 	}
@@ -2317,22 +2317,22 @@ public:
 	void SetControlOffsetTransform(FRigControlElement* InControlElement, const FTransform& InTransform, const ERigTransformType::Type InTransformType, bool bAffectChildren, bool bSetupUndo = false, bool bForce = false, bool bPrintPythonCommands = false);
 
 	/**
-	 * Returns the global gizmo transform for a given control element.
-	 * @param InControlElement The control element to retrieve the gizmo transform for
+	 * Returns the global shape transform for a given control element.
+	 * @param InControlElement The control element to retrieve the shape transform for
 	 * @param InTransformType The type of transform to set
-	 * @return The global gizmo transform
+	 * @return The global shape transform
 	 */
-	FTransform GetControlGizmoTransform(FRigControlElement* InControlElement, const ERigTransformType::Type InTransformType) const;
+	FTransform GetControlShapeTransform(FRigControlElement* InControlElement, const ERigTransformType::Type InTransformType) const;
 
 	/**
-	 * Sets the gizmo transform for a given control element
+	 * Sets the shape transform for a given control element
 	 * @param InControlElement The element to set the transform for
-	 * @param InTransform The gizmo transform to set
-	 * @param InTransformType The type of transform to set. Note: for gizmo transform, setting the initial value also updates the current value
+	 * @param InTransform The shape transform to set
+	 * @param InTransformType The type of transform to set. Note: for shape transform, setting the initial value also updates the current value
 	 * @param bSetupUndo If true the transform stack will be setup for undo / redo
 	 * @param bForce Set the transform even if it is the same as the previously set one
 	 */
-	void SetControlGizmoTransform(FRigControlElement* InControlElement, const FTransform& InTransform, const ERigTransformType::Type InTransformType, bool bSetupUndo = false, bool bForce = false, bool bPrintPythonCommands = false);
+	void SetControlShapeTransform(FRigControlElement* InControlElement, const FTransform& InTransform, const ERigTransformType::Type InTransformType, bool bSetupUndo = false, bool bForce = false, bool bPrintPythonCommands = false);
 
 	/**
 	 * Sets the control settings for a given control element

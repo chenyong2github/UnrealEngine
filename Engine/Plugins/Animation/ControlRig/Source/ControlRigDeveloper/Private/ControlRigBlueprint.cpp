@@ -66,7 +66,8 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 	bSuspendAllNotifications = false;
 
 #if WITH_EDITORONLY_DATA
-	GizmoLibrary = UControlRigSettings::Get()->DefaultGizmoLibrary;
+	GizmoLibrary_DEPRECATED = nullptr;
+	ShapeLibraries.Add(UControlRigSettings::Get()->DefaultShapeLibrary);
 #endif
 
 	bRecompileOnLoad = 0;
@@ -506,6 +507,33 @@ void UControlRigBlueprint::PostLoad()
 		CompileLog.Messages.Reset();
 		CompileLog.NumErrors = CompileLog.NumWarnings = 0;
 #endif
+	}
+
+	// upgrade the gizmo libraries to shape libraries
+	if(GizmoLibrary_DEPRECATED.IsValid())
+	{
+		ShapeLibraries.Reset();
+		ShapeLibraries.Add(GizmoLibrary_DEPRECATED);
+		GizmoLibrary_DEPRECATED.Reset();
+	}
+	else if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::RenameGizmoToShape)
+	{
+		// if it's an older file and it doesn't have the GizmoLibrary stored,
+		// refer to the previous default.
+		ShapeLibraries.Reset();
+		ShapeLibraries.Add(LoadObject<UControlRigShapeLibrary>(nullptr, TEXT("/ControlRig/Controls/DefaultGizmoLibrary.DefaultGizmoLibrary")));
+
+		// also walk over all controls and check if any of them were using the "default" gizmo
+		Hierarchy->ForEach<FRigControlElement>([](FRigControlElement* ControlElement) -> bool
+		{
+			static FName PreviousDefault = TEXT("Gizmo");
+			static FName NewDefault = FControlRigShapeDefinition().ShapeName;
+			if(ControlElement->Settings.ShapeName == PreviousDefault)
+			{
+				ControlElement->Settings.ShapeName = NewDefault;
+			}
+			return true;
+		});
 	}
 
 #if WITH_EDITOR
@@ -2128,6 +2156,11 @@ bool UControlRigBlueprint::ChangeMemberVariableType(const FName& InName, const F
 	FBlueprintEditorUtils::ChangeMemberVariableType(this, InName, PinType);
 
 	return true;
+}
+
+const FControlRigShapeDefinition* UControlRigBlueprint::GetControlShapeByName(const FName& InName) const
+{
+	return UControlRigShapeLibrary::GetShapeByName(InName, ShapeLibraries);
 }
 
 FName UControlRigBlueprint::AddTransientControl(URigVMPin* InPin)

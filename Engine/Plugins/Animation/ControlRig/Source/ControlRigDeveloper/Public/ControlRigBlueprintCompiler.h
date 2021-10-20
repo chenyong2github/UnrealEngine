@@ -5,7 +5,6 @@
 #include "KismetCompilerModule.h"
 #include "KismetCompiler.h"
 
-struct FControlRigBlueprintPropertyLink;
 class UControlRigGraph;
 class UControlRigGraphNode;
 class UControlRigBlueprint;

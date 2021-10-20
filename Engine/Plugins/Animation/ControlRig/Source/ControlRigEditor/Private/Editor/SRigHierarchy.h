@@ -200,7 +200,7 @@ private:
 	void HandleResetInitialTransform();
 	void HandleSetInitialTransformFromCurrentTransform();
 	void HandleSetInitialTransformFromClosestBone();
-	void HandleSetGizmoTransformFromCurrent();
+	void HandleSetShapeTransformFromCurrent();
 	void HandleFrameSelection();
 	void HandleControlBoneOrSpaceTransform();
 	void HandleUnparent();

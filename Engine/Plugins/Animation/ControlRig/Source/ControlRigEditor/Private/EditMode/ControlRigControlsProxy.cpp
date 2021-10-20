@@ -776,7 +776,7 @@ void UControlRigDetailPanelControlProxies::RecreateAllProxies(UControlRig* InCon
 	TArray<FRigControlElement*> Controls = InControlRig->AvailableControls();
 	for (FRigControlElement* ControlElement : Controls)
 	{
-		if(ControlElement->Settings.bGizmoEnabled && ControlElement->Settings.bAnimatable)
+		if(ControlElement->Settings.bShapeEnabled && ControlElement->Settings.bAnimatable)
 		{
 			AddProxy(ControlElement->GetName(), InControlRig, ControlElement);
 		}

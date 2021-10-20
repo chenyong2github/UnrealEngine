@@ -11,7 +11,7 @@ UControlRigSettings::UControlRigSettings(const FObjectInitializer& ObjectInitial
 	: Super(ObjectInitializer)
 {
 #if WITH_EDITORONLY_DATA
-	DefaultGizmoLibrary = LoadObject<UControlRigGizmoLibrary>(nullptr, TEXT("/ControlRig/Controls/DefaultGizmoLibrary.DefaultGizmoLibrary"));
+	DefaultShapeLibrary = LoadObject<UControlRigShapeLibrary>(nullptr, TEXT("/ControlRig/Controls/DefaultGizmoLibraryNormalized.DefaultGizmoLibraryNormalized"));
 #endif
 }
 

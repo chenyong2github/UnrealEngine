@@ -32,6 +32,6 @@ class UControlRigThumbnailRenderer : public USkeletalMeshThumbnailRenderer
 
 protected:
 	class UControlRigBlueprint* RigBlueprint;
-	TMap<FName, AStaticMeshActor*> GizmoActors;
+	TMap<FName, AStaticMeshActor*> ShapeActors;
 };
 

@@ -35,17 +35,17 @@ public:
 	/** Frame selected elements */
 	TSharedPtr<FUICommandInfo> FrameSelection;
 
-	/** Increase Gizmo Size */
-	TSharedPtr< FUICommandInfo > IncreaseGizmoSize;
+	/** Increase Shape Size */
+	TSharedPtr< FUICommandInfo > IncreaseControlShapeSize;
 
-	/** Decrease Gizmo Size */
-	TSharedPtr< FUICommandInfo > DecreaseGizmoSize;
+	/** Decrease Shape Size */
+	TSharedPtr< FUICommandInfo > DecreaseControlShapeSize;
 
-	/** Reset Gizmo Size */
-	TSharedPtr< FUICommandInfo > ResetGizmoSize;
+	/** Reset Shape Size */
+	TSharedPtr< FUICommandInfo > ResetControlShapeSize;
 
-	/** Toggle Gizmo Transform Edit*/
-	TSharedPtr< FUICommandInfo > ToggleGizmoTransformEdit;
+	/** Toggle Shape Transform Edit*/
+	TSharedPtr< FUICommandInfo > ToggleControlShapeTransformEdit;
 
 	/** Opens up the space picker widget */
 	TSharedPtr< FUICommandInfo > OpenSpacePickerWidget;

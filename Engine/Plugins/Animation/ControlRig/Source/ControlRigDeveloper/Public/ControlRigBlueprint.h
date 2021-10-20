@@ -405,8 +405,13 @@ public:
 #endif
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category = DefaultGizmo)
-	TSoftObjectPtr<UControlRigGizmoLibrary> GizmoLibrary;
+	UPROPERTY()
+	TSoftObjectPtr<UControlRigShapeLibrary> GizmoLibrary_DEPRECATED;
+
+	UPROPERTY(EditAnywhere, Category = Shapes)
+	TArray<TSoftObjectPtr<UControlRigShapeLibrary>> ShapeLibraries;
+
+	const FControlRigShapeDefinition* GetControlShapeByName(const FName& InName) const;
 #endif
 
 	UPROPERTY(transient, DuplicateTransient, VisibleAnywhere, Category = "VM", meta = (DisplayName = "VM Statistics", DisplayAfter = "VMCompileSettings"))

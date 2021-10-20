@@ -7,7 +7,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/CollisionProfile.h"
 
-AControlRigGizmoActor::AControlRigGizmoActor(const FObjectInitializer& ObjectInitializer)
+AControlRigShapeActor::AControlRigShapeActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, ControlRigIndex(INDEX_NONE)
 	, ControlName(NAME_None)
@@ -34,7 +34,7 @@ AControlRigGizmoActor::AControlRigGizmoActor(const FObjectInitializer& ObjectIni
 	StaticMeshComponent->bSelectable = bSelectable && bEnabled;
 }
 
-void AControlRigGizmoActor::SetEnabled(bool bInEnabled)
+void AControlRigShapeActor::SetEnabled(bool bInEnabled)
 {
 	if(bEnabled != bInEnabled)
 	{
@@ -45,12 +45,12 @@ void AControlRigGizmoActor::SetEnabled(bool bInEnabled)
 	}
 }
 
-bool AControlRigGizmoActor::IsEnabled() const
+bool AControlRigShapeActor::IsEnabled() const
 {
 	return bEnabled;
 }
 
-void AControlRigGizmoActor::SetSelected(bool bInSelected)
+void AControlRigShapeActor::SetSelected(bool bInSelected)
 {
 	if(bSelected != bInSelected)
 	{
@@ -60,12 +60,12 @@ void AControlRigGizmoActor::SetSelected(bool bInSelected)
 	}
 }
 
-bool AControlRigGizmoActor::IsSelectedInEditor() const
+bool AControlRigShapeActor::IsSelectedInEditor() const
 {
 	return bSelected;
 }
 
-void AControlRigGizmoActor::SetSelectable(bool bInSelectable)
+void AControlRigShapeActor::SetSelectable(bool bInSelectable)
 {
 	if (bSelectable != bInSelectable)
 	{
@@ -78,7 +78,7 @@ void AControlRigGizmoActor::SetSelectable(bool bInSelectable)
 	}
 }
 
-void AControlRigGizmoActor::SetHovered(bool bInHovered)
+void AControlRigShapeActor::SetHovered(bool bInHovered)
 {
 	bool bOldHovered = bHovered;
 
@@ -91,13 +91,13 @@ void AControlRigGizmoActor::SetHovered(bool bInHovered)
 	}
 }
 
-bool AControlRigGizmoActor::IsHovered() const
+bool AControlRigShapeActor::IsHovered() const
 {
 	return bHovered;
 }
 
 
-void AControlRigGizmoActor::SetGizmoColor(const FLinearColor& InColor)
+void AControlRigShapeActor::SetShapeColor(const FLinearColor& InColor)
 {
 	if (StaticMeshComponent && !ColorParameterName.IsNone())
 	{
@@ -108,9 +108,9 @@ void AControlRigGizmoActor::SetGizmoColor(const FLinearColor& InColor)
 	}
 }
 
-// FControlRigGizmoHelper START
+// FControlRigShapeHelper START
 
-namespace FControlRigGizmoHelper
+namespace FControlRigShapeHelper
 {
 	FActorSpawnParameters GetDefaultSpawnParameter()
 	{
@@ -124,51 +124,51 @@ namespace FControlRigGizmoHelper
 		return ActorSpawnParameters;
 	}
 
-	// create gizmo from custom staticmesh, may deprecate this unless we come up with better usage
-	AControlRigGizmoActor* CreateGizmoActor(UWorld* InWorld, UStaticMesh* InStaticMesh, const FGizmoActorCreationParam& CreationParam)
+	// create shape from custom staticmesh, may deprecate this unless we come up with better usage
+	AControlRigShapeActor* CreateShapeActor(UWorld* InWorld, UStaticMesh* InStaticMesh, const FControlShapeActorCreationParam& CreationParam)
 	{
 		if (InWorld)
 		{
-			AControlRigGizmoActor* GizmoActor = CreateDefaultGizmoActor(InWorld, CreationParam);
+			AControlRigShapeActor* ShapeActor = CreateDefaultShapeActor(InWorld, CreationParam);
 
-			if (GizmoActor)
+			if (ShapeActor)
 			{
 				if (InStaticMesh)
 				{
-					GizmoActor->StaticMeshComponent->SetStaticMesh(InStaticMesh);
+					ShapeActor->StaticMeshComponent->SetStaticMesh(InStaticMesh);
 				}
 
-				return GizmoActor;
+				return ShapeActor;
 			}
 		}
 
 		return nullptr;
 	}
 
-	AControlRigGizmoActor* CreateGizmoActor(UWorld* InWorld, TSubclassOf<AControlRigGizmoActor> InClass, const FGizmoActorCreationParam& CreationParam)
+	AControlRigShapeActor* CreateShapeActor(UWorld* InWorld, TSubclassOf<AControlRigShapeActor> InClass, const FControlShapeActorCreationParam& CreationParam)
 	{
-		AControlRigGizmoActor* GizmoActor = InWorld->SpawnActor<AControlRigGizmoActor>(InClass, GetDefaultSpawnParameter());
-		if (GizmoActor)
+		AControlRigShapeActor* ShapeActor = InWorld->SpawnActor<AControlRigShapeActor>(InClass, GetDefaultSpawnParameter());
+		if (ShapeActor)
 		{
 			// set transform
-			GizmoActor->SetActorTransform(CreationParam.SpawnTransform);
-			return GizmoActor;
+			ShapeActor->SetActorTransform(CreationParam.SpawnTransform);
+			return ShapeActor;
 		}
 
 		return nullptr;
 	}
 
-	AControlRigGizmoActor* CreateDefaultGizmoActor(UWorld* InWorld, const FGizmoActorCreationParam& CreationParam)
+	AControlRigShapeActor* CreateDefaultShapeActor(UWorld* InWorld, const FControlShapeActorCreationParam& CreationParam)
 	{
-		AControlRigGizmoActor* GizmoActor = InWorld->SpawnActor<AControlRigGizmoActor>(AControlRigGizmoActor::StaticClass(), GetDefaultSpawnParameter());
-		if (GizmoActor)
+		AControlRigShapeActor* ShapeActor = InWorld->SpawnActor<AControlRigShapeActor>(AControlRigShapeActor::StaticClass(), GetDefaultSpawnParameter());
+		if (ShapeActor)
 		{
-			GizmoActor->ControlRigIndex = CreationParam.ControlRigIndex;
-			GizmoActor->ControlName = CreationParam.ControlName;
-			GizmoActor->SetSelectable(CreationParam.bSelectable);
-			GizmoActor->SetActorTransform(CreationParam.SpawnTransform);
+			ShapeActor->ControlRigIndex = CreationParam.ControlRigIndex;
+			ShapeActor->ControlName = CreationParam.ControlName;
+			ShapeActor->SetSelectable(CreationParam.bSelectable);
+			ShapeActor->SetActorTransform(CreationParam.SpawnTransform);
 
-			UStaticMeshComponent* MeshComponent = GizmoActor->StaticMeshComponent;
+			UStaticMeshComponent* MeshComponent = ShapeActor->StaticMeshComponent;
 
 			if (!CreationParam.StaticMesh.IsValid())
 			{
@@ -177,7 +177,7 @@ namespace FControlRigGizmoHelper
 			if (CreationParam.StaticMesh.IsValid())
 			{
 				MeshComponent->SetStaticMesh(CreationParam.StaticMesh.Get());
-				MeshComponent->SetRelativeTransform(CreationParam.MeshTransform * CreationParam.GizmoTransform);
+				MeshComponent->SetRelativeTransform(CreationParam.MeshTransform * CreationParam.ShapeTransform);
 			}
 
 			if (!CreationParam.Material.IsValid())
@@ -186,19 +186,19 @@ namespace FControlRigGizmoHelper
 			}
 			if (CreationParam.StaticMesh.IsValid())
 			{
-				GizmoActor->ColorParameterName = CreationParam.ColorParameterName;
-				UMaterialInstanceDynamic* MaterialInstance = UMaterialInstanceDynamic::Create(CreationParam.Material.Get(), GizmoActor);
+				ShapeActor->ColorParameterName = CreationParam.ColorParameterName;
+				UMaterialInstanceDynamic* MaterialInstance = UMaterialInstanceDynamic::Create(CreationParam.Material.Get(), ShapeActor);
 				MaterialInstance->SetVectorParameterValue(CreationParam.ColorParameterName, FVector(CreationParam.Color));
 				MeshComponent->SetMaterial(0, MaterialInstance);
 			}
-			return GizmoActor;
+			return ShapeActor;
 		}
 
 		return nullptr;
 	}
 }
 
-void AControlRigGizmoActor::SetGlobalTransform(const FTransform& InTransform)
+void AControlRigShapeActor::SetGlobalTransform(const FTransform& InTransform)
 {
 	if (RootComponent)
 	{
@@ -206,7 +206,7 @@ void AControlRigGizmoActor::SetGlobalTransform(const FTransform& InTransform)
 	}
 }
 
-FTransform AControlRigGizmoActor::GetGlobalTransform() const
+FTransform AControlRigShapeActor::GetGlobalTransform() const
 {
 	if (RootComponent)
 	{
@@ -215,4 +215,4 @@ FTransform AControlRigGizmoActor::GetGlobalTransform() const
 
 	return FTransform::Identity;
 }
-// FControlRigGizmoHelper END
+// FControlRigShapeHelper END

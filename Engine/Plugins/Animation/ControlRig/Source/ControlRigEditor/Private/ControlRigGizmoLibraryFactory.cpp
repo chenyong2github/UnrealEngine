@@ -6,30 +6,30 @@
 
 #define LOCTEXT_NAMESPACE "ControlRigGizmoLibraryFactory"
 
-UControlRigGizmoLibraryFactory::UControlRigGizmoLibraryFactory()
+UControlRigShapeLibraryFactory::UControlRigShapeLibraryFactory()
 {
 	bCreateNew = true;
 	bEditAfterNew = true;
-	SupportedClass = UControlRigGizmoLibrary::StaticClass();
+	SupportedClass = UControlRigShapeLibrary::StaticClass();
 }
 
-UObject* UControlRigGizmoLibraryFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
+UObject* UControlRigShapeLibraryFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
-	UControlRigGizmoLibrary* GizmoLibrary = NewObject<UControlRigGizmoLibrary>(InParent, Name, Flags);
+	UControlRigShapeLibrary* ShapeLibrary = NewObject<UControlRigShapeLibrary>(InParent, Name, Flags);
 
-	GizmoLibrary->DefaultGizmo.StaticMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/ControlRig/Controls/ControlRig_Sphere_solid.ControlRig_Sphere_solid"));
-	GizmoLibrary->DefaultMaterial = LoadObject<UMaterial>(nullptr, TEXT("/ControlRig/Controls/ControlRigGizmoMaterial.ControlRigGizmoMaterial"));
-	GizmoLibrary->MaterialColorParameter = TEXT("Color");
+	ShapeLibrary->DefaultShape.StaticMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/ControlRig/Controls/ControlRig_Sphere_solid.ControlRig_Sphere_solid"));
+	ShapeLibrary->DefaultMaterial = LoadObject<UMaterial>(nullptr, TEXT("/ControlRig/Controls/ControlRigGizmoMaterial.ControlRigGizmoMaterial"));
+	ShapeLibrary->MaterialColorParameter = TEXT("Color");
 
-	return GizmoLibrary;
+	return ShapeLibrary;
 }
 
-FText UControlRigGizmoLibraryFactory::GetDisplayName() const
+FText UControlRigShapeLibraryFactory::GetDisplayName() const
 {
-	return LOCTEXT("ControlRigGizmoLibraryFactoryName", "Control Rig Gizmo Library");
+	return LOCTEXT("ControlRigShapeLibraryFactoryName", "Control Rig Shape Library");
 }
 
-uint32 UControlRigGizmoLibraryFactory::GetMenuCategories() const
+uint32 UControlRigShapeLibraryFactory::GetMenuCategories() const
 {
 	return EAssetTypeCategories::Animation;
 }

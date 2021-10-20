@@ -4,7 +4,7 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FControlRigGizmoLibraryActions::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FControlRigShapeLibraryActions::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
 {
 	//FAssetTypeActions_AnimationAsset::GetActions(InObjects, MenuBuilder);
 }

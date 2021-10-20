@@ -107,7 +107,7 @@ void AControlRigControlActor::Clear()
 	}
 
 	ControlNames.Reset();
-	GizmoTransforms.Reset();
+	ShapeTransforms.Reset();
 	Components.Reset();
 	Materials.Reset();
 }
@@ -154,32 +154,24 @@ void AControlRigControlActor::Refresh()
 			OnUnbindDelegate = Binding->OnControlRigUnbind().AddLambda([ this ]( ) { this->Clear(); this->Refresh(); });
 		}
 
-		UControlRigGizmoLibrary* GizmoLibrary = ControlRig->GetGizmoLibrary();
-		if (GizmoLibrary == nullptr)
+		const TArray<TSoftObjectPtr<UControlRigShapeLibrary>>& ShapeLibraries = ControlRig->GetShapeLibraries();
+		if(ShapeLibraries.IsEmpty())
 		{
 			return;
 		}
-
+		
 		// disable collision again
 		SetActorEnableCollision(false);
 
-		// prepare the material + color param
-		UMaterialInterface* BaseMaterial = nullptr;
-		if (MaterialOverride && !ColorParameter.IsEmpty())
+		for(const TSoftObjectPtr<UControlRigShapeLibrary>& ShapeLibrary : ShapeLibraries)
 		{
-			BaseMaterial = MaterialOverride;
-			ColorParameterName = *ColorParameter;
-		}
-		else
-		{
-			BaseMaterial = GizmoLibrary->DefaultMaterial.LoadSynchronous();
-			ColorParameterName = GizmoLibrary->MaterialColorParameter;
+			ShapeLibrary->DefaultMaterial.LoadSynchronous();
 		}
 
 		URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
-		Hierarchy->ForEach<FRigControlElement>([this, GizmoLibrary, BaseMaterial, Hierarchy](FRigControlElement* ControlElement) -> bool
+		Hierarchy->ForEach<FRigControlElement>([this, ShapeLibraries, Hierarchy](FRigControlElement* ControlElement) -> bool
         {
-			if (!ControlElement->Settings.bGizmoEnabled)
+			if (!ControlElement->Settings.bShapeEnabled)
 			{
 				return true;
 			}
@@ -196,9 +188,33 @@ void AControlRigControlActor::Refresh()
 				case ERigControlType::TransformNoScale:
 				case ERigControlType::EulerTransform:
 				{
-					if (const FControlRigGizmoDefinition* GizmoDef = GizmoLibrary->GetGizmoByName(ControlElement->Settings.GizmoName))
+					if (const FControlRigShapeDefinition* ShapeDef = UControlRigShapeLibrary::GetShapeByName(ControlElement->Settings.ShapeName, ShapeLibraries))
 					{
-						UStaticMesh* StaticMesh = GizmoDef->StaticMesh.LoadSynchronous();
+						UMaterialInterface* BaseMaterial = nullptr;
+						if (MaterialOverride && !ColorParameter.IsEmpty())
+						{
+							BaseMaterial = MaterialOverride;
+							ColorParameterName = *ColorParameter;
+						}
+						else
+						{
+							if(!ShapeDef->Library.IsValid())
+							{
+								return true;
+							}
+
+							if(ShapeDef->Library->DefaultMaterial.IsValid())
+							{
+								BaseMaterial = ShapeDef->Library->DefaultMaterial.Get();
+							}
+							else
+							{
+								BaseMaterial = ShapeDef->Library->DefaultMaterial.LoadSynchronous();
+							}
+							ColorParameterName = ShapeDef->Library->MaterialColorParameter;
+						}
+
+						UStaticMesh* StaticMesh = ShapeDef->StaticMesh.LoadSynchronous();
 						UStaticMeshComponent* Component = NewObject< UStaticMeshComponent>(ActorRootComponent);
 						Component->SetStaticMesh(StaticMesh);
 						Component->SetupAttachment(ActorRootComponent);
@@ -211,7 +227,7 @@ void AControlRigControlActor::Refresh()
 						Component->SetMaterial(0, MaterialInstance);
 
 						ControlNames.Add(ControlElement->GetName());
-						GizmoTransforms.Add(Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::CurrentLocal) * GizmoDef->Transform);
+						ShapeTransforms.Add(Hierarchy->GetControlShapeTransform(ControlElement, ERigTransformType::CurrentLocal) * ShapeDef->Transform);
 						Components.Add(Component);
 						Materials.Add(MaterialInstance);
 					}
@@ -238,8 +254,8 @@ void AControlRigControlActor::Refresh()
 		}
 
 		FTransform ControlTransform = ControlRig->GetControlGlobalTransform(ControlNames[GizmoIndex]);
-		Components[GizmoIndex]->SetRelativeTransform(GizmoTransforms[GizmoIndex] * ControlTransform);
-		Materials[GizmoIndex]->SetVectorParameterValue(ColorParameterName, FVector(ControlElement->Settings.GizmoColor));
+		Components[GizmoIndex]->SetRelativeTransform(ShapeTransforms[GizmoIndex] * ControlTransform);
+		Materials[GizmoIndex]->SetVectorParameterValue(ColorParameterName, FVector(ControlElement->Settings.ShapeColor));
 	}
 }
 

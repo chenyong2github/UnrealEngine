@@ -355,8 +355,8 @@ void SRigHierarchy::BindCommands()
 		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsMultiSelected));
 
 	CommandList->MapAction(
-		Commands.SetGizmoTransformFromCurrent,
-		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleSetGizmoTransformFromCurrent),
+		Commands.SetShapeTransformFromCurrent,
+		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleSetShapeTransformFromCurrent),
 		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsControlSelected));
 
 	CommandList->MapAction(
@@ -437,10 +437,10 @@ void SRigHierarchy::BindCommands()
 		FIsActionChecked::CreateLambda([this]() { return DisplaySettings.bShowDynamicHierarchy; }));
 
 	CommandList->MapAction(
-		Commands.ToggleGizmoTransformEdit,
+		Commands.ToggleControlShapeTransformEdit,
 		FExecuteAction::CreateLambda([this]()
 		{
-			ControlRigEditor.Pin()->GetEditMode()->ToggleGizmoTransformEdit();
+			ControlRigEditor.Pin()->GetEditMode()->ToggleControlShapeTransformEdit();
 		}));
 
 	CommandList->MapAction(
@@ -1086,7 +1086,7 @@ void SRigHierarchy::CreateContextMenu() const
 					TransformsSection.AddMenuEntry(Commands.ResetAllTransforms);
 					TransformsSection.AddMenuEntry(Commands.SetInitialTransformFromCurrentTransform);
 					TransformsSection.AddMenuEntry(Commands.SetInitialTransformFromClosestBone);
-					TransformsSection.AddMenuEntry(Commands.SetGizmoTransformFromCurrent);
+					TransformsSection.AddMenuEntry(Commands.SetShapeTransformFromCurrent);
 					TransformsSection.AddMenuEntry(Commands.Unparent);
 
 					FToolMenuSection& AssetsSection = InMenu->AddSection(TEXT("Assets"), LOCTEXT("AssetsHeader", "Assets"));
@@ -1183,7 +1183,7 @@ void SRigHierarchy::RefreshHierarchy(const FAssetData& InAssetData)
 		FScopedTransaction Transaction(LOCTEXT("HierarchyRefresh", "Refresh Transform"));
 
 		// don't select bone if we are in setup mode.
-		// we do this to avoid the editmode / viewport gizmos to refresh recursively,
+		// we do this to avoid the editmode / viewport shapes to refresh recursively,
 		// which can add an extreme slowdown depending on the number of bones (n^(n-1))
 		bool bSelectBones = true;
 		if (UControlRig* CurrentRig = ControlRigEditor.Pin()->ControlRig)
@@ -1267,7 +1267,7 @@ void SRigHierarchy::ImportHierarchy(const FAssetData& InAssetData)
 		FScopedTransaction Transaction(LOCTEXT("HierarchyImport", "Import Hierarchy"));
 
 		// don't select bone if we are in setup mode.
-		// we do this to avoid the editmode / viewport gizmos to refresh recursively,
+		// we do this to avoid the editmode / viewport shapes to refresh recursively,
 		// which can add an extreme slowdown depending on the number of bones (n^(n-1))
 		bool bSelectBones = true;
 		if (UControlRig* CurrentRig = ControlRigEditor.Pin()->ControlRig)
@@ -2570,7 +2570,7 @@ void SRigHierarchy::HandleSetInitialTransformFromClosestBone()
 	}
 }
 
-void SRigHierarchy::HandleSetGizmoTransformFromCurrent()
+void SRigHierarchy::HandleSetShapeTransformFromCurrent()
 {
 	if (IsControlSelected())
 	{
@@ -2578,7 +2578,7 @@ void SRigHierarchy::HandleSetGizmoTransformFromCurrent()
 		{
 			if (URigHierarchy* DebuggedHierarchy = GetDebuggedHierarchy())
 			{
-				FScopedTransaction Transaction(LOCTEXT("HierarchySetGizmoTransforms", "Set Gizmo Transforms"));
+				FScopedTransaction Transaction(LOCTEXT("HierarchySetShapeTransforms", "Set Shape Transforms"));
 
 				TArray<TSharedPtr<FRigTreeElement>> SelectedItems = TreeView->GetSelectedItems();
 				for (const TSharedPtr<FRigTreeElement>& SelectedItem : SelectedItems)
@@ -2587,16 +2587,16 @@ void SRigHierarchy::HandleSetGizmoTransformFromCurrent()
 					{
 						const FRigElementKey Key = ControlElement->GetKey();
 						
-						if (ControlElement->Settings.bGizmoEnabled)
+						if (ControlElement->Settings.bShapeEnabled)
 						{
 							const FTransform OffsetGlobalTransform = DebuggedHierarchy->GetGlobalControlOffsetTransform(Key); 
-							const FTransform GizmoGlobalTransform = DebuggedHierarchy->GetGlobalControlGizmoTransform(Key);
-							const FTransform GizmoLocalTransform = GizmoGlobalTransform.GetRelativeTransform(OffsetGlobalTransform);
+							const FTransform ShapeGlobalTransform = DebuggedHierarchy->GetGlobalControlShapeTransform(Key);
+							const FTransform ShapeLocalTransform = ShapeGlobalTransform.GetRelativeTransform(OffsetGlobalTransform);
 							
-							DebuggedHierarchy->SetControlGizmoTransform(Key, GizmoLocalTransform, true, true);
-							DebuggedHierarchy->SetControlGizmoTransform(Key, GizmoLocalTransform, false, true);
-							GetHierarchy()->SetControlGizmoTransform(Key, GizmoLocalTransform, true, true);
-							GetHierarchy()->SetControlGizmoTransform(Key, GizmoLocalTransform, false, true);
+							DebuggedHierarchy->SetControlShapeTransform(Key, ShapeLocalTransform, true, true);
+							DebuggedHierarchy->SetControlShapeTransform(Key, ShapeLocalTransform, false, true);
+							GetHierarchy()->SetControlShapeTransform(Key, ShapeLocalTransform, true, true);
+							GetHierarchy()->SetControlShapeTransform(Key, ShapeLocalTransform, false, true);
 
 							DebuggedHierarchy->SetLocalTransform(Key, FTransform::Identity, false, true, true);
 							DebuggedHierarchy->SetLocalTransform(Key, FTransform::Identity, true, true, true);
@@ -2606,7 +2606,7 @@ void SRigHierarchy::HandleSetGizmoTransformFromCurrent()
 
 						if (FControlRigEditorEditMode* EditMode = ControlRigEditor.Pin()->GetEditMode())
 						{
-							EditMode->RequestToRecreateGizmoActors();
+							EditMode->RequestToRecreateControlShapeActors();
 						}
 					}
 				}
