@@ -18,6 +18,7 @@ using System.Threading.Tasks;
 namespace HordeServer.Collections.Impl
 {
 	using JobId = ObjectId<IJob>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// Manages user documents
@@ -26,7 +27,7 @@ namespace HordeServer.Collections.Impl
 	{
 		class UserDocument : IUser
 		{
-			public ObjectId Id { get; set; }
+			public UserId Id { get; set; }
 
 			public string Name { get; set; }
 			public string Login { get; set; }
@@ -50,7 +51,7 @@ namespace HordeServer.Collections.Impl
 			{
 			}
 
-			public UserDocument(ObjectId Id, string Name, string Login, string? Email)
+			public UserDocument(UserId Id, string Name, string Login, string? Email)
 			{
 				this.Id = Id;
 				this.Name = Name;
@@ -63,10 +64,10 @@ namespace HordeServer.Collections.Impl
 
 		class UserClaimsDocument : IUserClaims
 		{
-			public ObjectId Id { get; set; }
+			public UserId Id { get; set; }
 			public List<UserClaim> Claims { get; set; } = new List<UserClaim>();
 
-			ObjectId IUserClaims.UserId => Id;
+			UserId IUserClaims.UserId => Id;
 			IReadOnlyList<IUserClaim> IUserClaims.Claims => Claims;
 
 			[BsonConstructor]
@@ -74,7 +75,7 @@ namespace HordeServer.Collections.Impl
 			{
 			}
 
-			public UserClaimsDocument(ObjectId Id)
+			public UserClaimsDocument(UserId Id)
 			{
 				this.Id = Id;
 			}
@@ -88,7 +89,7 @@ namespace HordeServer.Collections.Impl
 
 		class UserSettingsDocument : IUserSettings
 		{
-			public ObjectId Id { get; set; }
+			public UserId Id { get; set; }
 
 			[BsonDefaultValue(false), BsonIgnoreIfDefault]
 			public bool EnableExperimentalFeatures { get; set; }
@@ -99,7 +100,7 @@ namespace HordeServer.Collections.Impl
 			public BsonValue DashboardSettings { get; set; } = BsonNull.Value;
 			public List<JobId> PinnedJobIds { get; set; } = new List<JobId>();
 
-			ObjectId IUserSettings.UserId => Id;
+			UserId IUserSettings.UserId => Id;
 			IReadOnlyList<JobId> IUserSettings.PinnedJobIds => PinnedJobIds;
 
 			[BsonConstructor]
@@ -107,7 +108,7 @@ namespace HordeServer.Collections.Impl
 			{
 			}
 
-			public UserSettingsDocument(ObjectId Id)
+			public UserSettingsDocument(UserId Id)
 			{
 				this.Id = Id;
 			}
@@ -196,7 +197,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IUser?> GetUserAsync(ObjectId Id)
+		public async Task<IUser?> GetUserAsync(UserId Id)
 		{
 			IUser? User = await Users.Find(x => x.Id == Id).FirstOrDefaultAsync();
 			using (ICacheEntry Entry = UserCache.CreateEntry(Id))
@@ -208,7 +209,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public Task<IUser?> GetCachedUserAsync(ObjectId Id)
+		public Task<IUser?> GetCachedUserAsync(UserId Id)
 		{
 			IUser? User;
 			if (UserCache.TryGetValue(Id, out User))
@@ -222,7 +223,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IUser>> FindUsersAsync(IEnumerable<ObjectId>? Ids, string? NameRegex = null, int? Index = null, int? Count = null)
+		public async Task<List<IUser>> FindUsersAsync(IEnumerable<UserId>? Ids, string? NameRegex = null, int? Index = null, int? Count = null)
 		{
 			FilterDefinition<UserDocument> Filter = FilterDefinition<UserDocument>.Empty;
 			if (Ids != null)
@@ -251,7 +252,7 @@ namespace HordeServer.Collections.Impl
 		/// <inheritdoc/>
 		public async Task<IUser> FindOrAddUserByLoginAsync(string Login, string? Name, string? Email)
 		{
-			UpdateDefinition<UserDocument> Update = Builders<UserDocument>.Update.SetOnInsert(x => x.Id, ObjectId.GenerateNewId()).SetOnInsert(x => x.Login, Login).Unset(x => x.Hidden);
+			UpdateDefinition<UserDocument> Update = Builders<UserDocument>.Update.SetOnInsert(x => x.Id, UserId.GenerateNewId()).SetOnInsert(x => x.Login, Login).Unset(x => x.Hidden);
 
 			if (Name == null)
 			{
@@ -272,7 +273,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IUserClaims> GetClaimsAsync(ObjectId UserId)
+		public async Task<IUserClaims> GetClaimsAsync(UserId UserId)
 		{
 			IUserClaims? Claims = await UserClaims.Find(x => x.Id == UserId).FirstOrDefaultAsync();
 			if(Claims == null)
@@ -283,7 +284,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task UpdateClaimsAsync(ObjectId UserId, IEnumerable<IUserClaim> Claims)
+		public async Task UpdateClaimsAsync(UserId UserId, IEnumerable<IUserClaim> Claims)
 		{
 			UserClaimsDocument NewDocument = new UserClaimsDocument(UserId);
 			NewDocument.Claims.AddRange(Claims.Select(x => new UserClaim(x)));
@@ -291,7 +292,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IUserSettings> GetSettingsAsync(ObjectId UserId)
+		public async Task<IUserSettings> GetSettingsAsync(UserId UserId)
 		{
 			IUserSettings? Settings = await UserSettings.Find(x => x.Id == UserId).FirstOrDefaultAsync();
 			if (Settings == null)
@@ -302,7 +303,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task UpdateSettingsAsync(ObjectId UserId, bool? EnableExperimentalFeatures = null, bool? EnableIssueNotifications = null, BsonValue? DashboardSettings = null, IEnumerable<JobId>? AddPinnedJobIds = null, IEnumerable<JobId>? RemovePinnedJobIds = null)
+		public async Task UpdateSettingsAsync(UserId UserId, bool? EnableExperimentalFeatures = null, bool? EnableIssueNotifications = null, BsonValue? DashboardSettings = null, IEnumerable<JobId>? AddPinnedJobIds = null, IEnumerable<JobId>? RemovePinnedJobIds = null)
 		{
 			List<UpdateDefinition<UserSettingsDocument>> Updates = new List<UpdateDefinition<UserSettingsDocument>>();
 			if (EnableExperimentalFeatures != null)

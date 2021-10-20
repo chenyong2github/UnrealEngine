@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 namespace HordeServer.Collections
 {
 	using JobId = ObjectId<IJob>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// Manages user documents
@@ -24,14 +25,14 @@ namespace HordeServer.Collections
 		/// </summary>
 		/// <param name="Id">Id of the user</param>
 		/// <returns>The user information</returns>
-		Task<IUser?> GetUserAsync(ObjectId Id);
+		Task<IUser?> GetUserAsync(UserId Id);
 
 		/// <summary>
 		/// Gets a cached user by unique id
 		/// </summary>
 		/// <param name="Id">Id of the user</param>
 		/// <returns>The user information</returns>
-		Task<IUser?> GetCachedUserAsync(ObjectId Id);
+		Task<IUser?> GetCachedUserAsync(UserId Id);
 
 		/// <summary>
 		/// Gets a user by unique id
@@ -41,7 +42,7 @@ namespace HordeServer.Collections
 		/// <param name="Index">Maximum number of results</param>
 		/// <param name="Count">Number of results to return</param>
 		/// <returns>The user information</returns>
-		Task<List<IUser>> FindUsersAsync(IEnumerable<ObjectId>? Ids = null, string? NameRegex = null, int? Index = null, int? Count = null);
+		Task<List<IUser>> FindUsersAsync(IEnumerable<UserId>? Ids = null, string? NameRegex = null, int? Index = null, int? Count = null);
 
 		/// <summary>
 		/// Gets a user by login
@@ -64,7 +65,7 @@ namespace HordeServer.Collections
 		/// </summary>
 		/// <param name="UserId"></param>
 		/// <returns></returns>
-		Task<IUserClaims> GetClaimsAsync(ObjectId UserId);
+		Task<IUserClaims> GetClaimsAsync(UserId UserId);
 
 		/// <summary>
 		/// Update the claims for a user
@@ -72,14 +73,14 @@ namespace HordeServer.Collections
 		/// <param name="UserId"></param>
 		/// <param name="Claims"></param>
 		/// <returns></returns>
-		Task UpdateClaimsAsync(ObjectId UserId, IEnumerable<IUserClaim> Claims);
+		Task UpdateClaimsAsync(UserId UserId, IEnumerable<IUserClaim> Claims);
 
 		/// <summary>
 		/// Get settings for a user
 		/// </summary>
 		/// <param name="UserId"></param>
 		/// <returns></returns>
-		Task<IUserSettings> GetSettingsAsync(ObjectId UserId);
+		Task<IUserSettings> GetSettingsAsync(UserId UserId);
 
 		/// <summary>
 		/// Update a user
@@ -91,7 +92,7 @@ namespace HordeServer.Collections
 		/// <param name="AddPinnedJobIds"></param>
 		/// <param name="RemovePinnedJobIds"></param>
 		/// <returns>Updated user object</returns>
-		Task UpdateSettingsAsync(ObjectId UserId, bool? EnableExperimentalFeatures = null, bool? EnableIssueNotifications = null, BsonValue? DashboardSettings = null, IEnumerable<JobId>? AddPinnedJobIds = null, IEnumerable<JobId>? RemovePinnedJobIds = null);
+		Task UpdateSettingsAsync(UserId UserId, bool? EnableExperimentalFeatures = null, bool? EnableIssueNotifications = null, BsonValue? DashboardSettings = null, IEnumerable<JobId>? AddPinnedJobIds = null, IEnumerable<JobId>? RemovePinnedJobIds = null);
 	}
 
 	/// <summary>
@@ -107,7 +108,7 @@ namespace HordeServer.Collections
 		/// <returns></returns>
 		public static Task<IUser?> GetUserAsync(this IUserCollection UserCollection, ClaimsPrincipal Principal)
 		{
-			ObjectId? UserId = Principal.GetUserId();
+			UserId? UserId = Principal.GetUserId();
 			if (UserId != null)
 			{
 				return UserCollection.GetUserAsync(UserId.Value);

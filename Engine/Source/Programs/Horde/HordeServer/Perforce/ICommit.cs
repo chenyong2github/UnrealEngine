@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 namespace HordeServer.Commits
 {
 	using StreamId = StringId<IStream>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// Stores metadata about a commit
@@ -42,12 +43,12 @@ namespace HordeServer.Commits
 		/// <summary>
 		/// The author user id
 		/// </summary>
-		public ObjectId AuthorId { get; }
+		public UserId AuthorId { get; }
 
 		/// <summary>
 		/// The owner of this change, if different from the author (due to Robomerge)
 		/// </summary>
-		public ObjectId OwnerId { get; }
+		public UserId OwnerId { get; }
 
 		/// <summary>
 		/// Changelist description
@@ -85,10 +86,10 @@ namespace HordeServer.Commits
 		public int OriginalChange { get; set; }
 
 		/// <inheritdoc cref="ICommit.AuthorId"/>
-		public ObjectId AuthorId { get; set; }
+		public UserId AuthorId { get; set; }
 
 		/// <inheritdoc cref="ICommit.OwnerId"/>
-		public ObjectId? OwnerId { get; set; }
+		public UserId? OwnerId { get; set; }
 
 		/// <inheritdoc cref="ICommit.Description"/>
 		public string Description { get; set; }
@@ -114,7 +115,7 @@ namespace HordeServer.Commits
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public NewCommit(StreamId StreamId, int Change, int OriginalChange, ObjectId AuthorId, ObjectId OwnerId, string Description, string BasePath, DateTime DateUtc)
+		public NewCommit(StreamId StreamId, int Change, int OriginalChange, UserId AuthorId, UserId OwnerId, string Description, string BasePath, DateTime DateUtc)
 		{
 			this.StreamId = StreamId;
 			this.Change = Change;

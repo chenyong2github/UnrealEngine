@@ -16,6 +16,7 @@ using System.Threading.Tasks;
 namespace HordeServer.Collections.Impl
 {
 	using JobId = ObjectId<IJob>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// Manages user documents
@@ -24,7 +25,7 @@ namespace HordeServer.Collections.Impl
 	{
 		class UserDocument : IUser, IUserClaims, IUserSettings
 		{
-			public ObjectId Id { get; set; }
+			public UserId Id { get; set; }
 
 			public ClaimDocument PrimaryClaim { get; set; } = null!;
 			public List<ClaimDocument> Claims { get; set; } = new List<ClaimDocument>();
@@ -42,10 +43,10 @@ namespace HordeServer.Collections.Impl
 			string IUser.Login => Claims.FirstOrDefault(x => String.Equals(x.Type, ClaimTypes.Name, StringComparison.Ordinal))?.Value ?? PrimaryClaim.Value;
 			string? IUser.Email => Claims.FirstOrDefault(x => String.Equals(x.Type, ClaimTypes.Email, StringComparison.Ordinal))?.Value;
 
-			ObjectId IUserClaims.UserId => Id;
+			UserId IUserClaims.UserId => Id;
 			IReadOnlyList<IUserClaim> IUserClaims.Claims => Claims;
 
-			ObjectId IUserSettings.UserId => Id;
+			UserId IUserSettings.UserId => Id;
 			IReadOnlyList<JobId> IUserSettings.PinnedJobIds => PinnedJobIds;
 		}
 
@@ -99,19 +100,19 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IUser?> GetUserAsync(ObjectId Id)
+		public async Task<IUser?> GetUserAsync(UserId Id)
 		{
 			return await Users.Find(x => x.Id == Id).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
-		public Task<IUser?> GetCachedUserAsync(ObjectId Id)
+		public Task<IUser?> GetCachedUserAsync(UserId Id)
 		{
 			return GetUserAsync(Id);
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IUser>> FindUsersAsync(IEnumerable<ObjectId>? Ids, string? NameRegex, int? Index, int? Count)
+		public async Task<List<IUser>> FindUsersAsync(IEnumerable<UserId>? Ids, string? NameRegex, int? Index, int? Count)
 		{
 			FilterDefinition<UserDocument> Filter = Builders<UserDocument>.Filter.In(x => x.Id, Ids);
 			return await Users.Find(Filter).Range(Index, Count).ToListAsync<UserDocument, IUser>();
@@ -128,31 +129,31 @@ namespace HordeServer.Collections.Impl
 		public async Task<IUser> FindOrAddUserByLoginAsync(string Login, string? Name, string? Email)
 		{
 			ClaimDocument NewPrimaryClaim = new ClaimDocument(ClaimTypes.Name, Login);
-			UpdateDefinition<UserDocument> Update = Builders<UserDocument>.Update.SetOnInsert(x => x.Id, ObjectId.GenerateNewId());
+			UpdateDefinition<UserDocument> Update = Builders<UserDocument>.Update.SetOnInsert(x => x.Id, UserId.GenerateNewId());
 			return await Users.FindOneAndUpdateAsync<UserDocument>(x => x.PrimaryClaim == NewPrimaryClaim, Update, new FindOneAndUpdateOptions<UserDocument> { IsUpsert = true, ReturnDocument = ReturnDocument.After });
 		}
 
 		/// <inheritdoc/>
-		public async Task<IUserClaims> GetClaimsAsync(ObjectId UserId)
+		public async Task<IUserClaims> GetClaimsAsync(UserId UserId)
 		{
 			return await Users.Find(x => x.Id == UserId).FirstOrDefaultAsync() ?? new UserDocument { Id = UserId };
 		}
 
 		/// <inheritdoc/>
-		public async Task UpdateClaimsAsync(ObjectId UserId, IEnumerable<IUserClaim> Claims)
+		public async Task UpdateClaimsAsync(UserId UserId, IEnumerable<IUserClaim> Claims)
 		{
 			List<ClaimDocument> NewClaims = Claims.Select(x => new ClaimDocument(x)).ToList();
 			await Users.FindOneAndUpdateAsync(x => x.Id == UserId, Builders<UserDocument>.Update.Set(x => x.Claims, NewClaims));
 		}
 
 		/// <inheritdoc/>
-		public async Task<IUserSettings> GetSettingsAsync(ObjectId UserId)
+		public async Task<IUserSettings> GetSettingsAsync(UserId UserId)
 		{
 			return await Users.Find(x => x.Id == UserId).FirstOrDefaultAsync() ?? new UserDocument { Id = UserId };
 		}
 
 		/// <inheritdoc/>
-		public async Task UpdateSettingsAsync(ObjectId UserId, bool? EnableExperimentalFeatures, bool? EnableIssueNotifications, BsonValue? DashboardSettings = null, IEnumerable<JobId>? AddPinnedJobIds = null, IEnumerable<JobId>? RemovePinnedJobIds = null)
+		public async Task UpdateSettingsAsync(UserId UserId, bool? EnableExperimentalFeatures, bool? EnableIssueNotifications, BsonValue? DashboardSettings = null, IEnumerable<JobId>? AddPinnedJobIds = null, IEnumerable<JobId>? RemovePinnedJobIds = null)
 		{
 			if (AddPinnedJobIds != null)
 			{

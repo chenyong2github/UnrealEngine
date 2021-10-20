@@ -17,6 +17,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Controllers
 {
+	using UserId = ObjectId<IUser>;
+
 	/// <summary>
 	/// Controller for the /api/v1/users endpoint
 	/// </summary>
@@ -83,10 +85,10 @@ namespace HordeServer.Controllers
 			[FromQuery] bool IncludeAvatar = false)
 		{
 
-			ObjectId[]? UserIds = null;
+			UserId[]? UserIds = null;
 			if (Ids != null && Ids.Length > 0)
 			{
-				UserIds = Ids.Select(x => new ObjectId(x)).ToArray();
+				UserIds = Ids.Select(x => new UserId(x)).ToArray();
 			}
 
 			List<IUser> Users = await UserCollection.FindUsersAsync(UserIds, NameRegex, Index, Count);
@@ -105,7 +107,7 @@ namespace HordeServer.Controllers
 
 		async Task<IUser?> GetUserInternalAsync(string Id)
 		{
-			ObjectId? UserId = ParseUserId(Id);
+			UserId? UserId = ParseUserId(Id);
 			if(UserId == null)
 			{
 				return null;
@@ -113,13 +115,13 @@ namespace HordeServer.Controllers
 			return await UserCollection.GetUserAsync(UserId.Value);
 		}
 
-		ObjectId? ParseUserId(string Id)
+		UserId? ParseUserId(string Id)
 		{
 			if (Id.Equals("current", StringComparison.OrdinalIgnoreCase))
 			{
 				return User.GetUserId();
 			}
-			else if(ObjectId.TryParse(Id, out ObjectId Result))
+			else if(UserId.TryParse(Id, out UserId Result))
 			{
 				return Result;
 			}

@@ -36,6 +36,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Notifications.Impl
 {
+	using UserId = ObjectId<IUser>;
+
 	/// <summary>
 	/// Maintains a connection to Slack, in order to receive socket-mode notifications of user interactions
 	/// </summary>
@@ -131,7 +133,7 @@ namespace HordeServer.Notifications.Impl
 			public string Recipient { get; set; } = String.Empty;
 
 			[BsonElement("usr")]
-			public ObjectId? UserId { get; set; }
+			public UserId? UserId { get; set; }
 
 			[BsonElement("eid")]
 			public string EventId { get; set; } = String.Empty;
@@ -150,7 +152,7 @@ namespace HordeServer.Notifications.Impl
 		{
 			public const int CurrentVersion = 2;
 			
-			public ObjectId Id { get; set; }
+			public UserId Id { get; set; }
 
 			[BsonElement("u")]
 			public string? SlackUserId { get; set; }
@@ -177,7 +179,7 @@ namespace HordeServer.Notifications.Impl
 			{
 			}
 
-			public SlackUser(ObjectId Id, UserInfo? Info)
+			public SlackUser(UserId Id, UserInfo? Info)
 			{
 				this.Id = Id;
 				this.SlackUserId = Info?.UserName;
@@ -263,7 +265,7 @@ namespace HordeServer.Notifications.Impl
 			return await MessageStates.Find(Filter).FirstOrDefaultAsync();
 		}
 
-		async Task<MessageStateDocument> SetMessageStateAsync(string Recipient, string EventId, ObjectId? UserId, string Channel, string Ts, string Digest)
+		async Task<MessageStateDocument> SetMessageStateAsync(string Recipient, string EventId, UserId? UserId, string Channel, string Ts, string Digest)
 		{
 			FilterDefinition<MessageStateDocument> Filter = Builders<MessageStateDocument>.Filter.Eq(x => x.Recipient, Recipient) & Builders<MessageStateDocument>.Filter.Eq(x => x.EventId, EventId);
 			UpdateDefinition<MessageStateDocument> Update = Builders<MessageStateDocument>.Update.SetOnInsert(x => x.Id, ObjectId.GenerateNewId()).Set(x => x.UserId, UserId).Set(x => x.Channel, Channel).Set(x => x.Ts, Ts).Set(x => x.Digest, Digest);
@@ -535,7 +537,7 @@ namespace HordeServer.Notifications.Impl
 		{
 			IIssueDetails Details = await IssueService.GetIssueDetailsAsync(Issue);
 
-			HashSet<ObjectId> UserIds = new HashSet<ObjectId>();
+			HashSet<UserId> UserIds = new HashSet<UserId>();
 			if (Issue.NotifySuspects)
 			{
 				UserIds.UnionWith(Details.Suspects.Select(x => x.AuthorId));
@@ -582,7 +584,7 @@ namespace HordeServer.Notifications.Impl
 
 			if (UserIds.Count > 0)
 			{
-				foreach (ObjectId UserId in UserIds)
+				foreach (UserId UserId in UserIds)
 				{
 					IUser? User = await UserCollection.GetUserAsync(UserId);
 					if (User == null)
@@ -650,7 +652,7 @@ namespace HordeServer.Notifications.Impl
 			return SampleText.ToString();
 		}
 
-		async Task SendIssueMessageAsync(string Recipient, IIssue Issue, IIssueDetails Details, ObjectId? UserId)
+		async Task SendIssueMessageAsync(string Recipient, IIssue Issue, IIssueDetails Details, UserId? UserId)
 		{
 			using IDisposable Scope = Logger.BeginScope("SendIssueMessageAsync (User: {SlackUser}, Issue: {IssueId})", Recipient, Issue.Id);
 
@@ -788,7 +790,7 @@ namespace HordeServer.Notifications.Impl
 			return $"issue_{Issue.Id}";
 		}
 
-		async Task<string> FormatNameAsync(ObjectId UserId)
+		async Task<string> FormatNameAsync(UserId UserId)
 		{
 			IUser? User = await UserCollection.GetUserAsync(UserId);
 			if (User == null)
@@ -798,7 +800,7 @@ namespace HordeServer.Notifications.Impl
 			return User.Name;
 		}
 
-		async Task<string> FormatMentionAsync(ObjectId UserId)
+		async Task<string> FormatMentionAsync(UserId UserId)
 		{
 			IUser? User = await UserCollection.GetUserAsync(UserId);
 			if (User == null)
@@ -838,7 +840,7 @@ namespace HordeServer.Notifications.Impl
 
 			int IssueId = int.Parse(Match.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture);
 			string Verb = Match.Groups[2].Value;
-			ObjectId UserId = Match.Groups[3].Value.ToObjectId();
+			UserId UserId = Match.Groups[3].Value.ToObjectId<IUser>();
 			Logger.LogInformation("Issue {IssueId}: {Action} from {SlackUser} ({UserId})", IssueId, Verb, UserName, UserId);
 
 			if (String.Equals(Verb, "ack", StringComparison.Ordinal))
@@ -1161,7 +1163,7 @@ namespace HordeServer.Notifications.Impl
 			await SendRequestAsync<PostMessageResponse>(PostMessageUrl, Message);
 		}
 
-		private async Task SendOrUpdateMessageAsync(string Recipient, string EventId, ObjectId? UserId, string? Text = null, BlockBase[]? Blocks = null, BlockKitAttachment[]? Attachments = null)
+		private async Task SendOrUpdateMessageAsync(string Recipient, string EventId, UserId? UserId, string? Text = null, BlockBase[]? Blocks = null, BlockKitAttachment[]? Attachments = null)
 		{
 			if (AllowUsers != null && !AllowUsers.Contains(Recipient))
 			{

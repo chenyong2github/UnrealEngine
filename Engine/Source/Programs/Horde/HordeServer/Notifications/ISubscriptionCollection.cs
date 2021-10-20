@@ -21,6 +21,7 @@ namespace HordeServer.Collections
 {
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// Information for creating a new subscription
@@ -35,7 +36,7 @@ namespace HordeServer.Collections
 		/// <summary>
 		/// The user name
 		/// </summary>
-		public ObjectId UserId { get; set; }
+		public UserId UserId { get; set; }
 
 		/// <summary>
 		/// Type of notification to send
@@ -48,7 +49,7 @@ namespace HordeServer.Collections
 		/// <param name="Event">Name of the event</param>
 		/// <param name="UserId">User name</param>
 		/// <param name="NotificationType">Notification type</param>
-		public NewSubscription(EventRecord Event, ObjectId UserId, NotificationType NotificationType)
+		public NewSubscription(EventRecord Event, UserId UserId, NotificationType NotificationType)
 		{
 			this.Event = Event;
 			this.UserId = UserId;
@@ -94,6 +95,6 @@ namespace HordeServer.Collections
 		/// </summary>
 		/// <param name="UserId">The user to search for</param>
 		/// <returns>List of subscriptions</returns>
-		public Task<List<ISubscription>> FindSubscriptionsAsync(ObjectId UserId);
+		public Task<List<ISubscription>> FindSubscriptionsAsync(UserId UserId);
 	}
 }

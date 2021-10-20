@@ -30,6 +30,7 @@ namespace HordeServer.Controllers
 	using JobId = ObjectId<IJob>;
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// Controller for the /api/v1/jobs endpoing
@@ -543,18 +544,18 @@ namespace HordeServer.Controllers
 				PreflightChange = 0;
 			}
 
-			ObjectId? PreflightStartedByUserIdValue = null;
+			UserId? PreflightStartedByUserIdValue = null;
 
 			if (PreflightStartedByUserId != null)
 			{
-				PreflightStartedByUserIdValue = new ObjectId(PreflightStartedByUserId);
+				PreflightStartedByUserIdValue = new UserId(PreflightStartedByUserId);
 			}
 
-			ObjectId? StartedByUserIdValue = null;
+			UserId? StartedByUserIdValue = null;
 
 			if (StartedByUserId != null)
 			{
-				StartedByUserIdValue = new ObjectId(StartedByUserId);
+				StartedByUserIdValue = new UserId(StartedByUserId);
 			}
 
 			List<IJob> Jobs;

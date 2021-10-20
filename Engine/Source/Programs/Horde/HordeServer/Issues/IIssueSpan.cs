@@ -12,6 +12,7 @@ namespace HordeServer.Models
 {
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// Trace of a set of errors in a single step across multiple jobs
@@ -102,7 +103,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Id of the changelist's author
 		/// </summary>
-		public ObjectId AuthorId { get; }
+		public UserId AuthorId { get; }
 
 		/// <summary>
 		/// The original changelist number, if merged from another branch. For changes merged between several branches, this is the originally submitted change.

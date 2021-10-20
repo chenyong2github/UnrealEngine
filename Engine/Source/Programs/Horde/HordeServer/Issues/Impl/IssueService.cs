@@ -35,6 +35,7 @@ namespace HordeServer.Services.Impl
 	using LogId = ObjectId<ILogFile>;
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// Detailed issue information
@@ -69,7 +70,7 @@ namespace HordeServer.Services.Impl
 		bool ShowDesktopAlerts;
 
 		/// <inheritdoc/>
-		HashSet<ObjectId> NotifyUsers;
+		HashSet<UserId> NotifyUsers;
 
 		/// <summary>
 		/// Constructor
@@ -97,11 +98,11 @@ namespace HordeServer.Services.Impl
 
 			if (Issue.OwnerId == null)
 			{
-				NotifyUsers = new HashSet<ObjectId>(Suspects.Select(x => x.AuthorId));
+				NotifyUsers = new HashSet<UserId>(Suspects.Select(x => x.AuthorId));
 			}
 			else
 			{
-				NotifyUsers = new HashSet<ObjectId> { Issue.OwnerId.Value };
+				NotifyUsers = new HashSet<UserId> { Issue.OwnerId.Value };
 			}
 		}
 
@@ -119,7 +120,7 @@ namespace HordeServer.Services.Impl
 		/// </summary>
 		/// <param name="UserId">The user to query</param>
 		/// <returns>True if the issue is relevant to the given user</returns>
-		public bool IncludeForUser(ObjectId UserId)
+		public bool IncludeForUser(UserId UserId)
 		{
 			return NotifyUsers.Contains(UserId);
 		}
@@ -325,7 +326,7 @@ namespace HordeServer.Services.Impl
 			List<IIssueSuspect> Suspects = await IssueCollection.GetSuspectsAsync(Issue);
 
 			List<IUser> SuspectUsers = new List<IUser>();
-			foreach (ObjectId SuspectUserId in Suspects.Select(x => x.AuthorId).Distinct())
+			foreach (UserId SuspectUserId in Suspects.Select(x => x.AuthorId).Distinct())
 			{
 				IUser? SuspectUser = await UserCollection.GetCachedUserAsync(SuspectUserId);
 				if (SuspectUser != null)
@@ -356,13 +357,13 @@ namespace HordeServer.Services.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IIssue>> FindIssuesAsync(IEnumerable<int>? Ids = null, ObjectId? UserId = null, StreamId? StreamId = null, int? MinChange = null, int? MaxChange = null, bool? Resolved = null, int? Index = null, int? Count = null)
+		public async Task<List<IIssue>> FindIssuesAsync(IEnumerable<int>? Ids = null, UserId? UserId = null, StreamId? StreamId = null, int? MinChange = null, int? MaxChange = null, bool? Resolved = null, int? Index = null, int? Count = null)
 		{
 			return await IssueCollection.FindIssuesAsync(Ids, UserId, StreamId, MinChange, MaxChange, Resolved, Index, Count);
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IIssue>> FindIssuesForJobAsync(int[]? Ids, IJob Job, IGraph Graph, SubResourceId? StepId = null, SubResourceId? BatchId = null, int? LabelIdx = null, ObjectId? UserId = null, bool? Resolved = null, int? Index = null, int? Count = null)
+		public async Task<List<IIssue>> FindIssuesForJobAsync(int[]? Ids, IJob Job, IGraph Graph, SubResourceId? StepId = null, SubResourceId? BatchId = null, int? LabelIdx = null, UserId? UserId = null, bool? Resolved = null, int? Index = null, int? Count = null)
 		{
 			List<IIssueStep> Steps = await IssueCollection.FindStepsAsync(Job.Id, BatchId, StepId);
 			List<IIssueSpan> Spans = await IssueCollection.FindSpansAsync(Steps.Select(x => x.SpanId));
@@ -423,7 +424,7 @@ namespace HordeServer.Services.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> UpdateIssueAsync(int Id, string? UserSummary = null, ObjectId? OwnerId = null, ObjectId? NominatedById = null, bool? Acknowledged = null, ObjectId? DeclinedById = null, int? FixChange = null, ObjectId? ResolvedById = null)
+		public async Task<bool> UpdateIssueAsync(int Id, string? UserSummary = null, UserId? OwnerId = null, UserId? NominatedById = null, bool? Acknowledged = null, UserId? DeclinedById = null, int? FixChange = null, UserId? ResolvedById = null)
 		{
 			Dictionary<StreamId, bool>? NewFixStreamIds = null;
 			for (; ; )
@@ -980,7 +981,7 @@ namespace HordeServer.Services.Impl
 			// Update the resolved flag
 			if (Issue != null && Issue.ResolvedAt != null && ShouldMarkFixFailed(Issue, Span))
 			{
-				Issue = await IssueCollection.UpdateIssueAsync(Issue, NewResolvedById: ObjectId.Empty);
+				Issue = await IssueCollection.UpdateIssueAsync(Issue, NewResolvedById: UserId.Empty);
 			}
 
 			return Issue;

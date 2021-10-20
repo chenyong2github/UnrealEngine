@@ -13,6 +13,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Collections
 {
+	using UserId = ObjectId<IUser>;
+
 	/// <summary>
 	/// Collection of notification triggers
 	/// </summary>
@@ -61,6 +63,6 @@ namespace HordeServer.Collections
 		/// <param name="Email">Whether to receive email notifications</param>
 		/// <param name="Slack">Whether to receive Slack notifications</param>
 		/// <returns>The new trigger state</returns>
-		Task<INotificationTrigger?> UpdateSubscriptionsAsync(INotificationTrigger Trigger, ObjectId UserId, bool? Email, bool? Slack);
+		Task<INotificationTrigger?> UpdateSubscriptionsAsync(INotificationTrigger Trigger, UserId UserId, bool? Email, bool? Slack);
 	}
 }

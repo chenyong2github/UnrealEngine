@@ -12,6 +12,7 @@ namespace HordeServer.Models
 	using DeviceId = StringId<IDevice>;
 	using DevicePlatformId = StringId<IDevicePlatform>;
 	using DevicePoolId = StringId<IDevicePool>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// A reservation containing one or more devices
@@ -41,7 +42,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Reservations held by a user, requires a token
 		/// </summary>
-		public ObjectId? UserId { get; }
+		public UserId? UserId { get; }
 
 		/// <summary>
 		/// The hostname of machine holding reservation

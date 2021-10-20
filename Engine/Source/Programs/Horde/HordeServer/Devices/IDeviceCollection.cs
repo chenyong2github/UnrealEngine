@@ -11,6 +11,7 @@ namespace HordeServer.Collections
 	using DeviceId = StringId<IDevice>;
 	using DevicePlatformId = StringId<IDevicePlatform>;
 	using DevicePoolId = StringId<IDevicePool>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// Device reservation request data
@@ -124,7 +125,7 @@ namespace HordeServer.Collections
 		/// <param name="Address">The network address or hostname the device can be reached at</param>
 		/// <param name="ModelId">The vendor model id of the device</param>
         /// <param name="UserId">The user adding the device</param>
-		Task<IDevice?> TryAddDeviceAsync(DeviceId Id, string Name, DevicePlatformId PlatformId, DevicePoolId PoolId, bool? Enabled, string? Address, string? ModelId, ObjectId? UserId);
+		Task<IDevice?> TryAddDeviceAsync(DeviceId Id, string Name, DevicePlatformId PlatformId, DevicePoolId PoolId, bool? Enabled, string? Address, string? ModelId, UserId? UserId);
 
 		/// <summary>
 		/// Update a device
@@ -139,7 +140,7 @@ namespace HordeServer.Collections
 		/// <param name="NewProblem">Whether to set or clear problem state</param>
 		/// <param name="NewMaintenance">Whether to set or clear maintenance state</param>
         /// <param name="ModifiedByUserId">The user who is updating the device</param>
-		Task UpdateDeviceAsync(DeviceId DeviceId, DevicePoolId? NewPoolId, string? NewName, string? NewAddress, string? NewModelId, string? NewNotes, bool? NewEnabled, bool? NewProblem, bool? NewMaintenance, ObjectId? ModifiedByUserId = null);
+		Task UpdateDeviceAsync(DeviceId DeviceId, DevicePoolId? NewPoolId, string? NewName, string? NewAddress, string? NewModelId, string? NewNotes, bool? NewEnabled, bool? NewProblem, bool? NewMaintenance, UserId? ModifiedByUserId = null);
 
 		/// <summary>
 		/// Delete a device from the collection
@@ -153,7 +154,7 @@ namespace HordeServer.Collections
         /// <param name="DeviceId"></param>
         /// <param name="CheckedOutByUserId"></param>
         /// <returns></returns>
-        Task CheckoutDeviceAsync(DeviceId DeviceId, ObjectId? CheckedOutByUserId);
+        Task CheckoutDeviceAsync(DeviceId DeviceId, UserId? CheckedOutByUserId);
 
         // RESERVATIONS
 

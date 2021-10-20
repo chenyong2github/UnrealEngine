@@ -18,6 +18,7 @@ namespace HordeServer.Collections.Impl
 	using DeviceId = StringId<IDevice>;
 	using DevicePlatformId = StringId<IDevicePlatform>;
 	using DevicePoolId = StringId<IDevicePool>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// Collection of device documents
@@ -109,7 +110,7 @@ namespace HordeServer.Collections.Impl
             /// Reservations held by a user, requires a token like download code
             /// </summary>
             [BsonIgnoreIfNull]
-			public ObjectId? UserId { get; set; }
+			public UserId? UserId { get; set; }
 
             /// <summary>
             /// The hostname of the machine which has made the reservation
@@ -218,7 +219,7 @@ namespace HordeServer.Collections.Impl
 
 			}
 
-			public DeviceDocument(DeviceId Id, DevicePlatformId PlatformId, DevicePoolId PoolId, string Name, bool Enabled, string? Address, string? ModelId, ObjectId? UserId)
+			public DeviceDocument(DeviceId Id, DevicePlatformId PlatformId, DevicePoolId PoolId, string Name, bool Enabled, string? Address, string? ModelId, UserId? UserId)
 			{
 				this.Id = Id;
 				this.PlatformId = PlatformId;
@@ -259,7 +260,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IDevice?> TryAddDeviceAsync(DeviceId Id, string Name, DevicePlatformId PlatformId, DevicePoolId PoolId, bool? Enabled, string? Address, string? ModelId, ObjectId? UserId)
+		public async Task<IDevice?> TryAddDeviceAsync(DeviceId Id, string Name, DevicePlatformId PlatformId, DevicePoolId PoolId, bool? Enabled, string? Address, string? ModelId, UserId? UserId)
 		{
 			DeviceDocument NewDevice = new DeviceDocument(Id, PlatformId, PoolId, Name, Enabled ?? true, Address, ModelId, UserId);
 			await Devices.InsertOneAsync(NewDevice);
@@ -385,7 +386,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task CheckoutDeviceAsync(DeviceId DeviceId, ObjectId? CheckedOutByUserId)
+		public async Task CheckoutDeviceAsync(DeviceId DeviceId, UserId? CheckedOutByUserId)
 		{
 			UpdateDefinitionBuilder<DeviceDocument> UpdateBuilder = Builders<DeviceDocument>.Update;
 
@@ -405,7 +406,7 @@ namespace HordeServer.Collections.Impl
 
 
 		/// <inheritdoc/>
-		public async Task UpdateDeviceAsync(DeviceId DeviceId, DevicePoolId? NewPoolId, string? NewName, string? NewAddress, string? NewModelId, string? NewNotes, bool? NewEnabled, bool? NewProblem, bool? NewMaintenance, ObjectId? ModifiedByUserId = null)
+		public async Task UpdateDeviceAsync(DeviceId DeviceId, DevicePoolId? NewPoolId, string? NewName, string? NewAddress, string? NewModelId, string? NewNotes, bool? NewEnabled, bool? NewProblem, bool? NewMaintenance, UserId? ModifiedByUserId = null)
 		{
 			UpdateDefinitionBuilder<DeviceDocument> UpdateBuilder = Builders<DeviceDocument>.Update;
 

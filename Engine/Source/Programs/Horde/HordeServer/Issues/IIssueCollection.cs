@@ -27,6 +27,7 @@ namespace HordeServer.Collections
 	using LogId = ObjectId<ILogFile>;
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// Fingerprint for an issue
@@ -279,7 +280,7 @@ namespace HordeServer.Collections
 		/// <summary>
 		/// Author of the changelist
 		/// </summary>
-		public ObjectId AuthorId { get; set; }
+		public UserId AuthorId { get; set; }
 
 		/// <summary>
 		/// The submitted changelist
@@ -297,7 +298,7 @@ namespace HordeServer.Collections
 		/// <param name="AuthorId">Author of the change</param>
 		/// <param name="Change">The changelist number</param>
 		/// <param name="DeclinedAt">The time that the user declined this issue</param>
-		public NewIssueSuspectData(ObjectId AuthorId, int Change, DateTime? DeclinedAt)
+		public NewIssueSuspectData(UserId AuthorId, int Change, DateTime? DeclinedAt)
 		{
 			this.AuthorId = AuthorId;
 			this.Change = Change;
@@ -318,7 +319,7 @@ namespace HordeServer.Collections
 		/// <summary>
 		/// Author of the changelist
 		/// </summary>
-		public ObjectId AuthorId { get; set; }
+		public UserId AuthorId { get; set; }
 
 		/// <summary>
 		/// The original changelist number, if merged from another branch. For changes merged between several branches, this is the originally submitted change.
@@ -330,7 +331,7 @@ namespace HordeServer.Collections
 		/// </summary>
 		/// <param name="Change">The changelist number</param>
 		/// <param name="AuthorId">Author of the change</param>
-		public NewIssueSpanSuspectData(int Change, ObjectId AuthorId)
+		public NewIssueSpanSuspectData(int Change, UserId AuthorId)
 		{
 			this.Change = Change;
 			this.AuthorId = AuthorId;
@@ -405,7 +406,7 @@ namespace HordeServer.Collections
 		/// <param name="Index">Index within the results to return</param>
 		/// <param name="Count">Number of results</param>
 		/// <returns>List of streams open in the given stream at the given changelist</returns>
-		Task<List<IIssue>> FindIssuesAsync(IEnumerable<int>? Ids = null, ObjectId? UserId = null, StreamId? StreamId = null, int? MinChange = null, int? MaxChange = null, bool? Resolved = null, int? Index = null, int? Count = null);
+		Task<List<IIssue>> FindIssuesAsync(IEnumerable<int>? Ids = null, UserId? UserId = null, StreamId? StreamId = null, int? MinChange = null, int? MaxChange = null, bool? Resolved = null, int? Index = null, int? Count = null);
 
 		/// <summary>
 		/// Searches for open issues
@@ -431,7 +432,7 @@ namespace HordeServer.Collections
 		/// <param name="NewLastSeenAt"></param>
 		/// <param name="NewNotifySuspects">Whether all suspects should be notified about this issue</param>
 		/// <returns>True if the issue was updated</returns>
-		Task<IIssue?> UpdateIssueAsync(IIssue Issue, IssueSeverity? NewSeverity = null, string? NewSummary = null, string? NewUserSummary = null, ObjectId? NewOwnerId = null, ObjectId? NewNominatedById = null, bool? NewAcknowledged = null, ObjectId? NewDeclinedById = null, int? NewFixChange = null, Dictionary<StreamId, bool>? NewFixStreamIds = null, ObjectId? NewResolvedById = null, DateTime? NewLastSeenAt = null, bool? NewNotifySuspects = null);
+		Task<IIssue?> UpdateIssueAsync(IIssue Issue, IssueSeverity? NewSeverity = null, string? NewSummary = null, string? NewUserSummary = null, UserId? NewOwnerId = null, UserId? NewNominatedById = null, bool? NewAcknowledged = null, UserId? NewDeclinedById = null, int? NewFixChange = null, Dictionary<StreamId, bool>? NewFixStreamIds = null, UserId? NewResolvedById = null, DateTime? NewLastSeenAt = null, bool? NewNotifySuspects = null);
 
 		/// <summary>
 		/// Updates the list of suspects for an issue, and optionally sets the resolved state

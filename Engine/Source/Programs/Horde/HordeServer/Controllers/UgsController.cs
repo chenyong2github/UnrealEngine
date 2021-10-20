@@ -25,6 +25,7 @@ namespace HordeServer.Controllers
 {
 	using LogId = ObjectId<ILogFile>;
 	using StreamId = StringId<IStream>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// Controller for the /api/v1/issues endpoint
@@ -382,32 +383,32 @@ namespace HordeServer.Controllers
 		[Route("/ugs/api/issues/{IssueId}")]
 		public async Task<ActionResult> UpdateIssueAsync(int IssueId, [FromBody] UpdateUgsIssueRequest Request)
 		{
-			ObjectId? NewOwnerId = null;
+			UserId? NewOwnerId = null;
 			if (!String.IsNullOrEmpty(Request.Owner))
 			{
 				NewOwnerId = (await UserCollection.FindOrAddUserByLoginAsync(Request.Owner))?.Id;
 			}
 
-			ObjectId? NewNominatedById = null;
+			UserId? NewNominatedById = null;
 			if (!String.IsNullOrEmpty(Request.NominatedBy))
 			{
 				NewNominatedById = (await UserCollection.FindOrAddUserByLoginAsync(Request.NominatedBy))?.Id;
 			}
 
-			ObjectId? NewDeclinedById = null;
+			UserId? NewDeclinedById = null;
 			if (!String.IsNullOrEmpty(Request.DeclinedBy))
 			{
 				NewDeclinedById = (await UserCollection.FindOrAddUserByLoginAsync(Request.DeclinedBy))?.Id;
 			}
 
-			ObjectId? NewResolvedById = null;
+			UserId? NewResolvedById = null;
 			if (!String.IsNullOrEmpty(Request.ResolvedBy))
 			{
 				NewResolvedById = (await UserCollection.FindOrAddUserByLoginAsync(Request.ResolvedBy))?.Id;
 			}
 			if (NewResolvedById == null && Request.Resolved.HasValue)
 			{
-				NewResolvedById = Request.Resolved.Value ? IIssue.ResolvedByUnknownId : ObjectId.Empty;
+				NewResolvedById = Request.Resolved.Value ? IIssue.ResolvedByUnknownId : UserId.Empty;
 			}
 
 			if (!await IssueService.UpdateIssueAsync(IssueId, null, NewOwnerId, NewNominatedById, Request.Acknowledged, NewDeclinedById, Request.FixChange, NewResolvedById))
