@@ -324,34 +324,22 @@ void FD3D12Device::SetupAfterDeviceCreation()
 #endif // (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
 
 
-	const D3D12_RESOURCE_BINDING_TIER Tier = GetParentAdapter()->GetResourceBindingTier();
-	uint32 MaximumSupportedHeapSize = NUM_VIEW_DESCRIPTORS_TIER_1;
-	uint32 MaximumSupportedSamplerHeapSize = D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE;
-
-	switch (Tier)
-	{
-	case D3D12_RESOURCE_BINDING_TIER_1:
-		MaximumSupportedHeapSize = NUM_VIEW_DESCRIPTORS_TIER_1;
-		break;
-	case D3D12_RESOURCE_BINDING_TIER_2:
-		MaximumSupportedHeapSize = NUM_VIEW_DESCRIPTORS_TIER_2;
-		break;
-	case D3D12_RESOURCE_BINDING_TIER_3:
-	default:
-		MaximumSupportedHeapSize = NUM_VIEW_DESCRIPTORS_TIER_3;
-		break;
-	}
+	const int32 MaximumResourceHeapSize = GetParentAdapter()->GetMaxDescriptorsForHeapType(ERHIDescriptorHeapType::Standard);
+	const int32 MaximumSamplerHeapSize = GetParentAdapter()->GetMaxDescriptorsForHeapType(ERHIDescriptorHeapType::Sampler);
 
 	// This value can be tuned on a per app basis. I.e. most apps will never run into descriptor heap pressure so
 	// can make this global heap smaller
-	check((uint32)GGlobalResourceDescriptorHeapSize <= MaximumSupportedHeapSize);
-	check((uint32)GGlobalSamplerDescriptorHeapSize <= MaximumSupportedSamplerHeapSize);
+	check(GGlobalResourceDescriptorHeapSize <= MaximumResourceHeapSize || MaximumResourceHeapSize < 0);
+	check(GGlobalSamplerDescriptorHeapSize <= MaximumSamplerHeapSize);
+
+	check(GGlobalSamplerHeapSize <= MaximumSamplerHeapSize);
+
 	check(GOnlineDescriptorHeapSize <= GGlobalResourceDescriptorHeapSize);
-	check(GResourceDescriptorHeapSize <= GGlobalResourceDescriptorHeapSize);
-	check(GSamplerDescriptorHeapSize <= GGlobalSamplerDescriptorHeapSize);
+	check(GBindlessResourceDescriptorHeapSize <= GGlobalResourceDescriptorHeapSize);
+	check(GBindlessSamplerDescriptorHeapSize <= GGlobalSamplerDescriptorHeapSize);
 
 	DescriptorHeapManager.Init(GGlobalResourceDescriptorHeapSize, GGlobalSamplerDescriptorHeapSize);
-	BindlessDescriptorManager.Init(GResourceDescriptorHeapSize, GSamplerDescriptorHeapSize);
+	BindlessDescriptorManager.Init(GBindlessResourceDescriptorHeapSize, GBindlessSamplerDescriptorHeapSize);
 
 	// Init offline descriptor managers
 	for (uint32 Index = 0; Index < static_cast<uint32>(ERHIDescriptorHeapType::count); Index++)
@@ -359,7 +347,7 @@ void FD3D12Device::SetupAfterDeviceCreation()
 		OfflineDescriptorManagers[Index].Init(static_cast<ERHIDescriptorHeapType>(Index));
 	}
 
-	GlobalSamplerHeap.Init(NUM_SAMPLER_DESCRIPTORS);
+	GlobalSamplerHeap.Init(GGlobalSamplerHeapSize);
 
 	OnlineDescriptorManager.Init(GOnlineDescriptorHeapSize, GOnlineDescriptorHeapBlockSize);
 

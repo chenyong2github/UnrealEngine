@@ -28,13 +28,6 @@
 #define NUM_SAMPLER_DESCRIPTORS D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE
 #define DESCRIPTOR_HEAP_BLOCK_SIZE 10000
 
-#define NUM_VIEW_DESCRIPTORS_TIER_1 D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1
-#define NUM_VIEW_DESCRIPTORS_TIER_2 D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_2
-// Only some tier 3 hardware can use > 1 million descriptors in a heap, the only way to tell if hardware can
-// is to try and create a heap and check for failure. Unless we really want > 1 million Descriptors we'll cap
-// out at 1M for now.
-#define NUM_VIEW_DESCRIPTORS_TIER_3 D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_2
-
 // Heap for updating UAV counter values.
 #define COUNTER_HEAP_SIZE 1024 * 64
 
@@ -50,9 +43,10 @@ static const bool GD3D12SkipStateCaching = false;
 extern int32 GGlobalResourceDescriptorHeapSize;
 extern int32 GGlobalSamplerDescriptorHeapSize;
 
-extern int32 GResourceDescriptorHeapSize;
-extern int32 GSamplerDescriptorHeapSize;
+extern int32 GBindlessResourceDescriptorHeapSize;
+extern int32 GBindlessSamplerDescriptorHeapSize;
 
+extern int32 GGlobalSamplerHeapSize;
 extern int32 GOnlineDescriptorHeapSize;
 extern int32 GOnlineDescriptorHeapBlockSize;
 

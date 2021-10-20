@@ -36,9 +36,9 @@ This structure allows a single RHI to control several different hardware setups.
 #pragma once
 
 THIRD_PARTY_INCLUDES_START
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-#include "dxgidebug.h"
-#endif // PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#if D3D12_SUPPORTS_DXGI_DEBUG
+	#include "dxgidebug.h"
+#endif
 THIRD_PARTY_INCLUDES_END
 
 class FD3D12DynamicRHI;
@@ -179,6 +179,8 @@ public:
 	FORCEINLINE TArray<FD3D12Viewport*>& GetViewports() { return Viewports; }
 	FORCEINLINE FD3D12Viewport* GetDrawingViewport() { return DrawingViewport; }
 	FORCEINLINE void SetDrawingViewport(FD3D12Viewport* InViewport) { DrawingViewport = InViewport; }
+
+	FORCEINLINE int32 GetMaxDescriptorsForHeapType(ERHIDescriptorHeapType InHeapType) { return InHeapType == ERHIDescriptorHeapType::Sampler ? MaxSamplerDescriptors : MaxNonSamplerDescriptors; }
 
 	FORCEINLINE ID3D12CommandSignature* GetDrawIndirectCommandSignature() { return DrawIndirectCommandSignature; }
 	FORCEINLINE ID3D12CommandSignature* GetDrawIndexedIndirectCommandSignature() { return DrawIndexedIndirectCommandSignature; }
@@ -468,7 +470,7 @@ protected:
 	TRefCountPtr<ID3D12Device7> RootDevice7;
 #endif
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#if D3D12_SUPPORTS_DXGI_DEBUG
 	TRefCountPtr<IDXGIDebug> DXGIDebug;
 	HANDLE ExceptionHandlerHandle = INVALID_HANDLE_VALUE;
 #endif
@@ -478,6 +480,9 @@ protected:
 	D3D_ROOT_SIGNATURE_VERSION RootSignatureVersion;
 	bool bDepthBoundsTestSupported;
 	bool bHeapNotZeroedSupported;
+
+	int32 MaxNonSamplerDescriptors{};
+	int32 MaxSamplerDescriptors{};
 
 	uint32 VRSTileSize;
 

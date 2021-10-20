@@ -99,7 +99,9 @@ static TAutoConsoleVariable<int32> CVarD3D12TrackAllAllocations(
 	TEXT("Controls whether D3D12 RHI should track all allocation information (default = off)."),
 	ECVF_ReadOnly
 );
+#endif // PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 
+#if D3D12_SUPPORTS_INFO_QUEUE
 static bool CheckD3DStoredMessages()
 {
 	bool bResult = false;
@@ -173,6 +175,9 @@ static bool CheckD3DStoredMessages()
 
 	return bResult;
 }
+#endif // #if D3D12_SUPPORTS_INFO_QUEUE
+
+#if PLATFORM_WINDOWS
 
 /** Handle d3d messages and write them to the log file **/
 static LONG __stdcall D3DVectoredExceptionHandler(EXCEPTION_POINTERS* InInfo)
@@ -616,7 +621,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	}
 #endif // PLATFORM_WINDOWS
 
-#if (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+#if D3D12_SUPPORTS_DXGI_DEBUG
 	if (bWithDebug)
 	{
 		// Manually load dxgi debug if available
@@ -638,7 +643,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	}
 #endif //  (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
 
-#if UE_BUILD_DEBUG	&& (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+#if UE_BUILD_DEBUG	&& D3D12_SUPPORTS_INFO_QUEUE
 	//break on debug
 	TRefCountPtr<ID3D12Debug> d3dDebug;
 	if (SUCCEEDED(RootDevice->QueryInterface(__uuidof(ID3D12Debug), (void**)d3dDebug.GetInitReference())))
@@ -653,7 +658,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	}
 #endif
 
-#if !(UE_BUILD_SHIPPING && WITH_EDITOR) && (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+#if !(UE_BUILD_SHIPPING && WITH_EDITOR) && D3D12_SUPPORTS_INFO_QUEUE
 	// Add some filter outs for known debug spew messages (that we don't care about)
 	if (bWithDebug)
 	{
@@ -908,6 +913,74 @@ void FD3D12Adapter::InitializeDevices()
 			VERIFYD3D12RESULT(RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &D3D12Caps, sizeof(D3D12Caps)));
 			ResourceHeapTier = D3D12Caps.ResourceHeapTier;
 			ResourceBindingTier = D3D12Caps.ResourceBindingTier;
+
+			if (ResourceBindingTier == D3D12_RESOURCE_BINDING_TIER_1)
+			{
+				MaxNonSamplerDescriptors = D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1;
+			}
+			else if (ResourceBindingTier == D3D12_RESOURCE_BINDING_TIER_2)
+			{
+				MaxNonSamplerDescriptors = D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_2;
+			}
+			else if (ResourceBindingTier == D3D12_RESOURCE_BINDING_TIER_3)
+			{
+				// From: https://microsoft.github.io/DirectX-Specs/d3d/ResourceBinding.html#levels-of-hardware-support
+				//   For Tier 3, the max # descriptors is listed as 1000000+. The + indicates that the runtime allows applications
+				//   to try creating descriptor heaps with more than 1000000 descriptors, leaving the driver to decide whether 
+				//   it can support the request or fail the call. There is no cap exposed indicating how large of a descriptor 
+				//   heap the hardware could support – applications can just try what they want and fall back to 1000000 if 
+				//   larger doesn’t work.
+
+#if D3D12_SUPPORTS_INFO_QUEUE
+				// Temporarily silence CREATE_DESCRIPTOR_HEAP_LARGE_NUM_DESCRIPTORS since we know we might break on it
+				TRefCountPtr<ID3D12InfoQueue> InfoQueue;
+				RootDevice->QueryInterface(IID_PPV_ARGS(InfoQueue.GetInitReference()));
+				if (InfoQueue)
+				{
+					D3D12_MESSAGE_ID MessageId = D3D12_MESSAGE_ID_CREATE_DESCRIPTOR_HEAP_LARGE_NUM_DESCRIPTORS;
+
+					D3D12_INFO_QUEUE_FILTER NewFilter{};
+					NewFilter.DenyList.NumIDs = 1;
+					NewFilter.DenyList.pIDList = &MessageId;
+
+					InfoQueue->PushStorageFilter(&NewFilter);
+				}
+#endif
+
+				// create an overly large heap and test for failure
+				D3D12_DESCRIPTOR_HEAP_DESC TempHeapDesc{};
+				TempHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+				TempHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+				TempHeapDesc.NodeMask = FRHIGPUMask::All().GetNative();
+				TempHeapDesc.NumDescriptors = 2 * D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_2;
+
+				TRefCountPtr<ID3D12DescriptorHeap> TempHeap;
+				HRESULT hr = RootDevice->CreateDescriptorHeap(&TempHeapDesc, IID_PPV_ARGS(TempHeap.GetInitReference()));
+				if (SUCCEEDED(hr))
+				{
+					MaxNonSamplerDescriptors = -1;
+				}
+				else
+				{
+					MaxNonSamplerDescriptors = D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_2;
+				}
+
+#if D3D12_SUPPORTS_INFO_QUEUE
+				// Restore the info queue to its old state to ensure we get CREATE_DESCRIPTOR_HEAP_LARGE_NUM_DESCRIPTORS.
+				if (InfoQueue)
+				{
+					InfoQueue->PopStorageFilter();
+				}
+#endif
+			}
+			else
+			{
+				checkNoEntry();
+
+				MaxNonSamplerDescriptors = D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_2;
+			}
+
+			MaxSamplerDescriptors = D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE;
 
 #if D3D12_RHI_RAYTRACING
 			D3D12_FEATURE_DATA_D3D12_OPTIONS5 D3D12Caps5 = {};
@@ -1192,7 +1265,7 @@ void FD3D12Adapter::Cleanup()
 
 	FenceCorePool.Destroy();
 
-#if (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+#if D3D12_SUPPORTS_DXGI_DEBUG
 	// trace all leak D3D resource
 	if (DXGIDebug != nullptr)
 	{
@@ -1201,7 +1274,9 @@ void FD3D12Adapter::Cleanup()
 			DXGI_DEBUG_RLO_FLAGS(DXGI_DEBUG_RLO_DETAIL | DXGI_DEBUG_RLO_IGNORE_INTERNAL));
 		DXGIDebug.SafeRelease();
 
+#if D3D12_SUPPORTS_INFO_QUEUE
 		CheckD3DStoredMessages();
+#endif
 	}
 #endif //  (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
 
