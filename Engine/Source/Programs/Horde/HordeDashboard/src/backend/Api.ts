@@ -374,6 +374,26 @@ export type UpdateAgentRequest = {
 
 }
 
+export type AuditLogQuery = {
+	minTime?: string;
+	maxTime?: string;
+	index?: number;
+	count?: number;
+}
+
+export enum AuditLogLevel {
+    Information = "Information"
+}
+
+export type AuditLogEntry = {
+	time: string;
+	level: AuditLogLevel;
+	message: string;
+	format: string;
+	properties?: Record<string, string>;
+}
+
+
 /**Parameters to create a pool */
 export type CreatePoolRequest = {
 

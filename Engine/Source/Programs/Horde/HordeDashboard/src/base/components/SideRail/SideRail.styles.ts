@@ -1,4 +1,4 @@
-import { FontWeights, getFocusOutlineStyle, IStyleFunction } from 'office-ui-fabric-react/lib/index';
+import { FontWeights, getFocusOutlineStyle, IStyleFunction } from '@fluentui/react/lib/index';
 import { ISideRailStyleProps, ISideRailStyles } from './SideRail.types';
 
 
