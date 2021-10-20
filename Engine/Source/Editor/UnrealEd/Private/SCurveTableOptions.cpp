@@ -3,6 +3,9 @@
 #include "SCurveTableOptions.h"
 #include "Widgets/Input/SButton.h"
 #include "SPrimaryButton.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Input/SComboBox.h"
 
 DEFINE_LOG_CATEGORY(LogCurveTableOptions);
 
