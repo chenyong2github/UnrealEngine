@@ -25,13 +25,95 @@ DerivedDataCacheCommandlet.cpp: Commandlet for DDC maintenence
 
 DEFINE_LOG_CATEGORY_STATIC(LogDerivedDataCacheCommandlet, Log, All);
 
+class UDerivedDataCacheCommandlet::FObjectReferencer : public FGCObject
+{
+public:
+	FObjectReferencer(TMap<UObject*, double>& InReferencedObjects)
+		: ReferencedObjects(InReferencedObjects)
+	{
+	}
+
+private:
+	void AddReferencedObjects(FReferenceCollector& Collector) override
+	{
+		Collector.AllowEliminatingReferences(false);
+		Collector.AddReferencedObjects(ReferencedObjects);
+		Collector.AllowEliminatingReferences(true);
+	}
+
+	FString GetReferencerName() const override
+	{
+		return TEXT("UDerivedDataCacheCommandlet");
+	}
+
+	FString ReferencerName;
+	TMap<UObject*, double>& ReferencedObjects;
+};
+
+class UDerivedDataCacheCommandlet::FPackageListener : public FUObjectArray::FUObjectCreateListener, public FUObjectArray::FUObjectDeleteListener
+{
+public:
+	FPackageListener()
+	{
+		GUObjectArray.AddUObjectDeleteListener(this);
+		GUObjectArray.AddUObjectCreateListener(this);
+
+		// We might be late to the party, check if some UPackage already have been created
+		for (TObjectIterator<UPackage> PackageIter; PackageIter; ++PackageIter)
+		{
+			NewPackages.Add(*PackageIter);
+		}
+	}
+
+	~FPackageListener()
+	{
+		GUObjectArray.RemoveUObjectDeleteListener(this);
+		GUObjectArray.RemoveUObjectCreateListener(this);
+	}
+
+	TSet<UPackage*>& GetNewPackages()
+	{
+		return NewPackages;
+	}
+
+private:
+	void NotifyUObjectCreated(const class UObjectBase* Object, int32 Index) override
+	{
+		if (Object->GetClass() == UPackage::StaticClass())
+		{
+			NewPackages.Add(const_cast<UPackage*>(static_cast<const UPackage*>(Object)));
+		}
+	}
+
+	void NotifyUObjectDeleted(const class UObjectBase* Object, int32 Index) override
+	{
+		if (Object->GetClass() == UPackage::StaticClass())
+		{
+			NewPackages.Remove(const_cast<UPackage*>(static_cast<const UPackage*>(Object)));
+		}
+	}
+
+	void OnUObjectArrayShutdown() override
+	{
+		GUObjectArray.RemoveUObjectDeleteListener(this);
+		GUObjectArray.RemoveUObjectCreateListener(this);
+	}
+
+	TSet<UPackage*> NewPackages;
+};
+
+UDerivedDataCacheCommandlet::UDerivedDataCacheCommandlet(FVTableHelper& Helper)
+	: Super(Helper)
+{
+}
+
 UDerivedDataCacheCommandlet::UDerivedDataCacheCommandlet(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	LogToConsole = false;
 }
 
-void UDerivedDataCacheCommandlet::MaybeMarkPackageAsAlreadyLoaded(UPackage *Package)
+void UDerivedDataCacheCommandlet::MaybeMarkPackageAsAlreadyLoaded(UPackage* Package)
 {
 	if (ProcessedPackages.Contains(Package->GetFName()))
 	{
@@ -94,8 +176,152 @@ static void PumpAsync(bool* bInOutHadActivity = nullptr)
 	}
 }
 
+void UDerivedDataCacheCommandlet::CacheLoadedPackages(UPackage* CurrentPackage, uint8 PackageFilter, const TArray<ITargetPlatform*>& Platforms)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UDerivedDataCacheCommandlet::CacheLoadedPackages);
+
+	const double BeginCacheTimeStart = FPlatformTime::Seconds();
+
+	// We will only remove what we process from the list to avoid unprocessed package being forever forgotten.
+	TSet<UPackage*>& NewPackages = PackageListener->GetNewPackages();
+
+	TArray<UObject*> ObjectsWithOuter;
+	for (auto NewPackageIt = NewPackages.CreateIterator(); NewPackageIt; ++NewPackageIt)
+	{
+		UPackage* NewPackage = *NewPackageIt;
+		const FName NewPackageName = NewPackage->GetFName();
+		if (!ProcessedPackages.Contains(NewPackageName))
+		{
+			if ((PackageFilter & NORMALIZE_ExcludeEnginePackages) != 0 && NewPackage->GetName().StartsWith(TEXT("/Engine")))
+			{
+				UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("Skipping %s as Engine package"), *NewPackageName.ToString());
+
+				// Add it so we don't convert the FName to a string everytime we encounter this package
+				ProcessedPackages.Add(NewPackageName);
+				NewPackageIt.RemoveCurrent();
+			}
+			else if (NewPackage == CurrentPackage || !PackagesToProcess.Contains(NewPackageName))
+			{
+				UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("Processing %s"), *NewPackageName.ToString());
+
+				ProcessedPackages.Add(NewPackageName);
+				NewPackageIt.RemoveCurrent();
+
+				ObjectsWithOuter.Reset();
+				GetObjectsWithOuter(NewPackage, ObjectsWithOuter, true /* bIncludeNestedObjects */, RF_ClassDefaultObject /* ExclusionFlags */);
+				for (UObject* Object : ObjectsWithOuter)
+				{
+					for (auto Platform : Platforms)
+					{
+						Object->BeginCacheForCookedPlatformData(Platform);
+					}
+
+					CachingObjects.Add(Object);
+				}
+			}
+		}
+		else
+		{
+			NewPackageIt.RemoveCurrent();
+		}
+	}
+
+	BeginCacheTime += FPlatformTime::Seconds() - BeginCacheTimeStart;
+
+	ProcessCachingObjects(Platforms);
+}
+
+bool UDerivedDataCacheCommandlet::ProcessCachingObjects(const TArray<ITargetPlatform*>& Platforms)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UDerivedDataCacheCommandlet::ProcessCachingObjects);
+
+	bool bHadActivity = false;
+	if (CachingObjects.Num() > 0)
+	{
+		PumpAsync();
+
+		double CurrentTime = FPlatformTime::Seconds();
+		for (auto It = CachingObjects.CreateIterator(); It; ++It)
+		{
+			// Call IsCachedCookedPlatformDataLoaded once a second per object since it can be quite expensive
+			if (CurrentTime - It->Value > 1.0)
+			{
+				UObject* Object = It->Key;
+				bool bIsFinished = true;
+
+				for (auto Platform : Platforms)
+				{
+					// IsCachedCookedPlatformDataLoaded can be quite slow for some objects
+					// Do not call it if bIsFinished is already false
+					bIsFinished = bIsFinished && Object->IsCachedCookedPlatformDataLoaded(Platform);
+				}
+
+				if (bIsFinished)
+				{
+					bHadActivity = true;
+					Object->WillNeverCacheCookedPlatformDataAgain();
+					Object->ClearAllCachedCookedPlatformData();
+					It.RemoveCurrent();
+				}
+				else
+				{
+					It->Value = CurrentTime;
+				}
+			}
+		}
+	}
+
+	return bHadActivity;
+}
+
+void UDerivedDataCacheCommandlet::FinishCachingObjects(const TArray<ITargetPlatform*>& Platforms)
+{
+	// Timing variables
+	double DDCCommandletMaxWaitSeconds = 60. * 10.;
+	GConfig->GetDouble(TEXT("CookSettings"), TEXT("DDCCommandletMaxWaitSeconds"), DDCCommandletMaxWaitSeconds, GEditorIni);
+
+	const double FinishCacheTimeStart = FPlatformTime::Seconds();
+	double LastActivityTime = FinishCacheTimeStart;
+
+	while (CachingObjects.Num() > 0)
+	{
+		bool bHadActivity = ProcessCachingObjects(Platforms);
+
+		double CurrentTime = FPlatformTime::Seconds();
+		if (!bHadActivity)
+		{
+			PumpAsync(&bHadActivity);
+		}
+		if (!bHadActivity)
+		{
+			if (CurrentTime - LastActivityTime >= DDCCommandletMaxWaitSeconds)
+			{
+				UObject* Object = CachingObjects.CreateIterator()->Key;
+				UE_LOG(LogDerivedDataCacheCommandlet, Error, TEXT("Timed out for %.2lfs waiting for %d objects to finish caching. First object: %s."),
+					DDCCommandletMaxWaitSeconds, CachingObjects.Num(), *Object->GetFullName());
+			}
+			else
+			{
+				const double WaitingForCacheSleepTime = 0.050;
+				FPlatformProcess::Sleep(WaitingForCacheSleepTime);
+			}
+		}
+		else
+		{
+			LastActivityTime = CurrentTime;
+		}
+	}
+
+	FinishCacheTime += FPlatformTime::Seconds() - FinishCacheTimeStart;
+}
+
 int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 {
+	// Avoid putting those directly in the constructor because we don't
+	// want the CDO to have a second copy of these being active.
+	PackageListener  = MakeUnique<FPackageListener>();
+	ObjectReferencer = MakeUnique<FObjectReferencer>(CachingObjects);
+
 	TArray<FString> Tokens, Switches;
 	ParseCommandLine(*Params, Tokens, Switches);
 
@@ -109,14 +335,10 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 	FParse::Value(*Params, TEXT("SubsetTarget="), SubsetTarget);
 	bool bDoSubset = SubsetMod > 0 && SubsetTarget < SubsetMod;
 
-	// Timing variables
-	double DDCCommandletMaxWaitSeconds = 60. * 10.;
-	GConfig->GetDouble(TEXT("CookSettings"), TEXT("DDCCommandletMaxWaitSeconds"), DDCCommandletMaxWaitSeconds, GEditorIni);
-
 	double FindProcessedPackagesTime = 0.0;
 	double GCTime = 0.0;
-	double FinishCacheTime = 0.;
-	double BeginCacheTime = 0.;
+	FinishCacheTime = 0.;
+	BeginCacheTime = 0.;
 
 	if (!bStartupOnly && bFillCache)
 	{
@@ -166,7 +388,7 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 		}
 
 		// assume the first token is the map wildcard/pathname
-		TArray<FString> FilesInPath;
+		TSet<FString> FilesInPath;
 		TArray<FString> Unused;
 		TArray<FString> TokenFiles;
 		for ( int32 TokenIndex = 0; TokenIndex < Tokens.Num(); TokenIndex++ )
@@ -178,7 +400,7 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 				continue;
 			}
 
-			FilesInPath += TokenFiles;
+			FilesInPath.Append(TokenFiles);
 		}
 
 		TArray<TPair<FString, FName>> PackagePaths;
@@ -258,149 +480,52 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 			UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("%d packages to load..."), PackagePaths.Num());
 		}
 
-		TArray<UObject*> CachingObjects;
-		TArray<UObject*> ObjectBuffer;
-		TArray<UPackage*> NewPackages;
+		// Gather the list of packages to process
+		PackagesToProcess.Empty(PackagePaths.Num());
+		for (int32 PackageIndex = PackagePaths.Num() - 1; PackageIndex >= 0; PackageIndex--)
+		{
+			PackagesToProcess.Add(PackagePaths[PackageIndex].Get<1>());
+		}
+
+		// Process each package
 		for (int32 PackageIndex = PackagePaths.Num() - 1; PackageIndex >= 0; PackageIndex-- )
 		{
+			TPair<FString, FName>& PackagePath = PackagePaths[PackageIndex];
+			const FString& Filename = PackagePath.Get<0>();
+			FName PackageFName = PackagePath.Get<1>();
+			check(!ProcessedPackages.Contains(PackageFName));
+
+			// If work is distributed, skip packages that are meant to be process by other machines
+			if (bDoSubset)
 			{
-				TPair<FString, FName>& PackagePath = PackagePaths[PackageIndex];
-				const FString& Filename = PackagePath.Get<0>();
-				FName PackageFName = PackagePath.Get<1>();
-				if (ProcessedPackages.Contains(PackageFName))
+				FString PackageName = PackageFName.ToString();
+				if (FCrc::StrCrc_DEPRECATED(*PackageName.ToUpper()) % SubsetMod != SubsetTarget)
 				{
 					continue;
 				}
-				if (bDoSubset)
-				{
-					FString PackageName = PackageFName.ToString();
-					if (FCrc::StrCrc_DEPRECATED(*PackageName.ToUpper()) % SubsetMod != SubsetTarget)
-					{
-						continue;
-					}
-				}
+			}
 
-				UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("Loading (%d) %s"), FilesInPath.Num() - PackageIndex, *Filename);
+			UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("Loading (%d) %s"), FilesInPath.Num() - PackageIndex, *Filename);
 
-				UPackage* Package = LoadPackage(NULL, *Filename, LOAD_None);
-				if (Package == NULL)
-				{
-					UE_LOG(LogDerivedDataCacheCommandlet, Error, TEXT("Error loading %s!"), *Filename);
-				}
-				else
-				{
-					bLastPackageWasMap = Package->ContainsMap();
-					NumProcessedSinceLastGC++;
-				}
+			UPackage* Package = LoadPackage(NULL, *Filename, LOAD_None);
+			if (Package == NULL)
+			{
+				UE_LOG(LogDerivedDataCacheCommandlet, Error, TEXT("Error loading %s!"), *Filename);
+				bLastPackageWasMap = false;
+			}
+			else
+			{
+				bLastPackageWasMap = Package->ContainsMap();
+				NumProcessedSinceLastGC++;
 			}
 
 			// even if the load failed this could be the first time through the loop so it might have all the startup packages to resolve
 			GRedirectCollector.ResolveAllSoftObjectPaths();
 
 			// Find any new packages and cache all the objects in each package
-			{
-				const double BeginCacheTimeStart = FPlatformTime::Seconds();
-				CachingObjects.Reset();
-				NewPackages.Reset();
-				for (TObjectIterator<UPackage> PackageIter; PackageIter; ++PackageIter)
-				{
-					UPackage* ExistingPackage = *PackageIter;
-					if ((PackageFilter & NORMALIZE_ExcludeEnginePackages) == 0 || !ExistingPackage->GetName().StartsWith(TEXT("/Engine")))
-					{
-						FName ExistingPackageName = ExistingPackage->GetFName();
-						if (!ProcessedPackages.Contains(ExistingPackageName))
-						{
-							ProcessedPackages.Add(ExistingPackageName);
-							NewPackages.Add(ExistingPackage);
-							check((ExistingPackage->GetPackageFlags() & PKG_ReloadingForCooker) == 0);
+			CacheLoadedPackages(Package, PackageFilter, Platforms);
 
-							ObjectBuffer.Reset();
-							GetObjectsWithOuter(ExistingPackage, ObjectBuffer, true /* bIncludeNestedObjects */, RF_ClassDefaultObject /* ExclusionFlags */);
-							for (UObject* Object : ObjectBuffer)
-							{
-								for (auto Platform : Platforms)
-								{
-									Object->BeginCacheForCookedPlatformData(Platform);
-								}
-								CachingObjects.Add(Object);
-							}
-						}
-					}
-				}
-				PumpAsync();
-				BeginCacheTime += FPlatformTime::Seconds() - BeginCacheTimeStart;
-			}
-
-			{
-				const double FinishCacheTimeStart = FPlatformTime::Seconds();
-				ObjectBuffer.Reset();
-				ObjectBuffer.Append(CachingObjects);
-
-				double LastActivityTime = FinishCacheTimeStart;
-				const double WaitingForCacheSleepTime = 0.050;
-				while (ObjectBuffer.Num() > 0)
-				{
-					bool bHadActivity = false;
-					for (int32 ObjectIndex = 0; ObjectIndex < ObjectBuffer.Num();)
-					{
-						UObject* Object = ObjectBuffer[ObjectIndex];
-						bool bIsFinished = true;
-						for (auto Platform : Platforms)
-						{
-							bIsFinished = Object->IsCachedCookedPlatformDataLoaded(Platform) && bIsFinished;
-						}
-						if (bIsFinished)
-						{
-							ObjectBuffer.RemoveAtSwap(ObjectIndex);
-							bHadActivity = true;
-						}
-						else
-						{
-							++ObjectIndex;
-						}
-					}
-
-					double CurrentTime = FPlatformTime::Seconds();
-					if (!bHadActivity)
-					{
-						PumpAsync(&bHadActivity);
-					}
-					if (!bHadActivity)
-					{
-						if (CurrentTime - LastActivityTime >= DDCCommandletMaxWaitSeconds)
-						{
-							UE_LOG(LogDerivedDataCacheCommandlet, Error, TEXT("Timed out for %.2lfs waiting for %d objects to finish caching. First object: %s."),
-								DDCCommandletMaxWaitSeconds, ObjectBuffer.Num(), *ObjectBuffer[0]->GetFullName());
-							ObjectBuffer.Reset();
-						}
-						else
-						{
-							FPlatformProcess::Sleep(WaitingForCacheSleepTime);
-						}
-					}
-					else
-					{
-						LastActivityTime = CurrentTime;
-					}
-				}
-
-				// Tear down all of the Cached data; we do this only after all objects have finished because we need to not
-				// tear down any object until all objects in its package have finished
-				for (UObject* Object : CachingObjects)
-				{
-					Object->WillNeverCacheCookedPlatformDataAgain();
-					Object->ClearAllCachedCookedPlatformData();
-				}
-				// Mark the packages as processed
-				for (UPackage* NewPackage : NewPackages)
-				{
-					NewPackage->SetPackageFlags(PKG_ReloadingForCooker);
-				}
-
-				PumpAsync();
-				FinishCacheTime += FPlatformTime::Seconds() - FinishCacheTimeStart;
-			}
-
+			// Perform a GC if conditions are met
 			if (NumProcessedSinceLastGC >= GCInterval || PackageIndex < 0 || bLastPackageWasMap)
 			{
 				const double StartGCTime = FPlatformTime::Seconds();
@@ -421,6 +546,8 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 			}
 		}
 	}
+
+	FinishCachingObjects(GetTargetPlatformManager()->GetActiveTargetPlatforms());
 
 	GetDerivedDataCacheRef().WaitForQuiescence(true);
 
