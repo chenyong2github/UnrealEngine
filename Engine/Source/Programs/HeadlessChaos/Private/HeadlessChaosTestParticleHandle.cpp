@@ -310,7 +310,8 @@ namespace ChaosTest {
 	void ParticleLifetimeAndThreading()
 	{
 		{
-			FPBDRigidsSOAs SOAs;
+			FParticleUniqueIndicesMultithreaded UniqueIndices;
+			FPBDRigidsSOAs SOAs(UniqueIndices);
 
 			TArray<TUniquePtr<FPBDRigidParticle>> GTRawParticles;
 			for (int i = 0; i < 3; ++i)
@@ -380,7 +381,8 @@ namespace ChaosTest {
 	void ParticleDestroyOrdering()
 	{
 		{
-			FPBDRigidsSOAs SOAs;
+			FParticleUniqueIndicesMultithreaded UniqueIndices;
+			FPBDRigidsSOAs SOAs(UniqueIndices);
 			SOAs.CreateDynamicParticles(10);
 			FReal Count = 0;
 			FGeometryParticleHandle* ThirdParticle = nullptr;
@@ -416,7 +418,8 @@ namespace ChaosTest {
 
 		//now test non swapping remove
 		{
-			FPBDRigidsSOAs SOAs;
+			FParticleUniqueIndicesMultithreaded UniqueIndices;
+			FPBDRigidsSOAs SOAs(UniqueIndices);
 			SOAs.CreateClusteredParticles(10);
 			FReal Count = 0;
 			FGeometryParticleHandle* ThirdParticle = nullptr;
@@ -458,7 +461,8 @@ namespace ChaosTest {
 	{
 		FWeakParticleHandle WeakHandle;
 		{
-			FPBDRigidsSOAs SOAs;
+			FParticleUniqueIndicesMultithreaded UniqueIndices;
+			FPBDRigidsSOAs SOAs(UniqueIndices);
 			SOAs.CreateStaticParticles(1);
 			for(auto& Particle : SOAs.GetAllParticlesView())
 			{
@@ -547,7 +551,8 @@ namespace ChaosTest {
 
 			//Use an SOA with an active list
 			{
-				FPBDRigidsSOAs SOAsWithHandles;	//todo: create a mock object so we can more easily create handles
+				FParticleUniqueIndicesMultithreaded UniqueIndices;
+				FPBDRigidsSOAs SOAsWithHandles(UniqueIndices);	//todo: create a mock object so we can more easily create handles
 				auto PartialDynamics = SOAsWithHandles.CreateDynamicParticles(10);
 
 				TArray<FPBDRigidParticleHandle*> ActiveParticles = { PartialDynamics[3], PartialDynamics[5] };
@@ -583,7 +588,8 @@ namespace ChaosTest {
 
 		{
 			// try using SOA manager
-			FPBDRigidsSOAs SOAs;
+			FParticleUniqueIndicesMultithreaded UniqueIndices;
+			FPBDRigidsSOAs SOAs(UniqueIndices);
 			SOAs.CreateStaticParticles(3);
 			auto KinematicParticles = SOAs.CreateKinematicParticles(3);
 			SOAs.CreateDynamicParticles(3);
@@ -686,7 +692,8 @@ namespace ChaosTest {
 
 	void HandleObjectStateChangeTest()
 	{
-		FPBDRigidsSOAs SOAs;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs SOAs(UniqueIndices);
 
 		// Lambda for adding a particle to the dynamic-backed kinematic SOA
 		const auto CreateDynamicKinematic = [&]()

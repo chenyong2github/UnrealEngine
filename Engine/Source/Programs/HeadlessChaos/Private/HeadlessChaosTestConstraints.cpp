@@ -30,7 +30,8 @@ namespace ChaosTest {
 	void Position()
 	{
 		{
-			FPBDRigidsSOAs Particles;
+			FParticleUniqueIndicesMultithreaded UniqueIndices;
+			FPBDRigidsSOAs Particles(UniqueIndices);
 			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 			TEvolution Evolution(Particles, PhysicalMaterials);
 			TArray<FPBDRigidParticleHandle*> Dynamics = Evolution.CreateDynamicParticles(1);
@@ -45,7 +46,8 @@ namespace ChaosTest {
 			EXPECT_LT(Evolution.GetParticleHandles().Handle(0)->X().SizeSquared(), SMALL_NUMBER);
 		}
 		{
-			FPBDRigidsSOAs Particles;
+			FParticleUniqueIndicesMultithreaded UniqueIndices;
+			FPBDRigidsSOAs Particles(UniqueIndices);
 			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 			TEvolution Evolution(Particles, PhysicalMaterials);
 			InitEvolutionSettings(Evolution);
@@ -86,7 +88,8 @@ namespace ChaosTest {
 	void PositionAndJoint()
 	{
 		const int32 Iterations = 10;
-		FPBDRigidsSOAs Particles;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs Particles(UniqueIndices);
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);
@@ -144,7 +147,8 @@ namespace ChaosTest {
 		SuspensionSettings.Axis = FVec3(0.0f, 0.0f, 1.0f);
 
 		{
-			FPBDRigidsSOAs Particles;
+			FParticleUniqueIndicesMultithreaded UniqueIndices;
+			FPBDRigidsSOAs Particles(UniqueIndices);
 			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 			TEvolution Evolution(Particles, PhysicalMaterials);
 			InitEvolutionSettings(Evolution);
@@ -194,7 +198,8 @@ namespace ChaosTest {
 
 		{
 
-			FPBDRigidsSOAs Particles;
+			FParticleUniqueIndicesMultithreaded UniqueIndices;
+			FPBDRigidsSOAs Particles(UniqueIndices);
 			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 			TEvolution Evolution(Particles, PhysicalMaterials);
 			InitEvolutionSettings(Evolution);
@@ -251,7 +256,8 @@ namespace ChaosTest {
 	template<typename TEvolution>
 	void SuspensionConstraintSpring()
 	{
-		FPBDRigidsSOAs Particles;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs Particles(UniqueIndices);
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);

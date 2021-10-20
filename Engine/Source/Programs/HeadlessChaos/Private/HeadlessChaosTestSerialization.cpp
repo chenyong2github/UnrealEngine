@@ -470,7 +470,8 @@ namespace ChaosTest
 			if (File)
 			{
 				Chaos::FChaosArchive ChaosAr(*File);
-				FPBDRigidsSOAs Particles;
+				FParticleUniqueIndicesMultithreaded UniqueIndices;
+				FPBDRigidsSOAs Particles(UniqueIndices);
 
 				THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 				FPBDRigidsEvolution Evolution(Particles, PhysicalMaterials);

@@ -480,7 +480,8 @@ namespace ChaosTest {
 		PhysicalMaterial->DisabledLinearThreshold = 0;
 		PhysicalMaterial->DisabledAngularThreshold = 0;
 
-		FPBDRigidsSOAs Particles;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs Particles(UniqueIndices);
 
 		auto StaticBox = AppendStaticParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
 		auto Box2 = AppendDynamicParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
@@ -522,7 +523,8 @@ namespace ChaosTest {
 		PhysicalMaterial->DisabledAngularThreshold = 0;
 
 		{
-			FPBDRigidsSOAs Particles;
+			FParticleUniqueIndicesMultithreaded UniqueIndices;
+			FPBDRigidsSOAs Particles(UniqueIndices);
 
 			auto& StaticBox = *AppendStaticParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
 			auto& Box2 = *AppendDynamicParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
@@ -552,7 +554,8 @@ namespace ChaosTest {
 		}
 
 		{
-			FPBDRigidsSOAs Particles;
+			FParticleUniqueIndicesMultithreaded UniqueIndices;
+			FPBDRigidsSOAs Particles(UniqueIndices);
 
 			auto& StaticBox = *AppendStaticParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
 			auto& Box2 = *AppendDynamicParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
@@ -616,7 +619,8 @@ namespace ChaosTest {
 	// Check that constraints end up in the same island when graph is fully connected
 	GTEST_TEST(JointTests, TestJointConstraintGraph_Connected)
 	{
-		FPBDRigidsSOAs ParticleContainer;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs ParticleContainer(UniqueIndices);
 		FPBDJointConstraints JointContainer;
 
 		// Create 3 particles
@@ -646,7 +650,8 @@ namespace ChaosTest {
 	// Check that constraints islands are not merged through shared kinematic particles
 	GTEST_TEST(JointTests, TestJointConstraintGraph_NotConnected)
 	{
-		FPBDRigidsSOAs ParticleContainer;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs ParticleContainer(UniqueIndices);
 		FPBDJointConstraints JointContainer;
 
 		// Create 3 particles

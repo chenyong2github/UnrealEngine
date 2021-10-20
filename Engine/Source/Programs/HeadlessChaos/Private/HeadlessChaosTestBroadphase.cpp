@@ -443,7 +443,8 @@ namespace ChaosTest
 	void GridBPTest2()
 	{
 		TUniquePtr<TBox<FReal, 3>> Box = MakeUnique<TBox<FReal, 3>>(FVec3(0, 0, 0), FVec3(100, 100, 100));
-		FPBDRigidsSOAs SOAs;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs SOAs(UniqueIndices);
 		const int32 NumRows = 10;
 		const int32 NumCols = 10;
 		const int32 NumHeight = 10;
@@ -858,7 +859,8 @@ namespace ChaosTest
 		const int32 ParticleCount = NumRows * NumCols * NumHeight;
 		const FReal BoxSize = 100;
 
-		FPBDRigidsSOAs Particles;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs Particles(UniqueIndices);
 		TArray<FPBDRigidParticleHandle*> ParticleHandles = Particles.CreateDynamicParticles(ParticleCount);
 		for (auto& Handle : ParticleHandles)
 		{

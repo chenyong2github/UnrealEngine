@@ -27,7 +27,8 @@ namespace ChaosTest
 		const FReal InitialSpeed = BoxHalfSize * 5 * Fps; // More than enough to tunnel
 		const FReal InitialPosition = BoxHalfSize * 2 + 30;
 		using TEvolution = FPBDRigidsEvolutionGBF;
-		FPBDRigidsSOAs Particles;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs Particles(UniqueIndices);
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);
@@ -87,7 +88,8 @@ namespace ChaosTest
 		const FReal BoxHalfSize = 50; // cm
 		const FReal InitialSpeed = BoxHalfSize * 5 * Fps; // More than enough to tunnel
 		using TEvolution = FPBDRigidsEvolutionGBF;
-		FPBDRigidsSOAs Particles;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs Particles(UniqueIndices);
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);
@@ -147,7 +149,8 @@ namespace ChaosTest
 		const FReal SphereRadius = 100; // cm
 		const FReal InitialSpeed = SphereRadius * 5 * Fps; // More than enough to tunnel
 		using TEvolution = FPBDRigidsEvolutionGBF;
-		FPBDRigidsSOAs Particles;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs Particles(UniqueIndices);
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);
@@ -216,7 +219,8 @@ namespace ChaosTest
 		const FVec3 InitialVelocity = FVec3(-ContainerBoxHalfSize * Fps * 10, 0 ,0);
 
 		using TEvolution = FPBDRigidsEvolutionGBF;
-		FPBDRigidsSOAs Particles;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs Particles(UniqueIndices);
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);

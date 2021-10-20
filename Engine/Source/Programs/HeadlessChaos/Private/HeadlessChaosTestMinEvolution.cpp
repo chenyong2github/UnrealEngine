@@ -30,7 +30,8 @@ namespace ChaosTest
 		using FParticlePair = TVec2<FGeometryParticleHandle*>;
 
 		// Particles
-		FRigidParticleSOAs ParticlesContainer;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FRigidParticleSOAs ParticlesContainer(UniqueIndices);
 
 		// @todo(ccaulfield): we shouldn't require collisions to use an evolution...
 		// Stuff needed for collisions

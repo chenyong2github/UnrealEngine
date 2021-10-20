@@ -109,7 +109,8 @@ namespace ChaosTest {
 	template<typename TEvolution>
 	void JointConstraintHandles()
 	{
-		FPBDRigidsSOAs Particles;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs Particles(UniqueIndices);
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
 
@@ -130,7 +131,8 @@ namespace ChaosTest {
 	template<typename TEvolution>
 	void PositionConstraintHandles()
 	{
-		FPBDRigidsSOAs Particles;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs Particles(UniqueIndices);
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
 		TArray<FPBDRigidParticleHandle*> ParticleHandles = Evolution.CreateDynamicParticles(5);
@@ -150,7 +152,8 @@ namespace ChaosTest {
 	template<typename TEvolution>
 	void RigidSpringConstraintHandles()
 	{
-		FPBDRigidsSOAs Particles;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs Particles(UniqueIndices);
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
 		TArray<FPBDRigidParticleHandle*> ParticleHandles = Evolution.CreateDynamicParticles(5);
@@ -171,7 +174,8 @@ namespace ChaosTest {
 	template<typename TEvolution>
 	void RigidDynamicSpringConstraintHandles()
 	{
-		FPBDRigidsSOAs Particles;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs Particles(UniqueIndices);
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
 		TArray<FPBDRigidParticleHandle*> ParticleHandles = Evolution.CreateDynamicParticles(5);

@@ -23,7 +23,8 @@ namespace ChaosTest {
 
 	void ImplicitCluster()
 	{
-		FPBDRigidsSOAs Particles;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs Particles(UniqueIndices);
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		FPBDRigidsEvolution Evolution(Particles, PhysicalMaterials);
 		FPBDRigidClusteredParticles& ClusteredParticles = Particles.GetClusteredParticles();
@@ -68,7 +69,8 @@ namespace ChaosTest {
 
 	void FractureCluster()
 	{
-		FPBDRigidsSOAs Particles;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs Particles(UniqueIndices);
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		FPBDRigidsEvolution Evolution(Particles, PhysicalMaterials);
 		auto& ClusteredParticles = Particles.GetClusteredParticles();
@@ -192,7 +194,8 @@ namespace ChaosTest {
 
 	void PartialFractureCluster()
 	{
-		FPBDRigidsSOAs Particles;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs Particles(UniqueIndices);
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		FPBDRigidsEvolution Evolution(Particles, PhysicalMaterials);
 		auto& ClusteredParticles = Particles.GetClusteredParticles();

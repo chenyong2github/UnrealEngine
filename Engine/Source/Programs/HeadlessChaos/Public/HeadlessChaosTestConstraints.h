@@ -21,7 +21,8 @@ namespace ChaosTest
 	public:
 
 		FConstraintsTest(const int32 NumIterations, const FReal Gravity)
-			: Evolution(SOAs, PhysicalMaterials)
+			: SOAs(UniqueIndices)
+			, Evolution(SOAs, PhysicalMaterials)
 		{
 			PhysicalMaterial = MakeUnique<FChaosPhysicsMaterial>();
 			PhysicalMaterial->Friction = 0;
@@ -76,6 +77,7 @@ namespace ChaosTest
 		}
 
 		// Solver state
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
 		FPBDRigidsSOAs SOAs;
 		TEvolution Evolution;
 		TUniquePtr<FChaosPhysicsMaterial> PhysicalMaterial;

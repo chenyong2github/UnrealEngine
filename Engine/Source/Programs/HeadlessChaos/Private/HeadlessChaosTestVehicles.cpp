@@ -1305,7 +1305,8 @@ namespace ChaosTest
 	// #todo: break out vehicle simulation setup so it can be used across number of tests
 	GTEST_TEST(AllEvolutions, VehicleTest_SuspensionSpringLoad)
 	{
-		FPBDRigidsSOAs Particles;
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs Particles(UniqueIndices);
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		FPBDRigidsEvolutionGBF Evolution(Particles, PhysicalMaterials);
 
