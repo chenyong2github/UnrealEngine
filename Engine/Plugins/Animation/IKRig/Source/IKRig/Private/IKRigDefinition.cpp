@@ -3,13 +3,9 @@
 #include "IKRigDefinition.h"
 #include "Engine/SkeletalMesh.h"
 
-#if WITH_EDITOR
-#include "ScopedTransaction.h"
-#endif
-
 #define LOCTEXT_NAMESPACE	"IKRigDefinition"
 
-FBoneChain* FRetargetDefinition::GetBoneChainByName(FName ChainName)
+FBoneChain* FRetargetDefinition::GetEditableBoneChainByName(FName ChainName)
 {
 	for (FBoneChain& Chain : BoneChains)
 	{
@@ -22,85 +18,27 @@ FBoneChain* FRetargetDefinition::GetBoneChainByName(FName ChainName)
 	return nullptr;
 }
 
-void UIKRigDefinition::SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty)
+const FBoneChain* UIKRigDefinition::GetRetargetChainByName(FName ChainName) const
 {
-	#if WITH_EDITOR
-	if (bMarkAsDirty)
+	for (const FBoneChain& Chain : RetargetDefinition.BoneChains)
 	{
-		FScopedTransaction Transaction(LOCTEXT("SetPreviewMesh_Label", "Set Preview Mesh"));
-		Modify();
-		PreviewSkeletalMesh = PreviewMesh;
-		return;
+		if (Chain.ChainName == ChainName)
+		{
+			return &Chain;
+		}
 	}
-	#endif
 	
+	return nullptr;
+}
+
+void UIKRigDefinition::SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty)
+{	
 	PreviewSkeletalMesh = PreviewMesh;
 }
 
 USkeletalMesh* UIKRigDefinition::GetPreviewMesh() const
 {
 	return PreviewSkeletalMesh.Get();
-}
-
-#if WITH_EDITOR
-bool UIKRigDefinition::Modify(bool bAlwaysMarkDirty /*=true*/)
-{
-	const bool bSavedToTransactionBuffer = Super::Modify(bAlwaysMarkDirty);
-	AssetVersion++; // inform any runtime/editor systems they should copy-up modifications	
-	return bSavedToTransactionBuffer;
-}
-#endif
-
-void UIKRigDefinition::PostLoad()
-{
-	Super::PostLoad();
-	ResetGoalTransforms();
-}
-
-void UIKRigDefinition::ResetGoalTransforms() const
-{
-	for (UIKRigEffectorGoal* Goal : Goals)
-	{
-		const FTransform InitialTransform =  GetGoalInitialTransform(Goal);
-		Goal->InitialTransform = InitialTransform;
-		Goal->CurrentTransform = InitialTransform;
-	}	
-}
-
-FTransform UIKRigDefinition::GetGoalInitialTransform(UIKRigEffectorGoal* Goal) const
-{
-	if (!Goal)
-	{
-		return FTransform::Identity; // null
-	}
-
-	const int32 BoneIndex = Skeleton.GetBoneIndexFromName(Goal->BoneName);
-	if (BoneIndex == INDEX_NONE)
-	{
-		return FTransform::Identity; // goal references unknown bone
-	}
-
-	return Skeleton.RefPoseGlobal[BoneIndex];
-}
-
-void UIKRigDefinition::SortRetargetChains()
-{
-	RetargetDefinition.BoneChains.Sort([this](const FBoneChain& A, const FBoneChain& B)
-	{
-		const int32 IndexA = this->Skeleton.GetBoneIndexFromName(A.StartBone);
-		const int32 IndexB = this->Skeleton.GetBoneIndexFromName(B.StartBone);
-		return IndexA < IndexB;
-	});
-}
-
-USkeleton* UIKRigDefinition::GetSkeletonAsset() const
-{
-	if (PreviewSkeletalMesh.IsNull())
-	{
-		return nullptr;
-	}
-
-	return PreviewSkeletalMesh->GetSkeleton();
 }
 
 #undef LOCTEXT_NAMESPACE

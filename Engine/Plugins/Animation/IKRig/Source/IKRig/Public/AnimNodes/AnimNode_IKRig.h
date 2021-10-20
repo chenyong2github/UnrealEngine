@@ -5,10 +5,10 @@
 #include "CoreMinimal.h"
 
 #include "IKRigDataTypes.h"
-#include "IKRigProcessor.h"
 #include "Animation/AnimNodeBase.h"
 #include "AnimNode_IKRig.generated.h"
 
+class UIKRigProcessor;
 class IIKGoalCreatorInterface;
 class UIKRigDefinition;
 
@@ -23,8 +23,8 @@ struct IKRIG_API FAnimNode_IKRig : public FAnimNode_Base
 	FPoseLink Source;
 
 	/** The IK rig to use to modify the incoming source pose. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = RigDefinition, meta = (NeverAsPin))
-	UIKRigDefinition* RigDefinitionAsset;
+	UPROPERTY(EditAnywhere, Category = RigDefinition, meta = (NeverAsPin))
+	TObjectPtr<UIKRigDefinition> RigDefinitionAsset = nullptr;
 
 	/** The input goal transforms used by the IK Rig solvers.*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Goal, meta = (PinShownByDefault))
@@ -34,24 +34,26 @@ struct IKRIG_API FAnimNode_IKRig : public FAnimNode_Base
 	UPROPERTY(EditAnywhere, Category = Solver)
 	bool bStartFromRefPose = false;
 
+#if WITH_EDITORONLY_DATA
+
 	/** when true, goals will use the current transforms stored in the IK Rig Definition asset itself */
 	bool bDriveWithSourceAsset = false;
-
-#if WITH_EDITORONLY_DATA
+	
 	/** Toggle debug drawing of goals when node is selected.*/
 	UPROPERTY(EditAnywhere, Category = Solver)
-	bool bEnableDebugDraw;
+	bool bEnableDebugDraw = false;
 
 	/** Adjust size of debug drawing.*/
 	UPROPERTY(EditAnywhere, Category = Solver)
 	float DebugScale = 5.0f;
+	
 #endif
 
 private:
 
 	/** IK Rig runtime processor */
 	UPROPERTY(Transient)
-	TObjectPtr<UIKRigProcessor> IKRigProcessor;
+	TObjectPtr<UIKRigProcessor> IKRigProcessor = nullptr;
 
 	/** a cached list of components on the owning actor that implement the goal creator interface */
 	TArray<IIKGoalCreatorInterface*> GoalCreators;
@@ -60,8 +62,6 @@ private:
 	TMap<FCompactPoseBoneIndex, int32, FDefaultSetAllocator, TCompactPoseBoneIndexMapKeyFuncs<int32>> CompactPoseToRigIndices;
 
 public:
-	
-	FAnimNode_IKRig();
 
 	// FAnimNode_Base interface
 	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
@@ -72,6 +72,9 @@ public:
 	virtual bool HasPreUpdate() const override { return true; }
 	virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
 	// End of FAnimNode_Base interface
+
+	/** force reinitialization */
+	void SetProcessorNeedsInitialized();
 	
 private:
 	

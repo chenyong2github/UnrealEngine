@@ -40,10 +40,11 @@ void SIKRetargetChainMapRow::Construct(
 	// NOTE: cannot just use FName because "None" is considered a null entry and removed from ComboBox.
 	SourceChainOptions.Reset();
 	SourceChainOptions.Add(MakeShareable(new FString(TEXT("None"))));
-	UIKRigDefinition* SourceIKRig = ChainMapList.Pin()->EditorController.Pin()->Asset->SourceIKRigAsset;
+	const UIKRigDefinition* SourceIKRig = ChainMapList.Pin()->EditorController.Pin()->AssetController->GetAsset()->SourceIKRigAsset;
 	if (SourceIKRig)
 	{
-		for (const FBoneChain& BoneChain : SourceIKRig->RetargetDefinition.BoneChains)
+		const TArray<FBoneChain>& Chains = SourceIKRig->GetRetargetChains();
+		for (const FBoneChain& BoneChain : Chains)
 		{
 			SourceChainOptions.Add(MakeShareable(new FString(BoneChain.ChainName.ToString())));
 		}
@@ -98,29 +99,28 @@ TSharedRef< SWidget > SIKRetargetChainMapRow::GenerateWidgetForColumn( const FNa
 
 void SIKRetargetChainMapRow::OnSourceChainComboSelectionChanged(TSharedPtr<FString> InName, ESelectInfo::Type SelectInfo)
 {
-	const TSharedPtr<FIKRetargetEditorController> Controller = ChainMapList.Pin()->EditorController.Pin();
-	if (!Controller.IsValid())
+	UIKRetargeterController* RetargeterController = ChainMapList.Pin()->GetRetargetController();
+	if (!RetargeterController)
 	{
 		return; 
 	}
 	
 	const FName TargetChainName = ChainMapElement.Pin()->TargetChainName;
-	FRetargetChainMap& ChainMap = *Controller->Asset->GetChainMap(TargetChainName);
-	ChainMap.SourceChain = FName(*InName.Get());
-	Controller->Asset->Modify();
+	const FName SourceChainName = FName(*InName.Get());
+	RetargeterController->SetSourceChainForTargetChain(TargetChainName, SourceChainName);
 }
 
 FText SIKRetargetChainMapRow::GetSourceChainName() const
 {
-	const TSharedPtr<FIKRetargetEditorController> Controller = ChainMapList.Pin()->EditorController.Pin();
-	if (!Controller.IsValid())
+	UIKRetargeterController* RetargeterController = ChainMapList.Pin()->GetRetargetController();
+	if (!RetargeterController)
 	{
 		return FText::FromName(NAME_None); 
 	}
 	
 	const FName TargetChainName = ChainMapElement.Pin()->TargetChainName;
-	const FRetargetChainMap& Mapping = *Controller->Asset->GetChainMap(TargetChainName);
-	return FText::FromName(Mapping.SourceChain);
+	const FName SourceChainName = RetargeterController->GetSourceChainForTargetChain(TargetChainName);
+	return FText::FromName(SourceChainName);
 }
 
 void SIKRetargetChainMapList::Construct(
@@ -220,39 +220,51 @@ void SIKRetargetChainMapList::Construct(
 	RefreshView();
 }
 
-FText SIKRetargetChainMapList::GetSourceRootBone() const
+UIKRetargeterController* SIKRetargetChainMapList::GetRetargetController() const
 {
 	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
 	{
+		return nullptr;
+	}
+
+	return Controller->AssetController;
+}
+
+FText SIKRetargetChainMapList::GetSourceRootBone() const
+{
+	UIKRetargeterController* RetargeterController = GetRetargetController();
+	if (!RetargeterController)
+	{
 		return FText::FromName(NAME_None); 
 	}
 	
-	return FText::FromName(Controller->Asset->GetSourceRootBone());
+	return FText::FromName(RetargeterController->GetSourceRootBone());
 }
 
 FText SIKRetargetChainMapList::GetTargetRootBone() const
 {
-	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
-	if (!Controller.IsValid())
+	UIKRetargeterController* RetargeterController = GetRetargetController();
+	if (!RetargeterController)
 	{
 		return FText::FromName(NAME_None); 
 	}
 	
-	return FText::FromName(Controller->Asset->GetTargetRootBone());
+	return FText::FromName(RetargeterController->GetTargetRootBone());
 }
 
 bool SIKRetargetChainMapList::IsChainMapEnabled() const
 {
-	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
-	if (!Controller.IsValid())
+	UIKRetargeterController* RetargeterController = GetRetargetController();
+	if (!RetargeterController)
 	{
 		return false; 
 	}
 	
-	if (Controller->Asset->TargetIKRigAsset)
+	if (RetargeterController->GetAsset()->TargetIKRigAsset)
 	{
-		return Controller->Asset->TargetIKRigAsset->RetargetDefinition.BoneChains.Num() > 0;
+		const TArray<FBoneChain>& Chains = RetargeterController->GetAsset()->TargetIKRigAsset->GetRetargetChains();
+		return Chains.Num() > 0;
 	}
 
 	return false;
@@ -260,18 +272,15 @@ bool SIKRetargetChainMapList::IsChainMapEnabled() const
 
 void SIKRetargetChainMapList::RefreshView()
 {
-	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
-	if (!Controller.IsValid())
+	UIKRetargeterController* RetargeterController = GetRetargetController();
+	if (!RetargeterController)
 	{
 		return; 
 	}
 	
-	// get latest chain mapping
-	Controller->Asset->CleanChainMapping();
-	
 	// refresh list of chains
 	ListViewItems.Reset();
-	const TArray<FRetargetChainMap>& ChainMappings = Controller->Asset->ChainMapping;
+	const TArray<FRetargetChainMap>& ChainMappings = RetargeterController->GetChainMappings();
 	for (const FRetargetChainMap& ChainMap : ChainMappings)
 	{
 		TSharedPtr<FRetargetChainMapElement> ChainItem = FRetargetChainMapElement::Make(ChainMap.TargetChain);
@@ -303,14 +312,14 @@ EVisibility SIKRetargetChainMapList::IsAutoMapButtonVisible() const
 
 FReply SIKRetargetChainMapList::OnAutoMapButtonClicked() const
 {
-	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
-	if (!Controller.IsValid())
+	UIKRetargeterController* RetargeterController = GetRetargetController();
+	if (!RetargeterController)
 	{
 		return FReply::Unhandled();
 	}
 	
-	Controller->Asset->CleanChainMapping();
-	Controller->Asset->AutoMapChains();
+	RetargeterController->CleanChainMapping();
+	RetargeterController->AutoMapChains();
 	return FReply::Handled();
 }
 

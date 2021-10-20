@@ -9,15 +9,6 @@
 #include "Animation/AnimInstanceProxy.h"
 
 
-FAnimNode_IKRig::FAnimNode_IKRig()
-	:	RigDefinitionAsset (nullptr),
-#if WITH_EDITORONLY_DATA
-		bEnableDebugDraw(false),
-#endif
-		IKRigProcessor(nullptr)
-{
-}
-
 void FAnimNode_IKRig::Evaluate_AnyThread(FPoseContext& Output) 
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
@@ -36,7 +27,7 @@ void FAnimNode_IKRig::Evaluate_AnyThread(FPoseContext& Output)
 		return;
 	}
 
-	if (IKRigProcessor->NeedsInitialized(RigDefinitionAsset))
+	if (!IKRigProcessor->IsInitialized())
 	{
 		return;
 	}
@@ -88,11 +79,13 @@ void FAnimNode_IKRig::AssignGoalTargets()
 
 	// use the goal transforms from the source asset itself
 	// this is used to live preview results from the IK Rig editor
+	#if WITH_EDITOR
 	if (bDriveWithSourceAsset)
 	{
 		IKRigProcessor->CopyAllInputsFromSourceAssetAtRuntime(RigDefinitionAsset);
 		return;
 	}
+	#endif
 	
 	// copy transforms from this anim node's goal pins from blueprint
 	for (const FIKRigGoal& Goal : Goals)
@@ -169,13 +162,18 @@ void FAnimNode_IKRig::Update_AnyThread(const FAnimationUpdateContext& Context)
 
 void FAnimNode_IKRig::PreUpdate(const UAnimInstance* InAnimInstance)
 {
+	if (!IsValid(RigDefinitionAsset))
+	{
+		return;
+	}
+	
 	if (!IsValid(IKRigProcessor))
 	{
 		IKRigProcessor = NewObject<UIKRigProcessor>(InAnimInstance->GetOwningComponent());	
 	}
 	
 	// initialize the IK Rig (will only try once on the current version of the rig asset)
-	if (IKRigProcessor->NeedsInitialized(RigDefinitionAsset))
+	if (!IKRigProcessor->IsInitialized())
 	{
 		const FReferenceSkeleton& RefSkeleton = InAnimInstance->GetSkelMeshComponent()->SkeletalMesh->GetRefSkeleton();
 		IKRigProcessor->Initialize(RigDefinitionAsset, RefSkeleton);
@@ -205,6 +203,14 @@ void FAnimNode_IKRig::PreUpdate(const UAnimInstance* InAnimInstance)
 	for (IIKGoalCreatorInterface* GoalCreator : GoalCreators)
 	{
 		GoalCreator->AddIKGoals_Implementation(GoalsFromGoalCreators);
+	}
+}
+
+void FAnimNode_IKRig::SetProcessorNeedsInitialized()
+{
+	if (IKRigProcessor)
+	{
+		IKRigProcessor->SetNeedsInitialized();
 	}
 }
 
@@ -247,7 +253,7 @@ void FAnimNode_IKRig::ConditionalDebugDraw(
 	FPrimitiveDrawInterface* PDI,
 	USkeletalMeshComponent* PreviewSkelMeshComp) const
 {
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 
 	// is anim graph setup?
 	if (!(bEnableDebugDraw && PreviewSkelMeshComp && PreviewSkelMeshComp->GetWorld()))
@@ -256,15 +262,14 @@ void FAnimNode_IKRig::ConditionalDebugDraw(
 	}
 
 	// is node setup?
-	if (!(RigDefinitionAsset && IKRigProcessor && !IKRigProcessor->NeedsInitialized(RigDefinitionAsset)))
+	if (!(RigDefinitionAsset && IKRigProcessor && IKRigProcessor->IsInitialized()))
 	{
 		return;
 	}
 
-	const FIKRigGoalContainer& ProcessorGoals = IKRigProcessor->GetGoalContainer();
-	for (const TPair<FName, FIKRigGoal>& GoalPair : ProcessorGoals.Goals)
+	const TArray<FIKRigGoal>& ProcessorGoals = IKRigProcessor->GetGoalContainer().GetGoalArray();
+	for (const FIKRigGoal& Goal : ProcessorGoals)
 	{
-		const FIKRigGoal& Goal = GoalPair.Value;
 		DrawOrientedWireBox(PDI, Goal.FinalBlendedPosition, FVector::XAxisVector, FVector::YAxisVector, FVector::ZAxisVector, FVector::One() * DebugScale, FLinearColor::Yellow, SDPG_World);
 		DrawCoordinateSystem(PDI, Goal.Position, Goal.FinalBlendedRotation.Rotator(), DebugScale, SDPG_World);
 	}

@@ -31,7 +31,7 @@ bool FIKRigEditMode::GetCameraTarget(FSphere& OutTarget) const
 		TArray<FVector> GoalPoints;
 		for (const auto& GoalName : OutGoalNames)
 		{
-			FTransform GoalTransform = Controller->AssetController->GetGoalInitialTransform(GoalName);
+			FTransform GoalTransform = Controller->AssetController->GetBoneRetargetPose(Controller->AssetController->GetGoal(GoalName)->BoneName);
 			GoalPoints.Add(GoalTransform.GetLocation());
 		}
 
@@ -71,12 +71,15 @@ void FIKRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FPrimit
 	}
 	
 	UIKRigController* AssetController = Controller->AssetController;
+	const UIKRigDefinition* IKRigAsset = AssetController->GetAsset();
 	TArray<UIKRigEffectorGoal*> Goals = AssetController->GetAllGoals();
 	for (const UIKRigEffectorGoal* Goal : Goals)
 	{
 		const bool bIsSelected = Controller->IsGoalSelected(Goal->GoalName);
 		PDI->SetHitProxy(new HIKRigEditorGoalProxy(Goal->GoalName));
-		GoalDrawer.DrawGoal(PDI, Goal, bIsSelected);
+		const float Size = IKRigAsset->GoalSize * Goal->SizeMultiplier;
+		const float Thickness = IKRigAsset->GoalThickness * Goal->ThicknessMultiplier;
+		GoalDrawer.DrawGoal(PDI, Goal, bIsSelected, Size, Thickness);
 		PDI->SetHitProxy(NULL);
 	}
 }
@@ -270,7 +273,7 @@ bool FIKRigEditMode::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* I
 		return false; // nothing selected to manipulate
 	}
 
-	if (UIKRigEffectorGoal* Goal = Controller->AssetController->GetGoal(SelectedGoals[0]))
+	if (const UIKRigEffectorGoal* Goal = Controller->AssetController->GetGoal(SelectedGoals[0]))
 	{
 		InMatrix = Goal->CurrentTransform.ToMatrixNoScale().RemoveTranslation();
 		return true;
@@ -282,6 +285,39 @@ bool FIKRigEditMode::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* I
 bool FIKRigEditMode::GetCustomInputCoordinateSystem(FMatrix& InMatrix, void* InData)
 {
 	return GetCustomDrawingCoordinateSystem(InMatrix, InData);
+}
+
+bool FIKRigEditMode::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event)
+{
+	if (FEdMode::InputKey(ViewportClient, Viewport, Key, Event))
+	{
+		return false;
+	}
+		
+	if (Key == EKeys::Delete || Key == EKeys::BackSpace)
+	{
+		const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+		if (!Controller.IsValid())
+		{
+			return false;
+		}
+	
+		TArray<FName> SelectedGoals = Controller->GetSelectedGoals();
+		if (SelectedGoals.IsEmpty())
+		{
+			return false; // nothing selected to manipulate
+		}
+
+		for (const FName& GoalName : SelectedGoals)
+		{
+			Controller->DeleteGoal(GoalName);
+		}
+
+		Controller->RefreshAllViews();
+		return true;
+	}
+
+	return false;
 }
 
 void FIKRigEditMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)

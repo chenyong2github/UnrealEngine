@@ -13,13 +13,31 @@
 
 #define LOCTEXT_NAMESPACE "IKRigEditorController"
 
+void FIKRigEditorController::Initialize(TSharedPtr<FIKRigEditorToolkit> Toolkit, UIKRigDefinition* IKRigAsset)
+{
+	EditorToolkit = Toolkit;
+	AssetController = UIKRigController::GetIKRigController(IKRigAsset);
+	
+	// register callback to be informed when rig asset is modified by editor
+	if (!AssetController->OnIKRigNeedsInitialized().IsBoundToObject(this))
+	{
+		AssetController->OnIKRigNeedsInitialized().AddSP(this, &FIKRigEditorController::OnIKRigNeedsInitialized);
+	}
+}
+
+void FIKRigEditorController::OnIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig)
+{
+	if (ModifiedIKRig != AssetController->GetAsset())
+	{
+		return;
+	}
+
+	AnimInstance->SetProcessorNeedsInitialized();
+}
+
 void FIKRigEditorController::Reset() const
 {
-	const TArray<UIKRigEffectorGoal*>& Goals = AssetController->GetAllGoals();
-	for (UIKRigEffectorGoal* Goal : Goals)
-	{
-		Goal->CurrentTransform = Goal->InitialTransform;
-	}
+	AssetController->ResetGoalTransforms();
 }
 
 void FIKRigEditorController::RefreshAllViews() const
@@ -178,11 +196,11 @@ bool FIKRigEditorController::IsElementConnectedToSolver(TSharedRef<FIKRigTreeEle
 		return false; // not a valid solver index
 	}
 
-	UIKRigSolver* Solver = AssetController->GetSolver(SolverIndex);
+	const UIKRigSolver* Solver = AssetController->GetSolver(SolverIndex);
 	if (TreeElement->ElementType == IKRigTreeElementType::BONE)
 	{
 		// is this bone affected by this solver?
-		return Solver->IsBoneAffectedBySolver(TreeElement->Key, AssetController->GetSkeleton());
+		return Solver->IsBoneAffectedBySolver(TreeElement->Key, AssetController->GetIKRigSkeleton());
 	}
 
 	if (TreeElement->ElementType == IKRigTreeElementType::BONE_SETTINGS)
@@ -235,8 +253,6 @@ bool FIKRigEditorController::IsElementExcludedBone(TSharedRef<FIKRigTreeElement>
 void FIKRigEditorController::ShowDetailsForBone(const FName BoneName)
 {
 	ShowEmptyDetails();
-	// this can be useful during development/debugging, but is slow/confusing so should not be left enabled
-	//DetailsView->SetObject(AssetController->GetAsset());
 }
 
 void FIKRigEditorController::ShowDetailsForBoneSettings(const FName BoneName, int32 SolverIndex)
@@ -249,14 +265,14 @@ void FIKRigEditorController::ShowDetailsForBoneSettings(const FName BoneName, in
 
 void FIKRigEditorController::ShowDetailsForGoal(const FName GoalName)
 {
-	UIKRigEffectorGoal* Goal = AssetController->GetGoal(GoalName);
-	DetailsView->SetObject(Goal);
+	const UIKRigEffectorGoal* Goal = AssetController->GetGoal(GoalName);
+	DetailsView->SetObject(const_cast<UIKRigEffectorGoal*>(Goal));
 }
 
 void FIKRigEditorController::ShowDetailsForEffector(const FName GoalName, const int32 SolverIndex)
 {
 	// get solver that owns this effector
-	if (UIKRigSolver* SolverWithEffector = AssetController->GetSolver(SolverIndex))
+	if (const UIKRigSolver* SolverWithEffector = AssetController->GetSolver(SolverIndex))
 	{
 		if (UObject* EffectorSettings = SolverWithEffector->GetEffectorWithGoal(GoalName))
 		{
@@ -267,12 +283,12 @@ void FIKRigEditorController::ShowDetailsForEffector(const FName GoalName, const 
 
 void FIKRigEditorController::ShowDetailsForSolver(const int32 SolverIndex)
 {
-	DetailsView->SetObject(AssetController->GetSolver(SolverIndex));
+	DetailsView->SetObject(const_cast<UIKRigSolver*>(AssetController->GetSolver(SolverIndex)));
 }
 
 void FIKRigEditorController::ShowEmptyDetails()
 {
-	DetailsView->SetObject(nullptr);
+	DetailsView->SetObject(const_cast<UIKRigDefinition*>(AssetController->GetAsset()));
 }
 
 void FIKRigEditorController::AddNewRetargetChain(const FName ChainName, const FName StartBone, const FName EndBone)

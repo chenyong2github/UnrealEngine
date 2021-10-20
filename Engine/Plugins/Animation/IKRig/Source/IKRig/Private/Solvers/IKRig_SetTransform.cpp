@@ -4,6 +4,7 @@
 #include "IKRigDataTypes.h"
 #include "IKRigSkeleton.h"
 
+#define LOCTEXT_NAMESPACE "UIKRig_SetTransform"
 
 UIKRig_SetTransform::UIKRig_SetTransform()
 {
@@ -17,8 +18,8 @@ void UIKRig_SetTransform::Initialize(const FIKRigSkeleton& IKRigSkeleton)
 
 void UIKRig_SetTransform::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalContainer& Goals)
 {
-	FIKRigGoal OutGoal;
-	if (!Goals.GetGoalByName(Goal, OutGoal))
+	const FIKRigGoal* InGoal = Goals.FindGoalByName(Goal);
+	if (!InGoal)
 	{
 		return;
 	}
@@ -35,18 +36,20 @@ void UIKRig_SetTransform::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalC
 
 	if (Effector->bEnablePosition)
 	{
-		const FVector TargetPosition = FMath::Lerp(CurrentTransform.GetTranslation(), OutGoal.FinalBlendedPosition, Effector->Alpha);
+		const FVector TargetPosition = FMath::Lerp(CurrentTransform.GetTranslation(), InGoal->FinalBlendedPosition, Effector->Alpha);
 		CurrentTransform.SetLocation(TargetPosition);
 	}
 	
 	if (Effector->bEnableRotation)
 	{
-		const FQuat TargetRotation = FMath::Lerp(CurrentTransform.GetRotation(), OutGoal.FinalBlendedRotation, Effector->Alpha);
+		const FQuat TargetRotation = FMath::Lerp(CurrentTransform.GetRotation(), InGoal->FinalBlendedRotation, Effector->Alpha);
 		CurrentTransform.SetRotation(TargetRotation);
 	}
 	
 	IKRigSkeleton.PropagateGlobalPoseBelowBone(BoneIndex);
 }
+
+#if WITH_EDITOR
 
 void UIKRig_SetTransform::UpdateSolverSettings(UIKRigSolver* InSettings)
 {
@@ -56,6 +59,21 @@ void UIKRig_SetTransform::UpdateSolverSettings(UIKRigSolver* InSettings)
 		Effector->bEnableRotation = Settings->Effector->bEnableRotation;
 		Effector->Alpha = Settings->Effector->Alpha;
 	}
+}
+
+FText UIKRig_SetTransform::GetNiceName() const
+{
+	return FText(LOCTEXT("SolverName", "Set Transform"));
+}
+
+bool UIKRig_SetTransform::GetWarningMessage(FText& OutWarningMessage) const
+{
+	if (Bone == NAME_None)
+	{
+		OutWarningMessage = LOCTEXT("MissingGoal", "Missing goals.");
+		return true;
+	}
+	return false;
 }
 
 void UIKRig_SetTransform::AddGoal(const UIKRigEffectorGoal& NewGoal)
@@ -94,7 +112,7 @@ bool UIKRig_SetTransform::IsGoalConnected(const FName& GoalName) const
 	return Goal == GoalName;
 }
 
-UObject* UIKRig_SetTransform::GetEffectorWithGoal(const FName& GoalName)
+UObject* UIKRig_SetTransform::GetEffectorWithGoal(const FName& GoalName) const
 {
 	return Goal == GoalName ? Effector : nullptr;
 }
@@ -103,3 +121,7 @@ bool UIKRig_SetTransform::IsBoneAffectedBySolver(const FName& BoneName, const FI
 {
 	return IKRigSkeleton.IsBoneInDirectLineage(BoneName, Bone);
 }
+
+#endif
+
+#undef LOCTEXT_NAMESPACE

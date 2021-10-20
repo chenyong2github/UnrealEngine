@@ -21,6 +21,45 @@ struct IKRIG_API FIKRigSkeletonChain
 	FName EndBone;
 };
 
+/** Data used just to initialize an IKRigSkeleton from outside systems
+ *
+ * The input skeleton may be different than the skeleton that the IK Rig asset was created for, within some limits.
+ * 1. It must have all the Bones that the IK Rig asset referenced (must be a sub-set)
+ * 2. All the bones must have the same parents (no change in hierarchy)
+ *
+ * You can however add additional bones, change the reference pose (including proportions) and the bone indices.
+ * This allows you to run the same IK Rig asset on somewhat different skeletal meshes.
+ */
+USTRUCT()
+struct IKRIG_API FIKRigInputSkeleton
+{
+	GENERATED_BODY()
+	
+	TArray<FName> BoneNames;
+	TArray<int32> ParentIndices;
+	TArray<FTransform> LocalRefPose;
+
+	void InitializeFromRefSkeleton(const FReferenceSkeleton& RefSkeleton)
+	{
+		Reset();
+		
+		const TArray<FMeshBoneInfo>& BoneInfo = RefSkeleton.GetRefBoneInfo();
+		for (int32 BoneIndex=0; BoneIndex<BoneInfo.Num(); ++BoneIndex)
+		{
+			BoneNames.Add(BoneInfo[BoneIndex].Name);
+			ParentIndices.Add(BoneInfo[BoneIndex].ParentIndex);
+			LocalRefPose.Add(RefSkeleton.GetRefBonePose()[BoneIndex]);
+		}
+	}
+
+	void Reset()
+	{
+		BoneNames.Reset();
+		ParentIndices.Reset();
+		LocalRefPose.Reset();
+	}
+};
+
 USTRUCT()
 struct IKRIG_API FIKRigSkeleton
 {
@@ -50,7 +89,9 @@ struct IKRIG_API FIKRigSkeleton
 	UPROPERTY(VisibleAnywhere, Category = Skeleton)
 	TArray<FTransform> RefPoseGlobal;
 
-	void Initialize(const FReferenceSkeleton& RefSkeleton, const TArray<FName>& ExcludedBones);
+	void Initialize(const FIKRigInputSkeleton& InputSkeleton, const TArray<FName>& InExcludedBones);
+
+	void Initialize(const FReferenceSkeleton& RefSkeleton, const TArray<FName>& InExcludedBones);
 
 	void Reset();
 	
@@ -62,7 +103,7 @@ struct IKRIG_API FIKRigSkeleton
 
 	int32 GetParentIndexThatIsNotExcluded(const int32 BoneIndex) const;
 
-	bool CopyPosesFromRefSkeleton(const FReferenceSkeleton& RefSkeleton);
+	bool CopyPosesFromInputSkeleton(const FIKRigInputSkeleton& InputSkeleton);
 
 	static void ConvertLocalPoseToGlobal(
 		const TArray<int32>& InParentIndices,

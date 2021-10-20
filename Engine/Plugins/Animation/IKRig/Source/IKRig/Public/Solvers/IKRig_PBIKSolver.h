@@ -134,55 +134,58 @@ class IKRIG_API UIKRigPBIKSolver : public UIKRigSolver
 
 public:
 
-	UPROPERTY(VisibleAnywhere, Category = "Solver Settings")
+	UPROPERTY(VisibleAnywhere, Category = "Full-Body IK Settings")
 	FName RootBone;
 
 	/** High iteration counts can help solve complex joint configurations with competing constraints, but will increase runtime cost. Default is 20. */
-	UPROPERTY(EditAnywhere, Category = SolverSettings, meta = (ClampMin = "0", UIMin = "0.0", UIMax = "100.0"))
+	UPROPERTY(EditAnywhere, Category = "Full-Body IK Settings", meta = (ClampMin = "0", UIMin = "0.0", UIMax = "100.0"))
 	int32 Iterations = 20;
 
 	/** A global mass multiplier; higher values will make the joints more stiff, but require more iterations. Typical range is 0.0 to 10.0. */
-	UPROPERTY(EditAnywhere, Category = SolverSettings, meta = (ClampMin = "0", UIMin = "0.0", UIMax = "10.0"))
+	UPROPERTY(EditAnywhere, Category = "Full-Body IK Settings", meta = (ClampMin = "0", UIMin = "0.0", UIMax = "10.0"))
 	float MassMultiplier = 1.0f;
 
 	/** Set this as low as possible while keeping the solve stable. Lower values improve convergence of effector targets. Default is 0.2. */
-	UPROPERTY(EditAnywhere, Category = SolverSettings, meta = (ClampMin = "0", UIMin = "0.0", UIMax = "10.0"))
+	UPROPERTY(EditAnywhere, Category = "Full-Body IK Settings", meta = (ClampMin = "0", UIMin = "0.0", UIMax = "10.0"))
 	float MinMassMultiplier = 0.2f;
 
 	/** If true, joints will translate to reach the effectors; causing bones to lengthen if necessary. Good for cartoon effects. Default is false. */
-	UPROPERTY(EditAnywhere, Category = SolverSettings)
+	UPROPERTY(EditAnywhere, Category = "Full-Body IK Settings")
 	bool bAllowStretch = false;
 
 	/** If true, solver will pull entire skeleton towards effectors BEFORE running constraint iterations. Default is true. */
-	UPROPERTY(EditAnywhere, Category = SolverSettings)
+	UPROPERTY(EditAnywhere, Category = "Full-Body IK Settings")
 	bool bPrePullRoot = true;
 
 	/** Lock the position and rotation of the solver root bone in-place (at animated position). Useful for partial-body solves. Default is false. */
-	UPROPERTY(EditAnywhere, Category = SolverSettings)
+	UPROPERTY(EditAnywhere, Category = "Full-Body IK Settings")
 	bool bPinRoot = false;
 
 	/** When true, the solver is reset each tick to start from the current input pose. If false, incoming animated poses are ignored and the solver starts from the results of the previous solve. Default is true. */
-	UPROPERTY(EditAnywhere, Category = SolverSettings)
+	UPROPERTY(EditAnywhere, Category = "Full-Body IK Settings")
 	bool bStartSolveFromInputPose = true;
 	
 	UPROPERTY()
-	TArray<UIKRig_FBIKEffector*> Effectors;
+	TArray<TObjectPtr<UIKRig_FBIKEffector>> Effectors;
 
 	UPROPERTY()
-	TArray<UIKRig_PBIKBoneSettings*> BoneSettings;
+	TArray<TObjectPtr<UIKRig_PBIKBoneSettings>> BoneSettings;
 
 	/** UIKRigSolver interface */
 	// runtime
 	virtual void Initialize(const FIKRigSkeleton& IKRigSkeleton) override;
 	virtual void Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalContainer& Goals) override;
+#if WITH_EDITOR
 	virtual void UpdateSolverSettings(UIKRigSolver* InSettings) override;
+	virtual FText GetNiceName() const override;
+	virtual bool GetWarningMessage(FText& OutWarningMessage) const override;
 	// goals
 	virtual void AddGoal(const UIKRigEffectorGoal& NewGoal) override;
 	virtual void RemoveGoal(const FName& GoalName) override;
 	virtual void RenameGoal(const FName& OldName, const FName& NewName) override;
 	virtual void SetGoalBone(const FName& GoalName, const FName& NewBoneName) override;
 	virtual bool IsGoalConnected(const FName& GoalName) const override;
-	virtual UObject* GetEffectorWithGoal(const FName& GoalName) override;
+	virtual UObject* GetEffectorWithGoal(const FName& GoalName) const override;
 	// bone settings
 	virtual void AddBoneSetting(const FName& BoneName) override;
 	virtual void RemoveBoneSetting(const FName& BoneName) override;
@@ -195,14 +198,16 @@ public:
 	virtual bool IsBoneAffectedBySolver(const FName& BoneName, const FIKRigSkeleton& IKRigSkeleton) const override;
 	/** END UIKRigSolver interface */
 
+	//** UObject */
+	virtual void PostLoad() override;
+	//** END UObject */
+#endif
+
 private:
 
 	FPBIKSolver Solver;
 
 	int32 GetIndexOfGoal(const FName& GoalName) const;
-
-	//** UObject */
-	virtual void PostLoad() override;
 };
 
 

@@ -16,6 +16,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #include "Retargeter/IKRetargeter.h"
+#include "Retargeter/IKRetargetProcessor.h"
 #include "RetargetEditor/IKRetargetAnimInstance.h"
 #include "RetargetEditor/IKRetargetCommands.h"
 #include "RetargetEditor/IKRetargetEditMode.h"
@@ -44,8 +45,7 @@ void FIKRetargetEditor::InitAssetEditor(
     const TSharedPtr<IToolkitHost>& InitToolkitHost, 
     UIKRetargeter* InAsset)
 {
-	EditorController->Editor = SharedThis(this);
-	EditorController->Asset = InAsset;
+	EditorController->Initialize(SharedThis(this), InAsset);
 
 	BindCommands();
 	
@@ -53,7 +53,7 @@ void FIKRetargetEditor::InitAssetEditor(
 	PersonaToolkitArgs.OnPreviewSceneCreated = FOnPreviewSceneCreated::FDelegate::CreateSP(this, &FIKRetargetEditor::HandlePreviewSceneCreated);
 	
 	FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
-	EditorController->PersonaToolkit = PersonaModule.CreatePersonaToolkit(InAsset, PersonaToolkitArgs, InAsset->GetSourceSkeletonAsset());
+	EditorController->PersonaToolkit = PersonaModule.CreatePersonaToolkit(InAsset, PersonaToolkitArgs, EditorController->AssetController->GetSourceSkeletonAsset());
 	
 	// when/if preview mesh is changed, we need to reinitialize the anim instance
     EditorController->PersonaToolkit->GetPreviewScene()->RegisterOnPreviewMeshChanged(FOnPreviewMeshChanged::CreateSP(this, &FIKRetargetEditor::HandlePreviewMeshChanged));
@@ -131,12 +131,6 @@ void FIKRetargetEditor::BindCommands()
 		FExecuteAction::CreateSP(this, &FIKRetargetEditor::HandleResetPose),
 		FCanExecuteAction(),
 		EUIActionRepeatMode::RepeatDisabled);
-		
-	ToolkitCommands->MapAction(
-		Commands.ExportAnimation,
-		FExecuteAction::CreateSP(this, &FIKRetargetEditor::ExportAnimation),
-		FCanExecuteAction(),
-		EUIActionRepeatMode::RepeatDisabled);
 }
 
 void FIKRetargetEditor::ExtendToolbar()
@@ -158,7 +152,7 @@ void FIKRetargetEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 	ToolbarBuilder.BeginSection("Retarget Pose");
 	{
 		PoseNames.Reset();
-		for (TTuple<FName, FIKRetargetPose>& Pose : EditorController->Asset->RetargetPoses)
+		for (const TTuple<FName, FIKRetargetPose>& Pose : EditorController->AssetController->GetRetargetPoses())
 		{
 			PoseNames.Add(MakeShareable(new FName(Pose.Key)));
 		}
@@ -237,12 +231,7 @@ FText FIKRetargetEditor::GetBaseToolkitName() const
 
 FText FIKRetargetEditor::GetToolkitName() const
 {
-	const bool bDirtyState = EditorController->Asset->GetOutermost()->IsDirty();
-
-	FFormatNamedArguments Args;
-	Args.Add(TEXT("AssetName"), FText::FromString(EditorController->Asset->GetName()));
-	Args.Add(TEXT("DirtyState"), bDirtyState ? FText::FromString(TEXT("*")) : FText::GetEmpty());
-	return FText::Format(LOCTEXT("RetargetEditorToolkitName", "{AssetName}{DirtyState}"), Args);
+	return FText::FromString(EditorController->AssetController->GetAsset()->GetName());
 }
 
 FLinearColor FIKRetargetEditor::GetWorldCentricTabColorScale() const
@@ -258,7 +247,8 @@ FString FIKRetargetEditor::GetWorldCentricTabPrefix() const
 void FIKRetargetEditor::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	// hold the asset we are working on
-	Collector.AddReferencedObject(EditorController->Asset);
+	const UIKRetargeter* Retargeter = EditorController->AssetController->GetAsset();
+	Collector.AddReferencedObject(Retargeter);
 }
 
 void FIKRetargetEditor::Tick(float DeltaTime)
@@ -266,10 +256,12 @@ void FIKRetargetEditor::Tick(float DeltaTime)
 	// apply offset to the target component
 	if (EditorController->TargetSkelMeshComponent)
 	{
-		const float TargetOffset = EditorController->Asset->TargetActorOffset;
+		const UIKRetargeter* Retargeter = EditorController->AssetController->GetAsset();
+		
+		const float TargetOffset = Retargeter->TargetActorOffset;
 		EditorController->TargetSkelMeshComponent->SetRelativeLocation(FVector(TargetOffset,0,0));
 
-		const float TargetScale = EditorController->Asset->TargetActorScale;
+		const float TargetScale = Retargeter->TargetActorScale;
 		EditorController->TargetSkelMeshComponent->SetRelativeScale3D(FVector(TargetScale,TargetScale,TargetScale));
 	}
 }
@@ -315,7 +307,7 @@ void FIKRetargetEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPrevi
 void FIKRetargetEditor::SetupAnimInstance()
 {
 	// connect the retarget asset and the source component ot the target anim instance
-	EditorController->TargetAnimInstance->SetRetargetAssetAndSourceComponent(EditorController->Asset, EditorController->SourceSkelMeshComponent);
+	EditorController->TargetAnimInstance->SetRetargetAssetAndSourceComponent(EditorController->AssetController->GetAsset(), EditorController->SourceSkelMeshComponent);
 
 	EditorController->SourceSkelMeshComponent->PreviewInstance = EditorController->SourceAnimInstance.Get();
 	EditorController->TargetSkelMeshComponent->PreviewInstance = EditorController->TargetAnimInstance.Get();
@@ -326,16 +318,12 @@ void FIKRetargetEditor::SetupAnimInstance()
 
 FText FIKRetargetEditor::GetCurrentPoseName() const
 {
-	return FText::FromName(EditorController->Asset->CurrentRetargetPose);
+	return FText::FromName(EditorController->AssetController->GetCurrentRetargetPoseName());
 }
 
 void FIKRetargetEditor::OnPoseSelected(TSharedPtr<FName> InPosePose, ESelectInfo::Type SelectInfo)
 {
-	EditorController->Asset->SetCurrentRetargetPose(*InPosePose.Get());
-}
-
-void FIKRetargetEditor::ExportAnimation() const
-{
+	EditorController->AssetController->SetCurrentRetargetPose(*InPosePose.Get());
 }
 
 void FIKRetargetEditor::HandleSourceOrTargetIKRigAssetChanged()
@@ -374,14 +362,17 @@ void FIKRetargetEditor::HandleDetailsCreated(const TSharedRef<class IDetailsView
 {
 	EditorController->DetailsView = InDetailsView;
 	EditorController->DetailsView->OnFinishedChangingProperties().AddSP(this, &FIKRetargetEditor::OnFinishedChangingDetails);
-	EditorController->DetailsView->SetObject(EditorController->Asset);
+	EditorController->DetailsView->SetObject(EditorController->AssetController->GetAsset());
 }
 
 void FIKRetargetEditor::OnFinishedChangingDetails(
     const FPropertyChangedEvent& PropertyChangedEvent)
 {
-	if (PropertyChangedEvent.GetPropertyName() == "TargetIKRigAsset"
-		|| PropertyChangedEvent.GetPropertyName() == "SourceIKRigAsset")
+	FName SourceIKRigPropertyName = GET_MEMBER_NAME_STRING_CHECKED(UIKRetargeter, SourceIKRigAsset);
+	FName TargetIKRigPropertyName = GET_MEMBER_NAME_STRING_CHECKED(UIKRetargeter, TargetIKRigAsset);
+	const bool bSourceChanged = PropertyChangedEvent.GetPropertyName() == SourceIKRigPropertyName;
+	const bool bTargetChanged = PropertyChangedEvent.GetPropertyName() == TargetIKRigPropertyName;
+	if (bSourceChanged || bTargetChanged)
 	{
 		HandleSourceOrTargetIKRigAssetChanged();
 	}
@@ -389,9 +380,9 @@ void FIKRetargetEditor::OnFinishedChangingDetails(
 
 void FIKRetargetEditor::HandleEditPose() const
 {
-	UIKRetargeter* Asset = EditorController.Get().Asset;
-	Asset->bEditReferencePoseMode = !EditorController.Get().Asset->bEditReferencePoseMode;
-	if (Asset->bEditReferencePoseMode)
+	const bool bEditPoseMode = !EditorController.Get().AssetController->GetEditRetargetPoseMode();
+	EditorController.Get().AssetController->SetEditRetargetPoseMode(bEditPoseMode);
+	if (bEditPoseMode)
 	{
 		GetEditorModeManager().ActivateMode(FIKRetargetEditMode::ModeName);
 		EditorController->SourceSkelMeshComponent->ShowReferencePose(true);
@@ -401,24 +392,22 @@ void FIKRetargetEditor::HandleEditPose() const
 		GetEditorModeManager().DeactivateMode(FIKRetargetEditMode::ModeName);
 		EditorController->PlayPreviousAnimationAsset();
 	}
-
-	Asset->Modify();
 }
 
 bool FIKRetargetEditor::CanEditPose() const
 {
-	UIKRetargeter* CurrentRetargeter = EditorController->GetCurrentlyRunningRetargeter();
-	if (!CurrentRetargeter)
+	const UIKRetargetProcessor* Processor = EditorController->GetRetargetProcessor();
+	if (!Processor)
 	{
 		return false;
 	}
 
-	return CurrentRetargeter->bIsLoadedAndValid;
+	return Processor->IsInitialized();
 }
 
 bool FIKRetargetEditor::IsEditingPose() const
 {
-	return EditorController.Get().Asset->bEditReferencePoseMode;
+	return EditorController.Get().AssetController->GetEditRetargetPoseMode();
 }
 
 void FIKRetargetEditor::HandleNewPose()
@@ -485,7 +474,7 @@ void FIKRetargetEditor::HandleNewPose()
 FReply FIKRetargetEditor::CreateNewPose()
 {
 	const FName NewPoseName = FName(NewPoseEditableText.Get()->GetText().ToString());
-	EditorController->Asset->AddRetargetPose(NewPoseName);
+	EditorController->AssetController->AddRetargetPose(NewPoseName);
 	NewPoseWindow->RequestDestroyWindow();
 	RegenerateMenusAndToolbars();
 	return FReply::Handled();
@@ -493,22 +482,21 @@ FReply FIKRetargetEditor::CreateNewPose()
 
 void FIKRetargetEditor::HandleDeletePose()
 {
-	const FName CurrentPose = EditorController->Asset->CurrentRetargetPose;
-	EditorController->Asset->RemoveRetargetPose(CurrentPose);
+	const FName CurrentPose = EditorController->AssetController->GetCurrentRetargetPoseName();
+	EditorController->AssetController->RemoveRetargetPose(CurrentPose);
 	RegenerateMenusAndToolbars();
 }
 
 bool FIKRetargetEditor::CanDeletePose() const
 {	
 	// cannot delete default pose
-	return EditorController->Asset->CurrentRetargetPose != UIKRetargeter::DefaultPoseName;
+	return EditorController->AssetController->GetCurrentRetargetPoseName() != UIKRetargeter::DefaultPoseName;
 }
 
 void FIKRetargetEditor::HandleResetPose()
 {
-	const FName CurrentPose = EditorController->Asset->CurrentRetargetPose;
-	EditorController->Asset->ResetRetargetPose(CurrentPose);
+	const FName CurrentPose = EditorController->AssetController->GetCurrentRetargetPoseName();
+	EditorController->AssetController->ResetRetargetPose(CurrentPose);
 }
-
 
 #undef LOCTEXT_NAMESPACE

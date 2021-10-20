@@ -15,6 +15,11 @@ void UIKRigAnimInstance::SetIKRigAsset(UIKRigDefinition* InIKRigAsset)
 	Proxy.SetIKRigAsset(InIKRigAsset);
 }
 
+void UIKRigAnimInstance::SetProcessorNeedsInitialized()
+{
+	IKRigNode.SetProcessorNeedsInitialized();
+}
+
 FAnimInstanceProxy* UIKRigAnimInstance::CreateAnimInstanceProxy()
 {
 	return new FIKRigAnimInstanceProxy(this, &IKRigNode);

@@ -4,41 +4,36 @@
 #include "IKRigDefinition.h"
 #include "IKRigSolver.h"
 
-void UIKRigProcessor::Initialize(UIKRigDefinition* InRigAsset, const FReferenceSkeleton& RefSkeleton)
+void UIKRigProcessor::Initialize(UIKRigDefinition* InRigAsset, const FIKRigInputSkeleton& InputSkeleton)
 {
 	// we instantiate UObjects here which MUST be done on game thread...
 	check(IsInGameThread());
 	check(InRigAsset);
 	
 	bInitialized = false;
-	InitializedWithIKRigAssetVersion = -1;
-
-	if (!InRigAsset)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRigProcessor with a null IKRigDefinition asset."));
-		return;
-	}
 
 	// bail out if we've already tried initializing with this exact version of the rig asset
-	if (LastVersionTried == InRigAsset->GetAssetVersion())
+	if (bTriedToInitialize)
 	{
 		return; // don't keep spamming
 	}
-	LastVersionTried = InRigAsset->GetAssetVersion();
 
+	// ok, lets try to initialize
+	bTriedToInitialize = true;
+	
 	if (InRigAsset->Skeleton.BoneNames.IsEmpty())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRigProcessor with a IKRigDefinition that has no skeleton: %s"), *InRigAsset->GetName());
 		return;
 	}
 
-	if (InRigAsset->Solvers.IsEmpty())
+	if (InRigAsset->GetSolverArray().IsEmpty())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRigProcessor with a IKRigDefinition that has no solvers: %s"), *InRigAsset->GetName());
 		return;
 	}
 
-	if (InRigAsset->Goals.IsEmpty())
+	if (InRigAsset->GetGoalArray().IsEmpty())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRigProcessor with a IKRigDefinition that has no goals: %s"), *InRigAsset->GetName());
 		return;
@@ -50,17 +45,26 @@ void UIKRigProcessor::Initialize(UIKRigDefinition* InRigAsset, const FReferenceS
 	Skeleton.BoneNames = InRigAsset->Skeleton.BoneNames;
 	Skeleton.ParentIndices = InRigAsset->Skeleton.ParentIndices;
 	Skeleton.ExcludedBones = InRigAsset->Skeleton.ExcludedBones;
-	const bool bSkeletonIsCompatible = Skeleton.CopyPosesFromRefSkeleton(RefSkeleton);
+	const bool bSkeletonIsCompatible = Skeleton.CopyPosesFromInputSkeleton(InputSkeleton);
 	if (!bSkeletonIsCompatible)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("IK Rig, %s trying to run on a skeleton that does not have the required bones."), *InRigAsset->GetName());
 		return;
 	}
 	
-	// initialize goal names based on solvers
-	GoalContainer.InitializeFromGoals(InRigAsset->Goals);
-	for (const UIKRigEffectorGoal* EffectorGoal : InRigAsset->Goals)
+	// initialize goals based on source asset
+	GoalContainer.Empty();
+	const TArray<UIKRigEffectorGoal*>& GoalsInAsset = InRigAsset->GetGoalArray();
+	for (const UIKRigEffectorGoal* GoalInAsset : GoalsInAsset)
 	{
+		// add a copy of the Goal to the container
+		GoalContainer.SetIKGoal(GoalInAsset);
+	}
+	
+	// initialize goal bones from asset
+	GoalBones.Reset();
+	for (const UIKRigEffectorGoal* EffectorGoal : GoalsInAsset)
+	{	
 		FGoalBone NewGoalBone;
 		NewGoalBone.BoneName = EffectorGoal->BoneName;
 		NewGoalBone.BoneIndex = Skeleton.GetBoneIndexFromName(EffectorGoal->BoneName);
@@ -89,9 +93,10 @@ void UIKRigProcessor::Initialize(UIKRigDefinition* InRigAsset, const FReferenceS
 	}
 
 	// create copies of all the solvers in the IK rig
-	Solvers.Reset(InRigAsset->Solvers.Num());
+	const TArray<UIKRigSolver*>& AssetSolvers = InRigAsset->GetSolverArray();
+	Solvers.Reset(AssetSolvers.Num());
 	int32 SolverIndex = 0;
-	for (UIKRigSolver* IKRigSolver : InRigAsset->Solvers)
+	for (const UIKRigSolver* IKRigSolver : AssetSolvers)
 	{
 		if (!IKRigSolver)
 		{
@@ -109,8 +114,14 @@ void UIKRigProcessor::Initialize(UIKRigDefinition* InRigAsset, const FReferenceS
 		Solvers.Add(Solver);
 	}
 
-	InitializedWithIKRigAssetVersion = InRigAsset->GetAssetVersion();
 	bInitialized = true;
+}
+
+void UIKRigProcessor::Initialize(UIKRigDefinition* InRigAsset, const FReferenceSkeleton& RefSkeleton)
+{
+	FIKRigInputSkeleton InputSkeleton;
+	InputSkeleton.InitializeFromRefSkeleton(RefSkeleton);
+	Initialize(InRigAsset, InputSkeleton);
 }
 
 void UIKRigProcessor::SetInputPoseGlobal(const TArray<FTransform>& InGlobalBoneTransforms) 
@@ -150,10 +161,14 @@ void UIKRigProcessor::Solve(const FTransform& ComponentToWorld)
 	// run all the solvers
 	for (UIKRigSolver* Solver : Solvers)
 	{
-		if (Solver->bEnabled)
+		#if WITH_EDITOR
+		if (Solver->IsEnabled())
 		{
 			Solver->Solve(Skeleton, GoalContainer);
 		}
+		#else
+		Solver->Solve(Skeleton, GoalContainer);
+		#endif
 	}
 
 	// make sure rotations are normalized coming out
@@ -165,42 +180,45 @@ void UIKRigProcessor::CopyOutputGlobalPoseToArray(TArray<FTransform>& OutputPose
 	OutputPoseGlobal = Skeleton.CurrentPoseGlobal;
 }
 
-void UIKRigProcessor::CopyAllInputsFromSourceAssetAtRuntime(UIKRigDefinition* IKRigAsset)
+void UIKRigProcessor::Reset()
 {
+	Solvers.Reset();
+	GoalContainer.Empty();
+	GoalBones.Reset();
+	Skeleton.Reset();
+	SetNeedsInitialized();
+}
+
+void UIKRigProcessor::SetNeedsInitialized()
+{
+	bInitialized = false;
+	bTriedToInitialize = false;
+};
+
+#if WITH_EDITOR
+
+void UIKRigProcessor::CopyAllInputsFromSourceAssetAtRuntime(UIKRigDefinition* SourceAsset)
+{
+	check(SourceAsset)
+	
 	// copy goal settings
-	for (const UIKRigEffectorGoal* AssetGoal : IKRigAsset->Goals)
+	const TArray<UIKRigEffectorGoal*>& AssetGoals =  SourceAsset->GetGoalArray();
+	for (const UIKRigEffectorGoal* AssetGoal : AssetGoals)
 	{
 		SetIKGoal(AssetGoal);
 	}
 
 	// copy solver settings
-	check(Solvers.Num() == IKRigAsset->Solvers.Num()); // if number of solvers has been changed, processor should have been reinitialized
+	const TArray<UIKRigSolver*>& AssetSolvers = SourceAsset->GetSolverArray();
+	check(Solvers.Num() == AssetSolvers.Num()); // if number of solvers has been changed, processor should have been reinitialized
 	for (int32 SolverIndex=0; SolverIndex<Solvers.Num(); ++SolverIndex)
 	{
-		Solvers[SolverIndex]->bEnabled = IKRigAsset->Solvers[SolverIndex]->bEnabled;
-		Solvers[SolverIndex]->UpdateSolverSettings(IKRigAsset->Solvers[SolverIndex]);
+		Solvers[SolverIndex]->SetEnabled(AssetSolvers[SolverIndex]->IsEnabled());
+		Solvers[SolverIndex]->UpdateSolverSettings(AssetSolvers[SolverIndex]);
 	}
 }
 
-bool UIKRigProcessor::NeedsInitialized(UIKRigDefinition* IKRigAsset) const
-{
-	if (!bInitialized)
-	{
-		return true; // not initialized yet at all
-	}
-
-	if (!IKRigAsset)
-	{
-		return true; // lost connection to asset
-	}
-
-	if (InitializedWithIKRigAssetVersion != IKRigAsset->GetAssetVersion())
-	{
-		return true; // IKRig asset has been modified since last initialization
-	}
-
-	return false;
-}
+#endif
 
 const FIKRigGoalContainer& UIKRigProcessor::GetGoalContainer() const
 {
@@ -216,16 +234,15 @@ FIKRigSkeleton& UIKRigProcessor::GetSkeleton()
 
 void UIKRigProcessor::ResolveFinalGoalTransforms(const FTransform& WorldToComponent)
 {
-	for (TPair<FName, FIKRigGoal>& GoalPair : GoalContainer.Goals)
+	for (FIKRigGoal& Goal : GoalContainer.Goals)
 	{
-		if (!GoalBones.Contains(GoalPair.Key))
+		if (!GoalBones.Contains(Goal.Name))
 		{
 			// user is changing goals after initialization
 			// not necessarily a bad thing, but new goal names won't work until re-init
 			continue;
 		}
-		
-		FIKRigGoal& Goal = GoalPair.Value;
+
 		const FGoalBone& GoalBone = GoalBones[Goal.Name];
 		const FTransform& InputPoseBoneTransform = Skeleton.CurrentPoseGlobal[GoalBone.BoneIndex];
 

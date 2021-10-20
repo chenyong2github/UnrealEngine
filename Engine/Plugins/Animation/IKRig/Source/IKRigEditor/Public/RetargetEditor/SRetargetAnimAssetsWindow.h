@@ -10,6 +10,42 @@
 
 class UIKRetargeter;
 
+//** Dialog to select path to export to */
+class SSelectExportPathDialog: public SWindow
+{
+public:
+	SLATE_BEGIN_ARGS(SSelectExportPathDialog)
+	{
+	}
+
+	SLATE_ARGUMENT(FText, DefaultAssetPath)
+
+	/** A reference to the parent window */
+	SLATE_ARGUMENT(TSharedPtr<SWindow>, ParentWindow)
+	
+	SLATE_END_ARGS()
+
+	SSelectExportPathDialog() : UserResponse(EAppReturnType::Cancel)
+	{
+	}
+
+	void Construct(const FArguments& InArgs);
+
+public:
+	/** Displays the dialog in a blocking fashion */
+	EAppReturnType::Type ShowModal();
+
+	/** Gets the resulting asset path */
+	FString GetAssetPath();
+
+protected:
+	void OnPathChange(const FString& NewPath);
+	FReply OnButtonClick(EAppReturnType::Type ButtonID);
+
+	EAppReturnType::Type UserResponse;
+	FText AssetPath;
+};
+
 //** Viewport in retarget dialog that shows source / target retarget pose */
 class SRetargetPoseViewport: public SEditorViewport
 {
@@ -178,6 +214,7 @@ private:
 
 	/** Modify folder output path */
 	FText GetFolderPath() const;
+	FReply GetExportFolder();
 
 	/** Necessary data collected from UI to run retarget. */
 	FIKRetargetBatchOperationContext BatchContext;

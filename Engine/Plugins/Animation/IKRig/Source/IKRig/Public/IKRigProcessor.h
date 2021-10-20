@@ -39,7 +39,13 @@ public:
 	*/
 	 
 	/** setup a new processor to run the given IKRig asset
-	 *  NOTE!! this function creates new UObjects and consequently MUST be called from the main thread!!	 */
+	 *  NOTE!! this function creates new UObjects and consequently MUST be called from the main thread!!
+	 *  @param InRigAsset - the IK Rig defining the collection of solvers to execute and all the rig settings
+	 *  @param InputSkeleton - the skeleton in reference pose that you want to solve the IK on
+	 */
+	void Initialize(UIKRigDefinition* InRigAsset, const FIKRigInputSkeleton& InputSkeleton);
+
+	/** Anim Graph: convenience to initialize directly from an FReferenceSkeleton. */
 	void Initialize(UIKRigDefinition* InRigAsset, const FReferenceSkeleton& RefSkeleton);
 
 	//
@@ -54,10 +60,10 @@ public:
 	/** Optionally can be called before Solve() to use the reference pose as start pose */
 	void SetInputPoseToRefPose();
 
-	/** Set a named IK goal to go to a specific location and rotation (assumed in component space) blended by separate position/rotation alpha (0-1)*/
+	/** Set a named IK goal to go to a specific location, rotation and space, blended by separate position/rotation alpha (0-1)*/
 	void SetIKGoal(const FIKRigGoal& Goal);
 
-	/** Set a named IK goal to go to a specific location and rotation (assumed in component space) blended by separate position/rotation alpha (0-1)*/
+	/** Set a named IK goal to go to a specific location, rotation and space, blended by separate position/rotation alpha (0-1)*/
 	void SetIKGoal(const UIKRigEffectorGoal* Goal);
 
 	/** Run entire stack of solvers.
@@ -67,21 +73,27 @@ public:
 	/** Get the results after calling Solve() */
 	void CopyOutputGlobalPoseToArray(TArray<FTransform>& OutputPoseGlobal) const;
 
+	/** Reset all internal data structures. Will require re-initialization before solving again. */
+	void Reset();
+
 	//
 	// END UPDATE SEQUENCE FUNCTIONS
 	//
-
-	/** Used to propagate setting values from the source asset at runtime (settings that do not require re-initialization) */
-	void CopyAllInputsFromSourceAssetAtRuntime(UIKRigDefinition* IKRigAsset);
-
-	/** checks if the source IKRig asset has been modified in a way that would require reinitialization. */
-	bool NeedsInitialized(UIKRigDefinition* IKRigAsset) const;
 
 	/** Get access to the internal goal data (read only) */
 	const FIKRigGoalContainer& GetGoalContainer() const;
 	
 	/** Get access to the internal skeleton data */
 	FIKRigSkeleton& GetSkeleton();
+
+	bool IsInitialized() const { return bInitialized; };
+
+	void SetNeedsInitialized();
+
+#if WITH_EDITOR
+	/** Used to propagate setting values from the source asset at runtime (settings that do not require re-initialization) */
+	void CopyAllInputsFromSourceAssetAtRuntime(UIKRigDefinition* SourceAsset);
+#endif
 	
 private:
 
@@ -103,8 +115,5 @@ private:
 
 	/** solving disabled until this flag is true */
 	bool bInitialized = false;
-	/** which version of the IKRig asset was this instance last initialized with?
-	 * this allows the IKRig asset to undergo modifications at runtime via the editor*/
-	int32 InitializedWithIKRigAssetVersion = -1;
-	int32 LastVersionTried = -2;
+	bool bTriedToInitialize = false;
 };

@@ -4,6 +4,7 @@
 
 #include "AnimPose.h"
 #include "AnimPreviewInstance.h"
+#include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
 #include "ObjectEditorUtils.h"
 #include "SSkeletonWidget.h"
@@ -17,6 +18,111 @@
 #include "Widgets/Notifications/SNotificationList.h"
 
 #define LOCTEXT_NAMESPACE "RetargetAnimAssetWindow"
+
+void SSelectExportPathDialog::Construct(const FArguments& InArgs)
+{
+	ParentWindowPtr = InArgs._ParentWindow;
+	AssetPath = FText::FromString(FPackageName::GetLongPackagePath(InArgs._DefaultAssetPath.ToString()));
+
+	if(AssetPath.IsEmpty())
+	{
+		AssetPath = FText::FromString(TEXT("/Game"));
+	}
+
+	FPathPickerConfig PathPickerConfig;
+	PathPickerConfig.DefaultPath = AssetPath.ToString();
+	PathPickerConfig.OnPathSelected = FOnPathSelected::CreateSP(this, &SSelectExportPathDialog::OnPathChange);
+	PathPickerConfig.bAddDefaultPath = true;
+
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+
+	SWindow::Construct(SWindow::FArguments()
+		.Title(LOCTEXT("SSelectExportPathDialog_Title", "Select Export Path"))
+		.SupportsMinimize(false)
+		.SupportsMaximize(false)
+		//.SizingRule( ESizingRule::Autosized )
+		.ClientSize(FVector2D(450, 450))
+		[
+			SNew(SVerticalBox)
+
+			+ SVerticalBox::Slot() // Add user input block
+			.Padding(2)
+			[
+				SNew(SBorder)
+				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				[
+					SNew(SVerticalBox)
+
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("SelectPath", "Select Path"))
+						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 14))
+					]
+
+					+SVerticalBox::Slot()
+					.FillHeight(1)
+					.Padding(3)
+					[
+						ContentBrowserModule.Get().CreatePathPicker(PathPickerConfig)
+					]
+				]
+			]
+
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.HAlign(HAlign_Right)
+			.Padding(5)
+			[
+				SNew(SUniformGridPanel)
+				.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
+				.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+				.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+				+SUniformGridPanel::Slot(0, 0)
+				[
+					SNew(SButton)
+					.HAlign(HAlign_Center)
+					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.Text(LOCTEXT("OK", "OK"))
+					.OnClicked(this, &SSelectExportPathDialog::OnButtonClick, EAppReturnType::Ok)
+				]
+				+SUniformGridPanel::Slot(1, 0)
+				[
+					SNew(SButton)
+					.HAlign(HAlign_Center)
+					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.Text(LOCTEXT("Cancel", "Cancel"))
+					.OnClicked(this, &SSelectExportPathDialog::OnButtonClick, EAppReturnType::Cancel)
+				]
+			]
+		]);
+}
+
+void SSelectExportPathDialog::OnPathChange(const FString& NewPath)
+{
+	AssetPath = FText::FromString(NewPath);
+}
+
+FReply SSelectExportPathDialog::OnButtonClick(EAppReturnType::Type ButtonID)
+{
+	UserResponse = ButtonID;
+
+	RequestDestroyWindow();
+
+	return FReply::Handled();
+}
+
+EAppReturnType::Type SSelectExportPathDialog::ShowModal()
+{
+	GEditor->EditorAddModalWindow(SharedThis(this));
+	return UserResponse;
+}
+
+FString SSelectExportPathDialog::GetAssetPath()
+{
+	return AssetPath.ToString();
+}
 
 void SRetargetPoseViewport::Construct(const FArguments& InArgs)
 {
@@ -447,7 +553,7 @@ void SRetargetAnimAssetsWindow::Construct(const FArguments& InArgs)
 						SNew(SButton)
 						.HAlign(HAlign_Center)
 						.Text(LOCTEXT("DuplicateAndRetarget_ChangeFolder", "Change..."))
-						//.OnClicked(this, &SAnimationRemapSkeleton::ShowFolderOption)
+						.OnClicked(this, &SRetargetAnimAssetsWindow::GetExportFolder)
 					]
 				]
 
@@ -681,6 +787,20 @@ void SRetargetAnimAssetsWindow::UpdateExampleText()
 FText SRetargetAnimAssetsWindow::GetFolderPath() const
 {
 	return FText::FromString(BatchContext.NameRule.FolderPath);
+}
+
+FReply SRetargetAnimAssetsWindow::GetExportFolder()
+{
+	TSharedRef<SSelectExportPathDialog> Dialog = SNew(SSelectExportPathDialog)
+	.DefaultAssetPath(FText::FromString(BatchContext.FolderPath))
+	.ParentWindow(DialogWindow);
+	
+	if(Dialog->ShowModal() != EAppReturnType::Cancel)
+	{
+		BatchContext.NameRule.FolderPath = Dialog->GetAssetPath();
+	}
+
+	return FReply::Handled();
 }
 
 #undef LOCTEXT_NAMESPACE

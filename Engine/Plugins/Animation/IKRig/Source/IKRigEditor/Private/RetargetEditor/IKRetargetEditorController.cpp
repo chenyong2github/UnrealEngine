@@ -5,27 +5,87 @@
 #include "RetargetEditor/IKRetargetAnimInstance.h"
 #include "RetargetEditor/SIKRetargetChainMapList.h"
 #include "Retargeter/IKRetargeter.h"
+#include "RigEditor/IKRigController.h"
 
 #define LOCTEXT_NAMESPACE "IKRetargetEditorController"
 
+void FIKRetargetEditorController::Initialize(TSharedPtr<FIKRetargetEditor> InEditor, UIKRetargeter* InAsset)
+{
+	Editor = InEditor;
+	AssetController = UIKRetargeterController::GetController(InAsset);
+
+	// bind callbacks when SOURCE or TARGET IK Rigs are modified
+	BindToIKRigAsset(AssetController->GetAsset()->SourceIKRigAsset);
+	BindToIKRigAsset(AssetController->GetAsset()->TargetIKRigAsset);
+
+	// bind callback when retargeter needs reinitialized
+	AssetController->OnRetargeterNeedsInitialized().AddSP(this, &FIKRetargetEditorController::OnRetargeterNeedsInitialized);
+}
+
+void FIKRetargetEditorController::BindToIKRigAsset(UIKRigDefinition* InIKRig)
+{
+	if (!InIKRig)
+	{
+		return;
+	}
+
+	UIKRigController* Controller = UIKRigController::GetIKRigController(InIKRig);
+	if (!Controller->OnIKRigNeedsInitialized().IsBoundToObject(this))
+	{
+		Controller->OnIKRigNeedsInitialized().AddSP(this, &FIKRetargetEditorController::OnIKRigNeedsInitialized);
+		Controller->OnRetargetChainRenamed().AddSP(this, &FIKRetargetEditorController::OnRetargetChainRenamed);
+	}
+}
+
+void FIKRetargetEditorController::OnIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig)
+{
+	const UIKRetargeter* Retargeter = AssetController->GetAsset();
+	
+	check(ModifiedIKRig && Retargeter)
+	 
+	const bool bIsSource = ModifiedIKRig == Retargeter->SourceIKRigAsset;
+	const bool bIsTarget = ModifiedIKRig == Retargeter->TargetIKRigAsset;
+	if (!(bIsSource || bIsTarget))
+	{
+		return;
+	}
+
+	// the target anim instance has the IK RetargetPoseFromMesh node which needs reinitialized with new asset version
+	TargetAnimInstance->SetProcessorNeedsInitialized();
+	RefreshAllViews();
+}
+
+void FIKRetargetEditorController::OnRetargetChainRenamed(UIKRigDefinition* ModifiedIKRig, FName OldName, FName NewName)
+{
+	check(ModifiedIKRig)
+	
+	AssetController->OnRetargetChainRenamed(ModifiedIKRig, OldName, NewName);
+}
+
+void FIKRetargetEditorController::OnRetargeterNeedsInitialized(const UIKRetargeter* Retargeter)
+{
+	TargetAnimInstance->SetProcessorNeedsInitialized();
+	RefreshAllViews();
+}
+
 USkeletalMesh* FIKRetargetEditorController::GetSourceSkeletalMesh() const
 {
-	if (!(Asset && Asset->SourceIKRigAsset))
+	if (!(AssetController && AssetController->GetAsset()->SourceIKRigAsset))
 	{
 		return nullptr;
 	}
 
-	return Asset->SourceIKRigAsset->PreviewSkeletalMesh;
+	return AssetController->GetAsset()->SourceIKRigAsset->PreviewSkeletalMesh;
 }
 
 USkeletalMesh* FIKRetargetEditorController::GetTargetSkeletalMesh() const
 {
-	if (!(Asset && Asset->TargetIKRigAsset))
+	if (!(AssetController && AssetController->GetAsset()->TargetIKRigAsset))
 	{
 		return nullptr;
 	}
 
-	return Asset->TargetIKRigAsset->PreviewSkeletalMesh;
+	return AssetController->GetAsset()->TargetIKRigAsset->PreviewSkeletalMesh;
 }
 
 FTransform FIKRetargetEditorController::GetTargetBoneTransform(const int32& TargetBoneIndex) const
@@ -33,15 +93,15 @@ FTransform FIKRetargetEditorController::GetTargetBoneTransform(const int32& Targ
 	UIKRetargetAnimInstance* AnimInstance = TargetAnimInstance.Get();
 	check(AnimInstance);
 
-	UIKRetargeter* CurrentRetargeter = AnimInstance->GetCurrentlyUsedRetargeter();
-	check(CurrentRetargeter)
+	const UIKRetargetProcessor* RetargetProcessor = AnimInstance->GetRetargetProcessor();
+	check(RetargetProcessor)
 
 	// get transform of root of chain
-	FTransform BoneTransform = CurrentRetargeter->GetTargetBoneRetargetPoseGlobalTransform(TargetBoneIndex);
+	FTransform BoneTransform = RetargetProcessor->GetTargetBoneRetargetPoseGlobalTransform(TargetBoneIndex);
 
 	// scale and offset
-	BoneTransform.ScaleTranslation(Asset->TargetActorScale);
-	BoneTransform.AddToTranslation(FVector(Asset->TargetActorOffset, 0.f, 0.f));
+	BoneTransform.ScaleTranslation(AssetController->GetAsset()->TargetActorScale);
+	BoneTransform.AddToTranslation(FVector(AssetController->GetAsset()->TargetActorOffset, 0.f, 0.f));
 
 	return BoneTransform;
 }
@@ -51,12 +111,13 @@ bool FIKRetargetEditorController::GetTargetBoneLineSegments(
 	FVector& OutStart,
 	TArray<FVector>& OutChildren) const
 {
-	UIKRetargeter* CurrentRetargeter = GetCurrentlyRunningRetargeter();
-	check(CurrentRetargeter && CurrentRetargeter->bIsLoadedAndValid)
-	check(CurrentRetargeter->TargetSkeleton.BoneNames.IsValidIndex(TargetBoneIndex))
+	// get the runtime processor
+	const UIKRetargetProcessor* Processor = GetRetargetProcessor();
+	check(Processor && Processor->IsInitialized())
 	
 	// get the target skeleton we want to draw
-	const FTargetSkeleton& TargetSkeleton = CurrentRetargeter->TargetSkeleton;
+	const FTargetSkeleton& TargetSkeleton = Processor->GetTargetSkeleton();
+	check(TargetSkeleton.BoneNames.IsValidIndex(TargetBoneIndex))
 
 	// get the origin of the bone chain
 	OutStart = TargetSkeleton.RetargetGlobalPose[TargetBoneIndex].GetTranslation();
@@ -70,12 +131,12 @@ bool FIKRetargetEditorController::GetTargetBoneLineSegments(
 	}
 
 	// add the target translation offset and scale
-	const FVector TargetOffset(Asset->TargetActorOffset, 0.f, 0.f);
-	OutStart *= Asset->TargetActorScale;
+	const FVector TargetOffset(AssetController->GetAsset()->TargetActorOffset, 0.f, 0.f);
+	OutStart *= AssetController->GetAsset()->TargetActorScale;
 	OutStart += TargetOffset;
 	for (FVector& ChildPoint : OutChildren)
 	{
-		ChildPoint *= Asset->TargetActorScale;
+		ChildPoint *= AssetController->GetAsset()->TargetActorScale;
 		ChildPoint += TargetOffset;
 	}
 	
@@ -84,18 +145,22 @@ bool FIKRetargetEditorController::GetTargetBoneLineSegments(
 
 bool FIKRetargetEditorController::IsTargetBoneRetargeted(const int32& TargetBoneIndex)
 {
-	UIKRetargeter* CurrentRetargeter = GetCurrentlyRunningRetargeter();
-	check(CurrentRetargeter && CurrentRetargeter->bIsLoadedAndValid)
-	check(CurrentRetargeter->TargetSkeleton.BoneNames.IsValidIndex(TargetBoneIndex))
+	// get the runtime processor
+	const UIKRetargetProcessor* Processor = GetRetargetProcessor();
+	check(Processor && Processor->IsInitialized())
+	
+	// get the target skeleton
+	const FTargetSkeleton& TargetSkeleton = Processor->GetTargetSkeleton();
+	check(TargetSkeleton.BoneNames.IsValidIndex(TargetBoneIndex))
 
-	return CurrentRetargeter->TargetSkeleton.IsBoneRetargeted[TargetBoneIndex];
+	return TargetSkeleton.IsBoneRetargeted[TargetBoneIndex];
 }
 
-UIKRetargeter* FIKRetargetEditorController::GetCurrentlyRunningRetargeter() const
+const UIKRetargetProcessor* FIKRetargetEditorController::GetRetargetProcessor() const
 {	
 	if(UIKRetargetAnimInstance* AnimInstance = TargetAnimInstance.Get())
 	{
-		return AnimInstance->GetCurrentlyUsedRetargeter();
+		return AnimInstance->GetRetargetProcessor();
 	}
 
 	return nullptr;	

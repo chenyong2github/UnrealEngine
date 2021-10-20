@@ -53,6 +53,12 @@ public:
         const TSharedRef<STableViewBase>& OwnerTable,
         TSharedRef<FSolverStackElement> InStackElement,
         TSharedPtr<SIKRigSolverStack> InSolverStack);
+
+	bool GetWarningMessage(FText& Message);
+
+private:
+	TWeakPtr<FSolverStackElement> StackElement;
+	TWeakPtr<SIKRigSolverStack> SolverStack;
 };
 
 class FIKRigSolverStackDragDropOp : public FDecoratedDragDropOp
@@ -96,8 +102,10 @@ private:
 	
 	/** menu command callback for adding a new solver */
 	void AddNewSolver(UClass* Class);
-	/** when a solver is clicked on in the stack view */
-	void OnItemClicked(TSharedPtr<FSolverStackElement> InItem);
+	/** delete solver from stack */
+	void DeleteSolver(TSharedPtr<FSolverStackElement> SolverToDelete);
+	/** when a solver is selected on in the stack view */
+	void OnSelectionChanged(TSharedPtr<FSolverStackElement> InItem, ESelectInfo::Type SelectInfo);
 
 	/** list view generate row callback */
 	TSharedRef<ITableRow> MakeListRowWidget(TSharedPtr<FSolverStackElement> InElement, const TSharedRef<STableViewBase>& OwnerTable);
