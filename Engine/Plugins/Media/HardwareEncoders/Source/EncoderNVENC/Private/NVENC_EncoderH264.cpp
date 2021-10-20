@@ -106,7 +106,7 @@ namespace AVEncoder
 	ECVF_Default);
 
 	template<typename T>
-	void CommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<T>& CVar)
+	void NVENCCommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<T>& CVar)
 	{
 		T Value;
 		if (FParse::Value(FCommandLine::Get(), Match, Value))
@@ -115,7 +115,7 @@ namespace AVEncoder
 		}
 	};
 
-	void CommandLineParseOption(const TCHAR* Match, TAutoConsoleVariable<bool>& CVar)
+	void NVENCCommandLineParseOption(const TCHAR* Match, TAutoConsoleVariable<bool>& CVar)
 	{
 		FString ValueMatch(Match);
 		ValueMatch.Append(TEXT("="));
@@ -134,7 +134,7 @@ namespace AVEncoder
 		}
 	}
 
-	void ParseCommandLineFlags()
+	void NVENCParseCommandLineFlags()
 	{
 		// CVar changes can only be triggered from the game thread
 		{
@@ -143,10 +143,10 @@ namespace AVEncoder
 
 			AsyncTask(ENamedThreads::GameThread, [&ThreadBlocker]()
 			{ 
-				CommandLineParseValue(TEXT("-NVENCIntraRefreshPeriodFrames="), CVarIntraRefreshPeriodFrames);
-				CommandLineParseValue(TEXT("-NVENCIntraRefreshCountFrames="), CVarIntraRefreshCountFrames);
-				CommandLineParseOption(TEXT("-NVENCKeyFrameQPUseLastQP="), CVarKeyframeQPUseLastQP);
-				CommandLineParseValue(TEXT("-NVENCKeyframeInterval="), CVarKeyframeInterval);
+				NVENCCommandLineParseValue(TEXT("-NVENCIntraRefreshPeriodFrames="), CVarIntraRefreshPeriodFrames);
+				NVENCCommandLineParseValue(TEXT("-NVENCIntraRefreshCountFrames="), CVarIntraRefreshCountFrames);
+				NVENCCommandLineParseOption(TEXT("-NVENCKeyFrameQPUseLastQP="), CVarKeyframeQPUseLastQP);
+				NVENCCommandLineParseValue(TEXT("-NVENCKeyframeInterval="), CVarKeyframeInterval);
 
 				// Unblocks the thread
                 ThreadBlocker.Trigger();
@@ -225,7 +225,7 @@ namespace AVEncoder
 		}
 		
 		// Parse NVENC settings from command line (if any relevant ones are passed)
-		ParseCommandLineFlags();
+		NVENCParseCommandLineFlags();
 
 		return AddLayer(mutableConfig);
 	}

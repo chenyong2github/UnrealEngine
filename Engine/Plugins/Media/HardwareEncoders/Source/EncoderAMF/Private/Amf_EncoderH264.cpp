@@ -58,7 +58,7 @@ namespace AVEncoder
 	ECVF_Default);
 
 	template<typename T>
-	void CommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<T>& CVar)
+	void AMFCommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<T>& CVar)
 	{
 		T Value;
 		if (FParse::Value(FCommandLine::Get(), Match, Value))
@@ -67,7 +67,7 @@ namespace AVEncoder
 		}
 	};
 
-	void CommandLineParseOption(const TCHAR* Match, TAutoConsoleVariable<bool>& CVar)
+	void AMFCommandLineParseOption(const TCHAR* Match, TAutoConsoleVariable<bool>& CVar)
 	{
 		FString ValueMatch(Match);
 		ValueMatch.Append(TEXT("="));
@@ -86,7 +86,7 @@ namespace AVEncoder
 		}
 	}
 
-	void ParseCommandLineFlags()
+	void AMFParseCommandLineFlags()
 	{
 		// CVar changes can only be triggered from the game thread
 		{
@@ -95,7 +95,7 @@ namespace AVEncoder
 
 			AsyncTask(ENamedThreads::GameThread, [&ThreadBlocker]()
 			{ 
-				CommandLineParseValue(TEXT("-AMFKeyframeInterval="), CVarAMFKeyframeInterval);
+				AMFCommandLineParseValue(TEXT("-AMFKeyframeInterval="), CVarAMFKeyframeInterval);
 
 				// Unblocks the thread
                 ThreadBlocker.Trigger();
@@ -203,7 +203,7 @@ namespace AVEncoder
 			}
 		}
 
-		ParseCommandLineFlags();
+		AMFParseCommandLineFlags();
 
 		FLayerConfig MutableConfig = config;
 		if (MutableConfig.MaxFramerate == 0)
