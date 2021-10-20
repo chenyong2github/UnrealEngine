@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Factories/Factory.h"
+#include "Curves/RealCurve.h"
 #include "CurveTableFactory.generated.h"
 
 class UCurveTable;

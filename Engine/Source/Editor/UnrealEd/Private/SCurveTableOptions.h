@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Factories/CurveTableFactory.h"
 
+#include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Delegates/Delegate.h"
 
