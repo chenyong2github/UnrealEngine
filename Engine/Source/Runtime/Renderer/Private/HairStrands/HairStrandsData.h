@@ -13,6 +13,8 @@
 
 class FPrimitiveSceneProxy;
 class FViewInfo;
+class FScene;
+class FInstanceCullingManager;
 struct FMeshBatch;
 
 ////////////////////////////////////////////////////////////////////////////////////
