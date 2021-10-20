@@ -791,7 +791,23 @@ void FBuildJob::BeginExecuteRemote()
 	checkf(Worker && WorkerExecutor, TEXT("Job requires a worker in state %s for build of '%s' by %s."),
 		LexToString(State), *Name, *FunctionName);
 	EnumAddFlags(BuildStatus, EBuildStatus::BuildTryRemote);
-	WorkerExecutor->BuildAction(Action.Get(), Inputs, *Worker, BuildSystem, BuildPolicy.GetCombinedPolicy(), Owner,
+
+	FBuildPolicy RemoteBuildPolicy;
+	if (EBuildPolicy Mask = Context->GetBuildPolicyMask(); Mask == ~EBuildPolicy::None)
+	{
+		RemoteBuildPolicy = BuildPolicy;
+	}
+	else
+	{
+		FBuildPolicyBuilder PolicyBuilder(BuildPolicy.GetDefaultPayloadPolicy() & Mask);
+		for (const FBuildPayloadPolicy& Payload : BuildPolicy.GetPayloadPolicies())
+		{
+			PolicyBuilder.AddPayloadPolicy({Payload.Id, Payload.Policy & Mask});
+		}
+		RemoteBuildPolicy = PolicyBuilder.Build();
+	}
+
+	WorkerExecutor->Build(Action.Get(), Inputs, RemoteBuildPolicy, *Worker, BuildSystem, Owner,
 		[this](FBuildWorkerActionCompleteParams&& Params) { EndExecuteRemote(MoveTemp(Params)); });
 }
 
