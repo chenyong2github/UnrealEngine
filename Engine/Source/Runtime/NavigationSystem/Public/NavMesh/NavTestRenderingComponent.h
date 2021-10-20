@@ -3,7 +3,7 @@
 #pragma once
 
 #include "PrimitiveViewRelevance.h"
-#include "Components/PrimitiveComponent.h"
+#include "Debug/DebugDrawComponent.h"
 #include "DynamicMeshBuilder.h"
 #include "DebugRenderSceneProxy.h"
 
@@ -94,15 +94,7 @@ public:
 	{
 	}
 
-	virtual void InitDelegateHelper(const FDebugRenderSceneProxy* InSceneProxy) override
-	{
-		check(0);
-	}
-
-	void InitDelegateHelper(const FNavTestSceneProxy* InSceneProxy);
-
-	virtual void RegisterDebugDrawDelegate() override;
-	virtual void UnregisterDebugDrawDelegate() override;
+	void SetupFromProxy(const FNavTestSceneProxy* InSceneProxy);
 
 protected:
 	virtual void DrawDebugLabels(UCanvas* Canvas, APlayerController*) override;
@@ -122,17 +114,22 @@ private:
 
 class FPrimitiveSceneProxy;
 
-UCLASS(hidecategories=Object)
-class UNavTestRenderingComponent: public UPrimitiveComponent
+UCLASS(ClassGroup = Debug)
+class UNavTestRenderingComponent: public UDebugDrawComponent
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
-	virtual FBoxSphereBounds CalcBounds(const FTransform &LocalToWorld) const override;
-	virtual void DestroyRenderState_Concurrent() override;
+protected:
 
-private:
+	virtual FBoxSphereBounds CalcBounds(const FTransform &LocalToWorld) const override;
+
+#if UE_ENABLE_DEBUG_DRAWING
+	virtual FDebugRenderSceneProxy* CreateDebugSceneProxy() override;
+
 #if WITH_RECAST && WITH_EDITOR
+	virtual FDebugDrawDelegateHelper& GetDebugDrawDelegateHelper() override { return NavTestDebugDrawDelegateHelper; }
+private:
 	FNavTestDebugDrawDelegateHelper NavTestDebugDrawDelegateHelper;
-#endif
+#endif // WITH_RECAST && WITH_EDITOR
+#endif // UE_ENABLE_DEBUG_DRAWING
 };

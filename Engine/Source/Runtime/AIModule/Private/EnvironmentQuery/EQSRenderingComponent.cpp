@@ -281,20 +281,14 @@ UEQSRenderingComponent::UEQSRenderingComponent(const FObjectInitializer& ObjectI
 {
 }
 
-FPrimitiveSceneProxy* UEQSRenderingComponent::CreateSceneProxy()
+#if UE_ENABLE_DEBUG_DRAWING
+FDebugRenderSceneProxy* UEQSRenderingComponent::CreateDebugSceneProxy()
 {
 	FEQSSceneProxy* NewSceneProxy = new FEQSSceneProxy(*this, DrawFlagName, DebugDataSolidSpheres, DebugDataTexts);
-
-#if  USE_EQS_DEBUGGER
-	if (NewSceneProxy)
-	{
-		EQSRenderingDebugDrawDelegateHelper.InitDelegateHelper(NewSceneProxy);
-		EQSRenderingDebugDrawDelegateHelper.RegisterDebugDrawDelegate();
-	}
-#endif
-
+  	EQSRenderingDebugDrawDelegateHelper.SetupFromProxy(NewSceneProxy);
 	return NewSceneProxy;
 }
+#endif
 
 void UEQSRenderingComponent::ClearStoredDebugData()
 {
@@ -348,15 +342,6 @@ FBoxSphereBounds UEQSRenderingComponent::CalcBounds(const FTransform& LocalToWor
 
 	static FSphere BoundingSphere(FVector::ZeroVector, 0.f);
 	return FBoxSphereBounds(BoundingSphere).TransformBy(LocalToWorld);
-}
-
-void UEQSRenderingComponent::DestroyRenderState_Concurrent()
-{
-#if USE_EQS_DEBUGGER
-	EQSRenderingDebugDrawDelegateHelper.UnregisterDebugDrawDelegate();
-#endif
-
-	Super::DestroyRenderState_Concurrent();
 }
 
 //----------------------------------------------------------------------//

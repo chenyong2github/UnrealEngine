@@ -3,7 +3,7 @@
 #pragma once
 
 #include "GameFramework/Actor.h"
-#include "Components/PrimitiveComponent.h"
+#include "Debug/DebugDrawComponent.h"
 #include "DebugRenderSceneProxy.h"
 #include "MassAvoidanceProcessors.h"
 #include "ZoneGraphTypes.h"
@@ -28,8 +28,8 @@ public:
 #endif
 
 /** Component for testing MassMovement functionality. */
-UCLASS(ClassGroup = Custom, hidecategories = (Physics, Collision, Rendering, Cooking, Lighting, Navigation, Tags, HLOD, Mobile, AssetUserData, Activation))
-class MASSAIMOVEMENTEDITOR_API UMassMovementTestingComponent : public UPrimitiveComponent
+UCLASS(ClassGroup = Debug)
+class MASSAIMOVEMENTEDITOR_API UMassMovementTestingComponent : public UDebugDrawComponent
 {
 	GENERATED_BODY()
 public:
@@ -44,11 +44,8 @@ public:
 
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 
-#if !UE_BUILD_SHIPPING
-	//~ Begin UPrimitiveComponent Interface.
-	virtual void DestroyRenderState_Concurrent() override;
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
-	//~ End UPrimitiveComponent Interface.
+#if UE_ENABLE_DEBUG_DRAWING
+	virtual FDebugRenderSceneProxy* CreateDebugSceneProxy() override;
 #endif
 
 	void UpdateTests();
@@ -61,10 +58,6 @@ protected:
 	void OnZoneGraphDataBuildDone(const struct FZoneGraphBuildData& BuildData);
 #endif
 	void OnZoneGraphDataChanged(const AZoneGraphData* ZoneGraphData);
-
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	FDebugDrawDelegateHelper DebugDrawDelegateHelper;
-#endif
 
 #if WITH_EDITOR
 	FDelegateHandle OnDataChangedHandle;

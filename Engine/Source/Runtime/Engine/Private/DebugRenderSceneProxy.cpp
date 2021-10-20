@@ -25,9 +25,9 @@ FDebugRenderSceneProxy::FDebugRenderSceneProxy(const UPrimitiveComponent* InComp
 {
 }
 
-void FDebugDrawDelegateHelper::RegisterDebugDrawDelegate()
+void FDebugDrawDelegateHelper::RegisterDebugDrawDelegateInternal()
 {
-	ensureMsgf(State != RegisteredState, TEXT("RegisterDebugDrawDelegate is already Registered!"));
+	ensureMsgf(State != RegisteredState, TEXT("DrawDelegate is already Registered!"));
 	if (State == InitializedState)
 	{
 		DebugTextDrawingDelegate = FDebugDrawDelegate::CreateRaw(this, &FDebugDrawDelegateHelper::DrawDebugLabels);
@@ -36,9 +36,28 @@ void FDebugDrawDelegateHelper::RegisterDebugDrawDelegate()
 	}
 }
 
+void FDebugDrawDelegateHelper::RequestRegisterDebugDrawDelegate(FRegisterComponentContext* Context)
+{
+	bDeferredRegister = Context != nullptr;
+
+	if (!bDeferredRegister)
+	{
+		RegisterDebugDrawDelegateInternal();
+	}
+}
+
+void FDebugDrawDelegateHelper::ProcessDeferredRegister()
+{
+	if (bDeferredRegister)
+	{
+		RegisterDebugDrawDelegateInternal();
+		bDeferredRegister = false;
+	}
+}
+
 void FDebugDrawDelegateHelper::UnregisterDebugDrawDelegate()
 {
-	ensureMsgf(State != InitializedState, TEXT("UnregisterDebugDrawDelegate is in an invalid State: %i !"), State);
+	ensureMsgf(State != InitializedState, TEXT("DrawDelegate is in an invalid State: %i !"), State);
 	if (State == RegisteredState)
 	{
 		check(DebugTextDrawingDelegate.IsBound());
@@ -49,11 +68,11 @@ void FDebugDrawDelegateHelper::UnregisterDebugDrawDelegate()
 
 void  FDebugDrawDelegateHelper::ReregisterDebugDrawDelegate()
 {
-	ensureMsgf(State != UndefinedState, TEXT("ReregisterDebugDrawDelegate is in an invalid State: %i !"), State);
+	ensureMsgf(State != UndefinedState, TEXT("DrawDelegate is in an invalid State: %i !"), State);
 	if (State == RegisteredState)
 	{
 		UnregisterDebugDrawDelegate();
-		RegisterDebugDrawDelegate();
+		RegisterDebugDrawDelegateInternal();
 	}
 }
 

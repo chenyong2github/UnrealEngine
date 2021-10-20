@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Components/PrimitiveComponent.h"
+#include "Debug/DebugDrawComponent.h"
 #include "DebugRenderSceneProxy.h"
 #include "GameplayDebuggerRenderingComponent.generated.h"
 
@@ -22,7 +22,8 @@ public:
 
 	void AddDelegateHelper(FDebugDrawDelegateHelper* InDebugDrawDelegateHelper);
 
-	virtual void RegisterDebugDrawDelegate() override;
+protected:
+	virtual void RegisterDebugDrawDelegateInternal() override;
 	virtual void UnregisterDebugDrawDelegate() override;
 
 private:
@@ -31,14 +32,16 @@ private:
 
 
 
-UCLASS(NotBlueprintable, NotBlueprintType, noteditinlinenew, hidedropdown, Transient)
-class UGameplayDebuggerRenderingComponent : public UPrimitiveComponent
+UCLASS(ClassGroup = Debug, NotBlueprintable, NotBlueprintType, noteditinlinenew, hidedropdown, Transient)
+class UGameplayDebuggerRenderingComponent : public UDebugDrawComponent
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+protected:
+	virtual FDebugRenderSceneProxy* CreateDebugSceneProxy() override;
+	virtual FDebugDrawDelegateHelper& GetDebugDrawDelegateHelper() override { return GameplayDebuggerDebugDrawDelegateHelper; }
 	virtual FBoxSphereBounds CalcBounds(const FTransform &LocalToWorld) const override;
-	virtual void DestroyRenderState_Concurrent() override;
 
+private:
 	FGameplayDebuggerDebugDrawDelegateHelper GameplayDebuggerDebugDrawDelegateHelper;
 };

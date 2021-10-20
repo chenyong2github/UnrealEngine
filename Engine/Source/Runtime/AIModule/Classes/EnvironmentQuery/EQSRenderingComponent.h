@@ -7,7 +7,7 @@
 #include "PrimitiveViewRelevance.h"
 #include "DebugRenderSceneProxy.h"
 #include "EnvironmentQuery/EnvQueryDebugHelpers.h"
-#include "Components/PrimitiveComponent.h"
+#include "Debug/DebugDrawComponent.h"
 #include "EQSRenderingComponent.generated.h"
 
 class APlayerController;
@@ -53,15 +53,8 @@ public:
 	{
 	}
 
-	virtual void InitDelegateHelper(const FDebugRenderSceneProxy* InSceneProxy) override
+	void SetupFromProxy(const FEQSSceneProxy* InSceneProxy)
 	{
-		check(0);
-	}
-
-	void InitDelegateHelper(const FEQSSceneProxy* InSceneProxy)
-	{
-		Super::InitDelegateHelper(InSceneProxy);
-
 		ActorOwner = InSceneProxy->ActorOwner;
 		QueryDataSource = InSceneProxy->QueryDataSource;
 		bDrawOnlyWhenSelected = InSceneProxy->bDrawOnlyWhenSelected;
@@ -83,27 +76,28 @@ private:
 };
 #endif
 
-UCLASS(hidecategories=Object)
-class AIMODULE_API UEQSRenderingComponent : public UPrimitiveComponent
+UCLASS(ClassGroup = Debug)
+class AIMODULE_API UEQSRenderingComponent : public UDebugDrawComponent
 {
 	GENERATED_UCLASS_BODY()
 
 	FString DrawFlagName;
 	uint32 bDrawOnlyWhenSelected : 1;
 
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
-	virtual FBoxSphereBounds CalcBounds(const FTransform &LocalToWorld) const override;
-	virtual void DestroyRenderState_Concurrent() override;
-
 	void ClearStoredDebugData();
 #if  USE_EQS_DEBUGGER || ENABLE_VISUAL_LOG
 	void StoreDebugData(const EQSDebug::FQueryData& DebugData);
 #endif
-#if  USE_EQS_DEBUGGER
+
+protected:
+	virtual FBoxSphereBounds CalcBounds(const FTransform &LocalToWorld) const override;
+
+#if UE_ENABLE_DEBUG_DRAWING
+	virtual FDebugRenderSceneProxy* CreateDebugSceneProxy() override;
+	virtual FDebugDrawDelegateHelper& GetDebugDrawDelegateHelper() override { return EQSRenderingDebugDrawDelegateHelper; }
 	FEQSRenderingDebugDrawDelegateHelper EQSRenderingDebugDrawDelegateHelper;
 #endif
 
-protected:
 	//EQSDebug::FQueryData DebugData;
 	TArray<FDebugRenderSceneProxy::FSphere> DebugDataSolidSpheres;
 	TArray<FDebugRenderSceneProxy::FText3d> DebugDataTexts;

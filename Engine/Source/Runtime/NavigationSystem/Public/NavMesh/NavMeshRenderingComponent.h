@@ -7,7 +7,7 @@
 #include "MaterialShared.h"
 #include "DynamicMeshBuilder.h"
 #include "DebugRenderSceneProxy.h"
-#include "Components/PrimitiveComponent.h"
+#include "Debug/DebugDrawComponent.h"
 #include "MeshBatch.h"
 #include "LocalVertexFactory.h"
 #include "Math/GenericOctree.h"
@@ -156,23 +156,13 @@ public:
 	{
 	}
 
-	virtual void InitDelegateHelper(const FDebugRenderSceneProxy* InSceneProxy) override
+	void SetupFromProxy(const FNavMeshSceneProxy* InSceneProxy)
 	{
-		check(0);
-	}
-
-	void InitDelegateHelper(const FNavMeshSceneProxy* InSceneProxy)
-	{
-		Super::InitDelegateHelper(InSceneProxy);
-
 		DebugLabels.Reset();
 		DebugLabels.Append(InSceneProxy->ProxyData.DebugLabels);
 		bForceRendering = InSceneProxy->bForceRendering;
 		bNeedsNewData = InSceneProxy->ProxyData.bNeedsNewData;
 	}
-
-	NAVIGATIONSYSTEM_API virtual void RegisterDebugDrawDelegate() override;
-	NAVIGATIONSYSTEM_API virtual void UnregisterDebugDrawDelegate() override;
 
 protected:
 	NAVIGATIONSYSTEM_API virtual void DrawDebugLabels(UCanvas* Canvas, APlayerController*) override;
@@ -184,33 +174,28 @@ private:
 };
 #endif
 
-UCLASS(hidecategories=Object, editinlinenew)
-class NAVIGATIONSYSTEM_API UNavMeshRenderingComponent : public UPrimitiveComponent
+UCLASS(editinlinenew, ClassGroup = Debug)
+class NAVIGATIONSYSTEM_API UNavMeshRenderingComponent : public UDebugDrawComponent
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-	
-	//~ Begin UPrimitiveComponent Interface
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
-	virtual void OnRegister()  override;
-	virtual void OnUnregister()  override;
-	//~ End UPrimitiveComponent Interface
-
-	//~ Begin UActorComponent Interface
-	virtual void DestroyRenderState_Concurrent() override;
-	//~ End UActorComponent Interface
-
-	//~ Begin USceneComponent Interface
-	virtual FBoxSphereBounds CalcBounds(const FTransform &LocalToWorld) const override;
-	//~ End USceneComponent Interface
-
 	void ForceUpdate() { bForceUpdate = true; }
 	bool IsForcingUpdate() const { return bForceUpdate; }
 
 	static bool IsNavigationShowFlagSet(const UWorld* World);
 
 protected:
+	virtual void OnRegister()  override;
+	virtual void OnUnregister()  override;
+
+#if UE_ENABLE_DEBUG_DRAWING
+  	virtual FDebugRenderSceneProxy* CreateDebugSceneProxy() override;
+	virtual FDebugDrawDelegateHelper& GetDebugDrawDelegateHelper() override { return NavMeshDebugDrawDelegateManager; }
+#endif
+
+	virtual FBoxSphereBounds CalcBounds(const FTransform &LocalToWorld) const override;
+
 	/** Gathers drawable information from NavMesh and puts it in OutProxyData. 
 	 *	Override to add additional information to OutProxyData.*/
 	virtual void GatherData(const ARecastNavMesh& NavMesh, FNavMeshSceneProxyData& OutProxyData) const;
@@ -223,7 +208,7 @@ protected:
 	FTimerHandle TimerHandle;
 
 protected:
-#if WITH_RECAST && UE_ENABLE_DEBUG_DRAWING
+#if UE_ENABLE_DEBUG_DRAWING
 	FNavMeshDebugDrawDelegateHelper NavMeshDebugDrawDelegateManager;
 #endif
 };

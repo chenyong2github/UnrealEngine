@@ -49,7 +49,7 @@ UVisualLoggerRenderingComponent::UVisualLoggerRenderingComponent(const FObjectIn
 {
 }
 
-FPrimitiveSceneProxy* UVisualLoggerRenderingComponent::CreateSceneProxy()
+FDebugRenderSceneProxy* UVisualLoggerRenderingComponent::CreateDebugSceneProxy()
 {
 	AVisualLoggerRenderingActorBase* RenderingActor = Cast<AVisualLoggerRenderingActorBase>(GetOuter());
 	if (RenderingActor == nullptr)
@@ -74,13 +74,6 @@ FPrimitiveSceneProxy* UVisualLoggerRenderingComponent::CreateSceneProxy()
 			VLogSceneProxy->Capsules.Append(Shapes.Capsules);
 		});
 
-#if WITH_EDITOR
-	if (VLogSceneProxy)
-	{
-		DebugDrawDelegateHelper.InitDelegateHelper(VLogSceneProxy);
-		DebugDrawDelegateHelper.RegisterDebugDrawDelegate();
-	}
-#endif
 	return VLogSceneProxy;
 }
 
@@ -92,15 +85,6 @@ FBoxSphereBounds UVisualLoggerRenderingComponent::CalcBounds(const FTransform& L
 	MyBounds = FBox(FVector(-HALF_WORLD_MAX, -HALF_WORLD_MAX, -HALF_WORLD_MAX), FVector(HALF_WORLD_MAX, HALF_WORLD_MAX, HALF_WORLD_MAX));
 
 	return MyBounds;
-}
-
-void UVisualLoggerRenderingComponent::DestroyRenderState_Concurrent()
-{
-#if WITH_EDITOR
-	DebugDrawDelegateHelper.UnregisterDebugDrawDelegate();
-#endif
-
-	Super::DestroyRenderState_Concurrent();
 }
 
 AVisualLoggerRenderingActorBase::AVisualLoggerRenderingActorBase(const FObjectInitializer& ObjectInitializer)

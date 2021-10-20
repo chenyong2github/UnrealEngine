@@ -24,6 +24,8 @@ FNavTestSceneProxy::FNavTestSceneProxy(const UNavTestRenderingComponent* InCompo
 	, NavMeshDrawOffset(0,0,10)
 	, NavTestActor(nullptr)
 {
+	ViewFlagName = TEXT("Navigation");
+
 	if (InComponent == nullptr)
 	{
 		return;
@@ -314,10 +316,8 @@ uint32 FNavTestSceneProxy::GetAllocatedSizeInternal() const
 }
 
 #if WITH_RECAST && WITH_EDITOR
-void FNavTestDebugDrawDelegateHelper::InitDelegateHelper(const FNavTestSceneProxy* InSceneProxy)
+void FNavTestDebugDrawDelegateHelper::SetupFromProxy(const FNavTestSceneProxy* InSceneProxy)
 {
-	Super::InitDelegateHelper(InSceneProxy);
-
 	PathPoints.Reset();
 	PathPoints.Append(InSceneProxy->PathPoints);
 	PathPointFlags.Reset();
@@ -328,28 +328,6 @@ void FNavTestDebugDrawDelegateHelper::InitDelegateHelper(const FNavTestSceneProx
 	BestNodeId = InSceneProxy->BestNodeId;
 	bShowBestPath = InSceneProxy->bShowBestPath;
 	bShowDiff = InSceneProxy->bShowDiff;
-}
-
-void FNavTestDebugDrawDelegateHelper::RegisterDebugDrawDelegate()
-{
-	ensureMsgf(State != RegisteredState, TEXT("RegisterDebugDrawDelegate is already Registered!"));
-	if (State == InitializedState)
-	{
-		DebugTextDrawingDelegate = FDebugDrawDelegate::CreateRaw(this, &FNavTestDebugDrawDelegateHelper::DrawDebugLabels);
-		DebugTextDrawingDelegateHandle = UDebugDrawService::Register(TEXT("Navigation"), DebugTextDrawingDelegate);
-		State = RegisteredState;
-	}
-}
-
-void FNavTestDebugDrawDelegateHelper::UnregisterDebugDrawDelegate()
-{
-	ensureMsgf(State != InitializedState, TEXT("UnegisterDebugDrawDelegate is in an invalid State: %i !"), State);
-	if (State == RegisteredState)
-	{
-		check(DebugTextDrawingDelegate.IsBound());
-		UDebugDrawService::Unregister(DebugTextDrawingDelegateHandle);
-		State = InitializedState;
-	}
 }
 
 void FNavTestDebugDrawDelegateHelper::DrawDebugLabels(UCanvas* Canvas, APlayerController*)
@@ -414,15 +392,16 @@ UNavTestRenderingComponent::UNavTestRenderingComponent(const FObjectInitializer&
 {
 }
 
-FPrimitiveSceneProxy* UNavTestRenderingComponent::CreateSceneProxy()
+#if UE_ENABLE_DEBUG_DRAWING
+  FDebugRenderSceneProxy* UNavTestRenderingComponent::CreateDebugSceneProxy()
 {
-	FNavTestSceneProxy* SceneProxy2 = new FNavTestSceneProxy(this);
+	FNavTestSceneProxy* NewSceneProxy = new FNavTestSceneProxy(this);
 #if WITH_RECAST && WITH_EDITOR
-	NavTestDebugDrawDelegateHelper.InitDelegateHelper(SceneProxy2);
-	NavTestDebugDrawDelegateHelper.RegisterDebugDrawDelegate();
+	NavTestDebugDrawDelegateHelper.SetupFromProxy(NewSceneProxy);
 #endif
-	return SceneProxy2;
+	return NewSceneProxy;
 }
+#endif
 
 FBoxSphereBounds UNavTestRenderingComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
@@ -458,13 +437,4 @@ FBoxSphereBounds UNavTestRenderingComponent::CalcBounds(const FTransform& LocalT
 	}
 
 	return FBoxSphereBounds(BoundingBox);
-}
-
-void UNavTestRenderingComponent::DestroyRenderState_Concurrent()
-{
-#if WITH_RECAST && WITH_EDITOR
-	NavTestDebugDrawDelegateHelper.UnregisterDebugDrawDelegate();
-#endif
-
-	Super::DestroyRenderState_Concurrent();
 }
