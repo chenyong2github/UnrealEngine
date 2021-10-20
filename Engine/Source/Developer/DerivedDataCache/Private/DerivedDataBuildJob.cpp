@@ -94,11 +94,27 @@ class FBuildJob final : public IBuildJob
 {
 public:
 	/** Resolve the key to a definition, then build like the definition constructor. */
-	FBuildJob(const FBuildJobCreateParams& Params, const FBuildKey& Key, FOnBuildJobComplete&& OnComplete);
+	FBuildJob(
+		const FBuildJobCreateParams& Params,
+		const FBuildKey& Key,
+		const FBuildPolicy& Policy,
+		FOnBuildComplete&& OnComplete);
+
 	/** Resolve the definition to an action, then build like the action constructor. */
-	FBuildJob(const FBuildJobCreateParams& Params, const FBuildDefinition& Definition, FOnBuildJobComplete&& OnComplete);
+	FBuildJob(
+		const FBuildJobCreateParams& Params,
+		const FBuildDefinition& Definition,
+		const FOptionalBuildInputs& Inputs,
+		const FBuildPolicy& Policy,
+		FOnBuildComplete&& OnComplete);
+
 	/** Query the cache, attempt remote execution, resolve inputs, fall back to local execution, store to the cache. */
-	FBuildJob(const FBuildJobCreateParams& Params, const FBuildAction& Action, const FOptionalBuildInputs& Inputs, FOnBuildJobComplete&& OnComplete);
+	FBuildJob(
+		const FBuildJobCreateParams& Params,
+		const FBuildAction& Action,
+		const FOptionalBuildInputs& Inputs,
+		const FBuildPolicy& Policy,
+		FOnBuildComplete&& OnComplete);
 
 	/** Destroy the job, which must be complete or not started. */
 	~FBuildJob();
@@ -114,7 +130,7 @@ public:
 	void StepExecution() final;
 
 private:
-	FBuildJob(const FBuildJobCreateParams& Params, FStringView Name, FStringView FunctionName, FOnBuildJobComplete&& OnComplete);
+	FBuildJob(const FBuildJobCreateParams& Params, FStringView Name, FStringView FunctionName, FOnBuildComplete&& OnComplete);
 
 	void BeginJob();
 	void EndJob();
@@ -185,10 +201,10 @@ private:
 	/** Next state for the job. Used to handle re-entrant calls to AdvanceToState. */
 	EBuildJobState NextState{EBuildJobState::NotStarted};
 
+	/** Policy requested and/or configured for the job. */
+	FBuildPolicy BuildPolicy{EBuildPolicy::None};
 	/** Status flags that are added to as the job moves through its states. */
 	EBuildStatus BuildStatus{EBuildStatus::None};
-	/** Policy requested and/or configured for the job. */
-	EBuildPolicy BuildPolicy{EBuildPolicy::None};
 
 	/** Available in [ResolveKey, Complete] for jobs created from a key or definition. */
 	FBuildKey DefinitionKey;
@@ -223,7 +239,7 @@ private:
 	/** Worker executor to use for remote execution. Available in [ExecuteRemote, ExecuteRemoteRetryWait]. */
 	IBuildWorkerExecutor* WorkerExecutor{};
 	/** Invoked exactly once when the output is complete or when the job fails. */
-	FOnBuildJobComplete OnComplete;
+	FOnBuildComplete OnComplete;
 
 	/** Keys for missing inputs. */
 	TArray<FString> MissingInputs;
@@ -271,10 +287,9 @@ FBuildJob::FBuildJob(
 	const FBuildJobCreateParams& Params,
 	FStringView InName,
 	FStringView InFunctionName,
-	FOnBuildJobComplete&& InOnComplete)
+	FOnBuildComplete&& InOnComplete)
 	: Name(InName)
 	, FunctionName(InFunctionName)
-	, BuildPolicy(Params.Policy)
 	, OutputBuilder(Params.BuildSystem.CreateOutput(Name, FunctionName))
 	, Owner(Params.Owner)
 	, Scheduler(Params.Scheduler)
@@ -288,9 +303,11 @@ FBuildJob::FBuildJob(
 FBuildJob::FBuildJob(
 	const FBuildJobCreateParams& Params,
 	const FBuildKey& InKey,
-	FOnBuildJobComplete&& InOnComplete)
+	const FBuildPolicy& InPolicy,
+	FOnBuildComplete&& InOnComplete)
 	: FBuildJob(Params, WriteToString<64>(TEXT("Resolve: "_SV), InKey), TEXT("Unknown"_SV), MoveTemp(InOnComplete))
 {
+	BuildPolicy = InPolicy;
 	DefinitionKey = InKey;
 	FRequestBarrier Barrier(Owner, ERequestBarrierFlags::Priority);
 	AdvanceToState(EBuildJobState::ResolveKey);
@@ -299,11 +316,15 @@ FBuildJob::FBuildJob(
 FBuildJob::FBuildJob(
 	const FBuildJobCreateParams& Params,
 	const FBuildDefinition& InDefinition,
-	FOnBuildJobComplete&& InOnComplete)
+	const FOptionalBuildInputs& InInputs,
+	const FBuildPolicy& InPolicy,
+	FOnBuildComplete&& InOnComplete)
 	: FBuildJob(Params, InDefinition.GetName(), InDefinition.GetFunction(), MoveTemp(InOnComplete))
 {
+	BuildPolicy = InPolicy;
 	DefinitionKey = InDefinition.GetKey();
 	Definition = InDefinition;
+	Inputs = InInputs;
 	FRequestBarrier Barrier(Owner, ERequestBarrierFlags::Priority);
 	AdvanceToState(EBuildJobState::ResolveKey);
 }
@@ -312,9 +333,11 @@ FBuildJob::FBuildJob(
 	const FBuildJobCreateParams& Params,
 	const FBuildAction& InAction,
 	const FOptionalBuildInputs& InInputs,
-	FOnBuildJobComplete&& InOnComplete)
+	const FBuildPolicy& InPolicy,
+	FOnBuildComplete&& InOnComplete)
 	: FBuildJob(Params, InAction.GetName(), InAction.GetFunction(), MoveTemp(InOnComplete))
 {
+	BuildPolicy = InPolicy;
 	Action = InAction;
 	Inputs = InInputs;
 	FRequestBarrier Barrier(Owner, ERequestBarrierFlags::Priority);
@@ -397,13 +420,12 @@ void FBuildJob::CreateContext()
 	else
 	{
 		const FCacheKey CacheKey{FCacheBucket(FunctionName), Action.Get().GetKey().Hash};
-		Context = new FBuildJobContext(*this, CacheKey, *Function, OutputBuilder, BuildPolicy);
+		Context = new FBuildJobContext(*this, CacheKey, *Function, OutputBuilder);
 		Action.Get().IterateConstants([this](FStringView Key, FCbObject&& Value)
 		{
 			Context->AddConstant(Key, MoveTemp(Value));
 		});
 		Function->Configure(*Context);
-		BuildPolicy = Context->GetBuildPolicy();
 		EnumAddFlags(BuildStatus, ShouldExportBuild() ? EBuildStatus::BuildTryExport : EBuildStatus::None);
 		EnumAddFlags(BuildStatus, EBuildStatus::CacheKey);
 	}
@@ -433,11 +455,45 @@ void FBuildJob::CreateContext()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+static ECachePolicy MakeCacheQueryPolicy(EBuildPolicy BuildPolicy, const FBuildJobContext& Context)
+{
+	BuildPolicy &= Context.GetBuildPolicyMask();
+	ECachePolicy CachePolicy = ECachePolicy::None;
+	if (EnumHasAnyFlags(BuildPolicy, EBuildPolicy::CacheQuery))
+	{
+		EnumAddFlags(CachePolicy, ECachePolicy::Query);
+	}
+	if (EnumHasAnyFlags(BuildPolicy, EBuildPolicy::CacheStoreOnQuery))
+	{
+		EnumAddFlags(CachePolicy, ECachePolicy::Store);
+	}
+	if (EnumHasAnyFlags(BuildPolicy, EBuildPolicy::CacheKeepAlive))
+	{
+		EnumAddFlags(CachePolicy, ECachePolicy::KeepAlive);
+	}
+	if (EnumHasAnyFlags(BuildPolicy, EBuildPolicy::SkipData))
+	{
+		EnumAddFlags(CachePolicy, ECachePolicy::SkipAttachments);
+	}
+	CachePolicy &= Context.GetCachePolicyMask();
+	return CachePolicy;
+}
+
+static FCacheRecordPolicy MakeCacheRecordQueryPolicy(const FBuildPolicy& BuildPolicy, const FBuildJobContext& Context)
+{
+	FCacheRecordPolicyBuilder Builder(MakeCacheQueryPolicy(BuildPolicy.GetDefaultPayloadPolicy(), Context));
+	for (const FBuildPayloadPolicy& PayloadPolicy : BuildPolicy.GetPayloadPolicies())
+	{
+		Builder.AddPayloadPolicy(PayloadPolicy.Id, MakeCacheQueryPolicy(PayloadPolicy.Policy, Context));
+	}
+	return Builder.Build();
+}
+
 void FBuildJob::EnterCacheQuery()
 {
-	ECachePolicy CachePolicy = Context ? Context->GetCachePolicy() : ECachePolicy::None;
-	if (!EnumHasAnyFlags(CachePolicy, ECachePolicy::Query) ||
-		!EnumHasAnyFlags(BuildPolicy, EBuildPolicy::CacheQuery))
+	if (!Context ||
+		!EnumHasAnyFlags(Context->GetCachePolicyMask(), ECachePolicy::Query) ||
+		!EnumHasAnyFlags(Context->GetBuildPolicyMask() & BuildPolicy.GetCombinedPolicy(), EBuildPolicy::CacheQuery))
 	{
 		return AdvanceToState(EBuildJobState::ExecuteRemote);
 	}
@@ -446,13 +502,8 @@ void FBuildJob::EnterCacheQuery()
 void FBuildJob::BeginCacheQuery()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FBuildJob::CacheQuery);
-	ECachePolicy CachePolicy = Context->GetCachePolicy();
-	if (EnumHasAnyFlags(BuildPolicy, EBuildPolicy::SkipData))
-	{
-		EnumAddFlags(CachePolicy, ECachePolicy::SkipAttachments);
-	}
 	EnumAddFlags(BuildStatus, EBuildStatus::CacheQuery);
-	Cache.Get({Context->GetCacheKey()}, Name, CachePolicy, Owner,
+	Cache.Get({Context->GetCacheKey()}, Name, MakeCacheRecordQueryPolicy(BuildPolicy, *Context), Owner,
 		[this](FCacheGetCompleteParams&& Params) { EndCacheQuery(MoveTemp(Params)); });
 }
 
@@ -470,7 +521,7 @@ void FBuildJob::EndCacheQuery(FCacheGetCompleteParams&& Params)
 			return SetOutputNoCheck(MoveTemp(CacheOutput).Get());
 		}
 	}
-	if (!EnumHasAnyFlags(BuildPolicy, EBuildPolicy::Build))
+	if (!EnumHasAnyFlags(BuildPolicy.GetCombinedPolicy() & Context->GetBuildPolicyMask(), EBuildPolicy::Build))
 	{
 		return CompleteWithError(TEXT("Failed to fetch from the cache and build policy does not allow execution."));
 	}
@@ -479,11 +530,31 @@ void FBuildJob::EndCacheQuery(FCacheGetCompleteParams&& Params)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+static ECachePolicy MakeCacheStorePolicy(EBuildPolicy BuildPolicy, const FBuildJobContext& Context)
+{
+	BuildPolicy &= Context.GetBuildPolicyMask();
+	ECachePolicy CachePolicy = ECachePolicy::None;
+	if (EnumHasAnyFlags(BuildPolicy, EBuildPolicy::CacheQuery))
+	{
+		EnumAddFlags(CachePolicy, ECachePolicy::Query);
+	}
+	if (EnumHasAnyFlags(BuildPolicy, EBuildPolicy::CacheStoreOnBuild))
+	{
+		EnumAddFlags(CachePolicy, ECachePolicy::Store);
+	}
+	if (EnumHasAnyFlags(BuildPolicy, EBuildPolicy::CacheKeepAlive))
+	{
+		EnumAddFlags(CachePolicy, ECachePolicy::KeepAlive);
+	}
+	CachePolicy &= Context.GetCachePolicyMask();
+	return CachePolicy;
+}
+
 void FBuildJob::EnterCacheStore()
 {
-	ECachePolicy CachePolicy = Context ? Context->GetCachePolicy() : ECachePolicy::None;
-	if (!EnumHasAnyFlags(CachePolicy, ECachePolicy::Store) ||
-		!EnumHasAnyFlags(BuildPolicy, EBuildPolicy::CacheStore) ||
+	if (!Context ||
+		!EnumHasAnyFlags(Context->GetCachePolicyMask(), ECachePolicy::Store) ||
+		!EnumHasAnyFlags(Context->GetBuildPolicyMask() & BuildPolicy.GetCombinedPolicy(), EBuildPolicy::CacheStoreOnBuild) ||
 		EnumHasAnyFlags(BuildStatus, EBuildStatus::CacheQueryHit) ||
 		Output.Get().HasError())
 	{
@@ -494,10 +565,10 @@ void FBuildJob::EnterCacheStore()
 void FBuildJob::BeginCacheStore()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FBuildJob::CacheStore);
+	EnumAddFlags(BuildStatus, EBuildStatus::CacheStore);
 	FCacheRecordBuilder RecordBuilder(Context->GetCacheKey());
 	Output.Get().Save(RecordBuilder);
-	EnumAddFlags(BuildStatus, EBuildStatus::CacheStore);
-	Cache.Put({RecordBuilder.Build()}, Name, Context->GetCachePolicy(), Owner,
+	Cache.Put({RecordBuilder.Build()}, Name, MakeCacheStorePolicy(BuildPolicy.GetCombinedPolicy(), *Context), Owner,
 		[this](FCachePutCompleteParams&& Params) { EndCacheStore(MoveTemp(Params)); });
 }
 
@@ -615,7 +686,7 @@ void FBuildJob::EnterResolveInputData()
 			return AdvanceToState(EBuildJobState::ExecuteLocal);
 		}
 		// Skip resolving input data if it will not be used anyway.
-		if (!EnumHasAnyFlags(BuildPolicy, EBuildPolicy::BuildLocal) &&
+		if (!EnumHasAnyFlags(BuildPolicy.GetCombinedPolicy() & Context->GetBuildPolicyMask(), EBuildPolicy::BuildLocal) &&
 			!EnumHasAnyFlags(BuildStatus, EBuildStatus::BuildTryExport))
 		{
 			return AdvanceToState(EBuildJobState::ExecuteLocal);
@@ -693,7 +764,7 @@ void FBuildJob::EndResolveInputData(FBuildInputDataResolvedParams&& Params)
 
 void FBuildJob::EnterExecuteRemote()
 {
-	if (!EnumHasAnyFlags(BuildPolicy, EBuildPolicy::BuildRemote) ||
+	if (!EnumHasAnyFlags(BuildPolicy.GetCombinedPolicy() & Context->GetBuildPolicyMask(), EBuildPolicy::BuildRemote) ||
 		EnumHasAnyFlags(BuildStatus, EBuildStatus::BuildTryExport))
 	{
 		return AdvanceToState(EBuildJobState::ResolveInputData);
@@ -720,7 +791,7 @@ void FBuildJob::BeginExecuteRemote()
 	checkf(Worker && WorkerExecutor, TEXT("Job requires a worker in state %s for build of '%s' by %s."),
 		LexToString(State), *Name, *FunctionName);
 	EnumAddFlags(BuildStatus, EBuildStatus::BuildTryRemote);
-	WorkerExecutor->BuildAction(Action.Get(), Inputs, *Worker, BuildSystem, BuildPolicy, Owner,
+	WorkerExecutor->BuildAction(Action.Get(), Inputs, *Worker, BuildSystem, BuildPolicy.GetCombinedPolicy(), Owner,
 		[this](FBuildWorkerActionCompleteParams&& Params) { EndExecuteRemote(MoveTemp(Params)); });
 }
 
@@ -778,9 +849,10 @@ void FBuildJob::EnterExecuteLocal()
 		ExportBuild();
 		EnumAddFlags(BuildStatus, EBuildStatus::BuildExport);
 	}
-	if (!EnumHasAnyFlags(BuildPolicy, EBuildPolicy::BuildLocal))
+	const EBuildPolicy LocalBuildPolicy = BuildPolicy.GetCombinedPolicy() & Context->GetBuildPolicyMask();
+	if (!EnumHasAnyFlags(LocalBuildPolicy, EBuildPolicy::BuildLocal))
 	{
-		if (!EnumHasAnyFlags(BuildPolicy, EBuildPolicy::BuildRemote))
+		if (!EnumHasAnyFlags(LocalBuildPolicy, EBuildPolicy::BuildRemote))
 		{
 			return AdvanceToState(EBuildJobState::Complete);
 		}
@@ -915,7 +987,7 @@ void FBuildJob::SetOutputNoCheck(FBuildOutput&& InOutput, EBuildJobState NewStat
 	{
 		const FCacheKey& CacheKey = Context ? Context->GetCacheKey() : FCacheKey::Empty;
 		const EStatus Status = Owner.IsCanceled() ? EStatus::Canceled : Output.Get().HasError() ? EStatus::Error : EStatus::Ok;
-		OnComplete({*this, CacheKey, FBuildOutput(Output.Get()), BuildStatus, Status});
+		OnComplete({CacheKey, FBuildOutput(Output.Get()), BuildStatus, Status});
 		OnComplete = nullptr;
 	}
 
@@ -1176,19 +1248,33 @@ TArray<FName> FBuildJob::ParseExportBuildTypes(bool& bOutExportAll)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void CreateBuildJob(const FBuildJobCreateParams& Params, const FBuildKey& Key, FOnBuildJobComplete&& OnComplete)
+void CreateBuildJob(
+	const FBuildJobCreateParams& Params,
+	const FBuildKey& Key,
+	const FBuildPolicy& Policy,
+	FOnBuildComplete&& OnComplete)
 {
-	new FBuildJob(Params, Key, MoveTemp(OnComplete));
+	new FBuildJob(Params, Key, Policy, MoveTemp(OnComplete));
 }
 
-void CreateBuildJob(const FBuildJobCreateParams& Params, const FBuildDefinition& Definition, FOnBuildJobComplete&& OnComplete)
+void CreateBuildJob(
+	const FBuildJobCreateParams& Params,
+	const FBuildDefinition& Definition,
+	const FOptionalBuildInputs& Inputs,
+	const FBuildPolicy& Policy,
+	FOnBuildComplete&& OnComplete)
 {
-	new FBuildJob(Params, Definition, MoveTemp(OnComplete));
+	new FBuildJob(Params, Definition, Inputs, Policy, MoveTemp(OnComplete));
 }
 
-void CreateBuildJob(const FBuildJobCreateParams& Params, const FBuildAction& Action, const FOptionalBuildInputs& Inputs, FOnBuildJobComplete&& OnComplete)
+void CreateBuildJob(
+	const FBuildJobCreateParams& Params,
+	const FBuildAction& Action,
+	const FOptionalBuildInputs& Inputs,
+	const FBuildPolicy& Policy,
+	FOnBuildComplete&& OnComplete)
 {
-	new FBuildJob(Params, Action, Inputs, MoveTemp(OnComplete));
+	new FBuildJob(Params, Action, Inputs, Policy, MoveTemp(OnComplete));
 }
 
 } // UE::DerivedData::Private

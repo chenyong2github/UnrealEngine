@@ -34,16 +34,17 @@ public:
 
 	void Build(
 		const FBuildDefinition& Definition,
-		EBuildPolicy Policy,
+		const FOptionalBuildInputs& Inputs,
+		const FBuildPolicy& Policy,
 		IRequestOwner& Owner,
 		FOnBuildComplete&& OnComplete) final;
 
-	void BuildAction(
+	void Build(
 		const FBuildAction& Action,
 		const FOptionalBuildInputs& Inputs,
-		EBuildPolicy Policy,
+		const FBuildPolicy& Policy,
 		IRequestOwner& Owner,
-		FOnBuildActionComplete&& OnComplete) final;
+		FOnBuildComplete&& OnComplete) final;
 
 	void BuildPayload(
 		const FBuildPayloadKey& Payload,
@@ -62,37 +63,24 @@ public:
 
 void FBuildSessionInternal::Build(
 	const FBuildDefinition& Definition,
-	EBuildPolicy Policy,
+	const FOptionalBuildInputs& Inputs,
+	const FBuildPolicy& Policy,
 	IRequestOwner& Owner,
 	FOnBuildComplete&& OnComplete)
 {
-	FOnBuildJobComplete OnJobComplete;
-	if (OnComplete)
-	{
-		OnJobComplete = [Definition, OnComplete = MoveTemp(OnComplete)](FBuildJobCompleteParams&& Params)
-		{
-			OnComplete({Definition.GetKey(), Params.CacheKey, MoveTemp(Params.Output), Params.BuildStatus, Params.Status});
-		};
-	}
-	CreateBuildJob({Cache, BuildSystem, Scheduler, InputResolver, Owner, Policy}, Definition, MoveTemp(OnJobComplete));
+	CreateBuildJob({Cache, BuildSystem, Scheduler, InputResolver, Owner}, Definition, Inputs, Policy,
+		OnComplete ? MoveTemp(OnComplete) : [](FBuildCompleteParams&&){});
 }
 
-void FBuildSessionInternal::BuildAction(
+void FBuildSessionInternal::Build(
 	const FBuildAction& Action,
 	const FOptionalBuildInputs& Inputs,
-	EBuildPolicy Policy,
+	const FBuildPolicy& Policy,
 	IRequestOwner& Owner,
-	FOnBuildActionComplete&& OnComplete)
+	FOnBuildComplete&& OnComplete)
 {
-	FOnBuildJobComplete OnJobComplete;
-	if (OnComplete)
-	{
-		OnJobComplete = [Action, OnComplete = MoveTemp(OnComplete)](FBuildJobCompleteParams&& Params)
-		{
-			OnComplete({Action.GetKey(), Params.CacheKey, MoveTemp(Params.Output), Params.BuildStatus, Params.Status});
-		};
-	}
-	CreateBuildJob({Cache, BuildSystem, Scheduler, InputResolver, Owner, Policy}, Action, Inputs, MoveTemp(OnJobComplete));
+	CreateBuildJob({Cache, BuildSystem, Scheduler, InputResolver, Owner}, Action, Inputs, Policy,
+		OnComplete ? MoveTemp(OnComplete) : [](FBuildCompleteParams&&){});
 }
 
 void FBuildSessionInternal::BuildPayload(
@@ -102,10 +90,10 @@ void FBuildSessionInternal::BuildPayload(
 	FOnBuildPayloadComplete&& OnComplete)
 {
 	// This requests the entire output to get one payload. It will be optimized later to request only one payload.
-	FOnBuildJobComplete OnJobComplete;
+	FOnBuildComplete OnJobComplete;
 	if (OnComplete)
 	{
-		OnJobComplete = [PayloadKey, OnComplete = MoveTemp(OnComplete)](FBuildJobCompleteParams&& Params)
+		OnJobComplete = [PayloadKey, OnComplete = MoveTemp(OnComplete)](FBuildCompleteParams&& Params)
 		{
 			FPayload Payload;
 			EStatus Status = Params.Status;
@@ -121,7 +109,7 @@ void FBuildSessionInternal::BuildPayload(
 			OnComplete({PayloadKey.BuildKey, MoveTemp(Payload), Status});
 		};
 	}
-	CreateBuildJob({Cache, BuildSystem, Scheduler, InputResolver, Owner, Policy}, PayloadKey.BuildKey, MoveTemp(OnJobComplete));
+	CreateBuildJob({Cache, BuildSystem, Scheduler, InputResolver, Owner}, PayloadKey.BuildKey, Policy, MoveTemp(OnJobComplete));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

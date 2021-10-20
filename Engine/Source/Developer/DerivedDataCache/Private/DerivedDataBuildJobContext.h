@@ -32,8 +32,7 @@ public:
 		IBuildJob& Job,
 		const FCacheKey& CacheKey,
 		const IBuildFunction& Function,
-		FBuildOutputBuilder& OutputBuilder,
-		EBuildPolicy BuildPolicy);
+		FBuildOutputBuilder& OutputBuilder);
 
 	void BeginBuild(IRequestOwner& Owner, TUniqueFunction<void ()>&& OnEndBuild);
 
@@ -41,8 +40,8 @@ public:
 
 	inline const FCacheKey& GetCacheKey() const { return CacheKey; }
 
-	inline ECachePolicy GetCachePolicy() const final { return CachePolicy; }
-	inline EBuildPolicy GetBuildPolicy() const final { return BuildPolicy; }
+	inline ECachePolicy GetCachePolicyMask() const final { return CachePolicyMask; }
+	inline EBuildPolicy GetBuildPolicyMask() const final { return BuildPolicyMask; }
 	inline uint64 GetRequiredMemory() const { return RequiredMemory; }
 	inline bool ShouldCheckDeterministicOutput() const { return bDeterministicOutputCheck; }
 
@@ -66,8 +65,8 @@ private:
 	void EndAsyncBuild() final;
 
 	void SetCacheBucket(FCacheBucket Bucket) final;
-	void SetCachePolicy(ECachePolicy Policy) final;
-	void SetBuildPolicy(EBuildPolicy Policy) final;
+	void SetCachePolicyMask(ECachePolicy Policy) final;
+	void SetBuildPolicyMask(EBuildPolicy Policy) final;
 	void SetRequiredMemory(uint64 InRequiredMemory) final { RequiredMemory = InRequiredMemory; }
 	void SkipDeterministicOutputCheck() final { bDeterministicOutputCheck = false; }
 
@@ -86,8 +85,8 @@ private:
 	TUniqueFunction<void ()> OnEndBuild;
 	IRequestOwner* Owner{};
 	uint64 RequiredMemory{};
-	ECachePolicy CachePolicy;
-	EBuildPolicy BuildPolicy;
+	ECachePolicy CachePolicyMask;
+	EBuildPolicy BuildPolicyMask;
 	bool bIsAsyncBuild{false};
 	bool bIsAsyncBuildComplete{false};
 	bool bDeterministicOutputCheck{true};
