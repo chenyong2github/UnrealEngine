@@ -16,6 +16,10 @@
 #include "EditorStyleSet.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"
+#include "Animation/AnimNotifies/AnimNotify.h"
+#include "Animation/AnimNotifies/AnimNotifyState.h"
+#include "ClassViewerFilter.h"
+#include "Modules/ModuleManager.h"
 
 namespace PersonaUtils
 {
@@ -187,6 +191,74 @@ TSharedRef<SWidget> MakeTrackButton(FText HoverText, FOnGetContent MenuContent, 
 	ComboButtonText->SetVisibility(Visibility);
 
 	return ComboButton;
+}
+
+template<typename NotifyTypeClass>
+static TSharedRef<SWidget> MakeNewNotifyPicker(UAnimSequenceBase* Sequence, const FOnClassPicked& OnClassPicked)
+{
+	class FNotifyStateClassFilter : public IClassViewerFilter
+	{
+	public:
+		FNotifyStateClassFilter(UAnimSequenceBase* InSequence)
+			: Sequence(InSequence)
+		{}
+
+		bool IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef< FClassViewerFilterFuncs > InFilterFuncs) override
+		{
+			const bool bChildOfObjectClass = InClass->IsChildOf(NotifyTypeClass::StaticClass());
+			const bool bMatchesFlags = !InClass->HasAnyClassFlags(CLASS_Hidden | CLASS_HideDropDown | CLASS_Deprecated | CLASS_Abstract);
+			return bChildOfObjectClass && bMatchesFlags && CastChecked<NotifyTypeClass>(InClass->ClassDefaultObject)->CanBePlaced(Sequence);
+		}
+
+		virtual bool IsUnloadedClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const TSharedRef< const IUnloadedBlueprintData > InUnloadedClassData, TSharedRef< FClassViewerFilterFuncs > InFilterFuncs) override
+		{
+			const bool bChildOfObjectClass = InUnloadedClassData->IsChildOf(NotifyTypeClass::StaticClass());
+			const bool bMatchesFlags = !InUnloadedClassData->HasAnyClassFlags(CLASS_Hidden | CLASS_HideDropDown | CLASS_Deprecated | CLASS_Abstract);
+			bool bValidToPlace = false;
+			if (bChildOfObjectClass)
+			{
+				if (const UClass* NativeBaseClass = InUnloadedClassData->GetNativeParent())
+				{
+					bValidToPlace = CastChecked<NotifyTypeClass>(NativeBaseClass->ClassDefaultObject)->CanBePlaced(Sequence);
+				}
+			}
+
+			return bChildOfObjectClass && bMatchesFlags && bValidToPlace;
+		}
+
+		/** Sequence referenced by outer panel */
+		UAnimSequenceBase* Sequence;
+	};
+
+	FClassViewerInitializationOptions InitOptions;
+	InitOptions.Mode = EClassViewerMode::ClassPicker;
+	InitOptions.bShowObjectRootClass = false;
+	InitOptions.bShowUnloadedBlueprints = true;
+	InitOptions.bShowNoneOption = false;
+	InitOptions.bEnableClassDynamicLoading = true;
+	InitOptions.bExpandRootNodes = true;
+	InitOptions.NameTypeToDisplay = EClassViewerNameTypeToDisplay::DisplayName;
+	InitOptions.ClassFilters.Add(MakeShared<FNotifyStateClassFilter>(Sequence));
+	InitOptions.bShowBackgroundBorder = false;
+
+	FClassViewerModule& ClassViewerModule = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer");
+
+	return SNew(SBox)
+		.MinDesiredWidth(300.0f)
+		.MaxDesiredHeight(400.0f)
+		[
+			ClassViewerModule.CreateClassViewer(InitOptions, OnClassPicked)
+		];
+}
+
+TSharedRef<SWidget> MakeAnimNotifyPicker(UAnimSequenceBase* Sequence, const FOnClassPicked& OnClassPicked)
+{
+	return MakeNewNotifyPicker<UAnimNotify>(Sequence, OnClassPicked);
+}
+
+TSharedRef<SWidget> MakeAnimNotifyStatePicker(UAnimSequenceBase* Sequence, const FOnClassPicked& OnClassPicked)
+{
+	return MakeNewNotifyPicker<UAnimNotifyState>(Sequence, OnClassPicked);
 }
 
 }
