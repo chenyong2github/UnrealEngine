@@ -1904,7 +1904,7 @@ void Decimate(
 		const float AdjustedBucketSize = MaxBucket - MinBucket;
 		if (AdjustedBucketSize > 0)
 		{
-			const uint32 CurveIndex = FMath::FloorToInt(MinBucket + Random.FRand() * AdjustedBucketSize);
+			const uint32 CurveIndex = Random.RandRange(MinBucket, FMath::FloorToInt(MinBucket + AdjustedBucketSize)-1);
 			CurveIndices[BucketIndex] = CurveIndex;
 			LastCurveIndex = CurveIndex;
 
