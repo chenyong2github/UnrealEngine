@@ -19,7 +19,7 @@ source SetupEnvironment.sh -mono "`pwd`"
 
 cd ../../../..
 
-if [ ! -f Engine/Binaries/ThirdParty/Mono/Mac/lib/libmsvcrt.dylib ]; then
+if [ ! -f Engine/Binaries/ThirdParty/Mono/Mac/lib/libmsvcrt.dylib ] && [ -f /usr/lib/libc.dylib ]; then
 	ln -s /usr/lib/libc.dylib Engine/Binaries/ThirdParty/Mono/Mac/lib/libmsvcrt.dylib
 fi
 
