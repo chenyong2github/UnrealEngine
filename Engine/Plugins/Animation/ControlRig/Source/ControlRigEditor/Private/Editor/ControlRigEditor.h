@@ -137,6 +137,8 @@ public:
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;
 
+	virtual void PostTransaction(bool bSuccess, const FTransaction* Transaction, bool bIsRedo);
+
 	void EnsureValidRigElementsInDetailPanel();
 
 	virtual void OnStartWatchingPin();

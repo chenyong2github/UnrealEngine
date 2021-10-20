@@ -2340,16 +2340,28 @@ void FControlRigEditor::PasteNodes()
 
 void FControlRigEditor::PostUndo(bool bSuccess)
 {
+	const FTransaction* Transaction = GEditor->Trans->GetTransaction(GEditor->Trans->GetQueueLength() - GEditor->Trans->GetUndoCount());
 	IControlRigEditor::PostUndo(bSuccess);
+	PostTransaction(bSuccess, Transaction, false);
+}
+
+void FControlRigEditor::PostRedo(bool bSuccess)
+{
+	const FTransaction* Transaction = GEditor->Trans->GetTransaction(GEditor->Trans->GetQueueLength() - GEditor->Trans->GetUndoCount() - 1);
+	IControlRigEditor::PostRedo(bSuccess);
+	PostTransaction(bSuccess, Transaction, true);
+}
+
+void FControlRigEditor::PostTransaction(bool bSuccess, const FTransaction* Transaction, bool bIsRedo)
+{
 	EnsureValidRigElementsInDetailPanel();
 
 	if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
 	{
-		if (RigBlueprint->Status == BS_Dirty)
-		{
-			Compile();
-		}
-
+		// Do not compile here. ControlRigBlueprint::PostTransacted decides when it is necessary to compile depending
+		// on the properties that are affected.
+		//Compile();
+		
 		USkeletalMesh* PreviewMesh = GetPersonaToolkit()->GetPreviewScene()->GetPreviewMesh();
 		if (PreviewMesh != RigBlueprint->GetPreviewMesh())
 		{
@@ -2373,36 +2385,6 @@ void FControlRigEditor::PostUndo(bool bSuccess)
 			EditMode->RequestToRecreateGizmoActors();
 		}
 	}
-	
-	Compile();
-}
-
-void FControlRigEditor::PostRedo(bool bSuccess)
-{
-	IControlRigEditor::PostRedo(bSuccess);
-	EnsureValidRigElementsInDetailPanel();
-
-	if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
-	{
-		if (RigBlueprint->Status == BS_Dirty)
-		{
-			Compile();
-		}
-
-		USkeletalMesh* PreviewMesh = GetPersonaToolkit()->GetPreviewScene()->GetPreviewMesh();
-		if (PreviewMesh != RigBlueprint->GetPreviewMesh())
-		{
-			RigBlueprint->SetPreviewMesh(PreviewMesh);
-			GetPersonaToolkit()->SetPreviewMesh(PreviewMesh, true);
-		}
-
-		if (FControlRigEditMode* EditMode = GetEditMode())
-		{
-			EditMode->RequestToRecreateGizmoActors();
-		}
-	}
-
-	Compile();
 }
 
 void FControlRigEditor::EnsureValidRigElementsInDetailPanel()
