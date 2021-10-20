@@ -18,13 +18,13 @@ template <typename FuncType> class TFunctionRef;
 template <typename FuncType> class TUniqueFunction;
 
 namespace UE::DerivedData { class FBuildAction; }
+namespace UE::DerivedData { class FBuildPolicy; }
 namespace UE::DerivedData { class FOptionalBuildInputs; }
 namespace UE::DerivedData { class FOptionalBuildOutput; }
 namespace UE::DerivedData { class IBuild; }
 namespace UE::DerivedData { class IRequestOwner; }
 namespace UE::DerivedData { struct FBuildWorkerActionCompleteParams; }
 namespace UE::DerivedData { struct FBuildWorkerFileDataCompleteParams; }
-namespace UE::DerivedData { enum class EBuildPolicy : uint32; }
 
 namespace UE::DerivedData
 {
@@ -81,12 +81,12 @@ class IBuildWorkerExecutor : public IModularFeature
 public:
 	virtual ~IBuildWorkerExecutor() = default;
 
-	virtual void BuildAction(
+	virtual void Build(
 		const FBuildAction& Action,
 		const FOptionalBuildInputs& Inputs,
+		const FBuildPolicy& Policy,
 		const FBuildWorker& Worker,
 		IBuild& BuildSystem,
-		EBuildPolicy Policy,
 		IRequestOwner& Owner,
 		FOnBuildWorkerActionComplete&& OnComplete) = 0;
 

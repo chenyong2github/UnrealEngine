@@ -7,6 +7,7 @@
 #include "DerivedDataBuildAction.h"
 #include "DerivedDataBuildInputs.h"
 #include "DerivedDataBuildOutput.h"
+#include "DerivedDataBuildTypes.h"
 #include "DerivedDataBuildWorker.h"
 #include "DerivedDataPayload.h"
 #include "DerivedDataRequest.h"
@@ -30,8 +31,6 @@
 #include "HttpModule.h"
 #include "RemoteMessages.h"
 
-
-
 namespace UE::DerivedData
 {
 
@@ -46,9 +45,9 @@ public:
 		FRemoteBuildWorkerExecutor& InExecutor,
 		const FBuildAction& Action,
 		const FOptionalBuildInputs& Inputs,
+		const FBuildPolicy& Policy,
 		const FBuildWorker& Worker,
 		IBuild& BuildSystem,
-		EBuildPolicy Policy,
 		IRequestOwner& Owner,
 		FOnBuildWorkerActionComplete&& OnComplete);
 
@@ -137,7 +136,7 @@ private:
 		const FBuildWorker& BuildWorker;
 		IBuild& BuildSystem;
 		IRequestOwner& Owner;
-		EBuildPolicy BuildPolicy;
+		FBuildPolicy BuildPolicy;
 
 		// Unordered arrays that are indexed into
 		TArray<FMerkleTreeDirectoryBuilder> Directories;
@@ -264,12 +263,12 @@ public:
 		}
 	}
 
-	void BuildAction(
+	void Build(
 		const FBuildAction& Action,
 		const FOptionalBuildInputs& Inputs,
+		const FBuildPolicy& Policy,
 		const FBuildWorker& Worker,
 		IBuild& BuildSystem,
-		EBuildPolicy Policy,
 		IRequestOwner& Owner,
 		FOnBuildWorkerActionComplete&& OnComplete) final
 	{
@@ -309,7 +308,7 @@ public:
 			}
 		}
 
-		new FRemoteBuildExecutionRequest(*this, Action, Inputs, Worker, BuildSystem, Policy, Owner, MoveTemp(OnComplete));
+		new FRemoteBuildExecutionRequest(*this, Action, Inputs, Policy, Worker, BuildSystem, Owner, MoveTemp(OnComplete));
 	}
 
 	TConstArrayView<FStringView> GetHostPlatforms() const final
@@ -498,14 +497,14 @@ private:
 };
 
 FRemoteBuildExecutionRequest::FRemoteBuildExecutionRequest(
-		FRemoteBuildWorkerExecutor& InExecutor,
-		const FBuildAction& Action,
-		const FOptionalBuildInputs& Inputs,
-		const FBuildWorker& Worker,
-		IBuild& BuildSystem,
-		EBuildPolicy Policy,
-		IRequestOwner& Owner,
-		FOnBuildWorkerActionComplete&& OnComplete)
+	FRemoteBuildWorkerExecutor& InExecutor,
+	const FBuildAction& Action,
+	const FOptionalBuildInputs& Inputs,
+	const FBuildPolicy& Policy,
+	const FBuildWorker& Worker,
+	IBuild& BuildSystem,
+	IRequestOwner& Owner,
+	FOnBuildWorkerActionComplete&& OnComplete)
 : State{Action, Inputs, Worker, BuildSystem, Owner, Policy}
 , CompletionCallback(MoveTemp(OnComplete))
 , Executor(InExecutor)
@@ -522,7 +521,7 @@ FRemoteBuildExecutionRequest::~FRemoteBuildExecutionRequest()
 	if (bHeuristicBuildStarted)
 	{
 		Executor.LimitingHeuristics.FinishBuild(Executor.Stats);
-	};
+	}
 }
 
 FRemoteBuildExecutionRequest::FMerkleTreeDirectoryBuilder& FRemoteBuildExecutionRequest::GetOrAddMerkleTreeDirectory(FStringView Path, int32& OutDirectoryBuilderIndex)
