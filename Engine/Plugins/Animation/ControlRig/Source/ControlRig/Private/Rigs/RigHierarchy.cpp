@@ -587,7 +587,7 @@ void URigHierarchy::ResetPoseToInitial(ERigElementType InTypeFilter)
 		if(FRigControlElement* ControlElement = Cast<FRigControlElement>(Elements[ElementIndex]))
 		{
 			ControlElement->Offset.Current = ControlElement->Offset.Initial;
-			ControlElement->Gizmo.Current = ControlElement->Gizmo.Initial;
+			ControlElement->Shape.Current = ControlElement->Shape.Initial;
 		}
 
 		if(FRigTransformElement* TransformElement = Cast<FRigTransformElement>(Elements[ElementIndex]))
@@ -2085,7 +2085,7 @@ void URigHierarchy::SetTransform(FRigTransformElement* InTransformElement, const
 
 	if(FRigControlElement* ControlElement = Cast<FRigControlElement>(InTransformElement))
 	{
-		ControlElement->Gizmo.MarkDirty(MakeGlobal(InTransformType));
+		ControlElement->Shape.MarkDirty(MakeGlobal(InTransformType));
 	}
 
 	EnsureCacheValidity();
@@ -2262,7 +2262,7 @@ void URigHierarchy::SetControlOffsetTransform(FRigControlElement* InControlEleme
 	const ERigTransformType::Type OpposedType = SwapLocalAndGlobal(InTransformType);
 	InControlElement->Offset.Set(InTransformType, InTransform);
 	InControlElement->Offset.MarkDirty(OpposedType);
-	InControlElement->Gizmo.MarkDirty(MakeGlobal(InTransformType));
+	InControlElement->Shape.MarkDirty(MakeGlobal(InTransformType));
 
 	EnsureCacheValidity();
 
@@ -2333,7 +2333,7 @@ void URigHierarchy::SetControlOffsetTransform(FRigControlElement* InControlEleme
 #endif
 }
 
-FTransform URigHierarchy::GetControlGizmoTransform(FRigControlElement* InControlElement,
+FTransform URigHierarchy::GetControlShapeTransform(FRigControlElement* InControlElement,
 	const ERigTransformType::Type InTransformType) const
 {
 	if(InControlElement == nullptr)
@@ -2341,28 +2341,28 @@ FTransform URigHierarchy::GetControlGizmoTransform(FRigControlElement* InControl
 		return FTransform::Identity;
 	}
 	
-	if(InControlElement->Gizmo.IsDirty(InTransformType))
+	if(InControlElement->Shape.IsDirty(InTransformType))
 	{
 		const ERigTransformType::Type OpposedType = SwapLocalAndGlobal(InTransformType);
 		const ERigTransformType::Type GlobalType = MakeGlobal(InTransformType);
-		ensure(!InControlElement->Gizmo.IsDirty(OpposedType));
+		ensure(!InControlElement->Shape.IsDirty(OpposedType));
 
 		const FTransform ParentTransform = GetTransform(InControlElement, GlobalType);
 		if(IsLocal(InTransformType))
 		{
-			InControlElement->Gizmo.Set(InTransformType, InControlElement->Gizmo.Get(OpposedType).GetRelativeTransform(ParentTransform));
+			InControlElement->Shape.Set(InTransformType, InControlElement->Shape.Get(OpposedType).GetRelativeTransform(ParentTransform));
 		}
 		else
 		{
-			InControlElement->Gizmo.Set(InTransformType, InControlElement->Gizmo.Get(OpposedType) * ParentTransform);
+			InControlElement->Shape.Set(InTransformType, InControlElement->Shape.Get(OpposedType) * ParentTransform);
 		}
 
 		EnsureCacheValidity();
 	}
-	return InControlElement->Gizmo.Get(InTransformType);
+	return InControlElement->Shape.Get(InTransformType);
 }
 
-void URigHierarchy::SetControlGizmoTransform(FRigControlElement* InControlElement, const FTransform& InTransform,
+void URigHierarchy::SetControlShapeTransform(FRigControlElement* InControlElement, const FTransform& InTransform,
 	const ERigTransformType::Type InTransformType, bool bSetupUndo, bool bForce, bool bPrintPythonCommands)
 {
 	if(InControlElement == nullptr)
@@ -2370,26 +2370,26 @@ void URigHierarchy::SetControlGizmoTransform(FRigControlElement* InControlElemen
 		return;
 	}
 
-	if(!InControlElement->Gizmo.IsDirty(InTransformType))
+	if(!InControlElement->Shape.IsDirty(InTransformType))
 	{
-		const FTransform PreviousTransform = InControlElement->Gizmo.Get(InTransformType);
+		const FTransform PreviousTransform = InControlElement->Shape.Get(InTransformType);
 		if(!bForce && FRigComputedTransform::Equals(PreviousTransform, InTransform))
 		{
 			return;
 		}
 	}
 
-	const FTransform PreviousTransform = GetControlGizmoTransform(InControlElement, InTransformType);
+	const FTransform PreviousTransform = GetControlShapeTransform(InControlElement, InTransformType);
 	const ERigTransformType::Type OpposedType = SwapLocalAndGlobal(InTransformType);
-	InControlElement->Gizmo.Set(InTransformType, InTransform);
-	InControlElement->Gizmo.MarkDirty(OpposedType);
+	InControlElement->Shape.Set(InTransformType, InTransform);
+	InControlElement->Shape.MarkDirty(OpposedType);
 
 	if (IsInitial(InTransformType))
 	{
-		// control's gizmo transform, similar to offset transform, is considered a special type of transform
+		// control's shape transform, similar to offset transform, is considered a special type of transform
 		// whenever its initial value is changed, we want to make sure the current is kept in sync
 		// such that the viewport can reflect this change
-		SetControlGizmoTransform(InControlElement, InTransform, ERigTransformType::MakeCurrent(InTransformType), false, bForce);
+		SetControlShapeTransform(InControlElement, InTransform, ERigTransformType::MakeCurrent(InTransformType), false, bForce);
 	}
 	
 	EnsureCacheValidity();
@@ -2399,10 +2399,10 @@ void URigHierarchy::SetControlGizmoTransform(FRigControlElement* InControlElemen
 	{
 		PushTransformToStack(
             InControlElement->GetKey(),
-            ERigTransformStackEntryType::ControlGizmo,
+            ERigTransformStackEntryType::ControlShape,
             InTransformType,
             PreviousTransform,
-            InControlElement->Gizmo.Get(InTransformType),
+            InControlElement->Shape.Get(InTransformType),
             false,
             bSetupUndo);
 	}
@@ -2410,7 +2410,7 @@ void URigHierarchy::SetControlGizmoTransform(FRigControlElement* InControlElemen
 
 	if(IsLocal(InTransformType))
 	{
-		Notify(ERigHierarchyNotification::ControlGizmoTransformChanged, InControlElement);
+		Notify(ERigHierarchyNotification::ControlShapeTransformChanged, InControlElement);
 	}
 
 #if WITH_EDITOR
@@ -2426,7 +2426,7 @@ void URigHierarchy::SetControlGizmoTransform(FRigControlElement* InControlElemen
 				if(FRigControlElement* ListeningElement = Cast<FRigControlElement>(ListeningHierarchy->Find(InControlElement->GetKey())))
 				{
 					// bSetupUndo = false such that all listening hierarchies performs undo at the same time the root hierachy undos
-					ListeningHierarchy->SetControlGizmoTransform(ListeningElement, InTransform, InTransformType, false, bForce);
+					ListeningHierarchy->SetControlShapeTransform(ListeningElement, InTransform, InTransformType, false, bForce);
 				}
 			}
 		}
@@ -2449,7 +2449,7 @@ void URigHierarchy::SetControlGizmoTransform(FRigControlElement* InControlElemen
 		if (!BlueprintName.IsEmpty())
 		{
 			RigVMPythonUtils::Print(BlueprintName,
-				FString::Printf(TEXT("hierarchy.set_control_gizmo_transform(%s, %s, %s)"),
+				FString::Printf(TEXT("hierarchy.set_control_shape_transform(%s, %s, %s)"),
 				*InControlElement->GetKey().ToPythonString(),
 				*RigVMPythonUtils::TransformToPythonString(InTransform),
 				ERigTransformType::IsInitial(InTransformType) ? TEXT("True") : TEXT("False")));
@@ -2724,7 +2724,7 @@ void URigHierarchy::SetControlVisibility(FRigControlElement* InControlElement, b
 		return;
 	}
 
-	InControlElement->Settings.bGizmoVisible = bVisibility;
+	InControlElement->Settings.bShapeVisible = bVisibility;
 	Notify(ERigHierarchyNotification::ControlVisibilityChanged, InControlElement);
 
 #if WITH_EDITOR
@@ -3475,7 +3475,7 @@ void URigHierarchy::PropagateDirtyFlags(FRigTransformElement* InTransformElement
 			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ElementToDirty.Element))
 			{
 				ControlElement->Offset.MarkDirty(GlobalType);
-				ControlElement->Gizmo.MarkDirty(GlobalType);
+				ControlElement->Shape.MarkDirty(GlobalType);
 			}
 
 #if URIGHIERARCHY_RECURSIVE_DIRTY_PROPAGATION
@@ -3557,9 +3557,9 @@ void URigHierarchy::EnsureCacheValidityImpl()
 
                         if(ControlElementToDirty->Pose.IsDirty(GlobalType))
                         {
-                            checkf(ControlElementToDirty->Gizmo.IsDirty(GlobalType) ||
-                                    ControlElementToDirty->Gizmo.IsDirty(LocalType),
-                                    TEXT("Control '%s' %s Pose Cache is dirty, but the Gizmo is not."),
+                            checkf(ControlElementToDirty->Shape.IsDirty(GlobalType) ||
+                                    ControlElementToDirty->Shape.IsDirty(LocalType),
+                                    TEXT("Control '%s' %s Pose Cache is dirty, but the Shape is not."),
 									*ControlElementToDirty->GetKey().ToString(),
 									*TransformTypeString);
 						}
@@ -3684,13 +3684,13 @@ void URigHierarchy::EnsureCacheValidityImpl()
 				const ERigTransformType::Type OpposedType = ERigTransformType::SwapLocalAndGlobal(TransformType);
 				const FString& TransformTypeString = TransformTypeStrings[TransformTypeIndex];
 
-				if(!ControlElement->Gizmo.IsDirty(TransformType) && !ControlElement->Gizmo.IsDirty(OpposedType))
+				if(!ControlElement->Shape.IsDirty(TransformType) && !ControlElement->Shape.IsDirty(OpposedType))
 				{
-					const FTransform CachedTransform = HierarchyForLambda->GetControlGizmoTransform(ControlElement, TransformType);
-					ControlElement->Gizmo.MarkDirty(TransformType);
-					const FTransform ComputedTransform = HierarchyForLambda->GetControlGizmoTransform(ControlElement, TransformType);
+					const FTransform CachedTransform = HierarchyForLambda->GetControlShapeTransform(ControlElement, TransformType);
+					ControlElement->Shape.MarkDirty(TransformType);
+					const FTransform ComputedTransform = HierarchyForLambda->GetControlShapeTransform(ControlElement, TransformType);
 					checkf(FRigComputedTransform::Equals(CachedTransform, ComputedTransform),
-						TEXT("Element '%s' Gizmo %s Cached vs Computed doesn't match."),
+						TEXT("Element '%s' Shape %s Cached vs Computed doesn't match."),
 						*Element->GetName().ToString(),
 						*TransformTypeString);
 				}
@@ -3841,7 +3841,7 @@ void URigHierarchy::PushTransformToStack(const FRigElementKey& InKey, ERigTransf
 
 	static const FText TransformPoseTitle = NSLOCTEXT("RigHierarchy", "Set Pose Transform", "Set Pose Transform");
 	static const FText ControlOffsetTitle = NSLOCTEXT("RigHierarchy", "Set Control Offset", "Set Control Offset");
-	static const FText ControlGizmoTitle = NSLOCTEXT("RigHierarchy", "Set Control Gizo", "Set Control Gizo");
+	static const FText ControlShapeTitle = NSLOCTEXT("RigHierarchy", "Set Control Gizo", "Set Control Gizo");
 	static const FText CurveValueTitle = NSLOCTEXT("RigHierarchy", "Set Curve Value", "Set Curve Value");
 	
 	FText Title;
@@ -3857,7 +3857,7 @@ void URigHierarchy::PushTransformToStack(const FRigElementKey& InKey, ERigTransf
 			Title = TransformPoseTitle;
 			break;
 		}
-		case ERigTransformStackEntryType::ControlGizmo:
+		case ERigTransformStackEntryType::ControlShape:
 		{
 			Title = TransformPoseTitle;
 			break;
@@ -4004,9 +4004,9 @@ bool URigHierarchy::ApplyTransformFromStack(const FRigTransformStackEntry& InEnt
 			SetControlOffsetTransform(Cast<FRigControlElement>(Element), Transform, InEntry.TransformType, InEntry.bAffectChildren, false); 
 			break;
 		}
-		case ERigTransformStackEntryType::ControlGizmo:
+		case ERigTransformStackEntryType::ControlShape:
 		{
-			SetControlGizmoTransform(Cast<FRigControlElement>(Element), Transform, InEntry.TransformType, false); 
+			SetControlShapeTransform(Cast<FRigControlElement>(Element), Transform, InEntry.TransformType, false); 
 			break;
 		}
 		case ERigTransformStackEntryType::CurveValue:
@@ -4038,7 +4038,7 @@ void URigHierarchy::ComputeAllTransforms()
 			if(FRigControlElement* ControlElement = Get<FRigControlElement>(ElementIndex))
 			{
 				GetControlOffsetTransform(ControlElement, TransformType);
-				GetControlGizmoTransform(ControlElement, TransformType);
+				GetControlShapeTransform(ControlElement, TransformType);
 			}
 		}
 	}
@@ -4700,18 +4700,18 @@ TArray<FString> URigHierarchy::ControlSettingsToPythonCommands(const FRigControl
 	Commands.Add(FString::Printf(TEXT("%s.draw_limits = %s"),
 		*NameSettings,
 		Settings.bDrawLimits ? TEXT("True") : TEXT("False")));
-	Commands.Add(FString::Printf(TEXT("%s.gizmo_color = %s"),
+	Commands.Add(FString::Printf(TEXT("%s.shape_color = %s"),
 		*NameSettings,
-		*RigVMPythonUtils::LinearColorToPythonString(Settings.GizmoColor)));
-	Commands.Add(FString::Printf(TEXT("%s.gizmo_enabled = %s"),
+		*RigVMPythonUtils::LinearColorToPythonString(Settings.ShapeColor)));
+	Commands.Add(FString::Printf(TEXT("%s.shape_enabled = %s"),
 		*NameSettings,
-		Settings.bGizmoEnabled ? TEXT("True") : TEXT("False")));
-	Commands.Add(FString::Printf(TEXT("%s.gizmo_name = '%s'"),
+		Settings.bShapeEnabled ? TEXT("True") : TEXT("False")));
+	Commands.Add(FString::Printf(TEXT("%s.shape_name = '%s'"),
 		*NameSettings,
-		*Settings.GizmoName.ToString()));
-	Commands.Add(FString::Printf(TEXT("%s.gizmo_visible = %s"),
+		*Settings.ShapeName.ToString()));
+	Commands.Add(FString::Printf(TEXT("%s.shape_visible = %s"),
 		*NameSettings,
-		Settings.bGizmoVisible ? TEXT("True") : TEXT("False")));
+		Settings.bShapeVisible ? TEXT("True") : TEXT("False")));
 	Commands.Add(FString::Printf(TEXT("%s.is_transient_control = %s"),
 		*NameSettings,
 		Settings.bIsTransientControl ? TEXT("True") : TEXT("False")));

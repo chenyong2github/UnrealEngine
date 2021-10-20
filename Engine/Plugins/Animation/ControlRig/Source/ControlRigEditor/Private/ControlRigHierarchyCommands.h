@@ -66,16 +66,16 @@ public:
 	/* set initial transform from closest bone */
 	TSharedPtr<FUICommandInfo> SetInitialTransformFromClosestBone;
 
-	/* set gizmo transform from the control's current local transform and reset the control's transform */
-	TSharedPtr<FUICommandInfo> SetGizmoTransformFromCurrent;
+	/* set shape transform from the control's current local transform and reset the control's transform */
+	TSharedPtr<FUICommandInfo> SetShapeTransformFromCurrent;
 
 	/* frames the selection in the tree */
 	TSharedPtr<FUICommandInfo> FrameSelection;
 
-	/* sets the bone transform using a gizmo */
+	/* sets the bone transform using a shape */
 	TSharedPtr<FUICommandInfo> ControlBoneTransform;
 
-	/* sets the space transform using a gizmo */
+	/* sets the space transform using a shape */
 	TSharedPtr<FUICommandInfo> ControlSpaceTransform;
 
 	/* Unparents the selected elements from the hierarchy */
@@ -108,8 +108,8 @@ public:
 	/* Show dynamic hierarchy */
 	TSharedPtr< FUICommandInfo > ShowDynamicHierarchy;
 
-	/** Toggle Gizmo Transform Edit*/
-	TSharedPtr< FUICommandInfo > ToggleGizmoTransformEdit;
+	/** Toggle Shape Transform Edit*/
+	TSharedPtr< FUICommandInfo > ToggleControlShapeTransformEdit;
 
 	/** Test out space switching as it would look like for animator */
 	TSharedPtr< FUICommandInfo > TestSpaceSwitching;

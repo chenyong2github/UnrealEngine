@@ -4,44 +4,44 @@
 
 #define LOCTEXT_NAMESPACE "ControlRigGizmoLibrary"
 
-UControlRigGizmoLibrary::UControlRigGizmoLibrary()
+UControlRigShapeLibrary::UControlRigShapeLibrary()
 {
 }
 
 #if WITH_EDITOR
 
 // UObject interface
-void UControlRigGizmoLibrary::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
+void UControlRigShapeLibrary::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
 {
-	if (PropertyChangedEvent.Property->GetName() == TEXT("GizmoName"))
+	if (PropertyChangedEvent.Property->GetName() == TEXT("ShapeName"))
 	{
 		FProperty* MemberProperty = PropertyChangedEvent.PropertyChain.GetHead()->GetValue();
-		if (MemberProperty->GetName() == TEXT("DefaultGizmo"))
+		if (MemberProperty->GetName() == TEXT("DefaultShape"))
 		{
-			DefaultGizmo.GizmoName = TEXT("Gizmo");
+			DefaultShape.ShapeName = FControlRigShapeDefinition().ShapeName;
 			GetUpdatedNameList(true);
 		}
-		else if(MemberProperty->GetName() == TEXT("Gizmos"))
+		else if(MemberProperty->GetName() == TEXT("Shapes"))
 		{
-			if (Gizmos.Num() == 0)
+			if (Shapes.Num() == 0)
 			{
 				return;
 			}
 
-			int32 GizmoIndexEdited = PropertyChangedEvent.GetArrayIndex(TEXT("Gizmos"));
-			if (Gizmos.IsValidIndex(GizmoIndexEdited))
+			int32 ShapeIndexEdited = PropertyChangedEvent.GetArrayIndex(TEXT("Shapes"));
+			if (Shapes.IsValidIndex(ShapeIndexEdited))
 			{
 				TArray<FName> Names;
-				Names.Add(DefaultGizmo.GizmoName);
-				for (int32 GizmoIndex = 0; GizmoIndex < Gizmos.Num(); GizmoIndex++)
+				Names.Add(DefaultShape.ShapeName);
+				for (int32 ShapeIndex = 0; ShapeIndex < Shapes.Num(); ShapeIndex++)
 				{
-					if (GizmoIndex != GizmoIndexEdited)
+					if (ShapeIndex != ShapeIndexEdited)
 					{
-						Names.Add(Gizmos[GizmoIndex].GizmoName);
+						Names.Add(Shapes[ShapeIndex].ShapeName);
 					}
 				}
 
-				FName DesiredName = Gizmos[GizmoIndexEdited].GizmoName;
+				FName DesiredName = Shapes[ShapeIndexEdited].ShapeName;
 				FString Name = DesiredName.ToString();
 				int32 Suffix = 0;
 				while (Names.Contains(*Name))
@@ -49,18 +49,18 @@ void UControlRigGizmoLibrary::PostEditChangeChainProperty(struct FPropertyChange
 					Suffix++;
 					Name = FString::Printf(TEXT("%s_%d"), *DesiredName.ToString(), Suffix);
 				}
-				Gizmos[GizmoIndexEdited].GizmoName = *Name;
+				Shapes[ShapeIndexEdited].ShapeName = *Name;
 			}
 			GetUpdatedNameList(true);
 		}
 	}
-	else if (PropertyChangedEvent.Property->GetName() == TEXT("Gizmos"))
+	else if (PropertyChangedEvent.Property->GetName() == TEXT("Shapes"))
 	{
 		TArray<FName> Names;
-		Names.Add(DefaultGizmo.GizmoName);
-		for (int32 GizmoIndex = 0; GizmoIndex < Gizmos.Num(); GizmoIndex++)
+		Names.Add(DefaultShape.ShapeName);
+		for (int32 ShapeIndex = 0; ShapeIndex < Shapes.Num(); ShapeIndex++)
 		{
-			FName DesiredName = Gizmos[GizmoIndex].GizmoName;
+			FName DesiredName = Shapes[ShapeIndex].ShapeName;
 			FString Name = DesiredName.ToString();
 			int32 Suffix = 0;
 			while (Names.Contains(*Name))
@@ -68,9 +68,9 @@ void UControlRigGizmoLibrary::PostEditChangeChainProperty(struct FPropertyChange
 				Suffix++;
 				Name = FString::Printf(TEXT("%s_%d"), *DesiredName.ToString(), Suffix);
 			}
-			Gizmos[GizmoIndex].GizmoName = *Name;
+			Shapes[ShapeIndex].ShapeName = *Name;
 
-			Names.Add(Gizmos[GizmoIndex].GizmoName);
+			Names.Add(Shapes[ShapeIndex].ShapeName);
 		}
 		GetUpdatedNameList(true);
 	}
@@ -78,42 +78,81 @@ void UControlRigGizmoLibrary::PostEditChangeChainProperty(struct FPropertyChange
 
 #endif
 
-const FControlRigGizmoDefinition* UControlRigGizmoLibrary::GetGizmoByName(const FName& InName, bool bUseDefaultIfNotFound) const
+const FControlRigShapeDefinition* UControlRigShapeLibrary::GetShapeByName(const FName& InName, bool bUseDefaultIfNotFound) const
 {
-	if (InName == DefaultGizmo.GizmoName)
+	UControlRigShapeLibrary* MutableThis = (UControlRigShapeLibrary*)this;
+	if (InName == MutableThis->DefaultShape.ShapeName)
 	{
-		return &DefaultGizmo;
+		MutableThis->DefaultShape.Library = MutableThis;
+		return &MutableThis->DefaultShape;
 	}
 
-	for (int32 GizmoIndex = 0; GizmoIndex < Gizmos.Num(); GizmoIndex++)
+	for (int32 ShapeIndex = 0; ShapeIndex < MutableThis->Shapes.Num(); ShapeIndex++)
 	{
-		if (Gizmos[GizmoIndex].GizmoName == InName)
+		if (MutableThis->Shapes[ShapeIndex].ShapeName == InName)
 		{
-			return &Gizmos[GizmoIndex];
+			MutableThis->Shapes[ShapeIndex].Library = MutableThis;
+			return &MutableThis->Shapes[ShapeIndex];
 		}
 	}
 
 	if (bUseDefaultIfNotFound)
 	{
-		return &DefaultGizmo;
+		MutableThis->DefaultShape.Library = MutableThis;
+		return &DefaultShape;
 	}
 
 	return nullptr;
 }
 
-const TArray<FName> UControlRigGizmoLibrary::GetUpdatedNameList(bool bReset)
+const FControlRigShapeDefinition* UControlRigShapeLibrary::GetShapeByName(const FName& InName, const TArray<TSoftObjectPtr<UControlRigShapeLibrary>>& InShapeLibraries)
+{
+	const FString InString = InName.ToString();
+	FString Left, Right;
+	FName RightName;
+	if(!InString.Split(TEXT("."), &Left, &Right))
+	{
+		Left = FString();
+		Right = InString;
+		RightName = InName;
+	}
+	else
+	{
+		RightName = *Right;
+	}
+
+	for(const TSoftObjectPtr<UControlRigShapeLibrary>& ShapeLibrary : InShapeLibraries)
+	{
+		if(!ShapeLibrary.IsValid())
+		{
+			continue;
+		}
+
+		if(ShapeLibrary->GetName().Equals(Left) || Left.IsEmpty())
+		{
+			if(const FControlRigShapeDefinition* Shape = ShapeLibrary->GetShapeByName(RightName))
+			{
+				return Shape;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+const TArray<FName> UControlRigShapeLibrary::GetUpdatedNameList(bool bReset)
 {
 	if (bReset)
 	{
 		NameList.Reset();
 	}
 
-	if (NameList.Num() != Gizmos.Num())
+	if (NameList.Num() != Shapes.Num())
 	{
 		NameList.Reset();
-		for (const FControlRigGizmoDefinition& Gizmo : Gizmos)
+		for (const FControlRigShapeDefinition& Shape : Shapes)
 		{
-			NameList.Add(Gizmo.GizmoName);
+			NameList.Add(Shape.ShapeName);
 		}
 		NameList.Sort(FNameLexicalLess());
 	}

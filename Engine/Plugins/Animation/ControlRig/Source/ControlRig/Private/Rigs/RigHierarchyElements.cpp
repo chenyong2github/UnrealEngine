@@ -416,10 +416,10 @@ FRigControlSettings::FRigControlSettings()
 , bDrawLimits(true)
 , MinimumValue()
 , MaximumValue()
-, bGizmoEnabled(true)
-, bGizmoVisible(true)
-, GizmoName(TEXT("Gizmo"))
-, GizmoColor(FLinearColor::Red)
+, bShapeEnabled(true)
+, bShapeVisible(true)
+, ShapeName(NAME_None)
+, ShapeColor(FLinearColor::Red)
 , bIsTransientControl(false)
 , ControlEnum(nullptr)
 , Customization()
@@ -453,10 +453,10 @@ void FRigControlSettings::Save(FArchive& Ar)
 	Ar << bDrawLimits;
 	Ar << MinimumValue;
 	Ar << MaximumValue;
-	Ar << bGizmoEnabled;
-	Ar << bGizmoVisible;
-	Ar << GizmoName;
-	Ar << GizmoColor;
+	Ar << bShapeEnabled;
+	Ar << bShapeVisible;
+	Ar << ShapeName;
+	Ar << ShapeColor;
 	Ar << bIsTransientControl;
 	Ar << ControlEnumPathName;
 	Ar << Customization.AvailableSpaces;
@@ -494,10 +494,10 @@ void FRigControlSettings::Load(FArchive& Ar)
 		Ar << MaximumTransform;
 	}
 
-	Ar << bGizmoEnabled;
-	Ar << bGizmoVisible;
-	Ar << GizmoName;
-	Ar << GizmoColor;
+	Ar << bShapeEnabled;
+	Ar << bShapeVisible;
+	Ar << ShapeName;
+	Ar << ShapeColor;
 	Ar << bIsTransientControl;
 	Ar << ControlEnumPathName;
 
@@ -568,15 +568,15 @@ bool FRigControlSettings::operator==(const FRigControlSettings& InOther) const
 	{
 		return false;
 	}
-	if(bGizmoEnabled != InOther.bGizmoEnabled)
+	if(bShapeEnabled != InOther.bShapeEnabled)
 	{
 		return false;
 	}
-	if(bGizmoVisible != InOther.bGizmoVisible)
+	if(bShapeVisible != InOther.bShapeVisible)
 	{
 		return false;
 	}
-	if(GizmoName != InOther.GizmoName)
+	if(ShapeName != InOther.ShapeName)
 	{
 		return false;
 	}
@@ -588,7 +588,7 @@ bool FRigControlSettings::operator==(const FRigControlSettings& InOther) const
 	{
 		return false;
 	}
-	if(!GizmoColor.Equals(InOther.GizmoColor, 0.001))
+	if(!ShapeColor.Equals(InOther.ShapeColor, 0.001))
 	{
 		return false;
 	}
@@ -622,7 +622,7 @@ void FRigControlElement::Save(FArchive& Ar, URigHierarchy* Hierarchy, ESerializa
 	{
 		Settings.Save(Ar);
 		Offset.Save(Ar);
-		Gizmo.Save(Ar);
+		Shape.Save(Ar);
 	}
 }
 
@@ -634,7 +634,7 @@ void FRigControlElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializa
 	{
 		Settings.Load(Ar);
 		Offset.Load(Ar);
-		Gizmo.Load(Ar);
+		Shape.Load(Ar);
 	}
 }
 
@@ -645,7 +645,7 @@ void FRigControlElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* I
 	const FRigControlElement* Source = CastChecked<FRigControlElement>(InOther);
 	Settings = Source->Settings;
 	Offset = Source->Offset;
-	Gizmo = Source->Gizmo;
+	Shape = Source->Shape;
 }
 
 void FRigControlElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial)
@@ -657,12 +657,12 @@ void FRigControlElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool 
 		if(bCurrent)
 		{
 			Offset.Current = Other->Offset.Current;
-			Gizmo.Current = Other->Gizmo.Current;
+			Shape.Current = Other->Shape.Current;
 		}
 		if(bInitial)
 		{
 			Offset.Initial = Other->Offset.Initial;
-			Gizmo.Initial = Other->Gizmo.Initial;
+			Shape.Initial = Other->Shape.Initial;
 		}
 	}
 }

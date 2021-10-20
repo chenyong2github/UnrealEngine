@@ -12,16 +12,16 @@
 struct FActorSpawnParameters;
 
 USTRUCT()
-struct FGizmoActorCreationParam
+struct FControlShapeActorCreationParam
 {
 	GENERATED_BODY()
 
-	FGizmoActorCreationParam()
+	FControlShapeActorCreationParam()
 		: ManipObj(nullptr)
 		, ControlRigIndex(INDEX_NONE)
 		, ControlName(NAME_None)
 		, SpawnTransform(FTransform::Identity)
-		, GizmoTransform(FTransform::Identity)
+		, ShapeTransform(FTransform::Identity)
 		, MeshTransform(FTransform::Identity)
 		, StaticMesh(nullptr)
 		, Material(nullptr)
@@ -35,7 +35,7 @@ struct FGizmoActorCreationParam
 	int32		ControlRigIndex;
 	FName		ControlName;
 	FTransform	SpawnTransform;
-	FTransform  GizmoTransform;
+	FTransform  ShapeTransform;
 	FTransform  MeshTransform;
 	TSoftObjectPtr<UStaticMesh> StaticMesh;
 	TSoftObjectPtr<UMaterial> Material;
@@ -46,12 +46,12 @@ struct FGizmoActorCreationParam
 
 /** An actor used to represent a rig control */
 UCLASS(NotPlaceable, Transient)
-class CONTROLRIG_API AControlRigGizmoActor : public AActor
+class CONTROLRIG_API AControlRigShapeActor : public AActor
 {
 	GENERATED_BODY()
 
 public:
-	AControlRigGizmoActor(const FObjectInitializer& ObjectInitializer);
+	AControlRigShapeActor(const FObjectInitializer& ObjectInitializer);
 
 	// this is the one holding transform for the controls
 	UPROPERTY()
@@ -107,8 +107,8 @@ public:
 	/** Called from the edit mode each tick */
 	virtual void TickControl() {};
 
-	/** changes the gizmo color */
-	virtual void SetGizmoColor(const FLinearColor& InColor);
+	/** changes the shape color */
+	virtual void SetShapeColor(const FLinearColor& InColor);
 
 	/** Event called when the transform of this control has changed */
 	UFUNCTION(BlueprintImplementableEvent)
@@ -132,38 +132,38 @@ public:
 
 	// this returns root component transform based on attach
 	// when there is no attach, it is based on 0
-	UFUNCTION(BlueprintCallable, Category = "ControlRig|Gizmo")
+	UFUNCTION(BlueprintCallable, Category = "ControlRig|Shape")
 	void SetGlobalTransform(const FTransform& InTransform);
 
-	UFUNCTION(BlueprintPure, Category = "ControlRig|Gizmo")
+	UFUNCTION(BlueprintPure, Category = "ControlRig|Shape")
 	FTransform GetGlobalTransform() const;
 private:
 	/** Whether this control is enabled */
-	UPROPERTY(BlueprintGetter = IsEnabled, BlueprintSetter= SetEnabled, Category = "ControlRig|Gizmo")
+	UPROPERTY(BlueprintGetter = IsEnabled, BlueprintSetter= SetEnabled, Category = "ControlRig|Shape")
 	uint8 bEnabled : 1;
 
 	/** Whether this control is selected */
-	UPROPERTY(BlueprintGetter = IsSelectedInEditor, BlueprintSetter = SetSelected, Category = "ControlRig|Gizmo")
+	UPROPERTY(BlueprintGetter = IsSelectedInEditor, BlueprintSetter = SetSelected, Category = "ControlRig|Shape")
 	uint8 bSelected : 1;
 
 	/** Whether this control can be selected */
-	UPROPERTY(BlueprintGetter = IsSelectable, BlueprintSetter = SetSelectable, Category = "ControlRig|Gizmo")
+	UPROPERTY(BlueprintGetter = IsSelectable, BlueprintSetter = SetSelectable, Category = "ControlRig|Shape")
 	uint8 bSelectable : 1;
 
 	/** Whether this control is hovered */
-	UPROPERTY(BlueprintGetter = IsHovered, BlueprintSetter = SetHovered, Category = "ControlRig|Gizmo")
+	UPROPERTY(BlueprintGetter = IsHovered, BlueprintSetter = SetHovered, Category = "ControlRig|Shape")
 	uint8 bHovered : 1;
 
 };
 
 /**
- * Creating Gizmo Param helper functions
+ * Creating Shape Param helper functions
  */
-namespace FControlRigGizmoHelper
+namespace FControlRigShapeHelper
 {
-	extern CONTROLRIG_API AControlRigGizmoActor* CreateGizmoActor(UWorld* InWorld, UStaticMesh* InStaticMesh, const FGizmoActorCreationParam& CreationParam);
-	AControlRigGizmoActor* CreateGizmoActor(UWorld* InWorld, TSubclassOf<AControlRigGizmoActor> InClass, const FGizmoActorCreationParam& CreationParam);
-	extern CONTROLRIG_API AControlRigGizmoActor* CreateDefaultGizmoActor(UWorld* InWorld, const FGizmoActorCreationParam& CreationParam);
+	extern CONTROLRIG_API AControlRigShapeActor* CreateShapeActor(UWorld* InWorld, UStaticMesh* InStaticMesh, const FControlShapeActorCreationParam& CreationParam);
+	AControlRigShapeActor* CreateShapeActor(UWorld* InWorld, TSubclassOf<AControlRigShapeActor> InClass, const FControlShapeActorCreationParam& CreationParam);
+	extern CONTROLRIG_API AControlRigShapeActor* CreateDefaultShapeActor(UWorld* InWorld, const FControlShapeActorCreationParam& CreationParam);
 
 	FActorSpawnParameters GetDefaultSpawnParameter();
 }

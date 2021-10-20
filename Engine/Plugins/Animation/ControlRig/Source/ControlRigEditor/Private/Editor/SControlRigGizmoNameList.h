@@ -10,13 +10,13 @@
 #include "Rigs/RigHierarchyContainer.h"
 #include "ControlRigBlueprint.h"
 
-class SControlRigGizmoNameList : public SBox
+class SControlRigShapeNameList : public SBox
 {
 public:
 
 	DECLARE_DELEGATE_RetVal( const TArray<TSharedPtr<FString>>&, FOnGetNameListContent );
 
-	SLATE_BEGIN_ARGS(SControlRigGizmoNameList){}
+	SLATE_BEGIN_ARGS(SControlRigShapeNameList){}
 
 		SLATE_EVENT(FOnGetNameListContent, OnGetNameListContent)
 

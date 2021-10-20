@@ -1055,7 +1055,7 @@ void FControlRigEditor::ToggleSetupMode()
 	{
 		if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
 		{
-			EditMode->RecreateGizmoActors(RigBlueprint->Hierarchy->GetSelectedKeys());
+			EditMode->RecreateControlShapeActors(RigBlueprint->Hierarchy->GetSelectedKeys());
 		}
 
 		UControlRigEditModeSettings* Settings = GetMutableDefault<UControlRigEditModeSettings>();
@@ -1833,7 +1833,7 @@ void FControlRigEditor::Compile()
 		}
 
 		// clear transient controls such that we don't leave
-		// a phantom gizmo in the viewport
+		// a phantom shape in the viewport
 		// have to do this before compile() because during compile
 		// a new control rig instance is created without the transient controls
 		// so clear is never called for old transient controls
@@ -1934,7 +1934,7 @@ void FControlRigEditor::Compile()
 
 		if (FControlRigEditMode* EditMode = GetEditMode())
 		{
-			EditMode->RecreateGizmoActors(RigBlueprint->Hierarchy->GetSelectedKeys());
+			EditMode->RecreateControlShapeActors(RigBlueprint->Hierarchy->GetSelectedKeys());
 		}
 	}
 
@@ -2382,7 +2382,7 @@ void FControlRigEditor::PostTransaction(bool bSuccess, const FTransaction* Trans
 
 		if (FControlRigEditMode* EditMode = GetEditMode())
 		{
-			EditMode->RequestToRecreateGizmoActors();
+			EditMode->RequestToRecreateControlShapeActors();
 		}
 	}
 }
@@ -2773,10 +2773,10 @@ void FControlRigEditor::HandleControlRigExecutedEvent(UControlRig* InControlRig,
 							Hierarchy->GetControlOffsetTransform(ControlElement, ERigTransformType::CurrentLocal);
 							Hierarchy->GetControlOffsetTransform(ControlElement, ERigTransformType::InitialGlobal);
 							Hierarchy->GetControlOffsetTransform(ControlElement, ERigTransformType::InitialLocal);
-							Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::CurrentGlobal);
-							Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::CurrentLocal);
-							Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::InitialGlobal);
-							Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::InitialLocal);
+							Hierarchy->GetControlShapeTransform(ControlElement, ERigTransformType::CurrentGlobal);
+							Hierarchy->GetControlShapeTransform(ControlElement, ERigTransformType::CurrentLocal);
+							Hierarchy->GetControlShapeTransform(ControlElement, ERigTransformType::InitialGlobal);
+							Hierarchy->GetControlShapeTransform(ControlElement, ERigTransformType::InitialLocal);
 						}
 
 						Struct->CopyScriptStruct(WrapperObject->GetContent<FRigBaseElement>(), Element);
@@ -3231,28 +3231,28 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 		return FEditorFontGlyphs::Eye;
 	};
 
-	auto GetChangingGizmoTransformText = [this]()
+	auto GetChangingShapeTransformText = [this]()
 	{
 		if (FControlRigEditMode* EditMode = GetEditMode())
 		{
-			FText HotKeyText = EditMode->GetToggleGizmoTransformEditHotKey();
+			FText HotKeyText = EditMode->GetToggleControlShapeTransformEditHotKey();
 
 			if (!HotKeyText.IsEmpty())
 			{
 				FFormatNamedArguments Args;
 				Args.Add(TEXT("HotKey"), HotKeyText);
-				return FText::Format(LOCTEXT("ControlRigBPViewportGizmoTransformEditNotification", "Currently Manipulating Gizmo Transform - Press {HotKey} to Exit"), Args);
+				return FText::Format(LOCTEXT("ControlRigBPViewportShapeTransformEditNotification", "Currently Manipulating Shape Transform - Press {HotKey} to Exit"), Args);
 			}
 		}
 		
-		return LOCTEXT("ControlRigBPViewportGizmoTransformEditNotification", "Currently Manipulating Gizmo Transform - Assign a Hotkey and Use It to Exit");
+		return LOCTEXT("ControlRigBPViewportShapeTransformEditNotification", "Currently Manipulating Shape Transform - Assign a Hotkey and Use It to Exit");
 	};
 
-	auto GetChangingGizmoTransformTextVisibility = [this]()
+	auto GetChangingShapeTransformTextVisibility = [this]()
 	{
 		if (FControlRigEditMode* EditMode = GetEditMode())
 		{
-			return EditMode->bIsChangingGizmoTransform ? EVisibility::Visible : EVisibility::Collapsed;
+			return EditMode->bIsChangingControlShapeTransform ? EVisibility::Visible : EVisibility::Collapsed;
 		}
 		return EVisibility::Collapsed;
 	};
@@ -3321,31 +3321,31 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 		FPersonaViewportNotificationOptions(TAttribute<EVisibility>::Create(GetCompilationStateVisibility))
 	);
 	
-	FPersonaViewportNotificationOptions ChangeGizmoTransformNotificationOptions;
-	ChangeGizmoTransformNotificationOptions.OnGetVisibility = TAttribute<EVisibility>::Create(GetChangingGizmoTransformTextVisibility);
-	ChangeGizmoTransformNotificationOptions.OnGetBrushOverride = TAttribute<const FSlateBrush*>(FControlRigEditorStyle::Get().GetBrush("ControlRig.Viewport.Notification.ChangeGizmoTransform"));
+	FPersonaViewportNotificationOptions ChangeShapeTransformNotificationOptions;
+	ChangeShapeTransformNotificationOptions.OnGetVisibility = TAttribute<EVisibility>::Create(GetChangingShapeTransformTextVisibility);
+	ChangeShapeTransformNotificationOptions.OnGetBrushOverride = TAttribute<const FSlateBrush*>(FControlRigEditorStyle::Get().GetBrush("ControlRig.Viewport.Notification.ChangeShapeTransform"));
 
-	// notification that shows when users enter the mode that allows them to change gizmo transform
+	// notification that shows when users enter the mode that allows them to change shape transform
 	InViewport->AddNotification(EMessageSeverity::Type::Info,
 		false,
 		SNew(SHorizontalBox)
-		.Visibility_Lambda(GetChangingGizmoTransformTextVisibility)
+		.Visibility_Lambda(GetChangingShapeTransformTextVisibility)
 		+SHorizontalBox::Slot()
 		.FillWidth(1.0f)
 		.Padding(4.0f, 4.0f)
 		[
 			SNew(SHorizontalBox)
-			.ToolTipText_Lambda(GetChangingGizmoTransformText)
+			.ToolTipText_Lambda(GetChangingShapeTransformText)
 			+SHorizontalBox::Slot()
 			.FillWidth(1.0f)
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
-				.Text_Lambda(GetChangingGizmoTransformText)
+				.Text_Lambda(GetChangingShapeTransformText)
 				.TextStyle(FEditorStyle::Get(), "AnimViewport.MessageText")
 			]
 		],
-		ChangeGizmoTransformNotificationOptions
+		ChangeShapeTransformNotificationOptions
 	);
 
 	InViewport->AddToolbarExtender(TEXT("AnimViewportDefaultCamera"), FMenuExtensionDelegate::CreateLambda(
@@ -3884,7 +3884,7 @@ void FControlRigEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPrevi
 			/*
 			if (FControlRigEditMode* EditMode = GetEditMode())
 			{
-				EditMode->RequestToRecreateGizmoActors();
+				EditMode->RequestToRecreateControlShapeActors();
 			}
 			*/
 		}
@@ -3935,7 +3935,7 @@ void FControlRigEditor::UpdateControlRig()
 
 			if (UControlRig* CDO = Cast<UControlRig>(Class->GetDefaultObject()))
 			{
-				CDO->GizmoLibrary = GetControlRigBlueprint()->GizmoLibrary;
+				CDO->ShapeLibraries = GetControlRigBlueprint()->ShapeLibraries;
 			}
 
 			CacheNameLists();
@@ -4348,7 +4348,7 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 
 		const FString PoseString = TEXT("Pose->");
 		const FString OffsetString = TEXT("Offset->");
-		const FString GizmoString = TEXT("Gizmo->");
+		const FString ShapeString = TEXT("Shape->");
 		const FString SettingsString = TEXT("Settings->");
 
 		struct Local
@@ -4437,7 +4437,7 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 			
 			ControlRigBP->Hierarchy->SetControlOffsetTransform(ControlElement, Transform, ERigTransformType::MakeInitial(TransformType), true, true, false, true);
 		}
-		else if(PropertyPath.RemoveFromStart(GizmoString))
+		else if(PropertyPath.RemoveFromStart(ShapeString))
 		{
 			FRigControlElement* ControlElement = ControlRigBP->Hierarchy->Find<FRigControlElement>(WrappedElement->GetKey());
 			if(ControlElement == nullptr)
@@ -4447,9 +4447,9 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 
 			ERigTransformType::Type TransformType = Local::GetTransformTypeFromPath(PropertyPath);
 			bIsInitial = bIsInitial || ERigTransformType::IsInitial(TransformType);
-			const FTransform Transform = CastChecked<FRigControlElement>(FirstWrappedElement)->Gizmo.Get(TransformType);
+			const FTransform Transform = CastChecked<FRigControlElement>(FirstWrappedElement)->Shape.Get(TransformType);
 			
-			ControlRigBP->Hierarchy->SetControlGizmoTransform(ControlElement, Transform, ERigTransformType::MakeInitial(TransformType), true, false, true);
+			ControlRigBP->Hierarchy->SetControlShapeTransform(ControlElement, Transform, ERigTransformType::MakeInitial(TransformType), true, false, true);
 		}
 		else if(PropertyPath.RemoveFromStart(SettingsString))
 		{
@@ -4985,7 +4985,7 @@ void FControlRigEditor::OnHierarchyModified_AnyThread(ERigHierarchyNotification 
 				}
 				break;
 			}
-			case ERigHierarchyNotification::ControlGizmoTransformChanged:
+			case ERigHierarchyNotification::ControlShapeTransformChanged:
 			{
 				if(DetailViewShowsRigElement(Key))
 				{
@@ -4995,13 +4995,13 @@ void FControlRigEditor::OnHierarchyModified_AnyThread(ERigHierarchyNotification 
 					FRigControlElement* SourceControlElement = Cast<FRigControlElement>(Element);
 					if(SourceControlElement)
 					{
-						FTransform InitialGizmoTransform = WeakHierarchy.Get()->GetControlGizmoTransform(SourceControlElement, ERigTransformType::InitialLocal);
+						FTransform InitialShapeTransform = WeakHierarchy.Get()->GetControlShapeTransform(SourceControlElement, ERigTransformType::InitialLocal);
 
-						// set current gizmo transform = initial gizmo transform so that the viewport reflects this change
-						WeakHierarchy.Get()->SetControlGizmoTransform(SourceControlElement, InitialGizmoTransform, ERigTransformType::CurrentLocal, false); 
+						// set current shape transform = initial shape transform so that the viewport reflects this change
+						WeakHierarchy.Get()->SetControlShapeTransform(SourceControlElement, InitialShapeTransform, ERigTransformType::CurrentLocal, false); 
 
-						RigBlueprint->Hierarchy->SetControlGizmoTransform(Key, WeakHierarchy.Get()->GetControlGizmoTransform(SourceControlElement, ERigTransformType::InitialLocal), true);
-						RigBlueprint->Hierarchy->SetControlGizmoTransform(Key, WeakHierarchy.Get()->GetControlGizmoTransform(SourceControlElement, ERigTransformType::CurrentLocal), false);
+						RigBlueprint->Hierarchy->SetControlShapeTransform(Key, WeakHierarchy.Get()->GetControlShapeTransform(SourceControlElement, ERigTransformType::InitialLocal), true);
+						RigBlueprint->Hierarchy->SetControlShapeTransform(Key, WeakHierarchy.Get()->GetControlShapeTransform(SourceControlElement, ERigTransformType::CurrentLocal), false);
 
 						RigBlueprint->Modify();
 						RigBlueprint->MarkPackageDirty();

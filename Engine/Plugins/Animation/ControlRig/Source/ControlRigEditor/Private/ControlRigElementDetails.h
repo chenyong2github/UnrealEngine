@@ -223,23 +223,20 @@ public:
 	/** IPropertyTypeCustomization interface */
 	virtual void CustomizeChildren(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
 
-	bool IsGizmoEnabled() const;
+	bool IsShapeEnabled() const;
 	bool IsEnabled(ERigControlValueType InValueType) const;
 
-	const TArray<TSharedPtr<FString>>& GetGizmoNameList() const;
+	const TArray<TSharedPtr<FString>>& GetShapeNameList() const;
 	const TArray<TSharedPtr<FString>>& GetControlTypeList() const;
 
 	FText GetDisplayName() const;
 	void SetDisplayName(const FText& InNewText, ETextCommit::Type InCommitType);
 
 private:
-	TArray<TSharedPtr<FString>> GizmoNameList;
+	TArray<TSharedPtr<FString>> ShapeNameList;
 	static TArray<TSharedPtr<FString>> ControlTypeList;
 	TSharedPtr<FRigInfluenceEntryModifier> InfluenceModifier;
 	TSharedPtr<FStructOnScope> InfluenceModifierStruct;
-	FEditPropertyChain PoseCurrentChain;
-	FEditPropertyChain OffsetPropertyChain;
-	FEditPropertyChain GizmoPropertyChain;
 };
 
 class FRigNullElementDetails : public FRigTransformElementDetails

@@ -292,7 +292,7 @@ FRigElementKey URigHierarchyController::AddControl(
 	FRigControlSettings InSettings,
 	FRigControlValue InValue,
 	FTransform InOffsetTransform,
-	FTransform InGizmoTransform,
+	FTransform InShapeTransform,
 	bool bSetupUndo, bool bPrintPythonCommand)
 {
 	if(!IsValid())
@@ -318,17 +318,17 @@ FRigElementKey URigHierarchyController::AddControl(
 		AddElement(NewElement, Hierarchy->Get(Hierarchy->GetIndex(InParent)), false);
 		
 		NewElement->Offset.Set(ERigTransformType::InitialLocal, InOffsetTransform);  
-		NewElement->Gizmo.Set(ERigTransformType::InitialLocal, InGizmoTransform);  
+		NewElement->Shape.Set(ERigTransformType::InitialLocal, InShapeTransform);  
 		Hierarchy->SetControlValue(NewElement, InValue, ERigControlValueType::Initial, false);
 
 		NewElement->Parent.MarkDirty(ERigTransformType::InitialGlobal);
 		NewElement->Offset.MarkDirty(ERigTransformType::InitialGlobal);
 		NewElement->Pose.MarkDirty(ERigTransformType::InitialGlobal);
-		NewElement->Gizmo.MarkDirty(ERigTransformType::InitialGlobal);
+		NewElement->Shape.MarkDirty(ERigTransformType::InitialGlobal);
 		NewElement->Parent.Current = NewElement->Parent.Initial;
 		NewElement->Offset.Current = NewElement->Offset.Initial;
 		NewElement->Pose.Current = NewElement->Pose.Initial;
-		NewElement->Gizmo.Current = NewElement->Gizmo.Initial;
+		NewElement->Shape.Current = NewElement->Shape.Initial;
 	}
 
 #if WITH_EDITOR
@@ -1245,10 +1245,10 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromHierarchyContainer(con
 		Settings.bDrawLimits = Control.bDrawLimits;
 		Settings.MinimumValue = Control.MinimumValue;
 		Settings.MaximumValue = Control.MaximumValue;
-		Settings.bGizmoEnabled = Control.bGizmoEnabled;
-		Settings.bGizmoVisible = Control.bGizmoVisible;
-		Settings.GizmoName = Control.GizmoName;
-		Settings.GizmoColor = Control.GizmoColor;
+		Settings.bShapeEnabled = Control.bGizmoEnabled;
+		Settings.bShapeVisible = Control.bGizmoVisible;
+		Settings.ShapeName = Control.GizmoName;
+		Settings.ShapeColor = Control.GizmoColor;
 		Settings.ControlEnum = Control.ControlEnum;
 
 		FRigControlValue InitialValue = Control.InitialValue;
@@ -1449,7 +1449,7 @@ TArray<FString> URigHierarchyController::GetAddControlPythonCommands(FRigControl
 	Commands.Append(GetSetControlValuePythonCommands(Control, Settings.MinimumValue, ERigControlValueType::Minimum));
 	Commands.Append(GetSetControlValuePythonCommands(Control, Settings.MaximumValue, ERigControlValueType::Maximum));
 	Commands.Append(GetSetControlOffsetTransformPythonCommands(Control, Control->Offset.Initial.Local.Transform, true, true));
-	Commands.Append(GetSetControlGizmoTransformPythonCommands(Control, Control->Gizmo.Initial.Local.Transform, true));
+	Commands.Append(GetSetControlShapeTransformPythonCommands(Control, Control->Shape.Initial.Local.Transform, true));
 
 	return Commands;
 }
@@ -1527,11 +1527,11 @@ TArray<FString> URigHierarchyController::GetSetControlOffsetTransformPythonComma
 		bAffectChildren ? TEXT("True") : TEXT("False"))};
 }
 
-TArray<FString> URigHierarchyController::GetSetControlGizmoTransformPythonCommands(const FRigControlElement* Control,
+TArray<FString> URigHierarchyController::GetSetControlShapeTransformPythonCommands(const FRigControlElement* Control,
 	const FTransform& InTransform, bool bInitial) const
 {
-	//SetControlGizmoTransform(FRigElementKey InKey, FTransform InTransform, bool bInitial = false, bool bSetupUndo = false)
-	return {FString::Printf(TEXT("hierarchy.set_control_gizmo_transform(%s, %s, %s)"),
+	//SetControlShapeTransform(FRigElementKey InKey, FTransform InTransform, bool bInitial = false, bool bSetupUndo = false)
+	return {FString::Printf(TEXT("hierarchy.set_control_shape_transform(%s, %s, %s)"),
 		*Control->GetKey().ToPythonString(),
 		*RigVMPythonUtils::TransformToPythonString(InTransform),
 		bInitial ? TEXT("True") : TEXT("False"))};
@@ -1973,8 +1973,8 @@ bool URigHierarchyController::AddParent(FRigBaseElement* InChild, FRigBaseElemen
 		{
 			Hierarchy->GetControlOffsetTransform(ControlElement, ERigTransformType::CurrentLocal);
 			Hierarchy->GetControlOffsetTransform(ControlElement, ERigTransformType::InitialLocal);
-			Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::CurrentLocal);
-			Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::InitialLocal);
+			Hierarchy->GetControlShapeTransform(ControlElement, ERigTransformType::CurrentLocal);
+			Hierarchy->GetControlShapeTransform(ControlElement, ERigTransformType::InitialLocal);
 		}
 	}
 
@@ -2022,8 +2022,8 @@ bool URigHierarchyController::AddParent(FRigBaseElement* InChild, FRigBaseElemen
 			{
 				ControlElement->Offset.MarkDirty(ERigTransformType::CurrentGlobal);  
 				ControlElement->Offset.MarkDirty(ERigTransformType::InitialGlobal);
-				ControlElement->Gizmo.MarkDirty(ERigTransformType::CurrentGlobal);  
-				ControlElement->Gizmo.MarkDirty(ERigTransformType::InitialGlobal);
+				ControlElement->Shape.MarkDirty(ERigTransformType::CurrentGlobal);  
+				ControlElement->Shape.MarkDirty(ERigTransformType::InitialGlobal);
 			}
 		}
 
@@ -2212,8 +2212,8 @@ bool URigHierarchyController::RemoveParent(FRigBaseElement* InChild, FRigBaseEle
 			{
 				ControlElement->Offset.MarkDirty(ERigTransformType::CurrentGlobal);  
 				ControlElement->Offset.MarkDirty(ERigTransformType::InitialGlobal);
-				ControlElement->Gizmo.MarkDirty(ERigTransformType::CurrentGlobal);  
-				ControlElement->Gizmo.MarkDirty(ERigTransformType::InitialGlobal);
+				ControlElement->Shape.MarkDirty(ERigTransformType::CurrentGlobal);  
+				ControlElement->Shape.MarkDirty(ERigTransformType::InitialGlobal);
 			}
 
 			Hierarchy->TopologyVersion++;
@@ -2422,7 +2422,7 @@ TArray<FRigElementKey> URigHierarchyController::MirrorElements(TArray<FRigElemen
 		FTransform GlobalTransform = Hierarchy->GetGlobalTransform(OriginalKeys[Index]);
 		FTransform InitialTransform = Hierarchy->GetInitialGlobalTransform(OriginalKeys[Index]);
 
-		// also mirror the offset, limits and gizmo transform
+		// also mirror the offset, limits and shape transform
 		if (OriginalKeys[Index].Type == ERigElementType::Control)
 		{
 			if(FRigControlElement* DuplicatedControlElement = Hierarchy->Find<FRigControlElement>(DuplicatedKeys[Index]))
@@ -2459,10 +2459,10 @@ TArray<FRigElementKey> URigHierarchyController::MirrorElements(TArray<FRigElemen
 				Hierarchy->SetGlobalTransform(DuplicatedKeys[Index], InSettings.MirrorTransform(GlobalTransform), true, false, true);
 				Hierarchy->SetGlobalTransform(DuplicatedKeys[Index], InSettings.MirrorTransform(GlobalTransform), false, false, true);
 
-				// mirror gizmo transform
-				FTransform GlobalGizmoTransform = Hierarchy->GetControlGizmoTransform(DuplicatedControlElement, ERigTransformType::InitialLocal) * OriginalGlobalOffsetTransform;
-				Hierarchy->SetControlGizmoTransform(DuplicatedControlElement, InSettings.MirrorTransform(GlobalGizmoTransform).GetRelativeTransform(DuplicatedGlobalOffsetTransform), ERigTransformType::InitialLocal, true);
-				Hierarchy->SetControlGizmoTransform(DuplicatedControlElement, InSettings.MirrorTransform(GlobalGizmoTransform).GetRelativeTransform(DuplicatedGlobalOffsetTransform), ERigTransformType::CurrentLocal, true);
+				// mirror shape transform
+				FTransform GlobalShapeTransform = Hierarchy->GetControlShapeTransform(DuplicatedControlElement, ERigTransformType::InitialLocal) * OriginalGlobalOffsetTransform;
+				Hierarchy->SetControlShapeTransform(DuplicatedControlElement, InSettings.MirrorTransform(GlobalShapeTransform).GetRelativeTransform(DuplicatedGlobalOffsetTransform), ERigTransformType::InitialLocal, true);
+				Hierarchy->SetControlShapeTransform(DuplicatedControlElement, InSettings.MirrorTransform(GlobalShapeTransform).GetRelativeTransform(DuplicatedGlobalOffsetTransform), ERigTransformType::CurrentLocal, true);
 			}
 		}
 		else

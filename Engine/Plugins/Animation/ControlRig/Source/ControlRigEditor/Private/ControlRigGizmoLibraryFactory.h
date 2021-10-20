@@ -9,12 +9,12 @@
 #include "ControlRigGizmoLibraryFactory.generated.h"
 
 UCLASS(MinimalAPI, HideCategories=Object)
-class UControlRigGizmoLibraryFactory : public UFactory
+class UControlRigShapeLibraryFactory : public UFactory
 {
 	GENERATED_BODY()
 
 public:
-	UControlRigGizmoLibraryFactory();
+	UControlRigShapeLibraryFactory();
 
 	// UFactory Interface
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;

@@ -257,7 +257,7 @@ void FControlRigEditorModule::StartupModule()
 	};
 
 	RegisterAssetTypeAction(MakeShareable(new FControlRigBlueprintActions()));
-	RegisterAssetTypeAction(MakeShareable(new FControlRigGizmoLibraryActions()));
+	RegisterAssetTypeAction(MakeShareable(new FControlRigShapeLibraryActions()));
 	RegisterAssetTypeAction(MakeShareable(new FAssetTypeActions_ControlRigPose()));
 	
 	// Register sequencer track editor

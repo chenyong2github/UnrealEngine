@@ -899,20 +899,20 @@ struct CONTROLRIG_API FRigControlSettings
 	UPROPERTY(BlueprintReadWrite, Category = Limits, meta = (EditCondition = "bLimitTranslation || bLimitRotation || bLimitScale"))
 	FRigControlValue MaximumValue;
 
-	/** Set to true if the gizmo is enabled in 3d */
+	/** Set to true if the shape is enabled in 3d */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Gizmo)
-	bool bGizmoEnabled;
+	bool bShapeEnabled;
 
-	/** Set to true if the gizmo is currently visible in 3d */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Gizmo, meta = (EditCondition = "bGizmoEnabled"))
-	bool bGizmoVisible;
+	/** Set to true if the shape is currently visible in 3d */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Shape, meta = (EditCondition = "bShapeEnabled"))
+	bool bShapeVisible;
 
 	/* This is optional UI setting - this doesn't mean this is always used, but it is optional for manipulation layer to use this*/
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Gizmo, meta = (EditCondition = "bGizmoEnabled"))
-	FName GizmoName;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Shape, meta = (EditCondition = "bShapeEnabled"))
+	FName ShapeName;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Gizmo, meta = (EditCondition = "bGizmoEnabled"))
-	FLinearColor GizmoColor;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Shape, meta = (EditCondition = "bShapeEnabled"))
+	FLinearColor ShapeColor;
 
 	/** If the control is transient and only visible in the control rig editor */
 	UPROPERTY(BlueprintReadWrite, Category = Control)
@@ -1009,7 +1009,7 @@ public:
 	FRigCurrentAndInitialTransform Offset;
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = RigElement)
-	FRigCurrentAndInitialTransform Gizmo;
+	FRigCurrentAndInitialTransform Shape;
 
 protected:
 	

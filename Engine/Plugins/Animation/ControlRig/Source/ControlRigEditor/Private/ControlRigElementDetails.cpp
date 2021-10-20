@@ -672,10 +672,10 @@ void FRigComputedTransformDetails::CustomizeChildren(TSharedRef<IPropertyHandle>
 		PropertyPath.RightChopInline(7);
 		PropertyChain.AddTail(FRigControlElement::StaticStruct()->FindPropertyByName(TEXT("Offset")));
 	}
-	else if(PropertyPath.StartsWith(TEXT("Gizmo.")))
+	else if(PropertyPath.StartsWith(TEXT("Shape.")))
 	{
 		PropertyPath.RightChopInline(6);
-		PropertyChain.AddTail(FRigControlElement::StaticStruct()->FindPropertyByName(TEXT("Gizmo")));
+		PropertyChain.AddTail(FRigControlElement::StaticStruct()->FindPropertyByName(TEXT("Shape")));
 	}
 
 	if(PropertyPath.StartsWith(TEXT("Current.")))
@@ -1560,19 +1560,24 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 {
 	FRigTransformElementDetails::CustomizeChildren(InStructPropertyHandle, StructBuilder, StructCustomizationUtils);
 
-	GizmoNameList.Reset();
+	ShapeNameList.Reset();
 	if (BlueprintBeingCustomized)
 	{
-		if (!BlueprintBeingCustomized->GizmoLibrary.IsValid())
+		bool bUseNameSpace = BlueprintBeingCustomized->ShapeLibraries.Num() > 1;
+		for(TSoftObjectPtr<UControlRigShapeLibrary>& ShapeLibrary : BlueprintBeingCustomized->ShapeLibraries)
 		{
-			BlueprintBeingCustomized->GizmoLibrary.LoadSynchronous();
-		}
-		if (BlueprintBeingCustomized->GizmoLibrary.IsValid())
-		{
-			GizmoNameList.Add(MakeShared<FString>(BlueprintBeingCustomized->GizmoLibrary->DefaultGizmo.GizmoName.ToString()));
-			for (const FControlRigGizmoDefinition& Gizmo : BlueprintBeingCustomized->GizmoLibrary->Gizmos)
+			if (!ShapeLibrary.IsValid())
 			{
-				GizmoNameList.Add(MakeShared<FString>(Gizmo.GizmoName.ToString()));
+				ShapeLibrary.LoadSynchronous();
+			}
+			if (ShapeLibrary.IsValid())
+			{
+				const FString NameSpace = bUseNameSpace ? ShapeLibrary->GetName() + TEXT(".") : FString();
+				ShapeNameList.Add(MakeShared<FString>(NameSpace + ShapeLibrary->DefaultShape.ShapeName.ToString()));
+				for (const FControlRigShapeDefinition& Shape : ShapeLibrary->Shapes)
+				{
+					ShapeNameList.Add(MakeShared<FString>(NameSpace + Shape.ShapeName.ToString()));
+				}
 			}
 		}
 	}
@@ -1583,7 +1588,7 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 	}
 
 	IDetailGroup* ControlGroup = &StructBuilder.AddGroup(TEXT("Control"), LOCTEXT("Control", "Control"));
-	IDetailGroup* GizmoGroup = nullptr;
+	IDetailGroup* ShapeGroup = nullptr;
 	IDetailGroup* LimitsGroup = nullptr;
 
 	const TSharedPtr<IPropertyHandle> SettingsHandle = InStructPropertyHandle->GetChildHandle(TEXT("Settings"));
@@ -1743,9 +1748,9 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 	ControlGroup->AddPropertyRow(ControlTypeHandle.ToSharedRef());
 	ControlGroup->AddPropertyRow(SettingsHandle->GetChildHandle(TEXT("bAnimatable")).ToSharedRef());
 
-	// any but bool controls show the offset + gizmo + limits
-	const bool bNeedsGizmoProperties = IsAnyControlNotOfType(ERigControlType::Bool);
-	if (bNeedsGizmoProperties)
+	// any but bool controls show the offset + shape + limits
+	const bool bNeedsShapeProperties = IsAnyControlNotOfType(ERigControlType::Bool);
+	if (bNeedsShapeProperties)
 	{
 		// setup offset
 		{
@@ -1756,7 +1761,7 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 			ControlGroup->AddPropertyRow(TransformHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Offset Transform")));
 		}
 
-		GizmoGroup = &StructBuilder.AddGroup(TEXT("Control Shape"), LOCTEXT("ControlShape", "Control Shape"));
+		ShapeGroup = &StructBuilder.AddGroup(TEXT("Control Shape"), LOCTEXT("ControlShape", "Control Shape"));
 		LimitsGroup = &StructBuilder.AddGroup(TEXT("Limits"), LOCTEXT("Limits", "Limits"));
 	}
 
@@ -1835,40 +1840,40 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 		FRigControlElementDetails_SetupValueWidget(*ControlGroup, StructBuilder, ERigControlValueType::Maximum, ControlElements[0], HierarchyBeingCustomized);
 	}
 
-	if (bNeedsGizmoProperties)
+	if (bNeedsShapeProperties)
 	{
-		GizmoGroup->AddPropertyRow(SettingsHandle->GetChildHandle(TEXT("bGizmoEnabled")).ToSharedRef())
+		ShapeGroup->AddPropertyRow(SettingsHandle->GetChildHandle(TEXT("bShapeEnabled")).ToSharedRef())
 		.DisplayName(FText::FromString(TEXT("Enabled")));
-		GizmoGroup->AddPropertyRow(SettingsHandle->GetChildHandle(TEXT("bGizmoVisible")).ToSharedRef())
+		ShapeGroup->AddPropertyRow(SettingsHandle->GetChildHandle(TEXT("bShapeVisible")).ToSharedRef())
 		.DisplayName(FText::FromString(TEXT("Visible")));
 
-		// setup gizmo transform
+		// setup shape transform
 		{
-			const TSharedPtr<IPropertyHandle> GizmoHandle = InStructPropertyHandle->GetChildHandle(TEXT("Gizmo"));
-			const TSharedPtr<IPropertyHandle> InitialHandle = GizmoHandle->GetChildHandle(TEXT("Initial"));
+			const TSharedPtr<IPropertyHandle> ShapeHandle = InStructPropertyHandle->GetChildHandle(TEXT("Shape"));
+			const TSharedPtr<IPropertyHandle> InitialHandle = ShapeHandle->GetChildHandle(TEXT("Initial"));
 			const TSharedPtr<IPropertyHandle> LocalHandle = InitialHandle->GetChildHandle(TEXT("Local"));
 			const TSharedPtr<IPropertyHandle> TransformHandle = LocalHandle->GetChildHandle(TEXT("Transform"));
-			GizmoGroup->AddPropertyRow(TransformHandle.ToSharedRef())
-			.IsEnabled(TAttribute<bool>::CreateSP(this, &FRigControlElementDetails::IsGizmoEnabled));
+			ShapeGroup->AddPropertyRow(TransformHandle.ToSharedRef())
+			.IsEnabled(TAttribute<bool>::CreateSP(this, &FRigControlElementDetails::IsShapeEnabled));
 		}
 
-		const TSharedPtr<IPropertyHandle> GizmoShapeHandle = SettingsHandle->GetChildHandle(TEXT("GizmoName"));
-		GizmoGroup->AddPropertyRow(GizmoShapeHandle.ToSharedRef()).CustomWidget()
+		const TSharedPtr<IPropertyHandle> ShapeShapeHandle = SettingsHandle->GetChildHandle(TEXT("ShapeName"));
+		ShapeGroup->AddPropertyRow(ShapeShapeHandle.ToSharedRef()).CustomWidget()
 		.NameContent()
 		[
 			SNew(STextBlock)
 			.Text(FText::FromString(TEXT("Shape")))
 			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.IsEnabled(this, &FRigControlElementDetails::IsGizmoEnabled)
+			.IsEnabled(this, &FRigControlElementDetails::IsShapeEnabled)
 		]
 		.ValueContent()
 		[
-			SNew(SControlRigGizmoNameList, ControlElements, BlueprintBeingCustomized)
-			.OnGetNameListContent(this, &FRigControlElementDetails::GetGizmoNameList)
-			.IsEnabled(this, &FRigControlElementDetails::IsGizmoEnabled)
+			SNew(SControlRigShapeNameList, ControlElements, BlueprintBeingCustomized)
+			.OnGetNameListContent(this, &FRigControlElementDetails::GetShapeNameList)
+			.IsEnabled(this, &FRigControlElementDetails::IsShapeEnabled)
 		];
 
-		GizmoGroup->AddPropertyRow(SettingsHandle->GetChildHandle(TEXT("GizmoColor")).ToSharedRef())
+		ShapeGroup->AddPropertyRow(SettingsHandle->GetChildHandle(TEXT("ShapeColor")).ToSharedRef())
 		.DisplayName(FText::FromString(TEXT("Color")));
 	}
 
@@ -1927,7 +1932,7 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 	AnimationGroup->AddPropertyRow(SettingsHandle->GetChildHandle(TEXT("Customization"))->GetChildHandle(TEXT("AvailableSpaces")).ToSharedRef());
 }
 
-bool FRigControlElementDetails::IsGizmoEnabled() const
+bool FRigControlElementDetails::IsShapeEnabled() const
 {
 	for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
 	{
@@ -1935,7 +1940,7 @@ bool FRigControlElementDetails::IsGizmoEnabled() const
 		{
 			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ObjectBeingCustomized->GetContent<FRigBaseElement>()))
 			{
-				if(ControlElement->Settings.bGizmoEnabled)
+				if(ControlElement->Settings.bShapeEnabled)
 				{
 					return true;
 				}
@@ -1974,9 +1979,9 @@ bool FRigControlElementDetails::IsEnabled(ERigControlValueType InValueType) cons
 	return true;
 }
 
-const TArray<TSharedPtr<FString>>& FRigControlElementDetails::GetGizmoNameList() const
+const TArray<TSharedPtr<FString>>& FRigControlElementDetails::GetShapeNameList() const
 {
-	return GizmoNameList;
+	return ShapeNameList;
 }
 
 const TArray<TSharedPtr<FString>>& FRigControlElementDetails::GetControlTypeList() const

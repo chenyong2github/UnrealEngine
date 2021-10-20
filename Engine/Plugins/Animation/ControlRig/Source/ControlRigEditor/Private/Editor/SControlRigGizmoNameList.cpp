@@ -10,14 +10,14 @@
 #include "ControlRigBlueprint.h"
 #include "ControlRig.h"
 
-void SControlRigGizmoNameList::Construct(const FArguments& InArgs, FRigControlElement* ControlElement, UControlRigBlueprint* InBlueprint)
+void SControlRigShapeNameList::Construct(const FArguments& InArgs, FRigControlElement* ControlElement, UControlRigBlueprint* InBlueprint)
 {
 	TArray<FRigControlElement*> ControlElements;
 	ControlElements.Add(ControlElement);
 	return Construct(InArgs, ControlElements, InBlueprint);
 }
 
-void SControlRigGizmoNameList::Construct(const FArguments& InArgs, TArray<FRigControlElement*> ControlElements, UControlRigBlueprint* InBlueprint)
+void SControlRigShapeNameList::Construct(const FArguments& InArgs, TArray<FRigControlElement*> ControlElements, UControlRigBlueprint* InBlueprint)
 {
 	this->OnGetNameListContent = InArgs._OnGetNameListContent;
 	this->ControlKeys.Reset();
@@ -46,20 +46,20 @@ void SControlRigGizmoNameList::Construct(const FArguments& InArgs, TArray<FRigCo
 		[
 			SAssignNew(NameListComboBox, SControlRigGraphPinNameListValueWidget)
 			.OptionsSource(&GetNameList())
-			.OnGenerateWidget(this, &SControlRigGizmoNameList::MakeNameListItemWidget)
-			.OnSelectionChanged(this, &SControlRigGizmoNameList::OnNameListChanged)
-			.OnComboBoxOpening(this, &SControlRigGizmoNameList::OnNameListComboBox)
+			.OnGenerateWidget(this, &SControlRigShapeNameList::MakeNameListItemWidget)
+			.OnSelectionChanged(this, &SControlRigShapeNameList::OnNameListChanged)
+			.OnComboBoxOpening(this, &SControlRigShapeNameList::OnNameListComboBox)
 			.InitiallySelectedItem(InitialSelected)
 			.Content()
 			[
 				SNew(STextBlock)
-				.Text(this, &SControlRigGizmoNameList::GetNameListText)
+				.Text(this, &SControlRigShapeNameList::GetNameListText)
 			]
 		]
 	);
 }
 
-const TArray<TSharedPtr<FString>>& SControlRigGizmoNameList::GetNameList() const
+const TArray<TSharedPtr<FString>>& SControlRigShapeNameList::GetNameList() const
 {
 	if (OnGetNameListContent.IsBound())
 	{
@@ -68,7 +68,7 @@ const TArray<TSharedPtr<FString>>& SControlRigGizmoNameList::GetNameList() const
 	return EmptyList;
 }
 
-FText SControlRigGizmoNameList::GetNameListText() const
+FText SControlRigShapeNameList::GetNameListText() const
 {
 	FName FirstName = NAME_None;
 	FText Text;
@@ -77,13 +77,13 @@ FText SControlRigGizmoNameList::GetNameListText() const
 		const int32 ControlIndex = Blueprint->Hierarchy->GetIndex(ControlKeys[KeyIndex]);
 		if (ControlIndex != INDEX_NONE)
 		{
-			const FName GizmoName = Blueprint->Hierarchy->GetChecked<FRigControlElement>(ControlIndex)->Settings.GizmoName; 
+			const FName ShapeName = Blueprint->Hierarchy->GetChecked<FRigControlElement>(ControlIndex)->Settings.ShapeName; 
 			if(KeyIndex == 0)
 			{
-				Text = FText::FromName(GizmoName);
-				FirstName = GizmoName;
+				Text = FText::FromName(ShapeName);
+				FirstName = ShapeName;
 			}
-			else if(FirstName != GizmoName)
+			else if(FirstName != ShapeName)
 			{
 				static const FString MultipleValues = TEXT("Multiple Values");
 				Text = FText::FromString(MultipleValues);
@@ -94,9 +94,9 @@ FText SControlRigGizmoNameList::GetNameListText() const
 	return Text;
 }
 
-void SControlRigGizmoNameList::SetNameListText(const FText& NewTypeInValue, ETextCommit::Type /*CommitInfo*/)
+void SControlRigShapeNameList::SetNameListText(const FText& NewTypeInValue, ETextCommit::Type /*CommitInfo*/)
 {
-	const FScopedTransaction Transaction(NSLOCTEXT("ControlRigEditor", "ChangeGizmoName", "Change Gizmo Name"));
+	const FScopedTransaction Transaction(NSLOCTEXT("ControlRigEditor", "ChangeShapeName", "Change Shape Name"));
 
 	for(int32 KeyIndex = 0; KeyIndex < ControlKeys.Num(); KeyIndex++)
 	{
@@ -107,24 +107,24 @@ void SControlRigGizmoNameList::SetNameListText(const FText& NewTypeInValue, ETex
 			URigHierarchy* Hierarchy = Blueprint->Hierarchy;
 
 			FRigControlElement* ControlElement = Hierarchy->Get<FRigControlElement>(ControlIndex);
-			if ((ControlElement != nullptr) && (ControlElement->Settings.GizmoName != NewName))
+			if ((ControlElement != nullptr) && (ControlElement->Settings.ShapeName != NewName))
 			{
 				Hierarchy->Modify();
 
 				FRigControlSettings Settings = ControlElement->Settings;
-				Settings.GizmoName = NewName;
+				Settings.ShapeName = NewName;
 				Hierarchy->SetControlSettings(ControlElement, Settings, true, true, true);
 			}
 		}
 	}
 }
 
-TSharedRef<SWidget> SControlRigGizmoNameList::MakeNameListItemWidget(TSharedPtr<FString> InItem)
+TSharedRef<SWidget> SControlRigShapeNameList::MakeNameListItemWidget(TSharedPtr<FString> InItem)
 {
 	return 	SNew(STextBlock).Text(FText::FromString(*InItem));// .Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
 }
 
-void SControlRigGizmoNameList::OnNameListChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo)
+void SControlRigShapeNameList::OnNameListChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo)
 {
 	if (SelectInfo != ESelectInfo::Direct)
 	{
@@ -140,7 +140,7 @@ void SControlRigGizmoNameList::OnNameListChanged(TSharedPtr<FString> NewSelectio
 	}
 }
 
-void SControlRigGizmoNameList::OnNameListComboBox()
+void SControlRigShapeNameList::OnNameListComboBox()
 {
 	TSharedPtr<FString> CurrentlySelected;
 	for (TSharedPtr<FString> Item : GetNameList())

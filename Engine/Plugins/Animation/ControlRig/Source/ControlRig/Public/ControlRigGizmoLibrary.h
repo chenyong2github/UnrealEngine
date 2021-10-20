@@ -10,50 +10,55 @@
 
 #include "ControlRigGizmoLibrary.generated.h"
 
-USTRUCT(BlueprintType, meta = (DisplayName = "Gizmo"))
-struct CONTROLRIG_API FControlRigGizmoDefinition
+class UControlRigShapeLibrary;
+
+USTRUCT(BlueprintType, meta = (DisplayName = "Shape"))
+struct CONTROLRIG_API FControlRigShapeDefinition
 {
 	GENERATED_USTRUCT_BODY()
 
-	FControlRigGizmoDefinition()
+	FControlRigShapeDefinition()
 	{
-		GizmoName = TEXT("Gizmo");
+		ShapeName = TEXT("Default");
 		StaticMesh = nullptr;
 		Transform = FTransform::Identity;
 	}
 
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Gizmo")
-	FName GizmoName;
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Shape")
+	FName ShapeName;
 
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Gizmo")
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Shape")
 	TSoftObjectPtr<UStaticMesh> StaticMesh;
 
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Gizmo")
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Shape")
 	FTransform Transform;
+
+	mutable TWeakObjectPtr<UControlRigShapeLibrary> Library;
 };
 
-UCLASS(BlueprintType, meta = (DisplayName = "GizmoLibrary"))
-class CONTROLRIG_API UControlRigGizmoLibrary : public UObject
+UCLASS(BlueprintType, meta = (DisplayName = "Control Rig Shape Library"))
+class CONTROLRIG_API UControlRigShapeLibrary : public UObject
 {
 	GENERATED_BODY()
 
 public:
 
-	UControlRigGizmoLibrary();
+	UControlRigShapeLibrary();
 
-	UPROPERTY(EditAnywhere, Category = "GizmoLibrary")
-	FControlRigGizmoDefinition DefaultGizmo;
+	UPROPERTY(EditAnywhere, Category = "ShapeLibrary")
+	FControlRigShapeDefinition DefaultShape;
 
-	UPROPERTY(EditAnywhere, Category = "GizmoLibrary")
+	UPROPERTY(EditAnywhere, Category = "ShapeLibrary")
 	TSoftObjectPtr<UMaterial> DefaultMaterial;
 
-	UPROPERTY(EditAnywhere, Category = "GizmoLibrary")
+	UPROPERTY(EditAnywhere, Category = "ShapeLibrary")
 	FName MaterialColorParameter;
 
-	UPROPERTY(EditAnywhere, Category = "GizmoLibrary")
-	TArray<FControlRigGizmoDefinition> Gizmos;
+	UPROPERTY(EditAnywhere, Category = "ShapeLibrary")
+	TArray<FControlRigShapeDefinition> Shapes;
 
-	const FControlRigGizmoDefinition* GetGizmoByName(const FName& InName, bool bUseDefaultIfNotFound = false) const;
+	const FControlRigShapeDefinition* GetShapeByName(const FName& InName, bool bUseDefaultIfNotFound = false) const;
+	static const FControlRigShapeDefinition* GetShapeByName(const FName& InName, const TArray<TSoftObjectPtr<UControlRigShapeLibrary>>& InShapeLibraries);
 
 #if WITH_EDITOR
 

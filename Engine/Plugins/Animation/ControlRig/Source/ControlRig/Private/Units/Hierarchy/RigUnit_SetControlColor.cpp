@@ -21,7 +21,7 @@ FRigUnit_SetControlColor_Execute()
 				if (CachedControlIndex.UpdateCache(FRigElementKey(Control, ERigElementType::Control), Hierarchy))
 				{
 					FRigControlElement* ControlElement = Hierarchy->GetChecked<FRigControlElement>(CachedControlIndex);
-					ControlElement->Settings.GizmoColor = Color;
+					ControlElement->Settings.ShapeColor = Color;
 					Hierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
 				}
 				break;

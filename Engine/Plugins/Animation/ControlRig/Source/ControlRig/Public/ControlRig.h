@@ -333,7 +333,7 @@ public:
 	virtual void SetControlLocalTransform(const FName& InControlName, const FTransform& InLocalTransform, bool bNotify = true, const FRigControlModifiedContext& Context = FRigControlModifiedContext(), bool bSetupUndo = true);
 	virtual FTransform GetControlLocalTransform(const FName& InControlName) ;
 
-	virtual UControlRigGizmoLibrary* GetGizmoLibrary() const;
+	virtual const TArray<TSoftObjectPtr<UControlRigShapeLibrary>>& GetShapeLibraries() const;
 	virtual void CreateRigControlsForCurveContainer();
 	virtual void GetControlsInOrder(TArray<FRigControlElement*>& SortedControls) const;
 
@@ -438,7 +438,10 @@ private:
 	TObjectPtr<URigHierarchy> DynamicHierarchy;
 
 	UPROPERTY()
-	TSoftObjectPtr<UControlRigGizmoLibrary> GizmoLibrary;
+	TSoftObjectPtr<UControlRigShapeLibrary> GizmoLibrary_DEPRECATED;
+
+	UPROPERTY()
+	TArray<TSoftObjectPtr<UControlRigShapeLibrary>> ShapeLibraries;
 
 	/** Runtime object binding */
 	TSharedPtr<IControlRigObjectBinding> ObjectBinding;
@@ -771,7 +774,7 @@ private:
 			FRigControlSettings Settings;
 			FRigControlValue Value;
 			FTransform OffsetTransform;
-			FTransform GizmoTransform;
+			FTransform ShapeTransform;
 		};
 		
 		TArray<FTransientControlInfo> SavedTransientControls;

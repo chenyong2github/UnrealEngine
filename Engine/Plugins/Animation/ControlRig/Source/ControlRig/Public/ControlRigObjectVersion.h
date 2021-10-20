@@ -42,6 +42,9 @@ struct CONTROLRIG_API FControlRigObjectVersion
 		// RigHierarchy now stores min and max values as float storages 
 		StorageMinMaxValuesAsFloatStorage,
 
+		// RenameGizmoToShape 
+		RenameGizmoToShape,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

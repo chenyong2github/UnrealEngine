@@ -885,8 +885,8 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 		{
 			const FRigControlSettings& Settings = ControlElement->Settings;
 			
-			if (Settings.bGizmoEnabled &&
-				Settings.bGizmoVisible &&
+			if (Settings.bShapeEnabled &&
+				Settings.bShapeVisible &&
 				!Settings.bIsTransientControl &&
 				Settings.bDrawLimits &&
 				(Settings.bLimitTranslation
@@ -900,7 +900,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 				}
 
 				FTransform Transform = GetHierarchy()->GetGlobalControlOffsetTransformByIndex(ControlElement->GetIndex());
-				FControlRigDrawInstruction Instruction(EControlRigDrawSettings::Lines, Settings.GizmoColor, 0.f, Transform);
+				FControlRigDrawInstruction Instruction(EControlRigDrawSettings::Lines, Settings.ShapeColor, 0.f, Transform);
 
 				switch (Settings.ControlType)
 				{
@@ -1405,9 +1405,9 @@ void UControlRig::CreateRigControlsForCurveContainer()
 				Settings.bIsCurve = true;
 				Settings.bAnimatable = true;
 				Settings.bDrawLimits = false;
-				Settings.bGizmoEnabled = false;
-				Settings.bGizmoVisible = false;
-				Settings.GizmoColor = FLinearColor::Red;
+				Settings.bShapeEnabled = false;
+				Settings.bShapeVisible = false;
+				Settings.ShapeColor = FLinearColor::Red;
 
 				FRigControlValue Value;
 				Value.Set<float>(CurveElement->Value);
@@ -1533,20 +1533,22 @@ FTransform UControlRig::GetControlLocalTransform(const FName& InControlName)
 	return DynamicHierarchy->GetLocalTransform(FRigElementKey(InControlName, ERigElementType::Control));
 }
 
-UControlRigGizmoLibrary* UControlRig::GetGizmoLibrary() const
+const TArray<TSoftObjectPtr<UControlRigShapeLibrary>>& UControlRig::GetShapeLibraries() const
 {
 	if (UControlRig* CDO = Cast<UControlRig>(GetClass()->GetDefaultObject()))
 	{
-		if (!CDO->GizmoLibrary.IsValid())
+		for(TSoftObjectPtr<UControlRigShapeLibrary>& ShapeLibrary : CDO->ShapeLibraries)
 		{
-			CDO->GizmoLibrary.LoadSynchronous();
+			if (!ShapeLibrary.IsValid())
+			{
+				ShapeLibrary.LoadSynchronous();
+			}
 		}
-		if (CDO->GizmoLibrary.IsValid())
-		{
-			return CDO->GizmoLibrary.Get();
-		}
+		return CDO->ShapeLibraries;
 	}
-	return nullptr;
+
+	static TArray<TSoftObjectPtr<UControlRigShapeLibrary>> EmptyShapeLibraries;
+	return EmptyShapeLibraries;
 }
 
 void UControlRig::SelectControl(const FName& InControlName, bool bSelect)
@@ -1615,7 +1617,7 @@ void UControlRig::HandleHierarchyModified(ERigHierarchyNotification InNotificati
 			break;
 		}
 		case ERigHierarchyNotification::ControlSettingChanged:
-		case ERigHierarchyNotification::ControlGizmoTransformChanged:
+		case ERigHierarchyNotification::ControlShapeTransformChanged:
 		{
 			if(FRigControlElement* ControlElement = Cast<FRigControlElement>((FRigBaseElement*)InElement))
 			{
@@ -1657,8 +1659,8 @@ FName UControlRig::AddTransientControl(URigVMPin* InPin, FRigElementKey SpaceKey
 	URigVMPin* PinForLink = InPin->GetPinForLink();
 
 	const FName ControlName = GetNameForTransientControl(InPin);
-	FTransform GizmoTransform = FTransform::Identity;
-	GizmoTransform.SetScale3D(FVector::ZeroVector);
+	FTransform ShapeTransform = FTransform::Identity;
+	ShapeTransform.SetScale3D(FVector::ZeroVector);
 
 	FRigControlSettings Settings;
 	if (URigVMPin* ColorPin = PinForLink->GetNode()->FindPin(TEXT("Color")))
@@ -1666,7 +1668,7 @@ FName UControlRig::AddTransientControl(URigVMPin* InPin, FRigElementKey SpaceKey
 		if (ColorPin->GetCPPType() == TEXT("FLinearColor"))
 		{
 			FRigControlValue Value;
-			Settings.GizmoColor = Value.SetFromString<FLinearColor>(ColorPin->GetDefaultValue());
+			Settings.ShapeColor = Value.SetFromString<FLinearColor>(ColorPin->GetDefaultValue());
 		}
 	}
 	Settings.bIsTransientControl = true;
@@ -1686,7 +1688,7 @@ FName UControlRig::AddTransientControl(URigVMPin* InPin, FRigElementKey SpaceKey
     	Settings,
     	FRigControlValue::Make(FTransform::Identity),
     	OffsetTransform,
-    	GizmoTransform, false);
+    	ShapeTransform, false);
 
 	SetTransientControlValue(InPin);
 
@@ -1790,8 +1792,8 @@ FName UControlRig::AddTransientControl(const FRigElementKey& InElement)
 		return NAME_None;
 	}
 
-	FTransform GizmoTransform = FTransform::Identity;
-	GizmoTransform.SetScale3D(FVector::ZeroVector);
+	FTransform ShapeTransform = FTransform::Identity;
+	ShapeTransform.SetScale3D(FVector::ZeroVector);
 
 	FRigControlSettings Settings;
 	Settings.bIsTransientControl = true;
@@ -1828,7 +1830,7 @@ FName UControlRig::AddTransientControl(const FRigElementKey& InElement)
         Settings,
         FRigControlValue::Make(FTransform::Identity),
         FTransform::Identity,
-        GizmoTransform, false);
+        ShapeTransform, false);
 
 	if (InElement.Type == ERigElementType::Bone)
 	{
@@ -2899,7 +2901,7 @@ UControlRig::FTransientControlScope::FTransientControlScope(TObjectPtr<URigHiera
 		// preserve whatever value that was produced by this transient control at the moment
 		Info.Value = Hierarchy->GetControlValue(Control->GetKey(),ERigControlValueType::Current);
 		Info.OffsetTransform = Hierarchy->GetControlOffsetTransform(Control, ERigTransformType::CurrentLocal);
-		Info.GizmoTransform = Hierarchy->GetControlGizmoTransform(Control, ERigTransformType::CurrentLocal);
+		Info.ShapeTransform = Hierarchy->GetControlShapeTransform(Control, ERigTransformType::CurrentLocal);
 				
 		SavedTransientControls.Add(Info);
 	}
@@ -2916,7 +2918,7 @@ UControlRig::FTransientControlScope::~FTransientControlScope()
             Info.Settings,
             Info.Value,
             Info.OffsetTransform,
-            Info.GizmoTransform,
+            Info.ShapeTransform,
             false,
             false
         );

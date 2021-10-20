@@ -29,7 +29,7 @@ class FPrimitiveDrawInterface;
 class FToolBarBuilder;
 class FExtender;
 class IMovieScenePlayer;
-class AControlRigGizmoActor;
+class AControlRigShapeActor;
 class UDefaultControlRigManipulationLayer;
 class UControlRigDetailPanelControlProxies;
 class UControlRigControlsProxy;
@@ -140,19 +140,19 @@ public:
 	void OnControlModified(UControlRig* Subject, FRigControlElement* InControlElement, const FRigControlModifiedContext& Context);
 
 	/** return true if it can be removed from preview scene 
-	- this is to ensure preview scene doesn't remove Gizmo actors */
+	- this is to ensure preview scene doesn't remove shape actors */
 	bool CanRemoveFromPreviewScene(const USceneComponent* InComponent);
 
 	FUICommandList* GetCommandBindings() const { return CommandBindings.Get(); }
 
-	/** Requests to recreate the gizmo actors in the next tick */
-	void RequestToRecreateGizmoActors() { bRecreateGizmosRequired = true; }
+	/** Requests to recreate the shape actors in the next tick */
+	void RequestToRecreateControlShapeActors() { bRecreateControlShapesRequired = true; }
 
 protected:
 
-	// Gizmo related functions wrt enable/selection
+	// shape related functions wrt enable/selection
 	/** Get the node name from the property path */
-	AControlRigGizmoActor* GetGizmoFromControlName(const FName& InControlName) const;
+	AControlRigShapeActor* GetControlShapeFromControlName(const FName& InControlName) const;
 
 protected:
 	/** Helper function: set ControlRigs array to the details panel */
@@ -165,7 +165,7 @@ protected:
 	void RecalcPivotTransform();
 
 	/** Helper function for box/frustum intersection */
-	bool IntersectSelect(bool InSelect, const TFunctionRef<bool(const AControlRigGizmoActor*, const FTransform&)>& Intersects);
+	bool IntersectSelect(bool InSelect, const TFunctionRef<bool(const AControlRigShapeActor*, const FTransform&)>& Intersects);
 
 	/** Handle selection internally */
 	void HandleSelectionChanged();
@@ -195,38 +195,37 @@ private:
 	/** Reset Transforms */
 	void ResetTransforms(bool bSelectionOnly);
 
-	/** Increase Gizmo Size */
-	void IncreaseGizmoSize();
+	/** Increase Shape Size */
+	void IncreaseShapeSize();
 
-	/** Decrease Gizmo Size */
-	void DecreaseGizmoSize();
+	/** Decrease Shape Size */
+	void DecreaseShapeSize();
 
-	/** Reset Gizmo Size */
-	void ResetGizmoSize();
+	/** Reset Shape Size */
+	void ResetControlShapeSize();
 
 public:
 	
-	/** Toggle Gizmo Transform Edit*/
-	void ToggleGizmoTransformEdit();
+	/** Toggle Shape Transform Edit*/
+	void ToggleControlShapeTransformEdit();
 
 private:
 	
-	/** The hotkey text is passed to a viewport notification to inform users how to toggle gizmo edit*/
-	FText GetToggleGizmoTransformEditHotKey() const;
+	/** The hotkey text is passed to a viewport notification to inform users how to toggle shape edit*/
+	FText GetToggleControlShapeTransformEditHotKey() const;
 
 	/** Bind our keyboard commands */
 	void BindCommands();
 
 	/** It creates if it doesn't have it */
-	void RecreateGizmoActors(const TArray<FRigElementKey>& InSelectedElements = TArray<FRigElementKey>());
-
+	void RecreateControlShapeActors(const TArray<FRigElementKey>& InSelectedElements = TArray<FRigElementKey>());
 
 
 	/** Let the preview scene know how we want to select components */
-	bool GizmoSelectionOverride(const UPrimitiveComponent* InComponent) const;
+	bool ShapeSelectionOverride(const UPrimitiveComponent* InComponent) const;
 
-	/** Enable editing of control's gizmo transform instead of control's transform*/
-	bool bIsChangingGizmoTransform;
+	/** Enable editing of control's shape transform instead of control's transform*/
+	bool bIsChangingControlShapeTransform;
 
 protected:
 
@@ -266,11 +265,11 @@ protected:
 	/** GetSelectedRigElements */
 	TArray<FRigElementKey> GetSelectedRigElements() const;
 
-	/* Flag to recreate gizmos during tick */
-	bool bRecreateGizmosRequired;
+	/* Flag to recreate shapes during tick */
+	bool bRecreateControlShapesRequired;
 
-	/** Gizmo actors */
-	TArray<AControlRigGizmoActor*> GizmoActors;
+	/** Shape actors */
+	TArray<AControlRigShapeActor*> ShapeActors;
 	UControlRigDetailPanelControlProxies* ControlProxy;
 
 	/** Utility functions for UI/Some other viewport manipulation*/
@@ -316,7 +315,7 @@ private:
 	TArray<ECoordSystem> CoordSystemPerWidgetMode;
 	bool bIsChangingCoordSystem;
 
-	bool CanChangeControlGizmoTransform();
+	bool CanChangeControlShapeTransform();
 public:
 	//Toolbar functions
 	void SetOnlySelectRigControls(bool val);
@@ -324,24 +323,24 @@ public:
 
 private:
 	TSet<FName> GetActiveControlsFromSequencer(UControlRig* ControlRig);
-	bool CreateGizmoActors(UWorld* World);
-	void DestroyGizmosActors();
+	bool CreateShapeActors(UWorld* World);
+	void DestroyShapesActors();
 
 	void AddControlRig(UControlRig* InControlRig);
 	void RemoveControlRig(UControlRig* InControlRig);
 	void TickManipulatableObjects(float DeltaTime);
 
-	void SetGizmoTransform(AControlRigGizmoActor* GizmoActor, const FTransform& InTransform);
-	FTransform GetGizmoTransform(AControlRigGizmoActor* GizmoActor) const;
-	void MoveGizmo(AControlRigGizmoActor* GizmoActor, const bool bTranslation, FVector& InDrag, 
+	void SetControlShapeTransform(AControlRigShapeActor* ShapeActor, const FTransform& InTransform);
+	FTransform GetControlShapeTransform(AControlRigShapeActor* ShapeActor) const;
+	void MoveControlShape(AControlRigShapeActor* ShapeActor, const bool bTranslation, FVector& InDrag, 
 		const bool bRotation, FRotator& InRot, const bool bScale, FVector& InScale, const FTransform& ToWorldTransform,
 		bool bUseLocal, bool bCalcLocal, FTransform& InOutLocal);
 
-	void ChangeControlGizmoTransform(AControlRigGizmoActor* GizmoActor, const bool bTranslation, FVector& InDrag,
+	void ChangeControlShapeTransform(AControlRigShapeActor* ShapeActor, const bool bTranslation, FVector& InDrag,
 		const bool bRotation, FRotator& InRot, const bool bScale, FVector& InScale, const FTransform& ToWorldTransform);
 
-	void TickGizmo(AControlRigGizmoActor* GizmoActor, const FTransform& ComponentTransform);
-	bool ModeSupportedByGizmoActor(const AControlRigGizmoActor* GizmoActor, UE::Widget::EWidgetMode InMode) const;
+	void TickControlShape(AControlRigShapeActor* ShapeActor, const FTransform& ComponentTransform);
+	bool ModeSupportedByShapeActor(const AControlRigShapeActor* ShapeActor, UE::Widget::EWidgetMode InMode) const;
 
 	// Object binding
 	/** Setup bindings to a runtime object (or clear by passing in nullptr). */
