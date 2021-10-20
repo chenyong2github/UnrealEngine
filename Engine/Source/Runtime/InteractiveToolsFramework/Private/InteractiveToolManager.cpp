@@ -4,7 +4,6 @@
 
 #include "Engine/Engine.h"
 #include "InteractiveToolsContext.h"
-#include "InteractiveToolsSelectionStoreSubsystem.h"
 #include "ContextObjectStore.h"
 
 #define LOCTEXT_NAMESPACE "UInteractiveToolManager"
