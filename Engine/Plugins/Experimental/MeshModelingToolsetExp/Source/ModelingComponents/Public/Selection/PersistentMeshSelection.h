@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "IndexTypes.h"
 #include "SegmentTypes.h"
-#include "InteractiveToolStorableSelection.h"
 
 #include "PersistentMeshSelection.generated.h"
 
