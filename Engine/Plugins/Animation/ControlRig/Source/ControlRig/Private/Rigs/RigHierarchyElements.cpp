@@ -4,6 +4,7 @@
 #include "Rigs/RigHierarchy.h"
 #include "Units/RigUnitContext.h"
 #include "ControlRigObjectVersion.h"
+#include "ControlRigGizmoLibrary.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // FRigBaseElement
@@ -424,6 +425,8 @@ FRigControlSettings::FRigControlSettings()
 , ControlEnum(nullptr)
 , Customization()
 {
+	// rely on the default provided by the shape definition
+	ShapeName = FControlRigShapeDefinition().ShapeName; 
 }
 
 void FRigControlSettings::Save(FArchive& Ar)
