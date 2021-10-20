@@ -2,6 +2,7 @@
 
 #include "DerivedDataCacheRecord.h"
 
+#include "Algo/Accumulate.h"
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataCachePrivate.h"
 #include "DerivedDataPayload.h"
@@ -404,3 +405,30 @@ FCacheRecordBuilder::FCacheRecordBuilder(const FCacheKey& Key)
 }
 
 } // UE::DerivedData
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace UE::DerivedData::Private
+{
+
+uint64 GetCacheRecordCompressedSize(const FCacheRecord& Record)
+{
+	const uint64 ValueSize = Record.GetValuePayload().GetData().GetCompressedSize();
+	return int64(Algo::TransformAccumulate(Record.GetAttachmentPayloads(),
+		[](const FPayload& Payload) { return Payload.GetData().GetCompressedSize(); }, ValueSize));
+}
+
+uint64 GetCacheRecordTotalRawSize(const FCacheRecord& Record)
+{
+	const uint64 ValueSize = Record.GetValuePayload().GetRawSize();
+	return int64(Algo::TransformAccumulate(Record.GetAttachmentPayloads(), &FPayload::GetRawSize, ValueSize));
+}
+
+uint64 GetCacheRecordRawSize(const FCacheRecord& Record)
+{
+	const uint64 ValueSize = Record.GetValuePayload().GetData().GetRawSize();
+	return int64(Algo::TransformAccumulate(Record.GetAttachmentPayloads(),
+		[](const FPayload& Payload) { return Payload.GetData().GetRawSize(); }, ValueSize));
+}
+
+} // UE::DerivedData::Private
