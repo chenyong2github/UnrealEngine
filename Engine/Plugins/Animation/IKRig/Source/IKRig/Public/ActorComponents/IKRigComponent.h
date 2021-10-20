@@ -51,11 +51,18 @@ public:
 
 	/** Remove all stored goals in this component. */
 	UFUNCTION(BlueprintCallable, Category=IKRigGoals)
-    void ClearAllGoals(){ GoalContainer.Goals.Empty(); };
+    void ClearAllGoals(){ GoalContainer.Empty(); };
 
 	// BEGIN IIKRigGoalCreator interface
 	/** Called from the IK Rig Anim node to obtain all the goals that have been set on this actor.*/
-	void AddIKGoals_Implementation(TMap<FName, FIKRigGoal>& OutGoals) override { OutGoals.Append(GoalContainer.Goals); };
+	virtual void AddIKGoals_Implementation(TMap<FName, FIKRigGoal>& OutGoals) override
+	{
+		const TArray<FIKRigGoal>& Goals = GoalContainer.GetGoalArray();
+		for (const FIKRigGoal& Goal : Goals)
+		{
+			OutGoals.Add(Goal.Name, Goal);
+		}
+	};
 	// END IIKRigGoalCreator interface
 
 private:

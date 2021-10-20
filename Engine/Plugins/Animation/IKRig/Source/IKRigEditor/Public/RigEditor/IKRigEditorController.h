@@ -18,9 +18,15 @@ class FIKRigTreeElement;
 class UDebugSkelMeshComponent;
 
 /** a home for cross-widget communication to synchronize state across all tabs and viewport */
-class FIKRigEditorController
+class FIKRigEditorController : public TSharedFromThis<FIKRigEditorController>
 {
 public:
+
+	/** initialize the editor controller to an instance of the IK Rig editor */
+	void Initialize(TSharedPtr<FIKRigEditorToolkit> Toolkit, UIKRigDefinition* Asset);
+
+	/** callback when IK Rig requires re-initialization */
+	void OnIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig);
 
 	/** create goals */
 	void AddNewGoals(const TArray<FName>& GoalNames, const TArray<FName>& BoneNames);

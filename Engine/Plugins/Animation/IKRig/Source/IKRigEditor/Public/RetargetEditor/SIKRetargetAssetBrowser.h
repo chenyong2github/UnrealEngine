@@ -22,6 +22,8 @@ private:
 
 	void AddAssetBrowser();
 
+	void OnPathChange(const FString& NewPath);
+
 	FReply OnExportButtonClicked() const;
 	bool IsExportButtonEnabled() const;
 	
@@ -36,6 +38,9 @@ private:
 
 	/** the animation asset browser */
 	TSharedPtr<SBox> AssetBrowserBox;
+
+	/** the path to export assets to */
+	FString BatchOutputPath = "";
 
 	friend FIKRetargetEditorController;
 };

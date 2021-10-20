@@ -1,0 +1,107 @@
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+
+#include "Retargeter/IKRetargeter.h"
+#include "UObject/Object.h"
+
+#include "IKRetargeterController.generated.h"
+
+struct FRetargetChainMap;
+class UIKRigDefinition;
+class UIKRetargeter;
+
+/** A singleton (per-asset) class used to make modifications to a UIKRetargeter asset.
+* Call the static UIKRetargeterController() function to get the controller for the asset you want to modify. */ 
+UCLASS(config = Engine, hidecategories = UObject)
+class IKRIGEDITOR_API UIKRetargeterController : public UObject
+{
+	GENERATED_BODY()
+
+public:
+
+	/** Use this to get the controller for the given retargeter asset */
+	static UIKRetargeterController* GetController(UIKRetargeter* InRetargeterAsset);
+	/** Get access to the retargeter asset.
+	 *@warning Do not make modifications to the asset directly. Use this API instead. */
+	UIKRetargeter* GetAsset() const;
+	/** Get the USkeleton used on the Source asset */
+	USkeleton* GetSourceSkeletonAsset() const;
+
+	/** Get name of the Root bone used for retargeting the Source skeleton. */
+	FName GetSourceRootBone() const;
+	/** Get name of the Root bone used for retargeting the Target skeleton. */
+	FName GetTargetRootBone() const;
+
+	/** RETARGET CHAIN MAPPING
+	* 
+	*/
+	/** Get names of all the target bone chains. */
+	void GetTargetChainNames(TArray<FName>& OutNames) const;
+	/** Get names of all the source bone chains. */
+	void GetSourceChainNames(TArray<FName>& OutNames) const;
+	/** Remove invalid chain mappings (no longer existing in currently referenced source/target IK Rig assets) */
+	void CleanChainMapping();
+	/** Use fuzzy string search to find "best" Source chain to map to each Target chain */
+	void AutoMapChains();
+	/** Callback when IK Rig chain is renamed. Retains existing mappings using the new name */
+	void OnRetargetChainRenamed(UIKRigDefinition* IKRig, FName OldChainName, FName NewChainName) const;
+	/** Set the source chain to map to a given target chain */
+	void SetSourceChainForTargetChain(FName TargetChain, FName SourceChainToMapTo);
+	/** Get the source chain mapped to a given target chain */
+	FName GetSourceChainForTargetChain(FName TargetChain);
+	/** Get read-only access to the list of chain mappings */
+	const TArray<FRetargetChainMap>& GetChainMappings();
+	/** END RETARGET CHAIN MAPPING */
+
+	/** RETARGET POSE EDITING
+	 * 
+	 */
+	/** Remove bones from retarget poses that are no longer in skeleton */
+	void CleanPoseList();
+	/** Add new retarget pose. */
+	void AddRetargetPose(FName NewPoseName) const;
+	/** Remove a retarget pose. */
+	void RemoveRetargetPose(FName PoseToRemove) const;
+	/** Reset a retarget pose (removes all stored deltas, returning pose to reference pose */
+	void ResetRetargetPose(FName PoseToReset) const;
+	/** Get the current retarget pose */
+    FName GetCurrentRetargetPoseName() const;
+	/** Change which retarget pose is used by the retargeter at runtime */
+	void SetCurrentRetargetPose(FName CurrentPose) const;
+	/** Get read-only access to list of retarget poses */
+	const TMap<FName, FIKRetargetPose>& GetRetargetPoses();
+	/** Add a delta rotation to a given bone for the current retarget pose (used in Edit Mode in the retarget editor) */
+	void AddRotationOffsetToRetargetPoseBone(FName BoneName, FQuat RotationOffset) const;
+	/** Add a delta translation to the root bone (used in Edit Mode in the retarget editor) */
+	void AddTranslationOffsetToRetargetRootBone(FVector TranslationOffset) const;
+	/** Set whether to output retarget pose. Will output current retarget pose if true, or run retarget otherwise. */
+	void SetEditRetargetPoseMode(bool bOutputRetargetPose) const;
+	/** Get whether in mode to output retarget pose (true) or run retarget (false). */
+	bool GetEditRetargetPoseMode() const;
+	/** END RETARGET POSE EDITING */
+
+private:
+
+	/** Called whenever the rig is modified in such a way that would require re-initialization by dependent systems.*/
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnRetargeterNeedsInitialized, const UIKRetargeter*);
+	FOnRetargeterNeedsInitialized RetargeterNeedsInitialized;
+
+	void BroadcastNeedsReinitialized() const
+	{
+		RetargeterNeedsInitialized.Broadcast(GetAsset());
+	}
+	
+public:
+	
+	FOnRetargeterNeedsInitialized& OnRetargeterNeedsInitialized(){ return RetargeterNeedsInitialized; };
+	
+private:
+
+	FRetargetChainMap* GetChainMap(const FName& TargetChainName) const;
+
+	/** The actual asset that this Controller modifies. */
+	UIKRetargeter* Asset = nullptr;
+};

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "EditorUndoClient.h"
+#include "IKRigDefinition.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STableViewBase.h"
@@ -30,17 +31,17 @@ public:
         TSharedRef<FRetargetChainElement> InStackElement,
         TSharedPtr<SIKRigRetargetChainList> InChainList);
 
-	static TSharedRef<FRetargetChainElement> Make(FBoneChain* InChain)
+	static TSharedRef<FRetargetChainElement> Make(const FName& InChainName)
 	{
-		return MakeShareable(new FRetargetChainElement(InChain));
+		return MakeShareable(new FRetargetChainElement(InChainName));
 	}
 
-	FBoneChain* Chain;
+	FName ChainName;
 
 private:
 	
 	/** Hidden constructor, always use Make above */
-	FRetargetChainElement(FBoneChain* InChain) : Chain(InChain) {}
+	FRetargetChainElement(const FName& InChainName) : ChainName(InChainName) {}
 
 	/** Hidden constructor, always use Make above */
 	FRetargetChainElement() {}
@@ -111,8 +112,6 @@ class SIKRigRetargetChainList : public SCompoundWidget, public FEditorUndoClient
 public:
 	SLATE_BEGIN_ARGS(SIKRigRetargetChainList) {}
 	SLATE_END_ARGS()
-
-    ~SIKRigRetargetChainList();
 
 	void Construct(const FArguments& InArgs, TSharedRef<FIKRigEditorController> InEditorController);
 

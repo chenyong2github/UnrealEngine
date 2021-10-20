@@ -4,9 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "IKRigDefinition.h"
+
 #include "IKRigDataTypes.generated.h"
 
-class UIKRigEffectorGoal;
+class UIKRigProcessor;
 
 UENUM(BlueprintType)
 enum class EIKRigGoalSpace : uint8
@@ -54,11 +55,11 @@ struct IKRIG_API FIKRigGoal
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Rotation, meta=(EditCondition="Source == EIKRigGoalSource::Manual"))
 	FRotator Rotation;
 
-	/** Range 0-1. Smoothly blends the Goal position from the input pose (0.0) to the Goal position (1.0). */
+	/** Range 0-1, default is 1.0. Smoothly blends the Goal position from the input pose (0.0) to the Goal position (1.0). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Position, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float PositionAlpha;
 
-	/** Range 0-1. Smoothly blends the Goal rotation from the input pose (0.0) to the Goal rotation (1.0). */
+	/** Range 0-1, default is 1.0. Smoothly blends the Goal rotation from the input pose (0.0) to the Goal rotation (1.0). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Rotation, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float RotationAlpha;
 
@@ -86,8 +87,8 @@ struct IKRIG_API FIKRigGoal
     : Name(NAME_None),
 	Position(ForceInitToZero),
 	Rotation(FRotator::ZeroRotator),
-	PositionAlpha(0.0f),
-    RotationAlpha(0.0f),
+	PositionAlpha(1.0f),
+    RotationAlpha(1.0f),
 	PositionSpace(EIKRigGoalSpace::Component),
 	RotationSpace(EIKRigGoalSpace::Component),
 	FinalBlendedPosition(ForceInitToZero),
@@ -97,8 +98,8 @@ struct IKRIG_API FIKRigGoal
     : Name(GoalName),
 	Position(ForceInitToZero),
 	Rotation(FRotator::ZeroRotator),
-    PositionAlpha(0.0f),
-    RotationAlpha(0.0f),
+    PositionAlpha(1.0f),
+    RotationAlpha(1.0f),
 	PositionSpace(EIKRigGoalSpace::Component),
     RotationSpace(EIKRigGoalSpace::Component),
 	FinalBlendedPosition(ForceInitToZero),
@@ -146,22 +147,28 @@ struct IKRIG_API FIKRigGoalContainer
 	GENERATED_BODY()
 
 public:
-	
-	/** Pre-load all the names of goals (optional, you can just call SetIKGoal to add as needed) */
-	void InitializeFromGoals(const TArray<UIKRigEffectorGoal*>& InGoals);
 
-	/** Set an IK goal to go to a specific location and rotation (in component space) blended by alpha.
+	/** Set an IK goal to go to a specific location and rotation (in the specified space) blended by alpha.
 	 * Will ADD the goal if none exist with the input name. */
 	void SetIKGoal(const FIKRigGoal& InGoal);
 
-	/** Set an IK goal to go to a specific location and rotation (in component space) blended by alpha.
+	/** Set an IK goal to go to a specific location and rotation (in the specified space) blended by alpha.
 	* Will ADD the goal if none exist with the input name. */
 	void SetIKGoal(const UIKRigEffectorGoal* InEffectorGoal);
 
-	/** Get an IK goal with the given name. Returns false if no goal is found in the container with the name. */
-	bool GetGoalByName(const FName& InGoalName, FIKRigGoal& OutGoal) const;
+	/** Get an IK goal with the given name. Returns nullptr if no Goal is found in the container with the name. */
+	const FIKRigGoal* FindGoalByName(const FName& GoalName) const;
 
-	/** Keys are IK Rig Goal names. Values are the Goal data structures.
-	 * These are consumed by an IKRig asset to drive effectors. */
-	TMap<FName, FIKRigGoal> Goals;
+	/** Clear out all Goals in container. */
+	void Empty() { Goals.Empty(); };
+
+	/** Get read-only access to array of Goals. */
+	const TArray<FIKRigGoal>& GetGoalArray() const { return Goals; };
+	
+private:
+	
+	/** Array of Goals. Cannot contain duplicates (name is key). */
+	TArray<FIKRigGoal> Goals;
+
+	friend UIKRigProcessor;
 };

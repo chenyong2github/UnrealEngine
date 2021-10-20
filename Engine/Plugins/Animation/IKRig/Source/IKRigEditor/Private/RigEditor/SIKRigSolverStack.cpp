@@ -31,6 +31,9 @@ void SIKRigSolverStackItem::Construct(
 	TSharedRef<FSolverStackElement> InStackElement,
 	TSharedPtr<SIKRigSolverStack> InSolverStack)
 {
+	StackElement = InStackElement;
+	SolverStack = InSolverStack;
+	
 	STableRow<TSharedPtr<FSolverStackElement>>::Construct(
         STableRow<TSharedPtr<FSolverStackElement>>::FArguments()
         .OnDragDetected(InSolverStack.Get(), &SIKRigSolverStack::OnDragDetected)
@@ -40,25 +43,134 @@ void SIKRigSolverStackItem::Construct(
         [
             SNew(SHorizontalBox)
             + SHorizontalBox::Slot()
-            .MaxWidth(18)
-			.FillWidth(1.0)
-			.HAlign(HAlign_Left)
-			.VAlign(VAlign_Center)
+            .AutoWidth()
+            .HAlign(HAlign_Left)
+            .Padding(3)
             [
-                SNew(SImage)
-                .Image(FIKRigEditorStyle::Get().GetBrush("IKRig.DragSolver"))
+            	SNew(SHorizontalBox)
+	            + SHorizontalBox::Slot()
+	            .MaxWidth(18)
+				.FillWidth(1.0)
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+	            [
+	                SNew(SImage)
+	                .Image(FIKRigEditorStyle::Get().GetBrush("IKRig.DragSolver"))
+	            ]
+
+	            + SHorizontalBox::Slot()
+	            .AutoWidth()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.Padding(3.0f, 1.0f)
+				[
+					SNew(SCheckBox)
+					.IsEnabled_Lambda([this]()
+					{
+						FText Warning;
+						return !GetWarningMessage(Warning);
+					})
+					.IsChecked_Lambda([InSolverStack, InStackElement]() -> ECheckBoxState
+					{
+						bool bEnabled = true;
+						if (InSolverStack.IsValid() && InSolverStack->EditorController.IsValid())
+						{
+							bEnabled = InSolverStack->EditorController.Pin()->AssetController->GetSolver(InStackElement->IndexInStack)->IsEnabled();
+						}
+						return bEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+					})
+					.OnCheckStateChanged_Lambda([InSolverStack, InStackElement](ECheckBoxState InCheckBoxState)
+					{
+						if (InSolverStack.IsValid() &&
+							InSolverStack->EditorController.IsValid() &&
+							InSolverStack->EditorController.Pin().IsValid())
+						{
+							bool bIsChecked = InCheckBoxState == ECheckBoxState::Checked;
+							InSolverStack->EditorController.Pin()->AssetController->SetSolverEnabled(InStackElement->IndexInStack, bIsChecked);
+						}
+					})
+				]
+	     
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.Padding(3.0f, 1.0f)
+	            [
+					SNew(STextBlock)
+					.Text(InStackElement->DisplayName)
+					.IsEnabled_Lambda([this]()
+					{
+						FText Warning;
+						return !GetWarningMessage(Warning);
+					})
+					.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+	            ]
+
+	            + SHorizontalBox::Slot()
+	            .AutoWidth()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.Padding(3.0f, 1.0f)
+				[
+					SNew(STextBlock)
+					.Text(InStackElement->DisplayName)
+					.Text_Lambda([this]()
+					{
+						FText Message;
+						GetWarningMessage(Message);
+						return Message;
+					})
+					.TextStyle(FEditorStyle::Get(), "NormalText.Subdued")
+				]
             ]
-     
+
 			+ SHorizontalBox::Slot()
-            .VAlign(VAlign_Fill)
-            .HAlign(HAlign_Fill)
-            .Padding(3.0f, 1.0f)
-            [
-				SNew(STextBlock)
-				.Text(InStackElement->DisplayName)
-				.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-            ]
+			.FillWidth(1)
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			.Padding(3)
+			[
+				SNew(SButton)
+				.ToolTipText(LOCTEXT("DeleteSolver", "Delect solver and remove from stack."))
+				.OnClicked_Lambda([InSolverStack, InStackElement]() -> FReply
+				{
+					InSolverStack.Get()->DeleteSolver(InStackElement);
+					return FReply::Handled();
+				})
+				.Content()
+				[
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("Icons.Delete"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+			]
         ], OwnerTable);
+}
+
+bool SIKRigSolverStackItem::GetWarningMessage(FText& Message)
+{
+	if (!(StackElement.IsValid() && SolverStack.IsValid()))
+	{
+		return false;
+	}
+	if (!SolverStack.Pin()->EditorController.IsValid())
+	{
+		return false;
+	}
+	const int32 SolverIndex = StackElement.Pin()->IndexInStack;
+	const UIKRigSolver* Solver = SolverStack.Pin()->EditorController.Pin()->AssetController->GetSolver(SolverIndex);
+	if (!Solver)
+	{
+		return false;
+	}
+
+	if (Solver->GetWarningMessage(Message))
+	{
+		return true;
+	}
+					
+	return false;
 }
 
 TSharedRef<FIKRigSolverStackDragDropOp> FIKRigSolverStackDragDropOp::New(TWeakPtr<FSolverStackElement> InElement)
@@ -129,14 +241,14 @@ void SIKRigSolverStack::Construct(const FArguments& InArgs, TSharedRef<FIKRigEdi
         ]
 
         +SVerticalBox::Slot()
-        .Padding(0.0f, 0.0f)
+        .Padding(0.0f)
         [
 			SAssignNew( ListView, SSolverStackListViewType )
 			.SelectionMode(ESelectionMode::Multi)
 			.IsEnabled(this, &SIKRigSolverStack::IsAddSolverEnabled)
 			.ListItemsSource( &ListViewItems )
 			.OnGenerateRow( this, &SIKRigSolverStack::MakeListRowWidget )
-			.OnMouseButtonClick(this, &SIKRigSolverStack::OnItemClicked)
+			.OnSelectionChanged(this, &SIKRigSolverStack::OnSelectionChanged)
         ]
     ];
 
@@ -165,8 +277,9 @@ void SIKRigSolverStack::BuildAddNewMenu(FMenuBuilder& MenuBuilder)
 
 		if(Class->IsChildOf(UIKRigSolver::StaticClass()) && !Class->HasAnyClassFlags(CLASS_Abstract))
 		{
+			UIKRigSolver* SolverCDO = Cast<UIKRigSolver>(Class->GetDefaultObject());
 			FUIAction Action = FUIAction( FExecuteAction::CreateSP(this, &SIKRigSolverStack::AddNewSolver, Class));
-			MenuBuilder.AddMenuEntry(FText::FromString(Class->GetName()), FText::GetEmpty(), FSlateIcon(), Action);
+			MenuBuilder.AddMenuEntry(FText::FromString(SolverCDO->GetNiceName().ToString()), FText::GetEmpty(), FSlateIcon(), Action);
 		}
 	}
 	
@@ -183,7 +296,7 @@ bool SIKRigSolverStack::IsAddSolverEnabled() const
 	
 	if (UIKRigController* AssetController = Controller->AssetController)
 	{
-		if (AssetController->GetSkeleton().BoneNames.Num() > 0)
+		if (AssetController->GetIKRigSkeleton().BoneNames.Num() > 0)
 		{
 			return true;
 		}
@@ -199,13 +312,39 @@ void SIKRigSolverStack::AddNewSolver(UClass* Class)
 	{
 		return; 
 	}
-	
-	if (UIKRigController* AssetController = Controller->AssetController)
+
+	UIKRigController* AssetController = Controller->AssetController;
+	if (!AssetController)
 	{
-		// add the solver
-		const int32 NewSolverIndex = AssetController->AddSolver(Class);
+		return;
+	}
+	
+	// add the solver
+	const int32 NewSolverIndex = AssetController->AddSolver(Class);
+	// update stack view
+	RefreshStackView();
+	Controller->SkeletonView->RefreshTreeView(); // update solver indices in effector items
+	// select it
+	ListView->SetSelection(ListViewItems[NewSolverIndex]);
+	// show details for it
+	Controller->ShowDetailsForSolver(NewSolverIndex);
+}
+
+void SIKRigSolverStack::DeleteSolver(TSharedPtr<FSolverStackElement> SolverToDelete)
+{
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return; 
+	}
+	
+	if (!SolverToDelete.IsValid())
+	{
+		return;
 	}
 
+	UIKRigController* AssetController = Controller->AssetController;
+	AssetController->RemoveSolver(SolverToDelete->IndexInStack);
 	RefreshStackView();
 	Controller->SkeletonView->RefreshTreeView(); // update solver indices in effector items
 }
@@ -217,22 +356,31 @@ void SIKRigSolverStack::RefreshStackView()
 	{
 		return; 
 	}
-	
+
+	// record/restore selection
+	int32 IndexToSelect = 0; // default to first item
+	const TArray<TSharedPtr<FSolverStackElement>> SelectedItems = ListView.Get()->GetSelectedItems();
+	if (!SelectedItems.IsEmpty())
+	{
+		IndexToSelect = SelectedItems[0]->IndexInStack;
+	}
+
+	// generate all list items
 	ListViewItems.Reset();
 	UIKRigController* AssetController = Controller->AssetController;
 	const int32 NumSolvers = AssetController->GetNumSolvers();
 	for (int32 i=0; i<NumSolvers; ++i)
 	{
-		UIKRigSolver* Solver = AssetController->GetSolver(i);
-		const FText DisplayName = Solver ? FText::FromString(Solver->GetName()) : FText::FromString("Unknown Solver");
+		const UIKRigSolver* Solver = AssetController->GetSolver(i);
+		const FText DisplayName = Solver ? FText::FromString(Solver->GetNiceName().ToString()) : FText::FromString("Unknown Solver");
 		TSharedPtr<FSolverStackElement> SolverItem = FSolverStackElement::Make(DisplayName, i);
 		ListViewItems.Add(SolverItem);
 	}
 
-	// select first item if none others selected
-	if (ListViewItems.Num() > 0 && ListView->GetNumItemsSelected() == 0)
+	// restore selection
+	if (IndexToSelect < ListViewItems.Num())
 	{
-		ListView->SetSelection(ListViewItems[0]);
+		ListView->SetSelection(ListViewItems[IndexToSelect]);
 	}
 
 	ListView->RequestListRefresh();
@@ -268,16 +416,24 @@ FReply SIKRigSolverStack::OnDragDetected(
 	return FReply::Unhandled();
 }
 
-void SIKRigSolverStack::OnItemClicked(TSharedPtr<FSolverStackElement> InItem)
+void SIKRigSolverStack::OnSelectionChanged(TSharedPtr<FSolverStackElement> InItem, ESelectInfo::Type SelectInfo)
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
 	{
 		return; 
 	}
-	
-	Controller->ShowDetailsForSolver(InItem.Get()->IndexInStack);
-	Controller->SkeletonView->RefreshTreeView(); // update filter showing which bones are affected
+
+	if (!InItem.IsValid())
+	{
+		Controller->ShowEmptyDetails();	
+	}else
+	{
+		Controller->ShowDetailsForSolver(InItem.Get()->IndexInStack);
+	}
+
+	// update bones greyed out when not affected
+	Controller->SkeletonView->RefreshTreeView(); 
 }
 
 TOptional<EItemDropZone> SIKRigSolverStack::OnCanAcceptDrop(
@@ -326,30 +482,17 @@ FReply SIKRigSolverStack::OnAcceptDrop(
 }
 
 FReply SIKRigSolverStack::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
-{
-	const FKey Key = InKeyEvent.GetKey();
-	
-	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
-	if (!Controller.IsValid())
-	{
-		return FReply::Handled();
-	}
-
+{	
 	// handle deleting selected solver
-	if (Key == EKeys::Delete)
+	FKey KeyPressed = InKeyEvent.GetKey();
+	if (KeyPressed == EKeys::Delete || KeyPressed == EKeys::BackSpace)
 	{
 		TArray<TSharedPtr<FSolverStackElement>> SelectedItems = ListView->GetSelectedItems();
-		if (SelectedItems.IsEmpty())
+		if (!SelectedItems.IsEmpty())
 		{
-			return FReply::Unhandled();
+			// only delete 1 at a time to avoid messing up indices
+			DeleteSolver(SelectedItems[0]);
 		}
-
-		UIKRigController* AssetController = Controller->AssetController;
-		UIKRigSolver* SolverToRemove = AssetController->GetSolver(SelectedItems[0]->IndexInStack);
-		AssetController->RemoveSolver(SolverToRemove);
-
-		RefreshStackView();
-		Controller->SkeletonView->RefreshTreeView(); // update solver indices in effector items
 		
 		return FReply::Handled();
 	}

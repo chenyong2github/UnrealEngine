@@ -94,6 +94,8 @@ private:
 	TArray< TSharedPtr<FRetargetChainMapElement> > ListViewItems;
 	/** END list view */
 
+	UIKRetargeterController* GetRetargetController() const;
+
 	/** callbacks */
 	FText GetSourceRootBone() const;
 	FText GetTargetRootBone() const;

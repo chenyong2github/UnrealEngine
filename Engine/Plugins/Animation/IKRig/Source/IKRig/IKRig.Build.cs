@@ -13,33 +13,23 @@ public class IKRig : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
-				"Slate",
-				"SlateCore",
 				"AnimationCore",
-				"PBIK"
-			}
-			);
-
-		if (Target.bBuildEditor)
-		{
-			PrivateDependencyModuleNames.Add("UnrealEd");
-		}
+				"PBIK",
+			});
 
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"ControlRig",
+				"RigVM",
 				"Core",
-				
 				"PBIK"
-			}
-			);
+			});
 
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[]
 			{
 				// ... add any modules that your module loads dynamically here ...
-			}
-			);
+			});
 	}
 }

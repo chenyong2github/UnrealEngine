@@ -80,7 +80,7 @@ void UAnimGraphNode_RetargetPoseFromMesh::ValidateAnimNodeDuringCompilation(USke
 	
 	// validate that target bone chains exist on this skeleton
 	const FReferenceSkeleton &RefSkel = ForSkeleton->GetReferenceSkeleton();
-	const TArray<FBoneChain> &TargetBoneChains = Node.IKRetargeterAsset->TargetIKRigAsset->RetargetDefinition.BoneChains;
+	const TArray<FBoneChain> &TargetBoneChains = Node.IKRetargeterAsset->TargetIKRigAsset->GetRetargetChains();
     for (const FBoneChain &Chain : TargetBoneChains)
     {
         if (RefSkel.FindBoneIndex(Chain.StartBone) == INDEX_NONE)

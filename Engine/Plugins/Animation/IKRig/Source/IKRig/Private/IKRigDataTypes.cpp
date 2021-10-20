@@ -1,57 +1,58 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IKRigDataTypes.h"
-
-void FIKRigGoalContainer::InitializeFromGoals(const TArray<UIKRigEffectorGoal*>& InGoals)
-{
-	Goals.Empty(InGoals.Num());
-	for (const UIKRigEffectorGoal* Goal : InGoals)
-	{
-		Goals.Emplace(Goal->GoalName, Goal);
-	}
-}
+#include "IKRigDefinition.h"
 
 void FIKRigGoalContainer::SetIKGoal(const FIKRigGoal& InGoal)
 {
-	Goals.Add(InGoal.Name, InGoal);
+	FIKRigGoal* Goal = const_cast<FIKRigGoal*>(FindGoalByName(InGoal.Name));
+	if (!Goal)
+	{
+		// container hasn't seen this goal before, create new one, copying the input goal
+		Goals.Emplace(InGoal);
+		return;
+	}
+
+	// copy settings to existing goal
+	*Goal = InGoal;
 }
 
 void FIKRigGoalContainer::SetIKGoal(const UIKRigEffectorGoal* InEffectorGoal)
 {
-	if (FIKRigGoal* Goal = Goals.Find(InEffectorGoal->GoalName))
+	FIKRigGoal* Goal = const_cast<FIKRigGoal*>(FindGoalByName(InEffectorGoal->GoalName));
+	if (!Goal)
 	{
-		if (InEffectorGoal->PreviewMode == EIKRigGoalPreviewMode::Absolute)
-		{
-			Goal->Position = InEffectorGoal->CurrentTransform.GetTranslation();
-			Goal->Rotation = InEffectorGoal->CurrentTransform.Rotator();
-			Goal->PositionSpace = EIKRigGoalSpace::Component;
-			Goal->RotationSpace = EIKRigGoalSpace::Component;
-		}
-		else
-		{
-			Goal->Position = InEffectorGoal->CurrentTransform.GetTranslation() - InEffectorGoal->InitialTransform.GetTranslation();
-			const FQuat RelativeRotation = InEffectorGoal->CurrentTransform.GetRotation() * InEffectorGoal->InitialTransform.GetRotation().Inverse();
-			Goal->Rotation = RelativeRotation.Rotator();
-			Goal->PositionSpace = EIKRigGoalSpace::Additive;
-			Goal->RotationSpace = EIKRigGoalSpace::Additive;
-		}
-		
-        Goal->PositionAlpha = InEffectorGoal->PositionAlpha;
-        Goal->RotationAlpha = InEffectorGoal->RotationAlpha;
+		// container hasn't seen this goal before, create new one, copying the Effector goal
+		Goals.Emplace(InEffectorGoal);
+		return;
 	}
-	else
+
+	// goals in editor have "preview mode" which allows them to be specified relative to their
+	// initial pose to simulate an additive runtime behavior
+#if WITH_EDITOR
+	if (InEffectorGoal->PreviewMode == EIKRigGoalPreviewMode::Additive)
 	{
-		Goals.Emplace(InEffectorGoal->GoalName, InEffectorGoal);
+		// transform to be interpreted as an offset, relative to input pose
+		Goal->Position = InEffectorGoal->CurrentTransform.GetTranslation() - InEffectorGoal->InitialTransform.GetTranslation();
+		const FQuat RelativeRotation = InEffectorGoal->CurrentTransform.GetRotation() * InEffectorGoal->InitialTransform.GetRotation().Inverse();
+		Goal->Rotation = RelativeRotation.Rotator();
+		Goal->PositionSpace = EIKRigGoalSpace::Additive;
+		Goal->RotationSpace = EIKRigGoalSpace::Additive;
+	}else
+#endif
+	{
+		// transform to be interpreted as absolute and in component space
+		Goal->Position = InEffectorGoal->CurrentTransform.GetTranslation();
+		Goal->Rotation = InEffectorGoal->CurrentTransform.Rotator();
+		Goal->PositionSpace = EIKRigGoalSpace::Component;
+		Goal->RotationSpace = EIKRigGoalSpace::Component;
 	}
+	
+    Goal->PositionAlpha = InEffectorGoal->PositionAlpha;
+    Goal->RotationAlpha = InEffectorGoal->RotationAlpha;
 }
 
-bool FIKRigGoalContainer::GetGoalByName(const FName& InGoalName, FIKRigGoal& OutGoal) const
+const FIKRigGoal* FIKRigGoalContainer::FindGoalByName(const FName& GoalName) const
 {
-	if (const FIKRigGoal* Goal = Goals.Find(InGoalName))
-	{
-		OutGoal = *Goal;
-		return true;
-	}
-
-	return false;
+	return Goals.FindByPredicate([GoalName](const FIKRigGoal& Other)	{return Other.Name == GoalName;});
 }

@@ -1,0 +1,383 @@
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "IKRetargetProcessor.generated.h"
+
+class UIKRigDefinition;
+class UIKRigProcessor;
+struct FReferenceSkeleton;
+struct FBoneChain;
+struct FIKRetargetPose;
+class UObject;
+class UIKRetargeter;
+class USkeletalMesh;
+
+struct IKRIG_API FRetargetSkeleton
+{
+	TArray<FName> BoneNames;
+	
+	TArray<int32> ParentIndices;
+	
+	TArray<FTransform> RetargetLocalPose;
+	
+	TArray<FTransform> RetargetGlobalPose;
+	
+	USkeletalMesh* SkeletalMesh;
+
+	void Initialize(
+		USkeletalMesh* InSkeletalMesh, 
+		FIKRetargetPose* InRetargetPose,
+		const FName& RetargetRootBone);
+
+	void Reset();
+
+	void GenerateRetargetPose(FIKRetargetPose* InRetargetPose, const FName& RetargetRootBone);
+
+	int32 FindBoneIndexByName(const FName InName) const;
+
+	int32 GetParentIndex(const int32 BoneIndex) const;
+
+	void UpdateGlobalTransformsBelowBone(
+		const int32 StartBoneIndex,
+		TArray<FTransform>& InLocalPose,
+		TArray<FTransform>& OutGlobalPose) const;
+
+	void UpdateLocalTransformsBelowBone(
+		const int32 StartBoneIndex,
+		TArray<FTransform>& OutLocalPose,
+		TArray<FTransform>& InGlobalPose) const;
+	
+	void UpdateGlobalTransformOfSingleBone(
+		const int32 BoneIndex,
+		const TArray<FTransform>& InLocalPose,
+		TArray<FTransform>& OutGlobalPose) const;
+	
+	void UpdateLocalTransformOfSingleBone(
+		const int32 BoneIndex,
+		TArray<FTransform>& OutLocalPose,
+		TArray<FTransform>& InGlobalPose) const;
+
+	void GetChildrenIndices(const int32 BoneIndex, TArray<int32>& OutChildren) const;
+};
+
+struct FTargetSkeleton : public FRetargetSkeleton
+{
+	TArray<FTransform> OutputGlobalPose;
+	TArray<bool> IsBoneRetargeted;
+
+	void Initialize(
+		USkeletalMesh* InSkeletalMesh, 
+		FIKRetargetPose* RetargetPose,
+		const FName& RetargetRootBone);
+
+	void Reset();
+
+	void SetBoneIsRetargeted(const int32 BoneIndex, const bool IsRetargeted);
+
+	void UpdateGlobalTransformsAllNonRetargetedBones(TArray<FTransform>& InOutGlobalPose);
+};
+
+struct FRootSource
+{
+	int32 BoneIndex;
+
+	FQuat InitialRotation;
+
+	float InitialHeightInverse;
+
+	FVector CurrentPositionNormalized;
+	
+	FQuat CurrentRotation;
+};
+
+struct FRootTarget
+{
+	int32 BoneIndex;
+	
+	FQuat InitialRotation;
+	
+	float InitialHeight;
+};
+
+struct FRootRetargeter
+{	
+	FRootSource Source;
+	
+	FRootTarget Target;
+
+	void Reset();
+	
+	bool InitializeSource(const FName SourceRootBoneName, const FRetargetSkeleton& SourceSkeleton);
+	
+	bool InitializeTarget(const FName TargetRootBoneName, const FTargetSkeleton& TargetSkeleton);
+
+	void EncodePose(const TArray<FTransform> &SourceGlobalPose);
+	
+	void DecodePose( TArray<FTransform> &OutTargetGlobalPose, const float StrideScale) const;
+};
+
+struct FChainFK
+{
+	TArray<FTransform> InitialBoneTransforms;
+
+	TArray<FTransform> CurrentBoneTransforms;
+
+	TArray<float> Params;
+
+	bool Initialize(
+		const TArray<int32>& BoneIndices,
+		const TArray<FTransform> &InitialGlobalPose);
+
+private:
+	
+	bool CalculateBoneParameters();	
+};
+
+struct FChainEncoderFK : public FChainFK
+{
+	void EncodePose(
+		const TArray<int32>& SourceBoneIndices,
+		const TArray<FTransform> &InputGlobalPose);
+};
+
+struct FChainDecoderFK : public FChainFK
+{
+	void InitializeIntermediateParentIndices(
+		const int32 RetargetRootBoneIndex,
+		const int32 ChainRootBoneIndex,
+		const FTargetSkeleton& TargetSkeleton);
+	
+	void DecodePose(
+		const TArray<int32>& TargetBoneIndices,
+		const FChainEncoderFK& SourceChain,
+		const FTargetSkeleton& TargetSkeleton,
+		TArray<FTransform> &InOutGlobalPose);
+
+private:
+
+	FTransform GetTransformAtParam(
+		const TArray<FTransform>& Transforms,
+		const TArray<float>& InParams,
+		const float& Param) const;
+	
+	void UpdateIntermediateParents(
+		const FTargetSkeleton& TargetSkeleton,
+		TArray<FTransform> &InOutGlobalPose);
+
+	TArray<int32> IntermediateParentIndices;
+};
+
+struct FDecodedIKChain
+{
+	FVector EndEffectorPosition;
+	
+	FQuat EndEffectorRotation;
+	
+	FVector PoleVectorPosition;
+};
+
+struct FSourceChainIK
+{
+	int32 BoneIndexA;
+	
+	int32 BoneIndexB;
+	
+	int32 BoneIndexC;
+	
+	FVector InitialEndPosition;
+	
+	FQuat InitialEndRotation;
+	
+	float InvInitialLength;
+
+	// results after encoding...
+	
+	FVector CurrentEndDirectionNormalized;
+	
+	FQuat CurrentEndRotation;
+	
+	float CurrentHeightFromGroundNormalized;
+	
+	FVector PoleVectorDirection;
+};
+
+struct FTargetChainIK
+{
+	int32 BoneIndexA;
+	
+	float InitialLength;
+	
+	FVector InitialEndPosition;
+	
+	FQuat InitialEndRotation;
+};
+
+struct FChainRetargeterIK
+{
+	FSourceChainIK Source;
+	
+	FTargetChainIK Target;
+
+	bool InitializeSource(const TArray<int32>& BoneIndices, const TArray<FTransform> &SourceInitialGlobalPose);
+	
+	bool InitializeTarget(const TArray<int32>& BoneIndices, const TArray<FTransform> &TargetInitialGlobalPose);
+
+	void EncodePose(const TArray<FTransform> &SourceInputGlobalPose);
+	
+	void DecodePose(const TArray<FTransform>& OutGlobalPose, FDecodedIKChain& OutResults) const;
+};
+
+struct FRetargetChainPair
+{
+	TArray<int32> SourceBoneIndices;
+	
+	TArray<int32> TargetBoneIndices;
+	
+	FName SourceBoneChainName;
+	
+	FName TargetBoneChainName;
+
+	virtual ~FRetargetChainPair(){};
+	
+	virtual bool Initialize(
+		const FBoneChain& SourceBoneChain,
+		const FBoneChain& TargetBoneChain,
+		const FRetargetSkeleton& SourceSkeleton,
+		const FTargetSkeleton& TargetSkeleton);
+
+private:
+
+	bool ValidateBoneChainWithSkeletalMesh(
+		const bool IsSource,
+		const FBoneChain& BoneChain,
+		const FRetargetSkeleton& RetargetSkeleton);
+};
+
+struct FRetargetChainPairFK : FRetargetChainPair
+{
+	FChainEncoderFK FKEncoder;
+
+	FChainDecoderFK FKDecoder;
+	
+	virtual bool Initialize(
+        const FBoneChain& SourceBoneChain,
+        const FBoneChain& TargetBoneChain,
+        const FRetargetSkeleton& SourceSkeleton,
+        const FTargetSkeleton& TargetSkeleton) override;
+};
+
+struct FRetargetChainPairIK : FRetargetChainPair
+{	
+	FChainRetargeterIK IKChainRetargeter;
+	
+	FName IKGoalName;
+	
+	FName PoleVectorGoalName;
+
+	virtual bool Initialize(
+        const FBoneChain& SourceBoneChain,
+        const FBoneChain& TargetBoneChain,
+        const FRetargetSkeleton& SourceSkeleton,
+        const FTargetSkeleton& TargetSkeleton) override;
+};
+
+/** The runtime processor that converts an input pose from a source skeleton into an output pose on a target skeleton.
+ * To use:
+ * 1. Initialize a processor with a Source/Target skeletal mesh and a UIKRetargeter asset.
+ * 2. Call RunRetargeter and pass in a source pose as an array of global-space transforms
+ * 3. RunRetargeter returns an array of global space transforms for the target skeleton.
+ */
+UCLASS()
+class IKRIG_API UIKRetargetProcessor : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	
+	/**
+	* Initialize the retargeter to enable running it.
+	* @param SourceSkeleton - the skeletal mesh to poses FROM
+	* @param TargetSkeleton - the skeletal mesh to poses TO
+	* @param InRetargeterAsset - the source asset to use for retargeting settings
+	* @warning - Initialization does a lot of validation and can fail for many reasons. Check bIsLoadedAndValid afterwards.
+	*/
+	void Initialize(
+		USkeletalMesh *SourceSkeleton,
+		USkeletalMesh *TargetSkeleton,
+		UIKRetargeter* InRetargeterAsset);
+
+	/**
+	* Run the retarget to generate a new pose.
+	* @param InSourceGlobalPose -  is the source mesh input pose in Component/Global space
+	* @return The retargeted Component/Global space pose for the target skeleton
+	*/
+	TArray<FTransform>& RunRetargeter(const TArray<FTransform>& InSourceGlobalPose);
+
+	/**
+	* Get the Global transform, in the currently used retarget pose, for a bone in the target skeletal mesh
+	* @param TargetBoneIndex - The index of a bone in the target skeleton.
+	* @return The Global space transform for the bone or Identity if bone not found.
+	* @warning This function is only valid to call after the retargeter has been initialized (which generates global retarget pose)
+	*/
+	FTransform GetTargetBoneRetargetPoseGlobalTransform(const int32& TargetBoneIndex) const;
+
+	/** Get read-only access to the target skeleton. */
+	const FTargetSkeleton& GetTargetSkeleton() const { return TargetSkeleton; };
+
+	/** Get whether this processor is ready to call RunRetargeter() and generate new poses. */
+	bool IsInitialized() const { return bIsInitialized; };
+
+#if WITH_EDITOR
+	/** Set that this processor needs to be reinitialized. */
+	void SetNeedsInitialized();
+	/** During editor preview, drive the target IK Rig with the setting from it's source asset */
+	void CopyTargetIKRigSettingsFromAsset();
+#endif
+
+private:
+
+	/** Only true once Initialize() has successfully completed.*/
+	bool bIsInitialized = false;
+
+	/** The source asset this processor was initialized with. */
+	UIKRetargeter* RetargeterAsset = nullptr;
+
+	/** The internal data structures used to represent the SOURCE skeleton / pose during retargeter.*/
+	FRetargetSkeleton SourceSkeleton;
+
+	/** The internal data structures used to represent the TARGET skeleton / pose during retargeter.*/
+	FTargetSkeleton TargetSkeleton;
+
+	/** The IK Rig processor for running IK on the target */
+	UPROPERTY(Transient) // must be property to keep from being GC'd
+	UIKRigProcessor* IKRigProcessor = nullptr;
+
+	/** The Source/Target pairs of Bone Chains retargeted using the FK algorithm */
+	TArray<FRetargetChainPairFK> ChainPairsFK;
+
+	/** The Source/Target pairs of Bone Chains retargeted using the IK Rig */
+	TArray<FRetargetChainPairIK> ChainPairsIK;
+
+	/** The Source/Target pair of Root Bones retargeted with scaled translation */
+	FRootRetargeter RootRetargeter;
+
+	/** Initializes the FRootRetargeter */
+	bool InitializeRoots();
+
+	/** Initializes the all the chain pairs */
+	bool InitializeBoneChainPairs();
+
+	/** Initializes the IK Rig that evaluates the IK solve for the target IK chains */
+	bool InitializeIKRig(UObject* Outer, const FReferenceSkeleton& InRefSkeleton);
+	
+	/** Internal retarget phase for the root. */
+	void RunRootRetarget(const TArray<FTransform>& InGlobalTransforms, TArray<FTransform>& OutGlobalTransforms);
+
+	/** Internal retarget phase for the FK chains. */
+	void RunFKRetarget(const TArray<FTransform>& InGlobalTransforms, TArray<FTransform>& OutGlobalTransforms);
+
+	/** Internal retarget phase for the IK chains. */
+	void RunIKRetarget(const TArray<FTransform>& InGlobalPose, TArray<FTransform>& OutGlobalPose);
+};

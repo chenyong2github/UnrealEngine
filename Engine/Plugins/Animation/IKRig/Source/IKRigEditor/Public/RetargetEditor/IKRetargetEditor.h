@@ -56,6 +56,10 @@ public:
 	
 	/** FGCObject interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FIKRetargetEditor");
+	}
 	/** END FGCObject interface */
 
 	//** FTickableEditorObject Interface
@@ -105,10 +109,6 @@ private:
 	TArray<TSharedPtr<FName>> PoseNames;
 	FText GetCurrentPoseName() const;
 	void OnPoseSelected(TSharedPtr<FName> InPoseName, ESelectInfo::Type SelectInfo);
-	/* END edit reference pose */
-
-	/* export animation*/
-	void ExportAnimation() const;
 	/* END edit reference pose */
 
 	void HandleSourceOrTargetIKRigAssetChanged();

@@ -32,17 +32,12 @@ FIKRigEditorToolkit::FIKRigEditorToolkit()
 {
 }
 
-FIKRigEditorToolkit::~FIKRigEditorToolkit()
-{
-}
-
 void FIKRigEditorToolkit::InitAssetEditor(
 	const EToolkitMode::Type Mode,
     const TSharedPtr<IToolkitHost>& InitToolkitHost, 
     UIKRigDefinition* IKRigAsset)
 {
-	EditorController->AssetController = UIKRigController::GetIKRigController(IKRigAsset);
-	EditorController->EditorToolkit = SharedThis(this);
+	EditorController->Initialize(SharedThis(this), IKRigAsset);
 
 	BindCommands();
 	
@@ -50,7 +45,7 @@ void FIKRigEditorToolkit::InitAssetEditor(
 	PersonaToolkitArgs.OnPreviewSceneCreated = FOnPreviewSceneCreated::FDelegate::CreateSP(this, &FIKRigEditorToolkit::HandlePreviewSceneCreated);
 	
 	FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
-	PersonaToolkit = PersonaModule.CreatePersonaToolkit(IKRigAsset, PersonaToolkitArgs, IKRigAsset->GetSkeletonAsset());
+	PersonaToolkit = PersonaModule.CreatePersonaToolkit(IKRigAsset, PersonaToolkitArgs, EditorController->AssetController->GetSkeleton());
 	
 	// when/if preview mesh is changed, we need to reinitialize the anim instance
     PersonaToolkit->GetPreviewScene()->RegisterOnPreviewMeshChanged(FOnPreviewMeshChanged::CreateSP(this, &FIKRigEditorToolkit::HandlePreviewMeshChanged));
@@ -146,12 +141,7 @@ FText FIKRigEditorToolkit::GetBaseToolkitName() const
 
 FText FIKRigEditorToolkit::GetToolkitName() const
 {
-	const bool bDirtyState = EditorController->AssetController->GetAsset()->GetOutermost()->IsDirty();
-
-	FFormatNamedArguments Args;
-	Args.Add(TEXT("AssetName"), FText::FromString(EditorController->AssetController->GetAsset()->GetName()));
-	Args.Add(TEXT("DirtyState"), bDirtyState ? FText::FromString(TEXT("*")) : FText::GetEmpty());
-	return FText::Format(LOCTEXT("DemoEditorToolkitName", "{AssetName}{DirtyState}"), Args);
+	return FText::FromString(EditorController->AssetController->GetAsset()->GetName());
 }
 
 FLinearColor FIKRigEditorToolkit::GetWorldCentricTabColorScale() const
@@ -167,7 +157,7 @@ FString FIKRigEditorToolkit::GetWorldCentricTabPrefix() const
 void FIKRigEditorToolkit::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	// hold the asset we are working on
-	UIKRigDefinition* Asset = EditorController->AssetController->GetAsset();
+	const UIKRigDefinition* Asset = EditorController->AssetController->GetAsset();
 	Collector.AddReferencedObject(Asset);
 }
 

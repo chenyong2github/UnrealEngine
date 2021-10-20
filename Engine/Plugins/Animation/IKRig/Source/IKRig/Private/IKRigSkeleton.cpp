@@ -3,22 +3,30 @@
 #include "IKRigSkeleton.h"
 
 #include "IKRigDefinition.h"
+#include "IKRigProcessor.h"
 
-void FIKRigSkeleton::Initialize(const FReferenceSkeleton& RefSkeleton, const TArray<FName>& InExcludedBones)
+void FIKRigSkeleton::Initialize(const FIKRigInputSkeleton& InputSkeleton, const TArray<FName>& InExcludedBones)
 {
+	check(InputSkeleton.BoneNames.Num() == InputSkeleton.ParentIndices.Num() &&
+		  InputSkeleton.BoneNames.Num() == InputSkeleton.LocalRefPose.Num())
+	
 	// reset all containers
 	Reset();
 	
-	// copy names and parent indices into local storage
-	TArray<FMeshBoneInfo> RawBoneInfo = RefSkeleton.GetRawRefBoneInfo();
-	for (int32 BoneIndex=0; BoneIndex<RefSkeleton.GetRawBoneNum(); ++BoneIndex)
-	{
-		BoneNames.Add(RawBoneInfo[BoneIndex].Name);
-		ParentIndices.Add(RawBoneInfo[BoneIndex].ParentIndex);	
-	}
+	// copy names, parent indices and excluded state into local storage
+	BoneNames = InputSkeleton.BoneNames;
+	ParentIndices = InputSkeleton.ParentIndices;
+	ExcludedBones = InExcludedBones;
 
 	// copy all the poses out of the ref skeleton
-	CopyPosesFromRefSkeleton(RefSkeleton);
+	CopyPosesFromInputSkeleton(InputSkeleton);
+}
+
+void FIKRigSkeleton::Initialize(const FReferenceSkeleton& RefSkeleton, const TArray<FName>& InExcludedBones)
+{
+	FIKRigInputSkeleton InputSkeleton;
+	InputSkeleton.InitializeFromRefSkeleton(RefSkeleton);
+	Initialize(InputSkeleton, InExcludedBones);
 }
 
 void FIKRigSkeleton::Reset()
@@ -80,19 +88,44 @@ int32 FIKRigSkeleton::GetParentIndexThatIsNotExcluded(const int32 BoneIndex) con
 	return ParentIndex;
 }
 
-bool FIKRigSkeleton::CopyPosesFromRefSkeleton(const FReferenceSkeleton& RefSkeleton)
+bool FIKRigSkeleton::CopyPosesFromInputSkeleton(const FIKRigInputSkeleton& InputSkeleton)
 {
 	// get a compacted local ref pose based on the stored names
 	TArray<FTransform> CompactRefPoseLocal;
-	for (const FName& BoneName : BoneNames)
+
+	// validate all the bones in the input skeleton, comparing against the stored skeleton
+	for (int32 StoredBoneIndex=0; StoredBoneIndex<BoneNames.Num(); ++StoredBoneIndex)
 	{
-		const int32 BoneIndex = RefSkeleton.FindBoneIndex(BoneName);
-		if (BoneIndex == INDEX_NONE)
+		const FName& BoneName = BoneNames[StoredBoneIndex];
+		const int32 InputBoneIndex = InputSkeleton.BoneNames.Find(BoneName);
+
+		// validate that input skeleton has required bone
+		if (InputBoneIndex == INDEX_NONE)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("IK Rig is running on a skeleton that is missing bone named, '%s'."), *BoneName.ToString());
+			UE_LOG(LogTemp, Error, TEXT("IK Rig is running on a skeleton that is missing bone named, '%s'."), *BoneName.ToString());
 			return false;
 		}
-		CompactRefPoseLocal.Add(RefSkeleton.GetRefBonePose()[BoneIndex]);
+
+		// validate that input skeleton hierarchy is as expected
+		const int32 StoredParentIndex = ParentIndices[StoredBoneIndex];
+		if (StoredParentIndex != -1) // root bone has no parent
+		{
+			const FName& StoredParentName = BoneNames[StoredParentIndex];
+			const int32 InputParentIndex = InputSkeleton.ParentIndices[InputBoneIndex];
+			const FName& InputParentName = InputSkeleton.BoneNames[InputParentIndex];
+			if (StoredParentName != InputParentName)
+			{
+				UE_LOG(LogTemp, Error,
+					TEXT("IK Rig is running on a skeleton with a bone, '%s', that has a different parent '%s'. The expected parent was, '%s'."),
+					*BoneName.ToString(),
+					*InputParentName.ToString(),
+					*StoredParentName.ToString());
+				return false;
+			}	
+		}
+
+		// store ref pose of this bone
+		CompactRefPoseLocal.Add(InputSkeleton.LocalRefPose[InputBoneIndex]);
 	}
 	
 	// copy local ref pose to global
@@ -104,7 +137,7 @@ bool FIKRigSkeleton::CopyPosesFromRefSkeleton(const FReferenceSkeleton& RefSkele
 	// initialize current LOCAL pose
 	UpdateAllLocalTransformFromGlobal();
 
-	return true; // supplied ref skeleton had all the bones we are looking for
+	return true; // supplied input skeleton had all the bones we are looking for
 }
 
 void FIKRigSkeleton::ConvertLocalPoseToGlobal(

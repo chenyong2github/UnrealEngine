@@ -11,6 +11,13 @@ class FIKRetargetEditorController;
 class FIKRetargetEditor;
 class FIKRetargetPreviewScene;
 
+enum FIKRetargetTrackingState : int8
+{
+	None,
+	RotatingBone,
+	TranslatingRoot,
+};
+
 class FIKRetargetEditMode : public IPersonaEditMode
 {
 public:
@@ -45,11 +52,16 @@ public:
 	virtual bool GetCustomInputCoordinateSystem(FMatrix& InMatrix, void* InData) override;
 	/** END FEdMode interface */
 
-	bool IsBoneSelected(const FName& BoneName) const;
-
-	void HandleBoneSelectedInViewport(const FName& BoneName, bool bReplace);
-
 private:
+
+	UE::Widget::EWidgetMode CurrentWidgetMode;
+	
+	bool IsOnlyRootSelected() const;
+	
+	bool IsBoneSelected(const FName& BoneName) const;
+	
+	void HandleBoneSelectedInViewport(const FName& BoneName, bool bReplace);
+	
 	/** The hosting app */
 	TWeakPtr<FIKRetargetEditorController> EditorController;
 
@@ -62,7 +74,7 @@ private:
 		float Thickness,
 		bool bIsSelected) const;
 
-	/** chain viewport selection state */
+	/** viewport selection/editing state */
 	TArray<FName> SelectedBones;
-	bool bRotatingBones = false;
+	FIKRetargetTrackingState TrackingState;
 };

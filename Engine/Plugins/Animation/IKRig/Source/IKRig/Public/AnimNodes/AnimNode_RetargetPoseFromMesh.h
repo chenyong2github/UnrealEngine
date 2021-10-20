@@ -6,6 +6,8 @@
 
 #include "Animation/AnimNodeBase.h"
 #include "Retargeter/IKRetargeter.h"
+#include "Retargeter/IKRetargetProcessor.h"
+
 #include "AnimNode_RetargetPoseFromMesh.generated.h"
 
 USTRUCT(BlueprintInternalUseOnly)
@@ -23,44 +25,42 @@ struct IKRIG_API FAnimNode_RetargetPoseFromMesh : public FAnimNode_Base
 	
 	/** Retarget asset to use. Must define a Source and Target IK Rig compatible with the SourceMeshComponent and current anim instance.*/
 	UPROPERTY(EditAnywhere, Category = Settings)
-	UIKRetargeter* IKRetargeterAsset = nullptr;
+	TObjectPtr<UIKRetargeter> IKRetargeterAsset = nullptr;
+
+#if WITH_EDITOR
+	/** when true, will copy all setting from target IK Rig asset each tick (for live preview) */
+	bool bDriveTargetIKRigWithAsset = false;
+#endif
 	
 	// FAnimNode_Base interface
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
 	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
 	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
 	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
-	//virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	virtual bool HasPreUpdate() const override { return true; }
 	virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
 	// End of FAnimNode_Base interface
 
-	UIKRetargeter* GetCurrentlyUsedRetargeter() const;
+#if WITH_EDITOR
+	/** Force reinitialization. */
+	void SetProcessorNeedsInitialized();
+#endif
+
+	/** Read-only access to the runtime processor */
+	const UIKRetargetProcessor* GetRetargetProcessor() const;
 
 private:
 	
 	void EnsureInitialized(const UAnimInstance* InAnimInstance);
-	void InitializeRetargetData(const UAnimInstance* InAnimInstance);
 	void CopyBoneTransformsFromSource(USkeletalMeshComponent* TargetMeshComponent);
-	USkeletalMeshComponent* GetSourceMesh() const;
-
-	// indicates that all prerequisites are met and node is ready to operate
-	UPROPERTY(Transient)
-	bool bIsInitialized = false;
-	/** which version of the IK Retargeter asset was this instance last initialized with?
-	* this allows the IK Retargeter asset to undergo modifications at runtime via the editor and trigger
-	* re-initialization by incrementing this transient asset version.
-	 */
-	int32 LastVersionTried = -2;
 	
 	// source mesh references, cached during init so that we can compare and see if it has changed
-	TWeakObjectPtr<USkeletalMeshComponent>	CurrentlyUsedSourceMeshComponent;
-	TWeakObjectPtr<USkeletalMesh>			CurrentlyUsedSourceMesh;
-	TWeakObjectPtr<USkeletalMesh>			CurrentlyUsedTargetMesh;
+	TWeakObjectPtr<USkeletalMesh> CurrentlyUsedSourceMesh;
+	TWeakObjectPtr<USkeletalMesh> CurrentlyUsedTargetMesh;
+
+	/** the runtime processor used to run the retarget and generate new poses */
 	UPROPERTY(Transient)
-	TObjectPtr<UIKRetargeter>				CurrentlyUsedRetargeter = nullptr;
-	TWeakObjectPtr<UIKRigDefinition>		CurrentlyUsedSourceIKRig;
-	TWeakObjectPtr<UIKRigDefinition>		CurrentlyUsedTargetIKRig;
+	TObjectPtr<UIKRetargetProcessor> Processor = nullptr;
 
 	// cached transforms, copied on the game thread
 	TArray<FTransform> SourceMeshComponentSpaceBoneTransforms;

@@ -3,17 +3,10 @@
 #include "RigEditor/IKRigAnimInstanceProxy.h"
 #include "RigEditor/IKRigAnimInstance.h"
 
-FIKRigAnimInstanceProxy::FIKRigAnimInstanceProxy()
-{
-}
 
 FIKRigAnimInstanceProxy::FIKRigAnimInstanceProxy(UAnimInstance* InAnimInstance, FAnimNode_IKRig* InIKRigNode)
 	: FAnimPreviewInstanceProxy(InAnimInstance),
 	IKRigNode(InIKRigNode)
-{
-}
-
-FIKRigAnimInstanceProxy::~FIKRigAnimInstanceProxy()
 {
 }
 

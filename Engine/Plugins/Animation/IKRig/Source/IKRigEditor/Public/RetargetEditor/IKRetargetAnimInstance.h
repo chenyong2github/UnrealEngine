@@ -20,7 +20,9 @@ public:
 		UIKRetargeter* InIKRetargetAsset,
 		TWeakObjectPtr<USkeletalMeshComponent> InSourceMeshComponent);
 
-	UIKRetargeter* GetCurrentlyUsedRetargeter() const;
+	const UIKRetargetProcessor* GetRetargetProcessor() const;
+
+	void SetProcessorNeedsInitialized();
 
 protected:
 	virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override;

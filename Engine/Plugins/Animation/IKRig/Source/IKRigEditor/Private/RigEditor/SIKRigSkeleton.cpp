@@ -162,6 +162,8 @@ void SIKRigSkeletonItem::Construct(
         [
 	        SAssignNew(InlineWidget, SInlineEditableTextBlock)
 		    .Text(this, &SIKRigSkeletonItem::GetName)
+		    .Font(TextFont)
+			.ColorAndOpacity(TextColor)
 		    .OnTextCommitted(this, &SIKRigSkeletonItem::OnNameCommitted)
 		    .MultiLine(false)
         ];
@@ -247,7 +249,7 @@ void SIKRigSkeleton::Construct(const FArguments& InArgs, TSharedRef<FIKRigEditor
                 .OnMouseButtonClick(this, &SIKRigSkeleton::OnItemClicked)
                 .OnMouseButtonDoubleClick(this, &SIKRigSkeleton::OnItemDoubleClicked)
                 .OnSetExpansionRecursive(this, &SIKRigSkeleton::OnSetExpansionRecursive)
-                .HighlightParentNodesForSelection(true)
+                .HighlightParentNodesForSelection(false)
                 .ItemHeight(24)
             ]
         ]
@@ -286,7 +288,7 @@ void SIKRigSkeleton::GetSelectedBoneChains(TArray<FIKRigSkeletonChain>& OutChain
 	TArray<TSharedPtr<FIKRigTreeElement>> SelectedBoneItems;
 	GetSelectedBones(SelectedBoneItems);
 
-	FIKRigSkeleton& Skeleton = Controller->AssetController->GetSkeleton();
+	const FIKRigSkeleton& Skeleton = Controller->AssetController->GetIKRigSkeleton();
 
 	// get selected bone indices
 	TArray<int32> SelectedBones;
@@ -970,92 +972,100 @@ void SIKRigSkeleton::RefreshTreeView(bool IsInitialSetup)
 
 	// validate we have a skeleton to load
 	UIKRigController* AssetController = Controller->AssetController;
-	FIKRigSkeleton& Skeleton = AssetController->GetSkeleton();
+	const FIKRigSkeleton& Skeleton = AssetController->GetIKRigSkeleton();
 	if (Skeleton.BoneNames.IsEmpty())
 	{
 		TreeView->RequestTreeRefresh();
 		return;
 	}
 
+	// get all goals
+	TArray<UIKRigEffectorGoal*> Goals = AssetController->GetAllGoals();
+	// get all solvers
+	const TArray<UIKRigSolver*>& Solvers = AssetController->GetSolverArray();
+	// record bone element indices
+	TMap<FName, int32> BoneTreeElementIndices;
+
 	// create all bone elements
 	for (const FName BoneName : Skeleton.BoneNames)
 	{
-		TSharedPtr<FIKRigTreeElement> NewItem = MakeShared<FIKRigTreeElement>(BoneName, IKRigTreeElementType::BONE);
-		AllElements.Add(NewItem);
+		// create "Bone" tree element for this bone
+		TSharedPtr<FIKRigTreeElement> BoneElement = MakeShared<FIKRigTreeElement>(BoneName, IKRigTreeElementType::BONE);
+		const int32 BoneElementIndex = AllElements.Add(BoneElement);
+		BoneTreeElementIndices.Add(BoneName, BoneElementIndex);
+
+		// create all "Bone Setting" tree elements for this bone
+		for (int32 SolverIndex=0; SolverIndex<Solvers.Num(); ++SolverIndex)
+		{
+			if (Solvers[SolverIndex]->GetBoneSetting(BoneName))
+			{
+				const FName DisplayName = FName("Bone Settings for: " + Solvers[SolverIndex]->GetName());
+				TSharedPtr<FIKRigTreeElement> SettingsItem = MakeShared<FIKRigTreeElement>(DisplayName, IKRigTreeElementType::BONE_SETTINGS);
+				SettingsItem->BoneSettingBoneName = BoneName;
+				SettingsItem->BoneSettingsSolverIndex = SolverIndex;
+				AllElements.Add(SettingsItem);
+				// store hierarchy pointers for item
+				BoneElement->Children.Add(SettingsItem);
+				SettingsItem->Parent = BoneElement;
+			}
+		}
+
+		// create all "Goal" and "Effector" tree elements for this bone
+		for (const UIKRigEffectorGoal* Goal : Goals)
+		{
+			if (Goal->BoneName != BoneName)
+			{
+				continue;
+			}
+			
+			// make new element for goal
+			TSharedPtr<FIKRigTreeElement> GoalItem = MakeShared<FIKRigTreeElement>(Goal->GoalName, IKRigTreeElementType::GOAL);
+			AllElements.Add(GoalItem);
+
+			// store hierarchy pointers for goal
+			BoneElement->Children.Add(GoalItem);
+			GoalItem->Parent = BoneElement;
+
+			// add all effectors connected to this goal
+			for (int32 SolverIndex=0; SolverIndex<Solvers.Num(); ++SolverIndex)
+			{
+				if (UObject* Effector = AssetController->GetEffectorForGoal(Goal->GoalName, SolverIndex))
+				{
+					// make new element for effector
+					const FText EffectorPrefix = LOCTEXT("EffectorPrefix", "Effector for");
+					const FName DisplayName = FName(EffectorPrefix.ToString() + ": " + Solvers[SolverIndex]->GetName());
+					TSharedPtr<FIKRigTreeElement> EffectorItem = MakeShared<FIKRigTreeElement>(DisplayName, IKRigTreeElementType::EFFECTOR);
+					EffectorItem->EffectorSolverIndex = SolverIndex;
+					EffectorItem->EffectorGoalName = Goal->GoalName;
+					AllElements.Add(EffectorItem);
+					EffectorItem->Parent = GoalItem;
+					GoalItem->Children.Add(EffectorItem);
+				}
+			}
+		}
 	}
 
 	// store children/parent pointers on all bone elements
 	for (int32 BoneIndex=0; BoneIndex<Skeleton.BoneNames.Num(); ++BoneIndex)
 	{
+		const FName BoneName = Skeleton.BoneNames[BoneIndex];
+		const TSharedPtr<FIKRigTreeElement> BoneTreeElement = AllElements[BoneTreeElementIndices[BoneName]];
 		const int32 ParentIndex = Skeleton.ParentIndices[BoneIndex];
 		if (ParentIndex < 0)
 		{
-			// store root element
-			RootElements.Add(AllElements[BoneIndex]);
-		}
-		else
-		{
-			// store pointer to child on parent
-			AllElements[ParentIndex]->Children.Add(AllElements[BoneIndex]);
-			// store pointer to parent on child
-			AllElements[BoneIndex]->Parent = AllElements[ParentIndex];
-		}
-	}
-
-	// create all bone settings elements
-	for (int32 SolverIndex=0; SolverIndex<AssetController->GetNumSolvers(); ++SolverIndex)
-	{
-		UIKRigSolver* Solver = AssetController->GetSolver(SolverIndex);
-		if (!Solver->UsesBoneSettings())
-		{
+			// store the root element
+			RootElements.Add(BoneTreeElement);
+			// has no parent, so skip storing parent pointer
 			continue;
 		}
-		for (int32 BoneIndex=0; BoneIndex<Skeleton.BoneNames.Num(); ++BoneIndex)
-		{
-			if (Solver->GetBoneSetting(Skeleton.BoneNames[BoneIndex]))
-			{
-				const FName DisplayName = FName("Bone Settings for: " + Solver->GetName());
-				TSharedPtr<FIKRigTreeElement> SettingsItem = MakeShared<FIKRigTreeElement>(DisplayName, IKRigTreeElementType::BONE_SETTINGS);
-				SettingsItem->BoneSettingBoneName = Skeleton.BoneNames[BoneIndex];
-				SettingsItem->BoneSettingsSolverIndex = SolverIndex;
-				AllElements.Add(SettingsItem);
-				// store hierarchy pointers for item
-				AllElements[BoneIndex]->Children.Add(SettingsItem);
-				SettingsItem->Parent = AllElements[BoneIndex];
-			}
-		}
-    }
-	
-	// create all goal and effector elements
-	TArray<UIKRigEffectorGoal*> Goals = AssetController->GetAllGoals();
-	for (const UIKRigEffectorGoal* Goal : Goals)
-	{
-		// make new element for goal
-		const int32 BoneIndex = Skeleton.GetBoneIndexFromName(Goal->BoneName);
-		check(BoneIndex!=INDEX_NONE);
-		TSharedPtr<FIKRigTreeElement> GoalItem = MakeShared<FIKRigTreeElement>(Goal->GoalName, IKRigTreeElementType::GOAL);
-		const int32 GoalItemIndex = AllElements.Add(GoalItem);
 
-		// store hierarchy pointers for goal
-		AllElements[BoneIndex]->Children.Add(GoalItem);
-		GoalItem->Parent = AllElements[BoneIndex];
-
-		// add all effectors connected to this goal
-		for (int32 SolverIndex=0; SolverIndex<AssetController->GetNumSolvers(); ++SolverIndex)
-		{
-			if (UObject* Effector = AssetController->GetEffectorForGoal(Goal->GoalName, SolverIndex))
-			{
-				// make new element for effector
-				const UIKRigSolver* Solver = AssetController->GetSolver(SolverIndex);
-				const FName DisplayName = FName("Effector for: " + Solver->GetName());
-				TSharedPtr<FIKRigTreeElement> EffectorItem = MakeShared<FIKRigTreeElement>(DisplayName, IKRigTreeElementType::EFFECTOR);
-				EffectorItem->EffectorSolverIndex = SolverIndex;
-				EffectorItem->EffectorGoalName = Goal->GoalName;
-				AllElements.Add(EffectorItem);
-				EffectorItem->Parent = GoalItem;
-				GoalItem->Children.Add(EffectorItem);
-			}
-		}
+		// get parent tree element
+		const FName ParentBoneName = Skeleton.BoneNames[ParentIndex];
+		const TSharedPtr<FIKRigTreeElement> ParentBoneTreeElement = AllElements[BoneTreeElementIndices[ParentBoneName]];
+		// store pointer to child on parent
+		ParentBoneTreeElement->Children.Add(BoneTreeElement);
+		// store pointer to parent on child
+		BoneTreeElement->Parent = ParentBoneTreeElement;
 	}
 
 	// restore expansion state

@@ -45,11 +45,15 @@ struct GoalGizmo
 		BoxPoints.Add(FVector(-0.5f, 0.5f, -0.5f));
 	}
 
-	void DrawGoal(FPrimitiveDrawInterface* PDI, const UIKRigEffectorGoal* Goal, bool bIsSelected) const
+	void DrawGoal(
+		FPrimitiveDrawInterface* PDI,
+		const UIKRigEffectorGoal* Goal,
+		bool bIsSelected,
+		float Size,
+		float Thickness) const
 	{
 		const FLinearColor Color = bIsSelected ? FLinearColor::Green : FLinearColor::Yellow;
-		const float Thickness = Goal->GizmoThickness;
-		const float Scale = FMath::Clamp(Goal->GizmoSize, 0.1f, 1000.0f);
+		const float Scale = FMath::Clamp(Size, 0.1f, 1000.0f);
 		const FTransform Transform = Goal->CurrentTransform;
 		for (int32 PointIndex = 0; PointIndex < BoxPoints.Num() - 1; PointIndex += 2)
 		{
@@ -92,6 +96,7 @@ public:
 	virtual bool InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale) override;
 	virtual bool GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData) override;
 	virtual bool GetCustomInputCoordinateSystem(FMatrix& InMatrix, void* InData) override;
+	virtual bool InputKey(FEditorViewportClient* ViewportClient,FViewport* Viewport, FKey Key,EInputEvent Event);
 	/** END FEdMode interface */
 
 private:

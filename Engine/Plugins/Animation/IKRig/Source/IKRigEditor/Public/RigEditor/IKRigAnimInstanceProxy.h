@@ -16,9 +16,9 @@ struct FIKRigAnimInstanceProxy : public FAnimPreviewInstanceProxy
 
 public:
 	
-	FIKRigAnimInstanceProxy();
+	FIKRigAnimInstanceProxy() = default;
 	FIKRigAnimInstanceProxy(UAnimInstance* InAnimInstance, FAnimNode_IKRig* IKRigNode);
-	virtual ~FIKRigAnimInstanceProxy();
+	virtual ~FIKRigAnimInstanceProxy() override {};
 
 	/** FAnimPreviewInstanceProxy interface */
 	virtual void Initialize(UAnimInstance* InAnimInstance) override;

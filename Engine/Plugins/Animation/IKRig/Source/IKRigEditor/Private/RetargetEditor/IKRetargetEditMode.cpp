@@ -10,8 +10,11 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "RetargetEditor/IKRetargetHitProxies.h"
 #include "RetargetEditor/IKRetargetEditor.h"
+#include "Retargeter/IKRetargetProcessor.h"
 
 FName FIKRetargetEditMode::ModeName("IKRetargetAssetEditMode");
+
+#define LOCTEXT_NAMESPACE "IKRetargeterEditMode"
 
 bool FIKRetargetEditMode::GetCameraTarget(FSphere& OutTarget) const
 {
@@ -47,8 +50,13 @@ void FIKRetargetEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 	{
 		return;
 	}
+
+	if (!Controller->GetRetargetProcessor()->IsInitialized())
+	{
+		return;
+	}
 	
-	UIKRetargeter* Retargeter = Controller->Asset;
+	const UIKRetargeter* Retargeter = Controller->AssetController->GetAsset();
 	
 	for (int32 BoneIndex = 0; BoneIndex<Retargeter->TargetIKRigAsset->Skeleton.BoneNames.Num(); ++BoneIndex)
 	{
@@ -87,22 +95,40 @@ void FIKRetargetEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 
 bool FIKRetargetEditMode::AllowWidgetMove()
 {
-	return !SelectedBones.IsEmpty();
+	return false;
 }
 
 bool FIKRetargetEditMode::ShouldDrawWidget() const
 {
-	return !SelectedBones.IsEmpty();
+	return UsesTransformWidget(CurrentWidgetMode);
 }
 
 bool FIKRetargetEditMode::UsesTransformWidget() const
 {
-	return !SelectedBones.IsEmpty();
+	return UsesTransformWidget(CurrentWidgetMode);
 }
 
 bool FIKRetargetEditMode::UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const
 {
-	return !SelectedBones.IsEmpty() && CheckMode == UE::Widget::EWidgetMode::WM_Rotate;
+	const bool bIsOnlyRootSelected = IsOnlyRootSelected();
+	const bool bIsAnyBoneSelected = !SelectedBones.IsEmpty();
+
+	if (!bIsAnyBoneSelected)
+	{
+		return false; // no bones selected, can't transform anything
+	}
+	
+	if (bIsOnlyRootSelected && CheckMode == UE::Widget::EWidgetMode::WM_Translate)
+	{
+		return true; // can translate only the root
+	}
+
+	if (bIsAnyBoneSelected && CheckMode == UE::Widget::EWidgetMode::WM_Rotate)
+	{
+		return true; // can rotate any bone
+	}
+	
+	return false;
 }
 
 FVector FIKRetargetEditMode::GetWidgetLocation() const
@@ -118,7 +144,8 @@ FVector FIKRetargetEditMode::GetWidgetLocation() const
 		return FVector::ZeroVector; 
 	}
 
-	const int32 BoneIndex = Controller->GetCurrentlyRunningRetargeter()->TargetSkeleton.FindBoneIndexByName(SelectedBones.Last());
+	const FTargetSkeleton& TargetSkeleton = Controller->GetRetargetProcessor()->GetTargetSkeleton();
+	const int32 BoneIndex = TargetSkeleton.FindBoneIndexByName(SelectedBones.Last());
 	if (BoneIndex == INDEX_NONE)
 	{
 		return FVector::ZeroVector;
@@ -132,7 +159,7 @@ bool FIKRetargetEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 	// check for selections
 	if (Click.GetKey() == EKeys::LeftMouseButton)
 	{
-		// selected goal
+		// selected bone ?
 		if (HitProxy && HitProxy->IsA(HIKRetargetEditorBoneProxy::StaticGetType()))
 		{
 			HIKRetargetEditorBoneProxy* BoneProxy = static_cast<HIKRetargetEditorBoneProxy*>(HitProxy);
@@ -142,7 +169,7 @@ bool FIKRetargetEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 		}
 		else
 		{
-			// clicking in empty space clears selected goals
+			// clicking in empty space clears selection
 			const bool bReplaceSelection = true;
 			HandleBoneSelectedInViewport(NAME_None, bReplaceSelection);
 		}
@@ -153,42 +180,66 @@ bool FIKRetargetEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 
 bool FIKRetargetEditMode::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
-	if (SelectedBones.IsEmpty())
-	{
-		return false; // no goals selected to manipulate
-	}
-
+	TrackingState = None;
+	
 	const EAxisList::Type CurrentAxis = InViewportClient->GetCurrentWidgetAxis();
 	if (CurrentAxis == EAxisList::None)
 	{
 		return false; // not manipulating a required axis
 	}
-	
-	bRotatingBones = true;
-	return true;
+
+	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return false; // invalid editor state
+	}
+
+	// get state of viewport
+	const bool bTranslating = InViewportClient->GetWidgetMode() == UE::Widget::EWidgetMode::WM_Translate;
+	const bool bRotating = InViewportClient->GetWidgetMode() == UE::Widget::EWidgetMode::WM_Rotate;
+	const bool bAnyBoneSelected = !SelectedBones.IsEmpty();
+	const bool bOnlyRootSelected = IsOnlyRootSelected();
+
+	// is any bone being rotated?
+	if (bRotating && bAnyBoneSelected)
+	{
+		// Start a rotation transaction
+		GEditor->BeginTransaction(LOCTEXT("RotateRetargetPoseBone", "Rotate Retarget Pose Bone"));
+		Controller->AssetController->GetAsset()->Modify();
+		TrackingState = FIKRetargetTrackingState::RotatingBone;
+		return true;
+	}
+
+	// is the root being translated?
+	if (bTranslating && bOnlyRootSelected)
+	{
+		// Start a translation transaction
+		GEditor->BeginTransaction(LOCTEXT("TranslateRetargetPoseBone", "Translate Retarget Pose Bone"));
+		Controller->AssetController->GetAsset()->Modify();
+		TrackingState = FIKRetargetTrackingState::TranslatingRoot;
+		return true;
+	}
+
+	return false;
 }
 
 bool FIKRetargetEditMode::EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
-{
-	if (!bRotatingBones)
+{	
+	if (TrackingState == FIKRetargetTrackingState::None)
 	{
 		return false; // not handled
 	}
 
-	bRotatingBones = false;
+	GEditor->EndTransaction();
+	TrackingState = FIKRetargetTrackingState::None;
 	return true;
 }
 
 bool FIKRetargetEditMode::InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale)
 {
-	if (!bRotatingBones)
+	if (TrackingState == FIKRetargetTrackingState::None)
 	{
 		return false; // not handled
-	}
-	
-	if(InViewportClient->GetWidgetMode() != UE::Widget::WM_Rotate)
-	{
-		return false;
 	}
 
 	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
@@ -196,14 +247,38 @@ bool FIKRetargetEditMode::InputDelta(FEditorViewportClient* InViewportClient, FV
 	{
 		return false; 
 	}
-	
-	// rotate chains
-	for (const FName& BoneName : SelectedBones)
+
+	// rotating any bone
+	if (TrackingState == FIKRetargetTrackingState::RotatingBone)
 	{
-		Controller->Asset->AddRotationOffsetToRetargetPoseBone(BoneName, InRot.Quaternion());
+		if(InViewportClient->GetWidgetMode() != UE::Widget::WM_Rotate)
+		{
+			return false;
+		}
+
+		// apply rotation delta to all selected bones
+		for (const FName& BoneName : SelectedBones)
+		{
+			Controller->AssetController->AddRotationOffsetToRetargetPoseBone(BoneName, InRot.Quaternion());
+		}
+
+		return true;
 	}
 	
-	return true;
+	// translating root
+	if (TrackingState == FIKRetargetTrackingState::TranslatingRoot)
+	{
+		if(InViewportClient->GetWidgetMode() != UE::Widget::WM_Translate)
+		{
+			return false;
+		}
+
+		// apply translation delta to root
+		Controller->AssetController->AddTranslationOffsetToRetargetRootBone(InDrag);
+		return true;
+	}
+	
+	return false;
 }
 
 bool FIKRetargetEditMode::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData)
@@ -219,7 +294,7 @@ bool FIKRetargetEditMode::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, vo
 		return false; 
 	}
 
-	const int32 BoneIndex = Controller->Asset->TargetIKRigAsset->Skeleton.GetBoneIndexFromName(SelectedBones[0]);
+	const int32 BoneIndex = Controller->AssetController->GetAsset()->TargetIKRigAsset->Skeleton.GetBoneIndexFromName(SelectedBones[0]);
 	const FTransform CurrentTransform = Controller->GetTargetBoneTransform(BoneIndex);
 	InMatrix = CurrentTransform.ToMatrixNoScale().RemoveTranslation();
 	return true;
@@ -228,6 +303,22 @@ bool FIKRetargetEditMode::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, vo
 bool FIKRetargetEditMode::GetCustomInputCoordinateSystem(FMatrix& InMatrix, void* InData)
 {
 	return GetCustomDrawingCoordinateSystem(InMatrix, InData);
+}
+
+bool FIKRetargetEditMode::IsOnlyRootSelected() const
+{
+	if (SelectedBones.Num() != 1)
+	{
+		return false;
+	}
+
+	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return false; 
+	}
+
+	return Controller->AssetController->GetTargetRootBone() == SelectedBones[0];
 }
 
 void FIKRetargetEditMode::DrawBoneProxy(
@@ -256,6 +347,8 @@ void FIKRetargetEditMode::DrawBoneProxy(
 void FIKRetargetEditMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 {
 	FEdMode::Tick(ViewportClient, DeltaTime);
+	
+	CurrentWidgetMode = ViewportClient->GetWidgetMode();
 }
 
 void FIKRetargetEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas)
@@ -294,3 +387,5 @@ void FIKRetargetEditMode::HandleBoneSelectedInViewport(const FName& BoneName, bo
 		}	
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

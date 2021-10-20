@@ -11,7 +11,9 @@
 #include "Animation/PoseAsset.h"
 #include "RetargetEditor/IKRetargetBatchOperation.h"
 #include "RetargetEditor/IKRetargetEditorController.h"
+#include "RetargetEditor/SRetargetAnimAssetsWindow.h"
 #include "Retargeter/IKRetargeter.h"
+#include "Retargeter/IKRetargetProcessor.h"
 
 #define LOCTEXT_NAMESPACE "IKRetargeterAssetBrowser"
 
@@ -76,6 +78,11 @@ void SIKRetargetAssetBrowser::AddAssetBrowser()
 	AssetBrowserBox->SetContent(ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig));
 }
 
+void SIKRetargetAssetBrowser::OnPathChange(const FString& NewPath)
+{
+	BatchOutputPath = NewPath;
+}
+
 FReply SIKRetargetAssetBrowser::OnExportButtonClicked() const
 {
 	FIKRetargetEditorController* Controller = EditorController.Pin().Get();
@@ -83,9 +90,21 @@ FReply SIKRetargetAssetBrowser::OnExportButtonClicked() const
 	{
 		return FReply::Handled();
 	}
-	
+
 	// assemble the data for the assets we want to batch duplicate/retarget
 	FIKRetargetBatchOperationContext BatchContext;
+
+	TSharedRef<SSelectExportPathDialog> Dialog = SNew(SSelectExportPathDialog).DefaultAssetPath(FText::FromString(BatchContext.FolderPath));
+	if(Dialog->ShowModal() != EAppReturnType::Cancel)
+	{
+		BatchContext.NameRule.FolderPath = Dialog->GetAssetPath();
+	}
+
+	// set the path to export to
+	if (!BatchOutputPath.IsEmpty())
+	{
+		BatchContext.FolderPath = BatchOutputPath;
+	}
 
 	// add selected assets to dup/retarget
 	TArray<FAssetData> SelectedAssets = GetCurrentSelectionDelegate.Execute();
@@ -98,31 +117,43 @@ FReply SIKRetargetAssetBrowser::OnExportButtonClicked() const
 
 	BatchContext.SourceMesh = Controller->GetSourceSkeletalMesh();
 	BatchContext.TargetMesh = Controller->GetTargetSkeletalMesh();
-	BatchContext.IKRetargetAsset = Controller->Asset;
+	BatchContext.IKRetargetAsset = const_cast<UIKRetargeter*>(Controller->AssetController->GetAsset());
 	BatchContext.bRemapReferencedAssets = false;
 	BatchContext.NameRule.Suffix = "_Retargeted";
 
 	// actually run the retarget
 	FIKRetargetBatchOperation BatchOperation;
 	BatchOperation.RunRetarget(BatchContext);
-	
+
 	return FReply::Handled();
+	
 }
 
 bool SIKRetargetAssetBrowser::IsExportButtonEnabled() const
 {
 	if (!EditorController.Pin().IsValid())
 	{
-		return false;
+		return false; // editor in bad state
 	}
 
-	UIKRetargeter* CurrentRetargeter = EditorController.Pin()->GetCurrentlyRunningRetargeter();
-	if (!IsValid(CurrentRetargeter))
+	const UIKRetargetProcessor* Processor = EditorController.Pin()->GetRetargetProcessor();
+	if (!Processor)
 	{
-		return false;
+		return false; // no retargeter running
 	}
 
-	return CurrentRetargeter->bIsLoadedAndValid;
+	if (!Processor->IsInitialized())
+	{
+		return false; // retargeter not loaded and valid
+	}
+
+	TArray<FAssetData> SelectedAssets = GetCurrentSelectionDelegate.Execute();
+	if (SelectedAssets.IsEmpty())
+	{
+		return false; // nothing selected
+	}
+
+	return true;
 }
 
 void SIKRetargetAssetBrowser::OnAssetDoubleClicked(const FAssetData& AssetData)

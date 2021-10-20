@@ -42,7 +42,7 @@ class FIKRigEditorToolkit :
 public:
 
 	FIKRigEditorToolkit();
-	virtual ~FIKRigEditorToolkit();
+	virtual ~FIKRigEditorToolkit() override {};
 
 	void InitAssetEditor(
 		const EToolkitMode::Type Mode,

@@ -17,9 +17,14 @@ void UIKRetargetAnimInstance::SetRetargetAssetAndSourceComponent(
 	Proxy.SetRetargetAssetAndSourceComponent(InAsset, InSourceMeshComponent);
 }
 
-UIKRetargeter* UIKRetargetAnimInstance::GetCurrentlyUsedRetargeter() const
+const UIKRetargetProcessor* UIKRetargetAnimInstance::GetRetargetProcessor() const
 {
-	return IKRetargeterNode.GetCurrentlyUsedRetargeter();
+	return IKRetargeterNode.GetRetargetProcessor();
+}
+
+void UIKRetargetAnimInstance::SetProcessorNeedsInitialized()
+{
+	IKRetargeterNode.SetProcessorNeedsInitialized();
 }
 
 FAnimInstanceProxy* UIKRetargetAnimInstance::CreateAnimInstanceProxy()

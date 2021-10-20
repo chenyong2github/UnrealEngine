@@ -19,7 +19,9 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Misc/ScopedSlowTask.h"
+#include "RetargetEditor/SRetargetAnimAssetsWindow.h"
 #include "Retargeter/IKRetargeter.h"
+#include "Retargeter/IKRetargetProcessor.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 
@@ -200,9 +202,9 @@ void FIKRetargetBatchOperation::ConvertAnimation(
 {
 	// initialize the retargeter
 	UObject* TransientOuter = Cast<UObject>(GetTransientPackage());
-	UIKRetargeter* Retargeter = DuplicateObject(Context.IKRetargetAsset, TransientOuter);	
-	Retargeter->Initialize(Context.SourceMesh, Context.TargetMesh, TransientOuter);
-	if (!Retargeter->bIsLoadedAndValid)
+	UIKRetargetProcessor* Processor = NewObject<UIKRetargetProcessor>(TransientOuter);
+	Processor->Initialize(Context.SourceMesh, Context.TargetMesh, Context.IKRetargetAsset);
+	if (!Processor->IsInitialized())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Unable to initialize the IK Retargeter. Newly created animations were not retargeted!"));
 		return;
@@ -232,7 +234,7 @@ void FIKRetargetBatchOperation::ConvertAnimation(
 		const int32 NumFrames = SourceSequence->GetNumberOfSampledKeys();
 
 		// make space for the target keyframe data
-		const int32 NumTargetBones = Retargeter->TargetSkeleton.BoneNames.Num();
+		const int32 NumTargetBones = Processor->GetTargetSkeleton().BoneNames.Num();
 		TArray<FRawAnimSequenceTrack> BoneTracks;
 		BoneTracks.SetNumZeroed(NumTargetBones);
 
@@ -252,11 +254,11 @@ void FIKRetargetBatchOperation::ConvertAnimation(
 			}
 
 			// run the retarget
-			TArray<FTransform>& TargetComponentPose = Retargeter->RunRetargeter(SourceComponentPose);
+			TArray<FTransform>& TargetComponentPose = Processor->RunRetargeter(SourceComponentPose);
 
 			// convert to a local-space pose
 			TArray<FTransform> TargetLocalPose = TargetComponentPose;
-			Retargeter->TargetSkeleton.UpdateLocalTransformsBelowBone(0,TargetLocalPose, TargetComponentPose);
+			Processor->GetTargetSkeleton().UpdateLocalTransformsBelowBone(0,TargetLocalPose, TargetComponentPose);
 
 			// store key data for each bone
 			for (int32 TargetBoneIndex=0; TargetBoneIndex<TargetLocalPose.Num(); ++TargetBoneIndex)
@@ -271,7 +273,7 @@ void FIKRetargetBatchOperation::ConvertAnimation(
 		const bool bShouldTransact = false;
 		for (int32 TargetBoneIndex=0; TargetBoneIndex<NumTargetBones; ++TargetBoneIndex)
 		{
-			FName TargetBoneName = Retargeter->TargetSkeleton.BoneNames[TargetBoneIndex];
+			FName TargetBoneName = Processor->GetTargetSkeleton().BoneNames[TargetBoneIndex];
 			FRawAnimSequenceTrack& RawTrack = BoneTracks[TargetBoneIndex];
 			TargetSeqController.AddBoneTrack(TargetBoneName, bShouldTransact);
 			TargetSeqController.SetBoneTrackKeys(TargetBoneName, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys);
@@ -339,7 +341,7 @@ void FIKRetargetBatchOperation::GetNewAssets(TArray<UObject*>& NewAssets) const
 
 
 void FIKRetargetBatchOperation::RunRetarget(FIKRetargetBatchOperationContext& Context)
-{
+{	
 	const int32 NumAssets = GenerateAssetLists(Context);
 	
 	// show progress bar

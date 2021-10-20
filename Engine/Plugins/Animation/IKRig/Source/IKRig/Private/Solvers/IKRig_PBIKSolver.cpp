@@ -5,6 +5,8 @@
 #include "IKRigDataTypes.h"
 #include "IKRigSkeleton.h"
 
+#define LOCTEXT_NAMESPACE "UIKRigPBIKSolver"
+
 void UIKRigPBIKSolver::Initialize(const FIKRigSkeleton& InSkeleton)
 {	
 	// check how many effectors are assigned to a bone
@@ -89,12 +91,17 @@ void UIKRigPBIKSolver::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCont
 		{
 			continue;
 		}
-		FIKRigGoal Goal;
-		Goals.GetGoalByName(Effector->GoalName, Goal);
+		
+		const FIKRigGoal* Goal = Goals.FindGoalByName(Effector->GoalName);
+		if (!Goal)
+		{
+			return;
+		}
+		
 		Solver.SetEffectorGoal(
 			Effector->IndexInSolver,
-			Goal.FinalBlendedPosition,
-			Goal.FinalBlendedRotation,
+			Goal->FinalBlendedPosition,
+			Goal->FinalBlendedRotation,
 			OffsetAlpha,
 			Effector->StrengthAlpha,
 			Effector->PullChainAlpha,
@@ -122,6 +129,8 @@ void UIKRigPBIKSolver::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCont
 		IKRigSkeleton.CurrentPoseGlobal[BoneIndex] = OutTransform;
 	}
 }
+
+#if WITH_EDITOR
 
 void UIKRigPBIKSolver::UpdateSolverSettings(UIKRigSolver* InSettings)
 {
@@ -161,6 +170,28 @@ void UIKRigPBIKSolver::UpdateSolverSettings(UIKRigSolver* InSettings)
 			}
 		}
 	}
+}
+
+FText UIKRigPBIKSolver::GetNiceName() const
+{
+	return FText(LOCTEXT("SolverName", "Full-Body IK"));
+}
+
+bool UIKRigPBIKSolver::GetWarningMessage(FText& OutWarningMessage) const
+{
+	if (RootBone == NAME_None)
+	{
+		OutWarningMessage = LOCTEXT("MissingRoot", "Missing root bone.");
+		return true;
+	}
+
+	if (Effectors.IsEmpty())
+	{
+		OutWarningMessage = LOCTEXT("MissingGoal", "Missing goals.");
+		return true;
+	}
+	
+	return false;
 }
 
 void UIKRigPBIKSolver::AddGoal(const UIKRigEffectorGoal& NewGoal)
@@ -220,7 +251,7 @@ void UIKRigPBIKSolver::SetRootBone(const FName& RootBoneName)
 	RootBone = RootBoneName;
 }
 
-UObject* UIKRigPBIKSolver::GetEffectorWithGoal(const FName& GoalName)
+UObject* UIKRigPBIKSolver::GetEffectorWithGoal(const FName& GoalName) const
 {
 	const int32 GoalIndex = GetIndexOfGoal(GoalName);
 	if (GoalIndex == INDEX_NONE)
@@ -327,3 +358,7 @@ void UIKRigPBIKSolver::PostLoad()
 		Effectors.Empty();
 	}
 }
+
+#endif
+
+#undef LOCTEXT_NAMESPACE

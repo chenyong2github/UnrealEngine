@@ -19,9 +19,6 @@ class IKRIG_API UIKRigSolver : public UObject
 	
 public:
 
-	UPROPERTY(EditAnywhere, Category = "Solver Settings")
-	bool bEnabled = true;
-
 	//** RUNTIME */
 	/** override to setup internal data based on ref pose */
 	virtual void Initialize(const FIKRigSkeleton& IKRigSkeleton) PURE_VIRTUAL("Init");
@@ -29,12 +26,27 @@ public:
 	virtual void Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalContainer& Goals) PURE_VIRTUAL("Solve");
 	//** END RUNTIME */
 
+#if WITH_EDITORONLY_DATA
+	
+	/** callback whenever this solver is edited */
+	DECLARE_EVENT_OneParam(UIKRigSolver, FIKRigSolverModified, UIKRigSolver*);
+	FIKRigSolverModified& OnSolverModified(){ return IKRigSolverModified; };
+
+	/** get if this solver is enabled */
+	bool IsEnabled() const { return bIsEnabled; };
+	/** turn solver on/off (will be skipped during execution if disabled) */
+	void SetEnabled(const bool bEnabled){ bIsEnabled = bEnabled; };
+	
 	//** SOLVER SETTINGS */
 	/** override to support RECEIVING modified solver settings from outside systems for editing/UI.
 	 * Note: you can safely cast this to your own solver type and copy any relevant settings at runtime
 	 * This is necessary because at runtime, the IKRigProcessor creates a copy of your solver class
 	 * and the copy must be notified of changes made to the class settings in the source asset.*/
 	virtual void UpdateSolverSettings(UIKRigSolver* InSettings){};
+	/** override to give your solver a nice name to display in the UI */
+	virtual FText GetNiceName() const { checkNoEntry() return FText::GetEmpty(); };
+	/** override to provide warning to user during setup of any missing components. return false if no warnings. */
+	virtual bool GetWarningMessage(FText& OutWarningMessage) const { return false; };
 	//** END SOLVER SETTINGS */
 
 	//** GOALS */
@@ -49,7 +61,7 @@ public:
 	/** override to support QUERY for a connected goal */
 	virtual bool IsGoalConnected(const FName& GoalName) const {return false;};
 	/** override to support supplying effector settings to outside systems for editing/UI */
-	virtual UObject* GetEffectorWithGoal(const FName& GoalName) {return nullptr;};
+	virtual UObject* GetEffectorWithGoal(const FName& GoalName) const {return nullptr;};
 	//** END GOALS */
 
 	//** ROOT BONE (optional, implement if your solver requires a root bone) */
@@ -64,20 +76,27 @@ public:
 	/** override to support ADDING PER-BONE settings for this solver */
 	virtual void RemoveBoneSetting(const FName& BoneName){};
 	/** override to support supplying per-bone settings to outside systems for editing/UI */
-	virtual UObject* GetBoneSetting(const FName& BoneName) const { return nullptr;};
+	virtual UObject* GetBoneSetting(const FName& BoneName) const { return nullptr; };
 	/** override to tell systems if this solver supports per-bone settings */
 	virtual bool UsesBoneSettings() const { return false;};
 	/** override to draw custom per-bone settings in the editor viewport */
 	virtual void DrawBoneSettings(const FName& BoneName, const FIKRigSkeleton& IKRigSkeleton, FPrimitiveDrawInterface* PDI) const {};
 	/** return true if the supplied Bone is affected by this solver - this provides UI feedback for user */
-	virtual bool IsBoneAffectedBySolver(const FName& BoneName, const FIKRigSkeleton& IKRigSkeleton) const {return false;};
+	virtual bool IsBoneAffectedBySolver(const FName& BoneName, const FIKRigSkeleton& IKRigSkeleton) const { return false; };
 	//** END ROOT BONE */
 
 	/** UObject interface */
-	void PostLoad() override
-	{
-		Super::PostLoad();
-		SetFlags(RF_Transactional); // patch old solvers to enable undo/redo
-	}; 
+	virtual void PostLoad() override;
+	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 	/** END UObject interface */
+
+private:
+
+	/** Register callbacks to update IK Rig when a solver is modified */
+	FIKRigSolverModified IKRigSolverModified;
+
+	UPROPERTY()
+	bool bIsEnabled = true;
+
+#endif
 };

@@ -4,10 +4,7 @@
 #include "IKRigDataTypes.h"
 #include "IKRigSkeleton.h"
 
-
-UIKRig_BodyMover::UIKRig_BodyMover()
-{
-}
+#define LOCTEXT_NAMESPACE "UIKRig_BodyMover"
 
 void UIKRig_BodyMover::Initialize(const FIKRigSkeleton& IKRigSkeleton)
 {
@@ -39,8 +36,8 @@ void UIKRig_BodyMover::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCont
 	FVector CurrentCentroid = FVector::ZeroVector;
 	for (UIKRig_BodyMoverEffector* Effector : Effectors)
 	{
-		FIKRigGoal Goal;
-		if (!Goals.GetGoalByName(Effector->GoalName, Goal))
+		const FIKRigGoal* Goal = Goals.FindGoalByName(Effector->GoalName);
+		if (!Goal)
 		{
 			return;
 		}
@@ -49,7 +46,7 @@ void UIKRig_BodyMover::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCont
 		const FTransform InitialEffector = IKRigSkeleton.CurrentPoseGlobal[BoneIndex];
 
 		InitialCentroid += InitialEffector.GetTranslation();
-		CurrentCentroid += Goal.FinalBlendedPosition;
+		CurrentCentroid += Goal->FinalBlendedPosition;
 	}
 
 	// average centroids
@@ -63,8 +60,8 @@ void UIKRig_BodyMover::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCont
 	FVector DZ = FVector::ZeroVector;
 	for (UIKRig_BodyMoverEffector* Effector : Effectors)
 	{
-		FIKRigGoal Goal;
-		if (!Goals.GetGoalByName(Effector->GoalName, Goal))
+		const FIKRigGoal* Goal = Goals.FindGoalByName(Effector->GoalName);
+		if (!Goal)
 		{
 			return;
 		}
@@ -80,7 +77,7 @@ void UIKRig_BodyMover::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCont
 		// P is normalized vector from INITIAL centroid to INITIAL point
 		// Q is normalized vector from CURRENT centroid to CURRENT point
 		FVector P = (InitialEffector.GetTranslation() - InitialCentroid).GetSafeNormal();
-		FVector Q = (Goal.FinalBlendedPosition - CurrentCentroid).GetSafeNormal();
+		FVector Q = (Goal->FinalBlendedPosition - CurrentCentroid).GetSafeNormal();
 		// PQ^T is the outer product of P and Q which is a 3x3 matrix
 		// https://en.m.wikipedia.org/wiki/Outer_product
 		DX += FVector(P[0]*Q[0], P[0]*Q[1], P[0]*Q[2]);
@@ -128,7 +125,7 @@ void UIKRig_BodyMover::ExtractRotation(
 		FVector RCol1(R.M[1][0], R.M[1][1], R.M[1][2]);
 		FVector RCol2(R.M[2][0], R.M[2][1], R.M[2][2]);
 		FVector Omega = RCol0.Cross(DX) + RCol1.Cross(DY) + RCol2.Cross(DZ);
-		Omega *= (1.0f / fabs(RCol0.Dot(DX) + RCol1.Dot(DY) + RCol2.Dot(DZ)) + SMALL_NUMBER);
+		Omega *= 1.0f / (fabs(RCol0.Dot(DX) + RCol1.Dot(DY) + RCol2.Dot(DZ)) + SMALL_NUMBER);
 		const float W = Omega.Size();
 		if (W < SMALL_NUMBER)
 		{
@@ -138,6 +135,8 @@ void UIKRig_BodyMover::ExtractRotation(
 		Q.Normalize();
 	}
 }
+
+#if WITH_EDITOR
 
 void UIKRig_BodyMover::UpdateSolverSettings(UIKRigSolver* InSettings)
 {
@@ -169,6 +168,28 @@ void UIKRig_BodyMover::UpdateSolverSettings(UIKRigSolver* InSettings)
 			}
 		}
 	}
+}
+
+FText UIKRig_BodyMover::GetNiceName() const
+{
+	return FText(LOCTEXT("SolverName", "Body Mover"));
+}
+
+bool UIKRig_BodyMover::GetWarningMessage(FText& OutWarningMessage) const
+{
+	if (BodyBone == NAME_None)
+	{
+		OutWarningMessage = LOCTEXT("MissingRoot", "Missing root bone.");
+		return true;
+	}
+
+	if (Effectors.IsEmpty())
+	{
+		OutWarningMessage = LOCTEXT("MissingGoal", "Missing goals.");
+		return true;
+	}
+	
+	return false;
 }
 
 void UIKRig_BodyMover::AddGoal(const UIKRigEffectorGoal& NewGoal)
@@ -223,7 +244,7 @@ bool UIKRig_BodyMover::IsGoalConnected(const FName& GoalName) const
 	return GetIndexOfGoal(GoalName) != INDEX_NONE;
 }
 
-UObject* UIKRig_BodyMover::GetEffectorWithGoal(const FName& GoalName)
+UObject* UIKRig_BodyMover::GetEffectorWithGoal(const FName& GoalName) const
 {
 	const int32 GoalIndex = GetIndexOfGoal(GoalName);
 	if (GoalIndex == INDEX_NONE)
@@ -256,3 +277,7 @@ int32 UIKRig_BodyMover::GetIndexOfGoal(const FName& OldName) const
 
 	return INDEX_NONE;
 }
+
+#endif
+
+#undef LOCTEXT_NAMESPACE

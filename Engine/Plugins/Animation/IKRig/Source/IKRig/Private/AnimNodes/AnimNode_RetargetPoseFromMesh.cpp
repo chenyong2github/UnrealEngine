@@ -30,14 +30,28 @@ void FAnimNode_RetargetPoseFromMesh::Evaluate_AnyThread(FPoseContext& Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
 
-	if (!bIsInitialized)
+	if (!(IKRetargeterAsset && Processor))
+	{
+		return;
+	}
+	
+	if (!Processor->IsInitialized())
 	{
 		Output.ResetToRefPose();
 		return;
 	}
 
+#if WITH_EDITOR
+	// live preview IK Rig solver settings in the retarget, editor only
+	// NOTE: this copies goal targets as well, but these are overwritten by IK chain goals
+	if (bDriveTargetIKRigWithAsset)
+	{
+		Processor->CopyTargetIKRigSettingsFromAsset();
+	}
+#endif
+
 	// run the retargeter
-	const TArray<FTransform>& RetargetedPose = CurrentlyUsedRetargeter->RunRetargeter(SourceMeshComponentSpaceBoneTransforms);
+	const TArray<FTransform>& RetargetedPose = Processor->RunRetargeter(SourceMeshComponentSpaceBoneTransforms);
 
 	// copy pose back
 	FCSPose<FCompactPose> ComponentPose;
@@ -54,16 +68,37 @@ void FAnimNode_RetargetPoseFromMesh::Evaluate_AnyThread(FPoseContext& Output)
 void FAnimNode_RetargetPoseFromMesh::PreUpdate(const UAnimInstance* InAnimInstance)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(PreUpdate)
+	
+	if (!IsValid(IKRetargeterAsset))
+	{
+		return;
+	}
+	
+	if (!IsValid(Processor))
+	{
+		Processor = NewObject<UIKRetargetProcessor>(InAnimInstance->GetOwningComponent());	
+	}
+	
 	EnsureInitialized(InAnimInstance);
-	if (bIsInitialized)
+	if (Processor->IsInitialized())
 	{
 		CopyBoneTransformsFromSource(InAnimInstance->GetSkelMeshComponent());
 	}
 }
 
-UIKRetargeter* FAnimNode_RetargetPoseFromMesh::GetCurrentlyUsedRetargeter() const
+#if WITH_EDITOR
+void FAnimNode_RetargetPoseFromMesh::SetProcessorNeedsInitialized()
 {
-	return CurrentlyUsedRetargeter.Get();
+	if (Processor)
+	{
+		Processor->SetNeedsInitialized();
+	}
+}
+#endif
+
+const UIKRetargetProcessor* FAnimNode_RetargetPoseFromMesh::GetRetargetProcessor() const
+{
+	return Processor;
 }
 
 void FAnimNode_RetargetPoseFromMesh::EnsureInitialized(const UAnimInstance* InAnimInstance)
@@ -71,7 +106,6 @@ void FAnimNode_RetargetPoseFromMesh::EnsureInitialized(const UAnimInstance* InAn
 	// has user supplied a retargeter asset?
 	if (!IKRetargeterAsset)
 	{
-		bIsInitialized = false;
 		return;
 	}
 
@@ -89,75 +123,39 @@ void FAnimNode_RetargetPoseFromMesh::EnsureInitialized(const UAnimInstance* InAn
 	// has a source mesh been plugged in or found?
 	if (!SourceMeshComponent.IsValid())
 	{
-		bIsInitialized = false;
 		return; // can't do anything if we don't have a source mesh
 	}
 
-	// has the source asset been updated? this can happen in the editor when changing source asset
-	if (!CurrentlyUsedRetargeter
-		|| (CurrentlyUsedRetargeter->AssetVersion != IKRetargeterAsset->AssetVersion))
-	{
-		InitializeRetargetData(InAnimInstance);
-		return;	
-	}
-}
-
-void FAnimNode_RetargetPoseFromMesh::InitializeRetargetData(const UAnimInstance* InAnimInstance)
-{
-	// assume we fail until we don't
-	bIsInitialized = false;
-	
-	// don't try to reinitialize with same asset version
-	if (LastVersionTried == IKRetargeterAsset->AssetVersion)
-	{
-		return;
-	}
-	LastVersionTried = IKRetargeterAsset->AssetVersion;
-
 	// store all the components that were used to initialize
 	// if in future updates, any of this are mismatched, we have to re-initialize
-	CurrentlyUsedSourceMeshComponent = SourceMeshComponent;
 	CurrentlyUsedSourceMesh = SourceMeshComponent->SkeletalMesh;
 	CurrentlyUsedTargetMesh = InAnimInstance->GetSkelMeshComponent()->SkeletalMesh;
-	CurrentlyUsedRetargeter = DuplicateObject(IKRetargeterAsset, const_cast<UAnimInstance*>(InAnimInstance));
-	CurrentlyUsedRetargeter->AssetVersion = IKRetargeterAsset->AssetVersion;
-	CurrentlyUsedSourceIKRig = CurrentlyUsedRetargeter->SourceIKRigAsset;
-	CurrentlyUsedTargetIKRig = CurrentlyUsedRetargeter->TargetIKRigAsset;
-
 	const bool bMeshesAreValid = CurrentlyUsedSourceMesh.IsValid() && CurrentlyUsedTargetMesh.IsValid();
 	if (!bMeshesAreValid)
 	{
 		return; // cannot initialize if components are missing skeletal mesh references
 	}
 
-	const bool bRetargeterIsValid =
-	   CurrentlyUsedRetargeter
-	&& CurrentlyUsedSourceIKRig.IsValid()
-	&& CurrentlyUsedTargetIKRig.IsValid();
-	if (!bRetargeterIsValid)
+	// try initializing the processor
+	if (!Processor->IsInitialized())
 	{
-		return; // cannot initialize unless we have a retargeter with BOTH source AND target IK Rigs
+		// initialize retarget processor with source and target skeletal meshes
+		// (anim instance is passed in as outer UObject for new UIKRigProcessor) 
+		Processor->Initialize(
+			CurrentlyUsedSourceMesh.Get(),
+			CurrentlyUsedTargetMesh.Get(),
+			IKRetargeterAsset);
 	}
-
-	// initialize retargeter with source and target skeletal meshes
-	// (anim instance is passed in as outer UObject for new UIKRigProcessor) 
-	CurrentlyUsedRetargeter->Initialize(
-		CurrentlyUsedSourceMesh.Get(),
-		CurrentlyUsedTargetMesh.Get(),
-		const_cast<UAnimInstance*>(InAnimInstance));
-	
-	// made it!
-	bIsInitialized = CurrentlyUsedRetargeter->bIsLoadedAndValid;
 }
 
 void FAnimNode_RetargetPoseFromMesh::CopyBoneTransformsFromSource(USkeletalMeshComponent* TargetMeshComponent)
 {
-	if (!CurrentlyUsedSourceMeshComponent.IsValid())
+	if (!SourceMeshComponent.IsValid())
 	{
 		return; 
 	}
 
-	USkeletalMeshComponent* SourceMeshComp =  CurrentlyUsedSourceMeshComponent.Get();
+	USkeletalMeshComponent* SourceMeshComp =  SourceMeshComponent.Get();
 	
 	// is the source mesh ticking?
 	if (!SourceMeshComp->IsRegistered())
@@ -179,7 +177,10 @@ void FAnimNode_RetargetPoseFromMesh::CopyBoneTransformsFromSource(USkeletalMeshC
 		return; // master pose either missing skeletal mesh reference or not ticking, either way, we aren't copying from it
 	}
 	
-	const bool bUROInSync = SourceMeshComp->ShouldUseUpdateRateOptimizations() && SourceMeshComp->AnimUpdateRateParams != nullptr && SourceMeshComponent->AnimUpdateRateParams == TargetMeshComponent->AnimUpdateRateParams;
+	const bool bUROInSync =
+		SourceMeshComp->ShouldUseUpdateRateOptimizations() &&
+		SourceMeshComp->AnimUpdateRateParams != nullptr &&
+		SourceMeshComponent->AnimUpdateRateParams == TargetMeshComponent->AnimUpdateRateParams;
 	const bool bUsingExternalInterpolation = SourceMeshComp->IsUsingExternalInterpolation();
 	const TArray<FTransform>& CachedComponentSpaceTransforms = SourceMeshComp->GetCachedComponentSpaceTransforms();
 	const bool bArraySizesMatch = CachedComponentSpaceTransforms.Num() == SourceMeshComp->GetComponentSpaceTransforms().Num();
@@ -194,12 +195,4 @@ void FAnimNode_RetargetPoseFromMesh::CopyBoneTransformsFromSource(USkeletalMeshC
 	{
 		SourceMeshComponentSpaceBoneTransforms.Append(SourceMeshComp->GetComponentSpaceTransforms()); // copy directly
 	}
-
-	// ref skeleton is need for parent index lookups later, so store it now
-	CurrentlyUsedSourceMesh = SourceMeshComp->SkeletalMesh;
-}
-
-USkeletalMeshComponent* FAnimNode_RetargetPoseFromMesh::GetSourceMesh() const
-{
-	return nullptr;
 }

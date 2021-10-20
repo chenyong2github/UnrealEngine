@@ -19,6 +19,8 @@ public:
 
 	void SetIKRigAsset(UIKRigDefinition* IKRigAsset);
 
+	void SetProcessorNeedsInitialized();
+
 protected:
 	virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override;
 

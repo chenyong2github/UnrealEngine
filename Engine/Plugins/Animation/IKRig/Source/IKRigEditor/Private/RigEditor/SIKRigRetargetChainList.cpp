@@ -42,7 +42,9 @@ void SIKRigRetargetChainRow::Construct(
 	// generate list of goals
 	// NOTE: cannot just use literal "None" because Combobox considers that a "null" entry and will discard it from the list.
 	GoalOptions.Add(MakeShareable(new FString("None")));
-	for (UIKRigEffectorGoal* Goal : InChainList->EditorController.Pin()->AssetController->GetAsset()->Goals)
+	const UIKRigDefinition* IKRigAsset = InChainList->EditorController.Pin()->AssetController->GetAsset();
+	const TArray<UIKRigEffectorGoal*>& AssetGoals =  IKRigAsset->GetGoalArray();
+	for (const UIKRigEffectorGoal* Goal : AssetGoals)
 	{
 		GoalOptions.Add(MakeShareable(new FString(Goal->GoalName.ToString())));
 	}
@@ -63,7 +65,7 @@ TSharedRef<SWidget> SIKRigRetargetChainRow::GenerateWidgetForColumn(const FName&
 		.Padding(3.0f, 1.0f)
 		[
 			SNew(SEditableTextBox)
-			.Text(FText::FromName(ChainElement.Pin()->Chain->ChainName))
+			.Text(FText::FromName(ChainElement.Pin()->ChainName))
 			.Font(FEditorStyle::GetFontStyle(TEXT("BoldFont")))
 			.OnTextCommitted(this, &SIKRigRetargetChainRow::OnRenameChain)
 		];
@@ -81,7 +83,7 @@ TSharedRef<SWidget> SIKRigRetargetChainRow::GenerateWidgetForColumn(const FName&
 		.Padding(3.0f, 1.0f)
 		[
 			SNew(SComboBox<FName>)
-			.OptionsSource(&ChainList.Pin()->EditorController.Pin()->AssetController->GetSkeleton().BoneNames)
+			.OptionsSource(&ChainList.Pin()->EditorController.Pin()->AssetController->GetIKRigSkeleton().BoneNames)
 			.OnGenerateWidget(this, &SIKRigRetargetChainRow::MakeBoneComboEntryWidget)
 			.OnSelectionChanged(this, &SIKRigRetargetChainRow::OnStartBoneComboSelectionChanged)
 			[
@@ -103,7 +105,7 @@ TSharedRef<SWidget> SIKRigRetargetChainRow::GenerateWidgetForColumn(const FName&
 		.Padding(3.0f, 1.0f)
 		[
 			SNew(SComboBox<FName>)
-			.OptionsSource(&ChainList.Pin()->EditorController.Pin()->AssetController->GetSkeleton().BoneNames)
+			.OptionsSource(&ChainList.Pin()->EditorController.Pin()->AssetController->GetIKRigSkeleton().BoneNames)
 			.OnGenerateWidget(this, &SIKRigRetargetChainRow::MakeBoneComboEntryWidget)
 			.OnSelectionChanged(this, &SIKRigRetargetChainRow::OnEndBoneComboSelectionChanged)
 			[
@@ -156,13 +158,44 @@ void SIKRigRetargetChainRow::OnStartBoneComboSelectionChanged(FName InName, ESel
 		return; 
 	}
 	
-	Controller->AssetController->SetRetargetChainStartBone(ChainElement.Pin()->Chain->ChainName, InName);
+	Controller->AssetController->SetRetargetChainStartBone(ChainElement.Pin()->ChainName, InName);
 	ChainList.Pin()->RefreshView();
 }
 
 FText SIKRigRetargetChainRow::GetStartBoneName() const
 {
-	return FText::FromName(ChainElement.Pin()->Chain->StartBone);
+	const TSharedPtr<FIKRigEditorController> Controller = ChainList.Pin()->EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return FText::GetEmpty();
+	}
+	
+	const FName StartBoneName = Controller->AssetController->GetRetargetChainStartBone(ChainElement.Pin()->ChainName);
+	return FText::FromName(StartBoneName);
+}
+
+FText SIKRigRetargetChainRow::GetEndBoneName() const
+{	
+	const TSharedPtr<FIKRigEditorController> Controller = ChainList.Pin()->EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return FText::GetEmpty();
+	}
+	
+	const FName EndBoneName = Controller->AssetController->GetRetargetChainEndBone(ChainElement.Pin()->ChainName);
+	return FText::FromName(EndBoneName);
+}
+
+FText SIKRigRetargetChainRow::GetGoalName() const
+{
+	const TSharedPtr<FIKRigEditorController> Controller = ChainList.Pin()->EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return FText::GetEmpty();
+	}
+	
+	const FName GoalName = Controller->AssetController->GetRetargetChainGoal(ChainElement.Pin()->ChainName);
+	return FText::FromName(GoalName);
 }
 
 void SIKRigRetargetChainRow::OnEndBoneComboSelectionChanged(FName InName, ESelectInfo::Type SelectInfo)
@@ -173,35 +206,34 @@ void SIKRigRetargetChainRow::OnEndBoneComboSelectionChanged(FName InName, ESelec
 		return; 
 	}
 	
-	Controller->AssetController->SetRetargetChainEndBone(ChainElement.Pin()->Chain->ChainName, InName);
+	Controller->AssetController->SetRetargetChainEndBone(ChainElement.Pin()->ChainName, InName);
 	ChainList.Pin()->RefreshView();
 }
 
 void SIKRigRetargetChainRow::OnGoalComboSelectionChanged(TSharedPtr<FString> InGoalName, ESelectInfo::Type SelectInfo)
 {
-	ChainElement.Pin()->Chain->IKGoalName = FName(*InGoalName.Get());
+	const TSharedPtr<FIKRigEditorController> Controller = ChainList.Pin()->EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return; 
+	}
+
+	Controller->AssetController->SetRetargetChainGoal(ChainElement.Pin()->ChainName, FName(*InGoalName.Get()));
 	ChainList.Pin()->RefreshView();
-}
-
-FText SIKRigRetargetChainRow::GetEndBoneName() const
-{
-	return FText::FromName(ChainElement.Pin()->Chain->EndBone);
-}
-
-FText SIKRigRetargetChainRow::GetGoalName() const
-{
-	return FText::FromName(ChainElement.Pin()->Chain->IKGoalName);
 }
 
 void SIKRigRetargetChainRow::OnRenameChain(const FText& InText, ETextCommit::Type) const
 {
-	ChainElement.Pin()->Chain->ChainName = FName(*InText.ToString());
-	ChainList.Pin()->RefreshView();
-}
+	const TSharedPtr<FIKRigEditorController> Controller = ChainList.Pin()->EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return; 
+	}
 
-SIKRigRetargetChainList::~SIKRigRetargetChainList()
-{
-	
+	const FName OldName = ChainElement.Pin()->ChainName;
+	const FName NewName = FName(*InText.ToString());
+	ChainElement.Pin()->ChainName = Controller->AssetController->RenameRetargetChain(OldName, NewName);
+	ChainList.Pin()->RefreshView();
 }
 
 void SIKRigRetargetChainList::Construct(const FArguments& InArgs, TSharedRef<FIKRigEditorController> InEditorController)
@@ -283,7 +315,7 @@ bool SIKRigRetargetChainList::IsAddChainEnabled() const
 	
 	if (UIKRigController* AssetController = Controller->AssetController)
 	{
-		if (AssetController->GetSkeleton().BoneNames.Num() > 0)
+		if (AssetController->GetIKRigSkeleton().BoneNames.Num() > 0)
 		{
 			return true;
 		}
@@ -305,13 +337,10 @@ void SIKRigRetargetChainList::RefreshView()
 
 	// refresh list of chains
 	ListViewItems.Reset();
-	UIKRigController* AssetController = Controller->AssetController;
-	const int32 NumChains = AssetController->GetNumRetargetChains();
-	for (int32 i=0; i<NumChains; ++i)
+	const TArray<FBoneChain>& Chains = Controller->AssetController->GetRetargetChains();
+	for (const FBoneChain& Chain : Chains)
 	{
-		FBoneChain* Chain = AssetController->GetRetargetChain(i);
-		const FText DisplayName = FText::FromName(Chain->ChainName);
-		TSharedPtr<FRetargetChainElement> ChainItem = FRetargetChainElement::Make(Chain);
+		TSharedPtr<FRetargetChainElement> ChainItem = FRetargetChainElement::Make(Chain.ChainName);
 		ListViewItems.Add(ChainItem);
 	}
 
@@ -359,8 +388,7 @@ FReply SIKRigRetargetChainList::OnKeyDown(const FGeometry& MyGeometry, const FKe
 		}
 
 		UIKRigController* AssetController = Controller->AssetController;
-		const FName ChainToRemove = SelectedItems[0]->Chain->ChainName;
-		AssetController->RemoveRetargetChain(ChainToRemove);
+		AssetController->RemoveRetargetChain(SelectedItems[0]->ChainName);
 
 		RefreshView();
 		

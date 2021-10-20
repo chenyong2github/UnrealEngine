@@ -10,12 +10,14 @@
 
 class UIKRigSolver;
 
+#if WITH_EDITORONLY_DATA
 UENUM(BlueprintType)
 enum class EIKRigGoalPreviewMode : uint8
 {
 	Additive		UMETA(DisplayName = "Additive"),
 	Absolute		UMETA(DisplayName = "Absolute"),
 };
+#endif
 
 UCLASS()
 class IKRIG_API UIKRigEffectorGoal : public UObject
@@ -23,58 +25,62 @@ class IKRIG_API UIKRigEffectorGoal : public UObject
 	GENERATED_BODY()
 
 public:
-	
-	UIKRigEffectorGoal() : GoalName("DefaultGoal"), BoneName(NAME_None){}
-	
-	UIKRigEffectorGoal(const FName& InGoalName, const FName& InBoneName) :  GoalName(InGoalName), BoneName(InBoneName){}
 
 	/** The name used to refer to this goal from outside systems.
-	 *This is the name to use when referring to this Goal from Blueprint, Anim Graph, Control Rig or IK Retargeter.*/
+	 * This is the name to use when referring to this Goal from Blueprint, Anim Graph, Control Rig or IK Retargeter.*/
 	UPROPERTY(VisibleAnywhere, Category = "Goal Settings")
 	FName GoalName;
 
-	/**The name of the bone that this Goal is located at.*/
+	/** The name of the bone that this Goal is located at.*/
 	UPROPERTY(VisibleAnywhere, Category = "Goal Settings")
 	FName BoneName;
 
-	/**Range 0-1, default is 1. Blend between the Goal position between the input bone pose (0.0) and the current goal transform (1.0).*/
+	/** Range 0-1, default is 1. Blend between the Goal position between the input bone pose (0.0) and the current goal transform (1.0).*/
 	UPROPERTY(EditAnywhere, Category = "Goal Settings", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float PositionAlpha = 1.0f;
 
-	/**Range 0-1, default is 1. Blend between the Goal rotation between the input bone pose (0.0) and the current goal transform (1.0).*/
+	/** Range 0-1, default is 1. Blend between the Goal rotation between the input bone pose (0.0) and the current goal transform (1.0).*/
 	UPROPERTY(EditAnywhere, Category = "Goal Settings", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float RotationAlpha = 1.0f;
 
-	/**Effects how this Goal transform is previewed in the IK Rig editor.
-	 *"Additive" interprets the Goal transform as being relative to the input pose. Useful for previewing animations.
-	 *"Absolute" pins the Goal transform to the Gizmo in the viewport.
-	 */
+	/** The current transform of this Goal, in the Global Space of the character.*/
 	UPROPERTY(EditAnywhere, Category = "Goal Settings")
-	EIKRigGoalPreviewMode PreviewMode;
-
-	/**The current transform of this Goal, in the Global Space of the character.*/
-	UPROPERTY(EditAnywhere, Transient, Category = "Goal Settings")
 	FTransform CurrentTransform;
 
-	/**The initial transform of this Goal, as defined by the initial transform of the Goal's bone in the reference pose.*/
-	UPROPERTY(VisibleAnywhere, Transient, Category = "Goal Settings")
+	/** The initial transform of this Goal, as defined by the initial transform of the Goal's bone in the retarget pose.*/
+	UPROPERTY(VisibleAnywhere, Category = "Goal Settings")
 	FTransform InitialTransform;
+	
+	bool operator==(const UIKRigEffectorGoal& Other) const { return GoalName == Other.GoalName; }
 
+#if WITH_EDITORONLY_DATA
+
+	/** Effects how this Goal transform is previewed in the IK Rig editor.
+	* "Additive" interprets the Goal transform as being relative to the input pose. Useful for previewing animations.
+	* "Absolute" pins the Goal transform to the Gizmo in the viewport.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Goal Settings")
+	EIKRigGoalPreviewMode PreviewMode = EIKRigGoalPreviewMode::Additive;
+	
 	/**The size of the Goal gizmo drawing in the editor viewport.*/
-	UPROPERTY(EditAnywhere, Category = "Goal Gizmo", meta = (ClampMin = "0.1", ClampMax = "1000.0", UIMin = "0.1", UIMax = "100.0"))
-	float GizmoSize = 7.0f;
+	UPROPERTY(EditAnywhere, Category = "Viewport Goal Settings", meta = (ClampMin = "0.1", ClampMax = "1000.0", UIMin = "0.1", UIMax = "100.0"))
+	float SizeMultiplier = 1.0f;
 
 	/**The thickness of the Goal gizmo drawing in the editor viewport.*/
-	UPROPERTY(EditAnywhere, Category = "Goal Gizmo",  meta = (ClampMin = "0.0", ClampMax = "10.0", UIMin = "0.0", UIMax = "5.0"))
-	float GizmoThickness = 0.7f;
-
-	bool operator==(const UIKRigEffectorGoal& Other) const { return GoalName == Other.GoalName; }
+	UPROPERTY(EditAnywhere, Category = "Viewport Goal Settings",  meta = (ClampMin = "0.0", ClampMax = "10.0", UIMin = "0.0", UIMax = "5.0"))
+	float ThicknessMultiplier = 0.7f;
 
 	virtual void PostLoad() override
 	{
 		Super::PostLoad();
 		SetFlags(RF_Transactional);
 	}
+	
+#endif
+
+private:
+	UPROPERTY()
+	TObjectPtr<UIKRigDefinition> ParentIKRig = nullptr;
 };
 
 USTRUCT(Blueprintable)
@@ -91,41 +97,36 @@ struct IKRIG_API FBoneChain
 	IKGoalName(NAME_None){}
 
 	UPROPERTY(EditAnywhere, Category = BoneChain)
-	FName ChainName = NAME_None;
+	FName ChainName;
 
 	UPROPERTY(EditAnywhere, Category = BoneChain)
-	FName StartBone = NAME_None;
+	FName StartBone;
 
 	UPROPERTY(EditAnywhere, Category = BoneChain)
-	FName EndBone = NAME_None;
+	FName EndBone;
 	
 	UPROPERTY(EditAnywhere, Category = IK)
-	FName IKGoalName = NAME_None;
-
-	/*
-	UPROPERTY(EditAnywhere, Category = IK)
-	FName PoleVectorGoalName;
-
-	UPROPERTY(EditAnywhere, Category = IK)
-	FName PoleVectorBoneName;
-
-	UPROPERTY(EditAnywhere, Category = IK)
-	FVector PoleVectorDirection;
-	*/
+	FName IKGoalName;
 };
 
 USTRUCT(Blueprintable)
 struct IKRIG_API FRetargetDefinition
 {
 	GENERATED_BODY()
+	
+private:
 
-	UPROPERTY(EditAnywhere, Category = BodyParts)
+	UPROPERTY()
 	FName RootBone;
 
-	UPROPERTY(EditAnywhere, Category = BodyParts)
+	UPROPERTY()
 	TArray<FBoneChain> BoneChains;
 
-	FBoneChain* GetBoneChainByName(FName ChainName);
+	/** read/write access restricted to friends only */
+	FBoneChain* GetEditableBoneChainByName(FName ChainName);
+	
+	friend class UIKRigController;
+	friend class UIKRigDefinition;
 };
 
 UCLASS(Blueprintable)
@@ -135,55 +136,60 @@ class IKRIG_API UIKRigDefinition : public UObject, public IInterface_PreviewMesh
 
 public:
 
-	/** the skeletal mesh that was used as the source of the skeleton data. also used for preview.
-	 * NOTE: the IK rig may be played back on ANY skeleton that is compatible with it's hierarchy. */
-	UPROPERTY(AssetRegistrySearchable, VisibleAnywhere, Category = "Skeleton")
+#if WITH_EDITORONLY_DATA
+	
+	/**The size of the Goals in the editor viewport.*/
+	UPROPERTY(EditAnywhere, Category = "Goal Drawing", meta = (ClampMin = "0.01", UIMin = "0.1", UIMax = "100.0"))
+	float GoalSize = 7.0f;
+
+	/** The thickness of the Goals in the editor viewport.*/
+	UPROPERTY(EditAnywhere, Category = "Goal Drawing",  meta = (ClampMin = "0.01", UIMin = "0.0", UIMax = "10.0"))
+	float GoalThickness = 0.7f;
+	
+#endif
+
+	/** The skeletal mesh that was used as the source of the skeleton data. Also used for preview.
+	* NOTE: the IK rig may be played back on ANY skeleton that is compatible with it's hierarchy. */
+	UPROPERTY(AssetRegistrySearchable, VisibleAnywhere, Category = "Imported Skeleton")
 	TObjectPtr<class USkeletalMesh> PreviewSkeletalMesh;
-
+	
 	/** hierarchy and bone-pose transforms */
-	UPROPERTY(VisibleAnywhere, Category = "Skeleton")
+	UPROPERTY()
 	FIKRigSkeleton Skeleton;
+	
+	/** read-only access to array of Goals, all modifications must go through UIKRigController */
+	const TArray<UIKRigEffectorGoal*>& GetGoalArray() const { return Goals; };
 
-	/** stack of solvers, of varying types, executed in serial fashion where
-	output of prior solve is input to the next */
-	UPROPERTY(VisibleAnywhere, instanced, Category = "IK")
-	TArray<UIKRigSolver*> Solvers;
+	/** read-only access to array of Solvers, all modifications must go through UIKRigController */
+	const TArray<UIKRigSolver*>& GetSolverArray() const { return Solvers; };
 
-	/** goals, used as effectors by solvers that support them */
-	UPROPERTY(VisibleAnywhere, Category = "IK")
-	TArray<UIKRigEffectorGoal*> Goals;
+	/** runtime, read-only access to Retarget Definition, all modifications must go through UIKRigController */
+	const TArray<FBoneChain>& GetRetargetChains() const { return RetargetDefinition.BoneChains; };
 
-	/** bone chains for animation retargeting */
-	UPROPERTY(EditAnywhere, Category = "Retargeting")
-	FRetargetDefinition RetargetDefinition;
+	/** runtime, read-only access to a FBoneChain by name. Returns nullptr if not found. */
+	const FBoneChain* GetRetargetChainByName(FName ChainName) const;
 
-	/** editors systems can use this to check if they have most up-to-date settings */
-	int32 GetAssetVersion() const {return AssetVersion;};
+	/** runtime, read-only access to Retarget Root */
+	const FName& GetRetargetRoot() const { return RetargetDefinition.RootBone; };
 	
 	/** IInterface_PreviewMeshProvider interface */
 	virtual void SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty = true) override;
 	virtual USkeletalMesh* GetPreviewMesh() const override;
 	/** END IInterface_PreviewMeshProvider interface */
 
-	USkeleton* GetSkeletonAsset() const;
-
 private:
+
+	/** goals, used as effectors by solvers that support them */
+	UPROPERTY()
+	TArray<TObjectPtr<UIKRigEffectorGoal>> Goals;
 	
-	/** UObject interface */
-#if WITH_EDITOR
-	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
-#endif
-	virtual void PostLoad() override;
-	/** END UObject interface */
+	/** polymorphic stack of solvers, executed in serial fashion where output of prior solve is input to the next */
+	UPROPERTY(instanced)
+	TArray<TObjectPtr<UIKRigSolver>> Solvers;
 
-	/** this is incremented whenever the asset is modified in such a way that would require
-	* any IKRigProcessors that are using it to reinitialize with the latest version */
-	int32 AssetVersion = 0;
+	/** bone chains for IK Retargeter */
+	UPROPERTY()
+	FRetargetDefinition RetargetDefinition;
 
-	void ResetGoalTransforms() const;
-	FTransform GetGoalInitialTransform(UIKRigEffectorGoal* Goal) const;
-
-	void SortRetargetChains();
-	
 	friend class UIKRigController;
 };
