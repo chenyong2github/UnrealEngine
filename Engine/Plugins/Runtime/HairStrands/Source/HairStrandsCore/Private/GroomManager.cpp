@@ -175,9 +175,12 @@ static void RunInternalHairStrandsInterpolation(
 				}
 			}
 		}
-		else if (UGeometryCacheComponent* GeometryCacheComponent = Cast<UGeometryCacheComponent>(Instance->Debug.MeshComponent))
+		else if (Instance->Debug.GroomBindingType == EGroomBindingMeshType::GeometryCache)
 		{
-			BuildCacheGeometry(GraphBuilder, ShaderMap, GeometryCacheComponent, CachedGeometry);
+			if (UGeometryCacheComponent* GeometryCacheComponent = Cast<UGeometryCacheComponent>(Instance->Debug.MeshComponent))
+			{
+				BuildCacheGeometry(GraphBuilder, ShaderMap, GeometryCacheComponent, CachedGeometry);
+			}
 		}
 		if (CachedGeometry.Sections.Num() == 0)
 			continue;

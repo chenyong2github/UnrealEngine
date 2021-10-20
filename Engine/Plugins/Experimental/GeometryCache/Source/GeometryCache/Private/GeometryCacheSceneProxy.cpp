@@ -1376,11 +1376,13 @@ void FGeomCacheIndexBuffer::Update(const TArray<uint32>& Indices)
 	void* Buffer = nullptr;
 
 	// We only ever grow in size. Ok for now?
+	bool bReallocate = false;
 	if (Indices.Num() > NumIndices)
 	{
 		NumIndices = Indices.Num();
 		FRHIResourceCreateInfo CreateInfo;
 		IndexBufferRHI = RHICreateAndLockIndexBuffer(sizeof(uint32), NumIndices * sizeof(uint32), BUF_Dynamic | BUF_ShaderResource, CreateInfo, Buffer);
+		bReallocate = true;
 	}
 	else
 	{
@@ -1396,6 +1398,11 @@ void FGeomCacheIndexBuffer::Update(const TArray<uint32>& Indices)
 		FMemory::Memcpy(Buffer, Indices.GetData(), Indices.Num() * sizeof(uint32));
 		RHIUnlockIndexBuffer(IndexBufferRHI);
 	}
+
+	if (bReallocate && IndexBufferRHI && NumIndices)
+	{
+		BufferSRV = RHICreateShaderResourceView(NumIndices ? IndexBufferRHI : nullptr);
+	}
 }
 
 void FGeomCacheIndexBuffer::UpdateSizeOnly(int32 NewNumIndices)
@@ -1403,11 +1410,18 @@ void FGeomCacheIndexBuffer::UpdateSizeOnly(int32 NewNumIndices)
 	check(IsInRenderingThread());
 
 	// We only ever grow in size. Ok for now?
+	bool bReallocate = false;
 	if (NewNumIndices > NumIndices)
 	{
 		FRHIResourceCreateInfo CreateInfo;
 		IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint32), NewNumIndices * sizeof(uint32), BUF_Dynamic | BUF_ShaderResource, CreateInfo);
 		NumIndices = NewNumIndices;
+		bReallocate = true;
+	}
+
+	if (bReallocate && IndexBufferRHI && NumIndices)
+	{
+		BufferSRV = RHICreateShaderResourceView(NumIndices ? IndexBufferRHI : nullptr);
 	}
 }
 
@@ -1464,11 +1478,13 @@ void FGeomCacheVertexBuffer::UpdateRaw(const void* Data, int32 NumItems, int32 I
 
 	void* VertexBufferData = nullptr;
 
+	bool bReallocate = false;
 	if (NewSizeInBytes > SizeInBytes)
 	{
 		SizeInBytes = NewSizeInBytes;
 		FRHIResourceCreateInfo CreateInfo;
 		VertexBufferRHI = RHICreateAndLockVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo, VertexBufferData);
+		bReallocate = true;
 	}
 	else
 	{
@@ -1492,14 +1508,26 @@ void FGeomCacheVertexBuffer::UpdateRaw(const void* Data, int32 NumItems, int32 I
 	}
 
 	RHIUnlockVertexBuffer(VertexBufferRHI);
+
+	if (bReallocate && VertexBufferRHI && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
+	{
+		BufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(float), PF_R32_FLOAT);
+	}
 }
 
 void FGeomCacheVertexBuffer::UpdateSize(int32 NewSizeInBytes)
 {
+	bool bReallocate = false;
 	if (NewSizeInBytes > SizeInBytes)
 	{
 		SizeInBytes = NewSizeInBytes;
 		FRHIResourceCreateInfo CreateInfo;
 		VertexBufferRHI = RHICreateVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo);
+		bReallocate = true;
+	}
+
+	if (bReallocate && VertexBufferRHI && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
+	{
+		BufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(float), PF_R32_FLOAT);
 	}
 }
