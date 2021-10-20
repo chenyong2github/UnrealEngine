@@ -20,6 +20,7 @@ using EpicGames.Core;
 using System.Buffers;
 using System.Text.Json;
 using System.Text;
+using System.IO.Pipelines;
 
 namespace HordeServer.Collections
 {
@@ -117,5 +118,38 @@ namespace HordeServer.Collections
 		/// <param name="SubjectProperty"></param>
 		/// <returns></returns>
 		IAuditLog<TSubject> Create(string CollectionName, string SubjectProperty);
+	}
+
+	/// <summary>
+	/// Extension methods for audit log channels
+	/// </summary>
+	static class AuditLogExtensions
+	{
+		/// <summary>
+		/// Retrieve historical information about a specific agent
+		/// </summary>
+		/// <param name="Channel">Channel to query</param>
+		/// <param name="BodyWriter">Writer for Json data</param>
+		/// <param name="MinTime">Minimum time for records to return</param>
+		/// <param name="MaxTime">Maximum time for records to return</param>
+		/// <param name="Index">Offset of the first result</param>
+		/// <param name="Count">Number of records to return</param>
+		/// <returns>Information about the requested agent</returns>
+		public static async Task FindAsync<T>(this IAuditLogChannel<T> Channel, PipeWriter BodyWriter, DateTime? MinTime = null, DateTime? MaxTime = null, int Index = 0, int Count = 50)
+		{
+			string Prefix = "{\n\t\"entries\":\n\t[";
+			await BodyWriter.WriteAsync(Encoding.UTF8.GetBytes(Prefix));
+
+			string Separator = "";
+			await foreach (IAuditLogMessage<AgentId> Message in Channel.FindAsync(MinTime, MaxTime, Index, Count))
+			{
+				string Line = $"{Separator}\n\t\t{Message.Data}";
+				await BodyWriter.WriteAsync(Encoding.UTF8.GetBytes(Line));
+				Separator = ",";
+			}
+
+			string Suffix = "\n\t]\n}";
+			await BodyWriter.WriteAsync(Encoding.UTF8.GetBytes(Suffix));
+		}
 	}
 }

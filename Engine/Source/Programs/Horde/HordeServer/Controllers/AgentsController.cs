@@ -234,25 +234,10 @@ namespace HordeServer.Controllers
 		[Route("/api/v1/agents/{AgentId}/history")]
 		public async Task GetAgentHistoryAsync(string AgentId, [FromQuery] DateTime? MinTime = null, [FromQuery] DateTime? MaxTime = null, [FromQuery] int Index = 0, [FromQuery] int Count = 50)
 		{
-			IAuditLogChannel<AgentId> Channel = AgentService.Agents.GetLogger(AgentId.ToAgentId());
-
 			Response.ContentType = "application/json";
 			Response.StatusCode = 200;
 			await Response.StartAsync();
-
-			string Prefix = "{\n\t\"entries\":\n\t[";
-			await Response.BodyWriter.WriteAsync(Encoding.UTF8.GetBytes(Prefix));
-
-			string Separator = "";
-			await foreach (IAuditLogMessage<AgentId> Message in Channel.FindAsync(MinTime, MaxTime, Index, Count))
-			{
-				string Line = $"{Separator}\n\t\t{Message.Data}";
-				await Response.Body.WriteAsync(Encoding.UTF8.GetBytes(Line));
-				Separator = ",";
-			}
-
-			string Suffix = "\n\t]\n}";
-			await Response.BodyWriter.WriteAsync(Encoding.UTF8.GetBytes(Suffix));
+			await AgentService.Agents.GetLogger(AgentId.ToAgentId()).FindAsync(Response.BodyWriter, MinTime, MaxTime, Index, Count);
 		}
 
 		/// <summary>

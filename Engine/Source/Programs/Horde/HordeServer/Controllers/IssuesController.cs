@@ -33,47 +33,20 @@ namespace HordeServer.Controllers
 	[Route("[controller]")]
 	public class IssuesController : ControllerBase
 	{
-		/// <summary>
-		/// Singleton instance of the issue service
-		/// </summary>
+		private readonly IIssueCollection IssueCollection;
 		private readonly IIssueService IssueService;
-
-		/// <summary>
-		/// Singleton instance of the job service
-		/// </summary>
 		private readonly JobService JobService;
-
-		/// <summary>
-		/// Singleton instance of the stream service
-		/// </summary>
 		private readonly StreamService StreamService;
-
-		/// <summary>
-		/// 
-		/// </summary>
 		private readonly IUserCollection UserCollection;
-
-		/// <summary>
-		/// Collection of events
-		/// </summary>
 		private readonly ILogEventCollection LogEventCollection;
-
-		/// <summary>
-		/// The log file service
-		/// </summary>
 		private readonly ILogFileService LogFileService;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="IssueService">The issue service</param>
-		/// <param name="JobService">The job service</param>
-		/// <param name="StreamService">The stream service</param>
-		/// <param name="UserCollection"></param>
-		/// <param name="LogEventCollection">The event collection</param>
-		/// <param name="LogFileService">The log file service</param>
-		public IssuesController(IIssueService IssueService, JobService JobService, StreamService StreamService, IUserCollection UserCollection, ILogEventCollection LogEventCollection, ILogFileService LogFileService)
+		public IssuesController(IIssueCollection IssueCollection, IIssueService IssueService, JobService JobService, StreamService StreamService, IUserCollection UserCollection, ILogEventCollection LogEventCollection, ILogFileService LogFileService)
 		{
+			this.IssueCollection = IssueCollection;
 			this.IssueService = IssueService;
 			this.JobService = JobService;
 			this.StreamService = StreamService;
@@ -182,6 +155,25 @@ namespace HordeServer.Controllers
 
 			bool bShowDesktopAlerts = IssueService.ShowDesktopAlertsForIssue(Details.Issue, Details.Spans);
 			return PropertyFilter.Apply(await CreateIssueResponseAsync(Details, bShowDesktopAlerts), Filter);
+		}
+
+		/// <summary>
+		/// Retrieve historical information about a specific issue
+		/// </summary>
+		/// <param name="IssueId">Id of the agent to get information about</param>
+		/// <param name="MinTime">Minimum time for records to return</param>
+		/// <param name="MaxTime">Maximum time for records to return</param>
+		/// <param name="Index">Offset of the first result</param>
+		/// <param name="Count">Number of records to return</param>
+		/// <returns>Information about the requested agent</returns>
+		[HttpGet]
+		[Route("/api/v1/issues/{IssueId}/history")]
+		public async Task GetAgentHistoryAsync(int IssueId, [FromQuery] DateTime? MinTime = null, [FromQuery] DateTime? MaxTime = null, [FromQuery] int Index = 0, [FromQuery] int Count = 50)
+		{
+			Response.ContentType = "application/json";
+			Response.StatusCode = 200;
+			await Response.StartAsync();
+			await IssueCollection.GetLogger(IssueId).FindAsync(Response.BodyWriter, MinTime, MaxTime, Index, Count);
 		}
 
 		/// <summary>
