@@ -29,9 +29,14 @@ namespace HordeServer.Services
 	public class PerforceUserInfo
 	{
 		/// <summary>
+		/// Login for the user
+		/// </summary>
+		public string? Login { get; set; }
+
+		/// <summary>
 		/// Full name of the user
 		/// </summary>
-		public string? Name { get; set; }
+		public string? FullName { get; set; }
 
 		/// <summary>
 		/// User's email address
@@ -58,6 +63,14 @@ namespace HordeServer.Services
 	/// </summary>
 	public interface IPerforceService
 	{
+		/// <summary>
+		/// Finds or adds a user from the given Perforce server, adding the user (and populating their profile with Perforce data) if they do not currently exist
+		/// </summary>
+		/// <param name="ClusterName"></param>
+		/// <param name="UserName"></param>
+		/// <returns></returns>
+		public ValueTask<IUser> FindOrAddUserAsync(string ClusterName, string UserName);
+
 		/// <summary>
 		/// 
 		/// </summary>

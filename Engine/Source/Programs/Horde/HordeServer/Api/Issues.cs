@@ -381,19 +381,29 @@ namespace HordeServer.Api
 		public IssueSeverity Severity { get; set; }
 
 		/// <summary>
-		/// Owner of the issue
+		/// Owner of the issue [DEPRECATED]
 		/// </summary>
 		public string? Owner { get; set; }
 
 		/// <summary>
-		/// User id of the owner
+		/// User id of the owner [DEPRECATED]
 		/// </summary>
 		public string? OwnerId { get; set; }
 
 		/// <summary>
-		/// User that nominated the current owner
+		/// Owner of the issue
+		/// </summary>
+		public GetThinUserInfoResponse? OwnerInfo { get; set; }
+
+		/// <summary>
+		/// User that nominated the current owner [DEPRECATED]
 		/// </summary>
 		public string? NominatedBy { get; set; }
+
+		/// <summary>
+		/// Owner of the issue
+		/// </summary>
+		public GetThinUserInfoResponse? NominatedByInfo { get; set; }
 
 		/// <summary>
 		/// Time that the issue was acknowledged
@@ -411,14 +421,19 @@ namespace HordeServer.Api
 		public DateTime? ResolvedAt { get; set; }
 
 		/// <summary>
-		/// Name of the user that resolved the issue
+		/// Name of the user that resolved the issue [DEPRECATED]
 		/// </summary>
 		public string? ResolvedBy { get; set; }
 
 		/// <summary>
-		/// User id of the person that resolved the issue
+		/// User id of the person that resolved the issue [DEPRECATED]
 		/// </summary>
 		public string? ResolvedById { get; set; }
+
+		/// <summary>
+		/// User that resolved the issue
+		/// </summary>
+		public GetThinUserInfoResponse? ResolvedByInfo { get; set; }
 
 		/// <summary>
 		/// Time at which the issue was verified
@@ -451,14 +466,19 @@ namespace HordeServer.Api
 		public List<GetIssueAffectedStreamResponse> AffectedStreams { get; set; }
 
 		/// <summary>
-		/// Most likely suspects for causing this issue, deprecated
+		/// Most likely suspects for causing this issue [DEPRECATED]
 		/// </summary>
 		public List<string> PrimarySuspects { get; set; }
 
 		/// <summary>
-		/// User ids of the most likely suspects
+		/// User ids of the most likely suspects [DEPRECATED]
 		/// </summary>
 		public List<string> PrimarySuspectIds { get; set; }
+
+		/// <summary>
+		/// Most likely suspects for causing this issue
+		/// </summary>
+		public List<GetThinUserInfoResponse> PrimarySuspectsInfo { get; set; }
 
 		/// <summary>
 		/// Whether to show alerts for this issue
@@ -481,12 +501,24 @@ namespace HordeServer.Api
 			this.Severity = Issue.Severity;
 			this.Owner = Details.Owner?.Login;
 			this.OwnerId = (Details.Owner == null)? null : Details.Owner.Id.ToString();
+			if(Details.Owner != null)
+			{
+				this.OwnerInfo = new GetThinUserInfoResponse(Details.Owner);
+			}
 			this.NominatedBy = Details.NominatedBy?.Login;
+			if (Details.NominatedBy != null)
+			{
+				this.NominatedByInfo = new GetThinUserInfoResponse(Details.NominatedBy);
+			}
 			this.AcknowledgedAt = Issue.AcknowledgedAt;
 			this.FixChange = Issue.FixChange;
 			this.ResolvedAt = Issue.ResolvedAt;
 			this.ResolvedBy = Details.ResolvedBy?.Login;
 			this.ResolvedById = (Details.ResolvedBy == null) ? null : Details.ResolvedBy.Id.ToString();
+			if (Details.ResolvedBy != null)
+			{
+				this.ResolvedByInfo = new GetThinUserInfoResponse(Details.ResolvedBy);
+			}
 			this.VerifiedAt = Issue.VerifiedAt;
 			this.LastSeenAt = Issue.LastSeenAt;
 			this.Streams = Details.Spans.Select(x => x.StreamName).Distinct().ToList()!;
@@ -506,6 +538,7 @@ namespace HordeServer.Api
 			}
 			this.PrimarySuspects = Details.SuspectUsers.Where(x => x.Login != null).Select(x => x.Login).ToList();
 			this.PrimarySuspectIds= Details.SuspectUsers.Select(x => x.Id.ToString()).ToList();
+			this.PrimarySuspectsInfo = Details.SuspectUsers.ConvertAll(x => new GetThinUserInfoResponse(x));
 			this.ShowDesktopAlerts = ShowDesktopAlerts;
 		}
 	}

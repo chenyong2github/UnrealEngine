@@ -1093,10 +1093,15 @@ namespace HordeServer.Services.Impl
 						Logger.LogDebug("Suspect CL: {Change}, Author: {Author}, Rank: {Rank}, MaxRank: {MaxRank}", SuspectChange.Details.Number, SuspectChange.Details.Author, SuspectChange.Rank, MaxRank);
 						if (SuspectChange.Rank == MaxRank)
 						{
-							string? Author = ParseRobomergeOwner(SuspectChange.Details.Description) ?? SuspectChange.Details.Author;
-							IUser User = await UserCollection.FindOrAddUserByLoginAsync(Author);
+							IUser? Owner = SuspectChange.Details.Author;
 
-							NewIssueSpanSuspectData Suspect = new NewIssueSpanSuspectData(SuspectChange.Details.Number, User.Id);
+							string? RoboOwnerName = ParseRobomergeOwner(SuspectChange.Details.Description);
+							if (RoboOwnerName != null)
+							{
+								Owner = await Perforce.FindOrAddUserAsync(Stream.ClusterName, RoboOwnerName);
+							}
+
+							NewIssueSpanSuspectData Suspect = new NewIssueSpanSuspectData(SuspectChange.Details.Number, Owner.Id);
 							Suspect.OriginatingChange = ParseRobomergeSource(SuspectChange.Details.Description);
 
 							Suspects.Add(Suspect);

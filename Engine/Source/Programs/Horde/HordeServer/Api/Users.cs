@@ -104,6 +104,47 @@ namespace HordeServer.Api
 	}
 
 	/// <summary>
+	/// Basic information about a user. May be embedded in other responses.
+	/// </summary>
+	public class GetThinUserInfoResponse
+	{
+		/// <summary>
+		/// Id of the user
+		/// </summary>
+		public string Id { get; set; }
+
+		/// <summary>
+		/// Name of the user
+		/// </summary>
+		public string Name { get; set; }
+
+		/// <summary>
+		/// The user's email address
+		/// </summary>
+		public string? Email { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="User"></param>
+		public GetThinUserInfoResponse(IUser? User)
+		{
+			if (User == null)
+			{
+				this.Id = String.Empty;
+				this.Name = "(Unknown)";
+				this.Email = null;
+			}
+			else
+			{
+				this.Id = User.Id.ToString();
+				this.Name = User.Name;
+				this.Email = User.Email;
+			}
+		}
+	}
+
+	/// <summary>
 	/// Request to update settings for a user
 	/// </summary>
 	public class UpdateUserRequest

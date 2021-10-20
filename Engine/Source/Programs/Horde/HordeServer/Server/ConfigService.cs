@@ -474,7 +474,7 @@ namespace HordeServer.Services
 
 			string FileName = ConfigPath.AbsolutePath;
 			int Change = -1;
-			string? Author = null;
+			IUser? Author = null;
 			string? Description = null;
 
 			if (ConfigPath.Scheme == PerforceScheme)

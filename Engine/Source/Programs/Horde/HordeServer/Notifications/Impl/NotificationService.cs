@@ -220,15 +220,9 @@ namespace HordeServer.Notifications.Impl
 		}
 
 		/// <inheritdoc/>
-		public void NotifyConfigUpdateFailure(string ErrorMessage, string FileName, int? Change = null, string? Author = null, string? Description = null)
+		public void NotifyConfigUpdateFailure(string ErrorMessage, string FileName, int? Change = null, IUser? Author = null, string? Description = null)
 		{
-			EnqueueTask(() => NotifyConfigUpdateFailureAsync(ErrorMessage, FileName, Change, Author, Description));
-		}
-
-		async Task NotifyConfigUpdateFailureAsync(string ErrorMessage, string FileName, int? Change = null, string? Author = null, string? Description = null)
-		{
-			IUser? User = (Author != null) ? await UserCollection.FindUserByLoginAsync(Author) : null;
-			EnqueueTasks(Sink => Sink.NotifyConfigUpdateFailureAsync(ErrorMessage, FileName, Change, User, Description));
+			EnqueueTasks(Sink => Sink.NotifyConfigUpdateFailureAsync(ErrorMessage, FileName, Change, Author, Description));
 		}
 
 		/// <inheritdoc/>
