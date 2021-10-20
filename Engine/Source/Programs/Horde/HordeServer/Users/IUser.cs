@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 namespace HordeServer.Models
 {
 	using JobId = ObjectId<IJob>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// Document which collates information about a user, and their personal settings
@@ -20,7 +21,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// The user id
 		/// </summary>
-		public ObjectId Id { get; }
+		public UserId Id { get; }
 
 		/// <summary>
 		/// Full name of the user
@@ -46,7 +47,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// The user id
 		/// </summary>
-		public ObjectId UserId { get; }
+		public UserId UserId { get; }
 
 		/// <summary>
 		/// Claims for this user (on last login)
@@ -62,7 +63,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// The user id
 		/// </summary>
-		public ObjectId UserId { get; }
+		public UserId UserId { get; }
 
 		/// <summary>
 		/// Whether to enable experimental features

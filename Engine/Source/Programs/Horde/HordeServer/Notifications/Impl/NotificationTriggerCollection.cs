@@ -13,6 +13,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Collections.Impl
 {
+	using UserId = ObjectId<IUser>;
+
 	/// <summary>
 	/// Collection of notification triggers
 	/// </summary>
@@ -23,7 +25,7 @@ namespace HordeServer.Collections.Impl
 			[BsonIgnoreIfNull]
 			public string? User { get; set; }
 
-			public ObjectId UserId { get; set; }
+			public UserId UserId { get; set; }
 			public bool Email { get; set; }
 			public bool Slack { get; set; }
 
@@ -33,7 +35,7 @@ namespace HordeServer.Collections.Impl
 				User = null!;
 			}
 
-			public SubscriptionDocument(ObjectId UserId, bool Email, bool Slack)
+			public SubscriptionDocument(UserId UserId, bool Email, bool Slack)
 			{
 				this.UserId = UserId;
 				this.Email = Email;
@@ -196,7 +198,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<INotificationTrigger?> UpdateSubscriptionsAsync(INotificationTrigger Trigger, ObjectId UserId, bool? Email, bool? Slack)
+		public async Task<INotificationTrigger?> UpdateSubscriptionsAsync(INotificationTrigger Trigger, UserId UserId, bool? Email, bool? Slack)
 		{
 			for (; ; )
 			{

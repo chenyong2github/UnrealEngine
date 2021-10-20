@@ -26,6 +26,7 @@ namespace HordeServer.Models
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
 	using PoolId = StringId<IPool>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// Report for a job or jobstep
@@ -524,7 +525,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Id of the user that started this job
 		/// </summary>
-		public ObjectId? StartedByUserId { get; }
+		public UserId? StartedByUserId { get; }
 
 		/// <summary>
 		/// Name of the user that started this job

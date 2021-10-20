@@ -24,6 +24,7 @@ namespace HordeServer.Collections.Impl
 	using LogId = ObjectId<ILogFile>;
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
+	using UserId = ObjectId<IUser>;
 
 	class IssueCollection : IIssueCollection
 	{
@@ -128,10 +129,10 @@ namespace HordeServer.Collections.Impl
 			public IssueSeverity Severity { get; set; }
 
 			[BsonIgnoreIfNull]
-			public ObjectId? OwnerId { get; set; }
+			public UserId? OwnerId { get; set; }
 
 			[BsonIgnoreIfNull]
-			public ObjectId? NominatedById { get; set; }
+			public UserId? NominatedById { get; set; }
 
 			public DateTime CreatedAt { get; set; }
 
@@ -145,7 +146,7 @@ namespace HordeServer.Collections.Impl
 			public DateTime? ResolvedAt { get; set; }
 
 			[BsonIgnoreIfNull]
-			public ObjectId? ResolvedById { get; set; }
+			public UserId? ResolvedById { get; set; }
 
 			[BsonIgnoreIfNull]
 			public DateTime? VerifiedAt { get; set; }
@@ -168,7 +169,7 @@ namespace HordeServer.Collections.Impl
 			public int UpdateIndex { get; set; }
 
 			IIssueFingerprint IIssue.Fingerprint => Fingerprint;
-			ObjectId? IIssue.OwnerId => OwnerId ?? GetDefaultOwner()?.AuthorId;
+			UserId? IIssue.OwnerId => OwnerId ?? GetDefaultOwner()?.AuthorId;
 			IReadOnlyList<IIssueStream> IIssue.Streams => Streams;
 			DateTime IIssue.LastSeenAt => (LastSeenAt == default) ? DateTime.UtcNow : LastSeenAt;
 
@@ -204,7 +205,7 @@ namespace HordeServer.Collections.Impl
 			{
 				if (Suspects.Count > 0)
 				{
-					ObjectId PossibleOwner = Suspects[0].AuthorId;
+					UserId PossibleOwner = Suspects[0].AuthorId;
 					if (Suspects.All(x => x.AuthorId == PossibleOwner) && Suspects.Any(x => x.DeclinedAt == null))
 					{
 						return Suspects[0];
@@ -234,7 +235,7 @@ namespace HordeServer.Collections.Impl
 		{
 			public ObjectId Id { get; set; }
 			public int IssueId { get; set; }
-			public ObjectId AuthorId { get; set; }
+			public UserId AuthorId { get; set; }
 			public int Change { get; set; }
 			public DateTime? DeclinedAt { get; set; }
 			public DateTime? ResolvedAt { get; set; } // Degenerate
@@ -248,7 +249,7 @@ namespace HordeServer.Collections.Impl
 			{
 			}
 
-			public IssueSuspect(int IssueId, ObjectId AuthorId, int Change, DateTime? DeclinedAt, DateTime? ResolvedAt)
+			public IssueSuspect(int IssueId, UserId AuthorId, int Change, DateTime? DeclinedAt, DateTime? ResolvedAt)
 			{
 				this.Id = ObjectId.GenerateNewId();
 				this.IssueId = IssueId;
@@ -367,7 +368,7 @@ namespace HordeServer.Collections.Impl
 		class IssueSpanSuspect : IIssueSpanSuspect
 		{
 			public int Change { get; set; }
-			public ObjectId AuthorId { get; set; }
+			public UserId AuthorId { get; set; }
 			public int? OriginatingChange { get; set; }
 
 			[BsonConstructor]
@@ -375,7 +376,7 @@ namespace HordeServer.Collections.Impl
 			{
 			}
 
-			public IssueSpanSuspect(int Change, ObjectId AuthorId, int? OriginatingChange)
+			public IssueSpanSuspect(int Change, UserId AuthorId, int? OriginatingChange)
 			{
 				this.Change = Change;
 				this.AuthorId = AuthorId;
@@ -653,24 +654,24 @@ namespace HordeServer.Collections.Impl
 				IssueLogger.LogInformation("Marking stream {StreamId} as not fixed", StreamId);
 			}
 
-			HashSet<(ObjectId, int)> OldSuspects = new HashSet<(ObjectId, int)>(OldIssue.Suspects.Select(x => (x.AuthorId, x.Change)));
-			HashSet<(ObjectId, int)> NewSuspects = new HashSet<(ObjectId, int)>(NewIssue.Suspects.Select(x => (x.AuthorId, x.Change)));
-			foreach ((ObjectId UserId, int Change) in NewSuspects.Where(x => !OldSuspects.Contains(x)))
+			HashSet<(UserId, int)> OldSuspects = new HashSet<(UserId, int)>(OldIssue.Suspects.Select(x => (x.AuthorId, x.Change)));
+			HashSet<(UserId, int)> NewSuspects = new HashSet<(UserId, int)>(NewIssue.Suspects.Select(x => (x.AuthorId, x.Change)));
+			foreach ((UserId UserId, int Change) in NewSuspects.Where(x => !OldSuspects.Contains(x)))
 			{
 				IssueLogger.LogInformation("Added suspect {UserId} for change {Change}", UserId, Change);
 			}
-			foreach ((ObjectId UserId, int Change) in OldSuspects.Where(x => !NewSuspects.Contains(x)))
+			foreach ((UserId UserId, int Change) in OldSuspects.Where(x => !NewSuspects.Contains(x)))
 			{
 				IssueLogger.LogInformation("Removed suspect {UserId} for change {Change}", UserId, Change);
 			}
 
-			HashSet<ObjectId> OldDeclinedBy = new HashSet<ObjectId>(NewIssue.Suspects.Where(x => x.DeclinedAt != null).Select(x => x.AuthorId));
-			HashSet<ObjectId> NewDeclinedBy = new HashSet<ObjectId>(NewIssue.Suspects.Where(x => x.DeclinedAt != null).Select(x => x.AuthorId));
-			foreach (ObjectId AddDeclinedBy in NewDeclinedBy.Where(x => !OldDeclinedBy.Contains(x)))
+			HashSet<UserId> OldDeclinedBy = new HashSet<UserId>(NewIssue.Suspects.Where(x => x.DeclinedAt != null).Select(x => x.AuthorId));
+			HashSet<UserId> NewDeclinedBy = new HashSet<UserId>(NewIssue.Suspects.Where(x => x.DeclinedAt != null).Select(x => x.AuthorId));
+			foreach (UserId AddDeclinedBy in NewDeclinedBy.Where(x => !OldDeclinedBy.Contains(x)))
 			{
 				IssueLogger.LogInformation("Declined by {UserId}", AddDeclinedBy);
 			}
-			foreach (ObjectId RemoveDeclinedBy in OldDeclinedBy.Where(x => !NewDeclinedBy.Contains(x)))
+			foreach (UserId RemoveDeclinedBy in OldDeclinedBy.Where(x => !NewDeclinedBy.Contains(x)))
 			{
 				IssueLogger.LogInformation("Un-declined by {UserId}", RemoveDeclinedBy);
 			}
@@ -710,13 +711,13 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IIssue>> FindIssuesAsync(IEnumerable<int>? Ids = null, ObjectId? UserId = null, StreamId? StreamId = null, int? MinChange = null, int? MaxChange = null, bool? Resolved = null, int? Index = null, int? Count = null)
+		public async Task<List<IIssue>> FindIssuesAsync(IEnumerable<int>? Ids = null, UserId? UserId = null, StreamId? StreamId = null, int? MinChange = null, int? MaxChange = null, bool? Resolved = null, int? Index = null, int? Count = null)
 		{
 			List<Issue> Results = await FilterIssuesByUserIdAsync(Ids, UserId, StreamId, MinChange, MaxChange, Resolved ?? false, Index ?? 0, Count);
 			return Results.ConvertAll<IIssue>(x => x);
 		}
 
-		async Task<List<Issue>> FilterIssuesByUserIdAsync(IEnumerable<int>? Ids, ObjectId? UserId, StreamId? StreamId, int? MinChange, int? MaxChange, bool? Resolved, int Index, int? Count)
+		async Task<List<Issue>> FilterIssuesByUserIdAsync(IEnumerable<int>? Ids, UserId? UserId, StreamId? StreamId, int? MinChange, int? MaxChange, bool? Resolved, int Index, int? Count)
 		{
 			if (UserId == null)
 			{
@@ -892,7 +893,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IIssue?> UpdateIssueAsync(IIssue Issue, IssueSeverity? NewSeverity = null, string? NewSummary = null, string? NewUserSummary = null, ObjectId? NewOwnerId = null, ObjectId? NewNominatedById = null, bool? NewAcknowledged = null, ObjectId? NewDeclinedById = null, int? NewFixChange = null, Dictionary<StreamId, bool>? NewFixStreamIds = null, ObjectId? NewResolvedById = null, DateTime? NewLastSeenAt = null, bool? NewNotifySuspects = null)
+		public async Task<IIssue?> UpdateIssueAsync(IIssue Issue, IssueSeverity? NewSeverity = null, string? NewSummary = null, string? NewUserSummary = null, UserId? NewOwnerId = null, UserId? NewNominatedById = null, bool? NewAcknowledged = null, UserId? NewDeclinedById = null, int? NewFixChange = null, Dictionary<StreamId, bool>? NewFixStreamIds = null, UserId? NewResolvedById = null, DateTime? NewLastSeenAt = null, bool? NewNotifySuspects = null)
 		{
 			Issue IssueDocument = (Issue)Issue;
 
@@ -920,7 +921,7 @@ namespace HordeServer.Collections.Impl
 			}
 			if (NewOwnerId != null)
 			{
-				if (NewOwnerId.Value == ObjectId.Empty)
+				if (NewOwnerId.Value == UserId.Empty)
 				{
 					Updates.Add(Builders<Issue>.Update.Unset(x => x.OwnerId!));
 					Updates.Add(Builders<Issue>.Update.Unset(x => x.NominatedAt!));
@@ -1001,7 +1002,7 @@ namespace HordeServer.Collections.Impl
 			}
 			if (NewResolvedById != null)
 			{
-				if (NewResolvedById.Value != ObjectId.Empty)
+				if (NewResolvedById.Value != UserId.Empty)
 				{
 					if (IssueDocument.ResolvedAt == null || IssueDocument.ResolvedById != NewResolvedById)
 					{
@@ -1097,10 +1098,10 @@ namespace HordeServer.Collections.Impl
 			// Find the current list of suspects
 			List<IssueSuspect> CurSuspects = await IssueSuspects.Find(x => x.IssueId == Issue.Id).ToListAsync();
 
-			HashSet<(ObjectId, int)> CurSuspectKeys = new HashSet<(ObjectId, int)>(CurSuspects.Select(x => (x.AuthorId, x.Change)));
+			HashSet<(UserId, int)> CurSuspectKeys = new HashSet<(UserId, int)>(CurSuspects.Select(x => (x.AuthorId, x.Change)));
 			List<IssueSuspect> CreateSuspects = NewSuspects.Where(x => !CurSuspectKeys.Contains((x.AuthorId, x.Change))).ToList();
 
-			HashSet<(ObjectId, int)> NewSuspectKeys = new HashSet<(ObjectId, int)>(NewSuspects.Select(x => (x.AuthorId, x.Change)));
+			HashSet<(UserId, int)> NewSuspectKeys = new HashSet<(UserId, int)>(NewSuspects.Select(x => (x.AuthorId, x.Change)));
 			List<IssueSuspect> DeleteSuspects = CurSuspects.Where(x => !NewSuspectKeys.Contains((x.AuthorId, x.Change))).ToList();
 
 			// Apply the suspect changes

@@ -1,12 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using HordeServer.Api;
+using HordeServer.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using System.Collections.Generic;
 
 namespace HordeServer.Models
 {
+	using UserId = ObjectId<IUser>;
+
 	/// <summary>
 	/// An individual subscription
 	/// </summary>
@@ -15,7 +18,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Name of the user
 		/// </summary>
-		public ObjectId UserId { get; }
+		public UserId UserId { get; }
 
 		/// <summary>
 		/// Whether to receive email notifications

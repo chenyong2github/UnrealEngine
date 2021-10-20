@@ -2,6 +2,7 @@
 
 using HordeCommon;
 using HordeServer.Api;
+using HordeServer.Utilities;
 using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
@@ -10,6 +11,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Models
 {
+	using UserId = ObjectId<IUser>;
+
 	/// <summary>
 	/// The type of notification to send
 	/// </summary>
@@ -39,7 +42,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// User to notify
 		/// </summary>
-		public ObjectId UserId { get; }
+		public UserId UserId { get; }
 
 		/// <summary>
 		/// Type of notification to receive

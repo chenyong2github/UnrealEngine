@@ -16,6 +16,7 @@ using System.Threading.Tasks;
 namespace HordeServer.Controllers
 {
 	using JobId = ObjectId<IJob>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// Controller for the /api/v1/user endpoint
@@ -75,7 +76,7 @@ namespace HordeServer.Controllers
 		[Route("/api/v1/user")]
 		public async Task<ActionResult> UpdateUserAsync(UpdateUserRequest Request)
 		{
-			ObjectId? UserId = User.GetUserId();
+			UserId? UserId = User.GetUserId();
 			if(UserId == null)
 			{
 				return BadRequest("Current user does not have a registered profile");

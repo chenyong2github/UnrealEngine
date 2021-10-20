@@ -15,6 +15,7 @@ using MongoDB.Bson.Serialization.Attributes;
 namespace HordeServer.Commits.Impl
 {
 	using StreamId = StringId<IStream>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// Concrete implementation of ICommitCollection
@@ -36,10 +37,10 @@ namespace HordeServer.Commits.Impl
 			public int? OriginalChange { get; set; }
 
 			[BsonElement("a")]
-			public ObjectId AuthorId { get; set; }
+			public UserId AuthorId { get; set; }
 
 			[BsonElement("o"), BsonIgnoreIfNull]
-			public ObjectId? OwnerId { get; set; }
+			public UserId? OwnerId { get; set; }
 
 			[BsonElement("d")]
 			public string Description { get; set; } = String.Empty;
@@ -54,7 +55,7 @@ namespace HordeServer.Commits.Impl
 			public DateTime DateUtc { get; set; }
 
 			int ICommit.OriginalChange => OriginalChange ?? Change;
-			ObjectId ICommit.OwnerId => OwnerId ?? AuthorId;
+			UserId ICommit.OwnerId => OwnerId ?? AuthorId;
 
 			public Commit()
 			{

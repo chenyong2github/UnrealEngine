@@ -24,6 +24,7 @@ namespace HordeServer.Controllers
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;
 	using StreamId = StringId<IStream>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// Controller for the /api/v1/issues endpoint
@@ -83,10 +84,10 @@ namespace HordeServer.Controllers
 				Ids = null;
 			}
 
-			ObjectId? UserIdValue = null;
+			UserId? UserIdValue = null;
 			if (UserId != null)
 			{
-				UserIdValue = new ObjectId(UserId);
+				UserIdValue = new UserId(UserId);
 			}
 
 			List<IIssue> Issues;
@@ -388,28 +389,28 @@ namespace HordeServer.Controllers
 		[Route("/api/v1/issues/{IssueId}")]
 		public async Task<ActionResult> UpdateIssueAsync(int IssueId, [FromBody] UpdateIssueRequest Request)
 		{
-			ObjectId? NewOwnerId = null;
+			UserId? NewOwnerId = null;
 			if (Request.OwnerId != null)
 			{
-				NewOwnerId = Request.OwnerId.Length == 0 ? ObjectId.Empty : new ObjectId(Request.OwnerId);
+				NewOwnerId = Request.OwnerId.Length == 0 ? UserId.Empty : new UserId(Request.OwnerId);
 			}
 
-			ObjectId? NewNominatedById = null;
+			UserId? NewNominatedById = null;
 			if (Request.NominatedById != null)
 			{
-				NewNominatedById = new ObjectId(Request.NominatedById);
+				NewNominatedById = new UserId(Request.NominatedById);
 			}
 
-			ObjectId? NewDeclinedById = null;
+			UserId? NewDeclinedById = null;
 			if (Request.Declined ?? false)
 			{
 				NewDeclinedById = User.GetUserId();
 			}
 
-			ObjectId? NewResolvedById = null;
+			UserId? NewResolvedById = null;
 			if (Request.Resolved.HasValue)
 			{
-				NewResolvedById = Request.Resolved.Value ? User.GetUserId() : ObjectId.Empty;
+				NewResolvedById = Request.Resolved.Value ? User.GetUserId() : UserId.Empty;
 			}
 
 			if (!await IssueService.UpdateIssueAsync(IssueId, Request.Summary, NewOwnerId, NewNominatedById, Request.Acknowledged, NewDeclinedById, Request.FixChange, NewResolvedById))

@@ -24,6 +24,7 @@ namespace HordeServer.Services
 	using DevicePlatformId = StringId<IDevicePlatform>;
 	using DevicePoolId = StringId<IDevicePool>;
 	using JobId = ObjectId<IJob>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// Platform map required by V1 API
@@ -220,7 +221,7 @@ namespace HordeServer.Services
 		/// <param name="ModelId">Vendor model id</param>
         /// <param name="UserId">User adding the device</param>
 		/// <returns></returns>
-		public Task<IDevice?> TryCreateDeviceAsync(DeviceId Id, string Name, DevicePlatformId PlatformId, DevicePoolId PoolId, bool? Enabled, string? Address, string? ModelId, ObjectId? UserId = null)
+		public Task<IDevice?> TryCreateDeviceAsync(DeviceId Id, string Name, DevicePlatformId PlatformId, DevicePoolId PoolId, bool? Enabled, string? Address, string? ModelId, UserId? UserId = null)
 		{
 			return Devices.TryAddDeviceAsync(Id, Name, PlatformId, PoolId, Enabled, Address, ModelId, UserId);
 		}
@@ -228,7 +229,7 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Update a device
 		/// </summary>
-		public Task UpdateDeviceAsync(DeviceId DeviceId, DevicePoolId? NewPoolId = null, string? NewName = null, string? NewAddress = null, string? NewModelId = null, string? NewNotes = null, bool? NewEnabled = null, bool? NewProblem = null, bool? NewMaintenance = null, ObjectId? ModifiedByUserId = null)
+		public Task UpdateDeviceAsync(DeviceId DeviceId, DevicePoolId? NewPoolId = null, string? NewName = null, string? NewAddress = null, string? NewModelId = null, string? NewNotes = null, bool? NewEnabled = null, bool? NewProblem = null, bool? NewMaintenance = null, UserId? ModifiedByUserId = null)
 		{
 			return Devices.UpdateDeviceAsync(DeviceId, NewPoolId, NewName, NewAddress, NewModelId, NewNotes, NewEnabled, NewProblem, NewMaintenance, ModifiedByUserId);
 		}
@@ -236,7 +237,7 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Checkout a device
 		/// </summary>
-		public Task CheckoutDeviceAsync(DeviceId DeviceId, ObjectId? UserId)
+		public Task CheckoutDeviceAsync(DeviceId DeviceId, UserId? UserId)
 		{
             return Devices.CheckoutDeviceAsync(DeviceId, UserId);
         }

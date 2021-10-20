@@ -16,6 +16,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Controllers
 {
+	using UserId = ObjectId<IUser>;
+
 	/// <summary>
 	/// Controller for the /api/v1/agents endpoint
 	/// </summary>
@@ -56,7 +58,7 @@ namespace HordeServer.Controllers
 		[ProducesResponseType(typeof(List<GetSubscriptionResponse>), 200)]
 		public async Task<ActionResult<List<object>>> GetSubscriptionsAsync([FromQuery] string UserId, [FromQuery] PropertyFilter? Filter = null)
 		{
-			ObjectId UserIdValue;
+			UserId UserIdValue;
 			if (!TryParseUserId(UserId, out UserIdValue))
 			{
 				return BadRequest("Invalid user id");
@@ -128,9 +130,9 @@ namespace HordeServer.Controllers
 		[Route("/api/v1/subscriptions")]
 		public async Task<ActionResult<List<CreateSubscriptionResponse>>> CreateSubscriptionsAsync(List<CreateSubscriptionRequest> Subscriptions)
 		{
-			HashSet<ObjectId> AuthorizedUsers = new HashSet<ObjectId>();
+			HashSet<UserId> AuthorizedUsers = new HashSet<UserId>();
 
-			ObjectId? CurrentUserId = User.GetUserId();
+			UserId? CurrentUserId = User.GetUserId();
 			if(CurrentUserId != null)
 			{
 				AuthorizedUsers.Add(CurrentUserId.Value);
@@ -141,7 +143,7 @@ namespace HordeServer.Controllers
 			List<NewSubscription> NewSubscriptions = new List<NewSubscription>();
 			foreach (CreateSubscriptionRequest Subscription in Subscriptions)
 			{
-				ObjectId NewUserId;
+				UserId NewUserId;
 				if (!TryParseUserId(Subscription.UserId, out NewUserId))
 				{
 					return BadRequest($"Invalid user id: '{Subscription.UserId}'.");
@@ -163,10 +165,10 @@ namespace HordeServer.Controllers
 		/// <param name="UserName"></param>
 		/// <param name="ObjectId"></param>
 		/// <returns></returns>
-		bool TryParseUserId(string UserName, out ObjectId ObjectId)
+		bool TryParseUserId(string UserName, out UserId ObjectId)
 		{
-			ObjectId NewObjectId;
-			if (ObjectId.TryParse(UserName, out NewObjectId))
+			UserId NewObjectId;
+			if (UserId.TryParse(UserName, out NewObjectId))
 			{
 				ObjectId = NewObjectId;
 				return true;
@@ -175,7 +177,7 @@ namespace HordeServer.Controllers
 			string? CurrentUserName = User.GetUserName();
 			if (CurrentUserName != null && String.Equals(UserName, CurrentUserName, StringComparison.OrdinalIgnoreCase))
 			{
-				ObjectId? CurrentUserId = User.GetUserId();
+				UserId? CurrentUserId = User.GetUserId();
 				if (CurrentUserId != null)
 				{
 					ObjectId = CurrentUserId.Value;

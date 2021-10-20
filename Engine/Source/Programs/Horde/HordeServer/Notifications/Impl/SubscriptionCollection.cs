@@ -21,6 +21,7 @@ namespace HordeServer.Collections.Impl
 {
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// Collection of subscription documents
@@ -159,7 +160,7 @@ namespace HordeServer.Collections.Impl
 		{
 			public string Id { get; set; }
 			public Event Event { get; set; }
-			public ObjectId UserId { get; set; }
+			public UserId UserId { get; set; }
 			public NotificationType NotificationType { get; set; }
 
 			IEvent ISubscription.Event => Event;
@@ -240,7 +241,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ISubscription>> FindSubscriptionsAsync(ObjectId UserId)
+		public async Task<List<ISubscription>> FindSubscriptionsAsync(UserId UserId)
 		{
 			List<Subscription> Results = await Collection.Find(x => x.UserId == UserId).ToListAsync();
 			return Results.ConvertAll<ISubscription>(x => x);

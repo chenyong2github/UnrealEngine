@@ -90,6 +90,7 @@ namespace HordeServer
 	using JobId = ObjectId<IJob>;
 	using LeaseId = ObjectId<ILease>;
 	using LogId = ObjectId<ILogFile>;
+	using UserId = ObjectId<IUser>;
 	using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 	class Startup
@@ -613,6 +614,7 @@ namespace HordeServer
 			MessageTemplate.RegisterFormatter(typeof(JobId), new MessageTemplateTypeNameFormatter("JobId"));
 			MessageTemplate.RegisterFormatter(typeof(LeaseId), new MessageTemplateTypeNameFormatter("LeaseId"));
 			MessageTemplate.RegisterFormatter(typeof(LogId), new MessageTemplateTypeNameFormatter("LogId"));
+			MessageTemplate.RegisterFormatter(typeof(UserId), new MessageTemplateTypeNameFormatter("UserId"));
 		}
 
 		public static void ConfigureJsonSerializer(JsonSerializerOptions Options)

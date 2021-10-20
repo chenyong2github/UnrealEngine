@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using HordeServer.Collections;
+using HordeServer.Models;
 using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
@@ -10,6 +11,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Utilities
 {
+	using UserId = ObjectId<IUser>;
+
 	/// <summary>
 	/// Claim types that are specific to horde
 	/// </summary>
@@ -66,7 +69,7 @@ namespace HordeServer.Utilities
 		/// </summary>
 		/// <param name="Principal"></param>
 		/// <returns></returns>
-		public static ObjectId? GetUserId(this ClaimsPrincipal Principal)
+		public static UserId? GetUserId(this ClaimsPrincipal Principal)
 		{
 			string? IdValue = Principal.FindFirstValue(HordeClaimTypes.UserId);
 			if(IdValue == null)
@@ -75,7 +78,7 @@ namespace HordeServer.Utilities
 			}
 			else
 			{
-				return new ObjectId(IdValue);
+				return new UserId(IdValue);
 			}
 		}
 

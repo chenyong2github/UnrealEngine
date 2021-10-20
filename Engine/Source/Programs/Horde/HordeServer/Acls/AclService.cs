@@ -20,6 +20,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Services
 {
+	using UserId = ObjectId<IUser>;
+
 	/// <summary>
 	/// Cache of global ACL
 	/// </summary>
@@ -225,9 +227,9 @@ namespace HordeServer.Services
 		/// <param name="User"></param>
 		/// <param name="UserId"></param>
 		/// <returns></returns>
-		public Task<bool> AuthorizeAsUserAsync(ClaimsPrincipal User, ObjectId UserId)
+		public Task<bool> AuthorizeAsUserAsync(ClaimsPrincipal User, UserId UserId)
 		{
-			ObjectId? CurrentUserId = User.GetUserId();
+			UserId? CurrentUserId = User.GetUserId();
 			if (CurrentUserId != null && CurrentUserId.Value == UserId)
 			{
 				return Task.FromResult(true);

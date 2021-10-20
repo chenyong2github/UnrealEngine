@@ -19,6 +19,7 @@ namespace HordeServer.Models
 {
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// The severity of an issue
@@ -49,12 +50,12 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Id for resolved by system
 		/// </summary>
-		static ObjectId ResolvedByTimeoutId { get; } = ObjectId.Parse("609592712b5c90b5bcf88c48");
+		static UserId ResolvedByTimeoutId { get; } = UserId.Parse("609592712b5c90b5bcf88c48");
 
 		/// <summary>
 		/// Id for resolved by unknown user
 		/// </summary>
-		static ObjectId ResolvedByUnknownId { get; } = ObjectId.Parse("609593b83e9b0b6dde620cf3");
+		static UserId ResolvedByUnknownId { get; } = UserId.Parse("609593b83e9b0b6dde620cf3");
 
 		/// <summary>
 		/// The unique object id
@@ -84,12 +85,12 @@ namespace HordeServer.Models
 		/// <summary>
 		/// User id of the owner
 		/// </summary>
-		public ObjectId? OwnerId { get; }
+		public UserId? OwnerId { get; }
 
 		/// <summary>
 		/// User id of the person that nominated the owner
 		/// </summary>
-		public ObjectId? NominatedById { get; }
+		public UserId? NominatedById { get; }
 
 		/// <summary>
 		/// Time at which the issue was created
@@ -114,7 +115,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// User that resolved the issue
 		/// </summary>
-		public ObjectId? ResolvedById { get; }
+		public UserId? ResolvedById { get; }
 
 		/// <summary>
 		/// Time at which the issue was verified fixed
@@ -181,7 +182,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// The user id of the change's author
 		/// </summary>
-		ObjectId AuthorId { get; }
+		UserId AuthorId { get; }
 
 		/// <summary>
 		/// The change suspected of causing this issue (in the origin stream)

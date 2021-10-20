@@ -43,6 +43,7 @@ namespace HordeServerTests
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;
+	using UserId = ObjectId<IUser>;
 
 	[TestClass]
 	public class IssueServiceTests : DatabaseIntegrationTest
@@ -109,9 +110,9 @@ namespace HordeServerTests
 		ILogFileService LogFileService => TestSetup.LogFileService;
 		IIssueService IssueService => TestSetup.IssueService;
 
-		ObjectId TimId;
-		ObjectId JerryId;
-		ObjectId BobId;
+		UserId TimId;
+		UserId JerryId;
+		UserId BobId;
 
 		DirectoryReference WorkspaceDir;
 
@@ -601,7 +602,7 @@ namespace HordeServerTests
 
 				List<IIssueSuspect> Suspects = await IssueService.GetIssueSuspectsAsync(Issues[0]);
 
-				List<ObjectId> PrimarySuspects = Suspects.Select(x => x.AuthorId).ToList();
+				List<UserId> PrimarySuspects = Suspects.Select(x => x.AuthorId).ToList();
 				Assert.AreEqual(2, PrimarySuspects.Count);
 				Assert.IsTrue(PrimarySuspects.Contains(JerryId)); // 115
 				Assert.IsTrue(PrimarySuspects.Contains(TimId)); // 120
@@ -705,7 +706,7 @@ namespace HordeServerTests
 
 				List<IIssueSuspect> Suspects = await IssueService.GetIssueSuspectsAsync(Issues[0]);
 
-				List<ObjectId> PrimarySuspects = Suspects.Select(x => x.AuthorId).ToList();
+				List<UserId> PrimarySuspects = Suspects.Select(x => x.AuthorId).ToList();
 				Assert.AreEqual(1, PrimarySuspects.Count);
 				Assert.AreEqual(JerryId, PrimarySuspects[0]); // 115
 			}
@@ -747,7 +748,7 @@ namespace HordeServerTests
 
 				List<IIssueSuspect> Suspects = await IssueService.GetIssueSuspectsAsync(Issues[0]);
 
-				List<ObjectId> PrimarySuspects = Suspects.Select(x => x.AuthorId).ToList();
+				List<UserId> PrimarySuspects = Suspects.Select(x => x.AuthorId).ToList();
 				Assert.AreEqual(2, PrimarySuspects.Count);
 				Assert.IsTrue(PrimarySuspects.Contains(JerryId)); // 115
 				Assert.IsTrue(PrimarySuspects.Contains(TimId)); // 120
@@ -766,7 +767,7 @@ namespace HordeServerTests
 
 				List<IIssueSuspect> Suspects = await IssueService.GetIssueSuspectsAsync(Issues[0]);
 
-				List<ObjectId> PrimarySuspects = Suspects.Where(x => x.DeclinedAt == null).Select(x => x.AuthorId).ToList();
+				List<UserId> PrimarySuspects = Suspects.Where(x => x.DeclinedAt == null).Select(x => x.AuthorId).ToList();
 				Assert.AreEqual(1, PrimarySuspects.Count);
 				Assert.AreEqual(JerryId, PrimarySuspects[0]); // 115
 			}
@@ -813,7 +814,7 @@ namespace HordeServerTests
 
 				List<IIssueSuspect> Suspects = await IssueService.GetIssueSuspectsAsync(Issues[0]);
 
-				List<ObjectId> PrimarySuspects = Suspects.Select(x => x.AuthorId).ToList();
+				List<UserId> PrimarySuspects = Suspects.Select(x => x.AuthorId).ToList();
 				Assert.AreEqual(1, PrimarySuspects.Count);
 				Assert.AreEqual(JerryId, PrimarySuspects[0]); // 115 = foo.cpp
 			}

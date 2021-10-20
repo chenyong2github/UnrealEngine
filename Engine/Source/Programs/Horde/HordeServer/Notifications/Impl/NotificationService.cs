@@ -34,6 +34,8 @@ using HordeServer.Services;
 
 namespace HordeServer.Notifications.Impl
 {
+	using UserId = ObjectId<IUser>;
+
 	/// <summary>
 	/// Wraps funtionality for delivering notifications.
 	/// </summary>
@@ -147,7 +149,7 @@ namespace HordeServer.Notifications.Impl
 		/// <inheritdoc/>
 		public async Task<bool> UpdateSubscriptionsAsync(ObjectId TriggerId, ClaimsPrincipal User, bool? Email, bool? Slack)
 		{
-			ObjectId? UserId = User.GetUserId();
+			UserId? UserId = User.GetUserId();
 			if (UserId == null)
 			{
 				Logger.LogWarning("Unable to find username for principal {User}", User.Identity?.Name);
@@ -162,7 +164,7 @@ namespace HordeServer.Notifications.Impl
 		/// <inheritdoc/>
 		public async Task<INotificationSubscription?> GetSubscriptionsAsync(ObjectId TriggerId, ClaimsPrincipal User)
 		{
-			ObjectId? UserId = User.GetUserId();
+			UserId? UserId = User.GetUserId();
 			if (UserId == null)
 			{
 				return null;
@@ -417,7 +419,7 @@ namespace HordeServer.Notifications.Impl
 
 		private async Task<List<IUser>> GetUsersToNotify(EventRecord? Event, ObjectId? NotificationTriggerId, bool bFireTrigger)
 		{
-			List<ObjectId> UserIds = new List<ObjectId>();
+			List<UserId> UserIds = new List<UserId>();
 
 			// Find the notifications for all steps of this type
 			if (Event != null)
