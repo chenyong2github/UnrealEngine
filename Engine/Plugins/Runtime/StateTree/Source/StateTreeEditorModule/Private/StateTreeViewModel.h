@@ -9,7 +9,6 @@
 
 class UStateTreeEditorData;
 class UStateTreeState;
-class UStateTreeTaskBase;
 class UStateTree;
 class FMenuBuilder;
 

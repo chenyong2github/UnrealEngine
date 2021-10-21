@@ -412,7 +412,7 @@ bool FStateTreeBaker::CreateStateRecursive(UStateTreeState& State, const FStateT
 			FInstancedStruct& EvalPtr = StateTree->RuntimeStorageItems.AddDefaulted_GetRef();
 			EvalPtr = EvaluatorItem.Type;
 			check(EvalPtr.IsValid());
-			FStateTreeEvaluator2Base& Eval = EvalPtr.GetMutable<FStateTreeEvaluator2Base>();
+			FStateTreeEvaluatorBase& Eval = EvalPtr.GetMutable<FStateTreeEvaluatorBase>();
 
 			// Create binding source struct descriptor.
 			FStateTreeBindableStructDesc StructDesc;
@@ -464,7 +464,7 @@ bool FStateTreeBaker::CreateStateRecursive(UStateTreeState& State, const FStateT
 			FInstancedStruct& TaskPtr = StateTree->RuntimeStorageItems.AddDefaulted_GetRef();
 			TaskPtr = TaskItem.Type;
 			check(TaskPtr.IsValid());
-			FStateTreeTask2Base& Task = TaskPtr.GetMutable<FStateTreeTask2Base>();
+			FStateTreeTaskBase& Task = TaskPtr.GetMutable<FStateTreeTaskBase>();
 
 			// Create binding source struct descriptor.
 			FStateTreeBindableStructDesc StructDesc;

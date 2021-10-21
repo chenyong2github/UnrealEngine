@@ -32,13 +32,13 @@ struct FDummyStateTreeResult : public FStateTreeResult
 	int32 Count = 0;
 };
 
-USTRUCT(meta=(DisplayName="Evaluator Test2"))
-struct STATETREEMODULE_API FStateTreeEvaluator2_Test : public FStateTreeEvaluator2Base
+USTRUCT(meta=(DisplayName="Evaluator Test"))
+struct STATETREEMODULE_API FStateTreeEvaluator_Test : public FStateTreeEvaluatorBase
 {
 	GENERATED_BODY()
 
-	FStateTreeEvaluator2_Test();
-	virtual ~FStateTreeEvaluator2_Test();
+	FStateTreeEvaluator_Test();
+	virtual ~FStateTreeEvaluator_Test();
 	virtual void EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
 	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) override;
 	virtual void Evaluate(FStateTreeExecutionContext& Context, const EStateTreeEvaluationType EvalType, const float DeltaTime) override;

@@ -4,15 +4,15 @@
 #include "CoreMinimal.h"
 #include "Engine/Engine.h"
 
-FStateTreeEvaluator2_Test::FStateTreeEvaluator2_Test()
+FStateTreeEvaluator_Test::FStateTreeEvaluator_Test()
 {
 }
 
-FStateTreeEvaluator2_Test::~FStateTreeEvaluator2_Test()
+FStateTreeEvaluator_Test::~FStateTreeEvaluator_Test()
 {
 }
 
-void FStateTreeEvaluator2_Test::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
+void FStateTreeEvaluator_Test::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
 {
 	Foo = 0.0f;
 	IntVal = 0;
@@ -21,12 +21,12 @@ void FStateTreeEvaluator2_Test::EnterState(FStateTreeExecutionContext& Context, 
 	DummyResult.Count = 0;
 }
 
-void FStateTreeEvaluator2_Test::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
+void FStateTreeEvaluator_Test::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
 {
 	OutResult = &DummyResult;
 }
 
-void FStateTreeEvaluator2_Test::Evaluate(FStateTreeExecutionContext& Context, const EStateTreeEvaluationType EvalType, const float DeltaTime)
+void FStateTreeEvaluator_Test::Evaluate(FStateTreeExecutionContext& Context, const EStateTreeEvaluationType EvalType, const float DeltaTime)
 {
 
 	Foo += DeltaTime;

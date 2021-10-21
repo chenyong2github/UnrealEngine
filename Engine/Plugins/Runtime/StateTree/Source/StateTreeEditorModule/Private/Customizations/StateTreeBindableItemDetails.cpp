@@ -441,16 +441,16 @@ void FStateTreeBindableItemDetails::OnStructPicked(const UScriptStruct* InStruct
 					Struct->InitializeAs(InStruct);
 
 					// Generate new ID and name.
-					if (InStruct->IsChildOf(FStateTreeTask2Base::StaticStruct()))
+					if (InStruct->IsChildOf(FStateTreeTaskBase::StaticStruct()))
 					{
-						FStateTreeTask2Base* Task = Struct->GetMutablePtr<FStateTreeTask2Base>();
+						FStateTreeTaskBase* Task = Struct->GetMutablePtr<FStateTreeTaskBase>();
 						check(Task);
 						Task->ID = FGuid::NewGuid();
 						Task->Name = FName(InStruct->GetDisplayNameText().ToString());
 					}
-					else if (InStruct->IsChildOf(FStateTreeEvaluator2Base::StaticStruct()))
+					else if (InStruct->IsChildOf(FStateTreeEvaluatorBase::StaticStruct()))
 					{
-						FStateTreeEvaluator2Base* Eval = Struct->GetMutablePtr<FStateTreeEvaluator2Base>();
+						FStateTreeEvaluatorBase* Eval = Struct->GetMutablePtr<FStateTreeEvaluatorBase>();
 						check(Eval);
 						Eval->ID = FGuid::NewGuid();
 						Eval->Name = FName(InStruct->GetDisplayNameText().ToString());

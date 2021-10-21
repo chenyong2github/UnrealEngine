@@ -257,13 +257,13 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(FStateTreeItemView St
 			for (int32 EvalIndex = 0; EvalIndex < int32(State.EvaluatorsNum); EvalIndex++)
 			{
 				FStateTreeItemView EvalView = GetItem(Storage, int32(State.EvaluatorsBegin) + EvalIndex);
-				const FStateTreeEvaluator2Base& Eval = EvalView.Get<FStateTreeEvaluator2Base>();
+				const FStateTreeEvaluatorBase& Eval = EvalView.Get<FStateTreeEvaluatorBase>();
 				ItemViews[Eval.SourceStructIndex] = EvalView;
 			}
 			for (int32 TaskIndex = 0; TaskIndex < int32(State.TasksNum); TaskIndex++)
 			{
 				FStateTreeItemView TaskView = GetItem(Storage, int32(State.TasksBegin) + TaskIndex);
-				const FStateTreeTask2Base& Task = TaskView.Get<FStateTreeTask2Base>();
+				const FStateTreeTaskBase& Task = TaskView.Get<FStateTreeTaskBase>();
 				ItemViews[Task.SourceStructIndex] = TaskView;
 			}
 			continue;
@@ -278,7 +278,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(FStateTreeItemView St
 		for (int32 EvalIndex = 0; EvalIndex < int32(State.EvaluatorsNum); EvalIndex++)
 		{
 			FStateTreeItemView EvalView = GetItem(Storage, int32(State.EvaluatorsBegin) + EvalIndex);
-			FStateTreeEvaluator2Base& Eval = EvalView.GetMutable<FStateTreeEvaluator2Base>();
+			FStateTreeEvaluatorBase& Eval = EvalView.GetMutable<FStateTreeEvaluatorBase>();
 
 			// Copy bound properties.
 			if (Eval.BindingsBatch.IsValid())
@@ -295,7 +295,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(FStateTreeItemView St
 		for (int32 TaskIndex = 0; TaskIndex < int32(State.TasksNum); TaskIndex++)
 		{
 			FStateTreeItemView TaskView = GetItem(Storage, int32(State.TasksBegin) + TaskIndex);
-			FStateTreeTask2Base& Task = TaskView.GetMutable<FStateTreeTask2Base>();
+			FStateTreeTaskBase& Task = TaskView.GetMutable<FStateTreeTaskBase>();
 
 			// Copy bound properties.
 			if (Task.BindingsBatch.IsValid())
@@ -368,13 +368,13 @@ void FStateTreeExecutionContext::ExitState(FStateTreeItemView Storage, const FSt
 			for (int32 EvalIndex = 0; EvalIndex < int32(State.EvaluatorsNum); EvalIndex++)
 			{
 				FStateTreeItemView EvalView = GetItem(Storage, int32(State.EvaluatorsBegin) + EvalIndex);
-				const FStateTreeEvaluator2Base& Eval = EvalView.Get<FStateTreeEvaluator2Base>();
+				const FStateTreeEvaluatorBase& Eval = EvalView.Get<FStateTreeEvaluatorBase>();
 				ItemViews[Eval.SourceStructIndex] = EvalView;
 			}
 			for (int32 TaskIndex = 0; TaskIndex < int32(State.TasksNum); TaskIndex++)
 			{
 				FStateTreeItemView TaskView = GetItem(Storage, int32(State.TasksBegin) + TaskIndex);
-				const FStateTreeTask2Base& Task = TaskView.Get<FStateTreeTask2Base>();
+				const FStateTreeTaskBase& Task = TaskView.Get<FStateTreeTaskBase>();
 				ItemViews[Task.SourceStructIndex] = TaskView;
 			}
 			continue;
@@ -389,7 +389,7 @@ void FStateTreeExecutionContext::ExitState(FStateTreeItemView Storage, const FSt
 		for (int32 EvalIndex = 0; EvalIndex < int32(State.EvaluatorsNum); EvalIndex++)
 		{
 			FStateTreeItemView EvalView = GetItem(Storage, int32(State.EvaluatorsBegin) + EvalIndex);
-			FStateTreeEvaluator2Base& Eval = EvalView.GetMutable<FStateTreeEvaluator2Base>();
+			FStateTreeEvaluatorBase& Eval = EvalView.GetMutable<FStateTreeEvaluatorBase>();
 
 			// Copy bound properties.
 			if (Eval.BindingsBatch.IsValid())
@@ -406,7 +406,7 @@ void FStateTreeExecutionContext::ExitState(FStateTreeItemView Storage, const FSt
 		for (int32 TaskIndex = 0; TaskIndex < int32(State.TasksNum); TaskIndex++)
 		{
 			FStateTreeItemView TaskView = GetItem(Storage, int32(State.TasksBegin) + TaskIndex);
-			FStateTreeTask2Base& Task = TaskView.GetMutable<FStateTreeTask2Base>();
+			FStateTreeTaskBase& Task = TaskView.GetMutable<FStateTreeTaskBase>();
 
 			// Copy bound properties.
 			if (Task.BindingsBatch.IsValid())
@@ -445,7 +445,7 @@ void FStateTreeExecutionContext::StateCompleted(FStateTreeItemView Storage, cons
 		for (int32 TaskIndex = int32(State.TasksNum) - 1; TaskIndex >= 0; TaskIndex--)
 		{
 			FStateTreeItemView TaskView = GetItem(Storage, int32(State.TasksBegin) + TaskIndex);
-			FStateTreeTask2Base& Task = TaskView.GetMutable<FStateTreeTask2Base>();
+			FStateTreeTaskBase& Task = TaskView.GetMutable<FStateTreeTaskBase>();
 
 			STATETREE_LOG(Verbose, TEXT("%*s  Notify Task '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
 			Task.StateCompleted(*this, CompletionStatus, CurrentState);
@@ -455,7 +455,7 @@ void FStateTreeExecutionContext::StateCompleted(FStateTreeItemView Storage, cons
 		for (int32 EvalIndex = int32(State.EvaluatorsNum) - 1; EvalIndex >= 0; EvalIndex--)
 		{
 			FStateTreeItemView EvalView = GetItem(Storage, int32(State.EvaluatorsBegin) + EvalIndex);
-			FStateTreeEvaluator2Base& Eval = EvalView.GetMutable<FStateTreeEvaluator2Base>();
+			FStateTreeEvaluatorBase& Eval = EvalView.GetMutable<FStateTreeEvaluatorBase>();
 
 			STATETREE_LOG(Verbose, TEXT("%*s  Notify Evaluator '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Eval.Name.ToString());
 			Eval.StateCompleted(*this, CompletionStatus, CurrentState);
@@ -492,7 +492,7 @@ void FStateTreeExecutionContext::TickEvaluators(FStateTreeItemView Storage, cons
 		for (int32 EvalIndex = 0; EvalIndex < int32(State.EvaluatorsNum); EvalIndex++)
 		{
 			FStateTreeItemView EvalView = GetItem(Storage, int32(State.EvaluatorsBegin) + EvalIndex);
-			FStateTreeEvaluator2Base& Eval = EvalView.GetMutable<FStateTreeEvaluator2Base>();
+			FStateTreeEvaluatorBase& Eval = EvalView.GetMutable<FStateTreeEvaluatorBase>();
 
 			// Copy bound properties.
 			if (Eval.BindingsBatch.IsValid())
@@ -534,7 +534,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickTasks(FStateTreeItemView Sto
 		for (int32 TaskIndex = 0; TaskIndex < int32(State.TasksNum); TaskIndex++)
 		{
 			FStateTreeItemView TaskView = GetItem(Storage, int32(State.TasksBegin) + TaskIndex);
-			FStateTreeTask2Base& Task = TaskView.GetMutable<FStateTreeTask2Base>();
+			FStateTreeTaskBase& Task = TaskView.GetMutable<FStateTreeTaskBase>();
 
 			// Copy bound properties.
 			if (Task.BindingsBatch.IsValid())
@@ -870,7 +870,7 @@ FString FStateTreeExecutionContext::GetDebugInfoString(FStateTreeItemView Extern
 				for (int32 j = 0; j < int32(State.TasksNum); j++)
 				{
 					FStateTreeItemView TaskView = GetItem(Storage, int32(State.TasksBegin) + j);
-					const FStateTreeTask2Base& Task = TaskView.Get<FStateTreeTask2Base>();
+					const FStateTreeTaskBase& Task = TaskView.Get<FStateTreeTaskBase>();
 					Task.AppendDebugInfoString(DebugString, *this);
 				}
 			}
@@ -880,7 +880,7 @@ FString FStateTreeExecutionContext::GetDebugInfoString(FStateTreeItemView Extern
 				for (int32 EvalIndex = 0; EvalIndex < int32(State.EvaluatorsNum); EvalIndex++)
 				{
 					FStateTreeItemView EvalView = GetItem(Storage, int32(State.EvaluatorsBegin) + EvalIndex);
-					const FStateTreeEvaluator2Base& Eval = EvalView.Get<FStateTreeEvaluator2Base>();
+					const FStateTreeEvaluatorBase& Eval = EvalView.Get<FStateTreeEvaluatorBase>();
 					Eval.AppendDebugInfoString(DebugString, *this);
 				}
 			}
@@ -983,7 +983,7 @@ void FStateTreeExecutionContext::DebugPrintInternalLayout(FStateTreeItemView Ext
 		{
 			for (int32 j = 0; j < State.TasksNum; j++)
 			{
-				const FStateTreeTask2Base& Task = GetItem(Storage, State.TasksBegin + j).Get<FStateTreeTask2Base>();
+				const FStateTreeTaskBase& Task = GetItem(Storage, State.TasksBegin + j).Get<FStateTreeTaskBase>();
 				DebugString += FString::Printf(TEXT("  | %-30s | %-12s | %-30s | %15s | %10d |\n"), *State.Name.ToString(),
 					TEXT("  Task"), *Task.Name.ToString(), *Task.BindingsBatch.Describe(), Task.SourceStructIndex);
 			}
@@ -994,7 +994,7 @@ void FStateTreeExecutionContext::DebugPrintInternalLayout(FStateTreeItemView Ext
 		{
 			for (int32 EvalIndex = 0; EvalIndex < State.EvaluatorsNum; EvalIndex++)
 			{
-				const FStateTreeEvaluator2Base& Eval = GetItem(Storage, State.EvaluatorsBegin + EvalIndex).Get<FStateTreeEvaluator2Base>();
+				const FStateTreeEvaluatorBase& Eval = GetItem(Storage, State.EvaluatorsBegin + EvalIndex).Get<FStateTreeEvaluatorBase>();
 				DebugString += FString::Printf(TEXT("  | %-30s | %-12s | %-30s | %15s | %10d |\n"), *State.Name.ToString(),
 					TEXT("  Evaluator"), *Eval.Name.ToString(), *Eval.BindingsBatch.Describe(), Eval.SourceStructIndex);
 			}

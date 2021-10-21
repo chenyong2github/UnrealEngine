@@ -21,7 +21,7 @@
 bool UBrainComponentStateTreeSchema::IsStructAllowed(const UScriptStruct* InScriptStruct) const
 {
 	// @todo: Proper base class for actor nodes.
-	return InScriptStruct->IsChildOf(FStateTreeEvaluator2Base::StaticStruct()) || InScriptStruct->IsChildOf(FStateTreeTask2Base::StaticStruct());
+	return InScriptStruct->IsChildOf(FStateTreeEvaluatorBase::StaticStruct()) || InScriptStruct->IsChildOf(FStateTreeTaskBase::StaticStruct());
 }
 
 

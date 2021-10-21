@@ -9,7 +9,7 @@
 
 
 USTRUCT(meta = (DisplayName = "Task Test2"))
-struct STATETREEMODULE_API FStateTreeTask2_Test : public FStateTreeTask2Base
+struct STATETREEMODULE_API FStateTreeTask2_Test : public FStateTreeTaskBase
 {
 	GENERATED_BODY()
 

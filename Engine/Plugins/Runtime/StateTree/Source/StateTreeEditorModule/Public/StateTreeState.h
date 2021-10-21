@@ -123,8 +123,8 @@ public:
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif
 
-	const FStateTreeTask2Base* GetTaskByID(FGuid ID) const;
-	FStateTreeTask2Base* GetTaskByID(FGuid ID);
+	const FStateTreeTaskBase* GetTaskByID(FGuid ID) const;
+	FStateTreeTaskBase* GetTaskByID(FGuid ID);
 
 	UStateTreeState* GetNextSiblingState() const;
 
