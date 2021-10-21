@@ -241,7 +241,6 @@ void SRCPanelFunctionPicker::Tick(const FGeometry& AllottedGeometry, const doubl
 	constexpr double MinimumTimeToSwitchFocus = 0.2;
 	if (LastTimeSinceTick != 0.0 && InCurrentTime - LastTimeSinceTick > MinimumTimeToSwitchFocus)
 	{
-		ObjectsTreeView->ClearSearchBox();
 		ObjectsTreeView->Focus();
 	}
 
@@ -252,7 +251,6 @@ FReply SRCPanelFunctionPicker::OnFocusReceived(const FGeometry& MyGeometry, cons
 {
 	if (InFocusEvent.GetCause() == EFocusCause::Navigation)
 	{
-		ObjectsTreeView->ClearSearchBox();
 		ObjectsTreeView->Focus();
 		return FReply::Handled();
 	}

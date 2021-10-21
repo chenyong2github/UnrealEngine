@@ -73,6 +73,7 @@ public:
 				TreeView.ToSharedRef()
 			]
 		];
+		SearchBox->SetSelectAllTextWhenFocused(false);
 	}
 
 	virtual void Tick(const FGeometry&, const double, const float DeltaTime) override
@@ -106,6 +107,7 @@ public:
 	void ClearSearchBox()
 	{
 		SearchBox->SetText(FText());
+		Refresh();
 	}
 private:
 
