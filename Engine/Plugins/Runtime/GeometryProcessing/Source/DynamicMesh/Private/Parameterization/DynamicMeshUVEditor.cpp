@@ -1156,22 +1156,18 @@ bool FDynamicMeshUVEditor::ScaleUVAreaTo3DArea(const TArray<int32>& Triangles, b
 	}
 
 	TSet<int32> Elements;
+	FAxisAlignedBox2f UVBounds;
+	double Area2D = DetermineAreaFromUVs(*UVOverlay, Triangles, &UVBounds);
 
-	double Area2D = 0.0;
-	FAxisAlignedBox2f UVBounds = FAxisAlignedBox2f::Empty();
 	for (int32 tid : Triangles)
 	{
 		if (UVOverlay->IsSetTriangle(tid))
 		{
 			FIndex3i UVTri = UVOverlay->GetTriangle(tid);
 			Elements.Add(UVTri.A); Elements.Add(UVTri.B); Elements.Add(UVTri.C);
-			FVector2f U = UVOverlay->GetElement(UVTri.A);
-			FVector2f V = UVOverlay->GetElement(UVTri.B);
-			FVector2f W = UVOverlay->GetElement(UVTri.C);
-			UVBounds.Contain(U); UVBounds.Contain(V); UVBounds.Contain(W);
-			Area2D += (double)VectorUtil::Area(U, V, W);
 		}
 	}
+
 	if (Elements.Num() == 0 || FMathd::Abs(Area2D) < FMathf::Epsilon ||  FMathd::IsFinite(Area2D) == false )
 	{
 		return false;
@@ -1194,6 +1190,61 @@ bool FDynamicMeshUVEditor::ScaleUVAreaTo3DArea(const TArray<int32>& Triangles, b
 
 	return true;
 }
+
+bool FDynamicMeshUVEditor::ScaleUVAreaToBoundingBox(const TArray<int32>& Triangles, const FAxisAlignedBox2f& BoundingBox, bool bPreserveAspectRatio, bool bRecenterAtBoundingBox)
+{
+	if (FMathd::Abs(BoundingBox.Area()) < FMathf::Epsilon || FMathd::IsFinite(BoundingBox.Area()) == false)
+	{
+		return false;
+	}
+
+	TSet<int32> Elements;
+	FAxisAlignedBox2f UVBounds;
+	double Area2D = DetermineAreaFromUVs(*UVOverlay, Triangles, &UVBounds);
+
+	for (int32 tid : Triangles)
+	{
+		if (UVOverlay->IsSetTriangle(tid))
+		{
+			FIndex3i UVTri = UVOverlay->GetTriangle(tid);
+			Elements.Add(UVTri.A); Elements.Add(UVTri.B); Elements.Add(UVTri.C);
+		}
+	}
+	
+
+	if (Elements.Num() == 0 || FMathd::Abs(Area2D) < FMathf::Epsilon || FMathd::IsFinite(Area2D) == false)
+	{
+		return false;
+	}
+
+	float WidthScale = BoundingBox.Width() / UVBounds.Width();
+	float HeightScale = BoundingBox.Height() / UVBounds.Height();
+
+	if (bPreserveAspectRatio)
+	{
+		WidthScale = FMath::Min(WidthScale, HeightScale);
+		HeightScale = WidthScale;
+	}
+
+	if ( !FMathd::IsFinite(WidthScale) || !FMathd::IsFinite(HeightScale))
+	{
+		return false;
+	}
+
+	FVector2f ScaleOrigin = UVBounds.Center();
+	FVector2f Translation = (bRecenterAtBoundingBox) ? BoundingBox.Center() : ScaleOrigin;
+	TransformUVElements(Elements.Array(), [ScaleOrigin, WidthScale, HeightScale, Translation](const FVector2f& UV){
+		FVector2f UVTransformed = UV;
+		UVTransformed = (UVTransformed - ScaleOrigin);
+		UVTransformed[0] = UVTransformed[0] * WidthScale;
+		UVTransformed[1] = UVTransformed[1] * HeightScale;
+		UVTransformed = UVTransformed + Translation;
+		return UVTransformed;
+	});
+
+	return true;
+}
+
 
 
 
@@ -1319,4 +1370,30 @@ bool FDynamicMeshUVEditor::QuickPack(int32 TargetTextureResolution, float Gutter
 	bool bOK = Packer.StandardPack();
 
 	return bOK;
+}
+
+double  FDynamicMeshUVEditor::DetermineAreaFromUVs(const FDynamicMeshUVOverlay& UVOverlay, const TArray<int32>& Triangles, FAxisAlignedBox2f* BoundingBox)
+{
+	if (BoundingBox)
+	{
+		(*BoundingBox) = FAxisAlignedBox2f::Empty();
+	}
+	double Area2D = 0.0;
+	for (int32 tid : Triangles)
+	{
+		if (UVOverlay.IsSetTriangle(tid))
+		{
+			FIndex3i UVTri = UVOverlay.GetTriangle(tid);			
+			FVector2f U = UVOverlay.GetElement(UVTri.A);
+			FVector2f V = UVOverlay.GetElement(UVTri.B);
+			FVector2f W = UVOverlay.GetElement(UVTri.C);
+			if (BoundingBox)
+			{
+				BoundingBox->Contain(U); BoundingBox->Contain(V); BoundingBox->Contain(W);
+			}
+			Area2D += (double)VectorUtil::Area(U, V, W);
+		}
+	}
+
+	return Area2D;
 }

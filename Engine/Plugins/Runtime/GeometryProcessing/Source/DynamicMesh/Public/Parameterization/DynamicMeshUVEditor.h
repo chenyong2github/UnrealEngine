@@ -205,6 +205,16 @@ public:
 	*/
 	bool ScaleUVAreaTo3DArea(const TArray<int32>& Triangles, bool bRecenterAtOrigin);
 
+
+	/**
+	* Scale UVs of the given triangles to fit within the provided provided bounding box.
+	* @param BoundingBox the 2D bounding box to constraint the requested UVs within.
+	* @param bPreserveAspectRatio if true, when scaling UVs, maintain original aspect ratio instead of fitting to box bounds
+	* @param bRecenterAtBoundingBox if true, UVs are translated such that their centroid is at the bounding box center
+	*/
+	bool ScaleUVAreaToBoundingBox(const TArray<int32>& Triangles, const FAxisAlignedBox2f& BoundingBox, bool bPreserveAspectRatio, bool bRecenterAtBoundingBox);
+
+
 	/**
 	* Compute an oriented UV-space bounding box for the given Triangles, and then rotate the UVs such that the
 	* box is aligned with the X axis. 
@@ -233,6 +243,11 @@ public:
 	 */
 	static bool EstimateGeodesicCenterFrameVertex(const FDynamicMesh3& Mesh, const TArray<int32>& Triangles, FFrame3d& FrameOut, int32& VertexIDOut, bool bAlignToUnitAxes = true);
 
+	/**
+	* Compute the occupied 2D area for the UVs for the specified triangles and channel.
+	* @param BoundingBox if not null, return the overall bounding box of the UVs for the specified triangles along with the exact area occupied.
+	*/
+	static double DetermineAreaFromUVs(const FDynamicMeshUVOverlay& UVOverlay, const TArray<int32>& Triangles, FAxisAlignedBox2f* BoundingBox = nullptr);
 };
 
 

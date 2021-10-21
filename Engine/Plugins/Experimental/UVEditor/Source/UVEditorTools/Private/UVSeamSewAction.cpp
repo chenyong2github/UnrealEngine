@@ -19,7 +19,7 @@ using namespace UE::Geometry;
 
 UUVSeamSewAction::UUVSeamSewAction()
 {
-
+	CurrentSelection = MakeShared<UE::Geometry::FDynamicMeshSelection>();
 }
 
 void UUVSeamSewAction::SetWorld(UWorld* WorldIn)
@@ -72,7 +72,15 @@ void UUVSeamSewAction::Shutdown()
 void UUVSeamSewAction::SetSelection(int32 SelectionTargetIndexIn, const UE::Geometry::FDynamicMeshSelection* NewSelection)
 {
 	SelectionTargetIndex = SelectionTargetIndexIn;
-	CurrentSelection = NewSelection;
+	if (NewSelection)
+	{
+		(*CurrentSelection) = *NewSelection;
+	}
+	else
+	{
+		(*CurrentSelection) = UE::Geometry::FDynamicMeshSelection();
+	}
+
 	EdgeSewCandidates.Reset();
 
 	if (SelectionTargetIndex != -1 && CurrentSelection && CurrentSelection->Type == FDynamicMeshSelection::EType::Edge)
@@ -99,31 +107,15 @@ void UUVSeamSewAction::SetSelection(int32 SelectionTargetIndexIn, const UE::Geom
 	UpdateVisualizations();
 }
 
-
-void UUVSeamSewAction::Tick(float DeltaTime) 
-{
-
-
-}
-
 void UUVSeamSewAction::UpdateVisualizations()
 {
 	UpdateSewEdgePreviewLines();
 }
 
-bool UUVSeamSewAction::ExecuteAction(UUVToolEmitChangeAPI& EmitChangeAPI)
-{
-	if (!PreCheckSewAction()) {
-		return false;
-	}
-
-	return ApplySewAction(EmitChangeAPI);
-}
-
 void UUVSeamSewAction::UpdateSewEdgePreviewLines()
 {
 	SewEdgePairingLineSet->Clear();
-	if (CurrentSelection != nullptr && !CurrentSelection->IsEmpty())
+	if (CurrentSelection && !CurrentSelection->IsEmpty())
 	{
 		FTransform MeshTransform = Targets[SelectionTargetIndex]->UnwrapPreview->PreviewMesh->GetTransform();
 
@@ -153,9 +145,9 @@ void UUVSeamSewAction::UpdateSewEdgePreviewLines()
 }
 
 
-bool UUVSeamSewAction::PreCheckSewAction() const
+bool UUVSeamSewAction::PreCheckAction()
 {
-	if (SelectionTargetIndex == -1 || CurrentSelection == nullptr || CurrentSelection->Mesh == nullptr)
+	if (SelectionTargetIndex == -1 || !CurrentSelection || CurrentSelection->Mesh == nullptr)
 	{
 		UE_LOG(LogGeometry, Warning, TEXT("Cannot sew UVs. Mesh selection was empty."));
 		return false;
@@ -227,7 +219,7 @@ int32 UUVSeamSewAction::FindSewEdgeOppositePairing(int32 UnwrapEid) const
 }
 
 
-bool UUVSeamSewAction::ApplySewAction(UUVToolEmitChangeAPI& EmitChangeAPI)
+bool UUVSeamSewAction::ApplyAction(UUVToolEmitChangeAPI& EmitChangeAPI)
 {
 	FDynamicMesh3& MeshToSew = *(Targets[SelectionTargetIndex]->UnwrapCanonical);
 
@@ -293,10 +285,8 @@ bool UUVSeamSewAction::ApplySewAction(UUVToolEmitChangeAPI& EmitChangeAPI)
 	checkSlow(MeshToSew.IsSameAs(*Targets[SelectionTargetIndex]->UnwrapPreview->PreviewMesh->GetMesh(), FDynamicMesh3::FSameAsOptions()));
 
 	const FText TransactionName(LOCTEXT("SewCompleteTransactionName", "Sew Edges"));
-	EmitChangeAPI.BeginUndoTransaction(TransactionName);
 	EmitChangeAPI.EmitToolIndependentUnwrapCanonicalChange(Targets[SelectionTargetIndex],
 		ChangeTracker.EndChange(), TransactionName);
-	EmitChangeAPI.EndUndoTransaction();
 
 	SetSelection(-1, nullptr);
 
