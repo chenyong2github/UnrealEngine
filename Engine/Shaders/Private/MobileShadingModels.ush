@@ -58,7 +58,7 @@
 // Enable shading model support for deferred shading once the gbuffer has capacity.
 #define MOBILE_SHADINGMODEL_SUPPORT_DEFERRED 0
 
-#define MOBILE_SHADINGMODEL_SUPPORT (!DEFERRED_SHADING_PATH || SHADINGMODEL_SUPPORT_MOBILE_DEFERRED)
+#define MOBILE_SHADINGMODEL_SUPPORT (!MOBILE_DEFERRED_SHADING || MOBILE_SHADINGMODEL_SUPPORT_DEFERRED)
 
 /*------------------------------------------------------------------------------
 	Mobile Shading Models
@@ -197,6 +197,10 @@ void InitShadingModelContext(inout FMobileShadingModelContext ShadingModelContex
 		half Specular = lerp(GBuffer.Specular, RefractionScale, ShadingModelContext.ClearCoat);
 		half DielectricSpecular = 0.08 * Specular;
 		ShadingModelContext.SpecularColor = (DielectricSpecular - DielectricSpecular * GBuffer.Metallic) + GBuffer.BaseColor * GBuffer.Metallic;	// 2 mad
+	}
+	else if (GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE || GBuffer.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN)
+	{
+		ShadingModelContext.SubsurfaceColor = ExtractSubsurfaceColor(GBuffer);
 	}
 	else if (GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE)
 	{
