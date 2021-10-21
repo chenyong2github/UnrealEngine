@@ -39,11 +39,11 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("MinEvolution::AdvanceOneTimeStep"), STAT_MinEvolution_AdvanceOneTimeStep, STATGROUP_ChaosMinEvolution);
 	DECLARE_CYCLE_STAT(TEXT("MinEvolution::Integrate"), STAT_MinEvolution_Integrate, STATGROUP_ChaosMinEvolution);
 	DECLARE_CYCLE_STAT(TEXT("MinEvolution::KinematicTargets"), STAT_MinEvolution_KinematicTargets, STATGROUP_ChaosMinEvolution);
-	DECLARE_CYCLE_STAT(TEXT("MinEvolution::PrepareIteration"), STAT_MinEvolution_PrepareIteration, STATGROUP_ChaosMinEvolution);
-	DECLARE_CYCLE_STAT(TEXT("MinEvolution::UnprepareIteration"), STAT_MinEvolution_UnprepareIteration, STATGROUP_ChaosMinEvolution);
-	DECLARE_CYCLE_STAT(TEXT("MinEvolution::ApplyConstraints"), STAT_MinEvolution_ApplyConstraints, STATGROUP_ChaosMinEvolution);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::Gather"), STAT_MinEvolution_Gather, STATGROUP_ChaosMinEvolution);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::Scatter"), STAT_MinEvolution_Scatter, STATGROUP_ChaosMinEvolution);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::ApplyConstraintsPhase1"), STAT_MinEvolution_ApplyConstraintsPhase1, STATGROUP_ChaosMinEvolution);
 	DECLARE_CYCLE_STAT(TEXT("MinEvolution::UpdateVelocities"), STAT_MinEvolution_UpdateVelocites, STATGROUP_ChaosMinEvolution);
-	DECLARE_CYCLE_STAT(TEXT("MinEvolution::ApplyPushOut"), STAT_MinEvolution_ApplyPushOut, STATGROUP_ChaosMinEvolution);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::ApplyConstraintsPhase2"), STAT_MinEvolution_ApplyConstraintsPhase2, STATGROUP_ChaosMinEvolution);
 	DECLARE_CYCLE_STAT(TEXT("MinEvolution::DetectCollisions"), STAT_MinEvolution_DetectCollisions, STATGROUP_ChaosMinEvolution);
 	DECLARE_CYCLE_STAT(TEXT("MinEvolution::UpdatePositions"), STAT_MinEvolution_UpdatePositions, STATGROUP_ChaosMinEvolution);
 
@@ -163,7 +163,12 @@ namespace Chaos
 
 	void FPBDMinEvolution::AddConstraintRule(FSimpleConstraintRule* Rule)
 	{
-		ConstraintRules.Add(Rule);
+		check(Rule != nullptr);
+		if (Rule != nullptr)
+		{
+			const uint32 ContainerId = (uint32)ConstraintRules.Add(Rule);
+			Rule->BindToDatas(SolverData, ContainerId);
+		}
 	}
 
 	void FPBDMinEvolution::Advance(const FReal StepDt, const int32 NumSteps, const FReal RewindDt)
@@ -222,9 +227,9 @@ namespace Chaos
 
 		if (Dt > 0)
 		{
-			PrepareIteration(Dt);
+			GatherInput(Dt);
 
-			ApplyConstraints(Dt);
+			ApplyConstraintsPhase1(Dt);
 
 			if (PostApplyCallback != nullptr)
 			{
@@ -233,14 +238,14 @@ namespace Chaos
 
 			UpdateVelocities(Dt);
 
-			ApplyPushOutConstraints(Dt);
+			ApplyConstraintsPhase2(Dt);
 
 			if (PostApplyPushOutCallback != nullptr)
 			{
 				PostApplyPushOutCallback();
 			}
 
-			UnprepareIteration(Dt);
+			ScatterOutput(Dt);
 
 			UpdatePositions(Dt);
 		}
@@ -649,32 +654,36 @@ namespace Chaos
 			ConstraintRule->UpdatePositionBasedState(Dt);
 		}
 
-		CollisionDetector.DetectCollisions(Dt);
+		CollisionDetector.DetectCollisions(Dt, nullptr);
 	}
 
-	void FPBDMinEvolution::PrepareIteration(FReal Dt)
+	void FPBDMinEvolution::GatherInput(FReal Dt)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_PrepareIteration);
+		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_Gather);
+
+		SolverData.GetBodyContainer().Reset(Particles.GetAllParticlesView().Num());
 
 		for (FSimpleConstraintRule* ConstraintRule : ConstraintRules)
 		{
-			ConstraintRule->PrepareIteration(Dt);
+			ConstraintRule->GatherSolverInput(Dt);
 		}
 	}
 
-	void FPBDMinEvolution::UnprepareIteration(FReal Dt)
+	void FPBDMinEvolution::ScatterOutput(FReal Dt)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_UnprepareIteration);
+		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_Scatter);
 
 		for (FSimpleConstraintRule* ConstraintRule : ConstraintRules)
 		{
-			ConstraintRule->UnprepareIteration(Dt);
+			ConstraintRule->ScatterSolverOutput(Dt);
 		}
+
+		SolverData.GetBodyContainer().ScatterOutput();
 	}
 
-	void FPBDMinEvolution::ApplyConstraints(FReal Dt)
+	void FPBDMinEvolution::ApplyConstraintsPhase1(FReal Dt)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_ApplyConstraints);
+		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_ApplyConstraintsPhase1);
 
 		for (int32 i = 0; i < NumApplyIterations; ++i)
 		{
@@ -695,16 +704,12 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_UpdateVelocites);
 
-		FPerParticlePBDUpdateFromDeltaPosition UpdateVelocityRule;
-		for (auto& Particle : Particles.GetActiveParticlesView())
-		{
-			UpdateVelocityRule.Apply(Particle, Dt);
-		}
+		SolverData.GetBodyContainer().SetImplicitVelocities(Dt);
 	}
 
-	void FPBDMinEvolution::ApplyPushOutConstraints(FReal Dt)
+	void FPBDMinEvolution::ApplyConstraintsPhase2(FReal Dt)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_ApplyPushOut);
+		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_ApplyConstraintsPhase2);
 
 		for (int32 It = 0; It < NumApplyPushOutIterations; ++It)
 		{

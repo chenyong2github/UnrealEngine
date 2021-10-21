@@ -9,7 +9,7 @@ float FAABBTreeCVars::MaxNonGlobalElementBoundsExtrema = 1e15f;
 FAutoConsoleVariableRef FAABBTreeCVars::CVarMaxNonGlobalElementBoundsExtrema(TEXT("p.aabbtree.MaxNonGlobalElementBoundsExtrema"), FAABBTreeCVars::MaxNonGlobalElementBoundsExtrema, TEXT("If Min/Max of particle world bounds exceeds this threshold, element is put in global array instead of being used in leaf splitting."));
 
 
-int32 FAABBTreeDirtyGridCVars::DirtyElementGridCellSize = 0; //1000; 0 means disabled
+int32 FAABBTreeDirtyGridCVars::DirtyElementGridCellSize = 1000; // 0 means disabled
 FAutoConsoleVariableRef FAABBTreeDirtyGridCVars::CVarDirtyElementGridCellSize(TEXT("p.aabbtree.DirtyElementGridCellSize"), FAABBTreeDirtyGridCVars::DirtyElementGridCellSize, TEXT("DirtyElement Grid acceleration structure cell size in cm. 0 or less will disable the feature"));
 
 int32 FAABBTreeDirtyGridCVars::DirtyElementMaxGridCellQueryCount = 340;
@@ -23,3 +23,8 @@ FAutoConsoleVariableRef FAABBTreeDirtyGridCVars::CVarDirtyElementMaxCellCapacity
 
 CSV_DEFINE_CATEGORY(ChaosPhysicsTimers, true);
 
+int32 FAABBTreeCVars::SplitAtAverageCenter = 1;
+FAutoConsoleVariableRef FAABBTreeCVars::CVarSplitAtAverageCenter(TEXT("p.aabbtree.splitataveragecenter"), FAABBTreeCVars::SplitAtAverageCenter, TEXT("Split AABB tree nodes at the average of the element centers"));
+
+int32 FAABBTreeCVars::SplitOnVarianceAxis = 1;
+FAutoConsoleVariableRef FAABBTreeCVars::CVarSplitOnVarianceAxis(TEXT("p.aabbtree.splitonvarianceaxis"), FAABBTreeCVars::SplitOnVarianceAxis, TEXT("Split AABB tree nodes along the axis with the largest element center variance"));

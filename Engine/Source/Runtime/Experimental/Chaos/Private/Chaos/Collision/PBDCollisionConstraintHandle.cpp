@@ -1,65 +1,79 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/Collision/PBDCollisionConstraintHandle.h"
+#include "Chaos/Collision/PBDCollisionConstraint.h"
+#include "Chaos/Evolution/SolverBody.h"
+#include "Chaos/Evolution/SolverBodyContainer.h"
 #include "Chaos/PBDCollisionConstraints.h"
 
 namespace Chaos
 {
-	typename FPBDCollisionConstraintHandle::FHandleKey FPBDCollisionConstraintHandle::GetKey()
+	const FPBDCollisionConstraints* FPBDCollisionConstraintHandle::ConcreteContainer() const
 	{
-		const FCollisionConstraintBase& Contact = GetContact();
-		return FHandleKey(
-			FImplicitPair(Contact.Manifold.Implicit[0], Contact.Manifold.Implicit[1]),
-			FGeometryPair(Contact.Particle[0], Contact.Particle[1]));
+		return static_cast<FPBDCollisionConstraints*>(ConstraintContainer);
 	}
 
-	const FCollisionConstraintBase& FPBDCollisionConstraintHandle::GetContact() const
+	FPBDCollisionConstraints* FPBDCollisionConstraintHandle::ConcreteContainer()
 	{
-		if (GetType() == FCollisionConstraintBase::FType::SinglePoint)
-		{
-			return ConcreteContainer()->Constraints.SinglePointConstraints[ConstraintIndex];
-		}
-		else
-		{
-			check(GetType() == FCollisionConstraintBase::FType::SinglePointSwept);
-			return ConcreteContainer()->Constraints.SinglePointSweptConstraints[ConstraintIndex];
-		}
+		return static_cast<FPBDCollisionConstraints*>(ConstraintContainer);
 	}
 
-	FCollisionConstraintBase& FPBDCollisionConstraintHandle::GetContact()
+	const FPBDCollisionConstraint& FPBDCollisionConstraintHandle::GetContact() const
 	{
-		if (GetType() == FCollisionConstraintBase::FType::SinglePoint)
-		{
-			return ConcreteContainer()->Constraints.SinglePointConstraints[ConstraintIndex];
-		}
-		else
-		{
-			check(GetType() == FCollisionConstraintBase::FType::SinglePointSwept);
-			return ConcreteContainer()->Constraints.SinglePointSweptConstraints[ConstraintIndex];
-		}
+		return *GetConstraint();
 	}
 
-	const FRigidBodyPointContactConstraint& FPBDCollisionConstraintHandle::GetPointContact() const
-	{ 
-		check(GetType() == FCollisionConstraintBase::FType::SinglePoint);
-		return ConcreteContainer()->Constraints.SinglePointConstraints[ConstraintIndex];
-	}
-	
-	FRigidBodyPointContactConstraint& FPBDCollisionConstraintHandle::GetPointContact() 
-	{ 
-		check(GetType() == FCollisionConstraintBase::FType::SinglePoint);
-		return ConcreteContainer()->Constraints.SinglePointConstraints[ConstraintIndex];
+	FPBDCollisionConstraint& FPBDCollisionConstraintHandle::GetContact()
+	{
+		return *GetConstraint();
 	}
 
-	const FRigidBodySweptPointContactConstraint& FPBDCollisionConstraintHandle::GetSweptPointContact() const
+	ECollisionConstraintType FPBDCollisionConstraintHandle::GetType() const
 	{
-		check(GetType() == FCollisionConstraintBase::FType::SinglePointSwept);
-		return ConcreteContainer()->Constraints.SinglePointSweptConstraints[ConstraintIndex];
-	}
-	
-	FRigidBodySweptPointContactConstraint& FPBDCollisionConstraintHandle::GetSweptPointContact()
-	{
-		check(GetType() == FCollisionConstraintBase::FType::SinglePointSwept);
-		return ConcreteContainer()->Constraints.SinglePointSweptConstraints[ConstraintIndex];
+		return GetContact().GetType();
 	}
 
+	void FPBDCollisionConstraintHandle::SetEnabled(bool InEnabled)
+	{
+		GetContact().SetDisabled(!InEnabled);
+	}
+
+	bool FPBDCollisionConstraintHandle::IsEnabled() const
+	{
+		return !GetContact().GetDisabled();
+	}
+
+	FVec3 FPBDCollisionConstraintHandle::GetContactLocation() const
+	{
+		return GetContact().GetLocation();
+	}
+
+	FVec3 FPBDCollisionConstraintHandle::GetAccumulatedImpulse() const
+	{
+		return GetContact().AccumulatedImpulse;
+	}
+
+	TVector<const TGeometryParticleHandle<FReal, 3>*, 2> FPBDCollisionConstraintHandle::GetConstrainedParticles() const
+	{
+		return { GetContact().Particle[0], GetContact().Particle[1] };
+	}
+
+	TVector<TGeometryParticleHandle<FReal, 3>*, 2> FPBDCollisionConstraintHandle::GetConstrainedParticles()
+	{
+		return { GetContact().Particle[0], GetContact().Particle[1] };
+	}
+
+	void FPBDCollisionConstraintHandle::GatherInput(FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
+	{
+		ConcreteContainer()->GatherInput(Dt, GetContact(), Particle0Level, Particle1Level, SolverData);
+	}
+
+	FSolverBody* FPBDCollisionConstraintHandle::GetSolverBody0()
+	{
+		return GetContact().GetSolverBody0();
+	}
+
+	FSolverBody* FPBDCollisionConstraintHandle::GetSolverBody1()
+	{
+		return GetContact().GetSolverBody1();
+	}
 }

@@ -5,15 +5,17 @@
 #include "Chaos/ConstraintHandle.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDConstraintContainer.h"
+#include "Chaos/Evolution/SolverConstraintContainer.h"
 
 namespace Chaos
 {
 	class FPBDRigidSpringConstraints;
+	class FPBDIslandSolverData;
 
-	class CHAOS_API FPBDRigidSpringConstraintHandle : public TContainerConstraintHandle<FPBDRigidSpringConstraints>
+	class CHAOS_API FPBDRigidSpringConstraintHandle : public TIndexedContainerConstraintHandle<FPBDRigidSpringConstraints>
 	{
 	public:
-		using Base = TContainerConstraintHandle<FPBDRigidSpringConstraints>;
+		using Base = TIndexedContainerConstraintHandle<FPBDRigidSpringConstraints>;
 		using FConstraintContainer = FPBDRigidSpringConstraints;
 		using FGeometryParticleHandle = TGeometryParticleHandle<FReal, 3>;
 
@@ -22,11 +24,9 @@ namespace Chaos
 		}
 		
 		FPBDRigidSpringConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) 
-		: TContainerConstraintHandle<FPBDRigidSpringConstraints>(InConstraintContainer, InConstraintIndex) 
+		: TIndexedContainerConstraintHandle<FPBDRigidSpringConstraints>(InConstraintContainer, InConstraintIndex)
 		{
 		}
-
-		static EConstraintContainerType StaticType() { return EConstraintContainerType::RigidSpring; }
 
 		const TVector<FVec3, 2>& GetConstraintPositions() const;
 		void SetConstraintPositions(const TVector<FVec3, 2>& ConstraintPositions);
@@ -37,19 +37,27 @@ namespace Chaos
 		FReal GetRestLength() const;
 		void SetRestLength(const FReal SpringLength);
 
+		void GatherInput(const FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData);
+
+		static const FConstraintHandleTypeID& StaticType()
+		{
+			static FConstraintHandleTypeID STypeID(TEXT("FRigidSpringConstraintHandle"), &FIndexedConstraintHandle::StaticType());
+			return STypeID;
+		}
 	};
 
 
-	class FPBDRigidSpringConstraints : public FPBDConstraintContainer
+	class FPBDRigidSpringConstraints : public FPBDIndexedConstraintContainer
 	{
 	public:
 		// @todo(ccaulfield): an alternative AddConstraint which takes the constrain settings rather than assuming everything is in world-space rest pose
 
-		using Base = FPBDConstraintContainer;
+		using Base = FPBDIndexedConstraintContainer;
 		using FConstraintContainerHandle = FPBDRigidSpringConstraintHandle;
 		using FConstraintHandleAllocator = TConstraintHandleAllocator<FPBDRigidSpringConstraints>;
 		using FConstrainedParticlePair = TVector<TGeometryParticleHandle<FReal, 3>*, 2>;
 		using FHandles = TArray<FConstraintContainerHandle*>;
+		using FConstraintSolverContainerType = FConstraintSolverContainer;	// @todo(chaos): Add island solver for this constraint type
 
 		FPBDRigidSpringConstraints();
 		virtual ~FPBDRigidSpringConstraints();
@@ -150,43 +158,38 @@ namespace Chaos
 			SpringSettings[ConstraintIndex].RestLength = SpringLength;
 		}
 
+		//
+		// Simple Rule API
+		//
+
+		void GatherInput(const FReal Dt, FPBDIslandSolverData& SolverData);
+		void ScatterOutput(const FReal Dt, FPBDIslandSolverData& SolverData);
+
+		bool ApplyPhase1(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData);
+		bool ApplyPhase2(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData) { return false; }
 
 		//
 		// Island Rule API
 		//
 
 		void PrepareTick() {}
-
 		void UnprepareTick() {}
-
-		void PrepareIteration(FReal Dt) {}
-
-		void UnprepareIteration(FReal Dt) {}
-
 		void UpdatePositionBasedState(const FReal Dt) {}
 
-		bool Apply(const FReal Dt, const int32 It, const int32 NumIts);
+		void SetNumIslandConstraints(const int32 NumIslandConstraints, FPBDIslandSolverData& SolverData);
+		void GatherInput(const FReal Dt, const int32 ConstraintIndex, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData);
 
-		bool ApplyPushOut(const FReal Dt, const int32 It, const int32 NumIts)
-		{
-			return false;
-		}
-
-		bool Apply(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
-
-		bool ApplyPushOut(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
-		{
-			return false;
-		}
+		bool ApplyPhase1Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData);
+		bool ApplyPhase2Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData) { return false; }
 
 	protected:
 		using Base::GetConstraintIndex;
 		using Base::SetConstraintIndex;
 
 	private:
-		void ApplySingle(const FReal Dt, int32 ConstraintIndex) const;
+		void ApplyPhase1Single(const FReal Dt, int32 ConstraintIndex) const;
 
-		void UpdateDistance(int32 ConstraintIndex, const FVec3& Location0, const FVec3& Location1);
+		void InitDistance(int32 ConstraintIndex, const FVec3& Location0, const FVec3& Location1);
 
 		FVec3 GetDelta(int32 ConstraintIndex, const FVec3& WorldSpaceX1, const FVec3& WorldSpaceX2) const;
 
@@ -200,6 +203,8 @@ namespace Chaos
 		TArray<FConstrainedParticlePair> Constraints;
 		TArray<TVector<FVec3, 2>> Distances;
 		TArray<FSpringSettings> SpringSettings;
+
+		TArray<FSolverBodyPtrPair> ConstraintSolverBodies;
 
 		TArray<FConstraintContainerHandle*> Handles;
 		FConstraintHandleAllocator HandleAllocator;

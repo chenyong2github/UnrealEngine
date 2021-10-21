@@ -1,11 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PBDSuspensionConstraints.h"
+#include "Chaos/Evolution/SolverDatas.h"
 
 namespace Chaos
 {
 	FPBDSuspensionConstraintHandle::FPBDSuspensionConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) : 
-		TContainerConstraintHandle<FPBDSuspensionConstraints>(InConstraintContainer, InConstraintIndex)
+		TIndexedContainerConstraintHandle<FPBDSuspensionConstraints>(InConstraintContainer, InConstraintIndex)
 	{
 	}
 
@@ -24,24 +25,16 @@ namespace Chaos
 		ConcreteContainer()->SetSettings(ConstraintIndex, Settings);
 	}
 
-
 	TVec2<FGeometryParticleHandle*> FPBDSuspensionConstraintHandle::GetConstrainedParticles() const
 	{
 		return ConcreteContainer()->GetConstrainedParticles(ConstraintIndex);
 	}
 
-
-
-	bool FPBDSuspensionConstraints::Apply(const FReal Dt, const TArray<FConstraintContainerHandle*>& ConstraintHandles, const int32 It, const int32 NumIts) const
+	void FPBDSuspensionConstraintHandle::GatherInput(const FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
 	{
-		for (FConstraintContainerHandle* ConstraintHandle : ConstraintHandles)
-		{
-			ApplySingle(Dt, ConstraintHandle->GetConstraintIndex());
-		}
-
-		// #todo: Return true only if more iteration is needed
-		return true;
+		ConcreteContainer()->GatherInput(Dt, ConstraintIndex, Particle0Level, Particle1Level, SolverData);
 	}
+
 
 	Chaos::FPBDSuspensionConstraints::FConstraintContainerHandle* FPBDSuspensionConstraints::AddConstraint(TGeometryParticleHandle<FReal, 3>* Particle, const FVec3& InSuspensionLocalOffset, const FPBDSuspensionSettings& InConstraintSettings)
 	{
@@ -50,6 +43,7 @@ namespace Chaos
 		SuspensionLocalOffset.Add(InSuspensionLocalOffset);
 		ConstraintSettings.Add(InConstraintSettings);
 		ConstraintEnabledStates.Add(true); // Note: assumes always enabled on creation
+		ConstraintSolverBodies.Add(nullptr);
 		Handles.Add(HandleAllocator.AllocHandle(this, NewIndex));
 		return Handles[NewIndex];
 	}
@@ -75,6 +69,7 @@ namespace Chaos
 		SuspensionLocalOffset.RemoveAtSwap(ConstraintIndex);
 		ConstraintSettings.RemoveAtSwap(ConstraintIndex);
 		ConstraintEnabledStates.RemoveAtSwap(ConstraintIndex);
+		ConstraintSolverBodies.RemoveAtSwap(ConstraintIndex);
 		Handles.RemoveAtSwap(ConstraintIndex);
 
 		// Update the handle for the constraint that was moved
@@ -83,18 +78,55 @@ namespace Chaos
 			SetConstraintIndex(Handles[ConstraintIndex], ConstraintIndex);
 		}
 	}
+	
+	void FPBDSuspensionConstraints::SetNumIslandConstraints(const int32 NumIslandConstraints, FPBDIslandSolverData& SolverData)
+	{
+		SolverData.GetConstraintIndices(ContainerId).Reset(NumIslandConstraints);
+	}
+
+	void FPBDSuspensionConstraints::GatherInput(const FReal Dt, const int32 ConstraintIndex, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
+	{
+		SolverData.GetConstraintIndices(ContainerId).Add(ConstraintIndex);
+
+		ConstraintSolverBodies[ConstraintIndex] = SolverData.GetBodyContainer().FindOrAdd(ConstrainedParticles[ConstraintIndex]);
+	}
+
+	void FPBDSuspensionConstraints::ScatterOutput(FReal Dt, FPBDIslandSolverData& SolverData)
+	{
+		for (int32 ConstraintIndex : SolverData.GetConstraintIndices(ContainerId))
+		{
+			ConstraintSolverBodies[ConstraintIndex] = nullptr;
+		}
+	}
+
+	bool FPBDSuspensionConstraints::ApplyPhase1Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData)
+	{
+		for (int32 ConstraintIndex : SolverData.GetConstraintIndices(ContainerId))
+		{
+			ApplySingle(Dt, ConstraintIndex);
+		}
+
+		// @todo(chaos): early iteration termination in FPBDSuspensionConstraints
+		return true;
+	}
 
 	void FPBDSuspensionConstraints::ApplySingle(const FReal Dt, int32 ConstraintIndex) const
 	{
-		FGenericParticleHandle Particle = ConstrainedParticles[ConstraintIndex];
+		check(ConstraintSolverBodies[ConstraintIndex] != nullptr);
+		FSolverBody& Body = *ConstraintSolverBodies[ConstraintIndex];
 		const FPBDSuspensionSettings& Setting = ConstraintSettings[ConstraintIndex];
 
-		if (Particle->IsDynamic() && Setting.Enabled)
+		if (Body.IsDynamic() && Setting.Enabled)
 		{
 			const FVec3& T = Setting.Target;
-			const FVec3 WorldSpaceX = Particle->Q().RotateVector(SuspensionLocalOffset[ConstraintIndex]) + Particle->P();
 
-			FVec3 AxisWorld = Particle->Q() * Setting.Axis;
+			// \todo(chaos): we can cache the CoM-relative connector once per frame rather than recalculate per iteration
+			// (we should not be accessing particle state in the solver methods, although this one actually is ok because it only uses frame constrants)
+			const FVec3 SuspensionCoMOffset = FParticleUtilities::ParticleLocalToCoMLocal(FGenericParticleHandle(ConstrainedParticles[ConstraintIndex]), SuspensionLocalOffset[ConstraintIndex]);
+
+			const FVec3 WorldSpaceX = Body.Q().RotateVector(SuspensionCoMOffset) + Body.P();
+
+			FVec3 AxisWorld = Body.Q() * Setting.Axis;
 
 			const float MPHToCmS = 100000.f / 2236.94185f;
 			const float SpeedThreshold = 10.0f * MPHToCmS;
@@ -102,13 +134,13 @@ namespace Chaos
 
 			if (AxisWorld.Z > FortyFiveDegreesThreshold)
 			{
-				if (Particle->V().SquaredLength() < 1.0f)
+				if (Body.V().SquaredLength() < 1.0f)
 				{
 					AxisWorld = FVec3(0.f, 0.f, 1.f);
 				}
 				else
 				{
-					const FReal Speed = FMath::Abs(Particle->V().Length());
+					const FReal Speed = FMath::Abs(Body.V().Length());
 					if (Speed < SpeedThreshold)
 					{
 						AxisWorld = FMath::Lerp(FVec3(0.f, 0.f, 1.f), AxisWorld, Speed / SpeedThreshold);
@@ -127,9 +159,8 @@ namespace Chaos
 			FVec3 DX = FVec3::ZeroVector;
 
 			// Require the velocity at the WorldSpaceX position - not the velocity of the particle origin
-			const FVec3 COM = Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(Particle);
-			const FVec3 Diff = WorldSpaceX - COM;
-			FVec3 ArmVelocity = Particle->V() - FVec3::CrossProduct(Diff, Particle->W());
+			const FVec3 Diff = WorldSpaceX - Body.P();
+			FVec3 ArmVelocity = Body.V() - FVec3::CrossProduct(Diff, Body.W());
 
 			// This constraint is causing considerable harm to the steering effect from the tires, using only the z component for damping
 			// makes this issue go away, rather than using DotProduct against the expected AxisWorld vector
@@ -163,7 +194,7 @@ namespace Chaos
 					FReal VelDt = PointVelocityAlongAxis;
 
 					const bool bAccelerationMode = false;
-					const FReal SpringMassScale = (bAccelerationMode) ? 1.0f / (Particle->InvM()) : 1.0f;
+					const FReal SpringMassScale = (bAccelerationMode) ? FReal(1) / Body.InvM() : FReal(1);
 					const FReal S = SpringMassScale * Setting.SpringStiffness * Dt * Dt;
 					const FReal D = SpringMassScale * Setting.SpringDamping * Dt;
 					DLambda = (S * SpringCompression - D * VelDt);
@@ -171,24 +202,16 @@ namespace Chaos
 				}
 			}
 
-			const FVec3 Arm = WorldSpaceX - Particle->P();
+			const FVec3 Arm = WorldSpaceX - Body.P();
 
-			FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle);
-			FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle);
-			const FMatrix33 WorldSpaceInvI = Utilities::ComputeWorldSpaceInertia(Q0, Particle->InvI());
-
-			FVec3 DP = Particle->InvM() * DX;
-			FRotation3 DQ = FRotation3::FromElements(WorldSpaceInvI * FVec3::CrossProduct(Arm, DX), 0.f) * Q0 * FReal(0.5);
-
-			P0 += DP;
-			Q0 += DQ;
-			Q0.Normalize();
-			FParticleUtilities::SetCoMWorldTransform(Particle, P0, Q0);
+			const FVec3 DP = Body.InvM() * DX;
+			const FVec3 DR = Body.InvI() * FVec3::CrossProduct(Arm, DX);
+			Body.ApplyTransformDelta(DP, DR);
+			Body.UpdateRotationDependentState();
 		}
-
 	}
 	
-	template class TContainerConstraintHandle<FPBDSuspensionConstraints>;
+	template class TIndexedContainerConstraintHandle<FPBDSuspensionConstraints>;
 
 
 }

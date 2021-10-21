@@ -24,12 +24,15 @@ namespace Chaos
 	CHAOS_API int32 FixBadAccelerationStructureRemoval = 1;
 	FAutoConsoleVariableRef CVarFixBadAccelerationStructureRemoval(TEXT("p.FixBadAccelerationStructureRemoval"), FixBadAccelerationStructureRemoval, TEXT(""));
 
-	CHAOS_API int32 ConstraintIterationsOverride = -1;
-	FAutoConsoleVariableRef CVarConstraintIterationsOverride(TEXT("p.ConstraintIterationsOverride"), ConstraintIterationsOverride, TEXT("Override for number of collision iterations."));
+	CHAOS_API int32 AccelerationStructureSplitStaticAndDynamic = 1;
+	FAutoConsoleVariableRef CVarAccelerationStructureSplitStaticAndDynamic(TEXT("p.Chaos.AccelerationStructureSplitStaticDynamic"), AccelerationStructureSplitStaticAndDynamic, TEXT("Set to 1: Sort Dynamic and Static bodies into seperate acceleration structures, any other value will disable the feature"));
 
-	CHAOS_API int32 PushOutIterationsOverride = -1;
-	FAutoConsoleVariableRef CVarPushOutIterationsOverride(TEXT("p.PushOutIterationsOverride"), PushOutIterationsOverride, TEXT("Override for number of push out iterations."));
-	
+	CHAOS_API int32 AccelerationStructureTimeSlicingMaxQueueSizeBeforeForce = 1000;
+	FAutoConsoleVariableRef CVarAccelerationStructureTimeSlicingMaxQueueSizeBeforeForce(TEXT("p.Chaos.AccelerationStructureTimeSlicingMaxQueueSizeBeforeForce"), AccelerationStructureTimeSlicingMaxQueueSizeBeforeForce, TEXT("If the update queue reaches this limit, time slicing will be disabled, and the acceleration structure will be built at once"));
+
+	CHAOS_API int32 AccelerationStructureTimeSlicingMaxBytesCopy = 100000;
+	FAutoConsoleVariableRef CVarAccelerationStructureTimeSlicingMaxBytesCopy(TEXT("p.Chaos.AccelerationStructureTimeSlicingMaxBytesCopy"), AccelerationStructureTimeSlicingMaxBytesCopy, TEXT("The Maximum number of bytes to copy to the external acceleration structure during Copy Time Slicing"));
+
 	struct FAccelerationConfig
 	{
 		int32 BroadphaseType;
@@ -80,7 +83,13 @@ namespace Chaos
 
 			for (uint16 BucketIdx = 0; BucketIdx < NumBuckets; ++BucketIdx)
 			{
-				Collection->AddSubstructure(CreateAccelerationPerBucket_Threaded(Empty, BucketIdx, true), BucketIdx);
+				// For static bodies
+				Collection->AddSubstructure(CreateAccelerationPerBucket_Threaded(Empty, BucketIdx, true), BucketIdx, 0);
+				if (AccelerationStructureSplitStaticAndDynamic == 1)
+				{
+					// Non static bodies
+					Collection->AddSubstructure(CreateAccelerationPerBucket_Threaded(Empty, BucketIdx, true), BucketIdx, 1);
+				}
 			}
 
 			return TUniquePtr<ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>>(Collection);
@@ -216,6 +225,7 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("CopyAccelerationStructure"), STAT_CopyAccelerationStructure, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("SwapAccelerationStructures"), STAT_SwapAccelerationStructures, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("AccelerationStructureTimeSlice"), STAT_AccelerationStructureTimeSlice, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("AccelerationStructureTimeSliceCopy"), STAT_AccelerationStructureTimeSliceCopy, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("CreateInitialAccelerationStructure"), STAT_CreateInitialAccelerationStructure, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("CreateNonSlicedStructures"), STAT_CreateNonSlicedStructures, STATGROUP_Chaos);
 
@@ -267,111 +277,202 @@ namespace Chaos
 		if (Substructure->template As<BVType>())
 		{
 			auto Collection = MakeUnique<TSpatialAccelerationCollection<BVType>>();
-			Collection->AddSubstructure(MoveTemp(Substructure), 0);
+			Collection->AddSubstructure(MoveTemp(Substructure), 0, 0);
 			return Collection;
 		}
 		else if (Substructure->template As<AABBType>())
 		{
 			auto Collection = MakeUnique<TSpatialAccelerationCollection<AABBType>>();
-			Collection->AddSubstructure(MoveTemp(Substructure), 0);
+			Collection->AddSubstructure(MoveTemp(Substructure), 0, 0);
 			return Collection;
 		}
 		else
 		{
 			using AccelType = TAABBTree<FAccelerationStructureHandle, TBoundingVolume<FAccelerationStructureHandle>>;
 			auto Collection = MakeUnique<TSpatialAccelerationCollection<AccelType>>();
-			Collection->AddSubstructure(MoveTemp(Substructure), 0);
+			Collection->AddSubstructure(MoveTemp(Substructure), 0, 0);
 			return Collection;
 		}
 	}
 
-	void FPBDRigidsEvolutionBase::FChaosAccelerationStructureTask::UpdateStructure(FAccelerationStructure* AccelerationStructure)
+	void FPBDRigidsEvolutionBase::FChaosAccelerationStructureTask::UpdateStructure(FAccelerationStructure* AccelerationStructure, FAccelerationStructure* AccelerationStructureCopy)
 	{
 		LLM_SCOPE(ELLMTag::ChaosAcceleration);
 
-		if (bNeedsReset)
+		// This function (running in FChaosAccelerationStructureTask) can be in one of two modes
+		// 1) Create new time sliced acceleration structures and run the first slice  (CreatingNewTimeSlicedStructures)
+		// or
+		// 2) Progress time slices (!CreatingNewTimeSlicedStructures)
+		// In either case, if time slicing is done create the non time sliced acceleration structures
+
+
+		auto GetSubStructureCopy = [AccelerationStructureCopy](FSpatialAccelerationIdx Index)
 		{
-			AccelerationStructure->Reset();
-		}
+			ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>* Result = nullptr;
+			if (AccelerationStructureCopy)
+			{
+				Result = AccelerationStructureCopy->GetSubstructure(Index);
+				if (!Result)
+				{
+					ensure(false);
+				}
+			}
+			return Result;
+		};
+
+		LLM_SCOPE(ELLMTag::ChaosAcceleration);
 
 		uint8 ActiveBucketsMask = SpatialCollectionFactory.GetActiveBucketsMask();
 		TArray<TSOAView<FSpatialAccelerationCache>> ViewsPerBucket[FSpatialAccelerationIdx::MaxBuckets];
-		TArray<uint8> TimeSlicedBucketsToCreate;
-		TArray<uint8> NonTimeSlicedBucketsToCreate;
+		TArray<FSpatialAccelerationIdx> TimeSlicedBucketsToCreate;
+		TArray<FSpatialAccelerationIdx> NonTimeSlicedBucketsToCreate;
 
 		bool IsTimeSlicingProgressing = false;
+		bool CreatingNewTimeSlicedStructures = bNeedsReset;
 
-		//merge buckets. todo: support multiple entries per bucket (i.e. dynamic vs static)
 		for(const auto& Itr : SpatialAccelerationCache)
 		{
 			const FSpatialAccelerationIdx SpatialIdx = Itr.Key;
 			const FSpatialAccelerationCache& Cache = *Itr.Value;
 			const uint8 BucketIdx = static_cast<uint8>((1 << SpatialIdx.Bucket) & ActiveBucketsMask ? SpatialIdx.Bucket : 0);
-			if(AccelerationStructure->GetSubstructure(SpatialIdx) && !AccelerationStructure->GetSubstructure(SpatialIdx)->IsAsyncTimeSlicingComplete())
+			const uint16 BucketInnerIdx = SpatialIdx.InnerIdx;
+			ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>* SubStructure = AccelerationStructure->GetSubstructure(SpatialIdx);
+			// Get the sub structure we need to copy our results to
+			ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>* AccelerationSUBStructureCopy = GetSubStructureCopy(SpatialIdx);
+
+			if (!SubStructure)
+			{
+				ensure(false);
+				continue;
+			}
+			
+			if (CreatingNewTimeSlicedStructures && !SubStructure->ShouldRebuild() && AccelerationStructureSplitStaticAndDynamic == 1)
+			{
+				ensure(SubStructure->IsAsyncTimeSlicingComplete());
+
+				if (AccelerationSUBStructureCopy)
+				{
+					AccelerationSUBStructureCopy->PrepareCopyTimeSliced(*SubStructure);
+					ensure(!AccelerationSUBStructureCopy->IsAsyncTimeSlicingComplete());
+					AccelerationSUBStructureCopy->ProgressCopyTimeSliced(*SubStructure, IsForceFullBuild ? -1 : AccelerationStructureTimeSlicingMaxBytesCopy);
+					if (!AccelerationSUBStructureCopy->IsAsyncTimeSlicingComplete())
+					{
+						IsTimeSlicingProgressing = true;
+					}
+				}
+
+				// This structure has not changed and therefore does not need to rebuild 
+				continue;
+			}
+
+			if (CreatingNewTimeSlicedStructures)
+			{
+				SubStructure->Reset();
+			}
+
+			if(!SubStructure->IsAsyncTimeSlicingComplete())
 			{
 				SCOPE_CYCLE_COUNTER(STAT_AccelerationStructureTimeSlice);
-
-				AccelerationStructure->GetSubstructure(SpatialIdx)->ProgressAsyncTimeSlicing(IsForceFullBuild);
+				
+				SubStructure->ProgressAsyncTimeSlicing(IsForceFullBuild);
 
 				// is it still progressing or now complete
-				if(!AccelerationStructure->GetSubstructure(SpatialIdx)->IsAsyncTimeSlicingComplete())
+				if(!SubStructure->IsAsyncTimeSlicingComplete())
 				{
 					IsTimeSlicingProgressing = true;
 				}
+				else
+				{
+					if (AccelerationSUBStructureCopy)
+					{
+						AccelerationSUBStructureCopy->PrepareCopyTimeSliced(*SubStructure);
+						IsTimeSlicingProgressing |= !AccelerationSUBStructureCopy->IsAsyncTimeSlicingComplete();
+					}
+				}
+			}
+			else if (AccelerationSUBStructureCopy && !AccelerationSUBStructureCopy->IsAsyncTimeSlicingComplete())
+			{
+				SCOPE_CYCLE_COUNTER(STAT_AccelerationStructureTimeSliceCopy);
+				AccelerationSUBStructureCopy->ProgressCopyTimeSliced(*SubStructure, IsForceFullBuild ? -1 : AccelerationStructureTimeSlicingMaxBytesCopy);
+				if (!AccelerationSUBStructureCopy->IsAsyncTimeSlicingComplete())
+					IsTimeSlicingProgressing = true;
 			}
 			else
 			{
-				ViewsPerBucket[BucketIdx].Add(const_cast<FSpatialAccelerationCache*>(&Cache));
-				if(AccelerationStructure->IsBucketActive(SpatialIdx.Bucket))
-				{
-					AccelerationStructure->RemoveSubstructure(SpatialIdx);
-				}
-
+				// Queue for potential Creation
+				ViewsPerBucket[BucketIdx].SetNum(FMath::Max(BucketInnerIdx + 1, ViewsPerBucket[BucketIdx].Num()));
+				ViewsPerBucket[BucketIdx][BucketInnerIdx] = const_cast<FSpatialAccelerationCache*>(&Cache);
+				
 				if(SpatialCollectionFactory.IsBucketTimeSliced(BucketIdx))
 				{
-					TimeSlicedBucketsToCreate.Add(SpatialIdx.Bucket);
+					TimeSlicedBucketsToCreate.Add(SpatialIdx);
 				} else
 				{
-					NonTimeSlicedBucketsToCreate.Add(SpatialIdx.Bucket);
+					NonTimeSlicedBucketsToCreate.Add(SpatialIdx);
 				}
 			}
 		}
 
 		//todo: creation can go wide, insertion to collection cannot
-		for(uint8 BucketIdx : TimeSlicedBucketsToCreate)
+		if (CreatingNewTimeSlicedStructures)
 		{
-			if(ViewsPerBucket[BucketIdx].Num())
+			for (FSpatialAccelerationIdx SpatialAccIdx : TimeSlicedBucketsToCreate)
 			{
 				SCOPE_CYCLE_COUNTER(STAT_CreateInitialAccelerationStructure);
 
-				auto ParticleView = MakeConstParticleView(MoveTemp(ViewsPerBucket[BucketIdx]));
-				auto NewStruct = SpatialCollectionFactory.CreateAccelerationPerBucket_Threaded(ParticleView,BucketIdx,IsForceFullBuild);
+				auto ParticleView = MakeConstParticleView(MoveTemp(ViewsPerBucket[SpatialAccIdx.Bucket][SpatialAccIdx.InnerIdx]));
+				// Create and run the first slice here
+				auto NewStruct = SpatialCollectionFactory.CreateAccelerationPerBucket_Threaded(ParticleView, SpatialAccIdx.Bucket, IsForceFullBuild);
+				{
+					NewStruct->ClearShouldRebuild();  // Mark as pristine
+				}
+
+				ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>* AccelerationSUBStructureCopy = GetSubStructureCopy(SpatialAccIdx);
+
+				if (AccelerationSUBStructureCopy && NewStruct->IsAsyncTimeSlicingComplete())
+				{
+					AccelerationSUBStructureCopy->PrepareCopyTimeSliced(*NewStruct);
+					AccelerationSUBStructureCopy->ProgressCopyTimeSliced(*NewStruct, IsForceFullBuild ? -1 : AccelerationStructureTimeSlicingMaxBytesCopy);
+					IsTimeSlicingProgressing |= !AccelerationSUBStructureCopy->IsAsyncTimeSlicingComplete();
+				}
 
 				//If new structure is not done mark time slicing in progress
 				IsTimeSlicingProgressing |= !NewStruct->IsAsyncTimeSlicingComplete();
 
-				AccelerationStructure->AddSubstructure(MoveTemp(NewStruct),BucketIdx);
-
+				if (AccelerationStructure->IsBucketActive(SpatialAccIdx.Bucket))
+				{
+					AccelerationStructure->RemoveSubstructure(SpatialAccIdx);
+				}
+				AccelerationStructure->AddSubstructure(MoveTemp(NewStruct), SpatialAccIdx.Bucket, SpatialAccIdx.InnerIdx);
 			}
 		}
 
+		// If it's not progressing then it is finished so we can perform the final copy if required
 		AccelerationStructure->SetAllAsyncTasksComplete(!IsTimeSlicingProgressing);
 
-		// If it's not progressing then it is finished so we can perform the final copy if required
+		// Create and Build the non time sliced structures when all time sliced structures are complete
 		if(!IsTimeSlicingProgressing)
 		{
 			//todo: creation can go wide, insertion to collection cannot
-			for(uint8 BucketIdx : NonTimeSlicedBucketsToCreate)
+			for(FSpatialAccelerationIdx SpatialAccIdx : NonTimeSlicedBucketsToCreate)
 			{
-				if(ViewsPerBucket[BucketIdx].Num())
+				if(ViewsPerBucket[SpatialAccIdx.Bucket].Num() > SpatialAccIdx.InnerIdx)
 				{
 					SCOPE_CYCLE_COUNTER(STAT_CreateNonSlicedStructures);
 
-					auto ParticleView = MakeConstParticleView(MoveTemp(ViewsPerBucket[BucketIdx]));
-					auto NewStruct = SpatialCollectionFactory.CreateAccelerationPerBucket_Threaded(ParticleView,BucketIdx,IsForceFullBuild);
+					auto ParticleView = MakeConstParticleView(MoveTemp(ViewsPerBucket[SpatialAccIdx.Bucket][SpatialAccIdx.InnerIdx]));
+					auto NewStruct = SpatialCollectionFactory.CreateAccelerationPerBucket_Threaded(ParticleView,SpatialAccIdx.Bucket,IsForceFullBuild);
 
-					AccelerationStructure->AddSubstructure(MoveTemp(NewStruct),BucketIdx);
-
+					ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>* AccelerationSUBStructureCopy = GetSubStructureCopy(SpatialAccIdx);
+					if (AccelerationSUBStructureCopy)
+					{
+						*AccelerationSUBStructureCopy = *NewStruct; // Normal copy
+					}
+					if (AccelerationStructure->IsBucketActive(SpatialAccIdx.Bucket))
+					{
+						AccelerationStructure->RemoveSubstructure(SpatialAccIdx);
+					}
+					AccelerationStructure->AddSubstructure(MoveTemp(NewStruct),SpatialAccIdx.Bucket, SpatialAccIdx.InnerIdx);
 				}
 			}
 		}
@@ -381,9 +482,19 @@ namespace Chaos
 	{
 		LLM_SCOPE(ELLMTag::ChaosAcceleration);
 
-		//Rebuild both structures. TODO: probably faster to time slice the copy instead of doing two time sliced builds
-		UpdateStructure(InternalStructure);
-		UpdateStructure(ExternalStructure);
+#if !WITH_EDITOR
+		CSV_SCOPED_TIMING_STAT(ChaosPhysicsTimers, AccelerationStructBuildTask);
+#endif
+		if (AccelerationStructureSplitStaticAndDynamic == 1)
+		{
+			UpdateStructure(InternalStructure, ExternalStructure);
+		}
+		else
+		{
+			//Rebuild both structures. TODO: probably faster to time slice the copy instead of doing two time sliced builds (This happens with AccelerationStructureSplitStaticAndDynamic)
+			UpdateStructure(InternalStructure);
+			UpdateStructure(ExternalStructure);
+		}
 	}
 
 	void FPBDRigidsEvolutionBase::ApplyParticlePendingData(const FPendingSpatialData& SpatialData, FAccelerationStructure& AccelerationStructure, bool bUpdateCache)
@@ -475,9 +586,6 @@ namespace Chaos
 		UniqueIndicesPendingRelease.Reset();
 		AsyncAccelerationQueue.Reset();
 
-		//other queues are no longer needed since we've flushed all operations and now have a pristine structure
-		InternalAccelerationQueue.Reset();
-
 		AsyncInternalAcceleration->SetSyncTimestamp(LatestExternalTimestampConsumed_Internal);
 		AsyncExternalAcceleration->SetSyncTimestamp(LatestExternalTimestampConsumed_Internal);
 	}
@@ -555,7 +663,7 @@ namespace Chaos
 		SCOPE_CYCLE_COUNTER(STAT_ComputeIntermediateSpatialAcceleration);
 		CHAOS_SCOPED_TIMER(ComputeIntermediateSpatialAcceleration);
 
-		bool ForceFullBuild = InternalAccelerationQueue.Num() > 1000;
+		bool ForceFullBuild = InternalAccelerationQueue.Num() > AccelerationStructureTimeSlicingMaxQueueSizeBeforeForce;
 
 		if (!AccelerationStructureTaskComplete)
 		{
@@ -576,6 +684,8 @@ namespace Chaos
 			WaitOnAccelerationStructure();
 		}
 
+		// Readability note:
+		// AccelerationStructureTaskComplete It is a reference counted pointer to a TaskGraph event, that will be null if it is not set up
 		bool AsyncComplete = !AccelerationStructureTaskComplete || AccelerationStructureTaskComplete->IsComplete();
 		if (AsyncComplete && !IsResimming())
 		{
@@ -591,9 +701,32 @@ namespace Chaos
 				bNeedsReset = true;
 
 				FlushAsyncAccelerationQueue();
+				
+				if (AccelerationStructureSplitStaticAndDynamic == 1)
+				{
+					FlushInternalAccelerationQueue();
+				}
+				else
+				{
+					//other queues are no longer needed since we've flushed all operations and now have a pristine structure
+					InternalAccelerationQueue.Reset();
+				}
 
+				// At this point the InternalAcceleration and the AsyncAcceleration structures will all be consistent with each other
+				// (If FlushInternalAccelerationQueue was flushed above)
+				// but the AsyncAcceleration now probably have fewer dirty elements (they were just rebuilt)
+				
 				//swap acceleration structure for new one
 				std::swap(InternalAcceleration, AsyncInternalAcceleration);
+				// The old InternalAcceleration is now in AsyncInternalAcceleration, and the constituent structures will be reused if no changes have been detected
+
+				if (AccelerationStructureSplitStaticAndDynamic == 1)
+				{
+					// If the new InternalAcceleration structure have constituents with no changes, we can copy it to the  AsyncInternalAcceleration for reuse
+					// This step can be left out to remove a copy here, at the cost of an unnecessary recalculation in the ChaosAccelerationStructureTask
+					// For structures that don't change often both source and destination will be pristine and no copies will be made (most of the time)
+					//CopyPristineAccelerationStructures(SpatialAccelerationCache, InternalAcceleration, AsyncInternalAcceleration, true);
+				}
 
 				//mark structure as ready for external thread
 				ExternalStructuresQueue.Enqueue(AsyncExternalAcceleration);
@@ -609,13 +742,40 @@ namespace Chaos
 			if (bCanStartAsyncTasks)
 			{
 				// we run the task for both starting a new accel structure as well as for the time-slicing
-			AccelerationStructureTaskComplete = TGraphTask<FChaosAccelerationStructureTask>::CreateTask().ConstructAndDispatchWhenReady(*SpatialCollectionFactory, SpatialAccelerationCache, AsyncInternalAcceleration, AsyncExternalAcceleration, ForceFullBuild, bIsSingleThreaded, bNeedsReset);
+				AccelerationStructureTaskComplete = TGraphTask<FChaosAccelerationStructureTask>::CreateTask().ConstructAndDispatchWhenReady(*SpatialCollectionFactory, SpatialAccelerationCache, AsyncInternalAcceleration, AsyncExternalAcceleration, ForceFullBuild, bIsSingleThreaded, bNeedsReset);
 			}
 		}
 		else
 		{
 			FlushInternalAccelerationQueue();
 		}
+	}
+
+
+	// copy Pristine substructures from FromStructure to ToStructure, if the substructure is not already pristine
+	// Assumption: Both structures represent the same state, one can just be dirtier than the other
+	void FPBDRigidsEvolutionBase::CopyPristineAccelerationStructures(const TMap<FSpatialAccelerationIdx, TUniquePtr<FSpatialAccelerationCache>>& SpatialAccelerationCache, FAccelerationStructure* FromStructure, FAccelerationStructure* ToStructure, bool CheckPristine)
+	{
+		
+		for (const auto& Itr : SpatialAccelerationCache)
+		{
+			const FSpatialAccelerationIdx SpatialIdx = Itr.Key;
+			auto* FromSubStructure = FromStructure->GetSubstructure(SpatialIdx);
+			auto* ToSubStructure = ToStructure->GetSubstructure(SpatialIdx);
+
+			if (!FromSubStructure || !ToSubStructure)
+			{
+				ensure(false);
+				continue;
+			}
+
+			if (!CheckPristine || (ToSubStructure->ShouldRebuild() && !FromSubStructure->ShouldRebuild()))
+			{
+				*ToSubStructure = *FromSubStructure;
+			}
+		}
+		// This is a pretty shallow copy: It won't copy anything that we copied above
+		*ToStructure = *FromStructure;
 	}
 
 	void FPBDRigidsEvolutionBase::UpdateExternalAccelerationStructure_External(
@@ -716,7 +876,7 @@ namespace Chaos
 				{
 					SubStructure = InternalAcceleration->RemoveSubstructure(FSpatialAccelerationIdx{ 0,0 });
 					Ar << SubStructure;
-					InternalAcceleration->AddSubstructure(MoveTemp(SubStructure), 0);
+					InternalAcceleration->AddSubstructure(MoveTemp(SubStructure), 0, 0);
 				}
 				else
 				{
@@ -819,9 +979,9 @@ namespace Chaos
 		{
 			Particles.DisableParticle(Particle);
 			RemoveParticleFromAccelerationStructure(*Particle);
+			ConstraintGraph.DisableParticle(Particle);
 		}
 
-		ConstraintGraph.DisableParticles(InParticles);
 		DisableConstraints(InParticles);
 	}
 

@@ -15,7 +15,7 @@ struct FRigidTransform
 
 static const uniform int32 MaxConstrainedBodies = 2;
 
-struct FJointSolverGaussSeidel
+struct FPBDJointSolver
 {
 	// Local-space constraint settings
 	FRigidTransform XLs[MaxConstrainedBodies];	// Local-space joint connector transforms
@@ -71,9 +71,9 @@ struct FJointSolverGaussSeidel
 	bool bIsActive;								// Whether any constraints actually moved any bodies in last iteration
 };
 
-export uniform int32 SizeofFJointSolverGaussSeidel()
+export uniform int32 SizeofFPBDJointSolver()
 {
-	return sizeof(uniform FJointSolverGaussSeidel);
+	return sizeof(uniform FPBDJointSolver);
 }
 
 static inline uniform FMatrix33 ComputeWorldSpaceInertia(const uniform FVector4 &Q, const uniform FVector &I)
@@ -132,7 +132,7 @@ static inline uniform FVector CalculateVelocity(const uniform FVector& P0, const
 }
 
 static inline void ApplyPositionDelta(
-	uniform FJointSolverGaussSeidel * uniform M,
+	uniform FPBDJointSolver * uniform M,
 	const uniform int Index,
 	const uniform FVector& DP)
 {
@@ -140,7 +140,7 @@ static inline void ApplyPositionDelta(
 }
 
 static inline void ApplyPositionDelta(
-	uniform FJointSolverGaussSeidel * uniform M,
+	uniform FPBDJointSolver * uniform M,
 	const uniform FVector& DP0,
 	const uniform FVector& DP1)
 {
@@ -149,7 +149,7 @@ static inline void ApplyPositionDelta(
 }
 
 static inline void ApplyRotationDelta(
-	uniform FJointSolverGaussSeidel * uniform M,
+	uniform FPBDJointSolver * uniform M,
 	const uniform int Index,
 	const uniform FVector& InDR)
 {
@@ -175,7 +175,7 @@ static inline void ApplyRotationDelta(
 }
 
 static inline void ApplyRotationDelta(
-	uniform FJointSolverGaussSeidel * uniform M,
+	uniform FPBDJointSolver * uniform M,
 	const uniform FVector& InDR0,
 	const uniform FVector& InDR1)
 {
@@ -208,7 +208,7 @@ static inline void ApplyRotationDelta(
 }
 
 export void ApplyRotationDelta2(
-	uniform FJointSolverGaussSeidel * uniform M,
+	uniform FPBDJointSolver * uniform M,
 	const uniform FVector& DR0,
 	const uniform FVector& DR1)
 {
@@ -216,7 +216,7 @@ export void ApplyRotationDelta2(
 }
 
 static inline void ApplyDelta(
-	uniform FJointSolverGaussSeidel * uniform M,
+	uniform FPBDJointSolver * uniform M,
 	const uniform int Index,
 	const uniform FVector& DP,
 	const uniform FVector& DR)
@@ -226,7 +226,7 @@ static inline void ApplyDelta(
 }
 
 static inline void ApplyVelocityDelta(
-	uniform FJointSolverGaussSeidel * uniform M,
+	uniform FPBDJointSolver * uniform M,
 	const uniform FVector& DV0,
 	const uniform FVector& DW0,
 	const uniform FVector& DV1,
@@ -240,7 +240,7 @@ static inline void ApplyVelocityDelta(
 
 
 static inline void ApplyVelocityDelta(
-	uniform FJointSolverGaussSeidel * uniform M,
+	uniform FPBDJointSolver * uniform M,
 	const uniform int Index,
 	const uniform FVector& DV,
 	const uniform FVector& DW)
@@ -250,7 +250,7 @@ static inline void ApplyVelocityDelta(
 }
 
 export void ApplyPositionConstraintSoft(
-	uniform FJointSolverGaussSeidel * uniform M,
+	uniform FPBDJointSolver * uniform M,
 	const uniform float Dt,
 	const uniform float JointStiffness,
 	const uniform float JointDamping,
@@ -297,7 +297,7 @@ export void ApplyPositionConstraintSoft(
 
 // See "XPBD: Position-Based Simulation of Compliant Constrained Dynamics"
 export void ApplyRotationConstraintSoftKD(
-	uniform FJointSolverGaussSeidel * uniform M,
+	uniform FPBDJointSolver * uniform M,
 	const uniform int KIndex,
 	const uniform int DIndex,
 	const uniform float Dt,
@@ -341,7 +341,7 @@ export void ApplyRotationConstraintSoftKD(
 }
 
 export void ApplyRotationConstraintSoftDD(
-	uniform FJointSolverGaussSeidel * uniform M,
+	uniform FPBDJointSolver * uniform M,
 	const uniform float Dt,
 	const uniform float JointStiffness,
 	const uniform float JointDamping,
@@ -388,7 +388,7 @@ export void ApplyRotationConstraintSoftDD(
 
 
 export void ApplyPointPositionConstraintKD(
-	uniform FJointSolverGaussSeidel * uniform M,
+	uniform FPBDJointSolver * uniform M,
 	const uniform int KIndex,
 	const uniform int DIndex,
 	const uniform FVector &CX,
@@ -410,7 +410,7 @@ export void ApplyPointPositionConstraintKD(
 }
 
 export void ApplyPointPositionConstraintDD(
-	uniform FJointSolverGaussSeidel * uniform M,
+	uniform FPBDJointSolver * uniform M,
 	const uniform FVector &CX,
 	const uniform float InStiffness)
 {

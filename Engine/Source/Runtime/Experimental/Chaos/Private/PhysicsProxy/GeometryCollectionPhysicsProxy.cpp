@@ -1980,7 +1980,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 					InertiaComputationNeeded[GeometryIndex] = true;
 					if(MassProperties.Volume == 0)
 					{
-						FVector Extents = BoundingBox[GeometryIndex].GetExtent();
+						FVector Extents = FReal(2) * BoundingBox[GeometryIndex].GetExtent(); // FBox::GetExtent() returns half the size, but FAABB::Extents() returns total size
 						MassProperties.Volume = Extents.X * Extents.Y * Extents.Z;
 						FReal ExtentsYZ = Extents.Y * Extents.Y + Extents.Z * Extents.Z;
 						FReal ExtentsXZ = Extents.X * Extents.X + Extents.Z * Extents.Z;

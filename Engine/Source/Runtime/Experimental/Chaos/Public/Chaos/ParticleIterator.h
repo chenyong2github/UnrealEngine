@@ -292,6 +292,12 @@ template <typename TSOA>
 struct TSOAView
 {
 	using THandle = typename TSOA::THandleType;
+
+	TSOAView()
+		: SOA(nullptr)
+		, HandlesArray(nullptr)
+	{}
+
 	TSOAView(TSOA* InSOA)
 		: SOA(InSOA)
 		, HandlesArray(nullptr)
@@ -556,6 +562,12 @@ public:
 		}
 	}
 
+	TConstParticleView(TSOAView<TSOA>&& InSOAView)
+		: Size(InSOAView.Size())
+	{
+		SOAViews.Add(MoveTemp(InSOAView));
+	}
+
 	int32 Num() const
 	{
 		return Size;
@@ -619,6 +631,12 @@ template <typename TSOA>
 TConstParticleView<TSOA> MakeConstParticleView(TArray<TSOAView<TSOA>>&& SOAViews)
 {
 	return TConstParticleView<TSOA>(MoveTemp(SOAViews));
+}
+
+template <typename TSOA>
+TConstParticleView<TSOA> MakeConstParticleView(TSOAView<TSOA>&& SOAView)
+{
+	return TConstParticleView<TSOA>(MoveTemp(SOAView));
 }
 
 template <typename TSOA>

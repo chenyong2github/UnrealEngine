@@ -497,9 +497,9 @@ namespace ChaosTest {
 		Evolution.SetPhysicsMaterial(StaticBox, MakeSerializable(PhysicalMaterial));
 		Evolution.SetPhysicsMaterial(Box2, MakeSerializable(PhysicalMaterial));
 
-		auto JointConstraints = FPBDRigidSpringConstraints();
+		FPBDRigidSpringConstraints JointConstraints;
 		JointConstraints.AddConstraint(ConstrainedParticles, Points, 1.0f, 0.0f, (Points[0] - Points[1]).Size());
-		auto JointRule = Chaos::TPBDConstraintIslandRule<Chaos::FPBDRigidSpringConstraints>(JointConstraints);
+		Chaos::TPBDConstraintIslandRule<Chaos::FPBDRigidSpringConstraints> JointRule(JointConstraints);
 		Evolution.AddConstraintRule(&JointRule);
 
 		const FReal Dt = 0.01f;
@@ -541,7 +541,7 @@ namespace ChaosTest {
 			Evolution.SetPhysicsMaterial(&Box2, MakeSerializable(PhysicalMaterial));
 
 			Chaos::FPBDRigidDynamicSpringConstraints SpringConstraints(MoveTemp(Constraints));
-			auto SpringRule = Chaos::TPBDConstraintIslandRule<Chaos::FPBDRigidDynamicSpringConstraints>(SpringConstraints);
+			Chaos::TPBDConstraintIslandRule<Chaos::FPBDRigidDynamicSpringConstraints> SpringRule(SpringConstraints);
 			Evolution.AddConstraintRule(&SpringRule);
 
 			const FReal Dt = 0.01f;
@@ -572,7 +572,7 @@ namespace ChaosTest {
 			Evolution.SetPhysicsMaterial(&Box2, MakeSerializable(PhysicalMaterial));
 
 			Chaos::FPBDRigidDynamicSpringConstraints SpringConstraints(MoveTemp(Constraints), 400);
-			auto SpringRule = Chaos::TPBDConstraintIslandRule<Chaos::FPBDRigidDynamicSpringConstraints>(SpringConstraints);
+			Chaos::TPBDConstraintIslandRule<Chaos::FPBDRigidDynamicSpringConstraints> SpringRule(SpringConstraints);
 			Evolution.AddConstraintRule(&SpringRule);
 
 			const FReal Dt = 0.01f;

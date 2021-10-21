@@ -22,7 +22,7 @@ template <typename TPayloadType, typename T, int d>
 struct CHAOS_API TSpatialAccelerationBucketEntry
 {
 	TUniquePtr<ISpatialAcceleration<TPayloadType, T, d>> Acceleration;
-	uint16 TypeInnerIdx;
+	uint16 TypeInnerIdx; // Index in bucket
 
 	void CopyFrom(TSpatialAccelerationBucketEntry<TPayloadType, T, d>& Src)
 	{
@@ -96,6 +96,25 @@ struct CHAOS_API TSpatialCollectionBucket
 		return Idx;
 	}
 
+   	void UpdateOrAddAt(uint16 Idx, TObj&& Obj)
+	{
+		uint16 ObjectNum = static_cast<uint16>(Objects.Num());
+		if (ObjectNum <= Idx)
+		{
+			Objects.SetNum(Idx + 1);
+			for (uint16 FreeIndex = ObjectNum; FreeIndex < Idx - 1; FreeIndex++)
+			{
+				FreeIndices.Add(FreeIndex);
+			}
+		}
+		else
+		{
+			FreeIndices.Remove(Idx);
+		}
+
+		Objects[Idx] = MoveTemp(Obj);
+	}
+
 	void Remove(uint16 Idx)
 	{
 		if (Objects.Num() == Idx + 1)
@@ -166,6 +185,8 @@ struct CHAOS_API TSpatialTypeTupleGetter<0, First, Rest...>
 	static const auto& Get(const TSpatialTypeTuple<First, Rest...>& Types) { return Types.First; }
 };
 
+
+// Gets a bucket of acceleration structure pointers
 template <int Idx, typename First, typename... Rest>
 auto& GetAccelerationsPerType(TSpatialTypeTuple<First, Rest...>& Types)
 {
@@ -315,13 +336,13 @@ struct TSpatialAccelerationCollectionHelper
 };
 
 template <typename SpatialAccelerationCollection>
-typename TEnableIf<TIsSame<typename SpatialAccelerationCollection::TPayloadType, FAccelerationStructureHandle>::Value, void>::Type PBDComputeConstraintsLowLevel_Helper(FReal Dt, const SpatialAccelerationCollection& Accel, FSpatialAccelerationBroadPhase& BroadPhase, FNarrowPhase& NarrowPhase, FAsyncCollisionReceiver& Receiver, CollisionStats::FStatData& StatData, IResimCacheBase* ResimCache)
+typename TEnableIf<TIsSame<typename SpatialAccelerationCollection::TPayloadType, FAccelerationStructureHandle>::Value, void>::Type PBDComputeConstraintsLowLevel_Helper(FReal Dt, const SpatialAccelerationCollection& Accel, FSpatialAccelerationBroadPhase& BroadPhase, FNarrowPhase& NarrowPhase, IResimCacheBase* ResimCache)
 {
-	BroadPhase.ProduceOverlaps(Dt, Accel, NarrowPhase, Receiver, StatData, ResimCache);
+	BroadPhase.ProduceOverlaps(Dt, Accel, NarrowPhase, ResimCache);
 }
 
 template <typename SpatialAccelerationCollection>
-typename TEnableIf<!TIsSame<typename SpatialAccelerationCollection::TPayloadType, FAccelerationStructureHandle>::Value, void>::Type PBDComputeConstraintsLowLevel_Helper(FReal Dt, const SpatialAccelerationCollection& Accel, FSpatialAccelerationBroadPhase& BroadPhase, FNarrowPhase& NarrowPhase, FAsyncCollisionReceiver& Receiver, CollisionStats::FStatData& StatData, IResimCacheBase* ResimCache)
+typename TEnableIf<!TIsSame<typename SpatialAccelerationCollection::TPayloadType, FAccelerationStructureHandle>::Value, void>::Type PBDComputeConstraintsLowLevel_Helper(FReal Dt, const SpatialAccelerationCollection& Accel, FSpatialAccelerationBroadPhase& BroadPhase, FNarrowPhase& NarrowPhase, IResimCacheBase* ResimCache)
 {
 }
 
@@ -343,7 +364,7 @@ public:
 	{
 	}
 
-	virtual FSpatialAccelerationIdx AddSubstructure(TUniquePtr<ISpatialAcceleration<TPayloadType, T, d>>&& Substructure, uint16 BucketIdx) override
+	virtual FSpatialAccelerationIdx AddSubstructure(TUniquePtr<ISpatialAcceleration<TPayloadType, T, d>>&& Substructure, uint16 BucketIdx, uint16 BucketInnerIdx) override
 	{
 		check(BucketIdx < MaxBuckets);
 		FSpatialAccelerationIdx Result;
@@ -367,8 +388,10 @@ public:
 		}
 
 		this->ActiveBucketsMask |= (1 << BucketIdx);
-
-		Result.InnerIdx = static_cast<uint16>(Buckets[BucketIdx].Add(MoveTemp(BucketEntry)));
+		
+		Result.InnerIdx = BucketInnerIdx;
+		Buckets[BucketIdx].UpdateOrAddAt(BucketInnerIdx, MoveTemp(BucketEntry));
+		
 		return Result;
 	}
 
@@ -498,10 +521,26 @@ public:
 		return TUniquePtr<ISpatialAcceleration<TPayloadType, T, d>>(new TSpatialAccelerationCollection<TSpatialAccelerationTypes...>(*this));
 	}
 
-	virtual void PBDComputeConstraintsLowLevel(T Dt, FSpatialAccelerationBroadPhase& BroadPhase, FNarrowPhase& NarrowPhase, FAsyncCollisionReceiver& Receiver, CollisionStats::FStatData& StatData, IResimCacheBase* ResimCache) const override
+	virtual void PBDComputeConstraintsLowLevel(T Dt, FSpatialAccelerationBroadPhase& BroadPhase, FNarrowPhase& NarrowPhase, IResimCacheBase* ResimCache) const override
 	{
-		PBDComputeConstraintsLowLevel_Helper(Dt, *this, BroadPhase, NarrowPhase, Receiver, StatData, ResimCache);
+		PBDComputeConstraintsLowLevel_Helper(Dt, *this, BroadPhase, NarrowPhase, ResimCache);
 	}
+
+#if !UE_BUILD_SHIPPING
+	virtual void DebugDraw(ISpacialDebugDrawInterface<T>* InInterface) const override
+	{
+		for (const auto& Bucket : Buckets)
+		{
+			for (const auto& Entry : Bucket.Objects)
+			{
+				if (Entry.Acceleration)
+				{
+					Entry.Acceleration->DebugDraw(InInterface);
+				}
+			}
+		}
+	}
+#endif
 
 	virtual void Serialize(FChaosArchive& Ar)
 	{
@@ -564,6 +603,13 @@ private:
 			}
 		}
 	}
+
+	TSpatialAccelerationCollection<TSpatialAccelerationTypes...>& operator=(const TSpatialAccelerationCollection<TSpatialAccelerationTypes...>& Other) = delete;
+	virtual ISpatialAcceleration<TPayloadType, FReal, 3>& operator=(const ISpatialAcceleration<TPayloadType, FReal, 3>& Other) override
+	{
+		check(false);	//not implemented
+		return *this;
+	}
 	
 	static constexpr uint32 ClampedIdx(uint32 Idx)
 	{
@@ -618,7 +664,7 @@ private:
 
 	static constexpr uint16 MaxBuckets = 8;
 	TSpatialCollectionBucket<TSpatialAccelerationBucketEntry<TPayloadType, T, d>> Buckets[MaxBuckets];
-	TSpatialTypeTuple< TSpatialAccelerationTypes...> Types;
+	TSpatialTypeTuple< TSpatialAccelerationTypes...> Types; // Have buckets of acceleration structure pointers
 	static constexpr uint32 NumTypes = sizeof...(TSpatialAccelerationTypes);
 };
 

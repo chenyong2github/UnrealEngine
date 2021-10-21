@@ -26,6 +26,9 @@
 
 namespace Chaos
 {
+
+	extern bool bChaos_Collision_Manifold_FixNormalsInWorldSpace;
+
 	namespace DebugDraw
 	{
 #if CHAOS_DEBUG_DRAW
@@ -42,8 +45,11 @@ namespace Chaos
 		bool bChaosDebugDebugDrawColorShapesByShapeType = false;
 		FAutoConsoleVariableRef CVarChaosDebugDebugDrawColorShapesByShapeType(TEXT("p.Chaos.DebugDraw.ColorShapesByShapeType"), bChaosDebugDebugDrawColorShapesByShapeType, TEXT("Whether to use shape type to define the color of the shapes instead of using the particle state "));
 
+		bool bChaosDebugDebugDrawColorShapesByIsland = false;
+		FAutoConsoleVariableRef CVarChaosDebugDebugDrawColorShapesByIsland(TEXT("p.Chaos.DebugDraw.ColorShapesByIsland"), bChaosDebugDebugDrawColorShapesByIsland, TEXT("Whether to use particle island to define the color of the shapes instead of using the particle state "));
+
 		bool bChaosDebugDebugDrawColorBoundsByShapeType = false;
-		FAutoConsoleVariableRef CVarbChaosDebugDebugDrawColorBoundsByShapeType(TEXT("p.Chaos.DebugDraw.ColorBoundsByShapeType"), bChaosDebugDebugDrawColorBoundsByShapeType, TEXT("Whether to use shape type to define the color of the bounds instead of using the particle state (if multiple shapes , will use the first one)"));
+		FAutoConsoleVariableRef CVarChaosDebugDebugDrawColorBoundsByShapeType(TEXT("p.Chaos.DebugDraw.ColorBoundsByShapeType"), bChaosDebugDebugDrawColorBoundsByShapeType, TEXT("Whether to use shape type to define the color of the bounds instead of using the particle state (if multiple shapes , will use the first one)"));
 
 		bool bChaosDebugDebugDrawConvexVertices = false;
 		bool bChaosDebugDebugDrawCoreShapes = false;
@@ -80,6 +86,7 @@ namespace Chaos
 			/* VelScale =					*/ 0.0f,
 			/* AngVelScale =				*/ 0.0f,
 			/* ImpulseScale =				*/ 0.0f,
+			/* PushOutScale =				*/ 0.0f,
 			/* InertiaScale =				*/ 0.0f,
 			/* DrawPriority =				*/ 10,
 			/* bShowSimple =				*/ true,
@@ -127,31 +134,49 @@ namespace Chaos
 			}
 		}
 
-		// default colors by state for shapes
-		FChaosDebugDrawColorsByState ChaosDefaultShapesColorsByState(
-			/* InDynamicColor =	  */ FColor(255, 255, 0),
-			/* InSleepingColor =  */ FColor(128, 128, 128),
-			/* InKinematicColor = */ FColor(0, 128, 255),
-			/* InStaticColor =	  */ FColor(255, 0, 0)
-		);
-
 		const FChaosDebugDrawColorsByState& GetDefaultShapesColorsByState()
 		{
+			// default colors by state for shapes
+			static FChaosDebugDrawColorsByState ChaosDefaultShapesColorsByState(
+				/* InDynamicColor =	  */ FColor(255, 255, 0),
+				/* InSleepingColor =  */ FColor(128, 128, 128),
+				/* InKinematicColor = */ FColor(0, 128, 255),
+				/* InStaticColor =	  */ FColor(255, 0, 0)
+			);
+
 			return ChaosDefaultShapesColorsByState;
 		}
 
-		// default colors by state for bounds ( darker version of the shapes colors - see above )
-		FChaosDebugDrawColorsByState ChaosDefaultBoundsColorsByState(
-			/* InDynamicColor =	  */ FColor(128, 128, 0),
-			/* InSleepingColor =  */ FColor(64, 64, 64),
-			/* InKinematicColor = */ FColor(0, 64, 128),
-			/* InStaticColor =	  */ FColor(128, 0, 0)
-		);
-
 		const FChaosDebugDrawColorsByState& GetDefaultBoundsColorsByState()
 		{
+			// default colors by state for bounds ( darker version of the shapes colors - see above )
+			static FChaosDebugDrawColorsByState ChaosDefaultBoundsColorsByState(
+				/* InDynamicColor =	  */ FColor(128, 128, 0),
+				/* InSleepingColor =  */ FColor(64, 64, 64),
+				/* InKinematicColor = */ FColor(0, 64, 128),
+				/* InStaticColor =	  */ FColor(128, 0, 0)
+			);
+
 			return ChaosDefaultBoundsColorsByState;
 		}
+
+		FColor GetIslandColor(const int32 IslandIndex, const bool bIsAwake)
+		{
+			static FColor AwakeColors[] =
+			{
+				FColor::Red,
+				FColor::Orange,
+				FColor::Yellow,
+				FColor::Green,
+				FColor::Blue,
+				FColor::Magenta,
+			};
+			const int32 NumAwakeColors = UE_ARRAY_COUNT(AwakeColors);
+			static FColor SleepingColor = FColor::Black;
+
+			return bIsAwake ? AwakeColors[IslandIndex % NumAwakeColors] : SleepingColor;
+		};
+
 
 		//-------------------------------------------------------------------------------------------------
 
@@ -526,6 +551,10 @@ namespace Chaos
 			{
 				ShapeColor = Settings.ShapesColorsPerShapeType.GetColorFromShapeType(InnerType);
 			}
+			if (bChaosDebugDebugDrawColorShapesByIsland && (FConstGenericParticleHandle(Particle)->Island() != INDEX_NONE))
+			{
+				ShapeColor = GetIslandColor(FConstGenericParticleHandle(Particle)->Island(), true);
+			}
 
 			// If we get here, we have an actual shape to render
 			switch (InnerType)
@@ -743,7 +772,7 @@ namespace Chaos
 			}
 		}
 
-		void DrawCollisionImpl(const FVec3& Location, const FVec3& Normal, FReal Phi, const FVec3& Impulse, const FColor& DiscColor, const FColor& NormalColor, const FColor& ImpulseColor, FRealSingle ColorScale, const FChaosDebugDrawSettings& Settings)
+		void DrawCollisionImpl(const FVec3& Location, const FVec3& Normal, const FVec3& Tangent0, const FVec3& Tangent1, FReal Phi, const FVec3& Impulse, const FColor& DiscColor, const FColor& NormalColor, const FColor& ImpulseColor, FRealSingle ColorScale, const FChaosDebugDrawSettings& Settings)
 		{
 			FMatrix Axes = FRotationMatrix::MakeFromX(Normal);
 			if (Settings.ContactWidth > 0)
@@ -755,6 +784,8 @@ namespace Chaos
 			{
 				FColor C1 = (ColorScale * NormalColor).ToFColor(false);
 				FDebugDrawQueue::GetInstance().DrawDebugLine(Location, Location + Settings.DrawScale * Settings.ContactLen * Normal, C1, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Location, Location + 0.5f * Settings.DrawScale * Settings.ContactLen * Tangent0, C1, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Location, Location + 0.5f * Settings.DrawScale * Settings.ContactLen * Tangent1, C1, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 			}
 			if (Settings.ContactPhiWidth > 0 && (Phi < FLT_MAX))
 			{
@@ -768,15 +799,14 @@ namespace Chaos
 			}
 		}
 
-		void DrawCollisionImpl(const FRigidTransform3& SpaceTransform, const FCollisionConstraintBase& Contact, FRealSingle ColorScale, const FChaosDebugDrawSettings& Settings)
+		void DrawCollisionImpl(const FRigidTransform3& SpaceTransform, const FPBDCollisionConstraint& Contact, FRealSingle ColorScale, const FChaosDebugDrawSettings& Settings)
 		{
 			if ((Settings.ContactWidth > 0) || (Settings.ContactLen > 0) || (Settings.ImpulseScale > 0.0f))
 			{
-				const FRigidBodyPointContactConstraint* PointConstraint = Contact.template As<FRigidBodyPointContactConstraint>();
-				if (PointConstraint->GetManifoldPoints().Num() > 0)
+				if (Contact.GetUseManifold())
 				{
-					FConstGenericParticleHandle Particle0 = Contact.Particle[0];
-					FConstGenericParticleHandle Particle1 = Contact.Particle[1];
+					const FConstGenericParticleHandle Particle0 = Contact.Particle[0];
+					const FConstGenericParticleHandle Particle1 = Contact.Particle[1];
 					const FRigidTransform3 WorldCoMTransform0 = FParticleUtilities::GetCoMWorldTransform(Particle0);
 					const FRigidTransform3 WorldCoMTransform1 = FParticleUtilities::GetCoMWorldTransform(Particle1);
 
@@ -792,20 +822,34 @@ namespace Chaos
 						return;
 					}
 
-					for (const FManifoldPoint& ManifoldPoint : PointConstraint->GetManifoldPoints())
+					for (const FManifoldPoint& ManifoldPoint : Contact.GetManifoldPoints())
 					{
-						const bool bIsActive = ManifoldPoint.bActive || !ManifoldPoint.NetPushOut.IsNearlyZero();
+						const bool bIsActive = ManifoldPoint.bActive || !ManifoldPoint.NetPushOut.IsNearlyZero() || !ManifoldPoint.NetImpulse.IsNearlyZero();
 						if (!bIsActive && !bChaosDebugDebugDrawInactiveContacts)
 						{
 							continue;
 						}
 
-						const int32 ContactPlaneOwner = ManifoldPoint.ContactPoint.ContactNormalOwnerIndex;
+						const int32 ContactPlaneOwner = bChaos_Collision_Manifold_FixNormalsInWorldSpace ? 1 : ManifoldPoint.ContactPoint.ContactNormalOwnerIndex;
 						const int32 ContactPointOwner = 1 - ContactPlaneOwner;
 						const FRigidTransform3& PlaneTransform = (ContactPlaneOwner == 0) ? WorldCoMTransform0 : WorldCoMTransform1;
 						const FRigidTransform3& PointTransform = (ContactPlaneOwner == 0) ? WorldCoMTransform1 : WorldCoMTransform0;
-						FConstGenericParticleHandle PlaneParticle = (ContactPlaneOwner == 0) ? Particle0 : Particle1;
-						const FVec3 PlaneNormal = PlaneTransform.TransformVector((ContactPlaneOwner == 1) ? ManifoldPoint.CoMContactNormal : -ManifoldPoint.CoMContactNormal);	// Normal is always points body 2->1 internally, but shows better if it points from plane owner to point owner
+						const FConstGenericParticleHandle PlaneParticle = (ContactPlaneOwner == 0) ? Particle0 : Particle1;
+						FVec3 PlaneNormal;
+						FVec3 PlaneTangent0;
+						FVec3 PlaneTangent1;
+						if (bChaos_Collision_Manifold_FixNormalsInWorldSpace)
+						{
+							PlaneNormal = ManifoldPoint.ManifoldContactNormal;
+							PlaneTangent0 = ManifoldPoint.ManifoldContactTangents[0];
+							PlaneTangent1 = ManifoldPoint.ManifoldContactTangents[1];
+						}
+						else
+						{
+							PlaneNormal = PlaneTransform.TransformVector((ContactPlaneOwner == 1) ? ManifoldPoint.ManifoldContactNormal : -ManifoldPoint.ManifoldContactNormal);	// Normal is always points body 2->1 internally, but shows better if it points from plane owner to point owner
+							PlaneTangent0 = PlaneTransform.TransformVector((ContactPlaneOwner == 1) ? ManifoldPoint.ManifoldContactTangents[0] : -ManifoldPoint.ManifoldContactTangents[0]);
+							PlaneTangent1 = PlaneTransform.TransformVector((ContactPlaneOwner == 1) ? ManifoldPoint.ManifoldContactTangents[1] : -ManifoldPoint.ManifoldContactTangents[1]);
+						}
 						const FVec3 PointLocation = PointTransform.TransformPosition(ManifoldPoint.CoMContactPoints[ContactPointOwner]) - ManifoldPoint.ContactPoint.ShapeMargins[ContactPointOwner] * PlaneNormal;
 						const FVec3 PlaneLocation = PlaneTransform.TransformPosition(ManifoldPoint.CoMContactPoints[ContactPlaneOwner]) + ManifoldPoint.ContactPoint.ShapeMargins[ContactPlaneOwner] * PlaneNormal;
 						const FVec3 PointPlaneLocation = PointLocation - FVec3::DotProduct(PointLocation - PlaneLocation, PlaneNormal) * PlaneNormal;
@@ -836,12 +880,19 @@ namespace Chaos
 						const FVec3 WorldPlaneLocation = SpaceTransform.TransformPosition(PlaneLocation);
 						const FVec3 WorldPointPlaneLocation = SpaceTransform.TransformPosition(PointPlaneLocation);
 						const FVec3 WorldPlaneNormal = SpaceTransform.TransformVectorNoScale(PlaneNormal);
+						const FVec3 WorldPlaneTangent0 = SpaceTransform.TransformVectorNoScale(PlaneTangent0);
+						const FVec3 WorldPlaneTangent1 = SpaceTransform.TransformVectorNoScale(PlaneTangent1);
 
 						// Pushout
-						if ((Settings.ImpulseScale > 0) && !ManifoldPoint.NetPushOut.IsNearlyZero())
+						if ((Settings.PushOutScale > 0) && !ManifoldPoint.NetPushOut.IsNearlyZero())
 						{
 							FColor Color = (ColorScale * PushOutImpusleColor).ToFColor(false);
-							FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPointPlaneLocation, WorldPointPlaneLocation + Settings.DrawScale * ManifoldPoint.NetPushOut, Color, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+							FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPointPlaneLocation, WorldPointPlaneLocation + Settings.DrawScale * Settings.PushOutScale * ManifoldPoint.NetPushOut, Color, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+						}
+						if ((Settings.ImpulseScale > 0) && !ManifoldPoint.NetImpulse.IsNearlyZero())
+						{
+							FColor Color = (ColorScale * PushOutImpusleColor).ToFColor(false);
+							FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPointPlaneLocation, WorldPointPlaneLocation + Settings.DrawScale * Settings.ImpulseScale * ManifoldPoint.NetImpulse, Color, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 						}
 						if ((Settings.ImpulseScale > 0) && !FMath::IsNearlyZero(ManifoldPoint.NetPushOutImpulseNormal))
 						{
@@ -857,18 +908,34 @@ namespace Chaos
 						}
 
 						// Manifold plane and normal
-						DrawCollisionImpl(WorldPlaneLocation, WorldPlaneNormal, ManifoldPoint.ContactPoint.Phi, ManifoldPoint.NetImpulse, DiscColor, NormalColor, ImpulseColor, ColorScale, Settings);
+						DrawCollisionImpl(WorldPlaneLocation, WorldPlaneNormal, WorldPlaneTangent0, WorldPlaneTangent1, ManifoldPoint.ContactPoint.Phi, ManifoldPoint.NetImpulse, DiscColor, NormalColor, ImpulseColor, ColorScale, Settings);
 
 						// Manifold point
 						FMatrix Axes = FRotationMatrix::MakeFromX(WorldPlaneNormal);
 						FDebugDrawQueue::GetInstance().DrawDebugCircle(WorldPointLocation, 0.5f * Settings.DrawScale * Settings.ContactWidth, 12, DiscColor, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
+
+						// Previous points
+						const FVec3 PrevPointLocation = PointTransform.TransformPosition(ManifoldPoint.CoMAnchorPoints[ContactPointOwner]) - ManifoldPoint.ContactPoint.ShapeMargins[ContactPointOwner] * PlaneNormal;
+						const FVec3 PrevPlaneLocation = PlaneTransform.TransformPosition(ManifoldPoint.CoMAnchorPoints[ContactPlaneOwner]) + ManifoldPoint.ContactPoint.ShapeMargins[ContactPlaneOwner] * PlaneNormal;
+						const FVec3 WorldPrevPointLocation = SpaceTransform.TransformPosition(PrevPointLocation);
+						const FVec3 WorldPrevPlaneLocation = SpaceTransform.TransformPosition(PrevPlaneLocation);
+						FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPrevPointLocation, WorldPointLocation, FColor::White, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+						FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPrevPlaneLocation, WorldPlaneLocation, FColor::White, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+
+						// Whether restored
+						if (Contact.WasManifoldRestored())
+						{
+							const FReal BoxScale = Settings.DrawScale * Settings.ContactWidth;
+							FDebugDrawQueue::GetInstance().DrawDebugBox(WorldPlaneLocation, FVec3(BoxScale, BoxScale, FReal(0.01)), FRotation3(FRotationMatrix::MakeFromZ(WorldPlaneNormal)), FColor::Blue, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, 0.5f * Settings.LineThickness);
+						}
 					}
 				}
 				else
 				{
 					const FVec3 Location = SpaceTransform.TransformPosition(Contact.GetLocation());
 					const FVec3 Normal = SpaceTransform.TransformVector(Contact.GetNormal());
-					DrawCollisionImpl(Location, Normal, Contact.GetPhi(), FVec3(0), FColor(200, 0, 0), FColor(200, 0, 0), FColor(200, 0, 0), ColorScale, Settings);
+					FMatrix Axes = FRotationMatrix::MakeFromZ(Normal);
+					DrawCollisionImpl(Location, Axes.GetUnitAxis(EAxis::Z), Axes.GetUnitAxis(EAxis::X), Axes.GetUnitAxis(EAxis::Y), Contact.GetPhi(), FVec3(0), FColor(200, 0, 0), FColor(200, 0, 0), FColor(200, 0, 0), ColorScale, Settings);
 				}
 			}
 			if (Settings.ContactOwnerWidth > 0)
@@ -898,7 +965,7 @@ namespace Chaos
 
 			for (int32 ConstraintIndex = 0; ConstraintIndex < Collisions.NumConstraints(); ++ConstraintIndex)
 			{
-				const FRigidBodyPointContactConstraint* PointConstraint = Collisions.GetConstraint(ConstraintIndex).template As<FRigidBodyPointContactConstraint>();
+				const FPBDCollisionConstraint* PointConstraint = &Collisions.GetConstraint(ConstraintIndex);
 				if (!PointConstraint->GetDisabled() && (PointConstraint->Manifold.Phi < TNumericLimits<FReal>::Max()))
 				{
 					const FImplicitObject* Implicit0 = PointConstraint->Manifold.Implicit[0];
@@ -1071,93 +1138,67 @@ namespace Chaos
 			FDebugDrawQueue::GetInstance().DrawDebugLine(Pos, Pos + 0.01f * Settings.AngVelScale * SimSpace.AngularAcceleration, FColor::Orange, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 		}
 
-		void DrawConstraintGraphImpl(const FRigidTransform3& SpaceTransform, const FPBDConstraintColor& GraphColor, const FChaosDebugDrawSettings& Settings)
+		void DrawConstraintGraphImpl(const FRigidTransform3& SpaceTransform, const FPBDConstraintGraph& Graph, const FChaosDebugDrawSettings& Settings)
 		{
-			static FColor IslandColors[] = 
+			auto DrawGraphCollision = [&](const FRigidTransform3& SpaceTransform, const FPBDCollisionConstraint* Constraint,  int32 IslandIndex, int32 LevelIndex, int32 ColorIndex, int32 OrderIndex, const FChaosDebugDrawSettings& Settings)
 			{
-				FColor::Red,
-				FColor::Orange,
-				FColor::Yellow,
-				FColor::Green,
-				FColor::Blue,
-				FColor::Magenta,
-				FColor::White,
-				FColor::Black
-			};
-			const int32 NumIslandColors = UE_ARRAY_COUNT(IslandColors);
+				const FRigidTransform3 Transform0 = FParticleUtilities::GetCoMWorldTransform(FConstGenericParticleHandle(Constraint->GetConstrainedParticles()[0])) * SpaceTransform;
+				const FRigidTransform3 Transform1 = FParticleUtilities::GetCoMWorldTransform(FConstGenericParticleHandle(Constraint->GetConstrainedParticles()[1])) * SpaceTransform;
 
-			auto DrawGraphCollision = [&](const FRigidTransform3& SpaceTransform, const FPBDCollisionConstraintHandle& CollisionConstraint,  int32 IslandIndex, int32 LevelIndex, int32 ColorIndex, int32 OrderIndex, const FChaosDebugDrawSettings& Settings)
-			{
-				FColor IslandColor = IslandColors[IslandIndex % NumIslandColors];
-
-				const FRigidTransform3 Transform0 = FParticleUtilities::GetCoMWorldTransform(FConstGenericParticleHandle(CollisionConstraint.GetConstrainedParticles()[0])) * SpaceTransform;
-				const FRigidTransform3 Transform1 = FParticleUtilities::GetCoMWorldTransform(FConstGenericParticleHandle(CollisionConstraint.GetConstrainedParticles()[1])) * SpaceTransform;
-
-				FVec3 ContactPos = CollisionConstraint.GetContactLocation();
-				if (CollisionConstraint.GetContact().GetType() == FCollisionConstraintBase::FType::SinglePoint)
+				FVec3 ContactPos = Constraint->GetContactLocation();
+				if ((Constraint != nullptr) && (Constraint->GetManifoldPoints().Num() > 0))
 				{
-					const FRigidBodyPointContactConstraint* Constraint = CollisionConstraint.GetContact().template As<const FRigidBodyPointContactConstraint>();
-					if ((Constraint != nullptr) && (Constraint->GetManifoldPoints().Num() > 0))
+					ContactPos = FVec3(0);
+					for (const FManifoldPoint& ManifoldPoint : Constraint->GetManifoldPoints())
 					{
-						ContactPos = FVec3(0);
-						for (const FManifoldPoint& ManifoldPoint : Constraint->GetManifoldPoints())
-						{
-							ContactPos += Transform0.TransformPositionNoScale(ManifoldPoint.CoMContactPoints[0]);
-							ContactPos += Transform1.TransformPositionNoScale(ManifoldPoint.CoMContactPoints[1]);
-						}
-						ContactPos /= (FReal)(2 * Constraint->GetManifoldPoints().Num());
+						ContactPos += Transform0.TransformPositionNoScale(ManifoldPoint.CoMContactPoints[0]);
+						ContactPos += Transform1.TransformPositionNoScale(ManifoldPoint.CoMContactPoints[1]);
 					}
+					ContactPos /= (FReal)(2 * Constraint->GetManifoldPoints().Num());
 				}
 
 
-				FDebugDrawQueue::GetInstance().DrawDebugLine(Transform0.GetLocation(), ContactPos, FColor::Black, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(Transform0.GetLocation(), ContactPos, FColor::Red, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 				FDebugDrawQueue::GetInstance().DrawDebugLine(Transform1.GetLocation(), ContactPos, FColor::White, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 				FDebugDrawQueue::GetInstance().DrawDebugString(ContactPos, FString::Format(TEXT("{0}-{1}-{2}"), { LevelIndex, ColorIndex, OrderIndex }), nullptr, FColor::Yellow, KINDA_SMALL_NUMBER, false, Settings.FontScale);
 
 			};
 
-			for (int32 IslandIndex = 0; IslandIndex < GraphColor.NumIslands(); ++IslandIndex)
+			for (int32 IslandIndex = 0; IslandIndex < Graph.NumIslands(); ++IslandIndex)
 			{
+				const FPBDIslandSolver* Island = Graph.GetSolverIsland(IslandIndex);
+
 				FAABB3 IslandAABB = FAABB3::EmptyAABB();
-
-				const typename FPBDConstraintColor::FLevelToColorToConstraintListMap& LevelColorConstraintMap = GraphColor.GetIslandLevelToColorToConstraintListMap(IslandIndex);
-				int32 MaxColor = GraphColor.GetIslandMaxColor(IslandIndex);
-				int32 MaxLevel = GraphColor.GetIslandMaxLevel(IslandIndex);
-				for (int32 LevelIndex = 0; LevelIndex <= MaxLevel; ++LevelIndex)
+				const TArray<FGeometryParticleHandle*> Particles = Island->GetParticles();
+				for (const FGeometryParticleHandle* GeoParticle : Particles)
 				{
-					for (int32 ColorIndex = 0; ColorIndex <= MaxColor; ++ColorIndex)
+					FConstGenericParticleHandle Particle = GeoParticle;
+					if (Particle->IsDynamic() && Particle->HasBounds())
 					{
-						if (LevelColorConstraintMap[LevelIndex].Contains(ColorIndex) && LevelColorConstraintMap[LevelIndex][ColorIndex].Num())
-						{
-							const TArray<FConstraintHandle*>& ConstraintHandles = LevelColorConstraintMap[LevelIndex][ColorIndex];
-							for (int32 HandleIndex = 0; HandleIndex < ConstraintHandles.Num(); ++HandleIndex)
-							{
-								const FConstraintHandle* ConstraintHandle = ConstraintHandles[HandleIndex];
-
-								if (const FPBDCollisionConstraintHandle* CollisionHandle = ConstraintHandle->As<FPBDCollisionConstraintHandle>())
-								{
-									if (CollisionHandle->GetConstrainedParticles()[0]->HasBounds() && (CollisionHandle->GetConstrainedParticles()[0]->ObjectState() == EObjectStateType::Dynamic))
-									{
-										IslandAABB.GrowToInclude(CollisionHandle->GetConstrainedParticles()[0]->WorldSpaceInflatedBounds());
-									}
-									if (CollisionHandle->GetConstrainedParticles()[1]->HasBounds() && (CollisionHandle->GetConstrainedParticles()[1]->ObjectState() == EObjectStateType::Dynamic))
-									{
-										IslandAABB.GrowToInclude(CollisionHandle->GetConstrainedParticles()[1]->WorldSpaceInflatedBounds());
-									}
-
-									if (bChaosDebugDebugDrawContactGraph)
-									{
-										DrawGraphCollision(SpaceTransform, *CollisionHandle, IslandIndex, LevelIndex, ColorIndex, HandleIndex, Settings);
-									}
-								}
-							}
-
-						}
+						IslandAABB.GrowToInclude(Particle->BoundingBox());
 					}
 				}
 
-				FAABB3 Bounds = IslandAABB.TransformedAABB(SpaceTransform);
-				FDebugDrawQueue::GetInstance().DrawDebugBox(Bounds.Center(), 0.5f * Bounds.Extents(), SpaceTransform.GetRotation(), IslandColors[IslandIndex % NumIslandColors], false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+				const FColor IslandColor = GetIslandColor(IslandIndex, !Island->GetIsSleeping());
+				const FAABB3 Bounds = IslandAABB.TransformedAABB(SpaceTransform);
+				FDebugDrawQueue::GetInstance().DrawDebugBox(Bounds.Center(), 0.5f * Bounds.Extents(), SpaceTransform.GetRotation(), IslandColor, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, 3.0f * Settings.LineThickness);
+
+				if (bChaosDebugDebugDrawContactGraph)
+				{
+					const FConstraintHandleArray& Constraints = Island->GetConstraints();
+					for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
+					{
+						const FConstraintHandle* Constraint = Constraints[ConstraintIndex];
+
+						if (const FPBDCollisionConstraintHandle* Collision = Constraint->As<FPBDCollisionConstraintHandle>())
+						{
+							// @chaos(todo): store level and color in the constraint? Only for debug draw...
+							const int32 LevelIndex = INDEX_NONE;
+							const int32 ColorIndex = INDEX_NONE;
+							DrawGraphCollision(SpaceTransform, Collision->GetConstraint(), IslandIndex, LevelIndex, ColorIndex, ConstraintIndex, Settings);
+						}
+					}
+				}
 			}
 		}
 
@@ -1354,7 +1395,7 @@ namespace Chaos
 			}
 		}
 
-		void DrawConstraintGraph(const FRigidTransform3& SpaceTransform, const FPBDConstraintColor& Graph, const FChaosDebugDrawSettings* Settings)
+		void DrawConstraintGraph(const FRigidTransform3& SpaceTransform, const FPBDConstraintGraph& Graph, const FChaosDebugDrawSettings* Settings)
 		{
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
@@ -1370,6 +1411,33 @@ namespace Chaos
 			}
 		}
 
+		class FSpatialDebugDrawInterface: public ISpatialDebugDrawInterface
+		{
+		public:
+			FSpatialDebugDrawInterface(const FChaosDebugDrawSettings& InSettings)
+				: Settings(InSettings)
+			{}
+			
+			virtual ~FSpatialDebugDrawInterface() override = default;
+
+			virtual void Box(const FAABB3& InBox, const TVec3<FReal>& InLinearColor, float InThickness) override
+			{
+				FDebugDrawQueue::GetInstance().DrawDebugBox(InBox.Center(), InBox.Extents(), FQuat::Identity, FLinearColor(InLinearColor).ToFColor(false), false, -1.f, Settings.DrawPriority, InThickness);
+			}
+
+			virtual void Line(const TVec3<FReal>& InBegin, const TVec3<FReal>& InEnd, const TVec3<FReal>& InLinearColor, float InThickness) override
+			{
+				FDebugDrawQueue::GetInstance().DrawDebugLine(InBegin, InEnd, FLinearColor(InLinearColor).ToFColor(false), false, -1.f, Settings.DrawPriority, InThickness);
+			}
+		private:
+			FChaosDebugDrawSettings Settings;
+		};
+
+		void DrawSpatialAccelerationStructure(const ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>& InSpatialAccelerationStructure, const FChaosDebugDrawSettings* InSettings)
+		{
+			FSpatialDebugDrawInterface DebugDrawInterface(GetChaosDebugDrawSettings(InSettings));
+			InSpatialAccelerationStructure.DebugDraw(&DebugDrawInterface);
+		}
 #endif
 	}
 }

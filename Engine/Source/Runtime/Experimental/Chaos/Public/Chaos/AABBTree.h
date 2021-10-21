@@ -19,6 +19,12 @@ struct CHAOS_API FAABBTreeCVars
 	static int32 UpdateDirtyElementPayloadData;
 	static FAutoConsoleVariableRef CVarUpdateDirtyElementPayloadData;
 
+	static int32 SplitAtAverageCenter;
+	static FAutoConsoleVariableRef CVarSplitAtAverageCenter;
+
+	static int32 SplitOnVarianceAxis;
+	static FAutoConsoleVariableRef CVarSplitOnVarianceAxis;
+
 	static float MaxNonGlobalElementBoundsExtrema; 
 	static FAutoConsoleVariableRef CVarMaxNonGlobalElementBoundsExtrema;
 };
@@ -146,7 +152,6 @@ struct TAABBTreeIntersectionHelper<FQueryFastDataVoid, EAABBQueryType::Overlap>
 template <typename TPayloadType, typename T, bool bComputeBounds>
 struct TBoundsWrapperHelper
 {
-
 };
 
 template <typename TPayloadType, typename T>
@@ -200,6 +205,11 @@ struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, T, bComput
 	SIZE_T GetReserveCount() const
 	{
 		// Optimize for fewer memory allocations.
+		return Elems.Num();
+	}
+
+	SIZE_T GetElementCount() const
+	{
 		return Elems.Num();
 	}
 
@@ -295,6 +305,25 @@ struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, T, bComput
 		}
 	}
 
+
+#if !UE_BUILD_SHIPPING
+	void DebugDrawLeaf(ISpacialDebugDrawInterface<T>& InInterface, const FLinearColor& InLinearColor, float InThickness) const
+	{
+		const TAABB<T, 3> Bounds = TBoundsWrapperHelper<TPayloadType, T, bComputeBounds>::GetBounds();
+
+		const float Alpha = (float)Elems.Num() / 10.f;
+		const FLinearColor ColorByCount = FLinearColor::Green * (1.f - Alpha) + FLinearColor::Red * Alpha;
+		const FVec3 ColorAsVec = { ColorByCount.R, ColorByCount.G, ColorByCount.B };
+		
+		InInterface.Box(Bounds, ColorAsVec, InThickness);
+		for (const auto& Elem : Elems)
+		{
+			InInterface.Line(Bounds.Center(), Elem.Bounds.Center(), ColorAsVec, InThickness);
+			InInterface.Box(Elem.Bounds, { (T)1.0, (T)0.2, (T)0.2 }, 1.0f);
+		}
+	}
+#endif
+
 	void Serialize(FChaosArchive& Ar)
 	{
 		Ar << Elems;
@@ -321,6 +350,30 @@ struct TAABBTreeNode
 	TAABB<T, 3> ChildrenBounds[2];
 	int32 ChildrenNodes[2] = { 0, 0 };
 	bool bLeaf = false;
+
+#if !UE_BUILD_SHIPPING
+	void DebugDraw(ISpacialDebugDrawInterface<T>& InInterface, const TArray<TAABBTreeNode<T>>& Nodes, const FVec3& InLinearColor, float InThickness) const
+	{
+		constexpr float ColorRatio = 0.75f;
+		constexpr float LineThicknessRatio = 0.75f;
+		if (!bLeaf)
+		{
+			FLinearColor ChildColor = FLinearColor::MakeRandomColor();
+			for (int ChildIndex = 0; ChildIndex < 2; ++ChildIndex)
+			{
+				int32 NodeIndex = ChildrenNodes[ChildIndex];
+				if (NodeIndex > 0 && NodeIndex < Nodes.Num())
+				{
+					Nodes[NodeIndex].DebugDraw(InInterface, Nodes, { ChildColor.R, ChildColor.G, ChildColor.B }, InThickness * LineThicknessRatio);
+				}
+			}
+			for (int ChildIndex = 0; ChildIndex < 2; ++ChildIndex)
+			{
+				InInterface.Box(ChildrenBounds[ChildIndex], InLinearColor, InThickness);
+			}
+		}
+	}
+#endif
 
 	void Serialize(FChaosArchive& Ar)
 	{
@@ -413,6 +466,7 @@ public:
 		, MaxTreeDepth(DefaultMaxTreeDepth)
 		, MaxPayloadBounds(DefaultMaxPayloadBounds)
 		, MaxNumToProcess(DefaultMaxNumToProcess)
+		, bShouldRebuild(true)
 	{
 		GetCVars();
 	}
@@ -433,6 +487,9 @@ public:
 		WorkStack.Reset();
 		WorkPoolFreeList.Reset();
 		WorkPool.Reset();
+
+		bShouldRebuild = true;
+		this->SetAsyncTimeSlicingComplete(true);
 	}
 
 	virtual void ProgressAsyncTimeSlicing(bool ForceBuildCompletion) override
@@ -459,6 +516,7 @@ public:
 		, MaxTreeDepth(InMaxTreeDepth)
 		, MaxPayloadBounds(InMaxPayloadBounds)
 		, MaxNumToProcess(InMaxNumToProcess)
+		, bShouldRebuild(true)
 
 	{
 		GenerateTree(Particles);
@@ -467,6 +525,7 @@ public:
 	template <typename ParticleView>
 	void Reinitialize(const ParticleView& Particles)
 	{
+		bShouldRebuild = true;
 		GenerateTree(Particles);
 	}
 
@@ -800,6 +859,7 @@ public:
 				}
 
 				PayloadToInfo.Remove(Payload);
+				bShouldRebuild = true;
 			}
 		}
 	}
@@ -814,7 +874,7 @@ public:
 			{
 				if (PayloadInfo->LeafIdx != INDEX_NONE)
 				{
-					//If we are still within the same leaf bounds, do nothing
+					//If we are still within the same leaf bounds, do nothing, don't detect a change either
 					if (bHasBounds) 
 					{
 						const TAABB<T, 3>& LeafBounds = Leaves[PayloadInfo->LeafIdx].GetBounds();
@@ -834,6 +894,8 @@ public:
 			{
 				PayloadInfo = &PayloadToInfo.Add(Payload);
 			}
+
+			bShouldRebuild = true;
 
 			bool bTooBig = false;
 			if (bHasBounds)
@@ -942,6 +1004,93 @@ public:
 		return GlobalPayloads;
 	}
 
+
+	virtual bool ShouldRebuild() override { return bShouldRebuild; }  // Used to find out if something changed since last reset for optimizations
+	// Contract: bShouldRebuild can only ever be cleared by calling the ClearShouldRebuild method, it can be set at will though
+	virtual void ClearShouldRebuild() override { bShouldRebuild = false; }
+
+	virtual void PrepareCopyTimeSliced(const  ISpatialAcceleration<TPayloadType, T, 3>& InFrom) override
+	{
+
+		check(this != &InFrom);
+		check(InFrom.GetType() == ESpatialAcceleration::AABBTree);
+		const TAABBTree<TPayloadType, TLeafType, bMutable, T>& From = static_cast<const TAABBTree<TPayloadType, TLeafType, bMutable, T>&>(InFrom);
+
+		Reset();
+
+		// Copy all the small objects first
+
+		ISpatialAcceleration<TPayloadType, T, 3>::operator=(From);
+
+		DirtyElementGridCellSize = From.DirtyElementGridCellSize;
+		DirtyElementGridCellSizeInv = From.DirtyElementGridCellSizeInv;
+		DirtyElementMaxGridCellQueryCount = From.DirtyElementMaxGridCellQueryCount;
+		DirtyElementMaxPhysicalSizeInCells = From.DirtyElementMaxPhysicalSizeInCells;
+		DirtyElementMaxCellCapacity = From.DirtyElementMaxCellCapacity;
+
+		MaxChildrenInLeaf = From.MaxChildrenInLeaf;
+		MaxTreeDepth = From.MaxTreeDepth;
+		MaxPayloadBounds = From.MaxPayloadBounds;
+		MaxNumToProcess = From.MaxNumToProcess;
+		NumProcessedThisSlice = From.NumProcessedThisSlice;
+		bShouldRebuild = From.bShouldRebuild;
+
+		// Reserve sizes for arrays etc
+
+		Nodes.Reserve(From.Nodes.Num());
+		Leaves.Reserve(From.Leaves.Num());
+		DirtyElements.Reserve(From.DirtyElements.Num());
+		CellHashToFlatArray.Reserve(From.CellHashToFlatArray.Num());
+		FlattenedCellArrayOfDirtyIndices.Reserve(From.FlattenedCellArrayOfDirtyIndices.Num());
+		DirtyElementsGridOverflow.Reserve(From.DirtyElementsGridOverflow.Num());
+		GlobalPayloads.Reserve(From.GlobalPayloads.Num());
+		PayloadToInfo.Reserve(From.PayloadToInfo.Num());
+
+		this->SetAsyncTimeSlicingComplete(false);
+	}
+
+	virtual void ProgressCopyTimeSliced(const  ISpatialAcceleration<TPayloadType, T, 3>& InFrom, int MaximumBytesToCopy) override
+	{
+		check(this != &InFrom);
+		check(InFrom.GetType() == ESpatialAcceleration::AABBTree);
+		const TAABBTree<TPayloadType, TLeafType, bMutable, T>& From = static_cast<const TAABBTree<TPayloadType, TLeafType, bMutable, T>&>(InFrom);
+
+		int32 SizeToCopyLeft = MaximumBytesToCopy;
+		check(From.CellHashToFlatArray.Num() == 0); // Partial Copy of TMAPs not implemented, and this should be empty for our current use cases
+
+		if (!ContinueTimeSliceCopy(From.Nodes, Nodes, SizeToCopyLeft))
+		{
+			return;
+		}
+		if (!ContinueTimeSliceCopy(From.Leaves, Leaves, SizeToCopyLeft))
+		{
+			return;
+		}
+		if (!ContinueTimeSliceCopy(From.DirtyElements, DirtyElements, SizeToCopyLeft))
+		{
+			return;
+		}
+
+		if (!ContinueTimeSliceCopy(From.FlattenedCellArrayOfDirtyIndices, FlattenedCellArrayOfDirtyIndices, SizeToCopyLeft))
+		{
+			return;
+		}
+		if (!ContinueTimeSliceCopy(From.DirtyElementsGridOverflow, DirtyElementsGridOverflow, SizeToCopyLeft))
+		{
+			return;
+		}
+		if (!ContinueTimeSliceCopy(From.GlobalPayloads, GlobalPayloads, SizeToCopyLeft))
+		{
+			return;
+		}
+		if (!ContinueTimeSliceCopy(From.PayloadToInfo, PayloadToInfo, SizeToCopyLeft))
+		{
+			return;
+		}
+
+		this->SetAsyncTimeSlicingComplete(true);
+	}
+
 	// Returns true if bounds appear valid. Returns false if extremely large values, contains NaN, or is empty.
 	FORCEINLINE_DEBUGGABLE bool ValidateBounds(const TAABB<T, 3>& Bounds)
 	{
@@ -1019,6 +1168,7 @@ public:
 			// Disable the Grid until it is rebuilt
 			DirtyElementGridCellSize = 0.0f;
 			DirtyElementGridCellSizeInv = 1.0f;
+			bShouldRebuild = true;
 		}
 	}
 
@@ -1048,8 +1198,9 @@ private:
 			Leaf.GatherElements(AllElements);
 		}
 
-		TAABBTree<TPayloadType,TLeafType,bMutable, T> NewTree(AllElements);
+		TAABBTree<TPayloadType,TLeafType,bMutable,T> NewTree(AllElements);
 		*this = NewTree;
+		bShouldRebuild = true; // No changes since last time tree was built
 	}
 
 	// Returns true if the query should continue
@@ -1386,6 +1537,10 @@ private:
 		{
 			SCOPE_CYCLE_COUNTER(STAT_AABBTreeTimeSliceSetup);
 
+			// Prepare to find the average and scaled variance of particle centers.
+			WorkSnapshot.AverageCenter = FVec3(0);
+			WorkSnapshot.ScaledCenterVariance = FVec3(0);
+
 			int32 Idx = 0;
 
 			//TODO: we need a better way to time-slice this case since there can be a huge number of Particles. Can't do it right now without making full copy
@@ -1414,9 +1569,13 @@ private:
 					}
 					else
 					{
-						WorkSnapshot.Elems.Add(FElement{ Payload, ElemBounds });
+						FReal NumElems = (FReal)(WorkSnapshot.Elems.Add(FElement{ Payload, ElemBounds }) + 1);
 						WorkSnapshot.Bounds.GrowToInclude(ElemBounds);
-						CenterSum += ElemBounds.Center();
+
+						// Include the current particle in the average and scaled variance of the particle centers using Welford's method.
+						FVec3 CenterDelta = ElemBounds.Center() - WorkSnapshot.AverageCenter;
+						WorkSnapshot.AverageCenter += CenterDelta / NumElems;
+						WorkSnapshot.ScaledCenterVariance += (ElemBounds.Center() - WorkSnapshot.AverageCenter) * CenterDelta;
 					}
 				}
 				else
@@ -1515,8 +1674,11 @@ private:
 		eTimeSlicePhase TimeslicePhase;
 
 		TAABB<T, 3> Bounds;
-		TVec3<T> AverageCenter;
 		TArray<FElement> Elems;
+
+		// The average of the element centers and their variance times the number of elements.
+		TVec3<T> AverageCenter;
+		TVec3<T> ScaledCenterVariance;
 
 		int32 NodeLevel;
 		int32 NewNodeIdx;
@@ -1551,9 +1713,14 @@ private:
 			if (CHAOS_ENSURE(MinBoxIdx != INDEX_NONE))
 			{
 				FSplitInfo& SplitInfo = CurrentSnapshot.SplitInfos[MinBoxIdx];
-				WorkPool[SplitInfo.WorkSnapshotIdx].Elems.Add(Elem);
-				WorkPool[SplitInfo.WorkSnapshotIdx].AverageCenter += Elem.Bounds.Center();
+				FWorkSnapshot& WorkSnapshot = WorkPool[SplitInfo.WorkSnapshotIdx];
+				FReal NumElems = (FReal)(WorkSnapshot.Elems.Add(Elem) + 1);
 				SplitInfo.RealBounds.GrowToInclude(Elem.Bounds);
+
+				// Include the current particle in the average and scaled variance of the particle centers using Welford's method.
+				FVec3 CenterDelta = Elem.Bounds.Center() - WorkSnapshot.AverageCenter;
+				WorkSnapshot.AverageCenter += CenterDelta / NumElems;
+				WorkSnapshot.ScaledCenterVariance += (Elem.Bounds.Center() - WorkSnapshot.AverageCenter) * CenterDelta;
 			}
 		}
 
@@ -1622,8 +1789,11 @@ private:
 
 			if (WorkPool[CurIdx].TimeslicePhase == eTimeSlicePhase::PreFindBestBounds)
 			{
-				const TVec3<T> Extents = WorkPool[CurIdx].Bounds.Extents();
-				const int32 MaxAxis = WorkPool[CurIdx].Bounds.LargestAxis();	//todo: use variance instead
+				// Determine the axis to split the AABB on based on the SplitOnVarianceAxis console variable. If it is not 1, simply use the largest axis
+				// of the work snapshot bounds; otherwise, select the axis with the greatest center variance. Note that the variance times the number of
+				// elements is actually used but since all that is needed is the axis with the greatest variance the scale factor is irrelevant.
+				const int32 MaxAxis = (FAABBTreeCVars::SplitOnVarianceAxis != 1) ? WorkPool[CurIdx].Bounds.LargestAxis() :
+					(WorkPool[CurIdx].ScaledCenterVariance[0] > WorkPool[CurIdx].ScaledCenterVariance[1] ? (WorkPool[CurIdx].ScaledCenterVariance[0] > WorkPool[CurIdx].ScaledCenterVariance[2] ? 0 : 2) : (WorkPool[CurIdx].ScaledCenterVariance[1] > WorkPool[CurIdx].ScaledCenterVariance[2] ? 1 : 2));
 
 				//Add two children, remember this invalidates any pointers to current snapshot
 				const int32 FirstChildIdx = GetNewWorkSnapshot();
@@ -1637,7 +1807,10 @@ private:
 				WorkPool[CurIdx].SplitInfos[0].SplitBounds = TAABB<T, 3>(WorkPool[CurIdx].Bounds.Min(), WorkPool[CurIdx].Bounds.Min());
 				WorkPool[CurIdx].SplitInfos[1].SplitBounds = TAABB<T, 3>(WorkPool[CurIdx].Bounds.Max(), WorkPool[CurIdx].Bounds.Max());
 
-				const TVec3<T> Center = WorkPool[CurIdx].AverageCenter;
+				// Find the point where the AABB will be split based on the SplitAtAverageCenter console variable. If it is not 1, just use the center
+				// of the AABB; otherwise, use the average of the element centers.
+				const TVec3<T> Center = (FAABBTreeCVars::SplitAtAverageCenter != 1) ? WorkPool[CurIdx].Bounds.Center() : WorkPool[CurIdx].AverageCenter;
+
 				for (FSplitInfo& SplitInfo : WorkPool[CurIdx].SplitInfos)
 				{
 					SplitInfo.RealBounds = TAABB<T, 3>::EmptyAABB();
@@ -1665,8 +1838,11 @@ private:
 					WorkPool[FirstChildIdx].Elems.Reserve(ExpectedNumPerChild);
 					WorkPool[SecondChildIdx].Elems.Reserve(ExpectedNumPerChild);
 
+					// Initialize the the two info's element center average and scaled variance.
 					WorkPool[FirstChildIdx].AverageCenter = TVec3<T>(0);
+					WorkPool[FirstChildIdx].ScaledCenterVariance = TVec3<T>(0);
 					WorkPool[SecondChildIdx].AverageCenter = TVec3<T>(0);
+					WorkPool[SecondChildIdx].ScaledCenterVariance = TVec3<T>(0);
 				}
 			}
 
@@ -1770,6 +1946,84 @@ private:
 		return Results;
 	}
 
+	// Set InOutMaxSize to less than 0 for unlimited
+	// 
+	template<typename ContainerType>
+	static void AddToContainerHelper(const ContainerType& ContainerFrom, ContainerType& ContainerTo, int32 Index)
+	{
+		ContainerTo.Add(ContainerFrom[Index]);
+	}
+
+	template<>
+	static void AddToContainerHelper(const TArrayAsMap<TPayloadType, FAABBTreePayloadInfo>& ContainerFrom, TArrayAsMap<TPayloadType, FAABBTreePayloadInfo>& ContainerTo, int32 Index)
+	{
+		ContainerTo.AddFrom(ContainerFrom, Index);
+	}
+
+	template<typename ContainerType>
+	static int32 ContainerElementSizeHelper(const ContainerType& Container, int32 Index)
+	{
+		return sizeof(typename ContainerType::ElementType);
+	}
+
+	template<>
+	static int32 ContainerElementSizeHelper(const TArray<TAABBTreeLeafArray<TPayloadType, true>>& Container, int32 Index)
+	{
+		return sizeof(typename TArray<TAABBTreeLeafArray<TPayloadType, true>>::ElementType) + sizeof(typename decltype(Container[Index].Elems)::ElementType) * Container[Index].GetElementCount();
+	}
+
+	template<>
+	static int32 ContainerElementSizeHelper(const TArray<TAABBTreeLeafArray<TPayloadType, false>>& Container, int32 Index)
+	{
+		return sizeof(typename TArray<TAABBTreeLeafArray<TPayloadType, false>>::ElementType) + sizeof(typename decltype(Container[Index].Elems)::ElementType) * Container[Index].GetElementCount();
+	}
+
+	template<typename ContainerType>
+	static bool ContinueTimeSliceCopy(const ContainerType& ContainerFrom, ContainerType& ContainerTo, int32& InOutMaxSize)
+	{
+		int32 SizeCopied = 0;
+
+		for (int32 Index = ContainerTo.Num(); Index < ContainerFrom.Num() && (InOutMaxSize < 0 || SizeCopied < InOutMaxSize); Index++)
+		{
+			AddToContainerHelper(ContainerFrom, ContainerTo, Index);
+			SizeCopied += ContainerElementSizeHelper(ContainerFrom, Index);
+		}
+
+		// Update the maximum size left
+		if (InOutMaxSize > 0)
+		{
+			if (SizeCopied > InOutMaxSize)
+			{
+				InOutMaxSize = 0;
+			}
+			else
+			{
+				InOutMaxSize -= SizeCopied;
+			}
+		}
+
+		bool Done = ContainerTo.Num() == ContainerFrom.Num();
+		return Done;
+	}
+
+
+#if !UE_BUILD_SHIPPING
+	virtual void DebugDraw(ISpacialDebugDrawInterface<T>* InInterface) const override
+	{
+		if (InInterface)
+		{
+			if (Nodes.Num() > 0)
+			{
+				Nodes[0].DebugDraw(*InInterface, Nodes, { 1.f, 1.f, 1.f }, 5.f);
+			}
+			for (const TLeafType& Leaf : Leaves)
+			{
+				Leaf.DebugDrawLeaf(*InInterface, FLinearColor::MakeRandomColor(), 10.f);
+			}
+		}
+	}
+#endif
+
 
 	TAABBTree(const TAABBTree<TPayloadType, TLeafType, bMutable, T>& Other)
 		: ISpatialAcceleration<TPayloadType, T, 3>(StaticType)
@@ -1792,12 +2046,21 @@ private:
 		, MaxPayloadBounds(Other.MaxPayloadBounds)
 		, MaxNumToProcess(Other.MaxNumToProcess)
 		, NumProcessedThisSlice(Other.NumProcessedThisSlice)
+		, bShouldRebuild(Other.bShouldRebuild)
 	{
 
 	}
 
+	virtual ISpatialAcceleration<TPayloadType, T, 3>& operator=(const ISpatialAcceleration<TPayloadType, T, 3>& Other) override
+	{
+		
+		check(Other.GetType() == ESpatialAcceleration::AABBTree);
+		return operator=(static_cast<const TAABBTree<TPayloadType, TLeafType, bMutable, T>&>(Other));
+	}
+
 	TAABBTree<TPayloadType,TLeafType, bMutable, T>& operator=(const TAABBTree<TPayloadType,TLeafType,bMutable, T>& Rhs)
 	{
+		ISpatialAcceleration<TPayloadType, T, 3>::operator=(Rhs);
 		ensure(Rhs.WorkStack.Num() == 0);
 		//ensure(Rhs.WorkPool.Num() == 0);
 		//ensure(Rhs.WorkPoolFreeList.Num() == 0);
@@ -1828,6 +2091,7 @@ private:
 			MaxPayloadBounds = Rhs.MaxPayloadBounds;
 			MaxNumToProcess = Rhs.MaxNumToProcess;
 			NumProcessedThisSlice = Rhs.NumProcessedThisSlice;
+			bShouldRebuild = Rhs.bShouldRebuild;
 		}
 
 		return *this;
@@ -1862,6 +2126,8 @@ private:
 	TArray<int32> WorkStack;
 	TArray<int32> WorkPoolFreeList;
 	TArray<FWorkSnapshot> WorkPool;
+
+	bool bShouldRebuild;  // Contract: this can only ever be cleared by calling the ClearShouldRebuild method
 };
 
 template<typename TPayloadType, typename TLeafType, bool bMutable, typename T>

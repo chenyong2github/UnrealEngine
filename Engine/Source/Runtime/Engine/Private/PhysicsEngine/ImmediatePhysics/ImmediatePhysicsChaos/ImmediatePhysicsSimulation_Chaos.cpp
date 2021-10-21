@@ -187,6 +187,7 @@ Chaos::DebugDraw::FChaosDebugDrawSettings ChaosImmPhysDebugDebugDrawSettings(
 	/* VelScale =					*/ 0.0f,
 	/* AngVelScale =				*/ 0.0f,
 	/* ImpulseScale =				*/ 0.0f,
+	/* PushOutScale =				*/ 0.0f,
 	/* InertiaScale =				*/ 0.0f,
 	/* DrawPriority =				*/ 10.0f,
 	/* bShowSimple =				*/ true,
@@ -210,6 +211,7 @@ FAutoConsoleVariableRef CVarChaosImmPhysLineShapeThickness(TEXT("p.Chaos.ImmPhys
 FAutoConsoleVariableRef CVarChaosImmPhysVelScale(TEXT("p.Chaos.ImmPhys.DebugDraw.VelScale"), ChaosImmPhysDebugDebugDrawSettings.VelScale, TEXT("If >0 show velocity when drawing particle transforms."));
 FAutoConsoleVariableRef CVarChaosImmPhysAngVelScale(TEXT("p.Chaos.ImmPhys.DebugDraw.AngVelScale"), ChaosImmPhysDebugDebugDrawSettings.AngVelScale, TEXT("If >0 show angular velocity when drawing particle transforms."));
 FAutoConsoleVariableRef CVarChaosImmPhysImpulseScale(TEXT("p.Chaos.ImmPhys.DebugDraw.ImpulseScale"), ChaosImmPhysDebugDebugDrawSettings.ImpulseScale, TEXT("If >0 show impulses when drawing collisions."));
+FAutoConsoleVariableRef CVarChaosImmPhysPushOutScale(TEXT("p.Chaos.ImmPhys.DebugDraw.PushOutScale"), ChaosImmPhysDebugDebugDrawSettings.PushOutScale, TEXT("If >0 show pushouts when drawing collisions."));
 FAutoConsoleVariableRef CVarChaosImmPhysScale(TEXT("p.Chaos.ImmPhys.DebugDraw.Scale"), ChaosImmPhysDebugDebugDrawSettings.DrawScale, TEXT("Scale applied to all Chaos Debug Draw line lengths etc."));
 #endif
 
@@ -347,6 +349,7 @@ namespace ImmediatePhysics_Chaos
 		Implementation->NarrowPhase.GetContext().bFilteringEnabled = false;
 		Implementation->NarrowPhase.GetContext().bDeferUpdate = true;
 		Implementation->NarrowPhase.GetContext().bAllowManifolds = false;
+		Implementation->NarrowPhase.GetContext().CollisionAllocator = &Implementation->Collisions.GetConstraintAllocator();
 
 
 #if CHAOS_DEBUG_DRAW
@@ -367,48 +370,6 @@ namespace ImmediatePhysics_Chaos
 			{
 				DebugDrawDynamicParticles(3, 3, 1.0f);
 				DebugDrawConstraints(3, 3, 1.0f);
-			});
-		Implementation->Collisions.SetPostApplyCallback(
-			[this](const FReal Dt, const TArray<FPBDCollisionConstraintHandle*>& InConstraintHandles)
-			{
-				if (ChaosImmediate_DebugDrawCollisions == 4)
-				{
-					DebugDraw::DrawCollisions(Implementation->SimulationSpace.Transform, Implementation->Collisions, 0.3f, &ChaosImmPhysDebugDebugDrawSettings);
-				}
-				DebugDrawDynamicParticles(4, 4, 0.5f);
-			});
-		Implementation->Collisions.SetPostApplyPushOutCallback(
-			[this](const FReal Dt, const TArray<FPBDCollisionConstraintHandle*>& InConstraintHandles, bool bRequiresAnotherIteration)
-			{
-				if (ChaosImmediate_DebugDrawCollisions == 4)
-				{
-					DebugDraw::DrawCollisions(Implementation->SimulationSpace.Transform, Implementation->Collisions, 0.6f, &ChaosImmPhysDebugDebugDrawSettings);
-				}
-			});
-		Implementation->Joints.SetPreApplyCallback(
-			[this](const FReal Dt, const TArray<FPBDJointConstraintHandle*>& InConstraintHandles)
-			{
-				if (ChaosImmediate_DebugDrawJoints == 4)
-				{
-					DebugDraw::DrawJointConstraints(Implementation->SimulationSpace.Transform, InConstraintHandles, 0.3f, DebugDraw::FChaosDebugDrawJointFeatures::MakeDefault(), &ChaosImmPhysDebugDebugDrawSettings);
-				}
-			});
-		Implementation->Joints.SetPostApplyCallback(
-			[this](const FReal Dt, const TArray<FPBDJointConstraintHandle*>& InConstraintHandles)
-			{
-				if (ChaosImmediate_DebugDrawJoints == 4)
-				{
-					DebugDraw::DrawJointConstraints(Implementation->SimulationSpace.Transform, InConstraintHandles, 0.6f, DebugDraw::FChaosDebugDrawJointFeatures::MakeDefault(), &ChaosImmPhysDebugDebugDrawSettings);
-				}
-				DebugDrawDynamicParticles(4, 4, 0.5f);
-			});
-		Implementation->Joints.SetPostProjectCallback(
-			[this](const FReal Dt, const TArray<FPBDJointConstraintHandle*>& InConstraintHandles)
-			{
-				if (ChaosImmediate_DebugDrawJoints == 4)
-				{
-					DebugDraw::DrawJointConstraints(Implementation->SimulationSpace.Transform, InConstraintHandles, 0.6f, DebugDraw::FChaosDebugDrawJointFeatures::MakeDefault(), &ChaosImmPhysDebugDebugDrawSettings);
-				}
 			});
 #endif
 	}

@@ -5,6 +5,7 @@
 #include "Chaos/Collision/NarrowPhase.h"
 #include "Chaos/Collision/SpatialAccelerationBroadPhase.h"
 #include "Chaos/Collision/SpatialAccelerationCollisionDetector.h"
+#include "Chaos/Evolution/SolverBodyContainer.h"
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDRigidsEvolution.h"
 #include "Chaos/PerParticleAddImpulses.h"
@@ -18,15 +19,16 @@
 
 namespace Chaos
 {
+	class FCollisionConstraintAllocator;
 	class FChaosArchive;
 	class IResimCacheBase;
 	class FEvolutionResimCache;
 
-	CHAOS_API extern FRealSingle HackMaxAngularVelocity;
-	CHAOS_API extern FRealSingle HackMaxVelocity;
-
-	CHAOS_API extern FRealSingle HackLinearDrag;
-	CHAOS_API extern FRealSingle HackAngularDrag;
+	namespace CVars
+	{
+		CHAOS_API extern FRealSingle HackMaxAngularVelocity;
+		CHAOS_API extern FRealSingle HackMaxVelocity;
+	}
 
 	using FPBDRigidsEvolutionCallback = TFunction<void()>;
 
@@ -64,18 +66,13 @@ namespace Chaos
 		using Base::NumIslands;
 		using Base::GetNonDisabledClusteredView;
 		using Base::DisableParticle;
-		using Base::PrepareIteration;
 		using Base::GetConstraintGraph;
-		using Base::ApplyConstraints;
-		using Base::UpdateVelocities;
 		using Base::PhysicsMaterials;
 		using Base::PerParticlePhysicsMaterials;
 		using Base::ParticleDisableCount;
 		using Base::SolverPhysicsMaterials;
-		using Base::UnprepareIteration;
 		using Base::CaptureRewindData;
 		using Base::Collided;
-		using Base::SetParticleUpdateVelocityFunction;
 		using Base::SetParticleUpdatePositionFunction;
 		using Base::AddForceFunction;
 		using Base::AddConstraintRule;
@@ -97,19 +94,16 @@ namespace Chaos
 		static constexpr int32 DefaultNumIterations = 8;
 		static constexpr int32 DefaultNumCollisionPairIterations = 1;
 		static constexpr int32 DefaultNumPushOutIterations = 1;
-		static constexpr int32 DefaultNumCollisionPushOutPairIterations = 3;
+		static constexpr int32 DefaultNumCollisionPushOutPairIterations = 1;
 		static constexpr FRealSingle DefaultCollisionMarginFraction = 0.1f;
 		static constexpr FRealSingle DefaultCollisionMarginMax = 100.0f;
 		static constexpr FRealSingle DefaultCollisionCullDistance = 5.0f;
-		static constexpr int32 DefaultNumJointPairIterations = 3;
-		static constexpr int32 DefaultNumJointPushOutPairIterations = 0;
+		static constexpr int32 DefaultNumJointPairIterations = 1;
+		static constexpr int32 DefaultNumJointPushOutPairIterations = 1;
 		static constexpr int32 DefaultRestitutionThreshold = 1000;
 
-		// @todo(chaos): Required by clustering - clean up
-		using Base::ApplyPushOut;
-
 		CHAOS_API FPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, const TArray<ISimCallbackObject*>* InCollisionModifiers = nullptr, bool InIsSingleThreaded = false);
-		CHAOS_API ~FPBDRigidsEvolutionGBF() {}
+		CHAOS_API ~FPBDRigidsEvolutionGBF();
 
 		FORCEINLINE void SetPostIntegrateCallback(const FPBDRigidsEvolutionCallback& Cb)
 		{
@@ -191,8 +185,8 @@ namespace Chaos
 			FPerParticleEtherDrag EtherDragRule;
 			FPerParticlePBDEulerStep EulerStepRule;
 
-			const FReal MaxAngularSpeedSq = HackMaxAngularVelocity * HackMaxAngularVelocity;
-			const FReal MaxSpeedSq = HackMaxVelocity * HackMaxVelocity;
+			const FReal MaxAngularSpeedSq = CVars::HackMaxAngularVelocity * CVars::HackMaxAngularVelocity;
+			const FReal MaxSpeedSq = CVars::HackMaxVelocity * CVars::HackMaxVelocity;
 			InParticles.ParallelFor([&](auto& GeomParticle, int32 Index) {
 				//question: can we enforce this at the API layer? Right now islands contain non dynamic which makes this hard
 				auto PBDParticle = GeomParticle.CastToRigidParticle();
@@ -212,21 +206,21 @@ namespace Chaos
 					AddImpulsesRule.Apply(Particle, Dt);
 					EtherDragRule.Apply(Particle, Dt);
 
-					if (HackMaxAngularVelocity >= 0.f)
+					if (CVars::HackMaxAngularVelocity >= 0.f)
 					{
 						const FReal AngularSpeedSq = Particle.W().SizeSquared();
 						if (AngularSpeedSq > MaxAngularSpeedSq)
 						{
-							Particle.W() = Particle.W() * (HackMaxAngularVelocity / FMath::Sqrt(AngularSpeedSq));
+							Particle.W() = Particle.W() * (CVars::HackMaxAngularVelocity / FMath::Sqrt(AngularSpeedSq));
 						}
 					}
 
-					if (HackMaxVelocity >= 0.f)
+					if (CVars::HackMaxVelocity >= 0.f)
 					{
 						const FReal SpeedSq = Particle.V().SizeSquared();
 						if (SpeedSq > MaxSpeedSq)
 						{
-							Particle.V() = Particle.V() * (HackMaxVelocity / FMath::Sqrt(SpeedSq));
+							Particle.V() = Particle.V() * (CVars::HackMaxVelocity / FMath::Sqrt(SpeedSq));
 						}
 					}
 
@@ -251,6 +245,23 @@ namespace Chaos
 			}
 		}
 
+		// Pre-solver phase for handling special constraints (used for CCD)
+		void ApplyConstraintsPhase0(const FReal Dt, int32 Island);
+
+		// First phase of constraint solver
+		// For GBF this is the velocity solve phase
+		// For PBD/QuasiPBD this is the position solve phase
+		void ApplyConstraintsPhase1(const FReal Dt, int32 Island);
+
+		// Calculate the implicit velocites based on the change in position from ApplyConstraintsPhase1
+		void SetImplicitVelocities(const FReal Dt, int32 Island);
+		
+		// Second phase of constraint solver (after implicit velocity calculation following results of phase 1)
+		// For GBF this is the pushout phase
+		// For QuasiPBD this is the velocity solve phase
+		void ApplyConstraintsPhase2(const FReal Dt, int32 Island);
+
+
 		CHAOS_API void Serialize(FChaosArchive& Ar);
 
 		CHAOS_API TUniquePtr<IResimCacheBase> CreateExternalResimCache() const;
@@ -263,6 +274,9 @@ namespace Chaos
 	protected:
 
 		CHAOS_API void AdvanceOneTimeStepImpl(const FReal dt, const FSubStepInfo& SubStepInfo);
+
+		void GatherSolverInput(FReal Dt, int32 Island);
+		void ScatterSolverOutput(FReal Dt, int32 Island);
 		
 		FEvolutionResimCache* GetCurrentStepResimCache()
 		{
@@ -282,6 +296,9 @@ namespace Chaos
 		FSpatialAccelerationBroadPhase BroadPhase;
 		FNarrowPhase NarrowPhase;
 		FSpatialAccelerationCollisionDetector CollisionDetector;
+
+		// @todo(chaos): these are transient and the arrays should belong in the Island when we have one...
+		TArray<FSolverBodyContainer> IslandSolverBodies;
 
 		FPBDRigidsEvolutionCallback PostIntegrateCallback;
 		FPBDRigidsEvolutionCallback PostDetectCollisionsCallback;

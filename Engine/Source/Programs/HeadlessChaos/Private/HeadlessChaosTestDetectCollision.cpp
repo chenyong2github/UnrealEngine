@@ -11,6 +11,11 @@
 #include "Chaos/Utilities.h"
 #include "Modules/ModuleManager.h"
 
+namespace Chaos
+{
+	extern bool bChaos_Collision_Manifold_FixNormalsInWorldSpace;
+}
+
 namespace ChaosTest 
 {
 	using namespace Chaos;
@@ -29,7 +34,10 @@ namespace ChaosTest
 		EXPECT_NEAR(ContactPoint.ShapeContactNormal.X, ShapeContactNormal.X, NormalTolerance);
 		EXPECT_NEAR(ContactPoint.ShapeContactNormal.Y, ShapeContactNormal.Y, NormalTolerance);
 		EXPECT_NEAR(ContactPoint.ShapeContactNormal.Z, ShapeContactNormal.Z, NormalTolerance);
-		EXPECT_EQ(ContactPoint.ContactNormalOwnerIndex, NormalOwnerIndex);
+		if (!bChaos_Collision_Manifold_FixNormalsInWorldSpace)
+		{
+			EXPECT_EQ(ContactPoint.ContactNormalOwnerIndex, NormalOwnerIndex);
+		}
 		EXPECT_NEAR(ContactPoint.Normal.X, Normal.X, NormalTolerance);
 		EXPECT_NEAR(ContactPoint.Normal.Y, Normal.Y, NormalTolerance);
 		EXPECT_NEAR(ContactPoint.Normal.Z, Normal.Z, NormalTolerance);

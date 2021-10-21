@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 
 #include "Chaos/DenseMatrix.h"
+#include "Chaos/Evolution/SolverBody.h"
 #include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/PBDJointConstraintTypes.h"
 #include "Chaos/PBDJointConstraintUtilities.h"
@@ -11,6 +12,11 @@
 
 namespace Chaos
 {
+	class FPBDJointSolver;
+
+	UE_DEPRECATED(4.27, "Use FPBDJointSolver")
+	typedef FPBDJointSolver FJointSolverGaussSeidel;
+
 	/**
 	 * Calculate new positions and rotations for a pair of bodies connected by a joint.
 	 *
@@ -19,133 +25,148 @@ namespace Chaos
 	 *
 	 * \see FJointSolverCholesky
 	 */
-	class FJointSolverGaussSeidel
+	class FPBDJointSolver
 	{
 	public:
 		static const int32 MaxConstrainedBodies = 2;
 
-		FORCEINLINE const FVec3& GetP(const int32 Index) const
+		// Access to the SolverBodies that the constraint is operating on.
+		// \note SolverBodies are transient and exist only as long as we are in the Island's constraint solver loop
+		inline FConstraintSolverBody& Body(int32 BodyIndex)
 		{
-			checkSlow(Index < MaxConstrainedBodies);
-			return Ps[Index];
+			check((BodyIndex >= 0) && (BodyIndex < 2));
+			check(SolverBodies[BodyIndex].IsValid());
+
+			return SolverBodies[BodyIndex];
 		}
 
-		FORCEINLINE const FRotation3& GetQ(const int32 Index) const
+		inline const FConstraintSolverBody& Body(int32 BodyIndex) const
 		{
-			checkSlow(Index < MaxConstrainedBodies);
-			return Qs[Index];
+			check((BodyIndex >= 0) && (BodyIndex < 2));
+			check(SolverBodies[BodyIndex].IsValid());
+
+			return SolverBodies[BodyIndex];
 		}
 
-		FORCEINLINE const FVec3& GetInitP(const int32 Index) const
+		inline const FVec3& X(int BodyIndex) const
 		{
-			checkSlow(Index < MaxConstrainedBodies);
-			return InitPs[Index];
+			return Body(BodyIndex).X();
 		}
 
-		FORCEINLINE const FRotation3& GetInitQ(const int32 Index) const
+		inline const FRotation3& R(int BodyIndex) const
 		{
-			checkSlow(Index < MaxConstrainedBodies);
-			return InitQs[Index];
+			return Body(BodyIndex).R();
 		}
 
-		FORCEINLINE const FVec3& GetV(const int32 Index) const
+		inline const FVec3& P(int BodyIndex) const
 		{
-			checkSlow(Index < MaxConstrainedBodies);
-			return Vs[Index];
+			return Body(BodyIndex).P();
 		}
 
-		FORCEINLINE const FVec3& GetW(const int32 Index) const
+		inline const FRotation3& Q(int BodyIndex) const
 		{
-			checkSlow(Index < MaxConstrainedBodies);
-			return Ws[Index];
+			return Body(BodyIndex).Q();
 		}
 
-		FORCEINLINE const FVec3& GetNetLinearImpulse() const
+		inline const FVec3& V(int BodyIndex) const
+		{
+			return Body(BodyIndex).V();
+		}
+
+		inline const FVec3& W(int BodyIndex) const
+		{
+			return Body(BodyIndex).W();
+		}
+
+		inline FReal InvM(int32 BodyIndex) const
+		{
+			return Body(BodyIndex).InvM();
+		}
+
+		inline FMatrix33 InvI(int32 BodyIndex) const
+		{
+			return Body(BodyIndex).InvI();
+		}
+
+		inline const FVec3& GetNetLinearImpulse() const
 		{
 			return NetLinearImpulse;
 		}
 
-		FORCEINLINE const FVec3& GetNetAngularImpulse() const
+		inline const FVec3& GetNetAngularImpulse() const
 		{
 			return NetAngularImpulse;
 		}
 
-		FORCEINLINE int32 GetNumActiveConstraints() const
+		inline int32 GetNumActiveConstraints() const
 		{
 			// We use -1 as unitialized, but that should not be exposed outside the solver
 			return FMath::Max(NumActiveConstraints, 0);
 		}
 
-		FORCEINLINE bool GetIsActive() const
+		inline bool GetIsActive() const
 		{
 			return bIsActive;
 		}
 
-		FORCEINLINE FReal InvM(int32 index) const
-		{
-			return InvMs[index];
-		}
 
+		FPBDJointSolver();
 
-		FJointSolverGaussSeidel();
-
+		// Called once per frame to initialze the joint solver from the joint settings
 		void Init(
 			const FReal Dt,
+			const FSolverBodyPtrPair& SolverBodyPair,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
-			const FVec3& PrevP0,
-			const FVec3& PrevP1,
-			const FRotation3& PrevQ0,
-			const FRotation3& PrevQ1,
-			const FReal InvM0,
-			const FVec3& InvIL0,
-			const FReal InvM1,
-			const FVec3& InvIL1,
 			const FRigidTransform3& XL0,
 			const FRigidTransform3& XL1);
 
+		void Deinit();
+
+		// @todo(chaos): this doesn't do much now we have SolverBodies - remove it
 		void Update(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		// Run the position solve for the constraints
+		void ApplyConstraints(
 			const FReal Dt,
 			const FReal InSolverStiffness,
 			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FVec3& P0,
-			const FRotation3& Q0,
-			const FVec3& V0,
-			const FVec3& W0,
-			const FVec3& P1,
-			const FRotation3& Q1,
-			const FVec3& V1,
-			const FVec3& W1);
-
-		void ApplyConstraints(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
+		// Run the velocity solve for the constraints
 		void ApplyVelocityConstraints(
 			const FReal Dt,
+			const FReal InSolverStiffness,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
+		// Apply projection (a position solve where the parent has infinite mass) for the constraints
+		// @todo(chaos): this can be build into the Apply phase when the whole solver is PBD
 		void ApplyProjections(
 			const FReal Dt,
+			const FReal InSolverStiffness,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
 	private:
 
+		// Initialize state dependent on particle positions
 		void InitDerivedState();
 
+		// Update state dependent on particle positions (after moving one or both of them)
 		void UpdateDerivedState(const int32 BodyIndex);
-
 		void UpdateDerivedState();
 
+		// Check to see if this constraint still needs further solved
+		// @todo(chaos): the term "active" is used inconsistently with the meaning elsewhere. Active should
+		// mean "contributed impusles". Should use "solved" rather than "active"
 		bool UpdateIsActive(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
-
 
 		void ApplyPositionConstraints(
 			const FReal Dt,
@@ -217,6 +238,7 @@ namespace Chaos
 			const FReal JointStiffness,
 			const FVec3& Axis,
 			const FReal Delta,
+			const FVec3& Connector0Correction = FVec3(0),
 			const int32 LinearHardLambdaIndex = -1);
 
 		void ApplyPositionConstraintSoft(
@@ -470,7 +492,9 @@ namespace Chaos
 
 		void ApplyLinearVelocityConstraint(
 			const FReal Stiffness,
-			const FVec3& Axis);
+			const FVec3& Axis,
+			const FVec3& Connector0Correction = FVec3(0),
+			const FReal TargetVel = 0);
 
 		void ApplyPointVelocityConstraint(
 			const FReal Dt,
@@ -535,7 +559,8 @@ namespace Chaos
 
 		void ApplyAngularVelocityConstraint(
 			const FReal Stiffness,
-			const FVec3& Axis);
+			const FVec3& Axis,
+			const FReal TargetVel = 0.0f);
 
 		void ApplyLockedRotationVelocityConstraints(
 			const FReal Dt,
@@ -593,65 +618,68 @@ namespace Chaos
 			AngularConstraintPadding[(int32)ConstraintIndex] = Padding;
 		}
 
+		// Calculate linear velocities along constraint axes based on the constraint type in JointSettings. CV is the relative linear velocity of joint connectors.
+		void CalculateConstraintAxisLinearVelocities(
+			const FPBDJointSettings& JointSettings,
+			FVec3& ConstraintAxisLinearVelocities) const;
 
-		using FDenseMatrix66 = TDenseMatrix<6 * 6>;
-		using FDenseMatrix61 = TDenseMatrix<6 * 1>;
+		void CalculateSphericalConstraintAxisLinearVelocities(
+			const FPBDJointSettings& JointSettings,
+			FVec3& ConstraintAxisLinearVelocities
+			) const;
 
-		int32 AddLinear(
-			const FReal Dt,
-			const FVec3& Axis,
-			const FVec3& ConnectorOffset0,
-			const FVec3& ConnectorOffset1,
-			const FReal Error,
-			const FReal VelTarget,
-			const FReal Stiffness,
-			const FReal Damping,
-			const bool bSoft,
-			const bool bAccelerationMode,
-			FDenseMatrix66& J0,
-			FDenseMatrix66& J1,
-			FDenseMatrix61& C,
-			FDenseMatrix61& V,
-			FDenseMatrix61& S,
-			FDenseMatrix61& D);
+		void CalculateCylindricalConstraintAxisLinearVelocities(
+			const int32 AxisIndex,
+			const EJointMotionType AxialMotion,
+			const EJointMotionType RadialMotion,
+			const FPBDJointSettings& JointSettings,
+			FVec3& ConstraintAxisLinearVelocities) const;
 
-		int32 AddAngular(
-			const FReal Dt,
-			const FVec3& Axis,
-			const FReal Error,
-			const FReal VelTarget,
-			const FReal Stiffness,
-			const FReal Damping,
-			const bool bSoft,
-			const bool bAccelerationMode,
-			FDenseMatrix66& J0,
-			FDenseMatrix66& J1,
-			FDenseMatrix61& C,
-			FDenseMatrix61& V,
-			FDenseMatrix61& S,
-			FDenseMatrix61& D);
+		void CalculatePlanarConstraintAxisLinearVelocities(
+			const int32 AxisIndex,
+			const EJointMotionType AxialMotion,
+			const FPBDJointSettings& JointSettings,
+			FVec3& ConstraintAxisLinearVelocities) const;
+
+		// Calculate angular velocities along constraint axes based on the constraint type in JointSettings. CW is the relative angular velocity of joint connectors.
+		void CalculateConstraintAxisAngularVelocities(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			FVec3& ConstraintAxisAngularVelocities
+			) const;
+
+		void CalculateTwistConstraintAxisAngularVelocities(
+			const FPBDJointSettings& JointSettings,
+			FVec3& ConstraintAxisAngularVelocities) const;
+
+		void CalculateConeConstraintAxisAngularVelocities(
+			const FPBDJointSettings& JointSettings,
+			FVec3& ConstraintAxisAngularVelocities) const;
+
+		void CalculateDualConeSwingConstraintAxisAngularVelocities(
+			const FPBDJointSettings& JointSettings,
+			const EJointAngularConstraintIndex SwingConstraintIndex,
+			FVec3& ConstraintAxisAngularVelocities) const;
+
+		void CalculateSwingConstraintAxisAngularVelocities(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			const EJointAngularConstraintIndex SwingConstraintIndex,
+			FVec3& ConstraintAxisAngularVelocities) const;
+
+		// The cached body state on which the joint operates
+		FConstraintSolverBody SolverBodies[MaxConstrainedBodies];
 
 		// Local-space constraint settings
-		FRigidTransform3 XLs[MaxConstrainedBodies];	// Local-space joint connector transforms
-		FVec3 InvILs[MaxConstrainedBodies];			// Local-space inverse inertias
-		FReal InvMs[MaxConstrainedBodies];			// Inverse masses
+		FRigidTransform3 LocalConnectorXs[MaxConstrainedBodies];	// Local(CoM)-space joint connector transforms
 
-		// World-space constraint state
-		FVec3 Xs[MaxConstrainedBodies];				// World-space joint connector positions
-		FRotation3 Rs[MaxConstrainedBodies];		// World-space joint connector rotations
-
-		// World-space body state
-		FVec3 Ps[MaxConstrainedBodies];				// World-space particle CoM positions
-		FRotation3 Qs[MaxConstrainedBodies];		// World-space particle CoM rotations
-		FVec3 Vs[MaxConstrainedBodies];				// World-space particle CoM velocities
-		FVec3 Ws[MaxConstrainedBodies];				// World-space particle CoM angular velocities
-		FMatrix33 InvIs[MaxConstrainedBodies];		// World-space inverse inertias
+		// World-space constraint settings
+		FVec3 ConnectorXs[MaxConstrainedBodies];			// World-space joint connector positions
+		FRotation3 ConnectorRs[MaxConstrainedBodies];		// World-space joint connector rotations
 
 		// XPBD Initial iteration world-space body state
-		FVec3 InitPs[MaxConstrainedBodies];			// World-space particle positions
-		FRotation3 InitQs[MaxConstrainedBodies];	// World-space particle rotations
-		FVec3 InitXs[MaxConstrainedBodies];			// World-space joint connector positions
-		FRotation3 InitRs[MaxConstrainedBodies];	// World-space joint connector rotations
+		FVec3 InitConnectorXs[MaxConstrainedBodies];		// World-space joint connector positions
+		FRotation3 InitConnectorRs[MaxConstrainedBodies];	// World-space joint connector rotations
 
 		// Accumulated Impulse and AngularImpulse (Impulse * Dt since they are mass multiplied position corrections)
 		FVec3 NetLinearImpulse;
@@ -672,7 +700,7 @@ namespace Chaos
 		FVec3 RotationDriveLambdas;
 
 		// Solver stiffness - increased over iterations for stability
-		// @todo(chaos): remove Stiffness from SolverSettings (because it is not a solver constant)
+		// \todo(chaos): remove Stiffness from SolverSettings (because it is not a solver constant)
 		FReal SolverStiffness;
 
 		// Constraint padding which can act something like a velocity constraint (for reslockfreetitution)
@@ -686,6 +714,8 @@ namespace Chaos
 		// Tracking whether the solver is resolved
 		FVec3 LastPs[MaxConstrainedBodies];			// Positions at the beginning of the iteration
 		FRotation3 LastQs[MaxConstrainedBodies];	// Rotations at the beginning of the iteration
+		FVec3 InitConstraintAxisLinearVelocities; // Linear velocities along the constraint axes at the begining of the frame, used by restitution
+		FVec3 InitConstraintAxisAngularVelocities; // Angular velocities along the constraint axes at the begining of the frame, used by restitution
 		int32 NumActiveConstraints;					// The number of active constraints and drives in the last iteration (-1 initial value)
 		bool bIsActive;								// Whether any constraints actually moved any bodies in last iteration
 	};

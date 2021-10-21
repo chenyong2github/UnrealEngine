@@ -250,15 +250,29 @@ EConvertQueryResult ConvertQueryImpactHit(const UWorld* World, const FHitLocatio
 	FHitFlags Flags = GetFlags(Hit);
 	checkSlow(Flags & EHitFlags::Distance);
 
+	const FPhysicsShape* pHitShape = GetShape(Hit);
+	const FPhysicsActor* pHitActor = GetActor(Hit);
+
+	const uint32 InternalFaceIndex = GetInternalFaceIndex(Hit);
 	const bool bInitialOverlap = HadInitialOverlap(Hit);
+
 	if (bInitialOverlap && Geom)
 	{
 		ConvertOverlappedShapeToImpactHit(World, Hit, StartLoc, EndLoc, OutResult, *Geom, QueryTM, QueryFilter, bReturnPhysMat);
+
+		if(pHitShape)
+		{
+			const bool bTriMesh = GetGeometryType(*pHitShape) == ECollisionShapeType::Trimesh;
+			const bool bValidInternalFace = InternalFaceIndex != GetInvalidPhysicsFaceIndex();
+			if(bReturnFaceIndex && bTriMesh && bValidInternalFace)
+			{
+				OutResult.FaceIndex = GetTriangleMeshExternalFaceIndex(*pHitShape, InternalFaceIndex);
+			}
+		}
+
 		return EConvertQueryResult::Valid;
 	}
 
-	const FPhysicsShape* pHitShape = GetShape(Hit);
-	const FPhysicsActor* pHitActor = GetActor(Hit);
 	if ((pHitShape == nullptr) || (pHitActor == nullptr))
 	{
 		OutResult.Reset();
@@ -267,8 +281,6 @@ EConvertQueryResult ConvertQueryImpactHit(const UWorld* World, const FHitLocatio
 
 	const FPhysicsShape& HitShape = *pHitShape;
 	const FPhysicsActor& HitActor = *pHitActor;
-
-	const uint32 InternalFaceIndex = GetInternalFaceIndex(Hit);
 
 	// See if this is a 'blocking' hit
 	const FCollisionFilterData ShapeFilter = GetQueryFilterData(HitShape);

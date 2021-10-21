@@ -26,13 +26,7 @@ namespace Chaos
 		FPBDCollisionConstraints& GetCollisionContainer() { return CollisionContainer; }
 		FNarrowPhase& GetNarrowPhase() { return NarrowPhase; }
 
-		virtual void DetectCollisionsWithStats(const FReal Dt, CollisionStats::FStatData& StatData, FEvolutionResimCache* ResimCache) = 0;
-
-		void DetectCollisions(const FReal Dt)
-		{
-			CollisionStats::FStatData StatData(false);
-			DetectCollisionsWithStats(Dt, StatData, nullptr);
-		}
+		virtual void DetectCollisions(const FReal Dt, FEvolutionResimCache* ResimCache) = 0;
 
 	protected:
 		FNarrowPhase& NarrowPhase;

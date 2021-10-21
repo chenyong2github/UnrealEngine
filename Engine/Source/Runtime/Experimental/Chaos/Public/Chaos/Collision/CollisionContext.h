@@ -5,6 +5,8 @@
 
 namespace Chaos
 {
+	class FCollisionConstraintAllocator;
+
 	/**
 	 * Data passed down into the collision detection functions.
 	 */
@@ -16,6 +18,7 @@ namespace Chaos
 			, bDeferUpdate(true)
 			, bAllowManifolds(false)
 			, bForceDisableCCD(false)
+			, CollisionAllocator(nullptr)
 		{
 		}
 
@@ -32,5 +35,7 @@ namespace Chaos
 
 		// Force disable CCD
 		bool bForceDisableCCD;
+
+		FCollisionConstraintAllocator* CollisionAllocator;
 	};
 }

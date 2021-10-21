@@ -4,6 +4,7 @@
 #include "Chaos/Core.h"
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/Evolution/SimulationSpace.h"
+#include "Chaos/Evolution/SolverDatas.h"
 #include "Chaos/ParticleHandleFwd.h"
 
 
@@ -108,11 +109,11 @@ namespace Chaos
 		void IntegrateImplISPC(FReal Dt);
 		void ApplyKinematicTargets(FReal Dt, FReal StepFraction);
 		void DetectCollisions(FReal Dt);
-		void PrepareIteration(FReal Dt);
-		void UnprepareIteration(FReal Dt);
-		void ApplyConstraints(FReal Dt);
+		void GatherInput(FReal Dt);
+		void ScatterOutput(FReal Dt);
+		void ApplyConstraintsPhase1(FReal Dt);
 		void UpdateVelocities(FReal Dt);
-		void ApplyPushOutConstraints(FReal Dt);
+		void ApplyConstraintsPhase2(FReal Dt);
 		void UpdatePositions(FReal Dt);
 
 		FRigidParticleSOAs& Particles;
@@ -123,6 +124,7 @@ namespace Chaos
 
 		TArray<FSimpleConstraintRule*> ConstraintRules;
 		TArray<FSimpleConstraintRule*> PrioritizedConstraintRules;
+		FPBDIslandSolverData SolverData;
 
 		int32 NumApplyIterations;
 		int32 NumApplyPushOutIterations;

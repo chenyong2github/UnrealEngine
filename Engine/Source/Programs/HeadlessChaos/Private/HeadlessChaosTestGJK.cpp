@@ -1856,4 +1856,34 @@ namespace ChaosTest
 		NegativeScaleConvexTest();
 		NegativeScaleConvexTest2();
 	}
+
+	GTEST_TEST(GJKTests, BoxBoxWarmStartTest)
+	{
+		FAABB3 Box({ -50, -50, -50 }, { 50, 50, 50 });
+
+		FRigidTransform3 ATM = FRigidTransform3::Identity;
+		FRigidTransform3 BTM = FRigidTransform3(FVec3(0, 0, 105), FRotation3::FromIdentity());
+		FVec3 ClosestA, ClosestB, NormalA, NormalB;
+		FReal Penetration;
+
+		FGJKSimplexData WarmStartData;
+
+		GJKPenetrationWarmStartable<true>(Box, Box, BTM.GetRelativeTransformNoScale(ATM), FReal(0), FReal(0), Penetration, ClosestA, ClosestB, NormalA, NormalB, WarmStartData);
+		EXPECT_NEAR(Penetration, -5.0f, KINDA_SMALL_NUMBER);
+
+		GJKPenetrationWarmStartable<true>(Box, Box, BTM.GetRelativeTransformNoScale(ATM), FReal(0), FReal(0), Penetration, ClosestA, ClosestB, NormalA, NormalB, WarmStartData);
+		EXPECT_NEAR(Penetration, -5.0f, KINDA_SMALL_NUMBER);
+
+		BTM = FRigidTransform3(FVec3(0, 0, 145), FRotation3::FromIdentity());
+		GJKPenetrationWarmStartable<true>(Box, Box, BTM.GetRelativeTransformNoScale(ATM), FReal(0), FReal(0), Penetration, ClosestA, ClosestB, NormalA, NormalB, WarmStartData);
+		EXPECT_NEAR(Penetration, -45.0f, KINDA_SMALL_NUMBER);
+
+		BTM = FRigidTransform3(FVec3(0, 0, 145), FRotation3::FromAxisAngle(FVec3(1, 0, 0), FMath::DegreesToRadians(110.0f)));
+		GJKPenetrationWarmStartable<true>(Box, Box, BTM.GetRelativeTransformNoScale(ATM), FReal(0), FReal(0), Penetration, ClosestA, ClosestB, NormalA, NormalB, WarmStartData);
+		EXPECT_NEAR(Penetration, -30.9144f, KINDA_SMALL_NUMBER);
+
+		FReal Penetration2;
+		GJKPenetrationWarmStartable<true>(Box, Box, BTM.GetRelativeTransformNoScale(ATM), FReal(0), FReal(0), Penetration2, ClosestA, ClosestB, NormalA, NormalB, WarmStartData);
+		EXPECT_NEAR(Penetration2, Penetration, KINDA_SMALL_NUMBER);
+	}
 }

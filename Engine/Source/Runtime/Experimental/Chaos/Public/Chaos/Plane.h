@@ -130,6 +130,9 @@ public:
 		if (FMath::Abs(SignedDist) < Thickness)
 		{
 			//initial overlap so stop
+			//const FReal DirDotNormal = FVec3::DotProduct(Dir, (FVec3)MNormal);
+			//OutPosition = StartPoint;
+			//OutNormal = DirDotNormal < 0 ? MNormal : -MNormal;
 			OutTime = 0;
 			return true;
 		}

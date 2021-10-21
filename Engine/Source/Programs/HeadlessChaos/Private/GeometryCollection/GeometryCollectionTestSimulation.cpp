@@ -55,7 +55,7 @@ namespace GeometryCollectionTest
 		Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Box;
 		FVector BoxScale(Scale); 
 		Params.GeomTransform.SetScale3D(BoxScale); // Box dimensions
-		Params.GeomTransform.SetLocation(0.9f * Scale * FVector::UpVector);	// Don't start too deep in penetration or the pushout is too aggressive
+		Params.GeomTransform.SetLocation(0.99f * Scale * FVector::UpVector);	// Don't start too deep in penetration or the pushout is too aggressive
 		FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init(Params)->template As<FGeometryCollectionWrapper>();
 		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init()->template As<RigidBodyWrapper>();
 
@@ -107,7 +107,7 @@ namespace GeometryCollectionTest
 		FVector Scale(100.0f);
 		CreationParameters Params; Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Box;  Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Box;
 		Params.GeomTransform.SetScale3D(Scale); // Box size
-		Params.GeomTransform.SetLocation(0.9f * Scale * FVector::UpVector);	// Don't start too deep in penetration or the pushout is too aggressive
+		Params.GeomTransform.SetLocation(0.99f * Scale * FVector::UpVector);	// Don't start too deep in penetration or the pushout is too aggressive
 
 		FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init(Params)->template As<FGeometryCollectionWrapper>();
 		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init()->template As<RigidBodyWrapper>();
@@ -261,13 +261,13 @@ namespace GeometryCollectionTest
 				GCParticles[4]->SetCollisionGroup(-1);
 
 				EXPECT_TRUE(Transform[0].GetRotation() == FQuat::Identity); // Can use defaulted zero rotation to indicate that the
-				EXPECT_TRUE(Transform[1].GetRotation() == FQuat::Identity); // rigid has not been affected.
+				EXPECT_TRUE(Transform[1].GetRotation() == FQuat::Identity); // rigid has not been affected. Should we though??
 				EXPECT_TRUE(Transform[2].GetRotation() == FQuat::Identity);
 				EXPECT_TRUE(Transform[3].GetRotation() == FQuat::Identity);
 				EXPECT_TRUE(Transform[4].GetRotation() == FQuat::Identity);
 			}
 
-			if (Frame == 55)
+			if (Frame == 100)
 			{
 				EXPECT_NEAR(Transform[0].GetTranslation().Z, 50.0f, 1.0f);
 				EXPECT_NEAR(Transform[1].GetTranslation().Z, 50.0f, 1.0f);
@@ -275,7 +275,7 @@ namespace GeometryCollectionTest
 				EXPECT_FALSE(Transform[0].GetRotation() == FQuat::Identity); 
 				EXPECT_FALSE(Transform[1].GetRotation() == FQuat::Identity);
 				EXPECT_FALSE(Transform[2].GetRotation() == FQuat::Identity);
-				EXPECT_TRUE(Transform[3].GetRotation() == FQuat::Identity);
+				EXPECT_FALSE(Transform[3].GetRotation() == FQuat::Identity);
 				EXPECT_TRUE(Transform[4].GetRotation() == FQuat::Identity);
 			}
 			UnitTest.Advance();

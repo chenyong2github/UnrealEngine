@@ -76,7 +76,7 @@ namespace Chaos
 	//==========================================================================
 
 	template<class T, int d>
-	FVec3 GetContactLocation(const FRigidBodyPointContactConstraint& Contact)
+	FVec3 GetContactLocation(const FPBDCollisionConstraint& Contact)
 	{
 		return Contact.GetLocation();
 	}
@@ -172,9 +172,9 @@ namespace Chaos
 			// @todo(mlentine): We can precompute internal constraints which can filter some from the narrow phase tests but may not help much
 
 #if CHAOS_PARTICLEHANDLE_TODO
-			CollisionRule.UpdateConstraints(InParticles, Evolution.GetNonDisabledIndices(), Dt, AllActivatedChildren, AllIslandParticles.Array());
+			//CollisionRule.UpdateConstraints(InParticles, Evolution.GetNonDisabledIndices(), Dt, AllActivatedChildren, AllIslandParticles.Array());
 #else
-			CollisionRule.UpdateConstraints(Dt, AllIslandParticles);	//this seems wrong
+			//CollisionRule.UpdateConstraints(Dt, AllIslandParticles);	//this seems wrong
 #endif
 
 			Evolution.InitializeAccelerationStructures();
@@ -182,10 +182,10 @@ namespace Chaos
 			// Resolve collisions
 			PhysicsParallelFor(IslandsToRecollide.Num(), [&](int32 Island) {
 				// @todo(mlentine): This is heavy handed and probably can be simplified as we know only a little bit changed.
-				Evolution.UpdateAccelerationStructures(Island);
-				Evolution.ApplyConstraints(Dt, Island);
+				Evolution.UpdateAccelerationStructures(Dt, Island);
+				Evolution.ApplyConstraintsPhase1(Dt, Island);
 				// @todo(ccaulfield): should we also update velocities here? Evolution does...
-				Evolution.ApplyPushOut(Dt, Island);
+				Evolution.ApplyConstraintsPhase2(Dt, Island);
 				// @todo(ccaulfield): support sleep state update on evolution
 				//Evolution.UpdateSleepState(Island);
 			});

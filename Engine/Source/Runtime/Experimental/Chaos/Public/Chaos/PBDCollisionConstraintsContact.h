@@ -12,6 +12,7 @@ namespace Chaos
 
 	namespace Collisions
 	{
+		// @todo(chaos): remove this
 		struct FContactParticleParameters 
 		{
 			FContactParticleParameters()
@@ -70,14 +71,12 @@ namespace Chaos
 		};
 
 		// Update the constraint (re-runs collision detection for this contact)
-		extern void Update(FRigidBodyPointContactConstraint& Constraint, const FReal Dt);
+		extern void Update(FPBDCollisionConstraint& Constraint, const FReal Dt);
+		extern void UpdateSwept(FPBDCollisionConstraint& Constraint, const FReal Dt);
 
-		extern void Apply(FCollisionConstraintBase& Constraint, const FContactIterationParameters& IterationParameters, const FContactParticleParameters& ParticleParameters);
+		extern void Apply(FPBDCollisionConstraint& Constraint, const FContactIterationParameters& IterationParameters, const FContactParticleParameters& ParticleParameters);
 
-		extern void ApplyPushOut(FCollisionConstraintBase& Constraint, const TSet<const TGeometryParticleHandle<FReal, 3>*>& IsTemporarilyStatic,
-			const FContactIterationParameters& IterationParameters, const FContactParticleParameters& ParticleParameters, const FVec3& GravityDir = FVec3::DownVector);
-
-
+		extern void ApplyPushOut(FPBDCollisionConstraint& Constraint, const FContactIterationParameters& IterationParameters, const FContactParticleParameters& ParticleParameters);
 	}
 
 }

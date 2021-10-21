@@ -234,6 +234,31 @@ public:
 	}
 
 	/**
+	 * Constructs a new item at a given index of the array.
+	 *
+	 * @param Index							Index at which the new allocation will be done
+	 * @param Args							The arguments to forward to the constructor of the new item.
+	 * @return								Index to the new item
+	 */
+	template <typename... ArgsType>
+	FORCEINLINE int32 EmplaceAt(int32 Index, ArgsType&&... Args)
+	{
+		FSparseArrayAllocationInfo Allocation;
+		if(!AllocationFlags[Index])
+		{
+			Allocation = InsertUninitialized(Index);
+		}
+		else
+		{
+			Allocation.Index = Index;
+			Allocation.Pointer = &GetData(Allocation.Index).ElementData;			
+		}
+		
+		new(Allocation) ElementType(Forward<ArgsType>(Args)...);
+		return Allocation.Index;
+	}
+
+	/**
 	 * Allocates space for an element in the array at a given index.  The element is not initialized, and you must use the corresponding placement new operator
 	 * to construct the element in the allocated memory.
 	 */

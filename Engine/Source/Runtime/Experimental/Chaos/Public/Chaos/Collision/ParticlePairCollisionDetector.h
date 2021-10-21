@@ -19,7 +19,7 @@ namespace Chaos
 
 		FParticlePairBroadPhase& GetBroadPhase() { return BroadPhase; }
 
-		virtual void DetectCollisionsWithStats(const FReal Dt, CollisionStats::FStatData& StatData, FEvolutionResimCache*) override
+		virtual void DetectCollisions(const FReal Dt, FEvolutionResimCache* Unused) override
 		{
 			SCOPE_CYCLE_COUNTER(STAT_Collisions_Detect);
 			CHAOS_SCOPED_TIMER(DetectCollisions);
@@ -30,10 +30,12 @@ namespace Chaos
 				return;
 			}
 
-			CollisionContainer.UpdateConstraints(Dt);
+			CollisionContainer.BeginDetectCollisions();
 
 			// Collision detection pipeline: BroadPhase -> NarrowPhase -> Container
-			BroadPhase.ProduceOverlaps(Dt, CollisionContainer.GetConstraintsArray(), NarrowPhase, StatData);
+			BroadPhase.ProduceOverlaps(Dt, NarrowPhase);
+
+			CollisionContainer.EndDetectCollisions();
 		}
 
 	private:
