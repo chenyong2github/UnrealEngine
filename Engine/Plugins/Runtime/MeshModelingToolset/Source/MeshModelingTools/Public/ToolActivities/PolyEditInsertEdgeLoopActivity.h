@@ -150,7 +150,6 @@ protected:
 
 	FViewCameraState CameraState;
 
-	//FToolDataVisualizer ExistingEdgesRenderer;
 	FToolDataVisualizer PreviewEdgeRenderer;
 	FToolDataVisualizer ProblemTopologyRenderer;
 	FGroupTopologySelector::FSelectionSettings TopologySelectorSettings;
@@ -160,6 +159,11 @@ protected:
 
 	FInputRayHit HitTest(const FRay& WorldRay);
 	bool UpdateHoveredItem(const FRay& WorldRay);
+
+	// Safe inputs for the background compute to use, untouched by undo/redo/other CurrentMesh updates.
+	TSharedPtr<const UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> ComputeStartMesh;
+	TSharedPtr<const UE::Geometry::FGroupTopology, ESPMode::ThreadSafe> ComputeStartTopology;
+	void UpdateComputeInputs();
 
 	void ConditionallyUpdatePreview(int32 NewGroupID, double* NewInputLength = nullptr);
 	void ClearPreview();

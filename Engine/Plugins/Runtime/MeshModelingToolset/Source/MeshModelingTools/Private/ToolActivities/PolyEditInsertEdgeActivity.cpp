@@ -31,8 +31,8 @@ TUniquePtr<FDynamicMeshOperator> UPolyEditInsertEdgeActivity::MakeNewOperator()
 {
 	TUniquePtr<FGroupEdgeInsertionOp> Op = MakeUnique<FGroupEdgeInsertionOp>();
 
-	Op->OriginalMesh = ActivityContext->CurrentMesh;
-	Op->OriginalTopology = ActivityContext->CurrentTopology;
+	Op->OriginalMesh = ComputeStartMesh;
+	Op->OriginalTopology = ComputeStartTopology;
 	Op->SetTransform(TargetTransform);
 
 	if (Settings->InsertionMode == EGroupEdgeInsertionMode::PlaneCut)
@@ -90,7 +90,24 @@ void UPolyEditInsertEdgeActivity::Setup(UInteractiveTool* ParentToolIn)
 	ActivityContext = ParentTool->GetToolManager()->GetContextObjectStore()->FindContext<UPolyEditActivityContext>();
 
 	TopologySelector = ActivityContext->SelectionMechanic->GetTopologySelector();
+
+	ActivityContext->OnUndoRedo.AddWeakLambda(this, [this](bool bGroupTopologyModified)
+	{
+		UpdateComputeInputs();
+		ClearPreview();
+	});
 }
+
+void UPolyEditInsertEdgeActivity::UpdateComputeInputs()
+{
+	ComputeStartMesh = MakeShared<FDynamicMesh3>(*ActivityContext->CurrentMesh);
+
+	TSharedPtr<FGroupTopology> NonConstTopology = MakeShared<FGroupTopology>(*ActivityContext->CurrentTopology);
+	NonConstTopology->RetargetOnClonedMesh(ComputeStartMesh.Get());
+
+	ComputeStartTopology = NonConstTopology;
+}
+
 
 void UPolyEditInsertEdgeActivity::Shutdown(EToolShutdownType ShutdownType)
 {
@@ -104,6 +121,7 @@ void UPolyEditInsertEdgeActivity::Shutdown(EToolShutdownType ShutdownType)
 
 	TopologySelector.Reset();
 	Settings = nullptr;
+	ActivityContext->OnUndoRedo.RemoveAll(this);
 	ActivityContext = nullptr;
 
 	Super::Shutdown(ShutdownType);
@@ -129,6 +147,7 @@ EToolActivityStartResult UPolyEditInsertEdgeActivity::Start()
 
 	TargetTransform = ActivityContext->Preview->PreviewMesh->GetTransform();
 
+	UpdateComputeInputs();
 	SetupPreview();
 
 	ToolState = EState::GettingStart;
@@ -174,11 +193,20 @@ void UPolyEditInsertEdgeActivity::SetupPreview()
 	ActivityContext->Preview->OnOpCompleted.AddWeakLambda(this, [this](const FDynamicMeshOperator* UncastOp) {
 		const FGroupEdgeInsertionOp* Op = static_cast<const FGroupEdgeInsertionOp*>(UncastOp);
 
-		bLastComputeSucceeded = Op->bSucceeded;
 		LatestOpTopologyResult.Reset();
 		LatestOpChangedTids.Reset();
-
 		PreviewEdges.Reset();
+
+		// See if this compute is actually outdated, i.e. we changed the mesh
+		// out from under it.
+		if (Op->OriginalMesh != ComputeStartMesh)
+		{
+			bLastComputeSucceeded = false;
+			return;
+		}
+
+		bLastComputeSucceeded = Op->bSucceeded;
+
 		if (bLastComputeSucceeded)
 		{
 			Op->GetEdgeLocations(PreviewEdges);
@@ -221,6 +249,8 @@ void UPolyEditInsertEdgeActivity::Tick(float DeltaTime)
 			*ActivityContext->CurrentTopology = *LatestOpTopologyResult;
 			ActivityContext->CurrentTopology->RetargetOnClonedMesh(ActivityContext->CurrentMesh.Get());
 			
+			UpdateComputeInputs();
+
 			// Emit transaction
 			FGroupTopologySelection EmptySelection;
 			ActivityContext->EmitCurrentMeshChangeAndUpdate(LOCTEXT("EdgeInsertionTransactionName", "Edge Insertion"),

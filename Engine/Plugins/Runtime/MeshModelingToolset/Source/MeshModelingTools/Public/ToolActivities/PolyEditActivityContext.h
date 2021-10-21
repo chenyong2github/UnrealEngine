@@ -75,4 +75,13 @@ public:
 	 * appropriate undoable transaction with the given transaction label.
 	 */
 	TUniqueFunction<void(const FText& TransactionLabel)> EmitActivityStart;
+
+	/**
+	 * Gets broadcast when the CurrentMesh is modified by an undo/redo transaction emitted via
+	 * EmitCurrentMeshChangeAndUpdate. Only activities that issue multiple transactions via 
+	 * EmitCurrentMeshChangeAndUpdate during the same invocation need to use this, since a 
+	 * transaction that ends immediately after the call will not have to deal with the undo.
+	 */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnUndoRedo, bool bGroupTopologyChanged);
+	FOnUndoRedo OnUndoRedo;
 };

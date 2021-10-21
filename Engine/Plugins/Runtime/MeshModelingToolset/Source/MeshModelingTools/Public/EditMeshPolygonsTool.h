@@ -20,10 +20,12 @@
 PREDECLARE_GEOMETRY(class FGroupTopology);
 PREDECLARE_GEOMETRY(struct FGroupTopologySelection);
 
+class UCombinedTransformGizmo;
 class UDragAlignmentMechanic;
-class UPersistentMeshSelection;
 class UMeshOpPreviewWithBackgroundCompute; 
 class FMeshVertexChangeBuilder;
+class UPersistentMeshSelection;
+class UPolyEditActivityContext;
 class UPolyEditInsertEdgeActivity;
 class UPolyEditInsertEdgeLoopActivity;
 class UPolyEditExtrudeActivity;
@@ -31,7 +33,6 @@ class UPolyEditInsetOutsetActivity;
 class UPolyEditCutFacesActivity;
 class UPolyEditPlanarProjectionUVActivity;
 class UPolygonSelectionMechanic;
-class UCombinedTransformGizmo;	
 class UTransformProxy;
 
 
@@ -492,7 +493,10 @@ protected:
 	TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3> MeshSpatial;
 
 	UPROPERTY()
-	TObjectPtr<UPolygonSelectionMechanic> SelectionMechanic;
+	TObjectPtr<UPolyEditActivityContext> ActivityContext = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UPolygonSelectionMechanic> SelectionMechanic = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<UDragAlignmentMechanic> DragAlignmentMechanic = nullptr;

@@ -540,7 +540,7 @@ TUniquePtr<FDynamicMeshOperator> UCubeGridTool::MakeNewOperator()
 
 	// Make the op.
 	TUniquePtr<FCubeGridBooleanOp> Op = MakeUnique<FCubeGridBooleanOp>();
-	Op->InputMesh = CurrentMesh;
+	Op->InputMesh = ComputeStartMesh;
 	Op->InputTransform = CurrentMeshTransform;
 	Op->bKeepInputTransform = true;
 	Op->WorldBox = WorldBox;
@@ -679,9 +679,13 @@ void UCubeGridTool::Setup()
 		Preview->ConfigureMaterials(MaterialSet.Materials, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 	}
 	Preview->PreviewMesh->SetTransform((FTransform)CurrentMeshTransform);
-	Preview->OnOpCompleted.AddWeakLambda(this, [this](const FDynamicMeshOperator* Op) {
-		LastOpChangedTids = static_cast<const FCubeGridBooleanOp*>(Op)->ChangedTids;
-		});
+	Preview->OnOpCompleted.AddWeakLambda(this, [this](const FDynamicMeshOperator* UncastOp) {
+		const FCubeGridBooleanOp* Op = static_cast<const FCubeGridBooleanOp*>(UncastOp);
+		if (Op->InputMesh == ComputeStartMesh)
+		{
+			LastOpChangedTids = static_cast<const FCubeGridBooleanOp*>(Op)->ChangedTids;
+		}
+	});
 
 	CubeGrid = MakeShared<FCubeGrid>();
 	CubeGrid->SetGridFrame(FFrame3d(Settings->GridFrameOrigin, Settings->GridFrameOrientation.Quaternion()));
@@ -830,6 +834,13 @@ void UCubeGridTool::Setup()
 		});
 
 	Settings->SilentUpdateWatched();
+
+	UpdateComputeInputs();
+}
+
+void UCubeGridTool::UpdateComputeInputs()
+{
+	ComputeStartMesh = MakeShared<FDynamicMesh3>(*CurrentMesh);
 }
 
 void UCubeGridTool::Shutdown(EToolShutdownType ShutdownType)
@@ -921,6 +932,8 @@ void UCubeGridTool::ApplyPreview()
 
 	CurrentMesh->Copy(*Preview->PreviewMesh->GetMesh());
 	MeshSpatial->Build();
+
+	UpdateComputeInputs();
 
 	const FText TransactionText = LOCTEXT("CubeGridToolTransactionName", "Block Tool Change");
 	GetToolManager()->BeginUndoTransaction(TransactionText);
@@ -2022,6 +2035,7 @@ void UCubeGridTool::UpdateUsingMeshChange(const FDynamicMeshChange& MeshChange, 
 {
 	MeshChange.Apply(CurrentMesh.Get(), bRevert);
 	MeshSpatial->Build();
+	UpdateComputeInputs();
 	CurrentExtrudeAmount = 0;
 	bPreviewMayDiffer = true;
 	InvalidatePreview();

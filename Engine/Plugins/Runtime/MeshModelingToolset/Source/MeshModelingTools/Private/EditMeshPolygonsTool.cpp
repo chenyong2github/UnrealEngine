@@ -319,7 +319,7 @@ void UEditMeshPolygonsTool::Setup()
 	}
 
 	// Wrap the data structures into a context that we can give to the activities
-	UPolyEditActivityContext* ActivityContext = NewObject<UPolyEditActivityContext>();
+	ActivityContext = NewObject<UPolyEditActivityContext>();
 	ActivityContext->bTriangleMode = bTriangleMode;
 	ActivityContext->CommonProperties = CommonProps;
 	ActivityContext->CurrentMesh = CurrentMesh;
@@ -441,6 +441,7 @@ void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 	CommonProps->SaveProperties(this);
 
 	GetToolManager()->GetContextObjectStore()->RemoveContextObjectsOfType(UPolyEditActivityContext::StaticClass());
+	ActivityContext = nullptr;
 
 	ExtrudeActivity->Shutdown(ShutdownType);
 	InsetOutsetActivity->Shutdown(ShutdownType);
@@ -1943,6 +1944,7 @@ void FEditMeshPolygonsToolMeshChange::Apply(UObject* Object)
 	MeshChange->Apply(Tool->CurrentMesh.Get(), false);
 	Tool->UpdateFromCurrentMesh(bGroupTopologyModified);
 	Tool->ModifiedTopologyCounter += bGroupTopologyModified;
+	Tool->ActivityContext->OnUndoRedo.Broadcast(bGroupTopologyModified);
 }
 
 void FEditMeshPolygonsToolMeshChange::Revert(UObject* Object)
@@ -1952,6 +1954,7 @@ void FEditMeshPolygonsToolMeshChange::Revert(UObject* Object)
 	MeshChange->Apply(Tool->CurrentMesh.Get(), true);
 	Tool->UpdateFromCurrentMesh(bGroupTopologyModified);
 	Tool->ModifiedTopologyCounter -= bGroupTopologyModified;
+	Tool->ActivityContext->OnUndoRedo.Broadcast(bGroupTopologyModified);
 }
 
 FString FEditMeshPolygonsToolMeshChange::ToString() const
