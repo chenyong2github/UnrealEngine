@@ -377,9 +377,21 @@ void UMovieSceneControlRigParameterTrack::PostLoad()
 #if WITH_EDITOR
 void UMovieSceneControlRigParameterTrack::HandlePackageDone(TConstArrayView<UPackage*> InPackages)
 {
-	if (!InPackages.Contains(GetPackage()))
+	if (!GetPackage()->GetHasBeenEndLoaded())
 	{
 		return;
+	}
+
+	// ensure both packages are fully end-loaded
+	if (ControlRig)
+	{
+		if (const UPackage* ControlRigPackage = Cast<UPackage>(ControlRig->GetClass()->GetOutermost()))
+		{
+			if (!ControlRigPackage->GetHasBeenEndLoaded())
+			{
+				return;
+			}
+		}
 	}
 
 	FCoreUObjectDelegates::OnEndLoadPackage.RemoveAll(this);
