@@ -1088,11 +1088,7 @@ template <typename T>
 Status BitShift<T>::Compute(OpKernelContext* context) const {
   ProcessBroadcastSpanFuncs funcs{
       [](BroadcastHelper& per_iter_bh) {
-#ifdef WITH_UE
-        bool shift_left = static_cast<bool>(per_iter_bh.GetUserData());
-#else //WITH_UE
-        bool shift_left = per_iter_bh.GetUserData();
-#endif //WITH_UE
+        bool shift_left = (per_iter_bh.GetUserData() != nullptr); // WITH_UE
         const T& input0 = per_iter_bh.ScalarInput0<T>();
         ConstEigenVectorMap<T> input1 = per_iter_bh.EigenInput1<T>();
         EigenVectorMap<T> output = per_iter_bh.OutputEigen<T>();
@@ -1108,11 +1104,7 @@ Status BitShift<T>::Compute(OpKernelContext* context) const {
         }
       },
       [](BroadcastHelper& per_iter_bh) {
-#ifdef WITH_UE
-        bool shift_left = static_cast<bool>(per_iter_bh.GetUserData());
-#else //WITH_UE
-        bool shift_left = per_iter_bh.GetUserData();
-#endif //WITH_UE
+        bool shift_left = (per_iter_bh.GetUserData() != nullptr); // WITH_UE
         auto input0 = per_iter_bh.EigenInput0<T>();
         const T& input1 = per_iter_bh.ScalarInput1<T>();
         auto output = per_iter_bh.OutputEigen<T>();
@@ -1128,11 +1120,7 @@ Status BitShift<T>::Compute(OpKernelContext* context) const {
         }
       },
       [](BroadcastHelper& per_iter_bh) {
-#ifdef WITH_UE
-        bool shift_left = static_cast<bool>(per_iter_bh.GetUserData());
-#else //WITH_UE
-        bool shift_left = per_iter_bh.GetUserData();
-#endif //WITH_UE
+        bool shift_left = (per_iter_bh.GetUserData() != nullptr); // WITH_UE
         auto input0 = per_iter_bh.EigenInput0<T>();
         auto input1 = per_iter_bh.EigenInput1<T>();
         auto output = per_iter_bh.OutputEigen<T>();
