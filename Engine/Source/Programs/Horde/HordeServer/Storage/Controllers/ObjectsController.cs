@@ -208,6 +208,18 @@ namespace HordeServer.Storage.Controllers
 		/// </summary>
 		/// <param name="NamespaceId">Namespace for the operation</param>
 		/// <param name="Hash">The root object hash</param>
+		[HttpGet]
+		[Route("/api/v1/objects/{NamespaceId}/{Hash}/tree")]
+		public Task GetObjectTreeAsync(NamespaceId NamespaceId, IoHash Hash)
+		{
+			return GetObjectTreeAsync(NamespaceId, Hash, new GetObjectTreeRequest());
+		}
+
+		/// <summary>
+		/// Gets an object tree underneath a given root
+		/// </summary>
+		/// <param name="NamespaceId">Namespace for the operation</param>
+		/// <param name="Hash">The root object hash</param>
 		/// <param name="Request">Request object</param>
 		[HttpPost]
 		[Route("/api/v1/objects/{NamespaceId}/{Hash}/tree")]
