@@ -241,7 +241,7 @@ struct MLTypeTraits<onnxruntime::MLFloat16> {
   ML_TENSOR_TYPE_CASE(onnxruntime::MLFloat16);
 
   THROW_HR(E_NOTIMPL);
-  return MLOperatorTensorDataType::String; // WITH_UE
+  return MLOperatorTensorDataType::Undefined; // WITH_UE
 }
 
 #undef ML_TENSOR_TYPE_CASE
@@ -268,7 +268,7 @@ onnxruntime::MLDataType ToTensorDataType(::MLOperatorTensorDataType type) {
   ML_TENSOR_TYPE_CASE(onnxruntime::MLFloat16);
 
   THROW_HR(E_NOTIMPL);
-  return onnxruntime::DataTypeImpl::GetTensorType<std::string>(); // WITH_UE
+  return onnxruntime::DataTypeImpl::GetTensorType<float>(); // WITH_UE
 }
 
 ::MLOperatorTensorDataType ToMLTensorDataType(onnx::TensorProto_DataType type) {
