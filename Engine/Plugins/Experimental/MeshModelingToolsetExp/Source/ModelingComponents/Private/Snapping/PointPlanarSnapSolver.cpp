@@ -97,6 +97,7 @@ void FPointPlanarSnapSolver::RegenerateTargetLines(bool bCardinalAxes, bool bLas
 		SegLine.TargetID = LastSegmentTargetID;
 		SegLine.Priority = LastSegmentPriority;
 		SegLine.Line = FLine3d::FromPoints(LastPt, PointHistory[NumHistoryPts-2]);
+		GeneratedLines.Add(SegLine);
 		SegLine.Line.Direction = FQuaterniond(Plane.Z(), 90, true) * SegLine.Line.Direction;
 		GeneratedLines.Add(SegLine);
 	}

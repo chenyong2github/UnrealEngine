@@ -24,11 +24,11 @@ public:
 	void InitializeDefaultWithAuto();
 	void Initialize(bool bEnableStaticMeshes = true, bool bEnableVolumes = false, bool bEnableDynamicMeshActor = false);
 
-	/** Type of Object to create */
+	/** Type of object to create */
 	UPROPERTY(EditAnywhere, Category = OutputType, meta = (DisplayName = "Output Type", GetOptions = GetOutputTypeNamesFunc, NoResetToDefault))
 	FString OutputType;
 
-	/** Type of new Volume to create */
+	/** Type of volume to create */
 	UPROPERTY(EditAnywhere, Category = OutputType, meta = (EditCondition = "bShowVolumeList == true", EditConditionHides, HideEditConditionToggle) )
 	TSubclassOf<class AVolume> VolumeType = ABlockingVolume::StaticClass();
 

@@ -36,42 +36,41 @@ public:
 
 
 
-/** Polygon Tool Draw Type */
+/** Polygon tool draw type */
 UENUM()
 enum class EDrawPolygonDrawMode : uint8
 {
-	/** Freehand Polygon Drawing */
-	Freehand UMETA(DisplayName = "Freehand"),
+	/** Draw a freehand polygon */
+	Freehand,
 
-	/** Circle */
-	Circle UMETA(DisplayName = "Circle"),
+	/** Draw a circle */
+	Circle,
 
-	/** Square */
-	Square UMETA(DisplayName = "Square"),
+	/** Draw a square */
+	Square,
 
-	/** Rectangle */
-	Rectangle UMETA(DisplayName = "Rectangle"),
+	/** Draw a rectangle */
+	Rectangle,
 
-	/** Rounded Rectangle */
-	RoundedRectangle UMETA(DisplayName = "Rounded Rectangle"),
+	/** Draw a rounded rectangle */
+	RoundedRectangle,
 
-	/** Circle w/ Hole */
-	HoleyCircle UMETA(DisplayName = "Circle w/ Hole")
-
+	/** Draw a circle with a hole in the center */
+	Ring
 };
 
 
-/** Output of Draw Polygon Tool */
+/** Output of draw polygon tool */
 UENUM()
 enum class EDrawPolygonOutputMode : uint8
 {
-	/** Generate a meshed planar polygon */
+	/** Generate a flat polygon mesh */
 	MeshedPolygon UMETA(DisplayName = "Flat Mesh"),
 
-	/** Extrude closed polygon to constant height determined by Extrude Height Property */
-	ExtrudedConstant UMETA(DisplayName = "Extrude To Height"),
+	/** Extrude drawn polygon to constant height determined by the Extrude Height property */
+	ExtrudedConstant UMETA(DisplayName = "Extrude to Height"),
 
-	/** Extrusion height is set via additional mouse input after closing polygon */
+	/** Extrude drawn polygon to height set via additional mouse input after closing the polygon */
 	ExtrudedInteractive UMETA(DisplayName = "Interactive Extrude"),
 };
 
@@ -87,32 +86,42 @@ class MESHMODELINGTOOLS_API UDrawPolygonToolStandardProperties : public UInterac
 public:
 	UDrawPolygonToolStandardProperties();
 
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon)
-	EDrawPolygonDrawMode PolygonType = EDrawPolygonDrawMode::Freehand;
+	/** Type of polygon to draw in the viewport */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (DisplayName = "Draw Mode"))
+	EDrawPolygonDrawMode PolygonDrawMode = EDrawPolygonDrawMode::Freehand;
 
-	/** Feature size as fraction of overall shape size, for shapes with secondary features like the rounded corners of a Rounded Rectangle */
+	/** Size of secondary features, e.g. the rounded corners of a rounded rectangle, as fraction of the overall shape size */
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (UIMin = "0.01", UIMax = "0.99", ClampMin = "0.01", ClampMax = "0.99",
-									EditCondition = "PolygonType == EDrawPolygonDrawMode::RoundedRectangle || PolygonType == EDrawPolygonDrawMode::HoleyCircle"))
+		EditCondition = "PolygonDrawMode == EDrawPolygonDrawMode::RoundedRectangle || PolygonDrawMode == EDrawPolygonDrawMode::Ring", EditConditionHides))
 	float FeatureSizeRatio = .25;
 
-	/** Number of vertices in round features */
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (UIMin = "3", UIMax = "100", ClampMin = "3", ClampMax = "10000",
-				  EditCondition = "PolygonType == EDrawPolygonDrawMode::Circle || PolygonType == EDrawPolygonDrawMode::RoundedRectangle || PolygonType == EDrawPolygonDrawMode::HoleyCircle"))
-	int Steps = 16;
-
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (EditCondition = "PolygonType == EDrawPolygonDrawMode::Freehand"))
+	/** Allow freehand drawn polygons to self-intersect */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon,
+		meta = (DisplayName ="Self-Intersections", EditCondition = "PolygonDrawMode == EDrawPolygonDrawMode::Freehand", EditConditionHides))
 	bool bAllowSelfIntersections = false;
 
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon)
-	EDrawPolygonOutputMode OutputMode = EDrawPolygonOutputMode::ExtrudedInteractive;
+	/** Number of radial subdivisions in round features, e.g. circles or rounded corners */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (UIMin = "3", UIMax = "100", ClampMin = "3", ClampMax = "10000",
+		EditCondition =	"PolygonDrawMode == EDrawPolygonDrawMode::Circle || PolygonDrawMode == EDrawPolygonDrawMode::RoundedRectangle || PolygonDrawMode == EDrawPolygonDrawMode::Ring",
+		EditConditionHides))
+	int RadialSlices = 16;
 
-	/** Extrusion Distance in non-interactive mode */
+	/** Distance between the last clicked point and the current point  */
+	UPROPERTY(VisibleAnywhere, NonTransactional, Category = Polygon, meta = (TransientToolProperty))
+	float Distance = 0.0f;
+
+	/** If and how the drawn polygon gets extruded */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon)
+	EDrawPolygonOutputMode ExtrudeMode = EDrawPolygonOutputMode::ExtrudedInteractive;
+
+	/** Extrusion distance when using the non-interactive extrude mode */
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (UIMin = "-1000", UIMax = "1000", ClampMin = "-10000", ClampMax = "10000",
-									EditCondition = "OutputMode == EDrawPolygonOutputMode::ExtrudedConstant"))
+									EditCondition = "ExtrudeMode == EDrawPolygonOutputMode::ExtrudedConstant"))
 	float ExtrudeHeight = 100.0f;
 
+	/** If true, shows a gizmo to manipulate the additional grid used to draw the polygon on */
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon)
-	bool bShowGizmo = true;
+	bool bShowGridGizmo = true;
 };
 
 UCLASS()
@@ -121,34 +130,37 @@ class MESHMODELINGTOOLS_API UDrawPolygonToolSnapProperties : public UInteractive
 	GENERATED_BODY()
 
 public:
+	/** If true, enables additional snapping controls */
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping)
 	bool bEnableSnapping = true;
 
-	/** When true, allows snapping to world grid according to editor settings. */
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bEnableSnapping", EditConditionHides))
+	/** If true, allows snapping to world grid according to editor settings */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, meta = (EditCondition = "bEnableSnapping", EditConditionHides))
 	bool bSnapToWorldGrid = false;
 
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bEnableSnapping", EditConditionHides))
+	/** If true, snap to vertices in the current polygon or in other meshes */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, meta = (EditCondition = "bEnableSnapping", EditConditionHides))
 	bool bSnapToVertices = true;
 
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bEnableSnapping", EditConditionHides))
+	/** If true, snap to edges in the current polygon or in other meshes */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, meta = (EditCondition = "bEnableSnapping", EditConditionHides))
 	bool bSnapToEdges = false;
 
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bEnableSnapping", EditConditionHides))
-	bool bSnapToAngles = true;
+	/** If true, snap to axes of the additional drawing grid as well as the axes relative to the last segment */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, meta = (EditCondition = "bEnableSnapping", EditConditionHides))
+	bool bSnapToAxes = true;
 
-	/** When snapping to an angle, also prefer to snap to an existing segment length */
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bEnableSnapping && bSnapToAngles", EditConditionHides))
+	/** If true, when snapping to axes, also try to snap to the length of an existing segment in the polygon */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, meta = (EditCondition = "bEnableSnapping && bSnapToAxes", EditConditionHides))
 	bool bSnapToLengths = true;
 
-	UPROPERTY(VisibleAnywhere, NonTransactional, Category = Snapping, meta = (TransientToolProperty))
-	float SegmentLength = 0.0f;
-
+	/** If true, snap to surfaces of existing objects */
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping)
-	bool bHitSceneObjects = false;
+	bool bSnapToSurfaces = false;
 
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bHitSceneObjects", EditConditionHides))
-	float HitNormalOffset = 0.0f;
+	/** Offset for snap point on the surface of an existing object in the direction of the surface normal */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, meta = (DisplayName = "Surface Offset", EditCondition = "bSnapToSurfaces", EditConditionHides))
+	float SnapToSurfacesOffset = 0.0f;
 };
 
 
@@ -200,23 +212,19 @@ public:
 	virtual void BeginInteractiveExtrude();
 	virtual void EndInteractiveExtrude();
 
-
-public:
 	virtual void ApplyUndoPoints(const TArray<FVector3d>& ClickPointsIn, const TArray<FVector3d>& PolygonVerticesIn);
 
 
 protected:
 	// flags used to identify modifier keys/buttons
-	static const int IgnoreSnappingModifier = 1;
-	static const int AngleSnapModifier = 2;
-
-protected:
+	static constexpr int IgnoreSnappingModifier = 1;
+	static constexpr int AngleSnapModifier = 2;
 
 	/** Property set for type of output object (StaticMesh, Volume, etc) */
 	UPROPERTY()
 	TObjectPtr<UCreateMeshObjectTypeProperties> OutputTypeProperties;
 
-	/** Properties that control polygon generation exposed to user via detailsview */
+	/** Properties that control polygon generation exposed to user via details view */
 	UPROPERTY()
 	TObjectPtr<UDrawPolygonToolStandardProperties> PolygonProperties;
 
@@ -242,7 +250,7 @@ protected:
 	/** last vertex of polygon that is actively being updated as input device is moved */
 	FVector3d PreviewVertex;
 
-protected:
+	UPROPERTY()
 	UWorld* TargetWorld;
 
 	FViewCameraState CameraState;
@@ -283,7 +291,7 @@ protected:
 	int SelfIntersectSegmentIdx;
 	FVector3d SelfIntersectionPoint;
 
-	// only used when SnapSettings.bHitSceneObjects = true
+	// only used when SnapSettings.bSnapToSurfaces = true
 	bool bHaveSurfaceHit;
 	FVector3d SurfaceHitPoint;
 	FVector3d SurfaceOffsetPoint;
