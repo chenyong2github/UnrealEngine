@@ -46,10 +46,7 @@ namespace Chaos
 		/**
 		 *
 		 */
-		void ProduceOverlaps(FReal Dt,
-			FCollisionConstraintsArray& ConstraintsArray,
-			FNarrowPhase& NarrowPhase,
-			CollisionStats::FStatData& StatData)
+		void ProduceOverlaps(FReal Dt, FNarrowPhase& NarrowPhase)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_Collisions_BroadPhase);
 
@@ -63,7 +60,7 @@ namespace Chaos
 
 					if ((ParticleA != nullptr) && (ParticleB != nullptr))
 					{
-						ProduceOverlaps(Dt, ConstraintsArray, NarrowPhase, ParticleA, ParticleB, StatData);
+						ProduceOverlaps(Dt, NarrowPhase, ParticleA, ParticleB);
 					}
 				}
 			}
@@ -78,7 +75,7 @@ namespace Chaos
 						{
 							if (ParticleB != nullptr)
 							{
-								ProduceOverlaps(Dt, ConstraintsArray, NarrowPhase, ParticleA, ParticleB, StatData);
+								ProduceOverlaps(Dt, NarrowPhase, ParticleA, ParticleB);
 							}
 						}
 					}
@@ -89,21 +86,16 @@ namespace Chaos
 	private:
 		inline void ProduceOverlaps(
 			FReal Dt,
-			FCollisionConstraintsArray& ConstraintsArray,
 			FNarrowPhase& NarrowPhase,
 			FParticleHandle* ParticleA,
-			FParticleHandle* ParticleB,
-			CollisionStats::FStatData& StatData)
+			FParticleHandle* ParticleB)
 		{
 			const FAABB3& Box0 = ParticleA->WorldSpaceInflatedBounds();
 			const FAABB3& Box1 = ParticleB->WorldSpaceInflatedBounds();
 			if (Box0.Intersects(Box1))
 			{
-				NarrowPhase.GenerateCollisions(ConstraintsArray, Dt, ParticleA, ParticleB, CullDistance, true);
+				NarrowPhase.GenerateCollisions(Dt, ParticleA, ParticleB, CullDistance, true);
 			}
-
-			CHAOS_COLLISION_STAT(if (ConstraintsArray.Num()) { StatData.IncrementCountNP(ConstraintsArray.Num()); });
-			CHAOS_COLLISION_STAT(if (!ConstraintsArray.Num()) { StatData.IncrementRejectedNP(); });
 		}
 
 		const TArray<FParticlePair>* ParticlePairs;

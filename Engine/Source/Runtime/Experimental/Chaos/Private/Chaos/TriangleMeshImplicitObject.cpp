@@ -8,6 +8,8 @@
 #include "Chaos/GeometryQueries.h"
 #include "Chaos/Utilities.h"
 
+//PRAGMA_DISABLE_OPTIMIZATION
+
 namespace Chaos
 {
 
@@ -120,6 +122,7 @@ struct FTriangleMeshRaycastVisitor
 		const FVec3& B = Particles.X(Elements[TriIdx][1]);
 		const FVec3& C = Particles.X(Elements[TriIdx][2]);
 
+		// Note: the math here needs to match FTriangleMeshImplicitObject::GetFaceNormal
 		const FVec3 AB = B - A;
 		const FVec3 AC = C - A;
 		FVec3 TriNormal = FVec3::CrossProduct(AB, AC);
@@ -157,6 +160,8 @@ struct FTriangleMeshRaycastVisitor
 				{
 					OutTime = 0;
 					OutFaceIndex = TriIdx;
+					//OutPosition = IntersectionPosition;
+					//OutNormal = RaycastNormal;	//We use the plane normal even when hitting triangle edges. This is to deal with triangles that approximate a single flat surface.
 					return false; //no one will beat Time == 0
 				}
 			}

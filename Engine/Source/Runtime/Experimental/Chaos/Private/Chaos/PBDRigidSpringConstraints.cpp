@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PBDRigidSpringConstraints.h"
+#include "Chaos/Evolution/SolverDatas.h"
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/Utilities.h"
 
@@ -36,12 +37,18 @@ namespace Chaos
 		ConcreteContainer()->SetRestLength(ConstraintIndex, SpringLength);
 	}
 
+	void FPBDRigidSpringConstraintHandle::GatherInput(const FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
+	{
+		ConcreteContainer()->GatherInput(Dt, ConstraintIndex, Particle0Level, Particle1Level, SolverData);
+	}
+
+
 	//
 	// Container Impl
 	//
 
 	FPBDRigidSpringConstraints::FPBDRigidSpringConstraints()
-		: FPBDConstraintContainer(EConstraintContainerType::RigidSpring)
+		: FPBDIndexedConstraintContainer(FConstraintContainerHandle::StaticType())
 	{}
 
 	FPBDRigidSpringConstraints::~FPBDRigidSpringConstraints()
@@ -56,7 +63,9 @@ namespace Chaos
 		SpringSettings.Emplace(FSpringSettings({ Stiffness, Damping, RestLength }));
 
 		Distances.Add({});
-		UpdateDistance(ConstraintIndex, InLocations[0], InLocations[1]);
+		InitDistance(ConstraintIndex, InLocations[0], InLocations[1]);
+
+		ConstraintSolverBodies.Add({ nullptr, nullptr });
 
 		return Handles.Last();
 	}
@@ -75,18 +84,20 @@ namespace Chaos
 		Constraints.RemoveAtSwap(ConstraintIndex);
 		SpringSettings.RemoveAtSwap(ConstraintIndex);
 		Distances.RemoveAtSwap(ConstraintIndex);
+		ConstraintSolverBodies.RemoveAtSwap(ConstraintIndex);
 		Handles.RemoveAtSwap(ConstraintIndex);
 
 		// Update the handle for the constraint that was moved
 		if (ConstraintIndex < Handles.Num())
 		{
-			FConstraintHandle* Handle = Handles[ConstraintIndex];
-			SetConstraintIndex(Handle, ConstraintIndex);
+			SetConstraintIndex(Handles[ConstraintIndex], ConstraintIndex);
 		}
 	}
 
-	void FPBDRigidSpringConstraints::UpdateDistance(int32 ConstraintIndex, const FVec3& Location0, const FVec3& Location1)
+	void FPBDRigidSpringConstraints::InitDistance(int32 ConstraintIndex, const FVec3& Location0, const FVec3& Location1)
 	{
+		// \note: this is called during initialization, not suring the solve. It therefore accesses
+		// the Particles directly, rather than the SolverBodies
 		const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& Constraint = Constraints[ConstraintIndex];
 		const TGeometryParticleHandle<FReal, 3>* Particle0 = Constraint[0];
 		const TGeometryParticleHandle<FReal, 3>* Particle1 = Constraint[1];
@@ -97,86 +108,106 @@ namespace Chaos
 
 	FVec3 FPBDRigidSpringConstraints::GetDelta(int32 ConstraintIndex, const FVec3& WorldSpaceX1, const FVec3& WorldSpaceX2) const
 	{
-		const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& Constraint = Constraints[ConstraintIndex];
-		const TPBDRigidParticleHandle<FReal, 3>* PBDRigid0 = Constraint[0]->CastToRigidParticle();
-		const TPBDRigidParticleHandle<FReal, 3>* PBDRigid1 = Constraint[1]->CastToRigidParticle();
-		const bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
-		const bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
+		FSolverBody& Body0 = *ConstraintSolverBodies[ConstraintIndex][0];
+		FSolverBody& Body1 = *ConstraintSolverBodies[ConstraintIndex][1];
 
-		if (!bIsRigidDynamic0 && !bIsRigidDynamic1)
+		if (!Body0.IsDynamic() && !Body1.IsDynamic())
 		{
 			return FVec3(0);
 		}
 
 		const FVec3 Difference = WorldSpaceX2 - WorldSpaceX1;
-
 		const FReal Distance = Difference.Size();
-		check(Distance > 1e-7);
+		if (Distance < FReal(1e-7))
+		{
+			return FVec3(0);
+		}
 
 		const FVec3 Direction = Difference / Distance;
 		const FVec3 Delta = (Distance - SpringSettings[ConstraintIndex].RestLength) * Direction;
-		const FReal InvM0 = (bIsRigidDynamic0) ? PBDRigid0->InvM() : (FReal)0;
-		const FReal InvM1 = (bIsRigidDynamic1) ? PBDRigid1->InvM() : (FReal)0;
-		const FReal CombinedMass = InvM0 + InvM1;
+		const FReal CombinedInvMass = Body0.InvM() + Body1.InvM();
 
-		return SpringSettings[ConstraintIndex].Stiffness * Delta / CombinedMass;
+		return SpringSettings[ConstraintIndex].Stiffness * Delta / CombinedInvMass;
 	}
 
-	bool FPBDRigidSpringConstraints::Apply(const FReal Dt, const int32 It, const int32 NumIts)
+	void FPBDRigidSpringConstraints::GatherInput(const FReal Dt, FPBDIslandSolverData& SolverData)
 	{
 		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
 		{
-			ApplySingle(Dt, ConstraintIndex);
+			GatherInput(Dt, ConstraintIndex, INDEX_NONE, INDEX_NONE, SolverData);
 		}
-		return false;
 	}
 
-	bool FPBDRigidSpringConstraints::Apply(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
+	bool FPBDRigidSpringConstraints::ApplyPhase1(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData)
 	{
-		for (FConstraintContainerHandle* ConstraintHandle : InConstraintHandles)
+		return ApplyPhase1Serial(Dt, It, NumIts, SolverData);
+	}
+
+	void FPBDRigidSpringConstraints::SetNumIslandConstraints(const int32 NumIslandConstraints, FPBDIslandSolverData& SolverData)
+	{
+		SolverData.GetConstraintIndices(ContainerId).Reset(NumIslandConstraints);
+	}
+
+	void FPBDRigidSpringConstraints::GatherInput(const FReal Dt, const int32 ConstraintIndex, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
+	{
+		SolverData.GetConstraintIndices(ContainerId).Add(ConstraintIndex);
+	
+		ConstraintSolverBodies[ConstraintIndex] =
 		{
-			ApplySingle(Dt, ConstraintHandle->GetConstraintIndex());
-		}
-		return false;
+			SolverData.GetBodyContainer().FindOrAdd(Constraints[ConstraintIndex][0]),
+			SolverData.GetBodyContainer().FindOrAdd(Constraints[ConstraintIndex][1])
+		};
 	}
 
-	void FPBDRigidSpringConstraints::ApplySingle(const FReal Dt, int32 ConstraintIndex) const
+	void FPBDRigidSpringConstraints::ScatterOutput(FReal Dt, FPBDIslandSolverData& SolverData)
 	{
-		const FConstrainedParticlePair& Constraint = Constraints[ConstraintIndex];
+		for (int32 ConstraintIndex : SolverData.GetConstraintIndices(ContainerId))
+		{
+			ConstraintSolverBodies[ConstraintIndex] = { nullptr, nullptr };
+		}
+	}
 
-		FGenericParticleHandle Particle0 = Constraints[ConstraintIndex][0];
-		FGenericParticleHandle Particle1 = Constraints[ConstraintIndex][1];
-		const bool bIsRigidDynamic0 = Particle0->IsDynamic();
-		const bool bIsRigidDynamic1 = Particle1->IsDynamic();
+	bool FPBDRigidSpringConstraints::ApplyPhase1Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData)
+	{
+		for (int32 ConstraintIndex : SolverData.GetConstraintIndices(ContainerId))
+		{
+			ApplyPhase1Single(Dt, ConstraintIndex);
+		}
+		return true;
+	}
 
-		check((bIsRigidDynamic0 && bIsRigidDynamic1) || (!bIsRigidDynamic0 && bIsRigidDynamic1) || (bIsRigidDynamic0 && bIsRigidDynamic1));
+	void FPBDRigidSpringConstraints::ApplyPhase1Single(const FReal Dt, int32 ConstraintIndex) const
+	{
+		check(ConstraintSolverBodies[ConstraintIndex][0] != nullptr);
+		check(ConstraintSolverBodies[ConstraintIndex][1] != nullptr);
+		FSolverBody& Body0 = *ConstraintSolverBodies[ConstraintIndex][0];
+		FSolverBody& Body1 = *ConstraintSolverBodies[ConstraintIndex][1];
 
-		const FVec3 WorldSpaceX1 = Particle0->Q().RotateVector(Distances[ConstraintIndex][0]) + Particle0->P();
-		const FVec3 WorldSpaceX2 = Particle1->Q().RotateVector(Distances[ConstraintIndex][1]) + Particle1->P();
+		if (!Body0.IsDynamic() && !Body1.IsDynamic())
+		{
+			return;
+		}
+
+		const FVec3 WorldSpaceX1 = Body0.Q().RotateVector(Distances[ConstraintIndex][0]) + Body0.P();
+		const FVec3 WorldSpaceX2 = Body1.Q().RotateVector(Distances[ConstraintIndex][1]) + Body1.P();
 		const FVec3 Delta = GetDelta(ConstraintIndex, WorldSpaceX1, WorldSpaceX2);
 
-		if (bIsRigidDynamic0)
+		if (Body0.IsDynamic())
 		{
-			FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
-			FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
-			const FMatrix33 WorldSpaceInvI1 = Utilities::ComputeWorldSpaceInertia(Q0, Particle0->InvI());
-			const FVec3 Radius = WorldSpaceX1 - P0;
-			P0 += Particle0->InvM() * Delta;
-			Q0 += TRotation<FReal, 3>::FromElements(WorldSpaceInvI1 * FVec3::CrossProduct(Radius, Delta), 0.f) * Q0 * FReal(0.5);
-			Q0.Normalize();
-			FParticleUtilities::SetCoMWorldTransform(Particle0, P0, Q0);
+			const FVec3 Radius = WorldSpaceX1 - Body0.P();
+			const FVec3 DX = Body0.InvM() * Delta;
+			const FVec3 DR = Body0.InvI() * FVec3::CrossProduct(Radius, Delta);
+			Body0.ApplyTransformDelta(DX, DR);
+			Body0.UpdateRotationDependentState();
 		}
 
-		if (bIsRigidDynamic1)
+		if (Body1.IsDynamic())
 		{
-			FRotation3 Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
-			FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
-			const FMatrix33 WorldSpaceInvI2 = Utilities::ComputeWorldSpaceInertia(Q1, Particle1->InvI());
-			const FVec3 Radius = WorldSpaceX2 - P1;
-			P1 -= Particle1->InvM() * Delta;
-			Q1 += TRotation<FReal, 3>::FromElements(WorldSpaceInvI2 * FVec3::CrossProduct(Radius, -Delta), 0.f) * Q1 * FReal(0.5);
-			Q1.Normalize();
-			FParticleUtilities::SetCoMWorldTransform(Particle1, P1, Q1);
+			const FVec3 Radius = WorldSpaceX2 - Body1.P();
+			const FVec3 DX = Body1.InvM() * -Delta;
+			const FVec3 DR = Body1.InvI() * FVec3::CrossProduct(Radius, -Delta);
+			Body1.ApplyTransformDelta(DX, DR);
+			Body1.UpdateRotationDependentState();
 		}
 	}
 }

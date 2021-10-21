@@ -20,7 +20,7 @@ namespace Chaos
 			const Chaos::FImplicitBox3& Box2,
 			const Chaos::FRigidTransform3& Box2Transform, //world
 			const Chaos::FReal Dt,
-			Chaos::FRigidBodyPointContactConstraint& Constraint);
+			Chaos::FPBDCollisionConstraint& Constraint);
 
 		template <typename ConvexImplicitType1, typename ConvexImplicitType2>
 		void ConstructConvexConvexOneShotManifold(
@@ -29,8 +29,9 @@ namespace Chaos
 			const ConvexImplicitType2& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal Dt,
-			FRigidBodyPointContactConstraint& Constraint);
+			FPBDCollisionConstraint& Constraint);
 	}
+	extern bool bChaos_Collision_Manifold_FixNormalsInWorldSpace;
 }
 
 
@@ -50,7 +51,7 @@ namespace ChaosTest
 			FRigidTransform3 Box1Transform = FRigidTransform3(FVec3(0.0f, 0.0f, 0.0f), FRotation3::FromElements(0.0f, 0.0f, 0.0f, 1.0f));
 			FRigidTransform3 Box2Transform = FRigidTransform3(FVec3(0.0f, 0.0f, 0.0f), FRotation3::FromElements(0.0f, 0.0f, 0.0f, 1.0f));
 
-			FRigidBodyPointContactConstraint Constraint;
+			FPBDCollisionConstraint Constraint;
 			Collisions::ConstructBoxBoxOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, Dt, Constraint);
 
 			// Result should give a negative phi on all contacts
@@ -72,7 +73,7 @@ namespace ChaosTest
 			FRigidTransform3 Box1Transform = FRigidTransform3(FVec3(0.0f, 0.0f, 210.0f), FRotation3::FromElements(0.0f, 0.0f, 0.0f, 1.0f));
 			FRigidTransform3 Box2Transform = FRigidTransform3(FVec3(0.0f, 0.0f, 0.0f), FRotation3::FromElements(0.0f, 0.0f, 0.0f, 1.0f));
 
-			FRigidBodyPointContactConstraint Constraint;
+			FPBDCollisionConstraint Constraint;
 			Collisions::ConstructBoxBoxOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, Dt, Constraint);
 			int ContactCount = Constraint.GetManifoldPoints().Num();
 			EXPECT_EQ(ContactCount, 4);
@@ -92,14 +93,22 @@ namespace ChaosTest
 			FRigidTransform3 Box1Transform = FRigidTransform3(FVec3(0.0f, 0.0f, 210.0f), FRotation3::FromElements(0.0f, 0.0f, 0.0f, 1.0f));
 			FRigidTransform3 Box2Transform = FRigidTransform3(FVec3(0.0f, 0.0f, 0.0f), FRotation3::FromAxisAngle(FVec3(0.0f, 1.0f, 0.0f), 0.1f));
 
-			FRigidBodyPointContactConstraint Constraint;
+			FPBDCollisionConstraint Constraint;
 			Collisions::ConstructBoxBoxOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, Dt, Constraint);
 			int ContactCount = Constraint.GetManifoldPoints().Num();
 			EXPECT_EQ(ContactCount, 4);
 			for (int ConstraintIndex = 0; ConstraintIndex < ContactCount; ConstraintIndex++)
 			{
 				EXPECT_NEAR(10.0f, Constraint.GetManifoldPoints()[ConstraintIndex].ContactPoint.Phi, 15.0f); // The cube is at an angle now
-				EXPECT_NEAR(Constraint.GetManifoldPoints()[ConstraintIndex].ContactPoint.Location.Z, 110.0f, 15.0f);
+				if (bChaos_Collision_Manifold_FixNormalsInWorldSpace)
+				{
+					EXPECT_NEAR(Constraint.GetManifoldPoints()[ConstraintIndex].ContactPoint.Location.Z, 100.0f, 15.0f);
+				}
+				else
+				{
+					EXPECT_NEAR(Constraint.GetManifoldPoints()[ConstraintIndex].ContactPoint.Location.Z, 110.0f, 15.0f);
+				}
+				
 			}
 		}
 
@@ -114,7 +123,7 @@ namespace ChaosTest
 			FRigidTransform3 Box1Transform = FRigidTransform3(FVec3(0.0f, 0.0f, 210.0f) - OffsetBox1, FRotation3::FromElements(0.0f, 0.0f, 0.0f, 1.0f));
 			FRigidTransform3 Box2Transform = FRigidTransform3(FVec3(0.0f, 0.0f, 0.0f) - OffsetBox2, FRotation3::FromElements(0.0f, 0.0f, 0.0f, 1.0f));
 
-			FRigidBodyPointContactConstraint Constraint;
+			FPBDCollisionConstraint Constraint;
 			Collisions::ConstructBoxBoxOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, Dt, Constraint);
 			int ContactCount = Constraint.GetManifoldPoints().Num();
 			EXPECT_EQ(ContactCount, 4);
@@ -149,7 +158,7 @@ namespace ChaosTest
 			FRigidTransform3 Box1Transform = TranslationTransform1 * RotationTransform;
 			FRigidTransform3 Box2Transform = TranslationTransform2 * RotationTransform;
 
-			FRigidBodyPointContactConstraint Constraint;
+			FPBDCollisionConstraint Constraint;
 			Collisions::ConstructBoxBoxOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, Dt, Constraint);
 			int ContactCount = Constraint.GetManifoldPoints().Num();
 			EXPECT_EQ(ContactCount, 4);
@@ -182,7 +191,7 @@ namespace ChaosTest
 			TBox<FReal, 3> Box1(FVec3(-100.0f, -100, -100.0f) + OffsetBox1, FVec3(100.0f, 100.0f, 100.0f) + OffsetBox1);
 			TBox<FReal, 3> Box2(FVec3(-100.0f, -100, -100.0f) + OffsetBox2, FVec3(100.0f, 100.0f, 100.0f) + OffsetBox2);
 
-			FRigidBodyPointContactConstraint Constraint;
+			FPBDCollisionConstraint Constraint;
 			Collisions::ConstructBoxBoxOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, Dt, Constraint);
 			int ContactCount = Constraint.GetManifoldPoints().Num();
 			for (int ConstraintIndex = 0; ConstraintIndex < ContactCount; ConstraintIndex++)
@@ -200,7 +209,7 @@ namespace ChaosTest
 			FRigidTransform3 Box1Transform = FRigidTransform3(FVec3(0.0f, 0.0f, 210.0f), FRotation3::FromAxisAngle(FVec3(0.0f, 0.0f, 1.0f), PI / 2));
 			FRigidTransform3 Box2Transform = FRigidTransform3(FVec3(0.0f, 0.0f, 0.0f), FRotation3::FromElements(0.0f, 0.0f, 0.0f, 1.0f));
 
-			FRigidBodyPointContactConstraint Constraint;
+			FPBDCollisionConstraint Constraint;
 			Collisions::ConstructBoxBoxOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, Dt, Constraint);
 			int ContactCount = Constraint.GetManifoldPoints().Num();
 			EXPECT_EQ(ContactCount, 4);  
@@ -241,7 +250,7 @@ namespace ChaosTest
 		FRigidTransform3 Convex1Transform = FRigidTransform3(FVec3(0.0f, 0.0f, 0.0f), FRotation3::FromAxisAngle(FVec3(0.0f, 0.0f, 1.0f), FMath::DegreesToRadians(45)));
 		FRigidTransform3 Convex2Transform = FRigidTransform3(FVec3(Offset + ExpectedPhi, 0.0f, 0.0f), FRotation3::FromAxisAngle(FVec3(0.0f, 1.0f, 0.0f), FMath::DegreesToRadians(45)));
 
-		FRigidBodyPointContactConstraint Constraint;
+		FPBDCollisionConstraint Constraint;
 
 		Collisions::ConstructConvexConvexOneShotManifold(Convex, Convex1Transform, Convex, Convex2Transform, Dt, Constraint);
 		int ContactCount = Constraint.GetManifoldPoints().Num();

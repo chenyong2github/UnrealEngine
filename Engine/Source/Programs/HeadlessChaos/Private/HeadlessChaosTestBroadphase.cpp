@@ -771,7 +771,7 @@ namespace ChaosTest
 			}
 
 			TSpatialAccelerationCollection<TreeType> AccelerationCollection;
-			AccelerationCollection.AddSubstructure(MoveTemp(Spatial), 0);
+			AccelerationCollection.AddSubstructure(MoveTemp(Spatial), 0, 0);
 			FSpatialAccelerationIdx SpatialIdx = { 0,0 };
 			SpatialTestHelper(AccelerationCollection, Boxes.Get(), Box, SpatialIdx);
 		}
@@ -794,8 +794,8 @@ namespace ChaosTest
 			}
 
 			TSpatialAccelerationCollection<TreeType, BVType> AccelerationCollection;
-			AccelerationCollection.AddSubstructure(MoveTemp(Spatial0), 0);
-			AccelerationCollection.AddSubstructure(MoveTemp(Spatial1), 1);
+			AccelerationCollection.AddSubstructure(MoveTemp(Spatial0), 0, 0);
+			AccelerationCollection.AddSubstructure(MoveTemp(Spatial1), 1, 0);
 
 			FSpatialAccelerationIdx SpatialIdx = { 0,0 };
 			SpatialTestHelper(AccelerationCollection, Boxes0.Get(), Box, SpatialIdx);
@@ -811,8 +811,8 @@ namespace ChaosTest
 			auto Spatial1 = MakeUnique<BVType>(MakeParticleView(Boxes1.Get()));
 
 			TSpatialAccelerationCollection<TreeType, BVType> AccelerationCollection;
-			AccelerationCollection.AddSubstructure(MoveTemp(Spatial0), 0);
-			AccelerationCollection.AddSubstructure(MoveTemp(Spatial1), 1);
+			AccelerationCollection.AddSubstructure(MoveTemp(Spatial0), 0, 0);
+			AccelerationCollection.AddSubstructure(MoveTemp(Spatial1), 1, 0);
 
 			FSpatialAccelerationIdx SpatialIdx = { 1,0 };
 			SpatialTestHelper(AccelerationCollection, Boxes1.Get(), Box, SpatialIdx);

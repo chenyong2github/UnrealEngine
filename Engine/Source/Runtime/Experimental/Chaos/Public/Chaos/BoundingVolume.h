@@ -163,7 +163,27 @@ class TBoundingVolume final : public ISpatialAcceleration<InPayloadType, T,d>
 	}
 
 public:
-	TBoundingVolume<TPayloadType, T, d>& operator=(const TBoundingVolume<TPayloadType, T, d>& Other) = delete;
+
+	virtual ISpatialAcceleration<TPayloadType, T, d>& operator=(const ISpatialAcceleration<TPayloadType, T, d>& Other) override
+	{
+
+		check(Other.GetType() == ESpatialAcceleration::BoundingVolume);
+		return operator=(static_cast<const TBoundingVolume<TPayloadType, T, d>&>(Other));
+	}
+
+	TBoundingVolume<TPayloadType, T, d>& operator=(const TBoundingVolume<TPayloadType, T, d>& Other)
+	{
+		ISpatialAcceleration<TPayloadType, FReal, 3>::operator=(Other);
+		MGlobalPayloads = Other.MGlobalPayloads;
+		MGrid = Other.MGrid;
+		MElements = Other.MElements;
+		MDirtyElements = Other.MDirtyElements;
+		MPayloadInfo = Other.MPayloadInfo;
+		MaxPayloadBounds = Other.MaxPayloadBounds;
+		bIsEmpty = Other.bIsEmpty;
+		return *this;
+	}
+
 	TBoundingVolume<TPayloadType, T, d>& operator=(TBoundingVolume<TPayloadType, T, d>&& Other)
 	{
 		MGlobalPayloads = MoveTemp(Other.MGlobalPayloads);
@@ -263,7 +283,7 @@ public:
 	}
 
 	// Begin ISpatialAcceleration interface
-	virtual TArray<TPayloadType> FindAllIntersections(const TAABB<T, d>& Box) const override { return FindAllIntersectionsImp(Box); }
+	virtual TArray<TPayloadType> FindAllIntersections(const FAABB3& Box) const override { return FindAllIntersectionsImp(Box); }
 
 	const TArray<TPayloadBoundsElement<TPayloadType, T>>& GlobalObjects() const
 	{

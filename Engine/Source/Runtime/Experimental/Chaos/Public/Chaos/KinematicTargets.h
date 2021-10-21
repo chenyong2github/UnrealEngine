@@ -26,7 +26,9 @@ namespace Chaos
 	{
 	public:
 		TKinematicTarget()
-			: Mode(EKinematicTargetMode::None)
+			: Position(0)
+			, Rotation(TRotation<T, d>::FromIdentity())
+			, Mode(EKinematicTargetMode::None)
 		{
 		}
 

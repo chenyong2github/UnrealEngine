@@ -38,7 +38,7 @@ namespace Chaos
 				ContactPoint.ShapeContactNormal = -NormalConvex;
 				ContactPoint.ShapeMargins[0] = 0.0f;
 				ContactPoint.ShapeMargins[1] = 0.0f;
-				ContactPoint.ContactNormalOwnerIndex = 0;
+				ContactPoint.ContactNormalOwnerIndex = 0; // ContactNormalOwnerIndex is ignored when  bChaos_Collision_Manifold_FixNormalsInWorldSpace is set
 
 				ContactPoint.Location = ConvexTransform.TransformPosition(ContactPoint.ShapeContactPoints[0]);
 				ContactPoint.Normal = ConvexTransform.TransformVectorNoScale(-NormalConvex);

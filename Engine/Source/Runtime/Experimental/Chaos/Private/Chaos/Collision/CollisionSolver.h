@@ -11,18 +11,14 @@ namespace Chaos
 	namespace Collisions
 	{
 		void ApplyContactManifold(
-			FRigidBodyPointContactConstraint& Constraint,
-			FGenericParticleHandle Particle0,
-			FGenericParticleHandle Particle1,
+			FPBDCollisionConstraint& Constraint,
 			const FContactIterationParameters& IterationParameters,
 			const FContactParticleParameters& ParticleParameters);
 
 		void ApplyPushOutManifold(
-			FRigidBodyPointContactConstraint& Constraint,
-			const TSet<const FGeometryParticleHandle*>& IsTemporarilyStatic,
+			FPBDCollisionConstraint& Constraint,
 			const FContactIterationParameters& IterationParameters,
-			const FContactParticleParameters& ParticleParameters,
-			const FVec3& GravityDir);
+			const FContactParticleParameters& ParticleParameters);
 
 	}
 }

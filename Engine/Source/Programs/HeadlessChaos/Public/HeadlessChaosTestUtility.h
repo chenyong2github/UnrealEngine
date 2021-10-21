@@ -17,6 +17,7 @@
 #include "Chaos/Utilities.h"
 #include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
+#include "Chaos/Collision/CollisionApplyType.h"
 
 namespace Chaos
 {
@@ -151,6 +152,7 @@ namespace ChaosTest {
 		Evolution.GetBroadPhase().SetBoundsThickness(CullDistance);
 		Evolution.GetCollisionDetector().GetNarrowPhase().GetContext().bDeferUpdate = false;
 		Evolution.GetCollisionDetector().GetNarrowPhase().GetContext().bAllowManifolds = true;
+		Evolution.GetCollisionConstraints().SetSolverType(EConstraintSolverType::QuasiPbd);
 	}
 
 	template<typename T_SOLVER>

@@ -130,7 +130,13 @@ class TArrayNDBase
 		Ar << MArray;
 	}
 
-	FORCEINLINE TArrayNDBase<T_DERIVED, T, d>& operator=(const TArrayNDBase<T_DERIVED, T, d>& Other) = delete;
+	FORCEINLINE TArrayNDBase<T_DERIVED, T, d>& operator=(const TArrayNDBase<T_DERIVED, T, d>& Other)
+	{
+		MCounts = Other.MCounts;
+		MArray = Other.MArray;
+		return *this;
+	}
+
 	FORCEINLINE TArrayNDBase<T_DERIVED, T, d>& operator=(TArrayNDBase<T_DERIVED, T, d>&& Other)
 	{
 		MCounts = Other.MCounts;
@@ -193,7 +199,11 @@ class TArrayND : public TArrayNDBase<TArrayND<T, d>, T, d>
 	    : Base(MoveTemp(Other)) {}
 	FORCEINLINE TArrayND(std::istream& Stream)
 	    : Base(Stream) {}
-	FORCEINLINE TArrayND<T, d>& operator=(const TArrayND<T, d>& Other) = delete;
+	FORCEINLINE TArrayND<T, d>& operator=(const TArrayND<T, d>& Other)
+	{
+		Base::operator=(Other);
+		return *this;
+	}
 	FORCEINLINE TArrayND<T, d>& operator=(TArrayND<T, d>&& Other)
 	{
 		Base::operator=(MoveTemp(Other));
@@ -242,7 +252,11 @@ class TArrayND<T, 3> : public TArrayNDBase<TArrayND<T, 3>, T, 3>
 	    : Base(MoveTemp(Other)) {}
 	FORCEINLINE TArrayND(std::istream& Stream)
 	    : Base(Stream) {}
-	FORCEINLINE TArrayND<T, 3>& operator=(const TArrayND<T, 3>& Other) = delete;
+	FORCEINLINE TArrayND<T, 3>& operator=(const TArrayND<T, 3>& Other)
+	{
+		Base::operator=(Other);
+		return *this;
+	}
 	FORCEINLINE TArrayND<T, 3>& operator=(TArrayND<T, 3>&& Other)
 	{
 		Base::operator=(MoveTemp(Other));

@@ -41,12 +41,6 @@ namespace Chaos
 		/** Called once per frame. Should undo whatever is done in PrepareTick (can also free any other transient buffers created after) */
 		virtual void UnprepareTick() {}
 
-		/** Called once per iteration before Apply. Can be used to prepare caches etc. */
-		virtual void PrepareIteration(FReal Dt) {}
-
-		/** Called once per iteration after Apply. Should be used to release any transient stores created in PrepareConstraints. */
-		virtual void UnprepareIteration(FReal Dt) {}
-
 
 	protected:
 		int32 Priority;
@@ -58,59 +52,47 @@ namespace Chaos
 	class CHAOS_API FSimpleConstraintRule : public FConstraintRule
 	{
 	public:
-		FSimpleConstraintRule(int32 InPriority) : FConstraintRule(InPriority) {}
+		FSimpleConstraintRule(int32 InPriority) : FConstraintRule(InPriority), SolverData(nullptr) {}
+
+		/** Bind the solver datas to the one in the evolution */
+		virtual void BindToDatas(FPBDIslandSolverData& InSolverDatas, const uint32 InContainerId) {}
 
 		virtual void UpdatePositionBasedState(const FReal Dt) {}
+		virtual void GatherSolverInput(const FReal Dt) {}
+		virtual void ScatterSolverOutput(const FReal Dt) {}
 		virtual bool ApplyConstraints(const FReal Dt, const int32 It, const int32 NumIts) { return false; }
 		virtual bool ApplyPushOut(const FReal Dt, const int32 It, const int32 NumIts) { return false; }
+	protected:
+		/** Solver datas that are coming from the evolution */
+		FPBDIslandSolverData* SolverData = nullptr;
 	};
 
-	template<typename T_CONSTRAINTS>
+	template<typename ConstraintType>
 	class CHAOS_API TSimpleConstraintRule : public FSimpleConstraintRule
 	{
 	public:
-		using FConstraints = T_CONSTRAINTS;
+		using FConstraints = ConstraintType;
 
-		TSimpleConstraintRule(int32 InPriority, FConstraints& InConstraints)
-			: FSimpleConstraintRule(InPriority)
-			, Constraints(InConstraints)
-		{
-		}
+		TSimpleConstraintRule(int32 InPriority, FConstraints& InConstraints);
 
-		virtual void PrepareTick() override
-		{
-			Constraints.PrepareTick();
-		}
+		virtual ~TSimpleConstraintRule();
 
-		virtual void UnprepareTick() override
-		{
-			Constraints.UnprepareTick();
-		}
+		/** Bind the solver datas to the one in the evolution */
+		virtual void BindToDatas(FPBDIslandSolverData& InSolverDatas, const uint32 InContainerId) override;
 
-		virtual void PrepareIteration(FReal Dt) override
-		{
-			Constraints.PrepareIteration(Dt);
-		}
+		virtual void PrepareTick() override;
 
-		virtual void UnprepareIteration(FReal Dt) override
-		{
-			Constraints.UnprepareIteration(Dt);
-		}
+		virtual void UnprepareTick() override;
 
-		virtual void UpdatePositionBasedState(const FReal Dt) override
-		{
-			return Constraints.UpdatePositionBasedState(Dt);
-		}
+		virtual void UpdatePositionBasedState(const FReal Dt) override;
 
-		virtual bool ApplyConstraints(const FReal Dt, const int32 It, const int32 NumIts) override
-		{
-			return Constraints.Apply(Dt, It, NumIts);
-		}
+		virtual void GatherSolverInput(const FReal Dt) override;
 
-		virtual bool ApplyPushOut(const FReal Dt, const int32 It, const int32 NumIts) override
-		{ 
-			return Constraints.ApplyPushOut(Dt, It, NumIts);
-		}
+		virtual void ScatterSolverOutput(const FReal Dt) override;
+
+		virtual bool ApplyConstraints(const FReal Dt, const int32 It, const int32 NumIts) override;
+
+		virtual bool ApplyPushOut(const FReal Dt, const int32 It, const int32 NumIts) override;
 
 	private:
 		FConstraints& Constraints;
@@ -132,8 +114,17 @@ namespace Chaos
 
 		virtual void BindToGraph(FPBDConstraintGraph& InContactGraph, uint32 InContainerId) {}
 
+		// Collect all the data required to solve the constraints in the specified island. This also fills the SolverBodies
+		virtual void GatherSolverInput(const FReal Dt, int32 Island) {}
+
+		// Scatter the results of the islands constraint solver(s) out to the appropriate places (e.g., impulses, break flags, etc)
+		virtual void ScatterSolverOutput(const FReal Dt, int32 Island) {}
+
 		/** Called once per tick to allow constraint containers to create/alter their constraints based on particle position */
 		virtual void UpdatePositionBasedState(const FReal Dt) {}
+
+		/** Called once per tick (usually in parallel per island) to handle solving any constraints that must be solved before the main solver loop. Used for CCD. */
+		virtual void ApplySwept(const FReal Dt, int32 Island) {}
 
 		/** Apply all corrections for constraints in the specified island. Return true if more iterations are needed. */
 		virtual bool ApplyConstraints(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) { return false; }
@@ -148,7 +139,7 @@ namespace Chaos
 		virtual void InitializeAccelerationStructures() {}
 
 		/** Set up the perf-acceleration structures for the specified island. May be called in parallel for islands */
-		virtual void UpdateAccelerationStructures(const int32 Island) {}
+		virtual void UpdateAccelerationStructures(const FReal Dt, const int32 Island) {}
 
 		virtual void SetUseContactGraph(const bool InUseContactGraph) {}
 
@@ -181,11 +172,11 @@ namespace Chaos
 	/**
 	 * ConstraintGraphRule helper base class - templatized on Constraint Container.
 	 */
-	template<typename T_CONSTRAINTS>
+	template<typename ConstraintType>
 	class CHAOS_API TPBDConstraintGraphRuleImpl : public FPBDConstraintGraphRule
 	{
 	public:
-		typedef T_CONSTRAINTS FConstraints;
+		typedef ConstraintType FConstraints;
 
 		TPBDConstraintGraphRuleImpl(FConstraints& InConstraints, int32 InPriority);
 
@@ -197,16 +188,6 @@ namespace Chaos
 		virtual void UnprepareTick() override
 		{
 			Constraints.UnprepareTick();
-		}
-
-		virtual void PrepareIteration(FReal Dt) override
-		{
-			Constraints.PrepareIteration(Dt);
-		}
-
-		virtual void UnprepareIteration(FReal Dt) override
-		{
-			Constraints.UnprepareIteration(Dt);
 		}
 
 		virtual void BindToGraph(FPBDConstraintGraph& InContactGraph, uint32 InContainerId) override;
@@ -236,86 +217,37 @@ namespace Chaos
 	/**
 	 * Island-based constraint rule. All constraints in an island are updated in single-threaded a loop. Islands may be updated in parallel.
 	 */
-	template<typename T_CONSTRAINTS>
-	class CHAOS_API TPBDConstraintIslandRule : public TPBDConstraintGraphRuleImpl<T_CONSTRAINTS>
+	template<typename ConstraintType>
+	class CHAOS_API TPBDConstraintIslandRule : public TPBDConstraintGraphRuleImpl<ConstraintType>
 	{
-		typedef TPBDConstraintGraphRuleImpl<T_CONSTRAINTS> Base;
+		typedef TPBDConstraintGraphRuleImpl<ConstraintType> Base;
 
 	public:
-		using FConstraints = T_CONSTRAINTS;
+		using FConstraints = ConstraintType;
 		using FConstraintContainerHandle = typename FConstraints::FConstraintContainerHandle;
 		using FConstraintList = TArray<FConstraintContainerHandle*>;
 
 		using Base::GetContainerId;
 
-		TPBDConstraintIslandRule(FConstraints& InConstraints, int32 InPriority = 0)
-			: TPBDConstraintGraphRuleImpl<T_CONSTRAINTS>(InConstraints, InPriority)
-		{
-		}
+		TPBDConstraintIslandRule(FConstraints& InConstraints, int32 InPriority = 0);
 
-		virtual bool ApplyConstraints(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) override
-		{
-			if (IslandConstraintLists[Island].Num())
-			{
-				return Constraints.Apply(Dt, GetIslandConstraints(Island), It, NumIts);
-			}
-			return false;
-		}
+		virtual ~TPBDConstraintIslandRule();
 
-		virtual bool ApplyPushOut(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) override
-		{
-			if (IslandConstraintLists[Island].Num())
-			{
-				return Constraints.ApplyPushOut(Dt, GetIslandConstraints(Island), It, NumIts);
-			}
-			return false;
-		}
+		virtual void GatherSolverInput(const FReal Dt, int32 Island) override;
 
-		virtual void InitializeAccelerationStructures() override
-		{
-			IslandConstraintLists.SetNum(ConstraintGraph->NumIslands());
-			for (FConstraintList& IslandConstraintList : IslandConstraintLists)
-			{
-				IslandConstraintList.Reset();
-			}
-		}
+		virtual void ScatterSolverOutput(const FReal Dt, int32 Island) override;
+
+		virtual bool ApplyConstraints(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) override;
+
+		virtual bool ApplyPushOut(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) override;
+
+		virtual void InitializeAccelerationStructures() override;
 		
-		virtual void UpdateAccelerationStructures(const int32 Island) override
-		{
-			const TArray<int32>& ConstraintDataIndices = ConstraintGraph->GetIslandConstraintData(Island);
-			FConstraintList& IslandConstraintList = IslandConstraintLists[Island];
-			IslandConstraintList.Reset();
-			IslandConstraintList.Reserve(ConstraintDataIndices.Num());
-			for (int32 ConstraintDataIndex : ConstraintDataIndices)
-			{
-				const typename FPBDConstraintGraph::FConstraintData& ConstraintData = ConstraintGraph->GetConstraintData(ConstraintDataIndex);
-				if (ConstraintData.GetContainerId() == GetContainerId())
-				{
-					IslandConstraintList.Add(ConstraintData.GetConstraintHandle()->As<FConstraintContainerHandle>());
-				}
-			}
-		}
-
-		template<typename TVisitor>
-		void VisitIslandConstraints(const int32 Island, const TVisitor& Visitor) const
-		{
-			Visitor(GetIslandConstraints(Island), Island);
-		}
+		virtual void UpdateAccelerationStructures(const FReal Dt, const int32 Island) override;
 
 	private:
 		using Base::Constraints;
 		using Base::ConstraintGraph;
-
-		const TArray<FConstraintContainerHandle*>& GetIslandConstraints(int32 Island) const
-		{
-			// Constraint rules are bound to a single type, but the FPBDConstraintGraph works with many types. We have
-			// already pre-filtered the constraint lists based on type, so this case is safe.
-			return reinterpret_cast<const TArray<FConstraintContainerHandle*>&>(IslandConstraintLists[Island]);
-		}
-
-		// @todo(ccaulfield): optimize: eliminate the need for this index list - it is a subset of EdgeData. 
-		// If EdgeData were sorted by ContainerId we could use TArray<TArrayView<int32>>...
-		TArray<FConstraintList> IslandConstraintLists;
 	};
 
 	/**
@@ -324,45 +256,31 @@ namespace Chaos
 	 * The level is used to implement shock propagation: constraints of lower levels are frozen in 
 	 * place as far as higher-level constraints are concerned.
 	 */
-	template<typename T_CONSTRAINTS>
-	class CHAOS_API TPBDConstraintColorRule : public TPBDConstraintGraphRuleImpl<T_CONSTRAINTS>
+	template<typename ConstraintType>
+	class CHAOS_API TPBDConstraintColorRule : public TPBDConstraintGraphRuleImpl<ConstraintType>
 	{
-		typedef TPBDConstraintGraphRuleImpl<T_CONSTRAINTS> Base;
+		typedef TPBDConstraintGraphRuleImpl<ConstraintType> Base;
 
 	public:
-		using FConstraints = T_CONSTRAINTS;
+		using FConstraints = ConstraintType;
+		using FConstraintContainerHandle = typename FConstraints::FConstraintContainerHandle;
 
-		TPBDConstraintColorRule(FConstraints& InConstraints, int32 InPriority = 0)
-			: TPBDConstraintGraphRuleImpl<T_CONSTRAINTS>(InConstraints, InPriority)
-		{
-		}
+		TPBDConstraintColorRule(FConstraints& InConstraints, int32 InPriority = 0);
 
+		virtual ~TPBDConstraintColorRule();
 
 		virtual void UpdatePositionBasedState(const FReal Dt) override
 		{
 			Constraints.UpdatePositionBasedState(Dt);
 		}
 
-		virtual bool ApplyConstraints(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) override
-		{
-			const typename FPBDConstraintColor::FLevelToColorToConstraintListMap& LevelToColorToConstraintListMap = GraphColor.GetIslandLevelToColorToConstraintListMap(Island);
-			int32 MaxColor = GraphColor.GetIslandMaxColor(Island);
-			int32 MaxLevel = GraphColor.GetIslandMaxLevel(Island);
-			bool bNeedsMoreIterations = false;
-			for (int32 Level = 0; Level <= MaxLevel; ++Level)
-			{
-				for (int32 Color = 0; Color <= MaxColor; ++Color)
-				{
-					if (LevelToColorToConstraintListMap[Level].Contains(Color) && LevelToColorToConstraintListMap[Level][Color].Num())
-					{
-						const TArray<typename FConstraints::FConstraintContainerHandle*>& ConstraintHandles = GetLevelColorConstraints(LevelToColorToConstraintListMap, Level, Color);
-						bNeedsMoreIterations |= Constraints.Apply(Dt, ConstraintHandles, It, NumIts);
-					}
-				}
-			}
+		virtual void GatherSolverInput(const FReal Dt, int32 Island) override;
 
-			return bNeedsMoreIterations;
-		}
+		virtual void ScatterSolverOutput(const FReal Dt, int32 Island) override;
+
+		virtual void ApplySwept(const FReal Dt, int32 Island) override;
+
+		virtual bool ApplyConstraints(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) override;
 
 		virtual void RemoveConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& InConstraints)
 		{
@@ -374,96 +292,13 @@ namespace Chaos
 			Constraints.Reset();
 		}
 
-		virtual bool ApplyPushOut(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) override
-		{
-			const typename FPBDConstraintColor::FLevelToColorToConstraintListMap& LevelToColorToConstraintListMap = GraphColor.GetIslandLevelToColorToConstraintListMap(Island);
-			int32 MaxColor = GraphColor.GetIslandMaxColor(Island);
-			int32 MaxLevel = GraphColor.GetIslandMaxLevel(Island);
+		virtual bool ApplyPushOut(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) override;
 
-			TSet<const TGeometryParticleHandle<FReal, 3>*> IsTemporarilyStatic;
-			bool bNeedsAnotherIteration = false;
-			for (int32 Level = 0; Level <= MaxLevel; ++Level)
-			{
-				for (int32 Color = 0; Color <= MaxColor; ++Color)
-				{
-					if (LevelToColorToConstraintListMap[Level].Contains(Color) && LevelToColorToConstraintListMap[Level][Color].Num())
-					{
-						const TArray<typename FConstraints::FConstraintContainerHandle*>& ConstraintHandles = GetLevelColorConstraints(LevelToColorToConstraintListMap, Level, Color);
-						if (Constraints.ApplyPushOut(Dt, ConstraintHandles, IsTemporarilyStatic, It, NumIts))
-						{
-							bNeedsAnotherIteration = true;
-						}
-					}
-				}
+		virtual void InitializeAccelerationStructures() override;
 
-				// @todo(ccaulfield): Move shock propagation out of color rule
-#if USE_SHOCK_PROPOGATION
-				for (int32 Color = 0; Color <= MaxColor; ++Color)
-				{
-					if (LevelToColorToConstraintListMap[Level].Contains(Color))
-					{
-						const TArray<typename FConstraints::FConstraintContainerHandle*>& ConstraintHandles = GetLevelColorConstraints(LevelToColorToConstraintListMap, Level, Color);
+		virtual void UpdateAccelerationStructures(const FReal Dt, const int32 Island) override;
 
-						for (int32 Edge = 0; Edge < ConstraintHandles.Num(); ++Edge)
-						{
-							const typename FConstraints::FConstraintContainerHandle* Handle = ConstraintHandles[Edge];
-							TVector<const TGeometryParticleHandle<FReal, 3>*, 2> Particles = Handle->GetConstrainedParticles();
-							if (It == NumIts - 1)
-							{
-								const bool bIsParticleDynamic0 = Particles[0]->CastToRigidParticle() && Particles[0]->ObjectState() == EObjectStateType::Dynamic;
-								const bool bIsParticleDynamic1 = Particles[1]->CastToRigidParticle() && Particles[1]->ObjectState() == EObjectStateType::Dynamic;
-
-								if (bIsParticleDynamic0 == false || IsTemporarilyStatic.Contains(Particles[0]))
-								{
-									IsTemporarilyStatic.Add(Particles[1]);
-								}
-								else if (bIsParticleDynamic1 == false || IsTemporarilyStatic.Contains(Particles[1]))
-								{
-									IsTemporarilyStatic.Add(Particles[0]);
-								}
-							}
-						}
-					}
-				}
-#endif
-			}
-
-			return bNeedsAnotherIteration;
-		}
-
-		virtual void InitializeAccelerationStructures() override
-		{
-			GraphColor.InitializeColor(*ConstraintGraph);
-		}
-
-		virtual void UpdateAccelerationStructures(const int32 Island) override
-		{
-			GraphColor.ComputeColor(Island, *ConstraintGraph, Constraints.GetContainerId());
-		}
-
-		virtual void SetUseContactGraph(const bool bInUseContactGraph) override
-		{
-			GraphColor.SetUseContactGraph(bInUseContactGraph);
-		}
-
-		template<typename TVisitor>
-		void VisitIslandConstraints(const int32 Island, const TVisitor& Visitor) const
-		{
-			const typename FPBDConstraintColor::FLevelToColorToConstraintListMap& LevelToColorToConstraintListMap = GraphColor.GetIslandLevelToColorToConstraintListMap(Island);
-			int32 MaxColor = GraphColor.GetIslandMaxColor(Island);
-			int32 MaxLevel = GraphColor.GetIslandMaxLevel(Island);
-			for (int32 Level = 0; Level <= MaxLevel; ++Level)
-			{
-				for (int32 Color = 0; Color <= MaxColor; ++Color)
-				{
-					if (LevelToColorToConstraintListMap[Level].Contains(Color) && LevelToColorToConstraintListMap[Level][Color].Num())
-					{
-						const TArray<typename FConstraints::FConstraintContainerHandle*>& ConstraintHandles = GetLevelColorConstraints(LevelToColorToConstraintListMap, Level, Color);
-						Visitor(ConstraintHandles, Island, Level, Color);
-					}
-				}
-			}
-		}
+		virtual void SetUseContactGraph(const bool bInUseContactGraph) override;
 
 		const FPBDConstraintColor GetGraphColor() const
 		{
@@ -474,13 +309,20 @@ namespace Chaos
 		using Base::Constraints;
 		using Base::ConstraintGraph;
 
-		const TArray<typename FConstraints::FConstraintContainerHandle*>& GetLevelColorConstraints(const typename FPBDConstraintColor::FLevelToColorToConstraintListMap& LevelToColorToConstraintListMap, int32 Level, int32 Color) const
+		const TArray<FConstraintContainerHandle*>& GetLevelColorConstraints(const typename FPBDConstraintColor::FLevelToColorToConstraintListMap& LevelToColorToConstraintListMap, int32 Level, int32 Color) const
 		{
 			// FPBDConstraintColor works with any constraint type (in principle - currently only used with Collisions), but the rule is bound to a single type and so this cast is ok
-			return reinterpret_cast<const TArray<typename FConstraints::FConstraintContainerHandle*>&>(LevelToColorToConstraintListMap[Level][Color]);
+			return reinterpret_cast<const TArray<FConstraintContainerHandle*>&>(LevelToColorToConstraintListMap[Level][Color]);
 		}
 
 		FPBDConstraintColor GraphColor;
+
+		// Each array entry contains the [begin, end) index of a set of independent constraints
+		// that can be solved in parallel. The sets are ordered by level and must be solved sequentially.
+		TArray<TArray<TPair<int32, int32>>> ConstraintSets;
+
+		// Whether to enable graph coloring and parallel processing of same-color constraints
+		bool bUseColor;
 	};
 
 }

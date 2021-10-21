@@ -33,6 +33,7 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 		TArrayCollection::AddArray(&MQ);
 		TArrayCollection::AddArray(&MPreV);
 		TArrayCollection::AddArray(&MPreW);
+		TArrayCollection::AddArray(&MSolverBodyIndex);
 	}
 	TPBDRigidParticles(const TPBDRigidParticles<T, d>& Other) = delete;
 	CHAOS_API TPBDRigidParticles(TPBDRigidParticles<T, d>&& Other)
@@ -41,12 +42,14 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 		, MQ(MoveTemp(Other.MQ))
 		, MPreV(MoveTemp(Other.MPreV))
 		, MPreW(MoveTemp(Other.MPreW))
+		, MSolverBodyIndex(MoveTemp(Other.MSolverBodyIndex))
 	{
 		this->MParticleType = EParticleType::Rigid;
 		TArrayCollection::AddArray(&MP);
 		TArrayCollection::AddArray(&MQ);
 		TArrayCollection::AddArray(&MPreV);
 		TArrayCollection::AddArray(&MPreW);
+		TArrayCollection::AddArray(&MSolverBodyIndex);
 	}
 
 	CHAOS_API virtual ~TPBDRigidParticles()
@@ -63,6 +66,11 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 
 	CHAOS_API const TVector<T, d>& PreW(const int32 index) const { return MPreW[index]; }
 	CHAOS_API TVector<T, d>& PreW(const int32 index) { return MPreW[index]; }
+
+	// The index into an FSolverBodyContainer (for dynamic particles only), or INDEX_NONE.
+	// \see FSolverBodyContainer
+	CHAOS_API int32 SolverBodyIndex(const int32 index) const { return MSolverBodyIndex[index]; }
+	CHAOS_API void SetSolverBodyIndex(const int32 index, const int32 InSolverBodyIndex) { MSolverBodyIndex[index] = InSolverBodyIndex; }
 
     // Must be reinterpret cast instead of static_cast as it's a forward declare
 	typedef TPBDRigidParticleHandle<T, d> THandleType;
@@ -208,6 +216,7 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 	TArrayCollectionArray<TRotation<T, d>> MQ;
 	TArrayCollectionArray<TVector<T, d>> MPreV;
 	TArrayCollectionArray<TVector<T, d>> MPreW;
+	TArrayCollectionArray<int32> MSolverBodyIndex;	// Transient for use in constraint solver
 };
 
 #if PLATFORM_MAC || PLATFORM_LINUX

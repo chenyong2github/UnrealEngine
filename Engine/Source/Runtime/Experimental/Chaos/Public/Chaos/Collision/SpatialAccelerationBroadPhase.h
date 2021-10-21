@@ -3,7 +3,6 @@
 
 #include "Chaos/Collision/BroadPhase.h"
 #include "Chaos/Collision/CollisionConstraintFlags.h"
-#include "Chaos/Collision/CollisionReceiver.h"
 #include "Chaos/Collision/StatsData.h"
 #include "Chaos/Collision/NarrowPhase.h"
 #include "Chaos/ISpatialAccelerationCollection.h"
@@ -18,12 +17,12 @@
 namespace Chaos
 {
 	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::BroadPhase"), STAT_Collisions_SpatialBroadPhase, STATGROUP_ChaosCollision, CHAOS_API);
+	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::AABBTree"), STAT_Collisions_AABBTree, STATGROUP_ChaosCollision, CHAOS_API);
 	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::Filtering"), STAT_Collisions_Filtering, STATGROUP_ChaosCollision, CHAOS_API);
+	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::Restore"), STAT_Collisions_Restore, STATGROUP_ChaosCollision, CHAOS_API);
+	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::ComputeBoundsThickness"), STAT_Collisions_ComputeBoundsThickness, STATGROUP_ChaosCollision, CHAOS_API);
 	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::GenerateCollisions"), STAT_Collisions_GenerateCollisions, STATGROUP_ChaosCollision, CHAOS_API);
-	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::ReceiveCollisions"), STAT_Collisions_ReceiveCollisions, STATGROUP_ChaosCollision, CHAOS_API);
-
-	extern bool ChaosPerfHackIgnoreSleepingContacts;
-
+	
 	template <typename TPayloadType, typename T, int d>
 	class ISpatialAcceleration;
 
@@ -108,11 +107,11 @@ namespace Chaos
 		void ProduceOverlaps(
 			FReal Dt, 
 			FNarrowPhase& NarrowPhase, 
-			FAsyncCollisionReceiver& Receiver,
-			CollisionStats::FStatData& StatData,
 			IResimCacheBase* ResimCache
 			)
 		{
+			SCOPE_CYCLE_COUNTER(STAT_Collisions_SpatialBroadPhase);
+
 			if (!ensure(SpatialAcceleration))
 			{
 				// Must call SetSpatialAcceleration
@@ -121,19 +120,19 @@ namespace Chaos
 
 			if (const auto AABBTree = SpatialAcceleration->template As<TAABBTree<FAccelerationStructureHandle, TAABBTreeLeafArray<FAccelerationStructureHandle>>>())
 			{
-				ProduceOverlaps(Dt, *AABBTree, NarrowPhase, Receiver, StatData, ResimCache);
+				ProduceOverlaps(Dt, *AABBTree, NarrowPhase, ResimCache);
 			}
 			else if (const auto BV = SpatialAcceleration->template As<TBoundingVolume<FAccelerationStructureHandle>>())
 			{
-				ProduceOverlaps(Dt, *BV, NarrowPhase, Receiver, StatData, ResimCache);
+				ProduceOverlaps(Dt, *BV, NarrowPhase, ResimCache);
 			}
 			else if (const auto AABBTreeBV = SpatialAcceleration->template As<TAABBTree<FAccelerationStructureHandle, TBoundingVolume<FAccelerationStructureHandle>>>())
 			{
-				ProduceOverlaps(Dt, *AABBTreeBV, NarrowPhase, Receiver, StatData, ResimCache);
+				ProduceOverlaps(Dt, *AABBTreeBV, NarrowPhase, ResimCache);
 			}
 			else if (const auto Collection = SpatialAcceleration->template As<ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>>())
 			{
-				Collection->PBDComputeConstraintsLowLevel(Dt, *this, NarrowPhase, Receiver, StatData, ResimCache);
+				Collection->PBDComputeConstraintsLowLevel(Dt, *this, NarrowPhase, ResimCache);
 			}
 			else
 			{
@@ -146,12 +145,10 @@ namespace Chaos
 			FReal Dt, 
 			const T_SPATIALACCELERATION& InSpatialAcceleration, 
 			FNarrowPhase& NarrowPhase, 
-			FAsyncCollisionReceiver& Receiver,
-			CollisionStats::FStatData& StatData,
 			IResimCacheBase* ResimCache
 			)
 		{
-			const bool bDisableParallelFor = StatData.IsEnabled() || bDisableCollisionParallelFor;
+			const bool bDisableParallelFor = bDisableCollisionParallelFor;
 			auto* EvolutionResimCache = static_cast<FEvolutionResimCache*>(ResimCache);
 			const bool bResimSkipCollision = ResimCache && ResimCache->IsResimming();
 			if(!bResimSkipCollision)
@@ -165,11 +162,9 @@ namespace Chaos
 					EntryCount += View.SOAViews[Index].Size();
 				}
 
-				Receiver.Prepare(EntryCount);
-
 				View.ParallelFor([&](auto& Particle1,int32 ActiveIdxIdx)
 				{
-					ProduceParticleOverlaps</*bResimming=*/false>(Dt,Particle1,InSpatialAcceleration,NarrowPhase,Receiver,StatData, ActiveIdxIdx);
+					ProduceParticleOverlaps</*bResimming=*/false>(Dt,Particle1,InSpatialAcceleration,NarrowPhase,ActiveIdxIdx);
 				},bDisableParallelFor);
 			}
 			else
@@ -183,14 +178,12 @@ namespace Chaos
 					EntryCount += View.SOAViews[Index].Size();
 				}
 
-				Receiver.Prepare(EntryCount);
-
 				View.ParallelFor(
 					[&](auto& Particle1,int32 ActiveIdxIdx)
 				{
 					//TODO: use transient handle
 					FGenericParticleHandleHandleImp GenericHandle(Particle1.Handle());
-					ProduceParticleOverlaps</*bResimming=*/true>(Dt,GenericHandle,InSpatialAcceleration,NarrowPhase,Receiver,StatData, ActiveIdxIdx);
+					ProduceParticleOverlaps</*bResimming=*/true>(Dt,GenericHandle,InSpatialAcceleration,NarrowPhase,ActiveIdxIdx);
 				},bDisableParallelFor);
 			}
 		}
@@ -204,25 +197,18 @@ namespace Chaos
 		    THandle& Particle1,
 		    const T_SPATIALACCELERATION& InSpatialAcceleration,
 		    FNarrowPhase& NarrowPhase,
-		    FAsyncCollisionReceiver& Receiver,
-		    CollisionStats::FStatData& StatData,
 			int32 EntryIndex)
 		{
-			CHAOS_COLLISION_STAT(StatData.IncrementSimulatedParticles());
-
 			//Durning non-resim we must pass rigid particles
 			static_assert(bIsResimming || THandle::StaticType() == EParticleType::Rigid, "During non-resim we expect rigid particles");
 
 			TArray<FAccelerationStructureHandle> PotentialIntersections;
 
-			//If we are in a resim, this particle must be diverged and so it better be marked as enabled during resim
-			ensure(!bIsResimming || Particle1.EnabledDuringResim());
-
 			if (bIsResimming || (Particle1.ObjectState() == EObjectStateType::Dynamic || Particle1.ObjectState() == EObjectStateType::Sleeping))
 			{
 				const bool bBody1Bounded = HasBoundingBox(Particle1);
 				{
-					SCOPE_CYCLE_COUNTER(STAT_Collisions_SpatialBroadPhase);
+					SCOPE_CYCLE_COUNTER(STAT_Collisions_AABBTree);
 					if (bBody1Bounded)
 					{
 						FCollisionFilterData ParticleSimData;
@@ -230,8 +216,6 @@ namespace Chaos
 
 						const FReal Box1Thickness = ComputeBoundsThickness(Particle1, Dt, BoundsThickness, BoundsThicknessVelocityInflation).Size();
 						const FAABB3 Box1 = ComputeWorldSpaceBoundingBox<FReal>(Particle1).ThickenSymmetrically(FVec3(Box1Thickness));
-
-						CHAOS_COLLISION_STAT(StatData.RecordBoundsData(Box1));
 
 						FSimOverlapVisitor OverlapVisitor(Particle1.UniqueIdx(), ParticleSimData, PotentialIntersections);
 						InSpatialAcceleration.Overlap(Box1, OverlapVisitor);
@@ -246,13 +230,10 @@ namespace Chaos
 							PotentialIntersections.Add(Elem.Payload);
 						}
 					}
-
-					CHAOS_COLLISION_STAT(StatData.RecordBroadphasePotentials(PotentialIntersections.Num()))
 				}
 
 				SCOPE_CYCLE_COUNTER(STAT_Collisions_Filtering);
 				const int32 NumPotentials = PotentialIntersections.Num();
-				FCollisionConstraintsArray NewConstraints;
 				for (int32 i = 0; i < NumPotentials; ++i)
 				{
 					auto& Particle2 = *PotentialIntersections[i].GetGeometryParticleHandle_PhysicsThread();
@@ -293,6 +274,11 @@ namespace Chaos
 					{
 						continue;
 					}
+					
+					if ((Particle1.ObjectState() == EObjectStateType::Sleeping) && (Particle2.ObjectState() == EObjectStateType::Sleeping))
+					{
+						continue;
+					}
 
 					if (Particle1.Handle() == Particle2.Handle())
 					{
@@ -305,43 +291,68 @@ namespace Chaos
 						continue;
 					}
 
-					const bool bSecondParticleWillHaveAnswer = !bIsResimming || Particle2.SyncState() == ESyncState::HardDesync;
-					// Sleeping vs dynamic gets picked up by the other direction.
-					const bool bIsParticle2Dynamic = Particle2.CastToRigidParticle() && Particle2.ObjectState() == EObjectStateType::Dynamic;
+					// Note:
+					// 
+					// Normally (not resimming) we iterate over dynamic particles, so:
+					// - Particle1 is always dynamic, but may be asleep
+					// - Particle2 may be static, kinematic or dynamic, but may be asleep
+					// 
+					// When resimming we iterate over "desynced" particles which may be kinematic so:
+					// - Particle1 is always desynced
+					// - Particle2 may also be desynced, in which case we will also visit the opposite ordering regardless of dynamic/kinematic status
+					// - Particle1 may be static, kinematic or dynamic, but may be asleep
+					// - Particle2 may be static, kinematic or dynamic, but may be asleep
+					// 
+					// Even though Particle1 may be kinematic when resimming, we want to create the contacts in the original order (i.e., dynamic first)
+					//
+					const bool bIsParticle2Dynamic = (Particle2.ObjectState() == EObjectStateType::Dynamic) || (Particle2.ObjectState() == EObjectStateType::Sleeping);
 
-					bool bSkipSleepingContact = bSecondParticleWillHaveAnswer;
-					if (ChaosPerfHackIgnoreSleepingContacts)
+					// Used to determine a winner in cases where we will visit particle pairs in both orders
+					const bool bIsParticle1Preferred = (Particle2.ParticleID() < Particle1.ParticleID());
+
+					bool bAcceptParticlePair = false;
+					if (!bIsResimming)
 					{
-						const bool bIsParticle2Kinematic = Particle2.CastToKinematicParticle() &&
-							(Particle2.ObjectState() == EObjectStateType::Kinematic &&
-								(Particle2.CastToKinematicParticle()->V().SizeSquared() > 1e-4 ||
-									Particle2.Geometry()->GetType() == FCapsule::StaticType()));
-
-						bSkipSleepingContact &= !bIsParticle2Kinematic;
+						// When not resimming, accept pair if any of the following are true
+						// (1) Both particles are dynamic|asleep and Particle1 is "preferred" (to prevent duplicate entries when we visit the pair in the opposite order)
+						// (2) Particle1 is dynamic|asleep and Particle2 is kinematic (we won't visit the opposite order)
+						// Then both conditions can be combined and reduced to:
+						bAcceptParticlePair = (bIsParticle1Preferred || !bIsParticle2Dynamic);
 					}
 					else
 					{
-						bSkipSleepingContact &= bIsParticle2Dynamic;
+						// When resimming, accept pair if any of the following are true
+						// (1) Both particles are dynamic|asleep and desynced and Particle1 is preferred (we will visit both pair orderings)
+						// (2) Both particles are dynamic|asleep but Particle2 is not desynced (we won't visit the opposite order)
+						// (3) Particle1 is dynamic|sleeping and Particle2 is kinematic (regardless of desync state, see (4))
+						// (4) Particle1 is kinematic and Particle2 is dynamic but not desynced (we won't visit the opposite order)
+						// We should skip non-dynamic pairs should they show up (implicit in the logic below)
+						const bool bIsParticle1Dynamic = (Particle1.ObjectState() == EObjectStateType::Dynamic) || (Particle1.ObjectState() == EObjectStateType::Sleeping);
+						const bool bIsParticle2Desynced = (Particle2.SyncState() == ESyncState::HardDesync);
+						bAcceptParticlePair = 
+							(bIsParticle1Dynamic && bIsParticle2Dynamic && (bIsParticle1Preferred || !bIsParticle2Desynced))		// Case (1) and (2)
+							|| (bIsParticle1Dynamic && !bIsParticle2Dynamic)														// Case (3)
+							|| (!bIsParticle1Dynamic && bIsParticle2Dynamic && !bIsParticle2Desynced);								// Case (4)
+
+						// @todo(chaos): for Case (4) above, we should be switching the order of the particles before continuing
+						// if we want this to be properly deterministic - we always put dynamics first in the non-resim path...
 					}
 
-					if (Particle1.ObjectState() == EObjectStateType::Sleeping && bSkipSleepingContact)
+					if (!bAcceptParticlePair)
 					{
-						//question: if !bSecondParticleWillHaveAnswer do we need to reorder constraint?
 						continue;
 					}
 
-					// Make sure we don't add a second set of constaint for the same body pair (with the body order flipped)
-					const bool bBody2Bounded = HasBoundingBox(Particle2);
-					if (bBody1Bounded == bBody2Bounded && bIsParticle2Dynamic)
+					// Try to restore all the contacts for this pair. This will only succeed if they have not moved (within some threshold)
 					{
-						if (Particle1.ParticleID() < Particle2.ParticleID() && bSecondParticleWillHaveAnswer)
+						SCOPE_CYCLE_COUNTER(STAT_Collisions_Restore);
+						if (NarrowPhase.TryRestoreCollisions(Dt, Particle1.Handle(), Particle2.Handle()))
 						{
-							//question: if !bSecondParticleWillHaveAnswer do we need to reorder constraint?
 							continue;
 						}
 					}
-				
 					
+					// If we get here, we need to run the narrow phase to possibly generate new contacts, or refresh existing ones
 					{
 						SCOPE_CYCLE_COUNTER(STAT_Collisions_GenerateCollisions);
 
@@ -358,23 +369,10 @@ namespace Chaos
 
 						// Generate constraints for the potentially overlapping shape pairs. Also run collision detection to generate
 						// the contact position and normal (for contacts within CullDistance) for use in collision callbacks.
-						NarrowPhase.GenerateCollisions(NewConstraints, Dt, Particle1.Handle(), Particle2.Handle(), NetCullDistance, false);
+						NarrowPhase.GenerateCollisions(Dt, Particle1.Handle(), Particle2.Handle(), NetCullDistance, false);
 					}
 				}
-
-				{
-					SCOPE_CYCLE_COUNTER(STAT_Collisions_ReceiveCollisions);
-
-					CHAOS_COLLISION_STAT(if (NewConstraints.Num()) { StatData.IncrementCountNP(NewConstraints.Num()); });
-					CHAOS_COLLISION_STAT(if (!NewConstraints.Num()) { StatData.IncrementRejectedNP(); });
-
-					// We are probably running in a parallel task here. The Receiver collects the contacts from all the tasks 
-					// and passes them to theconstraint container in serial.
-					Receiver.ReceiveCollisions(MoveTemp(NewConstraints), EntryIndex);
-				}
 			}
-
-			CHAOS_COLLISION_STAT(StatData.FinalizeData());
 		}
 
 		const FPBDRigidsSOAs& Particles;

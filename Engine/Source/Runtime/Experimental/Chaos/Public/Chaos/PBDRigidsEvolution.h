@@ -20,7 +20,6 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "RewindData.h"
 
-
 extern int32 ChaosRigidsEvolutionApplyAllowEarlyOutCVar;
 extern int32 ChaosRigidsEvolutionApplyPushoutAllowEarlyOutCVar;
 extern int32 ChaosNumPushOutIterationsOverride;
@@ -297,7 +296,6 @@ public:
 
 	CHAOS_API void AddForceFunction(FForceRule ForceFunction) { ForceRules.Add(ForceFunction); }
 	CHAOS_API void AddImpulseFunction(FForceRule ImpulseFunction) { ImpulseRules.Add(ImpulseFunction); }
-	CHAOS_API void SetParticleUpdateVelocityFunction(FUpdateVelocityRule ParticleUpdate) { ParticleUpdateVelocity = ParticleUpdate; }
 	CHAOS_API void SetParticleUpdatePositionFunction(FUpdatePositionRule ParticleUpdate) { ParticleUpdatePosition = ParticleUpdate; }
 	CHAOS_API void SetCaptureRewindDataFunction(FCaptureRewindRule Rule){ CaptureRewindData = Rule; }
 
@@ -339,8 +337,6 @@ public:
 		Particles.EnableParticle(Particle);
 		EnableConstraints({ Particle });
 		ConstraintGraph.EnableParticle(Particle, ParentParticle);
-		// enable constraint after disabling the particle in the graph because of dependencies 
-		AddConstraintsToConstraintGraph(Particle->ParticleConstraints());
 		DirtyParticle(*Particle);
 	}
 
@@ -351,6 +347,7 @@ public:
 		// disable constraint before disabling the particle in the graph because of dependencies 
 		DisableConstraints({ Particle });
 		ConstraintGraph.DisableParticle(Particle);
+		DisableConstraints(TSet<FGeometryParticleHandle*>({ Particle }));
 	}
 
 	CHAOS_API void FlushExternalAccelerationQueue(FAccelerationStructure& Acceleration,FPendingSpatialDataQueue& ExternalQueue);
@@ -362,7 +359,6 @@ public:
 			DisableParticle(Particle);
 		}
 	}
-
 
 	template <bool bPersistent>
 	FORCEINLINE_DEBUGGABLE void DirtyParticle(TGeometryParticleHandleImp<FReal, 3, bPersistent>& Particle)
@@ -413,7 +409,7 @@ public:
 
 	CHAOS_API void DestroyParticle(FGeometryParticleHandle* Particle)
 	{
-		if(MRewindData)
+		if (MRewindData)
 		{
 			MRewindData->RemoveObject(Particle);
 		}
@@ -612,54 +608,13 @@ public:
 		}
 	}
 
-	void PrepareIteration(const FReal Dt)
-	{
-		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
-		{
-			ConstraintRule->PrepareIteration(Dt);
-		}
-	}
-
-	void UnprepareIteration(const FReal Dt)
-	{
-		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
-		{
-			ConstraintRule->UnprepareIteration(Dt);
-		}
-	}
-
-	void UpdateAccelerationStructures(int32 Island)
+	void UpdateAccelerationStructures(const FReal Dt, const int32 Island)
 	{
 		CSV_SCOPED_TIMING_STAT(Chaos, UpdateAccelerationStructures);
 
 		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
-			ConstraintRule->UpdateAccelerationStructures(Island);
-		}
-	}
-
-	void ApplyConstraints(const FReal Dt, int32 Island)
-	{
-		UpdateAccelerationStructures(Island);
-
-		{
-			CSV_SCOPED_TIMING_STAT(Chaos, ApplyConstraints);
-
-			int32 LocalNumIterations = ChaosNumContactIterationsOverride >= 0 ? ChaosNumContactIterationsOverride : NumIterations;
-			// @todo(ccaulfield): track whether we are sufficiently solved and can early-out
-			for (int i = 0; i < LocalNumIterations; ++i)
-			{
-				bool bNeedsAnotherIteration = false;
-				for (FPBDConstraintGraphRule* ConstraintRule : PrioritizedConstraintRules)
-				{
-					bNeedsAnotherIteration |= ConstraintRule->ApplyConstraints(Dt, Island, i, LocalNumIterations);
-				}
-
-				if (ChaosRigidsEvolutionApplyAllowEarlyOutCVar && !bNeedsAnotherIteration)
-				{
-					break;
-				}
-			}
+			ConstraintRule->UpdateAccelerationStructures(Dt, Island);
 		}
 	}
 
@@ -747,17 +702,16 @@ public:
 				Rigid->PreW() = Rigid->W();
 
 				// Update the world bounds
-			/*	if (Rigid->HasBounds())
+				if (Rigid->HasBounds())
 				{
 					const FAABB3& LocalBounds = Rigid->LocalBounds();
 					FAABB3 WorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Rigid->X(), Rigid->R()));
-					if (Rigid->CCDEnabled())
-					{
-						WorldSpaceBounds.ThickenSymmetrically(Rigid->V() * Dt);
-					}
+					//if (Rigid->CCDEnabled())
+					//{
+					//	WorldSpaceBounds.ThickenSymmetrically(Rigid->V() * Dt);
+					//}
 					Rigid->SetWorldSpaceInflatedBounds(WorldSpaceBounds);
-				}*/
-				
+				}
 			}
 		}
 	}
@@ -887,37 +841,13 @@ protected:
 		}
 	}
 	
-	void UpdateVelocities(const FReal Dt, int32 Island)
-	{
-		ParticleUpdateVelocity(ConstraintGraph.GetIslandParticles(Island), Dt);
-	}
-
-	void ApplyPushOut(const FReal Dt, int32 Island)
-	{
-		int32 LocalNumPushOutIterations = ChaosNumPushOutIterationsOverride >= 0 ? ChaosNumPushOutIterationsOverride : NumPushOutIterations;
-		bool bNeedsAnotherIteration = true;
-		for (int32 It = 0; It < LocalNumPushOutIterations; ++It)
-		{
-			bNeedsAnotherIteration = false;
-			for (FPBDConstraintGraphRule* ConstraintRule : PrioritizedConstraintRules)
-			{
-				bNeedsAnotherIteration |= ConstraintRule->ApplyPushOut(Dt, Island, It, LocalNumPushOutIterations);
-			}
-
-			if (ChaosRigidsEvolutionApplyPushoutAllowEarlyOutCVar && !bNeedsAnotherIteration)
-			{
-				break;
-			}
-		}
-	}
-
 	void FlushInternalAccelerationQueue();
 	void FlushAsyncAccelerationQueue();
 	void WaitOnAccelerationStructure();
+	static void CopyPristineAccelerationStructures(const TMap<FSpatialAccelerationIdx, TUniquePtr<FSpatialAccelerationCache>>& SpatialAccelerationCache, FAccelerationStructure* FromStructure, FAccelerationStructure* ToStructure, bool CheckPristine);
 
 	TArray<FForceRule> ForceRules;
 	TArray<FForceRule> ImpulseRules;
-	FUpdateVelocityRule ParticleUpdateVelocity;
 	FUpdatePositionRule ParticleUpdatePosition;
 	FKinematicUpdateRule KinematicUpdate;
 	FCaptureRewindRule CaptureRewindData;
@@ -1013,7 +943,7 @@ protected:
 		bool bNeedsReset;
 
 	private:
-		void UpdateStructure(FAccelerationStructure* AccelerationStructure);
+		void UpdateStructure(FAccelerationStructure* AccelerationStructure, FAccelerationStructure* CopyToAccelerationStructure = nullptr);
 	};
 	FGraphEventRef AccelerationStructureTaskComplete;
 
@@ -1028,7 +958,7 @@ protected:
 	void ReleasePendingIndices();
 
 	TArray<FUniqueIdx> PendingReleaseIndices;	//for now just assume a one frame delay, but may need something more general
-	bool bIsResim = false;
+	bool bIsResim = false; 
 };
 
 

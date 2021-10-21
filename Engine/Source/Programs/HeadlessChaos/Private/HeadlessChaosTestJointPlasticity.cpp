@@ -15,7 +15,7 @@ namespace ChaosTest {
 	void JointPlasticity_UnderAngularPlasticityThreshold()
 	{
 		const FReal PlasticityAngle = 10;
-		const int32 NumIterations = 1;
+		const int32 NumIterations = 8;
 		const FReal Gravity = 980;
 		const FReal Dt = 0.01f;
 		int32 NumIts = 100;
@@ -71,7 +71,7 @@ namespace ChaosTest {
 	void JointPlasticity_OverAngularPlasticityThreshold()
 	{
 		const FReal PlasticityAngle = 10;
-		const int32 NumIterations = 1;
+		const int32 NumIterations = 8;
 		const FReal Gravity = 980;
 		const FReal Dt = 0.01f;
 		int32 NumIts = 100;
@@ -128,7 +128,7 @@ namespace ChaosTest {
 	void JointPlasticity_UnderLinearPlasticityThreshold()
 	{
 		const FReal PlasticityLimit = 10;
-		const int32 NumIterations = 1;
+		const int32 NumIterations = 8;
 		const FReal Gravity = 980;
 		const FReal Dt = 0.01f;
 		int32 NumIts = 200;
@@ -167,7 +167,6 @@ namespace ChaosTest {
 
 		// Nothing should have reset
 		EXPECT_TRUE(FMath::IsNearlyEqual(Z, ZPost, (FReal)5.));
-
 	}
 
 	GTEST_TEST(AllEvolutions, JointPlasticity_UnderLinearPlasticityThreshold)
@@ -182,7 +181,7 @@ namespace ChaosTest {
 	void JointPlasticity_OverLinearPlasticityThreshold()
 	{
 		const FReal PlasticityLimit = 0.1;
-		const int32 NumIterations = 1;
+		const int32 NumIterations = 8;
 		const FReal Gravity = 980;
 		const FReal Dt = 0.01f;
 		int32 NumIts = 1000;

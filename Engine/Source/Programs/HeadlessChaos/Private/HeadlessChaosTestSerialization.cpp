@@ -400,7 +400,8 @@ namespace ChaosTest
 		Particles.F(1) = F[1];
 		Particles.X(0) = X[0];
 		Particles.X(1) = X[1];
-
+		Particles.RotationOfMass(0) = FRotation3::FromIdentity();
+		Particles.RotationOfMass(1) = FRotation3::FromIdentity();
 
 		TCHAR const * BinaryFolderName = TEXT("RigidParticles");
 		bool bSaveBinaryToDisk = false; // Flip to true and run to save current binary to disk for future tests.

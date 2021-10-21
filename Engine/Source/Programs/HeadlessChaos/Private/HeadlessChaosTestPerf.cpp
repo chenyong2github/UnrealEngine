@@ -32,7 +32,7 @@ namespace ChaosTest {
 		return Static;
 	}
 
-	GTEST_TEST(AllEvolutions, PerfTests_Sim)
+	GTEST_TEST(AllEvolutions, DISABLED_PerfTests_Sim)
 	{
 		FParticleUniqueIndicesMultithreaded UniqueIndices;
 		FPBDRigidsSOAs Particles(UniqueIndices);

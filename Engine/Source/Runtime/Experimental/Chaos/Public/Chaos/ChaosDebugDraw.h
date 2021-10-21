@@ -9,6 +9,9 @@
 
 namespace Chaos
 {
+	class FAccelerationStructureHandle;
+	template <typename PayloadType, typename T, int d> class ISpatialAcceleration;
+
 	namespace DebugDraw
 	{
 #if CHAOS_DEBUG_DRAW
@@ -53,8 +56,6 @@ namespace Chaos
 		struct CHAOS_API FChaosDebugDrawSettings
 		{
 		public:
-			FChaosDebugDrawSettings();
-
 			FChaosDebugDrawSettings(
 				FRealSingle InArrowSize,
 				FRealSingle InBodyAxisLen,
@@ -73,7 +74,8 @@ namespace Chaos
 				FRealSingle InVelScale,
 				FRealSingle InAngVelScale,
 				FRealSingle InImpulseScale,
-				float InInertiaScale,
+				FRealSingle InPushOutScale,
+				FRealSingle InInertiaScale,
 				uint8 InDrawPriority,
 				bool bInShowSimpleCollision,
 				bool bInShowComplexCollision,
@@ -100,6 +102,7 @@ namespace Chaos
 				, VelScale(InVelScale)
 				, AngVelScale(InAngVelScale)
 				, ImpulseScale(InImpulseScale)
+				, PushOutScale(InPushOutScale)
 				, InertiaScale(InInertiaScale)
 				, DrawPriority(InDrawPriority)
 				, bShowSimpleCollision(bInShowSimpleCollision)
@@ -129,6 +132,7 @@ namespace Chaos
 			FRealSingle VelScale;
 			FRealSingle AngVelScale;
 			FRealSingle ImpulseScale;
+			FRealSingle PushOutScale;
 			FRealSingle InertiaScale;
 			uint8 DrawPriority;
 			bool bShowSimpleCollision;
@@ -202,8 +206,9 @@ namespace Chaos
 		CHAOS_API void DrawJointConstraints(const FRigidTransform3& SpaceTransform, const FPBDJointConstraints& Constraints, FRealSingle ColorScale, const FChaosDebugDrawJointFeatures& FeatureMask = FChaosDebugDrawJointFeatures::MakeDefault(), const FChaosDebugDrawSettings* Settings = nullptr);
 		CHAOS_API void DrawSimulationSpace(const FSimulationSpace& SimSpace, const FChaosDebugDrawSettings* Settings = nullptr);
 		CHAOS_API void DrawShape(const FRigidTransform3& ShapeTransform, const FImplicitObject* Shape, const FColor& Color, const FChaosDebugDrawSettings* Settings = nullptr);
-		CHAOS_API void DrawConstraintGraph(const FRigidTransform3& ShapeTransform, const FPBDConstraintColor& Graph, const FChaosDebugDrawSettings* Settings = nullptr);
+		CHAOS_API void DrawConstraintGraph(const FRigidTransform3& ShapeTransform, const FPBDConstraintGraph& Graph, const FChaosDebugDrawSettings* Settings = nullptr);
 		CHAOS_API void DrawCollidingShapes(const FRigidTransform3& SpaceTransform, const FPBDCollisionConstraints& Collisions, FRealSingle ColorScale, const FChaosDebugDrawSettings* Settings = nullptr);
+		CHAOS_API void DrawSpatialAccelerationStructure(const ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>& SpatialAccelerationStructure, const FChaosDebugDrawSettings* Settings = nullptr);
 #endif
 	}
 }

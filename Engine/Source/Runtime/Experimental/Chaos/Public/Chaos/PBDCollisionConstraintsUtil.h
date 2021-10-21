@@ -7,7 +7,7 @@
 
 namespace Chaos
 {
-	void CHAOS_API ComputeHashTable(const TArray<Chaos::FRigidBodyPointContactConstraint>& ConstraintsArray,
+	void CHAOS_API ComputeHashTable(const TArray<Chaos::FPBDCollisionConstraint>& ConstraintsArray,
 									const FBox& BoundingBox, TMultiMap<int32, int32>& HashTableMap, const Chaos::FReal SpatialHashRadius);
 
 	void CHAOS_API ComputeHashTable(const TArray<FCollidingData>& CollisionsArray,

@@ -3,8 +3,8 @@
 
 namespace Chaos
 {
-	FPBDConstraintContainer::FPBDConstraintContainer(EConstraintContainerType InConstraintType)
-		: ConstraintContainerType(InConstraintType)
+	FPBDConstraintContainer::FPBDConstraintContainer(FConstraintHandleTypeID InConstraintHandleType)
+		: ConstraintHandleType(InConstraintHandleType)
 		, ContainerId(INDEX_NONE)
 	{
 	}
@@ -13,12 +13,12 @@ namespace Chaos
 	{
 	}
 
-	int32 FPBDConstraintContainer::GetConstraintIndex(const FConstraintHandle* ConstraintHandle) const
+	int32 FPBDIndexedConstraintContainer::GetConstraintIndex(const FIndexedConstraintHandle* ConstraintHandle) const
 	{
 		return ConstraintHandle->GetConstraintIndex();
 	}
 
-	void FPBDConstraintContainer::SetConstraintIndex(FConstraintHandle* ConstraintHandle, int32 ConstraintIndex) const
+	void FPBDIndexedConstraintContainer::SetConstraintIndex(FIndexedConstraintHandle* ConstraintHandle, int32 ConstraintIndex) const
 	{
 		ConstraintHandle->ConstraintIndex = ConstraintIndex;
 	}

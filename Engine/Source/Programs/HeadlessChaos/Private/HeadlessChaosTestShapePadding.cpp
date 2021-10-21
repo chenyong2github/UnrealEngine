@@ -5,11 +5,14 @@
 #include "HeadlessChaos.h"
 #include "HeadlessChaosCollisionConstraints.h"
 #include "Chaos/Box.h"
+#include "Chaos/CollisionResolution.h"
 #include "Chaos/CollisionResolutionTypes.h"
+#include "Chaos/Collision/SolverCollisionContainer.h"
 #include "Chaos/Convex.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/GJK.h"
 #include "Chaos/Pair.h"
+#include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/PBDRigidsEvolution.h"
 #include "Chaos/Utilities.h"
@@ -82,25 +85,32 @@ namespace ChaosTest {
 		EXPECT_NEAR(BoxBounds1.Extents().Y, Size.Y, Tolerance);
 		EXPECT_NEAR(BoxBounds1.Extents().Z, Size.Z, Tolerance);
 
-		FRigidBodyPointContactConstraint Constraint(
+		FCollisionConstraintAllocator CollisionAllocator;
+
+		FPBDCollisionConstraint* Constraint = FPBDCollisionConstraint::Make(
 			Box0,
 			Box0->Geometry().Get(),
 			nullptr,
+			FParticleUtilities::GetActorWorldTransform(Box0),
 			FRigidTransform3(),
 			Box1,
 			Box1->Geometry().Get(),
 			nullptr,
+			FParticleUtilities::GetActorWorldTransform(Box1),
 			FRigidTransform3(),
 			FLT_MAX,
-			EContactShapesType::BoxBox, true);
+			EContactShapesType::BoxBox, 
+			true, 
+			CollisionAllocator);
 
 		// Detect collisions
-		Collisions::Update(Constraint, 1/30.0f);
+		Constraint->ResetPhi(Constraint->GetCullDistance());
+		Collisions::UpdateConstraintFromGeometry<ECollisionUpdateType::Deepest>(*Constraint, FParticleUtilitiesPQ::GetActorWorldTransform(Box0), FParticleUtilitiesPQ::GetActorWorldTransform(Box1), 1 / 30.0f);
 
-		EXPECT_NEAR(Constraint.Manifold.Phi, ExpectedPhi, Tolerance);
-		EXPECT_NEAR(Constraint.Manifold.Normal.X, ExpectedNormal.X, Tolerance);
-		EXPECT_NEAR(Constraint.Manifold.Normal.Y, ExpectedNormal.Y, Tolerance);
-		EXPECT_NEAR(Constraint.Manifold.Normal.Z, ExpectedNormal.Z, Tolerance);
+		EXPECT_NEAR(Constraint->Manifold.Phi, ExpectedPhi, Tolerance);
+		EXPECT_NEAR(Constraint->Manifold.Normal.X, ExpectedNormal.X, Tolerance);
+		EXPECT_NEAR(Constraint->Manifold.Normal.Y, ExpectedNormal.Y, Tolerance);
+		EXPECT_NEAR(Constraint->Manifold.Normal.Z, ExpectedNormal.Z, Tolerance);
 	}
 
 	TEST(CollisionTests, TestBoxBoxCollisionMargin)
@@ -188,25 +198,31 @@ namespace ChaosTest {
 		EXPECT_NEAR(BoxBounds1.Extents().Y, Size.Y, Tolerance);
 		EXPECT_NEAR(BoxBounds1.Extents().Z, Size.Z, Tolerance);
 
-		FRigidBodyPointContactConstraint Constraint(
+		FCollisionConstraintAllocator CollisionConstraintAllocator;
+
+		FPBDCollisionConstraint* Constraint = FPBDCollisionConstraint::Make(
 			Box0,
 			Box0->Geometry().Get(),
 			nullptr,
+			FParticleUtilities::GetActorWorldTransform(Box0),
 			FRigidTransform3(),
 			Box1,
 			Box1->Geometry().Get(),
 			nullptr,
+			FParticleUtilities::GetActorWorldTransform(Box1),
 			FRigidTransform3(),
 			FLT_MAX,
-			EContactShapesType::GenericConvexConvex, true);
+			EContactShapesType::GenericConvexConvex,
+			true,
+			CollisionConstraintAllocator);
 
 		// Detect collisions
-		Collisions::Update(Constraint, 1 / 30.0f);
+		Collisions::UpdateConstraintFromGeometry<ECollisionUpdateType::Deepest>(*Constraint, FParticleUtilitiesPQ::GetActorWorldTransform(Box0), FParticleUtilitiesPQ::GetActorWorldTransform(Box1), 1 / 30.0f);
 
-		EXPECT_NEAR(Constraint.Manifold.Phi, ExpectedPhi, Tolerance);
-		EXPECT_NEAR(Constraint.Manifold.Normal.X, ExpectedNormal.X, Tolerance);
-		EXPECT_NEAR(Constraint.Manifold.Normal.Y, ExpectedNormal.Y, Tolerance);
-		EXPECT_NEAR(Constraint.Manifold.Normal.Z, ExpectedNormal.Z, Tolerance);
+		EXPECT_NEAR(Constraint->Manifold.Phi, ExpectedPhi, Tolerance);
+		EXPECT_NEAR(Constraint->Manifold.Normal.X, ExpectedNormal.X, Tolerance);
+		EXPECT_NEAR(Constraint->Manifold.Normal.Y, ExpectedNormal.Y, Tolerance);
+		EXPECT_NEAR(Constraint->Manifold.Normal.Z, ExpectedNormal.Z, Tolerance);
 	}
 
 

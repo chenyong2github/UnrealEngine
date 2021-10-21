@@ -10,7 +10,7 @@ namespace Chaos
 	class FBVHParticles;
 	class FContactPoint;
 	class FImplicitObject;
-	class FRigidBodyPointContactConstraint;
+	class FPBDCollisionConstraint;
 
 	namespace Collisions
 	{

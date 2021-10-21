@@ -20,7 +20,9 @@ namespace ChaosTest
 	class FJointSolverTest
 	{
 	public:
-		FJointSolverGaussSeidel Solver;
+		FPBDJointSolver Solver;
+		FSolverBody Body0;
+		FSolverBody Body1;
 
 		// Settings
 		int32 NumPairIts;
@@ -35,34 +37,17 @@ namespace ChaosTest
 		FPBDJointSettings JointSettings;
 		FReal SolverStiffness;
 
-		// Derived Settings
-		FReal IM0;
-		FVec3 II0;
-		FReal IM1;
-		FVec3 II1;
-
 		// External accelerations
 		FVec3 ExtAcc1;
 		FVec3 ExtAngAcc1;
 
-		// State
-		FVec3 PPrev0;
-		FRotation3 QPrev0;
-		FVec3 PPrev1;
-		FRotation3 QPrev1;
-		FVec3 P0;
-		FRotation3 Q0;
-		FVec3 V0;
-		FVec3 W0;
-		FVec3 P1;
-		FRotation3 Q1;
-		FVec3 V1;
-		FVec3 W1;
-
 		bool bInitialized;
 
 		FJointSolverTest()
-			: NumPairIts(1)
+			: Solver()
+			, Body0()
+			, Body1()
+			, NumPairIts(1)
 			, Gravity(FVec3(0))
 			, Mass0(0)
 			, Mass1(0)
@@ -71,34 +56,24 @@ namespace ChaosTest
 			, Connector0(FRigidTransform3(FVec3(0), FRotation3::FromIdentity()))
 			, Connector1(FRigidTransform3(FVec3(0), FRotation3::FromIdentity()))
 			, SolverStiffness(1)
-			, IM0(0)
-			, II0(FVec3(0))
-			, IM1(0)
-			, II1(FVec3(0))
 			, ExtAcc1(FVec3(0))
 			, ExtAngAcc1(FVec3(0))
-			, PPrev0(FVec3(0))
-			, QPrev0(FRotation3::FromIdentity())
-			, PPrev1(FVec3(0))
-			, QPrev1(FRotation3::FromIdentity())
-			, P0(FVec3(0))
-			, Q0(FRotation3::FromIdentity())
-			, V0(FVec3(0))
-			, W0(FVec3(0))
-			, P1(FVec3(0))
-			, Q1(FRotation3::FromIdentity())
-			, V1(FVec3(0))
-			, W1(FVec3(0))
 			, bInitialized(false)
 		{
 		}
 
 		void Init()
 		{
-			IM0 = (Mass0 > 0) ? 1.0f / Mass0 : 0.0f;
-			II0 = (Mass0 > 0) ? FVec3(1.0f / Inertia0.X, 1.0f / Inertia0.Y, 1.0f / Inertia0.Z) : FVec3(0);
-			IM1 = (Mass1 > 0) ? 1.0f / Mass1 : 0.0f;
-			II1 = (Mass1 > 0) ? FVec3(1.0f / Inertia1.X, 1.0f / Inertia1.Y, 1.0f / Inertia1.Z) : FVec3(0);
+			if (Mass0 > 0)
+			{
+				Body0.SetInvM(1.0f / Mass0);
+				Body0.SetInvILocal(FVec3(1.0f / Inertia0.X, 1.0f / Inertia0.Y, 1.0f / Inertia0.Z));
+			}
+			if (Mass1 > 0)
+			{
+				Body1.SetInvM(1.0f / Mass1);
+				Body1.SetInvILocal(FVec3(1.0f / Inertia1.X, 1.0f / Inertia1.Y, 1.0f / Inertia1.Z));
+			}
 			bInitialized = true;
 		}
 
@@ -106,79 +81,56 @@ namespace ChaosTest
 		{
 			EXPECT_TRUE(bInitialized);
 
-			PPrev0 = P0;
-			PPrev1 = P1;
-			QPrev0 = Q0;
-			QPrev1 = Q1;
+			Body0.SetX(Body0.P());
+			Body0.SetR(Body0.Q());
+			Body1.SetX(Body1.P());
+			Body1.SetR(Body1.Q());
 
 			// Apply Forces
 			if (Mass0 > 0)
 			{
 				FVec3 A0 = Gravity;
-				V0 += A0 * Dt;
-				P0 += V0 * Dt;
-				Q0 = FRotation3::IntegrateRotationWithAngularVelocity(Q0, W0, Dt);
+				Body0.ApplyLinearVelocityDelta(A0 * Dt);
+				Body0.ApplyTransformDelta(Body0.V() * Dt, Body0.W() * Dt);
+				Body0.UpdateRotationDependentState();
 			}
 
 			if (Mass1 > 0)
 			{
 				FVec3 Acc1 = Gravity + ExtAcc1;
 				FVec3 AngAcc1 = ExtAngAcc1;
-				V1 += Acc1 * Dt;
-				W1 += AngAcc1 * Dt;
-				P1 += V1 * Dt;
-				Q1 = FRotation3::IntegrateRotationWithAngularVelocity(Q1, W1, Dt);
+				Body1.ApplyVelocityDelta(Acc1 * Dt, AngAcc1 * Dt);
+				Body1.ApplyTransformDelta(Body1.V() * Dt, Body1.W() * Dt);
+				Body1.UpdateRotationDependentState();
 			}
 
 			// Apply Constraints
 			Solver.Init(
 				Dt,
+				{&Body0, &Body1},
 				SolverSettings,
 				JointSettings,
-				PPrev0,
-				PPrev1,
-				QPrev0,
-				QPrev1,
-				IM0,
-				II0,
-				IM1,
-				II1,
 				Connector0,
 				Connector1);
 
 			Solver.Update(
 				Dt,
-				SolverStiffness,
 				SolverSettings,
-				JointSettings,
-				P0,
-				Q0,
-				V0,
-				W0,
-				P1,
-				Q1,
-				V1,
-				W1);
+				JointSettings);
 
 			for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
 			{
-				Solver.ApplyConstraints(Dt, SolverSettings, JointSettings);
+				Solver.ApplyConstraints(Dt, SolverStiffness, SolverSettings, JointSettings);
 			}
 
 			if (Mass0 > 0)
 			{
-				V0 = FVec3::CalculateVelocity(PPrev0, Solver.GetP(0), Dt);
-				W0 = FRotation3::CalculateAngularVelocity(QPrev0, Solver.GetQ(0), Dt);
-				P0 = Solver.GetP(0);
-				Q0 = Solver.GetQ(0);
+				Body0.SetImplicitVelocity(Dt);
 			}
 
 			if (Mass1 > 0)
 			{
-				V1 = FVec3::CalculateVelocity(PPrev1, Solver.GetP(1), Dt);
-				W1 = FRotation3::CalculateAngularVelocity(QPrev1, Solver.GetQ(1), Dt);
-				P1 = Solver.GetP(1);
-				Q1 = Solver.GetQ(1);
+				Body1.SetImplicitVelocity(Dt);
 			}
 
 		}
@@ -218,7 +170,7 @@ namespace ChaosTest
 			SolverTest.Tick(Dt);
 
 			// Measure Distance
-			OutDelta1 = SolverTest.P1;
+			OutDelta1 = SolverTest.Body1.P();
 
 			// Moving average delta (Z Axis)
 			AverageOutDelta1Z = AverageOutDelta1Z + (OutDelta1.Z - AverageOutDelta1Z) / (FMath::Min(It, RollingIts));
@@ -282,7 +234,7 @@ namespace ChaosTest
 			SolverTest.Tick(Dt);
 
 			// Measure Distance
-			OutDelta1 = SolverTest.P1;
+			OutDelta1 = SolverTest.Body1.P();
 
 			// Moving average delta (Z Axis)
 			AverageOutDelta1Z = AverageOutDelta1Z + (OutDelta1.Z - AverageOutDelta1Z) / (FMath::Min(It, RollingIts));
@@ -339,8 +291,8 @@ namespace ChaosTest
 
 		// Particle 0 is Kinematic
 		// Particle 1 is Dynamic, rotated by 10 degrees about the Swing1(Z) axis through its connector
-		SolverTestA.Q1 = Rotation1;
-		SolverTestA.P1 = Rotation1 * Offset1;
+		SolverTestA.Body1.SetQ(Rotation1);
+		SolverTestA.Body1.SetP(Rotation1 * Offset1);
 
 		FReal MassScale = 5;
 		SolverTestB = SolverTestA;
@@ -362,14 +314,14 @@ namespace ChaosTest
 		FReal EffectiveInertiaB1 = SolverTestB.Inertia1.Z + SolverTestB.Mass1 * Offset1.X * Offset1.X;
 
 		// Verify that the angle change is as expected
-		FReal OutAngle1A = 2.0f * FMath::Asin(SolverTestA.Q1.Z);
+		FReal OutAngle1A = 2.0f * FMath::Asin(SolverTestA.Body1.Q().Z);
 		FReal OutAngleDelta1A = OutAngle1A - Angle1;
 		FReal IIAxis1A = 1.0f / EffectiveInertiaA1;
 		FReal ExpectedAngle1DeltaA = -IIAxis1A * SolverTestA.JointSettings.SoftSwingStiffness * Angle1 * Dt * Dt;
 		EXPECT_NEAR(OutAngleDelta1A, ExpectedAngle1DeltaA, 1.e-6f);
 
 		// Verify that the angle change is as expected
-		FReal OutAngle1B = 2.0f * FMath::Asin(SolverTestB.Q1.Z);
+		FReal OutAngle1B = 2.0f * FMath::Asin(SolverTestB.Body1.Q().Z);
 		FReal OutAngleDelta1B = OutAngle1B - Angle1;
 		FReal IIAxis1B = 1.0f / EffectiveInertiaB1;
 		FReal ExpectedAngle1DeltaB = -IIAxis1B * SolverTestB.JointSettings.SoftSwingStiffness * Angle1 * Dt * Dt;
@@ -392,7 +344,7 @@ namespace ChaosTest
 		SolverTestA.Mass1 = Mass;
 		SolverTestA.Inertia1 = FVec3(Inertia, Inertia, Inertia);
 		SolverTestA.Connector1 = FRigidTransform3(-Offset1, FRotation3::FromIdentity());
-		SolverTestA.P1 = Offset1;
+		SolverTestA.Body1.SetP(Offset1);
 
 		// Set up a heavily damped SLerp drive so that it settles quickly
 		SolverTestA.JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] = EJointMotionType::Free;
@@ -414,15 +366,15 @@ namespace ChaosTest
 		{
 			// Apply an angular acceleration about the connector to body 1
 			SolverTestA.ExtAngAcc1 = FVec3(0, AngAcc, 0);
-			SolverTestA.ExtAcc1 = FVec3::CrossProduct(SolverTestA.ExtAngAcc1, SolverTestA.Q1 * Offset1);
+			SolverTestA.ExtAcc1 = FVec3::CrossProduct(SolverTestA.ExtAngAcc1, SolverTestA.Body1.Q() * Offset1);
 
 			SolverTestA.Tick(Dt);
 
 			// Measure Angle
 			FVec3 OutAngles1 = FVec3(
-				2.0f * FMath::Asin(SolverTestA.Q1.X),
-				2.0f * FMath::Asin(SolverTestA.Q1.Y),
-				2.0f * FMath::Asin(SolverTestA.Q1.Z));
+				2.0f * FMath::Asin(SolverTestA.Body1.Q().X),
+				2.0f * FMath::Asin(SolverTestA.Body1.Q().Y),
+				2.0f * FMath::Asin(SolverTestA.Body1.Q().Z));
 
 			// We should only be rotating about Y Axis
 			EXPECT_NEAR(OutAngles1.X, 0.0f, 0.01f);
@@ -433,11 +385,11 @@ namespace ChaosTest
 			EXPECT_GT(OutAngles1.Y, -PI);
 
 			// Moving average angular velocity
-			AverageW = SolverTestA.W1 + (SolverTestA.W1 - AverageW) / (FMath::Min(It, RollingIts));
+			AverageW = SolverTestA.Body1.W() + (SolverTestA.Body1.W() - AverageW) / (FMath::Min(It, RollingIts));
 
 			// Check for settling
 			//UE_LOG(LogChaos, Warning, TEXT("%d: %f deg : %f deg/s"), It, FMath::RadiansToDegrees(OutAngles1.Y), FMath::RadiansToDegrees(SolverTestA.W1.Y));
-			if ((It > 20) && FMath::IsNearlyEqual(SolverTestA.W1.Y, (FReal)0., (FReal)KINDA_SMALL_NUMBER) && FMath::IsNearlyEqual(AverageW.Y, (FReal)0., (FReal)KINDA_SMALL_NUMBER))
+			if ((It > 20) && FMath::IsNearlyEqual(SolverTestA.Body1.W().Y, FReal(0), FReal(KINDA_SMALL_NUMBER)) && FMath::IsNearlyEqual(AverageW.Y, FReal(0), FReal(KINDA_SMALL_NUMBER)))
 			{
 				break;
 			}
@@ -477,9 +429,9 @@ namespace ChaosTest
 			KinematicDynamic_SLerpDrive(SolverTestA, Mass, Inertia, EJointForceMode::Force, Stiffness, Damping, AngAcc, Distance);
 
 			FVec3 OutAngles1 = FVec3(
-				2.0f * FMath::Asin(SolverTestA.Q1.X),
-				2.0f * FMath::Asin(SolverTestA.Q1.Y),
-				2.0f * FMath::Asin(SolverTestA.Q1.Z));
+				2.0f * FMath::Asin(SolverTestA.Body1.Q().X),
+				2.0f * FMath::Asin(SolverTestA.Body1.Q().Y),
+				2.0f * FMath::Asin(SolverTestA.Body1.Q().Z));
 
 			FReal EffectiveInertia1 = Inertia + Mass * Distance * Distance;
 
@@ -546,9 +498,9 @@ namespace ChaosTest
 					KinematicDynamic_SLerpDrive(SolverTestA, Mass, Inertia, EJointForceMode::Acceleration, Stiffness, Damping, AngAcc, Distance);
 
 					FVec3 OutAngles1 = FVec3(
-						2.0f * FMath::Asin(SolverTestA.Q1.X),
-						2.0f * FMath::Asin(SolverTestA.Q1.Y),
-						2.0f * FMath::Asin(SolverTestA.Q1.Z));
+						2.0f * FMath::Asin(SolverTestA.Body1.Q().X),
+						2.0f * FMath::Asin(SolverTestA.Body1.Q().Y),
+						2.0f * FMath::Asin(SolverTestA.Body1.Q().Z));
 
 					// Calculate the expected angle for the given torque
 					FReal ExpectedAngleDeg = FMath::RadiansToDegrees(AngAcc / Stiffness);
@@ -590,8 +542,8 @@ namespace ChaosTest
 		FVec3 Offset1 = FVec3(0, 0, 0.25f);				// Particle1 CoM distance from connector
 		SolverTestA.Connector0 = FRigidTransform3(FVec3(0, 0, 0), FRotation3::FromIdentity());
 		SolverTestA.Connector1 = FRigidTransform3(-Offset1, FRotation3::FromIdentity());
-		SolverTestA.Q1 = FRotation3::FromAxisAngle(FVec3(0, 1, 0), FMath::DegreesToRadians(45));	// Start rotated 90 degrees
-		SolverTestA.P1 = SolverTestA.Q1 * Offset1;
+		SolverTestA.Body1.SetQ(FRotation3::FromAxisAngle(FVec3(0, 1, 0), FMath::DegreesToRadians(45)));	// Start rotated 90 degrees
+		SolverTestA.Body1.SetP(SolverTestA.Body1.Q() * Offset1);
 
 		SolverTestA.Init();
 
@@ -605,9 +557,9 @@ namespace ChaosTest
 
 			// Measure Angle
 			OutAngles1 = FVec3(
-				2.0f * FMath::Asin(SolverTestA.Q1.X),
-				2.0f * FMath::Asin(SolverTestA.Q1.Y),
-				2.0f * FMath::Asin(SolverTestA.Q1.Z));
+				2.0f * FMath::Asin(SolverTestA.Body1.Q().X),
+				2.0f * FMath::Asin(SolverTestA.Body1.Q().Y),
+				2.0f * FMath::Asin(SolverTestA.Body1.Q().Z));
 
 			// We should only be rotating about Y Axis
 			EXPECT_NEAR(OutAngles1.X, 0.0f, 0.01f);
@@ -618,17 +570,17 @@ namespace ChaosTest
 			EXPECT_GT(OutAngles1.Y, -PI);
 
 			// Moving average angular velocity
-			AverageW = SolverTestA.W1 + (SolverTestA.W1 - AverageW) / (FMath::Min(It, RollingIts));
+			AverageW = SolverTestA.Body1.W() + (SolverTestA.Body1.W() - AverageW) / (FMath::Min(It, RollingIts));
 
 			// Check for settling
 			//UE_LOG(LogChaos, Warning, TEXT("%d: %f deg : %f deg/s"), It, FMath::RadiansToDegrees(OutAngles1.Y), FMath::RadiansToDegrees(SolverTestA.W1.Y));
-			if ((It > 20) && FMath::IsNearlyEqual(SolverTestA.W1.Y, (FReal)0., (FReal)KINDA_SMALL_NUMBER) && FMath::IsNearlyEqual(AverageW.Y, (FReal)0., (FReal)KINDA_SMALL_NUMBER))
+			if ((It > 20) && FMath::IsNearlyEqual(SolverTestA.Body1.W().Y, FReal(0), FReal(KINDA_SMALL_NUMBER)) && FMath::IsNearlyEqual(AverageW.Y, FReal(0), FReal(KINDA_SMALL_NUMBER)))
 			{
 				break;
 			}
 		}
 
-		FReal GravityAngAcc = SolverTestA.II1.Y * SolverTestA.Mass1 * FVec3::CrossProduct(SolverTestA.P1, SolverTestA.Gravity).Y;
+		FReal GravityAngAcc = SolverTestA.Body1.InvI().M[1][1] * SolverTestA.Mass1 * FVec3::CrossProduct(SolverTestA.Body1.P(), SolverTestA.Gravity).Y;
 		FReal SpringAngAcc = -SolverTestA.JointSettings.AngularDriveStiffness * OutAngles1.Y;
 		EXPECT_NEAR(SpringAngAcc, -GravityAngAcc, 5.0f);
 

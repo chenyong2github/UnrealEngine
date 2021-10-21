@@ -79,6 +79,25 @@ class TBoundingVolumeHierarchy final : public ISpatialAcceleration<int32, T,d>
 	{
 	}
 
+	CHAOS_API virtual ISpatialAcceleration<int32, T, d>& operator=(const ISpatialAcceleration<int32, T, d>& Other) override
+	{
+
+		check(Other.GetType() == ESpatialAcceleration::AABBTreeBV);
+		return operator=(static_cast<const TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>&>(Other));
+	}
+
+	CHAOS_API TBoundingVolumeHierarchy& operator=(const TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>& Other)
+	{
+		ISpatialAcceleration<int32, T, d>::operator=(Other);
+		MObjects = Other.MObjects;
+		MGlobalObjects = Other.MGlobalObjects;
+		MWorldSpaceBoxes = Other.MWorldSpaceBoxes;
+		MMaxLevels = Other.MMaxLevels;
+		Elements = Other.Elements;
+		Leafs = Other.Leafs;
+		return *this;
+	}
+
 	CHAOS_API TBoundingVolumeHierarchy& operator=(TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>&& Other)
 	{
 		MObjects = Other.MObjects;
@@ -119,7 +138,7 @@ class TBoundingVolumeHierarchy final : public ISpatialAcceleration<int32, T,d>
 	}
 
 	// Begin ISpatialAcceleration interface
-	CHAOS_API TArray<int32> FindAllIntersections(const TAABB<T, d>& Box) const { return FindAllIntersectionsImp(Box); }
+	CHAOS_API TArray<int32> FindAllIntersections(const FAABB3& Box) const { return FindAllIntersectionsImp(Box); }
 	CHAOS_API TArray<int32> FindAllIntersections(const TSpatialRay<T,d>& Ray) const { return FindAllIntersectionsImp(Ray); }
 	CHAOS_API TArray<int32> FindAllIntersections(const TVector<T, d>& Point) const { return FindAllIntersectionsImp(Point); }
 	CHAOS_API TArray<int32> FindAllIntersections(const TGeometryParticles<T, d>& InParticles, const int32 i) const;

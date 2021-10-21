@@ -120,7 +120,8 @@ namespace ChaosTest {
 		Dynamic->SetGeometry(MakeSerializable(DynamicBox));
 
 		Static->X() = FVec3(10, 10, 10);
-		Dynamic->X() = FVec3(10, 10, 300);
+		Static->SetWorldSpaceInflatedBounds(Static->LocalBounds().TransformedAABB(FRigidTransform3(Static->X(), Static->R())));
+		Dynamic->X() = FVec3(10, 10, 120);
 		Dynamic->I() = FMatrix33(100000.0f, 100000.0f, 100000.0f);
 		Dynamic->InvI() = FMatrix33(1.0f / 100000.0f, 1.0f / 100000.0f, 1.0f / 100000.0f);
 
@@ -165,6 +166,7 @@ namespace ChaosTest {
 		Dynamic->SetGeometry(MakeSerializable(DynamicBox));
 
 		Static->X() = FVec3(10, 10, 10);
+		Static->SetWorldSpaceInflatedBounds(Static->LocalBounds().TransformedAABB(FRigidTransform3(Static->X(), Static->R())));
 		Dynamic->X() = FVec3(10, 10, 300);
 		Dynamic->I() = FMatrix33(1, 1, 1);
 		Dynamic->InvI() = FMatrix33(1, 1, 1);
@@ -201,15 +203,16 @@ namespace ChaosTest {
 		PhysicsMaterial->SleepingAngularThreshold = 20;
 		PhysicsMaterial->SleepCounterThreshold = 5;
 
-		Static->X() = FVec3(10, 10, 10);
-		Dynamic1->X() = FVec3(10, 10, 120);
-		Dynamic2->X() = FVec3(10, 10, 400);
-
 		TUniquePtr<FImplicitObject> StaticBox(new TBox<FReal, 3>(FVec3(-500, -500, -50), FVec3(500, 500, 50)));
 		TUniquePtr<FImplicitObject> DynamicBox(new TBox<FReal, 3>(FVec3(-50, -50, -50), FVec3(50, 50, 50)));
 		Static->SetGeometry(MakeSerializable(StaticBox));
 		Dynamic1->SetGeometry(MakeSerializable(DynamicBox));
 		Dynamic2->SetGeometry(MakeSerializable(DynamicBox));
+
+		Static->X() = FVec3(10, 10, 10);
+		Static->SetWorldSpaceInflatedBounds(Static->LocalBounds().TransformedAABB(FRigidTransform3(Static->X(), Static->R())));
+		Dynamic1->X() = FVec3(10, 10, 120);
+		Dynamic2->X() = FVec3(10, 10, 400);
 
 		Evolution.SetPhysicsMaterial(Dynamic1, MakeSerializable(PhysicsMaterial));
 		Evolution.SetPhysicsMaterial(Dynamic2, MakeSerializable(PhysicsMaterial));

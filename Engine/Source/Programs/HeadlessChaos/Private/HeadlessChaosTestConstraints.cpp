@@ -37,7 +37,7 @@ namespace ChaosTest {
 			TArray<FPBDRigidParticleHandle*> Dynamics = Evolution.CreateDynamicParticles(1);
 			TArray<FVec3> Positions = { FVec3(0) };
 			FPBDPositionConstraints PositionConstraints(MoveTemp(Positions), MoveTemp(Dynamics), 1.f);
-			auto ConstraintRule = TPBDConstraintIslandRule<FPBDPositionConstraints>(PositionConstraints);
+			TPBDConstraintIslandRule<FPBDPositionConstraints> ConstraintRule(PositionConstraints);
 			InitEvolutionSettings(Evolution);
 
 			Evolution.AddConstraintRule(&ConstraintRule);
@@ -56,7 +56,7 @@ namespace ChaosTest {
 
 			TArray<FVec3> Positions = { FVec3(1) };
 			FPBDPositionConstraints PositionConstraints(MoveTemp(Positions), MoveTemp(Dynamics), 0.5f);
-			auto ConstraintRule = TPBDConstraintIslandRule<FPBDPositionConstraints>(PositionConstraints);
+			TPBDConstraintIslandRule<FPBDPositionConstraints> ConstraintRule(PositionConstraints);
 			Evolution.AddConstraintRule(&ConstraintRule);
 
 			// The effect of stiffness parameter (which is set to 0.5 above) is iteration depeendent
@@ -103,13 +103,13 @@ namespace ChaosTest {
 
 		TArray<FPBDRigidParticleHandle*> PositionParticles = { Dynamics[0] };
 		FPBDPositionConstraints PositionConstraints(MoveTemp(PositionConstraintPositions), MoveTemp(PositionParticles), 1.f);
-		auto PositionConstraintRule = TPBDConstraintIslandRule<FPBDPositionConstraints>(PositionConstraints);
+		TPBDConstraintIslandRule<FPBDPositionConstraints> PositionConstraintRule(PositionConstraints);
 		Evolution.AddConstraintRule(&PositionConstraintRule);
 
 		TVec2<TGeometryParticleHandle<FReal, 3>*> JointParticles = { Dynamics[0], Dynamics[1] };
 		FPBDJointConstraints JointConstraints;
 		JointConstraints.AddConstraint(JointParticles, FRigidTransform3(JointConstraintPosition, FRotation3::FromIdentity()));
-		auto JointConstraintRule = TPBDConstraintIslandRule<FPBDJointConstraints>(JointConstraints);
+		TPBDConstraintIslandRule<FPBDJointConstraints> JointConstraintRule(JointConstraints);
 		Evolution.AddConstraintRule(&JointConstraintRule);
 
 		FReal Dt = 0.1f;
@@ -176,7 +176,7 @@ namespace ChaosTest {
 			//
 			//FPBDSuspensionConstraintHandle 
 
-			auto ConstraintRule = TPBDConstraintIslandRule<FPBDSuspensionConstraints>(SuspensionConstraints);
+			TPBDConstraintIslandRule<FPBDSuspensionConstraints> ConstraintRule(SuspensionConstraints);
 			Evolution.AddConstraintRule(&ConstraintRule);
 
 			Evolution.AdvanceOneTimeStep(0.1);
@@ -227,7 +227,7 @@ namespace ChaosTest {
 			SuspensionSettings.Target = FVec3(45, 10, 9);
 			SuspensionConstraints.AddConstraint(DynamicParticle, SuspensionLocalLocationB, SuspensionSettings);
 
-			auto ConstraintRule = TPBDConstraintIslandRule<FPBDSuspensionConstraints>(SuspensionConstraints);
+			TPBDConstraintIslandRule<FPBDSuspensionConstraints> ConstraintRule(SuspensionConstraints);
 			Evolution.AddConstraintRule(&ConstraintRule);
 
 			const FVec3& Pos = Evolution.GetParticleHandles().Handle(0)->X();
@@ -303,7 +303,7 @@ namespace ChaosTest {
 			SuspensionConstraints.AddConstraint(DynamicParticle, SusLocalOffset[SusIndex], SuspensionSettings);
 		}
 
-		auto ConstraintRule = TPBDConstraintIslandRule<FPBDSuspensionConstraints>(SuspensionConstraints);
+		TPBDConstraintIslandRule<FPBDSuspensionConstraints> ConstraintRule(SuspensionConstraints);
 		Evolution.AddConstraintRule(&ConstraintRule);
 
 		const FVec3& Pos = Evolution.GetParticleHandles().Handle(0)->X();

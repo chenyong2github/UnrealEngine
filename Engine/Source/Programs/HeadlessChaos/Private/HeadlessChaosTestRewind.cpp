@@ -3194,6 +3194,8 @@ namespace ChaosTest {
 		}
 	}
 
+	// Disabled in 4.27-Chaos pending intergation with upstream (lots has changed - this test is no longer valid)
+	// @todo(chaos): fix or remove this test
 	GTEST_TEST(AllTraits, DISABLED_RewindTest_ResimAsSlaveWithForces)
 	{
 #if REWIND_DESYNC
@@ -4291,6 +4293,7 @@ namespace ChaosTest {
 		for (int32 Idx = 0; Idx < NumParticles; ++Idx)
 		{
 			Mapping.Add(NumParticles - Idx - 1);
+			//Mapping.Add(Idx);
 		}
 
 		FSimComparisonHelper SecondRun;

@@ -3,21 +3,10 @@
 
 #include "Chaos/ConstraintHandle.h"
 #include "Chaos/Transform.h"
+#include "Chaos/Evolution/SolverBody.h"
 
 namespace Chaos
 {
-	// @todo(chaos): get rid of this - we should be able to extend constraint types without having to add to an enum
-	enum class EConstraintContainerType : uint8
-	{
-		Invalid = 0,
-		Collision,
-		RigidSpring,
-		DynamicSpring,
-		Position,
-		Joint,
-		Suspension
-	};
-
 	/**
 	 * Base class for containers of constraints.
 	 * A Constraint Container holds an array of constraints and provides methods to allocate and deallocate constraints
@@ -26,7 +15,7 @@ namespace Chaos
 	class CHAOS_API FPBDConstraintContainer
 	{
 	public:
-		FPBDConstraintContainer(EConstraintContainerType InType);
+		FPBDConstraintContainer(FConstraintHandleTypeID InConstraintHandleType);
 
 		virtual ~FPBDConstraintContainer();
 
@@ -41,22 +30,32 @@ namespace Chaos
 			ContainerId = InContainerId;
 		}
 
-		EConstraintContainerType GetConstraintType() const
+		const FConstraintHandleTypeID& GetConstraintHandleType() const
 		{
-			return ConstraintContainerType;
+			return ConstraintHandleType;
+		}
+
+		virtual void DisconnectConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>&) {}
+
+	protected:
+		FConstraintHandleTypeID ConstraintHandleType;
+		int32 ContainerId;
+	};
+
+	class CHAOS_API FPBDIndexedConstraintContainer : public FPBDConstraintContainer
+	{
+	public:
+		FPBDIndexedConstraintContainer(FConstraintHandleTypeID InType)
+			: FPBDConstraintContainer(InType)
+		{
 		}
 
 		virtual void SetConstraintEnabled(int32 ConstraintIndex, bool bEnabled) { }
 		virtual bool IsConstraintEnabled(int32 ConstraintIndex) const { return true; }
-		virtual void DisconnectConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>&) {}
 
 	protected:
-		int32 GetConstraintIndex(const FConstraintHandle* ConstraintHandle) const;
-		void SetConstraintIndex(FConstraintHandle* ConstraintHandle, int32 ConstraintIndex) const;
-
-	private:
-		EConstraintContainerType ConstraintContainerType;
-		int32 ContainerId;
+		int32 GetConstraintIndex(const FIndexedConstraintHandle* ConstraintHandle) const;
+		void SetConstraintIndex(FIndexedConstraintHandle* ConstraintHandle, int32 ConstraintIndex) const;
 	};
 
 
@@ -73,33 +72,17 @@ namespace Chaos
 		return INDEX_NONE;
 	}
 
-	inline void FConstraintHandle::SetEnabled(bool bInEnabled)
-	{
-		if (ConstraintContainer != nullptr)
-		{
-			ConstraintContainer->SetConstraintEnabled(ConstraintIndex, bInEnabled);
-		}
-	}
-
-	inline bool FConstraintHandle::IsEnabled() const
-	{
-		if (ConstraintContainer != nullptr)
-		{
-			return ConstraintContainer->IsConstraintEnabled(ConstraintIndex);
-		}
-		return false;
-	}
-
 	template<typename T>
 	inline T* FConstraintHandle::As()
 	{
-		return ((ConstraintContainer != nullptr) && (T::StaticType() == ConstraintContainer->GetConstraintType())) ? static_cast<T*>(this) : nullptr;
+		// @todo(chaos): we need a safe cast that allows for casting to intermediate base classes (e.g., FIndexedConstraintHandle)
+		return ((ConstraintContainer != nullptr) && ConstraintContainer->GetConstraintHandleType().IsA(T::StaticType())) ? static_cast<T*>(this) : nullptr;
 	}
 
 	template<typename T>
 	inline const T* FConstraintHandle::As() const
 	{
-		return ((ConstraintContainer != nullptr) && (T::StaticType() == ConstraintContainer->GetConstraintType())) ? static_cast<const T*>(this) : nullptr;
+		return ((ConstraintContainer != nullptr) && ConstraintContainer->GetConstraintHandleType().IsA(T::StaticType())) ? static_cast<const T*>(this) : nullptr;
 	}
 
 }

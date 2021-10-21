@@ -51,7 +51,7 @@ namespace Chaos
 		template<typename T_PARTICLEHANDLE>
 		static inline FRigidTransform3 GetActorWorldTransform(T_PARTICLEHANDLE Particle)
 		{
-			return FRigidTransform3(Particle->X(), Particle->R());
+			return FRigidTransform3(TSpatialAccessor::GetPosition(Particle), TSpatialAccessor::GetRotation(Particle));
 		}
 
 		template<typename T_PARTICLEHANDLE>

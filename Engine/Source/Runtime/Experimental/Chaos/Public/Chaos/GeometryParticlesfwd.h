@@ -63,6 +63,9 @@ namespace Chaos
 		static constexpr uint16 MaxBucketEntries = 1 << 13;
 		static constexpr uint16 MaxBuckets = 1 << 3;
 
+		FSpatialAccelerationIdx() : Bucket(0), InnerIdx(0) {};
+		FSpatialAccelerationIdx(uint16 inBucket, uint16 inInnerIdx) : Bucket(inBucket), InnerIdx(inInnerIdx) {};
+
 		bool operator==(const FSpatialAccelerationIdx& Rhs) const
 		{
 			return ((const uint16&)*this) == ((const uint16&)Rhs);

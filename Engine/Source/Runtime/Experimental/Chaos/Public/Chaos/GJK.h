@@ -90,6 +90,280 @@ namespace Chaos
 		
 	}
 
+	/**
+	 * @brief Internal simplex data for GJK that can also be stored for warm-starting subsequent calls
+	 * @tparam T the number type (float or double)
+	 *
+	 * @see GJKPenetrationWarmStartable
+	*/
+	template<typename T>
+	class TGJKSimplexData
+	{
+	public:
+		TGJKSimplexData()
+			: NumVerts(0)
+		{}
+
+		// Clear the data - used to start a GJK search from the default search direction
+		void Reset()
+		{
+			NumVerts = 0;
+		}
+
+		// Save any data that was not directly updated while iterating in GJK
+		void Save(const FSimplex InSimplexIDs)
+		{
+			// We don't need to store the simplex vertex order because the indices are always
+			// sorted at the end of each iteration. We just need to know how many vertices we have.
+			NumVerts = InSimplexIDs.NumVerts;
+		}
+
+		// Recompute the Simplex and separating vector from the stored data at the current relative transform
+		// This aborts if we have no simplex data to restore or the origin is inside the simplex. Outputs must already 
+		// have reasonable default values for running GJK without a warm-start.
+		void Restore(const TRigidTransform<T, 3>& BToATM, FSimplex& OutSimplexIDs, TVec3<T> OutSimplex[], TVec3<T>& OutV, T& OutDistance, const T Epsilon)
+		{
+			if (NumVerts > 0)
+			{
+				OutSimplexIDs.NumVerts = NumVerts;
+
+				for (int32 VertIndex = 0; VertIndex < NumVerts; ++VertIndex)
+				{
+					OutSimplexIDs.Idxs[VertIndex] = VertIndex;
+					OutSimplex[VertIndex] = As[VertIndex] - BToATM.TransformPositionNoScale(Bs[VertIndex]);
+				}
+
+				const TVec3<T> V = SimplexFindClosestToOrigin(OutSimplex, OutSimplexIDs, Barycentric, As, Bs);
+				const T Distance = V.Size();
+
+				// If the origin is inside the simplex at the new transform, we need to abort the restore
+				// This is necessary to cover the very-small separation case where we use the normal
+				// calculated in the previous iteration in GJKL, but we have no way to restore that.
+				// Note: we have already written to the simplex but that's ok because we reset the vert count.
+				if (Distance > Epsilon)
+				{
+					OutV = V / Distance;
+					OutDistance = Distance;
+				}
+				else
+				{
+					OutSimplexIDs.NumVerts = 0;
+				}
+			}
+		}
+
+		// Maximum number of vertices that a GJK simplex can have
+		static const int32 MaxSimplexVerts = 4;
+
+		// Simplex vertices on shape A, in A-local space
+		TVec3<T> As[MaxSimplexVerts];
+
+		// Simplex vertices on shape B, in B-local space
+		TVec3<T> Bs[MaxSimplexVerts];
+
+		// Barycentric coordinates of closest point to origin on the simplex
+		T Barycentric[MaxSimplexVerts];
+
+		// Number of vertices in the simplex. Up to 4.
+		int32 NumVerts;
+	};
+
+	// GJK warm-start data at default numeric precision
+	using FGJKSimplexData = TGJKSimplexData<FReal>;
+
+	/**
+	 * @brief Calculate the penetration data for two shapes using GJK and a warm-start buffer.
+	 *
+	 * @tparam T Number type (float or double)
+	 * @tparam TGeometryA The first shape type
+	 * @tparam TGeometryB The second shape type
+	 * @param A The first shape
+	 * @param B The second shape
+	 * @param BToATM A transform from B-local space to A-local space
+	 * @param OutPenetration The overlap distance (+ve for overlap, -ve for separation)
+	 * @param OutClosestA The closest point on A, in A-local space
+	 * @param OutClosestB The closest point on B, in B-local space
+	 * @param OutNormalA The contact normal pointing away from A in A-local space
+	 * @param OutNormalB The contact normal pointing away from A in B-local space
+	 * @param SimplexData In/out simplex data used to initialize and update GJK. Can be stored to improve convergence on subsequent calls for "small" changes in relative rotation.
+	 * @param Epsilon The separation distance below which GJK aborts and switches to EPA
+	 * @return true if the results are populated (always for this implementation, but @see EPA())
+	 *
+	 * The WarmStartData is an input and output parameter. If the function is called with
+	 * a small change in BToATM there's it will converge much faster, usually in 1 iteration
+	 * for polygonal shapes.
+	 * 
+	 * @note This version returns OutClosestB in B's local space, compated to GJKPenetration where all output is in the space of A
+	 * 
+	 * @todo(chaos): convert GJKPenetration() to use this version (but see note above)
+	 *
+	*/
+	template <bool bFindSeparationDistance = false, typename T, typename TGeometryA, typename TGeometryB>
+	bool GJKPenetrationWarmStartable(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, const T InThicknessA, const T InThicknessB, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormalA, TVec3<T>& OutNormalB, TGJKSimplexData<T>& InOutSimplexData, const T Epsilon = T(1.e-3))
+	{
+		// Return the support vertex in A-local space for a vector V in A-local space
+		auto SupportAFunc = [&A](const TVec3<T>& V)
+		{
+			return A.SupportCore(V, A.GetMargin());
+		};
+
+		const TRotation<T, 3> AToBRotation = BToATM.GetRotation().Inverse();
+
+		// Return the support point on B, in B-local space, for a vector V in A-local space
+		auto SupportBFunc = [&B, &AToBRotation](const TVec3<T>& V)
+		{
+			const TVec3<T> VInB = AToBRotation * V;
+			return B.SupportCore(VInB, B.GetMargin());
+		};
+
+		// V and Simplex are in A-local space
+		TVec3<T> V = TVec3<T>(-1, 0, 0);
+		TVec3<T> Simplex[4];
+		FSimplex SimplexIDs;
+		T Distance = FLT_MAX;
+
+		// If we have warm-start data, rebuild the simplex from the stored data
+		InOutSimplexData.Restore(BToATM, SimplexIDs, Simplex, V, Distance, Epsilon);
+
+		TVec3<T> Normal = -V;					// Remember the last good normal (i.e. don't update it if separation goes less than Epsilon and we can no longer normalize)
+		bool bIsDegenerate = false;				// True if GJK cannot make any more progress
+		bool bIsContact = false;				// True if shapes are within Epsilon or overlapping - GJK cannot provide a solution
+		int32 NumIterations = 0;
+		const T ThicknessA = InThicknessA + A.GetMargin();
+		const T ThicknessB = InThicknessB + B.GetMargin();
+		const T SeparatedDistance = ThicknessA + ThicknessB + Epsilon;
+		while (!bIsContact && !bIsDegenerate)
+		{
+			if (!ensure(NumIterations++ < 32))	//todo: take this out
+			{
+				break;	//if taking too long just stop. This should never happen
+			}
+
+			const TVec3<T> NegV = -V;
+			const TVec3<T> SupportA = SupportAFunc(NegV);
+			const TVec3<T> SupportB = SupportBFunc(V);
+			const TVec3<T> SupportBInA = BToATM.TransformPositionNoScale(SupportB);
+			const TVec3<T> W = SupportA - SupportBInA;
+
+			// If we didn't move to at least ConvergedDistance or closer, assume we have reached a minimum
+			const T ConvergenceTolerance = 1.e-4f;
+			const T ConvergedDistance = (1.0f - ConvergenceTolerance) * Distance;
+			const T VW = TVec3<T>::DotProduct(V, W);
+			if (!bFindSeparationDistance && (VW > SeparatedDistance))
+			{
+				// We are separated and don't care about the separation distance
+				break;
+			}
+
+			InOutSimplexData.As[SimplexIDs.NumVerts] = SupportA;
+			InOutSimplexData.Bs[SimplexIDs.NumVerts] = SupportB;
+			SimplexIDs[SimplexIDs.NumVerts] = SimplexIDs.NumVerts;
+			Simplex[SimplexIDs.NumVerts++] = W;
+
+			V = SimplexFindClosestToOrigin(Simplex, SimplexIDs, InOutSimplexData.Barycentric, InOutSimplexData.As, InOutSimplexData.Bs);
+			T NewDistance = V.Size();
+
+			// Are we overlapping or too close for GJK to get a good result?
+			bIsContact = (NewDistance < Epsilon);
+
+			// If we did not get closer in this iteration, we are in a degenerate situation
+			bIsDegenerate = (NewDistance >= Distance);
+
+			// If we are not too close, update the separating vector and keep iterating
+			// If we are too close we drop through to EPA, but if EPA determines the shapes are actually separated 
+			// after all, we will end up using the normal from the previous loop
+			if (!bIsContact)
+			{
+				V /= NewDistance;
+				Normal = -V;
+			}
+			Distance = NewDistance;
+		}
+
+		// Save the warm-start data (not much to store since we updated most of it in the loop above)
+		InOutSimplexData.Save(SimplexIDs);
+
+		if (bIsContact)
+		{
+			// We did not converge or we detected an overlap situation, so run EPA to get contact data
+			// Rebuild the simplex into a variable sized array - EPA can generate any mumber of vertices
+			TArray<TVec3<T>> VertsA;
+			TArray<TVec3<T>> VertsB;
+			VertsA.Reserve(8);
+			VertsB.Reserve(8);
+			for (int i = 0; i < SimplexIDs.NumVerts; ++i)
+			{
+				VertsA.Add(InOutSimplexData.As[i]);
+				VertsB.Add(BToATM.TransformPositionNoScale(InOutSimplexData.Bs[i]));
+			}
+
+			auto SupportBInAFunc = [&B, &BToATM, &AToBRotation](const TVec3<T>& V)
+			{
+				const TVec3<T> VInB = AToBRotation * V;
+				const TVec3<T> SupportBLocal = B.SupportCore(VInB, B.GetMargin());
+				return BToATM.TransformPositionNoScale(SupportBLocal);
+			};
+
+			T Penetration;
+			TVec3<T> MTD, ClosestA, ClosestBInA;
+			const EEPAResult EPAResult = EPA(VertsA, VertsB, SupportAFunc, SupportBInAFunc, Penetration, MTD, ClosestA, ClosestBInA);
+
+			switch (EPAResult)
+			{
+			case EEPAResult::MaxIterations:
+				// Possibly a solution but with unknown error. Just return the last EPA state. 
+				// Fall through...
+			case EEPAResult::Ok:
+				// EPA has a solution - return it now
+				OutNormalA = MTD;
+				OutNormalB = BToATM.InverseTransformVectorNoScale(MTD);
+				OutPenetration = Penetration + ThicknessA + ThicknessB;
+				OutClosestA = ClosestA + MTD * ThicknessA;
+				OutClosestB = ClosestBInA - MTD * ThicknessB;
+				return true;
+			case EEPAResult::BadInitialSimplex:
+				// The origin is outside the simplex. Must be a touching contact and EPA setup will have calculated the normal
+				// and penetration but we keep the position generated by GJK.
+				Normal = MTD;
+				Distance = -Penetration;
+				break;
+			case EEPAResult::Degenerate:
+				// We hit a degenerate simplex condition and could not reach a solution so use whatever near touching point GJK came up with.
+				// The result from EPA under these circumstances is not usable.
+				//UE_LOG(LogChaos, Warning, TEXT("EPA Degenerate Case"));
+				break;
+			}
+		}
+
+		// @todo(chaos): handle the case where EPA hits a degenerate triangle in the simplex.
+		// Currently we return a touching contact with the last position and normal from GJK. We could run SAT instead.
+
+		// GJK converged or we have a touching contact
+		{
+			TVec3<T> ClosestA(0);
+			TVec3<T> ClosestB(0);
+			for (int i = 0; i < SimplexIDs.NumVerts; ++i)
+			{
+				ClosestA += InOutSimplexData.As[i] * InOutSimplexData.Barycentric[i];
+				ClosestB += InOutSimplexData.Bs[i] * InOutSimplexData.Barycentric[i];
+			}
+
+			OutNormalA = Normal;
+			OutNormalB = BToATM.InverseTransformVectorNoScale(Normal);
+
+			T Penetration = ThicknessA + ThicknessB - Distance;
+			OutPenetration = Penetration;
+			OutClosestA = ClosestA + OutNormalA * ThicknessA;
+			OutClosestB = ClosestB - OutNormalB * ThicknessB;
+
+			// If we don't care about separation distance/normal, the return value is true if we are overlapping, false otherwise.
+			// If we do care about seperation distance/normal, the return value is true if we found a solution.
+			// @todo(chaos): we should pass back failure for the degenerate case so we can decide how to handle it externally.
+			return (bFindSeparationDistance || (Penetration >= 0.0f));
+		}
+	}
+
+
 	// Calculate the penetration depth (or separating distance) of two geometries.
 	//
 	// Set bNegativePenetrationAllowed to false (default) if you do not care about the normal and distance when the shapes are separated. The return value
@@ -277,6 +551,7 @@ namespace Chaos
 			return (bNegativePenetrationAllowed || (Penetration >= 0.0f));
 		}
 	}
+
 
 
 	/** Sweeps one geometry against the other

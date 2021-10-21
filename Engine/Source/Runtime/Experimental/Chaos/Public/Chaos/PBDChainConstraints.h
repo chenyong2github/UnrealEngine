@@ -9,7 +9,7 @@
 
 namespace Chaos
 {
-class FPBDChainConstraints : public FPBDConstraintContainer
+class FPBDChainConstraints : public FPBDIndexedConstraintContainer
 {
 public:
 	FPBDChainConstraints(const FDynamicParticles& InParticles, TArray<TArray<int32>>&& Constraints, const FReal Coefficient = (FReal)1.)

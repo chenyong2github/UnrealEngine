@@ -243,6 +243,7 @@ namespace Chaos
 	const FRotation3 FGenericParticleHandleHandleImp::IdentityRotation = FRotation3(FQuat::Identity);
 	const FMatrix33 FGenericParticleHandleHandleImp::ZeroMatrix = FMatrix33(0);
 	const TUniquePtr<FBVHParticles> FGenericParticleHandleHandleImp::NullBVHParticles = TUniquePtr<FBVHParticles>();
+	const FKinematicTarget FGenericParticleHandleHandleImp::EmptyKinematicTarget;
 
 	template <>
 	template <>

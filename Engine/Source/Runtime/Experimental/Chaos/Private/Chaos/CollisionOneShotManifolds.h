@@ -9,6 +9,7 @@
 
 namespace Chaos
 {
+	extern bool bChaos_Collision_Manifold_FixNormalsInWorldSpace;
 	namespace Collisions
 	{
 		uint32 BoxBoxClipVerticesAgainstPlane(const FVec3* InputVertexBuffer, FVec3* outputVertexBuffer, uint32 ClipPointCount, int32 ClippingAxis, FReal Distance);
@@ -20,7 +21,7 @@ namespace Chaos
 			const FImplicitBox3& Box2,
 			const FRigidTransform3& Box2Transform, //world
 			const FReal Dt,
-			FRigidBodyPointContactConstraint& Constraint);
+			FPBDCollisionConstraint& Constraint);
 
 		template <typename ConvexImplicitType1, typename ConvexImplicitType2>
 		void ConstructConvexConvexOneShotManifold(
@@ -29,6 +30,6 @@ namespace Chaos
 			const ConvexImplicitType2& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal Dt,
-			FRigidBodyPointContactConstraint& Constraint);
+			FPBDCollisionConstraint& Constraint);
 	}
 }

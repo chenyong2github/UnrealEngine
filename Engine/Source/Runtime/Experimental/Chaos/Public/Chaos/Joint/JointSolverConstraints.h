@@ -9,7 +9,7 @@
 
 namespace Chaos
 {
-	class FJointSolverGaussSeidel;
+	class FPBDJointSolver;
 
 	// The method used to calculate the axis and angle for one of the rotation constraints in the joint
 	enum class EJointSolverConstraintUpdateType
@@ -181,7 +181,7 @@ namespace Chaos
 	class FJointSolverConstraints
 	{
 	public:
-		friend class FJointSolverGaussSeidel;
+		friend class FPBDJointSolver;
 
 		FJointSolverConstraints();
 

@@ -1265,6 +1265,11 @@ namespace Chaos
 				// The regular penetration calculation vs a triangle may result in inward facing normals.
 				// To protect against this, we sweep against the triangle from a distance to ensure an outward
 				// facing normal and MTD.
+				//
+				// BUG: This does not detect collisions when we specify a cull distance. It is as if
+				// Thickness is always zero...
+				//
+
 				const FAABB3 Bounds = QueryGeom.BoundingBox();
 				const FReal ApproximateSizeOfObject = Bounds.Extents()[Bounds.LargestAxis()];
 				const FReal ApproximateDistToObject = FVec3::DistSquared(QueryTM.GetLocation(), A);

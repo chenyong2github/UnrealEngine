@@ -68,11 +68,21 @@ void GeometryParticleDefaultConstruct(FConcrete& Concrete, const FGeometryPartic
 	Concrete.SetEnabledDuringResim(true);
 }
 
+
+extern CHAOS_API int32 AccelerationStructureSplitStaticAndDynamic;
 template <typename T, int d, typename FConcrete>
 void KinematicGeometryParticleDefaultConstruct(FConcrete& Concrete, const FKinematicGeometryParticleParameters& Params)
 {
 	Concrete.SetV(TVector<T, d>(0));
 	Concrete.SetW(TVector<T, d>(0));
+	if (AccelerationStructureSplitStaticAndDynamic == 1)
+	{
+		Concrete.SetSpatialIdx(FSpatialAccelerationIdx{ 0,1 });
+	}
+	else
+	{
+		Concrete.SetSpatialIdx(FSpatialAccelerationIdx{ 0,0 });
+	}
 }
 template <typename T, int d, typename FConcrete>
 void PBDRigidParticleDefaultConstruct(FConcrete& Concrete, const FPBDRigidParticleParameters& Params)
@@ -562,6 +572,9 @@ public:
 
 	const TGeometryParticleHandle<T, d>* Handle() const { return GetHandleHelper(this);}
 	TGeometryParticleHandle<T, d>* Handle() { return GetHandleHelper(this); }
+	
+	// Useful for logging to indicate particle (this is locally unique among all particles)
+	int32 GetHandleIdx() const { return HandleIdx; }
 
 	bool Sleeping() const { return GeometryParticleSleeping(*this); }
 
@@ -794,6 +807,7 @@ protected:
 		SetDisabled(Params.bDisabled);
 		SetPreV(this->V());
 		SetPreW(this->W());
+		SetSolverBodyIndex(INDEX_NONE);
 		SetP(this->X());
 		SetQ(this->R());
 		SetVSmooth(this->V());
@@ -852,6 +866,9 @@ public:
 	const TVector<T, d>& PreW() const { return PBDRigidParticles->PreW(ParticleIdx); }
 	TVector<T, d>& PreW() { return PBDRigidParticles->PreW(ParticleIdx); }
 	void SetPreW(const TVector<T, d>& InPreW) { PBDRigidParticles->PreW(ParticleIdx) = InPreW; }
+
+	int32 SolverBodyIndex() const { return PBDRigidParticles->SolverBodyIndex(ParticleIdx); }
+	void SetSolverBodyIndex(const int32 InSolverBodyIndex) { PBDRigidParticles->SetSolverBodyIndex(ParticleIdx, InSolverBodyIndex); }
 
 	const TVector<T, d>& P() const { return PBDRigidParticles->P(ParticleIdx); }
 	TVector<T, d>& P() { return PBDRigidParticles->P(ParticleIdx); }
@@ -1245,7 +1262,7 @@ public:
 	using FDynamicParticleHandleType = FPBDRigidParticleHandle;
 	using FKinematicParticleHandleType = FKinematicGeometryParticleHandle;
 
-	FGenericParticleHandleHandleImp(FGeometryParticleHandle* InHandle) { MHandle = InHandle; }
+	FGenericParticleHandleHandleImp(FGeometryParticleHandle* InHandle) : MHandle(InHandle) {}
 
 	// Check for the exact type of particle (see also AsKinematic etc, which will work on derived types)
 	bool IsStatic() const { return (MHandle->ObjectState() == EObjectStateType::Static); }
@@ -1261,6 +1278,7 @@ public:
 	//Needed for templated code to be the same
 	const FGeometryParticleHandle* Handle() const { return MHandle; }
 	FGeometryParticleHandle* Handle() { return MHandle; }
+	int32 GetHandleIdx() const { return MHandle->GetHandleIdx(); }
 
 	// Static Particles
 	FVec3& X() { return MHandle->X(); }
@@ -1285,6 +1303,8 @@ public:
 
 	void SetV(const FVec3& InV) { if (MHandle->CastToKinematicParticle()) { MHandle->CastToKinematicParticle()->V() = InV; } }
 	void SetW(const FVec3& InW) { if (MHandle->CastToKinematicParticle()) { MHandle->CastToKinematicParticle()->W() = InW; } }
+
+	const FKinematicTarget& KinematicTarget() const { return (MHandle->CastToKinematicParticle())? MHandle->CastToKinematicParticle()->KinematicTarget() : EmptyKinematicTarget; }
 
 	// Dynamic Particles
 
@@ -1358,6 +1378,23 @@ public:
 			return MHandle->CastToRigidParticle()->PreW();
 		}
 		return ZeroVector;
+	}
+
+	int32 SolverBodyIndex() const
+	{
+		if (MHandle->CastToRigidParticle())
+		{
+			return MHandle->CastToRigidParticle()->SolverBodyIndex();
+		}
+		return INDEX_NONE;
+	}
+
+	void SetSolverBodyIndex(const int32 InSolverBodyIndex)
+	{
+		if (MHandle->CastToRigidParticle())
+		{
+			return MHandle->CastToRigidParticle()->SetSolverBodyIndex(InSolverBodyIndex);
+		}
 	}
 
 	FVec3& P()
@@ -1562,14 +1599,31 @@ public:
 	}
 #endif
 
-	int32 Island() const
+	/** Get the island index from the particle handle */
+	FORCEINLINE int32 Island() const
 	{
-		if ((MHandle->CastToRigidParticle() != nullptr) && IsDynamic())
+		if (auto RigidHandle = MHandle->CastToRigidParticle())
 		{
-			return MHandle->CastToRigidParticle()->Island();
+			if (IsDynamic())
+			{
+				return RigidHandle->Island();
+			}
 		}
-
 		return INDEX_NONE;
+	}
+
+	/** Set the island index onto the particle handle 
+	 * @param IslandIndex Island Index to be set onto the particle 
+	 */
+	FORCEINLINE void SetIsland( const int32 IslandIndex) 
+	{
+		if (auto RigidHandle = MHandle->CastToRigidParticle())
+		{
+			if (IsDynamic())
+			{
+				RigidHandle->Island() = IslandIndex;
+			}
+		}
 	}
 
 	bool ToBeRemovedOnFracture() const 
@@ -1596,6 +1650,7 @@ private:
 	static const FRotation3 IdentityRotation;
 	static const FMatrix33 ZeroMatrix;
 	static const TUniquePtr<FBVHParticles> NullBVHParticles;
+	static const FKinematicTarget EmptyKinematicTarget;
 };
 
 template <typename T, int d>
@@ -1612,10 +1667,28 @@ using TGenericParticleHandleHandleImp UE_DEPRECATED(4.27, "Deprecated. this clas
 class CHAOS_API FGenericParticleHandle
 {
 public:
+	FGenericParticleHandle() : Imp(nullptr) {}
 	FGenericParticleHandle(FGeometryParticleHandle* InHandle) : Imp(InHandle) {}
 
 	FGenericParticleHandleHandleImp* operator->() const { return const_cast<FGenericParticleHandleHandleImp*>(&Imp); }
 	FGenericParticleHandleHandleImp* Get() const { return const_cast<FGenericParticleHandleHandleImp*>(&Imp); }
+
+	bool IsValid() const { return Imp.Handle() != nullptr; }
+
+	friend uint32 GetTypeHash(const FGenericParticleHandle& H)
+	{
+		return GetTypeHash(H->ParticleID());
+	}
+
+	friend bool operator==(const FGenericParticleHandle& L, const FGenericParticleHandle& R)
+	{
+		return L->ParticleID() == R->ParticleID();
+	}
+
+	friend bool operator<(const FGenericParticleHandle& L, const FGenericParticleHandle& R)
+	{
+		return L->ParticleID() < R->ParticleID();
+	}
 
 private:
 	FGenericParticleHandleHandleImp Imp;
@@ -1627,14 +1700,32 @@ using TGenericParticleHandle UE_DEPRECATED(4.27, "Deprecated. this class is to b
 class CHAOS_API FConstGenericParticleHandle
 {
 public:
+	FConstGenericParticleHandle() : Imp(nullptr) {}
 	FConstGenericParticleHandle(const FGeometryParticleHandle* InHandle) : Imp(const_cast<FGeometryParticleHandle*>(InHandle)) {}
 	FConstGenericParticleHandle(const FGenericParticleHandle InHandle) : Imp(InHandle->Handle()) {}
 
 	const FGenericParticleHandleHandleImp* operator->() const { return &Imp; }
 	const FGenericParticleHandleHandleImp* Get() const { return &Imp; }
 
+	bool IsValid() const { return Imp.Handle() != nullptr; }
+
+	friend uint32 GetTypeHash(const FConstGenericParticleHandle& H)
+	{
+		return GetTypeHash(H->ParticleID());
+	}
+
+	friend bool operator==(const FConstGenericParticleHandle& L, const FConstGenericParticleHandle& R)
+	{
+		return L->ParticleID() == R->ParticleID();
+	}
+
+	friend bool operator<(const FConstGenericParticleHandle& L, const FConstGenericParticleHandle& R)
+	{
+		return L->ParticleID() < R->ParticleID();
+	}
+
 private:
-	const FGenericParticleHandleHandleImp Imp;
+	FGenericParticleHandleHandleImp Imp;
 };
 
 template <typename T, int d>
