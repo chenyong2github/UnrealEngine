@@ -34,13 +34,15 @@ namespace HordeServerTests
 	public class JobCollectionTests : DatabaseIntegrationTest
 	{
 		IGraphCollection GraphCollection;
+		IUserCollection UserCollection;
 		IJobCollection JobCollection;
 
 		public JobCollectionTests()
 		{
 			DatabaseService DatabaseService = GetDatabaseService();
 			this.GraphCollection = new GraphCollection(DatabaseService);
-			this.JobCollection = new JobCollection(DatabaseService, NullLogger<JobCollection>.Instance);
+			this.UserCollection = new UserCollectionV2(DatabaseService, NullLogger<UserCollectionV2>.Instance);
+			this.JobCollection = new JobCollection(DatabaseService, UserCollection, NullLogger<JobCollection>.Instance);
 		}
 
 		NewGroup AddGroup(List<NewGroup> Groups)
