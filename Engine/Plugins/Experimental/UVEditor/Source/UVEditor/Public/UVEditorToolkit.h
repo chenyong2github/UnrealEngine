@@ -66,9 +66,6 @@ protected:
 	// FAssetEditorToolkit
 	virtual void PostInitAssetEditor() override;
 
-	/** Inline content area for the UV mode's content (gotten from UVEditorModeToolkit) */
-	TSharedPtr<SDockTab> ToolsPanel;
-
 	/** Scene in which the 2D unwrapped uv meshes live. */
 	TUniquePtr<FPreviewScene> UnwrapScene;
 
