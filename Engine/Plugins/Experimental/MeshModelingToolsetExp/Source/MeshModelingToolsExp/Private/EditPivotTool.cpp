@@ -390,7 +390,7 @@ void UEditPivotTool::OnClickDrag(const FInputDeviceRay& DragPos)
 
 
 	FVector HitPos = Result.ImpactPoint;
-	FVector TargetNormal = (-NormalSign) * Result.Normal;
+	FVector TargetNormal = (NormalSign) * Result.Normal;
 
 	FQuaterniond AlignRotation = (bRotate) ?
 		FQuaterniond(FVector3d::UnitZ(), (FVector3d)TargetNormal) : FQuaterniond::Identity();

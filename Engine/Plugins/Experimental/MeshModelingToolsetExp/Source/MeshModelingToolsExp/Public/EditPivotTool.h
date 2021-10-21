@@ -43,10 +43,10 @@ enum class EEditPivotSnapDragRotationMode : uint8
 	/** Snap-Drag only translates, ignoring Normals */
 	Ignore = 0 UMETA(DisplayName = "Ignore"),
 
-	/** Snap-Drag aligns the Source and Target Normals to point in the same direction */
+	/** Snap-Drag aligns the pivot Z Axis and Target Normals to point in the same direction */
 	Align = 1 UMETA(DisplayName = "Align"),
 
-	/** Snap-Drag aligns the Source Normal to the opposite of the Target Normal direction */
+	/** Snap-Drag aligns the pivot Z Axis to the opposite of the Target Normal direction */
 	AlignFlipped = 2 UMETA(DisplayName = "Align Flipped"),
 
 	LastValue UMETA(Hidden)
