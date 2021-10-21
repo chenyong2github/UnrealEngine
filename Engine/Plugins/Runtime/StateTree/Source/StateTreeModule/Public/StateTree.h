@@ -6,16 +6,9 @@
 #include "Engine/DataAsset.h"
 #include "StateTreeTypes.h"
 #include "StateTreeSchema.h"
-#include "StateTreeCondition.h"
-#include "StateTreeVariableLayout.h"
-#include "StateTreeParameterLayout.h"
-#include "StateTreeConstantStorage.h"
 #include "InstancedStruct.h"
 #include "StateTreePropertyBindings.h"
 #include "StateTree.generated.h"
-
-class UStateTreeEvaluatorBase;
-class UStateTreeTaskBase;
 
 /**
  * StateTree asset. Contains the StateTree definition in both editor and runtime (baked) formats.
@@ -28,8 +21,6 @@ class STATETREEMODULE_API UStateTree : public UDataAsset
 public:
 
 	UStateTree(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	const FStateTreeVariableLayout& GetInputParameterLayout() const { return InputParameter; }
 
 	/** @return Script Struct that can be used to instantiate the runtime storage */
 	const UScriptStruct* GetRuntimeStorageStruct() const { return RuntimeStorageStruct; }
@@ -47,10 +38,7 @@ public:
 	/** @return true is the tree asset is considered valid (e.g. at least one state) */
 	bool IsValidStateTree() const;
 
-	// STATETREE_V2
 	void ResolvePropertyPaths();
-	bool IsV2() const { return Schema ? Schema->IsV2() : false; }
-	// ~STATETREE_V2
 
 #if WITH_EDITOR
 	/** Resets the baked data to empty. */
@@ -85,26 +73,6 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = Common, Instanced)
 	UStateTreeSchema* Schema = nullptr;
 
-	// TODO: find a nice way to combine this with Parameters. The data is almost the same, but the semantics different:
-	// InputParameter defines layout with offsets, while Parameters defines how they connect to Variables.
-	// This could be editor only, maybe.
-	UPROPERTY(EditDefaultsOnly, Category = InputParameters)
-	FStateTreeVariableLayout InputParameter;
-
-	// Baked data
-	UPROPERTY()
-	FStateTreeVariableLayout Variables;
-
-	UPROPERTY()
-	FStateTreeConstantStorage Constants;
-
-	UPROPERTY()
-	TArray<UStateTreeTaskBase*> Tasks;
-
-	UPROPERTY()
-	TArray<UStateTreeEvaluatorBase*> Evaluators;
-
-// STATETREE_V2
 	/** Evaluators and Tasks that require runtime state */
 	UPROPERTY()
 	TArray<FInstancedStruct> RuntimeStorageItems;
@@ -121,7 +89,7 @@ private:
 	FInstancedStruct RuntimeStorageDefaultValue;
 
 	UPROPERTY(meta = (BaseStruct = "StateTreeConditionBase", ExcludeBaseStruct))
-	TArray<FInstancedStruct> Conditions2;
+	TArray<FInstancedStruct> Conditions;
 
 	/** List of external items required by the state tree */
 	UPROPERTY()
@@ -129,20 +97,12 @@ private:
 
 	UPROPERTY()
 	FStateTreePropertyBindings PropertyBindings;
-	
-// ~STATETREE_V2
 
 	UPROPERTY()
 	TArray<FBakedStateTreeState> States;
 
 	UPROPERTY()
-	TArray<FStateTreeCondition> Conditions;
-
-	UPROPERTY()
 	TArray<FBakedStateTransition> Transitions;
-
-	UPROPERTY()
-	FStateTreeParameterLayout Parameters;
 
 	friend struct FStateTreeInstance;
 	friend struct FStateTreeExecutionContext;

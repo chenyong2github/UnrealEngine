@@ -400,14 +400,7 @@ EVisibility SStateTreeViewRow::GetConditionVisibility() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		if (IsV2())
-		{
-			return State->EnterConditions2.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed;
-		}
-		else
-		{
-			return State->EnterConditions.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed;
-		}
+		return State->EnterConditions.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed;
 	}
 	return EVisibility::Collapsed;
 }
@@ -426,24 +419,11 @@ EVisibility SStateTreeViewRow::GetEvaluatorsVisibility() const
 	if (const UStateTreeState* State = WeakState.Get())
 	{
 		int32 ValidCount = 0;
-		if (IsV2())
+		for (int32 i = 0; i < State->Evaluators.Num(); i++)
 		{
-			for (int32 i = 0; i < State->Evaluators2.Num(); i++)
+			if (const FStateTreeEvaluator2Base* Eval = State->Evaluators[i].Type.GetPtr<FStateTreeEvaluator2Base>())
 			{
-				if (const FStateTreeEvaluator2Base* Eval = State->Evaluators2[i].Type.GetPtr<FStateTreeEvaluator2Base>())
-				{
-					ValidCount++;
-				}
-			}
-		}
-		else
-		{
-			for (int32 i = 0; i < State->Evaluators.Num(); i++)
-			{
-				if (UStateTreeEvaluatorBase* Eval = State->Evaluators[i])
-				{
-					ValidCount++;
-				}
+				ValidCount++;
 			}
 		}
 		return ValidCount > 0 ? EVisibility::Visible : EVisibility::Collapsed;
@@ -461,24 +441,11 @@ FText SStateTreeViewRow::GetEvaluatorsDesc() const
 
 	TArray<FText> Names;
 
-	if (IsV2())
+	for (int32 i = 0; i < State->Evaluators.Num(); i++)
 	{
-		for (int32 i = 0; i < State->Evaluators2.Num(); i++)
+		if (const FStateTreeEvaluator2Base* Eval = State->Evaluators[i].Type.GetPtr<FStateTreeEvaluator2Base>())
 		{
-			if (const FStateTreeEvaluator2Base* Eval = State->Evaluators2[i].Type.GetPtr<FStateTreeEvaluator2Base>())
-			{
-				Names.Add(FText::FromName(Eval->Name));
-			}
-		}
-	}
-	else
-	{
-		for (int32 i = 0; i < State->Evaluators.Num(); i++)
-		{
-			if (UStateTreeEvaluatorBase* Eval = State->Evaluators[i])
-			{
-				Names.Add(FText::FromName(Eval->GetName()));
-			}
+			Names.Add(FText::FromName(Eval->Name));
 		}
 	}
 
@@ -490,24 +457,11 @@ EVisibility SStateTreeViewRow::GetTasksVisibility() const
 	if (const UStateTreeState* State = WeakState.Get())
 	{
 		int32 ValidCount = 0;
-		if (IsV2())
+		for (int32 i = 0; i < State->Tasks.Num(); i++)
 		{
-			for (int32 i = 0; i < State->Tasks2.Num(); i++)
+			if (const FStateTreeTask2Base* Task = State->Tasks[i].Type.GetPtr<FStateTreeTask2Base>())
 			{
-				if (const FStateTreeTask2Base* Task = State->Tasks2[i].Type.GetPtr<FStateTreeTask2Base>())
-				{
-					ValidCount++;
-				}
-			}
-		}
-		else
-		{
-			for (int32 i = 0; i < State->Tasks.Num(); i++)
-			{
-				if (UStateTreeTaskBase* Task = State->Tasks[i])
-				{
-					ValidCount++;
-				}
+				ValidCount++;
 			}
 		}
 		return ValidCount > 0 ? EVisibility::Visible : EVisibility::Collapsed;
@@ -524,34 +478,15 @@ FText SStateTreeViewRow::GetTasksDesc() const
 	}
 
 	TArray<FText> Names;
-
-	if (IsV2())
+	for (int32 i = 0; i < State->Tasks.Num(); i++)
 	{
-		for (int32 i = 0; i < State->Tasks2.Num(); i++)
+		if (const FStateTreeTask2Base* Task = State->Tasks[i].Type.GetPtr<FStateTreeTask2Base>())
 		{
-			if (const FStateTreeTask2Base* Task = State->Tasks2[i].Type.GetPtr<FStateTreeTask2Base>())
-			{
-				Names.Add(FText::FromName(Task->Name));
-			}
-		}
-	}
-	else
-	{
-		for (int32 i = 0; i < State->Tasks.Num(); i++)
-		{
-			if (UStateTreeTaskBase* Task = State->Tasks[i])
-			{
-				Names.Add(FText::FromName(Task->Name));
-			}
+			Names.Add(FText::FromName(Task->Name));
 		}
 	}
 
-	if (IsV2())
-	{
-		return FText::Join((FText::FromString(TEXT(" & "))), Names);
-	}
-
-	return FText::Join((FText::FromString(TEXT(", "))), Names);
+	return FText::Join((FText::FromString(TEXT(" & "))), Names);
 }
 
 bool SStateTreeViewRow::HasParentTransitionForEvent(const UStateTreeState& State, const EStateTreeTransitionEvent Event) const
@@ -559,7 +494,7 @@ bool SStateTreeViewRow::HasParentTransitionForEvent(const UStateTreeState& State
 	EStateTreeTransitionEvent CombinedEvents = EStateTreeTransitionEvent::None;
 	for (const UStateTreeState* ParentState = State.Parent; ParentState != nullptr; ParentState = ParentState->Parent)
 	{
-		for (const FStateTreeTransition2& Transition : ParentState->Transitions2)
+		for (const FStateTreeTransition& Transition : ParentState->Transitions)
 		{
 			CombinedEvents |= Transition.Event;
 		}
@@ -570,7 +505,7 @@ bool SStateTreeViewRow::HasParentTransitionForEvent(const UStateTreeState& State
 FText SStateTreeViewRow::GetTransitionsDesc(const UStateTreeState& State, const EStateTreeTransitionEvent Event) const
 {
 	TArray<FText> DescItems;
-	for (const FStateTreeTransition2& Transition : State.Transitions2)
+	for (const FStateTreeTransition& Transition : State.Transitions)
 	{
 		if (Transition.Event == Event)
 		{
@@ -627,7 +562,7 @@ FText SStateTreeViewRow::GetTransitionsIcon(const UStateTreeState& State, const 
     };
 	uint8 IconType = IconNone;
 	
-	for (const FStateTreeTransition2& Transition : State.Transitions2)
+	for (const FStateTreeTransition& Transition : State.Transitions)
 	{
 		// The icons here depict "transition direction", not the type specifically.
 		if (Transition.Event == Event)
@@ -698,7 +633,7 @@ EVisibility SStateTreeViewRow::GetTransitionsVisibility(const UStateTreeState& S
 	TStaticArray<int32, 5> Counts;
 	Algo::ForEach(Counts, [](int32& Count) { Count = 0; }); 
 
-	for (const FStateTreeTransition2& Transition : State.Transitions2)
+	for (const FStateTreeTransition& Transition : State.Transitions)
 	{
 		Counts[static_cast<uint8>(Transition.Event)]++;
 	}
@@ -724,10 +659,7 @@ EVisibility SStateTreeViewRow::GetCompletedTransitionVisibility() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		if (IsV2())
-		{
-			return GetTransitionsVisibility(*State, EStateTreeTransitionEvent::OnCompleted);
-		}
+		return GetTransitionsVisibility(*State, EStateTreeTransitionEvent::OnCompleted);
 	}
 	return EVisibility::Visible;
 }
@@ -736,31 +668,7 @@ FText SStateTreeViewRow::GetCompletedTransitionsDesc() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		if (IsV2())
-		{
-			return GetTransitionsDesc(*State, EStateTreeTransitionEvent::OnCompleted);
-		}
-		else
-		{
-			switch (State->StateDoneTransition.Type)
-			{
-			case EStateTreeTransitionType::NotSet:
-				return FText::GetEmpty();
-			case EStateTreeTransitionType::Succeeded:
-				return LOCTEXT("TransitionSucceeded", "Succeeded");
-			case EStateTreeTransitionType::Failed:
-				return LOCTEXT("TransitionFailed", "Failed");
-			case EStateTreeTransitionType::NextState:
-				return LOCTEXT("TransitionNext", "Next");
-			case EStateTreeTransitionType::SelectChildState:
-				return LOCTEXT("TransitionSelect", "Select");
-			case EStateTreeTransitionType::GotoState:
-				return FText::FromName(State->StateDoneTransition.Name);
-			default:
-				ensureMsgf(false, TEXT("Unhandled transition type."));
-				break;
-			}
-		}
+		return GetTransitionsDesc(*State, EStateTreeTransitionEvent::OnCompleted);
 	}
 	return LOCTEXT("Invalid", "Invalid");
 }
@@ -769,31 +677,7 @@ FText SStateTreeViewRow::GetCompletedTransitionsIcon() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		if (IsV2())
-		{
-			return GetTransitionsIcon(*State, EStateTreeTransitionEvent::OnCompleted);
-		}
-		else
-		{
-			switch (State->StateDoneTransition.Type)
-			{
-			case EStateTreeTransitionType::NotSet:
-				return FEditorFontGlyphs::Times;
-			case EStateTreeTransitionType::Succeeded:
-				return FEditorFontGlyphs::Check;
-			case EStateTreeTransitionType::Failed:
-				return FEditorFontGlyphs::Times;
-			case EStateTreeTransitionType::NextState:
-				return FEditorFontGlyphs::Long_Arrow_Down;
-			case EStateTreeTransitionType::SelectChildState:
-				return FEditorFontGlyphs::Level_Down;
-			case EStateTreeTransitionType::GotoState:
-				return FEditorFontGlyphs::Long_Arrow_Right;
-			default:
-				ensureMsgf(false, TEXT("Unhandled transition type."));
-				break;
-			}
-		}
+		return GetTransitionsIcon(*State, EStateTreeTransitionEvent::OnCompleted);
 	}
 	return FText::GetEmpty();
 }
@@ -802,10 +686,7 @@ EVisibility SStateTreeViewRow::GetSucceededTransitionVisibility() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		if (IsV2())
-		{
-			return GetTransitionsVisibility(*State, EStateTreeTransitionEvent::OnSucceeded);
-		}
+		return GetTransitionsVisibility(*State, EStateTreeTransitionEvent::OnSucceeded);
 	}
 	return EVisibility::Collapsed;
 }
@@ -814,10 +695,7 @@ FText SStateTreeViewRow::GetSucceededTransitionDesc() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		if (IsV2())
-		{
-			return GetTransitionsDesc(*State, EStateTreeTransitionEvent::OnSucceeded);
-		}
+		return GetTransitionsDesc(*State, EStateTreeTransitionEvent::OnSucceeded);
 	}
 	return FText::GetEmpty();
 }
@@ -826,10 +704,7 @@ FText SStateTreeViewRow::GetSucceededTransitionIcon() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		if (IsV2())
-		{
-			return GetTransitionsIcon(*State, EStateTreeTransitionEvent::OnSucceeded);
-		}
+		return GetTransitionsIcon(*State, EStateTreeTransitionEvent::OnSucceeded);
 	}
 	return FText::GetEmpty();
 }
@@ -838,14 +713,7 @@ EVisibility SStateTreeViewRow::GetFailedTransitionVisibility() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		if (IsV2())
-		{
-			return GetTransitionsVisibility(*State, EStateTreeTransitionEvent::OnFailed);
-		}
-		else
-		{
-			return State->StateFailedTransition.Type != EStateTreeTransitionType::NotSet ? EVisibility::Visible : EVisibility::Collapsed;
-		}
+		return GetTransitionsVisibility(*State, EStateTreeTransitionEvent::OnFailed);
 	}
 	return EVisibility::Collapsed;
 }
@@ -854,31 +722,7 @@ FText SStateTreeViewRow::GetFailedTransitionDesc() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		if (IsV2())
-		{
-			return GetTransitionsDesc(*State, EStateTreeTransitionEvent::OnFailed);
-		}
-		else
-		{
-			switch (State->StateFailedTransition.Type)
-			{
-			case EStateTreeTransitionType::NotSet:
-				return FText::GetEmpty();
-			case EStateTreeTransitionType::Succeeded:
-				return LOCTEXT("TransitionSucceeded", "Succeeded");
-			case EStateTreeTransitionType::Failed:
-				return LOCTEXT("TransitionFailed", "Failed");
-			case EStateTreeTransitionType::NextState:
-				return LOCTEXT("TransitionNext", "Next");
-			case EStateTreeTransitionType::SelectChildState:
-				return LOCTEXT("TransitionSelect", "Select");
-			case EStateTreeTransitionType::GotoState:
-				return FText::FromName(State->StateFailedTransition.Name);
-			default:
-				ensureMsgf(false, TEXT("Unhandled transition type."));
-				break;
-			}
-		}
+		return GetTransitionsDesc(*State, EStateTreeTransitionEvent::OnFailed);
 	}
 	return LOCTEXT("Invalid", "Invalid");
 }
@@ -887,14 +731,7 @@ FText SStateTreeViewRow::GetFailedTransitionIcon() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		if (IsV2())
-		{
-			return GetTransitionsIcon(*State, EStateTreeTransitionEvent::OnFailed);
-		}
-		else
-		{
-			return FEditorFontGlyphs::Ban;
-		}
+		return GetTransitionsIcon(*State, EStateTreeTransitionEvent::OnFailed);
 	}
 	return FEditorFontGlyphs::Ban;
 }
@@ -903,19 +740,7 @@ EVisibility SStateTreeViewRow::GetConditionalTransitionsVisibility() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		if (IsV2())
-		{
-			return GetTransitionsVisibility(*State, EStateTreeTransitionEvent::OnCondition);
-		}
-		else
-		{
-			int32 ValidCount = 0;
-			for (const FStateTreeTransition& Transition : State->Transitions)
-			{
-				ValidCount++;
-			}
-			return ValidCount > 0 ? EVisibility::Visible : EVisibility::Collapsed;
-		}
+		return GetTransitionsVisibility(*State, EStateTreeTransitionEvent::OnCondition);
 	}
 	return EVisibility::Collapsed;
 }
@@ -925,34 +750,7 @@ FText SStateTreeViewRow::GetConditionalTransitionsDesc() const
 	TArray<FText> DescItems;
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		if (IsV2())
-		{
-			return GetTransitionsDesc(*State, EStateTreeTransitionEvent::OnCondition);
-		}
-		else
-		{
-			for (const FStateTreeTransition& Transition : State->Transitions)
-			{
-				switch (Transition.State.Type)
-				{
-				case EStateTreeTransitionType::Succeeded:
-					DescItems.Add(LOCTEXT("TransitionSucceeded", "Succeeded"));
-					break;
-				case EStateTreeTransitionType::Failed:
-					DescItems.Add(LOCTEXT("TransitionFailed", "Failed"));
-					break;
-				case EStateTreeTransitionType::SelectChildState:
-					DescItems.Add(LOCTEXT("TransitionSelect", "Select"));
-					break;
-				case EStateTreeTransitionType::GotoState:
-					DescItems.Add(FText::FromName(Transition.State.Name));
-					break;
-				default:
-					ensureMsgf(false, TEXT("Unhandled transition type."));
-					break;
-				}
-			}
-		}
+		return GetTransitionsDesc(*State, EStateTreeTransitionEvent::OnCondition);
 	}
 	return FText::Join(FText::FromString(TEXT(", ")), DescItems);
 }
@@ -1041,15 +839,6 @@ FReply SStateTreeViewRow::HandleAcceptDrop(const FDragDropEvent& DragDropEvent, 
 	}
 
 	return FReply::Unhandled();
-}
-
-bool SStateTreeViewRow::IsV2() const
-{
-	if (const UStateTreeState* State = WeakState.Get())
-	{
-		return State->IsV2();
-	}
-	return false;	
 }
 
 #undef LOCTEXT_NAMESPACE

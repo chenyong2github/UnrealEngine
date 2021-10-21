@@ -138,7 +138,6 @@ void FStateTreeEditor::InitEditor( const EToolkitMode::Type Mode, const TSharedP
 	UpdateAsset();
 
 	UE::StateTree::Delegates::OnIdentifierChanged.AddSP(this, &FStateTreeEditor::OnIdentifierChanged);
-	UE::StateTree::Delegates::OnParameterLayoutChanged.AddSP(this, &FStateTreeEditor::OnParameterLayoutChanged);
 	UE::StateTree::Delegates::OnSchemaChanged.AddSP(this, &FStateTreeEditor::OnSchemaChanged);
 }
 
@@ -260,16 +259,6 @@ void FStateTreeEditor::OnIdentifierChanged(const UStateTree& InStateTree)
 	}
 }
 
-void FStateTreeEditor::OnParameterLayoutChanged(const UStateTree& InStateTree)
-{
-	// Update when other StateTree assets change.
-	if (StateTree != &InStateTree)
-	{
-		// Update parameter sets. For assets that are not open, this will be done on load.
-		UpdateAsset();
-	}
-}
-
 void FStateTreeEditor::OnSchemaChanged(const UStateTree& InStateTree)
 {
 	if (StateTree == &InStateTree)
@@ -314,7 +303,7 @@ void FStateTreeEditor::OnSelectionFinishedChangingProperties(const FPropertyChan
 	}
 }
 
-namespace FStateTreeEditorHelpers
+namespace UE::StateTree::Editor::Internal
 {
 	bool FixChangedStateLinkName(FStateTreeStateLink& StateLink, const TMap<FGuid, FName>& IDToName)
 	{
@@ -334,44 +323,6 @@ namespace FStateTreeEditorHelpers
 			}
 		}
 		return false;
-	}
-
-	bool FixChangedVariableName(FStateTreeVariable& VarBinding, const TMap<FGuid, FName>& IDToName)
-	{
-		if (VarBinding.ID.IsValid())
-		{
-			const FName* Name = IDToName.Find(VarBinding.ID);
-			if (Name == nullptr)
-			{
-				// Missing link, we'll show these in the UI
-				return false;
-			}
-			if (VarBinding.Name != *Name)
-			{
-				// Name changed, fix!
-				VarBinding.Name = *Name;
-				return true;
-			}
-		}
-		return false;
-	}
-
-	bool FixChangedVariableName(FStateTreeCondition& Condition, const TMap<FGuid, FName>& IDToName)
-	{
-		bool Result = false;
-		Result |= FixChangedVariableName(Condition.Left, IDToName);
-		Result |= FixChangedVariableName(Condition.Right, IDToName);
-		return Result;
-	}
-
-	bool FixChangedVariableName(TArray<FStateTreeCondition>& Conditions, const TMap<FGuid, FName>& IDToName)
-	{
-		bool Result = false;
-		for (FStateTreeCondition& Cond : Conditions)
-		{
-			Result |= FixChangedVariableName(Cond, IDToName);
-		}
-		return Result;
 	}
 
 	void ValidateLinkedStates(UStateTree& StateTree)
@@ -420,9 +371,6 @@ namespace FStateTreeEditorHelpers
 				{
 					UStateTreeState* CurState = Stack.Pop();
 
-					FixChangedStateLinkName(CurState->StateDoneTransition, IDToName);
-					FixChangedStateLinkName(CurState->StateFailedTransition, IDToName);
-
 					for (FStateTreeTransition& Transition : CurState->Transitions)
 					{
 						FixChangedStateLinkName(Transition.State, IDToName);
@@ -437,133 +385,6 @@ namespace FStateTreeEditorHelpers
 					}
 				}
 			}
-		}
-
-	}
-
-	void ValidateLinkedVariables(UStateTree& StateTree)
-	{
-		UStateTreeEditorData* TreeData = Cast<UStateTreeEditorData>(StateTree.EditorData);
-		if (!TreeData)
-		{
-			return;
-		}
-
-		// Make sure all state links are valid and update the names if needed.
-		TArray<UStateTreeState*> Stack;
-
-		// Create ID to state name map.
-		TMap<FGuid, FName> IDToName;
-
-		for (UStateTreeState* Routine : TreeData->Routines)
-		{
-			if (Routine)
-			{
-				Stack.Reset();
-				Stack.Add(Routine);
-				while (Stack.Num() > 0)
-				{
-					UStateTreeState* CurState = Stack.Pop();
-					for (const UStateTreeEvaluatorBase* Evaluator : CurState->Evaluators)
-					{
-						if (Evaluator)
-						{
-							IDToName.Add(Evaluator->GetID(), Evaluator->GetName());
-						}
-					}
-
-					for (UStateTreeState* ChildState : CurState->Children)
-					{
-						if (ChildState)
-						{
-							Stack.Append(CurState->Children);
-						}
-					}
-				}
-			}
-		}
-
-		for (UStateTreeState* Routine : TreeData->Routines)
-		{
-			if (Routine)
-			{
-				// Fix changed names.
-				Stack.Reset();
-				Stack.Add(Routine);
-				while (Stack.Num() > 0)
-				{
-					UStateTreeState* CurState = Stack.Pop();
-
-					FixChangedVariableName(CurState->EnterConditions, IDToName);
-
-					for (FStateTreeTransition& Transition : CurState->Transitions)
-					{
-						FixChangedVariableName(Transition.Conditions, IDToName);
-					}
-
-					for (UStateTreeState* ChildState : CurState->Children)
-					{
-						if (ChildState)
-						{
-							Stack.Append(CurState->Children);
-						}
-					}
-				}
-			}
-		}
-	}
-
-	void ValidateEvaluatorsAndTracks(UStateTree& StateTree)
-	{
-		UStateTreeEditorData* TreeData = Cast<UStateTreeEditorData>(StateTree.EditorData);
-		if (!TreeData)
-		{
-			return;
-		}
-
-		TArray<UStateTreeState*> Stack;
-		bool bChanged = false;
-
-		for (UStateTreeState* Routine : TreeData->Routines)
-		{
-			if (Routine)
-			{
-				// Make sure all parameterset are valid and update the layout if needed.
-				Stack.Reset();
-				Stack.Add(Routine);
-				while (Stack.Num() > 0)
-				{
-					UStateTreeState* CurState = Stack.Pop();
-					for (UStateTreeEvaluatorBase* Evaluator : CurState->Evaluators)
-					{
-						if (Evaluator)
-						{
-							bChanged |= Evaluator->ValidateParameterLayout();
-						}
-					}
-
-					for (UStateTreeTaskBase* Task : CurState->Tasks)
-					{
-						if (Task)
-						{
-							bChanged |= Task->ValidateParameterLayout();
-						}
-					}
-
-					for (UStateTreeState* ChildState : CurState->Children)
-					{
-						if (ChildState)
-						{
-							Stack.Append(CurState->Children);
-						}
-					}
-				}
-			}
-		}
-
-		if (bChanged)
-		{
-			UE::StateTree::Delegates::OnParametersInvalidated.Broadcast(StateTree);
 		}
 	}
 
@@ -621,11 +442,9 @@ void FStateTreeEditor::UpdateAsset()
 		return;
 	}
 
-	FStateTreeEditorHelpers::UpdateParents(*StateTree);
-	FStateTreeEditorHelpers::RemoveUnusedBindings(*StateTree);
-	FStateTreeEditorHelpers::ValidateLinkedStates(*StateTree);
-	FStateTreeEditorHelpers::ValidateLinkedVariables(*StateTree);
-	FStateTreeEditorHelpers::ValidateEvaluatorsAndTracks(*StateTree);
+	UE::StateTree::Editor::Internal::UpdateParents(*StateTree);
+	UE::StateTree::Editor::Internal::RemoveUnusedBindings(*StateTree);
+	UE::StateTree::Editor::Internal::ValidateLinkedStates(*StateTree);
 
 	FStateTreeBaker Baker;
 	if (!Baker.Bake(*StateTree))

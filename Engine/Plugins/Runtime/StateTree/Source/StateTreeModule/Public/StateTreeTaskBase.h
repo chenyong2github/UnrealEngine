@@ -7,57 +7,7 @@
 #include "StateTreeTypes.h"
 #include "StateTreeTaskBase.generated.h"
 
-struct FStateTreeInstance;
 struct FStateTreeExecutionContext;
-struct FStateTreeVariableLayout;
-struct FStateTreeConstantStorage;
-
-/**
- * Base class for StateTree Tasks.
- * Tasks are logic executed at an active state.
- */
-UCLASS(Abstract)
-class STATETREEMODULE_API UStateTreeTaskBase : public UObject
-{
-	GENERATED_BODY()
-
-public:
-	UStateTreeTaskBase(const FObjectInitializer& ObjectInitializer);
-
-	// Called when instantiated first time.
-	virtual bool Initialize(FStateTreeInstance& StateTreeInstance) PURE_VIRTUAL(UStateTreeTaskBase::Initialize, return false; );
-	// Called when evaluator becomes active/ticking.
-	virtual void Activate(FStateTreeInstance& StateTreeInstance) PURE_VIRTUAL(UStateTreeTaskBase::Activate, return; );
-	// Called when evaluator becomes inactive.
-	virtual void Deactivate(FStateTreeInstance& StateTreeInstance) PURE_VIRTUAL(UStateTreeTaskBase::Deactivate, return; );
-
-	// Called on each tick.
-	virtual EStateTreeRunStatus Tick(FStateTreeInstance& StateTreeInstance, const float DeltaTime) PURE_VIRTUAL(UStateTreeTaskBase::Tick, return EStateTreeRunStatus::Failed; );
-
-#if WITH_GAMEPLAY_DEBUGGER
-	virtual void AppendDebugInfoString(FString& DebugString, const FStateTreeInstance& StateTreeInstance) const;
-#endif
-
-#if WITH_EDITOR
-	// Create Task instance template, set default variables, and resolve variable handles.
-	virtual bool ResolveVariables(const FStateTreeVariableLayout& Variables, FStateTreeConstantStorage& Constants, UObject* Outer) PURE_VIRTUAL(UStateTreeTaskBase::Resolve, return false; );
-	// Returns ture if changed.
-	virtual bool ValidateParameterLayout() { return false; }
-
-	virtual void PostLoad() override;
-#endif
-
-	void SetNewUniqueID() { ID = FGuid::NewGuid(); }
-
-	UPROPERTY(EditAnywhere, Category = Task)
-	FName Name;
-
-	UPROPERTY(meta = (IgnoreForMemberInitializationTest))
-	FGuid ID;
-};
-
-
-// STATETREE_V2
 
 /**
  * Base stuct for StateTree Tasks.
@@ -126,6 +76,5 @@ struct STATETREEMODULE_API FStateTreeTask2Base // TODO: change to FStateTreeTask
 	UPROPERTY()
 	uint16 SourceStructIndex = 0;								// Property binding Source Struct index of the task.
 };
-template<> struct TStructOpsTypeTraits<FStateTreeTask2Base> : public TStructOpsTypeTraitsBase2<FStateTreeTask2Base> { enum { WithPureVirtual = true, }; };
 
-// ~STATETREE_V2
+template<> struct TStructOpsTypeTraits<FStateTreeTask2Base> : public TStructOpsTypeTraitsBase2<FStateTreeTask2Base> { enum { WithPureVirtual = true, }; };

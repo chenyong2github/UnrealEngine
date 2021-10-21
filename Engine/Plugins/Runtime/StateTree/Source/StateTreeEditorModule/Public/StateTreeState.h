@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "StateTreeCondition.h"
 #include "StateTreeEvaluatorBase.h"
 #include "StateTreeTaskBase.h"
 #include "Misc/Guid.h"
-#include "StateTreeVariableProvider.h"
 #include "InstancedStruct.h"
 #include "StateTreeState.generated.h"
 
@@ -35,21 +33,6 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = Transition)
 	EStateTreeTransitionType Type;
-};
-
-/**
- * Editor representation of a transition in StateTree
- */
-USTRUCT()
-struct STATETREEEDITORMODULE_API FStateTreeTransition
-{
-	GENERATED_BODY()
-public:
-	UPROPERTY(EditDefaultsOnly, Category = Transition)
-	FStateTreeStateLink State;
-
-	UPROPERTY(EditDefaultsOnly, Category = Transition)
-	TArray<FStateTreeCondition> Conditions;
 };
 
 /**
@@ -93,12 +76,12 @@ struct STATETREEEDITORMODULE_API FStateTreeConditionItem
  * Editor representation of a transition in StateTree
  */
 USTRUCT()
-struct STATETREEEDITORMODULE_API FStateTreeTransition2
+struct STATETREEEDITORMODULE_API FStateTreeTransition
 {
 	GENERATED_BODY()
 
-	FStateTreeTransition2() = default;
-	FStateTreeTransition2(const EStateTreeTransitionEvent InEvent, const EStateTreeTransitionType InType, const UStateTreeState* InState = nullptr);
+	FStateTreeTransition() = default;
+	FStateTreeTransition(const EStateTreeTransitionEvent InEvent, const EStateTreeTransitionType InType, const UStateTreeState* InState = nullptr);
 
 	template<typename T, typename... TArgs>
 	T& AddCondition(TArgs&&... InArgs)
@@ -129,7 +112,7 @@ struct STATETREEEDITORMODULE_API FStateTreeTransition2
  * Editor representation of a state in StateTree
  */
 UCLASS(BlueprintType, EditInlineNew, CollapseCategories)
-class STATETREEEDITORMODULE_API UStateTreeState : public UObject, public IStateTreeVariableProvider
+class STATETREEEDITORMODULE_API UStateTreeState : public UObject
 {
 	GENERATED_BODY()
 
@@ -138,16 +121,10 @@ public:
 
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
-	virtual void PostLoad() override;
 #endif
 
-	void GetVisibleVariables(FStateTreeVariableLayout& Variables) const override;
-
-	const UStateTreeTaskBase* GetTaskByID(FGuid ID) const;
-	UStateTreeTaskBase* GetTaskByID(FGuid ID);
-
-	const FStateTreeTask2Base* GetTask2ByID(FGuid ID) const;
-	FStateTreeTask2Base* GetTask2ByID(FGuid ID);
+	const FStateTreeTask2Base* GetTaskByID(FGuid ID) const;
+	FStateTreeTask2Base* GetTaskByID(FGuid ID);
 
 	UStateTreeState* GetNextSiblingState() const;
 
@@ -171,7 +148,7 @@ public:
 	template<typename T, typename... TArgs>
 	T& AddEnterCondition(TArgs&&... InArgs)
 	{
-		FStateTreeConditionItem& CondItem = EnterConditions2.AddDefaulted_GetRef();
+		FStateTreeConditionItem& CondItem = EnterConditions.AddDefaulted_GetRef();
 		CondItem.Type.InitializeAs<T>(Forward<TArgs>(InArgs)...);
 		return CondItem.Type.GetMutable<T>();
 	}
@@ -183,7 +160,7 @@ public:
 	template<typename T, typename... TArgs>
 	T& AddTask(TArgs&&... InArgs)
 	{
-		FStateTreeTaskItem& TaskItem = Tasks2.AddDefaulted_GetRef();
+		FStateTreeTaskItem& TaskItem = Tasks.AddDefaulted_GetRef();
 		TaskItem.Type.InitializeAs<T>(Forward<TArgs>(InArgs)...);
 		T& Task = TaskItem.Type.GetMutable<T>();
 		Task.ID = FGuid::NewGuid();
@@ -197,7 +174,7 @@ public:
 	template<typename T, typename... TArgs>
     T& AddEvaluator(TArgs&&... InArgs)
 	{
-		FStateTreeEvaluatorItem& EvalItem = Evaluators2.AddDefaulted_GetRef();
+		FStateTreeEvaluatorItem& EvalItem = Evaluators.AddDefaulted_GetRef();
 		EvalItem.Type.InitializeAs<T>(Forward<TArgs>(InArgs)...);
 		T& Eval = EvalItem.Type.GetMutable<T>();
 		Eval.ID = FGuid::NewGuid();
@@ -208,52 +185,30 @@ public:
 	 * Adds Transition.
 	 * @return reference to the new Transition. 
 	 */
-	FStateTreeTransition2& AddTransition(const EStateTreeTransitionEvent InEvent, const EStateTreeTransitionType InType, const UStateTreeState* InState = nullptr)
+	FStateTreeTransition& AddTransition(const EStateTreeTransitionEvent InEvent, const EStateTreeTransitionType InType, const UStateTreeState* InState = nullptr)
 	{
-		return Transitions2.Emplace_GetRef(InEvent, InType, InState);
+		return Transitions.Emplace_GetRef(InEvent, InType, InState);
 	}
 
 	// ~StateTree Builder API
 
-	bool IsV2() const;
-	
 	UPROPERTY(EditDefaultsOnly, Category = State)
 	FName Name;
 
 	UPROPERTY()
 	FGuid ID;
 
-	UPROPERTY(EditDefaultsOnly, Category = "State", Meta = (ToolTip = "State to transition to when the State execution is done. If no State Failed transition is set, this transition will be used."))
-	FStateTreeStateLink StateDoneTransition;
-
-	UPROPERTY(EditDefaultsOnly, Category = "State", Meta = (ToolTip = "State to transition to if the State execution fails."))
-	FStateTreeStateLink StateFailedTransition = FStateTreeStateLink(EStateTreeTransitionType::NotSet);
-
 	UPROPERTY(EditDefaultsOnly, Category = "Enter Conditions")
-	TArray<FStateTreeCondition> EnterConditions;
+	TArray<FStateTreeConditionItem> EnterConditions;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Evaluators", Instanced)
-	TArray<UStateTreeEvaluatorBase*> Evaluators;
+	UPROPERTY(EditDefaultsOnly, Category = "Evaluators")
+	TArray<FStateTreeEvaluatorItem> Evaluators;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Tasks", Instanced)
-	TArray<UStateTreeTaskBase*> Tasks;
+	UPROPERTY(EditDefaultsOnly, Category = "Tasks")
+	TArray<FStateTreeTaskItem> Tasks;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Transitions")
 	TArray<FStateTreeTransition> Transitions;
-
-// STATETREE_V2
-	UPROPERTY(EditDefaultsOnly, Category = "Enter Conditions")
-	TArray<FStateTreeConditionItem> EnterConditions2;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Evaluators")
-	TArray<FStateTreeEvaluatorItem> Evaluators2;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Tasks")
-	TArray<FStateTreeTaskItem> Tasks2;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Transitions")
-	TArray<FStateTreeTransition2> Transitions2;
-// ~STATETREE_V2
 
 	UPROPERTY()
 	TArray<UStateTreeState*> Children;

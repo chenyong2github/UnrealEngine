@@ -32,7 +32,6 @@ private:
 	static const int ComboSucceeded = -2;
 	static const int ComboFailed = -3;
 	static const int ComboNextState = -4;
-	static const int ComboSelectChildState = -5;
 
 	void CacheStates();
 	void CacheStates(const UStateTreeState* State);
@@ -45,7 +44,6 @@ private:
 
 	TArray<FName> CachedNames;
 	TArray<FGuid> CachedIDs;
-	bool bIsV2;
 
 	TSharedPtr<IPropertyHandle> NameProperty;
 	TSharedPtr<IPropertyHandle> IDProperty;

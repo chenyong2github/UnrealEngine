@@ -129,7 +129,7 @@ public:
 
 #if WITH_GAMEPLAY_DEBUGGER
 	/** @return Debug string describing the current state of the execution */
-	FString GetDebugInfoString(FStateTreeItemView ExternalStorage = FStateTreeItemView());
+	FString GetDebugInfoString(FStateTreeItemView ExternalStorage = FStateTreeItemView()) const;
 #endif // WITH_GAMEPLAY_DEBUGGER
 
 #if WITH_STATETREE_DEBUG
@@ -228,7 +228,7 @@ protected:
 	}
 
 	/** @return View to an Evaluator or a Task. */
-	FStateTreeItemView GetItem(FStateTreeItemView Storage, const int32 Index)
+	FStateTreeItemView GetItem(FStateTreeItemView Storage, const int32 Index) const
 	{
 		const FStateTreeRuntimeStorageItemOffset& ItemOffset = StateTree->RuntimeStorageOffsets[Index];
 		return FStateTreeItemView(ItemOffset.Struct, Storage.GetMutableMemory() + ItemOffset.Offset);

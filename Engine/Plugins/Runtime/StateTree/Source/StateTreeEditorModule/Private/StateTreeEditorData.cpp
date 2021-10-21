@@ -128,7 +128,7 @@ void UStateTreeEditorData::VisitHierarchy(TFunctionRef<bool(const UStateTreeStat
 			Stack.RemoveAt(0);
 
 			// Evaluators
-			for (const FStateTreeEvaluatorItem& Item : State->Evaluators2)
+			for (const FStateTreeEvaluatorItem& Item : State->Evaluators)
 			{
 				if (const FStateTreeEvaluator2Base* Evaluator = Item.Type.GetPtr<FStateTreeEvaluator2Base>())
 				{
@@ -142,7 +142,7 @@ void UStateTreeEditorData::VisitHierarchy(TFunctionRef<bool(const UStateTreeStat
 			if (bContinue)
 			{
 				// Enter conditions
-				for (const FStateTreeConditionItem& Item : State->EnterConditions2)
+				for (const FStateTreeConditionItem& Item : State->EnterConditions)
 				{
 					if (const FStateTreeConditionBase* Cond = Item.Type.GetPtr<FStateTreeConditionBase>())
 					{
@@ -157,7 +157,7 @@ void UStateTreeEditorData::VisitHierarchy(TFunctionRef<bool(const UStateTreeStat
 			if (bContinue)
 			{
 				// Tasks
-				for (const FStateTreeTaskItem& Item : State->Tasks2)
+				for (const FStateTreeTaskItem& Item : State->Tasks)
 				{
 					if (const FStateTreeTask2Base* Task = Item.Type.GetPtr<FStateTreeTask2Base>())
 					{
@@ -172,7 +172,7 @@ void UStateTreeEditorData::VisitHierarchy(TFunctionRef<bool(const UStateTreeStat
 			if (bContinue)
 			{
 				// Transitions
-				for (const FStateTreeTransition2& Transition : State->Transitions2)
+				for (const FStateTreeTransition& Transition : State->Transitions)
 				{
 					for (const FStateTreeConditionItem& Item : Transition.Conditions)
 					{

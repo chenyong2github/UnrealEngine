@@ -46,8 +46,7 @@ struct FStateTreeTest_MakeAndBakeStateTree : FAITestBase
 
 		// Root
 		FTestEval_A& EvalA = Root.AddEvaluator<FTestEval_A>();
-		Root.StateDoneTransition.Set(EStateTreeTransitionType::SelectChildState);
-
+		
 		// State A
 		FTestTask_B& TaskB1 = StateA.AddTask<FTestTask_B>();
 		EditorData.AddPropertyBinding(STATETREE_PROPPATH_CHECKED(EvalA, IntA), STATETREE_PROPPATH_CHECKED(TaskB1, IntB));
@@ -55,20 +54,20 @@ struct FStateTreeTest_MakeAndBakeStateTree : FAITestBase
 		FStateTreeCondition_CompareInt& IntCond = StateA.AddEnterCondition<FStateTreeCondition_CompareInt>(0, EGenericAICheck::Less, 2);
 		EditorData.AddPropertyBinding(STATETREE_PROPPATH_CHECKED(EvalA, IntA), STATETREE_PROPPATH_CHECKED(IntCond, Left));
 
-		StateA.StateDoneTransition.Set(EStateTreeTransitionType::GotoState, &StateB);
+		StateA.AddTransition(EStateTreeTransitionEvent::OnCompleted, EStateTreeTransitionType::GotoState, &StateB);
 
 		// State B
 		FTestTask_B& TaskB2 = StateB.AddTask<FTestTask_B>();
 		EditorData.AddPropertyBinding(STATETREE_PROPPATH_CHECKED(EvalA, bBoolA), STATETREE_PROPPATH_CHECKED(TaskB2, bBoolB));
 
-		FStateTreeTransition2& Trans = StateB.AddTransition(EStateTreeTransitionEvent::OnCondition, EStateTreeTransitionType::GotoState, &Root);
+		FStateTreeTransition& Trans = StateB.AddTransition(EStateTreeTransitionEvent::OnCondition, EStateTreeTransitionType::GotoState, &Root);
 		FStateTreeCondition_CompareFloat& TransFloatCond = Trans.AddCondition<FStateTreeCondition_CompareFloat>(0.0f, EGenericAICheck::Less, 13.0f);
 		EditorData.AddPropertyBinding(STATETREE_PROPPATH_CHECKED(EvalA, FloatA), STATETREE_PROPPATH_CHECKED(TransFloatCond, Left));
 
-		StateB.StateDoneTransition.Set(EStateTreeTransitionType::Succeeded);
+		StateB.AddTransition(EStateTreeTransitionEvent::OnCompleted, EStateTreeTransitionType::Succeeded);
 
 		FStateTreeBaker Baker;
-		bool bResult = Baker.Bake2(StateTree);
+		bool bResult = Baker.Bake(StateTree);
 
 		AITEST_TRUE("StateTree should get baked", bResult);
 
@@ -96,7 +95,6 @@ struct FStateTreeTest_WanderLoop : FAITestBase
 		UStateTreeState& UseSO = UseSmartObjectOnLane.AddChildState(FName(TEXT("UseSO")));
 
 		// - Root
-		Root.StateDoneTransition.Set(EStateTreeTransitionType::SelectChildState);
 
 		//   \- Wander
 		FTestEval_Wander& WanderEval = Wander.AddEvaluator<FTestEval_Wander>(FName(TEXT("WanderEval")));
@@ -135,7 +133,7 @@ struct FStateTreeTest_WanderLoop : FAITestBase
 		StandOnLane.AddTransition(EStateTreeTransitionEvent::OnCompleted, EStateTreeTransitionType::GotoState, &Wander);
 
 		FStateTreeBaker Baker;
-		bool bResult = Baker.Bake2(StateTree);
+		bool bResult = Baker.Bake(StateTree);
 
 		AITEST_TRUE("StateTree should get baked", bResult);
 
@@ -227,7 +225,7 @@ struct FStateTreeTest_Sequence : FAITestBase
 		State2.AddTransition(EStateTreeTransitionEvent::OnCompleted, EStateTreeTransitionType::Succeeded);
 
 		FStateTreeBaker Baker;
-		const bool bResult = Baker.Bake2(StateTree);
+		const bool bResult = Baker.Bake(StateTree);
 		AITEST_TRUE("StateTree should get baked", bResult);
 
 		EStateTreeRunStatus Status = EStateTreeRunStatus::Unset;
@@ -287,7 +285,7 @@ struct FStateTreeTest_Select : FAITestBase
 		State1A.AddTransition(EStateTreeTransitionEvent::OnCompleted, EStateTreeTransitionType::GotoState, &State1);
 
 		FStateTreeBaker Baker;
-		const bool bResult = Baker.Bake2(StateTree);
+		const bool bResult = Baker.Bake(StateTree);
 		AITEST_TRUE("StateTree should get baked", bResult);
 
 		EStateTreeRunStatus Status = EStateTreeRunStatus::Unset;

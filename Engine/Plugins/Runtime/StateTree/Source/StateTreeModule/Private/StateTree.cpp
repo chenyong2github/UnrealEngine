@@ -20,15 +20,9 @@ bool UStateTree::IsValidStateTree() const
 #if WITH_EDITOR
 void UStateTree::ResetBaked()
 {
-	Variables.Reset();
-	Constants.Reset();
-	Tasks.Reset();
-	Evaluators.Reset();
 	States.Reset();
 	Conditions.Reset();
-	Conditions2.Reset();
 	Transitions.Reset();
-	Parameters.Reset();
 
 	RuntimeStorageItems.Reset();
 	RuntimeStorageStruct = nullptr;
@@ -42,20 +36,9 @@ void UStateTree::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyCh
 {
 	if (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.Property)
 	{
-		if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTree, Parameters))
-		{
-			UE::StateTree::Delegates::OnParameterLayoutChanged.Broadcast(*this);
-		}
-
 		if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTree, Schema))
 		{
-			UE::StateTree::Delegates::OnParameterLayoutChanged.Broadcast(*this);
-		}
-
-		if (PropertyChangedEvent.Property->GetOwnerStruct() == FStateTreeVariableDesc::StaticStruct() &&
-			PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(FStateTreeVariableDesc, Name))
-		{
-			UE::StateTree::Delegates::OnIdentifierChanged.Broadcast(*this);
+			UE::StateTree::Delegates::OnSchemaChanged.Broadcast(*this);
 		}
 	}
 }

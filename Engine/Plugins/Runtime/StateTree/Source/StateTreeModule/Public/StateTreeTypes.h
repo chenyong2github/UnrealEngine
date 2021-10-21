@@ -58,7 +58,6 @@ enum class EStateTreeTransitionType : uint8
 {
 	Succeeded,			// Signal StateTree execution succeeded.
 	Failed,				// Signal StateTree execution failed.
-	SelectChildState,	// Select child state.
 	GotoState,			// Transition to specified state.
 	NotSet,				// No transition.
 	NextState,			// Goto next sibling state.
