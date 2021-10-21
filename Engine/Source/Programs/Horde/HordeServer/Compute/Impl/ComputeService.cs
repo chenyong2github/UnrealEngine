@@ -161,6 +161,8 @@ namespace HordeServer.Compute.Impl
 			this.RequirementsCache = new MemoryCache(new MemoryCacheOptions());
 			this.CachedPools = new LazyCachedValue<Task<List<IPool>>>(() => PoolCollection.GetAsync(), TimeSpan.FromSeconds(30.0));
 			this.Logger = Logger;
+
+			OnLeaseStartedProperties.Add(x => x.Task);
 		}
 
 		/// <summary>
