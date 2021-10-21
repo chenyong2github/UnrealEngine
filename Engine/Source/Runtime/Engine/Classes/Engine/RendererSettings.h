@@ -852,12 +852,6 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		uint32 MobileNumDynamicPointLights;
 
 	UPROPERTY(config, EditAnywhere, Category = MobileShaderPermutationReduction, meta = (
-		ConsoleVariable = "r.MobileDynamicPointLightsUseStaticBranch", DisplayName = "Use Shared Movable Spotlight / Point Light Shaders",
-		ToolTip = "If this setting is enabled, the same shader will be used for any number of dynamic spotlights or point lights (up to the maximum specified above) hitting a surface. This is slightly slower but reduces the number of shaders generated. Changing this setting requires restarting the editor.",
-		ConfigRestartRequired = true))
-		uint32 bMobileDynamicPointLightsUseStaticBranch : 1;
-
-	UPROPERTY(config, EditAnywhere, Category = MobileShaderPermutationReduction, meta = (
 		ConsoleVariable = "r.Mobile.EnableMovableSpotlights",
 		DisplayName = "Support Movable Spotlights",
 		ToolTip = "Generate shaders for primitives to receive lighting from movable spotlights. This incurs an additional cost when processing movable lights. Changing this setting requires restarting the editor.",

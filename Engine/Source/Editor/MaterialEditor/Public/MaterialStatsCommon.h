@@ -44,7 +44,6 @@ enum class ERepresentativeShader
 	FirstFragmentShader,
 	StationarySurface = FirstFragmentShader,
 	StationarySurfaceCSM,
-	StationarySurface1PointLight,
 	StationarySurfaceNPointLights,
 	DynamicallyLitObject,
 	UIDefaultFragmentShader,

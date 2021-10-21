@@ -3219,7 +3219,6 @@ struct FReadOnlyCVARCache
 	bool bMobileEnableStaticAndCSMShadowReceivers;
 	int32 NumMobileMovablePointLights;
 	int32 MobileSkyLightPermutation;
-	bool bMobileMovablePointLightsUseStaticBranch;
 	bool bMobileEnableMovableSpotlights;
 	bool bMobileEnableMovableSpotlightsShadow;
 	
