@@ -438,7 +438,7 @@ namespace HordeServer.Tasks.Impl
 					await Jobs.TryRemoveFromDispatchQueueAsync(NewJob);
 					continue;
 				}
-				if (NewJob.AbortedByUser != null)
+				if (NewJob.AbortedByUserId != null)
 				{
 					Logger.LogError("Job {JobId} was aborted but not removed from dispatch queue", NewJob.Id);
 					await Jobs.TryRemoveFromDispatchQueueAsync(NewJob);

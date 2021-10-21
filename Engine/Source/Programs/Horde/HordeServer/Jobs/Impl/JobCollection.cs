@@ -72,10 +72,12 @@ namespace HordeServer.Collections.Impl
 			[BsonIgnoreIfDefault, BsonDefaultValue(false)]
 			public bool Retry { get; set; }
 
+			public UserId? RetriedByUserId { get; set; }
 			public string? RetryByUser { get; set; }
 
 			public bool AbortRequested { get; set; } = false;
 
+			public UserId? AbortedByUserId { get; set; }
 			public string? AbortByUser { get; set; }
 
 			[BsonIgnoreIfNull]
@@ -85,7 +87,6 @@ namespace HordeServer.Collections.Impl
 			[BsonIgnoreIfNull]
 			public Dictionary<string, string>? Properties { get; set; }
 
-			string? IJobStep.RetryByUser => RetryByUser ?? (Retry ? (string?)"Unknown" : null);
 			DateTime? IJobStep.ReadyTimeUtc => ReadyTime?.UtcDateTime;
 			DateTime? IJobStep.StartTimeUtc => StartTime?.UtcDateTime;
 			DateTime? IJobStep.FinishTimeUtc => FinishTime?.UtcDateTime;
@@ -202,6 +203,9 @@ namespace HordeServer.Collections.Impl
 			public string? StartedByUser { get; set; }
 
 			[BsonIgnoreIfNull]
+			public UserId? AbortedByUserId { get; set; }
+
+			[BsonIgnoreIfNull]
 			public string? AbortedByUser { get; set; }
 
 			[BsonRequired]
@@ -240,7 +244,6 @@ namespace HordeServer.Collections.Impl
 			public bool ShowUgsAlerts { get; set; }
 			public string? NotificationChannel { get; set; }
 			public string? NotificationChannelFilter { get; set; }
-			public string? HelixSwarmCallbackUrl { get; set; }
 			public List<LabelNotificationDocument> LabelNotifications = new List<LabelNotificationDocument>();
 			public List<ChainedJobDocument> ChainedJobs { get; set; } = new List<ChainedJobDocument>();
 
@@ -275,7 +278,7 @@ namespace HordeServer.Collections.Impl
 				GraphHash = null!;
 			}
 
-			public JobDocument(JobId Id, StreamId StreamId, TemplateRefId TemplateId, ContentHash TemplateHash, ContentHash GraphHash, string Name, int Change, int CodeChange, int PreflightChange, int ClonedPreflightChange, UserId? StartedByUserId, string? StartedByUserName, Priority? Priority, bool? AutoSubmit, bool? UpdateIssues, DateTime CreateTimeUtc, List<ChainedJobDocument> ChainedJobs, bool ShowUgsBadges, bool ShowUgsAlerts, string? NotificationChannel, string? NotificationChannelFilter, string? HelixSwarmCallbackUrl, List<string>? Arguments)
+			public JobDocument(JobId Id, StreamId StreamId, TemplateRefId TemplateId, ContentHash TemplateHash, ContentHash GraphHash, string Name, int Change, int CodeChange, int PreflightChange, int ClonedPreflightChange, UserId? StartedByUserId, Priority? Priority, bool? AutoSubmit, bool? UpdateIssues, DateTime CreateTimeUtc, List<ChainedJobDocument> ChainedJobs, bool ShowUgsBadges, bool ShowUgsAlerts, string? NotificationChannel, string? NotificationChannelFilter, List<string>? Arguments)
 			{
 				this.Id = Id;
 				this.StreamId = StreamId;
@@ -288,7 +291,6 @@ namespace HordeServer.Collections.Impl
 				this.PreflightChange = PreflightChange;
 				this.ClonedPreflightChange = ClonedPreflightChange;
 				this.StartedByUserId = StartedByUserId;
-				this.StartedByUser = StartedByUserName;
 				this.Priority = Priority ?? HordeCommon.Priority.Normal;
 				this.AutoSubmit = AutoSubmit ?? false;
 				this.UpdateIssues = UpdateIssues ?? (StartedByUserId == null && PreflightChange == 0);
@@ -298,7 +300,6 @@ namespace HordeServer.Collections.Impl
 				this.ShowUgsAlerts = ShowUgsAlerts;
 				this.NotificationChannel = NotificationChannel;
 				this.NotificationChannelFilter = NotificationChannelFilter;
-				this.HelixSwarmCallbackUrl = HelixSwarmCallbackUrl;
 				this.Arguments = Arguments ?? this.Arguments;
 				this.NextSubResourceId = SubResourceId.Random();
 				this.UpdateTimeUtc = CreateTimeUtc;
@@ -367,7 +368,7 @@ namespace HordeServer.Collections.Impl
 
 		/// <inheritdoc/>
 		[SuppressMessage("Compiler", "CA1054:URI parameters should not be strings")]
-		public async Task<IJob> AddAsync(JobId JobId, StreamId StreamId, TemplateRefId TemplateRefId, ContentHash TemplateHash, IGraph Graph, string Name, int Change, int CodeChange, int? PreflightChange, int? ClonedPreflightChange, UserId? StartedByUserId, string? StartedByUserName, Priority? Priority, bool? AutoSubmit, bool? UpdateIssues, List<ChainedJobTemplate>? ChainedJobs, bool ShowUgsBadges, bool ShowUgsAlerts, string? NotificationChannel, string? NotificationChannelFilter, string? HelixSwarmCallbackUrl, List<string>? Arguments)
+		public async Task<IJob> AddAsync(JobId JobId, StreamId StreamId, TemplateRefId TemplateRefId, ContentHash TemplateHash, IGraph Graph, string Name, int Change, int CodeChange, int? PreflightChange, int? ClonedPreflightChange, UserId? StartedByUserId, Priority? Priority, bool? AutoSubmit, bool? UpdateIssues, List<ChainedJobTemplate>? ChainedJobs, bool ShowUgsBadges, bool ShowUgsAlerts, string? NotificationChannel, string? NotificationChannelFilter, List<string>? Arguments)
 		{
 			List<ChainedJobDocument> JobTriggers = new List<ChainedJobDocument>();
 			if (ChainedJobs == null)
@@ -379,7 +380,7 @@ namespace HordeServer.Collections.Impl
 				JobTriggers = ChainedJobs.ConvertAll(x => new ChainedJobDocument(x));
 			}
 
-			JobDocument NewJob = new JobDocument(JobId, StreamId, TemplateRefId, TemplateHash, Graph.Id, Name, Change, CodeChange, PreflightChange ?? 0, ClonedPreflightChange ?? 0, StartedByUserId, StartedByUserName, Priority, AutoSubmit, UpdateIssues, DateTime.UtcNow, JobTriggers, ShowUgsBadges, ShowUgsAlerts, NotificationChannel, NotificationChannelFilter, HelixSwarmCallbackUrl, Arguments);
+			JobDocument NewJob = new JobDocument(JobId, StreamId, TemplateRefId, TemplateHash, Graph.Id, Name, Change, CodeChange, PreflightChange ?? 0, ClonedPreflightChange ?? 0, StartedByUserId, Priority, AutoSubmit, UpdateIssues, DateTime.UtcNow, JobTriggers, ShowUgsBadges, ShowUgsAlerts, NotificationChannel, NotificationChannelFilter, Arguments);
 			CreateBatches(NewJob, Graph, Logger);
 
 			await Jobs.InsertOneAsync(NewJob);
@@ -498,7 +499,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> TryUpdateJobAsync(IJob Job, IGraph Graph, string? Name, Priority? Priority, bool? AutoSubmit, int? AutoSubmitChange, string? AutoSubmitMessage, string? AbortedByUser, ObjectId? NotificationTriggerId, List<Report>? Reports, List<string>? Arguments, KeyValuePair<int, ObjectId>? LabelIdxToTriggerId, KeyValuePair<TemplateRefId, JobId>? JobTrigger)
+		public async Task<bool> TryUpdateJobAsync(IJob Job, IGraph Graph, string? Name, Priority? Priority, bool? AutoSubmit, int? AutoSubmitChange, string? AutoSubmitMessage, UserId? AbortedByUserId, ObjectId? NotificationTriggerId, List<Report>? Reports, List<string>? Arguments, KeyValuePair<int, ObjectId>? LabelIdxToTriggerId, KeyValuePair<TemplateRefId, JobId>? JobTrigger)
 		{
 			// Create the update 
 			UpdateDefinitionBuilder<JobDocument> UpdateBuilder = Builders<JobDocument>.Update;
@@ -534,10 +535,10 @@ namespace HordeServer.Collections.Impl
 				JobDocument.AutoSubmitMessage = (AutoSubmitMessage.Length == 0)? null : AutoSubmitMessage;
 				Updates.Add(UpdateBuilder.SetOrUnsetNullRef(x => x.AutoSubmitMessage, Job.AutoSubmitMessage));
 			}
-			if (AbortedByUser != null && Job.AbortedByUser == null)
+			if (AbortedByUserId != null && Job.AbortedByUserId == null)
 			{
-				JobDocument.AbortedByUser = AbortedByUser;
-				Updates.Add(UpdateBuilder.Set(x => x.AbortedByUser, Job.AbortedByUser));
+				JobDocument.AbortedByUserId = AbortedByUserId;
+				Updates.Add(UpdateBuilder.Set(x => x.AbortedByUserId, Job.AbortedByUserId));
 				bUpdateBatches = true;
 			}
 			if (NotificationTriggerId != null)
@@ -1293,7 +1294,7 @@ namespace HordeServer.Collections.Impl
 			{
 				foreach (IJobStep Step in Batch.Steps)
 				{
-					if ((Step.State == JobStepState.Running && Step.RetryByUser == null) || (Step.State == JobStepState.Completed && Step.RetryByUser == null) || (Step.State == JobStepState.Aborted && Step.RetryByUser == null) || Step.State == JobStepState.Skipped)
+					if ((Step.State == JobStepState.Running && Step.RetriedByUserId == null) || (Step.State == JobStepState.Completed && Step.RetriedByUserId == null) || (Step.State == JobStepState.Aborted && Step.RetriedByUserId == null) || Step.State == JobStepState.Skipped)
 					{
 						NewNodesToExecute.Remove(Graph.Groups[Batch.GroupIdx].Nodes[Step.NodeIdx]);
 					}

@@ -221,7 +221,6 @@ namespace HordeServer.Services
 		/// <param name="PreflightChange">Optional changelist to preflight</param>
 		/// <param name="ClonedPreflightChange">Duplicated preflight change</param>
 		/// <param name="StartedByUserId">Id of the user that started the job</param>
-		/// <param name="StartedByUserName">User that started the job</param>
 		/// <param name="Priority">Priority of the job</param>
 		/// <param name="AutoSubmit">Whether to automatically submit the preflighted change on completion</param>
 		/// <param name="UpdateIssues">Whether to update issues when this job completes</param>
@@ -230,10 +229,9 @@ namespace HordeServer.Services
 		/// <param name="ShowUgsAlerts">Whether to show alerts in UGS for this job</param>
 		/// <param name="NotificationChannel">Notification Channel for this job</param>
 		/// <param name="NotificationChannelFilter">Notification Channel filter for this job</param>
-		/// <param name="HelixSwarmCallbackUrl">Helix Swarm callback URL for review, if any</param>
 		/// <param name="Arguments">Arguments for the job</param>
 		/// <returns>Unique id representing the job</returns>
-		public async Task<IJob> CreateJobAsync(JobId? JobId, IStream Stream, TemplateRefId TemplateRefId, ContentHash TemplateHash, IGraph Graph, string Name, int Change, int CodeChange, int? PreflightChange, int? ClonedPreflightChange, UserId? StartedByUserId, string? StartedByUserName, Priority? Priority, bool? AutoSubmit, bool? UpdateIssues, List<ChainedJobTemplate>? JobTriggers, bool ShowUgsBadges, bool ShowUgsAlerts, string? NotificationChannel, string? NotificationChannelFilter, string? HelixSwarmCallbackUrl, IReadOnlyList<string> Arguments)
+		public async Task<IJob> CreateJobAsync(JobId? JobId, IStream Stream, TemplateRefId TemplateRefId, ContentHash TemplateHash, IGraph Graph, string Name, int Change, int CodeChange, int? PreflightChange, int? ClonedPreflightChange, UserId? StartedByUserId, Priority? Priority, bool? AutoSubmit, bool? UpdateIssues, List<ChainedJobTemplate>? JobTriggers, bool ShowUgsBadges, bool ShowUgsAlerts, string? NotificationChannel, string? NotificationChannelFilter, IReadOnlyList<string> Arguments)
 		{
 			JobId JobIdValue = JobId ?? HordeServer.Utilities.ObjectId<IJob>.GenerateNewId();
 			using IDisposable Scope = Logger.BeginScope("CreateJobAsync({JobId})", JobIdValue);
@@ -266,7 +264,7 @@ namespace HordeServer.Services
 
 			Name = StringUtils.ExpandProperties(Name, Properties);
 
-			IJob NewJob = await Jobs.AddAsync(JobIdValue, Stream.Id, TemplateRefId, TemplateHash, Graph, Name, Change, CodeChange, PreflightChange, ClonedPreflightChange, StartedByUserId, StartedByUserName, Priority, AutoSubmit, UpdateIssues, JobTriggers, ShowUgsBadges, ShowUgsAlerts, NotificationChannel, NotificationChannelFilter, HelixSwarmCallbackUrl, ExpandedArguments);
+			IJob NewJob = await Jobs.AddAsync(JobIdValue, Stream.Id, TemplateRefId, TemplateHash, Graph, Name, Change, CodeChange, PreflightChange, ClonedPreflightChange, StartedByUserId, Priority, AutoSubmit, UpdateIssues, JobTriggers, ShowUgsBadges, ShowUgsAlerts, NotificationChannel, NotificationChannelFilter, ExpandedArguments);
 			JobTaskSource.UpdateQueuedJob(NewJob, Graph);
 
 			await JobTaskSource.UpdateUgsBadges(NewJob, Graph, new List<(LabelState, LabelOutcome)>());
@@ -295,10 +293,10 @@ namespace HordeServer.Services
 				if (Job.Id == NewJob.Id) continue; // Don't remove the new job
 				if (Job.TemplateId != NewJob.TemplateId) continue;
 				if (Job.TemplateHash != NewJob.TemplateHash) continue;
-				if (Job.StartedByUser != NewJob.StartedByUser) continue;
+				if (Job.StartedByUserId != NewJob.StartedByUserId) continue;
 				if (string.Join(",", Job.Arguments) != string.Join(",", NewJob.Arguments)) continue;
 
-				bool bUpdateSuccessful = await UpdateJobAsync(Job, null, null, null, "horde.duplicated.by.newer.CL", null, null, null);
+				bool bUpdateSuccessful = await UpdateJobAsync(Job, null, null, null, KnownUsers.System, null, null, null);
 				if (!bUpdateSuccessful)
 				{
 					Logger.LogError("Failed marking duplicate job as aborted! Job ID: {JobId}", Job.Id);
@@ -360,12 +358,12 @@ namespace HordeServer.Services
 		/// <param name="Name">Name of the job</param>
 		/// <param name="Priority">Priority of the job</param>
 		/// <param name="AutoSubmit">Whether to automatically submit the preflighted change on completion</param>
-		/// <param name="AbortedByUser">Name of the user that aborted this job</param>
+		/// <param name="AbortedByUserId">Name of the user that aborted this job</param>
 		/// <param name="OnCompleteTriggerId">Object id for a notification trigger</param>
 		/// <param name="Reports">New reports to add</param>
 		/// <param name="Arguments">New arguments for the job</param>
 		/// <param name="LabelIdxToTriggerId">New trigger ID for a label in the job</param>
-		public async Task<bool> UpdateJobAsync(IJob Job, string? Name = null, Priority? Priority = null, bool? AutoSubmit = null, string? AbortedByUser = null, ObjectId? OnCompleteTriggerId = null, List<Report>? Reports = null, List<string>? Arguments = null, KeyValuePair<int, ObjectId>? LabelIdxToTriggerId = null)
+		public async Task<bool> UpdateJobAsync(IJob Job, string? Name = null, Priority? Priority = null, bool? AutoSubmit = null, UserId? AbortedByUserId = null, ObjectId? OnCompleteTriggerId = null, List<Report>? Reports = null, List<string>? Arguments = null, KeyValuePair<int, ObjectId>? LabelIdxToTriggerId = null)
 		{
 			using IDisposable Scope = Logger.BeginScope("UpdateJobAsync({JobId})", Job.Id);
 			for (; ; )
@@ -376,7 +374,7 @@ namespace HordeServer.Services
 				IReadOnlyList<(LabelState, LabelOutcome)> OldLabelStates = Job.GetLabelStates(Graph);
 
 				// Update the new list of job steps
-				if (await Jobs.TryUpdateJobAsync(Job, Graph, Name, Priority, AutoSubmit, null, null, AbortedByUser, OnCompleteTriggerId, Reports, Arguments, LabelIdxToTriggerId))
+				if (await Jobs.TryUpdateJobAsync(Job, Graph, Name, Priority, AutoSubmit, null, null, AbortedByUserId, OnCompleteTriggerId, Reports, Arguments, LabelIdxToTriggerId))
 				{
 					// Update any badges that have been modified
 					await JobTaskSource.UpdateUgsBadges(Job, Graph, OldLabelStates);
@@ -880,7 +878,7 @@ namespace HordeServer.Services
 						(JobStepState State, JobStepOutcome Outcome) = Job.GetTargetState();
 						if (State == JobStepState.Completed)
 						{
-							if (Job.AutoSubmit && Outcome == JobStepOutcome.Success && Job.AbortedByUser == null)
+							if (Job.AutoSubmit && Outcome == JobStepOutcome.Success && Job.AbortedByUserId == null)
 							{
 								Job = await AutoSubmitChangeAsync(Job, Graph);
 							}
@@ -1125,7 +1123,7 @@ namespace HordeServer.Services
 					IGraph TriggerGraph = await Graphs.AddAsync(Template);
 					Logger.LogInformation("Creating downstream job {ChainedJobId} from job {JobId}", ChainedJobId, Job.Id);
 
-					await CreateJobAsync(ChainedJobId, Stream, JobTrigger.TemplateRefId, TemplateRef.Hash, TriggerGraph, TemplateRef.Name, Job.Change, Job.CodeChange, Job.PreflightChange, Job.ClonedPreflightChange, Job.StartedByUserId, Job.StartedByUser, Template.Priority, null, Job.UpdateIssues, TemplateRef.ChainedJobs, false, false, TemplateRef.NotificationChannel, TemplateRef.NotificationChannelFilter, null, Template.Arguments);
+					await CreateJobAsync(ChainedJobId, Stream, JobTrigger.TemplateRefId, TemplateRef.Hash, TriggerGraph, TemplateRef.Name, Job.Change, Job.CodeChange, Job.PreflightChange, Job.ClonedPreflightChange, Job.StartedByUserId, Template.Priority, null, Job.UpdateIssues, TemplateRef.ChainedJobs, false, false, TemplateRef.NotificationChannel, TemplateRef.NotificationChannelFilter, Template.Arguments);
 					break;
 				}
 

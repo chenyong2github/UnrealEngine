@@ -122,7 +122,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// If a retry is requested, stores the name of the user that requested it
 		/// </summary>
-		public string? RetryByUser { get; }
+		public UserId? RetriedByUserId { get; }
 		
 		/// <summary>
 		/// Signal if a step should be aborted
@@ -130,9 +130,9 @@ namespace HordeServer.Models
 		public bool AbortRequested { get; }
 		
 		/// <summary>
-		/// If an abort is requested, stores the name of the user that requested it
+		/// If an abort is requested, stores the id of the user that requested it
 		/// </summary>
-		public string? AbortByUser { get; }
+		public UserId? AbortedByUserId { get; }
 
 		/// <summary>
 		/// List of reports for this step
@@ -528,14 +528,9 @@ namespace HordeServer.Models
 		public UserId? StartedByUserId { get; }
 
 		/// <summary>
-		/// Name of the user that started this job
+		/// Id of the user that aborted this job. Set to null if the job is not aborted.
 		/// </summary>
-		public string? StartedByUser { get; }
-
-		/// <summary>
-		/// Name of the user that aborted this job. Set to null if the job is not aborted.
-		/// </summary>
-		public string? AbortedByUser { get; }
+		public UserId? AbortedByUserId { get; }
 
 		/// <summary>
 		/// Name of the job.
@@ -637,11 +632,6 @@ namespace HordeServer.Models
 		/// </summary>
 		public string? NotificationChannelFilter { get; }
 		
-		/// <summary>
-		/// URL to a Helix Swarm server to call once job finishes. Used for adding build outcome to Swarm reviews.
-		/// </summary>
-		public string? HelixSwarmCallbackUrl { get; }
-
 		/// <summary>
 		/// Mapping of label ids to notification trigger ids for notifications
 		/// </summary>

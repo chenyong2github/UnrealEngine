@@ -14,6 +14,17 @@ namespace HordeServer.Models
 	using UserId = ObjectId<IUser>;
 
 	/// <summary>
+	/// Known user ids
+	/// </summary>
+	public static class KnownUsers
+	{
+		/// <summary>
+		/// The system user. Used for automated processes.
+		/// </summary>
+		public static UserId System { get; } = new UserId("6170b423b94a2c7c2d6b6f87");
+	}
+
+	/// <summary>
 	/// Document which collates information about a user, and their personal settings
 	/// </summary>
 	public interface IUser

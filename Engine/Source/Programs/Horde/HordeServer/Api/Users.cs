@@ -124,6 +124,11 @@ namespace HordeServer.Api
 		public string? Email { get; set; }
 
 		/// <summary>
+		/// The user login [DEPRECATED]
+		/// </summary>
+		internal string? Login { get; set; }
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="User"></param>
@@ -134,12 +139,14 @@ namespace HordeServer.Api
 				this.Id = String.Empty;
 				this.Name = "(Unknown)";
 				this.Email = null;
+				this.Login = null;
 			}
 			else
 			{
 				this.Id = User.Id.ToString();
 				this.Name = User.Name;
 				this.Email = User.Email;
+				this.Login = User.Login;
 			}
 		}
 	}

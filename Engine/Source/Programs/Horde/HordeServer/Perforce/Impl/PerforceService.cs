@@ -2,8 +2,10 @@
 
 using EpicGames.Core;
 using EpicGames.Perforce;
+using HordeServer.Collections;
 using HordeServer.Models;
 using HordeServer.Utilities;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
@@ -22,6 +24,7 @@ using System.Threading.Tasks;
 namespace HordeServer.Services
 {
 	using P4 = Perforce.P4;
+	using UserId = ObjectId<IUser>;
 
 	static class PerforceExtensions
 	{
@@ -39,7 +42,7 @@ namespace HordeServer.Services
 	/// <summary>
 	/// P4API implementation of the Perforce service
 	/// </summary>
-	class PerforceService : IPerforceService
+	class PerforceService : IPerforceService, IDisposable
 	{
 		class CachedTicketInfo
 		{
@@ -81,13 +84,17 @@ namespace HordeServer.Services
 
 		Dictionary<string, Dictionary<string, CachedTicketInfo>> ClusterTickets = new Dictionary<string, Dictionary<string, CachedTicketInfo>>(StringComparer.OrdinalIgnoreCase);
 
+		IUserCollection UserCollection;
+		MemoryCache UserCache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 2000 });
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public PerforceService(PerforceLoadBalancer LoadBalancer, DatabaseService DatabaseService, IOptions<ServerSettings> Settings, ILogger<PerforceService> Logger)
+		public PerforceService(PerforceLoadBalancer LoadBalancer, DatabaseService DatabaseService, IUserCollection UserCollection, IOptions<ServerSettings> Settings, ILogger<PerforceService> Logger)
 		{
 			this.LoadBalancer = LoadBalancer;
 			this.CachedGlobals = new LazyCachedValue<Task<Globals>>(() => DatabaseService.GetGlobalsAsync(), TimeSpan.FromSeconds(30.0));
+			this.UserCollection = UserCollection;
 			this.Settings = Settings.Value;
 			this.Logger = Logger;
 
@@ -95,6 +102,33 @@ namespace HordeServer.Services
 			P4.P4Debugging.SetBridgeLogFunction(LogBridgeDelegate);
 
 			P4.LogFile.SetLoggingFunction(LogPerforce);
+		}
+
+		public void Dispose()
+		{
+			UserCache.Dispose();
+		}
+
+		public async ValueTask<IUser> FindOrAddUserAsync(string ClusterName, string UserName)
+		{
+			IUser? User;
+			if (!UserCache.TryGetValue((ClusterName, UserName), out User))
+			{
+				User = await UserCollection.FindUserByLoginAsync(UserName);
+				if (User == null)
+				{
+					PerforceUserInfo? UserInfo = await GetUserInfoAsync(ClusterName, UserName);
+					User = await UserCollection.FindOrAddUserByLoginAsync(UserName, UserInfo?.FullName, UserInfo?.Email);
+				}
+
+				using (ICacheEntry Entry = UserCache.CreateEntry((ClusterName, UserName)))
+				{
+					Entry.SetValue(User);
+					Entry.SetSize(1);
+					Entry.SetAbsoluteExpiration(TimeSpan.FromDays(1.0));
+				}
+			}
+			return User!;
 		}
 
 		async Task<PerforceCluster> GetClusterAsync(string ClusterName)
@@ -692,7 +726,8 @@ namespace HordeServer.Services
 				{
 					foreach (P4.Changelist Changelist in Changelists)
 					{
-						Changes.Add(new ChangeSummary(Changelist.Id, Changelist.OwnerName, Changelist.GetPath(), Changelist.Description));
+						IUser User = await FindOrAddUserAsync(ClusterName, Changelist.OwnerName);
+						Changes.Add(new ChangeSummary(Changelist.Id, User, Changelist.GetPath(), Changelist.Description));
 					}
 				}
 				return Changes;
@@ -720,7 +755,8 @@ namespace HordeServer.Services
 				{
 					foreach (P4.Changelist Changelist in Changelists)
 					{
-						Changes.Add(new ChangeSummary(Changelist.Id, Changelist.OwnerName, Changelist.GetPath(), Changelist.Description));
+						IUser User = await FindOrAddUserAsync(ClusterName, Changelist.OwnerName);
+						Changes.Add(new ChangeSummary(Changelist.Id, User, Changelist.GetPath(), Changelist.Description));
 					}
 				}
 
@@ -775,7 +811,8 @@ namespace HordeServer.Services
 							}
 						}
 
-						return new ChangeDetails(Change.Id, Change.OwnerName, Change.GetPath(), Change.Description, Files, Change.ModifiedDate);
+						IUser User = await FindOrAddUserAsync(ClusterName, Change.OwnerName);
+						return new ChangeDetails(Change.Id, User, Change.GetPath(), Change.Description, Files, Change.ModifiedDate);
 					}
 				}
 			}
@@ -847,7 +884,8 @@ namespace HordeServer.Services
 
 						}
 
-						Results.Add(new ChangeDetails(Change.Id, Change.OwnerName, Change.GetPath(), Change.Description, Files, Change.ModifiedDate));
+						IUser User = await FindOrAddUserAsync(ClusterName, Change.OwnerName);
+						Results.Add(new ChangeDetails(Change.Id, User, Change.GetPath(), Change.Description, Files, Change.ModifiedDate));
 					}
 
 				}
@@ -1322,7 +1360,7 @@ namespace HordeServer.Services
 					return null;
 				}
 
-				return new PerforceUserInfo { Name = UserName, Email = User.EmailAddress };
+				return new PerforceUserInfo { Login = UserName, FullName = User.FullName, Email = User.EmailAddress };
 			}
 		}
 

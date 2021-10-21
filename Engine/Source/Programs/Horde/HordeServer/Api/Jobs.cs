@@ -355,9 +355,9 @@ namespace HordeServer.Api
 			this.TemplateHash = Job.TemplateHash?.ToString() ?? String.Empty;
 			this.GraphHash = Job.GraphHash.ToString();
 			this.StartedByUserId = Job.StartedByUserId?.ToString();
-			this.StartedByUser = Job.StartedByUser;
+			this.StartedByUser = StartedByUserInfo?.Login;
 			this.StartedByUserInfo = StartedByUserInfo;
-			this.AbortedByUser = Job.AbortedByUser;
+			this.AbortedByUser = AbortedByUserInfo?.Login;
 			this.AbortedByUserInfo = AbortedByUserInfo;
 			this.CreateTime = new DateTimeOffset(Job.CreateTimeUtc);
 			this.State = Job.GetState();
@@ -549,9 +549,9 @@ namespace HordeServer.Api
 			this.State = Step.State;
 			this.Outcome = Step.Outcome;
 			this.AbortRequested = Step.AbortRequested;
-			this.AbortByUser = Step.AbortByUser;
+			this.AbortByUser = AbortedByUserInfo?.Login;
 			this.AbortedByUserInfo = AbortedByUserInfo;
-			this.RetryByUser = Step.RetryByUser;
+			this.RetryByUser = RetriedByUserInfo?.Login;
 			this.RetriedByUserInfo = RetriedByUserInfo;
 			this.LogId = Step.LogId?.ToString();
 			this.ReadyTime = Step.ReadyTimeUtc;

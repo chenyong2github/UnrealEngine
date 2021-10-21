@@ -16,6 +16,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Models
 {
+	using UserId = ObjectId<IUser>;
+
 	/// <summary>
 	/// Summary information for a change
 	/// </summary>
@@ -30,7 +32,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Author of the change
 		/// </summary>
-		public string Author { get; set; }
+		public IUser Author { get; set; }
 
 		/// <summary>
 		/// The base path for modified files
@@ -49,7 +51,7 @@ namespace HordeServer.Models
 		/// <param name="Author">Author of the change</param>
 		/// <param name="Path">Base path for modified files</param>
 		/// <param name="Description">Changelist description</param>
-		public ChangeSummary(int Number, string Author, string Path, string Description)
+		public ChangeSummary(int Number, IUser Author, string Path, string Description)
 		{
 			this.Number = Number;
 			this.Author = Author;
@@ -167,7 +169,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Name of the user that authored this change
 		/// </summary>
-		public string Author { get; set; }
+		public IUser Author { get; set; }
 
 		/// <summary>
 		/// The base path for modified files
@@ -190,17 +192,6 @@ namespace HordeServer.Models
 		public DateTime Date { get; set; }
 
 		/// <summary>
-		/// Private constructor for serialization
-		/// </summary>
-		private ChangeDetails()
-		{
-			Author = null!;
-			Path = null!;
-			Description = null!;
-			Files = null!;
-		}
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Number">Changelist number</param>
@@ -209,7 +200,7 @@ namespace HordeServer.Models
 		/// <param name="Description">Changelist description</param>
 		/// <param name="Files">List of files modified, relative to the stream base</param>
 		/// <param name="Date">Date that the change was submitted</param>
-		public ChangeDetails(int Number, string Author, string Path, string Description, List<ChangeFile> Files, DateTime Date)
+		public ChangeDetails(int Number, IUser Author, string Path, string Description, List<ChangeFile> Files, DateTime Date)
 		{
 			this.Number = Number;
 			this.Author = Author;

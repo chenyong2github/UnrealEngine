@@ -47,7 +47,6 @@ namespace HordeServer.Collections
 		/// <param name="PreflightChange">Optional changelist to preflight</param>
 		/// <param name="ClonedPreflightChange">Optional cloned preflight changelist</param>
 		/// <param name="StartedByUserId">User that started the job</param>
-		/// <param name="StartedByUserName">User that started the job</param>
 		/// <param name="Priority">Priority of the job</param>
 		/// <param name="AutoSubmit">Whether to automatically submit the preflighted change on completion</param>
 		/// <param name="UpdateIssues">Whether to update issues based on the outcome of this job</param>
@@ -56,10 +55,9 @@ namespace HordeServer.Collections
 		/// <param name="ShowUgsAlerts">Whether to show alerts in UGS for this job</param>
 		/// <param name="NotificationChannel">Notification channel for this job</param>
 		/// <param name="NotificationChannelFilter">Notification channel filter for this job</param>
-		/// <param name="HelixSwarmCallbackUrl">Callback URL to a Helix Server review, if any</param>
 		/// <param name="Arguments">Arguments for the job</param>
 		/// <returns>The new job document</returns>
-		Task<IJob> AddAsync(JobId JobId, StreamId StreamId, TemplateRefId TemplateRefId, ContentHash TemplateHash, IGraph Graph, string Name, int Change, int CodeChange, int? PreflightChange, int? ClonedPreflightChange, UserId? StartedByUserId, string? StartedByUserName, Priority? Priority, bool? AutoSubmit, bool? UpdateIssues, List<ChainedJobTemplate>? JobTriggers, bool ShowUgsBadges, bool ShowUgsAlerts, string? NotificationChannel, string? NotificationChannelFilter, string? HelixSwarmCallbackUrl, List<string>? Arguments);
+		Task<IJob> AddAsync(JobId JobId, StreamId StreamId, TemplateRefId TemplateRefId, ContentHash TemplateHash, IGraph Graph, string Name, int Change, int CodeChange, int? PreflightChange, int? ClonedPreflightChange, UserId? StartedByUserId, Priority? Priority, bool? AutoSubmit, bool? UpdateIssues, List<ChainedJobTemplate>? JobTriggers, bool ShowUgsBadges, bool ShowUgsAlerts, string? NotificationChannel, string? NotificationChannelFilter, List<string>? Arguments);
 
 		/// <summary>
 		/// Gets a job with the given unique id
@@ -119,13 +117,13 @@ namespace HordeServer.Collections
 		/// <param name="AutoSubmit">Automatically submit the job on completion</param>
 		/// <param name="AutoSubmitChange">Changelist that was automatically submitted</param>
 		/// <param name="AutoSubmitMessage"></param>
-		/// <param name="AbortedByUser">Name of the user that aborted the job</param>
+		/// <param name="AbortedByUserId">Name of the user that aborted the job</param>
 		/// <param name="NotificationTriggerId">Id for a notification trigger</param>
 		/// <param name="Reports">New reports</param>
 		/// <param name="Arguments">New arguments for the job</param>
 		/// <param name="LabelIdxToTriggerId">New trigger ID for a label in the job</param>
 		/// <param name="JobTrigger">New downstream job id</param>
-		Task<bool> TryUpdateJobAsync(IJob Job, IGraph Graph, string? Name = null, Priority? Priority = null, bool? AutoSubmit = null, int? AutoSubmitChange = null, string? AutoSubmitMessage = null, string? AbortedByUser = null, ObjectId? NotificationTriggerId = null, List<Report>? Reports = null, List<string>? Arguments = null, KeyValuePair<int, ObjectId>? LabelIdxToTriggerId = null, KeyValuePair<TemplateRefId, JobId>? JobTrigger = null);
+		Task<bool> TryUpdateJobAsync(IJob Job, IGraph Graph, string? Name = null, Priority? Priority = null, bool? AutoSubmit = null, int? AutoSubmitChange = null, string? AutoSubmitMessage = null, UserId? AbortedByUserId = null, ObjectId? NotificationTriggerId = null, List<Report>? Reports = null, List<string>? Arguments = null, KeyValuePair<int, ObjectId>? LabelIdxToTriggerId = null, KeyValuePair<TemplateRefId, JobId>? JobTrigger = null);
 
 		/// <summary>
 		/// Updates the state of a batch
