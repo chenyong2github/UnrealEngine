@@ -322,6 +322,8 @@ namespace HordeServer.Tasks.Impl
 			this.Ticker = new BackgroundTick(TickAsync, RefreshInterval, Logger);
 			this.Settings = Settings;
 			this.Logger = Logger;
+
+			OnLeaseStartedProperties.Add(nameof(ExecuteJobTask.JobId), x => new JobId(x.JobId)).Add(nameof(ExecuteJobTask.BatchId), x => SubResourceId.Parse(x.BatchId));
 		}
 
 		/// <inheritdoc/>
