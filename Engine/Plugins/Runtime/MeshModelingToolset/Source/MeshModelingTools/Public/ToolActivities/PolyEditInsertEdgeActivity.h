@@ -143,6 +143,11 @@ protected:
 
 	int32 CurrentChangeStamp = 0;
 
+	// Safe inputs for the background compute to use, untouched by undo/redo/other CurrentMesh updates.
+	TSharedPtr<const UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> ComputeStartMesh;
+	TSharedPtr<const UE::Geometry::FGroupTopology, ESPMode::ThreadSafe> ComputeStartTopology;
+	void UpdateComputeInputs();
+
 	void SetupPreview();
 
 	bool TopologyHitTest(const FRay& WorldRay, FVector3d& RayPositionOut, FRay3d* LocalRayOut = nullptr);

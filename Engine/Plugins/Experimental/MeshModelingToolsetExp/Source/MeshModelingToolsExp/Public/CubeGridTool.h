@@ -463,6 +463,10 @@ protected:
 	UE::Geometry::FTransform3d CurrentMeshTransform = UE::Geometry::FTransform3d::Identity();
 	TSharedPtr<TArray<int32>, ESPMode::ThreadSafe> LastOpChangedTids;
 
+	// Safe inputs for the background compute to use, untouched by undo/redo/other CurrentMesh updates.
+	TSharedPtr<const UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> ComputeStartMesh;
+	void UpdateComputeInputs();
+
 	static const int32 ShiftModifierID = 1;
 	static const int32 CtrlModifierID = 2;
 
