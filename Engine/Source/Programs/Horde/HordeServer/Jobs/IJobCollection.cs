@@ -147,15 +147,15 @@ namespace HordeServer.Collections
 		/// <param name="NewState">New state of the jobstep</param>
 		/// <param name="NewOutcome">New outcome of the jobstep</param>
 		/// <param name="NewAbortRequested">New state of request abort</param>
-		/// <param name="NewAbortByUser">New name of user that requested the abort</param>
+		/// <param name="NewAbortByUserId">New name of user that requested the abort</param>
 		/// <param name="NewLogId">New log id for the jobstep</param>
 		/// <param name="NewNotificationTriggerId">New id for a notification trigger</param>
-		/// <param name="NewRetryByUser">Whether the step should be retried</param>
+		/// <param name="NewRetryByUserId">Whether the step should be retried</param>
 		/// <param name="NewPriority">New priority for this step</param>
 		/// <param name="NewReports">New report documents</param>
 		/// <param name="NewProperties">Property changes. Any properties with a null value will be removed.</param>
 		/// <returns>True if the job was updated, false if it was deleted in the meantime</returns>
-		Task<bool> TryUpdateStepAsync(IJob Job, IGraph Graph, SubResourceId BatchId, SubResourceId StepId, JobStepState NewState = default, JobStepOutcome NewOutcome = default, bool? NewAbortRequested = null, string? NewAbortByUser = null, LogId? NewLogId = null, ObjectId? NewNotificationTriggerId = null, string? NewRetryByUser = null, Priority? NewPriority = null, List<Report>? NewReports = null, Dictionary<string, string?>? NewProperties = null);
+		Task<bool> TryUpdateStepAsync(IJob Job, IGraph Graph, SubResourceId BatchId, SubResourceId StepId, JobStepState NewState = default, JobStepOutcome NewOutcome = default, bool? NewAbortRequested = null, UserId? NewAbortByUserId = null, LogId? NewLogId = null, ObjectId? NewNotificationTriggerId = null, UserId? NewRetryByUserId = null, Priority? NewPriority = null, List<Report>? NewReports = null, Dictionary<string, string?>? NewProperties = null);
 
 		/// <summary>
 		/// Attempts to update the node groups to be executed for a job. Fails if another write happens in the meantime.

@@ -135,13 +135,23 @@ namespace HordeServerTests
 			IStream ReleaseStream = TestSetup.StreamCollection.TryCreateOrReplaceAsync(ReleaseStreamId, null, "", "", Project.Id, new StreamConfig { Name = ReleaseStreamName }).Result!;
 			IStream DevStream = TestSetup.StreamCollection.TryCreateOrReplaceAsync(DevStreamId, null, "", "", Project.Id, new StreamConfig { Name = DevStreamName }).Result!;
 
+			IUser Bill = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Bill").Result;
+			IUser Anne = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Anne").Result;
+			IUser Bob = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Bob").Result;
+			IUser Jerry = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Jerry").Result;
+			IUser Chris = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Chris").Result;
+
+			TimId = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Tim").Result.Id;
+			JerryId = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Jerry").Result.Id;
+			BobId = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Bob").Result.Id;
+
 			Perforce = TestSetup.PerforceService;
-			Perforce.AddChange(MainStreamName, 100, "Bill", "Description", new string[] { "a/b.cpp" });
-			Perforce.AddChange(MainStreamName, 105, "Anne", "Description", new string[] { "a/c.cpp" });
-			Perforce.AddChange(MainStreamName, 110, "Bob", "Description", new string[] { "a/d.cpp" });
-			Perforce.AddChange(MainStreamName, 115, "Jerry", "Description\n#ROBOMERGE-SOURCE: CL 75 in //UE4/Release/...", new string[] { "a/e.cpp", "a/foo.cpp" });
-			Perforce.AddChange(MainStreamName, 120, "Chris", "Description\n#ROBOMERGE-OWNER: Tim", new string[] { "a/f.cpp" });
-			Perforce.AddChange(MainStreamName, 125, "Chris", "Description", new string[] { "a/g.cpp" });
+			Perforce.AddChange(MainStreamName, 100, Bill, "Description", new string[] { "a/b.cpp" });
+			Perforce.AddChange(MainStreamName, 105, Anne, "Description", new string[] { "a/c.cpp" });
+			Perforce.AddChange(MainStreamName, 110, Bob, "Description", new string[] { "a/d.cpp" });
+			Perforce.AddChange(MainStreamName, 115, Jerry, "Description\n#ROBOMERGE-SOURCE: CL 75 in //UE4/Release/...", new string[] { "a/e.cpp", "a/foo.cpp" });
+			Perforce.AddChange(MainStreamName, 120, Chris, "Description\n#ROBOMERGE-OWNER: Tim", new string[] { "a/f.cpp" });
+			Perforce.AddChange(MainStreamName, 125, Chris, "Description", new string[] { "a/g.cpp" });
 
 			List<INode> Nodes = new List<INode>();
 			Nodes.Add(MockNode("Update Version Files"));
@@ -155,10 +165,6 @@ namespace HordeServerTests
 			Mock<IGraph> GraphMock = new Mock<IGraph>(MockBehavior.Strict);
 			GraphMock.SetupGet(x => x.Groups).Returns(new List<INodeGroup> { Group.Object });
 			Graph = GraphMock.Object;
-
-			TimId = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Tim").Result.Id;
-			JerryId = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Jerry").Result.Id;
-			BobId = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Bob").Result.Id;
 		}
 
 		public static INode MockNode(string Name)

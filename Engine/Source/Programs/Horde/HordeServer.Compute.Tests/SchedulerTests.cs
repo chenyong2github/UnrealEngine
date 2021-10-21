@@ -43,6 +43,8 @@ namespace HordeServerTests
 		{
 			TestSetup = GetTestSetup().Result;
 
+			IUser Bob = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Bob").Result;
+
 			IProject ? Project = TestSetup.ProjectService.Collection.AddOrUpdateAsync(ProjectId, "", "", 0, new ProjectConfig { Name = "UE5" }).Result;
 			Assert.IsNotNull(Project);
 
@@ -55,9 +57,9 @@ namespace HordeServerTests
 
 			PerforceService = (PerforceServiceStub)TestSetup.PerforceService;
 			PerforceService.Changes.Clear();
-			PerforceService.AddChange("//UE5/Main", 100, "Bob", "", new[] { "code.cpp" });
-			PerforceService.AddChange("//UE5/Main", 101, "Bob", "", new[] { "content.uasset" });
-			PerforceService.AddChange("//UE5/Main", 102, "Bob", "", new[] { "content.uasset" });
+			PerforceService.AddChange("//UE5/Main", 100, Bob, "", new[] { "code.cpp" });
+			PerforceService.AddChange("//UE5/Main", 101, Bob, "", new[] { "content.uasset" });
+			PerforceService.AddChange("//UE5/Main", 102, Bob, "", new[] { "content.uasset" });
 		}
 
 		async Task<IStream> SetScheduleAsync(CreateScheduleRequest Schedule)
@@ -75,14 +77,16 @@ namespace HordeServerTests
 
 		public async Task<List<IJob>> FileTestHelperAsync(params string[] Files)
 		{
+			IUser Bob = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Bob", "Bob").Result;
+
 			PerforceService.Changes.Clear();
-			PerforceService.AddChange("//UE5/Main", 100, "Bob", "", new[] { "code.cpp" });
-			PerforceService.AddChange("//UE5/Main", 101, "Bob", "", new[] { "content.uasset" });
-			PerforceService.AddChange("//UE5/Main", 102, "Bob", "", new[] { "content.uasset" });
-			PerforceService.AddChange("//UE5/Main", 103, "Bob", "", new[] { "foo/code.cpp" });
-			PerforceService.AddChange("//UE5/Main", 104, "Bob", "", new[] { "bar/code.cpp" });
-			PerforceService.AddChange("//UE5/Main", 105, "Bob", "", new[] { "foo/bar/content.uasset" });
-			PerforceService.AddChange("//UE5/Main", 106, "Bob", "", new[] { "bar/foo/content.uasset" });
+			PerforceService.AddChange("//UE5/Main", 100, Bob, "", new[] { "code.cpp" });
+			PerforceService.AddChange("//UE5/Main", 101, Bob, "", new[] { "content.uasset" });
+			PerforceService.AddChange("//UE5/Main", 102, Bob, "", new[] { "content.uasset" });
+			PerforceService.AddChange("//UE5/Main", 103, Bob, "", new[] { "foo/code.cpp" });
+			PerforceService.AddChange("//UE5/Main", 104, Bob, "", new[] { "bar/code.cpp" });
+			PerforceService.AddChange("//UE5/Main", 105, Bob, "", new[] { "foo/bar/content.uasset" });
+			PerforceService.AddChange("//UE5/Main", 106, Bob, "", new[] { "bar/foo/content.uasset" });
 
 			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
 			TestSetup.Clock.UtcNow = StartTime;
@@ -266,10 +270,11 @@ namespace HordeServerTests
 			Assert.AreEqual(0, Jobs1.Count);
 
 			// Trigger some jobs
-			PerforceService.AddChange("//UE5/Main", 103, "Bob", "", new string[] { "foo.cpp" });
-			PerforceService.AddChange("//UE5/Main", 104, "Bob", "", new string[] { "foo.cpp" });
-			PerforceService.AddChange("//UE5/Main", 105, "Bob", "", new string[] { "foo.uasset" });
-			PerforceService.AddChange("//UE5/Main", 106, "Bob", "", new string[] { "foo.cpp" });
+			IUser Bob = TestSetup.UserCollection.FindOrAddUserByLoginAsync("Bob").Result;
+			PerforceService.AddChange("//UE5/Main", 103, Bob, "", new string[] { "foo.cpp" });
+			PerforceService.AddChange("//UE5/Main", 104, Bob, "", new string[] { "foo.cpp" });
+			PerforceService.AddChange("//UE5/Main", 105, Bob, "", new string[] { "foo.uasset" });
+			PerforceService.AddChange("//UE5/Main", 106, Bob, "", new string[] { "foo.cpp" });
 
 			TestSetup.Clock.Advance(TimeSpan.FromHours(1.25));
 			await ScheduleService.TickSharedOnlyForTestingAsync();
@@ -312,7 +317,7 @@ namespace HordeServerTests
 			Assert.AreEqual(0, Jobs3.Count);
 
 			// Mark the original job as complete
-			await TestSetup.JobService.UpdateJobAsync(Jobs2[0], AbortedByUser: "me");
+			await TestSetup.JobService.UpdateJobAsync(Jobs2[0], AbortedByUserId: KnownUsers.System);
 
 			// Test that another job does not trigger
 			TestSetup.Clock.Advance(TimeSpan.FromHours(0.5));
@@ -391,7 +396,7 @@ namespace HordeServerTests
 			Assert.AreEqual(0, Jobs2.Count);
 
 			// Create a job and fail it
-			IJob Job1 = await TestSetup.JobService.CreateJobAsync(null, Stream, NewTemplateRefId1, Template.Id, GraphA, "Hello", 1234, 1233, 999, null, null, "joe", null, null, null, null, true, true, null, null, null, new List<string> { "-Target=TriggerNext" });
+			IJob Job1 = await TestSetup.JobService.CreateJobAsync(null, Stream, NewTemplateRefId1, Template.Id, GraphA, "Hello", 1234, 1233, 999, null, null, null, null, null, null, true, true, null, null, new List<string> { "-Target=TriggerNext" });
 			Assert.IsTrue(await TestSetup.JobService.UpdateBatchAsync(Job1, Job1.Batches[0].Id, LogId.GenerateNewId(), JobStepBatchState.Running));
 			Assert.IsNotNull(await TestSetup.JobService.UpdateStepAsync(Job1, Job1.Batches[0].Id, Job1.Batches[0].Steps[0].Id, JobStepState.Completed, JobStepOutcome.Failure));
 			Assert.IsTrue(await TestSetup.JobService.UpdateBatchAsync(Job1, Job1.Batches[0].Id, LogId.GenerateNewId(), JobStepBatchState.Complete));
@@ -404,7 +409,7 @@ namespace HordeServerTests
 			Assert.AreEqual(0, Jobs3.Count);
 
 			// Create a job and make it succeed
-			IJob Job2 = await TestSetup.JobService.CreateJobAsync(null, Stream, NewTemplateRefId1, Template.Id, GraphA, "Hello", 1234, 1233, 999, null, null, "joe", null, null, null, null, true, true, null, null, null, new List<string> { "-Target=TriggerNext" });
+			IJob Job2 = await TestSetup.JobService.CreateJobAsync(null, Stream, NewTemplateRefId1, Template.Id, GraphA, "Hello", 1234, 1233, 999, null, null, null, null, null, null, true, true, null, null, new List<string> { "-Target=TriggerNext" });
 			Assert.IsTrue(await TestSetup.JobService.UpdateBatchAsync(Job2, Job2.Batches[0].Id, LogId.GenerateNewId(), JobStepBatchState.Running));
 			Assert.IsNotNull(await TestSetup.JobService.UpdateStepAsync(Job2, Job2.Batches[0].Id, Job2.Batches[0].Steps[0].Id, JobStepState.Completed, JobStepOutcome.Success));
 

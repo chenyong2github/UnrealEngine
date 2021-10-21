@@ -1023,8 +1023,8 @@ namespace HordeServer.Controllers
 				}
 			}
 
-			string? RetryByUser = (Request.Retry.HasValue && Request.Retry.Value) ? (User.Identity?.Name ?? "Anonymous") : null;
-			string? AbortByUser = (Request.AbortRequested.HasValue && Request.AbortRequested.Value) ? (User.Identity?.Name ?? "Anonymous") : null;
+			UserId? RetryByUser = (Request.Retry.HasValue && Request.Retry.Value) ? User.GetUserId() : null;
+			UserId? AbortByUser = (Request.AbortRequested.HasValue && Request.AbortRequested.Value) ? User.GetUserId() : null;
 
 			try
 			{

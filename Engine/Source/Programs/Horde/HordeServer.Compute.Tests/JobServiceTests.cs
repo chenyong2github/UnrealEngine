@@ -47,7 +47,7 @@ namespace HordeServerTests
 			IStream? Stream = await TestSetup.StreamService.GetStreamAsync(StreamId);
 			Stream = await TestSetup.StreamService.StreamCollection.TryCreateOrReplaceAsync(new StreamId("ue5-main"), Stream, String.Empty, String.Empty, ProjectId, StreamConfig);
 
-			IJob Job = await TestSetup.JobService.CreateJobAsync(null, Stream!, TemplateRefId1, Template.Id, Graph, "Hello", 1234, 1233, 999, null, null, "joe", null, null, null, Stream!.Templates[TemplateRefId1].ChainedJobs, true, true, null, null, null, new List<string>());
+			IJob Job = await TestSetup.JobService.CreateJobAsync(null, Stream!, TemplateRefId1, Template.Id, Graph, "Hello", 1234, 1233, 999, null, null, null, null, null, Stream!.Templates[TemplateRefId1].ChainedJobs, true, true, null, null, new List<string>());
 			Assert.AreEqual(1, Job.ChainedJobs.Count);
 
 			Assert.IsTrue(await TestSetup.JobService.UpdateBatchAsync(Job, Job.Batches[0].Id, LogId.GenerateNewId(), JobStepBatchState.Running));
@@ -63,7 +63,7 @@ namespace HordeServerTests
 			Assert.AreEqual(ChainedJob!.Change, Job!.Change);
 			Assert.AreEqual(ChainedJob!.CodeChange, Job!.CodeChange);
 			Assert.AreEqual(ChainedJob!.PreflightChange, Job!.PreflightChange);
-			Assert.AreEqual(ChainedJob!.StartedByUser, Job!.StartedByUser);
+			Assert.AreEqual(ChainedJob!.StartedByUserId, Job!.StartedByUserId);
 		}
 
 		[TestMethod]
@@ -86,17 +86,18 @@ namespace HordeServerTests
 			DifferentUserName = (await TestSetup.JobService.GetJobAsync(DifferentUserName.Id))!;
 			DifferentArgs = (await TestSetup.JobService.GetJobAsync(DifferentArgs.Id))!;
 			
-			Assert.AreEqual("horde.duplicated.by.newer.CL", OrgJob.AbortedByUser);
-			Assert.IsNull(NewJob.AbortedByUser);
-			Assert.IsNull(DifferentTplRef.AbortedByUser);
-			Assert.IsNull(DifferentTplHash.AbortedByUser);
-			Assert.IsNull(DifferentUserName.AbortedByUser);
-			Assert.IsNull(DifferentArgs.AbortedByUser);
+			Assert.AreEqual(KnownUsers.System, OrgJob.AbortedByUserId);
+			Assert.IsNull(NewJob.AbortedByUserId);
+			Assert.IsNull(DifferentTplRef.AbortedByUserId);
+			Assert.IsNull(DifferentTplHash.AbortedByUserId);
+			Assert.IsNull(DifferentUserName.AbortedByUserId);
+			Assert.IsNull(DifferentArgs.AbortedByUserId);
 		}
 
-		private Task<IJob> CreatePreflightJob(TestSetup TestSetup, string TemplateRefId, string TemplateHash, string StartedByUserName, int PreflightChange, string[] Arguments)
+		private async Task<IJob> CreatePreflightJob(TestSetup TestSetup, string TemplateRefId, string TemplateHash, string StartedByUserName, int PreflightChange, string[] Arguments)
 		{
-			return TestSetup.JobService.CreateJobAsync(
+			IUser User = await TestSetup.UserCollection.FindOrAddUserByLoginAsync(StartedByUserName);
+			return await TestSetup.JobService.CreateJobAsync(
 				JobId: JobId.GenerateNewId(),
 				Stream: TestSetup.Fixture!.Stream!,
 				TemplateRefId: new TemplateRefId(TemplateRefId),
@@ -107,15 +108,13 @@ namespace HordeServerTests
 				CodeChange: 1000002,
 				PreflightChange: PreflightChange,
 				ClonedPreflightChange: null,
-				StartedByUserId: null,
-				StartedByUserName: StartedByUserName,
+				StartedByUserId: User.Id,
 				Priority: Priority.Normal,
 				null,
 				null,
 				null,
 				false,
 				false,
-				null,
 				null,
 				null,
 				Arguments: new List<string>(Arguments)
@@ -171,7 +170,7 @@ namespace HordeServerTests
 
 			Graph = await TestSetup.GraphCollection.AppendAsync(Graph, new List<NewGroup> { GroupA, GroupB });
 
-			IJob Job = await TestSetup.JobService.CreateJobAsync(null, Stream!, new TemplateRefId("temp"), Template.Id, Graph, "Hello", 1234, 1233, 999, null, null, "joe", null, null, null, null, true, true, null, null, null, new List<string> { "-Target=Pak" });
+			IJob Job = await TestSetup.JobService.CreateJobAsync(null, Stream!, new TemplateRefId("temp"), Template.Id, Graph, "Hello", 1234, 1233, 999, null, null, null, null, null, null, true, true, null, null, new List<string> { "-Target=Pak" });
 
 			Assert.IsTrue(await TestSetup.JobService.UpdateBatchAsync(Job, Job.Batches[0].Id, LogId.GenerateNewId(), JobStepBatchState.Running));
 			Assert.IsNotNull(await TestSetup.JobService.UpdateStepAsync(Job, Job.Batches[0].Id, Job.Batches[0].Steps[0].Id, JobStepState.Running));
