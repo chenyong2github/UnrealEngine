@@ -45,40 +45,9 @@ TSharedRef<IDetailCustomization> FStateTreeStateDetails::MakeInstance()
 void FStateTreeStateDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	TSharedPtr<IPropertyHandle> TasksProperty = DetailBuilder.GetProperty(TEXT("Tasks"));
-	TSharedPtr<IPropertyHandle> Tasks2Property = DetailBuilder.GetProperty(TEXT("Tasks2"));
 	TSharedPtr<IPropertyHandle> EnterConditionsProperty = DetailBuilder.GetProperty(TEXT("EnterConditions"));
-	TSharedPtr<IPropertyHandle> EnterConditions2Property = DetailBuilder.GetProperty(TEXT("EnterConditions2"));
 	TSharedPtr<IPropertyHandle> EvaluatorsProperty = DetailBuilder.GetProperty(TEXT("Evaluators"));
-	TSharedPtr<IPropertyHandle> Evaluators2Property = DetailBuilder.GetProperty(TEXT("Evaluators2"));
 	TSharedPtr<IPropertyHandle> TransitionsProperty = DetailBuilder.GetProperty(TEXT("Transitions"));
-	TSharedPtr<IPropertyHandle> Transitions2Property = DetailBuilder.GetProperty(TEXT("Transitions2"));
-	TSharedPtr<IPropertyHandle> StateDoneTransitionProperty = DetailBuilder.GetProperty(TEXT("StateDoneTransition"));
-	TSharedPtr<IPropertyHandle> StateFailedTransitionProperty = DetailBuilder.GetProperty(TEXT("StateFailedTransition"));
-
-	TArray<TWeakObjectPtr<UObject>> Objects;
-	DetailBuilder.GetObjectsBeingCustomized(Objects);
-	UObject* Object = Objects.IsEmpty() ? nullptr : Objects[0].Get();
-	
-	if (IsV2(Object))
-	{
-		EnterConditionsProperty->MarkHiddenByCustomization();
-		EnterConditionsProperty = EnterConditions2Property;
-		EvaluatorsProperty->MarkHiddenByCustomization();
-		EvaluatorsProperty = Evaluators2Property;
-		TasksProperty->MarkHiddenByCustomization();
-		TasksProperty = Tasks2Property;
-		TransitionsProperty->MarkHiddenByCustomization();
-		TransitionsProperty = Transitions2Property;
-		StateDoneTransitionProperty->MarkHiddenByCustomization();
-		StateFailedTransitionProperty->MarkHiddenByCustomization();
-	}
-	else
-	{
-		EnterConditions2Property->MarkHiddenByCustomization();
-		Evaluators2Property->MarkHiddenByCustomization();
-		Tasks2Property->MarkHiddenByCustomization();
-		Transitions2Property->MarkHiddenByCustomization();
-	}
 
 	IDetailCategoryBuilder& StateCategory = DetailBuilder.EditCategory(TEXT("State"), LOCTEXT("StateDetailsState", "State"));
 	StateCategory.SetSortOrder(0);
@@ -116,19 +85,6 @@ void FStateTreeStateDetails::GenerateArrayElementWidget(TSharedRef<IPropertyHand
 {
 	ChildrenBuilder.AddProperty(PropertyHandle);
 };
-
-bool FStateTreeStateDetails::IsV2(const UObject* Object) const
-{
-	if (!Object)
-	{
-		return false;
-	}
-	if (const UStateTree* StateTree = Object->GetTypedOuter<UStateTree>())
-	{
-		return StateTree->IsV2();
-	}
-	return false;
-}
 
 
 #undef LOCTEXT_NAMESPACE

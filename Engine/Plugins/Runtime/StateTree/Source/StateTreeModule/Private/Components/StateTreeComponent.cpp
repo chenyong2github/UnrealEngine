@@ -6,11 +6,27 @@
 #include "VisualLogger/VisualLoggerTypes.h"
 #include "VisualLogger/VisualLogger.h"
 #include "StateTree.h"
-#include "StateTreeInstance.h"
+#include "StateTreeEvaluatorBase.h"
+#include "StateTreeTaskBase.h"
 #include "AIController.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 #define STATETREE_LOG(Verbosity, Format, ...) UE_VLOG(GetOwner(), LogStateTree, Verbosity, Format, ##__VA_ARGS__)
 #define STATETREE_CLOG(Condition, Verbosity, Format, ...) UE_CVLOG((Condition), GetOwner(), LogStateTree, Verbosity, Format, ##__VA_ARGS__)
+
+
+//////////////////////////////////////////////////////////////////////////
+// UBrainComponentStateTreeSchema
+
+bool UBrainComponentStateTreeSchema::IsStructAllowed(const UScriptStruct* InScriptStruct) const
+{
+	// @todo: Proper base class for actor nodes.
+	return InScriptStruct->IsChildOf(FStateTreeEvaluator2Base::StaticStruct()) || InScriptStruct->IsChildOf(FStateTreeTask2Base::StaticStruct());
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+// UStateTreeComponent
 
 UStateTreeComponent::UStateTreeComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -28,9 +44,9 @@ void UStateTreeComponent::InitializeComponent()
 		return;
 	}
 
-	if (!StateTreeInstance.Init(*this, *StateTree))
+	if (!StateTreeContext.Init(*this, *StateTree, EStateTreeStorage::Internal))
 	{
-		STATETREE_LOG(Error, TEXT("%s: Failed to init StateTreeInstance."), ANSI_TO_TCHAR(__FUNCTION__));
+		STATETREE_LOG(Error, TEXT("%s: Failed to init StateTreeContext."), ANSI_TO_TCHAR(__FUNCTION__));
 	}
 }
 
@@ -47,7 +63,7 @@ void UStateTreeComponent::TickComponent(float DeltaTime, enum ELevelTick TickTyp
 		return;
 	}
 
-	StateTreeInstance.Tick(DeltaTime);
+	StateTreeContext.Tick(DeltaTime);
 }
 
 void UStateTreeComponent::StartLogic()
@@ -57,7 +73,7 @@ void UStateTreeComponent::StartLogic()
 	// TODO: Move this to UStateTree
 	StateTree->ResolvePropertyPaths();
 
-	StateTreeInstance.Start();
+	StateTreeContext.Start();
 
 	bIsRunning = true;
 }
@@ -65,7 +81,7 @@ void UStateTreeComponent::StartLogic()
 void UStateTreeComponent::RestartLogic()
 {
 	STATETREE_LOG(Log, TEXT("%s: Restart Logic"), ANSI_TO_TCHAR(__FUNCTION__));
-	StateTreeInstance.Start();
+	StateTreeContext.Start();
 
 	bIsRunning = true;
 }
@@ -74,7 +90,7 @@ void UStateTreeComponent::StopLogic(const FString& Reason)
 {
 	STATETREE_LOG(Log, TEXT("%s: Stopping, reason: \'%s\'"), ANSI_TO_TCHAR(__FUNCTION__), *Reason);
 
-	StateTreeInstance.Stop();
+	StateTreeContext.Stop();
 
 	bIsRunning = false;
 }
@@ -179,27 +195,10 @@ void UStateTreeComponent::OnGameplayTaskInitialized(UGameplayTask& Task)
 	}
 }
 
-#if ENABLE_VISUAL_LOG
-void UStateTreeComponent::DescribeSelfToVisLog(struct FVisualLogEntry* Snapshot) const
-{
-	if (!IsValid(this))
-	{
-		return;
-	}
-
-	Super::DescribeSelfToVisLog(Snapshot);
-
-	if (Snapshot)
-	{
-		StateTreeInstance.DescribeSelfToVisLog(*Snapshot);
-	}
-}
-#endif // ENABLE_VISUAL_LOG
-
 #if WITH_GAMEPLAY_DEBUGGER
 FString UStateTreeComponent::GetDebugInfoString() const
 {
-	return StateTreeInstance.GetDebugInfoString();
+	return StateTreeContext.GetDebugInfoString();
 }
 #endif // WITH_GAMEPLAY_DEBUGGER
 

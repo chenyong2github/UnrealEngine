@@ -4,14 +4,10 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "DetailWidgetRow.h"
 #include "DetailLayoutBuilder.h"
-#include "IPropertyUtilities.h"
 #include "IDetailPropertyRow.h"
 #include "IDetailChildrenBuilder.h"
 #include "StateTree.h"
 #include "StateTreeState.h"
-#include "Widgets/Input/SComboButton.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 
@@ -25,7 +21,9 @@ void FStateTreeTransitionDetails::CustomizeHeader(TSharedRef<class IPropertyHand
 	StructProperty = StructPropertyHandle;
 	PropUtils = StructCustomizationUtils.GetPropertyUtilities().Get();
 
+	EventProperty = StructProperty->GetChildHandle(TEXT("Event"));
 	StateProperty = StructProperty->GetChildHandle(TEXT("State"));
+	GateDelayProperty = StructProperty->GetChildHandle(TEXT("GateDelay"));
 	ConditionsProperty = StructProperty->GetChildHandle(TEXT("Conditions"));
 
 	HeaderRow
@@ -52,9 +50,19 @@ void FStateTreeTransitionDetails::CustomizeHeader(TSharedRef<class IPropertyHand
 
 void FStateTreeTransitionDetails::CustomizeChildren(TSharedRef<class IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
+	if (EventProperty)
+	{
+		StructBuilder.AddProperty(EventProperty.ToSharedRef());
+	}
+
+	if (GateDelayProperty)
+	{
+		StructBuilder.AddProperty(GateDelayProperty.ToSharedRef());
+	}
+
 	if (StateProperty)
 	{
-		IDetailPropertyRow& Property = StructBuilder.AddProperty(StateProperty.ToSharedRef());
+		StructBuilder.AddProperty(StateProperty.ToSharedRef());
 	}
 
 	if (ConditionsProperty)
@@ -88,7 +96,6 @@ void FStateTreeTransitionDetails::CustomizeChildren(TSharedRef<class IPropertyHa
 	}
 }
 
-
 FText FStateTreeTransitionDetails::GetDescription() const
 {
 	if (StateProperty)
@@ -97,22 +104,29 @@ FText FStateTreeTransitionDetails::GetDescription() const
 		StateProperty->AccessRawData(RawData);
 		if (RawData.Num() == 1)
 		{
-			FStateTreeStateLink* StateLink = static_cast<FStateTreeStateLink*>(RawData[0]);
-			if (StateLink != nullptr)
+			FStateTreeStateLink* State = static_cast<FStateTreeStateLink*>(RawData[0]);
+			if (State != nullptr)
 			{
-				switch (StateLink->Type)
+				switch (State->Type)
 				{
+				case EStateTreeTransitionType::NotSet:
+					return LOCTEXT("TransitionNotSet", "None");
+					break;
 				case EStateTreeTransitionType::Succeeded:
-					return LOCTEXT("TransitionSucceeded", "Succeeded");
+					return LOCTEXT("TransitionTreeSucceeded", "Tree Succeeded");
 					break;
 				case EStateTreeTransitionType::Failed:
-					return LOCTEXT("TransitionFailed", "Failed");
+					return LOCTEXT("TransitionTreeFailed", "Tree Failed");
 					break;
-				case EStateTreeTransitionType::SelectChildState:
-					return LOCTEXT("TransitionSelect", "Select");
+				case EStateTreeTransitionType::NextState:
+					return LOCTEXT("TransitionNextState", "Next State");
 					break;
 				case EStateTreeTransitionType::GotoState:
-					return FText::Join(FText::FromString(TEXT(" ")), LOCTEXT("TransitionGoto", "Go to"), FText::FromName(StateLink->Name));
+					{
+						FFormatNamedArguments Args;
+						Args.Add(TEXT("State"), FText::FromName(State->Name));
+						return FText::Format(LOCTEXT("TransitionActionGotoState", "Go to State {State}"), Args);
+					}
 					break;
 				}
 			}

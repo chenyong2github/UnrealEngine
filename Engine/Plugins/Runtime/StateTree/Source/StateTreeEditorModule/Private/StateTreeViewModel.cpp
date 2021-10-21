@@ -158,7 +158,6 @@ FStateTreeViewModel::~FStateTreeViewModel()
 	GEditor->UnregisterForUndo(this);
 
 	UE::StateTree::Delegates::OnIdentifierChanged.RemoveAll(this);
-	UE::StateTree::Delegates::OnParameterLayoutChanged.RemoveAll(this);
 }
 
 void FStateTreeViewModel::Init(UStateTreeEditorData* InTreeData)
@@ -375,12 +374,6 @@ void FStateTreeViewModel::AddChildState(UStateTreeState* ParentState)
 
 	UStateTreeState* NewState = NewObject<UStateTreeState>(TreeData, FName(), RF_Transactional);
 
-	// Make sure the parent state is set to select when it has children.
-/*	if (ParentState->StateDoneTransition.Type != EStateTreeTransitionType::SelectChildState)
-	{
-		ParentState->StateDoneTransition.Type = EStateTreeTransitionType::SelectChildState;
-	}*/
-	
 	ParentState->Children.Add(NewState);
 	NewState->Parent = ParentState;
 

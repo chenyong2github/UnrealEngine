@@ -3,8 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/DataAsset.h"
-#include "StateTreeTypes.h"
 #include "StateTreeSchema.generated.h"
 
 /**
@@ -31,7 +29,4 @@ public:
 
 	/** @return True if specified struct/class is supported as external item */
 	virtual bool IsExternalItemAllowed(const UStruct& InStruct) const { return false; };
-
-	/** @return True if we should use StateTree V2 */
-	virtual bool IsV2() const { return false; }
 };

@@ -90,7 +90,6 @@ void FStateTreeStateLinkDetails::CacheStates()
 		UStateTree* OuterStateTree = OuterObjects[ObjectIdx]->GetTypedOuter<UStateTree>();
 		if (OuterStateTree)
 		{
-			bIsV2 = OuterStateTree->IsV2();
 			if (UStateTreeEditorData* TreeData = Cast<UStateTreeEditorData>(OuterStateTree->EditorData))
 			{
 				for (const UStateTreeState* Routine : TreeData->Routines)
@@ -128,9 +127,6 @@ void FStateTreeStateLinkDetails::OnStateComboChange(int Idx)
 			case ComboNextState:
 				TypeProperty->SetValue((uint8)EStateTreeTransitionType::NextState);
 				break;
-			case ComboSelectChildState:
-				TypeProperty->SetValue((uint8)EStateTreeTransitionType::SelectChildState);
-				break;
 			case ComboNotSet:
 			default:
 				TypeProperty->SetValue((uint8)EStateTreeTransitionType::NotSet);
@@ -162,12 +158,6 @@ TSharedRef<SWidget> FStateTreeStateLinkDetails::OnGetStateContent() const
 
 	FUIAction NextItemAction(FExecuteAction::CreateSP(const_cast<FStateTreeStateLinkDetails*>(this), &FStateTreeStateLinkDetails::OnStateComboChange, ComboNextState));
 	MenuBuilder.AddMenuEntry(LOCTEXT("TransitionNextState", "Next State"), LOCTEXT("TransitionNextTooltip", "Goto next sibling State."), FSlateIcon(), NextItemAction);
-
-	if (!bIsV2)
-	{
-		FUIAction SelectItemAction(FExecuteAction::CreateSP(const_cast<FStateTreeStateLinkDetails*>(this), &FStateTreeStateLinkDetails::OnStateComboChange, ComboSelectChildState));
-		MenuBuilder.AddMenuEntry(LOCTEXT("TransitionSelect", "Select"), LOCTEXT("TransitionSelectTooltip", "Select a child State to run."), FSlateIcon(), SelectItemAction);
-	}
 
 	if (CachedNames.Num() > 0)
 	{
@@ -207,10 +197,6 @@ FText FStateTreeStateLinkDetails::GetCurrentStateDesc() const
 	else if (TransitionType == EStateTreeTransitionType::NextState)
 	{
 		return LOCTEXT("TransitionNextState", "Next State");
-	}
-	else if (TransitionType == EStateTreeTransitionType::SelectChildState)
-	{
-		return LOCTEXT("TransitionSelect", "Select");
 	}
 	else if (TransitionType == EStateTreeTransitionType::GotoState)
 	{

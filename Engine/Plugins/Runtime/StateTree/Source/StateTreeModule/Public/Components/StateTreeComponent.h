@@ -5,12 +5,23 @@
 #include "Components/ActorComponent.h"
 #include "GameplayTagAssetInterface.h"
 #include "GameplayTagContainer.h"
+#include "StateTreeExecutionContext.h"
 #include "BrainComponent.h"
-#include "StateTreeInstance.h"
 #include "Tasks/AITask.h"
 #include "StateTreeComponent.generated.h"
 
 class UStateTree;
+
+
+UCLASS(Abstract)
+class STATETREEMODULE_API UBrainComponentStateTreeSchema : public UStateTreeSchema
+{
+	GENERATED_BODY()
+
+public:
+	virtual bool IsStructAllowed(const UScriptStruct* InScriptStruct) const override;
+};
+
 
 UCLASS(ClassGroup = AI, HideCategories = (Activation, Collision), meta = (BlueprintSpawnableComponent))
 class STATETREEMODULE_API UStateTreeComponent : public UBrainComponent, public IGameplayTaskOwnerInterface
@@ -44,10 +55,6 @@ public:
 	virtual void OnGameplayTaskInitialized(UGameplayTask& Task) override;
 	// END IGameplayTaskOwnerInterface
 
-#if ENABLE_VISUAL_LOG
-	virtual void DescribeSelfToVisLog(struct FVisualLogEntry* Snapshot) const;
-#endif // ENABLE_VISUAL_LOG
-
 #if WITH_GAMEPLAY_DEBUGGER
 	virtual FString GetDebugInfoString() const override;
 #endif // WITH_GAMEPLAY_DEBUGGER
@@ -55,12 +62,12 @@ public:
 private:
 
 protected:
-
-	UPROPERTY(EditDefaultsOnly, Category = AI)
+	
+	UPROPERTY(EditDefaultsOnly, Category = AI, meta=(RequiredAssetDataTags="Schema=BrainComponentStateTreeSchema"))
 	UStateTree* StateTree;
 
 	UPROPERTY()
-	FStateTreeInstance StateTreeInstance;
+	FStateTreeExecutionContext StateTreeContext;
 
 	/** if set, state tree execution is allowed */
 	uint8 bIsRunning : 1;

@@ -28,8 +28,9 @@ private:
 
 	FText GetDescription() const;
 
-	TSharedPtr<IPropertyHandle> TypeProperty;
+	TSharedPtr<IPropertyHandle> EventProperty;
 	TSharedPtr<IPropertyHandle> StateProperty;
+	TSharedPtr<IPropertyHandle> GateDelayProperty;
 	TSharedPtr<IPropertyHandle> ConditionsProperty;
 
 	class IPropertyUtilities* PropUtils;

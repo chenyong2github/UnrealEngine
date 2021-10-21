@@ -8,8 +8,6 @@ namespace UE::StateTree::Delegates
 	
 #if WITH_EDITOR
 FOnIdentifierChanged OnIdentifierChanged;
-FOnParametersInvalidated OnParametersInvalidated;
-FOnParameterLayoutChanged OnParameterLayoutChanged;
 FOnSchemaChanged OnSchemaChanged;
 #endif
 	

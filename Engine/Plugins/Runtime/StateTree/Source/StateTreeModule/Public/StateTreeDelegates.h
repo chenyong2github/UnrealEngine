@@ -14,14 +14,6 @@ namespace UE::StateTree::Delegates
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnIdentifierChanged, const UStateTree& /*StateTree*/);
 	extern STATETREEMODULE_API FOnIdentifierChanged OnIdentifierChanged;
 
-	// Called when parameters are invalidated, i.e. linked asset's parameter layout changed.
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnParametersInvalidated, const UStateTree& /*StateTree*/);
-	extern STATETREEMODULE_API FOnParametersInvalidated OnParametersInvalidated;
-
-	// Called when parameter layout for a StateTree has changed.
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnParameterLayoutChanged, const UStateTree& /*StateTree*/);
-	extern STATETREEMODULE_API FOnParameterLayoutChanged OnParameterLayoutChanged;
-	
 	// Called when schema of the StateTree has changed.
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSchemaChanged, const UStateTree& /*StateTree*/);
 	extern STATETREEMODULE_API FOnSchemaChanged OnSchemaChanged;

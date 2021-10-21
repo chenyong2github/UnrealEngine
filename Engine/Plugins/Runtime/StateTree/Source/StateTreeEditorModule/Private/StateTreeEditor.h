@@ -62,7 +62,6 @@ private:
 
 	void HandleModelAssetChanged();
 	void OnIdentifierChanged(const UStateTree& StateTree);
-	void OnParameterLayoutChanged(const UStateTree& StateTree);
 	void OnSchemaChanged(const UStateTree& StateTree);
 
 	/* State Tree being edited */

@@ -18,6 +18,5 @@ protected:
 	virtual UScriptStruct* GetStorageSuperStruct() const override;
 	virtual bool IsStructAllowed(const UScriptStruct* InScriptStruct) const override;
 	virtual bool IsExternalItemAllowed(const UStruct& InStruct) const override;
-	virtual bool IsV2() const override { return true; }
 };
 

@@ -40,7 +40,6 @@ bool FStateTreeExecutionContext::Init(UObject& InOwner, const UStateTree& InStat
 		return false;
 	}
 	StateTree = &InStateTree;
-	check(StateTree->IsV2());
 
 	StorageType = InStorageType;
 	if (StorageType == EStateTreeStorage::Internal)
@@ -578,7 +577,7 @@ bool FStateTreeExecutionContext::TestAllConditions(const uint32 ConditionsOffset
 	for (uint32 i = 0; i < ConditionsNum; i++)
 	{
 		// Copy struct values from the StateTree asset to a stack copy.
-		const FInstancedStruct& SourceCondPtr = StateTree->Conditions2[ConditionsOffset + i];
+		const FInstancedStruct& SourceCondPtr = StateTree->Conditions[ConditionsOffset + i];
 		const FStateTreeConditionBase& SourceCond = SourceCondPtr.Get<FStateTreeConditionBase>();
 		const UScriptStruct* CondStruct = SourceCondPtr.GetScriptStruct();
 		check(CondStruct);
@@ -825,13 +824,13 @@ EStateTreeRunStatus FStateTreeExecutionContext::GetLastTickStatus(FStateTreeItem
 
 #if WITH_GAMEPLAY_DEBUGGER
 
-FString FStateTreeExecutionContext::GetDebugInfoString(FStateTreeItemView ExternalStorage)
+FString FStateTreeExecutionContext::GetDebugInfoString(FStateTreeItemView ExternalStorage) const
 {
 	if (!StateTree)
 	{
 		return FString(TEXT("No StateTree asset."));
 	}
-	FStateTreeItemView Storage = SelectMutableStorage(ExternalStorage);
+	FStateTreeItemView Storage = SelectStorage(ExternalStorage);
 	FStateTreeExecutionState& Exec = GetExecState(Storage);
 
 	FString DebugString = FString::Printf(TEXT("StateTree (asset: '%s')\n"), *GetNameSafe(StateTree));
@@ -920,8 +919,8 @@ void FStateTreeExecutionContext::DebugPrintInternalLayout(FStateTreeItemView Ext
 	}
 
 	// Conditions
-	DebugString += FString::Printf(TEXT("\nConditions(%d)\n"), StateTree->Conditions2.Num());
-	for (const FInstancedStruct& Condition : StateTree->Conditions2)
+	DebugString += FString::Printf(TEXT("\nConditions(%d)\n"), StateTree->Conditions.Num());
+	for (const FInstancedStruct& Condition : StateTree->Conditions)
 	{
 		DebugString += FString::Printf(TEXT("  %s\n"), Condition.IsValid() ? *Condition.GetScriptStruct()->GetName() : TEXT("null"));
 	}

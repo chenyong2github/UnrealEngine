@@ -4,173 +4,15 @@
 #include "StateTree.h"
 #include "StateTreeEditorData.h"
 #include "StateTreeTypes.h"
-#include "StateTreeCondition.h"
 #include "Conditions/StateTreeCondition_Common.h"
 #include "StateTreeEvaluatorBase.h"
 #include "StateTreeTaskBase.h"
-#include "StateTreeVariable.h"
-#include "StateTreeVariableDesc.h"
-#include "StateTreeVariableLayout.h"
-#include "StateTreeParameter.h"
-#include "StateTreeParameterLayout.h"
+#include "StateTreeConditionBase.h"
 #include "StateTreeState.h"
 #include "StateTreeExecutionContext.h"
 #include "CoreMinimal.h"
 #include "StateTreePropertyBindingCompiler.h"
 
-bool FStateTreeBaker::Bake(UStateTree& InStateTree)
-{
-	if (InStateTree.IsV2())
-	{
-		return Bake2(InStateTree);
-	}
-
-	StateTree = &InStateTree;
-	TreeData = Cast<UStateTreeEditorData>(StateTree->EditorData);
-	if (!TreeData)
-	{
-		return false;
-	}
-
-	// Cleanup existing state
-	StateTree->ResetBaked();
-
-	DefineParameters();
-
-	if (!CreateStates())
-	{
-		StateTree->ResetBaked();
-		return false;
-	}
-
-	StateTree->Variables.CalculateOffsetsAndMemoryUsage();
-	StateTree->Constants.ConstantBaseOffset = StateTree->Variables.GetMemoryUsage();
-
-	ResolveParameters();
-
-	if (!CreateStateTransitions())
-	{
-		StateTree->ResetBaked();
-		return false;
-	}
-
-	// Create and initialize tasks
-	for (const FSourceTask& Source : SourceTasks)
-	{
-		UStateTreeTaskBase* Task = Source.Task;
-		const UStateTreeState* SourceState = Source.State;
-		if (!Task->ResolveVariables(StateTree->Variables, StateTree->Constants, StateTree))
-		{
-			UE_LOG(LogStateTree, Error, TEXT("%s: %s:%s, Failed to resolve task %s."), ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(StateTree), *SourceState->Name.ToString(), *Task->GetName());
-			StateTree->ResetBaked();
-			return false;
-		}
-		StateTree->Tasks.Add(Cast<UStateTreeTaskBase>(StaticDuplicateObject(Task, StateTree)));
-	}
-
-	// Create and initialize evaluators
-	for (const FSourceEvaluator& Source : SourceEvaluators)
-	{
-		UStateTreeEvaluatorBase* Eval = Source.Eval;
-		const UStateTreeState* SourceState = Source.State;
-		if (!Eval->ResolveVariables(StateTree->Variables, StateTree->Constants, StateTree))
-		{
-			UE_LOG(LogStateTree, Error, TEXT("%s: %s:%s, Failed to instantiate evaluator %s."), ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(StateTree), *SourceState->Name.ToString(), *Eval->GetName().ToString());
-			StateTree->ResetBaked();
-			return false;
-		}
-		StateTree->Evaluators.Add(Cast<UStateTreeEvaluatorBase>(StaticDuplicateObject(Eval, StateTree)));
-	}
-
-	return true;
-}
-
-void FStateTreeBaker::DefineParameters() const
-{
-	const FStateTreeVariableLayout& InputParameterLayout = StateTree->GetInputParameterLayout();
-	for (const FStateTreeVariableDesc& Desc : InputParameterLayout.Variables)
-	{
-		StateTree->Variables.DefineVariable(Desc);
-	}
-}
-
-void FStateTreeBaker::ResolveParameters() const
-{
-	// Find where to write parameter values
-	StateTree->Parameters.Reset();
-
-	const FStateTreeVariableLayout& InputParameterLayout = StateTree->GetInputParameterLayout();
-	for (const FStateTreeVariableDesc& Desc : InputParameterLayout.Variables)
-	{
-		FStateTreeParameter& Param = StateTree->Parameters.Parameters.AddDefaulted_GetRef();
-		Param.Name = Desc.Name;
-		Param.Variable.Type = Desc.Type;
-		Param.Variable.Handle = StateTree->Variables.GetVariableHandle(Desc.ID);
-	}
-}
-
-bool FStateTreeBaker::CreateStates()
-{
-	for (UStateTreeState* Routine : TreeData->Routines)
-	{
-		if (Routine)
-		{
-			if (!CreateStateRecursive(*Routine, FStateTreeHandle::Invalid))
-			{
-				return false;
-			}
-		}
-	}
-	return true;
-}
-
-bool FStateTreeBaker::CreateStateRecursive(UStateTreeState& State, const FStateTreeHandle Parent)
-{
-	const int32 Idx = StateTree->States.AddDefaulted();
-	FBakedStateTreeState& BakedState = StateTree->States[Idx];
-	BakedState.Name = State.Name;
-	BakedState.Parent = Parent;
-
-	SourceStates.Add(&State);
-	IDToState.Add(State.ID, Idx);
-
-	// Collect tasks
-	BakedState.TasksBegin = uint16(SourceTasks.Num());
-	for (UStateTreeTaskBase* Task : State.Tasks)
-	{
-		if (Task)
-		{
-			SourceTasks.Add(FSourceTask(Task, &State));
-		}
-	}
-	BakedState.TasksNum = uint8(uint16(SourceTasks.Num()) - BakedState.TasksBegin);
-
-	// Collect evaluators and define variables
-	for (UStateTreeEvaluatorBase* Evaluator : State.Evaluators)
-	{
-		if (Evaluator)
-		{
-			Evaluator->DefineOutputVariables(StateTree->Variables);
-			SourceEvaluators.Add(FSourceEvaluator(Evaluator, &State));
-		}
-	}
-
-	// Child states
-	BakedState.ChildrenBegin = uint16(StateTree->States.Num());
-	for (UStateTreeState* Child : State.Children)
-	{
-		if (Child)
-		{
-			if (!CreateStateRecursive(*Child, FStateTreeHandle((uint16)Idx)))
-			{
-				return false;
-			}
-		}
-	}
-	StateTree->States[Idx].ChildrenEnd = uint16(StateTree->States.Num()); // Cannot use BakedState here, it may be invalid due to array resize.
-
-	return true;
-}
 
 bool FStateTreeBaker::ResolveTransitionState(const UStateTreeState& SourceState, const TCHAR* ContextStr, const FStateTreeStateLink& Link, FStateTreeHandle& OutTransitionHandle) const 
 {
@@ -203,112 +45,6 @@ bool FStateTreeBaker::ResolveTransitionState(const UStateTreeState& SourceState,
 	return true;
 }
 
-bool FStateTreeBaker::CreateStateTransitions()
-{
-	for (int32 i = 0; i < StateTree->States.Num(); i++)
-	{
-		FBakedStateTreeState& BakedState = StateTree->States[i];
-		UStateTreeState* SourceState = SourceStates[i];
-		check(SourceState);
-
-		// Resolve default transition
-		BakedState.StateDoneTransitionType = SourceState->StateDoneTransition.Type;
-		BakedState.StateDoneTransitionState = FStateTreeHandle::Invalid;
-		if (!ResolveTransitionState(*SourceState, TEXT("State Done transition"), SourceState->StateDoneTransition, BakedState.StateDoneTransitionState))
-		{
-			return false;
-		}
-		// Default transition must be set.
-		if (BakedState.StateDoneTransitionType == EStateTreeTransitionType::NotSet)
-		{
-			UE_LOG(LogStateTree, Error, TEXT("%s: '%s':%s: State Done transition must be set."), ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(StateTree), *SourceState->Name.ToString());
-			return false;
-		}
-
-		// Resolve failed transition
-		BakedState.StateFailedTransitionType = SourceState->StateFailedTransition.Type;
-		BakedState.StateFailedTransitionState = FStateTreeHandle::Invalid;
-		if (!ResolveTransitionState(*SourceState, TEXT("State Failed transition"), SourceState->StateFailedTransition, BakedState.StateFailedTransitionState))
-		{
-			return false;
-		}
-
-		// Enter conditions.
-		BakedState.EnterConditionsBegin = uint16(StateTree->Conditions.Num());
-		for (FStateTreeCondition& Condition : SourceState->EnterConditions)
-		{
-			if (!CreateCondition(Condition))
-			{
-				UE_LOG(LogStateTree, Error, TEXT("%s: '%s':%s: Failed to create state enter condition."), ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(StateTree), *SourceState->Name.ToString());
-				return false;
-			}
-		}
-		BakedState.EnterConditionsNum = uint8(uint16(StateTree->Conditions.Num()) - BakedState.EnterConditionsBegin);
-
-		// Transitions
-		BakedState.TransitionsBegin = uint16(StateTree->Transitions.Num());
-		for (FStateTreeTransition& Transition : SourceState->Transitions)
-		{
-			FBakedStateTransition& BakedTransition = StateTree->Transitions.AddDefaulted_GetRef();
-			BakedTransition.Type = Transition.State.Type;
-			BakedTransition.State = FStateTreeHandle::Invalid;
-			if (!ResolveTransitionState(*SourceState, TEXT("transition"), Transition.State, BakedTransition.State))
-			{
-				return false;
-			}
-			// Note: Unset transition is allowed here. It can be used to mask a transition at parent.
-
-			BakedTransition.ConditionsBegin = uint16(StateTree->Conditions.Num());
-			for (FStateTreeCondition& Condition : Transition.Conditions)
-			{
-				if (!CreateCondition(Condition))
-				{
-					UE_LOG(LogStateTree, Error, TEXT("%s: '%s':%s: Failed to create transition condition to %s."), ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(StateTree), *SourceState->Name.ToString(), *Transition.State.Name.ToString());
-					return false;
-				}
-			}
-			BakedTransition.ConditionsNum = uint8(uint16(StateTree->Conditions.Num()) - BakedTransition.ConditionsBegin);
-		}
-		BakedState.TransitionsNum = uint8(uint16(StateTree->Transitions.Num()) - BakedState.TransitionsBegin);
-	}
-
-	return true;
-}
-
-
-bool FStateTreeBaker::CreateCondition(const FStateTreeCondition& Condition)
-{
-	FStateTreeCondition& BakedCondition = StateTree->Conditions.Add_GetRef(Condition);
-
-	if (BakedCondition.Left.Type != BakedCondition.Right.Type)
-	{
-		UE_LOG(LogStateTree, Error, TEXT("%s: '%s': Left and right types do not match."), ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(StateTree));
-		return false;
-	}
-
-	if (!BakedCondition.Left.IsBound())
-	{
-		UE_LOG(LogStateTree, Error, TEXT("%s: '%s': Left hand variable must be bound."), ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(StateTree));
-		return false;
-	}
-
-	BakedCondition.Left.ResolveHandle(StateTree->Variables, StateTree->Constants);
-	if (!BakedCondition.Left.Handle.IsValid())
-	{
-		UE_LOG(LogStateTree, Error, TEXT("%s: '%s': Cannot resolve left hand variable %s."), ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(StateTree), *BakedCondition.Left.Name.ToString());
-		return false;
-	}
-
-	BakedCondition.Right.ResolveHandle(StateTree->Variables, StateTree->Constants);
-	if (!BakedCondition.Right.Handle.IsValid())
-	{
-		UE_LOG(LogStateTree, Error, TEXT("%s: '%s': Cannot resolve right hand variable %s."), ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(StateTree), *BakedCondition.Right.Name.ToString());
-		return false;
-	}
-
-	return true;
-}
-
 FStateTreeHandle FStateTreeBaker::GetStateHandle(const FGuid& StateID) const
 {
 	const int32* Idx = IDToState.Find(StateID);
@@ -321,7 +57,7 @@ FStateTreeHandle FStateTreeBaker::GetStateHandle(const FGuid& StateID) const
 }
 
 
-bool FStateTreeBaker::Bake2(UStateTree& InStateTree)
+bool FStateTreeBaker::Bake(UStateTree& InStateTree)
 {
 	StateTree = &InStateTree;
 	TreeData = Cast<UStateTreeEditorData>(StateTree->EditorData);
@@ -335,13 +71,13 @@ bool FStateTreeBaker::Bake2(UStateTree& InStateTree)
 
 	BindingsCompiler.Init(StateTree->PropertyBindings);
 
-	if (!CreateStates2())
+	if (!CreateStates())
 	{
 		StateTree->ResetBaked();
 		return false;
 	}
 
-	if (!CreateStateTransitions2())
+	if (!CreateStateTransitions())
 	{
 		StateTree->ResetBaked();
 		return false;
@@ -357,7 +93,7 @@ bool FStateTreeBaker::Bake2(UStateTree& InStateTree)
 	return true;
 }
 
-bool FStateTreeBaker::CreateStates2()
+bool FStateTreeBaker::CreateStates()
 {
 	// Create item for the runtime execution state
 	StateTree->RuntimeStorageItems.Add(FInstancedStruct::Make<FStateTreeExecutionState>());
@@ -366,7 +102,7 @@ bool FStateTreeBaker::CreateStates2()
 	{
 		if (Routine)
 		{
-			if (!CreateStateRecursive2(*Routine, FStateTreeHandle::Invalid))
+			if (!CreateStateRecursive(*Routine, FStateTreeHandle::Invalid))
 			{
 				return false;
 			}
@@ -375,7 +111,7 @@ bool FStateTreeBaker::CreateStates2()
 	return true;
 }
 
-bool FStateTreeBaker::CreateStateTransitions2()
+bool FStateTreeBaker::CreateStateTransitions()
 {
 	for (int32 i = 0; i < StateTree->States.Num(); i++)
 	{
@@ -384,20 +120,20 @@ bool FStateTreeBaker::CreateStateTransitions2()
 		check(SourceState);
 
 		// Enter conditions.
-		BakedState.EnterConditionsBegin = uint16(StateTree->Conditions2.Num());
-		for (FStateTreeConditionItem& ConditionItem : SourceState->EnterConditions2)
+		BakedState.EnterConditionsBegin = uint16(StateTree->Conditions.Num());
+		for (FStateTreeConditionItem& ConditionItem : SourceState->EnterConditions)
 		{
-			if (!CreateCondition2(ConditionItem))
+			if (!CreateCondition(ConditionItem))
 			{
 				UE_LOG(LogStateTree, Error, TEXT("%s: '%s':%s: Failed to create state enter condition."), ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(StateTree), *SourceState->Name.ToString());
 				return false;
 			}
 		}
-		BakedState.EnterConditionsNum = uint8(uint16(StateTree->Conditions2.Num()) - BakedState.EnterConditionsBegin);
+		BakedState.EnterConditionsNum = uint8(uint16(StateTree->Conditions.Num()) - BakedState.EnterConditionsBegin);
 
 		// Transitions
 		BakedState.TransitionsBegin = uint16(StateTree->Transitions.Num());
-		for (FStateTreeTransition2& Transition : SourceState->Transitions2)
+		for (FStateTreeTransition& Transition : SourceState->Transitions)
 		{
 			FBakedStateTransition& BakedTransition = StateTree->Transitions.AddDefaulted_GetRef();
 			BakedTransition.Event = Transition.Event;
@@ -410,16 +146,16 @@ bool FStateTreeBaker::CreateStateTransitions2()
 			}
 			// Note: Unset transition is allowed here. It can be used to mask a transition at parent.
 
-			BakedTransition.ConditionsBegin = uint16(StateTree->Conditions2.Num());
+			BakedTransition.ConditionsBegin = uint16(StateTree->Conditions.Num());
 			for (FStateTreeConditionItem& ConditionItem : Transition.Conditions)
 			{
-				if (!CreateCondition2(ConditionItem))
+				if (!CreateCondition(ConditionItem))
 				{
 					UE_LOG(LogStateTree, Error, TEXT("%s: '%s':%s: Failed to create transition condition to %s."), ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(StateTree), *SourceState->Name.ToString(), *Transition.State.Name.ToString());
 					return false;
 				}
 			}
-			BakedTransition.ConditionsNum = uint8(uint16(StateTree->Conditions2.Num()) - BakedTransition.ConditionsBegin);
+			BakedTransition.ConditionsNum = uint8(uint16(StateTree->Conditions.Num()) - BakedTransition.ConditionsBegin);
 		}
 		BakedState.TransitionsNum = uint8(uint16(StateTree->Transitions.Num()) - BakedState.TransitionsBegin);
 	}
@@ -427,7 +163,7 @@ bool FStateTreeBaker::CreateStateTransitions2()
 	return true;
 }
 
-bool FStateTreeBaker::CreateCondition2(const FStateTreeConditionItem& CondItem)
+bool FStateTreeBaker::CreateCondition(const FStateTreeConditionItem& CondItem)
 {
 	if (!CondItem.Type.IsValid())
 	{
@@ -436,7 +172,7 @@ bool FStateTreeBaker::CreateCondition2(const FStateTreeConditionItem& CondItem)
 	}
 
 	// Copy the condition
-	FInstancedStruct& CondPtr = StateTree->Conditions2.AddDefaulted_GetRef();
+	FInstancedStruct& CondPtr = StateTree->Conditions.AddDefaulted_GetRef();
 	CondPtr = CondItem.Type;
 	check(CondPtr.IsValid());
 
@@ -654,7 +390,7 @@ bool FStateTreeBaker::CreateExternalItemHandles(FStructView Item)
 	return true;
 }
 
-bool FStateTreeBaker::CreateStateRecursive2(UStateTreeState& State, const FStateTreeHandle Parent)
+bool FStateTreeBaker::CreateStateRecursive(UStateTreeState& State, const FStateTreeHandle Parent)
 {
 	const int32 StateIdx = StateTree->States.AddDefaulted();
 	FBakedStateTreeState& BakedState = StateTree->States[StateIdx];
@@ -668,7 +404,7 @@ bool FStateTreeBaker::CreateStateRecursive2(UStateTreeState& State, const FState
 	check(StateTree->RuntimeStorageItems.Num() <= int32(MAX_uint16));
 	BakedState.EvaluatorsBegin = uint16(StateTree->RuntimeStorageItems.Num());
 
-	for (FStateTreeEvaluatorItem& EvaluatorItem : State.Evaluators2)
+	for (FStateTreeEvaluatorItem& EvaluatorItem : State.Evaluators)
 	{
 		if (EvaluatorItem.Type.IsValid())
 		{
@@ -720,7 +456,7 @@ bool FStateTreeBaker::CreateStateRecursive2(UStateTreeState& State, const FState
 	check(StateTree->RuntimeStorageItems.Num() <= int32(MAX_uint16));
 	BakedState.TasksBegin = uint16(StateTree->RuntimeStorageItems.Num());
 
-	for (FStateTreeTaskItem& TaskItem : State.Tasks2)
+	for (FStateTreeTaskItem& TaskItem : State.Tasks)
 	{
 		if (TaskItem.Type.IsValid())
 		{
@@ -775,7 +511,7 @@ bool FStateTreeBaker::CreateStateRecursive2(UStateTreeState& State, const FState
 	{
 		if (Child)
 		{
-			if (!CreateStateRecursive2(*Child, FStateTreeHandle((uint16)StateIdx)))
+			if (!CreateStateRecursive(*Child, FStateTreeHandle((uint16)StateIdx)))
 			{
 				return false;
 			}
