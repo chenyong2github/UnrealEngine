@@ -32,7 +32,7 @@ public:
 	void UnregisterRoutes(FWebRemoteControlModule* WebRemoteControl);
 
 	/** Notify that a property was modified by a web client. */
-	void NotifyPropertyChangedRemotely(const FGuid& OriginClientId, FName PresetName, const FGuid& ExposedPropertyId);
+	void NotifyPropertyChangedRemotely(const FGuid& OriginClientId, const FGuid& PresetId, const FGuid& ExposedPropertyId);
 
 private:
 	
@@ -83,12 +83,12 @@ private:
 	 * Send a payload to all clients bound to a certain preset.
 	 * @note: TargetPresetName must be in the WebSocketNotificationMap.
 	 */
-	void BroadcastToListeners(FName TargetPresetName, const TArray<uint8>& Payload);
+	void BroadcastToListeners(const FGuid& TargetPresetId, const TArray<uint8>& Payload);
 
 	/**
 	 * Returns whether an event targeting a particular preset should be processed.
 	 */
-	bool ShouldProcessEventForPreset(FName PresetName) const;
+	bool ShouldProcessEventForPreset(const FGuid& PresetId) const;
 
 	/**
 	 * Write the provided list of events to a buffer.
@@ -108,7 +108,7 @@ private:
 	TArray<TUniquePtr<FRemoteControlWebsocketRoute>> Routes;
 
 	/** All websockets connections associated to a preset notifications */
-	TMap<FName, TArray<FGuid>> WebSocketNotificationMap;
+	TMap<FGuid, TArray<FGuid>> WebSocketNotificationMap;
 
 	/** Configuration for a given client related to how events should be handled. */
 	struct FRCClientConfig
@@ -121,7 +121,7 @@ private:
 	TMap<FGuid, FRCClientConfig> ClientConfigMap;
 
 	/** Properties that changed for a frame, per preset.  */
-	TMap<FName, TMap<FGuid, TSet<FGuid>>> PerFrameModifiedProperties;
+	TMap<FGuid, TMap<FGuid, TSet<FGuid>>> PerFrameModifiedProperties;
 
 	/** 
 	 * List of properties modified remotely this frame, used to not trigger a 
@@ -130,22 +130,22 @@ private:
 	TSet<FGuid> PropertiesManuallyNotifiedThisFrame;
 
 	/** Properties that changed on an exposed actor for a given client, for a frame, per preset.  */
-	TMap<FName, TMap<FGuid, TMap<FRemoteControlActor, TArray<FRCObjectReference>>>> PerFrameActorPropertyChanged;
+	TMap<FGuid, TMap<FGuid, TMap<FRemoteControlActor, TArray<FRCObjectReference>>>> PerFrameActorPropertyChanged;
 
 	/** Properties that were exposed for a frame, per preset */
-	TMap<FName, TArray<FGuid>> PerFrameAddedProperties;
+	TMap<FGuid, TArray<FGuid>> PerFrameAddedProperties;
 
 	/** Properties that were unexposed for a frame, per preset */
-	TMap<FName, TTuple<TArray<FGuid>, TArray<FName>>> PerFrameRemovedProperties;
+	TMap<FGuid, TTuple<TArray<FGuid>, TArray<FName>>> PerFrameRemovedProperties;
 
 	/** Fields that were renamed for a frame, per preset */
-	TMap<FName, TArray<TTuple<FName, FName>>> PerFrameRenamedFields;
+	TMap<FGuid, TArray<TTuple<FName, FName>>> PerFrameRenamedFields;
 
 	/** Presets that had their metadata modified for a frame */
-	TSet<FName> PerFrameModifiedMetadata;
+	TSet<FGuid> PerFrameModifiedMetadata;
 
 	/** Presets that had their layout modified for a frame. */
-	TSet<FName> PerFrameModifiedPresetLayouts;
+	TSet<FGuid> PerFrameModifiedPresetLayouts;
 	
 	/** Holds the ID of the client currently making a request. Used to prevent sending back notifications to it. */
 	const FGuid& ActingClientId;
