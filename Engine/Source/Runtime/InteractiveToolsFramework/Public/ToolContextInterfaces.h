@@ -86,97 +86,6 @@ struct INTERACTIVETOOLSFRAMEWORK_API FViewCameraState
 
 
 
-/** Types of Snap Queries that a ToolsContext parent may support, that Tools may request */
-UENUM()
-enum class ESceneSnapQueryType
-{
-	/** snapping a position */
-	Position = 1,
-	Rotation = 2
-};
-
-/** Types of snap targets that a Tool may want to run snap queries against. */
-UENUM()
-enum class ESceneSnapQueryTargetType
-{
-	None = 0,
-	/** Consider any mesh vertex */
-	MeshVertex = 1,
-	/** Consider any mesh edge */
-	MeshEdge = 2,
-	/** Grid Snapping */
-	Grid = 4,
-
-	All = MeshVertex | MeshEdge | Grid
-};
-ENUM_CLASS_FLAGS(ESceneSnapQueryTargetType);
-
-/**
- * Configuration variables for a IToolsContextQueriesAPI snap query request.
- */
-struct INTERACTIVETOOLSFRAMEWORK_API FSceneSnapQueryRequest
-{
-	/** What type of snap query geometry is this */
-	ESceneSnapQueryType RequestType = ESceneSnapQueryType::Position;
-	/** What does caller want to try to snap to */
-	ESceneSnapQueryTargetType TargetTypes = ESceneSnapQueryTargetType::Grid;
-
-	/** Optional explicitly specified position grid */
-	TOptional<FVector> GridSize{};
-
-	/** Optional explicitly specified rotation grid */
-	TOptional<FRotator> RotGridSize{};
-
-	/** Snap input position */
-	FVector Position;
-	/** Another position must deviate less than this number of degrees (in visual angle) to be considered an acceptable snap position */
-	float VisualAngleThresholdDegrees;
-
-	/** Snap input direction */
-	FVector Direction;
-	/** Another direction must deviate less than this number of degrees from Direction to be considered an acceptable snap direction */
-	float DirectionAngleThresholdDegrees;
-
-	/** Snap input rotation delta */
-	FQuat DeltaRotation;
-
-	/** Optional: components to consider invisible even if they aren't. */
-	const TArray<const UPrimitiveComponent*>* ComponentsToIgnore = nullptr;
-	/** Optional: components to consider visible even if they aren't. */
-	const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude = nullptr;
-};
-
-
-/**
- * Computed result of a IToolsContextQueriesAPI snap query request
- */
-struct INTERACTIVETOOLSFRAMEWORK_API FSceneSnapQueryResult
-{
-	/** Actor that owns snap target */
-	AActor* TargetActor = nullptr;
-	/** Component that owns snap target */
-	UActorComponent* TargetComponent = nullptr;
-	/** What kind of geometric element was snapped to */
-	ESceneSnapQueryTargetType TargetType = ESceneSnapQueryTargetType::None;
-
-	/** Snap position (may not be set depending on query types) */
-	FVector Position;
-	/** Snap normal (may not be set depending on query types) */
-	FVector Normal;
-	/** Snap direction (may not be set depending on query types) */
-	FVector Direction;
-	/** Snap rotation delta (may not be set depending on query types) */
-	FQuat   DeltaRotation;
-
-	/** Vertices of triangle that contains result (for debugging, may not be set) */
-	FVector TriVertices[3];
-	/** Vertex/Edge index we snapped to in triangle */
-	int TriSnapIndex;
-
-};
-
-
-
 /** Types of standard materials that Tools may request from Context */
 UENUM()
 enum class EStandardToolContextMaterials
@@ -194,6 +103,22 @@ enum class EToolContextCoordinateSystem
 	Local = 1
 };
 
+/**
+ * Snapping configuration settings/state
+ */
+struct INTERACTIVETOOLSFRAMEWORK_API FToolContextSnappingConfiguration
+{
+	/** Specify whether position snapping should be applied */
+	bool bEnablePositionGridSnapping = false;
+	/** Specify position grid spacing or cell dimensions */
+	FVector PositionGridDimensions = FVector::Zero();
+
+	/** Specify whether rotation snapping should be applied */
+	bool bEnableRotationGridSnapping = false;
+	/** Specify rotation snapping step size */
+	FRotator RotationGridAngles = FRotator::ZeroRotator;
+};
+
 
 /**
  * Users of the Tools Framework need to implement IToolsContextQueriesAPI to provide
@@ -205,11 +130,15 @@ public:
 	virtual ~IToolsContextQueriesAPI() {}
 
 	/**
+	 * @return the UWorld currently being targetted by the ToolsContext, default location for new Actors/etc
+	 */
+	virtual UWorld* GetCurrentEditingWorld() const = 0;
+
+	/**
 	 * Collect up current-selection information for the current scene state (ie what is selected in Editor, etc)
 	 * @param StateOut this structure is populated with available state information
 	 */
 	virtual void GetCurrentSelectionState(FToolBuilderState& StateOut) const = 0;
-
 
 	/**
 	 * Request information about current view state
@@ -217,22 +146,15 @@ public:
 	 */
 	virtual void GetCurrentViewState(FViewCameraState& StateOut) const = 0;
 
-
 	/**
 	 * Request current external coordinate-system setting
 	 */
 	virtual EToolContextCoordinateSystem GetCurrentCoordinateSystem() const = 0;	
 
-
 	/**
-	 * Try to find Snap Targets in the scene that satisfy the Snap Query.
-	 * @param Request snap query configuration
-	 * @param Results list of potential snap results
-	 * @return true if any valid snap target was found
-	 * @warning implementations are not required (and may not be able) to support snapping
+	 * Request current external snapping settings
 	 */
-	virtual bool ExecuteSceneSnapQuery(const FSceneSnapQueryRequest& Request, TArray<FSceneSnapQueryResult>& Results ) const = 0;
-
+	virtual FToolContextSnappingConfiguration GetCurrentSnappingSettings() const = 0;
 
 	/**
 	 * Many tools need standard types of materials that the user should provide (eg a vertex-color material, etc)

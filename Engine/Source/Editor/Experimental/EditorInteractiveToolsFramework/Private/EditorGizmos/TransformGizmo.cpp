@@ -770,7 +770,7 @@ void UTransformGizmo::ClearActiveTarget()
 bool UTransformGizmo::PositionSnapFunction(const FVector& WorldPosition, FVector& SnappedPositionOut) const
 {
 	SnappedPositionOut = WorldPosition;
-
+#if 0
 	// only snap if we want snapping obvs
 	if (bSnapToWorldGrid == false)
 	{
@@ -797,7 +797,7 @@ bool UTransformGizmo::PositionSnapFunction(const FVector& WorldPosition, FVector
 		SnappedPositionOut = Results[0].Position;
 		return true;
 	};
-
+#endif
 	return false;
 }
 
@@ -805,7 +805,7 @@ bool UTransformGizmo::PositionSnapFunction(const FVector& WorldPosition, FVector
 FQuat UTransformGizmo::RotationSnapFunction(const FQuat& DeltaRotation) const
 {
 	FQuat SnappedDeltaRotation = DeltaRotation;
-
+#if 0
 	// only snap if we want snapping 
 	if (bSnapToWorldRotGrid)
 	{
@@ -823,6 +823,7 @@ FQuat UTransformGizmo::RotationSnapFunction(const FQuat& DeltaRotation) const
 			SnappedDeltaRotation = Results[0].DeltaRotation;
 		};
 	}
+#endif	
 	return SnappedDeltaRotation;
 }
 
