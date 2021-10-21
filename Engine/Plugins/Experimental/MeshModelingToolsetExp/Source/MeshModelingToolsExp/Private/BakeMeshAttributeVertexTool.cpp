@@ -182,21 +182,21 @@ public:
 				Baker->ColorEvaluator = CurvatureEval;
 				break;
 			}
-			case EBakeVertexTypeColor::PositionImage:
+			case EBakeVertexTypeColor::Position:
 			{
 				TSharedPtr<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe> PropertyEval = MakeShared<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe>();
 				PropertyEval->Property = EMeshPropertyMapType::Position;
 				Baker->ColorEvaluator = PropertyEval;
 				break;
 			}
-			case EBakeVertexTypeColor::NormalImage:
+			case EBakeVertexTypeColor::ObjectSpaceNormal:
 			{
 				TSharedPtr<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe> PropertyEval = MakeShared<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe>();
 				PropertyEval->Property = EMeshPropertyMapType::Normal;
 				Baker->ColorEvaluator = PropertyEval;
 				break;
 			}
-			case EBakeVertexTypeColor::FaceNormalImage:
+			case EBakeVertexTypeColor::FaceNormal:
 			{
 				TSharedPtr<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe> PropertyEval = MakeShared<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe>();
 				PropertyEval->Property = EMeshPropertyMapType::FacetNormal;
@@ -210,7 +210,7 @@ public:
 				Baker->ColorEvaluator = PropertyEval;
 				break;
 			}
-			case EBakeVertexTypeColor::Texture2DImage:
+			case EBakeVertexTypeColor::Texture:
 			{
 				TSharedPtr<FMeshResampleImageEvaluator, ESPMode::ThreadSafe> TextureEval = MakeShared<FMeshResampleImageEvaluator, ESPMode::ThreadSafe>();
 				DetailSampler.SetColorMap(DetailMesh.Get(), IMeshBakerDetailSampler::FBakeDetailTexture(TextureImage.Get(), TextureSettings.UVLayer));
@@ -493,7 +493,7 @@ void UBakeMeshAttributeVertexTool::UpdateOnModeChange()
 			case EBakeVertexTypeColor::Curvature:
 				SetToolPropertySourceEnabled(CurvatureSettings, true);
 				break;
-			case EBakeVertexTypeColor::Texture2DImage:
+			case EBakeVertexTypeColor::Texture:
 				SetToolPropertySourceEnabled(TextureSettings, true);
 				break;
 			case EBakeVertexTypeColor::MultiTexture:
@@ -671,13 +671,13 @@ void UBakeMeshAttributeVertexTool::UpdateResult()
 		case EBakeVertexTypeColor::Curvature:
 			OpState = UpdateResult_Curvature();
 			break;
-		case EBakeVertexTypeColor::NormalImage:
-		case EBakeVertexTypeColor::FaceNormalImage:
-		case EBakeVertexTypeColor::PositionImage:
+		case EBakeVertexTypeColor::ObjectSpaceNormal:
+		case EBakeVertexTypeColor::FaceNormal:
+		case EBakeVertexTypeColor::Position:
 		case EBakeVertexTypeColor::MaterialID:
 			OpState = UpdateResult_MeshProperty();
 			break;
-		case EBakeVertexTypeColor::Texture2DImage:
+		case EBakeVertexTypeColor::Texture:
 			OpState = UpdateResult_Texture2DImage();
 			break;
 		case EBakeVertexTypeColor::MultiTexture:
