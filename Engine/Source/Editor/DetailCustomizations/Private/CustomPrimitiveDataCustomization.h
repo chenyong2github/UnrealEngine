@@ -22,6 +22,7 @@ class FCustomPrimitiveDataCustomization : public IPropertyTypeCustomization
 public:
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
 
+	FCustomPrimitiveDataCustomization();
 	~FCustomPrimitiveDataCustomization();
 
 	/** IPropertyTypeCustomization interface */
@@ -39,7 +40,7 @@ private:
 		uint8 IndexOffset;
 	};
 
-	bool bIgnoreUpdate = false;
+	bool bDeferringRefresh = false;
 
 	TSharedPtr<IPropertyUtilities> PropertyUtils;
 	TSharedPtr<IPropertyHandle> DataHandle;
@@ -76,7 +77,8 @@ private:
 	/** Populates our parameter data for scalar and vector parameters. Updates the max primitive index if necessary. */
 	void PopulateParameterData(UPrimitiveComponent* PrimitiveComponent, int32& MaxPrimitiveDataIndex);
 
-	void OnUpdated();
+	void RequestRefresh();
+	void OnDeferredRefresh();
 	void OnElementsModified(const enum FPropertyAccess::Result OldAccessResult, const uint32 OldNumElements);
 	void OnObjectPropertyChanged(UObject* Object, FPropertyChangedEvent& PropertyChangedEvent);
 	void OnMaterialCompiled(UMaterialInterface* Material);
