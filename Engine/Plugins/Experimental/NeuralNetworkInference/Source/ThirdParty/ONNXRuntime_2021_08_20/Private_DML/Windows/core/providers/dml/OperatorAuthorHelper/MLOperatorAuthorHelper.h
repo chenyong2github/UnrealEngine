@@ -99,14 +99,12 @@ struct MLTypeTraits<MLFloat16>
     static const MLOperatorTensorDataType TensorType = MLOperatorTensorDataType::Float16;
 };
 
-#ifdef WITH_UE
-#ifdef __clang__
+#ifdef __clang__ // WITH_UE
 template <>
 struct MLTypeTraits<onnxruntime::MLFloat16> {
   static const MLOperatorTensorDataType TensorType = MLOperatorTensorDataType::Float16;
 };
 #endif //__clang__
-#endif //WITH_UE
 
 inline uint32_t ComputeElementCountFromDimensions(gsl::span<const uint32_t> dimensions)
 {

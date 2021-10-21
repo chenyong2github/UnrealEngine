@@ -26,11 +26,9 @@ namespace onnxruntime {
 
 struct DMLProviderFactory : IExecutionProviderFactory {
   DMLProviderFactory(IDMLDevice* dml_device,
-                     ID3D12CommandQueue* cmd_queue, OrtDMLGPUResourceAllocator** resource_allocator = nullptr) // WITH_UE: Added resource_allocator
-                                                    : dml_device_(dml_device),
-                                                      cmd_queue_(cmd_queue)
-                                                    , resource_allocator_(resource_allocator) // WITH_UE: Added resource_allocator
-           {}
+                     ID3D12CommandQueue* cmd_queue, OrtDMLGPUResourceAllocator** resource_allocator = nullptr) : dml_device_(dml_device), // WITH_UE: Added resource_allocator
+                                                      resource_allocator_(resource_allocator), // WITH_UE
+                                                      cmd_queue_(cmd_queue) {}
   ~DMLProviderFactory() override {}
 
   std::unique_ptr<IExecutionProvider> CreateProvider() override;
@@ -40,8 +38,8 @@ struct DMLProviderFactory : IExecutionProviderFactory {
 
  private:
   ComPtr<IDMLDevice> dml_device_{};
-  ComPtr<ID3D12CommandQueue> cmd_queue_{};
   OrtDMLGPUResourceAllocator** resource_allocator_{}; // WITH_UE
+  ComPtr<ID3D12CommandQueue> cmd_queue_{};
   AllocatorRoundingMode rounding_mode_ = AllocatorRoundingMode::Enabled;
   bool metacommands_enabled_ = true;
 };
