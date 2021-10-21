@@ -26,9 +26,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#ifdef WITH_UE
-#include "GenericPlatform/GenericPlatformAffinity.h"
-#endif //WITH_UE
+#include "GenericPlatform/GenericPlatformAffinity.h" // WITH_UE
 
 /** \brief The API version defined in this header
 *
@@ -69,42 +67,33 @@ extern "C" {
 #define ORT_ALL_ARGS_NONNULL
 #endif
 
-#ifdef WITH_UE
-#define ORT_EXPORT ONNXRUNTIME_API
-#ifdef _WIN32
-#define ORT_API_CALL _stdcall
-#define ORT_MUST_USE_RESULT
-#define ORTCHAR_T wchar_t
-#else //_WIN32
-#define ORT_API_CALL
-#define ORT_MUST_USE_RESULT __attribute__((warn_unused_result))
-#define ORTCHAR_T char
-#endif //_WIN32
-
-#else //WITH_UE
+#define ORT_EXPORT ONNXRUNTIME_API // WITH_UE
 #ifdef _WIN32
 // Define ORT_DLL_IMPORT if your program is dynamically linked to Ort.
 // dllexport is not used, we use a .def file.
+#ifndef WITH_UE
 #ifdef ORT_DLL_IMPORT
 #define ORT_EXPORT __declspec(dllimport)
 #else
 #define ORT_EXPORT
 #endif
+#endif //WITH_UE
 #define ORT_API_CALL _stdcall
 #define ORT_MUST_USE_RESULT
 #define ORTCHAR_T wchar_t
 #else
 // To make symbols visible on macOS/iOS
+#ifndef WITH_UE
 #ifdef __APPLE__
 #define ORT_EXPORT __attribute__((visibility("default")))
 #else
 #define ORT_EXPORT
 #endif
+#endif //WITH_UE
 #define ORT_API_CALL
 #define ORT_MUST_USE_RESULT __attribute__((warn_unused_result))
 #define ORTCHAR_T char
 #endif
-#endif //WITH_UE
 
 #ifndef ORT_TSTR
 #ifdef _WIN32
@@ -869,10 +858,8 @@ struct OrtApi {
   */
   ORT_API2_STATUS(SetInterOpNumThreads, _Inout_ OrtSessionOptions* options, int inter_op_num_threads);
 
-#ifdef WITH_UE
-  //Set the priority level of the threads used to compute
-  ORT_API2_STATUS(SetPriorityOpThreads, _Inout_ OrtSessionOptions* options, EThreadPriority ThreadPri);
-#endif //WITH_UE
+  // WITH_UE: Set the priority level of the threads used to compute
+  ORT_API2_STATUS(SetPriorityOpThreads, _Inout_ OrtSessionOptions* options, EThreadPriority ThreadPri); // WITH_UE
 
   /// @}
   /// \name OrtCustomOpDomain
