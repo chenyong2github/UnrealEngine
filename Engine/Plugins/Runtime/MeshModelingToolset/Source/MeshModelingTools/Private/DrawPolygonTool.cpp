@@ -72,7 +72,7 @@ UDrawPolygonTool::UDrawPolygonTool()
 	DrawPlaneOrigin = FVector3d::Zero();
 	DrawPlaneOrientation = FQuaterniond::Identity();
 	bInInteractiveExtrude = false;
-	UInteractiveTool::SetToolDisplayName(LOCTEXT("ToolName", "Extrude Polygon"));
+	UInteractiveTool::SetToolDisplayName(LOCTEXT("ToolName", "Polygon Extrude"));
 }
 
 void UDrawPolygonTool::SetWorld(UWorld* World)
@@ -195,7 +195,7 @@ void UDrawPolygonTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 2,
 		TEXT("ToggleGizmo"),
 		LOCTEXT("ToggleGizmo", "Toggle Gizmo"),
-		LOCTEXT("ToggleGizmoTooltip", "Toggle visibility of the transformation Gizmo"),
+		LOCTEXT("ToggleGizmoTooltip", "Toggle visibility of the transformation gizmo"),
 		EModifierKey::None, EKeys::A,
 		[this]() { PolygonProperties->bShowGridGizmo = !PolygonProperties->bShowGridGizmo; });
 }
@@ -711,7 +711,7 @@ bool UDrawPolygonTool::OnNextSequenceClick(const FInputDeviceRay& ClickPos)
 	{
 		//SnapEngine.Reset();
 		bHaveSurfaceHit = false;
-		if (PolygonProperties->ExtrudeMode == EDrawPolygonOutputMode::ExtrudedInteractive)
+		if (PolygonProperties->ExtrudeMode == EDrawPolygonExtrudeMode::Interactive)
 		{
 			BeginInteractiveExtrude();
 
@@ -994,13 +994,13 @@ void UDrawPolygonTool::UpdateShowGizmoState(bool bNewVisibility)
 
 void UDrawPolygonTool::EmitCurrentPolygon()
 {
-	FString BaseName = (PolygonProperties->ExtrudeMode == EDrawPolygonOutputMode::MeshedPolygon) ?
+	FString BaseName = (PolygonProperties->ExtrudeMode == EDrawPolygonExtrudeMode::Flat) ?
 		TEXT("Polygon") : TEXT("Extrude");
 
 	// generate new mesh
 	FFrame3d PlaneFrameOut;
 	FDynamicMesh3 Mesh;
-	const double ExtrudeDist = (PolygonProperties->ExtrudeMode == EDrawPolygonOutputMode::MeshedPolygon) ?
+	const double ExtrudeDist = (PolygonProperties->ExtrudeMode == EDrawPolygonExtrudeMode::Flat) ?
 		0 : PolygonProperties->ExtrudeHeight;
 	bool bSucceeded = GeneratePolygonMesh(PolygonVertices, PolygonHolesVertices, &Mesh, PlaneFrameOut, false, ExtrudeDist, false);
 	if (!bSucceeded) // somehow made a polygon with no valid triangulation; just throw it away ...
@@ -1039,7 +1039,7 @@ void UDrawPolygonTool::UpdateLivePreview()
 
 	FFrame3d PlaneFrame;
 	FDynamicMesh3 Mesh;
-	const double ExtrudeDist = (PolygonProperties->ExtrudeMode == EDrawPolygonOutputMode::MeshedPolygon) ?
+	const double ExtrudeDist = (PolygonProperties->ExtrudeMode == EDrawPolygonExtrudeMode::Flat) ?
 		0 : PolygonProperties->ExtrudeHeight;
 	if (GeneratePolygonMesh(PolygonVertices, PolygonHolesVertices, &Mesh, PlaneFrame, false, ExtrudeDist, false))
 	{
@@ -1248,14 +1248,14 @@ bool UDrawPolygonTool::GeneratePolygonMesh(const TArray<FVector3d>& Polygon, con
 void UDrawPolygonTool::ShowStartupMessage()
 {
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartDraw", "Use this Tool to draw a polygon on the Drawing Plane, and Extrude it. Left-click to place points. Ctrl-click on the scene to reposition the Plane (Shift+Ctrl-click to ignore Normal). [A] toggles Gizmo. Hold Shift to ignore Snapping."),
+		LOCTEXT("OnStartDraw", "Draw a polygon on the drawing plane, and extrude it. Left-click to place polygon vertices. Hold Shift to ignore snapping."),
 		EToolMessageLevel::UserNotification);
 }
 
 void UDrawPolygonTool::ShowExtrudeMessage()
 {
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartExtrude", "Set the height of the Extrusion by positioning the mouse over the extrusion volume, or over the scene to snap to relative heights. Hold Shift to ignore Snapping."),
+		LOCTEXT("OnStartExtrude", "Set the height of the extrusion by positioning the mouse over the extrusion volume, or over objects to snap to their heights. Hold Shift to ignore snapping."),
 		EToolMessageLevel::UserNotification);
 }
 

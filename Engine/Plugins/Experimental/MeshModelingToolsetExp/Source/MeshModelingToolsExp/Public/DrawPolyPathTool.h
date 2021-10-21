@@ -32,29 +32,33 @@ public:
 
 
 UENUM()
-enum class EDrawPolyPathOutputMode
-{
-	Ribbon,
-	Extrusion,
-	Ramp
-};
-
-
-
-UENUM()
 enum class EDrawPolyPathWidthMode
 {
-	Interactive,
-	Constant
+	/** Fixed width along the drawn path determined by the Width property */
+	Fixed,
+
+	/** Extrude drawn path to height set via additional mouse input after finishing the path */
+	Interactive
 };
 
 UENUM()
-enum class EDrawPolyPathHeightMode
+enum class EDrawPolyPathExtrudeMode
 {
-	Interactive,
-	Constant
-};
+	/** Flat path without extrusion */
+	Flat,
 
+	/** Extrude drawn path to a fixed height determined by the Extrude Height property */
+	Fixed,
+
+	/** Extrude drawn path to height set via additional mouse input after finishing the path */
+	Interactive,
+
+	/** Extrude with increasing height along the drawn path. The height at the start and the end of the ramp is determined by the Extrude Height and Ramp Start Ratio properties .*/
+	RampFixed,
+
+	/** Extrude with increasing height along the drawn path. The height is set via additional mouse input after finishing the path. */
+	RampInteractive
+};
 
 
 UCLASS()
@@ -63,30 +67,31 @@ class MESHMODELINGTOOLSEXP_API UDrawPolyPathProperties : public UInteractiveTool
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = Shape)
-	EDrawPolyPathOutputMode OutputType = EDrawPolyPathOutputMode::Extrusion;
-
-	UPROPERTY(EditAnywhere, Category = Shape)
+	/** How the drawn path width gets set */
+	UPROPERTY(EditAnywhere, Category = Path)
 	EDrawPolyPathWidthMode WidthMode = EDrawPolyPathWidthMode::Interactive;
 
-	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "0.0001", UIMax = "1000", ClampMin = "0", ClampMax = "999999"))
+	/** Width of the drawn path when using Fixed width mode; also shows the width in Interactive width mode */
+	UPROPERTY(EditAnywhere, Category = Path, meta = (EditCondition = "WidthMode == EDrawPolyPathWidthMode::Fixed", UIMin = "0.0001", UIMax = "1000", ClampMin = "0", ClampMax = "999999"))
 	float Width = 10.0f;
 
-	UPROPERTY(EditAnywhere, Category = Shape, meta = (
-		EditCondition = "OutputType != EDrawPolyPathOutputMode::Ribbon", EditConditionHides))
-	EDrawPolyPathHeightMode HeightMode = EDrawPolyPathHeightMode::Interactive;
+	/** If and how the drawn path gets extruded */
+	UPROPERTY(EditAnywhere, Category = Extrude)
+	EDrawPolyPathExtrudeMode ExtrudeMode = EDrawPolyPathExtrudeMode::Interactive;
 
-	UPROPERTY(EditAnywhere, Category = Shape, meta = (
-		EditCondition = "OutputType != EDrawPolyPathOutputMode::Ribbon", 
-		EditConditionHides, UIMin = "-1000", UIMax = "1000", ClampMin = "-10000", ClampMax = "10000"))
-	float Height = 10.0f;
+	/** Extrusion distance when using the Fixed extrude modes; also shows the distance in Interactive extrude modes */
+	UPROPERTY(EditAnywhere, Category = Extrude, meta = (
+		EditCondition = "ExtrudeMode == EDrawPolyPathExtrudeMode::Fixed || ExtrudeMode == EDrawPolyPathExtrudeMode::RampFixed",
+		UIMin = "-1000", UIMax = "1000", ClampMin = "-10000", ClampMax = "10000"))
+	float ExtrudeHeight = 10.0f;
 
-	UPROPERTY(EditAnywhere, Category = Shape, meta = (
-		EditCondition = "OutputType == EDrawPolyPathOutputMode::Ramp", EditConditionHides,
-		UIMin = "0.01", UIMax = "1.0", ClampMin = "0", ClampMax = "100.0"))
+	/** Height of the start of the ramp as a fraction of the Extrude Height property */
+	UPROPERTY(EditAnywhere, Category = Extrude, meta = (
+		EditCondition = "ExtrudeMode == EDrawPolyPathExtrudeMode::RampFixed || ExtrudeMode == EDrawPolyPathExtrudeMode::RampInteractive",
+		UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "100.0"))
 	float RampStartRatio = 0.05f;
 
-
+	/** If true, allows snapping to world grid according to editor settings */
 	UPROPERTY(EditAnywhere, Category = Snapping)
 	bool bSnapToWorldGrid = true;
 };
@@ -225,7 +230,7 @@ protected:
 	void GeneratePathMesh(UE::Geometry::FDynamicMesh3& Mesh);
 	void GenerateExtrudeMesh(UE::Geometry::FDynamicMesh3& PathMesh);
 	void GenerateRampMesh(FDynamicMesh3& PathMesh);
-	void EmitNewObject(EDrawPolyPathOutputMode OutputMode);
+	void EmitNewObject(EDrawPolyPathExtrudeMode ExtrudeMode);
 
 	// user feedback messages
 	void ShowStartupMessage();

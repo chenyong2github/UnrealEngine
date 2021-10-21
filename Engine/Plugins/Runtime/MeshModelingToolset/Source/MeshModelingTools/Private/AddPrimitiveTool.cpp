@@ -146,7 +146,7 @@ void UAddPrimitiveTool::Setup()
 	UpdatePreviewMesh();
 
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartAddPrimitiveTool", "This Tool creates new Primitive mesh assets. Position the Primitive by moving the mouse over the scene. Drop a new Asset or Instance by left-clicking (depending on Asset settings)."),
+		LOCTEXT("OnStartAddPrimitiveTool", "This Tool creates new shapes. Configure the shape via its settings, position it by moving the mouse in the scene, and drop it as a new object or instance by left-clicking."),
 		EToolMessageLevel::UserNotification);
 }
 
@@ -285,7 +285,7 @@ void UAddPrimitiveTool::UpdatePreviewMesh() const
 	FDynamicMesh3 NewMesh;
 	GenerateMesh( &NewMesh );
 
-	if (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::Single)
+	if (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerShape)
 	{
 		FaceGroupUtil::SetGroupID(NewMesh, 0);
 	}
@@ -328,7 +328,7 @@ void UAddPrimitiveTool::OnClicked(const FInputDeviceRay& ClickPos)
 
 	if (ShapeSettings->bInstanceIfPossible && LastGenerated != nullptr && IsEquivalentLastGeneratedAsset())
 	{
-		GetToolManager()->BeginUndoTransaction(LOCTEXT("AddPrimitiveToolTransactionName", "Add Primitive Mesh"));
+		GetToolManager()->BeginUndoTransaction(LOCTEXT("AddPrimitiveToolTransactionName", "Add Shape Mesh"));
 		FActorSpawnParameters SpawnParameters;
 		SpawnParameters.Template = LastGenerated->Actor;
 		FRotator Rotation(0.0f, 0.0f, 0.0f);
@@ -350,7 +350,7 @@ void UAddPrimitiveTool::OnClicked(const FInputDeviceRay& ClickPos)
 
 	const FDynamicMesh3* CurMesh = PreviewMesh->GetPreviewDynamicMesh();
 
-	GetToolManager()->BeginUndoTransaction(LOCTEXT("AddPrimitiveToolTransactionName", "Add Primitive Mesh"));
+	GetToolManager()->BeginUndoTransaction(LOCTEXT("AddPrimitiveToolTransactionName", "Add Shape Mesh"));
 
 	FCreateMeshObjectParams NewMeshObjectParams;
 	NewMeshObjectParams.TargetWorld = TargetWorld;
@@ -604,7 +604,7 @@ UAddSpherePrimitiveTool::UAddSpherePrimitiveTool(const FObjectInitializer& Objec
 void UAddSpherePrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 {
 	const UProceduralSphereToolProperties* SphereSettings = Cast<UProceduralSphereToolProperties>(ShapeSettings);
-	switch (SphereSettings->SphereType)
+	switch (SphereSettings->SubdivisionType)
 	{
 	case EProceduralSphereType::LatLong:
 	{

@@ -64,7 +64,7 @@ UENUM()
 enum class EMakeMeshPolygroupMode : uint8
 {
 	/** One Polygroup for the entire shape */
-	Single,
+	PerShape,
 	/** One Polygroup for each geometric face */
 	PerFace,
 	/** One Polygroup for each quad/triangle */
@@ -77,13 +77,13 @@ class MESHMODELINGTOOLS_API UProceduralShapeToolProperties : public UInteractive
 	GENERATED_BODY()
 
 public:
-	/** Create instances of the last created asset rather than creating a whole new asset, provided the shape settings have not changed.
+	/** Create instances of the last created asset rather than creating a whole new asset, provided the Shape settings have not changed.
 	  * If false, all created actors will have separate underlying mesh assets. */
-	UPROPERTY(EditAnywhere, Category = AssetSettings)
+	UPROPERTY(EditAnywhere, Category = Asset)
 	bool bInstanceIfPossible = false;
 
 	/** How Polygroups are assigned to shape primitives. */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (ProceduralShapeSetting))
 	EMakeMeshPolygroupMode PolygroupMode = EMakeMeshPolygroupMode::PerFace;
 
 	/** How the shape is placed in the scene. */
@@ -116,27 +116,27 @@ class MESHMODELINGTOOLS_API UProceduralBoxToolProperties : public UProceduralSha
 
 public:
 	/** Width of the box */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
 	float Width = 100.f;
 
 	/** Depth of the box */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
 	float Depth = 100.f;
 
 	/** Height of the box */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
 	float Height = 100.f;
 
 	/** Number of subdivisions along the width */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
 	int WidthSubdivisions = 1;
 
 	/** Number of subdivisions along the depth */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
 	int DepthSubdivisions = 1;
 
 	/** Number of subdivisions along the height */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
 	int HeightSubdivisions = 1;
 };
 
@@ -156,35 +156,35 @@ class MESHMODELINGTOOLS_API UProceduralRectangleToolProperties : public UProcedu
 
 public:
 	/** Type of rectangle */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings)
+	UPROPERTY(EditAnywhere, Category = Shape)
 	EProceduralRectType RectangleType = EProceduralRectType::Rectangle;
 
 	/** Width of the rectangle */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
 	float Width = 100.f;
 
 	/** Depth of the rectangle */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
 	float Depth = 100.f;
 
 	/** Number of subdivisions along the width */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
 	int WidthSubdivisions = 1;
 
 	/** Number of subdivisions along the depth */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
 	int DepthSubdivisions = 1;
 
-	/** Radius of rounded corners */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings,
+	/** Radius of rounded corners. This is only available for Rounded Rectangles. */
+	UPROPERTY(EditAnywhere, Category = Shape,
 		meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting,
-			EditCondition = "RectangleType == EProceduralRectType::RoundedRectangle", EditConditionHides))
+			EditCondition = "RectangleType == EProceduralRectType::RoundedRectangle"))
 	float CornerRadius = 25.f;
 
-	/** Number of radial slices for each rounded corner */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings,
+	/** Number of radial slices for each rounded corner. This is only available for Rounded Rectangles. */
+	UPROPERTY(EditAnywhere, Category = Shape,
 		meta = (UIMin = "3", UIMax = "128", ClampMin = "3", ClampMax = "500", ProceduralShapeSetting,
-			EditCondition = "RectangleType == EProceduralRectType::RoundedRectangle", EditConditionHides))
+			EditCondition = "RectangleType == EProceduralRectType::RoundedRectangle"))
 	int CornerSlices = 16;
 };
 
@@ -204,25 +204,25 @@ class MESHMODELINGTOOLS_API UProceduralDiscToolProperties : public UProceduralSh
 
 public:
 	/** Type of disc */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings)
+	UPROPERTY(EditAnywhere, Category = Shape)
 	EProceduralDiscType DiscType = EProceduralDiscType::Disc;
 
 	/** Radius of the disc */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
 	float Radius = 50.f;
 
 	/** Number of radial slices for the disc */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "3", UIMax = "128", ClampMin = "3", ClampMax = "500", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "3", UIMax = "128", ClampMin = "3", ClampMax = "500", ProceduralShapeSetting))
 	int RadialSlices = 16;
 
 	/** Number of radial subdivisions for each radial slice of the disc */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
 	int RadialSubdivisions = 1;
 
-	/** Radius of the hole in the disc */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings,
+	/** Radius of the hole in the disc. This is only available for Punctured Discs. */
+	UPROPERTY(EditAnywhere, Category = Shape,
 		meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting,
-			EditCondition = "DiscType == EProceduralDiscType::PuncturedDisc", EditConditionHides))
+			EditCondition = "DiscType == EProceduralDiscType::PuncturedDisc"))
 	float HoleRadius = 25.f;
 };
 
@@ -233,19 +233,19 @@ class MESHMODELINGTOOLS_API UProceduralTorusToolProperties : public UProceduralS
 
 public:
 	/** Major radius of the torus, measured from the torus center to the center of the torus tube */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
 	float MajorRadius = 50.f;
 
 	/** Minor radius of the torus, measured from the center ot the torus tube to the tube surface */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
 	float MinorRadius = 25.f;
 
 	/** Number of radial slices along the torus tube */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "3", UIMax = "128", ClampMin = "3", ClampMax = "500", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "3", UIMax = "128", ClampMin = "3", ClampMax = "500", ProceduralShapeSetting))
 	int MajorSlices = 16;
 
 	/** Number of radial slices around the torus tube */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "3", UIMax = "128", ClampMin = "3", ClampMax = "500", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "3", UIMax = "128", ClampMin = "3", ClampMax = "500", ProceduralShapeSetting))
 	int MinorSlices = 16;
 };
 
@@ -257,19 +257,19 @@ class MESHMODELINGTOOLS_API UProceduralCylinderToolProperties : public UProcedur
 public:
 
 	/** Radius of the cylinder */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
 	float Radius = 50.f;
 
 	/** Height of the cylinder */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
 	float Height = 200.f;
 
 	/** Number of radial slices for the cylinder */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "3", UIMax = "128", ClampMin = "3", ClampMax = "500", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "3", UIMax = "128", ClampMin = "3", ClampMax = "500", ProceduralShapeSetting))
 	int RadialSlices = 16;
 
 	/** Number of subdivisions along the height of the cylinder */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
 	int HeightSubdivisions = 1;
 };
 
@@ -280,19 +280,19 @@ class MESHMODELINGTOOLS_API UProceduralConeToolProperties : public UProceduralSh
 
 public:
 	/** Radius of the cone */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
 	float Radius = 50.f;
 
 	/** Height of the cone */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
 	float Height = 200.f;
 
 	/** Number of radial slices for the cylinder */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "3", UIMax = "128", ClampMin = "3", ClampMax = "500", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "3", UIMax = "128", ClampMin = "3", ClampMax = "500", ProceduralShapeSetting))
 	int RadialSlices = 16;
 
 	/** Number of subdivisions along the height of the cone */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
 	int HeightSubdivisions = 1;
 };
 
@@ -303,27 +303,27 @@ class MESHMODELINGTOOLS_API UProceduralArrowToolProperties : public UProceduralS
 
 public:
 	/** Radius of the arrow shaft */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
 	float ShaftRadius = 20.f;
 
 	/** Height of arrow shaft */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
 	float ShaftHeight = 200.f;
 
 	/** Radius of the arrow head base */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
 	float HeadRadius = 60.f;
 
 	/** Height of arrow head */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
 	float HeadHeight = 120.f;
 
 	/** Number of radial slices for the arrow */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "3", UIMax = "100", ClampMin = "3", ClampMax = "500", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "3", UIMax = "100", ClampMin = "3", ClampMax = "500", ProceduralShapeSetting))
 	int RadialSlices = 16;
 
 	/** Number of subdivisions along each part of the arrow, i.e. shaft, head base, head cone */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
 	int HeightSubdivisions = 1;
 };
 
@@ -331,9 +331,9 @@ UENUM()
 enum class EProceduralSphereType
 {
 	/** Create a Sphere with Lat Long parameterization */
-	LatLong UMETA(DisplayName = "Lat Long"),
+	LatLong,
 	/** Create a Sphere with Box parameterization */
-	Box UMETA(DisplayName = "Box")
+	Box
 };
 
 UCLASS()
@@ -342,28 +342,28 @@ class MESHMODELINGTOOLS_API UProceduralSphereToolProperties : public UProcedural
 	GENERATED_BODY()
 
 public:
-	/** Type of sphere */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings)
-	EProceduralSphereType SphereType = EProceduralSphereType::Box;
-
 	/** Radius of the sphere */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
 	float Radius = 50.f;
 
-	/** Number of horizontal slices of the sphere */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "3", UIMax = "100", ClampMin = "4", ClampMax = "500", ProceduralShapeSetting,
-		EditCondition = "SphereType == EProceduralSphereType::LatLong", EditConditionHides))
+	/** Type of subdivision for the sphere */
+	UPROPERTY(EditAnywhere, Category = Shape)
+	EProceduralSphereType SubdivisionType = EProceduralSphereType::Box;
+
+	/** Number of subdivisions for each side of the sphere. This is only available for spheres with Box subdivision. */
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting,
+		EditCondition = "SubdivisionType == EProceduralSphereType::Box"))
+	int Subdivisions = 16;
+
+	/** Number of horizontal slices of the sphere. This is only available for spheres with Lat Long subdivision. */
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "3", UIMax = "100", ClampMin = "4", ClampMax = "500", ProceduralShapeSetting,
+		EditCondition = "SubdivisionType == EProceduralSphereType::LatLong"))
 	int HorizontalSlices = 16;
 
-	/** Number of vertical slices of the sphere */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "3", UIMax = "100", ClampMin = "4", ClampMax = "500", ProceduralShapeSetting,
-		EditCondition = "SphereType == EProceduralSphereType::LatLong", EditConditionHides))
+	/** Number of vertical slices of the sphere. This is only available for spheres with Lat Long subdivision. */
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "3", UIMax = "100", ClampMin = "4", ClampMax = "500", ProceduralShapeSetting,
+		EditCondition = "SubdivisionType == EProceduralSphereType::LatLong"))
 	int VerticalSlices = 16;
-
-	/** Number of subdivisions for each side of the sphere */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting,
-		EditCondition = "SphereType == EProceduralSphereType::Box", EditConditionHides))
-	int Subdivisions = 16;
 };
 
 UENUM()
@@ -386,43 +386,43 @@ class MESHMODELINGTOOLS_API UProceduralStairsToolProperties : public UProcedural
 
 public:
 	/** Type of staircase */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings)
+	UPROPERTY(EditAnywhere, Category = Shape)
 	EProceduralStairsType StairsType = EProceduralStairsType::Linear;
 
 	/** Number of steps */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Number of Steps", UIMin = "2", UIMax = "100", ClampMin = "2", ClampMax = "1000000", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (DisplayName = "Number of Steps", UIMin = "2", UIMax = "100", ClampMin = "2", ClampMax = "1000000", ProceduralShapeSetting))
 	int NumSteps = 8;
 
 	/** Width of each step */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
 	float StepWidth = 150.0f;
 
 	/** Height of each step */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
 	float StepHeight = 20.0f;
 
-	/** Depth of each step for linear stairs */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings,
+	/** Depth of each step of linear stairs */
+	UPROPERTY(EditAnywhere, Category = Shape,
 		meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting,
-			EditCondition =	"StairsType == EProceduralStairsType::Linear || StairsType == EProceduralStairsType::Floating", EditConditionHides))
+			EditCondition =	"StairsType == EProceduralStairsType::Linear || StairsType == EProceduralStairsType::Floating"))
 	float StepDepth = 30.0f;
 
-	/** Angular length of curved stairs; positive values are for clockwise and negative values are for counterclockwise. */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings,
+	/** Angular length of curved stairs. Positive values are for clockwise and negative values are for counterclockwise. */
+	UPROPERTY(EditAnywhere, Category = Shape,
 		meta = (UIMin = "-360.0", UIMax = "360.0", ClampMin = "-360.0", ClampMax = "360.0", ProceduralShapeSetting,
-			EditCondition =	"StairsType == EProceduralStairsType::Curved", EditConditionHides))
+			EditCondition =	"StairsType == EProceduralStairsType::Curved"))
 	float CurveAngle = 90.0f;
 
-	/** Angular length of spiral stairs; positive values are for clockwise and negative values are for counterclockwise. */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings,
+	/** Angular length of spiral stairs. Positive values are for clockwise and negative values are for counterclockwise. */
+	UPROPERTY(EditAnywhere, Category = Shape,
 		meta = (UIMin = "-720.0", UIMax = "720.0", ClampMin = "-360000.0", ClampMax = "360000.0", ProceduralShapeSetting,
-			EditCondition =	"StairsType == EProceduralStairsType::Spiral", EditConditionHides))
+			EditCondition =	"StairsType == EProceduralStairsType::Spiral"))
 	float SpiralAngle = 90.0f;
 
-	/** Inner radius for curved and spiral stairs */
-	UPROPERTY(EditAnywhere, Category = ShapeSettings,
+	/** Inner radius of curved and spiral stairs */
+	UPROPERTY(EditAnywhere, Category = Shape,
 		meta = (UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting,
-			EditCondition = "StairsType == EProceduralStairsType::Curved || StairsType == EProceduralStairsType::Spiral", EditConditionHides))
+			EditCondition = "StairsType == EProceduralStairsType::Curved || StairsType == EProceduralStairsType::Spiral"))
 	float InnerRadius = 150.0f;
 };
 
