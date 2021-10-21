@@ -1445,10 +1445,11 @@ FNiagaraDynamicDataBase* FNiagaraRendererMeshes::GenerateDynamicData(const FNiag
 		}
 	}
 
+	
 	FNiagaraDataBuffer* DataToRender = Emitter->GetData().GetCurrentData();
 	if (!DataToRender || 
 		Meshes.Num() == 0 ||
-		(SourceMode == ENiagaraRendererSourceDataMode::Particles && DataToRender->GetNumInstances() == 0))
+		(SourceMode == ENiagaraRendererSourceDataMode::Particles && SimTarget != ENiagaraSimTarget::GPUComputeSim && DataToRender->GetNumInstances() == 0))
 	{
 		return nullptr;
 	}
