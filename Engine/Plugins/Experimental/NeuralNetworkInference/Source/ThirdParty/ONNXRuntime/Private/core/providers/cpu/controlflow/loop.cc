@@ -22,10 +22,11 @@
 #include "core/framework/session_options.h"
 #include "core/framework/TensorSeq.h"
 
+#include "gsl/gsl"
+
 #include "ThirdPartyWarningDisabler.h" // WITH_UE
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
-#include "gsl/gsl"
 
 #ifdef _MSC_VER
 #pragma warning(pop)

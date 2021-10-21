@@ -5,11 +5,7 @@
 
 #include <functional>
 
-#include "ThirdPartyWarningDisabler.h" // #ifdef WITH_UE
-NNI_THIRD_PARTY_INCLUDES_START
-#undef check
 #include "boost/mp11.hpp"
-NNI_THIRD_PARTY_INCLUDES_END // #endif //WITH_UE
 
 #include "core/common/exceptions.h"
 #include "core/common/logging/logging.h"
@@ -25,10 +21,7 @@ NNI_THIRD_PARTY_INCLUDES_END // #endif //WITH_UE
 #include "core/graph/graph_viewer.h"
 #include "core/graph/onnx_protobuf.h"
 
-NNI_THIRD_PARTY_INCLUDES_START
-#undef check
 #include "gsl/gsl"
-NNI_THIRD_PARTY_INCLUDES_END // #endif //WITH_UE
 
 namespace onnxruntime {
 class IExecutionFrame;
