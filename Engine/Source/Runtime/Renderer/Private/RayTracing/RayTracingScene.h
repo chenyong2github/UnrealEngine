@@ -30,12 +30,10 @@ public:
 	FRayTracingScene();
 	~FRayTracingScene();
 
-	// Starts asynchronous creation of RayTracingSceneRHI.
-	// This can be an expensive process, depending on the number of instances in the scene.
-	// Immediately allocates GPU memory to fit at least the current number of instances and updates the SRV.
-	// Returns the task that must be waited upon before accessing RayTracingSceneRHI.
-	FGraphEventRef BeginCreate(FRDGBuilder& GraphBuilder);
-	void WaitForTasks() const;
+	// Creates RayTracingSceneRHI.
+	// Allocates GPU memory to fit at least the current number of instances.
+	// Kicks off instance buffer build to parallel thread along with RDG pass
+	void Create(FRDGBuilder& GraphBuilder);
 
 	// Resets the instance list and reserves memory for this frame.
 	void Reset();
@@ -51,11 +49,11 @@ public:
 		return MakeArrayView(new(Allocator) T[Count], Count);
 	}
 
-	// Returns true if RHI ray tracing scene has been created or asynchronous creation has been kicked.
+	// Returns true if RHI ray tracing scene has been created.
 	// i.e. returns true after BeginCreate() and before Reset().
 	RENDERER_API bool IsCreated() const;
 
-	// Waits for the async creation task if it's active and then returns RayTracingSceneRHI object (may return null).
+	// Returns RayTracingSceneRHI object (may return null).
 	RENDERER_API  FRHIRayTracingScene* GetRHIRayTracingScene() const;
 
 	// Similar to GetRayTracingScene, but checks that ray tracing scene RHI object is valid.
@@ -75,11 +73,6 @@ public:
 	// This must be filled before calling BeginCreateTask().
 	TArray<FRayTracingGeometryInstance> Instances;
 
-	// Total flattened number of ray tracing geometry instances (a single FRayTracingGeometryInstance may represent many).
-	uint32 NumNativeInstances = 0;
-
-	uint32 NumTotalSegments = 0;
-
 	// Geometries which still have a pending build request but are used this frame and require a force build.
 	TArray<const FRayTracingGeometry*> GeometriesToBuild;
 
@@ -88,14 +81,14 @@ public:
 
 	FRayTracingAccelerationStructureSize SizeInfo = {};
 
+	FRDGBufferRef InstanceBuffer;
 	FRDGBufferRef BuildScratchBuffer;
 
 private:
+	void WaitForTasks() const;
+
 	// RHI object that abstracts mesh instnaces in this scene
 	FRayTracingSceneRHIRef RayTracingSceneRHI;
-
-	// Task that asynchronously creates RayTracingSceneRHI
-	mutable FGraphEventRef CreateRayTracingSceneTask;
 
 	// Persistently allocated buffer that holds the built TLAS
 	FBufferRHIRef RayTracingSceneBuffer;
@@ -105,6 +98,13 @@ private:
 
 	// Transient memory allocator
 	FMemStackBase Allocator;
+
+	FBufferRHIRef InstanceUploadBuffer;
+	FShaderResourceViewRHIRef InstanceUploadSRV;
+
+	FByteAddressBuffer AccelerationStructureAddressesBuffer;
+
+	mutable FGraphEventRef FillInstanceUploadBufferTask;
 
 };
 

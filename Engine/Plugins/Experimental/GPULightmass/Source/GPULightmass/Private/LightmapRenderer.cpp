@@ -23,6 +23,7 @@
 #include "EngineModule.h"
 #include "PostProcess/PostProcessing.h"
 #include "RayTracingGeometryManager.h"
+#include "RayTracingInstanceCopyShader.h"
 #include "ScreenPass.h"
 #include "RayTracingDynamicGeometryCollection.h"
 #include "Experimental/Containers/SherwoodHashTable.h"
@@ -166,21 +167,20 @@ struct FGPUBatchedTileRequests
 	TResourceArray<FGPUTileDescription> BatchedTilesDesc;
 };
 
-static FRayTracingSceneRHIRef CreateRayTracingScene(TArrayView<FRayTracingGeometryInstance> Instances, uint32& OutNumNativeInstances)
+static FRayTracingSceneRHIRef CreateRayTracingScene(TArrayView<FRayTracingGeometryInstance> Instances, TArray<uint32>& OutInstancesGeometryIndex)
 {
 	const uint32 NumSceneInstances = Instances.Num();
 
 	FRayTracingSceneInitializer2 Initializer;
-	Initializer.Instances = Instances;
 	Initializer.ShaderSlotsPerGeometrySegment = RAY_TRACING_NUM_SHADER_SLOTS;
 	Initializer.PerInstanceGeometries.SetNumUninitialized(NumSceneInstances);
-	Initializer.PerInstanceNumTransforms.SetNumUninitialized(NumSceneInstances);
 	Initializer.BaseInstancePrefixSum.SetNumUninitialized(NumSceneInstances);
 	Initializer.SegmentPrefixSum.SetNumUninitialized(NumSceneInstances);
 	Initializer.NumNativeInstances = 0;
 	Initializer.NumTotalSegments = 0;
 
-	Experimental::TSherwoodSet<FRHIRayTracingGeometry*> UniqueGeometries;
+	Experimental::TSherwoodMap<FRHIRayTracingGeometry*, uint32> UniqueGeometries;
+	OutInstancesGeometryIndex.SetNumUninitialized(NumSceneInstances);
 
 	// Compute geometry segment and instance count prefix sums.
 	// These are later used by GetHitRecordBaseIndex() during resource binding
@@ -204,20 +204,16 @@ static FRayTracingSceneRHIRef CreateRayTracingScene(TArrayView<FRayTracingGeomet
 		Initializer.SegmentPrefixSum[InstanceIndex] = Initializer.NumTotalSegments;
 		Initializer.NumTotalSegments += InstanceDesc.GeometryRHI->GetNumSegments();
 
-		bool bIsAlreadyInSet = false;
-		UniqueGeometries.Add(InstanceDesc.GeometryRHI, &bIsAlreadyInSet);
-		if (!bIsAlreadyInSet)
+		uint32 GeometryIndex = UniqueGeometries.FindOrAdd(InstanceDesc.GeometryRHI, Initializer.ReferencedGeometries.Num());
+		OutInstancesGeometryIndex[InstanceIndex] = GeometryIndex;
+		if (GeometryIndex == Initializer.ReferencedGeometries.Num())
 		{
 			Initializer.ReferencedGeometries.Add(InstanceDesc.GeometryRHI);
 		}
 
 		Initializer.BaseInstancePrefixSum[InstanceIndex] = Initializer.NumNativeInstances;
 		Initializer.NumNativeInstances += InstanceDesc.NumTransforms;
-
-		Initializer.PerInstanceNumTransforms[InstanceIndex] = InstanceDesc.NumTransforms;
 	}
-
-	OutNumNativeInstances = Initializer.NumNativeInstances;
 
 	return RHICreateRayTracingScene(MoveTemp(Initializer));
 }
@@ -1060,16 +1056,78 @@ void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 		{
 			SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
 
-			uint32 NumTotalInstances = 0;
-			RayTracingScene = CreateRayTracingScene(RayTracingGeometryInstances, NumTotalInstances);
+			TArray<uint32> InstancesGeometryIndex;
+			RayTracingScene = CreateRayTracingScene(RayTracingGeometryInstances, InstancesGeometryIndex);
 
-			FRayTracingAccelerationStructureSize SizeInfo = RHICalcRayTracingSceneSize(NumTotalInstances, ERayTracingAccelerationStructureFlags::FastTrace);
+			const FRayTracingSceneInitializer2& SceneInitializer = RayTracingScene->GetInitializer();
+
+			FRayTracingAccelerationStructureSize SizeInfo = RHICalcRayTracingSceneSize(SceneInitializer.NumNativeInstances, ERayTracingAccelerationStructureFlags::FastTrace);
 			FRHIResourceCreateInfo BufferCreateInfo(TEXT("LightmassRayTracingSceneBuffer"));
 			RayTracingSceneBuffer = RHICreateBuffer(uint32(SizeInfo.ResultSize), BUF_AccelerationStructure, 0, ERHIAccess::BVHWrite, BufferCreateInfo);
 			RayTracingSceneSRV = RHICreateShaderResourceView(RayTracingSceneBuffer);
 
+			FRHIResourceCreateInfo ScratchBufferCreateInfo(TEXT("LightmassRayTracingScratchBuffer"));
+			FBufferRHIRef ScratchBuffer = RHICreateBuffer(
+				uint32(SizeInfo.BuildScratchSize),
+				BUF_UnorderedAccess, GRHIRayTracingAccelerationStructureAlignment, ERHIAccess::UAVCompute,
+				ScratchBufferCreateInfo);
+
+			FRWBufferStructured InstanceBuffer;
+			InstanceBuffer.Initialize(TEXT("LightmassRayTracingInstanceBuffer"), GRHIRayTracingInstanceDescriptorSize, 1);
+
+			FByteAddressBuffer AccelerationStructureAddressesBuffer;
+			AccelerationStructureAddressesBuffer.Initialize(TEXT("LightmassRayTracingAccelerationStructureAddressesBuffer"), sizeof(FRayTracingAccelerationStructureAddress), BUF_Volatile);
+
+			FBufferRHIRef InstanceUploadBuffer;
+			FShaderResourceViewRHIRef InstanceUploadSRV;
+			{
+				const uint32 UploadBufferSize = SceneInitializer.NumNativeInstances * sizeof(FRayTracingInstanceDescriptorInput);
+
+				FRHIResourceCreateInfo CreateInfo(TEXT("RayTracingTestBedInstanceUploadBuffer"));
+				InstanceUploadBuffer = RHICreateStructuredBuffer(sizeof(FRayTracingInstanceDescriptorInput), UploadBufferSize, BUF_ShaderResource | BUF_Volatile, CreateInfo);
+				InstanceUploadSRV = RHICreateShaderResourceView(InstanceUploadBuffer);
+			}
+
+			{
+				FRayTracingInstanceDescriptorInput* InstanceUploadData = (FRayTracingInstanceDescriptorInput*)RHICmdList.LockBuffer(InstanceUploadBuffer, 0, sizeof(FRayTracingInstanceDescriptorInput), RLM_WriteOnly);
+				FillInstanceUploadBuffer(RayTracingGeometryInstances, InstancesGeometryIndex, RayTracingScene, MakeArrayView(InstanceUploadData, SceneInitializer.NumNativeInstances));
+				RHICmdList.UnlockBuffer(InstanceUploadBuffer);
+			}
+
+			RHICmdList.EnqueueLambda([&AccelerationStructureAddressesBuffer, &SceneInitializer](FRHICommandListImmediate& RHICmdList)
+				{
+					FRayTracingAccelerationStructureAddress* AddressesPtr = (FRayTracingAccelerationStructureAddress*)RHICmdList.LockBuffer(
+						AccelerationStructureAddressesBuffer.Buffer,
+						0,
+						SceneInitializer.ReferencedGeometries.Num() * sizeof(FRayTracingAccelerationStructureAddress), RLM_WriteOnly);
+
+					const uint32 NumGeometries = SceneInitializer.ReferencedGeometries.Num();
+					for (uint32 GeometryIndex = 0; GeometryIndex < NumGeometries; ++GeometryIndex)
+					{
+						AddressesPtr[GeometryIndex] = SceneInitializer.ReferencedGeometries[GeometryIndex]->GetAccelerationStructureAddress(RHICmdList.GetGPUMask().ToIndex());
+					}
+
+					RHICmdList.UnlockBuffer(AccelerationStructureAddressesBuffer.Buffer);
+				});
+
+			BuildRayTracingInstanceBuffer(
+				RHICmdList,
+				SceneInitializer.NumNativeInstances,
+				InstanceBuffer.UAV,
+				InstanceUploadSRV,
+				AccelerationStructureAddressesBuffer.SRV);
+
 			RHICmdList.BindAccelerationStructureMemory(RayTracingScene, RayTracingSceneBuffer, 0);
-			RHICmdList.BuildAccelerationStructure(RayTracingScene);
+
+			{
+				FRayTracingSceneBuildParams BuildParams;
+				BuildParams.Scene = RayTracingScene;
+				BuildParams.ScratchBuffer = ScratchBuffer;
+				BuildParams.ScratchBufferOffset = 0;
+				BuildParams.InstanceBuffer = InstanceBuffer.Buffer;
+				BuildParams.InstanceBufferOffset = 0;
+				RHICmdList.BuildAccelerationStructure(BuildParams);
+			}
 
 			FRayTracingPipelineStateInitializer PSOInitializer;
 

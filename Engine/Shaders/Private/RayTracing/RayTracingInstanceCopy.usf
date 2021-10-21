@@ -5,13 +5,14 @@
 ===============================================================================================*/
 
 #include "RayTracingCommon.ush"
+//#include "../SceneData.ush"
 #include "../Common.ush"
 
 #ifndef THREADGROUP_SIZE
 #define THREADGROUP_SIZE 1
 #endif
 
-uint InstancesCPUCount;
+uint NumInstances;
 uint DescBufferOffset;
 StructuredBuffer<float3x4> InstancesTransforms;
 RWStructuredBuffer<FRayTracingInstanceDescriptor> InstancesDescriptors;
@@ -20,13 +21,56 @@ RWStructuredBuffer<FRayTracingInstanceDescriptor> InstancesDescriptors;
 [numthreads(THREADGROUP_SIZE, 1, 1)]
 void RayTracingInstanceCopyShaderCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
-	uint InstanceIdx = DispatchThreadId.x;	
+	uint Index = DispatchThreadId.x;	
 
-	float3x4 InstanceXForm = InstancesTransforms[InstanceIdx];
-	uint DescIndex = DescBufferOffset + InstanceIdx;
+	float3x4 InstanceXForm = InstancesTransforms[Index];
+	uint DescIndex = DescBufferOffset + Index;
 
-	if (InstanceIdx < InstancesCPUCount)
+	if (Index < NumInstances)
 	{
 		SetRayTracingInstanceTransform(InstancesDescriptors[DescIndex], InstanceXForm);
+	}
+}
+
+struct FRayTracingInstanceDescriptorInput
+{
+	//uint GPUSceneInstanceIndex;
+	float3x4 LocalToWorld;
+	uint AccelerationStructureIndex;
+	uint InstanceId;
+	uint InstanceMaskAndFlags;
+	uint InstanceContributionToHitGroupIndex;
+};
+
+StructuredBuffer<FRayTracingInstanceDescriptorInput> InputInstanceDescriptors;
+ByteAddressBuffer AccelerationStructureAddresses;
+
+[numthreads(THREADGROUP_SIZE, 1, 1)]
+void RayTracingBuildInstanceBufferCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	uint Index = DispatchThreadId.x;
+
+	if (Index < NumInstances)
+	{
+		FRayTracingInstanceDescriptorInput InputDesc = InputInstanceDescriptors[Index];
+
+		//FInstanceSceneData InstanceSceneData = GetInstanceSceneData(InputDesc.GPUSceneInstanceIndex, View.InstanceSceneDataSOAStride);
+		//float4x4 LocalToWorld = InstanceSceneData.LocalToWorld;
+		float3x4 LocalToWorld = InputDesc.LocalToWorld;
+
+		uint2 BlasAddress = 0;
+
+		if (InputDesc.AccelerationStructureIndex != 0xFFFFFFFF)
+		{
+			BlasAddress = AccelerationStructureAddresses.Load2(InputDesc.AccelerationStructureIndex * 8);
+		}
+
+		InstancesDescriptors[Index] = BuildPlatformRayTracingInstanceDesc(
+			InputDesc.InstanceMaskAndFlags & 0xFF,
+			InputDesc.InstanceId,
+			TranslateRayTracingInstanceFlags((InputDesc.InstanceMaskAndFlags >> 8) & 0xFF),
+			InputDesc.InstanceContributionToHitGroupIndex,
+			LocalToWorld,
+			BlasAddress);
 	}
 }

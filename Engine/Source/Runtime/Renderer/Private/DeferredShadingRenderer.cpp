@@ -1312,7 +1312,8 @@ static void DeduplicateRayGenerationShaders(TArray< FRHIRayTracingShader*>& RayG
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FBuildAccelerationStructurePassParams, )
-RDG_BUFFER_ACCESS(RayTracingSceneScratchBuffer, ERHIAccess::UAVCompute)
+	RDG_BUFFER_ACCESS(RayTracingSceneScratchBuffer, ERHIAccess::UAVCompute)
+	RDG_BUFFER_ACCESS(RayTracingSceneInstanceBuffer, ERHIAccess::SRVCompute)
 END_SHADER_PARAMETER_STRUCT()
 
 bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRHICommandListImmediate& RHICmdList)
@@ -1478,37 +1479,53 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 
 	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
-	RayTracingScene.BeginCreate(GraphBuilder);
+	RayTracingScene.Create(GraphBuilder);
 
 	const bool bRayTracingAsyncBuild = CVarRayTracingAsyncBuild.GetValueOnRenderThread() != 0;
 
 	if (bRayTracingAsyncBuild && GRHISupportsRayTracingAsyncBuildAccelerationStructure)
 	{
-		AddPass(GraphBuilder, RDG_EVENT_NAME("BuildAccelerationStructure"), [this](FRHICommandListImmediate& RHICmdList)
-		{
-			check(RayTracingDynamicGeometryUpdateEndTransition == nullptr);
-			const FRHITransition* RayTracingDynamicGeometryUpdateBeginTransition = RHICreateTransition(FRHITransitionCreateInfo(ERHIPipeline::Graphics, ERHIPipeline::AsyncCompute));
-			RayTracingDynamicGeometryUpdateEndTransition = RHICreateTransition(FRHITransitionCreateInfo(ERHIPipeline::AsyncCompute, ERHIPipeline::Graphics));
+		FBuildAccelerationStructurePassParams* PassParams = GraphBuilder.AllocParameters<FBuildAccelerationStructurePassParams>();
+		PassParams->RayTracingSceneScratchBuffer = Scene->RayTracingScene.BuildScratchBuffer;
+		PassParams->RayTracingSceneInstanceBuffer = Scene->RayTracingScene.InstanceBuffer;
 
-			FRHIAsyncComputeCommandListImmediate& RHIAsyncCmdList = FRHICommandListExecutor::GetImmediateAsyncComputeCommandList();
-
-			RHICmdList.BeginTransition(RayTracingDynamicGeometryUpdateBeginTransition);
-			RHIAsyncCmdList.EndTransition(RayTracingDynamicGeometryUpdateBeginTransition);
-
-			Scene->GetRayTracingDynamicGeometryCollection()->DispatchUpdates(RHIAsyncCmdList);
-
-			FRHIRayTracingScene* RayTracingSceneRHI = Scene->RayTracingScene.GetRHIRayTracingSceneChecked();
-
-			RHIAsyncCmdList.BindAccelerationStructureMemory(RayTracingSceneRHI, Scene->RayTracingScene.GetBufferChecked(), 0);
-
+		GraphBuilder.AddPass(RDG_EVENT_NAME("RayTracingScene"), PassParams, ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
+			[this, PassParams](FRHICommandListImmediate& RHICmdList)
 			{
-				SCOPED_DRAW_EVENT(RHIAsyncCmdList, RayTracingScene);
-				RHIAsyncCmdList.BuildAccelerationStructure(RayTracingSceneRHI);				
-			}
+				FRHIAsyncComputeCommandListImmediate& RHIAsyncCmdList = FRHICommandListExecutor::GetImmediateAsyncComputeCommandList();
 
-			RHIAsyncCmdList.BeginTransition(RayTracingDynamicGeometryUpdateEndTransition);
-			FRHIAsyncComputeCommandListImmediate::ImmediateDispatch(RHIAsyncCmdList);
-		});
+				const FRHITransition* RayTracingDynamicGeometryUpdateBeginTransition = RHICreateTransition(FRHITransitionCreateInfo(ERHIPipeline::Graphics, ERHIPipeline::AsyncCompute));
+				RHICmdList.BeginTransition(RayTracingDynamicGeometryUpdateBeginTransition);
+				RHIAsyncCmdList.EndTransition(RayTracingDynamicGeometryUpdateBeginTransition);
+
+				Scene->GetRayTracingDynamicGeometryCollection()->DispatchUpdates(RHIAsyncCmdList);
+
+				FRHIRayTracingScene* RayTracingSceneRHI = Scene->RayTracingScene.GetRHIRayTracingSceneChecked();
+				FRHIBuffer* AccelerationStructureBuffer = Scene->RayTracingScene.GetBufferChecked();
+				FRHIBuffer* InstanceBuffer = PassParams->RayTracingSceneInstanceBuffer->GetRHI();
+				FRHIBuffer* ScratchBuffer = PassParams->RayTracingSceneScratchBuffer->GetRHI();
+
+				RHIAsyncCmdList.BindAccelerationStructureMemory(RayTracingSceneRHI, AccelerationStructureBuffer, 0);
+
+				{
+					SCOPED_DRAW_EVENT(RHIAsyncCmdList, RayTracingScene);
+
+					FRayTracingSceneBuildParams BuildParams;
+					BuildParams.Scene = RayTracingSceneRHI;
+					BuildParams.ScratchBuffer = ScratchBuffer;
+					BuildParams.ScratchBufferOffset = 0;
+					BuildParams.InstanceBuffer = InstanceBuffer;
+					BuildParams.InstanceBufferOffset = 0;
+
+					RHIAsyncCmdList.BuildAccelerationStructure(BuildParams);
+				}
+
+				check(RayTracingDynamicGeometryUpdateEndTransition == nullptr)
+				RayTracingDynamicGeometryUpdateEndTransition = RHICreateTransition(FRHITransitionCreateInfo(ERHIPipeline::AsyncCompute, ERHIPipeline::Graphics));
+				RHIAsyncCmdList.BeginTransition(RayTracingDynamicGeometryUpdateEndTransition);
+
+				FRHIAsyncComputeCommandListImmediate::ImmediateDispatch(RHIAsyncCmdList);
+			});
 	}
 	else
 	{
@@ -1525,6 +1542,7 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 
 			FBuildAccelerationStructurePassParams* PassParams = GraphBuilder.AllocParameters<FBuildAccelerationStructurePassParams>();
 			PassParams->RayTracingSceneScratchBuffer = Scene->RayTracingScene.BuildScratchBuffer;
+			PassParams->RayTracingSceneInstanceBuffer = Scene->RayTracingScene.InstanceBuffer;
 
 			GraphBuilder.AddPass(RDG_EVENT_NAME("RayTracingScene"), PassParams, ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 				[this, PassParams](FRHICommandListImmediate& RHICmdList)
@@ -1532,17 +1550,20 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 				FRHIRayTracingScene* RayTracingSceneRHI = Scene->RayTracingScene.GetRHIRayTracingSceneChecked();
 				FRHIBuffer* AccelerationStructureBuffer = Scene->RayTracingScene.GetBufferChecked();
 				FRHIBuffer* ScratchBuffer = PassParams->RayTracingSceneScratchBuffer->GetRHI();
+				FRHIBuffer* InstanceBuffer = PassParams->RayTracingSceneInstanceBuffer->GetRHI();
 
 				FRayTracingSceneBuildParams BuildParams;
 				BuildParams.Scene = RayTracingSceneRHI;
 				BuildParams.ScratchBuffer = ScratchBuffer;
 				BuildParams.ScratchBufferOffset = 0;
+				BuildParams.InstanceBuffer = InstanceBuffer;
+				BuildParams.InstanceBufferOffset = 0;
 
 				// Sanity check acceleration structure buffer sizes
 			#if DO_CHECK
 				{
 					FRayTracingAccelerationStructureSize SizeInfo = RHICalcRayTracingSceneSize(
-						Scene->RayTracingScene.NumNativeInstances, ERayTracingAccelerationStructureFlags::FastTrace);
+						RayTracingSceneRHI->GetInitializer().NumNativeInstances, ERayTracingAccelerationStructureFlags::FastTrace);
 
 					check(SizeInfo.ResultSize <= Scene->RayTracingScene.SizeInfo.ResultSize);
 					check(SizeInfo.BuildScratchSize <= Scene->RayTracingScene.SizeInfo.BuildScratchSize);
@@ -1674,8 +1695,6 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 					Chunk = Chunk->Next;
 				}
 			}
-
-			Scene->RayTracingScene.WaitForTasks();
 
 			const bool bCopyDataToInlineStorage = false; // Storage is already allocated from RHICmdList, no extra copy necessary
 			RHICmdList.SetRayTracingHitGroups(

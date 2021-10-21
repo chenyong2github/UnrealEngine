@@ -1031,24 +1031,22 @@ bool FViewInfo::HasRayTracingScene() const
 	}
 	return false;
 }
-FRHIRayTracingScene* FViewInfo::GetRayTracingScene() const
+
+FRHIRayTracingScene* FViewInfo::GetRayTracingSceneChecked() const
 {
 	check(Family);
 	if (Family->Scene)
 	{
 		if (FScene* Scene = Family->Scene->GetRenderScene())
 		{
-			return Scene->RayTracingScene.GetRHIRayTracingScene();
+			FRHIRayTracingScene* Result = Scene->RayTracingScene.GetRHIRayTracingScene();
+			checkf(Result, TEXT("Ray tracing scene is expected to be created at this point."));
+			return Result;
 		}
 	}
 	return nullptr;
 }
-FRHIRayTracingScene* FViewInfo::GetRayTracingSceneChecked() const
-{
-	FRHIRayTracingScene* Result = GetRayTracingScene();
-	checkf(Result, TEXT("Ray tracing scene is expected to be created at this point."));
-	return Result;
-}
+
 FRHIShaderResourceView* FViewInfo::GetRayTracingSceneViewChecked() const
 {
 	FRHIShaderResourceView* Result = nullptr;
