@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 
 #if WITH_GAMEPLAY_DEBUGGER
-void FStateTreeEvaluator2Base::AppendDebugInfoString(FString& DebugString, const FStateTreeExecutionContext& Context) const
+void FStateTreeEvaluatorBase::AppendDebugInfoString(FString& DebugString, const FStateTreeExecutionContext& Context) const
 {
 	DebugString += FString::Printf(TEXT("[%s]\n"), *Name.ToString());
 }

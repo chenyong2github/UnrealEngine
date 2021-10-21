@@ -421,7 +421,7 @@ EVisibility SStateTreeViewRow::GetEvaluatorsVisibility() const
 		int32 ValidCount = 0;
 		for (int32 i = 0; i < State->Evaluators.Num(); i++)
 		{
-			if (const FStateTreeEvaluator2Base* Eval = State->Evaluators[i].Type.GetPtr<FStateTreeEvaluator2Base>())
+			if (const FStateTreeEvaluatorBase* Eval = State->Evaluators[i].Type.GetPtr<FStateTreeEvaluatorBase>())
 			{
 				ValidCount++;
 			}
@@ -443,7 +443,7 @@ FText SStateTreeViewRow::GetEvaluatorsDesc() const
 
 	for (int32 i = 0; i < State->Evaluators.Num(); i++)
 	{
-		if (const FStateTreeEvaluator2Base* Eval = State->Evaluators[i].Type.GetPtr<FStateTreeEvaluator2Base>())
+		if (const FStateTreeEvaluatorBase* Eval = State->Evaluators[i].Type.GetPtr<FStateTreeEvaluatorBase>())
 		{
 			Names.Add(FText::FromName(Eval->Name));
 		}
@@ -459,7 +459,7 @@ EVisibility SStateTreeViewRow::GetTasksVisibility() const
 		int32 ValidCount = 0;
 		for (int32 i = 0; i < State->Tasks.Num(); i++)
 		{
-			if (const FStateTreeTask2Base* Task = State->Tasks[i].Type.GetPtr<FStateTreeTask2Base>())
+			if (const FStateTreeTaskBase* Task = State->Tasks[i].Type.GetPtr<FStateTreeTaskBase>())
 			{
 				ValidCount++;
 			}
@@ -480,7 +480,7 @@ FText SStateTreeViewRow::GetTasksDesc() const
 	TArray<FText> Names;
 	for (int32 i = 0; i < State->Tasks.Num(); i++)
 	{
-		if (const FStateTreeTask2Base* Task = State->Tasks[i].Type.GetPtr<FStateTreeTask2Base>())
+		if (const FStateTreeTaskBase* Task = State->Tasks[i].Type.GetPtr<FStateTreeTaskBase>())
 		{
 			Names.Add(FText::FromName(Task->Name));
 		}

@@ -10,17 +10,17 @@
 struct FStateTreeExecutionContext;
 
 /**
- * Base stuct for StateTree Tasks.
+ * Base struct for StateTree Tasks.
  * Tasks are logic executed in an active state.
  */
 USTRUCT()
-struct STATETREEMODULE_API FStateTreeTask2Base // TODO: change to FStateTreeTaskBase once UStateTreeTaskBase is removed
+struct STATETREEMODULE_API FStateTreeTaskBase
 {
 	GENERATED_BODY()
 
-	FStateTreeTask2Base() = default;
+	FStateTreeTaskBase() = default;
 
-	virtual ~FStateTreeTask2Base() {}
+	virtual ~FStateTreeTaskBase() {}
 
 	/**
 	 * Called when a new state is entered and task is part of active states. The change type parameter describes if the task's state
@@ -77,4 +77,4 @@ struct STATETREEMODULE_API FStateTreeTask2Base // TODO: change to FStateTreeTask
 	uint16 SourceStructIndex = 0;								// Property binding Source Struct index of the task.
 };
 
-template<> struct TStructOpsTypeTraits<FStateTreeTask2Base> : public TStructOpsTypeTraitsBase2<FStateTreeTask2Base> { enum { WithPureVirtual = true, }; };
+template<> struct TStructOpsTypeTraits<FStateTreeTaskBase> : public TStructOpsTypeTraitsBase2<FStateTreeTaskBase> { enum { WithPureVirtual = true, }; };

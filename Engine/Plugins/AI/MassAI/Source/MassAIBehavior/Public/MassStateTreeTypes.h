@@ -25,7 +25,7 @@ namespace UE::Mass::Signals
  * Base struct for all Mass StateTree Evaluators.
  */
 USTRUCT(meta = (DisplayName = "Mass Evaluator Base"))
-struct MASSAIBEHAVIOR_API FMassStateTreeEvaluatorBase : public FStateTreeEvaluator2Base
+struct MASSAIBEHAVIOR_API FMassStateTreeEvaluatorBase : public FStateTreeEvaluatorBase
 {
 	GENERATED_BODY()
 
@@ -38,7 +38,7 @@ template<> struct TStructOpsTypeTraits<FMassStateTreeEvaluatorBase> : public TSt
  * Base struct for all Mass StateTree Tasks.
  */
 USTRUCT(meta = (DisplayName = "Mass Task Base"))
-struct MASSAIBEHAVIOR_API FMassStateTreeTaskBase : public FStateTreeTask2Base
+struct MASSAIBEHAVIOR_API FMassStateTreeTaskBase : public FStateTreeTaskBase
 {
 	GENERATED_BODY()
 

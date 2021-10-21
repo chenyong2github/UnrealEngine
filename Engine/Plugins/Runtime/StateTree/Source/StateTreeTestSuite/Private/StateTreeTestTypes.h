@@ -76,7 +76,7 @@ struct FTestStateTreeExecutionContext : public FStateTreeExecutionContext
 
 
 USTRUCT()
-struct FTestEval_A : public FStateTreeEvaluator2Base
+struct FTestEval_A : public FStateTreeEvaluatorBase
 {
 	GENERATED_BODY()
 
@@ -94,7 +94,7 @@ struct FTestEval_A : public FStateTreeEvaluator2Base
 };
 
 USTRUCT()
-struct FTestTask_B : public FStateTreeTask2Base
+struct FTestTask_B : public FStateTreeTaskBase
 {
 	GENERATED_BODY()
 
@@ -204,7 +204,7 @@ struct FTestSmartObjectResult : public FStateTreeResult
 
 
 USTRUCT()
-struct FTestEval_Wander : public FStateTreeEvaluator2Base
+struct FTestEval_Wander : public FStateTreeEvaluatorBase
 {
 	GENERATED_BODY()
 
@@ -247,7 +247,7 @@ struct FTestEval_Wander : public FStateTreeEvaluator2Base
 };
 
 USTRUCT()
-struct FTestEval_SmartObjectSensor : public FStateTreeEvaluator2Base
+struct FTestEval_SmartObjectSensor : public FStateTreeEvaluatorBase
 {
 	GENERATED_BODY()
 
@@ -328,7 +328,7 @@ struct FTestEval_SmartObjectSensor : public FStateTreeEvaluator2Base
 
 
 USTRUCT()
-struct FTestTask_ReserveSmartObject : public FStateTreeTask2Base
+struct FTestTask_ReserveSmartObject : public FStateTreeTaskBase
 {
 	GENERATED_BODY()
 
@@ -469,7 +469,7 @@ struct FTestTask_ReserveSmartObject : public FStateTreeTask2Base
 
 
 USTRUCT()
-struct FTestTask_MoveTo : public FStateTreeTask2Base
+struct FTestTask_MoveTo : public FStateTreeTaskBase
 {
 	GENERATED_BODY()
 
@@ -554,7 +554,7 @@ struct FTestTask_MoveTo : public FStateTreeTask2Base
 };
 
 USTRUCT()
-struct FTestTask_Stand : public FStateTreeTask2Base
+struct FTestTask_Stand : public FStateTreeTaskBase
 {
 	GENERATED_BODY()
 
@@ -602,7 +602,7 @@ struct FTestTask_Stand : public FStateTreeTask2Base
 };
 
 USTRUCT()
-struct FTestTask_UseSmartObject : public FStateTreeTask2Base
+struct FTestTask_UseSmartObject : public FStateTreeTaskBase
 {
 	GENERATED_BODY()
 

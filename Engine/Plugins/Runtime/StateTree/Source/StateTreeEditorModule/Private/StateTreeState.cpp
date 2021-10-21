@@ -76,7 +76,7 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 					const int32 ArrayIndex = PropertyChangedEvent.GetArrayIndex(MemberProperty->GetFName().ToString());
 					if (Evaluators.IsValidIndex(ArrayIndex))
 					{
-						if (FStateTreeEvaluator2Base* Eval = Evaluators[ArrayIndex].Type.GetMutablePtr<FStateTreeEvaluator2Base>())
+						if (FStateTreeEvaluatorBase* Eval = Evaluators[ArrayIndex].Type.GetMutablePtr<FStateTreeEvaluatorBase>())
 						{
 							Eval->ID = FGuid::NewGuid();
 							Eval->Name = FName(Eval->Name.ToString() + TEXT(" Duplicate"));
@@ -88,7 +88,7 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 					const int32 ArrayIndex = PropertyChangedEvent.GetArrayIndex(MemberProperty->GetFName().ToString());
 					if (Tasks.IsValidIndex(ArrayIndex))
 					{
-						if (FStateTreeTask2Base* Task = Tasks[ArrayIndex].Type.GetMutablePtr<FStateTreeTask2Base>())
+						if (FStateTreeTaskBase* Task = Tasks[ArrayIndex].Type.GetMutablePtr<FStateTreeTaskBase>())
 						{
 							Task->ID = FGuid::NewGuid();
 							Task->Name = FName(Task->Name.ToString() + TEXT(" Duplicate"));
@@ -114,11 +114,11 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 
 #endif
 
-const FStateTreeTask2Base* UStateTreeState::GetTaskByID(FGuid InID) const
+const FStateTreeTaskBase* UStateTreeState::GetTaskByID(FGuid InID) const
 {
 	for (const FStateTreeTaskItem& TaskItem : Tasks)
 	{
-		if (const FStateTreeTask2Base* Task = TaskItem.Type.GetPtr<FStateTreeTask2Base>())
+		if (const FStateTreeTaskBase* Task = TaskItem.Type.GetPtr<FStateTreeTaskBase>())
 		{
 			if (Task->ID == InID)
 			{
@@ -129,11 +129,11 @@ const FStateTreeTask2Base* UStateTreeState::GetTaskByID(FGuid InID) const
 	return nullptr;
 }
 
-FStateTreeTask2Base* UStateTreeState::GetTaskByID(FGuid InID)
+FStateTreeTaskBase* UStateTreeState::GetTaskByID(FGuid InID)
 {
 	for (FStateTreeTaskItem& TaskItem : Tasks)
 	{
-		if (FStateTreeTask2Base* Task = TaskItem.Type.GetMutablePtr<FStateTreeTask2Base>())
+		if (FStateTreeTaskBase* Task = TaskItem.Type.GetMutablePtr<FStateTreeTaskBase>())
 		{
 			if (Task->ID == InID)
 			{

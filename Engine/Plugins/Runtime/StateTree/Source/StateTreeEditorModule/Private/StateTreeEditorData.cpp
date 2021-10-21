@@ -28,7 +28,7 @@ void UStateTreeEditorData::GetAccessibleStructs(const FGuid TargetStructID, TArr
 						OutStructDescs.Append(EvalDescs);
 
 						// Only tasks can see other tasks too.
-						if (Struct->IsChildOf(FStateTreeTask2Base::StaticStruct()))
+						if (Struct->IsChildOf(FStateTreeTaskBase::StaticStruct()))
 						{
 							OutStructDescs.Append(TaskDescs);
 						}
@@ -36,7 +36,7 @@ void UStateTreeEditorData::GetAccessibleStructs(const FGuid TargetStructID, TArr
 						return false; // Stop visit
 					}
 
-					if (Struct->IsChildOf(FStateTreeEvaluator2Base::StaticStruct()))
+					if (Struct->IsChildOf(FStateTreeEvaluatorBase::StaticStruct()))
 					{
 						// All evaluators up to the target struct are accessible.
 						FStateTreeBindableStructDesc& Desc = EvalDescs.AddDefaulted_GetRef();
@@ -44,7 +44,7 @@ void UStateTreeEditorData::GetAccessibleStructs(const FGuid TargetStructID, TArr
 						Desc.Name = Name;
 						Desc.ID = ID;
 					}
-					else if (Struct->IsChildOf(FStateTreeTask2Base::StaticStruct()))
+					else if (Struct->IsChildOf(FStateTreeTaskBase::StaticStruct()))
 					{
 						// All tasks up to the target struct are accessible (for other tasks).
 						FStateTreeBindableStructDesc& Desc = TaskDescs.AddDefaulted_GetRef();
@@ -130,7 +130,7 @@ void UStateTreeEditorData::VisitHierarchy(TFunctionRef<bool(const UStateTreeStat
 			// Evaluators
 			for (const FStateTreeEvaluatorItem& Item : State->Evaluators)
 			{
-				if (const FStateTreeEvaluator2Base* Evaluator = Item.Type.GetPtr<FStateTreeEvaluator2Base>())
+				if (const FStateTreeEvaluatorBase* Evaluator = Item.Type.GetPtr<FStateTreeEvaluatorBase>())
 				{
 					if (!InFunc(*State, Evaluator->ID, Evaluator->Name, Item.Type.GetScriptStruct()))
 					{
@@ -159,7 +159,7 @@ void UStateTreeEditorData::VisitHierarchy(TFunctionRef<bool(const UStateTreeStat
 				// Tasks
 				for (const FStateTreeTaskItem& Item : State->Tasks)
 				{
-					if (const FStateTreeTask2Base* Task = Item.Type.GetPtr<FStateTreeTask2Base>())
+					if (const FStateTreeTaskBase* Task = Item.Type.GetPtr<FStateTreeTaskBase>())
 					{
 						if (!InFunc(*State, Task->ID, Task->Name, Item.Type.GetScriptStruct()))
 						{

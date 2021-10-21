@@ -15,13 +15,13 @@ struct FStateTreeExecutionContext;
  * Evaluators calculate and expose data to be used for decision making in a StateTree.
  */
 USTRUCT()
-struct STATETREEMODULE_API FStateTreeEvaluator2Base // TODO: change to FStateTreeEvaluatorBase once UStateTreeEvaluatorBase is removed
+struct STATETREEMODULE_API FStateTreeEvaluatorBase // TODO: change to FStateTreeEvaluatorBase once UStateTreeEvaluatorBase is removed
 {
 	GENERATED_BODY()
 
-	FStateTreeEvaluator2Base() = default;
+	FStateTreeEvaluatorBase() = default;
 
-	virtual ~FStateTreeEvaluator2Base() {}
+	virtual ~FStateTreeEvaluatorBase() {}
 
 	/**
 	 * Called when a new state is entered and evaluator is part of active states. The change type parameter describes if the evaluator's state
@@ -79,4 +79,4 @@ struct STATETREEMODULE_API FStateTreeEvaluator2Base // TODO: change to FStateTre
 	uint16 SourceStructIndex = 0;									// Property binding Source Struct index of the evaluator.
 };
 
-template<> struct TStructOpsTypeTraits<FStateTreeEvaluator2Base> : public TStructOpsTypeTraitsBase2<FStateTreeEvaluator2Base> { enum { WithPureVirtual = true, }; };
+template<> struct TStructOpsTypeTraits<FStateTreeEvaluatorBase> : public TStructOpsTypeTraitsBase2<FStateTreeEvaluatorBase> { enum { WithPureVirtual = true, }; };
