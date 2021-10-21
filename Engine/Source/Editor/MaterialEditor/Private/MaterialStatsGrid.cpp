@@ -163,7 +163,6 @@ FStatsGridRow_Shaders::EShaderClass FStatsGridRow_Shaders::GetShaderClass(const 
 	{
 		case ERepresentativeShader::StationarySurface:
 		case ERepresentativeShader::StationarySurfaceCSM:
-		case ERepresentativeShader::StationarySurface1PointLight:
 		case ERepresentativeShader::StationarySurfaceNPointLights:
 		case ERepresentativeShader::DynamicallyLitObject:
 		case ERepresentativeShader::UIDefaultFragmentShader:

@@ -923,9 +923,7 @@ FReply SOculusToolWidget::MobileNumDynamicPointLightsFix(bool text)
 {
 	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
 	Settings->MobileNumDynamicPointLights = 0;
-	Settings->bMobileDynamicPointLightsUseStaticBranch = true;
 	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(URendererSettings, MobileNumDynamicPointLights)), Settings->GetDefaultConfigFilename());
-	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(URendererSettings, bMobileDynamicPointLightsUseStaticBranch)), Settings->GetDefaultConfigFilename());
 	SuggestRestart();
 	return FReply::Handled();
 }
@@ -933,7 +931,7 @@ FReply SOculusToolWidget::MobileNumDynamicPointLightsFix(bool text)
 EVisibility SOculusToolWidget::MobileNumDynamicPointLightsVisibility(FName tag) const
 {
 	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
-	if (Settings->MobileNumDynamicPointLights == 0 && Settings->bMobileDynamicPointLightsUseStaticBranch)
+	if (Settings->MobileNumDynamicPointLights == 0)
 	{
 		return EVisibility::Collapsed;
 	}

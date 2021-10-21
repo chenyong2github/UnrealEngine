@@ -129,42 +129,6 @@ bool MobileBasePass::GetShaders(
 			VertexShader,
 			PixelShader
 			);
-	case 1:
-		return GetMobileBasePassShaders<1>(
-			LightMapPolicyType, 
-			MaterialResource, 
-			VertexFactoryType, 
-			bEnableSkyLight, 
-			VertexShader,
-			PixelShader
-			);
-	case 2:
-		return GetMobileBasePassShaders<2>(
-			LightMapPolicyType,
-			MaterialResource,
-			VertexFactoryType,
-			bEnableSkyLight,
-			VertexShader,
-			PixelShader
-			);
-	case 3:
-		return GetMobileBasePassShaders<3>(
-			LightMapPolicyType,
-			MaterialResource,
-			VertexFactoryType,
-			bEnableSkyLight,
-			VertexShader,
-			PixelShader
-			);
-	case 4:
-		return GetMobileBasePassShaders<4>(
-			LightMapPolicyType,
-			MaterialResource,
-			VertexFactoryType,
-			bEnableSkyLight,
-			VertexShader,
-			PixelShader
-			);
 	case 0:
 	default:
 		return GetMobileBasePassShaders<0>(
@@ -202,7 +166,7 @@ int32 MobileBasePass::CalcNumMovablePointLights(const FMaterial& InMaterial, con
 	const FReadOnlyCVARCache& ReadOnlyCVARCache = FReadOnlyCVARCache::Get();
 	const bool bIsUnlit = InMaterial.GetShadingModels().IsUnlit();
 	int32 OutNumMovablePointLights = (InPrimitiveSceneProxy && !bIsUnlit) ? FMath::Min<int32>(InPrimitiveSceneProxy->GetPrimitiveSceneInfo()->NumMobileMovablePointLights, ReadOnlyCVARCache.NumMobileMovablePointLights) : 0;
-	if (OutNumMovablePointLights > 0 && ReadOnlyCVARCache.bMobileMovablePointLightsUseStaticBranch)
+	if (OutNumMovablePointLights > 0)
 	{
 		OutNumMovablePointLights = INT32_MAX;
 	}
