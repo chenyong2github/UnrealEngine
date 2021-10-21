@@ -199,14 +199,14 @@ namespace HordeServer.Collections.Impl
 			[BsonIgnoreIfNull]
 			public UserId? StartedByUserId { get; set; }
 
-			[BsonIgnoreIfNull]
-			public string? StartedByUser { get; set; }
+			[BsonIgnoreIfNull, BsonElement("StartedByUser")]
+			public string? StartedByUser_DEPRECATED { get; set; }
 
 			[BsonIgnoreIfNull]
 			public UserId? AbortedByUserId { get; set; }
 
-			[BsonIgnoreIfNull]
-			public string? AbortedByUser { get; set; }
+			[BsonIgnoreIfNull, BsonElement("AbortedByUser")]
+			public string? AbortedByUser_DEPRECATED { get; set; }
 
 			[BsonRequired]
 			public string Name { get; set; }
@@ -360,7 +360,7 @@ namespace HordeServer.Collections.Impl
 				Jobs.Indexes.CreateOne(new CreateIndexModel<JobDocument>(Builders<JobDocument>.IndexKeys.Ascending(x => x.CreateTimeUtc)));
 				Jobs.Indexes.CreateOne(new CreateIndexModel<JobDocument>(Builders<JobDocument>.IndexKeys.Ascending(x => x.UpdateTimeUtc)));
 				Jobs.Indexes.CreateOne(new CreateIndexModel<JobDocument>(Builders<JobDocument>.IndexKeys.Ascending(x => x.Name)));
-				Jobs.Indexes.CreateOne(new CreateIndexModel<JobDocument>(Builders<JobDocument>.IndexKeys.Ascending(x => x.StartedByUser)));
+				Jobs.Indexes.CreateOne(new CreateIndexModel<JobDocument>(Builders<JobDocument>.IndexKeys.Ascending(x => x.StartedByUserId)));
 				Jobs.Indexes.CreateOne(new CreateIndexModel<JobDocument>(Builders<JobDocument>.IndexKeys.Ascending(x => x.TemplateId)));
 				Jobs.Indexes.CreateOne(new CreateIndexModel<JobDocument>(Builders<JobDocument>.IndexKeys.Descending(x => x.SchedulePriority)));
 			}
@@ -689,7 +689,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> TryUpdateStepAsync(IJob Job, IGraph Graph, SubResourceId BatchId, SubResourceId StepId, JobStepState NewState, JobStepOutcome NewOutcome, bool? NewAbortRequested, string? NewAbortByUser, LogId? NewLogId, ObjectId? NewNotificationTriggerId, string? NewRetryByUser, Priority? NewPriority, List<Report>? NewReports, Dictionary<string, string?>? NewProperties)
+		public async Task<bool> TryUpdateStepAsync(IJob Job, IGraph Graph, SubResourceId BatchId, SubResourceId StepId, JobStepState NewState, JobStepOutcome NewOutcome, bool? NewAbortRequested, UserId? NewAbortByUserId, LogId? NewLogId, ObjectId? NewNotificationTriggerId, UserId? NewRetryByUserId, Priority? NewPriority, List<Report>? NewReports, Dictionary<string, string?>? NewProperties)
 		{
 			JobDocument JobDocument = (JobDocument)Job;
 
@@ -751,10 +751,10 @@ namespace HordeServer.Collections.Impl
 							}
 
 							// Update the user that requested the abort
-							if (NewAbortByUser != null && Step.AbortByUser == null)
+							if (NewAbortByUserId != null && Step.AbortedByUserId == null)
 							{
-								Step.AbortByUser = NewAbortByUser;
-								Updates.Add(UpdateBuilder.Set(x => x.Batches[BatchIdx].Steps[StepIdx].AbortByUser, Step.AbortByUser));
+								Step.AbortedByUserId = NewAbortByUserId;
+								Updates.Add(UpdateBuilder.Set(x => x.Batches[BatchIdx].Steps[StepIdx].AbortedByUserId, Step.AbortedByUserId));
 
 								bRefreshDependentJobSteps = true;
 							}
@@ -776,10 +776,10 @@ namespace HordeServer.Collections.Impl
 							}
 
 							// Update the retry flag
-							if (NewRetryByUser != null && Step.RetryByUser == null)
+							if (NewRetryByUserId != null && Step.RetriedByUserId == null)
 							{
-								Step.RetryByUser = NewRetryByUser;
-								Updates.Add(UpdateBuilder.Set(x => x.Batches[BatchIdx].Steps[StepIdx].RetryByUser, Step.RetryByUser));
+								Step.RetriedByUserId = NewRetryByUserId;
+								Updates.Add(UpdateBuilder.Set(x => x.Batches[BatchIdx].Steps[StepIdx].RetriedByUserId, Step.RetriedByUserId));
 
 								bRefreshBatches = true;
 							}
@@ -1228,7 +1228,7 @@ namespace HordeServer.Collections.Impl
 
 			// Find all the targets in this job
 			HashSet<string> Targets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-			if (Job.AbortedByUser == null)
+			if (Job.AbortedByUserId == null)
 			{
 				foreach (string Argument in Job.Arguments)
 				{

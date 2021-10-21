@@ -40,9 +40,9 @@ namespace HordeServerTests
 		{
 			Fixture _fixture = new Fixture();
 			await _fixture.Populate(GraphCollection, TemplateCollection, JobService, ArtifactCollection, StreamService, AgentService, PerforceService);
-			
-			(PerforceService as PerforceServiceStub)?.AddChange("//UE5/Main", 112233, "leet.coder", "Did stuff", new []{"file.cpp"});
-			(PerforceService as PerforceServiceStub)?.AddChange("//UE5/Main", 1111, "swarm", "A shelved CL here", new []{"renderer.cpp"});
+
+//			(PerforceService as PerforceServiceStub)?.AddChange("//UE5/Main", 112233, "leet.coder", "Did stuff", new []{"file.cpp"});
+//			(PerforceService as PerforceServiceStub)?.AddChange("//UE5/Main", 1111, "swarm", "A shelved CL here", new []{"renderer.cpp"});
 		
 			return _fixture;
 		}
@@ -92,14 +92,12 @@ namespace HordeServerTests
 				PreflightChange: 1001,
 				ClonedPreflightChange: null,
 				StartedByUserId: null,
-				StartedByUserName: "SomeUser",
 				Priority: Priority.Normal,
 				null,
 				null,
 				null,
 				false,
 				false,
-				null,
 				null,
 				null,
 				Arguments: new List<string>()
@@ -118,14 +116,12 @@ namespace HordeServerTests
 				PreflightChange: null,
 				ClonedPreflightChange: null,
 				StartedByUserId: null,
-				StartedByUserName: "SomeUser",
 				Priority: Priority.Normal,
 				null,
 				null,
 				null,
 				false,
 				false,
-				null,
 				null,
 				null,
 				Arguments: new List<string>()

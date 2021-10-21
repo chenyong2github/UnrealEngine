@@ -780,20 +780,20 @@ namespace HordeServer.Services
 		/// <param name="NewState">New state of the jobstep</param>
 		/// <param name="NewOutcome">New outcome of the jobstep</param>
 		/// <param name="NewAbortRequested">New state of abort request</param>
-		/// <param name="NewAbortByUser">New user that requested the abort</param>
+		/// <param name="NewAbortByUserId">New user that requested the abort</param>
 		/// <param name="NewLogId">New log id for the jobstep</param>
 		/// <param name="NewNotificationTriggerId">New notification trigger id for the jobstep</param>
-		/// <param name="NewRetryByUser">Whether the step should be retried</param>
+		/// <param name="NewRetryByUserId">Whether the step should be retried</param>
 		/// <param name="NewPriority">New priority for this step</param>
 		/// <param name="NewReports">New list of reports</param>
 		/// <param name="NewProperties">Property changes. Any properties with a null value will be removed.</param>
 		/// <returns>True if the job was updated, false if it was deleted in the meantime</returns>
-		public async Task<IJob?> UpdateStepAsync(IJob Job, SubResourceId BatchId, SubResourceId StepId, JobStepState NewState = JobStepState.Unspecified, JobStepOutcome NewOutcome = JobStepOutcome.Unspecified, bool? NewAbortRequested = null, string? NewAbortByUser = null, LogId? NewLogId = null, ObjectId? NewNotificationTriggerId = null, string? NewRetryByUser = null, Priority? NewPriority = null, List<Report>? NewReports = null, Dictionary<string, string?>? NewProperties = null)
+		public async Task<IJob?> UpdateStepAsync(IJob Job, SubResourceId BatchId, SubResourceId StepId, JobStepState NewState = JobStepState.Unspecified, JobStepOutcome NewOutcome = JobStepOutcome.Unspecified, bool? NewAbortRequested = null, UserId? NewAbortByUserId = null, LogId? NewLogId = null, ObjectId? NewNotificationTriggerId = null, UserId? NewRetryByUserId = null, Priority? NewPriority = null, List<Report>? NewReports = null, Dictionary<string, string?>? NewProperties = null)
 		{
 			using IDisposable Scope = Logger.BeginScope("UpdateStepAsync({JobId})", Job.Id);
 			for (; ;)
 			{
-				if (await TryUpdateStepAsync(Job, BatchId, StepId, NewState, NewOutcome, NewAbortRequested, NewAbortByUser, NewLogId, NewNotificationTriggerId, NewRetryByUser, NewPriority, NewReports, NewProperties))
+				if (await TryUpdateStepAsync(Job, BatchId, StepId, NewState, NewOutcome, NewAbortRequested, NewAbortByUserId, NewLogId, NewNotificationTriggerId, NewRetryByUserId, NewPriority, NewReports, NewProperties))
 				{
 					return Job;
 				}
@@ -817,15 +817,15 @@ namespace HordeServer.Services
 		/// <param name="NewState">New state of the jobstep</param>
 		/// <param name="NewOutcome">New outcome of the jobstep</param>
 		/// <param name="NewAbortRequested">New state for request abort</param>
-		/// <param name="NewAbortByUser">New name of user that requested the abort</param>
+		/// <param name="NewAbortByUserId">New name of user that requested the abort</param>
 		/// <param name="NewLogId">New log id for the jobstep</param>
 		/// <param name="NewTriggerId">New trigger id for the jobstep</param>
-		/// <param name="NewRetryByUser">Whether the step should be retried</param>
+		/// <param name="NewRetryByUserId">Whether the step should be retried</param>
 		/// <param name="NewPriority">New priority for this step</param>
 		/// <param name="NewReports">New reports</param>
 		/// <param name="NewProperties">Property changes. Any properties with a null value will be removed.</param>
 		/// <returns>True if the job was updated, false if it was deleted in the meantime</returns>
-		public async Task<bool> TryUpdateStepAsync(IJob Job, SubResourceId BatchId, SubResourceId StepId, JobStepState NewState = JobStepState.Unspecified, JobStepOutcome NewOutcome = JobStepOutcome.Unspecified, bool? NewAbortRequested = null, string? NewAbortByUser = null, LogId? NewLogId = null, ObjectId? NewTriggerId = null, string? NewRetryByUser = null, Priority? NewPriority = null, List<Report>? NewReports = null, Dictionary<string, string?>? NewProperties = null)
+		public async Task<bool> TryUpdateStepAsync(IJob Job, SubResourceId BatchId, SubResourceId StepId, JobStepState NewState = JobStepState.Unspecified, JobStepOutcome NewOutcome = JobStepOutcome.Unspecified, bool? NewAbortRequested = null, UserId? NewAbortByUserId = null, LogId? NewLogId = null, ObjectId? NewTriggerId = null, UserId? NewRetryByUserId = null, Priority? NewPriority = null, List<Report>? NewReports = null, Dictionary<string, string?>? NewProperties = null)
 		{
 			using IDisposable Scope = Logger.BeginScope("TryUpdateStepAsync({JobId})", Job.Id);
 
@@ -852,7 +852,7 @@ namespace HordeServer.Services
 			}
 
 			// Update the step
-			if (await Jobs.TryUpdateStepAsync(Job, Graph, BatchId, StepId, NewState, NewOutcome, NewAbortRequested, NewAbortByUser, NewLogId, NewTriggerId, NewRetryByUser, NewPriority, NewReports, NewProperties))
+			if (await Jobs.TryUpdateStepAsync(Job, Graph, BatchId, StepId, NewState, NewOutcome, NewAbortRequested, NewAbortByUserId, NewLogId, NewTriggerId, NewRetryByUserId, NewPriority, NewReports, NewProperties))
 			{
 				using IScope DdScope = GlobalTracer.Instance.BuildSpan("TryUpdateStepAsync").StartActive();
 				DdScope.Span.SetTag("JobId", Job.Id.ToString());

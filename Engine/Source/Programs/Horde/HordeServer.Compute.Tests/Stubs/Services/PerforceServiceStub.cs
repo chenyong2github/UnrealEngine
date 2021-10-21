@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Perforce;
+using HordeServer.Collections;
 using HordeServer.Models;
 using HordeServer.Services;
 using HordeServer.Utilities;
@@ -49,36 +50,34 @@ namespace HordeServerTests.Stubs.Services
 			}
 		}
 
+		User TestUser = new User("TestUser");
+
 		class ChangeComparer : IComparer<int>
 		{
 			public int Compare(int X, int Y) => Y.CompareTo(X);
 		}
 
-		Dictionary<string, User> NameToUser = new Dictionary<string, User>();
+		Dictionary<string, IUser> NameToUser = new Dictionary<string, IUser>(StringComparer.OrdinalIgnoreCase);
 		public Dictionary<string, SortedDictionary<int, ChangeDetails>> Changes { get; } = new Dictionary<string, SortedDictionary<int, ChangeDetails>>(StringComparer.OrdinalIgnoreCase);
+
+		IUserCollection UserCollection;
+
+		public PerforceServiceStub(IUserCollection UserCollection)
+		{
+			this.UserCollection = UserCollection;
+		}
 
 		public Task<NativePerforceConnection?> GetServiceUserConnection(string? ClusterName)
 		{
 			throw new NotImplementedException();
 		}
 
-		IUser FindOrAddUser(string UserName)
+		public async ValueTask<IUser> FindOrAddUserAsync(string ClusterName, string UserName)
 		{
-			User? User;
-			if (!NameToUser.TryGetValue(UserName, out User))
-			{
-				User = new User(UserName);
-				NameToUser.Add(UserName, User);
-			}
-			return User;
+			return await UserCollection.FindOrAddUserByLoginAsync(UserName);
 		}
 
-		public ValueTask<IUser> FindOrAddUserAsync(string ClusterName, string UserName)
-		{
-			return new ValueTask<IUser>(FindOrAddUser(UserName));
-		}
-
-		public void AddChange(string StreamName, int Number, string Author, string Description, IEnumerable<string> Files)
+		public void AddChange(string StreamName, int Number, IUser Author, string Description, IEnumerable<string> Files)
 		{
 			SortedDictionary<int, ChangeDetails>? StreamChanges;
 			if (!Changes.TryGetValue(StreamName, out StreamChanges))
@@ -86,7 +85,7 @@ namespace HordeServerTests.Stubs.Services
 				StreamChanges = new SortedDictionary<int, ChangeDetails>(new ChangeComparer());
 				Changes[StreamName] = StreamChanges;
 			}
-			StreamChanges.Add(Number, new ChangeDetails(Number, FindOrAddUser(Author), null!, Description, Files.Select(x => PerforceExtensions.CreateChangeFile(x)).ToList(), DateTime.Now));
+			StreamChanges.Add(Number, new ChangeDetails(Number, Author, null!, Description, Files.Select(x => PerforceExtensions.CreateChangeFile(x)).ToList(), DateTime.Now));
 		}
 
 		public Task<List<ChangeSummary>> GetChangesAsync(string ClusterName, string StreamName, int? MinChange, int? MaxChange, int NumResults, string? ImpersonateUser)
@@ -158,7 +157,7 @@ namespace HordeServerTests.Stubs.Services
 
 		public Task<int> CreateNewChangeAsync(string ClusterName, string StreamName, string Path)
 		{
-			ChangeDetails NewChange = new ChangeDetails(Changes[StreamName].First().Key + 1, FindOrAddUser("system"), null!, "", new List<ChangeFile> { PerforceExtensions.CreateChangeFile(Path) }, DateTime.Now);
+			ChangeDetails NewChange = new ChangeDetails(Changes[StreamName].First().Key + 1, TestUser, null!, "", new List<ChangeFile> { PerforceExtensions.CreateChangeFile(Path) }, DateTime.Now);
 			Changes[StreamName].Add(NewChange.Number, NewChange);
 			return Task.FromResult(NewChange.Number);
 		}
