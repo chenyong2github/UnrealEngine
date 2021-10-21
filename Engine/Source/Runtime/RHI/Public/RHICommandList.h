@@ -2977,6 +2977,7 @@ public:
 		}
 	}
 
+	UE_DEPRECATED(5.0, "Use FRayTracingSceneBuildParams instead.")
 	FORCEINLINE_DEBUGGABLE void BuildAccelerationStructure(FRHIRayTracingScene* Scene)
 	{
 		FRayTracingSceneBuildParams Params;

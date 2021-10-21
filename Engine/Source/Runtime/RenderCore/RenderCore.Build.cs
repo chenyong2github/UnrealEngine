@@ -5,8 +5,10 @@ using UnrealBuildTool;
 public class RenderCore : ModuleRules
 {
 	public RenderCore(ReadOnlyTargetRules Target) : base(Target)
-    {
-        PublicDependencyModuleNames.AddRange(new string[] { "RHI" });
+	{
+		PrivateIncludePaths.Add("../Shaders/Shared");
+
+		PublicDependencyModuleNames.AddRange(new string[] { "RHI" });
 
 		PrivateIncludePathModuleNames.AddRange(new string[] { "TargetPlatform" });
 

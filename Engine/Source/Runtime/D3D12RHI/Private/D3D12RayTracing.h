@@ -26,6 +26,11 @@ public:
 	FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const FRayTracingGeometryInitializer& Initializer);
 	~FD3D12RayTracingGeometry();
 
+	virtual FRayTracingAccelerationStructureAddress GetAccelerationStructureAddress(uint64 GPUIndex) const final override
+	{
+		checkf(IsInRHIThread(), TEXT("Acceleration structure addresses can only be accessed on RHI timeline due to compaction and defragmentation."));
+		return AccelerationStructureBuffers[GPUIndex]->ResourceLocation.GetGPUVirtualAddress();
+	}
 	virtual uint32 GetNumSegments() const final override { return Segments.Num(); }
 
 	void SetupHitGroupSystemParameters(uint32 InGPUIndex);
@@ -93,7 +98,7 @@ public:
 	// Scaling beyond 5 total threads does not yield any speedup in practice.
 	static constexpr uint32 MaxBindingWorkers = 5; // RHI thread + 4 parallel workers.
 
-	FD3D12RayTracingScene(FD3D12Adapter* Adapter, FRayTracingSceneInitializer2 Initializer);
+	FD3D12RayTracingScene(FD3D12Adapter* Adapter, FRayTracingSceneInitializer2 Initializer, TResourceArray<D3D12_RAYTRACING_INSTANCE_DESC, 16> Instances, TArray<uint32> PerInstanceNumTransforms);
 	~FD3D12RayTracingScene();
 
 	const FRayTracingSceneInitializer2& GetInitializer() const override final { return Initializer; }
@@ -103,8 +108,7 @@ public:
 
 	void BuildAccelerationStructure(FD3D12CommandContext& CommandContext,
 		FD3D12Buffer* ScratchBuffer, uint32 ScratchBufferOffset,
-		FD3D12Buffer* InstanceBuffer, uint32 InstanceBufferOffset,
-		uint32 NumInstanceDescs
+		FD3D12Buffer* InstanceBuffer, uint32 InstanceBufferOffset
 	);
 
 	FShaderResourceViewRHIRef ShaderResourceView;
@@ -112,20 +116,14 @@ public:
 	TRefCountPtr<FD3D12Buffer> AccelerationStructureBuffers[MAX_NUM_GPUS];
 	uint32 BufferOffset = 0;
 
-	TResourceArray<D3D12_RAYTRACING_INSTANCE_DESC, 16> Instances;
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS BuildInputs = {};
 
 	FRayTracingAccelerationStructureSize SizeInfo = {};
 
-	struct FInstanceCopyCommand
-	{
-		FShaderResourceViewRHIRef Source;
-		int32 BaseIndex = -1;
-		int32 Num = 0;
-	};
-	TArray<FInstanceCopyCommand> CopyCommands;
-
 	const FRayTracingSceneInitializer2 Initializer;
+
+	TResourceArray<D3D12_RAYTRACING_INSTANCE_DESC, 16> Instances;
+	TArray<uint32> PerInstanceNumTransforms;
 
 	// Scene keeps track of child acceleration structure buffers to ensure
 	// they are resident when any ray tracing work is dispatched.

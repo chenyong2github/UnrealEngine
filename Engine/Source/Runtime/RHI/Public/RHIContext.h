@@ -404,18 +404,13 @@ struct FRayTracingSceneBuildParams
 	FRHIBuffer* ResultBuffer = nullptr;
 	uint32 ResultBufferOffset = 0;
 
-	// Optional explicit build scratch buffer. Must be in UAV state.
-	// Scratch buffer will be created automatically if this is not provided.
+	// Scratch buffer used to build Acceleration structure. Must be in UAV state.
 	FRHIBuffer* ScratchBuffer = nullptr;
 	uint32 ScratchBufferOffset = 0;
 
-	// Optional explicit buffer of native ray tracing instance descriptors. Must be in SRV state.
-	// Instance list will be taken from the scene if this is not provided.
+	// Buffer of native ray tracing instance descriptors. Must be in SRV state.
 	FRHIBuffer* InstanceBuffer = nullptr;
 	uint32 InstanceBufferOffset = 0;
-
-	// Number of elements in the InstanceBuffer. Only used if InstanceBuffer is provided.
-	uint32 NumInstances = 0;
 };
 
 struct FCopyBufferRegionParams

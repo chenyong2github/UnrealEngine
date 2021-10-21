@@ -1483,7 +1483,6 @@ public:
 
 #if RHI_RAYTRACING
 	bool HasRayTracingScene() const;
-	FRHIRayTracingScene* GetRayTracingScene() const; // Soft-deprecated method, use FScene.RayTracingScene instead.
 	FRHIRayTracingScene* GetRayTracingSceneChecked() const; // Soft-deprecated method, use FScene.RayTracingScene instead.
 	FRHIShaderResourceView* GetRayTracingSceneViewChecked() const; // Soft-deprecated method, use FScene.RayTracingScene instead.
 

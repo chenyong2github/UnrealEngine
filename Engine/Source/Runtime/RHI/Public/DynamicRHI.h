@@ -257,11 +257,6 @@ struct FRayTracingSceneInitializer
 
 struct FRayTracingSceneInitializer2
 {
-	// WIP - need these arrays until building instance buffer is moved to higher level code
-	// will be removed before 5.0 release
-	TArrayView<FRayTracingGeometryInstance> Instances;
-	TArray<uint32> PerInstanceNumTransforms;
-
 	// Unique list of geometries referenced by all instances in this scene.
 	// Any referenced geometry is kept alive while the scene is alive.
 	TArray<FRayTracingGeometryRHIRef> ReferencedGeometries;
