@@ -6,6 +6,7 @@
 #include "Quaternion.h"
 #include "GameFramework/Actor.h"
 #include "Components/PrimitiveComponent.h"
+#include "SceneQueries/SceneSnappingManager.h"
 
 
 static double VISUAL_ANGLE_SNAP_THRESHOLD_DEG = 1.0;
@@ -157,11 +158,16 @@ bool ToolSceneQueriesUtil::FindSceneSnapPoint(FFindSceneSnapPointParams& Params)
 {
 	double UseThreshold = (Params.VisualAngleThreshold <= 0) ? GetDefaultVisualAngleSnapThreshD() : Params.VisualAngleThreshold;
 
+	USceneSnappingManager* SnapManager = USceneSnappingManager::Find(Params.Tool->GetToolManager());
+	if (!SnapManager)
+	{
+		return false;
+	}
+
 	FViewCameraState CameraState;
 	Params.Tool->GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
 	UseThreshold *= CameraState.GetFOVAngleNormalizationFactor();
 
-	IToolsContextQueriesAPI* QueryAPI = Params.Tool->GetToolManager()->GetContextQueriesAPI();
 	FSceneSnapQueryRequest Request;
 	Request.RequestType = ESceneSnapQueryType::Position;
 	Request.TargetTypes = ESceneSnapQueryTargetType::None;
@@ -179,7 +185,7 @@ bool ToolSceneQueriesUtil::FindSceneSnapPoint(FFindSceneSnapPointParams& Params)
 	Request.InvisibleComponentsToInclude = Params.InvisibleComponentsToInclude;
 
 	TArray<FSceneSnapQueryResult> Results;
-	if (QueryAPI->ExecuteSceneSnapQuery(Request, Results))
+	if (SnapManager->ExecuteSceneSnapQuery(Request, Results))
 	{
 		*Params.SnapPointOut = (FVector3d)Results[0].Position;
 
@@ -210,13 +216,18 @@ bool ToolSceneQueriesUtil::FindSceneSnapPoint(FFindSceneSnapPointParams& Params)
 
 bool ToolSceneQueriesUtil::FindWorldGridSnapPoint(const UInteractiveTool* Tool, const FVector3d& Point, FVector3d& GridSnapPointOut)
 {
-	IToolsContextQueriesAPI* QueryAPI = Tool->GetToolManager()->GetContextQueriesAPI();
+	USceneSnappingManager* SnapManager = USceneSnappingManager::Find(Tool->GetToolManager());
+	if (!SnapManager)
+	{
+		return false;
+	}
+
 	FSceneSnapQueryRequest Request;
 	Request.RequestType = ESceneSnapQueryType::Position;
 	Request.TargetTypes = ESceneSnapQueryTargetType::Grid;
 	Request.Position = (FVector)Point;
 	TArray<FSceneSnapQueryResult> Results;
-	if ( QueryAPI->ExecuteSceneSnapQuery(Request, Results) )
+	if ( SnapManager->ExecuteSceneSnapQuery(Request, Results) )
 	{
 		GridSnapPointOut = (FVector3d)Results[0].Position;
 		return true;

@@ -20,6 +20,7 @@
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "Selection/PersistentMeshSelectionManager.h"
 #include "Selection/StoredMeshSelectionUtil.h"
+#include "Snapping/ModelingSceneSnappingManager.h"
 
 #include "Features/IModularFeatures.h"
 #include "ModelingModeToolExtensions.h"
@@ -325,6 +326,9 @@ void UModelingToolsEditorMode::Enter()
 
 	// register gizmo helper
 	UE::TransformGizmoUtil::RegisterTransformGizmoContextObject(GetInteractiveToolsContext());
+
+	// register snapping manager
+	UE::Geometry::RegisterSceneSnappingManager(GetInteractiveToolsContext());
 
 	// register selection manager, if this feature is enabled in the mode settings
 	const UModelingToolsEditorModeSettings* ModelingModeSettings = GetDefault<UModelingToolsEditorModeSettings>();
@@ -762,6 +766,9 @@ void UModelingToolsEditorMode::Exit()
 	// will be called before our Exit()
 	//UE::TransformGizmoUtil::DeregisterTransformGizmoContextObject(ToolsContext.Get());
 	
+	// deregister snapping manager
+	UE::Geometry::DeregisterSceneSnappingManager(GetInteractiveToolsContext());
+
 	// TODO: cannot deregister currently because if another mode is also registering, its Enter()
 	// will be called before our Exit()
 	UEditorModelingObjectsCreationAPI* ObjectCreationAPI = UEditorModelingObjectsCreationAPI::Find(GetInteractiveToolsContext());

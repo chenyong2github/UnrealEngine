@@ -3,6 +3,7 @@
 #include "AddPrimitiveTool.h"
 #include "ToolBuilderUtil.h"
 #include "InteractiveToolManager.h"
+#include "SceneQueries/SceneSnappingManager.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "Selection/ToolSelectionUtil.h"
 #include "ModelingObjectsCreationAPI.h"
@@ -248,14 +249,18 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 	// Snap to grid if applicable
 	if (ShapeSettings->bSnapToGrid)
 	{
-		FSceneSnapQueryRequest Request;
-		Request.RequestType = ESceneSnapQueryType::Position;
-		Request.TargetTypes = ESceneSnapQueryTargetType::Grid;
-		Request.Position = ShapeFrame.Origin;
-		TArray<FSceneSnapQueryResult> Results;
-		if (GetToolManager()->GetContextQueriesAPI()->ExecuteSceneSnapQuery(Request, Results))
+		USceneSnappingManager* SnapManager = USceneSnappingManager::Find(GetToolManager());
+		if (SnapManager)
 		{
-			ShapeFrame.Origin = Results[0].Position;
+			FSceneSnapQueryRequest Request;
+			Request.RequestType = ESceneSnapQueryType::Position;
+			Request.TargetTypes = ESceneSnapQueryTargetType::Grid;
+			Request.Position = ShapeFrame.Origin;
+			TArray<FSceneSnapQueryResult> Results;
+			if (SnapManager->ExecuteSceneSnapQuery(Request, Results))
+			{
+				ShapeFrame.Origin = Results[0].Position;
+			}
 		}
 	}
 
