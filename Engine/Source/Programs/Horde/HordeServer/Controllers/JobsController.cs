@@ -158,7 +158,7 @@ namespace HordeServer.Controllers
 			List<string> Arguments = Create.Arguments ?? Template.GetDefaultArguments();
 
 			// Create the job
-			IJob Job = await JobService.CreateJobAsync(null, Stream, TemplateRefId, Template.Id, Graph, Name, Change, CodeChange, Create.PreflightChange, null, User.GetUserId(), User.GetUserName(), Priority, Create.AutoSubmit, Create.UpdateIssues, TemplateRef.ChainedJobs, TemplateRef.ShowUgsBadges, TemplateRef.ShowUgsAlerts, TemplateRef.NotificationChannel, TemplateRef.NotificationChannelFilter, null, Arguments);
+			IJob Job = await JobService.CreateJobAsync(null, Stream, TemplateRefId, Template.Id, Graph, Name, Change, CodeChange, Create.PreflightChange, null, User.GetUserId(), Priority, Create.AutoSubmit, Create.UpdateIssues, TemplateRef.ChainedJobs, TemplateRef.ShowUgsBadges, TemplateRef.ShowUgsAlerts, TemplateRef.NotificationChannel, TemplateRef.NotificationChannelFilter, Arguments);
 			await UpdateNotificationsAsync(Job.Id, new UpdateNotificationsRequest { Slack = true });
 			return new CreateJobResponse(Job.Id.ToString());
 		}
@@ -244,13 +244,13 @@ namespace HordeServer.Controllers
 				Request.Arguments = null;
 			}
 
-			string? AbortedByUser = null;
+			UserId? AbortedByUserId = null;
 			if (Request.Aborted ?? false)
 			{
-				AbortedByUser = User.Identity?.Name;
+				AbortedByUserId = User.GetUserId();
 			}
 
-			if (!await JobService.UpdateJobAsync(Job, Name: Request.Name, Priority: Request.Priority, AutoSubmit: Request.AutoSubmit, AbortedByUser: AbortedByUser, Arguments: Request.Arguments))
+			if (!await JobService.UpdateJobAsync(Job, Name: Request.Name, Priority: Request.Priority, AutoSubmit: Request.AutoSubmit, AbortedByUserId: AbortedByUserId, Arguments: Request.Arguments))
 			{
 				return NotFound();
 			}
@@ -389,9 +389,9 @@ namespace HordeServer.Controllers
 			}
 
 			GetThinUserInfoResponse? AbortedByUserInfo = null;
-			if (Job.AbortedByUser != null)
+			if (Job.AbortedByUserId != null)
 			{
-				AbortedByUserInfo = new GetThinUserInfoResponse(await UserCollection.FindOrAddUserByLoginAsync(Job.AbortedByUser));
+				AbortedByUserInfo = new GetThinUserInfoResponse(await UserCollection.GetCachedUserAsync(Job.AbortedByUserId.Value));
 			}
 
 			GetAclResponse? AclResponse = null;
@@ -443,15 +443,15 @@ namespace HordeServer.Controllers
 		async ValueTask<GetStepResponse> CreateStepResponseAsync(IJobStep Step)
 		{
 			GetThinUserInfoResponse? AbortedByUserInfo = null;
-			if (Step.AbortByUser != null)
+			if (Step.AbortedByUserId != null)
 			{
-				AbortedByUserInfo = new GetThinUserInfoResponse(await UserCollection.FindOrAddUserByLoginAsync(Step.AbortByUser));
+				AbortedByUserInfo = new GetThinUserInfoResponse(await UserCollection.GetCachedUserAsync(Step.AbortedByUserId.Value));
 			}
 
 			GetThinUserInfoResponse? RetriedByUserInfo = null;
-			if (Step.RetryByUser != null)
+			if (Step.RetriedByUserId != null)
 			{
-				RetriedByUserInfo = new GetThinUserInfoResponse(await UserCollection.FindOrAddUserByLoginAsync(Step.RetryByUser));
+				RetriedByUserInfo = new GetThinUserInfoResponse(await UserCollection.GetCachedUserAsync(Step.RetriedByUserId.Value));
 			}
 
 			return new GetStepResponse(Step, AbortedByUserInfo, RetriedByUserInfo);
