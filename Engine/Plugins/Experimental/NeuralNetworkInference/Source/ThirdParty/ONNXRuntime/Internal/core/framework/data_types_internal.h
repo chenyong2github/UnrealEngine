@@ -10,11 +10,11 @@
 #include <type_traits>
 #include <vector>
 
+#include "boost/mp11.hpp"
+
 #include "ThirdPartyWarningDisabler.h" // #ifdef WITH_UE
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
-#include "boost/mp11.hpp"
-
 #include "core/common/common.h"
 #include "core/common/type_list.h"
 #include "core/framework/data_types.h"

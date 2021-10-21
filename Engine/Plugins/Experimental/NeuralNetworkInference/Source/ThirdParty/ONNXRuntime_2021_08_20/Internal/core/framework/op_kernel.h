@@ -3,11 +3,7 @@
 
 #pragma once
 
-#include "ThirdPartyWarningDisabler.h" // #ifdef WITH_UE
-NNI_THIRD_PARTY_INCLUDES_START
-#undef check
 #include "boost/mp11.hpp"
-NNI_THIRD_PARTY_INCLUDES_END // #endif //WITH_UE
 
 // It is safe to include the below header even if SHARED_PROVIDER macro is enabled
 // as it doesn't include any pb headers.
@@ -27,6 +23,7 @@ NNI_THIRD_PARTY_INCLUDES_END // #endif //WITH_UE
 #include "core/framework/sparse_tensor.h"
 #include "core/graph/constants.h"
 #include "core/graph/graph_viewer.h"
+#include "ThirdPartyWarningDisabler.h" // #ifdef WITH_UE
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
 #if !defined(ORT_MINIMAL_BUILD)
@@ -36,8 +33,8 @@ NNI_THIRD_PARTY_INCLUDES_START
 #endif
 #include "onnx/onnx_pb.h"
 #include "onnx/onnx-operators_pb.h"
-#include "gsl/gsl"
 NNI_THIRD_PARTY_INCLUDES_END // #endif //WITH_UE
+#include "gsl/gsl"
 
 namespace onnxruntime {
 class OpKernelContext;

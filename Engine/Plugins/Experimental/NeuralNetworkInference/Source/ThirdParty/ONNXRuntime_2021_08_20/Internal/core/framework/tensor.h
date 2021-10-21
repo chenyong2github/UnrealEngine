@@ -8,11 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "ThirdPartyWarningDisabler.h" // #ifdef WITH_UE
-NNI_THIRD_PARTY_INCLUDES_START
-#undef check
 #include "gsl/gsl"
-NNI_THIRD_PARTY_INCLUDES_END // #endif //WITH_UE
 
 #include "core/common/common.h"
 #include "core/framework/allocator.h"

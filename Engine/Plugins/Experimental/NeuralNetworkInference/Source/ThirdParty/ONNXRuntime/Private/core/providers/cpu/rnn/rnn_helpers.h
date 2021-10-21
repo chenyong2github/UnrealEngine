@@ -17,10 +17,11 @@
 #include "core/common/safeint.h"
 #include "core/platform/threadpool.h"
 
+#include "gsl/gsl"
+
 #include "ThirdPartyWarningDisabler.h" // WITH_UE
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
-#include "gsl/gsl"
 
 namespace onnxruntime {
 class Tensor;

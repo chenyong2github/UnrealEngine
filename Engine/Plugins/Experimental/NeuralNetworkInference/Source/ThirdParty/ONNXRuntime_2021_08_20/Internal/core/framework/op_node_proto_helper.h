@@ -7,11 +7,7 @@
 #include "core/common/status.h"
 #include "core/graph/graph_viewer.h"
 
-#include "ThirdPartyWarningDisabler.h" // #ifdef WITH_UE
-NNI_THIRD_PARTY_INCLUDES_START
-#undef check
 #include "gsl/gsl"
-NNI_THIRD_PARTY_INCLUDES_END // #endif //WITH_UE
 #endif
 
 #ifdef __has_attribute
