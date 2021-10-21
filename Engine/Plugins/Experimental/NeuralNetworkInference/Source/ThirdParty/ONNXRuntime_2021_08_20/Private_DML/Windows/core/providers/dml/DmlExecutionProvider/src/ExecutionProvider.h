@@ -35,7 +35,7 @@ namespace Dml
     {
     public:
 #ifdef WITH_UE
-        ExecutionProviderImpl(
+        explicit ExecutionProviderImpl(
 #else //WITH_UE
         explicit ExecutionProviderImpl::ExecutionProviderImpl(
 #endif //WITH_UE
@@ -221,9 +221,7 @@ namespace Dml
         ComPtr<ExecutionProviderImpl> m_impl;
     };
 
-#ifdef WITH_UE
-    class OrtDMLGPUResourceAllocatorWrapper;
-#endif //WITH_UE
+    class OrtDMLGPUResourceAllocatorWrapper; // WITH_UE
 
     class ExecutionProvider : public onnxruntime::IExecutionProvider
     {
@@ -234,11 +232,7 @@ namespace Dml
         explicit ExecutionProvider(
             IDMLDevice* dmlDevice,
             ID3D12CommandQueue* commandQueue,
-            bool enableMetacommands = true
-#ifdef WITH_UE
-            , OrtDMLGPUResourceAllocator** resourceAllocator = nullptr
-#endif //WITH_UE
-        );
+            bool enableMetacommands = true, OrtDMLGPUResourceAllocator** resourceAllocator = nullptr); // WITH_UE: Added resourceAllocator
         
         std::unique_ptr<onnxruntime::IDataTransfer> GetDataTransfer() const final override
         {
@@ -296,9 +290,7 @@ namespace Dml
 
     private:
         ComPtr<ExecutionProviderImpl> m_impl;
-#ifdef WITH_UE
-        std::unique_ptr<OrtDMLGPUResourceAllocatorWrapper> m_resourceAlloc;
-#endif //WITH_UE
+        std::unique_ptr<OrtDMLGPUResourceAllocatorWrapper> m_resourceAlloc; // WITH_UE
     };
 
 } // namespace Dml

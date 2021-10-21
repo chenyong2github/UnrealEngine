@@ -3,9 +3,7 @@
 
 #pragma once
 
-#ifdef WITH_UE
-#include "precomp.h"
-#endif //WITH_UE
+#include "precomp.h" // WITH_UE
 
 namespace Dml
 {
@@ -74,9 +72,7 @@ namespace Dml
         uint32_t index;
     };
 
-#ifdef WITH_UE
-    std::optional<uint32_t> TryMapStringToIndex(std::string_view mode, gsl::span<const NameAndIndex> nameAndIndexList);
-#endif WITH_UE
+    std::optional<uint32_t> TryMapStringToIndex(std::string_view mode, gsl::span<const NameAndIndex> nameAndIndexList); // WITH_UE
 
     template<typename T>
     std::optional<T> TryMapStringToIndex(std::string_view mode, gsl::span<const NameAndIndex> nameAndIndexList)
@@ -86,9 +82,7 @@ namespace Dml
         return *reinterpret_cast<std::optional<T>*>(std::addressof(result));
     }
 
-#ifndef WITH_UE
-    std::optional<uint32_t> TryMapStringToIndex(std::string_view mode, gsl::span<const NameAndIndex> nameAndIndexList);
-#endif WITH_UE
+    std::optional<uint32_t> TryMapStringToIndex(std::string_view mode, gsl::span<const NameAndIndex> nameAndIndexList); // WITH_UE
 
     DML_INTERPOLATION_MODE MapStringToInteropolationMode(std::string_view mode);
 

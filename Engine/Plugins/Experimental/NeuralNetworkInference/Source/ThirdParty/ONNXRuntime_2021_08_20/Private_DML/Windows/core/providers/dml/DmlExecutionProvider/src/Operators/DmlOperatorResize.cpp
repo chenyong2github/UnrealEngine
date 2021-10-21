@@ -213,12 +213,12 @@ public:
         // Find any useless dimensions of size 1 that occur in both input and output.
         for (size_t i = 0, rank = m_outputDimensions.size(); i < rank; ++i)
         {
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
             if (m_inputDimensions[i] = 1 && m_outputDimensions[i] == 1)
-#else // WITH_UE
+#else //__clang__
             m_inputDimensions[i] = 1;
             if (m_inputDimensions[i] && (m_outputDimensions[i] == 1))
-#endif // WITH_UE
+#endif //__clang__
             {
                 squeezableDimensionIndices.push_back(gsl::narrow_cast<uint32_t>(i));
             }

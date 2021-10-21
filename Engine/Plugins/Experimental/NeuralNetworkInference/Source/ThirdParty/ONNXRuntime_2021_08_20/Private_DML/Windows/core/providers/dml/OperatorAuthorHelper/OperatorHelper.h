@@ -24,9 +24,9 @@ std::vector<DimensionType> BroadcastTensorShape(
 // e.g. input values = {2,1,3,1,1,5}
 //      value = 1
 //      output indices = {1,3,4}
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
 #pragma optimize("", off)
-#endif // WITH_UE
+#endif //__clang__
 template <typename T>
 void FindValueIndices(gsl::span<const T> values, T value, /*out*/ std::vector<uint32_t>& indices) {
   indices.clear();
@@ -38,9 +38,9 @@ void FindValueIndices(gsl::span<const T> values, T value, /*out*/ std::vector<ui
     }
   }
 }
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
 #pragma optimize("", on)
-#endif // WITH_UE
+#endif //__clang__
 
 // Convert any negative axis into an absolute axis relative to the back end.
 // So given 3 dimensions, a -1 refers to axis 2, and -3 to axis 0.
@@ -344,11 +344,11 @@ public:
         m_inputTensorIndex(inputTensorIndex),
         m_filterTensorIndex(filterTensorIndex)
     {
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
         m_groupCount = info.GetOptionalAttribute<uint32_t>(AttrName::Group, 1);
-#else // WITH_UE
+#else //__clang__
         m_groupCount = info.template GetOptionalAttribute<uint32_t>(AttrName::Group, 1);
-#endif // WITH_UE
+#endif //__clang__
         
         if (!transpose)
         {
@@ -515,19 +515,19 @@ public:
     GemmHelper(const Info_t& info, const Shape_t& shape)
     {
         ORT_UNUSED_PARAMETER(shape);
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
         m_transA = info.GetOptionalAttribute<int>(AttrName::TransA, 0);
         m_transB = info.GetOptionalAttribute<int>(AttrName::TransB, 0);
         m_broadcast = info.GetOptionalAttribute<int>(AttrName::Broadcast, 0);
         m_alpha = info.GetOptionalAttribute<float>(AttrName::Alpha, 1.0f);
         m_beta = info.GetOptionalAttribute<float>(AttrName::Beta, 0.0f);
-#else // WITH_UE
+#else //__clang__
         m_transA = info.template GetOptionalAttribute<int>(AttrName::TransA, 0);
         m_transB = info.template GetOptionalAttribute<int>(AttrName::TransB, 0);
         m_broadcast = info.template GetOptionalAttribute<int>(AttrName::Broadcast, 0);
         m_alpha = info.template GetOptionalAttribute<float>(AttrName::Alpha, 1.0f);
         m_beta = info.template GetOptionalAttribute<float>(AttrName::Beta, 0.0f);
-#endif // WITH_UE
+#endif //__clang__
     }
 
   std::vector<EdgeShapes> GetOutputShapes(const MLShapeInferenceContext& shapeInfo) const;
@@ -752,21 +752,21 @@ class ReduceHelperBase {
   // Shape_t is used to obtain input shape which will be used for adjusting attribute value.
   template <typename Info_t, typename Shape_t>
   ReduceHelperBase(const Info_t& info, const Shape_t& shape, bool usingAxes) {
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
     m_keepDims = info.GetOptionalAttribute<int>(AttrName::KeepDims, 1);
     m_selectLastIndex = info.GetOptionalAttribute<int>(AttrName::SelectLastIndex, 0);
-#else // WITH_UE
+#else //__clang__
     m_keepDims = info.template GetOptionalAttribute<int>(AttrName::KeepDims, 1);
     m_selectLastIndex = info.template GetOptionalAttribute<int>(AttrName::SelectLastIndex, 0);
-#endif // WITH_UE
+#endif //__clang__
     if (usingAxes) {
       m_axes = info.GetOptionalAttributeVectorInt32(AttrName::Axes);
     } else {
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
       int axis = info.GetOptionalAttribute<int>(AttrName::Axis, 0);
-#else // WITH_UE
+#else //__clang__
       int axis = info.template GetOptionalAttribute<int>(AttrName::Axis, 0);
-#endif // WITH_UE
+#endif //__clang__
       m_axes.push_back(axis);
     }
     std::vector<uint32_t> inputShape = shape.GetInputTensorShape(0);
@@ -908,21 +908,21 @@ class TopKHelper {
       MLOperatorTensor kTensor = info.GetConstantInputTensor(1);
       k = gsl::narrow_cast<int32_t>(ReadScalarTensorCastToInt64(kTensor));
     } else {
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
       k = info.GetOptionalAttribute<int32_t>(AttrName::K, -1);
-#else // WITH_UE
+#else //__clang__
       k = info.template GetOptionalAttribute<int32_t>(AttrName::K, -1);
-#endif // WITH_UE
+#endif //__clang__
     }
     ML_CHECK_VALID_ARGUMENT(k >= 0, "Attribute k is missing or negative.");
     m_k = k;
 
     auto inputShape = shape.GetInputTensorShape(0);
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
     int32_t axis = info.GetOptionalAttribute<int32_t>(AttrName::Axis, -1);
-#else // WITH_UE
+#else //__clang__
     int32_t axis = info.template GetOptionalAttribute<int32_t>(AttrName::Axis, -1);
-#endif // WITH_UE
+#endif //__clang__
     m_axis = HandleNegativeAxis(axis, gsl::narrow_cast<uint32_t>(inputShape.size()));
   }
 
@@ -939,11 +939,11 @@ class RecurrentHelper {
   // Shape_t is used to obtain input shape which will be used for adjusting attribute value.
   template <typename Info_t, typename Shape_t>
   RecurrentHelper(const Info_t& info, const Shape_t& shape) {
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
     m_hiddenSize = info.GetOptionalAttribute<int>(AttrName::HiddenSize, 1);
-#else // WITH_UE
+#else //__clang__
     m_hiddenSize = info.template GetOptionalAttribute<int>(AttrName::HiddenSize, 1);
-#endif // WITH_UE
+#endif //__clang__
   }
 
   std::vector<EdgeShapes> GetOutputShapes(const MLShapeInferenceContext& shapeInfo) const;
@@ -1004,11 +1004,11 @@ class DepthToSpaceHelper {
   // Shape_t is used to obtain input shape which will be used for adjusting attribute value.
   template <typename Info_t, typename Shape_t>
   DepthToSpaceHelper(const Info_t& info, const Shape_t& shape) {
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
     m_blockSize = info.GetOptionalAttribute<int32_t>(AttrName::BlockSize, -1);
-#else // WITH_UE
+#else //__clang__
     m_blockSize = info.template GetOptionalAttribute<int32_t>(AttrName::BlockSize, -1);
-#endif // WITH_UE
+#endif //__clang__
     ML_CHECK_VALID_ARGUMENT(m_blockSize > 0, "Attribute blocksize is missing or equal to zero.");
   }
 
@@ -1024,11 +1024,11 @@ class SpaceToDepthHelper {
   // Shape_t is used to obtain input shape which will be used for adjusting attribute value.
   template <typename Info_t, typename Shape_t>
   SpaceToDepthHelper(const Info_t& info, const Shape_t& shape) {
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
     m_blockSize = info.GetOptionalAttribute<int32_t>(AttrName::BlockSize, -1);
-#else // WITH_UE
+#else //__clang__
     m_blockSize = info.template GetOptionalAttribute<int32_t>(AttrName::BlockSize, -1);
-#endif // WITH_UE
+#endif //__clang__
     ML_CHECK_VALID_ARGUMENT(m_blockSize > 0, "Attribute blocksize is missing or equal to zero.");
   }
 
@@ -1092,11 +1092,11 @@ class GatherNdHelper {
   // Shape_t is used to obtain input shape which will be used for adjusting attribute value.
   template <typename Info_t, typename Shape_t>
   GatherNdHelper(const Info_t& info, const Shape_t& shape) {
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
     m_batchCount = info.GetOptionalAttribute<int32_t>(AttrName::BatchDimensions, 0);
-#else // WITH_UE
+#else //__clang__
     m_batchCount = info.template GetOptionalAttribute<int32_t>(AttrName::BatchDimensions, 0);
-#endif // WITH_UE
+#endif //__clang__
   }
 
   std::vector<EdgeShapes> GetOutputShapes(const MLShapeInferenceContext& shapeInfo) const;
@@ -1205,13 +1205,13 @@ public:
     template <typename Info_t, typename Shape_t>
     RoiAlignHelper(const Info_t& info, const Shape_t& shape, uint32_t opsetVersion)
     {
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
         m_outputSizeW = info.GetOptionalAttribute<uint32_t>(AttrName::OutputWidth, 1);
         m_outputSizeH = info.GetOptionalAttribute<uint32_t>(AttrName::OutputHeight, 1);
-#else // WITH_UE
+#else //__clang__
         m_outputSizeW = info.template GetOptionalAttribute<uint32_t>(AttrName::OutputWidth, 1);
         m_outputSizeH = info.template GetOptionalAttribute<uint32_t>(AttrName::OutputHeight, 1);
-#endif // WITH_UE
+#endif //__clang__
     }
 
     std::vector<EdgeShapes> GetOutputShapes(const MLShapeInferenceContext& shapeInfo) const;
@@ -1388,11 +1388,11 @@ class ResizeHelper {
     } else
     {
       // From attribute, compatible with Upsample-7.
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
       m_scales = info.GetOptionalAttribute<std::vector<float>>(AttrName::Scales, std::vector<float>());
-#else // WITH_UE
+#else //__clang__
       m_scales = info.template GetOptionalAttribute<std::vector<float>>(AttrName::Scales, std::vector<float>());
-#endif // WITH_UE
+#endif //__clang__
     }
 
     Initialize(outputSizes);
@@ -1450,11 +1450,11 @@ class OneHotHelper {
     const std::vector<DimensionType> inputDimensions = shapeInfo.GetInputTensorShape(0);
     std::vector<uint32_t> outputDimensions;
 
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
     m_onnxAxis = info.GetOptionalAttribute<int32_t>(AttrName::Axis, -1);
-#else // WITH_UE
+#else //__clang__
     m_onnxAxis = info.template GetOptionalAttribute<int32_t>(AttrName::Axis, -1);
-#endif // WITH_UE
+#endif //__clang__
 
     // Get 'depth' tensor, which is really a scalar for the output size along the given axis.
     MLOperatorTensor shapeTensor = info.GetConstantInputTensor(1);

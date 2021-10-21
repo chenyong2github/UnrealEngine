@@ -193,11 +193,11 @@ namespace Dml
             // Return the resource to the bucket
             Bucket* bucket = &m_pool[bucketIndex];
             
-#if (!defined(WITH_UE) || !defined(__clang__)) // WITH_UE: Fixing Clang error
+#ifndef __clang__ // WITH_UE
             Resource resource = {std::move(allocInfo->DetachResource()), pooledResourceId};
-#else // WITH_UE: Fixing Clang error
+#else //__clang__
             Resource resource = {allocInfo->DetachResource(), pooledResourceId};
-#endif // WITH_UE
+#endif //__clang__
             bucket->resources.push_back(resource);
         }
         else

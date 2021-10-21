@@ -25,10 +25,7 @@ namespace Dml::GraphDescBuilder
 
         assert(false);
         THROW_HR(E_UNEXPECTED);
-#ifdef WITH_UE
-        const onnxruntime::NodeArg* arg = node.OutputDefs()[0];
-        return arg->Name();
-#endif //WITH_UE
+        return node.OutputDefs()[0]->Name(); // WITH_UE
     }
 
     GraphDesc BuildGraphDesc(
