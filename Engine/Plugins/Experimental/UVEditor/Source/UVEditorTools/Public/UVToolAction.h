@@ -33,10 +33,19 @@ public:
 			Target = nullptr;
 		}
 	}
-	virtual bool ExecuteAction(UUVToolEmitChangeAPI& EmitChangeAPI) { return true; };
+	virtual bool ExecuteAction(UUVToolEmitChangeAPI& EmitChangeAPI) { 
+		if (!PreCheckAction()) {
+			return false;
+		}
+
+		return ApplyAction(EmitChangeAPI);
+	};
 	virtual void UpdateVisualizations() {};
 
 protected:
+
+	virtual bool PreCheckAction() { return true; };
+	virtual bool ApplyAction(UUVToolEmitChangeAPI& EmitChangeAPI) { return true; };
 
 	UPROPERTY()
 	TArray<TObjectPtr<UUVEditorToolMeshInput>> Targets;

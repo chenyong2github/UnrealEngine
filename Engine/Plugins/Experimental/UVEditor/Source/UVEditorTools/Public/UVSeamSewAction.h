@@ -46,8 +46,6 @@ public:
 	void Shutdown() override;
 
 	void SetSelection(int32 SelectionTargetIndexIn, const UE::Geometry::FDynamicMeshSelection* NewSelection);
-	virtual void Tick(float DeltaTime) override;
-	virtual bool ExecuteAction(UUVToolEmitChangeAPI& EmitChangeAPI) override;
 	virtual void UpdateVisualizations() override;
 
 protected:
@@ -61,10 +59,10 @@ protected:
 	TObjectPtr<ULineSetComponent> SewEdgePairingLineSet = nullptr;
 
 	int32 SelectionTargetIndex;
-	const UE::Geometry::FDynamicMeshSelection* CurrentSelection;
+	TSharedPtr<UE::Geometry::FDynamicMeshSelection> CurrentSelection;
 
 	int32 FindSewEdgeOppositePairing(int32 UnwrapEid) const;
-	bool PreCheckSewAction() const;
-	bool ApplySewAction(UUVToolEmitChangeAPI& EmitChangeAPI);
+	bool PreCheckAction() override;
+	bool ApplyAction(UUVToolEmitChangeAPI& EmitChangeAPI) override;
 	void UpdateSewEdgePreviewLines();
 };

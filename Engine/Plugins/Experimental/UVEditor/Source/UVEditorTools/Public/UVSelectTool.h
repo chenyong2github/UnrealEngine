@@ -29,6 +29,7 @@ class UUVToolStateObjectStore;
 class UPreviewMesh;
 class UUVEditorToolMeshInput;
 class UUVSeamSewAction;
+class UUVIslandConformalUnwrapAction;
 class UUVToolEmitChangeAPI;
 class UUVToolViewportButtonsAPI;
 
@@ -82,6 +83,7 @@ enum class ESelectToolAction
 	NoAction,
 
 	Sew,
+	IslandConformalUnwrap
 };
 
 UCLASS()
@@ -95,9 +97,13 @@ public:
 	void Initialize(UUVSelectTool* ParentToolIn) { ParentTool = ParentToolIn; }
 	void PostAction(ESelectToolAction Action);
 
-	/** Move the mirror plane to center of bounding box without changing its normal. */
+	/* Sew selected boundary edges together topologically in the UV set */
 	UFUNCTION(CallInEditor, Category = Actions)
 	void Sew();
+
+	/* Apply a conformal unwrap to the selected UV islands */
+	UFUNCTION(CallInEditor, Category = Actions)
+	void IslandConformalUnwrap();
 
 };
 
@@ -196,6 +202,9 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UUVSeamSewAction> SewAction = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UUVIslandConformalUnwrapAction> IslandConformalUnwrapAction = nullptr;
 
 	UE::Geometry::FFrame3d InitialGizmoFrame;
 	FTransform UnappliedGizmoTransform;

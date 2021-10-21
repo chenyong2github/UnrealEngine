@@ -20,6 +20,7 @@
 #include "ToolSetupUtil.h"
 
 #include "UVSeamSewAction.h"
+#include "UVIslandConformalUnwrapAction.h"
 
 #include "ToolTargetManager.h"
 
@@ -206,6 +207,11 @@ void  USelectToolActionPropertySet::Sew()
 	PostAction(ESelectToolAction::Sew);
 }
 
+void  USelectToolActionPropertySet::IslandConformalUnwrap()
+{
+	PostAction(ESelectToolAction::IslandConformalUnwrap);
+}
+
 void USelectToolActionPropertySet::PostAction(ESelectToolAction Action)
 {
 	if (ParentTool.IsValid())
@@ -334,6 +340,10 @@ void UUVSelectTool::Setup()
 	SewAction->SetTargets(Targets);
 	SewAction->SetWorld(Targets[0]->UnwrapPreview->GetWorld());
 
+	IslandConformalUnwrapAction = NewObject<UUVIslandConformalUnwrapAction>();
+	IslandConformalUnwrapAction->Setup(this);
+	IslandConformalUnwrapAction->SetTargets(Targets);
+	IslandConformalUnwrapAction->SetWorld(Targets[0]->UnwrapPreview->GetWorld());
 
 	if (!SelectionMechanic->GetCurrentSelection().IsEmpty())
 	{
@@ -371,6 +381,11 @@ void UUVSelectTool::Shutdown(EToolShutdownType ShutdownType)
 	if (SewAction)
 	{
 		SewAction->Shutdown();
+	}
+
+	if (IslandConformalUnwrapAction)
+	{
+		IslandConformalUnwrapAction->Shutdown();
 	}
 
 	// Calls shutdown on gizmo and destroys it.
@@ -558,6 +573,7 @@ void UUVSelectTool::OnSelectionChanged()
 	}
 
 	SewAction->SetSelection(SelectionTargetIndex, &Selection);
+	IslandConformalUnwrapAction->SetSelection(SelectionTargetIndex, &Selection);
 
 	UpdateLivePreviewLines();
 	UpdateGizmo();
@@ -697,6 +713,7 @@ void UUVSelectTool::ApplyGizmoTransform()
 
 		bGizmoTransformNeedsApplication = false;
 		SewAction->UpdateVisualizations();
+		IslandConformalUnwrapAction->UpdateVisualizations();
 	}
 }
 
@@ -737,20 +754,25 @@ void UUVSelectTool::ApplyAction(ESelectToolAction ActionType)
 	case ESelectToolAction::Sew:
 		if (SewAction)
 		{
+			const FText TransactionName(LOCTEXT("SewCompleteTransactionName", "Sew Edges"));
+			EmitChangeAPI->BeginUndoTransaction(TransactionName);
+
+			SelectionMechanic->SetSelection(FDynamicMeshSelection(), false, true);
 			bool ActionSuccessful = SewAction->ExecuteAction(*EmitChangeAPI);
 
-			if (ActionSuccessful)
-			{
-				if (!AABBTrees[SelectionTargetIndex]->IsValid(false))
-				{
-					AABBTrees[SelectionTargetIndex]->Build();
-				}
+			EmitChangeAPI->EndUndoTransaction();
+		}
+		break;
+	case ESelectToolAction::IslandConformalUnwrap:
+		if (IslandConformalUnwrapAction)
+		{
+			const FText TransactionName(LOCTEXT("ConformalUnwrapCompleteTransactionName", "Conformal Unwrap Islands"));
+			EmitChangeAPI->BeginUndoTransaction(TransactionName);
 
-				// TODO: Emit a selection update instead of just clearing things here. If we do
-				// still clear, remember that SelectionTargetIndex gets updated, so either do it
-				// here or save a pointer to input object before doing stuff.
-				SelectionMechanic->SetSelection(FDynamicMeshSelection(), true, false);
-			}
+			SelectionMechanic->SetSelection(FDynamicMeshSelection(), false, true);
+			bool ActionSuccessful = IslandConformalUnwrapAction->ExecuteAction(*EmitChangeAPI);
+
+			EmitChangeAPI->EndUndoTransaction();
 		}
 		break;
 	default:
