@@ -359,6 +359,10 @@ bool FMeshBoolean::Compute()
 	{ // (just for scope)
 		// first decide what triangles to delete for both meshes (*before* deleting anything so winding doesn't get messed up!)
 		TArray<bool> KeepTri[2];
+		// This array is used to double-check the assumption that we will delete the other surface when we keep a coplanar tri
+		// Note we only need it for mesh 0 (i.e., the mesh we try to keep triangles from when we preserve coplanar surfaces)
+		TArray<int32> DeleteIfOtherKept;
+		DeleteIfOtherKept.Init(-1, CutMesh[0]->MaxTriangleID());
 		for (int MeshIdx = 0; MeshIdx < NumMeshesToProcess; MeshIdx++)
 		{
 			TFastWindingTree<FDynamicMesh3> Winding(&Spatial[1 - MeshIdx]);
@@ -430,7 +434,15 @@ bool FMeshBoolean::Compute()
 									}
 									else // for the first mesh, & with a valid normal, logic depends on orientation of matching tri
 									{
-										KeepTri[MeshIdx][TID] = DotNormals > 0 == bCoplanarKeepSameDir;
+										bool bKeep = DotNormals > 0 == bCoplanarKeepSameDir;
+										KeepTri[MeshIdx][TID] = bKeep;
+										if (bKeep)
+										{
+											// If we kept this tri, remember the coplanar pair we expect to be deleted, in case
+											// it isn't deleted (e.g. because it wasn't coplanar); to then delete this one instead.
+											// This can help clean up sliver triangles near a cut boundary that look locally coplanar
+											DeleteIfOtherKept[TID] = OtherTID;
+										}
 										return;
 									}
 								}
@@ -442,6 +454,21 @@ bool FMeshBoolean::Compute()
 					double WindingNum = Winding.FastWindingNumber(Centroid);
 					KeepTri[MeshIdx][TID] = (WindingNum > WindingThreshold) != bRemoveInside;
 				});
+		}
+
+		// Don't keep coplanar tris if the matched, second-mesh tri that we expected to delete was actually kept
+		for (int TID : CutMesh[0]->TriangleIndicesItr())
+		{
+			int32 DeleteIfOtherKeptTID = DeleteIfOtherKept[TID];
+			if (DeleteIfOtherKeptTID > -1 && KeepTri[1][DeleteIfOtherKeptTID])
+			{
+				KeepTri[0][TID] = false;
+			}
+		}
+
+		for (int MeshIdx = 0; MeshIdx < NumMeshesToProcess; MeshIdx++)
+		{
+			FDynamicMesh3& ProcessMesh = *CutMesh[MeshIdx];
 			for (int EID : ProcessMesh.EdgeIndicesItr())
 			{
 				FDynamicMesh3::FEdge Edge = ProcessMesh.GetEdge(EID);

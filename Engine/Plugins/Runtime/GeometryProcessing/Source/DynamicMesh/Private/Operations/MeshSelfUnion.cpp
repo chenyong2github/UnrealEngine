@@ -175,11 +175,13 @@ bool FMeshSelfUnion::Compute()
 	{ // (just for scope)
 		// decide what triangles to delete
 		TArray<bool> KeepTri;
+		TArray<int32> DeleteIfOtherKept;
 		TFastWindingTree<FDynamicMesh3> Winding(&Spatial);
 		int MaxTriID = Mesh->MaxTriangleID();
 		KeepTri.SetNumUninitialized(MaxTriID);
+		DeleteIfOtherKept.Init(-1, MaxTriID);
 		
-		ParallelFor(MaxTriID, [this, &Spatial, &Normals, &TriToComponentID, &KeepTri, &Winding](int TID)
+		ParallelFor(MaxTriID, [this, &Spatial, &Normals, &TriToComponentID, &KeepTri, &DeleteIfOtherKept, &Winding](int TID)
 		{
 			if (!Mesh->IsTriangle(TID))
 			{
@@ -200,9 +202,10 @@ bool FMeshSelfUnion::Compute()
 				double DSq;
 				int MyComponentID = TriToComponentID[TID];
 				IMeshSpatial::FQueryOptions QueryOptions(SnapTolerance,
-					[&TriToComponentID, MyComponentID](int OtherTID)
+					[&Normals, &TriToComponentID, MyComponentID](int OtherTID)
 					{
-						return TriToComponentID[OtherTID] != MyComponentID;
+						// By convention, the normal for degenerate triangles is the zero vector
+						return !Normals[OtherTID].IsZero() && TriToComponentID[OtherTID] != MyComponentID;
 					}
 				);
 				int OtherTID = Spatial.FindNearestTriangle(Centroid, DSq, QueryOptions);
@@ -225,7 +228,7 @@ bool FMeshSelfUnion::Compute()
 						}
 						if (bAllTrisOnOtherComponent)
 						{
-							if (DotNormals < 0)
+							if (DotNormals <= 0) // include zero in range to also discard degenerate triangles w/ zero normals
 							{
 								KeepTri[TID] = false;
 							}
@@ -236,6 +239,13 @@ bool FMeshSelfUnion::Compute()
 								int OtherComponentID = TriToComponentID[OtherTID];
 								bool bHasPriority = MyComponentID < OtherComponentID;
 								KeepTri[TID] = bHasPriority;
+								if (bHasPriority)
+								{
+									// If we kept this tri, remember the coplanar pair we expect to be deleted, in case
+									// it isn't deleted (e.g. because it wasn't coplanar); to then delete this one instead.
+									// This can help clean up sliver triangles near a cut boundary that look locally coplanar
+									DeleteIfOtherKept[TID] = OtherTID;
+								}
 							}
 							return;
 						}
@@ -245,6 +255,16 @@ bool FMeshSelfUnion::Compute()
 			// didn't already return a coplanar result; use the winding-number-based decision
 			KeepTri[TID] = bKeep;
 		});
+
+		// Don't keep coplanar tris if the matched, "lower priority" tri that we expected to delete was actually kept
+		for (int TID : Mesh->TriangleIndicesItr())
+		{
+			int32 DeleteIfOtherKeptTID = DeleteIfOtherKept[TID];
+			if (DeleteIfOtherKeptTID > -1 && KeepTri[DeleteIfOtherKeptTID])
+			{
+				KeepTri[TID] = false;
+			}
+		}
 
 		// track where we will create new boundary edges
 		for (int EID : Mesh->EdgeIndicesItr())
