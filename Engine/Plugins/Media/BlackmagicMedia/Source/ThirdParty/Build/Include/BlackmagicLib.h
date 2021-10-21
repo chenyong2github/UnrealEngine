@@ -42,6 +42,25 @@ namespace BlackmagicDesign
 		ProgressiveSegmentedFrame,
 	};
 
+	enum class EAudioBitDepth
+	{
+		Signed_16Bits,
+		Signed_32Bits
+	};
+
+	enum class EAudioChannelConfiguration : uint8_t
+	{
+		Channels_2 = 2,
+		Channels_8 = 8,
+		Channels_16 = 16
+	};
+
+	enum class EAudioSampleRate
+	{
+		SR_48kHz
+	};
+
+
 	namespace Private
 	{
 		class DeviceScanner;
@@ -110,6 +129,15 @@ namespace BlackmagicDesign
 		bool operator==(FFormatInfo& Other) const;
 
 	};
+	
+	/* FAudioFormat definition
+	*****************************************************************************/
+	struct UEBLACKMAGICDESIGN_API FAudioFormat
+	{
+		EAudioBitDepth BitDepth;
+		EAudioChannelConfiguration ChannelConfigration;
+		bool operator==(FAudioFormat& Other) const;
+	};
 
 	/* FChannelInfo definition
 	*****************************************************************************/
@@ -150,6 +178,10 @@ namespace BlackmagicDesign
 		int32_t CallbackPriority;
 		EPixelFormat PixelFormat;
 
+		EAudioSampleRate AudioSampleRate;
+		EAudioBitDepth AudioBitDepth;
+		EAudioChannelConfiguration NumAudioChannels;
+
 		uint32_t NumberOfBuffers;
 
 		ETimecodeFormat TimecodeFormat;
@@ -157,6 +189,7 @@ namespace BlackmagicDesign
 
 		bool bOutputKey;
 		bool bOutputVideo;
+		bool bOutputAudio;
 		bool bOutputInterlacedFieldsTimecodeNeedToMatch;
 		bool bLogDropFrames;
 	};
@@ -232,13 +265,24 @@ namespace BlackmagicDesign
 
 	struct UEBLACKMAGICDESIGN_API FFrameDescriptor
 	{
-		uint8_t* VideoBuffer;
-		int32_t VideoWidth;
-		int32_t VideoHeight;
+		uint8_t* VideoBuffer = nullptr;
+		int32_t VideoWidth = 0;
+		int32_t VideoHeight = 0;
 
 		FTimecode Timecode;
-		uint32_t FrameIdentifier;
+		uint32_t FrameIdentifier = 0;
 	};
+
+	struct UEBLACKMAGICDESIGN_API FAudioSamplesDescriptor
+	{
+		uint8_t* AudioBuffer = nullptr;
+		int32_t AudioBufferLength = 0;
+		int32_t NumAudioSamples = 0;
+
+		FTimecode Timecode;
+		uint32_t FrameIdentifier = 0;
+	};
+	
 
 	/* BlackmagicDeviceScanner definition
 	*****************************************************************************/
@@ -339,4 +383,5 @@ namespace BlackmagicDesign
 	UEBLACKMAGICDESIGN_API FUniqueIdentifier RegisterOutputChannel(const FChannelInfo& InChannelInfo, const FOutputChannelOptions& InChannelOptions, ReferencePtr<IOutputEventCallback> InCallback);
 	UEBLACKMAGICDESIGN_API void UnregisterOutputChannel(const FChannelInfo& InChannelInfo, FUniqueIdentifier InIdentifier, bool bCallCompleted);
 	UEBLACKMAGICDESIGN_API bool SendVideoFrameData(const FChannelInfo& InChannelInfo, const FFrameDescriptor& InFrame);
+	UEBLACKMAGICDESIGN_API bool SendAudioSamples(const FChannelInfo& InChannelInfo, const FAudioSamplesDescriptor& InSamples);
 };

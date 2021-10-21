@@ -18,6 +18,23 @@ enum class EAjaMediaOutputPixelFormat : uint8
 	PF_10BIT_YUV UMETA(DisplayName = "10bit YUV"),
 };
 
+UENUM()
+enum class EAjaMediaOutputAudioSampleRate : uint32
+{
+	SR_48k = 48000 UMETA(DisplayName = "48 kHz")
+};
+
+/**
+ * Number of output audio channels
+ */
+UENUM()
+enum class EAjaMediaOutputChannelConfiguration : uint8
+{
+	CH_6 =   6 UMETA(DisplayName = "6 Channels"),
+	CH_8 =   8 UMETA(DisplayName = "8 Channels"),
+	CH_16 = 16 UMETA(DisplayName = "16 Channels")
+};
+
 /**
  * Output information for an aja media capture.
  * @note	'Frame Buffer Pixel Format' must be set to at least 8 bits of alpha to enabled the Key.
@@ -57,6 +74,22 @@ public:
 	/** Invert Key Output */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Output")
 	bool bInvertKeyOutput;
+
+	/** Whether to capture and output audio from the engine. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Output")
+	bool bOutputAudio;
+	
+	/** Size of the buffer that holds rendered audio samples, a bigger buffer will produce a more stable output signal but will introduce more delay. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Output")
+	int32 AudioBufferSize = 5*1024;
+	
+	/** Number of audio channels used when output audio on the card. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Output")
+	EAjaMediaOutputChannelConfiguration NumOutputAudioChannels = EAjaMediaOutputChannelConfiguration::CH_8;
+	
+	/** Audio output sample rate. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Output")
+	EAjaMediaOutputAudioSampleRate AudioSampleRate = EAjaMediaOutputAudioSampleRate::SR_48k;
 
 	/**
 	 * Number of frame used to transfer from the system memory to the AJA card.

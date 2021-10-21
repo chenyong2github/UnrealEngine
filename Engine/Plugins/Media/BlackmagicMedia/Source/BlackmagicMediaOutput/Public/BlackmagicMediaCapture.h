@@ -77,4 +77,12 @@ private:
 
 	/** Last frame drop count to detect count */
 	uint64 LastFrameDropCount_BlackmagicThread;
+
+	/** Holds an audio output that will receive samples from the media io core subsystem. */
+	TSharedPtr<class FMediaIOAudioOutput> AudioOutput;
+
+	EBlackmagicMediaOutputAudioBitDepth AudioBitDepth = EBlackmagicMediaOutputAudioBitDepth::Signed_16Bits;
+
+	bool bOutputAudio = false;
+	
 };
