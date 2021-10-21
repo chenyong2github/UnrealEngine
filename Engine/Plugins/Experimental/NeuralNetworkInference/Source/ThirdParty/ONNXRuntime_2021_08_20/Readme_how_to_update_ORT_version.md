@@ -210,6 +210,7 @@ git push
 ```
 ################################################## PARAMETERS ##################################################
 $ORT_PARENT_PATH = "D:/Users/gineshidalgo99/Desktop/ONNXRuntime" # "D:/Users/gines.hidalgo/Desktop/ONNXRuntime"
+$FINAL_COMMIT_HASH = "4028e51e7e6421fdbeca5f4e4ccd8b4f790d0fd5" # The one NNI's ORT will be using after this merge
 
 ################################################## AUTOMATIC SCRIPT ##################################################
 $ORT_PATH = "${ORT_PARENT_PATH}/onnxruntime"
@@ -255,6 +256,7 @@ cp -r -fo ${ORT_PATH}/onnxruntime/test/testdata/custom_op_library/custom_op_libr
 cp -r -fo ${ORT_PATH}/onnxruntime/test/testdata/custom_op_library/custom_op_library.h ${ORT_CODE_TO_PUSH_TO_NNI}/Private/test/testdata/custom_op_library/custom_op_library.h
 
 # Individual files
+ni ${ORT_CODE_TO_PUSH_TO_NNI}/$FINAL_COMMIT_HASH
 cp $ORT_FROM_NNI/ONNXRuntime.Build.cs ${ORT_CODE_TO_PUSH_TO_NNI}/ONNXRuntime.Build.cs
 cp $ORT_FROM_NNI/ONNXRuntime.tps ${ORT_CODE_TO_PUSH_TO_NNI}/ONNXRuntime.tps
 cp $ORT_FROM_NNI/Readme_how_to_update_ORT_version.md ${ORT_CODE_TO_PUSH_TO_NNI}/Readme_how_to_update_ORT_version.md
