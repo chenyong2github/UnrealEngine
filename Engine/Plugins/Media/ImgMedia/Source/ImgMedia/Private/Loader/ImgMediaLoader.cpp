@@ -261,12 +261,6 @@ IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTi
 			// Modulo with sequence duration to take care of looping.
 			StartTime = ModuloTime(StartTime);
 			EndTime = ModuloTime(EndTime);
-
-			// If we get an EndTime before the StartTime, the end was precisely on the end of the media data -> we adjust this for simpler code below
-			if (EndTime < StartTime)
-			{
-				EndTime += SequenceDuration;
-			}
 		}
 
 		// Get start and end frame indices for this time range.
