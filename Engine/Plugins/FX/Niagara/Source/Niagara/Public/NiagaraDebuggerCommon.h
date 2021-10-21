@@ -592,6 +592,41 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 	UPROPERTY(Config, EditAnywhere, Category = "Perf Overview", meta = (EditCondition = "bEnableSmoothing"))
 	int32 SmoothingWidth = 4;
 
+	// Default background color used generally for panels
+	UPROPERTY(EditAnywhere, Category = "Colors")
+	FLinearColor DefaultBackgroundColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
+
+	// Overview heading text color
+	UPROPERTY(EditAnywhere, Category = "Colors")
+	FLinearColor OverviewHeadingColor = FLinearColor::Green;
+
+	// Overview detail text color
+	UPROPERTY(EditAnywhere, Category = "Colors")
+	FLinearColor OverviewDetailColor = FLinearColor::White;
+
+	// Overview detail highlight text color
+	UPROPERTY(EditAnywhere, Category = "Colors")
+	FLinearColor OverviewDetailHighlightColor = FLinearColor::Yellow;
+
+	// In world text if an error is detected
+	UPROPERTY(EditAnywhere, Category = "Colors")
+	FLinearColor InWorldErrorTextColor = FLinearColor(1.0f, 0.4, 0.3, 1.0f);
+	// In world text color
+	UPROPERTY(EditAnywhere, Category = "Colors")
+	FLinearColor InWorldTextColor = FLinearColor::White;
+
+	// Message display text color
+	UPROPERTY(EditAnywhere, Category = "Colors")
+	FLinearColor MessageInfoTextColor = FLinearColor::White;
+
+	// Message display warning text color
+	UPROPERTY(EditAnywhere, Category = "Colors")
+	FLinearColor MessageWarningTextColor = FLinearColor(0.9f, 0.7f, 0.0, 1.0f);
+
+	// Message display error text color
+	UPROPERTY(EditAnywhere, Category = "Colors")
+	FLinearColor MessageErrorTextColor = FLinearColor(1.0f, 0.4, 0.3, 1.0f);
+
 	UPROPERTY()
 	ENiagaraDebugPlaybackMode PlaybackMode = ENiagaraDebugPlaybackMode::Play;
 
