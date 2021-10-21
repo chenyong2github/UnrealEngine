@@ -210,19 +210,12 @@ bool IsPrimitiveAttributeType(MLOperatorAttributeType type) {
   }
 }
 
-#ifndef WITH_UE
-template <>
-struct MLTypeTraits<onnxruntime::MLFloat16> {
-  static const MLOperatorTensorDataType TensorType = MLOperatorTensorDataType::Float16;
-};
-#else //WITH_UE
-#ifndef __clang__
+#ifndef __clang__ // WITH_UE
 template <>
 struct MLTypeTraits<onnxruntime::MLFloat16> {
   static const MLOperatorTensorDataType TensorType = MLOperatorTensorDataType::Float16;
 };
 #endif //__clang__
-#endif //WITH_UE
 
 #define ML_TENSOR_TYPE_CASE(x)          \
   if (onnxruntime::utils::IsPrimitiveDataType<x>(type)) { \

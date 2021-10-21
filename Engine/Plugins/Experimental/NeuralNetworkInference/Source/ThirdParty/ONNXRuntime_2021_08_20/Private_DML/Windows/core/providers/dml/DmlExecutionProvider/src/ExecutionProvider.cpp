@@ -21,9 +21,7 @@ NNI_THIRD_PARTY_INCLUDES_START
 #include "GraphPartitioner.h"
 #include "core/graph/indexed_sub_graph.h"
 #include "core/framework/compute_capability.h"
-#ifdef WITH_UE
-#include "core/providers/dml/dml_provider_factory.h"
-#endif //WITH_UE
+#include "core/providers/dml/dml_provider_factory.h" // WITH_UE
 
 #ifdef ERROR
 #undef ERROR
@@ -100,11 +98,7 @@ namespace Dml
     ExecutionProvider::ExecutionProvider(
         IDMLDevice* dmlDevice,
         ID3D12CommandQueue* commandQueue,
-        bool enableMetacommands
-#ifdef WITH_UE
-        , OrtDMLGPUResourceAllocator** resourceAllocator
-#endif //WITH_UE
-        ) :
+        bool enableMetacommands, OrtDMLGPUResourceAllocator** resourceAllocator) : // WITH_UE: Added resourceAllocator
             IExecutionProvider(onnxruntime::kDmlExecutionProvider)
     {
         D3D12_COMMAND_LIST_TYPE queueType = commandQueue->GetDesc().Type;
@@ -826,17 +820,9 @@ namespace Dml
     std::unique_ptr<onnxruntime::IExecutionProvider> CreateExecutionProvider(
         IDMLDevice* dmlDevice,
         ID3D12CommandQueue* commandQueue,
-        bool enableMetacommands
-#ifdef WITH_UE
-        , OrtDMLGPUResourceAllocator** resourceAllocator
-#endif //WITH_UE
-        )
+        bool enableMetacommands, OrtDMLGPUResourceAllocator** resourceAllocator) // WITH_UE: Added resourceAllocator
     {
-        return std::make_unique<Dml::ExecutionProvider>(dmlDevice, commandQueue, enableMetacommands
-#ifdef WITH_UE
-            , resourceAllocator
-#endif //WITH_UE
-            );
+        return std::make_unique<Dml::ExecutionProvider>(dmlDevice, commandQueue, enableMetacommands, resourceAllocator); // WITH_UE: Added resourceAllocator
     }
 
     ID3D12Resource* GetD3D12ResourceFromAllocation(onnxruntime::IAllocator* allocator, void* ptr)

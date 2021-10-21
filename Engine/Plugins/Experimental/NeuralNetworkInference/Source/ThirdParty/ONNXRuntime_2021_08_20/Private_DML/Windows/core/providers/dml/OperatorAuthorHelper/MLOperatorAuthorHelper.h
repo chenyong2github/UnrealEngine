@@ -5,9 +5,7 @@
 
 #include "core/providers/dml/DmlExecutionProvider/inc/MLOperatorAuthor.h"
 #include "MLOperatorAuthorPrivate.h"
-#ifdef WITH_UE
-#include "core/framework/data_types.h"
-#endif //WITH_UE
+#include "core/framework/data_types.h" // WITH_UE
 
 #ifdef ORT_NO_EXCEPTIONS // WITH_UE
 #define ML_CHECK_BOOL(x) (x)

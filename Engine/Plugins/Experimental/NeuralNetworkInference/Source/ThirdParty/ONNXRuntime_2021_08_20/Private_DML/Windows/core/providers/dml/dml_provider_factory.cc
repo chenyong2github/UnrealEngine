@@ -26,15 +26,10 @@ namespace onnxruntime {
 
 struct DMLProviderFactory : IExecutionProviderFactory {
   DMLProviderFactory(IDMLDevice* dml_device,
-                     ID3D12CommandQueue* cmd_queue
-#ifdef WITH_UE
-                     , OrtDMLGPUResourceAllocator** resource_allocator = nullptr)
-#endif //WITH_UE
+                     ID3D12CommandQueue* cmd_queue, OrtDMLGPUResourceAllocator** resource_allocator = nullptr) // WITH_UE: Added resource_allocator
                                                     : dml_device_(dml_device),
                                                       cmd_queue_(cmd_queue)
-#ifdef WITH_UE
-                                                      , resource_allocator_(resource_allocator)
-#endif //WITH_UE
+                                                    , resource_allocator_(resource_allocator) // WITH_UE: Added resource_allocator
            {}
   ~DMLProviderFactory() override {}
 
@@ -46,19 +41,13 @@ struct DMLProviderFactory : IExecutionProviderFactory {
  private:
   ComPtr<IDMLDevice> dml_device_{};
   ComPtr<ID3D12CommandQueue> cmd_queue_{};
-#ifdef WITH_UE
-  OrtDMLGPUResourceAllocator** resource_allocator_{};
-#endif //WITH_UE
+  OrtDMLGPUResourceAllocator** resource_allocator_{}; // WITH_UE
   AllocatorRoundingMode rounding_mode_ = AllocatorRoundingMode::Enabled;
   bool metacommands_enabled_ = true;
 };
 
 std::unique_ptr<IExecutionProvider> DMLProviderFactory::CreateProvider() {
-  auto provider = Dml::CreateExecutionProvider(dml_device_.Get(), cmd_queue_.Get(), metacommands_enabled_
-#ifdef WITH_UE
-  , resource_allocator_
-#endif //WITH_UE
-  );
+  auto provider = Dml::CreateExecutionProvider(dml_device_.Get(), cmd_queue_.Get(), metacommands_enabled_, resource_allocator_); // WITH_UE: Added resource_allocator_
   Dml::SetDefaultRoundingMode(provider.get(), rounding_mode_);
   return provider;
 }
@@ -72,11 +61,7 @@ void DMLProviderFactory::SetMetacommandsEnabled(bool metacommands_enabled) {
 }
 
 std::shared_ptr<IExecutionProviderFactory> CreateExecutionProviderFactory_DML(IDMLDevice* dml_device,
-                                                                              ID3D12CommandQueue* cmd_queue
-#ifdef WITH_UE
-                                                                              , OrtDMLGPUResourceAllocator** resource_allocator = nullptr
-#endif //WITH_UE
-  ) {
+                                                                              ID3D12CommandQueue* cmd_queue, OrtDMLGPUResourceAllocator** resource_allocator = nullptr) { // WITH_UE: Added resource_allocator_
   // Validate that the D3D12 devices match between DML and the command queue. This specifically asks for IUnknown in
   // order to be able to compare the pointers for COM object identity.
   ComPtr<IUnknown> d3d12_device_0;
@@ -98,11 +83,7 @@ std::shared_ptr<IExecutionProviderFactory> CreateExecutionProviderFactory_DML(ID
   env.GetTelemetryProvider().LogExecutionProviderEvent(&aux1);
 #endif
 
-  return std::make_shared<onnxruntime::DMLProviderFactory>(dml_device, cmd_queue
-#ifdef WITH_UE
-, resource_allocator
-#endif
-  );
+  return std::make_shared<onnxruntime::DMLProviderFactory>(dml_device, cmd_queue, resource_allocator); // WITH_UE: Added resource_allocator_
 }
 
 void DmlConfigureProviderFactoryDefaultRoundingMode(IExecutionProviderFactory* factory, AllocatorRoundingMode rounding_mode) {

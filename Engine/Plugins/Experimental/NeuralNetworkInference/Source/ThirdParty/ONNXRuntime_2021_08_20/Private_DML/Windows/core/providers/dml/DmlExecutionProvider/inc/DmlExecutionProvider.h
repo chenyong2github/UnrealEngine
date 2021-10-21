@@ -8,9 +8,7 @@ interface IMLOperatorRegistry;
 #include "core/framework/data_transfer.h"
 #include "IWinmlExecutionProvider.h"
 
-#ifdef WITH_UE
-struct OrtDMLGPUResourceAllocator;
-#endif //WITH_UE
+struct OrtDMLGPUResourceAllocator; // WITH_UE
 
 namespace onnxruntime
 {
@@ -32,11 +30,7 @@ namespace Dml
     std::unique_ptr<onnxruntime::IExecutionProvider> CreateExecutionProvider(
         IDMLDevice* dmlDevice,
         ID3D12CommandQueue* commandQueue,
-        bool enableMetacommands = true
-#ifdef WITH_UE
-        , OrtDMLGPUResourceAllocator** resourceAllocator = nullptr
-#endif //WITH_UE
-        );
+        bool enableMetacommands = true, OrtDMLGPUResourceAllocator** resourceAllocator = nullptr); // WITH_UE: Added resourceAllocator
 
     ID3D12Resource* GetD3D12ResourceFromAllocation(onnxruntime::IAllocator* allocator, void* ptr);
     void FlushContext(onnxruntime::IExecutionProvider* provider);    

@@ -159,21 +159,21 @@ namespace SchemaHelpers
     {
         size_t dimensionCount = src.sizes.size();
 
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
         auto* sizes = allocator->Allocate<UINT>(dimensionCount);
-#else // WITH_UE
+#else //__clang__
         auto* sizes = allocator->template Allocate<UINT>(dimensionCount);
-#endif // WITH_UE
+#endif //__clang__
         std::copy_n(src.sizes.begin(), dimensionCount, sizes);
 
         UINT* strides = nullptr;
         if (src.strides)
         {
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
             strides = allocator->Allocate<UINT>(dimensionCount);
-#else // WITH_UE
+#else //__clang__
             strides = allocator->template Allocate<UINT>(dimensionCount);
-#endif // WITH_UE
+#endif //__clang__
             std::copy_n(src.strides->begin(), dimensionCount, strides);
         }
 
@@ -191,11 +191,11 @@ namespace SchemaHelpers
     template <size_t N>
     DML_TENSOR_DESC MakeTensorDesc(const DmlBufferTensorDesc& src, StackAllocator<N>* allocator)
     {
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
         auto* desc = allocator->Allocate<DML_BUFFER_TENSOR_DESC>();
-#else // WITH_UE
+#else //__clang__
         auto* desc = allocator->template Allocate<DML_BUFFER_TENSOR_DESC>();
-#endif // WITH_UE
+#endif //__clang__
         *desc = MakeBufferTensorDesc(src, allocator);
 
         DML_TENSOR_DESC dst;
@@ -221,11 +221,11 @@ namespace SchemaHelpers
             const auto& value = field.AsTensorDesc();
             if (value)
             {
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
                 desc = allocator->Allocate<DML_TENSOR_DESC>();
-#else // WITH_UE
+#else //__clang__
                 desc = allocator->template Allocate<DML_TENSOR_DESC>();
-#endif // WITH_UE
+#endif //__clang__
                 *desc = MakeTensorDesc(*value, allocator);
             }
 
@@ -239,11 +239,11 @@ namespace SchemaHelpers
             const auto& values = field.AsTensorDescArray();
             if (values)
             {
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
                 descs = allocator->Allocate<DML_TENSOR_DESC>(values->size());
-#else // WITH_UE
+#else //__clang__
                 descs = allocator->template Allocate<DML_TENSOR_DESC>(values->size());
-#endif // WITH_UE
+#endif //__clang__
                 for (size_t i = 0; i < values->size(); ++i)
                 {
                     descs[i] = MakeTensorDesc((*values)[i], allocator);
@@ -260,11 +260,11 @@ namespace SchemaHelpers
             const auto& value = field.AsOperatorDesc();
             if (value)
             {
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
                 desc = allocator->Allocate<DML_OPERATOR_DESC>();
-#else // WITH_UE
+#else //__clang__
                 desc = allocator->template Allocate<DML_OPERATOR_DESC>();
-#endif // WITH_UE
+#endif //__clang__
                 *desc = ConvertOperatorDesc(*value, allocator);
             }
 
@@ -278,11 +278,11 @@ namespace SchemaHelpers
             const auto& values = field.AsOperatorDescArray();
             if (values)
             {
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
                 descs = allocator->Allocate<DML_OPERATOR_DESC>(values->size());
-#else // WITH_UE
+#else //__clang__
                 descs = allocator->template Allocate<DML_OPERATOR_DESC>(values->size());
-#endif // WITH_UE
+#endif //__clang__
                 for (size_t i = 0; i < values->size(); ++i)
                 {
                     descs[i] = ConvertOperatorDesc((*values)[i], allocator);
@@ -323,11 +323,11 @@ namespace SchemaHelpers
             const auto& values = field.AsUIntArray();
             if (values)
             {
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
                 arrayPtr = allocator->Allocate<uint32_t>(values->size());
-#else // WITH_UE
+#else //__clang__
                 arrayPtr = allocator->template Allocate<uint32_t>(values->size());
-#endif // WITH_UE
+#endif //__clang__
                 std::copy(values->begin(), values->end(), arrayPtr);
             }
 
@@ -341,11 +341,11 @@ namespace SchemaHelpers
             const auto& values = field.AsIntArray();
             if (values)
             {
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
                 arrayPtr = allocator->Allocate<int32_t>(values->size());
-#else // WITH_UE
+#else //__clang__
                 arrayPtr = allocator->template Allocate<int32_t>(values->size());
-#endif // WITH_UE
+#endif //__clang__
                 std::copy(values->begin(), values->end(), arrayPtr);
             }
 
@@ -359,11 +359,11 @@ namespace SchemaHelpers
             const auto& values = field.AsFloatArray();
             if (values)
             {
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
                 arrayPtr = allocator->Allocate<float>(values->size());
-#else // WITH_UE
+#else //__clang__
                 arrayPtr = allocator->template Allocate<float>(values->size());
-#endif // WITH_UE
+#endif //__clang__
                 std::copy(values->begin(), values->end(), arrayPtr);
             }
 
@@ -377,11 +377,11 @@ namespace SchemaHelpers
             const auto& value = field.AsScaleBias();
             if (value)
             {
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
                 scaleBias = allocator->Allocate<DML_SCALE_BIAS>();
-#else // WITH_UE
+#else //__clang__
                 scaleBias = allocator->template Allocate<DML_SCALE_BIAS>();
-#endif // WITH_UE
+#endif //__clang__
                 *scaleBias = *value;
             }
 
@@ -418,11 +418,11 @@ namespace SchemaHelpers
         });
 
         // Allocate a blob of bytes to hold the struct
-#if (!defined(WITH_UE) || !defined(__clang__))
+#ifndef __clang__ // WITH_UE
         byte* abiDesc = allocator->Allocate<byte>(abiDescSizeInBytes);
-#else // WITH_UE
+#else //__clang__
         byte* abiDesc = allocator->template Allocate<byte>(abiDescSizeInBytes);
-#endif // WITH_UE
+#endif //__clang__
 
         // Use the schema to write data into the blob
 
