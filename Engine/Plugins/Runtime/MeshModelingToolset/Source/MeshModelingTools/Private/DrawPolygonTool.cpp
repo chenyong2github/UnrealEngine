@@ -12,7 +12,6 @@
 #include "Curve/GeneralPolygon2.h"
 #include "FrameTypes.h"
 #include "MatrixTypes.h"
-#include "DynamicMesh/DynamicMeshAttributeSet.h"
 
 #include "Generators/FlatTriangulationMeshGenerator.h"
 #include "Generators/DiscMeshGenerator.h"
@@ -20,7 +19,6 @@
 #include "Operations/ExtrudeMesh.h"
 #include "Distance/DistLine3Ray3.h"
 #include "Intersection/IntrSegment2Segment2.h"
-#include "MeshQueries.h"
 #include "ToolSceneQueriesUtil.h"
 #include "ConstrainedDelaunay2.h"
 #include "Arrangement2d.h"
@@ -74,7 +72,7 @@ UDrawPolygonTool::UDrawPolygonTool()
 	DrawPlaneOrigin = FVector3d::Zero();
 	DrawPlaneOrientation = FQuaterniond::Identity();
 	bInInteractiveExtrude = false;
-	SetToolDisplayName(LOCTEXT("ToolName", "Extrude Polygon"));
+	UInteractiveTool::SetToolDisplayName(LOCTEXT("ToolName", "Extrude Polygon"));
 }
 
 void UDrawPolygonTool::SetWorld(UWorld* World)
@@ -118,8 +116,8 @@ void UDrawPolygonTool::Setup()
 
 	PolygonProperties = NewObject<UDrawPolygonToolStandardProperties>(this);
 	PolygonProperties->RestoreProperties(this);
-	PolygonProperties->WatchProperty(PolygonProperties->bShowGizmo,
-									 [this](bool bNewValue) { this->UpdateShowGizmoState(bNewValue); });
+	PolygonProperties->WatchProperty(PolygonProperties->bShowGridGizmo,
+	                                 [this](bool bNewValue) { this->UpdateShowGizmoState(bNewValue); });
 
 	// Create a new TransformGizmo and associated TransformProxy. The TransformProxy will not be the
 	// parent of any Components in this case, we just use it's transform and change delegate.
@@ -199,7 +197,7 @@ void UDrawPolygonTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 		LOCTEXT("ToggleGizmo", "Toggle Gizmo"),
 		LOCTEXT("ToggleGizmoTooltip", "Toggle visibility of the transformation Gizmo"),
 		EModifierKey::None, EKeys::A,
-		[this]() { PolygonProperties->bShowGizmo = !PolygonProperties->bShowGizmo; });
+		[this]() { PolygonProperties->bShowGridGizmo = !PolygonProperties->bShowGridGizmo; });
 }
 
 
@@ -282,10 +280,8 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 	FColor ErrorColor = FColor::Magenta;
 	float HiddenLineThickness = 1.0f*PDIScale;
 	float LineThickness = 4.0f*PDIScale;
-	float SelfIntersectThickness = 8.0f*PDIScale;
 	FColor GridColor(128, 128, 128, 32);
 	float GridThickness = 0.5f*PDIScale;
-	float GridLineSpacing = 25.0f*PDIScale;   // @todo should be relative to view
 	int NumGridLines = 21;
 	FColor SnapLineColor = FColor::Yellow;
 	FColor SnapHighlightColor = SnapLineColor;
@@ -379,7 +375,7 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 	if (bHaveSurfaceHit)
 	{
 		PDI->DrawPoint((FVector)SurfaceHitPoint, ClosedPolygonColor, 10*PDIScale, SDPG_Foreground);
-		if (SnapProperties->HitNormalOffset != 0)
+		if (SnapProperties->SnapToSurfacesOffset != 0)
 		{
 			PDI->DrawPoint((FVector)SurfaceOffsetPoint, OpenPolygonColor, 15*PDIScale, SDPG_Foreground);
 			PDI->DrawLine((FVector)SurfaceOffsetPoint, (FVector)SurfaceHitPoint,
@@ -400,7 +396,6 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 		FColor LastSegmentColor = bIsClosed ? ClosedPolygonColor 
 			: bHaveSelfIntersection ? ErrorColor : PreviewColor;
 		FVector3d UseLastVertex = bIsClosed ? PolygonVertices[0] : PreviewVertex;
-		float UseThickness = bHaveSelfIntersection ? SelfIntersectThickness : LineThickness;
 
 		auto DrawVertices = [&PDI, &UseColor](const TArray<FVector3d>& Vertices, ESceneDepthPriorityGroup Group, float Thickness)
 		{
@@ -478,8 +473,8 @@ void UDrawPolygonTool::UpdatePreviewVertex(const FVector3d& PreviewVertexIn)
 	// update length and angle
 	if (PolygonVertices.Num() > 0)
 	{
-		FVector3d LastVertex = PolygonVertices[PolygonVertices.Num() - 1];
-		SnapProperties->SegmentLength = Distance(LastVertex, PreviewVertex);
+		const FVector3d LastVertex = PolygonVertices[PolygonVertices.Num() - 1];
+		PolygonProperties->Distance = Distance(LastVertex, PreviewVertex);
 	}
 }
 
@@ -528,9 +523,9 @@ bool UDrawPolygonTool::FindDrawPlaneHitPoint(const FInputDeviceRay& ClickPos, FV
 			}
 		}
 
-		TArray<FVector3d>& HistoryPoints = (bInFixedPolygonMode) ? FixedPolygonClickPoints : PolygonVertices;
+		const TArray<FVector3d>& HistoryPoints = (bInFixedPolygonMode) ? FixedPolygonClickPoints : PolygonVertices;
 		SnapEngine.UpdatePointHistory(HistoryPoints);
-		if (SnapProperties->bSnapToAngles)
+		if (SnapProperties->bSnapToAxes)
 		{
 			SnapEngine.RegenerateTargetLines(true, true);
 		}
@@ -551,7 +546,7 @@ bool UDrawPolygonTool::FindDrawPlaneHitPoint(const FInputDeviceRay& ClickPos, FV
 
 
 	// if not snap and we want to hit objects, do that
-	if (SnapProperties->bHitSceneObjects)
+	if (SnapProperties->bSnapToSurfaces)
 	{
 		FHitResult Result;
 		bool bWorldHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, Result, ClickPos.WorldRay);
@@ -559,7 +554,7 @@ bool UDrawPolygonTool::FindDrawPlaneHitPoint(const FInputDeviceRay& ClickPos, FV
 		{
 			bHaveSurfaceHit = true;
 			SurfaceHitPoint = (FVector3d)Result.ImpactPoint;
-			FVector3d UseHitPos = (FVector3d)Result.ImpactPoint + (double)SnapProperties->HitNormalOffset*(FVector3d)Result.Normal;
+			const FVector3d UseHitPos = Result.ImpactPoint + static_cast<double>(SnapProperties->SnapToSurfacesOffset) * Result.Normal;
 			HitPos = Frame.ToPlane(UseHitPos, 2);
 			SurfaceOffsetPoint = UseHitPos;
 		}
@@ -604,7 +599,7 @@ void UDrawPolygonTool::OnBeginClickSequence(const FInputDeviceRay& ClickPos)
 
 	UpdatePreviewVertex(HitPos);
 
-	bInFixedPolygonMode = (PolygonProperties->PolygonType != EDrawPolygonDrawMode::Freehand);
+	bInFixedPolygonMode = (PolygonProperties->PolygonDrawMode != EDrawPolygonDrawMode::Freehand);
 	FixedPolygonClickPoints.Reset();
 
 	// Actually process the click.
@@ -666,7 +661,7 @@ bool UDrawPolygonTool::OnNextSequenceClick(const FInputDeviceRay& ClickPos)
 	TUniquePtr<FDrawPolygonStateChange> Change =
 		MakeUnique<FDrawPolygonStateChange>(CurrentCurveTimestamp, FixedPolygonClickPoints, PolygonVertices);
 
-	bool bDonePolygon = false;
+	bool bDonePolygon;
 	if (bInFixedPolygonMode)
 	{
 		// ignore very close click points
@@ -676,7 +671,7 @@ bool UDrawPolygonTool::OnNextSequenceClick(const FInputDeviceRay& ClickPos)
 		}
 
 		FixedPolygonClickPoints.Add(HitPos);
-		int NumTargetPoints = (PolygonProperties->PolygonType == EDrawPolygonDrawMode::Rectangle || PolygonProperties->PolygonType == EDrawPolygonDrawMode::RoundedRectangle) ? 3 : 2;
+		int NumTargetPoints = (PolygonProperties->PolygonDrawMode == EDrawPolygonDrawMode::Rectangle || PolygonProperties->PolygonDrawMode == EDrawPolygonDrawMode::RoundedRectangle) ? 3 : 2;
 		bDonePolygon = (FixedPolygonClickPoints.Num() == NumTargetPoints);
 		if (bDonePolygon)
 		{
@@ -691,9 +686,6 @@ bool UDrawPolygonTool::OnNextSequenceClick(const FInputDeviceRay& ClickPos)
 			return true;
 		}
 
-		// close polygon if we clicked on start point
-		bDonePolygon = SnapEngine.HaveActiveSnap() && SnapEngine.GetActiveSnapTargetID() == StartPointSnapID;
-
 		if (bHaveSelfIntersection)
 		{
 			// discard vertex in segments before intersection (this is redundant if idx is 0)
@@ -702,8 +694,13 @@ bool UDrawPolygonTool::OnNextSequenceClick(const FInputDeviceRay& ClickPos)
 				PolygonVertices[j-SelfIntersectSegmentIdx] = PolygonVertices[j];
 			}
 			PolygonVertices.SetNum(PolygonVertices.Num() - SelfIntersectSegmentIdx);
-			PolygonVertices[0] = PreviewVertex = (FVector3d)SelfIntersectionPoint;
+			PolygonVertices[0] = PreviewVertex = SelfIntersectionPoint;
 			bDonePolygon = true;
+		}
+		else
+		{
+			// close polygon if we clicked on start point
+			bDonePolygon = SnapEngine.HaveActiveSnap() && SnapEngine.GetActiveSnapTargetID() == StartPointSnapID;
 		}
 	}
 
@@ -714,7 +711,7 @@ bool UDrawPolygonTool::OnNextSequenceClick(const FInputDeviceRay& ClickPos)
 	{
 		//SnapEngine.Reset();
 		bHaveSurfaceHit = false;
-		if (PolygonProperties->OutputMode == EDrawPolygonOutputMode::ExtrudedInteractive)
+		if (PolygonProperties->ExtrudeMode == EDrawPolygonOutputMode::ExtrudedInteractive)
 		{
 			BeginInteractiveExtrude();
 
@@ -848,27 +845,27 @@ void UDrawPolygonTool::GenerateFixedPolygon(const TArray<FVector3d>& FixedPoints
 
 	FPolygon2d Polygon;
 	TArray<FPolygon2d> PolygonHoles;
-	if (PolygonProperties->PolygonType == EDrawPolygonDrawMode::Square)
+	if (PolygonProperties->PolygonDrawMode == EDrawPolygonDrawMode::Square)
 	{
 		Polygon = FPolygon2d::MakeRectangle(FVector2d::Zero(), 2*Width, 2*Width);
 	}
-	else if (PolygonProperties->PolygonType == EDrawPolygonDrawMode::Rectangle || PolygonProperties->PolygonType == EDrawPolygonDrawMode::RoundedRectangle)
+	else if (PolygonProperties->PolygonDrawMode == EDrawPolygonDrawMode::Rectangle || PolygonProperties->PolygonDrawMode == EDrawPolygonDrawMode::RoundedRectangle)
 	{
-		if (PolygonProperties->PolygonType == EDrawPolygonDrawMode::Rectangle)
+		if (PolygonProperties->PolygonDrawMode == EDrawPolygonDrawMode::Rectangle)
 		{
 			Polygon = FPolygon2d::MakeRectangle(FVector2d(Width / 2, YSign*Height / 2), Width, Height);
 		}
-		else // PolygonProperties->PolygonType == EDrawPolygonDrawMode::RoundedRectangle
+		else // PolygonProperties->PolygonDrawMode == EDrawPolygonDrawMode::RoundedRectangle
 		{
-			Polygon = FPolygon2d::MakeRoundedRectangle(FVector2d(Width / 2, YSign*Height / 2), Width, Height, FMathd::Min(Width,Height) * FMathd::Clamp(PolygonProperties->FeatureSizeRatio, .01, .99) * .5, PolygonProperties->Steps);
+			Polygon = FPolygon2d::MakeRoundedRectangle(FVector2d(Width / 2, YSign*Height / 2), Width, Height, FMathd::Min(Width,Height) * FMathd::Clamp(PolygonProperties->FeatureSizeRatio, .01, .99) * .5, PolygonProperties->RadialSlices);
 		}
 	}
-	else // Circle or HoleyCircle
+	else // Circle or Ring
 	{
-		Polygon = FPolygon2d::MakeCircle(Width, PolygonProperties->Steps, 0);
-		if (PolygonProperties->PolygonType == EDrawPolygonDrawMode::HoleyCircle)
+		Polygon = FPolygon2d::MakeCircle(Width, PolygonProperties->RadialSlices, 0);
+		if (PolygonProperties->PolygonDrawMode == EDrawPolygonDrawMode::Ring)
 		{
-			PolygonHoles.Add(FPolygon2d::MakeCircle(Width * FMathd::Clamp(PolygonProperties->FeatureSizeRatio, .01, .99), PolygonProperties->Steps, 0));
+			PolygonHoles.Add(FPolygon2d::MakeCircle(Width * FMathd::Clamp(PolygonProperties->FeatureSizeRatio, .01, .99), PolygonProperties->RadialSlices, 0));
 		}
 	}
 	Polygon.Transform([RotationMat](const FVector2d& Pt) { return RotationMat * Pt; });
@@ -997,13 +994,13 @@ void UDrawPolygonTool::UpdateShowGizmoState(bool bNewVisibility)
 
 void UDrawPolygonTool::EmitCurrentPolygon()
 {
-	FString BaseName = (PolygonProperties->OutputMode == EDrawPolygonOutputMode::MeshedPolygon) ?
+	FString BaseName = (PolygonProperties->ExtrudeMode == EDrawPolygonOutputMode::MeshedPolygon) ?
 		TEXT("Polygon") : TEXT("Extrude");
 
 	// generate new mesh
 	FFrame3d PlaneFrameOut;
 	FDynamicMesh3 Mesh;
-	double ExtrudeDist = (PolygonProperties->OutputMode == EDrawPolygonOutputMode::MeshedPolygon) ?
+	const double ExtrudeDist = (PolygonProperties->ExtrudeMode == EDrawPolygonOutputMode::MeshedPolygon) ?
 		0 : PolygonProperties->ExtrudeHeight;
 	bool bSucceeded = GeneratePolygonMesh(PolygonVertices, PolygonHolesVertices, &Mesh, PlaneFrameOut, false, ExtrudeDist, false);
 	if (!bSucceeded) // somehow made a polygon with no valid triangulation; just throw it away ...
@@ -1042,7 +1039,7 @@ void UDrawPolygonTool::UpdateLivePreview()
 
 	FFrame3d PlaneFrame;
 	FDynamicMesh3 Mesh;
-	double ExtrudeDist = (PolygonProperties->OutputMode == EDrawPolygonOutputMode::MeshedPolygon) ?
+	const double ExtrudeDist = (PolygonProperties->ExtrudeMode == EDrawPolygonOutputMode::MeshedPolygon) ?
 		0 : PolygonProperties->ExtrudeHeight;
 	if (GeneratePolygonMesh(PolygonVertices, PolygonHolesVertices, &Mesh, PlaneFrame, false, ExtrudeDist, false))
 	{
@@ -1090,7 +1087,7 @@ bool UDrawPolygonTool::GeneratePolygonMesh(const TArray<FVector3d>& Polygon, con
 	FAxisAlignedBox2d Bounds(OuterPolygon.Bounds());
 
 	// special case paths
-	if (PolygonProperties->PolygonType == EDrawPolygonDrawMode::HoleyCircle || PolygonProperties->PolygonType == EDrawPolygonDrawMode::Circle || PolygonProperties->PolygonType == EDrawPolygonDrawMode::RoundedRectangle)
+	if (PolygonProperties->PolygonDrawMode == EDrawPolygonDrawMode::Ring || PolygonProperties->PolygonDrawMode == EDrawPolygonDrawMode::Circle || PolygonProperties->PolygonDrawMode == EDrawPolygonDrawMode::RoundedRectangle)
 	{
 		// get polygon parameters
 		FVector2d FirstReferencePt, BoxSize;
@@ -1100,28 +1097,28 @@ bool UDrawPolygonTool::GeneratePolygonMesh(const TArray<FVector3d>& Polygon, con
 		FMatrix2d RotationMat = FMatrix2d::RotationRad(AngleRad);
 
 		// translate general polygon parameters to specific mesh generator parameters, and generate mesh
-		if (PolygonProperties->PolygonType == EDrawPolygonDrawMode::HoleyCircle)
+		if (PolygonProperties->PolygonDrawMode == EDrawPolygonDrawMode::Ring)
 		{
 			FPuncturedDiscMeshGenerator HCGen;
-			HCGen.AngleSamples = PolygonProperties->Steps;
+			HCGen.AngleSamples = PolygonProperties->RadialSlices;
 			HCGen.RadialSamples = 1;
 			HCGen.Radius = BoxSize.X;
 			HCGen.HoleRadius = BoxSize.X * FMathd::Clamp(PolygonProperties->FeatureSizeRatio, .01f, .99f);
 			ResultMeshOut->Copy(&HCGen.Generate());
 		}
-		else if (PolygonProperties->PolygonType == EDrawPolygonDrawMode::Circle)
+		else if (PolygonProperties->PolygonDrawMode == EDrawPolygonDrawMode::Circle)
 		{
 			FDiscMeshGenerator CGen;
-			CGen.AngleSamples = PolygonProperties->Steps;
+			CGen.AngleSamples = PolygonProperties->RadialSlices;
 			CGen.RadialSamples = 1;
 			CGen.Radius = BoxSize.X;
 			ResultMeshOut->Copy(&CGen.Generate());
 		}
-		else if (PolygonProperties->PolygonType == EDrawPolygonDrawMode::RoundedRectangle)
+		else if (PolygonProperties->PolygonDrawMode == EDrawPolygonDrawMode::RoundedRectangle)
 		{
 			FRoundedRectangleMeshGenerator RRGen;
 			FirstReferencePt += RotationMat * (FVector2d(BoxSize.X, BoxSize.Y * YSign)*.5f);
-			RRGen.AngleSamples = PolygonProperties->Steps;
+			RRGen.AngleSamples = PolygonProperties->RadialSlices;
 			RRGen.Radius = .5 * FMathd::Min(BoxSize.X, BoxSize.Y) * FMathd::Clamp(PolygonProperties->FeatureSizeRatio, .01f, .99f);
 			RRGen.Height = BoxSize.Y - RRGen.Radius * 2.;
 			RRGen.Width = BoxSize.X - RRGen.Radius * 2.;
@@ -1181,7 +1178,7 @@ bool UDrawPolygonTool::GeneratePolygonMesh(const TArray<FVector3d>& Polygon, con
 		}
 
 
-		bool bTriangulationSuccess = Triangulator.Triangulate([&GeneralPolygon](const TArray<FVector2d>& Vertices, FIndex3i Tri)
+		Triangulator.Triangulate([&GeneralPolygon](const TArray<FVector2d>& Vertices, FIndex3i Tri)
 		{
 			// keep triangles based on the input polygon's winding
 			return GeneralPolygon.Contains((Vertices[Tri.A] + Vertices[Tri.B] + Vertices[Tri.C]) / 3.0);
