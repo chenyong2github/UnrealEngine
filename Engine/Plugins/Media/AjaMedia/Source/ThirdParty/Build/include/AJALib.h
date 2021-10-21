@@ -473,6 +473,7 @@ namespace AJA
 		bool SetVideoFrameData(const AJAOutputFrameBufferData& InFrameData, uint8_t* VideoBuffer, uint32_t VideoBufferSize);
 
 		bool GetOutputDimension(uint32_t& OutWidth, uint32_t& OutHeight) const;
+		int32_t GetNumAudioSamplesPerFrame(const AJAOutputFrameBufferData& InFrameData) const;
 
 	private:
 		Private::OutputChannel* Channel;

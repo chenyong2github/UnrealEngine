@@ -19,6 +19,7 @@ UBlackmagicMediaOutput::UBlackmagicMediaOutput(const FObjectInitializer& ObjectI
 	, TimecodeFormat(EMediaIOTimecodeFormat::LTC)
 	, PixelFormat(EBlackmagicMediaOutputPixelFormat::PF_8BIT_YUV)
 	, bInvertKeyOutput(false)
+	, bOutputAudio(false)
 	, NumberOfBlackmagicBuffers(3)
 	, bInterlacedFieldsTimecodeNeedToMatch(false)
 	, bWaitForSyncEvent(false)

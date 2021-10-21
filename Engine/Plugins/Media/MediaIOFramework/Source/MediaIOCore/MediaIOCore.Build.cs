@@ -6,9 +6,14 @@ namespace UnrealBuildTool.Rules
 	{
 		public MediaIOCore(ReadOnlyTargetRules Target) : base(Target)
 		{
+			OptimizeCode = CodeOptimization.Never;
+			bUseUnity = false;
+			PCHUsage = PCHUsageMode.NoPCHs;
+		
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"AudioExtensions",
 					"Core",
 					"CoreUObject",
 					"Engine",
@@ -32,7 +37,11 @@ namespace UnrealBuildTool.Rules
             PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {
-                    "RenderCore"
+                    "AudioMixer",
+	                "AudioMixerCore",
+                    "RenderCore",
+                    "SignalProcessing",
+	                "SoundFieldRendering"
 				});
 
 			if (Target.bBuildEditor == true)
