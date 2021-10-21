@@ -14,22 +14,37 @@ For questions, ask Gines.Hidalgo.
 
 
 ## Step 0: Compiling Third Parties
-Francisco.Vicente understands better this step, in case of questions, ping him.
+Francisco.Vicente understands this step better, in case of questions, ping him.
 - MLAS (manually remove the old ORT_MLAS folder first):
 ```
-# D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ORT_MLAS/onnxruntime
+# Parameters
+$ORT_MLAS_PARENT_PATH = "D:/Users/gines.hidalgo/Downloads/" # In Epic machine, otherwise: D:/Users/gineshidalgo99/Desktop/ONNXRuntime
+$NNI_ORT_MLAS_LOCATION = "D:/P4/ue5_main_pitt64/Engine/Plugins/Experimental/NeuralNetworkInference/Source/ThirdParty/Deps"
+$NNI_ORT_MLAS_FINAL_NAME = "MLAS_2021_10_20"
+$NNI_ORT_MLAS_OLD_NAME = "MLAS_2021_10_19"
+$FINAL_COMMIT_HASH = "4028e51e7e6421fdbeca5f4e4ccd8b4f790d0fd5"
 
-cd D:/Users/gineshidalgo99/Desktop/ONNXRuntime
+# Automatic script
+$NNI_ORT_MLAS_FINAL_PATH = "$NNI_ORT_MLAS_LOCATION/$NNI_ORT_MLAS_FINAL_NAME"
+$NNI_ORT_MLAS_OLD_PATH = "$NNI_ORT_MLAS_LOCATION/$NNI_ORT_MLAS_OLD_NAME"
+cd "$ORT_MLAS_PARENT_PATH"
 mkdir ORT_MLAS; cd ORT_MLAS
 git clone --recursive https://github.com/Microsoft/onnxruntime
 cd onnxruntime
 # Checkout ORT master. E.g., on Oct 18th
-git reset --hard 4028e51e7e6421fdbeca5f4e4ccd8b4f790d0fd5 # This is the desired commit of ORT that will live inside of NNI
+git reset --hard $FINAL_COMMIT_HASH
 .\build.bat --config Release --parallel --use_dml --use_full_protobuf
 
-# Then copy into `Engine/Plugins/Experimental/NeuralNetworkInference/Source/ThirdParty/Deps/MLAS_1_9_1/`:
-# - D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ORT_MLAS/onnxruntime/onnxruntime/core/mlas/
-# - D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ORT_MLAS/onnxruntime/build/Windows/Release/Release/onnxruntime_mlas.lib
+# Copy into `Engine/Plugins/Experimental/NeuralNetworkInference/Source/ThirdParty/Deps/MLAS_1_9_1/`:
+mkdir $NNI_ORT_MLAS_FINAL_PATH
+mkdir $NNI_ORT_MLAS_FINAL_PATH/include/core/mlas
+mkdir $NNI_ORT_MLAS_FINAL_PATH/lib/Win64/
+ni $NNI_ORT_MLAS_FINAL_PATH/$FINAL_COMMIT_HASH
+cp -r -fo $ORT_MLAS_PARENT_PATH/ORT_MLAS/onnxruntime/onnxruntime/core/mlas/ $NNI_ORT_MLAS_FINAL_PATH/include/core/
+cp -r -fo $ORT_MLAS_PARENT_PATH/ORT_MLAS/onnxruntime/build/Windows/Release/Release/onnxruntime_mlas.lib $NNI_ORT_MLAS_FINAL_PATH/lib/Win64/onnxruntime_mlas.lib
+cp -r -fo $NNI_ORT_MLAS_OLD_PATH/MLAS_TPS_README.txt $NNI_ORT_MLAS_FINAL_PATH/MLAS_TPS_README.txt
+cp -r -fo $NNI_ORT_MLAS_OLD_PATH/ONNXRuntime.tps $NNI_ORT_MLAS_FINAL_PATH/ONNXRuntime.tps
+cp -r -fo $NNI_ORT_MLAS_OLD_PATH/ONNXRuntime${NNI_ORT_MLAS_OLD_NAME}.Build.cs $NNI_ORT_MLAS_FINAL_PATH/ONNXRuntime${NNI_ORT_MLAS_FINAL_NAME}.Build.cs
 ```
 - ONNX: Compile desired ORT version to see ONNX flags + https://github.ol.epicgames.net/francisco-vicente/onnx_nni
 
@@ -47,7 +62,11 @@ git reset --hard 4028e51e7e6421fdbeca5f4e4ccd8b4f790d0fd5 # This is the desired 
 ## Step 2: Create Local ONNX Runtime Fork
 (First time only, not needed if you already have your fork of ORT locally) Clone your fork of ORT locally:
 ```
-cd D:/Users/gineshidalgo99/Desktop/ONNXRuntime/   # cd D:/Users/gines.hidalgo/Desktop/ONNXRuntime
+# Parameters
+$ORT_PARENT_PATH = "D:/Users/gineshidalgo99/Desktop/ONNXRuntime/" # D:/Users/gines.hidalgo/Desktop/ONNXRuntime
+
+# Automatic script
+cd $ORT_PARENT_PATH
 # Recursive not needed if only planning to merge (but not compile)
 # git clone --recursive https://github.com/gineshidalgo99/onnxruntime # git clone --recursive https://github.com/Microsoft/onnxruntime
 git clone https://github.com/gineshidalgo99/onnxruntime
@@ -74,49 +93,56 @@ Idea (what the commands below will automatically do):
 
 With commands:
 ```
-cd D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime
+# Parameters
+$ORT_PATH = "D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime"
+$ORT_FROM_NNI = "D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_from_NNI"
+$CURRENT_NNI_ORT_COMMIT_HASH = "9fc53df33a3dd7ad20e061b610e18ea8c5b795a4"
+$FINAL_COMMIT_HASH = "4028e51e7e6421fdbeca5f4e4ccd8b4f790d0fd5"
+
+# Automatic script
+cd $ORT_PATH
 
 git pull https://github.com/microsoft/onnxruntime/ master
-git reset *; git checkout *; git clean -f -d; git reset --hard 9fc53df33a3dd7ad20e061b610e18ea8c5b795a4 # This is the commit where the current version of ORT inside of NNI is
+git reset *; git checkout *; git clean -f -d; git reset --hard $CURRENT_NNI_ORT_COMMIT_HASH
 # git push -f # Optional
 
 ################################################## REMOVING ##################################################
 # Remove include/onnxruntime
-rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/include/onnxruntime/core
+rm -r -fo $ORT_PATH/include/onnxruntime/core
 # Remove contrib_ops/cpu
-rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/contrib_ops/cpu/
+rm -r -fo $ORT_PATH/onnxruntime/contrib_ops/cpu/
 # Remove core
-rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/common
-rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/flatbuffers/
-rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/framework/
-rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/graph/
-rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/optimizer/
-rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/platform/
-rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/profile/
-rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/providers/cpu/
-rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/providers/dml/
-rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/providers/shared/
-rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/providers/shared_library/
-rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/providers/common.h
-rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/providers/get_execution_providers.*
-rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/providers/op_kernel_type_control*
-rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/quantization/
-rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/session/
-rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/core/util/
+rm -r -fo $ORT_PATH/onnxruntime/core/common
+rm -r -fo $ORT_PATH/onnxruntime/core/flatbuffers/
+rm -r -fo $ORT_PATH/onnxruntime/core/framework/
+rm -r -fo $ORT_PATH/onnxruntime/core/graph/
+rm -r -fo $ORT_PATH/onnxruntime/core/optimizer/
+rm -r -fo $ORT_PATH/onnxruntime/core/platform/
+rm -r -fo $ORT_PATH/onnxruntime/core/profile/
+rm -r -fo $ORT_PATH/onnxruntime/core/providers/cpu/
+rm -r -fo $ORT_PATH/onnxruntime/core/providers/dml/
+rm -r -fo $ORT_PATH/onnxruntime/core/providers/shared/
+rm -r -fo $ORT_PATH/onnxruntime/core/providers/shared_library/
+rm -r -fo $ORT_PATH/onnxruntime/core/providers/common.h
+rm -r -fo $ORT_PATH/onnxruntime/core/providers/get_execution_providers.*
+rm -r -fo $ORT_PATH/onnxruntime/core/providers/op_kernel_type_control*
+rm -r -fo $ORT_PATH/onnxruntime/core/quantization/
+rm -r -fo $ORT_PATH/onnxruntime/core/session/
+rm -r -fo $ORT_PATH/onnxruntime/core/util/
 # Remove custom_op_library
-rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/test/testdata/custom_op_library/custom_op_library.cc
-rm -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/test/testdata/custom_op_library/custom_op_library.h
+rm -r -fo $ORT_PATH/onnxruntime/test/testdata/custom_op_library/custom_op_library.cc
+rm -r -fo $ORT_PATH/onnxruntime/test/testdata/custom_op_library/custom_op_library.h
 
 ################################################## ADDING NEW FILES ##################################################
 # Copy include/onnxruntime
-cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_from_NNI/Internal/core D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/include/onnxruntime/core
+cp -r -fo $ORT_FROM_NNI/Internal/core $ORT_PATH/include/onnxruntime/core
 # Copy contrib_ops/cpu
-cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_from_NNI/Private/contrib_ops/cpu D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/contrib_ops
+cp -r -fo $ORT_FROM_NNI/Private/contrib_ops/cpu $ORT_PATH/onnxruntime/contrib_ops
 # Copy core
-cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_from_NNI/Private/core D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime
-cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_from_NNI/Private_DML/Windows/core/ D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime
+cp -r -fo $ORT_FROM_NNI/Private/core $ORT_PATH/onnxruntime
+cp -r -fo $ORT_FROM_NNI/Private_DML/Windows/core/ $ORT_PATH/onnxruntime
 # Copy custom_op_library
-cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_from_NNI/Private/test D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime
+cp -r -fo $ORT_FROM_NNI/Private/test $ORT_PATH/onnxruntime
 
 ################################################## REVERTING ACCIDENTAL DELETES ##################################################
 git checkout onnxruntime/core/platform/android/*
@@ -130,7 +156,7 @@ git status
 
 See how many files you have updated and make sure ALL changes reported by `git diff` come from lines saying `WITH_UE` (otherwise you might have messed up and merged the wrong version of ORT, believe me, I've done that mistake before, and it's a nightmare, so CHECK IT!):
 ```
-cd D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime
+cd $ORT_PATH
 # Using git add will let you see renames more easily, just don't commit/push it!
 git add .
 git status
@@ -141,7 +167,7 @@ git reset *
 
 (OPTIONAL) Reset the local changes
 ```
-cd D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime
+cd $ORT_PATH
 # Note: To remove untracked files
 git reset *
 git checkout *
@@ -157,7 +183,7 @@ git add .
 git commit -m "NNI"
 
 # Checkout desired version to merged with (e.g., ORT master on Oct 18th)
-git pull https://github.com/microsoft/onnxruntime/ 4028e51e7e6421fdbeca5f4e4ccd8b4f790d0fd5 # This is the desired commit of ORT that will live inside of NNI
+git pull https://github.com/microsoft/onnxruntime/ $FINAL_COMMIT_HASH
 # NOTE: Manually fix conflicts locally (if any). E.g., if error(s) about untracked files, just run something like this with whatever files you get an error message about:
 # rm onnxruntime/python/tools/tensorrt/perf/build/Dockerfile.tensorrt-perf
 ```
@@ -173,16 +199,22 @@ git push
 
 ## Step 5: Push New Code into NNI
 ```
+# Parameters
+# $ORT_PATH = "D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime"
+$ORT_FROM_NNI = "D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_from_NNI"
+# $CURRENT_NNI_ORT_COMMIT_HASH = 9fc53df33a3dd7ad20e061b610e18ea8c5b795a4 # This is the commit where the current version of ORT inside of NNI is
+
+# Automatic script
 cd D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_to_push_to_NNI/
 
 rm D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_to_push_to_NNI/* # It will ask for confirmation, press "A" (Yes to All)
 
 # Copy include/onnxruntime
 cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/include/onnxruntime/core D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_to_push_to_NNI/Internal/core
-cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_from_NNI/Internal/onnxruntime_config.h D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_to_push_to_NNI/Internal/
+cp -r -fo $ORT_FROM_NNI/Internal/onnxruntime_config.h D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_to_push_to_NNI/Internal/
 # Copy ORTModule.h/cpp
 mkdir D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_to_push_to_NNI/Private/
-cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_from_NNI/Private/ONNXRuntimeModule.* D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_to_push_to_NNI/Private/
+cp -r -fo $ORT_FROM_NNI/Private/ONNXRuntimeModule.* D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_to_push_to_NNI/Private/
 # Copy contrib_ops/cpu
 cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/contrib_ops/cpu D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_to_push_to_NNI/Private/contrib_ops/cpu
 # Copy core
@@ -213,9 +245,9 @@ cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/te
 cp -r -fo D:/Users/gineshidalgo99/Desktop/ONNXRuntime/onnxruntime/onnxruntime/test/testdata/custom_op_library/custom_op_library.h D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_to_push_to_NNI/Private/test/testdata/custom_op_library/custom_op_library.h
 
 # Individual files
-cp D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_from_NNI/ONNXRuntime.Build.cs D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_to_push_to_NNI/ONNXRuntime.Build.cs
-cp D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_from_NNI/ONNXRuntime.tps D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_to_push_to_NNI/ONNXRuntime.tps
-cp D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_from_NNI/Readme_how_to_update_ORT_version.md D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_to_push_to_NNI/Readme_how_to_update_ORT_version.md
+cp $ORT_FROM_NNI/ONNXRuntime.Build.cs D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_to_push_to_NNI/ONNXRuntime.Build.cs
+cp $ORT_FROM_NNI/ONNXRuntime.tps D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_to_push_to_NNI/ONNXRuntime.tps
+cp $ORT_FROM_NNI/Readme_how_to_update_ORT_version.md D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_to_push_to_NNI/Readme_how_to_update_ORT_version.md
 
 rm D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ort_compressed.zip
 Compress-Archive -LiteralPath D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_to_push_to_NNI -DestinationPath D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ort_compressed.zip
