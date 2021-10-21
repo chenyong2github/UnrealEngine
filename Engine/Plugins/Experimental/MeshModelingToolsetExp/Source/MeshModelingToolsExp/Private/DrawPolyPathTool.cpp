@@ -8,7 +8,6 @@
 #include "BaseBehaviors/MouseHoverBehavior.h"
 
 #include "ToolSceneQueriesUtil.h"
-#include "Intersection/IntersectionUtil.h"
 #include "Util/ColorConstants.h"
 #include "ToolSetupUtil.h"
 #include "DynamicMesh/MeshIndexUtil.h"
@@ -220,8 +219,7 @@ void UDrawPolyPathTool::Setup()
 	// begin path draw
 	InitializeNewSurfacePath();
 
-	SetToolDisplayName(LOCTEXT("ToolName", "Extrude PolyPath"));
-	ShowStartupMessage();
+	SetToolDisplayName(LOCTEXT("ToolName", "Path Extrude"));
 }
 
 
@@ -309,24 +307,23 @@ void UDrawPolyPathTool::OnClicked(const FInputDeviceRay& ClickPos)
 {
 	if (SurfacePathMechanic != nullptr)
 	{
-		bool bIsFirstPoint = SurfacePathMechanic->HitPath.Num() == 0;
 		if (SurfacePathMechanic->TryAddPointFromRay(ClickPos.WorldRay))
 		{
 			if (SurfacePathMechanic->IsDone())
 			{
 				bPathIsClosed = SurfacePathMechanic->LoopWasClosed();
-				GetToolManager()->EmitObjectChange(this, MakeUnique<FDrawPolyPathStateChange>(CurrentCurveTimestamp), LOCTEXT("DrawPolyPathBeginOffset", "Set Offset"));
+				GetToolManager()->EmitObjectChange(this, MakeUnique<FDrawPolyPathStateChange>(CurrentCurveTimestamp), LOCTEXT("DrawPolyPathBeginOffset", "Set path width"));
 				OnCompleteSurfacePath();
 			}
 			else
 			{
-				GetToolManager()->EmitObjectChange(this, MakeUnique<FDrawPolyPathStateChange>(CurrentCurveTimestamp), LOCTEXT("DrawPolyPathBeginPath", "Begin Path"));
+				GetToolManager()->EmitObjectChange(this, MakeUnique<FDrawPolyPathStateChange>(CurrentCurveTimestamp), LOCTEXT("DrawPolyPathBeginPath", "Begin path"));
 			}
 		}
 	}
 	else if (CurveDistMechanic != nullptr)
 	{
-		GetToolManager()->EmitObjectChange(this, MakeUnique<FDrawPolyPathStateChange>(CurrentCurveTimestamp), LOCTEXT("DrawPolyPathBeginHeight", "Set Height"));
+		GetToolManager()->EmitObjectChange(this, MakeUnique<FDrawPolyPathStateChange>(CurrentCurveTimestamp), LOCTEXT("DrawPolyPathBeginHeight", "Set extrude height"));
 		OnCompleteOffsetDistance();
 	}
 	else if (ExtrudeHeightMechanic != nullptr)
@@ -360,7 +357,7 @@ bool UDrawPolyPathTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 	else if (CurveDistMechanic != nullptr)
 	{
 		CurveDistMechanic->UpdateCurrentDistance(DevicePos.WorldRay);
-		TransformProps->Width = CurveDistMechanic->CurrentDistance;
+		TransformProps->Width = CurveDistMechanic->CurrentDistance * 2.0;
 		CurOffsetDistance = CurveDistMechanic->CurrentDistance;
 		UpdatePathPreview();
 	}
@@ -368,7 +365,7 @@ bool UDrawPolyPathTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 	{
 		ExtrudeHeightMechanic->UpdateCurrentDistance(DevicePos.WorldRay);
 		CurHeight = ExtrudeHeightMechanic->CurrentHeight;
-		TransformProps->Height = ExtrudeHeightMechanic->CurrentHeight;
+		TransformProps->ExtrudeHeight = ExtrudeHeightMechanic->CurrentHeight;
 		UpdateExtrudePreview();
 	}
 	return true;
@@ -448,7 +445,7 @@ void UDrawPolyPathTool::InitializeNewSurfacePath()
 	double SnapTol = ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD();
 	SurfacePathMechanic->SpatialSnapPointsFunc = [this, SnapTol](FVector3d Position1, FVector3d Position2)
 	{
-		return true && ToolSceneQueriesUtil::PointSnapQuery(this->CameraState, Position1, Position2, SnapTol);
+		return ToolSceneQueriesUtil::PointSnapQuery(this->CameraState, Position1, Position2, SnapTol);
 	};
 	SurfacePathMechanic->SetDoubleClickOrCloseLoopMode();
 	UpdateSurfacePathPlane();
@@ -525,7 +522,7 @@ void UDrawPolyPathTool::OnCompleteSurfacePath()
 	}
 
 	SurfacePathMechanic = nullptr;
-	if (TransformProps->WidthMode == EDrawPolyPathWidthMode::Constant)
+	if (TransformProps->WidthMode == EDrawPolyPathWidthMode::Fixed)
 	{
 		BeginConstantOffsetDistance();
 	}
@@ -552,7 +549,7 @@ void UDrawPolyPathTool::BeginInteractiveOffsetDistance()
 void UDrawPolyPathTool::BeginConstantOffsetDistance()
 {
 	InitializePreviewMesh();
-	CurOffsetDistance = TransformProps->Width;
+	CurOffsetDistance = TransformProps->Width * 0.5;
 	UpdatePathPreview();
 	OnCompleteOffsetDistance();
 }
@@ -563,13 +560,13 @@ void UDrawPolyPathTool::OnCompleteOffsetDistance()
 {
 	CurveDistMechanic = nullptr;
 
-	if (TransformProps->OutputType == EDrawPolyPathOutputMode::Ribbon)
+	if (TransformProps->ExtrudeMode == EDrawPolyPathExtrudeMode::Flat)
 	{
 		OnCompleteExtrudeHeight();
 	}
-	else if (TransformProps->HeightMode == EDrawPolyPathHeightMode::Constant)
+	else if (TransformProps->ExtrudeMode == EDrawPolyPathExtrudeMode::Fixed || TransformProps->ExtrudeMode == EDrawPolyPathExtrudeMode::RampFixed)
 	{
-		CurHeight = TransformProps->Height;
+		CurHeight = TransformProps->ExtrudeHeight;
 		OnCompleteExtrudeHeight();
 	}
 	else
@@ -581,12 +578,12 @@ void UDrawPolyPathTool::OnCompleteOffsetDistance()
 
 void UDrawPolyPathTool::OnCompleteExtrudeHeight()
 {
-	CurHeight = TransformProps->Height;
+	CurHeight = TransformProps->ExtrudeHeight;
 	ExtrudeHeightMechanic = nullptr;
 
 	ClearPreview();
 
-	EmitNewObject(TransformProps->OutputType);
+	EmitNewObject(TransformProps->ExtrudeMode);
 
 	InitializeNewSurfacePath();
 	CurrentCurveTimestamp++;
@@ -638,8 +635,6 @@ void UDrawPolyPathTool::GeneratePathMesh(FDynamicMesh3& Mesh)
 			MeshGen.Generate();
 			Mesh.Copy(&MeshGen);
 			Mesh.EnableVertexUVs(FVector2f::Zero());		// we will store arc length for each vtx in VertexUV
-
-			FAxisAlignedBox3d PathBounds = Mesh.GetBounds();
 
 			double ShiftX = 0;
 			double DeltaX = CurPathLength / (double)(NumPoints - 1);
@@ -712,7 +707,7 @@ void UDrawPolyPathTool::BeginInteractiveExtrudeHeight()
 
 void UDrawPolyPathTool::UpdateExtrudePreview()
 {
-	if (TransformProps->OutputType == EDrawPolyPathOutputMode::Ramp)
+	if (TransformProps->ExtrudeMode == EDrawPolyPathExtrudeMode::RampFixed || TransformProps->ExtrudeMode == EDrawPolyPathExtrudeMode::RampInteractive)
 	{
 		EditPreview->UpdateExtrudeType( [&](FDynamicMesh3& Mesh) { GenerateRampMesh(Mesh); }, true);
 	}
@@ -779,7 +774,6 @@ void UDrawPolyPathTool::GenerateRampMesh(FDynamicMesh3& PathMesh)
 	FExtrudeMesh Extruder(&PathMesh);
 	FVector3d ExtrudeDir = DrawPlaneWorld.Z();
 
-	int NumPoints = CurPathPoints.Num();
 	double RampStartRatio = TransformProps->RampStartRatio;
 	double StartHeight = FMathd::Max(0.1, RampStartRatio * FMathd::Abs(CurHeight)) * FMathd::Sign(CurHeight);
 	double EndHeight = CurHeight;
@@ -798,16 +792,16 @@ void UDrawPolyPathTool::GenerateRampMesh(FDynamicMesh3& PathMesh)
 
 
 
-void UDrawPolyPathTool::EmitNewObject(EDrawPolyPathOutputMode OutputMode)
+void UDrawPolyPathTool::EmitNewObject(EDrawPolyPathExtrudeMode ExtrudeMode)
 {
 	FDynamicMesh3 PathMesh;
 	GeneratePathMesh(PathMesh);
 
-	if (OutputMode == EDrawPolyPathOutputMode::Extrusion)
+	if (ExtrudeMode == EDrawPolyPathExtrudeMode::Fixed || ExtrudeMode == EDrawPolyPathExtrudeMode::Interactive)
 	{
 		GenerateExtrudeMesh(PathMesh);
 	}
-	else if (OutputMode == EDrawPolyPathOutputMode::Ramp)
+	else if (ExtrudeMode == EDrawPolyPathExtrudeMode::RampFixed || ExtrudeMode == EDrawPolyPathExtrudeMode::RampInteractive)
 	{
 		GenerateRampMesh(PathMesh);
 	}
@@ -844,21 +838,21 @@ void UDrawPolyPathTool::EmitNewObject(EDrawPolyPathOutputMode OutputMode)
 void UDrawPolyPathTool::ShowStartupMessage()
 {
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartDraw", "Use this Tool to draw a path on the Drawing Plane, and then Extrude. Left-click to place points, Double-click (or close) to complete path. Ctrl-click on the scene to reposition the Plane (Shift+Ctrl-click to ignore Normal)."),
+		LOCTEXT("OnStartDraw", "Draw a path on the drawing plane, set its width, and extrude it. Left-click to place path vertices. Click on the last or first vertex to complete the path. Hold Shift to ignore snapping."),
 		EToolMessageLevel::UserNotification);
 }
 
 void UDrawPolyPathTool::ShowOffsetMessage()
 {
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartOffset", "Set the Width of the Extrusion by clicking on the Drawing Plane."),
+		LOCTEXT("OnStartOffset", "Set the width of the path by clicking on the drawing plane."),
 		EToolMessageLevel::UserNotification);
 }
 
 void UDrawPolyPathTool::ShowExtrudeMessage()
 {
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartExtrude", "Set the Height of the Extrusion by positioning the mouse over the extrusion volume, or over the scene to snap to relative heights."),
+		LOCTEXT("OnStartExtrude", "Set the height of the extrusion by positioning the mouse over the extrusion volume, or over objects to snap to their heights. Hold Shift to ignore snapping."),
 		EToolMessageLevel::UserNotification);
 }
 

@@ -60,18 +60,18 @@ enum class EDrawPolygonDrawMode : uint8
 };
 
 
-/** Output of draw polygon tool */
+/** How the drawn polygon gets extruded */
 UENUM()
-enum class EDrawPolygonOutputMode : uint8
+enum class EDrawPolygonExtrudeMode : uint8
 {
-	/** Generate a flat polygon mesh */
-	MeshedPolygon UMETA(DisplayName = "Flat Mesh"),
+	/** Flat polygon without extrusion */
+	Flat,
 
-	/** Extrude drawn polygon to constant height determined by the Extrude Height property */
-	ExtrudedConstant UMETA(DisplayName = "Extrude to Height"),
+	/** Extrude drawn polygon to fixed height determined by the Extrude Height property */
+	Fixed,
 
 	/** Extrude drawn polygon to height set via additional mouse input after closing the polygon */
-	ExtrudedInteractive UMETA(DisplayName = "Interactive Extrude"),
+	Interactive,
 };
 
 
@@ -90,38 +90,37 @@ public:
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (DisplayName = "Draw Mode"))
 	EDrawPolygonDrawMode PolygonDrawMode = EDrawPolygonDrawMode::Freehand;
 
-	/** Size of secondary features, e.g. the rounded corners of a rounded rectangle, as fraction of the overall shape size */
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (UIMin = "0.01", UIMax = "0.99", ClampMin = "0.01", ClampMax = "0.99",
-		EditCondition = "PolygonDrawMode == EDrawPolygonDrawMode::RoundedRectangle || PolygonDrawMode == EDrawPolygonDrawMode::Ring", EditConditionHides))
-	float FeatureSizeRatio = .25;
-
 	/** Allow freehand drawn polygons to self-intersect */
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon,
-		meta = (DisplayName ="Self-Intersections", EditCondition = "PolygonDrawMode == EDrawPolygonDrawMode::Freehand", EditConditionHides))
+		meta = (DisplayName ="Self-Intersections", EditCondition = "PolygonDrawMode == EDrawPolygonDrawMode::Freehand"))
 	bool bAllowSelfIntersections = false;
+
+	/** Size of secondary features, e.g. the rounded corners of a rounded rectangle, as fraction of the overall shape size */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (UIMin = "0.01", UIMax = "0.99", ClampMin = "0.01", ClampMax = "0.99",
+		EditCondition = "PolygonDrawMode == EDrawPolygonDrawMode::RoundedRectangle || PolygonDrawMode == EDrawPolygonDrawMode::Ring"))
+	float FeatureSizeRatio = .25;
 
 	/** Number of radial subdivisions in round features, e.g. circles or rounded corners */
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (UIMin = "3", UIMax = "100", ClampMin = "3", ClampMax = "10000",
-		EditCondition =	"PolygonDrawMode == EDrawPolygonDrawMode::Circle || PolygonDrawMode == EDrawPolygonDrawMode::RoundedRectangle || PolygonDrawMode == EDrawPolygonDrawMode::Ring",
-		EditConditionHides))
+		EditCondition =	"PolygonDrawMode == EDrawPolygonDrawMode::Circle || PolygonDrawMode == EDrawPolygonDrawMode::RoundedRectangle || PolygonDrawMode == EDrawPolygonDrawMode::Ring"))
 	int RadialSlices = 16;
 
 	/** Distance between the last clicked point and the current point  */
 	UPROPERTY(VisibleAnywhere, NonTransactional, Category = Polygon, meta = (TransientToolProperty))
 	float Distance = 0.0f;
 
-	/** If and how the drawn polygon gets extruded */
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon)
-	EDrawPolygonOutputMode ExtrudeMode = EDrawPolygonOutputMode::ExtrudedInteractive;
-
-	/** Extrusion distance when using the non-interactive extrude mode */
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (UIMin = "-1000", UIMax = "1000", ClampMin = "-10000", ClampMax = "10000",
-									EditCondition = "ExtrudeMode == EDrawPolygonOutputMode::ExtrudedConstant"))
-	float ExtrudeHeight = 100.0f;
-
 	/** If true, shows a gizmo to manipulate the additional grid used to draw the polygon on */
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon)
 	bool bShowGridGizmo = true;
+
+	/** If and how the drawn polygon gets extruded */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Extrude)
+	EDrawPolygonExtrudeMode ExtrudeMode = EDrawPolygonExtrudeMode::Interactive;
+
+	/** Extrude distance when using the Fixed extrude mode */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Extrude, meta = (UIMin = "-1000", UIMax = "1000", ClampMin = "-10000", ClampMax = "10000",
+		EditCondition = "ExtrudeMode == EDrawPolygonExtrudeMode::Fixed"))
+	float ExtrudeHeight = 100.0f;
 };
 
 UCLASS()
@@ -130,36 +129,36 @@ class MESHMODELINGTOOLS_API UDrawPolygonToolSnapProperties : public UInteractive
 	GENERATED_BODY()
 
 public:
-	/** If true, enables additional snapping controls */
+	/** If true, enables additional snapping controls. If false, all snapping is disabled. */
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping)
 	bool bEnableSnapping = true;
 
-	/** If true, allows snapping to world grid according to editor settings */
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, meta = (EditCondition = "bEnableSnapping", EditConditionHides))
+	/** If true, allows snapping to world grid according to editor settings. Enable Snapping needs to be true for this property to be available. */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, meta = (EditCondition = "bEnableSnapping"))
 	bool bSnapToWorldGrid = false;
 
-	/** If true, snap to vertices in the current polygon or in other meshes */
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, meta = (EditCondition = "bEnableSnapping", EditConditionHides))
+	/** If true, snap to vertices in the current polygon or in other meshes. Enable Snapping needs to be true for this property to be available. */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, meta = (EditCondition = "bEnableSnapping"))
 	bool bSnapToVertices = true;
 
-	/** If true, snap to edges in the current polygon or in other meshes */
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, meta = (EditCondition = "bEnableSnapping", EditConditionHides))
+	/** If true, snap to edges in the current polygon or in other meshes. Enable Snapping needs to be true for this property to be available. */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, meta = (EditCondition = "bEnableSnapping"))
 	bool bSnapToEdges = false;
 
-	/** If true, snap to axes of the additional drawing grid as well as the axes relative to the last segment */
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, meta = (EditCondition = "bEnableSnapping", EditConditionHides))
+	/** If true, snap to axes of the additional drawing grid as well as the axes relative to the last segment. Enable Snapping needs to be true for this property to be available. */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, meta = (EditCondition = "bEnableSnapping"))
 	bool bSnapToAxes = true;
 
-	/** If true, when snapping to axes, also try to snap to the length of an existing segment in the polygon */
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, meta = (EditCondition = "bEnableSnapping && bSnapToAxes", EditConditionHides))
+	/** If true, when snapping to axes, also try to snap to the length of an existing segment in the polygon. Enable Snapping and Snap to Axes needs to both be true for this property to be available. */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, meta = (EditCondition = "bEnableSnapping && bSnapToAxes"))
 	bool bSnapToLengths = true;
 
-	/** If true, snap to surfaces of existing objects */
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping)
+	/** If true, snap to surfaces of existing objects. Enable Snapping needs to be true for this property to be available. */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, meta = (EditCondition = "bEnableSnapping"))
 	bool bSnapToSurfaces = false;
 
-	/** Offset for snap point on the surface of an existing object in the direction of the surface normal */
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, meta = (DisplayName = "Surface Offset", EditCondition = "bSnapToSurfaces", EditConditionHides))
+	/** Offset for snap point on the surface of an existing object in the direction of the surface normal. Enable Snapping and Snap to Surfaces needs to be true for this property to be available. */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, meta = (DisplayName = "Surface Offset", EditCondition = "bSnapToSurfaces"))
 	float SnapToSurfacesOffset = 0.0f;
 };
 
