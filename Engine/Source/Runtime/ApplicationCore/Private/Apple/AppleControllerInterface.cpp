@@ -29,6 +29,7 @@ FAppleControllerInterface::FAppleControllerInterface( const TSharedRef< FGeneric
 		[notificationCenter addObserverForName:GCControllerDidConnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
 		{
 			HandleConnection(Notification.object);
+            SetCurrentController(Notification.object);
 		}];
 
 		dispatch_async(dispatch_get_main_queue(), ^
