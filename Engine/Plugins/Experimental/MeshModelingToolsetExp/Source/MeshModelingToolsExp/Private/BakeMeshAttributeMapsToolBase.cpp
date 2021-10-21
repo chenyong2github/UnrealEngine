@@ -25,6 +25,48 @@ using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UBakeMeshAttributeMapsToolBase"
 
+// Initialize map type name map. These names should match the
+// auto-generated enum names. 
+static const char* BakeType_TangentSpaceNormals = "Tangent Space Normal";
+static const char* BakeType_AmbientOcclusion = "Ambient Occlusion";
+static const char* BakeType_BentNormals = "Bent Normal";
+static const char* BakeType_Curvature = "Curvature";
+static const char* BakeType_Texture = "Texture";
+static const char* BakeType_ObjectSpaceNormals = "Object Space Normal";
+static const char* BakeType_FaceNormals = "Face Normal";
+static const char* BakeType_Position = "Position";
+static const char* BakeType_MaterialID = "Material ID";
+static const char* BakeType_MultiTexture = "Multi Texture";
+static const char* BakeType_VertexColors = "Vertex Color";
+
+TMap<FString, EBakeMapType> UBakeMeshAttributeMapsToolBase::NameToMapTypeMap = {
+	TTuple<FString, EBakeMapType>(BakeType_TangentSpaceNormals, EBakeMapType::TangentSpaceNormal),
+	TTuple<FString, EBakeMapType>(BakeType_AmbientOcclusion, EBakeMapType::AmbientOcclusion),
+	TTuple<FString, EBakeMapType>(BakeType_BentNormals, EBakeMapType::BentNormal),
+	TTuple<FString, EBakeMapType>(BakeType_Curvature, EBakeMapType::Curvature),
+	TTuple<FString, EBakeMapType>(BakeType_Texture, EBakeMapType::Texture),
+	TTuple<FString, EBakeMapType>(BakeType_ObjectSpaceNormals, EBakeMapType::ObjectSpaceNormal),
+	TTuple<FString, EBakeMapType>(BakeType_FaceNormals, EBakeMapType::FaceNormal),
+	TTuple<FString, EBakeMapType>(BakeType_Position, EBakeMapType::Position),
+	TTuple<FString, EBakeMapType>(BakeType_MaterialID, EBakeMapType::MaterialID),
+	TTuple<FString, EBakeMapType>(BakeType_MultiTexture, EBakeMapType::MultiTexture),
+	TTuple<FString, EBakeMapType>(BakeType_VertexColors, EBakeMapType::VertexColor)
+};
+
+TMap<EBakeMapType, FString> UBakeMeshAttributeMapsToolBase::MapTypeToNameMap = {
+	TTuple<EBakeMapType, FString>(EBakeMapType::TangentSpaceNormal, BakeType_TangentSpaceNormals),
+	TTuple<EBakeMapType, FString>(EBakeMapType::AmbientOcclusion, BakeType_AmbientOcclusion),
+	TTuple<EBakeMapType, FString>(EBakeMapType::BentNormal, BakeType_BentNormals),
+	TTuple<EBakeMapType, FString>(EBakeMapType::Curvature, BakeType_Curvature),
+	TTuple<EBakeMapType, FString>(EBakeMapType::Texture, BakeType_Texture),
+	TTuple<EBakeMapType, FString>(EBakeMapType::ObjectSpaceNormal, BakeType_ObjectSpaceNormals),
+	TTuple<EBakeMapType, FString>(EBakeMapType::FaceNormal, BakeType_FaceNormals),
+	TTuple<EBakeMapType, FString>(EBakeMapType::Position, BakeType_Position),
+	TTuple<EBakeMapType, FString>(EBakeMapType::MaterialID, BakeType_MaterialID),
+	TTuple<EBakeMapType, FString>(EBakeMapType::MultiTexture, BakeType_MultiTexture),
+	TTuple<EBakeMapType, FString>(EBakeMapType::VertexColor, BakeType_VertexColors)
+};
+
 
 void UBakeMeshAttributeMapsToolBase::Setup()
 {
@@ -138,48 +180,20 @@ void UBakeMeshAttributeMapsToolBase::UpdateVisualization()
 {
 }
 
-void UBakeMeshAttributeMapsToolBase::OnMapTypesUpdated(const int32 MapTypes)
-{
-	const EBakeMapType BakeMapTypes = GetMapTypes(MapTypes);
-	ResultTypes = GetMapTypesArray(MapTypes);
-	
-	// Generate a map between EBakeMapType and CachedMaps
-	CachedMapIndices.Empty();
-	int32 CachedMapIdx = 0;
 
-	// Use the processed bitfield which may contain additional targets
-	// (ex. AO if BentNormal was requested).
-	for (EBakeMapType MapType : ALL_BAKE_MAP_TYPES)
-	{
-		if (MapType == EBakeMapType::Occlusion)
-		{
-			if ((bool)(BakeMapTypes & EBakeMapType::AmbientOcclusion))
-			{
-				CachedMapIndices.Add(EBakeMapType::AmbientOcclusion, CachedMapIdx++);
-			}
-			if ((bool)(BakeMapTypes & EBakeMapType::BentNormal))
-			{
-				CachedMapIndices.Add(EBakeMapType::BentNormal, CachedMapIdx++);
-			}
-		}
-		else if( (bool)(BakeMapTypes & MapType) )
-		{
-			CachedMapIndices.Add(MapType, CachedMapIdx++);
-		}
-	}
-	CachedMaps.Empty();
-	CachedMaps.SetNum(CachedMapIndices.Num());
-}
-
-void UBakeMeshAttributeMapsToolBase::UpdatePreview(const int PreviewIdx)
+void UBakeMeshAttributeMapsToolBase::UpdatePreview(const EBakeMapType PreviewMapType)
 {
-	const EBakeMapType& PreviewMapType = ResultTypes[PreviewIdx];
 	if (PreviewMapType == EBakeMapType::None)
 	{
 		return;
 	}
+
+	if (!CachedMaps.Contains(PreviewMapType))
+	{
+		return;
+	}
 	
-	UTexture2D* PreviewMap = CachedMaps[CachedMapIndices[PreviewMapType]];
+	UTexture2D* PreviewMap = CachedMaps[PreviewMapType];
 	switch (PreviewMapType)
 	{
 	default:
@@ -187,7 +201,7 @@ void UBakeMeshAttributeMapsToolBase::UpdatePreview(const int PreviewIdx)
 		PreviewMaterial->SetTextureParameterValue(TEXT("OcclusionMap"), EmptyColorMapWhite);
 		PreviewMaterial->SetTextureParameterValue(TEXT("ColorMap"), EmptyColorMapWhite);
 		break;
-	case EBakeMapType::TangentSpaceNormalMap:
+	case EBakeMapType::TangentSpaceNormal:
 		PreviewMaterial->SetTextureParameterValue(TEXT("NormalMap"), PreviewMap);
 		PreviewMaterial->SetTextureParameterValue(TEXT("OcclusionMap"), EmptyColorMapWhite);
 		PreviewMaterial->SetTextureParameterValue(TEXT("ColorMap"), EmptyColorMapWhite);
@@ -199,7 +213,7 @@ void UBakeMeshAttributeMapsToolBase::UpdatePreview(const int PreviewIdx)
 		break;
 	case EBakeMapType::BentNormal:
 	{
-		UTexture2D* AOMap = CachedMapIndices.Contains(EBakeMapType::AmbientOcclusion) ? CachedMaps[CachedMapIndices[EBakeMapType::AmbientOcclusion]] : EmptyColorMapWhite;
+		UTexture2D* AOMap = CachedMaps.Contains(EBakeMapType::AmbientOcclusion) ? CachedMaps[EBakeMapType::AmbientOcclusion] : EmptyColorMapWhite;
 		BentNormalPreviewMaterial->SetTextureParameterValue(TEXT("NormalMap"), EmptyNormalMap);
 		BentNormalPreviewMaterial->SetTextureParameterValue(TEXT("OcclusionMap"), AOMap);
 		BentNormalPreviewMaterial->SetTextureParameterValue(TEXT("ColorMap"), EmptyColorMapWhite);
@@ -208,13 +222,13 @@ void UBakeMeshAttributeMapsToolBase::UpdatePreview(const int PreviewIdx)
 		break;
 	}	
 	case EBakeMapType::Curvature:
-	case EBakeMapType::NormalImage:
-	case EBakeMapType::FaceNormalImage:
-	case EBakeMapType::PositionImage:
+	case EBakeMapType::ObjectSpaceNormal:
+	case EBakeMapType::FaceNormal:
+	case EBakeMapType::Position:
 	case EBakeMapType::MaterialID:
-	case EBakeMapType::Texture2DImage:
+	case EBakeMapType::Texture:
 	case EBakeMapType::MultiTexture:
-	case EBakeMapType::VertexColorImage:
+	case EBakeMapType::VertexColor:
 		PreviewMaterial->SetTextureParameterValue(TEXT("NormalMap"), EmptyNormalMap);
 		PreviewMaterial->SetTextureParameterValue(TEXT("OcclusionMap"), EmptyColorMapWhite);
 		PreviewMaterial->SetTextureParameterValue(TEXT("ColorMap"), PreviewMap);
@@ -251,11 +265,11 @@ void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry
 			const bool bConvertSourceToSRGB = bConvertToSRGB && SourceDataFormat == TSF_BGRA8;
 			TextureBuilder.CopyImageToSourceData(*NewResult->GetBakeResults(EvalIdx)[ResultIdx], SourceDataFormat, bConvertSourceToSRGB);
 
-			// The CachedMap & CachedMapIndices can be thrown out of sync if updated during
-			// a background compute. Validate the computed type against our cached maps.
-			if (CachedMapIndices.Contains(MapType))
+			// The CachedMap can be thrown out of sync if updated during a background
+			// compute. Validate the computed type against our cached maps.
+			if (CachedMaps.Contains(MapType))
 			{
-				CachedMaps[CachedMapIndices[MapType]] = TextureBuilder.GetTexture2D();
+				CachedMaps[MapType] = TextureBuilder.GetTexture2D();
 			}
 		};
 
@@ -263,7 +277,7 @@ void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry
 		{
 		case EMeshMapEvaluatorType::Normal:
 		{
-			constexpr EBakeMapType MapType = EBakeMapType::TangentSpaceNormalMap;
+			constexpr EBakeMapType MapType = EBakeMapType::TangentSpaceNormal;
 			UpdateCachedMap(MapType, Format, 0);
 			break;
 		}
@@ -297,19 +311,19 @@ void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry
 			switch (PropertyEval->Property)
 			{
 			case EMeshPropertyMapType::Normal:
-				MapType = EBakeMapType::NormalImage;
+				MapType = EBakeMapType::ObjectSpaceNormal;
 				break;
 			case EMeshPropertyMapType::FacetNormal:
-				MapType = EBakeMapType::FaceNormalImage;
+				MapType = EBakeMapType::FaceNormal;
 				break;
 			case EMeshPropertyMapType::Position:
-				MapType = EBakeMapType::PositionImage;
+				MapType = EBakeMapType::Position;
 				break;
 			case EMeshPropertyMapType::MaterialID:
 				MapType = EBakeMapType::MaterialID;
 				break;
 			case EMeshPropertyMapType::VertexColor:
-				MapType = EBakeMapType::VertexColorImage;
+				MapType = EBakeMapType::VertexColor;
 				break;
 			case EMeshPropertyMapType::UVPosition:
 			default:
@@ -321,8 +335,8 @@ void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry
 		}
 		case EMeshMapEvaluatorType::ResampleImage:
 		{
-			constexpr EBakeMapType MapType = EBakeMapType::Texture2DImage;
-			UpdateCachedMap(EBakeMapType::Texture2DImage, Format, 0);
+			constexpr EBakeMapType MapType = EBakeMapType::Texture;
+			UpdateCachedMap(MapType, Format, 0);
 			break;
 		}
 		case EMeshMapEvaluatorType::MultiResampleImage:
@@ -343,26 +357,11 @@ void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry
 
 EBakeMapType UBakeMeshAttributeMapsToolBase::GetMapTypes(const int32& MapTypes)
 {
-	EBakeMapType OutMapTypes = (EBakeMapType)MapTypes & EBakeMapType::All;
+	EBakeMapType OutMapTypes = static_cast<EBakeMapType>(MapTypes);
 	// Force AO bake for BentNormal preview
 	if ((bool)(OutMapTypes & EBakeMapType::BentNormal))
 	{
 		OutMapTypes |= EBakeMapType::AmbientOcclusion;
-	}
-	return OutMapTypes;
-}
-
-
-TArray<EBakeMapType> UBakeMeshAttributeMapsToolBase::GetMapTypesArray(const int32& MapTypes)
-{
-	TArray<EBakeMapType> OutMapTypes;
-	int32 Bitfield = MapTypes & (int32)EBakeMapType::All;
-	for (int32 BitIdx = 0; Bitfield; Bitfield >>= 1, ++BitIdx)
-	{
-		if (Bitfield & 1)
-		{
-			OutMapTypes.Add((EBakeMapType)(1 << BitIdx));
-		}
 	}
 	return OutMapTypes;
 }
@@ -376,7 +375,7 @@ FTexture2DBuilder::ETextureType UBakeMeshAttributeMapsToolBase::GetTextureType(c
 	default:
 		checkNoEntry();
 		break;
-	case EBakeMapType::TangentSpaceNormalMap:
+	case EBakeMapType::TangentSpaceNormal:
 		TexType = FTexture2DBuilder::ETextureType::NormalMap;
 		break;
 	case EBakeMapType::AmbientOcclusion:
@@ -386,15 +385,15 @@ FTexture2DBuilder::ETextureType UBakeMeshAttributeMapsToolBase::GetTextureType(c
 		TexType = FTexture2DBuilder::ETextureType::NormalMap;
 		break;
 	case EBakeMapType::Curvature:
-	case EBakeMapType::NormalImage:
-	case EBakeMapType::FaceNormalImage:
-	case EBakeMapType::PositionImage:
+	case EBakeMapType::ObjectSpaceNormal:
+	case EBakeMapType::FaceNormal:
+	case EBakeMapType::Position:
 		TexType = FTexture2DBuilder::ETextureType::ColorLinear;
 		break;
 	case EBakeMapType::MaterialID:
-	case EBakeMapType::VertexColorImage:
+	case EBakeMapType::VertexColor:
 		break;
-	case EBakeMapType::Texture2DImage:
+	case EBakeMapType::Texture:
 	case EBakeMapType::MultiTexture:
 		// For texture output with 16-bit source data, output HDR texture
 		if (MapFormat == EBakeTextureFormat::ChannelBits16)
@@ -414,7 +413,7 @@ void UBakeMeshAttributeMapsToolBase::GetTextureName(const EBakeMapType MapType, 
 	default:
 		checkNoEntry();
 		break;
-	case EBakeMapType::TangentSpaceNormalMap:
+	case EBakeMapType::TangentSpaceNormal:
 		TexName = FString::Printf(TEXT("%s_Normals"), *BaseName);
 		break;
 	case EBakeMapType::AmbientOcclusion:
@@ -426,26 +425,26 @@ void UBakeMeshAttributeMapsToolBase::GetTextureName(const EBakeMapType MapType, 
 	case EBakeMapType::Curvature:
 		TexName = FString::Printf(TEXT("%s_Curvature"), *BaseName);
 		break;
-	case EBakeMapType::NormalImage:
-		TexName = FString::Printf(TEXT("%s_NormalImg"), *BaseName);
+	case EBakeMapType::ObjectSpaceNormal:
+		TexName = FString::Printf(TEXT("%s_NormalsObject"), *BaseName);
 		break;
-	case EBakeMapType::FaceNormalImage:
-		TexName = FString::Printf(TEXT("%s_FaceNormalImg"), *BaseName);
+	case EBakeMapType::FaceNormal:
+		TexName = FString::Printf(TEXT("%s_FaceNormal"), *BaseName);
 		break;
 	case EBakeMapType::MaterialID:
-		TexName = FString::Printf(TEXT("%s_MaterialIDImg"), *BaseName);
+		TexName = FString::Printf(TEXT("%s_MaterialID"), *BaseName);
 		break;
-	case EBakeMapType::VertexColorImage:
-		TexName = FString::Printf(TEXT("%s_VertexColorIDImg"), *BaseName);
+	case EBakeMapType::VertexColor:
+		TexName = FString::Printf(TEXT("%s_VertexColorID"), *BaseName);
 		break;
-	case EBakeMapType::PositionImage:
-		TexName = FString::Printf(TEXT("%s_PositionImg"), *BaseName);
+	case EBakeMapType::Position:
+		TexName = FString::Printf(TEXT("%s_Position"), *BaseName);
 		break;
-	case EBakeMapType::Texture2DImage:
-		TexName = FString::Printf(TEXT("%s_TextureImg"), *BaseName);
+	case EBakeMapType::Texture:
+		TexName = FString::Printf(TEXT("%s_Texture"), *BaseName);
 		break;
 	case EBakeMapType::MultiTexture:
-		TexName = FString::Printf(TEXT("%s_MultiTextureImg"), *BaseName);
+		TexName = FString::Printf(TEXT("%s_MultiTexture"), *BaseName);
 		break;
 	}
 }

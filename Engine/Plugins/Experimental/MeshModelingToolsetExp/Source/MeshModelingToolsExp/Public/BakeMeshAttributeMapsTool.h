@@ -56,9 +56,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = MapSettings, meta=(Bitmask, BitmaskEnum=EBakeMapType))
 	int32 MapTypes = (int32) EBakeMapType::None;
 
-	/** The map type index to preview */
-	UPROPERTY(EditAnywhere, Category = MapSettings, meta=(ArrayClamp="Result", TransientToolProperty))
-	int MapPreview = 0;
+	/** The map type to preview */
+	UPROPERTY(EditAnywhere, Category = MapSettings, meta=(TransientToolProperty, GetOptions = GetMapPreviewNamesFunc))
+	FString MapPreview;
 
 	/** The pixel resolution of the generated map */
 	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (TransientToolProperty))
@@ -84,13 +84,17 @@ public:
 	FString UVLayer;
 
 	UFUNCTION()
-	TArray<FString> GetUVLayerNamesFunc();
+	const TArray<FString>& GetUVLayerNamesFunc();
 	UPROPERTY(meta = (TransientToolProperty))
 	TArray<FString> UVLayerNamesList;
 
-	UPROPERTY(VisibleAnywhere, Category = MapSettings, meta = (TransientToolProperty))
-	TArray<TObjectPtr<UTexture2D>> Result;
+	UFUNCTION()
+	const TArray<FString>& GetMapPreviewNamesFunc();
+	UPROPERTY(meta = (TransientToolProperty))
+	TArray<FString> MapPreviewNamesList;
 
+	UPROPERTY(VisibleAnywhere, Category = MapSettings, meta = (TransientToolProperty))
+	TMap<EBakeMapType, TObjectPtr<UTexture2D>> Result;
 };
 
 
@@ -127,9 +131,6 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UDetailMeshToolProperties> DetailMeshProps;
-
-	UPROPERTY()
-	TObjectPtr<UBakedNormalMapToolProperties> NormalMapProps;
 
 	UPROPERTY()
 	TObjectPtr<UBakedOcclusionMapToolProperties> OcclusionMapProps;

@@ -73,6 +73,12 @@ TArray<FString> UBakeMultiMeshAttributeMapsToolProperties::GetUVLayerNamesFunc()
 }
 
 
+const TArray<FString>& UBakeMultiMeshAttributeMapsToolProperties::GetMapPreviewNamesFunc()
+{
+	return MapPreviewNamesList;
+}
+
+
 /**
  * MeshSceneAdapter bake detail sampler for baking N detail meshes to 1 target mesh.
  */
@@ -351,13 +357,13 @@ public:
 		{
 			switch (BakeCacheSettings.BakeMapTypes & MapType)
 			{
-			case EBakeMapType::TangentSpaceNormalMap:
+			case EBakeMapType::TangentSpaceNormal:
 			{
 				TSharedPtr<FMeshNormalMapEvaluator, ESPMode::ThreadSafe> NormalEval = MakeShared<FMeshNormalMapEvaluator, ESPMode::ThreadSafe>();
 				Baker->AddEvaluator(NormalEval);
 				break;	
 			}
-			case EBakeMapType::Texture2DImage:
+			case EBakeMapType::Texture:
 			{
 				TSharedPtr<FMeshResampleImageEvaluator, ESPMode::ThreadSafe> TextureEval = MakeShared<FMeshResampleImageEvaluator, ESPMode::ThreadSafe>();
 				DetailSampler.SetColorMaps(CachedMeshToColorImageMap);
@@ -414,24 +420,11 @@ void UBakeMultiMeshAttributeMapsTool::Setup()
 	// Setup tool property sets
 	Settings = NewObject<UBakeMultiMeshAttributeMapsToolProperties>(this);
 	Settings->RestoreProperties(this);
-	Settings->UVLayerNamesList.Reset();
-	int32 FoundIndex = -1;
-	for (int32 k = 0; k < BaseMesh.Attributes()->NumUVLayers(); ++k)
-	{
-		Settings->UVLayerNamesList.Add(FString::FromInt(k));
-		if (Settings->UVLayer == Settings->UVLayerNamesList.Last())
-		{
-			FoundIndex = k;
-		}
-	}
-	if (FoundIndex == -1)
-	{
-		Settings->UVLayer = Settings->UVLayerNamesList[0];
-	}
+	UpdateUVLayerNames(Settings, BaseMesh);
 	AddToolPropertySource(Settings);
 
 	Settings->WatchProperty(Settings->MapTypes, [this](int32) { bInputsDirty = true; UpdateOnModeChange(); });
-	Settings->WatchProperty(Settings->MapPreview, [this](int32) { UpdateVisualization(); GetToolManager()->PostInvalidation(); });
+	Settings->WatchProperty(Settings->MapPreview, [this](FString) { UpdateVisualization(); GetToolManager()->PostInvalidation(); });
 	Settings->WatchProperty(Settings->Resolution, [this](EBakeTextureResolution) { bInputsDirty = true; });
 	Settings->WatchProperty(Settings->SourceFormat, [this](EBakeTextureFormat) { bInputsDirty = true; });
 	Settings->WatchProperty(Settings->UVLayer, [this](FString) { bInputsDirty = true; });
@@ -499,10 +492,9 @@ bool UBakeMultiMeshAttributeMapsTool::CanAccept() const
 	if (bCanAccept)
 	{
 		// Allow Accept if all non-None types have valid results.
-		const int NumResults = Settings->Result.Num();
-		for (int ResultIdx = 0; ResultIdx < NumResults; ++ResultIdx)
+		for (const TTuple<EBakeMapType, TObjectPtr<UTexture2D>>& Result : Settings->Result)
 		{
-			bCanAccept = bCanAccept && Settings->Result[ResultIdx];
+			bCanAccept = bCanAccept && Result.Get<1>();
 		}
 	}
 	return bCanAccept;
@@ -516,13 +508,13 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FMeshMapBaker>> UBakeMultiMeshAttr
 	Op->BaseMesh = &BaseMesh;
 	Op->BakeCacheSettings = CachedBakeCacheSettings;
 
-	constexpr EBakeMapType RequiresTangents = EBakeMapType::TangentSpaceNormalMap | EBakeMapType::BentNormal;
+	constexpr EBakeMapType RequiresTangents = EBakeMapType::TangentSpaceNormal | EBakeMapType::BentNormal;
 	if ((bool)(CachedBakeCacheSettings.BakeMapTypes & RequiresTangents))
 	{
 		Op->BaseMeshTangents = BaseMeshTangents;
 	}
 
-	if ((bool)(CachedBakeCacheSettings.BakeMapTypes & EBakeMapType::Texture2DImage))
+	if ((bool)(CachedBakeCacheSettings.BakeMapTypes & EBakeMapType::Texture))
 	{
 		Op->CachedColorImages = CachedColorImages;
 		Op->CachedMeshToColorImageMap = CachedMeshToColorImagesMap;
@@ -558,12 +550,11 @@ void UBakeMultiMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 		FString BaseName = UE::ToolTarget::GetTargetActor(Targets[0])->GetName();
 
 		bool bCreatedAssetOK = true;
-		const int NumResults = Settings->Result.Num();
-		for (int ResultIdx = 0; ResultIdx < NumResults; ++ResultIdx)
+		for (const TTuple<EBakeMapType, TObjectPtr<UTexture2D>>& Result : Settings->Result)
 		{
 			FString TexName;
-			GetTextureName(ResultTypes[ResultIdx], BaseName, TexName);
-			bCreatedAssetOK = bCreatedAssetOK && UE::Modeling::CreateTextureObject(GetToolManager(), FCreateTextureObjectParams{ 0, StaticMeshAsset->GetWorld(), StaticMeshAsset, TexName, Settings->Result[ResultIdx] }).IsOK();
+			GetTextureName(Result.Get<0>(), BaseName, TexName);
+			bCreatedAssetOK = bCreatedAssetOK && UE::Modeling::CreateTextureObject(GetToolManager(), FCreateTextureObjectParams{ 0, StaticMeshAsset->GetWorld(), StaticMeshAsset, TexName, Result.Get<1>() }).IsOK();
 		}
 		ensure(bCreatedAssetOK);
 	}
@@ -651,7 +642,7 @@ EBakeOpState UBakeMultiMeshAttributeMapsTool::UpdateResult_DetailMeshes()
 		ActorToDataMap.Emplace(ActorComponent, Idx);
 		
 		// Color map data
-		if ((bool)(CachedBakeCacheSettings.BakeMapTypes & EBakeMapType::Texture2DImage))
+		if ((bool)(CachedBakeCacheSettings.BakeMapTypes & EBakeMapType::Texture))
 		{
 			UTexture2D* ColorMapSourceTexture = DetailProps->DetailProperties[Idx].DetailColorMap;
 			const int ColorMapUVLayer = DetailProps->DetailProperties[Idx].DetailColorMapUVLayer;
@@ -680,7 +671,7 @@ EBakeOpState UBakeMultiMeshAttributeMapsTool::UpdateResult_DetailMeshes()
 		{
 			if (const int* DataIndex = ActorToDataMap.Find(ChildMesh->SourceComponent))
 			{
-				if ((bool)(CachedBakeCacheSettings.BakeMapTypes & EBakeMapType::Texture2DImage))
+				if ((bool)(CachedBakeCacheSettings.BakeMapTypes & EBakeMapType::Texture))
 				{
 					CachedMeshToColorImagesMap.Emplace(
 					ChildMesh->MeshSpatial,
@@ -699,64 +690,34 @@ void UBakeMultiMeshAttributeMapsTool::UpdateVisualization()
 {
 	PreviewMesh->SetOverrideRenderMaterial(PreviewMaterial);
 
-	// Map CachedMaps to Settings->Result
-	const int NumResults = Settings->Result.Num();
-	for (int ResultIdx = 0; ResultIdx < NumResults; ResultIdx++)
+	// Populate Settings->Result from CachedMaps
+	for (const TTuple<EBakeMapType, TObjectPtr<UTexture2D>>& Map : CachedMaps)
 	{
-		Settings->Result[ResultIdx] = CachedMaps[CachedMapIndices[ResultTypes[ResultIdx]]];
+		if (Settings->Result.Contains(Map.Get<0>()))
+		{
+			Settings->Result[Map.Get<0>()] = Map.Get<1>();
+		}
 	}
 
-	// Set the preview material according to the preview index.
-	if (Settings->MapPreview >= 0 && Settings->MapPreview < Settings->Result.Num())
+	// Set the preview material according to the preview name.
+	if (const EBakeMapType* PreviewType = NameToMapTypeMap.Find(Settings->MapPreview))
 	{
-		UpdatePreview(Settings->MapPreview);
+		UpdatePreview(*PreviewType);
 	}
 }
 
 
 void UBakeMultiMeshAttributeMapsTool::UpdateOnModeChange()
 {
-	OnMapTypesUpdated(Settings->MapTypes);
-	
-	for (const EBakeMapType MapType : ALL_BAKE_MAP_TYPES)
-	{
-		switch ((EBakeMapType)Settings->MapTypes & MapType)
-		{
-		case EBakeMapType::TangentSpaceNormalMap:
-			//SetToolPropertySourceEnabled(NormalMapProps, true);
-			break;
-		case EBakeMapType::AmbientOcclusion:
-		case EBakeMapType::BentNormal:
-		case EBakeMapType::Occlusion:
-			//SetToolPropertySourceEnabled(OcclusionMapProps, true);
-			break;
-		case EBakeMapType::Curvature:
-			//SetToolPropertySourceEnabled(CurvatureMapProps, true);
-			break;
-		case EBakeMapType::NormalImage:
-		case EBakeMapType::FaceNormalImage:
-		case EBakeMapType::PositionImage:
-		case EBakeMapType::MaterialID:
-		case EBakeMapType::VertexColorImage:
-			break;
-		case EBakeMapType::Texture2DImage:
-			//SetToolPropertySourceEnabled(Texture2DProps, true);
-			break;
-		case EBakeMapType::MultiTexture:
-			//SetToolPropertySourceEnabled(MultiTextureProps, true);
-			break;
-		default:
-			break;
-		}
-	}
-	
-	InvalidateResults();
+	OnMapTypesUpdated(Settings);
 }
 
 void UBakeMultiMeshAttributeMapsTool::InvalidateResults()
 {
-	Settings->Result.Empty();
-	Settings->Result.SetNum(ResultTypes.Num());
+	for (TTuple<EBakeMapType, TObjectPtr<UTexture2D>>& Result : Settings->Result)
+	{
+		Result.Get<1>() = nullptr;
+	}
 }
 
 
