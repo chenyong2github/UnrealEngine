@@ -34,23 +34,35 @@ class MESHMODELINGTOOLSEXP_API UBakeMultiMeshAttributeMapsToolBuilder : public U
 
 
 // This enumeration must match EBakeMapType. This duplicate enum is
-// intended to only be used for UI and internally converted to EBakeMapType.
+// intended to only be used for UI purposes to hide unsupported map types
+// but is internally converted to EBakeMapType.
 UENUM(meta=(Bitflags, UseEnumValuesAsMaskValuesInEditor="true"))
 enum class EBakeMultiMapType
 {
 	None                   = 0 UMETA(Hidden),
-	TangentSpaceNormalMap  = 1 << 0,
+	/* Sample normals from the detail mesh in tangent space */
+	TangentSpaceNormals    = 1 << 0,
+	/* Sample ambient occlusion from the detail mesh */
 	AmbientOcclusion       = 1 << 1 UMETA(Hidden),
-	BentNormal             = 1 << 2 UMETA(Hidden),
+	/* Sample normals skewed towards the least occluded direction from the detail mesh */
+	BentNormals            = 1 << 2 UMETA(Hidden),
+	/* Sample mesh curvatures from the detail mesh */
 	Curvature              = 1 << 3 UMETA(Hidden),
-	Texture2DImage         = 1 << 4,
-	NormalImage            = 1 << 5 UMETA(Hidden),
-	FaceNormalImage        = 1 << 6 UMETA(Hidden),
-	PositionImage          = 1 << 7 UMETA(Hidden),
-	MaterialID             = 1 << 8 UMETA(Hidden),
+	/* Sample a source texture from the detail mesh UVs */
+	Texture                = 1 << 4,
+	/* Sample object space normals from the detail mesh */
+	ObjectSpaceNormals     = 1 << 5 UMETA(Hidden),
+	/* Sample object space face normals from the detail mesh */
+	FaceNormals            = 1 << 6 UMETA(Hidden),
+	/* Sample bounding box relative positions from the detail mesh */
+	Position               = 1 << 7 UMETA(Hidden),
+	/* Sample material IDs as unique colors from the detail mesh */
+	MaterialID             = 1 << 8 UMETA(DisplayName="Material ID", Hidden),
+	/* Sample a source texture per material ID on the detail mesh */
 	MultiTexture           = 1 << 9 UMETA(Hidden),
-	VertexColorImage       = 1 << 10 UMETA(Hidden),
-	Occlusion              = (AmbientOcclusion | BentNormal) UMETA(Hidden),
+	/* Sample the interpolated vertex colors from the detail mesh */
+	VertexColors           = 1 << 10 UMETA(Hidden),
+	Occlusion              = (AmbientOcclusion | BentNormals) UMETA(Hidden),
 	All                    = 0x7FF UMETA(Hidden)
 };
 ENUM_CLASS_FLAGS(EBakeMultiMapType);
@@ -67,8 +79,8 @@ public:
 	int32 MapTypes = (int32) EBakeMapType::None;
 
 	/** The map type index to preview */
-	UPROPERTY(EditAnywhere, Category = MapSettings, meta=(ArrayClamp="Result"))
-	int MapPreview = 0;
+	UPROPERTY(EditAnywhere, Category = MapSettings, meta=(TransientToolProperty, GetOptions = GetMapPreviewNamesFunc))
+	FString MapPreview;
 
 	/** The pixel resolution of the generated map */
 	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (TransientToolProperty))
@@ -95,8 +107,13 @@ public:
 	UPROPERTY(meta = (TransientToolProperty))
 	TArray<FString> UVLayerNamesList;
 
+	UFUNCTION()
+	const TArray<FString>& GetMapPreviewNamesFunc();
+	UPROPERTY(meta = (TransientToolProperty))
+	TArray<FString> MapPreviewNamesList;
+
 	UPROPERTY(VisibleAnywhere, Category = MapSettings, meta = (TransientToolProperty))
-	TArray<TObjectPtr<UTexture2D>> Result;
+	TMap<EBakeMapType, TObjectPtr<UTexture2D>> Result;
 
 };
 

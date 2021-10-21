@@ -28,27 +28,27 @@ enum class EBakeMapType
 {
 	None                   = 0 UMETA(Hidden),
 	/* Sample normals from the detail mesh in tangent space */
-	TangentSpaceNormalMap  = 1 << 0 UMETA(DisplayName="Tangent Space Normals"),
+	TangentSpaceNormal     = 1 << 0,
 	/* Sample ambient occlusion from the detail mesh */
-	AmbientOcclusion       = 1 << 1 UMETA(DisplayName="Ambient Occlusion"),
+	AmbientOcclusion       = 1 << 1,
 	/* Sample normals skewed towards the least occluded direction from the detail mesh */
-	BentNormal             = 1 << 2 UMETA(DisplayName="Bent Normals"),
+	BentNormal             = 1 << 2,
 	/* Sample mesh curvatures from the detail mesh */
-	Curvature              = 1 << 3 UMETA(DisplayName="Curvature"),
+	Curvature              = 1 << 3,
 	/* Sample a source texture from the detail mesh UVs */
-	Texture2DImage         = 1 << 4 UMETA(DisplayName="Texture"),
+	Texture                = 1 << 4,
 	/* Sample object space normals from the detail mesh */
-	NormalImage            = 1 << 5 UMETA(DisplayName="Object Space Normals"),
+	ObjectSpaceNormal      = 1 << 5,
 	/* Sample object space face normals from the detail mesh */
-	FaceNormalImage        = 1 << 6 UMETA(DisplayName="Face Normals"),
+	FaceNormal             = 1 << 6,
 	/* Sample bounding box relative positions from the detail mesh */
-	PositionImage          = 1 << 7 UMETA(DisplayName="Position"),
+	Position               = 1 << 7,
 	/* Sample material IDs as unique colors from the detail mesh */
 	MaterialID             = 1 << 8 UMETA(DisplayName="Material ID"),
 	/* Sample a source texture per material ID on the detail mesh */
-	MultiTexture           = 1 << 9 UMETA(DisplayName="MultiTexture"),
+	MultiTexture           = 1 << 9,
 	/* Sample the interpolated vertex colors from the detail mesh */
-	VertexColorImage       = 1 << 10 UMETA(DisplayName="Vertex Colors"),
+	VertexColor            = 1 << 10,
 	Occlusion              = (AmbientOcclusion | BentNormal) UMETA(Hidden),
 	All                    = 0x7FF UMETA(Hidden)
 };
@@ -63,16 +63,16 @@ ENUM_CLASS_FLAGS(EBakeMapType);
 // iteration loop.
 static constexpr EBakeMapType ALL_BAKE_MAP_TYPES[] =
 {
-	EBakeMapType::TangentSpaceNormalMap,
+	EBakeMapType::TangentSpaceNormal,
 	EBakeMapType::Occlusion, // (AmbientOcclusion | BentNormal)
 	EBakeMapType::Curvature,
-	EBakeMapType::Texture2DImage,
-	EBakeMapType::NormalImage,
-	EBakeMapType::FaceNormalImage,
-	EBakeMapType::PositionImage,
+	EBakeMapType::Texture,
+	EBakeMapType::ObjectSpaceNormal,
+	EBakeMapType::FaceNormal,
+	EBakeMapType::Position,
 	EBakeMapType::MaterialID,
 	EBakeMapType::MultiTexture,
-	EBakeMapType::VertexColorImage
+	EBakeMapType::VertexColor
 };
 
 
@@ -140,6 +140,14 @@ public:
 	// End IGenericDataOperatorFactory interface
 
 	void SetWorld(UWorld* World);
+
+public:
+	/** @return An enumerated map type from a bitfield */
+	static EBakeMapType GetMapTypes(const int32& MapTypes);
+
+	/** Internal maps of name to BakeMapType */
+	static TMap<FString, EBakeMapType> NameToMapTypeMap;
+	static TMap<EBakeMapType, FString> MapTypeToNameMap;
 
 protected:
 	//
@@ -217,12 +225,17 @@ protected:
 	/**
 	 * To be invoked by client when bake map types change.
 	 */
-	void OnMapTypesUpdated(int32 MapTypes);
+	template <typename PropertySet>
+	void OnMapTypesUpdated(PropertySet& Properties);
 
 	//
 	// Background compute
 	//
 	TUniquePtr<TGenericDataBackgroundCompute<UE::Geometry::FMeshMapBaker>> Compute = nullptr;
+
+	/** Internal cache of bake texture results. */
+	UPROPERTY()
+	TMap<EBakeMapType, TObjectPtr<UTexture2D>> CachedMaps;
 
 	/**
 	 * Retrieves the result of the FMeshMapBaker and generates UTexture2D into the CachedMaps.
@@ -233,33 +246,42 @@ protected:
 	 */
 	void OnMapsUpdated(const TUniquePtr<UE::Geometry::FMeshMapBaker>& NewResult, EBakeTextureFormat Format);
 
+
 	/**
 	 * Update the preview material parameters for a given a result index.
-	 * @param PreviewIdx index into the ResultTypes array to preview
+	 * @param PreviewMapType EBakeMapType to preview
 	 */
-	void UpdatePreview(int PreviewIdx);
+	void UpdatePreview(EBakeMapType PreviewMapType);
+	
 
-	/** Internal cache of bake texture results. */
-	UPROPERTY()
-	TArray<TObjectPtr<UTexture2D>> CachedMaps;
+	/**
+	 * Updates a tool property set's MapPreviewNamesList from the list of
+	 * active map types. Also updates the MapPreview property if the current
+	 * preview option is no longer available.
+	 *
+	 * @param Properties the UInteractiveToolPropertySet to update.
+	 */
+	template <typename PropertySet>
+	void UpdatePreviewNames(PropertySet& Properties);
 
-	/** Internal map of map type to index into CachedMaps array */
-	TMap<EBakeMapType, int32> CachedMapIndices;
 
-	/** Internal array of CachedMaps index to map type */
-	TArray<EBakeMapType> ResultTypes;
+	/**
+	 * Updates a tool property set's UVLayerNamesList from the list of UV layers
+	 * on a given mesh. Also updates the UVLayer property if the current UV layer
+	 * is no longer available.
+	 *
+	 * @param Properties the UInteractiveToolPropertySet to update.
+	 * @param Mesh the mesh to query
+	 */
+	template <typename PropertySet>
+	static void UpdateUVLayerNames(PropertySet& Properties, const FDynamicMesh3& Mesh);
+
 	
 	//
 	// Utilities
 	//
 	const bool bPreferPlatformData = false;
 	
-	/** @return An enumerated map type from a bitfield */
-	static EBakeMapType GetMapTypes(const int32& MapTypes);
-
-	/** @return An array of map types from a bitfield */
-	static TArray<EBakeMapType> GetMapTypesArray(const int32& MapTypes);
-
 	/** @return the Texture2D type for a given map type */
 	static UE::Geometry::FTexture2DBuilder::ETextureType GetTextureType(EBakeMapType MapType, EBakeTextureFormat MapFormat);
 
@@ -282,6 +304,15 @@ protected:
 	template <typename ProcessFn>
 	static void ProcessComponentTextures(const UPrimitiveComponent* Component, ProcessFn&& ProcessFunc);
 
+	/**
+	 * @param Properties the tool property set to validate the map type against.
+	 * @param MapType the map type to validate.
+	 * @return true if MapType was requested from the given PropertySet
+	 */
+	template <typename PropertySet>
+	static bool IsRequestedMapType(PropertySet& Properties, EBakeMapType MapType);
+	
+
 	// empty maps are shown when nothing is computed
 	UPROPERTY()
 	TObjectPtr<UTexture2D> EmptyNormalMap;
@@ -294,6 +325,97 @@ protected:
 
 	void InitializeEmptyMaps();
 };
+
+
+template <typename PropertySet>
+void UBakeMeshAttributeMapsToolBase::OnMapTypesUpdated(PropertySet& Properties)
+{
+	const EBakeMapType BakeMapTypes = GetMapTypes(Properties->MapTypes);
+	
+	// Use the processed bitfield which may contain additional targets
+	// (ex. AO if BentNormal was requested).
+	CachedMaps.Empty();
+	for (EBakeMapType MapType : ALL_BAKE_MAP_TYPES)
+	{
+		if (MapType == EBakeMapType::Occlusion)
+		{
+			if ((bool)(BakeMapTypes & EBakeMapType::AmbientOcclusion))
+			{
+				CachedMaps.Add(EBakeMapType::AmbientOcclusion, nullptr);
+			}
+			if ((bool)(BakeMapTypes & EBakeMapType::BentNormal))
+			{
+				CachedMaps.Add(EBakeMapType::BentNormal, nullptr);
+			}
+		}
+		else if( (bool)(BakeMapTypes & MapType) )
+		{
+			CachedMaps.Add(MapType, nullptr);
+		}
+	}
+
+	// Initialize Properties->Result with requested MapTypes
+	for (const TTuple<EBakeMapType, TObjectPtr<UTexture2D>>& Map : CachedMaps)
+	{
+		// Only populate map types that were requested. Some map types like
+		// AO may have only been added for preview of other types (ex. BentNormal)
+		if (IsRequestedMapType(Properties, Map.Get<0>()))
+		{
+			Properties->Result.Add(Map.Get<0>(), nullptr);
+		}
+	}
+
+	UpdatePreviewNames(Properties);
+}
+
+
+template <typename PropertySet>
+void UBakeMeshAttributeMapsToolBase::UpdatePreviewNames(PropertySet& Properties)
+{
+	// Update our preview names list.
+	Properties->MapPreviewNamesList.Reset();
+	bool bFoundMapType = false;
+	for (const TTuple<EBakeMapType, TObjectPtr<UTexture2D>>& Map : CachedMaps)
+	{
+		// Only populate map types that were requested. Some map types like
+		// AO may have only been added for preview of other types (ex. BentNormal)
+		if (IsRequestedMapType(Properties, Map.Get<0>()))
+		{
+			if (const FString* MapTypeName = MapTypeToNameMap.Find(Map.Get<0>()))
+			{
+				Properties->MapPreviewNamesList.Add(*MapTypeName);
+				if (Properties->MapPreview == Properties->MapPreviewNamesList.Last())
+				{
+					bFoundMapType = true;
+				}
+			}
+		}
+	}
+	if (!bFoundMapType)
+	{
+		Properties->MapPreview = Properties->MapPreviewNamesList.Num() > 0 ? Properties->MapPreviewNamesList[0] : TEXT("");
+	}
+}
+
+
+template <typename PropertySet>
+void UBakeMeshAttributeMapsToolBase::UpdateUVLayerNames(PropertySet& Properties, const FDynamicMesh3& Mesh)
+{
+	Properties->UVLayerNamesList.Reset();
+	int32 FoundIndex = -1;
+	for (int32 k = 0; k < Mesh.Attributes()->NumUVLayers(); ++k)
+	{
+		Properties->UVLayerNamesList.Add(FString::FromInt(k));
+		if (Properties->UVLayer == Properties->UVLayerNamesList.Last())
+		{
+			FoundIndex = k;
+		}
+	}
+	if (FoundIndex == -1)
+	{
+		Properties->UVLayer = Properties->UVLayerNamesList[0];
+	}
+}
 
 
 template <typename ProcessFn>
@@ -320,6 +442,16 @@ void UBakeMeshAttributeMapsToolBase::ProcessComponentTextures(const UPrimitiveCo
 		ProcessFunc(MaterialID, Textures);
 	}
 }
+
+template <typename PropertySet>
+bool UBakeMeshAttributeMapsToolBase::IsRequestedMapType(PropertySet& Properties, EBakeMapType MapType)
+{
+	EBakeMapType SourceMapTypes = static_cast<EBakeMapType>(Properties->MapTypes);
+	return static_cast<bool>(SourceMapTypes & MapType);
+}
+
+
+
 
 
 
