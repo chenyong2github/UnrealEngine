@@ -128,14 +128,14 @@ namespace HordeServer.Storage.Controllers
 		[HttpPut]
 		[Route("/api/v1/objects/{NamespaceId}/{Hash}")]
 		[ProducesResponseType(typeof(PutObjectResponse), 200)]
-		public async Task<ActionResult> PutObjectAsync(NamespaceId NamespaceId, IoHash Hash, [FromBody] byte[] Data)
+		public async Task<ActionResult> PutObjectAsync(NamespaceId NamespaceId, IoHash Hash, [FromBody] CbObject Data)
 		{
 			if (!await NamespaceCollection.AuthorizeAsync(NamespaceId, User, AclAction.WriteBlobs))
 			{
 				return Forbid();
 			}
 
-			await ObjectCollection.AddAsync(NamespaceId, Hash, new CbObject(Data));
+			await ObjectCollection.AddAsync(NamespaceId, Hash, Data);
 			return Ok(new PutObjectResponse { Id = Hash });
 		}
 

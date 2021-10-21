@@ -71,7 +71,11 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Cache of type to converter
 		/// </summary>
-		public static Dictionary<Type, CbConverter> TypeToConverter = new Dictionary<Type, CbConverter>();
+		public static Dictionary<Type, CbConverter> TypeToConverter = new Dictionary<Type, CbConverter>()
+		{
+			[typeof(CbField)] = new CbFieldConverter(),
+			[typeof(CbObject)] = new CbObjectConverter()
+		};
 
 		/// <summary>
 		/// List of converter factories. Must be 
