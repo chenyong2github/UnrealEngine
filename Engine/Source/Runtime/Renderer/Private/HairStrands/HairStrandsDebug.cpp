@@ -200,6 +200,7 @@ EHairStrandsDebugMode GetHairStrandsDebugStrandsMode()
 	case  9:  return EHairStrandsDebugMode::RenderHairBaseColor;
 	case 10:  return EHairStrandsDebugMode::RenderHairRoughness;
 	case 11:  return EHairStrandsDebugMode::RenderVisCluster;
+	case 12:  return EHairStrandsDebugMode::RenderHairTangent;
 	default:  return EHairStrandsDebugMode::NoneDebug;
 	};
 }
@@ -217,6 +218,7 @@ static const TCHAR* ToString(EHairStrandsDebugMode DebugMode)
 	case EHairStrandsDebugMode::RenderHairSeed				: return TEXT("Hair seed");
 	case EHairStrandsDebugMode::RenderHairDimension			: return TEXT("Hair dimensions");
 	case EHairStrandsDebugMode::RenderHairRadiusVariation	: return TEXT("Hair radius variation");
+	case EHairStrandsDebugMode::RenderHairTangent			: return TEXT("Hair tangent");
 	case EHairStrandsDebugMode::RenderHairBaseColor			: return TEXT("Hair vertices color");
 	case EHairStrandsDebugMode::RenderHairRoughness			: return TEXT("Hair vertices roughness");
 	case EHairStrandsDebugMode::RenderVisCluster			: return TEXT("Hair visility clusters");
@@ -1098,9 +1100,26 @@ static void InternalRenderHairStrandsDebugInfo(
 	}
 
 	// Display tangent vector for strands/cards/meshes
-	if (GHairTangentDebug > 0)
+	if (GHairTangentDebug > 0 || View.HairStrandsMeshElements.Num() > 0)
 	{
-		AddDebugHairTangentPass(GraphBuilder, View, SceneTextures, SceneColorTexture);
+		// Check among the hair instances, if hair tangent debug mode is requested
+		bool bTangentEnabled = GHairTangentDebug > 0;
+		if (!bTangentEnabled)
+		{
+			for (const FMeshBatchAndRelevance& Mesh : View.HairStrandsMeshElements)
+			{
+				const FHairGroupPublicData* GroupData = reinterpret_cast<const FHairGroupPublicData*>(Mesh.Mesh->Elements[0].VertexFactoryUserData);
+				if (GroupData->DebugMode == EHairStrandsDebugMode::RenderHairTangent)
+				{
+					bTangentEnabled = true;
+					break;
+				}
+			}
+		}
+		if (bTangentEnabled)
+		{
+			AddDebugHairTangentPass(GraphBuilder, View, SceneTextures, SceneColorTexture);
+		}
 	}
 
 	// Pass this point, all debug rendering concern only hair strands data

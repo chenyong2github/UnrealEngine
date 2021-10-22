@@ -629,7 +629,11 @@ public:
 						DebugMode = EHairStrandsDebugMode::RenderLODColoration;
 					}
 					
-					if (DebugMode != EHairStrandsDebugMode::NoneDebug)
+					const bool bNeedDebugMaterial = 
+						DebugMode != EHairStrandsDebugMode::NoneDebug &&
+						DebugMode != EHairStrandsDebugMode::RenderHairTangent;
+
+					if (bNeedDebugMaterial)
 					{
 						float DebugModeScalar = 0;
 						switch(DebugMode)
@@ -1557,6 +1561,14 @@ void UGroomComponent::SetHairLengthScaleEnable(bool bEnable)
 	InitResources();
 }
 
+#if WITH_EDITOR
+void UGroomComponent::SetDebugMode(EHairStrandsDebugMode InMode)
+{ 
+	DebugMode = InMode; 
+	UpdateHairGroupsDescAndInvalidateRenderState(true);
+}
+#endif
+
 bool UGroomComponent::GetIsHairLengthScaleEnabled()
 {
 	bool IsEnabled = true;
@@ -1720,7 +1732,8 @@ void UGroomComponent::UpdateHairGroupsDescAndInvalidateRenderState(bool bInvalid
 	{
 		Instance->Strands.Modifier  = GetGroomGroupsDesc(GroomAsset, this, GroupIndex);
 #if WITH_EDITORONLY_DATA
-		Instance->Debug.DebugMode = GroomAsset ? GroomAsset->GetDebugMode() : EHairStrandsDebugMode::NoneDebug;
+		Instance->Debug.DebugMode = DebugMode;
+		Instance->HairGroupPublicData->DebugMode = DebugMode; // Replicated value for accessing it from the engine side. Refactor this.
 #endif// #if WITH_EDITORONLY_DATA
 		++GroupIndex;
 	}
@@ -2491,7 +2504,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		// LODBias is in the Modifier which is needed for LOD selection regardless if the strands are there or not
 		HairGroupInstance->Strands.Modifier = GetGroomGroupsDesc(GroomAsset, this, GroupIt);
 		#if WITH_EDITORONLY_DATA
-		HairGroupInstance->Debug.DebugMode = GroomAsset->GetDebugMode();
+		HairGroupInstance->Debug.DebugMode = DebugMode;
 		#endif// #if WITH_EDITORONLY_DATA
 
 		// Strands data/resources

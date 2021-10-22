@@ -63,6 +63,7 @@ enum class EHairStrandsDebugMode : uint8
 	RenderHairSeed,
 	RenderHairDimension,
 	RenderHairRadiusVariation,
+	RenderHairTangent,
 	RenderHairBaseColor,
 	RenderHairRoughness,
 	RenderVisCluster,
@@ -327,6 +328,7 @@ public:
 	float LODIndex = -1;		// Current LOD used for all views
 	float LODBias = 0;			// Current LOD bias
 	bool bLODVisibility = true; // Enable/disable hair rendering for this component
+	EHairStrandsDebugMode DebugMode = EHairStrandsDebugMode::NoneDebug;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
