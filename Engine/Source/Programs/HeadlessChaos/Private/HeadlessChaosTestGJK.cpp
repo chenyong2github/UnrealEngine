@@ -1868,8 +1868,11 @@ namespace ChaosTest
 
 		FGJKSimplexData WarmStartData;
 
+		// Separated (GJK)
 		GJKPenetrationWarmStartable<true>(Box, Box, BTM.GetRelativeTransformNoScale(ATM), FReal(0), FReal(0), Penetration, ClosestA, ClosestB, NormalA, NormalB, WarmStartData);
 		EXPECT_NEAR(Penetration, -5.0f, KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(ClosestA.Z, (FReal)50.0f, (FReal)KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(ClosestB.Z, (FReal)-50.0f, (FReal)KINDA_SMALL_NUMBER);
 
 		GJKPenetrationWarmStartable<true>(Box, Box, BTM.GetRelativeTransformNoScale(ATM), FReal(0), FReal(0), Penetration, ClosestA, ClosestB, NormalA, NormalB, WarmStartData);
 		EXPECT_NEAR(Penetration, -5.0f, KINDA_SMALL_NUMBER);
@@ -1885,5 +1888,63 @@ namespace ChaosTest
 		FReal Penetration2;
 		GJKPenetrationWarmStartable<true>(Box, Box, BTM.GetRelativeTransformNoScale(ATM), FReal(0), FReal(0), Penetration2, ClosestA, ClosestB, NormalA, NormalB, WarmStartData);
 		EXPECT_NEAR(Penetration2, Penetration, KINDA_SMALL_NUMBER);
+	}
+
+	GTEST_TEST(GJKTests, BoxBoxWarmStartDeepTest)
+	{
+		FAABB3 Box({ -50, -50, -50 }, { 50, 50, 50 });
+
+		FRigidTransform3 ATM = FRigidTransform3::Identity;
+		FRigidTransform3 BTM = FRigidTransform3(FVec3(0, 0, 60), FRotation3::FromIdentity());
+		FVec3 ClosestA, ClosestB, NormalA, NormalB;
+		FReal Penetration;
+
+		FGJKSimplexData WarmStartData;
+
+		// Deep (EPA) No Margin
+		GJKPenetrationWarmStartable<true>(Box, Box, BTM.GetRelativeTransformNoScale(ATM), FReal(0), FReal(0), Penetration, ClosestA, ClosestB, NormalA, NormalB, WarmStartData);
+		EXPECT_NEAR(Penetration, 40.0f, KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(ClosestA.Z, (FReal)50.0f, (FReal)KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(ClosestB.Z, (FReal)-50.0f, (FReal)KINDA_SMALL_NUMBER);
+
+		// Deep (EPA) With Margin
+		WarmStartData = FGJKSimplexData();
+		TGJKCoreShape MarginBox(Box, FReal(10));
+		GJKPenetrationWarmStartable<true>(MarginBox, MarginBox, BTM.GetRelativeTransformNoScale(ATM), FReal(0), FReal(0), Penetration, ClosestA, ClosestB, NormalA, NormalB, WarmStartData);
+		EXPECT_NEAR(Penetration, 40.0f, KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(ClosestA.Z, (FReal)50.0f, (FReal)KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(ClosestB.Z, (FReal)-50.0f, (FReal)KINDA_SMALL_NUMBER);
+
+		// Deep (EPA) With Margin and Relative Rotation
+		WarmStartData = FGJKSimplexData();
+		ATM = FRigidTransform3(FVec3(0, 0, 0), FRotation3::FromAxisAngle(FVec3(1, 0, 0), FMath::DegreesToRadians(180)));
+		GJKPenetrationWarmStartable<true>(MarginBox, MarginBox, BTM.GetRelativeTransformNoScale(ATM), FReal(0), FReal(0), Penetration, ClosestA, ClosestB, NormalA, NormalB, WarmStartData);
+		EXPECT_NEAR(Penetration, 40.0f, KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(ClosestA.Z, (FReal)-50.0f, (FReal)KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(ClosestB.Z, (FReal)-50.0f, (FReal)KINDA_SMALL_NUMBER);
+	}
+
+	GTEST_TEST(GJKTests, SphereSphereWarmStartTest)
+	{
+		FImplicitSphere3 Sphere(FVec3(0), FReal(50));
+
+		FRigidTransform3 ATM = FRigidTransform3::Identity;
+		FRigidTransform3 BTM = FRigidTransform3(FVec3(0, 0, 105), FRotation3::FromIdentity());
+		FVec3 ClosestA, ClosestB, NormalA, NormalB;
+		FReal Penetration;
+
+		FGJKSimplexData WarmStartData;
+
+		GJKPenetrationWarmStartable<true>(Sphere, Sphere, BTM.GetRelativeTransformNoScale(ATM), FReal(0), FReal(0), Penetration, ClosestA, ClosestB, NormalA, NormalB, WarmStartData);
+		EXPECT_NEAR(Penetration, (FReal)-5.0f, (FReal)KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(ClosestA.Z, (FReal)50.0f, (FReal)KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(ClosestB.Z, (FReal)-50.0f, (FReal)KINDA_SMALL_NUMBER);
+
+		BTM = FRigidTransform3(FVec3(0, 0, 105), FRotation3::FromAxisAngle(FVec3(1,0,0), FMath::DegreesToRadians(180)));
+		GJKPenetrationWarmStartable<true>(Sphere, Sphere, BTM.GetRelativeTransformNoScale(ATM), FReal(0), FReal(0), Penetration, ClosestA, ClosestB, NormalA, NormalB, WarmStartData);
+		EXPECT_NEAR(Penetration, (FReal)-5.0f, (FReal)KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(ClosestA.Z, (FReal)50.0f, (FReal)KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(ClosestB.Z, (FReal)50.0f, (FReal)KINDA_SMALL_NUMBER);
+
 	}
 }
