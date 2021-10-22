@@ -325,13 +325,13 @@ namespace HordeServer.Services.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IIssue>> FindIssuesAsync(IEnumerable<int>? Ids = null, UserId? UserId = null, StreamId? StreamId = null, int? MinChange = null, int? MaxChange = null, bool? Resolved = null, int? Index = null, int? Count = null)
+		public async Task<List<IIssue>> FindIssuesAsync(IEnumerable<int>? Ids = null, UserId? UserId = null, StreamId? StreamId = null, int? MinChange = null, int? MaxChange = null, bool? Resolved = null, bool? Promoted = null, int? Index = null, int? Count = null)
 		{
-			return await IssueCollection.FindIssuesAsync(Ids, UserId, StreamId, MinChange, MaxChange, Resolved, Index, Count);
+			return await IssueCollection.FindIssuesAsync(Ids, UserId, StreamId, MinChange, MaxChange, Resolved, Promoted, Index, Count);
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IIssue>> FindIssuesForJobAsync(int[]? Ids, IJob Job, IGraph Graph, SubResourceId? StepId = null, SubResourceId? BatchId = null, int? LabelIdx = null, UserId? UserId = null, bool? Resolved = null, int? Index = null, int? Count = null)
+		public async Task<List<IIssue>> FindIssuesForJobAsync(int[]? Ids, IJob Job, IGraph Graph, SubResourceId? StepId = null, SubResourceId? BatchId = null, int? LabelIdx = null, UserId? UserId = null, bool? Resolved = null, bool? Promoted = null, int? Index = null, int? Count = null)
 		{
 			List<IIssueStep> Steps = await IssueCollection.FindStepsAsync(Job.Id, BatchId, StepId);
 			List<IIssueSpan> Spans = await IssueCollection.FindSpansAsync(Steps.Select(x => x.SpanId));
@@ -356,7 +356,7 @@ namespace HordeServer.Services.Impl
 				return new List<IIssue>();
 			}
 
-			return await FindIssuesAsync(Ids: IssueIds, UserId: UserId, Resolved: Resolved, Index: Index, Count: Count);
+			return await FindIssuesAsync(Ids: IssueIds, UserId: UserId, Resolved: Resolved, Promoted: Promoted, Index: Index, Count: Count);
 		}
 
 		/// <inheritdoc/>
@@ -392,7 +392,7 @@ namespace HordeServer.Services.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> UpdateIssueAsync(int Id, string? UserSummary = null, string? Description = null, UserId? OwnerId = null, UserId? NominatedById = null, bool? Acknowledged = null, UserId? DeclinedById = null, int? FixChange = null, UserId? ResolvedById = null)
+		public async Task<bool> UpdateIssueAsync(int Id, string? UserSummary = null, string? Description = null, bool? Promoted = null, UserId? OwnerId = null, UserId? NominatedById = null, bool? Acknowledged = null, UserId? DeclinedById = null, int? FixChange = null, UserId? ResolvedById = null)
 		{
 			Dictionary<StreamId, bool>? NewFixStreamIds = null;
 			for (; ; )
@@ -408,7 +408,7 @@ namespace HordeServer.Services.Impl
 					NewFixStreamIds = await GetFixStreamsAsync(Issue.Id, FixChange.Value, NewFixStreamIds ?? ((FixChange == Issue.FixChange)? Issue.GetFixStreamIds() : null));
 				}
 
-				Issue = await IssueCollection.UpdateIssueAsync(Issue, NewUserSummary: UserSummary, NewDescription: Description, NewOwnerId: OwnerId ?? ResolvedById, NewNominatedById: NominatedById, NewAcknowledged: Acknowledged, NewDeclinedById: DeclinedById, NewFixChange: FixChange, NewFixStreamIds: NewFixStreamIds, NewResolvedById: ResolvedById);
+				Issue = await IssueCollection.UpdateIssueAsync(Issue, NewUserSummary: UserSummary, NewDescription: Description, NewPromoted: Promoted, NewOwnerId: OwnerId ?? ResolvedById, NewNominatedById: NominatedById, NewAcknowledged: Acknowledged, NewDeclinedById: DeclinedById, NewFixChange: FixChange, NewFixStreamIds: NewFixStreamIds, NewResolvedById: ResolvedById);
 
 				if(Issue != null)
 				{
@@ -539,18 +539,18 @@ namespace HordeServer.Services.Impl
 			HashSet<NewEventGroup> EventGroups = await GetEventGroupsForStepAsync(Job, Batch, Step, Node);
 
 			// Figure out if we want notifications for this step
-			bool bNotifySuspects = Job.ShowUgsAlerts;
-			if (bNotifySuspects)
+			bool bPromoteByDefault = Job.ShowUgsAlerts;
+			if (bPromoteByDefault)
 			{
 				if (EventGroups.FirstOrDefault(Group => Group.Fingerprint.Type == "Compile" || Group.Fingerprint.Type == "Symbol" || Group.Fingerprint.Type == "Copyright") == null)
 				{
-					bNotifySuspects = false;
+					bPromoteByDefault = false;
 				}
 				
 				string? StreamId = Job.StreamId.ToString();
 				if (StreamId != null && StreamId.StartsWith("fortnite-", StringComparison.Ordinal))
 				{
-					bNotifySuspects = false;
+					bPromoteByDefault = false;
 				}
 			}
 
@@ -568,11 +568,11 @@ namespace HordeServer.Services.Impl
 				// Add the events to existing issues, and create new issues for everything else
 				if (EventGroups.Count > 0)
 				{
-					if (!await AddEventsToExistingSpans(Job, Batch, Step, EventGroups, OpenSpans, CheckedSpans, bNotifySuspects))
+					if (!await AddEventsToExistingSpans(Job, Batch, Step, EventGroups, OpenSpans, CheckedSpans, bPromoteByDefault))
 					{
 						continue;
 					}
-					if (!await AddEventsToNewSpans(Token, Stream, Job, Batch, Step, Node, OpenSpans, EventGroups, bNotifySuspects))
+					if (!await AddEventsToNewSpans(Token, Stream, Job, Batch, Step, Node, OpenSpans, EventGroups, bPromoteByDefault))
 					{
 						continue;
 					}
@@ -671,9 +671,9 @@ namespace HordeServer.Services.Impl
 		/// <param name="NewEventGroups">Set of events to try to add</param>
 		/// <param name="OpenSpans">List of open spans</param>
 		/// <param name="CheckedSpanIds">Set of span ids that have been checked</param>
-		/// <param name="NotifySuspects"></param>
+		/// <param name="PromoteByDefault"></param>
 		/// <returns>True if the adding completed</returns>
-		async Task<bool> AddEventsToExistingSpans(IJob Job, IJobStepBatch Batch, IJobStep Step, HashSet<NewEventGroup> NewEventGroups, List<IIssueSpan> OpenSpans, HashSet<ObjectId> CheckedSpanIds, bool NotifySuspects)
+		async Task<bool> AddEventsToExistingSpans(IJob Job, IJobStepBatch Batch, IJobStep Step, HashSet<NewEventGroup> NewEventGroups, List<IIssueSpan> OpenSpans, HashSet<ObjectId> CheckedSpanIds, bool PromoteByDefault)
 		{
 			for(int SpanIdx = 0; SpanIdx < OpenSpans.Count; SpanIdx++)
 			{
@@ -695,7 +695,7 @@ namespace HordeServer.Services.Impl
 						}
 
 						// Get the new step data
-						NewIssueStepData NewFailure = new NewIssueStepData(Job, Batch, Step, Severity, NotifySuspects);
+						NewIssueStepData NewFailure = new NewIssueStepData(Job, Batch, Step, Severity, PromoteByDefault);
 
 						// Figure out whether we need to update the issue
 						bool bMarkAsModified = NewSeverity != null;
@@ -769,9 +769,9 @@ namespace HordeServer.Services.Impl
 		/// <param name="Node">Node run in the step</param>
 		/// <param name="OpenSpans">List of open spans. New issues will be added to this list.</param>
 		/// <param name="NewEventGroups">Set of remaining events</param>
-		/// <param name="NotifySuspects"></param>
+		/// <param name="PromoteByDefault"></param>
 		/// <returns>True if all events were added</returns>
-		async Task<bool> AddEventsToNewSpans(IIssueSequenceToken Token, IStream Stream, IJob Job, IJobStepBatch Batch, IJobStep Step, INode Node, List<IIssueSpan> OpenSpans, HashSet<NewEventGroup> NewEventGroups, bool NotifySuspects)
+		async Task<bool> AddEventsToNewSpans(IIssueSequenceToken Token, IStream Stream, IJob Job, IJobStepBatch Batch, IJobStep Step, INode Node, List<IIssueSpan> OpenSpans, HashSet<NewEventGroup> NewEventGroups, bool PromoteByDefault)
 		{
 			while (NewEventGroups.Count > 0)
 			{
@@ -793,7 +793,7 @@ namespace HordeServer.Services.Impl
 				}
 
 				// Get the step data
-				NewIssueStepData StepData = new NewIssueStepData(Job, Batch, Step, GetIssueSeverity(EventGroup.Events), NotifySuspects);
+				NewIssueStepData StepData = new NewIssueStepData(Job, Batch, Step, GetIssueSeverity(EventGroup.Events), PromoteByDefault);
 
 				// Create the new span
 				IIssueSpan? NewSpan = await AddEventToNewSpanAsync(Token, Stream, Job, Node, EventGroup.Fingerprint, StepData);

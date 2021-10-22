@@ -551,7 +551,7 @@ namespace HordeServer.Notifications.Impl
 			IIssueDetails Details = await IssueService.GetIssueDetailsAsync(Issue);
 
 			HashSet<UserId> UserIds = new HashSet<UserId>();
-			if (Issue.NotifySuspects)
+			if (Issue.Promoted)
 			{
 				UserIds.UnionWith(Details.Suspects.Select(x => x.AuthorId));
 			}

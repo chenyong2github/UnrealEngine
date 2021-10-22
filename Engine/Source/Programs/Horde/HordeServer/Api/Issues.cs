@@ -381,6 +381,11 @@ namespace HordeServer.Api
 		public IssueSeverity Severity { get; set; }
 
 		/// <summary>
+		/// Whether the issue is promoted
+		/// </summary>
+		public bool Promoted { get; set; }
+
+		/// <summary>
 		/// Owner of the issue [DEPRECATED]
 		/// </summary>
 		public string? Owner { get; set; }
@@ -500,6 +505,7 @@ namespace HordeServer.Api
 			this.Summary = String.IsNullOrEmpty(Issue.UserSummary)? Issue.Summary : Issue.UserSummary;
 			this.Description = Issue.Description;
 			this.Severity = Issue.Severity;
+			this.Promoted = Issue.Promoted;
 			this.Owner = Details.Owner?.Login;
 			this.OwnerId = (Details.Owner == null)? null : Details.Owner.Id.ToString();
 			if(Details.Owner != null)
@@ -558,6 +564,11 @@ namespace HordeServer.Api
 		/// Description of the issue
 		/// </summary>
 		public string? Description { get; set; }
+
+		/// <summary>
+		/// Whether the issue is promoted or not
+		/// </summary>
+		public bool? Promoted { get; set; }
 
 		/// <summary>
 		/// New user id for owner of the issue, can be cleared by passing empty string

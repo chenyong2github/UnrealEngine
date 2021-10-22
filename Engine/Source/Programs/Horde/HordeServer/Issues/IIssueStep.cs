@@ -60,9 +60,9 @@ namespace HordeServer.Models
 		public DateTime StepTime { get; }
 
 		/// <summary>
-		/// Whether to notify suspects for this issue
+		/// Whether to promote spans including this step by default
 		/// </summary>
-		public bool NotifySuspects { get; }
+		public bool PromoteByDefault { get; }
 
 		/// <summary>
 		/// The log id for this step
