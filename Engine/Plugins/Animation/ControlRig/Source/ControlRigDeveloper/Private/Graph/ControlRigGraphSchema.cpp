@@ -70,6 +70,26 @@ FControlRigLocalVariableNameValidator::FControlRigLocalVariableNameValidator(con
 	}
 }
 
+EValidatorResult FControlRigLocalVariableNameValidator::IsValid(const FString& Name, bool bOriginal)
+{
+	EValidatorResult Result = FStringSetNameValidator::IsValid(Name, bOriginal);
+	if (Result == EValidatorResult::Ok)
+	{
+		if (URigVMController::GetSanitizedName(Name, false, true) == Name)
+		{
+			return Result;
+		}
+
+		return EValidatorResult::ContainsInvalidCharacters;
+	}
+	return Result;
+}
+
+EValidatorResult FControlRigLocalVariableNameValidator::IsValid(const FName& Name, bool bOriginal)
+{
+	return IsValid(Name.ToString(), bOriginal);
+}
+
 FEdGraphPinType FControlRigGraphSchemaAction_LocalVar::GetPinType() const
 {
 	if (UControlRigGraph* Graph = Cast<UControlRigGraph>(GetVariableScope()))

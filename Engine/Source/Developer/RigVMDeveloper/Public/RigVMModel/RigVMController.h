@@ -881,8 +881,10 @@ private:
 
 	void RefreshFunctionReferences(URigVMLibraryNode* InFunctionDefinition, bool bSetupUndoRedo);
 
-	static int32 GetMaxNameLength() { return 100; }
 	FString GetGraphOuterName() const;
+
+public:
+	static int32 GetMaxNameLength() { return 100; }
 	static FString GetSanitizedName(const FString& InName, bool bAllowPeriod, bool bAllowSpace);
 	static FString GetSanitizedGraphName(const FString& InName);
 	static FString GetSanitizedNodeName(const FString& InName);
@@ -891,7 +893,7 @@ private:
 	static FString GetSanitizedPinPath(const FString& InName);
 	static void SanitizeName(FString& InOutName, bool bAllowPeriod, bool bAllowSpace);
 
-public:
+
 	static const TCHAR TArrayPrefix[];
 	static const TCHAR TObjectPtrPrefix[];
 	static const TCHAR TArrayTemplate[];
