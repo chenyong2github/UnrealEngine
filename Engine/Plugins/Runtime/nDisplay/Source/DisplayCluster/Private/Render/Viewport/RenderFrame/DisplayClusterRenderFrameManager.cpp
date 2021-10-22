@@ -11,7 +11,7 @@
 ///////////////////////////////////////////////////////////////
 // FDisplayClusterRenderTargetFrame
 ///////////////////////////////////////////////////////////////
-bool FDisplayClusterRenderFrameManager::BuildRenderFrame(class FViewport* InViewport, const FDisplayClusterRenderFrameSettings& InRenderFrameSettings, const TArray<FDisplayClusterViewport*>& InViewports, FDisplayClusterRenderFrame& OutRenderFrame)
+bool FDisplayClusterRenderFrameManager::BuildRenderFrame(FViewport* InViewport, const FDisplayClusterRenderFrameSettings& InRenderFrameSettings, const TArray<FDisplayClusterViewport*>& InViewports, FDisplayClusterRenderFrame& OutRenderFrame)
 {
 
 	switch (InRenderFrameSettings.RenderMode)
@@ -20,7 +20,7 @@ bool FDisplayClusterRenderFrameManager::BuildRenderFrame(class FViewport* InView
 		// Dont use render frame for preview
 		break;
 	default:
-		if (!FindFrameTargetRect(InViewports, OutRenderFrame.FrameRect))
+		if (!FindFrameTargetRect(InViewport, InViewports, InRenderFrameSettings, OutRenderFrame.FrameRect))
 		{
 			return false;
 		}
@@ -173,11 +173,19 @@ bool FDisplayClusterRenderFrameManager::BuildSimpleFrame(FViewport* InViewport, 
 	return true;
 }
 
-bool FDisplayClusterRenderFrameManager::FindFrameTargetRect(const TArray<FDisplayClusterViewport*>& InOutViewports, FIntRect& OutFrameTargetRect) const
+bool FDisplayClusterRenderFrameManager::FindFrameTargetRect(FViewport* InViewport, const TArray<FDisplayClusterViewport*>& InOutViewports, const FDisplayClusterRenderFrameSettings& InRenderFrameSettings, FIntRect& OutFrameTargetRect) const
 {
 	// Calculate Backbuffer frame
 	bool bIsUsed = false;
 
+	if (InRenderFrameSettings.bShouldUseFullSizeFrameTargetableResource)
+	{
+		// Use full-size frame RTT
+		OutFrameTargetRect = FIntRect(FIntPoint(0, 0), InViewport->GetSizeXY());
+		bIsUsed = true;
+	}
+
+	// Optimize frame target RTT
 	for (const FDisplayClusterViewport* ViewportIt : InOutViewports)
 	{
 		if (ViewportIt && ViewportIt->RenderSettings.bEnable && ViewportIt->RenderSettings.bVisible)

@@ -1,24 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Render/Viewport/DisplayClusterViewportManagerProxy.h"
-#include "Render/Viewport/DisplayClusterViewportManager.h"
 
+#include "ClearQuad.h"
 #include "IDisplayCluster.h"
+#include "Misc/DisplayClusterLog.h"
+
+#include "RHIContext.h"
 #include "Render/IDisplayClusterRenderManager.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicyFactory.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 
+#include "Render/Viewport/DisplayClusterViewportManager.h"
 #include "Render/Viewport/DisplayClusterViewportProxy.h"
+#include "Render/Viewport/DisplayClusterViewportStrings.h"
+
 #include "Render/Viewport/RenderTarget/DisplayClusterRenderTargetManager.h"
 #include "Render/Viewport/RenderTarget/DisplayClusterRenderTargetResource.h"
 #include "Render/Viewport/Postprocess/DisplayClusterViewportPostProcessManager.h"
 #include "Render/Viewport/Containers/DisplayClusterViewportProxyData.h"
 
-#include "Render/Viewport/DisplayClusterViewportStrings.h"
-
-#include "Misc/DisplayClusterLog.h"
-
-#include "RHIContext.h"
 
 // Enable/disable warp&blend
 static TAutoConsoleVariable<int32> CVarWarpBlendEnabled(
@@ -35,6 +36,17 @@ static TAutoConsoleVariable<int32> CVarCrossGPUTransfersEnabled(
 	TEXT("nDisplay.render.CrossGPUTransfers"),
 	1,
 	TEXT("(0 = disabled)\n"),
+	ECVF_RenderThreadSafe
+);
+
+// Enable/Disable ClearTexture for Frame RTT
+static TAutoConsoleVariable<int32> CVarClearFrameRTTEnabled(
+	TEXT("nDisplay.render.ClearFrameRTTEnabled"),
+	1,
+	TEXT("Enables FrameRTT clearing before viewport resolving.\n")
+	TEXT("0 : disabled\n")
+	TEXT("1 : enabled\n")
+	,
 	ECVF_RenderThreadSafe
 );
 
@@ -221,6 +233,33 @@ void FDisplayClusterViewportManagerProxy::UpdateDeferredResources_RenderThread(F
 	}
 }
 
+static void ImplClearRenderTargetResource_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InRenderTargetTexture)
+{
+	FRHIRenderPassInfo RPInfo(InRenderTargetTexture, ERenderTargetActions::DontLoad_Store);
+	TransitionRenderPassTargets(RHICmdList, RPInfo);
+	RHICmdList.BeginRenderPass(RPInfo, TEXT("nDisplay_ClearRTT"));
+	{
+		const FIntPoint Size = InRenderTargetTexture->GetSizeXY();
+		RHICmdList.SetViewport(0, 0, 0.0f, Size.X, Size.Y, 1.0f);
+		DrawClearQuad(RHICmdList, FLinearColor::Black);
+	}
+	RHICmdList.EndRenderPass();
+}
+
+void FDisplayClusterViewportManagerProxy::ImplClearFrameTargets_RenderThread(FRHICommandListImmediate& RHICmdList) const
+{
+	TArray<FRHITexture2D*> FrameResources;
+	TArray<FRHITexture2D*> AdditionalFrameResources;
+	TArray<FIntPoint> TargetOffset;
+	if (GetFrameTargets_RenderThread(FrameResources, TargetOffset, &AdditionalFrameResources))
+	{
+		for (FRHITexture2D* It : FrameResources)
+		{
+			ImplClearRenderTargetResource_RenderThread(RHICmdList, It);
+		}
+	}
+}
+
 enum class EWarpPass : uint8
 {
 	Begin = 0,
@@ -244,6 +283,13 @@ void FDisplayClusterViewportManagerProxy::UpdateFrameResources_RenderThread(FRHI
 			return  VP1.GetRenderSettings_RenderThread().OverlapOrder < VP2.GetRenderSettings_RenderThread().OverlapOrder;
 		}
 	);
+
+	// Clear Frame RTT resources before viewport resolving
+	const bool bClearFrameRTTEnabled = CVarClearFrameRTTEnabled.GetValueOnRenderThread() != 0;
+	if (bClearFrameRTTEnabled)
+	{
+		ImplClearFrameTargets_RenderThread(RHICmdList);
+	}
 
 	// Handle warped viewport projection policy logic:
 	for (uint8 WarpPass = 0; WarpPass < (uint8)EWarpPass::COUNT; WarpPass++)

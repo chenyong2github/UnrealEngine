@@ -18,6 +18,9 @@ struct FDisplayClusterRenderFrameSettings
 	// Some frame postprocess require additional render targetable resources
 	bool bShouldUseAdditionalFrameTargetableResource = false;
 
+	// Postprocess can use full size backbuffer. This disables Frame RTT size optimization
+	bool bShouldUseFullSizeFrameTargetableResource = false;
+
 	// Preview RTT size multiplier
 	float PreviewRenderTargetRatioMult = 1.f;
 

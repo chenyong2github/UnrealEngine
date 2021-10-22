@@ -227,13 +227,8 @@ bool FDisplayClusterViewportPostProcessManager::IsPostProcessFrameAfterWarpBlend
 	{
 		return (CVarPostprocessFrameAfterWarpBlend.GetValueOnAnyThread() != 0);
 	}
-
-	if (OutputRemap.IsValid() && OutputRemap->IsValid())
-	{
-		return true;
-	}
-
-	return false;
+	
+	return (OutputRemap.IsValid() && OutputRemap->IsEnabled());
 }
 
 bool FDisplayClusterViewportPostProcessManager::IsAnyPostProcessRequired(const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>& PostprocessInstance) const
@@ -253,12 +248,7 @@ bool FDisplayClusterViewportPostProcessManager::IsAnyPostProcessRequired(const T
 		return true;
 	}
 
-	if (OutputRemap.IsValid() && OutputRemap->IsValid())
-	{
-		return true;
-	}
-
-	return false;
+	return (OutputRemap.IsValid() && OutputRemap->IsEnabled());
 }
 
 bool FDisplayClusterViewportPostProcessManager::ShouldUseAdditionalFrameTargetableResource_PostProcess() const
@@ -273,7 +263,12 @@ bool FDisplayClusterViewportPostProcessManager::ShouldUseAdditionalFrameTargetab
 		}
 	}
 
-	if (OutputRemap.IsValid() && OutputRemap->IsValid())
+	return (OutputRemap.IsValid() && OutputRemap->IsEnabled());
+}
+
+bool FDisplayClusterViewportPostProcessManager::ShouldUseFullSizeFrameTargetableResource() const
+{
+	if (OutputRemap.IsValid() && OutputRemap->IsEnabled())
 	{
 		return true;
 	}
@@ -406,7 +401,7 @@ void FDisplayClusterViewportPostProcessManager::ImplPerformPostProcessFrameAfter
 			}
 
 			// Apply OutputRemap after all postprocess
-			if (OutputRemap.IsValid() && OutputRemap->IsValid())
+			if (OutputRemap.IsValid() && OutputRemap->IsEnabled())
 			{
 				TArray<FRHITexture2D*>* AdditionalResources = (AdditionalFrameResources.Num() > 0) ? &AdditionalFrameResources : nullptr;
 				OutputRemap->PerformPostProcessFrame_RenderThread(RHICmdList, &FrameResources, AdditionalResources);

@@ -14,7 +14,7 @@ static void ImplUpdateMeshComponentProxyData(FDisplayClusterRender_MeshComponent
 			[MeshComponentProxy, NewProxyData](FRHICommandListImmediate& RHICmdList)
 		{
 			// Update RHI
-			if (NewProxyData)
+			if (NewProxyData && NewProxyData->IsValid())
 			{
 				MeshComponentProxy->UpdateRHI_RenderThread(RHICmdList, NewProxyData);
 				delete NewProxyData;

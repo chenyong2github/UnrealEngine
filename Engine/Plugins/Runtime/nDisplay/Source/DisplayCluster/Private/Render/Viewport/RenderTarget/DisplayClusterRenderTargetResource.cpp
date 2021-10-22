@@ -72,8 +72,30 @@ void FDisplayClusterTextureResource::ReleaseRHI()
 ///////////////////////////////////////////////////////////////////
 void FDisplayClusterRenderTargetResource::InitDynamicRHI()
 {
+	FIntPoint Size = GetSizeXY();
+	Size.X = FMath::Max(Size.X, 1);
+	Size.Y = FMath::Max(Size.Y, 1);
+
 	// create output render target if necessary
-	ETextureCreateFlags CreateFlags = (ResourceSettings.bShouldUseSRGB ? TexCreate_SRGB : TexCreate_None);
+	ETextureCreateFlags TexCreateFlags = ResourceSettings.bShouldUseSRGB ? TexCreate_SRGB : TexCreate_None;
+	FRHIResourceCreateInfo CreateInfo = { FClearValueBinding(FLinearColor::Black) };
+
+	// Create RTT
+	FTexture2DRHIRef Texture2DRHI;
+	RHICreateTargetableShaderResource2D(
+		Size.X,
+		Size.Y,
+		ResourceSettings.Format,
+		1,
+		TexCreateFlags,
+		TexCreate_RenderTargetable,
+		false,
+		CreateInfo,
+		RenderTargetTextureRHI,
+		Texture2DRHI
+	);
+
+	TextureRHI = (FTextureRHIRef&)Texture2DRHI;
 
 	// Create the sampler state RHI resource.
 	FSamplerStateInitializerRHI SamplerStateInitializer
@@ -84,22 +106,4 @@ void FDisplayClusterRenderTargetResource::InitDynamicRHI()
 		AM_Clamp
 	);
 	SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
-
-	FTexture2DRHIRef Texture2DRHI;
-	FRHIResourceCreateInfo CreateInfo = { FClearValueBinding(FLinearColor::Black) };
-
-	RHICreateTargetableShaderResource2D(
-		GetSizeX(),
-		GetSizeY(),
-		ResourceSettings.Format,
-		1,
-		CreateFlags,
-		TexCreate_RenderTargetable,
-		false,
-		CreateInfo,
-		RenderTargetTextureRHI,
-		Texture2DRHI
-	);
-
-	TextureRHI = (FTextureRHIRef&)Texture2DRHI;
 }

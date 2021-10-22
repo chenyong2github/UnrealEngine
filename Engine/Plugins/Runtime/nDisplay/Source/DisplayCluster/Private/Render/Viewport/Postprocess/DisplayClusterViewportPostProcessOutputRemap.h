@@ -12,7 +12,7 @@ class FDisplayClusterRender_MeshComponent;
 class UStaticMesh;
 
 /**
- * MPCDI projection policy
+ * Display Cluster Viewport Post Process Output Remap
  */
 class FDisplayClusterViewportPostProcessOutputRemap
 {
@@ -25,7 +25,7 @@ public:
 	bool UpdateConfiguration_StaticMesh(UStaticMesh* InStaticMesh);
 	void UpdateConfiguration_Disabled();
 
-	bool IsValid() const
+	bool IsEnabled() const
 	{
 		return bIsEnabled;
 	}

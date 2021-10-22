@@ -10,6 +10,7 @@
 namespace ObjMeshStrings
 {
 	static constexpr auto Vertex = TEXT("v ");
+	static constexpr auto VertexNormal = TEXT("vn ");
 	static constexpr auto UV     = TEXT("vt ");
 	static constexpr auto Face   = TEXT("f ");
 
@@ -24,8 +25,9 @@ namespace ObjMeshStrings
 class FDisplayCluster_MeshGeometryLoaderOBJ
 {
 public:
-	FDisplayCluster_MeshGeometryLoaderOBJ(FDisplayClusterRender_MeshGeometry& InTarget)
-		: Target(InTarget)
+	FDisplayCluster_MeshGeometryLoaderOBJ(FDisplayClusterRender_MeshGeometry& InTarget, bool bInImportVertexNormal = false)
+		: bImportVertexNormal(bInImportVertexNormal)
+		, Target(InTarget)
 	{ }
 
 	bool Load(const FString& FullPathFileName);
@@ -37,14 +39,36 @@ private:
 	// Obj file parser:
 	bool ParseLine(const FString& Line);
 	bool ExtractVertex(const FString& Line);
+	bool ExtractVertexNormal(const FString& Line);
 	bool ExtractUV(const FString& Line);
 	bool ExtractFace(const FString& Line);
-	bool ExtractFaceVertex(const FString& Line);
+	int32 ExtractFaceVertex(const FString& Line);
+
+	bool SaveToTarget();
 
 private:
+	const bool bImportVertexNormal;
+
 	FDisplayClusterRender_MeshGeometry& Target;
 	TArray<FVector> InVertex;
+	TArray<FVector> InVertexNormal;
 	TArray<FVector> InUV;
+
+
+	struct FFaceIdx
+	{
+		int32 VertexIdx = -1;
+		int32 VertexNormalIdx = -1;
+		int32 UVIdx = -1;
+
+		bool operator==(const FFaceIdx& In) const
+		{
+			return VertexIdx == In.VertexIdx && VertexNormalIdx == In.VertexNormalIdx && UVIdx == In.UVIdx;
+		}
+	};
+
+	TArray<FFaceIdx> Faces;
+	TArray<int32> Triangles;
 };
 
 
@@ -143,6 +167,11 @@ bool FDisplayCluster_MeshGeometryLoaderOBJ::CreateFromFile(const FString& FullPa
 				}
 			}
 
+			if (bResult)
+			{
+				bResult = SaveToTarget();
+			}
+
 			if (!bResult)
 			{
 				UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshGeometryLoaderOBJ: Can't load mesh geometry from file '%s'"), *FullPathFileName);
@@ -155,11 +184,35 @@ bool FDisplayCluster_MeshGeometryLoaderOBJ::CreateFromFile(const FString& FullPa
 	return false;
 }
 
+bool FDisplayCluster_MeshGeometryLoaderOBJ::SaveToTarget()
+{
+	for (FFaceIdx& It : Faces)
+	{
+		FVector VertexPos = (It.VertexIdx < 0) ? FVector(0, 0, 0) : InVertex[It.VertexIdx];
+		Target.Vertices.Add(VertexPos);
+
+		FVector VertexNormal = (It.VertexNormalIdx < 0) ? FVector(0, 0, 0) : InVertexNormal[It.VertexNormalIdx];
+		Target.Normal.Add(VertexNormal);
+
+		FVector UVCoord = (It.UVIdx < 0) ? FVector(0, 0, 0) : InUV[It.UVIdx];
+		Target.UV.Add(FVector2D(UVCoord.X, UVCoord.Y));
+	}
+
+	Target.Triangles.Empty();
+	Target.Triangles.Append(Triangles);
+
+	return true;
+}
+
 bool FDisplayCluster_MeshGeometryLoaderOBJ::ParseLine(const FString& Line)
 {
 	if (Line.StartsWith(ObjMeshStrings::Vertex))
 	{
 		return ExtractVertex(Line);
+	}
+	else if (bImportVertexNormal && Line.StartsWith(ObjMeshStrings::VertexNormal))
+	{
+		return ExtractVertexNormal(Line);
 	}
 	else if (Line.StartsWith(ObjMeshStrings::UV))
 	{
@@ -183,7 +236,25 @@ bool FDisplayCluster_MeshGeometryLoaderOBJ::ExtractVertex(const FString& Line)
 		const float Y = FCString::Atof(*Data[2]);
 		const float Z = FCString::Atof(*Data[3]);
 
-		InVertex.Add(FVector(X, Y, Z));
+		InVertex.Add(FVector(X, -Y, Z));
+
+		return true;
+	}
+
+	return false;
+}
+
+bool FDisplayCluster_MeshGeometryLoaderOBJ::ExtractVertexNormal(const FString& Line)
+{
+	TArray<FString> Data;
+
+	if (Line.ParseIntoArray(Data, ObjMeshStrings::delims::Values) == 4)
+	{
+		const float X = FCString::Atof(*Data[1]);
+		const float Y = FCString::Atof(*Data[2]);
+		const float Z = FCString::Atof(*Data[3]);
+
+		InVertexNormal.Add(FVector(X, -Y, Z));
 
 		return true;
 	}
@@ -217,12 +288,11 @@ bool FDisplayCluster_MeshGeometryLoaderOBJ::ExtractFace(const FString& Line)
 	if (Data.Num() > 3)
 	{
 		TArray<int32> FaceIndices;
-		for (int32 i = 1; i < Data.Num(); ++i)
+		for (int32 LineItem = 1; LineItem < Data.Num(); ++LineItem)
 		{
-			if (ExtractFaceVertex(Data[i]))
+			const int32 IdxC = ExtractFaceVertex(Data[LineItem]);
+			if (IdxC >= 0)
 			{
-				const int32 IdxC = Target.Vertices.Num() - 1;
-
 				if (FaceIndices.Num() > 2)
 				{
 					const int32 IdxA = FaceIndices[0];
@@ -243,7 +313,7 @@ bool FDisplayCluster_MeshGeometryLoaderOBJ::ExtractFace(const FString& Line)
 			}
 		}
 
-		Target.Triangles.Append(FaceIndices);
+		Triangles.Append(FaceIndices);
 
 		return true;
 	}
@@ -251,35 +321,62 @@ bool FDisplayCluster_MeshGeometryLoaderOBJ::ExtractFace(const FString& Line)
 	return false;
 }
 
-bool FDisplayCluster_MeshGeometryLoaderOBJ::ExtractFaceVertex(const FString& Line)
+int32 FDisplayCluster_MeshGeometryLoaderOBJ::ExtractFaceVertex(const FString& Line)
 {
+	FFaceIdx OutFaceIdx;
+
 	TArray<FString> Data;
 	if (Line.ParseIntoArray(Data, ObjMeshStrings::delims::Face) > 1)
 	{
 		const int32 InVertexIndex = FCString::Atoi(*Data[0]) - 1;
 		if (InVertexIndex < 0 || InVertexIndex >= InVertex.Num())
-	{
+		{
 			UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshGeometryLoaderOBJ: broken vertex index. Line: '%s'"), *Line);
-			Target.Vertices.Add(FVector(0,0,0));
-	}
+			OutFaceIdx.VertexIdx = -1;
+		}
 		else
-	{
-			Target.Vertices.Add(InVertex[InVertexIndex]);
-	}
+		{
+			OutFaceIdx.VertexIdx = InVertexIndex;
+		}
 
 		const int32 InUVIndex = FCString::Atoi(*Data[1]) - 1;
 		if (InUVIndex < 0 || InUVIndex >= InUV.Num())
-	{
+		{
 			UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshGeometryLoaderOBJ: broken uv index. Line: '%s'"), *Line);
-			Target.UV.Add(FVector2D(0, 0));
-}
+			OutFaceIdx.UVIdx = -1;
+		}
 		else
 		{
-			Target.UV.Add(FVector2D(InUV[InUVIndex].X, InUV[InUVIndex].Y));
+			OutFaceIdx.UVIdx = InUVIndex;
+		}
+
+		if (bImportVertexNormal && Data.Num() > 2)
+		{
+			const int32 InNormalIndex = FCString::Atoi(*Data[2]) - 1;
+			if (InNormalIndex < 0 || InNormalIndex >= InVertexNormal.Num())
+			{
+				UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshGeometryLoaderOBJ: broken vertex normal  index. Line: '%s'"), *Line);
+				OutFaceIdx.VertexNormalIdx = -1;
+			}
+			else
+			{
+				OutFaceIdx.VertexNormalIdx = InNormalIndex;
+			}
+		}
+	}
+	else
+	{
+		return -1;
 	}
 
-		return true;
-}
+	int32 OutIndex = Faces.Find(OutFaceIdx);
+	if (OutIndex >= 0)
+	{
+		return OutIndex;
+	}
 
-	return false;
+	// Add new face vertex
+	Faces.Add(OutFaceIdx);
+	
+	return Faces.Num() - 1;
 }

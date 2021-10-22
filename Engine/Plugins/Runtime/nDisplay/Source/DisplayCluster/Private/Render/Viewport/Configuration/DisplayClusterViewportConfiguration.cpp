@@ -120,6 +120,7 @@ void FDisplayClusterViewportConfiguration::ImplUpdateRenderFrameConfiguration(co
 {
 	// Some frame postprocess require additional render targetable resources
 	RenderFrameSettings.bShouldUseAdditionalFrameTargetableResource = ViewportManager.PostProcessManager->ShouldUseAdditionalFrameTargetableResource_PostProcess();
+	RenderFrameSettings.bShouldUseFullSizeFrameTargetableResource = ViewportManager.PostProcessManager->ShouldUseFullSizeFrameTargetableResource();
 
 	// Global RTT sizes mults
 	RenderFrameSettings.ClusterRenderTargetRatioMult = InRenderFrameConfiguration.ClusterRenderTargetRatioMult;
