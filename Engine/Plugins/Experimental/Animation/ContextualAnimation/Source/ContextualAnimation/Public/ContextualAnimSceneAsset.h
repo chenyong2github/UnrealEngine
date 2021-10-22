@@ -66,6 +66,8 @@ public:
 
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 
+	void PrecomputeData();
+
 	const FContextualAnimTrackSettings* GetTrackSettings(const FName& Role) const;
 	
 	const FContextualAnimData* GetAnimDataForRoleAtIndex(const FName& Role, int32 Index) const;
@@ -99,6 +101,10 @@ public:
 	FTransform ExtractIKTargetTransformAtTime(FName Role, int32 AnimDataIndex, FName TrackName, float Time) const;
 
 	bool QueryCompositeTrack(const FContextualAnimCompositeTrack* Track, FContextualAnimQueryResult& OutResult, const FContextualAnimQueryParams& QueryParams, const FTransform& ToWorldTransform) const;
+
+	FName FindRoleByAnimation(const UAnimMontage* Animation) const;
+
+	TArray<FName> GetIKGoalsForRole(const FName& Role) const;
 
 protected:
 

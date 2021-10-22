@@ -5,10 +5,43 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "Templates/SubclassOf.h"
+#include "MovieSceneFwd.h"
 #include "ContextualAnimPreviewManager.generated.h"
 
+class UWorld;
+class FSceneView;
+class FPrimitiveDrawInterface;
 class ACharacter;
+class UAnimMontage;
 class UContextualAnimSceneAsset;
+struct FContextualAnimData;
+
+USTRUCT()
+struct FContextualAnimPreviewActorData
+{
+	GENERATED_BODY()
+
+	/** Preview actor */
+	UPROPERTY()
+	TWeakObjectPtr<AActor> Actor;
+
+	/** Role this actor is representing */
+	UPROPERTY()
+	FName Role = NAME_None;
+
+	/** MovieScene Object Binding's identifier  */
+	UPROPERTY()
+	FGuid Guid;
+
+	/** Animation this actor is playing */
+	UPROPERTY()
+	TWeakObjectPtr<UAnimMontage> Animation;
+
+	FORCEINLINE AActor* GetActor() const { return Actor.Get(); }
+	FORCEINLINE UAnimMontage* GetAnimation() const { return Animation.Get(); }
+
+	void ResetActorTransform(float Time);
+};
 
 UCLASS()
 class UContextualAnimPreviewManager : public UObject
@@ -17,36 +50,49 @@ class UContextualAnimPreviewManager : public UObject
 
 public:
 
-	UPROPERTY(EditAnywhere, Category = "Preview")
-	TSubclassOf<ACharacter> DefaultPreviewClass;
-
-	UPROPERTY(EditAnywhere, Category = "Debug")
-	bool bDrawDebugScene;
-
-	UPROPERTY(EditAnywhere, Category = "Debug", meta = (EditCondition = "bDrawDebugScene"))
-	int32 AnimDataIndex = 0;
-
-	UPROPERTY(EditAnywhere, Category = "Debug", meta = (EditCondition = "bDrawDebugScene"))
-	float Time;
-
-	UPROPERTY(EditAnywhere, Category = "Debug", meta = (EditCondition = "bDrawDebugScene"))
-	FTransform ScenePivot;
-
 	UPROPERTY()
-	TWeakObjectPtr<ACharacter> TestCharacter;
-
-	UPROPERTY()
-	TMap<FName, AActor*> PreviewActors;
+	TArray<FContextualAnimPreviewActorData> PreviewActorsData;
 
 	UContextualAnimPreviewManager(const FObjectInitializer& ObjectInitializer);
 
-	void SpawnPreviewActors(const UContextualAnimSceneAsset* SceneAsset, const FTransform& SceneOrigin);
+	void Initialize(UWorld& World, const UContextualAnimSceneAsset& SceneAsset);
 
-	AActor* SpawnPreviewActor(UClass* Class, const FTransform& SpawnTransform) const;
+	virtual UWorld* GetWorld() const override;
+	
+	void Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI);
+
+	const UContextualAnimSceneAsset* GetSceneAsset() const;
+
+	void DisableCollisionBetweenActors();
+
+	void PreviewTimeChanged(EMovieScenePlayerStatus::Type PreviousStatus, float PreviousTime, EMovieScenePlayerStatus::Type CurrentStatus, float CurrentTime, float PlaybackSpeed);
 
 	void MoveForward(float Value);
-
+	
 	void MoveRight(float Value);
-
+	
 	void MoveToLocation(const FVector& GoalLocation);
+
+	AActor* SpawnPreviewActor(const FName& Role, const FContextualAnimData& Data);
+
+	void AddPreviewActor(AActor& Actor, const FName& Role, const FGuid& Guid, UAnimMontage& Animation);
+
+	FName FindRoleByGuid(const FGuid& Guid) const;
+
+	UAnimMontage* FindAnimationByRole(const FName& Role) const;
+
+	UAnimMontage* FindAnimationByGuid(const FGuid& Guid) const;
+
+	void Reset();
+
+private:
+
+	UPROPERTY()
+	TWeakObjectPtr<const UContextualAnimSceneAsset> SceneAssetPtr;
+
+	UPROPERTY()
+	TWeakObjectPtr<UWorld> WorldPtr;
+
+	UPROPERTY()
+	TWeakObjectPtr<ACharacter> ControlledCharacter;
 };

@@ -3,37 +3,28 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Templates/SubclassOf.h"
 #include "EdMode.h"
-
-class FContextualAnimEdModeToolkit;
 
 class FContextualAnimEdMode : public FEdMode
 {
 public:
 
-	const static FEditorModeID EM_ContextualAnimEdModeId;
+	const static FEditorModeID EdModeId;
 
 	FContextualAnimEdMode();
 	virtual ~FContextualAnimEdMode();
 
-	// FEdMode interface
-	virtual void Enter() override;
-	virtual void Exit() override;
-	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime) override;
-	virtual bool InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event) override;
 	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click) override;
-	virtual bool UsesToolkits() const override;
-	// End of FEdMode interface
-
-	/** FGCObject interface */
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-
-	static FContextualAnimEdMode& Get();
-
-	TSharedPtr<FContextualAnimEdModeToolkit> GetContextualAnimEdModeToolkit() const;
-
-	class UContextualAnimPreviewManager* PreviewManager;
+	virtual bool StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport) override;
+	virtual bool EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport) override;
+	virtual bool InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale) override;
+	virtual bool AllowWidgetMove() override;
+	virtual bool ShouldDrawWidget() const override;
+	virtual FVector GetWidgetLocation() const override;
 
 	bool GetHitResultUnderCursor(FHitResult& OutHitResult, FEditorViewportClient* InViewportClient, const FViewportClick& Click) const;
+
+private:
+
+	TWeakObjectPtr<class AActor> SelectedActor;
 };

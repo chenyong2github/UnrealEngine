@@ -7,6 +7,7 @@
 #include "Animation/AnimationPoseData.h"
 #include "Animation/AttributesRuntime.h"
 #include "Animation/AnimTypes.h"
+#include "Animation/AnimInstance.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
 #include "ContextualAnimTypes.h"
@@ -15,6 +16,8 @@
 #include "GameFramework/Character.h"
 #include "ContextualAnimActorInterface.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "EngineUtils.h"
+#include "AnimNotifyState_IKWindow.h"
 
 void UContextualAnimUtilities::ExtractLocalSpacePose(const UAnimSequenceBase* Animation, const FBoneContainer& BoneContainer, float Time, bool bExtractRootMotion, FCompactPose& OutPose)
 {
@@ -147,12 +150,12 @@ void UContextualAnimUtilities::DrawDebugScene(const UWorld* World, const UContex
 	}
 }
 
-USkeletalMeshComponent* UContextualAnimUtilities::TryGetSkeletalMeshComponent(AActor* Actor)
+USkeletalMeshComponent* UContextualAnimUtilities::TryGetSkeletalMeshComponent(const AActor* Actor)
 {
 	USkeletalMeshComponent* SkelMeshComp = nullptr;
 	if (Actor)
 	{
-		if (ACharacter* Character = Cast<ACharacter>(Actor))
+		if (const ACharacter* Character = Cast<const ACharacter>(Actor))
 		{
 			SkelMeshComp = Character->GetMesh();
 		}
@@ -169,11 +172,21 @@ USkeletalMeshComponent* UContextualAnimUtilities::TryGetSkeletalMeshComponent(AA
 	return SkelMeshComp;
 }
 
-UAnimInstance* UContextualAnimUtilities::TryGetAnimInstance(AActor* Actor)
+UAnimInstance* UContextualAnimUtilities::TryGetAnimInstance(const AActor* Actor)
 {
 	if (USkeletalMeshComponent* SkelMeshComp = UContextualAnimUtilities::TryGetSkeletalMeshComponent(Actor))
 	{
 		return SkelMeshComp->GetAnimInstance();
+	}
+
+	return nullptr;
+}
+
+FAnimMontageInstance* UContextualAnimUtilities::TryGetActiveAnimMontageInstance(const AActor* Actor)
+{
+	if(UAnimInstance* AnimInstance = UContextualAnimUtilities::TryGetAnimInstance(Actor))
+	{
+		return AnimInstance->GetActiveMontageInstance();
 	}
 
 	return nullptr;

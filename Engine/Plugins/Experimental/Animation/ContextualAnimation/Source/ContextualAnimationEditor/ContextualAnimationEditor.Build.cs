@@ -7,17 +7,15 @@ public class ContextualAnimationEditor : ModuleRules
 	public ContextualAnimationEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-		
+
 		PublicIncludePaths.AddRange(
 			new string[] {
-				// ... add public include paths required here ...
 			}
 			);
 				
 		
 		PrivateIncludePaths.AddRange(
 			new string[] {
-
 			}
 			);
 			
@@ -29,7 +27,7 @@ public class ContextualAnimationEditor : ModuleRules
 				"AIModule",
 				"NavigationSystem",
 				"ContextualAnimation",
-				"MotionWarping",
+				"MotionWarping",	
 			}
 			);
 			
@@ -47,7 +45,20 @@ public class ContextualAnimationEditor : ModuleRules
 				"LevelEditor",
 				"DetailCustomizations",
 				"EditorStyle",
-				"Projects"
+				"Projects",
+				"AssetTools",
+				"EditorWidgets",
+				"PropertyEditor",
+				"KismetWidgets",
+				"AdvancedPreviewScene",
+				"GraphEditor",
+				"SequencerWidgets",
+				"MovieScene",
+				"Sequencer",
+				"MovieSceneTracks",
+				"MovieSceneTools",
+				"ClassViewer",
+				"Persona"
 			}
 			);
 		
