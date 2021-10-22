@@ -25,6 +25,7 @@
 #include "UVEditorLayoutTool.h"
 #include "UVEditorParameterizeMeshTool.h"
 #include "UVEditorLayerEditTool.h"
+#include "UVEditorSeamTool.h"
 #include "UVSelectTool.h"
 #include "UVEditorModeToolkit.h"
 #include "UVEditorSubsystem.h"
@@ -179,6 +180,10 @@ void UUVEditorMode::RegisterTools()
 	UUVEditorChannelEditToolBuilder* UVEditorChannelEditToolBuilder = NewObject<UUVEditorChannelEditToolBuilder>();
 	UVEditorChannelEditToolBuilder->Targets = &ToolInputObjects;
 	RegisterTool(CommandInfos.BeginChannelEditTool, TEXT("UVChannelEditTool"), UVEditorChannelEditToolBuilder);
+
+	UUVEditorSeamToolBuilder* UVEditorSeamToolBuilder = NewObject<UUVEditorSeamToolBuilder>();
+	UVEditorSeamToolBuilder->Targets = &ToolInputObjects;
+	RegisterTool(CommandInfos.BeginSeamTool, TEXT("UVSeamTool"), UVEditorSeamToolBuilder);
 }
 
 void UUVEditorMode::AddDisplayedPropertySet(const TObjectPtr<UInteractiveToolPropertySet>& PropertySet)
@@ -209,24 +214,69 @@ void UUVEditorMode::BindCommands()
 
 	// Hook up to Enter/Esc key presses
 	CommandList->MapAction(
-		CommandInfos.AcceptActiveTool,
-		FExecuteAction::CreateLambda([this]() { 
+		CommandInfos.AcceptOrCompleteActiveTool,
+		FExecuteAction::CreateLambda([this]() {
+			// Give the tool a chance to take the nested accept first
+			if (GetToolManager()->HasAnyActiveTool())
+			{
+				UInteractiveTool* Tool = GetToolManager()->GetActiveTool(EToolSide::Mouse);
+				IInteractiveToolNestedAcceptCancelAPI* AcceptAPI = Cast<IInteractiveToolNestedAcceptCancelAPI>(Tool);
+				if (AcceptAPI && AcceptAPI->SupportsNestedAcceptCommand() && AcceptAPI->CanCurrentlyNestedAccept())
+				{
+					if (AcceptAPI->ExecuteNestedAcceptCommand())
+					{
+						return;
+					}
+				}
+			}
 			GetInteractiveToolsContext()->EndTool(EToolShutdownType::Accept); 
 			ActivateDefaultTool();
 			}),
-		FCanExecuteAction::CreateLambda([this]() { return GetInteractiveToolsContext()->CanAcceptActiveTool(); }),
+		FCanExecuteAction::CreateLambda([this]() {
+			if (GetInteractiveToolsContext()->CanAcceptActiveTool() || GetInteractiveToolsContext()->CanCompleteActiveTool())
+			{
+				return true;
+			}
+			// If we can't currently accept, may still be able to pass down to tool
+			UInteractiveTool* Tool = GetToolManager()->GetActiveTool(EToolSide::Mouse);
+			IInteractiveToolNestedAcceptCancelAPI* AcceptAPI = Cast<IInteractiveToolNestedAcceptCancelAPI>(Tool);
+			return AcceptAPI && AcceptAPI->SupportsNestedAcceptCommand() && AcceptAPI->CanCurrentlyNestedAccept(); 
+			}),
 		FGetActionCheckState(),
 		FIsActionButtonVisible::CreateLambda([this]() {return GetInteractiveToolsContext()->ActiveToolHasAccept(); }),
 		EUIActionRepeatMode::RepeatDisabled
 	);
 
 	CommandList->MapAction(
-		CommandInfos.CancelActiveTool,
+		CommandInfos.CancelOrCompleteActiveTool,
 		FExecuteAction::CreateLambda([this]() { 
+			// Give the tool a chance to take the nested cancel first
+			if (GetToolManager()->HasAnyActiveTool())
+			{
+				UInteractiveTool* Tool = GetToolManager()->GetActiveTool(EToolSide::Mouse);
+				IInteractiveToolNestedAcceptCancelAPI* CancelAPI = Cast<IInteractiveToolNestedAcceptCancelAPI>(Tool);
+				if (CancelAPI && CancelAPI->SupportsNestedCancelCommand() && CancelAPI->CanCurrentlyNestedCancel())
+				{
+					if (CancelAPI->ExecuteNestedCancelCommand())
+					{
+						return;
+					}
+				}
+			}
+
 			GetInteractiveToolsContext()->EndTool(EToolShutdownType::Cancel);
 			ActivateDefaultTool();
 			}),
-		FCanExecuteAction::CreateLambda([this]() { return GetInteractiveToolsContext()->CanCancelActiveTool(); }),
+		FCanExecuteAction::CreateLambda([this]() { 
+			if (GetInteractiveToolsContext()->CanCancelActiveTool() || GetInteractiveToolsContext()->CanCompleteActiveTool())
+			{
+				return true;
+			}
+			// If we can't currently cancel, may still be able to pass down to tool
+			UInteractiveTool* Tool = GetToolManager()->GetActiveTool(EToolSide::Mouse);
+			IInteractiveToolNestedAcceptCancelAPI* CancelAPI = Cast<IInteractiveToolNestedAcceptCancelAPI>(Tool);
+			return CancelAPI && CancelAPI->SupportsNestedCancelCommand() && CancelAPI->CanCurrentlyNestedCancel();
+			}),
 		FGetActionCheckState(),
 		FIsActionButtonVisible::CreateLambda([this]() {return GetInteractiveToolsContext()->ActiveToolHasAccept(); }),
 		EUIActionRepeatMode::RepeatDisabled

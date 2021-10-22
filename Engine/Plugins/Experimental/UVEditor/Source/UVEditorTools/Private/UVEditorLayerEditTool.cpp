@@ -541,11 +541,6 @@ void UUVEditorChannelEditTool::ApplyVisbleChannelChange()
 	}
 }
 
-bool UUVEditorChannelEditTool::CanAccept() const
-{
-	return true;
-}
-
 void UUVEditorChannelEditTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 

@@ -189,6 +189,7 @@ void FUVEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost,
 	ToolbarBuilder.AddToolBarButton(CommandInfos.BeginLayoutTool);
 	ToolbarBuilder.AddToolBarButton(CommandInfos.BeginParameterizeMeshTool);
 	ToolbarBuilder.AddToolBarButton(CommandInfos.BeginChannelEditTool);
+	ToolbarBuilder.AddToolBarButton(CommandInfos.BeginSeamTool);
 
 	// Hook in the tool palette
 	ToolButtonsContainer->SetContent(ToolbarBuilder.MakeWidget());
@@ -217,8 +218,7 @@ void FUVEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost,
 		BackgroundDetailsContainer->SetContent(BackgroundDetailsView.ToSharedRef());
 	}
 	
-	// Set up the overlay. Larely copied from ModelingToolsEditorModeToolkit, except
-	// that we don't have a "complete" option since we don't have a non-tool state.
+	// Set up the overlay. Largely copied from ModelingToolsEditorModeToolkit.
 	// TODO: We could put some of the shared code in some common place.
 	SAssignNew(ViewportOverlayWidget, SHorizontalBox)
 
@@ -287,21 +287,27 @@ void FUVEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost,
 				.Visibility_Lambda([this]() { return GetScriptableEditorMode()->GetInteractiveToolsContext()->ActiveToolHasAccept() ? EVisibility::Visible : EVisibility::Collapsed; })
 			]
 
-			// Currently haven't needed a complete button, but this is here in case that changes.
-			//+SHorizontalBox::Slot()
-			//.AutoWidth()
-			//.Padding(FMargin(2.0, 0.f, 0.f, 0.f))
-			//[
-			//	SNew(SButton)
-			//	.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
-			//	.TextStyle( FAppStyle::Get(), "DialogButtonText" )
-			//	.Text(LOCTEXT("OverlayComplete", "Complete"))
-			//	.ToolTipText(LOCTEXT("OverlayCompleteTooltip", "Exit the active Tool [Enter]"))
-			//	.HAlign(HAlign_Center)
-			//	.OnClicked_Lambda([this]() { GetScriptableEditorMode()->GetInteractiveToolsContext()->EndTool(EToolShutdownType::Completed); return FReply::Handled(); })
-			//	.IsEnabled_Lambda([this]() { return GetScriptableEditorMode()->GetInteractiveToolsContext()->CanCompleteActiveTool(); })
-			//	.Visibility_Lambda([this]() { return GetScriptableEditorMode()->GetInteractiveToolsContext()->CanCompleteActiveTool() ? EVisibility::Visible : EVisibility::Collapsed; })
-			//]
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(FMargin(2.0, 0.f, 0.f, 0.f))
+				[
+					SNew(SButton)
+					.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
+				.TextStyle(FAppStyle::Get(), "DialogButtonText")
+				.Text(LOCTEXT("OverlayComplete", "Complete"))
+				.ToolTipText(LOCTEXT("OverlayCompleteTooltip", "Exit the active Tool [Enter]"))
+				.HAlign(HAlign_Center)
+				.OnClicked_Lambda([this]() { 
+					GetScriptableEditorMode()->GetInteractiveToolsContext()->EndTool(EToolShutdownType::Completed); 
+					Cast<UUVEditorMode>(GetScriptableEditorMode())->ActivateDefaultTool();
+					return FReply::Handled(); 
+					})
+				.IsEnabled_Lambda([this]() {
+					UUVEditorMode* Mode = Cast<UUVEditorMode>(GetScriptableEditorMode());
+					return GetScriptableEditorMode()->GetInteractiveToolsContext()->CanCompleteActiveTool();
+				})
+				.Visibility_Lambda([this]() { return GetScriptableEditorMode()->GetInteractiveToolsContext()->CanCompleteActiveTool() ? EVisibility::Visible : EVisibility::Collapsed; })
+			]
 		]	
 	];
 
@@ -347,19 +353,17 @@ void FUVEditorModeToolkit::OnToolStarted(UInteractiveToolManager* Manager, UInte
 
 	ActiveToolName = Tool->GetToolInfo().ToolDisplayName;
 
-	if (GetScriptableEditorMode()->GetInteractiveToolsContext()->ActiveToolHasAccept())
-	{
-		// Add the accept/cancel overlay
-		GetToolkitHost()->AddViewportOverlayWidget(ViewportOverlayWidget.ToSharedRef());
-	}
-	
-	// Issue a tool start transaction unless we are starting the default tool, because we can't
-	// undo or revert out of the default tool.
 	UUVEditorMode* Mode = Cast<UUVEditorMode>(GetScriptableEditorMode());
 	if (!Mode->IsDefaultToolActive())
 	{
+		// Issue a tool start transaction unless we are starting the default tool, because we can't
+		// undo or revert out of the default tool.
 		Mode->GetInteractiveToolsContext()->GetTransactionAPI()->AppendChange(
 			Mode, MakeUnique<UVEditorModeToolkitLocals::FUVEditorBeginToolChange>(), LOCTEXT("ActivateTool", "Activate Tool"));
+
+		// Add the accept/cancel overlay. Again, unless we're in the default tool, which we don't leave
+		// except by activating another tool.
+		GetToolkitHost()->AddViewportOverlayWidget(ViewportOverlayWidget.ToSharedRef());
 	}
 }
 
