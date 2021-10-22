@@ -51,6 +51,11 @@ class CONTROLRIGDEVELOPER_API FControlRigLocalVariableNameValidator : public FSt
 
 public:
 	FControlRigLocalVariableNameValidator(const class UBlueprint* Blueprint, const URigVMGraph* Graph, FName InExistingName = NAME_None);
+
+	// Begin FNameValidatorInterface
+	virtual EValidatorResult IsValid(const FString& Name, bool bOriginal) override;
+	virtual EValidatorResult IsValid(const FName& Name, bool bOriginal) override;
+	// End FNameValidatorInterface
 };
 
 USTRUCT()
