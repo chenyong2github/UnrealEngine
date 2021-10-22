@@ -29,6 +29,7 @@ public:
 	TSharedPtr<FUICommandInfo> ViewMode_Seed;
 	TSharedPtr<FUICommandInfo> ViewMode_Dimension;
 	TSharedPtr<FUICommandInfo> ViewMode_RadiusVariation;
+	TSharedPtr<FUICommandInfo> ViewMode_Tangent;
 	TSharedPtr<FUICommandInfo> ViewMode_BaseColor;
 	TSharedPtr<FUICommandInfo> ViewMode_Roughness;
 	TSharedPtr<FUICommandInfo> ViewMode_VisCluster;

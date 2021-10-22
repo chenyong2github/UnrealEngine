@@ -553,10 +553,6 @@ public:
 	bool NeedsInterpolationData(int32 GroupIndex) const;
 	bool NeedsInterpolationData() const;
 
-#if WITH_EDITORONLY_DATA
-	void SetDebugMode(EHairStrandsDebugMode InMode) { DebugMode = InMode; OnGroomAssetChanged.Broadcast(); }
-	EHairStrandsDebugMode GetDebugMode() const { return DebugMode; }
-#endif // 
 	void UpdateHairGroupsInfo();
 	bool HasGeometryType(EGroomGeometryType Type) const;
 	bool HasGeometryType(uint32 GroupIndex, EGroomGeometryType Type) const;
@@ -647,9 +643,6 @@ private:
 	TUniquePtr<FHairDescription> HairDescription;
 	TUniquePtr<FHairDescriptionBulkData> HairDescriptionBulkData;
 	TUniquePtr<FHairDescriptionGroups> HairDescriptionGroups;
-
-	// Transient property for visualizing the groom in a certain debug mode. This is used by the groom editor
-	EHairStrandsDebugMode DebugMode = EHairStrandsDebugMode::NoneDebug;
 
 	TArray<FString> StrandsDerivedDataKey;
 	TArray<FString> CardsDerivedDataKey;

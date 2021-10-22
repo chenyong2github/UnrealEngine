@@ -55,6 +55,7 @@ TSharedRef<SWidget> SGroomEditorViewportToolbar::GenerateShowMenu() const
 		ViewMenuBuilder.AddMenuEntry(Commands.ViewMode_Seed);
 		ViewMenuBuilder.AddMenuEntry(Commands.ViewMode_Dimension);
 		ViewMenuBuilder.AddMenuEntry(Commands.ViewMode_RadiusVariation);
+		ViewMenuBuilder.AddMenuEntry(Commands.ViewMode_Tangent);
 		ViewMenuBuilder.AddMenuEntry(Commands.ViewMode_BaseColor);
 		ViewMenuBuilder.AddMenuEntry(Commands.ViewMode_Roughness);
 
