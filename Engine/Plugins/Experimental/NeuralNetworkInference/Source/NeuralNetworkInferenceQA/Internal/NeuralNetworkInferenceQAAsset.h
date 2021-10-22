@@ -3,10 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "NeuralNetwork.h"
 #include "NeuralTensor.h"
 #include "NeuralNetworkInferenceQAAsset.generated.h"
-
-class UNeuralNetworkLegacy;
 
 
 
@@ -25,8 +24,8 @@ public:
 	/**
 	 * It adds the InNameIndexMap subset of InTensors into Tensors.
 	 */
-	void AddInputTensors(const TArray<FNeuralTensor>& InTensors, const TMap<FString, int32>& InNameIndexMap);
-	void AddOutputTensors(const TArray<FNeuralTensor>& InTensors, const TMap<FString, int32>& InNameIndexMap);
+	void AddInputTensors(const UNeuralNetwork* const InNetwork);
+	void AddOutputTensors(const UNeuralNetwork* const InNetwork);
 
 	/**
 	 * It will compare new vs. previous tests.
@@ -48,9 +47,9 @@ struct NEURALNETWORKINFERENCEQA_API FNeuralNetworkInferenceQAOperatorAsset
 	GENERATED_BODY()
 
 public:
-	static FString RunNetworkCPUAndGetString(UNeuralNetworkLegacy* InOutNetwork);
+	static FString RunNetworkCPUAndGetString(UNeuralNetwork* InOutNetwork);
 
-	void RunAndAddTest(UNeuralNetworkLegacy* InOutNetwork);
+	void RunAndAddTest(UNeuralNetwork* InOutNetwork);
 
 	/**
 	 * It will compare new vs. previous tests.
@@ -77,7 +76,7 @@ protected:
 
 
 /**
- * This is an auxiliary class. See UNeuralNetworkLegacy for a high-level wrapper of the whole NeuralNetworkInference plugin. The UNeuralNetworkLegacy header
+ * This is an auxiliary class. See UNeuralNetwork for a high-level wrapper of the whole NeuralNetworkInference plugin. The UNeuralNetwork header
  * documentation also includes some code examples.
  */
 UCLASS(BlueprintType)
@@ -88,7 +87,7 @@ class NEURALNETWORKINFERENCEQA_API UNeuralNetworkInferenceQAAsset : public UObje
 public:
 	void FindOrAddOperators(const TArray<FString>& InOperatorNames);
 
-	void RunAndAddTest(UNeuralNetworkLegacy* InOutNetwork, const FString& OperatorName);
+	void RunAndAddTest(UNeuralNetwork* InOutNetwork, const FString& OperatorName);
 
 	bool CompareNewVsPreviousTests(const FString& InGroundTruthDirectory);
 

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "NeuralEnumClasses.h"
-#include "NeuralNetworkLegacy.h"
+#include "NeuralNetwork.h"
 #include "NeuralNetworkInferenceQAUtils.h"
 #include "NeuralNetworkInferenceQAAsset.h"
 #include "NeuralOperator.h"
@@ -58,24 +58,24 @@ private:
 	static TArray<int64> FloatTensorToIntArray(const TArray<FNeuralTensor>& InTensors, const int32 InTensorIndex);
 
 	/**
-	 * For inlined layers, it resets the memory (meant after a UNeuralNetworkLegacy::Run()). For non-inlined layers, it checks that the input did not change.
+	 * For inlined layers, it resets the memory (meant after a UNeuralNetwork::Run()). For non-inlined layers, it checks that the input did not change.
 	 */
-	static void ResetOrCheckInput(UNeuralNetworkLegacy* InOutNetwork, const TMap<FString, FNeuralTensor>& InInputTensorMap, const bool bIsInlinedTensor);
+	static void ResetOrCheckInput(UNeuralNetwork* InOutNetwork, const TArray<FNeuralTensor>& InInputTensorArray, const bool bIsInlinedTensor);
 
 	/**
 	 * It tests and makes sure CPU and GPU modes provide the same results. Otherwise, it will check to false.
-	 * @param InOutNetwork UNeuralNetworkLegacy to test.
+	 * @param InOutNetwork UNeuralNetwork to test.
 	 * @param If not inlined, it will make check whether the input tensors have not changed after running.
 	 * @param InZeroThreshold If the average L2 norm between CPU and GPU results is greater than this number, it will check to false.
 	 */
-	static void NetworkGPUvsCPU(UNeuralNetworkLegacy* InOutNetwork, const bool bIsInlinedTensor, const float InZeroThreshold = 0.f);
+	static void NetworkGPUvsCPU(UNeuralNetwork* InOutNetwork, const bool bIsInlinedTensor, const float InZeroThreshold = 0.f);
 
 	/**
 	 * If layer inlined --> Check input == output
 	 * This is only meant for networks with single input single output, whose layers are all inlined (so that input tensor data should match
-	 * output tensor data after a UNeuralNetworkLegacy run).
+	 * output tensor data after a UNeuralNetwork run).
 	 */
-	static void NetworkInputVsOutput(UNeuralNetworkLegacy* InOutNetwork);
+	static void NetworkInputVsOutput(UNeuralNetwork* InOutNetwork, const int32 InInlinedTensorIndex);
 };
 
 
