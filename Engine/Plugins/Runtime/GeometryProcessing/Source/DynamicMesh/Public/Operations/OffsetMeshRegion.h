@@ -90,6 +90,9 @@ public:
 	 */
 	bool bIsPositiveOffset = true;
 
+	/** When using SelectionTriNormalsAngleWeightedAdjusted to keep triangles parallel, clamp the offset scale to at most this factor */
+	double MaxScaleForAdjustingTriNormalsOffset = 4.0;
+
 	//
 	// Outputs
 	//

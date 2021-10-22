@@ -116,6 +116,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = Extrude)
 	EPolyEditExtrudeModeOptions DirectionMode = EPolyEditExtrudeModeOptions::SingleDirection;
 
+	/** Controls the maximum distance vertices can move from the target distance in order to stay parallel with their source triangles. */
+	UPROPERTY(EditAnywhere, Category = Offset,
+		meta = (ClampMin = "1", EditConditionHides, EditCondition = "DirectionMode == EPolyEditExtrudeModeOptions::SelectedTriangleNormalsEven"))
+	double MaxDistanceScaleFactor = 4.0;
+
 	/** 
 	 * When extruding regions that touch the mesh border, assign the side groups (groups on the 
 	 * stitched side of the extrude) in a way that considers edge colinearity. For instance, when
@@ -135,6 +140,11 @@ public:
 	/** Which way to move vertices during the offset */
 	UPROPERTY(EditAnywhere, Category = Offset)
 	EPolyEditOffsetModeOptions DirectionMode = EPolyEditOffsetModeOptions::VertexNormals;
+
+	/** Controls the maximum distance vertices can move from the target distance in order to stay parallel with their source triangles. */
+	UPROPERTY(EditAnywhere, Category = Offset,
+		meta = (ClampMin = "1", EditConditionHides, EditCondition = "DirectionMode == EPolyEditOffsetModeOptions::SelectedTriangleNormalsEven"))
+	double MaxDistanceScaleFactor = 4.0;
 
 	/** Controls whether offseting an entire open-border patch should create a solid or an open shell */
 	UPROPERTY(EditAnywhere, Category = Offset)
@@ -163,6 +173,11 @@ public:
 	/** Which way to move vertices during the offset */
 	UPROPERTY(EditAnywhere, Category = ExtrusionOptions)
 	EPolyEditPushPullModeOptions DirectionMode = EPolyEditPushPullModeOptions::SelectedTriangleNormals;
+
+	/** Controls the maximum distance vertices can move from the target distance in order to stay parallel with their source triangles. */
+	UPROPERTY(EditAnywhere, Category = Offset,
+		meta = (ClampMin = "1", EditConditionHides, EditCondition = "DirectionMode == EPolyEditPushPullModeOptions::SelectedTriangleNormalsEven"))
+	double MaxDistanceScaleFactor = 4.0;
 
 	/** Controls whether offseting an entire open-border patch should create a solid or an open shell */
 	UPROPERTY(EditAnywhere, Category = ExtrusionOptions)

@@ -127,6 +127,8 @@ bool FExtrudeOp::BooleanExtrude(FProgressCancel* Progress)
 		: DirectionMode == EDirectionMode::SelectedTriangleNormalsEven ? FOffsetMeshRegion::EVertexExtrusionVectorType::SelectionTriNormalsAngleWeightedAdjusted
 		: FOffsetMeshRegion::EVertexExtrusionVectorType::Zero;
 
+	Extruder.MaxScaleForAdjustingTriNormalsOffset = MaxScaleForAdjustingTriNormalsOffset;
+
 	Extruder.bIsPositiveOffset = (ExtrudeDistance > 0);
 	Extruder.bOffsetFullComponentsAsSolids = true;
 	Extruder.Apply();
@@ -235,6 +237,8 @@ bool FExtrudeOp::MoveAndStitchExtrude(FProgressCancel* Progress)
 		: DirectionMode == EDirectionMode::SelectedTriangleNormals ? FOffsetMeshRegion::EVertexExtrusionVectorType::SelectionTriNormalsAngleWeightedAverage
 		: DirectionMode == EDirectionMode::SelectedTriangleNormalsEven ? FOffsetMeshRegion::EVertexExtrusionVectorType::SelectionTriNormalsAngleWeightedAdjusted
 		: FOffsetMeshRegion::EVertexExtrusionVectorType::Zero;
+
+	Extruder.MaxScaleForAdjustingTriNormalsOffset = MaxScaleForAdjustingTriNormalsOffset;
 
 	Extruder.bIsPositiveOffset = (ExtrudeDistance > 0);
 	Extruder.bOffsetFullComponentsAsSolids = bShellsToSolids;

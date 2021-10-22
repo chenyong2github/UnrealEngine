@@ -53,6 +53,7 @@ public:
 	double ExtrudeDistance = 0;
 	EExtrudeMode ExtrudeMode = EExtrudeMode::MoveAndStitch;
 	EDirectionMode DirectionMode = EDirectionMode::SelectedTriangleNormalsEven;
+	double MaxScaleForAdjustingTriNormalsOffset = 4.0;
 	// Only used if DirectionMode is SingleDirection
 	FVector3d MeshSpaceExtrudeDirection;
 	// Used when setting groups for the sides when the extrusion includes a mesh border. When true,

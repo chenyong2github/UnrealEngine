@@ -239,6 +239,12 @@ bool FOffsetMeshRegion::ApplyOffset(FOffsetInfo& Region, FMeshNormals* UseNormal
 					{
 						double Angle = Mesh->GetTriInternalAngleR(Tid, Mesh->GetTriangle(Tid).IndexOf(Vid));
 						double CosTheta = Mesh->GetTriNormal(Tid).Dot(ExtrusionVector);
+
+						double InvertedMaxScaleFactor = FMath::Max(FMathd::ZeroTolerance, 1.0 / MaxScaleForAdjustingTriNormalsOffset);
+						if (CosTheta <= InvertedMaxScaleFactor)
+						{
+							CosTheta = InvertedMaxScaleFactor;
+						}
 						Adjustment += Angle / CosTheta;
 
 						// For the average at the end
