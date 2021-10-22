@@ -146,10 +146,18 @@ public:
 	int64 GetInputTensorNumber() const;
 
 	/**
+	 * Slow functions (as they will copy every input/output FNeuralNetwork) only meant for debugging purposes.
+	 */
+	TArray<FNeuralTensor> CreateInputArrayCopy() const;
+	void SetInputFromArrayCopy(const TArray<FNeuralTensor>& InTensorDataArray);
+	TArray<FNeuralTensor> CreateOutputArrayCopy() const;
+
+	/**
 	 * Functions to get output. The returned FNeuralTensor(s) are constant to prevent the user from modifying the tensor properties (e.g., size or dimensions).
 	 */
 	const FNeuralTensor& GetOutputTensor(const int32 InTensorIndex = 0) const;
 	int64 GetOutputTensorNumber() const;
+
 	/**
 	 * Non-efficient functions meant to be used only for debugging purposes.
 	 * - InputTensorsToCPU will send the CPU memory of the desired input tensor(s) to GPU memory. Used to debug InputDeviceType == ENeuralDeviceType::GPU.
@@ -256,6 +264,12 @@ private:
 	FNeuralTensor& GetOutputTensorMutable(const int32 InTensorIndex = 0);
 
 public:
+	/**
+	 * Internal function not needed by the user.
+	 * Used to create custom networks without an ONNX file for QA testing in FOperatorTester::TestOperator().
+	 */
+	bool Load(TSharedPtr<struct FNeuralTensorManager>& InTensorManager, const TArray<TSharedPtr<class FNeuralOperator>>& InOperators);
+
 #if WITH_EDITOR
 	/**
 	 * Internal and Editor-only functions not needed by the user.
