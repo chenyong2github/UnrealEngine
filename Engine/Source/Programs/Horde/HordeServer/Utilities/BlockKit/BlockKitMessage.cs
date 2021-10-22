@@ -14,7 +14,7 @@ namespace HordeServer.Utilities.Slack.BlockKit
 		/// The channel ID or user ID to deliver the notification to.
 		/// </summary>
 		[JsonPropertyName("channel")]
-		public string? Recipient { get; set; }
+		public string? Channel { get; set; }
 
 		/// <summary>
 		/// Timestamp of the message to update
