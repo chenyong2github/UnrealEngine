@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SkeinSourceControlModule.h"
+#include "Modules/ModuleManager.h"
 #include "SkeinSourceControlOperations.h"
 #include "Features/IModularFeatures.h"
 
