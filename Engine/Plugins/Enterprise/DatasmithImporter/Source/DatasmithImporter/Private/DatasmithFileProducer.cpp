@@ -209,7 +209,7 @@ bool UDatasmithFileProducer::Initialize()
 
 	// Set import options to default
 	ImportContextPtr->Options->BaseOptions = DefaultImportOptions;
-	ImportContextPtr->AdditionalImportOptions = GetTranslatorImportOptions();
+	ImportContextPtr->AdditionalImportOptions = ImportOptionsOverride.Num() > 0 ? ImportOptionsOverride : GetTranslatorImportOptions();
 
 	ImportContextPtr->SceneAsset = DatasmithScene;
 	ImportContextPtr->ActorsContext.ImportWorld = Context.WorldPtr.Get();
@@ -984,6 +984,8 @@ bool UDatasmithDirProducer::Execute(TArray< TWeakObjectPtr< UObject > >& OutAsse
 
 		Task.ReportNextStep( FText::Format( LOCTEXT( "DatasmithFileProducer_LoadingFile", "Loading {0} ..."), FText::FromString( FileName ) ) );
 
+		SetFileProducerSettings();
+
 		if( !FileProducer->Produce( Context, OutAssets ) )
 		{
 			FText ErrorReport = FText::Format( LOCTEXT( "DatasmithDirProducer_FailedLoad", "Failed to load {0} ..."), FText::FromString( FileName ) );
@@ -995,6 +997,56 @@ bool UDatasmithDirProducer::Execute(TArray< TWeakObjectPtr< UObject > >& OutAsse
 	Context.SetRootPackage( CachedPackage );
 
 	return !IsCancelled();
+}
+
+void UDatasmithDirProducer::OnChangeImportSettings()
+{
+	TSharedPtr<SWindow> ParentWindow;
+
+	if (FModuleManager::Get().IsModuleLoaded("MainFrame"))
+	{
+		IMainFrameModule& MainFrame = FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame");
+		ParentWindow = MainFrame.GetParentWindow();
+	}
+
+	TSharedRef<SWindow> Window = SNew(SWindow)
+		.Title(FText::Format(LOCTEXT("ImportSettingsTitle", "{0} Import Settings"), FText::FromString(TEXT("Datasmith Tessellation"))))
+		.SizingRule(ESizingRule::Autosized);
+
+	TArray<UObject*> OptionsRaw = { TessellationOptions };
+
+	TSharedPtr<FDatasmithFileProducerUtils::SFileProducerImportOptionsWindow> OptionsWindow;
+	Window->SetContent
+	(
+		SAssignNew(OptionsWindow, FDatasmithFileProducerUtils::SFileProducerImportOptionsWindow)
+		.ImportOptions(OptionsRaw)
+		.WidgetWindow(Window)
+		.MinDetailHeight(320.f)
+		.MinDetailWidth(450.f)
+	);
+
+	FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
+}
+
+void UDatasmithDirProducer::SetFileProducerSettings()
+{
+	// Set translator options
+	TArray< TStrongObjectPtr<UDatasmithOptionsBase> > Options = FileProducer->GetTranslatorImportOptions();
+
+	bool bHasTesselationOptions = false;
+	for (TStrongObjectPtr<UDatasmithOptionsBase> Option : Options)
+	{
+		if (UDatasmithCommonTessellationOptions* TesselationOption = Cast<UDatasmithCommonTessellationOptions>(Option.Get()))
+		{
+			TesselationOption->Options = TessellationOptions->Options;
+			bHasTesselationOptions = true;
+		}
+	}
+
+	if (bHasTesselationOptions)
+	{
+		FileProducer->SetTranslatorImportOptions(Options);
+	}
 }
 
 // #ueent_todo:  ImportAsPlmXml should be replaced by a new object which will be responsible for the dispatch of import files which are supported by Datasmith
@@ -1028,6 +1080,8 @@ bool UDatasmithDirProducer::ImportAsPlmXml(UPackage* RootPackage, TArray<TWeakOb
 
 	// Set transient package to be the root package, overriding default behavior - this way we avoid extra 'PlmXml' folder  in content folder hierarchy
 	FileProducer->TransientPackage = RootPackage;
+
+	SetFileProducerSettings();
 
 	bool bSuccess = FileProducer->Produce(Context, OutAssets);
 	if (bSuccess)
@@ -1142,6 +1196,16 @@ void UDatasmithDirProducer::Serialize( FArchive& Ar )
 	if( Ar.IsLoading() )
 	{
 		UpdateExtensions();
+	}
+}
+
+void UDatasmithDirProducer::PostLoad()
+{
+	Super::PostLoad();
+
+	if (!TessellationOptions)
+	{
+		TessellationOptions = NewObject<UDatasmithCommonTessellationOptions>(this);
 	}
 }
 
@@ -1747,14 +1811,35 @@ void FDatasmithDirProducerDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 
 	CustomAssetImportRow.NameContent()
 	[
-		SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
 		.VAlign(VAlign_Top)
-		.Padding(0, 3, 0, 0)
+		.AutoWidth()
+		.Padding(0, 0, 3, 0)
+		[
+			SNew(SButton)
+			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.IsFocusable(false)
+			.OnClicked_Lambda([DirProducer]() -> FReply
+			{
+				DirProducer->OnChangeImportSettings();
+				return FReply::Handled();
+			})
+			.ToolTipText(LOCTEXT("ChangeImportSettings_Tooltip", "Import Settings"))
+			[
+				SNew(STextBlock)
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+				.ColorAndOpacity(FLinearColor::White)
+				.Text(FEditorFontGlyphs::Cog)
+			]
+		]
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Top)
+		.AutoWidth()
+		.Padding(0, 3, 3, 0)
 		[
 			SAssignNew(IconText, STextBlock)
 			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
-			.Margin(FMargin(24, 0, 0, 0))
 			.Text(MakeAttributeLambda([=]
 			{
 				return IsProducerSuperseded() ? FEditorFontGlyphs::Exclamation_Triangle : FEditorFontGlyphs::Folder;
