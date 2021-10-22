@@ -422,6 +422,7 @@ namespace HordeServer.Collections
 		/// <param name="NewSeverity">New severity for the issue</param>
 		/// <param name="NewSummary">New summary for the issue</param>
 		/// <param name="NewUserSummary">New user summary for the issue</param>
+		/// <param name="NewDescription">New description for the issue</param>
 		/// <param name="NewOwnerId">New owner of the issue</param>
 		/// <param name="NewNominatedById">Person that nominated the new owner</param>
 		/// <param name="NewAcknowledged">Whether the issue has been acknowledged</param>
@@ -432,7 +433,7 @@ namespace HordeServer.Collections
 		/// <param name="NewLastSeenAt"></param>
 		/// <param name="NewNotifySuspects">Whether all suspects should be notified about this issue</param>
 		/// <returns>True if the issue was updated</returns>
-		Task<IIssue?> UpdateIssueAsync(IIssue Issue, IssueSeverity? NewSeverity = null, string? NewSummary = null, string? NewUserSummary = null, UserId? NewOwnerId = null, UserId? NewNominatedById = null, bool? NewAcknowledged = null, UserId? NewDeclinedById = null, int? NewFixChange = null, Dictionary<StreamId, bool>? NewFixStreamIds = null, UserId? NewResolvedById = null, DateTime? NewLastSeenAt = null, bool? NewNotifySuspects = null);
+		Task<IIssue?> UpdateIssueAsync(IIssue Issue, IssueSeverity? NewSeverity = null, string? NewSummary = null, string? NewUserSummary = null, string? NewDescription = null, UserId? NewOwnerId = null, UserId? NewNominatedById = null, bool? NewAcknowledged = null, UserId? NewDeclinedById = null, int? NewFixChange = null, Dictionary<StreamId, bool>? NewFixStreamIds = null, UserId? NewResolvedById = null, DateTime? NewLastSeenAt = null, bool? NewNotifySuspects = null);
 
 		/// <summary>
 		/// Updates the list of suspects for an issue, and optionally sets the resolved state

@@ -129,8 +129,9 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Updates the state of an issue
 		/// </summary>
-		/// <param name="Id">The current issue id</param>
+		/// <param name="Id">The current issue id</param>s
 		/// <param name="Summary">New summary for the issue</param>
+		/// <param name="Description">New description for the issue</param>
 		/// <param name="OwnerId">New owner of the issue</param>
 		/// <param name="NominatedById">Person that nominated the new owner</param>
 		/// <param name="Acknowledged">Whether the issue has been acknowledged</param>
@@ -138,7 +139,7 @@ namespace HordeServer.Services
 		/// <param name="FixChange">Fix changelist for the issue</param>
 		/// <param name="ResolvedById">Whether the issue has been resolved</param>
 		/// <returns>True if the issue was updated</returns>
-		Task<bool> UpdateIssueAsync(int Id, string? Summary = null, UserId? OwnerId = null, UserId? NominatedById = null, bool? Acknowledged = null, UserId? DeclinedById = null, int? FixChange = null, UserId? ResolvedById = null);
+		Task<bool> UpdateIssueAsync(int Id, string? Summary = null, string? Description = null, UserId? OwnerId = null, UserId? NominatedById = null, bool? Acknowledged = null, UserId? DeclinedById = null, int? FixChange = null, UserId? ResolvedById = null);
 
 		/// <summary>
 		/// Marks a step as complete

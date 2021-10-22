@@ -330,6 +330,17 @@ namespace HordeServerTests
 				List<IIssue> Issues = await IssueService.FindIssuesAsync();
 				Assert.AreEqual(4, Issues.Count);
 			}
+
+			// #5
+			// Add a description to the issue
+			{
+				List<IIssue> Issues = await IssueService.FindIssuesAsync();
+
+				IIssue Issue = Issues[0];
+				await IssueService.UpdateIssueAsync(Issue.Id, Description: "Hello world!");
+				IIssue? NewIssue = await IssueService.GetIssueAsync(Issue.Id);
+				Assert.AreEqual(NewIssue?.Description, "Hello world!");
+			}
 		}
 
 		[TestMethod]

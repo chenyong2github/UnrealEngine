@@ -392,7 +392,7 @@ namespace HordeServer.Services.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> UpdateIssueAsync(int Id, string? UserSummary = null, UserId? OwnerId = null, UserId? NominatedById = null, bool? Acknowledged = null, UserId? DeclinedById = null, int? FixChange = null, UserId? ResolvedById = null)
+		public async Task<bool> UpdateIssueAsync(int Id, string? UserSummary = null, string? Description = null, UserId? OwnerId = null, UserId? NominatedById = null, bool? Acknowledged = null, UserId? DeclinedById = null, int? FixChange = null, UserId? ResolvedById = null)
 		{
 			Dictionary<StreamId, bool>? NewFixStreamIds = null;
 			for (; ; )
@@ -408,7 +408,7 @@ namespace HordeServer.Services.Impl
 					NewFixStreamIds = await GetFixStreamsAsync(Issue.Id, FixChange.Value, NewFixStreamIds ?? ((FixChange == Issue.FixChange)? Issue.GetFixStreamIds() : null));
 				}
 
-				Issue = await IssueCollection.UpdateIssueAsync(Issue, NewUserSummary: UserSummary, NewOwnerId: OwnerId ?? ResolvedById, NewNominatedById: NominatedById, NewAcknowledged: Acknowledged, NewDeclinedById: DeclinedById, NewFixChange: FixChange, NewFixStreamIds: NewFixStreamIds, NewResolvedById: ResolvedById);
+				Issue = await IssueCollection.UpdateIssueAsync(Issue, NewUserSummary: UserSummary, NewDescription: Description, NewOwnerId: OwnerId ?? ResolvedById, NewNominatedById: NominatedById, NewAcknowledged: Acknowledged, NewDeclinedById: DeclinedById, NewFixChange: FixChange, NewFixStreamIds: NewFixStreamIds, NewResolvedById: ResolvedById);
 
 				if(Issue != null)
 				{
