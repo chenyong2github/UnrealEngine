@@ -3327,7 +3327,7 @@ namespace FHairCardsBuilder
 FString GetVersion()
 {
 	// Important to update the version when cards building or importing changes
-	return TEXT("9ai");
+	return TEXT("9b5");
 }
 
 void AllocateAtlasTexture(UTexture2D* Out, const FIntPoint& Resolution, uint32 MipCount, EPixelFormat PixelFormat, ETextureSourceFormat SourceFormat)
@@ -3574,6 +3574,7 @@ void SanitizeMeshDescription(FMeshDescription* MeshDescription)
 
 bool InternalImportGeometry(
 	const UStaticMesh* StaticMesh,
+	const FHairStrandsDatas& InStrandsData, // Used for extracting & assigning root UV to cards data
 	FHairCardsDatas& Out,
 	FHairCardsBulkData& OutBulk,
 	FHairStrandsDatas& OutGuides,
@@ -3669,7 +3670,7 @@ bool InternalImportGeometry(
 
 	SanitizeMeshDescription(MeshDescription);
 	const TVertexAttributesRef<const FVector3f> VertexPositions					= MeshDescription->VertexAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Vertex::Position);
-	const TVertexInstanceAttributesRef<const FVector3f> VertexInstanceNormals		= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector3f>(MeshAttribute::VertexInstance::Normal);
+	const TVertexInstanceAttributesRef<const FVector3f> VertexInstanceNormals	= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector3f>(MeshAttribute::VertexInstance::Normal);
 	const TVertexInstanceAttributesRef<const FVector3f> VertexInstanceTangents	= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector3f>(MeshAttribute::VertexInstance::Tangent);
 	const TVertexInstanceAttributesRef<const float> VertexInstanceBinormalSigns	= MeshDescription->VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
 	const TVertexInstanceAttributesRef<const FVector2D> VertexInstanceUVs		= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
@@ -3687,7 +3688,7 @@ bool InternalImportGeometry(
 		const uint32 VertexIndex = VertexId.GetValue();
 		check(VertexIndex < VertexCount);
 		Out.Cards.Positions[VertexIndex]	= VertexPositions[VertexId];
-		Out.Cards.UVs[VertexIndex]			= FVector4(VertexInstanceUVs[VertexInstanceId0].Component(0), VertexInstanceUVs[VertexInstanceId0].Component(1), 0, 0);
+		Out.Cards.UVs[VertexIndex]			= FVector4(VertexInstanceUVs[VertexInstanceId0].Component(0), VertexInstanceUVs[VertexInstanceId0].Component(1), 0, 0); // RootUV are not set here, but will be 'patched' later once guides & interpolation data are built
 		Out.Cards.Tangents[VertexIndex]		= VertexInstanceTangents[VertexInstanceId0];
 		Out.Cards.Normals[VertexIndex]		= VertexInstanceNormals[VertexInstanceId0];
 
@@ -3742,11 +3743,128 @@ bool InternalImportGeometry(
 		}
 	}
 
+	// Patch Cards Position to store cards length into the W component
+	for (uint32 CardIt = 0, CardsCount = Out.Cards.IndexOffsets.Num(); CardIt < CardsCount; ++CardIt)
+	{
+		const uint32 CardsIndexCount = Out.Cards.IndexCounts[CardIt];
+		const uint32 CardsIndexOffset = Out.Cards.IndexOffsets[CardIt];
+
+		const float CardLength = CardLengths[CardIt];
+		for (uint32 IndexIt = 0; IndexIt < CardsIndexCount; ++IndexIt)
+		{
+			const uint32 VertexIndex = Out.Cards.Indices[CardsIndexOffset + IndexIt];
+			const float CoordU = Out.Cards.CoordU[VertexIndex];
+			const float InterpolatedCardLength = FMath::Lerp(0.f, CardLength, CoordU);
+
+			// Instead of storing the interoplated card length, store the actual max length of the card, 
+			// as reconstructing the strands length, based on interpolatd CardLength will be too prone to numerical issue.
+			// This means that the strand length retrieves in shader will be an over estimate of the actual length
+			OutBulk.Positions[VertexIndex].W = CardLength; // InterpolatedCardLength;
+		}
+	}
+
+	// Patch Cards RootUV by transfering the guides root UV onto the cards
+	if (InStrandsData.IsValid())
+	{
+		// 1. Extract all roots
+		struct FStrandsRootData
+		{
+			FVector   Position;
+			uint32	  CurveIndex;
+			FVector2D RootUV;
+		};
+		TArray<FStrandsRootData> StrandsRoots;
+		{
+			const uint32 CurveCount = InStrandsData.StrandsCurves.Num();
+			StrandsRoots.Reserve(CurveCount);
+			for (uint32 CurveIt = 0; CurveIt < CurveCount; ++CurveIt)
+			{
+				const uint32 Offset = InStrandsData.StrandsCurves.CurvesOffset[CurveIt];
+				FStrandsRootData& RootData = StrandsRoots.AddDefaulted_GetRef();
+				RootData.Position = InStrandsData.StrandsPoints.PointsPosition[Offset];
+				RootData.RootUV = InStrandsData.StrandsCurves.CurvesRootUV[CurveIt];
+				RootData.CurveIndex = CurveIt;
+			}
+		}
+
+		// 2. Extract cards root points
+		struct FCardsRootData
+		{
+			FVector Position;
+			uint32  CardsIndex;
+		};
+		TArray<FCardsRootData> CardsRoots;
+		{
+			const uint32 CardsCount = Out.Cards.IndexOffsets.Num();
+			CardsRoots.Reserve(CardsCount);
+			for (uint32 CardIt = 0; CardIt < CardsCount; ++CardIt)
+			{
+				const uint32 CardsIndexCount = Out.Cards.IndexCounts[CardIt];
+				const uint32 CardsIndexOffset = Out.Cards.IndexOffsets[CardIt];
+
+				uint32 AverageCount = 0;
+				FVector AverageRootPosition = FVector::ZeroVector;
+				for (uint32 IndexIt = 0; IndexIt < CardsIndexCount; ++IndexIt)
+				{
+					const uint32 VertexIndex = Out.Cards.Indices[CardsIndexOffset + IndexIt];
+					if (Out.Cards.CoordU[VertexIndex] == 0)
+					{
+						AverageRootPosition += Out.Cards.Positions[VertexIndex];
+						++AverageCount;
+					}
+				}
+
+				FCardsRootData& Cards = CardsRoots.AddDefaulted_GetRef();
+				Cards.CardsIndex = CardIt;
+				Cards.Position = AverageRootPosition / AverageCount;
+			}
+		}
+
+		// 3. Find cards root / curve root
+		{
+			for (const FCardsRootData& CardsRoot : CardsRoots)
+			{
+				// 3.1 Find closet root UV
+				// /!\ N^2 loop: the number of cards should be relatively small
+				uint32 CurveIndex = ~0;
+				float ClosestDistance = FLT_MAX;
+				for (const FStrandsRootData& StrandsRoot : StrandsRoots)
+				{
+					const float Distance = FVector::Distance(StrandsRoot.Position, CardsRoot.Position);
+					if (Distance < ClosestDistance)
+					{
+						ClosestDistance = Distance;
+						CurveIndex = StrandsRoot.CurveIndex;
+					}
+				}
+
+				// 3.2 Apply root UV to all cards vertices
+				check(CurveIndex != ~0);
+				if (CurveIndex != ~0)
+				{
+					const FVector2D RootUV = InStrandsData.StrandsCurves.CurvesRootUV[CurveIndex];
+
+					const uint32 CardsIndexCount = Out.Cards.IndexCounts[CardsRoot.CardsIndex];
+					const uint32 CardsIndexOffset = Out.Cards.IndexOffsets[CardsRoot.CardsIndex];
+					for (uint32 IndexIt = 0; IndexIt < CardsIndexCount; ++IndexIt)
+					{
+						const uint32 VertexIndex = Out.Cards.Indices[CardsIndexOffset + IndexIt];
+						Out.Cards.UVs[VertexIndex].Z = RootUV.X;
+						Out.Cards.UVs[VertexIndex].W = RootUV.Y;
+						OutBulk.UVs[VertexIndex].Z   = RootUV.X;
+						OutBulk.UVs[VertexIndex].W   = RootUV.Y;
+					}
+				}
+			}
+		}
+	}
+
 	return bSuccess;
 }
 
 bool ImportGeometry(
 	const UStaticMesh* StaticMesh,
+	const FHairStrandsDatas& InStrandsData,
 	FHairCardsBulkData& OutBulk,
 	FHairStrandsDatas& OutGuides,
 	FHairCardsInterpolationBulkData& OutInterpolationBulkData)
@@ -3754,19 +3872,21 @@ bool ImportGeometry(
 	FHairCardsDatas CardData;
 	return InternalImportGeometry(
 		StaticMesh,
+		InStrandsData,
 		CardData,
 		OutBulk,
 		OutGuides,
 		OutInterpolationBulkData);
 }
 
-bool ExtractCardsData(const UStaticMesh* StaticMesh, FHairCardsDatas& Out)
+bool ExtractCardsData(const UStaticMesh* StaticMesh, const FHairStrandsDatas& InStrandsData, FHairCardsDatas& Out)
 {
 	FHairCardsBulkData OutBulk;
 	FHairStrandsDatas OutGuides;
 	FHairCardsInterpolationBulkData OutInterpolationBulkData;
 	return InternalImportGeometry(
 		StaticMesh,
+		InStrandsData,
 		Out,
 		OutBulk,
 		OutGuides,

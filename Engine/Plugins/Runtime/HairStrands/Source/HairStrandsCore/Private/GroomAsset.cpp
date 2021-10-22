@@ -2518,7 +2518,17 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 			if (CardsMesh != nullptr)
 			{
 				CardsMesh->ConditionalPostLoad();
-				bInitResources = FHairCardsBuilder::ImportGeometry(CardsMesh, LOD.BulkData, LODGuidesData, LOD.InterpolationBulkData);
+
+				// Create a transient FHairStrandsData in order to extract RootUV and transfer them to cards data
+				FHairStrandsDatas TempHairStrandsData;
+				{
+					const FHairDescriptionGroups& LocalHairDescriptionGroups = GetHairDescriptionGroups();
+					FHairGroupInfo DummyInfo;
+					check(LocalHairDescriptionGroups.IsValid());
+					TempHairStrandsData = LocalHairDescriptionGroups.HairGroups[GroupIndex].Strands;
+					FGroomBuilder::BuildData(TempHairStrandsData);
+				}
+				bInitResources = FHairCardsBuilder::ImportGeometry(CardsMesh, TempHairStrandsData, LOD.BulkData, LODGuidesData, LOD.InterpolationBulkData);
 				if (!bInitResources)
 				{
 					UE_LOG(LogHairStrands, Warning, TEXT("Failed to import cards from %s for Group %d LOD %d."), *CardsMesh->GetName(), GroupIndex, LODIt);
@@ -2545,6 +2555,7 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 				InitAtlasTexture(LOD.RestResource, Desc->Textures.TangentTexture, EHairAtlasTextureType::Tangent);
 				InitAtlasTexture(LOD.RestResource, Desc->Textures.AttributeTexture, EHairAtlasTextureType::Attribute);
 				InitAtlasTexture(LOD.RestResource, Desc->Textures.CoverageTexture, EHairAtlasTextureType::Coverage);
+				InitAtlasTexture(LOD.RestResource, Desc->Textures.AuxilaryDataTexture, EHairAtlasTextureType::AuxilaryData);
 				InitAtlasTexture(LOD.RestResource, Desc->Textures.AuxilaryDataTexture, EHairAtlasTextureType::AuxilaryData);
 				LOD.RestResource->bInvertUV = Desc->SourceType == EHairCardsSourceType::Procedural;
 				
@@ -3610,7 +3621,8 @@ bool UGroomAsset::GetHairCardsGuidesDatas(
 
 			FHairCardsBulkData					DummyBulkData;
 			FHairCardsInterpolationBulkData		DummyInterpolationBulkData;
-			FHairCardsBuilder::ImportGeometry(CardsMesh, DummyBulkData, OutCardsGuidesData, DummyInterpolationBulkData);
+			FHairStrandsDatas					DummyHairStrandsData;
+			FHairCardsBuilder::ImportGeometry(CardsMesh, DummyHairStrandsData, DummyBulkData, OutCardsGuidesData, DummyInterpolationBulkData);
 			return true;
 		}
 	}
