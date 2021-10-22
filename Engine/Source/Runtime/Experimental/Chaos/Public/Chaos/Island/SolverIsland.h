@@ -78,6 +78,11 @@ class CHAOS_API FPBDIslandSolver : public FPBDIslandSolverData
 	void RemoveConstraint(FConstraintHandle* ConstraintHandle);
 
 	/**
+	* Sort the islands constraints
+	*/
+	void SortConstraints();
+
+	/**
 	* Return the list of particles within the solver island
 	*/
 	FORCEINLINE const TArray<FGeometryParticleHandle*>& GetParticles() const { return IslandParticles; }
@@ -100,14 +105,16 @@ class CHAOS_API FPBDIslandSolver : public FPBDIslandSolverData
 	/**
 	* Members accessors
 	*/
-	FORCEINLINE bool GetIsSleeping() const {return bIsSleeping;}
+	FORCEINLINE bool IsSleeping() const {return bIsSleeping;}
 	FORCEINLINE void SetIsSleeping(const bool bIsSleepingIn ) { bIsSleeping = bIsSleepingIn; }
-	FORCEINLINE bool GetIsPersistent() const { return bIsPersistent; }
+	FORCEINLINE bool IsPersistent() const { return bIsPersistent; }
 	FORCEINLINE void SetIsPersistent(const bool bIsPersistentIn) { bIsPersistent = bIsPersistentIn; }
-	FORCEINLINE bool GetNeedsResim() const { return bNeedsResim; }
+	FORCEINLINE bool NeedsResim() const { return bNeedsResim; }
 	FORCEINLINE void SetNeedsResim(const bool bNeedsResimIn) { bNeedsResim = bNeedsResimIn; }
 	FORCEINLINE int32 GetSleepCounter() const { return SleepCounter; }
 	FORCEINLINE void SetSleepCounter(const int32 SleepCounterIn) { SleepCounter = SleepCounterIn; }
+	FORCEINLINE bool SleepingChanged() const { return bSleepingChanged; }
+	FORCEINLINE void SetSleepingChanged(const bool bSleepingChanedIn) { bSleepingChanged = bSleepingChanedIn; }
 	
 	// template<typename ConstraintType>
 	// void GatherSolverInput(const FReal Dt, const int32 IslandIndex, const int32 ContainerId);
@@ -125,6 +132,9 @@ class CHAOS_API FPBDIslandSolver : public FPBDIslandSolverData
 
 	/** Flag to check if an island is persistent over time */
 	bool bIsPersistent = true;
+
+	/** Flag to check if the sleeping state has changed or not */
+	bool bSleepingChanged = false;
 
 	/** Sleep counter to trigger island sleeping */
 	int32 SleepCounter = 0;

@@ -50,6 +50,17 @@ public:
 	int32 AddNode(const NodeType& NodeItem, const bool bValidNode = true, const int32 IslandIndex = INDEX_NONE, const bool bDiscardNode = false);
 
 	/**
+	* Given a node item, update the graph node information (valid,discard...)
+	* @param NodeItem Node Item to be stored in the graph node
+	* @param bValidNode Check if a node should be considered for graph partitioning
+	* @param IslandIndex Potential island index we want the node to belong to
+	* @param bDiscardNode Node to check if a node will be dicarded ot not for island splitting
+	*  @param NodeIndex Index to consider to update the graph node information
+	* @return Node index that has just been added
+	*/
+	void UpdateNode(const NodeType& NodeItem, const bool bValidNode, const int32 IslandIndex, const bool bDiscardNode, const int32 NodeIndex);
+
+	/**
 	 * Remove a node from the graph nodes list
 	 * @param NodeItem Item to be removed from the nodes list
 	 */
@@ -86,6 +97,11 @@ public:
 	* Remove all the edges from the graph
 	*/
 	void ResetIslands();
+
+	/**
+	* Init the islands (remove edges only for non sleeping islands)
+	*/
+	void InitIslands();
 
 	/**
 	 * Get the number of edges that are inside a graph
@@ -178,26 +194,13 @@ public:
 
 		/** List of children islands  to be merged */
 		TSet<int32> ChildrenIslands;
+
+		/** Parent Island */
+		int32 ParentIsland = INDEX_NONE;
 		
 		/** Island Item that is stored per island*/
 		IslandType IslandItem;
 	};
-
-	/**
-	 * Loop over all the nodes within an island
-	 * @param IslandIndex Island in which we will loop over all the nodes
-	 * @param ApplyFunction Function to be applied on every nodes that are linked to the root node 
-	 * @param bUpdateCounter Boolean to check if we need to update the graph counter or not 
-	 */
-	void ForEachNodes(const int32 IslandIndex, TFunctionRef<void(FGraphNode&)> ApplyFunction, const bool bUpdateCounter = true);
-
-	/**
-	 * Loop over all the edges within an island
-	 * @param IslandIndex Island in which we will loop over all the edges
-	 * @param ApplyFunction Function to be applied on every nodes that are linked to the root node
-	 * @param bUpdateCounter Boolean to check if we need to update the graph counter or not
-	 */
-	void ForEachEdges(const int32 IslandIndex, TFunctionRef<void(FGraphEdge&)> ApplyFunction, const bool bUpdateCounter = true);
 
 	/**
 	 * Link two islands to each other for future island traversal
@@ -220,10 +223,28 @@ public:
 	void MergeIslands(const int32 ParentIndex, const int32 ChildIndex);
 
 	/**
-	* Split an island
-	* @param IslandIndex Island index to be splitted
+	* Merge all the graph islands
 	*/
-	void SplitIsland(const int32 IslandIndex);
+	void MergeIslands();
+
+	/**
+	* Split one island given a root index 
+	* @param NodeQueue node queue to use while splitting the island (avoid reallocation)
+	* @param RootIndex root index of the island graph
+	* @param IslandIndex index of the island we are splitting
+	*/
+	void SplitIsland(TQueue<int32>& NodeQueue, const int32 RootIndex, const int32 IslandIndex);
+
+	/**
+	* Split all the graph islands if not sleeping
+	*/
+	void SplitIslands();
+
+	/**
+	* Reassign the updated island index from the merging phase to the nodes/edges
+	*/
+	void ReassignIslands();
+	
 
 	/** List of graph nodes */
 	TSparseArray<FGraphNode> GraphNodes;

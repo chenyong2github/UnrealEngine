@@ -139,6 +139,25 @@ namespace Chaos
 				check(false);  //question: do we want to support a dynamic dispatch version?
 			}
 		}
+		
+		/** @brief This function is the outer loop of collision detection. It loops over the
+		 * particles view and do the broadphase + narrowphase collision detection
+		 * @param OverlapView View to consider for the outer loop
+		 * @param Dt Current simulation time step
+		 * @param InSpatialAcceleration Spatial acceleration (AABB, bounding volumes...) to be used for broadphase collision detection
+		 * @param NarrowPhase Narrowphase collision detection that will be executed on each potential pairs coming from the broadphase detection
+		 * */
+
+		template<bool bNeedsResim, bool bOnlyRigid, typename ViewType, typename SpatialAccelerationType>
+		void ComputeParticlesOverlaps(ViewType& OverlapView, FReal Dt,
+			const SpatialAccelerationType& InSpatialAcceleration, FNarrowPhase& NarrowPhase)
+		{
+			OverlapView.ParallelFor([&](auto& Particle1,int32 ActiveIdxIdx)
+			{
+				FGenericParticleHandleHandleImp GenericHandle(Particle1.Handle());
+				ProduceParticleOverlaps<bNeedsResim,bOnlyRigid>(Dt,GenericHandle, InSpatialAcceleration,NarrowPhase,ActiveIdxIdx);
+			},bDisableCollisionParallelFor);
+		}
 
 		template<typename T_SPATIALACCELERATION>
 		void ProduceOverlaps(
@@ -153,45 +172,30 @@ namespace Chaos
 			const bool bResimSkipCollision = ResimCache && ResimCache->IsResimming();
 			if(!bResimSkipCollision)
 			{
-				int32 EntryCount = 0;
-				const TParticleView<TPBDRigidParticles<FReal, 3>>& View = Particles.GetNonDisabledDynamicView();
+				const TParticleView<TPBDRigidParticles<FReal, 3>>& DynamicSleepingView = Particles.GetNonDisabledDynamicView();
+				const TParticleView<TKinematicGeometryParticles<FReal, 3>>& DynamicMovingKinematicView = Particles.GetActiveDynamicMovingKinematicParticlesView();
 
-				// Calculate maximum possible particle slots
-				for(int32 Index = 0; Index < View.SOAViews.Num(); ++Index)
+				if(DynamicSleepingView.Num() > DynamicMovingKinematicView.Num())
 				{
-					EntryCount += View.SOAViews[Index].Size();
+					ComputeParticlesOverlaps<false,false>(DynamicMovingKinematicView, Dt, InSpatialAcceleration, NarrowPhase);
 				}
-
-				View.ParallelFor([&](auto& Particle1,int32 ActiveIdxIdx)
+				else
 				{
-					ProduceParticleOverlaps</*bResimming=*/false>(Dt,Particle1,InSpatialAcceleration,NarrowPhase,ActiveIdxIdx);
-				},bDisableParallelFor);
+					ComputeParticlesOverlaps<false,true>(DynamicSleepingView, Dt, InSpatialAcceleration, NarrowPhase);
+				}
 			}
 			else
 			{
-				int32 EntryCount = 0;
-				const TParticleView<TGeometryParticles<FReal, 3>>& View = ResimCache->GetDesyncedView();
-
-				// Calculate maximum possible particle slots
-				for(int32 Index = 0; Index < View.SOAViews.Num(); ++Index)
-				{
-					EntryCount += View.SOAViews[Index].Size();
-				}
-
-				View.ParallelFor(
-					[&](auto& Particle1,int32 ActiveIdxIdx)
-				{
-					//TODO: use transient handle
-					FGenericParticleHandleHandleImp GenericHandle(Particle1.Handle());
-					ProduceParticleOverlaps</*bResimming=*/true>(Dt,GenericHandle,InSpatialAcceleration,NarrowPhase,ActiveIdxIdx);
-				},bDisableParallelFor);
+				const TParticleView<TGeometryParticles<FReal, 3>>& DesyncedView = ResimCache->GetDesyncedView();
+				
+				ComputeParticlesOverlaps<true,false>(DesyncedView, Dt, InSpatialAcceleration, NarrowPhase);
 			}
 		}
 
 		FIgnoreCollisionManager& GetIgnoreCollisionManager() { return IgnoreCollisionManager; }
 
 	private:
-		template<bool bIsResimming, typename THandle, typename T_SPATIALACCELERATION>
+		template<bool bIsResimming, bool bOnlyRigid, typename THandle, typename T_SPATIALACCELERATION>
 		void ProduceParticleOverlaps(
 		    FReal Dt,
 		    THandle& Particle1,
@@ -199,12 +203,13 @@ namespace Chaos
 		    FNarrowPhase& NarrowPhase,
 			int32 EntryIndex)
 		{
-			//Durning non-resim we must pass rigid particles
-			static_assert(bIsResimming || THandle::StaticType() == EParticleType::Rigid, "During non-resim we expect rigid particles");
+			TArray<FAccelerationStructureHandle> PotentialIntersections;  
 
-			TArray<FAccelerationStructureHandle> PotentialIntersections;
-
-			if (bIsResimming || (Particle1.ObjectState() == EObjectStateType::Dynamic || Particle1.ObjectState() == EObjectStateType::Sleeping))
+			const bool bHasValidState = bOnlyRigid ?
+					(Particle1.ObjectState() == EObjectStateType::Dynamic || Particle1.ObjectState() == EObjectStateType::Sleeping) :
+					(Particle1.ObjectState() == EObjectStateType::Dynamic || Particle1.ObjectState() == EObjectStateType::Kinematic);
+			
+			if (bIsResimming || bHasValidState)
 			{
 				const bool bBody1Bounded = HasBoundingBox(Particle1);
 				{
@@ -243,16 +248,13 @@ namespace Chaos
 					// CollisionGroup == 0 : Collide_With_Everything
 					// CollisionGroup == INDEX_NONE : Disabled collisions
 					// CollisionGroup_A != CollisionGroup_B : Skip Check
-
-					if(bIsResimming)
+					
+					// collision pair is valid if at least one of the 2 particles is a rigid one (will discard static/kinematic-static/kinematic pairs)
+					if(Particle1.CastToRigidParticle() == nullptr && Particle2.CastToRigidParticle() == nullptr)
 					{
-						//during resim we allow particle 1 to be kinematic, in that case make sure we don't create any kinematic-kinematic constraints
-						if(Particle1.CastToRigidParticle() == nullptr && Particle2.CastToRigidParticle() == nullptr)
-						{
-							continue;
-						}
+						continue;
 					}
-
+					
 					if (Particle1.HasCollisionConstraintFlag(ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions) )
 					{
 						if (IgnoreCollisionManager.IgnoresCollision(Particle1.UniqueIdx(), Particle2.UniqueIdx()))
@@ -274,11 +276,6 @@ namespace Chaos
 					{
 						continue;
 					}
-					
-					if ((Particle1.ObjectState() == EObjectStateType::Sleeping) && (Particle2.ObjectState() == EObjectStateType::Sleeping))
-					{
-						continue;
-					}
 
 					if (Particle1.Handle() == Particle2.Handle())
 					{
@@ -290,54 +287,77 @@ namespace Chaos
 					{
 						continue;
 					}
+					bool bAcceptParticlePair = false;
 
-					// Note:
-					// 
-					// Normally (not resimming) we iterate over dynamic particles, so:
-					// - Particle1 is always dynamic, but may be asleep
-					// - Particle2 may be static, kinematic or dynamic, but may be asleep
-					// 
-					// When resimming we iterate over "desynced" particles which may be kinematic so:
-					// - Particle1 is always desynced
-					// - Particle2 may also be desynced, in which case we will also visit the opposite ordering regardless of dynamic/kinematic status
-					// - Particle1 may be static, kinematic or dynamic, but may be asleep
-					// - Particle2 may be static, kinematic or dynamic, but may be asleep
-					// 
-					// Even though Particle1 may be kinematic when resimming, we want to create the contacts in the original order (i.e., dynamic first)
-					//
-					const bool bIsParticle2Dynamic = (Particle2.ObjectState() == EObjectStateType::Dynamic) || (Particle2.ObjectState() == EObjectStateType::Sleeping);
-
+					// In both cases (resim or not) we will generate (1) dynamic-(sleeping,kinematic(steady+moving),static) pairs + (2) sleeping-moving kinematic ones
+					// Sleeping particles could collide with dynamic ones but these collisions are already handled in case 1
+					// Sleeping particles won't collide with static or steady kinematic particles since both are not supposed to move but will
+					// collide against moving kinematic particles
+					if ((Particle1.ObjectState() == EObjectStateType::Dynamic && Particle2.ObjectState() != EObjectStateType::Dynamic) ||
+						(Particle1.ObjectState() == EObjectStateType::Sleeping && Particle2.ObjectState() == EObjectStateType::Kinematic))
+					{
+						bAcceptParticlePair = true;
+					}
+					
 					// Used to determine a winner in cases where we will visit particle pairs in both orders
 					const bool bIsParticle1Preferred = (Particle2.ParticleID() < Particle1.ParticleID());
-
-					bool bAcceptParticlePair = false;
-					if (!bIsResimming)
+					
+					if(!bIsResimming)
 					{
-						// When not resimming, accept pair if any of the following are true
-						// (1) Both particles are dynamic|asleep and Particle1 is "preferred" (to prevent duplicate entries when we visit the pair in the opposite order)
-						// (2) Particle1 is dynamic|asleep and Particle2 is kinematic (we won't visit the opposite order)
-						// Then both conditions can be combined and reduced to:
-						bAcceptParticlePair = (bIsParticle1Preferred || !bIsParticle2Dynamic);
+						// Normally (not resimming) we iterate over dynamic and asleep|kinematic particles, so:
+						// - Particle1 is dynamic, asleep OR kinematic
+						// - Particle2 may be static, kinematic, dynamic, asleep
+
+						// If Particle1 is non dynamic but particle 2 is dynamic, the case should already be handled by (1)
+						if(Particle1.ObjectState() != EObjectStateType::Dynamic && Particle2.ObjectState() == EObjectStateType::Dynamic)
+						{
+							bAcceptParticlePair = false;
+						}
+						// If Particle1 and Particle2 are dynamic we validate the pair if particle1 has higher ID to discard duplicates since we will visit twice the pairs
+						else if(Particle1.ObjectState() == EObjectStateType::Dynamic && Particle2.ObjectState() == EObjectStateType::Dynamic)
+						{
+							bAcceptParticlePair = bIsParticle1Preferred;
+						}
+						// If Particle1 is kinematic we should in theory discard the pairs against sleeping particles
+						// since the sleeping-kinematic case has been validated in (2). But Particle1 is asleep OR kinematic so
+						// when entering this condition we are sure that we enver entered (2). It is why we validate the kinematic-sleeping pairs as well
+						else if(Particle1.ObjectState() == EObjectStateType::Kinematic && Particle2.ObjectState() == EObjectStateType::Sleeping)
+						{
+							bAcceptParticlePair = true;
+						}
 					}
 					else
 					{
-						// When resimming, accept pair if any of the following are true
-						// (1) Both particles are dynamic|asleep and desynced and Particle1 is preferred (we will visit both pair orderings)
-						// (2) Both particles are dynamic|asleep but Particle2 is not desynced (we won't visit the opposite order)
-						// (3) Particle1 is dynamic|sleeping and Particle2 is kinematic (regardless of desync state, see (4))
-						// (4) Particle1 is kinematic and Particle2 is dynamic but not desynced (we won't visit the opposite order)
-						// We should skip non-dynamic pairs should they show up (implicit in the logic below)
-						const bool bIsParticle1Dynamic = (Particle1.ObjectState() == EObjectStateType::Dynamic) || (Particle1.ObjectState() == EObjectStateType::Sleeping);
-						const bool bIsParticle2Desynced = (Particle2.SyncState() == ESyncState::HardDesync);
-						bAcceptParticlePair = 
-							(bIsParticle1Dynamic && bIsParticle2Dynamic && (bIsParticle1Preferred || !bIsParticle2Desynced))		// Case (1) and (2)
-							|| (bIsParticle1Dynamic && !bIsParticle2Dynamic)														// Case (3)
-							|| (!bIsParticle1Dynamic && bIsParticle2Dynamic && !bIsParticle2Desynced);								// Case (4)
+						// When resimming we iterate over "desynced" particles which may be kinematic so:
+						// - Particle1 is always desynced
+						// - Particle2 may also be desynced, in which case we will also visit the opposite ordering regardless of dynamic/kinematic status
+						// - Particle1 may be static, kinematic, dynamic, asleep
+						// - Particle2 may be static, kinematic, dynamic, asleep
+						// 
+						// Even though Particle1 may be kinematic when resimming, we want to create the contacts in the original order (i.e., dynamic first)
+						// 
+						const bool bIsParticle2Desynced = bIsResimming && (Particle2.SyncState() == ESyncState::HardDesync);
 
-						// @todo(chaos): for Case (4) above, we should be switching the order of the particles before continuing
-						// if we want this to be properly deterministic - we always put dynamics first in the non-resim path...
+						// If Particle1 is non dynamic but particle 2 is dynamic, the case should already be handled by (1) for
+						// the desynced dynamic - synced/desynced (static,kinematic,asleep) pairs. But we still need to process
+						// the desynced (static,kinematic,asleep) against the synced dynamic since this case have not been handled by (1)
+						if(Particle1.ObjectState() != EObjectStateType::Dynamic && Particle2.ObjectState() == EObjectStateType::Dynamic)
+						{
+							bAcceptParticlePair = !bIsParticle2Desynced;
+						}
+						// If Particle1 and Particle2 are dynamic we validate the pair if particle1 has higher ID to discard duplicates since we will visit twice the pairs
+						// We validate the pairs as well if the particle 2 is synced since  we will never visit the opposite order (we only iterate over desynced particles)
+						else if(Particle1.ObjectState() == EObjectStateType::Dynamic && Particle2.ObjectState() == EObjectStateType::Dynamic)
+						{
+							bAcceptParticlePair = bIsParticle1Preferred || !bIsParticle2Desynced;
+						}
+						// If Particle1 is kinematic we are discarding the pairs against sleeping desynced particles since the case has been handled by (2)
+						else if(Particle1.ObjectState() == EObjectStateType::Kinematic && Particle2.ObjectState() == EObjectStateType::Sleeping)
+						{
+							bAcceptParticlePair = !bIsParticle2Desynced;
+						}
 					}
-
+					
 					if (!bAcceptParticlePair)
 					{
 						continue;

@@ -277,6 +277,9 @@ namespace Chaos
 
 		void GatherSolverInput(FReal Dt, int32 Island);
 		void ScatterSolverOutput(FReal Dt, int32 Island);
+
+		/** @brief Add the contacts stored in the sleeping island to the constraint allocator */
+		void AddSleepingContacts();
 		
 		FEvolutionResimCache* GetCurrentStepResimCache()
 		{

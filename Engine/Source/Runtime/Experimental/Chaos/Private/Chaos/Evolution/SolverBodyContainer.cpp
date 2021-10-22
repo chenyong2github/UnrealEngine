@@ -68,7 +68,7 @@ namespace Chaos
 	{
 		// For dynamic bodies, we store a cookie on the Particle that holds the solver body index
 		// For kinematics we cannot do this because the kinematic may be in multiple islands and 
-		// would require a different index for each island, so we use a local map instead.
+		// would require a different index for each island, so we use a local map instead. 
 		int32 ItemIndex = InParticle->SolverBodyIndex();
 
 		if (ItemIndex == INDEX_NONE)

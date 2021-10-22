@@ -264,6 +264,14 @@ namespace Chaos
 			bIsSleeping = bInIsSleeping;
 		}
 
+		/**
+		* @brief Change the awaken state (used by the Island Manager)
+		*/
+		void SetWasAwakened(const bool bInWasAwakened)
+		{
+			bWasAwakened = bInWasAwakened;
+		}
+
 		// A hash of the colliding object pair to uniquely identify a contact and allow recovery next tick
 		FRigidBodyContactKey Key;
 
@@ -278,6 +286,9 @@ namespace Chaos
 
 		// Whether the constraint is in a sleeping island (this is used to prevent culling because Epoch is not updated for sleepers)
 		bool bIsSleeping;
+
+		// Whether the constraint has just been awaken in an island
+		bool bWasAwakened;
 	};
 
 
@@ -385,8 +396,11 @@ namespace Chaos
 		void SetDisabled(bool bInDisabled) { Manifold.bDisabled = bInDisabled; }
 		bool GetDisabled() const { return Manifold.bDisabled; }
 
-		void SetIsSleeping(const bool bInIsSleeping) { ContainerCookie.SetIsSleeping(bInIsSleeping); }
-		bool GetIsSleeping() const { return ContainerCookie.bIsSleeping; }
+		void SetIsSleeping(const bool bInIsSleeping) override { ContainerCookie.SetIsSleeping(bInIsSleeping); }
+		bool IsSleeping() const override { return ContainerCookie.bIsSleeping; }
+
+		void SetWasAwakened(const bool bInWasAwakened) override { ContainerCookie.SetWasAwakened(bInWasAwakened); }
+		bool WasAwakened() const override { return ContainerCookie.bWasAwakened; }
 
 		void SetNormal(const FVec3& InNormal) { Manifold.Normal = InNormal; }
 		FVec3 GetNormal() const { return Manifold.Normal; }

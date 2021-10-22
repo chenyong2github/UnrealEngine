@@ -551,9 +551,9 @@ namespace Chaos
 			{
 				ShapeColor = Settings.ShapesColorsPerShapeType.GetColorFromShapeType(InnerType);
 			}
-			if (bChaosDebugDebugDrawColorShapesByIsland && (FConstGenericParticleHandle(Particle)->Island() != INDEX_NONE))
+			if (bChaosDebugDebugDrawColorShapesByIsland && (FConstGenericParticleHandle(Particle)->IslandIndex() != INDEX_NONE))
 			{
-				ShapeColor = GetIslandColor(FConstGenericParticleHandle(Particle)->Island(), true);
+				ShapeColor = GetIslandColor(FConstGenericParticleHandle(Particle)->IslandIndex(), true);
 			}
 
 			// If we get here, we have an actual shape to render
@@ -1179,7 +1179,7 @@ namespace Chaos
 					}
 				}
 
-				const FColor IslandColor = GetIslandColor(IslandIndex, !Island->GetIsSleeping());
+				const FColor IslandColor = GetIslandColor(IslandIndex, !Island->IsSleeping());
 				const FAABB3 Bounds = IslandAABB.TransformedAABB(SpaceTransform);
 				FDebugDrawQueue::GetInstance().DrawDebugBox(Bounds.Center(), 0.5f * Bounds.Extents(), SpaceTransform.GetRotation(), IslandColor, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, 3.0f * Settings.LineThickness);
 
@@ -1353,17 +1353,25 @@ namespace Chaos
 			}
 		}
 
-		void DrawCollisions(const FRigidTransform3& SpaceTransform, const TArray<FPBDCollisionConstraintHandle*>& ConstraintHandles, FRealSingle ColorScale, const FChaosDebugDrawSettings* Settings)
+		void DrawCollisions(const FRigidTransform3& SpaceTransform, const FPBDConstraintGraph& Graph, FRealSingle ColorScale, const FChaosDebugDrawSettings* Settings)
 		{
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
-				for (const FPBDCollisionConstraintHandle* ConstraintHandle : ConstraintHandles)
+				for(int32 IslandIndex = 0, NumIslands = Graph.NumIslands(); IslandIndex < NumIslands; ++IslandIndex)
 				{
-					DrawCollisionImpl(SpaceTransform, ConstraintHandle, ColorScale, GetChaosDebugDrawSettings(Settings));
+					if( const FPBDIslandSolver* IslandSolver  = Graph.GetSolverIsland(IslandIndex))
+					{
+						for (const FConstraintHandle* ConstraintHandle : IslandSolver->GetConstraints())
+						{
+							if(const FPBDCollisionConstraintHandle* CollisionHandle = ConstraintHandle->As<FPBDCollisionConstraintHandle>())
+							{
+								DrawCollisionImpl(SpaceTransform, CollisionHandle, ColorScale, GetChaosDebugDrawSettings(Settings));
+							}
+						}
+					}
 				}
 			}
 		}
-
 
 		void DrawJointConstraints(const FRigidTransform3& SpaceTransform, const TArray<FPBDJointConstraintHandle*>& ConstraintHandles, Chaos::FRealSingle ColorScale, const FChaosDebugDrawJointFeatures& FeatureMask, const FChaosDebugDrawSettings* Settings)
 		{

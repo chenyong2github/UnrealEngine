@@ -74,13 +74,13 @@ namespace Chaos
 
 		FConstraintHandle() 
 			: ConstraintContainer(nullptr)
-			, ConstraintGraphIndex(INDEX_NONE) 
+			, GraphIndex(INDEX_NONE) 
 		{
 		}
 
 		FConstraintHandle(FPBDConstraintContainer* InContainer)
 			: ConstraintContainer(InContainer)
-			, ConstraintGraphIndex(INDEX_NONE)
+			, GraphIndex(INDEX_NONE)
 		{
 		}
 
@@ -94,19 +94,19 @@ namespace Chaos
 			return (ConstraintContainer != nullptr) && IsEnabled();
 		}
 
-		int32 GetConstraintGraphIndex() const
+		int32 ConstraintGraphIndex() const
 		{
-			return ConstraintGraphIndex;
+			return GraphIndex;
 		}
 
 		void SetConstraintGraphIndex(int32 InIndex)
 		{
-			ConstraintGraphIndex = InIndex;
+			GraphIndex = InIndex;
 		}
 
 		bool IsInConstraintGraph() const
 		{
-			return (ConstraintGraphIndex != INDEX_NONE);
+			return (GraphIndex != INDEX_NONE);
 		}
 
 		virtual void SetEnabled(bool InEnabled) = 0;
@@ -115,6 +115,9 @@ namespace Chaos
 
 		virtual bool IsSleeping() const { return false; }
 		virtual void SetIsSleeping(const bool bInIsSleeping) {}
+		
+		virtual bool WasAwakened() const { return false; }
+		virtual void SetWasAwakened(const bool bInWasAwakened) {}
 
 		// Implemented in ConstraintContainer.h
 		int32 GetContainerId() const;
@@ -135,7 +138,7 @@ namespace Chaos
 		FPBDConstraintContainer* ConstraintContainer;
 		
 		// @todo(chaos): move constraint graph index to base constraint container
-		int32 ConstraintGraphIndex;
+		int32 GraphIndex;
 	};
 
 

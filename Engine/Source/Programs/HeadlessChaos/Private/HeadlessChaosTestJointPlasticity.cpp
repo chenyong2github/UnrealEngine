@@ -95,7 +95,7 @@ namespace ChaosTest {
 		Test.AddParticleBox(FVec3(0, 30, 50), FRotation3::Identity, FVec3(10.f), 100.f);
 
 		FReal Angle = Test.Joints.GetConstraintSettings(0).AngularDrivePositionTarget.GetAngle() * (180. / PI);
-		EXPECT_TRUE(FMath::IsNearlyEqual(Angle, (FReal)0.));
+		EXPECT_NEAR(Angle, (FReal)0., (FReal)KINDA_SMALL_NUMBER);
 
 		// Run the sim
 		for (int32 i = 0; i < NumIts; ++i)
@@ -111,8 +111,7 @@ namespace ChaosTest {
 		Angle = Test.Joints.GetConstraintSettings(0).AngularDrivePositionTarget.GetAngle() * (180. / PI);
 
 		// The angle should have reset. 
-		EXPECT_FALSE(FMath::IsNearlyEqual(Angle, (FReal)0.));
-		EXPECT_TRUE(FMath::IsNearlyEqual(Angle, PlasticityAngle, PlasticityAngle * 0.1f));
+		EXPECT_GE(Angle, PlasticityAngle);
 
 	}
 
