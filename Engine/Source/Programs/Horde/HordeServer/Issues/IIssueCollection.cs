@@ -478,7 +478,7 @@ namespace HordeServer.Collections
 		/// <param name="NewSuspects">New suspects for the span</param>
 		/// <param name="NewModified">New modified flag for the span</param>
 		/// <returns>The updated span, or null on failure</returns>
-		Task<IIssueSpan?> UpdateSpanAsync(IIssueSpan Span, IssueSeverity? NewSeverity = null, NewIssueStepData? NewLastSuccess = null, NewIssueStepData? NewFailure = null, NewIssueStepData? NewNextSuccess = null, List<NewIssueSpanSuspectData>? NewSuspects = null, bool? NewModified = null);
+		Task<IIssueSpan?> TryUpdateSpanAsync(IIssueSpan Span, IssueSeverity? NewSeverity = null, NewIssueStepData? NewLastSuccess = null, NewIssueStepData? NewFailure = null, NewIssueStepData? NewNextSuccess = null, List<NewIssueSpanSuspectData>? NewSuspects = null, bool? NewModified = null);
 
 		/// <summary>
 		/// Updates the given span
@@ -520,7 +520,7 @@ namespace HordeServer.Collections
 		/// Finds a span marked as modified
 		/// </summary>
 		/// <returns></returns>
-		Task<IIssueSpan?> FindModifiedSpanAsync();
+		Task<List<IIssueSpan>> FindModifiedSpansAsync();
 
 		#endregion
 

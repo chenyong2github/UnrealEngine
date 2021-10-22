@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Redis.Utility;
 using HordeCommon;
 using HordeServer.Collections;
 using HordeServer.IssueHandlers;
@@ -136,39 +137,13 @@ namespace HordeServer.Services.Impl
 		/// </summary>
 		const int MaxChanges = 250;
 
-		/// <summary>
-		/// Collection of job documents
-		/// </summary>
+		RedisService RedisService;
 		IJobCollection Jobs;
-
-		/// <summary>
-		/// Collection of job step ref documents
-		/// </summary>
 		IJobStepRefCollection JobStepRefs;
-
-		/// <summary>
-		/// Collection of issue documents
-		/// </summary>
 		IIssueCollection IssueCollection;
-
-		/// <summary>
-		/// Collection of stream documents
-		/// </summary>
 		StreamService Streams;
-
-		/// <summary>
-		/// Collection of user documents
-		/// </summary>
 		IUserCollection UserCollection;
-
-		/// <summary>
-		/// Collection of commit documents
-		/// </summary>
 		IPerforceService Perforce;
-
-		/// <summary>
-		/// The log file service instance
-		/// </summary>
 		ILogFileService LogFileService;
 
 		/// <summary>
@@ -209,18 +184,11 @@ namespace HordeServer.Services.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService"></param>
-		/// <param name="IssueCollection">Collection of issue documents</param>
-		/// <param name="Jobs">Collection of job documents</param>
-		/// <param name="JobStepRefs">Collection of jobstepref documents</param>
-		/// <param name="Streams">Collection of stream documents</param>
-		/// <param name="UserCollection"></param>
-		/// <param name="Perforce">The perforce service instance</param>
-		/// <param name="LogFileService">Collection of event documents</param>
-		/// <param name="Logger">The logger instance</param>
-		public IssueService(DatabaseService DatabaseService, IIssueCollection IssueCollection, IJobCollection Jobs, IJobStepRefCollection JobStepRefs, StreamService Streams, IUserCollection UserCollection, IPerforceService Perforce, ILogFileService LogFileService, ILogger<IssueService> Logger)
+		public IssueService(DatabaseService DatabaseService, RedisService RedisService, IIssueCollection IssueCollection, IJobCollection Jobs, IJobStepRefCollection JobStepRefs, StreamService Streams, IUserCollection UserCollection, IPerforceService Perforce, ILogFileService LogFileService, ILogger<IssueService> Logger)
 			: base(DatabaseService, ObjectId.Parse("609542152fb0794700a6c3df"), Logger)
 		{
+			this.RedisService = RedisService;
+
 			Type[] IssueTypes = Assembly.GetExecutingAssembly().GetTypes().Where(x => !x.IsAbstract && typeof(IIssue).IsAssignableFrom(x)).ToArray();
 			foreach (Type IssueType in IssueTypes)
 			{
@@ -619,7 +587,7 @@ namespace HordeServer.Services.Impl
 			}
 
 			// Update all the unassigned spans
-			await AttachSpansToIssues();
+			await AttachSpansToIssuesAsync();
 		}
 
 		/// <summary>
@@ -741,7 +709,7 @@ namespace HordeServer.Services.Impl
 						}
 
 						// Update the span
-						IIssueSpan? NewSpan = await IssueCollection.UpdateSpanAsync(OpenSpan, NewSeverity: NewSeverity, NewFailure: NewFailure, NewModified: (bMarkAsModified? (bool?)true : null));
+						IIssueSpan? NewSpan = await IssueCollection.TryUpdateSpanAsync(OpenSpan, NewSeverity: NewSeverity, NewFailure: NewFailure, NewModified: (bMarkAsModified? (bool?)true : null));
 						if (NewSpan == null)
 						{
 							return false;
@@ -890,73 +858,93 @@ namespace HordeServer.Services.Impl
 		/// Find all the spans which are not currently attached to an issue, and try to attach them
 		/// </summary>
 		/// <returns></returns>
-		async Task AttachSpansToIssues()
+		async Task AttachSpansToIssuesAsync()
 		{
 			IIssueSequenceToken Token = await IssueCollection.GetSequenceTokenAsync();
-			for (; ; )
+			for(; ;)
 			{
-				// Find an unassigned span
-				IIssueSpan? Span = await IssueCollection.FindModifiedSpanAsync();
-				if (Span == null)
+				bool bFoundSpan = false;
+
+				List<IIssueSpan> Spans = await IssueCollection.FindModifiedSpansAsync();
+				foreach (IIssueSpan Span in Spans)
+				{
+					await using RedisLock Lock = new RedisLock(RedisService.Database, $"issues/locks/{Span.Id}");
+					if (await Lock.AcquireAsync(TimeSpan.FromMinutes(1)))
+					{
+						await TryUpdateModifiedSpanAsync(Span, Token);
+						bFoundSpan = true;
+					}
+				}
+
+				if (!bFoundSpan)
 				{
 					break;
 				}
+			}
+		}
 
-				// Try to find an issue for it
-				IIssue? Issue;
-				if (Span.IssueId == null)
+		/// <summary>
+		/// Updates information derived from an updated span, and clear the modified flag on it
+		/// </summary>
+		/// <param name="Span"></param>
+		/// <param name="Token"></param>
+		/// <returns></returns>
+		async ValueTask<IIssueSpan?> TryUpdateModifiedSpanAsync(IIssueSpan Span, IIssueSequenceToken Token)
+		{
+			// Try to find an issue for it
+			IIssue? Issue;
+			if (Span.IssueId == null)
+			{
+				Issue = await FindIssueForSpanAsync(Span);
+				if (Issue == null)
 				{
-					Issue = await FindIssueForSpanAsync(Span);
+					Issue = await IssueCollection.AddIssueAsync(Token, GetSummary(Span.Fingerprint, Span.Severity), Span);
 					if (Issue == null)
 					{
-						Issue = await IssueCollection.AddIssueAsync(Token, GetSummary(Span.Fingerprint, Span.Severity), Span);
-						if (Issue == null)
-						{
-							await Token.ResetAsync();
-							continue;
-						}
-					}
-					else
-					{
-						NewIssueFingerprint NewFingerprint = NewIssueFingerprint.Merge(Issue.Fingerprint, Span.Fingerprint);
-						IssueSeverity NewSeverity = (Issue.Severity > Span.Severity) ? Issue.Severity : Span.Severity;
-						string NewSummary = GetSummary(NewFingerprint, NewSeverity);
-
-						if (!await IssueCollection.AttachSpanToIssueAsync(Token, Span, Issue, NewSeverity, NewFingerprint, NewSummary))
-						{
-							await Token.ResetAsync();
-							continue;
-						}
+						await Token.ResetAsync();
+						return null;
 					}
 				}
 				else
 				{
-					// Update the issue that it belongs to
-					Issue = await GetIssueAsync(Span.IssueId.Value);
-					if (Issue != null)
+					NewIssueFingerprint NewFingerprint = NewIssueFingerprint.Merge(Issue.Fingerprint, Span.Fingerprint);
+					IssueSeverity NewSeverity = (Issue.Severity > Span.Severity) ? Issue.Severity : Span.Severity;
+					string NewSummary = GetSummary(NewFingerprint, NewSeverity);
+
+					if (!await IssueCollection.AttachSpanToIssueAsync(Token, Span, Issue, NewSeverity, NewFingerprint, NewSummary))
 					{
-						Issue = await UpdateIssueDerivedDataAsync(Issue);
-						if (Issue == null)
-						{
-							continue;
-						}
+						await Token.ResetAsync();
+						return null;
 					}
 				}
-
-				// Perform any shared issue updates
+			}
+			else
+			{
+				// Update the issue that it belongs to
+				Issue = await GetIssueAsync(Span.IssueId.Value);
 				if (Issue != null)
 				{
-					Issue = await UpdateResolvedStateAsync(Issue, Span);
-					if(Issue == null)
+					Issue = await UpdateIssueDerivedDataAsync(Issue);
+					if (Issue == null)
 					{
-						continue;
+						return null;
 					}
-					OnIssueUpdated?.Invoke(Issue);
 				}
-
-				// Clear the modified flag
-				await IssueCollection.UpdateSpanAsync(Span, NewModified: false);
 			}
+
+			// Perform any shared issue updates
+			if (Issue != null)
+			{
+				Issue = await UpdateResolvedStateAsync(Issue, Span);
+				if(Issue == null)
+				{
+					return null;
+				}
+				OnIssueUpdated?.Invoke(Issue);
+			}
+
+			// Clear the modified flag
+			return await IssueCollection.TryUpdateSpanAsync(Span, NewModified: false);
 		}
 
 		async Task<IIssue?> UpdateResolvedStateAsync(IIssue? Issue, IIssueSpan Span)
@@ -1187,7 +1175,7 @@ namespace HordeServer.Services.Impl
 					NewIssueStepData NewLastSuccess = new NewIssueStepData(Job.Change, IssueSeverity.Unspecified, Job.Name, Job.Id, Batch.Id, Step.Id, Step.StartTimeUtc ?? default, Step.LogId, false);
 					List<NewIssueSpanSuspectData> NewSuspects = await FindSuspectsForSpanAsync(Stream, Span.Fingerprint, Job.Change + 1, Span.FirstFailure.Change);
 
-					if (await IssueCollection.UpdateSpanAsync(Span, NewLastSuccess: NewLastSuccess, NewSuspects: NewSuspects, NewModified: true) == null)
+					if (await IssueCollection.TryUpdateSpanAsync(Span, NewLastSuccess: NewLastSuccess, NewSuspects: NewSuspects, NewModified: true) == null)
 					{
 						return false;
 					}
@@ -1197,7 +1185,7 @@ namespace HordeServer.Services.Impl
 				else if (Job.Change > Span.LastFailure.Change && (Span.NextSuccess == null || Job.Change < Span.NextSuccess.Change))
 				{
 					NewIssueStepData NewNextSucccess = new NewIssueStepData(Job.Change, IssueSeverity.Unspecified, Job.Name, Job.Id, Batch.Id, Step.Id, Step.StartTimeUtc ?? default, Step.LogId, false);
-					if (await IssueCollection.UpdateSpanAsync(Span, NewNextSuccess: NewNextSucccess, NewModified: true) == null)
+					if (await IssueCollection.TryUpdateSpanAsync(Span, NewNextSuccess: NewNextSucccess, NewModified: true) == null)
 					{
 						return false;
 					}
