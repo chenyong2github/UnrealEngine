@@ -70,6 +70,7 @@ namespace HordeServer.Controllers
 		/// <param name="LabelIdx">The label within the job to filter by</param>
 		/// <param name="UserId">User to filter issues for</param>
 		/// <param name="Resolved">Whether to include resolved issues</param>
+		/// <param name="Promoted">Whether to include promoted issues</param>
 		/// <param name="Index">Starting offset of the window of results to return</param>
 		/// <param name="Count">Number of results to return</param>
 		/// <param name="Filter">Filter for the properties to return</param>
@@ -77,7 +78,7 @@ namespace HordeServer.Controllers
 		[HttpGet]
 		[Route("/api/v1/issues")]
 		[ProducesResponseType(typeof(List<GetIssueResponse>), 200)]
-		public async Task<ActionResult<object>> FindIssuesAsync([FromQuery(Name = "Id")] int[]? Ids = null, [FromQuery] string? StreamId = null, [FromQuery] int? Change = null, [FromQuery] int? MinChange = null, [FromQuery] int? MaxChange = null, [FromQuery] JobId? JobId = null, [FromQuery] string? BatchId = null, [FromQuery] string? StepId = null, [FromQuery(Name = "label")] int? LabelIdx = null, [FromQuery] string? UserId = null, [FromQuery] bool? Resolved = null, [FromQuery] int Index = 0, [FromQuery] int Count = 10, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> FindIssuesAsync([FromQuery(Name = "Id")] int[]? Ids = null, [FromQuery] string? StreamId = null, [FromQuery] int? Change = null, [FromQuery] int? MinChange = null, [FromQuery] int? MaxChange = null, [FromQuery] JobId? JobId = null, [FromQuery] string? BatchId = null, [FromQuery] string? StepId = null, [FromQuery(Name = "label")] int? LabelIdx = null, [FromQuery] string? UserId = null, [FromQuery] bool? Resolved = null, [FromQuery] bool? Promoted = null, [FromQuery] int Index = 0, [FromQuery] int Count = 10, [FromQuery] PropertyFilter? Filter = null)
 		{
 			if(Ids != null && Ids.Length == 0)
 			{
@@ -99,7 +100,7 @@ namespace HordeServer.Controllers
 					StreamIdValue = new StreamId(StreamId);
 				}
 
-				Issues = await IssueService.FindIssuesAsync(Ids, UserIdValue, StreamIdValue, MinChange ?? Change, MaxChange ?? Change, Resolved, Index, Count);
+				Issues = await IssueService.FindIssuesAsync(Ids, UserIdValue, StreamIdValue, MinChange ?? Change, MaxChange ?? Change, Resolved, Promoted, Index, Count);
 			}
 			else
 			{
@@ -114,7 +115,7 @@ namespace HordeServer.Controllers
 				}
 
 				IGraph Graph = await JobService.GetGraphAsync(Job);
-				Issues = await IssueService.FindIssuesForJobAsync(Ids, Job, Graph, StepId?.ToSubResourceId(), BatchId?.ToSubResourceId(), LabelIdx, UserIdValue, Resolved, Index, Count);
+				Issues = await IssueService.FindIssuesForJobAsync(Ids, Job, Graph, StepId?.ToSubResourceId(), BatchId?.ToSubResourceId(), LabelIdx, UserIdValue, Resolved, Promoted, Index, Count);
 			}
 
 			StreamPermissionsCache PermissionsCache = new StreamPermissionsCache();
@@ -413,7 +414,7 @@ namespace HordeServer.Controllers
 				NewResolvedById = Request.Resolved.Value ? User.GetUserId() : UserId.Empty;
 			}
 
-			if (!await IssueService.UpdateIssueAsync(IssueId, Request.Summary, Request.Description, NewOwnerId, NewNominatedById, Request.Acknowledged, NewDeclinedById, Request.FixChange, NewResolvedById))
+			if (!await IssueService.UpdateIssueAsync(IssueId, Request.Summary, Request.Description, Request.Promoted, NewOwnerId, NewNominatedById, Request.Acknowledged, NewDeclinedById, Request.FixChange, NewResolvedById))
 			{
 				return NotFound();
 			}

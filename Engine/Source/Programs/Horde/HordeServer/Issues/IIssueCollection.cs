@@ -220,9 +220,9 @@ namespace HordeServer.Collections
 		public LogId? LogId { get; set; }
 
 		/// <summary>
-		/// Whether to notify suspects for this step
+		/// Whether this step is promoted
 		/// </summary>
-		public bool NotifySuspects { get; set; }
+		public bool PromoteByDefault { get; set; }
 
 		/// <summary>
 		/// Constructor
@@ -235,8 +235,8 @@ namespace HordeServer.Collections
 		/// <param name="StepId">The step id</param>
 		/// <param name="StepTime">Time that the step started</param>
 		/// <param name="LogId">Unique id of the log file for this step</param>
-		/// <param name="NotifySuspects">Whether to notify suspects for this step</param>
-		public NewIssueStepData(int Change, IssueSeverity Severity, string JobName, JobId JobId, SubResourceId BatchId, SubResourceId StepId, DateTime StepTime, LogId? LogId, bool NotifySuspects)
+		/// <param name="Promoted">Whether this step is promoted</param>
+		public NewIssueStepData(int Change, IssueSeverity Severity, string JobName, JobId JobId, SubResourceId BatchId, SubResourceId StepId, DateTime StepTime, LogId? LogId, bool Promoted)
 		{
 			this.Change = Change;
 			this.Severity = Severity;
@@ -246,7 +246,7 @@ namespace HordeServer.Collections
 			this.StepId = StepId;
 			this.StepTime = StepTime;
 			this.LogId = LogId;
-			this.NotifySuspects = NotifySuspects;
+			this.PromoteByDefault = Promoted;
 		}
 
 		/// <summary>
@@ -256,14 +256,14 @@ namespace HordeServer.Collections
 		/// <param name="Batch">Batch of the job for the step</param>
 		/// <param name="Step">The step being built</param>
 		/// <param name="Severity">Severity of the issue in this step</param>
-		/// <param name="NotifySuspects">Whether to notify suspects for this step failing</param>
-		public NewIssueStepData(IJob Job, IJobStepBatch Batch, IJobStep Step, IssueSeverity Severity, bool NotifySuspects)
-			: this(Job.Change, Severity, Job.Name, Job.Id, Batch.Id, Step.Id, Step.StartTimeUtc ?? default, Step.LogId, NotifySuspects)
+		/// <param name="Promoted">Whether this step is promoted</param>
+		public NewIssueStepData(IJob Job, IJobStepBatch Batch, IJobStep Step, IssueSeverity Severity, bool Promoted)
+			: this(Job.Change, Severity, Job.Name, Job.Id, Batch.Id, Step.Id, Step.StartTimeUtc ?? default, Step.LogId, Promoted)
 		{
 		}
 
 		/// <summary>
-		/// Constructor
+		/// Constructor for sentinel steps
 		/// </summary>
 		/// <param name="JobStepRef">The jobstep reference</param>
 		public NewIssueStepData(IJobStepRef JobStepRef)
@@ -403,10 +403,11 @@ namespace HordeServer.Collections
 		/// <param name="MinChange">Minimum changelist affected by the issue</param>
 		/// <param name="MaxChange">Maximum changelist affected by the issue</param>
 		/// <param name="Resolved">Include issues that are now resolved</param>
+		/// <param name="Promoted">Include only promoted issues</param>
 		/// <param name="Index">Index within the results to return</param>
 		/// <param name="Count">Number of results</param>
 		/// <returns>List of streams open in the given stream at the given changelist</returns>
-		Task<List<IIssue>> FindIssuesAsync(IEnumerable<int>? Ids = null, UserId? UserId = null, StreamId? StreamId = null, int? MinChange = null, int? MaxChange = null, bool? Resolved = null, int? Index = null, int? Count = null);
+		Task<List<IIssue>> FindIssuesAsync(IEnumerable<int>? Ids = null, UserId? UserId = null, StreamId? StreamId = null, int? MinChange = null, int? MaxChange = null, bool? Resolved = null, bool? Promoted = null, int? Index = null, int? Count = null);
 
 		/// <summary>
 		/// Searches for open issues
@@ -423,6 +424,7 @@ namespace HordeServer.Collections
 		/// <param name="NewSummary">New summary for the issue</param>
 		/// <param name="NewUserSummary">New user summary for the issue</param>
 		/// <param name="NewDescription">New description for the issue</param>
+		/// <param name="NewPromoted">New promoted state of the issue</param>
 		/// <param name="NewOwnerId">New owner of the issue</param>
 		/// <param name="NewNominatedById">Person that nominated the new owner</param>
 		/// <param name="NewAcknowledged">Whether the issue has been acknowledged</param>
@@ -431,9 +433,8 @@ namespace HordeServer.Collections
 		/// <param name="NewFixStreamIds">List of stream ids with a bool indicating whether the fix changelist is in this stream</param>
 		/// <param name="NewResolvedById">User that resolved the issue (may be ObjectId.Empty to clear)</param>
 		/// <param name="NewLastSeenAt"></param>
-		/// <param name="NewNotifySuspects">Whether all suspects should be notified about this issue</param>
 		/// <returns>True if the issue was updated</returns>
-		Task<IIssue?> UpdateIssueAsync(IIssue Issue, IssueSeverity? NewSeverity = null, string? NewSummary = null, string? NewUserSummary = null, string? NewDescription = null, UserId? NewOwnerId = null, UserId? NewNominatedById = null, bool? NewAcknowledged = null, UserId? NewDeclinedById = null, int? NewFixChange = null, Dictionary<StreamId, bool>? NewFixStreamIds = null, UserId? NewResolvedById = null, DateTime? NewLastSeenAt = null, bool? NewNotifySuspects = null);
+		Task<IIssue?> UpdateIssueAsync(IIssue Issue, IssueSeverity? NewSeverity = null, string? NewSummary = null, string? NewUserSummary = null, string? NewDescription = null, bool? NewPromoted = null, UserId? NewOwnerId = null, UserId? NewNominatedById = null, bool? NewAcknowledged = null, UserId? NewDeclinedById = null, int? NewFixChange = null, Dictionary<StreamId, bool>? NewFixStreamIds = null, UserId? NewResolvedById = null, DateTime? NewLastSeenAt = null);
 
 		/// <summary>
 		/// Updates the list of suspects for an issue, and optionally sets the resolved state

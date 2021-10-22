@@ -75,9 +75,9 @@ namespace HordeServer.Models
 		public IIssueStep? NextSuccess { get; }
 
 		/// <summary>
-		/// Whether to notify suspects for this span
+		/// Whether to promote issues containing this span by default
 		/// </summary>
-		public bool NotifySuspects { get; }
+		public bool PromoteByDefault { get; }
 
 		/// <summary>
 		/// Suspects for this span

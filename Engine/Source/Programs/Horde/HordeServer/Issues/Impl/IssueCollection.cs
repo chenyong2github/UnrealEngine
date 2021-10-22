@@ -124,9 +124,14 @@ namespace HordeServer.Collections.Impl
 			[BsonIgnoreIfNull]
 			public string? UserSummary { get; set; }
 
+			[BsonIgnoreIfNull]
+			public string? Description { get; set; }
+
 			[BsonRequired]
 			public IssueFingerprint Fingerprint { get; set; }
 			public IssueSeverity Severity { get; set; }
+
+			public bool? Promoted { get; set; }
 
 			[BsonIgnoreIfNull]
 			public UserId? OwnerId { get; set; }
@@ -161,13 +166,15 @@ namespace HordeServer.Collections.Impl
 			public int MinSuspectChange { get; set; }
 			public int MaxSuspectChange { get; set; }
 
-			public bool NotifySuspects { get; set; }
+			[BsonElement("NotifySuspects"), BsonIgnoreIfDefault(false)]
+			public bool NotifySuspects_DEPRECATED { get; set; }
 
 			[BsonRequired]
 			public List<IssueSuspect> Suspects { get; set; }
 
 			public int UpdateIndex { get; set; }
 
+			bool IIssue.Promoted => Promoted ?? NotifySuspects_DEPRECATED;
 			IIssueFingerprint IIssue.Fingerprint => Fingerprint;
 			UserId? IIssue.OwnerId => OwnerId ?? GetDefaultOwner()?.AuthorId;
 			IReadOnlyList<IIssueStream> IIssue.Streams => Streams;
@@ -188,8 +195,8 @@ namespace HordeServer.Collections.Impl
 				this.CreatedAt = DateTime.UtcNow;
 				this.LastSeenAt = DateTime.UtcNow;
 				this.Fingerprint = new IssueFingerprint(Span.Fingerprint);
+				this.Promoted = Span.PromoteByDefault;
 				this.Severity = Span.Severity;
-				this.NotifySuspects = Span.NotifySuspects;
 				this.ResolvedAt = Span.NextSuccess?.StepTime;
 				this.VerifiedAt = this.ResolvedAt;
 				this.Suspects = Span.Suspects.ConvertAll(x => new IssueSuspect(Id, x.AuthorId, x.OriginatingChange ?? x.Change, null, this.ResolvedAt));
@@ -315,7 +322,13 @@ namespace HordeServer.Collections.Impl
 
 			public IssueStep? NextSuccess { get; set; }
 
-			public bool NotifySuspects { get; set; }
+			public bool? PromoteByDefault;
+
+			[BsonElement("NotifySuspects"), BsonIgnoreIfDefault(false)]
+			public bool NotifySuspects_DEPRECATED { get; set; }
+
+			bool IIssueSpan.PromoteByDefault => PromoteByDefault ?? NotifySuspects_DEPRECATED;
+
 			public List<IssueSpanSuspect> Suspects { get; set; }
 			public int? IssueId { get; set; }
 			public bool Modified { get; set; }
@@ -359,7 +372,7 @@ namespace HordeServer.Collections.Impl
 					this.MaxChange = NextSuccess.Change;
 					this.NextSuccess = new IssueStep(Id, NextSuccess);
 				}
-				this.NotifySuspects = Failure.NotifySuspects;
+				this.PromoteByDefault = Failure.PromoteByDefault;
 				this.Suspects = Suspects;
 				this.Modified = true;
 			}
@@ -408,7 +421,12 @@ namespace HordeServer.Collections.Impl
 
 			public LogId? LogId { get; set; }
 
-			public bool NotifySuspects { get; set; }
+			public bool? PromoteByDefault;
+
+			[BsonElement("NotifySuspects"), BsonIgnoreIfDefault(false)]
+			public bool NotifySuspects_DEPRECATED { get; set; }
+
+			bool IIssueStep.PromoteByDefault => PromoteByDefault ?? NotifySuspects_DEPRECATED;
 
 			[BsonConstructor]
 			private IssueStep()
@@ -428,7 +446,7 @@ namespace HordeServer.Collections.Impl
 				this.StepId = StepData.StepId;
 				this.StepTime = StepData.StepTime;
 				this.LogId = StepData.LogId;
-				this.NotifySuspects = StepData.NotifySuspects;
+				this.PromoteByDefault = StepData.PromoteByDefault;
 			}
 		}
 
@@ -594,6 +612,14 @@ namespace HordeServer.Collections.Impl
 			{
 				IssueLogger.LogInformation("Changed summary to \"{Summary}\"", NewIssue.Summary);
 			}
+			if (NewIssue.Description != OldIssue.Description)
+			{
+				IssueLogger.LogInformation("Description set to {Value}", NewIssue.Description);
+			}
+			if (((IIssue)NewIssue).Promoted != ((IIssue)OldIssue).Promoted)
+			{
+				IssueLogger.LogInformation("Promoted set to {Value}", ((IIssue)NewIssue).Promoted);
+			}
 			if (NewIssue.OwnerId != OldIssue.OwnerId)
 			{
 				if (NewIssue.NominatedById != null)
@@ -637,10 +663,6 @@ namespace HordeServer.Collections.Impl
 				{
 					IssueLogger.LogInformation("Resolved by {UserId}", NewIssue.ResolvedById);
 				}
-			}
-			if (NewIssue.NotifySuspects != OldIssue.NotifySuspects)
-			{
-				IssueLogger.LogInformation("Notify suspects set to {Value}", NewIssue.NotifySuspects);
 			}
 
 			HashSet<StreamId> OldFixStreams = new HashSet<StreamId>(OldIssue.Streams.Where(x => x.ContainsFix ?? false).Select(x => x.StreamId));
@@ -711,17 +733,17 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IIssue>> FindIssuesAsync(IEnumerable<int>? Ids = null, UserId? UserId = null, StreamId? StreamId = null, int? MinChange = null, int? MaxChange = null, bool? Resolved = null, int? Index = null, int? Count = null)
+		public async Task<List<IIssue>> FindIssuesAsync(IEnumerable<int>? Ids = null, UserId? UserId = null, StreamId? StreamId = null, int? MinChange = null, int? MaxChange = null, bool? Resolved = null, bool? Promoted = null, int? Index = null, int? Count = null)
 		{
-			List<Issue> Results = await FilterIssuesByUserIdAsync(Ids, UserId, StreamId, MinChange, MaxChange, Resolved ?? false, Index ?? 0, Count);
+			List<Issue> Results = await FilterIssuesByUserIdAsync(Ids, UserId, StreamId, MinChange, MaxChange, Resolved ?? false, Promoted, Index ?? 0, Count);
 			return Results.ConvertAll<IIssue>(x => x);
 		}
 
-		async Task<List<Issue>> FilterIssuesByUserIdAsync(IEnumerable<int>? Ids, UserId? UserId, StreamId? StreamId, int? MinChange, int? MaxChange, bool? Resolved, int Index, int? Count)
+		async Task<List<Issue>> FilterIssuesByUserIdAsync(IEnumerable<int>? Ids, UserId? UserId, StreamId? StreamId, int? MinChange, int? MaxChange, bool? Resolved, bool? Promoted, int Index, int? Count)
 		{
 			if (UserId == null)
 			{
-				return await FilterIssuesByStreamIdAsync(Ids, StreamId, MinChange, MaxChange, Resolved, Index, Count);
+				return await FilterIssuesByStreamIdAsync(Ids, StreamId, MinChange, MaxChange, Resolved, Promoted, Index, Count);
 			}
 			else
 			{
@@ -744,16 +766,16 @@ namespace HordeServer.Collections.Impl
 
 				using (IAsyncCursor<ProjectedIssueId> Cursor = await IssueSuspects.Aggregate().Match(Filter).Group(x => x.IssueId, x => new ProjectedIssueId { _id = x.Key }).SortByDescending(x => x._id).ToCursorAsync())
 				{
-					return await PaginatedJoinAsync(Cursor, (NextIds, NextIndex, NextCount) => FilterIssuesByStreamIdAsync(NextIds, StreamId, MinChange, MaxChange, null, NextIndex, NextCount), Index, Count);
+					return await PaginatedJoinAsync(Cursor, (NextIds, NextIndex, NextCount) => FilterIssuesByStreamIdAsync(NextIds, StreamId, MinChange, MaxChange, null, Promoted, NextIndex, NextCount), Index, Count);
 				}
 			}
 		}
 
-		async Task<List<Issue>> FilterIssuesByStreamIdAsync(IEnumerable<int>? Ids, StreamId? StreamId, int? MinChange, int? MaxChange, bool? Resolved, int Index, int? Count)
+		async Task<List<Issue>> FilterIssuesByStreamIdAsync(IEnumerable<int>? Ids, StreamId? StreamId, int? MinChange, int? MaxChange, bool? Resolved, bool? Promoted, int Index, int? Count)
 		{
 			if (StreamId == null)
 			{
-				return await FilterIssuesByOtherFieldsAsync(Ids, MinChange, MaxChange, Resolved, Index, Count);
+				return await FilterIssuesByOtherFieldsAsync(Ids, MinChange, MaxChange, Resolved, Promoted, Index, Count);
 			}
 			else
 			{
@@ -790,7 +812,7 @@ namespace HordeServer.Collections.Impl
 
 				using (IAsyncCursor<ProjectedIssueId> Cursor = await IssueSpans.Aggregate().Match(Filter).Group(x => x.IssueId, x => new ProjectedIssueId { _id = x.Key }).SortByDescending(x => x._id).ToCursorAsync())
 				{
-					List<Issue> Results = await PaginatedJoinAsync(Cursor, (NextIds, NextIndex, NextCount) => FilterIssuesByOtherFieldsAsync(NextIds, null, null, null, NextIndex, NextCount), Index, Count);
+					List<Issue> Results = await PaginatedJoinAsync(Cursor, (NextIds, NextIndex, NextCount) => FilterIssuesByOtherFieldsAsync(NextIds, null, null, null, Promoted, NextIndex, NextCount), Index, Count);
 					if (Resolved != null)
 					{
 						for (int Idx = Results.Count - 1; Idx >= 0; Idx--)
@@ -808,7 +830,7 @@ namespace HordeServer.Collections.Impl
 			}
 		}
 
-		async Task<List<Issue>> FilterIssuesByOtherFieldsAsync(IEnumerable<int>? Ids, int? MinChange, int? MaxChange, bool? Resolved, int Index, int? Count)
+		async Task<List<Issue>> FilterIssuesByOtherFieldsAsync(IEnumerable<int>? Ids, int? MinChange, int? MaxChange, bool? Resolved, bool? Promoted, int Index, int? Count)
 		{
 			FilterDefinition<Issue> Filter = FilterDefinition<Issue>.Empty;
 			if (Ids != null)
@@ -833,6 +855,17 @@ namespace HordeServer.Collections.Impl
 			if (MaxChange != null)
 			{
 				Filter &= Builders<Issue>.Filter.Not(Builders<Issue>.Filter.Gt(x => x.MinSuspectChange, MaxChange.Value));
+			}
+			if (Promoted != null)
+			{
+				if (Promoted.Value)
+				{
+					Filter &= Builders<Issue>.Filter.Ne(x => x.Promoted, false) & Builders<Issue>.Filter.Ne(x => x.NotifySuspects_DEPRECATED, false); // Note: may not exist on older issues.
+				}
+				else
+				{
+					Filter &= Builders<Issue>.Filter.Or(Builders<Issue>.Filter.Eq(x => x.Promoted, false), Builders<Issue>.Filter.Eq(x => x.NotifySuspects_DEPRECATED, false));
+				}
 			}
 			return await Issues.Find(Filter).SortByDescending(x => x.Id).Range(Index, Count).ToListAsync();
 		}
@@ -893,7 +926,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IIssue?> UpdateIssueAsync(IIssue Issue, IssueSeverity? NewSeverity = null, string? NewSummary = null, string? NewUserSummary = null, UserId? NewOwnerId = null, UserId? NewNominatedById = null, bool? NewAcknowledged = null, UserId? NewDeclinedById = null, int? NewFixChange = null, Dictionary<StreamId, bool>? NewFixStreamIds = null, UserId? NewResolvedById = null, DateTime? NewLastSeenAt = null, bool? NewNotifySuspects = null)
+		public async Task<IIssue?> UpdateIssueAsync(IIssue Issue, IssueSeverity? NewSeverity = null, string? NewSummary = null, string? NewUserSummary = null, string? NewDescription = null, bool? NewPromoted = null, UserId? NewOwnerId = null, UserId? NewNominatedById = null, bool? NewAcknowledged = null, UserId? NewDeclinedById = null, int? NewFixChange = null, Dictionary<StreamId, bool>? NewFixStreamIds = null, UserId? NewResolvedById = null, DateTime? NewLastSeenAt = null)
 		{
 			Issue IssueDocument = (Issue)Issue;
 
@@ -918,6 +951,21 @@ namespace HordeServer.Collections.Impl
 				{
 					Updates.Add(Builders<Issue>.Update.Set(x => x.UserSummary, NewUserSummary));
 				}
+			}
+			if (NewDescription != null)
+			{
+				if (NewDescription.Length == 0)
+				{
+					Updates.Add(Builders<Issue>.Update.Unset(x => x.Description));
+				}
+				else
+				{
+					Updates.Add(Builders<Issue>.Update.Set(x => x.Description, NewDescription));
+				}
+			}
+			if (NewPromoted != null)
+			{
+				Updates.Add(Builders<Issue>.Update.Set(x => x.Promoted, NewPromoted.Value));
 			}
 			if (NewOwnerId != null)
 			{
@@ -1025,10 +1073,6 @@ namespace HordeServer.Collections.Impl
 			if (NewLastSeenAt != null)
 			{
 				Updates.Add(Builders<Issue>.Update.Set(x => x.LastSeenAt, NewLastSeenAt.Value));
-			}
-			if (NewNotifySuspects != null)
-			{
-				Updates.Add(Builders<Issue>.Update.Set(x => x.NotifySuspects, NewNotifySuspects.Value));
 			}
 
 			if (Updates.Count == 0)
@@ -1186,7 +1230,6 @@ namespace HordeServer.Collections.Impl
 			// Update the issue document itself
 			UpdateDefinition<Issue> Update = Builders<Issue>.Update
 				.Set(x => x.Severity, Spans.Any(x => x.Severity == IssueSeverity.Error) ? IssueSeverity.Error : IssueSeverity.Warning)
-				.Set(x => x.NotifySuspects, Spans.Any(x => x.NotifySuspects))
 				.Set(x => x.LastSeenAt, NewLastSeenAt)
 				.Set(x => x.ResolvedAt, ResolvedAt)
 				.Set(x => x.VerifiedAt, VerifiedAt)
@@ -1276,9 +1319,9 @@ namespace HordeServer.Collections.Impl
 				{
 					Updates.Add(Builders<IssueSpan>.Update.Set(x => x.LastFailure, new IssueStep(Span.Id, NewFailure)));
 				}
-				if (NewFailure.NotifySuspects != Span.NotifySuspects && NewFailure.Change >= Span.LastFailure.Change)
+				if (NewFailure.PromoteByDefault != Span.PromoteByDefault && NewFailure.Change >= Span.LastFailure.Change)
 				{
-					Updates.Add(Builders<IssueSpan>.Update.Set(x => x.NotifySuspects, NewFailure.NotifySuspects));
+					Updates.Add(Builders<IssueSpan>.Update.Set(x => x.PromoteByDefault, NewFailure.PromoteByDefault));
 				}
 			}
 			if (NewNextSuccess != null)
@@ -1365,6 +1408,10 @@ namespace HordeServer.Collections.Impl
 			if (Span.LastFailure.StepTime > Issue.LastSeenAt)
 			{
 				IssueUpdates.Add(Builders<Issue>.Update.Set(x => x.LastSeenAt, Span.LastFailure.StepTime));
+			}
+			if (Span.PromoteByDefault && !Issue.Promoted)
+			{
+				IssueUpdates.Add(Builders<Issue>.Update.Set(x => x.Promoted, true));
 			}
 
 			IssueSequenceToken TokenValue = ((IssueSequenceToken)Token);

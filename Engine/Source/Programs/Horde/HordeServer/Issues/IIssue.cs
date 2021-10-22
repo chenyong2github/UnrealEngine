@@ -88,6 +88,11 @@ namespace HordeServer.Models
 		public IssueSeverity Severity { get; }
 
 		/// <summary>
+		/// Whether this issue is promoted to be publicly visible
+		/// </summary>
+		public bool Promoted { get; }
+
+		/// <summary>
 		/// User id of the owner
 		/// </summary>
 		public UserId? OwnerId { get; }
@@ -141,11 +146,6 @@ namespace HordeServer.Models
 		/// List of streams affected by this issue
 		/// </summary>
 		public IReadOnlyList<IIssueStream> Streams { get; }
-
-		/// <summary>
-		/// Whether all suspects should be notified about this issue
-		/// </summary>
-		public bool NotifySuspects { get; }
 
 		/// <summary>
 		/// Update index for this instance
