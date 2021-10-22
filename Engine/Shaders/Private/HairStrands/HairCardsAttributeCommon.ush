@@ -18,81 +18,88 @@ struct FHairVertexAttributes
 	float  HairRoughness;
 };
 
-float GetHairStrandsDepth(uint HairPrimitiveId, float2 InUV, float InDeviceZ)
+float GetHairStrandsDepth(float2 InAtlasUV, float InDeviceZ)
 {
-	InUV.y = HairCardsVF.bInvertUV ? 1 - InUV.y : InUV.y;
-	const float SceneDepthOffset = Texture2DSample(HairCardsVF.DepthTexture, HairCardsVF.DepthSampler, InUV).x;
+	InAtlasUV.y = HairCardsVF.bInvertUV ? 1 - InAtlasUV.y : InAtlasUV.y;
+	const float SceneDepthOffset = Texture2DSample(HairCardsVF.DepthTexture, HairCardsVF.DepthSampler, InAtlasUV).x;
 	const float SceneDepth = ConvertFromDeviceZ(InDeviceZ);
 
 	return ConvertToDeviceZ(SceneDepth + SceneDepthOffset);
 }
 
-float3 GetHairStrandsTangent(uint HairPrimitiveId, float2 InUV, half3x3 TangentToWorld, bool bUseTangentSpace)
+float3 GetHairStrandsTangent(float2 InAtlasUV, half3x3 TangentToWorld, bool bUseTangentSpace)
 {
-	InUV.y = HairCardsVF.bInvertUV ? 1 - InUV.y : InUV.y;
-	const float3 LocalTangent = Texture2DSample(HairCardsVF.TangentTexture, HairCardsVF.TangentSampler, InUV).xyz * 2 - 1;
+	InAtlasUV.y = HairCardsVF.bInvertUV ? 1 - InAtlasUV.y : InAtlasUV.y;
+	const float3 LocalTangent = Texture2DSample(HairCardsVF.TangentTexture, HairCardsVF.TangentSampler, InAtlasUV).xyz * 2 - 1;
 	const float3 WorldTangent = mul(LocalTangent, TangentToWorld);
 	return bUseTangentSpace ? LocalTangent : WorldTangent;
 }
 
-float GetHairStrandsCoverage(uint HairPrimitiveId, float2 InUV)
+float GetHairStrandsCoverage(float2 InAtlasUV)
 {
-	InUV.y = HairCardsVF.bInvertUV ? 1 - InUV.y : InUV.y;
-	return Texture2DSample(HairCardsVF.CoverageTexture, HairCardsVF.CoverageSampler, InUV).x;
+	InAtlasUV.y = HairCardsVF.bInvertUV ? 1 - InAtlasUV.y : InAtlasUV.y;
+	return Texture2DSample(HairCardsVF.CoverageTexture, HairCardsVF.CoverageSampler, InAtlasUV).x;
 }
 
-FHairVertexAttributes GetHairStrandsAttributes(uint HairPrimitiveId, float2 InUV)
+FHairVertexAttributes GetHairStrandsAttributes(float2 InAtlasUV, float2 InRootUV = float2(0, 0), float InCardLength = 0.f)
 {
-	InUV.y = HairCardsVF.bInvertUV ? 1 - InUV.y : InUV.y;
-	const float4 Value = Texture2DSample(HairCardsVF.AttributeTexture, HairCardsVF.AttributeSampler, InUV);
+	InAtlasUV.y = HairCardsVF.bInvertUV ? 1 - InAtlasUV.y : InAtlasUV.y;
+	const float4 Value = Texture2DSample(HairCardsVF.AttributeTexture, HairCardsVF.AttributeSampler, InAtlasUV);
+	const float CoordU = Value.z;
+	const float Seed = Value.w;
+	const float WorldRadius = 0.01f; // Hardcoded for cards
+	const float WorldLength = InCardLength;
+	
+	// Invert V to compensate image origin flip
+	// Similar to DecodeHairAttribute in HairStrandVertexFactoryCommon.ush
+	InRootUV.y = 1.0 - InRootUV.y;
 
 	FHairVertexAttributes Out;
-	Out.HairUV = float2(Value.z, 0.5f);
-	Out.HairRootUV = Value.xy;
-	Out.HairDimensions = 0;
+	Out.HairUV = float2(CoordU, 0.5f);
+	Out.HairRootUV = InRootUV;
+	Out.HairDimensions = float2(WorldLength, WorldRadius);
 	Out.HairBaseColor = 0;
-	Out.HairSeed = Value.w;
+	Out.HairSeed = Seed;
 	Out.HairRoughness = 0;
 	return Out;
 }
 
-float4 GetHairStrandsAuxilaryData(uint HairPrimitiveId, float2 InUV)
+float4 GetHairStrandsAuxilaryData(float2 HairPrimitiveUV)
 {
-	return Texture2DSample(HairCardsVF.AuxilaryDataTexture, HairCardsVF.AuxilaryDataSampler, InUV);
+	return Texture2DSample(HairCardsVF.AuxilaryDataTexture, HairCardsVF.AuxilaryDataSampler, HairPrimitiveUV);
 }
 
-float2 GetHairStrandsUV(uint HairPrimitiveId, float2 HairPrimitiveUV)
+float2 GetHairStrandsUV(float2 HairPrimitiveUV)
 {
-	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairUV;
+	return GetHairStrandsAttributes(HairPrimitiveUV).HairUV;
 }
 
-float2 GetHairStrandsDimensions(uint HairPrimitiveId, float2 HairPrimitiveUV)
+float2 GetHairStrandsDimensions(float2 HairPrimitiveUV, float HairPrimitiveLength)
 {
-	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairDimensions;
+	return GetHairStrandsAttributes(HairPrimitiveUV, float2(0, 0), HairPrimitiveLength).HairDimensions;
 }
 
-float2 GetHairStrandsRootUV(uint HairPrimitiveId, float2 HairPrimitiveUV)
+float2 GetHairStrandsRootUV(float2 HairPrimitiveUV, float2 InRootUV)
 {
-#if MANUAL_VERTEX_FETCH
-	return HairCardsVF.UVsBuffer[HairPrimitiveId].zw;
-#else
-	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairRootUV; // TODO fix me?
-#endif
+	// Invert V to compensate image origin flip
+	// Similar to DecodeHairAttribute in HairStrandVertexFactoryCommon.ush
+	InRootUV.y = 1.0 - InRootUV.y; 
+	return InRootUV;
 }
 
-float  GetHairStrandsSeed(uint HairPrimitiveId, float2 HairPrimitiveUV)
+float  GetHairStrandsSeed(float2 HairPrimitiveUV)
 {
-	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairSeed;
+	return GetHairStrandsAttributes(HairPrimitiveUV).HairSeed;
 }
 
-float3 GetHairStrandsBaseColor(uint HairPrimitiveId, float2 HairPrimitiveUV)
+float3 GetHairStrandsBaseColor(float2 HairPrimitiveUV)
 {
-	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairBaseColor;
+	return GetHairStrandsAttributes(HairPrimitiveUV).HairBaseColor;
 }
 
-float GetHairStrandsRoughness(uint HairPrimitiveId, float2 HairPrimitiveUV)
+float GetHairStrandsRoughness(float2 HairPrimitiveUV)
 {
-	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairRoughness;
+	return GetHairStrandsAttributes(HairPrimitiveUV).HairRoughness;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

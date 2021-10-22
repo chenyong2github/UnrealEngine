@@ -69,7 +69,7 @@ FHairAttributes DecodeHairAttribute(float4 Attributes0, uint4 Attributes1, float
 {
 	float2 RootUV, RootIndex;
 	RootUV.x		= Attributes0.x;
-	RootUV.y		= 1.0 - Attributes0.y; // Invert V to compensate image origin flip
+	RootUV.y		= 1.0 - Attributes0.y; // Invert V to compensate image origin flip. Similar to GetHairStrandsRootUV in HairCardsAttributeCommon.ush
 	RootIndex.x		= float(Attributes1.x);
 	RootIndex.y		= float(Attributes1.y);
 

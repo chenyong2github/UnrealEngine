@@ -370,9 +370,14 @@ struct FMaterialPixelParameters
 #endif
 
 	// Actual primitive Id
-#if IS_HAIR_FACTORY
+#if HAIR_STRAND_MESH_FACTORY
 	uint	HairPrimitiveId;	// Control point ID
 	float2	HairPrimitiveUV;	// U: parametric distance between the two surrounding control point. V: parametric distance along hair width
+#endif
+#if HAIR_CARD_MESH_FACTORY
+	float2	HairPrimitiveUV;	// AtlasUV
+	float2  HairPrimitiveRootUV;// RootUV
+	float   HairPrimitiveLength;// Card length
 #endif
 
 #if HAS_INSTANCE_LOCAL_TO_WORLD_PS
@@ -1259,8 +1264,10 @@ float3 MaterialExpressionBlackBody( float Temp )
 
 float2 MaterialExpressionGetHairRootUV(FMaterialPixelParameters Parameters)
 {
-#if IS_HAIR_FACTORY
+#if HAIR_STRAND_MESH_FACTORY
 	return GetHairStrandsRootUV(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
+#elif HAIR_CARD_MESH_FACTORY
+	return GetHairStrandsRootUV(Parameters.HairPrimitiveUV, Parameters.HairPrimitiveRootUV);
 #else
 	return float2(0, 0);
 #endif
@@ -1268,8 +1275,10 @@ float2 MaterialExpressionGetHairRootUV(FMaterialPixelParameters Parameters)
 
 float2 MaterialExpressionGetHairUV(FMaterialPixelParameters Parameters)
 {	
-#if IS_HAIR_FACTORY
+#if HAIR_STRAND_MESH_FACTORY
 	return GetHairStrandsUV(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
+#elif HAIR_CARD_MESH_FACTORY
+	return GetHairStrandsUV(Parameters.HairPrimitiveUV);
 #else
 	return float2(0,0);
 #endif
@@ -1277,8 +1286,10 @@ float2 MaterialExpressionGetHairUV(FMaterialPixelParameters Parameters)
 
 float2 MaterialExpressionGetHairDimensions(FMaterialPixelParameters Parameters)
 {
-#if IS_HAIR_FACTORY
+#if HAIR_STRAND_MESH_FACTORY
 	return GetHairStrandsDimensions(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
+#elif HAIR_CARD_MESH_FACTORY
+	return GetHairStrandsDimensions(Parameters.HairPrimitiveUV, Parameters.HairPrimitiveLength);
 #else
 	return float2(0, 0);
 #endif
@@ -1286,8 +1297,10 @@ float2 MaterialExpressionGetHairDimensions(FMaterialPixelParameters Parameters)
 
 float MaterialExpressionGetHairSeed(FMaterialPixelParameters Parameters)
 {
-#if IS_HAIR_FACTORY
+#if HAIR_STRAND_MESH_FACTORY
 	return GetHairStrandsSeed(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
+#elif HAIR_CARD_MESH_FACTORY
+	return GetHairStrandsSeed(Parameters.HairPrimitiveUV);
 #else
 	return 0;
 #endif
@@ -1295,8 +1308,10 @@ float MaterialExpressionGetHairSeed(FMaterialPixelParameters Parameters)
 
 float3 MaterialExpressionGetHairBaseColor(FMaterialPixelParameters Parameters)
 {
-#if IS_HAIR_FACTORY
+#if HAIR_STRAND_MESH_FACTORY
 	return GetHairStrandsBaseColor(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
+#elif HAIR_CARD_MESH_FACTORY
+	return GetHairStrandsBaseColor(Parameters.HairPrimitiveUV);
 #else
 	return float3(0,0,0);
 #endif
@@ -1304,8 +1319,10 @@ float3 MaterialExpressionGetHairBaseColor(FMaterialPixelParameters Parameters)
 
 float MaterialExpressionGetHairRoughness(FMaterialPixelParameters Parameters)
 {
-#if IS_HAIR_FACTORY
+#if HAIR_STRAND_MESH_FACTORY
 	return GetHairStrandsRoughness(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
+#elif HAIR_CARD_MESH_FACTORY
+	return GetHairStrandsRoughness(Parameters.HairPrimitiveUV);
 #else
 	return 0;
 #endif
@@ -1318,8 +1335,10 @@ float MaterialExpressionGetHairDepth(FMaterialVertexParameters Parameters)
 
 float MaterialExpressionGetHairDepth(FMaterialPixelParameters Parameters)
 {
-#if IS_HAIR_FACTORY
+#if HAIR_STRAND_MESH_FACTORY
 	return GetHairStrandsDepth(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV, Parameters.SvPosition.z);
+#elif HAIR_CARD_MESH_FACTORY
+	return GetHairStrandsDepth(Parameters.HairPrimitiveUV, Parameters.SvPosition.z);
 #else
 	return 0; 
 #endif
@@ -1327,8 +1346,10 @@ float MaterialExpressionGetHairDepth(FMaterialPixelParameters Parameters)
 
 float MaterialExpressionGetHairCoverage(FMaterialPixelParameters Parameters)
 {
-#if IS_HAIR_FACTORY
+#if HAIR_STRAND_MESH_FACTORY
 	return GetHairStrandsCoverage(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
+#elif HAIR_CARD_MESH_FACTORY
+	return GetHairStrandsCoverage(Parameters.HairPrimitiveUV);
 #else
 	return 0;
 #endif
@@ -1339,7 +1360,7 @@ float3 MaterialExpressionGetHairTangent(FMaterialPixelParameters Parameters, boo
 #if HAIR_STRAND_MESH_FACTORY
 	return bUseTangentSpace ? float3(0,1,0) : Parameters.TangentToWorld[2];
 #elif HAIR_CARD_MESH_FACTORY
-	return GetHairStrandsTangent(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV, Parameters.TangentToWorld, bUseTangentSpace);
+	return GetHairStrandsTangent(Parameters.HairPrimitiveUV, Parameters.TangentToWorld, bUseTangentSpace);
 #else
 	return 0;
 #endif	
@@ -1360,7 +1381,7 @@ float2 MaterialExpressionGetAtlasUVs(FMaterialPixelParameters Parameters)
 float4 MaterialExpressionGetHairAuxilaryData(FMaterialPixelParameters Parameters)
 {
 #if HAIR_CARD_MESH_FACTORY
-	return GetHairStrandsAuxilaryData(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
+	return GetHairStrandsAuxilaryData(Parameters.HairPrimitiveUV);
 #else
 	return 0;
 #endif

@@ -638,13 +638,13 @@ struct HAIRSTRANDSCORE_API FHairCardsInterpolationDatas
 	/** Get the number of interpolated points */
 	uint32 Num() const { return PointsSimCurvesVertexIndex.Num(); }
 
-	/** Simulation curve indices, ordered by closest influence */
+	/** Simulation curve indices */
 	TArray<int32> PointsSimCurvesIndex;
 
-	/** Closest vertex indices on simulation curve, ordered by closest influence */
+	/** Closest vertex indices on simulation curve */
 	TArray<int32> PointsSimCurvesVertexIndex;
 
-	/** Lerp value between the closest vertex indices and the next one, ordered by closest influence */
+	/** Lerp value between the closest vertex indices and the next one */
 	TArray<float> PointsSimCurvesVertexLerp;
 };
 

@@ -71,7 +71,8 @@ void UE::GroomQueries::ExtractAllHairCards(AGroomActor* GroomActor,
 		}
 
 		FHairCardsDatas CardData;
-		if (!FHairCardsBuilder::ExtractCardsData(StaticMesh, CardData))
+		FHairStrandsDatas DummyStrandsData;
+		if (!FHairCardsBuilder::ExtractCardsData(StaticMesh, DummyStrandsData, CardData))
 		{
 			continue;
 		}
