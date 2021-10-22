@@ -1327,7 +1327,7 @@ namespace Chaos
 					{
 						if (ensure(!ActiveChild->Disabled()))
 						{
-							int32 Island = ActiveChild->Island();
+							int32 Island = ActiveChild->IslandIndex();
 							if (!IslandsToRecollide.Contains(Island) && Island != INDEX_NONE) // todo ask mike
 							{
 								IslandsToRecollide.Add(Island);

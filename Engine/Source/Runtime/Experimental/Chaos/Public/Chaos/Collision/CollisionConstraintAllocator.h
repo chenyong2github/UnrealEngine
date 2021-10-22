@@ -429,6 +429,49 @@ namespace Chaos
 			}
 		}
 
+		/**
+		 * @brief Add a constraint to the active list
+		 * @param CollisionConstraint collision constraint to be added
+		 */
+		void AddConstraintHandle(FPBDCollisionConstraint* CollisionConstraint )
+		{
+			{
+				const int32 ConstraintIndex = Constraints.Add(CollisionConstraint);
+				CollisionConstraint->GetContainerCookie().Update(ConstraintIndex, Epoch);
+
+				// Contacts that were fully restored are already in the maps (see RestoreParticlePairConstraints()) and cannot be swept constraints
+				if (!CollisionConstraint->WasManifoldRestored())
+				{
+					ShapePairConstraintMap.Add(CollisionConstraint->GetKey().GetKey(), CollisionConstraint);
+
+					// @todo(chaos): only store the particle pair contact list when we might want to retore it next frame (small movement)
+					FParticlePairCollisionConstraints* ParticlePairConstraints = FindOrCreateParticlePairConstraints(CollisionConstraint->Particle[0], CollisionConstraint->Particle[1]);
+					if (ParticlePairConstraints != nullptr)
+					{
+						ParticlePairConstraints->AddConstraint(CollisionConstraint);
+					}
+				}
+			}
+		}
+		
+		/**
+		* @brief Sort all the constraints for better solver stability
+		*/
+		void SortConstraintsHandles()
+		{
+			if(Constraints.Num())
+			{
+				// We need to sort constraints for solver stability
+				// We have to use StableSort so that constraints of the same pair stay in the same order
+				// Otherwise the order within each pair can change due to where they start out in the array
+				// @todo(chaos): we should label each contact (and shape) for things like warm starting GJK
+				// and so we could use that label as part of the key
+				// and then we could use regular Sort (which is faster)			
+				// @todo(chaos): this can be moved to the island and therefoe done in parallel
+				Constraints.StableSort(ContactConstraintSortPredicate);
+			}
+		}
+
 	private:
 		FPBDCollisionConstraint* FindConstraint(FRigidBodyContactKey Key) const
 		{
@@ -515,39 +558,19 @@ namespace Chaos
 				ParticlePairConstraintMap.Add(ParticlePairConstraints->GetKey().GetKey(), ParticlePairConstraints);
 			}
 
-			return ParticlePairConstraints;
+			return ParticlePairConstraints; 
 		}
 
 		void ProcessNewConstraints()
 		{
-			while (FPBDCollisionConstraint* NewConstraint = DequeueNewConstraint())
+			if(!NewConstraints.IsEmpty())
 			{
-				const int32 ConstraintIndex = Constraints.Add(NewConstraint);
-
-				NewConstraint->GetContainerCookie().Update(ConstraintIndex, Epoch);
-
-				// Contacts that were fully restored are already in the maps (see RestoreParticlePairConstraints()) and cannot be swept constraints
-				if (!NewConstraint->WasManifoldRestored())
+				while (FPBDCollisionConstraint* NewConstraint = DequeueNewConstraint())
 				{
-					ShapePairConstraintMap.Add(NewConstraint->GetKey().GetKey(), NewConstraint);
-
-					// @todo(chaos): only store the particle pair contact list when we might want to retore it next frame (small movement)
-					FParticlePairCollisionConstraints* ParticlePairConstraints = FindOrCreateParticlePairConstraints(NewConstraint->Particle[0], NewConstraint->Particle[1]);
-					if (ParticlePairConstraints != nullptr)
-					{
-						ParticlePairConstraints->AddConstraint(NewConstraint);
-					}
+					AddConstraintHandle(NewConstraint);
 				}
+				SortConstraintsHandles();
 			}
-
-			// We need to sort constraints for solver stability
-			// We have to use StableSort so that constraints of the same pair stay in the same order
-			// Otherwise the order within each pair can change due to where they start out in the array
-			// @todo(chaos): we should label each contact (and shape) for things like warm starting GJK
-			// and so we could use that label as part of the key
-			// and then we could use regular Sort (which is faster)			
-			// @todo(chaos): this can be moved to the island and therefoe done in parallel
-			Constraints.StableSort(ContactConstraintSortPredicate);
 		}
 
 		void PruneShapePairs()
@@ -562,10 +585,13 @@ namespace Chaos
 			for (auto& KeyValuePair : ShapePairConstraintMap)
 			{
 				FPBDCollisionConstraint* Constraint = KeyValuePair.Value;
-				if (!Constraint->IsSleeping() && (Constraint->GetContainerCookie().LastUsedEpoch < Epoch))
+				
+				if (Constraint->GetContainerCookie().LastUsedEpoch < Epoch)
 				{
-					FreeConstraint(KeyValuePair.Value);
-
+					if(!Constraint->IsSleeping())
+					{
+						FreeConstraint(KeyValuePair.Value);
+					}
 					PrunedKeyList.Add(KeyValuePair.Key);
 				}
 			}

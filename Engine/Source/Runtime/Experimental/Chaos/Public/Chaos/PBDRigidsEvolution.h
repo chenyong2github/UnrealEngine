@@ -24,6 +24,7 @@ extern int32 ChaosRigidsEvolutionApplyAllowEarlyOutCVar;
 extern int32 ChaosRigidsEvolutionApplyPushoutAllowEarlyOutCVar;
 extern int32 ChaosNumPushOutIterationsOverride;
 extern int32 ChaosNumContactIterationsOverride;
+extern int32 ChaosNonMovingKinematicUpdateOptimization;
 
 namespace Chaos
 {
@@ -332,6 +333,23 @@ public:
 		return NumPushOutIterations;
 	}
 
+	CHAOS_API void SetParticleKinematicTarget(FKinematicGeometryParticleHandle* KinematicHandle, const FKinematicTarget& NewKinematicTarget)
+	{
+		if (KinematicHandle)
+		{
+			if (ChaosNonMovingKinematicUpdateOptimization)
+			{
+				// optimization : we keep track of moving kinematic targets ( list gets clear every frame )
+				if (NewKinematicTarget.GetMode() != EKinematicTargetMode::None)
+				{
+					// move particle from "non-moving" kinematics to "moving" kinematics
+					Particles.MarkMovingKinematic(KinematicHandle);
+				}
+			}
+			KinematicHandle->SetKinematicTarget(NewKinematicTarget);
+		}
+	}
+
 	CHAOS_API void EnableParticle(FGeometryParticleHandle* Particle, const FGeometryParticleHandle* ParentParticle)
 	{
 		Particles.EnableParticle(Particle);
@@ -623,10 +641,19 @@ public:
 		check(StepFraction > (FReal)0);
 		check(StepFraction <= (FReal)1);
 
-		// @todo(ccaulfield): optimize. Depending on the number of kinematics relative to the number that have 
-		// targets set, it may be faster to process a command list rather than iterate over them all each frame. 
+		const bool IsLastStep = (FMath::IsNearlyEqual(StepFraction, (FReal)1, (FReal)KINDA_SMALL_NUMBER));
+
 		const FReal MinDt = 1e-6f;
-		for (auto& Particle : Particles.GetActiveKinematicParticlesView())
+		auto GetKinematicView = [this]()
+		{
+			if (ChaosNonMovingKinematicUpdateOptimization)
+			{
+				return Particles.GetActiveMovingKinematicParticlesView();
+			}
+			return Particles.GetActiveKinematicParticlesView();
+		};
+
+		for (auto& Particle : GetKinematicView())
 		{
 			TKinematicTarget<FReal, 3>& KinematicTarget = Particle.KinematicTarget();
 			const FVec3 CurrentX = Particle.X();
@@ -654,7 +681,7 @@ public:
 				// Target positions only need to be processed once, and we reset the velocity next frame (if no new target is set)
 				FVec3 NewX;
 				FRotation3 NewR;
-				if (FMath::IsNearlyEqual(StepFraction, (FReal)1, (FReal)KINDA_SMALL_NUMBER))
+				if (IsLastStep)
 				{
 					NewX = KinematicTarget.GetTarget().GetLocation();
 					NewR = KinematicTarget.GetTarget().GetRotation();
@@ -713,6 +740,12 @@ public:
 					Rigid->SetWorldSpaceInflatedBounds(WorldSpaceBounds);
 				}
 			}
+		}
+
+		// done with update, let's clear the tracking structures
+		if (IsLastStep && ChaosNonMovingKinematicUpdateOptimization)
+		{
+			Particles.UpdateAllMovingKinematic();
 		}
 	}
 

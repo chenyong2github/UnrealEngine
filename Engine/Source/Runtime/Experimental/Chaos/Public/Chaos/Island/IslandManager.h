@@ -43,6 +43,11 @@ public:
 	  * Default island manager constructor
 	  */
 	FPBDIslandManager();
+	
+	/**
+	* Default island manager destructor
+	*/
+	~FPBDIslandManager();
 
 	/**
 	  * Default island manager constructor

@@ -43,6 +43,29 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::ParentIslands(const int32 Fir
 		GraphIslands[SecondIsland].bIsPersistent = false;
 	}
 }
+	
+template<typename NodeType, typename EdgeType, typename IslandType>
+void FIslandGraph<NodeType, EdgeType, IslandType>::UpdateNode(const NodeType& NodeItem, const bool bValidNode, const int32 IslandIndex, const bool bDiscardNode, const int32 NodeIndex)
+{
+	if (NodeIndex != INDEX_NONE)
+	{
+		// In case the item is changing its state to be valid
+		// we merge all the connected islands 
+		if (bValidNode && !GraphNodes[NodeIndex].bValidNode)
+		{
+			int32 MasterIsland = INDEX_NONE;
+			for (int32& EdgeIndex : GraphNodes[NodeIndex].NodeEdges)
+			{
+				FGraphEdge& GraphEdge = GraphEdges[EdgeIndex];
+				ParentIslands(MasterIsland, GraphEdge.IslandIndex);
+				MasterIsland = GraphEdge.IslandIndex;
+				GraphIslands[GraphEdge.IslandIndex].bIsPersistent = false;
+			}
+			GraphNodes[NodeIndex].bValidNode = bValidNode;
+		}
+	}
+	GraphNodes[NodeIndex].bDiscardNode = bDiscardNode;
+}
 
 template<typename NodeType, typename EdgeType, typename IslandType>
 int32 FIslandGraph<NodeType, EdgeType, IslandType>::AddNode(const NodeType& NodeItem, const bool bValidNode, const int32 IslandIndex, const bool bDiscardNode)
@@ -51,21 +74,8 @@ int32 FIslandGraph<NodeType, EdgeType, IslandType>::AddNode(const NodeType& Node
 	int32* ItemIndex = ItemNodes.Find(NodeItem);
 	if (ItemIndex && GraphNodes.IsValidIndex(*ItemIndex))
 	{
-		// In case the item is changing its state to be valid
-		// we merge all the connected islands 
-		if (bValidNode && !GraphNodes[*ItemIndex].bValidNode)
-		{
-			int32 MasterIsland = INDEX_NONE;
-			for (int32& EdgeIndex : GraphNodes[*ItemIndex].NodeEdges)
-			{
-				FGraphEdge& GraphEdge = GraphEdges[EdgeIndex];
-				ParentIslands(MasterIsland, GraphEdge.IslandIndex);
-				MasterIsland = GraphEdge.IslandIndex;
-				GraphIslands[GraphEdge.IslandIndex].bIsPersistent = false;
-			}
-			GraphNodes[*ItemIndex].bValidNode = bValidNode;
-		}
-		NodeIndex =  *ItemIndex;
+		UpdateNode(NodeItem,bValidNode,IslandIndex,bDiscardNode,*ItemIndex);
+		NodeIndex = *ItemIndex;
 	}
 	else
 	{
@@ -92,6 +102,10 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::RemoveNode(const NodeType& No
 			if(GraphIslands.IsValidIndex(GraphNodes[NodeIndex].IslandIndex))
 			{
 				GraphIslands[GraphNodes[NodeIndex].IslandIndex].bIsPersistent = false;
+				if(GraphIslands[GraphNodes[NodeIndex].IslandIndex].RootIndex == NodeIndex)
+				{
+					GraphIslands[GraphNodes[NodeIndex].IslandIndex].RootIndex = INDEX_NONE;
+				}
 			}
 			// We remove all the connected edges as well
 			for (int32 NodeEdgeIndex = GraphNodes[NodeIndex].NodeEdges.GetMaxIndex() - 1; NodeEdgeIndex >= 0; --NodeEdgeIndex)
@@ -147,6 +161,7 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::AttachIslands(const int32 Edg
 		{
 			GraphEdge.IslandIndex = FirstNode.IslandIndex;
 			++GraphIslands[GraphEdge.IslandIndex].NumEdges;
+			SecondNode.IslandIndex = GraphEdge.IslandIndex;
 			if(SecondNode.bValidNode)
 			{
 				GraphIslands[GraphEdge.IslandIndex].bIsPersistent = false;
@@ -157,6 +172,7 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::AttachIslands(const int32 Edg
 		{
 			GraphEdge.IslandIndex = SecondNode.IslandIndex;
 			++GraphIslands[GraphEdge.IslandIndex].NumEdges;
+			FirstNode.IslandIndex = GraphEdge.IslandIndex;
 			if(FirstNode.bValidNode)
 			{
 				GraphIslands[GraphEdge.IslandIndex].bIsPersistent = false;
@@ -165,8 +181,13 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::AttachIslands(const int32 Edg
 		}
 		else if (!bFirstValidIsland && !bSecondValidIsland)
 		{
-			FGraphIsland GraphIsland = { EdgeIndex, 1, 2 };
+			const int32 RootIndex = FirstNode.bValidNode ? GraphEdge.FirstNode : GraphEdge.SecondNode;
+			FGraphIsland GraphIsland = { RootIndex, 1, 2 };
 			GraphEdge.IslandIndex = GraphIslands.Emplace(GraphIsland);
+
+			// We set both island indices to be the equal to the edge one
+			FirstNode.IslandIndex = GraphEdge.IslandIndex;
+			SecondNode.IslandIndex = GraphEdge.IslandIndex;
 		}
 		else
 		{
@@ -178,9 +199,6 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::AttachIslands(const int32 Edg
 
 			++GraphIslands[GraphEdge.IslandIndex ].NumEdges;
 		}
-		// We set both island indices to be the equal to the edge one
-		FirstNode.IslandIndex = GraphEdge.IslandIndex;
-		SecondNode.IslandIndex = GraphEdge.IslandIndex;
 	}
 	else if (GraphNodes.IsValidIndex(GraphEdge.FirstNode) && !GraphNodes.IsValidIndex(GraphEdge.SecondNode) && GraphNodes[GraphEdge.FirstNode].bValidNode)
 	{
@@ -188,7 +206,7 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::AttachIslands(const int32 Edg
 		// otherwise we create a new island
 		if(!GraphIslands.IsValidIndex(GraphNodes[GraphEdge.FirstNode].IslandIndex))
 		{
-			FGraphIsland GraphIsland = { EdgeIndex, 1, 1 };
+			FGraphIsland GraphIsland = { GraphEdge.FirstNode, 1, 1 };
 			GraphNodes[GraphEdge.FirstNode].IslandIndex =  GraphIslands.Emplace(GraphIsland);
 		}
 		GraphEdge.IslandIndex =  GraphNodes[GraphEdge.FirstNode].IslandIndex;
@@ -199,7 +217,7 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::AttachIslands(const int32 Edg
 		// otherwise we create a new island
 		if(!GraphIslands.IsValidIndex(GraphNodes[GraphEdge.SecondNode].IslandIndex))
 		{
-			FGraphIsland GraphIsland = { EdgeIndex, 1, 1 };
+			FGraphIsland GraphIsland = { GraphEdge.SecondNode, 1, 1 };
 			GraphNodes[GraphEdge.SecondNode].IslandIndex =  GraphIslands.Emplace(GraphIsland);
 		}
 		GraphEdge.IslandIndex =  GraphNodes[GraphEdge.SecondNode].IslandIndex;
@@ -274,172 +292,53 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::RemoveEdge(const EdgeType& Ed
 		}
 	}
 }
-	
-template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::ForEachNodes(const int32 IslandIndex, TFunctionRef<void(FGraphNode&)> ApplyFunction, const bool bUpdateCounter)
-{
-	if (bUpdateCounter)
-	{
-		GraphCounter = (GraphCounter + 1) % MaxCount;
-	}
-	if (GraphIslands.IsValidIndex(IslandIndex))
-	{
-		// We first loop over all the nodes within the island to apply the function
-		for (FGraphNode& GraphNode : GraphNodes)
-		{
-			if ((GraphNode.IslandIndex == IslandIndex) && (GraphNode.NodeCounter != GraphCounter))
-			{
-				ApplyFunction(GraphNode);
-				GraphNode.NodeCounter = GraphCounter;
-			}
-		}
-		
-		// We then loop over all the edges that are unique per island to process all the connected nodes
-		// Most of the nodes will already be processed but we need to apply the function to the non valid ones
-		// that could belong to several islands
-		for (FGraphEdge& GraphEdge : GraphEdges)
-		{
-			if (GraphEdge.IslandIndex == IslandIndex)
-			{
-				if (GraphNodes.IsValidIndex(GraphEdge.FirstNode) && GraphNodes[GraphEdge.FirstNode].NodeCounter != GraphCounter)
-				{
-					ApplyFunction(GraphNodes[GraphEdge.FirstNode]);
-					GraphNodes[GraphEdge.FirstNode].NodeCounter = GraphCounter;
-				}
-				if (GraphNodes.IsValidIndex(GraphEdge.SecondNode) && GraphNodes[GraphEdge.SecondNode].NodeCounter != GraphCounter)
-				{
-					ApplyFunction(GraphNodes[GraphEdge.SecondNode]);
-					GraphNodes[GraphEdge.SecondNode].NodeCounter = GraphCounter;
-				}
-			}
-		}
-	}
-}
-
-template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::ForEachEdges(const int32 IslandIndex, TFunctionRef<void(FGraphEdge&)> ApplyFunction, const bool bUpdateCounter)
-{
-	if (bUpdateCounter)
-	{
-		GraphCounter = (GraphCounter + 1) % MaxCount;
-	}
-	// Loop over all the edges within the island to apply the function
-	for (FGraphEdge& GraphEdge : GraphEdges)
-	{
-		if ((GraphEdge.IslandIndex == IslandIndex) && (GraphEdge.EdgeCounter != GraphCounter))
-		{
-			ApplyFunction(GraphEdge);
-			GraphEdge.EdgeCounter = GraphCounter;
-		}
-	}
-}
 
 template<typename NodeType, typename EdgeType, typename IslandType>
 void FIslandGraph<NodeType, EdgeType, IslandType>::MergeIslands(const int32 ParentIndex, const int32 ChildIndex)
 {
-	// We loop recursively over the island tree to merge all 
-	// the children islands onto the parent one
-	if (GraphIslands[ChildIndex].IslandCounter != GraphCounter && ParentIndex != ChildIndex)
-	{
-		ForEachEdges(ChildIndex,
-			[ParentIndex](FGraphEdge& GraphEdge) {
-				GraphEdge.IslandIndex = ParentIndex;}, false);
-
-		ForEachNodes(ChildIndex,
-			[ParentIndex](FGraphNode& GraphNode){
-				GraphNode.IslandIndex = ParentIndex; }, false);
-
-		GraphIslands[ChildIndex].IslandCounter = GraphCounter;
-
-		// Add the number of nodes/edges to the parent one and set to 0 the children ones
-		GraphIslands[ParentIndex].NumEdges += GraphIslands[ChildIndex].NumEdges;
-		GraphIslands[ChildIndex].NumEdges = 0;
-
-		GraphIslands[ParentIndex].NumNodes += GraphIslands[ChildIndex].NumNodes;
-		GraphIslands[ChildIndex].NumNodes = 0;
-
-		// Recursively iterate over all the children ones
-		for (auto& MergedIsland : GraphIslands[ChildIndex].ChildrenIslands)
-		{
-			MergeIslands(ParentIndex, MergedIsland);
-		}
-		GraphIslands[ChildIndex].ChildrenIslands.Reset();
-	}
-}
-
-template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::SplitIsland(const int32 IslandIndex)
-{
-	SCOPE_CYCLE_COUNTER(STAT_SplitIslandGraph);
-
-	GraphCounter = (GraphCounter + 1) % MaxCount;
-	TQueue<int32> NodeQueue;
-	bool bMainIsland = true;
-	int32 CurrentIsland = IslandIndex;
+	int32 CurrentIndex;
+	TQueue<int32> ChildQueue;
+	ChildQueue.Enqueue(ChildIndex);
 	
-	for (int32 RootIndex = 0, NumNodes = GraphNodes.GetMaxIndex(); RootIndex < NumNodes; ++RootIndex)
+	while(!ChildQueue.IsEmpty())
 	{
-		// We pick all the nodes that are inside an island
-		if(GraphNodes.IsValidIndex(RootIndex))
+		ChildQueue.Dequeue(CurrentIndex);
+	
+		if (GraphIslands[CurrentIndex].IslandCounter != GraphCounter && ParentIndex != CurrentIndex)
 		{
-			FGraphNode& RootNode = GraphNodes[RootIndex];
-			if(RootNode.IslandIndex == IslandIndex && RootNode.NodeCounter != GraphCounter && RootNode.bValidNode)
+			GraphIslands[CurrentIndex].IslandCounter = GraphCounter;
+			GraphIslands[CurrentIndex].ParentIsland = ParentIndex;
+	
+			// Add the number of nodes/edges to the parent one and set to 0 the children ones
+			GraphIslands[ParentIndex].NumEdges += GraphIslands[CurrentIndex].NumEdges;
+			GraphIslands[CurrentIndex].NumEdges = 0;
+	
+			GraphIslands[ParentIndex].NumNodes += GraphIslands[CurrentIndex].NumNodes;
+			GraphIslands[CurrentIndex].NumNodes = 0;
+	
+			// Recursively iterate over all the children ones
+			for (auto& MergedIsland : GraphIslands[CurrentIndex].ChildrenIslands)
 			{
-				// We don't want to rebuild a new island if this one can't be splitted
-				// It is why by default the first one is the main one
-				if(!bMainIsland)
-				{
-					FGraphIsland GraphIsland = { RootIndex, 0, 1 };
-					GraphIsland.bIsSleeping = false;
-					GraphIsland.bIsPersistent = false;
-					CurrentIsland = GraphIslands.Emplace(GraphIsland);
-				}
-				NodeQueue.Enqueue(RootIndex);
-				int32 NodeIndex = RootIndex;
-				
-				while (!NodeQueue.IsEmpty())
-				{
-					NodeQueue.Dequeue(NodeIndex);
-					FGraphNode& GraphNode = GraphNodes[NodeIndex];
-					
-					// Graph counter is there to avoid processing multiple times the same node/edge
-					if (GraphNode.NodeCounter != GraphCounter)
-					{
-						GraphNode.NodeCounter = GraphCounter;
-						GraphNode.IslandIndex = CurrentIsland;
-
-						// Loop over the node edges to continue the island discovery
-						for (int32& EdgeIndex : GraphNode.NodeEdges)
-						{
-							FGraphEdge& GraphEdge = GraphEdges[EdgeIndex];
-							if(GraphEdge.EdgeCounter != GraphCounter)
-							{
-								GraphEdge.EdgeCounter = GraphCounter;
-								GraphEdge.IslandIndex = CurrentIsland;
-							}
-							const int32 OtherIndex = (NodeIndex == GraphEdge.FirstNode) ?
-								GraphEdge.SecondNode : GraphEdge.FirstNode;
-
-							// Only the valid nodes are allowed to continue the graph traversal
-							if (GraphNodes.IsValidIndex(OtherIndex) && GraphNodes[OtherIndex].NodeCounter != GraphCounter && GraphNodes[OtherIndex].bValidNode)
-							{
-								NodeQueue.Enqueue(OtherIndex);
-							}
-						}
-					}
-				}
-				bMainIsland = false;
+				ChildQueue.Enqueue(MergedIsland);
 			}
+			GraphIslands[CurrentIndex].ChildrenIslands.Reset();
 		}
 	}
 }
-
+	
 template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::UpdateGraph()
+void FIslandGraph<NodeType, EdgeType, IslandType>::MergeIslands()
 {
-	SCOPE_CYCLE_COUNTER(STAT_MergeIslandGraph);
-
 	GraphCounter = (GraphCounter + 1) % MaxCount;
+
+	// Init the Parent index to be the island one
+	for (int32 IslandIndex = 0, NumIslands = GraphIslands.GetMaxIndex(); IslandIndex < NumIslands; ++IslandIndex)
+	{
+		if (GraphIslands.IsValidIndex(IslandIndex))
+		{
+			GraphIslands[IslandIndex].ParentIsland = IslandIndex;
+		}
+	}
 
 	// We loop over all the islands and if they have children
 	// we merge them onto the parent one
@@ -449,6 +348,7 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::UpdateGraph()
 		{
 			FGraphIsland& GraphIsland = GraphIslands[IslandIndex];
 			// If the graph island is persistent we don't need to merge its children
+			// and update the parent index
 			if (!GraphIsland.bIsPersistent)
 			{
 				for (const int32& MergedIsland : GraphIsland.ChildrenIslands)
@@ -459,17 +359,137 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::UpdateGraph()
 			}
 		}
 	}
+
+	// Reassigns all the parent island indices to the nodes/edges
+	ReassignIslands();
+
 	// Once the merging process is done we remove all the children islands
 	// since they have been merged onto the parent one
 	for (int32 IslandIndex = (GraphIslands.GetMaxIndex() - 1); IslandIndex >= 0; --IslandIndex)
 	{
 		// Only the island counter of the children have been updated
-		if (GraphIslands.IsValidIndex(IslandIndex) && GraphIslands[IslandIndex].IslandCounter == GraphCounter)
+		if (GraphIslands.IsValidIndex(IslandIndex) && GraphIslands[IslandIndex].NumNodes == 0)
 		{
 			GraphIslands.RemoveAt(IslandIndex);
 		}
 	}
+}
+
+template<typename NodeType, typename EdgeType, typename IslandType>
+void FIslandGraph<NodeType, EdgeType, IslandType>::SplitIsland(TQueue<int32>& NodeQueue, const int32 RootIndex, const int32 IslandIndex)
+{
+	NodeQueue.Enqueue(RootIndex);
+	int32 NodeIndex = RootIndex;
+					
+	while (!NodeQueue.IsEmpty())
+	{
+		NodeQueue.Dequeue(NodeIndex);
+		FGraphNode& GraphNode = GraphNodes[NodeIndex];
+						
+		// Graph counter is there to avoid processing multiple times the same node/edge
+		if (GraphNode.NodeCounter != GraphCounter)
+		{
+			GraphNode.NodeCounter = GraphCounter;
+			GraphNode.IslandIndex = IslandIndex;
+
+			// Loop over the node edges to continue the island discovery
+			for (int32& EdgeIndex : GraphNode.NodeEdges)
+			{
+				FGraphEdge& GraphEdge = GraphEdges[EdgeIndex];
+				if(GraphEdge.EdgeCounter != GraphCounter)
+				{
+					GraphEdge.EdgeCounter = GraphCounter;
+					GraphEdge.IslandIndex = IslandIndex;
+				}
+				const int32 OtherIndex = (NodeIndex == GraphEdge.FirstNode) ?
+					GraphEdge.SecondNode : GraphEdge.FirstNode;
+
+				// Only the valid nodes are allowed to continue the graph traversal
+				if (GraphNodes.IsValidIndex(OtherIndex) && GraphNodes[OtherIndex].NodeCounter != GraphCounter && GraphNodes[OtherIndex].bValidNode)
+				{
+					NodeQueue.Enqueue(OtherIndex);
+				}
+			}
+		}
+	}
+}
 	
+template<typename NodeType, typename EdgeType, typename IslandType>
+void FIslandGraph<NodeType, EdgeType, IslandType>::SplitIslands()
+{
+	SCOPE_CYCLE_COUNTER(STAT_SplitIslandGraph);
+
+	GraphCounter = (GraphCounter + 1) % MaxCount;
+	TQueue<int32> NodeQueue;
+	for (int32 RootIndex = 0, NumNodes = GraphNodes.GetMaxIndex(); RootIndex < NumNodes; ++RootIndex)
+	{
+		// We pick all the nodes that are inside an island
+		if(GraphNodes.IsValidIndex(RootIndex))
+		{
+			FGraphNode& RootNode = GraphNodes[RootIndex];
+			if(RootNode.NodeCounter != GraphCounter && RootNode.bValidNode)
+			{
+				int32 CurrentIsland = RootNode.IslandIndex;
+				
+				if (GraphIslands.IsValidIndex(CurrentIsland) && GraphIslands[CurrentIsland].bIsPersistent && !GraphIslands[CurrentIsland].bIsSleeping)
+				{
+					// We don't want to rebuild a new island if this one can't be splitted
+					// It is why by default the first one is the main one
+					if(GraphIslands[CurrentIsland].IslandCounter == GraphCounter)
+					{
+						FGraphIsland GraphIsland = { RootIndex, 0, 1, 0, false, false };
+						CurrentIsland = GraphIslands.Emplace(GraphIsland);
+					}
+					
+					GraphIslands[CurrentIsland].RootIndex = RootIndex;
+					GraphIslands[CurrentIsland].IslandCounter = GraphCounter;
+
+					SplitIsland(NodeQueue, RootIndex, CurrentIsland);
+				}
+			}
+		}
+	}
+}
+	
+template<typename NodeType, typename EdgeType, typename IslandType>
+void FIslandGraph<NodeType, EdgeType, IslandType>::ReassignIslands()
+{
+	// Update all the edges indices
+	for (FGraphEdge& GraphEdge : GraphEdges)
+	{
+		if(GraphIslands.IsValidIndex(GraphEdge.IslandIndex))
+		{
+			const int32 ParentIndex = GraphIslands[GraphEdge.IslandIndex].ParentIsland;
+			if(GraphIslands.IsValidIndex(ParentIndex))
+			{
+				GraphEdge.IslandIndex = ParentIndex;
+			}
+		}
+	}
+
+	// Update all the nodes indices
+	for (FGraphNode& GraphNode : GraphNodes)
+	{
+		if(GraphIslands.IsValidIndex(GraphNode.IslandIndex))
+		{
+			const int32 ParentIndex = GraphIslands[GraphNode.IslandIndex].ParentIsland;
+			if(GraphIslands.IsValidIndex(ParentIndex))
+			{
+				GraphNode.IslandIndex = ParentIndex;
+			}
+		}
+	}
+}
+
+template<typename NodeType, typename EdgeType, typename IslandType>
+void FIslandGraph<NodeType, EdgeType, IslandType>::UpdateGraph()
+{
+	SCOPE_CYCLE_COUNTER(STAT_MergeIslandGraph);
+
+	// Merge all the islands if necessary
+	MergeIslands();
+
+	// Add all the single particle islands and update the sleeping flag
 	for (int32 NodeIndex = 0, NumNodes = GraphNodes.GetMaxIndex(); NodeIndex < NumNodes; ++NodeIndex)
 	{
 		if (GraphNodes.IsValidIndex(NodeIndex))
@@ -487,13 +507,35 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::UpdateGraph()
 			}
 		}
 	}
+	
 	// Split the islands if this one is persistent and not sleeping
-	for (int32 IslandIndex = 0, NumIslands = GraphIslands.GetMaxIndex(); IslandIndex < NumIslands; ++IslandIndex)
+	SplitIslands();
+}
+
+template<typename NodeType, typename EdgeType, typename IslandType>
+void FIslandGraph<NodeType, EdgeType, IslandType>::InitIslands()
+{
+	// Remove of all the non sleeping edges
+	for(int32 EdgeIndex = GraphEdges.GetMaxIndex(); EdgeIndex >= 0; --EdgeIndex)
 	{
-		if (GraphIslands.IsValidIndex(IslandIndex) && GraphIslands[IslandIndex].bIsPersistent && !GraphIslands[IslandIndex].bIsSleeping)
+		if(GraphEdges.IsValidIndex(EdgeIndex) && GraphIslands.IsValidIndex(GraphEdges[EdgeIndex].IslandIndex) && !GraphIslands[GraphEdges[EdgeIndex].IslandIndex].bIsSleeping)
 		{
-			SplitIsland(IslandIndex);
+			ItemEdges.Remove(GraphEdges[EdgeIndex].EdgeItem);
+			GraphEdges.RemoveAt(EdgeIndex);
 		}
+	} 
+	// Reset of all the non sleeping nodes edges list
+	for (int32 NodeIndex = 0, NumNodes = GraphNodes.GetMaxIndex(); NodeIndex < NumNodes; ++NodeIndex)
+	{
+		if (GraphNodes.IsValidIndex(NodeIndex) && GraphIslands.IsValidIndex(GraphNodes[NodeIndex].IslandIndex) && !GraphIslands[GraphNodes[NodeIndex].IslandIndex].bIsSleeping)
+		{
+			GraphNodes[NodeIndex].NodeEdges.Reset();
+		}
+	}
+	// Reset of the sleeping flag for the graph islands
+	for (auto& GraphIsland : GraphIslands)
+	{
+		GraphIsland.bIsSleeping = true;
 	}
 }
 
@@ -502,6 +544,7 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::ResetIslands()
 {
 	GraphEdges.Reset();
 	ItemEdges.Reset();
+	
 	// Reset of all the edges + the nodes ones
 	// will probably need to change that with persistent contacts
 	for (int32 NodeIndex = 0, NumNodes = GraphNodes.GetMaxIndex(); NodeIndex < NumNodes; ++NodeIndex)

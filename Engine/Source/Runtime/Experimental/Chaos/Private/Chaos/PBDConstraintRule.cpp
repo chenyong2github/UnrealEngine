@@ -187,7 +187,7 @@ namespace Chaos
 	bool TPBDConstraintIslandRule<ConstraintType>::ApplyPushOut(const FReal Dt, int32 Island, const int32 It, const int32 NumIts)
 	{
 		FPBDIslandSolver* IslandSolver = ConstraintGraph->GetSolverIsland(Island);
-		return IslandSolver ? Constraints.ApplyPhase2Serial(Dt, It, NumIts, *IslandSolver) : false;
+		return IslandSolver  ? Constraints.ApplyPhase2Serial(Dt, It, NumIts, *IslandSolver) : false;
 	}
 
 	template<class ConstraintType>
@@ -281,7 +281,6 @@ namespace Chaos
 					++sHere;
 				}
 			}
-
 			// If we aren't coloring, we have a single group of all constraints (they have been created in level order above)
 			if (!bUseColor)
 			{
@@ -375,13 +374,16 @@ namespace Chaos
 	template<class ConstraintType>
 	void TPBDConstraintColorRule<ConstraintType>::UpdateAccelerationStructures(const FReal Dt, const int32 Island)
 	{
-		// Decide if we want to attempt to solve the constraints in parallel - this requires coloring the graph which
-		// is expensive, so we need to get a good number of contacts per color (per level) for it to be worthwhile.
-		// @todo(chaos): if enabled here, it should get disabled again if the level/coloring doesn't produce enough parallelism
-		bUseColor = (ConstraintGraph->GetIslandParticles(Island).Num() > ChaosCollisionColorMinParticles);
+		if(FPBDIslandSolver* IslandSolver = ConstraintGraph->GetSolverIsland(Island))
+		{
+			// Decide if we want to attempt to solve the constraints in parallel - this requires coloring the graph which
+			// is expensive, so we need to get a good number of contacts per color (per level) for it to be worthwhile.
+			// @todo(chaos): if enabled here, it should get disabled again if the level/coloring doesn't produce enough parallelism
+			bUseColor = (ConstraintGraph->GetIslandParticles(Island).Num() > ChaosCollisionColorMinParticles);
 
-		// @todo(chaos): disable coloring, but still generate levels and ordering, when we don't need parallelism
-		GraphColor.ComputeColor(Dt, Island, *ConstraintGraph, Constraints.GetContainerId());
+			// @todo(chaos): disable coloring, but still generate levels and ordering, when we don't need parallelism
+			GraphColor.ComputeColor(Dt, Island, *ConstraintGraph, Constraints.GetContainerId());
+		}
 	}
 
 	template<class ConstraintType>

@@ -89,7 +89,8 @@ public:
 		TArrayCollection::AddArray(&MDisabled);
 		TArrayCollection::AddArray(&MObjectState);
 		TArrayCollection::AddArray(&MPreObjectState);
-		TArrayCollection::AddArray(&MIsland);
+		TArrayCollection::AddArray(&MIslandIndex);
+		TArrayCollection::AddArray(&MGraphIndex);
 		TArrayCollection::AddArray(&MToBeRemovedOnFracture);
 		TArrayCollection::AddArray(&MGravityEnabled);
 		TArrayCollection::AddArray(&MOneWayInteraction);
@@ -144,7 +145,8 @@ public:
 		TArrayCollection::AddArray(&MDisabled);
 		TArrayCollection::AddArray(&MObjectState);
 		TArrayCollection::AddArray(&MPreObjectState);
-		TArrayCollection::AddArray(&MIsland);
+		TArrayCollection::AddArray(&MIslandIndex);
+		TArrayCollection::AddArray(&MGraphIndex);
 		TArrayCollection::AddArray(&MToBeRemovedOnFracture);
 		TArrayCollection::AddArray(&MGravityEnabled);
 		TArrayCollection::AddArray(&MOneWayInteraction);
@@ -276,16 +278,19 @@ public:
 
 	FORCEINLINE const bool HasInfiniteMass(const int32 Index) const { return MInvM[Index] == (T)0; }
 
-	FORCEINLINE const int32 Island(const int32 Index) const { return MIsland[Index]; }
-	FORCEINLINE int32& Island(const int32 Index) { return MIsland[Index]; }
+	FORCEINLINE const int32 IslandIndex(const int32 Index) const { return MIslandIndex[Index]; }
+	FORCEINLINE int32& IslandIndex(const int32 Index) { return MIslandIndex[Index]; }
+
+	FORCEINLINE const int32 ConstraintGraphIndex(const int32 Index) const { return MGraphIndex[Index]; }
+	FORCEINLINE int32& ConstraintGraphIndex(const int32 Index) { return MGraphIndex[Index]; }
 
 	FORCEINLINE FString ToString(int32 index) const
 	{
 		FString BaseString = TKinematicGeometryParticles<T, d>::ToString(index);
-		return FString::Printf(TEXT("%s, MF:%s, MT:%s, MLinearImpulse:%s, MAngularImpulse:%s, MI:%s, MInvI:%s, MM:%f, MInvM:%f, MCenterOfMass:%s, MRotationOfMass:%s, MCollisionParticles(num):%d, MCollisionGroup:%d, MDisabled:%d, MSleepring:%d, MIsland:%d"),
+		return FString::Printf(TEXT("%s, MF:%s, MT:%s, MLinearImpulse:%s, MAngularImpulse:%s, MI:%s, MInvI:%s, MM:%f, MInvM:%f, MCenterOfMass:%s, MRotationOfMass:%s, MCollisionParticles(num):%d, MCollisionGroup:%d, MDisabled:%d, MSleeping:%d, MIslandIndex:%d"),
 			*BaseString, *F(index).ToString(), *Torque(index).ToString(), *LinearImpulse(index).ToString(), *AngularImpulse(index).ToString(),
 			*I(index).ToString(), *InvI(index).ToString(), M(index), InvM(index), *CenterOfMass(index).ToString(), *RotationOfMass(index).ToString(), CollisionParticlesSize(index),
-			CollisionGroup(index), Disabled(index), Sleeping(index), Island(index));
+			CollisionGroup(index), Disabled(index), Sleeping(index), IslandIndex(index));
 	}
 
 	CHAOS_API virtual void Serialize(FChaosArchive& Ar) override
@@ -307,7 +312,7 @@ public:
 			Ar << MLinearEtherDrag << MAngularEtherDrag;
 		}
 
-		Ar << MCollisionParticles << MCollisionGroup << MIsland << MDisabled << MObjectState << MSleepType;
+		Ar << MCollisionParticles << MCollisionGroup << MIslandIndex << MDisabled << MObjectState << MSleepType;
 		//todo: add gravity enabled when we decide how we want to handle serialization
 	}
 
@@ -350,8 +355,8 @@ private:
 	TArrayCollectionArray<TUniquePtr<TBVHParticles<T, d>>> MCollisionParticles;
 	TArrayCollectionArray<int32> MCollisionGroup;
 	TArrayCollectionArray<uint32> MCollisionConstraintFlags;
-	TArrayCollectionArray<int32> MIsland;
-	TArrayCollectionArray<bool> MDisabled;
+	TArrayCollectionArray<int32> MIslandIndex;
+	TArrayCollectionArray<int32> MGraphIndex;
 	TArrayCollectionArray<bool> MToBeRemovedOnFracture;
 	TArrayCollectionArray<EObjectStateType> MObjectState;
 	TArrayCollectionArray<EObjectStateType> MPreObjectState;
@@ -359,6 +364,7 @@ private:
 	TArrayCollectionArray<bool> MOneWayInteraction;
 	TArrayCollectionArray<ESleepType> MSleepType;
 	TArrayCollectionArray<bool> bCCDEnabled;
+	TArrayCollectionArray<bool> MDisabled;
 
 	TArray<TSleepData<T, d>> MSleepData;
 	FRWLock SleepDataLock;

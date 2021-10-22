@@ -815,7 +815,8 @@ protected:
 		SetF(TVector<T, d>(0));
 		SetTorque(TVector<T, d>(0));
 		SetObjectStateLowLevel(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
-		SetIsland(INDEX_NONE);
+		SetIslandIndex(INDEX_NONE);
+		SetConstraintGraphIndex(INDEX_NONE);
 		SetToBeRemovedOnFracture(false);
 		SetSleepType(ESleepType::MaterialSleep);
 	}
@@ -983,9 +984,13 @@ public:
 	T& MaxAngularSpeedSq() { return PBDRigidParticles->MaxAngularSpeedSq(ParticleIdx); }
 	void SetMaxAngularSpeedSq(const T& InMaxAngularSpeed) { PBDRigidParticles->MaxAngularSpeedSq(ParticleIdx) = InMaxAngularSpeed; }
 
-	int32 Island() const { return PBDRigidParticles->Island(ParticleIdx); }
-	int32& Island() { return PBDRigidParticles->Island(ParticleIdx); }
-	void SetIsland(const int32 InIsland) { PBDRigidParticles->Island(ParticleIdx) = InIsland; }
+	int32 IslandIndex() const { return PBDRigidParticles->IslandIndex(ParticleIdx); }
+	int32& IslandIndex() { return PBDRigidParticles->IslandIndex(ParticleIdx); }
+	void SetIslandIndex(const int32 InIslandIndex) { PBDRigidParticles->IslandIndex(ParticleIdx) = InIslandIndex; }
+	
+	int32 ConstraintGraphIndex() const { return PBDRigidParticles->ConstraintGraphIndex(ParticleIdx); }
+	int32& ConstraintGraphIndex() { return PBDRigidParticles->ConstraintGraphIndex(ParticleIdx); }
+	void SetConstraintGraphIndex(const int32 InGraphIndex) { PBDRigidParticles->ConstraintGraphIndex(ParticleIdx) = InGraphIndex; }
 
 	bool ToBeRemovedOnFracture() const { return PBDRigidParticles->ToBeRemovedOnFracture(ParticleIdx); }
 	bool& ToBeRemovedOnFracture() { return PBDRigidParticles->ToBeRemovedOnFracture(ParticleIdx); }
@@ -1600,13 +1605,13 @@ public:
 #endif
 
 	/** Get the island index from the particle handle */
-	FORCEINLINE int32 Island() const
+	FORCEINLINE int32 IslandIndex() const
 	{
 		if (auto RigidHandle = MHandle->CastToRigidParticle())
 		{
 			if (IsDynamic())
 			{
-				return RigidHandle->Island();
+				return RigidHandle->IslandIndex();
 			}
 		}
 		return INDEX_NONE;
@@ -1615,13 +1620,13 @@ public:
 	/** Set the island index onto the particle handle 
 	 * @param IslandIndex Island Index to be set onto the particle 
 	 */
-	FORCEINLINE void SetIsland( const int32 IslandIndex) 
+	FORCEINLINE void SetIslandIndex( const int32 IslandIndex) 
 	{
 		if (auto RigidHandle = MHandle->CastToRigidParticle())
 		{
 			if (IsDynamic())
 			{
-				RigidHandle->Island() = IslandIndex;
+				RigidHandle->IslandIndex() = IslandIndex;
 			}
 		}
 	}

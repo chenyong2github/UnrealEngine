@@ -19,6 +19,9 @@ FAutoConsoleVariableRef CVarChaosNumPushOutIterationsOverride(TEXT("p.ChaosNumPu
 int32 ChaosNumContactIterationsOverride = -1;
 FAutoConsoleVariableRef CVarChaosNumContactIterationsOverride(TEXT("p.ChaosNumContactIterationsOverride"), ChaosNumContactIterationsOverride, TEXT("Override for num contact iterations if >= 0. [def:-1]"));
 
+int32 ChaosNonMovingKinematicUpdateOptimization = 1;
+FAutoConsoleVariableRef CVarChaosNonMovingKinematicUpdateOptimization(TEXT("p.ChaosNonMovingKinematicUpdateOptimization"), ChaosNonMovingKinematicUpdateOptimization, TEXT("When enabled (1), keep track of moving kinematics and only call ApplyKinematicTargets for those ones. [def:1]"));
+
 namespace Chaos
 {
 	CHAOS_API int32 FixBadAccelerationStructureRemoval = 1;
@@ -934,10 +937,10 @@ namespace Chaos
 		{
 			if (InitialState == EObjectStateType::Sleeping)
 			{
-				if (Particle->Island() != INDEX_NONE)
+				if (Particle->IslandIndex() != INDEX_NONE)
 				{
 					// GT has forced a wake so have to wake everything in the island
-					IslandsToWake.Enqueue(Particle->Island());
+					IslandsToWake.Enqueue(Particle->IslandIndex());
 				}
 			}
 			else if (ObjectState != EObjectStateType::Dynamic)
@@ -959,10 +962,10 @@ namespace Chaos
 		{
 			if (InitialState == EObjectStateType::Sleeping)
 			{
-				if (Particle->Island() != INDEX_NONE)
+				if (Particle->IslandIndex() != INDEX_NONE)
 				{
 					// GT has forced a wake so have to wake everything in the island
-					IslandsToWake.Enqueue(Particle->Island());
+					IslandsToWake.Enqueue(Particle->IslandIndex());
 				}
 			}
 			else if(ObjectState != EObjectStateType::Dynamic)

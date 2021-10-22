@@ -219,6 +219,7 @@ namespace Chaos
 		bUseIncrementalManifold = true;	// This will get changed later if we call AddOneShotManifoldContact
 
 		SetIsSleeping(false);
+		SetWasAwakened(false);
 	}
 
 	// Are the two manifold points the same point?
@@ -333,11 +334,11 @@ namespace Chaos
 			Q1 = FParticleUtilities::GetCoMWorldRotation(FConstGenericParticleHandle(Particle[1]));
 		}
 
-		for (int32 Index = 0; Index < ManifoldPoints.Num() ; Index++)
+		for (int32 Index = 0; Index < ManifoldPoints.Num(); Index++)
 		{
 			FManifoldPoint& ManifoldPoint = ManifoldPoints[Index];
 			GetWorldSpaceManifoldPoint(ManifoldPoint, P0, Q0, P1, Q1, ManifoldPoint.ContactPoint.Location, ManifoldPoint.ContactPoint.Normal, ManifoldPoint.ContactPoint.Phi);
-			
+
 			ManifoldPoint.bPotentialRestingContact = bUseManifold;
 			ManifoldPoint.bInsideStaticFrictionCone = bUseManifold;
 
@@ -575,7 +576,7 @@ namespace Chaos
 		const FVec3 LocalContactPoint1 = ImplicitTransform[1].TransformPositionNoScale(ManifoldPoint.ContactPoint.ShapeContactPoints[1]);	// Particle Space on body 1
 
 		// Build the constraint space axes relative to the plane owner. 
-		const FVec3 ContactNormal = PlaneTransform.TransformNormalNoScale(ManifoldPoint.ContactPoint.ShapeContactNormal);				// Particle Space on Plane owner
+		const FVec3 ContactNormal = bChaos_Collision_Manifold_FixNormalsInWorldSpace ? ManifoldPoint.ContactPoint.Normal : PlaneTransform.TransformNormalNoScale(ManifoldPoint.ContactPoint.ShapeContactNormal);				// Particle Space on Plane owner
 		int32 GoodComponentIndex = 0;
 		for (; GoodComponentIndex < 2; GoodComponentIndex++) // Only test first 2 components
 		{
@@ -599,28 +600,28 @@ namespace Chaos
 		const FVec3 CoMContactPoint1 = Particle1->RotationOfMass().Inverse() * (LocalContactPoint1 - Particle1->CenterOfMass());	// CoM Space on Body 1
 
 		FVec3 ManifoldContactNormal;
-		FVec3 CoMContactTangent0;
-		FVec3 CoMContactTangent1;
+		FVec3 ManifoldContactTangent0;
+		FVec3 ManifoldContactTangent1;
 
 		if (bChaos_Collision_Manifold_FixNormalsInWorldSpace)
 		{
 			const FRotation3&  Particle1Rotation = Particle1->R();// Plane is attached to particle1
-			ManifoldContactNormal = Particle1Rotation * ContactNormal;											// CoM Space on Planer owner
-			CoMContactTangent0 =  Particle1Rotation * ContactTangents[0];
-			CoMContactTangent1 =  Particle1Rotation * ContactTangents[1];
+			ManifoldContactNormal = ContactNormal;
+			ManifoldContactTangent0 =  ContactTangents[0];
+			ManifoldContactTangent1 =  ContactTangents[1];
 		}
 		else
 		{
 			const FRotation3&  PlaneRotationOfMass = (ManifoldPoint.ContactPoint.ContactNormalOwnerIndex == 0) ? Particle0->RotationOfMass() : Particle1->RotationOfMass();
 			ManifoldContactNormal = PlaneRotationOfMass.Inverse() * ContactNormal;											// CoM Space on Planer owner
-			CoMContactTangent0 = PlaneRotationOfMass.Inverse() * ContactTangents[0];
-			CoMContactTangent1 = PlaneRotationOfMass.Inverse() * ContactTangents[1];
+			ManifoldContactTangent0 = PlaneRotationOfMass.Inverse() * ContactTangents[0];
+			ManifoldContactTangent1 = PlaneRotationOfMass.Inverse() * ContactTangents[1];
 		}
 		
 		ManifoldPoint.CoMContactPoints[0] = CoMContactPoint0;
 		ManifoldPoint.CoMContactPoints[1] = CoMContactPoint1;
-		ManifoldPoint.ManifoldContactTangents[0] = CoMContactTangent0;
-		ManifoldPoint.ManifoldContactTangents[1] = CoMContactTangent1;
+		ManifoldPoint.ManifoldContactTangents[0] = ManifoldContactTangent0;
+		ManifoldPoint.ManifoldContactTangents[1] = ManifoldContactTangent1;
 		ManifoldPoint.ManifoldContactNormal = ManifoldContactNormal;
 	}
 

@@ -228,12 +228,12 @@ namespace ChaosTest {
 		// Get the Island indices which map to the ExpectedIslandParticles
 		const TArray<int32> CalculatedIslandIndices =
 		{
-			AllParticles[0]->CastToRigidParticle()->Island(),
-			AllParticles[7]->CastToRigidParticle()->Island(),
-			AllParticles[12]->CastToRigidParticle()->Island(),
-			AllParticles[14]->CastToRigidParticle()->Island(),
-			AllParticles[19]->CastToRigidParticle()->Island(),
-			AllParticles[20]->CastToRigidParticle()->Island(),
+			AllParticles[0]->CastToRigidParticle()->IslandIndex(),
+			AllParticles[7]->CastToRigidParticle()->IslandIndex(),
+			AllParticles[12]->CastToRigidParticle()->IslandIndex(),
+			AllParticles[14]->CastToRigidParticle()->IslandIndex(),
+			AllParticles[19]->CastToRigidParticle()->IslandIndex(),
+			AllParticles[20]->CastToRigidParticle()->IslandIndex(),
 		};
 
 		// All non-static partcles should still be Active
@@ -272,7 +272,7 @@ namespace ChaosTest {
 				auto* DynParticle = CalculatedIslandParticleIndex->CastToRigidParticle();
 				if (DynParticle && DynParticle->ObjectState() == EObjectStateType::Dynamic)
 				{
-					EXPECT_EQ(DynParticle->Island(), CalculatedIslandIndex);
+					EXPECT_EQ(DynParticle->IslandIndex(), CalculatedIslandIndex);
 				}
 			}
 		}
@@ -544,12 +544,12 @@ namespace ChaosTest {
 					{
 						if (FoundIsland == INDEX_NONE)
 						{
-							FoundIsland = RigidParticle->Island();
+							FoundIsland = RigidParticle->IslandIndex();
 							CalculatedIslandIndices.Push(FoundIsland);
 						}
 						else
 						{
-							EXPECT_EQ(FoundIsland, RigidParticle->Island());
+							EXPECT_EQ(FoundIsland, RigidParticle->IslandIndex());
 						}
 					}
 				}

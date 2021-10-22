@@ -69,6 +69,7 @@ public:
 		CollisionDetector.GetNarrowPhase().GetContext().bAllowManifolds = true;
 		CollisionDetector.GetNarrowPhase().GetContext().CollisionAllocator = &CollisionConstraints.GetConstraintAllocator();
 		CollisionDetector.DetectCollisions(Dt, nullptr);
+		CollisionDetector.GetCollisionContainer().GetConstraintAllocator().SortConstraintsHandles();
 	}
 
 	void Update(FPBDCollisionConstraint& Constraint)

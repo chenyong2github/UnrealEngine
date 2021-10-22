@@ -1435,7 +1435,7 @@ namespace Chaos
 		}
 		if (ChaosSolverDebugDrawCollisions == 1) 
 		{
-			DebugDraw::DrawCollisions(FRigidTransform3(), GetEvolution()->GetCollisionConstraints(), 1.f, &ChaosSolverDebugDebugDrawSettings);
+			DebugDraw::DrawCollisions(FRigidTransform3(), GetEvolution()->GetConstraintGraph(), 1.f, &ChaosSolverDebugDebugDrawSettings);
 		}
 		if (ChaosSolverDebugDrawBounds == 1)
 		{
