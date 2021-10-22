@@ -55,16 +55,19 @@ TUniquePtr<FDynamicMeshOperator> UPolyEditExtrudeActivity::MakeNewOperator()
 		Op->DirectionMode = ToOpDirectionMode(ExtrudeProperties->DirectionMode);
 		Op->bShellsToSolids = ExtrudeProperties->bShellsToSolids;
 		Op->bUseColinearityForSettingBorderGroups = ExtrudeProperties->bUseColinearityForSettingBorderGroups;
+		Op->MaxScaleForAdjustingTriNormalsOffset = ExtrudeProperties->MaxDistanceScaleFactor;
 		break;
 	case EPropertySetToUse::Offset:
 		Op->DirectionMode = ToOpDirectionMode(OffsetProperties->DirectionMode);
 		Op->bShellsToSolids = OffsetProperties->bShellsToSolids;
 		Op->bUseColinearityForSettingBorderGroups = OffsetProperties->bUseColinearityForSettingBorderGroups;
+		Op->MaxScaleForAdjustingTriNormalsOffset = OffsetProperties->MaxDistanceScaleFactor;
 		break;
 	case EPropertySetToUse::PushPull:
 		Op->DirectionMode = ToOpDirectionMode(PushPullProperties->DirectionMode);
 		Op->bShellsToSolids = PushPullProperties->bShellsToSolids;
 		Op->bUseColinearityForSettingBorderGroups = PushPullProperties->bUseColinearityForSettingBorderGroups;
+		Op->MaxScaleForAdjustingTriNormalsOffset = PushPullProperties->MaxDistanceScaleFactor;
 		break;
 	}
 
