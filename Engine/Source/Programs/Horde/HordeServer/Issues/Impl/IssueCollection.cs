@@ -1254,7 +1254,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IIssueSpan?> UpdateSpanAsync(IIssueSpan Span, IssueSeverity? NewSeverity = null, NewIssueStepData? NewLastSuccess = null, NewIssueStepData? NewFailure = null, NewIssueStepData? NewNextSuccess = null, List<NewIssueSpanSuspectData>? NewSuspects = null, bool? NewModified = null)
+		public async Task<IIssueSpan?> TryUpdateSpanAsync(IIssueSpan Span, IssueSeverity? NewSeverity = null, NewIssueStepData? NewLastSuccess = null, NewIssueStepData? NewFailure = null, NewIssueStepData? NewNextSuccess = null, List<NewIssueSpanSuspectData>? NewSuspects = null, bool? NewModified = null)
 		{
 			List<UpdateDefinition<IssueSpan>> Updates = new List<UpdateDefinition<IssueSpan>>();
 			if (NewSeverity != null)
@@ -1385,10 +1385,9 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IIssueSpan?> FindModifiedSpanAsync()
+		public async Task<List<IIssueSpan>> FindModifiedSpansAsync()
 		{
-			IssueSpan? IssueSpan = await IssueSpans.Find(x => x.Modified).FirstOrDefaultAsync();
-			return IssueSpan;
+			return await IssueSpans.Find(x => x.Modified).ToListAsync<IssueSpan, IIssueSpan>();
 		}
 
 		#endregion
