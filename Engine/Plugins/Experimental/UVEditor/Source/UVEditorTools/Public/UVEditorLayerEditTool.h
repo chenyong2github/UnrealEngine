@@ -184,9 +184,9 @@ public:
 
 	virtual void OnTick(float DeltaTime) override;
 
-	virtual bool HasCancel() const override { return true; }
+	virtual bool HasCancel() const override { return false; }
 	virtual bool HasAccept() const override { return false; }
-	virtual bool CanAccept() const override;
+	virtual bool CanAccept() const override { return false; }
 
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 

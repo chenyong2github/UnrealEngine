@@ -22,9 +22,10 @@ public:
 	TSharedPtr<FUICommandInfo> BeginLayoutTool;
 	TSharedPtr<FUICommandInfo> BeginParameterizeMeshTool;
 	TSharedPtr<FUICommandInfo> BeginChannelEditTool;
+	TSharedPtr<FUICommandInfo> BeginSeamTool;
 
-	TSharedPtr<FUICommandInfo> AcceptActiveTool;
-	TSharedPtr<FUICommandInfo> CancelActiveTool;
+	TSharedPtr<FUICommandInfo> AcceptOrCompleteActiveTool;
+	TSharedPtr<FUICommandInfo> CancelOrCompleteActiveTool;
 
 	TSharedPtr<FUICommandInfo> EnableOrbitCamera;
 	TSharedPtr<FUICommandInfo> EnableFlyCamera;
