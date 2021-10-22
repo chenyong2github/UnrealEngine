@@ -779,91 +779,101 @@ static int32 FindUVElementForVertex(const FDynamicMesh3* Mesh, const FDynamicMes
 
 
 
-bool FDynamicMeshUVEditor::CreateSeamAlongVertexPath(const TArray<int32>& VertexPath, FUVEditResult* Result)
+bool FDynamicMeshUVEditor::CreateSeamsAtEdges(const TSet<int32>& EidsToMakeIntoSeams, FUVEditResult* Result)
 {
-	// todo: handle paths that are loops (may just work?)
-	check(VertexPath[0] != VertexPath.Last());
-
-	// construct list of sequential mesh edges, and set of seam edges, for VertexPath
-	TArray<int32> EdgePath;
-	TSet<int32> SeamEdges;
-	int32 NumVerts = VertexPath.Num();
-	for (int32 k = 0; k < NumVerts - 1; ++k)
+	/**
+	 * @param TidsUntilNextSeam Tids in a fan away from Eid around Vid until the next seam. Will
+	 *  be the entire one-ring if the given Eid is the only seam attached to Vid.
+	 */
+	auto DoesVertHaveAnotherSeamAttached = [this, &EidsToMakeIntoSeams](int32 Eid, int32 Vid, TArray<int32>& TidsUntilNextSeam)
 	{
-		int32 FoundEdgeID = Mesh->FindEdge(VertexPath[k], VertexPath[k+1]);
-		if (Mesh->IsEdge(FoundEdgeID) == false)
+		TidsUntilNextSeam.Reset();
+
+		FIndex2i EdgeTids = Mesh->GetEdgeT(Eid);
+		int32 CurrentTid = EdgeTids.A;
+		int32 PreviousTid = EdgeTids.B;
+
+		int32 MaxNumTids = Mesh->GetVtxEdgeCount(Vid);
+		while (true) 
 		{
-			return false;
-		}
+			TidsUntilNextSeam.Add(CurrentTid);
+			if (TidsUntilNextSeam.Num() > MaxNumTids) // sanity check
+			{
+				ensure(false);
+				return false;
+			}
 
-		EdgePath.Add(FoundEdgeID);
-		if (UVOverlay->IsSeamEdge(FoundEdgeID))
+			FIndex3i NextTriResult = UE::Geometry::FindNextAdjacentTriangleAroundVtx(Mesh, Vid, CurrentTid, PreviousTid,
+				[this, &EidsToMakeIntoSeams, Eid](int32 Tri0, int32 Tri1, int32 EidBetween) {
+					// We stop at seam or at future seam not including our starting edge (if we walk across the starting
+					// edge we will stop at a later check- we just don't want to think that we reached a true seam).
+					return UVOverlay->AreTrianglesConnected(Tri0, Tri1) && !(EidBetween != Eid && EidsToMakeIntoSeams.Contains(EidBetween)); }
+			);
+			int32 NextTid = NextTriResult.A;
+
+			// See if we've come to a (current or future) seam or wrapped around
+			if (NextTid == IndexConstants::InvalidID)
+			{
+				return true;
+			}
+			else if (NextTid == EdgeTids.A)
+			{
+				return false;
+			}
+			PreviousTid = CurrentTid;
+			CurrentTid = NextTid;
+		}
+	};
+
+	auto SplitEdgeVertElement = [this, Result](int32 Eid, int32 Vid, const TArray<int32>& TidsToModify) {
+		int32 ElementID = FindUVElementForVertex(Mesh, UVOverlay, Vid, Eid);
+		if (ensure(ElementID != IndexConstants::InvalidID))
 		{
-			SeamEdges.Add(FoundEdgeID);
+			int32 NewElementID = UVOverlay->SplitElement(ElementID, TidsToModify);
+			if (Result)
+			{
+				Result->NewUVElements.Add(NewElementID);
+			}
 		}
-	}
+	};
 
-	bool bStartIsSeamVtx = UVOverlay->IsSeamVertex(VertexPath[0]);
-	bool bEndIsSeamVtx = UVOverlay->IsSeamVertex(VertexPath.Last());
-
-	// handle start vert. If it's on a boundary/seam we split it, otherwise we do not (next-vtx split will create seam)
-	if (bStartIsSeamVtx && SeamEdges.Contains(EdgePath[0]) == false)
+	for (int32 Eid : EidsToMakeIntoSeams)
 	{
-		TArray<int32> SplitSets[2];
-		bool bSetsOK = FindSeamTriSplitSets_BoundaryVtx(Mesh, UVOverlay, VertexPath[0], EdgePath[0], SplitSets);
-		check(bSetsOK);
-		int32 ElementID = FindUVElementForVertex(Mesh, UVOverlay, VertexPath[0], EdgePath[0]);
-		check(ElementID != IndexConstants::InvalidID);
-		int32 NewElementID = UVOverlay->SplitElement(ElementID, SplitSets[0]);
-		if (Result)
-		{
-			Result->NewUVElements.Add(NewElementID);
-		}
-	}
-
-	// handle end-vert similarly
-	if (bEndIsSeamVtx && SeamEdges.Contains(EdgePath.Last()) == false)
-	{
-		TArray<int32> SplitSets[2];
-		bool bSetsOK = FindSeamTriSplitSets_BoundaryVtx(Mesh, UVOverlay, VertexPath.Last(), EdgePath.Last(), SplitSets);
-		check(bSetsOK);
-		int32 ElementID = FindUVElementForVertex(Mesh, UVOverlay, VertexPath.Last(), EdgePath.Last());
-		check(ElementID != IndexConstants::InvalidID);
-		int32 NewElementID = UVOverlay->SplitElement(ElementID, SplitSets[0]);
-		if (Result)
-		{
-			Result->NewUVElements.Add(NewElementID);
-		}
-	}
-
-	// walk through intermediate verts and cut connected island at each one
-	for (int32 k = 1; k < NumVerts - 1; ++k)
-	{
-		// todo: need to check here that we have not already separated the two SplitSets?
-
-		int32 PrevEdge = EdgePath[k-1];
-		int32 NextEdge = EdgePath[k];
-
-		if (Mesh->IsBoundaryEdge(PrevEdge) || Mesh->IsBoundaryEdge(NextEdge))
+		// If the edge is already a seam, don't need to do anything for it
+		if (UVOverlay->IsSeamEdge(Eid))
 		{
 			continue;
 		}
 
-		TArray<int32> SplitSets[2];
-		bool bSetsOK = FindSeamTriSplitSets_InteriorVtx(Mesh, UVOverlay, VertexPath[k], PrevEdge, NextEdge, SplitSets);
-		check(bSetsOK);
-		int32 ElementID = FindUVElementForVertex(Mesh, UVOverlay, VertexPath[k], PrevEdge);
-		check(ElementID != IndexConstants::InvalidID);
-		int32 NewElementID = UVOverlay->SplitElement(ElementID, SplitSets[0]);
-		if (Result)
+		FIndex2i EdgeVids = Mesh->GetEdgeV(Eid);
+		TArray<int32> TidsToNextSeamA, TidsToNextSeamB;
+		bool bSeamCreated = false;
+
+		// Perform the two tests before we split either vert. A vert has to get split if it has a
+		// seam attached, because splitting the other vert would create a bowtie.
+		bool VertANeedsSplitting = DoesVertHaveAnotherSeamAttached(Eid, EdgeVids.A, TidsToNextSeamA);
+		bool VertBNeedsSplitting = DoesVertHaveAnotherSeamAttached(Eid, EdgeVids.B, TidsToNextSeamB);
+
+		// If neither absolutely has to get split, then one needs to get split anyway so that we
+		// make the edge into a seam.
+		if (!VertANeedsSplitting && !VertBNeedsSplitting)
 		{
-			Result->NewUVElements.Add(NewElementID);
+			VertANeedsSplitting = true;
+			TidsToNextSeamA.SetNum((TidsToNextSeamA.Num() + 1) / 2); // Go halfway around, rounding up
+		}
+
+		if (VertANeedsSplitting)
+		{
+			SplitEdgeVertElement(Eid, EdgeVids.A, TidsToNextSeamA);
+		}
+		if (VertBNeedsSplitting)
+		{
+			SplitEdgeVertElement(Eid, EdgeVids.B, TidsToNextSeamB);
 		}
 	}
 
 	return true;
 }
-
 
 
 

@@ -171,15 +171,18 @@ public:
 	 */
 	bool SetTriangleUVsFromFreeBoundaryConformal(const TArray<int32>& Triangles, bool bUseExistingUVTopology, FUVEditResult* Result = nullptr);
 
-
 	/**
-	 * Cut existing UV topolgy with a path of vertices. This allows for creating partial seams/darts, interior cuts, etc.
-	 * @param VertexPath sequential list of edge-connected vertices
+	 * Cut existing UV topolgy with a set of edges. This allows for creating partial seams/darts, interior cuts, etc.
+	 * 
+	 * Avoids creating bowties. In cases where an edge is not next to any present or future seams/borders, some
+	 * adjacent edge will be picked to be made into a seam as well, since it's impossible to make the original
+	 * into a seam otherwise.
+
+	 * @param EidsToMakeIntoSeams list of edges to turn into seams
 	 * @param Result if non-null, list of new UV elements created along the path will be stored here (not ordered)
 	 * @return true on success
 	 */
-	bool CreateSeamAlongVertexPath(const TArray<int32>& VertexPath, FUVEditResult* Result = nullptr);
-
+	bool CreateSeamsAtEdges(const TSet<int32>& EidsToMakeIntoSeams, FUVEditResult* Result = nullptr);
 
 	/**
 	 * Set UVs by box projection. Triangles will be grouped to "best" box face

@@ -30,6 +30,66 @@ using namespace UE::Geometry;
 
 namespace UVSelectToolLocals
 {
+	// These following three functions deal with the unfortunate problem that eids are unstable as identifiers
+	// (e.g. removing and reinserting the same triangles can change the eids of the edges), so edges have to
+	// be identified in another way. We identify them by vertex ID pairs. This should really be dealt with
+	// on a mesh selection level, but for now we fix it here.
+	// After selection changes, we convert our eids to vid pairs. After mesh changes, we update the selection
+	// eids from our stored vid pairs.
+
+	/** If selection is a non-empty edge selection, update its eids using stored vid pairs. */
+	void UpdateSelectionEidsAfterMeshChange(FDynamicMeshSelection& SelectionInOut, TArray<FIndex2i>* VidPairsIn)
+	{
+		if (!SelectionInOut.Mesh || SelectionInOut.Type != FDynamicMeshSelection::EType::Edge)
+		{
+			// No update necessary
+			return;
+		}
+
+		// Otherwise, updating eids.
+		if (!ensure(VidPairsIn))
+		{
+			return;
+		}
+		SelectionInOut.SelectedIDs.Empty();
+		for (const FIndex2i& VidPair : *VidPairsIn)
+		{
+			int32 Eid = SelectionInOut.Mesh->FindEdge(VidPair.A, VidPair.B);
+			if (ensure(Eid != IndexConstants::InvalidID))
+			{
+				SelectionInOut.SelectedIDs.Add(Eid);
+			}
+		}
+	}
+
+	/** If selection mechanic holds a non-empty edge selection, update its eids using stored vid pairs. */
+	void UpdateSelectionEidsAfterMeshChange(UMeshSelectionMechanic& SelectionMechanic, TArray<FIndex2i>* VidPairsIn)
+	{
+		const FDynamicMeshSelection& CurrentSelection = SelectionMechanic.GetCurrentSelection();
+		if (CurrentSelection.Mesh && CurrentSelection.Type == FDynamicMeshSelection::EType::Edge)
+		{
+			FDynamicMeshSelection UpdatedSelection = CurrentSelection;
+			UpdateSelectionEidsAfterMeshChange(UpdatedSelection, VidPairsIn);
+			SelectionMechanic.SetSelection(UpdatedSelection, false, false);
+		}
+	}
+
+	void GetVidPairsFromSelection(const FDynamicMeshSelection& SelectionIn, TArray<FIndex2i>& VidPairsOut)
+	{
+		VidPairsOut.Reset();
+		if (!SelectionIn.Mesh || SelectionIn.Type != FDynamicMeshSelection::EType::Edge)
+		{
+			// No vid pairs to add
+			return;
+		}
+
+		// Otherwise create the vid pairs out of eids
+		for (int32 Eid : SelectionIn.SelectedIDs)
+		{
+			VidPairsOut.Add(SelectionIn.Mesh->GetEdgeV(Eid));
+		}
+	}
+
 	/**
 	 * An undo/redo object for selection changes that, instead of operating directly on a selection
 	 * mechanic, instead operates on a context object that tools can use to route the request
@@ -37,6 +97,9 @@ namespace UVSelectToolLocals
 	 * to be undoable in different invocations of the tool, and the selection mechanic pointer
 	 * will not stay the same. However, the context object will stay the same, and we can register
 	 * to its delegate on each invocation.
+	 * 
+	 * The other thing that is different about this selection change object is that in cases of edge
+	 * selections, it uses stored vid pairs rather then eids, to deal with mesh changes that alter eids.
 	 */
 	class FSelectionChange : public FToolCommandChange
 	{
@@ -48,16 +111,27 @@ namespace UVSelectToolLocals
 		 *   the gizmo gets reset on the way forward to the current selection, which means we have to
 		 *   reset it to the old orientation on the way back (otherwise a rotated gizmo would end up
 		 *   losing its rotation on undo).
+		 * @param EdgeVidPairsBeforeIn
+		 * @param EdgeVidPairsAfterIn
 		 */
 		FSelectionChange(const FDynamicMeshSelection& SelectionBeforeIn,
 			const FDynamicMeshSelection& SelectionAfterIn,
 			bool bBroadcastOnSelectionChangedIn,
-			const FTransform& GizmoBeforeIn)
+			const FTransform& GizmoBeforeIn,
+			TUniquePtr<TArray<FIndex2i>> EdgeVidPairsBeforeIn,
+			TUniquePtr<TArray<FIndex2i>> EdgeVidPairsAfterIn
+			)
 			: SelectionBefore(SelectionBeforeIn)
 			, SelectionAfter(SelectionAfterIn)
 			, bBroadcastOnSelectionChanged(bBroadcastOnSelectionChangedIn)
 			, GizmoBefore(GizmoBeforeIn)
+			, EdgeVidPairsBefore(MoveTemp(EdgeVidPairsBeforeIn))
+			, EdgeVidPairsAfter(MoveTemp(EdgeVidPairsAfterIn))
 		{
+			// Make sure that for both selections, if we have a non-empty edge selection, we have vid pairs.
+			ensure(!(
+				(SelectionBefore.Mesh && SelectionBefore.Type == FDynamicMeshSelection::EType::Edge && !EdgeVidPairsBefore)
+				|| (SelectionAfter.Mesh && SelectionAfter.Type == FDynamicMeshSelection::EType::Edge && !EdgeVidPairsAfter)));
 		}
 
 		virtual void Apply(UObject* Object) override
@@ -65,6 +139,7 @@ namespace UVSelectToolLocals
 			UUVSelectToolChangeRouter* ChangeRouter = Cast<UUVSelectToolChangeRouter>(Object);
 			if (ensure(ChangeRouter) && ChangeRouter->CurrentSelectTool.IsValid())
 			{
+				UpdateSelectionEidsAfterMeshChange(SelectionAfter, EdgeVidPairsAfter.Get());
 				ChangeRouter->CurrentSelectTool->SetSelection(SelectionAfter, bBroadcastOnSelectionChanged);
 			}
 		}
@@ -74,6 +149,7 @@ namespace UVSelectToolLocals
 			UUVSelectToolChangeRouter* ChangeRouter = Cast<UUVSelectToolChangeRouter>(Object);
 			if (ensure(ChangeRouter) && ChangeRouter->CurrentSelectTool.IsValid())
 			{
+				UpdateSelectionEidsAfterMeshChange(SelectionBefore, EdgeVidPairsBefore.Get());
 				ChangeRouter->CurrentSelectTool->SetSelection(SelectionBefore, bBroadcastOnSelectionChanged);
 				if (bBroadcastOnSelectionChanged)
 				{
@@ -98,6 +174,9 @@ namespace UVSelectToolLocals
 		FDynamicMeshSelection SelectionAfter;
 		bool bBroadcastOnSelectionChanged;
 		FTransform GizmoBefore;
+
+		TUniquePtr<TArray<FIndex2i>> EdgeVidPairsBefore;
+		TUniquePtr<TArray<FIndex2i>> EdgeVidPairsAfter;
 	};
 
 	/**
@@ -201,12 +280,6 @@ UInteractiveTool* UUVSelectToolBuilder::BuildTool(const FToolBuilderState& Scene
 }
 
 // Tool property functions
-
-void  USelectToolActionPropertySet::Sew()
-{
-	PostAction(ESelectToolAction::Sew);
-}
-
 void  USelectToolActionPropertySet::IslandConformalUnwrap()
 {
 	PostAction(ESelectToolAction::IslandConformalUnwrap);
@@ -223,6 +296,8 @@ void USelectToolActionPropertySet::PostAction(ESelectToolAction Action)
 
 void UUVSelectTool::Setup()
 {
+	using namespace UVSelectToolLocals;
+
 	check(Targets.Num() > 0);
 
 	UInteractiveTool::Setup();
@@ -264,8 +339,21 @@ void UUVSelectTool::Setup()
 	SelectionMechanic->EmitSelectionChange = [this](const FDynamicMeshSelection& OldSelection,
 		const FDynamicMeshSelection& NewSelection, bool bBroadcastOnSelectionChangedIn)
 	{
+		TUniquePtr<TArray<FIndex2i>> VidPairsBefore;
+		TUniquePtr<TArray<FIndex2i>> VidPairsAfter;
+		if (OldSelection.Type == FDynamicMeshSelection::EType::Edge)
+		{
+			VidPairsBefore = MakeUnique<TArray<FIndex2i>>();
+			GetVidPairsFromSelection(OldSelection, *VidPairsBefore);
+		}
+		if (NewSelection.Type == FDynamicMeshSelection::EType::Edge)
+		{
+			VidPairsAfter = MakeUnique<TArray<FIndex2i>>();
+			GetVidPairsFromSelection(NewSelection, *VidPairsAfter);
+		}
 		EmitChangeAPI->EmitToolIndependentChange(ChangeRouter, MakeUnique<UVSelectToolLocals::FSelectionChange>(
-			OldSelection, NewSelection, bBroadcastOnSelectionChangedIn, TransformGizmo->GetGizmoTransform()), 
+			OldSelection, NewSelection, bBroadcastOnSelectionChangedIn, TransformGizmo->GetGizmoTransform(),
+			MoveTemp(VidPairsBefore), MoveTemp(VidPairsAfter)),
 			LOCTEXT("SelectionChangeMessage", "Selection Change"));
 	};
 
@@ -305,6 +393,7 @@ void UUVSelectTool::Setup()
 	{
 		Targets[i]->OnCanonicalModified.AddWeakLambda(this, [this, i]
 		(UUVEditorToolMeshInput* InputObject, const UUVEditorToolMeshInput::FCanonicalModifiedInfo& Info) {
+			UpdateSelectionEidsAfterMeshChange(*SelectionMechanic, &CurrentSelectionVidPairs);
 			UpdateGizmo();
 			SelectionMechanic->RebuildDrawnElements(TransformGizmo->GetGizmoTransform());
 		});
@@ -458,12 +547,16 @@ void UUVSelectTool::ConfigureSelectionModeFromControls()
 
 void UUVSelectTool::OnSelectionChanged()
 {
+	using namespace UVSelectToolLocals;
+
 	const FDynamicMeshSelection& Selection = SelectionMechanic->GetCurrentSelection();
+
+	GetVidPairsFromSelection(Selection, CurrentSelectionVidPairs);
 
 	SelectionTargetIndex = -1;
 	MovingVids.Reset();
 	SelectedTids.Reset();
-	BoundaryEids.Reset();
+	LivePreviewBoundaryEids.Reset();
 
 	if (!Selection.IsEmpty())
 	{
@@ -510,7 +603,7 @@ void UUVSelectTool::OnSelectionChanged()
 					{
 						if (EdgeTids[j] != Tid && !Selection.SelectedIDs.Contains(EdgeTids[j]))
 						{
-							BoundaryEids.Add(TriEids[i]);
+							LivePreviewBoundaryEids.Add(TriEids[i]);
 							break;
 						}
 					}
@@ -589,7 +682,7 @@ void UUVSelectTool::UpdateLivePreviewLines()
 		FTransform MeshTransform = Targets[SelectionTargetIndex]->AppliedPreview->PreviewMesh->GetTransform();
 		const FDynamicMesh3* LivePreviewMesh = Targets[SelectionTargetIndex]->AppliedCanonical.Get();
 
-		for (int32 Eid : BoundaryEids)
+		for (int32 Eid : LivePreviewBoundaryEids)
 		{
 			FVector3d Vert1, Vert2;
 			LivePreviewMesh->GetEdgeV(Eid, Vert1, Vert2);
@@ -775,9 +868,76 @@ void UUVSelectTool::ApplyAction(ESelectToolAction ActionType)
 			EmitChangeAPI->EndUndoTransaction();
 		}
 		break;
+	case ESelectToolAction::Split:
+		ApplySplit();
 	default:
 		break;
 	}
+}
+
+void UUVSelectTool::ApplySplit()
+{
+	using namespace UVSelectToolLocals;
+
+	const FDynamicMeshSelection& Selection = SelectionMechanic->GetCurrentSelection();
+
+	if (Selection.IsEmpty() || Selection.Type != FDynamicMeshSelection::EType::Edge)
+	{
+		return;
+	}
+
+	if (!ensure(SelectionTargetIndex >= 0))
+	{
+		return;
+	}
+	UUVEditorToolMeshInput* Target = Targets[SelectionTargetIndex];
+	
+	// Gather up the corresponding edge IDs in the applied (3d) mesh.
+	TSet<int32> AppliedEidSet;
+	for (int32 Eid : Selection.SelectedIDs)
+	{
+		FIndex2i EdgeUnwrapVids = Selection.Mesh->GetEdgeV(Eid);
+
+		int32 AppliedEid = Target->AppliedCanonical->FindEdge(
+			Target->UnwrapVidToAppliedVid(EdgeUnwrapVids.A),
+			Target->UnwrapVidToAppliedVid(EdgeUnwrapVids.B));
+
+		if (ensure(AppliedEid != IndexConstants::InvalidID))
+		{
+			AppliedEidSet.Add(AppliedEid);
+		}
+	}
+
+	// Perform the cut in the overlay
+	FUVEditResult UVEditResult;
+	FDynamicMeshUVEditor UVEditor(Target->AppliedCanonical.Get(),
+		Target->UVLayerIndex, false);
+	UVEditor.CreateSeamsAtEdges(AppliedEidSet, &UVEditResult);
+
+	// Figure out the triangles that need to be saved in the unwrap for undo
+	TSet<int32> TidSet;
+	for (int32 UnwrapVid : UVEditResult.NewUVElements)
+	{
+		TArray<int32> VertTids;
+		Target->AppliedCanonical->GetVtxTriangles(Target->UnwrapVidToAppliedVid(UnwrapVid), VertTids);
+		TidSet.Append(VertTids);
+	}
+
+	FDynamicMeshChangeTracker ChangeTracker(Target->UnwrapCanonical.Get());
+	ChangeTracker.BeginChange();
+	ChangeTracker.SaveTriangles(TidSet, true);
+
+	// Perform the update
+	TArray<int32> AppliedTids = TidSet.Array();
+	Target->UpdateAllFromAppliedCanonical(&UVEditResult.NewUVElements, &AppliedTids, &AppliedTids);
+	AABBTrees[SelectionTargetIndex]->Build();
+
+	// Emit transaction
+	const FText TransactionName(LOCTEXT("ApplySplitTransactionName", "Split Edges"));
+	EmitChangeAPI->EmitToolIndependentUnwrapCanonicalChange(
+		Target, ChangeTracker.EndChange(), TransactionName);
+
+	UpdateSelectionEidsAfterMeshChange(*SelectionMechanic, &CurrentSelectionVidPairs);
 }
 
 #undef LOCTEXT_NAMESPACE
