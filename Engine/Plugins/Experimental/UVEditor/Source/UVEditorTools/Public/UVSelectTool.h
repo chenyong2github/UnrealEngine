@@ -83,7 +83,8 @@ enum class ESelectToolAction
 	NoAction,
 
 	Sew,
-	IslandConformalUnwrap
+	Split,
+	IslandConformalUnwrap,
 };
 
 UCLASS()
@@ -97,14 +98,17 @@ public:
 	void Initialize(UUVSelectTool* ParentToolIn) { ParentTool = ParentToolIn; }
 	void PostAction(ESelectToolAction Action);
 
-	/* Sew selected boundary edges together topologically in the UV set */
+	/** Sew edges. The red edges will be sewn to the green edges */
 	UFUNCTION(CallInEditor, Category = Actions)
-	void Sew();
+	void Sew() { PostAction(ESelectToolAction::Sew); }
+
+	/** Split given edges/verts */
+	UFUNCTION(CallInEditor, Category = Actions)
+	void Split() { PostAction(ESelectToolAction::Split); };
 
 	/* Apply a conformal unwrap to the selected UV islands */
 	UFUNCTION(CallInEditor, Category = Actions)
 	void IslandConformalUnwrap();
-
 };
 
 
@@ -216,11 +220,17 @@ protected:
 	TArray<int32> SelectedTids;
 	TArray<FVector3d> MovingVertOriginalPositions;
 	int32 SelectionTargetIndex;
-	TArray<int32> BoundaryEids;
+	TArray<int32> LivePreviewBoundaryEids;
 	
+	// When selecting edges, used to hold the edges as pairs of vids, because the eids change
+	// during undo/redo and other topological operations.
+	TArray<UE::Geometry::FIndex2i> CurrentSelectionVidPairs;
+
 	ESelectToolAction PendingAction;
 
 	void ApplyAction(ESelectToolAction ActionType);
+	void ApplySplit();
+
 	const float LivePreviewHighlightThickness = 2.0;
 	const float LivePreviewHighlightDepthOffset = 0.5;
 };

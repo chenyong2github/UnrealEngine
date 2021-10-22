@@ -331,8 +331,18 @@ void USeamSculptTool::CreateSeamAlongPath()
 		TUniquePtr<FMeshChange> MeshEditChange = PreviewMesh->TrackedEditMesh([&](FDynamicMesh3& Mesh, FDynamicMeshChangeTracker& Tracker)
 		{
 			Tracker.SaveVertexOneRingTriangles(CurDrawPath, true);
+
+			TSet<int32> PathEids;
+			for (int32 i = 0; i < CurDrawPath.Num() - 1; ++i)
+			{
+				int32 Eid = Mesh.FindEdge(CurDrawPath[i], CurDrawPath[i + 1]);
+				if (ensure(Eid != IndexConstants::InvalidID))
+				{
+					PathEids.Add(Eid);
+				}
+			}
 			FDynamicMeshUVEditor UVEditor(&Mesh, 0, false);
-			UVEditor.CreateSeamAlongVertexPath(CurDrawPath);
+			UVEditor.CreateSeamsAtEdges(PathEids);
 		});
 
 		GetToolManager()->EmitObjectChange(PreviewMesh, MoveTemp(MeshEditChange), LOCTEXT("CreateSeamChange", "Add UV Seam"));
