@@ -2,7 +2,6 @@
 
 #include "NeuralNetworkInferenceEditorModule.h"
 #include "NeuralNetworkAssetTypeActions.h"
-#include "NeuralNetworkLegacyAssetTypeActions.h"
 #include "IAssetTypeActions.h"
 #include "Interfaces/IPluginManager.h"
 
@@ -22,7 +21,7 @@ public:
 	virtual EAssetTypeCategories::Type GetMLAssetCategoryBit() const;
 
 private:
-	TArray<TSharedPtr<IAssetTypeActions>> Actions;
+	TSharedPtr<IAssetTypeActions> Action;
 	EAssetTypeCategories::Type MLAssetCategoryBit;
 };
 
@@ -36,10 +35,8 @@ void FNeuralNetworkInferenceEditorModule::StartupModule()
 {
 	// UNeuralNetwork - Register asset types
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-	Actions.Emplace(MakeShared<FNeuralNetworkAssetTypeActions>());
-	AssetTools.RegisterAssetTypeActions(Actions.Last().ToSharedRef());
-	Actions.Emplace(MakeShared<FNeuralNetworkLegacyAssetTypeActions>());
-	AssetTools.RegisterAssetTypeActions(Actions.Last().ToSharedRef());
+	Action = MakeShared<FNeuralNetworkAssetTypeActions>();
+	AssetTools.RegisterAssetTypeActions(Action.ToSharedRef());
 	// Register ML category so that ML assets can register to it
 	MLAssetCategoryBit = AssetTools.RegisterAdvancedAssetCategory(FName(TEXT("ML")), NSLOCTEXT("MLAssetCategory", "MLAssetCategory_ML", "Machine Learning"));
 }
@@ -53,12 +50,9 @@ void FNeuralNetworkInferenceEditorModule::ShutdownModule()
 	{
 		IAssetTools& AssetTools = ModuleInterface->Get();
 		// UNeuralNetwork - Unregister asset types
-		for (TSharedPtr<IAssetTypeActions>& Action : Actions)
+		if (Action.IsValid())
 		{
-			if (Action.IsValid())
-			{
-				AssetTools.UnregisterAssetTypeActions(Action.ToSharedRef());
-			}
+			AssetTools.UnregisterAssetTypeActions(Action.ToSharedRef());
 		}
 	}
 }

@@ -3,6 +3,7 @@
 #include "OperatorTester.h"
 #include "NeuralNetworkInferenceQAUtils.h"
 #include "NeuralOperators.h"
+#include "NeuralTensorManager.h"
 #include "Misc/Paths.h"
 
 
@@ -75,14 +76,14 @@ void FOperatorTester::TestOperator(UNeuralNetworkInferenceQAAsset* InOutNetworkI
 			return;
 		}
 		// Network tests
-		UNeuralNetworkLegacy* Network = NewObject<UNeuralNetworkLegacy>((UObject*)GetTransientPackage(), UNeuralNetworkLegacy::StaticClass());
+		UNeuralNetwork* Network = NewObject<UNeuralNetwork>((UObject*)GetTransientPackage(), UNeuralNetwork::StaticClass());
 		if (!Network)
 		{
 			ensureMsgf(false, TEXT("Network is nullptr."));
 			return;
 		}
-		FNeuralTensorManager TensorManager(InOutTensors[Index], InputTensors, OutputTensors);
-		if (!TensorManager.IsLoaded())
+		TSharedPtr<FNeuralTensorManager> TensorManager = MakeShared<FNeuralTensorManager>(InOutTensors[Index], InputTensors, OutputTensors);
+		if (!TensorManager->IsLoaded())
 		{
 			ensureMsgf(false, TEXT("TensorManager could not be loaded."));
 			return;
@@ -100,7 +101,7 @@ void FOperatorTester::TestOperator(UNeuralNetworkInferenceQAAsset* InOutNetworkI
 		Network->SetDeviceType(ENeuralDeviceType::CPU);
 		if (InlinedTensorIndex > -1)
 		{
-			NetworkInputVsOutput(Network);
+			NetworkInputVsOutput(Network, InlinedTensorIndex);
 		}
 		// Test against GT saved on disk
 		// Case a) Only saving first test, the others should match the first test results
@@ -1161,74 +1162,70 @@ TArray<int64> FOperatorTester::FloatTensorToIntArray(const TArray<FNeuralTensor>
 	return OutputArray;
 }
 
-void FOperatorTester::ResetOrCheckInput(UNeuralNetworkLegacy* InOutNetwork, const TMap<FString, FNeuralTensor>& InInputTensorMap, const bool bIsInlinedTensor)
+void FOperatorTester::ResetOrCheckInput(UNeuralNetwork* InOutNetwork, const TArray<FNeuralTensor>& InInputTensorArray, const bool bIsInlinedTensor)
 {
 	if (bIsInlinedTensor)
 	{
-		InOutNetwork->SetInputFromTensorMapCopy(InInputTensorMap);
+		InOutNetwork->SetInputFromArrayCopy(InInputTensorArray);
 	}
 	// Check input has not changed
 	else
 	{
-		const TArray<FNeuralTensor>& Tensors = InOutNetwork->GetTensors();
-		const TMap<FString, int32>& InputNameIndexMap = InOutNetwork->GetInputNameIndexMap();
-		for (const auto& InputTensorTuple : InInputTensorMap)
+		for (int32 InputIndex = 0; InputIndex < InOutNetwork->GetInputTensorNumber(); ++InputIndex)
 		{
-			const FNeuralTensor& InputTensor = Tensors[InputNameIndexMap.FindChecked(InputTensorTuple.Key)];
-			ensureMsgf(InputTensorTuple.Value.Num() == InputTensor.Num(), TEXT("InputTensorTuple.Value.Num() == InputTensor.Num() failed (%d != %d)."),
-				InputTensorTuple.Value.Num(), InputTensor.Num());
-			ensureMsgf(FNeuralNetworkInferenceQAUtils::EstimateTensorL1DiffError(InputTensor, InputTensorTuple.Value, 0.f, TEXT("ResetOrCheckInput")), TEXT("ResetOrCheckInput() did not pass."));
+			const FNeuralTensor& InputTensor = InOutNetwork->GetInputTensor(InputIndex);
+			ensureMsgf(InInputTensorArray[InputIndex].Num() == InputTensor.Num(), TEXT("InInputTensorArray[InputIndex].Num() == InputTensor.Num() failed (%d != %d)."),
+				InInputTensorArray[InputIndex].Num(), InputTensor.Num());
+			ensureMsgf(FNeuralNetworkInferenceQAUtils::EstimateTensorL1DiffError(InputTensor, InInputTensorArray[InputIndex], 0.f, TEXT("ResetOrCheckInput")), TEXT("ResetOrCheckInput() did not pass."));
 		}
 	}
 }
 
-void FOperatorTester::NetworkGPUvsCPU(UNeuralNetworkLegacy* InOutNetwork, const bool bIsInlinedTensor, const float InZeroThreshold)
+void FOperatorTester::NetworkGPUvsCPU(UNeuralNetwork* InOutNetwork, const bool bIsInlinedTensor, const float InZeroThreshold)
 {
-	// Create InputTensorMap
-	TMap<FString, FNeuralTensor> InputTensorMap = InOutNetwork->CreateInputTensorMap();
+	// Create InputTensorDataArray
+	const TArray<FNeuralTensor> InputTensorArray = InOutNetwork->CreateInputArrayCopy();
 	// GPU
 	InOutNetwork->SetDeviceType(ENeuralDeviceType::GPU);
 	InOutNetwork->Run();
 	// Store GPU results
-	const TMap<FString, FNeuralTensor> OutputTensorMapGPU = InOutNetwork->CreateOutputTensorMap();
+	const TArray<FNeuralTensor> OutputTensorArray = InOutNetwork->CreateOutputArrayCopy();
 	// Reset memory / Check input has not changed
-	ResetOrCheckInput(InOutNetwork, InputTensorMap, bIsInlinedTensor);
+	ResetOrCheckInput(InOutNetwork, InputTensorArray, bIsInlinedTensor);
 	// CPU
 	InOutNetwork->SetDeviceType(ENeuralDeviceType::CPU);
 	InOutNetwork->Run();
 	// CPU vs. GPU
-	const TArray<FNeuralTensor>& Tensors = InOutNetwork->GetTensors();
-	const TMap<FString, int32>& OutputNameIndexMap = InOutNetwork->GetOutputNameIndexMap();
-	for (const auto& OutputTensorGPUTuple : OutputTensorMapGPU)
+	for (int32 OutputIndex = 0; OutputIndex < InOutNetwork->GetOutputTensorNumber(); ++OutputIndex)
 	{
-		const FNeuralTensor& OutputTensor = Tensors[OutputNameIndexMap.FindChecked(OutputTensorGPUTuple.Key)];
-		ensureMsgf(OutputTensorGPUTuple.Value.Num() == OutputTensor.Num(), TEXT("OutputTensorGPUTuple.Value.Num() == OutputTensor.Num(): %d vs. %d"),
-			OutputTensorGPUTuple.Value.Num(), OutputTensor.Num());
-		ensureMsgf(FNeuralNetworkInferenceQAUtils::EstimateTensorL1DiffError(OutputTensor, OutputTensorGPUTuple.Value, InZeroThreshold, TEXT("GPUvsCPU")), TEXT("CPU vs. GPU error has too high"));
+		const FNeuralTensor& OutputTensorCPU = OutputTensorArray[OutputIndex];
+		const FNeuralTensor& OutputTensorGPU = InOutNetwork->GetOutputTensor(OutputIndex);
+		ensureMsgf(OutputTensorCPU.Num() == OutputTensorGPU.Num(), TEXT("OutputTensorCPU.Num() == OutputTensorGPU.Num(): %d vs. %d"),
+			OutputTensorCPU.Num(), OutputTensorGPU.Num());
+		ensureMsgf(FNeuralNetworkInferenceQAUtils::EstimateTensorL1DiffError(OutputTensorCPU, OutputTensorGPU, InZeroThreshold, TEXT("GPUvsCPU")), TEXT("CPU vs. GPU error has too high"));
 	}
 	// Reset memory / Check input has not changed
-	ResetOrCheckInput(InOutNetwork, InputTensorMap, bIsInlinedTensor); // This is doing an unnecessary copy (it should move really)
+	ResetOrCheckInput(InOutNetwork, InputTensorArray, bIsInlinedTensor); // This is doing an unnecessary copy (it should move really)
 }
 
-void FOperatorTester::NetworkInputVsOutput(UNeuralNetworkLegacy* InOutNetwork)
+void FOperatorTester::NetworkInputVsOutput(UNeuralNetwork* InOutNetwork, const int32 InInlinedTensorIndex)
 {
-	TMap<FString, FNeuralTensor> InputTensorMap = InOutNetwork->CreateInputTensorMap();
-	// Run UNeuralNetworkLegacy
+	const TArray<FNeuralTensor> InputTensorArray = InOutNetwork->CreateInputArrayCopy();
+	// Run UNeuralNetwork
 	InOutNetwork->Run();
-	// Check input equals output
-	for (const auto& OutputTensorPair : InOutNetwork->GetOutputNameIndexMap())
+	// Check input equals one of the outputs
+	const FNeuralTensor& InputTensor = InOutNetwork->GetInputTensor(InInlinedTensorIndex);
+	bool bIsSomeInputAnOutput = false;
+	for (int32 OutputIndex = 0; OutputIndex < InOutNetwork->GetOutputTensorNumber(); ++OutputIndex)
 	{
-		bool bIsSomeInputAnOutput = false;
-		for (const auto& InputTensorPair : InOutNetwork->GetInputNameIndexMap())
+		const FNeuralTensor& OutputTensor = InOutNetwork->GetOutputTensor(OutputIndex);
+		if (InputTensor.GetUnderlyingUInt8ArrayRef() == OutputTensor.GetUnderlyingUInt8ArrayRef())
 		{
-			if (InputTensorPair.Value == OutputTensorPair.Value)
-			{
-				bIsSomeInputAnOutput = true;
-				break;
-			}
+			bIsSomeInputAnOutput = true;
+			break;
 		}
-		ensureMsgf(bIsSomeInputAnOutput, TEXT("No input is being used as an output."));
 	}
+	ensureMsgf(bIsSomeInputAnOutput, TEXT("Input is not being used as an output."));
 	// Reset memory
-	InOutNetwork->SetInputFromTensorMapCopy(InputTensorMap); // This is doing an unnecessary copy (it should move really)
+	InOutNetwork->SetInputFromArrayCopy(InputTensorArray); // This is doing an unnecessary copy (it should move really)
 }

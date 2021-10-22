@@ -2,7 +2,6 @@
 
 #include "NeuralNetworkInferenceQAAsset.h"
 #include "NeuralNetworkInferenceQAUtils.h"
-#include "NeuralNetworkLegacy.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -12,19 +11,19 @@
 /* FNeuralNetworkInferenceQAOperatorTestAsset public functions
  *****************************************************************************/
 
-void FNeuralNetworkInferenceQAOperatorTestAsset::AddInputTensors(const TArray<FNeuralTensor>& InTensors, const TMap<FString, int32>& InNameIndexMap)
+void FNeuralNetworkInferenceQAOperatorTestAsset::AddInputTensors(const UNeuralNetwork* const InNetwork)
 {
-	for (const auto& NameIndexPair : InNameIndexMap)
+	for (int32 InputIndex = 0; InputIndex < InNetwork->GetInputTensorNumber(); ++InputIndex)
 	{
-		InputTensors.Push(InTensors[NameIndexPair.Value]);
+		InputTensors.Push(InNetwork->GetInputTensor(InputIndex));
 	}
 }
 
-void FNeuralNetworkInferenceQAOperatorTestAsset::AddOutputTensors(const TArray<FNeuralTensor>& InTensors, const TMap<FString, int32>& InNameIndexMap)
+void FNeuralNetworkInferenceQAOperatorTestAsset::AddOutputTensors(const UNeuralNetwork* const InNetwork)
 {
-	for (const auto& NameIndexPair : InNameIndexMap)
+	for (int32 OutputIndex = 0; OutputIndex < InNetwork->GetOutputTensorNumber(); ++OutputIndex)
 	{
-		OutputTensors.Push(InTensors[NameIndexPair.Value]);
+		OutputTensors.Push(InNetwork->GetOutputTensor(OutputIndex));
 	}
 }
 
@@ -59,41 +58,39 @@ bool FNeuralNetworkInferenceQAOperatorTestAsset::CompareAverageL1DiffNewVsPrevio
 /* FNeuralNetworkInferenceQAOperatorAsset public functions
  *****************************************************************************/
 
-FString FNeuralNetworkInferenceQAOperatorAsset::RunNetworkCPUAndGetString(UNeuralNetworkLegacy* InOutNetwork)
+FString FNeuralNetworkInferenceQAOperatorAsset::RunNetworkCPUAndGetString(UNeuralNetwork* InOutNetwork)
 {
-	const TArray<FNeuralTensor>& Tensors = InOutNetwork->GetTensors();
-	// Create input string and InputTensorMap
-	const TMap<FString, FNeuralTensor> InputTensorMap = InOutNetwork->CreateInputTensorMap();
+	// Create input string and InputTensorArray
+	const TArray<FNeuralTensor> InputTensorArray = InOutNetwork->CreateInputArrayCopy();
 	FString TensorsAsString = TEXT("Input(s):\n");
-	for (const auto& InputTensor : InOutNetwork->GetInputNameIndexMap())
+	for (int32 InputIndex = 0; InputIndex < InOutNetwork->GetInputTensorNumber(); ++InputIndex)
 	{
-		TensorsAsString += Tensors[InputTensor.Value].ToString() + TEXT("\n");
+		TensorsAsString += InOutNetwork->GetInputTensor(InputIndex).ToString() + TEXT("\n");
 	}
 	// Run network
 	InOutNetwork->SetDeviceType(ENeuralDeviceType::CPU);
 	InOutNetwork->Run();
 	// Create output string
-	const TMap<FString, int32>& OutputNameIndexMap = InOutNetwork->GetOutputNameIndexMap();
 	TensorsAsString += TEXT("\nOutput(s):\n");
-	for (const auto& OutputTensorPair : OutputNameIndexMap)
+	for (int32 OutputIndex = 0; OutputIndex < InOutNetwork->GetOutputTensorNumber(); ++OutputIndex)
 	{
-		TensorsAsString += Tensors[OutputTensorPair.Value].ToString();
+		TensorsAsString += InOutNetwork->GetOutputTensor(OutputIndex).ToString() + TEXT("\n");
 	}
 	// Reset memory
-	InOutNetwork->SetInputFromTensorMapCopy(InputTensorMap); // This is doing an unnecessary copy (it should move really)
+	InOutNetwork->SetInputFromArrayCopy(InputTensorArray); // This is doing an unnecessary copy (it should move really)
 	// Return TensorsAsString
 	return TensorsAsString + TEXT("\n\n\n");
 }
 
-void FNeuralNetworkInferenceQAOperatorAsset::RunAndAddTest(UNeuralNetworkLegacy* InOutNetwork)
+void FNeuralNetworkInferenceQAOperatorAsset::RunAndAddTest(UNeuralNetwork* InOutNetwork)
 {
 	// Resize NewTests
 	NewTests.Emplace();
 
 	FNeuralNetworkInferenceQAOperatorTestAsset& NewTest = NewTests.Last();
 	NewTestsString += RunNetworkCPUAndGetString(InOutNetwork);
-	NewTest.AddInputTensors(InOutNetwork->GetTensors(), InOutNetwork->GetInputNameIndexMap());
-	NewTest.AddOutputTensors(InOutNetwork->GetTensors(), InOutNetwork->GetOutputNameIndexMap());
+	NewTest.AddInputTensors(InOutNetwork);
+	NewTest.AddOutputTensors(InOutNetwork);
 }
 
 bool FNeuralNetworkInferenceQAOperatorAsset::CompareNewVsPreviousTests(const FString& InGroundTruthDirectory, const FString& InOperatorName)
@@ -183,7 +180,7 @@ void UNeuralNetworkInferenceQAAsset::FindOrAddOperators(const TArray<FString>& I
 	}
 }
 
-void UNeuralNetworkInferenceQAAsset::RunAndAddTest(UNeuralNetworkLegacy* InOutNetwork, const FString& OperatorName)
+void UNeuralNetworkInferenceQAAsset::RunAndAddTest(UNeuralNetwork* InOutNetwork, const FString& OperatorName)
 {
 	Operators[OperatorName].RunAndAddTest(InOutNetwork);
 }
