@@ -4,12 +4,14 @@
 
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Animation/AnimSequence.h"
+#include "ContextualAnimTypes.h"
 #include "ContextualAnimUtilities.generated.h"
 
 class UContextualAnimSceneAsset;
 class USkeletalMeshComponent;
 class UAnimInstance;
 class AActor;
+struct FAnimMontageInstance;
 
 UCLASS()
 class CONTEXTUALANIMATION_API UContextualAnimUtilities : public UBlueprintFunctionLibrary
@@ -42,9 +44,11 @@ public:
 	
 	static void DrawDebugScene(const UWorld* World, const UContextualAnimSceneAsset* SceneAsset, int32 AnimDataIndex, float Time, const FTransform& ToWorldTransform, const FColor& Color, float LifeTime, float Thickness);
 
-	static USkeletalMeshComponent* TryGetSkeletalMeshComponent(AActor* Actor);
+	static USkeletalMeshComponent* TryGetSkeletalMeshComponent(const AActor* Actor);
 
-	static UAnimInstance* TryGetAnimInstance(AActor* Actor);
+	static UAnimInstance* TryGetAnimInstance(const AActor* Actor);
+
+	static FAnimMontageInstance* TryGetActiveAnimMontageInstance(const AActor* Actor);
 
 	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Utilities", meta = (DisplayName = "GetSectionStartAndEndTime"))
 	static void BP_Montage_GetSectionStartAndEndTime(const UAnimMontage* Montage, int32 SectionIndex, float& OutStartTime, float& OutEndTime);
@@ -54,4 +58,5 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Utilities", meta = (DisplayName = "GetSectionLength"))
 	static float BP_Montage_GetSectionLength(const UAnimMontage* Montage, int32 SectionIndex);
+
 };

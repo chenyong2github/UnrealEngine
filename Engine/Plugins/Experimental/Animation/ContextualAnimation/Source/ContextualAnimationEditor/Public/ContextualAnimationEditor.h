@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
+class IAssetTypeActions;
+
 class FContextualAnimationEditorModule : public IModuleInterface
 {
 public:
@@ -14,4 +16,10 @@ public:
 	virtual void ShutdownModule() override;
 
 	static FContextualAnimationEditorModule& Get();
+
+private:
+
+	FDelegateHandle MovieSceneAnimNotifyTrackEditorHandle;
+
+	TSharedPtr<IAssetTypeActions> ContextualAnimAssetActions;
 };
