@@ -73,6 +73,11 @@ namespace HordeServer.Models
 		public string? UserSummary { get; }
 
 		/// <summary>
+		/// Notes set by the user
+		/// </summary>
+		public string? Description { get; }
+
+		/// <summary>
 		/// Fingerprint for this issue
 		/// </summary>
 		public IIssueFingerprint Fingerprint { get; }

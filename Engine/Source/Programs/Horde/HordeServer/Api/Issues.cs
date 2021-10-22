@@ -371,9 +371,9 @@ namespace HordeServer.Api
 		public string Summary { get; set; }
 
 		/// <summary>
-		/// Details text describing the issue
+		/// Detailed description text
 		/// </summary>
-		public string? Details { get; set; }
+		public string? Description { get; set; }
 
 		/// <summary>
 		/// Severity of this issue
@@ -498,6 +498,7 @@ namespace HordeServer.Api
 			this.CreatedAt = Issue.CreatedAt;
 			this.RetrievedAt = DateTime.UtcNow;
 			this.Summary = String.IsNullOrEmpty(Issue.UserSummary)? Issue.Summary : Issue.UserSummary;
+			this.Description = Issue.Description;
 			this.Severity = Issue.Severity;
 			this.Owner = Details.Owner?.Login;
 			this.OwnerId = (Details.Owner == null)? null : Details.Owner.Id.ToString();
@@ -552,6 +553,11 @@ namespace HordeServer.Api
 		/// Summary of the issue
 		/// </summary>
 		public string? Summary { get; set; }
+
+		/// <summary>
+		/// Description of the issue
+		/// </summary>
+		public string? Description { get; set; }
 
 		/// <summary>
 		/// New user id for owner of the issue, can be cleared by passing empty string
