@@ -119,6 +119,9 @@ namespace Chaos
 
 		FPBDCollisionSolver();
 
+		FReal StaticFriction() const { return State.StaticFriction; }
+		FReal DynamicFriction() const { return State.DynamicFriction; }
+
 		void SetFriction(const FReal InStaticFriction, const FReal InDynamicFriction)
 		{
 			State.StaticFriction = InStaticFriction;
