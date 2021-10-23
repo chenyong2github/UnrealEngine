@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Containers/Map.h"
+#include "Containers/Queue.h"
 #include "Containers/SparseArray.h"
 
 namespace Chaos
