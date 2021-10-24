@@ -6,8 +6,6 @@ public class ONNXRuntime : ModuleRules
 {
 	public ONNXRuntime( ReadOnlyTargetRules Target ) : base( Target )
 	{
-		// TODO #2: Also, revert temporary changes done where the text "TODO - UE Temporary Hack(it avoids the compiling error, but not sure if it works!)" appears
-
 		ShortName = "ORT"; // Could be removed when plugin moves to Experimental, NFL path is too long
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
