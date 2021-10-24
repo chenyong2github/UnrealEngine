@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralNetworkImplBackEndUEOnly.h"
-#include "GraphProtoToNeuralNetworkConverter.h"
 #include "ModelProtoFileReader.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "RenderGraphBuilder.h"
 #include "RenderingThread.h"
+#include "UEOnly/GraphProtoToNeuralNetworkConverter.h"
 #include "RHI.h"
 
 
@@ -29,37 +29,32 @@ bool UNeuralNetwork::FImplBackEndUEOnly::Load(TSharedPtr<FImplBackEndUEOnly>& In
 		return false;
 	}
 	// Turn ModelProto into Operators
-	if (!FGraphProtoToNeuralNetworkConverter::Translate(InOutImplBackEndUEOnly->Operators, *InOutImplBackEndUEOnly->TensorManager, InOutImplBackEndUEOnly->ModelProto.GetGraph(), /*bInIsTensorManagerConst*/false))
+	if (!FGraphProtoToNeuralNetworkConverter::Translate(InOutImplBackEndUEOnly->Operators, InOutImplBackEndUEOnly->TensorManager, InOutImplBackEndUEOnly->ModelProto.GetGraph(), /*bInIsTensorManagerConst*/false))
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEOnly::Load(): Translate failed."));
 		return false;
 	}
-	if (!InOutImplBackEndUEOnly->TensorManager->IsLoaded())
+	if (!InOutImplBackEndUEOnly->TensorManager.IsLoaded())
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEOnly::Load(): TensorManager->IsLoaded() returned false."));
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEOnly::Load(): TensorManager.IsLoaded() returned false."));
 		return false;
 	}
 	// Load successful
 	return true;
 }
 
-bool UNeuralNetwork::FImplBackEndUEOnly::Load(TSharedPtr<FImplBackEndUEOnly>& InOutImplBackEndUEOnly, TSharedPtr<FNeuralTensorManager>& InTensorManager, const TArray<TSharedPtr<FNeuralOperator>>& InOperators)
+bool UNeuralNetwork::FImplBackEndUEOnly::Load(TSharedPtr<FImplBackEndUEOnly>& InOutImplBackEndUEOnly, FNeuralTensorManager& InTensorManager, const TArray<TSharedPtr<FNeuralOperator>>& InOperators)
 {
 	// Reset InOutImplBackEndUEOnly
 	Reset(InOutImplBackEndUEOnly);
 	// Load
-	if (!InTensorManager.IsValid())
-	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetworkLegacy::Load(): TensorManager was a nullptr."));
-		return false;
-	}
-	if (!InTensorManager->IsLoaded())
+	if (!InTensorManager.IsLoaded())
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetworkLegacy::Load(): TensorManager could not be loaded."));
 	}
 	Swap(InOutImplBackEndUEOnly->TensorManager, InTensorManager);
 	InOutImplBackEndUEOnly->Operators = InOperators;
-	return (InOutImplBackEndUEOnly->Operators.Num() > 0 && InOutImplBackEndUEOnly->TensorManager->IsLoaded());
+	return (InOutImplBackEndUEOnly->Operators.Num() > 0 && InOutImplBackEndUEOnly->TensorManager.IsLoaded());
 }
 
 //bool UNeuralNetwork::FImplBackEndUEOnly::Load(TSharedPtr<FImplBackEndUEOnly>& InOutImplBackEndUEOnly, FNeuralTensorManager& InTensorManager, const TArray<TSharedPtr<FNeuralOperator>>& InOperators)
@@ -76,7 +71,7 @@ bool UNeuralNetwork::FImplBackEndUEOnly::Load(TSharedPtr<FImplBackEndUEOnly>& In
 //	}
 //	Swap(InOutImplBackEndUEOnly->TensorManager, InTensorManager);
 //	InOutImplBackEndUEOnly->Operators = InOperators;
-//	return (InOutImplBackEndUEOnly->Operators.Num() > 0 && InOutImplBackEndUEOnly->TensorManager->IsLoaded());
+//	return (InOutImplBackEndUEOnly->Operators.Num() > 0 && InOutImplBackEndUEOnly->TensorManager.IsLoaded());
 //}
 
 void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
@@ -103,9 +98,9 @@ void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncR
 		{
 			DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UNeuralNetwork_UEOnly_Run::Forward_GPU"), STAT_UNeuralNetwork_UEOnly_Run_Forward_GPU, STATGROUP_MachineLearning);
 			// Sanity check
-			if (TensorManager->GetTensorsMutable().Num() < 1)
+			if (TensorManager.GetTensorsMutable().Num() < 1)
 			{
-				UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEOnly::Run(): Tensors.Num() = %d (should be > 0)."), TensorManager->GetTensorsMutable().Num());
+				UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEOnly::Run(): Tensors.Num() = %d (should be > 0)."), TensorManager.GetTensorsMutable().Num());
 				return;
 			}
 
@@ -116,7 +111,7 @@ void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncR
 					FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("FImplBackEndUEOnly::Run()"));
 
 					// Move memory from CPU to GPU
-					TArray<FNeuralTensor>& Tensors = TensorManager->GetTensorsMutable();
+					TArray<FNeuralTensor>& Tensors = TensorManager.GetTensorsMutable();
 					const bool bIsInputInCPU = (InInputDeviceType == ENeuralDeviceType::CPU);
 					// Move only input tensors to GPU (once per FImplBackEndUEOnly::Run())
 					if (bAreTensorsInGpu)
@@ -124,11 +119,11 @@ void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncR
 						// If input is on CPU, move inputs to GPU
 						if (bIsInputInCPU)
 						{
-							for (const int32 InputIndex : TensorManager->GetInputIndexes())
+							for (const int32 InputIndex : TensorManager.GetInputIndexes())
 							{
 								Tensors[InputIndex].ToGPU_RenderThread(&GraphBuilder);
 							}
-							for (const int32 NonInputIndex : TensorManager->GetNonInputIndexes())
+							for (const int32 NonInputIndex : TensorManager.GetNonInputIndexes())
 							{
 								Tensors[NonInputIndex].UpdateSRVAndOrUAV_RenderThread(&GraphBuilder);
 							}
@@ -158,11 +153,11 @@ void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncR
 						// If input is already on GPU, just refresh inputs
 						else
 						{
-							for (const int32 InputIndex : TensorManager->GetInputIndexes())
+							for (const int32 InputIndex : TensorManager.GetInputIndexes())
 							{
 								Tensors[InputIndex].UpdateSRVAndOrUAV_RenderThread(&GraphBuilder);
 							}
-							for (const int32 NonInputIndex : TensorManager->GetNonInputIndexes())
+							for (const int32 NonInputIndex : TensorManager.GetNonInputIndexes())
 							{
 								Tensors[NonInputIndex].ToGPU_RenderThread(&GraphBuilder);
 							}
@@ -192,7 +187,7 @@ void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncR
 					const bool bIsOutputInCPU = (InOutputDeviceType == ENeuralDeviceType::CPU);
 					if (bIsOutputInCPU)
 					{
-						for (const int32 OutputIndex : TensorManager->GetOutputIndexes())
+						for (const int32 OutputIndex : TensorManager.GetOutputIndexes())
 						{
 							Tensors[OutputIndex].ToCPU_RenderThread(&GraphBuilder);
 						}
@@ -238,8 +233,8 @@ void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncR
 //	FString String = ModelProto.GetGraph().ToString();
 //	// Add FNeuralTensor(s)
 //	String += TEXT("TensorManager:\n");
-//	const TMap<FString, int32>& NameIndexMap = TensorManager->GetNameIndexMap();
-//	const TArray<FNeuralTensor>& Tensors = TensorManager->GetTensors();
+//	const TMap<FString, int32>& NameIndexMap = TensorManager.GetNameIndexMap();
+//	const TArray<FNeuralTensor>& Tensors = TensorManager.GetTensors();
 //	if (NameIndexMap.Num() > 0)
 //	{
 //		for (const auto& NameIndexPair : NameIndexMap)
@@ -255,12 +250,12 @@ void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncR
 //		}
 //	}
 //	String += TEXT("InputTensorMap:\n");
-//	for (const auto& NameIndexPair : TensorManager->GetInputNameIndexMap())
+//	for (const auto& NameIndexPair : TensorManager.GetInputNameIndexMap())
 //	{
 //		String += FString::Format(TEXT(" -{0}: {1}\n"), { NameIndexPair.Key, Tensors[NameIndexPair.Value].ToString(20) });
 //	}
 //	String += TEXT("OutputTensorMap:\n");
-//	for (const auto& NameIndexPair : TensorManager->GetOutputNameIndexMap())
+//	for (const auto& NameIndexPair : TensorManager.GetOutputNameIndexMap())
 //	{
 //		String += FString::Format(TEXT(" -{0}: {1}\n"), { NameIndexPair.Key, Tensors[NameIndexPair.Value].ToString(20) });
 //	}
@@ -293,5 +288,4 @@ void UNeuralNetwork::FImplBackEndUEOnly::Reset(TSharedPtr<FImplBackEndUEOnly>& I
 		InOutImplBackEndUEOnly->ModelProto = FModelProto();
 		InOutImplBackEndUEOnly->bAreTensorsInGpu = false;
 	}
-	InOutImplBackEndUEOnly->TensorManager = MakeShared<FNeuralTensorManager>();
 }

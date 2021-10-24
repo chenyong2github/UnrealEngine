@@ -228,7 +228,7 @@ bool UNeuralNetwork::IsGPUConfigCompatibleForCurrentBackEnd() const
 	/* UEOnly */ \
 	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly) \
 	{ \
-		FNeuralTensorManager& TensorManager = *ImplBackEndUEOnly->TensorManager; \
+		FNeuralTensorManager& TensorManager = ImplBackEndUEOnly->TensorManager; \
 		return TensorManager.UEOnly_GetTensorsFunction()[TensorManager.UEAndORTOnly_GetIndexes()[InTensorIndex]]; \
 	} \
 	/* Unknown */ \
@@ -257,7 +257,7 @@ void UNeuralNetwork::SetInputFromArrayCopy(const TArray<float>& InArray, const i
 	// UEOnly
 	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
 	{
-		FNeuralTensorManager& TensorManager = *ImplBackEndUEOnly->TensorManager;
+		FNeuralTensorManager& TensorManager = ImplBackEndUEOnly->TensorManager;
 		TensorManager.GetTensorsMutable()[TensorManager.GetInputIndexes()[InTensorIndex]].SetFromArrayCopy(InArray);
 	}
 
@@ -286,7 +286,7 @@ void* UNeuralNetwork::GetInputDataPointerMutable(const int32 InTensorIndex)
 	// UEOnly
 	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
 	{
-		FNeuralTensorManager& TensorManager = *ImplBackEndUEOnly->TensorManager;
+		FNeuralTensorManager& TensorManager = ImplBackEndUEOnly->TensorManager;
 		return TensorManager.GetTensorsMutable()[TensorManager.GetInputIndexes()[InTensorIndex]].GetData();
 	}
 
@@ -313,7 +313,7 @@ int64 UNeuralNetwork::GetInputTensorNumber() const
 	// UEOnly
 	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
 	{
-		return ImplBackEndUEOnly->TensorManager->GetInputIndexes().Num();
+		return ImplBackEndUEOnly->TensorManager.GetInputIndexes().Num();
 	}
 
 	// Unknown
@@ -344,7 +344,7 @@ int64 UNeuralNetwork::GetOutputTensorNumber() const
 	// UEOnly
 	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
 	{
-		return ImplBackEndUEOnly->TensorManager->GetOutputIndexes().Num();
+		return ImplBackEndUEOnly->TensorManager.GetOutputIndexes().Num();
 	}
 
 	// Unknown
@@ -544,12 +544,20 @@ FNeuralTensor& UNeuralNetwork::GetOutputTensorMutable(const int32 InTensorIndex)
 	GET_TENSOR_CODE(InTensorIndex, GetOutputIndexes, GetTensorsMutable, OutputTensors);
 }
 
-bool UNeuralNetwork::Load(TSharedPtr<FNeuralTensorManager>& InTensorManager, const TArray<TSharedPtr<FNeuralOperator>>& InOperators)
+bool UNeuralNetwork::Load(TArray<FNeuralTensor>& InTensors, const TArray<FNeuralTensor*>& InInputTensors, const TArray<FNeuralTensor*>& InOutputTensors, const TArray<TSharedPtr<class FNeuralOperator>>& InOperators)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UNeuralNetwork_Load_FromTensorManagerAndOperators"), STAT_UNeuralNetwork_Load, STATGROUP_MachineLearning);
 	BackEnd = ENeuralBackEnd::UEOnly;
 	BackEndForCurrentPlatform = ENeuralBackEnd::UEOnly;
-	bIsLoaded = UNeuralNetwork::FImplBackEndUEOnly::Load(ImplBackEndUEOnly, InTensorManager, InOperators);
+	// Create and load TensorManager
+	FNeuralTensorManager TensorManager(InTensors, InInputTensors, InOutputTensors);
+	if (!TensorManager.IsLoaded())
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(): TensorManager could not be loaded."));
+		return false;
+	}
+	// Load network
+	bIsLoaded = UNeuralNetwork::FImplBackEndUEOnly::Load(ImplBackEndUEOnly, TensorManager, InOperators);
 	return bIsLoaded;
 }
 

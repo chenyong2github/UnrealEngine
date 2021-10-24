@@ -3,7 +3,6 @@
 #include "OperatorTester.h"
 #include "NeuralNetworkInferenceQAUtils.h"
 #include "NeuralOperators.h"
-#include "NeuralTensorManager.h"
 #include "Misc/Paths.h"
 
 
@@ -82,13 +81,7 @@ void FOperatorTester::TestOperator(UNeuralNetworkInferenceQAAsset* InOutNetworkI
 			ensureMsgf(false, TEXT("Network is nullptr."));
 			return;
 		}
-		TSharedPtr<FNeuralTensorManager> TensorManager = MakeShared<FNeuralTensorManager>(InOutTensors[Index], InputTensors, OutputTensors);
-		if (!TensorManager->IsLoaded())
-		{
-			ensureMsgf(false, TEXT("TensorManager could not be loaded."));
-			return;
-		}
-		if (!Network->Load(TensorManager, { Operator }))
+		if (!Network->Load(InOutTensors[Index], InputTensors, OutputTensors, { Operator }))
 		{
 			ensureMsgf(false, TEXT("Network could not be loaded."));
 			return;
