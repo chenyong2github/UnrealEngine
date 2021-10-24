@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "NeuralTensor.h"
-#include "NeuralTensorManager.generated.h"
 
 /**
  * This is an auxiliary class. See UNeuralNetworkLegacy for a high-level wrapper of the whole NeuralNetworkInference plugin. The UNeuralNetworkLegacy header
@@ -13,11 +12,8 @@
  * FNeuralTensorManager is an utility class that helps store all the FNeuralTensors related to a particular UNeuralNetworkLegacy model.
  * Most functions are inlined (or templated) to avoid the performance overhead of a wrapper class.
  */
-USTRUCT()
-struct NEURALNETWORKINFERENCE_API FNeuralTensorManager
+class FNeuralTensorManager
 {
-	GENERATED_BODY()
-
 public:
 	FNeuralTensorManager();
 

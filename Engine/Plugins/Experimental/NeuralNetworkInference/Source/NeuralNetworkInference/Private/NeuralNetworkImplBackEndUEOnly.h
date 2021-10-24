@@ -6,7 +6,7 @@
 
 #include "ModelProto.h"
 #include "NeuralOperator.h"
-#include "NeuralTensorManager.h"
+#include "UEOnly/NeuralTensorManager.h"
 
 /* FImplBackEndUEOnly
  *****************************************************************************/
@@ -23,7 +23,7 @@ struct UNeuralNetwork::FImplBackEndUEOnly
 	/**
 	 * It contains a few TArray and TMaps for all FNeuralTensors (Input, Output, Intermediate(Not)Initialized, Weight).
 	 */
-	TSharedPtr<FNeuralTensorManager> TensorManager;
+	FNeuralTensorManager TensorManager;
 
 	/**
 	 * Only for the vanilla back end.
@@ -32,7 +32,7 @@ struct UNeuralNetwork::FImplBackEndUEOnly
 	TArray<TSharedPtr<FNeuralOperator>> Operators;
 
 	static bool Load(TSharedPtr<FImplBackEndUEOnly>& InOutImplBackEndUEOnly, const TArray<uint8>& InModelReadFromFileInBytes);
-	static bool Load(TSharedPtr<FImplBackEndUEOnly>& InOutImplBackEndUEOnly, TSharedPtr<FNeuralTensorManager>& InTensorManager, const TArray<TSharedPtr<FNeuralOperator>>& InOperators);
+	static bool Load(TSharedPtr<FImplBackEndUEOnly>& InOutImplBackEndUEOnly, FNeuralTensorManager& InTensorManager, const TArray<TSharedPtr<FNeuralOperator>>& InOperators);
 
 	//static bool Load(TSharedPtr<FImplBackEndUEOnly>& InOutImplBackEndUEOnly, FNeuralTensorManager& InTensorManager, const TArray<TSharedPtr<FNeuralOperator>>& InOperators);
 

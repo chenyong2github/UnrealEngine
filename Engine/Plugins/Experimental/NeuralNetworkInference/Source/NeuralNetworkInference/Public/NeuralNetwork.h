@@ -268,7 +268,7 @@ public:
 	 * Internal function not needed by the user.
 	 * Used to create custom networks without an ONNX file for QA testing in FOperatorTester::TestOperator().
 	 */
-	bool Load(TSharedPtr<struct FNeuralTensorManager>& InTensorManager, const TArray<TSharedPtr<class FNeuralOperator>>& InOperators);
+	bool Load(TArray<FNeuralTensor>& InTensors, const TArray<FNeuralTensor*>& InInputTensors, const TArray<FNeuralTensor*>& InOutputTensors, const TArray<TSharedPtr<class FNeuralOperator>>& InOperators);
 
 #if WITH_EDITOR
 	/**
