@@ -118,6 +118,7 @@ public:
 	virtual bool TransactionObjectAffectsBlueprint(UObject* InTransactedObject) override;
 	virtual bool CanAddNewLocalVariable() const override;
 	virtual void OnAddNewLocalVariable() override;
+	virtual void OnPasteNewLocalVariable(const FBPVariableDescription& VariableDescription) override;
 	
 	virtual void DeleteSelectedNodes() override;
 	virtual bool CanDeleteNodes() const override;

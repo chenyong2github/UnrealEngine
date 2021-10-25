@@ -552,6 +552,9 @@ public:
 	/** Adds a new local variable to the focused function graph */
 	virtual void OnAddNewLocalVariable();
 
+	/** Pastes a new local variable to the focused function graph */
+	virtual void OnPasteNewLocalVariable(const FBPVariableDescription& VariableDescription);
+
 	// Type of new document/graph being created by a menu item
 	enum ECreatedDocumentType
 	{
