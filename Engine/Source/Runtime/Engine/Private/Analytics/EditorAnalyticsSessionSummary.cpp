@@ -59,7 +59,8 @@ FEditorAnalyticsSessionSummary::FEditorAnalyticsSessionSummary(TSharedPtr<IAnaly
 	// also be incremented when we change some behaviors to be able to compare between versions. Mostly useful for 'dev' branches where users bypasses UGS to update/build.
 	//    - V3 -> Windows optimization for stall/ensure -> The engine only captures the responsible thread so CRC walks 1 thread rather than all threads.
 	//    - V4 -> Added DirtyPackageCount property.
-	EditorAnalyticsProperties::SummaryEventVersion.Set(GetStore(), 4);
+	//    - V5 -> Added CPUInfo to the base class (EngineAnalyticsSessionSummary)
+	EditorAnalyticsProperties::SummaryEventVersion.Set(GetStore(), 5);
 
 	// Persist the session to disk.
 	GetStore()->Flush();

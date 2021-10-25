@@ -160,6 +160,7 @@ FEngineAnalyticsSessionSummary::FEngineAnalyticsSessionSummary(TSharedPtr<IAnaly
 	Store->Set(TEXT("CPULogicalCores"), FPlatformMisc::NumberOfCoresIncludingHyperthreads());
 	Store->Set(TEXT("CPUVendor"), FPlatformMisc::GetCPUVendor());
 	Store->Set(TEXT("CPUBrand"), FPlatformMisc::GetCPUBrand());
+	Store->Set(TEXT("CPUInfo"), FPlatformMisc::GetCPUInfo()); // This is a bitfield. See the function documentation in GenericPlatformMisc.h to interpret the bits.
 	Store->Set(TEXT("DesktopGPUAdapter"), FPlatformMisc::GetPrimaryGPUBrand());
 	Store->Set(TEXT("RenderingGPUAdapter"), GRHIAdapterName);
 	Store->Set(TEXT("GPUVendorID"), GRHIVendorId);
