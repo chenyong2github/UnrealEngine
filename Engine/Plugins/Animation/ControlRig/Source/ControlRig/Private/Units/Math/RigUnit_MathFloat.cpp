@@ -18,6 +18,11 @@ FRigUnit_MathFloatConstTwoPi_Execute()
 	Value = PI * 2.f;
 }
 
+FRigUnit_MathFloatConstE_Execute()
+{
+	Value = EULERS_NUMBER;
+}
+
 FRigUnit_MathFloatAdd_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -302,4 +307,10 @@ FRigUnit_MathFloatLawOfCosine_Execute()
 	BetaAngle = FMath::Acos((A * A + C * C - B * B) / (2.f * A * C));
 	AlphaAngle = PI - GammaAngle - BetaAngle;
 	bValid = true;
+}
+
+FRigUnit_MathFloatExponential_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+	Result = FMath::Exp(Value);
 }

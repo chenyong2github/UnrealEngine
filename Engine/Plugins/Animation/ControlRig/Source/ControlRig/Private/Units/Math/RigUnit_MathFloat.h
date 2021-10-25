@@ -89,11 +89,23 @@ struct CONTROLRIG_API FRigUnit_MathFloatConstHalfPi : public FRigUnit_MathFloatC
 /**
  * Returns PI * 2.0
  */
-USTRUCT(meta=(DisplayName="Two Pi"))
+USTRUCT(meta=(DisplayName="Two Pi", Keywords="Tau"))
 struct CONTROLRIG_API FRigUnit_MathFloatConstTwoPi : public FRigUnit_MathFloatConstant
 {
 	GENERATED_BODY()
 
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+};
+
+/**
+ * Returns E
+ */
+USTRUCT(meta=(DisplayName="E", Keywords="Euler"))
+struct CONTROLRIG_API FRigUnit_MathFloatConstE : public FRigUnit_MathFloatConstant
+{
+	GENERATED_BODY()
+	
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
@@ -850,4 +862,16 @@ struct CONTROLRIG_API FRigUnit_MathFloatLawOfCosine : public FRigUnit_MathFloatB
 
 	UPROPERTY(meta = (Output))
 	bool bValid;
+};
+
+/**
+ * Computes the base-e exponential of the given value 
+ */
+USTRUCT(meta = (DisplayName = "Exponential"))
+struct CONTROLRIG_API FRigUnit_MathFloatExponential : public FRigUnit_MathFloatUnaryOp
+{
+	GENERATED_BODY()
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
