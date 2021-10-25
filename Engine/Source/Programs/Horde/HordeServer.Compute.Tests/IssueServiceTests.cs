@@ -419,7 +419,8 @@ namespace HordeServerTests
 				IIssue Issue = Issues[0];
 				List<IIssueSpan> Spans = await IssueService.GetIssueSpansAsync(Issue);
 				Assert.AreEqual(1, Spans.Count);
-				Assert.AreEqual("Compile", Issue.Fingerprint.Type);
+				Assert.AreEqual(1, Issue.Fingerprints.Count);
+				Assert.AreEqual("Compile", Issue.Fingerprints[0].Type);
 				Assert.AreEqual("Compile warnings in GameChat2Impl.h", Issue.Summary);
 			}
 		}
@@ -460,7 +461,8 @@ namespace HordeServerTests
 				IIssue Issue = Issues[0];
 				List<IIssueSpan> Spans = await IssueService.GetIssueSpansAsync(Issue);
 				Assert.AreEqual(1, Spans.Count);
-				Assert.AreEqual("Compile", Issue.Fingerprint.Type);
+				Assert.AreEqual(1, Issue.Fingerprints.Count);
+				Assert.AreEqual("Compile", Issue.Fingerprints[0].Type);
 				Assert.AreEqual("Compile errors in fog.cpp", Issue.Summary);
 
 				IIssueSpan Stream = Spans[0];
@@ -468,11 +470,8 @@ namespace HordeServerTests
 				Assert.AreEqual(null, Stream.NextSuccess?.Change);
 
 				IReadOnlyList<IIssueSuspect> Suspects = await IssueService.GetIssueSuspectsAsync(Issue);
+				Suspects = Suspects.OrderBy(x => x.Id).ToList();
 				Assert.AreEqual(3, Suspects.Count);
-
-				Assert.AreEqual(120, Suspects[0].Change);
-				Assert.AreEqual(TimId, Suspects[0].AuthorId);
-				//				Assert.AreEqual(null, Suspects[0].OriginatingChange);
 
 				Assert.AreEqual(75 /*115*/, Suspects[1].Change);
 				Assert.AreEqual(JerryId, Suspects[1].AuthorId);
@@ -481,6 +480,10 @@ namespace HordeServerTests
 				Assert.AreEqual(110, Suspects[2].Change);
 				Assert.AreEqual(BobId, Suspects[2].AuthorId);
 				//			Assert.AreEqual(null, Suspects[2].OriginatingChange);
+
+				Assert.AreEqual(120, Suspects[0].Change);
+				Assert.AreEqual(TimId, Suspects[0].AuthorId);
+				//				Assert.AreEqual(null, Suspects[0].OriginatingChange);
 
 				List<IIssue> OpenIssues = await IssueService.FindIssuesAsync(Resolved: false);
 				Assert.AreEqual(1, OpenIssues.Count);
@@ -676,10 +679,11 @@ namespace HordeServerTests
 				Assert.AreEqual(1, Issues.Count);
 
 				IIssue Issue = Issues[0];
+				Assert.AreEqual(1, Issue.Fingerprints.Count);
 
 				CompileIssueHandler Handler = new CompileIssueHandler();
 
-				IIssueFingerprint Fingerprint = Issue.Fingerprint;
+				IIssueFingerprint Fingerprint = Issue.Fingerprints[0];
 				Assert.AreEqual(Handler.Type, Fingerprint.Type);
 				Assert.AreEqual(1, Fingerprint.Keys.Count);
 				Assert.AreEqual("FOO.CPP", Fingerprint.Keys.First());
@@ -823,7 +827,8 @@ namespace HordeServerTests
 				IIssue Issue = Issues[0];
 				List<IIssueSpan> Spans = await IssueService.GetIssueSpansAsync(Issue);
 				Assert.AreEqual(Spans.Count, 1);
-				Assert.AreEqual(Issue.Fingerprint.Type, "Symbol");
+				Assert.AreEqual(Issue.Fingerprints.Count, 1);
+				Assert.AreEqual(Issue.Fingerprints[0].Type, "Symbol");
 
 				IIssueSpan Stream = Spans[0];
 				Assert.AreEqual(105, Stream.LastSuccess?.Change);
@@ -885,7 +890,8 @@ namespace HordeServerTests
 				IIssue Issue = Issues[0];
 				List<IIssueSpan> Spans = await IssueService.GetIssueSpansAsync(Issue);
 				Assert.AreEqual(Spans.Count, 2);
-				Assert.AreEqual(Issue.Fingerprint.Type, "Symbol");
+				Assert.AreEqual(Issue.Fingerprints.Count, 1);
+				Assert.AreEqual(Issue.Fingerprints[0].Type, "Symbol");
 
 				IIssueSpan Span1 = Spans[0];
 				Assert.AreEqual(105, Span1.LastSuccess?.Change);
@@ -931,7 +937,8 @@ namespace HordeServerTests
 				IIssue Issue = Issues[0];
 				List<IIssueSpan> Spans = await IssueService.GetIssueSpansAsync(Issue);
 				Assert.AreEqual(Spans.Count, 1);
-				Assert.AreEqual(Issue.Fingerprint.Type, "Symbol");
+				Assert.AreEqual(Issue.Fingerprints.Count, 1);
+				Assert.AreEqual(Issue.Fingerprints[0].Type, "Symbol");
 
 				IIssueSpan Span = Spans[0];
 				Assert.AreEqual(105, Span.LastSuccess?.Change);
@@ -973,7 +980,8 @@ namespace HordeServerTests
 				IIssue Issue = Issues[0];
 				List<IIssueSpan> Spans = await IssueService.GetIssueSpansAsync(Issue);
 				Assert.AreEqual(1, Spans.Count);
-				Assert.AreEqual("Compile", Issue.Fingerprint.Type);
+				Assert.AreEqual(1, Issue.Fingerprints.Count);
+				Assert.AreEqual("Compile", Issue.Fingerprints[0].Type);
 			}
 		}
 
@@ -995,7 +1003,8 @@ namespace HordeServerTests
 			IIssue Issue = Issues[0];
 			List<IIssueSpan> Spans = await IssueService.GetIssueSpansAsync(Issue);
 			Assert.AreEqual(1, Spans.Count);
-			Assert.AreEqual("Copyright", Issue.Fingerprint.Type);
+			Assert.AreEqual(1, Issue.Fingerprints.Count);
+			Assert.AreEqual("Copyright", Issue.Fingerprints[0].Type);
 			Assert.AreEqual("Missing copyright notice in ToolchainInfo.cs", Issue.Summary);
 		}
 
@@ -1065,7 +1074,8 @@ namespace HordeServerTests
 				IIssue Issue = Issues[0];
 				List<IIssueSpan> Spans = await IssueService.GetIssueSpansAsync(Issue);
 				Assert.AreEqual(Spans.Count, 1);
-				Assert.AreEqual(Issue.Fingerprint.Type, "Gauntlet");
+				Assert.AreEqual(Issue.Fingerprints.Count, 1);
+				Assert.AreEqual(Issue.Fingerprints[0].Type, "Gauntlet");
 				Assert.AreEqual(Issue.Summary, "HLOD test failures: SectionFlags, SimpleMerge and SingleLODMerge");
 			}
 		}

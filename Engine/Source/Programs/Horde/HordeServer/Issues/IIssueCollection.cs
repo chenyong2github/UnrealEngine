@@ -32,21 +32,15 @@ namespace HordeServer.Collections
 	/// <summary>
 	/// Fingerprint for an issue
 	/// </summary>
-	public class NewIssueFingerprint : IIssueFingerprint
+	public class NewIssueFingerprint : IIssueFingerprint, IEquatable<IIssueFingerprint>
 	{
-		/// <summary>
-		/// The type of issue
-		/// </summary>
+		/// <inheritdoc/>
 		public string Type { get; }
 
-		/// <summary>
-		/// List of keys which identify this issue.
-		/// </summary>
+		/// <inheritdoc/>
 		public CaseInsensitiveStringSet Keys { get; set; }
 
-		/// <summary>
-		/// Set of keys which should trigger a negative match
-		/// </summary>
+		/// <inheritdoc/>
 		public CaseInsensitiveStringSet? RejectKeys { get; set; }
 
 		/// <summary>
@@ -97,9 +91,11 @@ namespace HordeServer.Collections
 		}
 
 		/// <inheritdoc/>
-		public override bool Equals(object? Other)
+		public override bool Equals(object? Other) => Equals(Other as IIssueFingerprint);
+
+		/// <inheritdoc/>
+		public bool Equals(IIssueFingerprint? OtherFingerprint)
 		{
-			NewIssueFingerprint? OtherFingerprint = Other as NewIssueFingerprint;
 			if(OtherFingerprint == null || !Type.Equals(OtherFingerprint.Type, StringComparison.Ordinal) || !Keys.SetEquals(OtherFingerprint.Keys))
 			{
 				return false;
@@ -175,53 +171,81 @@ namespace HordeServer.Collections
 	}
 
 	/// <summary>
+	/// Information about a new span
+	/// </summary>
+	public class NewIssueSpanData
+	{
+		/// <inheritdoc cref="IIssueSpan.StreamId"/>
+		public StreamId StreamId { get; set; }
+
+		/// <inheritdoc cref="IIssueSpan.StreamName"/>
+		public string StreamName { get; set; }
+
+		/// <inheritdoc cref="IIssueSpan.TemplateRefId"/>
+		public TemplateRefId TemplateRefId { get; set; }
+
+		/// <inheritdoc cref="IIssueSpan.NodeName"/>
+		public string NodeName { get; set; }
+
+		/// <inheritdoc cref="IIssueSpan.Fingerprint"/>
+		public NewIssueFingerprint Fingerprint { get; set; }
+
+		/// <inheritdoc cref="IIssueSpan.LastSuccess"/>
+		public NewIssueStepData? LastSuccess { get; set; }
+
+		/// <inheritdoc cref="IIssueSpan.FirstFailure"/>
+		public NewIssueStepData FirstFailure { get; set; }
+
+		/// <inheritdoc cref="IIssueSpan.NextSuccess"/>
+		public NewIssueStepData? NextSuccess { get; set; }
+
+		/// <inheritdoc cref="IIssueSpan.Suspects"/>
+		public List<NewIssueSpanSuspectData> Suspects { get; set; } = new List<NewIssueSpanSuspectData>();
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public NewIssueSpanData(StreamId StreamId, string StreamName, TemplateRefId TemplateRefId, string NodeName, NewIssueFingerprint Fingerprint, NewIssueStepData FirstFailure)
+		{
+			this.StreamId = StreamId;
+			this.StreamName = StreamName;
+			this.TemplateRefId = TemplateRefId;
+			this.NodeName = NodeName;
+			this.Fingerprint = Fingerprint;
+			this.FirstFailure = FirstFailure;
+		}
+	}
+
+	/// <summary>
 	/// Identifies a particular changelist and job
 	/// </summary>
 	public class NewIssueStepData
 	{
-		/// <summary>
-		/// The changelist number
-		/// </summary>
+		/// <inheritdoc cref="IIssueStep.Change"/>
 		public int Change { get; set; }
 
-		/// <summary>
-		/// Severity of the issue
-		/// </summary>
+		/// <inheritdoc cref="IIssueStep.Severity"/>
 		public IssueSeverity Severity { get; set; }
 
-		/// <summary>
-		/// Name of the job
-		/// </summary>
+		/// <inheritdoc cref="IIssueStep.JobName"/>
 		public string JobName { get; set; }
 
-		/// <summary>
-		/// The unique job id
-		/// </summary>
+		/// <inheritdoc cref="IIssueStep.JobId"/>
 		public JobId JobId { get; set; }
 
-		/// <summary>
-		/// Batch id for the step
-		/// </summary>
+		/// <inheritdoc cref="IIssueStep.BatchId"/>
 		public SubResourceId BatchId { get; set; }
 
-		/// <summary>
-		/// Id of the step
-		/// </summary>
+		/// <inheritdoc cref="IIssueStep.StepId"/>
 		public SubResourceId StepId { get; set; }
 
-		/// <summary>
-		/// Time that the step started
-		/// </summary>
+		/// <inheritdoc cref="IIssueStep.StepTime"/>
 		public DateTime StepTime { get; set; }
 
-		/// <summary>
-		/// The log id for this step
-		/// </summary>
+		/// <inheritdoc cref="IIssueStep.LogId"/>
 		public LogId? LogId { get; set; }
 
-		/// <summary>
-		/// Whether this step is promoted
-		/// </summary>
+		/// <inheritdoc cref="IIssueStep.PromoteByDefault"/>
 		public bool PromoteByDefault { get; set; }
 
 		/// <summary>
@@ -277,32 +301,21 @@ namespace HordeServer.Collections
 	/// </summary>
 	public class NewIssueSuspectData
 	{
-		/// <summary>
-		/// Author of the changelist
-		/// </summary>
+		/// <inheritdoc cref="IIssueSuspect.AuthorId"/>
 		public UserId AuthorId { get; set; }
 
-		/// <summary>
-		/// The submitted changelist
-		/// </summary>
+		/// <inheritdoc cref="IIssueSuspect.Change"/>
 		public int Change { get; set; }
-
-		/// <summary>
-		/// The time that the user declined causing this issue
-		/// </summary>
-		public DateTime? DeclinedAt { get; set; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="AuthorId">Author of the change</param>
 		/// <param name="Change">The changelist number</param>
-		/// <param name="DeclinedAt">The time that the user declined this issue</param>
-		public NewIssueSuspectData(UserId AuthorId, int Change, DateTime? DeclinedAt)
+		public NewIssueSuspectData(UserId AuthorId, int Change)
 		{
 			this.AuthorId = AuthorId;
 			this.Change = Change;
-			this.DeclinedAt = DeclinedAt;
 		}
 	}
 
@@ -311,19 +324,13 @@ namespace HordeServer.Collections
 	/// </summary>
 	public class NewIssueSpanSuspectData
 	{
-		/// <summary>
-		/// The submitted changelist
-		/// </summary>
+		/// <inheritdoc cref="IIssueSpanSuspect.Change"/>
 		public int Change { get; set; }
 
-		/// <summary>
-		/// Author of the changelist
-		/// </summary>
+		/// <inheritdoc cref="IIssueSpanSuspect.AuthorId"/>
 		public UserId AuthorId { get; set; }
 
-		/// <summary>
-		/// The original changelist number, if merged from another branch. For changes merged between several branches, this is the originally submitted change.
-		/// </summary>
+		/// <inheritdoc cref="IIssueSpanSuspect.OriginatingChange"/>
 		public int? OriginatingChange { get; set; }
 
 		/// <summary>
@@ -339,16 +346,24 @@ namespace HordeServer.Collections
 	}
 
 	/// <summary>
-	/// Interface for a token used to indicate a position in the transaction queue. Transactions are opportunistic, and will fail if the token is longer valid at the time that it is used.
+	/// Information about a stream containing an issue
 	/// </summary>
-	[SuppressMessage("Design", "CA1040:Avoid empty interfaces")]
-	public interface IIssueSequenceToken
+	public class NewIssueStream : IIssueStream
 	{
+		/// <inheritdoc cref="IIssueStream.StreamId"/>
+		public StreamId StreamId { get; set; }
+
+		/// <inheritdoc cref="IIssueStream.ContainsFix"/>
+		public bool? ContainsFix { get; set; }
+
 		/// <summary>
-		/// Reset the token to the last operation
+		/// Constructor
 		/// </summary>
-		/// <returns>Async task</returns>
-		public Task ResetAsync();
+		/// <param name="StreamId"></param>
+		public NewIssueStream(StreamId StreamId)
+		{
+			this.StreamId = StreamId;
+		}
 	}
 
 	/// <summary>
@@ -357,28 +372,19 @@ namespace HordeServer.Collections
 	public interface IIssueCollection
 	{
 		/// <summary>
-		/// Gets a token used to sequence operations to the issue collection
+		/// Attempts to enters a critical section over the issue collection. Used for performing operations that require coordination of several documents (eg. attaching spans to issues).
 		/// </summary>
-		/// <returns>Sequence token instance</returns>
-		Task<IIssueSequenceToken> GetSequenceTokenAsync();
-
-		/// <summary>
-		/// Assign a unique issue id. For compatibility with the legacy issue system.
-		/// </summary>
-		/// <param name="Token">The current sequence token</param>
-		/// <returns>Sequence token</returns>
-		Task<int?> ReserveUniqueIdAsync(IIssueSequenceToken Token);
+		/// <returns>The disposable critical section</returns>
+		Task<IAsyncDisposable> EnterCriticalSectionAsync();
 
 		#region Issues
 
 		/// <summary>
 		/// Creates a new issue
 		/// </summary>
-		/// <param name="Token">Token for the transaction</param>
 		/// <param name="Summary">Summary text for the issue</param>
-		/// <param name="Span">The initial span for the issue</param>
 		/// <returns>The new issue instance</returns>
-		Task<IIssue?> AddIssueAsync(IIssueSequenceToken Token, string Summary, IIssueSpan Span);
+		Task<IIssue> AddIssueAsync(string Summary);
 
 		/// <summary>
 		/// Retrieves and issue by id
@@ -388,11 +394,11 @@ namespace HordeServer.Collections
 		Task<IIssue?> GetIssueAsync(int IssueId);
 
 		/// <summary>
-		/// Gets the suspects for an issue
+		/// Finds the suspects for an issue
 		/// </summary>
 		/// <param name="Issue">The issue to retrieve suspects for</param>
 		/// <returns>List of suspects</returns>
-		Task<List<IIssueSuspect>> GetSuspectsAsync(IIssue Issue);
+		Task<List<IIssueSuspect>> FindSuspectsAsync(IIssue Issue);
 
 		/// <summary>
 		/// Searches for open issues
@@ -414,10 +420,10 @@ namespace HordeServer.Collections
 		/// </summary>
 		/// <param name="Changes">List of suspect changes</param>
 		/// <returns>List of issues that are affected by the given changes</returns>
-		Task<List<IIssue>> FindIssuesForSuspectsAsync(List<int> Changes);
+		Task<List<IIssue>> FindIssuesForChangesAsync(List<int> Changes);
 
 		/// <summary>
-		/// Updates the state of an issue
+		/// Try to update the state of an issue
 		/// </summary>
 		/// <param name="Issue">The issue to update</param>
 		/// <param name="NewSeverity">New severity for the issue</param>
@@ -430,18 +436,25 @@ namespace HordeServer.Collections
 		/// <param name="NewAcknowledged">Whether the issue has been acknowledged</param>
 		/// <param name="NewDeclinedById">Name of a user that has declined the issue</param>
 		/// <param name="NewFixChange">Fix changelist for the issue. Pass 0 to clear the fix changelist, -1 for systemic issue.</param>
-		/// <param name="NewFixStreamIds">List of stream ids with a bool indicating whether the fix changelist is in this stream</param>
 		/// <param name="NewResolvedById">User that resolved the issue (may be ObjectId.Empty to clear)</param>
 		/// <param name="NewLastSeenAt"></param>
 		/// <returns>True if the issue was updated</returns>
-		Task<IIssue?> UpdateIssueAsync(IIssue Issue, IssueSeverity? NewSeverity = null, string? NewSummary = null, string? NewUserSummary = null, string? NewDescription = null, bool? NewPromoted = null, UserId? NewOwnerId = null, UserId? NewNominatedById = null, bool? NewAcknowledged = null, UserId? NewDeclinedById = null, int? NewFixChange = null, Dictionary<StreamId, bool>? NewFixStreamIds = null, UserId? NewResolvedById = null, DateTime? NewLastSeenAt = null);
+		Task<IIssue?> TryUpdateIssueAsync(IIssue Issue, IssueSeverity? NewSeverity = null, string? NewSummary = null, string? NewUserSummary = null, string? NewDescription = null, bool? NewPromoted = null, UserId? NewOwnerId = null, UserId? NewNominatedById = null, bool? NewAcknowledged = null, UserId? NewDeclinedById = null, int? NewFixChange = null, UserId? NewResolvedById = null, DateTime? NewLastSeenAt = null);
 
 		/// <summary>
-		/// Updates the list of suspects for an issue, and optionally sets the resolved state
+		/// Updates derived data for an issue (ie. data computed from the spans attached to it). Also clears the issue's 'modified' state.
 		/// </summary>
-		/// <param name="Issue">The issue to update</param>
-		/// <returns>True if the issue was updated</returns>
-		Task<IIssue?> UpdateIssueDerivedDataAsync(IIssue Issue);
+		/// <param name="Issue">Issue to update</param>
+		/// <param name="NewSummary">New summary for the issue</param>
+		/// <param name="NewSeverity">New severity for the issue</param>
+		/// <param name="NewFingerprints">New fingerprints for the issue</param>
+		/// <param name="NewStreams">New streams for the issue</param>
+		/// <param name="NewSuspects">New suspects for the issue</param>
+		/// <param name="NewResolvedAt">Time for the last resolved change</param>
+		/// <param name="NewVerifiedAt">Time that the issue was resolved</param>
+		/// <param name="NewLastSeenAt">Last time the issue was seen</param>
+		/// <returns>Updated issue, or null if the issue is modified in the interim</returns>
+		Task<IIssue?> TryUpdateIssueDerivedDataAsync(IIssue Issue, string NewSummary, IssueSeverity NewSeverity, List<NewIssueFingerprint> NewFingerprints, List<NewIssueStream> NewStreams, List<NewIssueSuspectData> NewSuspects, DateTime? NewResolvedAt, DateTime? NewVerifiedAt, DateTime NewLastSeenAt);
 
 		#endregion
 
@@ -450,17 +463,10 @@ namespace HordeServer.Collections
 		/// <summary>
 		/// Creates a new span from the given failure
 		/// </summary>
-		/// <param name="Token">Token to sequence the addition of new spans</param>
-		/// <param name="Stream">The stream containing the span</param>
-		/// <param name="TemplateRefId">The template being executed</param>
-		/// <param name="NodeName">Name of the step</param>
-		/// <param name="Fingerprint">Fingerprint for this issue</param>
-		/// <param name="LastSuccess">Last time the build succeeded before the span</param>
-		/// <param name="Failure">List of failing steps</param>
-		/// <param name="NextSuccess">First time the build succeeded after the span</param>
-		/// <param name="Suspects">Suspects for this span</param>
+		/// <param name="IssueId">The issue that the span belongs to</param>
+		/// <param name="NewSpan">Information about the new span</param>
 		/// <returns>New span, or null if the sequence token is not valid</returns>
-		Task<IIssueSpan?> AddSpanAsync(IIssueSequenceToken Token, IStream Stream, TemplateRefId TemplateRefId, string NodeName, NewIssueFingerprint Fingerprint, NewIssueStepData? LastSuccess, NewIssueStepData Failure, NewIssueStepData? NextSuccess, List<NewIssueSpanSuspectData> Suspects);
+		Task<IIssueSpan> AddSpanAsync(int IssueId, NewIssueSpanData NewSpan);
 
 		/// <summary>
 		/// Gets a particular span
@@ -473,26 +479,13 @@ namespace HordeServer.Collections
 		/// Updates the given span. Note that data in the span's issue may be derived from this, and the issue should be updated afterwards.
 		/// </summary>
 		/// <param name="Span">Span to update</param>
-		/// <param name="NewSeverity">New severity for the span</param>
 		/// <param name="NewLastSuccess">New last successful step</param>
 		/// <param name="NewFailure">New failed step</param>
 		/// <param name="NewNextSuccess">New next successful step</param>
 		/// <param name="NewSuspects">New suspects for the span</param>
-		/// <param name="NewModified">New modified flag for the span</param>
+		/// <param name="NewIssueId">The new issue id for this span</param>
 		/// <returns>The updated span, or null on failure</returns>
-		Task<IIssueSpan?> TryUpdateSpanAsync(IIssueSpan Span, IssueSeverity? NewSeverity = null, NewIssueStepData? NewLastSuccess = null, NewIssueStepData? NewFailure = null, NewIssueStepData? NewNextSuccess = null, List<NewIssueSpanSuspectData>? NewSuspects = null, bool? NewModified = null);
-
-		/// <summary>
-		/// Updates the given span
-		/// </summary>
-		/// <param name="Token">The token</param>
-		/// <param name="Span">The span to update</param>
-		/// <param name="Issue">The issue to attach to</param>
-		/// <param name="NewSeverity">New severity for the span</param>
-		/// <param name="NewFingerprint">New fingerprint for the span</param>
-		/// <param name="NewSummary">New summary for the issue</param>
-		/// <returns>The updated span, or null on failure</returns>
-		Task<bool> AttachSpanToIssueAsync(IIssueSequenceToken Token, IIssueSpan Span, IIssue Issue, IssueSeverity? NewSeverity = null, NewIssueFingerprint? NewFingerprint = null, string? NewSummary = null);
+		Task<IIssueSpan?> TryUpdateSpanAsync(IIssueSpan Span, NewIssueStepData? NewLastSuccess = null, NewIssueStepData? NewFailure = null, NewIssueStepData? NewNextSuccess = null, List<NewIssueSpanSuspectData>? NewSuspects = null, int? NewIssueId = null);
 
 		/// <summary>
 		/// Gets all the spans for a particular issue
@@ -518,16 +511,18 @@ namespace HordeServer.Collections
 		/// <returns>List of open issues</returns>
 		Task<List<IIssueSpan>> FindOpenSpansAsync(StreamId StreamId, TemplateRefId TemplateId, string Name, int Change);
 
-		/// <summary>
-		/// Finds a span marked as modified
-		/// </summary>
-		/// <returns></returns>
-		Task<List<IIssueSpan>> FindModifiedSpansAsync();
-
 		#endregion
 
 		#region Steps
-			
+
+		/// <summary>
+		/// Adds a new step
+		/// </summary>
+		/// <param name="SpanId">Initial span for the step</param>
+		/// <param name="NewStep">Information about the new step</param>
+		/// <returns>New step object</returns>
+		Task<IIssueStep> AddStepAsync(ObjectId SpanId, NewIssueStepData NewStep);
+
 		/// <summary>
 		/// Find steps for the given spans
 		/// </summary>

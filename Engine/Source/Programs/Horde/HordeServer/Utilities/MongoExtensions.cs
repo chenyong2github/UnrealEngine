@@ -161,6 +161,27 @@ namespace HordeServer.Utilities
 		/// </summary>
 		/// <typeparam name="TDocument">The document type</typeparam>
 		/// <typeparam name="TField">Type of the field to set</typeparam>
+		/// <param name="Update">Update builder</param>
+		/// <param name="Field">Expression for the field to set</param>
+		/// <param name="Value">New value to set</param>
+		/// <returns>Update defintiion</returns>
+		public static UpdateDefinition<TDocument> SetOrUnsetNull<TDocument, TField>(this UpdateDefinition<TDocument> Update, Expression<Func<TDocument, TField?>> Field, TField? Value) where TField : struct
+		{
+			if (Value.HasValue)
+			{
+				return Update.Set(Field, Value.Value);
+			}
+			else
+			{
+				return Update.Unset(new ExpressionFieldDefinition<TDocument, TField?>(Field));
+			}
+		}
+
+		/// <summary>
+		/// Sets a field to a value, or unsets it if the value is null
+		/// </summary>
+		/// <typeparam name="TDocument">The document type</typeparam>
+		/// <typeparam name="TField">Type of the field to set</typeparam>
 		/// <param name="UpdateBuilder">Update builder</param>
 		/// <param name="Field">Expression for the field to set</param>
 		/// <param name="Value">New value to set</param>

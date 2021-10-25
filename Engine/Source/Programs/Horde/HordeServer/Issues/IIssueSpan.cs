@@ -45,11 +45,6 @@ namespace HordeServer.Models
 		public string NodeName { get; }
 
 		/// <summary>
-		/// Severity of the failures in this span
-		/// </summary>
-		public IssueSeverity Severity { get; }
-
-		/// <summary>
 		/// Fingerprint for this issue
 		/// </summary>
 		public IIssueFingerprint Fingerprint { get; }
@@ -87,7 +82,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// The issue that this span is assigned to
 		/// </summary>
-		public int? IssueId { get; }
+		public int IssueId { get; }
 	}
 
 	/// <summary>

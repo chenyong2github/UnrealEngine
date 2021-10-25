@@ -113,7 +113,7 @@ namespace HordeServer.Services.Impl
 		/// <returns>True if the user should be notified for this change</returns>
 		public bool ShowNotifications()
 		{
-			return ShowDesktopAlerts && Issue.Fingerprint.Type != DefaultIssueHandler.Type;
+			return ShowDesktopAlerts && Issue.Fingerprints.Any(x => x.Type != DefaultIssueHandler.Type);
 		}
 
 		/// <summary>
@@ -251,7 +251,7 @@ namespace HordeServer.Services.Impl
 				IIssue OpenIssue = OpenIssues[Idx];
 				if (OpenIssue.LastSeenAt < UtcNow - TimeSpan.FromDays(7.0))
 				{
-					await IssueCollection.UpdateIssueAsync(OpenIssue, NewResolvedById: IIssue.ResolvedByTimeoutId);
+					await IssueCollection.TryUpdateIssueAsync(OpenIssue, NewResolvedById: IIssue.ResolvedByTimeoutId);
 					OpenIssues.RemoveAt(Idx--);
 				}
 			}
@@ -291,7 +291,7 @@ namespace HordeServer.Services.Impl
 
 			List<IIssueSpan> Spans = await IssueCollection.FindSpansAsync(Issue.Id);
 			List<IIssueStep> Steps = await IssueCollection.FindStepsAsync(Spans.Select(x => x.Id));
-			List<IIssueSuspect> Suspects = await IssueCollection.GetSuspectsAsync(Issue);
+			List<IIssueSuspect> Suspects = await IssueCollection.FindSuspectsAsync(Issue);
 
 			List<IUser> SuspectUsers = new List<IUser>();
 			foreach (UserId SuspectUserId in Suspects.Select(x => x.AuthorId).Distinct())
@@ -321,7 +321,7 @@ namespace HordeServer.Services.Impl
 		/// <inheritdoc/>
 		public Task<List<IIssueSuspect>> GetIssueSuspectsAsync(IIssue Issue)
 		{
-			return IssueCollection.GetSuspectsAsync(Issue);
+			return IssueCollection.FindSuspectsAsync(Issue);
 		}
 
 		/// <inheritdoc/>
@@ -342,15 +342,7 @@ namespace HordeServer.Services.Impl
 				Spans.RemoveAll(x => !NodeNames.Contains(x.NodeName));
 			}
 
-			List<int> IssueIds = new List<int>();
-			foreach (IIssueSpan Span in Spans)
-			{
-				if (Span.IssueId != null)
-				{
-					IssueIds.Add(Span.IssueId.Value);
-				}
-			}
-
+			List<int> IssueIds = new List<int>(Spans.Select(x => x.IssueId));
 			if(IssueIds.Count == 0)
 			{
 				return new List<IIssue>();
@@ -394,7 +386,6 @@ namespace HordeServer.Services.Impl
 		/// <inheritdoc/>
 		public async Task<bool> UpdateIssueAsync(int Id, string? UserSummary = null, string? Description = null, bool? Promoted = null, UserId? OwnerId = null, UserId? NominatedById = null, bool? Acknowledged = null, UserId? DeclinedById = null, int? FixChange = null, UserId? ResolvedById = null)
 		{
-			Dictionary<StreamId, bool>? NewFixStreamIds = null;
 			for (; ; )
 			{
 				IIssue? Issue = await IssueCollection.GetIssueAsync(Id);
@@ -403,16 +394,10 @@ namespace HordeServer.Services.Impl
 					return false;
 				}
 
-				if (FixChange != null && FixChange.Value > 0)
-				{
-					NewFixStreamIds = await GetFixStreamsAsync(Issue.Id, FixChange.Value, NewFixStreamIds ?? ((FixChange == Issue.FixChange)? Issue.GetFixStreamIds() : null));
-				}
-
-				Issue = await IssueCollection.UpdateIssueAsync(Issue, NewUserSummary: UserSummary, NewDescription: Description, NewPromoted: Promoted, NewOwnerId: OwnerId ?? ResolvedById, NewNominatedById: NominatedById, NewAcknowledged: Acknowledged, NewDeclinedById: DeclinedById, NewFixChange: FixChange, NewFixStreamIds: NewFixStreamIds, NewResolvedById: ResolvedById);
-
+				Issue = await IssueCollection.TryUpdateIssueAsync(Issue, NewUserSummary: UserSummary, NewDescription: Description, NewPromoted: Promoted, NewOwnerId: OwnerId ?? ResolvedById, NewNominatedById: NominatedById, NewDeclinedById: DeclinedById, NewAcknowledged: Acknowledged, NewFixChange: FixChange, NewResolvedById: ResolvedById);
 				if(Issue != null)
 				{
-					OnIssueUpdated?.Invoke(Issue);
+					await UpdateIssueDerivedDataAsync(Issue);
 					return true;
 				}
 			}
@@ -555,39 +540,37 @@ namespace HordeServer.Services.Impl
 			}
 
 			// Try to update all the events. We may need to restart this due to optimistic transactions, so keep track of any existing spans we do not need to check against.
-			HashSet<ObjectId> CheckedSpans = new HashSet<ObjectId>();
-			for(; ;)
+			await using(IAsyncDisposable Lock = await IssueCollection.EnterCriticalSectionAsync())
 			{
-				// Get a token for transactional operations on the issue collections
-				IIssueSequenceToken Token = await IssueCollection.GetSequenceTokenAsync();
-
-				// Get the spans that are currently open
-				List<IIssueSpan> OpenSpans = await IssueCollection.FindOpenSpansAsync(Job.StreamId, Job.TemplateId, Node.Name, Job.Change);
-				Logger.LogDebug("{NumSpans} spans are open in {StreamId} at CL {Change} for template {TemplateId}, node {Node}", OpenSpans.Count, Job.StreamId, Job.Change, Job.TemplateId, Node.Name);
-
-				// Add the events to existing issues, and create new issues for everything else
-				if (EventGroups.Count > 0)
+				HashSet<ObjectId> CheckedSpanIds = new HashSet<ObjectId>();
+				for (; ; )
 				{
-					if (!await AddEventsToExistingSpans(Job, Batch, Step, EventGroups, OpenSpans, CheckedSpans, bPromoteByDefault))
+					// Get the spans that are currently open
+					List<IIssueSpan> OpenSpans = await IssueCollection.FindOpenSpansAsync(Job.StreamId, Job.TemplateId, Node.Name, Job.Change);
+					Logger.LogDebug("{NumSpans} spans are open in {StreamId} at CL {Change} for template {TemplateId}, node {Node}", OpenSpans.Count, Job.StreamId, Job.Change, Job.TemplateId, Node.Name);
+
+					// Add the events to existing issues, and create new issues for everything else
+					if (EventGroups.Count > 0)
+					{
+						if (!await AddEventsToExistingSpans(Job, Batch, Step, EventGroups, OpenSpans, CheckedSpanIds, bPromoteByDefault))
+						{
+							continue;
+						}
+						if (!await AddEventsToNewSpans(Stream, Job, Batch, Step, Node, OpenSpans, EventGroups, bPromoteByDefault))
+						{
+							continue;
+						}
+					}
+
+					// Try to update the sentinels for any other open steps
+					if (!await TryUpdateSentinelsAsync(OpenSpans, Stream, Job, Batch, Step))
 					{
 						continue;
 					}
-					if (!await AddEventsToNewSpans(Token, Stream, Job, Batch, Step, Node, OpenSpans, EventGroups, bPromoteByDefault))
-					{
-						continue;
-					}
-				}
 
-				// Try to update the sentinels for any other open steps
-				if (!await TryUpdateSentinelsAsync(OpenSpans, Stream, Job, Batch, Step))
-				{
-					continue;
+					break;
 				}
-				break;
 			}
-
-			// Update all the unassigned spans
-			await AttachSpansToIssuesAsync();
 		}
 
 		/// <summary>
@@ -684,35 +667,20 @@ namespace HordeServer.Services.Impl
 					List<NewEventGroup> MatchEventGroups = NewEventGroups.Where(x => OpenSpan.Fingerprint.IsMatch(x.Fingerprint)).ToList();
 					if (MatchEventGroups.Count > 0)
 					{
-						// Get the severity of these events
-						IssueSeverity Severity = MatchEventGroups.SelectMany(x => x.Events).Any(x => x.Event.Severity == EventSeverity.Error) ? IssueSeverity.Error : IssueSeverity.Warning;
+						// Add the new step data
+						NewIssueStepData NewFailure = new NewIssueStepData(Job, Batch, Step, GetIssueSeverity(MatchEventGroups.SelectMany(x => x.Events)), PromoteByDefault);
+						await IssueCollection.AddStepAsync(OpenSpan.Id, NewFailure);
 
-						// Get the new severity
-						IssueSeverity? NewSeverity = null;
-						if (OpenSpan.Severity == IssueSeverity.Warning && Severity == IssueSeverity.Error)
+						// Update the span if this changes the current range
+						IIssueSpan? NewSpan = OpenSpan;
+						if (NewFailure.Change <= OpenSpan.FirstFailure.Change || NewFailure.Change >= OpenSpan.LastFailure.Change)
 						{
-							NewSeverity = IssueSeverity.Error;
-						}
-
-						// Get the new step data
-						NewIssueStepData NewFailure = new NewIssueStepData(Job, Batch, Step, Severity, PromoteByDefault);
-
-						// Figure out whether we need to update the issue
-						bool bMarkAsModified = NewSeverity != null;
-						if (OpenSpan.IssueId != null)
-						{
-							IIssue? Issue = await IssueCollection.GetIssueAsync(OpenSpan.IssueId.Value);
-							if (Issue != null)
+							NewSpan = await IssueCollection.TryUpdateSpanAsync(OpenSpan, NewFailure: NewFailure);
+							if (NewSpan == null)
 							{
-								bMarkAsModified |= Issue.ResolvedAt != null;
+								return false;
 							}
-						}
-
-						// Update the span
-						IIssueSpan? NewSpan = await IssueCollection.TryUpdateSpanAsync(OpenSpan, NewSeverity: NewSeverity, NewFailure: NewFailure, NewModified: (bMarkAsModified? (bool?)true : null));
-						if (NewSpan == null)
-						{
-							return false;
+							await UpdateIssueDerivedDataAsync(NewSpan.IssueId);
 						}
 
 						// Write out all the merged events
@@ -761,7 +729,6 @@ namespace HordeServer.Services.Impl
 		/// <summary>
 		/// Adds new spans for the given events
 		/// </summary>
-		/// <param name="Token">Token for the update</param>
 		/// <param name="Stream">The stream containing the job</param>
 		/// <param name="Job">The job instance</param>
 		/// <param name="Batch">The job batch</param>
@@ -771,7 +738,7 @@ namespace HordeServer.Services.Impl
 		/// <param name="NewEventGroups">Set of remaining events</param>
 		/// <param name="PromoteByDefault"></param>
 		/// <returns>True if all events were added</returns>
-		async Task<bool> AddEventsToNewSpans(IIssueSequenceToken Token, IStream Stream, IJob Job, IJobStepBatch Batch, IJobStep Step, INode Node, List<IIssueSpan> OpenSpans, HashSet<NewEventGroup> NewEventGroups, bool PromoteByDefault)
+		async Task<bool> AddEventsToNewSpans(IStream Stream, IJob Job, IJobStepBatch Batch, IJobStep Step, INode Node, List<IIssueSpan> OpenSpans, HashSet<NewEventGroup> NewEventGroups, bool PromoteByDefault)
 		{
 			while (NewEventGroups.Count > 0)
 			{
@@ -795,13 +762,27 @@ namespace HordeServer.Services.Impl
 				// Get the step data
 				NewIssueStepData StepData = new NewIssueStepData(Job, Batch, Step, GetIssueSeverity(EventGroup.Events), PromoteByDefault);
 
-				// Create the new span
-				IIssueSpan? NewSpan = await AddEventToNewSpanAsync(Token, Stream, Job, Node, EventGroup.Fingerprint, StepData);
-				if(NewSpan == null)
+				// Get the span data
+				NewIssueSpanData SpanData = new NewIssueSpanData(Stream.Id, Stream.Name, Job.TemplateId, Node.Name, EventGroup.Fingerprint, StepData);
+
+				IJobStepRef? PrevJob = await JobStepRefs.GetPrevStepForNodeAsync(Job.StreamId, Job.TemplateId, Node.Name, Job.Change);
+				if (PrevJob != null)
 				{
-					return false;
+					SpanData.LastSuccess = new NewIssueStepData(PrevJob);
+					SpanData.Suspects = await FindSuspectsForSpanAsync(Stream, SpanData.Fingerprint, SpanData.LastSuccess.Change + 1, SpanData.FirstFailure.Change);
 				}
-				OpenSpans.Add(NewSpan);
+
+				IJobStepRef? NextJob = await JobStepRefs.GetNextStepForNodeAsync(Job.StreamId, Job.TemplateId, Node.Name, Job.Change);
+				if (NextJob != null)
+				{
+					SpanData.NextSuccess = new NewIssueStepData(NextJob);
+				}
+
+				// Add all the new objects
+				IIssue NewIssue = await FindOrAddIssueForSpanAsync(SpanData);
+				IIssueSpan NewSpan = await IssueCollection.AddSpanAsync(NewIssue.Id, SpanData);
+				IIssueStep NewStep = await IssueCollection.AddStepAsync(NewSpan.Id, StepData);
+				await UpdateIssueDerivedDataAsync(NewIssue);
 
 				// Update the log events
 				Logger.LogDebug("Created new span {SpanId} from event group {Group}", NewSpan.Id, EventGroup.Digest.ToString());
@@ -809,192 +790,188 @@ namespace HordeServer.Services.Impl
 
 				// Remove the events from the remaining list of events to match
 				NewEventGroups.ExceptWith(SourceEventGroups);
+				OpenSpans.Add(NewSpan);
 			}
 			return true;
 		}
 
-		/// <summary>
-		/// Adds an event to a new span
-		/// </summary>
-		/// <param name="Token">The sequence token to insert a new span</param>
-		/// <param name="Stream">Stream containing the job</param>
-		/// <param name="Job">Job that spawned the event</param>
-		/// <param name="Node">Node that was running</param>
-		/// <param name="Fingerprint">Fingerprint for the event</param>
-		/// <param name="NewFailure">Information about the step that failed</param>
-		/// <returns>The new span, or null if the insert failed</returns>
-		async Task<IIssueSpan?> AddEventToNewSpanAsync(IIssueSequenceToken Token, IStream Stream, IJob Job, INode Node, NewIssueFingerprint Fingerprint, NewIssueStepData NewFailure)
+		async Task<IIssue?> UpdateIssueDerivedDataAsync(int IssueId)
 		{
-			// Get the previous job in this span
-			IJobStepRef? PrevJob = await JobStepRefs.GetPrevStepForNodeAsync(Job.StreamId, Job.TemplateId, Node.Name, Job.Change);
-
-			NewIssueStepData? LastSuccess = null;
-			if (PrevJob != null)
+			IIssue? Issue = await IssueCollection.GetIssueAsync(IssueId);
+			if(Issue != null)
 			{
-				LastSuccess = new NewIssueStepData(PrevJob);
+				Issue = await UpdateIssueDerivedDataAsync(Issue);
 			}
-
-			// Get the next successful job in this stream
-			IJobStepRef? NextJob = await JobStepRefs.GetNextStepForNodeAsync(Job.StreamId, Job.TemplateId, Node.Name, Job.Change);
-
-			NewIssueStepData? NextSuccess = null;
-			if (NextJob != null)
-			{
-				NextSuccess = new NewIssueStepData(NextJob);
-			}
-
-			// Find all the suspects for this span
-			List<NewIssueSpanSuspectData> Suspects = new List<NewIssueSpanSuspectData>();
-			if (LastSuccess != null)
-			{
-				Suspects = await FindSuspectsForSpanAsync(Stream, Fingerprint, LastSuccess.Change + 1, NewFailure.Change);
-			}
-
-			// Add the span
-			return await IssueCollection.AddSpanAsync(Token, Stream, Job.TemplateId, Node.Name, Fingerprint, LastSuccess, NewFailure, NextSuccess, Suspects);
+			return Issue;
 		}
 
-		/// <summary>
-		/// Find all the spans which are not currently attached to an issue, and try to attach them
-		/// </summary>
-		/// <returns></returns>
-		async Task AttachSpansToIssuesAsync()
+		async Task<IIssue?> UpdateIssueDerivedDataAsync(IIssue Issue)
 		{
-			IIssueSequenceToken Token = await IssueCollection.GetSequenceTokenAsync();
-			for(; ;)
+			Dictionary<(StreamId, int), bool> FixChangeCache = new Dictionary<(StreamId, int), bool>();
+			for (; ; )
 			{
-				bool bFoundSpan = false;
+				// Find all the spans that are attached to the issue
+				List<IIssueSpan> Spans = await IssueCollection.FindSpansAsync(Issue.Id);
 
-				List<IIssueSpan> Spans = await IssueCollection.FindModifiedSpansAsync();
+				// Update the suspects for this issue
+				List<NewIssueSuspectData> NewSuspects = new List<NewIssueSuspectData>();
+				if (Spans.Count > 0)
+				{
+					HashSet<int> SuspectChanges = new HashSet<int>(Spans[0].Suspects.Where(x => Issue.OwnerId == null || x.AuthorId == Issue.OwnerId).Select(x => x.OriginatingChange ?? x.Change));
+					for (int SpanIdx = 1; SpanIdx < Spans.Count; SpanIdx++)
+					{
+						SuspectChanges.IntersectWith(Spans[SpanIdx].Suspects.Select(x => x.OriginatingChange ?? x.Change));
+					}
+					NewSuspects = Spans[0].Suspects.Where(x => SuspectChanges.Contains(x.OriginatingChange ?? x.Change)).Select(x => new NewIssueSuspectData(x.AuthorId, x.OriginatingChange ?? x.Change)).ToList();
+				}
+				if (Issue.OwnerId != null)
+				{
+					NewSuspects.RemoveAll(x => x.AuthorId != Issue.OwnerId);
+					if (NewSuspects.Count == 0)
+					{
+						NewSuspects.Add(new NewIssueSuspectData(Issue.OwnerId.Value, 0));
+					}
+				}
+
+				// Create the combined fingerprint for this issue
+				List<NewIssueFingerprint> NewFingerprints = new List<NewIssueFingerprint>();
 				foreach (IIssueSpan Span in Spans)
 				{
-					await using RedisLock Lock = new RedisLock(RedisService.Database, $"issues/locks/{Span.Id}");
-					if (await Lock.AcquireAsync(TimeSpan.FromMinutes(1)))
+					NewIssueFingerprint? Fingerprint = NewFingerprints.FirstOrDefault(x => x.Type == Span.Fingerprint.Type);
+					if (Fingerprint == null)
 					{
-						await TryUpdateModifiedSpanAsync(Span, Token);
-						bFoundSpan = true;
+						NewFingerprints.Add(new NewIssueFingerprint(Span.Fingerprint));
+					}
+					else
+					{
+						Fingerprint.MergeWith(Span.Fingerprint);
 					}
 				}
 
-				if (!bFoundSpan)
+				// Find the severity for this issue
+				IssueSeverity NewSeverity;
+				if (Spans.Count == 0 || Spans.All(x => x.NextSuccess != null))
 				{
-					break;
-				}
-			}
-		}
-
-		/// <summary>
-		/// Updates information derived from an updated span, and clear the modified flag on it
-		/// </summary>
-		/// <param name="Span"></param>
-		/// <param name="Token"></param>
-		/// <returns></returns>
-		async ValueTask<IIssueSpan?> TryUpdateModifiedSpanAsync(IIssueSpan Span, IIssueSequenceToken Token)
-		{
-			// Try to find an issue for it
-			IIssue? Issue;
-			if (Span.IssueId == null)
-			{
-				Issue = await FindIssueForSpanAsync(Span);
-				if (Issue == null)
-				{
-					Issue = await IssueCollection.AddIssueAsync(Token, GetSummary(Span.Fingerprint, Span.Severity), Span);
-					if (Issue == null)
-					{
-						await Token.ResetAsync();
-						return null;
-					}
+					NewSeverity = Issue.Severity;
 				}
 				else
 				{
-					NewIssueFingerprint NewFingerprint = NewIssueFingerprint.Merge(Issue.Fingerprint, Span.Fingerprint);
-					IssueSeverity NewSeverity = (Issue.Severity > Span.Severity) ? Issue.Severity : Span.Severity;
-					string NewSummary = GetSummary(NewFingerprint, NewSeverity);
-
-					if (!await IssueCollection.AttachSpanToIssueAsync(Token, Span, Issue, NewSeverity, NewFingerprint, NewSummary))
-					{
-						await Token.ResetAsync();
-						return null;
-					}
+					NewSeverity = Spans.Any(x => x.NextSuccess == null && x.LastFailure.Severity == IssueSeverity.Error) ? IssueSeverity.Error : IssueSeverity.Warning;
 				}
-			}
-			else
-			{
-				// Update the issue that it belongs to
-				Issue = await GetIssueAsync(Span.IssueId.Value);
-				if (Issue != null)
+
+				// Find the default summary for this issue
+				string NewSummary;
+				if (NewFingerprints.Count == 0)
 				{
-					Issue = await UpdateIssueDerivedDataAsync(Issue);
-					if (Issue == null)
+					NewSummary = Issue.Summary;
+				}
+				else if (NewFingerprints.Count == 1)
+				{
+					NewSummary = GetSummary(NewFingerprints[0], NewSeverity);
+				}
+				else
+				{
+					NewSummary = (NewSeverity == IssueSeverity.Error) ? "Errors in multiple steps" : "Warnings in multiple steps";
+				}
+
+				// Calculate the last time that this issue was seen
+				DateTime NewLastSeenAt = Issue.CreatedAt;
+				foreach (IIssueSpan Span in Spans)
+				{
+					if (Span.LastFailure.StepTime > NewLastSeenAt)
 					{
-						return null;
+						NewLastSeenAt = Span.LastFailure.StepTime;
 					}
 				}
-			}
 
-			// Perform any shared issue updates
-			if (Issue != null)
-			{
-				Issue = await UpdateResolvedStateAsync(Issue, Span);
-				if(Issue == null)
+				// Calculate the time at which the issue is verified fixed
+				DateTime? NewVerifiedAt = null;
+				if (Spans.Count == 0)
+				{
+					NewVerifiedAt = Issue.VerifiedAt ?? DateTime.UtcNow;
+				}
+				else
+				{
+					foreach (IIssueSpan Span in Spans)
+					{
+						if (Span.NextSuccess == null)
+						{
+							break;
+						}
+						else if (NewVerifiedAt == null || Span.NextSuccess.StepTime < NewVerifiedAt.Value)
+						{
+							NewVerifiedAt = Span.NextSuccess.StepTime;
+						}
+					}
+				}
+
+				// Get the new resolved timestamp
+				DateTime? NewResolvedAt = Issue.ResolvedAt ?? NewVerifiedAt;
+
+				// Get the new list of streams
+				List<NewIssueStream> NewStreams = Spans.Select(x => x.StreamId).OrderBy(x => x.ToString(), StringComparer.Ordinal).Distinct().Select(x => new NewIssueStream(x)).ToList();
+				if (Issue.FixChange != null)
+				{
+					foreach (NewIssueStream NewStream in NewStreams)
+					{
+						IIssueStream? Stream = Issue.Streams.FirstOrDefault(x => x.StreamId == NewStream.StreamId);
+						if (Stream != null)
+						{
+							NewStream.ContainsFix = Stream.ContainsFix;
+						}
+						if (NewStream.ContainsFix == null)
+						{
+							NewStream.ContainsFix = await ContainsFixChange(NewStream.StreamId, Issue.FixChange.Value, FixChangeCache);
+						}
+					}
+				}
+
+				// If a fix changelist has been specified and it's not valid, clear it out
+				if (NewVerifiedAt == null && NewResolvedAt != null)
+				{
+					if (Spans.Any(x => HasFixFailed(x, Issue.FixChange, NewResolvedAt.Value, NewStreams)))
+					{
+						NewStreams.ForEach(x => x.ContainsFix = null);
+						NewResolvedAt = null;
+					}
+				}
+
+				// Update the issue
+				IIssue? NewIssue = await IssueCollection.TryUpdateIssueDerivedDataAsync(Issue, NewSummary, NewSeverity, NewFingerprints, NewStreams, NewSuspects, NewResolvedAt, NewVerifiedAt, NewLastSeenAt);
+				if (NewIssue != null)
+				{
+					OnIssueUpdated?.Invoke(NewIssue);
+					return NewIssue;
+				}
+
+				// Fetch the issue and try again
+				NewIssue = await IssueCollection.GetIssueAsync(Issue.Id);
+				if (NewIssue == null)
 				{
 					return null;
 				}
-				OnIssueUpdated?.Invoke(Issue);
+				Issue = NewIssue;
 			}
-
-			// Clear the modified flag
-			return await IssueCollection.TryUpdateSpanAsync(Span, NewModified: false);
-		}
-
-		async Task<IIssue?> UpdateResolvedStateAsync(IIssue? Issue, IIssueSpan Span)
-		{
-			// Update the fix streams
-			if (Issue != null && Issue.FixChange != null && Issue.FixChange.Value > 0)
-			{
-				Dictionary<StreamId, bool>? FixStreamIds = await GetFixStreamsAsync(Issue.Id, Issue.FixChange.Value, Issue.GetFixStreamIds());
-				if (FixStreamIds != null)
-				{
-					if(FixStreamIds.Count > Issue.Streams.Count)
-					{
-						Issue = await UpdateIssueDerivedDataAsync(Issue);
-					}
-					if (Issue != null)
-					{
-						Issue = await IssueCollection.UpdateIssueAsync(Issue, NewFixStreamIds: FixStreamIds);
-					}
-				}
-			}
-
-			// Update the resolved flag
-			if (Issue != null && Issue.ResolvedAt != null && ShouldMarkFixFailed(Issue, Span))
-			{
-				Issue = await IssueCollection.UpdateIssueAsync(Issue, NewResolvedById: UserId.Empty);
-			}
-
-			return Issue;
 		}
 
 		/// <summary>
 		/// Determine if an issue should be marked as fix failed
 		/// </summary>
-		/// <param name="Issue"></param>
-		/// <param name="Span"></param>
-		/// <returns></returns>
-		static bool ShouldMarkFixFailed(IIssue Issue, IIssueSpan Span)
+		static bool HasFixFailed(IIssueSpan Span, int? FixChange, DateTime ResolvedAt, IReadOnlyList<NewIssueStream> Streams)
 		{
-			if (Issue.ResolvedAt != null && Span.NextSuccess == null)
+			if (Span.NextSuccess == null)
 			{
-				if (Issue.FixChange != null && (Issue.Streams.FirstOrDefault(x => x.StreamId == Span.StreamId)?.ContainsFix ?? false))
+				NewIssueStream? Stream = Streams.FirstOrDefault(x => x.StreamId == Span.StreamId);
+				if (Stream != null && FixChange != null && (Stream.ContainsFix ?? false))
 				{
-					if (Span.LastFailure.Change > Issue.FixChange.Value)
+					if (Span.LastFailure.Change > FixChange.Value)
 					{
 						return true;
 					}
 				}
 				else
 				{
-					if (Span.LastFailure.StepTime > Issue.ResolvedAt.Value + TimeSpan.FromHours(24.0))
+					if (Span.LastFailure.StepTime > ResolvedAt + TimeSpan.FromHours(24.0))
 					{
 						return true;
 					}
@@ -1004,49 +981,23 @@ namespace HordeServer.Services.Impl
 		}
 
 		/// <summary>
-		/// Finds the streams affected by an issue
+		/// Figure out if a stream contains a fix changelist
 		/// </summary>
-		/// <param name="IssueId"></param>
-		/// <param name="FixChange"></param>
-		/// <param name="PrevFixStreamIds"></param>
-		/// <returns></returns>
-		async Task<Dictionary<StreamId, bool>?> GetFixStreamsAsync(int IssueId, int FixChange, IReadOnlyDictionary<StreamId, bool>? PrevFixStreamIds = null)
+		async ValueTask<bool> ContainsFixChange(StreamId StreamId, int FixChange, Dictionary<(StreamId, int), bool> CachedContainsFixChange)
 		{
-			List<IIssueSpan> Spans = await IssueCollection.FindSpansAsync(IssueId);
-			if(Spans.Count == 0)
+			bool bContainsFixChange;
+			if (!CachedContainsFixChange.TryGetValue((StreamId, FixChange), out bContainsFixChange))
 			{
-				return null;
-			}
-
-			Dictionary<StreamId, bool> NextFixStreamIds = new Dictionary<StreamId, bool>();
-			foreach (IIssueSpan Span in Spans)
-			{
-				if (!NextFixStreamIds.ContainsKey(Span.StreamId))
+				IStream? Stream = await Streams.GetCachedStream(StreamId);
+				if (Stream != null)
 				{
-					bool ContainsFix = false;
-					if (PrevFixStreamIds == null || !PrevFixStreamIds.TryGetValue(Span.StreamId, out ContainsFix))
-					{
-						IStream? Stream = await Streams.GetCachedStream(Span.StreamId);
-						if (Stream != null)
-						{
-							Logger.LogInformation("Querying fix changelist {FixChange} for issue {IssueId} in {StreamId} (prev={HavePrev})", FixChange, IssueId, Span.StreamId, PrevFixStreamIds != null);
-							List<ChangeSummary> Changes = await Perforce.GetChangesAsync(Stream.ClusterName, Span.StreamName, FixChange, FixChange, 1, null);
-							ContainsFix = Changes.Count > 0;
-						}
-					}
-					NextFixStreamIds[Span.StreamId] = ContainsFix;
+					Logger.LogInformation("Querying fix changelist {FixChange} in {StreamId}", FixChange, StreamId);
+					List<ChangeSummary> Changes = await Perforce.GetChangesAsync(Stream.ClusterName, Stream.Name, FixChange, FixChange, 1, null);
+					bContainsFixChange = Changes.Count > 0;
 				}
+				CachedContainsFixChange[(StreamId, FixChange)] = bContainsFixChange;
 			}
-
-			if (PrevFixStreamIds != null)
-			{
-				if(PrevFixStreamIds.Count != NextFixStreamIds.Count || PrevFixStreamIds.Any(x => !NextFixStreamIds.TryGetValue(x.Key, out bool Value) || x.Value != Value))
-				{
-					return null;
-				}
-			}
-
-			return NextFixStreamIds;
+			return bContainsFixChange;
 		}
 
 		/// <summary>
@@ -1105,7 +1056,7 @@ namespace HordeServer.Services.Impl
 		/// </summary>
 		/// <param name="Span">The span to find an issue for</param>
 		/// <returns>The matching issue</returns>
-		async Task<IIssue?> FindIssueForSpanAsync(IIssueSpan Span)
+		async Task<IIssue> FindOrAddIssueForSpanAsync(NewIssueSpanData Span)
 		{
 			List<IIssue> ExistingIssues;
 			if (Span.LastSuccess == null)
@@ -1114,29 +1065,16 @@ namespace HordeServer.Services.Impl
 			}
 			else
 			{
-				List<int> SourceChanges = Span.Suspects.ConvertAll(x => x.OriginatingChange ?? x.Change);
-				ExistingIssues = await IssueCollection.FindIssuesForSuspectsAsync(SourceChanges);
+				ExistingIssues = await IssueCollection.FindIssuesForChangesAsync(Span.Suspects.ConvertAll(x => x.OriginatingChange ?? x.Change));
 			}
-			return ExistingIssues.FirstOrDefault(x => x.Fingerprint.IsMatch(Span.Fingerprint));
-		}
 
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="Issue"></param>
-		/// <returns></returns>
-		async Task<IIssue?> UpdateIssueDerivedDataAsync(IIssue Issue)
-		{
-			IIssue? NewIssue = await IssueCollection.UpdateIssueDerivedDataAsync(Issue);
-			if (NewIssue != null)
+			IIssue? Issue = ExistingIssues.FirstOrDefault(x => x.Fingerprints.Any(y => y.IsMatch(Span.Fingerprint)));
+			if (Issue == null)
 			{
-				string NewSummary = GetSummary(NewIssue.Fingerprint, NewIssue.Severity);
-				if (!NewSummary.Equals(NewIssue.Summary, StringComparison.Ordinal))
-				{
-					NewIssue = await IssueCollection.UpdateIssueAsync(NewIssue, NewSummary: NewSummary);
-				}
+				string Summary = GetSummary(Span.Fingerprint, Span.FirstFailure.Severity);
+				Issue = await IssueCollection.AddIssueAsync(Summary);
 			}
-			return NewIssue;
+			return Issue;
 		}
 
 		/// <summary>
@@ -1175,21 +1113,25 @@ namespace HordeServer.Services.Impl
 					NewIssueStepData NewLastSuccess = new NewIssueStepData(Job.Change, IssueSeverity.Unspecified, Job.Name, Job.Id, Batch.Id, Step.Id, Step.StartTimeUtc ?? default, Step.LogId, false);
 					List<NewIssueSpanSuspectData> NewSuspects = await FindSuspectsForSpanAsync(Stream, Span.Fingerprint, Job.Change + 1, Span.FirstFailure.Change);
 
-					if (await IssueCollection.TryUpdateSpanAsync(Span, NewLastSuccess: NewLastSuccess, NewSuspects: NewSuspects, NewModified: true) == null)
+					if (await IssueCollection.TryUpdateSpanAsync(Span, NewLastSuccess: NewLastSuccess, NewSuspects: NewSuspects) == null)
 					{
 						return false;
 					}
 
 					Logger.LogInformation("Set last success for issue {IssueId}, template {TemplateId}, node {Node} as job {JobId}, cl {Change}", Span.IssueId, Job.TemplateId, Span.NodeName, Job.Id, Job.Change);
+					await UpdateIssueDerivedDataAsync(Span.IssueId);
 				}
 				else if (Job.Change > Span.LastFailure.Change && (Span.NextSuccess == null || Job.Change < Span.NextSuccess.Change))
 				{
 					NewIssueStepData NewNextSucccess = new NewIssueStepData(Job.Change, IssueSeverity.Unspecified, Job.Name, Job.Id, Batch.Id, Step.Id, Step.StartTimeUtc ?? default, Step.LogId, false);
-					if (await IssueCollection.TryUpdateSpanAsync(Span, NewNextSuccess: NewNextSucccess, NewModified: true) == null)
+
+					if (await IssueCollection.TryUpdateSpanAsync(Span, NewNextSuccess: NewNextSucccess) == null)
 					{
 						return false;
 					}
+
 					Logger.LogInformation("Set next success for issue {IssueId}, template {TemplateId}, node {Node} as job {JobId}, cl {Change}", Span.IssueId, Job.TemplateId, Span.NodeName, Job.Id, Job.Change);
+					await UpdateIssueDerivedDataAsync(Span.IssueId);
 				}
 			}
 			return true;
