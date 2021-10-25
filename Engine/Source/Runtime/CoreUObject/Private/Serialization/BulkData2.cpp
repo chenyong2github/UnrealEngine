@@ -1219,8 +1219,19 @@ IBulkDataIORequest* FBulkDataBase::CreateStreamingRequest(int64 OffsetInBulkData
 	}
 	else
 	{
-		const FString AssetFilename = FileTokenSystem::GetFilename(Data.Token);
-		const FString Filename = ConvertFilenameFromFlags(AssetFilename);
+		FString Filename = FileTokenSystem::GetFilename(Data.Token);
+		int64 OffsetInFile = BulkDataOffset + OffsetInBulkData;
+
+		// Fix up the Filename/Offset to work with streaming if EDL is enabled and the filename is still referencing a uasset or umap
+		if (IsInlined() && GEventDrivenLoaderEnabled && (Filename.EndsWith(TEXT(".uasset")) || Filename.EndsWith(TEXT(".umap"))))
+		{
+			OffsetInFile -= IFileManager::Get().FileSize(*Filename);
+			Filename = FPaths::GetBaseFilename(Filename, false) + BulkDataExt::Export;
+		}
+		else
+		{
+			Filename = ConvertFilenameFromFlags(Filename);
+		}
 
 		UE_CLOG(IsStoredCompressedOnDisk(), LogSerialization, Fatal, TEXT("Package level compression is no longer supported (%s)."), *Filename);
 		UE_CLOG(BulkDataSize <= 0, LogSerialization, Error, TEXT("(%s) has invalid bulk data size."), *Filename);
@@ -1232,9 +1243,7 @@ IBulkDataIORequest* FBulkDataBase::CreateStreamingRequest(int64 OffsetInBulkData
 		{
 			return nullptr;
 		}
-
-		const int64 OffsetInFile = BulkDataOffset + OffsetInBulkData;
-
+		
 		FBulkDataIORequest* IORequest = new FBulkDataIORequest(IORequestHandle);
 
 		if (IORequest->MakeReadRequest(OffsetInFile, BytesToRead, Priority, CompleteCallback, UserSuppliedMemory))
@@ -1514,7 +1523,6 @@ void FBulkDataBase::InternalLoadFromFileSystem(void** DstBuffer)
 	}
 
 	// If the data is inlined then we already loaded is during ::Serialize, this warning should help track cases where data is being discarded then re-requested.
-	// Disabled at the moment
 	UE_CLOG(IsInlined(), LogSerialization, Warning, TEXT("Reloading inlined bulk data directly from disk, this is detrimental to loading performance. Filename: '%s'."), *Filename);
 
 	FArchive* Ar = IFileManager::Get().CreateFileReader(*Filename, FILEREAD_Silent);
