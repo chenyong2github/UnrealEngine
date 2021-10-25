@@ -72,30 +72,6 @@ FArchive& operator<<(FArchive& Ar, FPackedHairVertex& Vertex)
 	return Ar;
 }
 
-FArchive& operator<<(FArchive& Ar, FPackedHairAttribute0Vertex& Vertex)
-{
-	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
-
-	Ar << Vertex.RootU;
-	Ar << Vertex.RootV;
-	Ar << Vertex.NormalizedLength;
-	Ar << Vertex.Seed;
-
-	return Ar;
-}
-
-FArchive& operator<<(FArchive& Ar, FPackedHairAttribute1Vertex& Vertex)
-{
-	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
-
-	Ar << Vertex.IndexU;
-	Ar << Vertex.IndexV;
-	Ar << Vertex.Unused0;
-	Ar << Vertex.Unused1;
-
-	return Ar;
-}
-
 FArchive& operator<<(FArchive& Ar, FHairMaterialVertex& Vertex)
 {
 	Ar << Vertex.BaseColorR;
@@ -257,10 +233,8 @@ void FHairStrandsBulkData::Serialize(FArchive& Ar, UObject* Owner)
 
 		Positions.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 		Attributes0.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-		if (!!(Flags & DataFlags_HasUDIMData))
-		{
-			Attributes1.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-		}
+		Attributes1.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+
 		if (!!(Flags & DataFlags_HasMaterialData))
 		{
 			Materials.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);

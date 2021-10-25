@@ -48,7 +48,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairStrandsVertexFactoryUniformShaderParam
 	SHADER_PARAMETER(float, Length)
 	SHADER_PARAMETER(float, Density)
 	SHADER_PARAMETER(uint32, CullingEnable)
-	SHADER_PARAMETER(uint32, HasAttribute1)
 	SHADER_PARAMETER(uint32, HasMaterial)
 	SHADER_PARAMETER(uint32, StableRasterization)
 	SHADER_PARAMETER(uint32, ScatterSceneLighing)
@@ -59,8 +58,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairStrandsVertexFactoryUniformShaderParam
 	SHADER_PARAMETER_SRV(Buffer<uint4>, PositionBuffer)
 	SHADER_PARAMETER_SRV(Buffer<uint4>, PreviousPositionBuffer)
 
-	SHADER_PARAMETER_SRV(Buffer<float4>, Attribute0Buffer)
-	SHADER_PARAMETER_SRV(Buffer<float4>, Attribute1Buffer)
+	SHADER_PARAMETER_SRV(Buffer<float2>, Attribute0Buffer)
+	SHADER_PARAMETER_SRV(Buffer<uint>, Attribute1Buffer)
 	SHADER_PARAMETER_SRV(Buffer<float4>, MaterialBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float4>, TangentBuffer)
 

@@ -65,17 +65,20 @@ struct FHairAttributes
 	float WorldLength;
 };
 
-FHairAttributes DecodeHairAttribute(float4 Attributes0, uint4 Attributes1, float InVF_Length)
+FHairAttributes DecodeHairAttribute(float2 Attributes0, uint Attributes1, float InVF_Length)
 {
 	float2 RootUV, RootIndex;
-	RootUV.x		= Attributes0.x;
-	RootUV.y		= 1.0 - Attributes0.y; // Invert V to compensate image origin flip. Similar to GetHairStrandsRootUV in HairCardsAttributeCommon.ush
-	RootIndex.x		= float(Attributes1.x);
-	RootIndex.y		= float(Attributes1.y);
+	RootUV.x		= ((Attributes1    ) & 0x7FF) / 2047.f;	// Coord are encoded on 11 bits
+	RootUV.y		= ((Attributes1>>11) & 0x7FF) / 2047.f;	// Coord are encoded on 11 bits 
+	RootIndex.x		= ((Attributes1>>22) & 0x1F);			// UDIM tile are encoded on 5bits
+	RootIndex.y		= ((Attributes1>>27) & 0x1F);			// UDIM tile are encoded on 5bits
+
+	// Invert V to compensate image origin flip. Similar to GetHairStrandsRootUV in HairCardsAttributeCommon.ush
+	RootUV.y = 1.0f - RootUV.y;
 
 	FHairAttributes Out;
 	Out.RootUV		= RootUV + RootIndex;
-	Out.WorldLength = Attributes0.z * InVF_Length;
-	Out.Seed		= Attributes0.w;
+	Out.WorldLength = Attributes0.x * InVF_Length;
+	Out.Seed		= Attributes0.y;
 	return Out;
 }
