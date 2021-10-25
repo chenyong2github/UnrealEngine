@@ -142,10 +142,8 @@ void ThreadPoolProfiler::MainThreadStat::LogCore() {
 #elif defined(WITH_UE)
   // This is the simplest way to do it without writing platform dependent
   // code.
-  int32 ProcessorCoreCount = 0;
-  ProcessorCoreCount = FGenericPlatformMisc::NumberOfCoresIncludingHyperthreads();
-
-  if (!ProcessorCoreCount) {
+  const int32 ProcessorCoreCount = FGenericPlatformMisc::NumberOfCoresIncludingHyperthreads();
+  if (ProcessorCoreCount == 0) {
    ORT_THROW("Fatal error: 0 count processors from GetLogicalProcessorInformation");
   }
   core_ = ProcessorCoreCount;
@@ -234,13 +232,10 @@ void ThreadPoolProfiler::LogRun(int thread_idx) {
 #elif defined(WITH_UE)
 	  // This is the simplest way to do it without writing platform dependent
 	  // code.
-	  int32 ProcessorCoreCount = 0;
-	  ProcessorCoreCount = FGenericPlatformMisc::NumberOfCoresIncludingHyperthreads();
-
-	  if (!ProcessorCoreCount) {
+    const int32 ProcessorCoreCount = FGenericPlatformMisc::NumberOfCoresIncludingHyperthreads();
+    if (ProcessorCoreCount == 0) {
 		  ORT_THROW("Fatal error: 0 count processors from GetLogicalProcessorInformation");
 	  }
-	
 	  child_thread_stats_[thread_idx].core_ = ProcessorCoreCount;
 #else
       child_thread_stats_[thread_idx].core_ = sched_getcpu();
