@@ -267,6 +267,12 @@ public:
 	/** Tolerance used to consider input focus or zoom to be identical */
 	float InputTolerance = KINDA_SMALL_NUMBER;
 
+#if WITH_EDITORONLY_DATA
+	/** Importing data and options used for importing ulens files. */
+	UPROPERTY(VisibleAnywhere, Instanced, Category = "ImportSettings")
+	TObjectPtr<UAssetImportData> AssetImportData;
+#endif // WITH_EDITORONLY_DATA
+
 protected:
 
 	/** Derived data compute jobs we are waiting on */
