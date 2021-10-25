@@ -417,6 +417,23 @@ public:
 		return MinLength;
 	}
 
+	/// Given a mesh and a subset of mesh edges, compute the total length of all the edges
+	static double TotalEdgeLength(const TriangleMeshType& Mesh, const TArray<int>& Edges)
+	{
+		double AccumulatedLength = 0;
+		for (int EdgeID : Edges)
+		{
+			if (Mesh.IsEdge(EdgeID))
+			{
+				FVector3d A, B;
+				Mesh.GetEdgeV(EdgeID, A, B);
+				AccumulatedLength += Distance(A, B);
+			}
+		}
+		return AccumulatedLength;
+	}
+
+
 	/// Given a mesh and a subset of mesh edges, compute the min, max, and mean edge lengths
 	static void EdgeLengthStatsFromEdges(const TriangleMeshType& Mesh, const TArray<int>& Edges, double& MinEdgeLength,
 		double& MaxEdgeLength, double& AverageEdgeLength)

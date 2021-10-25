@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Operations/MinimalHoleFiller.h"
+#include "Operations/SimpleHoleFiller.h"
 #include "MeshQueries.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
@@ -614,6 +615,14 @@ bool FMinimalHoleFiller::Fill(int32 GroupID)
 		return true;
 	}
 
+	// if the loop is tiny just use the simple fill
+	double LoopTotalLength = TMeshQueries<FDynamicMesh3>::TotalEdgeLength(*Mesh, FillLoop.Edges);
+	if (LoopTotalLength < 100.0f*FMathf::ZeroTolerance)
+	{
+		NewTriangles = Simplefill.NewTriangles;
+		return true;
+	}
+
 	// extract the simple fill mesh as a submesh, via RegionOperator, so we can backsub later
 	TSet<int> IntialFillTris(Simplefill.NewTriangles);
 
@@ -672,6 +681,8 @@ bool FMinimalHoleFiller::Fill(int32 GroupID)
 		Remesher.SetExternalConstraints(MoveTemp(Constraints));
 	}
 
+	// TODO: we should estimate/valide and/or try to cap the number of triangles being created here.
+	// If RemeshTargetEdgeLength value is extremely tiny this could be trying to create infinity triangles.
 	Remesher.SetTargetEdgeLength(RemeshTargetEdgeLength);
 	Remesher.FastestRemesh();
 
