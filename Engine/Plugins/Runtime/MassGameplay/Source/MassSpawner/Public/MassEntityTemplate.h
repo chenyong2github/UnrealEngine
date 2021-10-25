@@ -27,6 +27,8 @@ struct MASSSPAWNER_API FMassObjectHandlers
 {
 	GENERATED_BODY()
 	UPROPERTY()
+	TArray<const UMassFragmentInitializer*> DefaultInitializers;
+	UPROPERTY()
 	TArray<const UMassProcessor*> Initializers;
 	UPROPERTY()
 	TArray<const UMassProcessor*> Deinitializers;
