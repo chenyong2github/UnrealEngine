@@ -1240,6 +1240,17 @@ void UNiagaraEmitter::CacheFromCompiledData(const FNiagaraDataSetCompiledData* C
 		);
 	}
 #endif
+
+#if !UE_BUILD_SHIPPING
+	// Ensure our debug simulation name is up to date
+	DebugSimName.Empty();
+	if (const UNiagaraSystem* SystemOwner = Cast<const UNiagaraSystem>(GetOuter()))
+	{
+		DebugSimName = SystemOwner->GetName();
+		DebugSimName.AppendChar(':');
+	}
+	DebugSimName.Append(GetName());
+#endif
 }
 
 void UNiagaraEmitter::CacheFromShaderCompiled()
