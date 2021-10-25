@@ -775,6 +775,16 @@ FScreenPassTexture AddHighResolutionScreenshotMaskPass(
 		PassInputs.SetInput(EPostProcessMaterialInput::SceneColor, Output);
 		PassInputs.SceneTextures = Inputs.SceneTextures;
 
+		// Explicitly allocate the render target to match the FSceneView extents and rect, so the output pixel arrangement matches
+		FRDGTextureDesc MaskOutputDesc = Output.Texture->Desc;
+		MaskOutputDesc.Reset();
+		MaskOutputDesc.ClearValue = FClearValueBinding(FLinearColor::Black);
+		MaskOutputDesc.Flags |= GFastVRamConfig.PostProcessMaterial;
+		MaskOutputDesc.Extent = View.UnconstrainedViewRect.Size();
+
+		PassInputs.OverrideOutput = FScreenPassRenderTarget(
+			GraphBuilder.CreateTexture(MaskOutputDesc, TEXT("PostProcessMaterial")), View.UnscaledViewRect, View.GetOverwriteLoadAction());
+
 		// Disallow the scene color input as output optimization since we need to not pollute the scene texture.
 		PassInputs.bAllowSceneColorInputAsOutput = false;
 

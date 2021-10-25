@@ -1851,6 +1851,7 @@ bool UGameViewportClient::ProcessScreenShots(FViewport* InViewport)
 		}
 
 		bool bScreenshotSuccessful = false;
+		bool bIsUI = false;
 		FIntVector Size(InViewport->GetSizeXY().X, InViewport->GetSizeXY().Y, 0);
 		if( bShowUI && FSlateApplication::IsInitialized() )
 		{
@@ -1858,6 +1859,7 @@ bool UGameViewportClient::ProcessScreenShots(FViewport* InViewport)
 			bScreenshotSuccessful = FSlateApplication::Get().TakeScreenshot( WindowRef, Bitmap, Size);
 			GScreenshotResolutionX = Size.X;
 			GScreenshotResolutionY = Size.Y;
+			bIsUI = true;
 		}
 		else
 		{
@@ -1889,7 +1891,14 @@ bool UGameViewportClient::ProcessScreenShots(FViewport* InViewport)
 					ScreenShotName = FScreenshotRequest::GetFilename();
 				}
 
-				GetHighResScreenshotConfig().MergeMaskIntoAlpha(Bitmap);
+				// If a screenshot is requested during PIE (via F9), it does a screenshot of the entire editor window, including UI.
+				// We need to ignore the high resolution screenshot alpha mask in that case, as the mask isn't relevant when taking a
+				// screenshot of the entire window (and it will trigger an assert).  We don't want to solve this by modifying the
+				// global variables associated with the screenshot feature, as the application may be taking its own screenshots.
+				if (!bIsUI)
+				{
+					GetHighResScreenshotConfig().MergeMaskIntoAlpha(Bitmap);
+				}
 
 				FIntRect SourceRect(0, 0, GScreenshotResolutionX, GScreenshotResolutionY);
 				if (GIsHighResScreenshot)

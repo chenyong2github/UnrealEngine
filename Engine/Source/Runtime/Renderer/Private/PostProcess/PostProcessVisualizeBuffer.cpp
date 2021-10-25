@@ -295,7 +295,16 @@ void AddDumpToColorArrayPass(FRDGBuilder& GraphBuilder, FScreenPassTexture Input
 	AddReadbackTexturePass(GraphBuilder, RDG_EVENT_NAME("DumpToPipe(%s)", Input.Texture->Name), Input.Texture,
 		[Input, OutputColorArray](FRHICommandListImmediate& RHICmdList)
 	{
-		RHICmdList.ReadSurfaceData(Input.Texture->GetRHI(), Input.ViewRect, *OutputColorArray, FReadSurfaceDataFlags());
+		// By design, we want the whole surface, not the view rectangle, as this code is used for generating a screenshot
+		// mask surface that needs to match the corresponding screenshot color surface.  The scene may render as a viewport
+		// inside a larger surface, but the screenshot logic emits the entire surface, not just the viewport, and we must
+		// do the same for correct results (also to prevent an assert in FHighResScreenshotConfig::MergeMaskIntoAlpha).
+		// See FSceneView, UnscaledViewRect versus UnconstrainedViewRect.
+		FIntRect WholeSurfaceRect;
+		WholeSurfaceRect.Min = FIntPoint(0, 0);
+		WholeSurfaceRect.Max = Input.Texture->Desc.Extent;
+
+		RHICmdList.ReadSurfaceData(Input.Texture->GetRHI(), WholeSurfaceRect, *OutputColorArray, FReadSurfaceDataFlags());
 	});
 }
 
