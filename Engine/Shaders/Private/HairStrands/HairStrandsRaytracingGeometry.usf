@@ -17,7 +17,11 @@ float HairStrandsVF_HairTipScale;
 
 Buffer<float4>	 PositionOffsetBuffer;
 Buffer<uint4> 	 PositionBuffer;
+Buffer<float4> 	 TangentBuffer;
 RWBuffer<float4> OutputPositionBuffer;
+#if !ENABLE_CUSTOM_INTERSECTOR 
+RWBuffer<uint>   OutputIndexBuffer;
+#endif
 
 uint HairStrandsVF_bIsCullingEnable;
 #if PERMUTATION_CULLING == 1
@@ -52,56 +56,124 @@ FHairControlPoint GetControlPoint(uint ControlPointId)
 	return Out;
 }
 
-float4 PackNormal(float3 V, uint A)
+float3x3 GetTangentBasis(uint ControlPointId)
 {
-	return float4(clamp(V,float(-1).xxx,float(1).xxx), 1.0f);
+	float3 Tx = TangentBuffer[2 * ControlPointId    ].xyz;
+	float3 Tz = TangentBuffer[2 * ControlPointId + 1].xyz;
+	float3 Ty = cross(Tz, Tx);
+	return float3x3(Tx, Ty, Tz);
 }
 
+#if ENABLE_CUSTOM_INTERSECTOR
+void SetAABB(uint InVertexIndex, float3 Lo, float3 Hi)
+{
+	OutputPositionBuffer[2 * InVertexIndex + 0] = float4(Lo.x, Lo.y, Lo.z, Hi.x);
+	OutputPositionBuffer[2 * InVertexIndex + 1] = float4(Hi.y, Hi.z, 0.0, 0.0);
+}
+#endif
+
+// a whole segment of invalid values
 void SetInvalidSegment(uint InVertexIndex)
 {
-	const float NaN = sqrt(-1);
-	const float4 InvalidPoint = float4(NaN, NaN, NaN, NaN);
-
-	const uint BaseOutIndex = InVertexIndex * 12;
-	OutputPositionBuffer[BaseOutIndex]      = InvalidPoint;
-	OutputPositionBuffer[BaseOutIndex + 1]  = InvalidPoint;
-	OutputPositionBuffer[BaseOutIndex + 2]  = InvalidPoint;
-	OutputPositionBuffer[BaseOutIndex + 3]  = InvalidPoint;
-	OutputPositionBuffer[BaseOutIndex + 4]  = InvalidPoint;
-	OutputPositionBuffer[BaseOutIndex + 5]  = InvalidPoint;
-	OutputPositionBuffer[BaseOutIndex + 6]  = InvalidPoint;
-	OutputPositionBuffer[BaseOutIndex + 7]  = InvalidPoint;
-	OutputPositionBuffer[BaseOutIndex + 8]  = InvalidPoint;
-	OutputPositionBuffer[BaseOutIndex + 9]  = InvalidPoint;
-	OutputPositionBuffer[BaseOutIndex + 10] = InvalidPoint;
-	OutputPositionBuffer[BaseOutIndex + 11] = InvalidPoint;
+#if ENABLE_CUSTOM_INTERSECTOR
+	const float NaN = asfloat(0x7FC00000);
+	SetAABB(InVertexIndex, NaN, NaN);
+#else
+	const uint BasePoint = InVertexIndex * 4;
+	const uint TrisPerSegment = 8;
+	const uint IdxsPerSegment = TrisPerSegment * 3;
+	const uint BaseOutIndex = InVertexIndex * IdxsPerSegment;
+	UNROLL
+	for (uint Index = 0; Index < IdxsPerSegment; Index++)
+	{
+		OutputIndexBuffer[BaseOutIndex + Index] = BasePoint;
+	}
+#endif
 }
+
+// TODO: this is not used at the moment
+void SetCapSegment(uint InVertexIndex)
+{
+#if 1
+	SetInvalidSegment(InVertexIndex);
+#else
+	const uint BasePoint = InVertexIndex * 4;
+	const uint TrisPerSegment = 8;
+	const uint IdxsPerSegment = TrisPerSegment * 3;
+	const uint BaseOutIndex = InVertexIndex * IdxsPerSegment;
+	OutputIndexBuffer[BaseOutIndex + 0] = BasePoint;
+	OutputIndexBuffer[BaseOutIndex + 1] = BasePoint + 1;
+	OutputIndexBuffer[BaseOutIndex + 2] = BasePoint + 2;
+
+	OutputIndexBuffer[BaseOutIndex + 3] = BasePoint;
+	OutputIndexBuffer[BaseOutIndex + 4] = BasePoint + 2;
+	OutputIndexBuffer[BaseOutIndex + 5] = BasePoint + 3;
+
+	// fill the reset with degenerate triangles
+	UNROLL
+	for (uint Index = 6; Index < IdxsPerSegment; Index++)
+	{
+		OutputIndexBuffer[BaseOutIndex + Index] = BasePoint;
+	}
+#endif
+}
+
+void SetBodySegment(uint InVertexIndex)
+{
+#if ENABLE_CUSTOM_INTERSECTOR
+	FHairControlPoint P0 = GetControlPoint(InVertexIndex);
+	FHairControlPoint P1 = GetControlPoint(InVertexIndex + 1);
+	float4 A = float4(P0.Position, P0.WorldRadius);
+	float4 B = float4(P1.Position, P1.WorldRadius);
+	float3 Lo = min(A.xyz - A.w, B.xyz - B.w);
+	float3 Hi = max(A.xyz + A.w, B.xyz + B.w);
+	SetAABB(InVertexIndex, Lo, Hi);
+#else
+	const uint BotPoint = InVertexIndex * 4;
+	const uint TopPoint = BotPoint + 4;
+
+	const uint TrisPerSegment = 8;
+	const uint IdxsPerSegment = TrisPerSegment * 3;
+	const uint BaseOutIndex = InVertexIndex * IdxsPerSegment;
+
+	UNROLL
+	for (uint PrevIdx = 3, Idx = 0, OutIndex = BaseOutIndex; Idx < 4; PrevIdx = Idx, Idx++, OutIndex += 6)
+	{
+		// Note that this vertex ordering is carefully chosen to work with the Vertex Factory in RT mode
+		// In particular, we _must_ put one of the bottom point as the last vertex of the triangle
+		// so that the interpolation step will copy the right HairPrimitiveId onwards
+		OutputIndexBuffer[OutIndex + 0] = TopPoint + PrevIdx;
+		OutputIndexBuffer[OutIndex + 1] = TopPoint + Idx;
+		OutputIndexBuffer[OutIndex + 2] = BotPoint + PrevIdx;
+
+		OutputIndexBuffer[OutIndex + 3] = TopPoint + Idx;
+		OutputIndexBuffer[OutIndex + 4] = BotPoint + Idx;
+		OutputIndexBuffer[OutIndex + 5] = BotPoint + PrevIdx; 
+	}
+#endif
+}
+
 
 [numthreads(GROUP_SIZE, 1, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	uint VertexIndex0 = GetHairStrandsVertexFetchIndex(DispatchThreadId, GROUP_SIZE, DispatchCountX);
-	uint VertexIndex1 = VertexIndex0 + 1;
 	float LodRadiusScale0 = 1;
 	float LodRadiusScale1 = 1;
 
+	uint SourceIndex0 = VertexIndex0;
 #if PERMUTATION_CULLING == 1
 	if (HairStrandsVF_bIsCullingEnable)
 	{
 		const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
-		uint FetchIndex0 = GetHairStrandsVertexFetchIndex_Culled(DispatchThreadId, GROUP_SIZE);
-		if (FetchIndex0 >= VertexCountAfterCulling)
+		if (VertexIndex0 >= VertexCountAfterCulling)
 		{
 			SetInvalidSegment(VertexIndex0);
 			return;
 		}
-		uint FetchIndex1 = min(FetchIndex0 + 1, VertexCountAfterCulling - 1);
 
-		VertexIndex0 = HairStrandsVF_CullingIndexBuffer[FetchIndex0];
-		LodRadiusScale0 = HairStrandsVF_CullingRadiusScaleBuffer[FetchIndex0];
-
-		VertexIndex1 = HairStrandsVF_CullingIndexBuffer[FetchIndex1];
-		LodRadiusScale1 = HairStrandsVF_CullingRadiusScaleBuffer[FetchIndex1];
+		SourceIndex0 = HairStrandsVF_CullingIndexBuffer[VertexIndex0];
+		LodRadiusScale0 = HairStrandsVF_CullingRadiusScaleBuffer[VertexIndex0];
 
 		if (LodRadiusScale0 <= 0.0f)
 		{
@@ -111,14 +183,39 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	}
 #endif
 
-	FHairControlPoint P0 = GetControlPoint(VertexIndex0);
+	FHairControlPoint P0 = GetControlPoint(SourceIndex0);
+#if ENABLE_CUSTOM_INTERSECTOR
+	// aabb position is generated by segment call
+#else
+	// expand current vertex into 4 points around the curve
+	const float3x3 TangentBasis = GetTangentBasis(SourceIndex0);
+	const float3 N = TangentBasis[0];
+	const float3 B = TangentBasis[1];
 
-	// Point at the end of a strand is filled with invalid position. The positions/triangle are 
-	// ignored by DXR during BVH building
-	if (P0.Type == 2)
+	const uint BaseOutIndex = VertexIndex0 * 4;
 	{
+		const float3 Px0 = P0.Position - N * P0.WorldRadius * LodRadiusScale0;
+		const float3 Px1 = P0.Position + N * P0.WorldRadius * LodRadiusScale0;
+		const float3 Py0 = P0.Position - B * P0.WorldRadius * LodRadiusScale0;
+		const float3 Py1 = P0.Position + B * P0.WorldRadius * LodRadiusScale0;
+
+		OutputPositionBuffer[BaseOutIndex    ] = float4(Px0, 1);
+		OutputPositionBuffer[BaseOutIndex + 1] = float4(Py0, 1);
+		OutputPositionBuffer[BaseOutIndex + 2] = float4(Px1, 1);
+		OutputPositionBuffer[BaseOutIndex + 3] = float4(Py1, 1);
+	}
+#endif
+
+	if (P0.Type == HAIR_CONTROLPOINT_END)
+	{
+		// last vertex of a curve, we could create a cap, but this would complicate the logic in the vertex factory
+		// ignore this for now on the assumption that most hairs will have a small tip width
 		SetInvalidSegment(VertexIndex0);
-		return;
+	}
+	else
+	{
+		// regular point, build the body of the cylinder
+		SetBodySegment(VertexIndex0);
 	}
 }
 

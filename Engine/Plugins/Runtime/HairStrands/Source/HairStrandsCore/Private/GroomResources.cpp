@@ -324,31 +324,7 @@ void InternalCreateVertexBufferRDG(FRDGBuilder& GraphBuilder, uint32 InVertexCou
 	FRDGBufferDesc Desc = FRDGBufferDesc::CreateBufferDesc(FormatType::SizeInByte, InVertexCount);
 	FRDGBufferRef Buffer = GraphBuilder.CreateBuffer(Desc, DebugName, ERDGBufferFlags::MultiFrame);
 
-	auto IsFloatFormat = []()
-	{
-		switch (FormatType::Format)
-		{
-		case PF_A32B32G32R32F:
-		case PF_FloatR11G11B10:
-		case PF_FloatRGB:
-		case PF_FloatRGBA:
-		case PF_G16R16F_FILTER:
-		case PF_G16R16F:
-		case PF_G32R32F:
-		case PF_R16F_FILTER:
-		case PF_R16F:
-		case PF_R16G16B16A16_SNORM:
-		case PF_R16G16B16A16_UNORM:
-		case PF_R32_FLOAT:
-		case PF_R5G6B5_UNORM:
-		case PF_R8G8B8A8_SNORM:
-			return true;
-		default:
-			return false;
-		}
-	};
-
-	if (IsFloatFormat())
+	if (IsFloatFormat(FormatType::Format))
 	{
 		AddClearUAVFloatPass(GraphBuilder, GraphBuilder.CreateUAV(Buffer, FormatType::Format), 0.0f);
 	}
@@ -359,6 +335,26 @@ void InternalCreateVertexBufferRDG(FRDGBuilder& GraphBuilder, uint32 InVertexCou
 	
 	ConvertToExternalBufferWithViews(GraphBuilder, Buffer, Out, FormatType::Format);
 }
+
+template<typename FormatType>
+void InternalCreateStructuredBufferRDG(FRDGBuilder& GraphBuilder, uint32 DataCount, FRDGExternalBuffer& Out, const TCHAR* DebugName, EHairResourceUsageType Usage)
+{
+	// Sanity check
+	check(Usage == EHairResourceUsageType::Dynamic);
+
+	const uint32 DataSizeInBytes = FormatType::SizeInByte * DataCount;
+	if (DataSizeInBytes == 0)
+	{
+		Out.Buffer = nullptr;
+		return;
+	}
+
+	FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(FormatType::SizeInByte, DataCount);
+	FRDGBufferRef Buffer = GraphBuilder.CreateBuffer(Desc, DebugName, ERDGBufferFlags::MultiFrame);
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Buffer, FormatType::Format), 0u);
+	ConvertToExternalBufferWithViews(GraphBuilder, Buffer, Out, FormatType::Format);
+}
+
 
 template<typename FormatType>
 void InternalCreateStructuredBufferRDG_FromBulkData(FRDGBuilder& GraphBuilder, FByteBulkData& InBulkData, uint32 InDataCount, FRDGExternalBuffer& Out, const TCHAR* DebugName, EHairResourceUsageType UsageType)
@@ -1496,34 +1492,47 @@ void FHairCardsInterpolationResource::InternalRelease()
 /////////////////////////////////////////////////////////////////////////////////////////
 
 #if RHI_RAYTRACING
-// RT geometry is built to for a cross around the fiber.
-// 4 triangles per hair vertex => 12 vertices per hair vertex
+// RT geometry for strands is built as a 4 sided cylinder
+//   each vertex of the curve becomes 4 points
+//   each curve segment turns into 2*4=8 triangles (3 indices for each)
+// there is some waste due to the degenerate triangles emitted from the end points of each curve
+// total memory usage is: 4*float4 + 8*uint3 = 40 bytes per vertex
+// The previous implementation used a "cross" layout without an index buffer
+// which used 6*float4 = 48 bytes per vertex
+// NOTE: the vertex buffer is a float4 because it is registered as a UAV for the compute shader to work
+// TODO: use a plain float vertex buffer with 3x the entries instead to save memory? (float3 UAVs are not allowed)
 FHairStrandsRaytracingResource::FHairStrandsRaytracingResource(const FHairStrandsBulkData& InData, const FHairResourceName& ResourceName) :
 	FHairCommonResource(EHairStrandsAllocationType::Deferred, ResourceName),
-	PositionBuffer(), VertexCount(InData.GetNumPoints()*12), bOwnPositionBuffer(true)
+#if STRANDS_CUSTOM_INTERSECTOR
+	VertexCount(InData.GetNumPoints() * 2), bOwnBuffers(true) // only allocate space for primitive AABBs
+#else
+	VertexCount(InData.GetNumPoints() * 4), IndexCount(InData.GetNumPoints() * 8 * 3), bOwnBuffers(true)
+#endif
 {}
 
 FHairStrandsRaytracingResource::FHairStrandsRaytracingResource(const FHairCardsBulkData& InData, const FHairResourceName& ResourceName) :
 	FHairCommonResource(EHairStrandsAllocationType::Deferred, ResourceName),
-	PositionBuffer(), VertexCount(InData.GetNumVertices()), bOwnPositionBuffer(false)
+	VertexCount(InData.GetNumVertices()), bOwnBuffers(false)
 {}
 
 FHairStrandsRaytracingResource::FHairStrandsRaytracingResource(const FHairMeshesBulkData& InData, const FHairResourceName& ResourceName) :
 	FHairCommonResource(EHairStrandsAllocationType::Deferred, ResourceName),
-	PositionBuffer(), VertexCount(InData.GetNumVertices()), bOwnPositionBuffer(false)
+	VertexCount(InData.GetNumVertices()), bOwnBuffers(false)
 {}
 
 void FHairStrandsRaytracingResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
-	if (bOwnPositionBuffer)
+	if (bOwnBuffers)
 	{
 		InternalCreateVertexBufferRDG<FHairStrandsRaytracingFormat>(GraphBuilder, VertexCount, PositionBuffer, ToHairResourceDebugName(TEXT("Hair.StrandsRaytracing_PositionBuffer"), ResourceName), EHairResourceUsageType::Dynamic);
+		InternalCreateStructuredBufferRDG<FHairStrandsIndexFormat>(GraphBuilder, IndexCount, IndexBuffer, ToHairResourceDebugName(TEXT("Hair.StrandsRaytracing_IndexBuffer"), ResourceName), EHairResourceUsageType::Dynamic);
 	}
 }
 
 void FHairStrandsRaytracingResource::InternalRelease()
 {
 	PositionBuffer.Release();
+	IndexBuffer.Release();
 	RayTracingGeometry.ReleaseResource();
 	bIsRTGeometryInitialized = false;
 }
