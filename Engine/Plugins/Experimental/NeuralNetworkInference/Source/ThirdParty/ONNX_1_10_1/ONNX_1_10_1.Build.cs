@@ -9,8 +9,10 @@ public class ONNX_1_10_1 : ModuleRules
     public ONNX_1_10_1(ReadOnlyTargetRules Target) : base(Target)
     {
 		Type = ModuleType.External;
-		// Win64
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		// Win64, Linux and Mac
+		if (Target.Platform == UnrealTargetPlatform.Win64 ||
+			Target.Platform == UnrealTargetPlatform.Linux ||
+			Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			// PublicSystemIncludePaths
 			string IncPath = Path.Combine(ModuleDirectory, "include/");
@@ -24,9 +26,13 @@ public class ONNX_1_10_1 : ModuleRules
 
 			foreach(string LibFileName in LibFileNames)
 			{
-				if(Target.Platform == UnrealTargetPlatform.Win64)
+				if (Target.Platform == UnrealTargetPlatform.Win64)
 				{
 					PublicAdditionalLibraries.Add(Path.Combine(LibDirPath, LibFileName + ".lib"));
+				}
+				else // if(Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.Mac)
+				{
+					PublicAdditionalLibraries.Add(Path.Combine(LibDirPath, "lib" + LibFileName + ".a"));
 				}
 			}
 
