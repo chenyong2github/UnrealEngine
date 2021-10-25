@@ -568,7 +568,7 @@ void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMa
 			if (!CurrentMovementConfig)
 			{
 #if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
-				UE_VLOG(this, LogMassNavigation, Log, TEXT("%s Invalid movement config."), *Entity.DebugGetDescription());
+				UE_VLOG(this, LogMassNavigation, Warning, TEXT("%s Invalid movement config."), *Entity.DebugGetDescription());
 #endif
 				continue;
 			}
