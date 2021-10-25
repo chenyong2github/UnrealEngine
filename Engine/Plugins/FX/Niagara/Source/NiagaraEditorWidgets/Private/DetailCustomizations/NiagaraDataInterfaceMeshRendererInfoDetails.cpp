@@ -196,6 +196,10 @@ FText FNiagaraDataInterfaceMeshRendererInfoDetails::CreateRendererTextLabel(cons
 	const FText EmitterText = FText::FromString(Emitter->GetUniqueEmitterName());
 
 	UNiagaraEmitterEditorData* EmitterEditorData = static_cast<UNiagaraEmitterEditorData*>(Emitter->GetEditorData());
+	if (EmitterEditorData == nullptr)
+	{
+		return LOCTEXT("NoneOption", "None");
+	}
 	UNiagaraStackEditorData& EmitterStackEditorData = EmitterEditorData->GetStackEditorData();
 	FString RendererStackEditorDataKey = FString::Printf(TEXT("Renderer-%s"), *Properties->GetName());
 	const FText* RendererDisplayName = EmitterStackEditorData.GetStackEntryDisplayName(RendererStackEditorDataKey);
