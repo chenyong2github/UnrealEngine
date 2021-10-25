@@ -37,7 +37,7 @@ private:
 	void ProcessPendingNotifications();
 
 	/** Adds watches for all files (and subdirectories) in a directory. */
-	void WatchDirectoryTree(const FString& RootAbsolutePath);
+	void WatchDirectoryTree(const FString& RootAbsolutePath, TArray<TPair<FFileChangeData, bool>>* FileChanges);
 
 	/** Removes all watches for path */
 	void UnwatchDirectoryTree(const FString& RootAbsolutePath);
