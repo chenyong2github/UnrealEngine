@@ -126,6 +126,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
 	void CopyHierarchy(URigHierarchy* InHierarchy);
 
+	/**
+	 * Returns a hash for the hierarchy representing all names
+	 * as well as the topology version.
+	 */
+	uint32 GetNameHash() const;
+
 #if WITH_EDITOR
 	/**
 	* Add dependent hierarchies that listens to changes made to this hierarchy
@@ -1882,6 +1888,15 @@ public:
 	TArray<FRigElementKey> GetAllKeys(bool bTraverse = false, ERigElementType InElementType = ERigElementType::All) const;
 
 	/**
+	 * Returns element keys of this hierarchy, filtered by a predicate.
+	 * @param InPredicateFunc The predicate function to apply. Should return \c true if the element
+	 *    should be added to the result array.
+	 * @param bInTraverse If set to true the keys will be returned by depth first traversal
+	 * @return The keys of all elements
+	 */
+	TArray<FRigElementKey> GetKeysByPredicate(TFunctionRef<bool(const FRigBaseElement&)> InPredicateFunc, bool bInTraverse = false) const;
+
+	/**
 	 * Returns all element keys of this hierarchy
 	 * @param bTraverse If set to true the keys will be returned by depth first traversal
 	 * @return The keys of all elements
@@ -1977,6 +1992,11 @@ public:
 	 * Returns the topology version of this hierarchy
 	 */
 	uint16 GetTopologyVersion() const { return TopologyVersion; }
+
+	/**
+	 * Increments the topology version
+	 */
+	void IncrementTopologyVersion();
 
 	/**
 	 * Returns the current / initial pose of the hierarchy
@@ -2792,6 +2812,16 @@ protected:
 
 		return ERigElementType::None;
 	}
+
+public:
+
+	const FRigElementKeyCollection* FindCachedCollection(uint32 InHash) const { return KeyCollectionCache.Find(InHash); }
+	FRigElementKeyCollection& FindOrAddCachedCollection(uint32 InHash) const { return KeyCollectionCache.FindOrAdd(InHash); };
+	void AddCachedCollection(uint32 InHash, const FRigElementKeyCollection& InCollection) const { KeyCollectionCache.Add(InHash, InCollection); }
+	
+private:
+	
+	mutable TMap<uint32, FRigElementKeyCollection> KeyCollectionCache;
 
 	FTransform GetWorldTransformForReference(const FRigUnitContext* InContext, const FRigElementKey& InKey, bool bInitial);
 	

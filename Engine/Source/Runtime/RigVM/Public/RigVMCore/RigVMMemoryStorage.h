@@ -599,6 +599,8 @@ public:
 	
 #endif
 
+	void CopyFrom(URigVMMemoryStorage* InSourceMemory);
+
 private:
 	
 	static const TArray<const FProperty*> EmptyProperties;

@@ -434,6 +434,14 @@ private:
 	UPROPERTY()
 	TObjectPtr<URigVM> VM;
 
+	// this is only used by the CDO
+	// and stores an initialized VM per hash.
+	UPROPERTY(transient)
+	TMap<uint32, TObjectPtr<URigVM>> InitializedVMSnapshots;
+
+	// computes the hash used to store / find VM snapshots
+	uint32 GetHashForInitializeVMSnapShot();
+	
 	UPROPERTY()
 	TObjectPtr<URigHierarchy> DynamicHierarchy;
 
