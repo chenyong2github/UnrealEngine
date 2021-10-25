@@ -878,6 +878,7 @@ void FNiagaraDataBuffer::ReleaseGPU()
 	FloatStride = 0;
 	Int32Stride = 0;
 	HalfStride = 0;
+	GPUInstanceCountBufferOffset = INDEX_NONE;
 
 	if (GPUBufferFloat.Buffer)
 	{
