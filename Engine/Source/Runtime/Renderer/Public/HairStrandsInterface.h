@@ -171,6 +171,7 @@ public:
 	FRDGExternalBuffer& GetDrawIndirectBuffer() { return DrawIndirectBuffer; }
 	FRDGExternalBuffer& GetClusterAABBBuffer() { return ClusterAABBBuffer; }
 	FRDGExternalBuffer& GetGroupAABBBuffer() { return GroupAABBBuffer; }
+	const FRDGExternalBuffer& GetGroupAABBBuffer() const { return GroupAABBBuffer; }
 
 	const FRDGExternalBuffer& GetCulledVertexIdBuffer() const { return CulledVertexIdBuffer; }
 	const FRDGExternalBuffer& GetCulledVertexRadiusScaleBuffer() const { return CulledVertexRadiusScaleBuffer; }

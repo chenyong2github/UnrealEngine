@@ -84,6 +84,12 @@ static FAutoConsoleVariableRef CVarHairStrandsTile(TEXT("r.HairStrands.Tile"), G
 static int32 GHairStrandsLightSampleFormat = 1;
 static FAutoConsoleVariableRef CVarHairStrandsLightSampleFormat(TEXT("r.HairStrands.LightSampleFormat"), GHairStrandsLightSampleFormat, TEXT("Define the format used for storing the lighting of hair samples (0: RGBA-16bits, 1: RGB-11.11.10bits)"));
 
+static float GHairStrands_InvalidationPosition_Threshold = 0.05f;
+static FAutoConsoleVariableRef CVarHairStrands_InvalidationPosition_Threshold(TEXT("r.HairStrands.PathTracing.InvalidationThreshold"), GHairStrands_InvalidationPosition_Threshold, TEXT("Define the minimal distance to invalidate path tracer output when groom changes (in cm, default: 0.5mm)"));
+
+static int32 GHairStrands_InvalidationPosition_Debug = 0;
+static FAutoConsoleVariableRef CVarHairStrands_InvalidationPosition_Debug(TEXT("r.HairStrands.PathTracing.InvalidationDebug"), GHairStrands_InvalidationPosition_Debug, TEXT("Enable bounding box drawing for groom element causing path tracer invalidation"));
+
 /////////////////////////////////////////////////////////////////////////////////////////
 
 namespace HairStrandsVisibilityInternal
@@ -3140,10 +3146,10 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Selection outline
 
-class FHairStrandsEmitSelectionPS : public FNaniteShader
+class FHairStrandsEmitSelectionPS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FHairStrandsEmitSelectionPS);
-	SHADER_USE_PARAMETER_STRUCT(FHairStrandsEmitSelectionPS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FHairStrandsEmitSelectionPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, MaxMaterialCount)
@@ -3212,10 +3218,10 @@ void AddHairStrandsSelectionOutlinePass(
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // HitProxyId
 
-class FHairStrandsEmitHitProxyIdPS : public FNaniteShader
+class FHairStrandsEmitHitProxyIdPS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FHairStrandsEmitHitProxyIdPS);
-	SHADER_USE_PARAMETER_STRUCT(FHairStrandsEmitHitProxyIdPS, FNaniteShader);
+	SHADER_USE_PARAMETER_STRUCT(FHairStrandsEmitHitProxyIdPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, MaxMaterialCount)
@@ -3283,9 +3289,88 @@ void AddHairStrandsHitProxyIdPass(
 #endif
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Groom comparison
+class FHairStrandsPositionChangedCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FHairStrandsPositionChangedCS);
+	SHADER_USE_PARAMETER_STRUCT(FHairStrandsPositionChangedCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(uint32, VertexCount)
+		SHADER_PARAMETER(uint32, DispatchCountX)
+		SHADER_PARAMETER(float, PositionThreshold2)
+		SHADER_PARAMETER(uint32, HairStrandsVF_bIsCullingEnable)
+		SHADER_PARAMETER(uint32, bDrawInvalidElement)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, HairStrandsVF_CullingIndexBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, HairStrandsVF_CullingIndirectBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>, CurrPositionBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>, PrevPositionBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<int>, GroupAABBBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, InvalidationBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, InvalidationPrintCounter)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
+	END_SHADER_PARAMETER_STRUCT()
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform); }
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		OutEnvironment.SetDefine(TEXT("SHADER_POSITION_CHANGED"), TEXT("1"));
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FHairStrandsPositionChangedCS, "/Engine/Private/HairStrands/HairStrandsRaytracingGeometry.usf", "MainCS", SF_Compute);
+
+static void AddHairStrandsHasPositionChangedPass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo* View,
+	const FHairGroupPublicData* HairGroupPublicData,
+	FRDGBufferUAVRef InvalidationBuffer)
+{
+	const uint32 VertexCount = HairGroupPublicData->VertexCount;
+	const uint32 GroupSize = 64;
+	const FIntVector DispatchCount = ComputeDispatchCount(VertexCount, GroupSize);
+
+	FRDGBufferRef InvalidationPrintCounter = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Hair.InvalidationPrintCounter"));
+	FRDGBufferUAVRef InvalidationPrintCounterUAV = GraphBuilder.CreateUAV(InvalidationPrintCounter, PF_R32_UINT);
+	AddClearUAVPass(GraphBuilder, InvalidationPrintCounterUAV, 0u);
+
+	FHairStrandsPositionChangedCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandsPositionChangedCS::FParameters>();
+	Parameters->VertexCount = VertexCount;
+	Parameters->DispatchCountX = DispatchCount.X;
+	Parameters->PositionThreshold2 = FMath::Square(FMath::Clamp(GHairStrands_InvalidationPosition_Threshold, 0, 1.0f));
+	Parameters->bDrawInvalidElement = GHairStrands_InvalidationPosition_Debug > 0 ? 1u : 0u;
+	Parameters->HairStrandsVF_bIsCullingEnable = 0u;
+	Parameters->HairStrandsVF_CullingIndexBuffer = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultBuffer(GraphBuilder, 4, 0u), PF_R32_UINT);
+	Parameters->HairStrandsVF_CullingIndirectBuffer = Parameters->HairStrandsVF_CullingIndexBuffer;
+	Parameters->CurrPositionBuffer = HairGroupPublicData->VFInput.Strands.PositionBuffer.SRV;
+	Parameters->PrevPositionBuffer = HairGroupPublicData->VFInput.Strands.PrevPositionBuffer.SRV;
+	Parameters->GroupAABBBuffer = Register(GraphBuilder, HairGroupPublicData->GetGroupAABBBuffer(), ERDGImportedBufferFlags::CreateSRV).SRV;
+	Parameters->InvalidationBuffer = InvalidationBuffer;
+	Parameters->InvalidationPrintCounter = InvalidationPrintCounterUAV;
+	ShaderDrawDebug::SetParameters(GraphBuilder, View->ShaderDrawData, Parameters->ShaderDrawParameters);
+	if (HairGroupPublicData->GetCullingResultAvailable())
+	{
+		Parameters->HairStrandsVF_CullingIndexBuffer = Register(GraphBuilder, HairGroupPublicData->GetCulledVertexIdBuffer(), ERDGImportedBufferFlags::CreateSRV).SRV;
+		Parameters->HairStrandsVF_CullingIndirectBuffer = Register(GraphBuilder, HairGroupPublicData->GetDrawIndirectRasterComputeBuffer(), ERDGImportedBufferFlags::CreateSRV).SRV;
+		Parameters->HairStrandsVF_bIsCullingEnable = 1;
+	}
+
+	TShaderMapRef<FHairStrandsPositionChangedCS> ComputeShader(View->ShaderMap);
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("HairStrands::HasPositionChanged"),
+		ComputeShader,
+		Parameters,
+		DispatchCount);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 namespace HairStrands
 {
 
+// Draw hair strands depth value for outline selection
 void DrawEditorSelection(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SelectionDepthTexture)
 {
 	AddHairStrandsSelectionOutlinePass(
@@ -3296,6 +3381,7 @@ void DrawEditorSelection(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGT
 		SelectionDepthTexture);
 }
 
+// Draw hair strands hit proxy values
 void DrawHitProxies(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
@@ -3376,6 +3462,52 @@ void DrawHitProxies(
 		OutMaxNodeCount);
 
 	AddHairStrandsHitProxyIdPass(GraphBuilder, Scene, View, VisNodeIndex, VisNodeData, HitProxyTexture, HitProxyDepthTexture);
+}
+
+// Check if any simulated/skinned-bound groom has its positions updated (e.g. for invalidating the path-tracer accumulation)
+bool HasPositionsChanged(FRDGBuilder& GraphBuilder, const FViewInfo& View)
+{
+	FHairStrandsViewStateData* HairStrandsViewStateData = const_cast<FHairStrandsViewStateData*>(&View.ViewState->HairStrandsViewStateData);
+	if (!HairStrandsViewStateData->IsInit())
+	{
+		HairStrandsViewStateData->Init();
+	}
+
+	TArray<const FHairGroupPublicData*> GroupDatas;
+	for (const FMeshBatchAndRelevance& Batch : View.HairStrandsMeshElements)
+	{
+		FHairGroupPublicData* HairGroupPublicData = reinterpret_cast<FHairGroupPublicData*>(Batch.Mesh->Elements[0].VertexFactoryUserData);
+		check(HairGroupPublicData);
+		const int32 LODIndex = FMath::FloorToInt(HairGroupPublicData->LODIndex);
+		const bool bHasSimulationOrSkinning = 
+			HairGroupPublicData->GetGeometryType(LODIndex) == EHairGeometryType::Strands &&
+			(HairGroupPublicData->IsSimulationEnable(LODIndex) || HairGroupPublicData->GetBindingType(LODIndex) == EHairBindingType::Skinning);
+		if (bHasSimulationOrSkinning)
+		{
+			GroupDatas.Add(HairGroupPublicData);
+		}
+	}
+
+	FRDGBufferDesc Desc = FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1);
+	Desc.Usage |= BUF_SourceCopy;
+	FRDGBufferRef InvalidationBuffer = GraphBuilder.CreateBuffer(Desc, TEXT("Hair.HasSimulationRunningBuffer"));
+	FRDGBufferUAVRef InvalidationUAV = GraphBuilder.CreateUAV(InvalidationBuffer, PF_R32_UINT);
+	AddClearUAVPass(GraphBuilder, InvalidationUAV, 0u);
+
+	// Compare current/previous and enqueue aggregated comparison
+	for (const FHairGroupPublicData* GroupData : GroupDatas)
+	{
+		AddHairStrandsHasPositionChangedPass(GraphBuilder, &View, GroupData, InvalidationUAV);
+	}
+
+	// Pull a 'ready' previous frame value
+	bool bHasPositionChanged = HairStrandsViewStateData->ReadPositionsChanged();
+
+	// Enqueue new readback request
+	HairStrandsViewStateData->EnqueuePositionsChanged(GraphBuilder, InvalidationBuffer);
+
+
+	return bHasPositionChanged;
 }
 
 }

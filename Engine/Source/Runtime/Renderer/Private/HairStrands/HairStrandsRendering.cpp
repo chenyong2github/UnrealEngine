@@ -4,6 +4,7 @@
 #include "HairStrandsData.h"
 #include "SceneRendering.h"
 #include "ScenePrivate.h"
+#include "RenderGraphUtils.h"
 
 static TRDGUniformBufferRef<FHairStrandsViewUniformParameters> InternalCreateHairStrandsViewUniformBuffer(
 	FRDGBuilder& GraphBuilder, 
@@ -177,23 +178,70 @@ void RenderHairBasePass(
 
 void FHairStrandsViewStateData::Init()
 {
+	// Voxel adaptive sizing
 	VoxelWorldSize = 0;
-	AllocatedPageCount = 0;
+	VoxelAllocatedPageCount = 0;
 	if (VoxelPageAllocationCountReadback == nullptr)
 	{
-		VoxelPageAllocationCountReadback = new FRHIGPUBufferReadback(TEXT("Voxel page allocation readback"));
+		VoxelPageAllocationCountReadback = new FRHIGPUBufferReadback(TEXT("Hair.VoxelPageAllocationReadback"));
+	}
+	
+	// Track if hair strands positions has changed
+	PositionsChangedDatas.SetNum(4);
+	for (FPositionChangedData& Data : PositionsChangedDatas)
+	{
+		Data.ReadbackBuffer = new FRHIGPUBufferReadback(TEXT("Hair.PositionsChangedReadback"));
+		Data.bHasPendingReadback = false;
 	}
 }
 
 void FHairStrandsViewStateData::Release()
 {
+	// Voxel adaptive sizing
 	VoxelWorldSize = 0;
-	AllocatedPageCount = 0;
+	VoxelAllocatedPageCount = 0;
 	if (VoxelPageAllocationCountReadback)
 	{
 		delete VoxelPageAllocationCountReadback;
 		VoxelPageAllocationCountReadback = nullptr;
 	}
+
+	// Track if hair strands positions has changed
+	for (FPositionChangedData& Data : PositionsChangedDatas)
+	{
+		delete Data.ReadbackBuffer;
+		Data.ReadbackBuffer = nullptr;
+		Data.bHasPendingReadback = false;
+	}
+	PositionsChangedDatas.Empty();
+}
+
+void FHairStrandsViewStateData::EnqueuePositionsChanged(FRDGBuilder& GraphBuilder, FRDGBufferRef InBuffer)
+{
+	for (FPositionChangedData& Data : PositionsChangedDatas)
+	{
+		if (!Data.bHasPendingReadback)
+		{
+			AddEnqueueCopyPass(GraphBuilder, Data.ReadbackBuffer, InBuffer, 4u);
+			Data.bHasPendingReadback = true;
+			break;
+		}
+	}
+}
+
+bool FHairStrandsViewStateData::ReadPositionsChanged()
+{
+	for (FPositionChangedData& Data : PositionsChangedDatas)
+	{
+		if (Data.bHasPendingReadback && Data.ReadbackBuffer->IsReady())
+		{
+			const uint32 ReadData = *(uint32*)(Data.ReadbackBuffer->Lock(sizeof(uint32)));
+			Data.ReadbackBuffer->Unlock();
+			Data.bHasPendingReadback = false;
+			return ReadData > 0;
+		}
+	}
+	return false;
 }
 
 namespace HairStrands
