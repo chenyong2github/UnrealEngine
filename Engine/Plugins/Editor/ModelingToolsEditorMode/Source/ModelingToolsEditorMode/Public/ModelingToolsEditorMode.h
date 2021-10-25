@@ -56,6 +56,9 @@ public:
 	// called when we "end" this editor mode (ie switch to another tab)
 	virtual void Exit() override;
 
+
+	virtual bool ShouldToolStartBeAllowed(const FString& ToolIdentifier) const override;
+
 	//////////////////
 	// End of UEdMode interface
 	//////////////////
