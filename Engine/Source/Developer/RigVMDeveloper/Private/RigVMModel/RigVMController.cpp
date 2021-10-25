@@ -6272,7 +6272,7 @@ bool URigVMController::ResetPinDefaultValue(URigVMPin* InPin, bool bSetupUndoRed
 	return false;
 }
 
-FString URigVMController::GetPinInitialDefaultValue(URigVMPin* InPin)
+FString URigVMController::GetPinInitialDefaultValue(const URigVMPin* InPin)
 {
 	static const FString EmptyValue;
 	static const FString TArrayInitValue( TEXT("()") );
@@ -6327,7 +6327,7 @@ FString URigVMController::GetPinInitialDefaultValue(URigVMPin* InPin)
 	return EmptyValue;
 }
 
-FString URigVMController::GetPinInitialDefaultValueFromStruct(UScriptStruct* ScriptStruct, URigVMPin* InPin, uint32 InOffset)
+FString URigVMController::GetPinInitialDefaultValueFromStruct(UScriptStruct* ScriptStruct, const URigVMPin* InPin, uint32 InOffset)
 {
 	FString DefaultValue;
 	if (InPin && ScriptStruct)
