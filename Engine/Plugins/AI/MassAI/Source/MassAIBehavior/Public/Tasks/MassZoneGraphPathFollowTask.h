@@ -94,9 +94,6 @@ protected:
 	UPROPERTY(meta=(BaseClass="ZoneGraphSubsystem"))
 	FStateTreeExternalItemHandle ZoneGraphSubsystemHandle;
 
-	UPROPERTY(meta = (BaseStruct = "MassSimulationLODFragment"))
-	FStateTreeExternalItemHandle SimulationLODHandle;
-
 	UPROPERTY(EditAnywhere, Category = Parameters, meta=(Struct="MassZoneGraphTargetLocation", Bindable))
 	FStateTreeResultRef TargetLocation;
 

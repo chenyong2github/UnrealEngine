@@ -38,9 +38,6 @@ protected:
 	UPROPERTY(meta=(BaseClass="MassSignalSubsystem"))
 	FStateTreeExternalItemHandle MassSignalSubsystemHandle;
 
-	UPROPERTY(meta = (BaseStruct = "MassSimulationLODFragment"))
-	FStateTreeExternalItemHandle SimulationLODHandle;
-
 	UPROPERTY(meta=(BaseStruct="MassMovementConfigFragment"))
 	FStateTreeExternalItemHandle MovementConfigHandle;
 
