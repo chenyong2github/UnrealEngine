@@ -262,9 +262,6 @@ void UMassProcessingPhaseManager::SetPhaseProcessor(const EMassProcessingPhase P
 		return;
 	}
 	
-	UE_VLOG_UELOG(this, LogMass, Log, TEXT("%s phase processor for phase %s"), PhaseProcessor ? TEXT("Overriding") : TEXT("Nulling-out")
-		, *EnumToString(Phase));
-
 	// note that it's ok to use PhaseProcessor == nullptr
 	ProcessingPhases[int32(Phase)].PhaseProcessor = PhaseProcessor;
 	
@@ -283,6 +280,10 @@ void UMassProcessingPhaseManager::SetPhaseProcessor(const EMassProcessingPhase P
 		UE_VLOG(this, LogMass, Log, TEXT("Setting new group processor for phase %s:\n%s")
 			, *EnumToString(Phase), *Ar);
 #endif // WITH_MASSENTITY_DEBUG
+	}
+	else
+	{
+		UE_VLOG_UELOG(this, LogMass, Log, TEXT("Nulling-out phase processor for phase %s"), *EnumToString(Phase));
 	}
 }
 
