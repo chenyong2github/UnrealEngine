@@ -516,15 +516,15 @@ public:
     {
         ORT_UNUSED_PARAMETER(shape);
 #ifndef __clang__ // WITH_UE
-        m_transA = info.GetOptionalAttribute<int>(AttrName::TransA, 0);
-        m_transB = info.GetOptionalAttribute<int>(AttrName::TransB, 0);
-        m_broadcast = info.GetOptionalAttribute<int>(AttrName::Broadcast, 0);
+        m_transA = info.GetOptionalAttribute<int>(AttrName::TransA, 0)!=0; // WITH_UE: C4800: Implicit conversion from 'int32_t' to bool. Possible information loss
+        m_transB = info.GetOptionalAttribute<int>(AttrName::TransB, 0)!=0; // WITH_UE: C4800: Implicit conversion from 'int32_t' to bool. Possible information loss
+        m_broadcast = info.GetOptionalAttribute<int>(AttrName::Broadcast, 0)!=0; // WITH_UE: C4800: Implicit conversion from 'int32_t' to bool. Possible information loss
         m_alpha = info.GetOptionalAttribute<float>(AttrName::Alpha, 1.0f);
         m_beta = info.GetOptionalAttribute<float>(AttrName::Beta, 0.0f);
 #else //__clang__
-        m_transA = info.template GetOptionalAttribute<int>(AttrName::TransA, 0);
-        m_transB = info.template GetOptionalAttribute<int>(AttrName::TransB, 0);
-        m_broadcast = info.template GetOptionalAttribute<int>(AttrName::Broadcast, 0);
+        m_transA = info.template GetOptionalAttribute<int>(AttrName::TransA, 0)!=0; // WITH_UE: C4800: Implicit conversion from 'int32_t' to bool. Possible information loss
+        m_transB = info.template GetOptionalAttribute<int>(AttrName::TransB, 0)!=0; // WITH_UE: C4800: Implicit conversion from 'int32_t' to bool. Possible information loss
+        m_broadcast = info.template GetOptionalAttribute<int>(AttrName::Broadcast, 0)!=0; // WITH_UE: C4800: Implicit conversion from 'int32_t' to bool. Possible information loss
         m_alpha = info.template GetOptionalAttribute<float>(AttrName::Alpha, 1.0f);
         m_beta = info.template GetOptionalAttribute<float>(AttrName::Beta, 0.0f);
 #endif //__clang__
