@@ -80,7 +80,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Fingerprint for this issue
 		/// </summary>
-		public IIssueFingerprint Fingerprint { get; }
+		public IReadOnlyList<IIssueFingerprint> Fingerprints { get; }
 
 		/// <summary>
 		/// Severity of this issue
