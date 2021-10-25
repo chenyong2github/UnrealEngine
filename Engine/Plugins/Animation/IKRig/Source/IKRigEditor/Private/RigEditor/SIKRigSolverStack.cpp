@@ -9,9 +9,10 @@
 
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "IPersonaToolkit.h"
 #include "SKismetInspector.h"
 #include "Dialogs/Dialogs.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "SEditorHeaderButton.h"
 
