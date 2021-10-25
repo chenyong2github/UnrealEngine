@@ -235,17 +235,21 @@ public:
 		static_assert(TIsDerivedFrom<T, FMassChunkFragment>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FMassChunkFragment or one of its child-types.");
 		checkf(ChunkRequirements.FindByPredicate([](const FMassFragmentRequirement& Item) { return Item.StructType == T::StaticStruct(); }) == nullptr
 			, TEXT("Duplicated requirements are not supported. %s already present"), *T::StaticStruct()->GetName());
-		checkfSlow(Presence == EMassFragmentPresence::None || Presence == EMassFragmentPresence::All
-			, TEXT("The only valid Presence values for AddChunkRequirement are All and None"));
-		
-		if (Presence == EMassFragmentPresence::All)
+		checkfSlow(Presence != EMassFragmentPresence::Any, TEXT("\'Any\' is not a valid Presence value for AddChunkRequirement."));
+
+		switch (Presence)
 		{
-			RequiredAllChunkFragments.Add<T>();
-			ChunkRequirements.Emplace(T::StaticStruct(), AccessMode, Presence);
-		}
-		else
-		{
-			RequiredNoneChunkFragments.Add<T>();
+			case EMassFragmentPresence::All:
+				RequiredAllChunkFragments.Add<T>();
+				ChunkRequirements.Emplace(T::StaticStruct(), AccessMode, Presence);
+				break;
+			case EMassFragmentPresence::Optional:
+				RequiredOptionalChunkFragments.Add<T>();
+				ChunkRequirements.Emplace(T::StaticStruct(), AccessMode, Presence);
+				break;
+			case EMassFragmentPresence::None:
+				RequiredNoneChunkFragments.Add<T>();
+				break;
 		}
 
 		return *this;
@@ -282,6 +286,7 @@ public:
 	const FMassTagBitSet& GetRequiredAnyTags() const { return RequiredAnyTags; }
 	const FMassTagBitSet& GetRequiredNoneTags() const { return RequiredNoneTags; }
 	const FMassChunkFragmentBitSet& GetRequiredAllChunkFragments() const { return RequiredAllChunkFragments; }
+	const FMassChunkFragmentBitSet& GetRequiredOptionalChunkFragments() const { return RequiredOptionalChunkFragments; }
 	const FMassChunkFragmentBitSet& GetRequiredNoneChunkFragments() const { return RequiredNoneChunkFragments; }
 
 	const TArray<FArchetypeHandle>& GetArchetypes() const
@@ -329,6 +334,7 @@ protected:
 	FMassFragmentBitSet RequiredOptionalFragments;
 	FMassFragmentBitSet RequiredNoneFragments;
 	FMassChunkFragmentBitSet RequiredAllChunkFragments;
+	FMassChunkFragmentBitSet RequiredOptionalChunkFragments;
 	FMassChunkFragmentBitSet RequiredNoneChunkFragments;
 
 private:

@@ -265,7 +265,7 @@ public:
 	void DebugRemoveAllEntities();
 	void DebugForceArchetypeDataVersionBump() { ++ArchetypeDataVersion; }
 	void DebugGetArchetypeStrings(const FArchetypeHandle& Archetype, TArray<FName>& OutFragmentNames, TArray<FName>& OutTagNames);
-	FMassEntityHandle DebugGetEntityIndexHandle(const int32 EntityIndex) const { return Entities.IsValidIndex(EntityIndex) ? FMassEntityHandle({EntityIndex, Entities[EntityIndex].SerialNumber}) : FMassEntityHandle(); }
+	FMassEntityHandle DebugGetEntityIndexHandle(const int32 EntityIndex) const { return Entities.IsValidIndex(EntityIndex) ? FMassEntityHandle(EntityIndex, Entities[EntityIndex].SerialNumber) : FMassEntityHandle(); }
 #endif // WITH_MASSENTITY_DEBUG
 
 protected:
@@ -416,27 +416,41 @@ public:
 	int32 GetChunkSerialModificationNumber() const { return ChunkSerialModificationNumber; }
 
 	template<typename T>
-	T& GetMutableChunkFragment() const
-	{
-		static_assert(TIsDerivedFrom<T, FMassChunkFragment>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FMassChunkFragment or one of its child-types.");
-
-		const UScriptStruct* Type = T::StaticStruct();
-		const FChunkFragmentView* FoundChunkFragmentData = ChunkFragments.FindByPredicate([Type](const FChunkFragmentView& Element) { return Element.Requirement.StructType == Type; });
-		checkf(FoundChunkFragmentData, TEXT("Chunk Fragment requirement not found: %s"), *T::StaticStruct()->GetName());
-		return FoundChunkFragmentData->ChunkFragmentView.GetMutable<T>();
-	}
-
-	template<typename T>
-	const T& GetChunkFragment() const
+	T* GetOptionalMutableChunkFragment() const
 	{
 		static_assert(TIsDerivedFrom<T, FMassChunkFragment>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FMassChunkFragment or one of its child-types.");
 
 		const UScriptStruct* Type = T::StaticStruct();
 		const FChunkFragmentView* FoundChunkFragmentData = ChunkFragments.FindByPredicate([Type](const FChunkFragmentView& Element) { return Element.Requirement.StructType == Type; } );
-		checkf(FoundChunkFragmentData, TEXT("Chunk Fragment requirement not found: %s"), *T::StaticStruct()->GetName());
-		return FoundChunkFragmentData->ChunkFragmentView.Get<T>();
+		return FoundChunkFragmentData ? FoundChunkFragmentData->ChunkFragmentView.GetMutablePtr<T>() : static_cast<T*>(nullptr);
+	}
+	
+	template<typename T>
+	T& GetMutableChunkFragment() const
+	{
+		T* ChunkFragment = GetOptionalMutableChunkFragment<T>();
+		checkf(ChunkFragment, TEXT("Chunk Fragment requirement not found: %s"), *T::StaticStruct()->GetName());
+		return *ChunkFragment;
 	}
 
+	template<typename T>
+	const T* GetOptionalChunkFragment() const
+	{
+		static_assert(TIsDerivedFrom<T, FMassChunkFragment>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FMassChunkFragment or one of its child-types.");
+
+		const UScriptStruct* Type = T::StaticStruct();
+		const FChunkFragmentView* FoundChunkFragmentData = ChunkFragments.FindByPredicate([Type](const FChunkFragmentView& Element) { return Element.Requirement.StructType == Type; } );
+		return FoundChunkFragmentData ? FoundChunkFragmentData->ChunkFragmentView.GetPtr<T>() : static_cast<const T*>(nullptr);
+	}
+	
+	template<typename T>
+	const T& GetChunkFragment() const
+	{
+		const T* ChunkFragment = GetOptionalChunkFragment<T>();
+		checkf(ChunkFragment, TEXT("Chunk Fragment requirement not found: %s"), *T::StaticStruct()->GetName());
+		return *ChunkFragment;
+	}
+	
 	template<typename TFragment>
 	TArrayView<TFragment> GetMutableFragmentView()
 	{

@@ -676,7 +676,7 @@ void FMassArchetypeData::GetRequirementsChunkFragmentMapping(TConstArrayView<FMa
 				}
 			}
 
-			check(FragmentIndex != INDEX_NONE);
+			check(FragmentIndex != INDEX_NONE || Requirement.IsOptional());
 			OutFragmentIndices.Add(FragmentIndex);
 			LastFoundFragmentIndex = FragmentIndex;
 		}
@@ -742,8 +742,8 @@ void FMassArchetypeData::BindChunkFragmentRequirements(FMassExecutionContext& Ru
 			FMassExecutionContext::FChunkFragmentView& ChunkRequirement = RunContext.ChunkFragments[i];
 			const int32 ChunkFragmentIndex = ChunkFragmentsMapping[i];
 
-			check(ChunkFragmentIndex != INDEX_NONE);
-			ChunkRequirement.ChunkFragmentView = Chunk.GetMutableChunkFragmentViewChecked(ChunkFragmentIndex);
+			check(ChunkFragmentIndex != INDEX_NONE || ChunkRequirement.Requirement.IsOptional());
+			ChunkRequirement.ChunkFragmentView = ChunkFragmentIndex != INDEX_NONE ? Chunk.GetMutableChunkFragmentViewChecked(ChunkFragmentIndex) : FStructView();
 		}
 	}
 	else
@@ -751,8 +751,8 @@ void FMassArchetypeData::BindChunkFragmentRequirements(FMassExecutionContext& Ru
 		for (FMassExecutionContext::FChunkFragmentView& ChunkRequirement : RunContext.GetMutableChunkRequirements())
 		{
 			FInstancedStruct* ChunkFragmentInstance = Chunk.FindMutableChunkFragment(ChunkRequirement.Requirement.StructType);
-			check(ChunkFragmentInstance != nullptr);
-			ChunkRequirement.ChunkFragmentView = FStructView(*ChunkFragmentInstance);
+			check(ChunkFragmentInstance != nullptr || ChunkRequirement.Requirement.IsOptional());
+			ChunkRequirement.ChunkFragmentView = ChunkFragmentInstance ? FStructView(*ChunkFragmentInstance) : FStructView(); 
 		}
 	}
 }
