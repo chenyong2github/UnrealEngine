@@ -1522,6 +1522,11 @@ void SRigHierarchy::HandleNewItem(ERigElementType InElementType)
 					return;
 				}
 			}
+
+			if (ControlRigBlueprint.IsValid())
+			{
+				ControlRigBlueprint->BroadcastRefreshEditor();
+			}
 		}
 
 		Controller->ClearSelection();
