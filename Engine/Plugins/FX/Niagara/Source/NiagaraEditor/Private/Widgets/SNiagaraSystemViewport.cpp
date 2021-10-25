@@ -300,15 +300,18 @@ void FNiagaraSystemViewportClient::DrawEmitterExecutionOrder(UNiagaraComponent* 
 	Canvas->DrawShadowedString(CurrentX, CurrentY, TEXT("Emitter Execution Order"), Font, FLinearColor::White);
 	CurrentY += FontHeight;
 
-	TConstArrayView<FNiagaraEmitterExecutionIndex> ExecutionOrder = NiagaraSystem->GetEmitterExecutionOrder();
-	int32 DisplayIndex = 0;
-	for (const FNiagaraEmitterExecutionIndex& EmitterExecIndex : ExecutionOrder)
+	if ( NiagaraSystem->IsReadyToRun() )
 	{
-		const FNiagaraEmitterHandle& EmitterHandle = NiagaraSystem->GetEmitterHandle(EmitterExecIndex.EmitterIndex);
-		if (UNiagaraEmitter* NiagaraEmitter = EmitterHandle.GetInstance())
+		TConstArrayView<FNiagaraEmitterExecutionIndex> ExecutionOrder = NiagaraSystem->GetEmitterExecutionOrder();
+		int32 DisplayIndex = 0;
+		for (const FNiagaraEmitterExecutionIndex& EmitterExecIndex : ExecutionOrder)
 		{
-			Canvas->DrawShadowedString(CurrentX, CurrentY, *FString::Printf(TEXT("%d - %s"), ++DisplayIndex, NiagaraEmitter->GetDebugSimName()), Font, FLinearColor::White);
-			CurrentY += FontHeight;
+			const FNiagaraEmitterHandle& EmitterHandle = NiagaraSystem->GetEmitterHandle(EmitterExecIndex.EmitterIndex);
+			if (UNiagaraEmitter* NiagaraEmitter = EmitterHandle.GetInstance())
+			{
+				Canvas->DrawShadowedString(CurrentX, CurrentY, *FString::Printf(TEXT("%d - %s"), ++DisplayIndex, NiagaraEmitter->GetDebugSimName()), Font, FLinearColor::White);
+				CurrentY += FontHeight;
+			}
 		}
 	}
 }
