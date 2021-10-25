@@ -127,7 +127,7 @@ void UMassZoneGraphLocationInitializer::Execute(UMassEntitySubsystem& EntitySubs
 			{
 #if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
 				const FMassEntityHandle Entity = Context.GetEntity(EntityIndex);
-				UE_VLOG(this, LogMassNavigation, Log, TEXT("Entity [%s] Invalid movement config."), *Entity.DebugGetDescription());
+				UE_VLOG(this, LogMassNavigation, Warning, TEXT("Entity [%s] Invalid movement config."), *Entity.DebugGetDescription());
 #endif
 				continue;
 			}
