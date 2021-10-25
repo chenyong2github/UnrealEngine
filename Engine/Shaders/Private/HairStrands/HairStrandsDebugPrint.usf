@@ -36,6 +36,7 @@ uint FastResolveMask;
 uint HairMacroGroupCount;
 uint2 GroupSize; 
 uint HairVisibilityNodeGroupSize;
+uint AllocatedSampleCount;
 
 Texture2D<float> HairCountTexture;
 Texture2D<uint> HairCountUintTexture;
@@ -48,6 +49,12 @@ Buffer<int> HairMacroGroupAABBBuffer;
 
 #define MATERIAL_DATA 1
 #define DETAIL_DATA 1
+
+FFontColor GetOccupancyColor(float In)
+{
+	float3 Color = lerp(float3(0, 1, 0), float3(1, 0, 0), saturate(In));
+	return InitFontColor(Color);
+}
 
 [numthreads(1, 1, 1)]
 void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_DispatchThreadID)
@@ -64,15 +71,24 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 		const uint DispatchX = HairVisibilityIndirectArgsBuffer[0];
 		const uint DispatchY = HairVisibilityIndirectArgsBuffer[1];
-		const uint TotalSampleCount = DispatchX * DispatchY * HairVisibilityNodeGroupSize;
-		const uint2 EquivalentResolution = ceil(sqrt(TotalSampleCount));
+		const uint UsedSampleCount = HairStrands.HairSampleCount.Load(uint3(0, 0, 0));
+		const uint DispatchedSampleCount = DispatchX * DispatchY * HairVisibilityNodeGroupSize;
+
+		const uint2 EquivalentResolution = ceil(sqrt(UsedSampleCount));
+		
 
 		// Pixel coord
 		float2 OriginalPos = float2(50, 50) / float2(MaxResolution);
 		float2 Pos = OriginalPos;
-		Pos = ShaderPrintText(Pos, TEXT("Total Sample Count "), FontCyan);
-		Pos = ShaderPrint(Pos, TotalSampleCount, FontCyan);
-		Pos = ShaderPrint(Pos, HairStrands.HairSampleCount.Load(uint3(0,0,0)), FontCyan);
+		Pos = ShaderPrintText(Pos, TEXT("Sample Count (Used/Allocated)"), FontCyan);
+		Pos = ShaderPrint(Pos, UsedSampleCount, FontCyan);
+		Pos = ShaderPrint(Pos, AllocatedSampleCount, FontCyan);
+
+		const float AllocationPercentage = float(UsedSampleCount) / float(AllocatedSampleCount);
+		const FFontColor OccupancyColor = GetOccupancyColor(AllocationPercentage);
+		Pos = ShaderPrintText(Pos, TEXT(" \% "), OccupancyColor);
+		Pos = ShaderPrint(Pos, AllocationPercentage * 100.f, OccupancyColor);
+
 		AddNewLine(OriginalPos, Pos);
 
 		Pos = ShaderPrintText(Pos, TEXT("Equivalent Res     "), FontCyan);
