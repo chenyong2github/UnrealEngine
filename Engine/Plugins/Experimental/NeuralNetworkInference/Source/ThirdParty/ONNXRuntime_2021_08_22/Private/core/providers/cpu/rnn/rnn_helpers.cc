@@ -330,10 +330,12 @@ const float beta_6 = 1.19825839466702e-06f;
 const float sigmoid_bound = 20.0f;
 const float tanh_bound = 10.0f;
 
-#if defined(__GNUC__) && !defined(__wasm__)
+#if defined(__GNUC__) && !defined(__wasm__) && !defined(__PROSPERO__)
 #define restrict __restrict__
 #elif defined(_MSC_VER)
 #define restrict __restrict
+#elif defined(WITH_UE)
+
 #else
 #define restrict
 #endif
