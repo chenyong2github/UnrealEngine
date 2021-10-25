@@ -26,6 +26,8 @@
 
 #include "Misc/DisplayClusterLog.h"
 
+#include "Engine/Console.h"
+
 ///////////////////////////////////////////////////////////////////////////////////////
 //          FDisplayClusterViewportManager
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -39,6 +41,9 @@ FDisplayClusterViewportManager::FDisplayClusterViewportManager()
 	PostProcessManager  = MakeShared<FDisplayClusterViewportPostProcessManager, ESPMode::ThreadSafe>(*this);
 
 	ViewportManagerProxy = new FDisplayClusterViewportManagerProxy(*this);
+
+	// Always reset RTT when root actor re-created
+	ResetSceneRenderTargetSize();
 }
 
 FDisplayClusterViewportManager::~FDisplayClusterViewportManager()
@@ -166,6 +171,82 @@ bool FDisplayClusterViewportManager::UpdateConfiguration(EDisplayClusterRenderFr
 	return false;
 }
 
+void FDisplayClusterViewportManager::SetViewportBufferRatio(FDisplayClusterViewport& DstViewport, float InBufferRatio)
+{
+	if (DstViewport.RenderSettings.BufferRatio > InBufferRatio)
+	{
+		// Reset scene RTT when buffer ratio changed down
+		ResetSceneRenderTargetSize();
+	}
+
+	DstViewport.RenderSettings.BufferRatio = InBufferRatio;
+}
+
+void FDisplayClusterViewportManager::HandleViewportRTTChanges(const TArray<FDisplayClusterViewport_Context>& PrevContexts, const TArray<FDisplayClusterViewport_Context>& Contexts)
+{
+	// Support for resetting RTT size when viewport size is changed
+	if (PrevContexts.Num() != Contexts.Num())
+	{
+		// Reset scene RTT size when viewport disabled
+		ResetSceneRenderTargetSize();
+	}
+	else
+	{
+		for (int32 ContextIt = 0; ContextIt < Contexts.Num(); ContextIt++)
+		{
+			if (Contexts[ContextIt].RenderTargetRect.Size() != PrevContexts[ContextIt].RenderTargetRect.Size())
+			{
+				ResetSceneRenderTargetSize();
+				break;
+			}
+		}
+	}
+}
+
+void FDisplayClusterViewportManager::ResetSceneRenderTargetSize()
+{
+	SceneRenderTargetResizeMethod = ESceneRenderTargetResizeMethod::Reset;
+}
+
+void FDisplayClusterViewportManager::UpdateSceneRenderTargetSize()
+{
+	if (SceneRenderTargetResizeMethod != ESceneRenderTargetResizeMethod::None)
+	{
+		IConsoleVariable* const RTResizeCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SceneRenderTargetResizeMethod"));
+		if (RTResizeCVar)
+		{
+			switch (SceneRenderTargetResizeMethod)
+			{
+			case ESceneRenderTargetResizeMethod::Reset:
+				// Resize to match requested render size (Default) (Least memory use, can cause stalls when size changes e.g. ScreenPercentage)
+				RTResizeCVar->Set(0);
+
+				// Wait for frame history is done
+				// static const uint32 FSceneRenderTargets::FrameSizeHistoryCount = 3;
+				FrameHistoryCounter = 3;
+				SceneRenderTargetResizeMethod = ESceneRenderTargetResizeMethod::WaitFrameSizeHistory;
+				break;
+
+			case ESceneRenderTargetResizeMethod::WaitFrameSizeHistory:
+				if (FrameHistoryCounter-- < 0)
+				{
+					SceneRenderTargetResizeMethod = ESceneRenderTargetResizeMethod::Restore;
+				}
+				break;
+
+			case ESceneRenderTargetResizeMethod::Restore:
+				// Expands to encompass the largest requested render dimension. (Most memory use, least prone to allocation stalls.)
+				RTResizeCVar->Set(2);
+				SceneRenderTargetResizeMethod = ESceneRenderTargetResizeMethod::None;
+				break;
+
+			default:
+				break;
+			}
+		}
+	}
+}
+
 bool FDisplayClusterViewportManager::BeginNewFrame(class FViewport* InViewport, UWorld* InWorld, FDisplayClusterRenderFrame& OutRenderFrame)
 {
 	check(IsInGameThread());
@@ -200,11 +281,20 @@ bool FDisplayClusterViewportManager::BeginNewFrame(class FViewport* InViewport, 
 	// Initialize viewports from new render settings, and create new contexts, reset prev frame resources
 	for (FDisplayClusterViewport* Viewport : Viewports)
 	{
+		// Save orig viewport contexts
+		TArray<FDisplayClusterViewport_Context> PrevContexts;
+		PrevContexts.Append(Viewport->GetContexts());
+
 		if (Viewport->UpdateFrameContexts(ViewPassNum, Configuration->GetRenderFrameSettings()))
 		{
 			ViewPassNum += Viewport->Contexts.Num();
 		}
+
+		HandleViewportRTTChanges(PrevContexts, Viewport->GetContexts());
 	}
+
+	// Handle scene RTT resize
+	UpdateSceneRenderTargetSize();
 
 	// Build new frame structure
 	if (!RenderFrameManager->BuildRenderFrame(InViewport, Configuration->GetRenderFrameSettings(), Viewports, OutRenderFrame))
@@ -431,6 +521,9 @@ void FDisplayClusterViewportManager::ImplDeleteViewport(FDisplayClusterViewport*
 	}
 
 	delete ExistViewport;
+
+	// Reset RTT size after viewport delete
+	ResetSceneRenderTargetSize();
 }
 
 IDisplayClusterViewport* FDisplayClusterViewportManager::FindViewport(const enum EStereoscopicPass StereoPassType, uint32* OutContextNum) const

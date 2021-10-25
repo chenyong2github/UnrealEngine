@@ -327,7 +327,7 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraViewportSett
 
 	// FDisplayClusterConfigurationICVFX_CameraSettings
 	DstViewport.RenderSettings.CameraId.Empty();
-	DstViewport.RenderSettings.BufferRatio = CameraSettings.BufferRatio;
+	DstViewport.Owner.SetViewportBufferRatio(DstViewport, CameraSettings.BufferRatio);
 
 	// UDisplayClusterConfigurationICVFX_CameraRenderSettings
 	FIntPoint DesiredSize(0);

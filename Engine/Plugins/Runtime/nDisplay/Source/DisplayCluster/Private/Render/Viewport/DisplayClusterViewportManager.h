@@ -105,6 +105,13 @@ public:
 	TSharedPtr<FDisplayClusterViewportPostProcessManager, ESPMode::ThreadSafe> GetPostProcessManager() const
 	{ return PostProcessManager; }
 
+	void SetViewportBufferRatio(FDisplayClusterViewport& DstViewport, float InBufferRatio);
+
+private:
+	void ResetSceneRenderTargetSize();
+	void UpdateSceneRenderTargetSize();
+	void HandleViewportRTTChanges(const TArray<FDisplayClusterViewport_Context>& PrevContexts, const TArray<FDisplayClusterViewport_Context>& Contexts);
+
 protected:
 	friend FDisplayClusterViewportManagerProxy;
 	friend FDisplayClusterViewportConfiguration;
@@ -124,4 +131,17 @@ private:
 	FDisplayClusterViewportManagerProxy* ViewportManagerProxy = nullptr;
 
 	// Pointer to the current scene
-	TWeakObjectPtr<UWorld> CurrentWorldRef;};
+	TWeakObjectPtr<UWorld> CurrentWorldRef;
+
+	enum class ESceneRenderTargetResizeMethod : uint8
+	{
+		None = 0,
+		Reset,
+		WaitFrameSizeHistory,
+		Restore
+	};
+
+	// Support for resetting RTT size (GROW method always grows and does not recover FPS when the viewport size or buffer ratio is changed)
+	ESceneRenderTargetResizeMethod SceneRenderTargetResizeMethod = ESceneRenderTargetResizeMethod::None;
+	int32 FrameHistoryCounter = 0;
+};
