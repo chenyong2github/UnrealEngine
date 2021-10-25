@@ -8853,6 +8853,25 @@ void FBlueprintEditor::OnAddNewLocalVariable()
 	}
 }
 
+void FBlueprintEditor::OnPasteNewLocalVariable(const FBPVariableDescription& VariableDescription)
+{
+	if (!CanAddNewLocalVariable())
+	{
+		return;
+	}
+
+	// Find the top level graph to place the local variables into
+	UEdGraph* TargetGraph = FBlueprintEditorUtils::GetTopLevelGraph(FocusedGraphEdPtr.Pin()->GetCurrentGraph());
+	check(TargetGraph->GetSchema()->GetGraphType(TargetGraph) == GT_Function);
+
+	bool bSuccess = MyBlueprintWidget.IsValid() && FBlueprintEditorUtils::AddLocalVariable(GetBlueprintObj(), TargetGraph, VariableDescription.VarName, VariableDescription.VarType, VariableDescription.DefaultValue);
+
+	if(!bSuccess)
+	{
+		LogSimpleMessage( LOCTEXT("PasteLocalVariable_Error", "Pasting new local variable failed.") );
+	}
+}
+
 void FBlueprintEditor::OnAddNewDelegate()
 {
 	if (!AddNewDelegateIsVisible())

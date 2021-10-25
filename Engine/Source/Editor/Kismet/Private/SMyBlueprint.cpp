@@ -3439,6 +3439,21 @@ void SMyBlueprint::OnCopy()
 			OutputString = VAR_PREFIX + OutputString;
 		}
 	}
+	else if (FEdGraphSchemaAction_BlueprintVariableBase* BPVariable = SelectionAsBlueprintVariable())
+	{
+		const UEdGraphSchema* Schema = GetFocusedGraph()->GetSchema();
+		TArray<FBPVariableDescription> LocalVariables;
+		Schema->GetLocalVariables(GetFocusedGraph(), LocalVariables);
+		for (const FBPVariableDescription& VariableDescription : LocalVariables)
+		{
+			if (VariableDescription.VarName == BPVariable->GetVariableName())
+			{
+				FBPVariableDescription::StaticStruct()->ExportText(OutputString, &VariableDescription, &VariableDescription, nullptr, 0, nullptr, false);
+				OutputString = VAR_PREFIX + OutputString;
+				break;
+			}
+		}
+	}
 	else if (FEdGraphSchemaAction_K2Graph* GraphAction = SelectionAsGraph())
 	{
 		if (!Blueprint->ExportGraphToText(GraphAction->EdGraph, OutputString))
@@ -3461,11 +3476,26 @@ bool SMyBlueprint::CanCopy() const
 	{
 		return FBlueprintEditorUtils::FindNewVariableIndex(Blueprint, VarAction->GetVariableName()) != INDEX_NONE;
 	}
-	if (FEdGraphSchemaAction_K2LocalVar* LocalVarAction = SelectionAsLocalVar())
+	else if (FEdGraphSchemaAction_K2LocalVar* LocalVarAction = SelectionAsLocalVar())
 	{
 		return FBlueprintEditorUtils::FindLocalVariable(Blueprint, Cast<UStruct>(LocalVarAction->GetVariableScope()), LocalVarAction->GetVariableName()) != nullptr;
 	}
-	if (FEdGraphSchemaAction_K2Graph* GraphAction = SelectionAsGraph())
+	else if (FEdGraphSchemaAction_BlueprintVariableBase* BPVariable = SelectionAsBlueprintVariable())
+	{
+		TArray<FBPVariableDescription> LocalVariables;
+		const UEdGraphSchema* Schema = GetFocusedGraph()->GetSchema();
+		Schema->GetLocalVariables(GetFocusedGraph(), LocalVariables);
+
+		for (const FBPVariableDescription& VariableDescription : LocalVariables)
+		{
+			if (VariableDescription.VarName == BPVariable->GetVariableName())
+			{
+				return true;
+			}
+		}
+		return false;		
+	}
+	else if (FEdGraphSchemaAction_K2Graph* GraphAction = SelectionAsGraph())
 	{
 		if (GraphAction->GraphType == EEdGraphSchemaAction_K2Graph::Function ||
 			GraphAction->GraphType == EEdGraphSchemaAction_K2Graph::Macro)
@@ -3559,37 +3589,42 @@ void SMyBlueprint::OnPasteLocalVariable()
 			TArray<UK2Node_FunctionEntry*> FunctionEntry;
 			FocusedGraph->GetNodesOfClass<UK2Node_FunctionEntry>(FunctionEntry);
 
-			if (FunctionEntry.Num() == 1)
+			FString ClipboardText;
+			FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
+			if (!ensure(ClipboardText.StartsWith(VAR_PREFIX, ESearchCase::CaseSensitive)))
 			{
-				FString ClipboardText;
-				FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
-				if (!ensure(ClipboardText.StartsWith(VAR_PREFIX, ESearchCase::CaseSensitive)))
-				{
-					return;
-				}
+				return;
+			}
 
-				FBPVariableDescription Description;
-				FStringOutputDevice Errors;
-				const TCHAR* Import = ClipboardText.GetCharArray().GetData() + FCString::Strlen(VAR_PREFIX);
-				FBPVariableDescription::StaticStruct()->ImportText(Import, &Description, nullptr, 0, &Errors, FBPVariableDescription::StaticStruct()->GetName());
-				if (Errors.IsEmpty())
+			FBPVariableDescription Description;
+			FStringOutputDevice Errors;
+			const TCHAR* Import = ClipboardText.GetCharArray().GetData() + FCString::Strlen(VAR_PREFIX);
+			FBPVariableDescription::StaticStruct()->ImportText(Import, &Description, nullptr, 0, &Errors, FBPVariableDescription::StaticStruct()->GetName());
+			if (Errors.IsEmpty())
+			{
+				FBPVariableDescription NewVar = FBlueprintEditorUtils::DuplicateVariableDescription(Blueprint, Description);
+				if (NewVar.VarGuid.IsValid())
 				{
-					FBPVariableDescription NewVar = FBlueprintEditorUtils::DuplicateVariableDescription(Blueprint, Description);
-					if (NewVar.VarGuid.IsValid())
+					FScopedTransaction Transaction(FText::Format(LOCTEXT("PasteLocalVariable", "Paste Local Variable: {0}"), FText::FromName(NewVar.VarName)));
+
+					NewVar.Category = GetPasteCategory();
+
+
+					if (FunctionEntry.Num() == 1)
 					{
-						FScopedTransaction Transaction(FText::Format(LOCTEXT("PasteLocalVariable", "Paste Local Variable: {0}"), FText::FromName(NewVar.VarName)));
-
-						NewVar.Category = GetPasteCategory();
-
 						FunctionEntry[0]->Modify();
 						FunctionEntry[0]->LocalVariables.Add(NewVar);
-
-						// Potentially adjust variable names for any child blueprints
-						FBlueprintEditorUtils::ValidateBlueprintChildVariables(Blueprint, NewVar.VarName);
-						FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
-
-						SelectItemByName(NewVar.VarName);
 					}
+					else
+					{
+						BlueprintEditorPtr.Pin()->OnPasteNewLocalVariable(NewVar);
+					}
+
+					// Potentially adjust variable names for any child blueprints
+					FBlueprintEditorUtils::ValidateBlueprintChildVariables(Blueprint, NewVar.VarName);
+					FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+
+					SelectItemByName(NewVar.VarName);
 				}
 			}
 		}

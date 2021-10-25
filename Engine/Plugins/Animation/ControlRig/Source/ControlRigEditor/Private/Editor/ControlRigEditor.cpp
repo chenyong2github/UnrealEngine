@@ -2087,6 +2087,22 @@ void FControlRigEditor::OnAddNewLocalVariable()
 	}
 }
 
+void FControlRigEditor::OnPasteNewLocalVariable(const FBPVariableDescription& VariableDescription)
+{
+	if (!CanAddNewLocalVariable())
+	{
+		return;
+	}
+
+	FRigVMGraphVariableDescription TypeVar;
+	TypeVar.ChangeType(VariableDescription.VarType);
+	FRigVMGraphVariableDescription NewVar = GetFocusedController()->AddLocalVariable(VariableDescription.VarName, TypeVar.CPPType, TypeVar.CPPTypeObject, VariableDescription.DefaultValue, true, true);
+	if(NewVar.Name.IsNone())
+	{
+		LogSimpleMessage( LOCTEXT("PasteLocalVariable_Error", "Pasting new local variable failed.") );
+	}
+}
+
 void FControlRigEditor::DeleteSelectedNodes()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
