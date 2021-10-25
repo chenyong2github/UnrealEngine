@@ -4,6 +4,7 @@
 
 #include "NavMesh/RecastHelpers.h"
 #include "DebugUtils/DebugDraw.h"
+#include "Math/Color.h"
 
 struct FRecastInternalDebugData : public duDebugDraw
 {
@@ -12,13 +13,13 @@ struct FRecastInternalDebugData : public duDebugDraw
 
 	TArray<uint32> TriangleIndices;
 	TArray<FVector> TriangleVertices;
-	TArray<uint32> TriangleColors;
+	TArray<FColor> TriangleColors;
 
 	TArray<FVector> LineVertices;
-	TArray<uint32>  LineColors;
+	TArray<FColor>  LineColors;
 
 	TArray<FVector> PointVertices;
-	TArray<uint32>  PointColors;
+	TArray<FColor>  PointColors;
 
 	FRecastInternalDebugData() {}
 	virtual ~FRecastInternalDebugData() override {}

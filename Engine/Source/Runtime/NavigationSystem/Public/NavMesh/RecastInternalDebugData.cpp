@@ -7,21 +7,22 @@ void FRecastInternalDebugData::vertex(const float x, const float y, const float 
 {
 	float RecastPos[3] = { x,y,z };
 	const FVector Pos = Recast2UnrealPoint(RecastPos);
+	const FColor Color = Recast2UnrealColor(color);
 	switch(CurrentPrim)
 	{
 	case DU_DRAW_POINTS:
 		PointVertices.Push(Pos);
-		PointColors.Push(color);
+		PointColors.Push(Color);
 		break;
 	case DU_DRAW_LINES:
 		LineVertices.Push(Pos);
-		LineColors.Push(color);
+		LineColors.Push(Color);
 		break;
 	case DU_DRAW_TRIS:
 		// Fallthrough
 	case DU_DRAW_QUADS:
 		TriangleVertices.Push(Pos);
-		TriangleColors.Push(color);
+		TriangleColors.Push(Color);
 		break;
 	}
 }
