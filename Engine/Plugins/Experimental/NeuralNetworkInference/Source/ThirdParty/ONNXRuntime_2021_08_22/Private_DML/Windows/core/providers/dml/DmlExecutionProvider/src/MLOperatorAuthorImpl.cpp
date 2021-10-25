@@ -1314,7 +1314,7 @@ void OpKernelContextWrapper::Close() {
 
   ClearTempAllocations();
 
-  __super::Close();
+  Closable::Close(); // WITH_UE
 }
 
 HRESULT STDMETHODCALLTYPE OpKernelContextWrapper::GetInputTensor(uint32_t inputIndex, IMLOperatorTensor** tensor) const noexcept {
