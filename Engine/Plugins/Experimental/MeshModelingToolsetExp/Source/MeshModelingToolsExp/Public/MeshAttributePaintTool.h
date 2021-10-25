@@ -118,25 +118,39 @@ public:
 
 
 
-
-/**
- * Selected-Attribute settings Attribute Paint Tool
- */
 UCLASS()
 class MESHMODELINGTOOLSEXP_API UMeshAttributePaintToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(VisibleAnywhere, Category = Attribute)
-	TArray<FName> Attributes;
 
-	UPROPERTY(EditAnywhere, Category = Attribute, meta = (ArrayClamp = "Attributes"))
-	int SelectedAttribute = 0;
+	UPROPERTY(EditAnywhere, Category = "Attribute", meta = (DisplayName = "Selected Attribute", GetOptions = GetAttributeNames))
+	FString Attribute;
 
-	UPROPERTY(VisibleAnywhere, Category = Attribute)
-	FString AttributeName;
+	UFUNCTION()
+	const TArray<FString>& GetAttributeNames() { return Attributes; };
+
+	TArray<FString> Attributes;
+
+public:
+	/**
+	* Initialize the internal array of attribute names
+	* @param bInitialize if set, selected Attribute will be reset to the first attribute or empty if there are none.
+	*/
+	void Initialize(const TArray<FName>& AttributeNames, bool bInitialize = false);
+
+	/**
+	 * Verify that the attribute selection is valid
+	 * @param bUpdateIfInvalid if selection is not valid, use attribute at index 0 or empty if there are no attributes
+	 * @return true if selection is in the Attributes array
+	 */
+	bool ValidateSelectedAttribute(bool bUpdateIfInvalid);
+
+	/**
+	 * @return selected attribute index, or -1 if invalid selection
+	 */
+	int32 GetSelectedAttributeIndex();
 };
-
 
 
 
