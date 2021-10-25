@@ -98,40 +98,50 @@ struct FVertexFactoryInput
 
 struct FVertexInfo
 {
-	uint QuadIndex;
-	uint BaseIndex;
 	uint VertexIndex;
 	uint HairPrimitiveId;
 	uint IsTip;				// The vertex is on the quad side toward the tip of the strand.
+#if !RAYHITGROUPSHADER
 	uint IsLeft;
 	float LodRadiusScale;
 	bool bForceInvalidQuad;
+#endif
 };
 FVertexInfo GetVertexInfo(FVertexFactoryInput Input)
 {
 	uint VertexId = Input.VertexId;
 
 	FVertexInfo VertexInfo;
-#if USE_HAIR_TRIANGLE_STRIP
-	VertexInfo.QuadIndex	= VertexId % 2;
-	VertexInfo.BaseIndex	= VertexId / 2;
+#if RAYHITGROUPSHADER
+	uint BaseIndex    = VertexId / 4;
+	// TODO: is there any easy way we could handle end-caps?
+	VertexInfo.IsTip        = (Input.TriangleId % 2) == 0 ? Input.TriangleVertexId != 2 : Input.TriangleVertexId == 0;
+#elif USE_HAIR_TRIANGLE_STRIP
+	uint QuadIndex = VertexId % 2;
+	uint BaseIndex	= VertexId / 2;
 	VertexInfo.IsTip		= 0;
-	VertexInfo.IsLeft		= VertexInfo.QuadIndex == 0 ? 1 : 0;
+	VertexInfo.IsLeft		= QuadIndex == 0 ? 1 : 0;
 #else
-	VertexInfo.QuadIndex	= VertexId % 6;
-	VertexInfo.BaseIndex	= VertexId / 6;
-	VertexInfo.IsTip		= VertexInfo.QuadIndex == 0 || VertexInfo.QuadIndex == 2 || VertexInfo.QuadIndex == 4 ? 0 : 1;
-	VertexInfo.IsLeft		= VertexInfo.QuadIndex == 0 || VertexInfo.QuadIndex == 1 || VertexInfo.QuadIndex == 5 ? 1 : 0;
+	uint QuadIndex	= VertexId % 6;
+	uint BaseIndex	= VertexId / 6;
+	VertexInfo.IsTip		= QuadIndex == 0 || QuadIndex == 2 || QuadIndex == 4 ? 0 : 1;
+	VertexInfo.IsLeft		= QuadIndex == 0 || QuadIndex == 1 || QuadIndex == 5 ? 1 : 0;
 #endif
-	VertexInfo.HairPrimitiveId = VertexInfo.BaseIndex;
-	VertexInfo.VertexIndex = VertexInfo.BaseIndex + VertexInfo.IsTip;
+	VertexInfo.HairPrimitiveId = BaseIndex;
+	VertexInfo.VertexIndex = BaseIndex + VertexInfo.IsTip;
+#if !RAYHITGROUPSHADER
 	VertexInfo.LodRadiusScale = 1.0f;
 	VertexInfo.bForceInvalidQuad = false;
+#endif
+
 #if USE_CULLED_CLUSTER == 1
 	if (HairStrandsVF.CullingEnable)
 	{
-		VertexInfo.VertexIndex = HairStrandsVF.CulledVertexIdsBuffer[VertexInfo.BaseIndex + VertexInfo.IsTip];
-		VertexInfo.LodRadiusScale = HairStrandsVF.CulledVertexRadiusScaleBuffer[VertexInfo.BaseIndex + VertexInfo.IsTip];
+		VertexInfo.VertexIndex = HairStrandsVF.CulledVertexIdsBuffer[BaseIndex + VertexInfo.IsTip];
+#if !RAYHITGROUPSHADER
+		VertexInfo.LodRadiusScale = HairStrandsVF.CulledVertexRadiusScaleBuffer[BaseIndex + VertexInfo.IsTip];
+		VertexInfo.bForceInvalidQuad = VertexInfo.LodRadiusScale <= 0.0f;
+#endif
 		VertexInfo.HairPrimitiveId = VertexInfo.VertexIndex - VertexInfo.IsTip;
 	}
 #endif

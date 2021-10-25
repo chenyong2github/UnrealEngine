@@ -11,6 +11,8 @@
 #include "HairStrandsInterface.h"
 #include "HairStrandsMeshProjection.h"
 
+#define STRANDS_CUSTOM_INTERSECTOR 0
+
 inline uint32 GetBufferTotalNumBytes(const FRDGExternalBuffer& In) 
 {
 	return In.Buffer ? In.Buffer->Desc.GetTotalNumBytes() : 0;
@@ -265,10 +267,10 @@ struct FHairStrandsRestResource : public FHairCommonResource
 		uint32 Total = 0;
 		Total += GetBufferTotalNumBytes(PositionBuffer);
 		Total += GetBufferTotalNumBytes(PositionOffsetBuffer);
-		Total += GetBufferTotalNumBytes(Attribute1Buffer);
-		Total += GetBufferTotalNumBytes(Attribute0Buffer);
-		Total += GetBufferTotalNumBytes(MaterialBuffer);
 		Total += GetBufferTotalNumBytes(TangentBuffer);
+		Total += GetBufferTotalNumBytes(Attribute0Buffer);
+		Total += GetBufferTotalNumBytes(Attribute1Buffer);
+		Total += GetBufferTotalNumBytes(MaterialBuffer);
 		return Total;
 	}
 
@@ -458,13 +460,16 @@ struct FHairStrandsRaytracingResource : public FHairCommonResource
 	{
 		uint32 Total = 0;
 		Total += GetBufferTotalNumBytes(PositionBuffer);
+		Total += GetBufferTotalNumBytes(IndexBuffer);
 		return Total;
 	}
 
 	FRDGExternalBuffer PositionBuffer;
+	FRDGExternalBuffer IndexBuffer;
 	FRayTracingGeometry RayTracingGeometry;
 	uint32 VertexCount = 0;
-	bool bOwnPositionBuffer = false;
+	uint32 IndexCount = 0;
+	bool bOwnBuffers = false;
 	bool bIsRTGeometryInitialized = false;
 };
 #endif

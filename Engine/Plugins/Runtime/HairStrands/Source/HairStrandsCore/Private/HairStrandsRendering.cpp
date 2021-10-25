@@ -24,6 +24,7 @@
 #include "GroomManager.h"
 #include "GroomInstance.h"
 #include "SystemTextures.h"
+#include "ShaderPrintParameters.h"
 
 static float GHairRaytracingRadiusScale = 0;
 static FAutoConsoleVariableRef CVarHairRaytracingRadiusScale(TEXT("r.HairStrands.RaytracingRadiusScale"), GHairRaytracingRadiusScale, TEXT("Override the per instance scale factor for raytracing hair strands geometry (0: disabled, >0:enabled)"));
@@ -1241,7 +1242,13 @@ class FHairRaytracingGeometryCS : public FGlobalShader
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, PositionOffsetBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, PositionBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, TangentBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutputPositionBuffer)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
+	#if !STRANDS_CUSTOM_INTERSECTOR
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutputIndexBuffer)
+	#endif
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -1250,6 +1257,7 @@ public:
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("SHADER_RT_GEOMETRY"), 1);
+		OutEnvironment.SetDefine(TEXT("ENABLE_CUSTOM_INTERSECTOR"), STRANDS_CUSTOM_INTERSECTOR);
 	}
 };
 
@@ -1258,6 +1266,8 @@ IMPLEMENT_GLOBAL_SHADER(FHairRaytracingGeometryCS, "/Engine/Private/HairStrands/
 static void AddGenerateRaytracingGeometryPass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
+	const FShaderPrintData* ShaderPrintData,
+	const FShaderDrawDebugData* ShaderDrawData,
 	uint32 VertexCount,
 	float HairRadius,
 	float RootScale,
@@ -1265,7 +1275,9 @@ static void AddGenerateRaytracingGeometryPass(
 	const FRDGBufferSRVRef& HairWorldOffsetBuffer,
 	FRDGHairStrandsCullingData& CullingData,
 	const FRDGBufferSRVRef& PositionBuffer,
-	const FRDGBufferUAVRef& OutPositionBuffer)
+	const FRDGBufferSRVRef& TangentBuffer,
+	const FRDGBufferUAVRef& OutPositionBuffer,
+	const FRDGBufferUAVRef& OutIndexBuffer)
 {
 	const uint32 GroupSize = ComputeGroupSize();
 	const FIntVector DispatchCount = ComputeDispatchCount(VertexCount, GroupSize);
@@ -1278,7 +1290,20 @@ static void AddGenerateRaytracingGeometryPass(
 	Parameters->HairStrandsVF_HairRootScale = RootScale;
 	Parameters->HairStrandsVF_HairTipScale = TipScale;
 	Parameters->PositionBuffer = PositionBuffer;
+	Parameters->TangentBuffer = TangentBuffer;
 	Parameters->OutputPositionBuffer = OutPositionBuffer;
+	if (ShaderPrintData)
+	{
+		ShaderPrint::SetParameters(GraphBuilder, *ShaderPrintData, Parameters->ShaderPrintUniformBuffer);
+	}
+	if (ShaderDrawData)
+	{
+		ShaderDrawDebug::SetParameters(GraphBuilder, *ShaderDrawData, Parameters->ShaderDrawParameters);
+	}
+
+#if !STRANDS_CUSTOM_INTERSECTOR
+	Parameters->OutputIndexBuffer = OutIndexBuffer;
+#endif
 
 	const bool bCullingEnable = CullingData.bCullingResultAvailable;
 	Parameters->HairStrandsVF_bIsCullingEnable = bCullingEnable ? 1 : 0;
@@ -1365,12 +1390,12 @@ static void AddClearClusterAABBPass(
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if RHI_RAYTRACING
-static void UpdateHairAccelerationStructure(FRHICommandList& RHICmdList, FRayTracingGeometry* RayTracingGeometry)
+static void UpdateHairAccelerationStructure(FRHICommandList& RHICmdList, FRayTracingGeometry* RayTracingGeometry, EAccelerationStructureBuildMode InMode)
 {
 	SCOPED_DRAW_EVENT(RHICmdList, CommitHairRayTracingGeometryUpdates);
 
 	FRayTracingGeometryBuildParams Params;
-	Params.BuildMode = EAccelerationStructureBuildMode::Update;
+	Params.BuildMode = InMode;
 	Params.Geometry = RayTracingGeometry->RayTracingGeometryRHI;
 	Params.Segments = RayTracingGeometry->Initializer.Segments;
 
@@ -1380,7 +1405,9 @@ static void UpdateHairAccelerationStructure(FRHICommandList& RHICmdList, FRayTra
 static void BuildHairAccelerationStructure_Strands(
 	FRHICommandList& RHICmdList, 
 	uint32 RaytracingVertexCount, 
+	uint32 RayTracingIndexCount,
 	FBufferRHIRef& PositionBuffer, 
+	FBufferRHIRef& IndexBuffer,
 	FRayTracingGeometry* OutRayTracingGeometry,
 	const FString& AssetDebugName,
 	uint32 LODIndex)
@@ -1394,19 +1421,33 @@ static void BuildHairAccelerationStructure_Strands(
 	static int32 DebugNumber = 0;
 	Initializer.DebugName = FName(DebugName, DebugNumber++);
 #endif
-	Initializer.IndexBuffer = nullptr;
+#if STRANDS_CUSTOM_INTERSECTOR
+	Initializer.GeometryType = RTGT_Procedural;
+	Initializer.TotalPrimitiveCount = RaytracingVertexCount / 2;
+#else
+	Initializer.IndexBuffer = IndexBuffer;
 	Initializer.IndexBufferOffset = 0;
 	Initializer.GeometryType = RTGT_Triangles;
-	Initializer.TotalPrimitiveCount = RaytracingVertexCount / 3;
+	Initializer.TotalPrimitiveCount = RayTracingIndexCount / 3;
+#endif
 	Initializer.bFastBuild = true;
-	Initializer.bAllowUpdate = true;
+	Initializer.bAllowUpdate = false; // we won't be using update, so specify this to allow degenerate primitives to be discarded
 
 	FRayTracingGeometrySegment Segment;
 	Segment.VertexBuffer = PositionBuffer;
+#if STRANDS_CUSTOM_INTERSECTOR
+	// stride covers one AABB (which is made up of two vertices)
+	Segment.VertexBufferStride = FHairStrandsRaytracingFormat::SizeInByte * 2;
+#else
 	Segment.VertexBufferStride = FHairStrandsRaytracingFormat::SizeInByte;
+#endif
 	Segment.VertexBufferElementType = FHairStrandsRaytracingFormat::VertexElementType;
-	Segment.MaxVertices = RaytracingVertexCount;
-	Segment.NumPrimitives = RaytracingVertexCount / 3;
+	Segment.MaxVertices = RaytracingVertexCount / 2;
+#if STRANDS_CUSTOM_INTERSECTOR
+	Segment.NumPrimitives = RaytracingVertexCount / 2;
+#else
+	Segment.NumPrimitives = RayTracingIndexCount / 3;
+#endif
 	Initializer.Segments.Add(Segment);
 
 	OutRayTracingGeometry->SetInitializer(Initializer);
@@ -1724,6 +1765,7 @@ void ComputeHairStrandsInterpolation(
 			// 2. Deform hair if needed (e.g.: skinning, simulation, RBF) and recompute tangent
 			FRDGBufferSRVRef Strands_PositionSRV = nullptr;
 			FRDGBufferSRVRef Strands_PositionOffsetSRV = nullptr;
+			FRDGBufferSRVRef Strands_TangentSRV = nullptr;
 			if (bNeedDeformation)
 			{
 				FRDGImportedBuffer Strands_DeformedPosition = Register(GraphBuilder, Instance->Strands.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current), ERDGImportedBufferFlags::CreateViews);
@@ -1751,6 +1793,7 @@ void ComputeHairStrandsInterpolation(
 			#endif
 				Strands_PositionSRV = Strands_DeformedPosition.SRV;
 				Strands_PositionOffsetSRV = RegisterAsSRV(GraphBuilder, Instance->Strands.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::EFrameType::Current));
+				Strands_TangentSRV = Strands_DeformedTangent.SRV;
 
 				// "WITH_EDITOR && bDebugModePatchedAttributeBuffer" is a special path when visualizing groom within the groom editor, so that we can diplay guides even when there is no simulation or global interpolation enabled
 				const bool bValidGuide = Instance->Guides.bIsSimulationEnable || Instance->Guides.bHasGlobalInterpolation || (WITH_EDITOR && bDebugModePatchedAttributeBuffer);
@@ -1867,6 +1910,7 @@ void ComputeHairStrandsInterpolation(
 				Strands_PositionOffsetSRV = RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->PositionOffsetBuffer);
 				// Generated the static tangent if they haven;t been generated yet
 				Instance->Strands.RestResource->GetTangentBuffer(GraphBuilder, ShaderMap);
+				Strands_TangentSRV = RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->TangentBuffer);
 			}
 
 			// 2.1 Update the VF input with the update resources
@@ -1927,9 +1971,12 @@ void ComputeHairStrandsInterpolation(
 					const uint32 HairLODIndex = Instance->HairGroupPublicData->GetIntLODIndex();
 
 					FRDGImportedBuffer Raytracing_PositionBuffer = Register(GraphBuilder, Instance->Strands.RenRaytracingResource->PositionBuffer, ERDGImportedBufferFlags::CreateViews);
+					FRDGImportedBuffer Raytracing_IndexBuffer = Register(GraphBuilder, Instance->Strands.RenRaytracingResource->IndexBuffer, ERDGImportedBufferFlags::CreateViews);
 					AddGenerateRaytracingGeometryPass(
 						GraphBuilder,
 						ShaderMap,
+						ShaderPrintData,
+						ShaderDrawData,
 						Instance->Strands.RestResource->GetVertexCount(),
 						HairRadiusRT,
 						HairRootScaleRT,
@@ -1937,7 +1984,9 @@ void ComputeHairStrandsInterpolation(
 						Strands_PositionOffsetSRV,
 						CullingData,
 						Strands_PositionSRV,
-						Raytracing_PositionBuffer.UAV);
+						Strands_TangentSRV,
+						Raytracing_PositionBuffer.UAV,
+						Raytracing_IndexBuffer.UAV);
 
 					Instance->Strands.CachedHairScaledRadius= HairRadiusRT;
 					Instance->Strands.CachedHairRootScale	= HairRootScaleRT;
@@ -1954,11 +2003,27 @@ void ComputeHairStrandsInterpolation(
 						if (bLocalNeedBuild)
 						{
 							FBufferRHIRef PositionBuffer(Instance->Strands.RenRaytracingResource->PositionBuffer.Buffer->GetRHI());
-							BuildHairAccelerationStructure_Strands(RHICmdList, Instance->Strands.RenRaytracingResource->VertexCount, PositionBuffer, &Instance->Strands.RenRaytracingResource->RayTracingGeometry, Instance->Debug.GroomAssetName, HairLODIndex);
+						#if STRANDS_CUSTOM_INTERSECTOR
+							// no index buffer needed
+							FBufferRHIRef IndexBuffer;
+						#else
+							FBufferRHIRef IndexBuffer(Instance->Strands.RenRaytracingResource->IndexBuffer.Buffer->GetRHI());
+						#endif
+							BuildHairAccelerationStructure_Strands(RHICmdList,
+								Instance->Strands.RenRaytracingResource->VertexCount,
+								Instance->Strands.RenRaytracingResource->IndexCount,
+								PositionBuffer,
+								IndexBuffer,
+								&Instance->Strands.RenRaytracingResource->RayTracingGeometry,
+								Instance->Debug.GroomAssetName,
+								HairLODIndex
+							);
 						}
 						else if (bNeedUpdate)
 						{
-							UpdateHairAccelerationStructure(RHICmdList, &Instance->Strands.RenRaytracingResource->RayTracingGeometry);
+							// hair strands can move chaotically during simulation which can really tank ray tracing performance
+							// even though a rebuild is more expensive, we can still come out ahead overall, even with a single ray cast per pixel
+							UpdateHairAccelerationStructure(RHICmdList, &Instance->Strands.RenRaytracingResource->RayTracingGeometry, EAccelerationStructureBuildMode::Build);
 						}
 						Instance->Strands.RenRaytracingResource->bIsRTGeometryInitialized = true;
 					});
@@ -2090,7 +2155,8 @@ void ComputeHairStrandsInterpolation(
 						}
 						else if (bNeedUpdate)
 						{
-							UpdateHairAccelerationStructure(RHICmdList, &LocalLOD.RaytracingResource->RayTracingGeometry);
+							// TODO: evaluate perf tradeoff of rebuild vs refit
+							UpdateHairAccelerationStructure(RHICmdList, &LocalLOD.RaytracingResource->RayTracingGeometry, EAccelerationStructureBuildMode::Update);
 						}
 					});
 				}
@@ -2153,7 +2219,8 @@ void ComputeHairStrandsInterpolation(
 						}
 						else if (bNeedUpdate)
 						{
-							UpdateHairAccelerationStructure(RHICmdList, &LocalLOD.RaytracingResource->RayTracingGeometry);
+							// TODO: evaluate perf tradeoff of rebuild vs refit
+							UpdateHairAccelerationStructure(RHICmdList, &LocalLOD.RaytracingResource->RayTracingGeometry, EAccelerationStructureBuildMode::Update);
 						}
 						LocalLOD.RaytracingResource->bIsRTGeometryInitialized = true;
 					});
