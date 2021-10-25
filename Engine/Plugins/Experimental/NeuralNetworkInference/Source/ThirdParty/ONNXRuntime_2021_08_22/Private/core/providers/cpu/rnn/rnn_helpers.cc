@@ -104,18 +104,18 @@ Status ValidateCommonRnnInputs(const Tensor& X,
 }  // namespace detail
 
 // map of arg name and whether the alpha and/or beta arguments are required
-static std::unordered_map<std::string, std::pair<bool, bool>>
-    NameToArgUsageMap{{"affine",          {true, true}}, // WITH_UE: Replaced 1/0 by true/false to avoid warning C4800: Implicit conversion from 'int64_t' to bool. Possible information loss
-                      {"relu",            {false, false}}, // WITH_UE: Replaced 1/0 by true/false to avoid warning C4800: Implicit conversion from 'int64_t' to bool. Possible information loss
-                      {"leakyrelu",       {true, false}}, // WITH_UE: Replaced 1/0 by true/false to avoid warning C4800: Implicit conversion from 'int64_t' to bool. Possible information loss
-                      {"thresholdedrelu", {true, false}}, // WITH_UE: Replaced 1/0 by true/false to avoid warning C4800: Implicit conversion from 'int64_t' to bool. Possible information loss
-                      {"tanh",            {false, false}}, // WITH_UE: Replaced 1/0 by true/false to avoid warning C4800: Implicit conversion from 'int64_t' to bool. Possible information loss
-                      {"scaledtanh",      {true, true}}, // WITH_UE: Replaced 1/0 by true/false to avoid warning C4800: Implicit conversion from 'int64_t' to bool. Possible information loss
-                      {"sigmoid",         {false, false}}, // WITH_UE: Replaced 1/0 by true/false to avoid warning C4800: Implicit conversion from 'int64_t' to bool. Possible information loss
-                      {"hardsigmoid",     {true, true}}, // WITH_UE: Replaced 1/0 by true/false to avoid warning C4800: Implicit conversion from 'int64_t' to bool. Possible information loss
-                      {"elu",             {true, false}}, // WITH_UE: Replaced 1/0 by true/false to avoid warning C4800: Implicit conversion from 'int64_t' to bool. Possible information loss
-                      {"softsign",        {false, false}}, // WITH_UE: Replaced 1/0 by true/false to avoid warning C4800: Implicit conversion from 'int64_t' to bool. Possible information loss
-                      {"softplus",        {false, false}}}; // WITH_UE: Replaced 1/0 by true/false to avoid warning C4800: Implicit conversion from 'int64_t' to bool. Possible information loss
+static std::unordered_map<std::string, std::pair<bool, bool>> NameToArgUsageMap{
+    {"affine", {true, true}}, // WITH_UE: Replaced 1/0 by true/false to avoid warning C4800: Implicit conversion from 'int64_t' to bool. Possible information loss
+    {"relu", {false, false}}, // WITH_UE: Replaced 1/0 by true/false to avoid warning C4800: Implicit conversion from 'int64_t' to bool. Possible information loss
+    {"leakyrelu", {true, false}}, // WITH_UE: Replaced 1/0 by true/false to avoid warning C4800: Implicit conversion from 'int64_t' to bool. Possible information loss
+    {"thresholdedrelu", {true, false}}, // WITH_UE: Replaced 1/0 by true/false to avoid warning C4800: Implicit conversion from 'int64_t' to bool. Possible information loss
+    {"tanh", {false, false}}, // WITH_UE: Replaced 1/0 by true/false to avoid warning C4800: Implicit conversion from 'int64_t' to bool. Possible information loss
+    {"scaledtanh", {true, true}}, // WITH_UE: Replaced 1/0 by true/false to avoid warning C4800: Implicit conversion from 'int64_t' to bool. Possible information loss
+    {"sigmoid", {false, false}}, // WITH_UE: Replaced 1/0 by true/false to avoid warning C4800: Implicit conversion from 'int64_t' to bool. Possible information loss
+    {"hardsigmoid", {true, true}}, // WITH_UE: Replaced 1/0 by true/false to avoid warning C4800: Implicit conversion from 'int64_t' to bool. Possible information loss
+    {"elu", {true, false}}, // WITH_UE: Replaced 1/0 by true/false to avoid warning C4800: Implicit conversion from 'int64_t' to bool. Possible information loss
+    {"softsign", {false, false}}, // WITH_UE: Replaced 1/0 by true/false to avoid warning C4800: Implicit conversion from 'int64_t' to bool. Possible information loss
+    {"softplus", {false, false}}}; // WITH_UE: Replaced 1/0 by true/false to avoid warning C4800: Implicit conversion from 'int64_t' to bool. Possible information loss
 
 // map of alpha/beta defaults
 static std::unordered_map<std::string, std::pair<float, float>>
