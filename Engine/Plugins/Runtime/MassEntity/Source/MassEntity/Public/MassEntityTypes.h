@@ -42,7 +42,7 @@ struct FMassEntityHandle
 {
 	GENERATED_BODY()
 
-	FMassEntityHandle() {}
+	FMassEntityHandle() = default;
 	
 	UPROPERTY(VisibleAnywhere, Category = "Mass|Debug", Transient)
 	int32 Index = 0;
