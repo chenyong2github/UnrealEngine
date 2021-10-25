@@ -681,6 +681,9 @@ public:
 	/** Modify DynamicCollection transform hierarchy to effect cluster breaks releasing the specified indices. */
 	void SetInitialClusterBreaks(const TArray<int32>& ReleaseIndices);
 
+	/** Used by Niagara DI to query global matrices rather than recalculating them again */
+	const TArray<FMatrix>& GetGlobalMatrices() { return GlobalMatrices; }
+
 public:
 	UPROPERTY(BlueprintAssignable, Category = "Collision")
 	FOnChaosPhysicsCollision OnChaosPhysicsCollision;
@@ -706,9 +709,6 @@ public:
 	/** If true, this component will generate removal events that other systems may subscribe to. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|General")
 	bool bNotifyRemovals;
-
-	// Used by Niagara DI to query global matrices rather than recalculating them again
-	const TArray<FMatrix>& GetGlobalMatrices() { return GlobalMatrices; }
 
 protected:
 	/** Display Bone Colors instead of assigned materials */

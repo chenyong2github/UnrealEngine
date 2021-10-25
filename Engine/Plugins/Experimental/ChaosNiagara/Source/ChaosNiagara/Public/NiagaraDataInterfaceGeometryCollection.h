@@ -125,8 +125,7 @@ public:
 	DECLARE_NIAGARA_DI_PARAMETER();
 
 	UPROPERTY(EditAnywhere, Category = "Geometry Collection")
-	AGeometryCollectionActor *GeometryCollectionActor;
-
+	TObjectPtr<AGeometryCollectionActor> GeometryCollectionActor;
 
 	/** UObject Interface */
 	virtual void PostInitProperties() override;
