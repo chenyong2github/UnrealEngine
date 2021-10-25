@@ -411,6 +411,7 @@ public:
 
 	FRigBaseElement()
     : Key()
+	, NameString()
     , Index(INDEX_NONE)
 	, SubIndex(INDEX_NONE)
 	, bSelected(false)
@@ -430,6 +431,9 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = RigElement, meta = (AllowPrivateAccess = "true"))
 	FRigElementKey Key;
+
+	UPROPERTY(transient)
+	FString NameString;
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = RigElement, meta = (AllowPrivateAccess = "true"))
 	int32 Index;
@@ -453,6 +457,7 @@ public:
 	virtual void Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase);
 
 	FORCEINLINE const FName& GetName() const { return Key.Name; }
+	FORCEINLINE const FString& GetNameString() const { return NameString; }
 	FORCEINLINE virtual const FName& GetDisplayName() const { return GetName(); }
 	FORCEINLINE ERigElementType GetType() const { return Key.Type; }
 	FORCEINLINE const FRigElementKey& GetKey() const { return Key; }

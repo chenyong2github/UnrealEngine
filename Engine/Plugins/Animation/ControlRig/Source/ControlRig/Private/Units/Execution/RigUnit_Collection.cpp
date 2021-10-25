@@ -8,29 +8,39 @@
 #include "Units/RigUnitTest.h"
 #endif
 
+#define FRigUnit_CollectionChain_Hash 1
+#define FRigUnit_CollectionNameSearch_Hash 2
+#define FRigUnit_CollectionChildren_Hash 3
+#define FRigUnit_CollectionReplaceItems_Hash 4
+#define FRigUnit_CollectionItems_Hash 5
+#define FRigUnit_CollectionUnion_Hash 6
+#define FRigUnit_CollectionIntersection_Hash 7
+#define FRigUnit_CollectionDifference_Hash 8
+#define FRigUnit_CollectionReverse_Hash 9
+#define FRigUnit_CollectionCount_Hash 10
+#define FRigUnit_CollectionItemAtIndex_Hash 11
+
 FRigUnit_CollectionChain_Execute()
 {
-	FRigUnit_CollectionChainArray::StaticExecute(RigVMExecuteContext, FirstItem, LastItem, Reverse, Collection.Keys, CachedCollection, CachedHierarchyHash, Context);
+	FRigUnit_CollectionChainArray::StaticExecute(RigVMExecuteContext, FirstItem, LastItem, Reverse, Collection.Keys, Context);
 }
 
 FRigUnit_CollectionChainArray_Execute()
 {
-	if (Context.State == EControlRigState::Init)
+	uint32 Hash = FRigUnit_CollectionChain_Hash + Context.Hierarchy->GetTopologyVersion() * 17;
+	Hash = HashCombine(Hash, GetTypeHash(FirstItem));
+	Hash = HashCombine(Hash, GetTypeHash(LastItem));
+	Hash = HashCombine(Hash, Reverse ? 1 : 0);
+
+	FRigElementKeyCollection Collection;
+	if(const FRigElementKeyCollection* Cache = Context.Hierarchy->FindCachedCollection(Hash))
 	{
-		CachedHierarchyHash = INDEX_NONE;
+		Collection = *Cache;
 	}
-
-	int32 CurrentHierarchyHash = Context.Hierarchy->GetTopologyVersion() * 17;
-	CurrentHierarchyHash += GetTypeHash(FirstItem);
-	CurrentHierarchyHash += GetTypeHash(LastItem);
-	CurrentHierarchyHash += Reverse ? 1 : 0;
-
-	if (CachedHierarchyHash != CurrentHierarchyHash || CachedCollection.IsEmpty())
+	else
 	{
-		CachedHierarchyHash = CurrentHierarchyHash;
-		CachedCollection = FRigElementKeyCollection::MakeFromChain(Context.Hierarchy, FirstItem, LastItem, Reverse);
-
-		if (CachedCollection.IsEmpty())
+		Collection = FRigElementKeyCollection::MakeFromChain(Context.Hierarchy, FirstItem, LastItem, Reverse);
+		if (Collection.IsEmpty())
 		{
 			if (Context.Hierarchy->GetIndex(FirstItem) == INDEX_NONE)
 			{
@@ -47,72 +57,73 @@ FRigUnit_CollectionChainArray_Execute()
 				}
 			}
 		}
+		Context.Hierarchy->AddCachedCollection(Hash, Collection);
 	}
 
-	Items = CachedCollection.Keys;
+	Items = Collection.Keys;
 }
 
 FRigUnit_CollectionNameSearch_Execute()
 {
-	FRigUnit_CollectionNameSearchArray::StaticExecute(RigVMExecuteContext, PartialName, TypeToSearch, Collection.Keys, CachedCollection, CachedHierarchyHash, Context);
+	FRigUnit_CollectionNameSearchArray::StaticExecute(RigVMExecuteContext, PartialName, TypeToSearch, Collection.Keys, Context);
 }
 
 FRigUnit_CollectionNameSearchArray_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (Context.State == EControlRigState::Init)
+	uint32 Hash = FRigUnit_CollectionNameSearch_Hash + Context.Hierarchy->GetTopologyVersion() * 17;
+	Hash = HashCombine(Hash, GetTypeHash(PartialName));
+	Hash = HashCombine(Hash, (int32)TypeToSearch * 8);
+
+	FRigElementKeyCollection Collection;
+	if(const FRigElementKeyCollection* Cache = Context.Hierarchy->FindCachedCollection(Hash))
 	{
-		CachedHierarchyHash = INDEX_NONE;
+		Collection = *Cache;
+	}
+	else
+	{
+		Collection = FRigElementKeyCollection::MakeFromName(Context.Hierarchy, PartialName, (uint8)TypeToSearch);
+		Context.Hierarchy->AddCachedCollection(Hash, Collection);
 	}
 
-	int32 CurrentHierarchyHash = Context.Hierarchy->GetTopologyVersion() * 17;
-	CurrentHierarchyHash += GetTypeHash(PartialName);
-	CurrentHierarchyHash += (int32)TypeToSearch * 8;
-
-	if (CachedHierarchyHash != CurrentHierarchyHash || CachedCollection.IsEmpty())
-	{
-		CachedHierarchyHash = CurrentHierarchyHash;
-		CachedCollection = FRigElementKeyCollection::MakeFromName(Context.Hierarchy, PartialName, (uint8)TypeToSearch);
-	}
-
-	Items = CachedCollection.Keys;
+	Items = Collection.Keys;
 }
 
 FRigUnit_CollectionChildren_Execute()
 {
-	FRigUnit_CollectionChildrenArray::StaticExecute(RigVMExecuteContext, Parent, bIncludeParent, bRecursive, TypeToSearch, Collection.Keys, CachedCollection, CachedHierarchyHash, Context);
+	FRigUnit_CollectionChildrenArray::StaticExecute(RigVMExecuteContext, Parent, bIncludeParent, bRecursive, TypeToSearch, Collection.Keys, Context);
 }
 
 FRigUnit_CollectionChildrenArray_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (Context.State == EControlRigState::Init)
+	uint32 Hash = FRigUnit_CollectionChildren_Hash + Context.Hierarchy->GetTopologyVersion() * 17;
+	Hash = HashCombine(Hash, GetTypeHash(Parent));
+	Hash = HashCombine(Hash, bRecursive ? 2 : 0);
+	Hash = HashCombine(Hash, bIncludeParent ? 1 : 0);
+	Hash = HashCombine(Hash, (int32)TypeToSearch * 8);
+
+	FRigElementKeyCollection Collection;
+	if(const FRigElementKeyCollection* Cache = Context.Hierarchy->FindCachedCollection(Hash))
 	{
-		CachedHierarchyHash = INDEX_NONE;
+		Collection = *Cache;
 	}
-
-	int32 CurrentHierarchyHash = Context.Hierarchy->GetTopologyVersion() * 17;
-	CurrentHierarchyHash += GetTypeHash(Parent);
-	CurrentHierarchyHash += bRecursive ? 2 : 0;
-	CurrentHierarchyHash += bIncludeParent ? 1 : 0;
-	CurrentHierarchyHash += (int32)TypeToSearch * 8;
-
-	if (CachedHierarchyHash != CurrentHierarchyHash || CachedCollection.IsEmpty())
+	else
 	{
-		CachedHierarchyHash = CurrentHierarchyHash;
-		CachedCollection = FRigElementKeyCollection::MakeFromChildren(Context.Hierarchy, Parent, bRecursive, bIncludeParent, (uint8)TypeToSearch);
-		if (CachedCollection.IsEmpty())
+		Collection = FRigElementKeyCollection::MakeFromChildren(Context.Hierarchy, Parent, bRecursive, bIncludeParent, (uint8)TypeToSearch);
+		if (Collection.IsEmpty())
 		{
 			if (Context.Hierarchy->GetIndex(Parent) == INDEX_NONE)
 			{
 				UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Parent '%s' is not valid."), *Parent.ToString());
 			}
 		}
+		Context.Hierarchy->AddCachedCollection(Hash, Collection);
 	}
 
-	Items = CachedCollection.Keys;
+	Items = Collection.Keys;
 }
 
 #if WITH_EDITOR
@@ -156,29 +167,28 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_CollectionChildren)
 
 FRigUnit_CollectionReplaceItems_Execute()
 {
-	FRigUnit_CollectionReplaceItemsArray::StaticExecute(RigVMExecuteContext, Items.Keys, Old, New, RemoveInvalidItems, bAllowDuplicates, Collection.Keys, CachedCollection, CachedHierarchyHash, Context);
+	FRigUnit_CollectionReplaceItemsArray::StaticExecute(RigVMExecuteContext, Items.Keys, Old, New, RemoveInvalidItems, bAllowDuplicates, Collection.Keys, Context);
 }
 
 FRigUnit_CollectionReplaceItemsArray_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (Context.State == EControlRigState::Init)
+	uint32 Hash = FRigUnit_CollectionReplaceItems_Hash + Context.Hierarchy->GetTopologyVersion() * 17;
+	Hash = HashCombine(Hash, GetTypeHash(Items));
+	Hash = HashCombine(Hash, 12 * GetTypeHash(Old));
+	Hash = HashCombine(Hash, 13 * GetTypeHash(New));
+	Hash = HashCombine(Hash, RemoveInvalidItems ? 14 : 0);
+
+	FRigElementKeyCollection Collection;
+	if(const FRigElementKeyCollection* Cache = Context.Hierarchy->FindCachedCollection(Hash))
 	{
-		CachedHierarchyHash = INDEX_NONE;
+		Collection = *Cache;
 	}
-
-	int32 CurrentHierarchyHash = Context.Hierarchy->GetTopologyVersion() * 17;
-	CurrentHierarchyHash += GetTypeHash(Items);
-	CurrentHierarchyHash += 12 * GetTypeHash(Old);
-	CurrentHierarchyHash += 13 * GetTypeHash(New);
-	CurrentHierarchyHash += RemoveInvalidItems ? 14 : 0;
-
-	if (CachedHierarchyHash != CurrentHierarchyHash || CachedCollection.IsEmpty())
+	else
 	{
-		CachedHierarchyHash = CurrentHierarchyHash;
-		CachedCollection.Reset();
-
+		Collection.Reset();
+		
 		for (int32 Index = 0; Index < Items.Num(); Index++)
 		{
 			FRigElementKey Key = Items[Index];
@@ -188,21 +198,23 @@ FRigUnit_CollectionReplaceItemsArray_Execute()
 			{
 				if(bAllowDuplicates)
 				{
-					CachedCollection.Add(Key);
+					Collection.Add(Key);
 				}
 				else
 				{
-					CachedCollection.AddUnique(Key);
+					Collection.AddUnique(Key);
 				}
 			}
 			else if(!RemoveInvalidItems)
 			{
-				CachedCollection.Add(FRigElementKey());
+				Collection.Add(FRigElementKey());
 			}
 		}
-	}
 
-	Result = CachedCollection.Keys;
+		Context.Hierarchy->AddCachedCollection(Hash, Collection);
+	}
+	
+	Result = Collection.Keys;
 }
 
 FRigUnit_CollectionItems_Execute()

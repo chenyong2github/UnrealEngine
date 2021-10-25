@@ -31,7 +31,6 @@ struct CONTROLRIG_API FRigUnit_CollectionChain : public FRigUnit_CollectionBase
 	{
 		FirstItem = LastItem = FRigElementKey(NAME_None, ERigElementType::Bone);
 		Reverse = false;
-		CachedHierarchyHash = INDEX_NONE;
 	}
 
 	RIGVM_METHOD()
@@ -48,12 +47,6 @@ struct CONTROLRIG_API FRigUnit_CollectionChain : public FRigUnit_CollectionBase
 
 	UPROPERTY(meta = (Output))
 	FRigElementKeyCollection Collection;
-
-	UPROPERTY()
-	FRigElementKeyCollection CachedCollection;
-
-	UPROPERTY()
-	int32 CachedHierarchyHash;
 };
 
 /**
@@ -69,7 +62,6 @@ struct CONTROLRIG_API FRigUnit_CollectionChainArray : public FRigUnit_Collection
 	{
 		FirstItem = LastItem = FRigElementKey(NAME_None, ERigElementType::Bone);
 		Reverse = false;
-		CachedHierarchyHash = INDEX_NONE;
 	}
 
 	RIGVM_METHOD()
@@ -86,12 +78,6 @@ struct CONTROLRIG_API FRigUnit_CollectionChainArray : public FRigUnit_Collection
 
 	UPROPERTY(meta = (Output))
 	TArray<FRigElementKey> Items;
-
-	UPROPERTY()
-	FRigElementKeyCollection CachedCollection;
-
-	UPROPERTY()
-	int32 CachedHierarchyHash;
 };
 
 /**
@@ -107,7 +93,6 @@ struct CONTROLRIG_API FRigUnit_CollectionNameSearch : public FRigUnit_Collection
 	{
 		PartialName = NAME_None;
 		TypeToSearch = ERigElementType::All;
-		CachedHierarchyHash = INDEX_NONE;
 	}
 
 	RIGVM_METHOD()
@@ -121,12 +106,6 @@ struct CONTROLRIG_API FRigUnit_CollectionNameSearch : public FRigUnit_Collection
 
 	UPROPERTY(meta = (Output))
 	FRigElementKeyCollection Collection;
-
-	UPROPERTY()
-	FRigElementKeyCollection CachedCollection;
-
-	UPROPERTY()
-	int32 CachedHierarchyHash;
 };
 
 /**
@@ -142,7 +121,6 @@ struct CONTROLRIG_API FRigUnit_CollectionNameSearchArray : public FRigUnit_Colle
 	{
 		PartialName = NAME_None;
 		TypeToSearch = ERigElementType::All;
-		CachedHierarchyHash = INDEX_NONE;
 	}
 
 	RIGVM_METHOD()
@@ -156,12 +134,6 @@ struct CONTROLRIG_API FRigUnit_CollectionNameSearchArray : public FRigUnit_Colle
 
 	UPROPERTY(meta = (Output))
 	TArray<FRigElementKey> Items;
-
-	UPROPERTY()
-	FRigElementKeyCollection CachedCollection;
-
-	UPROPERTY()
-	int32 CachedHierarchyHash;
 };
 
 /**
@@ -179,7 +151,6 @@ struct CONTROLRIG_API FRigUnit_CollectionChildren : public FRigUnit_CollectionBa
 		bIncludeParent = false;
 		bRecursive = false;
 		TypeToSearch = ERigElementType::All;
-		CachedHierarchyHash = INDEX_NONE;
 	}
 
 	RIGVM_METHOD()
@@ -199,12 +170,6 @@ struct CONTROLRIG_API FRigUnit_CollectionChildren : public FRigUnit_CollectionBa
 
 	UPROPERTY(meta = (Output))
 	FRigElementKeyCollection Collection;
-
-	UPROPERTY()
-	FRigElementKeyCollection CachedCollection;
-
-	UPROPERTY()
-	int32 CachedHierarchyHash;
 };
 
 /**
@@ -222,7 +187,6 @@ struct CONTROLRIG_API FRigUnit_CollectionChildrenArray : public FRigUnit_Collect
 		bIncludeParent = false;
 		bRecursive = false;
 		TypeToSearch = ERigElementType::All;
-		CachedHierarchyHash = INDEX_NONE;
 	}
 
 	RIGVM_METHOD()
@@ -242,12 +206,6 @@ struct CONTROLRIG_API FRigUnit_CollectionChildrenArray : public FRigUnit_Collect
 
 	UPROPERTY(meta = (Output))
 	TArray<FRigElementKey> Items;
-
-	UPROPERTY()
-	FRigElementKeyCollection CachedCollection;
-
-	UPROPERTY()
-	int32 CachedHierarchyHash;
 };
 
 /**
@@ -262,7 +220,6 @@ struct CONTROLRIG_API FRigUnit_CollectionReplaceItems : public FRigUnit_Collecti
 	{
 		Old = New = NAME_None;
 		RemoveInvalidItems = false;
-		CachedHierarchyHash = INDEX_NONE;
 		bAllowDuplicates = false;
 	}
 
@@ -286,12 +243,6 @@ struct CONTROLRIG_API FRigUnit_CollectionReplaceItems : public FRigUnit_Collecti
 
 	UPROPERTY(meta = (Output))
 	FRigElementKeyCollection Collection;
-
-	UPROPERTY()
-	FRigElementKeyCollection CachedCollection;
-
-	UPROPERTY()
-	int32 CachedHierarchyHash;
 };
 
 /**
@@ -307,7 +258,6 @@ struct CONTROLRIG_API FRigUnit_CollectionReplaceItemsArray : public FRigUnit_Col
 		Old = New = NAME_None;
 		RemoveInvalidItems = false;
 		bAllowDuplicates = false;
-		CachedHierarchyHash = INDEX_NONE;
 	}
 
 	RIGVM_METHOD()
@@ -330,12 +280,6 @@ struct CONTROLRIG_API FRigUnit_CollectionReplaceItemsArray : public FRigUnit_Col
 
 	UPROPERTY(meta = (Output))
 	TArray<FRigElementKey> Result;
-
-	UPROPERTY()
-	FRigElementKeyCollection CachedCollection;
-
-	UPROPERTY()
-	int32 CachedHierarchyHash;
 };
 
 /**

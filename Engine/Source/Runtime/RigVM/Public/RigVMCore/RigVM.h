@@ -171,7 +171,7 @@ public:
 #if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	bool Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void*> AdditionalArguments);
 #else
-	bool Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments);
+	bool Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments, bool bInitializeMemory = true);
 #endif
 
 	// Executes the VM.
@@ -747,11 +747,12 @@ public:
 	uint32 GetNumExecutions() const { return NumExecutions; }
 	const FRigVMExecuteContext& GetContext() const { return Context; }
 
+	void InvalidateCachedMemory();
+
 private:
 
 	void ResolveFunctionsIfRequired();
 	void RefreshInstructionsIfRequired();
-	void InvalidateCachedMemory();
 #if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	void CacheMemoryHandlesIfRequired(FRigVMMemoryContainerPtrArray InMemory);
 #else
@@ -834,7 +835,7 @@ private:
 	// debug watch register memory needs to be cleared for each execution
 	void ClearDebugMemory();
 	
-	void CacheSingleMemoryHandle(const FRigVMOperand& InArg, bool bForExecute = false);
+	void CacheSingleMemoryHandle(int32 InHandleIndex, const FRigVMOperand& InArg, bool bForExecute = false);
 
 	FORCEINLINE_DEBUGGABLE void CopyOperandForDebuggingIfNeeded(const FRigVMOperand& InArg, const FRigVMMemoryHandle& InHandle)
 	{

@@ -16,6 +16,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimationPoseData.h"
+#include "Internationalization/TextKey.h"
 #if WITH_EDITOR
 #include "ControlRigModule.h"
 #include "Modules/ModuleManager.h"
@@ -818,7 +819,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 				}
 			}
 			
-			if (InState == EControlRigState::Init)
+			if (InState == EControlRigState::Init && InEventName != FRigUnit_BeginExecution::EventName)
 			{
 				ExecuteUnits(Context, FRigUnit_BeginExecution::EventName);
 			}
@@ -1102,7 +1103,46 @@ void UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 #if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 			VM->Initialize(FRigVMMemoryContainerPtrArray(LocalMemory, 3), AdditionalArguments);
 #else
-			VM->Initialize(LocalMemory, AdditionalArguments);
+
+			if(IsInGameThread())
+			{
+				const uint32 SnapshotHash = GetHashForInitializeVMSnapShot();
+				UControlRig* CDO = Cast<UControlRig>(GetClass()->GetDefaultObject());
+
+				bool bIsValidSnapshot = false;
+				TObjectPtr<URigVM>* InitializedVMSnapshotPtr = CDO->InitializedVMSnapshots.Find(SnapshotHash);
+				if(InitializedVMSnapshotPtr && !InitializedVMSnapshotPtr->IsNull())
+				{
+					const URigVM* InitializedVMSnapshot = InitializedVMSnapshotPtr->Get();
+
+					if(VM->WorkMemoryStorageObject->GetClass() == InitializedVMSnapshot->WorkMemoryStorageObject->GetClass())
+					{
+						VM->WorkMemoryStorageObject->CopyFrom(InitializedVMSnapshot->WorkMemoryStorageObject);
+						VM->InvalidateCachedMemory();
+						VM->Initialize(LocalMemory, AdditionalArguments, false);
+						bIsValidSnapshot = true;
+					}
+					else
+					{
+						CDO->InitializedVMSnapshots.Remove(SnapshotHash);
+					}
+				}
+				
+				if(!bIsValidSnapshot)
+				{
+					VM->Initialize(LocalMemory, AdditionalArguments);
+
+					URigVM* InitializedVMSnapshot = NewObject<URigVM>(CDO, NAME_None, RF_Public);
+					InitializedVMSnapshot->WorkMemoryStorageObject = NewObject<URigVMMemoryStorage>(InitializedVMSnapshot, VM->GetWorkMemory()->GetClass());
+					InitializedVMSnapshot->WorkMemoryStorageObject->CopyFrom(VM->WorkMemoryStorageObject);
+
+					CDO->InitializedVMSnapshots.Add(SnapshotHash, InitializedVMSnapshot);
+				}
+			}
+			else
+			{
+				VM->Initialize(LocalMemory, AdditionalArguments);
+			}
 #endif
 		}
 		else
@@ -2864,6 +2904,22 @@ void UControlRig::PostInitInstance(UControlRig* InCDO)
 	}
 }
 
+uint32 UControlRig::GetHashForInitializeVMSnapShot()
+{
+	uint32 Hash = GetHierarchy()->GetNameHash();
+
+	const TArray<FRigVMExternalVariable> ExternalVariables = GetExternalVariablesImpl(false);
+
+	Hash = HashCombine(Hash, GetTypeHash(ExternalVariables.Num()));
+
+	for(const FRigVMExternalVariable& ExternalVariable : ExternalVariables)
+	{
+		Hash = HashCombine(ExternalVariable.GetTypeHash(), Hash);
+	}
+
+	return Hash;
+}
+
 void UControlRig::OnHierarchyTransformUndoRedo(URigHierarchy* InHierarchy, const FRigElementKey& InKey, ERigTransformType::Type InTransformType, const FTransform& InTransform, bool bIsUndo)
 {
 	if(InKey.Type == ERigElementType::Control)
@@ -2952,5 +3008,3 @@ UControlRig::FTransientControlPoseScope::~FTransientControlPoseScope()
 #endif
  
 #undef LOCTEXT_NAMESPACE
-
-

@@ -1566,12 +1566,13 @@ int32 URigHierarchyController::AddElement(FRigBaseElement* InElementToAdd, FRigB
 {
 	ensure(IsValid());
 
+	InElementToAdd->NameString = InElementToAdd->Key.Name.ToString();
 	InElementToAdd->SubIndex = Hierarchy->Num(InElementToAdd->Key.Type);
 	InElementToAdd->Index = Hierarchy->Elements.Add(InElementToAdd);
 	Hierarchy->ElementsPerType[URigHierarchy::RigElementTypeToFlatIndex(InElementToAdd->GetKey().Type)].Add(InElementToAdd);
 
 	Hierarchy->IndexLookup.Add(InElementToAdd->Key, InElementToAdd->Index);
-	Hierarchy->TopologyVersion++;
+	Hierarchy->IncrementTopologyVersion();
 
 	{
 		const TGuardValue<bool> Guard(bSuspendNotifications, true);
@@ -1731,7 +1732,7 @@ bool URigHierarchyController::RemoveElement(FRigBaseElement* InElement)
 		}
 	}
 	
-	Hierarchy->TopologyVersion++;
+	Hierarchy->IncrementTopologyVersion();
 
 	Notify(ERigHierarchyNotification::ElementRemoved, InElement);
 	if(Hierarchy->Num() == 0)
@@ -1827,6 +1828,7 @@ bool URigHierarchyController::RenameElement(FRigBaseElement* InElement, const FN
    
 		TGuardValue<TMap<FRigElementKey, int32>> MapGuard(Hierarchy->IndexLookup, TemporaryMap);
 		InElement->Key.Name = Hierarchy->GetSafeNewName(InName.ToString(), InElement->GetType());
+		InElement->NameString = InElement->Key.Name.ToString();
 	}
 	
 	const FRigElementKey NewKey = InElement->GetKey();
@@ -1861,7 +1863,7 @@ bool URigHierarchyController::RenameElement(FRigBaseElement* InElement, const FN
 	}
 	
 	Hierarchy->PreviousNameMap.FindOrAdd(NewKey) = OldKey;
-	Hierarchy->TopologyVersion++;
+	Hierarchy->IncrementTopologyVersion();
 	Notify(ERigHierarchyNotification::ElementRenamed, InElement);
 
 	return true;
@@ -1992,7 +1994,7 @@ bool URigHierarchyController::AddParent(FRigBaseElement* InChild, FRigBaseElemen
 		AddElementToDirty(Constraint.ParentElement, SingleParentElement);
 		SingleParentElement->ParentElement = Constraint.ParentElement;
 
-		Hierarchy->TopologyVersion++;
+		Hierarchy->IncrementTopologyVersion();
 
 		if(!bMaintainGlobalTransform)
 		{
@@ -2027,7 +2029,7 @@ bool URigHierarchyController::AddParent(FRigBaseElement* InChild, FRigBaseElemen
 			}
 		}
 
-		Hierarchy->TopologyVersion++;
+		Hierarchy->IncrementTopologyVersion();
 
 		if(InWeight > SMALL_NUMBER)
 		{
@@ -2143,7 +2145,7 @@ bool URigHierarchyController::RemoveParent(FRigBaseElement* InChild, FRigBaseEle
 			// remove the previous parent
 			SingleParentElement->ParentElement = nullptr;
 			RemoveElementToDirty(InParent, SingleParentElement); 
-			Hierarchy->TopologyVersion++;
+			Hierarchy->IncrementTopologyVersion();
 
 			if(!bMaintainGlobalTransform)
 			{
@@ -2216,7 +2218,7 @@ bool URigHierarchyController::RemoveParent(FRigBaseElement* InChild, FRigBaseEle
 				ControlElement->Shape.MarkDirty(ERigTransformType::InitialGlobal);
 			}
 
-			Hierarchy->TopologyVersion++;
+			Hierarchy->IncrementTopologyVersion();
 
 			if(!bMaintainGlobalTransform)
 			{

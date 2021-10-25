@@ -311,7 +311,20 @@ URigVMMemoryStorageGeneratorClass* URigVMMemoryStorageGeneratorClass::CreateStor
 	URigVMMemoryStorageGeneratorClass* OldClass = FindObject<URigVMMemoryStorageGeneratorClass>(Package, *ClassName);
 	if(OldClass)
 	{
-		OldClass->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+		FString DiscardedMemoryClassName;
+		static const TCHAR DiscardedMemoryClassTemplate[] = TEXT("DiscardedMemoryClassTemplate_%d");
+		static int32 DiscardedMemoryClassIndex = 0;
+		do
+		{
+			DiscardedMemoryClassName = FString::Printf(DiscardedMemoryClassTemplate, DiscardedMemoryClassIndex++);
+			if(StaticFindObjectFast(nullptr, GetTransientPackage(), *DiscardedMemoryClassName) == nullptr)
+			{
+				break;
+			}
+		}
+		while (DiscardedMemoryClassIndex < INT_MAX);
+
+		OldClass->Rename(*DiscardedMemoryClassName, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
 	}
 
 	// create the new class
@@ -864,6 +877,24 @@ bool URigVMMemoryStorage::CopyProperty(
 }
 
 #endif
+
+void URigVMMemoryStorage::CopyFrom(URigVMMemoryStorage* InSourceMemory)
+{
+	check(InSourceMemory);
+	check(GetClass() == InSourceMemory->GetClass());
+
+	for(int32 PropertyIndex = 0; PropertyIndex < Num(); PropertyIndex++)
+	{
+		URigVMMemoryStorage::CopyProperty(
+			this,
+			PropertyIndex,
+			FRigVMPropertyPath::Empty,
+			InSourceMemory,
+			PropertyIndex,
+			FRigVMPropertyPath::Empty
+		);
+	}
+}
 
 const TArray<const FProperty*>& URigVMMemoryStorage::GetProperties() const
 {

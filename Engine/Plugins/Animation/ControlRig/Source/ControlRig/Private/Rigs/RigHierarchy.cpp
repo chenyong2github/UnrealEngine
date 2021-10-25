@@ -216,7 +216,7 @@ void URigHierarchy::Load(FArchive& Ar)
 		Element->Load(Ar, this, FRigBaseElement::StaticData);
 	}
 
-	TopologyVersion++;
+	IncrementTopologyVersion();
 
 	for(int32 ElementIndex = 0; ElementIndex < ElementCount; ElementIndex++)
 	{
@@ -224,7 +224,7 @@ void URigHierarchy::Load(FArchive& Ar)
 		Element->Load(Ar, this, FRigBaseElement::InterElementData);
 	}
 
-	TopologyVersion++;
+	IncrementTopologyVersion();
 
 	for(int32 ElementIndex = 0; ElementIndex < ElementCount; ElementIndex++)
 	{
@@ -412,6 +412,7 @@ void URigHierarchy::CopyHierarchy(URigHierarchy* InHierarchy)
 		//FRigBaseElement* Target = MakeElement(Key.Type);
 		
 		Target->Key = Key;
+		Target->NameString = Source->NameString;
 		Target->SubIndex = SubIndex;
 		Target->Index = Elements.Add(Target);
 
@@ -433,6 +434,19 @@ void URigHierarchy::CopyHierarchy(URigHierarchy* InHierarchy)
 	UpdateAllCachedChildren();
 	
 	EnsureCacheValidity();
+}
+
+uint32 URigHierarchy::GetNameHash() const
+{
+	uint32 Hash = GetTypeHash(GetTopologyVersion());
+
+	for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
+	{
+		const FRigBaseElement* Element = Elements[ElementIndex];
+		Hash = HashCombine(Hash, GetTypeHash(Element->GetName()));
+	}
+
+	return Hash;
 }
 
 #if WITH_EDITOR
@@ -1579,43 +1593,65 @@ FRigElementKey URigHierarchy::GetWorldSpaceReferenceKey()
 
 TArray<FRigElementKey> URigHierarchy::GetAllKeys(bool bTraverse, ERigElementType InElementType) const
 {
-	TArray<FRigElementKey> Keys;
-	Keys.Reserve(Elements.Num());
-
-	if(bTraverse)
+	return GetKeysByPredicate([InElementType](const FRigBaseElement& InElement)
 	{
-		TArray<bool> ElementVisited;
-		ElementVisited.AddZeroed(Elements.Num());
-		
-		for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
-		{
-			FRigBaseElement* Element = Elements[ElementIndex];
-			Traverse(Element, true, [&ElementVisited, &Keys, InElementType](FRigBaseElement* InElement, bool& bContinue)
-            {
-				bContinue = !ElementVisited[InElement->GetIndex()];
+		return InElement.IsTypeOf(InElementType);
+	}, bTraverse);
+}
 
-				if(bContinue)
-				{
-					if(InElement->IsTypeOf(InElementType))
-					{
-						Keys.Add(InElement->GetKey());
-					}
-					ElementVisited[InElement->GetIndex()] = true;
-				}
-            });
-		}
-	}
-	else
+TArray<FRigElementKey> URigHierarchy::GetKeysByPredicate(
+	TFunctionRef<bool(const FRigBaseElement&)> InPredicateFunc,
+	bool bTraverse
+	) const
+{
+	auto ElementTraverser = [&](TFunctionRef<void(const FRigBaseElement&)> InProcessFunc)
 	{
-		for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
+		if(bTraverse)
 		{
-			FRigBaseElement* Element = Elements[ElementIndex];
-			if(Element->IsTypeOf(InElementType))
+			// TBitArray reserves 4, we'll do 16 so we can remember at least 512 elements before
+			// we need to hit the heap.
+			TBitArray<TInlineAllocator<16>> ElementVisited(false, Elements.Num());
+			
+			for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
 			{
-				Keys.Add(Element->GetKey());
+				FRigBaseElement* Element = Elements[ElementIndex];
+				Traverse(Element, true, [&ElementVisited, InProcessFunc, InPredicateFunc](FRigBaseElement* InElement, bool& bContinue)
+				{
+					bContinue = !ElementVisited[InElement->GetIndex()];
+
+					if(bContinue)
+					{
+						if(InPredicateFunc(*InElement))
+						{
+							InProcessFunc(*InElement);
+						}
+						ElementVisited[InElement->GetIndex()] = true;
+					}
+				});
 			}
 		}
-	}
+		else
+		{
+			for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
+			{
+				const FRigBaseElement* Element = Elements[ElementIndex];
+				if(InPredicateFunc(*Element))
+				{
+					InProcessFunc(*Element);
+				}
+			}
+		}
+	};
+	
+	// First count up how many elements we matched and only reserve that amount. There's very little overhead
+	// since we're just running over the same data, so it should still be hot when we do the second pass.
+	int32 NbElements = 0;
+	ElementTraverser([&NbElements](const FRigBaseElement&) { NbElements++; });
+	
+	TArray<FRigElementKey> Keys;
+	Keys.Reserve(NbElements);
+	ElementTraverser([&Keys](const FRigBaseElement& InElement) { Keys.Add(InElement.GetKey()); });
+
 	return Keys;
 }
 
@@ -1826,6 +1862,12 @@ URigHierarchyController* URigHierarchy::GetController(bool bCreateIfNeeded)
 		 }
 	}
 	return nullptr;
+}
+
+void URigHierarchy::IncrementTopologyVersion()
+{
+	TopologyVersion++;
+	KeyCollectionCache.Reset();
 }
 
 FRigPose URigHierarchy::GetPose(
@@ -4625,7 +4667,6 @@ void URigHierarchy::ComputeParentConstraintIndices(
 		}
 	}
 }
-
 void URigHierarchy::IntegrateParentConstraintVector(
 	FVector& OutVector,
 	const FTransform& InTransform,

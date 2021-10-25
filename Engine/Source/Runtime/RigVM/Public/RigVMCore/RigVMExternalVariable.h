@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "RigVMTraits.h"
 #include "RigVMMemory.h"
+#include "UObject/UnrealType.h"
 
 /**
  * The external variable can be used to map external / unowned
@@ -83,6 +84,62 @@ struct RIGVM_API FRigVMExternalVariable
 			OutTypeObject = ObjectProperty->PropertyClass;
 		}
 	}
+
+	static uint32 GetPropertyTypeHash(const FProperty *InProperty, const uint8 *InMemory)
+	{
+		if (!ensure(InProperty))
+		{
+			return 0;
+		}
+
+		if (InProperty->PropertyFlags & CPF_HasGetValueTypeHash)
+		{
+			return InProperty->GetValueTypeHash(InMemory);
+		}
+
+		if (const FBoolProperty* BoolProperty = CastField<FBoolProperty>(InProperty))
+		{
+			return static_cast<uint32>(BoolProperty->GetPropertyValue(InMemory));
+		}
+		else if (const FArrayProperty *ArrayProperty = CastField<FArrayProperty>(InProperty))
+		{
+			FScriptArrayHelper ArrayHelper(ArrayProperty, InMemory);
+			int32 Hash = ::GetTypeHash(ArrayHelper.Num());
+			for (int32 Index = 0; Index < ArrayHelper.Num(); Index++)
+			{
+				Hash = HashCombine(Hash, GetPropertyTypeHash(ArrayProperty->Inner, ArrayHelper.GetRawPtr(Index)));
+			}
+			return Hash;
+		}
+		else if (const FStructProperty *StructProperty = CastField<FStructProperty>(InProperty))
+		{
+			const UScriptStruct* StructType = StructProperty->Struct;
+			if (StructType->GetCppStructOps() && StructType->GetCppStructOps()->HasGetTypeHash())
+			{
+				return StructType->GetCppStructOps()->GetStructTypeHash(InMemory);
+			}
+			else
+			{
+				uint32 Hash = 0;
+				for (TFieldIterator<FProperty> It(StructType); It; ++It)
+				{
+					const FProperty* SubProperty = *It;
+					Hash = HashCombine(Hash, GetPropertyTypeHash(*It, InMemory + SubProperty->GetOffset_ForInternal()));
+				}
+				return Hash;
+			}
+		}
+
+		// If we get here, we're missing support for a property type that doesn't do its own hashing. 
+		checkNoEntry();
+		return 0;
+	}
+
+	uint32 GetTypeHash() const
+	{
+		return GetPropertyTypeHash(Property, Memory);
+	}
+	
 
 	FORCEINLINE static FRigVMExternalVariable Make(const FProperty* InProperty, void* InContainer, const FName& InOptionalName = NAME_None)
 	{

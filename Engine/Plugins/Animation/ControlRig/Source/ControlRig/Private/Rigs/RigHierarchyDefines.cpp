@@ -115,10 +115,15 @@ FRigElementKeyCollection FRigElementKeyCollection::MakeFromName(
 
 	check(InHierarchy);
 
-	FRigElementKeyCollection Collection(InHierarchy->GetAllKeys(true));
-	Collection = Collection.FilterByType(InElementTypes);
-	Collection = Collection.FilterByName(InPartialName);
-	return Collection;
+	constexpr bool bTraverse = true;
+
+	const FString PartialNameString = InPartialName.ToString();
+	
+	return InHierarchy->GetKeysByPredicate([PartialNameString, InElementTypes](const FRigBaseElement& InElement) -> bool
+	{
+		return InElement.IsTypeOf(static_cast<ERigElementType>(InElementTypes)) &&
+			   InElement.GetNameString().Contains(PartialNameString);
+	}, bTraverse);
 }
 
 FRigElementKeyCollection FRigElementKeyCollection::MakeFromChain(

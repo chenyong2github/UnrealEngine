@@ -82,6 +82,8 @@ void FRigBaseElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializatio
 
 		ensure(LoadedKey.Type == Key.Type);
 		Key = LoadedKey;
+
+		NameString = Key.Name.ToString();
 	}
 }
 
