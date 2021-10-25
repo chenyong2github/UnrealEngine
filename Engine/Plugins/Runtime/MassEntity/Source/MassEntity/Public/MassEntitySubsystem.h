@@ -265,6 +265,7 @@ public:
 	void DebugRemoveAllEntities();
 	void DebugForceArchetypeDataVersionBump() { ++ArchetypeDataVersion; }
 	void DebugGetArchetypeStrings(const FArchetypeHandle& Archetype, TArray<FName>& OutFragmentNames, TArray<FName>& OutTagNames);
+	FMassEntityHandle DebugGetEntityIndexHandle(const int32 EntityIndex) const { return Entities.IsValidIndex(EntityIndex) ? FMassEntityHandle({EntityIndex, Entities[EntityIndex].SerialNumber}) : FMassEntityHandle(); }
 #endif // WITH_MASSENTITY_DEBUG
 
 protected:
