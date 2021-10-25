@@ -745,6 +745,15 @@ void UModelingToolsEditorMode::Exit()
 		GetModeManager()->GetSelectedActors()->GetElementSelectionSet()->OnPreChange().Remove(SelectionModifiedEventHandle);
 	}
 
+	// exit any exclusive active tools w/ cancel
+	if (UInteractiveTool* ActiveTool = GetToolManager()->GetActiveTool(EToolSide::Left))
+	{
+		if (Cast<IInteractiveToolExclusiveToolAPI>(ActiveTool))
+		{
+			GetToolManager()->DeactivateTool(EToolSide::Left, EToolShutdownType::Cancel);
+		}
+	}
+
 	//
 	// Engine Analytics
 	//
@@ -791,6 +800,23 @@ void UModelingToolsEditorMode::Exit()
 	// Call base Exit method to ensure proper cleanup
 	UEdMode::Exit();
 }
+
+bool UModelingToolsEditorMode::ShouldToolStartBeAllowed(const FString& ToolIdentifier) const
+{
+	if (UInteractiveToolManager* Manager = GetToolManager())
+	{
+		if (UInteractiveTool* Tool = Manager->GetActiveTool(EToolSide::Left))
+		{
+			IInteractiveToolExclusiveToolAPI* ExclusiveAPI = Cast<IInteractiveToolExclusiveToolAPI>(Tool);
+			if (ExclusiveAPI)
+			{
+				return false;
+			}
+		}
+	}
+	return Super::ShouldToolStartBeAllowed(ToolIdentifier);
+}
+
 
 void UModelingToolsEditorMode::CreateToolkit()
 {

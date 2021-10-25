@@ -128,3 +128,26 @@ public:
 
 
 };
+
+
+// UInterface for IInteractiveToolExclusiveToolAPI
+UINTERFACE(MinimalAPI)
+class UInteractiveToolExclusiveToolAPI : public UInterface
+{
+	GENERATED_BODY()
+};
+
+/**
+ * IInteractiveToolExclusiveToolAPI provides an API to inform the
+ * ToolManager about tool exclusivity. An exclusive tool prevents other
+ * tools from building & activating while the tool is active. This is
+ * useful in scenarios where tools want to enforce an explicit Accept,
+ * Cancel or Complete user input to exit the tool.
+ */
+class IInteractiveToolExclusiveToolAPI
+{
+	GENERATED_BODY()
+};
+
+
+
