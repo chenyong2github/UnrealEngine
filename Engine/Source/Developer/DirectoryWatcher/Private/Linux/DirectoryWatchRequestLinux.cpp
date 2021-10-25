@@ -85,8 +85,8 @@ bool FDirectoryWatchRequestLinux::Init(const FString& InDirectory, uint32 Flags)
 		return false;
 	}
 
-	// find all subdirs
-	WatchDirectoryTree(WatchDirectory);
+	// Find all subdirs and add inotify watch requests
+	WatchDirectoryTree(WatchDirectory, nullptr);
 
 	return true;
 }
@@ -174,7 +174,7 @@ void FDirectoryWatchRequestLinux::ProcessPendingNotifications()
 	}
 }
 
-void FDirectoryWatchRequestLinux::WatchDirectoryTree(const FString & RootAbsolutePath)
+void FDirectoryWatchRequestLinux::WatchDirectoryTree(const FString & RootAbsolutePath, TArray<TPair<FFileChangeData, bool>>* FileChanges)
 {
 	if (bEndWatchRequestInvoked || (FileDescriptor == -1))
 	{
@@ -190,15 +190,25 @@ void FDirectoryWatchRequestLinux::WatchDirectoryTree(const FString & RootAbsolut
 
 	UE_LOG(LogDirectoryWatcher, VeryVerbose, TEXT("Watching tree '%s'"), *RootAbsolutePath);
 
+	if (FileChanges)
+	{
+		FileChanges->Emplace(FFileChangeData(RootAbsolutePath, FFileChangeData::FCA_Added), true);
+	}
+
 	TArray<FString> AllFiles;
 	if (bWatchSubtree)
 	{
 		IPlatformFile::GetPlatformPhysical().IterateDirectoryRecursively(*RootAbsolutePath,
-			[&AllFiles](const TCHAR* Name, bool bIsDirectory)
+			[&AllFiles, FileChanges](const TCHAR* Name, bool bIsDirectory)
 				{
 					if (bIsDirectory)
 					{
 						AllFiles.Add(Name);
+					}
+
+					if (FileChanges)
+					{
+						FileChanges->Emplace(FFileChangeData(Name, FFileChangeData::FCA_Added), bIsDirectory);
 					}
 					return true;
 				});
@@ -374,11 +384,14 @@ void FDirectoryWatchRequestLinux::ProcessChanges(TArray<TPair<FFileChangeData, b
 						// IN_MOVED_TO: Generated for the directory containing the new filename when a file is renamed
 						if (bIsDir)
 						{
-							// If a directory was created/moved, watch it
-							WatchDirectoryTree(AffectedFile);
+							// If a directory was created/moved, watch it and add changes to FileChanges.
+							// Leave Action as FCA_Unknown so nothing gets added down below.
+							WatchDirectoryTree(AffectedFile, &FileChanges);
 						}
-
-						Action = FFileChangeData::FCA_Added;
+						else
+						{
+							Action = FFileChangeData::FCA_Added;
+						}
 					}
 					else if (Event->mask & IN_MODIFY)
 					{
@@ -432,7 +445,7 @@ void FDirectoryWatchRequestLinux::ProcessChanges(TArray<TPair<FFileChangeData, b
 						Action = FFileChangeData::FCA_Removed;
 					}
 
-					if (Event->len)
+					if (Event->len && (Action != FFileChangeData::FCA_Unknown))
 					{
 						FileChanges.Emplace(FFileChangeData(AffectedFile, Action), bIsDir);
 					}
