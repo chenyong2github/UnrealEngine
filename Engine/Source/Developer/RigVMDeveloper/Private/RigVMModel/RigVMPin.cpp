@@ -571,10 +571,12 @@ FString URigVMPin::GetDefaultValue(const URigVMPin::FPinOverride& InOverride) co
 				{
 					ElementDefaultValue = TEXT("\"") + ElementDefaultValue + TEXT("\"");
 				}
-				else if (ElementDefaultValue.IsEmpty())
-				{
-					continue;
-				}
+
+				// if default value is empty, VM may believe that the array is smaller than # of sub-pins 
+				// since VM determines the array size by counting the number of element default values.
+				// see URigVMCompiler::FindOrAddRegister() for how pin default values are put into VM memory
+				ensure(!ElementDefaultValue.IsEmpty());
+
 				ElementDefaultValues.Add(ElementDefaultValue);
 			}
 			if (ElementDefaultValues.Num() == 0)
@@ -612,6 +614,18 @@ FString URigVMPin::GetDefaultValue(const URigVMPin::FPinOverride& InOverride) co
 		}
 
 		return DefaultValue.IsEmpty() ? TEXT("()") : DefaultValue;
+	}
+	else if (IsArrayElement() && DefaultValue.IsEmpty())
+	{
+		// array element cannot have an empty default value because when an array pin is
+		// added as a property to a memory storage class, its default value needs to reflect 
+		// the number of array elements in that array pin.
+		// for example:
+		// for an array pin of 1 float, the final default value should be "(0.0)" instead of "()".
+		// This default value is used during URigVMCompiler::FindOrAddRegister(...)
+		// Thus in this block, we have to return something like 0.0 instead of empty string
+
+		return URigVMController::GetPinInitialDefaultValue(this);
 	}
 
 	return DefaultValue;
