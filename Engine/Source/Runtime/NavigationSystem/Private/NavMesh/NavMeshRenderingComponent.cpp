@@ -960,8 +960,8 @@ namespace FNavMeshRenderingHelpers
 	struct FUniqueColor
 	{
 		FUniqueColor() : Color(0), Count(0) {}
-		FUniqueColor(const uint32 InColor, const uint32 InCount) : Color(InColor), Count(InCount) {}
-		uint32 Color;
+		FUniqueColor(const FColor InColor, const uint32 InCount) : Color(InColor), Count(InCount) {}
+		FColor Color;
 		uint32 Count;
 		bool operator==(const FUniqueColor& Other) const
 		{
@@ -971,7 +971,7 @@ namespace FNavMeshRenderingHelpers
 	};
 	FORCEINLINE uint32 GetTypeHash(const FUniqueColor& UniqueColor)
 	{
-		return UniqueColor.Color;
+		return UniqueColor.Color.DWColor();
 	}
 }
 
@@ -981,17 +981,17 @@ void FNavMeshSceneProxyData::AddMeshForInternalData(const FRecastInternalDebugDa
 	{
 		const TArray<uint32>& Indices = InInternalData.TriangleIndices;
 		const TArray<FVector>& Vertices = InInternalData.TriangleVertices;
-		const TArray<uint32>& Colors = InInternalData.TriangleColors;
+		const TArray<FColor>& Colors = InInternalData.TriangleColors;
 
 		if (ensure(Vertices.Num() == Colors.Num()))
 		{
 			// Split the mesh into different colored pieces (because we cannot use vertex colors).
 			TSet<FNavMeshRenderingHelpers::FUniqueColor> UniqueColors;
-			uint32 PrevColor = Colors[Indices[0]];
+			FColor PrevColor = Colors[Indices[0]];
 			FSetElementId ColorIdx = UniqueColors.Add(FNavMeshRenderingHelpers::FUniqueColor(PrevColor, 1));
 			for (int32 i = 3; i < Indices.Num(); i += 3)
 			{
-				const uint32 Color = Colors[Indices[i]];	// Use the first color as representative of the triangle color.
+				const FColor Color = Colors[Indices[i]];	// Use the first color as representative of the triangle color.
 				if (Color != PrevColor)
 				{
 					ColorIdx = UniqueColors.Add(FNavMeshRenderingHelpers::FUniqueColor(Color, 1));
@@ -1013,19 +1013,19 @@ void FNavMeshSceneProxyData::AddMeshForInternalData(const FRecastInternalDebugDa
 				MeshData.Vertices.Reserve(VertexCount);
 				for (int32 i = 0; i < Indices.Num(); i += 3)
 				{
-					const uint32 Color = Colors[Indices[i]];
+					const FColor Color = Colors[Indices[i]];
 					if (Color == CurrentColor.Color)
 					{
 						const int32 VertexBase = MeshData.Vertices.Num();
-						FNavMeshRenderingHelpers::AddVertex(MeshData, Vertices[Indices[i]] + NavMeshDrawOffset, FColor(Color));
-						FNavMeshRenderingHelpers::AddVertex(MeshData, Vertices[Indices[i + 1]] + NavMeshDrawOffset, FColor(Color));
-						FNavMeshRenderingHelpers::AddVertex(MeshData, Vertices[Indices[i + 2]] + NavMeshDrawOffset, FColor(Color));
+						FNavMeshRenderingHelpers::AddVertex(MeshData, Vertices[Indices[i]] + NavMeshDrawOffset, Color);
+						FNavMeshRenderingHelpers::AddVertex(MeshData, Vertices[Indices[i + 1]] + NavMeshDrawOffset, Color);
+						FNavMeshRenderingHelpers::AddVertex(MeshData, Vertices[Indices[i + 2]] + NavMeshDrawOffset, Color);
 						MeshData.Indices.Add(VertexBase);
 						MeshData.Indices.Add(VertexBase + 1);
 						MeshData.Indices.Add(VertexBase + 2);
 					}
 				}
-				MeshData.ClusterColor = FColor(CurrentColor.Color);
+				MeshData.ClusterColor = CurrentColor.Color;
 			}
 		}
 	}
@@ -1033,12 +1033,12 @@ void FNavMeshSceneProxyData::AddMeshForInternalData(const FRecastInternalDebugDa
 	if (InInternalData.LineVertices.Num() > 0)
 	{
 		const TArray<FVector>& Vertices = InInternalData.LineVertices;
-		const TArray<uint32>& Colors = InInternalData.LineColors;
+		const TArray<FColor>& Colors = InInternalData.LineColors;
 		if (ensure(Vertices.Num() == Colors.Num()))
 		{
 			for (int32 i = 0; i < Vertices.Num(); i += 2)
 			{
-				AuxLines.Emplace(Vertices[i] + NavMeshDrawOffset, Vertices[i + 1] + NavMeshDrawOffset, FColor(Colors[i]), 0.0f);
+				AuxLines.Emplace(Vertices[i] + NavMeshDrawOffset, Vertices[i + 1] + NavMeshDrawOffset, Colors[i], 0.0f);
 			}
 		}
 	}
@@ -1046,12 +1046,12 @@ void FNavMeshSceneProxyData::AddMeshForInternalData(const FRecastInternalDebugDa
 	if (InInternalData.PointVertices.Num() > 0)
 	{
 		const TArray<FVector>& Vertices = InInternalData.PointVertices;
-		const TArray<uint32>& Colors = InInternalData.PointColors;
+		const TArray<FColor>& Colors = InInternalData.PointColors;
 		if (ensure(Vertices.Num() == Colors.Num()))
 		{
 			for (int32 i = 0; i < Vertices.Num(); i++)
 			{
-				AuxPoints.Emplace(Vertices[i] + NavMeshDrawOffset, FColor(Colors[i]), 5.0f);
+				AuxPoints.Emplace(Vertices[i] + NavMeshDrawOffset, Colors[i], 5.0f);
 			}
 		}
 	}

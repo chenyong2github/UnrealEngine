@@ -51,3 +51,12 @@ FMatrix Recast2UnrealMatrix()
 	static FMatrix TM(FVector(-1.f, 0, 0), FVector(0, 0, -1.f), FVector(0, 1.f, 0), FVector::ZeroVector);
 	return TM;
 }
+
+FColor Recast2UnrealColor(const unsigned int RecastColor)
+{
+	const uint8 R = (RecastColor & 0xFF);
+	const uint8 G = (RecastColor & 0xFF00) >> 8;
+	const uint8 B = (RecastColor & 0xFF0000) >> 16;
+	const uint8 A = (RecastColor & 0xFF000000) >> 24;
+	return FColor(R,G,B,A);	// can't be direct assignation since internally FColor is not RGBA
+}
