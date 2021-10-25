@@ -1657,6 +1657,7 @@ void ComputeHairStrandsInterpolation(
 	FGlobalShaderMap* ShaderMap,
 	const uint32 ViewUniqueID,
 	const FShaderDrawDebugData* ShaderDrawData,
+	const FShaderPrintData* ShaderPrintData,
 	FHairGroupInstance* Instance,
 	int32 MeshLODIndex,
 	FHairStrandClusterData* InClusterData)
