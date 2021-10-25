@@ -33,7 +33,7 @@ static FAutoConsoleVariableRef CVarHairClusterBuilder_MaxVoxelResolution(TEXT("r
 FString FGroomBuilder::GetVersion()
 {
 	// Important to update the version when groom building changes
-	return TEXT("2q");
+	return TEXT("2r1");
 }
 
 namespace FHairStrandsDecimation
@@ -264,7 +264,6 @@ namespace HairStrandsBuilder
 		const FHairStrandsPoints& Points = HairStrands.StrandsPoints;
 
 		// Track what features/data the bulk data contains
-		bool bHasUDIMData = false;
 		bool bHasMaterialData = false;
 
 		struct FPackedRadiusAndType
@@ -317,22 +316,14 @@ namespace HairStrandsBuilder
 				RootUV.Y = RootUV.Y == 1.0f ? RootUV.Y - SmallEpsilon : RootUV.Y;
 				const FVector2D TextureRootUV(FMath::Fractional(RootUV.X), FMath::Fractional(RootUV.Y));
 				const FVector2D TextureIndexUV = RootUV - TextureRootUV;
-				PackedAttributes0.RootU  = uint8(FMath::Clamp(TextureRootUV.X*255.f, 0.f, 255.f));
-				PackedAttributes0.RootV  = uint8(FMath::Clamp(TextureRootUV.Y*255.f, 0.f, 255.f));
 
 				// UDIM
-				{
-					FHairStrandsAttribute1Format::Type& PackedAttributes1 = OutPackedAttributes1[PointIndex + IndexOffset];
-					PackedAttributes1.IndexU = uint8(FMath::Clamp(TextureIndexUV.X, 0.f, 255.f));
-					PackedAttributes1.IndexV = uint8(FMath::Clamp(TextureIndexUV.Y, 0.f, 255.f));
-					PackedAttributes1.Unused0 = 0;
-					PackedAttributes1.Unused1 = 0;
-
-					if (PackedAttributes1.IndexU != 0 || PackedAttributes1.IndexV != 0)
-					{
-						bHasUDIMData = true;
-					}
-				}
+				FHairStrandsAttribute1Format::Type& PackedAttributes1 = OutPackedAttributes1[PointIndex + IndexOffset];
+				PackedAttributes1.Packed = 0;
+				PackedAttributes1.Packed |= (uint32(FMath::Clamp(TextureRootUV.X * 2047.f, 0.f, 2047.f)) & 0x7FFu);
+				PackedAttributes1.Packed |= (uint32(FMath::Clamp(TextureRootUV.Y * 2047.f, 0.f, 2047.f)) & 0x7FFu) << 11u;
+				PackedAttributes1.Packed |= (uint32(FMath::Clamp(TextureIndexUV.X, 0.f, 31.f)) & 0x1F) << 22u;
+				PackedAttributes1.Packed |= (uint32(FMath::Clamp(TextureIndexUV.Y, 0.f, 31.f)) & 0x1F) << 27u;
 
 				// Material
 				{
@@ -360,14 +351,11 @@ namespace HairStrandsBuilder
 		OutBulkData.Flags = FHairStrandsBulkData::DataFlags_HasData;
 
 		if (bHasMaterialData)	{ OutBulkData.Flags |= FHairStrandsBulkData::DataFlags_HasMaterialData; }	else { OutPackedMaterials.Empty(); }
-		if (bHasUDIMData)		{ OutBulkData.Flags |= FHairStrandsBulkData::DataFlags_HasUDIMData; }		else { OutPackedAttributes1.Empty(); }
 
 		CopyToBulkData<FHairStrandsPositionFormat>(OutBulkData.Positions, OutPackedPositions);
 		CopyToBulkData<FHairStrandsAttribute0Format>(OutBulkData.Attributes0, OutPackedAttributes0);
-		if (bHasUDIMData)
-		{
-			CopyToBulkData<FHairStrandsAttribute1Format>(OutBulkData.Attributes1, OutPackedAttributes1);
-		}
+		CopyToBulkData<FHairStrandsAttribute1Format>(OutBulkData.Attributes1, OutPackedAttributes1);
+
 		if (bHasMaterialData)
 		{
 			CopyToBulkData<FHairStrandsMaterialFormat>(OutBulkData.Materials, OutPackedMaterials);

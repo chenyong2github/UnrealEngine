@@ -22,10 +22,8 @@ struct FPackedHairVertex
 
 struct FPackedHairAttribute0Vertex
 {
-	typedef uint32 BulkType;
+	typedef uint16 BulkType;
 
-	uint8 RootU;
-	uint8 RootV;
 	uint8 NormalizedLength;
 	uint8 Seed;
 };
@@ -34,10 +32,7 @@ struct FPackedHairAttribute1Vertex
 {
 	typedef uint32 BulkType;
 
-	uint8 IndexU;
-	uint8 IndexV;
-	uint8 Unused0;
-	uint8 Unused1;
+	uint32 Packed;
 };
 
 struct FHairMaterialVertex
@@ -125,7 +120,7 @@ struct FHairStrandsAttribute0Format
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
 	static const EVertexElementType VertexElementType = VET_UByte4;
-	static const EPixelFormat Format = PF_R8G8B8A8;
+	static const EPixelFormat Format = PF_R8G8;
 };
 
 struct FHairStrandsAttribute1Format
@@ -134,8 +129,8 @@ struct FHairStrandsAttribute1Format
 	typedef FPackedHairAttribute1Vertex::BulkType BulkType;
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
-	static const EVertexElementType VertexElementType = VET_UByte4;
-	static const EPixelFormat Format = PF_R8G8B8A8_UINT;
+	static const EVertexElementType VertexElementType = VET_UInt;
+	static const EPixelFormat Format = PF_R32_UINT;
 };
 
 struct FHairStrandsMaterialFormat
@@ -429,8 +424,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkData
 	enum EDataFlags
 	{
 		DataFlags_HasData = 1,			// Contains valid data. Otherwise: Position, Attributes, ... are all empty
-		DataFlags_HasUDIMData = 2,		// Contains UDIM coords
-		DataFlags_HasMaterialData = 4	// Contains material data (albedo and/or roughness)
+		DataFlags_HasMaterialData = 2	// Contains material data (albedo and/or roughness)
 	};
 
 	void Serialize(FArchive& Ar, UObject* Owner);

@@ -74,7 +74,6 @@ FHairStrandsVertexFactoryUniformShaderParameters FHairGroupInstance::GetHairStan
 	Out.Attribute0Buffer			= VFInput.Strands.Attribute0BufferRHISRV;
 	Out.Attribute1Buffer			= VFInput.Strands.Attribute1BufferRHISRV;
 	Out.MaterialBuffer 				= VFInput.Strands.MaterialBufferRHISRV;
-	Out.HasAttribute1 				= Out.Attribute1Buffer != nullptr;
 	Out.HasMaterial 				= Out.MaterialBuffer != nullptr;
 	Out.TangentBuffer 				= VFInput.Strands.TangentBufferRHISRV;
 	Out.PositionOffsetBuffer 		= VFInput.Strands.PositionOffsetBufferRHISRV;
