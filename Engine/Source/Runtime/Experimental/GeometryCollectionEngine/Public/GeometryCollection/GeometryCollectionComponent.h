@@ -707,6 +707,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|General")
 	bool bNotifyRemovals;
 
+	// Used by Niagara DI to query global matrices rather than recalculating them again
+	const TArray<FMatrix>& GetGlobalMatrices() { return GlobalMatrices; }
+
 protected:
 	/** Display Bone Colors instead of assigned materials */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|General")
@@ -734,6 +737,8 @@ protected:
 	void UpdateRBCollisionEventRegistration();
 	void UpdateBreakEventRegistration();
 	void UpdateRemovalEventRegistration();
+
+
 
 	/* Per-instance override to enable/disable replication for the geometry collection */
 	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category=Network)
