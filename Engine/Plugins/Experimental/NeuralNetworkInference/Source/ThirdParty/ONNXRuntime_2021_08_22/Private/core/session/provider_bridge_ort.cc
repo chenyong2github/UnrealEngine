@@ -69,8 +69,8 @@ struct ProviderInfo_CUDAandROCM{
   void CopyGpuToCpu(void*, const void*, const size_t, const OrtMemoryInfo&, const OrtMemoryInfo&) {}
   OrtStatus* GetCurrentGpuDeviceId(int*) {return nullptr;}
   OrtStatus* SetCurrentGpuDeviceId(int) {return nullptr;}
-  void cudaMemcpy_HostToDevice(void*, const void*, size_t) {nullptr;}
-  void rocmMemcpy_HostToDevice(void*, const void*, size_t) {nullptr;}
+  void cudaMemcpy_HostToDevice(void*, const void*, size_t) {}
+  void rocmMemcpy_HostToDevice(void*, const void*, size_t) {}
 };
 using ProviderInfo_CUDA = ProviderInfo_CUDAandROCM;
 using ProviderInfo_ROCM = ProviderInfo_CUDAandROCM;
