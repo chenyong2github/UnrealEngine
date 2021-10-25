@@ -40,6 +40,36 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 typedef TUniformBufferRef<FHairCardsVertexFactoryUniformShaderParameters> FHairCardsUniformBuffer;
 
+
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairStrandsVertexFactoryUniformShaderParameters, HAIRSTRANDSCORE_API)
+	SHADER_PARAMETER(float, Radius)
+	SHADER_PARAMETER(float, RootScale)
+	SHADER_PARAMETER(float, TipScale)
+	SHADER_PARAMETER(float, Length)
+	SHADER_PARAMETER(float, Density)
+	SHADER_PARAMETER(uint32, CullingEnable)
+	SHADER_PARAMETER(uint32, HasAttribute1)
+	SHADER_PARAMETER(uint32, HasMaterial)
+	SHADER_PARAMETER(uint32, StableRasterization)
+	SHADER_PARAMETER(uint32, ScatterSceneLighing)
+
+	SHADER_PARAMETER_SRV(Buffer<float4>, PositionOffsetBuffer)
+	SHADER_PARAMETER_SRV(Buffer<float4>, PreviousPositionOffsetBuffer)
+
+	SHADER_PARAMETER_SRV(Buffer<uint4>, PositionBuffer)
+	SHADER_PARAMETER_SRV(Buffer<uint4>, PreviousPositionBuffer)
+
+	SHADER_PARAMETER_SRV(Buffer<float4>, Attribute0Buffer)
+	SHADER_PARAMETER_SRV(Buffer<float4>, Attribute1Buffer)
+	SHADER_PARAMETER_SRV(Buffer<float4>, MaterialBuffer)
+	SHADER_PARAMETER_SRV(Buffer<float4>, TangentBuffer)
+
+	SHADER_PARAMETER_SRV(Buffer<uint>, CulledVertexIdsBuffer)
+	SHADER_PARAMETER_SRV(Buffer<float>, CulledVertexRadiusScaleBuffer)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
+typedef TUniformBufferRef<FHairStrandsVertexFactoryUniformShaderParameters> FHairStrandsUniformBuffer;
+
 enum class EHairLODSelectionType
 {
 	Immediate,	// Done on the rendering thread, prior to render
@@ -113,6 +143,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 		FRDGExternalBuffer DebugAttributeBuffer;
 		FHairGroupInstanceModifer Modifier;
 
+		FHairStrandsUniformBuffer UniformBuffer;
 		FHairStrandsVertexFactory* VertexFactory = nullptr;
 	} Strands;
 
@@ -253,4 +284,6 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 		return (BindingType == EHairBindingType::Skinning) ? Debug.SkinningPreviousLocalToWorld :
 															 Debug.RigidPreviousLocalToWorld;
 	}
+
+	FHairStrandsVertexFactoryUniformShaderParameters GetHairStandsUniformShaderParameters() const;
 };

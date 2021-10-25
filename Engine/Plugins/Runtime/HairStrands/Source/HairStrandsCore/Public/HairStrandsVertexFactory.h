@@ -26,10 +26,10 @@ public:
 	
 	struct FDataType
 	{
-		const FHairGroupInstance* Instance = nullptr;
+		FHairGroupInstance* Instance = nullptr;
 	};
 
-	FHairStrandsVertexFactory(const FHairGroupInstance* Instance, ERHIFeatureLevel::Type InFeatureLevel, const char* InDebugName)
+	FHairStrandsVertexFactory(FHairGroupInstance* Instance, ERHIFeatureLevel::Type InFeatureLevel, const char* InDebugName)
 		: FVertexFactory(InFeatureLevel)
 		, DebugName(InDebugName)
 	{

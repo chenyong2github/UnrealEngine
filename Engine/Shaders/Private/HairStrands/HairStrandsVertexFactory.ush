@@ -29,11 +29,6 @@
 #define USE_CULLED_CLUSTER 1
 #endif
 
-#if USE_CULLED_CLUSTER == 1
-	Buffer<uint> CulledVertexIdsBuffer;
-	Buffer<float> CulledVertexRadiusScaleBuffer;
-#endif
-
 ////////////////////////////////////////////////////////////////////////////////
 // HAIR_STRAND_MESH_FACTORY
 // Define used in certain shader like DeepShadow for running specific code (coverage computation for instance) 
@@ -41,17 +36,6 @@
 // This is set by compilation enviromenent of the vertex factory
 ///////////////////////////////////////////////////////////////////////////////
 
-float  HairStrandsVF_Density;
-uint   HairStrandsVF_CullingEnable;
-uint   HairStrandsVF_bUseStableRasterization;
-uint   HairStrandsVF_bScatterSceneLighing;
-
-// Vertex position (3x16bits) are relative to this offset for improving precision while keeping vertex footprint low
-Buffer<float4> HairStrandsVF_PositionOffsetBuffer;
-Buffer<float4> HairStrandsVF_PreviousPositionOffsetBuffer;
-
-Buffer<uint4>  HairStrandsVF_PreviousPositionBuffer;
-Buffer<float4> HairStrandsVF_TangentBuffer;
 
 // ## A quad is made of the following topology and indexing:
 //
@@ -90,16 +74,22 @@ Buffer<float4> HairStrandsVF_TangentBuffer;
  */
 bool UseStableRasterization()
 {
-	return HairStrandsVF_bUseStableRasterization > 0;
+	return HairStrandsVF.StableRasterization > 0;
 }
 
 bool UseScatterSceneLighting()
 {
-	return HairStrandsVF_bScatterSceneLighing > 0;
+	return HairStrandsVF.ScatterSceneLighing > 0;
 }
 
 struct FVertexFactoryInput
 {
+#if RAYHITGROUPSHADER
+	float4 Position;
+	uint TriangleId;          // from RayHit
+	uint TriangleVertexId;    // 0,1,2
+#endif
+
 	// Dynamic instancing related attributes with InstanceIdOffset : ATTRIBUTE13
 	VF_GPUSCENE_DECLARE_INPUT_BLOCK(13)
 
@@ -138,12 +128,11 @@ FVertexInfo GetVertexInfo(FVertexFactoryInput Input)
 	VertexInfo.LodRadiusScale = 1.0f;
 	VertexInfo.bForceInvalidQuad = false;
 #if USE_CULLED_CLUSTER == 1
-	if (HairStrandsVF_CullingEnable)
+	if (HairStrandsVF.CullingEnable)
 	{
-		VertexInfo.VertexIndex = CulledVertexIdsBuffer[VertexInfo.BaseIndex + VertexInfo.IsTip];
-		VertexInfo.LodRadiusScale = CulledVertexRadiusScaleBuffer[VertexInfo.BaseIndex + VertexInfo.IsTip];
+		VertexInfo.VertexIndex = HairStrandsVF.CulledVertexIdsBuffer[VertexInfo.BaseIndex + VertexInfo.IsTip];
+		VertexInfo.LodRadiusScale = HairStrandsVF.CulledVertexRadiusScaleBuffer[VertexInfo.BaseIndex + VertexInfo.IsTip];
 		VertexInfo.HairPrimitiveId = VertexInfo.VertexIndex - VertexInfo.IsTip;
-		VertexInfo.bForceInvalidQuad = VertexInfo.LodRadiusScale <= 0.0f;
 	}
 #endif
 
@@ -151,14 +140,15 @@ FVertexInfo GetVertexInfo(FVertexFactoryInput Input)
 }
 
 #if RAYHITGROUPSHADER
-FVertexFactoryInput LoadVertexFactoryInput(uint TriangleIndex, int VertexIndex)
+FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexIndex)
 {
-	// #hair_todo
 	FTriangleBaseAttributes Triangle = LoadTriangleBaseAttributes(TriangleIndex);
 
 	FVertexFactoryInput Input;
 	Input.Position = float4(Triangle.LocalPositions[VertexIndex], 1.0f);
 	Input.VertexId = Triangle.Indices[VertexIndex];
+	Input.TriangleId = TriangleIndex;
+	Input.TriangleVertexId = VertexIndex;
 #if VF_USE_PRIMITIVE_SCENE_DATA
 	// Note: GetInstanceUserData() stores the GPU-Scene primitive ID
 	Input.InstanceIdOffset = GetInstanceUserData() | VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG;
@@ -184,11 +174,6 @@ struct FVertexFactoryIntermediates
 	FSceneDataIntermediates SceneData;
 };
 
-FPrimitiveSceneData GetPrimitiveData(FVertexFactoryIntermediates Intermediates)
-{
-	return Intermediates.SceneData.Primitive;
-}
-
 uint GetHairPrimitiveId(FVertexFactoryInput Input)
 {
 	return GetVertexInfo(Input).HairPrimitiveId;
@@ -196,19 +181,25 @@ uint GetHairPrimitiveId(FVertexFactoryInput Input)
 
 FHairControlPoint GetVertexPosition(const FVertexInfo VertexInfo, bool bInvalidJointVertex=true)
 {
-	const float3 PositionOffset = HairStrandsVF_PositionOffsetBuffer[0].xyz;
+	const float3 PositionOffset = HairStrandsVF.PositionOffsetBuffer[0].xyz;
 
-	const uint4 PackedData = HairStrandsVF_PositionBuffer[VertexInfo.VertexIndex];
+	const uint4 PackedData = HairStrandsVF.PositionBuffer[VertexInfo.VertexIndex];
 	FHairControlPoint Out = UnpackHairControlPoint(
 		PackedData, 
 		PositionOffset,
-		HairStrandsVF_Radius * VertexInfo.LodRadiusScale, 
-		HairStrandsVF_RootScale,
-		HairStrandsVF_TipScale);
+#if RAYHITGROUPSHADER
+		HairStrandsVF.Radius,
+#else
+		HairStrandsVF.Radius * VertexInfo.LodRadiusScale,
+#endif
+		HairStrandsVF.RootScale,
+		HairStrandsVF.TipScale);
 	
 	// Create a degenerated quad the end of each strand to cut between each strands
 	// #hair_todo: This is not efficient for short strand like fur for instance. Need to revisit that at some point
-#if USE_HAIR_TRIANGLE_STRIP
+#if RAYHITGROUPSHADER
+	const bool bIsInvalidQuad = false; // can't hit an invalid quad in raytracing (filtered by the acceleration structure)
+#elif USE_HAIR_TRIANGLE_STRIP
 	const bool bIsInvalidQuad = (bInvalidJointVertex && Out.Type == HAIR_CONTROLPOINT_END) || VertexInfo.bForceInvalidQuad;
 #else
 	const bool bIsInvalidQuad = (bInvalidJointVertex && Out.Type == HAIR_CONTROLPOINT_START && VertexInfo.IsTip == 1) || (bInvalidJointVertex && Out.Type == HAIR_CONTROLPOINT_END && VertexInfo.IsTip == 0) || VertexInfo.bForceInvalidQuad;
@@ -231,20 +222,26 @@ float GetWorldStrandRadius(FVertexFactoryInput Input)
 
 float3 GetVertexPreviousPosition(FVertexFactoryInput Input, bool bInvalidJointVertex = true)
 {
-	const float3 PreviousPositionOffset = HairStrandsVF_PreviousPositionOffsetBuffer[0].xyz;
+	const float3 PreviousPositionOffset = HairStrandsVF.PreviousPositionOffsetBuffer[0].xyz;
 
 	FVertexInfo VertexInfo = GetVertexInfo(Input);
-	const uint4 PackedData = HairStrandsVF_PreviousPositionBuffer[VertexInfo.VertexIndex];
+	const uint4 PackedData = HairStrandsVF.PreviousPositionBuffer[VertexInfo.VertexIndex];
 	FHairControlPoint Out = UnpackHairControlPoint(
 		PackedData,
 		PreviousPositionOffset,
-		HairStrandsVF_Radius * VertexInfo.LodRadiusScale,
-		HairStrandsVF_RootScale,
-		HairStrandsVF_TipScale);
+#if RAYHITGROUPSHADER
+		HairStrandsVF.Radius,
+#else
+		HairStrandsVF.Radius * VertexInfo.LodRadiusScale,
+#endif
+		HairStrandsVF.RootScale,
+		HairStrandsVF.TipScale);
 
 	// Create a degenerated quad the end of each strand to cut between each strands
 	// #hair_todo: This is not efficient for short strand like fur for instance. Need to revisit that at some point
-#if USE_HAIR_TRIANGLE_STRIP
+#if RAYHITGROUPSHADER
+	const bool bIsInvalidQuad = false; // can't hit an invalid quad in raytracing (filtered by the acceleration structure)
+#elif USE_HAIR_TRIANGLE_STRIP
 	const bool bIsInvalidQuad = (bInvalidJointVertex && Out.Type == HAIR_CONTROLPOINT_END) || VertexInfo.bForceInvalidQuad;
 #else
 	const bool bIsInvalidQuad = (bInvalidJointVertex && Out.Type == HAIR_CONTROLPOINT_START && VertexInfo.IsTip == 1) || (bInvalidJointVertex && Out.Type == HAIR_CONTROLPOINT_END && VertexInfo.IsTip == 0) || VertexInfo.bForceInvalidQuad;
@@ -258,7 +255,11 @@ float3 GetVertexPreviousPosition(FVertexFactoryInput Input, bool bInvalidJointVe
 float2 GetSegmentUVCoord(FVertexFactoryInput Input)
 {
 	FVertexInfo VertexInfo = GetVertexInfo(Input);
+#if RAYHITGROUPSHADER
+	const float VCoord = 0.5; // TODO: find a way to define this?
+#else
 	const float VCoord = VertexInfo.IsLeft ? 0.0f : 1.0f;
+#endif
 	const float UCoord = VertexInfo.IsTip  ? 1.0f : 0.0f;
 	return float2(UCoord, VCoord);
 }
@@ -289,10 +290,10 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 	return Result;
 }
 
-half3x3 CalcTangentToWorldNoScale(FVertexFactoryIntermediates Intermediates, half3x3 TangentToLocal)
+half3x3 CalcTangentToWorldNoScale(FPrimitiveSceneData SceneData, half3x3 TangentToLocal)
 {
-	half3x3 LocalToWorld = LWCToFloat3x3(GetPrimitiveData(Intermediates).LocalToWorld);
-	half3 InvScale = GetPrimitiveData(Intermediates).InvNonUniformScale;
+	half3x3 LocalToWorld = LWCToFloat3x3(SceneData.LocalToWorld);
+	half3 InvScale = SceneData.InvNonUniformScale;
 	LocalToWorld[0] *= InvScale.x;
 	LocalToWorld[1] *= InvScale.y;
 	LocalToWorld[2] *= InvScale.z;
@@ -309,7 +310,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	// does not handle instancing!
 	Result.TangentToWorld = Intermediates.TangentToWorld;
 	
-	Result.PrevFrameLocalToWorld = GetPrimitiveData(Intermediates).PreviousLocalToWorld;
+	Result.PrevFrameLocalToWorld = Intermediates.SceneData.Primitive.PreviousLocalToWorld;
 	Result.PreSkinnedPosition = GetVertexPreviousPosition(Input);
 	Result.PreSkinnedNormal = TangentToLocal[2];
 	return Result;
@@ -320,19 +321,18 @@ float4 CalcWorldPosition(float3 Position, FLWCMatrix LocalToWorld)
 	return TransformLocalToTranslatedWorld(Position, LocalToWorld);
 }
 
-half3x3 CalcTangentToLocal(FVertexFactoryInput Input, inout float TangentSign)
+half3x3 CalcTangentToLocal(uint VertexIndex, inout float TangentSign)
 {
-	FVertexInfo VertexInfo = GetVertexInfo(Input);
-	const half3 TangentInputX = HairStrandsVF_TangentBuffer[VertexInfo.VertexIndex * 2 + 0].xyz;
-	const half4 TangentInputZ = HairStrandsVF_TangentBuffer[VertexInfo.VertexIndex * 2 + 1];
+	const half3 TangentInputX = HairStrandsVF.TangentBuffer[VertexIndex * 2 + 0].xyz;
+	const half4 TangentInputZ = HairStrandsVF.TangentBuffer[VertexIndex * 2 + 1];
 
 	half3 TangentX = TangentBias(TangentInputX);
 	half4 TangentZ = TangentBias(TangentInputZ);
 	TangentSign = TangentZ.w;
-	
+
 	// derive the binormal by getting the cross product of the normal and tangent
 	half3 TangentY = cross(TangentZ.xyz, TangentX) * TangentZ.w;
-	
+
 	// Recalculate TangentX off of the other two vectors
 	// This corrects quantization error since TangentX was passed in as a quantized vertex input
 	// The error shows up most in specular off of a mesh with a smoothed UV seam (normal is smooth, but tangents vary across the seam)
@@ -344,10 +344,15 @@ half3x3 CalcTangentToLocal(FVertexFactoryInput Input, inout float TangentSign)
 	return Result;
 }
 
-half3x3 CalcTangentToWorld(FVertexFactoryIntermediates Intermediates, half3x3 TangentToLocal)
+half3x3 CalcTangentToLocal(FVertexFactoryInput Input, inout float TangentSign)
 {
-	half3x3 LocalTangentToWorld = CalcTangentToWorldNoScale(Intermediates, TangentToLocal);
-	return LocalTangentToWorld;
+	FVertexInfo VertexInfo = GetVertexInfo(Input);
+	return CalcTangentToLocal(VertexInfo.VertexIndex, TangentSign);
+}
+
+half3x3 CalcTangentToWorld(FPrimitiveSceneData SceneData, half3x3 TangentToLocal)
+{
+	return CalcTangentToWorldNoScale(SceneData, TangentToLocal);
 }
 
 float3 GetTangent(FVertexFactoryIntermediates Intermediates)
@@ -365,13 +370,13 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Intermediates.SceneData			= VF_GPUSCENE_GET_INTERMEDIATES(Input);
 	Intermediates.HairPrimitiveId	= GetHairPrimitiveId(Input);
 	Intermediates.HairPrimitiveUV	= GetSegmentUVCoord(Input);
-	Intermediates.HairDensity		= HairStrandsVF_Density;
+	Intermediates.HairDensity		= HairStrandsVF.Density;
 	Intermediates.HairDimensions	= float2(0.f, GetWorldStrandRadius(Input));
 
 	float TangentSign;
 	Intermediates.TangentToLocal = CalcTangentToLocal(Input, TangentSign);
-	Intermediates.TangentToWorld = CalcTangentToWorld(Intermediates,Intermediates.TangentToLocal);
-	Intermediates.TangentToWorldSign = TangentSign * GetPrimitive_DeterminantSign_FromFlags(GetPrimitiveData(Intermediates).Flags);	
+	Intermediates.TangentToWorld = CalcTangentToWorld(Intermediates.SceneData.Primitive, Intermediates.TangentToLocal);
+	Intermediates.TangentToWorldSign = TangentSign * GetPrimitive_DeterminantSign_FromFlags(Intermediates.SceneData.Primitive.Flags);
 	return Intermediates;
 }
 
@@ -386,6 +391,15 @@ half3x3 VertexFactoryGetTangentToLocal( FVertexFactoryInput Input, FVertexFactor
 {
 	return Intermediates.TangentToLocal;
 }
+
+#if RAYHITGROUPSHADER
+
+float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return CalcWorldPosition(Input.Position.xyz, Intermediates.SceneData.Primitive.LocalToWorld);
+}
+
+#else
 
 float4 ComputeViewAlignedWorldPosition(FVertexFactoryInput Input, float3 WorldTangent, float4 WorldPosition, float WorldStrandRadius, FHairViewInfo HairViewInfo)
 {
@@ -411,7 +425,7 @@ float4 VertexFactoryGetWorldPosition_Visibility(FVertexFactoryInput Input, FHair
 	FHairControlPoint ControlPoint = GetVertexPosition(VertexInfo);
 
 	FVertexFactoryIntermediates Intermediates = GetVertexFactoryIntermediates(Input);
-	const float4 WorldPosition = CalcWorldPosition(ControlPoint.Position, GetPrimitiveData(Intermediates).LocalToWorld);
+	const float4 WorldPosition = CalcWorldPosition(ControlPoint.Position, Intermediates.SceneData.Primitive.LocalToWorld);
 	const float3 WorldTangent = GetTangent(Intermediates);
 
 	// Minimal radius to snap the strand to a sample/pixel center (to avoid aliasing)
@@ -432,10 +446,10 @@ float4 VertexFactoryGetWorldPosition_Voxelization(FVertexFactoryInput Input, FHa
 
 	FHairControlPoint ControlPoint = GetVertexPosition(VertexInfo);
 	OutHairWorldRadius = ControlPoint.WorldRadius;
-	OutHairDensity = HairStrandsVF_Density;
+	OutHairDensity = HairStrandsVF.Density;
 
 	FVertexFactoryIntermediates Intermediates = GetVertexFactoryIntermediates(Input);
-	const float4 WorldPosition = CalcWorldPosition(ControlPoint.Position, GetPrimitiveData(Intermediates).LocalToWorld);
+	const float4 WorldPosition = CalcWorldPosition(ControlPoint.Position, Intermediates.SceneData.Primitive.LocalToWorld);
 	const float3 WorldTangent = GetTangent(Intermediates);
 
 	// Minimal radius to snap the strand to a sample/pixel center (to avoid aliasing)
@@ -451,7 +465,7 @@ float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIn
 {
 	FHairControlPoint ControlPoint = GetVertexPosition(Input);
 	const float3 VertexPosition = ControlPoint.Position;
-	const float4 WorldPosition = CalcWorldPosition(VertexPosition, GetPrimitiveData(Intermediates).LocalToWorld);
+	const float4 WorldPosition = CalcWorldPosition(VertexPosition, Intermediates.SceneData.Primitive.LocalToWorld);
 
 	// Hair shader expect the WorldNormal to be the tangent vector
 	const float3 WorldTangent = GetTangent(Intermediates);
@@ -471,6 +485,7 @@ float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIn
 
 	return VertexFactoryGetWorldPosition(Input, Intermediates, HairViewInfo);
 }
+#endif
 
 float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float4 InWorldPosition)
 {
@@ -496,8 +511,8 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 	Interpolants.EyeIndex = 0;
 #endif
 	
-	Interpolants.HairPrimitiveId = GetHairPrimitiveId(Input);
-	Interpolants.HairPrimitiveUV = GetSegmentUVCoord(Input);
+	Interpolants.HairPrimitiveId = Intermediates.HairPrimitiveId;
+	Interpolants.HairPrimitiveUV = Intermediates.HairPrimitiveUV;
 	SetPrimitiveId(Interpolants, Intermediates.SceneData.PrimitiveId);
 
 	return Interpolants;
@@ -512,13 +527,13 @@ float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input)
 // @return translated world position (without quad extension/reorientation).This is used only for velocity computation
 float4 VertexFactoryGetWorldPositionRaw(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, bool bInvalidJointVertex = true)
 {
-	return CalcWorldPosition(GetVertexPosition(Input, bInvalidJointVertex).Position, GetPrimitiveData(Intermediates).LocalToWorld);
+	return CalcWorldPosition(GetVertexPosition(Input, bInvalidJointVertex).Position, Intermediates.SceneData.Primitive.LocalToWorld);
 }
 
 // @return previous translated world position
 float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, bool bInvalidJointVertex = true)
 {
-	float4x4 PreviousLocalToWorldTranslated = LWCMultiplyTranslation(GetPrimitiveData(Intermediates).PreviousLocalToWorld, ResolvedView.PrevPreViewTranslation);
+	float4x4 PreviousLocalToWorldTranslated = LWCMultiplyTranslation(Intermediates.SceneData.Primitive.PreviousLocalToWorld, ResolvedView.PrevPreViewTranslation);
 
 
 	const float3 VertexPosition = GetVertexPreviousPosition(Input, bInvalidJointVertex);
