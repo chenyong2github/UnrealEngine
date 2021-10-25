@@ -1057,10 +1057,31 @@ bool FRigVMSetNodeDescriptionAction::Redo(URigVMController* InController)
 	return FRigVMBaseAction::Redo(InController);
 }
 
-FRigVMSetCommentTextAction::FRigVMSetCommentTextAction(URigVMCommentNode* InNode, const FString& InNewText)
+FRigVMSetCommentTextAction::FRigVMSetCommentTextAction()
+: NodePath()
+, OldText()
+, NewText()
+, OldFontSize(18)
+, NewFontSize(18)
+, bOldBubbleVisible(false)
+, bNewBubbleVisible(false)
+, bOldColorBubble(false)
+, bNewColorBubble(false)
+{
+	
+}
+
+
+FRigVMSetCommentTextAction::FRigVMSetCommentTextAction(URigVMCommentNode* InNode, const FString& InNewText, const int32& InNewFontSize, const bool& bInNewBubbleVisible, const bool& bInNewColorBubble)
 : NodePath(InNode->GetNodePath())
 , OldText(InNode->GetCommentText())
 , NewText(InNewText)
+, OldFontSize(InNode->GetCommentFontSize())
+, NewFontSize(InNewFontSize)
+, bOldBubbleVisible(InNode->GetCommentBubbleVisible())
+, bNewBubbleVisible(bInNewBubbleVisible)
+, bOldColorBubble(InNode->GetCommentColorBubble())
+, bNewColorBubble(bInNewColorBubble)
 {
 }
 
@@ -1070,12 +1091,12 @@ bool FRigVMSetCommentTextAction::Undo(URigVMController* InController)
 	{
 		return false;
 	}
-	return InController->SetCommentTextByName(*NodePath, OldText, false);
+	return InController->SetCommentTextByName(*NodePath, OldText, OldFontSize, bOldBubbleVisible, bOldColorBubble, false);
 }
 
 bool FRigVMSetCommentTextAction::Redo(URigVMController* InController)
 {
-	if(!InController->SetCommentTextByName(*NodePath, NewText, false))
+	if(!InController->SetCommentTextByName(*NodePath, NewText, NewFontSize, bNewBubbleVisible, bNewColorBubble, false))
 	{
 		return false;
 	}

@@ -80,8 +80,6 @@ protected:
 	virtual FVector2D GetNodeMaximumSize() const override;
 	//~ Begin SGraphNodeResizable Interface
 
-private:
-
 	/** @return the color to tint the comment body */
 	FSlateColor GetCommentBodyColor() const;
 
@@ -91,15 +89,13 @@ private:
 	/** @return the color to tint the comment bubble */
 	FSlateColor GetCommentBubbleColor() const;
 
+private:
+	
 	/** Returns the width to wrap the text of the comment at */
 	float GetWrapAt() const;
 
-private:
 	/** The comment bubble widget (used when zoomed out) */
 	TSharedPtr<SCommentBubble> CommentBubble;
-
-	/** Was the bubble desired to be visible last frame? */
-	mutable bool bCachedBubbleVisibility;
 
 	/** The current selection state of the comment */
 	mutable bool bIsSelected;
@@ -109,14 +105,17 @@ private:
 
 protected:
 	/** cached comment title */
-	FString CachedCommentTitle; 
+	FString CachedCommentTitle;
+
+	/** cached font size */
+	int32 CachedFontSize;
+
+	/** Was the bubble desired to be visible last frame? */
+	mutable bool bCachedBubbleVisibility;
 
 private:
 	/** cached comment title */
 	int32 CachedWidth;
-
-	/** cached font size */
-	int32 CachedFontSize;
 
 	/** Local copy of the comment style */
 	FInlineEditableTextBlockStyle CommentStyle;

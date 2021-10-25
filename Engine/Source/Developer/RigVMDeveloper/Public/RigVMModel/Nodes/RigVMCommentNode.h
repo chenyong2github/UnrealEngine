@@ -28,10 +28,31 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMCommentNode)
 	FString GetCommentText() const;
 
+	// Returns the current user provided font size of this comment.
+	UFUNCTION(BlueprintCallable, Category = RigVMCommentNode)
+	int32 GetCommentFontSize() const;
+
+	// Returns the current user provided bubble visibility of this comment.
+	UFUNCTION(BlueprintCallable, Category = RigVMCommentNode)
+	bool GetCommentBubbleVisible() const;
+
+	// Returns the current user provided bubble color inheritance of this comment.
+	UFUNCTION(BlueprintCallable, Category = RigVMCommentNode)
+	bool GetCommentColorBubble() const;
+
 private:
 
 	UPROPERTY()
 	FString CommentText;
+
+	UPROPERTY()
+	int32 FontSize;
+
+	UPROPERTY()
+	bool bBubbleVisible;
+
+	UPROPERTY()
+	bool bColorBubble;
 
 	friend class URigVMController;
 };

@@ -18,6 +18,7 @@
 SControlRigGraphNodeComment::SControlRigGraphNodeComment()
 	: SGraphNodeComment()
 	, CachedNodeCommentColor(FLinearColor(-1.f, -1.f, -1.f, -1.f))
+	, CachedColorBubble(INDEX_NONE)
 {
 }
 
@@ -86,8 +87,19 @@ void SControlRigGraphNodeComment::Tick(const FGeometry& AllottedGeometry, const 
 	{
 		UEdGraphNode_Comment* CommentNode = CastChecked<UEdGraphNode_Comment>(GraphNode);
 
+		if (CachedColorBubble == INDEX_NONE)
+		{
+			CachedColorBubble = (int8) CommentNode->bColorCommentBubble;
+		}
+
 		const FString CurrentCommentTitle = GetNodeComment();
-		if (CurrentCommentTitle != CachedCommentTitle)
+		const int32 CurrentCommentFontSize = CommentNode->GetFontSize();
+		const bool CurrentCommentBubbleVisible = CommentNode->bCommentBubbleVisible;
+		const bool CurrentCommentColorBubble = CommentNode->bColorCommentBubble;
+		if (CurrentCommentTitle != CachedCommentTitle ||
+			CurrentCommentFontSize != CachedFontSize ||
+			CurrentCommentBubbleVisible != bCachedBubbleVisibility ||
+			CurrentCommentColorBubble != (bool) CachedColorBubble)
 		{
 			if (UControlRigGraph* Graph = Cast<UControlRigGraph>(CommentNode->GetOuter()))
 			{
@@ -95,7 +107,8 @@ void SControlRigGraphNodeComment::Tick(const FGeometry& AllottedGeometry, const 
 				{
 					if (URigVMController* Controller = Blueprint->GetController(Graph))
 					{
-						Controller->SetCommentTextByName(CommentNode->GetFName(), CurrentCommentTitle, true, true);
+						Controller->SetCommentTextByName(CommentNode->GetFName(), CurrentCommentTitle, CurrentCommentFontSize, CurrentCommentBubbleVisible, CurrentCommentColorBubble, true, true);
+						CachedColorBubble = (int8) CurrentCommentColorBubble;
 					}
 				}
 			}

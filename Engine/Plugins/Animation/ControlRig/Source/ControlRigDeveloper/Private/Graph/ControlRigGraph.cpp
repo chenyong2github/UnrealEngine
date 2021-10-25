@@ -482,6 +482,10 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 				if (EdNode)
 				{
 					EdNode->OnUpdateCommentText(ModelNode->GetCommentText());
+					EdNode->FontSize = ModelNode->GetCommentFontSize();
+					EdNode->bCommentBubbleVisible = ModelNode->GetCommentBubbleVisible();
+					EdNode->bCommentBubbleVisible_InDetailsPanel = ModelNode->GetCommentBubbleVisible();
+					EdNode->bColorCommentBubble = ModelNode->GetCommentColorBubble();
 				}
 			}
 			break;

@@ -885,8 +885,8 @@ struct FRigVMSetCommentTextAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMSetCommentTextAction() {}
-	FRigVMSetCommentTextAction(URigVMCommentNode* InNode, const FString& InNewText);
+	FRigVMSetCommentTextAction();
+	FRigVMSetCommentTextAction(URigVMCommentNode* InNode, const FString& InNewText, const int32& InNewFontSize, const bool& bInNewBubbleVisible, const bool& bInNewColorBubble);
 	virtual ~FRigVMSetCommentTextAction() {};
 	virtual bool Undo(URigVMController* InController) override;
 	virtual bool Redo(URigVMController* InController) override;
@@ -899,6 +899,24 @@ public:
 
 	UPROPERTY()
 	FString NewText;
+
+	UPROPERTY()
+	int32 OldFontSize;
+
+	UPROPERTY()
+	int32 NewFontSize;
+
+	UPROPERTY()
+	bool bOldBubbleVisible;
+
+	UPROPERTY()
+	bool bNewBubbleVisible;
+
+	UPROPERTY()
+	bool bOldColorBubble;
+
+	UPROPERTY()
+	bool bNewColorBubble;
 };
 
 /**

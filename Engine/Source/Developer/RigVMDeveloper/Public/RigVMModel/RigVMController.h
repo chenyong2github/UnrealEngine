@@ -488,15 +488,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	bool SetNodeDescriptionByName(const FName& InNodeName, const FString& InDescription, bool bSetupUndoRedo = true, bool bMergeUndoAction = false);
 
-	// Sets the comment text of a comment node in the graph.
+	// Sets the comment text and properties of a comment node in the graph.
 	// This causes a CommentTextChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool SetCommentText(URigVMNode* InNode, const FString& InCommentText, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
+	bool SetCommentText(URigVMNode* InNode, const FString& InCommentText, const int32& InCommentFontSize, const bool& bInCommentBubbleVisible, const bool& bInCommentColorBubble, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
-	// Sets the comment text of a comment node in the graph by name.
+	// Sets the comment text and properties of a comment node in the graph by name.
 	// This causes a CommentTextChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool SetCommentTextByName(const FName& InNodeName, const FString& InCommentText, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
+	bool SetCommentTextByName(const FName& InNodeName, const FString& InCommentText, const int32& InCommentFontSize, const bool& bInCommentBubbleVisible, const bool& bInCommentColorBubble, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Sets the compactness of a reroute node in the graph.
 	// This causes a RerouteCompactnessChanged modified event.
