@@ -8,6 +8,7 @@
 #include "CameraCalibrationSettings.h"
 #include "CameraCalibrationSubsystem.h"
 #include "CineCameraComponent.h"
+#include "EditorFramework/AssetImportData.h"
 #include "Engine/Engine.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "LensDistortionModelHandlerBase.h"
@@ -1306,6 +1307,13 @@ void ULensFile::PostInitProperties()
 	DistortionTable.LensFile =
 		FocalLengthTable.LensFile = ImageCenterTable.LensFile =
 		NodalOffsetTable.LensFile = STMapTable.LensFile = this;
+
+#if WITH_EDITORONLY_DATA
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		AssetImportData = NewObject<UAssetImportData>(this, TEXT("AssetImportData"));
+	}
+#endif
 }
 
 void ULensFile::Tick(float DeltaTime)

@@ -3,6 +3,7 @@
 #include "AssetTypeActions/AssetTypeActions_LensFile.h"
 
 #include "AssetEditor/CameraCalibrationToolkit.h"
+#include "EditorFramework/AssetImportData.h"
 #include "LensFile.h"
 
 #define LOCTEXT_NAMESPACE "LensFileTypeActions"
@@ -26,6 +27,20 @@ void FAssetTypeActions_LensFile::OpenAssetEditor(const TArray<UObject*>& InObjec
 		if (ULensFile* Asset = Cast<ULensFile>(Object))
 		{
 			FCameraCalibrationToolkit::CreateEditor(Mode, EditWithinLevelEditor, Asset);
+		}
+	}
+}
+
+void FAssetTypeActions_LensFile::GetResolvedSourceFilePaths(const TArray<UObject*>& TypeAssets, TArray<FString>& OutSourceFilePaths) const
+{
+	for (UObject* Asset : TypeAssets)
+	{
+		if (const ULensFile* LensFile = CastChecked<ULensFile>(Asset))
+		{
+			if (LensFile->AssetImportData)
+			{
+				LensFile->AssetImportData->ExtractFilenames(OutSourceFilePaths);
+			}
 		}
 	}
 }
