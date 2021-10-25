@@ -6217,9 +6217,10 @@ bool URigVMController::ResetPinDefaultValue(const FString& InPinPath, bool bSetu
 		return false;
 	}
 
-	if (Cast<URigVMUnitNode>(Pin->GetNode()) == nullptr)
+	URigVMNode* Node = Pin->GetNode();
+	if (!Node->IsA<URigVMUnitNode>() && !Node->IsA<URigVMFunctionReferenceNode>())
 	{
-		ReportErrorf(TEXT("Pin '%s' is not on a unit node."), *InPinPath);
+		ReportErrorf(TEXT("Pin '%s' is neither part of a unit nor a function reference node."), *InPinPath);
 		return false;
 	}
 
@@ -6241,26 +6242,129 @@ bool URigVMController::ResetPinDefaultValue(URigVMPin* InPin, bool bSetupUndoRed
 {
 	check(InPin);
 
-	if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InPin->GetNode()))
-	{
-		TSharedPtr<FStructOnScope> StructOnScope = UnitNode->ConstructStructInstance(true /* use default */);
+	URigVMNode* RigVMNode = InPin->GetNode();
 
-		TArray<FString> Parts;
-		if (!URigVMPin::SplitPinPath(InPin->GetPinPath(), Parts))
+	// unit nodes
+	if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(RigVMNode))
+	{
+		// cut off the first one since it's the node
+		static const uint32 Offset = 1;
+		const FString DefaultValue = GetPinInitialDefaultValueFromStruct(UnitNode->GetScriptStruct(), InPin, Offset);
+		if (!DefaultValue.IsEmpty())
 		{
-			return false;
+			SetPinDefaultValue(InPin, DefaultValue, true, bSetupUndoRedo, false);
+			return true;
+		}
+	}
+
+	// function reference nodes
+	URigVMFunctionReferenceNode* RefNode = Cast<URigVMFunctionReferenceNode>(RigVMNode);
+	if (RefNode != nullptr)
+	{
+		const FString DefaultValue = GetPinInitialDefaultValue(InPin);
+		if (!DefaultValue.IsEmpty())
+		{
+			SetPinDefaultValue(InPin, DefaultValue, true, bSetupUndoRedo, false);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+FString URigVMController::GetPinInitialDefaultValue(URigVMPin* InPin)
+{
+	static const FString EmptyValue;
+	static const FString TArrayInitValue( TEXT("()") );
+	static const FString TObjectInitValue( TEXT("()") );
+	static const TMap<FString, FString> InitValues =
+	{
+		{ TEXT("bool"),	TEXT("False") },
+		{ TEXT("int32"),	TEXT("0") },
+		{ TEXT("float"),	TEXT("0.000000") },
+		{ TEXT("double"),	TEXT("0.000000") },
+		{ TEXT("FName"),	FName(NAME_None).ToString() },
+		{ TEXT("FString"),	TEXT("") }
+	};
+
+	if (InPin->IsStruct())
+	{
+		// offset is useless here as we are going to get the full struct default value
+		static const uint32 Offset = 0;
+		return GetPinInitialDefaultValueFromStruct(InPin->GetScriptStruct(), InPin, Offset);
+	}
+		
+	if (InPin->IsStructMember())
+	{
+		if (URigVMPin* ParentPin = InPin->GetParentPin())
+		{
+			// cut off node's and parent struct's paths if func reference node, only node instead
+			static const uint32 Offset = InPin->GetNode()->IsA<URigVMFunctionReferenceNode>() ? 2 : 1;
+			return GetPinInitialDefaultValueFromStruct(ParentPin->GetScriptStruct(), InPin, Offset);
+		}
+	}
+
+	if (InPin->IsArray())
+	{
+		return TArrayInitValue;
+	}
+		
+	if (InPin->IsUObject())
+	{
+		return TObjectInitValue;
+	}
+		
+	if (UEnum* Enum = InPin->GetEnum())
+	{
+		return Enum->GetNameStringByIndex(0);
+	}
+	
+	if (const FString* BasicDefault = InitValues.Find(InPin->GetCPPType()))
+	{
+		return *BasicDefault;
+	}
+	
+	return EmptyValue;
+}
+
+FString URigVMController::GetPinInitialDefaultValueFromStruct(UScriptStruct* ScriptStruct, URigVMPin* InPin, uint32 InOffset)
+{
+	FString DefaultValue;
+	if (InPin && ScriptStruct)
+	{
+		TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(ScriptStruct));
+		uint8* Memory = (uint8*)StructOnScope->GetStructMemory();
+		ScriptStruct->InitializeDefaultValue(Memory);
+
+		if (InPin->GetScriptStruct() == ScriptStruct)
+		{
+			ScriptStruct->ExportText(DefaultValue, Memory, nullptr, nullptr, PPF_None, nullptr, true);
+			return DefaultValue;
 		}
 
-		int32 PartIndex = 1; // cut off the first one since it's the node
+		const FString PinPath = InPin->GetPinPath();
 
-		UStruct* Struct = UnitNode->ScriptStruct;
+		TArray<FString> Parts;
+		if (!URigVMPin::SplitPinPath(PinPath, Parts))
+		{
+			return DefaultValue;
+		}
+
+		const uint32 NumParts = Parts.Num();
+		if (InOffset >= NumParts)
+		{
+			return DefaultValue;
+		}
+
+		uint32 PartIndex = InOffset;
+
+		UStruct* Struct = ScriptStruct;
 		FProperty* Property = Struct->FindPropertyByName(*Parts[PartIndex++]);
 		check(Property);
 
-		uint8* Memory = StructOnScope->GetStructMemory();
 		Memory = Property->ContainerPtrToValuePtr<uint8>(Memory);
 
-		while (PartIndex < Parts.Num() && Property != nullptr)
+		while (PartIndex < NumParts && Property != nullptr)
 		{
 			if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 			{
@@ -6292,22 +6396,13 @@ bool URigVMController::ResetPinDefaultValue(URigVMPin* InPin, bool bSetupUndoRed
 
 		if (Memory)
 		{
-			FString DefaultValue;
 			check(Property);
 			Property->ExportTextItem(DefaultValue, Memory, nullptr, nullptr, PPF_None);
-
-			if (!DefaultValue.IsEmpty())
-			{
-				SetPinDefaultValue(InPin, DefaultValue, true, bSetupUndoRedo, false);
-				return true;
-			}
 		}
 	}
 
-	return false;
+	return DefaultValue;
 }
-
-
 
 FString URigVMController::AddArrayPin(const FString& InArrayPinPath, const FString& InDefaultValue, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
@@ -12249,6 +12344,7 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType,
 	InPin->CPPType = InCPPType;
 	InPin->CPPTypeObjectPath = CPPTypeObjectPath;
 	InPin->CPPTypeObject = InCPPTypeObject;
+	// we might want to use GetPinInitialDefaultValue here for a better default value
 	InPin->DefaultValue = FString();
 
 	if (InPin->IsStruct())
@@ -12295,7 +12391,7 @@ void URigVMController::RewireLinks(URigVMPin* InOldPin, URigVMPin* InNewPin, boo
 	ensure(InNewPin->GetRootPin() == InNewPin);
 	FRigVMControllerCompileBracketScope CompileScope(this);
 
-	if (bAsInput)
+ 	if (bAsInput)
 	{
 		TArray<URigVMLink*> Links = InLinks;
 		if (Links.Num() == 0)

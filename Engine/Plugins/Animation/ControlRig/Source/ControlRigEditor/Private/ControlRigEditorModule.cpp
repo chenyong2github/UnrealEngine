@@ -1425,34 +1425,36 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						}
 					}
 
-					if(Cast<URigVMUnitNode>(ModelPin->GetNode()) != nullptr || 
+					if (Cast<URigVMUnitNode>(ModelPin->GetNode()) != nullptr || 
 						Cast<URigVMLibraryNode>(ModelPin->GetNode()) != nullptr)
 					{
 						if (ModelPin->GetDirection() == ERigVMPinDirection::Input && 
-							!ModelPin->IsExecuteContext() &&
-							!ModelPin->IsBoundToVariable())
+							!ModelPin->IsExecuteContext())
 						{
-							FToolMenuSection& VariablesSection = Menu->FindOrAddSection(TEXT("Variables"));
+							if (!ModelPin->IsBoundToVariable())
+							{
+								FToolMenuSection& VariablesSection = Menu->FindOrAddSection(TEXT("Variables"));
 
-							TSharedRef<SControlRigVariableBinding> VariableBindingWidget =
-								SNew(SControlRigVariableBinding)
-								.Blueprint(RigBlueprint)
-								.ModelPin(ModelPin)
-								.CanRemoveBinding(false);
+								TSharedRef<SControlRigVariableBinding> VariableBindingWidget =
+									SNew(SControlRigVariableBinding)
+									.Blueprint(RigBlueprint)
+									.ModelPin(ModelPin)
+									.CanRemoveBinding(false);
 
-							VariablesSection.AddEntry(FToolMenuEntry::InitWidget("BindPinToVariableWidget", VariableBindingWidget, FText(), true));
+								VariablesSection.AddEntry(FToolMenuEntry::InitWidget("BindPinToVariableWidget", VariableBindingWidget, FText(), true));
+							}
+
+							FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaPinDefaults", LOCTEXT("PinDefaults", "Pin Defaults"));
+							Section.AddMenuEntry(
+								"ResetPinDefaultValue",
+								LOCTEXT("ResetPinDefaultValue", "Reset Pin Value"),
+								LOCTEXT("ResetPinDefaultValue_Tooltip", "Resets the pin's value to its default."),
+								FSlateIcon(),
+								FUIAction(FExecuteAction::CreateLambda([Controller, ModelPin]() {
+									Controller->ResetPinDefaultValue(ModelPin->GetPinPath());
+								})
+							));
 						}
-
-						FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaPinDefaults", LOCTEXT("PinDefaults", "Pin Defaults"));
-						Section.AddMenuEntry(
-							"ResetPinDefaultValue",
-							LOCTEXT("ResetPinDefaultValue", "Reset Pin Value"),
-							LOCTEXT("ResetPinDefaultValue_Tooltip", "Resets the pin's value to its default."),
-							FSlateIcon(),
-							FUIAction(FExecuteAction::CreateLambda([Controller, ModelPin]() {
-								Controller->ResetPinDefaultValue(ModelPin->GetPinPath());
-							})
-						));
 					}
 
 					if ((ModelPin->GetCPPType() == TEXT("FVector") ||
