@@ -186,7 +186,7 @@ public:
     {
         // Assume that enough GPU work has been queued up after the RNN operator that it is worth
         // kicking it off, to enable subsequent CPU work to be parallelized with this GPU work.
-        __super::Compute(kernelContext);
+        DmlOperator::Compute(kernelContext); // WITH_UE
         m_executionProvider->Flush();
     }
 
