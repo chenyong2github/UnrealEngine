@@ -572,6 +572,10 @@ void FCrashContext::SetupPrimaryCrashProperties()
 		GetCrashProperty( bInBackground, FGenericCrashContext::GameDataTag, TEXT("bInBackground"));
 		GetCrashProperty( bIsRequestingExit, FGenericCrashContext::GameDataTag, TEXT("IsRequestingExit"));
 
+		FString CPUBrandString;
+		GetCrashProperty( CPUBrandString, FGenericCrashContext::RuntimePropertiesTag, TEXT("Misc.CPUBrand"));
+		CPUBrand = CPUBrandString;
+
 		if (CrashDumpMode == ECrashDumpMode::FullDump)
 		{
 			// Set the full dump crash location when we have a full dump.
