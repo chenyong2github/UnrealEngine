@@ -100,8 +100,40 @@ public:
 
 };
 
+void UMeshAttributePaintToolProperties::Initialize(const TArray<FName>& AttributeNames, bool bInitialize)
+{
+	Attributes.Reset(AttributeNames.Num());
+	for (const FName& AttributeName : AttributeNames)
+	{
+		Attributes.Add(AttributeName.ToString());
+	}
+
+	if (bInitialize) {
+		Attribute = (Attributes.Num() > 0) ? Attributes[0] : TEXT("");
+	}
+}
 
 
+bool UMeshAttributePaintToolProperties::ValidateSelectedAttribute(bool bUpdateIfInvalid)
+{
+	int32 FoundIndex = Attributes.IndexOfByKey(Attribute);
+	if (FoundIndex == INDEX_NONE)
+	{
+		if (bUpdateIfInvalid)
+		{
+			Attribute = (Attributes.Num() > 0) ? Attributes[0] : TEXT("");
+		}
+		return false;
+	}
+	return true;
+}
+
+int32 UMeshAttributePaintToolProperties::GetSelectedAttributeIndex()
+{
+	ensure(INDEX_NONE == -1);
+	int32 FoundIndex = Attributes.IndexOfByKey(Attribute);
+	return FoundIndex;
+}
 
 
 void UMeshAttributePaintEditActions::PostAction(EMeshAttributePaintToolActions Action)
@@ -199,7 +231,7 @@ void UMeshAttributePaintTool::Setup()
 	*EditedMesh = *Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription();
 
 	AttributeSource = MakeUnique<FMeshDescriptionVertexAttributeSource>(EditedMesh.Get());
-	AttribProps->Attributes = AttributeSource->GetAttributeList();
+	AttribProps->Initialize(AttributeSource->GetAttributeList(), true);
 
 	if (AttribProps->Attributes.Num() == 0)
 	{
@@ -211,8 +243,8 @@ void UMeshAttributePaintTool::Setup()
 	InitializeAttributes();
 	PendingNewSelectedIndex = 0;
 
-	SelectedAttributeWatcher.Initialize([this]() { return AttribProps->SelectedAttribute; },
-		[this](int32 NewValue) { PendingNewSelectedIndex = NewValue; }, AttribProps->SelectedAttribute);
+	SelectedAttributeWatcher.Initialize([this]() { AttribProps->ValidateSelectedAttribute(true);  return AttribProps->GetSelectedAttributeIndex(); },
+		[this](int32 NewValue) { PendingNewSelectedIndex = NewValue; }, AttribProps->GetSelectedAttributeIndex());
 
 	bVisibleAttributeValid = false;
 }
@@ -407,7 +439,7 @@ void UMeshAttributePaintTool::UpdateVisibleAttribute()
 	// copy current value set back to attribute  (should we just always be doing this??)
 	StoreCurrentAttribute();
 
-	CurrentAttributeIndex = AttribProps->SelectedAttribute;
+	CurrentAttributeIndex = AttribProps->GetSelectedAttributeIndex();
 
 	if (CurrentAttributeIndex >= 0)
 	{
@@ -427,7 +459,7 @@ void UMeshAttributePaintTool::UpdateVisibleAttribute()
 			}
 		});
 
-		AttribProps->AttributeName = AttribData.Name.ToString();
+		AttribProps->Attribute = AttribData.Name.ToString();
 	}
 }
 
@@ -630,9 +662,8 @@ void UMeshAttributePaintTool::ApplyAction(EMeshAttributePaintToolActions ActionT
 
 void UMeshAttributePaintTool::UpdateSelectedAttribute(int32 NewSelectedIndex)
 {
-	AttribProps->SelectedAttribute = 0;
-	AttribProps->Attributes = AttributeSource->GetAttributeList();
-	AttribProps->SelectedAttribute = FMath::Clamp(NewSelectedIndex, 0, AttribProps->Attributes.Num() - 1);
+	AttribProps->Initialize(AttributeSource->GetAttributeList(), false);
+	AttribProps->Attribute = AttribProps->Attributes[FMath::Clamp(NewSelectedIndex, 0, AttribProps->Attributes.Num() - 1)];
 	bVisibleAttributeValid = false;
 }
 
