@@ -296,6 +296,8 @@ void USelectToolActionPropertySet::PostAction(ESelectToolAction Action)
 
 void UUVSelectTool::Setup()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVSelectTool_Setup);
+
 	using namespace UVSelectToolLocals;
 
 	check(Targets.Num() > 0);
@@ -373,8 +375,14 @@ void UUVSelectTool::Setup()
 		TSharedPtr<FDynamicMeshAABBTree3> Tree = TreeStore->Get(Target->UnwrapCanonical.Get());
 		if (!Tree)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(BuildAABBTreeForTarget);
 			Tree = MakeShared<FDynamicMeshAABBTree3>();
-			Tree->SetMesh(Target->UnwrapCanonical.Get());
+			Tree->SetMesh(Target->UnwrapCanonical.Get(), false);
+			// For now we split round-robin on the X/Y axes TODO Experiment with better splitting heuristics
+			FDynamicMeshAABBTree3::GetSplitAxisFunc GetSplitAxis = [](int Depth, const FAxisAlignedBox3d&) { return Depth % 2; };
+			// Note: 16 tris/leaf was chosen with data collected by SpatialBenchmarks.cpp in GeometryProcessingUnitTests
+			Tree->SetBuildOptions(16, MoveTemp(GetSplitAxis));
+			Tree->Build();
 			TreeStore->Set(Target->UnwrapCanonical.Get(), Tree, Target);
 		}
 		AABBTrees.Add(Tree);
@@ -443,6 +451,8 @@ void UUVSelectTool::Setup()
 
 void UUVSelectTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVSelectTool_Shutdown);
+	
 	// Clear selection so that it can be restored after undoing back into the select tool
 	if (!SelectionMechanic->GetCurrentSelection().IsEmpty())
 	{
@@ -488,7 +498,7 @@ void UUVSelectTool::Shutdown(EToolShutdownType ShutdownType)
 	ChangeRouter = nullptr;
 }
 
-void UUVSelectTool::SetSelection(const UE::Geometry::FDynamicMeshSelection& NewSelection, bool bBroadcastOnSelectionChanged)
+void UUVSelectTool::SetSelection(const FDynamicMeshSelection& NewSelection, bool bBroadcastOnSelectionChanged)
 {
 	SelectionMechanic->SetSelection(NewSelection, bBroadcastOnSelectionChanged, false);
 }
@@ -547,6 +557,8 @@ void UUVSelectTool::ConfigureSelectionModeFromControls()
 
 void UUVSelectTool::OnSelectionChanged()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVSelectTool_OnSelectionChanged);
+	
 	using namespace UVSelectToolLocals;
 
 	const FDynamicMeshSelection& Selection = SelectionMechanic->GetCurrentSelection();
@@ -576,6 +588,8 @@ void UUVSelectTool::OnSelectionChanged()
 		TSet<int32> TidSet;
 		if (Selection.Type == FDynamicMeshSelection::EType::Triangle)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Triangle);
+
 			const FDynamicMesh3* LivePreviewMesh = Targets[SelectionTargetIndex]->AppliedCanonical.Get();
 			for (int32 Tid : Selection.SelectedIDs)
 			{
@@ -612,6 +626,8 @@ void UUVSelectTool::OnSelectionChanged()
 		}
 		else if (Selection.Type == FDynamicMeshSelection::EType::Edge)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Edge);
+
 			for (int32 Eid : Selection.SelectedIDs)
 			{
 				FIndex2i EdgeVids = Selection.Mesh->GetEdgeV(Eid);
@@ -638,6 +654,8 @@ void UUVSelectTool::OnSelectionChanged()
 		}
 		else if (Selection.Type == FDynamicMeshSelection::EType::Vertex)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Vertex);
+
 			for (int32 Vid : Selection.SelectedIDs)
 			{
 				if (!VidSet.Contains(Vid))
@@ -674,6 +692,8 @@ void UUVSelectTool::OnSelectionChanged()
 
 void UUVSelectTool::UpdateLivePreviewLines()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UVSelectTool_UpdateLivePreviewLines);
+	
 	LivePreviewLineSet->Clear();
 
 	const FDynamicMeshSelection& Selection = SelectionMechanic->GetCurrentSelection();
@@ -847,6 +867,8 @@ void UUVSelectTool::ApplyAction(ESelectToolAction ActionType)
 	case ESelectToolAction::Sew:
 		if (SewAction)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(ApplyAction_Sew);
+
 			const FText TransactionName(LOCTEXT("SewCompleteTransactionName", "Sew Edges"));
 			EmitChangeAPI->BeginUndoTransaction(TransactionName);
 
@@ -859,6 +881,8 @@ void UUVSelectTool::ApplyAction(ESelectToolAction ActionType)
 	case ESelectToolAction::IslandConformalUnwrap:
 		if (IslandConformalUnwrapAction)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(ApplyAction_IslandConformalUnwrap);
+
 			const FText TransactionName(LOCTEXT("ConformalUnwrapCompleteTransactionName", "Conformal Unwrap Islands"));
 			EmitChangeAPI->BeginUndoTransaction(TransactionName);
 
