@@ -14,6 +14,7 @@
 #include "RenderResource.h"
 #include "RenderGraphResources.h"
 #include "ShaderDebug.h"
+#include "ShaderPrintParameters.h"
 
 class UTexture2D;
 
@@ -432,7 +433,8 @@ enum class EHairStrandsBookmark : uint8
 struct FHairStrandsBookmarkParameters
 {
 	class FGPUSkinCache* SkinCache = nullptr;
-	FShaderDrawDebugData* DebugShaderData = nullptr;
+	FShaderDrawDebugData* ShaderDebugData = nullptr;
+	FShaderPrintData* ShaderPrintData = nullptr;
 	class FGlobalShaderMap* ShaderMap = nullptr;
 
 	uint32 ViewUniqueID = ~0; // View 0
