@@ -24,6 +24,7 @@ TAutoConsoleVariable<int32> CVarPathTracing(
 #include "PathTracingDefinitions.h"
 #include "RayTracing/RayTracingMaterialHitShaders.h"
 #include "RenderCore/Public/GenerateMips.h"
+#include "HairStrands/HairStrandsData.h"
 #include <limits>
 
 TAutoConsoleVariable<int32> CVarPathTracingCompaction(
@@ -1438,7 +1439,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 
 	// If the scene has changed in some way (camera move, object movement, etc ...)
 	// we must invalidate the ViewState to start over from scratch
-	if (FirstTime || Config.IsDifferent(PathTracingState->LastConfig))
+	if (FirstTime || Config.IsDifferent(PathTracingState->LastConfig) || HairStrands::HasPositionsChanged(GraphBuilder, View))
 	{
 		// remember the options we used for next time
 		PathTracingState->LastConfig = Config;

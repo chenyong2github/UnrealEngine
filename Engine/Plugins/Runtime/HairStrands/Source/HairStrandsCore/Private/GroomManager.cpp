@@ -753,14 +753,16 @@ static void RunHairLODSelection(
 		const bool bIsLODDataReady = !!(ResourceStatus & EHairResourceStatus::Loading);
 		if (bIsLODDataReady)
 		{
+			EHairBindingType BindingType = Instance->HairGroupPublicData->GetBindingType(IntLODIndex);
 			Instance->HairGroupPublicData->SetLODVisibility(bIsVisible);
 			Instance->HairGroupPublicData->SetLODIndex(LODIndex);
 			Instance->HairGroupPublicData->SetLODBias(0);
 			Instance->HairGroupPublicData->SetMeshLODIndex(MeshLODIndex);
 			Instance->HairGroupPublicData->VFInput.GeometryType = GeometryType;
+			Instance->HairGroupPublicData->VFInput.BindingType = BindingType;
 			Instance->HairGroupPublicData->VFInput.bHasLODSwitch = (FMath::FloorToInt(PrevLODIndex) != FMath::FloorToInt(LODIndex));
 			Instance->GeometryType = GeometryType;
-			Instance->BindingType = Instance->HairGroupPublicData->GetBindingType(IntLODIndex);
+			Instance->BindingType = BindingType;
 			Instance->Guides.bIsSimulationEnable = Instance->HairGroupPublicData->IsSimulationEnable(IntLODIndex);
 			Instance->Guides.bHasGlobalInterpolation = Instance->HairGroupPublicData->IsGlobalInterpolationEnable(IntLODIndex);
 			Instance->Strands.bIsCullingEnabled = bCullingEnable;

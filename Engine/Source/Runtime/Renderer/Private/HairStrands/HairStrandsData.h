@@ -395,14 +395,25 @@ struct FHairStrandsViewStateData
 	FRHIGPUBufferReadback* GetBuffer() const { return VoxelPageAllocationCountReadback; }
 	bool IsReady() const { return VoxelPageAllocationCountReadback->IsReady(); }
 	bool IsInit() const { return VoxelPageAllocationCountReadback != nullptr; }
+
 	void Init();
 	void Release();
 
 	float VoxelWorldSize = 0; // Voxel size used during the last frame allocation
-	uint32 AllocatedPageCount = 0; // Number of voxels allocated last frame
+	uint32 VoxelAllocatedPageCount = 0; // Number of voxels allocated last frame
 
 	// Buffer used for reading back the number of voxels allocated on the GPU
 	FRHIGPUBufferReadback* VoxelPageAllocationCountReadback = nullptr;
+
+	// Buffer used for reading back hair strands position changed on the GPU
+	struct FPositionChangedData
+	{
+		FRHIGPUBufferReadback* ReadbackBuffer = nullptr;
+		bool bHasPendingReadback = false;
+	};
+	void EnqueuePositionsChanged(FRDGBuilder& GraphBuilder, FRDGBufferRef InBuffer);
+	bool ReadPositionsChanged();
+	TArray<FPositionChangedData> PositionsChangedDatas;
 };
 
 namespace HairStrands
@@ -416,6 +427,7 @@ namespace HairStrands
 	bool HasViewHairStrandsData(const TArrayView<FViewInfo>& Views);
 	bool HasViewHairStrandsVoxelData(const FViewInfo& View);
 
+	bool HasPositionsChanged(FRDGBuilder& GraphBuilder, const FViewInfo& View);
 	void DrawHitProxies(FRDGBuilder& GraphBuilder, const FScene& Scene, const FViewInfo& View, FInstanceCullingManager& InstanceCullingManager, FRDGTextureRef HitProxyTexture, FRDGTextureRef HitProxyDepthTexture);
 	void DrawEditorSelection(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SelectionDepthTexture);
 }

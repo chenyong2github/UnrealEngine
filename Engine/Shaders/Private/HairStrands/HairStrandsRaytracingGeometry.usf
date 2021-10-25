@@ -4,6 +4,10 @@
 #include "HairStrandsClusterCommon.ush"
 #include "HairStrandsVertexFactoryCommon.ush"
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if SHADER_RT_GEOMETRY
+
 uint VertexCount;
 uint DispatchCountX;
 
@@ -116,46 +120,115 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		SetInvalidSegment(VertexIndex0);
 		return;
 	}
+}
 
-	FHairControlPoint P1 = GetControlPoint(VertexIndex1);
+#endif // SHADER_RT_GEOMETRY
 
-	const float3 Tangent = normalize(P1.Position - P0.Position);
-	float3 B = float3(0,0,-1);
-	if (abs(dot(Tangent,B)) > 0.95f)
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if SHADER_POSITION_CHANGED
+
+#include "../ShaderPrintCommon.ush"
+#include "../ShaderDrawDebug.ush"
+#include "HairStrandsAABBCommon.ush"
+
+uint VertexCount;
+uint bDrawInvalidElement;
+uint DispatchCountX;
+float PositionThreshold2;
+
+uint HairStrandsVF_bIsCullingEnable;
+Buffer<uint> 	 HairStrandsVF_CullingIndirectBuffer;
+Buffer<uint> 	 HairStrandsVF_CullingIndexBuffer;
+Buffer<uint4> 	 CurrPositionBuffer;
+Buffer<uint4> 	 PrevPositionBuffer;
+Buffer<int> 	 GroupAABBBuffer;
+RWBuffer<uint> 	 InvalidationBuffer;
+RWBuffer<uint> 	 InvalidationPrintCounter;
+
+#define GROUP_SIZE 64
+groupshared uint s_InvalidMask[GROUP_SIZE];
+
+[numthreads(GROUP_SIZE, 1, 1)]
+void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex : SV_GroupIndex)
+{
+	// Early out: avoid full comparison if previous groom have already invalidated the frame
+	const bool bIsAlreadyInvalid = InvalidationBuffer[0] > 0;
+	s_InvalidMask[LinearIndex] = 0;
+
+	if (!bIsAlreadyInvalid)
 	{
-		B = float3(0,1,0);
-	}	
-	float3 N = normalize(cross(Tangent, B));
-	B = normalize(cross(N, Tangent));
+		// Fetch vertex index if culling is enabled
+		uint VertexIndex0 = GetHairStrandsVertexFetchIndex(DispatchThreadId, GROUP_SIZE, DispatchCountX);
+		if (HairStrandsVF_bIsCullingEnable)
+		{
+			const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
+			uint FetchIndex0 = VertexIndex0;
+			if (FetchIndex0 < VertexCountAfterCulling)
+			{
+				VertexIndex0 = HairStrandsVF_CullingIndexBuffer[FetchIndex0];
+			}
+		}
 
-	const uint BaseOutIndex = VertexIndex0 *12;
-	{
-		const float3 P00 = P0.Position - N * P0.WorldRadius * LodRadiusScale0;
-		const float3 P01 = P0.Position + N * P0.WorldRadius * LodRadiusScale0;
-		const float3 P10 = P1.Position - N * P1.WorldRadius * LodRadiusScale1;
-		const float3 P11 = P1.Position + N * P1.WorldRadius * LodRadiusScale1;
-		
-		OutputPositionBuffer[BaseOutIndex  ] = float4(P00, 1);
-		OutputPositionBuffer[BaseOutIndex+1] = float4(P01, 1);
-		OutputPositionBuffer[BaseOutIndex+2] = float4(P11, 1);
+		// Position comparison
+		if (VertexIndex0 < VertexCount)
+		{
+			const FHairControlPoint Curr = UnpackHairControlPoint(CurrPositionBuffer[VertexIndex0], float3(0, 0, 0), 1, 1, 1);
+			const FHairControlPoint Prev = UnpackHairControlPoint(PrevPositionBuffer[VertexIndex0], float3(0, 0, 0), 1, 1, 1);
+			const float3 Diff = Curr.Position - Prev.Position;
+			const bool bIsInvalid = dot(Diff, Diff) > PositionThreshold2;
 
-		OutputPositionBuffer[BaseOutIndex+3] = float4(P00, 1);
-		OutputPositionBuffer[BaseOutIndex+4] = float4(P11, 1);
-		OutputPositionBuffer[BaseOutIndex+5] = float4(P10, 1);
+			// Draw red bounding box around the groom having some changed position 
+			if (bIsInvalid && bDrawInvalidElement)
+			{
+				uint Offset = 0;
+				InterlockedAdd(InvalidationPrintCounter[0], 1, Offset);
+				if (Offset < 2)
+				{
+					const FHairAABB Bound = ReadHairAABB(0, GroupAABBBuffer);
+					AddAABB(Bound.Min, Bound.Max, ColorRed);
+				}
+			}
+			s_InvalidMask[LinearIndex] = bIsInvalid ? 1u : 0u;
+		}
 	}
-	
+
+	// Reduction
+	GroupMemoryBarrierWithGroupSync();
+	if (LinearIndex < 32)
 	{
-		const float3 P00 = P0.Position - B * P0.WorldRadius * LodRadiusScale0;
-		const float3 P01 = P0.Position + B * P0.WorldRadius * LodRadiusScale0;
-		const float3 P10 = P1.Position - B * P1.WorldRadius * LodRadiusScale1;
-		const float3 P11 = P1.Position + B * P1.WorldRadius * LodRadiusScale1;
+		s_InvalidMask[LinearIndex] = s_InvalidMask[LinearIndex] | s_InvalidMask[LinearIndex + 32];
+	}
+	GroupMemoryBarrierWithGroupSync();
+	if (LinearIndex < 16)
+	{
+		s_InvalidMask[LinearIndex] = s_InvalidMask[LinearIndex] | s_InvalidMask[LinearIndex + 16];
+	}
+	GroupMemoryBarrierWithGroupSync();
 
-		OutputPositionBuffer[BaseOutIndex+6] = float4(P00, 1);
-		OutputPositionBuffer[BaseOutIndex+7] = float4(P01, 1);
-		OutputPositionBuffer[BaseOutIndex+8] = float4(P11, 1);
-
-		OutputPositionBuffer[BaseOutIndex+9]  = float4(P00, 1);
-		OutputPositionBuffer[BaseOutIndex+10] = float4(P11, 1);
-		OutputPositionBuffer[BaseOutIndex+11] = float4(P10, 1);
+	if (LinearIndex < 8)
+	{
+		s_InvalidMask[LinearIndex] = s_InvalidMask[LinearIndex] | s_InvalidMask[LinearIndex + 8];
+	}
+	GroupMemoryBarrierWithGroupSync();
+	if (LinearIndex < 4)
+	{
+		s_InvalidMask[LinearIndex] = s_InvalidMask[LinearIndex] | s_InvalidMask[LinearIndex + 4];
+	}
+	GroupMemoryBarrierWithGroupSync();
+	if (LinearIndex < 2)
+	{
+		s_InvalidMask[LinearIndex] = s_InvalidMask[LinearIndex] | s_InvalidMask[LinearIndex + 2];
+	}
+	GroupMemoryBarrierWithGroupSync();
+	if (LinearIndex < 1)
+	{
+		const uint InvalidMask = s_InvalidMask[LinearIndex] | s_InvalidMask[LinearIndex + 1];
+		if (InvalidMask > 0)
+		{
+			InterlockedOr(InvalidationBuffer[0], 1u);
+		}
 	}
 }
+
+#endif // SHADER_POSITION_CHANGED
