@@ -220,6 +220,11 @@ void URigVMController::ResendAllNotifications()
 		for (URigVMNode* Node : Graph->Nodes)
 		{
 			Notify(ERigVMGraphNotifType::NodeAdded, Node);
+
+			if (URigVMCommentNode* CommentNode = Cast<URigVMCommentNode>(Node))
+			{
+				Notify(ERigVMGraphNotifType::CommentTextChanged, Node);
+			}
 		}
 
 		for (URigVMLink* Link : Graph->Links)
@@ -5567,7 +5572,7 @@ bool URigVMController::SetNodeDescriptionByName(const FName& InNodeName, const F
 	return SetNodeDescription(Node, InDescription, bSetupUndoRedo, bMergeUndoAction);
 }
 
-bool URigVMController::SetCommentText(URigVMNode* InNode, const FString& InCommentText, bool bSetupUndoRedo, bool bPrintPythonCommand)
+bool URigVMController::SetCommentText(URigVMNode* InNode, const FString& InCommentText, const int32& InCommentFontSize, const bool& bInCommentBubbleVisible, const bool& bInCommentColorBubble, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if (!IsValidNodeForGraph(InNode))
 	{
@@ -5576,7 +5581,7 @@ bool URigVMController::SetCommentText(URigVMNode* InNode, const FString& InComme
 
 	if (URigVMCommentNode* CommentNode = Cast<URigVMCommentNode>(InNode))
 	{
-		if(CommentNode->CommentText == InCommentText)
+		if(CommentNode->CommentText == InCommentText && CommentNode->FontSize == InCommentFontSize && CommentNode->bBubbleVisible == bInCommentBubbleVisible && CommentNode->bColorBubble == bInCommentColorBubble)
 		{
 			return false;
 		}
@@ -5584,12 +5589,15 @@ bool URigVMController::SetCommentText(URigVMNode* InNode, const FString& InComme
 		FRigVMSetCommentTextAction Action;
 		if (bSetupUndoRedo)
 		{
-			Action = FRigVMSetCommentTextAction(CommentNode, InCommentText);
+			Action = FRigVMSetCommentTextAction(CommentNode, InCommentText, InCommentFontSize, bInCommentBubbleVisible, bInCommentColorBubble);
 			Action.Title = FString::Printf(TEXT("Set Comment Text"));
 			ActionStack->BeginAction(Action);
 		}
 
 		CommentNode->CommentText = InCommentText;
+		CommentNode->FontSize = InCommentFontSize;
+		CommentNode->bBubbleVisible = bInCommentBubbleVisible;
+		CommentNode->bColorBubble = bInCommentColorBubble;
 		Notify(ERigVMGraphNotifType::CommentTextChanged, InNode);
 
 		if (bSetupUndoRedo)
@@ -5615,7 +5623,7 @@ bool URigVMController::SetCommentText(URigVMNode* InNode, const FString& InComme
 	return false;
 }
 
-bool URigVMController::SetCommentTextByName(const FName& InNodeName, const FString& InCommentText, bool bSetupUndoRedo, bool bPrintPythonCommand)
+bool URigVMController::SetCommentTextByName(const FName& InNodeName, const FString& InCommentText, const int32& InCommentFontSize, const bool& bInCommentBubbleVisible, const bool& bInCommentColorBubble, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if(!IsValidGraph())
 	{
@@ -5626,7 +5634,7 @@ bool URigVMController::SetCommentTextByName(const FName& InNodeName, const FStri
 	check(Graph);
 
 	URigVMNode* Node = Graph->FindNodeByName(InNodeName);
-	return SetCommentText(Node, InCommentText, bSetupUndoRedo, bPrintPythonCommand);
+	return SetCommentText(Node, InCommentText, InCommentFontSize, bInCommentBubbleVisible, bInCommentColorBubble, bSetupUndoRedo, bPrintPythonCommand);
 }
 
 bool URigVMController::SetRerouteCompactness(URigVMNode* InNode, bool bShowAsFullNode, bool bSetupUndoRedo, bool bPrintPythonCommand)

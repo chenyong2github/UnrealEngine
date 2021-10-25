@@ -28,4 +28,6 @@ protected:
 private:
 
 	FLinearColor CachedNodeCommentColor;
+
+	int8 CachedColorBubble;
 };
