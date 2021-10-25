@@ -8,17 +8,6 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 
-float  HairStrandsVF_Radius;
-float  HairStrandsVF_RootScale;
-float  HairStrandsVF_TipScale;
-float  HairStrandsVF_Length;
-uint   HairStrandsVF_HasAttribute1;
-uint   HairStrandsVF_HasMaterial;
-
-Buffer<uint4>  HairStrandsVF_PositionBuffer;
-Buffer<float4> HairStrandsVF_Attribute0Buffer;
-Buffer<uint4>  HairStrandsVF_Attribute1Buffer;
-Buffer<float4> HairStrandsVF_MaterialBuffer;
 
 struct FHairVertexAttributes
 {
@@ -33,9 +22,9 @@ struct FHairVertexAttributes
 uint4 GetHairStrandsOptionalAttribute1(uint InVertexId)
 {
 	uint4 Out = 0;
-	if (HairStrandsVF_HasAttribute1 > 0)
+	if (HairStrandsVF.HasAttribute1 > 0)
 	{
-		Out = HairStrandsVF_Attribute1Buffer[InVertexId];
+		Out = HairStrandsVF.Attribute1Buffer[InVertexId];
 	}
 	return Out;
 }
@@ -43,9 +32,9 @@ uint4 GetHairStrandsOptionalAttribute1(uint InVertexId)
 float4 GetHairStrandsOptionalMaterial(uint InVertexId)
 {
 	float4 Out = 0;
-	if (HairStrandsVF_HasMaterial > 0)
+	if (HairStrandsVF.HasMaterial > 0)
 	{
-		Out = HairStrandsVF_MaterialBuffer[InVertexId];
+		Out = HairStrandsVF.MaterialBuffer[InVertexId];
 	}
 	return Out;
 }
@@ -56,11 +45,11 @@ FHairVertexAttributes GetHairStrandsAttributes(uint HairPrimitiveId, float2 Vert
 	const uint VertexId1 = HairPrimitiveId+1;
 
 	// Instead of doing the actual interpolation we could rely on dithering as an optimization
-	const FHairAttributes Attributes0 = DecodeHairAttribute(HairStrandsVF_Attribute0Buffer[VertexId0], GetHairStrandsOptionalAttribute1(VertexId0), HairStrandsVF_Length);
-	const FHairAttributes Attributes1 = DecodeHairAttribute(HairStrandsVF_Attribute0Buffer[VertexId1], GetHairStrandsOptionalAttribute1(VertexId1), HairStrandsVF_Length);
+	const FHairAttributes Attributes0 = DecodeHairAttribute(HairStrandsVF.Attribute0Buffer[VertexId0], GetHairStrandsOptionalAttribute1(VertexId0), HairStrandsVF.Length);
+	const FHairAttributes Attributes1 = DecodeHairAttribute(HairStrandsVF.Attribute0Buffer[VertexId1], GetHairStrandsOptionalAttribute1(VertexId1), HairStrandsVF.Length);
 
-	const FHairControlPoint ControlPoint0 = UnpackHairControlPoint(HairStrandsVF_PositionBuffer[VertexId0], float3(0, 0 ,0), HairStrandsVF_Radius, HairStrandsVF_RootScale, HairStrandsVF_TipScale);
-	const FHairControlPoint ControlPoint1 = UnpackHairControlPoint(HairStrandsVF_PositionBuffer[VertexId1], float3(0, 0, 0), HairStrandsVF_Radius, HairStrandsVF_RootScale, HairStrandsVF_TipScale);
+	const FHairControlPoint ControlPoint0 = UnpackHairControlPoint(HairStrandsVF.PositionBuffer[VertexId0], float3(0, 0 ,0), HairStrandsVF.Radius, HairStrandsVF.RootScale, HairStrandsVF.TipScale);
+	const FHairControlPoint ControlPoint1 = UnpackHairControlPoint(HairStrandsVF.PositionBuffer[VertexId1], float3(0, 0, 0), HairStrandsVF.Radius, HairStrandsVF.RootScale, HairStrandsVF.TipScale);
 	const float WorldLength = lerp(Attributes0.WorldLength, Attributes1.WorldLength, VertexUV.x);
 	const float WorldRadius = lerp(ControlPoint0.WorldRadius, ControlPoint1.WorldRadius, VertexUV.x);
 

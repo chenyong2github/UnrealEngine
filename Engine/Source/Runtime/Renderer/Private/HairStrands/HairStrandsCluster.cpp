@@ -184,6 +184,12 @@ void CreateHairStrandsMacroGroups(
 		if (!bIsHairStrandsFactory)
 			return;
 
+		// Ensure that the element has been initialized
+		const FHairGroupPublicData* HairGroupPublicData = reinterpret_cast<const FHairGroupPublicData*>(MeshBatchAndRelevance->Mesh->Elements[0].VertexFactoryUserData);
+		const bool bIsValid = HairGroupPublicData->VFInput.Strands.PositionBufferRHISRV != nullptr;
+		if (!bIsValid)
+			return;
+
 		const FBoxSphereBounds& PrimitiveBounds = Proxy->GetBounds();
 
 		bool bFound = false;
