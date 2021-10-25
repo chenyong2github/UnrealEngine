@@ -95,7 +95,7 @@ struct FMassSimulationLODConfig
 	FMassSimulationLODConfig();
 
 	/** Component Tag that will be used to associate LOD config */
-	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config, meta = (BaseStruct = "ComponentTag"))
+	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config, meta = (BaseStruct = "MassTag"))
 	FInstancedStruct TagFilter;
 
 	/** Distance where each LOD becomes relevant */
