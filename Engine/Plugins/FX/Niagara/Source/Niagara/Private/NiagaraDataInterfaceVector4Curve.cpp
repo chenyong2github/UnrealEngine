@@ -97,12 +97,12 @@ void UNiagaraDataInterfaceVector4Curve::UpdateTimeRanges()
 TArray<float> UNiagaraDataInterfaceVector4Curve::BuildLUT(int32 NumEntries) const
 {
 	TArray<float> OutputLUT;
-	const float NumEntriesMinusOne = NumEntries - 1;
+	const float InvEntryCountFactor = (NumEntries > 1) ? (1.0f / float(NumEntries - 1.0f)) : 0.0f;
 
 	OutputLUT.Reserve(NumEntries * 4);
 	for (int32 i = 0; i < NumEntries; i++)
 	{
-		float X = UnnormalizeTime(i / NumEntriesMinusOne);
+		float X = UnnormalizeTime(i * InvEntryCountFactor);
 		FLinearColor C(XCurve.Eval(X), YCurve.Eval(X), ZCurve.Eval(X), WCurve.Eval(X));
 		OutputLUT.Add(C.R);
 		OutputLUT.Add(C.G);

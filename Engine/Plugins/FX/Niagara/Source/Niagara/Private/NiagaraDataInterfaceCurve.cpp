@@ -121,12 +121,12 @@ void UNiagaraDataInterfaceCurve::UpdateTimeRanges()
 TArray<float> UNiagaraDataInterfaceCurve::BuildLUT(int32 NumEntries) const
 {
 	TArray<float> OutputLUT;
-	const float NumEntriesMinusOne = NumEntries - 1;
+	const float InvEntryCountFactor = (NumEntries > 1) ? (1.0f / float(NumEntries - 1.0f)) : 0.0f;
 
 	OutputLUT.Reserve(NumEntries);
 	for (int32 i = 0; i < NumEntries; i++)
 	{
-		float X = UnnormalizeTime(i / NumEntriesMinusOne);
+		float X = UnnormalizeTime(i * InvEntryCountFactor);
 		float C = Curve.Eval(X);
 		OutputLUT.Add(C);
 	}
