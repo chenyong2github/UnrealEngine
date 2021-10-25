@@ -144,7 +144,7 @@ struct FMassEntityTemplateBuildContext
 		const UMassTranslatorRegistry& Registry = UMassTranslatorRegistry::Get();
 		if (const UMassFragmentInitializer* Initializer = Registry.GetFragmentInitializer(FragmentType))
 		{
-			Handlers.Initializers.AddUnique(Initializer);
+			Handlers.DefaultInitializers.AddUnique(Initializer);
 		}
 	}
 
@@ -154,7 +154,7 @@ struct FMassEntityTemplateBuildContext
 		const UMassTranslatorRegistry& Registry = UMassTranslatorRegistry::Get();
 		if (const UMassFragmentInitializer* Initializer = Registry.GetFragmentInitializer(*T::StaticStruct()))
 		{
-			Handlers.Initializers.AddUnique(Initializer);
+			Handlers.DefaultInitializers.AddUnique(Initializer);
 		}
 	}
 

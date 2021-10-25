@@ -24,8 +24,13 @@ void FMassEntityTemplate::SetArchetype(const FArchetypeHandle& InArchetype)
 
 void FMassEntityTemplate::SetUpProcessors(const FMassObjectHandlers& ObjectHandlers, UObject& PipelineOwner)
 {
+	TArray<const UMassProcessor*> Initializers;
+	Initializers.Reserve(ObjectHandlers.DefaultInitializers.Num() + ObjectHandlers.Initializers.Num());
+	Initializers.Append(ObjectHandlers.DefaultInitializers);
+	Initializers.Append(ObjectHandlers.Initializers);
+
 	// @todo do we want to copy the Processors or just use the CDOs?
-	InitializationPipeline.InitializeFromArray(ObjectHandlers.Initializers, PipelineOwner);
+	InitializationPipeline.InitializeFromArray(Initializers, PipelineOwner);
 	DeinitializationPipeline.InitializeFromArray(ObjectHandlers.Deinitializers, PipelineOwner);
 }
 
