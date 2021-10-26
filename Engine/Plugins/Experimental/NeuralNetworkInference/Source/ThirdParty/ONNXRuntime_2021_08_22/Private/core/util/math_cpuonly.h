@@ -47,16 +47,14 @@
 #pragma warning(disable : 4127)
 #endif
 
-#ifndef __PROSPERO__
-PRAGMA_DEFAULT_VISIBILITY_START // WITH_UE
+#ifndef __PROSPERO__ // WITH_UE
+PRAGMA_DEFAULT_VISIBILITY_START
 #endif
-
 #include "Eigen/Core"
 #include "Eigen/Dense"
 #include "Eigen/Sparse"
-
-#ifndef __PROSPERO__
-PRAGMA_DEFAULT_VISIBILITY_END // WITH_UE
+#ifndef __PROSPERO__ // WITH_UE
+PRAGMA_DEFAULT_VISIBILITY_END
 #endif
 
 #if defined(__GNUC__)
