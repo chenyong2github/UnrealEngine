@@ -121,7 +121,7 @@ public:
 	bool bSplitAtNormalSeams = false;
 
 	/** Split vertex colors at UV seams */
-	UPROPERTY(EditAnywhere, Category = BakeSettings, DisplayName = "Split At UV Seams")
+	UPROPERTY(EditAnywhere, Category = BakeSettings)
 	bool bSplitAtUVSeams = false;
 };
 
