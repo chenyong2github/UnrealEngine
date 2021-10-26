@@ -9,7 +9,7 @@
 
 
 UCLASS()
-class UMLAdapterActuator_InputKey : public UMLAdapterActuator
+class MLADAPTER_API UMLAdapterActuator_InputKey : public UMLAdapterActuator
 {
 	GENERATED_BODY()
 public:

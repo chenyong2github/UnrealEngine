@@ -9,7 +9,7 @@
 
 
 UCLASS()
-class UMLAdapterActuator_Camera : public UMLAdapterActuator
+class MLADAPTER_API UMLAdapterActuator_Camera : public UMLAdapterActuator
 {
 	GENERATED_BODY()
 public:

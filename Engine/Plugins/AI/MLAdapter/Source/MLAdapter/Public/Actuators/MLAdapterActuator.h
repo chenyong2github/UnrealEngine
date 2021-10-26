@@ -11,7 +11,7 @@ class AActor;
 struct FMLAdapterDescription;
 
 UCLASS(Abstract)
-class UMLAdapterActuator : public UMLAdapterAgentElement
+class MLADAPTER_API UMLAdapterActuator : public UMLAdapterAgentElement
 {
 	GENERATED_BODY()
 public:
