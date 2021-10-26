@@ -5,7 +5,7 @@ VisualStudioVersion = 16.0.29409.12
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Horde.Build", "Horde.Build\Horde.Build.csproj", "{199841BA-0C0D-4019-9795-08618F7CD0D3}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HordeAgent", "HordeAgent\HordeAgent.csproj", "{5F24A781-351B-4A69-9155-1D716ACE234B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Horde.Agent", "Horde.Agent\Horde.Agent.csproj", "{5F24A781-351B-4A69-9155-1D716ACE234B}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Core", "..\Shared\EpicGames.Core\EpicGames.Core.csproj", "{6402563D-5294-49DA-ADBA-EFEA85BAB94D}"
 EndProject
@@ -20,7 +20,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Horde.Build.Tests", "Horde.Build.Tests\Horde.Build.Tests.csproj", "{EB3085C5-8768-45EF-AE22-A2B15B7AF926}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HordeAgentTests", "HordeAgentTests\HordeAgentTests.csproj", "{0D4F13CA-AE5D-4DAC-8376-E5C43CDF66B7}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Horde.Agent.Tests", "Horde.Agent.Tests\Horde.Agent.Tests.csproj", "{0D4F13CA-AE5D-4DAC-8376-E5C43CDF66B7}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HordeCommon", "HordeCommon\HordeCommon.csproj", "{8D9BABD4-A757-4FEB-8837-79ED60F93F57}"
 EndProject

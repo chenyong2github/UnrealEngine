@@ -42,8 +42,6 @@ using EpicGames.Horde.Storage;
 using EpicGames.Horde.Compute;
 using System.Net;
 
-[assembly: InternalsVisibleTo("HordeAgentTests")]
-
 namespace HordeAgent.Services
 {
 	/// <summary>
