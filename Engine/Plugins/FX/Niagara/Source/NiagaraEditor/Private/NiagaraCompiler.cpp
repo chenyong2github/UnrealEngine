@@ -176,7 +176,7 @@ void FNiagaraCompileRequestDuplicateData::DuplicateReferencedGraphsRecursive(UNi
 					if (bHasNumericParams || SharedSourceGraphToDuplicatedGraphsMap->Contains(FunctionGraph) == false)
 					{
 						// Duplicate the script, the source, and graph
-						UNiagaraScript* DupeScript = DupeScript = FunctionScript->CreateCompilationCopy();
+						UNiagaraScript* DupeScript = FunctionScript->CreateCompilationCopy();
 						TArray<ENiagaraScriptUsage> CompileUsages = { DupeScript->GetUsage() };
 						UNiagaraScriptSource* DupeScriptSource = CastChecked<UNiagaraScriptSource>(DupeScript->GetSource(FunctionCallNode->SelectedScriptVersion))->CreateCompilationCopy(CompileUsages);
 						UNiagaraGraph* DupeGraph = DupeScriptSource->NodeGraph;
