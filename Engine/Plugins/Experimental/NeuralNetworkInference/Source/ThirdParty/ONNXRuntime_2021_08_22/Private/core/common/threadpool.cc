@@ -13,11 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include "ThirdPartyWarningDisabler.h" // WITH_UE
-NNI_THIRD_PARTY_INCLUDES_START
-#undef check
-#undef TEXT
-
 #include <memory>
 
 #include "core/platform/threadpool.h"
@@ -42,6 +37,8 @@ NNI_THIRD_PARTY_INCLUDES_START
 #endif
 #endif
 
+#include "ThirdPartyWarningDisabler.h" // WITH_UE
+NNI_THIRD_PARTY_INCLUDES_START // WITH_UE
 namespace onnxruntime {
 
 namespace concurrency {
