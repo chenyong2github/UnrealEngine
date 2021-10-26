@@ -6013,8 +6013,9 @@ bool FStructUtils::ArePropertiesTheSame(const FProperty* A, const FProperty* B, 
 
 bool FStructUtils::TheSameLayout(const UStruct* StructA, const UStruct* StructB, bool bCheckPropertiesNames)
 {
-	bool bResult = false;
-	if (StructA 
+	bool bResult = (StructA == StructB);
+	if (!bResult
+		&& StructA 
 		&& StructB 
 		&& (StructA->GetPropertiesSize() == StructB->GetPropertiesSize())
 		&& (StructA->GetMinAlignment() == StructB->GetMinAlignment()))
