@@ -792,9 +792,8 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_entity_removed(VALUE self, VALUE ru
 	int32 EntityId = FIX2LONG(ruby_entity_id);
 	// Done converting args
 	
-	Ptr->OnEntityRemoved(DatasmithSketchUp::FEntityIDType(ParentEntityId), DatasmithSketchUp::FEntityIDType(EntityId));
-
-	return Qtrue;
+	bool bRemovalWasHandled = Ptr->OnEntityRemoved(DatasmithSketchUp::FEntityIDType(ParentEntityId), DatasmithSketchUp::FEntityIDType(EntityId));
+	return  bRemovalWasHandled ? Qtrue : Qfalse;
 }
 
 VALUE DatasmithSketchUpDirectLinkExporter_on_style_changed(VALUE self)
