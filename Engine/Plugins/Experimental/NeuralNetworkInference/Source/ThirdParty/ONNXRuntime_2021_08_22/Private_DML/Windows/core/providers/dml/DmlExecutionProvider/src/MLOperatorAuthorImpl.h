@@ -66,13 +66,13 @@ public:
     size_t ElementCount() const;
 
     void GetAttribute(
-        MLOperatorAttributeType type,
+        MLOperatorAttributeType attributeType, // WITH_UE: value->rawValue to avoid warning C4458: declaration of 'value' hides class member
         uint32_t elementCount,
         size_t elementByteSize,
         void* value) const;
 
     const std::string* GetStringAttribute(
-        _In_z_ const char* name,
+        _In_z_ const char* attributeName, // WITH_UE: value->rawValue to avoid warning C4458: declaration of 'value' hides class member
         uint32_t elementIndex) const;
 
     std::string name;
