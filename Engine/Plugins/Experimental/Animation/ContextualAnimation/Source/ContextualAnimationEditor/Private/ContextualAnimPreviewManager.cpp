@@ -207,35 +207,37 @@ void UContextualAnimPreviewManager::PreviewTimeChanged(EMovieScenePlayerStatus::
 				AnimInstance->Montage_Pause(Animation);
 				
 				MontageInstance = AnimInstance->GetActiveMontageInstance();
-				check(MontageInstance);
 			}
 		}
 
-		const float AnimPlayLength = Animation->GetPlayLength();
-		PreviousTime = FMath::Clamp(PreviousTime, 0.f, AnimPlayLength);
-		CurrentTime = FMath::Clamp(CurrentTime, 0.f, AnimPlayLength);
-
-		if (CurrentStatus == EMovieScenePlayerStatus::Stopped || CurrentStatus == EMovieScenePlayerStatus::Scrubbing)
+		if(MontageInstance)
 		{
-			PreviewActorData.ResetActorTransform(CurrentTime);
+			const float AnimPlayLength = Animation->GetPlayLength();
+			PreviousTime = FMath::Clamp(PreviousTime, 0.f, AnimPlayLength);
+			CurrentTime = FMath::Clamp(CurrentTime, 0.f, AnimPlayLength);
 
-			if (MontageInstance->IsPlaying())
-			{
-				MontageInstance->Pause();
-			}
-
-			MontageInstance->SetPosition(CurrentTime);
-		}
-		else if (CurrentStatus == EMovieScenePlayerStatus::Playing)
-		{
-			if(PlaybackSpeed > 0.f && CurrentTime < PreviousTime)
+			if (CurrentStatus == EMovieScenePlayerStatus::Stopped || CurrentStatus == EMovieScenePlayerStatus::Scrubbing)
 			{
 				PreviewActorData.ResetActorTransform(CurrentTime);
-			}
 
-			if (!MontageInstance->IsPlaying())
+				if (MontageInstance->IsPlaying())
+				{
+					MontageInstance->Pause();
+				}
+
+				MontageInstance->SetPosition(CurrentTime);
+			}
+			else if (CurrentStatus == EMovieScenePlayerStatus::Playing)
 			{
-				MontageInstance->SetPlaying(true);
+				if (PlaybackSpeed > 0.f && CurrentTime < PreviousTime)
+				{
+					PreviewActorData.ResetActorTransform(CurrentTime);
+				}
+
+				if (!MontageInstance->IsPlaying())
+				{
+					MontageInstance->SetPlaying(true);
+				}
 			}
 		}
 	}
