@@ -277,7 +277,9 @@ namespace wil
                 }
             }
 
+NNI_THIRD_PARTY_INCLUDES_START // WITH_UE
             static HRESULT Acquire(PCSTR staticNameWithVersion, _Outptr_result_nullonfailure_ ProcessLocalStorageData<T>** data)
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
             {
                 *data = nullptr;
 
@@ -388,7 +390,9 @@ namespace wil
                     while (pNode != nullptr)
                     {
                         auto pCurrent = pNode;
+NNI_THIRD_PARTY_INCLUDES_START // WITH_UE
                         pNode = pNode->pNext;
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
                         pCurrent->~Node();
                         ::HeapFree(::GetProcessHeap(), 0, pCurrent);
                     }
