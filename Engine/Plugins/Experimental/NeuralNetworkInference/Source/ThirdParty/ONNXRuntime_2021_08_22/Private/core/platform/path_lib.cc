@@ -14,7 +14,6 @@
 
 #include "Misc/Paths.h" // WITH_UE
 
-
 #ifdef _WIN32
 
 #if defined(USE_PATHCCH_LIB)
