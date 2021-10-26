@@ -7,12 +7,7 @@
 #endif
 
 #include "core/providers/cpu/tensor/space_depth_ops.h"
-#include "ThirdPartyWarningDisabler.h" // WITH_UE
-NNI_THIRD_PARTY_INCLUDES_START
-#undef check
-#undef TEXT
 #include "core/common/eigen_common_wrapper.h"
-NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
 #include <array>
 
 namespace onnxruntime {

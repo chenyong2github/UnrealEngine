@@ -19,9 +19,6 @@
 
 #include "gsl/gsl"
 
-#include "ThirdPartyWarningDisabler.h" // WITH_UE
-NNI_THIRD_PARTY_INCLUDES_START
-#undef check
 namespace onnxruntime {
 namespace rnn {
 namespace detail {
@@ -372,4 +369,3 @@ inline void elementwise_sum2(const float* src1, const float* src2, float* dest, 
 }  // namespace detail
 }  // namespace rnn
 }  // namespace onnxruntime
-NNI_THIRD_PARTY_INCLUDES_END // WITH_UE

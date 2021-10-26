@@ -16,10 +16,6 @@ limitations under the License.
 ==============================================================================*/
 // Portions Copyright (c) Microsoft Corporation
 
-#include "ThirdPartyWarningDisabler.h" // WITH_UE
-NNI_THIRD_PARTY_INCLUDES_START
-#undef check
-
 #include "core/platform/env.h"
 
 #ifdef PLATFORM_NNI_MICROSOFT
@@ -70,8 +66,6 @@ EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 #include "core/platform/EigenNonBlockingThreadPool.h"
 
 #endif
-
-NNI_THIRD_PARTY_INCLUDES_END
 
 #undef Yield
 
