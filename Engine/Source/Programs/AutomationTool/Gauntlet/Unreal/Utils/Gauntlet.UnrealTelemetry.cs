@@ -3,6 +3,7 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using AutomationTool;
 using UnrealBuildTool;
 using UnrealBuildBase;
@@ -150,7 +151,7 @@ namespace Gauntlet
 		[Help("CSVFile", "Path to the csv file to parse.")]
 		[Help("CSVDirectory", "Path to a folder containing csv files to parse.")]
 		[Help("CSVMapping", "Optional CSV column mapping. Format is: <target key>:<source key>,...")]
-		[Help("TelemetryConfig", "Telemetry configuration to use to publish to Database. Default: UETelemtry.")]
+		[Help("TelemetryConfig", "Telemetry configuration to use to publish to Database. Default: UETelemetryStaging.")]
 		[Help("DatabaseConfigPath", "Path to alternate Database config. Default is TelemetryConfig default.")]
 		[Help("Project", "Target Project name.")]
 		[Help("Platform", "Target platform name. Default: current environment platform.")]
@@ -164,7 +165,7 @@ namespace Gauntlet
 		{
 			string CSVFile = ParseParamValue("CSVFile=", "");
 			string CSVDirectory = ParseParamValue("CSVDirectory=", "");
-			string Config = ParseParamValue("TelemetryConfig=", "UETelemetry");
+			string Config = ParseParamValue("TelemetryConfig=", "UETelemetryStaging");
 			string DatabaseConfigPath = ParseParamValue("DatabaseConfigPath=", "");
 			List<string> CSVMappingStrings = Globals.Params.ParseValues("CSVMapping", true);
 			string ProjectString = ParseParamValue("Project=", "");
@@ -245,6 +246,7 @@ namespace Gauntlet
 
 			Context.SetProperty("Branch", BranchString);
 			Context.SetProperty("Changelist", ChangelistString);
+			Context.SetProperty("ChangelistDateTime", GetChangelistDateTime(int.Parse(ChangelistString)));
 
 			if (string.IsNullOrEmpty(JobLink))
 			{
@@ -294,5 +296,28 @@ namespace Gauntlet
 
 			return 0;
 		}
+
+		/// <summary>
+		/// Get the DateTime of the given changelist
+		/// </summary>
+		/// <param name="Changelist"></param>
+		/// <returns></returns>
+		private DateTime GetChangelistDateTime(int Changelist)
+		{
+			try
+			{
+				P4Connection.DescribeRecord Record = new P4Connection.DescribeRecord();
+				P4.DescribeChangelist(Changelist, out Record, false);
+
+				Regex Regx = new Regex(@" on ([0-9/]+ [0-9:]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+				Match DateMatch = Regx.Match(Record.Header);
+				return DateTime.Parse(DateMatch.Groups[1].Value);
+			}
+			catch
+			{
+				return DateTime.Now;
+			}
+		}
+
 	}
 }
