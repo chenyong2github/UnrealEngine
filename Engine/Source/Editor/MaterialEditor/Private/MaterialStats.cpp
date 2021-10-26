@@ -198,7 +198,7 @@ bool FShaderPlatformSettings::CheckShaders()
 
 				if (MaterialInstance != nullptr)
 				{
-					MaterialInstance->UpdateCachedDataConstant();
+					MaterialInstance->UpdateCachedLayerParameters();
 				}
 
 				Data.LastTimeCompilationRequested = CurrentTime;

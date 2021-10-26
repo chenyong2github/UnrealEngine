@@ -20,28 +20,12 @@ UMaterialInstanceDynamic::UMaterialInstanceDynamic(const FObjectInitializer& Obj
 {
 }
 
-void UMaterialInstanceDynamic::InitializeMID(class UMaterialInterface* ParentMaterial)
-{
-	SetParentInternal(ParentMaterial, false);
-
-	const FMaterialLayersFunctions* ParentLayers = ParentMaterial ? ParentMaterial->GetMaterialLayers() : nullptr;
-
-	CachedData = new FMaterialInstanceCachedData();
-	CachedData->InitializeForDynamic(ParentLayers);
-	// TODO - should we copy ReferencedTextures from our parent?
-
-	if (Resource)
-	{
-		Resource->GameThread_UpdateCachedData(*CachedData);
-	}
-}
-
 UMaterialInstanceDynamic* UMaterialInstanceDynamic::Create(UMaterialInterface* ParentMaterial, UObject* InOuter)
 {
 	LLM_SCOPE(ELLMTag::MaterialInstance);
 	UObject* Outer = InOuter ? InOuter : GetTransientPackage();
 	UMaterialInstanceDynamic* MID = NewObject<UMaterialInstanceDynamic>(Outer);
-	MID->InitializeMID(ParentMaterial);
+	MID->SetParentInternal(ParentMaterial, false);
 	return MID;
 }
 
@@ -88,7 +72,7 @@ UMaterialInstanceDynamic* UMaterialInstanceDynamic::Create(UMaterialInterface* P
 		}
 	}
 	UMaterialInstanceDynamic* MID = NewObject<UMaterialInstanceDynamic>(Outer, Name);
-	MID->InitializeMID(ParentMaterial);
+	MID->SetParentInternal(ParentMaterial, false);
 	return MID;
 }
 

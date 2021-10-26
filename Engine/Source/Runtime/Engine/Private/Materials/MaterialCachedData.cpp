@@ -738,15 +738,3 @@ void FMaterialInstanceCachedData::Initialize(FMaterialCachedExpressionData&& InC
 	NumParentLayers = ParentLayers ? ParentLayers->Layers.Num() : 0;
 }
 #endif // WITH_EDITOR
-
-void FMaterialInstanceCachedData::InitializeForDynamic(const FMaterialLayersFunctions* ParentLayers)
-{
-	const int32 NumLayers = ParentLayers ? ParentLayers->Layers.Num() : 0;
-	ParentLayerIndexRemap.Empty(NumLayers);
-	for (int32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
-	{
-		ParentLayerIndexRemap.Add(LayerIndex);
-	}
-
-	NumParentLayers = NumLayers;
-}
