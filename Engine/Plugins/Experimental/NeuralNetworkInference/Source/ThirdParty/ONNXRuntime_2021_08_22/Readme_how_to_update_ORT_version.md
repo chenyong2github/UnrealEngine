@@ -96,10 +96,11 @@ Idea (what the commands below will automatically do):
 	- Copy subset of `{onnxruntime_path}/onnxruntime/test/testdata/custom_op_library/` into `ONNXRuntime/Private/test/testdata/custom_op_library/`.
 
 With commands:
+- Part 1: Reverting your ORT fork (locally) to the right commit:
 ```
 ################################################## PARAMETERS ##################################################
 $ORT_PARENT_PATH = "D:/Users/gineshidalgo99/Desktop/ONNXRuntime" # D:/Users/gines.hidalgo/Desktop/ONNXRuntime
-$CURRENT_NNI_ORT_COMMIT_HASH = "4028e51e7e6421fdbeca5f4e4ccd8b4f790d0fd5" # The one NNI's ORT is using on UE5/Main
+$CURRENT_NNI_ORT_COMMIT_HASH = "dbe1b57a71248946ade29c762817699fd1adc3ff" # The one NNI's ORT is using on UE5/Main
 
 ################################################## AUTOMATIC SCRIPT ##################################################
 ########## RESETING TO CURRENT_NNI_ORT_COMMIT_HASH ##########
@@ -110,7 +111,9 @@ cd $ORT_PATH
 git pull https://github.com/microsoft/onnxruntime/ master
 git reset *; git checkout *; git clean -f -d; git reset --hard $CURRENT_NNI_ORT_COMMIT_HASH
 # git push -f # Optional
-
+```
+- Part 2: Adding the new code
+```
 ########## REMOVING ##########
 # Remove include/onnxruntime
 rm -r -fo $ORT_PATH/include/onnxruntime/core
@@ -184,7 +187,7 @@ git clean -f -d   # https://koukia.ca/how-to-remove-local-untracked-files-from-t
 ## Step 4: Merge ORT Master with NNI's changes
 ```
 ################################################## PARAMETERS ##################################################
-$FINAL_COMMIT_HASH = "4028e51e7e6421fdbeca5f4e4ccd8b4f790d0fd5" # The one NNI's ORT will be using after this merge
+$FINAL_COMMIT_HASH = "dbe1b57a71248946ade29c762817699fd1adc3ff" # The one NNI's ORT will be using after this merge
 
 ################################################## AUTOMATIC SCRIPT ##################################################
 # Push code
@@ -206,11 +209,11 @@ git push
 
 
 
-## Step 5: Push New Code into NNI
+## Step 5: Create Zip to Copy to NNI
 ```
 ################################################## PARAMETERS ##################################################
 $ORT_PARENT_PATH = "D:/Users/gineshidalgo99/Desktop/ONNXRuntime" # "D:/Users/gines.hidalgo/Desktop/ONNXRuntime"
-$FINAL_COMMIT_HASH = "4028e51e7e6421fdbeca5f4e4ccd8b4f790d0fd5" # The one NNI's ORT will be using after this merge
+$FINAL_COMMIT_HASH = "dbe1b57a71248946ade29c762817699fd1adc3ff" # The one NNI's ORT will be using after this merge
 
 ################################################## AUTOMATIC SCRIPT ##################################################
 $ORT_PATH = "${ORT_PARENT_PATH}/onnxruntime"
@@ -268,8 +271,19 @@ Compress-Archive -LiteralPath ${ORT_CODE_TO_PUSH_TO_NNI} -DestinationPath ${ORT_
 This new code zipped as `D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ort_compressed.zip` can be copied into NNI and tested in there. To test it properly, do the following tests (in this order):
 1. Compile UE and run QA tests to make sure they are successful.
 2. Package game for Windows and run tests on the Windows game to make sure they are successful. Trick: If your game is saved on `D:/Users/gines.hidalgo/Desktop/GameTest/`, the logging of the application will be saved on `D:/Users/gines.hidalgo/Desktop/GameTest/Windows/NNIExample/Saved/Logs/NNIExample.log`.
-3. Package game for Ubuntu from Windows to make sure it compiles on Ubuntu.
-4. Do extensive pre-flights for all targeted platforms.
+3. Package game for Linux from Windows to make sure it compiles on Linux.
+4. Run the Static Analysis. How to run "UE4 Static Analysis Win64 (MSVC)" locally:
+	1. Sync the latest green commit to minimize non-NNI errors/warnings.
+	2. Add `PS5`, `Stadia`, `WinGDK`, and `XboxOneGDK/XSX` to the UE filter for this branch (`UGS` -> `Options` -> `uSync Filter...` -> `Current Workspace`)
+	3. Set the default value of the following to false:
+		- `WithFortniteGame`
+		- `WithFortniteClient`
+		- `WithFNFastTest`
+		- `WithFNTest`
+	4. Run from PowerShell: `Engine\Build\BatchFiles\RunUAT.bat BuildGraph -Script=D:/P4/ue5_main_pitt64_3/Engine/Restricted/NotForLicensees/Build/DevStreams.xml -Target="UE4 Static Analysis Win64 (MSVC)" -P4`
+		- Note: If weird errors, you could add `-verbose` at the end of the command.
+	5. Log generated in: `Engine/Programs/AutomationTool/Saved/Logs/Log.txt`
+5. Do extensive pre-flights for all targeted platforms by running a `Editor, Tools & Monolithics` and a `Full Build` test.
 
 Once fully working on NNI, pushed code on P4 and you are done!
 
