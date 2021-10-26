@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <Deterministic>true</Deterministic>
     <AssemblyName>Horde.Build</AssemblyName>
-    <DocumentationFile>HordeServer.xml</DocumentationFile>
+    <DocumentationFile>Horde.Build.xml</DocumentationFile>
     <ApplicationIcon>HordeServer.ico</ApplicationIcon>
   </PropertyGroup>
 
