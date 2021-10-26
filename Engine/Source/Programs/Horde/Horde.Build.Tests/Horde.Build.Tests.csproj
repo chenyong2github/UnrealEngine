@@ -30,7 +30,7 @@
     <ProjectReference Include="..\HordeAgent\HordeAgent.csproj" Label="HordeAgent">
       <Aliases>HordeAgent</Aliases>
     </ProjectReference>
-    <ProjectReference Include="..\HordeServer\HordeServer.csproj" />
+    <ProjectReference Include="..\Horde.Build\Horde.Build.csproj" />
   </ItemGroup>
 
   <ItemGroup>
