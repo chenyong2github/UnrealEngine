@@ -124,15 +124,16 @@ EMovieSceneSectionMovedResult UContextualAnimMovieSceneNotifyTrack::OnSectionMov
 				Anim = NotifyEventPtr->Notify->GetTypedOuter<UAnimMontage>();
 			}
 
-			check(&GetAnimation() == Anim);
+			if(Anim)
+			{
+				const float SectionStartTime = (float)TickResolution.AsSeconds(NotifySection->GetInclusiveStartFrame());
+				const float SectionEndTime = (float)TickResolution.AsSeconds(NotifySection->GetExclusiveEndFrame());
 
-			const float SectionStartTime = (float)TickResolution.AsSeconds(NotifySection->GetInclusiveStartFrame());
-			const float SectionEndTime = (float)TickResolution.AsSeconds(NotifySection->GetExclusiveEndFrame());
+				NotifyEventPtr->SetTime(SectionStartTime);
+				NotifyEventPtr->SetDuration(SectionEndTime - SectionStartTime);
 
-			NotifyEventPtr->SetTime(SectionStartTime);
-			NotifyEventPtr->SetDuration(SectionEndTime - SectionStartTime);
-
-			GetViewModel().AnimationModified(*Anim);
+				GetViewModel().AnimationModified(*Anim);
+			}
 		}
 	}
 
