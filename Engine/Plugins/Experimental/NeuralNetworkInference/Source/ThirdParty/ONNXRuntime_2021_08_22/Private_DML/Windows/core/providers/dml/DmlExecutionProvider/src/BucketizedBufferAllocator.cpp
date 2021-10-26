@@ -48,11 +48,11 @@ namespace Dml
         : onnxruntime::IAllocator(OrtMemoryInfo("DML allocator", OrtAllocatorType::OrtDeviceAllocator,
                                                 OrtDevice(OrtDevice::GPU, OrtDevice::MemType::DEFAULT, 0)))
         , m_device(device)
-        , m_context(context)
-        , m_heapProperties(heapProps)
-        , m_heapFlags(heapFlags)
+        , m_heapProperties(heapProps) // WITH_UE: Warning C5038: data member 'X' will be initialized after base class / data member 'Y'
+        , m_heapFlags(heapFlags) // WITH_UE: Warning C5038: data member 'X' will be initialized after base class / data member 'Y'
         , m_resourceFlags(resourceFlags)
         , m_initialState(initialState)
+        , m_context(context) // WITH_UE: Warning C5038: data member 'X' will be initialized after base class / data member 'Y'
     {
     }
 
