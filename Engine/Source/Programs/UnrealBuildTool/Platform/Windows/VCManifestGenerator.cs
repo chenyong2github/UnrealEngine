@@ -277,7 +277,7 @@ namespace UnrealBuildTool
 			return DefaultValue;
 		}
 
-		protected bool FindResourceBinaryFile( out string SourcePath, string ResourceFileName, bool AllowEngineFallback = true)
+		protected virtual bool FindResourceBinaryFile( out string SourcePath, string ResourceFileName, bool AllowEngineFallback = true)
 		{
 			// look in project normal Build location
 			SourcePath = Path.Combine(ProjectPath, "Build", Platform.ToString(), BuildResourceSubPath);
