@@ -249,8 +249,7 @@ void FCbPackage::AddAttachment(const FCbAttachment& Attachment, FAttachmentResol
 
 int32 FCbPackage::RemoveAttachment(const FIoHash& Hash)
 {
-	const int32 Index = Algo::BinarySearchBy(Attachments, Hash,
-		[](const FCbAttachment& Attachment) -> FIoHash { return Attachment.GetHash(); });
+	const int32 Index = Algo::BinarySearchBy(Attachments, Hash, &FCbAttachment::GetHash);
 	if (Attachments.IsValidIndex(Index))
 	{
 		Attachments.RemoveAt(Index);
@@ -266,8 +265,7 @@ bool FCbPackage::Equals(const FCbPackage& Package) const
 
 const FCbAttachment* FCbPackage::FindAttachment(const FIoHash& Hash) const
 {
-	const int32 Index = Algo::BinarySearchBy(Attachments, Hash,
-		[](const FCbAttachment& Attachment) -> FIoHash { return Attachment.GetHash(); });
+	const int32 Index = Algo::BinarySearchBy(Attachments, Hash, &FCbAttachment::GetHash);
 	return Attachments.IsValidIndex(Index) ? &Attachments[Index] : nullptr;
 }
 
