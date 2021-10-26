@@ -10,6 +10,8 @@
 #ifndef EIGEN_SPARSEASSIGN_H
 #define EIGEN_SPARSEASSIGN_H
 
+#include "ThirdPartyWarningDisabler.h" // WITH_UE
+
 namespace Eigen { 
 
 template<typename Derived>    
@@ -77,7 +79,9 @@ void assign_sparse_to_sparse(DstXprType &dst, const SrcXprType &src)
   SrcEvaluatorType srcEvaluator(src);
 
   const bool transpose = (DstEvaluatorType::Flags & RowMajorBit) != (SrcEvaluatorType::Flags & RowMajorBit);
+NNI_THIRD_PARTY_INCLUDES_START // WITH_UE
   const Index outerEvaluationSize = (SrcEvaluatorType::Flags&RowMajorBit) ? src.rows() : src.cols();
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
   if ((!transpose) && src.isRValue())
   {
     // eval without temporary

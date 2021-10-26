@@ -10,6 +10,8 @@
 #ifndef EIGEN_SPARSEMATRIX_H
 #define EIGEN_SPARSEMATRIX_H
 
+#include "ThirdPartyWarningDisabler.h" // WITH_UE
+
 namespace Eigen { 
 
 /** \ingroup SparseCore_Module
@@ -641,7 +643,9 @@ class SparseMatrix
         std::free(m_innerNonZeros);
         m_innerNonZeros = 0;
       }
+NNI_THIRD_PARTY_INCLUDES_START // WITH_UE
       memset(m_outerIndex, 0, (m_outerSize+1)*sizeof(StorageIndex));
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
     }
 
     /** \internal
