@@ -414,7 +414,19 @@ namespace HordeServer.Controllers
 				NewResolvedById = Request.Resolved.Value ? User.GetUserId() : UserId.Empty;
 			}
 
-			if (!await IssueService.UpdateIssueAsync(IssueId, Request.Summary, Request.Description, Request.Promoted, NewOwnerId, NewNominatedById, Request.Acknowledged, NewDeclinedById, Request.FixChange, NewResolvedById))
+			List<ObjectId>? AddSpans = null;
+			if (Request.AddSpans != null && Request.AddSpans.Count > 0)
+			{
+				AddSpans = Request.AddSpans.ConvertAll(x => ObjectId.Parse(x));
+			}
+
+			List<ObjectId>? RemoveSpans = null;
+			if (Request.RemoveSpans != null && Request.RemoveSpans.Count > 0)
+			{
+				RemoveSpans = Request.RemoveSpans.ConvertAll(x => ObjectId.Parse(x));
+			}
+
+			if (!await IssueService.UpdateIssueAsync(IssueId, Request.Summary, Request.Description, Request.Promoted, NewOwnerId, NewNominatedById, Request.Acknowledged, NewDeclinedById, Request.FixChange, NewResolvedById, AddSpans, RemoveSpans))
 			{
 				return NotFound();
 			}
