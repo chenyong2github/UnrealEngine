@@ -18,7 +18,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-[assembly: InternalsVisibleTo("HordeServerTests")]
+[assembly: InternalsVisibleTo("Horde.Build.Tests")]
 
 namespace HordeCommon
 {

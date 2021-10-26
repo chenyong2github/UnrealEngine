@@ -33,8 +33,6 @@ using Stream = System.IO.Stream;
 using OpenTracing.Util;
 using OpenTracing;
 
-[assembly: InternalsVisibleTo("HordeServerTests")]
-
 namespace HordeServer.Services
 {
 	using JobId = ObjectId<IJob>;

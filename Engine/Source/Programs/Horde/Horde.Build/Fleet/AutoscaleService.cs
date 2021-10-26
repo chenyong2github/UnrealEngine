@@ -23,8 +23,6 @@ using HordeCommon;
 using Microsoft.Extensions.Options;
 using StatsdClient;
 
-[assembly: InternalsVisibleTo("HordeServerTests")]
-
 namespace HordeServer.Services
 {
 	using PoolId = StringId<IPool>;
