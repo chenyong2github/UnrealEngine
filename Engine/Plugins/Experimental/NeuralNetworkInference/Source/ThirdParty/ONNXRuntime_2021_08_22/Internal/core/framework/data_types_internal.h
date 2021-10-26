@@ -12,9 +12,6 @@
 
 #include "boost/mp11.hpp"
 
-#include "ThirdPartyWarningDisabler.h" // #ifdef WITH_UE
-NNI_THIRD_PARTY_INCLUDES_START
-#undef check
 #include "core/common/common.h"
 #ifndef SHARED_PROVIDER
 #include "core/common/type_list.h"
@@ -28,7 +25,6 @@ NNI_THIRD_PARTY_INCLUDES_START
 #include "onnx/onnx-operators_pb.h"
 #endif
 
-NNI_THIRD_PARTY_INCLUDES_START
 #undef check
 
 namespace onnxruntime {
@@ -631,4 +627,3 @@ bool IsOpaqueType(MLDataType ml_type, const char* domain, const char* name);
 
 }  // namespace utils
 }  // namespace onnxruntime
-NNI_THIRD_PARTY_INCLUDES_END // #endif //WITH_UE

@@ -5,11 +5,7 @@
 
 #pragma warning(push)
 #pragma warning(disable : 4201) // nonstandard extension used: nameless struct/union
-#include "ThirdPartyWarningDisabler.h" // #ifdef WITH_UE
-NNI_THIRD_PARTY_INCLUDES_START
-#undef check
 #include <d3d12.h>
-NNI_THIRD_PARTY_INCLUDES_END // #endif //WITH_UE
 #pragma warning(pop)
 
 #ifdef __cplusplus
