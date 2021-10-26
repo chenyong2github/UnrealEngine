@@ -1,11 +1,6 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-#include "ThirdPartyWarningDisabler.h" // WITH_UE
-NNI_THIRD_PARTY_INCLUDES_START
-#undef check
-#undef TEXT
-
 #include <ctime>
 #include <exception>
 #include <type_traits>
@@ -16,7 +11,12 @@ NNI_THIRD_PARTY_INCLUDES_START
 #include "core/common/logging/logging.h"
 
 #ifdef _WIN32
+#include "ThirdPartyWarningDisabler.h" // WITH_UE
+NNI_THIRD_PARTY_INCLUDES_START
+#undef check
+#undef TEXT
 #include <Windows.h>
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
 #else
 #include <unistd.h>
 #if defined(__MACH__) || defined(__wasm__) || defined(__PROSPERO__) // WITH_UE: Added __PROSPERO__
@@ -34,8 +34,6 @@ NNI_THIRD_PARTY_INCLUDES_START
 #if __FreeBSD__ && !defined(__PROSPERO__) // WITH_UE: Added !__PROSPERO__
 #include <sys/thr.h>  // Use thr_self() syscall under FreeBSD to get thread id
 #endif
-
-NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
 
 namespace onnxruntime {
 namespace logging {

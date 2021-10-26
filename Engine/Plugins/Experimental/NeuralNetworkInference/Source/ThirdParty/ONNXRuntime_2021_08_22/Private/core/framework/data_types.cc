@@ -1,11 +1,9 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-#include "ThirdPartyWarningDisabler.h" // WITH_UE
-NNI_THIRD_PARTY_INCLUDES_START
-#undef check
-
 #include "core/framework/data_types.h"
+
+#include "ThirdPartyWarningDisabler.h" // WITH_UE
 
 #include "boost/mp11.hpp"
 
@@ -847,6 +845,7 @@ const NonTensorTypeBase* DataTypeImpl::SequenceTensorTypeFromONNXEnum(int type) 
 
 #if !defined(DISABLE_SPARSE_TENSORS)
 const SparseTensorTypeBase* DataTypeImpl::SparseTensorTypeFromONNXEnum(int type) {
+NNI_THIRD_PARTY_INCLUDES_START // WITH_UE
   switch (type) {
     case TensorProto_DataType_FLOAT:
       return reinterpret_cast<const SparseTensorTypeBase*>(DataTypeImpl::GetSparseTensorType<float>());
@@ -879,6 +878,7 @@ const SparseTensorTypeBase* DataTypeImpl::SparseTensorTypeFromONNXEnum(int type)
     default:
       ORT_NOT_IMPLEMENTED("sparse tensor type ", type, " is not supported");
   }
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
 }
 #endif
 
@@ -1084,4 +1084,3 @@ bool IsOpaqueType(MLDataType ml_type, const char* domain, const char* name) {
 
 }  // namespace utils
 }  // namespace onnxruntime
-NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
