@@ -49,7 +49,7 @@ public:
 	virtual FChildren* GetChildren() override { return &Children; }
 	// End SWidget overrides
 
-protected:
+private:
 	// Begin SWidget overrides.
 	virtual FVector2D ComputeDesiredSize(float) const override;
 	// End SWidget overrides.
@@ -57,14 +57,21 @@ protected:
 	friend class UCommonUILayoutManager;
 	void SetRootLayout(const TSharedPtr<SWidget>& InRootLayout) { RootPanel = InRootLayout; }
 
-private:
 	EActiveTimerReturnType ExecuteRefreshChildren(double InCurrentTime, float InDeltaTime);
+	FCommonUILayoutPanelSlot* AddNewChildren(const FCommonUILayoutPanelInfo& Info, UUserWidget* NewWidget);
+	void SortChildren();
 	void LayoutChildren(const FVector2D& AllottedGeometrySize) const;
 
 private:
 	// TODO: Layout constraints evaluation happens during OnArrangeChildren callback which is const
 	mutable TPanelChildren<FCommonUILayoutPanelSlot> Children;
 	TMap<FCommonUILayoutPanelInfo, FCommonUILayoutPanelSlot*> ChildrenMap;
+
+	/** List of root viewport layouts added to this panel. */
+	TArray<FCommonUILayoutPanelInfo> RootViewportLayouts;
+
+	/** Current State Content widget. There can only be one state content active at the same time. */
+	FCommonUILayoutPanelInfo StateContentInfo;
 
 	/** List of currently active layout constraints. */
 	UPROPERTY(Transient)

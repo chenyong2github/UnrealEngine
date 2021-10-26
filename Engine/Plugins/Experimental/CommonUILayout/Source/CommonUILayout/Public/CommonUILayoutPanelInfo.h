@@ -14,6 +14,7 @@ public:
 	FCommonUILayoutPanelInfo() {}
 	FCommonUILayoutPanelInfo(const TSoftClassPtr<UUserWidget>& InWidgetClass, const FName& InUniqueID, const int32 InZOrder = DEFAULT_ZORDER, const bool bInIsUsingSafeZone = true)
 		: WidgetClass(InWidgetClass)
+		, WidgetInstance(nullptr)
 		, ZOrder(InZOrder)
 		, UniqueID(InUniqueID)
 		, bIsUsingSafeZone(bInIsUsingSafeZone)
@@ -25,7 +26,21 @@ public:
 		return WidgetClass == Other.WidgetClass && UniqueID == Other.UniqueID;
 	}
 
+	bool IsValid() const
+	{
+		return !WidgetClass.IsNull() || WidgetInstance.IsValid(false);
+	}
+
+	FString ToString() const
+	{
+		TStringBuilder<2048> StringBuilder;
+		StringBuilder << (WidgetInstance.IsValid() ? WidgetInstance->GetName() : WidgetClass.ToString());
+		StringBuilder << TEXT(" [Z: ") << ZOrder << TEXT("]");
+		return StringBuilder.ToString();
+	}
+
 	TSoftClassPtr<UUserWidget> WidgetClass;
+	TWeakObjectPtr<UUserWidget> WidgetInstance; // This will only be set for widgets provided pre-constructed (ie: RootViewportLayout & StateContent)
 	int32 ZOrder = DEFAULT_ZORDER;
 	FName UniqueID;
 	bool bIsUsingSafeZone = true;

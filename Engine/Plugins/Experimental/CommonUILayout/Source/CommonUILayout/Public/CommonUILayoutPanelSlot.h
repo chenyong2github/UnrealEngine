@@ -26,17 +26,20 @@ public:
 	/** Optional unique ID for this slot */
 	FName UniqueID;
 
-	/** Is using the safe zone. */
-	bool bIsUsingSafeZone = true;
-
-	/** Do the layout constraints need to be recalculated. */
-	bool bAreConstraintsDirty = false;
-
 	/** Left position variable for the layout constraints. */
 	kiwi::Variable Left;
 
 	/** Top position variable for the layout constraint. */
 	kiwi::Variable Top;
+
+	/** Is using the safe zone. */
+	bool bIsUsingSafeZone = true;
+
+	/** Should this slot always use the full allotted geometry size. */
+	bool bAlwaysUseFullAllotedSize = false;
+
+	/** Do the layout constraints need to be recalculated. */
+	bool bAreConstraintsDirty = false;
 
 	/** Returns adjusted size if set, desired size otherwise. */
 	const FVector2D GetSize() const { return AdjustedSize.IsSet() ? AdjustedSize.GetValue() : GetWidget().Get().GetDesiredSize(); }

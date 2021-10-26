@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TpsData xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <Name>Kiwi</Name>
-  <Location>//Fortnite/Dev-ValkyrieFramework/Engine/Restricted/NotForLicensees/Source/ThirdParty/</Location>
-  <Function>It is used to solve linear constraints in the dynamic HUD system.</Function>
+  <Location>//UE5/Main/Engine/Plugins/Experimental/CommonUILayout/Source/ThirdParty/</Location>
+  <Function>It is used to solve linear constraints in the CommonUILayout system.</Function>
   <Eula>https://github.com/nucleic/kiwi/blob/master/LICENSE</Eula>
   <RedistributeTo>
     <EndUserGroup>Licensees</EndUserGroup>

@@ -3,6 +3,8 @@
 #include "SCommonUILayoutPanel.h"
 #include "CommonUILayoutManager.h"
 #include "CommonUILayout.h"
+#include "CommonUILayoutLog.h"
+#include "CommonUILayoutZOrder.h"
 
 #include "Blueprint/UserWidget.h"
 #include "Engine/AssetManager.h"
@@ -64,7 +66,7 @@ void SCommonUILayoutPanel::RefreshChildren(const TArray<TObjectPtr<const UCommon
 	// Store the latest layouts array so the next ExecuteResfreshChildren has the right list
 	ActiveLayouts = Layouts;
 
-	// Do need to register a timer if one is already active
+	// No need to register a timer if one is already active
 	// Note: This relies on the fact that only RefreshChildren creates an active timer
 	if (!HasActiveTimers())
 	{
@@ -117,7 +119,7 @@ void SCommonUILayoutPanel::OnArrangeChildren(const FGeometry& AllottedGeometry, 
 			ArrangedChildren.AddWidget(ChildVisibility, AllottedGeometry.MakeChild(
 				ChildSWidget,
 				ChildSlot.Position,
-				ChildSlot.GetSize()
+				ChildSlot.bAlwaysUseFullAllotedSize ? AllottedGeometry.GetLocalSize() : ChildSlot.GetSize()
 			));
 		}
 	}
@@ -243,13 +245,10 @@ EActiveTimerReturnType SCommonUILayoutPanel::ExecuteRefreshChildren(double InCur
 					KeepLoadedWidgets.AddUnique(FCommonUILayoutPanelInfo(AllowedWidget, AllowedUniqueID, AllowedZOrder, bAllowedIsUsingSafeZone));
 				}
 
-				for (UCommonUILayoutConstraintBase* Constraint : Widget.LayoutConstraints)
+				if (UCommonUILayoutConstraintBase* Constraint = Widget.LayoutConstraint)
 				{
-					if (Constraint)
-					{
-						Constraint->SetInfo(AllowedWidget, AllowedUniqueID, AssociatedWorld);
-						LayoutConstraints.Add(TWeakObjectPtr<UCommonUILayoutConstraintBase>(Constraint));
-					}
+					Constraint->SetInfo(AllowedWidget, AllowedUniqueID, AssociatedWorld);
+					LayoutConstraints.Add(TWeakObjectPtr<UCommonUILayoutConstraintBase>(Constraint));
 				}
 			}
 		}
@@ -303,74 +302,81 @@ EActiveTimerReturnType SCommonUILayoutPanel::ExecuteRefreshChildren(double InCur
 		if (AssociatedWorld.IsValid() && !AssociatedWorld->bIsTearingDown)
 		{
 			// ...add any new children
-			bool bAtLeastOneChildAdded = false;
 			for (const FCommonUILayoutPanelInfo& VisibleInfo : VisibleWidgets)
 			{
-				if (!ChildrenMap.Contains(VisibleInfo))
+				if (!ChildrenMap.Contains(VisibleInfo) && VisibleInfo.WidgetClass.IsValid())
 				{
-					const TSoftClassPtr<UUserWidget>& VisibleWidgetClass = VisibleInfo.WidgetClass;
-					const FName& VisibleUniqueID = VisibleInfo.UniqueID;
-					const int32 VisibleZOrder = VisibleInfo.ZOrder;
-					const bool bIsUsingSafeZone = VisibleInfo.bIsUsingSafeZone;
-
-					UUserWidget* NewWidget = CreateWidget(AssociatedWorld.Get(), VisibleWidgetClass.Get());
-					TSharedRef<SWidget> NewSlateWidget = NewWidget->TakeWidget();
-
-					FCommonUILayoutPanelSlot::FSlotArguments Slot{MakeUnique<FCommonUILayoutPanelSlot>()};
-					if (bIsUsingSafeZone)
-					{
-						Slot
-						[
-							SNew(SSafeZone)
-							.HAlign(HAlign_Fill)
-							.VAlign(VAlign_Fill)
-							[
-								NewSlateWidget
-							]
-						];
-					}
-					else
-					{
-						Slot
-						[
-							SNew(SOverlay)
-							+ SOverlay::Slot()
-							.HAlign(HAlign_Fill)
-							.VAlign(VAlign_Fill)
-							[
-								NewSlateWidget
-							]
-						];
-					}
-					Slot.GetSlot()->WidgetClass = VisibleWidgetClass;
-					Slot.GetSlot()->ZOrder = VisibleZOrder;
-					Slot.GetSlot()->UniqueID = VisibleUniqueID;
-					Slot.GetSlot()->SpawnedWidget = NewWidget;
-
-					ChildrenMap.Add(VisibleInfo, Slot.GetSlot());
-					Children.AddSlot(MoveTemp(Slot));
-
-					bAtLeastOneChildAdded = true;
+					UUserWidget* NewWidget = CreateWidget(AssociatedWorld.Get(), VisibleInfo.WidgetClass.Get());
+					AddNewChildren(VisibleInfo, NewWidget);
 				}
 			}
 
-			if  (bAtLeastOneChildAdded)
-			{
-				// ...sort the children based on Z order
-				Children.StableSort([](const FCommonUILayoutPanelSlot& LHS, const FCommonUILayoutPanelSlot& RHS)
-				{
-					return LHS.ZOrder < RHS.ZOrder;
-				});
+			// ...sort the children based on Z order
+			SortChildren();
 
-				// ...finally, invalidate the panel to trigger a paint with the new children/layout
-				Invalidate(EInvalidateWidget::ChildOrder);
-			}
+			// ...finally, invalidate the panel to trigger a paint with the new children/layout
+			Invalidate(EInvalidateWidget::ChildOrder);
 		}
 	}, FStreamableManager::AsyncLoadHighPriority);
 
 	// We only ever need to refresh children once in a frame.
 	// Next RefreshChildren will register a new active timer in a future frame.
 	return EActiveTimerReturnType::Stop;
+}
+
+FCommonUILayoutPanelSlot* SCommonUILayoutPanel::AddNewChildren(const FCommonUILayoutPanelInfo& Info, UUserWidget* NewWidget)
+{
+	if (!NewWidget)
+	{
+		return nullptr;
+	}
+
+	FCommonUILayoutPanelSlot::FSlotArguments NewSlot{ MakeUnique<FCommonUILayoutPanelSlot>() };
+	if (Info.bIsUsingSafeZone)
+	{
+		NewSlot
+		[
+			SNew(SSafeZone)
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Fill)
+			.Visibility(EVisibility::SelfHitTestInvisible)
+			[
+				NewWidget->TakeWidget()
+			]
+		];
+	}
+	else
+	{
+		NewSlot
+		[
+			SNew(SOverlay)
+			+ SOverlay::Slot()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Fill)
+			[
+				NewWidget->TakeWidget()
+			]
+		];
+	}
+
+	FCommonUILayoutPanelSlot* NewSlotPtr = NewSlot.GetSlot();
+	NewSlotPtr->WidgetClass = Info.WidgetClass;
+	NewSlotPtr->ZOrder = Info.ZOrder;;
+	NewSlotPtr->UniqueID = Info.UniqueID;
+	NewSlotPtr->SpawnedWidget = NewWidget;
+
+	ChildrenMap.Add(Info, NewSlotPtr);
+	Children.AddSlot(MoveTemp(NewSlot));
+
+	return NewSlotPtr;
+}
+
+void SCommonUILayoutPanel::SortChildren()
+{
+	Children.StableSort([](const FCommonUILayoutPanelSlot& LHS, const FCommonUILayoutPanelSlot& RHS)
+	{
+		return LHS.ZOrder < RHS.ZOrder;
+	});
 }
 
 void SCommonUILayoutPanel::LayoutChildren(const FVector2D& AllottedGeometrySize) const
