@@ -15,12 +15,17 @@ limitations under the License.
 
 #include <memory>
 
+#include "ThirdPartyWarningDisabler.h" // WITH_UE
+NNI_THIRD_PARTY_INCLUDES_START
+#undef check
+#undef TEXT
 #include "core/platform/threadpool.h"
 #include "core/common/common.h"
 #include "core/common/cpuid_info.h"
 #include "core/common/eigen_common_wrapper.h"
 #include "core/platform/EigenNonBlockingThreadPool.h"
 #include "core/platform/ort_mutex.h"
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
 #if !defined(ORT_MINIMAL_BUILD)
 #ifdef _WIN32
 #include "processthreadsapi.h"
