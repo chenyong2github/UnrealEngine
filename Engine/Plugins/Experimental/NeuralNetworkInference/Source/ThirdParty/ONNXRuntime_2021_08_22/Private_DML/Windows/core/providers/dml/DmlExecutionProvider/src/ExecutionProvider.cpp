@@ -504,7 +504,7 @@ namespace Dml
 
     HRESULT STDMETHODCALLTYPE ExecutionProviderImpl::FillTensorWithPattern(
         IMLOperatorTensor* dst,
-        gsl::span<const std::byte> value // Data type agnostic value, treated as raw bits
+        gsl::span<const std::byte> rawValue // Data type agnostic rawValue, treated as raw bits // WITH_UE: value->rawValue to avoid warning C4458: declaration of 'value' hides class member
         ) const noexcept {
     ORT_TRY // WITH_UE
     {
@@ -513,7 +513,7 @@ namespace Dml
         {
             const AllocationInfo* dstAllocInfo = m_allocator->DecodeDataHandle(mlTensor.Get());
             ID3D12Resource* dstData = dstAllocInfo->GetResource();
-            m_context->FillBufferWithPattern(dstData, value);
+            m_context->FillBufferWithPattern(dstData, rawValue); // WITH_UE: value->rawValue to avoid warning C4458: declaration of 'value' hides class member
         }
 
         return S_OK;
