@@ -18,9 +18,6 @@
 #include "core/util/math.h"
 #include "core/util/math_cpuonly.h"
 
-#include "ThirdPartyWarningDisabler.h" // WITH_UE
-NNI_THIRD_PARTY_INCLUDES_START
-#undef check
 namespace onnxruntime {
 namespace rnn {
 namespace detail {
@@ -921,4 +918,3 @@ GruOutputGateFuncPtr GruOutputGateFuncByName(const std::string& func) {
 }  // namespace detail
 }  // namespace rnn
 }  // namespace onnxruntime
-NNI_THIRD_PARTY_INCLUDES_END // WITH_UE

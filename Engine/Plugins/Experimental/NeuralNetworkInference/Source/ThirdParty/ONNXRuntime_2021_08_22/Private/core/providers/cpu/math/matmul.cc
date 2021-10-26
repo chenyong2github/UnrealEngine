@@ -8,9 +8,6 @@
 #include "core/util/math_cpuonly.h"
 #include "core/mlas/inc/mlas.h"
 
-#include "ThirdPartyWarningDisabler.h" // WITH_UE
-NNI_THIRD_PARTY_INCLUDES_START
-#undef check
 namespace onnxruntime {
 
 ONNX_CPU_OPERATOR_VERSIONED_TYPED_KERNEL(
@@ -209,4 +206,3 @@ Status MatMul<float>::Compute(OpKernelContext* ctx) const {
 }
 
 }  // namespace onnxruntime
-NNI_THIRD_PARTY_INCLUDES_END // WITH_UE

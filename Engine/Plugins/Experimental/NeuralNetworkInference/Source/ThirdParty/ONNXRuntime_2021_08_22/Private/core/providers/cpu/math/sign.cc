@@ -1,10 +1,6 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-#include "ThirdPartyWarningDisabler.h" // WITH_UE
-NNI_THIRD_PARTY_INCLUDES_START
-#undef check
-
 #include <type_traits>
 
 #include "gsl/gsl"
@@ -16,8 +12,6 @@ NNI_THIRD_PARTY_INCLUDES_START
 #include "core/providers/op_kernel_type_control.h"
 #include "core/util/math.h"
 #include "core/util/math_cpuonly.h"
-
-NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
 
 using namespace ::onnxruntime::common;
 using namespace ONNX_NAMESPACE;

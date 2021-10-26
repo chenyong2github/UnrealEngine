@@ -1,3 +1,6 @@
+#include "ThirdPartyWarningDisabler.h" // WITH_UE
+NNI_THIRD_PARTY_INCLUDES_START
+
 //*********************************************************
 //
 //    Copyright (c) Microsoft. All rights reserved.
@@ -5522,3 +5525,5 @@ namespace wil
 
 #endif // defined(__cplusplus) && !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
 #endif // __WIL_RESULTMACROS_INCLUDED
+
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
