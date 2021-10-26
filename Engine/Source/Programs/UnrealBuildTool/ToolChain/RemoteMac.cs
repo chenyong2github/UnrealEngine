@@ -261,6 +261,7 @@ namespace UnrealBuildTool
 
 			// Build a list of arguments for Rsync filters
 			CommonRsyncArguments = new List<string>(BasicRsyncArguments);
+			CommonRsyncArguments.Add("--copy-links");
 			CommonRsyncArguments.Add("--recursive");
 			CommonRsyncArguments.Add("--delete"); // Delete anything not in the source directory
 			CommonRsyncArguments.Add("--delete-excluded"); // Delete anything not in the source directory
