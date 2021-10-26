@@ -7,11 +7,7 @@
 #include "MLOperatorAuthorPrivate.h"
 #include "core/framework/data_types.h" // WITH_UE
 
-#ifdef ORT_NO_EXCEPTIONS // WITH_UE
-#define ML_CHECK_BOOL(x) (x)
-#else //ORT_NO_EXCEPTIONS
 #define ML_CHECK_BOOL(x) THROW_HR_IF(E_INVALIDARG, !(x))
-#endif //ORT_NO_EXCEPTIONS
 
 class MLFloat16;
 
