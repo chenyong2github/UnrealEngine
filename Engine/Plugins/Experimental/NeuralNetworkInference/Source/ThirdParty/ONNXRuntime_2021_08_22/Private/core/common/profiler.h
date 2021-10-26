@@ -3,10 +3,6 @@
 
 #pragma once
 
-#include "ThirdPartyWarningDisabler.h" // WITH_UE
-NNI_THIRD_PARTY_INCLUDES_START
-#undef check
-#undef TEXT
 #include <atomic>
 #include <fstream>
 #include <initializer_list>
@@ -16,7 +12,6 @@ NNI_THIRD_PARTY_INCLUDES_START
 #include "core/common/profiler_common.h"
 #include "core/common/logging/logging.h"
 #include "core/platform/ort_mutex.h"
-NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
 
 namespace onnxruntime {
 

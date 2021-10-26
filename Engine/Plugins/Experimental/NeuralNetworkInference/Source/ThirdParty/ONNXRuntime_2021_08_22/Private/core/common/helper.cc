@@ -1,17 +1,17 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+#include "core/common/common.h"
+
+#ifdef _WIN32
 #include "ThirdPartyWarningDisabler.h" // WITH_UE
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
-#include "core/common/common.h"
-
-#ifdef _WIN32
 #include <Windows.h>
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
 #include <assert.h>
 #endif
-NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
 
 #ifdef ORT_NO_EXCEPTIONS
 #if defined(__ANDROID__)
