@@ -2,6 +2,8 @@
 
 #include "WorldPartition/WorldPartitionHelpers.h"
 
+#include "Engine/Engine.h"
+#include "RenderingThread.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionEditorHash.h"
 
@@ -129,5 +131,34 @@ void FWorldPartitionHelpers::DoCollectGarbage()
 		(int64)MemStatsAfter.AvailableVirtual / (1024.0 * 1024.0 * 1024.0)
 	);
 };
+
+void FWorldPartitionHelpers::FakeEngineTick(UWorld* InWorld)
+{
+	check(InWorld);
+
+	// Simulate an engine frame tick
+	// Will make sure systems can perform their internal bookkeeping properly. For example, the VT system needs to 
+	// process deleted VTs.
+
+	if (FSceneInterface* Scene = InWorld->Scene)
+	{
+		// BeingFrame/EndFrame (taken from FEngineLoop)
+
+		ENQUEUE_RENDER_COMMAND(BeginFrame)([](FRHICommandListImmediate& RHICmdList)
+			{
+				GFrameNumberRenderThread++;
+				RHICmdList.BeginFrame();
+				FCoreDelegates::OnBeginFrameRT.Broadcast();
+			});
+
+		ENQUEUE_RENDER_COMMAND(EndFrame)([](FRHICommandListImmediate& RHICmdList)
+			{
+				FCoreDelegates::OnEndFrameRT.Broadcast();
+				RHICmdList.EndFrame();
+			});
+
+		FlushRenderingCommands();
+	}
+}
 
 #endif // #if WITH_EDITOR
