@@ -207,7 +207,7 @@ void SGroomEditorViewport::BindCommands()
 
 void SGroomEditorViewport::OnViewMode(EHairStrandsDebugMode Mode)
 {
-	if (GroomComponent && GroomComponent)
+	if (GroomComponent)
 	{
 		const EHairStrandsDebugMode OldMode = GroomComponent->GetDebugMode();
 		if (OldMode != Mode)
