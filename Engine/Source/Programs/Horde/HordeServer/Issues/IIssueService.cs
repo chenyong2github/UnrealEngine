@@ -141,8 +141,10 @@ namespace HordeServer.Services
 		/// <param name="DeclinedById">Name of the user that has declined this issue</param>
 		/// <param name="FixChange">Fix changelist for the issue</param>
 		/// <param name="ResolvedById">Whether the issue has been resolved</param>
+		/// <param name="AddSpanIds">Add spans to this issue</param>
+		/// <param name="RemoveSpanIds">Remove spans from this issue</param>
 		/// <returns>True if the issue was updated</returns>
-		Task<bool> UpdateIssueAsync(int Id, string? Summary = null, string? Description = null, bool? Promoted = null, UserId? OwnerId = null, UserId? NominatedById = null, bool? Acknowledged = null, UserId? DeclinedById = null, int? FixChange = null, UserId? ResolvedById = null);
+		Task<bool> UpdateIssueAsync(int Id, string? Summary = null, string? Description = null, bool? Promoted = null, UserId? OwnerId = null, UserId? NominatedById = null, bool? Acknowledged = null, UserId? DeclinedById = null, int? FixChange = null, UserId? ResolvedById = null, List<ObjectId>? AddSpanIds = null, List<ObjectId>? RemoveSpanIds = null);
 
 		/// <summary>
 		/// Marks a step as complete
