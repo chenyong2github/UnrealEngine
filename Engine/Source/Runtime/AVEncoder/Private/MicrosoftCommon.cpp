@@ -2,7 +2,7 @@
 
 #include "MicrosoftCommon.h"
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || (PLATFORM_XBOXONE && WITH_LEGACY_XDK)
 
 #if WMFMEDIA_SUPPORTED_PLATFORM
 	#pragma comment(lib, "mfplat")
@@ -13,16 +13,33 @@
 namespace AVEncoder
 {
 
+//
+// Windows only code
+//
+//#if PLATFORM_WINDOWS
 //ID3D11Device* GetUE4DxDevice()
 //{
 //	auto Device = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
 //	checkf(Device != nullptr, TEXT("Failed to get UE4's ID3D11Device"));
 //	return Device;
 //}
+//#endif
 //
+////
+//// XboxOne only code
+//// 
+//#if PLATFORM_XBOXONE 
+//ID3D12Device* GetUE4DxDevice()
+//{
+//	auto Device = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice());
+//	checkf(Device != nullptr, TEXT("Failed to get UE4's ID3D12Device"));
+//	return Device;
+//}
+//
+//#endif
 
 
 } // namespace AVEncoder
 
-#endif // PLATFORM_WINDOWS
+#endif // PLATFORM_WINDOWS || (PLATFORM_XBOXONE && WITH_LEGACY_XDK)
 

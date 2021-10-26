@@ -6,15 +6,28 @@
 #include "VideoEncoderFactory.h"
 #include "AVEncoderDebug.h"
 #include "Misc/Paths.h"
-#include "VideoCommon.h"
+#include "GenericPlatform/GenericPlatformMath.h"
 
-#if PLATFORM_WINDOWS || PLATFORM_LINUX
-#include "VulkanRHIPrivate.h"
+#include "Misc/Guid.h"
+
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
+#include "VulkanRHIBridge.h"
 #endif
 
 #if PLATFORM_WINDOWS
 #include "MicrosoftCommon.h"
 #endif
+
+FString GetGUID()
+{
+	static FGuid id;
+	if (!id.IsValid())
+	{
+		id = FGuid::NewGuid();
+	}
+
+	return id.ToString();
+}
 
 namespace AVEncoder
 {
@@ -47,43 +60,64 @@ TSharedPtr<FVideoEncoderInput> FVideoEncoderInput::CreateForYUV420P(uint32 InWid
 	return Input;
 }
 
-TSharedPtr<FVideoEncoderInput> FVideoEncoderInput::CreateForD3D11(void* InApplicationD3DDevice, uint32 InWidth, uint32 InHeight, bool bIsResizable)
+TSharedPtr<FVideoEncoderInput> FVideoEncoderInput::CreateForD3D11(void* InApplicationD3DDevice, uint32 InWidth, uint32 InHeight, bool bIsResizable, bool IsShared)
 {
-#if PLATFORM_WINDOWS
 	TSharedPtr<FVideoEncoderInputImpl>	Input = MakeShared<FVideoEncoderInputImpl>();
+
+#if PLATFORM_WINDOWS
 	Input->bIsResizable = bIsResizable;
 
-	if (!Input->SetupForD3D11(static_cast<ID3D11Device*>(InApplicationD3DDevice), InWidth, InHeight))
+	if (IsShared)
 	{
-		Input.Reset();
+		if (!Input->SetupForD3D11Shared(static_cast<ID3D11Device*>(InApplicationD3DDevice), InWidth, InHeight))
+		{
+			Input.Reset();
+		}
 	}
-	return Input;
+	else
+	{
+		if (!Input->SetupForD3D11(static_cast<ID3D11Device*>(InApplicationD3DDevice), InWidth, InHeight))
+		{
+			Input.Reset();
+		}
+	}
+
 #endif
 
-	return nullptr;
+	return Input;
 }
 
-TSharedPtr<FVideoEncoderInput> FVideoEncoderInput::CreateForD3D12(void* InApplicationD3DDevice, uint32 InWidth, uint32 InHeight, bool bIsResizable)
+
+TSharedPtr<FVideoEncoderInput> FVideoEncoderInput::CreateForD3D12(void* InApplicationD3DDevice, uint32 InWidth, uint32 InHeight, bool bIsResizable, bool IsShared)
 {
-#if PLATFORM_WINDOWS
 	TSharedPtr<FVideoEncoderInputImpl>	Input = MakeShared<FVideoEncoderInputImpl>();
+
+#if PLATFORM_WINDOWS
 	Input->bIsResizable = bIsResizable;
 
-	if (!Input->SetupForD3D12(static_cast<ID3D12Device*>(InApplicationD3DDevice), InWidth, InHeight))
+	if(IsShared)
 	{
-		Input.Reset();
+		if (!Input->SetupForD3D12Shared(static_cast<ID3D12Device*>(InApplicationD3DDevice), InWidth, InHeight))
+		{
+			Input.Reset();
+		}
 	}
-	return Input;
+	else
+	{
+		if (!Input->SetupForD3D12(static_cast<ID3D12Device*>(InApplicationD3DDevice), InWidth, InHeight))
+		{
+			Input.Reset();
+		}
+	}
+	
 #endif
 
-	return nullptr;
+	return Input;
 }
 
 TSharedPtr<FVideoEncoderInput> FVideoEncoderInput::CreateForCUDA(void* InApplicationContext, uint32 InWidth, uint32 InHeight, bool bIsResizable)
 {
-#if WITH_CUDA
-
-	TSharedPtr<FVideoEncoderInputImpl>	Input = MakeShared<FVideoEncoderInputImpl>();
+	TSharedPtr<FVideoEncoderInputImpl> Input = MakeShared<FVideoEncoderInputImpl>();
 	Input->bIsResizable = bIsResizable;
 		
 	if (!Input->SetupForCUDA(reinterpret_cast<CUcontext>(InApplicationContext), InWidth, InHeight))
@@ -91,15 +125,34 @@ TSharedPtr<FVideoEncoderInput> FVideoEncoderInput::CreateForCUDA(void* InApplica
 		Input.Reset();
 	}
 	return Input;
-#else
-	return nullptr;
-#endif
 }
+
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
+TSharedPtr<FVideoEncoderInput> FVideoEncoderInput::CreateForVulkan(void* InApplicationVulkanData, uint32 InWidth, uint32 InHeight, bool bIsResizable)
+{
+	TSharedPtr<FVideoEncoderInputImpl>	Input = MakeShared<FVideoEncoderInputImpl>();
+	Input->bIsResizable = bIsResizable;
+
+	FVulkanDataStruct* VulkanData = static_cast<FVulkanDataStruct*>(InApplicationVulkanData);
+
+	if (!Input->SetupForVulkan(	VulkanData->VulkanInstance, VulkanData->VulkanPhysicalDevice, VulkanData->VulkanDevice, InWidth, InHeight))
+	{
+		Input.Reset();
+	}
+
+	return Input;
+}
+#endif
 
 void FVideoEncoderInput::SetResolution(uint32 InWidth, uint32 InHeight)
 {
-	this->Width = InWidth;
-	this->Height = InHeight;
+	Width = InWidth;
+	Height = InHeight;
+}
+
+void FVideoEncoderInput::SetMaxNumBuffers(uint32 InMaxNumBuffers)
+{
+	MaxNumBuffers = InMaxNumBuffers;
 }
 
 // --- encoder input frames -----------------------------------------------------------------------
@@ -155,7 +208,6 @@ bool FVideoEncoderInputImpl::SetupForYUV420P(uint32 InWidth, uint32 InHeight)
 bool FVideoEncoderInputImpl::SetupForD3D11(void* InApplicationD3DDevice, uint32 InWidth, uint32 InHeight)
 {
 #if PLATFORM_WINDOWS
-
 	TRefCountPtr<IDXGIDevice>	DXGIDevice;
 	TRefCountPtr<IDXGIAdapter>	Adapter;
 
@@ -173,6 +225,58 @@ bool FVideoEncoderInputImpl::SetupForD3D11(void* InApplicationD3DDevice, uint32 
 
 	uint32				DeviceFlags = 0;
 	D3D_FEATURE_LEVEL	FeatureLevel = D3D_FEATURE_LEVEL_11_0;
+	D3D_FEATURE_LEVEL	ActualFeatureLevel;
+
+	if ((Result = D3D11CreateDevice(
+		Adapter,
+		D3D_DRIVER_TYPE_UNKNOWN,
+		NULL,
+		DeviceFlags,
+		&FeatureLevel,
+		1,
+		D3D11_SDK_VERSION,
+		FrameInfoD3D.EncoderDeviceD3D11.GetInitReference(),
+		&ActualFeatureLevel,
+		FrameInfoD3D.EncoderDeviceContextD3D11.GetInitReference())) != S_OK)
+	{
+		UE_LOG(LogVideoEncoder, Error, TEXT("D3D11CreateDevice() failed 0x%X - %s."), Result, *GetComErrorDescription(Result));
+		return false;
+	}
+	DEBUG_SET_D3D11_OBJECT_NAME(FrameInfoD3D.EncoderDeviceD3D11, "FVideoEncoderInputImpl");
+	DEBUG_SET_D3D11_OBJECT_NAME(FrameInfoD3D.EncoderDeviceContextD3D11, "FVideoEncoderInputImpl");
+
+	FrameFormat = EVideoFrameFormat::D3D11_R8G8B8A8_UNORM;
+	this->Width = InWidth;
+	this->Height = InHeight;
+
+	CollectAvailableEncoders();
+	return true;
+
+#endif
+	return false;
+}
+
+bool FVideoEncoderInputImpl::SetupForD3D11Shared(void* InApplicationD3DDevice, uint32 InWidth, uint32 InHeight)
+{
+#if PLATFORM_WINDOWS
+
+	TRefCountPtr<IDXGIDevice>	DXGIDevice;
+	TRefCountPtr<IDXGIAdapter>	Adapter;
+
+	HRESULT		Result = static_cast<ID3D11Device*>(InApplicationD3DDevice)->QueryInterface(__uuidof(IDXGIDevice), (void**)DXGIDevice.GetInitReference());
+	if (Result != S_OK)
+	{
+		UE_LOG(LogVideoEncoder, Error, TEXT("ID3D11Device::QueryInterface() failed 0x%X - %s."), Result, *GetComErrorDescription(Result));
+		return false;
+	}
+	else if ((Result = DXGIDevice->GetAdapter(Adapter.GetInitReference())) != S_OK)
+	{
+		UE_LOG(LogVideoEncoder, Error, TEXT("DXGIDevice::GetAdapter() failed 0x%X - %s."), Result, *GetComErrorDescription(Result));
+		return false;
+	}
+
+	uint32				DeviceFlags = 0;
+	D3D_FEATURE_LEVEL	FeatureLevel = D3D_FEATURE_LEVEL_11_1;
 	D3D_FEATURE_LEVEL	ActualFeatureLevel;
 
 	if ((Result = D3D11CreateDevice(
@@ -225,7 +329,7 @@ bool FVideoEncoderInputImpl::SetupForD3D12(void* InApplicationD3DDevice, uint32 
 	}
 
 	uint32				DeviceFlags = 0;
-	D3D_FEATURE_LEVEL	FeatureLevel = D3D_FEATURE_LEVEL_11_1;
+	D3D_FEATURE_LEVEL	FeatureLevel = D3D_FEATURE_LEVEL_12_0; // TODO get this from the adaptor support
 	if ((Result = D3D12CreateDevice(Adapter, FeatureLevel, IID_PPV_ARGS(FrameInfoD3D.EncoderDeviceD3D12.GetInitReference()))) != S_OK)
 	{
 		UE_LOG(LogVideoEncoder, Error, TEXT("D3D11CreateDevice() failed 0x%X - %s."), Result, *GetComErrorDescription(Result));
@@ -244,14 +348,57 @@ bool FVideoEncoderInputImpl::SetupForD3D12(void* InApplicationD3DDevice, uint32 
 	return false;
 }
 
-
-bool FVideoEncoderInputImpl::SetupForCUDA(void* InApplicationContext, uint32 InWidth, uint32 InHeight)
+bool FVideoEncoderInputImpl::SetupForD3D12Shared(void* InApplicationD3DDevice, uint32 InWidth, uint32 InHeight)
 {
-#if WITH_CUDA
+#if PLATFORM_WINDOWS
 
-	FrameInfoCUDA.EncoderContextCUDA = static_cast<CUcontext>(InApplicationContext);
+	LUID						AdapterLuid = static_cast<ID3D12Device*>(InApplicationD3DDevice)->GetAdapterLuid();
+	TRefCountPtr<IDXGIFactory4>	DXGIFactory;
+	HRESULT						Result;
+	if ((Result = CreateDXGIFactory(IID_PPV_ARGS(DXGIFactory.GetInitReference()))) != S_OK)
+	{
+		UE_LOG(LogVideoEncoder, Error, TEXT("CreateDXGIFactory() failed 0x%X - %s."), Result, *GetComErrorDescription(Result));
+		return false;
+	}
+	// get the adapter game uses to render
+	TRefCountPtr<IDXGIAdapter>	Adapter;
+	if ((Result = DXGIFactory->EnumAdapterByLuid(AdapterLuid, IID_PPV_ARGS(Adapter.GetInitReference()))) != S_OK)
+	{
+		UE_LOG(LogVideoEncoder, Error, TEXT("DXGIFactory::EnumAdapterByLuid() failed 0x%X - %s."), Result, *GetComErrorDescription(Result));
+		return false;
+	}
 
-	FrameFormat = EVideoFrameFormat::CUDA_R8G8B8A8_UNORM;
+	uint32				DeviceFlags = 0;
+	D3D_FEATURE_LEVEL	FeatureLevel = D3D_FEATURE_LEVEL_11_1;
+	D3D_FEATURE_LEVEL	ActualFeatureLevel;
+	if ((Result = D3D11CreateDevice(
+		Adapter,
+		D3D_DRIVER_TYPE_UNKNOWN,
+		NULL,
+		DeviceFlags,
+		&FeatureLevel,
+		1,
+		D3D11_SDK_VERSION,
+		FrameInfoD3D.EncoderDeviceD3D11.GetInitReference(),
+		&ActualFeatureLevel,
+		FrameInfoD3D.EncoderDeviceContextD3D11.GetInitReference())) != S_OK)
+	{
+		UE_LOG(LogVideoEncoder, Error, TEXT("D3D11CreateDevice() failed 0x%X - %s."), Result, *GetComErrorDescription(Result));
+		return false;
+	}
+
+	if (ActualFeatureLevel != D3D_FEATURE_LEVEL_11_1)
+	{
+		UE_LOG(LogVideoEncoder, Error, TEXT("D3D11CreateDevice() - failed to create device w/ feature level 11.1 - needed to encode textures from D3D12."));
+		FrameInfoD3D.EncoderDeviceD3D11.SafeRelease();
+		FrameInfoD3D.EncoderDeviceContextD3D11.SafeRelease();
+		return false;
+	}
+
+	DEBUG_SET_D3D11_OBJECT_NAME(FrameInfoD3D.EncoderDeviceD3D11, "FVideoEncoderInputImpl");
+	DEBUG_SET_D3D11_OBJECT_NAME(FrameInfoD3D.EncoderDeviceContextD3D11, "FVideoEncoderInputImpl");
+
+	FrameFormat = EVideoFrameFormat::D3D11_R8G8B8A8_UNORM;
 	this->Width = InWidth;
 	this->Height = InHeight;
 
@@ -262,6 +409,35 @@ bool FVideoEncoderInputImpl::SetupForCUDA(void* InApplicationContext, uint32 InW
 
 	return false;
 }
+
+
+bool FVideoEncoderInputImpl::SetupForCUDA(void* InApplicationContext, uint32 InWidth, uint32 InHeight)
+{
+	FrameInfoCUDA.EncoderContextCUDA = static_cast<CUcontext>(InApplicationContext);
+
+	FrameFormat = EVideoFrameFormat::CUDA_R8G8B8A8_UNORM;
+	this->Width = InWidth;
+	this->Height = InHeight;
+
+	CollectAvailableEncoders();
+	return true;
+}
+
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
+bool FVideoEncoderInputImpl::SetupForVulkan(VkInstance InApplicationVulkanInstance, VkPhysicalDevice InApplicationVulkanPhysicalDevice, VkDevice InApplicationVulkanDevice, uint32 InWidth, uint32 InHeight)
+{
+	FrameInfoVulkan.VulkanInstance = InApplicationVulkanInstance;
+	FrameInfoVulkan.VulkanPhysicalDevice = InApplicationVulkanPhysicalDevice;
+	FrameInfoVulkan.VulkanDevice = InApplicationVulkanDevice;
+
+	FrameFormat = EVideoFrameFormat::VULKAN_R8G8B8A8_UNORM;
+	this->Width = InWidth;
+	this->Height = InHeight;
+
+	CollectAvailableEncoders();
+	return true;
+}
+#endif
 
 // --- available encoders -------------------------------------------------------------------------
 
@@ -320,31 +496,37 @@ void FVideoEncoderInputImpl::DestroyBuffer(FVideoEncoderInputFrame* InBuffer)
 
 FVideoEncoderInputFrame* FVideoEncoderInputImpl::ObtainInputFrame()
 {
-	static uint32 NextFrameID = 1;
-
 	FVideoEncoderInputFrameImpl*	Frame = nullptr;
 	FScopeLock						Guard(&ProtectFrames);
+
 	if (!AvailableFrames.IsEmpty())
 	{
+
 		AvailableFrames.Dequeue(Frame);
+		
 	}
-	else
+	else 
 	{
 		Frame = CreateFrame();
+		UE_LOG(LogVideoEncoder, Verbose, TEXT("Created new frame total frames: %d"), NumBuffers);
 	}
-	if (Frame)
+
+	ActiveFrames.Push(Frame);
+	
+	Frame->SetFrameID(NextFrameID++);
+
+	if (NextFrameID == 0)
 	{
-		ActiveFrames.Push(Frame);
-		Frame->SetFrameID(NextFrameID++);
-		if (NextFrameID == 0) ++NextFrameID; // skip 0 id
-		return const_cast<FVideoEncoderInputFrame*>(Frame->Obtain());
-	}
-	return nullptr;
+		++NextFrameID; // skip 0 id
+	} 
+
+	return const_cast<FVideoEncoderInputFrame*>(Frame->Obtain());
 }
 
 FVideoEncoderInputFrameImpl* FVideoEncoderInputImpl::CreateFrame()
 {
 	FVideoEncoderInputFrameImpl*	Frame = new FVideoEncoderInputFrameImpl(this);
+	NumBuffers++;
 	switch (FrameFormat)
 	{
 	case EVideoFrameFormat::Undefined:
@@ -358,6 +540,9 @@ FVideoEncoderInputFrameImpl* FVideoEncoderInputImpl::CreateFrame()
 		break;
 	case EVideoFrameFormat::D3D12_R8G8B8A8_UNORM:
 		SetupFrameD3D12(Frame);
+		break;
+	case EVideoFrameFormat::VULKAN_R8G8B8A8_UNORM:
+		SetupFrameVulkan(Frame);
 		break;
 	case EVideoFrameFormat::CUDA_R8G8B8A8_UNORM:
 		SetupFrameCUDA(Frame);
@@ -393,7 +578,8 @@ void FVideoEncoderInputImpl::ReleaseInputFrame(FVideoEncoderInputFrame* InFrame)
 		{
 			ProtectFrames.Unlock();
 			delete InFrameImpl;
-			// ProtectFrames.Lock();
+			NumBuffers--;
+			UE_LOG(LogVideoEncoder, Verbose, TEXT("Deleted buffer (format mismatch) total remaining: %d"), NumBuffers);
 			return;
 		}
 		
@@ -402,6 +588,17 @@ void FVideoEncoderInputImpl::ReleaseInputFrame(FVideoEncoderInputFrame* InFrame)
 		{
 			ProtectFrames.Unlock();
 			delete InFrameImpl;
+			NumBuffers--;
+			UE_LOG(LogVideoEncoder, Verbose, TEXT("Deleted buffer (size mismatch) total remaining: %d"), NumBuffers);
+			return;
+		}
+
+		if(!AvailableFrames.IsEmpty() && NumBuffers > MaxNumBuffers)
+		{
+			ProtectFrames.Unlock();
+			delete InFrameImpl;
+			NumBuffers--;
+			UE_LOG(LogVideoEncoder, Verbose, TEXT("Deleted buffer (too many) total frames: %d"), NumBuffers);
 			return;
 		}
 
@@ -418,6 +615,7 @@ void FVideoEncoderInputImpl::Flush()
 		AvailableFrames.Dequeue(Frame);
 		ProtectFrames.Unlock();
 		delete Frame;
+		NumBuffers--;
 		ProtectFrames.Lock();
 	}
 	ProtectFrames.Unlock();
@@ -433,9 +631,6 @@ void FVideoEncoderInputImpl::SetupFrameYUV420P(FVideoEncoderInputFrameImpl* Fram
 	YUV420P.StrideU = FrameInfoYUV420P.StrideU;
 	YUV420P.StrideV = FrameInfoYUV420P.StrideV;
 	YUV420P.Data[0] = YUV420P.Data[1] = YUV420P.Data[2] = nullptr;
-//	YUV420P.Data = new uint8[FrameInfoYUV420P.Height * FrameInfoYUV420P.StrideY +
-//		(FrameInfoYUV420P.Height + 1) / 2 * FrameInfoYUV420P.StrideU +
-//		(FrameInfoYUV420P.Height + 1) / 2 * FrameInfoYUV420P.StrideV];
 }
 
 void FVideoEncoderInputImpl::SetupFrameD3D11(FVideoEncoderInputFrameImpl* Frame)
@@ -444,6 +639,7 @@ void FVideoEncoderInputImpl::SetupFrameD3D11(FVideoEncoderInputFrameImpl* Frame)
 	Frame->SetFormat(FrameFormat);
 	Frame->SetWidth(this->Width);
 	Frame->SetHeight(this->Height);
+
 	FVideoEncoderInputFrame::FD3D11& Data = Frame->GetD3D11();
 	Data.EncoderDevice = FrameInfoD3D.EncoderDeviceD3D11;
 #endif
@@ -455,20 +651,39 @@ void FVideoEncoderInputImpl::SetupFrameD3D12(FVideoEncoderInputFrameImpl* Frame)
 	Frame->SetFormat(FrameFormat);
 	Frame->SetWidth(this->Width);
 	Frame->SetHeight(this->Height);
-	FVideoEncoderInputFrame::FD3D12& Data = Frame->GetD3D12();
-	Data.EncoderDevice = FrameInfoD3D.EncoderDeviceD3D12;
+
+	if (FrameFormat == EVideoFrameFormat::D3D11_R8G8B8A8_UNORM)
+	{
+		FVideoEncoderInputFrame::FD3D11& Data = Frame->GetD3D11();
+		Data.EncoderDevice = FrameInfoD3D.EncoderDeviceD3D11;
+	}
+	else
+	{	
+		FVideoEncoderInputFrame::FD3D12& Data = Frame->GetD3D12();
+		Data.EncoderDevice = FrameInfoD3D.EncoderDeviceD3D12;
+	}
+#endif
+}
+
+void FVideoEncoderInputImpl::SetupFrameVulkan(FVideoEncoderInputFrameImpl* Frame)
+{
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
+	Frame->SetFormat(FrameFormat);
+	Frame->SetWidth(this->Width);
+	Frame->SetHeight(this->Height);
+
+	FVideoEncoderInputFrame::FVulkan& Data = Frame->GetVulkan();
+	Data.EncoderDevice = FrameInfoVulkan.VulkanDevice;
 #endif
 }
 
 void FVideoEncoderInputImpl::SetupFrameCUDA(FVideoEncoderInputFrameImpl* Frame)
 {
-#if WITH_CUDA
 	Frame->SetFormat(FrameFormat);
 	Frame->SetWidth(this->Width);
 	Frame->SetHeight(this->Height);
 	FVideoEncoderInputFrame::FCUDA& Data = Frame->GetCUDA();
 	Data.EncoderDevice = FrameInfoCUDA.EncoderContextCUDA;
-#endif
 }
 
 // ---
@@ -479,80 +694,21 @@ TRefCountPtr<ID3D11Device> FVideoEncoderInputImpl::GetD3D11EncoderDevice() const
 	return FrameInfoD3D.EncoderDeviceD3D11;
 }
 
-TRefCountPtr<ID3D11Device> FVideoEncoderInputImpl::ForceD3D11InputFrames()
-{
-	// need to share D3D12 textures into D3D11 device (i.e. for nvenc)?
-	if (FrameFormat == AVEncoder::EVideoFrameFormat::D3D12_R8G8B8A8_UNORM)
-	{
-		LUID						AdapterLuid = FrameInfoD3D.EncoderDeviceD3D12->GetAdapterLuid();
-		TRefCountPtr<IDXGIFactory4>	DXGIFactory;
-		HRESULT						Result;
-		if ((Result = CreateDXGIFactory(IID_PPV_ARGS(DXGIFactory.GetInitReference()))) != S_OK)
-		{
-			UE_LOG(LogVideoEncoder, Error, TEXT("CreateDXGIFactory() failed 0x%X - %s."), Result, *GetComErrorDescription(Result));
-			return nullptr;
-		}
-		// get the adapter game uses to render
-		TRefCountPtr<IDXGIAdapter>	Adapter;
-		if ((Result = DXGIFactory->EnumAdapterByLuid(AdapterLuid, IID_PPV_ARGS(Adapter.GetInitReference()))) != S_OK)
-		{
-			UE_LOG(LogVideoEncoder, Error, TEXT("DXGIFactory::EnumAdapterByLuid() failed 0x%X - %s."), Result, *GetComErrorDescription(Result));
-			return nullptr;
-		}
-
-		uint32				DeviceFlags = 0;
-		// DeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
-		D3D_FEATURE_LEVEL	FeatureLevel = D3D_FEATURE_LEVEL_11_1;
-		D3D_FEATURE_LEVEL	ActualFeatureLevel;
-		if ((Result = D3D11CreateDevice(
-			Adapter,
-			D3D_DRIVER_TYPE_UNKNOWN,
-			NULL,
-			DeviceFlags,
-			&FeatureLevel,
-			1,
-			D3D11_SDK_VERSION,
-			FrameInfoD3D.EncoderDeviceD3D11.GetInitReference(),
-			&ActualFeatureLevel,
-			FrameInfoD3D.EncoderDeviceContextD3D11.GetInitReference())) != S_OK)
-		{
-			UE_LOG(LogVideoEncoder, Error, TEXT("D3D11CreateDevice() failed 0x%X - %s."), Result, *GetComErrorDescription(Result));
-			return nullptr;
-		}
-
-		if (ActualFeatureLevel != D3D_FEATURE_LEVEL_11_1)
-		{
-			UE_LOG(LogVideoEncoder, Error, TEXT("D3D11CreateDevice() - failed to create device w/ feature level 11.1 - needed to encode textures from D3D12."));
-			FrameInfoD3D.EncoderDeviceD3D11.SafeRelease();
-			FrameInfoD3D.EncoderDeviceContextD3D11.SafeRelease();
-			return nullptr;
-		}
-
-		DEBUG_SET_D3D11_OBJECT_NAME(FrameInfoD3D.EncoderDeviceD3D11, "FVideoEncoderInputImpl");
-		DEBUG_SET_D3D11_OBJECT_NAME(FrameInfoD3D.EncoderDeviceContextD3D11, "FVideoEncoderInputImpl");
-
-		FrameInfoD3D.EncoderDeviceD3D12.SafeRelease();
-		FrameFormat = AVEncoder::EVideoFrameFormat::D3D11_R8G8B8A8_UNORM;
-
-		// todo: drop pending frames...
-	}
-	return FrameInfoD3D.EncoderDeviceD3D11;
+TRefCountPtr<ID3D12Device> FVideoEncoderInputImpl::GetD3D12EncoderDevice() const
+{		
+	return FrameInfoD3D.EncoderDeviceD3D12;
 }
 #endif
-
-#if WITH_CUDA
 
 CUcontext FVideoEncoderInputImpl::GetCUDAEncoderContext() const
 {
 	return FrameInfoCUDA.EncoderContextCUDA;
 }
 
-#endif
-
-#if PLATFORM_WINDOWS || PLATFORM_LINUX
-VkDevice FVideoEncoderInputImpl::GetVulkanDevice() const
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
+void* FVideoEncoderInputImpl::GetVulkanEncoderDevice() const
 {
-	return FrameInfoVulkan.VulkanDevice;
+	return (void*)&FrameInfoVulkan;
 }
 #endif
 
@@ -587,12 +743,17 @@ FVideoEncoderInputFrame::FVideoEncoderInputFrame(const FVideoEncoderInputFrame& 
 	{
 		D3D11.EncoderTexture->AddRef();
 	}
+
+	D3D12.EncoderDevice = CloneFrom.D3D12.EncoderDevice;
+	D3D12.Texture = CloneFrom.D3D12.Texture;
+	if ((D3D12.EncoderTexture = CloneFrom.D3D12.EncoderTexture) != nullptr)
+	{
+		D3D12.EncoderTexture->AddRef();
+	}
 #endif
 
-#if WITH_CUDA
 	CUDA.EncoderDevice = CloneFrom.CUDA.EncoderDevice;
 	CUDA.EncoderTexture = CloneFrom.CUDA.EncoderTexture;
-#endif
 }
 
 FVideoEncoderInputFrame::~FVideoEncoderInputFrame()
@@ -647,14 +808,23 @@ FVideoEncoderInputFrame::~FVideoEncoderInputFrame()
 	}
 #endif 
 
-#if WITH_CUDA
 	if (CUDA.EncoderTexture)
 	{
 		OnReleaseCUDATexture(CUDA.EncoderTexture);
 		CUDA.EncoderTexture = nullptr;
 	}
-#endif
 
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
+	if (Vulkan.EncoderTexture != VK_NULL_HANDLE)
+	{
+		OnReleaseVulkanTexture(Vulkan.EncoderTexture);
+	}
+
+	if (Vulkan.EncoderSurface)
+	{
+		OnReleaseVulkanSurface(Vulkan.EncoderSurface);
+	}
+#endif
 }
 
 void FVideoEncoderInputFrame::AllocateYUV420P()
@@ -737,59 +907,55 @@ void FVideoEncoderInputFrame::SetTexture(ID3D12Resource* InTexture, FReleaseD3D1
 {
 	if (Format == EVideoFrameFormat::D3D11_R8G8B8A8_UNORM)
 	{
-		check(D3D12.Texture == nullptr);
-		check(D3D12.EncoderDevice == nullptr);
-		check(D3D11.EncoderDevice != nullptr);
-		if (!D3D12.Texture)
+		check(D3D12.Texture == nullptr)
+		check(D3D11.EncoderTexture == nullptr)
+
+		TRefCountPtr<ID3D12Device>	OwnerDevice;
+		HRESULT						Result;
+		if((Result = InTexture->GetDevice(IID_PPV_ARGS(OwnerDevice.GetInitReference()))) != S_OK)
 		{
-			//TRefCountPtr<IDXGIResource> DXGIResource;
-			TRefCountPtr<ID3D12Device>	OwnerDevice;
-			HRESULT						Result;
-			if((Result = InTexture->GetDevice(IID_PPV_ARGS(OwnerDevice.GetInitReference()))) != S_OK)
+			UE_LOG(LogVideoEncoder, Error, TEXT("ID3D11Device::QueryInterface() failed 0x%X - %s."), Result, *GetComErrorDescription(Result));
+		}
+		//
+		// NOTE: ID3D12Device::CreateSharedHandle gives as an NT Handle, and so we need to call CloseHandle on it
+		//
+		else if ((Result = OwnerDevice->CreateSharedHandle(InTexture, NULL, GENERIC_ALL, *FString::Printf(TEXT("%s_FVideoEncoderInputFrame_%d"), *GetGUID(), _VideoEncoderInputFrameCnt.Increment()), &D3D11.SharedHandle)) != S_OK)
+		{
+			UE_LOG(LogVideoEncoder, Error, TEXT("ID3D12Device::CreateSharedHandle() failed 0x%X - %s."), Result, *GetComErrorDescription(Result));
+		}
+		else if (D3D11.SharedHandle == nullptr)
+		{
+			UE_LOG(LogVideoEncoder, Error, TEXT("ID3D12Device::CreateSharedHandle() failed to return a shared texture resource no created as shared? (D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS)."));
+		}
+		else
+		{
+			TRefCountPtr <ID3D11Device1> Device1;
+			if ((Result = D3D11.EncoderDevice->QueryInterface(IID_PPV_ARGS(Device1.GetInitReference()))) != S_OK)
 			{
 				UE_LOG(LogVideoEncoder, Error, TEXT("ID3D11Device::QueryInterface() failed 0x%X - %s."), Result, *GetComErrorDescription(Result));
 			}
-			//
-			// NOTE: ID3D12Device::CreateSharedHandle gives as an NT Handle, and so we need to call CloseHandle on it
-			//
-			else if ((Result = OwnerDevice->CreateSharedHandle(InTexture, NULL, GENERIC_ALL, *FString::Printf(TEXT("FVideoEncoderInputFrame_%d"), _VideoEncoderInputFrameCnt.Increment()), &D3D11.SharedHandle)) != S_OK)
+			else if ((Result = Device1->OpenSharedResource1(D3D11.SharedHandle, IID_PPV_ARGS(&D3D11.EncoderTexture))) != S_OK)
 			{
-				UE_LOG(LogVideoEncoder, Error, TEXT("ID3D12Device::CreateSharedHandle() failed 0x%X - %s."), Result, *GetComErrorDescription(Result));
-			}
-			else if (D3D11.SharedHandle == nullptr)
-			{
-				UE_LOG(LogVideoEncoder, Error, TEXT("ID3D12Device::CreateSharedHandle() failed to return a shared texture resource no created as shared? (D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS)."));
+				UE_LOG(LogVideoEncoder, Error, TEXT("ID3D11Device::OpenSharedResource1() failed 0x%X - %s."), Result, *GetComErrorDescription(Result));
 			}
 			else
 			{
-				TRefCountPtr <ID3D11Device1> Device1;
-				if ((Result = D3D11.EncoderDevice->QueryInterface(IID_PPV_ARGS(Device1.GetInitReference()))) != S_OK)
-				{
-					UE_LOG(LogVideoEncoder, Error, TEXT("ID3D11Device::QueryInterface() failed 0x%X - %s."), Result, *GetComErrorDescription(Result));
-				}
-				else if ((Result = Device1->OpenSharedResource1(D3D11.SharedHandle, IID_PPV_ARGS(&D3D11.EncoderTexture))) != S_OK)
-				{
-					UE_LOG(LogVideoEncoder, Error, TEXT("ID3D11Device::OpenSharedResource1() failed 0x%X - %s."), Result, *GetComErrorDescription(Result));
-				}
-				else
-				{
-					DEBUG_SET_D3D11_OBJECT_NAME(D3D11.EncoderTexture, "FVideoEncoderInputFrame::SetTexture()");
-					D3D12.Texture = InTexture;
-					OnReleaseD3D12Texture = InOnReleaseTexture;
-				}
+				DEBUG_SET_D3D11_OBJECT_NAME(D3D11.EncoderTexture, "FVideoEncoderInputFrame::SetTexture()");
+				D3D12.Texture = InTexture;
+				OnReleaseD3D12Texture = InOnReleaseTexture;
 			}
 		}
 	}
 	else
 	{
 		check(D3D12.Texture == nullptr);
+		check(D3D12.EncoderTexture == nullptr);
 		D3D12.Texture = InTexture;
+		D3D12.EncoderTexture = InTexture;		
 		OnReleaseD3D12Texture = InOnReleaseTexture;
 	}
 }
 #endif
-
-#if WITH_CUDA
 
 void FVideoEncoderInputFrame::SetTexture(CUarray InTexture, FReleaseCUDATextureCallback InOnReleaseTexture)
 {
@@ -804,19 +970,33 @@ void FVideoEncoderInputFrame::SetTexture(CUarray InTexture, FReleaseCUDATextureC
 	}
 }
 
-#endif
 
-
-#if PLATFORM_WINDOWS || PLATFORM_LINUX
-void FVideoEncoderInputFrame::SetTexture(VkImage_T* InTexture, FReleaseVulkanTextureCallback InOnReleaseTexture)
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
+void FVideoEncoderInputFrame::SetTexture(VkImage InTexture, FReleaseVulkanTextureCallback InOnReleaseTexture)
 {
 	if (Format == EVideoFrameFormat::VULKAN_R8G8B8A8_UNORM)
 	{
-		Vulkan.EncoderTexture = InTexture;
+		Vulkan.EncoderTexture = InTexture;		
 		OnReleaseVulkanTexture = InOnReleaseTexture;
 		if (!Vulkan.EncoderTexture)
 		{
 			UE_LOG(LogVideoEncoder, Warning, TEXT("SetTexture | Vulkan VkImage is null"));
+		}
+	}
+}
+
+void FVideoEncoderInputFrame::SetTexture(VkImage InTexture, VkDeviceMemory InTextureDeviceMemory, uint64 InTextureMemorySize, FReleaseVulkanTextureCallback InOnReleaseTexture)
+{
+	if (Format == EVideoFrameFormat::VULKAN_R8G8B8A8_UNORM)
+	{
+		Vulkan.EncoderTexture = InTexture;
+		Vulkan.EncoderDeviceMemory = InTextureDeviceMemory;
+		Vulkan.EncoderMemorySize = InTextureMemorySize;
+		OnReleaseVulkanTexture = InOnReleaseTexture;
+
+		if (!Vulkan.EncoderTexture || !InTextureDeviceMemory)
+		{
+			UE_LOG(LogVideoEncoder, Warning, TEXT("SetTexture | Vulkan VkImage or VkTextureDeviceMemory is null"));
 		}
 	}
 }

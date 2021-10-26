@@ -5,44 +5,42 @@
 #include "PixelStreamingPrivate.h"
 #include "ProtocolDefs.h"
 #include "HAL/ThreadSafeBool.h"
+#include "PixelStreamingAudioSink.h"
+#include "PlayerId.h"
+#include "PixelStreamingDataChannelObserver.h"
 
-class FStreamer;
-class FInputDevice;
-class FPixelStreamingVideoEncoder;
+class FSignallingServerConnection;
+class IPixelStreamingSessions;
 
 class FPlayerSession
     : public webrtc::PeerConnectionObserver
-    , public webrtc::DataChannelObserver
 {
 public:
-	FPlayerSession(FStreamer& Outer, FPlayerId PlayerId, bool bOriginalQualityController);
+	FPlayerSession(IPixelStreamingSessions* InSessions, FSignallingServerConnection* InSignallingServerConnection, FPlayerId PlayerId);
 	virtual ~FPlayerSession() override;
-
-	void SetVideoEncoder(FPixelStreamingVideoEncoder* InVideoEncoder);
 
 	webrtc::PeerConnectionInterface& GetPeerConnection();
 	void SetPeerConnection(const rtc::scoped_refptr<webrtc::PeerConnectionInterface>& InPeerConnection);
 	
 	FPlayerId GetPlayerId() const;
 
-	void OnOffer(TUniquePtr<webrtc::SessionDescriptionInterface> Sdp);
-	void OnRemoteIceCandidate(TUniquePtr<webrtc::IceCandidateInterface> Candidate);
+	void OnRemoteIceCandidate(const std::string& SdpMid, int SdpMLineIndex, const std::string& Sdp);
 	void DisconnectPlayer(const FString& Reason);
 
-	bool IsOriginalQualityController() const;
-	bool IsQualityController() const;
-	void SetQualityController(bool bControlsQuality);
-
-	void SendKeyFrame();
+	FPixelStreamingAudioSink& GetAudioSink();
 
 	bool SendMessage(PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor) const;
 
-	void SendQualityControlStatus() const;
+	void SendQualityControlStatus(bool bIsQualityController) const;
 	void SendFreezeFrame(const TArray64<uint8>& JpegBytes) const;
 	void SendUnfreezeFrame() const;
-	void SendInitialSettings() const;
+	void SendVideoEncoderQP(double QP) const;
+	FPixelStreamingDataChannelObserver& GetDataChannelObserver();
 
 private:
+
+	void ModifyAudioTransceiverDirection();
+
 	//
 	// webrtc::PeerConnectionObserver implementation.
 	//
@@ -59,22 +57,14 @@ private:
 	virtual void OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver) override;
 	virtual void OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver) override;
 
-	//
-	// werbrtc::DataChannelObserver implementation.
-	//
-	virtual void OnStateChange() override;
-	virtual void OnBufferedAmountChange(uint64_t PreviousAmount) override;
-	virtual void OnMessage(const webrtc::DataBuffer& Buffer) override;
-
 private:
 	size_t SerializeToBuffer(rtc::CopyOnWriteBuffer& Buffer, size_t Pos, const void* Data, size_t DataSize) const;
 
-	FStreamer& Streamer;
+	FSignallingServerConnection* SignallingServerConnection;
 	FPlayerId PlayerId;
-	bool bOriginalQualityController;
-	FPixelStreamingVideoEncoder* VideoEncoder = nullptr;
 	rtc::scoped_refptr<webrtc::PeerConnectionInterface> PeerConnection;
 	rtc::scoped_refptr<webrtc::DataChannelInterface> DataChannel;
+	FPixelStreamingDataChannelObserver DataChannelObserver;
 	FThreadSafeBool bDisconnecting = false;
-	FInputDevice& InputDevice;
+	FPixelStreamingAudioSink AudioSink;
 };

@@ -72,7 +72,7 @@
 #include "Engine/Engine.h"
 #include "Framework/Application/SlateUser.h"
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 #include "Windows/WindowsPlatformMisc.h"
 #elif PLATFORM_LINUX
 #include "Linux/LinuxPlatformMisc.h"

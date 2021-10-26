@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioCapturer.h"
-
 #include "AudioMixerDevice.h"
 #include "SampleBuffer.h"
 #include "Engine/GameEngine.h"
@@ -26,6 +25,9 @@ DEFINE_LOG_CATEGORY(LogAudioCapturer);
 	}
 
 
+constexpr int FAudioCapturer::SampleRate;
+constexpr int FAudioCapturer::NumChannels;
+
 void FAudioCapturer::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 InNumChannels, const int32 InSampleRate, double AudioClock)
 {
 	if (!(bInitialized && bRecordingInitialized))
@@ -40,7 +42,7 @@ void FAudioCapturer::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* 
 		if (!bFormatChecked)
 		{
 			bFormatChecked = true;
-			UE_LOG(PixelStreaming, Error, TEXT("Audio samplerate needs to be 48000hz"));
+			UE_LOG(LogAudioCapturer, Error, TEXT("Audio samplerate needs to be 48000hz"));
 		}
 		return;
 	}

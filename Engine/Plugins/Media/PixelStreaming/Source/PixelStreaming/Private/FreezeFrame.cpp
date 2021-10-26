@@ -7,12 +7,18 @@ UFreezeFrame* UFreezeFrame::Singleton = nullptr;
 
 void UFreezeFrame::FreezeFrame(UTexture2D* Texture)
 {
-	Singleton->PixelStreamingModule->FreezeFrame(Texture);
+	if(Singleton)
+	{
+		Singleton->PixelStreamingModule->FreezeFrame(Texture);
+	}
 }
 
 void UFreezeFrame::UnfreezeFrame()
 {
-	Singleton->PixelStreamingModule->UnfreezeFrame();
+	if(Singleton)
+	{
+		Singleton->PixelStreamingModule->UnfreezeFrame();
+	}
 }
 
 void UFreezeFrame::CreateInstance()

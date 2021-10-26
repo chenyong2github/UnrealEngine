@@ -39,9 +39,14 @@ private:
 	 * @return The shared pointer to the input device.
 	 */
 	TSharedPtr<FInputDevice> GetInputDevicePtr();
+	void AddInputComponent(UPixelStreamerInputComponent* InInputComponent) override;
+	void RemoveInputComponent(UPixelStreamerInputComponent* InInputComponent) override;
+	const TArray<UPixelStreamerInputComponent*> GetInputComponents() override;
 
 	void FreezeFrame(UTexture2D* Texture) override;
 	void UnfreezeFrame() override;
+	IPixelStreamingAudioSink* GetPeerAudioSink(FPlayerId PlayerId) override;
+	IPixelStreamingAudioSink* GetUnlistenedAudioSink() override;
 
 	// FTickableGameObject
 	bool IsTickableWhenPaused() const override;
@@ -64,4 +69,5 @@ private:
 	TArray<UPixelStreamerInputComponent*> InputComponents;
 	bool bFrozen = false;
 	bool bCaptureNextBackBufferAndStream = false;
+	double LastVideoEncoderQPReportTime = 0;
 };

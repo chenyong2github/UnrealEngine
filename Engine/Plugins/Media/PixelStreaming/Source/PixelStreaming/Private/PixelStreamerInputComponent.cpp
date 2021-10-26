@@ -2,17 +2,50 @@
 
 #include "PixelStreamerInputComponent.h"
 #include "IPixelStreamingModule.h"
-
+#include "InputDevice.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "GameFramework/GameUserSettings.h"
+#include "PixelStreamingPrivate.h"
 
 UPixelStreamerInputComponent::UPixelStreamerInputComponent()
 	: PixelStreamingModule(FModuleManager::Get().GetModulePtr<IPixelStreamingModule>("PixelStreaming"))
 {
+}
+
+void UPixelStreamerInputComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if(this->PixelStreamingModule)
+	{
+		// When this component is initializing it registers itself with the Pixel Streaming module.
+		this->PixelStreamingModule->AddInputComponent(this);
+	}
+	else 
+	{
+		UE_LOG(PixelStreamer, Warning, TEXT("Pixel Streaming input component not added because Pixel Streaming module is not loaded. This is expected on dedicated servers."));
+	}
+	
+}
+
+void UPixelStreamerInputComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+
+	if(this->PixelStreamingModule) 
+	{
+		// When this component is destructing it unregisters itself with the Pixel Streaming module.
+		this->PixelStreamingModule->RemoveInputComponent(this);
+	}
+	else 
+	{
+		UE_LOG(PixelStreamer, Warning, TEXT("Pixel Streaming input component not removed because Pixel Streaming module is not loaded. This is expected on dedicated servers."));
+	}
+	
 }
 
 bool UPixelStreamerInputComponent::OnCommand(const FString& Descriptor)
@@ -31,21 +64,35 @@ bool UPixelStreamerInputComponent::OnCommand(const FString& Descriptor)
 	if (bSuccess)
 	{
 		GetJsonStringValue(Descriptor, TEXT("Resolution.Height"), HeightString, bSuccess);
-	}
-	if (!bSuccess)
-	{
-		return false;
+
+		int Width = FCString::Atoi(*WidthString);
+		int Height = FCString::Atoi(*HeightString);
+
+		if(Width < 1 || Height < 1)
+		{
+			return false;
+		}
+
+		FString ChangeResCommand = FString::Printf(TEXT("r.SetRes %dx%d"), Width, Height);
+		return GEngine->Exec(GetWorld(), *ChangeResCommand);
+
 	}
 
-	FIntPoint Resolution = { FCString::Atoi(*WidthString), FCString::Atoi(*HeightString) };
-	GEngine->GameUserSettings->SetScreenResolution(Resolution);
-	GEngine->GameUserSettings->ApplySettings(false);
-	return true;
+	return false;	
+
 }
 
 void UPixelStreamerInputComponent::SendPixelStreamingResponse(const FString& Descriptor)
 {
-	PixelStreamingModule->SendResponse(Descriptor);
+	if(this->PixelStreamingModule)
+	{
+		PixelStreamingModule->SendResponse(Descriptor);
+	}
+	else 
+	{
+		UE_LOG(PixelStreamer, Warning, TEXT("Pixel Streaming input component skipped sending response. This is expected on dedicated servers."));
+	}
+	
 }
 
 void UPixelStreamerInputComponent::GetJsonStringValue(FString Descriptor, FString FieldName, FString& StringValue, bool& Success)

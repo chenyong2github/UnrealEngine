@@ -3,10 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Templates/RefCounting.h"
 #include "VideoCommon.h"
-
-#if WITH_CUDA
 #include "CudaModule.h"
+
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
+#include "vulkan/vulkan_core.h"
 #endif
 
 #if PLATFORM_WINDOWS
@@ -16,13 +18,23 @@ struct ID3D12Device;
 struct ID3D12Resource;
 #endif
 
-// vulkan forward declaration
-struct VkImage_T;
-struct VkDevice_T;
+
+namespace amf {
+	struct AMFVulkanSurface;
+}
 
 namespace AVEncoder
 {
 	class FVideoEncoderInputFrame;
+
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
+	struct FVulkanDataStruct
+	{
+		VkInstance VulkanInstance;
+		VkPhysicalDevice VulkanPhysicalDevice;
+		VkDevice VulkanDevice;
+	};
+#endif
 
 	class AVENCODER_API FVideoEncoderInput
 	{
@@ -31,21 +43,21 @@ namespace AVEncoder
 		static TSharedPtr<FVideoEncoderInput> CreateDummy(uint32 InWidth, uint32 InHeight, bool isResizable = false);
 		static TSharedPtr<FVideoEncoderInput> CreateForYUV420P(uint32 InWidth, uint32 InHeight, bool isResizable = false);
 
-		// create input for an encoder that encodes a D3D11 texture
-		static TSharedPtr<FVideoEncoderInput> CreateForD3D11(void* InApplicationD3D11Device, uint32 InWidth, uint32 InHeight, bool isResizable = false);
+		// create input for an encoder that encodes a D3D11 texture 
+		static TSharedPtr<FVideoEncoderInput> CreateForD3D11(void* InApplicationD3D11Device, uint32 InWidth, uint32 InHeight, bool IsResizable = false, bool IsShared = false);
 
-		// TODO (M84FIX) AMF can work with this but also can handle raw D3D12 textures we should add support for that too 
-		// create input for an encoder that encodes a D3D12 texture in the context of a D3D11 device (i.e. nvenc)
-		static TSharedPtr<FVideoEncoderInput> CreateForD3D12(void* InApplicationD3D12Device, uint32 InWidth, uint32 InHeight, bool isResizable = false);
+		// create input for an encoder that encodes a D3D12 texture
+		static TSharedPtr<FVideoEncoderInput> CreateForD3D12(void* InApplicationD3D12Device, uint32 InWidth, uint32 InHeight, bool IsResizable = false, bool IsShared = false);
 
-		// create input for an encoder that encodes a CUarray in the context of a CUcontext (i.e. nvenc)
-		static TSharedPtr<FVideoEncoderInput> CreateForCUDA(void* InApplicationCudaContext, uint32 InWidth, uint32 InHeight, bool isResizable = false);
+		// create input for an encoder that encodes a CUarray
+		static TSharedPtr<FVideoEncoderInput> CreateForCUDA(void* InApplicationCudaContext, uint32 InWidth, uint32 InHeight, bool IsResizable = false);
 
-		// create input for an encoder that encodes a VkImage in the context of a VkDevice (i.e. Amf)
-		static TSharedPtr<FVideoEncoderInput> CreateForVulkan(void* InApplicationVulkanDevice, uint32 InWidth, uint32 InHeight, bool isResizable = false);
+		// create input for an encoder that encodes a VkImage
+		static TSharedPtr<FVideoEncoderInput> CreateForVulkan(void* InApplicationVulkanData, uint32 InWidth, uint32 InHeight, bool IsResizable = false);
 
 		// --- properties
 		virtual void SetResolution(uint32 InWidth, uint32 InHeight);
+		virtual void SetMaxNumBuffers(uint32 InMaxNumBuffers);
 
 		EVideoFrameFormat GetFrameFormat() const { return FrameFormat; }
 
@@ -78,6 +90,17 @@ namespace AVEncoder
 		// destroy/release any frames that are not currently in use
 		virtual void Flush() = 0;
 
+	#if PLATFORM_WINDOWS
+		virtual TRefCountPtr<ID3D11Device> GetD3D11EncoderDevice() const = 0;
+		virtual TRefCountPtr<ID3D12Device> GetD3D12EncoderDevice() const = 0;
+	#endif
+
+		virtual CUcontext GetCUDAEncoderContext() const = 0;
+
+	#if PLATFORM_DESKTOP && !PLATFORM_APPLE
+		virtual void* GetVulkanEncoderDevice() const = 0;
+	#endif
+
 	protected:
 		FVideoEncoderInput() = default;
 		virtual ~FVideoEncoderInput() = default;
@@ -87,8 +110,12 @@ namespace AVEncoder
 		EVideoFrameFormat				FrameFormat = EVideoFrameFormat::Undefined;
 		uint32 Width;
 		uint32 Height;
+		uint32 MaxNumBuffers = 3;
+		uint32 NumBuffers = 0;
 
 		bool bIsResizable = false;
+
+		uint32 NextFrameID = 0;
 	};
 
 
@@ -183,13 +210,11 @@ namespace AVEncoder
 
 #endif // PLATFORM_WINDOWS
 
-#if WITH_CUDA
-
 		// --- CUDA
 		struct FCUDA
 		{
-			CUarray		EncoderTexture;
-			CUcontext   EncoderDevice;
+			CUarray		EncoderTexture = nullptr;
+			CUcontext   EncoderDevice = nullptr;
 		};
 
 		const FCUDA& GetCUDA() const { return CUDA; }
@@ -200,23 +225,27 @@ namespace AVEncoder
 
 		void SetTexture(CUarray InTexture, FReleaseCUDATextureCallback InOnReleaseTexture);
 
-#endif // WITH_CUDA
-
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
 		// --- Vulkan
 		struct FVulkan
 		{
-			VkImage_T*		EncoderTexture;
-			VkDevice_T*		EncoderDevice;
+			VkImage				EncoderTexture = VK_NULL_HANDLE;
+			VkDeviceMemory		EncoderDeviceMemory;
+			uint64				EncoderMemorySize = 0;
+			VkDevice			EncoderDevice;
+			mutable void*		EncoderSurface = nullptr;
 		};
 
 		const FVulkan& GetVulkan() const { return Vulkan; }
 		FVulkan& GetVulkan() { return Vulkan; }
 
 		// the callback type used to create a registered encoder
-		using FReleaseVulkanTextureCallback = TFunction<void(VkImage_T*)>;
+		using FReleaseVulkanTextureCallback = TFunction<void(VkImage)>;
+		using FReleaseVulkanSurfaceCallback = TFunction<void(void*)>;
+		mutable FReleaseVulkanSurfaceCallback OnReleaseVulkanSurface;
 
-#if PLATFORM_WINDOWS || PLATFORM_LINUX
-		void SetTexture(VkImage_T* InTexture, FReleaseVulkanTextureCallback InOnReleaseTexture);
+		void SetTexture(VkImage InTexture, FReleaseVulkanTextureCallback InOnReleaseTexture);
+		void SetTexture(VkImage InTexture, VkDeviceMemory InTextureDeviceMemory, uint64 InTextureSize, FReleaseVulkanTextureCallback InOnReleaseTexture);
 #endif
 
 	protected:
@@ -241,13 +270,13 @@ namespace AVEncoder
 		FReleaseD3D12TextureCallback			OnReleaseD3D12Texture;
 #endif
 
-#if WITH_CUDA
 		FCUDA									CUDA;
 		FReleaseCUDATextureCallback				OnReleaseCUDATexture;
-#endif
 
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
 		FVulkan									Vulkan;
 		FReleaseVulkanTextureCallback			OnReleaseVulkanTexture;
+#endif
 	};
 
 

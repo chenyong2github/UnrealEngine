@@ -20,9 +20,11 @@ public class WebRTC : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
+		// WebRTC binaries with debug symbols are huge hence the Release binaries do not have any
+		// if you want to have debug symbols with shipping you will need to build with debug instead  
+		if (Target.Configuration == UnrealTargetConfiguration.Shipping)
 		{
-			ConfigPath = "Debug";
+			ConfigPath = "Release";
 		}
 		else
 		{
@@ -36,14 +38,15 @@ public class WebRTC : ModuleRules
 
 			string PlatformSubdir = Target.Platform.ToString();
 
+			string IncludePath = Path.Combine(WebRtcSdkPath, "Include");
+			PublicSystemIncludePaths.Add(IncludePath);
+
+			string AbslthirdPartyIncludePath = Path.Combine(WebRtcSdkPath, "Include", "third_party", "abseil-cpp");
+			PublicSystemIncludePaths.Add(AbslthirdPartyIncludePath);
+
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				PublicDefinitions.Add("WEBRTC_WIN=1");
-
-				string IncludePath = Path.Combine(WebRtcSdkPath, "Include");
-				PublicSystemIncludePaths.Add(IncludePath);
-				string AbslthirdPartyIncludePath = Path.Combine(WebRtcSdkPath, "Include", "third_party", "abseil-cpp");
-				PublicSystemIncludePaths.Add(AbslthirdPartyIncludePath);
 
 				string LibraryPath = Path.Combine(WebRtcSdkPath, "Lib", PlatformSubdir, ConfigPath);
 				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "webrtc.lib"));
@@ -62,16 +65,12 @@ public class WebRTC : ModuleRules
 				PublicDefinitions.Add("WEBRTC_LINUX=1");
 				PublicDefinitions.Add("WEBRTC_POSIX=1");
 
-				string IncludePath = Path.Combine(WebRtcSdkPath, "Include", "Linux");
-				PublicSystemIncludePaths.Add(IncludePath);
-				string AbslthirdPartyIncludePath = Path.Combine(WebRtcSdkPath, "Include", "Linux", "third_party", "abseil-cpp");
-				PublicSystemIncludePaths.Add(AbslthirdPartyIncludePath);
-
 				// This is slightly different than the other platforms
-				string LibraryPath = Path.Combine(WebRtcSdkPath, "Lib/Linux", Target.Architecture, ConfigPath);
-
+				string LibraryPath = Path.Combine(WebRtcSdkPath, "Lib", PlatformSubdir, Target.Architecture, ConfigPath);
 				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "libwebrtc.a"));
+				
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "libOpus");
 			}
 		}
 
