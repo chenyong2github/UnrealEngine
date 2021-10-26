@@ -23,6 +23,7 @@ namespace HordeServer.Tasks.Impl
 {
 	using JobId = ObjectId<IJob>;
 	using LeaseId = ObjectId<ILease>;
+	using LogId = ObjectId<ILogFile>;
 
 	/// <summary>
 	/// Generates tasks telling agents to sync their workspaces
@@ -60,6 +61,8 @@ namespace HordeServer.Tasks.Impl
 			this.LogService = LogService;
 			this.Logger = Logger;
 			this.TickConformList = new ElectedTick(DatabaseService, new ObjectId("60afc5cf555a9a76aff0a50c"), CleanConformListAsync, TimeSpan.FromMinutes(1.0), Logger);
+
+			this.OnLeaseStartedProperties.Add(nameof(ConformTask.LogId), x => new LogId(x.LogId));
 		}
 
 		/// <inheritdoc/>

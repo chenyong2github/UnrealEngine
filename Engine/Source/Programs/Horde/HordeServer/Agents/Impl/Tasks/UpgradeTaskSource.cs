@@ -21,6 +21,7 @@ namespace HordeServer.Tasks.Impl
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
 	using JobId = ObjectId<IJob>;
 	using LeaseId = ObjectId<ILease>;
+	using LogId = ObjectId<ILogFile>;
 
 	class UpgradeTaskSource : TaskSourceBase<UpgradeTask>
 	{
@@ -35,6 +36,8 @@ namespace HordeServer.Tasks.Impl
 			this.AgentSoftwareService = AgentSoftwareService;
 			this.LogService = LogService;
 			this.Clock = Clock;
+
+			this.OnLeaseStartedProperties.Add(nameof(UpgradeTask.LogId), x => new LogId(x.LogId));
 		}
 
 		public async override Task<AgentLease?> AssignLeaseAsync(IAgent Agent, CancellationToken CancellationToken)
