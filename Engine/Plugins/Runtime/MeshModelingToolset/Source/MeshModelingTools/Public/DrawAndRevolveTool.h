@@ -4,11 +4,9 @@
 
 #include "CoreMinimal.h"
 
-#include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "ModelingOperators.h" //IDynamicMeshOperatorFactory
 #include "InteractiveTool.h" //UInteractiveToolPropertySet
 #include "InteractiveToolBuilder.h" //UInteractiveToolBuilder
-#include "InteractiveToolChange.h" //FToolCommandChange
 #include "MeshOpPreviewHelpers.h" //FDynamicMeshOpResult
 #include "Properties/MeshMaterialProperties.h"
 #include "PropertySets/CreateMeshObjectTypeProperties.h"
@@ -30,6 +28,17 @@ public:
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 };
 
+UENUM()
+enum class ERevolvePropertiesPathCapFillMode : uint8
+{
+	/** No caps will be generated. */
+	None = static_cast<uint8>(ERevolvePropertiesCapFillMode::None),
+	/** Caps are triangulated by placing a vertex in the center and creating a fan to the boundary. This works well if the path is convex,
+	  * but can create invalid geometry if it is concave. */
+	CenterFan = static_cast<uint8>(ERevolvePropertiesCapFillMode::CenterFan),
+	/** Caps are triangulated to maximize the minimal angle in the triangles using Delaunay triangulation. */
+	Delaunay = static_cast<uint8>(ERevolvePropertiesCapFillMode::Delaunay)
+};
 
 UCLASS()
 class MESHMODELINGTOOLS_API URevolveToolProperties : public URevolveProperties
@@ -38,28 +47,38 @@ class MESHMODELINGTOOLS_API URevolveToolProperties : public URevolveProperties
 
 public:
 
-	/** Connect the ends of an open profile to the axis to close the top and bottom of the revolved result. Not relevant if profile curve is closed. */
-	UPROPERTY(EditAnywhere, Category = RevolveSettings, AdvancedDisplay)
-	bool bConnectOpenProfileToAxis = true;
+	/** Determines how end caps are created. This is not relevant if the end caps are not visible or if the path is not closed. */
+	UPROPERTY(EditAnywhere, Category = Revolve, AdvancedDisplay, meta = (DisplayAfter = "QuadSplitMode",
+		EditCondition = "HeightOffsetPerDegree != 0 || RevolveDegrees != 360"))
+	ERevolvePropertiesPathCapFillMode CapFillMode = ERevolvePropertiesPathCapFillMode::Delaunay;
+
+	/** Connect the ends of an open path to the axis to add caps to the top and bottom of the revolved result.
+	  * This is not relevant for paths that are already closed. */
+	UPROPERTY(EditAnywhere, Category = Revolve, AdvancedDisplay)
+	bool bClosePathToAxis = true;
 	
 	/** Sets the draw plane origin. The revolution axis is the X axis in the plane. */
-	UPROPERTY(EditAnywhere, Category = DrawPlane, meta = (
-		EditCondition = "bAllowedToEditDrawPlane", HideEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = DrawPlane, meta = (DisplayName = "Origin", EditCondition = "bAllowedToEditDrawPlane", HideEditConditionToggle))
 	FVector DrawPlaneOrigin = FVector(0, 0, 0);
 
 	/** Sets the draw plane orientation. The revolution axis is the X axis in the plane. */
-	UPROPERTY(EditAnywhere, Category = DrawPlane, meta = (
-		EditCondition = "bAllowedToEditDrawPlane", HideEditConditionToggle, 
+	UPROPERTY(EditAnywhere, Category = DrawPlane, meta = (DisplayName = "Orientation", EditCondition = "bAllowedToEditDrawPlane", HideEditConditionToggle, 
 		UIMin = -180, UIMax = 180, ClampMin = -180000, ClampMax = 18000))
 	FRotator DrawPlaneOrientation = FRotator(90, 0, 0);
 
-	/** Enables/disables snapping while editing the profile curve. Also toggled with Shift. */
-	UPROPERTY(EditAnywhere, Category = ProfileCurve)
+	/** Enables snapping while editing the path. */
+	UPROPERTY(EditAnywhere, Category = Snapping)
 	bool bEnableSnapping = true;
 
 	// Not user visible- used to disallow draw plane modification.
 	UPROPERTY(meta = (TransientToolProperty))
 	bool bAllowedToEditDrawPlane = true;
+
+protected:
+	virtual ERevolvePropertiesCapFillMode GetCapFillMode() const override
+	{
+		return static_cast<ERevolvePropertiesCapFillMode>(CapFillMode);
+	}
 };
 
 UCLASS()

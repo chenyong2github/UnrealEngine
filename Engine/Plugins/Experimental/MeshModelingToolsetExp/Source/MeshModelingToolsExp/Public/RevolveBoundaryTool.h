@@ -5,14 +5,11 @@
 #include "CoreMinimal.h"
 
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
-#include "InteractiveToolBuilder.h"
-#include "SingleSelectionTool.h"
 #include "Mechanics/ConstructionPlaneMechanic.h"
 #include "MeshBoundaryToolBase.h"
 #include "MeshOpPreviewHelpers.h" //UMeshOpPreviewWithBackgroundCompute
 #include "ModelingOperators.h" //IDynamicMeshOperatorFactory
 #include "InteractiveTool.h"
-#include "InteractiveToolBuilder.h" //UInteractiveToolBuilder
 #include "Properties/MeshMaterialProperties.h"
 #include "Properties/RevolveProperties.h"
 #include "ToolContextInterfaces.h" // FToolBuilderState
@@ -43,28 +40,49 @@ public:
 	TObjectPtr<URevolveBoundaryTool> RevolveBoundaryTool;
 };
 
+UENUM()
+enum class ERevolvePropertiesBoundaryCapFillMode : uint8
+{
+	/** No caps will be generated. */
+	None = static_cast<uint8>(ERevolvePropertiesCapFillMode::None),
+	/** Caps are triangulated by placing a vertex in the center and creating a fan to the boundary. This works well if the path is convex,
+	  * but can create invalid geometry if it is concave. */
+	CenterFan = static_cast<uint8>(ERevolvePropertiesCapFillMode::CenterFan),
+	/** Caps are triangulated to maximize the minimal angle in the triangles using Delaunay triangulation. */
+	Delaunay = static_cast<uint8>(ERevolvePropertiesCapFillMode::Delaunay),
+	/** Caps are triangulated using a standard ear clipping approach. This could result in some very thin triangles. */
+	EarClipping = static_cast<uint8>(ERevolvePropertiesCapFillMode::EarClipping)
+};
+
 UCLASS()
 class MESHMODELINGTOOLSEXP_API URevolveBoundaryToolProperties : public URevolveProperties
 {
 	GENERATED_BODY()
 
 public:
-	
-	UPROPERTY(EditAnywhere, Category = RevolveSettings, AdvancedDisplay)
-	bool bDisplayOriginalMesh = false;
 
-	UPROPERTY(EditAnywhere, Category = RevolutionAxis)
+	/** Determines how end caps are created. This is not relevant if the end caps are not visible or if the path is not closed. */
+	UPROPERTY(EditAnywhere, Category = Revolve, AdvancedDisplay, meta = (DisplayAfter = "QuadSplitMode",
+		EditCondition = "HeightOffsetPerDegree != 0 || RevolveDegrees != 360"))
+	ERevolvePropertiesBoundaryCapFillMode CapFillMode = ERevolvePropertiesBoundaryCapFillMode::Delaunay;
+
+	/** If true, displays the original mesh in addition to the revolved boundary. */
+	UPROPERTY(EditAnywhere, Category = Revolve, AdvancedDisplay)
+	bool bDisplayInputMesh = false;
+
+	/** Sets the revolution axis origin. */
+	UPROPERTY(EditAnywhere, Category = RevolutionAxis, meta = (DisplayName = "Origin"))
 	FVector AxisOrigin = FVector(0, 0, 0);
 
-	//~ We don't use a rotator for axis orientation because one of the components (roll) 
-	//~ will never do anything in the case of our axis.
-	UPROPERTY(EditAnywhere, Category = RevolutionAxis, meta = (
-		UIMin = -180, UIMax = 180, ClampMin = -180000, ClampMax = 18000))
-	float AxisYaw = 0;
+	/** Sets the revolution axis pitch and yaw. */
+	UPROPERTY(EditAnywhere, Category = RevolutionAxis, meta = (DisplayName = "Orientation"))
+	FVector2D AxisOrientation;
 
-	UPROPERTY(EditAnywhere, Category = RevolutionAxis, meta = (
-		UIMin = -180, UIMax = 180, ClampMin = -180000, ClampMax = 18000))
-	float AxisPitch = 0;
+protected:
+	virtual ERevolvePropertiesCapFillMode GetCapFillMode() const override
+	{
+		return static_cast<ERevolvePropertiesCapFillMode>(CapFillMode);
+	}
 };
 
 /** 

@@ -12,48 +12,40 @@
 class UNewMeshMaterialProperties;
 PREDECLARE_GEOMETRY(class FCurveSweepOp);
 
-UENUM()
 enum class ERevolvePropertiesCapFillMode : uint8
 {
-	/** No cap. */
 	None,
-	/** Cap is triangulated to maximize the minimal angle in the triangles (if they were to be
-	   projected onto a best-fit plane). */
+	CenterFan,
 	Delaunay,
-	/** Cap is triangualted using a standard ear clipping approach. This could result in some
-	   very thin triangles. */
-	EarClipping,
-	/** A vertex is placed in the center and a fan is created to the boundary. This is nice if
-	   the cross section is convex, but creates invalid geometry if it isn't. */
-	CenterFan
+	EarClipping
 };
 
 
 UENUM()
 enum class ERevolvePropertiesPolygroupMode : uint8
 {
-	/** One polygroup for body of output mesh */
-	Single,
-	/** One polygroup per generated quad/triangle. */
+	/** One Polygroup for the entire shape */
+	PerShape,
+	/** One Polygroup for each geometric face */
 	PerFace,
-	/** Groups will be arranged in strips running in the profile curve direction, one per revolution step. */
-	PerStep,
-	/** Groups will be arranged in strips running along in the revolution direction according to profile curve. */
-	AccordingToProfileCurve
+	/** One PolyGroup along the path for each revolution step */
+	PerRevolveStep,
+	/** One PolyGroup along the revolution steps for each path segment */
+	PerPathSegment
 };
 
 UENUM()
 enum class ERevolvePropertiesQuadSplit : uint8
 {
-	/** Quads will always be split the same way relative to an unrolled mesh, regardless of quad shape. */
+	/** Quads will always be split into triangles the same way regardless of quad shape. */
 	Uniform,
 	
-	/** Quads will be split such that the shortest diagonal is connected. */
-	ShortestDiagonal
+	/** Quads will be split into triangles by connecting the shortest diagonal. */
+	Compact
 };
 
 /**
- * Common properties for revolving a polyline to create a mesh.
+ * Common properties for revolving a PolyPath to create a mesh.
  */
 UCLASS()
 class MESHMODELINGTOOLSEXP_API URevolveProperties : public UInteractiveToolPropertySet
@@ -65,126 +57,117 @@ public:
 	{
 		// We want the revolution degrees to be clamped to 360 when there is no offset along axis, and extendable
 		// beyond 360 when there is one (to make springs, etc). There's not currently a way to have a conditional
-		// clamp value, so instead, we swap the variables that we make visible to the user (RevolutionDegrees and
-		// ClampedRevolutionDegrees). However, we have to do some work to keep the values consistent so that they
+		// clamp value, so instead, we swap the variables that we make visible to the user (RevolveDegrees and
+		// RevolveDegreesClamped). However, we have to do some work to keep the values consistent so that they
 		// do not jump when they are swapped.
-		ClampedRevolutionDegreesWatcherIndex = WatchProperty(ClampedRevolutionDegrees,
+		ClampedRevolutionDegreesWatcherIndex = WatchProperty(RevolveDegreesClamped,
 			[this](const double& NewClamped) 
 			{ 
-				RevolutionDegrees = NewClamped; 
+				RevolveDegrees = NewClamped; 
 				SilentUpdateWatcherAtIndex(RevolutionDegreesWatcherIndex); //avoid triggering that watcher
 			});
 
-		RevolutionDegreesWatcherIndex = WatchProperty(RevolutionDegrees,
+		RevolutionDegreesWatcherIndex = WatchProperty(RevolveDegrees,
 			[this](const double& NewNonClamped)
 			{
-				ClampedRevolutionDegrees = FMath::Min(RevolutionDegrees, 360.0);
+				RevolveDegreesClamped = FMath::Min(RevolveDegrees, 360.0);
 				SilentUpdateWatcherAtIndex(ClampedRevolutionDegreesWatcherIndex); //avoid triggering that watcher
 			});
 	}
 
-	/** Revolution extent. Clamped to a max of 360 when not offsetting along axis.*/
-	UPROPERTY(EditAnywhere, Category = RevolveSettings, meta = (UIMin = "0", UIMax = "360", ClampMin = "0", ClampMax = "360", 
-		EditCondition = "AlongAxisOffsetPerDegree == 0", EditConditionHides, DisplayName = "Revolution Degrees"))
-	double ClampedRevolutionDegrees = 360;
+	/** Revolution extent in degrees. Clamped to a maximum of 360 if Height Offset Per Degree is set to 0. */
+	UPROPERTY(EditAnywhere, Category = Revolve, meta = (DisplayName = "Degrees", UIMin = "0", UIMax = "360", ClampMin = "0", ClampMax = "360", 
+		EditCondition = "HeightOffsetPerDegree == 0", EditConditionHides))
+	double RevolveDegreesClamped = 360;
 
-	/** Revolution extent. */
-	UPROPERTY(EditAnywhere, Category = RevolveSettings, meta = (UIMin = "0", UIMax = "3600", ClampMin = "0", ClampMax = "360000",
-		EditCondition = "AlongAxisOffsetPerDegree != 0", EditConditionHides))
-	double RevolutionDegrees = 360;
+	/** Revolution extent in degrees. Clamped to a maximum of 360 if Height Offset Per Degree is set to 0. */
+	UPROPERTY(EditAnywhere, Category = Revolve, meta = (DisplayName = "Degrees", UIMin = "0", UIMax = "3600", ClampMin = "0", ClampMax = "360000",
+		EditCondition = "HeightOffsetPerDegree != 0", EditConditionHides))
+	double RevolveDegrees = 360;
 
-	/** When true, the number of steps can be specified explicitly. When false, the number of steps is adjusted automatically. */
-	UPROPERTY(EditAnywhere, Category = RevolveSettings)
+	/** The angle by which to rotate the path around the axis before beginning the revolve. */
+	UPROPERTY(EditAnywhere, Category = Revolve, meta = (DisplayName = "Degrees Offset", UIMin = "-360", UIMax = "360", ClampMin = "-36000", ClampMax = "36000"))
+	double RevolveDegreesOffset = 0;
+
+	/** Implicitly defines the number of steps in the revolution such that each step moves the revolution no more than the given number of degrees. This is only available if Explicit Steps is disabled. */
+	UPROPERTY(EditAnywhere, Category = Revolve, meta = (UIMin = "1", ClampMin = "1", UIMax = "120", ClampMax = "180", EditCondition = "!bExplicitSteps"))
+	double StepsMaxDegrees = 15;
+
+	/** If true, the number of steps can be specified explicitly via Steps. If false, the number of steps is adjusted automatically based on Steps Max Degrees. */
+	UPROPERTY(EditAnywhere, Category = Revolve)
 	bool bExplicitSteps = false;
 
-	/** Number of steps to take while revolving. */
-	UPROPERTY(EditAnywhere, Category = RevolveSettings, meta = (UIMin = "1", ClampMin = "1", UIMax = "100", ClampMax = "5000",
-		Display = "Steps", EditCondition = "bExplicitSteps", EditConditionHides))
+	/** Number of steps in the revolution. This is only available if Explicit Steps is enabled. */
+	UPROPERTY(EditAnywhere, Category = Revolve, meta = (DisplayName = "Steps", UIMin = "1", ClampMin = "1", UIMax = "100", ClampMax = "5000",
+		EditCondition = "bExplicitSteps"))
 	int NumExplicitSteps = 24;
 
-	/** The revolution is split into a number of steps such that each step moves the revolution no more than this number of degrees.  */
-	UPROPERTY(EditAnywhere, Category = RevolveSettings, meta = (UIMin = "1", ClampMin = "1", UIMax = "120", ClampMax = "180",
-		EditCondition = "!bExplicitSteps", EditConditionHides))
-	double MaxDegreesPerStep = 15;
+	/** How far to move each step along the revolution axis per degree. Non-zero values are useful for creating spirals. */
+	UPROPERTY(EditAnywhere, Category = Revolve, meta = (DisplayName = "Height Offset", UIMin = "-1", UIMax = "1", ClampMin = "-100000", ClampMax = "100000"))
+	double HeightOffsetPerDegree = 0;
 
-	/** How far to move each step along the axis (per degree). Used to create spirals. */
-	UPROPERTY(EditAnywhere, Category = RevolveSettings, meta = (UIMin = "-1", UIMax = "1", ClampMin = "-100000", ClampMax = "100000"))
-	double AlongAxisOffsetPerDegree = 0;
-
-	/** The angle by which to shift the profile curve around the axis before beginning the revolve */
-	UPROPERTY(EditAnywhere, Category = RevolveSettings, meta = (UIMin = "-360", UIMax = "360", ClampMin = "-36000", ClampMax = "36000"), AdvancedDisplay)
-	double RevolutionDegreesOffset = 0;
-
-	/** By default, revolution is done counterclockwise if looking down the revolution axis. This reverses the direction.*/
-	UPROPERTY(EditAnywhere, Category = RevolveSettings)
+	/** By default, revolution is done counterclockwise if looking down the revolution axis. This reverses the revolution direction to clockwise.*/
+	UPROPERTY(EditAnywhere, Category = Revolve, meta = (DisplayName = "Reverse"))
 	bool bReverseRevolutionDirection = false;
 
 	/** Flips the mesh inside out. */
-	UPROPERTY(EditAnywhere, Category = RevolveSettings)
+	UPROPERTY(EditAnywhere, Category = Revolve)
 	bool bFlipMesh = false;
 
-	/** If true, then rather than revolving the profile directly, it is interpreted as the midpoint cross section of
-	 the first rotation step. Useful, for instance, for using the tool to create square columns. */
-	UPROPERTY(EditAnywhere, Category = RevolveSettings, AdvancedDisplay)
-	bool bProfileIsCrossSectionOfSide = false;
-
-	/** Determines grouping of generated triangles into polygroups. 
-	   Caps (if present) will always be separate groups. */
-	UPROPERTY(EditAnywhere, Category = RevolveSettings, AdvancedDisplay)
-	ERevolvePropertiesPolygroupMode PolygroupMode = ERevolvePropertiesPolygroupMode::PerFace;
-
-	/** Determines how any generated quads are split into triangles. */
-	UPROPERTY(EditAnywhere, Category = RevolveSettings, AdvancedDisplay)
-	ERevolvePropertiesQuadSplit QuadSplitMode = ERevolvePropertiesQuadSplit::ShortestDiagonal;
-	
-	/** When quads are generated using "shortest" diagonal, this biases the diagonal length comparison
-	 to prefer one slightly in the case of similar diagonals (for example, a value of 0.01 allows a
-	 1% difference in lengths before the triangulation is flipped). Helps symmetric quads be uniformly
-	 triangulated. */
-	UPROPERTY(EditAnywhere, Category = RevolveSettings, AdvancedDisplay, meta = (ClampMin = "0.0",  ClampMax = "2.0", 
-		EditCondition = "QuadSplitMode == ERevolvePropertiesQuadSplit::ShortestDiagonal", EditConditionHides))
-	double DiagonalProportionTolerance = 0.01;
-
-	/** Determines how caps are created if the revolution is partial. Not relevant if the
-	  revolution is full and welded. */
-	UPROPERTY(EditAnywhere, Category = RevolveSettings, AdvancedDisplay, meta = (
-		EditCondition = "AlongAxisOffsetPerDegree != 0 || RevolutionDegrees != 360", EditConditionHides))
-	ERevolvePropertiesCapFillMode CapFillMode = ERevolvePropertiesCapFillMode::Delaunay;
-
-	/** If true, the ends of a fully revolved profile are welded together, rather than duplicating
-	  vertices at the seam. Not relevant if the revolution is not full. */
-	UPROPERTY(EditAnywhere, Category = RevolveSettings, AdvancedDisplay, meta = (
-		EditCondition = "AlongAxisOffsetPerDegree == 0 && RevolutionDegrees == 360", EditConditionHides))
-	bool bWeldFullRevolution = true;
-
-	/** If true, vertices sufficiently close to the axis will not be replicated, instead reusing
-	  the same vertex for any adjacent triangles. */
-	UPROPERTY(EditAnywhere, Category = RevolveSettings, AdvancedDisplay)
-	bool bWeldVertsOnAxis = true;
-
-	/** If welding vertices on the axis, the distance that a vertex can be from the axis and still be welded */
-	UPROPERTY(EditAnywhere, Category = RevolveSettings, AdvancedDisplay, meta = (ClampMin = "0.0", ClampMax = "20.0", 
-		EditCondition = "bWeldVertsOnAxis", EditConditionHides))
-	double AxisWeldTolerance = 0.1;
-
-	/** If true, normals are not averaged or shared between triangles with sufficient angle difference. */
-	UPROPERTY(EditAnywhere, Category = RevolveSettings)
+	/** If true, normals are not averaged or shared between triangles beyond the Sharp Normals Degree Threshold. */
+	UPROPERTY(EditAnywhere, Category = Revolve)
 	bool bSharpNormals = false;
 
-	/** When using sharp normals, the degree difference to accept between adjacent triangle normals to allow them to share
-	 normals at their vertices. */
-	UPROPERTY(EditAnywhere, Category = RevolveSettings, meta = (ClampMin = "0.0", ClampMax = "90.0", 
-		EditCondition = "bSharpNormals", EditConditionHides))
-	double SharpNormalAngleTolerance = 0.1;
+	/** The threshold in degrees beyond which normals are not averaged or shared between triangles anymore. This is only available if Sharp Normals is enabled. */
+	UPROPERTY(EditAnywhere, Category = Revolve,	meta = (DisplayName = "Sharp Normals Threshold", ClampMin = "0.0", ClampMax = "90.0",
+		EditCondition = "bSharpNormals"))
+	double SharpNormalsDegreeThreshold = 0.1;
+
+	/** If true, the path is placed at the midpoint of each step instead of at the start and/or end of a step. For example, this is useful for creating square columns. */
+	UPROPERTY(EditAnywhere, Category = Revolve, AdvancedDisplay, meta = (DisplayName = "Path at Midpoint"))
+	bool bPathAtMidpointOfStep = false;
+
+	/** How Polygroups are assigned to shape primitives. If caps are generated, they will always be in separate groups. */
+	UPROPERTY(EditAnywhere, Category = Revolve, AdvancedDisplay)
+	ERevolvePropertiesPolygroupMode PolygroupMode = ERevolvePropertiesPolygroupMode::PerFace;
+
+	/** How generated quads are split into triangles. */
+	UPROPERTY(EditAnywhere, Category = Revolve, AdvancedDisplay)
+	ERevolvePropertiesQuadSplit QuadSplitMode = ERevolvePropertiesQuadSplit::Compact;
+
+	/**
+	 * For quad split mode Compact, this biases the length comparison to prefer one diagonal over the other.
+	 * For example, a value of 0.01 allows a 1% difference in lengths before the triangulation is flipped. This helps symmetric quads to
+	 * be triangulated more uniformly.
+	 */
+	// UPROPERTY(EditAnywhere, Category = Revolve, AdvancedDisplay, meta = (DisplayName = "Quad Split Tolerance", ClampMin = "0.0",  ClampMax = "2.0",
+	// 	EditCondition = "QuadSplitMode == ERevolvePropertiesQuadSplit::Compact"))
+	double QuadSplitCompactTolerance = 0.01;
+
+	// /** Determines how end caps are created. This is not relevant if the end caps are not visible or if the path is not closed. */
+	// UPROPERTY(EditAnywhere, Category = Revolve, AdvancedDisplay, meta = (EditCondition = "HeightOffsetPerDegree != 0 || RevolveDegrees != 360"))
+	// ERevolvePropertiesCapFillMode CapFillMode = ERevolvePropertiesCapFillMode::Delaunay;
+
+	/** If true, the ends of a fully revolved path are welded together, rather than duplicating vertices at the seam.
+	 * This is not relevant if the revolution is not full and/or there is a height offset. */
+	// UPROPERTY(EditAnywhere, Category = Revolve, AdvancedDisplay, meta = (EditCondition = "HeightOffsetPerDegree == 0 && RevolveDegrees == 360"))
+	bool bWeldFullRevolution = true;
+
+	/** If true, vertices close to the axis will not be replicated, instead reusing the same vertex for any adjacent triangles. */
+	// UPROPERTY(EditAnywhere, Category = Revolve, AdvancedDisplay)
+	bool bWeldVertsOnAxis = true;
+
+	/** If welding vertices on the axis, the distance that a vertex can be from the axis and still be welded. */
+	// UPROPERTY(EditAnywhere, Category = Revolve, AdvancedDisplay, meta = (ClampMin = "0.0", ClampMax = "20.0", EditCondition = "bWeldVertsOnAxis"))
+	double AxisWeldTolerance = 0.1;
 
 	/** If true, UV coordinates will be flipped in the V direction. */
-	UPROPERTY(EditAnywhere, Category = RevolveSettings, AdvancedDisplay)
+	// UPROPERTY(EditAnywhere, Category = Revolve, AdvancedDisplay)
 	bool bFlipVs = false;
 
-	/* If true, UV layout is not affected by segments of the profile curve that 
-	  do not result in any triangles (i.e., when both ends of the segment are welded
-	  due to being on the revolution axis).*/
-	UPROPERTY(EditAnywhere, Category = RevolveSettings, AdvancedDisplay)
+	/* If true, UV layout is not affected by segments of the path that do not result in any triangles. For example, when both ends of
+	 * a segment are welded due to being on the revolution axis.*/
+	// UPROPERTY(EditAnywhere, Category = Revolve, AdvancedDisplay)
 	bool bUVsSkipFullyWeldedEdges = true;
 
 
@@ -199,6 +182,11 @@ public:
 		UE::Geometry::FCurveSweepOp& CurveSweepOpOut) const;
 
 	protected:
+		virtual ERevolvePropertiesCapFillMode GetCapFillMode() const
+		{
+			return ERevolvePropertiesCapFillMode::Delaunay;
+		}
+	
 		int32 ClampedRevolutionDegreesWatcherIndex;
 		int32 RevolutionDegreesWatcherIndex;
 };

@@ -2,7 +2,6 @@
 
 #include "DrawAndRevolveTool.h"
 
-#include "BaseGizmos/GizmoRenderingUtil.h"
 #include "BaseBehaviors/SingleClickBehavior.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "CompositionOps/CurveSweepOp.h"
@@ -21,8 +20,8 @@ using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UDrawAndRevolveTool"
 
-const FText InitializationModeMessage = LOCTEXT("CurveInitialization", "Draw a profile curve and revolve it around purple axis. Ctrl+click repositions draw plane, Ctrl+Shift+click repositions without aligning axis. End curve by clicking the end again or connecting to start. Backspace deletes points, shift inverts snapping behavior.");
-const FText EditModeMessage = LOCTEXT("CurveEditing", "Click points to select them, Shift+click to add/remove points to selection. Ctrl+click a segment to add a point, or select an endpoint and Ctrl+click somewhere on the plane to add to the ends. Backspace deletes selected points. Holding Shift toggles snapping to be opposite the EnableSnapping setting.");
+const FText InitializationModeMessage = LOCTEXT("CurveInitialization", "Draw a path and revolve it around the purple axis. Left-click to place path vertices, and click on the last or first vertex to complete the path. Hold Shift to invert snapping behavior.");
+const FText EditModeMessage = LOCTEXT("CurveEditing", "Click points to select them, Shift+click to modify selection. Ctrl+click a segment to add a point, or select an endpoint and Ctrl+click to add new endpoint. Backspace deletes selected points. Hold Shift to invert snapping behavior.");
 
 
 // Tool builder
@@ -53,7 +52,7 @@ TUniquePtr<FDynamicMeshOperator> URevolveOperatorFactory::MakeNewOperator()
 	CurveSweepOp->bProfileCurveIsClosed = RevolveTool->ControlPointsMechanic->GetIsLoop();
 
 	// If we are capping the top and bottom, we just add a couple extra vertices and mark the curve as being closed
-	if (!CurveSweepOp->bProfileCurveIsClosed && RevolveTool->Settings->bConnectOpenProfileToAxis)
+	if (!CurveSweepOp->bProfileCurveIsClosed && RevolveTool->Settings->bClosePathToAxis)
 	{
 		// Project first and last points onto the revolution axis.
 		FVector3d FirstPoint = CurveSweepOp->ProfileCurve[0];
@@ -241,7 +240,7 @@ void UDrawAndRevolveTool::GenerateAsset(const FDynamicMeshOpResult& OpResult)
 		return;
 	}
 
-	GetToolManager()->BeginUndoTransaction(LOCTEXT("RevolveToolTransactionName", "Revolve Tool"));
+	GetToolManager()->BeginUndoTransaction(LOCTEXT("RevolveToolTransactionName", "Path Revolve Tool"));
 
 	FCreateMeshObjectParams NewMeshObjectParams;
 	NewMeshObjectParams.TargetWorld = TargetWorld;

@@ -98,22 +98,22 @@ void URevolveBoundaryTool::Setup()
 	PlaneMechanic = NewObject<UConstructionPlaneMechanic>(this);
 	PlaneMechanic->Setup(this);
 	PlaneMechanic->Initialize(TargetWorld, FFrame3d(Settings->AxisOrigin, 
-		FRotator(Settings->AxisPitch, Settings->AxisYaw, 0).Quaternion()));
+		FRotator(Settings->AxisOrientation.X, Settings->AxisOrientation.Y, 0).Quaternion()));
 	PlaneMechanic->UpdateClickPriority(ClickBehavior->GetPriority().MakeLower());
 	PlaneMechanic->bShowGrid = false;
 	PlaneMechanic->OnPlaneChanged.AddLambda([this]() {
 		Settings->AxisOrigin = (FVector)PlaneMechanic->Plane.Origin;
 		FRotator AxisOrientation = ((FQuat)PlaneMechanic->Plane.Rotation).Rotator();
-		Settings->AxisPitch = AxisOrientation.Pitch;
-		Settings->AxisYaw = AxisOrientation.Yaw;
+		Settings->AxisOrientation.X = AxisOrientation.Pitch;
+		Settings->AxisOrientation.Y = AxisOrientation.Yaw;
 		UpdateRevolutionAxis();
 		});
 
-	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(Settings->bDisplayOriginalMesh);
+	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(Settings->bDisplayInputMesh);
 
 	SetToolDisplayName(LOCTEXT("ToolName", "Revolve Boundary"));
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartRevolveBoundaryTool", "Revolve an open mesh boundary loop around an axis to create a new mesh. Ctrl+click will reposition the revolution axis, potentially aligning it with an edge."),
+		LOCTEXT("OnStartRevolveBoundaryTool", "Revolve an open mesh boundary loop around an axis to create a new mesh."),
 		EToolMessageLevel::UserNotification);
 	if (Topology->Edges.Num() == 1)
 	{
@@ -125,13 +125,13 @@ void URevolveBoundaryTool::Setup()
 	else if (Topology->Edges.Num() == 0)
 	{
 		GetToolManager()->DisplayMessage(
-			LOCTEXT("NoBoundaryLoops", "This mesh does not have any boundary loops to display and revolve. Delete some faces or use a different mesh."),
+			LOCTEXT("NoBoundaryLoops", "This mesh does not have any boundary loops to display and revolve. Delete faces to create a boundary or use a different mesh."),
 			EToolMessageLevel::UserWarning);
 	}
 	else
 	{
 		GetToolManager()->DisplayMessage(
-			LOCTEXT("OnStartRevolveBoundaryToolMultipleBoundaries", "Your mesh has multiple boundaries- Click the one you wish to use"),
+			LOCTEXT("OnStartRevolveBoundaryToolMultipleBoundaries", "Your mesh has multiple boundaries. Select the one you wish to use."),
 			EToolMessageLevel::UserWarning);
 	}
 }
@@ -187,8 +187,8 @@ void URevolveBoundaryTool::OnClicked(const FInputDeviceRay& ClickPos)
 
 			Settings->AxisOrigin = (FVector)RevolutionAxisFrame.Origin;
 			FRotator AxisOrientation = ((FQuat)RevolutionAxisFrame.Rotation).Rotator();
-			Settings->AxisPitch = AxisOrientation.Pitch;
-			Settings->AxisYaw = AxisOrientation.Yaw;
+			Settings->AxisOrientation.X = AxisOrientation.Pitch;
+			Settings->AxisOrientation.Y = AxisOrientation.Yaw;
 			UpdateRevolutionAxis();
 		}
 
@@ -215,7 +215,7 @@ bool URevolveBoundaryTool::CanAccept() const
 void URevolveBoundaryTool::UpdateRevolutionAxis()
 {
 	RevolutionAxisOrigin = (FVector3d)Settings->AxisOrigin;
-	RevolutionAxisDirection = (FVector3d)FRotator(Settings->AxisPitch, Settings->AxisYaw, 0).RotateVector(FVector(1, 0, 0));
+	RevolutionAxisDirection = (FVector3d)FRotator(Settings->AxisOrientation.X, Settings->AxisOrientation.Y, 0).RotateVector(FVector(1, 0, 0));
 	if (Preview)
 	{
 		Preview->InvalidateResult();
@@ -278,7 +278,7 @@ void URevolveBoundaryTool::GenerateAsset(const FDynamicMeshOpResult& OpResult)
 		return;
 	}
 
-	GetToolManager()->BeginUndoTransaction(LOCTEXT("RevolveBoundaryToolTransactionName", "Revolve Tool"));
+	GetToolManager()->BeginUndoTransaction(LOCTEXT("RevolveBoundaryToolTransactionName", "Boundary Revolve Tool"));
 
 	FCreateMeshObjectParams NewMeshObjectParams;
 	NewMeshObjectParams.TargetWorld = TargetWorld;
@@ -338,10 +338,10 @@ void URevolveBoundaryTool::Render(IToolsContextRenderAPI* RenderAPI)
 void URevolveBoundaryTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	PlaneMechanic->SetPlaneWithoutBroadcast(FFrame3d(Settings->AxisOrigin, 
-		FRotator(Settings->AxisPitch, Settings->AxisYaw, 0).Quaternion()));
+		FRotator(Settings->AxisOrientation.X, Settings->AxisOrientation.Y, 0).Quaternion()));
 	UpdateRevolutionAxis();
 
-	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(Settings->bDisplayOriginalMesh);
+	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(Settings->bDisplayInputMesh);
 
 	if (Preview)
 	{

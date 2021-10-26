@@ -4,7 +4,6 @@
 
 #include "CompositionOps/CurveSweepOp.h"
 #include "Properties/MeshMaterialProperties.h"
-#include "Properties/RevolveProperties.h"
 #include "Util/RevolveUtil.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
@@ -28,27 +27,27 @@ void URevolveProperties::ApplyToCurveSweepOp(const UNewMeshMaterialProperties& M
 		}
 	}
 
-	double TotalRevolutionDegrees = (AlongAxisOffsetPerDegree == 0) ? ClampedRevolutionDegrees : RevolutionDegrees;
+	const double TotalRevolutionDegrees = (HeightOffsetPerDegree == 0) ? RevolveDegreesClamped : RevolveDegrees;
 
-	int32 Steps = bExplicitSteps ? NumExplicitSteps : FMath::CeilToInt(TotalRevolutionDegrees / MaxDegreesPerStep);
+	const int32 Steps = bExplicitSteps ? NumExplicitSteps : FMath::CeilToInt(TotalRevolutionDegrees / StepsMaxDegrees);
 	
 	double DegreesPerStep = TotalRevolutionDegrees / Steps;
-	double DegreesOffset = RevolutionDegreesOffset;
+	double DegreesOffset = RevolveDegreesOffset;
 	if (bReverseRevolutionDirection)
 	{
 		DegreesPerStep *= -1;
 		DegreesOffset *= -1;
 	}
-	double DownAxisOffsetPerStep = TotalRevolutionDegrees * AlongAxisOffsetPerDegree / Steps;
+	const double DownAxisOffsetPerStep = TotalRevolutionDegrees * HeightOffsetPerDegree / Steps;
 
-	if (bProfileIsCrossSectionOfSide && DegreesPerStep != 0 && abs(DegreesPerStep) < 180)
+	if (bPathAtMidpointOfStep && DegreesPerStep != 0 && abs(DegreesPerStep) < 180)
 	{
 		RevolveUtil::MakeProfileCurveMidpointOfFirstStep(CurveSweepOpOut.ProfileCurve, DegreesPerStep, RevolutionAxisOrigin, RevolutionAxisDirection);
 	}
 
 	// Generate the sweep curve
-	CurveSweepOpOut.bSweepCurveIsClosed = bWeldFullRevolution && AlongAxisOffsetPerDegree == 0 && TotalRevolutionDegrees == 360;
-	int32 NumSweepFrames = CurveSweepOpOut.bSweepCurveIsClosed ? Steps : Steps + 1; // If closed, last sweep frame is also first
+	CurveSweepOpOut.bSweepCurveIsClosed = bWeldFullRevolution && HeightOffsetPerDegree == 0 && TotalRevolutionDegrees == 360;
+	const int32 NumSweepFrames = CurveSweepOpOut.bSweepCurveIsClosed ? Steps : Steps + 1; // If closed, last sweep frame is also first
 	CurveSweepOpOut.SweepCurve.Reserve(NumSweepFrames);
 	RevolveUtil::GenerateSweepCurve(RevolutionAxisOrigin, RevolutionAxisDirection, DegreesOffset,
 		DegreesPerStep, DownAxisOffsetPerStep, NumSweepFrames, CurveSweepOpOut.SweepCurve);
@@ -60,9 +59,9 @@ void URevolveProperties::ApplyToCurveSweepOp(const UNewMeshMaterialProperties& M
 			RevolutionAxisDirection, AxisWeldTolerance, CurveSweepOpOut.ProfileVerticesToWeld);
 	}
 	CurveSweepOpOut.bSharpNormals = bSharpNormals;
-	CurveSweepOpOut.SharpNormalAngleTolerance = SharpNormalAngleTolerance;
-	CurveSweepOpOut.DiagonalTolerance = DiagonalProportionTolerance;
-	double UVScale = MaterialProperties.UVScale;
+	CurveSweepOpOut.SharpNormalAngleTolerance = SharpNormalsDegreeThreshold;
+	CurveSweepOpOut.DiagonalTolerance = QuadSplitCompactTolerance;
+	const double UVScale = MaterialProperties.UVScale;
 	CurveSweepOpOut.UVScale = FVector2d(UVScale, UVScale);
 	if (bReverseProfileCurve ^ bFlipVs)
 	{
@@ -74,29 +73,29 @@ void URevolveProperties::ApplyToCurveSweepOp(const UNewMeshMaterialProperties& M
 	CurveSweepOpOut.UnitUVInWorldCoordinates = 100; // This seems to be the case in the AddPrimitiveTool
 	switch (PolygroupMode)
 	{
-	case ERevolvePropertiesPolygroupMode::Single:
+	case ERevolvePropertiesPolygroupMode::PerShape:
 		CurveSweepOpOut.PolygonGroupingMode = EProfileSweepPolygonGrouping::Single;
 		break;
 	case ERevolvePropertiesPolygroupMode::PerFace:
 		CurveSweepOpOut.PolygonGroupingMode = EProfileSweepPolygonGrouping::PerFace;
 		break;
-	case ERevolvePropertiesPolygroupMode::PerStep:
+	case ERevolvePropertiesPolygroupMode::PerRevolveStep:
 		CurveSweepOpOut.PolygonGroupingMode = EProfileSweepPolygonGrouping::PerSweepSegment;
 		break;
-	case ERevolvePropertiesPolygroupMode::AccordingToProfileCurve:
+	case ERevolvePropertiesPolygroupMode::PerPathSegment:
 		CurveSweepOpOut.PolygonGroupingMode = EProfileSweepPolygonGrouping::PerProfileSegment;
 		break;
 	}
 	switch (QuadSplitMode)
 	{
-	case ERevolvePropertiesQuadSplit::ShortestDiagonal:
+	case ERevolvePropertiesQuadSplit::Compact:
 		CurveSweepOpOut.QuadSplitMode = EProfileSweepQuadSplit::ShortestDiagonal;
 		break;
 	case ERevolvePropertiesQuadSplit::Uniform:
 		CurveSweepOpOut.QuadSplitMode = EProfileSweepQuadSplit::Uniform;
 		break;
 	}
-	switch (CapFillMode)
+	switch (GetCapFillMode())
 	{
 	case ERevolvePropertiesCapFillMode::None:
 		CurveSweepOpOut.CapFillMode = FCurveSweepOp::ECapFillMode::None;
