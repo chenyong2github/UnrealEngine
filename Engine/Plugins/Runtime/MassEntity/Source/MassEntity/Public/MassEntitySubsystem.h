@@ -416,7 +416,7 @@ public:
 	int32 GetChunkSerialModificationNumber() const { return ChunkSerialModificationNumber; }
 
 	template<typename T>
-	T* GetOptionalMutableChunkFragment() const
+	T* GetMutableChunkFragmentPtr() const
 	{
 		static_assert(TIsDerivedFrom<T, FMassChunkFragment>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FMassChunkFragment or one of its child-types.");
 
@@ -428,13 +428,13 @@ public:
 	template<typename T>
 	T& GetMutableChunkFragment() const
 	{
-		T* ChunkFragment = GetOptionalMutableChunkFragment<T>();
+		T* ChunkFragment = GetMutableChunkFragmentPtr<T>();
 		checkf(ChunkFragment, TEXT("Chunk Fragment requirement not found: %s"), *T::StaticStruct()->GetName());
 		return *ChunkFragment;
 	}
 
 	template<typename T>
-	const T* GetOptionalChunkFragment() const
+	const T* GetChunkFragmentPtr() const
 	{
 		static_assert(TIsDerivedFrom<T, FMassChunkFragment>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FMassChunkFragment or one of its child-types.");
 
@@ -446,7 +446,7 @@ public:
 	template<typename T>
 	const T& GetChunkFragment() const
 	{
-		const T* ChunkFragment = GetOptionalChunkFragment<T>();
+		const T* ChunkFragment = GetChunkFragmentPtr<T>();
 		checkf(ChunkFragment, TEXT("Chunk Fragment requirement not found: %s"), *T::StaticStruct()->GetName());
 		return *ChunkFragment;
 	}

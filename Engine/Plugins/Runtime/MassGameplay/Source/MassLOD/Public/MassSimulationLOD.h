@@ -73,10 +73,14 @@ struct FMassSimulationVariableTickChunkFragment : public FMassVariableTickChunkF
 {
 	GENERATED_BODY();
 
+	/**
+	 * @return if Context contains an instance of FMassSimulationVariableTickChunkFragment then the function returns
+	 *	the value of FMassVariableTickChunkFragment.ShouldTickThisFrame; otherwise it returns DefaultValue.
+	 */
 	static bool ShouldTickChunkThisFrame(const FMassExecutionContext& Context)
 	{
-		const FMassSimulationVariableTickChunkFragment& ChunkFragment = Context.GetChunkFragment<FMassSimulationVariableTickChunkFragment>();
-		return ChunkFragment.ShouldTickThisFrame();
+		const FMassSimulationVariableTickChunkFragment* ChunkFragment = Context.GetChunkFragmentPtr<FMassSimulationVariableTickChunkFragment>();
+		return ChunkFragment == nullptr || ChunkFragment->ShouldTickThisFrame();
 	}
 
 	static EMassLOD::Type GetChunkLOD(const FMassExecutionContext& Context)
