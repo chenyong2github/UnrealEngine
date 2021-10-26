@@ -85,6 +85,6 @@ private:
 
 	virtual void OnEndUpdateInputs() override { K2_OnEndUpdateInputs(); }
 
-	virtual void OnDestroyed() override { K2_OnDestroyed(); }
+	virtual void OnDestroyed() override;
 };
 

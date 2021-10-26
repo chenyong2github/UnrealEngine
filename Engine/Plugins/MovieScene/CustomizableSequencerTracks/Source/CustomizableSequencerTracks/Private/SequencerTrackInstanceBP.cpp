@@ -103,4 +103,26 @@ void USequencerTrackInstanceBP::OnInputRemoved(const FMovieSceneTrackInstanceInp
 }
 
 
+void USequencerTrackInstanceBP::OnDestroyed()
+{
+	using namespace UE::MovieScene;
+
+	TArrayView<const FMovieSceneTrackInstanceInput> InputsView = Super::GetInputs();
+	for (const FMovieSceneTrackInstanceInput& Input : InputsView)
+	{
+		FSequencerTrackInstanceInput ThisInput;
+		ThisInput.Section = CastChecked<USequencerSectionBP>(Input.Section);
+
+		const FInstanceRegistry* InstanceRegistry = GetLinker()->GetInstanceRegistry();
+		if (ensure(InstanceRegistry->IsHandleValid(Input.InstanceHandle)))
+		{
+			ThisInput.Context = InstanceRegistry->GetInstance(Input.InstanceHandle).GetContext();
+		}
+
+		K2_OnInputRemoved(ThisInput);
+	}
+	K2_OnDestroyed();
+}
+
+
 IMPLEMENT_MODULE(FDefaultModuleImpl, CustomizableSequencerTracks);
