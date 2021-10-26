@@ -106,7 +106,10 @@ void UControlRig::BeginDestroy()
 		{
 			if (!CDO->HasAnyFlags(RF_BeginDestroyed))
 			{
-				CDO->GetHierarchy()->UnregisterListeningHierarchy(GetHierarchy());
+				if (CDO->GetHierarchy())
+				{
+					CDO->GetHierarchy()->UnregisterListeningHierarchy(GetHierarchy());
+				}
 			}
 		}
 	}
