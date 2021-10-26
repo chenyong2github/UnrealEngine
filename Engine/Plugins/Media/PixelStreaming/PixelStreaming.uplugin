@@ -1,9 +1,9 @@
 {
 	"FileVersion": 3,
-	"Version": 0.2,
-	"VersionName": "0.2",
+	"Version": 1.0,
+	"VersionName": "1.0",
 	"FriendlyName": "Pixel Streaming",
-	"Description": "Streaming of UE4 render target to WebRTC-compatible media player and playback of such streaming",
+	"Description": "Streaming of Unreal Engine audio and rendering to WebRTC-compatible media players such as a web browsers.",
 	"Category": "Graphics",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
@@ -12,14 +12,14 @@
 	"SupportURL": "",
 	"EnabledByDefault": false,
 	"CanContainContent": true,
-	"IsBetaVersion": true,
+	"IsBetaVersion": false,
 	"Installed": false,
 	"Modules": [
 		{
 			"Name": "PixelStreaming",
 			"Type": "Runtime",
 			"LoadingPhase": "PostDefault",
-			"PlatformAllowList": [ "Win64" ],
+			"PlatformAllowList": [ "Win64", "Linux" ],
 			"TargetDenyList": [ "Server" ]
 		}
 	],
@@ -28,6 +28,10 @@
 			"Name": "WmfMedia",
 			"Enabled": true,
 			"PlatformDenyList": [ "Linux" ]
+		},
+		{
+			"Name": "HardwareEncoders",
+			"Enabled": true
 		}
 	]
 }

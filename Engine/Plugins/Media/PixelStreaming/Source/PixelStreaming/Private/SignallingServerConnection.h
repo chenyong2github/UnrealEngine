@@ -3,7 +3,7 @@
 #pragma once
 
 #include "PixelStreamingPrivate.h"
-
+#include "WebRTCIncludes.h"
 #include "Templates/Function.h"
 #include "Templates/SharedPointer.h"
 #include "Containers/UnrealString.h"
@@ -11,6 +11,7 @@
 #include "Dom/JsonObject.h"
 #include "Delegates/IDelegateInstance.h"
 #include "Engine/EngineTypes.h"
+#include "PlayerId.h"
 
 class IWebSocket;
 
@@ -27,7 +28,7 @@ public:
 	// Streamer-only
 	virtual void OnOffer(FPlayerId PlayerId, TUniquePtr<webrtc::SessionDescriptionInterface> Sdp)
 	{ unimplemented(); }
-	virtual void OnRemoteIceCandidate(FPlayerId PlayerId, TUniquePtr<webrtc::IceCandidateInterface> Candidate)
+	virtual void OnRemoteIceCandidate(FPlayerId PlayerId, const std::string& SdpMid, int SdpMLineIndex, const std::string& Sdp)
 	{ unimplemented(); }
 	virtual void OnPlayerDisconnected(FPlayerId PlayerId)
 	{ unimplemented(); }
@@ -44,8 +45,10 @@ public:
 class FSignallingServerConnection final
 {
 public:
-	explicit FSignallingServerConnection(const FString& Url, FSignallingServerConnectionObserver& Observer, const FString& StreamerId);
+	explicit FSignallingServerConnection(FSignallingServerConnectionObserver& Observer, const FString& StreamerId);
 	~FSignallingServerConnection();
+	void Connect(const FString& Url);
+	void Disconnect();
 
 	void SendOffer(const webrtc::SessionDescriptionInterface& SDP);
 	void SendAnswer(FPlayerId PlayerId, const webrtc::SessionDescriptionInterface& SDP);
@@ -70,6 +73,8 @@ private:
 	void OnPlayerIceCandidate(const FJsonObjectPtr& Json);
 	void OnPlayerCount(const FJsonObjectPtr& Json);
 	void OnPlayerDisconnected(const FJsonObjectPtr& Json);
+	void SetPlayerIdJson(FJsonObjectPtr& JsonObject, FPlayerId PlayerId);
+	bool GetPlayerIdJson(const FJsonObjectPtr& Json, FPlayerId& OutPlayerId);
 
 private:
 	FSignallingServerConnectionObserver& Observer;

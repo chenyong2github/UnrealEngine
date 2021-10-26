@@ -3,10 +3,9 @@
 #pragma once
 
 #include "Containers/UnrealString.h"
-
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-
 #include "VideoCommon.h"
+
+#if PLATFORM_WINDOWS || (PLATFORM_XBOXONE && WITH_LEGACY_XDK) || PLATFORM_HOLOLENS
 
 namespace AVEncoder
 {
@@ -31,7 +30,11 @@ inline const FString GetComErrorDescription(HRESULT Res)
 	}
 }
 
-#include "Windows/AllowWindowsPlatformTypes.h"
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+	#include "Windows/AllowWindowsPlatformTypes.h"
+#elif PLATFORM_XBOXONE
+	#include "XboxCommonAllowPlatformTypes.h"
+#endif
 
 // macro to deal with COM calls inside a function that returns `false` on error
 #define CHECK_HR(COM_call)\
@@ -77,7 +80,11 @@ inline const FString GetComErrorDescription(HRESULT Res)
 		}\
 	}
 
-#include "Windows/HideWindowsPlatformTypes.h"
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+	#include "Windows/HideWindowsPlatformTypes.h"
+#elif PLATFORM_XBOXONE
+	#include "XboxCommonHidePlatformTypes.h"
+#endif
 
 // following commented include causes name clash between UE4 and Windows `IMediaEventSink`,
 // we just need a couple of GUIDs from there so the solution is to duplicate them below
@@ -97,9 +104,18 @@ const GUID CLSID_VideoProcessorMFT = { 0x88753b26, 0x5b24, 0x49bd, { 0xb2, 0xe7,
 #endif
 
 
+//#if PLATFORM_WINDOWS
+//
 //ID3D11Device* GetUE4DxDevice();
+//
+//#elif PLATFORM_XBOXONE
+//
+//ID3D12Device* GetUE4DxDevice();
+//
+//#endif
 
 //// scope-disable particular DX11 Debug Layer errors
+//#if PLATFORM_WINDOWS
 //class FScopeDisabledDxDebugErrors final
 //{
 //private:
@@ -141,11 +157,12 @@ const GUID CLSID_VideoProcessorMFT = { 0x88753b26, 0x5b24, 0x49bd, { 0xb2, 0xe7,
 //	TRefCountPtr<ID3D11InfoQueue> InfoQueue;
 //	bool bSucceeded = false;
 //};
+//#endif
 
 
 } // namespace AVEncoder
 
 
-#endif // PLATFORM_WINDOWS
+#endif // PLATFORM_WINDOWS || (PLATFORM_XBOXONE && WITH_LEGACY_XDK)
 
 

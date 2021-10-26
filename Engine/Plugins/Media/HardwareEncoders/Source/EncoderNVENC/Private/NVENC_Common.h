@@ -5,8 +5,6 @@
 #include <CoreMinimal.h>
 #include <HAL/Thread.h>
 
-#if PLATFORM_DESKTOP && !PLATFORM_APPLE
-
 THIRD_PARTY_INCLUDES_START
 
 #if PLATFORM_WINDOWS
@@ -21,8 +19,10 @@ THIRD_PARTY_INCLUDES_START
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
-
 THIRD_PARTY_INCLUDES_END
+
+DECLARE_LOG_CATEGORY_EXTERN(LogEncoderNVENC, Log, All);
+
 
 // helper macro to define and clear NVENC structures
 //  also sets the struct version number
@@ -68,5 +68,3 @@ namespace AVEncoder
 	};
 
 } /* namespace AVEncoder */
-
-#endif // PLATFORM_DESKTOP && !PLATFORM_APPLE

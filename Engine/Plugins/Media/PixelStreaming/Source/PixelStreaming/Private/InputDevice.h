@@ -5,6 +5,7 @@
 #include "IInputDevice.h"
 #include "Containers/Queue.h"
 #include "GenericPlatform/GenericApplication.h"
+#include "api/data_channel_interface.h"
 
 class IPixelStreamingModule;
 
@@ -18,26 +19,7 @@ public:
 	 * @param InMessageHandler - The message handler which events should be passed to.
 	 * @param InInputComponents - The preexisting list of pixel streaming input components.
 	 */
-	FInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler, TArray<class UPixelStreamerInputComponent*>& InInputComponents);
-
-	/**
-	 * Tell the input device about a new pixel streaming input component.
-	 * @param InInputComponent - The new pixel streaming input component.
-	 */
-	void AddInputComponent(class UPixelStreamerInputComponent* InInputComponent)
-	{
-		InputComponents.Add(InInputComponent);
-	}
-
-	/*
-	 * Tell the input device that a pixel streaming input component is no longer
-	 * relevant.
-	 * @param InInputComponent - The pixel streaming input component which is no longer relevant.
-	 */
-	void RemoveInputComponent(class UPixelStreamerInputComponent* InInputComponent)
-	{
-		InputComponents.Remove(InInputComponent);
-	}
+	FInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler);
 
 	/** Tick the interface (e.g. check for new controllers) */
 	virtual void Tick(float DeltaTime) override;
@@ -61,19 +43,22 @@ public:
 	/** The types of event which can be processed by the device. */
 	enum class EventType
 	{
-		UNDEFINED,		/** No value. */
-		KEY_DOWN,		/** A key has been pushed down. */
-		KEY_UP,			/** A key has been released. */
-		KEY_PRESS,		/** A key has been pressed and a character has been input. */
-		MOUSE_ENTER,	/** The mouse has entered canvas. */
-		MOUSE_LEAVE,	/** The mouse has left the canvas. */
-		MOUSE_MOVE,		/** The mouse has been moved. */
-		MOUSE_DOWN,		/** A mouse button has been clicked. */
-		MOUSE_UP,		/** A mouse button has been released. */
-		MOUSE_WHEEL,	/** The mouse wheel was scrolled. */
-		TOUCH_START,	/** A finger is put down onto the canvas. */
-		TOUCH_END,		/** A finger is lifted from the canvas. */
-		TOUCH_MOVE		/** A finger is being dragged along the surface of the canvas. */
+		UNDEFINED,		 /** No value. */
+		KEY_DOWN,		 /** A key has been pushed down. */
+		KEY_UP,			 /** A key has been released. */
+		KEY_PRESS,		 /** A key has been pressed and a character has been input. */
+		MOUSE_ENTER,	 /** The mouse has entered canvas. */
+		MOUSE_LEAVE,	 /** The mouse has left the canvas. */
+		MOUSE_MOVE,		 /** The mouse has been moved. */
+		MOUSE_DOWN,		 /** A mouse button has been clicked. */
+		MOUSE_UP,		 /** A mouse button has been released. */
+		MOUSE_WHEEL,	 /** The mouse wheel was scrolled. */
+		TOUCH_START,	 /** A finger is put down onto the canvas. */
+		TOUCH_END,		 /** A finger is lifted from the canvas. */
+		TOUCH_MOVE,		 /** A finger is being dragged along the surface of the canvas. */
+		GAMEPAD_PRESS,	 /** A gamepad button has been pressed. */
+		GAMEPAD_RELEASE, /** A gamepad button has been released. */
+		GAMEPAD_ANALOG	 /** A gamepad analog stick has been moved. */
 	};
 
 	/** A general input event. */
@@ -111,21 +96,21 @@ public:
 				uint16 PosX;
 				uint16 PosY;
 			} MouseMove;
-			
+
 			struct   /** MOUSE_DOWN, MOUSE_UP */
 			{
 				uint8 Button;
 				uint16 PosX;
 				uint16 PosY;
 			} MouseButton;
-			
+
 			struct   /** MOUSE_WHEEL */
 			{
 				int16 Delta;
 				uint16 PosX;
 				uint16 PosY;
 			} MouseWheel;
-			
+
 			struct   /** TOUCH_START, TOUCH_END, TOUCH_MOVE */
 			{
 				uint8 TouchIndex;
@@ -133,6 +118,21 @@ public:
 				uint16 PosY;
 				uint8 Force;
 			} Touch;
+
+			struct   /** GAMEPAD_PRESSED, GAMEPAD_RELEASED */
+			{
+				uint8 ControllerIndex;
+				uint8 ButtonIndex;
+				bool bIsRepeat;
+
+			} GamepadButton;
+
+			struct   /** GAMEPAD_PRESSED, GAMEPAD_RELEASED */
+			{
+				uint8 ControllerIndex;
+				float AnalogValue;
+				uint8 AxisIndex;
+			} GamepadAnalog;
 		} Data;
 
 		/**
@@ -142,7 +142,7 @@ public:
 			: Event(EventType::UNDEFINED)
 		{
 		}
-		
+
 		/**
 		 * Create an event of the given type.
 		 * @param InEvent - The type of the event.
@@ -150,6 +150,46 @@ public:
 		FEvent(EventType InEvent)
 			: Event(InEvent)
 		{
+		}
+
+		/**
+		 * An event related to gamepad analog stick being moved.
+		 * @param InControllerIndex - Number representing the index of the controller.
+		 * @param InAxisIndex - The axis that is non-centered.
+		 * @param InAnalogValue - The value of the analog stick.
+		*/
+		void SetGamepadAnalog(uint8 InControllerIndex, uint8 InAxisIndex, float InAnalogValue)
+		{
+			check(Event == EventType::GAMEPAD_ANALOG);
+			Data.GamepadAnalog.ControllerIndex = InControllerIndex;
+			Data.GamepadAnalog.AxisIndex = InAxisIndex;
+			Data.GamepadAnalog.AnalogValue = InAnalogValue;
+		}
+
+		/**
+		 * An event related to a gamepad button being pushed down.
+		 * @param InControllerIndex - Number representing the index of the controller.
+		 * @param InButtonIndex - Numerical code identifying the pushed down button.
+		 * @param InIsRepeat - Whether the button is being kept down and is repeating.
+		*/
+		void SetGamepadButtonPressed(uint8 InControllerIndex, uint8 InButtonIndex, bool InIsRepeat)
+		{
+			check(Event == EventType::GAMEPAD_PRESS);
+			Data.GamepadButton.ControllerIndex = InControllerIndex;
+			Data.GamepadButton.ButtonIndex = InButtonIndex;
+			Data.GamepadButton.bIsRepeat = InIsRepeat;
+		}
+
+		/**
+		 * An event related to a gamepad button being released.
+		 * @param InControllerIndex - Number representing the index of the controller.
+		 * @param InButtonIndex - Numerical code identifying the released button.
+		*/
+		void SetGamepadButtonReleased(uint8 InControllerIndex, uint8 InButtonIndex)
+		{
+			check(Event == EventType::GAMEPAD_RELEASE);
+			Data.GamepadButton.ControllerIndex = InControllerIndex;
+			Data.GamepadButton.ButtonIndex = InButtonIndex;
 		}
 
 		/**
@@ -242,6 +282,46 @@ public:
 			Data.Touch.PosX = InPosX;
 			Data.Touch.PosY = InPosY;
 			Data.Touch.Force = InForce;
+		}
+
+		/**
+		 * Get information about an event related to gamepad analog stick being moved.
+		 * @param OutControllerIndex - Number representing the index of the controller.
+		 * @param OutAxisIndex - Number representing the axis of the controller.
+		 * @param OutAnalogValue - The value of the analog stick.
+		 */
+		void GetGamepadAnalog(uint8& OutControllerIndex, uint8& OutAxisIndex, float& OutAnalogValue)
+		{
+			check(Event == EventType::GAMEPAD_ANALOG);
+			OutControllerIndex = Data.GamepadAnalog.ControllerIndex;
+			OutAxisIndex = Data.GamepadAnalog.AxisIndex;
+			OutAnalogValue = Data.GamepadAnalog.AnalogValue;
+		}
+
+		/**
+		 * Get information about an event related to a gamepad button being pushed down.
+		 * @param OutControllerIndex - Number representing the index of the controller.
+		 * @param OutButtonIndex - Numerical code identifying the pushed down button.
+		 * @param OutIsRepeat - Whether the button is being kept down and is repeating.
+		*/
+		void GetGamepadButtonPressed(uint8& OutControllerIndex, uint8& OutButtonIndex, bool& OutIsRepeat)
+		{
+			check(Event == EventType::GAMEPAD_PRESS);
+			OutControllerIndex = Data.GamepadButton.ControllerIndex;
+			OutButtonIndex = Data.GamepadButton.ButtonIndex;
+			OutIsRepeat = Data.GamepadButton.bIsRepeat;
+		}
+
+		/**
+		 * Get information about an event related to a gamepad button being released.
+		 * @param OutControllerIndex - Number representing the index of the controller.
+		 * @param OutButtonIndex - Numerical code identifying the pushed down button.
+		*/
+		void GetGamepadButtonReleased(uint8& OutControllerIndex, uint8& OutButtonIndex)
+		{
+			check(Event == EventType::GAMEPAD_RELEASE);
+			OutControllerIndex = Data.GamepadButton.ControllerIndex;
+			OutButtonIndex = Data.GamepadButton.ButtonIndex;
 		}
 
 		/**
@@ -358,7 +438,19 @@ public:
 		return bFakingTouchEvents;
 	}
 
-	void OnMessage(const uint8* Data, uint32 Size);
+	/**
+     * Handle incoming messages
+     * @param Buffer - Incoming data buffer.
+     */
+	void OnMessage(const webrtc::DataBuffer& Buffer);
+
+	/**
+     * How long is the message type specifier and the length specifier in bytes?
+     * @return The number of header bytes in an incoming message what is ignored when it is parsed as string.
+     */
+	static const size_t	GetMessageHeaderOffset() {
+		return MessageHeaderOffset;
+	}
 
 private:
 
@@ -368,7 +460,17 @@ private:
 	 * keyboard.
 	 */
 	void FindFocusedWidget();
-	
+
+	/**
+	 * Convert the controller analog axis index to its corresponding FType
+	 */
+	FGamepadKeyNames::Type ConvertAxisIndexToGamepadAxis(uint8 AnalogAxis);
+
+	/**
+	 * Convert the controller button index to its corresponding FType
+	 */
+	FGamepadKeyNames::Type ConvertButtonIndexToGamepadButton(uint8 ButtonIndex);
+
 	/**
 	 * A special wrapper over the GenericApplication layer which allows us to
 	 * override certain behavior.
@@ -382,12 +484,6 @@ private:
 	TQueue<FEvent> Events;
 
 	/**
-	 * Pixel streaming input components contain a delegate which will broadcast
-	 * UI integrations to interested parties.
-	 */
-	TArray<UPixelStreamerInputComponent*> InputComponents;
-
-	/**
 	 * A queue of UI interaction descriptor strings which contain arbitrary
 	 * information related to the interaction.
 	 */
@@ -398,7 +494,7 @@ private:
 	 * have security implications.
 	 */
 	bool bAllowCommands;
-	
+
 	/**
 	 * A queue of command descriptor strings which contain the command to
 	 * execute and its arguments.
@@ -426,4 +522,11 @@ private:
 
 	/** For convenience we keep a reference to the Pixel Streaming plugin. */
 	IPixelStreamingModule* PixelStreamingModule;
+
+	/*
+	 * Padding for string parsing when handling messages.
+	 * 1 character for the actual message and then
+	 * 2 characters for the length which are skipped
+	 */
+	static const size_t MessageHeaderOffset;
 };

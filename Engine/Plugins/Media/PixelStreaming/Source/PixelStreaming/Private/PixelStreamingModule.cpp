@@ -7,18 +7,19 @@
 #include "PixelStreamerInputComponent.h"
 #include "PixelStreamerDelegates.h"
 #include "SignallingServerConnection.h"
-#include "HUDStats.h"
-#include "PixelStreamingPrivate.h"
 #include "PixelStreamingSettings.h"
+#include "PixelStreamingStats.h"
+#include "PixelStreamingPrivate.h"
+#include "PlayerSession.h"
+#include "PixelStreamingAudioSink.h"
 #include "LatencyTester.h"
-
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectIterator.h"
 #include "Engine/Texture2D.h"
 #include "Slate/SceneViewport.h"
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 #include "Windows/WindowsHWrapper.h"
 #elif PLATFORM_LINUX
 #include "CudaModule.h"
@@ -50,7 +51,7 @@ namespace
 {
 	
 
-	#if PLATFORM_WINDOWS
+	#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 	// required for WMF video decoding
 	// some Windows versions don't have Media Foundation preinstalled. We configure MF DLLs as delay-loaded and load them manually here
 	// checking the result and avoiding error message box if failed
@@ -77,6 +78,9 @@ namespace
 
 void FPixelStreamingModule::InitStreamer()
 {
+	// Cap the engine framerate to what WebRTC
+	GEngine->SetMaxFPS(PixelStreamingSettings::CVarPixelStreamingWebRTCMaxFps.GetValueOnAnyThread());
+
 	FString StreamerId;
 	FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingID="), StreamerId);
 
@@ -156,6 +160,9 @@ void FPixelStreamingModule::StartupModule()
 		return;
 	}
 
+	// Initialise all settings from command line args etc
+	PixelStreamingSettings::InitialiseSettings();
+
 	// only D3D11/D3D12 is supported
 	if (GDynamicRHI == nullptr ||
 		!( GDynamicRHI->GetName() == FString(TEXT("D3D11")) || 
@@ -166,18 +173,12 @@ void FPixelStreamingModule::StartupModule()
 		return;
 	}
 	else if( GDynamicRHI->GetName() == FString(TEXT("D3D11")) || 
-		   	 GDynamicRHI->GetName() == FString(TEXT("D3D12")))
+		   	 GDynamicRHI->GetName() == FString(TEXT("D3D12")) ||
+			 GDynamicRHI->GetName() == FString(TEXT("Vulkan")))
 	{
 		// By calling InitStreamer post engine init we can use pixel streaming in standalone editor mode
-		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FPixelStreamingModule::InitStreamer);
+		FCoreDelegates::OnFEngineLoopInitComplete.AddRaw(this, &FPixelStreamingModule::InitStreamer);
 	}
-	else if (GDynamicRHI->GetName() == FString(TEXT("Vulkan")))
-	{
-#if PLATFORM_LINUX
-		FModuleManager::LoadModuleChecked<FCUDAModule>("CUDA").OnPostCUDAInit.AddRaw(this, &FPixelStreamingModule::InitStreamer);
-#endif
-	}
-
 }
 
 void FPixelStreamingModule::ShutdownModule()
@@ -195,7 +196,7 @@ bool FPixelStreamingModule::CheckPlatformCompatibility() const
 {
 	bool bCompatible = true;
 
-	#if PLATFORM_WINDOWS
+	#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 	bool bWin8OrHigher = FPlatformMisc::VerifyWindowsVersion(6, 2);
 	if (!bWin8OrHigher)
 	{
@@ -243,7 +244,7 @@ void FPixelStreamingModule::OnBackBufferReady_RenderThread(SWindow& SlateWindow,
 
 	// Check to see if we have been instructed to capture the back buffer as a
 	// freeze frame.
-	if (bCaptureNextBackBufferAndStream)
+	if (bCaptureNextBackBufferAndStream && Streamer->IsStreaming())
 	{
 		bCaptureNextBackBufferAndStream = false;
 
@@ -259,7 +260,7 @@ void FPixelStreamingModule::OnBackBufferReady_RenderThread(SWindow& SlateWindow,
 
 TSharedPtr<class IInputDevice> FPixelStreamingModule::CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler)
 {
-	InputDevice = MakeShareable(new FInputDevice(InMessageHandler, InputComponents));
+	InputDevice = MakeShareable(new FInputDevice(InMessageHandler));
 	return InputDevice;
 }
 
@@ -273,25 +274,46 @@ TSharedPtr<FInputDevice> FPixelStreamingModule::GetInputDevicePtr()
 	return InputDevice;
 }
 
+void FPixelStreamingModule::AddInputComponent(UPixelStreamerInputComponent* InInputComponent)
+{
+	this->InputComponents.Add(InInputComponent);
+}
+
+void FPixelStreamingModule::RemoveInputComponent(UPixelStreamerInputComponent* InInputComponent)
+{
+	this->InputComponents.Remove(InInputComponent);
+}
+
+const TArray<UPixelStreamerInputComponent*> FPixelStreamingModule::GetInputComponents()
+{
+	return this->InputComponents;
+}
+
 void FPixelStreamingModule::FreezeFrame(UTexture2D* Texture)
 {
 	if (Texture)
-	{
-		// A frame is supplied so immediately read its data and send as a JPEG.
-		FTextureResource* TextureResource = Texture->GetResource();
-		FTexture2DRHIRef Texture2DRHI = TextureResource && TextureResource->TextureRHI ? TextureResource->TextureRHI->GetTexture2D() : nullptr;
-		if (!Texture2DRHI)
+	{		
+		ENQUEUE_RENDER_COMMAND(ReadSurfaceCommand)([this, Texture](FRHICommandListImmediate& RHICmdList)
 		{
-			UE_LOG(PixelStreamer, Error, TEXT("Attempting freeze frame with texture %s with no texture 2D RHI"), *Texture->GetName());
-			return;
-		}
+			// A frame is supplied so immediately read its data and send as a JPEG.
+			FTexture2DRHIRef Texture2DRHI = (Texture->GetResource() && Texture->GetResource()->TextureRHI) ? Texture->GetResource()->TextureRHI->GetTexture2D() : nullptr;
+			if (!Texture2DRHI)
+			{
+				UE_LOG(PixelStreamer, Error, TEXT("Attempting freeze frame with texture %s with no texture 2D RHI"), *Texture->GetName());
+				return;
+			}
+			uint32 Width = Texture2DRHI->GetSizeX();
+			uint32 Height = Texture2DRHI->GetSizeY();
+			// Create empty texture
+			FRHIResourceCreateInfo CreateInfo(TEXT("FreezeFrameTexture"));
+			FTexture2DRHIRef DestTexture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_RenderTargetable, ERHIAccess::Present, CreateInfo);
+			// Copy freeze frame texture to empty texture
+			CopyTexture(Texture2DRHI, DestTexture);
 
-		ENQUEUE_RENDER_COMMAND(ReadSurfaceCommand)([this, Texture2DRHI](FRHICommandListImmediate& RHICmdList)
-		{
 			TArray<FColor> Data;
-			FIntRect Rect{ {0, 0}, Texture2DRHI->GetSizeXY() };
-			RHICmdList.ReadSurfaceData(Texture2DRHI, Rect, Data, FReadSurfaceDataFlags());
-			SendJpeg(MoveTemp(Data), Rect);
+			FIntRect Rect(0, 0, Width, Height);
+			RHICmdList.ReadSurfaceData(DestTexture, Rect, Data, FReadSurfaceDataFlags());
+			this->SendJpeg(MoveTemp(Data), Rect);
 		});
 	}
 	else
@@ -308,7 +330,7 @@ void FPixelStreamingModule::FreezeFrame(UTexture2D* Texture)
 void FPixelStreamingModule::UnfreezeFrame()
 {
 	Streamer->SendUnfreezeFrame();
-
+	
 	// Resume streaming.
 	bFrozen = false;
 }
@@ -344,38 +366,12 @@ void FPixelStreamingModule::SendCommand(const FString& Descriptor)
 
 void FPixelStreamingModule::OnGameModePostLogin(AGameModeBase* GameMode, APlayerController* NewPlayer)
 {
-	UWorld* NewPlayerWorld = NewPlayer->GetWorld();
-	for (TObjectIterator<UPixelStreamerInputComponent> ObjIt; ObjIt; ++ObjIt)
-	{
-		UPixelStreamerInputComponent* InputComponent = *ObjIt;
-		UWorld* InputComponentWorld = InputComponent->GetWorld();
-		if (InputComponentWorld == NewPlayerWorld)
-		{
-			InputComponents.Push(InputComponent);
-		}
-	}
-	if (InputComponents.Num() == 0)
-	{
-		UPixelStreamerInputComponent* InputComponent = NewObject<UPixelStreamerInputComponent>(NewPlayer);
-		InputComponent->RegisterComponent();
-		InputComponents.Push(InputComponent);
-	}
-	if (InputDevice.IsValid())
-	{
-		for (UPixelStreamerInputComponent* InputComponent : InputComponents)
-		{
-			InputDevice->AddInputComponent(InputComponent);
-		}
-	}
+	
 }
 
 void FPixelStreamingModule::OnGameModeLogout(AGameModeBase* GameMode, AController* Exiting)
 {
-	for (UPixelStreamerInputComponent* InputComponent : InputComponents)
-	{
-		InputDevice->RemoveInputComponent(InputComponent);
-	}
-	InputComponents.Empty();
+	
 }
 
 void FPixelStreamingModule::SendJpeg(TArray<FColor> RawData, const FIntRect& Rect)
@@ -386,8 +382,8 @@ void FPixelStreamingModule::SendJpeg(TArray<FColor> RawData, const FIntRect& Rec
 	if (bSuccess)
 	{
 		// Compress to a JPEG of the maximum possible quality.
-		int32 Quality = PixelStreamingSettings::CVarFreezeFrameQuality.GetValueOnAnyThread();
-		const TArray64<uint8> JpegBytes = ImageWrapper->GetCompressed(Quality);
+		int32 Quality = PixelStreamingSettings::CVarPixelStreamingFreezeFrameQuality.GetValueOnAnyThread();
+		const TArray64<uint8>& JpegBytes = ImageWrapper->GetCompressed(Quality);
 		Streamer->SendFreezeFrame(JpegBytes);
 	}
 	else
@@ -408,16 +404,28 @@ bool FPixelStreamingModule::IsTickableInEditor() const
 
 void FPixelStreamingModule::Tick(float DeltaTime)
 {
-	FHUDStats::Get().Tick();
+	FPixelStreamingStats::Get().Tick();
 
 	// If we are running a latency test then check if we have timing results and if we do transmit them
 	if(FLatencyTester::IsTestRunning() && FLatencyTester::GetTestStage() == FLatencyTester::ELatencyTestStage::RESULTS_READY)
 	{
 		FString LatencyResults;
-		bool bEnded = FLatencyTester::End(LatencyResults);
+		FPlayerId LatencyTestPlayerId;
+		bool bEnded = FLatencyTester::End(LatencyResults, LatencyTestPlayerId);
 		if(bEnded)
 		{
-			Streamer->SendPlayerMessage(PixelStreamingProtocol::EToPlayerMsg::LatencyTest, LatencyResults);
+			Streamer->SendMessage(LatencyTestPlayerId, PixelStreamingProtocol::EToPlayerMsg::LatencyTest, LatencyResults);
+		}
+	}
+
+	// Send video encoder averaged QP approx every 1 second
+	if(this->Streamer.IsValid() && this->Streamer->IsStreaming() && this->Streamer->GetNumPlayers() > 0)
+	{
+		double Now = FPlatformTime::Seconds();
+		if (Now - LastVideoEncoderQPReportTime > 1)
+		{
+			Streamer->SendLatestQPAllPlayers();
+			LastVideoEncoderQPReportTime = FPlatformTime::Seconds();
 		}
 	}
 	
@@ -426,6 +434,26 @@ void FPixelStreamingModule::Tick(float DeltaTime)
 TStatId FPixelStreamingModule::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(FPixelStreamingModule, STATGROUP_Tickables);
+}
+
+IPixelStreamingAudioSink* FPixelStreamingModule::GetPeerAudioSink(FPlayerId PlayerId)
+{
+	if(!this->Streamer.IsValid())
+	{
+		return nullptr;
+	}
+
+	return this->Streamer->GetAudioSink(PlayerId);
+}
+
+IPixelStreamingAudioSink* FPixelStreamingModule::GetUnlistenedAudioSink()
+{
+	if(!this->Streamer.IsValid())
+	{
+		return nullptr;
+	}
+
+	return this->Streamer->GetUnlistenedAudioSink();
 }
 
 IMPLEMENT_MODULE(FPixelStreamingModule, PixelStreaming)

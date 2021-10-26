@@ -16,6 +16,7 @@ THIRD_PARTY_INCLUDES_START
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/PreWindowsApi.h"
 #include <d3d11.h>
+#include <mfobjects.h>
 #include <mftransform.h>
 #include <mfapi.h>
 #include <mferror.h>
@@ -30,11 +31,42 @@ THIRD_PARTY_INCLUDES_START
 #include "Windows/HideWindowsPlatformTypes.h"
 THIRD_PARTY_INCLUDES_END
 
-struct ID3D11DeviceChild;
-
 #endif // PLATFORM_WINDOWS
 
-#define WMFMEDIA_SUPPORTED_PLATFORM (PLATFORM_WINDOWS && !UE_SERVER)
+//
+// XboxOne only includes
+//
+#if (PLATFORM_XBOXONE && WITH_LEGACY_XDK)
+
+#pragma warning(push)
+#pragma warning(disable: 4005)
+
+THIRD_PARTY_INCLUDES_START
+#include "XboxCommonAllowPlatformTypes.h"
+#include "XboxCommonPreApi.h"
+#include <d3d11_x.h>
+#include <d3d12_x.h>
+#include <d3dx12_x.h>
+#include <mfobjects.h>
+#include <mftransform.h>
+#include <mfapi.h>
+#include <mferror.h>
+#include <mfidl.h>
+#include <codecapi.h>
+#include <mfreadwrite.h>
+#include "XboxCommonPostApi.h"
+#include "XboxCommonHidePlatformTypes.h"
+THIRD_PARTY_INCLUDES_END
+
+#endif  // (PLATFORM_XBOXONE && WITH_LEGACY_XDK)
+
+#ifndef WMFMEDIA_SUPPORTED_PLATFORM
+	#define WMFMEDIA_SUPPORTED_PLATFORM (PLATFORM_WINDOWS && (WINVER >= 0x0600 /*Vista*/) && !UE_SERVER)
+#endif
+
+#if PLATFORM_WINDOWS
+struct ID3D11DeviceChild;
+#endif
 
 namespace AVEncoder
 {

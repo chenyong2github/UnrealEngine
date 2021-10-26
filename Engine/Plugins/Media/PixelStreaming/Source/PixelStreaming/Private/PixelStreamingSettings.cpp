@@ -2,12 +2,46 @@
 
 #include "PixelStreamingSettings.h"
 #include "PixelStreamingPrivate.h"
+#include "Async/TaskGraphInterfaces.h"
+#include "Async/Async.h"
 
+template<typename T>
+void CommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<T>& CVar)
+{
+	T Value;
+	if (FParse::Value(FCommandLine::Get(), Match, Value))
+		CVar->Set(Value, ECVF_SetByCommandline);
+};
+
+void CommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<FString>& CVar, bool StopOnSeparator = false)
+{
+	FString Value;
+	if (FParse::Value(FCommandLine::Get(), Match, Value, StopOnSeparator))
+		CVar->Set(*Value, ECVF_SetByCommandline);
+};
+
+void CommandLineParseOption(const TCHAR* Match, TAutoConsoleVariable<bool>& CVar)
+{
+	FString ValueMatch(Match);
+	ValueMatch.Append(TEXT("="));
+	FString Value;
+	if (FParse::Value(FCommandLine::Get(), *ValueMatch, Value)) {
+		if (Value.Equals(FString(TEXT("true")), ESearchCase::IgnoreCase)) {
+			CVar->Set(true, ECVF_SetByCommandline);
+		}
+		else if (Value.Equals(FString(TEXT("false")), ESearchCase::IgnoreCase)) {
+			CVar->Set(false, ECVF_SetByCommandline);
+		}
+	}
+	else if (FParse::Param(FCommandLine::Get(), Match))
+	{
+		CVar->Set(true, ECVF_SetByCommandline);
+	}
+}
 
 namespace PixelStreamingSettings
 {
 // Begin Encoder CVars
-
 	TAutoConsoleVariable<int32> CVarPixelStreamingEncoderTargetBitrate(
 		TEXT("PixelStreaming.Encoder.TargetBitrate"),
 		-1,
@@ -28,14 +62,14 @@ namespace PixelStreamingSettings
 
 	TAutoConsoleVariable<int32> CVarPixelStreamingEncoderMinQP(
 		TEXT("PixelStreaming.Encoder.MinQP"),
-		-1,
-		TEXT("0-51, lower values result in better quality but higher bitrate. Default -1. -1 will disable any hard limit on a minimum QP."),
+		1,
+		TEXT("0-51, lower values result in better quality but higher bitrate. Default: 1. -1 will disable any hard limit on a minimum QP and also disable NVENC.KeyFrameQPUseLastQP."),
 		ECVF_Default);
 
 	TAutoConsoleVariable<int32> CVarPixelStreamingEncoderMaxQP(
 		TEXT("PixelStreaming.Encoder.MaxQP"),
-		-1,
-		TEXT("0-51, lower values result in better quality but higher bitrate. Default -1. -1 will disable any hard limit on a maximum QP."),
+		51,
+		TEXT("0-51, lower values result in better quality but higher bitrate. Default: 51. -1 will disable any hard limit on a maximum QP and also disable NVENC.KeyFrameQPUseLastQP."),
 		ECVF_Default);
 
 	TAutoConsoleVariable<FString> CVarPixelStreamingEncoderRateControl(
@@ -56,13 +90,24 @@ namespace PixelStreamingSettings
 		TEXT("PixelStreaming encoder multipass. Supported modes are `DISABLED`, `QUARTER`, `FULL`"),
 		ECVF_Default);
 
+	TAutoConsoleVariable<FString> CVarPixelStreamingH264Profile(
+		TEXT("PixelStreaming.Encoder.H264Profile"),
+		TEXT("BASELINE"),
+		TEXT("PixelStreaming encoder profile. Supported modes are `AUTO`, `BASELINE`, `MAIN`, `HIGH`, `HIGH444`, `STEREO`, `SVC_TEMPORAL_SCALABILITY`, `PROGRESSIVE_HIGH`, `CONSTRAINED_HIGH`"),
+		ECVF_Default);
+
+	TAutoConsoleVariable<int32> CVarPixelStreamingEncoderKeyframeInterval(
+		TEXT("PixelStreaming.Encoder.KeyframeInterval"),
+		300,
+		TEXT("How many frames before a key frame is sent. Default: 300. Values <=0 will disable sending of periodic key frames. Note: NVENC does not support changing this after encoding has started."),
+		ECVF_Default);
+
 // End Encoder CVars
 
 // Begin Capturer CVars
-
-	TAutoConsoleVariable<int32> CVarPixelStreamingUseBackBufferCaptureSize(
+	TAutoConsoleVariable<bool> CVarPixelStreamingUseBackBufferCaptureSize(
 		TEXT("PixelStreaming.Capturer.UseBackBufferSize"),
-		3,
+		true,
 		TEXT("Whether to use back buffer size or custom size"),
 		ECVF_Default);
 
@@ -72,13 +117,17 @@ namespace PixelStreamingSettings
 		TEXT("Capture size in format widthxheight. Recommended to UseBackBufferSize instead."),
 		ECVF_Default);
 
+	TAutoConsoleVariable<int32> CVarPixelStreamingMaxNumBackBuffers(
+		TEXT("PixelStreaming.Capturer.MaxNumBackBuffers"),
+		3,
+		TEXT("Maximum number of back buffers to use. A value of 0 will not limit the number of back buffers."),
+		ECVF_Default);
 // End Capturer CVars
 
 // Begin WebRTC CVars
-
 	TAutoConsoleVariable<FString> CVarPixelStreamingDegradationPreference(
 		TEXT("PixelStreaming.WebRTC.DegradationPreference"),
-		TEXT("MAINTAIN_RESOLUTION"),
+		TEXT("MAINTAIN_FRAMERATE"),
 		TEXT("PixelStreaming degradation preference. Supported modes are `BALANCED`, `MAINTAIN_FRAMERATE`, `MAINTAIN_RESOLUTION`"),
 		ECVF_Default);
 
@@ -87,6 +136,12 @@ namespace PixelStreamingSettings
 		60,
 		TEXT("Maximum fps WebRTC will try to request. Default: 60"),
 		ECVF_Default);
+
+	TAutoConsoleVariable<int32> CVarPixelStreamingWebRTCStartBitrate(
+		TEXT("PixelStreaming.WebRTC.StartBitrate"),
+		10000000,
+		TEXT("Start bitrate (bps) that WebRTC will try begin the stream with. Must be between Min/Max bitrates. Default: 10000000"),
+		ECVF_RenderThreadSafe);
 
 	TAutoConsoleVariable<int32> CVarPixelStreamingWebRTCMinBitrate(
 		TEXT("PixelStreaming.WebRTC.MinBitrate"),
@@ -103,31 +158,119 @@ namespace PixelStreamingSettings
 	TAutoConsoleVariable<int> CVarPixelStreamingWebRTCLowQpThreshold(
 		TEXT("PixelStreaming.WebRTC.LowQpThreshold"),
 		25,
-		TEXT("Only useful when MinQP=-1. If WebRTC is getting frames below this QP it will try to increase resolution when not in MAINTAIN_RESOLUTION mode."),
+		TEXT("Only useful when MinQP=-1. Value between 1-51 (default: 25). If WebRTC is getting frames below this QP it will try to increase resolution when not in MAINTAIN_RESOLUTION mode."),
 		ECVF_Default);
 
 	TAutoConsoleVariable<int> CVarPixelStreamingWebRTCHighQpThreshold(
 		TEXT("PixelStreaming.WebRTC.HighQpThreshold"),
 		37,
-		TEXT("Only useful when MinQP=-1. If WebRTC is getting frames above this QP it will decrease resolution when not in MAINTAIN_RESOLUTION mode."),
+		TEXT("Only useful when MinQP=-1. Value between 1-51 (default: 37). If WebRTC is getting frames above this QP it will decrease resolution when not in MAINTAIN_RESOLUTION mode."),
+		ECVF_Default);
+
+	TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableReceiveAudio(
+		TEXT("PixelStreaming.WebRTC.DisableReceiveAudio"),
+		false,
+		TEXT("Disables receiving audio from the browser into UE."),
+		ECVF_Default);
+
+	TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableTransmitAudio(
+		TEXT("PixelStreaming.WebRTC.DisableTransmitAudio"),
+		false,
+		TEXT("Disables transmission of UE audio to the browser."),
+		ECVF_Default);
+
+	TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableAudioSync(
+		TEXT("PixelStreaming.WebRTC.DisableAudioSync"),
+		true,
+		TEXT("Disables the synchronization of audio and video tracks in WebRTC. This can be useful in low latency usecases where synchronization is not required."),
+		ECVF_Default);
+
+	TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCUseLegacyAudioDevice(
+		TEXT("PixelStreaming.WebRTC.UseLegacyAudioDevice"),
+		false,
+		TEXT("Whether put audio and video in the same stream (which will make WebRTC try to sync them)."),
+		ECVF_Default);
+
+	TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableResolutionChange(
+		TEXT("PixelStreaming.WebRTC.DisableResolutionChange"),
+		true,
+		TEXT("Disables whether WebRTC can trigger a resolution a change of the stream (regardless of it wants to)."),
 		ECVF_Default);
 
 // End WebRTC CVars
 
 // Begin Pixel Streaming Plugin CVars
 
-	TAutoConsoleVariable<bool> CVarPixelStreamingHudStats(
+	TAutoConsoleVariable<bool> CVarPixelStreamingOnScreenStats(
 		TEXT("PixelStreaming.HUDStats"),
 		false,
-		TEXT("Whether to show PixelStreaming stats on the in-game HUD."),
-		ECVF_RenderThreadSafe);
+		TEXT("Whether to show PixelStreaming stats on the in-game HUD (default: true)."),
+		ECVF_Default);
 
-	TAutoConsoleVariable<int32> CVarFreezeFrameQuality(
+	TAutoConsoleVariable<bool> CVarPixelStreamingLogStats(
+		TEXT("PixelStreaming.LogStats"),
+		false,
+		TEXT("Whether to show PixelStreaming stats in the log (default: false)."),
+		ECVF_Default);
+
+	TAutoConsoleVariable<int32> CVarPixelStreamingFreezeFrameQuality(
 		TEXT("PixelStreaming.FreezeFrameQuality"),
 		100,
 		TEXT("Compression quality of the freeze frame"),
-		ECVF_Default
-	);
+		ECVF_Default);
+
+	TAutoConsoleVariable<bool> CVarSendPlayerIdAsInteger(
+		TEXT("PixelStreaming.SendPlayerIdAsInteger"),
+		true,
+		TEXT("If true transmit the player id as an integer (for backward compatibility) or as a string."),
+		ECVF_Default);
+
+	TAutoConsoleVariable<bool> CVarPixelStreamingDisableLatencyTester(
+		TEXT("PixelStreaming.DisableLatencyTester"),
+		false,
+		TEXT("If true disables latency tester being triggerable."),
+		ECVF_Default);
+
+	 TAutoConsoleVariable<FString> CVarPixelStreamingKeyFilter(
+	 	TEXT("PixelStreaming.KeyFilter"),
+		"",
+		TEXT("Comma separated list of keys to ignore from streaming clients."),
+		ECVF_Default);
+
+	TArray<FKey> FilteredKeys;
+
+	void OnFilteredKeysChanged(IConsoleVariable* Var)
+	{
+		FString CommaList = Var->GetString();
+		TArray<FString> KeyStringArray;
+		CommaList.ParseIntoArray(KeyStringArray, TEXT(","), true);
+		FilteredKeys.Empty();
+		for (auto&& KeyString : KeyStringArray)
+		{
+			FilteredKeys.Add(FKey(*KeyString));
+		}
+	}
+
+	void OnKeyframeIntervalChanged(IConsoleVariable* Var)
+	{
+		// HACK: Only doing it like this because this a hotfix change and cannot public ABI.
+		// Todo: Fix in next proper engine release.
+		AsyncTask(ENamedThreads::GameThread, [Var]()
+		{ 
+			IConsoleVariable* CVarNVENCKeyframeInterval = IConsoleManager::Get().FindConsoleVariable(TEXT("NVENC.KeyframeInterval"));
+			if(CVarNVENCKeyframeInterval)
+			{
+				CVarNVENCKeyframeInterval->Set(Var->GetInt(), ECVF_SetByCommandline);
+			}
+
+			IConsoleVariable* CVarAMFKeyframeInterval = IConsoleManager::Get().FindConsoleVariable(TEXT("AMF.KeyframeInterval"));
+			if(CVarNVENCKeyframeInterval)
+			{
+				CVarAMFKeyframeInterval->Set(Var->GetInt(), ECVF_SetByCommandline);
+			}
+		});
+		
+	}
 
 // Ends Pixel Streaming Plugin CVars
 
@@ -142,6 +285,18 @@ namespace PixelStreamingSettings
 		{"DISABLED", AVEncoder::FVideoEncoder::MultipassMode::DISABLED },
 		{"QUARTER", AVEncoder::FVideoEncoder::MultipassMode::QUARTER },
 		{"FULL", AVEncoder::FVideoEncoder::MultipassMode::FULL },
+	};
+
+	std::map<FString, AVEncoder::FVideoEncoder::H264Profile> const H264ProfileMap{
+		{"AUTO", AVEncoder::FVideoEncoder::H264Profile::AUTO},
+		{"BASELINE", AVEncoder::FVideoEncoder::H264Profile::BASELINE},
+		{"MAIN", AVEncoder::FVideoEncoder::H264Profile::MAIN},
+		{"HIGH", AVEncoder::FVideoEncoder::H264Profile::HIGH},
+		{"HIGH444", AVEncoder::FVideoEncoder::H264Profile::HIGH444},
+		{"STEREO", AVEncoder::FVideoEncoder::H264Profile::STEREO},
+		{"SVC_TEMPORAL_SCALABILITY", AVEncoder::FVideoEncoder::H264Profile::SVC_TEMPORAL_SCALABILITY},
+		{"PROGRESSIVE_HIGH", AVEncoder::FVideoEncoder::H264Profile::PROGRESSIVE_HIGH},
+		{"CONSTRAINED_HIGH", AVEncoder::FVideoEncoder::H264Profile::CONSTRAINED_HIGH},
 	};
 
 	AVEncoder::FVideoEncoder::RateControlMode GetRateControlCVar()
@@ -176,33 +331,63 @@ namespace PixelStreamingSettings
 		// Everything else, return balanced.
 		return webrtc::DegradationPreference::BALANCED;
 	}
+
+	AVEncoder::FVideoEncoder::H264Profile GetH264Profile()
+	{
+		auto const cvarStr = CVarPixelStreamingH264Profile.GetValueOnAnyThread();
+		auto const it = H264ProfileMap.find(cvarStr);
+		if (it == std::end(H264ProfileMap))
+			return AVEncoder::FVideoEncoder::H264Profile::BASELINE;
+		return it->second;
+	}
 // End utility functions etc.
 
+	void InitialiseSettings()
+	{
+
+		UE_LOG(PixelStreamer, Log, TEXT("Initialising Pixel Streaming settings."));
+
+		PixelStreamingSettings::CVarPixelStreamingKeyFilter.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&PixelStreamingSettings::OnFilteredKeysChanged));
+		PixelStreamingSettings::CVarPixelStreamingEncoderKeyframeInterval.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&PixelStreamingSettings::OnKeyframeIntervalChanged));
+
+		// Values parse from commands line
+		CommandLineParseValue(TEXT("PixelStreamingEncoderKeyframeInterval="), PixelStreamingSettings::CVarPixelStreamingEncoderKeyframeInterval);
+		CommandLineParseValue(TEXT("PixelStreamingEncoderTargetBitrate="), PixelStreamingSettings::CVarPixelStreamingEncoderTargetBitrate);
+		CommandLineParseValue(TEXT("PixelStreamingEncoderMaxBitrate="), PixelStreamingSettings::CVarPixelStreamingEncoderMaxBitrate);
+		CommandLineParseValue(TEXT("PixelStreamingEncoderMinQP="), PixelStreamingSettings::CVarPixelStreamingEncoderMinQP);
+		CommandLineParseValue(TEXT("PixelStreamingEncoderMaxQP="), PixelStreamingSettings::CVarPixelStreamingEncoderMaxQP);
+		CommandLineParseValue(TEXT("PixelStreamingEncoderRateControl="), PixelStreamingSettings::CVarPixelStreamingEncoderRateControl);
+		CommandLineParseValue(TEXT("PixelStreamingEncoderMultipass="), PixelStreamingSettings::CVarPixelStreamingEncoderMultipass);
+		CommandLineParseValue(TEXT("PixelStreamingH264Profile="), PixelStreamingSettings::CVarPixelStreamingH264Profile);
+		CommandLineParseValue(TEXT("PixelStreamingCaptureSize="), PixelStreamingSettings::CVarPixelStreamingCaptureSize);
+		CommandLineParseValue(TEXT("PixelStreamingMaxNumBackBuffers="), PixelStreamingSettings::CVarPixelStreamingMaxNumBackBuffers);
+		CommandLineParseValue(TEXT("PixelStreamingDegradationPreference="), PixelStreamingSettings::CVarPixelStreamingDegradationPreference);
+		CommandLineParseValue(TEXT("PixelStreamingWebRTCDegradationPreference="), PixelStreamingSettings::CVarPixelStreamingDegradationPreference);
+		CommandLineParseValue(TEXT("PixelStreamingWebRTCMaxFps="), PixelStreamingSettings::CVarPixelStreamingWebRTCMaxFps);
+		CommandLineParseValue(TEXT("PixelStreamingWebRTCStartBitrate="), PixelStreamingSettings::CVarPixelStreamingWebRTCStartBitrate);
+		CommandLineParseValue(TEXT("PixelStreamingWebRTCMinBitrate="), PixelStreamingSettings::CVarPixelStreamingWebRTCMinBitrate);
+		CommandLineParseValue(TEXT("PixelStreamingWebRTCMaxBitrate="), PixelStreamingSettings::CVarPixelStreamingWebRTCMaxBitrate);
+		CommandLineParseValue(TEXT("PixelStreamingWebRTCLowQpThreshold="), PixelStreamingSettings::CVarPixelStreamingWebRTCLowQpThreshold);
+		CommandLineParseValue(TEXT("PixelStreamingWebRTCHighQpThreshold="), PixelStreamingSettings::CVarPixelStreamingWebRTCHighQpThreshold);
+		CommandLineParseValue(TEXT("PixelStreamingFreezeFrameQuality"), PixelStreamingSettings::CVarPixelStreamingFreezeFrameQuality);
+		CommandLineParseValue(TEXT("PixelStreamingKeyFilter="), PixelStreamingSettings::CVarPixelStreamingKeyFilter);
+
+		// Options parse (if these exist they are set to true)
+		CommandLineParseOption(TEXT("PixelStreamingOnScreenStats"), PixelStreamingSettings::CVarPixelStreamingOnScreenStats);
+		CommandLineParseOption(TEXT("PixelStreamingHudStats"), PixelStreamingSettings::CVarPixelStreamingOnScreenStats);
+		CommandLineParseOption(TEXT("PixelStreamingLogStats"), PixelStreamingSettings::CVarPixelStreamingLogStats);
+
+		CommandLineParseOption(TEXT("PixelStreamingDebugDumpFrame"), PixelStreamingSettings::CVarPixelStreamingDebugDumpFrame);
+		CommandLineParseOption(TEXT("PixelStreamingEnableFillerData"), PixelStreamingSettings::CVarPixelStreamingEnableFillerData);
+		CommandLineParseOption(TEXT("PixelStreamingUseBackBufferSize"), PixelStreamingSettings::CVarPixelStreamingUseBackBufferCaptureSize);
+		CommandLineParseOption(TEXT("PixelStreamingWebRTCDisableReceiveAudio"), PixelStreamingSettings::CVarPixelStreamingWebRTCDisableReceiveAudio);
+		CommandLineParseOption(TEXT("PixelStreamingWebRTCDisableTransmitAudio"), PixelStreamingSettings::CVarPixelStreamingWebRTCDisableTransmitAudio);
+		CommandLineParseOption(TEXT("PixelStreamingWebRTCDisableAudioSync"), PixelStreamingSettings::CVarPixelStreamingWebRTCDisableAudioSync);
+		CommandLineParseOption(TEXT("PixelStreamingWebRTCDisableResolutionChange"), PixelStreamingSettings::CVarPixelStreamingWebRTCDisableResolutionChange);
+		CommandLineParseOption(TEXT("PixelStreamingSendPlayerIdAsInteger"), PixelStreamingSettings::CVarSendPlayerIdAsInteger);
+		CommandLineParseOption(TEXT("PixelStreamingWebRTCUseLegacyAudioDevice"), PixelStreamingSettings::CVarPixelStreamingWebRTCUseLegacyAudioDevice);
+		CommandLineParseOption(TEXT("PixelStreamingDisableLatencyTester"), PixelStreamingSettings::CVarPixelStreamingDisableLatencyTester);
+
+	}
+
 }
-
-UPixelStreamingSettings::UPixelStreamingSettings(const FObjectInitializer& ObjectInitlaizer)
-	: Super(ObjectInitlaizer)
-{
-
-}
-
-FName UPixelStreamingSettings::GetCategoryName() const
-{
-	return TEXT("Plugins");
-}
-
-#if WITH_EDITOR
-FText UPixelStreamingSettings::GetSectionText() const
-{
-	return NSLOCTEXT("PixelStreamingPlugin", "PixelStreamingSettingsSection", "PixelStreaming");
-}
-#endif
-
-#if WITH_EDITOR
-void UPixelStreamingSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-}
-#endif
-
-

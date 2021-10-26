@@ -3,29 +3,36 @@
 #pragma once
 
 #include "PixelStreamingPrivate.h"
+#include "WebRTCIncludes.h"
 #include "RHI.h"
-#include "VideoEncoderInput.h"
+#include "PlayerId.h"
+#include "VideoCapturerContext.h"
 
 // This is a video track source for WebRTC.
 // Its main purpose is to copy frames from the Unreal Engine backbuffer.
 class FVideoCapturer : public rtc::AdaptedVideoTrackSource
 {
 public:
-	FVideoCapturer();
+	FVideoCapturer(FPlayerId InPlayerId);
+	~FVideoCapturer();
 
+	bool IsInitialized();
+	void Initialize(const FTexture2DRHIRef& FrameBuffer, TSharedPtr<FVideoCapturerContext> CapturerContext);
 	void OnFrameReady(const FTexture2DRHIRef& FrameBuffer);
 
 	void AddRef() const override
 	{
-		FPlatformAtomics::InterlockedIncrement(const_cast<volatile int32*>(&count));
+		FPlatformAtomics::InterlockedIncrement(const_cast<volatile int32*>(&Count));
 	}
 
 	rtc::RefCountReleaseStatus Release() const override
 	{
-
-		return FPlatformAtomics::InterlockedDecrement(const_cast<volatile int32*>(&count)) == 0
-			? rtc::RefCountReleaseStatus::kDroppedLastRef
-			: rtc::RefCountReleaseStatus::kOtherRefsRemained;
+		if (FPlatformAtomics::InterlockedDecrement(const_cast<volatile int32*>(&Count)) == 0)
+		{
+			return rtc::RefCountReleaseStatus::kDroppedLastRef;
+		}
+		
+		return rtc::RefCountReleaseStatus::kOtherRefsRemained;
 	}
 
 	virtual webrtc::MediaSourceInterface::SourceState state() const override
@@ -49,17 +56,13 @@ public:
 	}
 
 private:
-	AVEncoder::FVideoEncoderInputFrame* ObtainInputFrame();
-	void CopyTexture(const FTexture2DRHIRef& SourceTexture, FTexture2DRHIRef& DestinationTexture) const;
 	bool AdaptCaptureFrame(const int64 TimestampUs, FIntPoint Resolution);
 	void SetCaptureResolution(int width, int height);
-	
-	TMap<AVEncoder::FVideoEncoderInputFrame*, FTexture2DRHIRef> BackBuffers;
-	TSharedPtr<AVEncoder::FVideoEncoderInput> VideoEncoderInput = nullptr;
+	void OnEncoderInitialized();
 
-	int32 Width = 1920;
-	int32 Height = 1080;
-	int32 Framerate = 60;
+	bool bInitialized;
+	FPlayerId PlayerId;
+	TSharedPtr<FVideoCapturerContext> CapturerContext;
 	webrtc::MediaSourceInterface::SourceState CurrentState;
-	volatile int32 count;
+	volatile int32 Count;
 };

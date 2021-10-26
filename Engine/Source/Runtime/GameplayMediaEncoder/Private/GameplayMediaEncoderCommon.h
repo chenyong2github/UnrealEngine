@@ -24,11 +24,13 @@
 //
 // Includes common to Windows and XboxOne
 //
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 	#include "Templates/RefCounting.h"
 #endif
 
-#define WMFMEDIA_SUPPORTED_PLATFORM (PLATFORM_WINDOWS && !UE_SERVER)
+#ifndef WMFMEDIA_SUPPORTED_PLATFORM
+	#define WMFMEDIA_SUPPORTED_PLATFORM (PLATFORM_WINDOWS && (WINVER >= 0x0600 /*Vista*/) && !UE_SERVER)
+#endif
 
 DECLARE_LOG_CATEGORY_EXTERN(GameplayMediaEncoder, Log, VeryVerbose);
 

@@ -3,10 +3,9 @@
 #include "InputDevice.h"
 #include "PixelStreamerInputComponent.h"
 #include "PixelStreamingSettings.h"
-#include "IPixelStreamingModule.h"
+#include "PixelStreamingModule.h"
 #include "ProtocolDefs.h"
 #include "JavaScriptKeyCodes.inl"
-#include "IPixelStreamingModule.h"
 #include "Engine/Engine.h"
 #include "Engine/GameEngine.h"
 #include "Engine/GameViewportClient.h"
@@ -17,6 +16,7 @@
 #include "Policies/CondensedJsonPrintPolicy.h"
 #include "Serialization/JsonSerializer.h"
 #include "Framework/Application/SlateUser.h"
+#include "EditorPixelStreamingSettings.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(PixelStreamerInputDevice, Log, VeryVerbose);
 DEFINE_LOG_CATEGORY(PixelStreamerInputDevice);
@@ -113,11 +113,11 @@ public:
 };
 
 const FVector2D FInputDevice::UnfocusedPos(-1.0f, -1.0f);
+const size_t FInputDevice::MessageHeaderOffset = 3;
 
-FInputDevice::FInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler, TArray<UPixelStreamerInputComponent*>& InInputComponents)
+FInputDevice::FInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler)
 	: PixelStreamerApplicationWrapper(MakeShareable(new FApplicationWrapper(FSlateApplication::Get().GetPlatformApplication())))
 	, MessageHandler(InMessageHandler)
-	, InputComponents(InInputComponents)
 	, bAllowCommands(PixelStreamingSettings::IsAllowPixelStreamingCommands())
 	, bFakingTouchEvents(FSlateApplication::Get().IsFakingTouchEvents())
 	, FocusedPos(UnfocusedPos)
@@ -129,7 +129,7 @@ FInputDevice::FInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& 
 		// to be shown on the browser to allow the user to click UI elements.
 		const UPixelStreamingSettings* Settings = GetDefault<UPixelStreamingSettings>();
 		check(Settings);
-		
+
 		// Check to see if we want to hide the cursor (by making it invisible).
 		// This is required if we want to make the cursor client-side (displayed
 		// only by the the browser).
@@ -157,6 +157,16 @@ void QuantizeAndNormalize(const FVector2D& InPos, uint16& OutX, uint16& OutY)
 	OutY = InPos.Y / SizeXY.Y * 65536.0f;
 }
 
+bool FilterKey(const FKey& Key)
+{
+	for (auto&& FilteredKey : PixelStreamingSettings::FilteredKeys)
+	{
+		if (FilteredKey == Key)
+			return false;
+	}
+	return true;
+}
+
 void FInputDevice::Tick(float DeltaTime)
 {
 	FEvent Event;
@@ -175,13 +185,16 @@ void FInputDevice::Tick(float DeltaTime)
 			bool IsRepeat;
 			Event.GetKeyDown(JavaScriptKeyCode, IsRepeat);
 			const FKey* AgnosticKey = JavaScriptKeyCodeToFKey[JavaScriptKeyCode];
-			const uint32* KeyCodePtr;
-			const uint32* CharacterCodePtr;
-			FInputKeyManager::Get().GetCodesFromKey(*AgnosticKey, KeyCodePtr, CharacterCodePtr);
-			uint32 KeyCode = KeyCodePtr ? *KeyCodePtr : 0;
-			uint32 CharacterCode = CharacterCodePtr ? *CharacterCodePtr : 0;
-			MessageHandler->OnKeyDown(KeyCode, CharacterCode, IsRepeat);
-			UE_LOG(PixelStreamerInputDevice, Verbose, TEXT("KEY_DOWN: KeyCode = %d; CharacterCode = %d; IsRepeat = %s"), KeyCode, CharacterCode, IsRepeat ? TEXT("True") : TEXT("False"));
+			if (FilterKey(*AgnosticKey))
+			{
+				const uint32* KeyCodePtr;
+				const uint32* CharacterCodePtr;
+				FInputKeyManager::Get().GetCodesFromKey(*AgnosticKey, KeyCodePtr, CharacterCodePtr);
+				uint32 KeyCode = KeyCodePtr ? *KeyCodePtr : 0;
+				uint32 CharacterCode = CharacterCodePtr ? *CharacterCodePtr : 0;
+				MessageHandler->OnKeyDown(KeyCode, CharacterCode, IsRepeat);
+				UE_LOG(PixelStreamerInputDevice, Verbose, TEXT("KEY_DOWN: KeyCode = %d; CharacterCode = %d; IsRepeat = %s"), KeyCode, CharacterCode, IsRepeat ? TEXT("True") : TEXT("False"));
+			}
 		}
 		break;
 		case EventType::KEY_UP:
@@ -189,13 +202,16 @@ void FInputDevice::Tick(float DeltaTime)
 			uint8 JavaScriptKeyCode;
 			Event.GetKeyUp(JavaScriptKeyCode);
 			const FKey* AgnosticKey = JavaScriptKeyCodeToFKey[JavaScriptKeyCode];
-			const uint32* KeyCodePtr;
-			const uint32* CharacterCodePtr;
-			FInputKeyManager::Get().GetCodesFromKey(*AgnosticKey, KeyCodePtr, CharacterCodePtr);
-			uint32 KeyCode = KeyCodePtr ? *KeyCodePtr : 0;
-			uint32 CharacterCode = CharacterCodePtr ? *CharacterCodePtr : 0;
-			MessageHandler->OnKeyUp(KeyCode, CharacterCode, false);   // Key up events are never repeats.
-			UE_LOG(PixelStreamerInputDevice, Verbose, TEXT("KEY_UP: KeyCode = %d; CharacterCode = %d"), KeyCode, CharacterCode);
+			if (FilterKey(*AgnosticKey))
+			{
+				const uint32* KeyCodePtr;
+				const uint32* CharacterCodePtr;
+				FInputKeyManager::Get().GetCodesFromKey(*AgnosticKey, KeyCodePtr, CharacterCodePtr);
+				uint32 KeyCode = KeyCodePtr ? *KeyCodePtr : 0;
+				uint32 CharacterCode = CharacterCodePtr ? *CharacterCodePtr : 0;
+				MessageHandler->OnKeyUp(KeyCode, CharacterCode, false);   // Key up events are never repeats.
+				UE_LOG(PixelStreamerInputDevice, Verbose, TEXT("KEY_UP: KeyCode = %d; CharacterCode = %d"), KeyCode, CharacterCode);
+			}
 		}
 		break;
 		case EventType::KEY_PRESS:
@@ -331,6 +347,50 @@ void FInputDevice::Tick(float DeltaTime)
 			UE_LOG(PixelStreamerInputDevice, VeryVerbose, TEXT("TOUCH_MOVE: TouchIndex = %d; Pos = (%d, %d); CursorPos = (%d, %d); Force = %.3f"), TouchIndex, PosX, PosY, static_cast<int>(CursorPos.X), static_cast<int>(CursorPos.Y), Force / 255.0f);
 		}
 		break;
+		case EventType::GAMEPAD_PRESS:
+		{
+			uint8 ControllerId;
+			uint8 ButtonIndex;
+			bool bIsRepeat;
+			Event.GetGamepadButtonPressed(ControllerId, ButtonIndex, bIsRepeat);
+			FGamepadKeyNames::Type ControllerButton = ConvertButtonIndexToGamepadButton(ButtonIndex);
+			if (ControllerButton == FGamepadKeyNames::Invalid)
+			{
+				break;
+			}
+			MessageHandler->OnControllerButtonPressed(ControllerButton, (int32_t)ControllerId, bIsRepeat);
+			UE_LOG(PixelStreamerInputDevice, VeryVerbose, TEXT("GAMEPAD_PRESS: ControllerId = %d; ButtonIndex = %d; IsRepeat = %d"), ControllerId, ButtonIndex, bIsRepeat);
+		}
+		break;
+		case EventType::GAMEPAD_RELEASE:
+		{
+			uint8 ControllerId;
+			uint8 ButtonIndex;
+			Event.GetGamepadButtonReleased(ControllerId, ButtonIndex);
+			FGamepadKeyNames::Type ControllerButton = ConvertButtonIndexToGamepadButton(ButtonIndex);
+			if (ControllerButton == FGamepadKeyNames::Invalid)
+			{
+				break;
+			}
+			MessageHandler->OnControllerButtonReleased(ControllerButton, (int32_t)ControllerId, false);
+			UE_LOG(PixelStreamerInputDevice, VeryVerbose, TEXT("GAMEPAD_RELEASE: ControllerId = %d; ButtonIndex = %d;"), ControllerId, ButtonIndex);
+		}
+		break;
+		case EventType::GAMEPAD_ANALOG:
+		{
+			uint8 ControllerId;
+			uint8 AxisIndex;
+			float AnalogValue;
+			Event.GetGamepadAnalog(ControllerId, AxisIndex, AnalogValue);
+			FGamepadKeyNames::Type ControllerAxis = ConvertAxisIndexToGamepadAxis(AxisIndex);
+			if (ControllerAxis == FGamepadKeyNames::Invalid)
+			{
+				break;
+			}
+			MessageHandler->OnControllerAnalog(ControllerAxis, (int32_t)ControllerId, AnalogValue);
+			UE_LOG(PixelStreamerInputDevice, VeryVerbose, TEXT("GAMEPAD_ANALOG: ControllerId = %d; AxisIndex = %d; AnalogValue = %.4f;"), ControllerId, AxisIndex, AnalogValue);
+		}
+		break;
 		default:
 		{
 			UE_LOG(PixelStreamerInputDevice, Error, TEXT("Unknown Pixel Streaming event %d with word 0x%016llx"), static_cast<int>(Event.Event), Event.Data.Word);
@@ -342,7 +402,7 @@ void FInputDevice::Tick(float DeltaTime)
 	FString UIInteraction;
 	while (UIInteractions.Dequeue(UIInteraction))
 	{
-		for (UPixelStreamerInputComponent* InputComponent : InputComponents)
+		for (UPixelStreamerInputComponent* InputComponent : this->PixelStreamingModule->GetInputComponents())
 		{
 			InputComponent->OnInputEvent.Broadcast(UIInteraction);
 			UE_LOG(PixelStreamerInputDevice, Verbose, TEXT("UIInteraction = %s"), *UIInteraction);
@@ -352,7 +412,7 @@ void FInputDevice::Tick(float DeltaTime)
 	FString Command;
 	while (Commands.Dequeue(Command))
 	{
-		for (UPixelStreamerInputComponent* InputComponent : InputComponents)
+		for (UPixelStreamerInputComponent* InputComponent : this->PixelStreamingModule->GetInputComponents())
 		{
 			if (InputComponent->OnCommand(Command))
 			{
@@ -363,6 +423,128 @@ void FInputDevice::Tick(float DeltaTime)
 				UE_LOG(PixelStreamerInputDevice, Warning, TEXT("Failed to run Command = %s"), *Command);
 			}
 		}
+	}
+}
+
+FGamepadKeyNames::Type FInputDevice::ConvertAxisIndexToGamepadAxis(uint8 AnalogAxis)
+{
+	switch (AnalogAxis)
+	{
+	case 1:
+	{
+		return FGamepadKeyNames::LeftAnalogX;
+	}
+	break;
+	case 2:
+	{
+		return FGamepadKeyNames::LeftAnalogY;
+	}
+	break;
+	case 3:
+	{
+		return FGamepadKeyNames::RightAnalogX;
+	}
+	break;
+	case 4:
+	{
+		return FGamepadKeyNames::RightAnalogY;
+	}
+	break;
+	case 5:
+	{
+		return FGamepadKeyNames::LeftTriggerAnalog;
+	}
+	break;
+	case 6:
+	{
+		return FGamepadKeyNames::RightTriggerAnalog;
+	}
+	break;
+	default:
+	{
+		return FGamepadKeyNames::Invalid;
+	}
+	break;
+	}
+}
+
+FGamepadKeyNames::Type FInputDevice::ConvertButtonIndexToGamepadButton(uint8 ButtonIndex)
+{
+	switch (ButtonIndex)
+	{
+	case 0:
+	{
+		return FGamepadKeyNames::FaceButtonBottom;
+	}
+	case 1:
+	{
+		return FGamepadKeyNames::FaceButtonRight;
+	}
+	break;
+	case 2:
+	{
+		return FGamepadKeyNames::FaceButtonLeft;
+	}
+	break;
+	case 3:
+	{
+		return FGamepadKeyNames::FaceButtonTop;
+	}
+	break;
+	case 4:
+	{
+		return FGamepadKeyNames::LeftShoulder;
+	}
+	break;
+	case 5:
+	{
+		return FGamepadKeyNames::RightShoulder;
+	}
+	break;
+	// Buttons 6 and 7 are mapped as analog axis as they are the triggers
+	case 8:
+	{
+		return FGamepadKeyNames::SpecialLeft;
+	}
+	break;
+	case 9:
+	{
+		return FGamepadKeyNames::SpecialRight;
+	}
+	case 10:
+	{
+		return FGamepadKeyNames::LeftThumb;
+	}
+	break;
+	case 11:
+	{
+		return FGamepadKeyNames::RightThumb;
+	}
+	break;
+	case 12:
+	{
+		return FGamepadKeyNames::DPadUp;
+	}
+	break;
+	case 13:
+	{
+		return FGamepadKeyNames::DPadDown;
+	}
+	case 14:
+	{
+		return FGamepadKeyNames::DPadLeft;
+	}
+	break;
+	case 15:
+	{
+		return FGamepadKeyNames::DPadRight;
+	}
+	break;
+	default:
+	{
+		return FGamepadKeyNames::Invalid;
+	}
+	break;
 	}
 }
 
@@ -413,7 +595,7 @@ void FInputDevice::FindFocusedWidget()
 {
 	FSlateApplication::Get().ForEachUser([&](FSlateUser& User) {
 		TSharedPtr<SWidget> FocusedWidget = User.GetFocusedWidget();
-
+		
 		static FName SEditableTextType(TEXT("SEditableText"));
 		static FName SMultiLineEditableTextType(TEXT("SMultiLineEditableText"));
 		bool bEditable = FocusedWidget && (FocusedWidget->GetType() == SEditableTextType || FocusedWidget->GetType() == SMultiLineEditableTextType);
@@ -428,7 +610,7 @@ void FInputDevice::FindFocusedWidget()
 			TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 			JsonObject->SetStringField(TEXT("command"), TEXT("onScreenKeyboard"));
 			JsonObject->SetBoolField(TEXT("showOnScreenKeyboard"), bEditable);
-
+			
 			if (bEditable)
 			{
 				Pos = Pos - GEngine->GameViewport->GetWindow()->GetPositionInScreen();
@@ -494,6 +676,10 @@ namespace
 	using FPosType = uint16;
 	using FDeltaType = int16;
 	using FTouchesType = TArray<FTouch>;
+	using FControllerIndex = uint8;
+	using FControllerButtonIndex = uint8;
+	using FControllerAnalog = double;
+	using FControllerAxis = uint8;
 
 	/**
 	* Get the array of touch positions and touch indices for a touch event,
@@ -521,7 +707,7 @@ namespace
 
 		return Touches;
 	}
-	
+
 	/**
 	* Convert the given array of touches to a friendly string for logging.
 	* @param InTouches - The array of touches.
@@ -537,13 +723,16 @@ namespace
 		return String;
 	}
 
-	enum class KeyState { Alt = 1 << 0, Ctrl = 1 << 1, Shift = 1 << 2 };
-	enum class MouseButtonState { Left = 1 << 0, Right = 1 << 1, Middle = 1 << 2, Button4 = 1 << 3, Button5 = 1 << 4, Button6 = 1 << 5, Button7 = 1 << 6, Button8 = 1 << 7 };
+	enum class KeyState { Alt = 1 << 0,	Ctrl = 1 << 1, Shift = 1 << 2 };
+	enum class MouseButtonState	{ Left = 1 << 0, Right = 1 << 1, Middle = 1 << 2, Button4 = 1 << 3, Button5 = 1 << 4, Button6 = 1 << 5, Button7 = 1 << 6, Button8 = 1 << 7 };
 }
 
-void FInputDevice::OnMessage(const uint8* Data, uint32 Size)
+void FInputDevice::OnMessage(const webrtc::DataBuffer& Buffer)
 {
 	using namespace PixelStreamingProtocol;
+
+	const uint8* Data = Buffer.data.data();
+	uint32 Size = (uint32)Buffer.data.size();
 
 	GET(EToStreamerMsg, MsgType);
 
@@ -551,16 +740,14 @@ void FInputDevice::OnMessage(const uint8* Data, uint32 Size)
 	{
 	case EToStreamerMsg::UIInteraction:
 	{
-		FString Descriptor = PixelStreamingProtocol::ParseString(Data, Size);
-		checkf(Size == 0, TEXT("%d, %d"), Size, Descriptor.Len());
+		FString Descriptor = PixelStreamingProtocol::ParseString(Buffer, FInputDevice::GetMessageHeaderOffset());
 		UE_LOG(PixelStreamerInput, Verbose, TEXT("UIInteraction: %s"), *Descriptor);
 		ProcessUIInteraction(Descriptor);
 		break;
 	}
 	case EToStreamerMsg::Command:
 	{
-		FString Descriptor = PixelStreamingProtocol::ParseString(Data, Size);
-		checkf(Size == 0, TEXT("%d, %d"), Size, Descriptor.Len());
+		FString Descriptor = PixelStreamingProtocol::ParseString(Buffer, FInputDevice::GetMessageHeaderOffset());
 		UE_LOG(PixelStreamerInput, Verbose, TEXT("Command: %s"), *Descriptor);
 		ProcessCommand(Descriptor);
 		break;
@@ -596,7 +783,7 @@ void FInputDevice::OnMessage(const uint8* Data, uint32 Size)
 
 		FEvent KeyPressEvent(EventType::KEY_PRESS);
 		KeyPressEvent.SetCharCode(Character);
-		ProcessEvent(KeyPressEvent);		
+		ProcessEvent(KeyPressEvent);
 		break;
 	}
 	case EToStreamerMsg::MouseEnter:
@@ -640,7 +827,7 @@ void FInputDevice::OnMessage(const uint8* Data, uint32 Size)
 
 		FEvent MouseDownEvent(EventType::MOUSE_UP);
 		MouseDownEvent.SetMouseClick(Button, PosX, PosY);
-		ProcessEvent(MouseDownEvent);		
+		ProcessEvent(MouseDownEvent);
 		break;
 	}
 	case EToStreamerMsg::MouseMove:
@@ -715,6 +902,41 @@ void FInputDevice::OnMessage(const uint8* Data, uint32 Size)
 			TouchMoveEvent.SetTouch(Touch.TouchIndex, Touch.PosX, Touch.PosY, Touch.Force);
 			ProcessEvent(TouchMoveEvent);
 		}
+		break;
+	}
+	case EToStreamerMsg::GamepadButtonPressed:
+	{
+		GET(FControllerIndex, ControllerIndex);
+		GET(FControllerButtonIndex, ButtonIndex);
+		GET(FRepeatType, Repeat);
+		checkf(Size == 0, TEXT("%d"), Size);
+
+		FEvent GamepadAnalogEvent(EventType::GAMEPAD_PRESS);
+		GamepadAnalogEvent.SetGamepadButtonPressed(ControllerIndex, ButtonIndex, Repeat != 0);
+		ProcessEvent(GamepadAnalogEvent);
+		break;
+	}
+	case EToStreamerMsg::GamepadButtonReleased:
+	{
+		GET(FControllerIndex, ControllerIndex);
+		GET(FControllerButtonIndex, ButtonIndex);
+		checkf(Size == 0, TEXT("%d"), Size);
+
+		FEvent GamepadAnalogEvent(EventType::GAMEPAD_RELEASE);
+		GamepadAnalogEvent.SetGamepadButtonReleased(ControllerIndex, ButtonIndex);
+		ProcessEvent(GamepadAnalogEvent);
+		break;
+	}
+	case EToStreamerMsg::GamepadAnalog:
+	{
+		GET(FControllerIndex, ControllerIndex);
+		GET(FControllerAxis, AxisIndex);
+		GET(FControllerAnalog, AnalogValue);
+		checkf(Size == 0, TEXT("%d"), Size);
+
+		FEvent GamepadAnalogEvent(EventType::GAMEPAD_ANALOG);
+		GamepadAnalogEvent.SetGamepadAnalog(ControllerIndex, AxisIndex, (float)AnalogValue);
+		ProcessEvent(GamepadAnalogEvent);
 		break;
 	}
 	}

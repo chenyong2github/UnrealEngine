@@ -65,7 +65,6 @@ namespace UnrealBuildTool.Rules
 			// use private PCH to include lots of WebRTC headers
 			PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 			PrivatePCHHeaderFile = "Private/PCH.h";
-			//PCHUsage = PCHUsageMode.NoPCHs;
 
 			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
 
@@ -74,7 +73,6 @@ namespace UnrealBuildTool.Rules
 				{
 					Path.Combine(EngineDir, "Source/Runtime/AudioMixer/Private"),
 					Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private"),
-					Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Linux"),
 				});
 
 			PrivateDependencyModuleNames.AddRange(new string[]
@@ -84,11 +82,9 @@ namespace UnrealBuildTool.Rules
 				"CoreUObject",
 				"Engine",
 				"InputCore",
-				"InputDevice",
 				"Json",
 				"RenderCore",
 				"RHI",
-				"RHICore",
 				"Slate",
 				"SlateCore",
 				"AudioMixer",
@@ -96,47 +92,36 @@ namespace UnrealBuildTool.Rules
 				"WebSockets",
 				"Sockets",
 				"MediaUtils",
-				"AVEncoder",
-				"DeveloperSettings"
+				"DeveloperSettings",
+				"AVEncoder"
 			});
-			
+
+			// This is so for game projects using our public headers don't have to include extra modules they might not know about.
+			PublicDependencyModuleNames.AddRange(new string[]
+			{
+				"InputDevice"
+			});
+
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
 
-			if (Target.Type == TargetType.Editor)
-			{
-				PrivateDependencyModuleNames.Add("UnrealEd");
-			}
+			// required for casting UE4 BackBuffer to Vulkan Texture2D for NvEnc
+			PrivateDependencyModuleNames.AddRange(new string[] { "CUDA", "VulkanRHI", "nvEncode" });
 
-			DynamicallyLoadedModuleNames.AddRange(new string[]
-			{
-				"Media",
-			});
-
-			PrivateIncludePathModuleNames.AddRange(new string[]
-			{
-				"Media"
-			});
-
-			if (Target.bCompileAgainstEngine)
-			{
-				PrivateDependencyModuleNames.Add("Engine");
-				PrivateDependencyModuleNames.Add("HeadMountedDisplay");
-			}
-
-			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
-			{
-				// required for casting UnrealEngine BackBuffer to Vulkan Texture2D for NvEnc
-				PrivateDependencyModuleNames.AddRange(new string[] { "CUDA", "VulkanRHI", "nvEncode"});
-				PrivateIncludePaths.AddRange(new string[]
-				{
-					Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private"),
-					Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Linux"),
-				});
-
-
-			}
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
 			
-			// Add servers to packaged projects if they are avaliable
+			PrivateIncludePathModuleNames.Add("VulkanRHI");
+			PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private"));
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
+
+			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
+			{
+				PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Windows"));
+			}
+			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
+			{
+				PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Linux"));
+			}
+
 			AddSignallingServer();
 			AddMatchmakingServer();
 		}

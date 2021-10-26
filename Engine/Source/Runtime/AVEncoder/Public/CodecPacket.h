@@ -8,7 +8,7 @@
 namespace AVEncoder
 {
 
-class FCodecPacketImpl : public FCodecPacket
+class AVENCODER_API FCodecPacketImpl : public FCodecPacket
 {
 public:
 	~FCodecPacketImpl();

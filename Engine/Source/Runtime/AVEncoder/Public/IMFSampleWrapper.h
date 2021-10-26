@@ -6,7 +6,7 @@
 #include "Templates/RefCounting.h"
 #include "VideoCommon.h"
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || (PLATFORM_XBOXONE && WITH_LEGACY_XDK)
 
 namespace AVEncoder
 {
@@ -100,5 +100,5 @@ private:
 
 }
 
-#endif // PLATFORM_WINDOWS
+#endif // PLATFORM_WINDOWS || (PLATFORM_XBOXONE && WITH_LEGACY_XDK)
 
