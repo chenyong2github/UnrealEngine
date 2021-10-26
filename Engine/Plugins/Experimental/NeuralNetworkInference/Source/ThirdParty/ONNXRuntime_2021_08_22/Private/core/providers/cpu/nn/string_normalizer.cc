@@ -19,6 +19,10 @@
 #include <functional>
 #include <unordered_set>
 
+// WITH_UE: Fix multiple warning C4996: 'X': warning STL4017: std::wbuffer_convert, std::wstring_convert, and the <codecvt> header (containing [...]) are deprecated in C++17 [...]
+#include "ThirdPartyWarningDisabler.h"
+NNI_THIRD_PARTY_INCLUDES_START
+
 namespace onnxruntime {
 
 ONNX_CPU_OPERATOR_KERNEL(
@@ -389,3 +393,5 @@ Status StringNormalizer::Compute(OpKernelContext* ctx) const {
   return status;
 }
 }  // namespace onnxruntime
+
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE

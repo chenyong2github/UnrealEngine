@@ -23,9 +23,6 @@
 #include "core/framework/sparse_tensor.h"
 #include "core/graph/constants.h"
 #include "core/graph/graph_viewer.h"
-#include "ThirdPartyWarningDisabler.h" // #ifdef WITH_UE
-NNI_THIRD_PARTY_INCLUDES_START
-#undef check
 #if !defined(ORT_MINIMAL_BUILD)
 #include "onnx/defs/schema.h"
 #else
@@ -33,7 +30,6 @@ NNI_THIRD_PARTY_INCLUDES_START
 #endif
 #include "onnx/onnx_pb.h"
 #include "onnx/onnx-operators_pb.h"
-NNI_THIRD_PARTY_INCLUDES_END // #endif //WITH_UE
 #include "gsl/gsl"
 
 namespace onnxruntime {
