@@ -340,9 +340,9 @@ public:
     // Info_t is used to obtain attributes which will be used for calculating the output shape later. 
     template<typename Info_t, typename Shape_t>
     ConvolutionHelperBase(const Info_t& info, const Shape_t& shape, bool transpose, bool hasDynamicPads, uint32_t inputTensorIndex, uint32_t filterTensorIndex) :
-        m_kernel(InitializeKernel(info, shape.GetInputTensorDimensionCount(inputTensorIndex), shape.GetInputTensorShape(filterTensorIndex))),
-        m_inputTensorIndex(inputTensorIndex),
-        m_filterTensorIndex(filterTensorIndex)
+        m_inputTensorIndex(inputTensorIndex), // WITH_UE: Warning C5038: data member 'X' will be initialized after base class / data member 'Y'
+        m_filterTensorIndex(filterTensorIndex), // WITH_UE: Warning C5038: data member 'X' will be initialized after base class / data member 'Y'
+        m_kernel(InitializeKernel(info, shape.GetInputTensorDimensionCount(inputTensorIndex), shape.GetInputTensorShape(filterTensorIndex))) // WITH_UE: Warning C5038: data member 'X' will be initialized after base class / data member 'Y'
     {
 #ifndef __clang__ // WITH_UE
         m_groupCount = info.GetOptionalAttribute<uint32_t>(AttrName::Group, 1);

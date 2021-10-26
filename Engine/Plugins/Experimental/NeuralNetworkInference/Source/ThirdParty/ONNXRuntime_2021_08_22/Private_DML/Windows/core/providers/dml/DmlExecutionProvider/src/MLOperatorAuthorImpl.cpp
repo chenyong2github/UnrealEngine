@@ -409,13 +409,13 @@ OpKernelInfoWrapper::OpKernelInfoWrapper(
     bool isInternalOperator,
     const AttributeMap* defaultAttributes,
     gsl::span<const uint32_t> requiredConstantCpuInputs,
-    MLOperatorTensorGetter& constantInputGetter) : m_impl(kerneInfo),
-                                                   m_abiExecutionObject(abiExecutionObject),
-                                                   m_inferredOutputShapes(inferredOutputShapes),
+    MLOperatorTensorGetter& constantInputGetter) : OpNodeInfoWrapper(kerneInfo, inputShapeOverrides, defaultAttributes, requiredConstantCpuInputs, constantInputGetter), // WITH_UE: Warning C5038: data member 'X' will be initialized after base class / data member 'Y'
+                                                   m_inferredOutputShapes(inferredOutputShapes), // WITH_UE: Warning C5038: data member 'X' will be initialized after base class / data member 'Y'
                                                    m_allowInputShapeQuery(allowInputShapeQuery),
-                                                   m_allowOutputShapeQuery(allowOutputShapeQuery),
-                                                   m_internalOperator(isInternalOperator),
-                                                   OpNodeInfoWrapper(kerneInfo, inputShapeOverrides, defaultAttributes, requiredConstantCpuInputs, constantInputGetter) {
+                                                   m_allowOutputShapeQuery(allowOutputShapeQuery), // WITH_UE: Warning C5038: data member 'X' will be initialized after base class / data member 'Y'
+                                                   m_internalOperator(isInternalOperator), // WITH_UE: Warning C5038: data member 'X' will be initialized after base class / data member 'Y'
+                                                   m_impl(kerneInfo), // WITH_UE: Warning C5038: data member 'X' will be initialized after base class / data member 'Y'
+                                                   m_abiExecutionObject(abiExecutionObject) { // WITH_UE: Warning C5038: data member 'X' will be initialized after base class / data member 'Y'
   const void* executionHandle = kerneInfo->GetExecutionProvider()->GetExecutionHandle();
   if (executionHandle) {
     // We assume the execution object inherits IUnknown as its first base
@@ -903,10 +903,10 @@ DmlGraphOpKernelInfoWrapper::DmlGraphOpKernelInfoWrapper(
     const AttributeMap* defaultAttributes,
     DmlGraphNodeCreateInfo* graphNodeCreateInfo,
     gsl::span<const uint32_t> requiredConstantCpuInputs,
-    MLOperatorTensorGetter& constantInputGetter) : m_internalOperator(isInternalOperator),
-                                                   m_inferredOutputShapes(inferredOutputShapes),
-                                                   m_graphNodeCreateInfo(graphNodeCreateInfo),
-                                                   OpNodeInfoWrapper(protoHelper, nullptr, defaultAttributes, requiredConstantCpuInputs, constantInputGetter) {
+    MLOperatorTensorGetter& constantInputGetter) : OpNodeInfoWrapper(protoHelper, nullptr, defaultAttributes, requiredConstantCpuInputs, constantInputGetter), // WITH_UE: Warning C5038: data member 'X' will be initialized after base class / data member 'Y'
+                                                   m_inferredOutputShapes(inferredOutputShapes), // WITH_UE: Warning C5038: data member 'X' will be initialized after base class / data member 'Y'
+                                                   m_internalOperator(isInternalOperator), // WITH_UE: Warning C5038: data member 'X' will be initialized after base class / data member 'Y'
+                                                   m_graphNodeCreateInfo(graphNodeCreateInfo) { // WITH_UE: Warning C5038: data member 'X' will be initialized after base class / data member 'Y'
   // We assume the execution object inherits IUnknown as its first base
   m_abiExecutionObject = const_cast<IUnknown*>(static_cast<const IUnknown*>(executionHandle));
   m_abiExecutionObject.As(&m_winmlProvider);
@@ -1114,7 +1114,8 @@ void STDMETHODCALLTYPE OnnxTensorWrapper::GetDataInterface(IUnknown** dataInterf
   *dataInterface = nullptr;
 }
 
-TensorWrapper::TensorWrapper(onnxruntime::Tensor* impl, bool isDataInterface, IWinmlExecutionProvider* provider, bool isInternalOperator) : m_impl(impl), m_isDataInterface(isDataInterface), m_winmlExecutionProvider(provider), m_internalOperator(isInternalOperator) {
+// WITH_UE: Warning C5038: data member 'X' will be initialized after base class / data member 'Y'
+TensorWrapper::TensorWrapper(onnxruntime::Tensor* impl, bool isDataInterface, IWinmlExecutionProvider* provider, bool isInternalOperator) : m_impl(impl), m_winmlExecutionProvider(provider), m_internalOperator(isInternalOperator), m_isDataInterface(isDataInterface) {
   if (impl) {
     if (isDataInterface) {
       // We assume that all data handles derive from IUnknown as their first base.
@@ -1260,7 +1261,7 @@ OpKernelContextWrapper::OpKernelContextWrapper(
     onnxruntime::OpKernelContext* context,
     const onnxruntime::IExecutionProvider* provider,
     bool isInternalOperator,
-    const EdgeShapes* outputShapes) : m_impl(context), m_provider(provider), m_internalOperator(isInternalOperator), m_outputShapes(outputShapes) {
+    const EdgeShapes* outputShapes) : m_impl(context), m_outputShapes(outputShapes), m_provider(provider), m_internalOperator(isInternalOperator) { // WITH_UE: Warning C5038: data member 'X' will be initialized after base class / data member 'Y'
   // Pre-size tensor arrays.    Member methods return pointers to these which
   // are stored in these arrays, which would become stale if the vectors reallocate
   // their internal storage.
@@ -1497,8 +1498,8 @@ AbiOpKernel::AbiOpKernel(
     const AttributeMap* defaultAttributes) : OpKernel(kerneInfo),
                                              m_requiresInputShapesAtCreation(requiresInputShapesAtCreation),
                                              m_requiresOutputShapesAtCreation(requiresOutputShapesAtCreation),
+                                             m_shapeInferrer(shapeInferrer), // WITH_UE: Warning C5038: data member 'X' will be initialized after base class / data member 'Y'
                                              m_internalOperator(isInternalOperator),
-                                             m_shapeInferrer(shapeInferrer),
                                              m_defaultAttributes(defaultAttributes) {
   assert(requiresInputShapesAtCreation || !requiresOutputShapesAtCreation);
 
