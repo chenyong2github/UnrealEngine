@@ -21,6 +21,7 @@ namespace HordeServer.Tasks.Impl
 {
 	using JobId = ObjectId<IJob>;
 	using LeaseId = ObjectId<ILease>;
+	using LogId = ObjectId<ILogFile>;
 
 	class ShutdownTaskSource : TaskSourceBase<ShutdownTask>
 	{
@@ -31,6 +32,7 @@ namespace HordeServer.Tasks.Impl
 		public ShutdownTaskSource(ILogFileService LogService)
 		{
 			this.LogService = LogService;
+			this.OnLeaseStartedProperties.Add(nameof(ShutdownTask.LogId), x => new LogId(x.LogId));
 		}
 
 		public override async Task<AgentLease?> AssignLeaseAsync(IAgent Agent, CancellationToken CancellationToken)

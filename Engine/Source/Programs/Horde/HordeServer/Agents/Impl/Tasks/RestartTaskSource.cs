@@ -20,6 +20,7 @@ namespace HordeServer.Tasks.Impl
 {
 	using JobId = ObjectId<IJob>;
 	using LeaseId = ObjectId<ILease>;
+	using LogId = ObjectId<ILogFile>;
 
 	class RestartTaskSource : TaskSourceBase<RestartTask>
 	{
@@ -30,6 +31,8 @@ namespace HordeServer.Tasks.Impl
 		public RestartTaskSource(ILogFileService LogService)
 		{
 			this.LogService = LogService;
+
+			this.OnLeaseStartedProperties.Add(nameof(RestartTask.LogId), x => new LogId(x.LogId));
 		}
 
 		public override async Task<AgentLease?> AssignLeaseAsync(IAgent Agent, CancellationToken CancellationToken)
