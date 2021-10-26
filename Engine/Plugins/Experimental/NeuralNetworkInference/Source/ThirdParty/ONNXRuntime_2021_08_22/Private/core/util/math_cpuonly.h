@@ -46,11 +46,19 @@
 #pragma warning(disable : 4245)
 #pragma warning(disable : 4127)
 #endif
+
+#ifndef __PROSPERO__
 PRAGMA_DEFAULT_VISIBILITY_START // WITH_UE
+#endif
+
 #include "Eigen/Core"
 #include "Eigen/Dense"
 #include "Eigen/Sparse"
+
+#ifndef __PROSPERO__
 PRAGMA_DEFAULT_VISIBILITY_END // WITH_UE
+#endif
+
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop
 #else
