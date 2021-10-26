@@ -65,9 +65,12 @@ FArchive& operator<<(FArchive& Ar, FCADMaterial& Material)
 FArchive& operator<<(FArchive& Ar, FFileDescription& File)
 {
 	Ar << File.Path;
+	Ar << File.OriginalPath;
 	Ar << File.Name;
 	Ar << File.Extension;
 	Ar << File.Configuration;
+	Ar << File.MainCadFilePath;
+
 	return Ar;
 }
 
