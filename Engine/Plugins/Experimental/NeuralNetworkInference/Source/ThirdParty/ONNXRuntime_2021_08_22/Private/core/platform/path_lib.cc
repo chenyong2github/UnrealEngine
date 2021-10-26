@@ -11,6 +11,10 @@
 
 #include "core/common/status.h"
 #include "core/common/common.h"
+
+#include "Misc/Paths.h" // WITH_UE
+
+
 #ifdef _WIN32
 
 #if defined(USE_PATHCCH_LIB)
