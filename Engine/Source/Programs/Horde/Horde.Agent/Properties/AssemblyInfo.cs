@@ -2,4 +2,4 @@
 
 using System.Runtime.CompilerServices;
 
-[assembly: InternalsVisibleTo("HordeAgentTests")]
+[assembly: InternalsVisibleTo("Horde.Agent.Tests")]

@@ -25,8 +25,6 @@ using HordeServer.Tasks.Impl;
 using System.Threading;
 using HordeServer.Jobs;
 
-[assembly: InternalsVisibleTo("HordeAgentTests")]
-
 namespace HordeServer.Services
 {
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;

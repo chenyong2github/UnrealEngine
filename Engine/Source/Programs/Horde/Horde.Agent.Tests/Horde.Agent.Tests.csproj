@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\HordeAgent\HordeAgent.csproj" />
+    <ProjectReference Include="..\Horde.Agent\Horde.Agent.csproj" />
   </ItemGroup>
 
   <ItemGroup>
