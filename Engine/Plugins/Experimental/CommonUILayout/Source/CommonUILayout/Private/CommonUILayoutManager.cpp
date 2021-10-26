@@ -9,9 +9,28 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/Widget.h"
 #include "Engine/AssetManager.h"
+#include "Engine/Engine.h"
+#include "Engine/LocalPlayer.h"
 #include "Engine/StreamableManager.h"
 #include "Widgets/Layout/SSafeZone.h"
 #include "Widgets/Layout/SScaleBox.h"
+
+namespace UCommonUILayoutManagerCVars
+{
+#if !UE_BUILD_SHIPPING
+	static FAutoConsoleCommand RefreshVisibility(
+		TEXT("CommonUILayout.RefreshVisibility"),
+		TEXT("Refresh the visibility of the widgets allowed/unallowed by reevaluating the scenes registered in the Dynamic HUD."),
+		FConsoleCommandDelegate::CreateStatic(UCommonUILayoutManager::DEBUG_RefreshVisibility)
+	);
+
+	static FAutoConsoleCommand ListCurrentState(
+		TEXT("CommonUILayout.ListCurrentState"),
+		TEXT("List in the log the currently active scenes, root viewport layouts & state content."),
+		FConsoleCommandDelegate::CreateStatic(UCommonUILayoutManager::DEBUG_ListCurrentState)
+	);
+#endif
+}
 
 bool UCommonUILayoutManager::ShouldCreateSubsystem(UObject* Outer) const
 {
@@ -27,29 +46,69 @@ bool UCommonUILayoutManager::ShouldCreateSubsystem(UObject* Outer) const
 
 void UCommonUILayoutManager::Initialize(FSubsystemCollectionBase& Collection)
 {
-	static FAutoConsoleCommand RefreshVisibility(
-		TEXT("CommonUILayout.RefreshVisibility"),
-		TEXT("Refresh the visibility of the widgets allowed/unallowed by reevaluating the layouts registered in CommonUILayout."),
-		FConsoleCommandDelegate::CreateUObject(this, &UCommonUILayoutManager::RefreshVisibility)
-	);
+	Super::Initialize(Collection);
+
+	UWorld* World = GetWorld();
+	if (UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr)
+	{
+		GameInstance->OnLocalPlayerAddedEvent.AddUObject(this, &UCommonUILayoutManager::OnLocalPlayerAdded);
+		GameInstance->OnLocalPlayerRemovedEvent.AddUObject(this, &UCommonUILayoutManager::OnLocalPlayerRemoved);
+
+		for (ULocalPlayer* Player : GameInstance->GetLocalPlayers())
+		{
+			if (Player)
+			{
+				TWeakObjectPtr<ULocalPlayer> WeakPlayer(Player);
+				FRootLayoutData& RootLayoutData = RootLayoutMap.Add(WeakPlayer);
+				RootLayoutData.Player = WeakPlayer;
+				RootLayoutData.CreateLayout();
+			}
+		}
+	}
 }
 
 void UCommonUILayoutManager::Deinitialize()
 {
-	DestroyRootLayout();
+	UWorld* World = GetWorld();
+	if (UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr)
+	{
+		GameInstance->OnLocalPlayerAddedEvent.RemoveAll(this);
+		GameInstance->OnLocalPlayerRemovedEvent.RemoveAll(this);
+	}
+
+	for (TPair<TWeakObjectPtr<const ULocalPlayer>, FRootLayoutData> Pair : RootLayoutMap)
+	{
+		Pair.Value.Reset();
+	}
+	RootLayoutMap.Empty();
+
+	Super::Deinitialize();
 }
 
-COMMONUILAYOUT_API UCommonUILayoutManager* UCommonUILayoutManager::GetInstance(const UWorld* World)
+UCommonUILayoutManager* UCommonUILayoutManager::GetInstance(const UWorld* World)
 {
 	return World ? World->GetSubsystem<UCommonUILayoutManager>() : nullptr;
 }
 
-void UCommonUILayoutManager::SetHUDScale(const float InHUDScale)
+void UCommonUILayoutManager::SetHUDScale(const float InHUDScale, ULocalPlayer* Player)
 {
-	if (HUDScale != InHUDScale)
+	// We use FindOrAdd here to make sure we can store the HUDScale in case it's from a local player
+	// we don't know yet, as we don't have any way to grab it outside this function.
+	if (Player)
 	{
-		HUDScale = InHUDScale;
-		ApplyHUDScale();
+		TWeakObjectPtr<ULocalPlayer> WeakPlayer(Player);
+		FRootLayoutData& RootLayoutData = RootLayoutMap.FindOrAdd(WeakPlayer);
+		if (RootLayoutData.HUDScale != InHUDScale)
+		{
+			if (RootLayoutData.Player.IsExplicitlyNull())
+			{
+				// Data was added, so we need to set the player
+				RootLayoutData.Player = WeakPlayer;
+			}
+
+			RootLayoutData.HUDScale = InHUDScale;
+			RootLayoutData.ApplyHUDScale();
+		}
 	}
 }
 
@@ -102,17 +161,97 @@ void UCommonUILayoutManager::Remove(const TArray<UCommonUILayout*> Layouts, cons
 	}
 }
 
-FName UCommonUILayoutManager::GetUniqueIDForWidget(UUserWidget* Widget) const
+FName UCommonUILayoutManager::GetUniqueIDForWidget(const ULocalPlayer* Player, UUserWidget* Widget) const
 {
-	SCommonUILayoutPanel* LayoutPanelPtr = LayoutPanel.Get();
-	return LayoutPanelPtr ? LayoutPanelPtr->FindUniqueIDForWidget(Widget) : FName();
+	const SCommonUILayoutPanel* LayoutPanel = GetLayoutPanel(Player);
+	return LayoutPanel ? LayoutPanel->FindUniqueIDForWidget(Widget) : FName();
 }
 
-TWeakObjectPtr<UUserWidget> UCommonUILayoutManager::FindUserWidgetWithUniqueID(const TSoftClassPtr<UUserWidget>& WidgetClass, const FName& UniqueID) const
+TWeakObjectPtr<UUserWidget> UCommonUILayoutManager::FindUserWidgetWithUniqueID(const ULocalPlayer* Player, const TSoftClassPtr<UUserWidget>& WidgetClass, const FName& UniqueID) const
 {
-	SCommonUILayoutPanel* LayoutPanelPtr = LayoutPanel.Get();
-	return LayoutPanelPtr ? LayoutPanelPtr->FindUserWidgetWithUniqueID(WidgetClass, UniqueID) : nullptr;
+	const SCommonUILayoutPanel* LayoutPanel = GetLayoutPanel(Player);
+	return LayoutPanel ? LayoutPanel->FindUserWidgetWithUniqueID(WidgetClass, UniqueID) : nullptr;
 }
+
+bool UCommonUILayoutManager::TryGetLayoutPanelPaintGeometry(const ULocalPlayer* Player, FGeometry& OutPaintGeometry)
+{
+	if (const SCommonUILayoutPanel* LayoutPanel = GetLayoutPanel(Player))
+	{
+		OutPaintGeometry = LayoutPanel->GetPaintSpaceGeometry();
+		return true;
+	}
+
+	return false;
+}
+
+#if !UE_BUILD_SHIPPING
+void UCommonUILayoutManager::DEBUG_RefreshVisibility()
+{
+	UWorld* World = GEngine->GetCurrentPlayWorld();
+	if (UCommonUILayoutManager* Manager = UCommonUILayoutManager::GetInstance(World))
+	{
+		Manager->RefreshVisibility();
+	}
+}
+
+void UCommonUILayoutManager::DEBUG_ListCurrentState()
+{
+	UE_LOG(LogCommonUILayout, Log, TEXT("UCommonUILayoutManager: ================== Current State =================="));
+
+	UWorld* World = GEngine->GetCurrentPlayWorld();
+	if (UCommonUILayoutManager* Manager = UCommonUILayoutManager::GetInstance(World))
+	{
+		// Active Scenes
+		UE_LOG(LogCommonUILayout, Log, TEXT("UCommonUILayoutManager: * Active Scenes:"));
+		for (TPair<TObjectPtr<const UCommonUILayout>, FCommonUILayoutContextData> Pair : Manager->ActiveLayouts)
+		{
+			TObjectPtr<const UCommonUILayout>& Scene = Pair.Key;
+			TArray<TWeakObjectPtr<const UObject>>& Contexts = Pair.Value.Contexts;
+
+			TStringBuilder<2048> StringBuilder;
+			for (const TWeakObjectPtr<const UObject>& Context : Contexts)
+			{
+				if (Context.IsValid())
+				{
+					if (StringBuilder.Len() > 0)
+					{
+						StringBuilder.Append(TEXT(", "));
+					}
+
+					StringBuilder.Append(*Context->GetName());
+				}
+			}
+			UE_LOG(LogCommonUILayout, Log, TEXT("UCommonUILayoutManager:    - %s (%s)[%d]"), *Scene->GetName(), Contexts.Num() > 0 ? StringBuilder.ToString() : TEXT("None"), Contexts.Num());
+		}
+
+		// State Content
+		UE_LOG(LogCommonUILayout, Log, TEXT("UCommonUILayoutManager: * State Content:"));
+		for (TPair<TWeakObjectPtr<const ULocalPlayer>, FRootLayoutData> Pair : Manager->RootLayoutMap)
+		{
+			const FRootLayoutData& RootLayoutData = Pair.Value;
+
+			const ULocalPlayer* LocalPlayer = RootLayoutData.Player.Get();
+			UE_LOG(LogCommonUILayout, Log, TEXT("UCommonUILayoutManager:    Player: %s"), LocalPlayer ? *LocalPlayer->GetNickname() : TEXT("Unknown"));
+
+			if (SCommonUILayoutPanel* LayoutPanelPtr = RootLayoutData.LayoutPanel.Get())
+			{
+				const FCommonUILayoutPanelInfo& Info = LayoutPanelPtr->StateContentInfo;
+				UE_LOG(LogCommonUILayout, Log, TEXT("UCommonUILayoutManager:    - %s"), Info.IsValid() ? *Info.ToString() : TEXT("No active State Content"));
+			}
+			else
+			{
+				UE_LOG(LogCommonUILayout, Log, TEXT("UCommonUILayoutManager:    !!! Invalid SCommonUILayoutPanel !!!"));
+			}
+		}
+	}
+	else
+	{
+		UE_LOG(LogCommonUILayout, Log, TEXT("UCommonUILayoutManager:    Invalid World!"));
+	}
+
+	UE_LOG(LogCommonUILayout, Log, TEXT("UCommonUILayoutManager: ==================================================="));
+}
+#endif // #if !UE_BUILD_SHIPPING
 
 void UCommonUILayoutManager::AddLayoutToPreloadQueue(const UCommonUILayout* Layout, const UObject* OptionalContext)
 {
@@ -219,68 +358,27 @@ bool UCommonUILayoutManager::IsLayoutPreloaded(const UCommonUILayout* Layout, co
 	return false;
 }
 
-void UCommonUILayoutManager::CreateRootPanel()
+void UCommonUILayoutManager::OnLocalPlayerAdded(ULocalPlayer* Player)
 {
-	if (!RootPanelData.RootPanel.IsValid() && !LayoutPanel.IsValid() && ActiveLayouts.Num() > 0)
+	if (Player)
 	{
-		UWorld* World = GetWorld();
-		if (World && !World->bIsTearingDown)
+		TWeakObjectPtr<ULocalPlayer> WeakPlayer(Player);
+		FRootLayoutData& RootLayoutData = RootLayoutMap.Add(WeakPlayer);
+		RootLayoutData.Player = WeakPlayer;
+		RootLayoutData.CreateLayout();
+	}
+}
+
+void UCommonUILayoutManager::OnLocalPlayerRemoved(ULocalPlayer* Player)
+{
+	if (Player)
+	{
+		TWeakObjectPtr<ULocalPlayer> WeakPlayer(Player);
+		FRootLayoutData RootLayoutData;
+		if (RootLayoutMap.RemoveAndCopyValue(WeakPlayer, RootLayoutData))
 		{
-			if (UGameViewportClient* ViewportClient = World->GetGameViewport())
-			{
-				// FIXME: This doesn't work for splitscreen
-				ULocalPlayer* Player = World->GetFirstLocalPlayerFromController();
-				if (Player && ViewportClient->GetWindow().IsValid())
-				{
-					RootPanelData.Player = TWeakObjectPtr<ULocalPlayer>(Player);
-
-					// Layout panel will be the parent of all the widgets managed by the Dynamic HUD
-					// Root layout is used as a parent to the layout panel so we can have it fill the whole screen
-					RootPanelData.RootPanel =
-						SNew(SOverlay)
-						+ SOverlay::Slot()
-						.HAlign(HAlign_Fill)
-						.VAlign(VAlign_Fill)
-						[
-							SAssignNew(ScaleBox, SScaleBox)
-							.HAlign(HAlign_Fill)
-							.VAlign(VAlign_Fill)
-							.Stretch(EStretch::UserSpecified)
-							[
-								SAssignNew(LayoutPanel, SCommonUILayoutPanel).AssociatedWorld(World)
-							]
-						];
-
-					// Pass along the top-most widget so we can invalidate it in case layerids changes
-					LayoutPanel->SetRootLayout(RootPanelData.RootPanel);
-
-					ApplyHUDScale();
-
-					const int32 ZOrder = 500; // 500 is chosen because the root layout & HUD layer manager are offset to 1000 to give space for plugins
-					ViewportClient->AddViewportWidgetForPlayer(Player, RootPanelData.RootPanel.ToSharedRef(), ZOrder);
-				}
-			}
+			RootLayoutData.Reset();
 		}
-	}
-}
-
-void UCommonUILayoutManager::DestroyRootLayout()
-{
-	if (LayoutPanel.IsValid())
-	{
-		LayoutPanel->ClearChildren();
-		LayoutPanel.Reset();
-	}
-
-	ScaleBox.Reset();
-	RootPanelData.Reset(GetWorld());
-}
-
-void UCommonUILayoutManager::ApplyHUDScale()
-{
-	if (ScaleBox.IsValid())
-	{
-		ScaleBox->SetUserSpecifiedScale(HUDScale);
 	}
 }
 
@@ -353,29 +451,117 @@ void UCommonUILayoutManager::Remove_Internal(const UCommonUILayout* Layout, cons
 
 void UCommonUILayoutManager::RefreshVisibility()
 {
-	CreateRootPanel();
+	for (TPair<TWeakObjectPtr<const ULocalPlayer>, FRootLayoutData> Pair : RootLayoutMap)
+	{
+		FRootLayoutData& RootLayoutData = Pair.Value;
+		RootLayoutData.RefreshVisibility(ActiveLayouts);
+	}
+}
 
+SCommonUILayoutPanel* UCommonUILayoutManager::GetLayoutPanel(const ULocalPlayer* Player) const
+{
+	const FRootLayoutData* RootLayoutData = Player ? RootLayoutMap.Find(TWeakObjectPtr<const ULocalPlayer>(Player)) : nullptr;
+	return RootLayoutData ? RootLayoutData->LayoutPanel.Get() : nullptr;
+}
+
+SCommonUILayoutPanel& UCommonUILayoutManager::GetOrCreateLayoutPanel(ULocalPlayer* Player)
+{
+	FRootLayoutData& RootLayoutData = RootLayoutMap.FindOrAdd(TWeakObjectPtr<ULocalPlayer>(Player));
+	if (RootLayoutData.Player.IsExplicitlyNull())
+	{
+		// If the player is explicitly null, it means the root layout data is newly created.
+		// If so, we need to create a layout for it.
+		// FIXME: Make creation lazy based on first scene added
+		TWeakObjectPtr<ULocalPlayer> WeakPlayer(Player);
+		RootLayoutData.Player = WeakPlayer;
+		RootLayoutData.CreateLayout();
+	}
+
+	SCommonUILayoutPanel* LayoutPanel = RootLayoutData.LayoutPanel.Get();
+	ensureAlwaysMsgf(LayoutPanel, TEXT("UCommonUILayoutManager: Could not create layout panel during AddRootViewportLayout"));
+	return *LayoutPanel;
+}
+
+void UCommonUILayoutManager::FRootLayoutData::CreateLayout()
+{
+	if (!RootLayout.IsValid() && !LayoutPanel.IsValid())
+	{
+		ULocalPlayer* PlayerPtr = Player.Get();
+		UWorld* World = PlayerPtr ? PlayerPtr->GetWorld() : nullptr;
+		if (World && !World->bIsTearingDown)
+		{
+			if (UGameViewportClient* ViewportClient = World->GetGameViewport())
+			{
+				if (ViewportClient->GetWindow().IsValid())
+				{
+					// Layout panel will be the parent of all the widgets managed by the Dynamic HUD for this player
+					// Root layout is used as a parent to the layout panel so we can have it fill the whole screen
+					RootLayout =
+						SNew(SOverlay)
+						+ SOverlay::Slot()
+						.HAlign(HAlign_Fill)
+						.VAlign(VAlign_Fill)
+						[
+							SAssignNew(ScaleBox, SScaleBox)
+							.HAlign(HAlign_Fill)
+							.VAlign(VAlign_Fill)
+							.Visibility(EVisibility::SelfHitTestInvisible)
+							.Stretch(EStretch::UserSpecified)
+							[
+								SAssignNew(LayoutPanel, SCommonUILayoutPanel).AssociatedWorld(World)
+							]
+						];
+
+					// Pass along the top-most widget so we can invalidate it in case layerids changes
+					LayoutPanel->SetRootLayout(RootLayout);
+
+					ApplyHUDScale();
+
+					const int32 ZOrder = 500; // 500 is chosen because the root layout & HUD layer manager are offset to 1000 to give space for plugins
+					ViewportClient->AddViewportWidgetForPlayer(PlayerPtr, RootLayout.ToSharedRef(), ZOrder);
+				}
+			}
+		}
+	}
+}
+
+void UCommonUILayoutManager::FRootLayoutData::Reset()
+{
+	if (RootLayout.IsValid())
+	{
+		ULocalPlayer* PlayerPtr = Player.Get();
+		UWorld* World = PlayerPtr ? PlayerPtr->GetWorld() : nullptr;
+		if (UGameViewportClient* ViewportClient = World ? World->GetGameViewport() : nullptr)
+		{
+			ViewportClient->RemoveViewportWidgetForPlayer(PlayerPtr, RootLayout.ToSharedRef());
+		}
+	}
+
+	if (LayoutPanel.IsValid())
+	{
+		LayoutPanel->ClearChildren();
+		LayoutPanel.Reset();
+	}
+
+	ScaleBox.Reset();
+	RootLayout.Reset();
+	Player.Reset();
+}
+
+void UCommonUILayoutManager::FRootLayoutData::RefreshVisibility(const TMap<TObjectPtr<const UCommonUILayout>, FCommonUILayoutContextData>& InActiveLayouts)
+{
 	if (SCommonUILayoutPanel* LayoutPanelPtr = LayoutPanel.Get())
 	{
 		TArray<TObjectPtr<const UCommonUILayout>> Layouts;
-		ActiveLayouts.GenerateKeyArray(Layouts);
+		InActiveLayouts.GenerateKeyArray(Layouts);
 		LayoutPanelPtr->RefreshChildren(Layouts);
 	}
 }
 
-void UCommonUILayoutManager::FRootLayoutData::Reset(const UWorld* World)
+void UCommonUILayoutManager::FRootLayoutData::ApplyHUDScale()
 {
-	if (RootPanel.IsValid())
+	if (ScaleBox.IsValid())
 	{
-		if (World && World->IsGameWorld())
-		{
-			if (UGameViewportClient* ViewportClient = World->GetGameViewport())
-			{
-				ViewportClient->RemoveViewportWidgetForPlayer(Player.Get(), RootPanel.ToSharedRef());
-			}
-		}
+		ScaleBox->SetUserSpecifiedScale(HUDScale);
 	}
-
-	RootPanel.Reset();
-	Player.Reset();
 }

@@ -3,20 +3,13 @@
 #pragma once
 
 #include "CommonUILayoutConstraints.h"
+#include "CommonUILayoutZOrder.h"
 #include "Engine/DataAsset.h"
-#include "GameplayTagContainer.h"
+
 #include "CommonUILayout.generated.h"
 
 class UUserWidget;
-
-UENUM()
-enum class ECommonUILayoutZOrder
-{
-	Back = 500,
-	Middle = 1000,
-	Front = 1500,
-	Custom = 2000
-};
+struct FPropertyChangedChainEvent;
 
 USTRUCT()
 struct FCommonUILayoutWidget 
@@ -47,9 +40,9 @@ struct FCommonUILayoutWidget
 	UPROPERTY(EditDefaultsOnly, Category = "Common UI Layout")
 	bool bUseSafeZone = true;
 
-	/** List of layout constraints to apply to this widget when putting it on screen. */
+	/** Layout constraint to apply to this widget when putting it on screen. */
 	UPROPERTY(EditDefaultsOnly, Category = "Common UI Layout", Instanced)
-	TArray<TObjectPtr<UCommonUILayoutConstraintBase>> LayoutConstraints;
+	TObjectPtr<UCommonUILayoutConstraintBase> LayoutConstraint = nullptr;
 };
 
 USTRUCT()
@@ -75,16 +68,16 @@ struct FCommonUILayoutWidgetUnallowed
 };
 
 /**
- * A Dynamic HUD Scene defines a list of HUD widgets that are allowed & unallowed to be
- * visible when this scene is added to the active scenes stack in the HUD Scene Manager.
+ * A Layout defines a list of widgets that are allowed & unallowed to be
+ * visible when this scene is added to the active layouts stack in the LayoutManager.
  *
- * A HUD widget needs to be allowed at least once to be visible. However, adding a HUD
+ * A widget needs to be allowed at least once to be visible. However, adding a
  * widget in the unallowed list will prevent it from being visible regardless of how many
- * other active scenes allowed it to be. A HUD widget that is not allowed or unallowed
+ * other active scenes allowed it to be. A widget that is not allowed or unallowed
  * will not be allowed to be visible.
  */
-UCLASS(MinimalAPI, BlueprintType)
-class UCommonUILayout : public UDataAsset
+UCLASS(BlueprintType)
+class COMMONUILAYOUT_API UCommonUILayout : public UDataAsset
 {
 	GENERATED_BODY()
 
@@ -97,4 +90,8 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Common UI Layout")
 	TArray<FCommonUILayoutWidgetUnallowed> UnallowedWidgets;
 
+private:
+#if WITH_EDITOR
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+#endif // WITH_EDITOR
 };

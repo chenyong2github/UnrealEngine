@@ -81,9 +81,17 @@ protected:
 	/** Children info. */
 	FCommonUILayoutPanelInfo Info;
 
+	/** Offset applied to the widget after the constraint is resolved. */
+	UPROPERTY(EditAnywhere, Category = "Dynamic HUD", meta = (editcondition = "bUseOffset"))
+	FVector2D Offset = FVector2D::ZeroVector;
+
 	/** Constraints applied instead of the class defined constraint when the override flag is set and the associated condition is met. */
 	UPROPERTY(EditDefaultsOnly, Category = "Dynamic HUD|Override", Instanced, meta = (editcondition = "bUseOverride"))
 	TObjectPtr<UCommonUILayoutConstraintOverrideBase> ConstraintOverride;
+
+	/** Flag used to activate the offset variable. */
+	UPROPERTY(EditAnywhere, Category = "Dynamic HUD", meta = (InlineEditConditionToggle))
+	uint8 bUseOffset : 1;
 
 	/** Flag used to set a potential override of the current constraint. */
 	UPROPERTY(EditAnywhere, Category = "Dynamic HUD|Override", meta = (InlineEditConditionToggle))
@@ -129,6 +137,20 @@ protected:
 	ECommonUILayoutAnchor Anchor = ECommonUILayoutAnchor::TopLeft;
 };
 
+USTRUCT()
+struct FCommonUILayoutConstraintWidgetFallback
+{
+	GENERATED_BODY()
+
+	/** Fallback widget to attach to. */
+	UPROPERTY(EditDefaultsOnly, Category = "Dynamic HUD")
+	TSoftClassPtr<UUserWidget> TargetWidget;
+
+	/** Optional unique ID of the fallback widget to attach to. */
+	UPROPERTY(EditDefaultsOnly, Category = "Dynamic HUD")
+	FName TargetUniqueID;
+};
+
 UCLASS(MinimalAPI, meta = (DisplayName = "Widget"))
 class UCommonUILayoutConstraintWidget : public UCommonUILayoutConstraintBase
 {
@@ -153,89 +175,16 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Dynamic HUD")
 	ECommonUILayoutAnchor TargetAnchor = ECommonUILayoutAnchor::TopLeft;
 
-	/** Strength of this constraint. The higher the strength, the more likely the solver will fulfill it. WARNING: Required constraints could make the solver unable to find a solution! */
-	UPROPERTY(EditDefaultsOnly, AdvancedDisplay, Category = "Dynamic HUD")
-	ECommonUILayoutStrength Strength = ECommonUILayoutStrength::Strong;
-};
+	/** Fallback targets when the primary target is not found. These will be evaluated in order until a valid target is found. */
+	UPROPERTY(EditDefaultsOnly, Category = "Dynamic HUD", meta = (editcondition = "bUseFallbacks"))
+	TArray<FCommonUILayoutConstraintWidgetFallback> Fallbacks;
 
-UCLASS(MinimalAPI, meta = (DisplayName = "Comparison"))
-class UCommonUILayoutConstraintComparison : public UCommonUILayoutConstraintBase
-{
-	GENERATED_BODY()
-
-protected:
-	virtual void AddConstraints_Internal(kiwi::Solver& Solver, const TMap<FCommonUILayoutPanelInfo, FCommonUILayoutPanelSlot*>& Children, const FVector2D& AllottedGeometrySize) const override;
-
-	/** Which side of the source widget is used in this equation. */
-	UPROPERTY(EditDefaultsOnly, Category = "Dynamic HUD")
-	ECommonUILayoutSide Side = ECommonUILayoutSide::Top;
-
-	/** Offset for the source widget side. */
-	UPROPERTY(EditDefaultsOnly, Category = "Dynamic HUD")
-	float Offset = 0.0f;
-
-	/** Comparison of this equation. */
-	UPROPERTY(EditDefaultsOnly, Category = "Dynamic HUD")
-	ECommonUILayoutComparison Comparison = ECommonUILayoutComparison::Equal;
-
-	/** Target widget of this constraint. */
-	UPROPERTY(EditDefaultsOnly, Category = "Dynamic HUD")
-	TSoftClassPtr<UUserWidget> TargetWidget;
-
-	/** Optional unique ID of the widget to attach to. */
-	UPROPERTY(EditDefaultsOnly, Category = "Dynamic HUD")
-	FName TargetUniqueID;
-
-	/** Which side of target widget is used in this equation. */
-	UPROPERTY(EditDefaultsOnly, Category = "Dynamic HUD")
-	ECommonUILayoutSide TargetSide = ECommonUILayoutSide::Top;
-
-	/** Offset for the target widget side. */
-	UPROPERTY(EditDefaultsOnly, Category = "Dynamic HUD")
-	float TargetOffset = 0.0f;
+	/** Flag used to activate the fallbacks variable. */
+	UPROPERTY(EditAnywhere, Category = "Dynamic HUD", meta = (InlineEditConditionToggle))
+	uint8 bUseFallbacks : 1;
 
 	/** Strength of this constraint. The higher the strength, the more likely the solver will fulfill it. WARNING: Required constraints could make the solver unable to find a solution! */
-	UPROPERTY(EditDefaultsOnly, AdvancedDisplay, Category = "Dynamic HUD")
-	ECommonUILayoutStrength Strength = ECommonUILayoutStrength::Strong;
-};
-
-UCLASS(MinimalAPI, meta = (DisplayName = "Equation"))
-class UCommonUILayoutConstraintEquation : public UCommonUILayoutConstraintBase
-{
-	GENERATED_BODY()
-
-protected:
-	virtual void AddConstraints_Internal(kiwi::Solver& Solver, const TMap<FCommonUILayoutPanelInfo, FCommonUILayoutPanelSlot*>& Children, const FVector2D& AllottedGeometrySize) const override;
-
-	/** Which side of the source widget is used in this equation. */
-	UPROPERTY(EditDefaultsOnly, Category = "Dynamic HUD")
-	ECommonUILayoutSide Side = ECommonUILayoutSide::Top;
-
-	/** Operator of this equation. */
-	UPROPERTY(EditDefaultsOnly, Category = "Dynamic HUD")
-	ECommonUILayoutOperator Operator;
-
-	/** Target widget of this constraint. */
-	UPROPERTY(EditDefaultsOnly, Category = "Dynamic HUD")
-	TSoftClassPtr<UUserWidget> TargetWidget;
-
-	/** Optional unique ID of the widget to attach to. */
-	UPROPERTY(EditDefaultsOnly, Category = "Dynamic HUD")
-	FName TargetUniqueID;
-
-	/** Which side of target widget is used in this equation. */
-	UPROPERTY(EditDefaultsOnly, Category = "Dynamic HUD")
-	ECommonUILayoutSide TargetSide = ECommonUILayoutSide::Top;
-
-	/** Comparison of this equation. */
-	UPROPERTY(EditDefaultsOnly, Category = "Dynamic HUD")
-	ECommonUILayoutComparison Comparison = ECommonUILayoutComparison::Equal;
-
-	/** Result of the equation. */
-	UPROPERTY(EditDefaultsOnly, Category = "Dynamic HUD")
-	float Result = 0.0f;
-
-	/** Strength of this constraint. The higher the strength, the more likely the solver will fulfill it. WARNING: Required constraints could make the solver unable to find a solution! */
-	UPROPERTY(EditDefaultsOnly, AdvancedDisplay, Category = "Dynamic HUD")
+	// FIXME: This variable is hard to understand and never used. Hiding for now.
+	//UPROPERTY(EditDefaultsOnly, AdvancedDisplay, Category = "Dynamic HUD")
 	ECommonUILayoutStrength Strength = ECommonUILayoutStrength::Strong;
 };

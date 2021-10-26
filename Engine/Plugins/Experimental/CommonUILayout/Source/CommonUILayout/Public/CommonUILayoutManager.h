@@ -16,13 +16,15 @@
 
 class SScaleBox;
 struct FStreamableHandle;
+class ULocalPlayer;
 
+/** Context data that act as a key to lock a scene removal to your system. */
 USTRUCT()
 struct FCommonUILayoutContextData
 {
 	GENERATED_BODY()
 
-	/** List of contexts associated with that scene has unique keys. */
+	/** List of contexts associated with a layout to prevent others from removing it. */
 	UPROPERTY(Transient)
 	TArray<TWeakObjectPtr<const UObject>> Contexts;
 };
@@ -46,7 +48,7 @@ struct FCommonUILayoutPreloadData
  * can be visible.
  */
 UCLASS()
-class UCommonUILayoutManager : public UWorldSubsystem
+class COMMONUILAYOUT_API UCommonUILayoutManager : public UWorldSubsystem
 {
 	GENERATED_BODY()
 	
@@ -55,33 +57,35 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
-	COMMONUILAYOUT_API static UCommonUILayoutManager* GetInstance(const UWorld* World);
+	 static UCommonUILayoutManager* GetInstance(const UWorld* World);
 
 	// Set the HUD scale applied to ALL children.
-	COMMONUILAYOUT_API void SetHUDScale(const float InHUDScale);
+	void SetHUDScale(const float InHUDScale, ULocalPlayer* Player);
 
 	// Use to trigger a refresh of the layout in case scenes were added before the layout widget was created,
 	// preventing the manager from creating the layout panel.
-	COMMONUILAYOUT_API void NotifyLayoutAddedToViewport();
+	void NotifyLayoutAddedToViewport();
 
 	// Add scenes to the active list and trigger a recalculation of the allowed & unallowed widgets.
-	COMMONUILAYOUT_API void Add(const UCommonUILayout* Layout, const UObject* OptionalContext = nullptr);
-	COMMONUILAYOUT_API void Add(const TArray<UCommonUILayout*> Layouts, const UObject* OptionalContext = nullptr);
+	void Add(const UCommonUILayout* Layout, const UObject* OptionalContext = nullptr);
+	void Add(const TArray<UCommonUILayout*> Layouts, const UObject* OptionalContext = nullptr);
 
 	// Remove scenes from the active list.
-	COMMONUILAYOUT_API void Remove(const UCommonUILayout* Layout, const UObject* OptionalContext = nullptr);
-	COMMONUILAYOUT_API void Remove(const TArray<UCommonUILayout*> Layouts, const UObject* OptionalContext = nullptr);
+	void Remove(const UCommonUILayout* Layout, const UObject* OptionalContext = nullptr);
+	void Remove(const TArray<UCommonUILayout*> Layouts, const UObject* OptionalContext = nullptr);
 
 	// Get the unique id associated to a user widget.
-	COMMONUILAYOUT_API FName GetUniqueIDForWidget(UUserWidget* Widget) const;
+	FName GetUniqueIDForWidget(const ULocalPlayer* Player, UUserWidget* Widget) const;
 
 	// Get the instantiated user widget matching class and unique id.
-	COMMONUILAYOUT_API TWeakObjectPtr<UUserWidget> FindUserWidgetWithUniqueID(const TSoftClassPtr<UUserWidget>& WidgetClass, const FName& UniqueID) const;
+	TWeakObjectPtr<UUserWidget> FindUserWidgetWithUniqueID(const ULocalPlayer* Player, const TSoftClassPtr<UUserWidget>& WidgetClass, const FName& UniqueID) const;
 
-	COMMONUILAYOUT_API void AddLayoutToPreloadQueue(const UCommonUILayout* Layout, const UObject* OptionalContext = nullptr);
-	COMMONUILAYOUT_API void RemoveLayoutFromPreloadQueue(const UCommonUILayout* Layout, const UObject* OptionalContext = nullptr);
-	COMMONUILAYOUT_API void ClearPreloadQueue();
-	COMMONUILAYOUT_API bool IsLayoutPreloaded(const UCommonUILayout* Layout, const UObject* OptionalContext = nullptr);
+	bool TryGetLayoutPanelPaintGeometry(const ULocalPlayer* Player, FGeometry& OutPaintGeometry);
+
+	void AddLayoutToPreloadQueue(const UCommonUILayout* Layout, const UObject* OptionalContext = nullptr);
+	void RemoveLayoutFromPreloadQueue(const UCommonUILayout* Layout, const UObject* OptionalContext = nullptr);
+	void ClearPreloadQueue();
+	bool IsLayoutPreloaded(const UCommonUILayout* Layout, const UObject* OptionalContext = nullptr);
 
 protected:
 	
@@ -105,35 +109,46 @@ protected:
 
 private:
 	
-	void CreateRootPanel();
-	void DestroyRootLayout();
-
-	void ApplyHUDScale();
+	void OnLocalPlayerAdded(ULocalPlayer* Player);
+	void OnLocalPlayerRemoved(ULocalPlayer* Player);
 
 	void Add_Internal(const UCommonUILayout* Scene, const UObject* Context);
 	void Remove_Internal(const UCommonUILayout* Scene, const UObject* Context);
 
 	void RefreshVisibility();
 
+	SCommonUILayoutPanel* GetLayoutPanel(const ULocalPlayer* Player) const;
+	SCommonUILayoutPanel& GetOrCreateLayoutPanel(ULocalPlayer* Player);
+
+private:
+	/** Root layout assigned to a player */
 	struct FRootLayoutData
 	{
-		/** Root overlay widget to contain the layout panel and make sure it stretched across the whole screen. */
-		TSharedPtr<SWidget> RootPanel;
+	public:
+		void CreateLayout();
+		void Reset();
 
-		/** Player used to add this root layout. */
+		void RefreshVisibility(const TMap<TObjectPtr<const UCommonUILayout>, FCommonUILayoutContextData>& InActiveLayouts);
+
+		void ApplyHUDScale();
+
+	public:
+		/** Player associated to this root layout. */
 		TWeakObjectPtr<ULocalPlayer> Player;
 
-		void Reset(const UWorld* World);
-	} RootPanelData;
-	
-	/** Panel that is used to parent widgets that are added in layouts. */
-	TSharedPtr<SCommonUILayoutPanel> LayoutPanel;
+		/** Root overlay widget to contain the layout panel and make sure it stretched across the whole screen. */
+		TSharedPtr<SWidget> RootLayout;
 
-	/** Scale box used to apply the HUD scale UI settings. */
-	TSharedPtr<SScaleBox> ScaleBox;
+		/** Panel that is used to parent every widgets that are allowed. */
+		TSharedPtr<SCommonUILayoutPanel> LayoutPanel;
 
-	/** Scale applied to the scale box which is parent to ALL children. */
-	float HUDScale = 1.0f;
+		/** Scale box used to apply the HUD scale UI settings. */
+		TSharedPtr<SScaleBox> ScaleBox;
+
+		/** Scale applied to the scale box which is parent to ALL children. */
+		float HUDScale = 1.0f;
+	};
+	TMap<TWeakObjectPtr<const ULocalPlayer>, FRootLayoutData> RootLayoutMap;
 	
 	/** List of active layouts. (Key = Layout pointer, Value = Context UObject)
 	The context UObject is used as a unique key in the remove functions to prevent another
@@ -146,4 +161,12 @@ private:
 	UPROPERTY(Transient)
 	TMap<const UCommonUILayout*, FCommonUILayoutPreloadData> PreloadLayouts;
 	FCriticalSection PreloadLayoutsCriticalSection;
+
+public:
+	// Debugging functions
+#if !UE_BUILD_SHIPPING
+	static void DEBUG_RefreshVisibility();
+	static void DEBUG_ListCurrentState();
+#endif
+
 };
