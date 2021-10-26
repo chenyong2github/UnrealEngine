@@ -2035,10 +2035,11 @@ bool FHttpDerivedDataBackend::AcquireAccessToken()
 		FHttpRequest Request(*AuthDomain, nullptr, false);
 
 		// If contents of the secret string is a file path, resolve and read form data.
-		if (OAuthSecret.StartsWith(TEXT("\\\\")))
+		if (OAuthSecret.StartsWith(TEXT("file://")))
 		{
+			FString FilePath = OAuthSecret.Mid(7, OAuthSecret.Len() - 7);
 			FString SecretFileContents;
-			if (FFileHelper::LoadFileToString(SecretFileContents, *OAuthSecret))
+			if (FFileHelper::LoadFileToString(SecretFileContents, *FilePath))
 			{
 				// Overwrite the filepath with the actual content.
 				OAuthSecret = SecretFileContents;
