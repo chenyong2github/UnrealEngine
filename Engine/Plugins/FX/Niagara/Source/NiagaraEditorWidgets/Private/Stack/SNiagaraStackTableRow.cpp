@@ -44,7 +44,7 @@ void SNiagaraStackTableRow::Construct(const FArguments& InArgs, UNiagaraStackVie
 	ForegroundColor = InArgs._ItemForegroundColor;
 	IndicatorColor = InArgs._IndicatorColor;
 
-	ExecutionCategoryToolTipText = InStackEntry->GetExecutionSubcategoryName() != NAME_None
+	ExecutionCategoryToolTipText = (InStackEntry->GetExecutionSubcategoryName() != NAME_None)
 		? FText::Format(LOCTEXT("ExecutionCategoryToolTipFormat", "{0} - {1}"), FText::FromName(InStackEntry->GetExecutionCategoryName()), FText::FromName(InStackEntry->GetExecutionSubcategoryName()))
 		: FText::FromName(InStackEntry->GetExecutionCategoryName());
 
