@@ -3,6 +3,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Data;
 using System.Collections.Generic;
 using MySql.Data.MySqlClient;
 using AutomationTool;
@@ -30,6 +31,12 @@ namespace Gauntlet
 		/// <param name="Context"></param>
 		/// <returns></returns>
 		bool SubmitDataItems(IEnumerable<Data> DataItems, ITelemetryContext Context);
+		/// <summary>
+		/// Execute a Query through the database driver
+		/// </summary>
+		/// <param name="Query"></param>
+		/// <returns></returns>
+		DataSet ExecuteQuery(string Query);
 	}
 
 	/// <summary>
@@ -56,8 +63,11 @@ namespace Gauntlet
 		/// </summary>
 		IEnumerable<string> GetTableColumns();
 
+		/// <summary>
 		/// Format the data for target table based on data type
 		/// </summary>
+		/// <param name="InData">Data to format</param>
+		/// <param name="InContext">ITelemetryContext of the telemetry data</param>
 		/// <returns></returns>
 		IEnumerable<string> FormatDataForTable(Data InData, ITelemetryContext InContext);
 	}
@@ -84,25 +94,55 @@ namespace Gauntlet
 			return Config.GetConfigValue("Server");
 		}
 
-		public object Insert(string Table, IEnumerable<string> Columns, IEnumerable<IEnumerable<string>> Rows)
+		public DataSet ExecuteQuery(string SqlQuery)
 		{
-			string SqlQuery = string.Format(
-				"INSERT INTO `{0}`.{1} ({2}) VALUES {3}",
-				Config.DatabaseName, Table, string.Join(", ", Columns), string.Join(", ", Rows.Select(R => string.Format("({0})", string.Join(", ", R.Select(V => string.Format("'{0}'", V))))))
-			);
-			return MySqlHelper.ExecuteScalar(Config.ConfigString, SqlQuery);
+			return MySqlHelper.ExecuteDataset(Config.ConfigString, SqlQuery);
 		}
 
-		public bool SubmitDataItems(IEnumerable<Data> DataRows, ITelemetryContext TestContext)
+		public bool Insert(string Table, IEnumerable<string> Columns, IEnumerable<IEnumerable<string>> Rows)
+		{
+			foreach (var Chunk in ChunkIt(Rows))
+			{
+				string SqlQuery = string.Format(
+					"INSERT INTO `{0}`.{1} ({2}) VALUES {3}",
+					Config.DatabaseName, Table, string.Join(", ", Columns), string.Join(", ", Chunk.Select(R => string.Format("({0})", string.Join(", ", R.Select(V => string.Format("'{0}'", V))))))
+				);
+				if(MySqlHelper.ExecuteScalar(Config.ConfigString, SqlQuery) == null)
+				{
+					return false;
+				}
+			}
+			return true;
+		}
+
+		private IEnumerable<IEnumerable<T>> ChunkIt<T>(IEnumerable<T> ToChunk, int ChunkSize = 1000)
+		{
+			return ToChunk.Select((v, i) => new { Value = v, Index = i }).GroupBy(x => x.Index / ChunkSize).Select(g => g.Select(x => x.Value));
+		}
+
+		public bool SubmitDataItems(IEnumerable<Data> DataRows, ITelemetryContext Context)
 		{
 			if (Config is IMySQLConfig<Data> DataConfig)
 			{
-				object Value = Insert(
+				if(!PreSubmitQuery(DataRows, Context))
+				{
+					Log.Error("Fail MySQL '{0}' pre-submit query.", Config.GetType().FullName);
+					return false;
+				}
+
+				bool Success = Insert(
 					DataConfig.GetTableName(),
 					DataConfig.GetTableColumns(),
-					DataRows.Select(D => DataConfig.FormatDataForTable(D, TestContext))
+					DataRows.Select(D => DataConfig.FormatDataForTable(D, Context))
 				);
-				return Value != null;
+
+				if(Success && !PostSubmitQuery(DataRows, Context))
+				{
+					Log.Error("Fail MySQL '{0}' post-submit query.", Config.GetType().FullName);
+					return false;
+				}
+
+				return Success;
 			}
 			else
 			{
@@ -111,6 +151,16 @@ namespace Gauntlet
 
 			return false;
 		}
+
+		public virtual bool PreSubmitQuery(IEnumerable<Data> DataRows, ITelemetryContext Context)
+		{
+			return Config.PreSubmitQuery(this, DataRows, Context);
+		}
+		public virtual bool PostSubmitQuery(IEnumerable<Data> DataRows, ITelemetryContext Context)
+		{
+			return Config.PostSubmitQuery(this, DataRows, Context);
+		}
+
 	}
 
 	public abstract class MySQLConfig<Data> : IDatabaseConfig<Data>, IMySQLConfig<Data> where Data : class
@@ -186,6 +236,28 @@ namespace Gauntlet
 		}
 
 		/// <summary>
+		/// Override to add pre-submit query.
+		/// </summary>
+		/// <param name="Driver"></param>
+		/// <param name="DataRows"></param>
+		/// <param name="Context"></param>
+		/// <returns></returns>
+		public virtual bool PreSubmitQuery(IDatabaseDriver<Data> Driver, IEnumerable<Data> DataRows, ITelemetryContext Context)
+		{
+			return true;
+		}
+		/// <summary>
+		/// Override to add post-submit query.
+		/// </summary>
+		/// <param name="Driver"></param>
+		/// <param name="DataRows"></param>
+		/// <param name="Context"></param>
+		/// <returns></returns>
+		public virtual bool PostSubmitQuery(IDatabaseDriver<Data> Driver, IEnumerable<Data> DataRows, ITelemetryContext Context)
+		{
+			return true;
+		}
+		/// <summary>
 		/// Get Target Table name based on data type
 		/// </summary>
 		public abstract string GetTableName();
@@ -206,7 +278,7 @@ namespace Gauntlet
 		protected static IEnumerable<IDatabaseConfig<Data>> Configs;
 		static DatabaseConfigManager()
 		{
-			Configs = Gauntlet.Utils.InterfaceHelpers.FindImplementations<IDatabaseConfig<Data>>();
+			Configs = Gauntlet.Utils.InterfaceHelpers.FindImplementations<IDatabaseConfig<Data>>(true);
 		}
 		public static IDatabaseConfig<Data> GetConfigByName(string Name)
 		{
