@@ -1213,23 +1213,35 @@ uint32 FOnlineSessionEOS::CreateEOSSession(int32 HostingPlayerNum, FNamedOnlineS
 	}
 	Session->SessionInfo = MakeShareable(new FOnlineSessionInfoEOS(HostAddr, FUniqueNetIdEOS::EmptyId(), nullptr));
 
-	FUpdateSessionCallback* CallbackObj = new FUpdateSessionCallback();
-	CallbackObj->CallbackLambda = [this, Session](const EOS_Sessions_UpdateSessionCallbackInfo* Data)
-	{
-		bool bWasSuccessful = Data->ResultCode == EOS_EResult::EOS_Success || Data->ResultCode == EOS_EResult::EOS_Sessions_OutOfSync;
-		if (bWasSuccessful)
-		{
-			Session->SessionState = EOnlineSessionState::Pending;
-			BeginSessionAnalytics(Session);
+	FName SessionName = Session->SessionName;
 
-			RegisterLocalPlayers(Session);
-		}
-		else
+	FUpdateSessionCallback* CallbackObj = new FUpdateSessionCallback();
+	CallbackObj->CallbackLambda = [this, SessionName](const EOS_Sessions_UpdateSessionCallbackInfo* Data)
+	{
+		bool bWasSuccessful = false;
+
+		FNamedOnlineSession* Session = GetNamedSession(SessionName);
+		if (Session)
 		{
-			Session->SessionState = EOnlineSessionState::NoSession;
-			UE_LOG_ONLINE_SESSION(Error, TEXT("EOS_Sessions_UpdateSession() failed with EOS result code (%s)"), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+			bWasSuccessful = Data->ResultCode == EOS_EResult::EOS_Success || Data->ResultCode == EOS_EResult::EOS_Sessions_OutOfSync;
+			if (bWasSuccessful)
+			{
+				Session->SessionState = EOnlineSessionState::Pending;
+				BeginSessionAnalytics(Session);
+
+				RegisterLocalPlayers(Session);
+			}
+			else
+			{
+				UE_LOG_ONLINE_SESSION(Error, TEXT("EOS_Sessions_UpdateSession() failed with EOS result code (%s)"), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+
+				Session->SessionState = EOnlineSessionState::NoSession;
+
+				RemoveNamedSession(SessionName);
+			}
 		}
-		TriggerOnCreateSessionCompleteDelegates(Session->SessionName, bWasSuccessful);
+
+		TriggerOnCreateSessionCompleteDelegates(SessionName, bWasSuccessful);
 	};
 
 	return SharedSessionUpdate(SessionModHandle, Session, CallbackObj);
@@ -2259,19 +2271,32 @@ uint32 FOnlineSessionEOS::JoinEOSSession(int32 PlayerNum, FNamedOnlineSession* S
 
 	Session->SessionState = EOnlineSessionState::Pending;
 
+	FName SessionName = Session->SessionName;
+
 	FJoinSessionCallback* CallbackObj = new FJoinSessionCallback();
-	CallbackObj->CallbackLambda = [this, Session](const EOS_Sessions_JoinSessionCallbackInfo* Data)
+	CallbackObj->CallbackLambda = [this, SessionName](const EOS_Sessions_JoinSessionCallbackInfo* Data)
 	{
-		bool bWasSuccessful = Data->ResultCode == EOS_EResult::EOS_Success;
-		if (bWasSuccessful)
+		bool bWasSuccessful = false;
+
+		FNamedOnlineSession* Session = GetNamedSession(SessionName);
+		if (Session)
 		{
-			BeginSessionAnalytics(Session);
+			bWasSuccessful = Data->ResultCode == EOS_EResult::EOS_Success;
+			if (bWasSuccessful)
+			{
+				BeginSessionAnalytics(Session);
+			}
+			else
+			{
+				UE_LOG_ONLINE_SESSION(Error, TEXT("EOS_Sessions_JoinSession() failed for session (%s) with EOS result code (%s)"), *SessionName.ToString(), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+
+				Session->SessionState = EOnlineSessionState::NoSession;
+
+				RemoveNamedSession(SessionName);
+			}
 		}
-		else
-		{
-			UE_LOG_ONLINE_SESSION(Error, TEXT("EOS_Sessions_JoinSession() failed for session (%s) with EOS result code (%s)"), *Session->SessionName.ToString(), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
-		}
-		TriggerOnJoinSessionCompleteDelegates(Session->SessionName, bWasSuccessful ? EOnJoinSessionCompleteResult::Success : EOnJoinSessionCompleteResult::UnknownError);
+
+		TriggerOnJoinSessionCompleteDelegates(SessionName, bWasSuccessful ? EOnJoinSessionCompleteResult::Success : EOnJoinSessionCompleteResult::UnknownError);
 	};
 
 	FJoinSessionOptions Options(TCHAR_TO_UTF8(*Session->SessionName.ToString()));
@@ -3313,9 +3338,13 @@ uint32 FOnlineSessionEOS::JoinLobbySession(int32 PlayerNum, FNamedOnlineSession*
 					else
 					{
 						UE_LOG_ONLINE_SESSION(Warning, TEXT("[FOnlineSessionEOS::JoinLobbySession] JoinLobby not successful. Finished with EOS_EResult %s"), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+
+						Session->SessionState = EOnlineSessionState::NoSession;
+
+						RemoveNamedSession(SessionName);
 					}
 
-					TriggerOnJoinSessionCompleteDelegates(Session->SessionName, bWasSuccessful ? EOnJoinSessionCompleteResult::Success : EOnJoinSessionCompleteResult::UnknownError);
+					TriggerOnJoinSessionCompleteDelegates(SessionName, bWasSuccessful ? EOnJoinSessionCompleteResult::Success : EOnJoinSessionCompleteResult::UnknownError);
 
 					// Now that we have joined one of the sessions we found on the search, we can clear the results
 					for (TPair<FString, TSharedRef<EOS_HLobbyDetails>> LobbySearchResult : LobbySearchResultsCache)
