@@ -5,6 +5,7 @@
 #include "Widgets/TakeRecorderWidgetConstants.h"
 #include "Widgets/SLevelSequenceTakeEditor.h"
 #include "Recorder/TakeRecorder.h"
+#include "Recorder/TakeRecorderBlueprintLibrary.h"
 #include "ScopedSequencerPanel.h"
 #include "ITakeRecorderModule.h"
 #include "TakesCoreBlueprintLibrary.h"
@@ -73,6 +74,7 @@ STakeRecorderPanel::~STakeRecorderPanel()
 	ITakeRecorderModule& TakeRecorderModule = FModuleManager::Get().LoadModuleChecked<ITakeRecorderModule>("TakeRecorder");
 	TakeRecorderModule.OnForceSaveAsPreset().Unbind();
 	TakeRecorderModule.GetExternalObjectAddRemoveEventDelegate().Remove(OnWidgetExternalObjectChangedHandle);
+	UTakeRecorderBlueprintLibrary::SetTakeRecorderPanel(nullptr);
 }
 
 PRAGMA_DISABLE_OPTIMIZATION
