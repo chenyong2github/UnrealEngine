@@ -212,6 +212,12 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 
 						FWorldPartitionHelpers::DoCollectGarbage();
 					}
+
+					// When running with -AllowCommandletRendering we want to simulate an engine tick
+					if (IsAllowCommandletRendering())
+					{
+						FWorldPartitionHelpers::FakeEngineTick(World);
+					}
 				}
 			}
 		}

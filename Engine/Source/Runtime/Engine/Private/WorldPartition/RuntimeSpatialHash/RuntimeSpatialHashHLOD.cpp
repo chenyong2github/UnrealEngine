@@ -106,26 +106,7 @@ static void GameTick(UWorld* InWorld)
 	// When running with -AllowCommandletRendering we want to flush
 	if (((++TickRendering % FlushRenderingFrequency) == 0) && IsAllowCommandletRendering())
 	{
-		if (FSceneInterface* Scene = InWorld->Scene)
-		{
-			// BeingFrame/EndFrame (taken from FEngineLoop)
-			uint64 CurrentFrameCounter = GFrameCounter;
-
-			ENQUEUE_RENDER_COMMAND(BeginFrame)([CurrentFrameCounter](FRHICommandListImmediate& RHICmdList)
-			{ 
-				GFrameNumberRenderThread++;
-				RHICmdList.BeginFrame();
-				FCoreDelegates::OnBeginFrameRT.Broadcast(); 
-			});
-
-			ENQUEUE_RENDER_COMMAND(EndFrame)([CurrentFrameCounter](FRHICommandListImmediate& RHICmdList)
-			{
-				FCoreDelegates::OnEndFrameRT.Broadcast();
-				RHICmdList.EndFrame(); 
-			});
-
-			FlushRenderingCommands();
-		}
+		FWorldPartitionHelpers::FakeEngineTick(InWorld);
 	}
 }
 

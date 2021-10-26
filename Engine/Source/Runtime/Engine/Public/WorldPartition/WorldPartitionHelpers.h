@@ -6,6 +6,7 @@
 
 #if WITH_EDITOR
 
+class UWorld;
 class UWorldPartition;
 class FWorldPartitionActorDesc;
 
@@ -37,6 +38,9 @@ public:
 
 	static bool HasExceededMaxMemory();
 	static void DoCollectGarbage();
+
+	// Simulate an engine frame tick
+	static void FakeEngineTick(UWorld* World);
 };
 
 #endif // WITH_EDITOR
