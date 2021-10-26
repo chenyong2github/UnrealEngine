@@ -81,8 +81,13 @@ namespace HordeServer.Api
 	/// <summary>
 	/// Trace of a set of node failures across multiple steps
 	/// </summary>
-	public class GetIssueNodeResponse
+	public class GetIssueSpanResponse
 	{
+		/// <summary>
+		/// Unique id of this span
+		/// </summary>
+		public string Id { get; set; }
+
 		/// <summary>
 		/// The template containing this step
 		/// </summary>
@@ -113,8 +118,9 @@ namespace HordeServer.Api
 		/// </summary>
 		/// <param name="Span">The node to construct from</param>
 		/// <param name="Steps">Failing steps for this span</param>
-		public GetIssueNodeResponse(IIssueSpan Span, List<IIssueStep> Steps)
+		public GetIssueSpanResponse(IIssueSpan Span, List<IIssueStep> Steps)
 		{
+			this.Id = Span.Id.ToString();
 			this.Name = Span.NodeName;
 			this.TemplateId = Span.TemplateRefId.ToString();
 			this.LastSuccess = (Span.LastSuccess != null) ? new GetIssueStepResponse(Span.LastSuccess) : null;
@@ -146,7 +152,7 @@ namespace HordeServer.Api
 		/// <summary>
 		/// Map of steps to (event signature id -> trace id)
 		/// </summary>
-		public List<GetIssueNodeResponse> Nodes { get; set; }
+		public List<GetIssueSpanResponse> Nodes { get; set; }
 
 		/// <summary>
 		/// Constructor
@@ -170,7 +176,7 @@ namespace HordeServer.Api
 				}
 			}
 
-			this.Nodes = Spans.ConvertAll(x => new GetIssueNodeResponse(x, Steps.Where(y => y.SpanId == x.Id).ToList()));
+			this.Nodes = Spans.ConvertAll(x => new GetIssueSpanResponse(x, Steps.Where(y => y.SpanId == x.Id).ToList()));
 		}
 	}
 
@@ -599,5 +605,15 @@ namespace HordeServer.Api
 		/// Whether the issue should be marked as resolved
 		/// </summary>
 		public bool? Resolved { get; set; }
+
+		/// <summary>
+		/// List of spans to add to this issue
+		/// </summary>
+		public List<string>? AddSpans { get; set; }
+
+		/// <summary>
+		/// List of spans to remove from this issue
+		/// </summary>
+		public List<string>? RemoveSpans { get; set; }
 	}
 }

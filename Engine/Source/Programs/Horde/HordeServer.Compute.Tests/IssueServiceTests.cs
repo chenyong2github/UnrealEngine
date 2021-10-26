@@ -1008,6 +1008,98 @@ namespace HordeServerTests
 			Assert.AreEqual("Missing copyright notice in ToolchainInfo.cs", Issue.Summary);
 		}
 
+
+		[TestMethod]
+		public async Task AddSpanToIssueTest()
+		{
+			// Create the first issue
+			IIssue IssueA;
+			IIssueSpan SpanA;
+			{
+				IJob Job = CreateJob(MainStreamId, 120, "Test Build", Graph);
+
+				string[] Lines =
+				{
+					@"  DatasmithDirectLink.cpp.obj : error LNK2019: unresolved external symbol ""enum DirectLink::ECommunicationStatus __cdecl DirectLink::ValidateCommunicationStatus(void)"" (?ValidateCommunicationStatus@DirectLink@@YA?AW4ECommunicationStatus@1@XZ) referenced in function ""public: static int __cdecl FDatasmithDirectLink::ValidateCommunicationSetup(void)"" (?ValidateCommunicationSetup@FDatasmithDirectLink@@SAHXZ)",
+				};
+				await ParseEventsAsync(Job, 0, 0, Lines);
+				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Failure);
+
+				List<IIssue> Issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, Issues.Count);
+
+				IssueA = Issues[0];
+				List<IIssueSpan> Spans = await IssueService.GetIssueSpansAsync(IssueA);
+				Assert.AreEqual(Spans.Count, 1);
+				SpanA = Spans[0];
+			}
+
+			// Create the second issue
+			IIssue IssueB;
+			IIssueSpan SpanB;
+			{
+				string[] Lines =
+				{
+					@"WARNING: Engine\Source\Programs\UnrealBuildTool\ProjectFiles\Rider\ToolchainInfo.cs: Missing copyright boilerplate"
+				};
+
+				IJob Job = CreateJob(MainStreamId, 120, "Test Build", Graph);
+				await ParseEventsAsync(Job, 0, 0, Lines);
+				await UpdateCompleteStep(Job, 0, 0, JobStepOutcome.Failure);
+
+				List<IIssue> Issues = await IssueService.FindIssuesAsync();
+				Issues.RemoveAll(x => x.Id == IssueA.Id);
+				Assert.AreEqual(1, Issues.Count);
+
+				IssueB = Issues[0];
+				List<IIssueSpan> Spans = await IssueService.GetIssueSpansAsync(IssueB);
+				Assert.AreEqual(1, Spans.Count);
+				SpanB = Spans[0];
+			}
+
+			// Add SpanB to IssueA
+			{
+				await IssueService.UpdateIssueAsync(IssueA.Id, AddSpanIds: new List<ObjectId> { SpanB.Id });
+
+				IIssue NewIssueA = (await IssueService.GetIssueAsync(IssueA.Id))!;
+				Assert.IsNull(NewIssueA.VerifiedAt);
+				Assert.IsNull(NewIssueA.ResolvedAt);
+				Assert.AreEqual(2, NewIssueA.Fingerprints.Count);
+				List<IIssueSpan> NewSpansA = await IssueService.GetIssueSpansAsync(NewIssueA!);
+				Assert.AreEqual(2, NewSpansA.Count);
+				Assert.AreEqual(NewIssueA.Id, NewSpansA[0].IssueId);
+				Assert.AreEqual(NewIssueA.Id, NewSpansA[1].IssueId);
+
+				IIssue NewIssueB = (await IssueService.GetIssueAsync(IssueB.Id))!;
+				Assert.IsNotNull(NewIssueB.VerifiedAt);
+				Assert.IsNotNull(NewIssueB.ResolvedAt);
+				Assert.AreEqual(0, NewIssueB.Fingerprints.Count);
+				List<IIssueSpan> NewSpansB = await IssueService.GetIssueSpansAsync(NewIssueB);
+				Assert.AreEqual(0, NewSpansB.Count);
+			}
+
+			// Add SpanA and SpanB to IssueB
+			{
+				await IssueService.UpdateIssueAsync(IssueB.Id, AddSpanIds: new List<ObjectId> { SpanA.Id, SpanB.Id });
+
+				IIssue NewIssueA = (await IssueService.GetIssueAsync(IssueA.Id))!;
+				Assert.IsNotNull(NewIssueA.VerifiedAt);
+				Assert.IsNotNull(NewIssueA.ResolvedAt);
+				Assert.AreEqual(0, NewIssueA.Fingerprints.Count);
+				List<IIssueSpan> NewSpansA = await IssueService.GetIssueSpansAsync(NewIssueA);
+				Assert.AreEqual(0, NewSpansA.Count);
+
+				IIssue NewIssueB = (await IssueService.GetIssueAsync(IssueB.Id))!;
+				Assert.IsNull(NewIssueB.VerifiedAt);
+				Assert.IsNull(NewIssueB.ResolvedAt);
+				Assert.AreEqual(2, NewIssueB.Fingerprints.Count);
+				List<IIssueSpan> NewSpansB = await IssueService.GetIssueSpansAsync(NewIssueB!);
+				Assert.AreEqual(2, NewSpansB.Count);
+				Assert.AreEqual(NewIssueB.Id, NewSpansB[0].IssueId);
+				Assert.AreEqual(NewIssueB.Id, NewSpansB[1].IssueId);
+			}
+		}
+
 		[TestMethod]
 		public async Task GauntletIssueTest()
 		{

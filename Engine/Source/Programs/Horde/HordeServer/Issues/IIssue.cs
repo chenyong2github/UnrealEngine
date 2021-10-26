@@ -148,6 +148,11 @@ namespace HordeServer.Models
 		public IReadOnlyList<IIssueStream> Streams { get; }
 
 		/// <summary>
+		/// Spans which should be excluded from this issue
+		/// </summary>
+		public List<ObjectId>? ExcludeSpans { get; }
+
+		/// <summary>
 		/// Update index for this instance
 		/// </summary>
 		public int UpdateIndex { get; }

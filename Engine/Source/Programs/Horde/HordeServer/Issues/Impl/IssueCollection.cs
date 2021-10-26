@@ -99,6 +99,9 @@ namespace HordeServer.Collections.Impl
 			[BsonElement("Suspects"), BsonIgnoreIfNull]
 			public List<IssueSuspect>? Suspects_DEPRECATED { get; set; }
 
+			[BsonIgnoreIfNull]
+			public List<ObjectId>? ExcludeSpans { get; set; }
+
 			public int UpdateIndex { get; set; }
 
 			bool IIssue.Promoted => Promoted ?? NotifySuspects_DEPRECATED;
@@ -775,7 +778,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IIssue?> TryUpdateIssueAsync(IIssue Issue, IssueSeverity? NewSeverity = null, string? NewSummary = null, string? NewUserSummary = null, string? NewDescription = null, bool? NewPromoted = null, UserId? NewOwnerId = null, UserId? NewNominatedById = null, bool? NewAcknowledged = null, UserId? NewDeclinedById = null, int? NewFixChange = null, UserId? NewResolvedById = null, DateTime? NewLastSeenAt = null)
+		public async Task<IIssue?> TryUpdateIssueAsync(IIssue Issue, IssueSeverity? NewSeverity = null, string? NewSummary = null, string? NewUserSummary = null, string? NewDescription = null, bool? NewPromoted = null, UserId? NewOwnerId = null, UserId? NewNominatedById = null, bool? NewAcknowledged = null, UserId? NewDeclinedById = null, int? NewFixChange = null, UserId? NewResolvedById = null, List<ObjectId>? NewExcludeSpanIds = null, DateTime? NewLastSeenAt = null)
 		{
 			Issue IssueDocument = (Issue)Issue;
 
@@ -889,6 +892,15 @@ namespace HordeServer.Collections.Impl
 						Updates.Add(Builders<Issue>.Update.Unset(x => x.ResolvedById!));
 					}
 				}
+			}
+			if (NewExcludeSpanIds != null)
+			{
+				List<ObjectId> NewCombinedExcludeSpanIds = NewExcludeSpanIds;
+				if (Issue.ExcludeSpans != null)
+				{
+					NewCombinedExcludeSpanIds = NewCombinedExcludeSpanIds.Union(Issue.ExcludeSpans).ToList();
+				}
+				Updates.Add(Builders<Issue>.Update.Set(x => x.ExcludeSpans, NewCombinedExcludeSpanIds));
 			}
 			if (NewLastSeenAt != null)
 			{
