@@ -4,7 +4,7 @@
     <TargetFramework>net5.0</TargetFramework>
     <Nullable>enable</Nullable>
     <Deterministic>true</Deterministic>
-    <AssemblyName>HordeServer</AssemblyName>
+    <AssemblyName>Horde.Build</AssemblyName>
     <DocumentationFile>HordeServer.xml</DocumentationFile>
     <ApplicationIcon>HordeServer.ico</ApplicationIcon>
   </PropertyGroup>
