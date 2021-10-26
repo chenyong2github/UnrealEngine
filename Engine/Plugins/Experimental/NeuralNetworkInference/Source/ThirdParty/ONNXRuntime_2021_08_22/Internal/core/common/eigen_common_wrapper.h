@@ -30,9 +30,7 @@
 #pragma warning(disable : 4127)
 #endif
 
-PRAGMA_DEFAULT_VISIBILITY_START // #ifdef WITH_UE
 #include "unsupported/Eigen/CXX11/Tensor"
-PRAGMA_DEFAULT_VISIBILITY_END // #endif //WITH_UE
 
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop
