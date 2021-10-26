@@ -334,7 +334,7 @@ const float tanh_bound = 10.0f;
 #define restrict __restrict__
 #elif defined(_MSC_VER)
 #define restrict __restrict
-#else
+#elif !defined(__PROSPERO__) // WITH_UE: "else" updated to !PROSPERO
 #define restrict
 #endif
 
