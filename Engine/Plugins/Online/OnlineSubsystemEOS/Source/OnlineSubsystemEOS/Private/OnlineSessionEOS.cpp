@@ -2033,7 +2033,7 @@ uint32 FOnlineSessionEOS::FindEOSSession(int32 SearchingPlayerNum, const TShared
 #if UE_BUILD_DEBUG
 		UE_LOG_ONLINE_SESSION(Log, TEXT("Adding search param named (%s), (%s)"), *Key.ToString(), *SearchParam.ToString());
 #endif
-		FString ParamName(TEXT("FOSS=") + Key.ToString());
+		FString ParamName(Key.ToString());
 		FAttributeOptions Attribute(TCHAR_TO_UTF8(*ParamName), SearchParam.Data);
 		AddSearchAttribute(SearchHandle, &Attribute, ToEOSSearchOp(SearchParam.ComparisonOp));
 	}
@@ -3432,24 +3432,14 @@ void FOnlineSessionEOS::SetLobbyAttributes(EOS_HLobbyModification LobbyModificat
 	check(Session != nullptr);
 
 	// The first will let us find it on session searches
-	const FString SearchPresence(TEXT("FOSS=") + SEARCH_PRESENCE.ToString());
+	const FString SearchPresence(SEARCH_PRESENCE.ToString());
 	const FLobbyAttributeOptions SearchPresenceAttribute(TCHAR_TO_UTF8(*SearchPresence), true);
 	AddLobbyAttribute(LobbyModificationHandle, &SearchPresenceAttribute);
 
 	// The second will let us find it on lobby searches
-	const FString SearchLobbies(TEXT("FOSS=") + SEARCH_LOBBIES.ToString());
+	const FString SearchLobbies(SEARCH_LOBBIES.ToString());
 	const FLobbyAttributeOptions SearchLobbiesAttribute(TCHAR_TO_UTF8(*SearchLobbies), true);
 	AddLobbyAttribute(LobbyModificationHandle, &SearchLobbiesAttribute);
-
-	// The second will let us find it on lobby searches
-	FString Keyword;
-	Session->SessionSettings.Get(SEARCH_KEYWORDS, Keyword);
-	if (!Keyword.IsEmpty())
-	{
-		const FString SearchKeywords(TEXT("FOSS=") + SEARCH_KEYWORDS.ToString());
-		const FLobbyAttributeOptions SearchKeywordsAttribute(TCHAR_TO_UTF8(*SearchKeywords), TCHAR_TO_UTF8(*Keyword));
-		AddLobbyAttribute(LobbyModificationHandle, &SearchKeywordsAttribute);
-	}
 
 	// We set the session's owner id and name
 	const FLobbyAttributeOptions OwnerId("OwningUserId", TCHAR_TO_UTF8(*Session->OwningUserId->ToString()));
@@ -3736,7 +3726,7 @@ uint32 FOnlineSessionEOS::FindLobbySession(int32 SearchingPlayerNum, const TShar
 
 			UE_LOG_ONLINE_SESSION(VeryVerbose, TEXT("[FOnlineSessionEOS::FindLobbySession] Adding lobby search param named (%s), (%s)"), *Key.ToString(), *SearchParam.ToString());
 
-			FString ParamName(TEXT("FOSS=") + Key.ToString());
+			FString ParamName(Key.ToString());
 			FLobbyAttributeOptions Attribute(TCHAR_TO_UTF8(*ParamName), SearchParam.Data);
 			AddLobbySearchAttribute(LobbySearchHandle, &Attribute, ToEOSSearchOp(SearchParam.ComparisonOp));
 		}
