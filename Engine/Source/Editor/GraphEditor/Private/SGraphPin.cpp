@@ -818,7 +818,7 @@ void SGraphPin::Tick( const FGeometry& AllottedGeometry, const double InCurrentT
 
 UEdGraphPin* SGraphPin::GetPinObj() const
 {
-	ensureMsgf(!bGraphDataInvalid, TEXT("The Graph Pin Object has been invalidate. Someone is keeping a hard ref on the SGraphPin. See InvalidateGraphData for more info"));
+	ensureMsgf(!bGraphDataInvalid, TEXT("The Graph Pin Object has been invalidated. Someone is keeping a hard ref on the SGraphPin (%s). See InvalidateGraphData for more info"), *ToString());
 	return !bGraphDataInvalid ? GraphPinObj : nullptr;
 }
 

@@ -179,12 +179,15 @@ void FConnectionDrawingPolicy::SetMarkedPin(TWeakPtr<SGraphPin> InMarkedPin)
 	{
 		LastHoverTimeEvent = 0.0;
 
-		UEdGraphPin* MarkedPin = InMarkedPin.Pin()->GetPinObj();
-		HoveredPins.Add(MarkedPin);
-
-		for (auto LinkIt = MarkedPin->LinkedTo.CreateConstIterator(); LinkIt; ++LinkIt)
+		TSharedPtr<SGraphPin> MarkedPinWidget = InMarkedPin.Pin();
+		if(UEdGraphPin* MarkedPin = MarkedPinWidget->GetPinObj())
 		{
-			HoveredPins.Add(*LinkIt);
+			HoveredPins.Add(MarkedPin);
+
+			for (auto LinkIt = MarkedPin->LinkedTo.CreateConstIterator(); LinkIt; ++LinkIt)
+			{
+				HoveredPins.Add(*LinkIt);
+			}
 		}
 	}
 }

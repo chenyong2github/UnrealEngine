@@ -1608,12 +1608,24 @@ void SGraphNode::RefreshErrorInfo()
 
 void SGraphNode::InvalidateGraphData()
 {
-	for (TSharedRef<SGraphPin>& Pin : InputPins)
+	TSharedPtr<SGraphPanel> OwnerGraphPanel = OwnerGraphPanelPtr.Pin();
+	auto InvalidateGraphPinDataLambda = [&OwnerGraphPanel](TSharedRef<SGraphPin>& Pin)
 	{
 		Pin->InvalidateGraphData();
+
+		// Ensure that the graph panel's current marked pin reference is cleared if it equates to one of the pins being invalidated.
+		if (OwnerGraphPanel.IsValid() && OwnerGraphPanel->MarkedPin.IsValid() && OwnerGraphPanel->MarkedPin.HasSameObject(&Pin.Get()))
+		{
+			OwnerGraphPanel->MarkedPin.Reset();
+		}
+	};
+
+	for (TSharedRef<SGraphPin>& Pin : InputPins)
+	{
+		InvalidateGraphPinDataLambda(Pin);
 	}
 	for (TSharedRef<SGraphPin>& Pin : OutputPins)
 	{
-		Pin->InvalidateGraphData();
+		InvalidateGraphPinDataLambda(Pin);
 	}
 }
