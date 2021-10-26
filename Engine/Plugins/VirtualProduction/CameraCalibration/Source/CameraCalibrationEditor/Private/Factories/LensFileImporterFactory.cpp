@@ -3,6 +3,7 @@
 #include "LensFileImporterFactory.h"
 
 #include "CoreMinimal.h"
+#include "Editor.h"
 #include "EditorFramework/AssetImportData.h"
 #include "JsonObjectConverter.h"
 #include "LensFile.h"

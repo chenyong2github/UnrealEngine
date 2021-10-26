@@ -159,7 +159,7 @@ struct CAMERACALIBRATIONEDITOR_API FLensFileExchange
 
 	FLensFileExchange(const class ULensFile* LensFile = nullptr);
 
-	FLensFileExchange(const TSharedRef<FJsonObject>& InLensFileJson, bool& bOutIsValidJson, class FFeedbackContext* InWarn);
+	FLensFileExchange(const TSharedRef<class FJsonObject>& InLensFileJson, bool& bOutIsValidJson, class FFeedbackContext* InWarn);
 
 	bool PopulateLensFile(class ULensFile& LensFile) const;
 
